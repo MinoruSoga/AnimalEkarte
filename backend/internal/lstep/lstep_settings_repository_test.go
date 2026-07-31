@@ -15,6 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
+	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/testdb"
 )
@@ -140,6 +141,73 @@ func TestLstepSettingsRepository_FindByClinicAndService(t *testing.T) {
 		require.NoError(t, err)
 		assert.Empty(t, records)
 	})
+}
+
+func TestLstepSettingsRepository_FindCredentialByClinicServiceKey(t *testing.T) {
+	db := setupLstepSettingsTestDB(t)
+	repo := NewLstepSettingsRepository(db)
+	ctx := context.Background()
+
+	const clinicA, clinicB = uint64(71), uint64(72)
+	require.NoError(t, db.Create(&model.ClinicIntegration{
+		ClinicID: clinicA, Service: model.IntegrationServiceLstep,
+		KeyName: model.IntegrationKeyLineChannelSecret, KeyValue: "canonical-a-placeholder",
+	}).Error)
+	require.NoError(t, db.Create(&model.ClinicIntegration{
+		ClinicID: clinicA, Service: model.IntegrationServiceLstep,
+		KeyName: model.IntegrationKeyLstepAPIKey, KeyValue: "other-key-placeholder",
+	}).Error)
+	require.NoError(t, db.Create(&model.ClinicIntegration{
+		ClinicID: clinicB, Service: model.IntegrationServiceLstep,
+		KeyName: model.IntegrationKeyLineChannelSecret, KeyValue: "canonical-b-placeholder",
+	}).Error)
+
+	got, err := repo.FindCredentialByClinicServiceKey(
+		ctx,
+		clinicA,
+		model.IntegrationServiceLstep,
+		model.IntegrationKeyLineChannelSecret,
+	)
+	require.NoError(t, err)
+	require.NotNil(t, got)
+	assert.Equal(t, clinicA, got.ClinicID)
+	assert.Equal(t, model.IntegrationServiceLstep, got.Service)
+	assert.Equal(t, model.IntegrationKeyLineChannelSecret, got.KeyName)
+	assert.Equal(t, "canonical-a-placeholder", got.KeyValue)
+
+	_, err = repo.FindCredentialByClinicServiceKey(
+		ctx,
+		clinicA,
+		model.IntegrationServiceLstep,
+		"missing-key",
+	)
+	require.Error(t, err)
+	assert.True(t, apperrors.IsNotFound(err))
+}
+
+func TestLstepSettingsRepository_FindCredentialByClinicServiceKey_ForeignOnlyMatchIsNotFound(t *testing.T) {
+	db := setupLstepSettingsTestDB(t)
+	repo := NewLstepSettingsRepository(db)
+	ctx := context.Background()
+
+	const clinicA, clinicB = uint64(81), uint64(82)
+	require.NoError(t, db.Create(&model.ClinicIntegration{
+		ClinicID: clinicB,
+		Service:  model.IntegrationServiceLstep,
+		KeyName:  model.IntegrationKeyLineChannelSecret,
+		KeyValue: "foreign-only-placeholder",
+	}).Error)
+
+	got, err := repo.FindCredentialByClinicServiceKey(
+		ctx,
+		clinicA,
+		model.IntegrationServiceLstep,
+		model.IntegrationKeyLineChannelSecret,
+	)
+
+	require.Error(t, err)
+	assert.True(t, apperrors.IsNotFound(err))
+	assert.Nil(t, got)
 }
 
 func TestLstepSettingsRepository_DeleteByClinicAndService(t *testing.T) {

@@ -21,9 +21,9 @@
 | ARCH-R2 | empty-diff COMPLETE 規律 | **ops-only**（継続） |
 | ARCH-R3 | land 時 foreign 定義は `git status` 実測 | **ops note** + TASK-004 |
 | POST-PULL | migrations 適用 | **ops-only** ≡ **SPEC-TOP-MIGRATE-006**（USER `make migrate`） |
-| SPEC-TOP-LINE-AUDIT | `docs/spec/line/**` deep 監査 | **TASK-019 done** + **PO FINAL**（R-01/R-05 binding; R-06/R-07 child close + parent follow-up 実装中） |
+| SPEC-TOP-LINE-AUDIT | `docs/spec/line/**` deep 監査 | **TASK-019 done** + **PO FINAL**（R-01 docs/test + R-06/R-07 parent RBAC landed `a1abd4db8`; R-05 Phase A scoped-green / rollout HOLD） |
 | SPEC-TOP-E2E-RUNTIME-84 | Playwright runtime 84 | **TASK-020**（env-forward done・runtime credentials BLOCKED） |
-| SPEC-TOP-CAPABILITIES-CRUD | exclusion 面の破壊削除 | **TASK-021 Stage A**（Phase1 done; **Phase2 start approved**; CLEAN-GO/DROP HOLD） |
+| SPEC-TOP-CAPABILITIES-CRUD | exclusion 面の破壊削除 | **TASK-021 Stage A**（Phase1 done; **Phase2 slice1 complete**; external use UNREPORTED; CLEAN-GO/DROP HOLD） |
 | SPEC-TOP-CLAIM-RELEASE | claim 解放 | **SCEN-OPS-CLAIM-001** |
 
 ### 対応済み（削除済み・再掲しない）
@@ -47,12 +47,12 @@ TASK-001-BE/FE, TASK-002/003（WONTFIX + UI follow-up 実装済）, TASK-006/007
 4. **TASK-022 human residual** — S13 手動 correction + named signer + RLS runtime（agent source closeout 済）  
 5. **TASK-023 human residual** — E2E_LOGIN_* 注入・5フロー通し・DB/audit・LINE/LIFF・sign-off（agent 証跡骨格 済）  
 6. **TASK-024 human residual** — named documentation owner visual sign-off（agent 10/10 audit + FAQ 追記不要 済）  
-7. **TASK-021 Stage A 削除**（Phase1 FE residual: `reports/2026-07-31-task-021-phase1-consumer-prep.md` — BE/OpenAPI/seed/DB consumer 撤去後 + 破壊変更承認）
+7. **TASK-021 Stage A 削除**（Phase2 slice1: `reports/2026-07-31-task-021-phase2-slice1.md` — known FE positive contract / OpenAPI deprecation complete; external use UNREPORTED。以後も consumer 撤去 + 破壊変更承認が先）
 8. **TASK-004 / TASK-005**: 次の intentional land 時
 9. **LINE follow-up（PO FINAL 済）**: `reports/2026-07-31-line-residual-po-decisions-FINAL.md`
-   - High R-05 single-SoT cutover（`clinic_integrations`）
-   - High R-06/R-07 parent RBAC honesty（本 session で着手）
-   - Medium R-01 architecture summary + contract tests（本 session で着手）
+   - High R-05 single-SoT Phase A verifier cutover — scoped-green / rollout HOLD（`reports/2026-07-31-r05-single-sot-phase-a.md`）。Phase B の旧 read/write 撤去は open
+   - R-06/R-07 parent RBAC honesty — landed `a1abd4db8`（runtime-green 未主張）
+   - R-01 architecture summary + contract tests — landed `a1abd4db8`（runtime-green 未主張）
    - R-02/R-04/R-08 は ops のまま
 
 ---
@@ -93,7 +93,7 @@ TASK-001-BE/FE, TASK-002/003（WONTFIX + UI follow-up 実装済）, TASK-006/007
 - **根拠**: 初回記録 `reports/2026-07-31-task-019-line-audit.md`。
 - **修正方針**: deep pass で差分を docs/BUG/要PO/ops に振分。秘密・本番 webhook 操作は対象外。
 - **受け入れ条件**: deep 結果1回記録; 新規 open は ID 付きまたは残差なし。
-- **状態**: **done**（deep: `reports/2026-07-31-task-019-line-deep-audit.md`）。**PO FINAL**: `reports/2026-07-31-line-residual-po-decisions-FINAL.md`（`3d448ec5e`）。**R-01** binding B（code/tests SoT + architecture 要約）— follow-up docs/test。**R-05** binding A-CI（SoT=`clinic_integrations`）— High cutover 未実装。**R-06/R-07** original child residual close; parent-container / `/lstep` wrapper honesty follow-up。**R-02/R-04/R-08** ops、**R-03**→TASK-010。claim: `claim/LINE-R-FIX` / `claim/LINE-PO-R01-R05` / `claim/LINE-PARENT-RBAC`（USER 解放）。
+- **状態**: **done**（deep: `reports/2026-07-31-task-019-line-deep-audit.md`）。**PO FINAL**: `reports/2026-07-31-line-residual-po-decisions-FINAL.md`（`3d448ec5e`）。**R-01** binding B（code/tests SoT + architecture 要約）— docs/test landed `a1abd4db8`（runtime-green 未主張）。**R-05** binding A-CI（SoT=`clinic_integrations`）— Phase A verifier cutover scoped-green / rollout HOLD（`reports/2026-07-31-r05-single-sot-phase-a.md`）；Phase B 旧 read/write 撤去 open。**R-06/R-07** original child residual close; parent-container / `/lstep` wrapper honesty landed `a1abd4db8`（runtime-green 未主張）。**R-02/R-04/R-08** ops、**R-03**→TASK-010。claim: `claim/LINE-R-FIX` / `claim/LINE-PO-R01-R05` / `claim/LINE-PARENT-RBAC` / `claim/R-05-SOT`（USER 解放）。
 
 ### TASK-020: ui-design-compliance Playwright 再 runtime（84）（Low / 任意）
 
@@ -106,7 +106,7 @@ TASK-001-BE/FE, TASK-002/003（WONTFIX + UI follow-up 実装済）, TASK-006/007
 - **問題**: Stage B で facade 化済み。exclusion route/payload/model/table の最終撤去が残る。
 - **修正方針**: **consumer inventory + 破壊変更の明示承認後**に Stage A（FINAL 参照）。新 endpoint は追加しない。`available-staffs` は WONTFILE。
 - **受け入れ条件**: exclusion production surface 削除; migration あり; Stage B 互換 consumer が無いこと inventory で証明。
-- **状態**: **Phase1 FE residual SAFE-CLEANUP done / Phase2 START APPROVED / CLEAN-GO·DROP·migrate HOLD**。Stage B: `e9dddd921`。決裁: `reports/2026-07-31-todo-po-decisions-FINAL.md` + LINE residual FINAL（021 Phase2）。inventory: `reports/2026-07-31-task-021-stage-a-inventory.md`。Phase1: `reports/2026-07-31-task-021-phase1-consumer-prep.md`。Phase2 = §6.1–§6.3 consumer/BE/OpenAPI のみ。claim: `claim/TASK-021` + `claim/W-021-P1`（USER 解放）。
+- **状態**: **Phase1 FE residual SAFE-CLEANUP done / Phase2 slice1 COMPLETE / external use UNREPORTED / CLEAN-GO·DROP·migrate HOLD**。Stage B: `e9dddd921`。決裁: `reports/2026-07-31-todo-po-decisions-FINAL.md` + LINE residual FINAL（021 Phase2）。inventory: `reports/2026-07-31-task-021-stage-a-inventory.md`。Phase1: `reports/2026-07-31-task-021-phase1-consumer-prep.md`。Phase2 slice1: `reports/2026-07-31-task-021-phase2-slice1.md`（known FE positive projection + OpenAPI deprecation honesty；legacy route/field は保持）。次 slice も §6.1–§6.3 consumer/BE/OpenAPI のみで、外部利用 inventory と別の破壊変更承認までは CLEAN-GO/DROP/migrate を進めない。claim: `claim/TASK-021` + `claim/W-021-P1` + `claim/TASK-021-P2`（USER 解放）。
 
 ### TASK-022: #239 Phase 1 closeout と代表手動 correction gate（High）
 

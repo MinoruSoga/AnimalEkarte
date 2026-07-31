@@ -32,7 +32,7 @@ func TestLineReservationSettingRepository_FindAll(t *testing.T) {
 	assert.Contains(t, clinicIDs, clinicB)
 }
 
-func TestLineReservationSettingRepository_FindByLineBotUserID(t *testing.T) {
+func TestLineReservationSettingRepository_FindWebhookRouteByLineBotUserID(t *testing.T) {
 	db := setupLineSettingIsolationTestDB(t)
 	repo := NewLineReservationSettingRepository(db)
 	ctx := context.Background()
@@ -44,7 +44,10 @@ func TestLineReservationSettingRepository_FindByLineBotUserID(t *testing.T) {
 
 	a := makeLineReservationSetting(t, db, clinicA)
 	a.LineBotUserID = "bot-A"
-	require.NoError(t, db.WithContext(ctx).Model(a).Update("line_bot_user_id", "bot-A").Error)
+	require.NoError(t, db.WithContext(ctx).Model(a).Updates(map[string]any{
+		"line_bot_user_id":    "bot-A",
+		"line_channel_secret": "legacy-present-placeholder",
+	}).Error)
 
 	b := makeLineReservationSetting(t, db, clinicB)
 	b.LineBotUserID = "bot-B"
@@ -53,22 +56,28 @@ func TestLineReservationSettingRepository_FindByLineBotUserID(t *testing.T) {
 	// Unprovisioned clinic (empty bot user id) must never match empty lookup.
 	makeLineReservationSetting(t, db, 3)
 
-	t.Run("returns the matching clinic", func(t *testing.T) {
-		got, err := repo.FindByLineBotUserID(ctx, "bot-A")
+	t.Run("returns only matching clinic identity and legacy credential presence", func(t *testing.T) {
+		gotClinicID, legacyCredentialPresent, err := repo.FindWebhookRouteByLineBotUserID(ctx, "bot-A")
 		require.NoError(t, err)
-		require.NotNil(t, got)
-		assert.Equal(t, clinicA, got.ClinicID)
-		assert.Equal(t, "bot-A", got.LineBotUserID)
+		assert.Equal(t, clinicA, gotClinicID)
+		assert.True(t, legacyCredentialPresent)
+	})
+
+	t.Run("reports absence without returning any credential payload", func(t *testing.T) {
+		gotClinicID, legacyCredentialPresent, err := repo.FindWebhookRouteByLineBotUserID(ctx, "bot-B")
+		require.NoError(t, err)
+		assert.Equal(t, clinicB, gotClinicID)
+		assert.False(t, legacyCredentialPresent)
 	})
 
 	t.Run("unknown bot id is not found", func(t *testing.T) {
-		_, err := repo.FindByLineBotUserID(ctx, "bot-unknown")
+		_, _, err := repo.FindWebhookRouteByLineBotUserID(ctx, "bot-unknown")
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
 	})
 
 	t.Run("empty bot id is not found without matching unprovisioned rows", func(t *testing.T) {
-		_, err := repo.FindByLineBotUserID(ctx, "")
+		_, _, err := repo.FindWebhookRouteByLineBotUserID(ctx, "")
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
 	})

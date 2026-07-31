@@ -55,6 +55,13 @@ export interface ReservationStaff {
   capable_courses: ReservationStaffCourse[];
 }
 
+interface ReservationStaffWire {
+  id: number;
+  name: string;
+  is_active: boolean;
+  capable_courses?: ReservationStaffCourse[] | null;
+}
+
 // GET /v1/masters/reservation-types
 const fetchReservationTypesRaw = async (): Promise<ReservationTypeRaw[]> => {
   const { data } = await axios.get<ReservationTypeRaw[]>("/v1/masters/reservation-types");
@@ -74,13 +81,15 @@ export const getCurrentClinicId = (): string | null => {
 };
 
 const fetchReservationStaffs = async (clinicId: string): Promise<ReservationStaff[]> => {
-  const { data } = await axios.get<ReservationStaff[]>(
+  const { data } = await axios.get<ReservationStaffWire[]>(
     `/v1/clinics/${clinicId}/reservation-staffs`,
   );
-  // Normalize so missing capable_courses never fail-open as "all capable".
-  // Backend may still emit excluded_courses (Stage B facade); FE ignores it.
+  // Project only the positive contract so legacy wire fields cannot propagate.
+  // Missing capabilities stay fail-closed rather than meaning "all capable".
   return data.map((staff) => ({
-    ...staff,
+    id: staff.id,
+    name: staff.name,
+    is_active: staff.is_active,
     capable_courses: staff.capable_courses ?? [],
   }));
 };

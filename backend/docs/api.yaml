@@ -6543,6 +6543,7 @@ components:
           format: date-time
     StaffReservationExclusion:
       type: object
+      deprecated: true
       description: staff_reservation_exclusions schema
       properties:
         id:
@@ -8694,6 +8695,17 @@ components:
     # ─── ReservationStaff (TASK-RES-012/013 LINE予約スタッフ・スケジュール管理) ─
     ExcludedCourse:
       type: object
+      deprecated: true
+      description: 互換用の除外予約区分。新規 consumer は capable_courses を使用する。
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+    CapableCourse:
+      type: object
+      required: [id, name]
       properties:
         id:
           type: integer
@@ -8702,6 +8714,7 @@ components:
           type: string
     ReservationStaff:
       type: object
+      required: [capable_courses]
       properties:
         id:
           type: integer
@@ -8723,8 +8736,15 @@ components:
           type: string
         excluded_courses:
           type: array
+          deprecated: true
+          description: 互換用。新規 consumer は capable_courses を使用する。
           items:
             $ref: '#/components/schemas/ExcludedCourse'
+        capable_courses:
+          type: array
+          description: このスタッフが対応可能な予約区分。欠落時に対応可能とみなしてはならない。
+          items:
+            $ref: '#/components/schemas/CapableCourse'
         created_at:
           type: string
           format: date-time
@@ -8748,6 +8768,8 @@ components:
           type: integer
         excluded_type_ids:
           type: array
+          deprecated: true
+          description: 互換用。新規 consumer は capable-reservation-types API を使用する。
           items:
             type: integer
             format: int64
@@ -8772,6 +8794,8 @@ components:
           nullable: true
         excluded_type_ids:
           type: array
+          deprecated: true
+          description: 互換用。新規 consumer は capable-reservation-types API を使用する。
           items:
             type: integer
             format: int64
@@ -13871,8 +13895,10 @@ paths:
           $ref: '#/components/responses/InternalError'
   /masters/staffs/{id}/excluded-reservation-types:
     get:
+      deprecated: true
       operationId: getStaffExcludedReservationTypes
       summary: スタッフの予約種別除外一覧取得
+      description: 互換用 endpoint。新規 consumer は capable-reservation-types を使用する。
       tags: [Masters]
       parameters:
         - name: id
@@ -13903,8 +13929,10 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
     put:
+      deprecated: true
       operationId: setStaffExcludedReservationTypes
       summary: スタッフの予約種別除外設定更新
+      description: 互換用 endpoint。新規 consumer は capable-reservation-types を使用する。
       tags: [Masters]
       parameters:
         - name: id

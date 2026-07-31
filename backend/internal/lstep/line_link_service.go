@@ -62,20 +62,21 @@ type LineLinkService interface {
 }
 
 type lineLinkService struct {
-	ownerRepo         lineLinkOwnerRepo
-	lineLinkTokenRepo LineLinkTokenRepository
-	lineSettingRepo   lstepLineSettingReader
-	transactor        Transactor
-	auditTx           LineLinkAuditTxLogger
+	ownerRepo          lineLinkOwnerRepo
+	lineLinkTokenRepo  LineLinkTokenRepository
+	lineSettingRepo    lstepLineSettingReader
+	lineCredentialRepo lineChannelCredentialReader
+	transactor         Transactor
+	auditTx            LineLinkAuditTxLogger
 	// cipher は Webhook 署名検証時に line_channel_secret を復号するために使う（H-4）。
 	// nil の場合は復号なしで動作する（開発環境で INTEGRATION_ENCRYPTION_KEY 未設定時）。
 	cipher *crypto.AESGCMCipher
 	// httpClient は LINE ID Token 検証 API 呼び出しに使う。
 	httpClient *http.Client
 
-	// secretCache は setting ID ごとの復号済み channel secret を短 TTL で保持する。
-	// 同一 setting への再検証で AES 復号を繰り返さない（SEC-CS-F05 二次防御）。
-	// 一次防御は destination → FindByLineBotUserID の固定コスト routing（SEC-CS-F05-R1）。
+	// secretCache は canonical clinic_integration ID ごとの復号済み channel secret を短 TTL で保持する。
+	// 同一 credential への再検証で AES 復号を繰り返さない（SEC-CS-F05 二次防御）。
+	// 一次防御は destination → route metadata → canonical credential の固定コスト routing。
 	secretCacheMu sync.Mutex
 	secretCache   map[uint64]lineChannelSecretCacheEntry
 }
@@ -112,32 +113,57 @@ const (
 // lineWebhookVerifySem はプロセス全体の webhook 署名検証同時実行数を制限する。
 var lineWebhookVerifySem = semaphore.NewWeighted(maxConcurrentLineWebhookVerifications)
 
-// lineCredentialDecrypt は webhook 検証パスの復号関数。
-// 本番は DecryptLineCredential。テストで呼び出し回数を観測するために差し替え可能。
-var lineCredentialDecrypt = DecryptLineCredential
+// lineCredentialDecrypt は canonical webhook credential 専用の strict 復号関数。
+// テストで呼び出し回数を観測するために差し替え可能。
+var lineCredentialDecrypt = decryptCanonicalLineCredential
+
+// decryptCanonicalLineCredential は canonical credential の復号能力欠落と復号失敗を
+// fail-closed にする。
+// generic DecryptLineCredential の legacy plaintext fallback は reservation 移行用であり、
+// canonical clinic_integrations credential の署名検証には適用しない。
+func decryptCanonicalLineCredential(
+	_ context.Context,
+	cipher *crypto.AESGCMCipher,
+	value string,
+) string {
+	if value == "" {
+		return ""
+	}
+	if cipher == nil {
+		return ""
+	}
+	plaintext, err := cipher.Decrypt(value)
+	if err != nil {
+		return ""
+	}
+	return plaintext
+}
 
 // lineSignatureVerifier は webhook 検証パスの HMAC 検証関数。
 // 本番は verifyLineSignature。テストで呼び出し回数を観測するために差し替え可能。
 var lineSignatureVerifier = verifyLineSignature
 
 // NewLineLinkService は LineLinkService を初期化して返す。
-// cipher が nil の場合は復号なしで動作する（lstep 連携と同一の cipher を再利用する）。
+// webhook 署名検証には lstep 連携と同一の non-nil cipher が必須であり、nil の場合は
+// canonical credential を復号せず fail-closed にする。
 func NewLineLinkService(
 	ownerRepo lineLinkOwnerRepo,
 	lineLinkTokenRepo LineLinkTokenRepository,
 	lineSettingRepo lstepLineSettingReader,
+	lineCredentialRepo lineChannelCredentialReader,
 	transactor Transactor,
 	auditTx LineLinkAuditTxLogger,
 	cipher *crypto.AESGCMCipher,
 ) LineLinkService {
 	return &lineLinkService{
-		ownerRepo:         ownerRepo,
-		lineLinkTokenRepo: lineLinkTokenRepo,
-		lineSettingRepo:   lineSettingRepo,
-		transactor:        transactor,
-		auditTx:           auditTx,
-		cipher:            cipher,
-		httpClient:        &http.Client{Timeout: lineVerifyHTTPTimeout},
+		ownerRepo:          ownerRepo,
+		lineLinkTokenRepo:  lineLinkTokenRepo,
+		lineSettingRepo:    lineSettingRepo,
+		lineCredentialRepo: lineCredentialRepo,
+		transactor:         transactor,
+		auditTx:            auditTx,
+		cipher:             cipher,
+		httpClient:         &http.Client{Timeout: lineVerifyHTTPTimeout},
 	}
 }
 
@@ -363,10 +389,10 @@ func (s *lineLinkService) handleUnfollowEvent(
 }
 
 // verifySignatureAnyClinic は webhook body の destination（LINE bot user ID）で
-// 対象 clinic を1件に絞り、その Channel Secret だけで HMAC を検証する。
+// 対象 clinic を1件に絞り、canonical clinic_integrations credential だけで HMAC を検証する。
 //
 // SEC-CS-F05-R1: FindAll + 全 clinic HMAC は禁止。固定コストは
-// destination 抽出 → FindByLineBotUserID → 最大1回 decrypt → 最大1回 HMAC。
+// destination 抽出 → route metadata → canonical credential → 最大1回 decrypt → 最大1回 HMAC。
 // セマフォと decrypt キャッシュは二次 backpressure として維持する。
 func (s *lineLinkService) verifySignatureAnyClinic(
 	ctx context.Context,
@@ -384,27 +410,41 @@ func (s *lineLinkService) verifySignatureAnyClinic(
 		return 0, false
 	}
 
-	setting, err := s.lineSettingRepo.FindByLineBotUserID(ctx, destination)
+	if s.lineSettingRepo == nil || s.lineCredentialRepo == nil {
+		return 0, false
+	}
+	clinicID, legacyCredentialPresent, err := s.lineSettingRepo.FindWebhookRouteByLineBotUserID(ctx, destination)
 	if err != nil {
 		// not found / DB error とも invalid signature として fail-closed（情報漏洩防止）。
 		return 0, false
 	}
-	if setting == nil {
+	if clinicID == 0 || legacyCredentialPresent {
 		return 0, false
 	}
 
-	// DB 上の line_channel_secret は暗号文（H-4）。レガシー平文行はそのまま返る。
-	secret := s.cachedDecryptChannelSecret(ctx, setting)
+	credential, err := s.lineCredentialRepo.FindCredentialByClinicServiceKey(
+		ctx,
+		clinicID,
+		model.IntegrationServiceLstep,
+		model.IntegrationKeyLineChannelSecret,
+	)
+	if err != nil || credential == nil {
+		return 0, false
+	}
+	if credential.ClinicID != clinicID ||
+		credential.Service != model.IntegrationServiceLstep ||
+		credential.KeyName != model.IntegrationKeyLineChannelSecret {
+		return 0, false
+	}
+
+	secret := s.cachedDecryptChannelSecret(ctx, credential)
 	if secret == "" {
 		return 0, false
 	}
 	if !lineSignatureVerifier(body, signature, secret) {
 		return 0, false
 	}
-	if setting.ClinicID == 0 {
-		return 0, false
-	}
-	return setting.ClinicID, true
+	return clinicID, true
 }
 
 // extractLineWebhookDestination は raw webhook body から destination だけを抜く。
@@ -426,34 +466,35 @@ func extractLineWebhookDestination(body []byte) (string, bool) {
 	return dest, true
 }
 
-// cachedDecryptChannelSecret は setting ID をキーに復号済み secret を短 TTL キャッシュする。
+// cachedDecryptChannelSecret は canonical integration ID をキーに復号済み secret を短 TTL キャッシュする。
 // ID が 0（未採番のテスト行など）の場合はキャッシュせず都度復号する。
 func (s *lineLinkService) cachedDecryptChannelSecret(
 	ctx context.Context,
-	setting *model.LineReservationSetting,
+	credential *model.ClinicIntegration,
 ) string {
-	if setting == nil {
+	if credential == nil {
 		return ""
 	}
-	ciphertext := setting.LineChannelSecret
+	ciphertext := credential.KeyValue
 	if ciphertext == "" {
 		return ""
 	}
 	now := time.Now()
-	if setting.ID != 0 {
+	if credential.ID != 0 {
 		s.secretCacheMu.Lock()
-		if entry, ok := s.secretCache[setting.ID]; ok {
+		if entry, ok := s.secretCache[credential.ID]; ok {
 			if entry.ciphertext == ciphertext && now.Before(entry.expiresAt) {
 				plaintext := entry.plaintext
 				s.secretCacheMu.Unlock()
 				return plaintext
 			}
+			delete(s.secretCache, credential.ID)
 		}
 		s.secretCacheMu.Unlock()
 	}
 
 	plaintext := lineCredentialDecrypt(ctx, s.cipher, ciphertext)
-	if setting.ID == 0 || plaintext == "" {
+	if credential.ID == 0 || plaintext == "" {
 		return plaintext
 	}
 
@@ -461,7 +502,7 @@ func (s *lineLinkService) cachedDecryptChannelSecret(
 	if s.secretCache == nil {
 		s.secretCache = make(map[uint64]lineChannelSecretCacheEntry)
 	}
-	s.secretCache[setting.ID] = lineChannelSecretCacheEntry{
+	s.secretCache[credential.ID] = lineChannelSecretCacheEntry{
 		ciphertext: ciphertext,
 		plaintext:  plaintext,
 		expiresAt:  now.Add(lineChannelSecretCacheTTL),

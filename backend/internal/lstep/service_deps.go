@@ -61,13 +61,18 @@ type LineLinkAuditTxLogger interface {
 }
 
 // lstepLineSettingReader は LINE 予約設定（reservation domain・topo で lstep は最下流のため
-// import 不可）の LINE 認証情報参照の最小view。
+// import 不可）の予約設定と webhook routing metadata 参照の最小view。
 type lstepLineSettingReader interface {
 	FindByClinicID(ctx context.Context, clinicID uint64) (*model.LineReservationSetting, error)
-	// FindByLineBotUserID は webhook destination（LINE bot user ID）で 1 件だけ引く。
-	// SEC-CS-F05-R1: 署名検証は FindAll 全件 HMAC ではなくこの lookup を使う。
-	FindByLineBotUserID(ctx context.Context, lineBotUserID string) (*model.LineReservationSetting, error)
+	// FindWebhookRouteByLineBotUserID は credential payload を返さず、destination に対応する
+	// clinic identity と旧 credential の存在有無だけを返す。
+	FindWebhookRouteByLineBotUserID(ctx context.Context, lineBotUserID string) (clinicID uint64, legacyCredentialPresent bool, err error)
 	FindAll(ctx context.Context) ([]model.LineReservationSetting, error)
+}
+
+// lineChannelCredentialReader は canonical clinic_integrations credential を1件だけ読む。
+type lineChannelCredentialReader interface {
+	FindCredentialByClinicServiceKey(ctx context.Context, clinicID uint64, service, keyName string) (*model.ClinicIntegration, error)
 }
 
 // lstepSharedFileService は共有ファイル署名付きURL取得のconsumer-side最小view。

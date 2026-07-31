@@ -16,10 +16,32 @@ import (
 type LstepSettingsRepository interface {
 	// FindByClinicAndService は指定クリニック・サービスの全連携設定を返す。
 	FindByClinicAndService(ctx context.Context, clinicID uint64, service string) ([]*model.ClinicIntegration, error)
+	// FindCredentialByClinicServiceKey は clinic/service/key で canonical credential を1件だけ返す。
+	FindCredentialByClinicServiceKey(ctx context.Context, clinicID uint64, service, keyName string) (*model.ClinicIntegration, error)
 	// Upsert は key_name ごとに UPSERT する。
 	Upsert(ctx context.Context, integration *model.ClinicIntegration) error
 	// DeleteByClinicAndService は指定クリニック・サービスの全設定を削除する。
 	DeleteByClinicAndService(ctx context.Context, clinicID uint64, service string) error
+}
+
+func (r *lstepSettingsRepository) FindCredentialByClinicServiceKey(
+	ctx context.Context,
+	clinicID uint64,
+	service, keyName string,
+) (*model.ClinicIntegration, error) {
+	var record model.ClinicIntegration
+	err := persistence.DBOrTx(ctx, r.db).
+		Scopes(persistence.ClinicScope(clinicID)).
+		Where("service = ? AND key_name = ?", service, keyName).
+		Take(&record).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(
+			err,
+			"clinic_integrations",
+			fmt.Sprintf("clinic=%d service=%s key=%s", clinicID, service, keyName),
+		)
+	}
+	return &record, nil
 }
 
 type lstepSettingsRepository struct{ db *gorm.DB }

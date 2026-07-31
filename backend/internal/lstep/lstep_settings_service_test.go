@@ -28,6 +28,18 @@ func (m *mockLstepSettingsRepository) FindByClinicAndService(ctx context.Context
 	}
 	return []*model.ClinicIntegration{}, nil
 }
+
+func (m *mockLstepSettingsRepository) FindCredentialByClinicServiceKey(
+	_ context.Context,
+	clinicID uint64,
+	service, keyName string,
+) (*model.ClinicIntegration, error) {
+	return &model.ClinicIntegration{
+		ClinicID: clinicID,
+		Service:  service,
+		KeyName:  keyName,
+	}, nil
+}
 func (m *mockLstepSettingsRepository) Upsert(ctx context.Context, integration *model.ClinicIntegration) error {
 	if m.upsertFn != nil {
 		return m.upsertFn(ctx, integration)
