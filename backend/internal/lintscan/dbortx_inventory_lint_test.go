@@ -167,6 +167,8 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"lstep/lstep_settings_repository.go|lstepSettingsRepository.FindByClinicAndService":              {},
 	"lstep/lstep_settings_repository.go|lstepSettingsRepository.Upsert":                              {},
 	"lstep/lstep_settings_repository.go|lstepSettingsRepository.DeleteByClinicAndService":            {},
+	// Runtime: TestLstepSettingsRepository_FindCredentialByClinicServiceKey_SeesUncommittedUpsert
+	"lstep/lstep_settings_repository.go|lstepSettingsRepository.FindCredentialByClinicServiceKey": {},
 	"lstep/lstep_sync_settings_repository.go|lstepSyncSettingsRepository.FindByClinicID":             {},
 	"lstep/lstep_sync_settings_repository.go|lstepSyncSettingsRepository.Upsert":                     {},
 	"clinic/clinic_settings_repository.go|clinicSettingsRepository.FindByClinicID":                   {},
@@ -239,6 +241,17 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"billing/estimate_repository.go|estimateRepository.UpdateIfNotLocked":      {},
 	"billing/estimate_repository.go|estimateRepository.DeleteIfNotLocked":      {},
 	"billing/estimate_repository.go|estimateRepository.CountItemsByEstimateID": {},
+	// Runtime: TestEstimateRepository_AllocateNextEstimateNo_SeesUncommittedInsertAndRollsBack
+	// + TestEstimateRepository_AllocateNextEstimateNo_AdvisoryLockBlocksConcurrentSession
+	"billing/estimate_repository.go|estimateRepository.AllocateNextEstimateNo": {},
+	// W-013 cash register close writes/reads join ambient tx (post-close correction atomicity).
+	// Runtime: cash_register_close_repository_tx_atomicity_test.go
+	"billing/cash_register_close_repository.go|cashRegisterCloseRepository.Create":              {},
+	"billing/cash_register_close_repository.go|cashRegisterCloseRepository.CreateAdjustment":    {},
+	"billing/cash_register_close_repository.go|cashRegisterCloseRepository.FindAll":             {},
+	"billing/cash_register_close_repository.go|cashRegisterCloseRepository.FindByID":            {},
+	"billing/cash_register_close_repository.go|cashRegisterCloseRepository.HasCloseOnDate":      {},
+	"billing/cash_register_close_repository.go|cashRegisterCloseRepository.FindByDateAndPeriod": {},
 	// examination (BE-refactor.md R1-2 tx-internal replace; Create/FindByID/Update added for X-11
 	// finalize-child-write-race — must join the LockByIDForUpdate ambient tx or the FK check on
 	// examinations.medical_record_id deadlocks against the FOR UPDATE row lock; Delete added for
@@ -657,13 +670,24 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"reservation/reservation_staff_repository.go|reservationStaffRepository.UpdateReservationCapabilities":  {},
 	// BE-refactor.md H-7: FindByID を dbOrTx 化し、reservationStaffService.Update の
 	// tx 内所有権確認（GetByID）を ambient tx に参加させ TOCTOU 窓を閉じる。
-	"reservation/reservation_staff_repository.go|reservationStaffRepository.FindByID":                                  {},
-	"reservation/reservation_staff_repository.go|reservationStaffRepository.FindAllExcludedReservationTypes":           {},
-	"reservation/reservation_staff_repository.go|reservationStaffRepository.FindAllExcludedReservationTypesByStaffIDs": {},
-	"reservation/reservation_staff_repository.go|reservationStaffRepository.LockForMutation":                           {},
-	"reservation/reservation_staff_repository.go|reservationStaffRepository.SupportsReservationType":                   {}, // assignment/capability SHARE-lock concurrency proof
+	"reservation/reservation_staff_repository.go|reservationStaffRepository.FindByID": {},
+	// Stage B: FindAllExcluded* are pure facades (universe \ capable) with no body-level
+	// DBOrTx — inventory the leaf methods instead. Runtime leaf coverage:
+	// TestReservationStaffRepository_LeafReads_SeeUncommittedAmbientWrites
+	// (optional composition probe still calls FindAllExcluded* facades).
+	"reservation/reservation_staff_repository.go|reservationStaffRepository.hasActiveClinicAssignment":            {},
+	"reservation/reservation_staff_repository.go|reservationStaffRepository.filterStaffIDsWithActiveAssignment":   {},
+	"reservation/reservation_staff_repository.go|reservationStaffRepository.listActiveReservationTypeUniverse":    {},
+	"reservation/reservation_staff_repository.go|reservationStaffRepository.FindAllReservationCapabilities":       {},
+	"reservation/reservation_staff_repository.go|reservationStaffRepository.FindAllReservationCapabilitiesByStaffIDs": {},
+	"reservation/reservation_staff_repository.go|reservationStaffRepository.LockForMutation":                      {},
+	"reservation/reservation_staff_repository.go|reservationStaffRepository.SupportsReservationType":              {}, // assignment/capability SHARE-lock concurrency proof
 	// Durable scheduler reads use an explicit slot timestamp and participate in the caller's tx.
 	"reservation/reservation_repository.go|reservationRepository.FindNoShowCandidatesAt": {},
+	// SD-10 deceased write guard: ambient SHARE-lock read. Runtime:
+	// TestReservationRepository_FindPetByIDInClinic_SeesUncommittedDeceasedUpdate
+	// + TestReservationRepository_FindPetByIDInClinic_ShareLockBlocksConcurrentWriter
+	"reservation/reservation_repository.go|reservationRepository.FindPetByIDInClinic": {},
 
 	// Runtime: TestExamReferenceRangeRepository_FindAnimalSpeciesID_HoldsExamShareLockUntilAmbientTransactionCommits.
 	"medicalrecord/exam_reference_range_repository.go|examinationRepository.FindAnimalSpeciesID": {},

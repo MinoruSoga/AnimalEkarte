@@ -30,6 +30,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/persistence"
 	staffpkg "github.com/animal-ekarte/backend/internal/staff"
 	"github.com/animal-ekarte/backend/internal/testdb"
 )
@@ -261,4 +262,172 @@ func TestReservationStaffRepository_UpdateThenUpdateExcludedReservationTypes_Com
 	require.NoError(t, err)
 	require.Len(t, excluded, 1)
 	assert.Equal(t, typeA.ID, excluded[0].ReservationTypeID)
+}
+
+// ─── Stage B leaf reads (DBOrTx) + optional exclusion facade composition ─────────────
+//
+// FindAllExcluded* are pure facades (universe \ capable) with no DBOrTx in their bodies.
+// Ambient-tx participation lives in the leaf helpers below. Each leaf must observe
+// uncommitted writes in the same WithTx; rollback must leave zero durable rows.
+// A facade composition probe exercises FindAllExcluded* as a multi-leaf call path.
+
+// TestReservationStaffRepository_LeafReads_SeeUncommittedAmbientWrites proves
+// hasActiveClinicAssignment / filterStaffIDsWithActiveAssignment /
+// listActiveReservationTypeUniverse / FindAllReservationCapabilities /
+// FindAllReservationCapabilitiesByStaffIDs join ambient tx via DBOrTx.
+func TestReservationStaffRepository_LeafReads_SeeUncommittedAmbientWrites(t *testing.T) {
+	db := setupReservationStaffTxAtomicityTestDB(t)
+	repo := NewReservationStaffRepository(db, staffpkg.NewStaffRepository(db)).(*reservationStaffRepository)
+	tx := testNewTransactor(db)
+	ctx := context.Background()
+	const clinicA = uint64(1)
+
+	// Staff exists outside ambient tx; assignment/type/capability are written only inside.
+	staff := makeDoctor(t, db, clinicA, "leaf-read ambient staff")
+	otherStaff := makeDoctor(t, db, clinicA, "leaf-read other staff")
+	// otherStaff gets a committed assignment so filter can distinguish ambient-only assignment.
+	require.NoError(t, db.WithContext(ctx).Create(&model.StaffClinicAssignment{
+		StaffID: otherStaff.ID, ClinicID: clinicA, IsMain: true,
+	}).Error)
+
+	// Pre-ambient: staff has no assignment → leaf returns false / empty.
+	assigned, err := repo.hasActiveClinicAssignment(ctx, clinicA, staff.ID)
+	require.NoError(t, err)
+	assert.False(t, assigned, "precondition: no committed assignment for staff")
+
+	forced := errors.New("forced leaf-read ambient rollback")
+	var uncommittedTypeID, uncommittedCapTypeID uint64
+
+	txErr := tx.WithTx(ctx, func(txCtx context.Context) error {
+		// Uncommitted assignment for staff.
+		if err := persistence.DBOrTx(txCtx, db).Create(&model.StaffClinicAssignment{
+			StaffID: staff.ID, ClinicID: clinicA, IsMain: true,
+		}).Error; err != nil {
+			return err
+		}
+		// Uncommitted active reservation type (universe).
+		rt := &model.ReservationType{
+			ClinicID: clinicA,
+			Name:     "uncommitted universe type",
+			Category: model.ReservationTypeCategoryGeneral,
+			IsActive: true,
+		}
+		if err := persistence.DBOrTx(txCtx, db).Create(rt).Error; err != nil {
+			return err
+		}
+		uncommittedTypeID = rt.ID
+		// Second type so exclusion facade has non-empty excluded when only one is capable.
+		rt2 := &model.ReservationType{
+			ClinicID: clinicA,
+			Name:     "uncommitted capable type",
+			Category: model.ReservationTypeCategoryGeneral,
+			IsActive: true,
+		}
+		if err := persistence.DBOrTx(txCtx, db).Create(rt2).Error; err != nil {
+			return err
+		}
+		uncommittedCapTypeID = rt2.ID
+		// Uncommitted capability (staff can handle rt2 only).
+		if err := persistence.DBOrTx(txCtx, db).Create(&model.StaffReservationCapability{
+			ClinicID:          clinicA,
+			StaffID:           staff.ID,
+			ReservationTypeID: rt2.ID,
+		}).Error; err != nil {
+			return err
+		}
+
+		// ── leaf: hasActiveClinicAssignment ──
+		ok, err := repo.hasActiveClinicAssignment(txCtx, clinicA, staff.ID)
+		if err != nil {
+			return err
+		}
+		if !ok {
+			return errors.New("hasActiveClinicAssignment did not see uncommitted assignment")
+		}
+
+		// ── leaf: filterStaffIDsWithActiveAssignment ──
+		filtered, err := repo.filterStaffIDsWithActiveAssignment(txCtx, clinicA, []uint64{staff.ID, otherStaff.ID})
+		if err != nil {
+			return err
+		}
+		if len(filtered) != 2 {
+			return errors.New("filterStaffIDsWithActiveAssignment missed ambient and/or committed assignment")
+		}
+
+		// ── leaf: listActiveReservationTypeUniverse ──
+		universe, err := repo.listActiveReservationTypeUniverse(txCtx, clinicA)
+		if err != nil {
+			return err
+		}
+		if len(universe) < 2 {
+			return errors.New("listActiveReservationTypeUniverse did not see uncommitted types")
+		}
+		foundUniverse := map[uint64]bool{}
+		for _, u := range universe {
+			foundUniverse[u.ID] = true
+		}
+		if !foundUniverse[rt.ID] || !foundUniverse[rt2.ID] {
+			return errors.New("listActiveReservationTypeUniverse missing uncommitted type ids")
+		}
+
+		// ── leaf: FindAllReservationCapabilities ──
+		caps, err := repo.FindAllReservationCapabilities(txCtx, clinicA, staff.ID)
+		if err != nil {
+			return err
+		}
+		if len(caps) != 1 || caps[0].ReservationTypeID != rt2.ID {
+			return errors.New("FindAllReservationCapabilities did not see uncommitted capability")
+		}
+
+		// ── leaf: FindAllReservationCapabilitiesByStaffIDs ──
+		bulk, err := repo.FindAllReservationCapabilitiesByStaffIDs(txCtx, clinicA, []uint64{staff.ID})
+		if err != nil {
+			return err
+		}
+		if len(bulk) != 1 || bulk[0].ReservationTypeID != rt2.ID {
+			return errors.New("FindAllReservationCapabilitiesByStaffIDs did not see uncommitted capability")
+		}
+
+		// ── optional composition probe: FindAllExcluded* (Stage B pure facade) ──
+		// universe={rt,rt2}, capable={rt2} ⇒ excluded={rt}
+		excluded, err := repo.FindAllExcludedReservationTypes(txCtx, clinicA, staff.ID)
+		if err != nil {
+			return err
+		}
+		if len(excluded) != 1 || excluded[0].ReservationTypeID != rt.ID {
+			return errors.New("FindAllExcludedReservationTypes composition did not see ambient leaves")
+		}
+		excludedBulk, err := repo.FindAllExcludedReservationTypesByStaffIDs(txCtx, clinicA, []uint64{staff.ID})
+		if err != nil {
+			return err
+		}
+		if len(excludedBulk) != 1 || excludedBulk[0].ReservationTypeID != rt.ID {
+			return errors.New("FindAllExcludedReservationTypesByStaffIDs composition did not see ambient leaves")
+		}
+
+		return forced
+	})
+	require.ErrorIs(t, txErr, forced)
+
+	// Outside ambient: uncommitted assignment/type/capability must not exist.
+	assigned, err = repo.hasActiveClinicAssignment(ctx, clinicA, staff.ID)
+	require.NoError(t, err)
+	assert.False(t, assigned, "assignment must roll back with ambient tx")
+
+	var typeCount int64
+	require.NoError(t, db.Model(&model.ReservationType{}).
+		Where("id IN ?", []uint64{uncommittedTypeID, uncommittedCapTypeID}).
+		Count(&typeCount).Error)
+	assert.Zero(t, typeCount, "uncommitted reservation types must roll back")
+
+	var capCount int64
+	require.NoError(t, db.Model(&model.StaffReservationCapability{}).
+		Where("clinic_id = ? AND staff_id = ?", clinicA, staff.ID).
+		Count(&capCount).Error)
+	assert.Zero(t, capCount, "uncommitted capabilities must roll back")
+
+	// otherStaff's committed assignment survives.
+	filtered, err := repo.filterStaffIDsWithActiveAssignment(ctx, clinicA, []uint64{staff.ID, otherStaff.ID})
+	require.NoError(t, err)
+	assert.Equal(t, []uint64{otherStaff.ID}, filtered)
 }

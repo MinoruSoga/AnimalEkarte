@@ -126,3 +126,63 @@ func (f *failingClinicSettingsRepo) UpdateCPMV1Thresholds(ctx context.Context, c
 func (f *failingClinicSettingsRepo) UpdateHealthPreventionThresholds(ctx context.Context, clinicID uint64, thresholds model.HealthPreventionThresholds) error {
 	return f.err
 }
+
+// TestLstepSettingsRepository_FindCredentialByClinicServiceKey_SeesUncommittedUpsert
+// proves FindCredentialByClinicServiceKey joins ambient tx via DBOrTx: an Upsert in
+// the same WithTx is visible, then forced rollback leaves the credential absent outside.
+//
+// temp-revert RED: FindCredential DBOrTx → r.db.WithContext(ctx) → uncommitted Upsert
+// is invisible inside ambient and the assert fails before rollback.
+func TestLstepSettingsRepository_FindCredentialByClinicServiceKey_SeesUncommittedUpsert(t *testing.T) {
+	// ClinicIntegration only — avoid ClinicSettings AutoMigrate time-default issues
+	// that setupLstepSettingsAtomicityDB can hit on a cold schema.
+	db := setupLstepSettingsTestDB(t)
+	repo := NewLstepSettingsRepository(db)
+	ctx := context.Background()
+	tx := persistence.NewTransactor(db)
+	const clinicID = uint64(88)
+	forced := errors.New("forced find-credential ambient rollback")
+
+	// Precondition: not found outside.
+	_, err := repo.FindCredentialByClinicServiceKey(
+		ctx, clinicID, model.IntegrationServiceLstep, model.IntegrationKeyLineChannelAccessToken,
+	)
+	require.Error(t, err)
+
+	txErr := tx.WithTx(ctx, func(txCtx context.Context) error {
+		if persistence.TxFromContext(txCtx) == nil {
+			return errors.New("expected ambient tx installed")
+		}
+		if err := repo.Upsert(txCtx, &model.ClinicIntegration{
+			ClinicID: clinicID,
+			Service:  model.IntegrationServiceLstep,
+			KeyName:  model.IntegrationKeyLineChannelAccessToken,
+			KeyValue: "token-uncommitted-visible",
+		}); err != nil {
+			return err
+		}
+		got, err := repo.FindCredentialByClinicServiceKey(
+			txCtx, clinicID, model.IntegrationServiceLstep, model.IntegrationKeyLineChannelAccessToken,
+		)
+		if err != nil {
+			return err
+		}
+		if got == nil || got.KeyValue != "token-uncommitted-visible" {
+			return errors.New("FindCredentialByClinicServiceKey did not see uncommitted Upsert")
+		}
+		return forced
+	})
+	require.ErrorIs(t, txErr, forced)
+
+	// Outside after rollback: still not found.
+	_, err = repo.FindCredentialByClinicServiceKey(
+		ctx, clinicID, model.IntegrationServiceLstep, model.IntegrationKeyLineChannelAccessToken,
+	)
+	require.Error(t, err)
+
+	var count int64
+	require.NoError(t, db.Model(&model.ClinicIntegration{}).
+		Where("clinic_id = ? AND key_name = ?", clinicID, model.IntegrationKeyLineChannelAccessToken).
+		Count(&count).Error)
+	assert.Zero(t, count, "credential Upsert must roll back with ambient tx")
+}
