@@ -125,7 +125,7 @@ TASK-001-BE/FE, TASK-002/003（WONTFIX + UI follow-up 実装済）, TASK-006/007
 ### TASK-024: #256 現行 screenshot / FAQ finalization（Medium）
 
 - **対応 Issue**: GitHub Issue #256。
-- **状態**: **agent audit + FAQ disposition done / human visual sign-off open**（2026-07-31）。10/10 current/replace 判定と 7 画像同名置換。FAQ は TASK-023 `confusion_count: 0` に基づき **追記不要**（`10-troubleshooting.md` 変更なし）。証拠: `reports/2026-07-31-task-024-manual-audit.md`。vitest manual 18 tests PASS。manual-flow E2E は env 未注入で BLOCKED。
+- **状態**: **agent audit + FAQ disposition done / human visual sign-off open**（2026-07-31）。10/10 current/replace 判定。replace 7 枚のうち **4 枚のみ採用**（`02` / `06` / `13` / `14`）。`05` / `07` / `10` はフルシード由来の飼主氏名・ペット ID が写り込んだため受領検証で差し戻し（`254fdc2f3`）— 該当 3 画面の文書不一致は未解消で、クリーンシード環境での再撮影が必要。FAQ は TASK-023 `confusion_count: 0` に基づき **追記不要**（`10-troubleshooting.md` 変更なし）。証拠: `reports/2026-07-31-task-024-manual-audit.md`。vitest manual 18 tests PASS。manual-flow E2E は env 未注入で BLOCKED。
 - **残 human**: named documentation owner の visual/content sign-off；任意で `19-aggregation` / `04-medical-records` 再撮影。
 - **claim**: `claim/TASK-024`（USER 解放）。
 
