@@ -21,7 +21,6 @@ func TestCreateInventoryRequest_ToServiceInput(t *testing.T) {
 		ExpiryDate:    &expiryDate,
 		Supplier:      "Supplier Inc.",
 		LastRestocked: &lastRestocked,
-		Status:        "low",
 	}
 
 	input, err := req.toServiceInput()
@@ -56,9 +55,7 @@ func TestCreateInventoryRequest_ToServiceInput(t *testing.T) {
 	if input.LastRestocked == nil || input.LastRestocked.Format("2006-01-02T15:04:05Z07:00") != lastRestocked {
 		t.Fatalf("LastRestocked = %v, want %s", input.LastRestocked, lastRestocked)
 	}
-	if input.Status != req.Status {
-		t.Fatalf("Status = %q, want %q", input.Status, req.Status)
-	}
+	// SD-4: create request に status フィールドは存在しない（client write 経路 0）
 }
 
 func TestInventoryRequest_ToServiceInput_InvalidDate(t *testing.T) {
@@ -124,7 +121,6 @@ func TestUpdateInventoryRequest_ToServiceInput(t *testing.T) {
 	expiryDate := "2026-12-31"
 	supplier := ""
 	lastRestocked := "2026-05-28"
-	status := "out_of_stock"
 
 	req := updateInventoryRequest{
 		Name:          &name,
@@ -136,7 +132,6 @@ func TestUpdateInventoryRequest_ToServiceInput(t *testing.T) {
 		ExpiryDate:    &expiryDate,
 		Supplier:      &supplier,
 		LastRestocked: &lastRestocked,
-		Status:        &status,
 	}
 
 	input, err := req.toServiceInput()
@@ -171,9 +166,7 @@ func TestUpdateInventoryRequest_ToServiceInput(t *testing.T) {
 	if input.LastRestocked == nil || input.LastRestocked.Format("2006-01-02") != lastRestocked {
 		t.Fatalf("LastRestocked = %v, want %s", input.LastRestocked, lastRestocked)
 	}
-	if input.Status == nil || string(*input.Status) != status {
-		t.Fatalf("Status = %v, want %q", input.Status, status)
-	}
+	// SD-4: update request に status フィールドは存在しない（client write 経路 0）
 }
 
 func TestUpdateInventoryRequest_ToServiceInput_NilFields(t *testing.T) {
@@ -208,8 +201,5 @@ func TestUpdateInventoryRequest_ToServiceInput_NilFields(t *testing.T) {
 	}
 	if input.LastRestocked != nil {
 		t.Fatalf("LastRestocked = %v, want nil", input.LastRestocked)
-	}
-	if input.Status != nil {
-		t.Fatalf("Status = %v, want nil", input.Status)
 	}
 }

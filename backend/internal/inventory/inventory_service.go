@@ -9,7 +9,8 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-// CreateInventoryInput は在庫アイテム作成の入力DTO
+// CreateInventoryInput は在庫アイテム作成の入力DTO。
+// SD-4: client 指定 status は受け付けない。公開 status は quantity/min_stock_level から導出。
 type CreateInventoryInput struct {
 	Name          string
 	Category      string
@@ -20,10 +21,10 @@ type CreateInventoryInput struct {
 	ExpiryDate    *time.Time
 	Supplier      string
 	LastRestocked *time.Time
-	Status        string
 }
 
-// UpdateInventoryInput は在庫アイテム更新のサービス入力 DTO
+// UpdateInventoryInput は在庫アイテム更新のサービス入力 DTO。
+// SD-4: client 指定 status は受け付けない（fields["status"] を書かない）。
 type UpdateInventoryInput struct {
 	Name          *string
 	Category      *model.InventoryCategory
@@ -34,7 +35,6 @@ type UpdateInventoryInput struct {
 	ExpiryDate    *time.Time
 	Supplier      *string
 	LastRestocked *time.Time
-	Status        *model.InventoryStatus
 }
 
 func buildInventoryUpdate(input *UpdateInventoryInput) map[string]any {
@@ -66,9 +66,7 @@ func buildInventoryUpdate(input *UpdateInventoryInput) map[string]any {
 	if input.LastRestocked != nil {
 		fields["last_restocked"] = *input.LastRestocked
 	}
-	if input.Status != nil {
-		fields["status"] = *input.Status
-	}
+	// SD-4: status は client から書かない。一覧フィルタ・JSON は quantity/min 導出。
 	return fields
 }
 
@@ -118,11 +116,10 @@ func (s *inventoryService) GetByID(ctx context.Context, clinicID, id uint64) (*m
 }
 
 func (s *inventoryService) Create(ctx context.Context, clinicID uint64, input *CreateInventoryInput) (*model.InventoryItem, error) {
-	// SD-4 決裁A: status はもはや信頼できる保存値ではない（読み取り時に
-	// model.DeriveInventoryStatus で quantity/min_stock_level から導出し直す —
-	// internal/inventory/inventory_response.go を参照）。ここでの status 書込は後方互換の
-	// ためだけに残す死んだ列であり、client 指定値があれば従来どおり保存するが
-	// 誰も読み取らない。
+	// SD-4 決裁A: status 列は client 指定を受け付けない。列は DB/GORM default の
+	// sufficient を残す（DROP COLUMN は別 Issue）。公開 API の status は読み取り時に
+	// model.DeriveInventoryStatus(quantity, min_stock_level) で導出する
+	// （internal/inventory/inventory_response.go）。
 	item := &model.InventoryItem{
 		ClinicID:      clinicID,
 		Name:          input.Name,
@@ -134,10 +131,7 @@ func (s *inventoryService) Create(ctx context.Context, clinicID uint64, input *C
 		ExpiryDate:    input.ExpiryDate,
 		Supplier:      input.Supplier,
 		LastRestocked: input.LastRestocked,
-		Status:        model.InventoryStatusSufficient,
-	}
-	if input.Status != "" {
-		item.Status = model.InventoryStatus(input.Status)
+		Status:        model.InventoryStatusSufficient, // dead column default; not client SoT
 	}
 
 	if err := s.repo.Create(ctx, clinicID, item); err != nil {

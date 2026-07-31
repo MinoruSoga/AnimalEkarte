@@ -253,7 +253,6 @@ func TestBuildInventoryUpdate(t *testing.T) {
 	expiry := time.Date(2027, 1, 1, 0, 0, 0, 0, time.UTC)
 	supplier := "サプライヤーA"
 	lastRestocked := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
-	status := model.InventoryStatusLow
 
 	tests := []struct {
 		name       string
@@ -266,7 +265,7 @@ func TestBuildInventoryUpdate(t *testing.T) {
 			wantFields: map[string]any{},
 		},
 		{
-			name: "all fields set produces full field map",
+			name: "all writable fields set produces field map without status",
 			input: &UpdateInventoryInput{
 				Name:          &name,
 				Category:      &category,
@@ -277,7 +276,6 @@ func TestBuildInventoryUpdate(t *testing.T) {
 				ExpiryDate:    &expiry,
 				Supplier:      &supplier,
 				LastRestocked: &lastRestocked,
-				Status:        &status,
 			},
 			wantFields: map[string]any{
 				"name":            name,
@@ -289,7 +287,6 @@ func TestBuildInventoryUpdate(t *testing.T) {
 				"expiry_date":     expiry,
 				"supplier":        supplier,
 				"last_restocked":  lastRestocked,
-				"status":          status,
 			},
 		},
 		{
@@ -305,6 +302,9 @@ func TestBuildInventoryUpdate(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got := buildInventoryUpdate(tt.input)
 			assert.Equal(t, tt.wantFields, got)
+			// SD-4: client status write 経路 0 — fields["status"] を絶対に書かない
+			_, hasStatus := got["status"]
+			assert.False(t, hasStatus, "buildInventoryUpdate must not write status")
 		})
 	}
 }
@@ -345,12 +345,15 @@ func TestInventoryService_Create(t *testing.T) {
 			wantErr:  true,
 		},
 		{
-			name:     "explicit status overrides default sufficient status",
+			// SD-4: Create 入力に Status は存在しない。高在庫でも dead column は default sufficient。
+			// JSON 応答の status は DeriveInventoryStatus で sufficient になる（response 側テスト）。
+			name:     "create uses dead-column default sufficient; client cannot set status",
 			clinicID: 1,
 			input: &CreateInventoryInput{
-				Name:     "在庫少アイテム",
-				Category: string(model.InventoryCategoryMedicine),
-				Status:   string(model.InventoryStatusLow),
+				Name:          "高在庫アイテム",
+				Category:      string(model.InventoryCategoryMedicine),
+				Quantity:      100,
+				MinStockLevel: 10,
 			},
 			wantErr: false,
 		},
@@ -358,8 +361,10 @@ func TestInventoryService_Create(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			var created *model.InventoryItem
 			repo := &mockInventoryRepository{
-				createFn: func(_ context.Context, _ uint64, _ *model.InventoryItem) error {
+				createFn: func(_ context.Context, _ uint64, item *model.InventoryItem) error {
+					created = item
 					return tt.repoErr
 				},
 			}
@@ -373,14 +378,48 @@ func TestInventoryService_Create(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 				assert.NotNil(t, item)
-				if tt.input.Status != "" {
-					assert.Equal(t, model.InventoryStatus(tt.input.Status), item.Status)
-				} else {
-					assert.Equal(t, model.InventoryStatusSufficient, item.Status)
+				// SD-4: client status write 経路 0 — 常に default sufficient（dead column）
+				assert.Equal(t, model.InventoryStatusSufficient, item.Status)
+				// 公開 status は quantity/min 導出と一致する
+				assert.Equal(t, model.DeriveInventoryStatus(tt.input.Quantity, tt.input.MinStockLevel),
+					model.DeriveInventoryStatus(item.Quantity, item.MinStockLevel))
+				if created != nil {
+					assert.Equal(t, model.InventoryStatusSufficient, created.Status)
+					assert.NotEqual(t, model.InventoryStatusLow, created.Status)
 				}
 			}
 		})
 	}
+}
+
+// TestInventoryService_Create_ClientStatusCannotPoisonDerivedRead は SD-4 回帰:
+// Create 後の公開 status は quantity/min 導出のみ。高 qty でも low にならない。
+func TestInventoryService_Create_ClientStatusCannotPoisonDerivedRead(t *testing.T) {
+	repo := &mockInventoryRepository{
+		createFn: func(_ context.Context, _ uint64, _ *model.InventoryItem) error {
+			return nil
+		},
+	}
+	svc := NewInventoryService(repo)
+
+	item, err := svc.Create(context.Background(), 1, &CreateInventoryInput{
+		Name:          "高在庫",
+		Category:      string(model.InventoryCategoryMedicine),
+		Quantity:      50,
+		MinStockLevel: 5,
+		Unit:          "本",
+	})
+	assert.NoError(t, err)
+	if !assert.NotNil(t, item) {
+		return
+	}
+
+	// dead column default
+	assert.Equal(t, model.InventoryStatusSufficient, item.Status)
+	// 公開 SoT: Derive が sufficient（client が low を送っても受け付けない入力型）
+	derived := model.DeriveInventoryStatus(item.Quantity, item.MinStockLevel)
+	assert.Equal(t, model.InventoryStatusSufficient, derived)
+	assert.Equal(t, string(derived), toInventoryResponse(item).Status)
 }
 
 func TestInventoryService_Update_NilInput(t *testing.T) {
@@ -395,7 +434,6 @@ func TestInventoryService_Update_NilInput(t *testing.T) {
 func TestInventoryService_Update(t *testing.T) {
 	name := "更新後薬剤"
 	quantity := 200
-	statusSufficient := model.InventoryStatusSufficient
 	tests := []struct {
 		name        string
 		input       UpdateInventoryInput
@@ -409,7 +447,6 @@ func TestInventoryService_Update(t *testing.T) {
 			input: UpdateInventoryInput{
 				Name:     &name,
 				Quantity: &quantity,
-				Status:   &statusSufficient,
 			},
 			repoErr: nil,
 			wantErr: false,

@@ -32,6 +32,8 @@ func (q listInventoryQuery) toServiceFilters() listInventoryFilters {
 }
 
 // createInventoryRequest は在庫アイテム作成リクエスト。
+// SD-4: status は request body に含めても無視（OpenAPI readOnly）。
+// 公開 JSON の status は quantity/min_stock_level から導出する。
 type createInventoryRequest struct {
 	Name          string  `json:"name"            binding:"required"`
 	Category      string  `json:"category"        binding:"required,oneof=medicine consumable food other"`
@@ -42,7 +44,6 @@ type createInventoryRequest struct {
 	ExpiryDate    *string `json:"expiry_date"`
 	Supplier      string  `json:"supplier"`
 	LastRestocked *string `json:"last_restocked"`
-	Status        string  `json:"status"          binding:"omitempty,oneof=sufficient low out_of_stock"`
 }
 
 func (r *createInventoryRequest) toServiceInput() (*CreateInventoryInput, error) {
@@ -64,11 +65,11 @@ func (r *createInventoryRequest) toServiceInput() (*CreateInventoryInput, error)
 		ExpiryDate:    expiryDate,
 		Supplier:      r.Supplier,
 		LastRestocked: lastRestocked,
-		Status:        r.Status,
 	}, nil
 }
 
 // updateInventoryRequest は在庫アイテム更新リクエスト。
+// SD-4: status は request body に含めても無視（OpenAPI readOnly）。
 type updateInventoryRequest struct {
 	Name          *string `json:"name"`
 	Category      *string `json:"category"        binding:"omitempty,oneof=medicine consumable food other"`
@@ -79,7 +80,6 @@ type updateInventoryRequest struct {
 	ExpiryDate    *string `json:"expiry_date"`
 	Supplier      *string `json:"supplier"`
 	LastRestocked *string `json:"last_restocked"`
-	Status        *string `json:"status"          binding:"omitempty,oneof=sufficient low out_of_stock"`
 }
 
 func (r *updateInventoryRequest) toServiceInput() (*UpdateInventoryInput, error) {
@@ -87,11 +87,6 @@ func (r *updateInventoryRequest) toServiceInput() (*UpdateInventoryInput, error)
 	if r.Category != nil {
 		cat := model.InventoryCategory(*r.Category)
 		category = &cat
-	}
-	var status *model.InventoryStatus
-	if r.Status != nil {
-		s := model.InventoryStatus(*r.Status)
-		status = &s
 	}
 	expiryDate, err := httpapi.ParseDate(r.ExpiryDate)
 	if err != nil {
@@ -111,6 +106,5 @@ func (r *updateInventoryRequest) toServiceInput() (*UpdateInventoryInput, error)
 		ExpiryDate:    expiryDate,
 		Supplier:      r.Supplier,
 		LastRestocked: lastRestocked,
-		Status:        status,
 	}, nil
 }
