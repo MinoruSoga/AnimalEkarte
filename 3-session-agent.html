@@ -100,14 +100,14 @@
   <tr>
     <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/254">#254</a></td>
     <td>納品前の全業務シナリオ通し確認（UAT 代行）</td>
-    <td><span class="status go">着手可能</span></td>
-    <td>既存シナリオ資産で hybrid closure を進める。エージェントは自動化可能な検査と記録、USER は目視・credential・DB reset 境界を担当する。credential値を証跡へ記載せず、未処置の FAIL を残さない</td>
+    <td><span class="status user">USER 専権</span></td>
+    <td>エージェント側の証跡骨格は着地済み（<code>docs/ops/testing/scenarios/reports/2026-07-31-local-issue-254.md</code>）。残るのは全て人の観測 — <code>E2E_LOGIN_*</code> の注入、5 フローのブラウザ通し、DB/audit 目視、実機 LINE/LIFF、FAIL 処置の承認。credential 値を証跡へ記載しない</td>
   </tr>
   <tr>
     <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/256">#256</a></td>
     <td>操作マニュアル・手順書の整備</td>
-    <td><span class="status go">着手可能</span></td>
-    <td>現行スクリーンショット監査は今すぐ着手可能。FAQ は <b>#254 で新たに観測された紛らわしい操作だけ</b>を #254 完了後に追記する</td>
+    <td><span class="status user">USER 専権</span></td>
+    <td>10 画像の監査は完了し、FAQ は #254 の混乱観測が 0 件のため「追記不要」で決着。ただし置換 7 枚のうち 3 枚が実データを含み差し戻されたため、<b>clean demo 環境での再撮影</b>と 10 枚の visual sign-off が残る。どちらも USER 操作が先に要る</td>
   </tr>
 
   <tr>
@@ -211,8 +211,8 @@
   <tr>
     <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/255">#255</a></td>
     <td>スタッフアカウントの一括発行と役割別権限設定</td>
-    <td><span class="status dep">依存待ち</span></td>
-    <td>先方からのスタッフ一覧の受領待ち。一括発行の実装側は着地済み</td>
+    <td><span class="status judge">判断待ち</span></td>
+    <td>スタッフ一覧は 2026-07-20 に受領済み（54 名）で、Issue 題名と本文の「一覧待ち」は stale。残るのは PO 決裁 4 点（メール方針・猫専門院 mapping・休職/業務委託の扱い・role→group）と、承認された適用。一括発行の実装側は着地済み</td>
   </tr>
   <tr>
     <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/259">#259</a></td>
