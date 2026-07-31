@@ -445,8 +445,11 @@ func (s *reservationService) updateWithConflictCheck(ctx context.Context, clinic
 		if err := ValidateReservationOwnerPetLinksWithRepo(ctx, s.repo, clinicID, finalOwnerID, finalPetID); err != nil {
 			return err
 		}
-		if err := ValidateReservationPetNotDeceased(ctx, s.repo, clinicID, finalPetID); err != nil {
-			return err
+		// #261 P0: 死亡拒否は pet 付け替え/新規紐付け時のみ（既存死亡ペット予約の時刻変更等は許可）。
+		if input.PetID != nil && *input.PetID != 0 {
+			if err := ValidateReservationPetNotDeceased(ctx, s.repo, clinicID, input.PetID); err != nil {
+				return err
+			}
 		}
 
 		resolvedStart, resolvedEnd, resolvedDoctorID := resolveUpdateParams(current, input)
@@ -593,8 +596,11 @@ func (s *reservationService) applyReservationUpdate(
 			if err := ValidateReservationOwnerPetLinksWithRepo(ctx, s.repo, clinicID, finalOwnerID, finalPetID); err != nil {
 				return err
 			}
-			if err := ValidateReservationPetNotDeceased(ctx, s.repo, clinicID, finalPetID); err != nil {
-				return err
+			// #261 P0: pet 付け替え/新規紐付け時のみ死亡拒否（既存関連のままの更新は許可）。
+			if input.PetID != nil && *input.PetID != 0 {
+				if err := ValidateReservationPetNotDeceased(ctx, s.repo, clinicID, input.PetID); err != nil {
+					return err
+				}
 			}
 			u, err := s.repo.update(ctx, clinicID, id, fields)
 			if err != nil {

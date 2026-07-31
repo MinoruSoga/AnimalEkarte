@@ -494,8 +494,10 @@ func (s *trimmingService) createDetailForExistingAppointment(
 		if err := reservation.ValidateReservationOwnerPetLinksWithRepo(txCtx, s.reservation, clinicID, locked.OwnerID, finalPetID); err != nil {
 			return err
 		}
-		if err := reservation.ValidateReservationPetNotDeceased(txCtx, s.reservation, clinicID, finalPetID); err != nil {
-			return err
+		if input.PetID != nil {
+			if err := reservation.ValidateReservationPetNotDeceased(txCtx, s.reservation, clinicID, input.PetID); err != nil {
+				return err
+			}
 		}
 
 		if input.PetID != nil && locked.PetID != nil && *locked.PetID != *input.PetID {
@@ -648,8 +650,10 @@ func (s *trimmingService) Update(ctx context.Context, clinicID, id uint64, input
 		if err := reservation.ValidateReservationOwnerPetLinksWithRepo(txCtx, s.reservation, clinicID, locked.OwnerID, finalPetID); err != nil {
 			return err
 		}
-		if err := reservation.ValidateReservationPetNotDeceased(txCtx, s.reservation, clinicID, finalPetID); err != nil {
-			return err
+		if input.PetID != nil {
+			if err := reservation.ValidateReservationPetNotDeceased(txCtx, s.reservation, clinicID, input.PetID); err != nil {
+				return err
+			}
 		}
 		resolvedStart := locked.StartTime
 		if input.StartTime != nil {
