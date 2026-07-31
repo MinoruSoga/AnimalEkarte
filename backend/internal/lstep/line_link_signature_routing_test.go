@@ -239,6 +239,42 @@ func TestVerifySignatureAnyClinic_MissingCanonicalCredential_FailsClosed(t *test
 	assert.Equal(t, 0, *hmacCalls)
 }
 
+func TestVerifySignatureAnyClinic_MalformedCanonicalCiphertext_FailsBeforeHMAC(t *testing.T) {
+	cipher, err := crypto.NewAESGCMCipher(testIntegrationKeyHex)
+	require.NoError(t, err)
+	routeRepo := &mockLineLinkSettingRepo{
+		findWebhookRouteFn: func(_ context.Context, _ string) (uint64, bool, error) {
+			return 7, false, nil
+		},
+	}
+	credentialRepo := &mockLineChannelCredentialRepo{
+		findByClinicServiceKeyFn: func(_ context.Context, clinicID uint64, service, keyName string) (*model.ClinicIntegration, error) {
+			return &model.ClinicIntegration{
+				ID:       77,
+				ClinicID: clinicID,
+				Service:  service,
+				KeyName:  keyName,
+				KeyValue: "malformed-ciphertext-placeholder",
+			}, nil
+		},
+	}
+	svc := &lineLinkService{
+		lineSettingRepo:    routeRepo,
+		lineCredentialRepo: credentialRepo,
+		cipher:             cipher,
+	}
+	hmacCalls := installHMACCounter(t)
+	decryptCalls := installDecryptCounter(t)
+
+	body := []byte(`{"destination":"bot-A","events":[]}`)
+	clinicID, ok := svc.verifySignatureAnyClinic(context.Background(), body, "signature-placeholder")
+
+	assert.False(t, ok)
+	assert.Zero(t, clinicID)
+	assert.Equal(t, 1, *decryptCalls)
+	assert.Equal(t, 0, *hmacCalls, "malformed canonical ciphertext must fail before HMAC")
+}
+
 func TestVerifySignatureAnyClinic_MissingDestination_NoFindAll(t *testing.T) {
 	repo, credentialRepo := nClinicSettingRepos(8)
 	svc := &lineLinkService{lineSettingRepo: repo, lineCredentialRepo: credentialRepo}
