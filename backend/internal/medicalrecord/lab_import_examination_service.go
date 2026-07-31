@@ -57,6 +57,7 @@ type LabExamPersistResult struct {
 // Phase 1 スコープ:
 //   - fixture ソースからの synthetic 入力を受け付ける
 //   - clinic_id 隔離を保証する（examRepo.Create の ClinicID + ReplaceItemsByExamID の JOIN 検証）
+//   - pet_id と medical_record_id を同時に受け取る場合は同一患者相関を fail-closed で検証する
 //   - (clinic_id, exam_type_id, date, pet_id) の複合キーによる重複スキップを実装する
 //   - DB レベルの unique violation も重複として扱う（TOCTOU 安全ネット）
 //   - lab_import_jobs との接続点を JobID フィールドで保持する
@@ -176,13 +177,23 @@ func (s *labImportExaminationService) persistExam(ctx context.Context, input Lab
 		}
 	}
 	if input.MedicalRecordID != nil {
-		if _, err := s.medicalRecordRepo.FindByID(ctx, input.ClinicID, *input.MedicalRecordID); err != nil {
+		record, err := s.medicalRecordRepo.FindByID(ctx, input.ClinicID, *input.MedicalRecordID)
+		if err != nil {
 			slog.ErrorContext(ctx, "failed to verify medical record ownership",
 				"error", err,
 				"medical_record_id", *input.MedicalRecordID,
 				"clinic_id", input.ClinicID,
 			)
 			return nil, apperrors.Wrap(err, "failed to verify medical record ownership")
+		}
+		// 同一 clinic 内でも pet と medical_record の相関が崩れると、他患者のカルテへ
+		// 検査結果が混入する。manual examination write の validateClinicalRelations と同方針で
+		// fail-closed にする（存在リークを避けるため NotFound を返す）。
+		// HC-005: lab import は MedicalRecord の status を検証しない（確定済みへの追記を許容）。
+		if input.PetID != nil {
+			if record == nil || record.PetID == nil || *record.PetID != *input.PetID {
+				return nil, apperrors.WrapNotFound("medical_record", "relation")
+			}
 		}
 	}
 

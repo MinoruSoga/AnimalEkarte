@@ -53,3 +53,18 @@
 | PUT | `.../fields/:id/reference-ranges` | 基準値更新 | `master-medical` | edit |
 
 （正確な path 接頭辞は `frontend/src/features/master/api/exam-types-master.ts` を正とする。）
+
+---
+
+## Residual checklist (#249 · W3 LANE-3)
+
+Phase 1 FE と Phase 2 composite FK（`001_init.sql` にアーカイブ済み）は実装済み。残差は次のとおり。
+
+| ID | 残差 | 状態 | 備考 |
+|:---|:---|:---|:---|
+| R-1 | 臨床用 `exam_reference_ranges` seed（clinic×species） | OPEN | demo seed に CSV 無し。マスタ UI から投入可 |
+| R-2 | lab import の pet / medical_record 相関 fail-closed | DONE | `lab_import_examination_service` が不一致を NotFound で拒否 |
+| R-3 | IsDuplicate を「完全同一データの再取込のみ skip」へ再設計（PO 裁定 2） | OPEN | 現行は 4-col `(clinic, exam_type, date, pet)`。同日再検査を誤 skip しうる。F-4e スコープ |
+| R-4 | lab import `auto_commit` 解禁 | BLOCKED | clinic/source ごとに初期 `false` 維持。authorized enable / stop / failure notify / audit が前提 |
+| R-5 | 定性基準値の FE ピボット表示（`qualitative_min/max`） | OPEN | BE は snapshot 済み。FE transform / `formatStoredReference` が未配線 |
+| R-6 | Phase 2 seed/COPY redesign を伴う追加 migration | BLOCKED | 現行 seed は `clinic_id` 列付き。追加 DDL が seed 列衝突を起こす場合は redesign 後のみ |

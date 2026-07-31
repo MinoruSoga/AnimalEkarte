@@ -216,16 +216,24 @@ func (t *stubRollbackLabImportTransactor) WithTx(ctx context.Context, fn func(co
 // Contract tests
 // ------------------------------------
 
+// matchingMedicalRecordRepo は指定 pet_id を持つ medical_record を返す。
+// pet と medical_record の相関 fail-closed を通過させる happy-path 用。
+func matchingMedicalRecordRepo(petID uint64) medicalRecordFinder {
+	return &mockMedicalRecordRepository{findByIDFn: func(_ context.Context, _, id uint64) (*model.MedicalRecord, error) {
+		p := petID
+		return &model.MedicalRecord{ID: id, PetID: &p}, nil
+	}}
+}
+
 // TestLabImportExaminationService_PersistExam_Happy は
 // 正常パスで exam + exam_results が永続化され、結果サマリが正しいことを検証する。
 func TestLabImportExaminationService_PersistExam_Happy(t *testing.T) {
 	examRepo := newStubExamRepo()
 	dupChecker := &stubDupChecker{isDup: false}
-	svc := NewLabImportExaminationService(examRepo, dupChecker, okExamTypeRepo(), okPetRepo(), okMedicalRecordRepo(), passthroughLabImportTransactor{}).(*labImportExaminationService)
-
 	jobID := uuid.New()
 	petID := uint64(42)
 	mrID := uint64(100)
+	svc := NewLabImportExaminationService(examRepo, dupChecker, okExamTypeRepo(), okPetRepo(), matchingMedicalRecordRepo(petID), passthroughLabImportTransactor{}).(*labImportExaminationService)
 	// BUN normal range 8-30 mg/dL (canine synthetic reference)
 	bunMin := 8.0
 	bunMax := 30.0
@@ -333,6 +341,171 @@ func TestLabImportExaminationService_PersistExam_Happy(t *testing.T) {
 		if it.ExamID != res.ExamID {
 			t.Errorf("item ExamID=%d, expected %d", it.ExamID, res.ExamID)
 		}
+	}
+}
+
+// TestLabImportExaminationService_PersistExam_RejectsPetMedicalRecordMismatch は
+// 同一 clinic 内でも pet_id と medical_record.pet_id が不一致なら fail-closed で拒否し、
+// exam を永続化しないことを検証する（#249 residual: lab import patient correlation）。
+func TestLabImportExaminationService_PersistExam_RejectsPetMedicalRecordMismatch(t *testing.T) {
+	const (
+		clinicID     = uint64(1)
+		requestPetID = uint64(42)
+		recordPetID  = uint64(99)
+		mrID         = uint64(100)
+	)
+
+	t.Run("rejects mismatched pet_id and medical_record.pet_id", func(t *testing.T) {
+		examRepo := newStubExamRepo()
+		recordPet := recordPetID
+		mrRepo := &mockMedicalRecordRepository{findByIDFn: func(_ context.Context, _, id uint64) (*model.MedicalRecord, error) {
+			return &model.MedicalRecord{ID: id, ClinicID: clinicID, PetID: &recordPet}, nil
+		}}
+		svc := NewLabImportExaminationService(
+			examRepo, &stubDupChecker{}, okExamTypeRepo(), okPetRepo(), mrRepo, passthroughLabImportTransactor{},
+		).(*labImportExaminationService)
+
+		pet := requestPetID
+		mr := mrID
+		out, err := svc.persistExam(context.Background(), LabExamPersistInput{
+			ClinicID:        clinicID,
+			PetID:           &pet,
+			MedicalRecordID: &mr,
+			ExamTypeID:      5,
+			Date:            time.Date(2026, 1, 15, 0, 0, 0, 0, time.UTC),
+			JobID:           uuid.New(),
+		})
+		if err == nil {
+			t.Fatal("expected error when pet_id does not match medical_record.pet_id")
+		}
+		if !apperrors.IsNotFound(err) {
+			t.Errorf("expected NotFound (no existence leak), got: %v", err)
+		}
+		if out != nil {
+			t.Error("expected nil result on pet/medical_record mismatch")
+		}
+		if len(examRepo.exams) != 0 {
+			t.Errorf("exam must not be persisted on mismatch, got %d", len(examRepo.exams))
+		}
+	})
+
+	t.Run("rejects medical_record with nil pet_id when request supplies pet_id", func(t *testing.T) {
+		examRepo := newStubExamRepo()
+		// okMedicalRecordRepo returns MedicalRecord without PetID — correlation must fail closed.
+		svc := NewLabImportExaminationService(
+			examRepo, &stubDupChecker{}, okExamTypeRepo(), okPetRepo(), okMedicalRecordRepo(), passthroughLabImportTransactor{},
+		).(*labImportExaminationService)
+
+		pet := requestPetID
+		mr := mrID
+		out, err := svc.persistExam(context.Background(), LabExamPersistInput{
+			ClinicID:        clinicID,
+			PetID:           &pet,
+			MedicalRecordID: &mr,
+			ExamTypeID:      5,
+			Date:            time.Date(2026, 1, 15, 0, 0, 0, 0, time.UTC),
+			JobID:           uuid.New(),
+		})
+		if err == nil {
+			t.Fatal("expected error when medical_record has no pet_id but request supplies pet_id")
+		}
+		if !apperrors.IsNotFound(err) {
+			t.Errorf("expected NotFound, got: %v", err)
+		}
+		if out != nil {
+			t.Error("expected nil result")
+		}
+		if len(examRepo.exams) != 0 {
+			t.Errorf("exam must not be persisted, got %d", len(examRepo.exams))
+		}
+	})
+
+	t.Run("accepts matching pet_id and medical_record.pet_id", func(t *testing.T) {
+		examRepo := newStubExamRepo()
+		svc := NewLabImportExaminationService(
+			examRepo, &stubDupChecker{}, okExamTypeRepo(), okPetRepo(), matchingMedicalRecordRepo(requestPetID), passthroughLabImportTransactor{},
+		).(*labImportExaminationService)
+
+		pet := requestPetID
+		mr := mrID
+		out, err := svc.persistExam(context.Background(), LabExamPersistInput{
+			ClinicID:        clinicID,
+			PetID:           &pet,
+			MedicalRecordID: &mr,
+			ExamTypeID:      5,
+			Date:            time.Date(2026, 1, 15, 0, 0, 0, 0, time.UTC),
+			JobID:           uuid.New(),
+		})
+		if err != nil {
+			t.Fatalf("unexpected error for matching correlation: %v", err)
+		}
+		if out == nil || out.ExamID == 0 {
+			t.Fatal("expected persisted exam for matching pet/medical_record")
+		}
+		if len(examRepo.exams) != 1 {
+			t.Errorf("expected 1 exam, got %d", len(examRepo.exams))
+		}
+	})
+}
+
+// TestLabImportExaminationService_PersistBatch_RejectsPetMedicalRecordMismatch は
+// バッチ内の不一致行が RowError になり、他行の処理を中断せず exam を書かないことを検証する。
+func TestLabImportExaminationService_PersistBatch_RejectsPetMedicalRecordMismatch(t *testing.T) {
+	const (
+		clinicID     = uint64(1)
+		requestPetID = uint64(42)
+		recordPetID  = uint64(99)
+	)
+	examRepo := newStubExamRepo()
+	recordPet := recordPetID
+	mrRepo := &mockMedicalRecordRepository{findByIDFn: func(_ context.Context, _, id uint64) (*model.MedicalRecord, error) {
+		return &model.MedicalRecord{ID: id, ClinicID: clinicID, PetID: &recordPet}, nil
+	}}
+	svc := NewLabImportExaminationService(
+		examRepo, &stubDupChecker{}, okExamTypeRepo(), okPetRepo(), mrRepo, passthroughLabImportTransactor{},
+	)
+
+	pet := requestPetID
+	mr := uint64(100)
+	okPet := uint64(7)
+	results, err := svc.PersistBatch(context.Background(), []LabExamPersistInput{
+		{
+			ClinicID:        clinicID,
+			PetID:           &pet,
+			MedicalRecordID: &mr,
+			ExamTypeID:      5,
+			Date:            time.Date(2026, 1, 15, 0, 0, 0, 0, time.UTC),
+			JobID:           uuid.New(),
+		},
+		{
+			// medical_record なし — 相関チェック対象外で成功する
+			ClinicID:   clinicID,
+			PetID:      &okPet,
+			ExamTypeID: 6,
+			Date:       time.Date(2026, 1, 16, 0, 0, 0, 0, time.UTC),
+			JobID:      uuid.New(),
+		},
+	})
+	if err != nil {
+		t.Fatalf("PersistBatch system error: %v", err)
+	}
+	if len(results) != 2 {
+		t.Fatalf("expected 2 results, got %d", len(results))
+	}
+	if results[0].RowError == nil {
+		t.Fatal("expected RowError on mismatched first row")
+	}
+	if !apperrors.IsNotFound(results[0].RowError) {
+		t.Errorf("expected NotFound RowError, got: %v", results[0].RowError)
+	}
+	if results[1].RowError != nil {
+		t.Errorf("second row without medical_record should succeed, got: %v", results[1].RowError)
+	}
+	if results[1].ExamID == 0 {
+		t.Error("second row should persist an exam")
+	}
+	if len(examRepo.exams) != 1 {
+		t.Errorf("expected only the non-mismatched exam, got %d", len(examRepo.exams))
 	}
 }
 
