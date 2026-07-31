@@ -21,14 +21,14 @@
 | ARCH-R2 | empty-diff COMPLETE 規律 | **ops-only**（継続） |
 | ARCH-R3 | land 時 foreign 定義は `git status` 実測 | **ops note** + TASK-004 |
 | POST-PULL | migrations 適用 | **ops-only** ≡ **SPEC-TOP-MIGRATE-006**（USER `make migrate`） |
-| SPEC-TOP-LINE-AUDIT | `docs/spec/line/**` deep 監査 | **TASK-019**（partial / deep follow-up） |
+| SPEC-TOP-LINE-AUDIT | `docs/spec/line/**` deep 監査 | **TASK-019 done**（残差 R-01..R-08 のみ） |
 | SPEC-TOP-E2E-RUNTIME-84 | Playwright runtime 84 | **TASK-020**（BLOCKED env） |
 | SPEC-TOP-CAPABILITIES-CRUD | exclusion 面の破壊削除 | **TASK-021 Stage A**（Stage B 実装済） |
 | SPEC-TOP-CLAIM-RELEASE | claim 解放 | **SCEN-OPS-CLAIM-001** |
 
 ### 対応済み（削除済み・再掲しない）
 
-TASK-001-BE/FE, TASK-002/003（WONTFIX + UI follow-up 実装済）, TASK-006/007/008, TASK-011, TASK-012/013/014（Wave1 実装済）, TASK-015/016/017, TASK-018, TASK-021 Stage B, ARCH-DONE, SPEC-TOP-G1-G12, SPEC-TOP-FOOTER-115, SPEC-TOP-CAP-SOT-DOC, SPEC-TOP-AVAILABLE-STAFFS（WONTFILE）, R1–R3, R8-\*, SCEN-S11-COPY-001, SCEN-AUDIT-MED-001, ARCH-R1, ISSUE-261 P0 deceased-pet write guards（`79fe62265`）。
+TASK-001-BE/FE, TASK-002/003（WONTFIX + UI follow-up 実装済）, TASK-006/007/008, TASK-011, TASK-012/013/014（Wave1 実装済）, TASK-015/016/017, TASK-018, TASK-019 deep, TASK-021 Stage B, ARCH-DONE, SPEC-TOP-G1-G12, SPEC-TOP-FOOTER-115, SPEC-TOP-CAP-SOT-DOC, SPEC-TOP-AVAILABLE-STAFFS（WONTFILE）, R1–R3, R8-\*, SCEN-S11-COPY-001, SCEN-AUDIT-MED-001, ARCH-R1, ISSUE-261 P0 deceased-pet write guards（`79fe62265`）。
 
 ### Ops-only notes（製品コード TASK にしない）
 
@@ -43,10 +43,9 @@ TASK-001-BE/FE, TASK-002/003（WONTFIX + UI follow-up 実装済）, TASK-006/007
 
 1. **TASK-009** seed 適用（USER。設計: `reports/2026-07-31-task-009-seed-design.md`）  
 2. **TASK-010** browser 要実測（env 後。seed 後が理想）  
-3. **TASK-019** line deep audit（任意）  
-4. **TASK-020** Playwright 84 runtime（env 後）  
-5. **TASK-021 Stage A**（consumer inventory + 破壊変更承認後）  
-6. **TASK-004 / TASK-005**: 次の intentional land 時  
+3. **TASK-020** Playwright 84 runtime（env 後）  
+4. **TASK-021 Stage A**（consumer inventory + 破壊変更承認後）  
+5. **TASK-004 / TASK-005**: 次の intentional land 時  
 
 ---
 
@@ -86,7 +85,7 @@ TASK-001-BE/FE, TASK-002/003（WONTFIX + UI follow-up 実装済）, TASK-006/007
 - **根拠**: 初回記録 `reports/2026-07-31-task-019-line-audit.md`。
 - **修正方針**: deep pass で差分を docs/BUG/要PO/ops に振分。秘密・本番 webhook 操作は対象外。
 - **受け入れ条件**: deep 結果1回記録; 新規 open は ID 付きまたは残差なし。
-- **状態**: **open（partial → deep follow-up）**。
+- **状態**: **done**（deep: `reports/2026-07-31-task-019-line-deep-audit.md`）。残差 ID のみ: **R-01** 要PO（webhook follow/unfollow 契約を architecture に書くか）、**R-02** ops（本番 webhook / line_bot_user_id）、**R-03**→TASK-010 要実測、**R-04** ops/USER（Write dual-gate 再有効化）、**R-05** 要PO（LINE credential 二重ストア SoT）、**R-06** 要PO（delivery-monitor nav 有無）、**R-07** 要PO（tags sidebar vs route RBAC）、**R-08** ops（LIFF ID 二重 bootstrap）。docs honesty 最小修正済（reservation-spec / architecture / lstep-integration / README / setup / screen37）。
 
 ### TASK-020: ui-design-compliance Playwright 再 runtime（84）（Low / 任意）
 

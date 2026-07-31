@@ -9,7 +9,7 @@
 
 ---
 
-> **注記 (2026-07-10)**: Lステップへの Write API（タグ付与・タグ解除・プロパティ更新）は現在一時停止中（noop）。判定ロジック・アプリ内 DB 更新・監査ログは通常どおり継続するが、Lステップ側の実タグは書き換わらない。詳細: [`docs/ops/deploy/LSTEP_WRITE_API_PAUSE.md`](../../ops/deploy/LSTEP_WRITE_API_PAUSE.md)
+> **注記 (2026-07-10 / 更新 2026-07-31)**: Lステップへの Write API（タグ付与・タグ解除・プロパティ更新）は **deploy gate `LSTEP_WRITE_API_ENABLED`（既定 OFF）+ clinic `is_sync_enabled` の二重 gate** で抑止される。gate OFF 時は外部 HTTP を送らず `ErrWriteDisabled` を返す（silent nil 成功ではない）。判定ロジック・アプリ内 DB 更新・監査は継続する。詳細: [`docs/ops/deploy/LSTEP_WRITE_API_PAUSE.md`](../../ops/deploy/LSTEP_WRITE_API_PAUSE.md)
 
 ---
 
@@ -31,11 +31,14 @@
 
 ## 2. 認証・紐付けロジック (Identity Mapping)
 
-顧客の特定は以下の 3 段階で行われます。
+顧客の特定は次の経路で行われる（**予約時の氏名+電話による自動オーナー紐付けは行わない** — SEC-CS2-F02）。
 
-1.  **LIFF ログイン**: LINE アプリからの初回アクセス時に `line_user_id` を取得。
-2.  **紐付け (Linking)**: 既存の飼主情報の「電話番号」または「飼主No」を用いて名寄せ。
-3.  **トークン管理**: `line_link_tokens` テーブルにより、セキュアな紐付けプロセスを保証。
+1.  **LIFF ログイン**: LINE アプリからのアクセス時に ID トークン検証で `line_user_id` / `line_customers` を解決（未登録なら顧客行を作成）。
+2.  **スタッフ発行 link token**: `POST /api/v1/owners/:id/line/link-token` で raw token を一度だけ返し、DB には unpadded base64url SHA-256 digest のみ保存（`line_link_tokens`）。
+3.  **LIFF 紐付け**: `POST /api/liff/:clinicId/link` が `link_token` + `line_id_token` で自己認証し、飼主へ LINE User ID を紐付け（既存 LINE ID の上書き拒否、token 単回 CAS 消費、監査同一 TX）。
+4.  **スタッフ手動リンク**: `PATCH .../line-customers/:id/link-owner` による院内オペレーション。
+
+Webhook（`POST /api/line/webhook`）は destination（bot user ID）で clinic を解決し署名検証する。イベント種別ごとの詳細契約表は architecture には置かず、実装と運用手順を正本とする（深掘り残差は deep audit R-01）。
 
 ---
 
@@ -45,7 +48,7 @@
 
 - タグ同期失敗はログするだけで、会計など本処理の成功契約を反転させない。
 - 記録先は `slog` とタグキャッシュ（必要時は API 失敗カウンタ）。**`lstep_delivery_trigger_log` には書かない**（当該テーブルは自動配信トリガー専用。`audit_logs` もこの ordinary-sync 経路では書かない）。
-- Write API 一時停止中は外部 HTTP write は noop。アプリ内判定・DB 更新は継続する。
+- Write dual-gate 無効時は外部 HTTP write を送らない（`ErrWriteDisabled`）。アプリ内判定・DB 更新は継続する。
 
 ```mermaid
 sequenceDiagram
@@ -55,8 +58,8 @@ sequenceDiagram
 
     Billing->>Sync: 会計確定後の CPM 同期 (同期呼び出し, nonfatal)
     Sync->>Sync: 顧客状態再計算 (CPM/VISIT)
-    Sync->>LS: タグ付与/解除リクエスト（Write API 一時停止中は noop）
-    LS-->>Sync: HTTP 200 OK（Write API 稼働時のみ）
+    Sync->>LS: タグ付与/解除リクエスト（deploy/clinic gate OFF 時は HTTP 0 + ErrWriteDisabled）
+    LS-->>Sync: HTTP 200 OK（両 gate 有効時のみ）
     Sync->>Sync: slog / tag cache / 失敗カウンタ（trigger log ではない）
 ```
 
@@ -81,7 +84,7 @@ LSTEP 周辺の「best-effort」は一語で混同しない。経路ごとに契
 ### 4.2 停止手段
 
 - clinic 単位の `is_sync_enabled=false` で同期・配信バッチ対象から外す。
-- Write API は運用判断により全体 noop（[`LSTEP_WRITE_API_PAUSE.md`](../../ops/deploy/LSTEP_WRITE_API_PAUSE.md)）。再開後も `is_sync_enabled=false` の clinic はサービス層で抑止する。
+- Write API は deploy kill switch `LSTEP_WRITE_API_ENABLED` と clinic flag の二重 gate（[`LSTEP_WRITE_API_PAUSE.md`](../../ops/deploy/LSTEP_WRITE_API_PAUSE.md)）。再開後も `is_sync_enabled=false` の clinic はサービス層で抑止する。
 
 ---
 

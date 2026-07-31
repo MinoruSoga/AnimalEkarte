@@ -9,7 +9,7 @@
 
 ---
 
-> **注記 (2026-07-10)**: Lステップへの Write API（タグ付与・タグ解除・プロパティ更新）は現在一時停止中（noop）。判定ロジック・アプリ内 DB 更新・監査ログは通常どおり継続するが、Lステップ側の実タグは書き換わらない。詳細: [`docs/ops/deploy/LSTEP_WRITE_API_PAUSE.md`](../../ops/deploy/LSTEP_WRITE_API_PAUSE.md)
+> **注記 (2026-07-10 / 更新 2026-07-31)**: Lステップへの Write API（タグ付与・タグ解除・プロパティ更新）は **`LSTEP_WRITE_API_ENABLED`（既定 OFF）+ clinic `is_sync_enabled` の二重 gate** で抑止。gate OFF 時は外部 HTTP 0 + `ErrWriteDisabled`（silent noop 成功ではない）。判定・アプリ内 DB・監査は継続。詳細: [`docs/ops/deploy/LSTEP_WRITE_API_PAUSE.md`](../../ops/deploy/LSTEP_WRITE_API_PAUSE.md)
 
 ---
 
@@ -84,7 +84,7 @@ LSTEP の失敗時挙動は経路ごとに 1 契約だけを持つ。詳細ア�
 
 ### 5.1 書き込み停止と運用停止
 
-- **Write API pause（noop）**: タグ付与・解除・プロパティ更新の外部 HTTP は停止中。判定・アプリ内 DB・監査は継続。[`LSTEP_WRITE_API_PAUSE.md`](../../ops/deploy/LSTEP_WRITE_API_PAUSE.md)
+- **Write dual-gate**: タグ付与・解除・プロパティ更新の外部 HTTP は deploy/clinic gate で抑止（`ErrWriteDisabled`）。判定・アプリ内 DB・監査は継続。[`LSTEP_WRITE_API_PAUSE.md`](../../ops/deploy/LSTEP_WRITE_API_PAUSE.md)
 - **clinic 停止**: `is_sync_enabled=false` の医院は再有効化後もサービス層で同期対象外。
 
 ### 5.2 定時 delivery バッチの読み取り要件
