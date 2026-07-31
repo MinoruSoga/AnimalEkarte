@@ -66,11 +66,15 @@ exit 1
 ```text
 $ rg -n 'capable_courses|capable-reservation-types' frontend/src frontend/liff frontend/line-reserve --glob '!**/*.test.*' --glob '!**/types/generated/**'
 exit 0
+matches=10
 frontend/src/lib/query-keys.ts:92:      resource: "capable-reservation-types" | "clinics" | "permission-groups",
 frontend/src/hooks/use-reservation-types.ts:55:  capable_courses: ReservationStaffCourse[];
 frontend/src/hooks/use-reservation-types.ts:62:  capable_courses?: ReservationStaffCourse[] | null;
 frontend/src/hooks/use-reservation-types.ts:93:    capable_courses: staff.capable_courses ?? [],
+frontend/src/hooks/use-reservation-types.ts:157: * capable_courses は院内予約フォームの担当者候補を肯定形で絞り込む（TASK-021 Stage B）。
+frontend/src/components/shared/ReservationFormModal/filter-staff-candidates.ts:14:  capable_courses?: ReadonlyArray<{ id: number; name?: string }>;
 frontend/src/components/shared/ReservationFormModal/filter-staff-candidates.ts:40:    const capable = reservationStaff.capable_courses ?? [];
+frontend/src/features/master/api/staff-reservation-types.ts:12:  queryKeys.staffs.subResource(staffId, "capable-reservation-types");
 frontend/src/features/master/api/staff-reservation-types.ts:19:        `/v1/masters/staffs/${staffId}/capable-reservation-types`,
 frontend/src/features/master/api/staff-reservation-types.ts:39:      await axios.put(`/v1/masters/staffs/${staffId}/capable-reservation-types`, {
 ```
