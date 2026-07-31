@@ -256,6 +256,10 @@ export const paths = {
       path: "/lstep/analytics",
       getHref: () => "/lstep/analytics",
     },
+    deliveryMonitor: {
+      path: "/lstep/delivery-monitor",
+      getHref: () => "/lstep/delivery-monitor",
+    },
   },
 
   settings: {

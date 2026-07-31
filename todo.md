@@ -13,17 +13,17 @@
 | R5 | コミット前の closed pack 回帰ゲート | **TASK-005**（ops 手順・land 前再実行） |
 | R6 | マルチエージェント共有 tree thrash | **ops-only** |
 | R7 | empty-diff 成功宣言 harness | **ops-only** |
-| SCEN-SEED-001 | 003_demo clinical CSV ヘッダのみ | **TASK-009**（CSV slice1 done・**適用は USER**） |
-| SCEN-BROWSER-001 | scenarios 内【要実測】backlog | **TASK-010**（BLOCKED env） |
+| SCEN-SEED-001 | 003_demo clinical CSV ヘッダのみ | **TASK-009**（CSV slice1 done・**適用は USER** / reseed ops 文書化済） |
+| SCEN-BROWSER-001 | scenarios 内【要実測】backlog | **TASK-010**（env READY・batch partial・残 backlog） |
 | SCEN-OPS-CLAIM-001 | `claim/*` 解放 | **ops-only**（USER only） |
 | SCEN-OPS-COMMIT-001 | mixed commit 説明メモ | **ops-only**（rewrite しない） |
 | SCEN-OPS-TREE-001 | 共有 tree concurrent WIP | **ops-only**（= R6） |
 | ARCH-R2 | empty-diff COMPLETE 規律 | **ops-only**（継続） |
 | ARCH-R3 | land 時 foreign 定義は `git status` 実測 | **ops note** + TASK-004 |
 | POST-PULL | migrations 適用 | **ops-only** ≡ **SPEC-TOP-MIGRATE-006**（USER `make migrate`） |
-| SPEC-TOP-LINE-AUDIT | `docs/spec/line/**` deep 監査 | **TASK-019 done**（残差 R-01..R-08 のみ） |
-| SPEC-TOP-E2E-RUNTIME-84 | Playwright runtime 84 | **TASK-020**（BLOCKED env） |
-| SPEC-TOP-CAPABILITIES-CRUD | exclusion 面の破壊削除 | **TASK-021 Stage A**（Stage B 実装済） |
+| SPEC-TOP-LINE-AUDIT | `docs/spec/line/**` deep 監査 | **TASK-019 done**（R-06/R-07 code fixed; R-01/R-05 要PO 等） |
+| SPEC-TOP-E2E-RUNTIME-84 | Playwright runtime 84 | **TASK-020**（runtime attempted・credentials BLOCKED） |
+| SPEC-TOP-CAPABILITIES-CRUD | exclusion 面の破壊削除 | **TASK-021 Stage A**（inventory done・delete BLOCKED consumers remain） |
 | SPEC-TOP-CLAIM-RELEASE | claim 解放 | **SCEN-OPS-CLAIM-001** |
 
 ### 対応済み（削除済み・再掲しない）
@@ -41,11 +41,12 @@ TASK-001-BE/FE, TASK-002/003（WONTFIX + UI follow-up 実装済）, TASK-006/007
 
 ### 推奨実装順（open のみ）
 
-1. **TASK-009** seed 適用（USER。設計: `reports/2026-07-31-task-009-seed-design.md` / slice1: `reports/2026-07-31-task-009-slice1.md`）  
-2. **TASK-010** browser 要実測（env 後。seed 後が理想）  
-3. **TASK-020** Playwright 84 runtime（env 後）  
-4. **TASK-021 Stage A**（consumer inventory + 破壊変更承認後）  
+1. **TASK-009** seed 適用（USER。reseed ops: `reports/2026-07-31-task-009-reseed-ops.md`）  
+2. **TASK-010** 要実測残 backlog（env READY。batch: `reports/2026-07-31-task-010-runtime-batch.md`）  
+3. **TASK-020** Playwright 93 runtime 完走（要 E2E login env。証拠: `reports/2026-07-31-task-020-runtime.md`）  
+4. **TASK-021 Stage A 削除**（inventory: `reports/2026-07-31-task-021-stage-a-inventory.md` — facade consumer 撤去後 + 破壊変更承認）  
 5. **TASK-004 / TASK-005**: 次の intentional land 時  
+6. **LINE 要PO**: R-01 / R-05（brief: `reports/2026-07-31-line-residuals-R01-R07.md`）
 
 ---
 
@@ -70,14 +71,14 @@ TASK-001-BE/FE, TASK-002/003（WONTFIX + UI follow-up 実装済）, TASK-006/007
 - **問題**: clinical CSV がヘッダのみでシナリオ前提データが揃わない可能性。
 - **修正方針**: 設計 `reports/2026-07-31-task-009-seed-design.md` に従い USER が seed 適用。エージェントは migrate/seed auto-apply しない。
 - **受け入れ条件**: 対象 CSV がヘッダのみでなくなる; シナリオ前提を満たす; 適用手順が1箇所で辿れる; 適用は USER。
-- **状態**: **CSV slice1 committed（authoring done）/ 適用は USER**。slice1: hospitalizations + treatment_plans + daily_records + care_plan_items（G1 medical_records は既存 dump で充足）。証拠: `reports/2026-07-31-task-009-slice1.md`。claim: `claim/TASK-009`（USER が統合後に解放）。
+- **状態**: **CSV slice1 committed（authoring done）/ 適用は USER**。slice1: hospitalizations + treatment_plans + daily_records + care_plan_items（G1 medical_records は既存 dump で充足）。証拠: `reports/2026-07-31-task-009-slice1.md`。**USER reseed 手順**: `reports/2026-07-31-task-009-reseed-ops.md`（既適用 DB は checksum mismatch → `make reset` が正。agent は auto wipe しない）。claim: `claim/TASK-009`（USER が統合後に解放）。
 
 ### TASK-010: scenarios【要実測】一括実測バックログ（Medium）
 
 - **問題**: scenarios に【要実測】残存。
 - **修正方針**: browser-test レーンで実測。記録は `reports/`。
 - **受け入れ条件**: 要実測 0 または PO/BUG 振分; reports に実行記録。
-- **状態**: **BLOCKED（env）**。`reports/2026-07-31-task-010-020-runtime-blocked.md`。
+- **状態**: **env READY / batch partial**（2026-07-31 orch wave）。docker healthy + `:8080/health` 200 + `:3003/` 200。batch で V05 から 5 件を実測クリア（要実測 ~77→~72）。証拠: `reports/2026-07-31-task-010-runtime-batch.md`。残 backlog は継続 open。claim: `claim/TASK-010`（USER 解放）。
 
 ### TASK-019: docs/spec/line/** deep 監査 follow-up（Medium / 任意）
 
@@ -85,19 +86,19 @@ TASK-001-BE/FE, TASK-002/003（WONTFIX + UI follow-up 実装済）, TASK-006/007
 - **根拠**: 初回記録 `reports/2026-07-31-task-019-line-audit.md`。
 - **修正方針**: deep pass で差分を docs/BUG/要PO/ops に振分。秘密・本番 webhook 操作は対象外。
 - **受け入れ条件**: deep 結果1回記録; 新規 open は ID 付きまたは残差なし。
-- **状態**: **done**（deep: `reports/2026-07-31-task-019-line-deep-audit.md`）。残差 ID のみ: **R-01** 要PO（webhook follow/unfollow 契約を architecture に書くか）、**R-02** ops（本番 webhook / line_bot_user_id）、**R-03**→TASK-010 要実測、**R-04** ops/USER（Write dual-gate 再有効化）、**R-05** 要PO（LINE credential 二重ストア SoT）、**R-06** 要PO（delivery-monitor nav 有無）、**R-07** 要PO（tags sidebar vs route RBAC）、**R-08** ops（LIFF ID 二重 bootstrap）。docs honesty 最小修正済（reservation-spec / architecture / lstep-integration / README / setup / screen37）。
+- **状態**: **done**（deep: `reports/2026-07-31-task-019-line-deep-audit.md`）。残差: **R-01** 要PO、**R-02** ops、**R-03**→TASK-010、**R-04** ops/USER、**R-05** 要PO、**R-06 done**（delivery-monitor nav honesty: `paths` + sidebar。証拠 `reports/2026-07-31-line-r06-r07-nav-honesty.md`）、**R-07 done**（tags sidebar resource → `ResourceLstepAnalytics`）、**R-08** ops。PO brief（非拘束）: `reports/2026-07-31-line-residuals-R01-R07.md`。claim: `claim/LINE-R-FIX`（USER 解放）。
 
 ### TASK-020: ui-design-compliance Playwright 再 runtime（84）（Low / 任意）
 
 - **問題**: inventory 84 静的更新後の full runtime 未実施。
 - **修正方針**: env 可なら `ui-design-compliance-readonly.spec.ts` workers=1。結果を reports へ。
-- **状態**: **BLOCKED（env）**。`reports/2026-07-31-task-010-020-runtime-blocked.md`。
+- **状態**: **runtime attempted / credentials BLOCKED**（2026-07-31）。scoped 93 tests: 4 passed / 3 failed / 86 did not run（`E2E_LOGIN_*` 未設定）。証拠: `reports/2026-07-31-task-020-runtime.md`。full green 未達。claim: `claim/TASK-020`（USER 解放）。
 
-### TASK-021 Stage A: exclusion 面の破壊的撤去（Medium・PO決裁済・未着手）
+### TASK-021 Stage A: exclusion 面の破壊的撤去（Medium・PO決裁済・inventory 済）
 
 - **問題**: Stage B で facade 化済み。exclusion route/payload/model/table の最終撤去が残る。
 - **修正方針**: **consumer inventory + 破壊変更の明示承認後**に Stage A（FINAL 参照）。新 endpoint は追加しない。`available-staffs` は WONTFILE。
 - **受け入れ条件**: exclusion production surface 削除; migration あり; Stage B 互換 consumer が無いこと inventory で証明。
-- **状態**: **Stage A remaining**。Stage B: `e9dddd921`。決裁: `reports/2026-07-31-todo-po-decisions-FINAL.md`。
+- **状態**: **inventory complete / delete BLOCKED（consumers remain）**。Stage B: `e9dddd921`。決裁: `reports/2026-07-31-todo-po-decisions-FINAL.md`。inventory: `reports/2026-07-31-task-021-stage-a-inventory.md` — production dual-write なし; live facade routes/fields/OpenAPI/seed/model 残存 → **NO CLEAN-GO**（破壊削除は consumer 撤去後 + 明示承認）。claim: `claim/TASK-021`（USER 解放）。
 
 ---
