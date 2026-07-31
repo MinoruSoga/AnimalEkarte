@@ -12,13 +12,13 @@
 | # | 前提 | 対応 Issue / 正本 | 完了条件 | 状態 |
 |---|---|---|---|---|
 | 1 | STG Cloudflare 移行 Phase 7（NS 切替・並行稼働）完遂 | [現行構成](../ops/infra/architecture.md) ／ [凍結済み移行記録](../ops/infra/_archive/migration-cloudflare.md) P5-5〜P7 | staging デプロイ 2 回連続 green（P5-5）→ 画像移行（P2-4/5）→ データ投入（P3-6/7）→ NS 切替（P1-2）→ フルスモーク（P7-3） | ✅ 2026-07-17 完了 |
-| 2 | 本番 Cloudflare 環境構築済み | #253 | 本番向け `backend-deploy.yml`（production 対応）で main → 本番反映が自動化・失敗通知あり・ロールバック手順文書化 | （確定待ち） |
+| 2 | 本番 Cloudflare 環境・配信契約 | #253 ／ [production/setup.md](../ops/infra/production/setup.md) ／ [production/runbook.md](../ops/infra/production/runbook.md) ／ [CI-CD-PIPELINE.md](../ops/deploy/CI-CD-PIPELINE.md) §0 | (a) 本番 CF 基盤構築 (b) `production` Environment + **Required reviewers** (c) production workflow 適用 (d) STG は main→staging 自動・本番は無承認開始不可 (e) **CF-only** rollback 手順 (f) backup/restore rehearsal 記録 (g) latest main CI green | （確定待ち） docs surface 整備済 / **CI green は GitHub billing BLOCKED（USER）** / 実インフラ・Environment 未 |
 | 3 | Access データの本番投入済み | #250 | リハーサル移行 PASS → 本番 DB へ最終移行 → 突合検証（件数・clinic_id 別件数・金額合計）PASS | （確定待ち: 最終移行は当日タイムライン内で実施） |
 | 4 | 全業務シナリオ通し確認済み | #254 | 全シナリオ PASS、または FAIL 項目が「納品後対応合意済みリスト」に隔離済み | （確定待ち） |
 | 5 | スタッフアカウント発行・権限設定済み | #255 | 全スタッフに個人アカウント発行・所属院スコープ・役割別権限設定済み | （確定待ち: スタッフ一覧の先方提供がブロッカー） |
 | 6 | フロントエンド CSP の最終確認 | [migration-cloudflare.md](../ops/infra/_archive/migration-cloudflare.md) §9 リスク登録簿 | `frontend/index.html` の CSP `connect-src` に本番 API オリジンが含まれている | （確定待ち） |
-| 7 | 監視・通知の有効化 | #253 ／ `infra/cloudflare/notifications.tf` | 通知ポリシー apply 済み・送信先メール検証済み | （確定待ち: `notification_email` 供給・アドレス事前検証） |
-| 8 | 切り戻し体制の合意 | 本書 §4 | 判断者・判断基準・連絡経路が先方と合意済み | （確定待ち） |
+| 7 | 監視・通知の有効化 | #253 ／ [production/runbook.md](../ops/infra/production/runbook.md) §4 ／ `infra/cloudflare/notifications.tf` | ゾーン 5xx 通知が有効・送信先メール検証済み（PROD 専用ポリシーは二重通知のため追加しない） | （確定待ち: 通知先供給・アドレス事前検証） |
+| 8 | 切り戻し体制の合意 | 本書 §4 ／ [production/runbook.md](../ops/infra/production/runbook.md) §3 | 判断者・判断基準・連絡経路が先方と合意済み。**ECS 切り戻しは選択肢に含めない** | （確定待ち） |
 
 ---
 
@@ -99,14 +99,14 @@
 
 ### 4.3 切り戻し手順
 
-**原則: AWS の hot standby は存在しない。DNS/NS の変更を復旧手段にせず、Cloudflare 正系統を復旧する。**
+**原則: AWS の hot standby は存在しない（#99）。DNS/NS の変更を復旧手段にせず、Cloudflare 正系統を復旧する。ECS workflow・IAM・旧 task definition を復活させない。**
 
 1. 判断者が復旧対応を宣言し、先方連絡窓口が必要に応じて現場へ「旧運用（Access）へ一時退避する」ことを周知する。
-2. デプロイ直後の障害は、直前に正常稼働したコミットを特定し、DB schemaとの互換性を確認したうえでCloudflareへ再デプロイする。STGの具体手順は [STG運用Runbook](../ops/infra/staging/runbook.md)、本番は [PROD運用Runbook](../ops/infra/production/runbook.md) を正本とする。
-3. providerまたは基盤障害で再デプロイできない場合は、当日取得したDBスナップショットとIaCから環境を再建する。production runbookにこの手順と責任者が確定するまではGo判定しない。
-4. Accessへ退避した期間の新規入力と、新システム側で既に受け付けた操作の範囲（時刻・操作者・対象）を記録し、復旧後に差分突合する。
-5. データ破損時のDB復元は、当日09:30取得のpg_dumpスナップショットを使い、#250の切り戻し手順と承認境界に従う。
-6. インシデント記録を作成し（原因・影響範囲・再発防止）、業務復帰時刻を判断者が決定する。
+2. デプロイ直後の障害は、直前に正常稼働したコミットを特定し、DB schema との互換性を確認したうえで Cloudflare へ再デプロイする。STG の具体手順は [STG運用Runbook](../ops/infra/staging/runbook.md)、本番は [PROD運用Runbook](../ops/infra/production/runbook.md) §3（CF-only）を正本とする。
+3. provider または基盤障害で再デプロイできない場合は、当日取得した DB スナップショットと IaC から環境を再建する。production runbook にこの手順と責任者が確定するまでは Go 判定しない。
+4. Access へ退避した期間の新規入力と、新システム側で既に受け付けた操作の範囲（時刻・操作者・対象）を記録し、復旧後に差分突合する。
+5. データ破損時の DB 復元は、当日 09:30 取得の pg_dump スナップショットを使い、#250 の切り戻し手順と承認境界に従う。
+6. インシデント記録を作成し（原因・影響範囲・再発防止）、業務復帰時刻を判断者が決定する。credential / PHI は記録に含めない。
 
 ---
 
@@ -131,6 +131,8 @@
 - [migration-cloudflare.md](../ops/infra/_archive/migration-cloudflare.md) — 凍結済みの移行計画・実施記録
 - [infra/cloudflare/README.md](../../infra/cloudflare/README.md) — Cloudflare Terraform / CI デプロイ手順
 - [docs/ops/deploy/README.md](../ops/deploy/README.md) — 環境一覧・ロールバック判定フレームワーク
-- [docs/ops/deploy/CI-CD-PIPELINE.md](../ops/deploy/CI-CD-PIPELINE.md) — デプロイパイプライン
+- [docs/ops/deploy/CI-CD-PIPELINE.md](../ops/deploy/CI-CD-PIPELINE.md) — デプロイ契約・パイプライン（#253 §0）
+- [docs/ops/infra/production/runbook.md](../ops/infra/production/runbook.md) — 本番運用・CF-only rollback・監視/backup
+- [docs/ops/infra/production/setup.md](../ops/infra/production/setup.md) — 本番 CF 事前構築手順
 - [DELIVERY_PACKAGE.md](DELIVERY_PACKAGE.md) — 納品ドキュメント（システム構成・運用手順）
 - [OPERATION_MANUAL.md](OPERATION_MANUAL.md) — 現場スタッフ向け操作マニュアル

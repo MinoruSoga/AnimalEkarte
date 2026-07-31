@@ -40,15 +40,22 @@
 ```
 1. PlanetScale 本番DB作成                         (§2)
 2. Terraform apply (infra/cloudflare/production/)  (§3)
-   → R2バケット作成 / api.noah-karte.com DNSレコード作成 / Hyperdrive設定作成(未使用予約)
+   → R2バケット作成 / api.noah-karte.com DNSレコード作成
+   （Hyperdrive は SEC-CS2-F03 で定義削除済み。再導入しない）
 3. R2 S3互換トークン発行                            (§4)
 4. wrangler secrets 投入                            (§5)
 5. wrangler.production.jsonc の PLACEHOLDER 置換     (§6)
 6. GitHub Environment "production" 作成 + secrets登録 (§7)
+   → **Required reviewers 必須**（#253: 無承認 production deploy 禁止）
 7. backend-deploy.yml へ production トリガー追加      (§8, 提案diff)
+   → §7 完了後にのみ適用（保護無し Environment 自動生成を避ける）
 8. 初回デプロイ実行 + 検証                           (§9)
 9. 既知の制約への対応(seedバンドル cleanup 等)        (§10)
 ```
+
+デプロイ契約・CF-only rollback・監視/backup gate の横断正本:
+[`../../deploy/CI-CD-PIPELINE.md`](../../deploy/CI-CD-PIPELINE.md) §0 と
+[`runbook.md`](runbook.md)。
 
 ---
 
@@ -81,15 +88,12 @@ pscale branch list "${DB_NAME}" --org "${ORG}"
 pscale role reset-default "${DB_NAME}" main --org "${ORG}" --force
 ```
 
-**【STGとの重要な相違点】** STG の運用（`infra/cloudflare/hyperdrive.tf` 冒頭コメント）では、
-この `reset-default` で得た値は Terraform 検証用の使い捨てとして扱い、「検証後は同コマンドで
-失効させる」運用だった。**本番ではこれを踏襲しない。** 理由: この節で取得する host/user/password
-は (a) `infra/cloudflare/production/` の Hyperdrive Terraform 変数 **と** (b) `wrangler secret put`
-で投入する `DB_HOST`/`DB_USER`/`DB_PASSWORD`（Container が PlanetScale へ直結する際に**継続的に**
-使う本番稼働用クレデンシャル）の両方に使う。取得直後に同コマンドで再度 `reset-default` すると
-(b) の値が無効化され、稼働中の Container が DB 接続できなくなる。**このステップで取得した値は
-そのまま維持し、ローテーションが必要になったら別途ランブック化して両箇所(Terraform state と
-wrangler secret)を同時に更新すること。**
+**【STGとの重要な相違点 / SEC-CS2-F03】** Hyperdrive は production Terraform から削除済み
+（Container は PlanetScale 直結）。この節で取得する host/user/password は **`wrangler secret put`
+で投入する `DB_HOST`/`DB_USER`/`DB_PASSWORD`（継続稼働用）にのみ使う**。Terraform 変数へ
+渡さない（`variables.tf` から `pscale_prod_db_*` は除去済み）。取得直後に再度
+`reset-default` すると稼働中 Container が DB 接続できなくなるため、取得値は維持し、
+ローテーション時は wrangler secret を同時更新する。
 
 取得した値は端末の環境変数にのみ保持し、ファイルへ書き出したりログに残したりしないこと
 (STGの `infra/cloudflare/README.md` の秘密情報取り扱い方針と同じ)。
@@ -114,11 +118,10 @@ export TF_VAR_account_id=$CLOUDFLARE_ACCOUNT_ID   # STGと同一アカウント�
 ```
 
 発行スコープ: `infra/cloudflare/production/providers.tf` のコメント参照
-(Workers Scripts/R2/Hyperdrive/Account Rulesets の Edit + Zone: DNS/Zone Settings の Edit
-(`noah-karte.com` に限定) + Zone: Zone Read)。**Zone Read が必須**な点に注意
-(`zone.tf` の `data "cloudflare_zone"` によるゾーン参照に必要。STGのトークンにはDNS Editは
-あるがZone Readが明示要求されていなかった可能性があるため、production用トークン発行時に
-スコープを再確認すること)。
+(Workers Scripts/R2/Account Rulesets の Edit + Zone: DNS/Zone Settings の Edit
+(`noah-karte.com` に限定) + Zone: Zone Read)。Hyperdrive Edit は不要（SEC-CS2-F03）。
+**Zone Read が必須**な点に注意（`zone.tf` の `data "cloudflare_zone"` 参照）。
+production 用トークン発行時にスコープを再確認すること。
 
 ### 3.3 plan → 承認 → apply
 
@@ -126,26 +129,26 @@ export TF_VAR_account_id=$CLOUDFLARE_ACCOUNT_ID   # STGと同一アカウント�
 cd infra/cloudflare/production
 terraform init
 terraform validate
-terraform plan -out=tfplan \
-  -var="pscale_prod_db_host=${PSCALE_PROD_DB_HOST}" \
-  -var="pscale_prod_db_user=${PSCALE_PROD_DB_USER}" \
-  -var="pscale_prod_db_password=${PSCALE_PROD_DB_PASSWORD}"
+# DB 資格情報は Terraform に渡さない（Worker secrets のみ）。account_id は TF_VAR_account_id
+terraform plan -out=tfplan
 # ここで plan 内容をレビューし、明示承認を得る(infra/cloudflare/README.md の安全ルールと同じ)
 terraform apply tfplan
 ```
 
 **確認事項(plan 内容レビュー時)**:
 - `data.cloudflare_zone.noah_karte` は **read-only lookup**（作成・変更ではない）であること
-- 作成されるリソースが `cloudflare_r2_bucket.prod_images`
-  ・`cloudflare_dns_record.api_prod_backend`・`cloudflare_hyperdrive_config.prod_planetscale`
-  の3つのみであること（STGの `cloudflare_zone`/DNS 9件/通知ポリシーが**再作成されようとしていたら
-  即座に中断**。同一ゾーンの二重管理事故の兆候）
+- 作成されるリソースが `cloudflare_r2_bucket.prod_images` と
+  `cloudflare_dns_record.api_prod_backend` のみであること
+  （`cloudflare_hyperdrive_config` が **新規作成**されようとしていたら中断 — 定義は削除済み。
+  state に旧 Hyperdrive が残る場合の destroy 差分は `infra/cloudflare/production/README.md`
+  の USER-only follow-up に従う）
+- STG の `cloudflare_zone`/DNS 9件/通知ポリシーが**再作成されようとしていたら即座に中断**
+  （同一ゾーンの二重管理事故の兆候）
 
 apply 後:
 
 ```bash
 terraform output r2_bucket_name          # animalekarte-prod-images を確認
-terraform output hyperdrive_config_id    # §6 で wrangler.production.jsonc に投入
 terraform output zone_id                 # noah-karte.com のゾーンID(STGと同一のはず)
 ```
 
@@ -229,13 +232,13 @@ cd backend
 
 ## 6. `wrangler.production.jsonc` の PLACEHOLDER 置換
 
-ファイル冒頭コメントに列挙済みの3箇所を埋める:
+ファイル冒頭コメントに列挙済みの箇所を埋める（Hyperdrive binding は SEC-CS2-F03 で削除済み）:
 
-1. `hyperdrive[0].id` ← §3.3 の `terraform output hyperdrive_config_id`
-2. `vars.TRUSTED_PROXY_CIDR` ← §9.3 の実測後に確定(初回デプロイ**後**の作業。デプロイ自体は
+1. `vars.TRUSTED_PROXY_CIDR` ← §9.3 の実測後に確定(初回デプロイ**後**の作業。デプロイ自体は
    STGの実測値 `10.1.0.0/32` を暫定候補のまま進めてよい。広げる方向の変更はしないこと)
-3. `vars.S3_PUBLIC_BASE_URL` ← R2 production 公開ドメイン作成後(任意タイミング。未設定でも
+2. `vars.S3_PUBLIC_BASE_URL` ← R2 production 公開ドメイン作成後(任意タイミング。未設定でも
    起動は可能。空文字のままだと画像公開URLがAPIホストへフォールバックし警告ログが出る)
+3. コンテナ/ジョブに `APP_ENV=production` が明示されていること（seed は master のみ。§10.1）
 
 ---
 
@@ -437,12 +440,11 @@ Cloudflare通知APIでは不可能(STGコードの調査記録どおり)。produ
 (誤りの効果は非対称: 広すぎる値はX-Forwarded-For偽装によるレート制限バイパス、
 狭すぎる値は可用性低下に留まる)。
 
-### 10.4 Hyperdriveは現状未使用の予約リソース
+### 10.4 Hyperdrive は定義削除済み（SEC-CS2-F03）
 
-Container(Go/Ginバイナリ)はHyperdriveに非対応のため直結接続する設計であり、
-`infra/cloudflare/production/hyperdrive.tf` が作るリソースは実トラフィックに使われない。
-DB接続情報をtfstateに保持し続けるコストだけが発生するため、production運用開始後に
-「本当に将来使うか」を一度棚卸しし、不要と判断されればリソース自体の削除を検討すること。
+Container は Hyperdrive 非対応のため PlanetScale 直結。`hyperdrive.tf` は tombstone コメントのみ。
+旧 state に resource が残る場合の destroy は `infra/cloudflare/production/README.md` の
+USER-only follow-up。**再導入しない**（origin 資格情報を tfstate に戻さない）。
 
 ### 10.5 R2バケットの本番公開ドメイン(S3_PUBLIC_BASE_URL)は未確定
 
@@ -451,18 +453,15 @@ DB接続情報をtfstateに保持し続けるコストだけが発生するた�
 
 ---
 
-## 11. ロールバック
+## 11. ロールバック（CF-only・#99）
 
 Cloudflare側(Worker/Container)には旧バージョンへの自動ロールバック機構がない
-(STGの `../_archive/migration-cloudflare.md` リスク登録簿に記載の既知の制約と同じ:
-Durable Object bindのため段階的デプロイ・Preview URLが使えない)。
-問題が発生した場合:
+(Durable Object bindのため段階的デプロイ・Preview URLが使えない)。
+**日常運用の正本は [runbook.md](runbook.md) §3。** 構築直後の要点のみ:
 
-1. 直前の green だった commit へ `production` ブランチを戻し、再度 `wrangler deploy` する
-   (前方復旧。DBスキーマが前進していた場合は expand-contract 前提で設計されていない限り
-   注意が必要 — 本番初回構築時点ではデータが実質空のため影響は限定的)
-2. Terraform側(`infra/cloudflare/production/`)の変更をロールバックする場合は
-   `terraform plan` で差分を確認してから `apply`(destroyは特に慎重に。§3.3 と同じ承認プロセス)
-3. AWS側の本番ロールバック経路は本書のスコープ外
-   (現状、本番バックエンドはCloudflareで新設するため、AWS側に「戻す先」の稼働中本番環境が
-   存在しない。`infra/CLAUDE.md` の本番向けAWS想定表は本ドラフトにより実質的に置き換えられる)
+1. 直前の green commit を特定し、DB schema 互換を確認したうえで
+   `wrangler deploy -c wrangler.production.jsonc`（または production workflow + Required reviewers）
+2. Terraform 差分は `plan` レビュー後に明示承認して `apply`（destroy は特に慎重に）
+3. **AWS ECS/RDS への切り戻しは禁止**（2026-07-20 廃止済み・hot standby 無し）。
+   ECS workflow・IAM・旧 task definition を復活させない。DNS/NS を旧インフラへ戻すことを
+   復旧とみなさない。provider 障害時はスナップショット + 現行 IaC から Cloudflare を再建する
