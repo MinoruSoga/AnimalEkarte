@@ -7,8 +7,9 @@ package medicalrecord
 //   - LabImportJobRepository.Update は clinic_id スコープ（別クリニックからは更新できない）。
 //   - FindByID は clinic_id で正しく分離される。
 //   - LabImportEventRepository.FindByJob は job_id + clinic_id で分離され created_at 昇順。
-//   - LabImportDuplicateCheckerDB.IsDuplicate は (clinic_id, exam_type_id, date, pet_id) の
-//     複合キーで判定し、ソフトデリート済み exam は重複扱いしない。
+//   - LabImportDuplicateCheckerDB.IsDuplicate は完全同一ペイロード（header + items）のみ
+//     重複とし、同日・同検査種別で内容が異なる再検査は重複にしない（Issue #249 R-3）。
+//     ソフトデリート済み exam は重複扱いしない。clinic_id 隔離を維持する。
 //
 // setupTestDB → testdb.SetupTestDB, ensureAutoMigrated → testdb.EnsureAutoMigrated に置換
 // （medicalrecord-local セットアップ・sub-batch①/②先例）。makeTestOwner / makeSpeciesAndPet は
@@ -63,10 +64,11 @@ func setupLabImportTestDB(t *testing.T) *gorm.DB {
 	}
 	require.NoError(t, testdb.EnsureAutoMigrated(db,
 		&model.LabImportJob{}, &model.LabImportEvent{},
-		&model.AnimalSpecies{}, &model.Pet{}, &model.ExaminationType{}, &model.Examination{},
+		&model.AnimalSpecies{}, &model.Pet{}, &model.ExaminationType{}, &model.Examination{}, &model.ExamResult{},
 	))
 	db.Exec("TRUNCATE TABLE lab_import_events CASCADE")
 	db.Exec("TRUNCATE TABLE lab_import_jobs CASCADE")
+	db.Exec("TRUNCATE TABLE exam_results CASCADE")
 	db.Exec("TRUNCATE TABLE exams CASCADE")
 	db.Exec("TRUNCATE TABLE exam_types CASCADE")
 	db.Exec("TRUNCATE TABLE pets CASCADE")
@@ -238,46 +240,173 @@ func TestLabImportDuplicateCheckerDB_IsDuplicate(t *testing.T) {
 
 	makeExamRec(t, db, clinicA, pet.ID, examType.ID) // Date は now() だが以下の未紐付ケースで別途 exam を作る
 
-	// pet_id ありの exam を明示的に日付指定で作成
-	examWithPet := &model.Examination{ClinicID: clinicA, PetID: &pet.ID, ExamTypeID: examType.ID, Date: date}
+	// pet_id ありの exam を明示的に日付指定で作成（header のみ・items なし）
+	examWithPet := &model.Examination{
+		ClinicID: clinicA, PetID: &pet.ID, ExamTypeID: examType.ID, Date: date, Machine: "Analyzer-A",
+	}
 	require.NoError(t, db.WithContext(ctx).Create(examWithPet).Error)
 
 	// pet_id なしの exam
-	examNoPet := &model.Examination{ClinicID: clinicA, ExamTypeID: examType.ID, Date: date}
+	examNoPet := &model.Examination{ClinicID: clinicA, ExamTypeID: examType.ID, Date: date, Machine: "Analyzer-A"}
 	require.NoError(t, db.WithContext(ctx).Create(examNoPet).Error)
 
-	t.Run("同一(clinic,exam_type,date,pet_id)は重複と判定する", func(t *testing.T) {
-		dup, err := checker.IsDuplicate(ctx, clinicA, examType.ID, date, &pet.ID)
+	// 同一 header + 空 items は完全同一再インポートとして重複
+	t.Run("完全同一header(空items)は重複と判定する", func(t *testing.T) {
+		dup, err := checker.IsDuplicate(ctx, LabExamPersistInput{
+			ClinicID: clinicA, ExamTypeID: examType.ID, Date: date, PetID: &pet.ID, Machine: "Analyzer-A",
+		})
 		require.NoError(t, err)
 		assert.True(t, dup)
 	})
 
-	t.Run("pet_idがnilの行はpet_id IS NULLとして重複判定する", func(t *testing.T) {
-		dup, err := checker.IsDuplicate(ctx, clinicA, examType.ID, date, nil)
+	t.Run("pet_idがnilの行はpet_id IS NULLとして完全一致判定する", func(t *testing.T) {
+		dup, err := checker.IsDuplicate(ctx, LabExamPersistInput{
+			ClinicID: clinicA, ExamTypeID: examType.ID, Date: date, PetID: nil, Machine: "Analyzer-A",
+		})
 		require.NoError(t, err)
 		assert.True(t, dup)
 	})
 
 	t.Run("該当日に記録が無ければ重複ではない", func(t *testing.T) {
-		dup, err := checker.IsDuplicate(ctx, clinicA, examType.ID, date.AddDate(0, 0, 1), &pet.ID)
+		dup, err := checker.IsDuplicate(ctx, LabExamPersistInput{
+			ClinicID: clinicA, ExamTypeID: examType.ID, Date: date.AddDate(0, 0, 1), PetID: &pet.ID, Machine: "Analyzer-A",
+		})
 		require.NoError(t, err)
 		assert.False(t, dup)
 	})
 
 	t.Run("別クリニックの同条件は重複ではない（clinic_id隔離）", func(t *testing.T) {
-		dup, err := checker.IsDuplicate(ctx, clinicB, examType.ID, date, &pet.ID)
+		dup, err := checker.IsDuplicate(ctx, LabExamPersistInput{
+			ClinicID: clinicB, ExamTypeID: examType.ID, Date: date, PetID: &pet.ID, Machine: "Analyzer-A",
+		})
 		require.NoError(t, err)
 		assert.False(t, dup)
 	})
 
 	t.Run("ソフトデリート済みexamは重複判定に含まれない", func(t *testing.T) {
 		deletedDate := date.AddDate(0, 0, 2)
-		deletedExam := &model.Examination{ClinicID: clinicA, PetID: &pet.ID, ExamTypeID: examType.ID, Date: deletedDate}
+		deletedExam := &model.Examination{
+			ClinicID: clinicA, PetID: &pet.ID, ExamTypeID: examType.ID, Date: deletedDate, Machine: "Analyzer-A",
+		}
 		require.NoError(t, db.WithContext(ctx).Create(deletedExam).Error)
 		require.NoError(t, db.WithContext(ctx).Delete(deletedExam).Error) // soft delete
 
-		dup, err := checker.IsDuplicate(ctx, clinicA, examType.ID, deletedDate, &pet.ID)
+		dup, err := checker.IsDuplicate(ctx, LabExamPersistInput{
+			ClinicID: clinicA, ExamTypeID: examType.ID, Date: deletedDate, PetID: &pet.ID, Machine: "Analyzer-A",
+		})
 		require.NoError(t, err)
 		assert.False(t, dup, "ソフトデリート済みexamは重複扱いされないべき")
+	})
+}
+
+// TestLabImportDuplicateCheckerDB_IsDuplicate_FullIdenticalOnly は Issue #249 R-3:
+// 同日・同検査種別でも内容が異なれば重複ではなく、完全同一ペイロードのみスキップする。
+func TestLabImportDuplicateCheckerDB_IsDuplicate_FullIdenticalOnly(t *testing.T) {
+	db := setupLabImportTestDB(t)
+	checker := NewLabImportDuplicateCheckerDB(db)
+	ctx := context.Background()
+	const clinicA = uint64(1)
+
+	owner := makeTestOwner(t, db, clinicA, "R3重複判定飼主")
+	pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "R3重複判定犬")
+	examType := makeLabImportExamTypeMaster(t, db, clinicA, "生化学")
+	date := time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC)
+	refMin, refMax := 8.0, 30.0
+
+	seedItems := func(examID uint64, value string) {
+		t.Helper()
+		item := model.ExamResult{
+			ExamID:          examID,
+			Name:            "BUN",
+			InspectionValue: value,
+			Unit:            "mg/dL",
+			ReferenceValue:  "8-30",
+			RefMin:          &refMin,
+			RefMax:          &refMax,
+			SortOrder:       1,
+		}
+		require.NoError(t, db.WithContext(ctx).Create(&item).Error)
+	}
+
+	// 既存 exam: BUN=12.0
+	existing := &model.Examination{
+		ClinicID: clinicA, PetID: &pet.ID, ExamTypeID: examType.ID, Date: date, Machine: "Fuji",
+	}
+	require.NoError(t, db.WithContext(ctx).Create(existing).Error)
+	seedItems(existing.ID, "12.0")
+
+	baseInput := LabExamPersistInput{
+		ClinicID:   clinicA,
+		PetID:      &pet.ID,
+		ExamTypeID: examType.ID,
+		Date:       date,
+		Machine:    "Fuji",
+		Items: []LabExamItemInput{{
+			Name: "BUN", InspectionValue: "12.0", Unit: "mg/dL",
+			ReferenceValue: "8-30", RefMin: &refMin, RefMax: &refMax, SortOrder: 1,
+		}},
+	}
+
+	t.Run("完全同一header+itemsは重複", func(t *testing.T) {
+		dup, err := checker.IsDuplicate(ctx, baseInput)
+		require.NoError(t, err)
+		assert.True(t, dup, "full-identical re-import must be skipped")
+	})
+
+	t.Run("同日同typeでInspectionValueが異なれば重複ではない", func(t *testing.T) {
+		diff := baseInput
+		diff.Items = []LabExamItemInput{{
+			Name: "BUN", InspectionValue: "25.5", Unit: "mg/dL",
+			ReferenceValue: "8-30", RefMin: &refMin, RefMax: &refMax, SortOrder: 1,
+		}}
+		dup, err := checker.IsDuplicate(ctx, diff)
+		require.NoError(t, err)
+		assert.False(t, dup, "same-day re-exam with different content must NOT be duplicate")
+	})
+
+	t.Run("同日同typeでMachineが異なれば重複ではない", func(t *testing.T) {
+		diff := baseInput
+		diff.Machine = "Other-Machine"
+		dup, err := checker.IsDuplicate(ctx, diff)
+		require.NoError(t, err)
+		assert.False(t, dup)
+	})
+
+	t.Run("同日同typeでmedical_record_idが異なれば重複ではない", func(t *testing.T) {
+		mrID := uint64(999)
+		diff := baseInput
+		diff.MedicalRecordID = &mrID
+		dup, err := checker.IsDuplicate(ctx, diff)
+		require.NoError(t, err)
+		assert.False(t, dup)
+	})
+
+	t.Run("同日2回目の異なる再検査は重複ではない", func(t *testing.T) {
+		// 2 件目を seed（異なる値）
+		second := &model.Examination{
+			ClinicID: clinicA, PetID: &pet.ID, ExamTypeID: examType.ID, Date: date, Machine: "Fuji",
+		}
+		require.NoError(t, db.WithContext(ctx).Create(second).Error)
+		seedItems(second.ID, "18.0")
+
+		// 3 回目: さらに別の値 → どちらとも一致しないので false
+		third := baseInput
+		third.Items = []LabExamItemInput{{
+			Name: "BUN", InspectionValue: "99.0", Unit: "mg/dL",
+			ReferenceValue: "8-30", RefMin: &refMin, RefMax: &refMax, SortOrder: 1,
+		}}
+		dup, err := checker.IsDuplicate(ctx, third)
+		require.NoError(t, err)
+		assert.False(t, dup, "second re-exam with different values must insert")
+
+		// 既存 18.0 と同一なら true
+		sameAsSecond := baseInput
+		sameAsSecond.Items = []LabExamItemInput{{
+			Name: "BUN", InspectionValue: "18.0", Unit: "mg/dL",
+			ReferenceValue: "8-30", RefMin: &refMin, RefMax: &refMax, SortOrder: 1,
+		}}
+		dup, err = checker.IsDuplicate(ctx, sameAsSecond)
+		require.NoError(t, err)
+		assert.True(t, dup, "re-import of already-stored second exam content must skip")
 	})
 }

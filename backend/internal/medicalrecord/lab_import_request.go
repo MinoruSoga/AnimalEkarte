@@ -120,7 +120,7 @@ func toExamInputs(clinicID uint64, reqs []labExamInputReq) ([]LabExamPersistInpu
 		if err != nil {
 			return nil, apperrors.WrapInvalidInput(fmt.Sprintf("inputs[%d].date は YYYY-MM-DD 形式で指定してください", i))
 		}
-		// UTC date-only 正規化 (IsDuplicate の要件)
+		// UTC date-only 正規化 (IsDuplicate 候補フィルタ / write path 一致の要件)
 		d = time.Date(d.Year(), d.Month(), d.Day(), 0, 0, 0, 0, time.UTC)
 
 		items := make([]LabExamItemInput, len(r.Items))

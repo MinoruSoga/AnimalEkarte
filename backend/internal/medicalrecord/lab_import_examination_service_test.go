@@ -172,7 +172,7 @@ type stubDupChecker struct {
 	checkErr error
 }
 
-func (c *stubDupChecker) IsDuplicate(_ context.Context, _, _ uint64, _ time.Time, _ *uint64) (bool, error) {
+func (c *stubDupChecker) IsDuplicate(_ context.Context, _ LabExamPersistInput) (bool, error) {
 	return c.isDup, c.checkErr
 }
 
@@ -571,6 +571,97 @@ func TestLabImportExaminationService_PersistExam_Duplicate(t *testing.T) {
 	}
 }
 
+// TestLabImportExaminationService_PersistExam_SameDayDifferentContentNotDuplicate は
+// Issue #249 R-3: 同日・同検査種別でも内容が異なれば両方 persist されることを検証する。
+func TestLabImportExaminationService_PersistExam_SameDayDifferentContentNotDuplicate(t *testing.T) {
+	examRepo := newStubExamRepo()
+	dupChecker := &examRepoBackedDupChecker{repo: examRepo}
+	svc := NewLabImportExaminationService(
+		examRepo, dupChecker, okExamTypeRepo(), okPetRepo(), okMedicalRecordRepo(), passthroughLabImportTransactor{},
+	).(*labImportExaminationService)
+
+	petID := uint64(42)
+	date := time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC)
+	base := LabExamPersistInput{
+		ClinicID:   1,
+		PetID:      &petID,
+		ExamTypeID: 5,
+		Date:       date,
+		Machine:    "Fuji",
+	}
+
+	first := base
+	first.JobID = uuid.New()
+	first.Items = []LabExamItemInput{{Name: "BUN", InspectionValue: "12.0", Unit: "mg/dL", SortOrder: 1}}
+	res1, err := svc.persistExam(context.Background(), first)
+	if err != nil {
+		t.Fatalf("first persist: %v", err)
+	}
+	if res1.Duplicate || res1.ExamID == 0 {
+		t.Fatalf("first: expected new exam, got duplicate=%v examID=%d", res1.Duplicate, res1.ExamID)
+	}
+
+	// 同日・同 type・異なる値 → 新規保存
+	second := base
+	second.JobID = uuid.New()
+	second.Items = []LabExamItemInput{{Name: "BUN", InspectionValue: "25.5", Unit: "mg/dL", SortOrder: 1}}
+	res2, err := svc.persistExam(context.Background(), second)
+	if err != nil {
+		t.Fatalf("second persist: %v", err)
+	}
+	if res2.Duplicate {
+		t.Error("same-day different content must NOT be duplicate")
+	}
+	if res2.ExamID == 0 || res2.ExamID == res1.ExamID {
+		t.Errorf("second: expected distinct new exam, got examID=%d (first=%d)", res2.ExamID, res1.ExamID)
+	}
+	if len(examRepo.exams) != 2 {
+		t.Errorf("expected 2 exams persisted, got %d", len(examRepo.exams))
+	}
+}
+
+// TestLabImportExaminationService_PersistExam_FullIdenticalContentIsDuplicate は
+// Issue #249 R-3: 完全同一ペイロードの再インポートのみスキップすることを検証する。
+func TestLabImportExaminationService_PersistExam_FullIdenticalContentIsDuplicate(t *testing.T) {
+	examRepo := newStubExamRepo()
+	dupChecker := &examRepoBackedDupChecker{repo: examRepo}
+	svc := NewLabImportExaminationService(
+		examRepo, dupChecker, okExamTypeRepo(), okPetRepo(), okMedicalRecordRepo(), passthroughLabImportTransactor{},
+	).(*labImportExaminationService)
+
+	petID := uint64(42)
+	date := time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC)
+	items := []LabExamItemInput{{Name: "BUN", InspectionValue: "12.0", Unit: "mg/dL", SortOrder: 1}}
+	first := LabExamPersistInput{
+		ClinicID: 1, PetID: &petID, ExamTypeID: 5, Date: date, Machine: "Fuji",
+		JobID: uuid.New(), Items: items,
+	}
+	res1, err := svc.persistExam(context.Background(), first)
+	if err != nil {
+		t.Fatalf("first persist: %v", err)
+	}
+	if res1.Duplicate {
+		t.Fatal("first should not be duplicate")
+	}
+
+	// 完全同一（JobID だけ違う）→ skip
+	reimport := first
+	reimport.JobID = uuid.New()
+	res2, err := svc.persistExam(context.Background(), reimport)
+	if err != nil {
+		t.Fatalf("reimport: %v", err)
+	}
+	if !res2.Duplicate {
+		t.Error("full-identical re-import must be Duplicate=true")
+	}
+	if res2.ExamID != 0 {
+		t.Errorf("duplicate skip must not create exam, got ExamID=%d", res2.ExamID)
+	}
+	if len(examRepo.exams) != 1 {
+		t.Errorf("expected still 1 exam after identical re-import, got %d", len(examRepo.exams))
+	}
+}
+
 // TestLabImportExaminationService_PersistExam_ClinicScopeEnforced は
 // 異なる clinic_id では exam が取得できないことを確認する（FK / tenant scope）。
 func TestLabImportExaminationService_PersistExam_ClinicScopeEnforced(t *testing.T) {
@@ -752,7 +843,7 @@ func TestLabImportExaminationService_PersistBatch_Happy(t *testing.T) {
 func TestLabImportExaminationService_PersistBatch_WithDuplicate(t *testing.T) {
 	examRepo := newStubExamRepo()
 	callCount := 0
-	dupChecker := &dynamicDupChecker{fn: func(_ context.Context, _ uint64, _ uint64, _ time.Time, _ *uint64) (bool, error) {
+	dupChecker := &dynamicDupChecker{fn: func(_ context.Context, _ LabExamPersistInput) (bool, error) {
 		callCount++
 		// 2 行目だけ重複
 		return callCount == 2, nil
@@ -883,26 +974,30 @@ func TestLabImportExaminationService_PersistExam_DBDuplicateTreatedAsDuplicate(t
 	}
 }
 
-// examRepoBackedDupChecker は (clinic_id, exam_type_id, date, pet_id) の一致を
-// stubExamRepo.exams の現在の状態から動的に判定する。本物の
-// LabImportDuplicateCheckerDB（deleted_at IS NULL スコープ）を模し、孤児 exam の
-// 削除有無が retry の可否に直結することを検証するために使う（P2-7 回帰テスト専用）。
+// examRepoBackedDupChecker は full-identical 一致を stubExamRepo.exams / results の
+// 現在の状態から動的に判定する。本物の LabImportDuplicateCheckerDB を模し、孤児 exam の
+// 削除有無が retry の可否に直結することを検証するために使う（P2-7 / R-3 回帰テスト専用）。
 type examRepoBackedDupChecker struct {
 	repo *stubExamRepo
 }
 
-func (c *examRepoBackedDupChecker) IsDuplicate(_ context.Context, clinicID, examTypeID uint64, date time.Time, petID *uint64) (bool, error) {
+func (c *examRepoBackedDupChecker) IsDuplicate(_ context.Context, input LabExamPersistInput) (bool, error) {
+	normalised := time.Date(input.Date.Year(), input.Date.Month(), input.Date.Day(), 0, 0, 0, 0, time.UTC)
 	for _, exam := range c.repo.exams {
-		if exam.ClinicID != clinicID || exam.ExamTypeID != examTypeID || !exam.Date.Equal(date) {
+		if exam.ClinicID != input.ClinicID || exam.ExamTypeID != input.ExamTypeID {
 			continue
 		}
-		if petID == nil {
-			if exam.PetID == nil {
-				return true, nil
-			}
+		examDate := time.Date(exam.Date.Year(), exam.Date.Month(), exam.Date.Day(), 0, 0, 0, 0, time.UTC)
+		if !examDate.Equal(normalised) {
 			continue
 		}
-		if exam.PetID != nil && *exam.PetID == *petID {
+		if !labImportNullableUint64Equal(exam.PetID, input.PetID) {
+			continue
+		}
+		// Items は stub の results map から供給し、本番と同一の full-match 判定を使う。
+		candidate := *exam
+		candidate.Items = c.repo.results[exam.ID]
+		if labImportExamFullyMatches(&candidate, input) {
 			return true, nil
 		}
 	}
@@ -988,9 +1083,9 @@ func TestLabImportExaminationService_PersistExam_ReplaceItemsErrorPropagates(t *
 // ------------------------------------
 
 type dynamicDupChecker struct {
-	fn func(ctx context.Context, clinicID, examTypeID uint64, date time.Time, petID *uint64) (bool, error)
+	fn func(ctx context.Context, input LabExamPersistInput) (bool, error)
 }
 
-func (c *dynamicDupChecker) IsDuplicate(ctx context.Context, clinicID, examTypeID uint64, date time.Time, petID *uint64) (bool, error) {
-	return c.fn(ctx, clinicID, examTypeID, date, petID)
+func (c *dynamicDupChecker) IsDuplicate(ctx context.Context, input LabExamPersistInput) (bool, error) {
+	return c.fn(ctx, input)
 }

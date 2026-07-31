@@ -58,7 +58,8 @@ type LabExamPersistResult struct {
 //   - fixture ソースからの synthetic 入力を受け付ける
 //   - clinic_id 隔離を保証する（examRepo.Create の ClinicID + ReplaceItemsByExamID の JOIN 検証）
 //   - pet_id と medical_record_id を同時に受け取る場合は同一患者相関を fail-closed で検証する
-//   - (clinic_id, exam_type_id, date, pet_id) の複合キーによる重複スキップを実装する
+//   - 完全同一ペイロード（header + items）の再インポートのみスキップする（Issue #249 R-3）
+//   - 同日・同検査種別でも内容が異なれば新規 exam として保存する
 //   - DB レベルの unique violation も重複として扱う（TOCTOU 安全ネット）
 //   - lab_import_jobs との接続点を JobID フィールドで保持する
 //   - HC-005: lab import は MedicalRecord の status を検証しない
@@ -101,15 +102,17 @@ type LabImportExaminationService interface {
 	PersistBatch(ctx context.Context, inputs []LabExamPersistInput) ([]*LabExamPersistResult, error)
 }
 
-// LabImportDuplicateChecker は (clinic_id, exam_type_id, date, pet_id) キーによる重複チェック。
+// LabImportDuplicateChecker は lab import の完全同一ペイロード再インポートを検知する。
 //
-// 実装は (clinic_id, exam_type_id, date, pet_id) で exams テーブルを検索する。
+// 候補は (clinic_id, exam_type_id, date, pet_id) で絞り、その中で medical_record_id・
+// machine・exam_results ペイロード項目がすべて一致する既存 exam がある場合のみ true。
+// 日付粒度の 4-col 一致だけでは重複にしない（Issue #249 R-3 / PO ruling）。
 // DB レベルの unique constraint がない場合は TOCTOU 競合で重複が発生しうる。
 // persistExam では AlreadyExists エラーも Duplicate として処理する安全ネットを設ける。
-// Phase 2 で DB unique 制約を追加する場合は IsDuplicate を削除可能。
 type LabImportDuplicateChecker interface {
-	// IsDuplicate は (clinic_id, exam_type_id, date, pet_id) に一致する exam が既存かを返す。
-	IsDuplicate(ctx context.Context, clinicID, examTypeID uint64, date time.Time, petID *uint64) (bool, error)
+	// IsDuplicate は入力ペイロードと完全一致する既存 exam がある場合に true を返す。
+	// JobID・Status・派生 IsAbnormal/Status・id/timestamps は identity に含めない。
+	IsDuplicate(ctx context.Context, input LabExamPersistInput) (bool, error)
 }
 
 // labImportExaminationService は LabImportExaminationService の実装。
@@ -197,7 +200,7 @@ func (s *labImportExaminationService) persistExam(ctx context.Context, input Lab
 		}
 	}
 
-	dup, err := s.dupChecker.IsDuplicate(ctx, input.ClinicID, input.ExamTypeID, input.Date, input.PetID)
+	dup, err := s.dupChecker.IsDuplicate(ctx, input)
 	if err != nil {
 		slog.ErrorContext(ctx, "lab import duplicate check failed",
 			"error", err,

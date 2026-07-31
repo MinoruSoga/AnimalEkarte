@@ -747,29 +747,24 @@ func TestLabResultImportService_NoExternalIO(t *testing.T) {
 // TestLabResultImportService_Phase3A_ServiceLevelDuplicatePolicy は
 // Phase 3A 決定: サービスレベル重複防止が正式方針であることを記録するコントラクトテスト。
 //
-// 決定根拠 (2026-06-26):
-//   - ローカル移行データ調査で (clinic_id, exam_type_id, date, pet_id) の 4-col key に
-//     87 重複グループ（95 超過行）が存在することを確認。
-//   - 84/85 の非 null グループは distinct な medical_record_id を持つ（同日別カルテの正当な複数受診）。
-//   - 5-col key (clinic_id, exam_type_id, date, pet_id, medical_record_id) でゼロ違反を確認。
-//   - lab import の重複検知意味論（同ペット同日同検査の再インポート = duplicate）には 4-col key が正しく、
-//     DB unique 制約（すべての重複を禁止）では移行データを拒絶する。
-//   - DB unique 制約は本番データ全件確認なしには追加できない。
+// 決定根拠 (2026-06-26, Issue #249 R-3 で更新):
+//   - DB unique 制約は同日再検査の正当な複数行を拒絶するため追加しない。
+//   - 重複スキップは完全同一ペイロード（header + items）の再インポートのみ（PO ruling）。
+//   - 同日・同検査種別で内容が異なれば新規 exam として保存する。
 //   - TOCTOU リスク（IsDuplicate と Create の間の競合）は設計上許容する。
-//     concurrent import は呼び出し元で直列化するか、この重複を運用上許容すること。
 //
-// このテストはサービスレベル重複チェック（LabImportDuplicateChecker）が
-// DB unique 制約の代替として正しく機能することを verify する。
+// このテストはサービスレベル重複チェック結果が Commit 集計へ正しく反映されることを verify する
+// （stub が full-identical 相当の 2 行目 skip を返す）。
 func TestLabResultImportService_Phase3A_ServiceLevelDuplicatePolicy(t *testing.T) {
-	// サービスレベル重複チェック: 同一 (clinic_id, exam_type_id, date, pet_id) は
-	// DB 制約ではなく LabImportDuplicateChecker によって検知・スキップされる。
+	// サービスレベル重複チェック: 完全同一再インポートは DB 制約ではなく
+	// LabImportDuplicateChecker によって検知・スキップされる。
 	jobSvc := newStubLabJobService()
 	callCount := 0
 	examSvc := &stubLabExamService{
 		persistFn: func(input LabExamPersistInput) (*LabExamPersistResult, error) {
 			callCount++
 			// 1 行目: 新規 → persisted
-			// 2 行目: 同一キー → サービスレベルで duplicate 検知 (dup checker がブロック)
+			// 2 行目: 完全同一ペイロード → サービスレベルで duplicate 検知
 			if callCount == 2 {
 				return &LabExamPersistResult{Duplicate: true, JobID: input.JobID}, nil
 			}
@@ -781,9 +776,11 @@ func TestLabResultImportService_Phase3A_ServiceLevelDuplicatePolicy(t *testing.T
 	petID := uint64(42)
 	examDate := time.Date(2026, 1, 15, 0, 0, 0, 0, time.UTC)
 	batch := syntheticFixtureBatch(2)
+	// orchestration 契約: 下位サービスが Duplicate=true を返した行は duplicate_count に集計される
+	items := []LabExamItemInput{{Name: "BUN", InspectionValue: "12.0", SortOrder: 1}}
 	inputs := []LabExamPersistInput{
-		{ClinicID: 1, PetID: &petID, ExamTypeID: 5, Date: examDate},
-		{ClinicID: 1, PetID: &petID, ExamTypeID: 5, Date: examDate}, // same key — duplicate
+		{ClinicID: 1, PetID: &petID, ExamTypeID: 5, Date: examDate, Machine: "Fuji", Items: items},
+		{ClinicID: 1, PetID: &petID, ExamTypeID: 5, Date: examDate, Machine: "Fuji", Items: items}, // full-identical
 	}
 
 	resp, err := svc.Commit(context.Background(), 1, batch, inputs)
@@ -810,5 +807,5 @@ func TestLabResultImportService_Phase3A_ServiceLevelDuplicatePolicy(t *testing.T
 		t.Errorf("Phase3A: expected job status=persisted, got %s", job.Status)
 	}
 
-	t.Log("Phase3A: service-level duplicate checker is the formal duplicate policy; no DB unique constraint")
+	t.Log("Phase3A: service-level full-identical duplicate checker is the formal policy; no DB unique constraint")
 }

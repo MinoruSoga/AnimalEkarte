@@ -9,6 +9,7 @@ package medicalrecord
 
 import (
 	"context"
+	"sort"
 	"time"
 
 	"github.com/google/uuid"
@@ -133,57 +134,32 @@ func (r *labImportEventRepository) FindByJob(ctx context.Context, clinicID uint6
 // LabImportDuplicateChecker DB 実装
 // ------------------------------------
 
-// LabImportDuplicateCheckerDB は exams テーブルを直接参照する DB-backed 重複チェッカー。
-// (clinic_id, exam_type_id, date, pet_id) の複合キーで既存 exam を検索する。
-// pet_id が nil の場合は "pet_id IS NULL" として検索する（ISO SQL: NULL ≠ NULL）。
+// LabImportDuplicateCheckerDB は exams / exam_results を参照する DB-backed 重複チェッカー。
 //
-// Phase 3A 決定: サービスレベル重複防止を正式方針として採用。DB unique 制約は追加しない。
+// Issue #249 R-3 / PO ruling:
 //
-// 根拠（ローカルデータ調査 2026-06-26）:
+//	日付粒度 (clinic_id, exam_type_id, date, pet_id) だけでは重複にしない。
+//	候補を 4-col で絞った後、medical_record_id・machine・exam_results ペイロードが
+//	完全一致する既存 exam がある場合のみ true（完全同一再インポートのスキップ）。
+//	同日・同検査種別でも内容が異なれば false → 新規保存する。
 //
-//	4-col key (clinic_id, exam_type_id, date, pet_id) には 87 重複グループ（95 超過行）が存在する。
-//	そのうち 84/85 非 null グループは distinct な medical_record_id を持つ（同日別カルテの正当な複数受診）。
-//	これらに unique 制約を追加すると既存移行データを拒絶する。
-//	5-col key (clinic_id, exam_type_id, date, pet_id, medical_record_id) でゼロ違反を確認済み。
-//	lab import の重複判定意味論（同ペット同日同検査の再インポート検知）は 4-col key が正しく、
-//	DB unique 制約ではなくサービスレベルで実装する。
+// pet_id / medical_record_id が nil の場合は "IS NULL" として比較する（ISO SQL: NULL ≠ NULL）。
+//
+// Phase 3A 決定（更新 R-3）: サービスレベル完全同一検知を正式方針として採用。
+// DB unique 制約は追加しない（同日再検査の正当な複数行を許容するため）。
 //
 // TOCTOU 注意: IsDuplicate と Create の間には競合ウィンドウがある。
 // DB unique 制約がないため、並行リクエストによる重複行の作成を DB レベルでは防げない。
 // PersistExam の AlreadyExists 安全ネットは DB unique 制約が存在しない限り発火しない。
 // concurrent import は呼び出し元で直列化するか、この重複を運用上許容すること。
 //
-// 本番データに DB unique 制約を追加する前に以下の SQL 3 本で確認すること:
-//
-//	-- (1) non-null pet_id: 4-col 違反グループ（0 でなければ制約追加不可）
-//	SELECT COUNT(*) FROM (
-//	  SELECT clinic_id, exam_type_id, date, pet_id
-//	  FROM exams WHERE deleted_at IS NULL AND pet_id IS NOT NULL
-//	  GROUP BY clinic_id, exam_type_id, date, pet_id HAVING COUNT(*) > 1
-//	) sub;
-//
-//	-- (2) null pet_id: 違反グループ
-//	SELECT COUNT(*) FROM (
-//	  SELECT clinic_id, exam_type_id, date
-//	  FROM exams WHERE deleted_at IS NULL AND pet_id IS NULL
-//	  GROUP BY clinic_id, exam_type_id, date HAVING COUNT(*) > 1
-//	) sub;
-//
-//	-- (3) 真の重複グループ: 同一グループ内に 2 以上の distinct medical_record_id を持つ行
-//	--     (1)(2) がゼロでも、これがゼロでなければ同一カルテの真の重複行が残っている
-//	SELECT COUNT(*) FROM (
-//	  SELECT clinic_id, exam_type_id, date, pet_id
-//	  FROM exams WHERE deleted_at IS NULL AND pet_id IS NOT NULL
-//	  GROUP BY clinic_id, exam_type_id, date, pet_id
-//	  HAVING COUNT(DISTINCT medical_record_id) > 1
-//	) sub;
-//
-// (1)(2)(3) の全クエリがゼロを返してから制約追加の migration を検討すること。
-//
 // date 値は UTC 日付部のみ（時刻成分なし）で渡すこと。
 // IsDuplicate に渡す前に呼び出し元で time.Date(y, m, d, 0, 0, 0, 0, time.UTC) に正規化すること。
 // GORM が time.Time を PostgreSQL date 型と比較する際、サーバータイムゾーンによっては
 // 時刻成分が日付境界をまたいで誤判定することがある。
+//
+// exam_results は clinic_id を持たないため、親 exams を clinic_id で絞ってから
+// association 経由で読む（tenant isolation）。
 type LabImportDuplicateCheckerDB struct {
 	db *gorm.DB
 }
@@ -193,26 +169,116 @@ func NewLabImportDuplicateCheckerDB(db *gorm.DB) *LabImportDuplicateCheckerDB {
 	return &LabImportDuplicateCheckerDB{db: db}
 }
 
-// IsDuplicate は (clinic_id, exam_type_id, date, pet_id) に一致する exam が既存かを返す。
-// date は UTC 日付部のみ (時刻成分なし) であること。呼び出し元は
-// time.Date(y, m, d, 0, 0, 0, 0, time.UTC) で正規化してから渡すこと（呼び出し元責務）。
-// 内部でも再正規化を行うが、これは write path との一致を保証しない安全ネットであり、
-// 呼び出し元の正規化省略を許容する意図ではない。
+// IsDuplicate は入力ペイロードと完全一致する既存 exam がある場合に true を返す。
+//
+// 候補フィルタ: clinic_id, exam_type_id, date (UTC date-only), pet_id (NULL-aware)
+// 完全一致: medical_record_id (NULL-aware), machine, exam_results の
+//
+//	(name, inspection_value, unit, reference_value, ref_min, ref_max, sort_order)
+//
+// 除外: JobID, Status, IsAbnormal/Status 派生値, id, timestamps, soft-deleted 行
+//
+// date は UTC 日付部のみであること。内部でも再正規化するが、呼び出し元の正規化が責務。
 // GORM の soft-delete スコープが自動で "deleted_at IS NULL" を付与する。
-func (c *LabImportDuplicateCheckerDB) IsDuplicate(ctx context.Context, clinicID, examTypeID uint64, date time.Time, petID *uint64) (bool, error) {
+func (c *LabImportDuplicateCheckerDB) IsDuplicate(ctx context.Context, input LabExamPersistInput) (bool, error) {
 	// UTC date-only に再正規化。write path も同様に正規化していること。
-	normalised := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, time.UTC)
+	normalised := time.Date(input.Date.Year(), input.Date.Month(), input.Date.Day(), 0, 0, 0, 0, time.UTC)
+
+	// 4-col 候補フィルタ（idx_exams_clinic_exam_type_date を利用）。内容比較は後段。
 	q := c.db.WithContext(ctx).
 		Model(&model.Examination{}).
-		Where("clinic_id = ? AND exam_type_id = ? AND date = ?", clinicID, examTypeID, normalised)
-	if petID == nil {
+		Preload("Items").
+		Where("clinic_id = ? AND exam_type_id = ? AND date = ?", input.ClinicID, input.ExamTypeID, normalised)
+	if input.PetID == nil {
 		q = q.Where("pet_id IS NULL")
 	} else {
-		q = q.Where("pet_id = ?", *petID)
+		q = q.Where("pet_id = ?", *input.PetID)
 	}
-	var count int64
-	if err := q.Count(&count).Error; err != nil {
+
+	var candidates []model.Examination
+	if err := q.Find(&candidates).Error; err != nil {
 		return false, apperrors.FromGORM(err, "exam", "")
 	}
-	return count > 0, nil
+	for i := range candidates {
+		if labImportExamFullyMatches(&candidates[i], input) {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+// labImportExamFullyMatches は候補 exam が import 入力と完全同一かを判定する。
+// 候補は既に clinic_id / exam_type_id / date / pet_id で絞られている前提。
+func labImportExamFullyMatches(exam *model.Examination, input LabExamPersistInput) bool {
+	if !labImportNullableUint64Equal(exam.MedicalRecordID, input.MedicalRecordID) {
+		return false
+	}
+	if exam.Machine != input.Machine {
+		return false
+	}
+	return labImportExamResultsMatch(exam.Items, input.Items)
+}
+
+// labImportExamResultsMatch は stored exam_results と入力 items の payload 一致を判定する。
+// 比較対象: name, inspection_value, unit, reference_value, ref_min, ref_max, sort_order
+// （IsAbnormal / Status は write 時の派生値のため identity から除外）。
+func labImportExamResultsMatch(stored []model.ExamResult, input []LabExamItemInput) bool {
+	if len(stored) != len(input) {
+		return false
+	}
+	type payload struct {
+		name, inspection, unit, reference string
+		refMin, refMax                    *float64
+		sortOrder                         int
+	}
+	left := make([]payload, len(stored))
+	right := make([]payload, len(input))
+	for i := range stored {
+		left[i] = payload{
+			name: stored[i].Name, inspection: stored[i].InspectionValue,
+			unit: stored[i].Unit, reference: stored[i].ReferenceValue,
+			refMin: stored[i].RefMin, refMax: stored[i].RefMax, sortOrder: stored[i].SortOrder,
+		}
+	}
+	for i := range input {
+		right[i] = payload{
+			name: input[i].Name, inspection: input[i].InspectionValue,
+			unit: input[i].Unit, reference: input[i].ReferenceValue,
+			refMin: input[i].RefMin, refMax: input[i].RefMax, sortOrder: input[i].SortOrder,
+		}
+	}
+	less := func(a, b payload) bool {
+		if a.sortOrder != b.sortOrder {
+			return a.sortOrder < b.sortOrder
+		}
+		return a.name < b.name
+	}
+	sort.Slice(left, func(i, j int) bool { return less(left[i], left[j]) })
+	sort.Slice(right, func(i, j int) bool { return less(right[i], right[j]) })
+	for i := range left {
+		if left[i].name != right[i].name ||
+			left[i].inspection != right[i].inspection ||
+			left[i].unit != right[i].unit ||
+			left[i].reference != right[i].reference ||
+			left[i].sortOrder != right[i].sortOrder ||
+			!labImportNullableFloat64Equal(left[i].refMin, right[i].refMin) ||
+			!labImportNullableFloat64Equal(left[i].refMax, right[i].refMax) {
+			return false
+		}
+	}
+	return true
+}
+
+func labImportNullableUint64Equal(a, b *uint64) bool {
+	if a == nil || b == nil {
+		return a == nil && b == nil
+	}
+	return *a == *b
+}
+
+func labImportNullableFloat64Equal(a, b *float64) bool {
+	if a == nil || b == nil {
+		return a == nil && b == nil
+	}
+	return *a == *b
 }
