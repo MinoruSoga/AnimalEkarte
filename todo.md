@@ -14,7 +14,7 @@
 | R6 | マルチエージェント共有 tree thrash | **ops-only** |
 | R7 | empty-diff 成功宣言 harness | **ops-only** |
 | SCEN-SEED-001 | 003_demo clinical CSV ヘッダのみ | **TASK-009**（CSV slice1 done・static verify GREEN・**適用は USER**） |
-| SCEN-BROWSER-001 | scenarios 内【要実測】backlog | **TASK-010**（env READY・batch2 V04 partial・body 要実測 59） |
+| SCEN-BROWSER-001 | scenarios 内【要実測】backlog | **TASK-010**（env READY・batch3 partial・body 要実測 53） |
 | SCEN-OPS-CLAIM-001 | `claim/*` 解放 | **ops-only**（USER only） |
 | SCEN-OPS-COMMIT-001 | mixed commit 説明メモ | **ops-only**（rewrite しない） |
 | SCEN-OPS-TREE-001 | 共有 tree concurrent WIP | **ops-only**（= R6） |
@@ -42,7 +42,7 @@ TASK-001-BE/FE, TASK-002/003（WONTFIX + UI follow-up 実装済）, TASK-006/007
 ### 推奨実装順（open のみ）
 
 1. **TASK-009** seed 適用（USER。static green: `reports/2026-08-01-task-009-verify-seed-green.md` / reseed: `reports/2026-07-31-task-009-reseed-ops.md`）  
-2. **TASK-010** 要実測残 backlog（body 59。batch2: `reports/2026-07-31-task-010-batch2.md`）  
+2. **TASK-010** 要実測残 backlog（body 53。batch3: `reports/2026-08-01-task-010-batch3.md`）  
 3. **TASK-020** Playwright 93 runtime 完走（env-forward 済・要 host `E2E_LOGIN_*`。証拠: `reports/2026-07-31-task-020-env-forward.md`）  
 4. **TASK-022 human residual** — S13 手動 correction + named signer + RLS runtime（agent source closeout 済）  
 5. **TASK-023 human residual** — E2E_LOGIN_* 注入・5フロー通し・DB/audit・LINE/LIFF・sign-off（agent 証跡骨格 済）  
@@ -144,27 +144,27 @@ TASK-001-BE/FE, TASK-002/003（WONTFIX + UI follow-up 実装済）, TASK-006/007
 - **問題**: scenarios に【要実測】残存。
 - **修正方針**: browser-test レーンで実測。記録は `reports/`。
 - **受け入れ条件**: 要実測 0 または PO/BUG 振分; reports に実行記録。
-- **状態**: **env READY / batch2 partial**（2026-07-31 next orch wave）。docker healthy + `:8080/health` 200 + `:3003/` 200。batch1 V05: 5 件（証拠: `reports/2026-07-31-task-010-runtime-batch.md`）。**batch2 V04**: 6 件 elevate（要実測 body **65→59** / V04 11→5）。証拠: `reports/2026-07-31-task-010-batch2.md`。残 backlog open。claim: `claim/TASK-010`（USER 解放）。
+- **状態**: **env READY / batch3 partial**（2026-08-01）。docker healthy + `:8080/health` 200 + `:3003/` 200。batch1 V05: 5 件（`reports/2026-07-31-task-010-runtime-batch.md`）。batch2 V04: 6 件（body 65→59 / `reports/2026-07-31-task-010-batch2.md`）。**batch3 V03+V04 residual**: **6** 件 elevate（body **59→53** / V03 4→1 / V04 5→2）。証拠: `reports/2026-08-01-task-010-batch3.md`。残: V03 L88 / V04 L74+L188 / V05×8 / V01×17 / V02×9 / S*。claim: empty at batch3 start（USER 解放済・再取得なし）。
 
 #### 実装プラン（2026-08-01・codebase調査）
-- **Ready**: BLOCKED(`claim/TASK-010`・seed/runtime 前提)
+- **Ready**: env READY。claim empty。seed依存（V01 中心）は TASK-009 USER apply 後。
 - **Owner lane**: AGENT→USER
-- **Blockers (today)**: live claim が存在する。exact `【要実測】` は59件、S08/S09の装飾variantを含む semantic prefix `【要実測` は62件。seed依存シナリオはTASK-009 apply未了で false negative の恐れがある。
-- **Preconditions**: current claim owner が継続するか、統合/放棄後にUSERがclaimを解放する。実行windowで health と必要なseed/role/credentialを値非出力で確認する。
-- **Code anchors** (file:line or path globs from live tree): `docs/ops/testing/scenarios/{V*.md,S*.md}`, `docs/ops/testing/scenarios/README.md:46-52`, `reports/2026-07-31-task-010-runtime-batch.md`, `reports/2026-07-31-task-010-batch2.md`。
+- **Blockers (today)**: exact `【要実測】` **53** / semantic prefix `【要実測` **56**（S08/S09 装飾 3）。seed 依存は TASK-009 apply 未了の恐れ。
+- **Preconditions**: health と demo role を値非出力で確認。並行 foreign WIP（例: `bug.md`）を stage しない。
+- **Code anchors** (file:line or path globs from live tree): `docs/ops/testing/scenarios/{V*.md,S*.md}`, `docs/ops/testing/scenarios/README.md:46-52`, `reports/2026-07-31-task-010-runtime-batch.md`, `reports/2026-07-31-task-010-batch2.md`, `reports/2026-08-01-task-010-batch3.md`。
 - **Convention anchors** (rule doc paths): `.agents/skills/browser-test/SKILL.md`, `docs/ops/testing/CLAUDE.md`, `.claude/CLAUDE.md` security/runtime evidence boundary。
 - **Steps**:
-  1. exact marker 59 と semantic prefix 62 を同じscopeで再採取し、S08/S09の3 decorated marksを別欄で固定する。
-  2. 非seed依存 batch を先行し、seed依存 batch はTASK-009 USER apply後へ分け、browser-test laneで小分け実測する。
-  3. 各 mark を PASS/FAIL/BLOCKED/DEFER と証拠へ置換し、FAILはBUG、仕様不明は要POへID付きで振り分ける。
-  4. 一時データを安全に後始末し、batch report と残数を更新する。
+  1. exact / semantic census を再採取（現状 53 / 56）。
+  2. 非 seed 残（V03 L88、V04 L74/L188、V05 residual 8）を先行。V01 は TASK-009 後。
+  3. 各 mark を PASS/FAIL/BLOCKED/DEFER と証拠へ置換。FAIL→BUG、仕様不明→要PO（ID 付き）。
+  4. 一時データを後始末し batch report と残数を更新。
 - **Verification** (scoped only):
   - `rg -n '【要実測】' docs/ops/testing/scenarios/V*.md docs/ops/testing/scenarios/S*.md`
   - `rg -n '【要実測' docs/ops/testing/scenarios/V*.md docs/ops/testing/scenarios/S*.md`
   - `docker compose ps`
-- **Non-actions / HOLD**: claim を無視した編集、証拠なしのmark昇格、secret/PII記録、full E2E、DB reset/migrate、本番LINE操作、claim削除を行わない。
-- **Exit criteria for close**: exact/semantic両censusが0、または残り全件がID付きPO/BUG/明示BLOCKEDへ振分済みで、全batchの実行記録が存在する。
-- **Evidence sources read**: `todo.md`, two TASK-010 reports, live scenario files, current exact/prefix census, current claim list。
+- **Non-actions / HOLD**: claim を無視した編集、証拠なしの mark 昇格、secret/PII 記録、full E2E、DB reset/migrate、本番 LINE 操作、claim 削除を行わない。
+- **Exit criteria for close**: exact/semantic 両 census が 0、または残り全件が ID 付き PO/BUG/明示 BLOCKED へ振分済みで、全 batch の実行記録が存在する。
+- **Evidence sources read**: `todo.md`, batch1–3 reports, live scenario files, current exact/prefix census, claim empty list。
 
 ### TASK-019: docs/spec/line/** deep 監査 follow-up（Medium / 任意）
 
