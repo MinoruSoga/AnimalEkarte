@@ -35,9 +35,9 @@ type reservationStaffContractPath struct {
 
 type reservationStaffContractSpec struct {
 	Components struct {
-		Schemas map[string]reservationStaffContractSchema `yaml:"schemas"`
+		Schemas map[string]yaml.Node `yaml:"schemas"`
 	} `yaml:"components"`
-	Paths map[string]reservationStaffContractPath `yaml:"paths"`
+	Paths map[string]yaml.Node `yaml:"paths"`
 }
 
 func loadReservationStaffContractSpec(t *testing.T) reservationStaffContractSpec {
@@ -51,10 +51,42 @@ func loadReservationStaffContractSpec(t *testing.T) reservationStaffContractSpec
 	return spec
 }
 
+func decodeReservationStaffContractSchema(
+	t *testing.T,
+	spec reservationStaffContractSpec,
+	name string,
+) (reservationStaffContractSchema, bool) {
+	t.Helper()
+
+	node, ok := spec.Components.Schemas[name]
+	if !ok {
+		return reservationStaffContractSchema{}, false
+	}
+	var schema reservationStaffContractSchema
+	require.NoError(t, node.Decode(&schema))
+	return schema, true
+}
+
+func decodeReservationStaffContractPath(
+	t *testing.T,
+	spec reservationStaffContractSpec,
+	path string,
+) (reservationStaffContractPath, bool) {
+	t.Helper()
+
+	node, ok := spec.Paths[path]
+	if !ok {
+		return reservationStaffContractPath{}, false
+	}
+	var item reservationStaffContractPath
+	require.NoError(t, node.Decode(&item))
+	return item, true
+}
+
 func TestOpenAPIReservationStaffUsesPositiveCapabilityContract(t *testing.T) {
 	spec := loadReservationStaffContractSpec(t)
 
-	capableCourse, ok := spec.Components.Schemas["CapableCourse"]
+	capableCourse, ok := decodeReservationStaffContractSchema(t, spec, "CapableCourse")
 	require.True(t, ok, "CapableCourse schema must be documented")
 	assert.Equal(t, "object", capableCourse.Type)
 	assert.False(t, capableCourse.Deprecated)
@@ -62,7 +94,7 @@ func TestOpenAPIReservationStaffUsesPositiveCapabilityContract(t *testing.T) {
 	assert.Contains(t, capableCourse.Properties, "id")
 	assert.Contains(t, capableCourse.Properties, "name")
 
-	staff, ok := spec.Components.Schemas["ReservationStaff"]
+	staff, ok := decodeReservationStaffContractSchema(t, spec, "ReservationStaff")
 	require.True(t, ok, "ReservationStaff schema must be documented")
 	assert.Contains(t, staff.Required, "capable_courses")
 	capableCourses, ok := staff.Properties["capable_courses"]
@@ -71,7 +103,11 @@ func TestOpenAPIReservationStaffUsesPositiveCapabilityContract(t *testing.T) {
 	assert.Equal(t, "#/components/schemas/CapableCourse", capableCourses.Items.Ref)
 	assert.False(t, capableCourses.Deprecated)
 
-	capablePath, ok := spec.Paths["/masters/staffs/{id}/capable-reservation-types"]
+	capablePath, ok := decodeReservationStaffContractPath(
+		t,
+		spec,
+		"/masters/staffs/{id}/capable-reservation-types",
+	)
 	require.True(t, ok, "capability master path must remain documented")
 	assert.NotNil(t, capablePath.Get)
 	assert.NotNil(t, capablePath.Put)
@@ -80,26 +116,31 @@ func TestOpenAPIReservationStaffUsesPositiveCapabilityContract(t *testing.T) {
 func TestOpenAPIReservationStaffRetainsDeprecatedExclusionCompatibility(t *testing.T) {
 	spec := loadReservationStaffContractSpec(t)
 
-	excludedCourse, ok := spec.Components.Schemas["ExcludedCourse"]
+	excludedCourse, ok := decodeReservationStaffContractSchema(t, spec, "ExcludedCourse")
 	require.True(t, ok, "legacy ExcludedCourse schema must remain during deprecation")
 	assert.True(t, excludedCourse.Deprecated)
 	assert.Contains(t, spec.Components.Schemas, "StaffReservationExclusion")
 
-	staff := spec.Components.Schemas["ReservationStaff"]
+	staff, ok := decodeReservationStaffContractSchema(t, spec, "ReservationStaff")
+	require.True(t, ok, "ReservationStaff schema must remain documented")
 	excludedCourses, ok := staff.Properties["excluded_courses"]
 	require.True(t, ok, "legacy ReservationStaff.excluded_courses must remain during deprecation")
 	assert.True(t, excludedCourses.Deprecated)
 	assert.Equal(t, "#/components/schemas/ExcludedCourse", excludedCourses.Items.Ref)
 
 	for _, schemaName := range []string{"CreateReservationStaffRequest", "UpdateReservationStaffRequest"} {
-		schema, ok := spec.Components.Schemas[schemaName]
+		schema, ok := decodeReservationStaffContractSchema(t, spec, schemaName)
 		require.True(t, ok, "%s schema must remain documented", schemaName)
 		excludedTypeIDs, ok := schema.Properties["excluded_type_ids"]
 		require.True(t, ok, "%s.excluded_type_ids must remain during deprecation", schemaName)
 		assert.True(t, excludedTypeIDs.Deprecated)
 	}
 
-	legacyPath, ok := spec.Paths["/masters/staffs/{id}/excluded-reservation-types"]
+	legacyPath, ok := decodeReservationStaffContractPath(
+		t,
+		spec,
+		"/masters/staffs/{id}/excluded-reservation-types",
+	)
 	require.True(t, ok, "legacy exclusion path must remain during deprecation")
 	require.NotNil(t, legacyPath.Get, "legacy exclusion GET must remain during deprecation")
 	require.NotNil(t, legacyPath.Put, "legacy exclusion PUT must remain during deprecation")
