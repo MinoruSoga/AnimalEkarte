@@ -4,7 +4,7 @@
 > **読者**: 開発者。
 > **タイミング**: seed/migration変更時。
 
-更新日: 2026-07-27
+更新日: 2026-07-31
 
 ## 前提
 
@@ -12,11 +12,11 @@
 - **cmd/migrate は二段フェーズ構成**（`backend/cmd/migrate/main.go`）:
   1. 直下の `*.sql` を昇順適用し `schema_migrations` にファイル名で記録
   2. 完了後、`internal/seedbundle.BundleOrderForEnv(APP_ENV)` の順で CSV バンドルを pgx `COPY FROM STDIN` ロードし、`internal/seedbundle.BundleMigrationKey(bundleDir)`（`"seeds/002_master"` 等）で `schema_migrations` に記録する
-  - **APP_ENV ゲート（SEC-CS-F01 / fail-closed）**: `development` / `local` / `dev` / `test` / `staging` のみフル順（`002_master → 003_demo → 004_staging`）。`production` / `prod` / 空 / 未知は **`002_master` のみ**（demo の active system admin を production migrate に載せない）。`BundleOrder` 定数はディスク上のフル順の正本（seed-export / lint 用）として残す。
+  - **APP_ENV ゲート（SEC-CS-F01 / fail-closed）**: `development` / `local` / `dev` / `test` のみフル順（`002_master → 003_demo → 004_staging`）。`staging` / `production` / `prod` / 空 / 未知は **`002_master` のみ**（demo の active system admin を共有環境へ載せない）。`BundleOrder` 定数はディスク上のフル順の正本（seed-export / lint 用）として残す。
   - 正データの唯一の生成経路は **使い捨てDBへの実適用 → `COPY ... TO STDOUT` ダンプ**（`backend/cmd/seed-export`）。SQL の静的パースによる生成は禁止（ON CONFLICT の最終マージ状態や `random()` 依存データは静的パースでは再現できないため）。
   - `schema_migrations` に記録される seed バンドルの checksum（`bundleChecksum`）は `manifest.json` + 全 CSV ファイルを合成したもの — CSV のみの変更でも通常の migration ファイル編集と同じ checksum mismatch ガードが働く。
   - COPY はシーケンス（BIGSERIAL）を進めないため、`cmd/migrate` は各テーブルロード後に自動で `setval` を実行する（`advanceSerialSequence`）。
-- fresh DB 適用後の正しい終了状態は、`schema_migrations` の行数が **直下 DDL 本数 + その環境で許可された seed バンドル数** に一致すること。直下 DDL は `ls backend/migrations/*.sql`、seed は `BundleOrderForEnv(APP_ENV)`（non-production は `seeds/002_master` → `seeds/003_demo` → `seeds/004_staging`、production は `seeds/002_master` のみ）を正とする。本節に固定値を書かない。
+- fresh DB 適用後の正しい終了状態は、`schema_migrations` の行数が **直下 DDL 本数 + その環境で許可された seed バンドル数** に一致すること。直下 DDL は `ls backend/migrations/*.sql`、seed は `BundleOrderForEnv(APP_ENV)`（明示したlocal/dev/testは3 bundle、staging/production/空/未知は`seeds/002_master`のみ）を正とする。本節に固定値を書かない。
 - `schema_migrations`が空で既存の`clinics`テーブルを検出した場合、`guardEmptyMigrationHistory`はschema完全性を検証できないためfail-closedで停止する。現行DDL/seedのchecksumを適用済みとして記録するbaseline処理は存在しない。USER承認済みのreset/再構築後、通常のDDL・seed適用経路を完走させる。
 - 2026-07-27統合前の `001_init.sql` が適用済みのDBでは、統合後001とのchecksum mismatchが必ず発生する。ローカルは`DB_RESET=true`相当の手動再構築が必要で、現行Cloudflare workflowにはSTGを自動resetする経路がない。共有STGは破壊的操作の明示承認後に再構築する。
 - **旧形式（stub SQL 時代）互換**（P1-3, PR #186 review で fail-fast から変更）: `schema_migrations` に `002_seed_master.sql` 等の旧キーが残る DB（2026-07 削除より前のバイナリで migrate 済み）を現行バイナリで起動すると、`detectLegacySeedKeys` が旧キーを検出し、旧 stub に対応する `seeds/002_master` / `seeds/003_demo` / `seeds/004_staging` の3キー全てを現行キーへ翻訳して「適用済み」として記録する（見つかった旧キーに対応するものだけでなく、旧形式相当3件を常に全件）。これは履歴が存在するDBだけの互換処理で、CSVは再ロードせず、DDL checksum検証も迂回しない。旧キー移行だけを理由とする DB 再作成は不要。
@@ -34,14 +34,34 @@ seed データの内容（行の追加・削除・値変更）を変えたい場
 
 ```bash
 # 1. db が起動していること（docker compose ps で確認）
-# 2. 使い捨てDB seed_export_tmp を作成 → 未改変の 002-004 フル INSERT 版を適用
-#    → 90テーブルを COPY ダンプ → seed_export_tmp を削除、まで一括実行
+# 2. 使い捨てDB seed_export_tmp を作成 → 現行DDL/seedを適用
+#    → bundleTablesの全テーブルを COPY ダンプ → seed_export_tmp を削除、まで一括実行
 docker compose exec backend go run ./cmd/seed-export
 ```
 
 - `cmd/seed-export` は `DB_HOST` が `db`/`localhost`/`127.0.0.1` 以外なら拒否し、DB名は常に固定の `seed_export_tmp`（環境変数 `DB_NAME` は無視）— 本番/STG DBを誤操作する経路が構造的に存在しない。
+- `SEED_EXPORT_CSV_SOURCE` を指定した旧overlay adapterは `owners` / `pets` / `medical_records` / `exams` / `exam_results` / `billings` / `billing_items` の7表だけを取り込む。正式21表consumerの代替ではなく、残り14表を忠実にseedへ変換できない。
 - 003 の高密度予約デモ生成（`random()`使用）は、この使い捨てDB適用の中で一度だけ実行され、その結果行がそのまま CSV としてダンプされる。**同じデータを再現したい場合に「2回実行して同じハッシュになるか」を確認する検証方法は誤り** — 実行のたびに新しい使い捨てDBを作るため、`random()` は毎回新しい値を引く。凍結の担保は「dump 側が読み取り専用の `COPY TO STDOUT` しか実行しない」ことと「移行後は `cmd/migrate` 側に `random()`/DO ブロックが一切残っていない」ことの両方で保証される。
-- 生成された CSV / `manifest.json` は `git add` して通常のコミットフローでレビューする。
+- 生成された CSV / `manifest.json` にPHIが含まれる場合、データ管理・Git配布の明示承認までは `git add` / commit / pushしない。
+
+### old_db 21表CSVとの境界
+
+| 入力・目的 | 正規経路 | 結果 |
+|---|---|---|
+| `PASS` / `TRUSTED_CANDIDATE` の正式21表bundle | [CLINIC_CSV_IMPORT.md](./CLINIC_CSV_IMPORT.md) の `make csv-import-*` | 対象DBへ投入する。seedファイルは生成しない |
+| `REHEARSAL_ONLY` / `PARTIAL` の暫定21表bundle | `backend/migrations/seeds/_old_db_handoff/<clinic>/<run>/` | このworktreeだけのローカル保管。`cmd/migrate` からは読まれない |
+| 実行可能な `003_demo` seed | **未実装 / BLOCKED** | 現行 `cmd/seed-export` は21表handoffを入力できない。専用adapter実装・検証後に使い捨てDBから全bundleを再生成する |
+
+`_old_db_handoff/` はPHIを含み得るため、コピー前にcheckout固有の
+`.git/info/exclude`へ `backend/migrations/seeds/_old_db_handoff/` を登録し、
+`git check-ignore -q --no-index backend/migrations/seeds/_old_db_handoff/`
+がPASSすることを必須とする。tracked `.gitignore` に規則がないcheckoutでは、
+この確認を省略しない。
+
+21表CSVを `003_demo` へ直接コピーしてはいけない。cutover manifestとseed bundle
+manifestは別契約であり、placeholder解決、target-only seed ID、全テーブル依存、
+checksumを使い捨てDB上で確定する必要がある。現行コードに21表専用の
+seed変換経路はないため、暫定bundleは隔離保管までとし、実行可能seedとは呼ばない。
 
 ## 変更時の最低確認
 
@@ -58,13 +78,15 @@ docker compose exec backend go run ./cmd/seed-export
 
 ## 旧DB移行：正式経路は CSV import（F6）
 
-正式な医院カットオーバーは [CLINIC_CSV_IMPORT.md](./CLINIC_CSV_IMPORT.md) に従い、`old_db` の21表 CSV + manifest を read-only mount して `make csv-import-preflight` → 承認済み `make csv-import` → `make csv-import-verify` の順で実行する。
+正式な医院カットオーバーは [CLINIC_CSV_IMPORT.md](./CLINIC_CSV_IMPORT.md) に従い、`old_db` の21表 CSV + manifest を read-only mountして `make csv-import-preflight` → 承認済み `make csv-import` → `make csv-import-verify` の順で対象DBへ投入する。このF6経路はseedファイルを生成・更新しない。
 
-## 旧DB移行データのローカル投入 (old-db seed) — **deprecated / comparison-only**
+## 旧DB移行データのローカル投入 (old-db seed) — **retired history / 実行禁止**
 
 更新日: 2026-06-24
 
-> **⚠️ deprecated。** 本節は比較用に保持。
+> **⚠️ 廃止済みの履歴。** `docker-compose.seed-old-db.yml` と現役の
+> `make seed-old-db` / `make verify-old-db-seed` は存在しない。以下のコマンドを
+> 実行手順として使用せず、正式21表はF6、seed再生成は上記の使い捨てDB経路を使う。
 
 `old_db/sensitive-local/migration-output/` にある TSV ファイル（旧DB→新スキーマのマッピング済みデータ）をローカル開発DBへ投入する手順。
 
@@ -78,7 +100,7 @@ docker compose exec backend go run ./cmd/seed-export
 | マニフェスト | `old_db/docs/generated/new-schema-import-manifest.json` |
 | 安全境界 | `DB_HOST` が `db` / `localhost` / `127.0.0.1` 以外では自動的に拒否 |
 
-### 一発手順（推奨）
+### 旧手順（履歴のみ・実行禁止）
 
 ```bash
 # 1. DBをリセットして標準 seed を適用

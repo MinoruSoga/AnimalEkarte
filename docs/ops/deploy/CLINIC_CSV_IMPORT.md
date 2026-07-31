@@ -1,10 +1,17 @@
 # 医院 CSV カットオーバー投入（F6）
 
-更新日: 2026-07-28
+更新日: 2026-07-31
 
-`old_db` が出力した AnimalEkarte 形状 CSV 21 テーブルを、AnimalEkarte DB へ投入する正式な consumer 手順です。`old_db` DB へは接続せず、医院・run 固定の `manifest.json` と CSV ディレクトリだけを読みます。
+`old_db` が出力した AnimalEkarte 形状 CSV 21 テーブルを、AnimalEkarte DB へ投入する正式な consumer 手順です。`old_db` DB へは接続せず、医院・run 固定の `manifest.json` と CSV ディレクトリだけを読みます。このF6経路は対象DBへのcutoverであり、`backend/migrations/seeds/` のCSVやmanifestは生成・更新しません。
 
 現行 KNJO source は未完全なため、`payments.csv` / `payment_splits.csv` は意図的にheader-onlyです。CSVの形状確認には使えますが、既知の未確定支払候補を持つbillingはproducer側で `needs_review` に隔離され、正式manifestは支払・分割支払がどちらも正件数でなければpreflightで拒否されます。producer契約は `billings.csv` の `completed_at` と completed billingごとのpayment graphに対応済みですが、完全かつ検証済みのKNJO sourceから新しいformal bundleを生成するまでapplyはBLOCKEDです。
+
+`REHEARSAL_ONLY` / `PARTIAL` bundleを
+`backend/migrations/seeds/_old_db_handoff/<clinic>/<run>/` に置くことは、
+ローカル保管にすぎません。正式preflightはこれを拒否し、`cmd/migrate` も読みません。
+21 CSVを `003_demo` へ直接コピーしてseedとして扱うことは禁止します。実行可能seedへの
+変換は現行コードでは未実装です。[SEED_MIGRATION_OPERATIONS.md](./SEED_MIGRATION_OPERATIONS.md)
+のBLOCKED境界に従い、21表専用adapterを実装・検証するまでは隔離保管に留めます。
 
 ## 安全境界
 
