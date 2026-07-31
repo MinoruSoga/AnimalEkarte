@@ -121,6 +121,7 @@ func allModels() []any {
 		&model.ClosingSpecialPeriod{},
 		&model.PaymentMethodMaster{},
 		&model.CashRegisterClose{},
+		&model.CashRegisterCloseAdjustment{},
 		// G12-1: 監査・欠落モデル追記（TestAllModelsExhaustive で網羅性を担保）
 		&model.AuditLog{},
 		&model.PaymentSplit{},
