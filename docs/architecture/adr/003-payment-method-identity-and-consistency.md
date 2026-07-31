@@ -179,8 +179,8 @@ bank_transfer を含む優先順位ルール、または金額最大方式への
 
 - #185（本 follow-up・残論点の単一追跡先）/ #128（中核バグ解消済・CLOSED）/ #127（bank_transfer ENUM 追加）
 - hotfix `d9bcd387` / `007_add_bank_transfer_payment_method.sql`（additive migration の実証・2026-06-26 統合により `001_init.sql` に取り込み済み）
-- `backend/internal/service/accounting_service_builders.go`（`resolvePaymentMethodMasterID` / `representativeMethod`）
-- `backend/internal/service/cash_register_service.go`（`findCashMethodID` / `calcTheoreticalCash`）
+- `backend/internal/billing/accounting_service_builders.go`（`resolvePaymentMethodMasterID` / `representativeMethod`；BE9 以前は `internal/service`）
+- `backend/internal/billing/cash_register_service.go`（`findCashMethodID` / `calcTheoreticalCash`；BE9 以前は `internal/service`）
 - `backend/migrations/001_init.sql:1885`（payment_methods スキーマ）/ `:2722`（create_default_payment_methods）
 - [ADR-002: マルチテナント設計](002-multitenancy-clinic-id-isolation.md)
 
