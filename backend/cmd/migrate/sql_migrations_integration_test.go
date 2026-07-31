@@ -5,7 +5,10 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"regexp"
+	"sort"
+	"strings"
 	"testing"
 
 	"github.com/animal-ekarte/backend/internal/dbconn"
@@ -66,6 +69,74 @@ WHERE filename IN (
 	}
 	if applied != 1 {
 		t.Fatalf("applied DDL migrations = %d, want 1", applied)
+	}
+
+	// Consolidated topology: exactly one top-level DDL key must be recorded.
+	var ddlKeys []string
+	rows, err := db.Query(`
+SELECT filename
+FROM schema_migrations
+WHERE filename NOT LIKE 'seeds/%'
+ORDER BY filename`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			t.Fatal(err)
+		}
+		ddlKeys = append(ddlKeys, name)
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatal(err)
+	}
+	if len(ddlKeys) != 1 || ddlKeys[0] != "001_init.sql" {
+		t.Fatalf("DDL schema_migrations keys = %v, want exactly [001_init.sql]", ddlKeys)
+	}
+
+	// Rerun is a no-op: second apply must leave history and succeed.
+	if err := runSQLMigrations(db, logger); err != nil {
+		t.Fatalf("rerun runSQLMigrations: %v", err)
+	}
+	var appliedAfterRerun int
+	if err := db.QueryRow(`
+SELECT count(*)
+FROM schema_migrations
+WHERE filename NOT LIKE 'seeds/%'`).Scan(&appliedAfterRerun); err != nil {
+		t.Fatal(err)
+	}
+	if appliedAfterRerun != 1 {
+		t.Fatalf("after rerun DDL keys = %d, want 1", appliedAfterRerun)
+	}
+}
+
+// TestTopLevelDDLMigrationInventoryIsSingleInit asserts the post-consolidation
+// disk topology: only 001_init.sql remains under migrations/ (maxdepth 1).
+// Six-file baselines fail this assertion (RED); the consolidated tree is GREEN.
+func TestTopLevelDDLMigrationInventoryIsSingleInit(t *testing.T) {
+	entries, err := os.ReadDir(migrationsDir)
+	if err != nil {
+		t.Fatalf("read migrations dir %s: %v", migrationsDir, err)
+	}
+	var sqlFiles []string
+	for _, e := range entries {
+		if e.IsDir() {
+			continue
+		}
+		name := e.Name()
+		if strings.HasSuffix(name, ".sql") {
+			sqlFiles = append(sqlFiles, name)
+		}
+	}
+	sort.Strings(sqlFiles)
+	if len(sqlFiles) != 1 || sqlFiles[0] != "001_init.sql" {
+		t.Fatalf("top-level DDL files = %v, want exactly [001_init.sql]", sqlFiles)
+	}
+	// Absolute path check keeps the fixed /app/migrations contract honest.
+	if filepath.Base(migrationsDir) != "migrations" {
+		t.Fatalf("migrationsDir base = %q, want migrations", filepath.Base(migrationsDir))
 	}
 }
 
