@@ -6,6 +6,50 @@
 
 現行 KNJO source は未完全なため、`payments.csv` / `payment_splits.csv` は意図的にheader-onlyです。CSVの形状確認には使えますが、既知の未確定支払候補を持つbillingはproducer側で `needs_review` に隔離され、正式manifestは支払・分割支払がどちらも正件数でなければpreflightで拒否されます。producer契約は `billings.csv` の `completed_at` と completed billingごとのpayment graphに対応済みですが、完全かつ検証済みのKNJO sourceから新しいformal bundleを生成するまでapplyはBLOCKEDです。
 
+## Issue #250 受け入れ条件との対応（consumer 側）
+
+| AC | consumer 実装 | 状態 |
+|---|---|---|
+| 全対象 table の source→target mapping | 下表 + `csvimport.CutoverMappingCoverage()` / `CutoverTableSpecs()` | 21表 formal 固定。**業務上の個人責任者名は USER ops が run sheet で確定** |
+| dry-run と代表データ照合 | `make csv-import-preflight`（source+target read-only）。DB 書き込みなし | 実装済み。代表データ手動照合は USER |
+| clinic/owner/pet/staff 越境・FK・金額 | band 検査、clinic_id isolation、validated FK、payment graph | 実装+unit。実 DB 照合は rehearsal |
+| rerun が二重作成しない / 部分 commit なし | 非空 band は `CUTOVER_REF_BAND_OCCUPIED` で fail-closed。単一 transaction | 実装+unit |
+| stop/rollback・非PHI audit | report は件数+seed ID のみ。エラーは table/行番号/`CUTOVER_REF_*` のみ（氏名等なし） | 実装+unit / F8 rehearsal |
+| production cutover | #253/#254/#255 gate 後に USER 実施 | **本 lane では実施しない** |
+
+### 21 表 source→target mapping（formal cutover v1）
+
+正本は `backend/internal/csvimport.CutoverTableSpecs()`。以下は operator 向け要約（PHI 列値は載せない）。
+
+| # | target table | CSV | clinic 列 | isolation | consumer |
+|---:|---|---|---|---|---|
+| 1 | staffs | staffs.csv | yes | clinic_id_column | formal_cutover_v1 |
+| 2 | procedures | procedures.csv | yes | clinic_id_column | formal_cutover_v1 |
+| 3 | merchandise_items | merchandise_items.csv | yes | clinic_id_column | formal_cutover_v1 |
+| 4 | owners | owners.csv | yes | clinic_id_column | formal_cutover_v1 |
+| 5 | pets | pets.csv | yes | clinic_id_column | formal_cutover_v1 |
+| 6 | medical_records | medical_records.csv | yes | clinic_id_column | formal_cutover_v1 |
+| 7 | inquiries | inquiries.csv | no | id_band_and_parent_fk | formal_cutover_v1 |
+| 8 | clinical_plans | clinical_plans.csv | no | id_band_and_parent_fk | formal_cutover_v1 |
+| 9 | vital_records | vital_records.csv | yes | clinic_id_column | formal_cutover_v1 |
+| 10 | appointments | appointments.csv | yes | clinic_id_column | formal_cutover_v1 |
+| 11 | appointment_trimming_details | appointment_trimming_details.csv | yes | clinic_id_column | formal_cutover_v1 |
+| 12 | billings | billings.csv | yes | clinic_id_column | formal_cutover_v1 |
+| 13 | billing_items | billing_items.csv | no | id_band_and_parent_fk | formal_cutover_v1 |
+| 14 | payments | payments.csv | yes | clinic_id_column | formal_cutover_v1 |
+| 15 | payment_splits | payment_splits.csv | yes | clinic_id_column | formal_cutover_v1 |
+| 16 | estimates | estimates.csv | yes | clinic_id_column | formal_cutover_v1 |
+| 17 | estimate_items | estimate_items.csv | no | id_band_and_parent_fk | formal_cutover_v1 |
+| 18 | exams | exams.csv | yes | clinic_id_column | formal_cutover_v1 |
+| 19 | exam_results | exam_results.csv | no | id_band_and_parent_fk | formal_cutover_v1 |
+| 20 | vaccines | vaccines.csv | yes | clinic_id_column | formal_cutover_v1 |
+| 21 | vaccinations | vaccinations.csv | yes | clinic_id_column | formal_cutover_v1 |
+
+- **dry-run**: `make csv-import-preflight` が source digest / 6 seed binding / 空 band / FK catalog を read-only 検証する。apply は別コマンド。
+- **idempotency**: apply 後の再 preflight/apply は `CUTOVER_REF_BAND_OCCUPIED` で拒否（既存行の置換・削除なし）。
+- **verify 再実行**: `make csv-import-verify` は read-only で何度でも可（非空 band をエラーにしない）。
+- **非PHI エラー ID**: `CUTOVER_REF_BAND_OCCUPIED` / `CUTOVER_REF_CLINIC_ISOLATION` / `CUTOVER_REF_ROW_COUNT` と table・CSV 行番号のみ。セル値は出さない。
+
 `REHEARSAL_ONLY` / `PARTIAL` bundleを
 `backend/migrations/seeds/_old_db_handoff/<clinic>/<run>/` に置くことは、
 ローカル保管にすぎません。正式preflightはこれを拒否し、`cmd/migrate` も読みません。

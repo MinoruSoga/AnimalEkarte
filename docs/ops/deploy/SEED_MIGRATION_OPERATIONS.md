@@ -80,6 +80,8 @@ seed変換経路はないため、暫定bundleは隔離保管までとし、実�
 
 正式な医院カットオーバーは [CLINIC_CSV_IMPORT.md](./CLINIC_CSV_IMPORT.md) に従い、`old_db` の21表 CSV + manifest を read-only mountして `make csv-import-preflight` → 承認済み `make csv-import` → `make csv-import-verify` の順で対象DBへ投入する。このF6経路はseedファイルを生成・更新しない。
 
+Issue #250（stage-import 拡張・rehearsal・cutover）の consumer 側受け入れ対応表・21表 mapping・dry-run/idempotency/非PHI エラー ID は [CLINIC_CSV_IMPORT.md](./CLINIC_CSV_IMPORT.md) の「Issue #250 受け入れ条件との対応」を正本とする。production cutover apply は #253/#254/#255 gate 後の USER 操作であり、本ドキュメントの seed 経路では実行しない。
+
 ## 旧DB移行データのローカル投入 (old-db seed) — **retired history / 実行禁止**
 
 更新日: 2026-06-24

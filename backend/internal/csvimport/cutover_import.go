@@ -725,7 +725,8 @@ func validateCutoverBandEmpty(ctx context.Context, q cutoverQuerier, band Cutove
 			return fmt.Errorf("inspect target band for table %s: %w", spec.Name, err)
 		}
 		if occupied {
-			return fmt.Errorf("target clinic band is already occupied in table %s", spec.Name)
+			// Non-PHI: table name + stable ref only. Rerun/idempotency guard (Issue #250).
+			return fmt.Errorf("%s: target clinic band is already occupied in table %s", CutoverRefBandOccupied, spec.Name)
 		}
 	}
 	return nil
@@ -910,16 +911,18 @@ func verifyCutoverRows(ctx context.Context, q cutoverQuerier, manifest CutoverMa
 			return fmt.Errorf("verify table %s row count: %w", spec.Name, err)
 		}
 		if count != manifest.Tables[i].RowCount {
-			return fmt.Errorf("table %s: committed row count does not match manifest", spec.Name)
+			// Non-PHI: table name + stable ref only (no row payloads).
+			return fmt.Errorf("%s: table %s: committed row count does not match manifest", CutoverRefRowCount, spec.Name)
 		}
 		if hasColumn(spec.Columns, "clinic_id") {
 			clinicQuery := fmt.Sprintf(`SELECT count(*) FROM %s WHERE id >= $1 AND id < $2 AND clinic_id <> $3`, pgx.Identifier{spec.Name}.Sanitize())
 			var mismatched int64
 			if err := q.QueryRow(ctx, clinicQuery, floor, manifest.IDBand.EndExclusive, seeds.ClinicID).Scan(&mismatched); err != nil {
-				return fmt.Errorf("verify table %s clinic isolation: %w", spec.Name, err)
+				return fmt.Errorf("%s: verify table %s clinic isolation: %w", CutoverRefClinicIsolation, spec.Name, err)
 			}
 			if mismatched != 0 {
-				return fmt.Errorf("table %s contains rows assigned to another clinic", spec.Name)
+				// Non-PHI: table name + stable ref only. Never echo foreign clinic IDs or row values.
+				return fmt.Errorf("%s: table %s contains rows assigned to another clinic", CutoverRefClinicIsolation, spec.Name)
 			}
 		}
 	}
