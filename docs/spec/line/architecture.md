@@ -38,7 +38,19 @@
 3.  **LIFF 紐付け**: `POST /api/liff/:clinicId/link` が `link_token` + `line_id_token` で自己認証し、飼主へ LINE User ID を紐付け（既存 LINE ID の上書き拒否、token 単回 CAS 消費、監査同一 TX）。
 4.  **スタッフ手動リンク**: `PATCH .../line-customers/:id/link-owner` による院内オペレーション。
 
-Webhook（`POST /api/line/webhook`）は destination（bot user ID）で clinic を解決し署名検証する。イベント種別ごとの詳細契約表は architecture には置かず、実装と運用手順を正本とする（深掘り残差は deep audit R-01）。
+### Webhook 契約（要約）
+
+Webhook（`POST /api/line/webhook`）の **executable SoT は code/tests**（`backend/internal/lstep/line_link_service.go` の `HandleWebhook` と `line_link_service_test.go` / signature routing tests）。本書は境界の要約と正本リンクのみを持つ（PO FINAL R-01: option B。詳細 event 表は二重管理しない）。
+
+| 項目 | 現行境界 |
+|------|----------|
+| 処理する event type | `follow` / `unfollow` のみ（business side effect あり） |
+| その他 event type | business side effect なしで skip（成功扱い） |
+| 署名 | event 処理より先。`destination`（bot user ID）で clinic を一意解決し、当該 clinic の secret で最大 1 回 HMAC。全 clinic 走査・複数 secret 試行・destination 欠落時の推測は禁止 |
+| 署名不成立 / setting 欠落 / DB failure | fail-closed（invalid input / 処理拒否） |
+| 新規 event / message reply | 本要約から発明しない。set 変更時は code・contract test・本要約を同時更新 |
+
+Provisioning・疎通・停止の手順は `docs/spec/line/setup.md`（ops）を参照。
 
 ---
 

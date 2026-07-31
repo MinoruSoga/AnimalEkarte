@@ -22,29 +22,34 @@ vi.mock("@/features/lstep", () => ({
   },
 }));
 
+function auth(
+  hasPermission: AuthContextValue["hasPermission"],
+): AuthContextValue {
+  return {
+    user: null,
+    currentClinicId: "clinic-test-1",
+    isAuthenticated: true,
+    isLoading: false,
+    login: async () => {},
+    logout: async () => {},
+    switchClinic: () => {},
+    hasPermission,
+    refreshPermissions: async () => {},
+  };
+}
+
 describe("/lstep/delivery-monitor — RBAC guard", () => {
   it("hospital-settings:viewだけでは拒否し、pageをmountしない", async () => {
     const hasPermission = vi.fn<AuthContextValue["hasPermission"]>(
       (resource, action) =>
         resource === ResourceHospitalSettings && action === "view",
     );
-    const authContext: AuthContextValue = {
-      user: null,
-      currentClinicId: "clinic-test-1",
-      isAuthenticated: true,
-      isLoading: false,
-      login: async () => {},
-      logout: async () => {},
-      switchClinic: () => {},
-      hasPermission,
-      refreshPermissions: async () => {},
-    };
     const router = createMemoryRouter(operationsRoutes, {
       initialEntries: ["/lstep/delivery-monitor"],
     });
 
     render(
-      <AuthContext.Provider value={authContext}>
+      <AuthContext.Provider value={auth(hasPermission)}>
         <RouterProvider router={router} />
       </AuthContext.Provider>,
     );
@@ -52,5 +57,29 @@ describe("/lstep/delivery-monitor — RBAC guard", () => {
     expect(await screen.findByText("アクセス権限がありません")).toBeInTheDocument();
     expect(hasPermission).toHaveBeenCalledWith(ResourceLstepAnalytics, "view");
     expect(deliveryApiMock).not.toHaveBeenCalled();
+  });
+
+  it("lstep-analytics:viewのみで page を mount する（親 HospitalSettings AND を課さない）", async () => {
+    const hasPermission = vi.fn<AuthContextValue["hasPermission"]>(
+      (resource, action) =>
+        resource === ResourceLstepAnalytics && action === "view",
+    );
+    const router = createMemoryRouter(operationsRoutes, {
+      initialEntries: ["/lstep/delivery-monitor"],
+    });
+
+    render(
+      <AuthContext.Provider value={auth(hasPermission)}>
+        <RouterProvider router={router} />
+      </AuthContext.Provider>,
+    );
+
+    expect(await screen.findByText("delivery monitor page")).toBeInTheDocument();
+    expect(deliveryApiMock).toHaveBeenCalled();
+    expect(hasPermission).toHaveBeenCalledWith(ResourceLstepAnalytics, "view");
+    expect(hasPermission).not.toHaveBeenCalledWith(
+      ResourceHospitalSettings,
+      "view",
+    );
   });
 });

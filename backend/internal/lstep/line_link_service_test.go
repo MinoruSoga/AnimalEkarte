@@ -309,6 +309,48 @@ func TestLineLinkService_HandleWebhook_FollowEvent(t *testing.T) {
 	assert.True(t, followedAt)
 }
 
+// TestLineLinkService_HandleWebhook_UnsupportedEventType_NoSideEffects は follow/unfollow 以外の
+// event type を business side effect なしで skip することを固定する（LINE residual FINAL R-01）。
+func TestLineLinkService_HandleWebhook_UnsupportedEventType_NoSideEffects(t *testing.T) {
+	ownerMutated := false
+	svc := newTestLineLinkService(
+		&mockLstepOwnerRepo{
+			findByLineUserIDFn: func(_ context.Context, clinicID uint64, uid string) (*model.Owner, error) {
+				ownerMutated = true
+				return &model.Owner{ID: 10, ClinicID: clinicID, LineUserID: &uid}, nil
+			},
+			updateLineFollowedAtFn: func(_ context.Context, _, _ uint64, _ string, _ time.Time) (bool, error) {
+				ownerMutated = true
+				return true, nil
+			},
+			updateLineBlockedAtFn: func(_ context.Context, _, _ uint64, _ string, _ time.Time) (bool, error) {
+				ownerMutated = true
+				return true, nil
+			},
+		},
+		&mockLineLinkTokenRepo{},
+		&mockLineLinkSettingRepo{},
+	)
+
+	payload := WebhookPayload{
+		Destination: "dest",
+		Events: []WebhookEvent{
+			{Type: "message", Timestamp: testLineWebhookTimestamp, Source: struct {
+				UserID string `json:"userId"`
+			}{UserID: "Uabc123"}},
+			{Type: "postback", Timestamp: testLineWebhookTimestamp, Source: struct {
+				UserID string `json:"userId"`
+			}{UserID: "Uabc123"}},
+		},
+	}
+	body, _ := json.Marshal(payload)
+	sig := makeLineSignature(body, "secret")
+
+	err := svc.HandleWebhook(context.Background(), body, sig)
+	require.NoError(t, err)
+	assert.False(t, ownerMutated, "unsupported event types must not touch owner state")
+}
+
 // TestLineLinkService_HandleWebhook_EncryptedSecret は DB 上の line_channel_secret が
 // 暗号化されていても、復号後の平文で署名検証が成功することを確認する（H-4）。
 func TestLineLinkService_HandleWebhook_EncryptedSecret(t *testing.T) {

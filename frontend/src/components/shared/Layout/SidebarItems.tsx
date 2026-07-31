@@ -3,8 +3,8 @@ import type { MenuItem } from "@/types";
 import { ChevronDown } from "lucide-react";
 import { memo, useState, type MouseEvent } from "react";
 import { Link, useLocation, useNavigate } from "react-router";
-import { usePermission } from "@/hooks/use-permission";
-import type { Resource } from "@/types/generated/models";
+import { useAuth } from "@/hooks/use-auth";
+import type { AuthContextValue } from "@/types/auth";
 
 interface SidebarItemProps {
   item: MenuItem;
@@ -18,6 +18,20 @@ function checkAnyChildActive(items: MenuItem[], pathname: string): boolean {
       (sub.path ? pathname.startsWith(sub.path) : false) ||
       (sub.subItems ? checkAnyChildActive(sub.subItems, pathname) : false),
   );
+}
+
+/** Parent resource is not a hard gate: show group when any descendant is viewable (LINE residual FINAL R-06/R-07). */
+function isMenuItemVisible(
+  item: MenuItem,
+  hasPermission: AuthContextValue["hasPermission"],
+): boolean {
+  const selfOk =
+    item.resource === undefined || hasPermission(item.resource, "view");
+  if (item.subItems?.length) {
+    const anyChild = item.subItems.some((sub) => isMenuItemVisible(sub, hasPermission));
+    return selfOk || anyChild;
+  }
+  return selfOk;
 }
 
 const SidebarItem = memo(function SidebarItem({ item, collapsed = false, level = 0 }: SidebarItemProps) {
@@ -40,6 +54,7 @@ const SidebarItem = memo(function SidebarItem({ item, collapsed = false, level =
 
     event.preventDefault();
     setManualExpanded(!isExpanded);
+    // Only navigate when path is present (callers strip path when unauthorized).
     if (item.path) navigate(item.path);
   };
 
@@ -129,11 +144,19 @@ export const SidebarItemWithPermission = memo(function SidebarItemWithPermission
   collapsed = false,
   level = 0,
 }: SidebarItemWithPermissionProps) {
-  // FE6-2: item.resource は任意（権限不要メニュー項目もある）。React のフック呼び出し順序を
-  // 崩さずに常に usePermission を呼ぶための sentinel。下の item.resource !== undefined ガードが
-  // 実際の権限判定を制御するため、"" は Resource マップに存在しない安全なダミー値として扱われる。
-  const { canView } = usePermission((item.resource ?? "") as Resource);
-  if (item.resource !== undefined && !canView) return null;
+  const { hasPermission } = useAuth();
 
-  return <SidebarItem item={item} collapsed={collapsed} level={level} />;
+  if (!isMenuItemVisible(item, hasPermission)) {
+    return null;
+  }
+
+  const selfOk =
+    item.resource === undefined || hasPermission(item.resource, "view");
+  // Parent failed its own resource but a child is visible: expand-only shell (no default navigate).
+  const renderItem: MenuItem =
+    !selfOk && item.subItems?.length
+      ? { ...item, resource: undefined, path: undefined }
+      : item;
+
+  return <SidebarItem item={renderItem} collapsed={collapsed} level={level} />;
 });
