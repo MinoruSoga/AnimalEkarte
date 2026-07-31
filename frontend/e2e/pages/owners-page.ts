@@ -28,7 +28,7 @@ export class OwnersPage extends BasePage {
   }
 
   searchInput(): Locator {
-    return this.page.getByPlaceholder('飼主名、ペット名、飼主No、種別...');
+    return this.page.getByPlaceholder('飼主名、ペット名、電話番号...');
   }
 
   /** Owner "林 文明" row/cell — `.first()` covers multiple matching rows. */
