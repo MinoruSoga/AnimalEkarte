@@ -79,13 +79,13 @@
 
 ## 3. ペット新規追加 — 新規飼主のペンディング一括登録（pet-add-pending-new-owner）
 
-- 起動: `/owners/new` の「ペット追加」。独立フォームではなく §2 の `PetEditModal` 共用。pending としてローカル一覧に積み、飼主 POST 成功後に `Promise.allSettled` で 1 件ずつ POST される（`use-owner-form.ts`）。
+- 起動: `/owners/new` の「ペット追加」。独立フォームではなく §2 の `PetEditModal` 共用。pending としてローカル一覧に積み、飼主作成時に **1 回の** `POST /api/v1/owners`（body `pets[]` ネスト）で原子登録される（`use-owner-form.ts` — 旧ドキュメントの per-pet `Promise.allSettled` は現行コードに存在しない）。
 
 | # | 操作 | 期待結果 |
 |:--|:--|:--|
 | 1 | 新規飼主フォームで有効なペットを 2 件 pending 追加 | 保存前はフォーム内一覧にのみ表示される（API 未送信）。行の編集・削除ができる |
-| 2 | 飼主を保存 | 飼主作成成功後、飼主詳細にペット 2 件が新規飼主に紐付いて登録済み |
-| 3 | 一括登録の部分失敗の観察 | 【要実測】個別 POST のため一部失敗があり得るが、部分成功時のユーザー通知（表示有無・形式）は未確認。実測して仕様化する（なお動物種未選択の pending は送信対象から除外される仕様） |
+| 2 | 飼主を保存 | 飼主作成成功後、飼主詳細にペット 2 件が新規飼主に紐付いて登録済み（Network: `POST /pets` は発行されず nested `pets` のみ） |
+| 3 | 一括登録の部分失敗の観察 | **部分成功 UX は存在しない（2026-08-01 コード/契約実測）**。BE `CreateWithPets` は同一 TX で owner+pets を全体成功/rollback。FE は単一 `createOwner` + 成功トースト「飼主情報を登録しました」/ 失敗は `handleApiError(..., "保存")` 1 本。動物種未選択 pending は送信対象から除外（`isPending && animalSpeciesId`） |
 
 - FK・一意制約・URL の各チェックは §2 と共通のため省略（C3 全項該当なし）。
 

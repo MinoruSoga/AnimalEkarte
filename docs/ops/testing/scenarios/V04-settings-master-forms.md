@@ -71,7 +71,7 @@
 | 割引キャンペーン (master-campaign) | /settings/campaigns | キャンペーン名 | —（name 一意なし） | (C3-1) 対象商品選択肢が物販マスタ実データ由来。終了日 < 開始日は FE で拒否され API 未到達（エラー「終了日は開始日以降にしてください」— `CampaignSidePanel.tsx`）。BE も `validateCampaignPeriod` で同趣旨（2026-07-31 実測） |
 | 支払方法 (master-payment-method) | /settings/payment-methods | name | (clinic_id,name) | **システム標準行ポリシー（W-014 / ADR-003）**: `system_key` 保持行（cash / credit_card / electronic_money / bank_transfer）は **名称・表示順の変更は可**。`system_key` 自体は immutable かつ編集 UI 非公開（FE に system_key 参照なし）。**無効化・削除は不可**（BE Conflict: 「システム標準の支払方法は無効化できません」「システム標準の支払方法は削除できません」）。カスタム行（system_key nil）は従来どおり無効化・未使用時削除可 |
 
-- 【代表・削除済みマスタ】: 「V04コース」にコース種別「V04種別」を設定して保存 → コース種別マスタから「V04種別」を削除 → コース編集を再オープン。【要実測】削除済み種別の表示挙動（保持表示か空欄か）と、そのまま保存してもエラーにならないか。
+- 【代表・削除済みマスタ】: 「V04コース」にコース種別「V04種別」を設定して保存 → コース種別マスタから「V04種別」を削除 → コース編集を再オープン。**使用中種別の削除は拒否される（2026-08-01 実測）**: `POST` type+course 後 `DELETE /api/v1/masters/trimming-course-types/:id` → **409** `この種別は使用中のため削除できません`。コースは `course_type_id` 保持のまま。削除済み FK の編集 UI 到達は製品ガードにより通常不可。クリーンアップは course 削除（204）→ type 削除（204）の順。
 - 割引キャンペーンの権限は ResourceAccounting（会計）、支払方法は ResourcePaymentMethod — admin 以外で実行する場合は権限に注意。
 
 ## 2. 診療項目マスタ 5 タブ (master-treatment-item)
@@ -185,7 +185,7 @@
 
 | # | 操作 | 期待結果 |
 |:--|:--|:--|
-| 1 | 【要実測】28-line-reservation.md §2 と突合しながら C1（必須項目）・C2（保存 → 再読込永続）を実施 | 必須項目・保存動線は文書正本に従う（本棚卸しでは必須項目・一意制約とも未確認） |
+| 1 | 28-line-reservation.md §2 と突合しながら C1（必須項目）・C2（保存 → 再読込永続）を実施 | **必須なし（C1）**: 5 テキスト空で PUT **200** 受理（2026-08-01 実測）。**C2**: marker 文字列 5 項目 PUT 200 → 再 GET で永続。上限: `header_text`/`request_example` **max=2000**（1 万字 → 400 `header_text は 2000 以下…`）、`reservation_notice`/`cancel_notice` **max=10000**（1 万字 notice → 200）、`privacy_policy` max=100000。一意制約なし。トースト「ページ内容を保存しました」。元文言へ復元済み |
 | 2 | (C3-1) 表示対象の予約区分選択肢を確認 | 予約区分マスタ実データ由来（§4 の「V04」区分が反映される） |
 
 ## 10. 法人情報（インボイス登録番号）(company-invoice-section)

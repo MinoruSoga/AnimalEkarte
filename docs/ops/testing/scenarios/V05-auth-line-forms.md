@@ -90,7 +90,7 @@
 | 1 | コース選択肢を確認。院内の予約区分マスタで新規区分を公開 → 再表示 | マスタで公開設定された区分のみ表示され、追加分が反映される（[reservation-spec.md §2](../../../spec/line/reservation-spec.md)・C3(a)） |
 | 2 | 【代表・無効化マスタ】予約作成後にそのコース区分を無効化 → 飼い主側と院内を再確認 | **一覧は inactive を除外**（GetCourses が !IsActive を skip）。確定 POST も inactive 拒否。既存予約表示は継続 |
 | 3 | お名前・電話番号をスペースのみにして次へ | エラーが表示され進めない（FE: trim 後の非空必須） |
-| 4 | 電話番号に数字以外（`abc`）を入力して進める | 【要実測】FE の形式チェックは非空のみの模様。確定まで通過する場合、保存された予約の電話値を院内側で確認し起票判断 |
+| 4 | 電話番号に数字以外（`abc`）を入力して進める | **形式拒否なし（2026-08-01 コード実測）**。FE `CustomerInfoPage.tsx` は `phone.trim()` 非空のみ。BE `liff_validation.go` は customer_fields 各 string ≤500 のみで phone 形式検証なし。`type=tel` に pattern なし。数字以外でも FE 次へ・BE 受理し得る（院内保存値の目視は LIFF 確定パス依存） |
 | 5 | 新規ペット追加でペット名を空のまま追加 | エラーが表示され追加できない（名前非空必須）。既存紐付けペットが 1 頭なら自動選択される（`CustomerInfoPage.tsx`）。既存ペット選択肢は飼い主の実データ由来（C3(a)） |
 | 6 | ご要望メモに 1001 文字を入力して確定（境界: 1000 文字は成功） | 拒否され保存されない（BE: request_text ≤1000 文字 — `backend/internal/reservation/liff_validation.go`） |
 | 7 | 正常フローで確定 | 完了表示。院内 `/reservations` に source=line で自動反映（[reservation-spec.md §1](../../../spec/line/reservation-spec.md)・C2 相当）。マイ予約一覧にも表示される。LINE 完了通知の実配信はローカルでは観測対象外（同 §5） |
@@ -103,7 +103,7 @@
 | 1 | キャンセルボタン押下 | インライン確認が表示され、確認前は予約が変更されない |
 | 2 | 確認して実行 → ページ再読込 | 即時キャンセル表示（楽観的更新 — `MyReservationsPage.tsx`）。再読込後も cancelled が永続（C2）。削除ではなく status 更新である |
 | 3 | 院内 `/reservations` で同予約を確認 | キャンセルが反映されている。双方向の通知はローカルでは観測対象外（[reservation-spec.md §5](../../../spec/line/reservation-spec.md)） |
-| 4 | 当日（直前）の予約でキャンセルを試行 | 【要実測】キャンセル可能期限の有無は仕様未定義。実測して仕様化する |
+| 4 | 当日（直前）の予約でキャンセルを試行 | **キャンセル期限なし（2026-08-01 コード実測）**。FE `MyReservationsPage` は confirmed なら常にキャンセル UI。BE `CancelReservation` → `CancelByID` は non-cancelled 行の status 更新のみで、当日/リードタイム/直前判定は存在しない。当日直前もキャンセル成功し得る |
 
 ## 3. LINE予約 病院側設定
 
@@ -113,7 +113,7 @@ clinic 単位 1 レコードの全量 PUT（一意制約は UI 上到達不能�
 
 | # | 操作 | 期待結果 |
 |:--|:--|:--|
-| 1 | LINE予約受付を「停止中」で保存 → 飼い主側予約アプリを起動 | 保存され永続する（C2）。【要実測】停止中の飼い主側表示は仕様未明記 — 予約が進められないことを確認し表示を記録する |
+| 1 | LINE予約受付を「停止中」で保存 → 飼い主側予約アプリを起動 | 保存され永続する（C2）。**2026-08-01 実測**: hospital PUT `status=stopped` 200 → public `GET /api/liff/1/settings` も `status:"stopped"`。コード意図は `App.tsx` で maintenance（`MaintenancePage`「メンテナンス中」・unit test あり）。**ただし runtime の owner SPA は Top（「新規予約」）のまま** — LIFF 初期化後の `setPage('top')` が maintenance を上書きし得る（**BUG-141**）。測定後 `running` へ復元済み |
 | 2 | 受付期間・表示月数・スロット間隔へ 0/負値/範囲外を入力して保存 | FE の native min により拒否される: 最長受付 `min=1`・表示月数 `min=1`・スロット間隔 `min=5`。保存時 alert「値は 1 以上にする必要があります。」で API 未到達。最短受付は `min=0` で 0 入力可（2026-07-31 実測）。BE 到達時の境界は FE 通過後のみ別途確認 |
 | 3 | 営業時間・休憩時間を編集して保存 | HHMM 形式で永続する（BE: break_hours は `[{start,end}]` HHMM 形式必須 — `backend/internal/reservation/line_reservation_setting_service.go`）。曜日別営業時間の有効/無効切替も再オープンで保持される |
 | 4 | チャネル ID・LIFF ID を入力して保存 → 再読込 | 保存され永続する。チャネルシークレット・アクセストークンはこの画面では入力・再表示しない（2026-07-31 実測: 入力欄はチャネルID・LIFF ID のみ。secret/token ラベル・input なし） |
@@ -127,7 +127,7 @@ clinic 単位 1 レコードの全量 PUT（一意制約は UI 上到達不能�
 | 1 | ヘッダーテキスト・予約時注意事項・キャンセル時注意事項・プライバシーポリシー・リクエスト例を編集して保存 | 保存成功。再読込・再オープンで永続（C2） |
 | 2 | 飼い主側予約アプリで表示確認 | 編集した文言が反映される（[28-line-reservation.md §2](../../../spec/screens/28-line-reservation.md)） |
 | 3 | 【代表 PATCH 非破壊】保存後に基本設定（V05-8）を再表示 | 受付期間・スロット間隔・クレデンシャル・曜日別営業時間が消えていない（同一エンティティのマージ更新） |
-| 4 | 長文（1 万字程度）を保存 | 【要実測】文字数上限は FE/BE とも未確認。挙動を実測し仕様化する |
+| 4 | 長文（1 万字程度）を保存 | **BE 上限あり・FE maxLength なし（2026-08-01 実測）**。`header_text`/`request_example` max=2000（1 万字 header → **400** `header_text は 2000 以下で入力してください`）。`reservation_notice`/`cancel_notice` max=10000（1 万字 notice → **200** 受理）。`privacy_policy` max=100000。FE textarea に client max なし |
 
 ### V05-10 LINE予約枠設定（`line-reservation-slots` / `/line-reservation/slots?typeId=`）
 
@@ -171,10 +171,10 @@ clinic 単位 1 レコードの PATCH（C3(b) は UI 上到達不能）。シー
 | # | フォーム（id） | ルート | 必須フィールド | 一意制約 | 特記チェック |
 |:--|:--|:--|:--|:--|:--|
 | V05-13 | 配信優先順位（`lstep-trigger-priority`） | `/settings/integrations/lstep` 内セクション | 各トリガーの優先順位（1 以上） | 同値可（同一優先階層） | 0 を入力 → 「優先順位は1以上を指定してください」で保存されない（C1 — `TriggerPrioritySection.tsx`）。変更時のみ保存ボタン活性。同値は許可（UI 文言「同値は同一優先階層として扱われます。」・seed も ノミダニ/フィラリア=4・ワクチン30/60=8 等を保持 — 2026-07-31 実測） |
-| V05-14 | タグコードマッピング（`lstep-tag-code-mappings`） | 同上 | tagName 単位の entries（全量置換 PUT） | tagName 単位で置換 | 編集 → 保存 → 再読込で永続（C2）。【要実測】entry の形式違反（空値等）の拒否挙動は未確認 |
-| V05-15 | タグ設定（`lstep-tag-config`） | 同上（追加フォーム 2 種） | フォーム1: プレフィックス+カテゴリ / フォーム2: 疾患コード+タグ名 | プレフィックス重複 409 | 片方空で追加 → 「プレフィックスとカテゴリは必須です」「疾患コードとタグ名は必須です」（C1 — `LstepTagConfigSection.tsx`）。追加 → 再読込永続 → 行削除（C2）。同一プレフィックス再追加は POST 409（2026-07-31 実測）。【要実測】同一疾患コードの重複追加可否 |
-| V05-16 | 友だち属性 CSV 取込（`lstep-csv-import`） | `/lstep/analytics` 内セクション | CSV ファイル | — | 未選択・空ファイルで実行 → 「CSVファイルを選択してください」（C1 — `LstepCsvImportSection.tsx`）。取込後に履歴一覧へステータス行が追加される（C2 相当）。【要実測】列形式不正 CSV の拒否/エラー表示（BE `lstep_csv_helpers.go` 側検証） |
-| V05-17 | タグ一括解除（`lstep-bulk-tag-remove`） | `/settings/lstep/tags` の対象者ドロワーから起動 | 対象タグ + 対象飼い主（起動元で確定・ダイアログ内入力なし） | — | 「この操作は取り消せません」の確認ダイアログ経由でのみ実行可。進捗バー付き逐次実行・実行中キャンセル不可（`BulkTagRemoveDialog.tsx`）。【要実測】解除後の一覧反映の観測点（Write API 停止中のため Lステップ実タグは変化しない） |
+| V05-14 | タグコードマッピング（`lstep-tag-code-mappings`） | 同上 | tagName 単位の entries（全量置換 PUT） | tagName 単位で置換 | 編集 → 保存 → 再読込で永続（C2）。**形式違反は BE 400（2026-08-01 実測）**: codes=[] → `codes must contain at least one entry`; codes=[''] → `codes must not contain empty values`; code_type=invalid_type → `invalid code_type: invalid_type`。空 entries PUT は 200（全削除・batch3 と同契約） |
+| V05-15 | タグ設定（`lstep-tag-config`） | 同上（追加フォーム 2 種） | フォーム1: プレフィックス+カテゴリ / フォーム2: 疾患コード+タグ名 | プレフィックス重複 409 | 片方空で追加 → 「プレフィックスとカテゴリは必須です」「疾患コードとタグ名は必須です」（C1 — `LstepTagConfigSection.tsx`）。追加 → 再読込永続 → 行削除（C2）。同一プレフィックス再追加は POST 409（2026-07-31 実測）。**同一疾患コードも 409（2026-08-01 実測）**: 新規 POST 201 後、同一 `condition_code` 再 POST → **409** `lstep_condition_tag_mapping '' already exists`（DDL UNIQUE）。seed コード再追加も同様 409。テスト行は DELETE 204 で後始末 |
+| V05-16 | 友だち属性 CSV 取込（`lstep-csv-import`） | `/lstep/analytics` 内セクション | CSV ファイル | — | 未選択・空ファイルで実行 → 「CSVファイルを選択してください」（C1 — `LstepCsvImportSection.tsx`）。取込後に履歴一覧へステータス行が追加される（C2 相当）。**列不正は 400（2026-08-01 実測）**: `POST .../lstep/csv-imports/friend-attributes` に `foo,bar` ヘッダのみ → **400** `required column not found: line_user_id (expected one of: LINE ID, line_user_id, userId)`（`lstep_csv_helpers.go`） |
+| V05-17 | タグ一括解除（`lstep-bulk-tag-remove`） | `/settings/lstep/tags` の対象者ドロワーから起動 | 対象タグ + 対象飼い主（起動元で確定・ダイアログ内入力なし） | — | 「この操作は取り消せません」の確認ダイアログ経由でのみ実行可。進捗バー付き逐次実行・実行中キャンセル不可（`BulkTagRemoveDialog.tsx`）。**解除後の観測点（2026-08-01 実測）**: 手動タグ `優良顧客` で `DELETE /owners/:id/lstep/tags/:tag` が **204** でも、直後の `GET tag-summary` の `owner_count` と `GET .../lstep/owners?tag=` 件数は変化しない場合がある（Write API 停止/同期オフ時は外部タグ・キャッシュ非更新）。FE は `invalidateQueries(lstepTagSummary)` + toast「…名から解除しました」— 一覧再取得後も件数が同じなら「UI 上は成功だが件数不変」を記録。LSTEP 実タグは観測対象外 |
 
 ### V05-18 健診対象者一括タグ付与（`lstep-checkup-sync-create` / `/lstep/checkup-sync`）
 
