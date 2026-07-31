@@ -383,7 +383,7 @@ WORKER_URL=https://api.noah-karte.com MIGRATE_RUN_SECRET=<production用の値> \
 ```
 
 exitCode 0 を確認。**初回は空DBへ直下 DDL（`ls backend/migrations/*.sql` を正とする）を昇順適用後、seed バンドルの自動ロードになる。
-§10 を必ず読むこと(demo/staging データが自動投入される既知の挙動)。統合前001が適用済みのDBはchecksum mismatchになるため、通常のmigrateでは更新できず、明示承認した `DB_RESET=true` 相当の再構築が必要。現行Cloudflare workflowに自動reset経路はない。**
+production では master seed（`002_master`）のみが適用され、demo/staging は投入されない（§10.1）。`APP_ENV=production` はコンテナ/ジョブへ明示する（§6 項目3。非シークレットの env 注入）。統合前001が適用済みのDBはchecksum mismatchになるため、通常のmigrateでは更新できず、明示承認した `DB_RESET=true` 相当の再構築が必要。現行Cloudflare workflowに自動reset経路はない。**
 
 ### 9.5 スモーク(任意)
 
