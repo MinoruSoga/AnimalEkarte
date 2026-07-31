@@ -39,7 +39,10 @@ func TestRouteCompositionSmoke_TargetGraphRegistersEverySurface(t *testing.T) {
 	}
 	// Runtime surface after #239 identitylink routes (11) and StaticFS GET/HEAD.
 	// Measured 2026-07-30 red-sweep: 496 unique Method+Path pairs.
-	require.Len(t, routes, 496)
+	// 2026-08-01: 497 — b65cf69ef added POST /api/v1/estimates/:id/successors
+	// (TASK-012 estimate successor drafts), documented in api.yaml and covered
+	// by the OpenAPI drift test.
+	require.Len(t, routes, 497)
 	for _, expected := range []string{
 		"GET /health",
 		"GET /uploads/*filepath",
