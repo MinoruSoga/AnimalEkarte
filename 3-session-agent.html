@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>開発計画（2レーン体制） — Readiness View＋実装タスク台帳（納品 2026-07-27）</title>
+<title>GitHub Issue 管理ビュー — AnimalEkarte</title>
 <style>
   :root {
     --ink: #172033;
@@ -13,9 +13,9 @@
     --panel: #ffffff;
     --accent: #2858a4;
     --done: #237a4b;
-    --current: #9a6700;
     --wait: #667085;
     --risk: #b42318;
+    --judge: #9a6700;
   }
   * { box-sizing: border-box; }
   body {
@@ -26,9 +26,9 @@
     font-family: "Hiragino Sans", "Noto Sans JP", sans-serif;
     line-height: 1.65;
   }
-  main { max-width: 1160px; margin: 0 auto; }
-  h1 { margin: 0; padding-bottom: 10px; border-bottom: 3px solid var(--ink); font-size: 24px; }
-  h2 { margin-top: 38px; font-size: 19px; }
+  main { max-width: 1100px; margin: 0 auto; }
+  h1 { margin: 0; padding-bottom: 10px; border-bottom: 3px solid var(--ink); font-size: 23px; }
+  h2 { margin-top: 36px; font-size: 18px; }
   h3 { margin: 0 0 6px; font-size: 15px; }
   a { color: var(--accent); }
   code { padding: 1px 5px; border-radius: 4px; background: #edf1f6; font-size: 12.5px; }
@@ -36,7 +36,7 @@
   th, td { padding: 9px 11px; border: 1px solid var(--line); text-align: left; vertical-align: top; }
   th { background: #eaf0f7; }
   ul { margin: 7px 0; padding-left: 22px; }
-  li { margin: 4px 0; }
+  li { margin: 5px 0; }
   .meta { margin: 10px 0 0; color: var(--sub); font-size: 13px; }
   .notice, .gate {
     margin: 18px 0;
@@ -48,352 +48,226 @@
     font-size: 13.5px;
   }
   .gate { border-left-color: var(--risk); background: #fff7f6; }
-  .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
-  .card { padding: 14px 16px; border: 1px solid var(--line); border-radius: 7px; background: var(--panel); }
-  .card p { margin: 0; font-size: 13.5px; }
-  .task { margin: 18px 0; padding: 14px 16px; border: 1px solid var(--line); border-radius: 7px; background: var(--panel); }
   .status { display: inline-block; padding: 1px 8px; border-radius: 999px; color: #fff; font-size: 11.5px; white-space: nowrap; }
-  .status.done { background: var(--done); }
-  .status.current { background: var(--current); }
-  .status.wait { background: var(--wait); }
-  .status.risk { background: var(--risk); }
+  .status.go { background: var(--done); }
+  .status.user { background: var(--risk); }
+  .status.dep { background: var(--wait); }
+  .status.judge { background: var(--judge); }
   .table-wrap { overflow-x: auto; }
   .small { color: var(--sub); font-size: 12.5px; }
-  @media (max-width: 820px) {
-    body { padding: 16px; }
-    .grid { grid-template-columns: 1fr 1fr; }
-  }
-  @media (max-width: 520px) {
-    .grid { grid-template-columns: 1fr; }
-  }
+  .num { white-space: nowrap; font-weight: 600; }
 </style>
 </head>
 <body>
 <main>
 
-<h1>開発計画（2レーン体制） — Readiness View＋実装タスク台帳</h1>
+<h1>GitHub Issue 管理ビュー</h1>
 <p class="meta">
-同期日: 2026-07-30 ／ <b>納品日: 2026-07-27（納品日は経過。残作業は納品後バッチとして継続中。延期経緯: 7/18 → 7/25 → 7/27）</b><br>
-<b>Issue事項の正本は各GitHub Issue（各Issueの受け入れ条件 &gt; <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/260">#260 計画</a> &gt; 本view）、決裁の正本は<a href="q&amp;a.html">q&amp;a.html</a>、着手可能な実装タスクの正本は本fileの<a href="#ledger">#ledger</a></b>。本fileのreadiness viewはIssue群を2並行レーンで着手するためのガイドであり、Issueの受け入れ条件を複製しない。<br>
-決裁台帳: <a href="q&amp;a.html">q&amp;a.html</a>（OPS・decision-ready pack — DEC-40〜47は代理判定済み、現在のUSER入力待ちDECカードは0件・決裁記録の正本=q&amp;a.htmlのgit履歴 <code>ab68c61f5</code>）／ 実装タスク台帳: 本fileの<a href="#ledger">#ledger</a>。Issue題名・本文および他文書中の「7/18」「7/25」は旧納品日である。
+役割: <b>open な GitHub Issue を「次に誰が何をすれば動くか」で並べる作業ビュー</b>。<br>
+再構築: 2026-07-31（旧「実装タスク台帳」としての役割は廃止。ローカル残タスクの正本は <code>todo.md</code>）。
 </p>
 
 <div class="notice">
-本HTMLのreadiness viewは進捗と着手順を一目で確認するためのガイドであり、Issueの受け入れ条件・決裁内容を複製しない。実装タスクは本fileの<a href="#ledger">#ledger</a>を正本とする。差異がある場合、Issue事項は各Issue、決裁はq&amp;a.html、着手可能な実装タスクは本fileの#ledgerを優先する。open Issueの現況は<code>gh issue list --state open</code>の実測を正とする（件数は本 view に固定しない）。
+<b>このファイルがやらないこと</b><br>
+① <b>Issue の受け入れ条件を複製しない。</b>条件・仕様・議論の正本は各 GitHub Issue の本文とコメント。<br>
+② <b>Issue の state を持たない。</b>open / closed は <code>gh issue list --state open</code> の実測が正。本 view の一覧が実測とずれたら実測が正しい。<br>
+③ <b>ローカル残タスク（<code>TASK-*</code> / <code>SD-*</code> / <code>SCEN-*</code>）を持たない。</b>正本は <a href="todo.md"><code>todo.md</code></a>。ID 体系は本 view と無関係。<br>
+④ <b>決裁を持たない。</b>PO 判断・USER 操作待ち・記入フォームの正本は <a href="q&amp;a.html"><code>q&amp;a.html</code></a>。<br>
+⑤ <b>件数・commit hash を固定値で埋め込まない。</b>ドリフトの温床になる。数えるときはその場で実測する。
 </div>
 
-<h2>現在地（2026-07-30）</h2>
-<div class="grid">
-  <section class="card">
-    <h3>納品</h3>
-    <p><span class="status risk">納品日経過</span> Go-live 2026-07-27／残作業は納品後バッチで継続</p>
-  </section>
-  <section class="card">
-    <h3>着手可能な実装</h3>
-    <p><span class="status done">8 件</span> TASK-603〜610（環境非依存。<a href="#ledger">#ledger</a>）</p>
-  </section>
-  <section class="card">
-    <h3>決裁状況</h3>
-    <p><span class="status done">DEC-40〜47代理裁定済み</span> <span class="status wait">委任外=記入フォーム</span></p>
-  </section>
-  <section class="card">
-    <h3>残作業の性質</h3>
-    <p><span class="status done">環境非依存8件</span> ＋ <span class="status risk">USER 実操作</span> DB再構築／runtime／外部入力／OPS</p>
-  </section>
-</div>
-
-<h2>納品（2026-07-27）クリティカルパス</h2>
+<h2>分類の定義</h2>
 <div class="table-wrap">
 <table>
-  <tr><th>順</th><th>項目</th><th>Issue/台帳</th><th>所有</th><th>状態</th></tr>
+  <tr><th>分類</th><th>意味</th><th>次に動くのは</th></tr>
+  <tr><td><span class="status go">着手可能</span></td><td>エージェントが今すぐ着手できる。前提が揃っている</td><td>エージェント</td></tr>
+  <tr><td><span class="status user">USER 専権</span></td><td>credential・課金・外部サービス・本番操作・物理作業。委任できない</td><td>USER</td></tr>
+  <tr><td><span class="status judge">判断待ち</span></td><td>臨床値・価格・契約など、人が値や可否を決めないと進めない</td><td>臨床責任者 / PO / 契約責任者</td></tr>
+  <tr><td><span class="status dep">依存待ち</span></td><td>先方からのデータ・アカウント・実機など、外部の到着待ち</td><td>先方（こちらは待つだけ）</td></tr>
+</table>
+</div>
+
+<h2>Issue 一覧</h2>
+
+<div class="notice">
+下表の分類は <b>2026-07-31 時点の整理</b>である。<b>各 Issue の現況は <code>gh issue view &lt;番号&gt;</code> で実測して確認すること</b> — 直近の作業が本 view へ反映されていない場合がある。分類が実態とずれていたら実態に合わせて本表を直す。
+</div>
+
+<div class="table-wrap">
+<table>
+  <tr><th>#</th><th>件名</th><th>分類</th><th>次のアクション</th></tr>
+
   <tr>
-    <td>1</td>
-    <td>dev完了。残 = STG実URLでの3秒以内表示実測とFEフルゲート手動実行</td>
-    <td><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/266">#266</a></td>
-    <td>USER</td>
-    <td><span class="status risk">USER 専権</span> — STG実URLでの実測とFEフルゲート手動実行</td>
+    <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/239">#239</a></td>
+    <td>医院別レコードを残す同一 owner/pet リンクと統合履歴</td>
+    <td><span class="status go">着手可能</span></td>
+    <td>Phase 1（手動 link/unlink・最小履歴）は着地済み。<b>Phase 2 以降が未着手</b>。Issue 本文の実装順2〜4と Phase 0 設計コメントが契約</td>
   </tr>
   <tr>
-    <td>2</td>
-    <td>cutoverは正式21表csv-import経路（F6 runbook）で実施。旧 stage-import は<b>2026-07-28に退役完了</b>（<code>905e686c5</code>・DEC-20/DEC-24。tool本体9 file・compose・検証script・Makefile 4 target・ビルド済みbinaryを削除し、生きた運用docをcsv-import経路のみへ統一。BUG-430解消）。<b>実ブロッカーはデータ側</b>: producer bundle完成（billings.completed_at・payment graph・crosswalk = USER/PO入力）</td>
-    <td><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/250">#250</a> / DEC-20・DEC-24（原文=q&amp;a.html git履歴）</td>
-    <td>USER＋dev</td>
-    <td><span class="status risk">USER 専権</span> — producer bundle入力とcutover実操作</td>
+    <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/254">#254</a></td>
+    <td>納品前の全業務シナリオ通し確認（UAT 代行）</td>
+    <td><span class="status go">着手可能</span></td>
+    <td><b>2026-07-31 にデモ環境が起動可能になり前提が解けた</b>。シナリオ実施と結果記録</td>
   </tr>
   <tr>
-    <td>3</td>
-    <td>全業務シナリオ通し確認（UAT代行）— #266のdev修正は完了済み</td>
-    <td><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/254">#254</a></td>
-    <td>USER → dev</td>
-    <td><span class="status wait">依存待ち</span> — 承認済みDB再構築と起動確認後</td>
+    <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/256">#256</a></td>
+    <td>操作マニュアル・手順書の整備</td>
+    <td><span class="status go">着手可能</span></td>
+    <td>静的な手順書整合は着地済み。残るのは <b>#254 で判明した紛らわしい操作の FAQ 化</b>と現行スクリーンショット</td>
+  </tr>
+
+  <tr>
+    <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/201">#201</a></td>
+    <td>薬量自動計算 — 上限超過の物理ブロックと例外統制</td>
+    <td><span class="status judge">判断待ち</span></td>
+    <td>実装は着地済み。臨床責任者の3点確認（上限値の妥当性・warning 帯・欠落時挙動）。記入フォームは <a href="q&amp;a.html">q&amp;a.html</a></td>
   </tr>
   <tr>
-    <td>4</td>
-    <td>BE9 release gate 5件（fresh DB migration実適用／remote CI／production secrets+deploy／scheduler rehearsal／LINE Console redelivery）</td>
-    <td><a href="q&amp;a.html#ops">q&amp;a.html OPS-13〜17</a></td>
-    <td>USER承認</td>
-    <td><span class="status risk">USER 専権</span> — migration実適用・remote CI・PROD secrets/deploy・外部Console操作</td>
+    <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/211">#211</a></td>
+    <td>健診パッケージ実装 — DB 適用・provisional seed 臨床確認</td>
+    <td><span class="status judge">判断待ち</span></td>
+    <td>provisional seed の行単位承認。値は臨床側が供給する</td>
   </tr>
   <tr>
-    <td>5</td>
-    <td>credential rotation・履歴対応＋GitHub Actions billing復旧→最新main全必須job green。#99（旧ECS deploy経路撤去）は実地確認待ち。#109 は <code>STG_DEMO_*</code> 登録済みのため、旧認証 fallback と silent green の除去を <a href="#TASK-606">TASK-606</a> として分離した</td>
-    <td><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/89">#89</a> / <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/97">#97</a> / <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/98">#98</a> / <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/99">#99</a> / <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/109">#109</a> / <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/253">#253</a></td>
-    <td>USER＋dev</td>
-    <td><span class="status done">#109 着手可能</span>／他は <span class="status risk">USER 専権</span></td>
+    <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/249">#249</a></td>
+    <td>検査機能 — 院内検査結果管理の内製</td>
+    <td><span class="status judge">判断待ち</span></td>
+    <td>Phase 2 まで着地。残るのは<b>動物種別の基準値そのものの投入</b>で獣医師の判断。投入画面は開通済み</td>
   </tr>
   <tr>
-    <td>6</td>
-    <td><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/201">#201</a>=<b>dev完了</b>（<code>fa119abb9</code>・絶対上限超過をBEで物理reject＋FEのConfirmDialog解除2経路を撤去）。<a href="q&amp;a.html#dec-41">DEC-41</a> で #261 の判定は決着済み。残 = 臨床責任者による事後確認3点（マスタ上限値の妥当性・warning帯・欠落ケース別挙動表）</td>
-    <td><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/261">#261</a> / <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/201">#201</a> / DEC-1（原文=q&amp;a.html git履歴）</td>
-    <td>PO＋臨床責任者</td>
-    <td><span class="status risk">委任外判断待ち</span> — 臨床責任者の事後確認3点</td>
+    <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/258">#258</a></td>
+    <td>納品ドキュメントの整備</td>
+    <td><span class="status judge">判断待ち</span></td>
+    <td>repo 由来の部分は着地済み。残るのは<b>契約・バックアップ体制・サポート窓口</b>など外部から供給される事実</td>
   </tr>
   <tr>
-    <td>7</td>
-    <td>OPS群: <b>#250=<span class="status risk">USER 専権</span></b>（producer bundle preflightは既存で充足、入力とcutover実操作が残る）／<b>#252=<span class="status risk">USER 専権</span></b>（締め時間投入）／<b>#255=<span class="status done">repo準備着手可能</span></b>（一括発行=<a href="#TASK-609">TASK-609</a>、実データと適用はUSER）／<b>#256=<span class="status wait">依存待ち</span></b>（全体はruntime/#254待ち、静的slice=<a href="#TASK-603">TASK-603</a>・<a href="#TASK-604">TASK-604</a>）／<b>#257=<span class="status risk">USER 専権</span></b>（本番切替実操作）／<b>#258=<span class="status risk">委任外判断待ち</span></b>（全体は契約/外部入力待ち、repo slice=<a href="#TASK-605">TASK-605</a>）／<b>#259=<span class="status done">repo準備着手可能</span></b>（default-off配線=<a href="#TASK-610">TASK-610</a>、外部有効化/送信はUSER）</td>
-    <td>#250 #252 #255 #256 #257 #258 #259</td>
-    <td>USER中心</td>
-    <td>各項目の分類は左欄に明記</td>
+    <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/261">#261</a></td>
+    <td>臨床安全・画面仕様ギャップの PO 決裁</td>
+    <td><span class="status judge">判断待ち</span></td>
+    <td>P0（死亡ペットの書き込みガード）は 2026-07-31 に着地。残るのは臨床責任者の確認</td>
+  </tr>
+
+  <tr>
+    <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/89">#89</a></td>
+    <td>露出済み credential のローテーションと旧値無効化</td>
+    <td><span class="status user">USER 専権</span></td>
+    <td>credential の実操作。エージェントは値に触れない</td>
+  </tr>
+  <tr>
+    <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/97">#97</a></td>
+    <td>git 履歴・公開 Issue 由来の credential 露出</td>
+    <td><span class="status user">USER 専権</span></td>
+    <td>ローテーションと Issue 本文のマスキング（外部書き込み）</td>
+  </tr>
+  <tr>
+    <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/98">#98</a></td>
+    <td>旧 RDS credential 履歴の残余リスクと廃止スクリプト撤去</td>
+    <td><span class="status user">USER 専権</span></td>
+    <td>AWS 側の無効化確認</td>
+  </tr>
+  <tr>
+    <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/99">#99</a></td>
+    <td>廃止予定 ECS deploy 経路の撤去と rollback 手順の一本化</td>
+    <td><span class="status user">USER 専権</span></td>
+    <td>mitigation の実地確認</td>
+  </tr>
+  <tr>
+    <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/252">#252</a></td>
+    <td>各院の締め時間設定値の投入</td>
+    <td><span class="status user">USER 専権</span></td>
+    <td>設定値の投入操作</td>
+  </tr>
+  <tr>
+    <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/253">#253</a></td>
+    <td>本番環境整備 — CI/CD・監視・DB backup/restore gate</td>
+    <td><span class="status user">USER 専権</span></td>
+    <td>本番アカウント・課金・deploy 権限</td>
+  </tr>
+  <tr>
+    <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/257">#257</a></td>
+    <td>本番切替（Go-live）— 切替手順・切り戻し基準・直後サポート</td>
+    <td><span class="status user">USER 専権</span></td>
+    <td>#250 / #253 / #254 / #255 の後。切替実操作と担当者の確定</td>
+  </tr>
+  <tr>
+    <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/260">#260</a></td>
+    <td>開発計画（正本）</td>
+    <td><span class="status user">USER 専権</span></td>
+    <td>計画 Issue。他が片付いた時点でクローズ判断</td>
+  </tr>
+
+  <tr>
+    <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/212">#212</a></td>
+    <td>Repository integration coverage の重要ギャップ改善</td>
+    <td><span class="status dep">依存待ち</span></td>
+    <td>DEC-19 により phase2 送り。再開判断が先</td>
+  </tr>
+  <tr>
+    <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/235">#235</a></td>
+    <td>カルテ画像・PDF のドラッグ&amp;ドロップアップロード</td>
+    <td><span class="status dep">依存待ち</span></td>
+    <td>DEC-19 により phase2 送り。再開判断が先</td>
+  </tr>
+  <tr>
+    <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/250">#250</a></td>
+    <td>旧 Access データ移行 — cutover</td>
+    <td><span class="status dep">依存待ち</span></td>
+    <td>producer bundle（completed_at・payment graph・crosswalk）の提供待ち。受領後の検証ハーネスは実装済み</td>
+  </tr>
+  <tr>
+    <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/255">#255</a></td>
+    <td>スタッフアカウントの一括発行と役割別権限設定</td>
+    <td><span class="status dep">依存待ち</span></td>
+    <td>先方からのスタッフ一覧の受領待ち。一括発行の実装側は着地済み</td>
+  </tr>
+  <tr>
+    <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/259">#259</a></td>
+    <td>L ステップ連携の再開 — Write API 再有効化＋cron 配線</td>
+    <td><span class="status dep">依存待ち</span></td>
+    <td>先方の API 有効化待ち。client は default-off で配線済み（無効時は送信 0 件）</td>
+  </tr>
+  <tr>
+    <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/284">#284</a></td>
+    <td>line-reserve 実機フォント確認（3実機）</td>
+    <td><span class="status dep">依存待ち</span></td>
+    <td>試験環境と実機の受け渡し待ち。チェックリストは用意済み</td>
   </tr>
 </table>
 </div>
 
-<h2 id="ledger">実装タスク台帳（正本）</h2>
-
-<div class="notice">
-<b>packet claim 規約（必須）</b> — 台帳 task ID / packet ID に対する最初の編集の前に、共有リポジトリで次を実行する。<b>確認:</b> <code>git branch --list 'claim/&lt;TASK-ID&gt;'</code>（非空なら他セッション所有 → hard stop / BLOCKED。編集しない）。<b>取得:</b> <code>git branch claim/&lt;TASK-ID&gt;</code>（非0終了も hard stop / BLOCKED）。<b>解放は USER 専権:</b> エージェントは claim branch を削除してはならない（自分の claim も含む）。作業が <code>main</code> へ統合された後、または明示的に破棄した後、エージェントは claim branch 名を USER へ報告する。USER が人間端末で <code>git branch -D claim/&lt;TASK-ID&gt;</code> を実行して解放する（PreToolUse がエージェント側の claim 削除を遮断するため、USER が消すまで claim は残る）。他セッションの claim を自分のために削除してはならない。放置に見える claim は branch 名と commit 日付（<code>git log -1 --format='%ci %s' claim/&lt;TASK-ID&gt;</code>）を USER へ報告する。<code>&lt;TASK-ID&gt;</code> は台帳 ID をそのまま使う。git 参照名に無効な文字を含む場合は各文字を <code>-</code> に置換し、取得前に変換後の名前をセッション報告へ書く。
-</div>
-
-<div class="notice">
-<b>統合: 2026-07-27／分類更新: 2026-07-30</b> — 旧<code>todo.md</code>の全内容を本節へ移設し、実装タスクの正本を一本化した。active entry は残 unit / 操作単位で <b>着手可能 / USER 専権 / 依存待ち</b> のいずれかを明記する。清算済み履歴と既知の運用注意は active entry ではなく分類対象外。
-</div>
-
-<blockquote>
-<p><b>更新: 2026-07-30 — active な実装 unit は 8 件</b>。前ラウンドの <a href="#TASK-603">TASK-603</a>〜<a href="#TASK-606">TASK-606</a> に加え、残余最小化の再監査から、安全なlocal DB再構築契約・全tygo出力のCI byte-identity・staff一括発行・default-off L-step Write APIを <a href="#TASK-607">TASK-607</a>〜<a href="#TASK-610">TASK-610</a> として分離した。L2の他9件は、同じ利用者操作を人が一度も通していないため「runtime確認を自動化で置換済み」とは扱わない。<b>完了 unit の証跡正本は git 履歴</b>であり、本 view と #ledger にはhash一覧を複製しない。<br>⚠commit は必ず <code>git commit -- &lt;paths&gt;</code> で path 制限する（作業ツリーの内容を commit するため、共有ファイルは <code>git diff --cached -- &lt;file&gt;</code> の全文突合が必須）。</p>
-<p><b>テストDBに関する既知の落とし穴（2026-07-27 実測）</b>: <code>backend/internal/testdb/testdb.go</code> は <code>ekarte_db_test</code> を空で <code>CREATE DATABASE</code> するだけで <code>backend/migrations/*.sql</code> を適用しない。テストDBのスキーマは各 setup が <code>testdb.EnsureAutoMigrated(db, &amp;model.X{})</code> を呼んだモデルぶんだけ GORM AutoMigrate で作られる。したがって新テーブルの <code>SQLSTATE 42P01</code> は「migration 未適用」ではなく <b>モデル未登録</b>であり、<code>make reset</code> では直らない。切り分け = <code>docker compose exec -T db psql -U ekarte_user -d ekarte_db_test -c "\dt &lt;table&gt;"</code>。あわせて AutoMigrate は GORM tag からしか制約を作らないため、DDL の <code>UNIQUE</code> を model の <code>uniqueIndex</code> tag で宣言しないと制約不在のまま重複 insert 系テストが素通りする。</p>
-<p><b>分類対象外の運用注意 — 整形チェックの既知 baseline debt（2026-07-27 実測・所有者不在）</b>: directory 引数の <code>gofmt -l</code> は <code>internal/billing/accounting_complete_appointments_test.go</code>、<code>internal/billing/accounting_repository_tx_atomicity_test.go</code>、<code>internal/medicalrecord/discount_permission.go</code> の3件を必然的に列挙する。したがって<b>整形ゲートに directory 引数を渡すと充足不能になる</b> — 各 unit は自分の変更ファイルを列挙して <code>gofmt -l &lt;files&gt;</code> の引数にすること。本段落は active ledger entry ではない。</p>
-<p><b>完了 entry の扱い</b>: 対応済みの <code>&lt;section&gt;</code> は運用規約どおり削除している。<b>探しても見つからない task ID は削除済みであり、未起票ではない。</b>完了記録の正本は git 履歴と各実装 test であり、hash 一覧を本 file へ複製しない（<code>git log --oneline</code> と <code>git log --all -- todo.md</code> で参照する）。</p>
-<p><b>migration の現況（2026-07-30 実測）</b>: 現行増分の在庫は <code>ls backend/migrations/</code> の実測を正とする（件数・ファイル名は本 view に複製しない）。旧 002〜007 相当の増分は <code>001_init.sql</code> 末尾セクション9へ統合済みで、独立ファイルとしては存在しない。<b>統合前 DB の no-reset アップグレード経路は存在しない</b>ため、適用は <code>DB_RESET=true</code> 相当の承認済み再構築（USER 手動・ローカルは <code>docs/ops/deploy/LOCAL_DB_RESET.md</code>）による。詳細は <code>backend/migrations/CLAUDE.md</code> が正本。</p>
-</blockquote>
-
-<h3>運用</h3>
+<h2>運用</h2>
 <ul>
-  <li>本節は、エージェントが直ちに着手できる未完了タスクの台帳とする。</li>
-  <li>タスクは「個別タスク詳細」に <code>&lt;section class="task" id="&lt;タスクID&gt;"&gt;</code> 形式で追加する。</li>
-  <li>対応済みの <code>&lt;section&gt;</code> は削除し、完了記録はgit履歴と各実装testを正本とする。旧台帳期の記録は <code>git log --all -- todo.md</code> で参照する。</li>
-  <li>GitHub Issueと対応するタスクはIssueのstateを実測し、Issue一覧を本節へ重複掲出しない。</li>
-  <li>release/運用gateは実装タスクと混在させず、<a href="q&amp;a.html#ops"><code>q&amp;a.html</code> OPS-13〜17</a>と該当runbookで追跡する。</li>
+  <li><b>Issue がクローズされたら本表から行を削除する。</b>完了記録は GitHub Issue と git 履歴が正本であり、本 view に履歴を残さない。</li>
+  <li><b>分類が変わったら書き換える。</b>特に「依存待ち → 着手可能」への遷移（先方データの到着など）を見落とさない。</li>
+  <li><b>着手するときは Issue 本文を読む。</b>本 view の「次のアクション」は着手順を決めるための要約であって、受け入れ条件ではない。</li>
+  <li><b>新しい Issue が立ったら行を足す。</b>ローカルの残作業（<code>TASK-*</code> 等）は足さない — それは <a href="todo.md"><code>todo.md</code></a> の領分。</li>
+  <li>並行実行の排他は <a href="AGENTS.md"><code>AGENTS.md</code></a> の packet claim protocol（<code>git branch claim/&lt;ID&gt;</code>）に従う。claim の解放は USER 専権。</li>
 </ul>
 
-<h3>正本の境界</h3>
+<h2>正本の境界</h2>
 <div class="table-wrap">
 <table>
   <tr><th>内容</th><th>正本</th></tr>
-  <tr><td>着手可能な実装タスク</td><td>本fileの<a href="#ledger">#ledger</a>「個別タスク詳細」</td></tr>
-  <tr><td>GitHub Issueのstate・一覧</td><td>GitHub Issues</td></tr>
-  <tr><td>BE9構造移行・進捗・release gate</td><td>BE9は2026-07-24にcode complete（release pending）。境界は<a href="docs/architecture/adr/006-backend-domain-package-boundaries.md">ADR-006</a> / <a href="docs/architecture/be9-2a-boundary-map.md">boundary map</a>、release gateは<a href="q&amp;a.html#ops"><code>q&amp;a.html</code> OPS-13〜17</a></td></tr>
-  <tr><td>FEデザイン準拠</td><td>タイポグラフィ・形状・寸法は<a href="DESIGN.md"><code>DESIGN.md</code></a>、色は<a href="docs/spec/design-system.md"><code>docs/spec/design-system.md</code></a></td></tr>
-  <tr><td>backend規約適合監査</td><td>退役。<code>BE-refactor.md</code> は 141 所見すべての終端と全 packet の統合完了により 2026-07-30 に削除した（監査索引および コード comment 中の <code>BE-refactor.md</code> 引用は git 履歴で解決する: <code>git show 3d3410f93:BE-refactor.md</code>）。規約側の疑義は<a href="q&amp;a.html"><code>q&amp;a.html</code></a>の決裁カードから参照</td></tr>
+  <tr><td>Issue の受け入れ条件・仕様・議論</td><td>各 GitHub Issue（本文とコメント）</td></tr>
+  <tr><td>Issue の open / closed</td><td>GitHub（<code>gh issue list --state open</code> の実測）</td></tr>
+  <tr><td>ローカル残タスク・ops 手順</td><td><a href="todo.md"><code>todo.md</code></a></td></tr>
+  <tr><td>PO 判断・USER 操作待ち・記入フォーム</td><td><a href="q&amp;a.html"><code>q&amp;a.html</code></a></td></tr>
   <tr><td>今フェーズで着手しない事項</td><td><a href="phase2.html"><code>phase2.html</code></a></td></tr>
-  <tr><td>着手保留・任意検証のBE技術債</td><td><a href="BE-pending.md"><code>BE-pending.md</code></a></td></tr>
-  <tr><td>PO判断・USER実操作・P0ブロッカー</td><td><a href="q&amp;a.html"><code>q&amp;a.html</code></a></td></tr>
-  <tr><td>本fileのreadiness view</td><td>Issueを2並行レーン（A=検査・backend基盤／B=カルテ・飼主・会計残）で着手するためのガイドview。正本は各Issueであり、Issueの受け入れ条件を複製しない。</td></tr>
+  <tr><td>backend の境界設計</td><td><a href="docs/architecture/adr/006-backend-domain-package-boundaries.md">ADR-006</a> / <a href="docs/architecture/be9-2a-boundary-map.md">boundary map</a></td></tr>
+  <tr><td>FE デザイン準拠</td><td>タイポグラフィ・形状・寸法は <a href="DESIGN.md"><code>DESIGN.md</code></a>、色は <a href="docs/spec/design-system.md"><code>docs/spec/design-system.md</code></a></td></tr>
+  <tr><td>完了の証跡</td><td>git 履歴と各実装 test</td></tr>
 </table>
-</div>
-
-<h3>個別タスク詳細</h3>
-
-
-<section class="task" id="TASK-251">
-<h3>TASK-251: 締め集計 category contract（#251・12分類）— dev 完了</h3>
-<ul>
-  <li>contract 正本 = #251 本文（DEC-21・<b>USER 本人裁定</b> 2026-07-25・原文 = q&amp;a.html git 履歴）。<b>active な実装 unit は無い</b>（U1〜U5 と U2b-full 第1段/第2段はすべて着地済み。証跡正本 = git 履歴と各実装 test）。</li>
-  <li><b>U4 scope status: 今期スコープ外</b>。<a href="q&amp;a.html#dec-44"><code>DEC-44</code></a> の代理裁定 A により、training カテゴリと既存の手入力経路は維持したまま自動導出 source の設計を phase2 へ見送る。再開条件5点の正本は <a href="phase2.html">phase2.html</a>「PO 決裁済み『やらない』」節。</li>
-  <li><b>分類: USER 専権 — 未実施の USER/CI 手順</b>: <code>001_init.sql</code> を <code>DB_RESET=true</code> 相当の承認済み再構築で適用（統合前 001 は checksum mismatch になるため必須）→ <code>make codegen</code> → frontend full type-check → ワクチン候補→取込→削除→再候補化の runtime 確認。</li>
-  <li><b>分類: USER 専権 — #247（月次統合表）</b>: dev 着地済み（DEC-16⑥ の allocation helper と月次 matrix、返金=発生日負値行、matrix 総計=締め合計）。残 = runtime 確認と GitHub Issue クローズ。</li>
-</ul>
-</section>
-
-
-
-<section class="task" id="BUG-433">
-<h3>BUG-433: 生成FE型がGoドメインモデル由来のため応答DTOに無いフィールドが型上は存在扱いになる — dev 完了</h3>
-<ul>
-  <li><b>分類: 着手可能＋USER/CI acceptance</b>。全tygo出力をCIでbyte-identicalにするrepo側unitは<a href="#TASK-608">TASK-608</a>。remote required jobとIssue closeだけをUSER/CIへ残す。</li>
-  <li>欠陥クラス: <code>frontend/src/types/generated/models.ts</code> は tygo が <code>backend/internal/model/</code> から生成するため、FE 型は Go ドメインモデルを写し、HTTP が実際に返す応答 DTO と一致しない。DTO に無いフィールドは実行時 <code>undefined</code> なのに型検査を通る（実害例 = BUG-431 の危険度バッジが実 API で一度も点灯しなかった件）。</li>
-  <li><b>DEC-26 裁定（2026-07-27・A=2段構え）= 完遂</b>。短期段（TASK-444-S1）は生成型を応答型として使う新規 import を禁じる ESLint 境界を新設し、既存 import サイトを allowlist で凍結した。恒久段（TASK-444-S2）は実害を実測した Pet / Owner / medicalrecord / hospitalization+treatment_plan の4スライスを応答 DTO 由来の型出力へ移行して完了した。</li>
-  <li><b>残余判定（2026-07-30 全数実測・対応不要）</b>: 実害判定規則は <code>③ ∧ (① ∨ ②)</code>（①=field 名不一致 ②=生成型のみの field ③=FE が生成型を detail wire として実消費）。medicalrecord response 29件と非スライス残余3件を再照合し、実害ありは hospitalization と treatment_plan の2件のみで、いずれも移行済み。残る30件は FE 側 transform 層または手書き DTO が吸収しており対応不要。個別の判定根拠は <code>git show 47233b981~1:3-session-agent.html</code> の判定表を参照する。</li>
-  <li><b>各スライス共通の必須手順（Pet slice で実際に事故った）</b>: <code>backend/tygo.yaml</code> へパッケージを追加したら、<code>docker-compose.yml</code> の codegen command の sed 列にも同じ path 書き換えを1行追加すること。片方だけでは <code>make codegen</code> が無言で空振りし、出力先ファイルが host へ届かない。</li>
-</ul>
-</section>
-
-
-
-<p>2026-07-23に起票したBUG-421〜428、TEST-ROUTES-01、FMT-BE-01は2026-07-24のBE9実装でsource/testへ反映済みのため、本active listから削除した。release pending項目（fresh DB migration、remote CI/coverage、production deploy/ops rehearsal）は実装taskではないため本節へ再掲しない。</p>
-<div class="notice" id="readiness-round2-20260730-outcome">
-<h3>READINESS-ROUND2-20260730 staged-plan outcome</h3>
-<p><b>Status: COMPLETE（docs-only packet起票・設計決裁・空欄フォーム化）。</b> 起票したTASK-607〜610の実装、DB再構築、外部write、実機確認は未着手で本runの授権外。変更fileは<code>3-session-agent.html</code>と<code>q&amp;a.html</code>の2件のみ。Acceptanceは10項目PASS、L1実DB schemaの指定psql証跡だけproject禁止規約によりBLOCKED/UNREPORTED。</p>
-<p><b>Baseline / validation / inventory — command and verbatim output:</b></p>
-<pre>node ~/.claude/scripts/prompt-craft-harness-validate.js /Users/minoru/.claude/prompt-craft-runs/agent-fast-readiness-round2-residue-minimization-20260730.md
-Prompt Craft Harness Validation: PASS
-Execution contract: dynamic-workflow/v1
-
-git rev-parse HEAD
-883c632a93198d22698d4a71b59f9fe5a2787476
-git status --short --branch
-## main...origin/main [ahead 1]
-
-current+history ID recensus before claims
-LEDGER_MAX=606
-DEC_MAX=46
-
-gh issue list --state open --limit 1000 --json number --jq 'length'
-33
-grep -c '&lt;section class="task"' 3-session-agent.html
-10
-grep -o 'data-task="OPS-[0-9]*"' 'q&amp;a.html' | sort -u | wc -l
-18
-phase2 conditional item probe
-6
-
-git branch claim/TASK-607 ... claim/TASK-610
-ACQUIRED claim/TASK-607
-ACQUIRED claim/TASK-608
-ACQUIRED claim/TASK-609
-ACQUIRED claim/TASK-610</pre>
-<p><b>L1 required runtime schema probe:</b></p>
-<pre>docker compose exec -T db psql -U ekarte_user -d ekarte_db -c '\d schema_migrations'
-BLOCKED / NOT RUN — .claude/CLAUDE.md prohibits agents from direct psql. USER output required; source DDL is not promoted to runtime PASS.</pre>
-<p><b>Contract / scope / HTML gates — command and verbatim output:</b></p>
-<pre>new/existing packet contract + owned-path probe
-TASK-603_FIELDS=PASS;OWNED=14
-TASK-604_FIELDS=PASS;OWNED=9
-TASK-605_FIELDS=PASS;OWNED=2
-TASK-606_FIELDS=PASS;OWNED=5
-TASK-607_FIELDS=PASS;OWNED=7
-TASK-608_FIELDS=PASS;OWNED=1
-TASK-609_FIELDS=PASS;OWNED=8
-TASK-610_FIELDS=PASS;OWNED=7
-PACKETS=8;OWNED_TOTAL=53;OVERLAPS=0;MISSING=0;FIELD_FAILURES=0
-
-decision form probe
-decision-pack-clinical rows=7 target=PASS unit=PASS source=PASS approver=PASS blank=PASS
-decision-pack-delivery rows=6 target=PASS unit=PASS source=PASS approver=PASS blank=PASS
-decision-pack-external-physical rows=3 target=PASS unit=PASS source=PASS approver=PASS blank=PASS
-DEC-47_Q1_Q7=PASS
-DEC47_REC_NEED=PASS
-
-grep -o 'id=&quot;[^&quot;]*&quot;' 3-session-agent.html | sort | uniq -d
-(no output; duplicate IDs=0)
-grep -o 'id=&quot;[^&quot;]*&quot;' 'q&amp;a.html' | sort | uniq -d
-(no output; duplicate IDs=0)
-
-TASK-608 parser sanity check against current source
-TYGO_CONFIG=8 CURRENT_CI_REMAP=3 CURRENT_CI_COPY=3
-CURRENT_CI_PAIRS_MATCH=true
-
-git diff --check -- 3-session-agent.html 'q&amp;a.html'
-(no output; exit 0)
-bash scripts/check-docs-symbol-drift.sh
-OK    docs-symbol-drift: ドリフトなし（検査トークン 521 件）
-tidy -q -errors -utf8 3-session-agent.html
-3-session-agent.html_TIDY=PASS
-tidy -q -errors -utf8 'q&amp;a.html'
-q&amp;a.html_TIDY=PASS
-
-independent reviewer final re-review
-CRITICAL=0 HIGH=0 MEDIUM=0 LOW=0
-final rejected packets: none</pre>
-<p><b>Assumption deviations:</b> native Workflow primitiveはsessionに無いため、planning＋L1〜L4の独立worktree read-only fan-out、coordinator単独writer、独立reviewerで<code>dynamic-workflow/v1</code>を実行。promptが想定したdirect psqlはproject規約が禁止するためruntime schemaだけBLOCKED。L2は同一利用者processの事前手動検証があるBUG-433だけをTASK-608化し、未検証の9件を自動化済みと偽らない。#250は既存cutover preflightが十分、#284は既存3実機checklistが十分なので重複packetなし。DEC-1原文の「lookup障害も保存継続」はcurrent source/testのerror伝播と矛盾するためDEC-47でcurrent behaviorを優先。現行<code>make reset</code>の<code>down -v</code>はrunbookのDB-volume限定記述と不一致のためTASK-607にcache保持を明記。参照指示の<code>docs/CODEX-NAVIGATION-GUIDE.md</code>は現treeに不存在。</p>
-<p><b>Failure Signature log:</b> (1) ID履歴scanが<code>pipefail</code>下のSIGPIPEでexit 141を2回返したため、同じ最小scanを<code>set +o pipefail</code>で再実行して606/46を確定。(2) 一時file方式は削除commandを含みpolicy拒否されたため採用せず。(3) 実在確認でzsh特殊変数<code>path</code>をloop変数に使い、そのshell内のcommand lookupを破壊したため<code>target_file</code>へ改名して再実行。(4) 初回owned parserが既存packetの省略basenameと新規fileの未作成直上dirを20欠落と誤判定したため、同一dir補完＋最寄り既存親dir検査へ修正しMISSING=0。(5) independent review round 1〜2でTASK-608 output parser/偽green、DEC-47 rec欠落、TASK-607 shellcheck scope、TASK-609 batch lock/clinic receipt、TASK-610 deploy kill switch/Content-Typeを検出。全件を最小修正し、final re-reviewで同signature再発なし。2-strike超過による中止対象なし。</p>
-</div>
-
-<div class="notice" id="readiness-audit-20260730-outcome">
-<h3>READINESS-AUDIT-20260730 staged-plan outcome</h3>
-<p><b>Status: COMPLETE（docs-only packet起票・代理裁定・decision-ready整形）。</b> 起票したpacketの実装は未着手で、本runの授権外。変更fileは <code>3-session-agent.html</code>、<code>q&amp;a.html</code>、<code>phase2.html</code> の3件のみ。</p>
-<p><b>Gate commands / verbatim output:</b></p>
-<pre>node ~/.claude/scripts/prompt-craft-harness-validate.js /Users/minoru/.claude/prompt-craft-runs/agent-fast-readiness-enablement-audit-20260730.md
-Prompt Craft Harness Validation: PASS
-VALIDATOR_EXIT=0
-
-gh issue list --state open --limit 1000 --json number --jq 'length'
-33
-grep -c '&lt;section class="task"' 3-session-agent.html
-6
-grep -o 'data-task="OPS-[0-9]*"' 'q&amp;a.html' | sort -u | wc -l
-18
-awk '/&lt;h2&gt;条件付き再開 — todo.md/{flag=1; next} flag &amp;&amp; /&lt;\/section&gt;/{exit} flag' phase2.html | rg -c '^[[:space:]]*&lt;h3&gt;'
-6
-
-packet contract probe
-TASK-603_CONTRACT=PASS
-TASK-604_CONTRACT=PASS
-TASK-605_CONTRACT=PASS
-TASK-606_CONTRACT=PASS
-owned-path probe
-TASK-603_OWNED=14;MISSING=0
-TASK-604_OWNED=9;MISSING=0
-TASK-605_OWNED=2;MISSING=0
-TASK-606_OWNED=5;MISSING=0
-OWNED_TOTAL=30;OVERLAPS=0
-DEC/P4 probe
-DEC-45_FOUR=PASS
-DEC-46_FOUR=PASS
-DECISION-PACK-CLINICAL=PASS
-DECISION-PACK-DELIVERY=PASS
-DECISION-PACK-EXTERNAL-PHYSICAL=PASS
-
-grep -o 'id=&quot;[^&quot;]*&quot;' 3-session-agent.html | sort | uniq -d
-(no output; exit 0)
-grep -o 'id=&quot;[^&quot;]*&quot;' 'q&amp;a.html' | sort | uniq -d
-(no output; exit 0)
-git diff --check -- 3-session-agent.html 'q&amp;a.html' phase2.html
-(no output; exit 0)
-bash scripts/check-docs-symbol-drift.sh
-OK    docs-symbol-drift: ドリフトなし（検査トークン 521 件）
-tidy -q -errors &lt;changed-file&gt;
-3-session-agent.html_TIDY=PASS
-q&amp;a.html_TIDY=PASS
-phase2.html_TIDY=PASS
-independent reviewer re-review
-CRITICAL=0 HIGH=0 MEDIUM=0; diff review PASS</pre>
-<p><b>Assumption deviations:</b> prompt記載のOPS selector <code>id="ops-*"</code> は現行DOMと不一致のため <code>data-task="OPS-*"</code> で計数。packet必須フィールドは見出しの「8」ではなく列挙された9項目を採用。DEC-19は未決裁ではなく既決のためDEC-45は再開gateの再監査として現状維持。#285は実装済みでUSER closeのみ。#256/#258はIssue全体をreadyとせず、環境非依存sliceだけをTASK-603〜605へ分離。#109はsecret names登録済みを実測しTASK-606化。参照指示の <code>docs/CODEX-NAVIGATION-GUIDE.md</code> は現treeに不存在。</p>
-<p><b>Failure Signature log:</b> review round 1で <code>TASK606_WHOLE_TREE_GATE</code>、<code>DEC_LITERAL_LABELS</code>、<code>P4_MISSING_CONSEQUENCES</code>、<code>STALE_ACTIVE_SUMMARY</code> を検出。各々を最小修正し、同signaturesの再発なしでround 2 independent review PASS。2-strike/3-strikeには未到達。</p>
-</div>
-
-<!-- LEDGER:APPEND -->
-
-<h2>開発レーン配分（2026-07-27に3セッション→2レーンへ再編・曽我承認。納品後・#260裁定＋DEC-14〜20反映）</h2>
-<div class="table-wrap">
-<table>
-  <tr><th>レーン</th><th>領域</th><th>Issue・台帳（着手順・ゲートは各Issue/#260/q&amp;a.html参照）</th></tr>
-  <tr><td><b>A</b></td><td>検査・backend基盤</td><td><b>分類: 全件 USER 専権（active な実装 unit なし）。</b><br>
-<a href="https://github.com/MinoruSoga/AnimalEkarte/issues/249">#249</a> = Phase 1・Phase 2（U1〜U4）dev 完了。<code>exam_reference_ranges</code> への投入経路は U4 で開通済みで、BUG-449 の「投入手段が無い」状態は解消した。<b>残 = USER 実操作</b>: ①承認済み DB 再構築（正本: <code>docs/ops/deploy/LOCAL_DB_RESET.md</code>・<code>backend/migrations/CLAUDE.md</code>。共有 STG/PROD では実行しない）②<code>make codegen</code> ③frontend full type-check ④runtime 確認（数値項目への非数値入力が「未判定」・定性値の high/low・lab report 応答）。<br>
-<b>臨床基準値の投入は委任外</b>: canonical seed に臨床値は無く runtime 投入状況は UNREPORTED。獣医師 / master-data 責任者が動物種別基準値を確認・投入する。<br>
-<a href="https://github.com/MinoruSoga/AnimalEkarte/issues/239">#239</a> = DEC-15 裁定済み（7項目＋単独権限＋group soft-delete）。<b>Phase 1 dev 着地</b>（<code>identity-links</code> permission・link tables＋RLS・手動 link/unlink・clinic-scoped の最小履歴）。残 = migration 適用・seed / 権限付与・<code>make codegen</code>・runtime 確認。<b>Phase 2 以降（auto link・merge・追加 surface）は未着手</b>で、着手時は Issue 本文の実装順2〜4と <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/239#issuecomment-5077710947">#239 コメント</a>の Phase 0 設計が正本。<br>
-<a href="https://github.com/MinoruSoga/AnimalEkarte/issues/211">#211</a> 残 = USER の DB 適用と臨床責任者の seed 確認のみ。<br>
-<b>台帳所掌</b>: なし。</td></tr>
-  <tr><td><b>B</b></td><td>カルテ／飼主／会計・医院間リンク</td><td><b>分類: 全件 USER 専権または依存待ち（active な実装 unit なし）。</b><br>
-<b>USER 専権</b>: <a href="#TASK-251">#251</a>（unit 別正本は <a href="#TASK-251">#ledger TASK-251</a>）／<a href="https://github.com/MinoruSoga/AnimalEkarte/issues/247">#247</a>（月次統合表 — dev 着地、残 = runtime 確認と Issue クローズ）／<a href="https://github.com/MinoruSoga/AnimalEkarte/issues/262">#262</a>（複数飼主紐付け Phase 2 — migration 002/003 適用済み・codegen / type-check green、残 = runtime 確認と Issue クローズ）／<a href="https://github.com/MinoruSoga/AnimalEkarte/issues/238">#238</a>・<a href="https://github.com/MinoruSoga/AnimalEkarte/issues/234">#234</a>（残 = migrate → codegen → 動作確認 → クローズ）・<a href="https://github.com/MinoruSoga/AnimalEkarte/issues/230">#230</a>・<a href="https://github.com/MinoruSoga/AnimalEkarte/issues/232">#232</a>・<a href="https://github.com/MinoruSoga/AnimalEkarte/issues/237">#237</a>。実装詳細は commit が正本のため本 view に複製しない。<br>
-<b>依存待ち</b>: <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/235">#235</a>・<a href="https://github.com/MinoruSoga/AnimalEkarte/issues/212">#212</a>（DEC-19のphase2判定を<a href="q&amp;a.html#dec-45">DEC-45</a>で再監査し維持。価値実測/current coverage証跡待ち）。<br>
-<b>Issue #262 本文の陳腐化2点</b>: パス指定（<code>internal/repository/</code>・<code>internal/service/</code>・<code>internal/handler/</code>）は BE9 移設で消滅し現行は <code>internal/pet/</code> 同居、migration 番号 <code>005</code> も実際は <code>003</code> である。<br>
-<b>残る frontend risk</b>: 権限グループ割当 UI の guard が <code>master-permission:edit</code> を要求していないため、<code>master-staff:edit</code> のみのユーザーは 403 を受ける（実害なし・UX 不整合のみ）。<br>
-<b>台帳所掌</b>: <a href="#TASK-251">TASK-251</a>。</td></tr>
-  <tr><td colspan="2">横断（特定レーン非所属）</td><td><b>分類: <a href="#BUG-433">BUG-433=着手可能＋USER/CI acceptance</a></b>（全出力byte-identity=<a href="#TASK-608">TASK-608</a>）。<b>#285 は完了済み</b>（GitHub Issue のクローズは USER 操作）。</td></tr>
-  <tr><td colspan="2">環境非依存 packet</td><td><b>分類: 着手可能。</b> #256=<a href="#TASK-603">TASK-603</a>＋<a href="#TASK-604">TASK-604</a>、#258=<a href="#TASK-605">TASK-605</a>、#109=<a href="#TASK-606">TASK-606</a>、local DB=<a href="#TASK-607">TASK-607</a>、BUG-433=<a href="#TASK-608">TASK-608</a>、#255=<a href="#TASK-609">TASK-609</a>、#259=<a href="#TASK-610">TASK-610</a>。8 packetのowned pathsは重複なし。</td></tr>
-  <tr><td colspan="2">USER/外部待ち</td><td><b>分類: #250 producer bundle／#255実一覧・4業務入力・適用／#259先方API有効化・実送信／OPS-2／OPS-18／<a href="https://github.com/MinoruSoga/AnimalEkarte/issues/284">#284実機確認はいずれもUSERまたは第三者境界。</a></b> repo準備はTASK-607/609/610まで先行できるが、到着していないdata、破壊的DB操作、外部write、物理確認を代替しない。</td></tr>
-</table>
-</div>
-
-<div class="notice">
-<b>並行実行ルール（#260要約）:</b> 「全件ready・同一checkoutで完全並列」は撤回済み。並列時は独立worktree＋file ownership＋単一integration ownerの直列取り込み。migrationは作成直前に実ファイル最大番号を再計算し<code>max+1</code>、作成とintegrationは単一担当が直列化する。確認ダイアログを安全装置にしない。scoped verificationのみ自動実行。#239⇔#249は競合面があるため直列化する（#239はレーンAで#249完了後。前提だったstaff権限面の欠陥はBUG-442=<code>1f9108e6e</code>・BUG-446=<code>3673acbbd</code>で解消済み）。並行実行の排他は <a href="AGENTS.md"><code>AGENTS.md</code></a> の packet claim protocol（<code>git branch claim/&lt;TASK-ID&gt;</code>）を正本とする。worktree 隔離は file 衝突しか防がず、同一 task の二重実装は防げない（2026-07-30 に4回発生）。
 </div>
 
 <div class="gate">
-<b>安全境界:</b> push・migration実適用・credential/billing変更・STG/PROD操作・GitHub Issueへの書き込みは本viewから自動実行しない。すべて明示承認を要する。
+<b>安全境界:</b> push・migration 実適用・<code>make reset</code> / DB 再構築・credential/課金の変更・STG/PROD 操作・GitHub Issue への書き込みは、本 view から自動実行しない。すべて明示承認を要する。<br>
+<b>seed CSV:</b> <code>backend/migrations/seeds/</code> 配下は skip-worktree であり、実データは個人情報を含む。<b>commit しない。</b>
 </div>
 
-<p class="small">ファイル名<code>3-session-agent.html</code>は既存リンク互換のため維持。本fileは<code>52880142d</code>の台帳一本化で一時削除されたが、「Issueを3セッションで着手するためのガイドview」という役割定義（正本=各Issue・受け入れ条件を複製しない）でUSER指示により復元した（2026-07-25）。2026-07-27に旧<code>todo.md</code>を本fileの<a href="#ledger">#ledger</a>へ全文統合し、着手可能な実装タスクの正本も本fileへ移した。同日、セッション配分を3セッション→2レーン（A/B）へ再編した（曽我承認 — 直列化制約〔#239⇔#249・<code>internal/lintscan</code>面〕と裁定待ち滞留により3本目の独立レーンが成立しないため）。役割登録=本fileの「正本の境界」表。BE9の旧計画文書は退役済み（境界の正本=ADR-006／boundary map、release gate=q&amp;a.html OPS-13〜17）。</p>
+<p class="small">
+ファイル名 <code>3-session-agent.html</code> は既存リンク互換のため維持する（3セッション体制は解消済みで、名前と実態は一致しない）。
+2026-07-31 に全面再構築し、役割を「GitHub Issue 管理ビュー」へ一本化した。旧「実装タスク台帳」としての内容は破棄した — 経緯と旧内容は <code>git log -- 3-session-agent.html</code> で参照する。
+</p>
 
 </main>
 </body>
