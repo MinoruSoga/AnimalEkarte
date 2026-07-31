@@ -478,12 +478,11 @@ func (s *service) CreatePetGroup(
 		if len(ownerMembers) == 0 {
 			return apperrors.WrapNotFound("owner_identity_group", fmt.Sprintf("%d", ownerGroupID))
 		}
-		// Actor must cover owner group anchor + all pet clinics.
-		if !containsUint64(actor.VerifiedClinics, ownerGroup.CreatedClinicID) {
-			// allow if actor can see at least one owner member clinic and all pet clinics
-			if !anyOwnerMemberInActorScope(ownerMembers, actor.VerifiedClinics) {
-				return apperrors.WrapForbidden("owner identity group outside actor clinic scope")
-			}
+		// Actor must cover every parent-owner clinic (anchor + all active members)
+		// and all pet clinics (pet refs already checked via assertPetRefsInActorScope).
+		// No any-member fallback: missing one parent-owner clinic is Forbidden, zero writes.
+		if err := assertActorCoversOwnerGroupClinics(actor, ownerGroup, ownerMembers); err != nil {
+			return err
 		}
 
 		pets, lockPetsErr := s.repo.LockPets(txCtx, refs)
@@ -862,6 +861,26 @@ func assertPetRefsInActorScope(actor ActorContext, refs []PetMemberRef) error {
 	return nil
 }
 
+// assertActorCoversOwnerGroupClinics requires the actor to belong to the parent
+// owner-group anchor clinic and every active owner-member clinic. Used by pet-group
+// mutations that depend on a parent owner group (CreatePetGroup).
+func assertActorCoversOwnerGroupClinics(
+	actor ActorContext,
+	group *model.OwnerIdentityGroup,
+	members []model.OwnerIdentityGroupMember,
+) error {
+	needed := map[uint64]struct{}{group.CreatedClinicID: {}}
+	for _, m := range members {
+		needed[m.ClinicID] = struct{}{}
+	}
+	for clinicID := range needed {
+		if !containsUint64(actor.VerifiedClinics, clinicID) {
+			return apperrors.WrapForbidden("actor must belong to all clinics involved in the parent owner identity group")
+		}
+	}
+	return nil
+}
+
 func assertCanManageOwnerGroup(
 	actor ActorContext,
 	group *model.OwnerIdentityGroup,
@@ -1002,15 +1021,6 @@ func filterPetMembersByClinics(members []model.PetIdentityGroupMember, clinicIDs
 		}
 	}
 	return out
-}
-
-func anyOwnerMemberInActorScope(members []model.OwnerIdentityGroupMember, clinicIDs []uint64) bool {
-	for _, m := range members {
-		if slices.Contains(clinicIDs, m.ClinicID) {
-			return true
-		}
-	}
-	return false
 }
 
 func ownerRefsAudit(refs []OwnerMemberRef) []map[string]uint64 {

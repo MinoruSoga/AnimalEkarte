@@ -492,6 +492,151 @@ func TestCreatePetGroup_RequiresLinkedOwners(t *testing.T) {
 	assert.Equal(t, 0, auditLog.called)
 }
 
+// Regression: actor missing parent owner-group CreatedClinicID (anchor) but holding
+// one owner-member clinic must NOT create a pet group via the old any-member fallback.
+func TestCreatePetGroup_RejectsMissingParentOwnerAnchorClinic_NoPartialWrite(t *testing.T) {
+	// Owner group anchor clinic=3; active members at clinics 1 and 2.
+	// Actor has clinics 1+2 (and pets there) but NOT anchor 3.
+	repo := &mockRepo{
+		lockOwnerGroupByIDFn: func(_ context.Context, id uint64) (*model.OwnerIdentityGroup, error) {
+			return &model.OwnerIdentityGroup{ID: id, CreatedClinicID: 3, Version: 1}, nil
+		},
+		listActiveOwnerMembersFn: func(_ context.Context, _ uint64) ([]model.OwnerIdentityGroupMember, error) {
+			return []model.OwnerIdentityGroupMember{
+				{GroupID: 1, ClinicID: 1, OwnerID: 10, GroupCreatedClinicID: 3},
+				{GroupID: 1, ClinicID: 2, OwnerID: 20, GroupCreatedClinicID: 3},
+			}, nil
+		},
+		lockPetsFn: func(_ context.Context, refs []PetMemberRef) ([]model.Pet, error) {
+			out := make([]model.Pet, 0, len(refs))
+			for _, r := range refs {
+				ownerID := uint64(10)
+				if r.ClinicID == 2 {
+					ownerID = 20
+				}
+				out = append(out, model.Pet{ID: r.PetID, ClinicID: r.ClinicID, OwnerID: ownerID})
+			}
+			return out, nil
+		},
+		isOwnerActiveInGroupFn: func(_ context.Context, _, _, _ uint64) (bool, error) {
+			return true, nil
+		},
+		findActivePetMembershipFn: func(_ context.Context, _, _ uint64) (*model.PetIdentityGroupMember, error) {
+			return nil, nil
+		},
+	}
+	auditLog := &mockTxLogger{}
+	svc := NewService(repo, noopTransactor{}, auditLog)
+
+	_, _, err := svc.CreatePetGroup(context.Background(), testActor(1, 2), 1, []PetMemberRef{
+		{ClinicID: 1, PetID: 100},
+		{ClinicID: 2, PetID: 200},
+	})
+	require.Error(t, err)
+	assert.True(t, errors.Is(err, apperrors.ErrForbidden), "missing parent-owner anchor clinic must be forbidden")
+	assert.Equal(t, 0, repo.createPetGroupCalled, "zero CreatePetGroup on auth reject")
+	assert.Equal(t, 0, repo.createPetMembersCalled, "zero CreatePetMembers on auth reject")
+	assert.Equal(t, 0, auditLog.called, "zero audit on auth reject")
+}
+
+// Regression: actor has parent-owner anchor but is missing an active owner-member clinic
+// must still be Forbidden (full parent owner clinic set required, not just anchor).
+func TestCreatePetGroup_RejectsMissingParentOwnerMemberClinic_NoPartialWrite(t *testing.T) {
+	// Owner group anchor clinic=1; members at clinics 1, 2, and 3.
+	// Actor has 1+2 (pets at 1+2) but not member clinic 3.
+	repo := &mockRepo{
+		lockOwnerGroupByIDFn: func(_ context.Context, id uint64) (*model.OwnerIdentityGroup, error) {
+			return &model.OwnerIdentityGroup{ID: id, CreatedClinicID: 1, Version: 1}, nil
+		},
+		listActiveOwnerMembersFn: func(_ context.Context, _ uint64) ([]model.OwnerIdentityGroupMember, error) {
+			return []model.OwnerIdentityGroupMember{
+				{GroupID: 1, ClinicID: 1, OwnerID: 10, GroupCreatedClinicID: 1},
+				{GroupID: 1, ClinicID: 2, OwnerID: 20, GroupCreatedClinicID: 1},
+				{GroupID: 1, ClinicID: 3, OwnerID: 30, GroupCreatedClinicID: 1},
+			}, nil
+		},
+		lockPetsFn: func(_ context.Context, refs []PetMemberRef) ([]model.Pet, error) {
+			out := make([]model.Pet, 0, len(refs))
+			for _, r := range refs {
+				ownerID := uint64(10)
+				if r.ClinicID == 2 {
+					ownerID = 20
+				}
+				out = append(out, model.Pet{ID: r.PetID, ClinicID: r.ClinicID, OwnerID: ownerID})
+			}
+			return out, nil
+		},
+		isOwnerActiveInGroupFn: func(_ context.Context, _, _, _ uint64) (bool, error) {
+			return true, nil
+		},
+		findActivePetMembershipFn: func(_ context.Context, _, _ uint64) (*model.PetIdentityGroupMember, error) {
+			return nil, nil
+		},
+	}
+	auditLog := &mockTxLogger{}
+	svc := NewService(repo, noopTransactor{}, auditLog)
+
+	_, _, err := svc.CreatePetGroup(context.Background(), testActor(1, 2), 1, []PetMemberRef{
+		{ClinicID: 1, PetID: 100},
+		{ClinicID: 2, PetID: 200},
+	})
+	require.Error(t, err)
+	assert.True(t, errors.Is(err, apperrors.ErrForbidden), "missing parent-owner member clinic must be forbidden")
+	assert.Equal(t, 0, repo.createPetGroupCalled)
+	assert.Equal(t, 0, repo.createPetMembersCalled)
+	assert.Equal(t, 0, auditLog.called)
+}
+
+// Happy path: actor covers parent-owner anchor + all owner-member clinics + pet clinics.
+func TestCreatePetGroup_AllowsWhenActorCoversAllParentOwnerAndPetClinics(t *testing.T) {
+	repo := &mockRepo{
+		lockOwnerGroupByIDFn: func(_ context.Context, id uint64) (*model.OwnerIdentityGroup, error) {
+			return &model.OwnerIdentityGroup{ID: id, CreatedClinicID: 1, Version: 1}, nil
+		},
+		listActiveOwnerMembersFn: func(_ context.Context, _ uint64) ([]model.OwnerIdentityGroupMember, error) {
+			return []model.OwnerIdentityGroupMember{
+				{GroupID: 1, ClinicID: 1, OwnerID: 10, GroupCreatedClinicID: 1},
+				{GroupID: 1, ClinicID: 2, OwnerID: 20, GroupCreatedClinicID: 1},
+			}, nil
+		},
+		lockPetsFn: func(_ context.Context, refs []PetMemberRef) ([]model.Pet, error) {
+			out := make([]model.Pet, 0, len(refs))
+			for _, r := range refs {
+				ownerID := uint64(10)
+				if r.ClinicID == 2 {
+					ownerID = 20
+				}
+				out = append(out, model.Pet{ID: r.PetID, ClinicID: r.ClinicID, OwnerID: ownerID})
+			}
+			return out, nil
+		},
+		isOwnerActiveInGroupFn: func(_ context.Context, _, _, _ uint64) (bool, error) {
+			return true, nil
+		},
+		findActivePetMembershipFn: func(_ context.Context, _, _ uint64) (*model.PetIdentityGroupMember, error) {
+			return nil, nil
+		},
+		createPetGroupFn: func(_ context.Context, group *model.PetIdentityGroup) error {
+			group.ID = 55
+			return nil
+		},
+	}
+	auditLog := &mockTxLogger{}
+	svc := NewService(repo, noopTransactor{}, auditLog)
+
+	group, members, err := svc.CreatePetGroup(context.Background(), testActor(1, 2), 1, []PetMemberRef{
+		{ClinicID: 1, PetID: 100},
+		{ClinicID: 2, PetID: 200},
+	})
+	require.NoError(t, err)
+	require.NotNil(t, group)
+	assert.Equal(t, uint64(55), group.ID)
+	assert.Len(t, members, 2)
+	assert.Equal(t, 1, repo.createPetGroupCalled)
+	assert.Equal(t, 1, repo.createPetMembersCalled)
+	assert.Equal(t, 1, auditLog.called)
+}
+
 func TestGetOwnerGroup_HiddenOutsideScope_NotFound(t *testing.T) {
 	repo := &mockRepo{
 		listActiveOwnerByClinicsFn: func(_ context.Context, _ uint64, _ []uint64) ([]model.OwnerIdentityGroupMember, error) {

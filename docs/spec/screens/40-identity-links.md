@@ -47,6 +47,7 @@
 2. その group を親にしてペットを 2 件以上選択 → ペットグループ作成。
 3. Phase 1 UI は group をメンバー lookup GET で再読込しない（作成直後の group id をセッション内 state で保持）。
 4. クロス医院の無断リンクはサーバ拒否。fail-closed の権限デフォルト（新規医院テンプレートに identity-links を付けない）。
+5. **親飼主 group の全医院セット必須（mutation）**: ペット group 作成（`CreatePetGroup`）では、actor が親 owner group の **anchor（`CreatedClinicID`）＋全 active owner member の clinic** および全 pet clinic に所属していること。1 医院でも欠けると Forbidden・ゼロ書き込み。any-member フォールバックは禁止（`assertActorCoversOwnerGroupClinics`）。既存 pet group の Add/Unlink は `assertCanManagePetGroup`（pet group anchor + owner-group anchor + 全 pet member clinics）。閲覧（GET/search/history）は actor clinic でフィルタ可。
 
 ---
 
@@ -110,6 +111,7 @@ OpenAPI 正本: `backend/docs/api.yaml`（`/identity-links/*`）。ルート dri
 | AC-1 | 手動 link/unlink（飼主・ペット） | BE: `CreateOwnerGroup` / `UnlinkOwnerMember` / `CreatePetGroup` / `UnlinkPetMember` + FE workbench ボタン。OpenAPI: POST/DELETE owner-groups・pet-groups members |
 | AC-2 | clinic-scoped linked treatment history | `ListLinkedTreatmentHistory` + `include_linked` 相関 `(clinic_id,pet_id)` のみ。FE: `getLinkedTreatmentHistory`。Test: `TestListLinkedTreatmentHistory_*` |
 | AC-3 | mixed / hidden / cross-clinic IDs は **全体 reject・部分書き込みなし** | `assertOwnerRefsInActorScope` / `assertPetRefsInActorScope` + lock length check。Tests: `TestCreateOwnerGroup_RejectsMixedCrossClinic_NoPartialWrite`, `TestCreatePetGroup_RejectsMixedCrossClinic_NoPartialWrite`, `TestAddOwnerMembers_RejectsMixedCrossClinic_NoPartialWrite`, `TestAddPetMembers_RejectsMixedCrossClinic_NoPartialWrite`, `TestCreateOwnerGroup_RejectsHiddenOwner_NoPartialWrite` |
+| AC-3b | 親 owner group の **全医院**（anchor + active members）を actor がカバーしない CreatePetGroup は Forbidden・ゼロ書き込み | `assertActorCoversOwnerGroupClinics`。Tests: `TestCreatePetGroup_RejectsMissingParentOwnerAnchorClinic_NoPartialWrite`, `TestCreatePetGroup_RejectsMissingParentOwnerMemberClinic_NoPartialWrite`, `TestCreatePetGroup_AllowsWhenActorCoversAllParentOwnerAndPetClinics` |
 | AC-4 | audit は business write と同一 tx・fail-closed | `writeAudit` 失敗で callback error。PHI（name/phone）を audit payload に含めない（IDs のみ）。Tests: `TestCreateOwnerGroup_AuditFailureRollsBack`, `TestCreateOwnerGroup_NilAuditFailClosed`, `TestCreateOwnerGroup_SuccessWritesAuditWithoutPHI` |
 | AC-5 | 権限 fail-closed（view/edit） | routes: GET=view, link/unlink=edit。FE: view なし → `/` Navigate、edit なし → 閲覧バナー。Tests: `handler_permission_test.go`, `IdentityLinksPage.test.tsx` |
 | AC-6 | OpenAPI と RegisterRoutes の route 一致 | identity-links 全 13 ルートを `api.yaml` に記載。reverse-lookup 2 本を known-missing allowlist から除去済み |
