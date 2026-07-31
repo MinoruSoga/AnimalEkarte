@@ -148,10 +148,11 @@ func (m *mockLineLinkAuditTxLogger) LogOwnerLineLinkTx(ctx context.Context, clin
 type mockLineLinkSettingRepo struct {
 	findByClinicIDFn      func(ctx context.Context, clinicID uint64) (*model.LineReservationSetting, error)
 	findByLineBotUserIDFn func(ctx context.Context, lineBotUserID string) (*model.LineReservationSetting, error)
+	findWebhookRouteFn    func(ctx context.Context, lineBotUserID string) (uint64, bool, error)
 	findAllFn             func(ctx context.Context) ([]model.LineReservationSetting, error)
 
-	findAllCalls             int
-	findByLineBotUserIDCalls int
+	findAllCalls          int
+	findWebhookRouteCalls int
 }
 
 func (m *mockLineLinkSettingRepo) FindByClinicID(ctx context.Context, clinicID uint64) (*model.LineReservationSetting, error) {
@@ -161,7 +162,6 @@ func (m *mockLineLinkSettingRepo) FindByClinicID(ctx context.Context, clinicID u
 	return &model.LineReservationSetting{ClinicID: clinicID, LiffID: "test-liff-id", LineChannelSecret: "secret", LineChannelID: "channel-id"}, nil
 }
 func (m *mockLineLinkSettingRepo) FindByLineBotUserID(ctx context.Context, lineBotUserID string) (*model.LineReservationSetting, error) {
-	m.findByLineBotUserIDCalls++
 	if m.findByLineBotUserIDFn != nil {
 		return m.findByLineBotUserIDFn(ctx, lineBotUserID)
 	}
@@ -172,6 +172,17 @@ func (m *mockLineLinkSettingRepo) FindByLineBotUserID(ctx context.Context, lineB
 		LineBotUserID:     lineBotUserID,
 		LineChannelSecret: "secret",
 	}, nil
+}
+func (m *mockLineLinkSettingRepo) FindWebhookRouteByLineBotUserID(ctx context.Context, lineBotUserID string) (uint64, bool, error) {
+	m.findWebhookRouteCalls++
+	if m.findWebhookRouteFn != nil {
+		return m.findWebhookRouteFn(ctx, lineBotUserID)
+	}
+	setting, err := m.FindByLineBotUserID(ctx, lineBotUserID)
+	if err != nil || setting == nil {
+		return 0, false, err
+	}
+	return setting.ClinicID, false, nil
 }
 func (m *mockLineLinkSettingRepo) FindAll(ctx context.Context) ([]model.LineReservationSetting, error) {
 	m.findAllCalls++
@@ -184,15 +195,44 @@ func (m *mockLineLinkSettingRepo) Save(_ context.Context, _ uint64, _ *model.Lin
 	return nil
 }
 
+type mockLineChannelCredentialRepo struct {
+	findByClinicServiceKeyFn func(ctx context.Context, clinicID uint64, service, keyName string) (*model.ClinicIntegration, error)
+	findCalls                int
+}
+
+func (m *mockLineChannelCredentialRepo) FindCredentialByClinicServiceKey(
+	ctx context.Context,
+	clinicID uint64,
+	service, keyName string,
+) (*model.ClinicIntegration, error) {
+	m.findCalls++
+	if m.findByClinicServiceKeyFn != nil {
+		return m.findByClinicServiceKeyFn(ctx, clinicID, service, keyName)
+	}
+	return &model.ClinicIntegration{
+		ID:       clinicID,
+		ClinicID: clinicID,
+		Service:  service,
+		KeyName:  keyName,
+		KeyValue: "secret",
+	}, nil
+}
+
 func newTestLineLinkService(
 	ownerRepo *mockLstepOwnerRepo,
 	tokenRepo *mockLineLinkTokenRepo,
 	settingRepo *mockLineLinkSettingRepo,
+	credentialRepos ...*mockLineChannelCredentialRepo,
 ) LineLinkService {
+	credentialRepo := &mockLineChannelCredentialRepo{}
+	if len(credentialRepos) > 0 && credentialRepos[0] != nil {
+		credentialRepo = credentialRepos[0]
+	}
 	return NewLineLinkService(
 		ownerRepo,
 		tokenRepo,
 		settingRepo,
+		credentialRepo,
 		immediateLineLinkTransactor{},
 		&mockLineLinkAuditTxLogger{},
 		nil,
@@ -379,10 +419,18 @@ func TestLineLinkService_HandleWebhook_EncryptedSecret(t *testing.T) {
 			}, nil
 		},
 	}
+	credentialRepo := &mockLineChannelCredentialRepo{
+		findByClinicServiceKeyFn: func(_ context.Context, clinicID uint64, service, keyName string) (*model.ClinicIntegration, error) {
+			return &model.ClinicIntegration{
+				ID: clinicID, ClinicID: clinicID, Service: service, KeyName: keyName, KeyValue: encSecret,
+			}, nil
+		},
+	}
 	svc := NewLineLinkService(
 		ownerRepo,
 		&mockLineLinkTokenRepo{},
 		settingRepo,
+		credentialRepo,
 		immediateLineLinkTransactor{},
 		&mockLineLinkAuditTxLogger{},
 		cipher,
@@ -490,7 +538,14 @@ func TestLineLinkService_HandleWebhook_ScopesOwnerMutationToSigningClinic(t *tes
 					}
 				},
 			}
-			svc := newTestLineLinkService(ownerRepo, &mockLineLinkTokenRepo{}, settingRepo)
+			credentialRepo := &mockLineChannelCredentialRepo{
+				findByClinicServiceKeyFn: func(_ context.Context, clinicID uint64, service, keyName string) (*model.ClinicIntegration, error) {
+					return &model.ClinicIntegration{
+						ID: clinicID, ClinicID: clinicID, Service: service, KeyName: keyName, KeyValue: "clinic-two-secret",
+					}, nil
+				},
+			}
+			svc := newTestLineLinkService(ownerRepo, &mockLineLinkTokenRepo{}, settingRepo, credentialRepo)
 			payload := WebhookPayload{
 				Destination: "bot-clinic-2",
 				Events: []WebhookEvent{
@@ -693,12 +748,13 @@ func newTestLineLinkServiceFull(
 	client *http.Client,
 ) *lineLinkService {
 	return &lineLinkService{
-		ownerRepo:         ownerRepo,
-		lineLinkTokenRepo: tokenRepo,
-		lineSettingRepo:   settingRepo,
-		transactor:        transactor,
-		auditTx:           auditTx,
-		httpClient:        client,
+		ownerRepo:          ownerRepo,
+		lineLinkTokenRepo:  tokenRepo,
+		lineSettingRepo:    settingRepo,
+		lineCredentialRepo: &mockLineChannelCredentialRepo{},
+		transactor:         transactor,
+		auditTx:            auditTx,
+		httpClient:         client,
 	}
 }
 
@@ -890,6 +946,7 @@ func TestNewLineLinkService_DefaultHTTPClientHasTimeout(t *testing.T) {
 		&mockLstepOwnerRepo{},
 		&mockLineLinkTokenRepo{},
 		&mockLineLinkSettingRepo{},
+		&mockLineChannelCredentialRepo{},
 		immediateLineLinkTransactor{},
 		&mockLineLinkAuditTxLogger{},
 		nil,
@@ -1536,6 +1593,13 @@ func TestVerifySignatureAnyClinic_EmptySecretRejected(t *testing.T) {
 				}, nil
 			},
 		},
+		lineCredentialRepo: &mockLineChannelCredentialRepo{
+			findByClinicServiceKeyFn: func(_ context.Context, clinicID uint64, service, keyName string) (*model.ClinicIntegration, error) {
+				return &model.ClinicIntegration{
+					ID: clinicID, ClinicID: clinicID, Service: service, KeyName: keyName, KeyValue: "",
+				}, nil
+			},
+		},
 	}
 	body := []byte(`{"destination":"bot-A","events":[]}`)
 	sig := makeLineSignature(body, "secret")
@@ -1555,6 +1619,7 @@ func TestVerifySignatureAnyClinic_NoMatch(t *testing.T) {
 				}, nil
 			},
 		},
+		lineCredentialRepo: &mockLineChannelCredentialRepo{},
 	}
 	body := []byte(`{"destination":"bot-A","events":[]}`)
 	clinicID, ok := svc.verifySignatureAnyClinic(context.Background(), body, "wrong-signature")
@@ -1576,6 +1641,13 @@ func TestVerifySignatureAnyClinic_InvalidSignatureDoesNotReDecryptOnCacheHit(t *
 			findByLineBotUserIDFn: func(_ context.Context, lineBotUserID string) (*model.LineReservationSetting, error) {
 				return &model.LineReservationSetting{
 					ID: 11, ClinicID: 1, LineBotUserID: lineBotUserID, LineChannelSecret: encSecret,
+				}, nil
+			},
+		},
+		lineCredentialRepo: &mockLineChannelCredentialRepo{
+			findByClinicServiceKeyFn: func(_ context.Context, clinicID uint64, service, keyName string) (*model.ClinicIntegration, error) {
+				return &model.ClinicIntegration{
+					ID: 11, ClinicID: clinicID, Service: service, KeyName: keyName, KeyValue: encSecret,
 				}, nil
 			},
 		},
@@ -1620,6 +1692,13 @@ func TestVerifySignatureAnyClinic_CacheInvalidatesWhenCiphertextRotates(t *testi
 			findByLineBotUserIDFn: func(_ context.Context, lineBotUserID string) (*model.LineReservationSetting, error) {
 				return &model.LineReservationSetting{
 					ID: 21, ClinicID: 1, LineBotUserID: lineBotUserID, LineChannelSecret: currentCiphertext,
+				}, nil
+			},
+		},
+		lineCredentialRepo: &mockLineChannelCredentialRepo{
+			findByClinicServiceKeyFn: func(_ context.Context, clinicID uint64, service, keyName string) (*model.ClinicIntegration, error) {
+				return &model.ClinicIntegration{
+					ID: 21, ClinicID: clinicID, Service: service, KeyName: keyName, KeyValue: currentCiphertext,
 				}, nil
 			},
 		},

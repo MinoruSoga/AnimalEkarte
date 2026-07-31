@@ -16,7 +16,7 @@ import (
 
 // SEC-CS-F05-R1: fixed-work LINE webhook signature routing.
 // Invalid/valid webhooks must resolve at most one clinic via destination →
-// FindByLineBotUserID → one decrypt → one HMAC. Never FindAll / O(clinic_count).
+// route metadata → canonical credential → one decrypt → one HMAC. Never FindAll / O(clinic_count).
 
 func installHMACCounter(t *testing.T) *int {
 	t.Helper()
@@ -42,40 +42,33 @@ func installDecryptCounter(t *testing.T) *int {
 	return &decryptCalls
 }
 
-// nClinicSettingRepo builds N clinics with distinct secrets; "bot-A" always maps to clinic 7
+// nClinicSettingRepos builds N clinics with distinct canonical credentials; "bot-A" always maps to clinic 7
 // (clinic 7 is included even when n < 7 so fixed-routing scenarios stay valid).
-func nClinicSettingRepo(n int) *mockLineLinkSettingRepo {
+func nClinicSettingRepos(n int) (*mockLineLinkSettingRepo, *mockLineChannelCredentialRepo) {
 	if n < 1 {
 		n = 1
 	}
-	byBot := make(map[string]model.LineReservationSetting, n+1)
+	byBot := make(map[string]uint64, n+1)
 	all := make([]model.LineReservationSetting, 0, n+1)
-	add := func(clinicID uint64, botID, secret string) {
-		s := model.LineReservationSetting{
-			ID:                clinicID,
-			ClinicID:          clinicID,
-			LineBotUserID:     botID,
-			LineChannelSecret: secret,
-		}
-		byBot[botID] = s
-		all = append(all, s)
+	add := func(clinicID uint64, botID string) {
+		byBot[botID] = clinicID
+		all = append(all, model.LineReservationSetting{ID: clinicID, ClinicID: clinicID, LineBotUserID: botID})
 	}
 	for i := 1; i <= n; i++ {
 		if i == 7 {
 			continue // added below as bot-A
 		}
-		add(uint64(i), fmt.Sprintf("bot-%d", i), fmt.Sprintf("secret-%d", i))
+		add(uint64(i), fmt.Sprintf("bot-%d", i))
 	}
-	// Always provision bot-A → clinic 7 with secret-7 (target of fixed-work assertions).
-	add(7, "bot-A", "secret-7")
-	return &mockLineLinkSettingRepo{
-		findByLineBotUserIDFn: func(_ context.Context, lineBotUserID string) (*model.LineReservationSetting, error) {
-			s, ok := byBot[lineBotUserID]
+	// Always provision bot-A → clinic 7 (target of fixed-work assertions).
+	add(7, "bot-A")
+	routeRepo := &mockLineLinkSettingRepo{
+		findWebhookRouteFn: func(_ context.Context, lineBotUserID string) (uint64, bool, error) {
+			clinicID, ok := byBot[lineBotUserID]
 			if !ok {
-				return nil, apperrors.WrapNotFound("line_reservation_setting", lineBotUserID)
+				return 0, false, apperrors.WrapNotFound("line_reservation_setting", lineBotUserID)
 			}
-			cp := s
-			return &cp, nil
+			return clinicID, false, nil
 		},
 		findAllFn: func(_ context.Context) ([]model.LineReservationSetting, error) {
 			out := make([]model.LineReservationSetting, len(all))
@@ -83,11 +76,23 @@ func nClinicSettingRepo(n int) *mockLineLinkSettingRepo {
 			return out, nil
 		},
 	}
+	credentialRepo := &mockLineChannelCredentialRepo{
+		findByClinicServiceKeyFn: func(_ context.Context, clinicID uint64, service, keyName string) (*model.ClinicIntegration, error) {
+			return &model.ClinicIntegration{
+				ID:       clinicID,
+				ClinicID: clinicID,
+				Service:  service,
+				KeyName:  keyName,
+				KeyValue: fmt.Sprintf("secret-%d", clinicID),
+			}, nil
+		},
+	}
+	return routeRepo, credentialRepo
 }
 
 func TestVerifySignatureAnyClinic_InvalidSignature_FixedWork_N20(t *testing.T) {
-	repo := nClinicSettingRepo(20)
-	svc := &lineLinkService{lineSettingRepo: repo}
+	repo, credentialRepo := nClinicSettingRepos(20)
+	svc := &lineLinkService{lineSettingRepo: repo, lineCredentialRepo: credentialRepo}
 	hmacCalls := installHMACCounter(t)
 	decryptCalls := installDecryptCounter(t)
 
@@ -97,20 +102,22 @@ func TestVerifySignatureAnyClinic_InvalidSignature_FixedWork_N20(t *testing.T) {
 	assert.False(t, ok)
 	assert.Zero(t, clinicID)
 	assert.Equal(t, 0, repo.findAllCalls, "must not call FindAll")
-	assert.Equal(t, 1, repo.findByLineBotUserIDCalls, "must lookup exactly one setting by destination")
+	assert.Equal(t, 1, repo.findWebhookRouteCalls, "must lookup exactly one route by destination")
+	assert.Equal(t, 1, credentialRepo.findCalls, "must lookup exactly one canonical credential")
 	assert.LessOrEqual(t, *decryptCalls, 1, "at most one secret decrypt")
 	assert.LessOrEqual(t, *hmacCalls, 1, "at most one HMAC")
 }
 
 func TestVerifySignatureAnyClinic_InvalidSignature_HMACIndependentOfClinicCount(t *testing.T) {
 	run := func(n int) int {
-		repo := nClinicSettingRepo(n)
-		svc := &lineLinkService{lineSettingRepo: repo}
+		repo, credentialRepo := nClinicSettingRepos(n)
+		svc := &lineLinkService{lineSettingRepo: repo, lineCredentialRepo: credentialRepo}
 		hmacCalls := installHMACCounter(t)
 		body := []byte(`{"destination":"bot-A","events":[]}`)
 		_, ok := svc.verifySignatureAnyClinic(context.Background(), body, "invalid-signature")
 		require.False(t, ok)
 		assert.Equal(t, 0, repo.findAllCalls)
+		assert.Equal(t, 1, credentialRepo.findCalls)
 		return *hmacCalls
 	}
 
@@ -122,8 +129,8 @@ func TestVerifySignatureAnyClinic_InvalidSignature_HMACIndependentOfClinicCount(
 }
 
 func TestVerifySignatureAnyClinic_UnknownDestination_ZeroCrypto(t *testing.T) {
-	repo := nClinicSettingRepo(10)
-	svc := &lineLinkService{lineSettingRepo: repo}
+	repo, credentialRepo := nClinicSettingRepos(10)
+	svc := &lineLinkService{lineSettingRepo: repo, lineCredentialRepo: credentialRepo}
 	hmacCalls := installHMACCounter(t)
 	decryptCalls := installDecryptCounter(t)
 
@@ -133,14 +140,15 @@ func TestVerifySignatureAnyClinic_UnknownDestination_ZeroCrypto(t *testing.T) {
 	assert.False(t, ok)
 	assert.Zero(t, clinicID)
 	assert.Equal(t, 0, repo.findAllCalls)
-	assert.Equal(t, 1, repo.findByLineBotUserIDCalls)
+	assert.Equal(t, 1, repo.findWebhookRouteCalls)
+	assert.Equal(t, 0, credentialRepo.findCalls)
 	assert.Equal(t, 0, *decryptCalls, "unknown destination must not decrypt secrets")
 	assert.Equal(t, 0, *hmacCalls, "unknown destination must not HMAC")
 }
 
 func TestVerifySignatureAnyClinic_ValidDestination_OneHMAC_ReturnsClinic(t *testing.T) {
-	repo := nClinicSettingRepo(20)
-	svc := &lineLinkService{lineSettingRepo: repo}
+	repo, credentialRepo := nClinicSettingRepos(20)
+	svc := &lineLinkService{lineSettingRepo: repo, lineCredentialRepo: credentialRepo}
 	hmacCalls := installHMACCounter(t)
 	decryptCalls := installDecryptCounter(t)
 
@@ -151,14 +159,89 @@ func TestVerifySignatureAnyClinic_ValidDestination_OneHMAC_ReturnsClinic(t *test
 	require.True(t, ok)
 	assert.Equal(t, uint64(7), clinicID)
 	assert.Equal(t, 0, repo.findAllCalls)
-	assert.Equal(t, 1, repo.findByLineBotUserIDCalls)
+	assert.Equal(t, 1, repo.findWebhookRouteCalls)
+	assert.Equal(t, 1, credentialRepo.findCalls)
 	assert.LessOrEqual(t, *decryptCalls, 1)
 	assert.Equal(t, 1, *hmacCalls)
 }
 
+func TestVerifySignatureAnyClinic_LegacyCredentialPresent_HoldsBeforeCanonicalLookup(t *testing.T) {
+	routeRepo := &mockLineLinkSettingRepo{
+		findWebhookRouteFn: func(_ context.Context, _ string) (uint64, bool, error) {
+			return 7, true, nil
+		},
+	}
+	credentialRepo := &mockLineChannelCredentialRepo{}
+	svc := &lineLinkService{lineSettingRepo: routeRepo, lineCredentialRepo: credentialRepo}
+	hmacCalls := installHMACCounter(t)
+	decryptCalls := installDecryptCounter(t)
+
+	body := []byte(`{"destination":"bot-A","events":[]}`)
+	clinicID, ok := svc.verifySignatureAnyClinic(context.Background(), body, "signature-placeholder")
+
+	assert.False(t, ok)
+	assert.Zero(t, clinicID)
+	assert.Equal(t, 1, routeRepo.findWebhookRouteCalls)
+	assert.Equal(t, 0, credentialRepo.findCalls, "legacy presence must HOLD before canonical lookup")
+	assert.Equal(t, 0, *decryptCalls)
+	assert.Equal(t, 0, *hmacCalls)
+}
+
+func TestVerifySignatureAnyClinic_CanonicalCredentialIdentityMismatch_FailsClosed(t *testing.T) {
+	routeRepo := &mockLineLinkSettingRepo{
+		findWebhookRouteFn: func(_ context.Context, _ string) (uint64, bool, error) {
+			return 7, false, nil
+		},
+	}
+	credentialRepo := &mockLineChannelCredentialRepo{
+		findByClinicServiceKeyFn: func(_ context.Context, _ uint64, service, keyName string) (*model.ClinicIntegration, error) {
+			return &model.ClinicIntegration{
+				ID: 8, ClinicID: 8, Service: service, KeyName: keyName, KeyValue: "canonical-placeholder",
+			}, nil
+		},
+	}
+	svc := &lineLinkService{lineSettingRepo: routeRepo, lineCredentialRepo: credentialRepo}
+	hmacCalls := installHMACCounter(t)
+	decryptCalls := installDecryptCounter(t)
+
+	body := []byte(`{"destination":"bot-A","events":[]}`)
+	clinicID, ok := svc.verifySignatureAnyClinic(context.Background(), body, "signature-placeholder")
+
+	assert.False(t, ok)
+	assert.Zero(t, clinicID)
+	assert.Equal(t, 1, credentialRepo.findCalls)
+	assert.Equal(t, 0, *decryptCalls)
+	assert.Equal(t, 0, *hmacCalls)
+}
+
+func TestVerifySignatureAnyClinic_MissingCanonicalCredential_FailsClosed(t *testing.T) {
+	routeRepo := &mockLineLinkSettingRepo{
+		findWebhookRouteFn: func(_ context.Context, _ string) (uint64, bool, error) {
+			return 7, false, nil
+		},
+	}
+	credentialRepo := &mockLineChannelCredentialRepo{
+		findByClinicServiceKeyFn: func(_ context.Context, _ uint64, _, _ string) (*model.ClinicIntegration, error) {
+			return nil, apperrors.WrapNotFound("clinic_integration", "canonical credential")
+		},
+	}
+	svc := &lineLinkService{lineSettingRepo: routeRepo, lineCredentialRepo: credentialRepo}
+	hmacCalls := installHMACCounter(t)
+	decryptCalls := installDecryptCounter(t)
+
+	body := []byte(`{"destination":"bot-A","events":[]}`)
+	clinicID, ok := svc.verifySignatureAnyClinic(context.Background(), body, "signature-placeholder")
+
+	assert.False(t, ok)
+	assert.Zero(t, clinicID)
+	assert.Equal(t, 1, credentialRepo.findCalls)
+	assert.Equal(t, 0, *decryptCalls)
+	assert.Equal(t, 0, *hmacCalls)
+}
+
 func TestVerifySignatureAnyClinic_MissingDestination_NoFindAll(t *testing.T) {
-	repo := nClinicSettingRepo(8)
-	svc := &lineLinkService{lineSettingRepo: repo}
+	repo, credentialRepo := nClinicSettingRepos(8)
+	svc := &lineLinkService{lineSettingRepo: repo, lineCredentialRepo: credentialRepo}
 	hmacCalls := installHMACCounter(t)
 	decryptCalls := installDecryptCounter(t)
 
@@ -169,14 +252,15 @@ func TestVerifySignatureAnyClinic_MissingDestination_NoFindAll(t *testing.T) {
 	assert.False(t, ok)
 	assert.Zero(t, clinicID)
 	assert.Equal(t, 0, repo.findAllCalls)
-	assert.Equal(t, 0, repo.findByLineBotUserIDCalls, "missing destination must not query settings")
+	assert.Equal(t, 0, repo.findWebhookRouteCalls, "missing destination must not query settings")
+	assert.Equal(t, 0, credentialRepo.findCalls)
 	assert.Equal(t, 0, *decryptCalls)
 	assert.Equal(t, 0, *hmacCalls)
 }
 
 func TestVerifySignatureAnyClinic_EmptyDestination_NoFindAll(t *testing.T) {
-	repo := nClinicSettingRepo(8)
-	svc := &lineLinkService{lineSettingRepo: repo}
+	repo, credentialRepo := nClinicSettingRepos(8)
+	svc := &lineLinkService{lineSettingRepo: repo, lineCredentialRepo: credentialRepo}
 	hmacCalls := installHMACCounter(t)
 	decryptCalls := installDecryptCounter(t)
 
@@ -186,14 +270,15 @@ func TestVerifySignatureAnyClinic_EmptyDestination_NoFindAll(t *testing.T) {
 	assert.False(t, ok)
 	assert.Zero(t, clinicID)
 	assert.Equal(t, 0, repo.findAllCalls)
-	assert.Equal(t, 0, repo.findByLineBotUserIDCalls)
+	assert.Equal(t, 0, repo.findWebhookRouteCalls)
+	assert.Equal(t, 0, credentialRepo.findCalls)
 	assert.Equal(t, 0, *decryptCalls)
 	assert.Equal(t, 0, *hmacCalls)
 }
 
 func TestVerifySignatureAnyClinic_OversizedDestination_NoFindAll(t *testing.T) {
-	repo := nClinicSettingRepo(8)
-	svc := &lineLinkService{lineSettingRepo: repo}
+	repo, credentialRepo := nClinicSettingRepos(8)
+	svc := &lineLinkService{lineSettingRepo: repo, lineCredentialRepo: credentialRepo}
 	hmacCalls := installHMACCounter(t)
 	decryptCalls := installDecryptCounter(t)
 
@@ -205,7 +290,8 @@ func TestVerifySignatureAnyClinic_OversizedDestination_NoFindAll(t *testing.T) {
 	assert.False(t, ok)
 	assert.Zero(t, clinicID)
 	assert.Equal(t, 0, repo.findAllCalls)
-	assert.Equal(t, 0, repo.findByLineBotUserIDCalls)
+	assert.Equal(t, 0, repo.findWebhookRouteCalls)
+	assert.Equal(t, 0, credentialRepo.findCalls)
 	assert.Equal(t, 0, *decryptCalls)
 	assert.Equal(t, 0, *hmacCalls)
 }
