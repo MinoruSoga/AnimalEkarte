@@ -196,7 +196,7 @@
 <div class="container">
   <header>
     <h1>内部 PO 判断キュー</h1>
-    <p class="meta">開発内部向け ／ 生成日: 2026-07-15 ／ 最終更新: 2026-07-30 ／ 運用: 本ファイルは「現在、人の判断・操作を待っているもの」だけを保持する（記入フォーム・P0 ブロッカー表・USER 操作 OPS-1〜18・PO-008 ファクトシート）。決裁記録の正本は本ファイルの git 履歴（全量版 = <code>ab68c61f5</code>）と各 Issue への転記（DEC-1/14〜21 は #201/#234/#239/#251/#247/#262/#250/#235/#212 へ転記済み）、実装台帳は <a href="3-session-agent.html#ledger">3-session-agent.html の実装タスク台帳（正本）</a>。PO は過去裁定を覆せる — その場合は新カードとして再起票し、エージェントが実装を巻き戻す。2026-07-30 時点: DEC-40〜47 は代理判定済み。現在の USER 入力待ち決裁カードは0件。委任外の値は下記の空欄フォームへ分離し、未入力を代理裁定しない。残 = OPS-1〜18・P0 ブロッカー3行・記入フォーム。</p>
+    <p class="meta">開発内部向け ／ 生成日: 2026-07-15 ／ 最終更新: 2026-07-31 ／ 運用: 本ファイルは「現在、人の判断・操作を待っているもの」だけを保持する（記入フォーム・P0 ブロッカー表・USER 操作 OPS-1〜18・PO-008 ファクトシート）。決裁記録の正本は本ファイルの git 履歴（全量版 = <code>ab68c61f5</code>）と各 Issue への転記（DEC-1/14〜21 は #201/#234/#239/#251/#247/#262/#250/#235/#212 へ転記済み）、ローカル残タスクの正本は <a href="todo.md"><code>todo.md</code></a>、Issue の分類ビューは <a href="3-session-agent.html"><code>3-session-agent.html</code></a>。PO は過去裁定を覆せる — その場合は新カードとして再起票し、エージェントが実装を巻き戻す。2026-07-31 時点: DEC-40〜47 は代理判定済み。現在の USER 入力待ち決裁カードは0件。委任外の値は下記の空欄フォームへ分離し、未入力を代理裁定しない。残 = OPS-1〜18・P0 ブロッカー3行・記入フォーム。</p>
   </header>
 
   <p class="summary">USER 入力待ちDECカード: 0件。DEC-40〜47は代理判定済み。委任外の臨床値・価格・契約値は空欄フォームだけを示し、決定済みに数えない。</p>
@@ -272,7 +272,7 @@
 </article>
 
 <h2 id="issue-261-ruling">#261 臨床安全・画面仕様ギャップ — 判定結果</h2>
-<p class="section-intro">2026-07-29・代理判定。</p>
+<p class="section-intro">2026-07-29・代理判定 ／ 2026-07-31・current source/test 状態を更新。</p>
 
 <article class="task" id="dec-41" data-status="proxy-decided">
   <div class="task-head">
@@ -284,23 +284,21 @@
   </div>
   <div class="task-body">
     <p class="section-label">内訳</p>
-    <p class="qa-text"><strong>対象消失 13 件 / 実装する 2 件 / 判定不能 1 件 / 削除する 0 件 / 臨床責任者への返却 0 件</strong>（判定対象は GAP-1・GAP-2 と SD 14 件の計 16 件。SD-10 は臨床安全枠との重複）。</p>
+    <p class="qa-text"><strong>対象消失 13 件 / 実装済み 2 件 / 判定不能 1 件 / 削除する 0 件 / 臨床責任者への返却 0 件</strong>（判定対象は GAP-1・GAP-2 と SD 14 件の計 16 件。SD-10 は臨床安全枠との重複）。</p>
 
     <p class="section-label">対象消失 13 件</p>
     <p class="qa-text">臨床安全 = GAP-1（カルテ確定 Lock UI）・GAP-2（検査権限 seed）・SD-10（死亡ペット入院 API）／機能不全 = SD-3・SD-15／PO 判断 = SD-6・SD-9・SD-13・SD-17／UX 表示 = SD-11・SD-12・SD-16・SD-18。</p>
 
-    <p class="section-label">実装する 2 件</p>
-    <p class="qa-text"><strong>SD-4（在庫アラート）</strong>: アラート・filter は導出済みだが、<code>inventory_request.go:45,82</code> と <code>inventory_service.go:69-70,121-140</code> に<strong>死んだ保存 status が残存</strong>。原裁定の「status を保存せず二重管理を作らない」が未達。<br>
-    責任者: @MinoruSoga（技術担当個人は実装 Issue 化前に指名が必要）／業務目的: <code>quantity</code>・<code>min_stock_level</code> を唯一の真実源とし、アラート・filter と保存値の矛盾をなくす／安全条件: clinic scope と在庫行・数量を維持。API consumer / backward compatibility を確認してから死んだ status 入力・write・schema を除去／計測指標: client 指定 status write 経路 0、保存 status 参照 0、<code>quantity=0</code> ／ <code>&lt;=min</code> ／ <code>&gt;min</code> の導出テスト</p>
-    <p class="qa-text"><strong>SD-19（JST 日付）</strong>: 表示用は JST 化済みだが、<code>use-pet-vaccinations.ts:24</code> の期限判定用 <code>nextDate</code> が <code>split("T")[0]</code> のまま。<strong>UTC 境界で表示日と upcoming/overdue 判定日が 1 日ずれ得る。</strong><br>
-    責任者: @MinoruSoga（同上）／業務目的: 飼主レポートの表示日と接種期限判定日を、閲覧ブラウザ TZ に依存しない同一 JST 日付にする／安全条件: 欠損・不正な <code>next_date</code> は期限対象にしない。表示と summary が同一の JST 変換を使用／計測指標: UTC 境界 fixture で表示日 = <code>nextDate</code>、複数 TZ で同結果、upcoming/overdue の 1 日乖離 0</p>
+    <p class="section-label">実装済み 2 件（local source/test）</p>
+    <p class="qa-text"><strong>SD-4（在庫アラート）</strong>: create/update request から client 指定 <code>status</code> を除去し、service の write map にも載せず、一覧 filter と JSON 応答は <code>quantity</code>・<code>min_stock_level</code> から導出する形へ着地した（<code>backend/internal/inventory/inventory_request.go</code>、<code>inventory_service.go</code>、<code>repository.go</code>、<code>inventory_response.go</code>）。DB の旧 <code>status</code> 列は無視される dead column であり、DROP は別 migration work。STG runtime は未報告。</p>
+    <p class="qa-text"><strong>SD-19（JST 日付）</strong>: <code>frontend/src/hooks/use-pet-vaccinations.ts</code> の表示日と判定用 <code>nextDate</code> が同じ JST wall-date 変換を使い、UTC 日付の <code>split</code> を廃止した。UTC 境界と不正値の regression test は <code>use-pet-vaccinations.test.ts</code> に存在する。STG runtime は未報告。</p>
 
     <p class="section-label">判定不能 1 件</p>
     <p class="qa-text"><strong>SD-14（LINE 紐付け）</strong> — <code>clinic_id</code> 付き URL と FE 発行導線は実装済みだが、原文の完了条件が E2E 成立であり、<strong>STG 実機 E2E（OPS-4）が未報告</strong>。静的コードだけでは「対象消失」を証明できず「実装する」とも断定できない。</p>
 
     <p class="section-label">未完として残る USER 操作</p>
-    <p class="qa-text">OPS-2（DB reset 後に GAP-2 / S02 を実測）・OPS-3（STG/本番で SD-9 の既存 0-rule グループを監査）・OPS-4（SD-14 の STK 実機 E2E）。<strong>GAP-2 と SD-9 は「ソース上は解消、DB 適用は未報告」であり、消失と完了を混同しない。</strong></p>
-    <div class="need"><strong>横断残件:</strong> <code>phase2.html:197</code> の予約 admin・trimming・LIFF における死亡ペット guard は未解決。<strong>SD-10 の対象消失をこの横断監査の完了と読み替えてはならない。</strong></div>
+    <p class="qa-text">OPS-2（USER がローカル fresh 適用と GAP-2 / S02 を実測し、STG 適用は別の環境証跡として確認）・OPS-3（STG/本番で SD-9 の既存 0-rule グループを監査）・OPS-4（SD-14 の STG 実機 E2E）。<strong>GAP-2 と SD-9 は「ソース上は解消、対象環境への適用・実測は未報告」であり、ローカル環境の起動確認を STG 証跡へ読み替えない。</strong></p>
+    <div class="need"><strong>横断 P0:</strong> 予約 admin/service・入院・trimming・LIFF の死亡ペット write guard は、<code>backend/internal/sharedkernel/pet_not_deceased.go</code> を共通境界として local source/test に着地した。これは STG runtime の成立や #261 全体の完了を証明しないため、対象環境の実測は UNREPORTED のまま扱う。</div>
   </div>
 </article>
 
@@ -411,7 +409,7 @@
   <div class="task-head">
     <span class="qno">DEC-46</span>
     <span class="badge category">実装順 / #239 Phase 2</span>
-    <span class="badge status">代理決裁済み・USER 承認待ち</span>
+    <span class="badge status">代理決裁済み・Issue 閉鎖後の残余あり</span>
     <span class="asker">起票: 2026-07-30 readiness再監査 ／ 決定: 委任代行（USERが覆せる）</span>
     <h3 class="task-title">Phase 1 runtime検証後、代表surfaceの手動link/unlink評価をPhase 2の唯一の入口にする</h3>
   </div>
@@ -419,14 +417,14 @@
     <p class="section-label">決裁:</p>
     <p class="qa-text"><strong>案A — 段階再開。</strong> 承認済みDB再構築、migration/seed/permission/codegen/typecheck、Phase 1 runtime確認後に、代表1 surfaceで手動link/unlink/relinkの業務成立性を測る。merge・auto-link・追加surfaceはその結果が不足を証明したものだけを1段ずつ再審する。</p>
     <p class="section-label">一次資料:</p>
-    <p class="qa-text">#239本文の実装順2〜4とPhase 0設計comment、DEC-15の7項目＋単独権限＋group soft-delete。現行Phase 1は <code>frontend/src/features/identity-links/routes/IdentityLinksPage.tsx:25-27</code>、<code>backend/docs/api.yaml:23490-23698</code>、<code>backend/internal/identitylink/service.go:234-242</code> に手動経路と既存group merge conflictを持つ。runtimeはbackend停止中でUNREPORTED。</p>
+    <p class="qa-text">#239本文の実装順2〜4とPhase 0設計comment、DEC-15の7項目＋単独権限＋group soft-delete。live Issue は reverse-lookup OpenAPI 着地 commit で CLOSED になったが、Issue 本文の受け入れ条件と runtime/security proof は別物である。現行Phase 1は手動経路と OpenAPI parity が source-level で着地済み。current local runtime の health は確認済みだが、<code>backend/internal/identitylink/service.go:481-486</code> の full-parent actor 全医院 authorization proof と、代表1 surface の手動 link/unlink/relink runtime workflow は UNREPORTED。残余は <code>todo.md</code> TASK-022 で local New Work として追跡する。</p>
     <p class="section-label">指標と判断原則</p>
     <p class="qa-text">誤link件数、unlink/relinkで復旧不能な件数、1件当たり工程数、追加surfaceごとの実利用件数を測る。philosophy②工程削減・⑤検証済みprocessだけ自動化に従い、手動経路で十分なら自動化しない。</p>
     <p class="section-label">退けた代替案と理由:</p>
     <p class="qa-text"><strong>Phase 2一括実装:</strong> merge/auto-link/全surfaceを同時投入すると責任境界と失敗原因を分離できない。<strong>永続凍結:</strong> Phase 1の実測で不足が出た場合の改善を閉ざす。</p>
     <p class="section-label">委任境界:</p>
     <p class="qa-text">実装順と測定gateのみ。DB再構築、migration適用、codegen、runtime操作、本人同一性の業務判断、Issue書込はUSER境界。</p>
-    <div class="need"><strong>残余リスク:</strong> runtime未実施のためPhase 1の権限/履歴/誤操作回復はUNREPORTED。代表surfaceの選定者と実施日時が無い間はPhase 2を開始しない。</div>
+    <div class="need"><strong>残余リスク:</strong> 環境の起動・health 確認だけでは identity-link contract の成立を証明しない。OpenAPI regression を維持しつつ、full-parent 全医院 authorization と代表surfaceの手動 workflow の2証跡が揃うまで、merge・auto-link・追加surfaceの Phase 2 実装を開始しない。</div>
   </div>
 </article>
 
@@ -447,7 +445,7 @@
 
     <p class="section-label">Q2 #261 — 臨床安全gapの値重複を作らない</p>
     <p class="qa-text"><strong>決裁:</strong> DEC-41の16件判定と残る実機OPSを維持し、#261を新しい薬量値の別正本にしない。#261が#201と同じ値を参照する場合は同じ承認行IDを参照し、値を複製しない。<br>
-<strong>一次資料:</strong> <a href="#dec-41">DEC-41</a>は13件対象消失・2件実装・1件実機判定不能を確定し、臨床責任者へ返す独立値を0件としている。<br>
+<strong>一次資料:</strong> <a href="#dec-41">DEC-41</a>は13件対象消失・2件実装済み・1件実機判定不能を記録し、臨床責任者へ返す独立値を0件としている。<br>
 <strong>退けた代替案と理由:</strong> #261用の同一上限/warning表を新設すると二重正本になり、承認値がdriftする。DEC-41済みのruntime項目を臨床値問題へ戻すのも分類逆行である。<br>
 <strong>委任境界:</strong> 参照設計だけを決裁する。#201とは異なる臨床値が必要だと臨床責任者が判断した場合だけ、対象・単位・出典・承認者を別行で供給する。</p>
 
@@ -459,7 +457,7 @@
 
     <p class="section-label">Q4 #249 — 検査基準値と表示fallback</p>
     <p class="qa-text"><strong>決裁:</strong> 数値化不能は「未判定」、明示された定性H/Lはその状態を表示し、lab reportは保存済みassessment snapshotを返す現行contractを維持する。基準値が無い項目を推測判定せず、承認済みrangeだけをcanonical sourceへ投入する。<br>
-<strong>一次資料:</strong> <code>backend/internal/medicalrecord/exam_result_assessment_test.go</code>、<code>lab_report_query_service_test.go</code>、<code>frontend/src/features/medical-records/components/ExamItemsTable.test.tsx</code>が未判定・定性状態・report responseを固定する。<br>
+<strong>一次資料:</strong> <code>backend/internal/medicalrecord/exam_result_assessment_test.go</code>、<code>lab_report_query_service_test.go</code>、<code>frontend/src/features/examinations/components/ExamItemsTable.test.tsx</code>が未判定・定性状態・report responseを固定する。<br>
 <strong>退けた代替案と理由:</strong> 一般値や他測定系のrangeを流用すると医学的誤判定になる。基準値投入と表示contractを同じ承認にすると設計まで臨床責任者へ戻してしまう。<br>
 <strong>委任境界:</strong> fallback/表示/snapshot設計のみ。項目×種別×測定系の下限・上限・単位は決裁しない。</p>
 
@@ -476,7 +474,7 @@
 <strong>委任境界:</strong> upgradeしない挙動だけを決裁する。金額、plan、payer、契約操作は空欄のままUSERに残す。</p>
 
     <p class="section-label">Q7 PO-008 — 年次/L-step意味論</p>
-    <p class="qa-text"><strong>決裁:</strong> current sourceの期間境界とpath別failure契約を、クライアント確認まで勝手に統一しない。各metric/pathの現行意味をフォームの「現行値」に転記し、クライアントは「承認」または修正値だけを記入する。L-step writeはdefault-offかつ実2xx後だけ成功とする<a href="3-session-agent.html#TASK-610">TASK-610</a>の技術contractへ寄せる。<br>
+    <p class="qa-text"><strong>決裁:</strong> current sourceの期間境界とpath別failure契約を、クライアント確認まで勝手に統一しない。各metric/pathの現行意味をフォームの「現行値」に転記し、クライアントは「承認」または修正値だけを記入する。L-step writeはdefault-offかつ実2xx後だけ成功とする現行の技術contractを維持する。<br>
 <strong>一次資料:</strong> PO-008 7-1はannual visit/countとamountの期間定義が異なり、7-3は通常同期・cleanup・補助pathでfatal/non-fatalが異なる。<code>docs/ops/deploy/LSTEP_WRITE_API_PAUSE.md</code>はwriteを停止中。<br>
 <strong>退けた代替案と理由:</strong> 一律の年次境界/failureへ正規化すると未承認の業務仕様変更になる。現状差を説明しない案はclientが意図を確認できない。<br>
 <strong>委任境界:</strong> 確認方式、default-off、成功判定だけを決裁する。期間境界、CSV要否、path別業務継続可否はclientが供給する。</p>
@@ -496,7 +494,8 @@
       <tr><th>論点</th><th>対象</th><th>値/範囲・適合性</th><th>単位</th><th>出典</th><th>承認者</th><th>発効日</th></tr>
       <tr><td>#201 上限</td><td>（未記入: 薬剤・種別・master row ID）</td><td>（未記入）</td><td>（未記入）</td><td>（未記入: guideline/添付文書/院内規定）</td><td>（未記入: 臨床責任者個人名）</td><td>（未記入）</td></tr>
       <tr><td>#201 warning帯</td><td>（未記入: 適用薬剤/種別）</td><td>（未記入）</td><td>（未記入: %等）</td><td>（未記入）</td><td>（未記入）</td><td>（未記入）</td></tr>
-      <tr><td>#261 独立値</td><td>（未記入: #201と同じなら承認行ID、異なるなら対象）</td><td>（未記入）</td><td>（未記入）</td><td>（未記入）</td><td>（未記入）</td><td>（未記入）</td></tr>
+      <tr><td>#201 欠落・lookup障害時挙動</td><td>（未記入: 体重なし/種別未解決/該当paramなし/lookup障害）</td><td>（未記入: DEC-47 Q1 の現行挙動を承認、または修正要求）</td><td>該当なし</td><td>（未記入: 院内安全手順/臨床方針）</td><td>（未記入: 臨床責任者個人名）</td><td>（未記入）</td></tr>
+      <tr><td>#261 #201参照（値の複製禁止）</td><td>（未記入: #201上限/#201 warning帯/#201欠落挙動の承認行ID）</td><td>（未記入: 参照を承認。独立値が必要なら理由を記し、同じ列を持つ別行を追加）</td><td>（未記入: 該当なし）</td><td>（未記入: 参照元の出典）</td><td>（未記入: 臨床責任者個人名）</td><td>（未記入）</td></tr>
       <tr><td>#211 provisional seed</td><td>（未記入: seed bundle/row ID/field）</td><td>（未記入: type/choice/range）</td><td>（未記入）</td><td>（未記入）</td><td>（未記入）</td><td>（未記入）</td></tr>
       <tr><td>#249 reference range</td><td>（未記入: 検査項目・動物種・測定系）</td><td>（未記入: 下限/上限または定性規則）</td><td>（未記入）</td><td>（未記入）</td><td>（未記入）</td><td>（未記入）</td></tr>
       <tr><td>VACCINE-SPECIES</td><td>（未記入: vaccine master row ID）</td><td>（未記入: dog/cat/other/both・alias）</td><td>該当なし</td><td>（未記入）</td><td>（未記入）</td><td>（未記入）</td></tr>
@@ -508,17 +507,18 @@
 <article class="task" id="decision-pack-delivery" data-status="user-input-required">
   <div class="task-head"><span class="qno">DR-DELIVERY</span><span class="badge category">#258 / PO-008</span><span class="badge status">契約責任者・クライアント入力待ち</span><h3 class="task-title">納品後の外部契約/運用責任とクライアント仕様確認</h3></div>
   <div class="task-body">
-    <p class="qa-text"><strong>#258 現状の実測:</strong> <code>docs/delivery/DELIVERY_PACKAGE.md</code>はproduction未構築、契約名義/plan、backup/recovery、窓口、LINE、通知先を未確定としている。<strong>A:</strong> クライアントがservice account・契約・請求・backup・support・monitoringを所有。<strong>Aの帰結:</strong> self-operation前提の責任表と引渡手順を確定できる。<strong>B:</strong> 開発者保有を明示契約。<strong>Bの帰結:</strong> 料金・期間・責任・終了時移管を含む別契約が必要。<strong>推奨:</strong> A。<strong>必要入力:</strong> provider/plan、account/billing owner、上限/更新/解約、backup保持/PITR/RPO/RTO/restore証跡、窓口/channel/hours/escalation、LINE owner、monitoring通知先。</p>
+    <p class="qa-text"><strong>#258 現状の実測:</strong> <code>docs/delivery/DELIVERY_PACKAGE.md</code> の U1〜U12 が、production・契約/請求・backup/recovery・support・LINE・monitoring の canonical 入力表として全行空欄。<strong>A:</strong> クライアントがservice account・契約・請求・backup・support・monitoringを所有。<strong>B:</strong> 開発者保有を明示契約し、料金・期間・責任・終了時移管を別途確定。<strong>推奨:</strong> A。ただし選択と値は契約責任者が U1〜U12 と下記承認行へ1回だけ入力する。</p>
     <p class="qa-text"><strong>PO-008 確定済み設計:</strong> <a href="#dec-47">DEC-47 Q7</a>どおりcurrent sourceを勝手に統一せず、クライアントは現行値の承認または修正値だけを入力する。</p>
     <table>
       <tr><th>対象</th><th>現行値/挙動</th><th>希望値/承認</th><th>単位</th><th>出典/仕様正本</th><th>承認者</th><th>発効日</th></tr>
+      <tr><td>#258 U1〜U12 承認pack</td><td><code>docs/delivery/DELIVERY_PACKAGE.md</code> U1〜U12（全行空欄。値の正本は同表）</td><td>（未記入: U1〜U12を全て記入し、A/Bと各行を承認または修正要求）</td><td>（未記入: 各U行の通貨/期間/時刻。非数値は「該当なし」）</td><td>（未記入: U行ごとの契約/サービス仕様/runbook/evidence先）</td><td>（未記入: 契約責任者個人名・クライアント承認者）</td><td>（未記入）</td></tr>
       <tr><td>annual_visit_count期間境界</td><td>（担当者がcurrent sourceから転記）</td><td>（未記入）</td><td>期間</td><td>（未記入）</td><td>（未記入）</td><td>（未記入）</td></tr>
       <tr><td>annual_amount期間境界</td><td>（担当者がcurrent sourceから転記）</td><td>（未記入）</td><td>期間</td><td>（未記入）</td><td>（未記入）</td><td>（未記入）</td></tr>
       <tr><td>CSV要否・last-visit/dormant分離</td><td>（担当者がcurrent sourceから転記）</td><td>（未記入）</td><td>該当なし</td><td>（未記入）</td><td>（未記入）</td><td>（未記入）</td></tr>
       <tr><td>L-step通常同期path</td><td>（担当者がcurrent sourceから転記）</td><td>（未記入: write可否/failure/rollback）</td><td>該当なし</td><td>（未記入）</td><td>（未記入）</td><td>（未記入）</td></tr>
       <tr><td>L-step cleanup/補助path</td><td>（担当者がcurrent sourceから転記）</td><td>（未記入: 継続可否/通知/rollback）</td><td>該当なし</td><td>（未記入）</td><td>（未記入）</td><td>（未記入）</td></tr>
     </table>
-    <div class="need"><strong>提出条件:</strong> #258は既存A/B契約packの全入力、PO-008は上表の全行をnamed ownerが記入する。credential値・患者情報は記載せず、料金をagentが補完しない。</div>
+    <div class="need"><strong>提出条件:</strong> #258は <code>DELIVERY_PACKAGE.md</code> U1〜U12 と上表の承認行を1回で記入し、値を本ファイルへ複製しない。PO-008は各行をnamed ownerが記入する。credential値・患者情報は記載せず、料金・契約条件をagentが補完しない。</div>
   </div>
 </article>
 
@@ -539,8 +539,8 @@
 <p class="section-intro">臨床安全・credential 露出など、gh に埋もれると人命・情報漏洩に直結するものだけを掲出（旧 todo.md P1 表を継承）。<strong>「対応済み」判定は gh の state 実測とセット</strong>（<code>gh issue view &lt;n&gt; --json state</code>）。</p>
 <table>
 <tr><th>#</th><th>内容</th><th>現状</th></tr>
-<tr><td><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/201">#201</a></td><td><b>[SAFETY] 薬量上限超過の物理ブロックと例外統制</b></td><td><b>dev 完了（2026-07-25・<code>fa119abb9</code>）</b>。DEC-1 設計Aどおり BE が絶対上限超過の保存を物理 reject し、FE <code>ConfirmDialog</code>「この数量で保存」解除経路を撤去（下限未満・20%乖離 warning は従来どおり audit のみ・欠落データは保存継続・設計B緊急例外は未実装）。doc 側 <code>docs/spec/screens/06-medical-records-form.md</code> §2 は同一コミットで同期済み。残 = 臨床責任者による事後確認3点（マスタ上限値の妥当性・warning帯20%・欠落ケース別挙動表 = DEC-1残余）＋STG実測＋Issue クローズ判断（USER）。<b>本表から除去禁止</b>（除去→再オープン不可視の前歴あり・クローズ確定まで残置）</td></tr>
-<tr><td><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/211">#211</a></td><td>検査・健診パッケージ化</td><td><b>コード・seed・migration は全て完了。残 = DB 適用（OPS-2）と臨床確認のみ</b>。A6 複合 FK は <code>001_init.sql</code> の 013 セクションへ統合済み。既存 DB は checksum 変更のため <code>DB_RESET=true</code> 再適用が必要。provisional seed の臨床確認はクライアント臨床責任者の回答待ち</td></tr>
+<tr><td><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/201">#201</a></td><td><b>[SAFETY] 薬量上限超過の物理ブロックと例外統制</b></td><td><b>dev 完了（2026-07-25・<code>fa119abb9</code>）</b>。DEC-47 Q1 どおり BE が絶対上限超過の保存を物理 reject し、FE の保存解除経路を撤去した。上限内 warning は audit、体重なし・種別未解決・該当 param なしは手動保存へ fallback、repository/DB lookup 障害は保存中止。残 = 臨床責任者による上限値・warning帯・欠落/障害ケース別挙動の確認＋STG実測＋Issue クローズ判断（USER）。<b>本表から除去禁止</b>（クローズ確定まで残置）</td></tr>
+<tr><td><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/211">#211</a></td><td>検査・健診パッケージ化</td><td><b>コード・seed・migration は全て完了。残 = DB 適用（OPS-2）と臨床確認のみ</b>。A6 複合 FK は <code>001_init.sql</code> へ統合済み。checksum mismatch の既存ローカル DB は USER が fresh 再適用し、STG/PROD を reset しない。provisional seed の臨床確認はクライアント臨床責任者の回答待ち</td></tr>
 <tr><td><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/89">#89</a> / <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/97">#97</a> / <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/98">#98</a> / <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/99">#99</a> / <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/109">#109</a></td><td>シークレット移行・ローテーション</td><td><b>#89/#97/#98/#99はOPS-1/外部操作待ち。</b>#109の <code>STG_DEMO_*</code> はnames-only probeで登録済みのため、旧fallback・401合格・結果parserのsilent green除去を <a href="3-session-agent.html#TASK-606">TASK-606</a> として着手可能化した。remote実行/closeはbilling復旧後のUSER境界</td></tr>
 </table>
 
@@ -554,9 +554,9 @@
 </article>
 
 <article class="task" data-task="OPS-2">
-  <div class="task-head"><label class="task-check"><input type="checkbox"><span class="task-id">OPS-2 (U-3)</span></label><h3 class="task-title"><code>DB_RESET=true</code> 再適用（ローカル→STG）</h3></div>
+  <div class="task-head"><label class="task-check"><input type="checkbox"><span class="task-id">OPS-2 (U-3)</span></label><h3 class="task-title">ローカル fresh 再適用と対象環境の migration 証跡（STG/PROD reset 禁止）</h3></div>
   <p class="dep-badge" hidden></p>
-  <p class="task-desc">001 checksum 変更（#211 A6 統合）＋ seed 変更 2 件（A1+A2 = 90553a51／GAP-2 閲覧専用ロール = 13c6a93a）をまとめて反映。<strong>2026-07-27 追記: 当時の増分002〜009は全て統合済み001末尾へ原文保存され、直下の現行 DDL 在庫は <code>ls backend/migrations/*.sql</code> の実測を正とする。旧005（#249 exam マスタ複合FK＋exam_reference_ranges・<code>b4d10e083</code>）と旧006（TASK-ADR003 payment_splits 複合FK・<code>c434c4e66</code>）を含む。統合前001が記録済みのDBはchecksum mismatchになるため本resetが必須で、現行STG workflowに自動reset経路はない。OPS-13と同一実行で兼ねてよい。</strong>DB reset はエージェント実行禁止。完了条件: 両環境で reset 完了・起動 green。完了後のエージェント作業: S02 権限差・S05 の再実行（OPS-5 の前提解除）。BUG-403 は stale DB のまま実測・修正・TDD 検証済みでクローズ済み（対象外）。BUG-404 は <code>58c653df5</code> で修正、<code>39e7b5f7b</code> で旧台帳から削除済み。次回シナリオ再実行は OPS-5 の S05 で追跡する。</p>
+  <p class="task-desc">統合前 <code>001_init.sql</code> が記録済みで checksum mismatch となる既存ローカル DB は、USER が <code>reports/2026-07-31-task-009-reseed-ops.md</code> に従って fresh 再適用する。<strong>STG/PROD で reset・volume 削除を行わず、承認済み通常 migration と schema/起動証跡を別に取得する。</strong>migration/reset はエージェント実行禁止。完了条件: ローカル fresh 適用と対象環境の非破壊 migration/起動証跡が揃う。完了後のエージェント作業: S02 権限差・S05 を再実行する。</p>
 </article>
 
 <article class="task" data-task="OPS-3">
@@ -584,7 +584,7 @@ ORDER BY pg.clinic_id, pg.id;</pre>
 <article class="task" data-task="OPS-5">
   <div class="task-head"><label class="task-check"><input type="checkbox"><span class="task-id">OPS-5 (U-6)</span></label><h3 class="task-title">受け入れシナリオ実行（続き）</h3></div>
   <p class="dep-badge" hidden></p>
-  <p class="task-desc">第1バッチ S01〜S06 は 2026-07-17 実施済み（30 PASS / 4 FAIL / 13 BLOCKED — レポート = <code>docs/ops/testing/scenarios/reports/2026-07-17-local.md</code>）。FAIL 由来の BUG-401〜407 のうち 402/403/406 は修正・検証済み、401 は BUG-408（DEC-3）へ統合、405 は DEC-2 FEAT-CHECKIN へ移設、407 は対応中。残 = ①S07〜S12＋V01〜V05 ②OPS-2 後の再測分（S02 権限差・S05 の残 FAIL）③S02 境界値の再確認。完了条件: 全シナリオ実施・要実測 87 件（残 78）に実測値が入る。完了後のエージェント作業: 実測結果の【要実測】昇格とシナリオ乖離修正。</p>
+  <p class="task-desc">既存の S01〜S12・V01〜V05 と TASK-010 の部分証跡を再利用する。scenario 本文の current <code>【要実測】</code> 残件は <code>reports/2026-07-31-task-010-batch2.md</code> を正とする。残 = 未実施 step、OPS-2 後の S02/S05 再測、DB/audit 観測、実機 LINE/LIFF、FAIL の owner/disposition。エージェント側の統合 packet は <code>todo.md</code> TASK-023。USER は credential値を記録せず、目視・DB・実機・最終 disposition を1回で提供する。</p>
 </article>
 
 <article class="task" data-task="OPS-6">

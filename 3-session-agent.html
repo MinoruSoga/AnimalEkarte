@@ -98,53 +98,47 @@
   <tr><th>#</th><th>件名</th><th>分類</th><th>次のアクション</th></tr>
 
   <tr>
-    <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/239">#239</a></td>
-    <td>医院別レコードを残す同一 owner/pet リンクと統合履歴</td>
-    <td><span class="status go">着手可能</span></td>
-    <td>Phase 1（手動 link/unlink・最小履歴）は着地済み。<b>Phase 2 以降が未着手</b>。Issue 本文の実装順2〜4と Phase 0 設計コメントが契約</td>
-  </tr>
-  <tr>
     <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/254">#254</a></td>
     <td>納品前の全業務シナリオ通し確認（UAT 代行）</td>
     <td><span class="status go">着手可能</span></td>
-    <td><b>2026-07-31 にデモ環境が起動可能になり前提が解けた</b>。シナリオ実施と結果記録</td>
+    <td>既存シナリオ資産で hybrid closure を進める。エージェントは自動化可能な検査と記録、USER は目視・credential・DB reset 境界を担当する。credential値を証跡へ記載せず、未処置の FAIL を残さない</td>
   </tr>
   <tr>
     <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/256">#256</a></td>
     <td>操作マニュアル・手順書の整備</td>
     <td><span class="status go">着手可能</span></td>
-    <td>静的な手順書整合は着地済み。残るのは <b>#254 で判明した紛らわしい操作の FAQ 化</b>と現行スクリーンショット</td>
+    <td>現行スクリーンショット監査は今すぐ着手可能。FAQ は <b>#254 で新たに観測された紛らわしい操作だけ</b>を #254 完了後に追記する</td>
   </tr>
 
   <tr>
     <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/201">#201</a></td>
     <td>薬量自動計算 — 上限超過の物理ブロックと例外統制</td>
     <td><span class="status judge">判断待ち</span></td>
-    <td>実装は着地済み。臨床責任者の3点確認（上限値の妥当性・warning 帯・欠落時挙動）。記入フォームは <a href="q&amp;a.html">q&amp;a.html</a></td>
+    <td>臨床責任者が <a href="q&amp;a.html">q&amp;a.html</a> の3行（上限値・warning帯・欠落/lookup障害時挙動）を1回で承認または修正要求する</td>
   </tr>
   <tr>
     <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/211">#211</a></td>
     <td>健診パッケージ実装 — DB 適用・provisional seed 臨床確認</td>
     <td><span class="status judge">判断待ち</span></td>
-    <td>provisional seed の行単位承認。値は臨床側が供給する</td>
+    <td>臨床責任者が provisional seed を行単位で一括承認/修正し、USER がローカル fresh 適用と対象環境の非破壊 migration 証跡を取得する</td>
   </tr>
   <tr>
     <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/249">#249</a></td>
     <td>検査機能 — 院内検査結果管理の内製</td>
-    <td><span class="status judge">判断待ち</span></td>
-    <td>Phase 2 まで着地。残るのは<b>動物種別の基準値そのものの投入</b>で獣医師の判断。投入画面は開通済み</td>
+    <td><span class="status go">着手可能</span></td>
+    <td>Phase 2 と lab import R-2（pet/medical_record 相関 fail-closed）は着地済み。Phase 3〜5 の unconfirm、結果行追加/削除、duplicate 再設計、crosswalk、print surface、定性基準値のpivot表示は agent-ready。ただし auto_commit 解禁は enable/stop/failure通知/audit 設計まで BLOCKED、基準値投入は並行する臨床フォーム入力待ち</td>
   </tr>
   <tr>
     <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/258">#258</a></td>
     <td>納品ドキュメントの整備</td>
     <td><span class="status judge">判断待ち</span></td>
-    <td>repo 由来の部分は着地済み。残るのは<b>契約・バックアップ体制・サポート窓口</b>など外部から供給される事実</td>
+    <td>契約責任者とクライアントが <code>DELIVERY_PACKAGE.md</code> U1〜U12 と <a href="q&amp;a.html">q&amp;a.html</a> の承認行へ、外部事実・出典・承認を1回で記入する</td>
   </tr>
   <tr>
     <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/261">#261</a></td>
     <td>臨床安全・画面仕様ギャップの PO 決裁</td>
-    <td><span class="status judge">判断待ち</span></td>
-    <td>P0（死亡ペットの書き込みガード）は 2026-07-31 に着地。残るのは臨床責任者の確認</td>
+    <td><span class="status user">USER 専権</span></td>
+    <td>代理裁定と local source/test 更新は済み。USER が OPS-2（local fresh＋対象環境 migration/GAP-2）、OPS-3（STG/本番 SD-9監査）、OPS-4（STG実機 SD-14 E2E）を1 evidence bundle として実施する。新しい agent work・臨床値判断は残っていない</td>
   </tr>
 
   <tr>

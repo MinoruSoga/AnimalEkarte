@@ -44,9 +44,12 @@ TASK-001-BE/FE, TASK-002/003（WONTFIX + UI follow-up 実装済）, TASK-006/007
 1. **TASK-009** seed 適用（USER。reseed ops: `reports/2026-07-31-task-009-reseed-ops.md`）  
 2. **TASK-010** 要実測残 backlog（body 59。batch2: `reports/2026-07-31-task-010-batch2.md`）  
 3. **TASK-020** Playwright 93 runtime 完走（env-forward 済・要 host `E2E_LOGIN_*`。証拠: `reports/2026-07-31-task-020-env-forward.md`）  
-4. **TASK-021 Stage A 削除**（Phase1 FE residual: `reports/2026-07-31-task-021-phase1-consumer-prep.md` — BE/OpenAPI/seed/DB consumer 撤去後 + 破壊変更承認）  
-5. **TASK-004 / TASK-005**: 次の intentional land 時  
-6. **LINE 要PO**: R-01 / R-05（brief: `reports/2026-07-31-line-residuals-R01-R07.md`）
+4. **TASK-022** #239 Phase 1 closeout と代表手動 correction gate
+5. **TASK-023** #254 5業務フロー UAT 統合証跡（TASK-009/010/020 を再利用）
+6. **TASK-024** #256 現行 screenshot / FAQ finalization（FAQ は TASK-023 後）
+7. **TASK-021 Stage A 削除**（Phase1 FE residual: `reports/2026-07-31-task-021-phase1-consumer-prep.md` — BE/OpenAPI/seed/DB consumer 撤去後 + 破壊変更承認）
+8. **TASK-004 / TASK-005**: 次の intentional land 時
+9. **LINE 要PO**: R-01 / R-05（brief: `reports/2026-07-31-line-residuals-R01-R07.md`）
 
 ---
 
@@ -100,5 +103,60 @@ TASK-001-BE/FE, TASK-002/003（WONTFIX + UI follow-up 実装済）, TASK-006/007
 - **修正方針**: **consumer inventory + 破壊変更の明示承認後**に Stage A（FINAL 参照）。新 endpoint は追加しない。`available-staffs` は WONTFILE。
 - **受け入れ条件**: exclusion production surface 削除; migration あり; Stage B 互換 consumer が無いこと inventory で証明。
 - **状態**: **Phase1 FE residual SAFE-CLEANUP done / delete BLOCKED（BE consumers remain） / NO CLEAN-GO**。Stage B: `e9dddd921`。決裁: `reports/2026-07-31-todo-po-decisions-FINAL.md`。inventory: `reports/2026-07-31-task-021-stage-a-inventory.md`。Phase1: dead excluded query-key invalidate + deprecated/test `excluded_courses` 撤去（証拠: `reports/2026-07-31-task-021-phase1-consumer-prep.md`）。live facade routes/fields/OpenAPI/seed/model 残存 → 破壊削除は §6 完了 + 明示承認後。claim: `claim/TASK-021` + `claim/W-021-P1`（USER 解放）。
+
+### TASK-022: #239 Phase 1 closeout と代表手動 correction gate（High）
+
+- **対応 Issue**: GitHub Issue #239（live state は CLOSED。未充足の受け入れ条件を local New Work として追跡）。
+- **問題**: reverse lookup OpenAPI の着地 commit で Issue は閉じられたが、親 owner group 全医院に対する actor 認可と、代表データでの link → history → unlink → relink の回復証跡は無い。Issue の閉鎖を security/runtime 完了証拠へ読み替えず、Phase 2 の auto-link・merge・追加 surface を開始しない。
+- **現況の実測根拠**: `gh issue view 239 --json state,closedAt,body` は CLOSED と未消込の受け入れ条件を同時に返す。reverse lookup は `backend/docs/api.yaml:23559-23621` と `backend/internal/apicontract/openapi_route_drift_test.go:455-457` で parity が閉じている。一方、`backend/internal/identitylink/service.go:481-486` は親 group の anchor clinic を actor が持たない場合に一部 member の可視性だけで継続し得て、この exact parent-anchor/all-owner-member rejection regression が無い。DEC-46 は代表 surface の runtime 実測前に Phase 2 を開始しない。
+- **要求挙動**: owner/pet/group の全 ID を認証 actor の clinic set へ相関し、view/edit を分離して mutation 直前に再認可する。hidden・不存在・他院・mixed ID は同じ fail-closed 応答で全件を原子的に拒否し、business write と非 PHI audit は同一 transaction、audit failure は rollback とする。決定的 lock order・CAS/version・unique/idempotency を保ち、RLS は実 application role/session context で強制されることを証明する。代表 correction が不足を示すまで auto-link・merge・追加 surface・新 DDL・record 移動を行わない。
+- **Owned paths**: `backend/internal/identitylink/`、`docs/spec/screens/40-identity-links.md`、新規 `docs/ops/testing/scenarios/S13-identity-links-manual-correction.md`、新規 `reports/2026-07-31-task-022-identity-link-closeout.md`。
+- **Reference paths（read-only）**: `backend/docs/api.yaml`、`backend/internal/apicontract/openapi_route_drift_test.go`、`backend/migrations/001_init.sql`、`frontend/src/features/identity-links/`、`q&a.html#dec-46`、Issue #239 本文/Phase 0 comment。氏名・メール・電話・診療内容・credential を report/audit へ記録しない。
+- **依存**: USER が本起票 run の `claim/TASK-022` を統合後に解放すること。代表2医院データ、named operator、named operational/clinical signer、実 application role の RLS 証跡と、必要なら外部 Issue state の再整理は USER 境界。migration/reset は実行しない。
+- **実行契約**: 独立 worktree・single writer。上記 claim の USER 解放後、実装者は `git branch --list 'claim/TASK-022'` が空であることを確認し、`git branch claim/TASK-022` を取得してから最初の編集を行う。開始時に現 HEAD を再測定し、別 branch にのみある修正を重複実装しない。
+- **検証コマンド**:
+  - `docker compose exec -T backend go test -p 1 ./internal/identitylink ./internal/apicontract -count=1`
+  - `git diff --check -- backend/internal/identitylink docs/spec/screens/40-identity-links.md docs/ops/testing/scenarios/S13-identity-links-manual-correction.md reports/2026-07-31-task-022-identity-link-closeout.md`
+  - 編集前: `bash scripts/check-docs-symbol-drift.sh > /tmp/task-022-docs-drift.before 2>&1 || test $? -eq 1`
+  - 編集前: `grep '^FAIL  ' /tmp/task-022-docs-drift.before | LC_ALL=C sort > /tmp/task-022-docs-drift.before.failures`
+  - 編集後: `bash scripts/check-docs-symbol-drift.sh > /tmp/task-022-docs-drift.after 2>&1 || test $? -eq 1`
+  - 編集後: `grep '^FAIL  ' /tmp/task-022-docs-drift.after | LC_ALL=C sort > /tmp/task-022-docs-drift.after.failures`
+  - `diff -u /tmp/task-022-docs-drift.before.failures /tmp/task-022-docs-drift.after.failures`
+- **完了条件**: source-level で閉じた OpenAPI parity regression を維持し、全親医院認可の exact regression が green。hidden/mixed/no-audit failure で write/audit が0件、競合時に partial graph が0件。named operator が代表2医院 owner+pet の link → scoped history → unlink → relink を1回実施し、named signer が回復性・工程数/時間・誤 link・追加 capability の要否を承認する。RLS runtime が未実測なら本 task は UNREPORTED のままにし、Phase 2 へ進まない。
+
+### TASK-023: #254 5業務フロー UAT 統合証跡（High）
+
+- **対応 Issue**: GitHub Issue #254。
+- **問題**: demo stack は起動できるが、既存証跡は部分実施で、scenario 本文に `【要実測】` が残る。authenticated E2E の host credential は未設定で、全5フローの PASS/FAIL、目視、DB/audit、実機 LINE/LIFF、FAIL 処置が1つの受け入れ証跡へ統合されていない。
+- **現況の実測根拠**: `docs/ops/testing/scenarios/reports/2026-07-28-local.md` は prior failure の再確認に限定し、`reports/2026-07-31-task-010-batch2.md` が current residual set を記録する。`frontend/e2e/README.md:93-103` は `E2E_LOGIN_*` の env 注入を要求し、TASK-020 は未設定/BLOCKED。自動 E2E は目視・DB persistence・実機通知の代替ではない。
+- **要求挙動**: 既存 asset を再利用し、①外来/検査/会計/締め ②予約→受付→再予約 ③trimming＋診察会計 ④LINE予約→記録 ⑤月次集計/report を1回通す。各 step に PASS/FAIL/BLOCKED、executor、環境、秘密/患者情報を含まない evidence、owner/disposition を記録し、agent 観測と human 観測を分離する。未承認 GitHub 書込は行わない。
+- **Owned paths**: 新規 `docs/ops/testing/scenarios/reports/2026-07-31-local-issue-254.md` のみ。
+- **Reference paths（read-only）**: `docs/ops/testing/SECTION_14_MANUAL_TEST_GUIDE.md`、`docs/ops/testing/scenarios/README.md`、同配下 S01〜S12/V01〜V05 と既存 reports、`frontend/e2e/`、`todo.md` の TASK-009/010/020、`reports/2026-07-31-task-010-batch2.md`、`reports/2026-07-31-task-010-runtime-batch.md`（検出済み credential 値を読取・転記しない）。
+- **依存**: USER が本起票 run の `claim/TASK-023` を統合後に解放すること。既存 credential の redaction・到達環境確認・必要な失効/rotation、secret channel からの `E2E_LOGIN_*` 注入、必要時の local reset/seed、scenario 指定 DB/audit 観測、実機 LINE/LIFF、delivery owner の FAIL 処置は USER 境界。TASK-010/TASK-020 の owned files は変更しない。
+- **実行契約**: 独立 worktree・single writer。authoring claim の USER 解放後、`git branch --list 'claim/TASK-023'` が空であることを確認し、`git branch claim/TASK-023` を取得してから report を作る。scenario/E2E の不具合候補は report 内で owner/disposition を付け、外部 Issue 化は別の明示承認を待つ。
+- **検証コマンド**:
+  - `docker compose ps`
+  - `curl -fsS http://127.0.0.1:8080/health`
+  - `curl -fsS -o /dev/null http://127.0.0.1:3003/`
+  - `test -n "${E2E_LOGIN_EMAIL:-}" && test -n "${E2E_LOGIN_PASSWORD:-}"`
+  - `cd frontend && ./scripts/run-e2e.sh e2e/clinical-flows.spec.ts e2e/examinations-flow.spec.ts e2e/accounting-flow.spec.ts e2e/reservations-smoke.spec.ts e2e/trimming-flow.spec.ts e2e/line-reservation-flow.spec.ts`
+  - `git diff --check -- docs/ops/testing/scenarios/reports/2026-07-31-local-issue-254.md`
+- **完了条件**: 5フローと対応 scenario ID が1 report で追跡でき、全 step に状態・executor・環境・evidence がある。未waive FAIL は0件とし、残る FAIL は named owner・処置と delivery owner が承認した waiver/post-delivery disposition を持つ。human-only の DB/audit・LINE/LIFF・操作性 sign-off が揃わない限り #254 を完了扱いしない。credential/account/password/token/session 値は report・diff・commit に0件。
+
+### TASK-024: #256 現行 screenshot / FAQ finalization（Medium）
+
+- **対応 Issue**: GitHub Issue #256。
+- **問題**: static manual text は同期済みだが、主要10画面の numbered screenshot は現行 UI との一致が未検証。FAQ は #254 の実測前には対象を確定できず、推測で増やすと誤案内と二重資産を作る。
+- **現況の実測根拠**: 主要10件の `frontend/src/features/manual/content/screens/` 文書は同番号の既存 image を参照するが、`frontend/e2e/manual-flow.spec.ts` は navigation/content を検証するだけで画像の現行性を検証しない。`docs/delivery/OPERATION_MANUAL.md` には training plan draft があり、別の owner inquiry FAQ も既存のため新設しない。
+- **要求挙動**: 10画像を現行 UI と比較し、不一致だけを同名で置換する。FAQ は TASK-023 が実測した staff の混乱だけを `workflows/10-troubleshooting.md` へ追加し、該当0件なら「追記不要」を監査 report に記録する。orphan `_screenshot-*`、別 FAQ、新固定値、秘密/患者情報を作らない。named documentation owner が画像と文言を1回で承認し、判断と署名を report に残す。
+- **Owned paths**: `frontend/src/features/manual/content/workflows/10-troubleshooting.md`、`frontend/src/features/manual/content/images/02-reception.png`、`frontend/src/features/manual/content/images/04-medical-records.png`、`frontend/src/features/manual/content/images/05-accounting.png`、`frontend/src/features/manual/content/images/06-reservations.png`、`frontend/src/features/manual/content/images/07-examinations.png`、`frontend/src/features/manual/content/images/10-trimming.png`、`frontend/src/features/manual/content/images/13-cash-register.png`、`frontend/src/features/manual/content/images/14-accounting-reports.png`、`frontend/src/features/manual/content/images/16-line-reservation.png`、`frontend/src/features/manual/content/images/19-aggregation.png`、新規 `reports/2026-07-31-task-024-manual-audit.md`。
+- **Reference paths（read-only）**: `frontend/src/features/manual/content/screens/02-reception.md`、`frontend/src/features/manual/content/screens/04-medical-records.md`、`frontend/src/features/manual/content/screens/05-accounting.md`、`frontend/src/features/manual/content/screens/06-reservations.md`、`frontend/src/features/manual/content/screens/07-examinations.md`、`frontend/src/features/manual/content/screens/10-trimming.md`、`frontend/src/features/manual/content/screens/13-cash-register.md`、`frontend/src/features/manual/content/screens/14-accounting-reports.md`、`frontend/src/features/manual/content/screens/16-line-reservation.md`、`frontend/src/features/manual/content/screens/19-aggregation.md`、`docs/delivery/OPERATION_MANUAL.md`、TASK-023 の final report、`frontend/e2e/manual-flow.spec.ts`、`frontend/src/features/manual/CLAUDE.md`。
+- **依存**: USER が本起票 run の `claim/TASK-024` を統合後に解放すること。screenshot audit は先行可能だが、FAQ 編集と #256 完了は TASK-023 の confusion manifest 後。named documentation owner の目視 sign-off が必要。
+- **実行契約**: 独立 worktree・single writer。上記 claim の USER 解放後、`git branch --list 'claim/TASK-024'` が空であることを確認し、`git branch claim/TASK-024` を取得してから編集する。Owned paths 外の manual text/画像は触らず、他 writer の変更を revert しない。
+- **検証コマンド**:
+  - `docker compose exec -T frontend npx vitest run src/features/manual/api/get-manual-articles.test.tsx src/features/manual/components/ManualSidebar.test.tsx src/features/manual/components/manual-content.test.ts src/features/manual/lib/parse-frontmatter.test.ts src/features/manual/routes/ManualPage.test.tsx`
+  - `cd frontend && ./scripts/run-e2e.sh e2e/manual-flow.spec.ts`
+  - `git diff --check -- frontend/src/features/manual/content/workflows/10-troubleshooting.md frontend/src/features/manual/content/images/02-reception.png frontend/src/features/manual/content/images/04-medical-records.png frontend/src/features/manual/content/images/05-accounting.png frontend/src/features/manual/content/images/06-reservations.png frontend/src/features/manual/content/images/07-examinations.png frontend/src/features/manual/content/images/10-trimming.png frontend/src/features/manual/content/images/13-cash-register.png frontend/src/features/manual/content/images/14-accounting-reports.png frontend/src/features/manual/content/images/16-line-reservation.png frontend/src/features/manual/content/images/19-aggregation.png reports/2026-07-31-task-024-manual-audit.md`
+- **完了条件**: `reports/2026-07-31-task-024-manual-audit.md` に10/10画像の current/replace 判定、TASK-023 confusion 全件の既存案内/FAQ追記/追記不要 disposition、named documentation owner の visual/content sign-off がある。置換画像は current UI・1280〜1920px・mask済み・同名参照維持、speculative FAQ は0件で、targeted tests/E2E が green。
 
 ---
