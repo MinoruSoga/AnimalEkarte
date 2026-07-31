@@ -118,6 +118,8 @@ This script mounts only spec/config files and installs a fresh `@playwright/test
 inside the playwright container. This avoids the chromium-1217 vs chromium-1223 version
 conflict caused by the host node_modules (pnpm-lock pins 1217, Docker image ships 1223).
 Override the target with `PLAYWRIGHT_TEST_BASE_URL` when needed.
+When set on the host, `E2E_LOGIN_EMAIL`, `E2E_LOGIN_PASSWORD`, and `E2E_AUTH_STATE_PATH`
+are forwarded into the Playwright container (name-only `-e`; unset vars are not injected).
 
 ### Alternative: macOS native (if pnpm and playwright browsers are installed on host)
 
