@@ -316,3 +316,47 @@ FAIL  github.com/animal-ekarte/backend/internal/model
 ### 再現に使ったコマンド
 
 `docker compose exec -T backend go test -p 1 ./internal/model ./internal/lintscan -count=1`
+
+---
+
+## 追補 — 残る3件は独立ではなく、1つの決定に収束する（2026-08-01）
+
+受領検証の続きで、残っていた失敗を実測したところ **route pin だけが独立で、他の3件は同一根因** だった。
+§7 の「4 packet」という分解は誤りである。正しくは **1 つの方針決定 + その帰結** である。
+
+### route pin — 独立・解消済み
+
+`b65cf69ef` が `POST /api/v1/estimates/:id/successors` を追加していた（TASK-012 の見積後継ドラフト）。
+`backend/docs/api.yaml:18274` に記載があり、`./internal/apicontract` も緑。意図的な追加で pin の更新漏れ。
+`c77767f40` で 497 へ更新し `./cmd/api` は `ok`。
+
+### 残る3件は「001 単一ファイル方針」の一点に収束する
+
+| 実測 | 根拠 |
+|---|---|
+| `001_init.sql` の `CREATE TABLE` は **115** | `grep -c '^CREATE TABLE'` |
+| `cash_register_close_adjustments` は 001 に **無い**。003 が作る | `grep -l` が 003 のみを返す |
+| ERD gate は **001 だけ**を読む | `erd_table_count_drift_test.go:114` が `001_init.sql` を直接指す |
+| ERD doc の宣言は **116** | `docs/architecture/erd.md:3,7,10` |
+
+つまり ERD の 115 vs 116 は「doc の数え間違い」ではない。
+**doc は 003 適用後の実スキーマ（116表）を正しく宣言しており、gate が 001 しか見ていないためズレている。**
+数字をどちらかに寄せる修正は、どちらの方向でも誤りを固定する。
+
+- marker を 115 にする → doc が本番実スキーマを過小申告する
+- gate に 002/003 も読ませる → 001 単一ファイル方針を暗黙に撤回する
+
+同じ構図が `cmd/migrate` の「top-level DDL は 001 のみ」と、
+`CashRegisterClose.deleted_at` 未マップ（003 が soft-delete 経路を塞いだ帰結）にも当てはまる。
+
+### したがって決めるべきは1つだけ
+
+**002 / 003 を 001 へ統合して単一ファイル方針を維持するか、方針を撤回して記録するか。**
+
+- 維持する場合: 002/003 を 001 へ折り込み、既存 DB は再構築。3 gate は自然に緑へ戻る。
+  `deleted_at` は統合時に列ごと落とせる。
+- 撤回する場合: 決定を記録したうえで、migrate gate を退役させ、ERD gate に全 DDL を読ませ、
+  `deleted_at` を意図的非マップとして登録する。
+
+**どちらを選ぶにせよ、3 gate を個別に黙らせてはならない。** 個別に直すと、
+方針が生きているのか死んでいるのかが、どこにも記録されないまま消える。
