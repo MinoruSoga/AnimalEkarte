@@ -13,12 +13,10 @@ import { createHospitalization } from "../api/create-hospitalization";
 import { updateHospitalization } from "../api/update-hospitalization";
 import { useGetHospitalizationRaw } from "../api/get-hospitalization";
 import { useGetTreatmentPlans } from "../api/get-treatment-plans";
-import { createTreatmentPlanForHospitalization } from "../api/treatment-plans-write";
 import { calculateBillingTotals } from "@/lib/calculations";
 import {
   buildCreateHospitalizationRequest,
   buildHospitalizationFormDataFromRecord,
-  buildPersistableTreatmentPlanRequests,
   buildSelectedPetFromHospitalization,
   buildTreatmentPlansFromRecord,
   buildUpdateHospitalizationRequest,
@@ -96,15 +94,10 @@ export function useHospitalizationForm(id?: string, canSubmit = false) {
           toast.success("入院情報を更新しました");
         } else {
           if (!isMutationAllowed()) return { success: false, timestamp: Date.now() };
-          const created = await createHospitalization(
-            buildCreateHospitalizationRequest(latestFormData, pet),
+          // Single success boundary: parent + nested treatment_plans in one BE TX (TASK-001).
+          await createHospitalization(
+            buildCreateHospitalizationRequest(latestFormData, pet, treatmentPlansRef.current),
           );
-          // Nested plan writes after parent exists (existing BE hospitalization treatment-plan APIs).
-          // Not a single DB transaction — partial failure is reported and surfaces as save error.
-          const planBodies = buildPersistableTreatmentPlanRequests(treatmentPlansRef.current);
-          for (const body of planBodies) {
-            await createTreatmentPlanForHospitalization(created.id, body);
-          }
           toast.success("入院情報を登録しました");
         }
 

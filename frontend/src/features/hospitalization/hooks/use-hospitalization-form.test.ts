@@ -297,7 +297,7 @@ describe("useHospitalizationForm", () => {
       expect(result.current.treatmentPlans).toEqual([]);
     });
 
-    it("治療内容ありの行は create 後に nested treatment-plan POST される", async () => {
+    it("治療内容ありの行は create の treatment_plans に同梱され nested POST しない", async () => {
       const { result } = renderHospitalizationForm();
 
       await act(async () => {
@@ -313,18 +313,21 @@ describe("useHospitalizationForm", () => {
       await submitForm(result.current.formAction);
 
       expect(mockCreateHospitalization).toHaveBeenCalledTimes(1);
-      expect(mockCreateTreatmentPlan).toHaveBeenCalledTimes(1);
-      expect(mockCreateTreatmentPlan).toHaveBeenCalledWith(
-        "99",
+      expect(mockCreateHospitalization).toHaveBeenCalledWith(
         expect.objectContaining({
-          treatment_content: "adm rate",
-          unit_price: 990,
-          quantity: 1,
+          treatment_plans: [
+            expect.objectContaining({
+              treatment_content: "adm rate",
+              unit_price: 990,
+              quantity: 1,
+            }),
+          ],
         }),
       );
+      expect(mockCreateTreatmentPlan).not.toHaveBeenCalled();
     });
 
-    it("空の治療内容行は nested POST しない", async () => {
+    it("空の治療内容行は treatment_plans に含めない", async () => {
       const { result } = renderHospitalizationForm();
       await act(async () => {
         result.current.addTreatmentPlan();
@@ -333,6 +336,10 @@ describe("useHospitalizationForm", () => {
       await submitForm(result.current.formAction);
 
       expect(mockCreateHospitalization).toHaveBeenCalledTimes(1);
+      const payload = mockCreateHospitalization.mock.calls[0]?.[0] as {
+        treatment_plans?: unknown[];
+      };
+      expect(payload.treatment_plans).toBeUndefined();
       expect(mockCreateTreatmentPlan).not.toHaveBeenCalled();
     });
 

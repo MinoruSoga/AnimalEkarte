@@ -76,7 +76,7 @@ func (m *mockHospitalizationService) DischargeWithBilling(
 }
 
 func newHandlerWithHospitalizationSvc(svc HospitalizationService) *HospitalizationHandler {
-	return NewHospitalizationHandler(svc)
+	return NewHospitalizationHandler(svc, allowAllPermission)
 }
 
 // ---- ListHospitalizations ----
@@ -353,6 +353,36 @@ func TestCreateHospitalization(t *testing.T) {
 			},
 			wantStatus: http.StatusInternalServerError,
 		},
+		{
+			name: "nested treatment_plans with discount are passed to service when permitted",
+			body: func() map[string]any {
+				b := validBody()
+				b["treatment_plans"] = []map[string]any{
+					{
+						"treatment_content": "adm rate",
+						"unit_price":        990,
+						"quantity":          1,
+						"discount_rate":     10,
+						"discount_amount":   0,
+						"sort_order":        0,
+					},
+				}
+				return b
+			}(),
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockHospitalizationService{
+				createFn: func(_ context.Context, clinicID uint64, input *CreateHospitalizationInput) (*model.Hospitalization, error) {
+					assert.Equal(t, uint64(1), clinicID)
+					require.Len(t, input.TreatmentPlans, 1)
+					assert.Equal(t, "adm rate", input.TreatmentPlans[0].TreatmentContent)
+					assert.Equal(t, float64(10), input.TreatmentPlans[0].DiscountRate)
+					return &model.Hospitalization{ID: 11, ClinicID: clinicID}, nil
+				},
+			},
+			wantStatus: http.StatusCreated,
+			wantBody:   `"id":11`,
+			wantHeader: true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -368,6 +398,7 @@ func TestCreateHospitalization(t *testing.T) {
 			c.Request.Header.Set("Content-Type", "application/json")
 			tt.setupCtx(c)
 
+
 			h.CreateHospitalization(c)
 
 			assert.Equal(t, tt.wantStatus, w.Code)
@@ -379,6 +410,43 @@ func TestCreateHospitalization(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestCreateHospitalization_NestedDiscountForbidden(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	createCalled := false
+	svc := &mockHospitalizationService{
+		createFn: func(_ context.Context, _ uint64, _ *CreateHospitalizationInput) (*model.Hospitalization, error) {
+			createCalled = true
+			return &model.Hospitalization{ID: 1}, nil
+		},
+	}
+	h := NewHospitalizationHandler(svc, denyAllPermission)
+	body := map[string]any{
+		"owner_id":             1,
+		"pet_id":               2,
+		"hospitalization_type": "hospitalization",
+		"start_date":           "2026-05-28T00:00:00Z",
+		"end_date":             "2026-05-30T00:00:00Z",
+		"treatment_plans": []map[string]any{
+			{
+				"treatment_content": "adm",
+				"unit_price":        100,
+				"quantity":          1,
+				"discount_rate":     5,
+			},
+		},
+	}
+	bodyBytes, err := json.Marshal(body)
+	require.NoError(t, err)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(bodyBytes))
+	c.Request.Header.Set("Content-Type", "application/json")
+	setClinicID(c)
+	h.CreateHospitalization(c)
+	assert.Equal(t, http.StatusForbidden, w.Code)
+	assert.False(t, createCalled, "service.Create must not run when discount create is forbidden")
 }
 
 // ---- UpdateHospitalization ----

@@ -41,6 +41,9 @@ type CreateHospitalizationInput struct {
 	IsInsurance          bool
 	InsuranceCompanyName *string
 	InsuranceNumber      *string
+	// TreatmentPlans are optional nested plans created in the same transaction as the parent
+	// (TASK-001-BE atomic create). Empty/nil preserves parent-only create.
+	TreatmentPlans []CreateTreatmentPlanInput
 }
 
 // UpdateHospitalizationInput は入院更新のサービス入力 DTO
@@ -161,16 +164,28 @@ type HospitalizationService interface {
 }
 
 type hospitalizationService struct {
-	hospRepo         HospitalizationRepository
-	reservationRepo  sharedkernel.OwnerPetLinkVerifier
-	doctorVerifier   hospitalizationDoctorVerifier
-	petRepo          petFinder
-	cageRepo         cageFinder
-	carePlanItemRepo CarePlanItemRepository
-	accountingRepo   accountingCreator
-	billingItemRepo  billingItemWriter
-	transactor       Transactor
-	auditTx          AuditTxLogger
+	hospRepo          HospitalizationRepository
+	reservationRepo   sharedkernel.OwnerPetLinkVerifier
+	doctorVerifier    hospitalizationDoctorVerifier
+	petRepo           petFinder
+	cageRepo          cageFinder
+	carePlanItemRepo  CarePlanItemRepository
+	accountingRepo    accountingCreator
+	billingItemRepo   billingItemWriter
+	treatmentPlanRepo TreatmentPlanRepository
+	transactor        Transactor
+	auditTx           AuditTxLogger
+}
+
+// HospitalizationServiceOption configures optional dependencies on HospitalizationService.
+type HospitalizationServiceOption func(*hospitalizationService)
+
+// WithTreatmentPlanRepository injects the treatment-plan write path used by nested create
+// (TASK-001-BE). When nil and TreatmentPlans are present, Create fails closed.
+func WithTreatmentPlanRepository(repo TreatmentPlanRepository) HospitalizationServiceOption {
+	return func(s *hospitalizationService) {
+		s.treatmentPlanRepo = repo
+	}
 }
 
 type hospitalizationDoctorVerifier interface {
@@ -189,6 +204,7 @@ func NewHospitalizationService(
 	accountingRepo accountingCreator,
 	billingItemRepo billingItemWriter,
 	transactor Transactor,
+	opts ...HospitalizationServiceOption,
 ) HospitalizationService {
 	return NewHospitalizationServiceWithAudit(
 		hospRepo,
@@ -200,6 +216,7 @@ func NewHospitalizationService(
 		billingItemRepo,
 		transactor,
 		nil,
+		opts...,
 	)
 }
 
@@ -215,9 +232,10 @@ func NewHospitalizationServiceWithAudit(
 	billingItemRepo billingItemWriter,
 	transactor Transactor,
 	auditTx AuditTxLogger,
+	opts ...HospitalizationServiceOption,
 ) HospitalizationService {
 	doctorVerifier, _ := reservationRepo.(hospitalizationDoctorVerifier)
-	return &hospitalizationService{
+	svc := &hospitalizationService{
 		hospRepo:         hospRepo,
 		reservationRepo:  reservationRepo,
 		doctorVerifier:   doctorVerifier,
@@ -229,6 +247,12 @@ func NewHospitalizationServiceWithAudit(
 		transactor:       transactor,
 		auditTx:          auditTx,
 	}
+	for _, opt := range opts {
+		if opt != nil {
+			opt(svc)
+		}
+	}
+	return svc
 }
 
 func (s *hospitalizationService) validateDoctor(ctx context.Context, clinicID uint64, doctorID *uint64) error {
@@ -327,13 +351,49 @@ func (s *hospitalizationService) Create(ctx context.Context, clinicID uint64, in
 			slog.ErrorContext(txCtx, "failed to create hospitalization", "error", err)
 			return apperrors.Wrap(err, "failed to create hospitalization")
 		}
+		// Nested treatment plans share this TX (TASK-001-BE). Use plan repo only —
+		// treatmentPlanService.Create opens its own outer transaction and would not join.
+		if len(input.TreatmentPlans) > 0 {
+			if s.treatmentPlanRepo == nil {
+				return apperrors.WrapInternalServerError("hospitalization treatment plan repository is required for nested create")
+			}
+			hospID := hospitalization.ID
+			for i := range input.TreatmentPlans {
+				planInput := &input.TreatmentPlans[i]
+				if err := validateTreatmentPlanMoney(planInput.UnitPrice, planInput.Quantity, planInput.DiscountRate, planInput.DiscountAmount); err != nil {
+					return err
+				}
+				if planInput.TreatmentContent == "" {
+					return apperrors.WrapInvalidInput("treatment_content is required")
+				}
+				subtotal := computeTreatmentPlanSubtotal(planInput.UnitPrice, planInput.Quantity, planInput.DiscountRate, planInput.DiscountAmount)
+				plan := &model.TreatmentPlan{
+					ClinicID:          clinicID,
+					HospitalizationID: &hospID,
+					TreatmentContent:  planInput.TreatmentContent,
+					Memo:              planInput.Memo,
+					IsInsurance:       planInput.IsInsurance,
+					UnitPrice:         planInput.UnitPrice,
+					Quantity:          planInput.Quantity,
+					DiscountRate:      planInput.DiscountRate,
+					DiscountAmount:    planInput.DiscountAmount,
+					Subtotal:          subtotal,
+					SortOrder:         planInput.SortOrder,
+				}
+				if err := s.treatmentPlanRepo.Create(txCtx, plan); err != nil {
+					slog.ErrorContext(txCtx, "failed to create nested treatment plan", "error", err, "index", i)
+					return apperrors.Wrap(err, "failed to create nested treatment plan")
+				}
+			}
+		}
 		return nil
 	}); err != nil {
 		return nil, err
 	}
 	slog.InfoContext(ctx, "hospitalization created",
 		slog.Uint64("hospitalization_id", hospitalization.ID),
-		slog.Uint64("clinic_id", hospitalization.ClinicID))
+		slog.Uint64("clinic_id", hospitalization.ClinicID),
+		slog.Int("treatment_plan_count", len(input.TreatmentPlans)))
 	return hospitalization, nil
 }
 

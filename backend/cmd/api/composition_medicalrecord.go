@@ -96,7 +96,7 @@ func (c medicalRecordComposition) newHandler(
 			medicalrecord.NewPostgresMedicalRecordImageUploadQuotaStore(dependencies.DB),
 		),
 		medicalrecord.NewTreatmentHandler(s.treatment.treatments, dependencies.HasPermission),
-		medicalrecord.NewHospitalizationHandler(s.hospital.hospitalizations),
+		medicalrecord.NewHospitalizationHandler(s.hospital.hospitalizations, dependencies.HasPermission),
 		medicalrecord.NewHospitalizationPlanHandler(s.hospital.plans),
 		medicalrecord.NewDailyRecordHandler(s.hospital.dailyRecords),
 		medicalrecord.NewCarePlanItemHandler(s.hospital.carePlanItems),

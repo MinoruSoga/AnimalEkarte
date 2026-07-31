@@ -13,12 +13,15 @@ import (
 // HospitalizationHandler serves the hospitalization HTTP boundary. Moved from internal/handler
 // (BE9-2D ⑤ Batch C).
 type HospitalizationHandler struct {
-	service HospitalizationService
+	service       HospitalizationService
+	hasPermission PermissionChecker
 }
 
 // NewHospitalizationHandler initializes a HospitalizationHandler.
-func NewHospitalizationHandler(service HospitalizationService) *HospitalizationHandler {
-	return &HospitalizationHandler{service: service}
+// hasPermission is required for nested treatment_plans discount:create guards (TASK-001-BE).
+// Pass nil only in tests that never exercise nested discounted plans.
+func NewHospitalizationHandler(service HospitalizationService, hasPermission PermissionChecker) *HospitalizationHandler {
+	return &HospitalizationHandler{service: service, hasPermission: hasPermission}
 }
 
 // ListHospitalizations godoc
@@ -86,6 +89,19 @@ func (h *HospitalizationHandler) CreateHospitalization(c *gin.Context) {
 	if err := c.ShouldBindJSON(&input); err != nil {
 		httpapi.RespondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
 		return
+	}
+
+	// Nested plans reuse the same discount:create guards as POST .../treatment-plans.
+	for i := range input.TreatmentPlans {
+		plan := input.TreatmentPlans[i]
+		if err := requireDiscountCreateFloat(c, h.hasPermission, plan.DiscountRate); err != nil {
+			httpapi.RespondError(c, err)
+			return
+		}
+		if err := requireDiscountCreateInt(c, h.hasPermission, plan.DiscountAmount); err != nil {
+			httpapi.RespondError(c, err)
+			return
+		}
 	}
 
 	svcInput, err := input.toServiceInput()

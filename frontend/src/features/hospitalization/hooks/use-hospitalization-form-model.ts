@@ -70,11 +70,13 @@ export function buildUpdateHospitalizationRequest(
 
 export function buildCreateHospitalizationRequest(
   formData: HospitalizationFormData,
-  pet: Pet
+  pet: Pet,
+  treatmentPlans: readonly HospitalizationTreatmentPlan[] = [],
 ): CreateHospitalizationRequest {
   const today = todayJSTISO();
   const startISO = jstDateStartISOString(formData.displayDate || today);
   const endISO = jstDateStartISOString(formData.endDate || getDefaultHospitalizationEndDate());
+  const nestedPlans = buildPersistableTreatmentPlanRequests(treatmentPlans);
 
   return {
     pet_id: pet.id,
@@ -89,6 +91,7 @@ export function buildCreateHospitalizationRequest(
     is_insurance: formData.isInsurance,
     insurance_company_name: toInsuranceCompanyName(formData),
     insurance_number: toInsuranceNumber(formData),
+    ...(nestedPlans.length > 0 ? { treatment_plans: nestedPlans } : {}),
   };
 }
 

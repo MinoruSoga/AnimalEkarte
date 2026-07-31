@@ -214,6 +214,7 @@ func newMedicalRecordHospitalServices(
 			d.BillingItems,
 			d.Transactor,
 			auditTx,
+			medicalrecord.WithTreatmentPlanRepository(r.treatmentPlans),
 		),
 		plans: medicalrecord.NewHospitalizationPlanService(r.hospitalizationPlans),
 		dailyRecords: medicalrecord.NewDailyRecordServiceWithRelationValidation(

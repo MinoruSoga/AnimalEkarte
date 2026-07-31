@@ -169,6 +169,37 @@ func TestCreateHospitalizationRequest_ToServiceInput(t *testing.T) {
 	if input.InsuranceNumber != &insuranceNumber {
 		t.Fatalf("InsuranceNumber pointer was not preserved")
 	}
+	if len(input.TreatmentPlans) != 0 {
+		t.Fatalf("TreatmentPlans = %d, want 0 when omitted", len(input.TreatmentPlans))
+	}
+}
+
+func TestCreateHospitalizationRequest_ToServiceInput_NestedTreatmentPlans(t *testing.T) {
+	startDate := time.Date(2026, 5, 28, 0, 0, 0, 0, time.UTC)
+	endDate := time.Date(2026, 5, 30, 0, 0, 0, 0, time.UTC)
+	input, err := (&createHospitalizationRequest{
+		OwnerID:             1,
+		PetID:               2,
+		HospitalizationType: string(model.HospitalizationTypeInpatient),
+		StartDate:           startDate,
+		EndDate:             endDate,
+		TreatmentPlans: []createTreatmentPlanRequest{
+			{TreatmentContent: "adm", UnitPrice: 990, Quantity: 1, SortOrder: 0},
+			{TreatmentContent: "monitor", UnitPrice: 500, Quantity: 2, DiscountRate: 10, SortOrder: 1},
+		},
+	}).toServiceInput()
+	if err != nil {
+		t.Fatalf("toServiceInput() error = %v", err)
+	}
+	if len(input.TreatmentPlans) != 2 {
+		t.Fatalf("TreatmentPlans = %d, want 2", len(input.TreatmentPlans))
+	}
+	if input.TreatmentPlans[0].TreatmentContent != "adm" || input.TreatmentPlans[0].UnitPrice != 990 {
+		t.Fatalf("plan[0] = %+v", input.TreatmentPlans[0])
+	}
+	if input.TreatmentPlans[1].DiscountRate != 10 || input.TreatmentPlans[1].Quantity != 2 {
+		t.Fatalf("plan[1] = %+v", input.TreatmentPlans[1])
+	}
 }
 
 func TestCreateHospitalizationRequest_ToServiceInput_EmptyStatus(t *testing.T) {

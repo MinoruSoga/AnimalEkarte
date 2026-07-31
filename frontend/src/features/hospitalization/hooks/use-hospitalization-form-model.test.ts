@@ -184,6 +184,65 @@ describe("hospitalization form model", () => {
     });
     expect(request.start_date).toContain("2026-07-23");
     expect(request.end_date).toContain("2026-07-30");
+    expect(request.treatment_plans).toBeUndefined();
+  });
+
+  it("治療内容ありの行は create payload の treatment_plans に同梱し空行は省略する", () => {
+    const pet = buildSelectedPetFromHospitalization(hospitalizationWithPet);
+    expect(pet).not.toBeNull();
+    if (!pet) return;
+
+    const request = buildCreateHospitalizationRequest(formData, pet, [
+      {
+        id: "a",
+        treatmentContent: "adm rate",
+        memo: "",
+        is_insurance: false,
+        unitPrice: 990,
+        quantity: 1,
+        discount: 0,
+        discountAmount: 0,
+        subtotal: 990,
+      },
+      {
+        id: "b",
+        treatmentContent: "   ",
+        memo: "",
+        is_insurance: false,
+        unitPrice: 0,
+        quantity: 1,
+        discount: 0,
+        discountAmount: 0,
+        subtotal: 0,
+      },
+      {
+        id: "c",
+        treatmentContent: "monitor",
+        memo: "note",
+        is_insurance: false,
+        unitPrice: 500,
+        quantity: 2,
+        discount: 10,
+        discountAmount: 0,
+        subtotal: 900,
+      },
+    ]);
+
+    expect(request.treatment_plans).toEqual([
+      expect.objectContaining({
+        treatment_content: "adm rate",
+        unit_price: 990,
+        quantity: 1,
+        sort_order: 0,
+      }),
+      expect.objectContaining({
+        treatment_content: "monitor",
+        unit_price: 500,
+        quantity: 2,
+        discount_rate: 10,
+        sort_order: 1,
+      }),
+    ]);
   });
 
   it("backend recordから編集formの臨床状態を復元する", () => {
