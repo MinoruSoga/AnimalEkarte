@@ -3,7 +3,7 @@
 > **目的**: 本番環境（`noah-karte.com` / `api.noah-karte.com`）を Cloudflare Workers + Containers +
 > PlanetScale 構成で新設するための人間向け実施手順書。
 > **読者**: インフラ担当（実施者）。
-> **タイミング**: 7/17 の事前構築を想定（**7/18 Go-live 当日の作業ではない**）。
+> **タイミング**: Go-live 当日（2026-08-03）より前の**事前構築**として行う（**切替当日の作業ではない**）。具体日は #253 の billing 有効化が済み次第 USER が確定する。
 > **前提**: PO決定（2026-07-15）「納品はCloudflare経路。本番もCF構成で新設」/ 追跡Issue **#253**。
 > 詳細背景は [`../_archive/migration-cloudflare.md`](../_archive/migration-cloudflare.md) 「現況サマリ」
 > 2026-07-15/16 ブロック参照。critical path 上、本手順は **STG Phase 7（NS切替）完了後**に
