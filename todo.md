@@ -14,7 +14,7 @@
 | R6 | マルチエージェント共有 tree thrash | **ops-only** |
 | R7 | empty-diff 成功宣言 harness | **ops-only** |
 | SCEN-SEED-001 | 003_demo clinical CSV ヘッダのみ | **TASK-009**（CSV slice1 done・static verify GREEN・**適用は USER**） |
-| SCEN-BROWSER-001 | scenarios 内【要実測】backlog | **TASK-010**（env READY・batch4 primary done・body 要実測 42） |
+| SCEN-BROWSER-001 | scenarios 内【要実測】backlog | **TASK-010**（env READY・batch5 reclass+browser route・final census は batch5 report） |
 | SCEN-OPS-CLAIM-001 | `claim/*` 解放 | **ops-only**（USER only） |
 | SCEN-OPS-COMMIT-001 | mixed commit 説明メモ | **ops-only**（rewrite しない） |
 | SCEN-OPS-TREE-001 | 共有 tree concurrent WIP | **ops-only**（= R6） |
@@ -26,13 +26,13 @@
 | SPEC-TOP-CAPABILITIES-CRUD | exclusion 面の破壊削除 | **TASK-021 Stage A**（Phase1 done; Phase2 slice1+slice2 complete; FE ZERO_IN_REPO / external UNREPORTED; CLEAN-GO/DROP HOLD） |
 | SPEC-TOP-CLAIM-RELEASE | claim 解放 | **SCEN-OPS-CLAIM-001** |
 | ISSUE-201-DOSE-LOOKUP | dose parameter 取得障害の silent fallback | **TASK-025**（READY_AGENT・臨床値は別 gate） |
-| ISSUE-249-CONFIRMED-LOCK | confirmed 検査の更新/削除 lock・audit | **TASK-026**（READY_AGENT・P0） |
-| ISSUE-249-MANUAL-LIFECYCLE | 手動検査 edit / confirmed→completed 確定解除 | **TASK-027**（TASK-026 後） |
+| ISSUE-249-CONFIRMED-LOCK | confirmed 検査の更新/削除 lock・audit | **TASK-026**（IMPLEMENTED_UNMERGED・`2a8aca33c`・統合は USER） |
+| ISSUE-249-MANUAL-LIFECYCLE | 手動検査 edit / confirmed→completed 確定解除 | **TASK-027**（TASK-026 main 統合後） |
 | ISSUE-252-STANDARD-PATCH | 締め設定 standard PATCH の validation/audit | **TASK-028**（DONE `bbf82e2b8`・値投入は USER） |
 | ISSUE-259-DOC-CONTRACT | Lステップ disabled 時の旧 noop 文書 | **TASK-029**（DONE・`9fc5b9ffb` push 済。残は先方 enable + USER runtime 実測） |
 | ISSUE-261-TRIMMING-DECEASED | trimming 死亡ペット拒否の経路別回帰 | **TASK-030**（DONE `6e5a945ef`・runtime は USER） |
-| ISSUE-249-PRINT-SNAPSHOT | 検査結果の保存 snapshot 印刷 | **TASK-031**（TASK-026 後） |
-| ISSUE-249-IMPORT-REVERT | lab import job の compensating revert | **TASK-032**（TASK-026 後・migration review 必須） |
+| ISSUE-249-PRINT-SNAPSHOT | 検査結果の保存 snapshot 印刷 | **TASK-031**（TASK-026 main 統合後） |
+| ISSUE-249-IMPORT-REVERT | lab import job の compensating revert | **TASK-032**（TASK-026 main 統合後・migration review 必須） |
 | ISSUE-201-EMERGENCY-ADMIN | 構造化救急投薬記録と欠落時 fail-closed cutover | **TASK-033**（臨床承認・migration review 後） |
 
 ### 対応済み（削除済み・再掲しない）
@@ -50,18 +50,18 @@ TASK-001-BE/FE, TASK-002/003（WONTFIX + UI follow-up 実装済）, TASK-006/007
 
 ### 推奨実装順（open のみ）
 
-1. **TASK-009** seed 適用（USER。static green: `reports/2026-08-01-task-009-verify-seed-green.md` / reseed: `reports/2026-07-31-task-009-reseed-ops.md`）  
-2. **TASK-010** 要実測残 backlog（body 42。batch4: `reports/2026-08-01-task-010-batch4.md`）  
-3. **TASK-020** Playwright 93 runtime 完走（env-forward 済・要 host `E2E_LOGIN_*`。証拠: `reports/2026-07-31-task-020-env-forward.md`）  
-4. **TASK-022 human residual** — S13 手動 correction + named signer + RLS runtime（agent source closeout 済）  
-5. **TASK-023 human residual** — E2E_LOGIN_* 注入・5フロー通し・DB/audit・LINE/LIFF・sign-off（agent 証跡骨格 済）  
-6. **TASK-024 human residual** — named documentation owner visual sign-off（agent 10/10 audit + FAQ 追記不要 済）  
+1. **TASK-009** seed 適用（USER。static green reconfirmed 2026-08-01: `python3 scripts/verify_seed.py` exit 0 / reseed: `reports/2026-07-31-task-009-reseed-ops.md`）
+2. **TASK-010** 要実測残 backlog（final exact **38** / semantic **40**。`reports/2026-08-01-task-010-batch5.md`。次: DEFER/BLOCKED re-smoke / V01 after TASK-009 apply）
+3. **TASK-020** Playwright 93 runtime 完走（env-forward 済・host `E2E_LOGIN_*` **UNSET** 再確認 2026-08-01。証拠: `reports/2026-07-31-task-020-env-forward.md`）
+4. **TASK-022 human residual** — S13 手動 correction + named signer + RLS runtime（source regression re-green 2026-08-01）
+5. **TASK-023 human residual** — E2E_LOGIN_* 注入・5フロー通し・DB/audit・LINE/LIFF・sign-off（agent 証跡骨格 済）
+6. **TASK-024 human residual** — named documentation owner visual sign-off（manual vitest 18 PASS re-green 2026-08-01）
 7. **TASK-021 Stage A 削除**（Phase2 slice2: `reports/2026-07-31-task-021-phase2-slice2.md` — in-repo FE ZERO_IN_REPO; staff write の `excluded_type_ids` reject; exclusion routes/table KEEP。external use UNREPORTED。CLEAN-GO/DROP は USER 承認後のみ）
-8. **TASK-004 / TASK-005**: 次の intentional land 時
+8. **TASK-004 / TASK-005**: 次の intentional land 時（2026-08-01 freeze: clean tree → land gate **not triggered**）
 9. **LINE follow-up（PO FINAL 済）**: `reports/2026-07-31-line-residual-po-decisions-FINAL.md`
    - High R-05 single-SoT Phase A+B — verifier cutover + reservation secret write path 撤去 done（`reports/2026-07-31-r05-single-sot-phase-a.md` / `reports/2026-07-31-r05-single-sot-phase-b.md`）。production rollout gates + column DROP は HOLD
-   - R-06/R-07 parent RBAC honesty — landed `a1abd4db8`（runtime-green 未主張）
-   - R-01 architecture summary + contract tests — landed `a1abd4db8`（runtime-green 未主張）
+   - R-06/R-07 parent RBAC honesty — landed `a1abd4db8`；scoped FE/BE re-green 2026-08-01（runtime-green 未主張）
+   - R-01 architecture summary + contract tests — landed `a1abd4db8`；scoped BE re-green 2026-08-01（runtime-green 未主張）
    - R-02/R-04/R-08 は ops のまま
 
 ---
@@ -221,12 +221,12 @@ validator_exit=0
 - **問題**: intentional と foreign を同一 commit に混ぜない。foreign 定義は land 直前の `git status` / `git diff` が正本。
 - **修正方針**: land 直前に porcelain 実測 → path-scoped `git add`（`git add -A` 禁止）。foreign は触らない・捨てない。
 - **受け入れ条件**: staged ⊆ intentional; foreign 非 stage; 破棄しない。
-- **状態**: **ops 手順 open**（再発・次 land 用）。前回実測: `reports/2026-07-31-task-004-005-land-proc.md`。
+- **状態**: **ops 手順 open**（再発・次 land 用）。前回実測: `reports/2026-07-31-task-004-005-land-proc.md`。**2026-08-01 rebaseline**: intentional land set **なし**（`git status --porcelain` empty at freeze; post-freeze foreign `bug.md` WIP のみ・stage しない）→ gate **not triggered**。
 
 #### 実装プラン（2026-08-01・codebase調査）
 - **Ready**: READY_USER
 - **Owner lane**: ops-only
-- **Blockers (today)**: checklist 自体は開始可能。実 land は intentional path set と commit owner が未確定で、shared tree に foreign WIP があるため未開始。
+- **Blockers (today)**: intentional land path set と commit owner が未確定。2026-08-01 freeze 時点では staged/intentional set 無し。
 - **Preconditions**: land owner が `git status --porcelain=v1` と staged/unstaged diff を再実測し、intentional allowlist を明記する。`claim/TASK-004` が新たに存在する場合は編集を止める。
 - **Code anchors** (file:line or path globs from live tree): `reports/2026-07-31-task-004-005-land-proc.md:39-47`, `scripts/check-docs-symbol-drift.sh`, `git status` / staged diff。
 - **Convention anchors** (rule doc paths): `AGENTS.md` packet claim protocol、`.claude/rules/git-worktree-safety.md`、`.claude/CLAUDE.md` scoped verification / prohibited commands。
@@ -247,12 +247,12 @@ validator_exit=0
 - **問題**: land 前に doc/code 整合と inventory / hospitalization を機械確認する手順。
 - **修正方針**: land 直前: `bash scripts/check-docs-symbol-drift.sh`; scoped hospitalization / route-inventory tests。結果は reports に記録。
 - **受け入れ条件**: ゲート PASS; inventory 84 維持; hospitalization unit PASS。
-- **状態**: **ops 手順 open**（land 都度）。
+- **状態**: **ops 手順 open**（land 都度）。**2026-08-01 rebaseline**: intentional staged set なし → gate **not triggered**（docs-drift / inventory / hospitalization 未実行）。
 
 #### 実装プラン（2026-08-01・codebase調査）
 - **Ready**: READY_USER
 - **Owner lane**: ops-only
-- **Blockers (today)**: scoped gate は定義済み。実行対象となる intentional staged set と land window は未確定。
+- **Blockers (today)**: scoped gate は定義済み。実行対象となる intentional staged set と land window は未確定（not triggered 維持）。
 - **Preconditions**: TASK-004 の path 分離を完了し、Docker stack が利用可能で、foreign WIP が staged されていないことを確認する。
 - **Code anchors** (file:line or path globs from live tree): `scripts/check-docs-symbol-drift.sh:28-34`, `scripts/check-docs-symbol-drift.test.sh:16-19`, `frontend/src/app/routes/route-inventory.test.tsx:45-56`, `backend/internal/medicalrecord/routes_snapshot_test.go:80-118`。
 - **Convention anchors** (rule doc paths): `.claude/CLAUDE.md` scoped verification exception、`frontend/CLAUDE.md` scoped Vitest rule、`backend/CLAUDE.md` Docker-only rule。
@@ -274,12 +274,12 @@ validator_exit=0
 - **問題**: clinical CSV がヘッダのみでシナリオ前提データが揃わない可能性。
 - **修正方針**: 設計 `reports/2026-07-31-task-009-seed-design.md` に従い USER が seed 適用。エージェントは migrate/seed auto-apply しない。
 - **受け入れ条件**: 対象 CSV がヘッダのみでなくなる; シナリオ前提を満たす; 適用手順が1箇所で辿れる; 適用は USER。
-- **状態**: **CSV slice1 committed（authoring done）/ static verifier GREEN（2026-08-01）/ 適用は USER**。slice1: hospitalizations + treatment_plans + daily_records + care_plan_items（G1 medical_records は既存 dump で充足）。証拠: `reports/2026-07-31-task-009-slice1.md`。**static gate**: `python3 scripts/verify_seed.py` → OK（imported clinical graph 認識: empty treatments + large medical_records; high-id appointments の business-hours 免除; RV/他院 placeholder allowlist）。証跡: `reports/2026-08-01-task-009-verify-seed-green.md`。**USER reseed 手順**: `reports/2026-07-31-task-009-reseed-ops.md`（既適用 DB は checksum mismatch → `make reset` が正。agent は auto wipe しない）。
+- **状態**: **CSV slice1 committed（authoring done）/ static verifier GREEN（2026-08-01 reconfirm exit 0）/ 適用は USER**。slice1: hospitalizations + treatment_plans + daily_records + care_plan_items（各 2 data rows / header+2 = wc 3; all in manifest）。証拠: `reports/2026-07-31-task-009-slice1.md`。**static gate reconfirm**: `python3 scripts/verify_seed.py` → OK exit 0（consultations=27 … medical_records=425544 …）。証跡: `reports/2026-08-01-task-009-verify-seed-green.md` + 本 session reconfirm。**USER reseed 手順**: `reports/2026-07-31-task-009-reseed-ops.md`（既適用 DB は checksum mismatch → `make reset` が正。agent は auto wipe しない）。**apply/smoke 証跡: なし** → close 不可。
 
 #### 実装プラン（2026-08-01・codebase調査）
 - **Ready**: READY_USER（static green 後の DB 適用のみ残る）
 - **Owner lane**: USER（apply）/ agent は static gate のみ
-- **Blockers (today)**: DB 適用証跡なし。static `verify_seed.py` は 2026-08-01 に green（imported-graph 適応）。
+- **Blockers (today)**: DB 適用証跡なし。static `verify_seed.py` は 2026-08-01 reconfirm green。
 - **Preconditions**: USER が local DB の適用履歴、退避要否、reset のデータ損失受容を確認する。static は `python3 scripts/verify_seed.py` で exit 0 を再確認。
 - **Code anchors** (file:line or path globs from live tree): `backend/migrations/seeds/003_demo/{hospitalizations,treatment_plans,daily_records,care_plan_items}.csv`, `backend/migrations/seeds/003_demo/manifest.json`, `backend/cmd/migrate/main.go:41-136`, `backend/cmd/migrate/csvbundle.go:81-188`, `backend/internal/seedbundle/manifest.go:34-55`。
 - **Convention anchors** (rule doc paths): `backend/migrations/CLAUDE.md`, `.agents/skills/migration-seed-safety/SKILL.md`, `reports/2026-07-31-task-009-reseed-ops.md`。
@@ -301,27 +301,26 @@ validator_exit=0
 - **問題**: scenarios に【要実測】残存。
 - **修正方針**: browser-test レーンで実測。記録は `reports/`。
 - **受け入れ条件**: 要実測 0 または PO/BUG 振分; reports に実行記録。
-- **状態**: **env READY / batch4 primary complete**（2026-08-01）。docker healthy + `:8080/health` 200 + `:3003/` 200。batch1 V05: 5 件（`reports/2026-07-31-task-010-runtime-batch.md`）。batch2 V04: 6 件（body 65→59）。batch3: 6 件（body 59→53）。**batch4 primary residual 11**: 全件 elevate（body **53→42** / V03 1→0 / V04 2→0 / V05 8→0）。証拠: `reports/2026-08-01-task-010-batch4.md`。L116 は BUG-141 併記。残: V01×17 / V02×9 / S*。claim: empty at batch4 start（再取得なし）。
+- **状態**: **env READY / batch5 RECLASSIFIED + partial browser route + disposition repair**（2026-08-01 follow-up）。health 200 + Chrome ノア/八王子。false PASS elevate 撤回。runtime PASS: L61/S08（partial）/S01-A3/S03-#7/S12-link。final census exact **38** / semantic **40**。batch5 12 = PASS×2 + DEFER/BLOCKED×10。V01×17 seed-gated。残 S* は BLOCKED/DEFER/FAIL 付き。証拠: `reports/2026-08-01-task-010-batch5.md`。claim: **`claim/TASK-010` held**。
 
-#### 実装プラン（2026-08-01・codebase調査）
-- **Ready**: env READY。claim empty。seed依存（V01 中心）は TASK-009 USER apply 後。
+#### 実装プラン（2026-08-01・codebase調査 + runtime-evidence follow-up）
+- **Ready**: env READY。`claim/TASK-010` live。seed依存（V01）は TASK-009 USER apply 後。
 - **Owner lane**: AGENT→USER
-- **Blockers (today)**: exact `【要実測】` **42** / semantic prefix `【要実測` **45**（S08/S09 装飾 3）。seed 依存は TASK-009 apply 未了の恐れ。
-- **Preconditions**: health と demo role を値非出力で確認。並行 foreign WIP（例: `bug.md`）を stage しない。
-- **Code anchors** (file:line or path globs from live tree): `docs/ops/testing/scenarios/{V*.md,S*.md}`, `docs/ops/testing/scenarios/README.md:46-52`, `reports/2026-07-31-task-010-runtime-batch.md`, `reports/2026-07-31-task-010-batch2.md`, `reports/2026-08-01-task-010-batch3.md`, `reports/2026-08-01-task-010-batch4.md`。
-- **Convention anchors** (rule doc paths): `.agents/skills/browser-test/SKILL.md`, `docs/ops/testing/CLAUDE.md`, `.claude/CLAUDE.md` security/runtime evidence boundary。
+- **Blockers (today)**: exact **38** / semantic **40**。LIFF 401。受付 0 件。TASK-009 apply 不在。append-only close。
+- **Preconditions**: health/demo を値非出力で確認。foreign `bug.md` 非 stage。source を runtime PASS に置換しない。
+- **Code anchors**: `docs/ops/testing/scenarios/{V*.md,S*.md}`, `reports/2026-08-01-task-010-batch5.md`。
+- **Convention anchors**: `.agents/skills/browser-test/SKILL.md`, `docs/ops/testing/CLAUDE.md`。
 - **Steps**:
-  1. exact / semantic census を再採取（現状 42 / 45）。
-  2. stretch: 非 seed V02 → S*。V01 は TASK-009 後。
-  3. 各 mark を PASS/FAIL/BLOCKED/DEFER と証拠へ置換。FAIL→BUG、仕様不明→要PO（ID 付き）。
-  4. 一時データを後始末し batch report と残数を更新。
+  1. census 再採取（現状 38 / 40）。
+  2. DEFER/BLOCKED を fixture・LIFF mock・カード作成後 re-smoke。V01 は TASK-009 後。
+  3. FAIL→BUG ID。source-only は PASS にしない。
+  4. report 更新。
 - **Verification** (scoped only):
   - `rg -n '【要実測】' docs/ops/testing/scenarios/V*.md docs/ops/testing/scenarios/S*.md`
   - `rg -n '【要実測' docs/ops/testing/scenarios/V*.md docs/ops/testing/scenarios/S*.md`
-  - `docker compose ps`
-- **Non-actions / HOLD**: claim を無視した編集、証拠なしの mark 昇格、secret/PII 記録、full E2E、DB reset/migrate、本番 LINE 操作、claim 削除を行わない。
-- **Exit criteria for close**: exact/semantic 両 census が 0、または残り全件が ID 付き PO/BUG/明示 BLOCKED へ振分済みで、全 batch の実行記録が存在する。
-- **Evidence sources read**: `todo.md`, batch1–4 reports, live scenario files, current exact/prefix census, claim empty list。
+- **Non-actions / HOLD**: claim 無視、証拠なし昇格、secret 記録、full E2E、migrate/seed apply、claim 削除。
+- **Exit criteria for close**: census 0 または残り全件が ID 付き PO/BUG/明示 BLOCKED で batch 記録揃う。
+- **Evidence sources read**: todo, batch5 report, census 38/40, claims, Chrome。
 
 ### TASK-019: docs/spec/line/** deep 監査 follow-up（Medium / 任意）
 
@@ -329,12 +328,12 @@ validator_exit=0
 - **根拠**: 初回記録 `reports/2026-07-31-task-019-line-audit.md`。
 - **修正方針**: deep pass で差分を docs/BUG/要PO/ops に振分。秘密・本番 webhook 操作は対象外。
 - **受け入れ条件**: deep 結果1回記録; 新規 open は ID 付きまたは残差なし。
-- **状態**: **done**（deep: `reports/2026-07-31-task-019-line-deep-audit.md`）。**PO FINAL**: `reports/2026-07-31-line-residual-po-decisions-FINAL.md`（`3d448ec5e`）。**R-01** binding B（code/tests SoT + architecture 要約）— docs/test landed `a1abd4db8`（runtime-green 未主張）。**R-05** binding A-CI（SoT=`clinic_integrations`）— Phase A verifier cutover + **Phase B reservation secret write/read 撤去 done**（`reports/2026-07-31-r05-single-sot-phase-a.md` / `reports/2026-07-31-r05-single-sot-phase-b.md`）；production rollout gates + column DROP HOLD。**R-06/R-07** original child residual close; parent-container / `/lstep` wrapper honesty landed `a1abd4db8`（runtime-green 未主張）。**R-02/R-04/R-08** ops、**R-03**→TASK-010。claim: `claim/LINE-R-FIX` / `claim/LINE-PO-R01-R05` / `claim/LINE-PARENT-RBAC` / `claim/R-05-SOT` / `claim/R-05-PHASE-B`（USER 解放）。
+- **状態**: **done**（deep: `reports/2026-07-31-task-019-line-deep-audit.md`）。**PO FINAL**: `reports/2026-07-31-line-residual-po-decisions-FINAL.md`（`3d448ec5e`）。**R-01** binding B — docs/test landed `a1abd4db8`；**scoped BE re-green 2026-08-01**（`go test -p 1 ./internal/lstep ./internal/reservation ./cmd/api -run 'TestLineLinkService_HandleWebhook|…'` exit 0；runtime-green 未主張）。**R-05** Phase A+B code done / production inventory+rollout+DROP HOLD。**R-06/R-07** landed `a1abd4db8`；**scoped FE re-green 2026-08-01**（4 files / 13 tests PASS）。**R-02/R-04/R-08** ops、**R-03**→TASK-010。claim names historical: LINE claims **not live** on 2026-08-01 refs（stale 「USER 解放」prose only）。
 
 #### 実装プラン（2026-08-01・codebase調査）
 - **Ready**: READY_USER
 - **Owner lane**: ops-only
-- **Blockers (today)**: R-02/R-04/R-08はproduction/deploy evidence待ち。R-05はlegacy presence inventory未実施でrollout/DROP HOLD。LINE系live claim 3本が残る。
+- **Blockers (today)**: R-02/R-04/R-08はproduction/deploy evidence待ち。R-05はlegacy presence inventory未実施でrollout/DROP HOLD。LINE claim refs は live では **0**（ledger 旧 prose は stale）。
 - **Preconditions**: ops owner、対象環境、secret-safe evidence channelを指定する。agent editが必要ならlive claimsのownerを確認し、値/hash/暗号文を成果物へ残さない。
 - **Code anchors** (file:line or path globs from live tree): `backend/internal/lstep/line_link_service.go:295-447`, `backend/cmd/api/composition_reservation_test.go:96-130`, `backend/internal/model/line_reservation_setting.go:32-36`, `frontend/src/components/shared/Layout/{sidebar-menu.tsx,SidebarItems.tsx}`, `frontend/liff/src/lib/liff-config.ts`, `frontend/line-reserve/src/App.tsx:61-77`。
 - **Convention anchors** (rule doc paths): `docs/spec/line/CLAUDE.md`, `docs/ops/deploy/LSTEP_WRITE_API_PAUSE.md`, `docs/product-philosophy.md`, `.claude/CLAUDE.md` secret/production boundaries。
@@ -353,12 +352,12 @@ validator_exit=0
 
 - **問題**: inventory 84 静的更新後の full runtime 未実施。
 - **修正方針**: env 可なら `ui-design-compliance-readonly.spec.ts` workers=1。結果を reports へ。
-- **状態**: **env-forward done / runtime credentials BLOCKED**（2026-07-31 next orch）。`run-e2e.sh` が host に設定時のみ `E2E_LOGIN_EMAIL` / `E2E_LOGIN_PASSWORD`（+ optional `E2E_AUTH_STATE_PATH`）を name-only `-e` で Playwright docker へ転送。証拠: `reports/2026-07-31-task-020-env-forward.md`。prior runtime: 4p/3f/86 DNR（`reports/2026-07-31-task-020-runtime.md`）。host が EMAIL_UNSET/PASSWORD_UNSET のため再 runtime 未実施。full green 未達。claim: `claim/TASK-020` + `claim/W-020-ENV`（USER 解放）。
+- **状態**: **env-forward done / runtime credentials BLOCKED**（2026-08-01 reconfirm）。`run-e2e.sh` が host に設定時のみ `E2E_LOGIN_EMAIL` / `E2E_LOGIN_PASSWORD`（+ optional `E2E_AUTH_STATE_PATH`）を name-only `-e` で Playwright docker へ転送。証拠: `reports/2026-07-31-task-020-env-forward.md`。prior runtime: 4p/3f/86 DNR（`reports/2026-07-31-task-020-runtime.md`）。**name-only preflight 2026-08-01: EMAIL=UNSET / PASSWORD=UNSET** → authenticated re-run 未実施。full green 未達（4 public passes を green と呼ばない）。claim/TASK-020 + W-020-ENV: **not live** on refs（stale live wording falsified）。
 
 #### 実装プラン（2026-08-01・codebase調査）
 - **Ready**: READY_USER
 - **Owner lane**: USER
-- **Blockers (today)**: hostの認証env未注入。`claim/TASK-020` / `claim/W-020-ENV` がlive。前回は93 selected中4 passed / 3 failed / 86 did not runでfull green未達。
+- **Blockers (today)**: hostの認証env未注入（name-only UNSET）。前回は93 selected中4 passed / 3 failed / 86 did not runでfull green未達。
 - **Preconditions**: USERがsecret channelからhost/CIへ必要envを注入し、値を出さず非空だけ確認する。claim holderまたはUSERが実行windowとevidence ownerを決める。
 - **Code anchors** (file:line or path globs from live tree): `frontend/scripts/run-e2e.sh:28-46`, `frontend/e2e/helpers/auth.ts:4-17`, `frontend/playwright.config.ts:3-26`, `frontend/e2e/ui-design-compliance-readonly.spec.ts:447-646`, `frontend/src/app/routes/route-inventory.test.tsx:46-55`。
 - **Convention anchors** (rule doc paths): `frontend/e2e/README.md`, `frontend/CLAUDE.md`, `.claude/CLAUDE.md` secret/Docker/scoped rules。
@@ -379,12 +378,12 @@ validator_exit=0
 - **問題**: Stage B で facade 化済み。exclusion route/payload/model/table の最終撤去が残る。
 - **修正方針**: **consumer inventory + 破壊変更の明示承認後**に Stage A（FINAL 参照）。新 endpoint は追加しない。`available-staffs` は WONTFILE。
 - **受け入れ条件**: exclusion production surface 削除; migration あり; Stage B 互換 consumer が無いこと inventory で証明。
-- **状態**: **Phase1 FE residual SAFE-CLEANUP done / Phase2 slice1+slice2 COMPLETE / in-repo FE ZERO_IN_REPO / external use UNREPORTED / CLEAN-GO·DROP·migrate HOLD**。Stage B: `e9dddd921`。決裁: `reports/2026-07-31-todo-po-decisions-FINAL.md` + LINE residual FINAL（021 Phase2）。inventory: `reports/2026-07-31-task-021-stage-a-inventory.md`。Phase1: `reports/2026-07-31-task-021-phase1-consumer-prep.md`。Phase2 slice1: `reports/2026-07-31-task-021-phase2-slice1.md`。Phase2 slice2: `reports/2026-07-31-task-021-phase2-slice2.md`（staff Create/Update で `excluded_type_ids` hard-reject；exclusion routes/table/response KEEP）。次は USER external inventory または破壊変更承認後の CLEAN-GO のみ。claim: `claim/TASK-021` + `claim/W-021-P1` + `claim/TASK-021-P2` + `claim/TASK-021-S2`（USER 解放）。
+- **状態**: **Phase1 FE residual SAFE-CLEANUP done / Phase2 slice1+slice2 COMPLETE / in-repo FE ZERO_IN_REPO / external use UNREPORTED / CLEAN-GO·DROP·migrate HOLD**。Stage B: `e9dddd921`。決裁: `reports/2026-07-31-todo-po-decisions-FINAL.md` + LINE residual FINAL（021 Phase2）。inventory: `reports/2026-07-31-task-021-stage-a-inventory.md`。Phase1/Phase2 reports 済。**2026-08-01 inventory reconfirm**: exclusion routes/table/model/OpenAPI/response 生存；FE production consumer ZERO；`excluded_type_ids` hard-reject KEEP。次は USER external inventory または破壊変更承認後の CLEAN-GO のみ。claim/TASK-021 family: **not live** on refs（blocker の claim 半分は stale）。
 
 #### 実装プラン（2026-08-01・codebase調査）
-- **Ready**: BLOCKED(external use UNREPORTED・破壊承認未取得・`claim/TASK-021`)
+- **Ready**: BLOCKED(external use UNREPORTED・破壊承認未取得)
 - **Owner lane**: AGENT→USER
-- **Blockers (today)**: legacy endpoint外部利用ゼロが未証明。CLEAN-GO/DROP承認がなく、live claimsがある。route/OpenAPI/model/table/RLS/seed/export/test surfaceは現HEADで生存。
+- **Blockers (today)**: legacy endpoint外部利用ゼロが未証明。CLEAN-GO/DROP承認がない。route/OpenAPI/model/table/RLS/seed/export/test surfaceは現HEADで生存。
 - **Preconditions**: USER/opsがaccess log、client registry、既知利用者でdeprecation終了を証明し、CLEAN-GOとDROP authorを別々に承認する。claim ownerを確定する。
 - **Code anchors** (file:line or path globs from live tree): `backend/internal/staff/handler.go:209-212`, `backend/internal/staff/{staff_handler.go,staff_service_permissions.go,ports.go}`, `backend/internal/reservation/{reservation_staff_request.go,reservation_staff_service.go,reservation_staff_repository.go}`, `backend/internal/model/staff_reservation_exclusion.go`, `backend/docs/api.yaml:6544-6547`, `backend/migrations/001_init.sql:2655-2663`, `backend/cmd/seed-export/tables.go:40-47`。
 - **Convention anchors** (rule doc paths): `reports/2026-07-31-line-residual-po-decisions-FINAL.md:129-147`, `backend/migrations/CLAUDE.md`, `.agents/skills/migration-seed-safety/SKILL.md`, `.claude/rules/go-gin-backend-guidelines.md`, `docs/product-philosophy.md`。
@@ -404,14 +403,14 @@ validator_exit=0
 ### TASK-022: #239 Phase 1 closeout と代表手動 correction gate（High）
 
 - **対応 Issue**: GitHub Issue #239（live state は CLOSED。未充足の受け入れ条件を local New Work として追跡）。
-- **状態**: **agent source closeout done / human residual open**（2026-07-31）。`CreatePetGroup` の any-member fallback を除去し、親 owner-group の anchor + 全 active member clinic を actor に要求する regression を green（`go test -p 1 ./internal/identitylink ./internal/apicontract -count=1`）。Phase 2 未着手。証拠: `reports/2026-07-31-task-022-identity-link-closeout.md`、S13: `docs/ops/testing/scenarios/S13-identity-links-manual-correction.md`。security review PASS。
+- **状態**: **agent source closeout done / human residual open**（2026-07-31）。`CreatePetGroup` fallback 除去 + regression。**scoped re-green 2026-08-01**: `docker compose exec -T backend go test -p 1 ./internal/identitylink ./internal/apicontract -count=1` → both packages **ok** exit 0。Phase 2 未着手。証拠: `reports/2026-07-31-task-022-identity-link-closeout.md`、S13: `docs/ops/testing/scenarios/S13-identity-links-manual-correction.md`。
 - **残 human**: named operator の 2 医院 link→history→unlink→relink 実施と named signer 承認；RLS runtime を実 application role で証明（未なら UNREPORTED のまま Phase 2 禁止）。
-- **claim**: `claim/TASK-022`（USER が main 統合確認後に解放）。
+- **claim**: `claim/TASK-022` — **not live**（ledger と一致）。
 
 #### 実装プラン（2026-08-01・codebase調査）
 - **Ready**: READY_USER
 - **Owner lane**: USER
-- **Blockers (today)**: named S13 operator/signer evidenceとreal application-role RLS runtime proofが未取得。Phase 2はBLOCKED。ledger記載の`claim/TASK-022`はlive branchに存在しない。
+- **Blockers (today)**: named S13 operator/signer evidenceとreal application-role RLS runtime proofが未取得。Phase 2はBLOCKED。
 - **Preconditions**: non-production/local-STG data、2医院を扱えるnamed operator、named signer、RLS実測可能なOps/DBAと証跡様式を確保する。
 - **Code anchors** (file:line or path globs from live tree): `backend/internal/identitylink/service.go:443-486`, `backend/internal/identitylink/service.go:864-882`, `backend/internal/identitylink/service_test.go:495-638`, `backend/internal/model/identity_link_rls_migration_test.go:10-13`, `backend/internal/persistence/{rls_effectiveness_test.go,rls_role_privilege_test.go}`。
 - **Convention anchors** (rule doc paths): `.claude/refs/backend-application-invariants.md`, `backend/CLAUDE.md`, `docs/ops/testing/scenarios/S13-identity-links-manual-correction.md`。
@@ -429,14 +428,14 @@ validator_exit=0
 ### TASK-023: #254 5業務フロー UAT 統合証跡（High）
 
 - **対応 Issue**: GitHub Issue #254。
-- **状態**: **agent 証跡骨格 done / human residual open**（2026-07-31）。統合 report: `docs/ops/testing/scenarios/reports/2026-07-31-local-issue-254.md`。env health PASS；`E2E_LOGIN_*` 未注入で authenticated E2E **BLOCKED**（EXIT:1、値非出力）；5 フロー step 全行に status/executor/env/evidence/owner；agent と human 欄分離；`confusion_count: 0`。#254 は human 揃うまで完了扱いしない。
+- **状態**: **agent 証跡骨格 done / human residual open**（2026-07-31）。統合 report: `docs/ops/testing/scenarios/reports/2026-07-31-local-issue-254.md`。env health PASS；**2026-08-01 name-only: E2E_LOGIN_EMAIL/PASSWORD=UNSET** → authenticated E2E **BLOCKED**（launch しない）；5 フロー human 欄 PENDING；`confusion_count: 0` 単独では close 不可。#254 は human 揃うまで完了扱いしない。
 - **残 human**: USER が secret channel で `E2E_LOGIN_*` 注入後 E2E 実行；QA が 5 フローブラウザ通し・DB/audit 目視・実 LINE/LIFF；PO/現場の使い勝手 sign-off と FAIL 処分承認。
-- **claim**: `claim/TASK-023`（USER 解放）。
+- **claim**: `claim/TASK-023` — **not live**。
 
 #### 実装プラン（2026-08-01・codebase調査）
 - **Ready**: READY_USER
 - **Owner lane**: USER
-- **Blockers (today)**: authenticated E2E credentials未注入、QA/LINE owner/POのhuman evidence未取得。ledger記載の`claim/TASK-023`はlive branchに存在しない。
+- **Blockers (today)**: authenticated E2E credentials未注入、QA/LINE owner/POのhuman evidence未取得。
 - **Preconditions**: USER secret injection、QA lead、LINE setting owner、PO/現場責任者、非PII evidence場所と同一実行windowを確保する。
 - **Code anchors** (file:line or path globs from live tree): `frontend/scripts/run-e2e.sh:30-46`, `frontend/e2e/helpers/auth.ts:8-17`, `frontend/e2e/{clinical-flows,examinations-flow,accounting-flow,reservations-smoke,trimming-flow,line-reservation-flow}.spec.ts`, `docs/ops/testing/scenarios/reports/2026-07-31-local-issue-254.md`。
 - **Convention anchors** (rule doc paths): `frontend/e2e/README.md`, `docs/ops/testing/CLAUDE.md`, `.claude/CLAUDE.md` secret/runtime boundaries。
@@ -454,14 +453,14 @@ validator_exit=0
 ### TASK-024: #256 現行 screenshot / FAQ finalization（Medium）
 
 - **対応 Issue**: GitHub Issue #256。
-- **状態**: **agent audit + FAQ disposition done / human visual sign-off open**（2026-07-31）。10/10 current/replace 判定。replace 7 枚のうち **4 枚のみ採用**（`02` / `06` / `13` / `14`）。`05` / `07` / `10` はフルシード由来の飼主氏名・ペット ID が写り込んだため受領検証で差し戻し（`254fdc2f3`）— 該当 3 画面の文書不一致は未解消で、クリーンシード環境での再撮影が必要。FAQ は TASK-023 `confusion_count: 0` に基づき **追記不要**（`10-troubleshooting.md` 変更なし）。証拠: `reports/2026-07-31-task-024-manual-audit.md`。vitest manual 18 tests PASS。manual-flow E2E は env 未注入で BLOCKED。
+- **状態**: **agent audit + FAQ disposition done / human visual sign-off open**（2026-07-31）。10/10 current/replace 判定。replace **4 採用**（`02`/`06`/`13`/`14`）；`05`/`07`/`10` clean-seed 再撮影待ち。FAQ **追記不要**。証拠: `reports/2026-07-31-task-024-manual-audit.md`。**manual vitest re-green 2026-08-01**: 5 files / **18 tests PASS**。manual-flow E2E は E2E_LOGIN_* UNSET で BLOCKED。
 - **残 human**: named documentation owner の visual/content sign-off；任意で `19-aggregation` / `04-medical-records` 再撮影。
-- **claim**: `claim/TASK-024`（USER 解放）。
+- **claim**: `claim/TASK-024` — **not live**。
 
 #### 実装プラン（2026-08-01・codebase調査）
 - **Ready**: READY_USER
 - **Owner lane**: USER
-- **Blockers (today)**: clean-seed版`05`/`07`/`10`再撮影とnamed documentation owner sign-offが未取得。manual-flow E2Eはcredential待ち。ledger記載の`claim/TASK-024`はlive branchに存在しない。
+- **Blockers (today)**: clean-seed版`05`/`07`/`10`再撮影とnamed documentation owner sign-offが未取得。manual-flow E2Eはcredential待ち。
 - **Preconditions**: full seed/PII-bearing DBを使わないclean seed環境、承認済み撮影者、named documentation owner、必要ならE2E secret injectionを確保する。
 - **Code anchors** (file:line or path globs from live tree): `frontend/src/features/manual/content/screens/{05-accounting,06-reservations,07-examinations,10-trimming,13-cash-register,14-accounting-reports,19-aggregation}.md`, `frontend/e2e/manual-flow.spec.ts`, manual feature tests。
 - **Convention anchors** (rule doc paths): `frontend/src/features/manual/CLAUDE.md`, `frontend/CLAUDE.md`, `docs/product-philosophy.md`, `.claude/CLAUDE.md` privacy boundary。
@@ -505,42 +504,30 @@ validator_exit=0
 
 - **対応 Issue**: GitHub Issue #249。
 - **問題**: confirm が親 status を先に更新して item replace を自己拒否し得る。confirmed delete に status guard がなく、既存 status conflict は 400 相当。parent examination の create/update/confirm/delete は authenticated actor と application audit を持たない。
-- **状態**: **READY_AGENT / P0**。設計は `q&a.html` DEC-53。
-- **claim**: `claim/TASK-026` — **not live**（2026-08-01 USER 解放済み。起票時の過剰取得を是正したもので、本タスクは未着手）。
+- **状態**: **IMPLEMENTED_UNMERGED / READY_USER_INTEGRATE**。実装コミット `2a8aca33c1848613e7c3ccd9ffa2f2a4e3c9ad5e`（`codex/task-026`）は作成済みだが、2026-08-01 の ancestry 再確認では `main` 未到達のため close/delete しない。
+- **claim**: `claim/TASK-026` — **live**。`main` 統合後に USER が解放する（agent は削除しない）。
 
-#### 実装プラン（2026-08-01・readiness dossier）
-- **Ready**: READY_AGENT
-- **Owner lane**: backend medicalrecord / audit transaction
-- **Blockers (today)**: なし。clinical range と external import は別 gate。
-- **Preconditions**: `backend/CLAUDE.md`、clinic isolation、DBOrTx/audit conventions、DEC-53 を読む。
-- **Code anchors**: `backend/internal/medicalrecord/examination_service.go:177,239-299,506,588-625`, `examination_repository.go:155-166,293-306`, `examination_handler.go:191`, `backend/internal/model/audit_log.go:92`, existing examination service/repository/handler tests。
-- **Steps**:
-  1. RED: initial confirm + item persistence success、confirmed update/delete conflict、create/update/confirm/delete の actor + before/after audit、audit dependency/failure rollback を追加する。
-  2. 元 status を clinic-scoped lock し、items/range 検証・置換後に最後に confirmed へ遷移する。
-  3. confirmed update/delete を Conflict 409 contract に統一し、explicit authorized unconfirm なしの mutation を拒否する。
-  4. authenticated actor を handler→service へ明示伝播し、parent create/update/confirm/delete の operation、before/after、reason を audit event として追加する。
-  5. 各 parent mutation、status 判定、audit、soft delete を同一 transaction に置き、audit dependency 不在または write failure は全 rollback する。
-- **Verification** (scoped only):
-  - `docker compose exec -T backend go test -p 1 ./internal/medicalrecord/... -run 'Test.*Examination.*(Create|Update|Confirm|Delete|Audit)|Test.*ReplaceItems' -count=1`
-  - `docker compose exec -T backend go test -p 1 ./internal/medicalrecord/... -run 'TestLabImportExaminationService_PersistExam_(SameDayDifferentContentNotDuplicate|FullIdenticalContentIsDuplicate)|TestLabImportDuplicateCheckerDB_IsDuplicate_FullIdenticalOnly' -count=1`
-  - `docker compose exec -T frontend npx vitest run src/features/examinations/api/transforms.test.ts src/features/examinations/components/ExamPivotTable.test.tsx`
-  - `docker compose exec -T backend go test -p 1 ./internal/apicontract -count=1`
-- **Non-actions / HOLD**: migration、clinical range 値、external import、auto-commit enable、Issue close、claim 削除を行わない。
-- **Exit criteria for close**: confirm transaction が自己拒否せず、confirmed mutation が 409、全 parent mutation に actor/before/after audit があり、audit と write が atomic、clinic_id scope と rollback regression が green。
-- **Evidence sources read**: dossier Issue #249、DEC-53、live examination source/tests。
+#### 実施結果（2026-08-01・TASK-026 unit）
+- **Ready**: READY_USER_INTEGRATE
+- **Delivered**: confirm は items/range の検証・保存後に最後に `confirmed` へ遷移。confirmed update/delete/items mutation は 409。create/update/confirm/delete は authenticated actor と before/after snapshot を持つ transaction-bound audit を記録し、audit failure は全 rollback。clinic/pet/record correlation は fail-closed。
+- **Verification**: backend medicalrecord primary + lab regression + full package PASS（coverage **91.8%**）、frontend examinations **3 files / 61 tests PASS**、`internal/apicontract` PASS、`go vet` PASS、`cmd/api` compile PASS、changed-diff golangci-lint **0 issues**、`git diff --check` PASS。
+- **Verification boundary**: `internal/model` 全体は既存の `CashRegisterClose.deleted_at` test-schema drift により full green を主張しない。TASK-026 で変更した audit model regression は PASS。
+- **Independent review**: Go / clinic isolation / healthcare / database は PASS。security / acceptance は APPROVE-WITH-NOTE（repository 直呼びに defensive confirmed guard はないが、production call graph は service 経由で blocking finding なし）。
+- **Integration gate**: USER が `2a8aca33c` を `main` に統合し、到達性を確認するまでは TASK-026 を open に保ち、TASK-027/031/032 は dependency wait のまま。
+- **Non-actions / HOLD**: migration、clinical range 値、external import、auto-commit enable、Issue close、claim 削除、push/merge は未実施。
 
 ### TASK-027: #249 手動検査の結果行操作・患者変更・confirmed→completed 確定解除（High）
 
 - **対応 Issue**: GitHub Issue #249。
 - **問題**: manual workflow の row add/delete、confirm 前 patient change、権限付き確定解除が未完。現行 examination status に <code>unconfirmed</code>/<code>cancelled</code> はなく、lab import job の取消と混ぜてはならない。
-- **状態**: **READY_AFTER_TASK-026**。TASK-026 の immutable confirmed contract を前提とする。
+- **状態**: **READY_AFTER_TASK-026_INTEGRATION**。実装コミット `2a8aca33c` は存在するが、`main` 未統合のため dependency wait。
 - **claim**: `claim/TASK-027` — **not live**（2026-08-01 USER 解放済み。起票時の過剰取得を是正したもので、本タスクは未着手）。
 
 #### 実装プラン（2026-08-01・readiness dossier）
-- **Ready**: READY_AGENT_AFTER_DEPENDENCY
+- **Ready**: READY_AGENT_AFTER_DEPENDENCY_INTEGRATION
 - **Owner lane**: backend medicalrecord + frontend examinations
-- **Blockers (today)**: TASK-026。print は TASK-031、lab import revert は TASK-032。external file/crosswalk、clinical range、auto-commit は対象外。
-- **Preconditions**: TASK-026 green、DEC-57、Issue #249 の current AC、既存 examination RBAC/audit contract を再読する。
+- **Blockers (today)**: TASK-026 commit `2a8aca33c` の `main` 統合。print は TASK-031、lab import revert は TASK-032。external file/crosswalk、clinical range、auto-commit は対象外。
+- **Preconditions**: TASK-026 が `main` から reachable、DEC-57、Issue #249 の current AC、既存 examination RBAC/audit contract を再読する。
 - **Code anchors**: `frontend/src/features/examinations/components/ExamItemsTable.tsx:91-98`, `backend/internal/medicalrecord/routes.go:360-371`, `backend/internal/medicalrecord/examination_service.go`, `backend/internal/model/examination_record.go:10-17`, examination feature tests。
 - **Steps**:
   1. 現行 status（pending/in_progress/result_entered/completed/confirmed）× row/pet/unconfirm operation × permission × audit の matrix を test fixture に固定し、存在しない状態を追加しない。
@@ -665,14 +652,14 @@ validator_exit=0
 
 - **対応 Issue**: GitHub Issue #249 F-5a。
 - **問題**: 飼主説明・他院添付・院内保管向け print surface が未完。画面 state や FE 再計算を印刷正本にすると保存済み臨床記録と不一致になり得る。
-- **状態**: **READY_AFTER_TASK-026**。TASK-026 の immutable/audit contract を前提とする。
+- **状態**: **READY_AFTER_TASK-026_INTEGRATION**。実装コミット `2a8aca33c` は存在するが、`main` 未統合のため dependency wait。
 - **claim**: `claim/TASK-031` — **not live**（2026-08-01 USER 解放済み。起票時の過剰取得を是正したもので、本タスクは未着手）。
 
 #### 実装プラン（2026-08-01・readiness dossier）
-- **Ready**: READY_AGENT_AFTER_DEPENDENCY
+- **Ready**: READY_AGENT_AFTER_DEPENDENCY_INTEGRATION
 - **Owner lane**: frontend examinations / print presentation
-- **Blockers (today)**: TASK-026。臨床 range の新規推測、manual unconfirm、lab import revert は対象外。
-- **Preconditions**: DEC-53/57、Issue #249 F-5a、`PrintPortal` の既存利用例、#229 の飼主向け表現境界を読む。
+- **Blockers (today)**: TASK-026 commit `2a8aca33c` の `main` 統合。臨床 range の新規推測、manual unconfirm、lab import revert は対象外。
+- **Preconditions**: TASK-026 が `main` から reachable、DEC-53/57、Issue #249 F-5a、`PrintPortal` の既存利用例、#229 の飼主向け表現境界を読む。
 - **Code anchors**: `frontend/src/components/shared/PrintPortal.tsx`, `frontend/src/features/examinations/components/ExamPivotTable.tsx`, `frontend/src/features/examinations/api/get-examination-items.ts`, examinations feature tests。
 - **Steps**:
   1. RED: 保存済み examination/items snapshot だけを入力にし、実施項目のみ、欠測、定性値、日付/単位を表示する print component test を追加する。
@@ -689,14 +676,14 @@ validator_exit=0
 
 - **対応 Issue**: GitHub Issue #249 F-3c(a)。
 - **問題**: persisted import job を取消す endpoint/状態がなく、手動 examination の確定解除と混ぜると status・permission・audit・rollback の意味が不定になる。
-- **状態**: **READY_AFTER_TASK-026 / migration review required**。設計は DEC-57。
+- **状態**: **READY_AFTER_TASK-026_INTEGRATION / migration review required**。実装コミット `2a8aca33c` は存在するが、`main` 未統合のため dependency wait。設計は DEC-57。
 - **claim**: `claim/TASK-032` — **not live**（2026-08-01 USER 解放済み。起票時の過剰取得を是正したもので、本タスクは未着手）。
 
 #### 実装プラン（2026-08-01・readiness dossier）
-- **Ready**: READY_AGENT_AFTER_DEPENDENCY
+- **Ready**: READY_AGENT_AFTER_DEPENDENCY_INTEGRATION
 - **Owner lane**: backend medicalrecord / lab import compensation
-- **Blockers (today)**: TASK-026。migration-seed-safety と database review を開始時に通す。external format/auto-commit enable は対象外。
-- **Preconditions**: DEC-53/57、`backend/migrations/CLAUDE.md`、clinic isolation、DBOrTx/audit conventions、lab import transition table を読む。
+- **Blockers (today)**: TASK-026 commit `2a8aca33c` の `main` 統合。migration-seed-safety と database review を開始時に通す。external format/auto-commit enable は対象外。
+- **Preconditions**: TASK-026 が `main` から reachable、DEC-53/57、`backend/migrations/CLAUDE.md`、clinic isolation、DBOrTx/audit conventions、lab import transition table を読む。
 - **Code anchors**: `backend/internal/model/lab_import.go:10-21`, `backend/internal/medicalrecord/lab_import_service.go:15-29`, `backend/internal/model/examination_record.go:32-43`, `backend/internal/medicalrecord/routes.go:373-388`, lab import service/repository tests。
 - **Steps**:
   1. RED: clinic-scoped persisted job の revert success、wrong-clinic/invalid-state/second-revert 409、reason/actor/audit dependency 欠落、linked confirmed exam conflict、audit failure rollback を追加する。
