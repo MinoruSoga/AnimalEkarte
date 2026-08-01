@@ -94,7 +94,14 @@ const (
 
 	// BE-refactor.md R1-2 (D1): 検査結果値（exam_results）の置換（既存削除を伴う PUT）監査アクション。
 	// checkup_field_result と同型の tx 内 fail-closed 監査。
-	AuditActionExamResultReplace                   = "exam_result.replace"
+	AuditActionExamResultReplace = "exam_result.replace"
+	// #249 / DEC-53: parent examination mutation は authenticated actor と before/after を
+	// mutation と同じ transaction で記録する。confirm は update と分離して状態遷移を識別する。
+	AuditActionExaminationCreate  = "examination.create"
+	AuditActionExaminationUpdate  = "examination.update"
+	AuditActionExaminationConfirm = "examination.confirm"
+	AuditActionExaminationDelete  = "examination.delete"
+
 	AuditActionPetOwnerReplace                     = "pet_owner.replace"
 	AuditActionHospitalizationDischargeWithBilling = "hospitalization.discharge_with_billing"
 
@@ -123,7 +130,10 @@ const (
 	// #211 健診パッケージ型付き結果値の置換（既存削除を伴う）監査
 	AuditResourceCheckupFieldResult = "checkup_field_result"
 	// BE-refactor.md R1-2: 検査結果値の置換（既存削除を伴う）監査
-	AuditResourceExamResult      = "exam_result"
+	AuditResourceExamResult = "exam_result"
+	// #249 / DEC-53: parent exams row の create/update/confirm/delete 監査。
+	AuditResourceExamination = "examination"
+
 	AuditResourceReservation     = "reservation"
 	AuditResourceHospitalization = "hospitalization"
 	AuditResourceTrimming        = "trimming"

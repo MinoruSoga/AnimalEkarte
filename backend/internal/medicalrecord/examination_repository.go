@@ -302,7 +302,7 @@ func (r *examinationRepository) ReplaceItemsByExamID(ctx context.Context, clinic
 			return apperrors.FromGORM(err, "exam", fmt.Sprintf("%d", examID))
 		}
 		if exam.Status == model.ExaminationStatusConfirmed {
-			return apperrors.WrapInvalidInput("確定済みの検査は編集できません")
+			return apperrors.WrapConflict("確定済みの検査は編集できません")
 		}
 
 		// 既存 items を全削除（exam_results は CASCADE では消えないため明示削除）

@@ -26,13 +26,13 @@
 | SPEC-TOP-CAPABILITIES-CRUD | exclusion 面の破壊削除 | **TASK-021 Stage A**（Phase1 done; Phase2 slice1+slice2 complete; FE ZERO_IN_REPO / external UNREPORTED; CLEAN-GO/DROP HOLD） |
 | SPEC-TOP-CLAIM-RELEASE | claim 解放 | **SCEN-OPS-CLAIM-001** |
 | ISSUE-201-DOSE-LOOKUP | dose parameter 取得障害の silent fallback | **TASK-025**（READY_AGENT・臨床値は別 gate） |
-| ISSUE-249-CONFIRMED-LOCK | confirmed 検査の更新/削除 lock・audit | **TASK-026**（IMPLEMENTED_UNMERGED・`2a8aca33c`・統合は USER） |
-| ISSUE-249-MANUAL-LIFECYCLE | 手動検査 edit / confirmed→completed 確定解除 | **TASK-027**（TASK-026 main 統合後） |
+| ISSUE-249-CONFIRMED-LOCK | confirmed 検査の更新/削除 lock・audit | **TASK-026**（DONE `2a8aca33c`・`main` 統合済み） |
+| ISSUE-249-MANUAL-LIFECYCLE | 手動検査 edit / confirmed→completed 確定解除 | **TASK-027**（READY_AGENT） |
 | ISSUE-252-STANDARD-PATCH | 締め設定 standard PATCH の validation/audit | **TASK-028**（DONE `bbf82e2b8`・値投入は USER） |
 | ISSUE-259-DOC-CONTRACT | Lステップ disabled 時の旧 noop 文書 | **TASK-029**（DONE・`9fc5b9ffb` push 済。残は先方 enable + USER runtime 実測） |
 | ISSUE-261-TRIMMING-DECEASED | trimming 死亡ペット拒否の経路別回帰 | **TASK-030**（DONE `6e5a945ef`・runtime は USER） |
-| ISSUE-249-PRINT-SNAPSHOT | 検査結果の保存 snapshot 印刷 | **TASK-031**（TASK-026 main 統合後） |
-| ISSUE-249-IMPORT-REVERT | lab import job の compensating revert | **TASK-032**（TASK-026 main 統合後・migration review 必須） |
+| ISSUE-249-PRINT-SNAPSHOT | 検査結果の保存 snapshot 印刷 | **TASK-031**（READY_AGENT） |
+| ISSUE-249-IMPORT-REVERT | lab import job の compensating revert | **TASK-032**（READY_AGENT・migration review 必須） |
 | ISSUE-201-EMERGENCY-ADMIN | 構造化救急投薬記録と欠落時 fail-closed cutover | **TASK-033**（臨床承認・migration review 後） |
 
 ### 対応済み（削除済み・再掲しない）
@@ -504,8 +504,8 @@ validator_exit=0
 
 - **対応 Issue**: GitHub Issue #249。
 - **問題**: confirm が親 status を先に更新して item replace を自己拒否し得る。confirmed delete に status guard がなく、既存 status conflict は 400 相当。parent examination の create/update/confirm/delete は authenticated actor と application audit を持たない。
-- **状態**: **IMPLEMENTED_UNMERGED / READY_USER_INTEGRATE**。実装コミット `2a8aca33c1848613e7c3ccd9ffa2f2a4e3c9ad5e`（`codex/task-026`）は作成済みだが、2026-08-01 の ancestry 再確認では `main` 未到達のため close/delete しない。
-- **claim**: `claim/TASK-026` — **live**。`main` 統合後に USER が解放する（agent は削除しない）。
+- **状態**: **DONE**（実装 `2a8aca33c`。2026-08-01 に `--no-ff` merge で `main` へ統合。todo.md の 5 箇所を手動解決）。
+- **claim**: `claim/TASK-026` — **live**。統合済みのため解放可能（削除は USER 専権）。
 
 #### 実施結果（2026-08-01・TASK-026 unit）
 - **Ready**: READY_USER_INTEGRATE
@@ -513,21 +513,21 @@ validator_exit=0
 - **Verification**: backend medicalrecord primary + lab regression + full package PASS（coverage **91.8%**）、frontend examinations **3 files / 61 tests PASS**、`internal/apicontract` PASS、`go vet` PASS、`cmd/api` compile PASS、changed-diff golangci-lint **0 issues**、`git diff --check` PASS。
 - **Verification boundary**: `internal/model` 全体は既存の `CashRegisterClose.deleted_at` test-schema drift により full green を主張しない。TASK-026 で変更した audit model regression は PASS。
 - **Independent review**: Go / clinic isolation / healthcare / database は PASS。security / acceptance は APPROVE-WITH-NOTE（repository 直呼びに defensive confirmed guard はないが、production call graph は service 経由で blocking finding なし）。
-- **Integration gate**: USER が `2a8aca33c` を `main` に統合し、到達性を確認するまでは TASK-026 を open に保ち、TASK-027/031/032 は dependency wait のまま。
+- **Integration gate**: 2026-08-01 に `main` へ統合済み（到達性は `git merge-base --is-ancestor 2a8aca33c HEAD` で確認）。TASK-027/031/032 の dependency wait は解除された。
 - **Non-actions / HOLD**: migration、clinical range 値、external import、auto-commit enable、Issue close、claim 削除、push/merge は未実施。
 
 ### TASK-027: #249 手動検査の結果行操作・患者変更・confirmed→completed 確定解除（High）
 
 - **対応 Issue**: GitHub Issue #249。
 - **問題**: manual workflow の row add/delete、confirm 前 patient change、権限付き確定解除が未完。現行 examination status に <code>unconfirmed</code>/<code>cancelled</code> はなく、lab import job の取消と混ぜてはならない。
-- **状態**: **READY_AFTER_TASK-026_INTEGRATION**。実装コミット `2a8aca33c` は存在するが、`main` 未統合のため dependency wait。
+- **状態**: **READY_AGENT**。TASK-026 の immutable confirmed contract は実装済み。
 - **claim**: `claim/TASK-027` — **not live**（2026-08-01 USER 解放済み。起票時の過剰取得を是正したもので、本タスクは未着手）。
 
 #### 実装プラン（2026-08-01・readiness dossier）
-- **Ready**: READY_AGENT_AFTER_DEPENDENCY_INTEGRATION
+- **Ready**: READY_AGENT
 - **Owner lane**: backend medicalrecord + frontend examinations
-- **Blockers (today)**: TASK-026 commit `2a8aca33c` の `main` 統合。print は TASK-031、lab import revert は TASK-032。external file/crosswalk、clinical range、auto-commit は対象外。
-- **Preconditions**: TASK-026 が `main` から reachable、DEC-57、Issue #249 の current AC、既存 examination RBAC/audit contract を再読する。
+- **Blockers (today)**: なし。print は TASK-031、lab import revert は TASK-032。external file/crosswalk、clinical range、auto-commit は対象外。
+- **Preconditions**: DEC-53/TASK-026 regression、DEC-57、Issue #249 の current AC、既存 examination RBAC/audit contract を再読する。
 - **Code anchors**: `frontend/src/features/examinations/components/ExamItemsTable.tsx:91-98`, `backend/internal/medicalrecord/routes.go:360-371`, `backend/internal/medicalrecord/examination_service.go`, `backend/internal/model/examination_record.go:10-17`, examination feature tests。
 - **Steps**:
   1. 現行 status（pending/in_progress/result_entered/completed/confirmed）× row/pet/unconfirm operation × permission × audit の matrix を test fixture に固定し、存在しない状態を追加しない。
@@ -545,7 +545,7 @@ validator_exit=0
 
 - **対応 Issue**: GitHub Issue #252 の OPS apply から分離した technical gap。
 - **問題**: standard update は read-modify-save で全設定列を upsert する。special period 相当の boundary validation、actor/audit/transactor、row lock/CAS がなく、並行 partial PATCH が相互に上書きされ得る。
-- **状態**: **DONE**（`bbf82e2b8`、2026-08-01 land・未 push）。投入値は変更せず、production apply は USER。runtime green は未主張。
+- **状態**: **DONE**（`bbf82e2b8`、2026-08-01 land・push 済）。投入値は変更せず、production apply は USER。runtime green は未主張。
 - **claim**: `claim/TASK-028` — **live**（実装 unit が取得。`main` 統合後に USER が解放する）。
 
 #### 実装プラン（2026-08-01・readiness dossier）
@@ -617,7 +617,7 @@ validator_exit=0
 
 - **対応 Issue**: GitHub Issue #261。
 - **問題**: trimming detail create/update は request に <code>pet_id</code> がある場合だけ死亡確認し、予約から算出した <code>finalPetID</code> を常時検証しない。pet_id 省略の通常経路で死亡済み予約ペットが通り得て、経路別 test もない。`phase2.html` の guard 欠落記述も current source とずれる。
-- **状態**: **DONE**（`6e5a945ef`、2026-08-01 land・未 push）。Issue 全体の runtime/OPS completion は USER gate のまま。runtime green は未主張。
+- **状態**: **DONE**（`6e5a945ef`、2026-08-01 land・push 済）。Issue 全体の runtime/OPS completion は USER gate のまま。runtime green は未主張。
 - **claim**: `claim/TASK-030` — **live**（実装 unit が取得。`main` 統合後に USER が解放する）。
 
 #### 実装プラン（2026-08-01・readiness dossier）
@@ -652,14 +652,14 @@ validator_exit=0
 
 - **対応 Issue**: GitHub Issue #249 F-5a。
 - **問題**: 飼主説明・他院添付・院内保管向け print surface が未完。画面 state や FE 再計算を印刷正本にすると保存済み臨床記録と不一致になり得る。
-- **状態**: **READY_AFTER_TASK-026_INTEGRATION**。実装コミット `2a8aca33c` は存在するが、`main` 未統合のため dependency wait。
+- **状態**: **READY_AGENT**。TASK-026 の immutable/audit contract は実装済み。
 - **claim**: `claim/TASK-031` — **not live**（2026-08-01 USER 解放済み。起票時の過剰取得を是正したもので、本タスクは未着手）。
 
 #### 実装プラン（2026-08-01・readiness dossier）
-- **Ready**: READY_AGENT_AFTER_DEPENDENCY_INTEGRATION
+- **Ready**: READY_AGENT
 - **Owner lane**: frontend examinations / print presentation
-- **Blockers (today)**: TASK-026 commit `2a8aca33c` の `main` 統合。臨床 range の新規推測、manual unconfirm、lab import revert は対象外。
-- **Preconditions**: TASK-026 が `main` から reachable、DEC-53/57、Issue #249 F-5a、`PrintPortal` の既存利用例、#229 の飼主向け表現境界を読む。
+- **Blockers (today)**: なし。臨床 range の新規推測、manual unconfirm、lab import revert は対象外。
+- **Preconditions**: DEC-53/TASK-026 regression、DEC-57、Issue #249 F-5a、`PrintPortal` の既存利用例、#229 の飼主向け表現境界を読む。
 - **Code anchors**: `frontend/src/components/shared/PrintPortal.tsx`, `frontend/src/features/examinations/components/ExamPivotTable.tsx`, `frontend/src/features/examinations/api/get-examination-items.ts`, examinations feature tests。
 - **Steps**:
   1. RED: 保存済み examination/items snapshot だけを入力にし、実施項目のみ、欠測、定性値、日付/単位を表示する print component test を追加する。
@@ -676,14 +676,14 @@ validator_exit=0
 
 - **対応 Issue**: GitHub Issue #249 F-3c(a)。
 - **問題**: persisted import job を取消す endpoint/状態がなく、手動 examination の確定解除と混ぜると status・permission・audit・rollback の意味が不定になる。
-- **状態**: **READY_AFTER_TASK-026_INTEGRATION / migration review required**。実装コミット `2a8aca33c` は存在するが、`main` 未統合のため dependency wait。設計は DEC-57。
+- **状態**: **READY_AGENT / migration review required**。設計は DEC-57。
 - **claim**: `claim/TASK-032` — **not live**（2026-08-01 USER 解放済み。起票時の過剰取得を是正したもので、本タスクは未着手）。
 
 #### 実装プラン（2026-08-01・readiness dossier）
-- **Ready**: READY_AGENT_AFTER_DEPENDENCY_INTEGRATION
+- **Ready**: READY_AGENT
 - **Owner lane**: backend medicalrecord / lab import compensation
-- **Blockers (today)**: TASK-026 commit `2a8aca33c` の `main` 統合。migration-seed-safety と database review を開始時に通す。external format/auto-commit enable は対象外。
-- **Preconditions**: TASK-026 が `main` から reachable、DEC-53/57、`backend/migrations/CLAUDE.md`、clinic isolation、DBOrTx/audit conventions、lab import transition table を読む。
+- **Blockers (today)**: なし。migration-seed-safety と database review を開始時に通す。external format/auto-commit enable は対象外。
+- **Preconditions**: DEC-53/TASK-026 regression、DEC-57、`backend/migrations/CLAUDE.md`、clinic isolation、DBOrTx/audit conventions、lab import transition table を読む。
 - **Code anchors**: `backend/internal/model/lab_import.go:10-21`, `backend/internal/medicalrecord/lab_import_service.go:15-29`, `backend/internal/model/examination_record.go:32-43`, `backend/internal/medicalrecord/routes.go:373-388`, lab import service/repository tests。
 - **Steps**:
   1. RED: clinic-scoped persisted job の revert success、wrong-clinic/invalid-state/second-revert 409、reason/actor/audit dependency 欠落、linked confirmed exam conflict、audit failure rollback を追加する。

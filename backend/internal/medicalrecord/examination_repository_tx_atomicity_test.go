@@ -315,7 +315,7 @@ func TestDB_ExaminationRepository_ReplaceItemsRejectsConfirmedParentAndPreserves
 		InspectionValue: "90",
 	}})
 	require.Error(t, err, "result replacement that loses the row-lock race to confirmation must fail closed")
-	assert.True(t, apperrors.IsInvalidInput(err))
+	assert.True(t, apperrors.IsConflict(err))
 
 	preserved, err := repo.FindAllItemsByExamID(ctx, clinicID, exam.ID)
 	require.NoError(t, err)

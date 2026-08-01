@@ -94,9 +94,13 @@ func (h *ExaminationHandler) CreateExamination(c *gin.Context) {
 		httpapi.RespondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
 		return
 	}
+	actorID, ok := httpapi.ExtractStaffID(c)
+	if !ok {
+		return
+	}
 
 	serviceInput := input.toServiceInput()
-	serviceInput.ActorID = httpapi.OptionalStaffID(c)
+	serviceInput.ActorID = &actorID
 	exam, err := h.service.Create(c.Request.Context(), clinicID, serviceInput)
 	if err != nil {
 		httpapi.RespondError(c, err)
@@ -121,9 +125,13 @@ func (h *ExaminationHandler) UpdateExamination(c *gin.Context) {
 		httpapi.RespondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
 		return
 	}
+	actorID, ok := httpapi.ExtractStaffID(c)
+	if !ok {
+		return
+	}
 
 	serviceInput := input.toServiceInput()
-	serviceInput.ActorID = httpapi.OptionalStaffID(c)
+	serviceInput.ActorID = &actorID
 	exam, err := h.service.Update(c.Request.Context(), clinicID, id, serviceInput)
 	if err != nil {
 		httpapi.RespondError(c, err)
@@ -198,7 +206,11 @@ func (h *ExaminationHandler) DeleteExamination(c *gin.Context) {
 	if !ok {
 		return
 	}
-	if err := h.service.Delete(c.Request.Context(), clinicID, id); err != nil {
+	actorID, ok := httpapi.ExtractStaffID(c)
+	if !ok {
+		return
+	}
+	if err := h.service.Delete(c.Request.Context(), clinicID, id, &actorID); err != nil {
 		httpapi.RespondError(c, err)
 		return
 	}

@@ -269,7 +269,7 @@ export function useExaminationForm(
       }
 
       try {
-        // サーバ保存済みの確定のみ items を省略する（BE は confirmed への item 更新を 400）。
+        // サーバ保存済みの確定のみ items を省略する（BE は confirmed への item 更新を 409）。
         // ドラフトでステータス「確定」を選んだだけの遷移保存では items を送る（A-S02-01）。
         const items = rowsToRequest(formItemsRef.current);
         const isPersistedConfirmed = isPersistedConfirmedRef.current;

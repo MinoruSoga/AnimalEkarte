@@ -381,7 +381,8 @@ func TestExaminationService_Create(t *testing.T) {
 					return nil, tt.examTypeErr
 				}}
 			}
-			svc := NewExaminationService(repo, medRec, examTypeRepo, nil, &mockCheckupTransactor{})
+			svc := NewExaminationService(repo, medRec, examTypeRepo, &mockAuditTxLogger{}, &mockCheckupTransactor{})
+			tt.input.ActorID = ptrUint64(1)
 
 			exam, err := svc.Create(context.Background(), tt.clinicID, tt.input)
 
@@ -453,6 +454,7 @@ func TestExaminationService_Update(t *testing.T) {
 			},
 			existingStatus: model.ExaminationStatusConfirmed,
 			wantErr:        true,
+			wantConflict:   true,
 		},
 		{
 			name: "returns conflict when parent medical record is finalized",
@@ -528,7 +530,8 @@ func TestExaminationService_Update(t *testing.T) {
 					return nil, tt.examTypeErr
 				}}
 			}
-			svc := NewExaminationService(repo, medRec, examTypeRepo, nil, &mockCheckupTransactor{})
+			svc := NewExaminationService(repo, medRec, examTypeRepo, &mockAuditTxLogger{}, &mockCheckupTransactor{})
+			tt.input.ActorID = ptrUint64(1)
 
 			exam, err := svc.Update(context.Background(), 1, 1, tt.input)
 
@@ -563,14 +566,14 @@ func TestExaminationService_UpdateUsesLockedExamStatus(t *testing.T) {
 			return &model.Examination{ID: 1}, nil
 		},
 	}
-	svc := NewExaminationService(repo, &mockMedicalRecordRepository{}, okExamTypeRepo(), nil, &mockCheckupTransactor{})
+	svc := NewExaminationService(repo, &mockMedicalRecordRepository{}, okExamTypeRepo(), &mockAuditTxLogger{}, &mockCheckupTransactor{})
 	summary := "must not overwrite a concurrently confirmed exam"
 
-	got, err := svc.Update(context.Background(), 1, 1, UpdateExaminationInput{ResultSummary: &summary})
+	got, err := svc.Update(context.Background(), 1, 1, UpdateExaminationInput{ResultSummary: &summary, ActorID: ptrUint64(1)})
 
 	assert.Error(t, err)
 	assert.Nil(t, got)
-	assert.True(t, apperrors.IsInvalidInput(err))
+	assert.True(t, apperrors.IsConflict(err))
 	assert.False(t, updateCalled, "the locked confirmed snapshot must block the update")
 }
 
@@ -604,10 +607,11 @@ func TestExaminationService_UpdateLocksExamThenMedicalRecordsInStableOrder(t *te
 			}, nil
 		},
 	}
-	svc := NewExaminationService(repo, records, okExamTypeRepo(), nil, &mockCheckupTransactor{})
+	svc := NewExaminationService(repo, records, okExamTypeRepo(), &mockAuditTxLogger{}, &mockCheckupTransactor{})
 
 	got, err := svc.Update(context.Background(), 1, 1, UpdateExaminationInput{
 		MedicalRecordID: &destinationMedicalRecordID,
+		ActorID:         ptrUint64(1),
 	})
 
 	assert.NoError(t, err)
@@ -720,9 +724,10 @@ func TestExaminationService_Delete(t *testing.T) {
 					return &model.MedicalRecord{Status: status}, nil
 				},
 			}
-			svc := NewExaminationService(repo, medRec, okExamTypeRepo(), nil, &mockCheckupTransactor{})
+			svc := NewExaminationService(repo, medRec, okExamTypeRepo(), &mockAuditTxLogger{}, &mockCheckupTransactor{})
 
-			err := svc.Delete(context.Background(), tt.clinicID, tt.id)
+			actorID := uint64(1)
+			err := svc.Delete(context.Background(), tt.clinicID, tt.id, &actorID)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -758,9 +763,10 @@ func TestExaminationService_DeleteUsesLockedExamRelations(t *testing.T) {
 			return &model.MedicalRecord{ID: id, ClinicID: clinicID, Status: model.MedicalRecordStatusDraft}, nil
 		},
 	}
-	svc := NewExaminationService(repo, records, okExamTypeRepo(), nil, &mockCheckupTransactor{})
+	svc := NewExaminationService(repo, records, okExamTypeRepo(), &mockAuditTxLogger{}, &mockCheckupTransactor{})
 
-	err := svc.Delete(context.Background(), 1, 1)
+	actorID := uint64(1)
+	err := svc.Delete(context.Background(), 1, 1, &actorID)
 
 	assert.NoError(t, err)
 	assert.Equal(t, lockedMedicalRecordID, lockedParentID, "delete must validate the parent from the locked exam snapshot")
@@ -923,7 +929,7 @@ func TestExaminationService_ReplaceItems(t *testing.T) {
 			{Name: "WBC", InspectionValue: "5.0"},
 		})
 		assert.Error(t, err)
-		assert.True(t, apperrors.IsInvalidInput(err))
+		assert.True(t, apperrors.IsConflict(err))
 	})
 
 	t.Run("returns not found when exam does not exist", func(t *testing.T) {
@@ -1115,7 +1121,7 @@ func TestExaminationService_ReplaceItemsUsesLockedExamStatus(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.Nil(t, got)
-	assert.True(t, apperrors.IsInvalidInput(err))
+	assert.True(t, apperrors.IsConflict(err))
 	assert.False(t, replaceCalled, "the locked confirmed snapshot must block result replacement")
 }
 
@@ -1282,11 +1288,11 @@ func TestExaminationService_Create_RejectsInvalidClinicalRelations(t *testing.T)
 			if tt.configure != nil {
 				tt.configure(relations)
 			}
-			svc := NewExaminationService(repo, relations, okExamTypeRepo(), nil, &mockCheckupTransactor{})
+			svc := NewExaminationService(repo, relations, okExamTypeRepo(), &mockAuditTxLogger{}, &mockCheckupTransactor{})
 
 			got, err := svc.Create(context.Background(), clinicID, &CreateExaminationInput{
 				MedicalRecordID: tt.recordID, PetID: tt.petID, ExamTypeID: 1,
-				DoctorID: tt.doctorID, Date: time.Now(),
+				DoctorID: tt.doctorID, Date: time.Now(), ActorID: ptrUint64(1),
 			})
 
 			if tt.wantErr {
@@ -1338,9 +1344,9 @@ func TestExaminationService_Update_RevalidatesEffectivePatient(t *testing.T) {
 			return 0, apperrors.WrapNotFound("pet", "scoped")
 		},
 	}
-	svc := NewExaminationService(repo, relations, okExamTypeRepo(), nil, &mockCheckupTransactor{})
+	svc := NewExaminationService(repo, relations, okExamTypeRepo(), &mockAuditTxLogger{}, &mockCheckupTransactor{})
 
-	got, err := svc.Update(context.Background(), clinicID, examID, UpdateExaminationInput{PetID: &otherPetID})
+	got, err := svc.Update(context.Background(), clinicID, examID, UpdateExaminationInput{PetID: &otherPetID, ActorID: ptrUint64(1)})
 
 	assert.Error(t, err)
 	assert.Nil(t, got)
@@ -1402,9 +1408,9 @@ func TestExaminationService_Update_AllowsHistoricalOwnerAfterPetTransfer(t *test
 				return 0, apperrors.WrapNotFound("pet", "scoped")
 			},
 		}
-		svc := NewExaminationService(repo, relations, okExamTypeRepo(), nil, &mockCheckupTransactor{})
+		svc := NewExaminationService(repo, relations, okExamTypeRepo(), &mockAuditTxLogger{}, &mockCheckupTransactor{})
 
-		got, err := svc.Update(context.Background(), clinicID, examID, UpdateExaminationInput{ResultSummary: &summary})
+		got, err := svc.Update(context.Background(), clinicID, examID, UpdateExaminationInput{ResultSummary: &summary, ActorID: ptrUint64(1)})
 		require.NoError(t, err)
 		require.NotNil(t, got)
 		assert.Equal(t, 1, updateCalls)
@@ -1431,9 +1437,9 @@ func TestExaminationService_Update_AllowsHistoricalOwnerAfterPetTransfer(t *test
 				return 0, apperrors.WrapNotFound("pet", "scoped")
 			},
 		}
-		svc := NewExaminationService(repo, relations, okExamTypeRepo(), nil, &mockCheckupTransactor{})
+		svc := NewExaminationService(repo, relations, okExamTypeRepo(), &mockAuditTxLogger{}, &mockCheckupTransactor{})
 
-		got, err := svc.Update(context.Background(), clinicID, examID, UpdateExaminationInput{ResultSummary: &summary})
+		got, err := svc.Update(context.Background(), clinicID, examID, UpdateExaminationInput{ResultSummary: &summary, ActorID: ptrUint64(1)})
 		require.Error(t, err)
 		assert.Nil(t, got)
 		assert.Zero(t, updateCalls)
@@ -1472,9 +1478,9 @@ func TestExaminationService_Update_AllowsHistoricalOwnerAfterPetTransfer(t *test
 				return &model.Examination{ID: examID}, nil
 			},
 		}
-		svc := NewExaminationService(foreignRepo, relations, okExamTypeRepo(), nil, &mockCheckupTransactor{})
+		svc := NewExaminationService(foreignRepo, relations, okExamTypeRepo(), &mockAuditTxLogger{}, &mockCheckupTransactor{})
 
-		got, err := svc.Update(context.Background(), clinicID, examID, UpdateExaminationInput{ResultSummary: &summary})
+		got, err := svc.Update(context.Background(), clinicID, examID, UpdateExaminationInput{ResultSummary: &summary, ActorID: ptrUint64(1)})
 		require.Error(t, err)
 		assert.Nil(t, got)
 		assert.Zero(t, updateCalls)
