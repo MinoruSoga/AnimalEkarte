@@ -250,10 +250,6 @@ export const TreatmentsTab = memo(function TreatmentsTab({
       const medicine = medicines?.find((m) => m.id === item.medicineId);
       if (medicine) {
         try {
-          // 失敗キャッシュで retry が即 reject しないよう、取得前に error を捨てる。
-          await queryClient.resetQueries({
-            queryKey: medicineDoseParamsQueryKey(item.medicineId),
-          });
           const doseParams = await queryClient.fetchQuery({
             queryKey: medicineDoseParamsQueryKey(item.medicineId),
             queryFn: () => fetchMedicineDoseParamsOnce(item.medicineId as string),
@@ -306,8 +302,20 @@ export const TreatmentsTab = memo(function TreatmentsTab({
 
   const handleRetryMasterDoseLookup = useCallback(() => {
     if (!pendingMasterLookupItem) return;
-    void handleSelectFromMaster(pendingMasterLookupItem);
-  }, [pendingMasterLookupItem, handleSelectFromMaster]);
+    const item = pendingMasterLookupItem;
+    void (async () => {
+      // 失敗キャッシュで retry が即 reject しないよう、再試行時にだけ error を捨てる。
+      // 通常選択経路では実行しない — 共有 queryKey を毎回リセットすると
+      // ①STATIC staleTime が無効化され ②同一薬剤の TreatmentRow が一往復のあいだ
+      // data 無しに落ちて行の投与量ゲートが一時的に開く。
+      if (item.medicineId) {
+        await queryClient.resetQueries({
+          queryKey: medicineDoseParamsQueryKey(item.medicineId),
+        });
+      }
+      await handleSelectFromMaster(item);
+    })();
+  }, [pendingMasterLookupItem, handleSelectFromMaster, queryClient]);
 
   // ── render ──
 

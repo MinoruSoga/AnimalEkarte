@@ -49,22 +49,15 @@ export function resolveDoseGateSource(
   return { kind: "missing" };
 }
 
-/** null / DoseCalcInput 互換を含む正規化（既存 call site の移行用）。 */
-function normalizeDoseGateSource(
-  source: DoseGateSource | DoseCalcInput | null,
-): DoseGateSource {
-  if (source === null) return { kind: "missing" };
-  if (typeof source === "object" && "kind" in source) {
-    return source;
-  }
-  return { kind: "ready", input: source };
-}
-
+/**
+ * TASK-025: 引数は DoseGateSource のみ。`DoseCalcInput | null` を受け付けてはならない。
+ * null を許すと「技術障害を missing と同一視して保存を通す」経路が型の上で復活する。
+ */
 export function computeDoseGate(
-  source: DoseGateSource | DoseCalcInput | null,
+  source: DoseGateSource,
   submittedQty: number,
 ): DoseGateResult {
-  const normalized = normalizeDoseGateSource(source);
+  const normalized = source;
 
   if (normalized.kind === "technical_failure") {
     return {

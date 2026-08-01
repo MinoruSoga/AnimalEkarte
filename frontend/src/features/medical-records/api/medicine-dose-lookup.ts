@@ -35,16 +35,21 @@ export const useMedicineDoseParams = (medicineId: string | null | undefined) => 
 };
 
 /**
- * #201 TASK-025: dose-params 権威の 3 分岐（BE evaluateDoseForSave の (eval,nil)/(nil,nil)/(nil,err) に対応）。
+ * #201 TASK-025: dose-params 権威の分岐（BE evaluateDoseForSave の (eval,nil)/(nil,nil)/(nil,err) に対応）。
  * - success: 取得成功。params が空でも missing data（手動入力可）であり technical failure ではない。
  * - failed: fetch/HTTP/parse の technical failure。保存停止対象。
+ * - pending: 取得中／未取得。権威データが無いだけで、成功でも失敗でもない。
  * - idle: medicineId 無し等で query が無効。
+ *
+ * pending を success として符号化しないこと。「取得成功したが当該 species の param が無い」と
+ * 区別できなくなり、authority.status === "success" を権威データの根拠に使う実装が壊れる。
  *
  * 利用者向け文言は固定。upstream の response body / stack を転記しない。
  */
 export type DoseParamsAuthority =
   | { status: "success"; params: MedicineDoseParam[] }
   | { status: "failed" }
+  | { status: "pending" }
   | { status: "idle" };
 
 /** technical failure 時の固定文言（upstream body を含めない）。 */
@@ -63,9 +68,9 @@ export function toDoseParamsAuthority(
   if (!medicineId) return { status: "idle" };
   if (query.data !== undefined) return { status: "success", params: query.data };
   if (query.isError) return { status: "failed" };
-  // pending / 未取得: まだ権威データが無いが technical failure ではない。
-  // missing data 経路と同じく buildDoseCalcInput が null を返す（手動入力継続）。
-  return { status: "success", params: [] };
+  // 取得中 / 未取得: まだ権威データが無いが technical failure ではない。
+  // gate 上は missing data と同じ扱い（手動入力継続）だが、型では success と区別する。
+  return { status: "pending" };
 }
 
 /**

@@ -11,8 +11,8 @@ import { DOSE_PARAMS_LOOKUP_FAILED_MESSAGE } from "../../api/medicine-dose-looku
 import { computeDoseGate, resolveDoseGateSource } from "./treatment-row-dose-gate";
 
 describe("computeDoseGate", () => {
-  it("input=null（手動入力対象外）は常に requiresConfirm=false", () => {
-    const got = computeDoseGate(null, 5);
+  it("missing（手動入力対象外）は常に requiresConfirm=false", () => {
+    const got = computeDoseGate({ kind: "missing" }, 5);
     expect(got.requiresConfirm).toBe(false);
     expect(got.isBlocked).toBe(false);
     expect(got.warning).toBe("none");
@@ -46,6 +46,23 @@ describe("computeDoseGate", () => {
     expect(resolveDoseGateSource(null, { status: "idle" })).toEqual({ kind: "missing" });
   });
 
+  it("resolveDoseGateSource: pending は technical failure ではなく missing 扱い（保存継続）", () => {
+    expect(resolveDoseGateSource(null, { status: "pending" })).toEqual({ kind: "missing" });
+    // 取得中に評価可能な input が既にあるなら ready を維持する。
+    const input: DoseCalcInput = {
+      calculationType: MedicineCalculationTypePerWeight,
+      medicineUnit: MedicineUnitPerTablet,
+      strength: 10,
+      dosePerKg: 5,
+      weightKg: 4,
+      maxMgPerKg: 10,
+    };
+    expect(resolveDoseGateSource(input, { status: "pending" })).toEqual({
+      kind: "ready",
+      input,
+    });
+  });
+
   it("安全域内・推奨値と一致する submitted は gate 不要", () => {
     const input: DoseCalcInput = {
       calculationType: MedicineCalculationTypePerWeight,
@@ -57,7 +74,7 @@ describe("computeDoseGate", () => {
       maxMgPerKg: 10,
     };
     // 推奨値 = 2錠(20mg)
-    const got = computeDoseGate(input, 2);
+    const got = computeDoseGate({ kind: "ready", input }, 2);
     expect(got.requiresConfirm).toBe(false);
     expect(got.isBlocked).toBe(false);
     expect(got.recommendedQuantity).toBe(2);
@@ -73,7 +90,7 @@ describe("computeDoseGate", () => {
       weightKg: 1.7,
       maxMgPerKg: 5,
     };
-    const got = computeDoseGate(input, 2); // 20mg > upperCap(8.5mg)
+    const got = computeDoseGate({ kind: "ready", input }, 2); // 20mg > upperCap(8.5mg)
     expect(got.requiresConfirm).toBe(true);
     expect(got.isBlocked).toBe(true);
     expect(got.warning).toBe("exceeds-max");
@@ -91,7 +108,7 @@ describe("computeDoseGate", () => {
       minMgPerKg: 4,
       maxMgPerKg: 10,
     };
-    const got = computeDoseGate(input, 0);
+    const got = computeDoseGate({ kind: "ready", input }, 0);
     expect(got.requiresConfirm).toBe(true);
     expect(got.isBlocked).toBe(false);
     expect(got.warning).toBe("below-min");
@@ -108,7 +125,7 @@ describe("computeDoseGate", () => {
       maxMgPerKg: 100, // 上限に十分な余裕を持たせ exceedsMax を発生させない
     };
     // 推奨=2錠。5錠は乖離率150%で閾値(20%)超過だが upperCap(400mg)には収まる。
-    const got = computeDoseGate(input, 5);
+    const got = computeDoseGate({ kind: "ready", input }, 5);
     expect(got.requiresConfirm).toBe(true);
     expect(got.isBlocked).toBe(false);
     expect(got.warning).toBe("none");

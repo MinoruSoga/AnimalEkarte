@@ -479,8 +479,17 @@ validator_exit=0
 
 - **対応 Issue**: GitHub Issue #201。
 - **問題**: FE は dose parameter 取得 error を manual default に変換するため、BE が repository/system error を保存中止へ伝播する契約を UI が silent bypass し得る。体重/species/parameter 欠落は別の cutover dependency を持つ。
-- **状態**: **READY_AGENT**。technical failure slice は `q&a.html` DEC-48 により、臨床上限値・warning 帯の承認を待たず着手できる。欠落時 runtime 変更は TASK-033 まで HOLD。
+- **状態**: **DONE**（実装 `eaa608b6a` + follow-up 是正。`main` に commit 済み・未 push）。欠落時 runtime 変更は TASK-033 まで HOLD のまま。
 - **claim**: `claim/TASK-025`（取得済み。USER が統合後に解放）。
+
+#### 実施結果（2026-08-02・TASK-025 unit）
+- **Delivered**: `DoseParamsAuthority`（success / failed / pending / idle）と `DoseGateSource`（ready / missing / technical_failure）で技術障害と欠落を型で分離。`TreatmentsTab` の bare `catch {}` は固定文言 + 再試行 + `return`（create せず）に、`TreatmentRow` は `isError` を配線して `onUpdate` 前に停止。upstream body は画面に出さない。BE 無変更。
+- **Verification** (scoped): `npx vitest run src/features/medical-records/components/TreatmentsTab` → **4 files / 35 tests PASS**（RED 時 5 failed）。`git diff --name-only HEAD -- backend/` 空。
+- **Follow-up 是正（本セッション・reconciliation で検出）**:
+  1. `toDoseParamsAuthority` が取得中を `success` + 空配列として符号化していた → `pending` を独立分岐にした。「取得成功したが param 無し」と区別できず、`status === "success"` を権威判定に使う実装が壊れるため。
+  2. `computeDoseGate` が `DoseCalcInput | null` を受け付けたまま残っていた（production call site は 3 つとも移行済みで、使用者はテストのみ）→ `DoseGateSource` のみへ narrowing。null 許容は「技術障害を欠落と同一視して保存を通す」経路の型上の復活だった。
+  3. `resetQueries` が通常の薬剤選択経路で毎回実行されていた → 再試行ハンドラ内へ移動。共有 queryKey の無条件リセットは STATIC staleTime を無効化し、同一薬剤の `TreatmentRow` が一往復のあいだ data 無しに落ちて行の投与量ゲートが一時的に開いていた（本 unit が持ち込んだ回帰）。
+- **Non-actions / HOLD**: missing-data runtime behavior、構造化救急投薬記録、上限値・warning 数値、DB/migration、Issue close、claim 削除、push は未実施。
 
 #### 実装プラン（2026-08-01・readiness dossier）
 - **Ready**: READY_AGENT
