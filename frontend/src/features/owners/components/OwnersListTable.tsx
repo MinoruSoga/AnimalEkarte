@@ -105,7 +105,7 @@ export function OwnersListTable({
         onFilterChange={onFilterChange}
         searchTerm={searchTerm}
         onSearchChange={onSearchChange}
-        searchPlaceholder="飼主名、ペット名、電話番号..."
+        searchPlaceholder="飼主名、ペット名、電話番号、飼主No、ペット番号..."
         count={pagination.totalCount}
       />
 

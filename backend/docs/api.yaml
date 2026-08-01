@@ -10213,6 +10213,11 @@ paths:
             default: 20
         - name: search
           in: query
+          description: >-
+            Clinic-scoped free text over pet name/kana, owner name/kana, owner phone
+            (partial ILIKE; kana-normalized), whitespace-insensitive ordered owner full name,
+            owner No as owners.id text equality (response owner_number alias), and pets.pet_number
+            (partial). Whitespace-only yields zero rows. Species name is not searched.
           schema:
             type: string
         - name: owner_id

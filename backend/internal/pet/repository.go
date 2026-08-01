@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
+	"unicode"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -16,7 +18,9 @@ import (
 )
 
 // PetListFilters はペット一覧のフィルタ条件（#266: サーバサイド pagination/search 拡張）。
-// Search はペット名/カナ + 飼主名/カナ/電話を対象に ILIKE + NormalizeKana で部分一致検索する。
+// Search はペット名/カナ + 飼主名/カナ/電話に加え、空白非依存の飼主フルネーム、
+// 飼主No（owners.id の文字列一致）、ペット番号（pets.pet_number）を対象に
+// ILIKE + NormalizeKana で部分一致（番号は text 比較）する。
 type PetListFilters struct {
 	OwnerID         *uint64
 	Search          string
@@ -124,10 +128,22 @@ func (r *repository) FindAll(ctx context.Context, clinicIDs []uint64, filters Pe
 			q = q.Where("pets.deceased_at IS NULL")
 		}
 		if filters.Search != "" {
+			// 空白のみは fail-closed で 0 件（空フィルタ扱いで全件返さない）。
+			compactSearch := compactSearchText(filters.Search)
+			if compactSearch == "" {
+				q = q.Where("1 = 0")
+				return q
+			}
 			// raw name の同一表記一致は既存の trgm index を利用可能な形で残し、
 			// translate() した name/name_kana との比較でカナ表記をまたぐ一致を補う。
+			// 空白除去形は「姓 名」入力の半角/全角/連続空白差を順序保持で吸収する（BUG-001）。
+			// 飼主No は独立カラムではなく owners.id の text 一致。pet_number は文字列列。
+			// いずれもユーザ入力を数値パースせずバインドする。
 			rawPattern := "%" + textsearch.EscapeLike(filters.Search) + "%"
 			normalizedPattern := "%" + textsearch.EscapeLike(textsearch.NormalizeKana(filters.Search)) + "%"
+			compactPattern := "%" + textsearch.EscapeLike(compactSearch) + "%"
+			compactNormalizedPattern := "%" + textsearch.EscapeLike(textsearch.NormalizeKana(compactSearch)) + "%"
+			trimmedSearch := strings.TrimSpace(filters.Search)
 			q = q.Where(
 				`(pets.name ILIKE ? ESCAPE '\'`+
 					` OR translate(pets.name, ?, ?) ILIKE ? ESCAPE '\'`+
@@ -135,7 +151,13 @@ func (r *repository) FindAll(ctx context.Context, clinicIDs []uint64, filters Pe
 					` OR owners.name ILIKE ? ESCAPE '\'`+
 					` OR translate(owners.name, ?, ?) ILIKE ? ESCAPE '\'`+
 					` OR translate(owners.name_kana, ?, ?) ILIKE ? ESCAPE '\'`+
-					` OR owners.phone ILIKE ? ESCAPE '\')`,
+					` OR owners.phone ILIKE ? ESCAPE '\'`+
+					// POSIX [[:space:]] is ASCII-only; include ideographic space U+3000 so
+					// stored full-width spaces match Go compactSearchText (unicode.IsSpace).
+					` OR regexp_replace(owners.name, '[[:space:]　]+', '', 'g') ILIKE ? ESCAPE '\'`+
+					` OR regexp_replace(translate(owners.name, ?, ?), '[[:space:]　]+', '', 'g') ILIKE ? ESCAPE '\'`+
+					` OR CAST(owners.id AS text) = ?`+
+					` OR pets.pet_number ILIKE ? ESCAPE '\')`,
 				rawPattern,
 				textsearch.KanaSourceChars, textsearch.KanaTargetChars, normalizedPattern,
 				textsearch.KanaSourceChars, textsearch.KanaTargetChars, normalizedPattern,
@@ -143,6 +165,10 @@ func (r *repository) FindAll(ctx context.Context, clinicIDs []uint64, filters Pe
 				textsearch.KanaSourceChars, textsearch.KanaTargetChars, normalizedPattern,
 				textsearch.KanaSourceChars, textsearch.KanaTargetChars, normalizedPattern,
 				normalizedPattern,
+				compactPattern,
+				textsearch.KanaSourceChars, textsearch.KanaTargetChars, compactNormalizedPattern,
+				trimmedSearch,
+				"%"+textsearch.EscapeLike(trimmedSearch)+"%",
 			)
 		}
 		return q
@@ -235,6 +261,21 @@ func sanitizePetOwnerRelation(pet *model.Pet) {
 	if pet.Owner != nil && pet.Owner.ClinicID != pet.ClinicID {
 		pet.Owner = nil
 	}
+}
+
+// compactSearchText removes all Unicode whitespace while preserving character order.
+// Used only to derive a comparison form for BUG-001 owner-name matching; does not
+// mutate the original filter value.
+func compactSearchText(value string) string {
+	var b strings.Builder
+	b.Grow(len(value))
+	for _, r := range value {
+		if unicode.IsSpace(r) {
+			continue
+		}
+		b.WriteRune(r)
+	}
+	return b.String()
 }
 
 func (r *repository) FindLivingByOwner(ctx context.Context, clinicID, ownerID uint64) ([]model.Pet, error) {

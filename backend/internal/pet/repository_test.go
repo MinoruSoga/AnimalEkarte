@@ -9,6 +9,7 @@ package pet
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -229,6 +230,175 @@ func indexOfPetID(pets []model.Pet, id uint64) int {
 		}
 	}
 	return -1
+}
+
+// TestPetRepository_FindAll_Search は BUG-001 の検索契約回帰。
+// 空白非依存の飼主フルネーム、飼主No（owners.id の文字列一致）、ペット番号、
+// 空白のみ/未知番号の fail-closed、既存 name/kana/phone、count 一貫、clinic 隔離を固定する。
+// フィクスチャは意図的に合成ラベルのみを使う（実在人物・事故由来識別子を置かない）。
+func TestPetRepository_FindAll_Search(t *testing.T) {
+	db := setupPetRepositoryTestDB(t)
+	repo := NewRepository(db)
+	ctx := context.Background()
+	const clinicA, clinicB = uint64(1), uint64(2)
+
+	// Unmistakably synthetic fixtures (local constants reduce accidental person-like literals).
+	const (
+		ownerFullNameHalf = "検索対象姓 検索対象名"
+		ownerFullNameFWQ  = "検索対象姓　検索対象名"
+		ownerFullNameRep  = "検索対象姓  検索対象名"
+		ownerFullNamePad  = "  検索対象姓 検索対象名  "
+		ownerFullNameNone = "検索対象姓検索対象名"
+		ownerNameKana     = "けんさくたいしょうせい けんさくたいしょうめい"
+		ownerKanaKataQ    = "ケンサクタイショウセイ"
+		ownerPhone        = "000-0000-0000"
+		surnameOwnerName  = "部分一致姓 部分一致名"
+		surnameQuery      = "部分一致姓"
+		storedFWOwnerName = "全角保存姓　全角保存名"
+		storedFWQueryHalf = "全角保存姓 全角保存名"
+		storedFWQueryNone = "全角保存姓全角保存名"
+		petNumberShared   = "PN-BUG001-SHARED"
+		petNumberUnknown  = "PN-BUG001-UNKNOWN"
+		petNameA          = "検索ペットA"
+		petNameB          = "検索ペットB"
+		petNameSurname    = "検索ペット姓"
+		petNameFW         = "全角空白ペット"
+	)
+
+	ownerA := makeTestOwner(t, db, clinicA, ownerFullNameHalf)
+	require.NoError(t, db.WithContext(ctx).Model(&model.Owner{}).Where("id = ?", ownerA.ID).Updates(map[string]any{
+		"name_kana": ownerNameKana,
+		"phone":     ownerPhone,
+	}).Error)
+	petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, petNameA)
+	require.NoError(t, db.WithContext(ctx).Model(&model.Pet{}).Where("id = ?", petA.ID).Update("pet_number", petNumberShared).Error)
+
+	// 別 clinic に同名・同 pet_number。owner ID は別採番（グローバル PK の重複は不可）。
+	ownerB := makeTestOwner(t, db, clinicB, ownerFullNameHalf)
+	petB := makeSpeciesAndPet(t, db, clinicB, ownerB.ID, petNameB)
+	require.NoError(t, db.WithContext(ctx).Model(&model.Pet{}).Where("id = ?", petB.ID).Update("pet_number", petNumberShared).Error)
+
+	ownerSurname := makeTestOwner(t, db, clinicA, surnameOwnerName)
+	petSurname := makeSpeciesAndPet(t, db, clinicA, ownerSurname.ID, petNameSurname)
+
+	assertHitA := func(t *testing.T, search string) {
+		t.Helper()
+		pets, total, err := repo.FindAll(ctx, []uint64{clinicA}, PetListFilters{Search: search}, 1, 10)
+		require.NoError(t, err)
+		assert.Equal(t, int64(1), total, "search=%q count", search)
+		require.Len(t, pets, 1, "search=%q rows", search)
+		assert.Equal(t, petA.ID, pets[0].ID, "search=%q pet id", search)
+		assert.Equal(t, clinicA, pets[0].ClinicID)
+	}
+
+	assertZero := func(t *testing.T, clinicIDs []uint64, search string) {
+		t.Helper()
+		pets, total, err := repo.FindAll(ctx, clinicIDs, PetListFilters{Search: search}, 1, 10)
+		require.NoError(t, err)
+		assert.Equal(t, int64(0), total, "search=%q clinic=%v count", search, clinicIDs)
+		assert.Empty(t, pets, "search=%q clinic=%v rows", search, clinicIDs)
+	}
+
+	t.Run("owner full name half-width space", func(t *testing.T) {
+		assertHitA(t, ownerFullNameHalf)
+	})
+	t.Run("owner full name full-width space", func(t *testing.T) {
+		assertHitA(t, ownerFullNameFWQ)
+	})
+	t.Run("owner full name repeated spaces", func(t *testing.T) {
+		assertHitA(t, ownerFullNameRep)
+	})
+	t.Run("owner full name leading trailing whitespace", func(t *testing.T) {
+		assertHitA(t, ownerFullNamePad)
+	})
+	t.Run("owner full name without spaces", func(t *testing.T) {
+		assertHitA(t, ownerFullNameNone)
+	})
+	t.Run("owner name stored with full-width space matches half-width query", func(t *testing.T) {
+		ownerFW := makeTestOwner(t, db, clinicA, storedFWOwnerName)
+		petFW := makeSpeciesAndPet(t, db, clinicA, ownerFW.ID, petNameFW)
+		pets, total, err := repo.FindAll(ctx, []uint64{clinicA}, PetListFilters{Search: storedFWQueryHalf}, 1, 10)
+		require.NoError(t, err)
+		assert.Equal(t, int64(1), total)
+		require.Len(t, pets, 1)
+		assert.Equal(t, petFW.ID, pets[0].ID)
+		pets2, total2, err := repo.FindAll(ctx, []uint64{clinicA}, PetListFilters{Search: storedFWQueryNone}, 1, 10)
+		require.NoError(t, err)
+		assert.Equal(t, int64(1), total2)
+		require.Len(t, pets2, 1)
+		assert.Equal(t, petFW.ID, pets2[0].ID)
+	})
+	t.Run("owner number is owners.id text", func(t *testing.T) {
+		assertHitA(t, fmt.Sprintf("%d", ownerA.ID))
+	})
+	t.Run("pet number exact", func(t *testing.T) {
+		assertHitA(t, petNumberShared)
+	})
+	t.Run("whitespace only returns zero without listing clinic", func(t *testing.T) {
+		assertZero(t, []uint64{clinicA}, "   ")
+		assertZero(t, []uint64{clinicA}, "　　")
+		assertZero(t, []uint64{clinicA}, " \t\n ")
+	})
+	t.Run("unknown number returns zero", func(t *testing.T) {
+		assertZero(t, []uint64{clinicA}, "999999999999")
+		assertZero(t, []uint64{clinicA}, petNumberUnknown)
+	})
+	t.Run("existing surname partial still matches", func(t *testing.T) {
+		pets, total, err := repo.FindAll(ctx, []uint64{clinicA}, PetListFilters{Search: surnameQuery}, 1, 10)
+		require.NoError(t, err)
+		assert.Equal(t, int64(1), total)
+		require.Len(t, pets, 1)
+		assert.Equal(t, petSurname.ID, pets[0].ID)
+	})
+	t.Run("existing phone search still matches", func(t *testing.T) {
+		assertHitA(t, ownerPhone)
+	})
+	t.Run("existing pet name search still matches", func(t *testing.T) {
+		assertHitA(t, petNameA)
+	})
+	t.Run("kana-normalized owner name still matches", func(t *testing.T) {
+		// stored name_kana is hiragana; katakana query hits via NormalizeKana path
+		pets, total, err := repo.FindAll(ctx, []uint64{clinicA}, PetListFilters{Search: ownerKanaKataQ}, 1, 10)
+		require.NoError(t, err)
+		assert.GreaterOrEqual(t, total, int64(1))
+		ids := make([]uint64, len(pets))
+		for i, p := range pets {
+			ids[i] = p.ID
+		}
+		assert.Contains(t, ids, petA.ID)
+	})
+	t.Run("count and pagination stay consistent", func(t *testing.T) {
+		_, total, err := repo.FindAll(ctx, []uint64{clinicA}, PetListFilters{Search: ownerFullNameHalf}, 1, 1)
+		require.NoError(t, err)
+		assert.Equal(t, int64(1), total)
+		page1, total1, err := repo.FindAll(ctx, []uint64{clinicA}, PetListFilters{Search: ownerFullNameHalf}, 1, 1)
+		require.NoError(t, err)
+		assert.Equal(t, total, total1)
+		require.Len(t, page1, 1)
+		assert.Equal(t, petA.ID, page1[0].ID)
+		page2, total2, err := repo.FindAll(ctx, []uint64{clinicA}, PetListFilters{Search: ownerFullNameHalf}, 2, 1)
+		require.NoError(t, err)
+		assert.Equal(t, total, total2)
+		assert.Empty(t, page2)
+	})
+	t.Run("clinic isolation same name and pet number", func(t *testing.T) {
+		pets, total, err := repo.FindAll(ctx, []uint64{clinicA}, PetListFilters{Search: ownerFullNameHalf}, 1, 10)
+		require.NoError(t, err)
+		assert.Equal(t, int64(1), total)
+		require.Len(t, pets, 1)
+		assert.Equal(t, petA.ID, pets[0].ID)
+		assert.NotEqual(t, petB.ID, pets[0].ID)
+
+		petsPN, totalPN, err := repo.FindAll(ctx, []uint64{clinicA}, PetListFilters{Search: petNumberShared}, 1, 10)
+		require.NoError(t, err)
+		assert.Equal(t, int64(1), totalPN)
+		require.Len(t, petsPN, 1)
+		assert.Equal(t, petA.ID, petsPN[0].ID)
+	})
+	t.Run("clinic isolation foreign owner number", func(t *testing.T) {
+		// clinic B の owner ID を clinic A スコープで検索しても 0 件（存在リークなし）
+		assertZero(t, []uint64{clinicA}, fmt.Sprintf("%d", ownerB.ID))
+	})
 }
 
 func TestPetRepository_FindByIDForClinics(t *testing.T) {
