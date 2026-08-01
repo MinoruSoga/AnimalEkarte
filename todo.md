@@ -28,9 +28,9 @@
 | ISSUE-201-DOSE-LOOKUP | dose parameter 取得障害の silent fallback | **TASK-025**（READY_AGENT・臨床値は別 gate） |
 | ISSUE-249-CONFIRMED-LOCK | confirmed 検査の更新/削除 lock・audit | **TASK-026**（READY_AGENT・P0） |
 | ISSUE-249-MANUAL-LIFECYCLE | 手動検査 edit / confirmed→completed 確定解除 | **TASK-027**（TASK-026 後） |
-| ISSUE-252-STANDARD-PATCH | 締め設定 standard PATCH の validation/audit | **TASK-028**（READY_AGENT・値投入は USER） |
+| ISSUE-252-STANDARD-PATCH | 締め設定 standard PATCH の validation/audit | **TASK-028**（DONE `bbf82e2b8`・値投入は USER） |
 | ISSUE-259-DOC-CONTRACT | Lステップ disabled 時の旧 noop 文書 | **TASK-029**（DONE・`9fc5b9ffb` push 済。残は先方 enable + USER runtime 実測） |
-| ISSUE-261-TRIMMING-DECEASED | trimming 死亡ペット拒否の経路別回帰 | **TASK-030**（READY_AGENT・runtime は USER） |
+| ISSUE-261-TRIMMING-DECEASED | trimming 死亡ペット拒否の経路別回帰 | **TASK-030**（DONE `6e5a945ef`・runtime は USER） |
 | ISSUE-249-PRINT-SNAPSHOT | 検査結果の保存 snapshot 印刷 | **TASK-031**（TASK-026 後） |
 | ISSUE-249-IMPORT-REVERT | lab import job の compensating revert | **TASK-032**（TASK-026 後・migration review 必須） |
 | ISSUE-201-EMERGENCY-ADMIN | 構造化救急投薬記録と欠落時 fail-closed cutover | **TASK-033**（臨床承認・migration review 後） |
@@ -558,8 +558,8 @@ validator_exit=0
 
 - **対応 Issue**: GitHub Issue #252 の OPS apply から分離した technical gap。
 - **問題**: standard update は read-modify-save で全設定列を upsert する。special period 相当の boundary validation、actor/audit/transactor、row lock/CAS がなく、並行 partial PATCH が相互に上書きされ得る。
-- **状態**: **READY_AGENT**。投入値は変更せず、production apply は USER。
-- **claim**: `claim/TASK-028` — **not live**（2026-08-01 USER 解放済み。起票時の過剰取得を是正したもので、本タスクは未着手）。
+- **状態**: **DONE**（`bbf82e2b8`、2026-08-01 land・未 push）。投入値は変更せず、production apply は USER。runtime green は未主張。
+- **claim**: `claim/TASK-028` — **live**（実装 unit が取得。`main` 統合後に USER が解放する）。
 
 #### 実装プラン（2026-08-01・readiness dossier）
 - **Ready**: READY_AGENT
@@ -578,6 +578,16 @@ validator_exit=0
 - **Non-actions / HOLD**: production value apply、過去履歴再計算、DB/migration、Issue close、claim 削除を行わない。
 - **Exit criteria for close**: invalid input が fail-fast、並行 partial PATCH が lost update せず、actor 付き update/audit が atomic、audit dependency/failure rollback と clinic scope regression が green。
 - **Evidence sources read**: dossier Issue #252、DEC-54、live closing settings source/tests。
+
+#### 実施結果（2026-08-01・TASK-028 unit）
+- **Outcome**: `UpdateStandard` の unlocked read-modify-save を是正。境界値 validation（時刻書式・順序・`closed_weekdays` 範囲）、`Transactor.WithTx` 内で親 `clinics` 行を `FOR UPDATE`（read の**前**）、handler からの actor 伝播（`httpapi.ExtractStaffID`）、同一 transaction の fail-closed audit を追加。
+- **直列化方式**: 親 clinic 行の row lock。`clinic_settings` 行は初回 upsert 時に存在しないため、その行を掴んでも直列化されない。CAS は version 列の migration を要するため不採用。
+- **Changed files**: `closing_settings_service.go`, `closing_settings_handler.go`, `closing_settings_service_test.go`, `closing_settings_update_standard_integrity_test.go`（新規 398 行）, `closing_settings_handler_test.go`, `composition_clinic.go`, `composition_runtime.go`, `composition_clinic_test.go`, `reports/2026-08-01-task-028-closing-settings-integrity.md`
+- **Gates**: 4 系統 RED→GREEN（Validation / Concurrent / Audit / Rollback）。回帰 `./internal/clinic ./cmd/api` は baseline の既存 2 FAIL（holiday 系）に対し新規失敗 0。
+- **Evidence 品質の但し書き**: concurrency の RED は単発では確実に FAIL せず（flaky PASS）、15 ラウンドの実 DB テストで固定した。他 3 系統より証拠が弱い。
+- **Audit 設計**: 締め時間の実値は記録せず、変更フィールドの presence metadata のみ。
+- **Non-actions**: 実値投入、apply window、OpenAPI 更新（`api.yaml` が並行セッションで dirty）、Issue #252 close、claim 削除、push は未実施。
+- **Report**: `reports/2026-08-01-task-028-closing-settings-integrity.md`
 
 ### TASK-029: #259 Lステップ deploy/clinic gate の異なる disabled contract を文書同期する（Medium / docs-only）
 
@@ -620,8 +630,8 @@ validator_exit=0
 
 - **対応 Issue**: GitHub Issue #261。
 - **問題**: trimming detail create/update は request に <code>pet_id</code> がある場合だけ死亡確認し、予約から算出した <code>finalPetID</code> を常時検証しない。pet_id 省略の通常経路で死亡済み予約ペットが通り得て、経路別 test もない。`phase2.html` の guard 欠落記述も current source とずれる。
-- **状態**: **READY_AGENT**。Issue 全体の runtime/OPS completion は USER gate。
-- **claim**: `claim/TASK-030` — **not live**（2026-08-01 USER 解放済み。起票時の過剰取得を是正したもので、本タスクは未着手）。
+- **状態**: **DONE**（`6e5a945ef`、2026-08-01 land・未 push）。Issue 全体の runtime/OPS completion は USER gate のまま。runtime green は未主張。
+- **claim**: `claim/TASK-030` — **live**（実装 unit が取得。`main` 統合後に USER が解放する）。
 
 #### 実装プラン（2026-08-01・readiness dossier）
 - **Ready**: READY_AGENT
@@ -640,6 +650,16 @@ validator_exit=0
 - **Non-actions / HOLD**: DB/migration/seed、対象環境 runtime、実機 LINE/LIFF、臨床値、Issue close、claim 削除を行わない。
 - **Exit criteria for close**: pet_id 省略を含む各経路の deceased rejection、zero write/audit、living/clinic regression が green で、phase2 が source proof と runtime proof を混同しない。
 - **Evidence sources read**: dossier Issue #261、DEC-41/47、live trimming/sharedkernel source/tests。
+
+#### 実施結果（2026-08-01・TASK-030 unit）
+- **Outcome**: `createDetailForExistingAppointment` と `Update` で死亡ペット検証が `if input.PetID != nil` に囲まれ `input.PetID` を検証していた欠陥を是正。両箇所とも条件分岐を外し `finalPetID` を無条件検証へ変更（`trimming_service.go:498` / `:653`）。`Create` は元から無条件のため未変更。
+- **nil 安全性**: `ValidateReservationPetNotDeceased`（`reservation_service.go:187-189`）は `petID == nil` で early return するため、ペット未紐付け予約では no-op。無条件化による回帰は無い。
+- **Changed files**: `trimming_service.go`, `trimming_deceased_pet_test.go`（新規 247 行）, `phase2.html`, `reports/2026-08-01-task-030-deceased-pet-guard.md`
+- **Gates**: RED = nil pet_id の detail create / Update 2 経路が FAIL。GREEN = `TestTrimmingService_.*Deceased` 4/4 PASS。回帰 `./internal/trimming ./internal/sharedkernel ./internal/reservation` は baseline / after とも FAIL 空。
+- **phase2.html 同期**: 「trimming 3 関数が `ValidateReservationOwnerPetLinksWithRepo` のみ」という 2026-07-29 時点の記述は current source と不一致だった（実際は呼んでいるが条件分岐内）。実測に合わせて是正。
+- **Non-actions**: `appointment_admin_service.go` / `liff_service_reservations.go` は実測のみでコード未変更。runtime / 実機 LINE・LIFF / DB・migration、Issue #261 close、claim 削除、push は未実施。
+- **Remaining**: LIFF の `resolveReservationPetID` は in-memory livingPets のみで DB 行固定の検証ではない（別決裁）。他 domain の「input pet があるときだけ死亡検証」ギャップの棚卸しも未実施。
+- **Report**: `reports/2026-08-01-task-030-deceased-pet-guard.md`
 
 ### TASK-031: #249 検査結果を保存済み snapshot から印刷する（Medium）
 
