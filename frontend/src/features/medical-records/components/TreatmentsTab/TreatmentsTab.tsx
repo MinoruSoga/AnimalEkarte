@@ -25,6 +25,7 @@ import { useGetVitals } from "../../api/vitals";
 import {
   buildDoseCalcInput,
   computeDosePreview,
+  DOSE_PARAMS_LOOKUP_FAILED_MESSAGE,
   fetchMedicineDoseParamsOnce,
   medicineDoseParamsQueryKey,
   resolveLatestVitalWeight,
@@ -32,7 +33,7 @@ import {
 import type { TreatmentItemType, UpdateTreatmentInput } from "../../types";
 import { TreatmentAddControls, TreatmentsTable, TreatmentTotals } from "./TreatmentsTabParts";
 import { buildMasterSelectionPayload } from "./treatments-tab-model";
-import { computeDoseGate } from "./treatment-row-dose-gate";
+import { computeDoseGate, type DoseGateSource } from "./treatment-row-dose-gate";
 
 // ── Props ─────────────────────────────────────────────────────────────
 
@@ -98,6 +99,10 @@ export const TreatmentsTab = memo(function TreatmentsTab({
 
   // #201: マスタ選択時に絶対上限超過を検出した場合のインライン表示。
   const [masterDoseBlockReason, setMasterDoseBlockReason] = useState("");
+  // TASK-025: technical failure 時のみ再試行対象のマスタ選択を保持する。
+  // 上限超過ブロックでは再試行しても同一結果になるため保持しない。
+  const [pendingMasterLookupItem, setPendingMasterLookupItem] =
+    useState<TreatmentMasterItem | null>(null);
 
   // sort_order 昇順でソート済みリスト
   const sortedTreatments = useMemo(() => {
@@ -238,27 +243,47 @@ export const TreatmentsTab = memo(function TreatmentsTab({
 
     // #201: 薬剤選択時、体重・species・薬マスタの投与量パラメータが揃えば quantity をプリフィルする。
     // いずれか欠けている場合は既定値 1（従来通りの手動入力・保存継続）とする。
+    // TASK-025: technical failure（fetch/HTTP/parse）は missing data と型で区別し、通常保存を止める。
     let quantity = 1;
-    // P1-7: gate 判定用の DoseCalcInput。プリフィル失敗時（fetch エラー等）は null のままとなり、
-    // computeDoseGate(null, ...) は保存をブロックせず、既存の手動入力挙動を維持する。
-    let doseCalcInput = null as ReturnType<typeof buildDoseCalcInput>;
+    let doseGateSource: DoseGateSource = { kind: "missing" };
     if (item.medicineId && resolvedWeight) {
       const medicine = medicines?.find((m) => m.id === item.medicineId);
       if (medicine) {
         try {
+          // 失敗キャッシュで retry が即 reject しないよう、取得前に error を捨てる。
+          await queryClient.resetQueries({
+            queryKey: medicineDoseParamsQueryKey(item.medicineId),
+          });
           const doseParams = await queryClient.fetchQuery({
             queryKey: medicineDoseParamsQueryKey(item.medicineId),
             queryFn: () => fetchMedicineDoseParamsOnce(item.medicineId as string),
             staleTime: QUERY_STALE_TIMES.STATIC,
           });
-          doseCalcInput = buildDoseCalcInput(medicine, doseParams, petSpecies, resolvedWeight.weightKg);
-          const preview = computeDosePreview(medicine, doseParams, petSpecies, resolvedWeight.weightKg);
+          const doseCalcInput = buildDoseCalcInput(
+            medicine,
+            doseParams,
+            petSpecies,
+            resolvedWeight.weightKg
+          );
+          doseGateSource = doseCalcInput
+            ? { kind: "ready", input: doseCalcInput }
+            : { kind: "missing" };
+          const preview = computeDosePreview(
+            medicine,
+            doseParams,
+            petSpecies,
+            resolvedWeight.weightKg
+          );
           // healthcare-review-201 MEDIUM: 推奨値自体が丸め up 等で安全域を超えている場合、
           // 未編集のまま保存され得るため、その値ではプリフィルしない
           // （既定値 1 の手動入力とし、実際の保存値を下の物理ブロック判定に通す）。
           if (preview && !preview.exceedsMax && !preview.belowMin) quantity = preview.quantity;
         } catch {
-          // プリフィル取得失敗時は手動入力へフォールバック（quantity は既定値 1 のまま）
+          // technical failure: quantity=1 の silent fallback で create しない。
+          // upstream body は画面に出さない（固定文言のみ）。
+          setMasterDoseBlockReason(DOSE_PARAMS_LOOKUP_FAILED_MESSAGE);
+          setPendingMasterLookupItem(item);
+          return;
         }
       }
     }
@@ -267,15 +292,22 @@ export const TreatmentsTab = memo(function TreatmentsTab({
 
     // #201: 実際に submit される quantity がマスタの絶対上限を超える場合は、
     // ConfirmDialog で解除できない物理ブロックを create 前に適用する。
-    const gate = computeDoseGate(doseCalcInput, quantity);
+    const gate = computeDoseGate(doseGateSource, quantity);
     if (gate.isBlocked) {
       setMasterDoseBlockReason(gate.blockReason);
+      setPendingMasterLookupItem(null);
       return;
     }
 
     setMasterDoseBlockReason("");
+    setPendingMasterLookupItem(null);
     createTreatmentFn(payload, { onSuccess: () => setFocusLastRow(true) });
   }, [canCreate, sortedTreatments, createTreatmentFn, resolvedWeight, medicines, petSpecies, queryClient]);
+
+  const handleRetryMasterDoseLookup = useCallback(() => {
+    if (!pendingMasterLookupItem) return;
+    void handleSelectFromMaster(pendingMasterLookupItem);
+  }, [pendingMasterLookupItem, handleSelectFromMaster]);
 
   // ── render ──
 
@@ -334,7 +366,17 @@ export const TreatmentsTab = memo(function TreatmentsTab({
           role="alert"
           className={`rounded-xs border px-3 py-2 text-sm font-semibold ${C.borderDanger20} ${C.bgDanger8} ${C.danger}`}
         >
-          ⚠ {masterDoseBlockReason}
+          <div>⚠ {masterDoseBlockReason}</div>
+          {pendingMasterLookupItem ? (
+            <button
+              type="button"
+              className={`mt-2 text-sm font-medium underline ${C.danger}`}
+              onClick={handleRetryMasterDoseLookup}
+              aria-label="投与量パラメータの取得を再試行する"
+            >
+              再試行する
+            </button>
+          ) : null}
         </div>
       ) : null}
 

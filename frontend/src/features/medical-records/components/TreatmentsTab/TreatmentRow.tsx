@@ -12,6 +12,7 @@ import { formatCurrency } from "@/lib/format/number";
 // Relative
 import {
   buildDoseCalcInput,
+  toDoseParamsAuthority,
   useMedicineDoseParams,
   type MedicineDoseContext,
 } from "../../api/medicine-dose-lookup";
@@ -23,7 +24,7 @@ import {
   TreatmentSubtotalCell,
   TreatmentTypeCell,
 } from "./TreatmentRowParts";
-import { computeDoseGate } from "./treatment-row-dose-gate";
+import { computeDoseGate, resolveDoseGateSource } from "./treatment-row-dose-gate";
 
 // ── Props ─────────────────────────────────────────────────────────────
 
@@ -83,19 +84,40 @@ export const TreatmentRow = memo(function TreatmentRow({
   const medicine = isMedicineRow
     ? doseContext.medicines?.find((m) => m.id === treatment.medicine_id)
     : undefined;
-  const { data: doseParams } = useMedicineDoseParams(isMedicineRow ? treatment.medicine_id : undefined);
+  const doseParamsQuery = useMedicineDoseParams(
+    isMedicineRow ? treatment.medicine_id : undefined
+  );
+  const doseParamsAuthority = useMemo(
+    () =>
+      toDoseParamsAuthority(isMedicineRow ? treatment.medicine_id : undefined, {
+        data: doseParamsQuery.data,
+        isError: doseParamsQuery.isError,
+      }),
+    [isMedicineRow, treatment.medicine_id, doseParamsQuery.data, doseParamsQuery.isError]
+  );
   const doseCalcInput = useMemo(
-    () => buildDoseCalcInput(medicine, doseParams, doseContext.petSpecies, doseContext.weightKg),
-    [medicine, doseParams, doseContext.petSpecies, doseContext.weightKg]
+    () =>
+      buildDoseCalcInput(
+        medicine,
+        doseParamsAuthority.status === "success" ? doseParamsAuthority.params : undefined,
+        doseContext.petSpecies,
+        doseContext.weightKg
+      ),
+    [medicine, doseParamsAuthority, doseContext.petSpecies, doseContext.weightKg]
+  );
+  const doseGateSource = useMemo(
+    () => resolveDoseGateSource(doseCalcInput, doseParamsAuthority),
+    [doseCalcInput, doseParamsAuthority]
   );
   const dosePreview = useMemo(
     () => (doseCalcInput ? calculateDose(doseCalcInput) : null),
     [doseCalcInput]
   );
   const currentGate = useMemo(
-    () => computeDoseGate(doseCalcInput, treatment.quantity),
-    [doseCalcInput, treatment.quantity]
+    () => computeDoseGate(doseGateSource, treatment.quantity),
+    [doseGateSource, treatment.quantity]
   );
+  const isDoseLookupFailed = doseGateSource.kind === "technical_failure";
   // react-review-201 HIGH-2: 警告テキストを aria-describedby で数量セルに紐付けるための安定 id。
   const doseWarningId = `dose-warning-${treatment.id}`;
 
@@ -174,9 +196,10 @@ export const TreatmentRow = memo(function TreatmentRow({
     setEditField(null);
     if (val === treatment.quantity) return;
 
-    // #201: マスタの絶対上限超過だけを物理ブロックする。
-    // 下限未満・推奨値からの乖離・評価情報不足は保存を継続する。
-    const gate = computeDoseGate(doseCalcInput, val);
+    // #201: マスタの絶対上限超過を物理ブロックする。
+    // TASK-025: technical failure も isBlocked として通常保存を止める。
+    // 下限未満・推奨値からの乖離・評価情報不足（missing）は保存を継続する。
+    const gate = computeDoseGate(doseGateSource, val);
     if (gate.isBlocked) {
       setLocalQuantity(String(treatment.quantity));
       setAttemptedDoseBlockReason(gate.blockReason);
@@ -184,7 +207,11 @@ export const TreatmentRow = memo(function TreatmentRow({
     }
     setAttemptedDoseBlockReason("");
     onUpdate(treatment.id, { quantity: val });
-  }, [localQuantity, treatment.quantity, treatment.id, onUpdate, doseCalcInput]);
+  }, [localQuantity, treatment.quantity, treatment.id, onUpdate, doseGateSource]);
+
+  const handleRetryDoseParamsLookup = useCallback(() => {
+    void doseParamsQuery.refetch();
+  }, [doseParamsQuery]);
 
   const commitDiscountAmount = useCallback(() => {
     const val = parseFloat(localDiscountAmount) || 0;
@@ -331,7 +358,17 @@ export const TreatmentRow = memo(function TreatmentRow({
             role="alert"
             className={`text-xs text-right mt-0.5 ${C.textRed700}`}
           >
-            ⚠ {doseBlockReason}
+            <div>⚠ {doseBlockReason}</div>
+            {isDoseLookupFailed ? (
+              <button
+                type="button"
+                className={`mt-0.5 text-xs underline ${C.textRed700}`}
+                onClick={handleRetryDoseParamsLookup}
+                aria-label="投与量パラメータの取得を再試行する"
+              >
+                再試行する
+              </button>
+            ) : null}
           </div>
         ) : currentGate.warning !== "none" ? (
           <div

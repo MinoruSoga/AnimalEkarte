@@ -6,8 +6,9 @@ import {
   MedicineUnitPerTablet,
 } from "@/types/generated/models";
 import type { DoseCalcInput } from "@/lib/medicine-dose";
+import { DOSE_PARAMS_LOOKUP_FAILED_MESSAGE } from "../../api/medicine-dose-lookup";
 
-import { computeDoseGate } from "./treatment-row-dose-gate";
+import { computeDoseGate, resolveDoseGateSource } from "./treatment-row-dose-gate";
 
 describe("computeDoseGate", () => {
   it("input=null（手動入力対象外）は常に requiresConfirm=false", () => {
@@ -15,6 +16,34 @@ describe("computeDoseGate", () => {
     expect(got.requiresConfirm).toBe(false);
     expect(got.isBlocked).toBe(false);
     expect(got.warning).toBe("none");
+  });
+
+  it("technical_failure は isBlocked=true で固定文言のみ（upstream body なし）", () => {
+    const got = computeDoseGate({ kind: "technical_failure" }, 1);
+    expect(got.isBlocked).toBe(true);
+    expect(got.blockReason).toBe(DOSE_PARAMS_LOOKUP_FAILED_MESSAGE);
+    expect(got.blockReason).not.toMatch(/SQLSTATE|timeout|stack|http/i);
+    expect(got.requiresConfirm).toBe(false);
+    expect(got.warning).toBe("none");
+  });
+
+  it("missing は technical_failure と型で区別され保存をブロックしない", () => {
+    const missing = computeDoseGate({ kind: "missing" }, 5);
+    const failed = computeDoseGate({ kind: "technical_failure" }, 5);
+    expect(missing.isBlocked).toBe(false);
+    expect(failed.isBlocked).toBe(true);
+    expect(failed.blockReason).not.toBe(missing.blockReason);
+    expect(failed.blockReason.length).toBeGreaterThan(0);
+  });
+
+  it("resolveDoseGateSource: authority.failed を doseCalcInput=null と同一視しない", () => {
+    expect(resolveDoseGateSource(null, { status: "failed" })).toEqual({
+      kind: "technical_failure",
+    });
+    expect(resolveDoseGateSource(null, { status: "success", params: [] })).toEqual({
+      kind: "missing",
+    });
+    expect(resolveDoseGateSource(null, { status: "idle" })).toEqual({ kind: "missing" });
   });
 
   it("安全域内・推奨値と一致する submitted は gate 不要", () => {

@@ -35,6 +35,40 @@ export const useMedicineDoseParams = (medicineId: string | null | undefined) => 
 };
 
 /**
+ * #201 TASK-025: dose-params 権威の 3 分岐（BE evaluateDoseForSave の (eval,nil)/(nil,nil)/(nil,err) に対応）。
+ * - success: 取得成功。params が空でも missing data（手動入力可）であり technical failure ではない。
+ * - failed: fetch/HTTP/parse の technical failure。保存停止対象。
+ * - idle: medicineId 無し等で query が無効。
+ *
+ * 利用者向け文言は固定。upstream の response body / stack を転記しない。
+ */
+export type DoseParamsAuthority =
+  | { status: "success"; params: MedicineDoseParam[] }
+  | { status: "failed" }
+  | { status: "idle" };
+
+/** technical failure 時の固定文言（upstream body を含めない）。 */
+export const DOSE_PARAMS_LOOKUP_FAILED_MESSAGE =
+  "投与量パラメータを取得できなかったため保存できません。再試行してください。";
+
+/**
+ * React Query 結果から DoseParamsAuthority を組み立てる。
+ * キャッシュ済み data がある場合は background refetch 失敗でも success を優先する
+ * （評価可能な権威データが手元にあるため）。data が無く isError のときだけ failed。
+ */
+export function toDoseParamsAuthority(
+  medicineId: string | null | undefined,
+  query: { data: MedicineDoseParam[] | undefined; isError: boolean },
+): DoseParamsAuthority {
+  if (!medicineId) return { status: "idle" };
+  if (query.data !== undefined) return { status: "success", params: query.data };
+  if (query.isError) return { status: "failed" };
+  // pending / 未取得: まだ権威データが無いが technical failure ではない。
+  // missing data 経路と同じく buildDoseCalcInput が null を返す（手動入力継続）。
+  return { status: "success", params: [] };
+}
+
+/**
  * 薬剤追加の瞬間（TreatmentSearchDialog 選択直後）に quantity をプリフィルするための
  * 一度きりの取得。React Query キャッシュにも載せる（同一 queryKey）ので、直後に
  * useMedicineDoseParams がマウントされてもキャッシュヒットする。
