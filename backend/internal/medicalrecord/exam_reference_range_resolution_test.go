@@ -585,7 +585,7 @@ func TestExaminationService_CreateUsesMasterRanges(t *testing.T) {
 		repo,
 		&mockMedicalRecordRepository{},
 		NewExamTypeRepository(db),
-		nil,
+		&mockAuditTxLogger{},
 		testTransactor{db: db},
 	)
 	items := []UpsertExamItemInput{{
@@ -598,6 +598,7 @@ func TestExaminationService_CreateUsesMasterRanges(t *testing.T) {
 		ExamTypeID: examType.ID,
 		Date:       time.Date(2026, time.July, 27, 0, 0, 0, 0, time.UTC),
 		Items:      &items,
+		ActorID:    ptrUint64(1),
 	})
 	require.NoError(t, err)
 

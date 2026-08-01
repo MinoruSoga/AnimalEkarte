@@ -112,7 +112,7 @@ func TestCreateExamination_WithItemsRollsBackParentWhenItemPersistenceFails(t *t
 		repo,
 		&mockMedicalRecordRepository{},
 		NewExamTypeRepository(db),
-		nil,
+		&mockAuditTxLogger{},
 		testTransactor{db: db},
 	)
 	handler := NewExaminationHandler(service)
@@ -134,6 +134,7 @@ func TestCreateExamination_WithItemsRollsBackParentWhenItemPersistenceFails(t *t
 	c.Request = httptest.NewRequest(http.MethodPost, "/api/v1/examinations", bytes.NewReader(payload))
 	c.Request.Header.Set("Content-Type", "application/json")
 	setClinicID(c)
+	setStaffID(c)
 	handler.CreateExamination(c)
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)
@@ -168,7 +169,7 @@ func TestUpdateExamination_WithItemsRollsBackParentAndItemsWhenItemPersistenceFa
 		repo,
 		&mockMedicalRecordRepository{},
 		NewExamTypeRepository(db),
-		nil,
+		&mockAuditTxLogger{},
 		testTransactor{db: db},
 	)
 	handler := NewExaminationHandler(service)
@@ -189,6 +190,7 @@ func TestUpdateExamination_WithItemsRollsBackParentAndItemsWhenItemPersistenceFa
 	c.Request.Header.Set("Content-Type", "application/json")
 	c.Params = gin.Params{{Key: "id", Value: strconv.FormatUint(exam.ID, 10)}}
 	setClinicID(c)
+	setStaffID(c)
 	handler.UpdateExamination(c)
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)

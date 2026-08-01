@@ -195,7 +195,7 @@ func TestDB_ExaminationServiceRejectsPollutedClinicalRelations(t *testing.T) {
 		repo,
 		fixture.medicalRecordRepo,
 		NewExamTypeRepository(fixture.db),
-		nil,
+		&mockAuditTxLogger{},
 		fixture.writeTransactor,
 		fixture.relationVerifier,
 	)
@@ -232,7 +232,7 @@ func TestDB_ExaminationServiceRejectsPollutedClinicalRelations(t *testing.T) {
 			before := countClinicalRelationRows(t, fixture.db, &model.Examination{}, fixture.clinicA)
 			got, err := service.Create(ctx, fixture.clinicA, &CreateExaminationInput{
 				MedicalRecordID: &tt.medicalRecordID, PetID: &tt.petID,
-				ExamTypeID: fixture.examinationType.ID, DoctorID: &tt.doctorID, Date: time.Now(),
+				ExamTypeID: fixture.examinationType.ID, DoctorID: &tt.doctorID, Date: time.Now(), ActorID: ptrUint64(1),
 			})
 			require.Error(t, err)
 			assert.Nil(t, got)
@@ -245,28 +245,28 @@ func TestDB_ExaminationServiceRejectsPollutedClinicalRelations(t *testing.T) {
 	validDoctorID := fixture.assignedDoctor.ID
 	created, err := service.Create(ctx, fixture.clinicA, &CreateExaminationInput{
 		MedicalRecordID: &validRecordID, PetID: &validPetID,
-		ExamTypeID: fixture.examinationType.ID, DoctorID: &validDoctorID, Date: time.Now(),
+		ExamTypeID: fixture.examinationType.ID, DoctorID: &validDoctorID, Date: time.Now(), ActorID: ptrUint64(1),
 	})
 	require.NoError(t, err)
 	require.NotNil(t, created)
 
 	otherPetID := fixture.otherPetA.ID
 	got, err := service.Update(ctx, fixture.clinicA, created.ID, UpdateExaminationInput{
-		PetID: &otherPetID,
+		PetID: &otherPetID, ActorID: ptrUint64(1),
 	})
 	require.Error(t, err)
 	assert.Nil(t, got)
 
 	otherPatientRecordID := fixture.otherPatientRecA.ID
 	got, err = service.Update(ctx, fixture.clinicA, created.ID, UpdateExaminationInput{
-		MedicalRecordID: &otherPatientRecordID,
+		MedicalRecordID: &otherPatientRecordID, ActorID: ptrUint64(1),
 	})
 	require.Error(t, err)
 	assert.Nil(t, got)
 
 	unassignedDoctorID := fixture.unassignedDoctor.ID
 	got, err = service.Update(ctx, fixture.clinicA, created.ID, UpdateExaminationInput{
-		DoctorID: &unassignedDoctorID,
+		DoctorID: &unassignedDoctorID, ActorID: ptrUint64(1),
 	})
 	require.Error(t, err)
 	assert.Nil(t, got)

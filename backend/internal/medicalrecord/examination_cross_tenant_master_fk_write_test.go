@@ -24,13 +24,13 @@ func TestExaminationService_Create_RejectsCrossClinicExamType(t *testing.T) {
 		repo := &mockExaminationRepository{
 			createFn: func(_ context.Context, _ *model.Examination) error { *created = true; return nil },
 		}
-		return NewExaminationService(repo, &mockMedicalRecordRepository{}, rejectExamTypeRepo(ownedExamTypeID), nil, &mockCheckupTransactor{})
+		return NewExaminationService(repo, &mockMedicalRecordRepository{}, rejectExamTypeRepo(ownedExamTypeID), &mockAuditTxLogger{}, &mockCheckupTransactor{})
 	}
 
 	t.Run("rejects cross-clinic exam_type_id and does not persist", func(t *testing.T) {
 		created := false
 		svc := newSvc(&created)
-		out, err := svc.Create(context.Background(), clinicID, &CreateExaminationInput{ExamTypeID: foreignExamTypeID})
+		out, err := svc.Create(context.Background(), clinicID, &CreateExaminationInput{ExamTypeID: foreignExamTypeID, ActorID: ptrUint64(1)})
 		assert.Error(t, err)
 		assert.Nil(t, out)
 		assert.False(t, created, "examination must NOT be persisted referencing another clinic's exam_type")
@@ -39,7 +39,7 @@ func TestExaminationService_Create_RejectsCrossClinicExamType(t *testing.T) {
 	t.Run("accepts same-clinic exam_type_id (no false-reject)", func(t *testing.T) {
 		created := false
 		svc := newSvc(&created)
-		out, err := svc.Create(context.Background(), clinicID, &CreateExaminationInput{ExamTypeID: ownedExamTypeID})
+		out, err := svc.Create(context.Background(), clinicID, &CreateExaminationInput{ExamTypeID: ownedExamTypeID, ActorID: ptrUint64(1)})
 		assert.NoError(t, err)
 		assert.NotNil(t, out)
 		assert.True(t, created)
@@ -61,14 +61,14 @@ func TestExaminationService_Update_RejectsCrossClinicExamType(t *testing.T) {
 				return &model.Examination{ID: 1}, nil
 			},
 		}
-		return NewExaminationService(repo, &mockMedicalRecordRepository{}, rejectExamTypeRepo(ownedExamTypeID), nil, &mockCheckupTransactor{})
+		return NewExaminationService(repo, &mockMedicalRecordRepository{}, rejectExamTypeRepo(ownedExamTypeID), &mockAuditTxLogger{}, &mockCheckupTransactor{})
 	}
 
 	t.Run("rejects cross-clinic exam_type_id on update and does not persist", func(t *testing.T) {
 		updated := false
 		svc := newSvc(&updated)
 		foreign := foreignExamTypeID
-		out, err := svc.Update(context.Background(), clinicID, 1, UpdateExaminationInput{ExamTypeID: &foreign})
+		out, err := svc.Update(context.Background(), clinicID, 1, UpdateExaminationInput{ExamTypeID: &foreign, ActorID: ptrUint64(1)})
 		assert.Error(t, err)
 		assert.Nil(t, out)
 		assert.False(t, updated, "examination must NOT be updated to reference another clinic's exam_type")
@@ -102,7 +102,7 @@ func TestExaminationService_Create_RejectsCrossClinicExamTypeField(t *testing.T)
 		repo,
 		&mockMedicalRecordRepository{},
 		examTypeRepo,
-		nil,
+		&mockAuditTxLogger{},
 		&mockCheckupTransactor{},
 	)
 	items := []UpsertExamItemInput{{ExamTypeFieldID: &foreignFieldID, Name: "foreign field"}}
@@ -110,6 +110,7 @@ func TestExaminationService_Create_RejectsCrossClinicExamTypeField(t *testing.T)
 	out, err := svc.Create(context.Background(), clinicID, &CreateExaminationInput{
 		ExamTypeID: examTypeID,
 		Items:      &items,
+		ActorID:    ptrUint64(1),
 	})
 
 	assert.Error(t, err)
@@ -148,12 +149,12 @@ func TestExaminationService_Update_RejectsCrossClinicExamTypeField(t *testing.T)
 		repo,
 		&mockMedicalRecordRepository{},
 		examTypeRepo,
-		nil,
+		&mockAuditTxLogger{},
 		&mockCheckupTransactor{},
 	)
 	items := []UpsertExamItemInput{{ExamTypeFieldID: &foreignFieldID, Name: "foreign field"}}
 
-	out, err := svc.Update(context.Background(), clinicID, 1, UpdateExaminationInput{Items: &items})
+	out, err := svc.Update(context.Background(), clinicID, 1, UpdateExaminationInput{Items: &items, ActorID: ptrUint64(1)})
 
 	assert.Error(t, err)
 	assert.Nil(t, out)

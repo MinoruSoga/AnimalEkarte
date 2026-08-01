@@ -113,7 +113,7 @@ type ExaminationService interface {
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.Examination, error)
 	Create(ctx context.Context, clinicID uint64, input *CreateExaminationInput) (*model.Examination, error)
 	Update(ctx context.Context, clinicID, id uint64, input UpdateExaminationInput) (*model.Examination, error)
-	Delete(ctx context.Context, clinicID, id uint64) error
+	Delete(ctx context.Context, clinicID, id uint64, actorID *uint64) error
 	ListItems(ctx context.Context, clinicID, examID uint64) ([]model.ExamResult, error)
 	// ReplaceItems は検査項目を一括置換する（PUT セマンティクス）。actorID は監査ログ用の操作スタッフ ID
 	// （nil = システム実行）。BE-refactor.md R1-2: 実削除が発生した場合は同一 tx 内で fail-closed 監査する。
@@ -178,9 +178,18 @@ func (s *examinationService) Create(ctx context.Context, clinicID uint64, input 
 	if s.transactor == nil {
 		return nil, apperrors.WrapInternalServerError("examination write transaction dependency is required")
 	}
-	status := input.Status
-	if status == "" {
-		status = model.ExaminationStatusPending
+	if err := s.validateParentMutationAudit(input.ActorID); err != nil {
+		return nil, err
+	}
+	targetStatus := input.Status
+	if targetStatus == "" {
+		targetStatus = model.ExaminationStatusPending
+	}
+	// A create request may carry status=confirmed. Persist an editable initial parent so item/range
+	// validation and replacement cannot self-reject, then perform the confirmed transition last.
+	initialStatus := targetStatus
+	if targetStatus == model.ExaminationStatusConfirmed {
+		initialStatus = model.ExaminationStatusPending
 	}
 	exam := &model.Examination{
 		ClinicID:        clinicID,
@@ -191,7 +200,7 @@ func (s *examinationService) Create(ctx context.Context, clinicID uint64, input 
 		Date:            input.Date,
 		ResultSummary:   input.ResultSummary,
 		Machine:         input.Machine,
-		Status:          status,
+		Status:          initialStatus,
 	}
 
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
@@ -227,7 +236,32 @@ func (s *examinationService) Create(ctx context.Context, clinicID uint64, input 
 				return err
 			}
 		}
-		return nil
+		if targetStatus == model.ExaminationStatusConfirmed {
+			updated, err := s.repo.Update(txCtx, clinicID, exam.ID, map[string]any{
+				"status": model.ExaminationStatusConfirmed,
+			})
+			if err != nil {
+				slog.ErrorContext(txCtx, "failed to confirm created examination", "error", err)
+				return apperrors.Wrap(err, "failed to confirm created examination")
+			}
+			exam = updated
+		}
+		// Create does not reload database-normalized columns (notably the PostgreSQL date value).
+		// Audit and response data must describe the durable parent row, not the caller's timestamp.
+		persisted, err := s.repo.FindByID(txCtx, clinicID, exam.ID)
+		if err != nil {
+			return apperrors.Wrap(err, "failed to reload created examination")
+		}
+		exam = persisted
+		return s.logParentMutationTx(
+			txCtx,
+			clinicID,
+			input.ActorID,
+			model.AuditActionExaminationCreate,
+			"create",
+			nil,
+			exam,
+		)
 	}); err != nil {
 		return nil, err
 	}
@@ -244,6 +278,15 @@ func (s *examinationService) Update(ctx context.Context, clinicID, id uint64, in
 	if len(fields) == 0 && input.Items == nil {
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
+	if err := s.validateParentMutationAudit(input.ActorID); err != nil {
+		return nil, err
+	}
+	confirming := input.Status != nil && *input.Status == model.ExaminationStatusConfirmed
+	if confirming {
+		// DEC-53 requires confirmed to be the final write. Keep all other parent fields in this
+		// first immutable map and write status only after item/range validation and replacement.
+		delete(fields, "status")
+	}
 
 	var exam *model.Examination
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
@@ -253,8 +296,9 @@ func (s *examinationService) Update(ctx context.Context, clinicID, id uint64, in
 			return apperrors.Wrap(err, "failed to lock examination")
 		}
 		if locked.Status == model.ExaminationStatusConfirmed {
-			return apperrors.WrapInvalidInput("確定済みの検査は編集できません")
+			return apperrors.WrapConflict("確定済みの検査は編集できません")
 		}
+		before := *locked
 
 		medicalRecordID, petID, doctorID := effectiveExaminationRelations(locked, input)
 		record, err := s.lockExaminationUpdateMedicalRecords(
@@ -293,7 +337,21 @@ func (s *examinationService) Update(ctx context.Context, clinicID, id uint64, in
 				return err
 			}
 		}
-		return nil
+		action := model.AuditActionExaminationUpdate
+		operation := "update"
+		if confirming {
+			updated, err := s.repo.Update(txCtx, clinicID, id, map[string]any{
+				"status": model.ExaminationStatusConfirmed,
+			})
+			if err != nil {
+				slog.ErrorContext(txCtx, "failed to confirm examination", "error", err)
+				return apperrors.Wrap(err, "failed to confirm examination")
+			}
+			exam = updated
+			action = model.AuditActionExaminationConfirm
+			operation = "confirm"
+		}
+		return s.logParentMutationTx(txCtx, clinicID, input.ActorID, action, operation, &before, exam)
 	}); err != nil {
 		return nil, err
 	}
@@ -352,7 +410,7 @@ func (s *examinationService) ListItems(ctx context.Context, clinicID, examID uin
 //
 // 仕様:
 //  1. 親 exam の存在を FindByID で確認（P1）
-//  2. 親 exam が confirmed の場合は 400 で拒否（既存 Update と同方針）
+//  2. 親 exam が confirmed の場合は Conflict (409) で拒否
 //  3. 各 input の inspection_value とサーバで解決した基準値から status / is_abnormal を導出
 //  4. repository の ReplaceItemsByExamID（トランザクション内で全削除→一括挿入）に委譲
 //  5. 実削除が発生した場合（deletedCount > 0）は同一 tx 内で監査ログを書き込む。監査書込が失敗したら
@@ -374,7 +432,7 @@ func (s *examinationService) ReplaceItems(ctx context.Context, clinicID, examID 
 			return apperrors.Wrap(err, "failed to lock examination")
 		}
 		if locked.Status == model.ExaminationStatusConfirmed {
-			return apperrors.WrapInvalidInput("確定済みの検査は編集できません")
+			return apperrors.WrapConflict("確定済みの検査は編集できません")
 		}
 		if locked.MedicalRecordID != nil {
 			if err := lockDraftMedicalRecord(
@@ -585,15 +643,21 @@ func extractExamResultsAudit(results []model.ExamResult) []map[string]any {
 	return out
 }
 
-func (s *examinationService) Delete(ctx context.Context, clinicID, id uint64) error {
+func (s *examinationService) Delete(ctx context.Context, clinicID, id uint64, actorID *uint64) error {
 	if s.transactor == nil {
 		return apperrors.WrapInternalServerError("examination write transaction dependency is required")
+	}
+	if err := s.validateParentMutationAudit(actorID); err != nil {
+		return err
 	}
 
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
 		locked, err := s.repo.LockByIDForUpdate(txCtx, clinicID, id)
 		if err != nil {
 			return apperrors.Wrap(err, "failed to lock examination")
+		}
+		if locked.Status == model.ExaminationStatusConfirmed {
+			return apperrors.WrapConflict("確定済みの検査は削除できません")
 		}
 		// HC-003 + BE-refactor.md H-8d: 親カルテが確定済みの場合は削除拒否。LockByIDForUpdate の
 		// 行ロックで finalize と直列化し、確定と同時の検査削除が確定済みカルテに混入する競合を防ぐ
@@ -619,7 +683,15 @@ func (s *examinationService) Delete(ctx context.Context, clinicID, id uint64) er
 			slog.ErrorContext(txCtx, "failed to delete examination", "error", err, "id", id, "clinic_id", clinicID)
 			return apperrors.Wrap(err, "failed to delete examination")
 		}
-		return nil
+		return s.logParentMutationTx(
+			txCtx,
+			clinicID,
+			actorID,
+			model.AuditActionExaminationDelete,
+			"delete",
+			locked,
+			nil,
+		)
 	}); err != nil {
 		return err
 	}

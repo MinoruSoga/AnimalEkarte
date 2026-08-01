@@ -214,17 +214,28 @@ func TestCreateExamination(t *testing.T) {
 				"date":         "2026-05-28T00:00:00Z",
 				"status":       "pending",
 			},
-			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			setupCtx: func(c *gin.Context) { setClinicID(c); setStaffID(c) },
 			svc: &mockExaminationService{
 				createFn: func(_ context.Context, clinicID uint64, input *CreateExaminationInput) (*model.Examination, error) {
 					assert.Equal(t, uint64(1), clinicID)
 					assert.Equal(t, uint64(2), input.ExamTypeID)
+					assert.Equal(t, uint64(1), *input.ActorID)
 					return &model.Examination{ID: 42, ClinicID: 1, ExamTypeID: 2, Status: model.ExaminationStatusPending}, nil
 				},
 			},
 			wantStatus: http.StatusCreated,
 			wantBody:   `"id":42`,
 			wantLoc:    "/api/v1/examinations/42",
+		},
+		{
+			name: "returns 401 when authenticated actor is missing",
+			body: map[string]any{
+				"exam_type_id": 2,
+				"date":         "2026-05-28T00:00:00Z",
+			},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockExaminationService{},
+			wantStatus: http.StatusUnauthorized,
 		},
 		{
 			name:       "returns 401 when clinic_id is missing",
@@ -253,7 +264,7 @@ func TestCreateExamination(t *testing.T) {
 				"exam_type_id": 2,
 				"date":         "2026-05-28T00:00:00Z",
 			},
-			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			setupCtx: func(c *gin.Context) { setClinicID(c); setStaffID(c) },
 			svc: &mockExaminationService{
 				createFn: func(_ context.Context, _ uint64, _ *CreateExaminationInput) (*model.Examination, error) {
 					return nil, fmt.Errorf("db failure")
@@ -312,18 +323,27 @@ func TestUpdateExamination(t *testing.T) {
 			name:     "updates examination successfully",
 			paramID:  "10",
 			body:     map[string]any{"result_summary": "normal"},
-			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			setupCtx: func(c *gin.Context) { setClinicID(c); setStaffID(c) },
 			svc: &mockExaminationService{
 				updateFn: func(_ context.Context, clinicID, id uint64, input UpdateExaminationInput) (*model.Examination, error) {
 					assert.Equal(t, uint64(1), clinicID)
 					assert.Equal(t, uint64(10), id)
 					assert.NotNil(t, input.ResultSummary)
 					assert.Equal(t, "normal", *input.ResultSummary)
+					assert.Equal(t, uint64(1), *input.ActorID)
 					return &model.Examination{ID: 10, ClinicID: 1, ResultSummary: "normal"}, nil
 				},
 			},
 			wantStatus: http.StatusOK,
 			wantBody:   `"result_summary":"normal"`,
+		},
+		{
+			name:       "returns 401 when authenticated actor is missing",
+			paramID:    "10",
+			body:       map[string]any{"result_summary": "normal"},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockExaminationService{},
+			wantStatus: http.StatusUnauthorized,
 		},
 		{
 			name:       "returns 401 when clinic_id is missing",
@@ -353,13 +373,25 @@ func TestUpdateExamination(t *testing.T) {
 			name:     "returns 404 when examination does not exist",
 			paramID:  "999",
 			body:     map[string]any{"result_summary": "x"},
-			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			setupCtx: func(c *gin.Context) { setClinicID(c); setStaffID(c) },
 			svc: &mockExaminationService{
 				updateFn: func(_ context.Context, _, _ uint64, _ UpdateExaminationInput) (*model.Examination, error) {
 					return nil, apperrors.WrapNotFound("examination", "999")
 				},
 			},
 			wantStatus: http.StatusNotFound,
+		},
+		{
+			name:     "returns 409 for confirmed examination conflict",
+			paramID:  "10",
+			body:     map[string]any{"result_summary": "blocked"},
+			setupCtx: func(c *gin.Context) { setClinicID(c); setStaffID(c) },
+			svc: &mockExaminationService{
+				updateFn: func(_ context.Context, _, _ uint64, _ UpdateExaminationInput) (*model.Examination, error) {
+					return nil, apperrors.WrapConflict("confirmed examination")
+				},
+			},
+			wantStatus: http.StatusConflict,
 		},
 	}
 
@@ -398,6 +430,7 @@ func newDeleteExaminationRouter(svc ExaminationService) *gin.Engine {
 	h := newHandlerWithExaminationSvc(svc)
 	r.DELETE("/examinations/:id", func(c *gin.Context) {
 		setClinicID(c)
+		setStaffID(c)
 	}, h.DeleteExamination)
 	return r
 }
@@ -415,9 +448,10 @@ func TestDeleteExamination(t *testing.T) {
 			name:    "deletes examination successfully",
 			paramID: "10",
 			svc: &mockExaminationService{
-				deleteFn: func(_ context.Context, clinicID, id uint64) error {
+				deleteFn: func(_ context.Context, clinicID, id uint64, actorID *uint64) error {
 					assert.Equal(t, uint64(1), clinicID)
 					assert.Equal(t, uint64(10), id)
+					assert.Equal(t, uint64(1), *actorID)
 					return nil
 				},
 			},
@@ -433,11 +467,21 @@ func TestDeleteExamination(t *testing.T) {
 			name:    "returns 404 when examination does not exist",
 			paramID: "999",
 			svc: &mockExaminationService{
-				deleteFn: func(_ context.Context, _, _ uint64) error {
+				deleteFn: func(_ context.Context, _, _ uint64, _ *uint64) error {
 					return apperrors.WrapNotFound("examination", "999")
 				},
 			},
 			wantStatus: http.StatusNotFound,
+		},
+		{
+			name:    "returns 409 for confirmed examination conflict",
+			paramID: "10",
+			svc: &mockExaminationService{
+				deleteFn: func(_ context.Context, _, _ uint64, _ *uint64) error {
+					return apperrors.WrapConflict("confirmed examination")
+				},
+			},
+			wantStatus: http.StatusConflict,
 		},
 	}
 
@@ -457,6 +501,17 @@ func TestDeleteExamination(t *testing.T) {
 		c, _ := gin.CreateTestContext(w)
 		c.Request = httptest.NewRequest(http.MethodDelete, "/", http.NoBody)
 		c.Params = gin.Params{{Key: "id", Value: "10"}}
+		h.DeleteExamination(c)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+
+	t.Run("returns 401 when authenticated actor is missing", func(t *testing.T) {
+		h := newHandlerWithExaminationSvc(&mockExaminationService{})
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodDelete, "/", http.NoBody)
+		c.Params = gin.Params{{Key: "id", Value: "10"}}
+		setClinicID(c)
 		h.DeleteExamination(c)
 		assert.Equal(t, http.StatusUnauthorized, w.Code)
 	})

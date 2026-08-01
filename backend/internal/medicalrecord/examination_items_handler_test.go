@@ -22,7 +22,7 @@ type mockExaminationService struct {
 	getByIDFn      func(ctx context.Context, clinicID, id uint64) (*model.Examination, error)
 	createFn       func(ctx context.Context, clinicID uint64, input *CreateExaminationInput) (*model.Examination, error)
 	updateFn       func(ctx context.Context, clinicID, id uint64, input UpdateExaminationInput) (*model.Examination, error)
-	deleteFn       func(ctx context.Context, clinicID, id uint64) error
+	deleteFn       func(ctx context.Context, clinicID, id uint64, actorID *uint64) error
 	listItemsFn    func(ctx context.Context, clinicID, examID uint64) ([]model.ExamResult, error)
 	replaceItemsFn func(ctx context.Context, clinicID, examID uint64, actorID *uint64, inputs []UpsertExamItemInput) ([]model.ExamResult, error)
 }
@@ -43,8 +43,8 @@ func (m *mockExaminationService) Update(ctx context.Context, clinicID, id uint64
 	return m.updateFn(ctx, clinicID, id, input)
 }
 
-func (m *mockExaminationService) Delete(ctx context.Context, clinicID, id uint64) error {
-	return m.deleteFn(ctx, clinicID, id)
+func (m *mockExaminationService) Delete(ctx context.Context, clinicID, id uint64, actorID *uint64) error {
+	return m.deleteFn(ctx, clinicID, id, actorID)
 }
 
 func (m *mockExaminationService) ListItems(ctx context.Context, clinicID, examID uint64) ([]model.ExamResult, error) {
@@ -260,16 +260,16 @@ func TestReplaceExaminationItems(t *testing.T) {
 			wantStatus: http.StatusBadRequest,
 		},
 		{
-			name:     "returns 400 when exam is confirmed",
+			name:     "returns 409 when exam is confirmed",
 			paramID:  "10",
 			body:     map[string]any{"items": []map[string]any{{"name": "WBC"}}},
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockExaminationService{
 				replaceItemsFn: func(_ context.Context, _, _ uint64, _ *uint64, _ []UpsertExamItemInput) ([]model.ExamResult, error) {
-					return nil, apperrors.WrapInvalidInput("確定済みの検査は編集できません")
+					return nil, apperrors.WrapConflict("確定済みの検査は編集できません")
 				},
 			},
-			wantStatus: http.StatusBadRequest,
+			wantStatus: http.StatusConflict,
 		},
 		{
 			name:     "returns 404 when exam does not exist",

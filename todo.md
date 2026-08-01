@@ -26,13 +26,12 @@
 | SPEC-TOP-CAPABILITIES-CRUD | exclusion 面の破壊削除 | **TASK-021 Stage A**（Phase1 done; Phase2 slice1+slice2 complete; FE ZERO_IN_REPO / external UNREPORTED; CLEAN-GO/DROP HOLD） |
 | SPEC-TOP-CLAIM-RELEASE | claim 解放 | **SCEN-OPS-CLAIM-001** |
 | ISSUE-201-DOSE-LOOKUP | dose parameter 取得障害の silent fallback | **TASK-025**（READY_AGENT・臨床値は別 gate） |
-| ISSUE-249-CONFIRMED-LOCK | confirmed 検査の更新/削除 lock・audit | **TASK-026**（READY_AGENT・P0） |
-| ISSUE-249-MANUAL-LIFECYCLE | 手動検査 edit / confirmed→completed 確定解除 | **TASK-027**（TASK-026 後） |
+| ISSUE-249-MANUAL-LIFECYCLE | 手動検査 edit / confirmed→completed 確定解除 | **TASK-027**（READY_AGENT） |
 | ISSUE-252-STANDARD-PATCH | 締め設定 standard PATCH の validation/audit | **TASK-028**（READY_AGENT・値投入は USER） |
 | ISSUE-259-DOC-CONTRACT | Lステップ disabled 時の旧 noop 文書 | **TASK-029**（DONE・`9fc5b9ffb` push 済。残は先方 enable + USER runtime 実測） |
 | ISSUE-261-TRIMMING-DECEASED | trimming 死亡ペット拒否の経路別回帰 | **TASK-030**（READY_AGENT・runtime は USER） |
-| ISSUE-249-PRINT-SNAPSHOT | 検査結果の保存 snapshot 印刷 | **TASK-031**（TASK-026 後） |
-| ISSUE-249-IMPORT-REVERT | lab import job の compensating revert | **TASK-032**（TASK-026 後・migration review 必須） |
+| ISSUE-249-PRINT-SNAPSHOT | 検査結果の保存 snapshot 印刷 | **TASK-031**（READY_AGENT） |
+| ISSUE-249-IMPORT-REVERT | lab import job の compensating revert | **TASK-032**（READY_AGENT・migration review 必須） |
 | ISSUE-201-EMERGENCY-ADMIN | 構造化救急投薬記録と欠落時 fail-closed cutover | **TASK-033**（臨床承認・migration review 後） |
 
 ### 対応済み（削除済み・再掲しない）
@@ -501,46 +500,18 @@ validator_exit=0
 - **Exit criteria for close**: technical failure が UI/BE で missing と区別され、通常保存/write が zero、visible retry と parameter 解決後の復帰が scoped tests で green。欠落時 contract の close は TASK-033 に残る。
 - **Evidence sources read**: `reports/2026-08-01-issue-readiness-dossier.md` Issue #201、DEC-48、live FE/BE source と tests。
 
-### TASK-026: #249 confirmed 検査の transaction 順序・409 lock・parent mutation audit（Critical / Clinical record integrity）
-
-- **対応 Issue**: GitHub Issue #249。
-- **問題**: confirm が親 status を先に更新して item replace を自己拒否し得る。confirmed delete に status guard がなく、既存 status conflict は 400 相当。parent examination の create/update/confirm/delete は authenticated actor と application audit を持たない。
-- **状態**: **READY_AGENT / P0**。設計は `q&a.html` DEC-53。
-- **claim**: `claim/TASK-026` — **not live**（2026-08-01 USER 解放済み。起票時の過剰取得を是正したもので、本タスクは未着手）。
-
-#### 実装プラン（2026-08-01・readiness dossier）
-- **Ready**: READY_AGENT
-- **Owner lane**: backend medicalrecord / audit transaction
-- **Blockers (today)**: なし。clinical range と external import は別 gate。
-- **Preconditions**: `backend/CLAUDE.md`、clinic isolation、DBOrTx/audit conventions、DEC-53 を読む。
-- **Code anchors**: `backend/internal/medicalrecord/examination_service.go:177,239-299,506,588-625`, `examination_repository.go:155-166,293-306`, `examination_handler.go:191`, `backend/internal/model/audit_log.go:92`, existing examination service/repository/handler tests。
-- **Steps**:
-  1. RED: initial confirm + item persistence success、confirmed update/delete conflict、create/update/confirm/delete の actor + before/after audit、audit dependency/failure rollback を追加する。
-  2. 元 status を clinic-scoped lock し、items/range 検証・置換後に最後に confirmed へ遷移する。
-  3. confirmed update/delete を Conflict 409 contract に統一し、explicit authorized unconfirm なしの mutation を拒否する。
-  4. authenticated actor を handler→service へ明示伝播し、parent create/update/confirm/delete の operation、before/after、reason を audit event として追加する。
-  5. 各 parent mutation、status 判定、audit、soft delete を同一 transaction に置き、audit dependency 不在または write failure は全 rollback する。
-- **Verification** (scoped only):
-  - `docker compose exec -T backend go test -p 1 ./internal/medicalrecord/... -run 'Test.*Examination.*(Create|Update|Confirm|Delete|Audit)|Test.*ReplaceItems' -count=1`
-  - `docker compose exec -T backend go test -p 1 ./internal/medicalrecord/... -run 'TestLabImportExaminationService_PersistExam_(SameDayDifferentContentNotDuplicate|FullIdenticalContentIsDuplicate)|TestLabImportDuplicateCheckerDB_IsDuplicate_FullIdenticalOnly' -count=1`
-  - `docker compose exec -T frontend npx vitest run src/features/examinations/api/transforms.test.ts src/features/examinations/components/ExamPivotTable.test.tsx`
-  - `docker compose exec -T backend go test -p 1 ./internal/apicontract -count=1`
-- **Non-actions / HOLD**: migration、clinical range 値、external import、auto-commit enable、Issue close、claim 削除を行わない。
-- **Exit criteria for close**: confirm transaction が自己拒否せず、confirmed mutation が 409、全 parent mutation に actor/before/after audit があり、audit と write が atomic、clinic_id scope と rollback regression が green。
-- **Evidence sources read**: dossier Issue #249、DEC-53、live examination source/tests。
-
 ### TASK-027: #249 手動検査の結果行操作・患者変更・confirmed→completed 確定解除（High）
 
 - **対応 Issue**: GitHub Issue #249。
 - **問題**: manual workflow の row add/delete、confirm 前 patient change、権限付き確定解除が未完。現行 examination status に <code>unconfirmed</code>/<code>cancelled</code> はなく、lab import job の取消と混ぜてはならない。
-- **状態**: **READY_AFTER_TASK-026**。TASK-026 の immutable confirmed contract を前提とする。
+- **状態**: **READY_AGENT**。TASK-026 の immutable confirmed contract は実装済み。
 - **claim**: `claim/TASK-027` — **not live**（2026-08-01 USER 解放済み。起票時の過剰取得を是正したもので、本タスクは未着手）。
 
 #### 実装プラン（2026-08-01・readiness dossier）
-- **Ready**: READY_AGENT_AFTER_DEPENDENCY
+- **Ready**: READY_AGENT
 - **Owner lane**: backend medicalrecord + frontend examinations
-- **Blockers (today)**: TASK-026。print は TASK-031、lab import revert は TASK-032。external file/crosswalk、clinical range、auto-commit は対象外。
-- **Preconditions**: TASK-026 green、DEC-57、Issue #249 の current AC、既存 examination RBAC/audit contract を再読する。
+- **Blockers (today)**: なし。print は TASK-031、lab import revert は TASK-032。external file/crosswalk、clinical range、auto-commit は対象外。
+- **Preconditions**: DEC-53/TASK-026 regression、DEC-57、Issue #249 の current AC、既存 examination RBAC/audit contract を再読する。
 - **Code anchors**: `frontend/src/features/examinations/components/ExamItemsTable.tsx:91-98`, `backend/internal/medicalrecord/routes.go:360-371`, `backend/internal/medicalrecord/examination_service.go`, `backend/internal/model/examination_record.go:10-17`, examination feature tests。
 - **Steps**:
   1. 現行 status（pending/in_progress/result_entered/completed/confirmed）× row/pet/unconfirm operation × permission × audit の matrix を test fixture に固定し、存在しない状態を追加しない。
@@ -645,14 +616,14 @@ validator_exit=0
 
 - **対応 Issue**: GitHub Issue #249 F-5a。
 - **問題**: 飼主説明・他院添付・院内保管向け print surface が未完。画面 state や FE 再計算を印刷正本にすると保存済み臨床記録と不一致になり得る。
-- **状態**: **READY_AFTER_TASK-026**。TASK-026 の immutable/audit contract を前提とする。
+- **状態**: **READY_AGENT**。TASK-026 の immutable/audit contract は実装済み。
 - **claim**: `claim/TASK-031` — **not live**（2026-08-01 USER 解放済み。起票時の過剰取得を是正したもので、本タスクは未着手）。
 
 #### 実装プラン（2026-08-01・readiness dossier）
-- **Ready**: READY_AGENT_AFTER_DEPENDENCY
+- **Ready**: READY_AGENT
 - **Owner lane**: frontend examinations / print presentation
-- **Blockers (today)**: TASK-026。臨床 range の新規推測、manual unconfirm、lab import revert は対象外。
-- **Preconditions**: DEC-53/57、Issue #249 F-5a、`PrintPortal` の既存利用例、#229 の飼主向け表現境界を読む。
+- **Blockers (today)**: なし。臨床 range の新規推測、manual unconfirm、lab import revert は対象外。
+- **Preconditions**: DEC-53/TASK-026 regression、DEC-57、Issue #249 F-5a、`PrintPortal` の既存利用例、#229 の飼主向け表現境界を読む。
 - **Code anchors**: `frontend/src/components/shared/PrintPortal.tsx`, `frontend/src/features/examinations/components/ExamPivotTable.tsx`, `frontend/src/features/examinations/api/get-examination-items.ts`, examinations feature tests。
 - **Steps**:
   1. RED: 保存済み examination/items snapshot だけを入力にし、実施項目のみ、欠測、定性値、日付/単位を表示する print component test を追加する。
@@ -669,14 +640,14 @@ validator_exit=0
 
 - **対応 Issue**: GitHub Issue #249 F-3c(a)。
 - **問題**: persisted import job を取消す endpoint/状態がなく、手動 examination の確定解除と混ぜると status・permission・audit・rollback の意味が不定になる。
-- **状態**: **READY_AFTER_TASK-026 / migration review required**。設計は DEC-57。
+- **状態**: **READY_AGENT / migration review required**。設計は DEC-57。
 - **claim**: `claim/TASK-032` — **not live**（2026-08-01 USER 解放済み。起票時の過剰取得を是正したもので、本タスクは未着手）。
 
 #### 実装プラン（2026-08-01・readiness dossier）
-- **Ready**: READY_AGENT_AFTER_DEPENDENCY
+- **Ready**: READY_AGENT
 - **Owner lane**: backend medicalrecord / lab import compensation
-- **Blockers (today)**: TASK-026。migration-seed-safety と database review を開始時に通す。external format/auto-commit enable は対象外。
-- **Preconditions**: DEC-53/57、`backend/migrations/CLAUDE.md`、clinic isolation、DBOrTx/audit conventions、lab import transition table を読む。
+- **Blockers (today)**: なし。migration-seed-safety と database review を開始時に通す。external format/auto-commit enable は対象外。
+- **Preconditions**: DEC-53/TASK-026 regression、DEC-57、`backend/migrations/CLAUDE.md`、clinic isolation、DBOrTx/audit conventions、lab import transition table を読む。
 - **Code anchors**: `backend/internal/model/lab_import.go:10-21`, `backend/internal/medicalrecord/lab_import_service.go:15-29`, `backend/internal/model/examination_record.go:32-43`, `backend/internal/medicalrecord/routes.go:373-388`, lab import service/repository tests。
 - **Steps**:
   1. RED: clinic-scoped persisted job の revert success、wrong-clinic/invalid-state/second-revert 409、reason/actor/audit dependency 欠落、linked confirmed exam conflict、audit failure rollback を追加する。
