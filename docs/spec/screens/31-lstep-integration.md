@@ -61,8 +61,9 @@
 | 1 飼主分のタグ同期本体（画面操作やバッチ内 1 owner） | **single-owner propagation** | 望ましいタグ Add/Remove 失敗は error 伝播。呼び出し元が失敗を観測・計上する |
 | 定時バッチ（dormant / no_show / delivery / LTV 等 multi-resource） | **scheduled multi-resource best effort** | 1 件失敗後も続行。`BatchRunResult` と `processed_count`/`error_count` 監査による **durable 部分結果計上**が必須。必須 dependency 欠落は fail-closed |
 
-- **Write API**: タグ書き込み API（AddTag / RemoveTag / AddTagBulk / SetProperty）はポリシーにより一時停止中（noop）。内部タグキャッシュ・判定・監査は更新されるが Lステップ側実タグは変わらない（[`LSTEP_WRITE_API_PAUSE.md`](../../ops/deploy/LSTEP_WRITE_API_PAUSE.md)）。
-- **バッチ同期**: Cloudflare scheduled eventは、毎日02:00 JSTに`dormant`（休眠判定）、10:00 JSTに`no_show`→`delivery`、15:00/20:00 JSTに`no_show`を実行する。durable coordinator、重複防止、pause/resume、missing-slot catch-up、失敗通知はcode/configへ配線済み。今回versionのSTG/production実deploy・自然発火・運用rehearsalはrelease gateとして未実施（[Scheduler Operations](../../ops/deploy/runbooks/SCHEDULER_OPERATIONS.md)）。
+- **Deploy gate（`LSTEP_WRITE_API_ENABLED`）**: Write 系（AddTag / RemoveTag / AddTagBulk / SetProperty）は exact `"true"` のときだけ HTTP を送る。未設定・空・`"false"`・未知値は無効。無効時は **`ErrWriteDisabled` を返し HTTP を送らない（`nil` 成功にしない）**。内部タグキャッシュ・判定・監査のアプリ内更新は経路により継続し得るが、Lステップ側実タグは変わらない。enable / stop / rollback の手順正本は [`LSTEP_WRITE_API_PAUSE.md`](../../ops/deploy/LSTEP_WRITE_API_PAUSE.md)（本 spec に手順・環境実値を複製しない）。
+- **Clinic gate（`is_sync_enabled` / API キー）**: `is_sync_enabled=false` または API キー未設定の clinic は `buildClient` がクライアントを構築せず `nil, nil` を返す（意図的スキップ）。deploy gate の `ErrWriteDisabled` とは**別契約**である。
+- **バッチ同期（scheduler/cron）**: Cloudflare scheduled event の式と job 対応は code/config へ配線済み（毎日 02:00 JST に `dormant`、10:00 JST に `no_show`→`delivery`、15:00/20:00 JST に `no_show`。durable coordinator、重複防止、pause/resume、missing-slot catch-up、失敗通知を含む）。**配線済みであることと、対象環境（STG/production）での自然発火・実送信・運用 rehearsal が完了していることは別事実である。** 後者は release gate として未実測（[Scheduler Operations](../../ops/deploy/runbooks/SCHEDULER_OPERATIONS.md)）。
 - **配信トリガー候補の読み取り**: clinic スコープ bulk-read を必須とし、owner ループ内の N+1 読み（owner / 当日 claim / 抑制 / tag-cache）を置かない。opt-out・suppression・daily-claim 意味論と bounded memory は維持する。
 - **流量**: Messaging API / Lステップ API のレート制限は固定のクライアント方針と監視で扱う。バッチとリアルタイムを動的に切り替える rate adjustment は持たない。
 

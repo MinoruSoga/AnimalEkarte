@@ -5,7 +5,8 @@
 - **観測範囲**: `lstep_delivery_trigger_log` のみ。会計確定後の CPM 同期など **ordinary タグ同期（request-local secondary）は本画面の対象外**であり、当該経路は trigger log に書かない。
 - **URLパターン**: `/lstep/delivery-monitor`
 - **アクセス権限**: FE は親 `/lstep` の `ResourceHospitalSettings` **かつ** 子 `ResourceLstepAnalytics` の両方。BE API は `ResourceLstepAnalytics`。
-- **Write API**: タグ書込みは一時停止中（noop）でも、判定・除外・ログ行の作成と監視 UI は継続する（[`LSTEP_WRITE_API_PAUSE.md`](../../ops/deploy/LSTEP_WRITE_API_PAUSE.md)）。
+- **Deploy gate（`LSTEP_WRITE_API_ENABLED`）**: Write 系が無効のとき HTTP を送らず **`ErrWriteDisabled` を返す（`nil` 成功にしない）**。判定・除外・ログ行の作成と監視 UI は継続する（[`LSTEP_WRITE_API_PAUSE.md`](../../ops/deploy/LSTEP_WRITE_API_PAUSE.md)。enable / stop / rollback 手順は同 runbook が正本）。
+- **Clinic gate（`is_sync_enabled` / API キー）**: 同期無効または API キー未設定の clinic はクライアント未構築による意図的スキップ（`nil, nil`）。deploy gate とは**別契約**である。
 
 ---
 
@@ -58,7 +59,7 @@
 - 画面上の `failed` 行・失敗サマリは、上記 durable 計上のうち **配信トリガーログに落ちた owner 単位の結果**を観測する UI である。バッチ全体の `BatchRunResult` は scheduler / 監査側の観測点であり、本画面 API のレスポンス envelope ではない。
 - 候補 owner に対する owner / 当日 claim / 抑制 / tag-cache 読みは clinic スコープ bulk-read を必須とし、owner 数線形の N+1 を置かない（opt-out・suppression・daily-claim 意味論と bounded memory は維持）。
 
-Write API 一時停止中は外部タグ write が noop でも、除外・抑制・ログ作成と本監視 UI は動作する。再有効化手順は pause メモを正とする。
+Deploy gate（`LSTEP_WRITE_API_ENABLED`）OFF 時は外部タグ write が HTTP 未送信かつ `ErrWriteDisabled` でも、除外・抑制・ログ作成と本監視 UI は動作する。Clinic gate（`is_sync_enabled=false` 等）のクライアント未構築スキップとは別契約である。再有効化の enable / stop / rollback は [`LSTEP_WRITE_API_PAUSE.md`](../../ops/deploy/LSTEP_WRITE_API_PAUSE.md) を正とし、本 spec に手順を複製しない。
 
 ---
 
