@@ -29,7 +29,7 @@
 | ISSUE-249-CONFIRMED-LOCK | confirmed 検査の更新/削除 lock・audit | **TASK-026**（READY_AGENT・P0） |
 | ISSUE-249-MANUAL-LIFECYCLE | 手動検査 edit / confirmed→completed 確定解除 | **TASK-027**（TASK-026 後） |
 | ISSUE-252-STANDARD-PATCH | 締め設定 standard PATCH の validation/audit | **TASK-028**（READY_AGENT・値投入は USER） |
-| ISSUE-259-DOC-CONTRACT | Lステップ disabled 時の旧 noop 文書 | **TASK-029**（READY_AGENT・docs-only） |
+| ISSUE-259-DOC-CONTRACT | Lステップ disabled 時の旧 noop 文書 | **TASK-029**（DONE・`9fc5b9ffb` push 済。残は先方 enable + USER runtime 実測） |
 | ISSUE-261-TRIMMING-DECEASED | trimming 死亡ペット拒否の経路別回帰 | **TASK-030**（READY_AGENT・runtime は USER） |
 | ISSUE-249-PRINT-SNAPSHOT | 検査結果の保存 snapshot 印刷 | **TASK-031**（TASK-026 後） |
 | ISSUE-249-IMPORT-REVERT | lab import job の compensating revert | **TASK-032**（TASK-026 後・migration review 必須） |
@@ -506,7 +506,7 @@ validator_exit=0
 - **対応 Issue**: GitHub Issue #249。
 - **問題**: confirm が親 status を先に更新して item replace を自己拒否し得る。confirmed delete に status guard がなく、既存 status conflict は 400 相当。parent examination の create/update/confirm/delete は authenticated actor と application audit を持たない。
 - **状態**: **READY_AGENT / P0**。設計は `q&a.html` DEC-53。
-- **claim**: `claim/TASK-026`（取得済み。USER が統合後に解放）。
+- **claim**: `claim/TASK-026` — **not live**（2026-08-01 USER 解放済み。起票時の過剰取得を是正したもので、本タスクは未着手）。
 
 #### 実装プラン（2026-08-01・readiness dossier）
 - **Ready**: READY_AGENT
@@ -534,7 +534,7 @@ validator_exit=0
 - **対応 Issue**: GitHub Issue #249。
 - **問題**: manual workflow の row add/delete、confirm 前 patient change、権限付き確定解除が未完。現行 examination status に <code>unconfirmed</code>/<code>cancelled</code> はなく、lab import job の取消と混ぜてはならない。
 - **状態**: **READY_AFTER_TASK-026**。TASK-026 の immutable confirmed contract を前提とする。
-- **claim**: `claim/TASK-027`（取得済み。USER が統合後に解放）。
+- **claim**: `claim/TASK-027` — **not live**（2026-08-01 USER 解放済み。起票時の過剰取得を是正したもので、本タスクは未着手）。
 
 #### 実装プラン（2026-08-01・readiness dossier）
 - **Ready**: READY_AGENT_AFTER_DEPENDENCY
@@ -559,7 +559,7 @@ validator_exit=0
 - **対応 Issue**: GitHub Issue #252 の OPS apply から分離した technical gap。
 - **問題**: standard update は read-modify-save で全設定列を upsert する。special period 相当の boundary validation、actor/audit/transactor、row lock/CAS がなく、並行 partial PATCH が相互に上書きされ得る。
 - **状態**: **READY_AGENT**。投入値は変更せず、production apply は USER。
-- **claim**: `claim/TASK-028`（取得済み。USER が統合後に解放）。
+- **claim**: `claim/TASK-028` — **not live**（2026-08-01 USER 解放済み。起票時の過剰取得を是正したもので、本タスクは未着手）。
 
 #### 実装プラン（2026-08-01・readiness dossier）
 - **Ready**: READY_AGENT
@@ -583,8 +583,8 @@ validator_exit=0
 
 - **対応 Issue**: GitHub Issue #259 の source/docs drift。
 - **問題**: deploy gate OFF は disabled error + HTTP zero、clinic の <code>is_sync_enabled=false</code> は intentional skip/noop だが、一部 spec が二 gate を混同する。
-- **状態**: **DONE (docs land pending USER push)**。write/cron code の再実装はしていない。
-- **claim**: `claim/TASK-029`（取得済み。USER が統合後に解放）。
+- **状態**: **DONE**（`b659ac952`+`9fc5b9ffb`、2026-08-01 USER push 済）。write/cron code の再実装はしていない。runtime green は未主張（STG/production の cron 自然発火・実送信は未実測）。
+- **claim**: `claim/TASK-029` — **not live**（2026-08-01 統合後に USER が解放済み）。
 
 #### 実装プラン（2026-08-01・readiness dossier）
 - **Ready**: READY_AGENT
@@ -612,7 +612,7 @@ validator_exit=0
   - `bash scripts/check-docs-symbol-drift.sh` → exit 0
 - **Non-actions**: backend/worker 未変更、Issue #259 未操作、claim 未削除、env 実値未記載、runtime/cron 未実行
 - **Audit report**: `reports/2026-08-01-task-029-lstep-gate-contract.md`
-- **claim**: `claim/TASK-029` は USER が統合後に解放
+- **claim**: `claim/TASK-029` は 2026-08-01 に USER が解放済み
 
 
 
@@ -621,7 +621,7 @@ validator_exit=0
 - **対応 Issue**: GitHub Issue #261。
 - **問題**: trimming detail create/update は request に <code>pet_id</code> がある場合だけ死亡確認し、予約から算出した <code>finalPetID</code> を常時検証しない。pet_id 省略の通常経路で死亡済み予約ペットが通り得て、経路別 test もない。`phase2.html` の guard 欠落記述も current source とずれる。
 - **状態**: **READY_AGENT**。Issue 全体の runtime/OPS completion は USER gate。
-- **claim**: `claim/TASK-030`（取得済み。USER が統合後に解放）。
+- **claim**: `claim/TASK-030` — **not live**（2026-08-01 USER 解放済み。起票時の過剰取得を是正したもので、本タスクは未着手）。
 
 #### 実装プラン（2026-08-01・readiness dossier）
 - **Ready**: READY_AGENT
@@ -646,7 +646,7 @@ validator_exit=0
 - **対応 Issue**: GitHub Issue #249 F-5a。
 - **問題**: 飼主説明・他院添付・院内保管向け print surface が未完。画面 state や FE 再計算を印刷正本にすると保存済み臨床記録と不一致になり得る。
 - **状態**: **READY_AFTER_TASK-026**。TASK-026 の immutable/audit contract を前提とする。
-- **claim**: `claim/TASK-031`（取得済み。USER が統合後に解放）。
+- **claim**: `claim/TASK-031` — **not live**（2026-08-01 USER 解放済み。起票時の過剰取得を是正したもので、本タスクは未着手）。
 
 #### 実装プラン（2026-08-01・readiness dossier）
 - **Ready**: READY_AGENT_AFTER_DEPENDENCY
@@ -670,7 +670,7 @@ validator_exit=0
 - **対応 Issue**: GitHub Issue #249 F-3c(a)。
 - **問題**: persisted import job を取消す endpoint/状態がなく、手動 examination の確定解除と混ぜると status・permission・audit・rollback の意味が不定になる。
 - **状態**: **READY_AFTER_TASK-026 / migration review required**。設計は DEC-57。
-- **claim**: `claim/TASK-032`（取得済み。USER が統合後に解放）。
+- **claim**: `claim/TASK-032` — **not live**（2026-08-01 USER 解放済み。起票時の過剰取得を是正したもので、本タスクは未着手）。
 
 #### 実装プラン（2026-08-01・readiness dossier）
 - **Ready**: READY_AGENT_AFTER_DEPENDENCY
@@ -696,7 +696,7 @@ validator_exit=0
 - **対応 Issue**: GitHub Issue #201。
 - **問題**: current addendum は finalized medical record 専用の自由記述で、薬剤、実投与量・単位、投与時刻を構造化せず、active/draft の救急・既実施投薬を通常治療履歴と handoff に残す代替経路ではない。代替経路なしに体重/species/parameter 欠落時の通常保存だけを止めると、救急記録を失う。
 - **状態**: **READY_AFTER_CLINICAL_APPROVAL / migration review required**。最終 fail-closed 契約と cutover 順序は DEC-48。臨床値は未決定。
-- **claim**: `claim/TASK-033`（取得済み。USER が統合後に解放）。
+- **claim**: `claim/TASK-033` — **not live**（2026-08-01 USER 解放済み。起票時の過剰取得を是正したもので、本タスクは未着手）。
 
 #### 実装プラン（2026-08-01・independent clinical review reconciliation）
 - **Ready**: READY_AGENT_AFTER_CLINICAL_APPROVAL
