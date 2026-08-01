@@ -103,6 +103,7 @@ func newRuntimeComposition(
 		repositories.clinic,
 		repositories.auth.PermissionGroups,
 		transactor,
+		auditKernel,
 	)
 	staffComposition := newRuntimeStaffComposition(
 		repositories,

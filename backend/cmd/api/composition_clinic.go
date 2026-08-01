@@ -1,8 +1,12 @@
 package main
 
 import (
+	"context"
+	"fmt"
+
 	"gorm.io/gorm"
 
+	"github.com/animal-ekarte/backend/internal/audit"
 	"github.com/animal-ekarte/backend/internal/clinic"
 )
 
@@ -36,11 +40,17 @@ func newClinicComposition(
 	repositories clinicRepositories,
 	permissionGroups clinic.PermissionGroupWriter,
 	transactor clinic.Transactor,
+	auditTx audit.TxLogger,
 ) clinicComposition {
 	closingSettings := clinic.NewClosingSettingsService(
 		repositories.Settings,
 		repositories.ClosingSpecialPeriods,
 		repositories.Holidays,
+		&clinic.ClosingSettingsServiceDeps{
+			Transactor:   transactor,
+			ClinicLocker: repositories.Clinics,
+			AuditTx:      clinicAuditTxBridge{logger: auditTx},
+		},
 	)
 
 	return clinicComposition{
@@ -56,6 +66,31 @@ func newClinicComposition(
 			repositories.Company,
 		),
 	}
+}
+
+// clinicAuditTxBridge adapts audit.TxLogger to clinic.AuditTxLogger.
+type clinicAuditTxBridge struct {
+	logger audit.TxLogger
+}
+
+func (a clinicAuditTxBridge) LogEntryTx(ctx context.Context, entry *clinic.AuditEntry) error {
+	if a.logger == nil {
+		return fmt.Errorf("clinic transaction audit logger is required")
+	}
+	if entry == nil {
+		return fmt.Errorf("clinic audit entry is required")
+	}
+	return a.logger.LogEntryTx(ctx, &audit.Entry{
+		ClinicID:   entry.ClinicID,
+		ActorID:    entry.ActorID,
+		ActorType:  entry.ActorType,
+		Action:     entry.Action,
+		Resource:   entry.Resource,
+		ResourceID: entry.ResourceID,
+		OldValue:   entry.OldValue,
+		NewValue:   entry.NewValue,
+		Metadata:   entry.Metadata,
+	})
 }
 
 func (c clinicComposition) newHandler(

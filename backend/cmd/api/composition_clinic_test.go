@@ -21,7 +21,7 @@ func TestNewClinicCompositionBuildsDomainHandler(t *testing.T) {
 	}
 
 	repositories := newClinicRepositories(nil)
-	composition := newClinicComposition(repositories, nil, nil)
+	composition := newClinicComposition(repositories, nil, nil, nil)
 
 	require.Equal(t, repositories, composition.Repositories)
 	require.NotNil(t, composition.Clinic)

@@ -148,7 +148,7 @@ func TestClosingSettingsService_ListSpecialPeriods(t *testing.T) {
 				return []model.ClosingSpecialPeriod{{ID: 1, ClinicID: clinicID}}, nil
 			},
 		}
-		svc := NewClosingSettingsService(nil, repo, nil)
+		svc := NewClosingSettingsService(nil, repo, nil, nil)
 		res, err := svc.ListSpecialPeriods(ctx, 1)
 		assert.NoError(t, err)
 		assert.Len(t, res, 1)
@@ -160,7 +160,7 @@ func TestClosingSettingsService_ListSpecialPeriods(t *testing.T) {
 				return nil, errors.New("db error")
 			},
 		}
-		svc := NewClosingSettingsService(nil, repo, nil)
+		svc := NewClosingSettingsService(nil, repo, nil, nil)
 		_, err := svc.ListSpecialPeriods(ctx, 1)
 		assert.Error(t, err)
 	})
@@ -172,7 +172,7 @@ func TestClosingSettingsService_Get(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		settingsRepo := &mockClinicSettingsRepository{}
 		periodRepo := &mockClosingSpecialPeriodRepository{}
-		svc := NewClosingSettingsService(settingsRepo, periodRepo, nil)
+		svc := NewClosingSettingsService(settingsRepo, periodRepo, nil, nil)
 		res, err := svc.Get(ctx, 1)
 		assert.NoError(t, err)
 		assert.NotNil(t, res.Settings)
@@ -185,7 +185,7 @@ func TestClosingSettingsService_Get(t *testing.T) {
 				return nil, errors.New("db error")
 			},
 		}
-		svc := NewClosingSettingsService(settingsRepo, nil, nil)
+		svc := NewClosingSettingsService(settingsRepo, nil, nil, nil)
 		_, err := svc.Get(ctx, 1)
 		assert.Error(t, err)
 	})
@@ -197,7 +197,7 @@ func TestClosingSettingsService_Get(t *testing.T) {
 				return nil, errors.New("db error")
 			},
 		}
-		svc := NewClosingSettingsService(settingsRepo, periodRepo, nil)
+		svc := NewClosingSettingsService(settingsRepo, periodRepo, nil, nil)
 		_, err := svc.Get(ctx, 1)
 		assert.Error(t, err)
 	})
@@ -205,14 +205,20 @@ func TestClosingSettingsService_Get(t *testing.T) {
 
 func TestClosingSettingsService_UpdateStandard(t *testing.T) {
 	ctx := context.Background()
+	const actorID uint64 = 9
 
 	t.Run("success", func(t *testing.T) {
 		settingsRepo := &mockClinicSettingsRepository{
 			findByClinicIDFn: func(_ context.Context, clinicID uint64) (*model.ClinicSettings, error) {
-				return &model.ClinicSettings{ClinicID: clinicID}, nil
+				return &model.ClinicSettings{
+					ClinicID:            clinicID,
+					ClosingAmPmBoundary: "14:00",
+					ClosingWeekdayEnd:   "18:30",
+					ClosingSundayEnd:    "17:30",
+				}, nil
 			},
 		}
-		svc := NewClosingSettingsService(settingsRepo, nil, nil)
+		svc := NewClosingSettingsService(settingsRepo, nil, nil, integrityDeps(&mockClinicRowLocker{}, &recordingAuditTxLogger{}))
 		boundary := "12:00"
 		weekdayEnd := "19:00"
 		sundayEnd := "17:00"
@@ -222,7 +228,7 @@ func TestClosingSettingsService_UpdateStandard(t *testing.T) {
 			ClosingSundayEnd:    &sundayEnd,
 			ClosedWeekdays:      []int64{0},
 		}
-		res, err := svc.UpdateStandard(ctx, 1, input)
+		res, err := svc.UpdateStandard(ctx, 1, actorID, input)
 		assert.NoError(t, err)
 		assert.Equal(t, "12:00", res.ClosingAmPmBoundary)
 		assert.Equal(t, "19:00", res.ClosingWeekdayEnd)
@@ -236,19 +242,27 @@ func TestClosingSettingsService_UpdateStandard(t *testing.T) {
 				return nil, errors.New("db error")
 			},
 		}
-		svc := NewClosingSettingsService(settingsRepo, nil, nil)
-		_, err := svc.UpdateStandard(ctx, 1, UpdateClinicSettingsInput{})
+		svc := NewClosingSettingsService(settingsRepo, nil, nil, integrityDeps(&mockClinicRowLocker{}, &recordingAuditTxLogger{}))
+		_, err := svc.UpdateStandard(ctx, 1, actorID, UpdateClinicSettingsInput{})
 		assert.Error(t, err)
 	})
 
 	t.Run("save error", func(t *testing.T) {
 		settingsRepo := &mockClinicSettingsRepository{
+			findByClinicIDFn: func(_ context.Context, clinicID uint64) (*model.ClinicSettings, error) {
+				return &model.ClinicSettings{
+					ClinicID:            clinicID,
+					ClosingAmPmBoundary: "14:00",
+					ClosingWeekdayEnd:   "18:30",
+					ClosingSundayEnd:    "17:30",
+				}, nil
+			},
 			saveFn: func(_ context.Context, _ uint64, _ *model.ClinicSettings) (*model.ClinicSettings, error) {
 				return nil, errors.New("save error")
 			},
 		}
-		svc := NewClosingSettingsService(settingsRepo, nil, nil)
-		_, err := svc.UpdateStandard(ctx, 1, UpdateClinicSettingsInput{})
+		svc := NewClosingSettingsService(settingsRepo, nil, nil, integrityDeps(&mockClinicRowLocker{}, &recordingAuditTxLogger{}))
+		_, err := svc.UpdateStandard(ctx, 1, actorID, UpdateClinicSettingsInput{})
 		assert.Error(t, err)
 	})
 }
@@ -258,7 +272,7 @@ func TestClosingSettingsService_CreateSpecialPeriod(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		periodRepo := &mockClosingSpecialPeriodRepository{}
-		svc := NewClosingSettingsService(nil, periodRepo, nil)
+		svc := NewClosingSettingsService(nil, periodRepo, nil, nil)
 		input := &CreateSpecialPeriodInput{
 			StartDate:    "2026-07-01",
 			EndDate:      "2026-07-05",
@@ -272,21 +286,21 @@ func TestClosingSettingsService_CreateSpecialPeriod(t *testing.T) {
 	})
 
 	t.Run("invalid start date", func(t *testing.T) {
-		svc := NewClosingSettingsService(nil, nil, nil)
+		svc := NewClosingSettingsService(nil, nil, nil, nil)
 		input := &CreateSpecialPeriodInput{StartDate: "bad"}
 		_, err := svc.CreateSpecialPeriod(ctx, 1, input)
 		assert.Error(t, err)
 	})
 
 	t.Run("invalid end date", func(t *testing.T) {
-		svc := NewClosingSettingsService(nil, nil, nil)
+		svc := NewClosingSettingsService(nil, nil, nil, nil)
 		input := &CreateSpecialPeriodInput{StartDate: "2026-07-01", EndDate: "bad"}
 		_, err := svc.CreateSpecialPeriod(ctx, 1, input)
 		assert.Error(t, err)
 	})
 
 	t.Run("invalid boundary time", func(t *testing.T) {
-		svc := NewClosingSettingsService(nil, nil, nil)
+		svc := NewClosingSettingsService(nil, nil, nil, nil)
 		input := &CreateSpecialPeriodInput{
 			StartDate:    "2026-07-01",
 			EndDate:      "2026-07-05",
@@ -297,7 +311,7 @@ func TestClosingSettingsService_CreateSpecialPeriod(t *testing.T) {
 	})
 
 	t.Run("invalid pmEnd time", func(t *testing.T) {
-		svc := NewClosingSettingsService(nil, nil, nil)
+		svc := NewClosingSettingsService(nil, nil, nil, nil)
 		input := &CreateSpecialPeriodInput{
 			StartDate:    "2026-07-01",
 			EndDate:      "2026-07-05",
@@ -309,7 +323,7 @@ func TestClosingSettingsService_CreateSpecialPeriod(t *testing.T) {
 	})
 
 	t.Run("pmEnd <= boundary", func(t *testing.T) {
-		svc := NewClosingSettingsService(nil, nil, nil)
+		svc := NewClosingSettingsService(nil, nil, nil, nil)
 		input := &CreateSpecialPeriodInput{
 			StartDate:    "2026-07-01",
 			EndDate:      "2026-07-05",
@@ -321,7 +335,7 @@ func TestClosingSettingsService_CreateSpecialPeriod(t *testing.T) {
 	})
 
 	t.Run("start after end", func(t *testing.T) {
-		svc := NewClosingSettingsService(nil, nil, nil)
+		svc := NewClosingSettingsService(nil, nil, nil, nil)
 		input := &CreateSpecialPeriodInput{
 			StartDate:    "2026-07-05",
 			EndDate:      "2026-07-01",
@@ -338,7 +352,7 @@ func TestClosingSettingsService_CreateSpecialPeriod(t *testing.T) {
 				return true, nil
 			},
 		}
-		svc := NewClosingSettingsService(nil, periodRepo, nil)
+		svc := NewClosingSettingsService(nil, periodRepo, nil, nil)
 		input := &CreateSpecialPeriodInput{
 			StartDate:    "2026-07-01",
 			EndDate:      "2026-07-05",
@@ -355,7 +369,7 @@ func TestClosingSettingsService_CreateSpecialPeriod(t *testing.T) {
 				return false, errors.New("db error")
 			},
 		}
-		svc := NewClosingSettingsService(nil, periodRepo, nil)
+		svc := NewClosingSettingsService(nil, periodRepo, nil, nil)
 		input := &CreateSpecialPeriodInput{
 			StartDate:    "2026-07-01",
 			EndDate:      "2026-07-05",
@@ -372,7 +386,7 @@ func TestClosingSettingsService_CreateSpecialPeriod(t *testing.T) {
 				return nil, errors.New("db error")
 			},
 		}
-		svc := NewClosingSettingsService(nil, periodRepo, nil)
+		svc := NewClosingSettingsService(nil, periodRepo, nil, nil)
 		input := &CreateSpecialPeriodInput{
 			StartDate:    "2026-07-01",
 			EndDate:      "2026-07-05",
@@ -401,7 +415,7 @@ func TestClosingSettingsService_UpdateSpecialPeriod(t *testing.T) {
 				return current, nil
 			},
 		}
-		svc := NewClosingSettingsService(nil, periodRepo, nil)
+		svc := NewClosingSettingsService(nil, periodRepo, nil, nil)
 		start := "2026-07-01"
 		end := "2026-07-05"
 		boundary := "13:00"
@@ -425,7 +439,7 @@ func TestClosingSettingsService_UpdateSpecialPeriod(t *testing.T) {
 				return nil, errors.New("db error")
 			},
 		}
-		svc := NewClosingSettingsService(nil, periodRepo, nil)
+		svc := NewClosingSettingsService(nil, periodRepo, nil, nil)
 		_, err := svc.UpdateSpecialPeriod(ctx, 1, 1, UpdateSpecialPeriodInput{})
 		assert.Error(t, err)
 	})
@@ -444,7 +458,7 @@ func TestClosingSettingsService_UpdateSpecialPeriod(t *testing.T) {
 				return current, nil
 			},
 		}
-		svc := NewClosingSettingsService(nil, periodRepo, nil)
+		svc := NewClosingSettingsService(nil, periodRepo, nil, nil)
 		bad := "bad"
 		input := UpdateSpecialPeriodInput{AmPmBoundary: &bad}
 		_, err := svc.UpdateSpecialPeriod(ctx, 1, 1, input)
@@ -465,7 +479,7 @@ func TestClosingSettingsService_UpdateSpecialPeriod(t *testing.T) {
 				return current, nil
 			},
 		}
-		svc := NewClosingSettingsService(nil, periodRepo, nil)
+		svc := NewClosingSettingsService(nil, periodRepo, nil, nil)
 		bad := "bad"
 		input := UpdateSpecialPeriodInput{StartDate: &bad}
 		_, err := svc.UpdateSpecialPeriod(ctx, 1, 1, input)
@@ -486,7 +500,7 @@ func TestClosingSettingsService_UpdateSpecialPeriod(t *testing.T) {
 				return current, nil
 			},
 		}
-		svc := NewClosingSettingsService(nil, periodRepo, nil)
+		svc := NewClosingSettingsService(nil, periodRepo, nil, nil)
 		bad := "bad"
 		input := UpdateSpecialPeriodInput{EndDate: &bad}
 		_, err := svc.UpdateSpecialPeriod(ctx, 1, 1, input)
@@ -507,7 +521,7 @@ func TestClosingSettingsService_UpdateSpecialPeriod(t *testing.T) {
 				return current, nil
 			},
 		}
-		svc := NewClosingSettingsService(nil, periodRepo, nil)
+		svc := NewClosingSettingsService(nil, periodRepo, nil, nil)
 		start := "2026-07-05"
 		end := "2026-07-01"
 		input := UpdateSpecialPeriodInput{StartDate: &start, EndDate: &end}
@@ -532,7 +546,7 @@ func TestClosingSettingsService_UpdateSpecialPeriod(t *testing.T) {
 				return false, errors.New("db error")
 			},
 		}
-		svc := NewClosingSettingsService(nil, periodRepo, nil)
+		svc := NewClosingSettingsService(nil, periodRepo, nil, nil)
 		note := "changed"
 		_, err := svc.UpdateSpecialPeriod(ctx, 1, 1, UpdateSpecialPeriodInput{Note: &note})
 		assert.Error(t, err)
@@ -555,7 +569,7 @@ func TestClosingSettingsService_UpdateSpecialPeriod(t *testing.T) {
 				return true, nil
 			},
 		}
-		svc := NewClosingSettingsService(nil, periodRepo, nil)
+		svc := NewClosingSettingsService(nil, periodRepo, nil, nil)
 		note := "changed"
 		_, err := svc.UpdateSpecialPeriod(ctx, 1, 1, UpdateSpecialPeriodInput{Note: &note})
 		assert.Error(t, err)
@@ -578,7 +592,7 @@ func TestClosingSettingsService_UpdateSpecialPeriod(t *testing.T) {
 				return nil, errors.New("db error")
 			},
 		}
-		svc := NewClosingSettingsService(nil, periodRepo, nil)
+		svc := NewClosingSettingsService(nil, periodRepo, nil, nil)
 		start := "2026-07-01"
 		input := UpdateSpecialPeriodInput{StartDate: &start}
 		_, err := svc.UpdateSpecialPeriod(ctx, 1, 1, input)
@@ -599,7 +613,7 @@ func TestClosingSettingsService_UpdateSpecialPeriod(t *testing.T) {
 				return current, nil
 			},
 		}
-		svc := NewClosingSettingsService(nil, periodRepo, nil)
+		svc := NewClosingSettingsService(nil, periodRepo, nil, nil)
 		res, err := svc.UpdateSpecialPeriod(ctx, 1, 1, UpdateSpecialPeriodInput{})
 		assert.NoError(t, err)
 		assert.NotNil(t, res)
@@ -611,7 +625,7 @@ func TestClosingSettingsService_DeleteSpecialPeriod(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		periodRepo := &mockClosingSpecialPeriodRepository{}
-		svc := NewClosingSettingsService(nil, periodRepo, nil)
+		svc := NewClosingSettingsService(nil, periodRepo, nil, nil)
 		err := svc.DeleteSpecialPeriod(ctx, 1, 1)
 		assert.NoError(t, err)
 	})
@@ -622,7 +636,7 @@ func TestClosingSettingsService_DeleteSpecialPeriod(t *testing.T) {
 				return nil, errors.New("db error")
 			},
 		}
-		svc := NewClosingSettingsService(nil, periodRepo, nil)
+		svc := NewClosingSettingsService(nil, periodRepo, nil, nil)
 		err := svc.DeleteSpecialPeriod(ctx, 1, 1)
 		assert.Error(t, err)
 	})
@@ -633,7 +647,7 @@ func TestClosingSettingsService_DeleteSpecialPeriod(t *testing.T) {
 				return errors.New("db error")
 			},
 		}
-		svc := NewClosingSettingsService(nil, periodRepo, nil)
+		svc := NewClosingSettingsService(nil, periodRepo, nil, nil)
 		err := svc.DeleteSpecialPeriod(ctx, 1, 1)
 		assert.Error(t, err)
 	})
@@ -658,7 +672,7 @@ func TestClosingSettingsService_ResolveSchedule(t *testing.T) {
 				return &model.ClinicSettings{ClinicID: clinicID, ClosingAmStart: "08:00"}, nil
 			},
 		}
-		svc := NewClosingSettingsService(settingsRepo, periodRepo, nil)
+		svc := NewClosingSettingsService(settingsRepo, periodRepo, nil, nil)
 		res, err := svc.ResolveSchedule(ctx, 1, date)
 		assert.NoError(t, err)
 		assert.Equal(t, "13:00", res.AmPmBoundary)
@@ -678,7 +692,7 @@ func TestClosingSettingsService_ResolveSchedule(t *testing.T) {
 				return nil, errors.New("db error")
 			},
 		}
-		svc := NewClosingSettingsService(settingsRepo, periodRepo, nil)
+		svc := NewClosingSettingsService(settingsRepo, periodRepo, nil, nil)
 		_, err := svc.ResolveSchedule(ctx, 1, date)
 		assert.Error(t, err)
 	})
@@ -689,7 +703,7 @@ func TestClosingSettingsService_ResolveSchedule(t *testing.T) {
 				return nil, errors.New("db error")
 			},
 		}
-		svc := NewClosingSettingsService(nil, periodRepo, nil)
+		svc := NewClosingSettingsService(nil, periodRepo, nil, nil)
 		_, err := svc.ResolveSchedule(ctx, 1, date)
 		assert.Error(t, err)
 	})
@@ -701,7 +715,7 @@ func TestClosingSettingsService_ResolveSchedule(t *testing.T) {
 				return nil, errors.New("db error")
 			},
 		}
-		svc := NewClosingSettingsService(settingsRepo, periodRepo, nil)
+		svc := NewClosingSettingsService(settingsRepo, periodRepo, nil, nil)
 		_, err := svc.ResolveSchedule(ctx, 1, date)
 		assert.Error(t, err)
 	})
@@ -721,7 +735,7 @@ func TestClosingSettingsService_ResolveSchedule(t *testing.T) {
 			},
 		}
 		holidayRepo := &mockClosingClinicHolidayRepository{}
-		svc := NewClosingSettingsService(settingsRepo, periodRepo, holidayRepo)
+		svc := NewClosingSettingsService(settingsRepo, periodRepo, holidayRepo, nil)
 		res, err := svc.ResolveSchedule(ctx, 1, weekdayDate)
 		assert.NoError(t, err)
 		assert.Equal(t, "19:00", res.PmEnd)
@@ -744,7 +758,7 @@ func TestClosingSettingsService_ResolveSchedule(t *testing.T) {
 			},
 		}
 		holidayRepo := &mockClosingClinicHolidayRepository{}
-		svc := NewClosingSettingsService(settingsRepo, periodRepo, holidayRepo)
+		svc := NewClosingSettingsService(settingsRepo, periodRepo, holidayRepo, nil)
 		res, err := svc.ResolveSchedule(ctx, 1, sundayDate)
 		assert.NoError(t, err)
 		assert.Equal(t, "17:00", res.PmEnd)
@@ -765,7 +779,7 @@ func TestClosingSettingsService_ResolveSchedule(t *testing.T) {
 				}, nil
 			},
 		}
-		svc := NewClosingSettingsService(settingsRepo, periodRepo, nil)
+		svc := NewClosingSettingsService(settingsRepo, periodRepo, nil, nil)
 		res, err := svc.ResolveSchedule(ctx, 1, sundayDate)
 		assert.NoError(t, err)
 		assert.True(t, res.IsHoliday)
@@ -794,7 +808,7 @@ func TestClosingSettingsService_ResolveSchedule(t *testing.T) {
 				}, nil
 			},
 		}
-		svc := NewClosingSettingsService(settingsRepo, periodRepo, holidayRepo)
+		svc := NewClosingSettingsService(settingsRepo, periodRepo, holidayRepo, nil)
 		res, err := svc.ResolveSchedule(ctx, 1, weekdayDate)
 		assert.NoError(t, err)
 		assert.True(t, res.IsHoliday)
@@ -819,7 +833,7 @@ func TestClosingSettingsService_ResolveSchedule(t *testing.T) {
 				return nil, errors.New("db error")
 			},
 		}
-		svc := NewClosingSettingsService(settingsRepo, periodRepo, holidayRepo)
+		svc := NewClosingSettingsService(settingsRepo, periodRepo, holidayRepo, nil)
 		_, err := svc.ResolveSchedule(ctx, 1, weekdayDate)
 		assert.Error(t, err)
 	})

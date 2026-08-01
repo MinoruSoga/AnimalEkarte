@@ -23,7 +23,7 @@ import (
 type mockClosingSettingsService struct {
 	getFn                 func(ctx context.Context, clinicID uint64) (*ClosingSettingsResponse, error)
 	listSpecialPeriodsFn  func(ctx context.Context, clinicID uint64) ([]model.ClosingSpecialPeriod, error)
-	updateStandardFn      func(ctx context.Context, clinicID uint64, input UpdateClinicSettingsInput) (*model.ClinicSettings, error)
+	updateStandardFn      func(ctx context.Context, clinicID, actorID uint64, input UpdateClinicSettingsInput) (*model.ClinicSettings, error)
 	createSpecialPeriodFn func(ctx context.Context, clinicID uint64, input *CreateSpecialPeriodInput) (*model.ClosingSpecialPeriod, error)
 	updateSpecialPeriodFn func(ctx context.Context, clinicID, id uint64, input UpdateSpecialPeriodInput) (*model.ClosingSpecialPeriod, error)
 	deleteSpecialPeriodFn func(ctx context.Context, clinicID, id uint64) error
@@ -38,8 +38,8 @@ func (m *mockClosingSettingsService) ListSpecialPeriods(ctx context.Context, cli
 	return m.listSpecialPeriodsFn(ctx, clinicID)
 }
 
-func (m *mockClosingSettingsService) UpdateStandard(ctx context.Context, clinicID uint64, input UpdateClinicSettingsInput) (*model.ClinicSettings, error) {
-	return m.updateStandardFn(ctx, clinicID, input)
+func (m *mockClosingSettingsService) UpdateStandard(ctx context.Context, clinicID, actorID uint64, input UpdateClinicSettingsInput) (*model.ClinicSettings, error) {
+	return m.updateStandardFn(ctx, clinicID, actorID, input)
 }
 
 func (m *mockClosingSettingsService) CreateSpecialPeriod(ctx context.Context, clinicID uint64, input *CreateSpecialPeriodInput) (*model.ClosingSpecialPeriod, error) {
@@ -145,12 +145,16 @@ func TestUpdateClosingSettings(t *testing.T) {
 		wantBody   string
 	}{
 		{
-			name:     "updates settings successfully",
-			body:     map[string]any{"closing_am_pm_boundary": boundary},
-			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			name: "updates settings successfully",
+			body: map[string]any{"closing_am_pm_boundary": boundary},
+			setupCtx: func(c *gin.Context) {
+				setClinicID(c)
+				setStaffID(c)
+			},
 			svc: &mockClosingSettingsService{
-				updateStandardFn: func(_ context.Context, clinicID uint64, input UpdateClinicSettingsInput) (*model.ClinicSettings, error) {
+				updateStandardFn: func(_ context.Context, clinicID, actorID uint64, input UpdateClinicSettingsInput) (*model.ClinicSettings, error) {
 					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, uint64(1), actorID)
 					assert.Equal(t, boundary, *input.ClosingAmPmBoundary)
 					return &model.ClinicSettings{ClinicID: 1, ClosingAmPmBoundary: boundary}, nil
 				},
@@ -166,18 +170,30 @@ func TestUpdateClosingSettings(t *testing.T) {
 			wantStatus: http.StatusUnauthorized,
 		},
 		{
+			name: "returns 401 when staff_id is missing",
+			body: map[string]any{},
+			setupCtx: func(c *gin.Context) {
+				setClinicID(c)
+			},
+			svc:        &mockClosingSettingsService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
 			name:       "returns 400 for malformed JSON",
 			bodyRaw:    `{"closing_am_pm_boundary":`,
-			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			setupCtx:   func(c *gin.Context) { setClinicID(c); setStaffID(c) },
 			svc:        &mockClosingSettingsService{},
 			wantStatus: http.StatusBadRequest,
 		},
 		{
-			name:     "returns 500 on service error",
-			body:     map[string]any{},
-			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			name: "returns 500 on service error",
+			body: map[string]any{},
+			setupCtx: func(c *gin.Context) {
+				setClinicID(c)
+				setStaffID(c)
+			},
 			svc: &mockClosingSettingsService{
-				updateStandardFn: func(_ context.Context, _ uint64, _ UpdateClinicSettingsInput) (*model.ClinicSettings, error) {
+				updateStandardFn: func(_ context.Context, _, _ uint64, _ UpdateClinicSettingsInput) (*model.ClinicSettings, error) {
 					return nil, fmt.Errorf("db failure")
 				},
 			},

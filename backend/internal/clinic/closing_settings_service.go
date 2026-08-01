@@ -89,30 +89,78 @@ type UpdateSpecialPeriodInput struct {
 type ClosingSettingsService interface {
 	Get(ctx context.Context, clinicID uint64) (*ClosingSettingsResponse, error)
 	ListSpecialPeriods(ctx context.Context, clinicID uint64) ([]model.ClosingSpecialPeriod, error)
-	UpdateStandard(ctx context.Context, clinicID uint64, input UpdateClinicSettingsInput) (*model.ClinicSettings, error)
+	UpdateStandard(ctx context.Context, clinicID, actorID uint64, input UpdateClinicSettingsInput) (*model.ClinicSettings, error)
 	CreateSpecialPeriod(ctx context.Context, clinicID uint64, input *CreateSpecialPeriodInput) (*model.ClosingSpecialPeriod, error)
 	UpdateSpecialPeriod(ctx context.Context, clinicID, id uint64, input UpdateSpecialPeriodInput) (*model.ClosingSpecialPeriod, error)
 	DeleteSpecialPeriod(ctx context.Context, clinicID, id uint64) error
 	ResolveSchedule(ctx context.Context, clinicID uint64, date time.Time) (*DaySchedule, error)
 }
 
+// ClinicRowLocker serializes clinic-scoped writes via FOR UPDATE on the clinics row.
+// Implemented by ClinicRepository.LockByIDForUpdate; fail-closed without ambient tx.
+type ClinicRowLocker interface {
+	LockByIDForUpdate(ctx context.Context, id uint64) (*model.Clinic, error)
+}
+
+// AuditEntry is clinic's consumer-side audit payload (mirrors audit.Entry fields used here).
+type AuditEntry struct {
+	ClinicID   *uint64
+	ActorID    *uint64
+	ActorType  string
+	Action     string
+	Resource   string
+	ResourceID *uint64
+	OldValue   any
+	NewValue   any
+	Metadata   any
+}
+
+// AuditTxLogger is the fail-closed ambient-transaction audit port for closing settings.
+type AuditTxLogger interface {
+	LogEntryTx(ctx context.Context, entry *AuditEntry) error
+}
+
+// ClosingSettingsServiceDeps holds optional integrity dependencies for UpdateStandard.
+// Nil deps (or nil fields) are allowed for read-only paths; UpdateStandard fail-closes if missing.
+type ClosingSettingsServiceDeps struct {
+	Transactor   Transactor
+	ClinicLocker ClinicRowLocker
+	AuditTx      AuditTxLogger
+}
+
+const (
+	auditActionClosingSettingsUpdateStandard = "closing_settings.update_standard"
+	auditResourceClinicSettings              = "clinic_settings"
+)
+
 type closingSettingsService struct {
 	settingsRepo ClinicSettingsRepository
 	periodRepo   ClosingSpecialPeriodRepository
 	holidayRepo  ClinicHolidayRepository
+	transactor   Transactor
+	clinicLocker ClinicRowLocker
+	auditTx      AuditTxLogger
 }
 
-// NewClosingSettingsService は ClosingSettingsService を初期化して返す
+// NewClosingSettingsService は ClosingSettingsService を初期化して返す。
+// deps は UpdateStandard の transaction / 行ロック / audit 用。nil 可（読取系のみのテスト向け）。
 func NewClosingSettingsService(
 	settingsRepo ClinicSettingsRepository,
 	periodRepo ClosingSpecialPeriodRepository,
 	holidayRepo ClinicHolidayRepository,
+	deps *ClosingSettingsServiceDeps,
 ) ClosingSettingsService {
-	return &closingSettingsService{
+	svc := &closingSettingsService{
 		settingsRepo: settingsRepo,
 		periodRepo:   periodRepo,
 		holidayRepo:  holidayRepo,
 	}
+	if deps != nil {
+		svc.transactor = deps.Transactor
+		svc.clinicLocker = deps.ClinicLocker
+		svc.auditTx = deps.AuditTx
+	}
+	return svc
 }
 
 func (s *closingSettingsService) ListSpecialPeriods(ctx context.Context, clinicID uint64) ([]model.ClosingSpecialPeriod, error) {
@@ -138,29 +186,91 @@ func (s *closingSettingsService) Get(ctx context.Context, clinicID uint64) (*Clo
 	return &ClosingSettingsResponse{Settings: settings, SpecialPeriods: periods}, nil
 }
 
-func (s *closingSettingsService) UpdateStandard(ctx context.Context, clinicID uint64, input UpdateClinicSettingsInput) (*model.ClinicSettings, error) {
-	slog.InfoContext(ctx, "updating clinic settings", slog.Uint64("clinic_id", clinicID))
-	current, err := s.settingsRepo.FindByClinicID(ctx, clinicID)
+func (s *closingSettingsService) UpdateStandard(ctx context.Context, clinicID, actorID uint64, input UpdateClinicSettingsInput) (*model.ClinicSettings, error) {
+	slog.InfoContext(ctx, "updating clinic settings", slog.Uint64("clinic_id", clinicID), slog.Uint64("actor_id", actorID))
+	if s.transactor == nil {
+		return nil, apperrors.WrapInternalServerError("closing settings transactor is required")
+	}
+	if s.clinicLocker == nil {
+		return nil, apperrors.WrapInternalServerError("closing settings clinic lock is required")
+	}
+	if s.auditTx == nil {
+		return nil, apperrors.WrapInternalServerError("closing settings audit dependency is required")
+	}
+	if actorID == 0 {
+		return nil, apperrors.WrapInvalidInput("actor_id is required")
+	}
+	if err := validateClosedWeekdays(input.ClosedWeekdays); err != nil {
+		return nil, err
+	}
+
+	var result *model.ClinicSettings
+	err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		// Lock parent clinic row BEFORE read so concurrent partial PATCHes serialize
+		// even when clinic_settings row is still missing (first upsert).
+		if _, err := s.clinicLocker.LockByIDForUpdate(txCtx, clinicID); err != nil {
+			return apperrors.Wrap(err, "failed to lock clinic for settings update")
+		}
+
+		current, err := s.settingsRepo.FindByClinicID(txCtx, clinicID)
+		if err != nil {
+			slog.ErrorContext(txCtx, "failed to get current settings", "error", err, "clinic_id", clinicID)
+			return apperrors.Wrap(err, "failed to get current settings")
+		}
+		beforeMeta := closingSettingsFieldPresence(current)
+
+		if input.ClosingAmPmBoundary != nil {
+			current.ClosingAmPmBoundary = *input.ClosingAmPmBoundary
+		}
+		if input.ClosingWeekdayEnd != nil {
+			current.ClosingWeekdayEnd = *input.ClosingWeekdayEnd
+		}
+		if input.ClosingSundayEnd != nil {
+			current.ClosingSundayEnd = *input.ClosingSundayEnd
+		}
+		if input.ClosedWeekdays != nil {
+			current.ClosedWeekdays = input.ClosedWeekdays
+		}
+
+		if err := validateStandardClosingTimes(current.ClosingAmPmBoundary, current.ClosingWeekdayEnd, current.ClosingSundayEnd); err != nil {
+			return err
+		}
+		if err := validateClosedWeekdays(current.ClosedWeekdays); err != nil {
+			return err
+		}
+
+		saved, err := s.settingsRepo.Save(txCtx, clinicID, current)
+		if err != nil {
+			slog.ErrorContext(txCtx, "failed to update clinic settings", "error", err, "clinic_id", clinicID)
+			return apperrors.Wrap(err, "failed to update clinic settings")
+		}
+		result = saved
+
+		afterMeta := closingSettingsFieldPresence(saved)
+		changed := closingSettingsChangedFields(beforeMeta, afterMeta, input)
+		actor := actorID
+		clinic := clinicID
+		if err := s.auditTx.LogEntryTx(txCtx, &AuditEntry{
+			ClinicID:   &clinic,
+			ActorID:    &actor,
+			ActorType:  sharedkernel.AuditActorTypeFor(&actor),
+			Action:     auditActionClosingSettingsUpdateStandard,
+			Resource:   auditResourceClinicSettings,
+			ResourceID: &clinic,
+			OldValue: map[string]any{
+				"fields": beforeMeta,
+			},
+			NewValue: map[string]any{
+				"fields":         afterMeta,
+				"changed_fields": changed,
+			},
+		}); err != nil {
+			return apperrors.Wrap(err, "failed to write closing settings audit")
+		}
+		return nil
+	})
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get current settings", "error", err, "clinic_id", clinicID)
-		return nil, apperrors.Wrap(err, "failed to get current settings")
-	}
-	if input.ClosingAmPmBoundary != nil {
-		current.ClosingAmPmBoundary = *input.ClosingAmPmBoundary
-	}
-	if input.ClosingWeekdayEnd != nil {
-		current.ClosingWeekdayEnd = *input.ClosingWeekdayEnd
-	}
-	if input.ClosingSundayEnd != nil {
-		current.ClosingSundayEnd = *input.ClosingSundayEnd
-	}
-	if input.ClosedWeekdays != nil {
-		current.ClosedWeekdays = input.ClosedWeekdays
-	}
-	result, err := s.settingsRepo.Save(ctx, clinicID, current)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to update clinic settings", "error", err, "clinic_id", clinicID)
-		return nil, apperrors.Wrap(err, "failed to update clinic settings")
+		return nil, err
 	}
 	return result, nil
 }
@@ -364,4 +474,80 @@ func validateSpecialPeriodTimes(boundary, pmEnd string) error {
 	return nil
 }
 
+// validateStandardClosingTimes reuses sharedkernel.ParseHHMM (same as validateSpecialPeriodTimes)
+// and requires boundary strictly before both weekday and sunday ends.
+func validateStandardClosingTimes(boundary, weekdayEnd, sundayEnd string) error {
+	bh, bm, err := sharedkernel.ParseHHMM(boundary)
+	if err != nil {
+		return apperrors.WrapInvalidInput("境界時刻の形式が正しくありません")
+	}
+	wh, wm, err := sharedkernel.ParseHHMM(weekdayEnd)
+	if err != nil {
+		return apperrors.WrapInvalidInput("平日締め終了時刻の形式が正しくありません")
+	}
+	sh, sm, err := sharedkernel.ParseHHMM(sundayEnd)
+	if err != nil {
+		return apperrors.WrapInvalidInput("日曜締め終了時刻の形式が正しくありません")
+	}
+	bMin := bh*60 + bm
+	if bMin >= wh*60+wm {
+		return apperrors.WrapInvalidInput(fmt.Sprintf("平日締め終了時刻(%s)は境界時刻(%s)より後に設定してください", weekdayEnd, boundary))
+	}
+	if bMin >= sh*60+sm {
+		return apperrors.WrapInvalidInput(fmt.Sprintf("日曜締め終了時刻(%s)は境界時刻(%s)より後に設定してください", sundayEnd, boundary))
+	}
+	return nil
+}
 
+func validateClosedWeekdays(days []int64) error {
+	if days == nil {
+		return nil
+	}
+	seen := make(map[int64]struct{}, len(days))
+	for _, d := range days {
+		if d < 0 || d > 6 {
+			return apperrors.WrapInvalidInput("closed_weekdays は 0〜6 の範囲で指定してください")
+		}
+		if _, ok := seen[d]; ok {
+			return apperrors.WrapInvalidInput("closed_weekdays に重複があります")
+		}
+		seen[d] = struct{}{}
+	}
+	return nil
+}
+
+// closingSettingsFieldPresence returns non-secret field markers (no actual clock values).
+func closingSettingsFieldPresence(s *model.ClinicSettings) map[string]any {
+	if s == nil {
+		return map[string]any{}
+	}
+	count := 0
+	if s.ClosedWeekdays != nil {
+		count = len(s.ClosedWeekdays)
+	}
+	return map[string]any{
+		"closing_am_pm_boundary": "present",
+		"closing_weekday_end":    "present",
+		"closing_sunday_end":     "present",
+		"closed_weekdays_count":  count,
+	}
+}
+
+func closingSettingsChangedFields(before, after map[string]any, input UpdateClinicSettingsInput) []string {
+	changed := make([]string, 0, 4)
+	if input.ClosingAmPmBoundary != nil {
+		changed = append(changed, "closing_am_pm_boundary")
+	}
+	if input.ClosingWeekdayEnd != nil {
+		changed = append(changed, "closing_weekday_end")
+	}
+	if input.ClosingSundayEnd != nil {
+		changed = append(changed, "closing_sunday_end")
+	}
+	if input.ClosedWeekdays != nil {
+		changed = append(changed, "closed_weekdays")
+	}
+	_ = before
+	_ = after
+	return changed
+}

@@ -33,12 +33,16 @@ func (h *Handler) UpdateClosingSettings(c *gin.Context) {
 	if !ok {
 		return
 	}
+	actorID, ok := httpapi.ExtractStaffID(c)
+	if !ok {
+		return
+	}
 	var req UpdateClinicSettingsRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		httpapi.RespondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
 		return
 	}
-	result, err := h.closingSettingsSvc.UpdateStandard(c.Request.Context(), clinicID, req.ToServiceInput())
+	result, err := h.closingSettingsSvc.UpdateStandard(c.Request.Context(), clinicID, actorID, req.ToServiceInput())
 	if err != nil {
 		httpapi.RespondError(c, err)
 		return
