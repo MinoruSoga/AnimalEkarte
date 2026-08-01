@@ -8,19 +8,23 @@
 >
 > 本番は **未構築**（2026-07-31）。本書は STG runbook をベースに、本番固有差分
 > （Required reviewers・通知・backup 検証・CF-only rollback）を先に固定する。
-> 実値（token・password・接続文字列・通知メール）は書かない。
+> 実値（token・秘密値・接続文字列・通知メール）は書かない。
 
 ---
 
 ## 0. 現状とゲート
 
-| 項目 | 状態 |
-|---|---|
-| PlanetScale prod DB / R2 / DNS / secrets | 未構築（[setup.md](setup.md)） |
-| GitHub Environment `production` + Required reviewers | 未作成（setup.md §7） |
-| `backend-deploy.yml` production トリガー | 未適用（setup.md §8 提案 diff） |
-| ECS / AWS 切り戻し先 | **存在しない**（2026-07-20 廃止。再導入禁止） |
-| CI green on latest main | **BLOCKED** — GitHub Actions billing/spending（USER 復旧のみ） |
+> 実測日: 2026-08-01（repo 内の workflow / docs のみ。runtime・GitHub UI・課金状態は未実測）。
+
+| 項目 | 状態 | 実測根拠 |
+|---|---|---|
+| PlanetScale prod DB / R2 / DNS / secrets | 未構築 | [setup.md](setup.md) §1〜§6 が事前構築手順として未完了チェックを前提。本 unit は対象環境を作成・検証していない |
+| GitHub Environment `production` + Required reviewers | 未作成 | setup.md §7 が UI 手順のまま。`.github/workflows/**` に `environment:` 指定は **0 件**（backend-deploy / frontend-deploy とも未設定） |
+| `backend-deploy.yml` production トリガー | **未適用** | 実ファイルは `on.push.branches: [staging]` のみ（production 無し）。setup.md §8 は **提案 diff** のまま未適用 |
+| `frontend-deploy.yml` production 経路 | **branch トリガーのみ存在** | `on.push.branches` に `staging` と `production` あり。GitHub Environment ゲートは **無い**（CI-CD-PIPELINE.md §0.2 と同旨） |
+| ECS / AWS 切り戻し先 | **存在しない** | 2026-07-20 廃止。`backend-deploy.yml` ヘッダも ECS 版削除済み。**再導入禁止** |
+| CI green on latest main | **BLOCKED**（docs 上の前提） | GitHub Actions billing/spending は USER 復旧のみ。agent は課金状態を実測・変更しない。候補 required check は §8 と [reports/2026-08-01-issue-253-readiness.md](../../../../reports/2026-08-01-issue-253-readiness.md) |
+| PROD backup / restore / rollback **実行スクリプト** | **repo に存在しない** | `scripts/` に backup/restore/rollback/deploy 名のスクリプト 0 本。`pg_restore` は `scripts/`・`Makefile` とも 0 ヒット。手順は §3.1 / §5.1 の **文書のみ** |
 
 ---
 
@@ -98,13 +102,80 @@ STG との切り分けが必要な場合は [../staging/runbook.md](../staging/r
 
 ### 3.1 Rollback rehearsal（受け入れ用・構築後）
 
-#253 AC「rollback rehearsal を行い、復旧時間を記録」:
+#253 AC「rollback rehearsal を行い、復旧時間を記録」。
+
+**前提（満たさない場合は本節を開始しない）**
+
+1. setup.md §1〜§9 が完了し、production へ **1 回以上** 正常デプロイ済みであること
+2. GitHub Environment `production` + Required reviewers が有効であること（setup.md §7）
+3. `backend-deploy.yml` に production トリガーが適用済みであること（setup.md §8）
+4. 非ピーク枠 **または** 隔離検証枠であること（本番データ破壊操作は含めない）
+5. last known good の **commit SHA** が特定済みであること（credential 無しで記録可能）
+
+**repo 側 tooling**: production rollback 専用スクリプトは **存在しない**。以下は CLI / Actions の雛形（placeholder は環境から埋める。実値は文書に焼かない）。
+
+#### 手順（逐次・判定付き）
+
+```bash
+# 0) 判断宣言の時刻を記録（RTO 起点）。credential / PHI は書かない
+date -u +%Y-%m-%dT%H:%M:%SZ
+# 次へ進む: 宣言時刻が作業ログに残った
+# 止まる: 判断者未定・枠外（本番ピーク）なら中止
+
+# 1) last known good SHA を固定（例: 直前の成功 deploy の commit）
+GOOD_SHA='<last-known-good-commit-sha>'   # 実値は端末のみ。runbook に書かない
+git rev-parse --verify "${GOOD_SHA}^{commit}"
+# 次へ進む: 終了コード 0 で SHA が解決する
+# 止まる: unknown revision → SHA を再特定してからやり直し
+
+# 2) schema 互換の机上確認（破壊的 reset はしない）
+#    - GOOD_SHA 時点の backend/migrations/ と現行 production DB の適用済み版を比較
+#    - 非互換（破壊的 down / 必須 backfill 欠落）なら forward-fix または承認済みスナップショット経路へ分岐
+# 次へ進む: 互換と記録できた（所要分も記録）
+# 止まる: 非互換かつ承認済み経路が無い → リハーサル中止（成功扱いしない）
+
+# 3) 互換確認後、GOOD_SHA 相当を production 経路で再デプロイ
+#    A) Actions（Environment 承認が挟まる）
+gh workflow run backend-deploy.yml --ref production
+#    または GOOD_SHA を production ブランチへ載せた状態で path 付き push（運用ポリシーに従う）
+#
+#    B) 緊急の明示承認後のみ手動（値は環境から。履歴に残さない）
+# cd backend && npx wrangler deploy -c wrangler.production.jsonc
+#
+# 次へ進む: Actions が Required reviewers で一時停止 → 承認後に deploy/migrate/health が成功
+# 止まる: 承認無しで完走した → ゲート不全（Environment を再確認）。deploy 失敗 → ログは失敗 step のみ（secret 無し）
+
+# 4) migrate が必要な場合のみ（不要ならスキップ）
+# WORKER_URL=https://api.noah-karte.com ./infra/scripts/cf-run-migrate.sh
+# 次へ進む: スクリプト終了コード 0
+# 止まる: 非 0 → 成功扱いにせず原因を記録（credential 無し）
+
+# 5) /health（契約: HTTP 200 かつ JSON {"status":"ok"}。DB 依存無し。実装: backend/cmd/api/base_routes.go）
+curl -sS -o /tmp/prod-health-rollback.json -w '%{http_code}\n' https://api.noah-karte.com/health
+jq -r '.status' /tmp/prod-health-rollback.json
+# 次へ進む: 1 行目が 200 かつ status が ok
+# 止まる: それ以外 → ローリング残留（最大 15 分静置して再 curl）または §2 初動へ
+
+# 6) RTO 実測を記録（判断宣言 → /health ok の分）。schema 確認分も別行で記録
+date -u +%Y-%m-%dT%H:%M:%SZ
+```
+
+**受け入れチェック（実施後も未実施なら `[ ]` のまま）**
 
 - [ ] 対象: 非ピークまたは隔離検証枠
 - [ ] last known good 相当の再デプロイを実施（本番データ破壊操作は含めない）
 - [ ] 計測: 判断宣言 → `/health` ok までの分（RTO 実測）
 - [ ] schema 互換確認の所要時間も記録
 - [ ] 記録場所: 当日作業ログまたは delivery 証跡（credential 無し）
+
+**失敗時分岐**
+
+| 症状 | 分岐 |
+|---|---|
+| Environment 承認が挟まらない | setup.md §7 をやり直し。無承認 deploy を受け入れにしない |
+| `/health` が 200/ok にならない | §2 初動。15 分静置後に再確認。ECS/AWS へは戻さない |
+| schema 非互換 | forward-fix または承認済みスナップショット。破壊的 reset は別途明示承認 |
+| provider 障害で再デプロイ不能 | §3 手順 7（IaC から再建）。DNS を旧インフラへ戻すことを復旧とみなさない |
 
 ---
 
@@ -115,7 +186,7 @@ STG との切り分けが必要な場合は [../staging/runbook.md](../staging/r
 | 生存確認 | `GET https://api.noah-karte.com/health` | デプロイ直後必須・障害時最初に実行 |
 | 5xx 率 | Cloudflare Notification Policy（`noah-karte.com` ゾーン全体） | STG ポリシーが PROD もカバー。**PROD 専用ポリシーを追加しない**（二重通知） |
 | Deploy 失敗 | GitHub Actions | 失敗通知は GH のリポジトリ/org 設定。Environment 保護エラーも監視 |
-| Workers Logs | Cloudflare Observability | PHI・password・token が混入していないか定期確認 |
+| Workers Logs | Cloudflare Observability | PHI・秘密値・token が混入していないか定期確認 |
 | Frontend | Vercel deployment | production デプロイの成功/失敗 |
 
 ### 4.1 監視チェックリスト（秘密値なし）
@@ -139,12 +210,85 @@ STG との切り分けが必要な場合は [../staging/runbook.md](../staging/r
 
 ### 5.1 Restore rehearsal チェックリスト（#253 AC）
 
+**前提（満たさない場合は本節を開始しない）**
+
+1. production 向けスナップショットが **少なくとも 1 本** 取得済みであること（PlanetScale マネージド **または** 明示 `pg_dump`。取得自体は USER 専権）
+2. 復元先は **隔離環境のみ**（本番 DNS / 本番 DB を直接ターゲットにしない。本番上書き restore は別途明示承認）
+3. 接続情報は TTL 付き診断ロール等、使い捨て経路から端末環境変数へ載せる（文書・ログに残さない）
+
+**repo 側 tooling**: STG/PROD 用の backup / restore 実行スクリプトは **存在しない**（`scripts/` に該当名 0 本、`pg_restore` 0 ヒット）。`make reset` 内の `pg_dumpall` は **ローカル Docker 専用**であり production 経路ではない。以下はオペレータが外部 CLI で打つ雛形。
+
+#### 手順（逐次・判定付き）
+
+```bash
+# 0) 開始時刻（所要時間の起点）。PHI・credential は書かない
+date -u +%Y-%m-%dT%H:%M:%SZ
+# 次へ進む: 作業ログに開始時刻が残った
+# 止まる: 隔離先未用意・本番をターゲットにしかねない状態 → 中止
+
+# 1) 隔離先の識別子を端末だけで持つ（例。実名は文書に焼かない）
+# export ISOLATED_DB_HOST=...
+# export ISOLATED_DB_NAME=...
+# export ISOLATED_DB_USER=...
+# export PGPASSWORD=...          # 履歴・runbook に残さない
+# 次へ進む: ホスト名/DB 名が production の DNS・DB 名と一致しないことを目視確認した
+# 止まる: production と同一ホスト/DB を指している → 中止
+
+# 2) スナップショットの存在確認（マネージド UI またはオブジェクト保管。コマンドは提供元 CLI に従う）
+#    例（PlanetScale マネージド）: コンソールで最新 backup の時刻・サイズのみ確認
+#    例（明示 dump ファイルがある場合）:
+# ls -lh "<path-to-snapshot>"     # パスは端末ローカル。repo に置かない
+# 次へ進む: スナップショットが 1 本以上あり、取得時刻が記録できる
+# 止まる: 0 本 → 先に backup 取得（本節の restore を成功扱いにしない）
+
+# 3) 隔離環境へ restore（本番をターゲットにしない）
+#    PlanetScale マネージド restore なら提供元 UI/CLI の「別ブランチ / 別 DB」へ復元
+#    ファイル dump の場合の雛形（接続先は隔離のみ）:
+# pg_restore --clean --if-exists -h "$ISOLATED_DB_HOST" -U "$ISOLATED_DB_USER" -d "$ISOLATED_DB_NAME" "<path-to-snapshot>"
+# または: gunzip -c "<path>.sql.gz" | psql -h "$ISOLATED_DB_HOST" -U "$ISOLATED_DB_USER" -d "$ISOLATED_DB_NAME"
+# 次へ進む: 終了コード 0
+# 止まる: 非 0 → 成功扱いにせず原因を記録（接続文字列・秘密値は載せない）
+
+# 4) 非 PHI 指標で整合性確認（個人名・飼主名・ペット名・スタッフ名は出さない）
+#    以下は指標例。テーブル名は現行 schema に合わせて USER が選ぶ。結果は件数と合計のみ記録。
+# psql -h "$ISOLATED_DB_HOST" -U "$ISOLATED_DB_USER" -d "$ISOLATED_DB_NAME" -v ON_ERROR_STOP=1 <<'SQL'
+# -- 主要テーブル件数（例。実テーブル集合は環境の schema に合わせる）
+# SELECT 'owners' AS entity, count(*)::bigint AS n FROM owners
+# UNION ALL SELECT 'pets', count(*) FROM pets
+# UNION ALL SELECT 'appointments', count(*) FROM appointments;
+# -- clinic_id 別件数（値は ID と件数のみ。名称結合しない）
+# SELECT clinic_id, count(*)::bigint AS n FROM pets GROUP BY clinic_id ORDER BY clinic_id;
+# -- 金額合計（該当テーブルがある場合のみ。PHI 列を SELECT しない）
+# -- SELECT coalesce(sum(total_amount),0) AS amount_sum FROM accounting_invoices;
+# SQL
+# 次へ進む: クエリがエラー無く終わり、件数/合計が作業ログに残った（氏名カラムを出していない）
+# 止まる: エラー、または氏名等の PHI が結果に混入 → 記録を破棄してクエリを修正
+
+# 5) 所要時間を記録し、隔離資源を破棄
+date -u +%Y-%m-%dT%H:%M:%SZ
+# 隔離 DB / 一時リストア先 / 一時認証情報を破棄（提供元の削除手順に従う）
+# unset PGPASSWORD ISOLATED_DB_HOST ISOLATED_DB_NAME ISOLATED_DB_USER
+# 次へ進む: 破棄完了を作業ログに残した（credential 無し）
+# 止まる: 隔離資源が残存 → 破棄完了まで受け入れにしない
+```
+
+**受け入れチェック（実施後も未実施なら `[ ]` のまま）**
+
 - [ ] 隔離環境を用意（本番 DNS / 本番 DB を直接ターゲットにしない）
 - [ ] スナップショットから restore
 - [ ] 非 PHI 指標で整合性確認: 主要テーブル件数、clinic_id 別件数、金額合計（個人名は出さない）
 - [ ] 所要時間を記録
 - [ ] 失敗時は成功扱いにせず原因を記録（credential は載せない）
 - [ ] リハーサル用に作った隔離資源の破棄
+
+**失敗時分岐**
+
+| 症状 | 分岐 |
+|---|---|
+| スナップショット 0 本 | 取得を先に完了。restore をスキップして成功扱いにしない |
+| restore が production を向いている | **即中止**。接続先を隔離に切り替えてから再開 |
+| 整合性クエリが PHI を返す | 結果を保存せずクエリを件数/合計のみに修正 |
+| 所要時間が未記録 | 受け入れ未完了。再計測 |
 
 ### 5.2 日常バックアップ確認（稼働開始後）
 
@@ -183,14 +327,28 @@ WORKER_URL=https://api.noah-karte.com ./infra/scripts/cf-crud-smoke.sh
 
 ## 8. #253 受け入れ残件と USER 作業
 
-| AC | docs/prep | 実地 | 備考 |
+| AC | docs/prep（実測で確認できた成果物のみ） | 実地 | 備考 |
 |---|---|---|---|
-| latest main required CI green | n/a | **BLOCKED** | GitHub billing/spending — USER only |
-| STG deploy / health / failure notification 実地確認 | 契約文書化済 | billing 復旧後 | |
-| production deploy は Required reviewers なしに開始できない | 契約・手順文書化済 | Environment 未作成 | setup.md §7 |
-| rollback rehearsal + 復旧時間記録 | 手順 §3.1 | 環境構築後 | CF-only |
-| backup → 隔離 restore + 非 PHI 整合性 | 手順 §5.1 | 環境構築後 | |
-| log/artifact/Issue に credential・個人情報なし | 本 runbook 方針 | 継続 | |
-| #257 Go-live の明示 prerequisite | GOLIVE §1 #2/#7 | 上記完了後 | |
+| latest main required CI green | 候補 job 列挙済: `ci.yml` の `changes` / `secret-scan` / `backend` / `frontend` / `worker` / `codegen-check` / `migration-verify`（詳細と paths-filter 罠は [reports/2026-08-01-issue-253-readiness.md](../../../../reports/2026-08-01-issue-253-readiness.md)） | **BLOCKED** | GitHub billing/spending — USER only。**安全な常時 required 候補は `secret-scan`（表示名 Gitleaks Secret Scan）と必要なら `changes` のみ**。他 5 job は path/`if` で skip され required にすると永久 pending になり得る |
+| STG deploy / health / failure notification 実地確認 | 契約: [CI-CD-PIPELINE.md](../../deploy/CI-CD-PIPELINE.md) §0、本 runbook §1/§4 | billing 復旧後 | 本 unit は STG runtime を叩いていない |
+| production deploy は Required reviewers なしに開始できない | 契約・手順: setup.md §7、本 runbook §1.1。**workflow 実測: `environment:` 未設定** | Environment 未作成 | setup.md §7 → §8 の順。§8 提案 diff は未適用 |
+| rollback rehearsal + 復旧時間記録 | 本 runbook **§3.1**（コマンド列 + 判定基準）。専用スクリプトは **不在** | 環境構築後 | CF-only。チェックボックスは USER 実施まで `[ ]` |
+| backup → 隔離 restore + 非 PHI 整合性 | 本 runbook **§5.1**（コマンド列 + 判定基準）。PROD backup/restore スクリプトは **不在** | 環境構築後 | 隔離のみ。本番上書きは別途明示承認 |
+| log/artifact/Issue に credential・個人情報なし | 本 runbook 方針（ヘッダ / §3 / §5 / 本節） | 継続 | agent も遵守 |
+| #257 Go-live の明示 prerequisite | [GOLIVE_RUNBOOK.md](../../../delivery/GOLIVE_RUNBOOK.md) §1 #2/#7 | 上記完了後 | 納品日 2026-08-03。#253 は直接前提 |
+
+### 8.1 USER 直列 8 段（実行は USER 専権。agent は 1 段も実行しない）
+
+詳細な前提・コマンド・判定・失敗分岐は [reports/2026-08-01-issue-253-readiness.md](../../../../reports/2026-08-01-issue-253-readiness.md) を正本とする。
+
+1. GitHub Actions の billing / spending 復旧
+2. GitHub Environment `production` 作成（setup.md §7）
+3. Required reviewers 設定（setup.md §7）
+4. required status check の指定（上表の候補から USER が選定。paths-filter 罠に注意）
+5. production deploy トリガー適用（setup.md §8 提案 diff。§7 完了後のみ）
+6. deploy 実行と `/health` 確認（HTTP 200 + `{"status":"ok"}`）
+7. backup 取得 → 隔離 restore → 非 PHI 整合性 → 所要時間記録（§5.1）
+8. rollback rehearsal → RTO 実測 → 隔離資源の破棄（§3.1）
 
 **agent は支払い・spending limit・secret 実値の発行を行わない。**
+未実施の作業を実施済みと書かない。本 runbook の `- [ ]` を agent が `[x]` にしない。
