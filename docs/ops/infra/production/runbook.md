@@ -8,7 +8,7 @@
 >
 > 本番は **未構築**（2026-07-31）。本書は STG runbook をベースに、本番固有差分
 > （Required reviewers・通知・backup 検証・CF-only rollback）を先に固定する。
-> 実値（token・秘密値・接続文字列・通知メール）は書かない。
+> 実値（token・password・接続文字列・通知メール）は書かない。
 
 ---
 
@@ -186,7 +186,7 @@ date -u +%Y-%m-%dT%H:%M:%SZ
 | 生存確認 | `GET https://api.noah-karte.com/health` | デプロイ直後必須・障害時最初に実行 |
 | 5xx 率 | Cloudflare Notification Policy（`noah-karte.com` ゾーン全体） | STG ポリシーが PROD もカバー。**PROD 専用ポリシーを追加しない**（二重通知） |
 | Deploy 失敗 | GitHub Actions | 失敗通知は GH のリポジトリ/org 設定。Environment 保護エラーも監視 |
-| Workers Logs | Cloudflare Observability | PHI・秘密値・token が混入していないか定期確認 |
+| Workers Logs | Cloudflare Observability | PHI・password・token が混入していないか定期確認 |
 | Frontend | Vercel deployment | production デプロイの成功/失敗 |
 
 ### 4.1 監視チェックリスト（秘密値なし）
