@@ -113,8 +113,8 @@
   <tr>
     <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/201">#201</a></td>
     <td>薬量自動計算 — 上限超過の物理ブロックと例外統制</td>
-    <td><span class="status go">着手可能</span></td>
-    <td>technical failure は先行して通常 dose 保存を停止する。体重/species/parameter 欠落は、active/draft の構造化救急投薬記録と臨床承認が成立した同一 cutover で通常保存を停止する。上限値、warning 帯、記録対象条件は臨床責任者に残す</td>
+    <td><span class="status judge">判断待ち</span></td>
+    <td>technical failure の先行停止は完了（TASK-025・push 済）。dose parameter 取得障害を欠落と型で分離し、固定文言＋再試行を出して通常保存を止める。残るのは体重/species/parameter 欠落の cutover（TASK-033）で、active/draft の構造化救急投薬記録と臨床承認が揃うまで着手できない。上限値、warning 帯、記録対象条件は臨床責任者に残す</td>
   </tr>
   <tr>
     <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/211">#211</a></td>
@@ -126,7 +126,7 @@
     <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/249">#249</a></td>
     <td>検査機能 — 院内検査結果管理の内製</td>
     <td><span class="status go">着手可能</span></td>
-    <td>最優先は confirm 順序、confirmed conflict、parent mutation の actor/audit 原子性。その後は手動 edit/unconfirm、snapshot print、import revert を別経路にし、臨床 range と外部自動化は承認待ちとする</td>
+    <td>confirm 順序、confirmed conflict 409、parent mutation の actor/audit 原子性は完了（TASK-026・push 済）。残るのは手動 edit/unconfirm（TASK-027）、snapshot print（TASK-031）、import revert の分離（TASK-032・migration review 要）で、いずれも着手可能。臨床 range と外部自動化は承認待ちとする</td>
   </tr>
   <tr>
     <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/258">#258</a></td>
@@ -138,7 +138,7 @@
     <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/261">#261</a></td>
     <td>臨床安全・画面仕様ギャップの PO 決裁</td>
     <td><span class="status user">USER 専権</span></td>
-    <td>DEC-41/47 を維持する。trimming の finalPetID を pet_id 省略時も死亡確認する回帰補強は完了（land 済み・未 push）。残るのは USER が DB 履歴、権限監査、実機 LINE/LIFF、対象環境 runtime を一 evidence bundle にすること</td>
+    <td>DEC-41/47 を維持する。trimming の finalPetID を pet_id 省略時も死亡確認する回帰補強は完了（push 済）。残るのは USER が DB 履歴、権限監査、実機 LINE/LIFF、対象環境 runtime を一 evidence bundle にすること</td>
   </tr>
 
   <tr>
@@ -169,7 +169,7 @@
     <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/252">#252</a></td>
     <td>各院の締め時間設定値の投入</td>
     <td><span class="status user">USER 専権</span></td>
-    <td>standard PATCH の validation、clinic-scoped 行ロックによる直列化、actor 付き transaction-bound audit の補強は完了（land 済み・未 push）。残るのは USER が批准済み値との差分だけを投入・preview すること</td>
+    <td>standard PATCH の validation、clinic-scoped 行ロックによる直列化、actor 付き transaction-bound audit の補強は完了（push 済）。残るのは USER が批准済み値との差分だけを投入・preview すること</td>
   </tr>
   <tr>
     <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/253">#253</a></td>

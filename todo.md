@@ -479,7 +479,7 @@ validator_exit=0
 
 - **対応 Issue**: GitHub Issue #201。
 - **問題**: FE は dose parameter 取得 error を manual default に変換するため、BE が repository/system error を保存中止へ伝播する契約を UI が silent bypass し得る。体重/species/parameter 欠落は別の cutover dependency を持つ。
-- **状態**: **DONE**（実装 `eaa608b6a` + follow-up 是正。`main` に commit 済み・未 push）。欠落時 runtime 変更は TASK-033 まで HOLD のまま。
+- **状態**: **DONE**（実装 `eaa608b6a` + follow-up 是正 `db8387035`。push 済）。欠落時 runtime 変更は TASK-033 まで HOLD のまま。
 - **claim**: `claim/TASK-025`（取得済み。USER が統合後に解放）。
 
 #### 実施結果（2026-08-02・TASK-025 unit）
