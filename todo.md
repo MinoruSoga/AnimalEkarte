@@ -529,26 +529,32 @@ validator_exit=0
 
 - **対応 Issue**: GitHub Issue #249。
 - **問題**: manual workflow の row add/delete、confirm 前 patient change、権限付き確定解除が未完。現行 examination status に <code>unconfirmed</code>/<code>cancelled</code> はなく、lab import job の取消と混ぜてはならない。
-- **状態**: **READY_AGENT**。TASK-026 の immutable confirmed contract は実装済み。
+- **状態**: **BLOCKED_DATABASE_PLAN_REVIEW / migration review required**。TASK-026 の confirmed guard は実装済み。revision→examination parent FK が final DB review で未充足のため、次の bounded plan revision と再審査まで実装を開始しない。
 - **claim**: `claim/TASK-027` — **not live**（2026-08-01 USER 解放済み。起票時の過剰取得を是正したもので、本タスクは未着手）。
 
-#### 実装プラン（2026-08-01・readiness dossier）
-- **Ready**: READY_AGENT
-- **Owner lane**: backend medicalrecord + frontend examinations
-- **Blockers (today)**: なし。print は TASK-031、lab import revert は TASK-032。external file/crosswalk、clinical range、auto-commit は対象外。
-- **Preconditions**: DEC-53/TASK-026 regression、DEC-57、Issue #249 の current AC、既存 examination RBAC/audit contract を再読する。
-- **Code anchors**: `frontend/src/features/examinations/components/ExamItemsTable.tsx:91-98`, `backend/internal/medicalrecord/routes.go:360-371`, `backend/internal/medicalrecord/examination_service.go`, `backend/internal/model/examination_record.go:10-17`, examination feature tests。
+#### 実装プラン（2026-08-02・adversarial revision 2）
+- **Ready**: BLOCKED_DATABASE_PLAN_REVIEW。exams の clinic-first candidate key と revision→examination parent FK を次の plan revision で明示し、fresh DB review が RESOLVED を返した後だけ foundation を land する。interface freeze 後に TASK-031、共有 route/OpenAPI を持つ TASK-032 の順で進める。external format、clinical range、auto-commit は対象外。
+- **Owner lane**: backend medicalrecord + frontend examinations + additive revision migration + dedicated permission/API contract。
+- **Fixed clinical-record contract**: status は `pending / in_progress / result_entered / completed / confirmed` のみ。理由必須の `POST /v1/examinations/:id/unconfirm` は `confirmed -> completed` だけを許すが、遷移前に parent+items の official revision を append-only に保存し、新しい working revision を append する。解除後の edit も既存 revision/item を更新せず、新しい working revision+items を append して exam pointer を version CAS する。再 confirm は current working revision から新しい official version を append する。official print/history は revision store だけを読み、mutable legacy parent/current items と混ぜない。過去に一度でも confirmed version がある examination は pet を変更不可。pre-first-confirm の pet change だけを record/pet/owner/species/doctor/master 相関再検証と items assessment 再計算の同一 transaction で許可する。
+- **Migration impact**: **YES**。開始時に root 番号を再測定し、append-only `examination_revisions` + `examination_revision_items`（clinic/examination/version/kind/status/pet/record/snapshot/reason/actor/timestamp/official flag）を additive migration で追加する。revision は `UNIQUE(clinic_id,examination_id,version)`、items は同じ clinic/exam/version composite FK。`exams.current_revision_version` は `(clinic_id,id,current_revision_version)` から revision `(clinic_id,examination_id,version)` への tenant-safe FK とし、`WHERE clinic_id=? AND id=? AND current_revision_version=?` の pointer CAS だけを更新可能にする。revision parent/items は official/working を問わず UPDATE/DELETE rejection triggerを持つ。両表へ project helper の `ENABLE ROW LEVEL SECURITY` + clinic `USING`/`WITH CHECK` を明示適用し、`FORCE` は role compatibility review なしに追加しない。indexes は revisions `(clinic_id,examination_id,version)` と official lookup、items `(clinic_id,examination_id,version,sort_order,id)`。既存 confirmed record は fail-closed backfill inventory を通し、official revision がない confirmed record は unconfirm/official print を拒否する。既適用 migration/seed は編集・apply しない。
+- **Permission rollout**: 新 resource `examination-unconfirm` は全 default group で default-deny。fresh/demo fixture は disposable DB + sanctioned `seed-export` のみ。既存 clinic への grant は seed replay ではなく、named approver 後の permission-group API/app operation として別 evidence にする。`AllResources`、backend default table、FE label、parity test を同期する。
+- **対象ファイル（path:line）**:
+  - backend: `backend/internal/medicalrecord/examination_service.go:273`, `backend/internal/medicalrecord/examination_audit.go:11`, `backend/internal/medicalrecord/examination_handler.go:86`, `backend/internal/medicalrecord/routes.go:360`, `backend/internal/model/examination_record.go:10`, `backend/internal/model/audit_log.go:98`, `backend/internal/model/permission.go:6`, `backend/internal/clinic/clinic_service.go:192`, `backend/docs/api.yaml:3462`、new revision model/repository/request/response と migration。
+  - frontend: `frontend/src/hooks/use-update-examination.ts:12`, `frontend/src/features/examinations/api/types.ts:27`, `frontend/src/features/examinations/hooks/use-examination-form.ts:175`, `frontend/src/features/examinations/components/ExamItemsTable.tsx:91`, `frontend/src/features/examinations/routes/ExaminationForm.tsx:38`, `frontend/src/features/master/components/permission-rule-table-model.ts:15`、new `unconfirm-examination.ts`。
+- **影響 caller 全数**: confirm/update/items service+handler+routes+composition、OpenAPI/codegen、permission defaults、shared update hook、feature form/table。baseline command: `rg -l 'ConfirmExamination|UpdateExamination|ReplaceExaminationItems|ExaminationService|ExaminationHandler|ResourceExaminations|examinations/:id' backend frontend --glob '*.{go,ts,tsx,yaml}' --glob '!backend/migrations/seeds/**'`。
+- **既存テストを RED から拡張**: `examination_parent_audit_test.go`, `examination_parent_audit_tx_test.go`, `examination_handler_test.go`, `routes_snapshot_test.go`, `checkup_examination_relation_write_db_test.go`, `examination_cross_tenant_master_fk_write_test.go`, `openapi_examination_mutation_contract_test.go`, `ExamItemsTable.test.tsx`, `use-examination-form.test.ts`, `ExaminationFormFields.test.tsx`, `ExaminationForm.permissions.test.tsx`, permission default/parity tests。
 - **Steps**:
-  1. 現行 status（pending/in_progress/result_entered/completed/confirmed）× row/pet/unconfirm operation × permission × audit の matrix を test fixture に固定し、存在しない状態を追加しない。
-  2. non-confirmed の result row add/delete と confirm 前 patient change を clinic/pet/medical-record correlation fail-closed で実装する。
-  3. 専用 permission + 理由必須の unconfirm endpoint を追加し、clinic-scoped lock 下で <code>confirmed -&gt; completed</code>、authenticated actor、before/after audit を同一 transaction に置く。
-  4. confirmed direct mutation、別 clinic/pet/record、理由/actor/audit dependency 欠落を拒否し、write/audit zero または全 rollback を確認する。
+  1. RED: first official revision、unconfirm→working copy、新旧version isolation、old official immutability、official-readのworking混入禁止、post-confirm pet change reject、pre-confirm pet change assessment recalculation、wrong clinic/record/pet/owner/doctor/master、actor/audit rollback、permission default-deny を固定する。
+  2. GREEN: ambient transaction 内で clinic-scoped exam lock→全 clinical relation 再検証→official/working revision+items append→audit→status/current-version pointer CAS の順を固定し、revision/audit/CAS failure は全 rollback。
+  3. GREEN: master-selected row add/delete は working revision、pre-first-confirm pet change は pre-official current rowsだけに実装し、confirmed/ever-confirmed patient identity と全 official version は不変にする。
+  4. OpenAPI/codegen、permission rollout、route snapshot、migration immutability/RLS を同期する。
 - **Verification** (scoped only):
-  - `docker compose exec -T backend go test -p 1 ./internal/medicalrecord/... -run 'Test.*Examination' -count=1`
-  - `docker compose exec -T frontend npx vitest run src/features/examinations`
-- **Non-actions / HOLD**: print、lab import job 取消、clinical range 推測、external file/crosswalk、auto-commit、migration/seed、Issue close、claim 削除を行わない。
-- **Exit criteria for close**: 現行状態だけの matrix で edit/unconfirm が permission/status/actor/audit contract を満たし、<code>confirmed -&gt; completed</code> 以外を作らず、TASK-026 regression と clinic isolation が green。
-- **Evidence sources read**: dossier Issue #249、DEC-53/57、Issue body/current routes/FE source。
+  - `docker compose exec -T backend go test -p 1 ./internal/medicalrecord -run 'Test(DB_ExaminationServiceRejectsPollutedClinicalRelations|.*Examination.*(Confirm|Update|Item|Pet|Unconfirm|Revision|Audit|Rollback|Permission|CrossClinic))' -count=1`
+  - `docker compose exec -T backend go test -p 1 ./internal/apicontract ./internal/clinic ./internal/lintscan -run 'Test.*(Examination|Permission|DefaultPermissionRuleTable|PreloadClinicScope|MasterFKWrite)' -count=1`
+  - `docker compose exec -T frontend npx vitest run src/features/examinations src/hooks/use-update-examination.test.tsx src/features/master/components/permission-rule-table-model.test.ts`
+  - `make codegen-check`
+- **Non-actions / HOLD**: print、lab import revert、clinical range、external format、auto-commit、migration apply、Issue close、claim 削除を行わない。
+- **Exit criteria for close**: original confirmed snapshot と patient identity が不変で、unconfirm/re-edit/reconfirm が version/permission/status/actor/audit/correlation contract を満たし、TASK-026、permission rollout、clinic isolation、migration/API regression が green。
 
 ### TASK-028: #252 standard closing settings PATCH の validation・lost-update 防止・transaction-bound audit（High）
 
@@ -661,78 +667,111 @@ validator_exit=0
 
 - **対応 Issue**: GitHub Issue #249 F-5a。
 - **問題**: 飼主説明・他院添付・院内保管向け print surface が未完。画面 state や FE 再計算を印刷正本にすると保存済み臨床記録と不一致になり得る。
-- **状態**: **READY_AGENT**。TASK-026 の immutable/audit contract は実装済み。
+- **状態**: **READY_AFTER_TASK-027_INTERFACE_FREEZE**。TASK-026 の immutable/audit contract は実装済み。official/working revision interface は TASK-027 で先に固定する。
 - **claim**: `claim/TASK-031` — **not live**（2026-08-01 USER 解放済み。起票時の過剰取得を是正したもので、本タスクは未着手）。
 
-#### 実装プラン（2026-08-01・readiness dossier）
-- **Ready**: READY_AGENT
-- **Owner lane**: frontend examinations / print presentation
-- **Blockers (today)**: なし。臨床 range の新規推測、manual unconfirm、lab import revert は対象外。
-- **Preconditions**: DEC-53/TASK-026 regression、DEC-57、Issue #249 F-5a、`PrintPortal` の既存利用例、#229 の飼主向け表現境界を読む。
-- **Code anchors**: `frontend/src/components/shared/PrintPortal.tsx`, `frontend/src/features/examinations/components/ExamPivotTable.tsx`, `frontend/src/features/examinations/api/get-examination-items.ts`, examinations feature tests。
+#### 実装プラン（2026-08-02・adversarial revision 2）
+- **Ready**: READY_AGENT_AFTER_TASK-027_INTERFACE_FREEZE。manual unconfirm/revision foundation の API/schema interface だけを先に固定する。clinical range と lab import revert は対象外。
+- **Owner lane**: backend examination print snapshot API + frontend print presentation。
+- **Fixed contract**: 新 read-only `GET /v1/examinations/:id/print-snapshot?version=` が parent/items/status/version を一つの DTO として単一 SQL snapshot（または read-only repeatable-read transaction）から返す。official owner/other-clinic output は confirmed revision だけ。current non-confirmed は院内用 `DRAFT / 未確定` watermark、confirmed→unconfirm 後は旧 official version と current draft を混ぜない。FE `formItems`、未保存 edit、range/status 再計算、内部 `danger_reason` は含めない。
+- **Migration impact**: 本 task 固有の migration は **NO**（TASK-027 revision schema を消費）。read endpoint の OpenAPI/codegen 影響は **YES**。
+- **対象ファイル（path:line）**: `backend/internal/medicalrecord/examination_repository.go:84`, `backend/internal/medicalrecord/examination_response.go:36`, `backend/internal/medicalrecord/examination_handler.go:68`, `backend/internal/medicalrecord/routes.go:360`, `backend/docs/api.yaml:3462`, `frontend/src/components/shared/PrintPortal.tsx:45`, `frontend/src/features/examinations/components/ExamPivotTable.tsx:224`, `frontend/src/features/examinations/routes/ExaminationForm.tsx:63`、new print query/DTO/component/model/tests。
+- **影響 caller 全数**: examination repository/service/handler/routes/OpenAPI/codegen、`PrintPortal`、`ExaminationForm`、`ExamPivotTable`、feature export。baseline command: `rg -l 'PrintPortal|ExamPivotTable|GetExamination|ListExaminationItems|ExaminationHandler|examinations/:id' backend frontend --glob '*.{go,ts,tsx,yaml}' --glob '!backend/migrations/seeds/**'`。
+- **既存テストを RED から拡張**: `examination_repository_test.go`, `examination_handler_test.go`, `routes_snapshot_test.go`, `openapi_examination_mutation_contract_test.go`, `PrintPortal.test.tsx`, `ExamPivotTable.test.tsx`, `ExaminationForm.permissions.test.tsx`、new backend print snapshot tests と `ExaminationPrintArea.test.tsx`。
 - **Steps**:
-  1. RED: 保存済み examination/items snapshot だけを入力にし、実施項目のみ、欠測、定性値、日付/単位を表示する print component test を追加する。
-  2. RED: FE が status/range を再計算しないこと、画面上の未保存 edit を印刷しないこと、test ID が一意であることを固定する。
-  3. GREEN: `PrintPortal` を再利用し、三用途で共通の保存 snapshot view model を生成する。横長 matrix のみ landscape とする。
-  4. print preview の browser/UAT は個人情報を含まない clean-demo で USER/QA が行い、本 task の source green と区別する。
+  1. RED: same-clinic confirmed official、other-clinic 404、draft watermark、unconfirmed old-version isolation、parent/items atomic version、unperformed/missing/qualitative/unit/date、no unsaved values を固定する。
+  2. GREEN: versioned single DTO と key-scoped query hook、pure print model、`PrintPortal` surface を追加する。
+  3. official/draft label と横長 matrix landscape を固定し、owner-facing output から内部 field を除外する。
+  4. clean-demo browser/physical print sign-off は USER/QA evidence とし、source green と混同しない。
 - **Verification** (scoped only):
-  - `docker compose exec -T frontend npx vitest run src/features/examinations`
-- **Non-actions / HOLD**: 臨床判定再計算、新 range 値、manual unconfirm、lab import、実データ screenshot、Issue close、claim 削除を行わない。
-- **Exit criteria for close**: print が保存 snapshot のみを表示し、FE 再計算・未保存値混入がなく、scoped component tests が green。human print sign-off は別 evidence。
-- **Evidence sources read**: dossier Issue #249、DEC-53/57、Issue #249 F-5a、current print/examination source。
+  - `docker compose exec -T backend go test -p 1 ./internal/medicalrecord -run 'Test.*Examination.*(PrintSnapshot|CrossClinic|Revision)' -count=1`
+  - `docker compose exec -T backend go test -p 1 ./internal/apicontract -run 'Test.*Examination.*Print' -count=1`
+  - `docker compose exec -T frontend npx vitest run src/components/shared/PrintPortal.test.tsx src/features/examinations/components/ExamPivotTable.test.tsx src/features/examinations/components/ExaminationPrintArea.test.tsx src/features/examinations/routes/ExaminationForm.permissions.test.tsx`
+  - `make codegen-check`
+- **Non-actions / HOLD**: clinical assessment recalc、新 range、unconfirm mutation、lab import、実データ screenshot、Issue close、claim 削除を行わない。
+- **Exit criteria for close**: print DTO が clinic-scoped atomic revision snapshot で、official/draft/superseded boundary、FE non-recalculation、unsaved-value exclusion、backend other-clinic rejection、scoped tests が green。human sign-off は別 evidence。
 
 ### TASK-032: #249 lab import job の compensating revert を examination unconfirm と分離する（Critical / Clinical record integrity）
 
 - **対応 Issue**: GitHub Issue #249 F-3c(a)。
 - **問題**: persisted import job を取消す endpoint/状態がなく、手動 examination の確定解除と混ぜると status・permission・audit・rollback の意味が不定になる。
-- **状態**: **READY_AGENT / migration review required**。設計は DEC-57。
+- **状態**: **BLOCKED_DATABASE_PLAN_REVIEW / migration review required**。設計は DEC-57。soft-deleted child にも効く非部分 `(clinic_id,job_id)` FK-supporting index が final DB review で未充足のため、次の bounded plan revision と再審査まで実装を開始しない。
 - **claim**: `claim/TASK-032` — **not live**（2026-08-01 USER 解放済み。起票時の過剰取得を是正したもので、本タスクは未着手）。
 
-#### 実装プラン（2026-08-01・readiness dossier）
-- **Ready**: READY_AGENT
-- **Owner lane**: backend medicalrecord / lab import compensation
-- **Blockers (today)**: なし。migration-seed-safety と database review を開始時に通す。external format/auto-commit enable は対象外。
-- **Preconditions**: DEC-53/TASK-026 regression、DEC-57、`backend/migrations/CLAUDE.md`、clinic isolation、DBOrTx/audit conventions、lab import transition table を読む。
-- **Code anchors**: `backend/internal/model/lab_import.go:10-21`, `backend/internal/medicalrecord/lab_import_service.go:15-29`, `backend/internal/model/examination_record.go:32-43`, `backend/internal/medicalrecord/routes.go:373-388`, lab import service/repository tests。
+#### 実装プラン（2026-08-02・adversarial revision 2）
+- **Ready**: BLOCKED_DATABASE_PLAN_REVIEW / migration review required。上記の非部分 child index を次の plan revision で明示し、fresh DB review が RESOLVED を返した後だけ着手する。external format/crosswalk と auto-commit enable は対象外。
+- **Owner lane**: backend medicalrecord / lab import compensation + additive migration/API contract。
+- **Fixed contract**: manual unconfirm と別 endpoint。`persisted -> reverted` は terminal compensation。job を `(clinic_id,id)` で status 非依存 lock 後、active linked exams を ID 順 lockし、exam type、pet-owner、medical-record clinic/pet、doctor active assignment、master FK を fail-closed 検証する。confirmed、finalized medical-record、manual mutation、downstream clinical use、usage unknown のいずれかがあれば全体 409。安全な import-created draft parentだけを条件付き soft deleteし、各 exam の parent+items immutable retraction snapshot と actor/reason を残す。child result hard deleteはしない。
+- **Authoritative downstream-use contract**: migration 後に import と同一 transaction で `usage_tracking_started` を記録した job だけ revert eligibility を持つ。legacy job/marker 不在は `usage_unknown` 409。`GetExamination`、`ListExaminationItems`、`GetLabExamReport`、TASK-031 print/export は clinical payload を返す前に append-only usage receipt を記録し、receipt failure は response を返さない。examination/item update、confirm/unconfirm、manual row replace は同一 mutation transaction で `manual_mutation` receipt を記録する。`medical_record_images.exam_id` 等の durable relation も conflict predicate に含める。revert transaction は receipt、application audit、current revision/version、durable relationを lock/readし、errorまたは未計測 consumer は zero-write 409。import 時 snapshot/version と一致し、receipt/relation が全て absent の新規 draftだけを safe とする。
+- **Transaction/retry contract**: job/event/exam/retraction/usage-receipt/revert-receipt/audit repository は全て `DBOrTx`、lock method は `TxFromContext` 不在を拒否。順序は job status-independent lock→`(clinic_id,idempotency_key)` revert receipt lookup→既存なら persisted job/payload 比較して same=success・different=409→未処理なら status=`persisted` gate→linked exams→relation/downstream receipt locks→retraction snapshots→RowsAffected照合付き soft delete→CAS job→job event→revert receipt→application audit。同一 key+canonical request は event/audit を増やさず、異 payload は409。
+- **Migration impact**: **YES（最低2ファイル）**。開始時に current max+1 を再測定する。第1 migration は `ALTER TYPE ... ADD VALUE IF NOT EXISTS 'reverted'` だけとし同 transaction 内で新値を参照しない。第2 migration は次を追加する。
+  - parents/keys: jobs `UNIQUE(clinic_id,id)`、exams `UNIQUE(clinic_id,id,job_id)`、retractions `UNIQUE(clinic_id,id,job_id,exam_id)`。
+  - FKs: events/exams `(clinic_id,job_id) -> jobs(clinic_id,id)`、retractions `(clinic_id,job_id) -> jobs` と `(clinic_id,exam_id,job_id) -> exams`、retraction items `(clinic_id,retraction_id,job_id,exam_id) -> retractions(clinic_id,id,job_id,exam_id)`。全て `ON DELETE RESTRICT`。
+  - receipts: append-only usage receipts と revert receipts。revert receipt は `UNIQUE(clinic_id,idempotency_key)` と `(clinic_id,job_id) -> jobs` + canonical request/result fields、usage receipt は `(clinic_id,job_id) -> jobs` と `(clinic_id,exam_id,job_id) -> exams` + use-kind/actor/time を持つ。
+  - RLS: jobs/events/exams/retractions/retraction-items/receipts 全表で project helper による `ENABLE ROW LEVEL SECURITY` と clinic predicate の `USING`/`WITH CHECK` を明示適用・検証する。既存 project posture に合わせ `FORCE ROW LEVEL SECURITY` は role compatibility review なしに追加せず、全 repository clinic predicate を必須のまま維持する。
+  - indexes: active exams `(clinic_id,job_id,id) WHERE deleted_at IS NULL`、events `(clinic_id,job_id,created_at,id)`、retractions `(clinic_id,job_id,exam_id,id)`、retraction items `(clinic_id,retraction_id,id)`、usage receipts `(clinic_id,job_id,exam_id,created_at,id)`、revert receipts `(clinic_id,job_id,created_at,id)`。retractions/receipts は UPDATE/DELETE rejection trigger。
+  既存 exams の `job_id ON DELETE SET NULL` は上記 composite/RESTRICT contract へ移す前に orphan/mismatched clinic を fail-closed preflight し、不整合時は migration を停止する。enum removal は通常 rollback 不可のため application rollback + forward corrective migration。既適用 migration/seed は編集せず、agent は apply しない。
+- **対象ファイル（path:line）**: `backend/internal/model/lab_import.go:11`, `backend/internal/medicalrecord/lab_import_service.go:21`, `backend/internal/medicalrecord/lab_import_repository.go:3`, `backend/internal/medicalrecord/lab_import_handler.go:136`, `backend/internal/medicalrecord/routes.go:373`, `backend/internal/model/examination_record.go:32`, `backend/cmd/api/composition_medicalrecord_repositories.go:126`, `backend/cmd/api/composition_medicalrecord_services.go:126`, `backend/cmd/api/composition_medicalrecord.go:126`, `backend/docs/api.yaml:7481`, `backend/internal/apicontract/openapi_examination_mutation_contract_test.go:1`, `backend/internal/lintscan/dbortx_inventory_lint_test.go:1`、次番号 migration と test DB enum fixture。
+- **影響 caller 全数**: job/event/examination persistence、usage/revert receipt、examination detail/items、lab report、TASK-031 print/export、medical-record image relation、application audit、service/handler/routes/API composition、transition/retraction response、OpenAPI、route snapshot、test DB/RLS/migration/lint inventory。baseline command: `rg -l 'LabImportJobStatus|LabImportService|LabImportRepository|LabImportExamination|TransitionStatus|NewLabImport|lab-import|job_id|GetExamination|ListExaminationItems|GetLabExamReport|GetExamReport|PrintSnapshot|exam_id' backend frontend --glob '*.{go,ts,tsx,yaml}' --glob '!backend/migrations/seeds/**'`。downstream anchors: `backend/internal/medicalrecord/examination_handler.go:68`, `backend/internal/medicalrecord/examination_handler.go:143`, `backend/internal/medicalrecord/lab_report_handler.go:48`, `backend/internal/medicalrecord/lab_report_query_service.go:32`, `backend/internal/medicalrecord/medical_record_image_service.go:149`, examination update/items/confirm services、TASK-031 print endpoint。
+- **既存テストを RED から拡張**: `backend/internal/medicalrecord/lab_import_service_test.go`, `backend/internal/medicalrecord/lab_import_repository_test.go`, `backend/internal/medicalrecord/lab_import_handler_test.go`, `backend/internal/medicalrecord/lab_import_examination_service_test.go`, `backend/internal/medicalrecord/examination_parent_audit_tx_test.go`, `backend/internal/medicalrecord/examination_handler_test.go`, `backend/internal/medicalrecord/lab_report_query_service_test.go`, `backend/internal/medicalrecord/medical_record_image_service_test.go`, `backend/internal/medicalrecord/routes_snapshot_test.go`, `backend/internal/apicontract/openapi_examination_mutation_contract_test.go`, `backend/internal/lintscan/dbortx_inventory_lint_test.go`。新規 transaction/integration test で atomic revert、clinic isolation、usage receipt failure、legacy/unknown use、manual mutation、detail/items/report/print exposure、durable relation conflict を固定する。
 - **Steps**:
-  1. RED: clinic-scoped persisted job の revert success、wrong-clinic/invalid-state/second-revert 409、reason/actor/audit dependency 欠落、linked confirmed exam conflict、audit failure rollback を追加する。
-  2. 新規 migration で terminal <code>reverted</code> status を追加し、既適用 migration/seed bundle を編集しない。transition table と API contract を同期する。
-  3. 専用 permission + 理由必須 endpoint で job と linked exams を clinic-scoped lock し、confirmed exam があれば全体を 409 で拒否する。
-  4. 未確定の job 由来 parent exams の soft delete、job <code>persisted -&gt; reverted</code>、authenticated actor + before/after audit を同一 transaction に置き、child result を hard deleteしない。
-  5. API spec/codegen、migration static checks、clinic isolation、rollback regressions を同一 unit で検証する。
+  1. RED: same-clinic instrumented-unused success、wrong/corrupt clinic-record-pet-doctor-assignment-master、same job UUID in other clinic、orphan/mismatched existing job link、confirmed/finalized/manual mutation/detail-items-report-print exposure/durable relation/legacy usage-unknown conflict、receipt failure zero-response/zero-revert、idempotent/conflicting replay、concurrent persist/read/revert、audit/retraction failure rollback を固定する。
+  2. Competing persist path を含む全 repository を ambient transaction/lock orderへ統一し、base DB fallbackを拒否する。
+  3. 2段 additive migration、RLS/composite FK/index/idempotency/retraction snapshot、status/event/API response を同期する。
+  4. `POST /v1/lab-imports/:id/revert` を `lab-import:edit` + reason + idempotency key で追加し、conditional RowsAffected と audit atomicity を固定する。
+  5. OpenAPI、route/test DB/RLS/migration/lint inventory を同期し、retracted fact は履歴で可視、confirmed/finalized record と child result は変更ゼロを確認する。
 - **Verification** (scoped only):
-  - `docker compose exec -T backend go test -p 1 ./internal/medicalrecord/... -run 'Test.*LabImport.*Revert|Test.*Examination.*Audit' -count=1`
+  - `docker compose exec -T backend go test -p 1 ./internal/medicalrecord -run 'Test.*LabImport.*(Revert|Transition|Audit|Rollback|Clinic|Concurrent)' -count=1`
   - `docker compose exec -T backend go test -p 1 ./internal/apicontract ./internal/lintscan -count=1`
-- **Non-actions / HOLD**: confirmed examination の自動解除、child result hard delete、external format/crosswalk、auto-commit enable、seed edit/apply、Issue close、claim 削除を行わない。
-- **Exit criteria for close**: manual unconfirm と別 endpoint/status/permission で、confirmed linked record を拒否し、revert/audit/soft delete が atomic、clinic isolation と migration/API regression が green。
-- **Evidence sources read**: dossier Issue #249、DEC-53/57、Issue #249 F-3c、current lab import/examination source/tests。
+  - `docker compose exec -T backend go test -p 1 ./cmd/api -run 'Test.*LabImport' -count=1`
+- **Non-actions / HOLD**: confirmed examination の自動解除、child result hard delete、external format/crosswalk、auto-commit enable、seed edit、migration apply、Issue close、claim 削除を行わない。
+- **Exit criteria for close**: caller census と番号が再計測済みで、manual unconfirm と別 endpoint/status/permission、confirmed/finalized/manual/downstream/unknown conflict 409、clinical response 前 usage receipt、retraction snapshot、status-independent idempotent retry、DBOrTx/lock/RLS/FK/RowsAffected/audit atomicity、clinic isolation、migration/API regression が green。
 
 ### TASK-033: #201 active/draft 構造化救急投薬記録 + 欠落時 fail-closed cutover（Critical / Clinical safety）
 
 - **対応 Issue**: GitHub Issue #201。
 - **問題**: current addendum は finalized medical record 専用の自由記述で、薬剤、実投与量・単位、投与時刻を構造化せず、active/draft の救急・既実施投薬を通常治療履歴と handoff に残す代替経路ではない。代替経路なしに体重/species/parameter 欠落時の通常保存だけを止めると、救急記録を失う。
-- **状態**: **READY_AFTER_CLINICAL_APPROVAL / migration review required**。最終 fail-closed 契約と cutover 順序は DEC-48。臨床値は未決定。
+- **状態**: **BLOCKED_CLINICAL_INPUT_AND_DECISION_SOT_RECONCILIATION_AND_DATABASE_REVIEW / migration review required**。最終 fail-closed 契約と cutover 順序は DEC-48。臨床責任者の未記入欄、`q&a.html:808` の stale TASK-025 未完記述に対する authorized append-only correction、treatment parent FK/child index と history/FK-supporting indexes の plan 補正が全て揃うまで実装を開始しない。
 - **claim**: `claim/TASK-033` — **not live**（2026-08-01 USER 解放済み。起票時の過剰取得を是正したもので、本タスクは未着手）。
 
-#### 実装プラン（2026-08-01・independent clinical review reconciliation）
-- **Ready**: READY_AGENT_AFTER_CLINICAL_APPROVAL
-- **Owner lane**: backend medicalrecord + frontend TreatmentsTab/history + migration/API contract
-- **Blockers (today)**: 臨床責任者による記録対象ケース、専用権限、理由、訂正条件の一行承認。開始時に migration-seed-safety、database、clinic-isolation、healthcare review を通す。
-- **Preconditions**: DEC-48 と clinical pack、`backend/migrations/CLAUDE.md`、clinic isolation、DBOrTx/audit conventions を読み、TASK-025 technical failure slice を green にする。欠落時 fail-closed を単独で先行有効化しない。
-- **Code anchors**: `backend/internal/model/treatment.go:29-60`, `backend/internal/medicalrecord/treatment_request.go:7-24,47-64`, `backend/internal/medicalrecord/treatment_dose_save.go:14-18,29-73`, `backend/internal/medicalrecord/medical_record_addendum_service.go:75-104`, `backend/internal/model/medical_record_addendum.go`, `frontend/src/features/medical-records/components/TreatmentsTab/{TreatmentsTab,TreatmentRow}.tsx`。
-- **Steps**:
-  1. RED: active/draft medical record に clinic/pet/medical-record 相関、medicine ID、実投与量・単位、投与時刻、理由、authenticated actor を必須とする immutable emergency administration event の create/read と、通常治療履歴・handoff 表示を追加する。
-  2. RED: wrong clinic/pet/medical-record/medicine、欠けた dose/unit/time/reason/actor、権限なし、audit dependency/write failure、重複・競合を拒否し、event と audit が同一 transaction で rollback することを固定する。
-  3. GREEN: 新規 append-only migration で clinic-scoped dedicated event と必要な相関制約・index・訂正リンクを追加し、hard delete/上書き更新を許さない repository/service/API を実装する。既適用 migration/seed は編集しない。
-  4. 専用 permission と actor を handler→service へ伝播し、理由と before/after を application audit に同一 transaction で記録する。通常 treatment history/handoff は event を構造化表示し、free-text addendum を代替扱いしない。
-  5. 記録経路、clinic isolation、audit、API/UI が green かつ臨床承認済みになった同一 unit で、体重なし、species ID/名称欠落・不正、parameter なしを理由別 typed state にし、通常 dose 保存/write を fail-closed に切り替える。部分 cutover を禁止する。
-  6. API spec/codegen、migration static checks、FE/BE regressions を実行し、current master の臨床値を変更しない。
+#### 実装プラン（2026-08-02・adversarial revision 2）
+- **Ready**: BLOCKED_CLINICAL_INPUT_AND_DECISION_SOT_RECONCILIATION_AND_DATABASE_REVIEW。下記 conditional contract、caller census、migration、cutover、tests は draft 済みだが、final DB review が treatment→medical-record FK/child index、treatment history index、event medicine/actor FK indexes を未充足と判定した。臨床責任者の一行承認、decision SoT に TASK-025 実装済み範囲/TASK-033 HOLD を併記する authorized correction、bounded plan revision と fresh DB review の全てが揃った後だけ `READY_AGENT / migration review required` へ移す。本 unit は `q&a.html` 編集禁止のため correction を代行しない。
+- **Owner lane**: backend medicalrecord + frontend TreatmentsTab/history + identity-link handoff + dedicated permission + migration/API contract。
+- **未確定入力（臨床責任者だけ）**: 対象とする救急・既実施投薬ケース、既知 medicine master を必須にするか限定的な未同定薬 snapshot を許すか、route vocabulary、dose/strength/concentration の unit と requiredness、投与時点の体重/species snapshot policy、reason taxonomy または bounded free-text rule、訂正対象と rationale、create permission を受ける role/group、臨床出典、承認者、発効日。値・語彙・ケースは本台帳にも実装にも補完しない。
+- **Fixed event superset**: `emergency_medication_administrations` は `id, clinic_id, medical_record_id, pet_id, medicine_id(nullable), medicine_name_snapshot(nonblank), actual_dose(positive), dose_unit, route, administered_at, reason, strength/concentration snapshot value+unit(nullable), weight/species snapshot(nullable), performed_attestation(true), actor_id, source_treatment_id(nullable), correction_of_id(nullable), correction_reason, idempotency_key, created_at` を持つ append-only fact。臨床承認が未同定薬を禁じる場合は service が `medicine_id` 必須を強制し、許す場合も bounded case と name snapshot を必須にする。未来時刻は service で reject し、volatile `now()` CHECK は置かない。`updated_at/deleted_at`、UPDATE/DELETE route/repository は作らない。
+- **API/permission**: record-scoped GET、initial POST、correction POST を別 route にする。client は clinic/pet/actor を送らず handler が authenticated actor を必須取得する。GET は `medical-records:view`、POST は既存 medical-record permission と新しい `emergency-medication-administrations:create` の双方を要求する。専用 resource は全 default group で default-deny。fresh/demo fixture は disposable DB + sanctioned `seed-export` のみ、既存 clinic grant は named approver 後に permission-group API/app で行い、seed replay しない。
+- **Tenant/relational DDL**: candidate key と child FK は clinic-first の同一順序で固定する。
+  - parents: medical records `UNIQUE(clinic_id,id,pet_id)`、medicines `UNIQUE(clinic_id,id)`、staff assignments `UNIQUE(clinic_id,staff_id)`、treatments `UNIQUE(clinic_id,id,medical_record_id,pet_id)`、events `UNIQUE(clinic_id,id,medical_record_id,pet_id)`。
+  - treatment backfill: current treatments に `clinic_id`/`pet_id` を additive に追加し、medical record から fail-closed backfill・相関 preflight 後に NOT NULL/composite unique/RLS を付ける。全 treatment create/update/delete/reorder は client 値でなく locked record から clinic/pet を設定・照合する。
+  - event FKs: `(clinic_id,medical_record_id,pet_id) -> medical_records`、nullable `(clinic_id,medicine_id) -> medicines`、`(clinic_id,actor_id) -> staff_clinic_assignments`、nullable `(clinic_id,source_treatment_id,medical_record_id,pet_id) -> treatments`、nullable `(clinic_id,correction_of_id,medical_record_id,pet_id) -> events`。全て `ON DELETE RESTRICT`。
+  - RLS/immutability: treatment/event と新規表に project helper の `ENABLE ROW LEVEL SECURITY` + clinic `USING`/`WITH CHECK` を明示適用し、repository predicate も必須。current project posture と role compatibility review を経ず `FORCE` は追加しない。events は UPDATE/DELETE rejection trigger、`UNIQUE(clinic_id,idempotency_key)`、`UNIQUE(clinic_id,correction_of_id) WHERE correction_of_id IS NOT NULL`、positive/nonblank/correction parity/no-self-correction CHECK を持つ。
+- **Transaction/idempotency**: 全 repository は `DBOrTx`、transaction-required method は `TxFromContext` 不在を拒否する。全 competing path の global lock order は medical record→treatments（ID昇順）→active staff assignment→medicine（指定時）→event correction target。既存 treatment create/update/delete/reorder も record を先に lockし、source treatment を後から lockするよう同 unit で揃える。clinic/draft/pet-owner/actor/medicine/treatment/correction の全相関を検証し、event と mandatory application audit を atomic にする。`ON CONFLICT DO NOTHING RETURNING` 後に persisted normalized fields を比較し、same clinic/key+same payload は既存成功・audit zero、異 payload は 409。Preload した current medicine を履歴 snapshot の代用にしない。
+- **History/handoff**: existing mutable `/treatments` の billing/inventory/total/update/delete へ混ぜず、`source_treatment_id` で order/billing fact と performed-event fact を明示的に対応させ、臨床表示の二重計上を防ぐ。訂正後の effective projection は superseded event を current clinical fact から除外し、監査 view では replacement relationship を返す。通常 pet history と identity-link history は同一 CTE/`UNION ALL`（discriminator 付き）を count/page の唯一の入力にし、各 branch で `(clinic_id, pet_id)` を相関し、stable keyset `(occurred_at,id,kind)` で bounded pagination する。indexes は event record history `(clinic_id,medical_record_id,administered_at DESC,id DESC)`、pet history `(clinic_id,pet_id,administered_at DESC,id DESC)`、source link `(clinic_id,source_treatment_id,id)`、effective correction lookup `(clinic_id,correction_of_id,id)`。owner-facing output に内部 danger reason を出さない。
+- **Missing-data cutover**: backend decision を `ready / not_applicable / missing_medicine / missing_weight / missing_species / missing_parameter` に型分離し、technical failure は error のまま。`missing_medicine` は上記 clinical medicine-identity policy が明示的に許す場合だけ event path を提示し、それ以外は zero-write で block。missing は理由別 409 と zero treatment/inventory/audit write、pending と technical failure も FE save を止める。非薬剤/非体重式だけ not_applicable。event create/read/correction、permission、history、audit、clinical approval が全て green になった同一 TASK-033 unit でだけ反転し、partial cutover を禁止する。
+- **Migration impact**: **YES**。実装開始時に root inventory を再測定して次番号の additive migration を追加し、treatment clinic/pet fail-closed backfill、上記 clinic-first candidate keys/FKs、RLS `USING`/`WITH CHECK`、explicit indexes、trigger、idempotency/correction constraints を含める。permission catalog/fixture 影響も **YES**。既適用 migration/seed の手編集・自動 apply はしない。pull 後は USER が `make migrate`。
+- **対象ファイル（path:line）**:
+  - backend core: `backend/internal/model/medical_record_addendum.go:5`, `backend/internal/medicalrecord/medical_record_addendum_service.go:84`, `backend/internal/medicalrecord/treatment_dose_save.go:14`, `backend/internal/medicalrecord/treatment_service.go:1`, `backend/internal/medicalrecord/treatment_repository.go:1`, `backend/internal/medicalrecord/treatment_handler.go:75`, `backend/internal/medicalrecord/treatment_response.go:72`, `backend/internal/medicalrecord/routes.go:272`, `backend/internal/model/permission.go:6`, `backend/internal/model/audit_log.go:98`, `backend/cmd/api/composition_medicalrecord_repositories.go:126`, `backend/cmd/api/composition_medicalrecord_services.go:126`, `backend/cmd/api/composition_medicalrecord.go:126`, `backend/docs/api.yaml:1`。
+  - history/isolation: `backend/internal/identitylink/repository.go:533`, `backend/internal/identitylink/service.go:761`, `backend/internal/identitylink/handler.go:307`, `backend/internal/identitylink/routes.go:27`, `backend/internal/identitylink/types.go:1`, `backend/internal/clinic/clinic_service.go:1`。
+  - frontend: `frontend/src/features/medical-records/components/MedicalRecordFormPanels.tsx:387`, `frontend/src/features/medical-records/components/MedicalRecordTreatment.tsx:17`, `frontend/src/features/medical-records/components/TreatmentsTab/TreatmentsTab.tsx:1`, `frontend/src/features/medical-records/components/TreatmentsTab/TreatmentRow.tsx:1`, `frontend/src/features/medical-records/components/TreatmentsTab/treatment-row-dose-gate.ts:20`, `frontend/src/features/owner-report/api/get-pet-treatment-history.ts:18`, `frontend/src/features/owner-report/components/TreatmentHistorySection.tsx:1`, `frontend/src/lib/query-keys.ts:1`, `frontend/src/features/master/components/permission-rule-table-model.ts:15`。
+  - new: next-number migration、event model、request/response/repository/service/handler、effective-history projection、focused tests、FE API/component/tests。
+- **影響 caller 全数**: treatment create/update/dose gate、`ListPetTreatmentHistory`、`ListLinkedTreatmentHistory` の handler/service/repository/response、medicalrecord/identity-link routes、API composition、OpenAPI/codegen、permission defaults/labels、TreatmentsTab mount、owner report mapper/table。implementation baseline で再実行する: `rg -l 'TreatmentsTab|useGetTreatments|useCreateTreatment|useUpdateTreatment|useDeleteTreatment|useReorderTreatments|FindHistoryByPetID|ListPetTreatmentHistory|ListLinkedTreatmentHistory|NewTreatmentServiceWithAudit|TreatmentRepository|DoseGateSource' frontend/src backend/internal backend/cmd --glob '*.{go,ts,tsx}' --glob '!backend/migrations/seeds/**'`。
+- **既存テストを RED から拡張**: `backend/internal/medicalrecord/treatment_dose_save_test.go`, `backend/internal/medicalrecord/treatment_service_test.go`, `backend/internal/medicalrecord/treatment_repository_test.go`, `backend/internal/medicalrecord/treatment_handler_test.go`, `backend/internal/medicalrecord/routes_snapshot_test.go`, `backend/internal/identitylink/repository_integration_test.go`, `backend/internal/identitylink/service_test.go`, `backend/internal/clinic/clinic_service_test.go`, `backend/internal/apicontract/openapi_examination_mutation_contract_test.go`, `backend/internal/lintscan/dbortx_inventory_lint_test.go`, `frontend/src/features/medical-records/components/TreatmentsTab/TreatmentsTab.test.tsx`, `frontend/src/features/medical-records/components/TreatmentsTab/TreatmentRow.test.tsx`, `frontend/src/features/medical-records/components/TreatmentsTab/treatment-row-dose-gate.test.ts`, `frontend/src/features/owner-report/api/get-pet-treatment-history.test.ts`。
+- **Cutover order**:
+  1. 臨床責任者が未確定入力を一行承認し、authorized owner が decision SoT の TASK-025/TASK-033 状態を append-only correction で調停する。両方の evidence 後に実装側は `claim/TASK-033` と isolated worktree を取得する。
+  2. RED: treatment backfill/preflight、clinic-first schema/RLS/FK/immutability、same/wrong clinic-record-pet、active assignment、primary-clinic mismatch+valid assignment、medicine policy、future time、actor/audit rollback、idempotent replay/conflict、source-treatment lock order、concurrent treatment/event mutation、correction/effective projection、normal/identity-link count+page isolation、permission default-deny、missing zero-write を固定する。
+  3. Event migration/backend/API/UI/history/permission を current missing behavior のまま実装し、migration/database/clinic-isolation/healthcare/Go/React/TypeScript review を通す。
+  4. Event create/read/correction、source-treatment reconciliation、通常・identity-link handoff を green にする。
+  5. 同一 TASK-033 unit 内でのみ FE/BE missing state を理由別 fail-closed へ反転し、全 scoped gate と no-partial-cutover reconciliation を行う。
+  6. agent は migration を適用せず、USER へ `make migrate` を handoff する。
 - **Verification** (scoped only):
-  - `docker compose exec -T backend go test -p 1 ./internal/medicalrecord/... -run 'Test.*(EmergencyAdministration|DoseMissing|DoseSpecies|DoseParameter)' -count=1`
-  - `docker compose exec -T frontend npx vitest run src/features/medical-records/components/TreatmentsTab/TreatmentsTab.test.tsx src/features/medical-records/components/TreatmentsTab/TreatmentRow.test.tsx`
+  - `docker compose exec -T backend go test -p 1 ./internal/medicalrecord -run 'Test.*(EmergencyMedicationAdministration|DoseMissing|DoseSpecies|DoseParameter|PetTreatmentHistory|StaffAssignment|EffectiveProjection)' -count=1`
+  - `docker compose exec -T backend go test -p 1 ./internal/identitylink -run 'Test.*LinkedTreatmentHistory' -count=1`
+  - `docker compose exec -T backend go test -p 1 ./internal/clinic -run 'Test(DefaultPermissionRuleTable|DemoPermissionGroupRules)' -count=1`
+  - `docker compose exec -T backend go test -p 1 ./internal/model -run 'Test.*(EmergencyMedicationAdministration|RLS|CompositeFK)' -count=1`
   - `docker compose exec -T backend go test -p 1 ./internal/apicontract ./internal/lintscan -count=1`
-- **Non-actions / HOLD**: 臨床上限・warning 値の発明、臨床承認前または構造化経路 green 前の missing-data cutover、既存 addendum の投薬記録代用、既適用 migration/seed edit/apply、DB 操作、Issue close、claim 削除を行わない。
-- **Exit criteria for close**: active/draft の構造化事実記録が必須 field、clinic/pet/record 相関、permission、actor/audit atomicity、immutable correction、通常履歴/handoff を満たし、その安全経路と臨床承認を前提に missing-data 通常保存/write が理由別に zero となる。current runtime を部分的に切り替えていない。
-- **Evidence sources read**: dossier Issue #201、DEC-48、clinical pack、current treatment/addendum source、independent healthcare review。
+  - `docker compose exec -T frontend npx vitest run src/features/medical-records/components/TreatmentsTab src/features/owner-report/api/get-pet-treatment-history.test.ts`
+  - `make codegen-check`
+- **Non-actions / HOLD**: 臨床上限・warning 値、route/unit/case の発明、臨床承認前または構造化経路 green 前の missing cutover、generic free-text/addendum 代用、既適用 migration/seed edit、自動 migration apply、DB 操作、Issue close、claim 削除を行わない。
+- **Exit criteria for close**: 上記 clinical input と decision-SoT correction が承認済みで、event が必須 field、clinic/pet/record/medicine-or-approved-snapshot/active-actor/treatment/correction 相関、dedicated permission、audit atomicity、immutable correction/effective projection、bounded and count-consistent history/handoff を満たし、missing-data 通常 write が理由別 zero、partial cutover がなく全 scoped gate が green。
 
 ---
