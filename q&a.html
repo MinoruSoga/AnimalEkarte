@@ -805,7 +805,7 @@
     <p class="qa-text">直後の「P0 — Open Issue ブロッカー状態表」は既存 section を append-only で保持した historical 表示である。#201/#211 の実行判断には次の current 行だけを用い、旧行の「dev 完了」「手動保存 fallback」「残は DB 適用のみ」を用いない。</p>
     <table>
       <tr><th>#</th><th>current P0 状態</th></tr>
-      <tr><td>#201</td><td><a href="#dec-48">DEC-48</a> が current authority。TASK-025 の technical failure slice は未完。欠落時の通常保存は最終的に fail-closed だが、TASK-033 の active/draft 構造化救急投薬記録と臨床承認が green になるまで current runtime を部分変更しない。free-text/finalized-only addendum を代替にせず、通常 dose mutation override を作らない。</td></tr>
+      <tr><td>#201</td><td><a href="#dec-48">DEC-48</a> が current authority。TASK-025 の technical failure slice は実装済み（<code>eaa608b6a</code> + <code>db8387035</code>。到達性は <code>git merge-base --is-ancestor eaa608b6a HEAD</code> で測る）。欠落時の通常保存は最終的に fail-closed だが、TASK-033 の active/draft 構造化救急投薬記録と臨床承認が green になるまで current runtime を部分変更しない。free-text/finalized-only addendum を代替にせず、通常 dose mutation override を作らない。</td></tr>
       <tr><td>#211</td><td><a href="#dec-58">DEC-58</a> が current authority。provisional row の canonical bundle 昇格経路、<code>seed-export</code>、target environment、checksum review は未設計で、USER apply は HOLD。code/seed/migration 完了または DB 適用だけが残るとは扱わない。</td></tr>
     </table>
   </div>
