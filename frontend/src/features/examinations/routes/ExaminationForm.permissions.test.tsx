@@ -16,9 +16,11 @@ const mocks = vi.hoisted(() => ({
   unconfirmDialog: vi.fn(),
   patientChangeDialog: vi.fn(),
   useGetExaminations: vi.fn(),
+  useGetStaffs: vi.fn(),
   historyPanel: vi.fn(),
   formFieldsMounted: vi.fn(),
   formFieldsUnmounted: vi.fn(),
+  formFieldsProps: vi.fn(),
   searchParams: "",
   setSearchParams: vi.fn(),
 }));
@@ -46,6 +48,14 @@ vi.mock("@/hooks/use-permission", () => ({
 vi.mock("@/hooks/use-master-items", () => ({
   useMasterItems: () => ({ data: [], isLoading: false }),
 }));
+
+vi.mock("@/features/master", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/features/master")>();
+  return {
+    ...actual,
+    useGetStaffs: mocks.useGetStaffs,
+  };
+});
 
 vi.mock("@/hooks/use-unsaved-changes", () => ({
   useUnsavedChanges: () => ({
@@ -84,7 +94,10 @@ vi.mock("../components/ExamItemsTable", () => ({
 }));
 
 vi.mock("../components/ExaminationFormFields", () => ({
-  ExaminationFormFields: () => {
+  ExaminationFormFields: (props: {
+    staffList: { id: string; name: string }[];
+  }) => {
+    mocks.formFieldsProps(props);
     useEffect(() => {
       mocks.formFieldsMounted();
       return () => mocks.formFieldsUnmounted();
@@ -129,8 +142,11 @@ beforeEach(() => {
   mocks.patientChangeDialog.mockReset();
   mocks.formFieldsMounted.mockReset();
   mocks.formFieldsUnmounted.mockReset();
+  mocks.formFieldsProps.mockReset();
   mocks.useGetExaminations.mockReset();
   mocks.useGetExaminations.mockReturnValue({ data: [] });
+  mocks.useGetStaffs.mockReset();
+  mocks.useGetStaffs.mockReturnValue({ data: [], isLoading: false });
   mocks.useExaminationForm.mockReset();
   mocks.useExaminationForm.mockImplementation(() => ({
     formData: { status: "依頼中", petId: "pet-1" },
@@ -162,6 +178,60 @@ beforeEach(() => {
     isPersistedConfirmed: mocks.isPersistedConfirmed,
     isPatientChangeLocked: mocks.isPatientChangeLocked,
   }));
+});
+
+describe("ExaminationForm — doctor candidate filter (BUG-005)", () => {
+  it("担当医候補は同院 active doctor のみを渡し resource/nurse/inactive を除外する", () => {
+    mocks.useGetStaffs.mockReturnValue({
+      data: [
+        {
+          id: "1",
+          name: "林文明",
+          staffType: "doctor",
+          isActive: true,
+        },
+        {
+          id: "2",
+          name: "お手入れ・オゾン療法",
+          staffType: "resource",
+          isActive: true,
+        },
+        {
+          id: "3",
+          name: "看護師A",
+          staffType: "nurse",
+          isActive: true,
+        },
+        {
+          id: "4",
+          name: "退職医",
+          staffType: "doctor",
+          isActive: false,
+        },
+        {
+          id: "5",
+          name: "トリマーB",
+          staffType: "trimmer",
+          isActive: true,
+        },
+      ],
+      isLoading: false,
+    });
+
+    render(<ExaminationForm />);
+
+    expect(mocks.formFieldsProps).toHaveBeenCalled();
+    const lastProps = mocks.formFieldsProps.mock.calls.at(-1)?.[0] as {
+      staffList: { id: string; name: string }[];
+    };
+    expect(lastProps.staffList).toEqual([{ id: "1", name: "林文明" }]);
+    expect(lastProps.staffList.map((s) => s.name)).not.toContain(
+      "お手入れ・オゾン療法",
+    );
+    expect(lastProps.staffList.map((s) => s.id)).not.toEqual(
+      expect.arrayContaining(["2", "3", "4", "5"]),
+    );
+  });
 });
 
 describe("ExaminationForm — mutation permission wiring", () => {

@@ -31,6 +31,7 @@ import { ExaminationHistoryPanel } from "../components/ExaminationHistoryPanel";
 import { ExaminationPatientChangeDialog } from "../components/ExaminationPatientChangeDialog";
 import { ExaminationUnconfirmDialog } from "../components/ExaminationUnconfirmDialog";
 import { useMasterItems } from "@/hooks/use-master-items";
+import { useGetStaffs } from "@/features/master";
 import { paths } from "@/config/paths";
 import { usePermission } from "@/hooks/use-permission";
 import {
@@ -61,16 +62,19 @@ function ExaminationFormContent({ id }: { id: string | undefined }) {
 
   const { data: examTypesRaw, isLoading: examTypesLoading } =
     useMasterItems("examination");
-  const { data: staffListRaw, isLoading: staffLoading } =
-    useMasterItems("staff");
+  // BUG-005: typed staff source keeps staffType/isActive; generic master transform drops them.
+  const { data: staffsRaw = [], isLoading: staffLoading } = useGetStaffs();
   const masterLoading = examTypesLoading || staffLoading;
   const examTypes = useMemo(
     () => examTypesRaw.map((t) => ({ id: String(t.id), name: t.name })),
     [examTypesRaw],
   );
   const staffList = useMemo(
-    () => staffListRaw.map((s) => ({ id: String(s.id), name: s.name })),
-    [staffListRaw],
+    () =>
+      staffsRaw
+        .filter((s) => s.staffType === "doctor" && s.isActive)
+        .map((s) => ({ id: String(s.id), name: s.name })),
+    [staffsRaw],
   );
 
   const {
