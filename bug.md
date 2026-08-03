@@ -1611,7 +1611,7 @@ S01〜S12の業務シナリオ検証に続き、個別フォーム単位の受�
 ## BUG-018: レジ締め済み期間に作成した会計の明細追加が400で失敗し、合計金額と明細が不整合な「壊れた」会計が残る
 
 - **重大度**: 高（会計データの整合性が崩れ、金額と明細が食い違ったレコードがDBに残る。かつUIはエラーを警告するのみで自動的にロールバックしない）
-- **対応状況（2026-08-03 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: claim/BUG-018 + additive `POST /api/v1/accountings/complete`（Idempotency-Key 必須・単一 DBOrTx で header/items/server totals/payments/splits/reservation/post_close audit）+ migration `005_accounting_completion_idempotency.sql` 作成のみ（**`make migrate` 未適用**）+ FE `complete-accounting.ts` 単一 mutation 移行。scoped BE/FE tests green | **原文シナリオ再検証**: UNREPORTED（migration 未適用・localhost 起動制約） | **次のアクション**: ユーザーが `make migrate` 後、V02 §1 ブラウザ再検証して VERIFIED_FIXED へ
+- **対応状況（2026-08-03 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: commit `75f8912fc2a8d3b2fb5c0290a766bb0f5fc12ac5` claim/BUG-018 + additive `POST /api/v1/accountings/complete`（Idempotency-Key 必須・単一 DBOrTx で header/items/server totals/payments/splits/reservation/post_close audit）+ migration `005_accounting_completion_idempotency.sql` 作成のみ（**`make migrate` 未適用**）+ FE `complete-accounting.ts` 単一 mutation 移行。scoped BE/FE tests green | **原文シナリオ再検証**: UNREPORTED（migration 未適用・localhost 起動制約） | **次のアクション**: ユーザーが `make migrate` 後、V02 §1 ブラウザ再検証して VERIFIED_FIXED へ
 - **発見シナリオ**: V02 §1 会計・精算フォーム（新規会計作成） `/accounting/new?petId=X` → 確定後の明細追加
 - **再現手順**:
   1. 当日のレジ締め（PM）が既に完了している状態で `/accounting/new?petId=X` から新規会計を作成する
