@@ -196,10 +196,10 @@
 <div class="container">
   <header>
     <h1>内部 PO 判断キュー</h1>
-    <p class="meta">開発内部向け ／ 生成日: 2026-07-15 ／ 最終更新: 2026-08-03 ／ 運用: 本ファイルは「現在、人の判断・操作を待っているもの」だけを保持する（記入フォーム・P0 ブロッカー表・USER 操作 OPS-1〜18・PO-008 ファクトシート）。決裁記録の正本は本ファイルの git 履歴（全量版 = <code>ab68c61f5</code>）と各 Issue への転記（DEC-1/14〜21 は #201/#234/#239/#251/#247/#262/#250/#235/#212 へ転記済み）、ローカル残タスクの正本は <a href="todo.md"><code>todo.md</code></a>、Issue の分類ビューは <a href="3-session-agent.html"><code>3-session-agent.html</code></a>。PO は過去裁定を覆せる — その場合は新カードとして再起票し、エージェントが実装を巻き戻す。2026-08-03 時点: DEC-40〜64 は代理判定済み。現在の USER 入力待ち決裁カードは0件。委任外の値は下記の空欄フォームへ分離し、未入力を代理裁定しない。残 = OPS-1〜18・P0 ブロッカー3行・記入フォーム。</p>
+    <p class="meta">開発内部向け ／ 生成日: 2026-07-15 ／ 最終更新: 2026-08-03 ／ 運用: 本ファイルは「現在、人の判断・操作を待っているもの」だけを保持する（記入フォーム・P0 ブロッカー表・USER 操作 OPS-1〜18・PO-008 ファクトシート）。決裁記録の正本は本ファイルの git 履歴（全量版 = <code>ab68c61f5</code>）と各 Issue への転記（DEC-1/14〜21 は #201/#234/#239/#251/#247/#262/#250/#235/#212 へ転記済み）、ローカル残タスクの正本は <a href="todo.md"><code>todo.md</code></a>、Issue の分類ビューは <a href="3-session-agent.html"><code>3-session-agent.html</code></a>。PO は過去裁定を覆せる — その場合は新カードとして再起票し、エージェントが実装を巻き戻す。2026-08-03 時点: DEC-40〜67 は代理判定済み。現在の USER 入力待ち決裁カードは0件。委任外の値は下記の空欄フォームへ分離し、未入力を代理裁定しない。残 = OPS-1〜18・P0 ブロッカー3行・記入フォーム。</p>
   </header>
 
-  <p class="summary">USER 入力待ちDECカード: 0件。DEC-40〜64は代理判定済み。委任外の臨床値・価格・契約値・実在 identity・外部実行値は空欄フォームだけを示し、決定済みに数えない。</p>
+  <p class="summary">USER 入力待ちDECカード: 0件。DEC-40〜67は代理判定済み。委任外の臨床値・価格・契約値・実在 identity・外部実行値は空欄フォームだけを示し、決定済みに数えない。</p>
 
 <div class="po-ops">
 <p class="section-intro" style="margin-top:40px;"><b>以下は旧 <code>todo-po.html</code> の統合分（2026-07-20・ユーザー指示で本ファイルへ一本化し旧ファイルは削除）</b>: P0 ブロッカー状態表／USER 実操作チェックリスト（OPS-系・Cloudflare 移行 — チェック状態は localStorage 保存・旧ファイルの状態を引き継ぐ）／PO-008 ファクトシート。決裁記録の正本は本ファイルの git 履歴（ヘッダ参照）。</p>
@@ -489,18 +489,16 @@
 <article class="task" id="decision-pack-clinical" data-status="user-input-required">
   <div class="task-head"><span class="qno">DR-CLINICAL</span><span class="badge category">#201 / #211 / #249 / #261 / FEAT-VACCINE-SPECIES</span><span class="badge status">臨床責任者入力待ち</span><h3 class="task-title">臨床値・記録対象条件・動物種default</h3></div>
   <div class="task-body">
-    <p class="qa-text"><strong>確定済み設計:</strong> <a href="#dec-48">DEC-48</a> と <a href="#dec-47">DEC-47 Q2〜Q5</a>を上書きしない。ここに書くのは臨床値・対象条件だけであり、空欄をagentが補完してはならない。行が足りない場合は同じ列を持つ行を追加する。</p>
+    <p class="qa-text"><strong>確定済み設計:</strong> <a href="#dec-48">DEC-48</a> と <a href="#dec-47">DEC-47 Q2〜Q5</a>を上書きしない。ここに書くのは臨床値・対象条件だけであり、空欄をagentが補完してはならない。#201 は bundle 1 行を唯一の入力先とし、他対象で行が足りない場合だけ同じ列を持つ行を追加する。</p>
     <table>
       <tr><th>論点</th><th>対象</th><th>値/範囲・適合性</th><th>単位</th><th>出典</th><th>承認者</th><th>発効日</th></tr>
-      <tr><td>#201 上限</td><td>（未記入: 薬剤・種別・master row ID）</td><td>（未記入）</td><td>（未記入）</td><td>（未記入: guideline/添付文書/院内規定）</td><td>（未記入: 臨床責任者個人名）</td><td>（未記入）</td></tr>
-      <tr><td>#201 warning帯</td><td>（未記入: 適用薬剤/種別）</td><td>（未記入）</td><td>（未記入: %等）</td><td>（未記入）</td><td>（未記入）</td><td>（未記入）</td></tr>
-      <tr><td>#201 構造化救急投薬記録の臨床条件</td><td>（未記入: 対象ケース・対象薬剤）</td><td>（未記入: 専用権限・必須事実・訂正条件）</td><td>該当なし</td><td>（未記入: 院内安全手順/臨床方針）</td><td>（未記入: 臨床責任者個人名）</td><td>（未記入）</td></tr>
-      <tr><td>#261 #201参照（値の複製禁止）</td><td>（未記入: #201上限/#201 warning帯/#201構造化記録条件の承認行ID）</td><td>（未記入: 参照を承認。独立値が必要なら理由を記し、同じ列を持つ別行を追加）</td><td>（未記入: 該当なし）</td><td>（未記入: 参照元の出典）</td><td>（未記入: 臨床責任者個人名）</td><td>（未記入）</td></tr>
+      <tr><td>#201 臨床承認 bundle（唯一の入力先）</td><td>（未記入: 上限/warning の対象薬剤・動物種・master row ID、救急・既実施投薬の対象ケース・対象薬剤）</td><td>（未記入: 上限 policy＝現行継続または修正値、warning policy＝現行継続または修正値、救急記録 policy＝medicine identity、route vocabulary、dose/strength/concentration の unit・requiredness、weight/species snapshot、reason taxonomy または bounded free-text、訂正対象/rationale、create grant 対象 role/group）</td><td>（未記入: 数値ごとの単位。非数値は「該当なし」）</td><td>（未記入: 各 policy の guideline/添付文書/院内安全手順）</td><td>（未記入: approver role と opaque restricted approval reference。実 identity はアクセス制御された責任者台帳に置く）</td><td>（未記入）</td></tr>
+      <tr><td>#261 #201参照（値の複製禁止）</td><td>（未記入: #201 臨床承認 bundle の opaque approval reference）</td><td>（未記入: bundle 参照を承認。独立値が必要なら理由を記し、同じ列を持つ別行を追加）</td><td>（未記入: 該当なし）</td><td>（未記入: 参照元の出典）</td><td>（未記入: approver role と opaque restricted approval reference。実 identity は repo 外）</td><td>（未記入）</td></tr>
       <tr><td>#211 provisional package</td><td>（未記入: stable row key/field）</td><td>（未記入: type/choice/range）</td><td>（未記入）</td><td>（未記入）</td><td>（未記入）</td><td>（未記入）</td></tr>
       <tr><td>#249 reference range</td><td>（未記入: 検査項目・動物種・測定系）</td><td>（未記入: 下限/上限または定性規則）</td><td>（未記入）</td><td>（未記入）</td><td>（未記入）</td><td>（未記入）</td></tr>
       <tr><td>VACCINE-SPECIES</td><td>（未記入: vaccine master row ID）</td><td>（未記入: dog/cat/other/both・alias）</td><td>該当なし</td><td>（未記入）</td><td>（未記入）</td><td>（未記入）</td></tr>
     </table>
-    <div class="need"><strong>提出条件:</strong> 全行に対象・値・単位（非数値なら「該当なし」）・出典・承認者・発効日があること。秘密値・患者情報を記載しない。未記入行が1つでもある対象は未承認のまま。</div>
+    <div class="need"><strong>提出条件:</strong> #201 は上の bundle 1 行を一度だけ記入し、他の #201 表へ複製しない。必須逸脱理由、専用 permission/default-deny、authenticated actor、transaction-bound audit、append-only correction、history/handoff は <a href="#dec-65">DEC-65</a>/<a href="#dec-48">DEC-48</a> の確定済み構造であり、本行で再選択しない。他対象は各行に対象・値・単位（非数値なら「該当なし」）・出典・承認者・発効日があること。秘密値・患者情報・実 identity を記載しない。未記入の対象は未承認のまま。</div>
   </div>
 </article>
 
@@ -839,6 +837,63 @@
   </div>
 </article>
 
+<article class="task" id="dec-65" data-status="proxy-decided">
+  <div class="task-head">
+    <span class="qno">DEC-65</span>
+    <span class="badge category">R0 反証再審 / #201</span>
+    <span class="badge status">代理決裁済み・TASK-377 起票</span>
+    <h3 class="task-title">warning 逸脱の必須理由を FE/BE・snapshot・同一 transaction audit へ接続し、臨床値だけを一行 FORM に残す</h3>
+  </div>
+  <div class="task-body">
+    <p class="section-label">決裁</p>
+    <p class="qa-text"><strong>R0 反証で agent-owned residual を1件認定する。</strong> 現行 evaluator が上限内の下限割れまたは推奨量からの著しい逸脱と判定した保存には、modal ではなく inline の <code>dose_deviation_reason</code>（trim 後 1〜500 Unicode 文字の generic free-text transport baseline）を必須とする。BE は FE を信用せず同じ dose 評価を再実行し、理由欠落を business write zero で拒否する。理由、authenticated actor、評価 snapshot は treatment 保存および access-controlled application audit と同一 transaction で固定する。reason-required 保存では actor 欠落、audit dependency 未構成、audit failure、snapshot serialization failure のいずれも technical failure として全体を zero/rollback にし、optional actor、nil audit、best-effort snapshot を feature flag として残さない。絶対上限の hard reject、technical failure の停止、missing-data の TASK-033 cutover、現行 20% threshold は変更しない。20% を臨床正本へ昇格させる裁定ではなく、現行 evaluator の結果に理由契約を値非依存で接続するため、将来承認された threshold 変更も同じ契約を通る。実装は <code>todo.md</code> TASK-377 とし、残る委任外判断は DR-CLINICAL の #201 bundle 1 行だけとする。</p>
+    <p class="section-label">一次資料</p>
+    <p class="qa-text">live Issue <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/201">#201</a> 必須仕様3/5は inline warning と必須逸脱理由、FE bypass 時の BE 強制を要求する。<code>dose_revalidation.go:22-24</code> と <code>medicine-dose.ts:47-51</code> は同じ 20% を「暫定確定 2026-07-15 PO」として使用する。<code>treatment-row-dose-gate.ts:90-109</code> は <code>requiresConfirm/reason</code> を生成する一方、<code>TreatmentRow.tsx:194-210,350-391</code> は <code>isBlocked</code> 以外を理由なしで保存し、上限内の著しい乖離は <code>warning="none"</code> のため表示もしない。<code>treatment_request.go</code>/<code>treatment_service.go</code> に理由 input はなく、<code>treatment_dose_save.go:127-142</code> の audit に clinician-entered reason はない。同 audit は dependency が nil でも成功扱い、<code>dose_revalidation.go</code> の snapshot marshal は error 時 nil の best-effort であり、reason-required 保存の完全性を保証しない。<a href="#dec-48">DEC-48</a>/TASK-033 は missing-data と構造化救急投薬記録を所有し、この通常 warning 保存の理由契約を所有しない。</p>
+    <p class="section-label">退けた代替案と理由</p>
+    <p class="qa-text">必須理由まで臨床 FORM に残す案は、live Issue が固定した data/API behavior を委任外へ逃がすため棄却する。FE 表示だけの案は直接 API bypass を許すため棄却する。TASK-033 へ混ぜる案は独立して着手可能な通常保存契約を臨床・migration blocker へ巻き込むため棄却する。threshold や理由 taxonomy を agent が決める案は臨床値を発明するため棄却する。</p>
+    <p class="section-label">委任境界・覆し方</p>
+    <p class="qa-text">代理裁定は理由 input、BE validation、snapshot/audit、audit-derived warning 件数・理由記録率の構造だけを固定する。上限値、warning 帯、理由 taxonomy、救急記録の臨床適用条件は #201 bundle の空欄を臨床責任者が埋める。<strong>USER は後から覆せる — 覆す場合は新カード再起票＋実装巻き戻し</strong>とし、未承認値を TASK-377 に流入させない。</p>
+  </div>
+</article>
+
+<article class="task" id="dec-66" data-status="proxy-decided">
+  <div class="task-head">
+    <span class="qno">DEC-66</span>
+    <span class="badge category">R0 終局 disposition / #212</span>
+    <span class="badge status">代理決裁済み・close は USER</span>
+    <h3 class="task-title">blanket coverage Issue は close 推奨とし、failure-mode 別の再開 trigger を phase2 正本へ移す</h3>
+  </div>
+  <div class="task-body">
+    <p class="section-label">決裁</p>
+    <p class="qa-text"><strong>GitHub #212 の close を推奨し、再開条件を <code>phase2.html</code> へ一意に移管する。</strong> R0 反証では DEC-19/45 を覆す未裁定の agent work は見つからなかった。納品後の安定稼働、成功した current main coverage artifact、対象/除外 policy、業務目的、責任者 role と opaque restricted reference、package/domain baseline、未検証 failure-mode inventory が揃った時だけ、高リスク failure mode ごとの新しい小 Issue と新 DEC で再起票する。現時点の新規 TASK は作らず、GitHub close 操作だけを USER に残す。</p>
+    <p class="section-label">一次資料</p>
+    <p class="qa-text">live Issue <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/212">#212</a> と DEC-19 comment は current phase 外・phase2 送りを確定する。<a href="#dec-45">DEC-45</a> は current artifact と不足 package の優先順位が揃うまで packet 化しない。<code>phase2.html</code> は「今フェーズで着手しない」事項の正本で、既に #212 を長期目標として保持する。<code>docs/ops/coverage-policy.md</code> の ratchet は稼働済みであり、blanket 90% Issue を live 判断キューに残すこと自体は high-risk gap の検出を増やさない。</p>
+    <p class="section-label">退けた代替案と理由</p>
+    <p class="qa-text">conditional FORM を live view に残す案は q&amp;a/view/phase2 の三重追跡を温存するため棄却する。blanket 90% epic を即時再開する案は対象・除外・failure mode を分けず数値合わせを誘発するため棄却する。将来の再開可能性まで永久削除する案は、実測で新しい高リスク gap が判明する可能性を閉ざすため棄却する。</p>
+    <p class="section-label">委任境界・覆し方</p>
+    <p class="qa-text">本裁定は scope、tracking、再開 trigger の構造だけを決める。coverage 実測、対象/除外の承認、外部 CI、GitHub close/reopen は USER/CI 境界である。<strong>USER は後から覆せる — 覆す場合は新カード再起票＋実装巻き戻し</strong>とし、close 前後を問わず再開は新 Issue / 新 DEC で行う。</p>
+  </div>
+</article>
+
+<article class="task" id="dec-67" data-status="proxy-decided">
+  <div class="task-head">
+    <span class="qno">DEC-67</span>
+    <span class="badge category">R0 終局 disposition / #235</span>
+    <span class="badge status">代理決裁済み・close は USER</span>
+    <h3 class="task-title">未実測の D&amp;D 追加 Issue は close 推奨とし、価値実測後の新規起票だけを phase2 に残す</h3>
+  </div>
+  <div class="task-body">
+    <p class="section-label">決裁</p>
+    <p class="qa-text"><strong>GitHub #235 の close を推奨し、再開条件を <code>phase2.html</code> へ一意に移管する。</strong> R0 反証では DEC-19/45 を覆す未裁定の agent work は見つからなかった。既存 picker/upload 経路を維持し、業務責任者 role と opaque restricted reference、主要利用者、月次頻度、現行クリック数/所要時間、失敗率、目標値、削除される工程が揃った時だけ、確定済みカルテの upload 禁止を維持した新 Issue / 新 DEC で再起票する。現時点の新規 TASK は作らず、GitHub close 操作だけを USER に残す。</p>
+    <p class="section-label">一次資料</p>
+    <p class="qa-text">live Issue <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/235">#235</a> と DEC-19 comment は責任者・価値実測の欠落を理由に phase2 送りを確定する。<a href="#dec-45">DEC-45</a> は同じ defer を維持する。current <code>ImageGalleryFilter.tsx</code>/<code>medical-record-images.ts</code> には picker と upload mutation があり、medical-records 配下に D&amp;D handler はないため、既存工程の欠陥修正ではなく未実測の入力手段追加である。<code>phase2.html</code> は再開条件と finalized 制約を既に保持する。</p>
+    <p class="section-label">退けた代替案と理由</p>
+    <p class="qa-text">conditional FORM を live view に残す案は既裁定を再び人へ問い続ける工程を残すため棄却する。測定前に実装する案は削除できる工程と改善幅を証明できないため棄却する。再開可能性を永久削除する案は、将来の利用実測が追加 UI の価値を示す場合まで閉ざすため棄却する。</p>
+    <p class="section-label">委任境界・覆し方</p>
+    <p class="qa-text">本裁定は scope、tracking、再開 trigger の構造だけを決める。利用実測、実 identity、GitHub close/reopen は USER/業務責任者の境界であり、repo には実 identity を記録しない。<strong>USER は後から覆せる — 覆す場合は新カード再起票＋実装巻き戻し</strong>とし、再開は phase2 条件を満たした新 Issue / 新 DEC で行う。</p>
+  </div>
+</article>
+
 <article class="task" id="issue-dispositions-20260803" data-status="current-authority">
   <div class="task-head">
     <span class="qno">DISPOSITION-20260803</span>
@@ -849,10 +904,10 @@
   <div class="task-body">
     <table>
       <tr><th>Issue</th><th>disposition</th><th>正本 / agent task</th><th>次 actor</th></tr>
-      <tr><td><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/201">#201</a></td><td><strong>ALREADY-DECIDED + FORM</strong>: fail-closed 構造は DEC-48、上限・warning・記録対象条件は臨床値。</td><td><a href="#dec-48">DEC-48</a> / 既存 TASK-033（HOLD） / DR-CLINICAL</td><td>臨床責任者が対象・値・単位・出典・承認者・発効日を一行記入。</td></tr>
+      <tr><td><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/201">#201</a></td><td><strong>PROXY-DEC + FORM</strong>: R0 で warning 逸脱理由の agent-owned gap を認定。委任外判断は上限・warning・救急記録の臨床 policy だけ。</td><td><a href="#dec-65">DEC-65</a> / TASK-377（READY_AGENT） / <a href="#dec-48">DEC-48</a> / TASK-033（HOLD） / DR-CLINICAL</td><td>agent は TASK-377 を独立実装できる。Issue の判断待ちは、臨床責任者が #201 bundle 1 行へ対象・値/継続方針・単位・出典・approver role・発効日・opaque approval reference を記入するまで維持。</td></tr>
       <tr><td><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/211">#211</a></td><td><strong>PROXY-DEC + FORM</strong>: import 構造は代理裁定、row 値・clinic・実 apply は委任外。</td><td><a href="#dec-59">DEC-59</a> / TASK-374 / DR-CLINICAL・DR-OPS</td><td>agent が synthetic import/preflight を実装。実値/apply は USER。</td></tr>
-      <tr><td><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/212">#212</a></td><td><strong>ALREADY-DECIDED + conditional FORM</strong>: DEC-45/DEC-19 の phase2 defer を維持。</td><td><a href="#dec-45">DEC-45</a> / 新規 task なし</td><td>再開を求める USER/PO だけが coverage artifact・除外方針・owner role・opaque reference を一行記入。</td></tr>
-      <tr><td><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/235">#235</a></td><td><strong>ALREADY-DECIDED + conditional FORM</strong>: 価値実測まで scope 除外を維持。</td><td><a href="#dec-45">DEC-45</a> / 新規 task なし</td><td>再審を求める業務責任者だけが利用者・頻度・時間・失敗率・目標値を一行記入。</td></tr>
+      <tr><td><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/212">#212</a></td><td><strong>PROXY-DEC / TERMINAL CLOSE RECOMMENDATION</strong>: R0 見落としゼロ。live 再判断工程を削除し phase2 へ一意に移管。</td><td><a href="#dec-66">DEC-66</a> / <code>phase2.html</code> / 新規 task なし</td><td>USER が GitHub #212 を close。再開条件成立時だけ新 Issue / 新 DEC を起票。</td></tr>
+      <tr><td><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/235">#235</a></td><td><strong>PROXY-DEC / TERMINAL CLOSE RECOMMENDATION</strong>: R0 見落としゼロ。live 再判断工程を削除し phase2 へ一意に移管。</td><td><a href="#dec-67">DEC-67</a> / <code>phase2.html</code> / 新規 task なし</td><td>USER が GitHub #235 を close。再開条件成立時だけ新 Issue / 新 DEC を起票。</td></tr>
       <tr><td><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/255">#255</a></td><td><strong>ALREADY-DECIDED + FORM</strong>: identity/clinic/employment/group 原則は DEC-49〜52、実 roster は委任外。</td><td><a href="#dec-49">DEC-49</a>〜<a href="#dec-52">DEC-52</a> / 新規 task なし</td><td>USER は restricted manifest/receipt を repo 外に置き、台帳には owner/operator role、結果 enum、opaque restricted-evidence reference だけを一行記録。</td></tr>
       <tr><td><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/256">#256</a></td><td><strong>PROXY-DEC + FORM</strong>: default no-rewrite と例外実行境界は代理裁定、risk/sign-off/U13 は委任外。</td><td><a href="#dec-61">DEC-61</a> / DR-PRIVACY-256 / TASK-024 済み</td><td>Privacy/Repository owner が非機密結果と opaque restricted reference を一行記録。実 identity/roster/receipt 本文は repo 外。</td></tr>
       <tr><td><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/257">#257</a></td><td><strong>PROXY-DEC + FORM</strong>: 旧 window は No-Go、再計画構造は D、具体 window は委任外。</td><td><a href="#dec-60">DEC-60</a> / TASK-375 / DR-OPS</td><td>agent が日付中立 runbook を同期後、USER が新 window、owner role、結果 enum、opaque reference を一行記録。</td></tr>
@@ -874,13 +929,11 @@
   <div class="task-body">
     <table>
       <tr><th>対象</th><th>推奨・出典</th><th>リスク</th><th>対案</th><th>承認一行</th></tr>
-      <tr><td>#201 絶対上限</td><td><strong>数値推奨なし。</strong> authoritative clinical source が未提示。current master は観測対象であり医学的出典ではない。</td><td>出典なしの値は過量 block または必要治療の誤拒否を起こす。</td><td>出典付き薬剤×動物種×単位の値が届くまで current master を暫定運用し、変更しない。</td><td>（未記入: 対象、値、単位、出典、承認者、発効日）</td></tr>
-      <tr><td>#201 warning 帯</td><td><strong>数値推奨なし。</strong> current source の 20% は実装観測で、臨床根拠は未提示。</td><td>過敏な warning は alarm fatigue、緩い warning は見逃しを招く。</td><td>current behavior 継続か、出典付き別値を臨床責任者が指定する。</td><td>（未記入: 継続/修正、値、単位、出典、承認者、発効日）</td></tr>
-      <tr><td>#201 構造化救急投薬記録</td><td><strong>構造は裁定済み:</strong> 通常 dose mutation の override を作らず、救急・既実施投薬の事実を active/draft でも clinic-scoped な immutable event として通常治療履歴・handoff に表示する。出典: live Issue #201 と <a href="#dec-48">DEC-48</a>。</td><td>対象ケース・対象薬剤・専用権限・訂正条件を agent が発明すると未承認の臨床経路になる。</td><td>上記構造は選択対象に戻さない。臨床責任者は適用対象と条件だけを一行で確定する。</td><td>（未記入: 対象ケース、対象薬剤、理由要件、専用権限、訂正条件、臨床出典、承認者、発効日）</td></tr>
+      <tr><td>#201 臨床値・適用 policy</td><td><strong>構造は裁定済み:</strong> 上限 hard reject/missing-data 契約は <a href="#dec-48">DEC-48</a>、warning 逸脱理由は <a href="#dec-65">DEC-65</a>。current 20% は source/comment 上の暫定確定（2026-07-15 PO）だが authoritative clinical source は未提出であり、本 run は値を変更・医学的正本化しない。taxonomy・救急記録の適用対象も推奨しない。</td><td>値の推測は過量 block/誤拒否/alarm fatigue を、確定済み構造の再選択は安全境界の後退を招く。</td><td>臨床責任者が上限/warning の継続または修正と、救急記録の臨床 policy を canonical bundle 1 行で承認する。</td><td>（入力先は上の <a href="#decision-pack-clinical">DR-CLINICAL #201 臨床承認 bundle</a> のみ。本表へ重複記入しない）</td></tr>
       <tr><td>#211 provisional package</td><td><strong>import 構造は裁定済み:</strong> <a href="#dec-59">DEC-59</a> の versioned clinic-scoped import を使用し、<code>003_demo</code>/<code>002_master</code> を昇格先にしない。</td><td>別表補完、CSV 手編集、既適用 bundle 変更、clinic 推測は二重正本・未承認値・tenant/checksum failure を招く。</td><td>本行は臨床内容だけを承認する。対象 clinic/environment/operator/apply は DR-OPS の独立 gate とし、manifest/stable key と実 identity は repo 外に置く。</td><td>（未記入: 臨床値/単位、臨床出典、臨床承認者 role、発効日、opaque clinical-row/approval reference）</td></tr>
       <tr><td>#249 reference range</td><td>項目×動物種×測定系ごとに出典付きで承認する。根拠: <a href="#dec-47">DEC-47 Q4</a>。</td><td>他測定系や一般値の流用は誤判定を生む。</td><td>未承認 range は「未判定」を維持する。</td><td>（未記入: 項目、種別、測定系、値/定性規則、単位、出典、承認者、発効日）</td></tr>
     </table>
-    <div class="need"><strong>提出条件:</strong> 値のない行を agent が埋めない。#201 の technical failure と欠落時通常保存拒否の最終契約は <a href="#dec-48">DEC-48</a>。欠落時 runtime は、上表の構造化救急投薬記録条件が承認され TASK-033 が green になるまで変更しない。#249 の confirmed record contract は <a href="#dec-53">DEC-53</a>/<a href="#dec-57">DEC-57</a> を参照し、臨床値の承認と混ぜない。</div>
+    <div class="need"><strong>提出条件:</strong> 値のない行を agent が埋めない。#201 の入力先は <a href="#decision-pack-clinical">DR-CLINICAL</a> の bundle 1 行だけであり、mandatory deviation reason の実装は臨床値と分離した TASK-377、technical failure と欠落時通常保存拒否の最終契約は <a href="#dec-48">DEC-48</a>。欠落時 runtime は、bundle の救急記録 policy が承認され、TASK-033 の bounded DB plan revision と fresh database review を含む全 gate が green になるまで変更しない。#249 の confirmed record contract は <a href="#dec-53">DEC-53</a>/<a href="#dec-57">DEC-57</a> を参照し、臨床値の承認と混ぜない。</div>
   </div>
 </article>
 
@@ -913,8 +966,6 @@
       <tr><td>#98</td><td>repository 撤去済みを維持し、旧 RDS 系統が #89/#97 の失効対象に含まれることを確認する。</td><td>再実装は旧経路を復活させる。対案は外部失効まで open 維持。</td><td>（未記入: provider 失効確認、責任者、証跡先、close 可否）</td></tr>
       <tr><td>#99</td><td>旧 ECS/IAM 経路の provider 非稼働と現行 Cloudflare rollback rehearsal を確認する。</td><td>repository absence だけでは provider state 不明。対案は #253 とともに open 維持。</td><td>（未記入: inventory 結果、rehearsal、責任者、証跡先）</td></tr>
       <tr><td>#211</td><td><a href="#dec-59">DEC-59</a> どおり <code>003_demo</code> を昇格せず、synthetic fixture で実装した clinic-scoped import の dry-run 後だけ USER apply を検討する。臨床内容は DR-CLINICAL の別 gate。</td><td>demo/shared load、CSV 手編集、clinic 推測、誤った reset は data loss、tenant または checksum failure。対案は clinic authorization/history/operator が揃うまで実 apply HOLD。</td><td>（未記入: target clinic authorization 結果、target environment、DB history 分類、operator role、dry-run/apply/rollback 結果 enum、opaque restricted-evidence reference）。clinic/staff ID、実 manifest、receipt 本文は repo 外。</td></tr>
-      <tr><td>#212</td><td><a href="#dec-45">DEC-45</a> の phase2 defer を維持する。再審を求める場合だけ成功 coverage artifact と exclusion 方針を提出する。</td><td>artifact なしの blanket epic は優先順位不明。対案は phase2 維持。</td><td>（未記入: artifact、除外、priority owner、新カード ID。再審しない場合は記入不要）</td></tr>
-      <tr><td>#235</td><td><a href="#dec-45">DEC-45</a> の scope 除外を維持する。再審を求める場合だけ利用者、頻度、現行時間、失敗率、目標値を提出する。</td><td>需要未測定の実装は工程増。対案は scope 除外維持。</td><td>（未記入: metrics、業務責任者、発効日、新カード ID。再審しない場合は記入不要）</td></tr>
       <tr><td>#249</td><td>range は上の clinical pack、外部 import と auto-commit は実形式、停止、通知、audit、手動 fallback の承認後。</td><td>推測 range/自動 commit は誤診療記録を固定する。対案は manual/default-off 維持。</td><td>（未記入: clinical approval ID、外部 format owner、enable/stop owner、acceptance window）</td></tr>
       <tr><td>#250</td><td>complete/PASS producer bundle、payment graph、crosswalk を受領後に dry-run/verify する。</td><td>partial rehearsal の apply は不完全移行。対案は formal handoff まで HOLD。</td><td>（未記入: bundle ID、source owner、complete 判定、cutover authority）</td></tr>
       <tr><td>#252</td><td><a href="#dec-54">DEC-54</a> の validation、clinic-scoped lock/CAS、actor/audit atomicity gate と分離し、批准済み値との差分だけを USER が投入・preview する。</td><td>無検証 apply や lost update は締め境界を壊す。対案は TASK-028 green まで production apply HOLD。</td><td>（未記入: 対象 clinic、差分確認、operator、window、preview、証跡先）</td></tr>
@@ -944,7 +995,7 @@
     <p class="qa-text">直後の「P0 — Open Issue ブロッカー状態表」は既存 section を append-only で保持した historical 表示である。#201/#211 の実行判断には次の current 行だけを用い、旧行の「dev 完了」「手動保存 fallback」「残は DB 適用のみ」を用いない。</p>
     <table>
       <tr><th>#</th><th>current P0 状態</th></tr>
-      <tr><td>#201</td><td><a href="#dec-48">DEC-48</a> が current authority。TASK-025 の technical failure slice は実装済み（<code>eaa608b6a</code> + <code>db8387035</code>。到達性は <code>git merge-base --is-ancestor eaa608b6a HEAD</code> で測る）。欠落時の通常保存は最終的に fail-closed だが、TASK-033 の active/draft 構造化救急投薬記録と臨床承認が green になるまで current runtime を部分変更しない。free-text/finalized-only addendum を代替にせず、通常 dose mutation override を作らない。</td></tr>
+      <tr><td>#201</td><td><a href="#dec-48">DEC-48</a>（technical failure/missing-data）と <a href="#dec-65">DEC-65</a>（warning 逸脱理由）が current authority。TASK-025 の technical failure slice は実装済み（<code>eaa608b6a</code> + <code>db8387035</code>。到達性は <code>git merge-base --is-ancestor eaa608b6a HEAD</code> で測る）。TASK-377 は臨床値を変更せず独立着手可能。欠落時の通常保存は最終的に fail-closed だが、TASK-033 の active/draft 構造化救急投薬記録、canonical #201 bundle の臨床承認、bounded DB plan revision と fresh database review が全て green になるまで current runtime を部分変更しない。free-text/finalized-only addendum を代替にせず、通常 dose mutation override を作らない。</td></tr>
       <tr><td>#211</td><td><a href="#dec-59">DEC-59</a> が current authority。<code>003_demo</code> は開発・試験専用で、shared environment へ昇格しない。TASK-374 が versioned clinic-scoped import/preflight を synthetic fixture で実装し、臨床 row、対象 clinic、target environment、DB history、authorized operator が揃うまで USER apply は HOLD。code/seed/migration 完了または DB 適用だけが残るとは扱わない。</td></tr>
     </table>
   </div>

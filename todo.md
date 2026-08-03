@@ -37,6 +37,7 @@
 | ISSUE-211-CLINIC-PACKAGE-IMPORT | 健診 package の clinic-scoped import/preflight | **TASK-374**（READY_AGENT・additive migration review 必須・実値/apply は USER） |
 | ISSUE-257-GOLIVE-REPLAN | 期限切れ go-live runbook の gate-driven 再計画 | **TASK-375**（READY_AGENT・docs-only） |
 | ISSUE-258-DELIVERY-BOUNDARY | #258 U1〜U12 と #256 U13 の文書境界同期 | **TASK-376**（READY_AGENT・docs-only） |
+| ISSUE-201-DOSE-DEVIATION-REASON | warning 逸脱理由を FE/BE・snapshot・同一 transaction audit へ接続 | **TASK-377**（READY_AGENT・臨床値は別 gate） |
 
 ### 対応済み（削除済み・再掲しない）
 
@@ -852,5 +853,33 @@ validator_exit=0
 - **Scoped verification**: `rg -n 'U1|U12|U13|#256|#258|研修' docs/delivery/DELIVERY_PACKAGE.md docs/delivery/OPERATION_MANUAL.md` の目視突合、`git diff --check -- docs/delivery/DELIVERY_PACKAGE.md docs/delivery/OPERATION_MANUAL.md`。
 - **Non-actions / HOLD**: U1〜U13 の値決定、credential/価格/契約/実 identity の記録、外部サービス操作、Issue close、claim 解放を行わない。
 - **Exit criteria**: #258=U1〜U12、#256=U13 が全参照で一意になり、契約責任者/Client と training owner の一行入力先が分離される。
+
+### TASK-377: #201 warning 逸脱理由を FE/BE・snapshot・同一 transaction audit へ接続する（Critical / Clinical safety）
+
+- **対応 Issue**: GitHub Issue #201。
+- **問題**: live Issue は warning 範囲で inline warning と必須逸脱理由、FE bypass 時の BE 同一境界を要求する。しかし `computeDoseGate` が返す `requiresConfirm/reason` を `TreatmentRow` が消費せず、上限内の著しい乖離は表示なし・理由なしで保存される。BE request/service に理由 input がなく、既存 deviation audit も clinician-entered reason を持たない。
+- **状態**: **READY_AGENT / no migration**。設計正本は DEC-65。live Issue が mandatory reason を要求し、現行 evaluator/20% は source/comment 上で暫定確定済みのため、その判定結果に値非依存の理由契約を接続できる。本 task は 20% を臨床正本へ昇格・変更せず、将来承認された threshold も同じ reason-required contract を通す。上限値・warning 帯の authoritative clinical source、理由 taxonomy、TASK-033 の救急記録 policy は臨床 gate のまま。
+- **claim**: 実装セッションが編集前に `claim/TASK-377` を確認・取得する。本裁定 run では claim を取得しない。
+- **Owner lane**: medicalrecord treatment create/update request・service・dose snapshot/audit、TreatmentsTab quantity editor、OpenAPI/types、focused tests。TASK-033、dose master 値、migration、GitHub write は所有しない。
+
+#### 固定契約
+- 上限超過は従来どおり hard reject、technical failure は通常保存停止、missing data は TASK-033 cutover まで現行 contract を維持する。上限内で `BelowMinSaved || DeviatesFromComputed` の時だけ、trim 後 1〜500 Unicode 文字の generic free-text `dose_deviation_reason` を create/update の必須入力にする。これは transport の技術上限であり、臨床 taxonomy の決定ではない。modal と confirm-to-bypass は作らない。
+- FE は `currentGate.reason` を色だけに依存しない inline warning として表示し、理由が空なら quantity mutation を送らない。誤解を招く `requiresConfirm` は reason-required contract として型・呼出し・test を同期し、著しい乖離で `warning="none"` でも理由 UI を表示する。
+- BE は FE 判定を信用せず、既存 `EvaluateSavedDose` の locked effective state で同じ条件を再評価する。直接 API、create/update、空白理由・500文字超過理由を同じ validation に通し、理由不足、authenticated actor 欠落、snapshot serialization、audit のいずれかが失敗したら treatment/inventory/audit write を同一 transaction で zero/rollback にする。reason-required 保存では optional actor、`auditTx == nil` を technical failure とし、後方互換の feature flag にしない。既存 best-effort snapshot marshal は reason-required 経路で error-returning に変え、serialization 失敗を黙って成功させない。
+- normalized reason と `deviates_from_computed` を既存 `dose_param_snapshot` に値で固定し、access-controlled dose-deviation audit に actor・評価 flags・reason を残す。safe dose への再評価で stale reason を残さない。application log、owner-facing history、Git 台帳へ理由本文を出さない。既存 JSONB 列を使うため schema migration は追加しない。
+- audit fields から warning 件数と理由記録率を算出可能にするが、本 task で外部 telemetry、臨床 threshold、reason taxonomy、例外 override を追加しない。
+
+#### 実装・検証
+1. RED: 上限内の著しい乖離と下限割れで inline reason が表示され、空理由では mutation zero、理由付きで1回だけ送信される RTL を追加する。上限超過、technical failure、missing、safe dose の既存契約も固定する。
+2. RED: create/update の理由欠落・blank・500文字境界/超過・direct API bypass、理由付き成功、snapshot/audit 内容、missing authenticated actor、nil audit dependency、audit failure rollback、forced snapshot marshal failure、safe re-evaluation の stale reason 除去、clinic isolation を table-driven test で固定する。missing actor、nil audit、marshal failure は treatment/inventory/audit write が全て zero であることを直接検証する。sentinel 理由文字列が owner history、identity-link response、validation error、`slog` に出ない negative contract test も追加する。
+3. request/service/snapshot/audit と FE type/editor/API を最小接続し、backend を最終 authority にする。OpenAPI と生成型に field を同期し、既存 treatment response 以外へ理由を露出しない。
+4. healthcare、security、Go、React、TypeScript の独立 review を通し、理由本文が非 audit log/owner surface に漏れないことと、TASK-033 contract を変更していないことを再照合する。
+- **Scoped verification**:
+  - `docker compose exec -T backend go test -p 1 ./internal/medicalrecord -run 'Test.*Treatment.*Dose.*(DeviationReason|Audit|Rollback|Clinic)' -count=1`
+  - `docker compose exec -T backend go test -p 1 ./internal/apicontract -run 'Test.*Treatment.*Dose.*Reason' -count=1`
+  - `docker compose exec -T frontend npx vitest run src/features/medical-records/components/TreatmentsTab/TreatmentRow.test.tsx src/features/medical-records/components/TreatmentsTab/treatment-row-dose-gate.test.ts`
+  - `make codegen-check`
+- **Non-actions / HOLD**: 上限値・warning threshold・taxonomy・救急適用条件の決定、TASK-033 missing-data cutover、通常 mutation override、migration/DB apply、Issue close、claim 解放を行わない。
+- **Exit criteria**: warning/deviation の全 create/update 経路が理由なし zero-write、理由付き時だけ authenticated actor、snapshot、transaction-bound audit を伴って成功し、FE は inline で理由を要求して modal を使わず、直接 API bypass・missing actor・nil audit dependency・audit failure・snapshot serialization failure・clinic crossing の regression が green。残る委任外判断は DR-CLINICAL の #201 bundle 1 行だけ。
 
 ---

@@ -94,7 +94,7 @@
 <div class="container">
 <header>
   <h1>Phase 2 台帳 — 今フェーズでやらないもの</h1>
-  <p class="meta">更新: 2026-07-30（readiness再監査: #239 Phase 2の段階再開gateをDEC-46へ同期）／正本: 本書。決裁記録の正本は q&amp;a.html、BE 保留詳細は BE-pending.md</p>
+  <p class="meta">更新: 2026-08-03（第二次裁定: #212/#235 の terminal close 推奨と再開 trigger を DEC-66/67 へ同期）／正本: 本書。決裁記録の正本は q&amp;a.html、BE 保留詳細は BE-pending.md</p>
 </header>
 
 <section>
@@ -109,14 +109,14 @@
 <section>
   <h2>長期目標</h2>
   <ul>
-    <li><span class="badge hold">見送り</span><strong>#212 全パッケージのテストカバレッジ 90%</strong> — ratchet ゲート導入済。90% 到達自体は長期目標のまま未達（gh Issue open）。</li>
+    <li><span class="badge hold">見送り</span><strong>#212 高リスク failure-mode の未検証削減</strong>（<a href="q&amp;a.html#dec-66">DEC-66</a>・terminal close 推奨）— blanket 90% epic は再開しない。<em>再開条件</em>: 納品後の安定稼働、成功した current main coverage artifact、review 済みの対象/除外 policy、業務目的、責任者 role と opaque restricted reference、package/domain baseline、未検証 failure-mode inventory が揃うこと。成立時だけ billing / medicalrecord / audit / clinic isolation / authorization / rollback / not-found 等を高リスク順の小さな新 Issue と新 DEC に分解し、数値合わせ test を作らない。</li>
   </ul>
 </section>
 
 <section>
   <h2>PO 決裁済み「やらない」（決裁正本: q&amp;a.html）</h2>
   <ul>
-    <li><span class="badge hold">見送り</span><strong>#235 カルテ画像・PDF の D&amp;D アップロード</strong>（DEC-19・2026-07-25）— <em>再開条件</em>: 利用者・頻度・現行操作時間の価値実測の提出。再開時も確定済みカルテでは drop UI・保存とも不可（#260）。</li>
+    <li><span class="badge hold">見送り</span><strong>#235 カルテ画像・PDF の D&amp;D アップロード</strong>（DEC-19・<a href="q&amp;a.html#dec-67">DEC-67</a>・terminal close 推奨）— <em>再開条件</em>: 業務責任者 role と opaque restricted reference、主要利用者、月次頻度、添付1件の現行クリック数/所要時間、失敗率、目標値、削除される工程が揃うこと。成立時だけ新 Issue / 新 DEC で再起票し、確定済みカルテでは drop UI・保存とも不可の制約を維持する。</li>
     <li><span class="badge hold">見送り</span><strong>training カテゴリの自動導出 source 設計（#251 TASK-251 U4）</strong>（DEC-44・2026-07-30・決裁正本 = <a href="q&amp;a.html#dec-44">q&amp;a.html#dec-44</a>）— DEC-21 ②が求める「確定時に権威 source＋FK lineage で billing item 候補を生成する」経路のうち training 分のみを今期スコープ外とする。<strong>training カテゴリ自体と 12 分類手入力経路は維持</strong>するため売上の記録手段は失われない（DEC-21 ④「実運用売上あり・両カテゴリとも削除しない」を満たす）。hotel は <code>HospitalizationTypeHotel</code> 経路で到達済みであり、12 分類のうち training だけが自動導出 source を持たない。<em>再開条件</em>: ①料金を発生させる業務イベント（誰が・いつ・どの画面/帳票で確定させるか） ②価格・回数・取消・返金それぞれの正本 ③現行業務の責任者（個人名） ④明細に持たせる provenance FK の指す実体 ⑤重複実行を防ぐ idempotency 方針 — の5点が責任者名付きで揃うこと。手入力運用を恒久の到達点として正式化する場合は、DEC-21 が手動 U2b と U4 を明示的に分離している以上、<strong>DEC-21 ④の明示的な再審</strong>を要する（勝手な読み替えは USER 本人裁定を空文にする）。</li>
     <li><span class="badge never">やらない</span><strong>lab_import 外部検査連携の FE</strong>（PO-007）— FE 着手禁止。<em>再開条件</em>: 実データ経路開通後に最小 UX を定義してから実装可。</li>
     <li><span class="badge never">やらない</span><strong>健診 CRUD UI</strong>（#211 決裁）</li>

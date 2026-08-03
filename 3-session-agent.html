@@ -114,7 +114,7 @@
     <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/201">#201</a></td>
     <td>薬量自動計算 — 上限超過の物理ブロックと例外統制</td>
     <td><span class="status judge">判断待ち</span></td>
-    <td>安全構造は <a href="q&amp;a.html#dec-48">DEC-48</a> で確定済み。臨床責任者が上限、warning 帯、構造化救急投薬記録の対象条件を出典付き一行で記入するまで、欠落時 cutover は HOLD</td>
+    <td>R0 で warning 逸脱理由の未接続を検出し、<a href="q&amp;a.html#dec-65">DEC-65</a>/TASK-377 の独立 local taskへ分離した。本 view は Issue-level の次 actor を示すため、TASK-377 の完了だけでは close gate を満たさない #201 は判断待ちを維持する。臨床責任者が canonical #201 bundle 1行へ上限/warning の継続または修正と救急記録 policy を出典付きで記入するまで TASK-033 cutover は HOLD</td>
   </tr>
   <tr>
     <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/211">#211</a></td>
@@ -193,14 +193,14 @@
   <tr>
     <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/212">#212</a></td>
     <td>Repository integration coverage の重要ギャップ改善</td>
-    <td><span class="status judge">判断待ち</span></td>
-    <td><a href="q&amp;a.html#dec-45">DEC-45</a>/DEC-19 の phase2 defer を維持する。再開を求める USER/PO から成功 coverage artifact、除外方針、priority owner が届いた場合だけ failure-mode 別に再審する</td>
+    <td><span class="status user">USER 専権</span></td>
+    <td><a href="q&amp;a.html#dec-66">DEC-66</a> で terminal close を推奨し、再開 trigger は phase2 正本へ移管済み。USER が GitHub #212 を close し、条件成立時だけ新 Issue / 新 DEC で failure-mode 別に再起票する</td>
   </tr>
   <tr>
     <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/235">#235</a></td>
     <td>カルテ画像・PDF のドラッグ&amp;ドロップアップロード</td>
-    <td><span class="status judge">判断待ち</span></td>
-    <td><a href="q&amp;a.html#dec-45">DEC-45</a>/DEC-19 の scope 除外を維持する。再審を求める業務責任者から利用者、頻度、現行時間、失敗率、目標値が届いた場合だけ再開判断する</td>
+    <td><span class="status user">USER 専権</span></td>
+    <td><a href="q&amp;a.html#dec-67">DEC-67</a> で terminal close を推奨し、価値実測 trigger は phase2 正本へ移管済み。USER が GitHub #235 を close し、条件成立時だけ新 Issue / 新 DEC で再起票する</td>
   </tr>
   <tr>
     <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/250">#250</a></td>
