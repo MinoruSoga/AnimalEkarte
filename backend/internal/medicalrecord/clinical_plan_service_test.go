@@ -74,8 +74,10 @@ func TestBuildClinicalPlanUpdate(t *testing.T) {
 		wantFields map[string]any
 	}{
 		{
-			name:       "empty input returns empty map",
-			input:      &UpdateClinicalPlanInput{},
+			name: "empty input returns empty map",
+			input: &UpdateClinicalPlanInput{
+				ActorID: clinicalPlanTestActorID(),
+			},
 			wantFields: map[string]any{},
 		},
 		{
@@ -88,6 +90,7 @@ func TestBuildClinicalPlanUpdate(t *testing.T) {
 				Diagnosis2NameID: &diagnosis2NamePtr,
 				DiagnosisDetails: &diagnosisDetails,
 				TreatmentPolicy:  &treatmentPolicy,
+				ActorID:          clinicalPlanTestActorID(),
 			},
 			wantFields: map[string]any{
 				"physical_exam":       physicalExam,
@@ -104,6 +107,7 @@ func TestBuildClinicalPlanUpdate(t *testing.T) {
 			input: &UpdateClinicalPlanInput{
 				Diagnosis2TypeID: &nilDiagnosis2Type,
 				Diagnosis2NameID: &nilDiagnosis2Name,
+				ActorID:          clinicalPlanTestActorID(),
 			},
 			wantFields: map[string]any{
 				"diagnosis_2_type_id": nilDiagnosis2Type,
@@ -188,7 +192,7 @@ func TestClinicalPlanService_GetOrCreate(t *testing.T) {
 					return tt.repoCreatErr
 				},
 			}
-			svc := NewClinicalPlanService(repo, okMedRecForPlan(), okDiagnosisTypeRepo(), okDiagnosisNameRepo())
+			svc := NewClinicalPlanService(repo, okMedRecForPlan(), okDiagnosisTypeRepo(), okDiagnosisNameRepo(), &mockCheckupTransactor{}, &mockAuditTxLogger{})
 
 			plan, err := svc.GetOrCreate(context.Background(), 1, tt.medicalRecordID)
 
@@ -226,6 +230,7 @@ func TestClinicalPlanService_Update(t *testing.T) {
 			input: &UpdateClinicalPlanInput{
 				PhysicalExam:    &physicalExam,
 				DiagnosisTypeID: &diagnosisTypeID,
+				ActorID:         clinicalPlanTestActorID(),
 			},
 			repoFindPlan: &model.ClinicalPlan{
 				ID:              1,
@@ -244,7 +249,9 @@ func TestClinicalPlanService_Update(t *testing.T) {
 		{
 			name:            "returns current plan when no fields provided (no-op)",
 			medicalRecordID: 1,
-			input:           &UpdateClinicalPlanInput{},
+			input: &UpdateClinicalPlanInput{
+				ActorID: clinicalPlanTestActorID(),
+			},
 			repoFindPlan: &model.ClinicalPlan{
 				ID:              1,
 				MedicalRecordID: 1,
@@ -262,6 +269,7 @@ func TestClinicalPlanService_Update(t *testing.T) {
 			medicalRecordID: 1,
 			input: &UpdateClinicalPlanInput{
 				DiagnosisDetails: &diagnosisDetails,
+				ActorID:          clinicalPlanTestActorID(),
 			},
 			repoFindPlan: &model.ClinicalPlan{
 				ID:              1,
@@ -280,6 +288,7 @@ func TestClinicalPlanService_Update(t *testing.T) {
 				DiagnosisNameID:  &diagnosisNameID,
 				DiagnosisDetails: &diagnosisDetails,
 				TreatmentPolicy:  &treatmentPolicy,
+				ActorID:          clinicalPlanTestActorID(),
 			},
 			repoFindPlan: &model.ClinicalPlan{
 				ID:              1,
@@ -316,7 +325,7 @@ func TestClinicalPlanService_Update(t *testing.T) {
 					return tt.repoUpdateErr
 				},
 			}
-			svc := NewClinicalPlanService(repo, okMedRecForPlan(), okDiagnosisTypeRepo(), okDiagnosisNameRepo())
+			svc := NewClinicalPlanService(repo, okMedRecForPlan(), okDiagnosisTypeRepo(), okDiagnosisNameRepo(), &mockCheckupTransactor{}, &mockAuditTxLogger{})
 
 			plan, err := svc.Update(context.Background(), 1, tt.medicalRecordID, tt.input)
 
@@ -353,13 +362,14 @@ func TestClinicalPlanService_Update_EmptyStringClearsFields(t *testing.T) {
 			return nil
 		},
 	}
-	svc := NewClinicalPlanService(repo, okMedRecForPlan(), okDiagnosisTypeRepo(), okDiagnosisNameRepo())
+	svc := NewClinicalPlanService(repo, okMedRecForPlan(), okDiagnosisTypeRepo(), okDiagnosisNameRepo(), &mockCheckupTransactor{}, &mockAuditTxLogger{})
 	version := 2
 	_, err := svc.Update(context.Background(), 1, 1, &UpdateClinicalPlanInput{
 		PhysicalExam:     &empty,
 		DiagnosisDetails: &empty,
 		TreatmentPolicy:  &empty,
 		Version:          &version,
+		ActorID:          clinicalPlanTestActorID(),
 	})
 	require.NoError(t, err)
 	require.NotNil(t, gotFields)
@@ -387,9 +397,11 @@ func TestClinicalPlanService_Update_FinalizedParentRejected(t *testing.T) {
 			return &model.MedicalRecord{Status: model.MedicalRecordStatusFinalized}, nil
 		},
 	}
-	svc := NewClinicalPlanService(repo, medRec, okDiagnosisTypeRepo(), okDiagnosisNameRepo())
+	svc := NewClinicalPlanService(repo, medRec, okDiagnosisTypeRepo(), okDiagnosisNameRepo(), &mockCheckupTransactor{}, &mockAuditTxLogger{})
 
-	plan, err := svc.Update(context.Background(), 1, 1, &UpdateClinicalPlanInput{PhysicalExam: &physicalExam})
+	plan, err := svc.Update(context.Background(), 1, 1, &UpdateClinicalPlanInput{PhysicalExam: &physicalExam,
+		ActorID: clinicalPlanTestActorID(),
+	})
 
 	assert.Error(t, err)
 	assert.True(t, apperrors.IsConflict(err))
@@ -419,9 +431,11 @@ func TestClinicalPlanService_Update_ValidateDiagnosisFKsError(t *testing.T) {
 			return nil, apperrors.WrapNotFound("diagnosis_type", "foreign")
 		},
 	}
-	svc := NewClinicalPlanService(repo, okMedRecForPlan(), diagTypeRepo, okDiagnosisNameRepo())
+	svc := NewClinicalPlanService(repo, okMedRecForPlan(), diagTypeRepo, okDiagnosisNameRepo(), &mockCheckupTransactor{}, &mockAuditTxLogger{})
 
-	plan, err := svc.Update(context.Background(), 1, 1, &UpdateClinicalPlanInput{DiagnosisTypeID: &foreignTypeID})
+	plan, err := svc.Update(context.Background(), 1, 1, &UpdateClinicalPlanInput{DiagnosisTypeID: &foreignTypeID,
+		ActorID: clinicalPlanTestActorID(),
+	})
 
 	assert.Error(t, err)
 	assert.Nil(t, plan)
@@ -439,9 +453,11 @@ func TestClinicalPlanService_Update_GetOrCreateError(t *testing.T) {
 			return errors.New("db create error")
 		},
 	}
-	svc := NewClinicalPlanService(repo, okMedRecForPlan(), okDiagnosisTypeRepo(), okDiagnosisNameRepo())
+	svc := NewClinicalPlanService(repo, okMedRecForPlan(), okDiagnosisTypeRepo(), okDiagnosisNameRepo(), &mockCheckupTransactor{}, &mockAuditTxLogger{})
 
-	plan, err := svc.Update(context.Background(), 1, 1, &UpdateClinicalPlanInput{PhysicalExam: &physicalExam})
+	plan, err := svc.Update(context.Background(), 1, 1, &UpdateClinicalPlanInput{PhysicalExam: &physicalExam,
+		ActorID: clinicalPlanTestActorID(),
+	})
 
 	assert.Error(t, err)
 	assert.Nil(t, plan)
@@ -464,9 +480,11 @@ func TestClinicalPlanService_Update_RefetchError(t *testing.T) {
 			return nil
 		},
 	}
-	svc := NewClinicalPlanService(repo, okMedRecForPlan(), okDiagnosisTypeRepo(), okDiagnosisNameRepo())
+	svc := NewClinicalPlanService(repo, okMedRecForPlan(), okDiagnosisTypeRepo(), okDiagnosisNameRepo(), &mockCheckupTransactor{}, &mockAuditTxLogger{})
 
-	plan, err := svc.Update(context.Background(), 1, 1, &UpdateClinicalPlanInput{PhysicalExam: &physicalExam})
+	plan, err := svc.Update(context.Background(), 1, 1, &UpdateClinicalPlanInput{PhysicalExam: &physicalExam,
+		ActorID: clinicalPlanTestActorID(),
+	})
 
 	assert.Error(t, err)
 	assert.Nil(t, plan)
@@ -524,7 +542,7 @@ func TestClinicalPlanService_Delete(t *testing.T) {
 					return tt.deleteErr
 				},
 			}
-			svc := NewClinicalPlanService(repo, okMedRecForPlan(), okDiagnosisTypeRepo(), okDiagnosisNameRepo())
+			svc := NewClinicalPlanService(repo, okMedRecForPlan(), okDiagnosisTypeRepo(), okDiagnosisNameRepo(), &mockCheckupTransactor{}, &mockAuditTxLogger{})
 
 			err := svc.Delete(context.Background(), 1, tt.medicalRecordID)
 
@@ -564,7 +582,7 @@ func TestClinicalPlanService_GetOrCreate_CrossTenantParentRejected(t *testing.T)
 			return nil, apperrors.WrapNotFound("medical_record", "99")
 		},
 	}
-	svc := NewClinicalPlanService(repo, medRec, okDiagnosisTypeRepo(), okDiagnosisNameRepo())
+	svc := NewClinicalPlanService(repo, medRec, okDiagnosisTypeRepo(), okDiagnosisNameRepo(), &mockCheckupTransactor{}, &mockAuditTxLogger{})
 
 	plan, err := svc.GetOrCreate(context.Background(), clinicA, clinicBMRID)
 
@@ -592,10 +610,12 @@ func TestClinicalPlanService_Update_RejectsFinalizedParent(t *testing.T) {
 			return &model.MedicalRecord{Status: model.MedicalRecordStatusFinalized}, nil
 		},
 	}
-	svc := NewClinicalPlanService(repo, medRec, okDiagnosisTypeRepo(), okDiagnosisNameRepo())
+	svc := NewClinicalPlanService(repo, medRec, okDiagnosisTypeRepo(), okDiagnosisNameRepo(), &mockCheckupTransactor{}, &mockAuditTxLogger{})
 	physicalExam := "test"
 
-	plan, err := svc.Update(context.Background(), 1, 1, &UpdateClinicalPlanInput{PhysicalExam: &physicalExam})
+	plan, err := svc.Update(context.Background(), 1, 1, &UpdateClinicalPlanInput{PhysicalExam: &physicalExam,
+		ActorID: clinicalPlanTestActorID(),
+	})
 
 	assert.Error(t, err)
 	assert.Nil(t, plan)
@@ -621,7 +641,7 @@ func TestClinicalPlanService_Delete_RejectsFinalizedParent(t *testing.T) {
 			return &model.MedicalRecord{Status: model.MedicalRecordStatusFinalized}, nil
 		},
 	}
-	svc := NewClinicalPlanService(repo, medRec, okDiagnosisTypeRepo(), okDiagnosisNameRepo())
+	svc := NewClinicalPlanService(repo, medRec, okDiagnosisTypeRepo(), okDiagnosisNameRepo(), &mockCheckupTransactor{}, &mockAuditTxLogger{})
 
 	err := svc.Delete(context.Background(), 1, 1)
 
@@ -654,10 +674,11 @@ func TestClinicalPlanService_Update_RejectsMismatchedDiagnosis2TypeName(t *testi
 			return &model.DiagnosisName{ID: id, DiagnosisTypeID: 99}, nil
 		},
 	}
-	svc := NewClinicalPlanService(repo, okMedRecForPlan(), diagTypeRepo, diagNameRepo)
+	svc := NewClinicalPlanService(repo, okMedRecForPlan(), diagTypeRepo, diagNameRepo, &mockCheckupTransactor{}, &mockAuditTxLogger{})
 	plan, err := svc.Update(context.Background(), 1, 1, &UpdateClinicalPlanInput{
 		Diagnosis2TypeID: &typePtr,
 		Diagnosis2NameID: &namePtr,
+		ActorID:          clinicalPlanTestActorID(),
 	})
 	assert.Error(t, err)
 	assert.Nil(t, plan)
@@ -685,9 +706,11 @@ func TestClinicalPlanService_Update_VersionPassthrough(t *testing.T) {
 				return nil
 			},
 		}
-		svc := NewClinicalPlanService(repo, okMedRecForPlan(), okDiagnosisTypeRepo(), okDiagnosisNameRepo())
+		svc := NewClinicalPlanService(repo, okMedRecForPlan(), okDiagnosisTypeRepo(), okDiagnosisNameRepo(), &mockCheckupTransactor{}, &mockAuditTxLogger{})
 
-		plan, err := svc.Update(context.Background(), 1, 1, &UpdateClinicalPlanInput{PhysicalExam: &physicalExam})
+		plan, err := svc.Update(context.Background(), 1, 1, &UpdateClinicalPlanInput{PhysicalExam: &physicalExam,
+			ActorID: clinicalPlanTestActorID(),
+		})
 
 		assert.NoError(t, err)
 		assert.NotNil(t, plan)
@@ -712,11 +735,12 @@ func TestClinicalPlanService_Update_VersionPassthrough(t *testing.T) {
 				return nil
 			},
 		}
-		svc := NewClinicalPlanService(repo, okMedRecForPlan(), okDiagnosisTypeRepo(), okDiagnosisNameRepo())
+		svc := NewClinicalPlanService(repo, okMedRecForPlan(), okDiagnosisTypeRepo(), okDiagnosisNameRepo(), &mockCheckupTransactor{}, &mockAuditTxLogger{})
 
 		plan, err := svc.Update(context.Background(), 1, 1, &UpdateClinicalPlanInput{
 			PhysicalExam: &physicalExam,
 			Version:      &claimedVersion,
+			ActorID:      clinicalPlanTestActorID(),
 		})
 
 		assert.NoError(t, err)

@@ -76,7 +76,6 @@ func rejectChiefComplaintTypeRepo(ownedID uint64) ChiefComplaintTypeRepository {
 
 // ── vaccination (CRITICAL #125): vaccine_id ──
 
-
 // passthroughTxForCrossTenant is WithTx passthrough for constructor-updated services under test.
 type passthroughTxForCrossTenant struct{}
 
@@ -89,7 +88,6 @@ type draftMedicalRecordLocker struct{}
 func (draftMedicalRecordLocker) LockByIDForUpdate(_ context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
 	return &model.MedicalRecord{ID: id, ClinicID: clinicID, Status: model.MedicalRecordStatusDraft}, nil
 }
-
 
 func TestVaccinationService_Create_RejectsCrossClinicVaccine(t *testing.T) {
 	const clinicID = uint64(1)
@@ -706,14 +704,16 @@ func TestClinicalPlanService_Update_RejectsCrossClinicDiagnosisFK(t *testing.T) 
 			},
 			updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error { *updated = true; return nil },
 		}
-		return NewClinicalPlanService(repo, okMedRecForPlan(), rejectDiagnosisTypeRepo(ownedTypeID), okDiagnosisNameRepo())
+		return NewClinicalPlanService(repo, okMedRecForPlan(), rejectDiagnosisTypeRepo(ownedTypeID), okDiagnosisNameRepo(), &mockCheckupTransactor{}, &mockAuditTxLogger{})
 	}
 
 	t.Run("rejects cross-clinic diagnosis_type_id and does not persist", func(t *testing.T) {
 		updated := false
 		svc := newSvc(&updated)
 		foreign := foreignTypeID
-		out, err := svc.Update(context.Background(), clinicID, 1, &UpdateClinicalPlanInput{DiagnosisTypeID: &foreign})
+		out, err := svc.Update(context.Background(), clinicID, 1, &UpdateClinicalPlanInput{DiagnosisTypeID: &foreign,
+			ActorID: clinicalPlanTestActorID(),
+		})
 		assert.Error(t, err)
 		assert.Nil(t, out)
 		assert.False(t, updated, "clinical plan must NOT be updated to reference another clinic's diagnosis type")
@@ -724,7 +724,9 @@ func TestClinicalPlanService_Update_RejectsCrossClinicDiagnosisFK(t *testing.T) 
 		svc := newSvc(&updated)
 		foreign := foreignTypeID
 		foreignPtr := &foreign
-		out, err := svc.Update(context.Background(), clinicID, 1, &UpdateClinicalPlanInput{Diagnosis2TypeID: &foreignPtr})
+		out, err := svc.Update(context.Background(), clinicID, 1, &UpdateClinicalPlanInput{Diagnosis2TypeID: &foreignPtr,
+			ActorID: clinicalPlanTestActorID(),
+		})
 		assert.Error(t, err)
 		assert.Nil(t, out)
 		assert.False(t, updated)
@@ -734,7 +736,9 @@ func TestClinicalPlanService_Update_RejectsCrossClinicDiagnosisFK(t *testing.T) 
 		updated := false
 		svc := newSvc(&updated)
 		owned := ownedTypeID
-		out, err := svc.Update(context.Background(), clinicID, 1, &UpdateClinicalPlanInput{DiagnosisTypeID: &owned})
+		out, err := svc.Update(context.Background(), clinicID, 1, &UpdateClinicalPlanInput{DiagnosisTypeID: &owned,
+			ActorID: clinicalPlanTestActorID(),
+		})
 		assert.NoError(t, err)
 		assert.NotNil(t, out)
 		assert.True(t, updated)
@@ -753,14 +757,16 @@ func TestClinicalPlanService_Update_RejectsCrossClinicDiagnosisName(t *testing.T
 			},
 			updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error { *updated = true; return nil },
 		}
-		return NewClinicalPlanService(repo, okMedRecForPlan(), okDiagnosisTypeRepo(), rejectDiagnosisNameRepo(ownedNameID))
+		return NewClinicalPlanService(repo, okMedRecForPlan(), okDiagnosisTypeRepo(), rejectDiagnosisNameRepo(ownedNameID), &mockCheckupTransactor{}, &mockAuditTxLogger{})
 	}
 
 	t.Run("rejects cross-clinic diagnosis_name_id and does not persist", func(t *testing.T) {
 		updated := false
 		svc := newSvc(&updated)
 		foreign := foreignNameID
-		out, err := svc.Update(context.Background(), clinicID, 1, &UpdateClinicalPlanInput{DiagnosisNameID: &foreign})
+		out, err := svc.Update(context.Background(), clinicID, 1, &UpdateClinicalPlanInput{DiagnosisNameID: &foreign,
+			ActorID: clinicalPlanTestActorID(),
+		})
 		assert.Error(t, err)
 		assert.Nil(t, out)
 		assert.False(t, updated, "clinical plan must NOT be updated to reference another clinic's diagnosis name")
@@ -771,7 +777,9 @@ func TestClinicalPlanService_Update_RejectsCrossClinicDiagnosisName(t *testing.T
 		svc := newSvc(&updated)
 		foreign := foreignNameID
 		foreignPtr := &foreign
-		out, err := svc.Update(context.Background(), clinicID, 1, &UpdateClinicalPlanInput{Diagnosis2NameID: &foreignPtr})
+		out, err := svc.Update(context.Background(), clinicID, 1, &UpdateClinicalPlanInput{Diagnosis2NameID: &foreignPtr,
+			ActorID: clinicalPlanTestActorID(),
+		})
 		assert.Error(t, err)
 		assert.Nil(t, out)
 		assert.False(t, updated)
@@ -781,7 +789,9 @@ func TestClinicalPlanService_Update_RejectsCrossClinicDiagnosisName(t *testing.T
 		updated := false
 		svc := newSvc(&updated)
 		owned := ownedNameID
-		out, err := svc.Update(context.Background(), clinicID, 1, &UpdateClinicalPlanInput{DiagnosisNameID: &owned})
+		out, err := svc.Update(context.Background(), clinicID, 1, &UpdateClinicalPlanInput{DiagnosisNameID: &owned,
+			ActorID: clinicalPlanTestActorID(),
+		})
 		assert.NoError(t, err)
 		assert.NotNil(t, out)
 		assert.True(t, updated)

@@ -53,12 +53,18 @@ func (h *ClinicalPlanHandler) UpdateClinicalPlan(c *gin.Context) {
 	if !ok {
 		return
 	}
+	staffID, ok := httpapi.ExtractStaffID(c)
+	if !ok {
+		return
+	}
 	var req updateClinicalPlanRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		httpapi.RespondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
 		return
 	}
-	plan, err := h.service.Update(c.Request.Context(), clinicID, medicalRecordID, req.toServiceInput())
+	input := req.toServiceInput()
+	input.ActorID = &staffID
+	plan, err := h.service.Update(c.Request.Context(), clinicID, medicalRecordID, input)
 	if err != nil {
 		httpapi.RespondError(c, err)
 		return

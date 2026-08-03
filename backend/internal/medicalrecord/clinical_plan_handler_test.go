@@ -154,13 +154,15 @@ func TestUpdateClinicalPlan(t *testing.T) {
 			name:     "returns 200 when updated successfully",
 			paramID:  "8",
 			body:     validBody,
-			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			setupCtx: func(c *gin.Context) { setClinicID(c); c.Set("user_id", "42") },
 			svc: &mockClinicalPlanService{
 				updateFn: func(_ context.Context, clinicID, medicalRecordID uint64, input *UpdateClinicalPlanInput) (*model.ClinicalPlan, error) {
 					assert.Equal(t, uint64(1), clinicID)
 					assert.Equal(t, uint64(8), medicalRecordID)
 					require.NotNil(t, input.PhysicalExam)
 					assert.Equal(t, physicalExam, *input.PhysicalExam)
+					require.NotNil(t, input.ActorID)
+					assert.Equal(t, uint64(42), *input.ActorID)
 					return &model.ClinicalPlan{ID: 1, MedicalRecordID: 8, PhysicalExam: physicalExam}, nil
 				},
 			},
@@ -179,7 +181,7 @@ func TestUpdateClinicalPlan(t *testing.T) {
 			name:       "returns 400 when id param is invalid",
 			paramID:    "abc",
 			body:       validBody,
-			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			setupCtx:   func(c *gin.Context) { setClinicID(c); c.Set("user_id", "42") },
 			svc:        &mockClinicalPlanService{},
 			wantStatus: http.StatusBadRequest,
 		},
@@ -187,7 +189,7 @@ func TestUpdateClinicalPlan(t *testing.T) {
 			name:       "returns 400 when body is malformed",
 			paramID:    "8",
 			malformed:  true,
-			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			setupCtx:   func(c *gin.Context) { setClinicID(c); c.Set("user_id", "42") },
 			svc:        &mockClinicalPlanService{},
 			wantStatus: http.StatusBadRequest,
 		},
@@ -195,7 +197,7 @@ func TestUpdateClinicalPlan(t *testing.T) {
 			name:     "returns 500 on service error",
 			paramID:  "8",
 			body:     validBody,
-			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			setupCtx: func(c *gin.Context) { setClinicID(c); c.Set("user_id", "42") },
 			svc: &mockClinicalPlanService{
 				updateFn: func(_ context.Context, _, _ uint64, _ *UpdateClinicalPlanInput) (*model.ClinicalPlan, error) {
 					return nil, apperrors.WrapConflict("diagnosis type not found")
@@ -330,6 +332,7 @@ func TestUpdateClinicalPlan_BindsDiagnosis2TypeID(t *testing.T) {
 	c.Request.Header.Set("Content-Type", "application/json")
 	c.Params = gin.Params{{Key: "id", Value: "8"}}
 	setClinicID(c)
+	c.Set("user_id", "42")
 	h.UpdateClinicalPlan(c)
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.True(t, called)
@@ -363,6 +366,7 @@ func TestUpdateClinicalPlan_BindsVersion(t *testing.T) {
 	c.Request.Header.Set("Content-Type", "application/json")
 	c.Params = gin.Params{{Key: "id", Value: "8"}}
 	setClinicID(c)
+	c.Set("user_id", "42")
 	h.UpdateClinicalPlan(c)
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.True(t, called)
@@ -390,6 +394,7 @@ func TestUpdateClinicalPlan_OmittedVersionBindsNil(t *testing.T) {
 	c.Request.Header.Set("Content-Type", "application/json")
 	c.Params = gin.Params{{Key: "id", Value: "8"}}
 	setClinicID(c)
+	c.Set("user_id", "42")
 	h.UpdateClinicalPlan(c)
 	assert.Equal(t, http.StatusOK, w.Code)
 }
@@ -415,6 +420,7 @@ func TestUpdateClinicalPlan_NullClearsDiagnosis2(t *testing.T) {
 	c.Request.Header.Set("Content-Type", "application/json")
 	c.Params = gin.Params{{Key: "id", Value: "8"}}
 	setClinicID(c)
+	c.Set("user_id", "42")
 	h.UpdateClinicalPlan(c)
 	assert.Equal(t, http.StatusOK, w.Code)
 }

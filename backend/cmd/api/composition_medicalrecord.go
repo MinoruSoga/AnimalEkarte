@@ -56,7 +56,7 @@ func newMedicalRecordComposition(
 		masters:    newMedicalRecordMasterServices(repositories, dependencies, auditTx),
 		preventive: newMedicalRecordPreventiveServices(repositories, dependencies, auditTx),
 		lab:        newMedicalRecordLabServices(repositories, dependencies),
-		clinical:   newMedicalRecordClinicalServices(repositories, dependencies),
+		clinical:   newMedicalRecordClinicalServices(repositories, dependencies, auditTx),
 		hospital:   newMedicalRecordHospitalServices(repositories, dependencies, auditTx),
 		treatment:  newMedicalRecordTreatmentServices(repositories, dependencies, auditTx),
 		core:       newMedicalRecordCoreServices(repositories, dependencies, auditTx),

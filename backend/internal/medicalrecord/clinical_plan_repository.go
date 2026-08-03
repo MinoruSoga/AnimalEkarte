@@ -8,12 +8,13 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 // ClinicalPlanRepository は診察所見・診断・治療方針のデータアクセスインターフェース。
-// Moved from internal/repository (BE9-2D sub-batch④a). All queries use r.db.WithContext directly
-// (no clinicScope/dbOrTx/tenantScope), so only the package line changed; every external caller only
-// ever saw this via the internal/repository facade (ClinicalPlanRepository alias), so no call site changes.
+// Moved from internal/repository (BE9-2D sub-batch④a).
+// BUG-010 residual: write/read paths use persistence.DBOrTx so service Update can keep
+// business write + audit in one ambient transaction.
 type ClinicalPlanRepository interface {
 	FindByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) (*model.ClinicalPlan, error)
 	Create(ctx context.Context, plan *model.ClinicalPlan) error
@@ -32,7 +33,7 @@ func NewClinicalPlanRepository(db *gorm.DB) ClinicalPlanRepository {
 
 func (r *clinicalPlanRepository) FindByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) (*model.ClinicalPlan, error) {
 	var plan model.ClinicalPlan
-	err := r.db.WithContext(ctx).
+	err := persistence.DBOrTx(ctx, r.db).
 		Preload("DiagnosisType", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Preload("DiagnosisName", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Preload("Diagnosis2Type", "clinic_id = ? AND deleted_at IS NULL", clinicID).
@@ -47,7 +48,7 @@ func (r *clinicalPlanRepository) FindByMedicalRecordID(ctx context.Context, clin
 }
 
 func (r *clinicalPlanRepository) Create(ctx context.Context, plan *model.ClinicalPlan) error {
-	err := r.db.WithContext(ctx).Create(plan).Error
+	err := persistence.DBOrTx(ctx, r.db).Create(plan).Error
 	if err != nil {
 		return apperrors.FromGORM(err, "clinical_plan", "")
 	}
@@ -59,7 +60,7 @@ func (r *clinicalPlanRepository) Create(ctx context.Context, plan *model.Clinica
 // 区別するために使う。
 func (r *clinicalPlanRepository) existsInClinic(ctx context.Context, clinicID, id uint64) (bool, error) {
 	var count int64
-	if err := r.db.WithContext(ctx).
+	if err := persistence.DBOrTx(ctx, r.db).
 		Model(&model.ClinicalPlan{}).
 		Where("clinical_plans.id = ? AND clinical_plans.medical_record_id IN (SELECT id FROM medical_records WHERE clinic_id = ? AND deleted_at IS NULL)", id, clinicID).
 		Count(&count).Error; err != nil {
@@ -73,7 +74,7 @@ func (r *clinicalPlanRepository) existsInClinic(ctx context.Context, clinicID, i
 // 区別するために使う（existsInClinic と同じサブクエリ形状に status='draft' を追加したもの）。
 func (r *clinicalPlanRepository) parentStillDraft(ctx context.Context, clinicID, id uint64) (bool, error) {
 	var count int64
-	if err := r.db.WithContext(ctx).
+	if err := persistence.DBOrTx(ctx, r.db).
 		Model(&model.ClinicalPlan{}).
 		Where("clinical_plans.id = ? AND clinical_plans.medical_record_id IN (SELECT id FROM medical_records WHERE clinic_id = ? AND status = ? AND deleted_at IS NULL)",
 			id, clinicID, model.MedicalRecordStatusDraft).
@@ -84,10 +85,9 @@ func (r *clinicalPlanRepository) parentStillDraft(ctx context.Context, clinicID,
 }
 
 // Update は親カルテが draft のときのみ更新する（BE-refactor.md X-11 の確定済みカルテ書込ガード）。
-// clinicalPlanService は Transactor を持たない設計上の制約（cross_tenant_master_fk_write_test.go の
-// 既存呼び出しが repository.Transactor 無しの旧コンストラクタ引数に依存しており、変更できない）のため
-// LockByIDForUpdate による行ロックは行わない。代わりに medical_records の status='draft' 条件を
-// WHERE 部分に含め、UPDATE 自体を原子的に（サービス層の事前チェックとのレース窓を残さず）拒否する。
+// LockByIDForUpdate は取らない。medical_records の status='draft' 条件を WHERE に含め、
+// UPDATE 自体を原子的に拒否する。BUG-010 residual: persistence.DBOrTx で ambient tx に参加し、
+// service の audit と同一 tx に載せる。
 // expectedVersion が非 nil の場合、WHERE に version 述語を追加し（BUG-416③: 楽観ロックの原子化、
 // medical_record_repository.go の Update と同型）、RowsAffected==0 を「バージョン不一致（親は draft
 // のまま）」と「親が確定済み」に区別する。expectedVersion が nil の場合は従来どおり version 述語
@@ -96,7 +96,7 @@ func (r *clinicalPlanRepository) parentStillDraft(ctx context.Context, clinicID,
 // existsInClinic / parentStillDraft で再照会し正しいエラー種別に正規化する
 // （estimate_repository.go の normalizeDeleteIfNotLockedMiss と同型）。
 func (r *clinicalPlanRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any, expectedVersion *int) error {
-	q := r.db.WithContext(ctx).
+	q := persistence.DBOrTx(ctx, r.db).
 		Model(&model.ClinicalPlan{}).
 		Where("clinical_plans.id = ? AND clinical_plans.medical_record_id IN (SELECT id FROM medical_records WHERE clinic_id = ? AND status = ? AND deleted_at IS NULL)",
 			id, clinicID, model.MedicalRecordStatusDraft)
@@ -132,7 +132,7 @@ func (r *clinicalPlanRepository) Delete(ctx context.Context, clinicID, id uint64
 	// NOTE: GORM does not propagate Joins() into the generated DELETE statement's SQL
 	// (it is a SELECT-only clause), so a WHERE referencing the joined table fails with
 	// "missing FROM-clause entry". Use the same subquery form as Update above.
-	result := r.db.WithContext(ctx).
+	result := persistence.DBOrTx(ctx, r.db).
 		Where("clinical_plans.id = ? AND clinical_plans.medical_record_id IN (SELECT id FROM medical_records WHERE clinic_id = ? AND status = ? AND deleted_at IS NULL)",
 			id, clinicID, model.MedicalRecordStatusDraft).
 		Delete(&model.ClinicalPlan{})

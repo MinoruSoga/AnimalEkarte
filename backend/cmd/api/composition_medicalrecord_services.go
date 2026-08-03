@@ -162,6 +162,7 @@ type medicalRecordClinicalServices struct {
 func newMedicalRecordClinicalServices(
 	r medicalRecordRepositories,
 	d medicalRecordCompositionDependencies,
+	auditTx medicalrecord.AuditTxLogger,
 ) medicalRecordClinicalServices {
 	return medicalRecordClinicalServices{
 		vitals: medicalrecord.NewVitalServiceWithRelationValidation(
@@ -178,6 +179,8 @@ func newMedicalRecordClinicalServices(
 			r.medicalRecords,
 			r.diagnosisTypes,
 			r.diagnosisNames,
+			d.Transactor,
+			auditTx,
 		),
 		images: medicalrecord.NewMedicalRecordImageServiceWithRelationValidation(
 			r.medicalRecordImages,

@@ -103,6 +103,10 @@ const (
 	AuditActionExaminationUnconfirm = "examination.unconfirm"
 	AuditActionExaminationDelete    = "examination.delete"
 
+	// BUG-010 residual: clinical plan (診察所見・診断詳細・治療方針) の versioned update 監査。
+	// examination parent mutation と同型で before/after を同一 tx に書く。
+	AuditActionClinicalPlanUpdate = "clinical_plan.update"
+
 	AuditActionPetOwnerReplace                     = "pet_owner.replace"
 	AuditActionHospitalizationDischargeWithBilling = "hospitalization.discharge_with_billing"
 
@@ -134,6 +138,8 @@ const (
 	AuditResourceExamResult = "exam_result"
 	// #249 / DEC-53: parent exams row の create/update/confirm/delete 監査。
 	AuditResourceExamination = "examination"
+	// BUG-010 residual: clinical_plans 行の更新監査。
+	AuditResourceClinicalPlan = "clinical_plan"
 
 	AuditResourceReservation     = "reservation"
 	AuditResourceHospitalization = "hospitalization"

@@ -27,6 +27,9 @@ type UpdateClinicalPlanInput struct {
 	// Update メソッド内で nextVersion 計算と repo.Update への expectedVersion 受け渡しに使う
 	// （medical_record_crud.go の Update と同型）。
 	Version *int
+	// ActorID は監査用の認証済み staff（JSON 非公開。handler が JWT から注入）。
+	// examination parent mutation と同型に必須（nil/0 は fail-closed）。
+	ActorID *uint64
 }
 
 func buildClinicalPlanUpdate(input *UpdateClinicalPlanInput) map[string]any {
@@ -67,11 +70,29 @@ type clinicalPlanService struct {
 	medRec       medicalRecordFinder
 	diagTypeRepo DiagnosisTypeRepository
 	diagNameRepo DiagnosisNameRepository
+	transactor   Transactor
+	auditTx      AuditTxLogger
 }
 
-// NewClinicalPlanService はClinicalPlanServiceを初期化して返す
-func NewClinicalPlanService(repo ClinicalPlanRepository, medRec medicalRecordFinder, diagTypeRepo DiagnosisTypeRepository, diagNameRepo DiagnosisNameRepository) ClinicalPlanService {
-	return &clinicalPlanService{repo: repo, medRec: medRec, diagTypeRepo: diagTypeRepo, diagNameRepo: diagNameRepo}
+// NewClinicalPlanService はClinicalPlanServiceを初期化して返す。
+// BUG-010 residual: transactor と auditTx は Update の write+audit 原子性に必須
+// （MRA-01 / care_plan_item と同型の fail-closed）。nil の場合 Update は拒否する。
+func NewClinicalPlanService(
+	repo ClinicalPlanRepository,
+	medRec medicalRecordFinder,
+	diagTypeRepo DiagnosisTypeRepository,
+	diagNameRepo DiagnosisNameRepository,
+	transactor Transactor,
+	auditTx AuditTxLogger,
+) ClinicalPlanService {
+	return &clinicalPlanService{
+		repo:         repo,
+		medRec:       medRec,
+		diagTypeRepo: diagTypeRepo,
+		diagNameRepo: diagNameRepo,
+		transactor:   transactor,
+		auditTx:      auditTx,
+	}
 }
 
 func optionalDoubleUint64(v **uint64) *uint64 {
@@ -187,9 +208,7 @@ func (s *clinicalPlanService) GetOrCreate(ctx context.Context, clinicID, medical
 
 // assertParentDraft は親カルテが draft であることを検証する（SD-2 系ガード監査で発見された欠落）。
 // examination/vital 等の子エンティティが使う lockDraftMedicalRecord とは異なり
-// LockByIDForUpdate による行ロックは取らない（clinicalPlanService は Transactor を持たない設計上の
-// 制約。cross_tenant_master_fk_write_test.go の既存呼び出しが repository.Transactor 無しの
-// 旧コンストラクタシグネチャに依存しており変更できない）。単純な存在確認+ステータス確認であり、
+// LockByIDForUpdate による行ロックは取らない。単純な存在確認+ステータス確認であり、
 // このチェックと後続の書込の間のレースは clinical_plan_repository.go の Update/Delete が
 // medical_records.status='draft' を WHERE に含めることで原子的に閉じる。
 func (s *clinicalPlanService) assertParentDraft(ctx context.Context, clinicID, medicalRecordID uint64, conflictMsg string) error {
@@ -204,7 +223,78 @@ func (s *clinicalPlanService) assertParentDraft(ctx context.Context, clinicID, m
 	return nil
 }
 
+func clinicalPlanAuditValue(p *model.ClinicalPlan) map[string]any {
+	if p == nil {
+		return nil
+	}
+	return map[string]any{
+		"id":                  p.ID,
+		"medical_record_id":   p.MedicalRecordID,
+		"physical_exam":       p.PhysicalExam,
+		"diagnosis_type_id":   p.DiagnosisTypeID,
+		"diagnosis_name_id":   p.DiagnosisNameID,
+		"diagnosis_2_type_id": p.Diagnosis2TypeID,
+		"diagnosis_2_name_id": p.Diagnosis2NameID,
+		"diagnosis_details":   p.DiagnosisDetails,
+		"treatment_policy":    p.TreatmentPolicy,
+		"version":             p.Version,
+	}
+}
+
+func (s *clinicalPlanService) auditUpdateTx(ctx context.Context, clinicID uint64, actorID *uint64, before, after *model.ClinicalPlan) error {
+	// MRA-01 / BUG-010 residual: clinical legal fields require fail-closed audit in the same tx.
+	if s.auditTx == nil {
+		return apperrors.WrapInternalServerError("clinical plan audit dependency is required")
+	}
+	if actorID == nil || *actorID == 0 {
+		return apperrors.WrapInvalidInput("authenticated staff actor is required for clinical plan mutation")
+	}
+	resourceID := uint64(0)
+	if after != nil {
+		resourceID = after.ID
+	} else if before != nil {
+		resourceID = before.ID
+	}
+	entry := &AuditEntry{
+		ClinicID:   &clinicID,
+		ActorID:    actorID,
+		ActorType:  model.AuditActorTypeStaff,
+		Action:     model.AuditActionClinicalPlanUpdate,
+		Resource:   model.AuditResourceClinicalPlan,
+		ResourceID: &resourceID,
+		OldValue:   clinicalPlanAuditValue(before),
+		NewValue:   clinicalPlanAuditValue(after),
+		Metadata: map[string]any{
+			"operation_type": "update",
+		},
+	}
+	if err := s.auditTx.LogEntryTx(ctx, entry); err != nil {
+		slog.ErrorContext(ctx, "failed to audit clinical plan update",
+			"error", err,
+			"clinic_id", clinicID,
+			"clinical_plan_id", resourceID,
+		)
+		return apperrors.Wrap(err, "failed to write clinical plan update audit")
+	}
+	return nil
+}
+
+func (s *clinicalPlanService) withTx(ctx context.Context, fn func(context.Context) error) error {
+	if s.transactor == nil {
+		return apperrors.WrapInternalServerError("clinical plan transaction dependency is required")
+	}
+	return s.transactor.WithTx(ctx, fn)
+}
+
 func (s *clinicalPlanService) Update(ctx context.Context, clinicID, medicalRecordID uint64, input *UpdateClinicalPlanInput) (*model.ClinicalPlan, error) {
+	// Fail-closed before any mutation: missing audit/tx deps must not allow silent writes.
+	if s.auditTx == nil {
+		return nil, apperrors.WrapInternalServerError("clinical plan audit dependency is required")
+	}
+	if s.transactor == nil {
+		return nil, apperrors.WrapInternalServerError("clinical plan transaction dependency is required")
+	}
+
 	plan, err := s.GetOrCreate(ctx, clinicID, medicalRecordID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get or create clinical plan", "error", err)
@@ -212,6 +302,9 @@ func (s *clinicalPlanService) Update(ctx context.Context, clinicID, medicalRecor
 	}
 	if err := s.assertParentDraft(ctx, clinicID, medicalRecordID, "確定済みカルテの所見・診断を編集できません"); err != nil {
 		return nil, err
+	}
+	if input.ActorID == nil || *input.ActorID == 0 {
+		return nil, apperrors.WrapInvalidInput("authenticated staff actor is required for clinical plan mutation")
 	}
 	if err := s.validateDiagnosisFKs(ctx, clinicID, input); err != nil {
 		return nil, err
@@ -232,19 +325,34 @@ func (s *clinicalPlanService) Update(ctx context.Context, clinicID, medicalRecor
 		nextVersion = *input.Version + 1
 	}
 	fields["version"] = nextVersion
-	if err := s.repo.Update(ctx, clinicID, plan.ID, fields, input.Version); err != nil {
-		slog.ErrorContext(ctx, "failed to update clinical plan", "error", err)
-		return nil, apperrors.Wrap(err, "failed to update clinical plan")
+
+	// Snapshot before mutation for audit OldValue (do not mutate plan pointer fields after).
+	before := *plan
+
+	var updated *model.ClinicalPlan
+	if err := s.withTx(ctx, func(txCtx context.Context) error {
+		if err := s.repo.Update(txCtx, clinicID, plan.ID, fields, input.Version); err != nil {
+			slog.ErrorContext(txCtx, "failed to update clinical plan", "error", err)
+			return apperrors.Wrap(err, "failed to update clinical plan")
+		}
+		reloaded, err := s.repo.FindByMedicalRecordID(txCtx, clinicID, medicalRecordID)
+		if err != nil {
+			slog.ErrorContext(txCtx, "failed to get updated clinical plan", "error", err)
+			return apperrors.Wrap(err, "failed to get updated clinical plan")
+		}
+		if err := s.auditUpdateTx(txCtx, clinicID, input.ActorID, &before, reloaded); err != nil {
+			return err
+		}
+		updated = reloaded
+		return nil
+	}); err != nil {
+		return nil, err
 	}
+
 	slog.InfoContext(ctx, "clinical_plan updated",
 		slog.Uint64("clinic_id", clinicID),
 		slog.Uint64("clinical_plan_id", plan.ID),
 		slog.Uint64("medical_record_id", medicalRecordID))
-	updated, err := s.repo.FindByMedicalRecordID(ctx, clinicID, medicalRecordID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to get updated clinical plan", "error", err)
-		return nil, apperrors.Wrap(err, "failed to get updated clinical plan")
-	}
 	return updated, nil
 }
 
