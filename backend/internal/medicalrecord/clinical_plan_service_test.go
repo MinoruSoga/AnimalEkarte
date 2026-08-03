@@ -544,7 +544,7 @@ func TestClinicalPlanService_Delete(t *testing.T) {
 			}
 			svc := NewClinicalPlanService(repo, okMedRecForPlan(), okDiagnosisTypeRepo(), okDiagnosisNameRepo(), &mockCheckupTransactor{}, &mockAuditTxLogger{})
 
-			err := svc.Delete(context.Background(), 1, tt.medicalRecordID)
+			err := svc.Delete(context.Background(), 1, tt.medicalRecordID, clinicalPlanTestActorID())
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -643,7 +643,7 @@ func TestClinicalPlanService_Delete_RejectsFinalizedParent(t *testing.T) {
 	}
 	svc := NewClinicalPlanService(repo, medRec, okDiagnosisTypeRepo(), okDiagnosisNameRepo(), &mockCheckupTransactor{}, &mockAuditTxLogger{})
 
-	err := svc.Delete(context.Background(), 1, 1)
+	err := svc.Delete(context.Background(), 1, 1, clinicalPlanTestActorID())
 
 	assert.Error(t, err)
 	assert.True(t, apperrors.IsConflict(err), "確定済みカルテの clinical_plan 削除は Conflict(409) であるべき: %v", err)

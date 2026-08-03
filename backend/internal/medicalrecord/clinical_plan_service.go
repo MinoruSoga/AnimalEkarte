@@ -62,7 +62,8 @@ func buildClinicalPlanUpdate(input *UpdateClinicalPlanInput) map[string]any {
 type ClinicalPlanService interface {
 	GetOrCreate(ctx context.Context, clinicID, medicalRecordID uint64) (*model.ClinicalPlan, error)
 	Update(ctx context.Context, clinicID, medicalRecordID uint64, input *UpdateClinicalPlanInput) (*model.ClinicalPlan, error)
-	Delete(ctx context.Context, clinicID, medicalRecordID uint64) error
+	// Delete は staff actor 必須。削除前値の audit を同一 DBOrTx で fail-closed に書く（BUG-010 residual）。
+	Delete(ctx context.Context, clinicID, medicalRecordID uint64, actorID *uint64) error
 }
 
 type clinicalPlanService struct {
@@ -279,6 +280,43 @@ func (s *clinicalPlanService) auditUpdateTx(ctx context.Context, clinicID uint64
 	return nil
 }
 
+func (s *clinicalPlanService) auditDeleteTx(ctx context.Context, clinicID uint64, actorID *uint64, before *model.ClinicalPlan) error {
+	// MRA-01 / BUG-010 residual: destructive clinical-plan delete requires fail-closed audit
+	// with pre-delete field values in the same tx (care_plan_item.auditDeleteTx と同型).
+	if s.auditTx == nil {
+		return apperrors.WrapInternalServerError("clinical plan audit dependency is required")
+	}
+	if actorID == nil || *actorID == 0 {
+		return apperrors.WrapInvalidInput("authenticated staff actor is required for clinical plan mutation")
+	}
+	resourceID := uint64(0)
+	if before != nil {
+		resourceID = before.ID
+	}
+	entry := &AuditEntry{
+		ClinicID:   &clinicID,
+		ActorID:    actorID,
+		ActorType:  model.AuditActorTypeStaff,
+		Action:     model.AuditActionClinicalPlanDelete,
+		Resource:   model.AuditResourceClinicalPlan,
+		ResourceID: &resourceID,
+		OldValue:   clinicalPlanAuditValue(before),
+		NewValue:   nil,
+		Metadata: map[string]any{
+			"operation_type": "delete",
+		},
+	}
+	if err := s.auditTx.LogEntryTx(ctx, entry); err != nil {
+		slog.ErrorContext(ctx, "failed to audit clinical plan delete",
+			"error", err,
+			"clinic_id", clinicID,
+			"clinical_plan_id", resourceID,
+		)
+		return apperrors.Wrap(err, "failed to write clinical plan delete audit")
+	}
+	return nil
+}
+
 func (s *clinicalPlanService) withTx(ctx context.Context, fn func(context.Context) error) error {
 	if s.transactor == nil {
 		return apperrors.WrapInternalServerError("clinical plan transaction dependency is required")
@@ -356,7 +394,15 @@ func (s *clinicalPlanService) Update(ctx context.Context, clinicID, medicalRecor
 	return updated, nil
 }
 
-func (s *clinicalPlanService) Delete(ctx context.Context, clinicID, medicalRecordID uint64) error {
+func (s *clinicalPlanService) Delete(ctx context.Context, clinicID, medicalRecordID uint64, actorID *uint64) error {
+	// Fail-closed before any mutation: missing audit/tx deps must not allow silent deletes.
+	if s.auditTx == nil {
+		return apperrors.WrapInternalServerError("clinical plan audit dependency is required")
+	}
+	if s.transactor == nil {
+		return apperrors.WrapInternalServerError("clinical plan transaction dependency is required")
+	}
+
 	plan, err := s.repo.FindByMedicalRecordID(ctx, clinicID, medicalRecordID)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to get clinical plan")
@@ -364,10 +410,23 @@ func (s *clinicalPlanService) Delete(ctx context.Context, clinicID, medicalRecor
 	if err := s.assertParentDraft(ctx, clinicID, medicalRecordID, "確定済みカルテの所見・診断は削除できません"); err != nil {
 		return err
 	}
-	if err := s.repo.Delete(ctx, clinicID, plan.ID); err != nil {
-		slog.ErrorContext(ctx, "failed to delete clinical plan", "error", err, "clinic_id", clinicID, "clinical_plan_id", plan.ID)
-		return apperrors.Wrap(err, "failed to delete clinical plan")
+	if actorID == nil || *actorID == 0 {
+		return apperrors.WrapInvalidInput("authenticated staff actor is required for clinical plan mutation")
 	}
+
+	// Snapshot pre-delete values for audit OldValue (GORM soft-delete; durable recovery of
+	// clinical field content for legal audit is this OldValue, not the tombstoned row alone).
+	before := *plan
+	if err := s.withTx(ctx, func(txCtx context.Context) error {
+		if err := s.repo.Delete(txCtx, clinicID, plan.ID); err != nil {
+			slog.ErrorContext(txCtx, "failed to delete clinical plan", "error", err, "clinic_id", clinicID, "clinical_plan_id", plan.ID)
+			return apperrors.Wrap(err, "failed to delete clinical plan")
+		}
+		return s.auditDeleteTx(txCtx, clinicID, actorID, &before)
+	}); err != nil {
+		return err
+	}
+
 	slog.InfoContext(ctx, "clinical_plan deleted",
 		slog.Uint64("clinic_id", clinicID),
 		slog.Uint64("clinical_plan_id", plan.ID),

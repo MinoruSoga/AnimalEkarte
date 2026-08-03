@@ -28,7 +28,7 @@ func TestClinicalPlanHandlerCompiles(t *testing.T) {
 type mockClinicalPlanService struct {
 	getOrCreateFn func(ctx context.Context, clinicID, medicalRecordID uint64) (*model.ClinicalPlan, error)
 	updateFn      func(ctx context.Context, clinicID, medicalRecordID uint64, input *UpdateClinicalPlanInput) (*model.ClinicalPlan, error)
-	deleteFn      func(ctx context.Context, clinicID, medicalRecordID uint64) error
+	deleteFn      func(ctx context.Context, clinicID, medicalRecordID uint64, actorID *uint64) error
 }
 
 func (m *mockClinicalPlanService) GetOrCreate(ctx context.Context, clinicID, medicalRecordID uint64) (*model.ClinicalPlan, error) {
@@ -45,9 +45,9 @@ func (m *mockClinicalPlanService) Update(ctx context.Context, clinicID, medicalR
 	return &model.ClinicalPlan{}, nil
 }
 
-func (m *mockClinicalPlanService) Delete(ctx context.Context, clinicID, medicalRecordID uint64) error {
+func (m *mockClinicalPlanService) Delete(ctx context.Context, clinicID, medicalRecordID uint64, actorID *uint64) error {
 	if m.deleteFn != nil {
-		return m.deleteFn(ctx, clinicID, medicalRecordID)
+		return m.deleteFn(ctx, clinicID, medicalRecordID, actorID)
 	}
 	return nil
 }
@@ -250,11 +250,13 @@ func TestDeleteClinicalPlan(t *testing.T) {
 		{
 			name:     "returns 204 when deleted successfully",
 			paramID:  "8",
-			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			setupCtx: func(c *gin.Context) { setClinicID(c); c.Set("user_id", "42") },
 			svc: &mockClinicalPlanService{
-				deleteFn: func(_ context.Context, clinicID, medicalRecordID uint64) error {
+				deleteFn: func(_ context.Context, clinicID, medicalRecordID uint64, actorID *uint64) error {
 					assert.Equal(t, uint64(1), clinicID)
 					assert.Equal(t, uint64(8), medicalRecordID)
+					require.NotNil(t, actorID)
+					assert.Equal(t, uint64(42), *actorID)
 					return nil
 				},
 			},
@@ -268,18 +270,25 @@ func TestDeleteClinicalPlan(t *testing.T) {
 			wantStatus: http.StatusUnauthorized,
 		},
 		{
+			name:       "returns 401 when staff actor missing",
+			paramID:    "8",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockClinicalPlanService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
 			name:       "returns 400 when id param is invalid",
 			paramID:    "abc",
-			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			setupCtx:   func(c *gin.Context) { setClinicID(c); c.Set("user_id", "42") },
 			svc:        &mockClinicalPlanService{},
 			wantStatus: http.StatusBadRequest,
 		},
 		{
 			name:     "returns 500 on service error",
 			paramID:  "8",
-			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			setupCtx: func(c *gin.Context) { setClinicID(c); c.Set("user_id", "42") },
 			svc: &mockClinicalPlanService{
-				deleteFn: func(_ context.Context, _, _ uint64) error {
+				deleteFn: func(_ context.Context, _, _ uint64, _ *uint64) error {
 					return fmt.Errorf("db failure")
 				},
 			},

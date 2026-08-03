@@ -106,6 +106,9 @@ const (
 	// BUG-010 residual: clinical plan (診察所見・診断詳細・治療方針) の versioned update 監査。
 	// examination parent mutation と同型で before/after を同一 tx に書く。
 	AuditActionClinicalPlanUpdate = "clinical_plan.update"
+	// BUG-010 residual (delete): clinical_plans の破壊的削除（GORM soft-delete）でも
+	// 法的臨床フィールドの削除前値を同一 DBOrTx に fail-closed で残す（MRA-01 と同型）。
+	AuditActionClinicalPlanDelete = "clinical_plan.delete"
 
 	AuditActionPetOwnerReplace                     = "pet_owner.replace"
 	AuditActionHospitalizationDischargeWithBilling = "hospitalization.discharge_with_billing"

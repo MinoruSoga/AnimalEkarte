@@ -83,7 +83,11 @@ func (h *ClinicalPlanHandler) DeleteClinicalPlan(c *gin.Context) {
 	if !ok {
 		return
 	}
-	if err := h.service.Delete(c.Request.Context(), clinicID, medicalRecordID); err != nil {
+	staffID, ok := httpapi.ExtractStaffID(c)
+	if !ok {
+		return
+	}
+	if err := h.service.Delete(c.Request.Context(), clinicID, medicalRecordID, &staffID); err != nil {
 		httpapi.RespondError(c, err)
 		return
 	}
