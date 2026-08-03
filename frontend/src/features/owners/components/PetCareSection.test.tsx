@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { act, render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
@@ -42,6 +42,11 @@ const basePet: PetFormData = {
 function renderPetCareSection(
   formData: PetFormData,
   setFormData: (updater: (prev: PetFormData) => PetFormData) => void = () => {},
+  onPetLifecycleChange?: (result: {
+    petId: string;
+    status: "死亡" | "生存";
+    deceasedAt: string | null;
+  }) => void,
 ) {
   return render(
     <MemoryRouter>
@@ -52,6 +57,7 @@ function renderPetCareSection(
         isLoadingInsurances={false}
         canEdit
         onInsuranceChange={() => {}}
+        onPetLifecycleChange={onPetLifecycleChange}
       />
     </MemoryRouter>,
   );
@@ -178,5 +184,261 @@ describe("PetCareSection (BUG-409 生死ラジオは二重管理の書込元に�
 
     expect(screen.getByRole("radio", { name: "生存" })).toBeDisabled();
     expect(screen.getByRole("radio", { name: "死亡" })).toBeDisabled();
+  });
+});
+
+// BUG-002 focused coverage: 同ファイルの field onChange を最小行使する
+describe("PetCareSection (BUG-002 field coverage)", () => {
+  it("BUG-002 食べ物・飼育環境・備考の入力で setFormData が呼ばれる", () => {
+    let latestFormData: PetFormData = {
+      ...basePet,
+      id: "pet-synth-1",
+      petName: "合成ペット甲",
+      food: "",
+      environment: "",
+      remarks: "",
+    };
+    const setFormData = vi.fn((updater: (prev: PetFormData) => PetFormData) => {
+      latestFormData = updater(latestFormData);
+    });
+
+    renderPetCareSection(latestFormData, setFormData);
+
+    fireEvent.change(screen.getByLabelText("食べ物"), {
+      target: { value: "合成フード" },
+    });
+    fireEvent.change(screen.getByLabelText("飼育環境"), {
+      target: { value: "合成環境" },
+    });
+    fireEvent.change(screen.getByLabelText("備考・特記事項"), {
+      target: { value: "合成備考" },
+    });
+
+    expect(setFormData).toHaveBeenCalled();
+    expect(latestFormData.food).toBe("合成フード");
+    expect(latestFormData.environment).toBe("合成環境");
+    expect(latestFormData.remarks).toBe("合成備考");
+  });
+});
+
+// BUG-002: モーダル内 setFormData 同期に加え、外側 pets 一覧 owner へ
+// 成功時のみ onPetLifecycleChange を1回通知する。失敗時は通知しない。
+describe("PetCareSection (BUG-002 outer-list lifecycle notify)", () => {
+  beforeEach(() => {
+    mockMutateAsync.mockReset();
+    mockMutate.mockReset();
+  });
+
+  it("BUG-002 死亡記録成功時に onPetLifecycleChange を petId/死亡/提出日で1回呼ぶ", async () => {
+    mockMutateAsync.mockResolvedValueOnce(undefined);
+    let latestFormData: PetFormData = {
+      ...basePet,
+      id: "pet-synth-1",
+      petName: "合成ペット甲",
+      status: "生存",
+      deceasedAt: null,
+    };
+    const setFormData = vi.fn((updater: (prev: PetFormData) => PetFormData) => {
+      latestFormData = updater(latestFormData);
+    });
+    const onPetLifecycleChange = vi.fn();
+
+    renderPetCareSection(latestFormData, setFormData, onPetLifecycleChange);
+
+    fireEvent.click(screen.getByRole("button", { name: "死亡を記録" }));
+    fireEvent.click(screen.getByRole("button", { name: "死亡を記録する" }));
+
+    await waitFor(() => expect(setFormData).toHaveBeenCalled());
+    await waitFor(() => expect(onPetLifecycleChange).toHaveBeenCalledTimes(1));
+    expect(onPetLifecycleChange).toHaveBeenCalledWith({
+      petId: "pet-synth-1",
+      status: "死亡",
+      deceasedAt: expect.any(String),
+    });
+    const [{ deceasedAt }] = onPetLifecycleChange.mock.calls[0] as [
+      { petId: string; status: string; deceasedAt: string },
+    ];
+    expect(latestFormData.status).toBe("死亡");
+    expect(latestFormData.deceasedAt).toBe(deceasedAt);
+  });
+
+  it("BUG-002 cross-pet: 死亡記録の完了前に別ペットへ切り替えても表示中フォームを上書きしない", async () => {
+    let resolveRecord: (() => void) | undefined;
+    mockMutateAsync.mockImplementationOnce(
+      () => new Promise<void>((resolve) => {
+        resolveRecord = resolve;
+      }),
+    );
+    let latestFormData: PetFormData = {
+      ...basePet,
+      id: "pet-synth-1",
+      petName: "合成ペット甲",
+      status: "生存",
+      deceasedAt: null,
+    };
+    const setFormData = vi.fn((updater: (prev: PetFormData) => PetFormData) => {
+      latestFormData = updater(latestFormData);
+    });
+    const onPetLifecycleChange = vi.fn();
+    const view = renderPetCareSection(
+      latestFormData,
+      setFormData,
+      onPetLifecycleChange,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "死亡を記録" }));
+    fireEvent.click(screen.getByRole("button", { name: "死亡を記録する" }));
+    await waitFor(() => expect(mockMutateAsync).toHaveBeenCalledTimes(1));
+
+    const switchedPet: PetFormData = {
+      ...basePet,
+      id: "pet-synth-2",
+      petName: "合成ペット乙",
+      status: "生存",
+      deceasedAt: null,
+    };
+    latestFormData = switchedPet;
+    view.rerender(
+      <MemoryRouter>
+        <PetCareSection
+          formData={switchedPet}
+          setFormData={setFormData}
+          insuranceSelectItems={null}
+          isLoadingInsurances={false}
+          canEdit
+          onInsuranceChange={() => {}}
+          onPetLifecycleChange={onPetLifecycleChange}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(resolveRecord).toBeDefined();
+    await act(async () => resolveRecord?.());
+
+    await waitFor(() => expect(onPetLifecycleChange).toHaveBeenCalledTimes(1));
+    expect(latestFormData).toBe(switchedPet);
+    expect(onPetLifecycleChange).toHaveBeenCalledWith({
+      petId: "pet-synth-1",
+      status: "死亡",
+      deceasedAt: expect.any(String),
+    });
+  });
+
+  it("BUG-002 死亡記録失敗時は onPetLifecycleChange を呼ばない", async () => {
+    mockMutateAsync.mockRejectedValueOnce(new Error("network error"));
+    const setFormData = vi.fn();
+    const onPetLifecycleChange = vi.fn();
+
+    renderPetCareSection(
+      {
+        ...basePet,
+        id: "pet-synth-1",
+        petName: "合成ペット甲",
+        status: "生存",
+        deceasedAt: null,
+      },
+      setFormData,
+      onPetLifecycleChange,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "死亡を記録" }));
+    fireEvent.click(screen.getByRole("button", { name: "死亡を記録する" }));
+
+    await screen.findByText("死亡の記録に失敗しました");
+    expect(onPetLifecycleChange).not.toHaveBeenCalled();
+    expect(setFormData).not.toHaveBeenCalled();
+  });
+
+  it("BUG-002 死亡記録解除成功時に onPetLifecycleChange を 生存+null で1回呼ぶ", async () => {
+    mockMutate.mockImplementation((_petId, options) => {
+      options?.onSuccess?.();
+      options?.onSettled?.();
+    });
+    let latestFormData: PetFormData = {
+      ...basePet,
+      id: "pet-synth-1",
+      petName: "合成ペット甲",
+      status: "死亡",
+      deceasedAt: "2026-07-10T12:00:00+09:00",
+    };
+    const setFormData = vi.fn((updater: (prev: PetFormData) => PetFormData) => {
+      latestFormData = updater(latestFormData);
+    });
+    const onPetLifecycleChange = vi.fn();
+
+    renderPetCareSection(latestFormData, setFormData, onPetLifecycleChange);
+
+    fireEvent.click(screen.getByRole("button", { name: "死亡記録を解除" }));
+    fireEvent.click(screen.getByRole("button", { name: "解除する" }));
+
+    await waitFor(() => expect(setFormData).toHaveBeenCalled());
+    await waitFor(() => expect(onPetLifecycleChange).toHaveBeenCalledTimes(1));
+    expect(onPetLifecycleChange).toHaveBeenCalledWith({
+      petId: "pet-synth-1",
+      status: "生存",
+      deceasedAt: null,
+    });
+    expect(latestFormData.status).toBe("生存");
+    expect(latestFormData.deceasedAt).toBeNull();
+  });
+
+  it("BUG-002 cross-pet: 死亡解除の完了前に別ペットへ切り替えても表示中フォームを上書きしない", async () => {
+    let revokeOnSuccess: (() => void) | undefined;
+    mockMutate.mockImplementation((_petId, options) => {
+      revokeOnSuccess = options?.onSuccess;
+    });
+    let latestFormData: PetFormData = {
+      ...basePet,
+      id: "pet-synth-1",
+      petName: "合成ペット甲",
+      status: "死亡",
+      deceasedAt: "2026-07-10T12:00:00+09:00",
+    };
+    const setFormData = vi.fn((updater: (prev: PetFormData) => PetFormData) => {
+      latestFormData = updater(latestFormData);
+    });
+    const onPetLifecycleChange = vi.fn();
+    const view = renderPetCareSection(
+      latestFormData,
+      setFormData,
+      onPetLifecycleChange,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "死亡記録を解除" }));
+    fireEvent.click(screen.getByRole("button", { name: "解除する" }));
+    await waitFor(() => expect(mockMutate).toHaveBeenCalledTimes(1));
+
+    const switchedPet: PetFormData = {
+      ...basePet,
+      id: "pet-synth-2",
+      petName: "合成ペット乙",
+      status: "死亡",
+      deceasedAt: "2026-07-11T12:00:00+09:00",
+    };
+    latestFormData = switchedPet;
+    view.rerender(
+      <MemoryRouter>
+        <PetCareSection
+          formData={switchedPet}
+          setFormData={setFormData}
+          insuranceSelectItems={null}
+          isLoadingInsurances={false}
+          canEdit
+          onInsuranceChange={() => {}}
+          onPetLifecycleChange={onPetLifecycleChange}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(revokeOnSuccess).toBeDefined();
+    revokeOnSuccess?.();
+
+    await waitFor(() => expect(onPetLifecycleChange).toHaveBeenCalledTimes(1));
+    expect(latestFormData).toBe(switchedPet);
+    expect(onPetLifecycleChange).toHaveBeenCalledWith({
+      petId: "pet-synth-1",
+      status: "生存",
+      deceasedAt: null,
+    });
   });
 });

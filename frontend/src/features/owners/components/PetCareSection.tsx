@@ -24,6 +24,12 @@ interface PetCareSectionProps {
   isLoadingInsurances: boolean;
   canEdit: boolean;
   onInsuranceChange: (value: string) => void;
+  /** BUG-002: 専用 lifecycle 成功後に外側 pets 一覧を同期する（失敗時は呼ばない） */
+  onPetLifecycleChange?: (result: {
+    petId: string;
+    status: "死亡" | "生存";
+    deceasedAt: string | null;
+  }) => void;
 }
 
 export function PetCareSection({
@@ -33,7 +39,10 @@ export function PetCareSection({
   isLoadingInsurances,
   canEdit,
   onInsuranceChange,
+  onPetLifecycleChange,
 }: PetCareSectionProps) {
+  const targetPetId = formData.id;
+
   return (
     <div className="space-y-2">
       <div className="space-y-1">
@@ -108,10 +117,10 @@ export function PetCareSection({
         <p className={`text-xs ${C.textMuted}`}>
           生死の変更は下記のボタンから行ってください
         </p>
-        {formData.id ? (
+        {targetPetId ? (
           <div className="pt-1">
             <PetDeceasedRecordButton
-              petId={formData.id}
+              petId={targetPetId}
               petName={formData.petName}
               petBreed={formData.breed}
               petGender={formData.gender}
@@ -119,12 +128,31 @@ export function PetCareSection({
               deceasedAt={formData.deceasedAt ?? null}
               petStatus={formData.status}
               canEdit={canEdit}
-              onRecorded={({ deceasedAt }) =>
-                setFormData((prev) => ({ ...prev, status: "死亡", deceasedAt }))
-              }
-              onRevoked={() =>
-                setFormData((prev) => ({ ...prev, status: "生存", deceasedAt: null }))
-              }
+              onRecorded={({ deceasedAt }) => {
+                setFormData((prev) =>
+                  prev.id === targetPetId
+                    ? { ...prev, status: "死亡", deceasedAt }
+                    : prev,
+                );
+                // BUG-002: mutation 成功後のみ外側一覧へ通知（API は 204・本文なし）
+                onPetLifecycleChange?.({
+                  petId: targetPetId,
+                  status: "死亡",
+                  deceasedAt,
+                });
+              }}
+              onRevoked={() => {
+                setFormData((prev) =>
+                  prev.id === targetPetId
+                    ? { ...prev, status: "生存", deceasedAt: null }
+                    : prev,
+                );
+                onPetLifecycleChange?.({
+                  petId: targetPetId,
+                  status: "生存",
+                  deceasedAt: null,
+                });
+              }}
             />
           </div>
         ) : null}

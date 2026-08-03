@@ -23,6 +23,12 @@ interface PetEditModalProps {
   petData?: PetFormData;
   onSave: (data: PetFormData) => void;
   onChangeOwner?: (newOwner: { id: string; name: string; discountRate: number; membershipType: string }) => void;
+  /** BUG-002: 専用 lifecycle 成功後に外側 pets 一覧を同期する */
+  onPetLifecycleChange?: (result: {
+    petId: string;
+    status: "死亡" | "生存";
+    deceasedAt: string | null;
+  }) => void;
 }
 
 export const PetEditModal = memo(function PetEditModal({
@@ -32,6 +38,7 @@ export const PetEditModal = memo(function PetEditModal({
   petData,
   onSave,
   onChangeOwner,
+  onPetLifecycleChange,
 }: PetEditModalProps) {
   const { canEdit } = usePermission("owners");
   const {
@@ -184,6 +191,7 @@ export const PetEditModal = memo(function PetEditModal({
             isLoadingInsurances={isLoadingInsurances}
             canEdit={canEdit}
             isEdit={isEdit}
+            onPetLifecycleChange={onPetLifecycleChange}
           />
 
           <div className={`flex justify-end gap-2 mt-4 pt-4 border-t ${C.borderDivider}`}>

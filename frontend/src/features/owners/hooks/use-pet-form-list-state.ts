@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useLayoutEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { handleApiError } from "@/lib/handle-api-error";
 import { transformCreatePetRequest, transformUpdatePetRequest, PET_STATUS_REVERSE_MAP } from "@/lib/transforms/pet";
@@ -25,6 +25,13 @@ const DENIED_MUTATION_PERMISSIONS: Readonly<PetMutationPermissions> = {
   canDelete: false,
 };
 
+/** BUG-002: 専用 lifecycle mutation 成功後の外側一覧同期ペイロード */
+type PetLifecycleChange = {
+  petId: string;
+  status: "死亡" | "生存";
+  deceasedAt: string | null;
+};
+
 export function usePetFormListState({
   id,
   initialPets,
@@ -43,6 +50,26 @@ export function usePetFormListState({
   useLayoutEffect(() => {
     petsRef.current = pets;
   }, [pets]);
+
+  // BUG-002: 死亡登録/解除は専用 API が完了済み。外側 pets と編集中 pet を ID 一致で不変更新する。
+  // OwnerForm の editingPetRef.status ガードが stale にならないよう editingPet も同期する。
+  const handlePetLifecycleChange = useCallback(
+    ({ petId, status, deceasedAt }: PetLifecycleChange) => {
+      setPets((prev) => {
+        // foreign/absent ID: 配列参照ごと no-op（map で新配列を作らない）
+        if (!prev.some((pet) => pet.id === petId)) {
+          return prev;
+        }
+        return prev.map((pet) =>
+          pet.id === petId ? { ...pet, status, deceasedAt } : pet,
+        );
+      });
+      setEditingPet((prev) =>
+        prev?.id === petId ? { ...prev, status, deceasedAt } : prev,
+      );
+    },
+    [],
+  );
 
   const handleAddPet = () => {
     if (permissionsRef.current.canCreate !== true) return;
@@ -233,5 +260,6 @@ export function usePetFormListState({
     handleEditPet,
     handleDeletePet,
     handleSavePet,
+    handlePetLifecycleChange,
   };
 }

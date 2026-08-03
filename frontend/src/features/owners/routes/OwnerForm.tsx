@@ -92,6 +92,7 @@ export function OwnerForm({ petMutations, lineSection, accountingSection }: Owne
     handleEditPet,
     handleDeletePet,
     handleSavePet,
+    handlePetLifecycleChange,
     formAction,
     formState,
     fieldErrors,
@@ -323,6 +324,7 @@ export function OwnerForm({ petMutations, lineSection, accountingSection }: Owne
             petData={editingPet ?? undefined}
             onSave={handleSavePet}
             onChangeOwner={handlePetChangeOwner}
+            onPetLifecycleChange={handlePetLifecycleChange}
           />
         </Suspense>
 

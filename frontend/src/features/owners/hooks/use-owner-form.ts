@@ -204,6 +204,7 @@ export function useOwnerForm(
     handleEditPet,
     handleDeletePet,
     handleSavePet,
+    handlePetLifecycleChange,
   } = usePetFormListState({
     id,
     initialPets: initialOwner ? mapOwnerPetsToFormData(initialOwner) : [],
@@ -340,6 +341,7 @@ export function useOwnerForm(
     handleEditPet,
     handleDeletePet,
     handleSavePet,
+    handlePetLifecycleChange,
     formAction,
     formState,
     fieldErrors: manualErrors,

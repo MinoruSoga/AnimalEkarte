@@ -22,6 +22,12 @@ interface PetEditModalFieldsProps {
   isLoadingInsurances: boolean;
   canEdit: boolean;
   isEdit: boolean;
+  /** BUG-002: 専用 lifecycle 成功後に外側 pets 一覧を同期する */
+  onPetLifecycleChange?: (result: {
+    petId: string;
+    status: "死亡" | "生存";
+    deceasedAt: string | null;
+  }) => void;
 }
 
 export function PetEditModalFields({
@@ -36,6 +42,7 @@ export function PetEditModalFields({
   isLoadingInsurances,
   canEdit,
   isEdit,
+  onPetLifecycleChange,
 }: PetEditModalFieldsProps) {
   const animalSpeciesOptions = useMemo<SearchableSelectOption[]>(
     () =>
@@ -110,6 +117,7 @@ export function PetEditModalFields({
         isLoadingInsurances={isLoadingInsurances}
         canEdit={canEdit}
         onInsuranceChange={handleInsuranceChange}
+        onPetLifecycleChange={onPetLifecycleChange}
       />
       {isEdit && formData.id ? (
         <PetSubOwnersSection petId={formData.id} canEdit={canEdit} />

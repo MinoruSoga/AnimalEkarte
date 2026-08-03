@@ -21,6 +21,7 @@ import {
 } from "@/lib/transforms/pet";
 import { ownersLoader } from "../loaders";
 import { usePetFormListState } from "./use-pet-form-list-state";
+import type { Pet } from "@/types";
 import type { PetResponse } from "@/types/generated/pet-responses";
 import type { PetMutations } from "@/types/pet";
 import type { PetFormData } from "../types";
@@ -476,5 +477,454 @@ describe("usePetFormListState mutation permission boundary (FE12-02 C6a)", () =>
     act(() => capturedDelete(pet.id));
 
     expect(mutations.deletePetMutate).not.toHaveBeenCalled();
+  });
+});
+
+// BUG-002: 死亡登録/解除の成功結果を外側 pets 一覧へ不変同期する。
+// モーダル内 form だけ更新しても OwnerPetsSection の生死列は pets ローカル state を見るため、
+// handlePetLifecycleChange が ID 一致ペットだけを status/deceasedAt の組で差し替える必要がある。
+describe("usePetFormListState.handlePetLifecycleChange (BUG-002 outer list sync)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it.each([
+    {
+      name: "死亡成功: 対象 pet-synth-1 のみ 死亡+提出日へ更新し sibling 参照を保つ",
+      change: {
+        petId: "pet-synth-1",
+        status: "死亡" as const,
+        deceasedAt: "2026-07-15",
+      },
+      expectTarget: { status: "死亡", deceasedAt: "2026-07-15" },
+      expectSiblingUnchanged: true,
+    },
+    {
+      name: "解除成功: 対象 pet-synth-1 のみ 生存+deceasedAt null へ戻す",
+      change: {
+        petId: "pet-synth-1",
+        status: "生存" as const,
+        deceasedAt: null,
+      },
+      expectTarget: { status: "生存", deceasedAt: null },
+      expectSiblingUnchanged: true,
+      initialTarget: {
+        status: "死亡" as const,
+        deceasedAt: "2026-07-15",
+      },
+    },
+    {
+      name: "存在しない pet-foreign では一覧を変更しない",
+      change: {
+        petId: "pet-foreign",
+        status: "死亡" as const,
+        deceasedAt: "2026-07-15",
+      },
+      expectTarget: { status: "生存", deceasedAt: undefined },
+      expectSiblingUnchanged: true,
+      expectNoChange: true,
+    },
+  ])("BUG-002 $name", ({ change, expectTarget, expectSiblingUnchanged, initialTarget, expectNoChange }) => {
+    const petA = makePet({
+      id: "pet-synth-1",
+      petName: "合成ペット甲",
+      status: initialTarget?.status ?? "生存",
+      deceasedAt: initialTarget?.deceasedAt,
+    });
+    const petB = makePet({
+      id: "pet-synth-2",
+      petName: "合成ペット乙",
+      status: "生存",
+    });
+    const { mutations } = makePetMutations();
+    const { result } = renderHook(() =>
+      usePetFormListState({
+        id: "owner-1",
+        initialPets: [petA, petB],
+        petMutations: mutations,
+        permissions: ALL_PERMISSIONS,
+      }),
+    );
+    const siblingBefore = result.current.pets[1];
+
+    act(() => {
+      result.current.handlePetLifecycleChange(change);
+    });
+
+    const [afterA, afterB] = result.current.pets;
+    expect(afterA.id).toBe("pet-synth-1");
+    expect(afterA.status).toBe(expectTarget.status);
+    expect(afterA.deceasedAt).toBe(expectTarget.deceasedAt);
+    if (expectSiblingUnchanged) {
+      expect(afterB).toBe(siblingBefore);
+      expect(afterB.status).toBe("生存");
+    }
+    if (expectNoChange) {
+      expect(afterA.status).toBe("生存");
+      expect(result.current.pets).toHaveLength(2);
+    }
+    // 汎用 Save 経路を経由しない（lifecycle は専用 mutation の結果同期のみ）
+    expect(mutations.updatePetMutate).not.toHaveBeenCalled();
+    expect(mutations.revokePetDeathMutate).not.toHaveBeenCalled();
+  });
+});
+
+// BUG-002 coverage: 同一 touched file の未通過分岐を最小テストで閉じ、
+// フォーカス coverage 80% floor を満たす（lifecycle 同期以外の副作用は変更しない）。
+describe("usePetFormListState focused coverage (BUG-002)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("BUG-002 handleAddPet はモーダルを新規モードで開く", () => {
+    const { mutations } = makePetMutations();
+    const { result } = renderHook(() =>
+      usePetFormListState({
+        id: "owner-1",
+        initialPets: [],
+        petMutations: mutations,
+        permissions: ALL_PERMISSIONS,
+      }),
+    );
+
+    act(() => result.current.handleAddPet());
+    expect(result.current.petModalOpen).toBe(true);
+    expect(result.current.editingPet).toBeNull();
+  });
+
+  it("BUG-002 pending ペット削除は mutation なしでローカルから除去する", () => {
+    const pending = makePet({ id: "temp-1", isPending: true });
+    const { mutations } = makePetMutations();
+    const { result } = renderHook(() =>
+      usePetFormListState({
+        id: undefined,
+        initialPets: [pending],
+        petMutations: mutations,
+        permissions: ALL_PERMISSIONS,
+      }),
+    );
+
+    act(() => result.current.handleDeletePet("temp-1"));
+    expect(result.current.pets).toEqual([]);
+    expect(mutations.deletePetMutate).not.toHaveBeenCalled();
+  });
+
+  it("BUG-002 既存ペット削除成功で一覧から除去する", () => {
+    const pet = makePet({ id: "pet-synth-1", petName: "合成ペット甲" });
+    const deletePetMutate = vi.fn(
+      (_id: string, callbacks: { onSuccess: () => void }) => callbacks.onSuccess(),
+    );
+    const mutations: PetMutations = {
+      ...makePetMutations().mutations,
+      deletePetMutate,
+    };
+    const { result } = renderHook(() =>
+      usePetFormListState({
+        id: "owner-1",
+        initialPets: [pet],
+        petMutations: mutations,
+        permissions: ALL_PERMISSIONS,
+      }),
+    );
+
+    act(() => result.current.handleDeletePet("pet-synth-1"));
+    expect(result.current.pets).toEqual([]);
+    expect(deletePetMutate).toHaveBeenCalledTimes(1);
+  });
+
+  it("BUG-002 pending ペット編集保存はローカル map 更新のみ", () => {
+    const pending = makePet({ id: "temp-1", isPending: true, petName: "合成ペット甲" });
+    const { mutations, updatePetMutate } = makePetMutations();
+    const { result } = renderHook(() =>
+      usePetFormListState({
+        id: undefined,
+        initialPets: [pending],
+        petMutations: mutations,
+        permissions: ALL_PERMISSIONS,
+      }),
+    );
+
+    act(() => result.current.handleEditPet(pending));
+    act(() =>
+      result.current.handleSavePet({
+        ...pending,
+        petName: "合成ペット甲改",
+      }),
+    );
+
+    expect(updatePetMutate).not.toHaveBeenCalled();
+    expect(result.current.pets[0]?.petName).toBe("合成ペット甲改");
+    expect(result.current.pets[0]?.isPending).toBe(true);
+  });
+
+  it("BUG-002 飼主未保存時の新規ペットは isPending でローカル追加する", () => {
+    const { mutations } = makePetMutations();
+    const { result } = renderHook(() =>
+      usePetFormListState({
+        id: undefined,
+        initialPets: [],
+        petMutations: mutations,
+        permissions: ALL_PERMISSIONS,
+      }),
+    );
+
+    act(() =>
+      result.current.handleSavePet(
+        makePet({ id: "", petName: "合成ペット乙", animalSpeciesId: "10" }),
+      ),
+    );
+
+    expect(mutations.createPetMutate).not.toHaveBeenCalled();
+    expect(result.current.pets).toHaveLength(1);
+    expect(result.current.pets[0]?.isPending).toBe(true);
+    expect(result.current.pets[0]?.petName).toBe("合成ペット乙");
+  });
+
+  it("BUG-002 既存飼主への作成 onSuccess で一覧へ追加する", () => {
+    const createPetMutate = vi.fn(
+      (
+        _req: unknown,
+        callbacks: { onSuccess: (pet: Pet) => void },
+      ) => {
+        callbacks.onSuccess({
+          id: "pet-created-1",
+          petNumber: "P-NEW",
+          name: "合成ペット丙",
+          petNameKana: "",
+          status: "生存",
+          species: "犬",
+          animalSpeciesId: "10",
+          gender: "オス",
+          birthDate: "",
+          color: "",
+          weight: "",
+          environment: "",
+          remarks: "",
+        } as Pet);
+      },
+    );
+    const mutations: PetMutations = {
+      ...makePetMutations().mutations,
+      createPetMutate,
+    };
+    const { result } = renderHook(() =>
+      usePetFormListState({
+        id: "owner-1",
+        initialPets: [],
+        petMutations: mutations,
+        permissions: ALL_PERMISSIONS,
+      }),
+    );
+
+    act(() =>
+      result.current.handleSavePet(
+        makePet({ id: "", petName: "合成ペット丙", animalSpeciesId: "10" }),
+      ),
+    );
+
+    expect(createPetMutate).toHaveBeenCalledTimes(1);
+    expect(result.current.pets).toHaveLength(1);
+    expect(result.current.pets[0]?.id).toBe("pet-created-1");
+    expect(result.current.pets[0]?.petName).toBe("合成ペット丙");
+  });
+
+  it("BUG-002 更新 onError / 削除 onError / 作成 onError でも一覧 status を変えない", () => {
+    const updatePetMutate = vi.fn(
+      (
+        _args: unknown,
+        callbacks: { onSuccess: () => void; onError: (e: unknown) => void },
+      ) => callbacks.onError(new Error("update failed")),
+    );
+    const deletePetMutate = vi.fn(
+      (
+        _id: string,
+        callbacks: { onSuccess: () => void; onError: (e: unknown) => void },
+      ) => callbacks.onError(new Error("delete failed")),
+    );
+    const createPetMutate = vi.fn(
+      (
+        _req: unknown,
+        callbacks: {
+          onSuccess: (pet: Pet) => void;
+          onError: (e: unknown) => void;
+        },
+      ) => callbacks.onError(new Error("create failed")),
+    );
+    const pet = makePet({ id: "pet-synth-1", petName: "合成ペット甲" });
+    const mutations: PetMutations = {
+      ...makePetMutations().mutations,
+      updatePetMutate,
+      deletePetMutate,
+      createPetMutate,
+    };
+    const { result } = renderHook(() =>
+      usePetFormListState({
+        id: "owner-1",
+        initialPets: [pet],
+        petMutations: mutations,
+        permissions: ALL_PERMISSIONS,
+      }),
+    );
+
+    act(() => result.current.handleEditPet(pet));
+    act(() => result.current.handleSavePet(makePet({ remarks: "x" })));
+    act(() => result.current.handleDeletePet("pet-synth-1"));
+    expect(updatePetMutate).toHaveBeenCalled();
+    expect(deletePetMutate).toHaveBeenCalled();
+    expect(result.current.pets[0]?.status).toBe("生存");
+
+    // 作成経路は editingPet 無しで別 hook を使う
+    const { result: createResult } = renderHook(() =>
+      usePetFormListState({
+        id: "owner-1",
+        initialPets: [],
+        petMutations: mutations,
+        permissions: ALL_PERMISSIONS,
+      }),
+    );
+    act(() =>
+      createResult.current.handleSavePet(
+        makePet({ id: "", petName: "合成ペット丁", animalSpeciesId: "10" }),
+      ),
+    );
+    expect(createPetMutate).toHaveBeenCalled();
+    expect(createResult.current.pets).toHaveLength(0);
+  });
+});
+
+// BUG-002 follow-up: outer pets 同期後も editingPet が古いと OwnerForm の
+// editingPetRef.status === "死亡" 飼主変更ガードが stale になる。
+// death 後は editingPet も 死亡+提出日、revocation 後は 生存+null に揃える。
+describe("usePetFormListState.handlePetLifecycleChange (BUG-002 follow-up editingPet)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it.each([
+    {
+      name: "death: pets と editingPet が 死亡+提出日に揃う",
+      change: {
+        petId: "pet-synth-1",
+        status: "死亡" as const,
+        deceasedAt: "2026-07-15",
+      },
+      initialTarget: { status: "生存" as const, deceasedAt: null as string | null },
+      expectTarget: { status: "死亡", deceasedAt: "2026-07-15" },
+    },
+    {
+      name: "revocation: pets と editingPet が 生存+null に揃う",
+      change: {
+        petId: "pet-synth-1",
+        status: "生存" as const,
+        deceasedAt: null,
+      },
+      initialTarget: {
+        status: "死亡" as const,
+        deceasedAt: "2026-07-15" as string | null,
+      },
+      expectTarget: { status: "生存", deceasedAt: null },
+    },
+  ])("BUG-002 follow-up $name", ({ change, initialTarget, expectTarget }) => {
+    const petA = makePet({
+      id: "pet-synth-1",
+      petName: "合成ペット甲",
+      status: initialTarget.status,
+      deceasedAt: initialTarget.deceasedAt,
+    });
+    const petB = makePet({
+      id: "pet-synth-2",
+      petName: "合成ペット乙",
+      status: "生存",
+    });
+    const { mutations } = makePetMutations();
+    const { result } = renderHook(() =>
+      usePetFormListState({
+        id: "owner-1",
+        initialPets: [petA, petB],
+        petMutations: mutations,
+        permissions: ALL_PERMISSIONS,
+      }),
+    );
+
+    act(() => result.current.handleEditPet(petA));
+    const siblingBefore = result.current.pets[1];
+    const editingBefore = result.current.editingPet;
+
+    act(() => {
+      result.current.handlePetLifecycleChange(change);
+    });
+
+    const [afterA, afterB] = result.current.pets;
+    const editingAfter = result.current.editingPet;
+    expect(afterA.status).toBe(expectTarget.status);
+    expect(afterA.deceasedAt).toBe(expectTarget.deceasedAt);
+    expect(editingAfter).not.toBeNull();
+    expect(editingAfter).not.toBe(editingBefore);
+    expect(editingAfter?.id).toBe("pet-synth-1");
+    expect(editingAfter?.status).toBe(expectTarget.status);
+    expect(editingAfter?.deceasedAt).toBe(expectTarget.deceasedAt);
+    expect(afterB).toBe(siblingBefore);
+  });
+
+  it("BUG-002 follow-up foreign ID では pets と editingPet を変更しない", () => {
+    const petA = makePet({
+      id: "pet-synth-1",
+      petName: "合成ペット甲",
+      status: "生存",
+      deceasedAt: null,
+    });
+    const petB = makePet({
+      id: "pet-synth-2",
+      petName: "合成ペット乙",
+      status: "生存",
+    });
+    const { mutations } = makePetMutations();
+    const { result } = renderHook(() =>
+      usePetFormListState({
+        id: "owner-1",
+        initialPets: [petA, petB],
+        petMutations: mutations,
+        permissions: ALL_PERMISSIONS,
+      }),
+    );
+
+    act(() => result.current.handleEditPet(petA));
+    const petsBefore = result.current.pets;
+    const editingBefore = result.current.editingPet;
+    const siblingBefore = result.current.pets[1];
+
+    act(() => {
+      result.current.handlePetLifecycleChange({
+        petId: "pet-foreign",
+        status: "死亡",
+        deceasedAt: "2026-07-15",
+      });
+    });
+
+    expect(result.current.pets[0]?.status).toBe("生存");
+    expect(result.current.editingPet).toBe(editingBefore);
+    expect(result.current.editingPet?.status).toBe("生存");
+    expect(result.current.pets[1]).toBe(siblingBefore);
+    // foreign ID は完全 no-op: 配列参照ごと変更しない
+    expect(result.current.pets).toBe(petsBefore);
+  });
+
+  it("BUG-002 follow-up handlePetLifecycleChange 参照は同等入力の再レンダーで安定", () => {
+    const pet = makePet({ id: "pet-synth-1", petName: "合成ペット甲" });
+    const { mutations } = makePetMutations();
+    const { result, rerender } = renderHook(
+      ({ permissions }: { permissions: typeof ALL_PERMISSIONS }) =>
+        usePetFormListState({
+          id: "owner-1",
+          initialPets: [pet],
+          petMutations: mutations,
+          permissions,
+        }),
+      { initialProps: { permissions: ALL_PERMISSIONS } },
+    );
+
+    const first = result.current.handlePetLifecycleChange;
+    rerender({ permissions: ALL_PERMISSIONS });
+    expect(result.current.handlePetLifecycleChange).toBe(first);
   });
 });
