@@ -365,6 +365,205 @@ func TestExaminationRevision_OfficialReadSeparatesOfficialVersionFromCurrentPoin
 	}
 }
 
+func TestExaminationRevision_UnconfirmWorkingEditItemsAndReconfirmAppendsVersions(t *testing.T) {
+	db := setupExaminationTestDB(t)
+	ctx := context.Background()
+	const clinicID = uint64(1)
+
+	actorID := makeExaminationActor(t, db, clinicID, "revision lifecycle actor")
+	examType := makeExamTypeMaster(t, db, clinicID, "revision lifecycle exam type")
+	auditEntries := make([]*AuditEntry, 0, 4)
+	service := NewExaminationService(
+		NewExaminationRepository(db),
+		&mockMedicalRecordRepository{},
+		NewExamTypeRepository(db),
+		&mockAuditTxLogger{logEntryTxFn: func(auditCtx context.Context, entry *AuditEntry) error {
+			require.NotNil(t, persistence.TxFromContext(auditCtx))
+			auditEntries = append(auditEntries, entry)
+			return nil
+		}},
+		persistence.NewTransactor(db),
+	)
+	created, err := service.Create(ctx, clinicID, &CreateExaminationInput{
+		ExamTypeID: examType.ID,
+		Date:       time.Date(2026, time.August, 3, 0, 0, 0, 0, time.UTC),
+		Status:     model.ExaminationStatusConfirmed,
+		ActorID:    &actorID,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, created.CurrentRevisionVersion)
+	assert.Equal(t, uint64(1), *created.CurrentRevisionVersion)
+
+	unconfirmed, err := service.Unconfirm(ctx, clinicID, created.ID, UnconfirmExaminationInput{
+		Reason:  "  result correction requested  ",
+		ActorID: &actorID,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, unconfirmed.CurrentRevisionVersion)
+	assert.Equal(t, model.ExaminationStatusCompleted, unconfirmed.Status)
+	assert.Equal(t, uint64(2), *unconfirmed.CurrentRevisionVersion)
+
+	updatedSummary := "corrected working result"
+	updatedItems := []UpsertExamItemInput{{
+		Name: "manual result", InspectionValue: "positive", SortOrder: 1,
+	}}
+	updated, err := service.Update(ctx, clinicID, created.ID, UpdateExaminationInput{
+		ResultSummary: &updatedSummary,
+		Items:         &updatedItems,
+		ActorID:       &actorID,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, updated.CurrentRevisionVersion)
+	assert.Equal(t, uint64(3), *updated.CurrentRevisionVersion)
+
+	confirmedStatus := model.ExaminationStatusConfirmed
+	reconfirmed, err := service.Update(ctx, clinicID, created.ID, UpdateExaminationInput{
+		Status:  &confirmedStatus,
+		ActorID: &actorID,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, reconfirmed.CurrentRevisionVersion)
+	assert.Equal(t, model.ExaminationStatusConfirmed, reconfirmed.Status)
+	assert.Equal(t, uint64(4), *reconfirmed.CurrentRevisionVersion)
+
+	var revisions []model.ExaminationRevision
+	require.NoError(t, db.Where("clinic_id = ? AND examination_id = ?", clinicID, created.ID).
+		Order("version ASC").Find(&revisions).Error)
+	require.Len(t, revisions, 4)
+	assert.Equal(t, []model.ExaminationRevisionKind{
+		model.ExaminationRevisionKindOfficial,
+		model.ExaminationRevisionKindWorking,
+		model.ExaminationRevisionKindWorking,
+		model.ExaminationRevisionKindOfficial,
+	}, []model.ExaminationRevisionKind{revisions[0].Kind, revisions[1].Kind, revisions[2].Kind, revisions[3].Kind})
+	assert.Equal(t, "", revisions[0].ResultSummary, "the original official snapshot stays immutable")
+	assert.Equal(t, "result correction requested", *revisions[1].ChangeReason)
+	assert.Equal(t, updatedSummary, revisions[2].ResultSummary)
+	assert.Equal(t, updatedSummary, revisions[3].ResultSummary)
+
+	var latestItems []model.ExaminationRevisionItem
+	require.NoError(t, db.Where(
+		"clinic_id = ? AND examination_id = ? AND version = ?", clinicID, created.ID, uint64(4),
+	).Find(&latestItems).Error)
+	require.Len(t, latestItems, 1)
+	assert.Equal(t, "manual result", latestItems[0].Name)
+
+	require.Len(t, auditEntries, 4)
+	assert.Equal(t, model.AuditActionExaminationUnconfirm, auditEntries[1].Action)
+	unconfirmMetadata, ok := auditEntries[1].Metadata.(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "result correction requested", unconfirmMetadata["reason"])
+}
+
+func TestExaminationRevision_UnconfirmRejectsWrongStatusAndLegacyConfirmed(t *testing.T) {
+	db := setupExaminationTestDB(t)
+	ctx := context.Background()
+	const clinicID = uint64(1)
+	actorID := makeExaminationActor(t, db, clinicID, "unconfirm rejection actor")
+	examType := makeExamTypeMaster(t, db, clinicID, "unconfirm rejection exam type")
+	service := NewExaminationService(
+		NewExaminationRepository(db),
+		&mockMedicalRecordRepository{},
+		NewExamTypeRepository(db),
+		&mockAuditTxLogger{},
+		persistence.NewTransactor(db),
+	)
+
+	for _, tt := range []struct {
+		name   string
+		status model.ExaminationStatus
+	}{
+		{name: "completed is not confirmed", status: model.ExaminationStatusCompleted},
+		{name: "legacy confirmed has no official pointer", status: model.ExaminationStatusConfirmed},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			exam := makeExaminationRec(t, db, &model.Examination{
+				ClinicID: clinicID, ExamTypeID: examType.ID,
+				Date: time.Date(2026, time.August, 3, 0, 0, 0, 0, time.UTC), Status: tt.status,
+			})
+
+			got, err := service.Unconfirm(ctx, clinicID, exam.ID, UnconfirmExaminationInput{
+				Reason: "result correction requested", ActorID: &actorID,
+			})
+
+			assert.True(t, apperrors.IsConflict(err))
+			assert.Nil(t, got)
+			assertExaminationRevisionRows(t, db, clinicID, exam.ID, 0, 0)
+		})
+	}
+}
+
+func TestExaminationRevision_UnconfirmAuditFailureRollsBackWorkingRevisionAndPointer(t *testing.T) {
+	db := setupExaminationTestDB(t)
+	require.NoError(t, testdb.EnsureAutoMigrated(db, &model.AuditLog{}))
+	ctx := context.Background()
+	const clinicID = uint64(1)
+	actorID := makeExaminationActor(t, db, clinicID, "unconfirm rollback actor")
+	examType := makeExamTypeMaster(t, db, clinicID, "unconfirm rollback exam type")
+	repo := NewExaminationRepository(db)
+	creator := NewExaminationService(
+		repo,
+		&mockMedicalRecordRepository{},
+		NewExamTypeRepository(db),
+		&mockAuditTxLogger{},
+		persistence.NewTransactor(db),
+	)
+	confirmed, err := creator.Create(ctx, clinicID, &CreateExaminationInput{
+		ExamTypeID: examType.ID,
+		Date:       time.Date(2026, time.August, 3, 0, 0, 0, 0, time.UTC),
+		Status:     model.ExaminationStatusConfirmed,
+		ActorID:    &actorID,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, confirmed.CurrentRevisionVersion)
+
+	failure := errors.New("injected unconfirm audit failure")
+	auditMarker := fmt.Sprintf("examination-unconfirm-rollback-%d", confirmed.ID)
+	auditWrites := 0
+	service := NewExaminationService(
+		repo,
+		&mockMedicalRecordRepository{},
+		NewExamTypeRepository(db),
+		&mockAuditTxLogger{logEntryTxFn: func(auditCtx context.Context, entry *AuditEntry) error {
+			marshalValue := func(value any) json.RawMessage {
+				if value == nil {
+					return nil
+				}
+				encoded, marshalErr := json.Marshal(value)
+				require.NoError(t, marshalErr)
+				return encoded
+			}
+			auditLog := &model.AuditLog{
+				ClinicID: entry.ClinicID, ActorID: entry.ActorID, ActorType: entry.ActorType,
+				Action: entry.Action, Resource: entry.Resource, ResourceID: entry.ResourceID,
+				OldValue: marshalValue(entry.OldValue), NewValue: marshalValue(entry.NewValue),
+				Metadata: marshalValue(entry.Metadata), UserAgent: auditMarker,
+			}
+			require.NoError(t, persistence.DBOrTx(auditCtx, db).Create(auditLog).Error)
+			auditWrites++
+			return failure
+		}},
+		persistence.NewTransactor(db),
+	)
+
+	got, err := service.Unconfirm(ctx, clinicID, confirmed.ID, UnconfirmExaminationInput{
+		Reason: "result correction requested", ActorID: &actorID,
+	})
+
+	assert.ErrorIs(t, err, failure)
+	assert.Nil(t, got)
+	assert.Equal(t, 1, auditWrites, "the durable audit write must occur inside the transaction before rollback")
+	var auditCount int64
+	require.NoError(t, db.Model(&model.AuditLog{}).Where("user_agent = ?", auditMarker).Count(&auditCount).Error)
+	assert.Zero(t, auditCount)
+	persisted, err := repo.FindByID(ctx, clinicID, confirmed.ID)
+	require.NoError(t, err)
+	assert.Equal(t, model.ExaminationStatusConfirmed, persisted.Status)
+	require.NotNil(t, persisted.CurrentRevisionVersion)
+	assert.Equal(t, uint64(1), *persisted.CurrentRevisionVersion)
+	assertExaminationRevisionRows(t, db, clinicID, confirmed.ID, 1, 0)
+}
+
 func TestExaminationRevisionMigration_DeclaresTenantSafeAppendOnlyContract(t *testing.T) {
 	ddl := readExaminationRevisionMigration(t)
 	normalizedDDL := strings.Join(strings.Fields(ddl), " ")

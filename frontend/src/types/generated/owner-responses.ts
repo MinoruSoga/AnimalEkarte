@@ -104,11 +104,7 @@ export interface OwnerResponse {
   delivery_caution_reason?: string;
   is_transferred: boolean;
   transfer_at?: string;
-  /**
-   * *bool omitempty: absent = undefined, explicit false stays false.
-   * JSON null is rare but preserved by consumers via boolean | null.
-   */
-  dm_preference?: boolean | null;
+  dm_preference?: boolean;
   pets: PetInOwnerResponse[];
   created_at: string;
   updated_at: string;

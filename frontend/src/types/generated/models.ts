@@ -297,12 +297,35 @@ export const AuditActionCheckupFieldResultReplace = "checkup_field_result.replac
  * checkup_field_result と同型の tx 内 fail-closed 監査。
  */
 export const AuditActionExamResultReplace = "exam_result.replace";
+/**
+ * #249 / DEC-53: parent examination mutation は authenticated actor と before/after を
+ * mutation と同じ transaction で記録する。confirm は update と分離して状態遷移を識別する。
+ */
+export const AuditActionExaminationCreate = "examination.create";
+export const AuditActionExaminationUpdate = "examination.update";
+export const AuditActionExaminationConfirm = "examination.confirm";
+export const AuditActionExaminationUnconfirm = "examination.unconfirm";
+export const AuditActionExaminationDelete = "examination.delete";
 export const AuditActionPetOwnerReplace = "pet_owner.replace";
 export const AuditActionHospitalizationDischargeWithBilling = "hospitalization.discharge_with_billing";
 /**
+ * #239 identity link 手動 link/unlink（PHI を載せない ID のみ）
+ */
+export const AuditActionOwnerIdentityLinkCreate = "owner_identity_link.create";
+export const AuditActionOwnerIdentityLinkAdd = "owner_identity_link.add_members";
+export const AuditActionOwnerIdentityLinkUnlink = "owner_identity_link.unlink";
+export const AuditActionPetIdentityLinkCreate = "pet_identity_link.create";
+export const AuditActionPetIdentityLinkAdd = "pet_identity_link.add_members";
+export const AuditActionPetIdentityLinkUnlink = "pet_identity_link.unlink";
+/**
+ * #255 staff batch provisioning（PII 非搭載: batch_id / digest / count / external_staff_id のみ）
+ */
+export const AuditActionStaffProvisionCreate = "staff.provision.create";
+export const AuditActionStaffProvisionReceipt = "staff.provision.receipt";
+/**
  * 監査アクション定数
  */
-export type AuditAct = typeof AuditActorTypeStaff | typeof AuditActorTypeSystem | typeof AuditActionPermissionGroupCreate | typeof AuditActionPermissionGroupUpdate | typeof AuditActionPermissionGroupDelete | typeof AuditActionPermissionRulesUpdate | typeof AuditActionStaffPermissionGroupsReplace | typeof AuditActionAuthLoginSuccess | typeof AuditActionAuthLoginFailure | typeof AuditActionAuthLogout | typeof AuditActionAuthPasswordChange | typeof AuditActionAuthPasswordReset | typeof AuditActionAuthPasswordAdminReplace | typeof AuditActionLstepSettingsSave | typeof AuditActionLstepTagSync | typeof AuditActionLstepTagSyncBulk | typeof AuditActionLineNotificationSend | typeof AuditActionOwnerLineUserIDUpdate | typeof AuditActionOwnerLineUserIDUnlink | typeof AuditActionReservationNoShow | typeof AuditActionManualArticleUpsert | typeof AuditActionManualArticleDelete | typeof AuditActionTrimmingCreate | typeof AuditActionTrimmingUpdate | typeof AuditActionTrimmingDelete | typeof AuditActionBillingCancel | typeof AuditActionBillingPostCloseEdit | typeof AuditActionBillingRefundCreate | typeof AuditActionBillingCreditCorrection | typeof AuditActionBillingVaccinationClaimRelease | typeof AuditActionMedicineDoseParamUpsert | typeof AuditActionMedicineDoseParamDelete | typeof AuditActionMedicinePerWeightEnable | typeof AuditActionTreatmentDoseDeviation | typeof AuditActionLabImportPreviewRequested | typeof AuditActionLabImportCommitRequested | typeof AuditActionLabImportCommitSucceeded | typeof AuditActionLabImportCommitFailed | typeof AuditActionLabImportSourceBlocked | typeof AuditActionCheckupFieldResultReplace | typeof AuditActionExamResultReplace | typeof AuditActionPetOwnerReplace | typeof AuditActionHospitalizationDischargeWithBilling;
+export type AuditAct = typeof AuditActorTypeStaff | typeof AuditActorTypeSystem | typeof AuditActionPermissionGroupCreate | typeof AuditActionPermissionGroupUpdate | typeof AuditActionPermissionGroupDelete | typeof AuditActionPermissionRulesUpdate | typeof AuditActionStaffPermissionGroupsReplace | typeof AuditActionAuthLoginSuccess | typeof AuditActionAuthLoginFailure | typeof AuditActionAuthLogout | typeof AuditActionAuthPasswordChange | typeof AuditActionAuthPasswordReset | typeof AuditActionAuthPasswordAdminReplace | typeof AuditActionLstepSettingsSave | typeof AuditActionLstepTagSync | typeof AuditActionLstepTagSyncBulk | typeof AuditActionLineNotificationSend | typeof AuditActionOwnerLineUserIDUpdate | typeof AuditActionOwnerLineUserIDUnlink | typeof AuditActionReservationNoShow | typeof AuditActionManualArticleUpsert | typeof AuditActionManualArticleDelete | typeof AuditActionTrimmingCreate | typeof AuditActionTrimmingUpdate | typeof AuditActionTrimmingDelete | typeof AuditActionBillingCancel | typeof AuditActionBillingPostCloseEdit | typeof AuditActionBillingRefundCreate | typeof AuditActionBillingCreditCorrection | typeof AuditActionBillingVaccinationClaimRelease | typeof AuditActionMedicineDoseParamUpsert | typeof AuditActionMedicineDoseParamDelete | typeof AuditActionMedicinePerWeightEnable | typeof AuditActionTreatmentDoseDeviation | typeof AuditActionLabImportPreviewRequested | typeof AuditActionLabImportCommitRequested | typeof AuditActionLabImportCommitSucceeded | typeof AuditActionLabImportCommitFailed | typeof AuditActionLabImportSourceBlocked | typeof AuditActionCheckupFieldResultReplace | typeof AuditActionExamResultReplace | typeof AuditActionExaminationCreate | typeof AuditActionExaminationUpdate | typeof AuditActionExaminationConfirm | typeof AuditActionExaminationUnconfirm | typeof AuditActionExaminationDelete | typeof AuditActionPetOwnerReplace | typeof AuditActionHospitalizationDischargeWithBilling | typeof AuditActionOwnerIdentityLinkCreate | typeof AuditActionOwnerIdentityLinkAdd | typeof AuditActionOwnerIdentityLinkUnlink | typeof AuditActionPetIdentityLinkCreate | typeof AuditActionPetIdentityLinkAdd | typeof AuditActionPetIdentityLinkUnlink | typeof AuditActionStaffProvisionCreate | typeof AuditActionStaffProvisionReceipt;
 export const AuditResourceAccount = "account";
 export const AuditResourceStaff = "staff";
 export const AuditResourceLabImport = "lab_import";
@@ -320,6 +343,10 @@ export const AuditResourceCheckupFieldResult = "checkup_field_result";
  * BE-refactor.md R1-2: 検査結果値の置換（既存削除を伴う）監査
  */
 export const AuditResourceExamResult = "exam_result";
+/**
+ * #249 / DEC-53: parent exams row の create/update/confirm/delete 監査。
+ */
+export const AuditResourceExamination = "examination";
 export const AuditResourceReservation = "reservation";
 export const AuditResourceHospitalization = "hospitalization";
 export const AuditResourceTrimming = "trimming";
@@ -328,9 +355,17 @@ export const AuditResourceTrimming = "trimming";
  */
 export const AuditResourceCarePlanItem = "care_plan_item";
 /**
+ * #239 identity link groups（owner / pet 共通 resource 名）
+ */
+export const AuditResourceIdentityLink = "identity_link";
+/**
+ * #255 staff batch provisioning receipt（clinic-scoped, PII-free）
+ */
+export const AuditResourceStaffProvisionBatch = "staff_provision_batch";
+/**
  * audit_logs.resource 定数
  */
-export type AuditResource = typeof AuditResourceAccount | typeof AuditResourceStaff | typeof AuditResourceLabImport | typeof AuditResourceMedicineDoseParam | typeof AuditResourceMedicine | typeof AuditResourceTreatmentDose | typeof AuditResourceCheckupFieldResult | typeof AuditResourceExamResult | typeof AuditResourceReservation | typeof AuditResourceHospitalization | typeof AuditResourceTrimming | typeof AuditResourceCarePlanItem;
+export type AuditResource = typeof AuditResourceAccount | typeof AuditResourceStaff | typeof AuditResourceLabImport | typeof AuditResourceMedicineDoseParam | typeof AuditResourceMedicine | typeof AuditResourceTreatmentDose | typeof AuditResourceCheckupFieldResult | typeof AuditResourceExamResult | typeof AuditResourceExamination | typeof AuditResourceReservation | typeof AuditResourceHospitalization | typeof AuditResourceTrimming | typeof AuditResourceCarePlanItem | typeof AuditResourceIdentityLink | typeof AuditResourceStaffProvisionBatch;
 /**
  * care plan item destructive actions (MRA-01)
  */
@@ -512,7 +547,10 @@ export interface CampaignTargetItem {
 // source: cash_register_close.go
 
 /**
- * CashRegisterClose はレジ締めレコード
+ * CashRegisterClose はレジ締めレコード。
+ * W-013 FINAL B: append-only。app は Update/Delete/soft-delete しない。
+ * DB の deleted_at 列は migration 003 以降未使用（完全 UNIQUE と immutability trigger で再オープン不可）。
+ * 締め後の会計訂正は CashRegisterCloseAdjustment への追記で表現する（close 自体の reverse は productize しない）。
  */
 export interface CashRegisterClose {
   id: number /* uint64 */;
@@ -539,6 +577,12 @@ export interface CashRegisterClose {
 export interface CategoryBreakdownSchema {
   categories: { [key: string]: { [key: string]: number /* int64 */}}; // category → payment_method_name → amount
   tax_breakdown: TaxBreakdown;
+  /**
+   * UnclassifiedOtherCount は category=other 明細を1件以上持つ会計の distinct 件数（DEC-40）。
+   * ポインタ + omitempty により旧 snapshot ではフィールド欠落（FE は「記録なし」表示）。
+   * 0 件の場合もポインタ先 0 として保存し、欠落と区別する。
+   */
+  unclassified_other_count?: number /* int64 */;
 }
 /**
  * TaxBreakdown は消費税区分別の集計
@@ -553,6 +597,27 @@ export interface TaxBreakdown {
 export interface TaxBreakdownItem {
   taxable_amount: number /* int64 */;
   tax_amount: number /* int64 */;
+}
+
+//////////
+// source: cash_register_close_adjustment.go
+
+/**
+ * CashRegisterCloseAdjustment はレジ締め後の会計訂正台帳（W-013 append-only）。
+ * close レコード自体の reverse/取消は productize しない。締め後の会計編集は本テーブルへ追記し、
+ * 監査ログ（AuditActionBillingPostCloseEdit）と同一 transaction で fail-closed に記録する。
+ */
+export interface CashRegisterCloseAdjustment {
+  id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  close_id: number /* uint64 */;
+  billing_id: number /* uint64 */;
+  accounting_delta: number /* int64 */;
+  cash_movement_amount: number /* int64 */;
+  reason: string;
+  actor_id?: number /* uint64 */;
+  executed_at: string;
+  created_at: string;
 }
 
 //////////
@@ -1075,6 +1140,7 @@ export interface Estimate {
   comment: string;
   notes: string;
   created_by?: number /* uint64 */;
+  supersedes_estimate_id?: number /* uint64 */;
   created_at: string;
   updated_at: string;
   /**
@@ -1162,6 +1228,11 @@ export interface Examination {
   result_summary: string;
   machine: string;
   status: ExaminationStatus;
+  /**
+   * CurrentRevisionVersion points at the append-only working/official revision selected by
+   * the examination workflow. A nil pointer denotes a legacy or not-yet-revisioned row.
+   */
+  current_revision_version?: number /* uint64 */;
   created_at: string;
   updated_at: string;
   /**
@@ -1196,6 +1267,83 @@ export interface ExamResult {
    * Relations
    */
   exam_type_field?: ExamTypeField;
+}
+
+//////////
+// source: examination_revision.go
+
+/**
+ * ExaminationRevisionKind is the sole discriminator between an editable working
+ * snapshot and an immutable official snapshot.
+ */
+export const ExaminationRevisionKindWorking = "working";
+export const ExaminationRevisionKindOfficial = "official";
+export type ExaminationRevisionKind = typeof ExaminationRevisionKindWorking | typeof ExaminationRevisionKindOfficial;
+/**
+ * ExaminationDisplaySnapshot contains the human-readable identity/master labels that
+ * must remain stable even after mutable source rows are renamed or transferred.
+ */
+export interface ExaminationDisplaySnapshot {
+  medical_record_no: string;
+  pet_name: string;
+  medical_record_owner_name: string;
+  pet_owner_name: string;
+  species_name: string;
+  exam_type_name: string;
+  doctor_name: string;
+}
+/**
+ * ExaminationRevision is an append-only snapshot of one examination parent version.
+ * Mutable identity and master rows are intentionally not modeled as GORM relations.
+ */
+export interface ExaminationRevision {
+  id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  examination_id: number /* uint64 */;
+  version: number /* uint64 */;
+  kind: ExaminationRevisionKind;
+  status: ExaminationStatus;
+  medical_record_id?: number /* uint64 */;
+  pet_id?: number /* uint64 */;
+  medical_record_owner_id?: number /* uint64 */;
+  pet_owner_id?: number /* uint64 */;
+  animal_species_id?: number /* uint64 */;
+  exam_type_id: number /* uint64 */;
+  doctor_id?: number /* uint64 */;
+  job_id?: string;
+  actor_id: number /* uint64 */;
+  date: string;
+  result_summary: string;
+  machine: string;
+  display_snapshot: unknown;
+  schema_version: number /* int16 */;
+  change_reason?: string;
+  created_at: string;
+}
+/**
+ * ExaminationRevisionItem is an immutable item snapshot owned by one revision triple.
+ */
+export interface ExaminationRevisionItem {
+  id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  examination_id: number /* uint64 */;
+  version: number /* uint64 */;
+  exam_type_field_id?: number /* uint64 */;
+  name: string;
+  inspection_value: string;
+  normal_value: string;
+  result: string;
+  unit: string;
+  reference_value: string;
+  ref_min?: number /* float64 */;
+  ref_max?: number /* float64 */;
+  qualitative_min?: string;
+  qualitative_max?: string;
+  is_assessed: boolean;
+  is_abnormal: boolean;
+  status: ExaminationResultStatus;
+  sort_order: number /* int */;
+  created_at: string;
 }
 
 //////////
@@ -1429,6 +1577,59 @@ export interface HospitalizationPlan {
   tax_type: TaxType;
   tax_rate: number /* float64 */;
   sort_order: number /* int */;
+  created_at: string;
+  updated_at: string;
+}
+
+//////////
+// source: identity_link.go
+
+/**
+ * OwnerIdentityGroup anchors a manual multi-clinic owner identity link (#239).
+ * created_clinic_id is the RLS/write anchor and is immutable after insert.
+ */
+export interface OwnerIdentityGroup {
+  id: number /* uint64 */;
+  created_clinic_id: number /* uint64 */;
+  version: number /* int64 */;
+  created_at: string;
+  updated_at: string;
+  members?: OwnerIdentityGroupMember[];
+}
+/**
+ * OwnerIdentityGroupMember is a clinic-scoped owner row participating in a group.
+ */
+export interface OwnerIdentityGroupMember {
+  id: number /* uint64 */;
+  group_created_clinic_id: number /* uint64 */;
+  group_id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  owner_id: number /* uint64 */;
+  created_at: string;
+  updated_at: string;
+}
+/**
+ * PetIdentityGroup anchors a pet identity link that must hang under an owner identity group.
+ */
+export interface PetIdentityGroup {
+  id: number /* uint64 */;
+  created_clinic_id: number /* uint64 */;
+  owner_group_created_clinic_id: number /* uint64 */;
+  owner_group_id: number /* uint64 */;
+  version: number /* int64 */;
+  created_at: string;
+  updated_at: string;
+  members?: PetIdentityGroupMember[];
+}
+/**
+ * PetIdentityGroupMember is a clinic-scoped pet row participating in a pet identity group.
+ */
+export interface PetIdentityGroupMember {
+  id: number /* uint64 */;
+  group_created_clinic_id: number /* uint64 */;
+  group_id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  pet_id: number /* uint64 */;
   created_at: string;
   updated_at: string;
 }
@@ -1729,6 +1930,11 @@ export interface LineReservationSetting {
   show_no_staff_option: boolean;
   additional_fields: string /* []byte */;
   line_channel_id: string;
+  /**
+   * LineBotUserID is the LINE Messaging API bot user ID (webhook destination).
+   * Used for O(1) webhook signature routing (SEC-CS-F05-R1). Empty until provisioned.
+   */
+  line_bot_user_id?: string;
   liff_id: string;
   created_at: string;
   updated_at: string;
@@ -2345,6 +2551,7 @@ export const ResourceMedicalRecords = "medical-records";
 export const ResourceHospitalization = "hospitalization";
 export const ResourceTrimming = "trimming";
 export const ResourceExaminations = "examinations";
+export const ResourceExaminationUnconfirm = "examination-unconfirm";
 export const ResourceAccounting = "accounting";
 export const ResourceVaccinations = "vaccinations";
 export const ResourceCheckups = "checkups";
@@ -2403,7 +2610,7 @@ export const ResourceLabImport = "lab-import";
  * #239: 医院別 owner/pet を残したままの identity link（view / edit 分離・fail-closed default）
  */
 export const ResourceIdentityLinks = "identity-links";
-export type Resource = typeof ResourceReception | typeof ResourceOwners | typeof ResourceReservations | typeof ResourceMedicalRecords | typeof ResourceHospitalization | typeof ResourceTrimming | typeof ResourceExaminations | typeof ResourceAccounting | typeof ResourceVaccinations | typeof ResourceCheckups | typeof ResourceInventory | typeof ResourceEstimates | typeof ResourceShifts | typeof ResourceHospitalSettings | typeof ResourceMasterAnimalSpecies | typeof ResourceMasterMedical | typeof ResourceMasterReservationType | typeof ResourceMasterHospitalization | typeof ResourceMasterTrimming | typeof ResourceMasterPermission | typeof ResourceMasterStaff | typeof ResourceMasterInsurance | typeof ResourceMasterMerchandise | typeof ResourceDiscount | typeof ResourceCashRegisterClose | typeof ResourceAccountingReports | typeof ResourceClosingSettings | typeof ResourcePaymentMethod | typeof ResourceLstepCsvImport | typeof ResourceLstepAnalytics | typeof ResourceManualEdit | typeof ResourceAccountingCancel | typeof ResourceAccountingPostCloseEdit | typeof ResourceLabImport | typeof ResourceIdentityLinks;
+export type Resource = typeof ResourceReception | typeof ResourceOwners | typeof ResourceReservations | typeof ResourceMedicalRecords | typeof ResourceHospitalization | typeof ResourceTrimming | typeof ResourceExaminations | typeof ResourceExaminationUnconfirm | typeof ResourceAccounting | typeof ResourceVaccinations | typeof ResourceCheckups | typeof ResourceInventory | typeof ResourceEstimates | typeof ResourceShifts | typeof ResourceHospitalSettings | typeof ResourceMasterAnimalSpecies | typeof ResourceMasterMedical | typeof ResourceMasterReservationType | typeof ResourceMasterHospitalization | typeof ResourceMasterTrimming | typeof ResourceMasterPermission | typeof ResourceMasterStaff | typeof ResourceMasterInsurance | typeof ResourceMasterMerchandise | typeof ResourceDiscount | typeof ResourceCashRegisterClose | typeof ResourceAccountingReports | typeof ResourceClosingSettings | typeof ResourcePaymentMethod | typeof ResourceLstepCsvImport | typeof ResourceLstepAnalytics | typeof ResourceManualEdit | typeof ResourceAccountingCancel | typeof ResourceAccountingPostCloseEdit | typeof ResourceLabImport | typeof ResourceIdentityLinks;
 
 //////////
 // source: permission_group.go

@@ -37,20 +37,53 @@ func TestOpenAPIExaminationMutationContract(t *testing.T) {
 		"confirmed",
 	}, examination.Properties["status"].Enum)
 
+	var unconfirmRequest struct {
+		Required   []string `yaml:"required"`
+		Properties map[string]struct {
+			Type      string `yaml:"type"`
+			MinLength int    `yaml:"minLength"`
+			MaxLength int    `yaml:"maxLength"`
+			Pattern   string `yaml:"pattern"`
+		} `yaml:"properties"`
+	}
+	unconfirmNode, ok := spec.Components.Schemas["UnconfirmExaminationRequest"]
+	require.True(t, ok, "missing UnconfirmExaminationRequest schema")
+	require.NoError(t, unconfirmNode.Decode(&unconfirmRequest))
+	assert.Equal(t, []string{"reason"}, unconfirmRequest.Required)
+	assert.Equal(t, "string", unconfirmRequest.Properties["reason"].Type)
+	assert.Equal(t, 1, unconfirmRequest.Properties["reason"].MinLength)
+	assert.Equal(t, 500, unconfirmRequest.Properties["reason"].MaxLength)
+	assert.Equal(t, `\S`, unconfirmRequest.Properties["reason"].Pattern)
+
 	for _, mutation := range []struct {
 		method string
 		path   string
+		body   string
 	}{
 		{method: "patch", path: "/examinations/{id}"},
 		{method: "delete", path: "/examinations/{id}"},
 		{method: "put", path: "/examinations/{id}/items"},
+		{method: "post", path: "/examinations/{id}/unconfirm", body: "#/components/schemas/UnconfirmExaminationRequest"},
 	} {
 		operationNode, ok := spec.Paths[mutation.path][mutation.method]
 		require.True(t, ok, "missing %s operation for %s", mutation.method, mutation.path)
 		var operation struct {
-			Responses map[string]yaml.Node `yaml:"responses"`
+			Responses   map[string]yaml.Node `yaml:"responses"`
+			RequestBody struct {
+				Required bool `yaml:"required"`
+				Content  map[string]struct {
+					Schema struct {
+						Ref string `yaml:"$ref"`
+					} `yaml:"schema"`
+				} `yaml:"content"`
+			} `yaml:"requestBody"`
 		}
 		require.NoError(t, operationNode.Decode(&operation))
 		assert.Contains(t, operation.Responses, "409", "missing confirmed-mutation conflict response for %s %s", mutation.method, mutation.path)
+		if mutation.body != "" {
+			assert.True(t, operation.RequestBody.Required)
+			assert.Equal(t, mutation.body, operation.RequestBody.Content["application/json"].Schema.Ref)
+			assert.Contains(t, operation.Responses, "200")
+		}
 	}
 }

@@ -140,6 +140,36 @@ func (h *ExaminationHandler) UpdateExamination(c *gin.Context) {
 	c.JSON(http.StatusOK, toExaminationResponse(exam))
 }
 
+// UnconfirmExamination reopens an immutable official examination as a new working revision.
+func (h *ExaminationHandler) UnconfirmExamination(c *gin.Context) {
+	clinicID, ok := httpapi.ExtractClinicID(c)
+	if !ok {
+		return
+	}
+	id, ok := httpapi.ParseIDParam(c, "id")
+	if !ok {
+		return
+	}
+	var request unconfirmExaminationRequest
+	if err := c.ShouldBindJSON(&request); err != nil {
+		httpapi.RespondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
+		return
+	}
+	actorID, ok := httpapi.ExtractStaffID(c)
+	if !ok {
+		return
+	}
+	exam, err := h.service.Unconfirm(c.Request.Context(), clinicID, id, UnconfirmExaminationInput{
+		Reason:  request.Reason,
+		ActorID: &actorID,
+	})
+	if err != nil {
+		httpapi.RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, toExaminationResponse(exam))
+}
+
 // ListExaminationItems godoc
 //
 //	@Summary	検査項目一覧を取得

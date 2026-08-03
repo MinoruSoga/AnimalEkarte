@@ -189,8 +189,8 @@ func BuildClinicUpdate(input *UpdateClinicInput) (map[string]any, error) {
 //
 // 出所: backend/migrations/seeds/003_demo/permission_group_rules.csv の
 // 執行=奇数ID / 一般=偶数ID / 閲覧専用=group 9 パターン。
-// model.AllResources (35) をすべてカバーする。デモ seed の 9 グループも同じ
-// 行列へ揃える（BE-ACT-PERMISSION-SEED-PARITY）。
+// model.AllResources (36) をすべてカバーする。既存デモ seed は明示 rollout 前の
+// examination-unconfirm を含めず、同権限は新規クリニックでも default-deny とする。
 //
 // 設定系フォールバック（cash-register-close / accounting-reports /
 // master-payment-method / lstep-csv-import / lstep-analytics / manual-edit /
@@ -214,6 +214,8 @@ var defaultPermissionRuleTable = []defaultPermissionRule{
 	{model.ResourceHospitalization, true, true, true, true, true, true, true, false},
 	{model.ResourceTrimming, true, true, true, true, true, true, true, false},
 	{model.ResourceExaminations, true, true, true, true, true, true, true, false},
+	// Unconfirm changes an immutable clinical workflow boundary. It is never granted by default.
+	{model.ResourceExaminationUnconfirm, false, false, false, false, false, false, false, false},
 	{model.ResourceAccounting, true, true, true, true, true, false, false, false},
 	{model.ResourceVaccinations, true, true, true, true, true, true, true, false},
 	{model.ResourceCheckups, true, true, true, true, true, false, false, false},

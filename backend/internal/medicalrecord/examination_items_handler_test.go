@@ -22,6 +22,7 @@ type mockExaminationService struct {
 	getByIDFn      func(ctx context.Context, clinicID, id uint64) (*model.Examination, error)
 	createFn       func(ctx context.Context, clinicID uint64, input *CreateExaminationInput) (*model.Examination, error)
 	updateFn       func(ctx context.Context, clinicID, id uint64, input UpdateExaminationInput) (*model.Examination, error)
+	unconfirmFn    func(ctx context.Context, clinicID, id uint64, input UnconfirmExaminationInput) (*model.Examination, error)
 	deleteFn       func(ctx context.Context, clinicID, id uint64, actorID *uint64) error
 	listItemsFn    func(ctx context.Context, clinicID, examID uint64) ([]model.ExamResult, error)
 	replaceItemsFn func(ctx context.Context, clinicID, examID uint64, actorID *uint64, inputs []UpsertExamItemInput) ([]model.ExamResult, error)
@@ -41,6 +42,10 @@ func (m *mockExaminationService) Create(ctx context.Context, clinicID uint64, in
 
 func (m *mockExaminationService) Update(ctx context.Context, clinicID, id uint64, input UpdateExaminationInput) (*model.Examination, error) {
 	return m.updateFn(ctx, clinicID, id, input)
+}
+
+func (m *mockExaminationService) Unconfirm(ctx context.Context, clinicID, id uint64, input UnconfirmExaminationInput) (*model.Examination, error) {
+	return m.unconfirmFn(ctx, clinicID, id, input)
 }
 
 func (m *mockExaminationService) Delete(ctx context.Context, clinicID, id uint64, actorID *uint64) error {

@@ -16,6 +16,7 @@ export const RESOURCE_LABELS: Record<string, string> = {
   hospitalization: "入院・ホテル",
   trimming: "トリミング",
   examinations: "検査管理",
+  "examination-unconfirm": "検査確定解除",
   "lab-import": "検査取込",
   accounting: "会計管理",
   "accounting-cancel": "会計キャンセル",

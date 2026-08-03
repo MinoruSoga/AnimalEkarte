@@ -18,6 +18,9 @@ const (
 	initialExaminationRevisionVersion = uint64(1)
 	examinationRevisionSchemaVersion  = int16(1)
 	examinationInitialConfirmReason   = "initial_confirmation"
+	examinationWorkingUpdateReason    = "working_update"
+	examinationWorkingItemsReason     = "working_items_replace"
+	examinationReconfirmReason        = "reconfirmation"
 )
 
 // ExaminationRevisionRepository is the optional, narrow Slice-A capability implemented
@@ -36,6 +39,36 @@ type ExaminationRevisionRepository interface {
 		version uint64,
 	) (*model.Examination, error)
 	FindOfficialByID(ctx context.Context, clinicID, examinationID uint64) (*ExaminationOfficialProjection, error)
+}
+
+// ExaminationRevisionWorkflowRepository is the Slice-B capability for reopening,
+// editing, and reconfirming an already revisioned examination. Every method requires
+// the caller's ambient transaction and an exact current-version comparison.
+type ExaminationRevisionWorkflowRepository interface {
+	ExaminationRevisionRepository
+	AppendWorkingRevisionFromOfficial(
+		ctx context.Context,
+		clinicID, examinationID, officialVersion, actorID uint64,
+		changeReason string,
+	) (uint64, error)
+	AppendWorkingRevisionFromCurrent(
+		ctx context.Context,
+		clinicID, examinationID, currentVersion, actorID uint64,
+		changeReason string,
+	) (uint64, error)
+	AppendOfficialRevisionFromWorking(
+		ctx context.Context,
+		clinicID, examinationID, workingVersion, actorID uint64,
+		changeReason string,
+	) (uint64, error)
+	AdvanceRevisionCAS(
+		ctx context.Context,
+		clinicID, examinationID uint64,
+		expectedStatus model.ExaminationStatus,
+		expectedVersion uint64,
+		nextStatus model.ExaminationStatus,
+		nextVersion uint64,
+	) (*model.Examination, error)
 }
 
 type examinationRevisionSnapshot struct {

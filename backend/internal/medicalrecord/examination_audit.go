@@ -67,6 +67,25 @@ func (s *examinationService) logParentMutationTx(
 	action, operation string,
 	before, after *model.Examination,
 ) error {
+	return s.logParentMutationWithReasonTx(
+		ctx,
+		clinicID,
+		actorID,
+		action,
+		operation,
+		examinationAuditReasonAuthenticatedRequest,
+		before,
+		after,
+	)
+}
+
+func (s *examinationService) logParentMutationWithReasonTx(
+	ctx context.Context,
+	clinicID uint64,
+	actorID *uint64,
+	action, operation, reason string,
+	before, after *model.Examination,
+) error {
 	resourceID := uint64(0)
 	if after != nil {
 		resourceID = after.ID
@@ -84,7 +103,7 @@ func (s *examinationService) logParentMutationTx(
 		NewValue:   examinationAuditValue(after),
 		Metadata: map[string]any{
 			"operation_type": operation,
-			"reason":         examinationAuditReasonAuthenticatedRequest,
+			"reason":         reason,
 		},
 	}
 	if err := s.auditTx.LogEntryTx(ctx, entry); err != nil {

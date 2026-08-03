@@ -1402,6 +1402,50 @@ func TestExaminationService_Update_RevalidatesEffectivePatient(t *testing.T) {
 	assert.Zero(t, updateCalls)
 }
 
+func TestExaminationService_Update_RejectsPetChangeAfterRevisionHistory(t *testing.T) {
+	const (
+		clinicID = uint64(1)
+		examID   = uint64(2)
+		oldPetID = uint64(30)
+		newPetID = uint64(31)
+		version  = uint64(2)
+	)
+	updateCalls := 0
+	relationCalls := 0
+	repo := &mockExaminationRepository{
+		lockByIDForUpdateFn: func(_ context.Context, gotClinicID, gotExamID uint64) (*model.Examination, error) {
+			assert.Equal(t, clinicID, gotClinicID)
+			assert.Equal(t, examID, gotExamID)
+			return &model.Examination{
+				ID: examID, ClinicID: clinicID, PetID: ptrUint64(oldPetID), ExamTypeID: 1,
+				Status: model.ExaminationStatusCompleted, CurrentRevisionVersion: ptrUint64(version),
+			}, nil
+		},
+		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Examination, error) {
+			updateCalls++
+			return nil, nil
+		},
+	}
+	relations := &mockMedicalRecordRepository{
+		findPetOwnerInClinicFn: func(_ context.Context, _, _ uint64) (uint64, error) {
+			relationCalls++
+			return 20, nil
+		},
+	}
+	svc := NewExaminationService(repo, relations, okExamTypeRepo(), &mockAuditTxLogger{}, &mockCheckupTransactor{})
+
+	got, err := svc.Update(context.Background(), clinicID, examID, UpdateExaminationInput{
+		PetID:   ptrUint64(newPetID),
+		ActorID: ptrUint64(1),
+	})
+
+	require.Error(t, err)
+	assert.True(t, apperrors.IsConflict(err))
+	assert.Nil(t, got)
+	assert.Zero(t, updateCalls)
+	assert.Zero(t, relationCalls, "revision history must reject a patient change before relation or write work")
+}
+
 // SEC-DUR-01-MR-T1: 同一clinic内のpet譲渡後も、visit-time snapshotのownerとcurrent pet ownerが異なっても
 // Examination更新はclinic/pet相関を守りながら成功する。cross-clinicは拒否する。
 func TestExaminationService_Update_AllowsHistoricalOwnerAfterPetTransfer(t *testing.T) {

@@ -37,6 +37,11 @@ type UpdateExaminationInput struct {
 	ActorID         *uint64
 }
 
+type UnconfirmExaminationInput struct {
+	Reason  string
+	ActorID *uint64
+}
+
 // UpsertExamItemInput は検査項目（exam_results）の一括登録入力 DTO。
 // status / is_abnormal はサーバ側で計算するため受け付けない（信頼境界はサーバ）。
 type UpsertExamItemInput struct {
@@ -44,6 +49,7 @@ type UpsertExamItemInput struct {
 	Name            string
 	InspectionValue string
 	NormalValue     string
+	Result          string
 	Unit            string
 	ReferenceValue  string
 	SortOrder       int
@@ -113,6 +119,7 @@ type ExaminationService interface {
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.Examination, error)
 	Create(ctx context.Context, clinicID uint64, input *CreateExaminationInput) (*model.Examination, error)
 	Update(ctx context.Context, clinicID, id uint64, input UpdateExaminationInput) (*model.Examination, error)
+	Unconfirm(ctx context.Context, clinicID, id uint64, input UnconfirmExaminationInput) (*model.Examination, error)
 	Delete(ctx context.Context, clinicID, id uint64, actorID *uint64) error
 	ListItems(ctx context.Context, clinicID, examID uint64) ([]model.ExamResult, error)
 	// ReplaceItems は検査項目を一括置換する（PUT セマンティクス）。actorID は監査ログ用の操作スタッフ ID
@@ -121,14 +128,15 @@ type ExaminationService interface {
 }
 
 type examinationService struct {
-	repo            ExaminationRepository
-	medRec          medicalRecordLocker // lockDraftMedicalRecord のみ使用（⑦で narrow 化）
-	examTypeRepo    ExamTypeRepository
-	referenceRanges ExamReferenceRangeResolver
-	revisions       ExaminationRevisionRepository
-	auditTx         AuditTxLogger
-	transactor      Transactor
-	relations       ClinicalRelationVerifier
+	repo             ExaminationRepository
+	medRec           medicalRecordLocker // lockDraftMedicalRecord のみ使用（⑦で narrow 化）
+	examTypeRepo     ExamTypeRepository
+	referenceRanges  ExamReferenceRangeResolver
+	revisions        ExaminationRevisionRepository
+	revisionWorkflow ExaminationRevisionWorkflowRepository
+	auditTx          AuditTxLogger
+	transactor       Transactor
+	relations        ClinicalRelationVerifier
 }
 
 func NewExaminationService(
@@ -152,9 +160,11 @@ func NewExaminationService(
 	}
 	referenceRanges, _ := repo.(ExamReferenceRangeResolver)
 	revisions, _ := repo.(ExaminationRevisionRepository)
+	revisionWorkflow, _ := repo.(ExaminationRevisionWorkflowRepository)
 	return &examinationService{
 		repo: repo, medRec: medRec, examTypeRepo: examTypeRepo, referenceRanges: referenceRanges,
-		revisions: revisions, auditTx: auditTx, transactor: transactor, relations: relations,
+		revisions: revisions, revisionWorkflow: revisionWorkflow,
+		auditTx: auditTx, transactor: transactor, relations: relations,
 	}
 }
 
@@ -307,6 +317,22 @@ func (s *examinationService) Update(ctx context.Context, clinicID, id uint64, in
 			return apperrors.WrapConflict("確定済みの検査は編集できません")
 		}
 		before := *locked
+		revisioned := locked.CurrentRevisionVersion != nil
+		petChanged := examinationOptionalIDChanged(locked.PetID, input.PetID)
+		medicalRecordChanged := examinationOptionalIDChanged(locked.MedicalRecordID, input.MedicalRecordID)
+		if revisioned && (petChanged || medicalRecordChanged) {
+			return apperrors.WrapConflict("revision history exists; examination patient relation cannot be changed")
+		}
+		if revisioned && s.revisionWorkflow == nil {
+			return apperrors.WrapInternalServerError("examination revision workflow repository capability is required")
+		}
+		if confirming && revisioned {
+			if len(fields) != 0 || input.Items != nil {
+				return apperrors.WrapConflict("save working examination changes before reconfirming")
+			}
+			exam, err = s.reconfirmRevisionTx(txCtx, clinicID, input.ActorID, locked)
+			return err
+		}
 
 		medicalRecordID, petID, doctorID := effectiveExaminationRelations(locked, input)
 		record, err := s.lockExaminationUpdateMedicalRecords(
@@ -331,6 +357,16 @@ func (s *examinationService) Update(ctx context.Context, clinicID, id uint64, in
 			return err
 		}
 
+		itemsToReplace := input.Items
+		if petChanged && itemsToReplace == nil {
+			existingItems, err := s.repo.FindAllItemsByExamID(txCtx, clinicID, id)
+			if err != nil {
+				return apperrors.Wrap(err, "failed to load examination items for patient reassessment")
+			}
+			reassessedInputs := examinationItemsToUpsertInputs(existingItems)
+			itemsToReplace = &reassessedInputs
+		}
+
 		exam = locked
 		if len(fields) > 0 {
 			updated, err := s.repo.Update(txCtx, clinicID, id, fields)
@@ -340,8 +376,8 @@ func (s *examinationService) Update(ctx context.Context, clinicID, id uint64, in
 			}
 			exam = updated
 		}
-		if input.Items != nil {
-			if _, err := s.replaceItemsTx(txCtx, clinicID, exam, input.ActorID, *input.Items); err != nil {
+		if itemsToReplace != nil {
+			if _, err := s.replaceItemsTx(txCtx, clinicID, exam, input.ActorID, *itemsToReplace); err != nil {
 				return err
 			}
 		}
@@ -355,6 +391,10 @@ func (s *examinationService) Update(ctx context.Context, clinicID, id uint64, in
 				model.AuditActionExaminationConfirm,
 				"confirm",
 			)
+			return err
+		}
+		if revisioned {
+			exam, err = s.appendWorkingRevisionTx(txCtx, clinicID, input.ActorID, &before, exam, examinationWorkingUpdateReason)
 			return err
 		}
 		return s.logParentMutationTx(
@@ -448,6 +488,16 @@ func (s *examinationService) ReplaceItems(ctx context.Context, clinicID, examID 
 		if locked.Status == model.ExaminationStatusConfirmed {
 			return apperrors.WrapConflict("確定済みの検査は編集できません")
 		}
+		before := *locked
+		revisioned := locked.CurrentRevisionVersion != nil
+		if revisioned {
+			if s.revisionWorkflow == nil {
+				return apperrors.WrapInternalServerError("examination revision workflow repository capability is required")
+			}
+			if err := s.validateParentMutationAudit(actorID); err != nil {
+				return err
+			}
+		}
 		if locked.MedicalRecordID != nil {
 			if err := lockDraftMedicalRecord(
 				txCtx,
@@ -466,6 +516,17 @@ func (s *examinationService) ReplaceItems(ctx context.Context, clinicID, examID 
 			return err
 		}
 		saved = replaced
+		if revisioned {
+			_, err = s.appendWorkingRevisionTx(
+				txCtx,
+				clinicID,
+				actorID,
+				&before,
+				locked,
+				examinationWorkingItemsReason,
+			)
+			return err
+		}
 		return nil
 	}); err != nil {
 		return nil, apperrors.Wrap(err, "failed to replace examination items in transaction")
@@ -563,6 +624,7 @@ func (s *examinationService) replaceItemsTx(
 			Name:            in.Name,
 			InspectionValue: in.InspectionValue,
 			NormalValue:     in.NormalValue,
+			Result:          in.Result,
 			Unit:            in.Unit,
 			ReferenceValue:  in.ReferenceValue,
 			RefMin:          refMin,
@@ -672,6 +734,9 @@ func (s *examinationService) Delete(ctx context.Context, clinicID, id uint64, ac
 		}
 		if locked.Status == model.ExaminationStatusConfirmed {
 			return apperrors.WrapConflict("確定済みの検査は削除できません")
+		}
+		if locked.CurrentRevisionVersion != nil {
+			return apperrors.WrapConflict("確定履歴のある検査は削除できません")
 		}
 		// HC-003 + BE-refactor.md H-8d: 親カルテが確定済みの場合は削除拒否。LockByIDForUpdate の
 		// 行ロックで finalize と直列化し、確定と同時の検査削除が確定済みカルテに混入する競合を防ぐ

@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
+	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/testdb"
 )
@@ -611,6 +612,69 @@ func TestExaminationService_CreateUsesMasterRanges(t *testing.T) {
 	assert.Equal(t, masterMax, *saved[0].RefMax)
 	assert.Equal(t, model.ExaminationResultStatusNormal, saved[0].Status)
 	assert.False(t, saved[0].IsAbnormal)
+}
+
+func TestExaminationService_UpdatePetBeforeFirstConfirmReassessesExistingItems(t *testing.T) {
+	db := setupExamReferenceRangeResolutionDB(t)
+	ctx := context.Background()
+	const clinicID = uint64(1)
+	examType := makeExamTypeMaster(t, db, clinicID, "patient-change reassessment type")
+	field := &model.ExamTypeField{ExamTypeID: examType.ID, ClinicID: clinicID, Name: "patient-change field"}
+	require.NoError(t, db.Create(field).Error)
+	owner := makeTestOwner(t, db, clinicID, "patient-change owner")
+	oldSpecies := &model.AnimalSpecies{Name: "patient-change old species"}
+	newSpecies := &model.AnimalSpecies{Name: "patient-change new species"}
+	require.NoError(t, db.Create(oldSpecies).Error)
+	require.NoError(t, db.Create(newSpecies).Error)
+	oldPet := &model.Pet{ClinicID: clinicID, OwnerID: owner.ID, AnimalSpeciesID: oldSpecies.ID, Name: "old patient"}
+	newPet := &model.Pet{ClinicID: clinicID, OwnerID: owner.ID, AnimalSpeciesID: newSpecies.ID, Name: "new patient"}
+	require.NoError(t, db.Create(oldPet).Error)
+	require.NoError(t, db.Create(newPet).Error)
+	oldMin, oldMax := 1.0, 10.0
+	newMin, newMax := 10.0, 20.0
+	require.NoError(t, db.Create(&[]model.ExamReferenceRange{
+		{ClinicID: clinicID, ExamTypeFieldID: field.ID, AnimalSpeciesID: oldSpecies.ID, RefMin: &oldMin, RefMax: &oldMax},
+		{ClinicID: clinicID, ExamTypeFieldID: field.ID, AnimalSpeciesID: newSpecies.ID, RefMin: &newMin, RefMax: &newMax},
+	}).Error)
+	repo := NewExaminationRepository(db)
+	relations := &mockMedicalRecordRepository{
+		findPetOwnerInClinicFn: func(_ context.Context, gotClinicID, petID uint64) (uint64, error) {
+			assert.Equal(t, clinicID, gotClinicID)
+			if petID != oldPet.ID && petID != newPet.ID {
+				return 0, apperrors.WrapNotFound("pet", "scoped")
+			}
+			return owner.ID, nil
+		},
+	}
+	svc := NewExaminationService(
+		repo,
+		relations,
+		NewExamTypeRepository(db),
+		&mockAuditTxLogger{},
+		testTransactor{db: db},
+	)
+	items := []UpsertExamItemInput{{ExamTypeFieldID: &field.ID, InspectionValue: "5"}}
+	exam, err := svc.Create(ctx, clinicID, &CreateExaminationInput{
+		PetID: ptrUint64(oldPet.ID), ExamTypeID: examType.ID,
+		Date: time.Date(2026, time.July, 27, 0, 0, 0, 0, time.UTC), Items: &items, ActorID: ptrUint64(1),
+	})
+	require.NoError(t, err)
+
+	updated, err := svc.Update(ctx, clinicID, exam.ID, UpdateExaminationInput{
+		PetID: ptrUint64(newPet.ID), ActorID: ptrUint64(1),
+	})
+	require.NoError(t, err)
+	require.NotNil(t, updated.PetID)
+	assert.Equal(t, newPet.ID, *updated.PetID)
+	saved, err := repo.FindAllItemsByExamID(ctx, clinicID, exam.ID)
+	require.NoError(t, err)
+	require.Len(t, saved, 1)
+	require.NotNil(t, saved[0].RefMin)
+	require.NotNil(t, saved[0].RefMax)
+	assert.Equal(t, newMin, *saved[0].RefMin)
+	assert.Equal(t, newMax, *saved[0].RefMax)
+	assert.Equal(t, model.ExaminationResultStatusLow, saved[0].Status)
+	assert.True(t, saved[0].IsAbnormal)
 }
 
 func TestExaminationService_ReferenceRangeSnapshotDoesNotChangeWhenMasterChanges(t *testing.T) {

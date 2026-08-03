@@ -3528,6 +3528,16 @@ components:
           format: date-time
           nullable: true
           description: 削除日時（ソフトデリート）
+    UnconfirmExaminationRequest:
+      type: object
+      required: [reason]
+      properties:
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 500
+          pattern: '\S'
+          description: 確定解除を必要とする人手入力の理由
     Vaccination:
       type: object
       required: [medical_record_id, vaccine_id, date]
@@ -13106,6 +13116,42 @@ paths:
           description: 削除成功
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /examinations/{id}/unconfirm:
+    post:
+      operationId: unconfirmExamination
+      summary: 確定済み検査を新しい作業版として再開
+      tags: [Examinations]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: integer, format: int64}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UnconfirmExaminationRequest'
+      responses:
+        '200':
+          description: 確定解除成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Examination'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
         '409':

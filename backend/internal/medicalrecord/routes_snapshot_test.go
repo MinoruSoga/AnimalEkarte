@@ -202,6 +202,7 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		"PATCH /api/v1/medical-records/:id/vitals/:vitalId UpdateVital\n" +
 		"PATCH /api/v1/vaccinations/:id UpdateVaccination\n" +
 		"POST /api/v1/examinations CreateExamination\n" +
+		"POST /api/v1/examinations/:id/unconfirm UnconfirmExamination\n" +
 		"POST /api/v1/hospitalizations CreateHospitalization\n" +
 		"POST /api/v1/hospitalizations/:id/care-plan-items CreateCarePlanItem\n" +
 		"POST /api/v1/hospitalizations/:id/daily-records CreateDailyRecord\n" +
@@ -250,7 +251,7 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 // generic update (PATCH /:id) both require hospitalization:edit — not delete.
 // Permission middleware aborts before nil-backed terminal handlers so ServeHTTP never panics.
 // Snapshot TestRegisterRoutes_Snapshot cannot observe middleware; this HTTP-driven spy does.
-func TestRegisterRoutes_HospitalizationDischargePermissions(t *testing.T) {
+func TestRegisterRoutes_HospitalizationDischargeAndExaminationUnconfirmPermissions(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	var observed []string
@@ -314,10 +315,18 @@ func TestRegisterRoutes_HospitalizationDischargePermissions(t *testing.T) {
 		assert.Equal(t, http.StatusOK, w.Code)
 	}
 
+	{
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/examinations/1/unconfirm", http.NoBody)
+		r.ServeHTTP(w, req)
+		assert.Equal(t, http.StatusOK, w.Code)
+	}
+
 	// Assert resource AND action — action-only would pass if another resource's edit were swapped in.
 	assert.Equal(t, []string{
 		"hospitalization:edit",
 		"hospitalization:edit",
+		"examination-unconfirm:edit",
 	}, observed)
 }
 

@@ -120,6 +120,10 @@ type updateExaminationRequest struct {
 	Items           *[]upsertExamItemRequest `json:"items" binding:"omitempty,dive"`
 }
 
+type unconfirmExaminationRequest struct {
+	Reason string `json:"reason" binding:"required,max=500"`
+}
+
 func (r updateExaminationRequest) toServiceInput() UpdateExaminationInput {
 	var status *model.ExaminationStatus
 	if r.Status != nil {

@@ -97,10 +97,11 @@ const (
 	AuditActionExamResultReplace = "exam_result.replace"
 	// #249 / DEC-53: parent examination mutation は authenticated actor と before/after を
 	// mutation と同じ transaction で記録する。confirm は update と分離して状態遷移を識別する。
-	AuditActionExaminationCreate  = "examination.create"
-	AuditActionExaminationUpdate  = "examination.update"
-	AuditActionExaminationConfirm = "examination.confirm"
-	AuditActionExaminationDelete  = "examination.delete"
+	AuditActionExaminationCreate    = "examination.create"
+	AuditActionExaminationUpdate    = "examination.update"
+	AuditActionExaminationConfirm   = "examination.confirm"
+	AuditActionExaminationUnconfirm = "examination.unconfirm"
+	AuditActionExaminationDelete    = "examination.delete"
 
 	AuditActionPetOwnerReplace                     = "pet_owner.replace"
 	AuditActionHospitalizationDischargeWithBilling = "hospitalization.discharge_with_billing"

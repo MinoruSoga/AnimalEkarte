@@ -277,6 +277,13 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"medicalrecord/examination_revision_repository.go|examinationRepository.AppendOfficialRevision": {},
 	"medicalrecord/examination_revision_repository.go|examinationRepository.ConfirmWithRevisionCAS": {},
 	"medicalrecord/examination_revision_repository.go|examinationRepository.FindOfficialByID":       {},
+	// TASK-027 Slice B: unconfirm/edit/reconfirm revision writes and pointer CAS all fail closed
+	// without the service-owned ambient transaction. Runtime rollback proof:
+	// TestExaminationRevision_UnconfirmAuditFailureRollsBackWorkingRevisionAndPointer.
+	"medicalrecord/examination_revision_workflow_repository.go|examinationRepository.AppendWorkingRevisionFromOfficial": {},
+	"medicalrecord/examination_revision_workflow_repository.go|examinationRepository.AppendWorkingRevisionFromCurrent":  {},
+	"medicalrecord/examination_revision_workflow_repository.go|examinationRepository.AppendOfficialRevisionFromWorking": {},
+	"medicalrecord/examination_revision_workflow_repository.go|examinationRepository.AdvanceRevisionCAS":                {},
 
 	"medicalrecord/exam_type_repository.go|examTypeRepository.FindByID":                      {},
 	"medicalrecord/exam_type_repository.go|examTypeRepository.Create":                        {},
@@ -729,6 +736,17 @@ var ambientTxParticipationExpectations = map[string]ambientTxParticipationExpect
 	// never fall back to the repository base DB. Runtime proof is named in the allowlist above.
 	"medicalrecord/examination_revision_repository.go|examinationRepository.AppendOfficialRevision": {
 		shape: ambientTxRequired,
+	},
+	"medicalrecord/examination_revision_workflow_repository.go|examinationRepository.AppendWorkingRevisionFromOfficial": {
+		shape:      ambientTxRequiredViaLocalHelper,
+		helperName: "lockRevisionWorkflowParent",
+	},
+	"medicalrecord/examination_revision_workflow_repository.go|examinationRepository.AppendWorkingRevisionFromCurrent": {
+		shape: ambientTxRequired,
+	},
+	"medicalrecord/examination_revision_workflow_repository.go|examinationRepository.AppendOfficialRevisionFromWorking": {
+		shape:      ambientTxRequiredViaLocalHelper,
+		helperName: "lockRevisionWorkflowParent",
 	},
 	"auth/account_repository.go|accountRepository.CompareAndSwapPasswordHash": {
 		shape: ambientTxRequired,

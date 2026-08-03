@@ -366,6 +366,7 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 		h.examination.CreateExamination,
 	)
 	examinations.PATCH("/:id", perm(model.ResourceExaminations, "edit"), h.examination.UpdateExamination)
+	examinations.POST("/:id/unconfirm", perm(model.ResourceExaminationUnconfirm, "edit"), h.examination.UnconfirmExamination)
 	examinations.DELETE("/:id", perm(model.ResourceExaminations, "delete"), h.examination.DeleteExamination)
 	examinations.GET("/:id/items", perm(model.ResourceExaminations, "view"), h.examination.ListExaminationItems)
 	examinations.PUT("/:id/items", perm(model.ResourceExaminations, "edit"), h.examination.ReplaceExaminationItems)

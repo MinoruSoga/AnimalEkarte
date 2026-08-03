@@ -4,20 +4,21 @@ package model
 type Resource string
 
 const (
-	ResourceReception        Resource = "reception"
-	ResourceOwners           Resource = "owners"
-	ResourceReservations     Resource = "reservations"
-	ResourceMedicalRecords   Resource = "medical-records"
-	ResourceHospitalization  Resource = "hospitalization"
-	ResourceTrimming         Resource = "trimming"
-	ResourceExaminations     Resource = "examinations"
-	ResourceAccounting       Resource = "accounting"
-	ResourceVaccinations     Resource = "vaccinations"
-	ResourceCheckups         Resource = "checkups"
-	ResourceInventory        Resource = "inventory"
-	ResourceEstimates        Resource = "estimates"
-	ResourceShifts           Resource = "shifts"
-	ResourceHospitalSettings Resource = "hospital-settings"
+	ResourceReception            Resource = "reception"
+	ResourceOwners               Resource = "owners"
+	ResourceReservations         Resource = "reservations"
+	ResourceMedicalRecords       Resource = "medical-records"
+	ResourceHospitalization      Resource = "hospitalization"
+	ResourceTrimming             Resource = "trimming"
+	ResourceExaminations         Resource = "examinations"
+	ResourceExaminationUnconfirm Resource = "examination-unconfirm"
+	ResourceAccounting           Resource = "accounting"
+	ResourceVaccinations         Resource = "vaccinations"
+	ResourceCheckups             Resource = "checkups"
+	ResourceInventory            Resource = "inventory"
+	ResourceEstimates            Resource = "estimates"
+	ResourceShifts               Resource = "shifts"
+	ResourceHospitalSettings     Resource = "hospital-settings"
 
 	// マスタ設定: 個別リソース
 	ResourceMasterAnimalSpecies   Resource = "master-animal-species"
@@ -70,6 +71,7 @@ var AllResources = []Resource{
 	ResourceHospitalization,
 	ResourceTrimming,
 	ResourceExaminations,
+	ResourceExaminationUnconfirm,
 	ResourceAccounting,
 	ResourceVaccinations,
 	ResourceCheckups,

@@ -477,10 +477,10 @@ func TestClinicService_CreateClinic_DefaultPermissionGroupRules(t *testing.T) {
 }
 
 // TestDefaultPermissionRuleTable_CoversAllResources は defaultPermissionRuleTable が
-// model.AllResources (35) を過不足なくカバーし、共有マスタ animal-species が
-// 執行・一般とも view-only であることを固定する。
+// model.AllResources (36) を過不足なくカバーし、共有マスタ animal-species が
+// 執行・一般とも view-only、examination-unconfirm が default-deny であることを固定する。
 func TestDefaultPermissionRuleTable_CoversAllResources(t *testing.T) {
-	require.Len(t, model.AllResources, 35, "AllResources 件数の契約が変わったら本テストと seed 行列を同時に更新すること")
+	require.Len(t, model.AllResources, 36, "AllResources 件数の契約が変わったら permission rollout を同時に更新すること")
 	require.Len(t, defaultPermissionRuleTable, len(model.AllResources),
 		"defaultPermissionRuleTable は AllResources と同数であること")
 
@@ -515,6 +515,20 @@ func TestDefaultPermissionRuleTable_CoversAllResources(t *testing.T) {
 			assert.False(t, species.CanEdit)
 			assert.False(t, species.CanDelete)
 		}
+
+		var unconfirm *model.PermissionGroupRule
+		for i := range rules {
+			if rules[i].Resource == string(model.ResourceExaminationUnconfirm) {
+				unconfirm = &rules[i]
+				break
+			}
+		}
+		if assert.NotNilf(t, unconfirm, "%s に examination-unconfirm があること", profile) {
+			assert.False(t, unconfirm.CanView)
+			assert.False(t, unconfirm.CanCreate)
+			assert.False(t, unconfirm.CanEdit)
+			assert.False(t, unconfirm.CanDelete)
+		}
 	}
 }
 
@@ -533,13 +547,20 @@ var demoPermissionSeedGroupProfiles = map[uint64]string{
 	9: "view-only",
 }
 
-// TestDemoPermissionGroupRules_SeedParity は 003_demo の 9 グループが
-// model.AllResources (35) をすべて持ち、group 9 が view-only、
+// TestDemoSeedGroupRules_Parity は 003_demo の 9 グループが既存 seed 管理リソースを持ち、
+// group 9 が view-only、
 // master-animal-species が全グループ view-only、執行/一般が
-// buildDefaultPermissionGroupRules と一致することを検証する。
-func TestDemoPermissionGroupRules_SeedParity(t *testing.T) {
-	require.Len(t, model.AllResources, 35)
+// buildDefaultPermissionGroupRules と一致することを検証する。examination-unconfirm は
+// 新規クリニックでも default-deny で、既存 demo seed へ自動付与しない。
+func TestDemoSeedGroupRules_Parity(t *testing.T) {
+	require.Len(t, model.AllResources, 36)
 	require.Len(t, demoPermissionSeedGroupProfiles, 9, "demo seed は 9 権限グループを持つ契約")
+	seedResources := make([]model.Resource, 0, len(model.AllResources)-1)
+	for _, resource := range model.AllResources {
+		if resource != model.ResourceExaminationUnconfirm {
+			seedResources = append(seedResources, resource)
+		}
+	}
 
 	rulesPath := filepath.Join("..", "..", "migrations", "seeds", "003_demo", "permission_group_rules.csv")
 	f, err := os.Open(rulesPath) //nolint:gosec // fixed seed path relative to backend module root
@@ -614,10 +635,12 @@ func TestDemoPermissionGroupRules_SeedParity(t *testing.T) {
 	for gid, profile := range demoPermissionSeedGroupProfiles {
 		rules, ok := byGroup[gid]
 		require.Truef(t, ok, "group %d のルールが seed に存在すること", gid)
-		assert.Lenf(t, rules, len(model.AllResources),
-			"group %d (%s): AllResources (%d) をカバーすること", gid, profile, len(model.AllResources))
+		assert.Lenf(t, rules, len(seedResources),
+			"group %d (%s): seed 管理リソース (%d) をカバーすること", gid, profile, len(seedResources))
+		assert.NotContains(t, rules, string(model.ResourceExaminationUnconfirm),
+			"group %d: examination-unconfirm は明示 rollout 前に seed 付与しない", gid)
 
-		for _, res := range model.AllResources {
+		for _, res := range seedResources {
 			_, has := rules[string(res)]
 			assert.Truef(t, has, "group %d: resource %s が欠落", gid, res)
 		}
@@ -644,6 +667,9 @@ func TestDemoPermissionGroupRules_SeedParity(t *testing.T) {
 			want := expectedByProfile[profile]
 			require.Len(t, want, len(model.AllResources))
 			for _, w := range want {
+				if w.Resource == string(model.ResourceExaminationUnconfirm) {
+					continue
+				}
 				got, has := rules[w.Resource]
 				if !assert.Truef(t, has, "group %d: %s 欠落", gid, w.Resource) {
 					continue

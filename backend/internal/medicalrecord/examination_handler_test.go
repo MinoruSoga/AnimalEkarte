@@ -21,6 +21,87 @@ func TestExaminationHandlerCompiles(t *testing.T) {
 	assert.True(t, true, "examination_handler.go compiled successfully")
 }
 
+func TestExaminationUnconfirmHandler_ValidatesReasonActorAndReturnsExamination(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		body       string
+		setupCtx   func(*gin.Context)
+		svc        *mockExaminationService
+		wantStatus int
+		wantBody   string
+	}{
+		{
+			name:     "unconfirms a confirmed examination with an authenticated reason",
+			body:     `{"reason":"result correction requested"}`,
+			setupCtx: func(c *gin.Context) { setClinicID(c); setStaffID(c) },
+			svc: &mockExaminationService{unconfirmFn: func(
+				_ context.Context,
+				clinicID, examinationID uint64,
+				input UnconfirmExaminationInput,
+			) (*model.Examination, error) {
+				assert.Equal(t, uint64(1), clinicID)
+				assert.Equal(t, uint64(10), examinationID)
+				assert.Equal(t, "result correction requested", input.Reason)
+				assert.NotNil(t, input.ActorID)
+				return &model.Examination{
+					ID: 10, ClinicID: clinicID, ExamTypeID: 2,
+					Status: model.ExaminationStatusCompleted,
+				}, nil
+			}},
+			wantStatus: http.StatusOK,
+			wantBody:   `"status":"completed"`,
+		},
+		{
+			name:       "rejects a missing reason before the service",
+			body:       `{}`,
+			setupCtx:   func(c *gin.Context) { setClinicID(c); setStaffID(c) },
+			svc:        &mockExaminationService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "maps a whitespace-only service rejection to bad request",
+			body:     `{"reason":"   "}`,
+			setupCtx: func(c *gin.Context) { setClinicID(c); setStaffID(c) },
+			svc: &mockExaminationService{unconfirmFn: func(
+				_ context.Context,
+				_, _ uint64,
+				_ UnconfirmExaminationInput,
+			) (*model.Examination, error) {
+				return nil, apperrors.WrapInvalidInput("unconfirm reason is required")
+			}},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "rejects a missing authenticated actor",
+			body:       `{"reason":"result correction requested"}`,
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockExaminationService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithExaminationSvc(tt.svc)
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodPost, "/", bytes.NewBufferString(tt.body))
+			c.Request.Header.Set("Content-Type", "application/json")
+			c.Params = gin.Params{{Key: "id", Value: "10"}}
+			tt.setupCtx(c)
+
+			h.UnconfirmExamination(c)
+
+			assert.Equal(t, tt.wantStatus, w.Code)
+			if tt.wantBody != "" {
+				assert.Contains(t, w.Body.String(), tt.wantBody)
+			}
+		})
+	}
+}
+
 // ---- ListExaminations ----
 
 func TestListExaminations(t *testing.T) {
