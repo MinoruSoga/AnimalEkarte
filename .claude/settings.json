@@ -136,8 +136,7 @@
       "Bash(git rebase:*)",
       "Bash(git push origin --delete:*)",
       "Bash(sudo:*)"
-    ],
-    "defaultMode": "default"
+    ]
   },
   "model": "claude-sonnet-5",
   "hooks": {
