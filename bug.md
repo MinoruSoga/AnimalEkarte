@@ -2047,7 +2047,7 @@ S01〜S12の業務シナリオ検証に続き、個別フォーム単位の受�
 ## BUG-023: 権限グループ名の重複エラーが未整形の生バックエンドメッセージのまま表示され、グループ名部分が空文字になる
 
 - **重大度**: 中
-- **対応状況（2026-08-03 JST）**: OPEN | **根拠**: `apperrors.FromGORM` 23505 が `WrapAlreadyExists(resource,"")` 固定; V03/batch3 で `permission_group '' already exists` 再観測（wave-2, reports/2026-08-01-task-010-batch3.md） | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: identifier/JA メッセージ契約を直し V03 C3 を再計測
+- **対応状況（2026-08-04 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: 到達済み commit `41ba79b4ce8db01e4743bbfcaf77fa1612a3a186` で permission group name unique を `permission_group_name_conflict` + safe params に変換し FE が「権限グループ名『X』は既に使用されています」を表示。`uk_permission_group_rules` は name conflict へ昇格しない | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: V03 §6 チェック3をブラウザ再検証し VERIFIED_FIXED 可否を判定
 - **発見シナリオ**: V03 §6 permission-group-side-panel チェック3
 - **再現手順**:
   1. `/settings/permission-groups` で「新規登録」をクリック
@@ -2397,7 +2397,7 @@ S01〜S12の業務シナリオ検証に続き、個別フォーム単位の受�
 ## BUG-027: 動物種類マスタで一意制約違反時のエラートーストに実際の名称が表示されず空文字になる
 
 - **重大度**: 低（機能的には重複登録が正しく拒否されており「無音失敗・白画面」にはならないが、エラーメッセージの品質が低く、内部テーブル名を露出した上に該当の名称が空欄になっている）
-- **対応状況（2026-08-03 JST）**: OPEN | **根拠**: animal_species Create も FromGORM 空 identifier → `animal_species '' already exists`（C-MASTER-DUPLICATE-MSG, wave-2） | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: 023 と共通 adapter 修正後に名称付き JA メッセージを確認
+- **対応状況（2026-08-04 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: 到達済み commit `41ba79b4ce8db01e4743bbfcaf77fa1612a3a186`（C-MASTER-DUPLICATE-MSG と同一）で animal species name unique を `animal_species_name_conflict` + safe params に変換し FE が「動物種類『X』は既に使用されています」を表示 | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: V04 §1 C3-2 をブラウザ再検証し VERIFIED_FIXED 可否を判定
 - **発見シナリオ**: V04 §1 動物種類 `/settings/animal-species`（C3-2 一意制約違反チェック）
 - **再現手順**:
   1. `/settings/animal-species` で「V04動物種類」という名称を新規登録
