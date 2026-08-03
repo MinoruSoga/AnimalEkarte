@@ -8,11 +8,11 @@
 
 ## 対応状況サマリ（2026-08-03 JST）
 
-- **Product evidence snapshot**: 台帳 commit parent HEAD `fb0cf9c910aef842fdde1a0206bb5546163096c3`。飼主・ペット・受付は到達済み commit `d7bf32f2214d6bb6c252b99b001d2ed2044de7c9`（BUG-001）、`a17d39d6f46ddaf8afcba7ed53419dbc4f92e968`（BUG-002）、`eb7db0dc94fb842c7e569252a9cebc6aee96cd60`（BUG-021）、`fc3c12b2800942c7527b0be951aad20860c6131c`（BUG-022）、`617f6f9bf88be3627ba789d447c98858dd34c80a`（BUG-020）。その他の `IMPLEMENTED_UNVERIFIED` は BUG-004（到達済み commit `2a8aca33c1848613e7c3ccd9ffa2f2a4e3c9ad5e`）と BUG-011（到達済み commit `b65cf69ef56785c473ddd233624292a3c338401e`）を正本とする。
+- **Product evidence snapshot**: 台帳 commit parent HEAD `fb0cf9c910aef842fdde1a0206bb5546163096c3`。飼主・ペット・受付は到達済み commit `d7bf32f2214d6bb6c252b99b001d2ed2044de7c9`（BUG-001）、`a17d39d6f46ddaf8afcba7ed53419dbc4f92e968`（BUG-002）、`eb7db0dc94fb842c7e569252a9cebc6aee96cd60`（BUG-021）、`fc3c12b2800942c7527b0be951aad20860c6131c`（BUG-022）、`617f6f9bf88be3627ba789d447c98858dd34c80a`（BUG-020）。検査は BUG-004（`2a8aca33c1848613e7c3ccd9ffa2f2a4e3c9ad5e`）、BUG-005（`dfd653eaa5ccb089707c3a088863c39c07669288`）、BUG-017（`7f71063759974257be14a4ed0a8a5fd04a5c6880`）。その他 `IMPLEMENTED_UNVERIFIED` に BUG-011（`b65cf69ef56785c473ddd233624292a3c338401e`）。BUG-003 は承認済み構造化 range data 不在で BLOCKED。
 - **判定基準**: current checkout から到達可能な code/test を正本とする。GitHub Issue/PR の closed/merged 単独は closure に使わない。本更新では原文ブラウザシナリオを再実行していない。
-- **件数**: OPEN=25 / IN_PROGRESS=0 / IMPLEMENTED_UNVERIFIED=7 / VERIFIED_FIXED=0 / BLOCKED=0 / DUPLICATE=0 / NOT_REPRODUCIBLE=0 / **合計=32**
+- **件数**: OPEN=22 / IN_PROGRESS=0 / IMPLEMENTED_UNVERIFIED=9 / VERIFIED_FIXED=0 / BLOCKED=1 / DUPLICATE=0 / NOT_REPRODUCIBLE=0 / **合計=32**
 - **原文シナリオ再検証**: PASS=0 / FAIL=0 / BLOCKED=0 / UNREPORTED=32 / **合計=32**
-- **未検証境界**: 本更新でのブラウザ/DB mutation 再現、Docker-scoped runtime の全 candidate 実行、個別 BUG の live claim 実装は scope 外。`VERIFIED_FIXED` は 0。
+- **未検証境界**: 本更新でのブラウザ/DB mutation 再現は未実施。`VERIFIED_FIXED` は 0。
 - **個票正本**: 各 `## BUG-NNN` 節の最新 `対応状況` 行。
 
 # ドメイン別タスク索引
@@ -22,7 +22,7 @@
 | 一次担当ドメイン | 対象 BUG | 件数 | 状態内訳 | 主な責務境界 |
 |---|---|---:|---|---|
 | 飼主・ペット・受付 | BUG-001, BUG-002, BUG-020, BUG-021, BUG-022 | 5 | IMPLEMENTED_UNVERIFIED 5 | `owner`, `pet`, owners UI、予約モーダルの新規飼主入力 |
-| 検査 | BUG-003, BUG-004, BUG-005, BUG-017 | 4 | IMPLEMENTED_UNVERIFIED 1 / OPEN 3 | `examination`、検査フォーム、担当医選択、異常値判定・確定 |
+| 検査 | BUG-003, BUG-004, BUG-005, BUG-017 | 4 | IMPLEMENTED_UNVERIFIED 3 / BLOCKED 1 | `examination`、検査フォーム、担当医選択、異常値判定・確定 |
 | 予防接種 | BUG-006, BUG-007 | 2 | OPEN 2 | `vaccination`、対象ペット表示、ペット別接種履歴 |
 | LINE・LIFF・Lステップ連携 | BUG-008, BUG-014, BUG-030, BUG-032 | 4 | OPEN 4 | `line-reserve`, `liff`, LINE予約設定、`lstep/checkup-sync` |
 | 入院・ホテル | BUG-009 | 1 | OPEN 1 | `hospitalization`、ステータスタブ・一覧取得 |
@@ -32,7 +32,7 @@
 | 横断フォーム基盤 | BUG-016 | 1 | OPEN 1 | 予防接種・検査・入院フォーム共通の取得失敗/Not Found 契約 |
 | 認証・権限 | BUG-023, BUG-024, BUG-031 | 3 | OPEN 3 | `auth`、権限グループ、セッション復元・ログイン遷移 |
 | 設定・マスタ | BUG-025, BUG-026, BUG-027, BUG-028, BUG-029 | 5 | OPEN 5 | settings UI、各 master owner、共通保存・重複エラー契約 |
-| **合計** | **BUG-001〜BUG-032** | **32** | **IMPLEMENTED_UNVERIFIED 7 / OPEN 25** | 各個票を正本とする |
+| **合計** | **BUG-001〜BUG-032** | **32** | **IMPLEMENTED_UNVERIFIED 9 / OPEN 22 / BLOCKED 1** | 各個票を正本とする |
 
 # 実装優先ウェーブ / 横断クラスタ索引
 
@@ -240,7 +240,7 @@
 ## BUG-003: 検査結果の異常値判定（H/L ハイライト）が常に「未判定」のまま計算されない【重大】
 
 - **重大度**: 高（S02 の中核機能。臨床安全に直結する異常値の見落とし防止が機能していない）
-- **対応状況（2026-08-03 JST）**: OPEN | **根拠**: `exam_result_assessment.go` は基準値解決時のみ H/L; demo seed に `exam_reference_ranges` なしで unassessed/normal 経路が残る（wave-0） | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: clinic/species 基準値 seed または保存時導出を実装し S02 で H/L を確認
+- **対応状況（2026-08-03 JST）**: BLOCKED | **根拠**: 構造化 `exam_reference_ranges` の承認済み data が demo seed に不在（`003_demo` は exam_types/fields/results のみ。manifest に reference range CSV なし）。`assessExamResult` / range resolver は clinic/species/field 構造化 range がある場合のみ H/L を導出し、unit/integration `Test.*(Exam.*Assessment|ReferenceRange)` は green。閾値推測・`normal_value` parse・seed 作成は out of scope のため product patch なし。必要入力: 獣医師承認済み clinic×species×field の構造化 range data packet（別差分） | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: 承認済み reference range seed/data packet 供給後に S02 H/L を再検証
 - **発見シナリオ**: S02 手順2〜4（検査管理 `/examinations`）
 - **再現手順**:
   1. `/examinations/select-pet` から生存ペット（伊藤史安/豆助）を選び、新規検査登録。検査種別「血液検査（院内）」を選択（WBC基準値 6.0-17.0、RBC基準値 5.5-8.5、HCT基準値 37-55 などが動的表示される）。
@@ -417,7 +417,7 @@
 ## BUG-005（軽微・要確認）: 検査の「担当医」選択肢にスタッフ以外の項目が混在している
 
 - **重大度**: 低〜中（データ品質・UI混乱の懸念。実害は要確認）
-- **対応状況（2026-08-03 JST）**: OPEN | **根拠**: 担当医が `useMasterItems("staff")` 全件; `staff_type` 未フィルタ; demo seed に `staff_type=resource` 混在、BE は doctor のみ fail-closed（wave-4） | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: doctor のみのセレクタに絞り S02 で resource 名が出ないことを確認
+- **対応状況（2026-08-03 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: commit `dfd653eaa5ccb089707c3a088863c39c07669288` で `ExaminationForm` が typed `useGetStaffs`（`@/features/master`）を使い `staffType === "doctor" && isActive` のみ候補化。follow-up `d91d3285d79d3da4311ee935299f557279cd153b` で共有 React Query key の薄い `use-staffs` transform にも `staffType` を載せ、キャッシュ衝突で候補0件になる HIGH を解消。resource/nurse/trimmer/inactive を UI から除外する unit が green。BE doctor relation fail-closed は既存回帰 green。名前ベース除外なし | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: S02 手順1 を synthetic fixture でブラウザ再検証し `VERIFIED_FIXED` 可否を判定
 - **発見シナリオ**: S02 手順1（新規検査登録の担当医セレクタ）
 - **内容**: `/examinations/new` の「担当医」ドロップダウンの選択肢に、スタッフ氏名（林文明、ノア、倉田春香 等）に混じって「お手入れ・オゾン療法」「健診・ワクチン・狂犬病」「ドッグラン(アジリティ解放)」「クイックシャンプー」のような、明らかに施術・サービスメニュー名と思われる項目が含まれていた。
 - **備考**: マスタデータ側の混入か、コンポーネントの参照先マスタ取り違えの可能性。実害（誤って選択されるリスク）は未検証。
@@ -1525,7 +1525,7 @@ S01〜S12の業務シナリオ検証に続き、個別フォーム単位の受�
 ## BUG-017: 検査入力フォームで必須項目（検査種別・担当医）が未入力のまま保存を押しても、保存はブロックされるがエラーメッセージが一切表示されない
 
 - **重大度**: 中（保存自体は正しくブロックされデータ破損はないが、職員には保存失敗の理由が一切示されない「無音失敗」に該当する）
-- **対応状況（2026-08-03 JST）**: OPEN | **根拠**: hook は fieldErrors を立てるが `ExaminationFormFields` に未配線でメッセージ非表示（wave-3） | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: 必須フィールド近傍エラー表示＋aria を追加
+- **対応状況（2026-08-03 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: commit `7f71063759974257be14a4ed0a8a5fd04a5c6880` で `fieldErrors` を `ExaminationFormFields` へ配線、`FormFieldError` + `aria-invalid`/`aria-describedby`（`SearchableSelect` 拡張）、testTypeId 優先 focus 既存、field-local clear（修正 field のみ error 消去）を unit/component で固定。空送信は request 0（既存 hook validation）。changed-surface coverage statements ≈92% | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: V01 §7 を synthetic fixture でブラウザ再検証し `VERIFIED_FIXED` 可否を判定
 - **発見シナリオ**: V01 §7 手順1（検査入力 `/examinations/new?petId=xxx`）
 - **再現手順**:
   1. `/examinations/new?petId=1000002` を開く（検査種別・担当医とも未選択のまま）
@@ -2984,5 +2984,34 @@ S01〜S12の業務シナリオ検証に続き、個別フォーム単位の受�
 **時間予算の制約により未実施のまま残った領域**: V01の§4・§5・§9・§10本体・§12本体、V02の§3・§4・§5・§8・§9、V03の§3・§5・§7の一部、V04の§2一部タブ・§3・§4一部・§5〜§10、V05の一部の副作用リスクが高い操作（レート制限・パスワード変更・トークン再利用・タグ一括解除の実行）。これらは今回のセッションでは意図的にスコープ外とした（詳細は各セクションの「未実施項目」参照）。網羅的な検証を行うには、追加のテストセッション、または本番相当データを用いない専用のテスト用クリニック環境の用意を推奨する。
 
 以上。
+
+---
+
+## Staged plan unit: EXAMINATION-BUG-GROUP-003-005-017（2026-08-03 JST）
+
+- **Status**: COMPLETE with partial BLOCKED (BUG-003 data)
+- **Claims retained** (user-only release): `claim/BUG-003`, `claim/BUG-005`, `claim/BUG-017`
+- **Changed files (product)**:
+  - BUG-005 `dfd653eaa5ccb089707c3a088863c39c07669288`: `ExaminationForm.tsx`, `ExaminationForm.permissions.test.tsx`, `frontend/src/features/master/index.ts` (allowlist deviation: Feature Indexing barrel export for `useGetStaffs`)
+  - BUG-005 follow-up `d91d3285d79d3da4311ee935299f557279cd153b`: `frontend/src/hooks/use-staffs.ts` (allowlist deviation: shared RQ cache must carry `staffType`)
+  - BUG-017 `7f71063759974257be14a4ed0a8a5fd04a5c6880`: `ExaminationForm.tsx`, `ExaminationFormFields.tsx`+test, `use-examination-form.ts`+test, `searchable-select.tsx`+test
+  - BUG-003: no product patch
+  - BUG-004: no product patch this unit
+- **Gate commands (verbatim outcomes)**:
+  - `docker compose exec -T backend go test -p 1 ./internal/medicalrecord -run 'Test.*(Exam.*Assessment|ReferenceRange)' -count=1` → `ok`
+  - `docker compose exec -T backend go test -p 1 ./internal/medicalrecord -run 'Test.*(Confirmed|Audit|Rollback|ConfirmWithItems|CreateConfirmed)' -count=1` → `ok`
+  - `docker compose exec -T backend go test -p 1 ./internal/medicalrecord -run 'Test.*(Exam.*Assessment|ReferenceRange|Confirmed|Audit|Rollback)' -count=1` → `ok`
+  - `docker compose exec -T frontend npx vitest run src/features/examinations/routes/ExaminationForm.permissions.test.tsx` → 12 passed
+  - `docker compose exec -T frontend npx vitest run ...ExaminationFormFields/use-examination-form/searchable-select/permissions` → 81 passed
+  - post-HIGH-fix: ExaminationForm.permissions + CheckupForm tests → 16 passed
+  - coverage (statements, changed surface includes): **92.18%** (295/320)
+  - eslint on changed TS/TSX paths → exit 0
+- **Assumption deviations**:
+  1. Required write outside initial allowlist: `frontend/src/features/master/index.ts` export of `useGetStaffs` (deep import forbidden by Feature Indexing).
+  2. Required write outside allowlist: `frontend/src/hooks/use-staffs.ts` staffType on shared cache (react-reviewer HIGH).
+  3. BUG-003 approved structured range data absent → BLOCKED without inventing thresholds.
+- **Independent review**: react HIGH (cache) fixed; typescript 0 C/H; security 0 C/H; healthcare accepts BUG-003 BLOCKED and FE/BE dual defense for doctors
+- **Browser**: none created; original scenarios remain UNREPORTED
+- **Orchestration**: native Workflow `exam-bug-group-investigate` (4 explore probes) + sequential TDD writes + parallel review subagents
 
 ---
