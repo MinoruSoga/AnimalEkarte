@@ -10,6 +10,7 @@ export function buildChiefComplaintCreateRequest(
   return {
     name: data.name,
     description: data.description || undefined,
+    is_active: data.isActive,
   };
 }
 

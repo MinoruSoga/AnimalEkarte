@@ -3,11 +3,12 @@ package medicalrecord
 import "testing"
 
 func TestCreateInquiryTemplateRequest_ToServiceInput(t *testing.T) {
+	active := true
 	req := createInquiryTemplateRequest{
 		Category:  "first_visit",
 		Title:     "Initial questionnaire",
 		Content:   "Tell us about symptoms",
-		IsActive:  true,
+		IsActive:  &active,
 		SortOrder: 2,
 	}
 
@@ -22,11 +23,31 @@ func TestCreateInquiryTemplateRequest_ToServiceInput(t *testing.T) {
 	if input.Content != req.Content {
 		t.Fatalf("Content = %q, want %q", input.Content, req.Content)
 	}
-	if input.IsActive != req.IsActive {
-		t.Fatalf("IsActive = %v, want %v", input.IsActive, req.IsActive)
+	if !input.IsActive {
+		t.Fatalf("IsActive = %v, want true", input.IsActive)
 	}
 	if input.SortOrder != req.SortOrder {
 		t.Fatalf("SortOrder = %d, want %d", input.SortOrder, req.SortOrder)
+	}
+}
+
+func TestCreateInquiryTemplateRequest_IsActiveOmitted(t *testing.T) {
+	req := createInquiryTemplateRequest{Category: "first_visit", Title: "title", Content: "c", SortOrder: 1}
+	if req.IsActive != nil {
+		t.Fatalf("omitted is_active must remain nil (presence absent), got %v", req.IsActive)
+	}
+	input := req.toServiceInput()
+	if !input.IsActive {
+		t.Fatalf("omitted is_active must resolve to true, got false")
+	}
+}
+
+func TestCreateInquiryTemplateRequest_IsActiveFalse(t *testing.T) {
+	active := false
+	req := createInquiryTemplateRequest{Category: "first_visit", Title: "title", IsActive: &active}
+	input := req.toServiceInput()
+	if input.IsActive {
+		t.Fatalf("explicit false must resolve to false")
 	}
 }
 

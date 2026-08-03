@@ -16,9 +16,9 @@ type InquiryTemplateRequestBase = Omit<
 
 export type CreateInquiryTemplateRequest = Pick<
   InquiryTemplateRequestBase,
-  "category" | "title" | "content"
+  "category" | "title" | "content" | "is_active"
 > &
-  Partial<Omit<InquiryTemplateRequestBase, "category" | "title" | "content">>;
+  Partial<Omit<InquiryTemplateRequestBase, "category" | "title" | "content" | "is_active">>;
 
 export type UpdateInquiryTemplateRequest = Partial<InquiryTemplateRequestBase>;
 

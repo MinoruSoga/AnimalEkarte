@@ -14,8 +14,11 @@ type ChiefComplaintTypeRequestBase = Omit<
   "id" | "clinic_id" | "created_at" | "updated_at"
 >;
 
-export type CreateChiefComplaintTypeRequest = Pick<ChiefComplaintTypeRequestBase, "name"> &
-  Partial<Omit<ChiefComplaintTypeRequestBase, "name">>;
+export type CreateChiefComplaintTypeRequest = Pick<
+  ChiefComplaintTypeRequestBase,
+  "name" | "is_active"
+> &
+  Partial<Omit<ChiefComplaintTypeRequestBase, "name" | "is_active">>;
 
 export type UpdateChiefComplaintTypeRequest = Partial<ChiefComplaintTypeRequestBase>;
 

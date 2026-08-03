@@ -3,10 +3,11 @@ package medicalrecord
 import "testing"
 
 func TestCreateChiefComplaintRequest_ToServiceInput(t *testing.T) {
+	active := true
 	req := createChiefComplaintRequest{
 		Name:        "Cough",
 		Description: "Respiratory symptom",
-		IsActive:    true,
+		IsActive:    &active,
 		SortOrder:   5,
 	}
 
@@ -18,11 +19,31 @@ func TestCreateChiefComplaintRequest_ToServiceInput(t *testing.T) {
 	if input.Description != req.Description {
 		t.Fatalf("Description = %q, want %q", input.Description, req.Description)
 	}
-	if input.IsActive != req.IsActive {
-		t.Fatalf("IsActive = %v, want %v", input.IsActive, req.IsActive)
+	if !input.IsActive {
+		t.Fatalf("IsActive = %v, want true", input.IsActive)
 	}
 	if input.SortOrder != req.SortOrder {
 		t.Fatalf("SortOrder = %d, want %d", input.SortOrder, req.SortOrder)
+	}
+}
+
+func TestCreateChiefComplaintRequest_IsActiveOmitted(t *testing.T) {
+	req := createChiefComplaintRequest{Name: "Cough", Description: "desc", SortOrder: 1}
+	if req.IsActive != nil {
+		t.Fatalf("omitted is_active must remain nil (presence absent), got %v", req.IsActive)
+	}
+	input := req.toServiceInput()
+	if !input.IsActive {
+		t.Fatalf("omitted is_active must resolve to true, got false")
+	}
+}
+
+func TestCreateChiefComplaintRequest_IsActiveFalse(t *testing.T) {
+	active := false
+	req := createChiefComplaintRequest{Name: "Cough", IsActive: &active}
+	input := req.toServiceInput()
+	if input.IsActive {
+		t.Fatalf("explicit false must resolve to false")
 	}
 }
 
