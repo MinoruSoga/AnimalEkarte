@@ -63,6 +63,8 @@ vi.mock("../hooks/use-medical-record-form", () => ({
     setChiefComplaintTypeId: vi.fn(),
     treatmentPolicy: "",
     setTreatmentPolicy: vi.fn(),
+    physicalExam: "",
+    setPhysicalExam: vi.fn(),
     plan: "",
     setPlan: vi.fn(),
     assessment: "",
@@ -146,7 +148,6 @@ vi.mock("../hooks/use-medical-record-form-modals", () => ({
 }));
 vi.mock("../hooks/use-medical-record-post-save", () => ({
   useMedicalRecordPostSave: () => ({
-    handleRegisterClinicalPlanSave: vi.fn(),
     handleRegisterEstimateSave: vi.fn(),
   }),
 }));

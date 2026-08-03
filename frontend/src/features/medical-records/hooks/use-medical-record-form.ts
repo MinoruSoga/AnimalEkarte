@@ -15,6 +15,7 @@ import { useUpdateInquiry } from "../api/inquiries";
 import { useUpdateClinicalPlan, useGetClinicalPlan } from "../api/clinical-plan";
 import type { TreatmentItem } from "../components/TreatmentTable";
 import { useApplyMedicalRecord } from "./use-apply-medical-record";
+import { useApplyClinicalPlan } from "./use-apply-clinical-plan";
 import { useMedicalRecordManualErrors } from "./use-medical-record-manual-errors";
 import { useMedicalRecordOwnerChange } from "./use-medical-record-owner-change";
 import { useMedicalRecordAutoCreate } from "./use-medical-record-auto-create";
@@ -68,6 +69,8 @@ export function useMedicalRecordForm(recordId?: string) {
     setChiefComplaintTypeId,
     treatmentPolicy,
     setTreatmentPolicy,
+    physicalExam,
+    setPhysicalExam,
     plan,
     setPlan,
     assessment,
@@ -157,7 +160,19 @@ export function useMedicalRecordForm(recordId?: string) {
   // useGetClinicalPlan が version の唯一の取得元（TanStack Query が
   // クエリキーで dedupe するため、MedicalRecordForm.tsx 側の呼び出しと
   // 追加ネットワークリクエストにはならない）。
+  // BUG-010: 同データから 3欄 + 診断マスタも hydrate する（detail wire には載らない）。
   const { data: clinicalPlan } = useGetClinicalPlan(recordId ?? "", recordClinicId);
+
+  useApplyClinicalPlan({
+    clinicalPlan,
+    setPhysicalExam,
+    setPlan,
+    setAssessment,
+    setDiagnosis1CategoryId,
+    setDiagnosis1NameId,
+    setDiagnosis2CategoryId,
+    setDiagnosis2NameId,
+  });
 
   const { formState, formAction, isSaving } = useMedicalRecordSaveAction({
     recordId,
@@ -170,6 +185,7 @@ export function useMedicalRecordForm(recordId?: string) {
     diagnosis1NameId,
     diagnosis2CategoryId,
     diagnosis2NameId,
+    physicalExam,
     plan,
     assessment,
     chiefComplaint,
@@ -289,7 +305,9 @@ export function useMedicalRecordForm(recordId?: string) {
     setChiefComplaintTypeId,
     treatmentPolicy,
     setTreatmentPolicy,
-    // 診察/治療プランタブ（SOAPS）
+    // 診察/治療プランタブ（clinical_plan 3欄）
+    physicalExam,
+    setPhysicalExam,
     plan,
     setPlan,
     assessment,

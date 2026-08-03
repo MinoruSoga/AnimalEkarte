@@ -5,6 +5,7 @@ interface UseMedicalRecordDirtyFieldsParams {
   setChiefComplaint: (value: string) => void;
   setChiefComplaintTypeId: (id: number | null) => void;
   setTreatmentPolicy: (value: string) => void;
+  setPhysicalExam: (value: string) => void;
   setPlan: (value: string) => void;
   setAssessment: (value: string) => void;
   setDiagnosis1CategoryId: (id: number | null) => void;
@@ -18,6 +19,7 @@ export function useMedicalRecordDirtyFields({
   setChiefComplaint,
   setChiefComplaintTypeId,
   setTreatmentPolicy,
+  setPhysicalExam,
   setPlan,
   setAssessment,
   setDiagnosis1CategoryId,
@@ -39,6 +41,11 @@ export function useMedicalRecordDirtyFields({
     markDirty();
     setTreatmentPolicy(value);
   }, [markDirty, setTreatmentPolicy]);
+
+  const handleSetPhysicalExam = useCallback((value: string) => {
+    markDirty();
+    setPhysicalExam(value);
+  }, [markDirty, setPhysicalExam]);
 
   const handleSetPlan = useCallback((value: string) => {
     markDirty();
@@ -78,6 +85,7 @@ export function useMedicalRecordDirtyFields({
     handleSetDiagnosis1NameId,
     handleSetDiagnosis2CategoryId,
     handleSetDiagnosis2NameId,
+    handleSetPhysicalExam,
     handleSetPlan,
     handleSetTreatmentPolicy,
   };

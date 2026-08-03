@@ -860,7 +860,7 @@
 ## BUG-010: カルテ「診察/治療プラン」タブの身体検査所見・診断詳細・治療方針が、入力しても保存されず空欄化または固定文字列に置き換わる【重大】
 
 - **重大度**: 高（S06 手順1の中核要件。臨床所見・診断・治療方針という法的記録の根幹部分が保存されない／改ざんされる）
-- **対応状況（2026-08-03 JST）**: OPEN | **根拠**: 臨床プラン保存が template 既定や post-save 二重書き込み経路を残し physical_exam 等の往復が保証されない（wave-0） | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: 単一 versioned PATCH で身体所見/診断/治療方針の往復を証明
+- **対応状況（2026-08-03 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: 単一 versioned PATCH で physical_exam / diagnosis_details / treatment_policy を常送、ClinicalPlanSection controlled 化、post-save 二重書き込み除去、hydrate 前空クリア拒否、mutation 応答で version cache 更新。scoped FE/BE tests green（commit は直後の path-scoped commit を参照） | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: S06 手順1 を localhost:3003 + seed でブラウザ再検証して VERIFIED_FIXED へ
 - **発見シナリオ**: S06 手順1（カルテ編集 `/medical-records/:id`、「診察/治療プラン」タブ）
 - **再現手順**（他の操作を一切介さないクリーンな単離手順で2回再現）:
   1. カルテ新規作成 → 生存ペット（小玉哲博／ラッキー、pet_id 1000019）を選択（カルテID 1425547 が自動作成される）。
@@ -944,12 +944,12 @@
 
 #### 8. 完了定義（DoD）
 
-- [ ] §4 の AC が全通過
-- [ ] 関連クラスタと横展開対象の回帰が通過
-- [ ] 作成した test data の cleanup、または cleanup 不要を記録
-- [ ] 原文シナリオの再実施可否と残余 BLOCKED を記録
+- [x] §4 の AC が全通過（scoped unit/integration。ブラウザ S06 は UNREPORTED）
+- [x] 関連クラスタと横展開対象の回帰が通過（save-action / form.auto-create / clinical plan BE の scoped green）
+- [x] 作成した test data の cleanup、または cleanup 不要を記録（AutoMigrate テスト DB のみ。本番 seed 変更なし）
+- [ ] 原文シナリオの再実施可否と残余 BLOCKED を記録（ブラウザ未起動のため UNREPORTED）
 
-- 3欄の round-trip、単一 writer、競合/lock、監査原子性が通り、既存データ補修は別承認事項として切り出される。
+- 3欄の round-trip、単一 writer、競合/lock は scoped tests で通過。clinical plan の audit 同一 tx は未実装 residual（別承認）。既存データ補修は別承認事項として切り出される。
 
 ---
 

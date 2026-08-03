@@ -19,7 +19,9 @@ import { calculateBillingTotals } from "@/lib/calculations";
 export interface DiagnosisPlanProps {
   isNewRecord?: boolean;
   chiefComplaint?: string;
-  // 制御型props（親フックから状態を受け取る）
+  // 制御型props（親フックから状態を受け取る）— clinical_plan 3欄の単一 owner
+  physicalExam: string;
+  setPhysicalExam: (value: string) => void;
   plan: string;
   setPlan: (value: string) => void;
   assessment: string;
@@ -34,7 +36,6 @@ export interface DiagnosisPlanProps {
   setDiagnosis2NameId: (id: number | null) => void;
   medicalRecordId?: string;
   ownerDiscountRate?: number;
-  onRegisterClinicalPlanSave?: (fn: () => Promise<void>) => void;
   diagnosis1NameIdError?: string | null;
   /** P2-15: 拠点横断で開いたカルテの子リソース操作用。レコード自身の clinicId */
   recordClinicId?: string;
@@ -43,6 +44,8 @@ export interface DiagnosisPlanProps {
 export const MedicalRecordDiagnosisPlan = memo(function MedicalRecordDiagnosisPlan({
   isNewRecord = false,
   chiefComplaint,
+  physicalExam,
+  setPhysicalExam,
   plan,
   setPlan,
   assessment,
@@ -57,7 +60,6 @@ export const MedicalRecordDiagnosisPlan = memo(function MedicalRecordDiagnosisPl
   setDiagnosis2NameId,
   medicalRecordId,
   ownerDiscountRate = 0,
-  onRegisterClinicalPlanSave,
   diagnosis1NameIdError,
   recordClinicId,
 }: DiagnosisPlanProps) {
@@ -158,8 +160,8 @@ export const MedicalRecordDiagnosisPlan = memo(function MedicalRecordDiagnosisPl
     <div className={`gap-3 ${LAYOUT.fullHeight}`}>
       <DiagnosisHeader
         chiefComplaint={chiefComplaint}
-        policy={plan}
-        setPolicy={setPlan}
+        physicalExam={physicalExam}
+        setPhysicalExam={setPhysicalExam}
         diagnosisDetails={assessment}
         setDiagnosisDetails={setAssessment}
         diagnosis1CategoryId={diagnosis1CategoryId}
@@ -175,7 +177,21 @@ export const MedicalRecordDiagnosisPlan = memo(function MedicalRecordDiagnosisPl
 
       {!isNewRecord && medicalRecordId ? (
         <div className="shrink-0">
-          <ClinicalPlanSection medicalRecordId={medicalRecordId} onRegisterSave={onRegisterClinicalPlanSave} canEdit={canEdit} recordClinicId={recordClinicId} />
+          <ClinicalPlanSection
+            medicalRecordId={medicalRecordId}
+            canEdit={canEdit}
+            recordClinicId={recordClinicId}
+            physicalExam={physicalExam}
+            onPhysicalExamChange={setPhysicalExam}
+            diagnosisDetails={assessment}
+            onDiagnosisDetailsChange={setAssessment}
+            treatmentPolicy={plan}
+            onTreatmentPolicyChange={setPlan}
+            diagnosisTypeId={diagnosis1CategoryId}
+            onDiagnosisTypeIdChange={setDiagnosis1CategoryId}
+            diagnosisNameId={diagnosis1NameId}
+            onDiagnosisNameIdChange={setDiagnosis1NameId}
+          />
         </div>
       ) : null}
 

@@ -897,6 +897,12 @@ describe("useMedicalRecordForm", () => {
     });
 
     it("recordId あり & 診察/治療プランタブ & diagnosis1CategoryId あり & diagnosis1NameId なし → バリデーションエラー（line 183-188）", async () => {
+      // BUG-010: version 未取得時は診断バリデーションより先に hydrate ガードで止まるため version を用意する
+      mockUseGetClinicalPlan.mockReturnValue({
+        data: { id: "cp-1", medical_record_id: "10", version: 1, physical_exam: "", diagnosis_details: "", treatment_policy: "", updated_at: "t0" },
+        isLoading: false,
+        isError: false,
+      });
       const { result } = renderHook(() => useMedicalRecordForm("10"));
 
       // タブを診察/治療プランに切り替え
@@ -921,6 +927,11 @@ describe("useMedicalRecordForm", () => {
 
     // BUG-416 ②: diagnosis1 と同じバリデーションを diagnosis2 にも適用する（FE validation parity）
     it("recordId あり & 診察/治療プランタブ & diagnosis2CategoryId あり & diagnosis2NameId なし → バリデーションエラー", async () => {
+      mockUseGetClinicalPlan.mockReturnValue({
+        data: { id: "cp-1", medical_record_id: "10", version: 1, physical_exam: "", diagnosis_details: "", treatment_policy: "", updated_at: "t0" },
+        isLoading: false,
+        isError: false,
+      });
       const { result } = renderHook(() => useMedicalRecordForm("10"));
 
       // タブを診察/治療プランに切り替え
@@ -945,34 +956,33 @@ describe("useMedicalRecordForm", () => {
 
     // BUG-410: hydrate された diagnosis1/2 が実際の保存ペイロードに反映されることを、
     // state のアサーションではなく updateTreatmentPlanMutation.mutateAsync への
-    // 実引数で証明する。state レベルのテスト（use-medical-record-form.test.ts）だけでは
-    // render中setState(useApplyMedicalRecord)→useActionStateのクロージャ経路で
-    // 古い値が送信され続ける可能性を反証できない。
+    // 実引数で証明する。BUG-010 後は clinical-plan GET が診断マスタの正本。
     it("BUG-410: 既存レコードの diagnosis2 が hydrate 済みの状態で診断以外を編集して保存すると、mutateAsync に stale null ではなく hydrate された diagnosis_2_type_id/diagnosis_2_name_id が渡る", async () => {
-      const loadedRecord = {
+      mockUseGetMedicalRecord.mockReturnValue({
+        data: { id: "10", visitType: "再診", version: 1 },
+        isLoading: false,
+        isError: false,
+      } as never);
+      mockUseGetClinicalPlan.mockReturnValue({
         data: {
-          id: "10",
-          visitType: "再診",
-          chiefComplaint: "",
-          plan: "既存の治療方針",
-          assessment: "既存の所見",
-          notes: "",
-          version: 1,
-          diagnosis1CategoryId: 3,
-          diagnosis1NameId: 7,
-          diagnosis2CategoryId: 4,
-          diagnosis2NameId: 9,
+          id: "cp-10",
+          medical_record_id: "10",
+          version: 3,
+          physical_exam: "既存所見",
+          diagnosis_details: "既存の診断詳細",
+          treatment_policy: "既存の治療方針",
+          diagnosis_type_id: "3",
+          diagnosis_name_id: "7",
+          diagnosis_2_type_id: "4",
+          diagnosis_2_name_id: "9",
+          updated_at: "t1",
         },
         isLoading: false,
         isError: false,
-      };
-      mockUseGetMedicalRecord.mockReturnValue({ data: undefined, isLoading: true, isError: false });
-      const { result, rerender } = renderHook(() => useMedicalRecordForm("10"));
+      });
+      const { result } = renderHook(() => useMedicalRecordForm("10"));
 
-      mockUseGetMedicalRecord.mockReturnValue(loadedRecord as never);
-      rerender();
-
-      // hydrate が state に反映されるまで待つ（use-medical-record-form.test.ts と同一の待機点）
+      // clinical-plan hydrate が state に反映されるまで待つ
       await waitFor(() => {
         expect(result.current.diagnosis2CategoryId).toBe(4);
         expect(result.current.diagnosis2NameId).toBe(9);
@@ -998,6 +1008,9 @@ describe("useMedicalRecordForm", () => {
         expect.objectContaining({
           diagnosis_2_type_id: 4,
           diagnosis_2_name_id: 9,
+          physical_exam: "既存所見",
+          treatment_policy: "更新後の治療方針",
+          version: 3,
         }),
       );
     });

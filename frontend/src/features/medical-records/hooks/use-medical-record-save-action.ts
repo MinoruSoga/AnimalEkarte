@@ -18,7 +18,11 @@ interface UseMedicalRecordSaveActionArgs {
   diagnosis1NameId: number | null;
   diagnosis2CategoryId: number | null;
   diagnosis2NameId: number | null;
+  /** 身体検査所見 → clinical_plan.physical_exam */
+  physicalExam: string;
+  /** 治療方針 → clinical_plan.treatment_policy */
   plan: string;
+  /** 診断詳細 → clinical_plan.diagnosis_details */
   assessment: string;
   chiefComplaint: string;
   chiefComplaintDefault: string;
@@ -39,6 +43,7 @@ interface UseMedicalRecordSaveActionArgs {
   };
   updateTreatmentPlanMutation: {
     mutateAsync: (variables: {
+      physical_exam: string;
       treatment_policy: string;
       diagnosis_details: string;
       diagnosis_type_id?: number;
@@ -64,6 +69,7 @@ export function useMedicalRecordSaveAction({
   diagnosis1NameId,
   diagnosis2CategoryId,
   diagnosis2NameId,
+  physicalExam,
   plan,
   assessment,
   chiefComplaint,
@@ -131,6 +137,12 @@ export function useMedicalRecordSaveAction({
             if (!isNextVisitDateValid) {
               return { success: false, timestamp: Date.now() };
             }
+            // BUG-010: clinical-plan GET/hydrate 前の空文字 PATCH は既存所見を無音で消す。
+            // version 未確定（undefined）は BE が楽観ロックをスキップするため fail-closed で拒否する。
+            if (typeof existingClinicalPlanVersion !== "number") {
+              toast.error("診察プランの読み込みが完了してから保存してください");
+              return { success: false, timestamp: Date.now() };
+            }
             if (diagnosis1CategoryId && !diagnosis1NameId) {
               const diagError = { diagnosis1_name_id: "診断名を選択してください" };
               setManualErrors(diagError);
@@ -142,8 +154,10 @@ export function useMedicalRecordSaveAction({
               setManualErrors(diagError);
               return { success: false, fieldErrors: diagError, timestamp: Date.now() };
             }
-            // BUG-102: DEFAULT値でも常に送信する（undefined を送ると BE が 400 を返す）
+            // BUG-010 / BUG-102: 3欄は常に送信する（undefined 欠落は「未更新」になり、
+            // テンプレ既定や別 writer の last-write-wins で入力が消える）。空文字は明示クリア。
             const treatmentPlanPayload = {
+              physical_exam: physicalExam,
               treatment_policy: plan,
               diagnosis_details: assessment,
               diagnosis_type_id: diagnosis1CategoryId ?? undefined,

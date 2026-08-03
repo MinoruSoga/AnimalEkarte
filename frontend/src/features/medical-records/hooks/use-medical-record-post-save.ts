@@ -9,22 +9,22 @@ interface UseMedicalRecordPostSaveArgs {
   markClean: () => void;
 }
 
+/**
+ * 保存成功後のタブ固有フォローアップ。
+ * BUG-010: clinical-plan は親 save action の単一 versioned PATCH が正本のため、
+ * post-save での再書き込み経路は持たない（見積書のみ登録 save を維持）。
+ */
 export function useMedicalRecordPostSave({
   activeTab,
   formState,
   markClean,
 }: UseMedicalRecordPostSaveArgs) {
   const activeTabRef = useRef(activeTab);
-  const clinicalPlanSaveRef = useRef<(() => Promise<void>) | null>(null);
   const estimateSaveRef = useRef<(() => Promise<void>) | null>(null);
 
   useEffect(() => {
     activeTabRef.current = activeTab;
   }, [activeTab]);
-
-  const handleRegisterClinicalPlanSave = useCallback((fn: () => Promise<void>) => {
-    clinicalPlanSaveRef.current = fn;
-  }, []);
 
   const handleRegisterEstimateSave = useCallback((fn: () => Promise<void>) => {
     estimateSaveRef.current = fn;
@@ -37,9 +37,7 @@ export function useMedicalRecordPostSave({
 
     const doPostSave = async () => {
       try {
-        if (currentTab === "診察/治療プラン") {
-          await (clinicalPlanSaveRef.current?.() ?? Promise.resolve());
-        } else if (currentTab === "見積書") {
+        if (currentTab === "見積書") {
           await (estimateSaveRef.current?.() ?? Promise.resolve());
         }
       } catch (error) {
@@ -52,7 +50,6 @@ export function useMedicalRecordPostSave({
   }, [formState.success, formState.timestamp, markClean]);
 
   return {
-    handleRegisterClinicalPlanSave,
     handleRegisterEstimateSave,
   };
 }

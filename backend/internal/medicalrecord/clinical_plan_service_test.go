@@ -330,6 +330,73 @@ func TestClinicalPlanService_Update(t *testing.T) {
 	}
 }
 
+// BUG-010: 空文字ポインタは明示クリアとして repo.Update に渡り、未送信 nil は no-op になる。
+func TestClinicalPlanService_Update_EmptyStringClearsFields(t *testing.T) {
+	empty := ""
+	var gotFields map[string]any
+	repo := &mockClinicalPlanRepository{
+		findByMedicalRecordIDFn: func(_ context.Context, _, _ uint64) (*model.ClinicalPlan, error) {
+			return &model.ClinicalPlan{
+				ID:               1,
+				MedicalRecordID:  1,
+				PhysicalExam:     "残すべきでない所見",
+				DiagnosisDetails: "残すべきでない診断",
+				TreatmentPolicy:  "残すべきでない方針",
+				Version:          2,
+			}, nil
+		},
+		updateWithVersionFn: func(_ context.Context, _, _ uint64, fields map[string]any, expectedVersion *int) error {
+			gotFields = fields
+			if expectedVersion == nil || *expectedVersion != 2 {
+				t.Fatalf("expectedVersion = %v, want 2", expectedVersion)
+			}
+			return nil
+		},
+	}
+	svc := NewClinicalPlanService(repo, okMedRecForPlan(), okDiagnosisTypeRepo(), okDiagnosisNameRepo())
+	version := 2
+	_, err := svc.Update(context.Background(), 1, 1, &UpdateClinicalPlanInput{
+		PhysicalExam:     &empty,
+		DiagnosisDetails: &empty,
+		TreatmentPolicy:  &empty,
+		Version:          &version,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, gotFields)
+	assert.Equal(t, "", gotFields["physical_exam"])
+	assert.Equal(t, "", gotFields["diagnosis_details"])
+	assert.Equal(t, "", gotFields["treatment_policy"])
+	assert.Equal(t, 3, gotFields["version"])
+}
+
+// BUG-010: 確定済み親カルテへの clinical plan 更新は Conflict で拒否し repo.Update を呼ばない。
+func TestClinicalPlanService_Update_FinalizedParentRejected(t *testing.T) {
+	physicalExam := "後から書いた所見"
+	updateCalled := false
+	repo := &mockClinicalPlanRepository{
+		findByMedicalRecordIDFn: func(_ context.Context, _, _ uint64) (*model.ClinicalPlan, error) {
+			return &model.ClinicalPlan{ID: 1, MedicalRecordID: 1, PhysicalExam: "確定前"}, nil
+		},
+		updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+			updateCalled = true
+			return nil
+		},
+	}
+	medRec := &mockMedicalRecordRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+			return &model.MedicalRecord{Status: model.MedicalRecordStatusFinalized}, nil
+		},
+	}
+	svc := NewClinicalPlanService(repo, medRec, okDiagnosisTypeRepo(), okDiagnosisNameRepo())
+
+	plan, err := svc.Update(context.Background(), 1, 1, &UpdateClinicalPlanInput{PhysicalExam: &physicalExam})
+
+	assert.Error(t, err)
+	assert.True(t, apperrors.IsConflict(err))
+	assert.Nil(t, plan)
+	assert.False(t, updateCalled)
+}
+
 // TestClinicalPlanService_Update_ValidateDiagnosisFKsError は、貼り替え先の診断マスタFKが
 // 呼び出し元クリニックの所有でない場合に Update がエラーを返し、repo.Update が呼ばれない
 // ことを検証する（クロステナント write 防止）。

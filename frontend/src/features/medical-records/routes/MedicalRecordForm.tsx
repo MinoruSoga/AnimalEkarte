@@ -78,6 +78,8 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
     setChiefComplaintTypeId,
     treatmentPolicy,
     setTreatmentPolicy,
+    physicalExam,
+    setPhysicalExam,
     plan,
     setPlan,
     assessment,
@@ -136,7 +138,6 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const {
-    handleRegisterClinicalPlanSave,
     handleRegisterEstimateSave,
   } = useMedicalRecordPostSave({
     activeTab,
@@ -245,6 +246,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
     handleSetDiagnosis1NameId,
     handleSetDiagnosis2CategoryId,
     handleSetDiagnosis2NameId,
+    handleSetPhysicalExam,
     handleSetPlan,
     handleSetTreatmentPolicy,
   } = useMedicalRecordDirtyFields({
@@ -256,6 +258,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
     setDiagnosis1NameId,
     setDiagnosis2CategoryId,
     setDiagnosis2NameId,
+    setPhysicalExam,
     setPlan,
     setTreatmentPolicy,
   });
@@ -352,6 +355,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
           chiefComplaintTypeId={chiefComplaintTypeId}
           treatmentPolicy={treatmentPolicy}
           historyItems={historyItems}
+          physicalExam={physicalExam}
           plan={plan}
           assessment={assessment}
           diagnosis1CategoryId={diagnosis1CategoryId}
@@ -368,6 +372,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
           onChiefComplaintChange={handleSetChiefComplaint}
           onChiefComplaintTypeIdChange={handleSetChiefComplaintTypeId}
           onTreatmentPolicyChange={handleSetTreatmentPolicy}
+          onPhysicalExamChange={handleSetPhysicalExam}
           onPlanChange={handleSetPlan}
           onAssessmentChange={handleSetAssessment}
           onDiagnosis1CategoryIdChange={handleSetDiagnosis1CategoryId}
@@ -377,7 +382,6 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
           onNextVisitDateChange={handleNextVisitDateChange}
           onNextVisitDateValidChange={handleNextVisitDateValidChange}
           onRecommendationReasonChange={setRecommendationReason}
-          onRegisterClinicalPlanSave={handleRegisterClinicalPlanSave}
           onRegisterEstimateSave={handleRegisterEstimateSave}
           recordClinicId={recordClinicId}
         />

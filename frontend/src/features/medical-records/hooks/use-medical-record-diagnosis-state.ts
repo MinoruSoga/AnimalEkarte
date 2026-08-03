@@ -1,9 +1,7 @@
 import { useState } from "react";
 import type { RecommendationReason } from "../constants/recommendation-reason";
 import {
-  DEFAULT_ASSESSMENT,
   DEFAULT_CHIEF_COMPLAINT,
-  DEFAULT_PLAN,
   DEFAULT_TREATMENT_POLICY,
 } from "./use-medical-record-form-model";
 
@@ -11,11 +9,14 @@ export function useMedicalRecordDiagnosisState() {
   // 問診タブの状態
   const [chiefComplaint, setChiefComplaint] = useState(DEFAULT_CHIEF_COMPLAINT);
   const [chiefComplaintTypeId, setChiefComplaintTypeId] = useState<number | null>(null);
+  // 問診 notes 用（clinical_plan.treatment_policy ではない）
   const [treatmentPolicy, setTreatmentPolicy] = useState(DEFAULT_TREATMENT_POLICY);
 
-  // 診察/治療プランタブの状態（SOAPS）
-  const [plan, setPlan] = useState(DEFAULT_PLAN);
-  const [assessment, setAssessment] = useState(DEFAULT_ASSESSMENT);
+  // 診察/治療プランタブの状態 — clinical_plan 3欄の単一 owner（BUG-010）
+  // 初期値は空。テンプレート固定文字列を初期表示に載せて保存すると入力が置換されるため使わない。
+  const [physicalExam, setPhysicalExam] = useState("");
+  const [plan, setPlan] = useState(""); // treatment_policy
+  const [assessment, setAssessment] = useState(""); // diagnosis_details
 
   // 診断マスタの状態
   const [diagnosis1CategoryId, setDiagnosis1CategoryId] = useState<number | null>(null);
@@ -34,6 +35,8 @@ export function useMedicalRecordDiagnosisState() {
     setChiefComplaintTypeId,
     treatmentPolicy,
     setTreatmentPolicy,
+    physicalExam,
+    setPhysicalExam,
     plan,
     setPlan,
     assessment,

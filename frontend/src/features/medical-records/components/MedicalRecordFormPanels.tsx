@@ -246,6 +246,7 @@ interface MedicalRecordTabsAreaProps {
   chiefComplaintTypeId: number | null;
   treatmentPolicy: string;
   historyItems: InterviewHistoryItem[];
+  physicalExam: string;
   plan: string;
   assessment: string;
   diagnosis1CategoryId: number | null;
@@ -264,6 +265,7 @@ interface MedicalRecordTabsAreaProps {
   onChiefComplaintChange: (value: string) => void;
   onChiefComplaintTypeIdChange: (id: number | null) => void;
   onTreatmentPolicyChange: (value: string) => void;
+  onPhysicalExamChange: (value: string) => void;
   onPlanChange: (value: string) => void;
   onAssessmentChange: (value: string) => void;
   onDiagnosis1CategoryIdChange: (id: number | null) => void;
@@ -273,7 +275,6 @@ interface MedicalRecordTabsAreaProps {
   onNextVisitDateChange: (value: string) => void;
   onNextVisitDateValidChange: (valid: boolean) => void;
   onRecommendationReasonChange: (value: RecommendationReason | null) => void;
-  onRegisterClinicalPlanSave: (fn: () => Promise<void>) => void;
   onRegisterEstimateSave: (fn: () => Promise<void>) => void;
 }
 
@@ -287,6 +288,7 @@ export function MedicalRecordTabsArea({
   chiefComplaintTypeId,
   treatmentPolicy,
   historyItems,
+  physicalExam,
   plan,
   assessment,
   diagnosis1CategoryId,
@@ -304,6 +306,7 @@ export function MedicalRecordTabsArea({
   onChiefComplaintChange,
   onChiefComplaintTypeIdChange,
   onTreatmentPolicyChange,
+  onPhysicalExamChange,
   onPlanChange,
   onAssessmentChange,
   onDiagnosis1CategoryIdChange,
@@ -313,7 +316,6 @@ export function MedicalRecordTabsArea({
   onNextVisitDateChange,
   onNextVisitDateValidChange,
   onRecommendationReasonChange,
-  onRegisterClinicalPlanSave,
   onRegisterEstimateSave,
 }: MedicalRecordTabsAreaProps) {
   return (
@@ -339,6 +341,8 @@ export function MedicalRecordTabsArea({
             <MedicalRecordDiagnosisPlan
               isNewRecord={isNewRecord}
               chiefComplaint={chiefComplaint}
+              physicalExam={physicalExam}
+              setPhysicalExam={onPhysicalExamChange}
               plan={plan}
               setPlan={onPlanChange}
               assessment={assessment}
@@ -353,7 +357,6 @@ export function MedicalRecordTabsArea({
               setDiagnosis2NameId={onDiagnosis2NameIdChange}
               medicalRecordId={recordId}
               ownerDiscountRate={ownerDiscountRate}
-              onRegisterClinicalPlanSave={onRegisterClinicalPlanSave}
               diagnosis1NameIdError={diagnosis1NameIdError}
               recordClinicId={recordClinicId}
             />
