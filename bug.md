@@ -1159,7 +1159,7 @@
 ## BUG-013: 未請求明細取得APIが実データ存在時に500エラーを返し、トリミング×診察の統合会計が機能しない【重大】【S11ブロッカー】
 
 - **重大度**: 高（S11の中核機能である「同日同一ペットの未請求明細の会計統合」が完全に機能しない）
-- **対応状況（2026-08-03 JST）**: OPEN | **根拠**: 未請求集約で vaccination master 欠損/負価格が内部エラー化しリクエスト全体 500（`billing_item_repository`）（wave-1） | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: 部分成功/警告契約またはスキップ方針で S11 統合会計を再計測
+- **対応状況（2026-08-03 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: commit `74aa3e2c6e6dfe6c43227b2aacc0a699cc416a1a` — additive `GET /billing-items/unbilled-details` が items + `vaccination_master_unbillable` blocking warning を返し、legacy `/unbilled` raw-array は維持。vaccination unbillable は skip+count（infra は 500）。CreateAccounting/CreateItem は write-time 再集計で 409 fail-closed。FE 新会計 consumer は details へ移行し blocking/未取得中は確定無効化。scoped BE/FE tests green | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: S11 手順5（`/accounting/new?petId=1004170`）を localhost:3003 + seed でブラウザ再検証して VERIFIED_FIXED へ
 - **発見シナリオ**: S11 手順5（会計新規作成 `/accounting/new?petId=xxx`）
 - **再現手順**:
   1. 川崎和久／ナッツ（petId=1004170）に対し、トリミング登録（コース「八王子カット」¥0＋オプション「爪切り」¥300、ステータス予約→受付済→施術open→診療中）と、同日の通常カルテ（一般診察、処置「S11検証用処置」¥15,000を追加し確定）をそれぞれ作成。
@@ -1241,10 +1241,10 @@
 
 #### 8. 完了定義（DoD）
 
-- [ ] §4 の AC が全通過
-- [ ] 関連クラスタと横展開対象の回帰が通過
-- [ ] 作成した test data の cleanup、または cleanup 不要を記録
-- [ ] 原文シナリオの再実施可否と残余 BLOCKED を記録
+- [x] §4 の AC が全通過（scoped unit/integration + FE getter tests; S11 ブラウザは UNREPORTED）
+- [x] 関連クラスタと横展開対象の回帰が通過（Unbilled/Vaccination/Trimming/Routes snapshot scoped green）
+- [x] 作成した test data の cleanup、または cleanup 不要を記録（AutoMigrate テスト DB のみ。seed 変更なし）
+- [ ] 原文シナリオの再実施可否と残余 BLOCKED を記録（localhost:3003/seed 未起動のため UNREPORTED）
 
 - 有効候補は保持、無効候補は明示警告、書込は fail-closed、clinic/pet 相関が test され、seed 価格の推測補正をしていない。
 
