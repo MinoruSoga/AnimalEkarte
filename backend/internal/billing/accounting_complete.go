@@ -18,7 +18,8 @@ import (
 )
 
 // CompleteAccountingItemInput は complete command の明細1行入力。
-// source-linked item の name/price/tax は server が tx 内で再解決する（CreateItemForComplete 経由）。
+// FK 検証は CreateItemForComplete（ValidateCreateReferences）が tx 内で行う。
+// 価格の master 再解決は既存 CreateItem と同型（source-linked 価格の server 上書きは別 packet）。
 type CompleteAccountingItemInput struct {
 	Category              string
 	Name                  string
@@ -342,8 +343,9 @@ func (s *accountingService) Complete(ctx context.Context, input *CompleteAccount
 			CompletionRequestHash: &hash,
 		}
 		if err := s.repo.Create(txCtx, input.ClinicID, billing); err != nil {
-			// 並行 UNIQUE 衝突時は既存行を再取得して replay 契約へ。
-			if persistence.IsUniqueConstraintErr(err) {
+			// Create は UNIQUE を AlreadyExists に変換する（pg 23505 は chain されない）。
+			// completion_request_id 衝突時のみ replay。他 UNIQUE は existing==nil のまま元エラー。
+			if apperrors.IsAlreadyExists(err) || persistence.IsUniqueConstraintErr(err) {
 				existing, lookupErr := s.repo.FindByCompletionRequestID(txCtx, input.ClinicID, input.IdempotencyKey)
 				if lookupErr != nil {
 					return apperrors.Wrap(lookupErr, "failed to resolve completion unique conflict")
@@ -385,6 +387,8 @@ func (s *accountingService) Complete(ctx context.Context, input *CompleteAccount
 				TrimmingOptionID:      it.TrimmingOptionID,
 				SortOrder:             it.SortOrder,
 				StaffID:               input.StaffID,
+				// 手入力 other は CreatedBy 必須（legacy item handler が OptionalStaffID をセットするのと同型）。
+				CreatedBy: input.StaffID,
 			}
 			if _, err := s.itemWriter.CreateItemForComplete(txCtx, itemInput); err != nil {
 				return apperrors.Wrap(err, fmt.Sprintf("failed to create complete item index=%d", i))

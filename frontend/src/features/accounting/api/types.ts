@@ -52,6 +52,8 @@ export interface CompleteAccountingItemRequest {
   name: string;
   unit_price: number;
   quantity: number;
+  discount_rate?: number;
+  discount_amount?: number;
   tax_type: string;
   tax_rate: number;
   is_insurance_applicable: boolean;

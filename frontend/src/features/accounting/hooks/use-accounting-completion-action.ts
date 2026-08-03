@@ -28,6 +28,8 @@ function toCompleteItems(
     name: item.name,
     unit_price: item.unitPrice,
     quantity: item.quantity,
+    discount_rate: item.discountRate,
+    discount_amount: item.discountAmount,
     tax_type: item.taxType,
     tax_rate: item.taxRate,
     is_insurance_applicable: item.isInsuranceApplicable,
@@ -42,6 +44,20 @@ function toCompleteItems(
     trimming_course_id: item.trimmingCourseId ? Number(item.trimmingCourseId) : undefined,
     trimming_option_id: item.trimmingOptionId ? Number(item.trimmingOptionId) : undefined,
   }));
+}
+
+/** mutation 単位の Idempotency-Key を payload 指紋付きで保持する（失敗 retry で再利用）。 */
+function buildCompletePayloadFingerprint(parts: {
+  petId: string | number;
+  ownerId: string | number;
+  scheduledDate: string;
+  items: CompleteAccountingItemRequest[];
+  paymentSplits: PaymentSplitRequest[];
+  postCloseReason?: string;
+  insuranceRatio: string | null;
+  insuranceAmount: number | null;
+}): string {
+  return JSON.stringify(parts);
 }
 
 interface AccountingCalculation {
@@ -82,6 +98,9 @@ export function useAccountingCompletionAction({
   const [editConfirmOpen, setEditConfirmOpen] = useState(false);
   const editConfirmedRef = useRef(false);
   const formRef = useRef<HTMLFormElement>(null);
+  // BUG-018: mutation 単位の Idempotency-Key。失敗 retry で再利用し、成功後のみクリア。
+  const completeIdempotencyKeyRef = useRef<string | null>(null);
+  const completePayloadFingerprintRef = useRef<string | null>(null);
 
   const [formState, formAction, isPending] = useActionState(
     async (_prevState: AccountingFormState, _formData: FormData): Promise<AccountingFormState> => {
@@ -121,23 +140,47 @@ export function useAccountingCompletionAction({
         if (!accountingId) {
           // BUG-018: 新規確定は header/items/payments を単一 complete command で原子的に送信する。
           // legacy create + sequential items は残置（他 consumer 用）だが本経路では呼ばない。
-          const idempotencyKey = createAccountingCompletionIdempotencyKey();
+          const completeItems = toCompleteItems(displayItems);
+          const scheduledDate = accounting.scheduledDate
+            ? jstDateStartISOString(accounting.scheduledDate)
+            : jstNowISOString();
+          const insuranceRatioValue = hasInsurance ? parseFloat(insuranceRatio) : null;
+          const insuranceAmountValue =
+            calculation.insuranceAmount !== 0 ? calculation.insuranceAmount : null;
+          const fingerprint = buildCompletePayloadFingerprint({
+            petId: accounting.petId,
+            ownerId: accounting.ownerId,
+            scheduledDate,
+            items: completeItems,
+            paymentSplits: builtSplits,
+            postCloseReason: postCloseReason || undefined,
+            insuranceRatio: insuranceRatioValue !== null ? String(insuranceRatioValue) : null,
+            insuranceAmount: insuranceAmountValue,
+          });
+          if (
+            completeIdempotencyKeyRef.current === null ||
+            completePayloadFingerprintRef.current !== fingerprint
+          ) {
+            completeIdempotencyKeyRef.current = createAccountingCompletionIdempotencyKey();
+            completePayloadFingerprintRef.current = fingerprint;
+          }
+          const idempotencyKey = completeIdempotencyKeyRef.current;
           const created = await completeAccounting(
             {
               pet_id: Number(accounting.petId),
               owner_id: Number(accounting.ownerId),
-              scheduled_date: accounting.scheduledDate
-                ? jstDateStartISOString(accounting.scheduledDate)
-                : jstNowISOString(),
+              scheduled_date: scheduledDate,
               has_insurance: hasInsurance,
-              insurance_ratio: hasInsurance ? parseFloat(insuranceRatio) : null,
-              insurance_amount: calculation.insuranceAmount !== 0 ? calculation.insuranceAmount : null,
-              items: toCompleteItems(displayItems),
+              insurance_ratio: insuranceRatioValue,
+              insurance_amount: insuranceAmountValue,
+              items: completeItems,
               payment_splits: builtSplits,
               post_close_reason: postCloseReason || undefined,
             },
             idempotencyKey,
           );
+          completeIdempotencyKeyRef.current = null;
+          completePayloadFingerprintRef.current = null;
           queryClient.invalidateQueries({ queryKey: queryKeys.accountings.all() });
           toast.success("会計を登録・完了しました");
           navigate(paths.accounting.detail.getHref(created.id));

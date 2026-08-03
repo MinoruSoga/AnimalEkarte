@@ -393,6 +393,96 @@ func TestAccountingService_CompleteAccounting_InvalidKey(t *testing.T) {
 	assert.Nil(t, result)
 }
 
+// TestAccountingService_CompleteAccounting_AlreadyExistsResolvesToReplay は
+// repo.Create が UNIQUE を AlreadyExists に変換した後でも completion key で replay できることを固定する（review HIGH）。
+func TestAccountingService_CompleteAccounting_AlreadyExistsResolvesToReplay(t *testing.T) {
+	key := uuid.NewString()
+	input := validCompleteInput(key)
+	digest := mustDigest(input)
+	existing := &model.Billing{
+		ID: 77, ClinicID: 1, Status: model.BillingStatusCompleted,
+		Subtotal: 1000, TaxTotal: 100, TotalAmount: 1100,
+		CompletionRequestID:   &key,
+		CompletionRequestHash: &digest,
+	}
+	lookupN := 0
+	repo := &mockAccountingRepository{
+		findByCompletionRequestIDFn: func(_ context.Context, _ uint64, requestID string) (*model.Billing, error) {
+			lookupN++
+			// pre-tx + in-tx の最初の lookup は未 commit を想定して nil。Create 失敗後の lookup で existing。
+			if lookupN <= 2 {
+				return nil, nil
+			}
+			if requestID == key {
+				return existing, nil
+			}
+			return nil, nil
+		},
+		createFn: func(_ context.Context, _ uint64, _ *model.Billing) error {
+			// accounting_repository.Create が pg 23505 を AlreadyExists に潰す経路を再現。
+			return apperrors.WrapAlreadyExists("billing", input.ScheduledDate.String())
+		},
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.Billing, error) {
+			assert.Equal(t, uint64(77), id)
+			return existing, nil
+		},
+	}
+	items := &mockCompleteItemWriter{}
+	svc := newCompleteTestService(repo, &mockAuditService{}, items, &mockCompleteTotalsWriter{})
+
+	result, err := svc.Complete(context.Background(), input)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	assert.False(t, result.Created)
+	assert.Equal(t, uint64(77), result.Accounting.ID)
+	assert.Equal(t, 0, items.calls, "replay must not create items")
+}
+
+func TestAccountingService_CompleteAccounting_ManualOtherSetsCreatedBy(t *testing.T) {
+	key := uuid.NewString()
+	var captured *CreateBillingItemInput
+	repo := &mockAccountingRepository{
+		findByCompletionRequestIDFn: func(_ context.Context, _ uint64, _ string) (*model.Billing, error) {
+			return nil, nil
+		},
+		createFn: func(_ context.Context, clinicID uint64, b *model.Billing) error {
+			b.ID = 88
+			b.ClinicID = clinicID
+			return nil
+		},
+		updateFieldsFn: func(_ context.Context, _, id uint64, _ map[string]any) (*model.Billing, error) {
+			return &model.Billing{ID: id, ClinicID: 1, Status: model.BillingStatusCompleted, TotalAmount: 1100, Subtotal: 1000, TaxTotal: 100}, nil
+		},
+		savePaymentFn:       func(_ context.Context, _ *model.Payment) error { return nil },
+		savePaymentSplitsFn: func(_ context.Context, _ []model.PaymentSplit) error { return nil },
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.Billing, error) {
+			return &model.Billing{ID: id, ClinicID: 1, Status: model.BillingStatusCompleted, TotalAmount: 1100}, nil
+		},
+	}
+	writer := &mockCompleteItemWriter{
+		createFn: func(_ context.Context, input *CreateBillingItemInput) (*model.BillingItem, error) {
+			captured = input
+			return &model.BillingItem{BillingID: input.BillingID, Name: input.Name}, nil
+		},
+	}
+	svc := newCompleteTestService(repo, &mockAuditService{}, writer, &mockCompleteTotalsWriter{subtotal: 1000, taxTotal: 100, total: 1100})
+	input := validCompleteInput(key)
+	reason := "分類未確定"
+	input.Items = []CompleteAccountingItemInput{
+		{Name: "その他", UnitPrice: 1000, Quantity: 1, Category: "other", Source: "manual", TaxType: "excluded", TaxRate: 0.1, OtherReason: &reason},
+	}
+	input.PaymentSplits = []PaymentSplitInput{
+		{Method: model.PaymentMethodCash, Amount: 1100, ReceivedAmount: 1100, ChangeAmount: 0},
+	}
+
+	result, err := svc.Complete(context.Background(), input)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.NotNil(t, captured)
+	require.NotNil(t, captured.CreatedBy, "manual other requires CreatedBy from staff")
+	assert.Equal(t, uint64(1), *captured.CreatedBy)
+}
+
 func TestAccountingService_CompleteAccounting_BlockingUnbilled(t *testing.T) {
 	key := uuid.NewString()
 	createCalled := false

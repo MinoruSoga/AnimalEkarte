@@ -153,6 +153,25 @@ func (h *AccountingHandler) CompleteAccounting(c *gin.Context) {
 		return
 	}
 
+	// BUG-372: complete でも header/item 割引の非ゼロは discount:edit を要求（Update 経路と同等）。
+	if input.DiscountAmount != nil && *input.DiscountAmount != 0 {
+		zero := int64(0)
+		if err := httpapi.RequireDiscountEditInt(c, h.hasPermission, input.DiscountAmount, zero); err != nil {
+			httpapi.RespondError(c, err)
+			return
+		}
+	}
+	for i := range input.Items {
+		if input.Items[i].DiscountAmount != 0 {
+			amt := input.Items[i].DiscountAmount
+			zero := int64(0)
+			if err := httpapi.RequireDiscountEditInt(c, h.hasPermission, &amt, zero); err != nil {
+				httpapi.RespondError(c, err)
+				return
+			}
+		}
+	}
+
 	ctx := c.Request.Context()
 	serviceInput := input.toServiceInput(clinicID, staffID, idempotencyKey)
 
