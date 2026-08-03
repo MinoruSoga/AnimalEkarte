@@ -15,6 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/config"
 )
 
 // ---- mock LstepLifecycleService ----
@@ -230,6 +231,49 @@ func TestPatchPetDeath(t *testing.T) {
 			router.ServeHTTP(w, req)
 
 			assert.Equal(t, tt.wantStatus, w.Code)
+		})
+	}
+}
+
+func TestPatchPetDeathDateValidationJST(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	todayJST := time.Now().In(config.JST)
+	tests := []struct {
+		name             string
+		body             map[string]any
+		wantStatus       int
+		wantServiceCalls int
+	}{
+		{name: "missing", body: map[string]any{"reason": "任意"}, wantStatus: http.StatusBadRequest},
+		{name: "empty", body: map[string]any{"deceased_at": ""}, wantStatus: http.StatusBadRequest},
+		{name: "invalid calendar date", body: map[string]any{"deceased_at": "2026-02-30"}, wantStatus: http.StatusBadRequest},
+		{name: "invalid timezone", body: map[string]any{"deceased_at": "2026-08-03T00:00:00+25:00"}, wantStatus: http.StatusBadRequest},
+		{name: "future in JST", body: map[string]any{"deceased_at": todayJST.AddDate(0, 0, 2).Format(time.DateOnly)}, wantStatus: http.StatusBadRequest},
+		{name: "today in JST", body: map[string]any{"deceased_at": todayJST.Format(time.DateOnly)}, wantStatus: http.StatusNoContent, wantServiceCalls: 1},
+		{name: "past in JST", body: map[string]any{"deceased_at": todayJST.AddDate(0, 0, -1).Format(time.DateOnly)}, wantStatus: http.StatusNoContent, wantServiceCalls: 1},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			serviceCalls := 0
+			svc := &mockLstepLifecycleService{
+				handlePetDeathFn: func(_ context.Context, _, _ uint64, _ time.Time, _ string, _ *uint64) error {
+					serviceCalls++
+					return nil
+				},
+			}
+			router := newPatchPetDeathRouter(svc, true)
+			raw, err := json.Marshal(tt.body)
+			require.NoError(t, err)
+
+			w := httptest.NewRecorder()
+			req := httptest.NewRequest(http.MethodPatch, "/pets/10/death", bytes.NewReader(raw))
+			req.Header.Set("Content-Type", "application/json")
+			router.ServeHTTP(w, req)
+
+			assert.Equal(t, tt.wantStatus, w.Code)
+			assert.Equal(t, tt.wantServiceCalls, serviceCalls)
 		})
 	}
 }

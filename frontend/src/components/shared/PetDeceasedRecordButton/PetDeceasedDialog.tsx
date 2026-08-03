@@ -10,6 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { C, STYLE } from "@/lib/design-tokens";
 import { handleApiError } from "@/lib/handle-api-error";
+import { todayJSTISO } from "@/lib/jst-date";
 import type { ActionState } from "@/types/form";
 import { INITIAL_ACTION_STATE } from "@/types/form";
 import { useRecordPetDeath } from "@/hooks/use-record-pet-death";
@@ -32,14 +33,6 @@ interface PetDeceasedDialogProps {
   onRecorded?: (result: { deceasedAt: string; deceasedReason?: string }) => void;
 }
 
-function todayString(): string {
-  const d = new Date();
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
-  return `${yyyy}-${mm}-${dd}`;
-}
-
 export function PetDeceasedDialog({
   open,
   onOpenChange,
@@ -56,6 +49,7 @@ export function PetDeceasedDialog({
   useLayoutEffect(() => {
     canEditRef.current = canEdit;
   }, [canEdit]);
+  const today = todayJSTISO();
 
   const [state, formAction, isPending] = useActionState(
     async (
@@ -68,16 +62,15 @@ export function PetDeceasedDialog({
       if (!deceasedAt) {
         return {
           success: false,
-          error: "死亡日を入力してください",
+          fieldErrors: { deceased_at: "死亡日を入力してください" },
           timestamp: Date.now(),
         };
       }
 
-      const today = todayString();
-      if (deceasedAt > today) {
+      if (deceasedAt > todayJSTISO()) {
         return {
           success: false,
-          error: "未来の日付は指定できません",
+          fieldErrors: { deceased_at: "未来の日付は指定できません" },
           timestamp: Date.now(),
         };
       }
@@ -106,6 +99,7 @@ export function PetDeceasedDialog({
     },
     INITIAL_ACTION_STATE,
   );
+  const deceasedAtError = state.fieldErrors?.deceased_at;
 
   const genderLabel =
     petGender === "male" ? "オス" : petGender === "female" ? "メス" : petGender;
@@ -132,7 +126,12 @@ export function PetDeceasedDialog({
           </p>
         </div>
 
-        <form id="pet-deceased-form" action={formAction} className="space-y-4">
+        <form
+          id="pet-deceased-form"
+          action={formAction}
+          noValidate
+          className="space-y-4"
+        >
           {/* 死亡日 */}
           <div className="space-y-1.5">
             <label
@@ -146,12 +145,25 @@ export function PetDeceasedDialog({
               id="deceased_at"
               name="deceased_at"
               type="date"
-              defaultValue={todayString()}
-              max={todayString()}
+              defaultValue={today}
+              max={today}
               required
+              aria-invalid={deceasedAtError ? true : undefined}
+              aria-describedby={
+                deceasedAtError ? "pet-deceased-date-error" : undefined
+              }
               className={`${STYLE.formInput} w-full rounded-xs border px-3 text-sm`}
               disabled={isPending}
             />
+            {deceasedAtError ? (
+              <p
+                id="pet-deceased-date-error"
+                className={`text-xs ${C.danger}`}
+                role="alert"
+              >
+                {deceasedAtError}
+              </p>
+            ) : null}
           </div>
 
           {/* 死亡理由 */}

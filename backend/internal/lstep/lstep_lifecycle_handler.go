@@ -2,10 +2,12 @@ package lstep
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/config"
 	"github.com/animal-ekarte/backend/internal/httpapi"
 )
 
@@ -25,8 +27,14 @@ func (h *Handler) UpdatePetDeath(c *gin.Context) {
 		httpapi.RespondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
 		return
 	}
-	if req.DeceasedAt == nil {
+	if req.DeceasedAt == nil || req.DeceasedAt.Time.IsZero() {
 		httpapi.RespondError(c, apperrors.WrapInvalidInput("deceased_at は必須です"))
+		return
+	}
+	deceasedDateJST := req.DeceasedAt.Time.In(config.JST).Format(time.DateOnly)
+	todayJST := time.Now().In(config.JST).Format(time.DateOnly)
+	if deceasedDateJST > todayJST {
+		httpapi.RespondError(c, apperrors.WrapInvalidInput("未来の日付は指定できません"))
 		return
 	}
 	actorID := httpapi.OptionalStaffID(c)
