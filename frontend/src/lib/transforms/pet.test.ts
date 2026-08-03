@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 
 import {
+  mapPetStatusLabel,
   transformBackendPetToFrontend,
   transformCreatePetRequest,
   transformUpdatePetRequest,
@@ -105,9 +106,13 @@ describe("transformBackendPetToFrontend", () => {
   // transform 層も対応するフィールドを持たない。
   it("deceased_at を deceasedAt へマッピングする", () => {
     const pet = transformBackendPetToFrontend(
-      makeBackendPet({ deceased_at: "2026-07-10T12:00:00+09:00" }),
+      makeBackendPet({
+        status: "deceased",
+        deceased_at: "2026-07-10T12:00:00+09:00",
+      }),
     );
 
+    expect(pet.status).toBe("死亡");
     expect(pet.deceasedAt).toBe("2026-07-10T12:00:00+09:00");
   });
 
@@ -115,6 +120,24 @@ describe("transformBackendPetToFrontend", () => {
     const pet = transformBackendPetToFrontend(makeBackendPet());
 
     expect(pet.deceasedAt).toBeUndefined();
+  });
+
+  it("未知statusは生存へ推測せず不明にする", () => {
+    const pet = transformBackendPetToFrontend(makeBackendPet({ status: "unexpected" }));
+
+    expect(pet.status).toBe("不明");
+  });
+
+  it.each([
+    ["unexpected", "未知値"],
+    ["constructor", "Object prototype key"],
+    ["toString", "Object prototype method"],
+    ["__proto__", "Object prototype accessor"],
+    ["", "空文字"],
+    [null, "null"],
+    [undefined, "未指定"],
+  ])("API境界のstatus %s は不明にする（%s）", (status) => {
+    expect(mapPetStatusLabel(status)).toBe("不明");
   });
 
   // BUG-415: generic PATCH /pets/:id 経由の status 書込は deceased_at・監査ログと

@@ -75,6 +75,20 @@ describe("PetDeceasedRecordButton (FE12-02 U3)", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
+  it("status不明では死亡登録導線を閉じて管理者確認を促す", () => {
+    renderButton({ petStatus: "不明", deceasedAt: null, canEdit: true });
+
+    expect(
+      screen.getByText(
+        "生死ステータスが不明です。死亡記録は管理者による確認後に行ってください",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveAttribute("aria-atomic", "true");
+    expect(
+      screen.queryByRole("button", { name: "死亡を記録" }),
+    ).not.toBeInTheDocument();
+  });
+
   it("死亡日時がある場合はpetStatusより優先して従来のBannerを表示する", () => {
     renderButton({
       petStatus: "死亡",
@@ -91,11 +105,19 @@ describe("PetDeceasedRecordButton (FE12-02 U3)", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("petStatus未指定の既存caller互換ではcanEdit=trueなら従来の登録導線を維持する", () => {
-    renderButton({ canEdit: true });
+  it.each([
+    [undefined, "未指定"],
+    [null, "null"],
+  ])("petStatusが%sでは生存扱いせず死亡登録導線を閉じる（%s）", (petStatus) => {
+    renderButton({ petStatus, canEdit: true });
 
     expect(
-      screen.getByRole("button", { name: "死亡を記録" }),
+      screen.getByText(
+        "生死ステータスが不明です。死亡記録は管理者による確認後に行ってください",
+      ),
     ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "死亡を記録" }),
+    ).not.toBeInTheDocument();
   });
 });

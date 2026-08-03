@@ -11,7 +11,7 @@ interface PetDeceasedRecordButtonProps {
   petGender?: string;
   birthDate?: string;
   deceasedAt?: string | null;
-  petStatus?: string;
+  petStatus?: string | null;
   canEdit?: boolean;
   /** BUG-407: 死亡記録成功時に外側フォームのローカル状態へ同期するためのコールバック */
   onRecorded?: (result: { deceasedAt: string; deceasedReason?: string }) => void;
@@ -51,6 +51,14 @@ export function PetDeceasedRecordButton({
     return (
       <p className={`text-sm ${C.danger}`}>
         生死データに不整合があります（死亡ステータス・死亡日時未登録）。修復は管理者に依頼してください
+      </p>
+    );
+  }
+
+  if (petStatus !== "生存") {
+    return (
+      <p role="alert" aria-atomic="true" className={`text-sm ${C.danger}`}>
+        生死ステータスが不明です。死亡記録は管理者による確認後に行ってください
       </p>
     );
   }

@@ -163,6 +163,23 @@ describe("transformOwner", () => {
     expect(result.pets![0].name).toBe("ポチ");
   });
 
+  it("owner埋込petの死亡statusと死亡日時を保持し、未知statusは不明にする", () => {
+    const deceasedAt = "2026-07-10T12:00:00+09:00";
+    const result = transformOwner(
+      makeOwnerResponse({
+        pets: [
+          makePetInOwner({ status: "deceased", deceased_at: deceasedAt }),
+          makePetInOwner({ id: 11, status: "unexpected" }),
+        ],
+      }),
+    );
+
+    expect(result.pets?.[0]).toEqual(
+      expect.objectContaining({ status: "死亡", deceasedAt }),
+    );
+    expect(result.pets?.[1].status).toBe("不明");
+  });
+
   it("pets が空配列のとき空配列を返す", () => {
     const result = transformOwner(makeOwnerResponse({ pets: [] }));
     expect(result.pets).toEqual([]);

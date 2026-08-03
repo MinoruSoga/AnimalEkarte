@@ -5,9 +5,9 @@ import { getOwner } from "./api/get-owner";
 import { axios } from "@/lib/axios";
 import {
   PET_GENDER_MAP,
-  PET_STATUS_MAP,
   ACQUISITION_TYPE_MAP,
   DANGER_LEVEL_MAP,
+  mapPetStatusLabel,
   transformBackendPetToFrontend,
 } from "@/lib/transforms/pet";
 import type { Pet } from "@/types";
@@ -110,7 +110,7 @@ function transformPetListItemToFrontend(p: PetListApiItem): Pet {
     bloodType: p.blood_type ?? undefined,
     microchipNumber: p.microchip_number ?? undefined,
     gender: p.gender ? (PET_GENDER_MAP[p.gender] ?? p.gender) : undefined,
-    status: p.status ? PET_STATUS_MAP[p.status] : undefined,
+    status: mapPetStatusLabel(p.status),
     birthDate: p.birth_date ? p.birth_date.split("T")[0] : undefined,
     neuteredDate: p.neutered_date ? p.neutered_date.split("T")[0] : undefined,
     weight: p.weight?.toString(),

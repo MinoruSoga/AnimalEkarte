@@ -139,6 +139,27 @@ describe("OwnerPetsSection row actions", () => {
       expect(screen.queryByRole("menuitem", { name })).not.toBeInTheDocument();
     }
   });
+
+  it("status不明のペットは明示表示し、編集以外の業務遷移と削除をfail-closedにする", async () => {
+    const user = userEvent.setup();
+    renderSection({
+      pet: { ...PET, status: "不明" },
+      canCreate: true,
+      canDelete: true,
+    });
+
+    expect(screen.getByText("不明")).toBeInTheDocument();
+    await user.click(
+      screen.getByRole("button", {
+        name: "操作メニュー: ペット ポチ (ID pet-1)",
+      }),
+    );
+
+    expect(screen.getByRole("menuitem", { name: "詳細・編集" })).toBeInTheDocument();
+    for (const name of ["予約作成", "カルテ作成", "トリミング", "入院登録", "会計登録", "削除"]) {
+      expect(screen.queryByRole("menuitem", { name })).not.toBeInTheDocument();
+    }
+  });
 });
 
 describe("OwnerPetsSection shared pets", () => {
@@ -223,7 +244,7 @@ describe("OwnerPetsSection shared pets", () => {
     expect(within(fallbackRow).getAllByRole("cell")[1]).toHaveTextContent(
       /^ミケ副飼主$/,
     );
-    expect(within(fallbackRow).getByText("archived")).toBeInTheDocument();
+    expect(within(fallbackRow).getByText("不明")).toBeInTheDocument();
     expect(within(fallbackRow).getByText("other")).toBeInTheDocument();
     expect(
       within(fallbackRow)
@@ -232,7 +253,7 @@ describe("OwnerPetsSection shared pets", () => {
     ).toEqual([
       "P003",
       "ミケ副飼主",
-      "archived",
+      "不明",
       "猫",
       "other",
       "",

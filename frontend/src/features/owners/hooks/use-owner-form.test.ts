@@ -221,6 +221,79 @@ describe("useOwnerForm dangerReason readback", () => {
   });
 });
 
+describe("useOwnerForm death lifecycle readback (BUG-022)", () => {
+  it("full reload相当のdetail再取得後も死亡statusと死亡日時をform stateへ保持する", async () => {
+    const deceasedAt = "2026-07-10T12:00:00+09:00";
+    const backendPet: PetResponse = {
+      id: 7,
+      version: 1,
+      clinic_id: 1,
+      owner_id: 123,
+      animal_species_id: 1,
+      pet_number: "P-SYNTH-7",
+      name: "合成ペット",
+      pet_name_kana: "ゴウセイペット",
+      gender: "unknown",
+      status: "deceased",
+      breed: "",
+      color: "",
+      danger_level: "low",
+      food: "",
+      environment: "",
+      phone: "",
+      remarks: "",
+      deceased_at: deceasedAt,
+      created_at: "2026-01-01T00:00:00Z",
+      updated_at: "2026-07-10T12:00:00+09:00",
+    };
+    mockGetOwner.mockResolvedValue(
+      makeOwner({ pets: [transformBackendPetToFrontend(backendPet)] }),
+    );
+    mockAxiosGet.mockResolvedValue({ data: backendPet });
+
+    const { owner } = await ownerLoader({ params: { id: "123" } });
+    const { result } = renderHook(
+      () => useOwnerForm("123", owner, undefined, EDIT_PERMISSIONS),
+      { wrapper: createTestWrapper() },
+    );
+
+    expect(mockAxiosGet).toHaveBeenCalledWith("/v1/pets/7");
+    expect(result.current.pets[0]).toEqual(
+      expect.objectContaining({ status: "死亡", deceasedAt }),
+    );
+  });
+
+  it("既存owner petの欠損statusは生存へ推測しない", () => {
+    const pet = transformBackendPetToFrontend({
+      id: 7,
+      version: 1,
+      clinic_id: 1,
+      owner_id: 123,
+      animal_species_id: 1,
+      pet_number: "P-SYNTH-7",
+      name: "合成ペット",
+      pet_name_kana: "ゴウセイペット",
+      gender: "unknown",
+      status: "",
+      breed: "",
+      color: "",
+      danger_level: "low",
+      food: "",
+      environment: "",
+      phone: "",
+      remarks: "",
+      created_at: "2026-01-01T00:00:00Z",
+      updated_at: "2026-01-01T00:00:00Z",
+    });
+    const { result } = renderHook(
+      () => useOwnerForm("123", makeOwner({ pets: [pet] }), undefined, EDIT_PERMISSIONS),
+      { wrapper: createTestWrapper() },
+    );
+
+    expect(result.current.pets[0].status).toBe("不明");
+  });
+});
+
 describe("useOwnerForm atomic owner and pets creation", () => {
   beforeEach(() => {
     vi.clearAllMocks();

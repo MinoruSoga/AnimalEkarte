@@ -25,7 +25,7 @@ export function createPetFormData(petData?: PetFormData): PetFormData {
     dangerReason: petData?.dangerReason || "",
     food: petData?.food || "",
     environment: petData?.environment || "",
-    status: petData?.status || "生存",
+    status: petData ? (petData.status || "不明") : "生存",
     remarks: petData?.remarks || "",
     insuranceId: petData?.insuranceId || "",
     insuranceName: petData?.insuranceName,

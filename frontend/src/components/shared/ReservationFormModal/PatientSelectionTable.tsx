@@ -377,16 +377,17 @@ export const PatientSelectionTable = memo(function PatientSelectionTable({ onSel
               <TableBody>
                 {pets.map((pet) => {
                   const isDeceased = pet.status === "死亡";
+                  const isAlive = pet.status === "生存";
                   // ページ送り・デバウンス待ちの間も行は消さない（消すと preservePreviousData が
                   // 無意味になり「前回取得: N件中 1-20件」が空の表の横に出る自己矛盾になる）。
                   // ただし表示中の行は「まだ古い条件の結果」なので選択はさせない。
-                  const isSelectable = !isDeceased && !isBusy;
+                  const isSelectable = isAlive && !isBusy;
                   return (
                     <TableRow
                       key={pet.id}
                       className={`transition-colors ${C.hoverBgLight} h-12 ${
                         isSelected(pet) ? C.bgPage : ""
-                      } ${isDeceased ? "opacity-50 grayscale-[0.5]" : ""}`}
+                      } ${!isAlive ? "opacity-50 grayscale-[0.5]" : ""}`}
                     >
                       <TableCell className={`text-sm font-mono ${C.text}`}>{pet.ownerId}</TableCell>
                       <TableCell className={`text-sm font-medium ${C.text}`}>{pet.ownerName}</TableCell>
@@ -406,6 +407,8 @@ export const PatientSelectionTable = memo(function PatientSelectionTable({ onSel
                               ? `死亡・選択不可: ${pet.name} (ID ${pet.id})`
                               : isBusy
                                 ? `読み込み中・選択不可: ${pet.name} (ID ${pet.id})`
+                                : !isAlive
+                                  ? `状態不明・選択不可: ${pet.name} (ID ${pet.id})`
                                 : isSelected(pet)
                                   ? `選択中: ${pet.name} (ID ${pet.id})`
                                   : `選択: ${pet.name} (ID ${pet.id})`
@@ -422,7 +425,7 @@ export const PatientSelectionTable = memo(function PatientSelectionTable({ onSel
                           }}
                         >
                           <Check className={`${ICON.xs} ${isSelected(pet) ? "" : "opacity-0"}`} />
-                          {isDeceased ? "死亡" : isSelected(pet) ? "選択中" : "選択"}
+                          {isDeceased ? "死亡" : !isAlive ? "不明" : isSelected(pet) ? "選択中" : "選択"}
                         </Button>
                       </TableCell>
                     </TableRow>

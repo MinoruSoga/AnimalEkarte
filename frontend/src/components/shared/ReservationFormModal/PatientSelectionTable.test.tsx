@@ -453,4 +453,25 @@ describe("PatientSelectionTable — 選択操作", () => {
       await screen.findByRole("button", { name: "死亡・選択不可: ミケ1 (ID 1)" }),
     ).toBeDisabled();
   });
+
+  it("未知statusは生存扱いせず状態不明として選択不可にする", async () => {
+    mockPetList(() => ({
+      data: [backendPet(1, { status: "unexpected" })],
+      total: 1,
+      page: 1,
+      limit: 20,
+    }));
+
+    const user = userEvent.setup();
+    const onSelect = vi.fn();
+    renderTable({ onSelect });
+    await user.type(screen.getByLabelText(SEARCH_LABEL), "や");
+
+    const button = await screen.findByRole("button", {
+      name: "状態不明・選択不可: ミケ1 (ID 1)",
+    });
+    expect(button).toBeDisabled();
+    await user.click(button);
+    expect(onSelect).not.toHaveBeenCalled();
+  });
 });

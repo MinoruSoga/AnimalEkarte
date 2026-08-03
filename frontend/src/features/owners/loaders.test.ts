@@ -109,6 +109,42 @@ describe("ownersLoader — #266 pets API (ペット行粒度)", () => {
     expect(result.pets[0].ownerNumber).toBeUndefined();
     expect(result.pets[0].phone).toBe("");
   });
+
+  it("死亡は死亡のまま、未知・null status は生存へ推測せず不明へ変換する", async () => {
+    const makeRow = (id: number, status: string | null) => ({
+      id,
+      clinic_id: 1,
+      owner_id: 9,
+      animal_species_id: 1,
+      pet_number: `P-${id}`,
+      name: `合成ペット${id}`,
+      pet_name_kana: "ゴウセイ",
+      gender: "unknown",
+      status,
+      breed: "",
+      color: "",
+      danger_level: "low",
+      food: "",
+      environment: "",
+      remarks: "",
+    });
+    mockedGet.mockResolvedValue({
+      data: {
+        data: [
+          makeRow(1, "deceased"),
+          makeRow(2, "unexpected"),
+          makeRow(3, null),
+        ],
+        total: 3,
+        page: 1,
+        limit: 20,
+      },
+    });
+
+    const result = await ownersLoader({ request: new Request("http://localhost/owners") });
+
+    expect(result.pets.map((pet) => pet.status)).toEqual(["死亡", "不明", "不明"]);
+  });
 });
 
 // #266: 白画面バグの根治確認 — 旧実装は total からページ数を計算して全ページを

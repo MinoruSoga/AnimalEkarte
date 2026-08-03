@@ -8,7 +8,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
 import { paths } from "@/config/paths";
-import { PET_GENDER_MAP, PET_STATUS_MAP } from "@/lib/transforms/pet";
+import { mapPetStatusLabel, PET_GENDER_MAP } from "@/lib/transforms/pet";
 import {
   useGetOwnerSharedPets,
   type OwnerSharedPetApiResponse,
@@ -105,12 +105,12 @@ const PetTableRow = memo(function PetTableRow({
                   詳細・編集
                 </DropdownMenuItem>
               ) : null}
-              {pet.status === "死亡" ? null : canCreate ? (
+              {pet.status === "生存" && canCreate ? (
                 <>
                   <DropdownMenuItem
                     onClick={() => {
                       const current = actionBoundaryRef.current;
-                      if (current.status === "死亡" || current.canCreate !== true) return;
+                      if (current.status !== "生存" || current.canCreate !== true) return;
                       navigate(`${paths.reservations.getHref()}?petId=${pet.id}`);
                     }}
                   >
@@ -120,7 +120,7 @@ const PetTableRow = memo(function PetTableRow({
                   <DropdownMenuItem
                     onClick={() => {
                       const current = actionBoundaryRef.current;
-                      if (current.status === "死亡" || current.canCreate !== true) return;
+                      if (current.status !== "生存" || current.canCreate !== true) return;
                       navigate(`${paths.medicalRecords.new.getHref()}?petId=${pet.id}`, { state: { from: backFrom } });
                     }}
                   >
@@ -130,7 +130,7 @@ const PetTableRow = memo(function PetTableRow({
                   <DropdownMenuItem
                     onClick={() => {
                       const current = actionBoundaryRef.current;
-                      if (current.status === "死亡" || current.canCreate !== true) return;
+                      if (current.status !== "生存" || current.canCreate !== true) return;
                       navigate(`${paths.trimming.new.getHref()}?petId=${pet.id}`, { state: { from: backFrom } });
                     }}
                   >
@@ -140,7 +140,7 @@ const PetTableRow = memo(function PetTableRow({
                   <DropdownMenuItem
                     onClick={() => {
                       const current = actionBoundaryRef.current;
-                      if (current.status === "死亡" || current.canCreate !== true) return;
+                      if (current.status !== "生存" || current.canCreate !== true) return;
                       navigate(`${paths.hospitalization.new.getHref()}?petId=${pet.id}`, { state: { from: backFrom } });
                     }}
                   >
@@ -150,7 +150,7 @@ const PetTableRow = memo(function PetTableRow({
                   <DropdownMenuItem
                     onClick={() => {
                       const current = actionBoundaryRef.current;
-                      if (current.status === "死亡" || current.canCreate !== true) return;
+                      if (current.status !== "生存" || current.canCreate !== true) return;
                       navigate(`${paths.accounting.new.getHref()}?petId=${pet.id}`, { state: { from: backFrom } });
                     }}
                   >
@@ -159,13 +159,13 @@ const PetTableRow = memo(function PetTableRow({
                   </DropdownMenuItem>
                 </>
               ) : null}
-              {pet.status === "死亡" ? null : canDelete ? (
+              {pet.status === "生存" && canDelete ? (
                 <>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     onClick={() => {
                       const current = actionBoundaryRef.current;
-                      if (current.status === "死亡" || current.canDelete !== true) return;
+                      if (current.status !== "生存" || current.canDelete !== true) return;
                       onDeleteRequest(pet.id, pet.petName);
                     }}
                     className={`${C.danger} focus:${C.danger} ${C.focusBgLight}`}
@@ -199,7 +199,7 @@ const SharedPetTableRow = memo(function SharedPetTableRow({
         </div>
       </TableCell>
       <TableCell className={STYLE.tableCell}>
-        {PET_STATUS_MAP[pet.status] ?? pet.status}
+        {mapPetStatusLabel(pet.status)}
       </TableCell>
       <TableCell className={STYLE.tableCell}>{pet.animal_species.name}</TableCell>
       <TableCell className={STYLE.tableCell}>

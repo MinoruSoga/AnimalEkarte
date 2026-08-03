@@ -25,6 +25,15 @@ export const PET_STATUS_MAP: Partial<Record<string, "生存" | "死亡">> = {
   deceased: "死亡",
 };
 
+export type PetStatusLabel = "生存" | "死亡" | "不明";
+
+/** API境界の未知・欠損statusを生存へ推測せず、臨床操作をfail-closedにする。 */
+export function mapPetStatusLabel(status: string | null | undefined): PetStatusLabel {
+  if (status === "alive") return "生存";
+  if (status === "deceased") return "死亡";
+  return "不明";
+}
+
 // 外部公開: useOwnerForm で使用
 export const PET_STATUS_REVERSE_MAP: Record<string, "alive" | "deceased"> = {
   "生存": "alive",
@@ -97,7 +106,7 @@ export const transformBackendPetToFrontend = (p: PetResponse) => ({
   bloodType: p.blood_type ?? undefined,
   microchipNumber: p.microchip_number ?? undefined,
   gender: p.gender ? (PET_GENDER_MAP[p.gender] ?? p.gender) : undefined,
-  status: p.status ? PET_STATUS_MAP[p.status] : undefined,
+  status: mapPetStatusLabel(p.status),
   birthDate: p.birth_date ? p.birth_date.split("T")[0] : undefined,
   neuteredDate: p.neutered_date ? p.neutered_date.split("T")[0] : undefined,
   weight: p.weight?.toString(),
