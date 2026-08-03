@@ -57,6 +57,13 @@ export const queryKeys = {
   masters: {
     /** 汎用マスタカテゴリキー。"masterItems" の代わりにこれを使う */
     category: (name: string) => ["masters", name] as const,
+    /**
+     * 担当者セレクト用の薄い staff 一覧。
+     * masters.category("staffs") のフル master Staff shape とは別キー。
+     * 異なる transform 結果を同一 key に載せない（cache poison 防止）。
+     * invalidate は ["masters","staffs"] prefix で両方を無効化できる。
+     */
+    staffSelectorList: () => ["masters", "staffs", "selector-list"] as const,
     animalSpecies: {
       /** features/master/api/animal-species.ts の CRUD 用ベースキー */
       all: () => ["masters", "animal-species"] as const,
