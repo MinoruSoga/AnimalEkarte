@@ -1350,7 +1350,7 @@ S01〜S12の業務シナリオ検証に続き、個別フォーム単位の受�
 ## BUG-015: バイタルの体重 Kg/g 単位切替で数値が単位換算されずそのまま保存され、1000倍のデータ破損が生じる【重大】
 
 - **重大度**: 高（体重 8.5kg の記録が数値そのまま「8.5g」として永続化される。薬量自動計算は直近バイタルの体重を基準にするため、下流で致死的な過小投与量が算出されるリスクがある）
-- **対応状況（2026-08-03 JST）**: IMPLEMENTED_UNVERIFIED | **実装 commit**: `98639b4fa` | **根拠**: FE `toggleWeightValueAndUnit` で Kg↔g 原子換算; BE weight 構造検証（finite・正数・unit enum）と vital create/update/delete audit 同一 tx fail-closed（`98639b4fa`） | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: V01 §3 手順4 のブラウザ再検証と既存破損データ候補の read-only 抽出（補修は別承認）
+- **対応状況（2026-08-03 JST）**: IMPLEMENTED_UNVERIFIED | **実装 commit**: `98639b4fa` | **review-gate commit**: `28539d466` | **根拠**: FE `toggleWeightValueAndUnit` で Kg↔g 原子換算; BE weight 構造検証（finite・正数・unit enum）; vital create/update/delete を `AuditTxLogger.LogEntryTx`（ambient tx）で fail-closed（`98639b4fa` + `28539d466`） | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: V01 §3 手順4 のブラウザ再検証と既存破損データ候補の read-only 抽出（補修は別承認）
 - **発見シナリオ**: V01 §3 手順4（カルテ バイタル `/medical-records/:id` バイタル記録モーダル）
 - **再現手順**:
   1. `/medical-records/1425549` を開き、バイタル記録モーダルで既存レコード（体温45℃・体重8.5kg）を編集
