@@ -13,6 +13,12 @@ export interface StaffItem {
   name: string;
   isActive: boolean;
   occupationName: string | null;
+  /**
+   * Shared React Query key with `@/features/master` staff list.
+   * Must include staffType so examination doctor filters are not empty-filtered
+   * when this thinner transform populates the cache first.
+   */
+  staffType: string;
 }
 
 // ─────────────────────────────────────────────────
@@ -25,6 +31,7 @@ function transformStaff(data: ModelStaff): StaffItem {
     name: data.name,
     isActive: data.is_active ?? true,
     occupationName: data.occupation?.name ?? null,
+    staffType: data.staff_type ?? "doctor",
   };
 }
 
