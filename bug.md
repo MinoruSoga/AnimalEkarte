@@ -240,7 +240,7 @@
 ## BUG-003: 検査結果の異常値判定（H/L ハイライト）が常に「未判定」のまま計算されない【重大】
 
 - **重大度**: 高（S02 の中核機能。臨床安全に直結する異常値の見落とし防止が機能していない）
-- **対応状況（2026-08-03 JST）**: BLOCKED | **根拠**: 構造化 `exam_reference_ranges` の承認済み data が demo seed に不在（`003_demo` は exam_types/fields/results のみ。manifest に reference range CSV なし）。`assessExamResult` / range resolver は clinic/species/field 構造化 range がある場合のみ H/L を導出し、unit/integration `Test.*(Exam.*Assessment|ReferenceRange)` は green。閾値推測・`normal_value` parse・seed 作成は out of scope のため product patch なし。必要入力: 獣医師承認済み clinic×species×field の構造化 range data packet（別差分） | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: 承認済み reference range seed/data packet 供給後に S02 H/L を再検証
+- **対応状況（2026-08-03 JST）**: BLOCKED | **根拠**: 構造化 `exam_reference_ranges` の承認済み data が demo seed に不在（`003_demo` は exam_types/fields/results のみ）。`assessExamResult` は構造化 range がある場合のみ H/L。Mode3 follow-up で下限ちょうど・上限ちょうど equality の table-driven test を追加し assessment suite green。閾値推測・seed 作成は out of scope。必要入力: 獣医師承認済み clinic×species×field 構造化 range data packet | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: 承認済み reference range seed/data packet 供給後に S02 H/L を再検証
 - **発見シナリオ**: S02 手順2〜4（検査管理 `/examinations`）
 - **再現手順**:
   1. `/examinations/select-pet` から生存ペット（伊藤史安/豆助）を選び、新規検査登録。検査種別「血液検査（院内）」を選択（WBC基準値 6.0-17.0、RBC基準値 5.5-8.5、HCT基準値 37-55 などが動的表示される）。
@@ -331,7 +331,7 @@
 ## BUG-004: 検査記録を初めて「確定」ステータスへ保存しようとすると「確定済みの検査は編集できません」と拒否され、確定できない【重大】
 
 - **重大度**: 高（S02 の中核機能。検査確定ロック自体に到達できない）
-- **対応状況（2026-08-03 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: 到達済み commit `2a8aca33c1848613e7c3ccd9ffa2f2a4e3c9ad5e` で `ExaminationService.Update` が confirmed 遷移時に `status` を一旦除外し、items/range 検証・置換後に `confirmed` を最終 write として同一 tx で保存する。`TestExaminationService_ConfirmWithItemsPersistsItemsBeforeStatusTransition` と `TestDB_ExaminationService_CreateConfirmedWithItemsPersistsItemsBeforeStatusTransition` が `items -> status -> audit` 順序、409、audit rollback 回帰を固定済み | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: S02 手順6を専用 synthetic fixture でブラウザ再検証し、`VERIFIED_FIXED` 可否を判定
+- **対応状況（2026-08-03 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: current truth（`examination_parent_audit_test.go`）は confirmed 経路の write 順を `items → revision → audit → status` として固定。`TestExaminationService_ConfirmWithItemsPersistsItemsBeforeStatusTransition` / CreateConfirmed 同名 test が 409・audit rollback も回帰。Mode3 follow-up で ledger のみ訂正（product 無変更） | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: S02 手順6を専用 synthetic fixture でブラウザ再検証し、`VERIFIED_FIXED` 可否を判定
 - **発見シナリオ**: S02 手順6（検査詳細・編集画面 `/examinations/:id`）
 - **再現手順**:
   1. 上記 BUG-003 で作成した検査（現在ステータス=結果入力済み、未確定）を開く。
@@ -417,7 +417,7 @@
 ## BUG-005（軽微・要確認）: 検査の「担当医」選択肢にスタッフ以外の項目が混在している
 
 - **重大度**: 低〜中（データ品質・UI混乱の懸念。実害は要確認）
-- **対応状況（2026-08-03 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: commit `dfd653eaa5ccb089707c3a088863c39c07669288` で `ExaminationForm` が typed `useGetStaffs`（`@/features/master`）を使い `staffType === "doctor" && isActive` のみ候補化。follow-up `d91d3285d79d3da4311ee935299f557279cd153b` で共有 React Query key の薄い `use-staffs` transform にも `staffType` を載せ、キャッシュ衝突で候補0件になる HIGH を解消。resource/nurse/trimmer/inactive を UI から除外する unit が green。BE doctor relation fail-closed は既存回帰 green。名前ベース除外なし | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: S02 手順1 を synthetic fixture でブラウザ再検証し `VERIFIED_FIXED` 可否を判定
+- **対応状況（2026-08-03 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: commit `dfd653eaa…` で active doctor 候補 filter。Mode3 follow-up で薄い selector と master full shape を `queryKeys.masters.staffSelectorList()` / `category("staffs")` に分離し、`staff_type` 欠損の fail-open (`?? "doctor"`) を除去。両取得順の cache 契約 test green。BE doctor fail-closed 維持 | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: S02 手順1 を synthetic fixture でブラウザ再検証し `VERIFIED_FIXED` 可否を判定
 - **発見シナリオ**: S02 手順1（新規検査登録の担当医セレクタ）
 - **内容**: `/examinations/new` の「担当医」ドロップダウンの選択肢に、スタッフ氏名（林文明、ノア、倉田春香 等）に混じって「お手入れ・オゾン療法」「健診・ワクチン・狂犬病」「ドッグラン(アジリティ解放)」「クイックシャンプー」のような、明らかに施術・サービスメニュー名と思われる項目が含まれていた。
 - **備考**: マスタデータ側の混入か、コンポーネントの参照先マスタ取り違えの可能性。実害（誤って選択されるリスク）は未検証。
@@ -1525,7 +1525,7 @@ S01〜S12の業務シナリオ検証に続き、個別フォーム単位の受�
 ## BUG-017: 検査入力フォームで必須項目（検査種別・担当医）が未入力のまま保存を押しても、保存はブロックされるがエラーメッセージが一切表示されない
 
 - **重大度**: 中（保存自体は正しくブロックされデータ破損はないが、職員には保存失敗の理由が一切示されない「無音失敗」に該当する）
-- **対応状況（2026-08-03 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: commit `7f71063759974257be14a4ed0a8a5fd04a5c6880` で `fieldErrors` を `ExaminationFormFields` へ配線、`FormFieldError` + `aria-invalid`/`aria-describedby`（`SearchableSelect` 拡張）、testTypeId 優先 focus 既存、field-local clear（修正 field のみ error 消去）を unit/component で固定。空送信は request 0（既存 hook validation）。changed-surface coverage statements ≈92% | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: V01 §7 を synthetic fixture でブラウザ再検証し `VERIFIED_FIXED` 可否を判定
+- **対応状況（2026-08-03 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: commit `7f7106375…` で fieldErrors 配線 + ARIA。Mode3 follow-up で実 `ExaminationForm` の保存 button `user.click` 統合 test（`ExaminationForm.validation.test.tsx`）が 2 件日本語 alert・ARIA・`testTypeId` focus・create/update/axios 0 を同一 test で固定 | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: V01 §7 を synthetic fixture でブラウザ再検証し `VERIFIED_FIXED` 可否を判定
 - **発見シナリオ**: V01 §7 手順1（検査入力 `/examinations/new?petId=xxx`）
 - **再現手順**:
   1. `/examinations/new?petId=1000002` を開く（検査種別・担当医とも未選択のまま）
@@ -3013,5 +3013,24 @@ S01〜S12の業務シナリオ検証に続き、個別フォーム単位の受�
 - **Independent review**: react HIGH (cache) fixed; typescript 0 C/H; security 0 C/H; healthcare accepts BUG-003 BLOCKED and FE/BE dual defense for doctors
 - **Browser**: none created; original scenarios remain UNREPORTED
 - **Orchestration**: native Workflow `exam-bug-group-investigate` (4 explore probes) + sequential TDD writes + parallel review subagents
+
+---
+
+## Staged plan unit: EXAMINATION-MODE3-FOLLOWUP-20260803（2026-08-03 JST）
+
+- **Status**: COMPLETE
+- **Packet claim retained** (user-only release): `claim/EXAMINATION-MODE3-FOLLOWUP-20260803`
+- **Changed files**:
+  - staff cache: `query-keys.ts`, `use-staffs.ts`, `use-staffs.test.ts`, `features/master/api/staffs.ts`, `staffs.test.ts`
+  - BUG-017 proof: `ExaminationForm.validation.test.tsx` (test-only)
+  - BUG-003: `exam_result_assessment_test.go` (equality cases only)
+  - ledger: `bug.md`
+- **Gates**:
+  - FE staff + validation + examination suite: vitest pass (89+ focused)
+  - `use-staffs.ts` coverage statements **100%**
+  - BE `Test.*(Exam.*Assessment|ReferenceRange|Confirmed|Audit|Rollback)` → `ok`
+  - eslint on changed TS paths → exit 0
+- **Browser**: UNREPORTED (none created)
+- **Assumption deviations**: none for claim gate (prior BUG claims absent before acquire)
 
 ---
