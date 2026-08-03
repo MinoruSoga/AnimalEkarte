@@ -223,7 +223,7 @@ func TestDB_VitalServiceUpdateRefetchFailureRollsBackMutation(t *testing.T) {
 	service := NewVitalServiceWithRelationValidation(
 		repo,
 		NewMedicalRecordRepository(fixture.db),
-		nil,
+		okVitalAudit(),
 		reservation.NewReservationRepository(fixture.db),
 		staffdomain.NewStaffRepository(fixture.db),
 		staffdomain.NewStaffClinicAssignmentRepository(fixture.db),

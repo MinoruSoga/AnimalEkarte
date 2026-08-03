@@ -8,6 +8,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 // CreateVitalInput はバイタル作成の入力DTO（HTTP非依存）
@@ -78,7 +79,7 @@ type VitalService interface {
 type vitalService struct {
 	repo              VitalRepository
 	medicalRecordRepo medicalRecordLocker
-	auditService      vitalAuditLogger
+	auditTx           AuditTxLogger
 	relations         ClinicalRelationVerifier
 	staffs            clinicalStaffLocker
 	staffAssignments  clinicalStaffAssignmentLocker
@@ -87,9 +88,9 @@ type vitalService struct {
 
 // NewVitalService はVitalServiceを初期化して返す。transactor は BE-refactor.md X-11
 // （確定と子書込の競合防止）のため、子書込を LockByIDForUpdate の行ロックと同一トランザクションに
-// 収める目的で注入する。
-func NewVitalService(repo VitalRepository, medicalRecordRepo medicalRecordLocker, auditService vitalAuditLogger, transactor Transactor) VitalService {
-	return &vitalService{repo: repo, medicalRecordRepo: medicalRecordRepo, auditService: auditService, transactor: transactor}
+// 収める目的で注入する。auditTx は BUG-015 の同一 tx fail-closed 監査用。
+func NewVitalService(repo VitalRepository, medicalRecordRepo medicalRecordLocker, auditTx AuditTxLogger, transactor Transactor) VitalService {
+	return &vitalService{repo: repo, medicalRecordRepo: medicalRecordRepo, auditTx: auditTx, transactor: transactor}
 }
 
 // NewVitalServiceWithRelationValidation は request 由来 staff_id の active staff + clinic
@@ -97,7 +98,7 @@ func NewVitalService(repo VitalRepository, medicalRecordRepo medicalRecordLocker
 func NewVitalServiceWithRelationValidation(
 	repo VitalRepository,
 	medicalRecordRepo medicalRecordLocker,
-	auditService vitalAuditLogger,
+	auditTx AuditTxLogger,
 	relations ClinicalRelationVerifier,
 	staffs clinicalStaffLocker,
 	staffAssignments clinicalStaffAssignmentLocker,
@@ -106,7 +107,7 @@ func NewVitalServiceWithRelationValidation(
 	return &vitalService{
 		repo:              repo,
 		medicalRecordRepo: medicalRecordRepo,
-		auditService:      auditService,
+		auditTx:           auditTx,
 		relations:         relations,
 		staffs:            staffs,
 		staffAssignments:  staffAssignments,
@@ -144,6 +145,9 @@ func (s *vitalService) Create(ctx context.Context, medicalRecordID uint64, input
 	}
 	if s.transactor == nil {
 		return nil, apperrors.WrapInternalServerError("vital transaction dependency is required")
+	}
+	if s.auditTx == nil {
+		return nil, apperrors.WrapInternalServerError("vital audit dependency is required")
 	}
 
 	vital := &model.VitalRecord{
@@ -200,17 +204,13 @@ func (s *vitalService) Create(ctx context.Context, medicalRecordID uint64, input
 			slog.ErrorContext(txCtx, "failed to create vital record", "error", err)
 			return apperrors.Wrap(err, "failed to create vital record")
 		}
-		// BUG-015: vital create audit は業務 write と同一 tx・fail-closed（best-effort 廃止）。
-		if s.auditService != nil && input.ClinicID != 0 {
-			var actorID *uint64
-			if input.StaffID != nil {
-				actorID = input.StaffID
-			}
-			newValue := extractVitalImportantFields(vital)
-			if err := s.auditService.LogVitalChange(txCtx, input.ClinicID, actorID, "create", vital.ID, medicalRecordID, nil, newValue); err != nil {
-				slog.ErrorContext(txCtx, "audit log failed for vital create", "error", err, "vital_id", vital.ID)
-				return apperrors.Wrap(err, "failed to write vital create audit")
-			}
+		// BUG-015: vital create audit は ambient tx 参加の LogEntryTx で fail-closed。
+		var actorID *uint64
+		if input.StaffID != nil {
+			actorID = input.StaffID
+		}
+		if err := s.auditVitalTx(txCtx, input.ClinicID, actorID, "create", vital.ID, medicalRecordID, nil, extractVitalImportantFields(vital)); err != nil {
+			return err
 		}
 		return nil
 	}); err != nil {
@@ -243,6 +243,9 @@ func (s *vitalService) Update(ctx context.Context, clinicID, medicalRecordID, vi
 	}
 	if s.transactor == nil {
 		return nil, apperrors.WrapInternalServerError("vital transaction dependency is required")
+	}
+	if s.auditTx == nil {
+		return nil, apperrors.WrapInternalServerError("vital audit dependency is required")
 	}
 	// 所属確認: このvitalIDがclinicID・medicalRecordIDに属しているか検証
 	existing, err := s.repo.FindByID(ctx, clinicID, vitalID)
@@ -327,14 +330,11 @@ func (s *vitalService) Update(ctx context.Context, clinicID, medicalRecordID, vi
 				!result.Staff.IsActive) {
 			return apperrors.WrapNotFound("staff", "nested relation")
 		}
-		// BUG-015: vital update audit は業務 write と同一 tx・fail-closed（best-effort 廃止）。
-		if s.auditService != nil {
-			oldDiff, newDiff := diffVitalImportantFields(existing, result)
-			if oldDiff != nil {
-				if err := s.auditService.LogVitalChange(txCtx, clinicID, input.ActorID, "update", vitalID, medicalRecordID, oldDiff, newDiff); err != nil {
-					slog.ErrorContext(txCtx, "audit log failed for vital update", "error", err, "vital_id", vitalID)
-					return apperrors.Wrap(err, "failed to write vital update audit")
-				}
+		// BUG-015: vital update audit は ambient tx 参加の LogEntryTx で fail-closed。
+		oldDiff, newDiff := diffVitalImportantFields(existing, result)
+		if oldDiff != nil {
+			if err := s.auditVitalTx(txCtx, clinicID, input.ActorID, "update", vitalID, medicalRecordID, oldDiff, newDiff); err != nil {
+				return err
 			}
 		}
 		return nil
@@ -404,12 +404,21 @@ func validateVitalMedicalRecordRelation(
 }
 
 func (s *vitalService) Delete(ctx context.Context, clinicID, medicalRecordID, vitalID uint64) error {
+	if s.repo == nil || s.medicalRecordRepo == nil {
+		return apperrors.WrapInternalServerError("vital persistence dependencies are required")
+	}
+	if s.transactor == nil {
+		return apperrors.WrapInternalServerError("vital transaction dependency is required")
+	}
+	if s.auditTx == nil {
+		return apperrors.WrapInternalServerError("vital audit dependency is required")
+	}
 	// 所属確認: このvitalIDがclinicID・medicalRecordIDに属しているか検証
 	existing, err := s.repo.FindByID(ctx, clinicID, vitalID)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to get vital record")
 	}
-	if existing.MedicalRecordID == nil || *existing.MedicalRecordID != medicalRecordID {
+	if existing == nil || existing.MedicalRecordID == nil || *existing.MedicalRecordID != medicalRecordID {
 		return apperrors.WrapNotFound("vital", "not found in medical record")
 	}
 
@@ -420,18 +429,15 @@ func (s *vitalService) Delete(ctx context.Context, clinicID, medicalRecordID, vi
 			"failed to find medical record", "確定済みカルテのバイタルは削除できません"); err != nil {
 			return err
 		}
-		// pre-delete 値は delete 前に確定し、同一 tx で fail-closed audit に渡す（clinical_plan 同型）。
+		// pre-delete 値は delete 前に確定し、同一 ambient tx で fail-closed audit に渡す。
 		oldValue := extractVitalImportantFields(existing)
 		if err := s.repo.Delete(txCtx, clinicID, vitalID); err != nil {
 			slog.ErrorContext(txCtx, "failed to delete vital record", "error", err, "clinic_id", clinicID, "vital_id", vitalID)
 			return apperrors.Wrap(err, "failed to delete vital record")
 		}
-		// BUG-015: vital delete audit は業務 write と同一 tx・fail-closed（best-effort 廃止）。
-		if s.auditService != nil {
-			if err := s.auditService.LogVitalChange(txCtx, clinicID, nil, "delete", vitalID, medicalRecordID, oldValue, nil); err != nil {
-				slog.ErrorContext(txCtx, "audit log failed for vital delete", "error", err, "vital_id", vitalID)
-				return apperrors.Wrap(err, "failed to write vital delete audit")
-			}
+		// BUG-015: vital delete audit は ambient tx 参加の LogEntryTx で fail-closed。
+		if err := s.auditVitalTx(txCtx, clinicID, nil, "delete", vitalID, medicalRecordID, oldValue, nil); err != nil {
+			return err
 		}
 		return nil
 	}); err != nil {
@@ -443,6 +449,45 @@ func (s *vitalService) Delete(ctx context.Context, clinicID, medicalRecordID, vi
 		slog.Uint64("vital_id", vitalID),
 		slog.Uint64("medical_record_id", medicalRecordID))
 
+	return nil
+}
+
+// auditVitalTx は vital create/update/delete の監査を ambient transaction へ参加させる（BUG-015）。
+// LogVitalChange（base conn Create）は使わず、LogEntryTx → CreateTx と同型にする。
+func (s *vitalService) auditVitalTx(
+	ctx context.Context,
+	clinicID uint64,
+	actorID *uint64,
+	action string,
+	vitalID, medicalRecordID uint64,
+	oldValue, newValue map[string]any,
+) error {
+	if s.auditTx == nil {
+		return apperrors.WrapInternalServerError("vital audit dependency is required")
+	}
+	resourceID := vitalID
+	entry := &AuditEntry{
+		ClinicID:   &clinicID,
+		ActorID:    actorID,
+		ActorType:  sharedkernel.AuditActorTypeFor(actorID),
+		Action:     action,
+		Resource:   "vital",
+		ResourceID: &resourceID,
+		OldValue:   oldValue,
+		NewValue:   newValue,
+		Metadata: map[string]any{
+			"medical_record_id": medicalRecordID,
+		},
+	}
+	if err := s.auditTx.LogEntryTx(ctx, entry); err != nil {
+		slog.ErrorContext(ctx, "failed to write vital audit",
+			"error", err,
+			"action", action,
+			"vital_id", vitalID,
+			"medical_record_id", medicalRecordID,
+		)
+		return apperrors.Wrap(err, "failed to write vital "+action+" audit")
+	}
 	return nil
 }
 

@@ -278,7 +278,7 @@ func TestDB_VitalServiceRejectsPollutedPatientRecordAndStaffRelations(t *testing
 	service := NewVitalServiceWithRelationValidation(
 		repo,
 		NewMedicalRecordRepository(fixture.db),
-		nil,
+		okVitalAudit(),
 		reservation.NewReservationRepository(fixture.db),
 		staffdomain.NewStaffRepository(fixture.db),
 		staffdomain.NewStaffClinicAssignmentRepository(fixture.db),

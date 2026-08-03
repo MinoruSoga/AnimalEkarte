@@ -425,7 +425,7 @@ func TestVitalServiceUpdateRefetchFailureIsInsideTransaction(t *testing.T) {
 	service := NewVitalServiceWithRelationValidation(
 		repo,
 		medicalRecords,
-		nil,
+		okVitalAudit(),
 		validVitalRelations(petID, ownerID),
 		nil,
 		nil,

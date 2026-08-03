@@ -168,7 +168,7 @@ func newMedicalRecordClinicalServices(
 		vitals: medicalrecord.NewVitalServiceWithRelationValidation(
 			r.vitals,
 			r.medicalRecords,
-			d.Audit,
+			auditTx,
 			d.Reservations,
 			d.Staff,
 			d.StaffAssignments,

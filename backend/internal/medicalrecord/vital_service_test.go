@@ -46,20 +46,24 @@ func (m *mockVitalRepository) Delete(ctx context.Context, clinicID, vitalID uint
 	return m.deleteFn(ctx, clinicID, vitalID)
 }
 
-// mockVitalAuditLogger は vitalAuditLogger (service_deps.go) の narrow test double。BE9-2D
-// sub-batch④a 移設前は service 側 mocks_shared_test.go の 19メソッド mockAuditService を使っていたが、
-// vitalService は LogVitalChange しか呼ばないため、その1メソッドと calls 記録だけを写す。
-type mockVitalAuditLogger struct {
-	logVitalChangeFn func(ctx context.Context, clinicID uint64, actorID *uint64, action string, vitalID, medicalRecordID uint64, oldValue, newValue map[string]any) error
-	calls            []string
+// mockVitalAuditTxLogger は BUG-015 以降の AuditTxLogger 用 double（LogEntryTx + action 記録）。
+type mockVitalAuditTxLogger struct {
+	logEntryTxFn func(ctx context.Context, entry *AuditEntry) error
+	calls        []string
 }
 
-func (m *mockVitalAuditLogger) LogVitalChange(ctx context.Context, clinicID uint64, actorID *uint64, action string, vitalID, medicalRecordID uint64, oldValue, newValue map[string]any) error {
-	m.calls = append(m.calls, action)
-	if m.logVitalChangeFn != nil {
-		return m.logVitalChangeFn(ctx, clinicID, actorID, action, vitalID, medicalRecordID, oldValue, newValue)
+func (m *mockVitalAuditTxLogger) LogEntryTx(ctx context.Context, entry *AuditEntry) error {
+	if entry != nil {
+		m.calls = append(m.calls, entry.Action)
+	}
+	if m.logEntryTxFn != nil {
+		return m.logEntryTxFn(ctx, entry)
 	}
 	return nil
+}
+
+func okVitalAudit() *mockVitalAuditTxLogger {
+	return &mockVitalAuditTxLogger{}
 }
 
 type vitalClinicalRelationVerifierStub struct {
@@ -149,7 +153,7 @@ func TestVitalService_List(t *testing.T) {
 					return tt.repoVitals, tt.repoErr
 				},
 			}
-			svc := NewVitalService(repo, &mockMedicalRecordRepository{}, nil, &mockCheckupTransactor{})
+			svc := NewVitalService(repo, &mockMedicalRecordRepository{}, okVitalAudit(), &mockCheckupTransactor{})
 
 			vitals, err := svc.List(context.Background(), 1, tt.medicalRecordID)
 
@@ -311,7 +315,7 @@ func TestVitalService_Create(t *testing.T) {
 			svc := NewVitalServiceWithRelationValidation(
 				repo,
 				medRecordRepo,
-				nil,
+				okVitalAudit(),
 				validVitalRelations(tt.input.PetID, 100),
 				&clinicalStaffLockerStub{staff: &model.Staff{ID: staffID, IsActive: true}},
 				&clinicalStaffAssignmentLockerStub{
@@ -519,7 +523,7 @@ func TestVitalService_Update(t *testing.T) {
 			svc := NewVitalServiceWithRelationValidation(
 				repo,
 				mrRepo,
-				nil,
+				okVitalAudit(),
 				validVitalRelations(10, 100),
 				nil,
 				nil,
@@ -642,7 +646,7 @@ func TestVitalService_Delete(t *testing.T) {
 					return tt.parentRecord, tt.parentErr
 				},
 			}
-			svc := NewVitalService(repo, mrRepo, nil, &mockCheckupTransactor{})
+			svc := NewVitalService(repo, mrRepo, okVitalAudit(), &mockCheckupTransactor{})
 
 			err := svc.Delete(context.Background(), tt.clinicID, tt.medicalRecordID, tt.vitalID)
 
@@ -669,7 +673,7 @@ func ptrInt(i int) *int {
 
 // TestVitalService_Create_AuditLog はバイタル作成時に audit "create" が記録されることを確認する。
 func TestVitalService_Create_AuditLog(t *testing.T) {
-	auditSvc := &mockVitalAuditLogger{}
+	auditSvc := &mockVitalAuditTxLogger{}
 	repo := &mockVitalRepository{
 		createFn: func(_ context.Context, v *model.VitalRecord) error {
 			v.ID = 55
@@ -710,7 +714,7 @@ func TestVitalService_Create_AuditLog(t *testing.T) {
 
 // TestVitalService_Update_AuditLog はバイタル更新時に audit "update" が記録されることを確認する。
 func TestVitalService_Update_AuditLog(t *testing.T) {
-	auditSvc := &mockVitalAuditLogger{}
+	auditSvc := &mockVitalAuditTxLogger{}
 	existingVital := &model.VitalRecord{
 		ID:              55,
 		ClinicID:        1,
@@ -771,7 +775,7 @@ func TestVitalService_Update_AuditLog(t *testing.T) {
 
 // TestVitalService_Delete_AuditLog はバイタル削除時に audit "delete" が記録されることを確認する。
 func TestVitalService_Delete_AuditLog(t *testing.T) {
-	auditSvc := &mockVitalAuditLogger{}
+	auditSvc := &mockVitalAuditTxLogger{}
 	existingVital := &model.VitalRecord{
 		ID:              55,
 		MedicalRecordID: ptrUint64(77),
@@ -801,8 +805,8 @@ func TestVitalService_Delete_AuditLog(t *testing.T) {
 // TestVitalService_Create_AuditFailureRollsBack は create の audit 失敗で業務 write が error になることを固定する（BUG-015 fail-closed）。
 func TestVitalService_Create_AuditFailureRollsBack(t *testing.T) {
 	createCalled := false
-	auditSvc := &mockVitalAuditLogger{
-		logVitalChangeFn: func(_ context.Context, _ uint64, _ *uint64, _ string, _, _ uint64, _, _ map[string]any) error {
+	auditSvc := &mockVitalAuditTxLogger{
+		logEntryTxFn: func(_ context.Context, _ *AuditEntry) error {
 			return errors.New("audit db down")
 		},
 	}
@@ -849,8 +853,8 @@ func TestVitalService_Create_AuditFailureRollsBack(t *testing.T) {
 // TestVitalService_Update_AuditFailureRollsBack は update の audit 失敗で業務 write が error になることを固定する（BUG-015）。
 func TestVitalService_Update_AuditFailureRollsBack(t *testing.T) {
 	updateCalled := false
-	auditSvc := &mockVitalAuditLogger{
-		logVitalChangeFn: func(_ context.Context, _ uint64, _ *uint64, _ string, _, _ uint64, _, _ map[string]any) error {
+	auditSvc := &mockVitalAuditTxLogger{
+		logEntryTxFn: func(_ context.Context, _ *AuditEntry) error {
 			return errors.New("audit write failed")
 		},
 	}
@@ -910,8 +914,8 @@ func TestVitalService_Update_AuditFailureRollsBack(t *testing.T) {
 // TestVitalService_Delete_AuditFailureRollsBack は delete の audit 失敗で業務 write が error になることを固定する（BUG-015）。
 func TestVitalService_Delete_AuditFailureRollsBack(t *testing.T) {
 	deleteCalled := false
-	auditSvc := &mockVitalAuditLogger{
-		logVitalChangeFn: func(_ context.Context, _ uint64, _ *uint64, _ string, _, _ uint64, _, _ map[string]any) error {
+	auditSvc := &mockVitalAuditTxLogger{
+		logEntryTxFn: func(_ context.Context, _ *AuditEntry) error {
 			return errors.New("audit write failed")
 		},
 	}
@@ -941,8 +945,8 @@ func TestVitalService_Delete_AuditFailureRollsBack(t *testing.T) {
 	assert.True(t, deleteCalled)
 }
 
-// TestVitalService_Create_RejectsInvalidWeight は weight 構造検証（NaN/Inf/≤0/不正 unit）を 400 契約で拒否する（BUG-015）。
-func TestVitalService_Create_RejectsInvalidWeight(t *testing.T) {
+// TestVitalService_Create_NilAuditFailsClosed は audit 依存欠落で業務 write を拒否する（BUG-015 H2）。
+func TestVitalService_Create_NilAuditFailsClosed(t *testing.T) {
 	createCalled := false
 	repo := &mockVitalRepository{
 		createFn: func(_ context.Context, _ *model.VitalRecord) error {
@@ -961,6 +965,32 @@ func TestVitalService_Create_RejectsInvalidWeight(t *testing.T) {
 	svc := NewVitalServiceWithRelationValidation(
 		repo, medRecordRepo, nil, validVitalRelations(10, 100), nil, nil, &mockCheckupTransactor{},
 	)
+	got, err := svc.Create(context.Background(), 77, &CreateVitalInput{
+		ClinicID: 1, PetID: 10, RecordedAt: time.Now(), Temperature: ptrFloat(38.5),
+	})
+	assert.Error(t, err)
+	assert.Nil(t, got)
+	assert.False(t, createCalled)
+}
+
+// TestVitalService_Create_RejectsInvalidWeight は weight 構造検証（NaN/Inf/≤0/不正 unit）を 400 契約で拒否する（BUG-015）。
+func TestVitalService_Create_RejectsInvalidWeight(t *testing.T) {
+	createCalled := false
+	repo := &mockVitalRepository{
+		createFn: func(_ context.Context, _ *model.VitalRecord) error {
+			createCalled = true
+			return nil
+		},
+	}
+	medRecordRepo := &mockMedicalRecordRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+			return &model.MedicalRecord{
+				ID: 77, ClinicID: 1, OwnerID: ptrUint64(100), PetID: ptrUint64(10),
+				Status: model.MedicalRecordStatusDraft,
+			}, nil
+		},
+	}
+	svc := NewVitalServiceWithRelationValidation(repo, medRecordRepo, okVitalAudit(), validVitalRelations(10, 100), nil, nil, &mockCheckupTransactor{})
 
 	nan := math.NaN()
 	inf := math.Inf(1)
@@ -1093,7 +1123,7 @@ func TestVitalService_CreateRejectsMedicalRecordPetMismatch(t *testing.T) {
 	svc := NewVitalServiceWithRelationValidation(
 		repo,
 		medRecRepo,
-		nil,
+		okVitalAudit(),
 		&vitalClinicalRelationVerifierStub{petOwners: map[uint64]uint64{
 			recordPetID: 100, requestPetID: 100,
 		}},
@@ -1130,7 +1160,7 @@ func TestVitalService_CreateRejectsInactiveOrForeignPetBeforeWrite(t *testing.T)
 	svc := NewVitalServiceWithRelationValidation(
 		repo,
 		medRecRepo,
-		nil,
+		okVitalAudit(),
 		&vitalClinicalRelationVerifierStub{petOwners: map[uint64]uint64{}},
 		nil,
 		nil,
@@ -1170,7 +1200,7 @@ func TestVitalService_StaffReferenceValidation(t *testing.T) {
 		return NewVitalServiceWithRelationValidation(
 			repo,
 			medRecRepo,
-			nil,
+			okVitalAudit(),
 			validVitalRelations(petID, 100),
 			&clinicalStaffLockerStub{staff: staff},
 			&clinicalStaffAssignmentLockerStub{assignment: assignment},
@@ -1275,7 +1305,7 @@ func TestVitalService_CreateFailsClosedWithoutStaffValidationDependencies(t *tes
 	svc := NewVitalServiceWithRelationValidation(
 		repo,
 		medRecRepo,
-		nil,
+		okVitalAudit(),
 		validVitalRelations(20, 100),
 		nil,
 		nil,
