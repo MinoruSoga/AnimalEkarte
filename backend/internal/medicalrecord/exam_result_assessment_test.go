@@ -100,6 +100,22 @@ func TestComputeExamResultAssessment(t *testing.T) {
 			wantAssessed: true,
 		},
 		{
+			name:         "numeric lower-bound equality is assessed normal",
+			inspection:   "1",
+			refMin:       &numericMin,
+			refMax:       &numericMax,
+			wantStatus:   model.ExaminationResultStatusNormal,
+			wantAssessed: true,
+		},
+		{
+			name:         "numeric upper-bound equality is assessed normal",
+			inspection:   "10",
+			refMin:       &numericMin,
+			refMax:       &numericMax,
+			wantStatus:   model.ExaminationResultStatusNormal,
+			wantAssessed: true,
+		},
+		{
 			name:         "numeric below range is assessed low",
 			inspection:   "0.5",
 			refMin:       &numericMin,
