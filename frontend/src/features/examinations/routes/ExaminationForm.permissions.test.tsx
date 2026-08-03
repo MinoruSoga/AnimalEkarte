@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import { act, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -17,6 +17,8 @@ const mocks = vi.hoisted(() => ({
   patientChangeDialog: vi.fn(),
   useGetExaminations: vi.fn(),
   historyPanel: vi.fn(),
+  formFieldsMounted: vi.fn(),
+  formFieldsUnmounted: vi.fn(),
   searchParams: "",
   setSearchParams: vi.fn(),
 }));
@@ -82,7 +84,13 @@ vi.mock("../components/ExamItemsTable", () => ({
 }));
 
 vi.mock("../components/ExaminationFormFields", () => ({
-  ExaminationFormFields: () => <button type="submit">保存</button>,
+  ExaminationFormFields: () => {
+    useEffect(() => {
+      mocks.formFieldsMounted();
+      return () => mocks.formFieldsUnmounted();
+    }, []);
+    return <button type="submit">保存</button>;
+  },
 }));
 
 vi.mock("../components/ExaminationUnconfirmDialog", () => ({
@@ -119,6 +127,8 @@ beforeEach(() => {
   mocks.historyPanel.mockReset();
   mocks.unconfirmDialog.mockReset();
   mocks.patientChangeDialog.mockReset();
+  mocks.formFieldsMounted.mockReset();
+  mocks.formFieldsUnmounted.mockReset();
   mocks.useGetExaminations.mockReset();
   mocks.useGetExaminations.mockReturnValue({ data: [] });
   mocks.useExaminationForm.mockReset();
@@ -155,6 +165,20 @@ beforeEach(() => {
 });
 
 describe("ExaminationForm — mutation permission wiring", () => {
+  it("route id変更時はrecord-scopedフォームstateをremountする", () => {
+    mocks.id = "examination-1";
+    const view = render(<ExaminationForm />);
+
+    expect(mocks.formFieldsMounted).toHaveBeenCalledOnce();
+    expect(mocks.formFieldsUnmounted).not.toHaveBeenCalled();
+
+    mocks.id = "examination-2";
+    view.rerender(<ExaminationForm />);
+
+    expect(mocks.formFieldsUnmounted).toHaveBeenCalledOnce();
+    expect(mocks.formFieldsMounted).toHaveBeenCalledTimes(2);
+  });
+
   it("create/edit/delete の現在値を hook へ渡す", () => {
     const view = render(<ExaminationForm />);
 

@@ -135,6 +135,18 @@ func (m *mockExaminationRepository) FindOfficialByID(
 // ptrFloat64 は旧 internal/service 共有 helper の最小複製（⑦移動）。
 func ptrFloat64(v float64) *float64 { return &v }
 
+type examinationPetStatusRelations struct {
+	*mockMedicalRecordRepository
+	findPetByIDInClinicFn func(ctx context.Context, clinicID, petID uint64) (*model.Pet, error)
+}
+
+func (r *examinationPetStatusRelations) FindPetByIDInClinic(
+	ctx context.Context,
+	clinicID, petID uint64,
+) (*model.Pet, error) {
+	return r.findPetByIDInClinicFn(ctx, clinicID, petID)
+}
+
 func TestExaminationService_List(t *testing.T) {
 	petID := uint64(5)
 	ownerID := uint64(2)
@@ -1357,6 +1369,147 @@ func TestExaminationService_Create_RejectsInvalidClinicalRelations(t *testing.T)
 	}
 }
 
+type examinationTxContextKey struct{}
+
+func TestExaminationService_DeceasedPetWriteBoundary(t *testing.T) {
+	tests := []struct {
+		name string
+		run  func(t *testing.T)
+	}{
+		{name: "create", run: testExaminationCreateRejectsDeceasedPetBeforeWrites},
+		{name: "create from medical record", run: testExaminationCreateFromRecordRejectsDeceasedPetBeforeWrites},
+		{name: "update replacement", run: testExaminationUpdateRejectsDeceasedPetBeforeWrites},
+		{name: "update medical record replacement", run: testExaminationUpdateRecordRejectsDeceasedPetBeforeWrites},
+		{name: "existing deceased pet non-relation update", run: testExaminationUpdateAllowsExistingDeceasedPet},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, tt.run)
+	}
+}
+
+func testExaminationCreateRejectsDeceasedPetBeforeWrites(t *testing.T) {
+	const (
+		clinicID = uint64(1)
+		petID    = uint64(30)
+	)
+	deceasedAt := time.Now().Add(-24 * time.Hour)
+	createCalls := 0
+	replaceCalls := 0
+	auditCalls := 0
+	petStatusCalls := 0
+	repo := &mockExaminationRepository{
+		createFn: func(_ context.Context, exam *model.Examination) error {
+			createCalls++
+			exam.ID = 1
+			return nil
+		},
+		replaceItemsByExamIDFn: func(_ context.Context, _ uint64, _ uint64, items []model.ExamResult) ([]model.ExamResult, int64, error) {
+			replaceCalls++
+			return items, 0, nil
+		},
+	}
+	relations := &examinationPetStatusRelations{
+		mockMedicalRecordRepository: &mockMedicalRecordRepository{},
+		findPetByIDInClinicFn: func(ctx context.Context, gotClinicID, gotPetID uint64) (*model.Pet, error) {
+			petStatusCalls++
+			assert.Equal(t, true, ctx.Value(examinationTxContextKey{}))
+			assert.Equal(t, clinicID, gotClinicID)
+			assert.Equal(t, petID, gotPetID)
+			return &model.Pet{ID: petID, ClinicID: clinicID, DeceasedAt: &deceasedAt}, nil
+		},
+	}
+	audit := &mockAuditTxLogger{logEntryTxFn: func(_ context.Context, _ *AuditEntry) error {
+		auditCalls++
+		return nil
+	}}
+	tx := &mockTransactor{withTxFn: func(ctx context.Context, fn func(context.Context) error) error {
+		return fn(context.WithValue(ctx, examinationTxContextKey{}, true))
+	}}
+	svc := NewExaminationService(repo, relations, okExamTypeRepo(), audit, tx)
+	items := []UpsertExamItemInput{{Name: "WBC", InspectionValue: "5.0"}}
+
+	got, err := svc.Create(context.Background(), clinicID, &CreateExaminationInput{
+		PetID: ptrUint64(petID), ExamTypeID: 1, Date: time.Now(),
+		Items: &items, ActorID: ptrUint64(1),
+	})
+
+	require.Error(t, err)
+	assert.True(t, apperrors.IsInvalidInput(err))
+	assert.Contains(t, err.Error(), "死亡")
+	assert.Nil(t, got)
+	assert.Equal(t, 1, petStatusCalls)
+	assert.Zero(t, createCalls)
+	assert.Zero(t, replaceCalls)
+	assert.Zero(t, auditCalls)
+}
+
+func testExaminationCreateFromRecordRejectsDeceasedPetBeforeWrites(t *testing.T) {
+	const (
+		clinicID        = uint64(1)
+		medicalRecordID = uint64(10)
+		petID           = uint64(30)
+	)
+	deceasedAt := time.Now().Add(-24 * time.Hour)
+	createCalls := 0
+	replaceCalls := 0
+	auditCalls := 0
+	petStatusCalls := 0
+	repo := &mockExaminationRepository{
+		createFn: func(_ context.Context, exam *model.Examination) error {
+			createCalls++
+			exam.ID = 1
+			return nil
+		},
+		replaceItemsByExamIDFn: func(_ context.Context, _ uint64, _ uint64, items []model.ExamResult) ([]model.ExamResult, int64, error) {
+			replaceCalls++
+			return items, 0, nil
+		},
+	}
+	relations := &examinationPetStatusRelations{
+		mockMedicalRecordRepository: &mockMedicalRecordRepository{
+			findByIDFn: func(_ context.Context, gotClinicID, gotRecordID uint64) (*model.MedicalRecord, error) {
+				assert.Equal(t, clinicID, gotClinicID)
+				assert.Equal(t, medicalRecordID, gotRecordID)
+				return &model.MedicalRecord{
+					ID: medicalRecordID, ClinicID: clinicID, PetID: ptrUint64(petID),
+					Status: model.MedicalRecordStatusDraft,
+				}, nil
+			},
+		},
+		findPetByIDInClinicFn: func(ctx context.Context, gotClinicID, gotPetID uint64) (*model.Pet, error) {
+			petStatusCalls++
+			assert.Equal(t, true, ctx.Value(examinationTxContextKey{}))
+			assert.Equal(t, clinicID, gotClinicID)
+			assert.Equal(t, petID, gotPetID)
+			return &model.Pet{ID: petID, ClinicID: clinicID, DeceasedAt: &deceasedAt}, nil
+		},
+	}
+	audit := &mockAuditTxLogger{logEntryTxFn: func(_ context.Context, _ *AuditEntry) error {
+		auditCalls++
+		return nil
+	}}
+	tx := &mockTransactor{withTxFn: func(ctx context.Context, fn func(context.Context) error) error {
+		return fn(context.WithValue(ctx, examinationTxContextKey{}, true))
+	}}
+	svc := NewExaminationService(repo, relations, okExamTypeRepo(), audit, tx)
+	items := []UpsertExamItemInput{{Name: "WBC", InspectionValue: "5.0"}}
+
+	got, err := svc.Create(context.Background(), clinicID, &CreateExaminationInput{
+		MedicalRecordID: ptrUint64(medicalRecordID), ExamTypeID: 1, Date: time.Now(),
+		Items: &items, ActorID: ptrUint64(1),
+	})
+
+	require.Error(t, err)
+	assert.True(t, apperrors.IsInvalidInput(err))
+	assert.Contains(t, err.Error(), "死亡")
+	assert.Nil(t, got)
+	assert.Equal(t, 1, petStatusCalls)
+	assert.Zero(t, createCalls)
+	assert.Zero(t, replaceCalls)
+	assert.Zero(t, auditCalls)
+}
+
 func TestExaminationService_Update_RevalidatesEffectivePatient(t *testing.T) {
 	const (
 		clinicID      = uint64(1)
@@ -1400,6 +1553,200 @@ func TestExaminationService_Update_RevalidatesEffectivePatient(t *testing.T) {
 	assert.Error(t, err)
 	assert.Nil(t, got)
 	assert.Zero(t, updateCalls)
+}
+
+func testExaminationUpdateRejectsDeceasedPetBeforeWrites(t *testing.T) {
+	const (
+		clinicID = uint64(1)
+		examID   = uint64(2)
+		oldPetID = uint64(30)
+		newPetID = uint64(31)
+	)
+	deceasedAt := time.Now().Add(-24 * time.Hour)
+	updateCalls := 0
+	replaceCalls := 0
+	auditCalls := 0
+	petStatusCalls := 0
+	repo := &mockExaminationRepository{
+		lockByIDForUpdateFn: func(_ context.Context, gotClinicID, gotExamID uint64) (*model.Examination, error) {
+			assert.Equal(t, clinicID, gotClinicID)
+			assert.Equal(t, examID, gotExamID)
+			return &model.Examination{
+				ID: examID, ClinicID: clinicID, PetID: ptrUint64(oldPetID),
+				ExamTypeID: 1, Status: model.ExaminationStatusPending,
+			}, nil
+		},
+		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Examination, error) {
+			updateCalls++
+			return &model.Examination{
+				ID: examID, ClinicID: clinicID, PetID: ptrUint64(newPetID),
+				ExamTypeID: 1, Status: model.ExaminationStatusPending,
+			}, nil
+		},
+		replaceItemsByExamIDFn: func(_ context.Context, _ uint64, _ uint64, items []model.ExamResult) ([]model.ExamResult, int64, error) {
+			replaceCalls++
+			return items, 0, nil
+		},
+	}
+	relations := &examinationPetStatusRelations{
+		mockMedicalRecordRepository: &mockMedicalRecordRepository{},
+		findPetByIDInClinicFn: func(ctx context.Context, gotClinicID, gotPetID uint64) (*model.Pet, error) {
+			petStatusCalls++
+			assert.Equal(t, true, ctx.Value(examinationTxContextKey{}))
+			assert.Equal(t, clinicID, gotClinicID)
+			assert.Equal(t, newPetID, gotPetID)
+			return &model.Pet{ID: newPetID, ClinicID: clinicID, DeceasedAt: &deceasedAt}, nil
+		},
+	}
+	audit := &mockAuditTxLogger{logEntryTxFn: func(_ context.Context, _ *AuditEntry) error {
+		auditCalls++
+		return nil
+	}}
+	tx := &mockTransactor{withTxFn: func(ctx context.Context, fn func(context.Context) error) error {
+		return fn(context.WithValue(ctx, examinationTxContextKey{}, true))
+	}}
+	svc := NewExaminationService(repo, relations, okExamTypeRepo(), audit, tx)
+
+	got, err := svc.Update(context.Background(), clinicID, examID, UpdateExaminationInput{
+		PetID: ptrUint64(newPetID), ActorID: ptrUint64(1),
+	})
+
+	require.Error(t, err)
+	assert.True(t, apperrors.IsInvalidInput(err))
+	assert.Contains(t, err.Error(), "死亡")
+	assert.Nil(t, got)
+	assert.Equal(t, 1, petStatusCalls)
+	assert.Zero(t, updateCalls)
+	assert.Zero(t, replaceCalls)
+	assert.Zero(t, auditCalls)
+}
+
+func testExaminationUpdateRecordRejectsDeceasedPetBeforeWrites(t *testing.T) {
+	const (
+		clinicID        = uint64(1)
+		examID          = uint64(2)
+		medicalRecordID = uint64(10)
+		petID           = uint64(31)
+	)
+	deceasedAt := time.Now().Add(-24 * time.Hour)
+	updateCalls := 0
+	replaceCalls := 0
+	auditCalls := 0
+	petStatusCalls := 0
+	repo := &mockExaminationRepository{
+		lockByIDForUpdateFn: func(_ context.Context, gotClinicID, gotExamID uint64) (*model.Examination, error) {
+			assert.Equal(t, clinicID, gotClinicID)
+			assert.Equal(t, examID, gotExamID)
+			return &model.Examination{
+				ID: examID, ClinicID: clinicID, ExamTypeID: 1,
+				Status: model.ExaminationStatusPending,
+			}, nil
+		},
+		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Examination, error) {
+			updateCalls++
+			return &model.Examination{
+				ID: examID, ClinicID: clinicID, MedicalRecordID: ptrUint64(medicalRecordID),
+				ExamTypeID: 1, Status: model.ExaminationStatusPending,
+			}, nil
+		},
+		replaceItemsByExamIDFn: func(_ context.Context, _ uint64, _ uint64, items []model.ExamResult) ([]model.ExamResult, int64, error) {
+			replaceCalls++
+			return items, 0, nil
+		},
+	}
+	relations := &examinationPetStatusRelations{
+		mockMedicalRecordRepository: &mockMedicalRecordRepository{
+			findByIDFn: func(_ context.Context, gotClinicID, gotRecordID uint64) (*model.MedicalRecord, error) {
+				assert.Equal(t, clinicID, gotClinicID)
+				assert.Equal(t, medicalRecordID, gotRecordID)
+				return &model.MedicalRecord{
+					ID: medicalRecordID, ClinicID: clinicID, PetID: ptrUint64(petID),
+					Status: model.MedicalRecordStatusDraft,
+				}, nil
+			},
+		},
+		findPetByIDInClinicFn: func(ctx context.Context, gotClinicID, gotPetID uint64) (*model.Pet, error) {
+			petStatusCalls++
+			assert.Equal(t, true, ctx.Value(examinationTxContextKey{}))
+			assert.Equal(t, clinicID, gotClinicID)
+			assert.Equal(t, petID, gotPetID)
+			return &model.Pet{ID: petID, ClinicID: clinicID, DeceasedAt: &deceasedAt}, nil
+		},
+	}
+	audit := &mockAuditTxLogger{logEntryTxFn: func(_ context.Context, _ *AuditEntry) error {
+		auditCalls++
+		return nil
+	}}
+	tx := &mockTransactor{withTxFn: func(ctx context.Context, fn func(context.Context) error) error {
+		return fn(context.WithValue(ctx, examinationTxContextKey{}, true))
+	}}
+	svc := NewExaminationService(repo, relations, okExamTypeRepo(), audit, tx)
+
+	got, err := svc.Update(context.Background(), clinicID, examID, UpdateExaminationInput{
+		MedicalRecordID: ptrUint64(medicalRecordID), ActorID: ptrUint64(1),
+	})
+
+	require.Error(t, err)
+	assert.True(t, apperrors.IsInvalidInput(err))
+	assert.Contains(t, err.Error(), "死亡")
+	assert.Nil(t, got)
+	assert.Equal(t, 1, petStatusCalls)
+	assert.Zero(t, updateCalls)
+	assert.Zero(t, replaceCalls)
+	assert.Zero(t, auditCalls)
+}
+
+func testExaminationUpdateAllowsExistingDeceasedPet(t *testing.T) {
+	const (
+		clinicID = uint64(1)
+		examID   = uint64(2)
+		petID    = uint64(31)
+	)
+	summary := "historical correction"
+	updateCalls := 0
+	auditCalls := 0
+	petStatusCalls := 0
+	repo := &mockExaminationRepository{
+		lockByIDForUpdateFn: func(_ context.Context, gotClinicID, gotExamID uint64) (*model.Examination, error) {
+			assert.Equal(t, clinicID, gotClinicID)
+			assert.Equal(t, examID, gotExamID)
+			return &model.Examination{
+				ID: examID, ClinicID: clinicID, PetID: ptrUint64(petID),
+				ExamTypeID: 1, Status: model.ExaminationStatusPending,
+			}, nil
+		},
+		updateFieldsFn: func(_ context.Context, _, _ uint64, fields map[string]any) (*model.Examination, error) {
+			updateCalls++
+			assert.Equal(t, summary, fields["result_summary"])
+			return &model.Examination{
+				ID: examID, ClinicID: clinicID, PetID: ptrUint64(petID),
+				ExamTypeID: 1, Status: model.ExaminationStatusPending, ResultSummary: summary,
+			}, nil
+		},
+	}
+	relations := &examinationPetStatusRelations{
+		mockMedicalRecordRepository: &mockMedicalRecordRepository{},
+		findPetByIDInClinicFn: func(_ context.Context, _, _ uint64) (*model.Pet, error) {
+			petStatusCalls++
+			return nil, errors.New("deceased status lookup must not run for a non-relation historical edit")
+		},
+	}
+	audit := &mockAuditTxLogger{logEntryTxFn: func(_ context.Context, _ *AuditEntry) error {
+		auditCalls++
+		return nil
+	}}
+	svc := NewExaminationService(repo, relations, okExamTypeRepo(), audit, &mockCheckupTransactor{})
+
+	got, err := svc.Update(context.Background(), clinicID, examID, UpdateExaminationInput{
+		ResultSummary: &summary, ActorID: ptrUint64(1),
+	})
+
+	require.NoError(t, err)
+	require.NotNil(t, got)
+	assert.Equal(t, summary, got.ResultSummary)
+	assert.Equal(t, 1, updateCalls)
+	assert.Equal(t, 1, auditCalls)
+	assert.Zero(t, petStatusCalls)
 }
 
 func TestExaminationService_Update_RejectsPetChangeAfterRevisionHistory(t *testing.T) {

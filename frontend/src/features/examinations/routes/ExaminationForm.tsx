@@ -43,9 +43,13 @@ import { normalizeKana } from "@/lib/normalize-kana";
 const EXAMINATION_PRIORITY_FIELDS = ["testTypeId", "doctorId"] as const;
 
 export function ExaminationForm() {
+  const { id } = useParams();
+  return <ExaminationFormContent key={id ?? "new"} id={id} />;
+}
+
+function ExaminationFormContent({ id }: { id: string | undefined }) {
   const navigate = useNavigate();
   const location = useLocation();
-  const { id } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const petId = searchParams.get("petId");
   const medicalRecordId = searchParams.get("medicalRecordId");

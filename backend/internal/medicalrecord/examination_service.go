@@ -137,6 +137,7 @@ type examinationService struct {
 	auditTx          AuditTxLogger
 	transactor       Transactor
 	relations        ClinicalRelationVerifier
+	petStatuses      examinationPetByIDInClinicFinder
 }
 
 func NewExaminationService(
@@ -161,10 +162,11 @@ func NewExaminationService(
 	referenceRanges, _ := repo.(ExamReferenceRangeResolver)
 	revisions, _ := repo.(ExaminationRevisionRepository)
 	revisionWorkflow, _ := repo.(ExaminationRevisionWorkflowRepository)
+	petStatuses, _ := relations.(examinationPetByIDInClinicFinder)
 	return &examinationService{
 		repo: repo, medRec: medRec, examTypeRepo: examTypeRepo, referenceRanges: referenceRanges,
 		revisions: revisions, revisionWorkflow: revisionWorkflow,
-		auditTx: auditTx, transactor: transactor, relations: relations,
+		auditTx: auditTx, transactor: transactor, relations: relations, petStatuses: petStatuses,
 	}
 }
 
@@ -228,6 +230,10 @@ func (s *examinationService) Create(ctx context.Context, clinicID uint64, input 
 			}
 		}
 		if err := validateClinicalRelations(txCtx, s.relations, clinicID, record, input.PetID, input.DoctorID); err != nil {
+			return err
+		}
+		petID := effectiveExaminationPetID(input.PetID, record)
+		if err := validateExaminationPetNotDeceased(txCtx, s.petStatuses, clinicID, petID); err != nil {
 			return err
 		}
 
@@ -346,6 +352,12 @@ func (s *examinationService) Update(ctx context.Context, clinicID, id uint64, in
 		}
 		if err := validateClinicalRelations(txCtx, s.relations, clinicID, record, petID, doctorID); err != nil {
 			return err
+		}
+		if petChanged || medicalRecordChanged {
+			targetPetID := effectiveExaminationPetID(petID, record)
+			if err := validateExaminationPetNotDeceased(txCtx, s.petStatuses, clinicID, targetPetID); err != nil {
+				return err
+			}
 		}
 
 		// クロステナント write 防止: 貼り替え先 exam_type が caller の clinic に属することを検証する。

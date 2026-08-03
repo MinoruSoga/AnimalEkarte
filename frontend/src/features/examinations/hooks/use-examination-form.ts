@@ -6,6 +6,7 @@ import {
   useCallback,
   useActionState,
   useRef,
+  useMemo,
 } from "react";
 import { toast } from "sonner";
 import { handleApiError } from "@/lib/handle-api-error";
@@ -100,6 +101,10 @@ export function useExaminationForm(
   const medicalRecordId =
     medicalRecordIdParam ?? searchParams.get("medicalRecordId") ?? "";
   const isEdit = !!id;
+  const activeExaminationIDRef = useRef(id);
+  useLayoutEffect(() => {
+    activeExaminationIDRef.current = id;
+  }, [id]);
 
   // Pet Search State
   const petSelection = usePetSelection();
@@ -114,7 +119,8 @@ export function useExaminationForm(
   const updateMutation = useUpdateExamination();
   const deleteMutation = useDeleteExamination();
   const unconfirmMutation = useUnconfirmExamination();
-  const { data: existingItems } = useGetExaminationItems(id ?? "");
+  const { data: existingItems, isSuccess: existingItemsQuerySucceeded } =
+    useGetExaminationItems(id ?? "");
   const { canCreate, canEdit, canDelete, canUnconfirm } = permissions;
   const permissionsRef = useRef(permissions);
   useLayoutEffect(() => {
@@ -160,9 +166,25 @@ export function useExaminationForm(
 
   // Local overrides applied on top of server data (only tracks user edits in edit mode)
   // useActionState の前に宣言: callback 内で formDataWithPet を参照するため
-  const [localOverrides, setLocalOverrides] = useState<
-    Partial<ExaminationRecord>
-  >({});
+  const [localOverrideScope, setLocalOverrideScope] = useState<{
+    examinationID: string | undefined;
+    values: Partial<ExaminationRecord>;
+  }>({ examinationID: id, values: {} });
+  const localOverrides =
+    localOverrideScope.examinationID === id ? localOverrideScope.values : {};
+
+  // Direct hook consumers can change id without remounting. Scope overrides to
+  // the active record immediately, then discard the previous record's values.
+  /* eslint-disable react-hooks/set-state-in-effect -- defensive reset for non-route hook consumers */
+  useEffect(() => {
+    if (localOverrideScope.examinationID === id) return;
+    setLocalOverrideScope((previous) =>
+      previous.examinationID === id
+        ? previous
+        : { examinationID: id, values: {} },
+    );
+  }, [id, localOverrideScope.examinationID]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   // Merge: server data as base + user edits on top
   const formData: Partial<ExaminationRecord> =
@@ -176,9 +198,18 @@ export function useExaminationForm(
           ...localOverrides,
         };
 
-  const setFormData = (next: Partial<ExaminationRecord>) => {
-    setLocalOverrides((prev) => ({ ...prev, ...next }));
-  };
+  const setFormData = useCallback(
+    (next: Partial<ExaminationRecord>) => {
+      setLocalOverrideScope((previous) => ({
+        examinationID: id,
+        values:
+          previous.examinationID === id
+            ? { ...previous.values, ...next }
+            : { ...next },
+      }));
+    },
+    [id],
+  );
 
   // Derive form data with pet info at render time (no setState-in-useEffect)
   const activePet = selectedPets[0] ?? mutationPet;
@@ -206,10 +237,15 @@ export function useExaminationForm(
   // 検査項目テーブルの state
   // ─────────────────────────────────────────────────
   const [formItems, setFormItems] = useState<ExamItemRow[]>([]);
-  const formItemsRef = useRef(formItems);
+  const [formItemsOwnerID, setFormItemsOwnerID] = useState(id);
+  const visibleFormItems = useMemo(
+    () => (isEdit && formItemsOwnerID !== id ? [] : formItems),
+    [formItems, formItemsOwnerID, id, isEdit],
+  );
+  const formItemsRef = useRef(visibleFormItems);
   useLayoutEffect(() => {
-    formItemsRef.current = formItems;
-  }, [formItems]);
+    formItemsRef.current = visibleFormItems;
+  }, [visibleFormItems]);
 
   // 検査種別テンプレ（exam_type_fields）取得 — testTypeId 変更検知に使う
   const currentTestTypeId = formData.testTypeId ?? "";
@@ -217,13 +253,41 @@ export function useExaminationForm(
 
   // 編集モード: 既存 items を一度だけ formItems に流し込む
   // 同期目的のため useEffect 内 setState は許容。
-  const itemsInitializedRef = useRef(false);
+  const itemsInitializedForIDRef = useRef<string | undefined>(undefined);
+  const itemsReadyForIDRef = useRef<string | undefined>(undefined);
+  const formItemsExamIDRef = useRef(id);
+  const emptyItemsAwaitingTemplateForIDRef = useRef<string | undefined>(
+    undefined,
+  );
+  useLayoutEffect(() => {
+    if (
+      isEdit &&
+      !existingItemsQuerySucceeded &&
+      itemsReadyForIDRef.current === id
+    ) {
+      itemsReadyForIDRef.current = undefined;
+    }
+  }, [existingItemsQuerySucceeded, id, isEdit]);
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
+    if (!isEdit || formItemsExamIDRef.current === id) return;
+    formItemsExamIDRef.current = id;
+    itemsInitializedForIDRef.current = undefined;
+    itemsReadyForIDRef.current = undefined;
+    emptyItemsAwaitingTemplateForIDRef.current = undefined;
+    formItemsRef.current = [];
+    setFormItemsOwnerID(id);
+    setFormItems([]);
+  }, [id, isEdit]);
+
+  useEffect(() => {
     if (!isEdit) return;
-    if (itemsInitializedRef.current) return;
+    if (!existingItemsQuerySucceeded) return;
+    if (itemsInitializedForIDRef.current === id) {
+      itemsReadyForIDRef.current = id;
+      return;
+    }
     if (!existingItems) return;
-    if (existingItems.length === 0 && !examTypeFields) return; // テンプレ未到着なら待つ
     if (existingItems.length > 0) {
       const rows: ExamItemRow[] = existingItems.map((it) => ({
         key: `srv-${it.id}`,
@@ -240,33 +304,72 @@ export function useExaminationForm(
         status: it.status,
         isAbnormal: it.isAbnormal,
       }));
+      formItemsRef.current = rows;
+      setFormItemsOwnerID(id);
       setFormItems(rows);
-    } else if (examTypeFields && examTypeFields.length > 0) {
-      // 既存 items が空ならテンプレで初期化
-      setFormItems(buildRowsFromTemplate(examTypeFields));
+    } else {
+      // 成功した空応答は権威ある初期状態。テンプレが遅れて届いた場合だけ、
+      // ユーザーが行を追加していなければ後続 effect で補完する。
+      emptyItemsAwaitingTemplateForIDRef.current =
+        examTypeFields === undefined ? id : undefined;
+      if (
+        formItemsRef.current.length === 0 &&
+        examTypeFields &&
+        examTypeFields.length > 0
+      ) {
+        const rows = buildRowsFromTemplate(examTypeFields);
+        formItemsRef.current = rows;
+        setFormItemsOwnerID(id);
+        setFormItems(rows);
+      }
     }
-    itemsInitializedRef.current = true;
-  }, [isEdit, existingItems, examTypeFields]);
+    formItemsExamIDRef.current = id;
+    itemsInitializedForIDRef.current = id;
+    itemsReadyForIDRef.current = id;
+  }, [id, isEdit, existingItems, existingItemsQuerySucceeded, examTypeFields]);
+
+  useEffect(() => {
+    if (emptyItemsAwaitingTemplateForIDRef.current !== id) return;
+    if (examTypeFields === undefined) return;
+    emptyItemsAwaitingTemplateForIDRef.current = undefined;
+    if (formItemsRef.current.length === 0 && examTypeFields.length > 0) {
+      const rows = buildRowsFromTemplate(examTypeFields);
+      formItemsRef.current = rows;
+      setFormItemsOwnerID(id);
+      setFormItems(rows);
+    }
+  }, [examTypeFields, id]);
 
   // 検査種別変更検知 — ユーザーが testTypeId を変えたらテンプレで再構築
   // 初回レンダー（編集モードで existingExam が後から到着するケース）は既存 items の流入を尊重するためスキップ
-  const previousTestTypeIdRef = useRef<string | undefined>(undefined);
+  const previousTestTypeRef = useRef<{
+    examinationID: string | undefined;
+    testTypeID: string | undefined;
+  }>({ examinationID: id, testTypeID: undefined });
   useEffect(() => {
     const next = currentTestTypeId;
-    if (!next) return;
-    if (previousTestTypeIdRef.current === undefined) {
-      previousTestTypeIdRef.current = next;
+    if (previousTestTypeRef.current.examinationID !== id) {
+      previousTestTypeRef.current = {
+        examinationID: id,
+        testTypeID: next || undefined,
+      };
       return;
     }
-    if (previousTestTypeIdRef.current === next) return;
-    previousTestTypeIdRef.current = next;
+    if (!next) return;
+    if (previousTestTypeRef.current.testTypeID === undefined) {
+      previousTestTypeRef.current = { examinationID: id, testTypeID: next };
+      return;
+    }
+    if (previousTestTypeRef.current.testTypeID === next) return;
+    previousTestTypeRef.current = { examinationID: id, testTypeID: next };
     // 種別が変わった → テンプレで再構築（テンプレ未到着なら空行）
+    setFormItemsOwnerID(id);
     if (examTypeFields) {
       setFormItems(buildRowsFromTemplate(examTypeFields));
     } else {
       setFormItems([]);
     }
-  }, [currentTestTypeId, examTypeFields]);
+  }, [currentTestTypeId, examTypeFields, id]);
 
   // 新規モード: testTypeId 選択 & テンプレ到着で初期化（一度だけ）
   const newModeInitializedRef = useRef(false);
@@ -275,9 +378,10 @@ export function useExaminationForm(
     if (newModeInitializedRef.current) return;
     if (!currentTestTypeId) return;
     if (!examTypeFields) return;
+    setFormItemsOwnerID(id);
     setFormItems(buildRowsFromTemplate(examTypeFields));
     newModeInitializedRef.current = true;
-  }, [isEdit, currentTestTypeId, examTypeFields]);
+  }, [isEdit, currentTestTypeId, examTypeFields, id]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   const setInspectionValue = useCallback((key: string, value: string) => {
@@ -332,10 +436,20 @@ export function useExaminationForm(
       _formData: FormData,
     ): Promise<ActionState> => {
       const current = formDataWithPetRef.current;
+      const isPersistedConfirmed = isPersistedConfirmedRef.current;
       // フロントエンド・バリデーション
       const errors: Record<string, string> = {};
       if (!current.testTypeId) errors.testTypeId = "検査種別を選択してください";
       if (!current.doctorId) errors.doctorId = "担当医を選択してください";
+      const isCurrentEditTarget = activeExaminationIDRef.current === id;
+      const areCurrentItemsReady = itemsReadyForIDRef.current === id;
+      if (
+        isEdit &&
+        (!isCurrentEditTarget ||
+          (!isPersistedConfirmed && !areCurrentItemsReady))
+      ) {
+        errors.examItems = "検査項目の読み込み完了後に保存してください";
+      }
       if (
         formItemsRef.current.some(
           (item) =>
@@ -354,7 +468,6 @@ export function useExaminationForm(
         // サーバ保存済みの確定のみ items を省略する（BE は confirmed への item 更新を 409）。
         // ドラフトでステータス「確定」を選んだだけの遷移保存では items を送る（A-S02-01）。
         const items = rowsToRequest(formItemsRef.current);
-        const isPersistedConfirmed = isPersistedConfirmedRef.current;
 
         if (isPetExplicitlyDeceased()) {
           return { success: false, timestamp: Date.now() };
@@ -505,7 +618,7 @@ export function useExaminationForm(
     isPersistedConfirmed,
     isPatientChangeLocked,
     // 検査項目テーブル
-    formItems,
+    formItems: visibleFormItems,
     setInspectionValue,
     addManualItem,
     removeItem,

@@ -62,7 +62,11 @@ vi.mock("../api/unconfirm-examination", () => ({
 }));
 
 vi.mock("../api/get-examination-items", () => ({
-  useGetExaminationItems: vi.fn(() => ({ data: undefined })),
+  useGetExaminationItems: vi.fn(() => ({
+    data: undefined,
+    isSuccess: false,
+    isError: false,
+  })),
 }));
 
 vi.mock("../api/update-examination-items", () => ({
@@ -231,6 +235,9 @@ describe("useExaminationForm — 患者変更と確定解除", () => {
     } as ReturnType<typeof useGetExamination>);
     vi.mocked(useGetExaminationItems).mockReturnValue({
       data: [],
+      isSuccess: true,
+      isError: false,
+      isPending: false,
     } as ReturnType<typeof useGetExaminationItems>);
   });
 
@@ -246,6 +253,8 @@ describe("useExaminationForm — 患者変更と確定解除", () => {
     >);
     vi.mocked(useGetExaminationItems).mockReturnValue({
       data: undefined,
+      isSuccess: false,
+      isError: false,
     } as ReturnType<typeof useGetExaminationItems>);
     vi.mocked(useUpdateExamination).mockReturnValue({
       mutateAsync: vi.fn().mockResolvedValue({}),
@@ -755,6 +764,8 @@ describe("useExaminationForm — formAction（useActionState コールバック�
 
   it("編集モード & バリデーション通過 → updateMutation.mutateAsync 呼ぶ（line 112）", async () => {
     const { useGetExamination } = await import("../api/get-examination");
+    const { useGetExaminationItems } =
+      await import("../api/get-examination-items");
     const { useUpdateExamination } = await import("../api/update-examination");
     const mockMutateAsync = vi.fn().mockResolvedValue({});
     vi.mocked(useUpdateExamination).mockReturnValue({
@@ -772,6 +783,12 @@ describe("useExaminationForm — formAction（useActionState コールバック�
         date: "",
       },
     } as ReturnType<typeof useGetExamination>);
+    vi.mocked(useGetExaminationItems).mockReturnValue({
+      data: [],
+      isSuccess: true,
+      isError: false,
+      isPending: false,
+    } as ReturnType<typeof useGetExaminationItems>);
 
     vi.mocked(usePetSelection).mockReturnValue({
       selectedPets: [
@@ -936,6 +953,8 @@ describe("useExaminationForm — 検査項目テーブル（FE-EXAM-001）", () 
           sortOrder: 1,
         },
       ],
+      isSuccess: true,
+      isError: false,
     } as ReturnType<typeof useGetExaminationItems>);
 
     const { result } = renderExaminationForm("exam-001");
@@ -979,6 +998,8 @@ describe("useExaminationForm — 検査項目テーブル（FE-EXAM-001）", () 
           sortOrder: 1,
         },
       ],
+      isSuccess: true,
+      isError: false,
     } as ReturnType<typeof useGetExaminationItems>);
 
     const { result } = renderExaminationForm("exam-001");
@@ -1041,6 +1062,9 @@ describe("useExaminationForm — 検査項目テーブル（FE-EXAM-001）", () 
     } as ReturnType<typeof useGetExamination>);
     vi.mocked(useGetExaminationItems).mockReturnValue({
       data: [],
+      isSuccess: true,
+      isError: false,
+      isPending: false,
     } as ReturnType<typeof useGetExaminationItems>);
     const updateMutate = vi.fn().mockResolvedValue({});
     vi.mocked(useUpdateExamination).mockReturnValue({
@@ -1096,9 +1120,11 @@ describe("useExaminationForm — 検査項目テーブル（FE-EXAM-001）", () 
         date: "",
       },
     } as ReturnType<typeof useGetExamination>);
-    vi.mocked(useGetExaminationItems).mockReturnValue({ data: [] } as ReturnType<
-      typeof useGetExaminationItems
-    >);
+    vi.mocked(useGetExaminationItems).mockReturnValue({
+      data: [],
+      isSuccess: true,
+      isError: false,
+    } as ReturnType<typeof useGetExaminationItems>);
     const updateMutate = vi.fn().mockResolvedValue({});
     vi.mocked(useUpdateExamination).mockReturnValue({
       mutateAsync: updateMutate,
@@ -1156,6 +1182,8 @@ describe("useExaminationForm — 検査項目テーブル（FE-EXAM-001）", () 
           sortOrder: 1,
         },
       ],
+      isSuccess: true,
+      isError: false,
     } as ReturnType<typeof useGetExaminationItems>);
 
     const updateMutate = vi.fn().mockResolvedValue({});
@@ -1238,6 +1266,9 @@ describe("useExaminationForm — 検査項目テーブル（FE-EXAM-001）", () 
     } as ReturnType<typeof useGetExamination>);
     vi.mocked(useGetExaminationItems).mockReturnValue({
       data: [],
+      isSuccess: true,
+      isError: false,
+      isPending: false,
     } as ReturnType<typeof useGetExaminationItems>);
 
     const updateMutate = vi.fn().mockResolvedValue({});
@@ -1257,6 +1288,404 @@ describe("useExaminationForm — 検査項目テーブル（FE-EXAM-001）", () 
         id: "exam-001",
         req: expect.objectContaining({ items: [] }),
       }),
+    );
+  });
+
+  it.each([
+    [
+      "取得中",
+      {
+        data: undefined,
+        isSuccess: false,
+        isError: false,
+        isPending: true,
+      },
+    ],
+    [
+      "取得失敗",
+      {
+        data: [],
+        isSuccess: false,
+        isError: true,
+        isPending: false,
+        error: new Error("items unavailable"),
+      },
+    ],
+  ])(
+    "編集モードで検査項目が%sなら保存 mutation を発行しない",
+    async (_label, itemQueryResult) => {
+      const { useGetExamination } = await import("../api/get-examination");
+      const { useGetExaminationItems } =
+        await import("../api/get-examination-items");
+      const { useUpdateExamination } =
+        await import("../api/update-examination");
+
+      vi.mocked(useGetExamination).mockReturnValue({
+        data: {
+          id: "exam-001",
+          testTypeId: "5",
+          doctorId: "3",
+          status: "検査中" as const,
+          ownerName: "",
+          petName: "",
+          date: "",
+        },
+      } as ReturnType<typeof useGetExamination>);
+      vi.mocked(useGetExaminationItems).mockReturnValue(
+        itemQueryResult as ReturnType<typeof useGetExaminationItems>,
+      );
+      const updateMutate = vi.fn().mockResolvedValue({});
+      vi.mocked(useUpdateExamination).mockReturnValue({
+        mutateAsync: updateMutate,
+      } as ReturnType<typeof useUpdateExamination>);
+
+      const { result } = renderExaminationForm("exam-001");
+      await waitFor(() =>
+        expect(result.current.formData.testTypeId).toBe("5"),
+      );
+
+      await act(async () => {
+        startTransition(() => result.current.formAction(new FormData()));
+      });
+
+      await waitFor(() =>
+        expect(result.current.formState.fieldErrors).toEqual({
+          examItems: "検査項目の読み込み完了後に保存してください",
+        }),
+      );
+      expect(updateMutate).not.toHaveBeenCalled();
+    },
+  );
+
+  it("検査ID変更時は旧itemsを破棄し、新IDの取得完了後だけ新itemsをPATCHする", async () => {
+    const { useGetExamination } = await import("../api/get-examination");
+    const { useGetExaminationItems } =
+      await import("../api/get-examination-items");
+    const { useGetExamTypeFields } =
+      await import("../api/get-exam-type-fields");
+    const { useUpdateExamination } = await import("../api/update-examination");
+
+    const examinationFor = (examID: string) => ({
+      id: examID,
+      testTypeId: examID === "exam-a" ? "5" : "6",
+      doctorId: examID === "exam-a" ? "3" : "4",
+      status: "検査中" as const,
+      ownerName: "",
+      petName: "",
+      date: examID === "exam-a" ? "2026-08-01" : "2026-08-02",
+      resultSummary:
+        examID === "exam-a" ? "server summary A" : "server summary B",
+      machine: examID === "exam-a" ? "server machine A" : "server machine B",
+    });
+    const itemFor = (id: string, name: string, inspectionValue: string) => ({
+      id,
+      examTypeFieldId: 1,
+      name,
+      result: "",
+      inspectionValue,
+      normalValue: "",
+      unit: "",
+      referenceValue: "",
+      refMin: undefined,
+      refMax: undefined,
+      isAbnormal: false,
+      status: "normal" as const,
+      sortOrder: 1,
+    });
+    let examinationBItemsReady = false;
+    vi.mocked(useGetExamination).mockImplementation(
+      (examID) =>
+        ({ data: examinationFor(examID) }) as ReturnType<
+          typeof useGetExamination
+        >,
+    );
+    vi.mocked(useGetExaminationItems).mockImplementation((examID) => {
+      if (examID === "exam-a") {
+        return {
+          data: [itemFor("item-a", "A-WBC", "1")],
+          isSuccess: true,
+          isError: false,
+          isPending: false,
+        } as ReturnType<typeof useGetExaminationItems>;
+      }
+      if (!examinationBItemsReady) {
+        return {
+          data: undefined,
+          isSuccess: false,
+          isError: false,
+          isPending: true,
+        } as ReturnType<typeof useGetExaminationItems>;
+      }
+      return {
+        data: [itemFor("item-b", "B-WBC", "2")],
+        isSuccess: true,
+        isError: false,
+        isPending: false,
+      } as ReturnType<typeof useGetExaminationItems>;
+    });
+    vi.mocked(useGetExamTypeFields).mockImplementation(
+      (examTypeID) =>
+        ({
+          data: [
+            {
+              id: Number(examTypeID) * 100,
+              name: `TEMPLATE-${examTypeID}`,
+              unit: "",
+              normalValue: "",
+              sortOrder: 1,
+            },
+          ],
+        }) as ReturnType<typeof useGetExamTypeFields>,
+    );
+    const updateMutate = vi.fn().mockResolvedValue({});
+    vi.mocked(useUpdateExamination).mockReturnValue({
+      mutateAsync: updateMutate,
+    } as ReturnType<typeof useUpdateExamination>);
+
+    const { result, rerender } = renderHook(
+      ({ examID }: { examID: string }) =>
+        useExaminationForm(
+          examID,
+          undefined,
+          ALLOWED_MUTATION_PERMISSIONS,
+        ),
+      { initialProps: { examID: "exam-a" } },
+    );
+    await waitFor(() => expect(result.current.formItems[0]?.name).toBe("A-WBC"));
+
+    act(() => {
+      result.current.setFormData({
+        testTypeId: "7",
+        status: "確定",
+        resultSummary: "unsaved summary A",
+        machine: "unsaved machine A",
+      });
+    });
+    await waitFor(() => expect(result.current.formData.testTypeId).toBe("7"));
+
+    rerender({ examID: "exam-b" });
+    expect(result.current.formData).toMatchObject({
+      testTypeId: "6",
+      doctorId: "4",
+      status: "検査中",
+      resultSummary: "server summary B",
+      machine: "server machine B",
+      date: "2026-08-02",
+    });
+    expect(result.current.formItems).toEqual([]);
+    await act(async () => {
+      startTransition(() => result.current.formAction(new FormData()));
+    });
+    await waitFor(() =>
+      expect(result.current.formState.fieldErrors?.examItems).toBe(
+        "検査項目の読み込み完了後に保存してください",
+      ),
+    );
+    expect(updateMutate).not.toHaveBeenCalled();
+
+    examinationBItemsReady = true;
+    rerender({ examID: "exam-b" });
+    await waitFor(() => expect(result.current.formItems[0]?.name).toBe("B-WBC"));
+    expect(result.current.formItems[0]?.name).not.toBe("TEMPLATE-6");
+
+    await act(async () => {
+      startTransition(() => result.current.formAction(new FormData()));
+    });
+    await waitFor(() => expect(updateMutate).toHaveBeenCalledOnce());
+    expect(updateMutate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "exam-b",
+        req: expect.objectContaining({
+          status: "in_progress",
+          result_summary: "server summary B",
+          machine: "server machine B",
+          items: [expect.objectContaining({ name: "B-WBC" })],
+        }),
+      }),
+    );
+  });
+
+  it("A取得済み→B取得中→A再表示でもA itemsを復元してAだけをPATCHする", async () => {
+    const { useGetExamination } = await import("../api/get-examination");
+    const { useGetExaminationItems } =
+      await import("../api/get-examination-items");
+    const { useUpdateExamination } = await import("../api/update-examination");
+
+    const itemA = {
+      id: "item-a",
+      examTypeFieldId: 1,
+      name: "A-WBC",
+      result: "",
+      inspectionValue: "1",
+      normalValue: "",
+      unit: "",
+      referenceValue: "",
+      refMin: undefined,
+      refMax: undefined,
+      isAbnormal: false,
+      status: "normal" as const,
+      sortOrder: 1,
+    };
+    vi.mocked(useGetExamination).mockImplementation(
+      (examID) =>
+        ({
+          data: {
+            id: examID,
+            testTypeId: "5",
+            doctorId: "3",
+            status: "検査中" as const,
+            ownerName: "",
+            petName: "",
+            date: "2026-08-01",
+          },
+        }) as ReturnType<typeof useGetExamination>,
+    );
+    vi.mocked(useGetExaminationItems).mockImplementation((examID) => {
+      if (examID === "exam-a") {
+        return {
+          data: [itemA],
+          isSuccess: true,
+          isError: false,
+          isPending: false,
+        } as ReturnType<typeof useGetExaminationItems>;
+      }
+      return {
+        data: undefined,
+        isSuccess: false,
+        isError: false,
+        isPending: true,
+      } as ReturnType<typeof useGetExaminationItems>;
+    });
+    const updateMutate = vi.fn().mockResolvedValue({});
+    vi.mocked(useUpdateExamination).mockReturnValue({
+      mutateAsync: updateMutate,
+    } as ReturnType<typeof useUpdateExamination>);
+
+    const { result, rerender } = renderHook(
+      ({ examID }: { examID: string }) =>
+        useExaminationForm(
+          examID,
+          undefined,
+          ALLOWED_MUTATION_PERMISSIONS,
+        ),
+      { initialProps: { examID: "exam-a" } },
+    );
+    await waitFor(() => expect(result.current.formItems[0]?.name).toBe("A-WBC"));
+
+    rerender({ examID: "exam-b" });
+    await waitFor(() => expect(result.current.formItems).toEqual([]));
+
+    rerender({ examID: "exam-a" });
+    await waitFor(() => expect(result.current.formItems[0]?.name).toBe("A-WBC"));
+
+    await act(async () => {
+      startTransition(() => result.current.formAction(new FormData()));
+    });
+    await waitFor(() => expect(updateMutate).toHaveBeenCalledOnce());
+    expect(updateMutate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "exam-a",
+        req: expect.objectContaining({
+          items: [expect.objectContaining({ name: "A-WBC" })],
+        }),
+      }),
+    );
+  });
+
+  it("同じ検査種別のA→B遷移後もBの種別変更で新テンプレへ再構築する", async () => {
+    const { useGetExamination } = await import("../api/get-examination");
+    const { useGetExaminationItems } =
+      await import("../api/get-examination-items");
+    const { useGetExamTypeFields } =
+      await import("../api/get-exam-type-fields");
+
+    const templates = {
+      "5": [
+        {
+          id: 500,
+          name: "TEMPLATE-5",
+          unit: "",
+          normalValue: "",
+          sortOrder: 1,
+        },
+      ],
+      "6": [
+        {
+          id: 600,
+          name: "TEMPLATE-6",
+          unit: "",
+          normalValue: "",
+          sortOrder: 1,
+        },
+      ],
+    };
+    vi.mocked(useGetExamination).mockImplementation(
+      (examID) =>
+        ({
+          data: {
+            id: examID,
+            testTypeId: "5",
+            doctorId: "3",
+            status: "検査中" as const,
+            ownerName: "",
+            petName: "",
+            date: "2026-08-01",
+          },
+        }) as ReturnType<typeof useGetExamination>,
+    );
+    vi.mocked(useGetExaminationItems).mockImplementation(
+      (examID) =>
+        ({
+          data: [
+            {
+              id: `item-${examID}`,
+              examTypeFieldId: 1,
+              name: `${examID}-WBC`,
+              result: "",
+              inspectionValue: "1",
+              normalValue: "",
+              unit: "",
+              referenceValue: "",
+              refMin: undefined,
+              refMax: undefined,
+              isAbnormal: false,
+              status: "normal" as const,
+              sortOrder: 1,
+            },
+          ],
+          isSuccess: true,
+          isError: false,
+          isPending: false,
+        }) as ReturnType<typeof useGetExaminationItems>,
+    );
+    vi.mocked(useGetExamTypeFields).mockImplementation(
+      (examTypeID) =>
+        ({ data: templates[examTypeID as keyof typeof templates] }) as ReturnType<
+          typeof useGetExamTypeFields
+        >,
+    );
+
+    const { result, rerender } = renderHook(
+      ({ examID }: { examID: string }) =>
+        useExaminationForm(
+          examID,
+          undefined,
+          ALLOWED_MUTATION_PERMISSIONS,
+        ),
+      { initialProps: { examID: "exam-a" } },
+    );
+    await waitFor(() =>
+      expect(result.current.formItems[0]?.name).toBe("exam-a-WBC"),
+    );
+
+    rerender({ examID: "exam-b" });
+    await waitFor(() =>
+      expect(result.current.formItems[0]?.name).toBe("exam-b-WBC"),
+    );
+
+    act(() => result.current.setFormData({ testTypeId: "6" }));
+    await waitFor(() =>
+      expect(result.current.formItems[0]?.name).toBe("TEMPLATE-6"),
     );
   });
 
@@ -1295,6 +1724,8 @@ describe("useExaminationForm — 検査項目テーブル（FE-EXAM-001）", () 
           sortOrder: 1,
         },
       ],
+      isSuccess: true,
+      isError: false,
     } as ReturnType<typeof useGetExaminationItems>);
 
     const updateMutate = vi.fn().mockResolvedValue({});
@@ -1353,6 +1784,8 @@ describe("useExaminationForm — 検査項目テーブル（FE-EXAM-001）", () 
           sortOrder: 1,
         },
       ],
+      isSuccess: true,
+      isError: false,
     } as ReturnType<typeof useGetExaminationItems>);
 
     const updateMutate = vi.fn().mockResolvedValue({});
