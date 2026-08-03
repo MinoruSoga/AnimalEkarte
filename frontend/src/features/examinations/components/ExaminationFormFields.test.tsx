@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { describe, expect, it, vi } from "vitest";
 import { ExaminationFormFields } from "./ExaminationFormFields";
@@ -8,17 +9,21 @@ describe("ExaminationFormFields", () => {
     isEdit = false,
     canCreate = true,
     canEdit = true,
+    fieldErrors,
+    onSetFormData = vi.fn(),
   }: {
     isEdit?: boolean;
     canCreate?: boolean;
     canEdit?: boolean;
+    fieldErrors?: Record<string, string>;
+    onSetFormData?: (next: Record<string, unknown>) => void;
   } = {}) {
     return render(
       <MemoryRouter>
         <ExaminationFormFields
           formData={{ date: "2026-07-21T00:00:00+09:00", status: "依頼中" }}
-          examTypes={[]}
-          staffList={[]}
+          examTypes={[{ id: "5", name: "血液検査（院内）" }]}
+          staffList={[{ id: "3", name: "林文明" }]}
           masterLoading={false}
           isEdit={isEdit}
           isDeleting={false}
@@ -26,13 +31,63 @@ describe("ExaminationFormFields", () => {
           canEdit={canEdit}
           canCreate={canCreate}
           canDelete
-          onSetFormData={vi.fn()}
+          fieldErrors={fieldErrors}
+          onSetFormData={onSetFormData}
           onBack={vi.fn()}
           onDeleteClick={vi.fn()}
         />
       </MemoryRouter>,
     );
   }
+
+  it("BUG-017: 検査種別・担当医の fieldErrors を近傍表示し aria-invalid/describedby を付与する", () => {
+    renderFields({
+      fieldErrors: {
+        testTypeId: "検査種別を選択してください",
+        doctorId: "担当医を選択してください",
+      },
+    });
+
+    const testType = screen.getByRole("combobox", { name: "検査種別" });
+    const doctor = screen.getByRole("combobox", { name: "担当医" });
+    expect(
+      screen.getByText("検査種別を選択してください"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("担当医を選択してください")).toBeInTheDocument();
+    expect(screen.getAllByRole("alert")).toHaveLength(2);
+
+    expect(testType).toHaveAttribute("aria-invalid", "true");
+    expect(doctor).toHaveAttribute("aria-invalid", "true");
+    expect(testType).toHaveAttribute("aria-describedby", "testTypeId-error");
+    expect(doctor).toHaveAttribute("aria-describedby", "doctorId-error");
+    expect(document.getElementById("testTypeId-error")).toHaveTextContent(
+      "検査種別を選択してください",
+    );
+    expect(document.getElementById("doctorId-error")).toHaveTextContent(
+      "担当医を選択してください",
+    );
+  });
+
+  it("BUG-017: 値変更時に onSetFormData が呼ばれ sibling error 表示は親の fieldErrors に従う", async () => {
+    const user = userEvent.setup();
+    const onSetFormData = vi.fn();
+    renderFields({
+      fieldErrors: {
+        testTypeId: "検査種別を選択してください",
+        doctorId: "担当医を選択してください",
+      },
+      onSetFormData,
+    });
+
+    await user.click(screen.getByRole("combobox", { name: "検査種別" }));
+    await user.click(screen.getByRole("option", { name: "血液検査（院内）" }));
+
+    expect(onSetFormData).toHaveBeenCalledWith(
+      expect.objectContaining({ testTypeId: "5" }),
+    );
+    // Component itself does not clear sibling; parent supplies remaining error
+    expect(screen.getByText("担当医を選択してください")).toBeInTheDocument();
+  });
 
   it("検査日の実inputをラベル付けし44px以上の操作領域にする", () => {
     renderFields();

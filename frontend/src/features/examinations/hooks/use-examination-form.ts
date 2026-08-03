@@ -198,6 +198,11 @@ export function useExaminationForm(
           ...localOverrides,
         };
 
+  // BUG-017: display field errors with field-local clear (owner form pattern)
+  const [manualFieldErrors, setManualFieldErrors] = useState<
+    Record<string, string>
+  >({});
+
   const setFormData = useCallback(
     (next: Partial<ExaminationRecord>) => {
       setLocalOverrideScope((previous) => ({
@@ -207,6 +212,22 @@ export function useExaminationForm(
             ? { ...previous.values, ...next }
             : { ...next },
       }));
+      // Clear only errors for fields the user just corrected.
+      if ("testTypeId" in next || "doctorId" in next) {
+        setManualFieldErrors((previous) => {
+          let changed = false;
+          const updated = { ...previous };
+          if ("testTypeId" in next && updated.testTypeId) {
+            delete updated.testTypeId;
+            changed = true;
+          }
+          if ("doctorId" in next && updated.doctorId) {
+            delete updated.doctorId;
+            changed = true;
+          }
+          return changed ? updated : previous;
+        });
+      }
     },
     [id],
   );
@@ -603,12 +624,19 @@ export function useExaminationForm(
   // UI ロックはサーバ保存済み確定のみ（ドラフトで「確定」を選んだだけではロックしない — A-S02-01）
   const isPersistedConfirmed = isEdit && existingExam?.status === "確定";
 
+  // Sync ActionState field errors into display map so field-local clear can omit keys.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- ActionState errors → form field display
+    setManualFieldErrors(formState.fieldErrors || {});
+  }, [formState.fieldErrors, formState.timestamp]);
+
   return {
     formData: formDataWithPet,
     setFormData,
     petSelection,
     formAction,
     formState,
+    fieldErrors: manualFieldErrors,
     handleDelete,
     isEdit,
     isSaving,

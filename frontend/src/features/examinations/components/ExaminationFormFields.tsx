@@ -8,6 +8,7 @@ import { SearchableSelect, type SearchableSelectOption } from "@/components/ui/s
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { MasterLink } from "@/components/shared/MasterLink";
 import { DatePicker } from "@/components/shared/DatePicker/DatePicker";
+import { FormFieldError } from "@/components/shared/FormFieldError";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
 import { jstDateStartISOString, todayJSTISO, toJSTWallDate } from "@/lib/jst-date";
 import type { ExaminationRecord } from "../api/transforms";
@@ -33,6 +34,7 @@ interface ExaminationFormFieldsProps {
   canEdit: boolean;
   canCreate: boolean;
   canDelete: boolean;
+  fieldErrors?: Record<string, string>;
   onSetFormData: (next: Partial<ExaminationRecord>) => void;
   onBack: () => void;
   onDeleteClick: () => void;
@@ -49,11 +51,14 @@ function ExaminationFormFieldsBase({
   canEdit,
   canCreate,
   canDelete,
+  fieldErrors,
   onSetFormData,
   onBack,
   onDeleteClick,
 }: ExaminationFormFieldsProps) {
   const canSubmit = isEdit ? canEdit : canCreate && canEdit;
+  const testTypeError = fieldErrors?.testTypeId;
+  const doctorError = fieldErrors?.doctorId;
 
   const examTypeOptions = useMemo<SearchableSelectOption[]>(
     () => examTypes.map((item) => ({ value: String(item.id), label: item.name })),
@@ -90,8 +95,11 @@ function ExaminationFormFieldsBase({
               placeholder="選択してください"
               searchPlaceholder="検査種別を検索..."
               id="testTypeId"
+              ariaInvalid={Boolean(testTypeError)}
+              ariaDescribedBy={testTypeError ? "testTypeId-error" : undefined}
             />
           )}
+          <FormFieldError id="testTypeId-error" message={testTypeError} />
         </div>
         <div className="space-y-1.5">
           <div className="flex items-center justify-between">
@@ -112,8 +120,11 @@ function ExaminationFormFieldsBase({
               placeholder="選択してください"
               searchPlaceholder="担当医を検索..."
               id="doctorId"
+              ariaInvalid={Boolean(doctorError)}
+              ariaDescribedBy={doctorError ? "doctorId-error" : undefined}
             />
           )}
+          <FormFieldError id="doctorId-error" message={doctorError} />
         </div>
       </div>
 

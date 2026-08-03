@@ -49,6 +49,8 @@ interface SearchableSelectProps {
   /** id/htmlFor を使わないfilter toolbar等でのトリガー名。 */
   ariaLabel?: string;
   ariaInvalid?: boolean;
+  /** 近傍エラー等との関連付け。FormFieldError の id を渡す。 */
+  ariaDescribedBy?: string;
 }
 
 function flattenOptions(
@@ -82,6 +84,7 @@ export function SearchableSelect({
   id,
   ariaLabel,
   ariaInvalid = false,
+  ariaDescribedBy,
 }: SearchableSelectProps) {
   const [open, setOpen] = useState(false);
 
@@ -121,6 +124,7 @@ export function SearchableSelect({
         aria-label={ariaLabel}
         aria-expanded={open}
         aria-invalid={ariaInvalid}
+        aria-describedby={ariaDescribedBy}
         disabled={disabled}
         data-testid={triggerTestId}
         className={cn(

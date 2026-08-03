@@ -652,6 +652,32 @@ describe("useExaminationForm — formAction（useActionState コールバック�
     expect(result.current.formState.fieldErrors?.testTypeId).toBeUndefined();
   });
 
+  it("BUG-017: 空送信後に testTypeId を直すと当該 error のみ消え doctorId error は残る", async () => {
+    const { result } = renderExaminationForm();
+
+    await act(async () => {
+      await result.current.formAction(new FormData());
+    });
+
+    expect(result.current.formState.fieldErrors).toMatchObject({
+      testTypeId: "検査種別を選択してください",
+      doctorId: "担当医を選択してください",
+    });
+    expect(result.current.fieldErrors).toMatchObject({
+      testTypeId: "検査種別を選択してください",
+      doctorId: "担当医を選択してください",
+    });
+
+    act(() => {
+      result.current.setFormData({ testTypeId: "5" });
+    });
+
+    expect(result.current.fieldErrors?.testTypeId).toBeUndefined();
+    expect(result.current.fieldErrors?.doctorId).toBe(
+      "担当医を選択してください",
+    );
+  });
+
   it("バリデーション通過 & 新規 & selectedPets なし → success: false（line 115）", async () => {
     // selectedPets = [] なので pet がない → early return
     const { result } = renderExaminationForm();

@@ -19,4 +19,22 @@ describe("SearchableSelect", () => {
       "min-w-11",
     );
   });
+
+  it("BUG-017: ariaInvalid と ariaDescribedBy をトリガーへ伝播する", () => {
+    render(
+      <SearchableSelect
+        value=""
+        onValueChange={vi.fn()}
+        options={[]}
+        placeholder="選択してください"
+        ariaLabel="検査種別"
+        ariaInvalid
+        ariaDescribedBy="testTypeId-error"
+      />,
+    );
+
+    const trigger = screen.getByRole("combobox", { name: "検査種別" });
+    expect(trigger).toHaveAttribute("aria-invalid", "true");
+    expect(trigger).toHaveAttribute("aria-describedby", "testTypeId-error");
+  });
 });

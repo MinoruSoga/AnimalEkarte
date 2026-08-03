@@ -83,6 +83,7 @@ function ExaminationFormContent({ id }: { id: string | undefined }) {
     petSelection,
     formAction,
     formState,
+    fieldErrors,
     handleDelete,
     isEdit,
     isSaving,
@@ -346,6 +347,7 @@ function ExaminationFormContent({ id }: { id: string | undefined }) {
                   canEdit={canEdit}
                   canCreate={canCreate}
                   canDelete={canDelete}
+                  fieldErrors={fieldErrors}
                   onSetFormData={handleSetFormData}
                   onBack={handleBack}
                   onDeleteClick={handleDeleteClick}
