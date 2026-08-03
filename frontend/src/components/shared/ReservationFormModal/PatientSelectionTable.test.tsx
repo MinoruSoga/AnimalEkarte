@@ -15,7 +15,13 @@ import type { Pet } from "@/types";
 interface BackendPetRow {
   id: number;
   owner_id: number;
-  owner: { id: number; name: string; name_kana: string; phone: string; clinic_id: number };
+  owner: {
+    id: number;
+    name: string;
+    name_kana: string;
+    phone: string;
+    clinic_id: number;
+  };
   name: string;
   pet_name_kana: string;
   animal_species: { name: string };
@@ -24,11 +30,20 @@ interface BackendPetRow {
   status: string;
 }
 
-function backendPet(id: number, overrides: Partial<BackendPetRow> = {}): BackendPetRow {
+function backendPet(
+  id: number,
+  overrides: Partial<BackendPetRow> = {},
+): BackendPetRow {
   return {
     id,
     owner_id: 100,
-    owner: { id: 100, name: `タナカ${id}`, name_kana: "タナカ", phone: "090-0000-0000", clinic_id: 1 },
+    owner: {
+      id: 100,
+      name: `タナカ${id}`,
+      name_kana: "タナカ",
+      phone: "090-0000-0000",
+      clinic_id: 1,
+    },
     name: `ミケ${id}`,
     pet_name_kana: "ミケ",
     animal_species: { name: "犬" },
@@ -75,7 +90,9 @@ function mockSpecies(body: unknown = SPECIES_MASTER, status = 200) {
 
 const SEARCH_LABEL = "検索（ペット名・飼主名・よみ・電話）";
 
-function renderTable(props: Partial<React.ComponentProps<typeof PatientSelectionTable>> = {}) {
+function renderTable(
+  props: Partial<React.ComponentProps<typeof PatientSelectionTable>> = {},
+) {
   return render(
     <PatientSelectionTable onSelect={vi.fn()} selectedPets={[]} {...props} />,
     { wrapper: createTestWrapper() },
@@ -120,7 +137,12 @@ describe("PatientSelectionTable — サーバサイド検索への委譲 (BUG-45
   });
 
   it("飼主No を owner_id 述語として渡す", async () => {
-    mockPetList(() => ({ data: [backendPet(1)], total: 1, page: 1, limit: 20 }));
+    mockPetList(() => ({
+      data: [backendPet(1)],
+      total: 1,
+      page: 1,
+      limit: 20,
+    }));
 
     const user = userEvent.setup();
     renderTable();
@@ -128,11 +150,18 @@ describe("PatientSelectionTable — サーバサイド検索への委譲 (BUG-45
     await user.type(screen.getByLabelText("飼主No"), "30042");
 
     await waitFor(() => expect(petRequests.length).toBeGreaterThan(0));
-    expect(petRequests[petRequests.length - 1].searchParams.get("owner_id")).toBe("30042");
+    expect(
+      petRequests[petRequests.length - 1].searchParams.get("owner_id"),
+    ).toBe("30042");
   });
 
   it("種別はフリー入力ではなく animal_species_id の数値としてセレクトから渡る", async () => {
-    mockPetList(() => ({ data: [backendPet(1)], total: 1, page: 1, limit: 20 }));
+    mockPetList(() => ({
+      data: [backendPet(1)],
+      total: 1,
+      page: 1,
+      limit: 20,
+    }));
 
     const user = userEvent.setup();
     renderTable();
@@ -142,7 +171,22 @@ describe("PatientSelectionTable — サーバサイド検索への委譲 (BUG-45
     await user.click(screen.getByRole("option", { name: "猫" }));
 
     await waitFor(() => expect(petRequests.length).toBeGreaterThan(0));
-    expect(petRequests[petRequests.length - 1].searchParams.get("species")).toBe("2");
+    expect(
+      petRequests[petRequests.length - 1].searchParams.get("species"),
+    ).toBe("2");
+  });
+
+  it("直接記録selectorでは死亡sentinelを取得する", async () => {
+    mockPetList(() => ({ data: [], total: 0, page: 1, limit: 20 }));
+
+    const user = userEvent.setup();
+    renderTable({ includeDeceased: true });
+    await user.type(screen.getByLabelText(SEARCH_LABEL), "テスト");
+
+    await waitFor(() => expect(petRequests.length).toBeGreaterThan(0));
+    expect(
+      petRequests[petRequests.length - 1].searchParams.get("include_deceased"),
+    ).toBe("true");
   });
 });
 
@@ -184,17 +228,26 @@ describe("PatientSelectionTable — 総件数とページャ", () => {
 
     expect(await screen.findByText("ミケ21")).toBeInTheDocument();
     await waitFor(() =>
-      expect(petRequests.some((u) => u.searchParams.get("page") === "2")).toBe(true),
+      expect(petRequests.some((u) => u.searchParams.get("page") === "2")).toBe(
+        true,
+      ),
     );
   });
 
   it("デバウンス待ちの間は行を残しつつ、古い条件の結果から選択させない", async () => {
-    mockPetList(() => ({ data: [backendPet(1)], total: 40, page: 1, limit: 20 }));
+    mockPetList(() => ({
+      data: [backendPet(1)],
+      total: 40,
+      page: 1,
+      limit: 20,
+    }));
 
     const user = userEvent.setup();
     renderTable();
     await user.type(screen.getByLabelText(SEARCH_LABEL), "や");
-    expect(await screen.findByRole("button", { name: "選択: ミケ1 (ID 1)" })).toBeEnabled();
+    expect(
+      await screen.findByRole("button", { name: "選択: ミケ1 (ID 1)" }),
+    ).toBeEnabled();
 
     // 追加入力でデバウンス待ちに入る。行は消さない（消すと preservePreviousData が
     // 無意味になり「前回取得: N件中 …」が空の表の横に出る）が、選択は塞ぐ。
@@ -209,7 +262,12 @@ describe("PatientSelectionTable — 総件数とページャ", () => {
 
   it("応答の page / limit が不正でも破綻した範囲を表示しない", async () => {
     // 外部境界の値をそのまま使うと「1,204件中 -19-0件」や totalPages=Infinity になる。
-    mockPetList(() => ({ data: [backendPet(1)], total: 1204, page: 0, limit: 0 }));
+    mockPetList(() => ({
+      data: [backendPet(1)],
+      total: 1204,
+      page: 0,
+      limit: 0,
+    }));
 
     const user = userEvent.setup();
     renderTable();
@@ -271,14 +329,22 @@ describe("PatientSelectionTable — ページを跨いだ複数選択", () => {
     await user.type(screen.getByLabelText(SEARCH_LABEL), "や");
 
     // ページ1: ミケ1 が選択中、ミケ21 は別ページの選択として提示される
-    expect(await screen.findByRole("button", { name: "選択中: ミケ1 (ID 1)" })).toBeInTheDocument();
-    expect(screen.getByText("選択中: 2件（別ページの1件を含む）")).toBeInTheDocument();
+    expect(
+      await screen.findByRole("button", { name: "選択中: ミケ1 (ID 1)" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("選択中: 2件（別ページの1件を含む）"),
+    ).toBeInTheDocument();
 
     await user.click(screen.getByTestId("pagination-next"));
 
     // ページ2: 選択は失われず、ミケ21 が選択中として描画される
-    expect(await screen.findByRole("button", { name: "選択中: ミケ21 (ID 21)" })).toBeInTheDocument();
-    expect(screen.getByText("選択中: 2件（別ページの1件を含む）")).toBeInTheDocument();
+    expect(
+      await screen.findByRole("button", { name: "選択中: ミケ21 (ID 21)" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("選択中: 2件（別ページの1件を含む）"),
+    ).toBeInTheDocument();
   });
 
   it("未検索で一覧が空のうちは選択を「別ページ」と断定しない", async () => {
@@ -292,13 +358,20 @@ describe("PatientSelectionTable — ページを跨いだ複数選択", () => {
   });
 
   it("選択が全て現ページにあるときは別ページの注記を出さない", async () => {
-    mockPetList(() => ({ data: [backendPet(1)], total: 1, page: 1, limit: 20 }));
+    mockPetList(() => ({
+      data: [backendPet(1)],
+      total: 1,
+      page: 1,
+      limit: 20,
+    }));
 
     const user = userEvent.setup();
     renderTable({ selectedPets: [selectedOnPage1] });
     await user.type(screen.getByLabelText(SEARCH_LABEL), "や");
 
-    expect(await screen.findByRole("button", { name: "選択中: ミケ1 (ID 1)" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("button", { name: "選択中: ミケ1 (ID 1)" }),
+    ).toBeInTheDocument();
     expect(screen.getByText("選択中: 1件")).toBeInTheDocument();
   });
 });
@@ -313,24 +386,44 @@ describe("PatientSelectionTable — 検索コントロール", () => {
     expect(screen.getByLabelText(SEARCH_LABEL)).toBeInTheDocument();
     expect(screen.getByLabelText("飼主No")).toBeInTheDocument();
     // 種別はフリー入力ではなくセレクト（combobox）であること
-    expect(await screen.findByLabelText("種別")).toHaveAttribute("role", "combobox");
+    expect(await screen.findByLabelText("種別")).toHaveAttribute(
+      "role",
+      "combobox",
+    );
 
     expect(screen.getAllByRole("textbox")).toHaveLength(2);
-    for (const removed of ["飼主名", "飼主名よみ", "電話番号", "ペット名", "ペット名よみ"]) {
+    for (const removed of [
+      "飼主名",
+      "飼主名よみ",
+      "電話番号",
+      "ペット名",
+      "ペット名よみ",
+    ]) {
       expect(screen.queryByLabelText(removed)).not.toBeInTheDocument();
     }
   });
 
   it("検索ボタンを持たず、開いた直後は一覧が空である", async () => {
-    mockPetList(() => ({ data: [backendPet(1)], total: 1, page: 1, limit: 20 }));
+    mockPetList(() => ({
+      data: [backendPet(1)],
+      total: 1,
+      page: 1,
+      limit: 20,
+    }));
 
     renderTable();
 
-    expect(screen.queryByRole("button", { name: "検索" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "検索" }),
+    ).not.toBeInTheDocument();
     // クリアは常設する（押した瞬間に消えるとフォーカスが失われるため）
     expect(screen.getByRole("button", { name: "クリア" })).toBeInTheDocument();
     expect(screen.queryByText("ミケ1")).not.toBeInTheDocument();
-    await waitFor(() => expect(screen.getByText("検索条件を入力してください")).toBeInTheDocument());
+    await waitFor(() =>
+      expect(
+        screen.getByText("検索条件を入力してください"),
+      ).toBeInTheDocument(),
+    );
     expect(petRequests).toHaveLength(0);
   });
 });
@@ -340,7 +433,12 @@ describe("PatientSelectionTable — 検索コントロール", () => {
 // ─────────────────────────────────────────────────────────────
 describe("PatientSelectionTable — デバウンス自動検索", () => {
   it("初期マウントでは問い合わせず、入力停止から300ms後に1回だけ問い合わせる", async () => {
-    mockPetList(() => ({ data: [backendPet(1)], total: 1, page: 1, limit: 20 }));
+    mockPetList(() => ({
+      data: [backendPet(1)],
+      total: 1,
+      page: 1,
+      limit: 20,
+    }));
 
     vi.useFakeTimers({ shouldAdvanceTime: true });
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
@@ -364,14 +462,20 @@ describe("PatientSelectionTable — デバウンス自動検索", () => {
 // ─────────────────────────────────────────────────────────────
 describe("PatientSelectionTable — 取得失敗をゼロ件と誤表示しない", () => {
   it("取得失敗時はエラー文言を出し「見つかりませんでした」も件数も表示しない", async () => {
-    server.use(http.get("/api/v1/pets", () => new HttpResponse(null, { status: 500 })));
+    server.use(
+      http.get("/api/v1/pets", () => new HttpResponse(null, { status: 500 })),
+    );
 
     const user = userEvent.setup();
     renderTable();
     await user.type(screen.getByLabelText(SEARCH_LABEL), "や");
 
-    expect(await screen.findByText("患者一覧の取得に失敗しました")).toBeInTheDocument();
-    expect(screen.queryByText("該当する患者が見つかりませんでした")).not.toBeInTheDocument();
+    expect(
+      await screen.findByText("患者一覧の取得に失敗しました"),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText("該当する患者が見つかりませんでした"),
+    ).not.toBeInTheDocument();
     expect(screen.queryByText("0件")).not.toBeInTheDocument();
   });
 
@@ -382,8 +486,12 @@ describe("PatientSelectionTable — 取得失敗をゼロ件と誤表示しな�
     renderTable();
     await user.type(screen.getByLabelText(SEARCH_LABEL), "や");
 
-    expect(await screen.findByText("該当する患者が見つかりませんでした")).toBeInTheDocument();
-    expect(screen.queryByText("患者一覧の取得に失敗しました")).not.toBeInTheDocument();
+    expect(
+      await screen.findByText("該当する患者が見つかりませんでした"),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText("患者一覧の取得に失敗しました"),
+    ).not.toBeInTheDocument();
   });
 });
 
@@ -410,7 +518,9 @@ describe("PatientSelectionTable — 動物種の取得状態", () => {
 
     renderTable();
 
-    expect(await screen.findByText("動物種マスタが登録されていません。")).toBeInTheDocument();
+    expect(
+      await screen.findByText("動物種マスタが登録されていません。"),
+    ).toBeInTheDocument();
   });
 });
 
@@ -419,7 +529,12 @@ describe("PatientSelectionTable — 動物種の取得状態", () => {
 // ─────────────────────────────────────────────────────────────
 describe("PatientSelectionTable — 選択操作", () => {
   it("行クリックでは選択せず、44px の選択ボタンだけが患者を選択する", async () => {
-    mockPetList(() => ({ data: [backendPet(1)], total: 1, page: 1, limit: 20 }));
+    mockPetList(() => ({
+      data: [backendPet(1)],
+      total: 1,
+      page: 1,
+      limit: 20,
+    }));
 
     const user = userEvent.setup();
     const onSelect = vi.fn();
@@ -430,7 +545,9 @@ describe("PatientSelectionTable — 選択操作", () => {
     await user.click(screen.getByText("タナカ1"));
     expect(onSelect).not.toHaveBeenCalled();
 
-    const selectButton = screen.getByRole("button", { name: "選択: ミケ1 (ID 1)" });
+    const selectButton = screen.getByRole("button", {
+      name: "選択: ミケ1 (ID 1)",
+    });
     expect(selectButton).toHaveClass("min-w-11");
     await user.click(selectButton);
     expect(onSelect).toHaveBeenCalledTimes(1);
@@ -450,7 +567,9 @@ describe("PatientSelectionTable — 選択操作", () => {
     await user.type(screen.getByLabelText(SEARCH_LABEL), "や");
 
     expect(
-      await screen.findByRole("button", { name: "死亡・選択不可: ミケ1 (ID 1)" }),
+      await screen.findByRole("button", {
+        name: "死亡・選択不可: ミケ1 (ID 1)",
+      }),
     ).toBeDisabled();
   });
 

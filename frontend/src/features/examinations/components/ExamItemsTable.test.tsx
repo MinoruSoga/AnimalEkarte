@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { useState } from "react";
 
 import { ExamItemsTable, type ExamItemRow } from "./ExamItemsTable";
 import { C } from "@/lib/design-tokens";
@@ -19,6 +20,35 @@ const makeItem = (overrides: Partial<ExamItemRow> = {}): ExamItemRow => ({
   sortOrder: 0,
   ...overrides,
 });
+
+function EditableItemsHarness({
+  initialItems,
+}: {
+  initialItems: ExamItemRow[];
+}) {
+  const [items, setItems] = useState(initialItems);
+
+  return (
+    <ExamItemsTable
+      items={items}
+      onChangeInspectionValue={vi.fn()}
+      onChangeName={vi.fn()}
+      onAddItem={() =>
+        setItems((previous) => [
+          ...previous,
+          makeItem({
+            key: `manual-${previous.length + 1}`,
+            examTypeFieldId: undefined,
+            name: "",
+          }),
+        ])
+      }
+      onRemoveItem={(key) =>
+        setItems((previous) => previous.filter((item) => item.key !== key))
+      }
+    />
+  );
+}
 
 describe("ExamItemsTable", () => {
   describe("empty 状態", () => {
@@ -86,7 +116,10 @@ describe("ExamItemsTable", () => {
         />,
       );
 
-      expect(screen.getByLabelText("GLUの結果値")).toHaveClass("h-11", "min-w-11");
+      expect(screen.getByLabelText("GLUの結果値")).toHaveClass(
+        "h-11",
+        "min-w-11",
+      );
     });
 
     it("項目名が空でも結果値inputに一意なaccessible nameとid/nameを付ける", () => {
@@ -100,13 +133,20 @@ describe("ExamItemsTable", () => {
         />,
       );
 
-      const firstInput = screen.getByRole("textbox", { name: "検査項目1の結果値" });
-      const secondInput = screen.getByRole("textbox", { name: "検査項目2の結果値" });
+      const firstInput = screen.getByRole("textbox", {
+        name: "検査項目1の結果値",
+      });
+      const secondInput = screen.getByRole("textbox", {
+        name: "検査項目2の結果値",
+      });
 
       expect(firstInput).toHaveAttribute("id");
       expect(firstInput).toHaveAttribute("name", "examItems.0.inspectionValue");
       expect(secondInput).toHaveAttribute("id");
-      expect(secondInput).toHaveAttribute("name", "examItems.1.inspectionValue");
+      expect(secondInput).toHaveAttribute(
+        "name",
+        "examItems.1.inspectionValue",
+      );
       expect(firstInput.id).not.toBe(secondInput.id);
     });
 
@@ -252,17 +292,20 @@ describe("ExamItemsTable", () => {
     it.each([
       { status: "high" as const, label: "HIGH" },
       { status: "low" as const, label: "LOW" },
-    ])("未評価フラグがあっても異常 status=$status を隠さない", ({ status, label }) => {
-      render(
-        <ExamItemsTable
-          items={[makeItem({ status, isAssessed: false, isAbnormal: true })]}
-          onChangeInspectionValue={vi.fn()}
-        />,
-      );
+    ])(
+      "未評価フラグがあっても異常 status=$status を隠さない",
+      ({ status, label }) => {
+        render(
+          <ExamItemsTable
+            items={[makeItem({ status, isAssessed: false, isAbnormal: true })]}
+            onChangeInspectionValue={vi.fn()}
+          />,
+        );
 
-      expect(screen.getByText(label)).toBeInTheDocument();
-      expect(screen.queryByText("未判定")).not.toBeInTheDocument();
-    });
+        expect(screen.getByText(label)).toBeInTheDocument();
+        expect(screen.queryByText("未判定")).not.toBeInTheDocument();
+      },
+    );
 
     it("status=undefined（未判定）は判定列に '-' を表示する", () => {
       render(
@@ -407,9 +450,24 @@ describe("ExamItemsTable", () => {
       render(
         <ExamItemsTable
           items={[
-            makeItem({ key: "1", name: "GLU", status: "high", isAbnormal: true }),
-            makeItem({ key: "2", name: "BUN", status: "normal", isAbnormal: false }),
-            makeItem({ key: "3", name: "ALT", status: "low", isAbnormal: true }),
+            makeItem({
+              key: "1",
+              name: "GLU",
+              status: "high",
+              isAbnormal: true,
+            }),
+            makeItem({
+              key: "2",
+              name: "BUN",
+              status: "normal",
+              isAbnormal: false,
+            }),
+            makeItem({
+              key: "3",
+              name: "ALT",
+              status: "low",
+              isAbnormal: true,
+            }),
           ]}
           onChangeInspectionValue={vi.fn()}
         />,
@@ -463,7 +521,10 @@ describe("ExamItemsTable", () => {
       );
       await user.type(screen.getByLabelText("BUNの結果値"), "5");
       expect(handleChange).toHaveBeenCalledWith("row-B", "5");
-      expect(handleChange).not.toHaveBeenCalledWith("row-A", expect.any(String));
+      expect(handleChange).not.toHaveBeenCalledWith(
+        "row-A",
+        expect.any(String),
+      );
     });
 
     it("disabled=true では入力が抑制されコールバックは呼ばれない", async () => {
@@ -479,6 +540,147 @@ describe("ExamItemsTable", () => {
       const input = screen.getByLabelText("GLUの結果値");
       await user.type(input, "9");
       expect(handleChange).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("手動行の追加・編集・削除", () => {
+    it("空状態でも44px以上の追加buttonを表示してcallbackを呼ぶ", async () => {
+      const user = userEvent.setup();
+      const onAddItem = vi.fn();
+
+      render(
+        <ExamItemsTable
+          items={[]}
+          onChangeInspectionValue={vi.fn()}
+          onAddItem={onAddItem}
+        />,
+      );
+
+      const addButton = screen.getByRole("button", { name: "検査項目を追加" });
+      expect(addButton).toHaveClass("h-11", "min-w-11");
+      await user.click(addButton);
+      expect(onAddItem).toHaveBeenCalledOnce();
+    });
+
+    it("手動行の項目名を一意にラベル付けし、名前変更を対象keyへ渡す", () => {
+      const onChangeName = vi.fn();
+
+      render(
+        <ExamItemsTable
+          items={[
+            makeItem({ key: "manual-1", examTypeFieldId: undefined, name: "" }),
+          ]}
+          onChangeInspectionValue={vi.fn()}
+          onChangeName={onChangeName}
+        />,
+      );
+
+      const nameInput = screen.getByRole("textbox", {
+        name: "検査項目1の項目名",
+      });
+      expect(nameInput).toHaveAttribute("id");
+      expect(nameInput).toHaveAttribute("name", "examItems.0.name");
+      expect(nameInput).toHaveClass("h-11", "min-w-11");
+      fireEvent.change(nameInput, { target: { value: "手動項目" } });
+      expect(onChangeName).toHaveBeenLastCalledWith("manual-1", "手動項目");
+    });
+
+    it("行固有の削除buttonから対象keyだけを渡す", async () => {
+      const user = userEvent.setup();
+      const onRemoveItem = vi.fn();
+
+      render(
+        <ExamItemsTable
+          items={[
+            makeItem({
+              key: "manual-1",
+              examTypeFieldId: undefined,
+              name: "手動項目",
+            }),
+          ]}
+          onChangeInspectionValue={vi.fn()}
+          onRemoveItem={onRemoveItem}
+        />,
+      );
+
+      const deleteButton = screen.getByRole("button", {
+        name: "手動項目を削除",
+      });
+      expect(deleteButton).toHaveClass("h-11", "min-w-11");
+      await user.click(deleteButton);
+      expect(onRemoveItem).toHaveBeenCalledOnce();
+      expect(onRemoveItem).toHaveBeenCalledWith("manual-1");
+    });
+
+    it("disabled時は追加・削除・項目名・結果値をすべて無効化する", () => {
+      render(
+        <ExamItemsTable
+          items={[
+            makeItem({
+              key: "manual-1",
+              examTypeFieldId: undefined,
+              name: "手動項目",
+            }),
+          ]}
+          onChangeInspectionValue={vi.fn()}
+          onAddItem={vi.fn()}
+          onRemoveItem={vi.fn()}
+          onChangeName={vi.fn()}
+          disabled
+        />,
+      );
+
+      expect(
+        screen.getByRole("button", { name: "検査項目を追加" }),
+      ).toBeDisabled();
+      expect(
+        screen.getByRole("button", { name: "手動項目を削除" }),
+      ).toBeDisabled();
+      expect(
+        screen.getByRole("textbox", { name: "手動項目の項目名" }),
+      ).toBeDisabled();
+      expect(
+        screen.getByRole("textbox", { name: "手動項目の結果値" }),
+      ).toBeDisabled();
+    });
+
+    it("追加後は新しい手動項目名へfocusを移す", async () => {
+      const user = userEvent.setup();
+      render(<EditableItemsHarness initialItems={[]} />);
+
+      await user.click(screen.getByRole("button", { name: "検査項目を追加" }));
+
+      expect(
+        screen.getByRole("textbox", { name: "検査項目1の項目名" }),
+      ).toHaveFocus();
+    });
+
+    it("削除後は次行、残行なしなら追加buttonへfocusを戻す", async () => {
+      const user = userEvent.setup();
+      render(
+        <EditableItemsHarness
+          initialItems={[
+            makeItem({
+              key: "manual-1",
+              examTypeFieldId: undefined,
+              name: "項目A",
+            }),
+            makeItem({
+              key: "manual-2",
+              examTypeFieldId: undefined,
+              name: "項目B",
+            }),
+          ]}
+        />,
+      );
+
+      await user.click(screen.getByRole("button", { name: "項目Aを削除" }));
+      expect(screen.getByRole("button", { name: "項目Bを削除" })).toHaveFocus();
+
+      await user.click(screen.getByRole("button", { name: "項目Bを削除" }));
+      expect(
+        screen.getByRole("button", { name: "検査項目を追加" }),
+      ).toHaveFocus();
     });
   });
 });

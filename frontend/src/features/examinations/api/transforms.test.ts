@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import type { ExamItemsResponse } from "./types";
-import { transformExamResult } from "./transforms";
+import type { BackendExamination, ExamItemsResponse } from "./types";
+import { transformExamination, transformExamResult } from "./transforms";
 
 function makeBackendItem(
   overrides: Partial<ExamItemsResponse["items"][number]> = {},
@@ -26,14 +26,15 @@ function makeBackendItem(
 }
 
 describe("transformExamResult", () => {
-  it.each([
-    { isAssessed: false },
-    { isAssessed: true },
-  ])("server-computed assessed state $isAssessed を行データへ写像する", ({ isAssessed }) => {
-    expect(transformExamResult(makeBackendItem({ is_assessed: isAssessed })).isAssessed).toBe(
-      isAssessed,
-    );
-  });
+  it.each([{ isAssessed: false }, { isAssessed: true }])(
+    "server-computed assessed state $isAssessed を行データへ写像する",
+    ({ isAssessed }) => {
+      expect(
+        transformExamResult(makeBackendItem({ is_assessed: isAssessed }))
+          .isAssessed,
+      ).toBe(isAssessed);
+    },
+  );
 
   it("qualitative_min/max を qualitativeMin/Max に写像する", () => {
     const result = transformExamResult(
@@ -53,5 +54,34 @@ describe("transformExamResult", () => {
 
     expect(result.qualitativeMin).toBeUndefined();
     expect(result.qualitativeMax).toBeUndefined();
+  });
+});
+
+describe("transformExamination", () => {
+  const minimalExamination = {
+    id: 1,
+    clinic_id: 1,
+    exam_type_id: 2,
+    date: "2026-08-03T00:00:00Z",
+    result_summary: "",
+    machine: "",
+    status: "completed",
+    created_at: "2026-08-03T00:00:00Z",
+    updated_at: "2026-08-03T00:00:00Z",
+  } satisfies BackendExamination;
+
+  it("revision pointer を患者変更ロック用の record field に写像する", () => {
+    expect(
+      transformExamination({
+        ...minimalExamination,
+        current_revision_version: 2,
+      }).currentRevisionVersion,
+    ).toBe(2);
+  });
+
+  it("revision pointer がない未確定記録では undefined を維持する", () => {
+    expect(
+      transformExamination(minimalExamination).currentRevisionVersion,
+    ).toBeUndefined();
   });
 });

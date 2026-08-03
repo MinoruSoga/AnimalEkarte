@@ -3,9 +3,7 @@
  * Source: frontend/src/types/generated/models.ts (tygo generated)
  */
 import type { Examination, ExamResult } from "@/types/generated/models";
-import type {
-  UpdateExaminationRequest as SharedUpdateExaminationRequest,
-} from "@/hooks/use-update-examination";
+import type { UpdateExaminationRequest as SharedUpdateExaminationRequest } from "@/hooks/use-update-examination";
 
 export type BackendExamResult = ExamResult & {
   is_assessed: boolean;
@@ -27,6 +25,10 @@ export interface CreateExaminationRequest {
 export type UpdateExaminationRequest = SharedUpdateExaminationRequest & {
   items?: UpsertExamItemRequest[];
 };
+
+export interface UnconfirmExaminationRequest {
+  reason: string;
+}
 
 /**
  * 検査項目 1 行分の入力（POST/PATCH の nested items と PUT items で共通）。

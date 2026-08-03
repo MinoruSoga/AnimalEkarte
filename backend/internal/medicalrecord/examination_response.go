@@ -14,18 +14,19 @@ type examTypeSummaryResponse struct {
 }
 
 type examinationResponse struct {
-	ID              uint64    `json:"id"`
-	ClinicID        uint64    `json:"clinic_id"`
-	MedicalRecordID *uint64   `json:"medical_record_id,omitempty"`
-	PetID           *uint64   `json:"pet_id,omitempty"`
-	ExamTypeID      uint64    `json:"exam_type_id"`
-	DoctorID        *uint64   `json:"doctor_id,omitempty"`
-	Date            time.Time `json:"date"`
-	ResultSummary   string    `json:"result_summary"`
-	Machine         string    `json:"machine"`
-	Status          string    `json:"status"`
-	CreatedAt       time.Time `json:"created_at"`
-	UpdatedAt       time.Time `json:"updated_at"`
+	ID                     uint64    `json:"id"`
+	ClinicID               uint64    `json:"clinic_id"`
+	MedicalRecordID        *uint64   `json:"medical_record_id,omitempty"`
+	PetID                  *uint64   `json:"pet_id,omitempty"`
+	ExamTypeID             uint64    `json:"exam_type_id"`
+	DoctorID               *uint64   `json:"doctor_id,omitempty"`
+	Date                   time.Time `json:"date"`
+	ResultSummary          string    `json:"result_summary"`
+	Machine                string    `json:"machine"`
+	Status                 string    `json:"status"`
+	CurrentRevisionVersion *uint64   `json:"current_revision_version,omitempty"`
+	CreatedAt              time.Time `json:"created_at"`
+	UpdatedAt              time.Time `json:"updated_at"`
 	// リレーション: 一覧で飼主名/ペット名/検査種別/担当医を表示するため。Preload 時のみ埋まる。
 	Pet      *PetSummaryResponse      `json:"pet,omitempty"`
 	Doctor   *StaffSummaryResponse    `json:"doctor,omitempty"`
@@ -35,20 +36,21 @@ type examinationResponse struct {
 
 func toExaminationResponse(exam *model.Examination) examinationResponse {
 	resp := examinationResponse{
-		ID:              exam.ID,
-		ClinicID:        exam.ClinicID,
-		MedicalRecordID: exam.MedicalRecordID,
-		PetID:           exam.PetID,
-		ExamTypeID:      exam.ExamTypeID,
-		DoctorID:        exam.DoctorID,
-		Date:            httpapi.LocalTime(exam.Date),
-		ResultSummary:   exam.ResultSummary,
-		Machine:         exam.Machine,
-		Status:          string(exam.Status),
-		CreatedAt:       httpapi.LocalTime(exam.CreatedAt),
-		UpdatedAt:       httpapi.LocalTime(exam.UpdatedAt),
-		Pet:             toPetSummary(exam.Pet),
-		Doctor:          toStaffSummary(exam.Doctor),
+		ID:                     exam.ID,
+		ClinicID:               exam.ClinicID,
+		MedicalRecordID:        exam.MedicalRecordID,
+		PetID:                  exam.PetID,
+		ExamTypeID:             exam.ExamTypeID,
+		DoctorID:               exam.DoctorID,
+		Date:                   httpapi.LocalTime(exam.Date),
+		ResultSummary:          exam.ResultSummary,
+		Machine:                exam.Machine,
+		Status:                 string(exam.Status),
+		CurrentRevisionVersion: exam.CurrentRevisionVersion,
+		CreatedAt:              httpapi.LocalTime(exam.CreatedAt),
+		UpdatedAt:              httpapi.LocalTime(exam.UpdatedAt),
+		Pet:                    toPetSummary(exam.Pet),
+		Doctor:                 toStaffSummary(exam.Doctor),
 	}
 	if exam.ExaminationType != nil {
 		resp.ExamType = &examTypeSummaryResponse{

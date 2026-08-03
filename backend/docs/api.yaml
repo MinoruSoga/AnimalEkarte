@@ -3498,6 +3498,12 @@ components:
           type: string
           enum: [pending, in_progress, result_entered, completed, confirmed]
           default: pending
+        current_revision_version:
+          type: integer
+          format: int64
+          minimum: 1
+          readOnly: true
+          description: 現在選択中の作業版または公式リビジョン番号（未リビジョン行では省略）
         items:
           type: array
           items:

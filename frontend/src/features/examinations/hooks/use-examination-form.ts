@@ -19,8 +19,12 @@ import { useGetExamination } from "../api/get-examination";
 import { useCreateExamination } from "../api/create-examination";
 import { useUpdateExamination } from "../api/update-examination";
 import { useDeleteExamination } from "../api/delete-examination";
+import { useUnconfirmExamination } from "../api/unconfirm-examination";
 import { useGetExaminationItems } from "../api/get-examination-items";
-import { useGetExamTypeFields, type ExamTypeFieldRow } from "../api/get-exam-type-fields";
+import {
+  useGetExamTypeFields,
+  type ExamTypeFieldRow,
+} from "../api/get-exam-type-fields";
 import type {
   CreateExaminationRequest,
   UpdateExaminationRequest,
@@ -34,18 +38,23 @@ import { EXAM_STATUS_EN_TO_JA } from "@/lib/transforms/examination";
 /** EXAM_STATUS_EN_TO_JA（正本）の逆写像を導出する（FE5-10）。両写像は完全対称であることを確認済み。 */
 const EXAM_STATUS_JA_TO_EN = Object.fromEntries(
   Object.entries(EXAM_STATUS_EN_TO_JA).map(([en, ja]) => [ja, en]),
-) as Record<string, "pending" | "in_progress" | "result_entered" | "completed" | "confirmed">;
+) as Record<
+  string,
+  "pending" | "in_progress" | "result_entered" | "completed" | "confirmed"
+>;
 
 interface ExaminationMutationPermissions {
   canCreate: boolean;
   canEdit: boolean;
   canDelete: boolean;
+  canUnconfirm: boolean;
 }
 
 const DENIED_MUTATION_PERMISSIONS: Readonly<ExaminationMutationPermissions> = {
   canCreate: false,
   canEdit: false,
   canDelete: false,
+  canUnconfirm: false,
 };
 
 // テンプレ（exam_type_fields）から ExamItemRow の初期行を組み立てる。
@@ -88,7 +97,8 @@ export function useExaminationForm(
   const [searchParams] = useSearchParams();
   const petId = searchParams.get("petId");
   const doctorId = searchParams.get("doctorId");
-  const medicalRecordId = medicalRecordIdParam ?? searchParams.get("medicalRecordId") ?? "";
+  const medicalRecordId =
+    medicalRecordIdParam ?? searchParams.get("medicalRecordId") ?? "";
   const isEdit = !!id;
 
   // Pet Search State
@@ -97,17 +107,19 @@ export function useExaminationForm(
 
   // API hooks
   const { data: existingExam } = useGetExamination(id ?? "");
-  const mutationPetId = isEdit ? existingExam?.petId ?? "" : petId ?? "";
-  const { data: mutationPet, isLoading: isPetLoading } = useGetPet(mutationPetId);
+  const mutationPetId = isEdit ? (existingExam?.petId ?? "") : (petId ?? "");
+  const { data: mutationPet, isLoading: isPetLoading } =
+    useGetPet(mutationPetId);
   const createMutation = useCreateExamination();
   const updateMutation = useUpdateExamination();
   const deleteMutation = useDeleteExamination();
+  const unconfirmMutation = useUnconfirmExamination();
   const { data: existingItems } = useGetExaminationItems(id ?? "");
-  const { canCreate, canEdit, canDelete } = permissions;
+  const { canCreate, canEdit, canDelete, canUnconfirm } = permissions;
   const permissionsRef = useRef(permissions);
   useLayoutEffect(() => {
-    permissionsRef.current = { canCreate, canEdit, canDelete };
-  }, [canCreate, canDelete, canEdit]);
+    permissionsRef.current = { canCreate, canEdit, canDelete, canUnconfirm };
+  }, [canCreate, canDelete, canEdit, canUnconfirm]);
   const hasExplicitlyDeceasedPet =
     mutationPet?.status === "死亡" || selectedPets[0]?.status === "死亡";
   const hasExplicitlyDeceasedPetRef = useRef(hasExplicitlyDeceasedPet);
@@ -115,7 +127,8 @@ export function useExaminationForm(
     hasExplicitlyDeceasedPetRef.current = hasExplicitlyDeceasedPet;
   }, [hasExplicitlyDeceasedPet]);
   const isMutationAllowed = useCallback(
-    (action: keyof ExaminationMutationPermissions) => permissionsRef.current[action] === true,
+    (action: keyof ExaminationMutationPermissions) =>
+      permissionsRef.current[action] === true,
     [],
   );
   const isPetExplicitlyDeceased = useCallback(
@@ -129,12 +142,27 @@ export function useExaminationForm(
     isPersistedConfirmedRef.current = isEdit && existingExam?.status === "確定";
   }, [isEdit, existingExam?.status]);
 
+  const isPatientChangeLocked =
+    !isEdit ||
+    !canEdit ||
+    !existingExam ||
+    existingExam.status === "確定" ||
+    existingExam.currentRevisionVersion !== undefined;
+  const isPatientChangeLockedRef = useRef(isPatientChangeLocked);
+  const existingPetIdRef = useRef(existingExam?.petId);
+  useLayoutEffect(() => {
+    isPatientChangeLockedRef.current = isPatientChangeLocked;
+    existingPetIdRef.current = existingExam?.petId;
+  }, [existingExam?.petId, isPatientChangeLocked]);
+
   // useTransition: save/delete の pending 管理 (rerender-transitions)
   const [isDeleteTransitionPending, startDeleteTransition] = useTransition();
 
   // Local overrides applied on top of server data (only tracks user edits in edit mode)
   // useActionState の前に宣言: callback 内で formDataWithPet を参照するため
-  const [localOverrides, setLocalOverrides] = useState<Partial<ExaminationRecord>>({});
+  const [localOverrides, setLocalOverrides] = useState<
+    Partial<ExaminationRecord>
+  >({});
 
   // Merge: server data as base + user edits on top
   const formData: Partial<ExaminationRecord> =
@@ -145,7 +173,7 @@ export function useExaminationForm(
           ownerName: "",
           petName: "",
           ...(doctorId && { doctorId }),
-          ...localOverrides
+          ...localOverrides,
         };
 
   const setFormData = (next: Partial<ExaminationRecord>) => {
@@ -153,30 +181,35 @@ export function useExaminationForm(
   };
 
   // Derive form data with pet info at render time (no setState-in-useEffect)
-  const formDataWithPet =
-    selectedPets.length > 0
-      ? {
-          ...formData,
-          ownerName: selectedPets[0].ownerName,
-          petName: selectedPets[0].name,
-        }
-      : formData;
+  const activePet = selectedPets[0] ?? mutationPet;
+  const formDataWithPet = activePet
+    ? {
+        ...formData,
+        ownerName: activePet.ownerName,
+        petName: activePet.name,
+        petId: activePet.id,
+      }
+    : formData;
 
   // useActionState の stale closure 対策: 最新の formDataWithPet を ref で保持
   // (use-medical-record-form.ts の activeTabRef と同じパターン)
   const formDataWithPetRef = useRef(formDataWithPet);
-  useEffect(() => {
+  useLayoutEffect(() => {
     formDataWithPetRef.current = formDataWithPet;
   });
+  const activePetRef = useRef(activePet);
+  useLayoutEffect(() => {
+    activePetRef.current = activePet;
+  }, [activePet]);
 
   // ─────────────────────────────────────────────────
   // 検査項目テーブルの state
   // ─────────────────────────────────────────────────
   const [formItems, setFormItems] = useState<ExamItemRow[]>([]);
   const formItemsRef = useRef(formItems);
-  useEffect(() => {
+  useLayoutEffect(() => {
     formItemsRef.current = formItems;
-  });
+  }, [formItems]);
 
   // 検査種別テンプレ（exam_type_fields）取得 — testTypeId 変更検知に使う
   const currentTestTypeId = formData.testTypeId ?? "";
@@ -249,7 +282,44 @@ export function useExaminationForm(
 
   const setInspectionValue = useCallback((key: string, value: string) => {
     setFormItems((prev) =>
-      prev.map((row) => (row.key === key ? { ...row, inspectionValue: value } : row)),
+      prev.map((row) =>
+        row.key === key ? { ...row, inspectionValue: value } : row,
+      ),
+    );
+  }, []);
+
+  const manualItemSequenceRef = useRef(0);
+  const addManualItem = useCallback(() => {
+    manualItemSequenceRef.current += 1;
+    const key = `manual-${manualItemSequenceRef.current}`;
+    setFormItems((previous) => {
+      const nextSortOrder =
+        previous.reduce(
+          (maximum, row) => Math.max(maximum, row.sortOrder),
+          -1,
+        ) + 1;
+      return [
+        ...previous,
+        {
+          key,
+          name: "",
+          inspectionValue: "",
+          unit: "",
+          normalValue: "",
+          referenceValue: "",
+          sortOrder: nextSortOrder,
+        },
+      ];
+    });
+  }, []);
+
+  const removeItem = useCallback((key: string) => {
+    setFormItems((previous) => previous.filter((row) => row.key !== key));
+  }, []);
+
+  const setItemName = useCallback((key: string, value: string) => {
+    setFormItems((previous) =>
+      previous.map((row) => (row.key === key ? { ...row, name: value } : row)),
     );
   }, []);
 
@@ -257,12 +327,24 @@ export function useExaminationForm(
    * React 19 useActionState を使用したフォームアクション
    */
   const [formState, formAction, isPending] = useActionState(
-    async (_prevState: ActionState, _formData: FormData): Promise<ActionState> => {
+    async (
+      _prevState: ActionState,
+      _formData: FormData,
+    ): Promise<ActionState> => {
       const current = formDataWithPetRef.current;
       // フロントエンド・バリデーション
       const errors: Record<string, string> = {};
       if (!current.testTypeId) errors.testTypeId = "検査種別を選択してください";
       if (!current.doctorId) errors.doctorId = "担当医を選択してください";
+      if (
+        formItemsRef.current.some(
+          (item) =>
+            item.name.trim() === "" && item.inspectionValue.trim() !== "",
+        )
+      ) {
+        errors.examItems =
+          "結果値を入力した手動項目には項目名が必要です";
+      }
 
       if (Object.keys(errors).length > 0) {
         return { success: false, fieldErrors: errors, timestamp: Date.now() };
@@ -279,8 +361,28 @@ export function useExaminationForm(
         }
 
         if (isEdit && id) {
+          const patientChanged =
+            current.petId !== undefined &&
+            current.petId !== existingPetIdRef.current;
+          const changedPetID = Number(current.petId);
+          const changedPatient = activePetRef.current;
+          const canApplyPatientChange =
+            patientChanged &&
+            !isPatientChangeLockedRef.current &&
+            changedPatient?.id === current.petId &&
+            changedPatient.status === "生存" &&
+            Number.isSafeInteger(changedPetID) &&
+            changedPetID > 0;
+          if (patientChanged && !canApplyPatientChange) {
+            toast.error(
+              "患者変更の条件が変わりました。検査記録を再読み込みしてください",
+            );
+            return { success: false, timestamp: Date.now() };
+          }
           const req: UpdateExaminationRequest = {
-            status: current.status ? EXAM_STATUS_JA_TO_EN[current.status] : undefined,
+            status: current.status
+              ? EXAM_STATUS_JA_TO_EN[current.status]
+              : undefined,
             result_summary: current.resultSummary,
             machine: current.machine,
             date: current.date
@@ -289,13 +391,14 @@ export function useExaminationForm(
                 : jstDateStartISOString(current.date)
               : undefined,
             ...(!isPersistedConfirmed ? { items } : {}),
+            ...(canApplyPatientChange ? { pet_id: changedPetID } : {}),
           };
           if (!isMutationAllowed("canEdit")) {
             return { success: false, timestamp: Date.now() };
           }
           await updateMutation.mutateAsync({ id, req });
         } else {
-          const pet = selectedPets[0];
+          const pet = activePetRef.current;
           if (!pet) return { success: false, timestamp: Date.now() };
           const req: CreateExaminationRequest = {
             medical_record_id: medicalRecordId ? Number(medicalRecordId) : null,
@@ -322,45 +425,68 @@ export function useExaminationForm(
         return { success: false, timestamp: Date.now() };
       }
     },
-    INITIAL_ACTION_STATE
+    INITIAL_ACTION_STATE,
   );
 
-  // New mode: populate pet selection from petId query param
+  // Queryまたは保存済みexamの患者を、create/edit双方の表示・mutation候補へ一度だけ同期する。
+  const initializedPetIDRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!isEdit) {
-      if (mutationPet) {
-        setSelectedPets([mutationPet]);
-      } else if (!petId && !isPetLoading) {
-        // No petId provided and not loading — redirect to pet selection
-        navigate(paths.examinations.selectPet.getHref());
-      }
-      // If petId is provided but mutationPet is not yet resolved, wait
+    if (mutationPet && initializedPetIDRef.current !== mutationPet.id) {
+      initializedPetIDRef.current = mutationPet.id;
+      setSelectedPets([mutationPet]);
+      return;
+    }
+    if (!isEdit && !petId && !isPetLoading) {
+      navigate(paths.examinations.selectPet.getHref());
     }
   }, [isEdit, petId, mutationPet, isPetLoading, setSelectedPets, navigate]);
 
-  const handleDelete = useCallback((onSuccess?: () => void) => {
-    if (!isEdit || !id) return;
-    if (!isMutationAllowed("canDelete")) return;
-    if (isPetExplicitlyDeceased()) return;
-    startDeleteTransition(() => {
-      deleteMutation.mutate(id, {
-        onSuccess: () => {
-          toast.success("検査記録を削除しました");
-          onSuccess?.();
-        },
+  const handleUnconfirm = useCallback(
+    async (rawReason: string): Promise<boolean> => {
+      const reason = rawReason.trim();
+      if (!isEdit || !id) return false;
+      if (!isPersistedConfirmedRef.current) return false;
+      if (!isMutationAllowed("canUnconfirm")) return false;
+      if (!reason || reason.length > 500) return false;
+
+      try {
+        await unconfirmMutation.mutateAsync({ id, reason });
+        toast.success("検査記録の確定を解除しました");
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    [id, isEdit, isMutationAllowed, unconfirmMutation],
+  );
+
+  const handleDelete = useCallback(
+    (onSuccess?: () => void) => {
+      if (!isEdit || !id) return;
+      if (!isMutationAllowed("canDelete")) return;
+      if (isPetExplicitlyDeceased()) return;
+      startDeleteTransition(() => {
+        deleteMutation.mutate(id, {
+          onSuccess: () => {
+            toast.success("検査記録を削除しました");
+            onSuccess?.();
+          },
+        });
       });
-    });
-  }, [
-    isEdit,
-    id,
-    isMutationAllowed,
-    isPetExplicitlyDeceased,
-    deleteMutation,
-    startDeleteTransition,
-  ]);
+    },
+    [
+      isEdit,
+      id,
+      isMutationAllowed,
+      isPetExplicitlyDeceased,
+      deleteMutation,
+      startDeleteTransition,
+    ],
+  );
 
   const isSaving = isPending;
   const isDeleting = deleteMutation.isPending || isDeleteTransitionPending;
+  const isUnconfirming = unconfirmMutation.isPending;
   // UI ロックはサーバ保存済み確定のみ（ドラフトで「確定」を選んだだけではロックしない — A-S02-01）
   const isPersistedConfirmed = isEdit && existingExam?.status === "確定";
 
@@ -374,9 +500,15 @@ export function useExaminationForm(
     isEdit,
     isSaving,
     isDeleting,
+    handleUnconfirm,
+    isUnconfirming,
     isPersistedConfirmed,
+    isPatientChangeLocked,
     // 検査項目テーブル
     formItems,
     setInspectionValue,
+    addManualItem,
+    removeItem,
+    setItemName,
   };
 }

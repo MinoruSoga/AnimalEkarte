@@ -12,6 +12,7 @@ func TestToExaminationResponse(t *testing.T) {
 	petID := uint64(20)
 	doctorID := uint64(30)
 	medicalRecordID := uint64(40)
+	revisionVersion := uint64(2)
 	date := time.Date(2026, 5, 28, 0, 0, 0, 0, time.UTC)
 	now := time.Now()
 
@@ -22,21 +23,22 @@ func TestToExaminationResponse(t *testing.T) {
 		{
 			name: "converts examination with relations",
 			in: &model.Examination{
-				ID:              1,
-				ClinicID:        2,
-				MedicalRecordID: &medicalRecordID,
-				PetID:           &petID,
-				ExamTypeID:      3,
-				DoctorID:        &doctorID,
-				Date:            date,
-				ResultSummary:   "normal",
-				Machine:         "machine-a",
-				Status:          model.ExaminationStatusCompleted,
-				CreatedAt:       now,
-				UpdatedAt:       now,
-				Pet:             &model.Pet{ID: petID, Name: "Pochi"},
-				Doctor:          &model.Staff{ID: doctorID, Name: "Dr. Smith"},
-				ExaminationType: &model.ExaminationType{ID: 3, Name: "Blood Test"},
+				ID:                     1,
+				ClinicID:               2,
+				MedicalRecordID:        &medicalRecordID,
+				PetID:                  &petID,
+				ExamTypeID:             3,
+				DoctorID:               &doctorID,
+				Date:                   date,
+				ResultSummary:          "normal",
+				Machine:                "machine-a",
+				Status:                 model.ExaminationStatusCompleted,
+				CurrentRevisionVersion: &revisionVersion,
+				CreatedAt:              now,
+				UpdatedAt:              now,
+				Pet:                    &model.Pet{ID: petID, Name: "Pochi"},
+				Doctor:                 &model.Staff{ID: doctorID, Name: "Dr. Smith"},
+				ExaminationType:        &model.ExaminationType{ID: 3, Name: "Blood Test"},
 			},
 		},
 		{
@@ -78,6 +80,13 @@ func TestToExaminationResponse(t *testing.T) {
 			}
 			if got.Status != string(tt.in.Status) {
 				t.Errorf("Status = %q, want %q", got.Status, string(tt.in.Status))
+			}
+			if got.CurrentRevisionVersion != tt.in.CurrentRevisionVersion {
+				t.Errorf(
+					"CurrentRevisionVersion = %v, want %v",
+					got.CurrentRevisionVersion,
+					tt.in.CurrentRevisionVersion,
+				)
 			}
 
 			if tt.in.Pet == nil {

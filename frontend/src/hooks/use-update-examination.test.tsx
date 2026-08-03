@@ -20,10 +20,14 @@ function createWrapper(queryClient: QueryClient) {
 describe("useUpdateExamination (FE4-6)", () => {
   it("成功後に list prefix と detail キーの両方を invalidate する", async () => {
     server.use(
-      http.patch("/api/v1/examinations/:id", () => HttpResponse.json({ id: 7 })),
+      http.patch("/api/v1/examinations/:id", () =>
+        HttpResponse.json({ id: 7 }),
+      ),
     );
 
-    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
     const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
 
     const { result } = renderHook(() => useUpdateExamination(), {
@@ -36,7 +40,35 @@ describe("useUpdateExamination (FE4-6)", () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.examinations.all() });
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.examinations.detail("7") });
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: queryKeys.examinations.all(),
+    });
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: queryKeys.examinations.detail("7"),
+    });
+  });
+
+  it("患者変更用 pet_id を PATCH body に保持する", async () => {
+    let requestBody: unknown;
+    server.use(
+      http.patch("/api/v1/examinations/:id", async ({ request }) => {
+        requestBody = await request.json();
+        return HttpResponse.json({ id: 7 });
+      }),
+    );
+
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const { result } = renderHook(() => useUpdateExamination(), {
+      wrapper: createWrapper(queryClient),
+    });
+
+    await act(async () => {
+      result.current.mutate({ id: "7", req: { pet_id: 84 } });
+    });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(requestBody).toEqual({ pet_id: 84 });
   });
 });

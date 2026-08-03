@@ -1,6 +1,17 @@
 // React/Framework
-import { useCallback, useDeferredValue, useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams, useLocation, useSearchParams } from "react-router";
+import {
+  useCallback,
+  useDeferredValue,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+import {
+  useNavigate,
+  useParams,
+  useLocation,
+  useSearchParams,
+} from "react-router";
 
 // Internal
 import { PatientInfoCard } from "@/components/shared/PatientInfoCard";
@@ -9,7 +20,7 @@ import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { C, LAYOUT } from "@/lib/design-tokens";
-import type { SortOrder } from "@/types";
+import type { Pet, SortOrder } from "@/types";
 
 // Relative
 import { useExaminationForm } from "../hooks/use-examination-form";
@@ -17,10 +28,15 @@ import { useGetExaminations } from "../api/get-examinations";
 import { ExamItemsTable } from "../components/ExamItemsTable";
 import { ExaminationFormFields } from "../components/ExaminationFormFields";
 import { ExaminationHistoryPanel } from "../components/ExaminationHistoryPanel";
+import { ExaminationPatientChangeDialog } from "../components/ExaminationPatientChangeDialog";
+import { ExaminationUnconfirmDialog } from "../components/ExaminationUnconfirmDialog";
 import { useMasterItems } from "@/hooks/use-master-items";
 import { paths } from "@/config/paths";
 import { usePermission } from "@/hooks/use-permission";
-import { ResourceExaminations } from "@/types/generated/models";
+import {
+  ResourceExaminations,
+  ResourceExaminationUnconfirm,
+} from "@/types/generated/models";
 import { normalizeKana } from "@/lib/normalize-kana";
 
 // rendering-hoist-jsx: アクセシビリティ用定数をモジュールレベルに巻き上げ（毎レンダー再生成を回避）
@@ -35,11 +51,14 @@ export function ExaminationForm() {
   const medicalRecordId = searchParams.get("medicalRecordId");
   const historyView =
     searchParams.get("historyView") === "pivot" ? "pivot" : "cards";
-  const { canEdit, canCreate, canDelete } = usePermission("examinations");
+  const { canEdit, canCreate, canDelete } = usePermission(ResourceExaminations);
+  const { canEdit: canUnconfirm } = usePermission(ResourceExaminationUnconfirm);
   const canSubmit = id ? canEdit : canCreate && canEdit;
 
-  const { data: examTypesRaw, isLoading: examTypesLoading } = useMasterItems("examination");
-  const { data: staffListRaw, isLoading: staffLoading } = useMasterItems("staff");
+  const { data: examTypesRaw, isLoading: examTypesLoading } =
+    useMasterItems("examination");
+  const { data: staffListRaw, isLoading: staffLoading } =
+    useMasterItems("staff");
   const masterLoading = examTypesLoading || staffLoading;
   const examTypes = useMemo(
     () => examTypesRaw.map((t) => ({ id: String(t.id), name: t.name })),
@@ -62,12 +81,18 @@ export function ExaminationForm() {
     isDeleting,
     formItems,
     setInspectionValue,
+    addManualItem,
+    removeItem,
+    setItemName,
+    handleUnconfirm,
     isPersistedConfirmed,
-  } = useExaminationForm(
-    id,
-    medicalRecordId ?? undefined,
-    { canCreate, canEdit, canDelete },
-  );
+    isPatientChangeLocked,
+  } = useExaminationForm(id, medicalRecordId ?? undefined, {
+    canCreate,
+    canEdit,
+    canDelete,
+    canUnconfirm,
+  });
 
   const { isDirty, markDirty, markClean } = useUnsavedChanges();
 
@@ -102,7 +127,9 @@ export function ExaminationForm() {
     const errorFields = Object.keys(formState.fieldErrors || {});
     if (errorFields.length === 0) return;
 
-    const firstError = EXAMINATION_PRIORITY_FIELDS.find((f) => errorFields.includes(f)) || errorFields[0];
+    const firstError =
+      EXAMINATION_PRIORITY_FIELDS.find((f) => errorFields.includes(f)) ||
+      errorFields[0];
 
     const element = document.getElementById(firstError);
     if (element) {
@@ -121,7 +148,7 @@ export function ExaminationForm() {
 
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
 
-  const { selectedPets } = petSelection;
+  const { selectedPets, setSelectedPets } = petSelection;
   const selectedPet = selectedPets[0];
   // 編集ロックはサーバ保存済み確定のみ。ドラフトで「確定」を選んでも保存 UI を消さない（A-S02-01）。
   const isConfirmed = isPersistedConfirmed;
@@ -149,7 +176,9 @@ export function ExaminationForm() {
     const searchValue = normalizeKana(deferredHistorySearch).toLowerCase();
     return petHistory.filter(
       (examination) =>
-        normalizeKana(examination.testType).toLowerCase().includes(searchValue) ||
+        normalizeKana(examination.testType)
+          .toLowerCase()
+          .includes(searchValue) ||
         normalizeKana(examination.resultSummary ?? "")
           .toLowerCase()
           .includes(searchValue),
@@ -178,10 +207,50 @@ export function ExaminationForm() {
   }, [location.state, navigate]);
 
   // rerender-memo: memo'd セクションに渡すハンドラを useCallback で安定化
-  const handleSetFormData = useCallback((next: Parameters<typeof setFormData>[0]) => {
+  const handleSetFormData = useCallback(
+    (next: Parameters<typeof setFormData>[0]) => {
+      markDirty();
+      setFormData(next);
+    },
+    [markDirty, setFormData],
+  );
+
+  const handleInspectionValueChange = useCallback(
+    (key: string, value: string) => {
+      markDirty();
+      setInspectionValue(key, value);
+    },
+    [markDirty, setInspectionValue],
+  );
+
+  const handleItemNameChange = useCallback(
+    (key: string, value: string) => {
+      markDirty();
+      setItemName(key, value);
+    },
+    [markDirty, setItemName],
+  );
+
+  const handleAddItem = useCallback(() => {
     markDirty();
-    setFormData(next);
-  }, [markDirty, setFormData]);
+    addManualItem();
+  }, [addManualItem, markDirty]);
+
+  const handleRemoveItem = useCallback(
+    (key: string) => {
+      markDirty();
+      removeItem(key);
+    },
+    [markDirty, removeItem],
+  );
+
+  const handlePatientSelect = useCallback(
+    (pet: Pet) => {
+      markDirty();
+      setSelectedPets([pet]);
+    },
+    [markDirty, setSelectedPets],
+  );
 
   const handleDeleteClick = useCallback(() => {
     setIsDeleteConfirmOpen(true);
@@ -234,6 +303,21 @@ export function ExaminationForm() {
           />
         ) : null}
 
+        {isEdit && !isPatientChangeLocked ? (
+          <div className="flex justify-end">
+            <ExaminationPatientChangeDialog
+              selectedPet={selectedPet}
+              onSelect={handlePatientSelect}
+            />
+          </div>
+        ) : null}
+
+        {isPersistedConfirmed && canUnconfirm && id ? (
+          <div className="flex justify-end">
+            <ExaminationUnconfirmDialog onUnconfirm={handleUnconfirm} />
+          </div>
+        ) : null}
+
         {/* 2カラムレイアウト: 左 3/5（フォーム）・右 2/5（履歴） */}
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 items-start">
           {/* 左カラム: フォームフィールド + 検査項目テーブル */}
@@ -260,10 +344,25 @@ export function ExaminationForm() {
                 />
 
                 <div className="space-y-2">
-                  <h3 className={`text-sm font-medium ${C.text60} px-1`}>検査項目</h3>
+                  <h3 className={`text-sm font-medium ${C.text60} px-1`}>
+                    検査項目
+                  </h3>
+                  {formState.fieldErrors?.examItems ? (
+                    <p
+                      id="examItems"
+                      role="alert"
+                      tabIndex={-1}
+                      className={`rounded-xs border px-3 py-2 text-sm ${C.danger} ${C.bgDanger8} ${C.borderDanger20}`}
+                    >
+                      {formState.fieldErrors.examItems}
+                    </p>
+                  ) : null}
                   <ExamItemsTable
                     items={formItems}
-                    onChangeInspectionValue={setInspectionValue}
+                    onChangeInspectionValue={handleInspectionValueChange}
+                    onChangeName={handleItemNameChange}
+                    onAddItem={handleAddItem}
+                    onRemoveItem={handleRemoveItem}
                     disabled={isConfirmed}
                   />
                 </div>

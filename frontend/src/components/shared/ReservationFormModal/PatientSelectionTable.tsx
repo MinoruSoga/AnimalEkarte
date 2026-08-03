@@ -16,7 +16,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { EmptyState, ErrorFallback } from "@/components/shared/DataStates";
 import { Pagination } from "@/components/shared/Pagination";
 import { useGetPets } from "@/hooks/use-pet";
@@ -30,6 +37,8 @@ import type { Pet } from "@/types";
 interface PatientSelectionTableProps {
   onSelect: (pet: Pet) => void;
   selectedPets: Pet[];
+  /** 直接記録の患者変更では死亡 sentinel も表示し、選択不可を明示する。 */
+  includeDeceased?: boolean;
 }
 
 /**
@@ -92,13 +101,15 @@ function SpeciesSelectField({
       </Label>
       <Select
         value={value || ALL_SPECIES_VALUE}
-        onValueChange={(next) => onChange(next === ALL_SPECIES_VALUE ? "" : next)}
+        onValueChange={(next) =>
+          onChange(next === ALL_SPECIES_VALUE ? "" : next)
+        }
         disabled={isUnavailable}
       >
         <SelectTrigger
           id="species"
           aria-describedby={hasStatusMessage ? "species-status" : undefined}
-          className={`text-xs h-9 bg-white ${C.borderMediumLight} ${C.text}`}
+          className={`text-xs h-11 bg-white ${C.borderMediumLight} ${C.text}`}
         >
           <SelectValue placeholder="すべて" />
         </SelectTrigger>
@@ -112,15 +123,32 @@ function SpeciesSelectField({
         </SelectContent>
       </Select>
       {isError ? (
-        <p id="species-status" role="alert" aria-atomic="true" className={`text-xs ${C.danger}`}>
+        <p
+          id="species-status"
+          role="alert"
+          aria-atomic="true"
+          className={`text-xs ${C.danger}`}
+        >
           動物種の取得に失敗しました。
         </p>
       ) : isLoading ? (
-        <p id="species-status" role="status" aria-live="polite" aria-atomic="true" className={`text-xs ${C.text50}`}>
+        <p
+          id="species-status"
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
+          className={`text-xs ${C.text50}`}
+        >
           動物種を読み込み中です。
         </p>
       ) : activeSpecies.length === 0 ? (
-        <p id="species-status" role="status" aria-live="polite" aria-atomic="true" className={`text-xs ${C.text50}`}>
+        <p
+          id="species-status"
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
+          className={`text-xs ${C.text50}`}
+        >
           動物種マスタが登録されていません。
         </p>
       ) : null}
@@ -128,13 +156,22 @@ function SpeciesSelectField({
   );
 }
 
-export const PatientSelectionTable = memo(function PatientSelectionTable({ onSelect, selectedPets }: PatientSelectionTableProps) {
-  const [searchParams, setSearchParams] = useState<PatientSearchParams>(INITIAL_SEARCH_PARAMS);
+export const PatientSelectionTable = memo(function PatientSelectionTable({
+  onSelect,
+  selectedPets,
+  includeDeceased = false,
+}: PatientSelectionTableProps) {
+  const [searchParams, setSearchParams] = useState<PatientSearchParams>(
+    INITIAL_SEARCH_PARAMS,
+  );
 
   // 入力停止後にだけ問い合わせる。押しても何も起きない検索ボタンは持たない。
   // useDebouncedValue は参照の同一性で判定するため、3条件は必ず1個の state
   // オブジェクトにまとめて渡す（レンダーごとに作り直すと確定しなくなる）。
-  const debouncedSearchParams = useDebouncedValue(searchParams, SEARCH_DEBOUNCE_MS);
+  const debouncedSearchParams = useDebouncedValue(
+    searchParams,
+    SEARCH_DEBOUNCE_MS,
+  );
 
   // 入力からデバウンス確定までの間、表示中の一覧は「まだ古い検索条件の結果」である。
   const isSearchPending = searchParams !== debouncedSearchParams;
@@ -144,7 +181,8 @@ export const PatientSelectionTable = memo(function PatientSelectionTable({ onSel
   // 確定済み(debounced)の条件で行う — 入力中の値で有効化すると、1打鍵目で
   // 「条件なしの一覧」を取りに行ってしまう。
   const hasSearchConditions = useMemo(
-    () => Object.values(debouncedSearchParams).some((value) => value.trim() !== ""),
+    () =>
+      Object.values(debouncedSearchParams).some((value) => value.trim() !== ""),
     [debouncedSearchParams],
   );
 
@@ -155,7 +193,8 @@ export const PatientSelectionTable = memo(function PatientSelectionTable({ onSel
     page: number;
     params: PatientSearchParams;
   }>({ page: 1, params: INITIAL_SEARCH_PARAMS });
-  const page = pageBinding.params === debouncedSearchParams ? pageBinding.page : 1;
+  const page =
+    pageBinding.params === debouncedSearchParams ? pageBinding.page : 1;
 
   // 検索条件は全て backend の述語へ委譲する。ここで絞り込みを足すと、総件数を
   // 根拠に「N件中 1-20件」と表示しながらその20件から黙って行を消すことになり、
@@ -175,11 +214,15 @@ export const PatientSelectionTable = memo(function PatientSelectionTable({ onSel
   } = useGetPets(
     debouncedSearchParams.ownerId || undefined,
     {
-      // 将来予約の候補に死亡個体は含めないため、includeDeceased は意図的に指定しない。
+      ...(includeDeceased ? { includeDeceased: true } : {}),
       page,
       limit: PAGE_SIZE,
-      ...(debouncedSearchParams.search ? { search: debouncedSearchParams.search } : {}),
-      ...(debouncedSearchParams.species ? { species: debouncedSearchParams.species } : {}),
+      ...(debouncedSearchParams.search
+        ? { search: debouncedSearchParams.search }
+        : {}),
+      ...(debouncedSearchParams.species
+        ? { species: debouncedSearchParams.species }
+        : {}),
     },
     { enabled: hasSearchConditions, preservePreviousData: true },
   );
@@ -191,15 +234,21 @@ export const PatientSelectionTable = memo(function PatientSelectionTable({ onSel
   // 「1,204件中 -19-0件」や totalPages=Infinity といった破綻表示になる。
   // 正の整数でなければ要求値へ落として範囲計算を健全に保つ。
   const responsePage =
-    typeof rawResponsePage === "number" && rawResponsePage > 0 ? rawResponsePage : page;
+    typeof rawResponsePage === "number" && rawResponsePage > 0
+      ? rawResponsePage
+      : page;
   const responseLimit =
-    typeof rawResponseLimit === "number" && rawResponseLimit > 0 ? rawResponseLimit : PAGE_SIZE;
+    typeof rawResponseLimit === "number" && rawResponseLimit > 0
+      ? rawResponseLimit
+      : PAGE_SIZE;
 
   const hasTotal = typeof total === "number";
   const totalCount = total ?? 0;
   const totalPages = Math.max(1, Math.ceil(totalCount / responseLimit));
-  const startIndex = totalCount === 0 ? 0 : (responsePage - 1) * responseLimit + 1;
-  const endIndex = totalCount === 0 ? 0 : Math.min(responsePage * responseLimit, totalCount);
+  const startIndex =
+    totalCount === 0 ? 0 : (responsePage - 1) * responseLimit + 1;
+  const endIndex =
+    totalCount === 0 ? 0 : Math.min(responsePage * responseLimit, totalCount);
   const rangeText = `${totalCount.toLocaleString()}件中 ${startIndex.toLocaleString()}-${endIndex.toLocaleString()}件`;
 
   // total と描画行が食い違う状態（応答に total が含まれない、範囲が総数を超える等）では
@@ -207,7 +256,8 @@ export const PatientSelectionTable = memo(function PatientSelectionTable({ onSel
   const isCountTrustworthy =
     hasTotal && (totalCount > 0 ? startIndex <= totalCount : pets.length === 0);
   // 取得失敗・取得中に現在行数を全体件数として提示しない。
-  const showCachedRange = pets.length > 0 && Boolean(error || isBusy) && isCountTrustworthy;
+  const showCachedRange =
+    pets.length > 0 && Boolean(error || isBusy) && isCountTrustworthy;
   const statusText = !hasSearchConditions
     ? ""
     : showCachedRange
@@ -232,9 +282,12 @@ export const PatientSelectionTable = memo(function PatientSelectionTable({ onSel
     [debouncedSearchParams, totalPages],
   );
 
-  const handleTextFieldChange = useCallback((key: "search" | "ownerId", value: string) => {
-    setSearchParams((prev) => ({ ...prev, [key]: value }));
-  }, []);
+  const handleTextFieldChange = useCallback(
+    (key: "search" | "ownerId", value: string) => {
+      setSearchParams((prev) => ({ ...prev, [key]: value }));
+    },
+    [],
+  );
 
   const handleSpeciesChange = useCallback((species: string) => {
     setSearchParams((prev) => ({ ...prev, species }));
@@ -248,7 +301,7 @@ export const PatientSelectionTable = memo(function PatientSelectionTable({ onSel
 
   const selectedPetIds = useMemo(
     () => new Set(selectedPets.map((p) => p.id)),
-    [selectedPets]
+    [selectedPets],
   );
   const isSelected = (pet: Pet) => selectedPetIds.has(pet.id);
 
@@ -264,7 +317,10 @@ export const PatientSelectionTable = memo(function PatientSelectionTable({ onSel
   const offPageSelectedCount = useMemo(
     () =>
       canLocateSelectionOnPage
-        ? selectedPets.reduce((count, pet) => (currentPageIds.has(pet.id) ? count : count + 1), 0)
+        ? selectedPets.reduce(
+            (count, pet) => (currentPageIds.has(pet.id) ? count : count + 1),
+            0,
+          )
         : 0,
     [canLocateSelectionOnPage, selectedPets, currentPageIds],
   );
@@ -278,7 +334,9 @@ export const PatientSelectionTable = memo(function PatientSelectionTable({ onSel
   return (
     <div className="flex flex-col gap-4 h-full">
       {/* Search Criteria */}
-      <div className={`rounded-lg bg-white p-3 border ${C.borderMedium} shrink-0`}>
+      <div
+        className={`rounded-lg bg-white p-3 border ${C.borderMedium} shrink-0`}
+      >
         {/* 入力停止後に自動検索するため、押しても何も起きない検索ボタンは置かない。 */}
         <p className={`mb-2 text-xs ${C.text60}`}>入力すると自動で検索します</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 mb-3">
@@ -291,8 +349,10 @@ export const PatientSelectionTable = memo(function PatientSelectionTable({ onSel
                 id={field.key}
                 placeholder={field.placeholder}
                 value={searchParams[field.key]}
-                onChange={(e) => handleTextFieldChange(field.key, e.target.value)}
-                className={`text-xs h-9 bg-white ${C.borderMediumLight} ${C.text}`}
+                onChange={(e) =>
+                  handleTextFieldChange(field.key, e.target.value)
+                }
+                className={`text-xs h-11 bg-white ${C.borderMediumLight} ${C.text}`}
               />
             </div>
           ))}
@@ -308,7 +368,7 @@ export const PatientSelectionTable = memo(function PatientSelectionTable({ onSel
           size="sm"
           variant="outline"
           onClick={handleClear}
-          className={`h-9 text-sm ${C.borderMediumLight}`}
+          className={`h-11 min-w-11 text-sm ${C.borderMediumLight}`}
         >
           <RotateCcw className={`mr-1.5 ${ICON.xs}`} />
           クリア
@@ -329,19 +389,25 @@ export const PatientSelectionTable = memo(function PatientSelectionTable({ onSel
           role="status"
           aria-live="polite"
           aria-atomic="true"
-          className={isRangeShownByPagination ? "sr-only" : `text-xs ${C.text60}`}
+          className={
+            isRangeShownByPagination ? "sr-only" : `text-xs ${C.text60}`
+          }
         >
           {statusText}
         </span>
       </div>
 
       {/* Results Table */}
-      <div className={`flex-1 rounded-lg bg-white overflow-hidden border ${C.borderMedium} min-h-0`}>
+      <div
+        className={`flex-1 rounded-lg bg-white overflow-hidden border ${C.borderMedium} min-h-0`}
+      >
         <div className="overflow-auto h-full flex flex-col">
           {!hasSearchConditions && !isSearchPending ? (
             <div className="flex flex-col items-center justify-center flex-1 text-center gap-3">
               <Search className={`${ICON.xl} ${C.text20}`} />
-              <div className={`text-sm ${C.text40}`}>検索条件を入力してください</div>
+              <div className={`text-sm ${C.text40}`}>
+                検索条件を入力してください
+              </div>
             </div>
           ) : error ? (
             // 取得失敗は「0件」より優先する。0件と誤表示すると
@@ -358,20 +424,41 @@ export const PatientSelectionTable = memo(function PatientSelectionTable({ onSel
             </div>
           ) : pets.length === 0 ? (
             <div className="flex-1 flex items-center justify-center">
-              <EmptyState icon={<SearchX className={ICON.xl} />} message="該当する患者が見つかりませんでした" />
+              <EmptyState
+                icon={<SearchX className={ICON.xl} />}
+                message="該当する患者が見つかりませんでした"
+              />
             </div>
           ) : (
             <Table>
               <TableHeader className={`${C.bgPage} sticky top-0 z-10`}>
-                <TableRow className={`border-b ${C.borderMedium} h-9 ${C.hoverBgPage}`}>
-                  <TableHead className={`min-w-[80px] ${C.text40} h-9`}>飼主No</TableHead>
-                  <TableHead className={`min-w-[120px] ${C.text40} h-9`}>飼主名</TableHead>
-                  <TableHead className={`min-w-[100px] ${C.text40} h-9`}>ペット名</TableHead>
-                  <TableHead className={`min-w-[60px] ${C.text40} h-9`}>種別</TableHead>
-                  <TableHead className={`min-w-[60px] ${C.text40} h-9`}>性別</TableHead>
-                  <TableHead className={`min-w-[80px] ${C.text40} h-9`}>生年月日</TableHead>
-                  <TableHead className={`min-w-[60px] ${C.text40} h-9`}>体重</TableHead>
-                  <TableHead className={`min-w-[60px] ${C.text40} h-9`}>操作</TableHead>
+                <TableRow
+                  className={`border-b ${C.borderMedium} h-9 ${C.hoverBgPage}`}
+                >
+                  <TableHead className={`min-w-[80px] ${C.text40} h-9`}>
+                    飼主No
+                  </TableHead>
+                  <TableHead className={`min-w-[120px] ${C.text40} h-9`}>
+                    飼主名
+                  </TableHead>
+                  <TableHead className={`min-w-[100px] ${C.text40} h-9`}>
+                    ペット名
+                  </TableHead>
+                  <TableHead className={`min-w-[60px] ${C.text40} h-9`}>
+                    種別
+                  </TableHead>
+                  <TableHead className={`min-w-[60px] ${C.text40} h-9`}>
+                    性別
+                  </TableHead>
+                  <TableHead className={`min-w-[80px] ${C.text40} h-9`}>
+                    生年月日
+                  </TableHead>
+                  <TableHead className={`min-w-[60px] ${C.text40} h-9`}>
+                    体重
+                  </TableHead>
+                  <TableHead className={`min-w-[60px] ${C.text40} h-9`}>
+                    操作
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -389,15 +476,27 @@ export const PatientSelectionTable = memo(function PatientSelectionTable({ onSel
                         isSelected(pet) ? C.bgPage : ""
                       } ${!isAlive ? "opacity-50 grayscale-[0.5]" : ""}`}
                     >
-                      <TableCell className={`text-sm font-mono ${C.text}`}>{pet.ownerId}</TableCell>
-                      <TableCell className={`text-sm font-medium ${C.text}`}>{pet.ownerName}</TableCell>
+                      <TableCell className={`text-sm font-mono ${C.text}`}>
+                        {pet.ownerId}
+                      </TableCell>
+                      <TableCell className={`text-sm font-medium ${C.text}`}>
+                        {pet.ownerName}
+                      </TableCell>
                       <TableCell className={`text-sm ${C.text}`}>
                         <span className="font-bold">{pet.name}</span>
                       </TableCell>
-                      <TableCell className={`text-sm ${C.text}`}>{pet.species}</TableCell>
-                      <TableCell className={`text-sm ${C.text}`}>{pet.gender || "-"}</TableCell>
-                      <TableCell className={`text-sm font-mono ${C.text}`}>{pet.birthDate || "-"}</TableCell>
-                      <TableCell className={`text-sm font-mono ${C.text}`}>{pet.weight || "-"}</TableCell>
+                      <TableCell className={`text-sm ${C.text}`}>
+                        {pet.species}
+                      </TableCell>
+                      <TableCell className={`text-sm ${C.text}`}>
+                        {pet.gender || "-"}
+                      </TableCell>
+                      <TableCell className={`text-sm font-mono ${C.text}`}>
+                        {pet.birthDate || "-"}
+                      </TableCell>
+                      <TableCell className={`text-sm font-mono ${C.text}`}>
+                        {pet.weight || "-"}
+                      </TableCell>
                       <TableCell>
                         <Button
                           size="sm"
@@ -409,23 +508,31 @@ export const PatientSelectionTable = memo(function PatientSelectionTable({ onSel
                                 ? `読み込み中・選択不可: ${pet.name} (ID ${pet.id})`
                                 : !isAlive
                                   ? `状態不明・選択不可: ${pet.name} (ID ${pet.id})`
-                                : isSelected(pet)
-                                  ? `選択中: ${pet.name} (ID ${pet.id})`
-                                  : `選択: ${pet.name} (ID ${pet.id})`
+                                  : isSelected(pet)
+                                    ? `選択中: ${pet.name} (ID ${pet.id})`
+                                    : `選択: ${pet.name} (ID ${pet.id})`
                           }
                           className={`h-11 min-w-11 gap-1 text-sm px-2 transition-colors ${
                             !isSelectable
                               ? `${C.bgPage} ${C.textStatusGray} border-transparent cursor-not-allowed`
                               : isSelected(pet)
-                              ? `${C.bgBrand} ${C.textOnBrand} ${C.hoverBgBrand} ${C.hoverTextOnBrand}`
-                              : `bg-white border ${C.borderMediumLight} ${C.text} ${C.hoverBgSubtle}`
+                                ? `${C.bgBrand} ${C.textOnBrand} ${C.hoverBgBrand} ${C.hoverTextOnBrand}`
+                                : `bg-white border ${C.borderMediumLight} ${C.text} ${C.hoverBgSubtle}`
                           }`}
                           onClick={() => {
                             if (isSelectable) onSelect(pet);
                           }}
                         >
-                          <Check className={`${ICON.xs} ${isSelected(pet) ? "" : "opacity-0"}`} />
-                          {isDeceased ? "死亡" : !isAlive ? "不明" : isSelected(pet) ? "選択中" : "選択"}
+                          <Check
+                            className={`${ICON.xs} ${isSelected(pet) ? "" : "opacity-0"}`}
+                          />
+                          {isDeceased
+                            ? "死亡"
+                            : !isAlive
+                              ? "不明"
+                              : isSelected(pet)
+                                ? "選択中"
+                                : "選択"}
                         </Button>
                       </TableCell>
                     </TableRow>

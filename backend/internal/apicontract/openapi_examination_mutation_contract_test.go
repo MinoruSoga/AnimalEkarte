@@ -23,7 +23,11 @@ func TestOpenAPIExaminationMutationContract(t *testing.T) {
 
 	var examination struct {
 		Properties map[string]struct {
-			Enum []string `yaml:"enum"`
+			Type     string   `yaml:"type"`
+			Format   string   `yaml:"format"`
+			Enum     []string `yaml:"enum"`
+			Minimum  int      `yaml:"minimum"`
+			ReadOnly bool     `yaml:"readOnly"`
 		} `yaml:"properties"`
 	}
 	examinationNode, ok := spec.Components.Schemas["Examination"]
@@ -36,6 +40,12 @@ func TestOpenAPIExaminationMutationContract(t *testing.T) {
 		"completed",
 		"confirmed",
 	}, examination.Properties["status"].Enum)
+	revisionPointer, ok := examination.Properties["current_revision_version"]
+	require.True(t, ok, "missing current_revision_version from Examination response contract")
+	assert.Equal(t, "integer", revisionPointer.Type)
+	assert.Equal(t, "int64", revisionPointer.Format)
+	assert.Equal(t, 1, revisionPointer.Minimum)
+	assert.True(t, revisionPointer.ReadOnly)
 
 	var unconfirmRequest struct {
 		Required   []string `yaml:"required"`

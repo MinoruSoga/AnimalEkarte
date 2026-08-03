@@ -9,7 +9,12 @@ const mocks = vi.hoisted(() => ({
   canCreate: false,
   canEdit: true,
   canDelete: false,
+  canUnconfirm: false,
+  isPersistedConfirmed: false,
+  isPatientChangeLocked: true,
   useExaminationForm: vi.fn(),
+  unconfirmDialog: vi.fn(),
+  patientChangeDialog: vi.fn(),
   useGetExaminations: vi.fn(),
   historyPanel: vi.fn(),
   searchParams: "",
@@ -27,10 +32,12 @@ vi.mock("react-router", () => ({
 }));
 
 vi.mock("@/hooks/use-permission", () => ({
-  usePermission: () => ({
-    canCreate: mocks.canCreate,
-    canEdit: mocks.canEdit,
-    canDelete: mocks.canDelete,
+  usePermission: (resource: string) => ({
+    canCreate: resource === "examination-unconfirm" ? false : mocks.canCreate,
+    canEdit:
+      resource === "examination-unconfirm" ? mocks.canUnconfirm : mocks.canEdit,
+    canDelete: resource === "examination-unconfirm" ? false : mocks.canDelete,
+    canView: true,
   }),
 }));
 
@@ -78,6 +85,20 @@ vi.mock("../components/ExaminationFormFields", () => ({
   ExaminationFormFields: () => <button type="submit">保存</button>,
 }));
 
+vi.mock("../components/ExaminationUnconfirmDialog", () => ({
+  ExaminationUnconfirmDialog: (props: unknown) => {
+    mocks.unconfirmDialog(props);
+    return <button type="button">確定解除</button>;
+  },
+}));
+
+vi.mock("../components/ExaminationPatientChangeDialog", () => ({
+  ExaminationPatientChangeDialog: (props: unknown) => {
+    mocks.patientChangeDialog(props);
+    return <button type="button">患者を変更</button>;
+  },
+}));
+
 vi.mock("../components/ExaminationHistoryPanel", () => ({
   ExaminationHistoryPanel: (props: unknown) => {
     mocks.historyPanel(props);
@@ -90,9 +111,14 @@ beforeEach(() => {
   mocks.canCreate = false;
   mocks.canEdit = true;
   mocks.canDelete = false;
+  mocks.canUnconfirm = false;
+  mocks.isPersistedConfirmed = false;
+  mocks.isPatientChangeLocked = true;
   mocks.searchParams = "";
   mocks.setSearchParams.mockReset();
   mocks.historyPanel.mockReset();
+  mocks.unconfirmDialog.mockReset();
+  mocks.patientChangeDialog.mockReset();
   mocks.useGetExaminations.mockReset();
   mocks.useGetExaminations.mockReturnValue({ data: [] });
   mocks.useExaminationForm.mockReset();
@@ -100,13 +126,15 @@ beforeEach(() => {
     formData: { status: "依頼中", petId: "pet-1" },
     setFormData: vi.fn(),
     petSelection: {
-      selectedPets: [{
-        id: "pet-1",
-        ownerId: "owner-1",
-        ownerName: "飼主",
-        name: "ポチ",
-        species: "犬",
-      }],
+      selectedPets: [
+        {
+          id: "pet-1",
+          ownerId: "owner-1",
+          ownerName: "飼主",
+          name: "ポチ",
+          species: "犬",
+        },
+      ],
     },
     formAction: vi.fn(),
     formState: { success: false, timestamp: 0 },
@@ -116,6 +144,13 @@ beforeEach(() => {
     isDeleting: false,
     formItems: [],
     setInspectionValue: vi.fn(),
+    addManualItem: vi.fn(),
+    removeItem: vi.fn(),
+    setItemName: vi.fn(),
+    handleUnconfirm: vi.fn(),
+    isUnconfirming: false,
+    isPersistedConfirmed: mocks.isPersistedConfirmed,
+    isPatientChangeLocked: mocks.isPatientChangeLocked,
   }));
 });
 
@@ -130,6 +165,7 @@ describe("ExaminationForm — mutation permission wiring", () => {
         canCreate: false,
         canEdit: true,
         canDelete: false,
+        canUnconfirm: false,
       },
     );
 
@@ -146,6 +182,7 @@ describe("ExaminationForm — mutation permission wiring", () => {
         canCreate: true,
         canEdit: false,
         canDelete: true,
+        canUnconfirm: false,
       },
     );
   });
@@ -168,11 +205,69 @@ describe("ExaminationForm — mutation permission wiring", () => {
 
     expect(screen.getByRole("button", { name: "保存" })).toBeEnabled();
   });
+
+  it("dedicated確定解除権限を通常の編集権限と独立してhookへ渡す", () => {
+    mocks.id = "examination-1";
+    mocks.canEdit = false;
+    mocks.canUnconfirm = true;
+
+    render(<ExaminationForm />);
+
+    expect(mocks.useExaminationForm).toHaveBeenLastCalledWith(
+      "examination-1",
+      undefined,
+      expect.objectContaining({ canEdit: false, canUnconfirm: true }),
+    );
+  });
+
+  it("確定済みかつdedicated権限ありなら通常fieldset外に確定解除を表示する", () => {
+    mocks.id = "examination-1";
+    mocks.canEdit = false;
+    mocks.canUnconfirm = true;
+    mocks.isPersistedConfirmed = true;
+
+    render(<ExaminationForm />);
+
+    const button = screen.getByRole("button", { name: "確定解除" });
+    expect(button.closest("fieldset")).toBeNull();
+    expect(button.closest("form")).toBeNull();
+  });
+
+  it("通常編集権限だけでは確定解除を表示しない", () => {
+    mocks.id = "examination-1";
+    mocks.canEdit = true;
+    mocks.canUnconfirm = false;
+    mocks.isPersistedConfirmed = true;
+
+    render(<ExaminationForm />);
+
+    expect(
+      screen.queryByRole("button", { name: "確定解除" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("初回confirm前かつ編集権限ありのときだけ患者変更を表示する", () => {
+    mocks.id = "examination-1";
+    mocks.canEdit = true;
+    mocks.isPatientChangeLocked = false;
+
+    const view = render(<ExaminationForm />);
+    expect(
+      screen.getByRole("button", { name: "患者を変更" }),
+    ).toBeInTheDocument();
+
+    mocks.isPatientChangeLocked = true;
+    view.rerender(<ExaminationForm />);
+    expect(
+      screen.queryByRole("button", { name: "患者を変更" }),
+    ).not.toBeInTheDocument();
+  });
 });
 
 describe("ExaminationForm — history pivot wiring", () => {
   it("petIdをserver-side filterへ渡し、historyView=pivotを初期表示へ反映する", () => {
-    mocks.searchParams = "petId=pet-1&medicalRecordId=record-1&historyView=pivot";
+    mocks.searchParams =
+      "petId=pet-1&medicalRecordId=record-1&historyView=pivot";
 
     render(<ExaminationForm />);
 
@@ -195,7 +290,8 @@ describe("ExaminationForm — history pivot wiring", () => {
     };
     act(() => props.onHistoryViewChange("pivot"));
 
-    const nextParams = mocks.setSearchParams.mock.lastCall?.[0] as URLSearchParams;
+    const nextParams = mocks.setSearchParams.mock
+      .lastCall?.[0] as URLSearchParams;
     expect(nextParams.toString()).toBe(
       "petId=pet-1&medicalRecordId=record-1&historyView=pivot",
     );
