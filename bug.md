@@ -2220,7 +2220,7 @@ S01〜S12の業務シナリオ検証に続き、個別フォーム単位の受�
 ## BUG-025: 主訴種別・問診テンプレートなど一部マスタで新規作成時に is_active=false（無効）で保存される
 
 - **重大度**: 高（新規作成したマスタが画面上「有効」に見えるトグル状態のまま保存すると、実際には無効状態でDBに保存され、他画面のドロップダウン等に一切現れず、ユーザーが気づかないまま機能しない）
-- **対応状況（2026-08-03 JST）**: OPEN | **根拠**: 主訴/問診 create builder が is_active 省略 → BE non-pointer false 永続（wave-2） | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: create payload に is_active:true を明示し V04 再計測
+- **対応状況（2026-08-04 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: 到達済み commit `4335e3a99718f90157f739f887f965c3e341a905` で FE create builder が `is_active` を明示送信し、BE create request は presence-aware `*bool`（欠落→true / 明示 false は false）に変更。builder unit + medicalrecord package 回帰 green。| **原文シナリオ再検証**: UNREPORTED | **次のアクション**: V04 §1 主訴種別・問診テンプレートをブラウザ再検証し VERIFIED_FIXED 可否を判定
 - **発見シナリオ**: V04 §1 主訴種別 `/settings/interview/chief-complaint`、問診・定型文テンプレート `/settings/inquiry-templates`
 - **再現手順**:
   1. `/settings/interview/chief-complaint` を開く
