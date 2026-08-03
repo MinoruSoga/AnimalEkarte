@@ -10,7 +10,7 @@
 
 - **Product evidence snapshot**: 台帳 commit parent HEAD `fb0cf9c910aef842fdde1a0206bb5546163096c3`。飼主・ペット・受付は到達済み commit `d7bf32f2214d6bb6c252b99b001d2ed2044de7c9`（BUG-001）、`a17d39d6f46ddaf8afcba7ed53419dbc4f92e968`（BUG-002）、`eb7db0dc94fb842c7e569252a9cebc6aee96cd60`（BUG-021）、`fc3c12b2800942c7527b0be951aad20860c6131c`（BUG-022）、`617f6f9bf88be3627ba789d447c98858dd34c80a`（BUG-020）。検査は BUG-004（`2a8aca33c1848613e7c3ccd9ffa2f2a4e3c9ad5e`）、BUG-005（`dfd653eaa5ccb089707c3a088863c39c07669288`）、BUG-017（`7f71063759974257be14a4ed0a8a5fd04a5c6880`）。その他 `IMPLEMENTED_UNVERIFIED` に BUG-011（`b65cf69ef56785c473ddd233624292a3c338401e`）。BUG-003 は承認済み構造化 range data 不在で BLOCKED。
 - **判定基準**: current checkout から到達可能な code/test を正本とする。GitHub Issue/PR の closed/merged 単独は closure に使わない。本更新では原文ブラウザシナリオを再実行していない。
-- **件数**: OPEN=22 / IN_PROGRESS=0 / IMPLEMENTED_UNVERIFIED=9 / VERIFIED_FIXED=0 / BLOCKED=1 / DUPLICATE=0 / NOT_REPRODUCIBLE=0 / **合計=32**
+- **件数**: OPEN=21 / IN_PROGRESS=0 / IMPLEMENTED_UNVERIFIED=10 / VERIFIED_FIXED=0 / BLOCKED=1 / DUPLICATE=0 / NOT_REPRODUCIBLE=0 / **合計=32**
 - **原文シナリオ再検証**: PASS=0 / FAIL=0 / BLOCKED=0 / UNREPORTED=32 / **合計=32**
 - **未検証境界**: 本更新でのブラウザ/DB mutation 再現は未実施。`VERIFIED_FIXED` は 0。
 - **個票正本**: 各 `## BUG-NNN` 節の最新 `対応状況` 行。
@@ -26,13 +26,13 @@
 | 予防接種 | BUG-006, BUG-007 | 2 | OPEN 2 | `vaccination`、対象ペット表示、ペット別接種履歴 |
 | LINE・LIFF・Lステップ連携 | BUG-008, BUG-014, BUG-030, BUG-032 | 4 | OPEN 4 | `line-reserve`, `liff`, LINE予約設定、`lstep/checkup-sync` |
 | 入院・ホテル | BUG-009 | 1 | OPEN 1 | `hospitalization`、ステータスタブ・一覧取得 |
-| カルテ・バイタル | BUG-010, BUG-015 | 2 | OPEN 2 | `medicalrecord`, `vital`、診察/治療プラン、体重単位 |
+| カルテ・バイタル | BUG-010, BUG-015 | 2 | OPEN 1 / IMPLEMENTED_UNVERIFIED 1 | `medicalrecord`, `vital`、診察/治療プラン、体重単位 |
 | 見積・会計 | BUG-011, BUG-013, BUG-018, BUG-019 | 4 | IMPLEMENTED_UNVERIFIED 2 / OPEN 2 | `estimate`, `billing`、未請求明細、締め後会計、Not Found |
 | 顧客集計 | BUG-012 | 1 | OPEN 1 | `aggregation`、LTV/売上集計、CPM取得 |
 | 横断フォーム基盤 | BUG-016 | 1 | OPEN 1 | 予防接種・検査・入院フォーム共通の取得失敗/Not Found 契約 |
 | 認証・権限 | BUG-023, BUG-024, BUG-031 | 3 | OPEN 3 | `auth`、権限グループ、セッション復元・ログイン遷移 |
 | 設定・マスタ | BUG-025, BUG-026, BUG-027, BUG-028, BUG-029 | 5 | OPEN 5 | settings UI、各 master owner、共通保存・重複エラー契約 |
-| **合計** | **BUG-001〜BUG-032** | **32** | **IMPLEMENTED_UNVERIFIED 9 / OPEN 22 / BLOCKED 1** | 各個票を正本とする |
+| **合計** | **BUG-001〜BUG-032** | **32** | **IMPLEMENTED_UNVERIFIED 10 / OPEN 21 / BLOCKED 1** | 各個票を正本とする |
 
 # 実装優先ウェーブ / 横断クラスタ索引
 
@@ -1350,7 +1350,7 @@ S01〜S12の業務シナリオ検証に続き、個別フォーム単位の受�
 ## BUG-015: バイタルの体重 Kg/g 単位切替で数値が単位換算されずそのまま保存され、1000倍のデータ破損が生じる【重大】
 
 - **重大度**: 高（体重 8.5kg の記録が数値そのまま「8.5g」として永続化される。薬量自動計算は直近バイタルの体重を基準にするため、下流で致死的な過小投与量が算出されるリスクがある）
-- **対応状況（2026-08-03 JST）**: OPEN | **根拠**: 単位トグルは weight_unit のみ変更; BE は換算せずペア受理（VitalsTabRows / vital_service）（wave-0） | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: Kg↔g 物理量換算と薬量連動の回帰テストを実装
+- **対応状況（2026-08-03 JST）**: IMPLEMENTED_UNVERIFIED | **実装 commit**: `98639b4fa` | **根拠**: FE `toggleWeightValueAndUnit` で Kg↔g 原子換算; BE weight 構造検証（finite・正数・unit enum）と vital create/update/delete audit 同一 tx fail-closed（`98639b4fa`） | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: V01 §3 手順4 のブラウザ再検証と既存破損データ候補の read-only 抽出（補修は別承認）
 - **発見シナリオ**: V01 §3 手順4（カルテ バイタル `/medical-records/:id` バイタル記録モーダル）
 - **再現手順**:
   1. `/medical-records/1425549` を開き、バイタル記録モーダルで既存レコード（体温45℃・体重8.5kg）を編集
