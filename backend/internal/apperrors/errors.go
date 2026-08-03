@@ -21,11 +21,35 @@ var (
 	ErrNotImplemented  = errors.New("not implemented")
 )
 
+// Stable domain conflict codes (HTTP 409). FE maps these to localized messages.
+const (
+	// CodePermissionGroupNameConflict is returned when a clinic-scoped permission
+	// group name collides with an existing group (constraint uk_permission_groups).
+	CodePermissionGroupNameConflict = "permission_group_name_conflict"
+	// CodeAnimalSpeciesNameConflict is returned when an active animal species name
+	// collides (constraint idx_animal_species_name).
+	CodeAnimalSpeciesNameConflict = "animal_species_name_conflict"
+)
+
+// Measured PostgreSQL unique constraint names used for fail-closed mapping.
+// Values match backend/migrations/001_init.sql (not guessed).
+const (
+	// ConstraintPermissionGroupName is UNIQUE (clinic_id, name) WHERE deleted_at IS NULL.
+	ConstraintPermissionGroupName = "uk_permission_groups"
+	// ConstraintPermissionGroupRules is UNIQUE (group_id, resource) — must NOT map to name conflict.
+	ConstraintPermissionGroupRules = "uk_permission_group_rules"
+	// ConstraintAnimalSpeciesName is UNIQUE (name) WHERE is_active = true.
+	ConstraintAnimalSpeciesName = "idx_animal_species_name"
+)
+
 // AppError はアプリケーション固有のエラー
 type AppError struct {
 	Code    string
 	Message string
-	Err     error
+	// Params holds safe, client-facing structured fields (e.g. input name echo).
+	// Never put constraint names, table names, SQL, or tenant-existence signals here.
+	Params map[string]string
+	Err    error
 }
 
 func (e *AppError) Error() string {
@@ -96,6 +120,77 @@ func WrapAlreadyExists(resource, identifier string) error {
 // IsAlreadyExists はErrAlreadyExistsかどうかを判定する
 func IsAlreadyExists(err error) bool {
 	return errors.Is(err, ErrAlreadyExists)
+}
+
+// WrapNameConflict builds a 409 domain name-conflict with a stable code and
+// optional safe name param (request input echo only).
+func WrapNameConflict(code, name string) error {
+	params := map[string]string{}
+	if name != "" {
+		params["name"] = name
+	}
+	return &AppError{
+		Code:    code,
+		Message: "resource already exists",
+		Params:  params,
+		Err:     ErrConflict,
+	}
+}
+
+// IsNameConflict reports whether err is a domain name-conflict AppError for code.
+func IsNameConflict(err error, code string) bool {
+	var appErr *AppError
+	if !errors.As(err, &appErr) {
+		return false
+	}
+	return appErr.Code == code && errors.Is(err, ErrConflict)
+}
+
+// AsNameUniqueConflict returns a domain name-conflict error when err is a
+// PostgreSQL unique_violation on the given constraint. Otherwise returns nil
+// (fail-closed: do not elevate without a matching measured constraint name).
+func AsNameUniqueConflict(err error, name, constraintName, code string) error {
+	if err == nil || constraintName == "" || code == "" {
+		return nil
+	}
+	var pgErr *pgconn.PgError
+	if !errors.As(err, &pgErr) || pgErr.Code != "23505" {
+		return nil
+	}
+	if pgErr.ConstraintName != constraintName {
+		return nil
+	}
+	return WrapNameConflict(code, name)
+}
+
+// ConflictHTTPExtras returns additive JSON extras for RespondErrorWithExtras
+// when the error carries safe Params. Returns nil when there are no params.
+func ConflictHTTPExtras(err error) map[string]any {
+	var appErr *AppError
+	if !errors.As(err, &appErr) || len(appErr.Params) == 0 {
+		return nil
+	}
+	// Copy to avoid exposing the live map to callers that mutate.
+	params := make(map[string]string, len(appErr.Params))
+	for k, v := range appErr.Params {
+		params[k] = v
+	}
+	return map[string]any{"params": params}
+}
+
+// RespondWithConflictCode reports whether handlers should emit code via
+// RespondErrorWithExtras (domain name conflicts always need the stable code).
+func RespondWithConflictCode(err error) bool {
+	var appErr *AppError
+	if !errors.As(err, &appErr) {
+		return false
+	}
+	switch appErr.Code {
+	case CodePermissionGroupNameConflict, CodeAnimalSpeciesNameConflict:
+		return true
+	default:
+		return len(appErr.Params) > 0
+	}
 }
 
 // WrapConflict は依存データによる操作不可エラーを生成する（409 Conflict）
@@ -184,7 +279,13 @@ func FromGORM(err error, resource, id string) error {
 		case "23503": // foreign_key_violation
 			return WrapInvalidInput("参照先が存在しません")
 		case "23505": // unique_violation
-			return WrapAlreadyExists(resource, "")
+			// Preserve the original pg error so service-layer mappers can read
+			// ConstraintName for fail-closed domain conflict elevation.
+			return &AppError{
+				Code:    "ALREADY_EXISTS",
+				Message: fmt.Sprintf("%s '%s' already exists", resource, ""),
+				Err:     fmt.Errorf("%w: %w", ErrAlreadyExists, err),
+			}
 		case "22003": // numeric_value_out_of_range
 			return WrapInvalidInput("数値が範囲外です")
 		case "22P02": // invalid_text_representation (e.g. invalid integer)

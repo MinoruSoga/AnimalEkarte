@@ -1,6 +1,48 @@
 import axios from "axios";
 import { toast } from "sonner";
 
+/** Stable BE domain conflict codes (BUG-023 / BUG-027). */
+export const CONFLICT_CODE_PERMISSION_GROUP_NAME =
+  "permission_group_name_conflict" as const;
+export const CONFLICT_CODE_ANIMAL_SPECIES_NAME =
+  "animal_species_name_conflict" as const;
+
+type KnownConflictCode =
+  | typeof CONFLICT_CODE_PERMISSION_GROUP_NAME
+  | typeof CONFLICT_CODE_ANIMAL_SPECIES_NAME;
+
+interface ApiErrorBody {
+  error?: string;
+  code?: string;
+  params?: {
+    name?: string;
+  };
+}
+
+/**
+ * Map a known 409 conflict code + safe params to a Japanese toast message.
+ * Returns null for unknown codes, missing code, or empty/missing name
+ * (caller keeps the existing 409 fallback — never show empty 『』).
+ */
+export function localizeConflictMessage(
+  code: string | undefined,
+  params: ApiErrorBody["params"] | undefined,
+): string | null {
+  if (code !== CONFLICT_CODE_PERMISSION_GROUP_NAME &&
+      code !== CONFLICT_CODE_ANIMAL_SPECIES_NAME) {
+    return null;
+  }
+  const knownCode = code as KnownConflictCode;
+  const name = params?.name?.trim();
+  if (!name) {
+    return null;
+  }
+  if (knownCode === CONFLICT_CODE_PERMISSION_GROUP_NAME) {
+    return `権限グループ名『${name}』は既に使用されています`;
+  }
+  return `動物種類『${name}』は既に使用されています`;
+}
+
 /**
  * Centralized API error handler.
  * Extracts user-friendly messages from AxiosError and shows toast notifications.
@@ -11,9 +53,9 @@ import { toast } from "sonner";
 export function handleApiError(err: unknown, context: string): void {
   if (axios.isAxiosError(err)) {
     const status = err.response?.status;
-    
+    const data = err.response?.data as ApiErrorBody | undefined;
     // バックエンドの RespondError 規約に合わせて data.error を取得
-    const serverMessage = err.response?.data?.error as string | undefined;
+    const serverMessage = data?.error;
 
     if (status === 400) {
       toast.error(serverMessage ?? `${context}に失敗しました。入力内容を確認してください。`);
@@ -27,7 +69,14 @@ export function handleApiError(err: unknown, context: string): void {
     } else if (status === 404) {
       toast.error(serverMessage ?? `${context}対象が見つかりません。`);
     } else if (status === 409) {
-      toast.error(serverMessage ?? "他のユーザーによって更新されています。一度リロードしてください。");
+      // Prefer stable domain code → JA localization over raw English serverMessage
+      // (BUG-023/027: permission_group '' already exists / animal_species '' already exists).
+      const localized = localizeConflictMessage(data?.code, data?.params);
+      toast.error(
+        localized ??
+          serverMessage ??
+          "他のユーザーによって更新されています。一度リロードしてください。",
+      );
     } else if (status !== undefined && status >= 500) {
       toast.error(`サーバーエラーが発生しました。しばらく経ってから再度お試しください。`);
     } else {

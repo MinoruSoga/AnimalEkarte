@@ -361,6 +361,14 @@ func (s *permissionGroupService) create(
 	}
 	if input.Rules == nil {
 		if err := s.repo.Create(ctx, group); err != nil {
+			if conflict := apperrors.AsNameUniqueConflict(
+				err,
+				input.Name,
+				apperrors.ConstraintPermissionGroupName,
+				apperrors.CodePermissionGroupNameConflict,
+			); conflict != nil {
+				return nil, conflict
+			}
 			slog.ErrorContext(ctx, "failed to create permission group", "error", err, "clinic_id", clinicID)
 			return nil, apperrors.Wrap(err, "failed to create permission group")
 		}
@@ -378,6 +386,14 @@ func (s *permissionGroupService) create(
 		var err error
 		group, err = writer.CreateWithRules(ctx, group, rules)
 		if err != nil {
+			if conflict := apperrors.AsNameUniqueConflict(
+				err,
+				input.Name,
+				apperrors.ConstraintPermissionGroupName,
+				apperrors.CodePermissionGroupNameConflict,
+			); conflict != nil {
+				return nil, conflict
+			}
 			slog.ErrorContext(ctx, "failed to create permission group with rules", "error", err, "clinic_id", clinicID)
 			return nil, apperrors.Wrap(
 				err,
@@ -504,6 +520,18 @@ func (s *permissionGroupService) update(
 		)
 	}
 	if err != nil {
+		nameForConflict := ""
+		if input.Name != nil {
+			nameForConflict = *input.Name
+		}
+		if conflict := apperrors.AsNameUniqueConflict(
+			err,
+			nameForConflict,
+			apperrors.ConstraintPermissionGroupName,
+			apperrors.CodePermissionGroupNameConflict,
+		); conflict != nil {
+			return nil, conflict
+		}
 		slog.ErrorContext(ctx, "failed to update permission group", "error", err, "id", id, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to update permission group")
 	}

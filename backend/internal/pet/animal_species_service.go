@@ -131,6 +131,14 @@ func (s *animalSpeciesService) Create(ctx context.Context, input *CreateAnimalSp
 	}
 	err := s.withOptionalAuditTx(ctx, func(txCtx context.Context) error {
 		if err := s.repo.Create(txCtx, species); err != nil {
+			if conflict := apperrors.AsNameUniqueConflict(
+				err,
+				input.Name,
+				apperrors.ConstraintAnimalSpeciesName,
+				apperrors.CodeAnimalSpeciesNameConflict,
+			); conflict != nil {
+				return conflict
+			}
 			slog.ErrorContext(txCtx, "failed to create animal species", "error", err)
 			return apperrors.Wrap(err, "failed to create animal species")
 		}
@@ -165,6 +173,18 @@ func (s *animalSpeciesService) Update(ctx context.Context, id uint64, input *Upd
 		}
 		updated, err := s.repo.Update(txCtx, id, fields)
 		if err != nil {
+			nameForConflict := ""
+			if input.Name != nil {
+				nameForConflict = *input.Name
+			}
+			if conflict := apperrors.AsNameUniqueConflict(
+				err,
+				nameForConflict,
+				apperrors.ConstraintAnimalSpeciesName,
+				apperrors.CodeAnimalSpeciesNameConflict,
+			); conflict != nil {
+				return conflict
+			}
 			slog.ErrorContext(txCtx, "failed to update animal species", "error", err, "id", id)
 			return apperrors.Wrap(err, "failed to update animal species")
 		}

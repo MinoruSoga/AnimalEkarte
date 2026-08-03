@@ -40,6 +40,17 @@ func RespondErrorWithExtras(c *gin.Context, err error, extras map[string]any) {
 	c.JSON(status, response)
 }
 
+// RespondErrorPreferringConflictCode emits stable domain conflict `code` and
+// safe `params` via RespondErrorWithExtras when present; otherwise RespondError.
+// Additive only for domain name-conflict paths — other endpoints keep RespondError.
+func RespondErrorPreferringConflictCode(c *gin.Context, err error) {
+	if apperrors.RespondWithConflictCode(err) {
+		RespondErrorWithExtras(c, err, apperrors.ConflictHTTPExtras(err))
+		return
+	}
+	RespondError(c, err)
+}
+
 // ResolveErrorResponse はエラーから HTTP ステータスコード・メッセージ・エラーコードを決定する。
 // RespondError / RespondErrorWithExtras 共通の唯一の分類ロジック。
 //

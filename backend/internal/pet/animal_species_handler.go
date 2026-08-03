@@ -85,7 +85,7 @@ func (h *Handler) CreateAnimalSpecies(c *gin.Context) {
 
 	species, err := h.animalSpecies.Create(c.Request.Context(), req.toServiceInput(), meta)
 	if err != nil {
-		httpapi.RespondError(c, err)
+		httpapi.RespondErrorPreferringConflictCode(c, err)
 		return
 	}
 	c.Header("Location", fmt.Sprintf("/api/v1/masters/animal-species/%d", species.ID))
@@ -114,7 +114,7 @@ func (h *Handler) UpdateAnimalSpecies(c *gin.Context) {
 
 	species, err := h.animalSpecies.Update(c.Request.Context(), id, req.toServiceInput(), meta)
 	if err != nil {
-		httpapi.RespondError(c, err)
+		httpapi.RespondErrorPreferringConflictCode(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, toAnimalSpeciesResponse(species))

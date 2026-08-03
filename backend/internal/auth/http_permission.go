@@ -366,7 +366,7 @@ func (h *HTTPHandler) CreatePermissionGroup(c *gin.Context) {
 		audit,
 	)
 	if err != nil {
-		httpapi.RespondError(c, err)
+		httpapi.RespondErrorPreferringConflictCode(c, err)
 		return
 	}
 	c.Header("Location", fmt.Sprintf("/v1/masters/permission-groups/%d", group.ID))
@@ -406,7 +406,7 @@ func (h *HTTPHandler) UpdatePermissionGroup(c *gin.Context) {
 		audit,
 	)
 	if err != nil {
-		httpapi.RespondError(c, err)
+		httpapi.RespondErrorPreferringConflictCode(c, err)
 		return
 	}
 
