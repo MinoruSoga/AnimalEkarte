@@ -1,6 +1,6 @@
 // React/Framework
 import { C, ICON, LAYOUT } from "@/lib/design-tokens";
-import { useState, useCallback, useMemo, useDeferredValue } from "react";
+import { useState, useCallback, useMemo, useDeferredValue, useEffect } from "react";
 import { useSearchParams } from "react-router";
 import { normalizeKana } from "@/lib/normalize-kana";
 
@@ -15,7 +15,6 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { PropertyFilter } from "@/components/shared/PropertyFilter/PropertyFilter";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
-import { usePagination } from "@/hooks/use-pagination";
 import { Pagination } from "@/components/shared/Pagination/Pagination";
 
 // Relative
@@ -211,11 +210,44 @@ export function HospitalizationList() {
     return sorted;
   }, [typeFilteredHospitalizations, activeSorts]);
 
-  // list view の client ページネーションは「取得済み server page 内」の再スライス用。
-  // タブ件数の正本は serverTotal。server page 切替は URL `page` → listFilters.page。
-  const pagination = usePagination(sortedHospitalizations, {
-    resetKey: `${deferredSearchTerm}:${statusFilter}:${serverPage}`,
-  });
+  // BUG-009 review: usePagination クライアントスライスを撤去し server total/page/limit を正本にする
+  // （ExaminationsList BUG-411 同型）。list 行はサーバが既に返す page 分を client filter/sort した集合。
+  const serverLimit = HOSPITALIZATION_LIST_DEFAULT_LIMIT;
+  const totalPages = Math.max(1, Math.ceil(serverTotal / serverLimit));
+  const pagination = {
+    paginatedData: sortedHospitalizations,
+    totalPages,
+    totalCount: serverTotal,
+    startIndex: serverTotal === 0 ? 0 : (serverPage - 1) * serverLimit + 1,
+    endIndex: Math.min(serverPage * serverLimit, serverTotal),
+    currentPage: serverPage,
+  };
+
+  // FE-144: URL page が totalPages を超えたら clamp（母集団縮小で空 page に迷わない）
+  useEffect(() => {
+    if (hospitalizationsLoading) return;
+    const clampedPage = Math.max(1, Math.min(urlPage, totalPages));
+    if (clampedPage !== urlPage) {
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        if (clampedPage === 1) {
+          next.delete("page");
+        } else {
+          next.set("page", String(clampedPage));
+        }
+        return next;
+      }, { replace: true });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- setSearchParams は安定。urlPage/totalPages/loading 変化時のみ
+  }, [urlPage, totalPages, hospitalizationsLoading]);
+
+  const resetListPage = useCallback(() => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete("page");
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
 
   // FE-144: ページ変更時に URL を更新し、server re-fetch を誘発する
   const handlePageChange = useCallback((page: number) => {
@@ -229,6 +261,31 @@ export function HospitalizationList() {
       return next;
     }, { replace: true });
   }, [setSearchParams]);
+
+  const handleStatusTabChange = useCallback(
+    (v: string) => {
+      if (!isValidFilterStatus(v)) return;
+      setStatusFilter(v);
+      resetListPage();
+    },
+    [setStatusFilter, resetListPage],
+  );
+
+  const handleSearchChange = useCallback(
+    (value: string) => {
+      setSearchTerm(value);
+      resetListPage();
+    },
+    [setSearchTerm, resetListPage],
+  );
+
+  const handleFilterChange = useCallback(
+    (next: ActiveFilter[]) => {
+      setActiveFilters(next);
+      resetListPage();
+    },
+    [resetListPage],
+  );
 
   if (hospitalizationsLoading) return <LoadingFallback />;
   if (hospitalizationsError) return <ErrorFallback />;
@@ -252,7 +309,7 @@ export function HospitalizationList() {
         <UnifiedTabs
           items={tabItems}
           value={statusFilter}
-          onValueChange={(v) => isValidFilterStatus(v) && setStatusFilter(v)}
+          onValueChange={handleStatusTabChange}
           className="w-full"
         />
 
@@ -262,9 +319,9 @@ export function HospitalizationList() {
                 <PropertyFilter
                   properties={filterProperties}
                   activeFilters={activeFilters}
-                  onFilterChange={setActiveFilters}
+                  onFilterChange={handleFilterChange}
                   searchTerm={searchTerm}
-                  onSearchChange={setSearchTerm}
+                  onSearchChange={handleSearchChange}
                   searchPlaceholder="飼主名、ペット名、入院No..."
                   count={serverTotal}
                   sortProperties={HOSPITALIZATION_SORT_PROPERTIES}
@@ -296,7 +353,7 @@ export function HospitalizationList() {
             />
         ) : (
             <>
-              {/* board と同じ typeFilteredHospitalizations を list の正本とし、client slice のみ paginate */}
+              {/* board と同じ typeFiltered 集合。list は server page 分をそのまま表示 */}
               <HospitalizationListView
                   hospitalizations={pagination.paginatedData}
                   onNavigate={handleNavigateToForm}
@@ -306,7 +363,7 @@ export function HospitalizationList() {
                 <Pagination
                   currentPage={pagination.currentPage}
                   totalPages={pagination.totalPages}
-                  totalCount={serverTotal}
+                  totalCount={pagination.totalCount}
                   startIndex={pagination.startIndex}
                   endIndex={pagination.endIndex}
                   onPageChange={handlePageChange}

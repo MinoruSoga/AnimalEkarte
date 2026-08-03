@@ -230,4 +230,20 @@ describe("HospitalizationList — BUG-009 status tab → server filter", () => {
 
     expect(await screen.findByText(/42/)).toBeInTheDocument();
   });
+
+  it("server total が limit を超えると list view に Pagination が出る（client window ではない）", async () => {
+    mockHospitalizationsPage(
+      [makeHosp({ id: "1", petName: "ページ1行", status: "入院中" })],
+      42,
+    );
+
+    const user = userEvent.setup();
+    render(<HospitalizationList />, { wrapper: createWrapper() });
+    await user.click(screen.getByRole("radio", { name: "List View" }));
+
+    // total=42, limit=20 → totalPages=3 → Pagination（server 正本）が表示される
+    expect(await screen.findByText(/42件中/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "次のページ" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "最後のページ" })).toBeEnabled();
+  });
 });
