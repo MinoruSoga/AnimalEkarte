@@ -15,6 +15,7 @@ import {
   displayNum,
   formatRecordedAt,
   parseVitalsNumber,
+  toggleWeightValueAndUnit,
   type VitalsAddFormState,
 } from "./vitals-tab-table-model";
 
@@ -107,6 +108,16 @@ export const VitalsEditRow = memo(function VitalsEditRow({
     []
   );
 
+  const handleWeightUnitToggle = useCallback(() => {
+    setForm((prev) => {
+      const next = toggleWeightValueAndUnit(
+        prev.weight,
+        prev.weight_unit as BodyWeightUnit
+      );
+      return { ...prev, weight: next.weight, weight_unit: next.weight_unit };
+    });
+  }, []);
+
   const handleSave = useCallback(() => {
     const errors: Record<string, string> = {};
     if (!form.recorded_at) {
@@ -195,7 +206,7 @@ export const VitalsEditRow = memo(function VitalsEditRow({
           />
           <button
             type="button"
-            onClick={() => handleChange("weight_unit", form.weight_unit === "Kg" ? "g" : "Kg")}
+            onClick={handleWeightUnitToggle}
             className={`text-2xs px-1 h-6 rounded border ${C.borderMedium} ${C.bgPage} ${C.hoverBgPage} min-w-[24px]`}
           >
             {form.weight_unit}
@@ -242,7 +253,8 @@ interface VitalsAddRowProps {
   addForm: VitalsAddFormState;
   errors: Record<string, string>;
   isPending: boolean;
-  onChange: (field: keyof VitalsAddFormState, value: string) => void;
+  /** 単一フィールドまたは体重単位トグルの原子パッチ（weight + weight_unit）。 */
+  onChange: (patch: Partial<VitalsAddFormState>) => void;
   onSubmit: () => void;
   onCancel: () => void;
 }
@@ -262,7 +274,7 @@ export function VitalsAddRow({
           autoFocus
           type="datetime-local"
           value={addForm.recorded_at}
-          onChange={(e) => onChange("recorded_at", e.target.value)}
+          onChange={(e) => onChange({ recorded_at: e.target.value })}
           aria-label="記録日時"
           className={`${ADD_INPUT_CLASS} w-40`}
         />
@@ -273,7 +285,7 @@ export function VitalsAddRow({
           type="number"
           step="0.1"
           value={addForm.temperature}
-          onChange={(e) => onChange("temperature", e.target.value)}
+          onChange={(e) => onChange({ temperature: e.target.value })}
           placeholder="体温"
           aria-label="体温"
           className={`${ADD_INPUT_CLASS} w-20`}
@@ -283,7 +295,7 @@ export function VitalsAddRow({
       <input
         type="number"
         value={addForm.heart_rate}
-        onChange={(e) => onChange("heart_rate", e.target.value)}
+        onChange={(e) => onChange({ heart_rate: e.target.value })}
         placeholder="心拍数"
         aria-label="心拍数"
         className={`${ADD_INPUT_CLASS} w-20`}
@@ -291,7 +303,7 @@ export function VitalsAddRow({
       <input
         type="number"
         value={addForm.respiration_rate}
-        onChange={(e) => onChange("respiration_rate", e.target.value)}
+        onChange={(e) => onChange({ respiration_rate: e.target.value })}
         placeholder="呼吸数"
         aria-label="呼吸数"
         className={`${ADD_INPUT_CLASS} w-20`}
@@ -301,14 +313,16 @@ export function VitalsAddRow({
           type="number"
           step="0.01"
           value={addForm.weight}
-          onChange={(e) => onChange("weight", e.target.value)}
+          onChange={(e) => onChange({ weight: e.target.value })}
           placeholder="体重"
           aria-label="体重"
           className={`${ADD_INPUT_CLASS} w-20 text-right`}
         />
         <button
           type="button"
-          onClick={() => onChange("weight_unit", addForm.weight_unit === "Kg" ? "g" : "Kg")}
+          onClick={() =>
+            onChange(toggleWeightValueAndUnit(addForm.weight, addForm.weight_unit))
+          }
           className={`text-2xs px-1 h-6 rounded border ${C.borderMedium} ${C.bgPage} ${C.hoverBgPage} min-w-[24px]`}
         >
           {addForm.weight_unit}
@@ -317,7 +331,7 @@ export function VitalsAddRow({
       <input
         type="text"
         value={addForm.note}
-        onChange={(e) => onChange("note", e.target.value)}
+        onChange={(e) => onChange({ note: e.target.value })}
         onKeyDown={(e) => {
           if (e.key === "Enter") onSubmit();
           if (e.key === "Escape") onCancel();

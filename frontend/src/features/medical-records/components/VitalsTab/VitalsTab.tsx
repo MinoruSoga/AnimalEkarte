@@ -58,12 +58,9 @@ export const VitalsTab = memo(function VitalsTab({ medicalRecordId, recordClinic
     [vitals]
   );
 
-  const handleAddFormChange = useCallback(
-    (field: keyof VitalsAddFormState, value: string) => {
-      setAddForm((prev) => ({ ...prev, [field]: value }));
-    },
-    []
-  );
+  const handleAddFormChange = useCallback((patch: Partial<VitalsAddFormState>) => {
+    setAddForm((prev) => ({ ...prev, ...patch }));
+  }, []);
 
   const handleAddSubmit = useCallback(() => {
     if (!canCreate) return;

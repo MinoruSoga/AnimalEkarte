@@ -82,6 +82,10 @@ func (h *VitalHandler) CreateVital(c *gin.Context) {
 		httpapi.RespondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
 		return
 	}
+	if err := req.validate(); err != nil {
+		httpapi.RespondError(c, err)
+		return
+	}
 
 	var petID uint64
 	if mr.PetID != nil {
@@ -124,6 +128,10 @@ func (h *VitalHandler) UpdateVital(c *gin.Context) {
 	var req updateVitalRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		httpapi.RespondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
+		return
+	}
+	if err := req.validate(); err != nil {
+		httpapi.RespondError(c, err)
 		return
 	}
 

@@ -1,8 +1,12 @@
 package medicalrecord
 
 import (
+	"math"
+	"strings"
 	"testing"
 	"time"
+
+	"github.com/animal-ekarte/backend/internal/apperrors"
 )
 
 func TestCreateVitalRequest_ToServiceInput(t *testing.T) {
@@ -93,5 +97,59 @@ func TestUpdateVitalRequest_ToServiceInput_NilFields(t *testing.T) {
 	}
 	if input.ActorID == nil || *input.ActorID != 9 {
 		t.Fatalf("ActorID = %v, want 9", input.ActorID)
+	}
+}
+
+func TestValidateVitalWeightFields(t *testing.T) {
+	nan := math.NaN()
+	inf := math.Inf(1)
+	zero := 0.0
+	neg := -0.1
+	ok := 8.5
+	unitKg := "Kg"
+	unitG := "g"
+	unitBad := "lb"
+	unitLower := "kg"
+
+	cases := []struct {
+		name    string
+		weight  *float64
+		unit    *string
+		wantErr bool
+	}{
+		{name: "nil weight and unit ok", weight: nil, unit: nil, wantErr: false},
+		{name: "ok weight with Kg", weight: &ok, unit: &unitKg, wantErr: false},
+		{name: "ok weight with g", weight: &ok, unit: &unitG, wantErr: false},
+		{name: "unit only ok", weight: nil, unit: &unitKg, wantErr: false},
+		{name: "NaN rejected", weight: &nan, unit: &unitKg, wantErr: true},
+		{name: "Inf rejected", weight: &inf, unit: nil, wantErr: true},
+		{name: "zero rejected", weight: &zero, unit: &unitKg, wantErr: true},
+		{name: "negative rejected", weight: &neg, unit: &unitG, wantErr: true},
+		{name: "invalid unit rejected", weight: &ok, unit: &unitBad, wantErr: true},
+		{name: "lowercase kg rejected", weight: &ok, unit: &unitLower, wantErr: true},
+	}
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateVitalWeightFields(tt.weight, tt.unit)
+			if tt.wantErr {
+				if err == nil {
+					t.Fatalf("expected error, got nil")
+				}
+				if !apperrors.IsInvalidInput(err) {
+					t.Fatalf("want invalid input, got %v", err)
+				}
+				// エラー文言に SQL / 内部詳細を含めない（安定 400 契約）
+				msg := err.Error()
+				for _, leak := range []string{"SQL", "sqlstate", "gorm", "clinic_id="} {
+					if strings.Contains(msg, leak) {
+						t.Fatalf("error message leaked internal detail %q: %q", leak, msg)
+					}
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+		})
 	}
 }

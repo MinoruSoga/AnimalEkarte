@@ -3,6 +3,7 @@ package medicalrecord
 import (
 	"context"
 	"log/slog"
+	"math"
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
@@ -135,6 +136,9 @@ func (s *vitalService) Create(ctx context.Context, medicalRecordID uint64, input
 	if input.Temperature == nil && input.HeartRate == nil && input.RespirationRate == nil && input.Weight == nil {
 		return nil, apperrors.WrapInvalidInput(errMsgAtLeastOneField)
 	}
+	if err := validateVitalWeight(input.Weight, input.WeightUnit); err != nil {
+		return nil, err
+	}
 	if s.repo == nil || s.medicalRecordRepo == nil {
 		return nil, apperrors.WrapInternalServerError("vital persistence dependencies are required")
 	}
@@ -196,6 +200,18 @@ func (s *vitalService) Create(ctx context.Context, medicalRecordID uint64, input
 			slog.ErrorContext(txCtx, "failed to create vital record", "error", err)
 			return apperrors.Wrap(err, "failed to create vital record")
 		}
+		// BUG-015: vital create audit は業務 write と同一 tx・fail-closed（best-effort 廃止）。
+		if s.auditService != nil && input.ClinicID != 0 {
+			var actorID *uint64
+			if input.StaffID != nil {
+				actorID = input.StaffID
+			}
+			newValue := extractVitalImportantFields(vital)
+			if err := s.auditService.LogVitalChange(txCtx, input.ClinicID, actorID, "create", vital.ID, medicalRecordID, nil, newValue); err != nil {
+				slog.ErrorContext(txCtx, "audit log failed for vital create", "error", err, "vital_id", vital.ID)
+				return apperrors.Wrap(err, "failed to write vital create audit")
+			}
+		}
 		return nil
 	}); err != nil {
 		return nil, err
@@ -204,18 +220,6 @@ func (s *vitalService) Create(ctx context.Context, medicalRecordID uint64, input
 	slog.InfoContext(ctx, "vital created",
 		slog.Uint64("vital_id", vital.ID),
 		slog.Uint64("medical_record_id", medicalRecordID))
-
-	// 監査ログ: create（best-effort）
-	if s.auditService != nil && input.ClinicID != 0 {
-		var actorID *uint64
-		if input.StaffID != nil {
-			actorID = input.StaffID
-		}
-		newValue := extractVitalImportantFields(vital)
-		if err := s.auditService.LogVitalChange(ctx, input.ClinicID, actorID, "create", vital.ID, medicalRecordID, nil, newValue); err != nil {
-			slog.ErrorContext(ctx, "audit log failed for vital create", "error", err, "vital_id", vital.ID)
-		}
-	}
 
 	return vital, nil
 }
@@ -230,6 +234,9 @@ func (s *vitalService) Update(ctx context.Context, clinicID, medicalRecordID, vi
 	}
 	if clinicID == 0 || medicalRecordID == 0 || vitalID == 0 {
 		return nil, apperrors.WrapInvalidInput("clinic_id, medical_record_id, and vital_id are required")
+	}
+	if err := validateVitalWeight(input.Weight, input.WeightUnit); err != nil {
+		return nil, err
 	}
 	if s.repo == nil || s.medicalRecordRepo == nil {
 		return nil, apperrors.WrapInternalServerError("vital persistence dependencies are required")
@@ -320,6 +327,16 @@ func (s *vitalService) Update(ctx context.Context, clinicID, medicalRecordID, vi
 				!result.Staff.IsActive) {
 			return apperrors.WrapNotFound("staff", "nested relation")
 		}
+		// BUG-015: vital update audit は業務 write と同一 tx・fail-closed（best-effort 廃止）。
+		if s.auditService != nil {
+			oldDiff, newDiff := diffVitalImportantFields(existing, result)
+			if oldDiff != nil {
+				if err := s.auditService.LogVitalChange(txCtx, clinicID, input.ActorID, "update", vitalID, medicalRecordID, oldDiff, newDiff); err != nil {
+					slog.ErrorContext(txCtx, "audit log failed for vital update", "error", err, "vital_id", vitalID)
+					return apperrors.Wrap(err, "failed to write vital update audit")
+				}
+			}
+		}
 		return nil
 	}); err != nil {
 		return nil, err
@@ -329,16 +346,6 @@ func (s *vitalService) Update(ctx context.Context, clinicID, medicalRecordID, vi
 		slog.Uint64("clinic_id", clinicID),
 		slog.Uint64("vital_id", vitalID),
 		slog.Uint64("medical_record_id", medicalRecordID))
-
-	// 監査ログ: update（best-effort）
-	if s.auditService != nil {
-		oldDiff, newDiff := diffVitalImportantFields(existing, result)
-		if oldDiff != nil {
-			if err := s.auditService.LogVitalChange(ctx, clinicID, input.ActorID, "update", vitalID, medicalRecordID, oldDiff, newDiff); err != nil {
-				slog.ErrorContext(ctx, "audit log failed for vital update", "error", err, "vital_id", vitalID)
-			}
-		}
-	}
 
 	return result, nil
 }
@@ -413,25 +420,48 @@ func (s *vitalService) Delete(ctx context.Context, clinicID, medicalRecordID, vi
 			"failed to find medical record", "確定済みカルテのバイタルは削除できません"); err != nil {
 			return err
 		}
+		// pre-delete 値は delete 前に確定し、同一 tx で fail-closed audit に渡す（clinical_plan 同型）。
+		oldValue := extractVitalImportantFields(existing)
 		if err := s.repo.Delete(txCtx, clinicID, vitalID); err != nil {
 			slog.ErrorContext(txCtx, "failed to delete vital record", "error", err, "clinic_id", clinicID, "vital_id", vitalID)
 			return apperrors.Wrap(err, "failed to delete vital record")
+		}
+		// BUG-015: vital delete audit は業務 write と同一 tx・fail-closed（best-effort 廃止）。
+		if s.auditService != nil {
+			if err := s.auditService.LogVitalChange(txCtx, clinicID, nil, "delete", vitalID, medicalRecordID, oldValue, nil); err != nil {
+				slog.ErrorContext(txCtx, "audit log failed for vital delete", "error", err, "vital_id", vitalID)
+				return apperrors.Wrap(err, "failed to write vital delete audit")
+			}
 		}
 		return nil
 	}); err != nil {
 		return err
 	}
 
-	oldValue := extractVitalImportantFields(existing)
 	slog.InfoContext(ctx, "vital deleted",
 		slog.Uint64("clinic_id", clinicID),
 		slog.Uint64("vital_id", vitalID),
 		slog.Uint64("medical_record_id", medicalRecordID))
 
-	// 監査ログ: delete（best-effort, actorID=nil）
-	if s.auditService != nil {
-		if err := s.auditService.LogVitalChange(ctx, clinicID, nil, "delete", vitalID, medicalRecordID, oldValue, nil); err != nil {
-			slog.ErrorContext(ctx, "audit log failed for vital delete", "error", err, "vital_id", vitalID)
+	return nil
+}
+
+// validateVitalWeight は service 層での weight 構造検証（request 境界と二重）。
+func validateVitalWeight(weight *float64, unit *model.BodyWeightUnit) error {
+	if weight != nil {
+		if math.IsNaN(*weight) || math.IsInf(*weight, 0) {
+			return apperrors.WrapInvalidInput("weight must be a finite number")
+		}
+		if *weight <= 0 {
+			return apperrors.WrapInvalidInput("weight must be greater than zero")
+		}
+	}
+	if unit != nil {
+		switch *unit {
+		case model.BodyWeightUnitKg, model.BodyWeightUnitG:
+			// ok
+		default:
+			return apperrors.WrapInvalidInput("weight_unit must be Kg or g")
 		}
 	}
 	return nil

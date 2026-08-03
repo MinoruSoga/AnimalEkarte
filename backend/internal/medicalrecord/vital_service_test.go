@@ -3,6 +3,7 @@ package medicalrecord
 import (
 	"context"
 	"errors"
+	"math"
 	"testing"
 	"time"
 
@@ -797,8 +798,9 @@ func TestVitalService_Delete_AuditLog(t *testing.T) {
 	assert.Contains(t, auditSvc.calls, "delete", "delete 操作が audit に記録されること")
 }
 
-// TestVitalService_AuditFailure_NonFatal はバイタル監査ログ失敗がメイン処理を止めないことを確認する。
-func TestVitalService_AuditFailure_NonFatal(t *testing.T) {
+// TestVitalService_Create_AuditFailureRollsBack は create の audit 失敗で業務 write が error になることを固定する（BUG-015 fail-closed）。
+func TestVitalService_Create_AuditFailureRollsBack(t *testing.T) {
+	createCalled := false
 	auditSvc := &mockVitalAuditLogger{
 		logVitalChangeFn: func(_ context.Context, _ uint64, _ *uint64, _ string, _, _ uint64, _, _ map[string]any) error {
 			return errors.New("audit db down")
@@ -806,6 +808,7 @@ func TestVitalService_AuditFailure_NonFatal(t *testing.T) {
 	}
 	repo := &mockVitalRepository{
 		createFn: func(_ context.Context, v *model.VitalRecord) error {
+			createCalled = true
 			v.ID = 1
 			return nil
 		},
@@ -837,8 +840,180 @@ func TestVitalService_AuditFailure_NonFatal(t *testing.T) {
 		RecordedAt:  time.Now(),
 		Temperature: ptrFloat(38.5),
 	}
-	_, err := svc.Create(context.Background(), 77, input)
-	assert.NoError(t, err, "監査ログ失敗はメイン処理のエラーを返さない（best-effort）")
+	got, err := svc.Create(context.Background(), 77, input)
+	assert.Error(t, err, "audit 失敗時は create が error を返す")
+	assert.Nil(t, got)
+	assert.True(t, createCalled, "create は audit 前に走るが同一 tx 内で error により rollback される契約")
+}
+
+// TestVitalService_Update_AuditFailureRollsBack は update の audit 失敗で業務 write が error になることを固定する（BUG-015）。
+func TestVitalService_Update_AuditFailureRollsBack(t *testing.T) {
+	updateCalled := false
+	auditSvc := &mockVitalAuditLogger{
+		logVitalChangeFn: func(_ context.Context, _ uint64, _ *uint64, _ string, _, _ uint64, _, _ map[string]any) error {
+			return errors.New("audit write failed")
+		},
+	}
+	existingVital := &model.VitalRecord{
+		ID:              55,
+		ClinicID:        1,
+		PetID:           10,
+		MedicalRecordID: ptrUint64(77),
+		WeightUnit:      model.BodyWeightUnitKg,
+		RecordedAt:      time.Now(),
+		Temperature:     ptrFloat(38.5),
+	}
+	updatedVital := &model.VitalRecord{
+		ID:              55,
+		ClinicID:        1,
+		PetID:           10,
+		MedicalRecordID: ptrUint64(77),
+		WeightUnit:      model.BodyWeightUnitKg,
+		RecordedAt:      time.Now(),
+		Temperature:     ptrFloat(39.0),
+	}
+	callCount := 0
+	repo := &mockVitalRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.VitalRecord, error) {
+			callCount++
+			if callCount == 1 {
+				return existingVital, nil
+			}
+			return updatedVital, nil
+		},
+		updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+			updateCalled = true
+			return nil
+		},
+	}
+	mrRepo := &mockMedicalRecordRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+			return &model.MedicalRecord{
+				ID: 77, ClinicID: 1, OwnerID: ptrUint64(100), PetID: ptrUint64(10),
+				Status: model.MedicalRecordStatusDraft,
+			}, nil
+		},
+	}
+	svc := NewVitalServiceWithRelationValidation(
+		repo, mrRepo, auditSvc, validVitalRelations(10, 100), nil, nil, &mockCheckupTransactor{},
+	)
+	staffID := uint64(20)
+	got, err := svc.Update(context.Background(), 1, 77, 55, &UpdateVitalInput{
+		Temperature: ptrFloat(39.0),
+		ActorID:     &staffID,
+	})
+	assert.Error(t, err)
+	assert.Nil(t, got)
+	assert.True(t, updateCalled)
+}
+
+// TestVitalService_Delete_AuditFailureRollsBack は delete の audit 失敗で業務 write が error になることを固定する（BUG-015）。
+func TestVitalService_Delete_AuditFailureRollsBack(t *testing.T) {
+	deleteCalled := false
+	auditSvc := &mockVitalAuditLogger{
+		logVitalChangeFn: func(_ context.Context, _ uint64, _ *uint64, _ string, _, _ uint64, _, _ map[string]any) error {
+			return errors.New("audit write failed")
+		},
+	}
+	existingVital := &model.VitalRecord{
+		ID:              55,
+		MedicalRecordID: ptrUint64(77),
+		WeightUnit:      model.BodyWeightUnitKg,
+		RecordedAt:      time.Now(),
+	}
+	repo := &mockVitalRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.VitalRecord, error) {
+			return existingVital, nil
+		},
+		deleteFn: func(_ context.Context, _, _ uint64) error {
+			deleteCalled = true
+			return nil
+		},
+	}
+	mrRepo := &mockMedicalRecordRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+			return &model.MedicalRecord{ID: 77, Status: model.MedicalRecordStatusDraft}, nil
+		},
+	}
+	svc := NewVitalService(repo, mrRepo, auditSvc, &mockCheckupTransactor{})
+	err := svc.Delete(context.Background(), 1, 77, 55)
+	assert.Error(t, err)
+	assert.True(t, deleteCalled)
+}
+
+// TestVitalService_Create_RejectsInvalidWeight は weight 構造検証（NaN/Inf/≤0/不正 unit）を 400 契約で拒否する（BUG-015）。
+func TestVitalService_Create_RejectsInvalidWeight(t *testing.T) {
+	createCalled := false
+	repo := &mockVitalRepository{
+		createFn: func(_ context.Context, _ *model.VitalRecord) error {
+			createCalled = true
+			return nil
+		},
+	}
+	medRecordRepo := &mockMedicalRecordRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+			return &model.MedicalRecord{
+				ID: 77, ClinicID: 1, OwnerID: ptrUint64(100), PetID: ptrUint64(10),
+				Status: model.MedicalRecordStatusDraft,
+			}, nil
+		},
+	}
+	svc := NewVitalServiceWithRelationValidation(
+		repo, medRecordRepo, nil, validVitalRelations(10, 100), nil, nil, &mockCheckupTransactor{},
+	)
+
+	nan := math.NaN()
+	inf := math.Inf(1)
+	zero := 0.0
+	neg := -1.0
+	okWeight := 5.0
+	badUnit := model.BodyWeightUnit("lb")
+
+	cases := []struct {
+		name  string
+		input *CreateVitalInput
+	}{
+		{
+			name: "NaN weight",
+			input: &CreateVitalInput{
+				ClinicID: 1, PetID: 10, RecordedAt: time.Now(), Weight: &nan,
+			},
+		},
+		{
+			name: "Inf weight",
+			input: &CreateVitalInput{
+				ClinicID: 1, PetID: 10, RecordedAt: time.Now(), Weight: &inf,
+			},
+		},
+		{
+			name: "zero weight",
+			input: &CreateVitalInput{
+				ClinicID: 1, PetID: 10, RecordedAt: time.Now(), Weight: &zero,
+			},
+		},
+		{
+			name: "negative weight",
+			input: &CreateVitalInput{
+				ClinicID: 1, PetID: 10, RecordedAt: time.Now(), Weight: &neg,
+			},
+		},
+		{
+			name: "invalid unit",
+			input: &CreateVitalInput{
+				ClinicID: 1, PetID: 10, RecordedAt: time.Now(), Weight: &okWeight, WeightUnit: &badUnit,
+			},
+		},
+	}
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			createCalled = false
+			got, err := svc.Create(context.Background(), 77, tt.input)
+			assert.Error(t, err)
+			assert.True(t, apperrors.IsInvalidInput(err), "want invalid input, got %v", err)
+			assert.Nil(t, got)
+			assert.False(t, createCalled, "invalid weight must not reach repository")
+		})
+	}
 }
 
 // TestBuildVitalUpdate は buildVitalUpdate の全フィールド網羅とゼロ値挙動を検証する。

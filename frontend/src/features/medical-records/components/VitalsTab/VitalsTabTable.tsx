@@ -35,7 +35,7 @@ interface VitalsTableProps {
   updatePending: boolean;
   deletePending: boolean;
   onStartAdd: () => void;
-  onAddFormChange: (field: keyof VitalsAddFormState, value: string) => void;
+  onAddFormChange: (patch: Partial<VitalsAddFormState>) => void;
   onAddSubmit: () => void;
   onAddCancel: () => void;
   onStartEdit: (vitalId: string) => void;
