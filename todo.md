@@ -34,6 +34,9 @@
 | ISSUE-249-PRINT-SNAPSHOT | 検査結果の保存 snapshot 印刷 | **TASK-031**（READY_AGENT・TASK-027 の interface freeze 完了により着手可能） |
 | ISSUE-249-IMPORT-REVERT | lab import job の compensating revert | **TASK-032**（READY_AGENT・migration review 必須） |
 | ISSUE-201-EMERGENCY-ADMIN | 構造化救急投薬記録と欠落時 fail-closed cutover | **TASK-033**（臨床承認・migration review 後） |
+| ISSUE-211-CLINIC-PACKAGE-IMPORT | 健診 package の clinic-scoped import/preflight | **TASK-374**（READY_AGENT・additive migration review 必須・実値/apply は USER） |
+| ISSUE-257-GOLIVE-REPLAN | 期限切れ go-live runbook の gate-driven 再計画 | **TASK-375**（READY_AGENT・docs-only） |
+| ISSUE-258-DELIVERY-BOUNDARY | #258 U1〜U12 と #256 U13 の文書境界同期 | **TASK-376**（READY_AGENT・docs-only） |
 
 ### 対応済み（削除済み・再掲しない）
 
@@ -741,7 +744,7 @@ validator_exit=0
 
 - **対応 Issue**: GitHub Issue #201。
 - **問題**: current addendum は finalized medical record 専用の自由記述で、薬剤、実投与量・単位、投与時刻を構造化せず、active/draft の救急・既実施投薬を通常治療履歴と handoff に残す代替経路ではない。代替経路なしに体重/species/parameter 欠落時の通常保存だけを止めると、救急記録を失う。
-- **状態**: **BLOCKED_CLINICAL_INPUT_AND_DECISION_SOT_RECONCILIATION_AND_DATABASE_REVIEW / migration review required**。最終 fail-closed 契約と cutover 順序は DEC-48。臨床責任者の未記入欄、`q&a.html:808` の stale TASK-025 未完記述に対する authorized append-only correction、treatment parent FK/child index と history/FK-supporting indexes の plan 補正が全て揃うまで実装を開始しない。
+- **状態**: **BLOCKED_CLINICAL_INPUT_AND_DECISION_SOT_RECONCILIATION_AND_DATABASE_REVIEW / migration review required**。最終 fail-closed 契約と cutover 順序は DEC-48。臨床責任者の未記入欄、`q&a.html#issue-readiness-current-p0-20260801` の #201 current row に対する authorized append-only correction、treatment parent FK/child index と history/FK-supporting indexes の plan 補正が全て揃うまで実装を開始しない。
 - **claim**: `claim/TASK-033` — **not live**（2026-08-01 USER 解放済み。起票時の過剰取得を是正したもので、本タスクは未着手）。
 
 #### 実装プラン（2026-08-02・adversarial revision 2）
@@ -783,5 +786,71 @@ validator_exit=0
   - `make codegen-check`
 - **Non-actions / HOLD**: 臨床上限・warning 値、route/unit/case の発明、臨床承認前または構造化経路 green 前の missing cutover、generic free-text/addendum 代用、既適用 migration/seed edit、自動 migration apply、DB 操作、Issue close、claim 削除を行わない。
 - **Exit criteria for close**: 上記 clinical input と decision-SoT correction が承認済みで、event が必須 field、clinic/pet/record/medicine-or-approved-snapshot/active-actor/treatment/correction 相関、dedicated permission、audit atomicity、immutable correction/effective projection、bounded and count-consistent history/handoff を満たし、missing-data 通常 write が理由別 zero、partial cutover がなく全 scoped gate が green。
+
+### TASK-374: #211 健診 package の versioned clinic-scoped import/preflight（High / Tenant safety）
+
+- **対応 Issue**: GitHub Issue #211。
+- **問題**: `checkup_types` と `checkup_type_fields` は clinic-scoped だが、provisional 定義は shared environment で禁止された `003_demo` に属する。table 単位の `seed-export` は承認済み subset を安全な別 bundle へ出せず、臨床承認だけでは実 clinic へ原子的に反映できない。
+- **状態**: **READY_AGENT / additive migration + fresh database/clinic-isolation/healthcare review required**。設計正本は DEC-59。agent は synthetic fixture で RED・migration・import/preflight 実装まで着手できるが、migration apply と real manifest 実行は USER-only。
+- **claim**: 実装セッションが編集前に `claim/TASK-374` を確認・取得する。本裁定 run では claim を取得しない。
+- **Owner lane**: backend checkup master import/preflight + transaction-bound audit + scoped docs/tests。実データ、migration apply、GitHub write は USER-only。
+- **独立 gate**: DR-CLINICAL は臨床値/単位、出典、臨床承認者 role、発効日、opaque clinical-row/approval reference だけを所有する。DR-OPS は target clinic authorization、environment、DB history、operator role、dry-run/apply/rollback の結果 enum と opaque restricted reference だけを所有する。manifest/stable key、実 identity、receipt/audit 本文は repo 外に置き、片方の承認を他方へ流用しない。
+
+#### 固定契約
+- `003_demo`、`002_master`、既適用 bundle/CSV を変更しない。shared environment に `003_demo` を load しない。
+- repo 外の versioned manifest は namespace/version、type/field の stable key と関係、opaque clinical approval reference を表す。manifest に clinic ID・actor ID を持たせず、repository fixture は synthetic value だけを使う。
+- **additive migration は必須**: type/field に nullable import namespace/key を追加し、`(clinic_id, import_namespace, import_key)` の partial UNIQUE と clinic-first index を持たせる。clinic-scoped import provenance/receipt は namespace/version、canonical content digest、actor、status、件数、作成 resource ID mapping を access-controlled DB 内に耐久化し、`UNIQUE (clinic_id, namespace, version)`、RLS `USING`/`WITH CHECK`、clinic-first FK/index を持つ。digest/mapping は operator output、application log、Git 台帳へ返さない。
+- 同 migration で `checkup_types(parent_id, clinic_id) -> checkup_types(id, clinic_id)` の複合 FK へ置換し、`ON DELETE SET NULL (parent_id)` と `(clinic_id, parent_id)` index を維持する。field→type の既存複合 FK と順序を合わせる。
+- apply は authenticated request context の clinic/actor を唯一の authority とし、manifest/CLI の ID を認可根拠にしない。actor の active clinic assignment、既存 `ResourceCheckups` create/edit、default-deny の専用 import permission を transaction 内で確認する。unauthorized と foreign-clinic は同じ非漏洩 error surface で write zero とする。
+- dry-run は domain write zero。apply は prior dry-run を信用せず、transaction 内で clinic row lock → authorization → receipt/stable-key collision → active/soft-deleted name collision → parent/type/field clinic correlation →全 field validation を再実行してから type→field の決定的順序で write する。DB UNIQUE/FK も通常 CRUD との競合を拒否し、type/field、receipt、audit のいずれかが失敗すれば全 write を rollback する。
+- manifest は unknown field を拒否する厳格 schema とし、stable-key 順、UTF-8/trim、decimal(10,4) 文字列表現、null/empty、options の順序・重複規則を固定して canonical digest を計算する。number は options 空かつ min≤max、select/checklist は非空で value 一意、boolean/text は min/max/options 空を検証する。
+- version は immutable import artifact とする。同じ clinic/namespace/version/content は no-op、同 version の異内容、既存 stable key の異内容、旧 version の自動更新/置換、同名 supersession は conflict とし、別 DEC なしに mutation しない。apply 対象 field は `is_provisional=false` と clinical approval reference を必須にし、true/missing は拒否する。
+- post-commit rollback 実行は scope 外だが、作成 resource IDs を provenance に残し、read-only rollback preflight が患者記録依存を報告できるようにする。使用済み type/field/result を hard-delete しない。
+- **sink 分離**: access-controlled provenance DB は internal actor/clinic ID、namespace/version/digest、resource mapping、status/counts を持つ。別 schema の access-controlled application audit は internal actor/clinic ID と before/after/resource を持つ。operator receipt DTO は opaque receipt ID・件数・結果のみ、application log は receipt ID・結果のみ、Git 台帳は非機密結果 enum・role label・opaque restricted-evidence reference のみを持つ。
+
+#### 実装・検証
+1. RED: invalid schema/version、unknown/foreign clinic、wrong-clinic parent、別院/inactive/permission不足 actor、auth-clinic 不一致、duplicate key/name、invalid field matrix、partial/audit/receipt failure、same/different replay、concurrent CRUD/apply、dry-run zero domain write を固定する。receipt/log の allowlist test で actor/clinic/digest/resource mapping/before/after が外部出力されないことも固定する。
+2. manifest parser/canonicalizer/validator と DB-independent preflight を小さな package に置き、repository/service は `persistence.DBOrTx` と明示 clinic predicate を必須にする。
+3. authenticated preview/apply endpoint、dedicated default-deny permission、apply transaction、audit/provenance/opaque receipt を composition root へ配線する。apply endpoint は明示 action と actor context を必須にし、値入り sample は作らない。
+4. 次番号の additive migration と migration inventory/test を追加し、migration-seed-safety、database、clinic-isolation、healthcare、Go/security review を通す。既適用 migration/seed は編集せず、agent は適用しない。
+- **Scoped verification**:
+  - `docker compose exec -T backend go test -p 1 ./internal/medicalrecord -run 'Test.*CheckupPackageImport' -count=1`
+  - `docker compose exec -T backend go test -p 1 ./internal/medicalrecord -run 'Test.*CheckupPackageImport.*(CrossClinic|Actor|Permission|Concurrent|Rollback)' -count=1`（PostgreSQL-backed、2 clinic・同一 stable key を含む）
+  - `docker compose exec -T backend go test -p 1 ./cmd/api -run 'Test.*CheckupPackageImport' -count=1`
+  - `docker compose exec -T backend go test -p 1 ./internal/model ./internal/lintscan -count=1`
+- **Non-actions / HOLD**: 実 row/clinic/price/range の決定、real manifest の repository 保存、shared `003_demo` load、CSV 手編集、既適用 bundle/migration edit、DB apply/reset、Issue close、claim 解放を行わない。
+- **Exit criteria**: synthetic manifest の canonicalization、dry-run/apply/replay/conflict、actor-clinic authorization、2-clinic isolation、concurrency、audit/provenance rollback、migration/FK/index/RLS tests が green で、実値なしの operator runbook が完成し、USER に real manifest・target authorization・apply/rollback window の restricted inputだけを handoff できる。
+
+### TASK-375: #257 期限切れ go-live runbook の gate-driven 再計画（High / Docs-only）
+
+- **対応 Issue**: GitHub Issue #257。
+- **問題**: `docs/delivery/GOLIVE_RUNBOOK.md` は失効した 2026-08-03 window と 2026-07-18 timeline を併存させ、open prerequisite と未確定 authority/support があるのに当日手順として読める。
+- **状態**: **READY_AGENT / docs-only**。DEC-60 が旧 window の No-Go と D「全 gate green 後の新 window」を確定済み。具体日付・人名・契約/連絡先は FORM のまま空欄にする。
+- **claim**: 実装セッションが編集前に `claim/TASK-375` を確認・取得する。本裁定 run では claim を取得しない。
+- **Owner lane**: `docs/delivery/GOLIVE_RUNBOOK.md` と、その日付/ownershipを直接参照する delivery docs の最小同期。
+- **Steps**:
+  1. 失効 window を historical No-Go と明記し、実行可能な current window として表示しない。
+  2. timeline を `T-` / `T+` 相対時刻へ変換し、具体日時は全 prerequisite の named evidence と Go/No-Go authority が揃った後だけ USER が一箇所へ記入する。
+  3. #89/#97/#98/#99、#250、#253、#254、#255、authority/support/rollback owner を fail-closed prerequisite として参照し、旧 AWS 系を rollback 先にしない。
+  4. credential、contact、日付、人名、provider 実値を補完せず、外部実行・deploy・DB 操作を行わない。
+- **Scoped verification**: `rg -n '2026-08-03|2026-07-18|T-[0-9]|T\+[0-9]|Go/No-Go|rollback' docs/delivery/GOLIVE_RUNBOOK.md` の目視突合、`git diff --check -- docs/delivery/GOLIVE_RUNBOOK.md`。
+- **Non-actions / HOLD**: 新 window/owner/contact の決定、production/deploy/DB/credential/GitHub 操作、旧 infrastructure の復活、Issue close、claim 解放を行わない。
+- **Exit criteria**: stale window が実行指示から除外され、相対 timeline と全 gate が一意で、USER が新 window と named owners を一行記入するまで fail-closed と読める。
+
+### TASK-376: #258 U1〜U12 と #256 U13 の delivery 文書境界同期（Medium / Docs-only）
+
+- **対応 Issue**: GitHub Issue #258（U13 owner は #256）。
+- **問題**: `q&a.html`/current view は #258 を U1〜U12、U13 を #256 の納品後研修とする一方、`docs/delivery/DELIVERY_PACKAGE.md` の冒頭は U1〜U13 全てを #258 final approval 条件として読める。二重 blocker と ownership drift が残る。
+- **状態**: **READY_AGENT / docs-only**。既存 DR-DELIVERY/current authority の同期であり、新しい契約値・研修日程を決めない。
+- **claim**: 実装セッションが編集前に `claim/TASK-376` を確認・取得する。本裁定 run では claim を取得しない。
+- **Owner lane**: `docs/delivery/DELIVERY_PACKAGE.md`、`docs/delivery/OPERATION_MANUAL.md` と直接参照する delivery docs の最小同期。
+- **Steps**:
+  1. #258 の document completion/approval input を U1〜U12 に限定し、各値の正本を既存表のまま維持する。
+  2. U13 の日程・形式・参加者・実施 receipt を #256 / operation manual の納品後研修へ一意に移し、#258 close blocker として二重管理しない。
+  3. credential/API key、価格、契約、billing、実人名、日付を補完せず、空欄と secret-manager 状態参照を維持する。
+  4. q&a/view の受入条件を docs へ複製せず、Issue/DR anchor と owner 境界だけを同期する。
+- **Scoped verification**: `rg -n 'U1|U12|U13|#256|#258|研修' docs/delivery/DELIVERY_PACKAGE.md docs/delivery/OPERATION_MANUAL.md` の目視突合、`git diff --check -- docs/delivery/DELIVERY_PACKAGE.md docs/delivery/OPERATION_MANUAL.md`。
+- **Non-actions / HOLD**: U1〜U13 の値決定、credential/価格/契約/実 identity の記録、外部サービス操作、Issue close、claim 解放を行わない。
+- **Exit criteria**: #258=U1〜U12、#256=U13 が全参照で一意になり、契約責任者/Client と training owner の一行入力先が分離される。
 
 ---

@@ -106,21 +106,21 @@
   <tr>
     <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/256">#256</a></td>
     <td>操作マニュアル・手順書の整備</td>
-    <td><span class="status judge">判断待ち</span></td>
-    <td>Privacy/Repository owner が reachable history の対応方針を決める。決裁後の clean-demo 画像は承認済みの人間/operator が再撮影し、エージェントは値を含まない checklist/privacy packet の準備だけを行う。visual/content sign-off と納品後の U13 研修日程・参加者・実施は USER 側に残す</td>
+    <td><span class="status user">USER 専権</span></td>
+    <td><a href="q&amp;a.html#dec-61">DEC-61</a> の default no-rewrite を維持する。Privacy/Repository owner が非機密結果と opaque restricted reference を一行記録し、氏名・ID・参加者 roster・receipt 本文は repo 外に置く</td>
   </tr>
 
   <tr>
     <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/201">#201</a></td>
     <td>薬量自動計算 — 上限超過の物理ブロックと例外統制</td>
     <td><span class="status judge">判断待ち</span></td>
-    <td>technical failure の先行停止は完了（TASK-025 = <code>eaa608b6a</code> + <code>db8387035</code>。到達性は <code>git merge-base --is-ancestor db8387035 HEAD</code> で測る）。dose parameter 取得障害を欠落と型で分離し、固定文言＋再試行を出して通常保存を止める。残るのは体重/species/parameter 欠落の cutover（TASK-033）で、active/draft の構造化救急投薬記録と臨床承認が揃うまで着手できない。上限値、warning 帯、記録対象条件は臨床責任者に残す</td>
+    <td>安全構造は <a href="q&amp;a.html#dec-48">DEC-48</a> で確定済み。臨床責任者が上限、warning 帯、構造化救急投薬記録の対象条件を出典付き一行で記入するまで、欠落時 cutover は HOLD</td>
   </tr>
   <tr>
     <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/211">#211</a></td>
     <td>健診パッケージ実装 — DB 適用・provisional seed 臨床確認</td>
-    <td><span class="status judge">判断待ち</span></td>
-    <td>臨床責任者が provisional row を承認し、seed owner が target bundle/environment と seed-export 昇格方針を決める。DB 履歴分類まで揃う前に apply を手順化しない</td>
+    <td><span class="status go">着手可能</span></td>
+    <td>エージェントが <a href="q&amp;a.html#dec-59">DEC-59</a> の versioned clinic-scoped import/preflight を synthetic fixture で実装する。実 row、対象 clinic、environment、実 DB apply は臨床・運用責任者に残す</td>
   </tr>
   <tr>
     <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/249">#249</a></td>
@@ -131,14 +131,14 @@
   <tr>
     <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/258">#258</a></td>
     <td>納品ドキュメントの整備</td>
-    <td><span class="status judge">判断待ち</span></td>
-    <td>契約責任者とクライアントが <code>DELIVERY_PACKAGE.md</code> U1〜U12 と <a href="q&amp;a.html">q&amp;a.html</a> の承認行へ、外部事実・出典・承認を1回で記入する。後から追加された U13 研修は納品後条件として #256 の owner/日程決裁へ分離する</td>
+    <td><span class="status go">着手可能</span></td>
+    <td>エージェントが <a href="q&amp;a.html#dec-62">DEC-62</a> どおり delivery 文書を #258=U1〜U12、#256=納品後 U13 研修へ同期する。その後、契約責任者とクライアントが非機密結果と restricted reference を一行記録する</td>
   </tr>
   <tr>
     <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/261">#261</a></td>
     <td>臨床安全・画面仕様ギャップの PO 決裁</td>
-    <td><span class="status judge">判断待ち</span></td>
-    <td>PO が DEC-41/47 を批准または根拠付きで修正する。批准後はエージェントが evidence packet を準備し、DB 履歴・権限監査・実機 LINE/LIFF・対象環境 runtime の観測だけを USER が実施する</td>
+    <td><span class="status user">USER 専権</span></td>
+    <td><a href="q&amp;a.html#dec-64">DEC-64</a> の独立再審は DEC-41/47 に concur。USER/OPS が DB 方針、権限監査、real LINE/LIFF、対象環境 runtime、close の非機密結果と restricted reference を一行記録する</td>
   </tr>
 
   <tr>
@@ -180,27 +180,27 @@
   <tr>
     <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/257">#257</a></td>
     <td>本番切替（Go-live）— 切替手順・切り戻し基準・直後サポート</td>
-    <td><span class="status judge">判断待ち</span></td>
-    <td><b>runbook 上の切替日 2026-08-03 は本日であり、Go/No-Go は未決のまま期日に到達している。</b>当日 timeline 見出しは 2026-07-18 のままで日付整合も取れていない。前提（#89/#97/#98/#99 の credential、#253 の CI/CD・backup gate、#254 の UAT）はいずれも USER 側で未完了のため、現時点で proceed は成立しない。Go/No-Go authority が B: 延期、C: 中止、D: 新 window へ再設定、のいずれかを直ちに決める。green 未達のまま proceed しない</td>
+    <td><span class="status go">着手可能</span></td>
+    <td><a href="q&amp;a.html#dec-60">DEC-60</a> により旧 window は No-Go。エージェントが日付を発明せず runbook を相対 timeline と gate-driven HOLD へ同期し、その後 USER が全 gate green の evidence、新 window、authority/support/rollback owner を一行記入する</td>
   </tr>
   <tr>
     <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/260">#260</a></td>
     <td>開発計画（正本）</td>
-    <td><span class="status judge">判断待ち</span></td>
-    <td>live Issue の最新記録では plan hub 継続・exit 未達であり、DEC-56 は proxy recommendation に留まる。PO が A: DEC-56 を採択して close、または B: plan hub を維持し objective exit criteria と owner/date を定める、のどちらかを決める</td>
+    <td><span class="status user">USER 専権</span></td>
+    <td><a href="q&amp;a.html#dec-63">DEC-63</a> どおり dated plan hub を historical close する。USER が GitHub close を実行し、継続へ覆す場合だけ新カードに objective exit criteria、owner role、date を記す</td>
   </tr>
 
   <tr>
     <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/212">#212</a></td>
     <td>Repository integration coverage の重要ギャップ改善</td>
     <td><span class="status judge">判断待ち</span></td>
-    <td>外部到着待ちではない。PO が DEC-19 の phase2 defer を維持するか再開するかを判断し、再開時だけ agent task を起票する</td>
+    <td><a href="q&amp;a.html#dec-45">DEC-45</a>/DEC-19 の phase2 defer を維持する。再開を求める USER/PO から成功 coverage artifact、除外方針、priority owner が届いた場合だけ failure-mode 別に再審する</td>
   </tr>
   <tr>
     <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/235">#235</a></td>
     <td>カルテ画像・PDF のドラッグ&amp;ドロップアップロード</td>
     <td><span class="status judge">判断待ち</span></td>
-    <td>外部到着待ちではない。PO が DEC-19 の phase2 defer を維持するか再開するかを判断し、再開時だけ agent task を起票する</td>
+    <td><a href="q&amp;a.html#dec-45">DEC-45</a>/DEC-19 の scope 除外を維持する。再審を求める業務責任者から利用者、頻度、現行時間、失敗率、目標値が届いた場合だけ再開判断する</td>
   </tr>
   <tr>
     <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/250">#250</a></td>
@@ -211,8 +211,8 @@
   <tr>
     <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/255">#255</a></td>
     <td>スタッフアカウントの一括発行と役割別権限設定</td>
-    <td><span class="status judge">判断待ち</span></td>
-    <td>責任者が identity、clinic mapping、employment status、role→group を決める。決裁後はエージェントが値を含まない preflight packet を準備し、USER が repo 外 manifest の確定、authorized apply、本人への配布だけを行う</td>
+    <td><span class="status user">USER 専権</span></td>
+    <td>設計原則は <a href="q&amp;a.html#dec-49">DEC-49〜52</a> で確定済み。USER が repo 外の restricted manifest を確定し、台帳には owner/operator role、結果 enum、opaque restricted reference だけを記録する。氏名・email・各種 ID・receipt 本文は書かない</td>
   </tr>
   <tr>
     <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/259">#259</a></td>
