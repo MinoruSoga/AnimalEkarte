@@ -35,6 +35,11 @@ const EMPTY_NEW_OWNER: NewOwnerFormData = {
   animalSpeciesId: 0,
 };
 const RESERVATION_FORM_DESCRIPTION_ID = "reservation-form-description";
+const OWNER_PHONE_PATTERN = /^0\d{1,4}-?\d{1,4}-?\d{4}$/;
+
+function isValidOwnerPhone(phone: string): boolean {
+  return OWNER_PHONE_PATTERN.test(phone);
+}
 
 interface ReservationFormModalProps {
   isOpen: boolean;
@@ -134,6 +139,18 @@ export const ReservationFormModal = memo(function ReservationFormModal({
   const isEditMode = Boolean(initialData?.id);
   const canSave = isEditMode ? canEdit : canCreate;
 
+  const handleNewOwnerChange = useCallback((data: NewOwnerFormData) => {
+    setNewOwnerData(data);
+    if (!isValidOwnerPhone(data.phone)) return;
+
+    setNewOwnerErrors((previous) => {
+      if (!previous.phone) return previous;
+      const next = { ...previous };
+      delete next.phone;
+      return next;
+    });
+  }, []);
+
   // edit mode: subscribe to single-reservation query and sync reservationRoute into formData
   const reservationQueryId = isEditMode ? String(initialData?.id) : "";
   const { data: latestReservation } = useGetReservation(reservationQueryId);
@@ -155,7 +172,7 @@ export const ReservationFormModal = memo(function ReservationFormModal({
       if (!newOwnerData.ownerName.trim()) noe.ownerName = "飼主名を入力してください";
       if (!newOwnerData.phone.trim()) {
         noe.phone = "電話番号を入力してください";
-      } else if (!/^0\d{1,4}-?\d{1,4}-?\d{4}$/.test(newOwnerData.phone.trim())) {
+      } else if (!isValidOwnerPhone(newOwnerData.phone)) {
         noe.phone = "電話番号の形式が正しくありません（例：090-1234-5678 または 09012345678）";
       }
       if (!newOwnerData.petName.trim()) noe.petName = "ペット名を入力してください";
@@ -243,7 +260,7 @@ export const ReservationFormModal = memo(function ReservationFormModal({
             newOwnerErrors={newOwnerErrors}
             onOwnerModeChange={setOwnerMode}
             onPetSelect={togglePetSelection}
-            onNewOwnerChange={setNewOwnerData}
+            onNewOwnerChange={handleNewOwnerChange}
           />
 
           <ReservationDetailsPanel
