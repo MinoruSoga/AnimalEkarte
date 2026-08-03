@@ -860,7 +860,7 @@
 ## BUG-010: カルテ「診察/治療プラン」タブの身体検査所見・診断詳細・治療方針が、入力しても保存されず空欄化または固定文字列に置き換わる【重大】
 
 - **重大度**: 高（S06 手順1の中核要件。臨床所見・診断・治療方針という法的記録の根幹部分が保存されない／改ざんされる）
-- **対応状況（2026-08-03 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: commit `646fb4353fb6b66c2a86daf17145ed8eece2cee4` — 単一 versioned PATCH で physical_exam / diagnosis_details / treatment_policy を常送、ClinicalPlanSection controlled 化、post-save 二重書き込み除去、hydrate 前空クリア拒否、mutation 応答で version cache 更新。audit residual commit `929fef0fa66609f7811fcef7cb254a6c035e68fb` — clinical plan Update を staff actor 付き audit と同一 DBOrTx で fail-closed 記録（scoped FE/BE tests green） | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: S06 手順1 を localhost:3003 + seed でブラウザ再検証して VERIFIED_FIXED へ
+- **対応状況（2026-08-03 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: commit `646fb4353fb6b66c2a86daf17145ed8eece2cee4` — 単一 versioned PATCH で physical_exam / diagnosis_details / treatment_policy を常送、ClinicalPlanSection controlled 化、post-save 二重書き込み除去、hydrate 前空クリア拒否、mutation 応答で version cache 更新。audit residual commit `929fef0fa66609f7811fcef7cb254a6c035e68fb` — clinical plan Update を staff actor 付き audit と同一 DBOrTx で fail-closed 記録（scoped FE/BE tests green）。delete-audit residual commit `90ee096bfaddb6dc41298be9903507f8c9aef553` — clinical plan Delete を staff actor 付き pre-delete 値 audit と同一 DBOrTx で fail-closed 記録（scoped BE tests green） | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: S06 手順1 を localhost:3003 + seed でブラウザ再検証して VERIFIED_FIXED へ
 - **発見シナリオ**: S06 手順1（カルテ編集 `/medical-records/:id`、「診察/治療プラン」タブ）
 - **再現手順**（他の操作を一切介さないクリーンな単離手順で2回再現）:
   1. カルテ新規作成 → 生存ペット（小玉哲博／ラッキー、pet_id 1000019）を選択（カルテID 1425547 が自動作成される）。
@@ -949,7 +949,7 @@
 - [x] 作成した test data の cleanup、または cleanup 不要を記録（AutoMigrate テスト DB のみ。本番 seed 変更なし）
 - [ ] 原文シナリオの再実施可否と残余 BLOCKED を記録（ブラウザ未起動のため UNREPORTED）
 
-- 3欄の round-trip、単一 writer、競合/lock は scoped tests で通過。clinical plan の audit 同一 tx は未実装 residual（別承認）。既存データ補修は別承認事項として切り出される。
+- 3欄の round-trip、単一 writer、競合/lock は scoped tests で通過。clinical plan Update/Delete の audit 同一 tx は `929fef0fa` / `90ee096bf` で実装済み（IMPLEMENTED_UNVERIFIED）。既存データ補修は別承認事項として切り出される。
 
 ---
 
