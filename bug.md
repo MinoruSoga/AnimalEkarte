@@ -770,7 +770,7 @@
 ## BUG-009: 入院・ホテル管理画面のタブ切替（予約／退院済／すべて）が機能せず、常に「入院中」のデータしか表示されない【重大】
 
 - **重大度**: 高（S05 の中核機能。予約中・退院済の入院を画面上で一切確認できない）
-- **対応状況（2026-08-04 JST）**: IMPLEMENTED_UNVERIFIED | **実装 commit**: `6e9674286` | **根拠**: タブ→`status`/`page`/`limit` server query 連動、server `total` 件数正本、client status 二重 filter 削除、未知 status を「不明」fail-closed（`6e9674286`） | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: S05 手順1・2・2b をブラウザ再検証し VERIFIED_FIXED 可否を判定
+- **対応状況（2026-08-04 JST）**: IMPLEMENTED_UNVERIFIED | **実装 commit**: `6e9674286` | **review-gate commit**: `55125f858` | **根拠**: タブ→server status/page/limit、server total 件数正本、client status 二重 filter 削除、未知 status「不明」fail-closed、Pagination server 正本（`6e9674286` + `55125f858`） | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: S05 手順1・2・2b をブラウザ再検証し VERIFIED_FIXED 可否を判定
 - **発見シナリオ**: S05 手順1・2・2b（入院・ホテル管理 `/hospitalization`）
 - **再現手順**:
   1. `/hospitalization/new?petId=1000002`（伊藤史安／豆助）で新規入院登録（入院タイプ=入院、ケージ=犬用ケージ（中）、期間はデフォルトの本日〜+7日）を保存 → 「入院情報を登録しました」トースト。保存直後のステータスは `reserved`（チェックイン前）。
