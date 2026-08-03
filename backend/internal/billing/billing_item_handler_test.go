@@ -42,6 +42,17 @@ func (m *mockBillingItemService) CreateItem(ctx context.Context, input *CreateBi
 	return m.createItemFn(ctx, input)
 }
 
+func (m *mockBillingItemService) CreateItemForComplete(ctx context.Context, input *CreateBillingItemInput) (*model.BillingItem, error) {
+	if m.createItemFn != nil {
+		return m.createItemFn(ctx, input)
+	}
+	return &model.BillingItem{BillingID: input.BillingID, Name: input.Name, UnitPrice: input.UnitPrice, Quantity: input.Quantity}, nil
+}
+
+func (m *mockBillingItemService) RecalculateTotalsForComplete(_ context.Context, _, _ uint64) (int64, int64, int64, error) {
+	return 0, 0, 0, nil
+}
+
 func (m *mockBillingItemService) UpdateItem(ctx context.Context, clinicID, id uint64, input *UpdateBillingItemInput) (*model.BillingItem, error) {
 	return m.updateItemFn(ctx, clinicID, id, input)
 }

@@ -108,6 +108,8 @@ type AccountingService interface {
 	// GetByIDForClinics は複数医院スコープで会計を1件取得する (#86 詳細画面拠点横断)。clinicIDs はハンドラ層で所属検証済みであること。
 	GetByIDForClinics(ctx context.Context, clinicIDs []uint64, id uint64) (*model.Billing, error)
 	Create(ctx context.Context, input *CreateAccountingInput) (*model.Billing, error)
+	// Complete は BUG-018: header/items/totals/payments/splits/reservation/audit を単一 tx で確定する。
+	Complete(ctx context.Context, input *CompleteAccountingInput) (*CompleteAccountingResult, error)
 	Update(ctx context.Context, input *UpdateAccountingInput) (*model.Billing, error)
 	// CorrectCreditPayment は確定済み会計のクレジット（カード）金額を確定後に訂正する（#189）。
 	// 確定済み（status=completed）かつ対象カード内訳が存在する場合のみ許可し、理由・監査を必須とする。
@@ -146,6 +148,9 @@ type accountingService struct {
 	closeRepo CashRegisterCloseRepository
 	// unbilledGuard は BUG-013: pet に blocking unbilled warning がある会計作成を拒否する。
 	unbilledGuard unbilledWriteGuard
+	// itemWriter / totalsWriter は BUG-018 Complete の ambient-tx 明細・合計 collaborator。
+	itemWriter   completeItemWriter
+	totalsWriter completeTotalsWriter
 }
 
 type accountingReservationRepository interface {

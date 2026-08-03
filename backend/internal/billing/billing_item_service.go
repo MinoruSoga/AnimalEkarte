@@ -192,6 +192,9 @@ func applyBillingItemOtherMetadata(input *CreateBillingItemInput, item *model.Bi
 // BillingItemService は billing_items の CRUD とトータル再計算を担うインターフェース
 type BillingItemService interface {
 	CreateItem(ctx context.Context, input *CreateBillingItemInput) (*model.BillingItem, error)
+	// CreateItemForComplete / RecalculateTotalsForComplete は BUG-018 Complete の ambient-tx collaborator。
+	CreateItemForComplete(ctx context.Context, input *CreateBillingItemInput) (*model.BillingItem, error)
+	RecalculateTotalsForComplete(ctx context.Context, clinicID, billingID uint64) (subtotal, taxTotal, totalAmount int64, err error)
 	UpdateItem(ctx context.Context, clinicID, id uint64, input *UpdateBillingItemInput) (*model.BillingItem, error)
 	// DeleteItem は明細を soft-delete する。
 	// input.StaffID は vaccination claim 解放監査 actor（BUG-440）および締め後編集監査 actor。
@@ -393,6 +396,39 @@ func (s *billingItemService) CreateItem(ctx context.Context, input *CreateBillin
 			return nil, err
 		}
 	}
+
+	var item *model.BillingItem
+	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		created, err := s.createItemInAmbientTx(txCtx, input, createItemAmbientOpts{
+			recalculate:     true,
+			recordPostClose: true,
+		})
+		if err != nil {
+			return err
+		}
+		item = created
+		return nil
+	}); err != nil {
+		return nil, apperrors.Wrap(err, "failed to create billing item in transaction")
+	}
+
+	slog.InfoContext(ctx, "billing item created",
+		slog.Uint64("clinic_id", input.ClinicID),
+		slog.Uint64("billing_id", input.BillingID),
+		slog.Uint64("item_id", item.ID),
+	)
+	return item, nil
+}
+
+// createItemAmbientOpts は CreateItem / Complete 共有の ambient tx 内明細作成オプション。
+type createItemAmbientOpts struct {
+	recalculate     bool // false のとき totals 再計算を呼び出し側に委ねる（Complete が最後に一括再計算）
+	recordPostClose bool // false のとき締め後監査は command 単位で Complete が記録する
+}
+
+// createItemInAmbientTx は ambient tx 内で明細1件を作成する（WithTx を開始しない）。
+// BUG-018 Complete 経路から呼び出され、独立 tx の部分 commit を防ぐ。
+func (s *billingItemService) createItemInAmbientTx(ctx context.Context, input *CreateBillingItemInput, opts createItemAmbientOpts) (*model.BillingItem, error) {
 	taxType, taxRate, source, err := resolveBillingItemDefaults(input)
 	if err != nil {
 		return nil, err
@@ -419,107 +455,123 @@ func (s *billingItemService) CreateItem(ctx context.Context, input *CreateBillin
 		SortOrder:             input.SortOrder,
 	}
 
-	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
-		// BUG-463: lock parent billing and reject finalized status before any mutation
-		// (same guard as DeleteItem; ValidateCreateReferences also checks status).
-		billing, err := s.billingRepo.LockAndFindByID(txCtx, input.ClinicID, input.BillingID)
-		if err != nil {
-			return apperrors.Wrap(err, "failed to lock billing before creating item")
-		}
-		if err := rejectIfBillingFinalized(billing, "登録"); err != nil {
-			return err
-		}
+	// BUG-463: lock parent billing and reject finalized status before any mutation
+	billing, err := s.billingRepo.LockAndFindByID(ctx, input.ClinicID, input.BillingID)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to lock billing before creating item")
+	}
+	if err := rejectIfBillingFinalized(billing, "登録"); err != nil {
+		return nil, err
+	}
 
-		category, err := s.repo.ValidateCreateReferences(
-			txCtx,
+	category, err := s.repo.ValidateCreateReferences(
+		ctx,
+		input.ClinicID,
+		input.BillingID,
+		input.MerchandiseItemID,
+		input.TreatmentID,
+		input.AppointmentID,
+		input.TrimmingCourseID,
+		input.TrimmingOptionID,
+	)
+	if err != nil {
+		slog.WarnContext(ctx, "billing item references rejected", "error", err)
+		return nil, apperrors.Wrap(err, "failed to validate billing item references")
+	}
+	if input.MerchandiseItemID != nil {
+		item.Category = category
+	}
+	if input.VaccinationID != nil {
+		if input.MerchandiseItemID != nil ||
+			input.TreatmentID != nil ||
+			input.AppointmentID != nil ||
+			input.TrimmingCourseID != nil ||
+			input.TrimmingOptionID != nil {
+			return nil, invalidBillingItemReferenceCombination()
+		}
+		_, err := s.repo.ValidateVaccinationCreateReference(
+			ctx,
 			input.ClinicID,
 			input.BillingID,
-			input.MerchandiseItemID,
-			input.TreatmentID,
-			input.AppointmentID,
-			input.TrimmingCourseID,
-			input.TrimmingOptionID,
+			*input.VaccinationID,
 		)
 		if err != nil {
-			slog.WarnContext(txCtx, "billing item references rejected", "error", err)
-			return apperrors.Wrap(err, "failed to validate billing item references")
+			return nil, err
 		}
-		if input.MerchandiseItemID != nil {
-			item.Category = category
-		}
-		if input.VaccinationID != nil {
-			if input.MerchandiseItemID != nil ||
-				input.TreatmentID != nil ||
-				input.AppointmentID != nil ||
-				input.TrimmingCourseID != nil ||
-				input.TrimmingOptionID != nil {
-				return invalidBillingItemReferenceCombination()
-			}
-			_, err := s.repo.ValidateVaccinationCreateReference(
-				txCtx,
-				input.ClinicID,
-				input.BillingID,
-				*input.VaccinationID,
-			)
-			if err != nil {
-				return err
-			}
-			item.Category = model.ItemCategoryVaccine
-			item.Source = model.ItemSourceMedicalRecord
-			item.VaccinationID = input.VaccinationID
-			clinicID := input.ClinicID
-			item.ClinicID = &clinicID
-		}
+		item.Category = model.ItemCategoryVaccine
+		item.Source = model.ItemSourceMedicalRecord
+		item.VaccinationID = input.VaccinationID
+		clinicID := input.ClinicID
+		item.ClinicID = &clinicID
+	}
 
-		if err := applyBillingItemOtherMetadata(input, item); err != nil {
-			return err
+	if err := applyBillingItemOtherMetadata(input, item); err != nil {
+		return nil, err
+	}
+	if item.CreatedBy != nil {
+		if err := s.repo.LockActiveStaffAssignment(ctx, input.ClinicID, *item.CreatedBy); err != nil {
+			return nil, err
 		}
-		if item.CreatedBy != nil {
-			if err := s.repo.LockActiveStaffAssignment(txCtx, input.ClinicID, *item.CreatedBy); err != nil {
-				return err
-			}
-		}
+	}
 
-		// #81 段階2b: 明示的な割引指定が無ければキャンペーン/飼主割引を自動適用(best-effort)。
-		// request-derived merchandise_item_id is validated before it participates in discount lookup.
-		if item.DiscountAmount == 0 && input.VaccinationID == nil {
-			item.DiscountAmount = s.resolveAutoDiscount(
-				txCtx,
-				input,
-				item.Category,
-				item.UnitPrice,
-				item.Quantity,
-			)
-		}
+	// #81 段階2b: 明示的な割引指定が無ければキャンペーン/飼主割引を自動適用(best-effort)。
+	if item.DiscountAmount == 0 && input.VaccinationID == nil {
+		item.DiscountAmount = s.resolveAutoDiscount(
+			ctx,
+			input,
+			item.Category,
+			item.UnitPrice,
+			item.Quantity,
+		)
+	}
 
-		if err := s.repo.Create(txCtx, item); err != nil {
-			slog.ErrorContext(txCtx, "failed to create billing item", "error", err)
-			return apperrors.Wrap(err, "failed to create billing item")
-		}
+	if err := s.repo.Create(ctx, item); err != nil {
+		slog.ErrorContext(ctx, "failed to create billing item", "error", err)
+		return nil, apperrors.Wrap(err, "failed to create billing item")
+	}
 
-		if err := s.recalculateTotals(txCtx, input.ClinicID, input.BillingID); err != nil {
-			slog.ErrorContext(txCtx, "failed to recalculate billing totals after create",
+	if opts.recalculate {
+		if err := s.recalculateTotals(ctx, input.ClinicID, input.BillingID); err != nil {
+			slog.ErrorContext(ctx, "failed to recalculate billing totals after create",
 				slog.Uint64("billing_id", input.BillingID),
 				slog.String("error", err.Error()),
 			)
-			return apperrors.Wrap(err, "failed to recalculate billing totals")
+			return nil, apperrors.Wrap(err, "failed to recalculate billing totals")
 		}
-
-		if err := s.recordBillingItemPostClose(txCtx, input.IsPostClose, input.ClinicID, input.BillingID, billing, input.StaffID, input.PostCloseReason, "create", &item.ID); err != nil {
-			return err
-		}
-
-		return nil
-	}); err != nil {
-		return nil, apperrors.Wrap(err, "failed to create billing item in transaction")
 	}
 
-	slog.InfoContext(ctx, "billing item created",
-		slog.Uint64("clinic_id", input.ClinicID),
-		slog.Uint64("billing_id", input.BillingID),
-		slog.Uint64("item_id", item.ID),
-	)
+	if opts.recordPostClose {
+		if err := s.recordBillingItemPostClose(ctx, input.IsPostClose, input.ClinicID, input.BillingID, billing, input.StaffID, input.PostCloseReason, "create", &item.ID); err != nil {
+			return nil, err
+		}
+	}
+
 	return item, nil
+}
+
+// CreateItemForComplete は BUG-018 Complete 用の ambient-tx 明細作成。
+// unbilled / post-close は command 側が一度だけ行う。totals 再計算は skip し caller が最後にまとめる。
+func (s *billingItemService) CreateItemForComplete(ctx context.Context, input *CreateBillingItemInput) (*model.BillingItem, error) {
+	if err := validateCreateBillingItemInput(input); err != nil {
+		return nil, err
+	}
+	return s.createItemInAmbientTx(ctx, input, createItemAmbientOpts{
+		recalculate:     false,
+		recordPostClose: false,
+	})
+}
+
+// RecalculateTotalsForComplete は Complete 用に items から totals を再計算して billings に書く。
+func (s *billingItemService) RecalculateTotalsForComplete(ctx context.Context, clinicID, billingID uint64) (subtotal, taxTotal, totalAmount int64, err error) {
+	items, err := s.repo.FindByBillingID(ctx, clinicID, billingID)
+	if err != nil {
+		return 0, 0, 0, apperrors.Wrap(err, "failed to find billing items for complete totals")
+	}
+	subtotal, taxTotal, totalAmount = CalculateBillingTotals(items)
+	if err := s.repo.UpdateBillingTotals(ctx, clinicID, billingID, subtotal, taxTotal, totalAmount); err != nil {
+		return 0, 0, 0, apperrors.Wrap(err, "failed to update billing totals for complete")
+	}
+	return subtotal, taxTotal, totalAmount, nil
 }
 
 func (s *billingItemService) UpdateItem(ctx context.Context, clinicID, id uint64, input *UpdateBillingItemInput) (*model.BillingItem, error) {

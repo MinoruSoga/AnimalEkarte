@@ -165,6 +165,92 @@ type createAccountingRequest struct {
 	Memo              string     `json:"memo"`
 }
 
+// completeAccountingItemRequest は BUG-018 complete command の明細1行。
+type completeAccountingItemRequest struct {
+	Category              string  `json:"category"  binding:"omitempty,oneof=examination test procedure surgery medicine food goods other vaccine trimming hotel training"`
+	Name                  string  `json:"name"      binding:"required"`
+	UnitPrice             int64   `json:"unit_price" binding:"min=0"`
+	Quantity              float64 `json:"quantity"   binding:"required,gt=0"`
+	DiscountRate          float64 `json:"discount_rate" binding:"min=0,max=100"`
+	DiscountAmount        int64   `json:"discount_amount" binding:"min=0"`
+	TaxType               string  `json:"tax_type"  binding:"omitempty,oneof=included excluded exempt"`
+	TaxRate               float64 `json:"tax_rate"`
+	IsInsuranceApplicable bool    `json:"is_insurance_applicable"`
+	Source                string  `json:"source"    binding:"omitempty,oneof=medical_record manual hospitalization trimming"`
+	OtherReason           *string `json:"other_reason"`
+	MerchandiseItemID     *uint64 `json:"merchandise_item_id"`
+	TreatmentID           *uint64 `json:"treatment_id"`
+	VaccinationID         *uint64 `json:"vaccination_id"`
+	AppointmentID         *uint64 `json:"appointment_id"`
+	TrimmingCourseID      *uint64 `json:"trimming_course_id"`
+	TrimmingOptionID      *uint64 `json:"trimming_option_id"`
+	SortOrder             int     `json:"sort_order"`
+}
+
+// completeAccountingRequest は BUG-018 POST /accountings/complete の body。
+// client total は受け取らず server が items から再計算する。
+type completeAccountingRequest struct {
+	MedicalRecordID   *uint64                         `json:"medical_record_id"`
+	HospitalizationID *uint64                         `json:"hospitalization_id"`
+	OwnerID           *uint64                         `json:"owner_id"`
+	PetID             *uint64                         `json:"pet_id"`
+	ScheduledDate     time.Time                       `json:"scheduled_date" binding:"required"`
+	Memo              string                          `json:"memo"`
+	HasInsurance      bool                            `json:"has_insurance"`
+	InsuranceRatio    *float64                        `json:"insurance_ratio"`
+	InsuranceName     *string                         `json:"insurance_name"`
+	InsuranceAmount   *int64                          `json:"insurance_amount"`
+	DiscountAmount    *int64                          `json:"discount_amount"`
+	Items             []completeAccountingItemRequest `json:"items" binding:"required,min=1,dive"`
+	PaymentSplits     []paymentSplitRequest           `json:"payment_splits" binding:"max=50,dive"`
+	PostCloseReason   *string                         `json:"post_close_reason"`
+}
+
+func (r *completeAccountingRequest) toServiceInput(clinicID, staffID uint64, idempotencyKey string) *CompleteAccountingInput {
+	items := make([]CompleteAccountingItemInput, 0, len(r.Items))
+	for _, it := range r.Items {
+		items = append(items, CompleteAccountingItemInput{
+			Category:              it.Category,
+			Name:                  it.Name,
+			UnitPrice:             it.UnitPrice,
+			Quantity:              it.Quantity,
+			DiscountRate:          it.DiscountRate,
+			DiscountAmount:        it.DiscountAmount,
+			TaxType:               it.TaxType,
+			TaxRate:               it.TaxRate,
+			IsInsuranceApplicable: it.IsInsuranceApplicable,
+			Source:                it.Source,
+			OtherReason:           it.OtherReason,
+			MerchandiseItemID:     it.MerchandiseItemID,
+			TreatmentID:           it.TreatmentID,
+			VaccinationID:         it.VaccinationID,
+			AppointmentID:         it.AppointmentID,
+			TrimmingCourseID:      it.TrimmingCourseID,
+			TrimmingOptionID:      it.TrimmingOptionID,
+			SortOrder:             it.SortOrder,
+		})
+	}
+	return &CompleteAccountingInput{
+		ClinicID:          clinicID,
+		StaffID:           &staffID,
+		IdempotencyKey:    idempotencyKey,
+		MedicalRecordID:   r.MedicalRecordID,
+		HospitalizationID: r.HospitalizationID,
+		OwnerID:           r.OwnerID,
+		PetID:             r.PetID,
+		ScheduledDate:     r.ScheduledDate,
+		Memo:              r.Memo,
+		HasInsurance:      r.HasInsurance,
+		InsuranceRatio:    r.InsuranceRatio,
+		InsuranceName:     r.InsuranceName,
+		InsuranceAmount:   r.InsuranceAmount,
+		DiscountAmount:    r.DiscountAmount,
+		Items:             items,
+		PaymentSplits:     toPaymentSplitInputs(r.PaymentSplits),
+		PostCloseReason:   r.PostCloseReason,
+	}
+}
+
 func (r *createAccountingRequest) toServiceInput(clinicID uint64) *CreateAccountingInput {
 	return &CreateAccountingInput{
 		ClinicID:          clinicID,

@@ -46,6 +46,43 @@ export interface CreateAccountingRequest {
   memo?: string;
 }
 
+/** BUG-018: POST /v1/accountings/complete の明細1行 */
+export interface CompleteAccountingItemRequest {
+  category: string;
+  name: string;
+  unit_price: number;
+  quantity: number;
+  tax_type: string;
+  tax_rate: number;
+  is_insurance_applicable: boolean;
+  source: string;
+  other_reason?: string;
+  merchandise_item_id?: number;
+  vaccination_id?: number;
+  treatment_id?: number;
+  appointment_id?: number;
+  trimming_course_id?: number;
+  trimming_option_id?: number;
+}
+
+/** BUG-018: 原子的会計確定 command body（client total は送らない） */
+export interface CompleteAccountingRequest {
+  pet_id: number;
+  owner_id: number;
+  medical_record_id?: number | null;
+  hospitalization_id?: number | null;
+  scheduled_date: string;
+  memo?: string;
+  has_insurance?: boolean;
+  insurance_ratio?: number | null;
+  insurance_name?: string;
+  insurance_amount?: number | null;
+  discount_amount?: number | null;
+  items: CompleteAccountingItemRequest[];
+  payment_splits?: PaymentSplitRequest[];
+  post_close_reason?: string;
+}
+
 export interface PaymentSplitRequest {
   method: PaymentMethod;
   payment_method_id?: number;

@@ -129,6 +129,64 @@ func (h *AccountingHandler) CreateAccounting(c *gin.Context) {
 	c.JSON(http.StatusCreated, toAccountingResponse(created))
 }
 
+// CompleteAccounting は BUG-018: header/items/payments を単一 command で原子的に確定する。
+// Idempotency-Key (UUID) 必須。初回 201、同一 digest retry 200、異 digest 409。
+func (h *AccountingHandler) CompleteAccounting(c *gin.Context) {
+	clinicID, ok := httpapi.ExtractClinicID(c)
+	if !ok {
+		return
+	}
+	staffID, ok := httpapi.ExtractStaffID(c)
+	if !ok {
+		return
+	}
+
+	idempotencyKey := c.GetHeader("Idempotency-Key")
+	if err := ValidateIdempotencyKeyUUID(idempotencyKey); err != nil {
+		httpapi.RespondError(c, err)
+		return
+	}
+
+	var input completeAccountingRequest
+	if err := c.ShouldBindJSON(&input); err != nil {
+		httpapi.RespondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
+		return
+	}
+
+	ctx := c.Request.Context()
+	serviceInput := input.toServiceInput(clinicID, staffID, idempotencyKey)
+
+	// Close 境界の候補 read（service が write 時に再評価）。
+	isClosed, err := h.cashRegister.IsDateClosed(ctx, clinicID, serviceInput.ScheduledDate)
+	if err != nil {
+		httpapi.RespondError(c, err)
+		return
+	}
+	if isClosed {
+		if !h.hasPermission(c, string(model.ResourceAccountingPostCloseEdit), "edit") {
+			httpapi.RespondError(c, apperrors.WrapForbidden("レジ締め済み期間の会計編集には accounting-post-close-edit:edit 権限が必要です"))
+			return
+		}
+		serviceInput.IsPostClose = true
+	}
+
+	result, err := h.svc.Complete(ctx, serviceInput)
+	if err != nil {
+		httpapi.RespondError(c, err)
+		return
+	}
+	if result == nil || result.Accounting == nil {
+		httpapi.RespondError(c, apperrors.WrapInternalServerError("complete accounting returned empty result"))
+		return
+	}
+	if result.Created {
+		c.Header("Location", fmt.Sprintf("/v1/accountings/%d", result.Accounting.ID))
+		c.JSON(http.StatusCreated, toAccountingResponse(result.Accounting))
+		return
+	}
+	c.JSON(http.StatusOK, toAccountingResponse(result.Accounting))
+}
+
 // UpdateAccounting godoc
 func (h *AccountingHandler) UpdateAccounting(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)

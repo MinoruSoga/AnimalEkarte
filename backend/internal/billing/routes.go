@@ -129,6 +129,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	accountings.GET("/daily-summary", h.requirePermission(string(model.ResourceAccounting), "view"), h.accounting.GetDailySummary)
 	accountings.GET("/:id", h.requirePermission(string(model.ResourceAccounting), "view"), h.accounting.GetAccounting)
 	accountings.POST("", h.requirePermission(string(model.ResourceAccounting), "create"), h.accounting.CreateAccounting)
+	// BUG-018: atomic complete (header+items+payments). Must be registered before /:id routes that could shadow.
+	accountings.POST("/complete", h.requirePermission(string(model.ResourceAccounting), "create"), h.accounting.CompleteAccounting)
 	accountings.PATCH("/:id", h.requirePermission(string(model.ResourceAccounting), "edit"), h.accounting.UpdateAccounting)
 	// #189: 確定済みカード金額の確定後訂正（専用フロー）。確定/締め後訂正の既存権限 accounting-post-close-edit:edit を再利用。
 	accountings.POST("/:id/credit-correction", h.requirePermission(string(model.ResourceAccountingPostCloseEdit), "edit"), h.accounting.CorrectCreditPayment)

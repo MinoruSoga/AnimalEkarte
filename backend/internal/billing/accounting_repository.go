@@ -49,6 +49,9 @@ type AccountingRepository interface {
 	MaxSingleVisitAmountByOwner(ctx context.Context, clinicID, ownerID uint64) (int64, error)
 	// FindOwnersByAnnualRevenue は直近365日の完了済み請求額合計を飼い主ごとに集計し、降順で返す（LTV上位％判定用）。
 	FindOwnersByAnnualRevenue(ctx context.Context, clinicID uint64) ([]OwnerAnnualRevenue, error)
+	// FindByCompletionRequestID は BUG-018 冪等キーで会計を検索する（soft-deleted 含む）。
+	// 見つからない場合は (nil, nil)。
+	FindByCompletionRequestID(ctx context.Context, clinicID uint64, requestID string) (*model.Billing, error)
 }
 
 type accountingRepository struct {
@@ -344,6 +347,27 @@ func (r *accountingRepository) LockAndFindByID(ctx context.Context, clinicID, id
 		total += billing.Refunds[i].Amount
 	}
 	billing.TotalRefundedAmount = total
+	return &billing, nil
+}
+
+// FindByCompletionRequestID は BUG-018 の冪等キーで会計を検索する。
+// soft-deleted 行も含め（Unscoped）、key 再利用を拒否するため。見つからなければ (nil, nil)。
+func (r *accountingRepository) FindByCompletionRequestID(ctx context.Context, clinicID uint64, requestID string) (*model.Billing, error) {
+	if requestID == "" {
+		return nil, nil
+	}
+	var billing model.Billing
+	err := persistence.DBOrTx(ctx, r.db).
+		Unscoped().
+		Scopes(persistence.ClinicScope(clinicID)).
+		Where("completion_request_id = ?", requestID).
+		First(&billing).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, apperrors.FromGORM(err, "billing", requestID)
+	}
 	return &billing, nil
 }
 

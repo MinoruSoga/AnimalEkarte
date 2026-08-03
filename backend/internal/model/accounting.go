@@ -78,23 +78,27 @@ const (
 )
 
 type Billing struct {
-	ID                uint64         `gorm:"primaryKey;autoIncrement"                       json:"id"`
-	ClinicID          uint64         `gorm:"not null"                                       json:"clinic_id"`
-	MedicalRecordID   *uint64        `                                                      json:"medical_record_id,omitempty"`
-	HospitalizationID *uint64        `                                                      json:"hospitalization_id,omitempty"`
-	OwnerID           *uint64        `                                                      json:"owner_id,omitempty"`
-	PetID             *uint64        `                                                      json:"pet_id,omitempty"`
-	Subtotal          int64          `gorm:"default:0"                                      json:"subtotal"`
-	TaxTotal          int64          `gorm:"default:0"                                      json:"tax_total"`
-	TotalAmount       int64          `gorm:"default:0"                                      json:"total_amount"`
-	HasInsurance      bool           `gorm:"default:false"                                  json:"has_insurance"`
-	Status            BillingStatus  `gorm:"type:billing_status;default:'waiting'"          json:"status"`
-	ScheduledDate     time.Time      `gorm:"type:date;not null"                             json:"scheduled_date"`
-	CompletedAt       *time.Time     `                                                      json:"completed_at,omitempty"`
-	Memo              string         `gorm:"default:''"                                     json:"memo"`
-	DeletedAt         gorm.DeletedAt `                                                      json:"-"`
-	CreatedAt         time.Time      `gorm:"autoCreateTime"                                 json:"created_at"`
-	UpdatedAt         time.Time      `gorm:"autoUpdateTime"                                 json:"updated_at"`
+	ID                uint64        `gorm:"primaryKey;autoIncrement"                       json:"id"`
+	ClinicID          uint64        `gorm:"not null"                                       json:"clinic_id"`
+	MedicalRecordID   *uint64       `                                                      json:"medical_record_id,omitempty"`
+	HospitalizationID *uint64       `                                                      json:"hospitalization_id,omitempty"`
+	OwnerID           *uint64       `                                                      json:"owner_id,omitempty"`
+	PetID             *uint64       `                                                      json:"pet_id,omitempty"`
+	Subtotal          int64         `gorm:"default:0"                                      json:"subtotal"`
+	TaxTotal          int64         `gorm:"default:0"                                      json:"tax_total"`
+	TotalAmount       int64         `gorm:"default:0"                                      json:"total_amount"`
+	HasInsurance      bool          `gorm:"default:false"                                  json:"has_insurance"`
+	Status            BillingStatus `gorm:"type:billing_status;default:'waiting'"          json:"status"`
+	ScheduledDate     time.Time     `gorm:"type:date;not null"                             json:"scheduled_date"`
+	CompletedAt       *time.Time    `                                                      json:"completed_at,omitempty"`
+	Memo              string        `gorm:"default:''"                                     json:"memo"`
+	// CompletionRequestID / CompletionRequestHash は BUG-018 complete command の冪等キー。
+	// NULL は legacy POST /accountings 経路。soft-delete 後も key 再利用不可（full UNIQUE）。
+	CompletionRequestID   *string        `gorm:"type:uuid"                                   json:"completion_request_id,omitempty"`
+	CompletionRequestHash *string        `                                                   json:"-"`
+	DeletedAt             gorm.DeletedAt `                                                   json:"-"`
+	CreatedAt             time.Time      `gorm:"autoCreateTime"                              json:"created_at"`
+	UpdatedAt             time.Time      `gorm:"autoUpdateTime"                              json:"updated_at"`
 
 	// 仮想フィールド（DB列なし）— FindAll のサブクエリで集計
 	TotalRefundedAmount int64 `gorm:"-" json:"total_refunded_amount"`

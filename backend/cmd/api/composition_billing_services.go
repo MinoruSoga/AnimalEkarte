@@ -48,6 +48,9 @@ func newBillingCoreServices(
 			billing.WithCashRegisterCloseRepository(r.cashRegisterCloses),
 			// BUG-013: blocking unbilled warning がある pet の会計作成を拒否
 			billing.WithUnbilledWriteGuard(billingItems),
+			// BUG-018: complete command の ambient-tx 明細・totals collaborator
+			billing.WithCompleteItemWriter(billingItems),
+			billing.WithCompleteTotalsWriter(billingItems),
 		),
 		billingItems: billingItems,
 		insurance:    billing.NewInsuranceService(r.insurance),

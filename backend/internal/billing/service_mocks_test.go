@@ -153,7 +153,6 @@ func (m *mockReservationRepository) FindPetByIDInClinic(_ context.Context, _, pe
 	return &model.Pet{ID: petID, Status: model.PetStatusAlive}, nil
 }
 
-
 func (m *mockReservationRepository) CompleteForAccounting(ctx context.Context, clinicID uint64, medicalRecordID, ownerID, petID *uint64, scheduledDate time.Time) (int64, error) {
 	if m.completeForAccountingFn != nil {
 		return m.completeForAccountingFn(ctx, clinicID, medicalRecordID, ownerID, petID, scheduledDate)
@@ -178,11 +177,13 @@ type mockAccountingRepository struct {
 	findMonthlyUnpaidCarryoverFn func(ctx context.Context, clinicID uint64, firstDay, lastDay string, page, limit int) ([]MonthlyUnpaidOwnerPet, int64, MonthlyUnpaidSummary, error)
 	// 以下4フィールドは F-4 統合で追加（旧 ForReport/ForClose/ForLstepVisit が個別に持っていたフック）。
 	// 未設定時は各旧モックのデフォルトと同じ値を返す（挙動不変）。
-	getCloseAggregateFn        func(ctx context.Context, input GetCloseAggregateInput) (*CloseAggregateResult, error)
-	getMonthlyReportFn         func(ctx context.Context, clinicID uint64, year, month int) (*MonthlyReportResult, error)
-	getMonthlyReportByPeriodFn func(ctx context.Context, clinicID uint64, start, end time.Time) (*MonthlyReportResult, error)
+	getCloseAggregateFn                func(ctx context.Context, input GetCloseAggregateInput) (*CloseAggregateResult, error)
+	getMonthlyReportFn                 func(ctx context.Context, clinicID uint64, year, month int) (*MonthlyReportResult, error)
+	getMonthlyReportByPeriodFn         func(ctx context.Context, clinicID uint64, start, end time.Time) (*MonthlyReportResult, error)
 	getCategoryPaymentAllocationDataFn func(ctx context.Context, clinicID uint64, periodStart, periodEnd time.Time) (*CategoryPaymentAllocationData, error)
-	sumPaidByOwnerFn           func(ctx context.Context, clinicID, ownerID uint64) (int64, error)
+	sumPaidByOwnerFn                   func(ctx context.Context, clinicID, ownerID uint64) (int64, error)
+	// BUG-018: completion idempotency lookup
+	findByCompletionRequestIDFn func(ctx context.Context, clinicID uint64, requestID string) (*model.Billing, error)
 }
 
 func (m *mockAccountingRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Billing, int64, error) {
@@ -323,6 +324,13 @@ func (m *mockAccountingRepository) FindMonthlyUnpaidCarryover(ctx context.Contex
 		return m.findMonthlyUnpaidCarryoverFn(ctx, clinicID, firstDay, lastDay, page, limit)
 	}
 	return nil, 0, MonthlyUnpaidSummary{}, nil
+}
+
+func (m *mockAccountingRepository) FindByCompletionRequestID(ctx context.Context, clinicID uint64, requestID string) (*model.Billing, error) {
+	if m.findByCompletionRequestIDFn != nil {
+		return m.findByCompletionRequestIDFn(ctx, clinicID, requestID)
+	}
+	return nil, nil
 }
 
 // （def残存=accounting系はB④・再宣言規約）。

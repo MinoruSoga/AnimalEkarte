@@ -183,6 +183,10 @@ func (m *mockAccountingService) GetByIDForClinics(ctx context.Context, clinicIDs
 	return m.getByIDForClinicsFn(ctx, clinicIDs, id)
 }
 
+func (m *mockAccountingService) Complete(_ context.Context, _ *CompleteAccountingInput) (*CompleteAccountingResult, error) {
+	return nil, apperrors.WrapInternalServerError("Complete not implemented in mockAccountingService")
+}
+
 func (m *mockAccountingService) Create(ctx context.Context, input *CreateAccountingInput) (*model.Billing, error) {
 	return m.createFn(ctx, input)
 }
