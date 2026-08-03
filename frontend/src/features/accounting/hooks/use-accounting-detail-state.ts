@@ -8,7 +8,7 @@ import { todayJSTISO } from "@/lib/jst-date";
 import { queryKeys } from "@/lib/query-keys";
 import { QUERY_STALE_TIMES } from "@/lib/react-query";
 
-import { getUnbilledItems } from "../api/get-unbilled-items";
+import { getUnbilledItemDetails, type UnbilledWarning } from "../api/get-unbilled-items";
 import { useGetUngroupedSameDay } from "../api/get-ungrouped-items";
 import type { PaymentSplitDraft } from "../components/PaymentCard";
 import type { Accounting, AccountingItem, PaymentInfo } from "../types";
@@ -61,12 +61,32 @@ export function useAccountingDetailState({
 
   const baseItems = useMemo(() => baseAccounting?.items ?? [], [baseAccounting]);
 
-  const { data: unbilledItems } = useQuery({
+  // BUG-013: new accounting consumer uses details envelope (items + typed warnings).
+  // Fail-closed while pending/error: do not treat "unknown warnings" as clear.
+  const {
+    data: unbilledDetails,
+    isPending: unbilledDetailsPending,
+    isError: unbilledDetailsError,
+    isSuccess: unbilledDetailsSuccess,
+  } = useQuery({
     queryKey: queryKeys.unbilledItems(newPetId),
-    queryFn: () => getUnbilledItems(newPetId),
+    queryFn: () => getUnbilledItemDetails(newPetId),
     enabled: !accountingId && !!newPetId,
     staleTime: QUERY_STALE_TIMES.SHORT,
   });
+
+  const unbilledItems = unbilledDetails?.items;
+  const unbilledWarnings: UnbilledWarning[] = unbilledDetails?.warnings ?? [];
+  const hasBlockingUnbilledWarning = useMemo(
+    () => unbilledWarnings.some((w) => w.blocking && w.count > 0),
+    [unbilledWarnings],
+  );
+  // New accounting only: ready when details succeeded (or not needed for existing accounting).
+  const unbilledDetailsReady = Boolean(accountingId) || !newPetId || unbilledDetailsSuccess;
+  const blocksNewAccountingSubmit =
+    !accountingId &&
+    !!newPetId &&
+    (unbilledDetailsPending || unbilledDetailsError || hasBlockingUnbilledWarning);
 
   const editableBaseItems = useMemo(
     () => (!accountingId && unbilledItems && unbilledItems.length > 0 ? unbilledItems : baseItems),
@@ -144,6 +164,11 @@ export function useAccountingDetailState({
     newPetId,
     baseAccounting,
     ungroupedSummary,
+    unbilledWarnings,
+    hasBlockingUnbilledWarning,
+    unbilledDetailsReady,
+    unbilledDetailsError,
+    blocksNewAccountingSubmit,
     baseItems: editableBaseItems,
     displayItems,
     localItems,

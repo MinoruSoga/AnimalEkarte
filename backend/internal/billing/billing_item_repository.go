@@ -24,7 +24,10 @@ type BillingItemRepository interface {
 	ValidateCreateReferences(ctx context.Context, clinicID, billingID uint64, merchandiseItemID, treatmentID, appointmentID, trimmingCourseID, trimmingOptionID *uint64) (model.ItemCategory, error)
 	ValidateVaccinationCreateReference(ctx context.Context, clinicID, billingID, vaccinationID uint64) (*vaccinationBillingValues, error)
 	LockActiveStaffAssignment(ctx context.Context, clinicID, staffID uint64) error
-	FindUnbilledVaccinationItemsByPetID(ctx context.Context, clinicID, petID uint64) ([]model.BillingItem, error)
+	// FindUnbilledVaccinationItemsByPetID は未請求 vaccination 候補を返す。
+	// unbillableCount は vaccine master 欠損/負価格などで除外した件数（BUG-013 warning 用）。
+	// 除外行は error にせず skip する（infra error のみ error）。
+	FindUnbilledVaccinationItemsByPetID(ctx context.Context, clinicID, petID uint64) (items []model.BillingItem, unbillableCount int, err error)
 	Create(ctx context.Context, item *model.BillingItem) error
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
 	Delete(ctx context.Context, clinicID, id uint64) error
@@ -442,7 +445,7 @@ func (r *billingItemRepository) ValidateVaccinationCreateReference(
 func (r *billingItemRepository) FindUnbilledVaccinationItemsByPetID(
 	ctx context.Context,
 	clinicID, petID uint64,
-) ([]model.BillingItem, error) {
+) ([]model.BillingItem, int, error) {
 	type vaccinationBillingRow struct {
 		VaccinationID uint64
 		VaccineID     *uint64
@@ -492,10 +495,11 @@ func (r *billingItemRepository) FindUnbilledVaccinationItemsByPetID(
 		  )
 		ORDER BY vaccination.date ASC, vaccination.id ASC
 	`, clinicID, petID).Scan(&rows).Error; err != nil {
-		return nil, apperrors.FromGORM(err, "vaccination", fmt.Sprintf("pet:%d", petID))
+		return nil, 0, apperrors.FromGORM(err, "vaccination", fmt.Sprintf("pet:%d", petID))
 	}
 
 	items := make([]model.BillingItem, 0, len(rows))
+	unbillableCount := 0
 	for i := range rows {
 		row := &rows[i]
 		if row.VaccineID == nil ||
@@ -503,7 +507,9 @@ func (r *billingItemRepository) FindUnbilledVaccinationItemsByPetID(
 			strings.TrimSpace(*row.Name) == "" ||
 			row.UnitPrice == nil ||
 			*row.UnitPrice < 0 {
-			return nil, apperrors.WrapInternalServerError("vaccination vaccine master is not billable")
+			// BUG-013: data-quality は skip + count（typed warning 入力）。infra ではない。
+			unbillableCount++
+			continue
 		}
 		vaccinationID := row.VaccinationID
 		items = append(items, model.BillingItem{
@@ -518,7 +524,7 @@ func (r *billingItemRepository) FindUnbilledVaccinationItemsByPetID(
 			VaccinationID: &vaccinationID,
 		})
 	}
-	return items, nil
+	return items, unbillableCount, nil
 }
 
 func (r *billingItemRepository) Create(ctx context.Context, item *model.BillingItem) error {

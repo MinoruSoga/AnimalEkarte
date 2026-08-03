@@ -20,6 +20,20 @@ func newBillingCoreServices(
 	d billingCompositionDependencies,
 	auditTx billingAuditTxBridge,
 ) billingCoreServices {
+	// billingItems を先に構築し、BUG-013 write-time unbilled guard として accounting へ注入する。
+	billingItems := billing.NewBillingItemServiceWithCampaign(
+		r.billingItems,
+		r.accounting,
+		d.Treatments,
+		d.Transactor,
+		d.TrimmingCourses,
+		d.TrimmingOptions,
+		r.campaigns,
+		d.Owners,
+		billing.WithBillingItemAuditTx(auditTx),
+		// W-013 HIGH-2: 明細締め後変更も adjustment 台帳へ追記
+		billing.WithBillingItemCloseRepository(r.cashRegisterCloses),
+	)
 	return billingCoreServices{
 		accounting: billing.NewAccountingService(
 			r.accounting,
@@ -32,21 +46,11 @@ func newBillingCoreServices(
 			r.paymentMethods,
 			// W-013: 締め後編集の append-only adjustment 台帳書込（justified DI wiring）
 			billing.WithCashRegisterCloseRepository(r.cashRegisterCloses),
+			// BUG-013: blocking unbilled warning がある pet の会計作成を拒否
+			billing.WithUnbilledWriteGuard(billingItems),
 		),
-		billingItems: billing.NewBillingItemServiceWithCampaign(
-			r.billingItems,
-			r.accounting,
-			d.Treatments,
-			d.Transactor,
-			d.TrimmingCourses,
-			d.TrimmingOptions,
-			r.campaigns,
-			d.Owners,
-			billing.WithBillingItemAuditTx(auditTx),
-			// W-013 HIGH-2: 明細締め後変更も adjustment 台帳へ追記
-			billing.WithBillingItemCloseRepository(r.cashRegisterCloses),
-		),
-		insurance: billing.NewInsuranceService(r.insurance),
+		billingItems: billingItems,
+		insurance:    billing.NewInsuranceService(r.insurance),
 		cashRegister: billing.NewCashRegisterService(
 			r.cashRegisterCloses,
 			r.accounting,

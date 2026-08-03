@@ -108,6 +108,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	// 明細（旧 billing_item_handler.go RegisterBillingItemRoutes 逐語）
 	items := rg.Group("/billing-items")
 	items.GET("/unbilled", h.requirePermission(string(model.ResourceAccounting), "view"), h.billingItem.GetUnbilledItems)
+	// BUG-013: additive details envelope (items + typed blocking warnings). Same view permission.
+	items.GET("/unbilled-details", h.requirePermission(string(model.ResourceAccounting), "view"), h.billingItem.GetUnbilledItemDetails)
 	items.GET("/ungrouped-same-day", h.requirePermission(string(model.ResourceAccounting), "view"), h.billingItem.GetUngroupedSameDay)
 	items.POST("", h.requirePermission(string(model.ResourceAccounting), "create"), h.billingItem.CreateBillingItem)
 	items.PATCH("/:id", h.requirePermission(string(model.ResourceAccounting), "edit"), h.billingItem.UpdateBillingItem)

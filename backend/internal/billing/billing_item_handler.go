@@ -213,7 +213,7 @@ func (h *BillingItemHandler) DeleteBillingItem(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
-// GetUnbilledItems godoc
+// GetUnbilledItems godoc — legacy raw-array contract (BUG-013: kept for compatibility).
 func (h *BillingItemHandler) GetUnbilledItems(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
@@ -232,6 +232,46 @@ func (h *BillingItemHandler) GetUnbilledItems(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, httpapi.MapSlice(items, ToBillingItemResponse))
+}
+
+// unbilledDetailsResponse は BUG-013 additive envelope。
+// warnings は {source, code, count, blocking} のみ（内部情報を載せない）。
+type unbilledDetailsResponse struct {
+	Items    []BillingItemResponse `json:"items"`
+	Warnings []UnbilledWarning     `json:"warnings"`
+}
+
+// GetUnbilledItemDetails godoc
+// GET /billing-items/unbilled-details?pet_id=
+func (h *BillingItemHandler) GetUnbilledItemDetails(c *gin.Context) {
+	clinicID, ok := httpapi.ExtractClinicID(c)
+	if !ok {
+		return
+	}
+
+	petID, err := newUnbilledItemsQuery(c.Request.URL.Query()).toPetID()
+	if err != nil {
+		httpapi.RespondError(c, err)
+		return
+	}
+
+	details, err := h.svc.GetUnbilledItemDetails(c.Request.Context(), clinicID, petID)
+	if err != nil {
+		httpapi.RespondError(c, err)
+		return
+	}
+	if details == nil {
+		c.JSON(http.StatusOK, unbilledDetailsResponse{Items: []BillingItemResponse{}, Warnings: []UnbilledWarning{}})
+		return
+	}
+	warnings := details.Warnings
+	if warnings == nil {
+		warnings = []UnbilledWarning{}
+	}
+	c.JSON(http.StatusOK, unbilledDetailsResponse{
+		Items:    httpapi.MapSlice(details.Items, ToBillingItemResponse),
+		Warnings: warnings,
+	})
 }
 
 // ungroupedSameDayResponse は #77 取り残し警告用レスポンス。

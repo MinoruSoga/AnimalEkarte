@@ -5,7 +5,7 @@ vi.mock("@/lib/axios", () => ({
 }));
 
 import { axios } from "@/lib/axios";
-import { getUnbilledItems } from "./get-unbilled-items";
+import { getUnbilledItemDetails, getUnbilledItems } from "./get-unbilled-items";
 import type { BackendAccountingItem } from "./types";
 
 const mockedGet = vi.mocked(axios.get);
@@ -46,6 +46,9 @@ describe("getUnbilledItems", () => {
       "treatment_41",
       "vaccination_41",
     ]);
+    expect(mockedGet).toHaveBeenCalledWith("/v1/billing-items/unbilled", {
+      params: { pet_id: "7" },
+    });
   });
 
   it("具体的な provenance ID がない候補は従来の source と item ID を使う", async () => {
@@ -56,5 +59,52 @@ describe("getUnbilledItems", () => {
     const result = await getUnbilledItems("7");
 
     expect(result[0].id).toBe("manual_42");
+  });
+});
+
+describe("getUnbilledItemDetails", () => {
+  beforeEach(() => {
+    mockedGet.mockReset();
+  });
+
+  it("items と blocking warning を details envelope から取り出す", async () => {
+    mockedGet.mockResolvedValue({
+      data: {
+        items: [buildItem({ id: 41, treatment_id: 41, name: "処置A" })],
+        warnings: [
+          {
+            source: "vaccination",
+            code: "vaccination_master_unbillable",
+            count: 2,
+            blocking: true,
+          },
+        ],
+      },
+    });
+
+    const result = await getUnbilledItemDetails("7");
+
+    expect(mockedGet).toHaveBeenCalledWith("/v1/billing-items/unbilled-details", {
+      params: { pet_id: "7" },
+    });
+    expect(result.items.map((item) => item.id)).toEqual(["treatment_41"]);
+    expect(result.warnings).toEqual([
+      {
+        source: "vaccination",
+        code: "vaccination_master_unbillable",
+        count: 2,
+        blocking: true,
+      },
+    ]);
+  });
+
+  it("warnings 欠落時は空配列にする", async () => {
+    mockedGet.mockResolvedValue({
+      data: { items: [] },
+    });
+
+    const result = await getUnbilledItemDetails("7");
+    expect(result.items).toEqual([]);
+    expect(result.warnings).toEqual([]);
   });
 });

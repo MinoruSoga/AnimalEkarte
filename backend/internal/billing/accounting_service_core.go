@@ -58,6 +58,12 @@ func (s *accountingService) Create(ctx context.Context, input *CreateAccountingI
 	if input.Subtotal+input.TaxTotal != input.TotalAmount {
 		return nil, apperrors.WrapInvalidInput("小計と税額の合計が請求合計と一致しません")
 	}
+	// BUG-013: blocking unbilled warning がある pet への会計作成は fail-closed（underbilling 防止）。
+	if s.unbilledGuard != nil && input.PetID != nil {
+		if err := s.unbilledGuard.AssertNoBlockingUnbilled(ctx, input.ClinicID, *input.PetID); err != nil {
+			return nil, err
+		}
+	}
 	billing := &model.Billing{
 		ClinicID:          input.ClinicID,
 		MedicalRecordID:   input.MedicalRecordID,

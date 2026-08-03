@@ -60,7 +60,7 @@ COMMENT ON COLUMN billing_items.clinic_id IS
 `
 
 type unbilledVaccinationFinder interface {
-	FindUnbilledVaccinationItemsByPetID(ctx context.Context, clinicID, petID uint64) ([]model.BillingItem, error)
+	FindUnbilledVaccinationItemsByPetID(ctx context.Context, clinicID, petID uint64) ([]model.BillingItem, int, error)
 }
 
 type vaccinationClaimAttemptRepository struct {
@@ -114,7 +114,7 @@ func TestBillingItemVaccinationProvenance_UnbilledCandidates(t *testing.T) {
 		_, vaccination := makeBillingVaccination(t, f, "犬6種混合", &price)
 		finder := f.repo.(unbilledVaccinationFinder)
 
-		items, err := finder.FindUnbilledVaccinationItemsByPetID(context.Background(), f.clinicID, f.pet.ID)
+		items, _, err := finder.FindUnbilledVaccinationItemsByPetID(context.Background(), f.clinicID, f.pet.ID)
 
 		require.NoError(t, err)
 		require.Len(t, items, 1)
@@ -145,34 +145,36 @@ func TestBillingItemVaccinationProvenance_UnbilledCandidates(t *testing.T) {
 		require.NoError(t, f.db.Create(linkedItem).Error)
 		finder := f.repo.(unbilledVaccinationFinder)
 
-		items, err := finder.FindUnbilledVaccinationItemsByPetID(context.Background(), f.clinicID, f.pet.ID)
+		items, _, err := finder.FindUnbilledVaccinationItemsByPetID(context.Background(), f.clinicID, f.pet.ID)
 		require.NoError(t, err)
 		assert.Empty(t, items)
 
 		require.NoError(t, f.db.Model(&model.Billing{}).
 			Where("id = ?", f.billing.ID).
 			Update("status", model.BillingStatusCancelled).Error)
-		items, err = finder.FindUnbilledVaccinationItemsByPetID(context.Background(), f.clinicID, f.pet.ID)
+		items, _, err = finder.FindUnbilledVaccinationItemsByPetID(context.Background(), f.clinicID, f.pet.ID)
 		require.NoError(t, err)
 		assert.Empty(t, items)
 	})
 
-	t.Run("fails closed for missing or unpriced vaccine master", func(t *testing.T) {
+	t.Run("skips unpriced vaccine master as unbillable count (BUG-013)", func(t *testing.T) {
 		f := setupBillingItemReferenceFixture(t)
 		vaccine, _ := makeBillingVaccination(t, f, "価格未設定", nil)
 		finder := f.repo.(unbilledVaccinationFinder)
 
-		items, err := finder.FindUnbilledVaccinationItemsByPetID(context.Background(), f.clinicID, f.pet.ID)
-		require.Error(t, err)
-		assert.Nil(t, items)
+		items, unbillable, err := finder.FindUnbilledVaccinationItemsByPetID(context.Background(), f.clinicID, f.pet.ID)
+		require.NoError(t, err)
+		assert.Empty(t, items)
+		assert.Equal(t, 1, unbillable)
 
 		require.NoError(t, f.db.Delete(&model.Vaccine{}, vaccine.ID).Error)
-		items, err = finder.FindUnbilledVaccinationItemsByPetID(context.Background(), f.clinicID, f.pet.ID)
-		require.Error(t, err)
-		assert.Nil(t, items)
+		items, unbillable, err = finder.FindUnbilledVaccinationItemsByPetID(context.Background(), f.clinicID, f.pet.ID)
+		require.NoError(t, err)
+		assert.Empty(t, items)
+		assert.Equal(t, 1, unbillable)
 	})
 
-	t.Run("fails closed for a foreign-clinic vaccine master", func(t *testing.T) {
+	t.Run("foreign-clinic vaccine master counts as unbillable skip (BUG-013)", func(t *testing.T) {
 		f := setupBillingItemReferenceFixture(t)
 		require.NoError(t, testdb.EnsureAutoMigrated(f.db, &model.Vaccine{}, &model.Vaccination{}, &model.BillingItem{}))
 		foreignOwner := testdb.MakeTestOwner(t, f.db, 2, "foreign vaccine owner")
@@ -189,10 +191,11 @@ func TestBillingItemVaccinationProvenance_UnbilledCandidates(t *testing.T) {
 		require.NoError(t, f.db.Create(corruptVaccination).Error)
 		finder := f.repo.(unbilledVaccinationFinder)
 
-		items, err := finder.FindUnbilledVaccinationItemsByPetID(context.Background(), f.clinicID, f.pet.ID)
+		items, unbillable, err := finder.FindUnbilledVaccinationItemsByPetID(context.Background(), f.clinicID, f.pet.ID)
 
-		require.Error(t, err)
-		assert.Nil(t, items)
+		require.NoError(t, err)
+		assert.Empty(t, items)
+		assert.Equal(t, 1, unbillable)
 	})
 
 	t.Run("foreign or mismatched medical-record graph produces no candidate", func(t *testing.T) {
@@ -220,7 +223,7 @@ func TestBillingItemVaccinationProvenance_UnbilledCandidates(t *testing.T) {
 		require.NoError(t, f.db.Create(corruptVaccination).Error)
 		finder := f.repo.(unbilledVaccinationFinder)
 
-		items, err := finder.FindUnbilledVaccinationItemsByPetID(context.Background(), f.clinicID, f.pet.ID)
+		items, _, err := finder.FindUnbilledVaccinationItemsByPetID(context.Background(), f.clinicID, f.pet.ID)
 
 		require.NoError(t, err)
 		assert.Empty(t, items)
@@ -244,7 +247,7 @@ func TestBillingItemVaccinationProvenance_UnbilledCandidates(t *testing.T) {
 			Update("owner_id", newOwner.ID).Error)
 
 		finder := f.repo.(unbilledVaccinationFinder)
-		items, err := finder.FindUnbilledVaccinationItemsByPetID(context.Background(), f.clinicID, f.pet.ID)
+		items, _, err := finder.FindUnbilledVaccinationItemsByPetID(context.Background(), f.clinicID, f.pet.ID)
 
 		require.NoError(t, err)
 		require.Len(t, items, 1)
@@ -505,7 +508,7 @@ func TestBillingItemVaccinationProvenance_PollutedClaimClinicIsolation(t *testin
 			require.NoError(t, f.db.Create(polluted).Error)
 
 			finder := f.repo.(unbilledVaccinationFinder)
-			items, err := finder.FindUnbilledVaccinationItemsByPetID(
+			items, _, err := finder.FindUnbilledVaccinationItemsByPetID(
 				context.Background(),
 				f.clinicID,
 				f.pet.ID,
@@ -547,7 +550,7 @@ func TestBillingItemVaccinationProvenance_CreateStatusGuard(t *testing.T) {
 			f.billing.Status = tt.status
 
 			finder := f.repo.(unbilledVaccinationFinder)
-			candidates, err := finder.FindUnbilledVaccinationItemsByPetID(
+			candidates, _, err := finder.FindUnbilledVaccinationItemsByPetID(
 				context.Background(),
 				f.clinicID,
 				f.pet.ID,
@@ -564,7 +567,7 @@ func TestBillingItemVaccinationProvenance_CreateStatusGuard(t *testing.T) {
 			require.NoError(t, f.db.Model(&model.BillingItem{}).
 				Where("billing_id = ? AND vaccination_id = ?", f.billing.ID, vaccination.ID).
 				Count(&persistedCount).Error)
-			candidates, candidateErr := finder.FindUnbilledVaccinationItemsByPetID(
+			candidates, _, candidateErr := finder.FindUnbilledVaccinationItemsByPetID(
 				context.Background(),
 				f.clinicID,
 				f.pet.ID,
@@ -725,7 +728,7 @@ func TestBillingItemVaccinationProvenance_DeleteReleasesClaim(t *testing.T) {
 	assert.Equal(t, f.clinicID, *created.ClinicID)
 
 	finder := f.repo.(unbilledVaccinationFinder)
-	items, err := finder.FindUnbilledVaccinationItemsByPetID(
+	items, _, err := finder.FindUnbilledVaccinationItemsByPetID(
 		context.Background(),
 		f.clinicID,
 		f.pet.ID,
@@ -748,7 +751,7 @@ func TestBillingItemVaccinationProvenance_DeleteReleasesClaim(t *testing.T) {
 	assert.Nil(t, released.VaccinationID)
 	assert.Nil(t, released.ClinicID)
 
-	items, err = finder.FindUnbilledVaccinationItemsByPetID(
+	items, _, err = finder.FindUnbilledVaccinationItemsByPetID(
 		context.Background(),
 		f.clinicID,
 		f.pet.ID,
@@ -811,7 +814,7 @@ func TestBillingItemVaccinationProvenance_DeleteStatusGuard(t *testing.T) {
 				Take(&stored).Error)
 
 			finder := f.repo.(unbilledVaccinationFinder)
-			items, err := finder.FindUnbilledVaccinationItemsByPetID(
+			items, _, err := finder.FindUnbilledVaccinationItemsByPetID(
 				context.Background(),
 				f.clinicID,
 				f.pet.ID,
@@ -908,7 +911,7 @@ func TestBillingItemVaccinationClaimRelease_AuditFailureRollsBack(t *testing.T) 
 	assert.Nil(t, stored.DeletedAt, "audit failure must roll back soft-delete")
 
 	finder := f.repo.(unbilledVaccinationFinder)
-	items, err := finder.FindUnbilledVaccinationItemsByPetID(context.Background(), f.clinicID, f.pet.ID)
+	items, _, err := finder.FindUnbilledVaccinationItemsByPetID(context.Background(), f.clinicID, f.pet.ID)
 	require.NoError(t, err)
 	assert.Empty(t, items, "failed delete must not re-open vaccination candidacy")
 }

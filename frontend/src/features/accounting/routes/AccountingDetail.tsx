@@ -16,6 +16,7 @@ import {
   AccountingPrintArea,
   ReadOnlyAccountingBanner,
   UngroupedItemsWarningBanner,
+  UnbilledBlockingWarningBanner,
 } from "../components/AccountingDetailPanels";
 import { useAccountingCompletionAction } from "../hooks/use-accounting-completion-action";
 import { useAccountingDetailState } from "../hooks/use-accounting-detail-state";
@@ -58,6 +59,10 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
     setLocalItems,
     accounting,
     ungroupedSummary,
+    unbilledWarnings,
+    hasBlockingUnbilledWarning,
+    blocksNewAccountingSubmit,
+    unbilledDetailsError,
     calculation,
     setCompletedPayment,
     hasInsurance,
@@ -117,7 +122,9 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
   const { canView: canViewCashRegisterClose } = usePermission(ResourceCashRegisterClose);
   const hasAccountingMutationPermission = id ? canEdit : canCreate;
   // レジ締め状態を検証できない場合は、締め後編集を誤って許可しないよう fail closed にする。
-  const canSubmit = hasAccountingMutationPermission && canViewCashRegisterClose;
+  // BUG-013: blocking unbilled / details 未取得・失敗中は新規会計確定を無効化。
+  const canSubmit =
+    hasAccountingMutationPermission && canViewCashRegisterClose && !blocksNewAccountingSubmit;
 
   // #115: billing の scheduled_date が締め済みか確認
   const scheduledDateStr = accounting?.scheduledDate ? accounting.scheduledDate.slice(0, 10) : null;
@@ -197,6 +204,14 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
             medicalRecordCount={ungroupedSummary?.medicalRecordCount ?? 0}
             trimmingCount={ungroupedSummary?.trimmingCount ?? 0}
           />
+          <UnbilledBlockingWarningBanner
+            show={Boolean(!id && (hasBlockingUnbilledWarning || unbilledDetailsError))}
+            warnings={
+              unbilledDetailsError
+                ? [{ source: "unbilled", code: "unbilled_details_unavailable", count: 1, blocking: true }]
+                : unbilledWarnings
+            }
+          />
           <fieldset disabled={!canSubmit} className="border-0 p-0 m-0 min-w-0">
             <AccountingDetailColumns
               accounting={accounting}
@@ -207,8 +222,8 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
               paymentSplits={paymentSplits}
               newItemOpen={newItemOpen}
               isRefunding={isRefunding}
-              canEdit={Boolean(canEdit && canViewCashRegisterClose)}
-              canCreate={Boolean(canCreate && canViewCashRegisterClose)}
+              canEdit={Boolean(canEdit && canViewCashRegisterClose && !blocksNewAccountingSubmit)}
+              canCreate={Boolean(canCreate && canViewCashRegisterClose && !blocksNewAccountingSubmit)}
               canDelete={Boolean(canDelete && canViewCashRegisterClose)}
               onNewItemOpenChange={setNewItemOpen}
               onAddItem={handleAddItem}

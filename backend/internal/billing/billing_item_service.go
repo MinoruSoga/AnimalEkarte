@@ -199,6 +199,10 @@ type BillingItemService interface {
 	// nil input は非締め後削除として扱う。
 	DeleteItem(ctx context.Context, clinicID, id uint64, input *DeleteBillingItemInput) error
 	GetUnbilledItems(ctx context.Context, clinicID, petID uint64) ([]model.BillingItem, error)
+	// GetUnbilledItemDetails は未請求候補 items と typed blocking warnings を返す（BUG-013）。
+	GetUnbilledItemDetails(ctx context.Context, clinicID, petID uint64) (*UnbilledDetails, error)
+	// AssertNoBlockingUnbilled は pet に blocking unbilled warning がある場合 Conflict を返す（write-time fail-closed）。
+	AssertNoBlockingUnbilled(ctx context.Context, clinicID, petID uint64) error
 	// GetUngroupedSameDaySummary は同日同ペットの未会計対象化項目(診察/トリミング)の件数を返す(#77 取り残し警告)。
 	GetUngroupedSameDaySummary(ctx context.Context, clinicID, petID uint64, date time.Time) (UngroupedSameDaySummary, error)
 	// GetDiscountSuggestions は指定明細に適用可能な割引候補を返す（#81 Q-I スタッフ選択）。
@@ -214,6 +218,26 @@ type BillingItemService interface {
 type UngroupedSameDaySummary struct {
 	MedicalRecordCount int64
 	TrimmingCount      int64
+}
+
+// Unbilled warning codes / sources (BUG-013). Keep payload minimal — no IDs, names, prices, SQL.
+const (
+	UnbilledWarningSourceVaccination               = "vaccination"
+	UnbilledWarningCodeVaccinationMasterUnbillable = "vaccination_master_unbillable"
+)
+
+// UnbilledWarning は未請求集約の data-quality 警告（response 公開契約）。
+type UnbilledWarning struct {
+	Source   string `json:"source"`
+	Code     string `json:"code"`
+	Count    int    `json:"count"`
+	Blocking bool   `json:"blocking"`
+}
+
+// UnbilledDetails は additive GET /billing-items/unbilled-details の結果。
+type UnbilledDetails struct {
+	Items    []model.BillingItem
+	Warnings []UnbilledWarning
 }
 
 type billingItemService struct {
@@ -359,6 +383,15 @@ func (s *billingItemService) CreateItem(ctx context.Context, input *CreateBillin
 	}
 	if err := s.validateBillingItemOwnership(ctx, input); err != nil {
 		return nil, err
+	}
+	// BUG-013: blocking unbilled warning がある pet への明細書き込みは全書込拒否（underbilling 防止）。
+	// FindByID 失敗は fail-closed（guard をスキップしない）。
+	if billing, err := s.billingRepo.FindByID(ctx, input.ClinicID, input.BillingID); err != nil {
+		return nil, apperrors.Wrap(err, "failed to load billing for unbilled write guard")
+	} else if billing != nil && billing.PetID != nil {
+		if err := s.AssertNoBlockingUnbilled(ctx, input.ClinicID, *billing.PetID); err != nil {
+			return nil, err
+		}
 	}
 	taxType, taxRate, source, err := resolveBillingItemDefaults(input)
 	if err != nil {
@@ -624,7 +657,7 @@ func (s *billingItemService) DeleteItem(ctx context.Context, clinicID, id uint64
 	})
 }
 
-func (s *billingItemService) GetUnbilledItems(ctx context.Context, clinicID, petID uint64) ([]model.BillingItem, error) {
+func (s *billingItemService) aggregateUnbilled(ctx context.Context, clinicID, petID uint64) (*UnbilledDetails, error) {
 	treatments, err := s.treatmentRepo.FindUnbilledByPetID(ctx, clinicID, petID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to find unbilled treatments", "error", err)
@@ -643,13 +676,63 @@ func (s *billingItemService) GetUnbilledItems(ctx context.Context, clinicID, pet
 		}
 		items = append(items, trimmingItems...)
 	}
-	vaccinationItems, err := s.repo.FindUnbilledVaccinationItemsByPetID(ctx, clinicID, petID)
+
+	vaccinationItems, unbillableCount, err := s.repo.FindUnbilledVaccinationItemsByPetID(ctx, clinicID, petID)
 	if err != nil {
+		// infra / unexpected: keep 500 fail-closed (do not convert to warning)
 		slog.ErrorContext(ctx, "failed to find unbilled vaccination items", "error", err)
 		return nil, apperrors.Wrap(err, "failed to find unbilled vaccination items")
 	}
 	items = append(items, vaccinationItems...)
-	return items, nil
+
+	warnings := make([]UnbilledWarning, 0, 1)
+	if unbillableCount > 0 {
+		warnings = append(warnings, UnbilledWarning{
+			Source:   UnbilledWarningSourceVaccination,
+			Code:     UnbilledWarningCodeVaccinationMasterUnbillable,
+			Count:    unbillableCount,
+			Blocking: true,
+		})
+	}
+	return &UnbilledDetails{Items: items, Warnings: warnings}, nil
+}
+
+func hasBlockingUnbilledWarning(warnings []UnbilledWarning) bool {
+	for i := range warnings {
+		if warnings[i].Blocking && warnings[i].Count > 0 {
+			return true
+		}
+	}
+	return false
+}
+
+// GetUnbilledItems は legacy raw-array 契約。全 source 成功時は items を返す。
+// blocking data-quality warning がある場合は silent partial を避け fail-closed（従来どおり error）。
+// 部分可視化は GetUnbilledItemDetails を使う（BUG-013）。
+func (s *billingItemService) GetUnbilledItems(ctx context.Context, clinicID, petID uint64) ([]model.BillingItem, error) {
+	details, err := s.aggregateUnbilled(ctx, clinicID, petID)
+	if err != nil {
+		return nil, err
+	}
+	if hasBlockingUnbilledWarning(details.Warnings) {
+		return nil, apperrors.WrapInternalServerError("vaccination vaccine master is not billable")
+	}
+	return details.Items, nil
+}
+
+func (s *billingItemService) GetUnbilledItemDetails(ctx context.Context, clinicID, petID uint64) (*UnbilledDetails, error) {
+	return s.aggregateUnbilled(ctx, clinicID, petID)
+}
+
+func (s *billingItemService) AssertNoBlockingUnbilled(ctx context.Context, clinicID, petID uint64) error {
+	details, err := s.aggregateUnbilled(ctx, clinicID, petID)
+	if err != nil {
+		return err
+	}
+	if hasBlockingUnbilledWarning(details.Warnings) {
+		return apperrors.WrapConflict("未請求候補に請求不能な予防接種が含まれるため会計を確定できません")
+	}
+	return nil
 }
 
 func (s *billingItemService) GetUngroupedSameDaySummary(ctx context.Context, clinicID, petID uint64, date time.Time) (UngroupedSameDaySummary, error) {

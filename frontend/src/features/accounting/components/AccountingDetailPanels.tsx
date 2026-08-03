@@ -108,6 +108,46 @@ export function UngroupedItemsWarningBanner({
   );
 }
 
+interface UnbilledBlockingWarningBannerProps {
+  show: boolean;
+  warnings: ReadonlyArray<{ source: string; code: string; count: number; blocking: boolean }>;
+}
+
+/** BUG-013: blocking unbilled warning 中は会計確定を無効化する。 */
+export function UnbilledBlockingWarningBanner({
+  show,
+  warnings,
+}: UnbilledBlockingWarningBannerProps) {
+  if (!show) return null;
+  const blocking = warnings.filter((w) => w.blocking && w.count > 0);
+  if (blocking.length === 0) return null;
+
+  const labels = blocking.map((w) => {
+    if (w.code === "vaccination_master_unbillable") {
+      return `予防接種マスタ未設定/価格不正 ${w.count}件`;
+    }
+    return `${w.source} ${w.count}件`;
+  });
+
+  return (
+    <div
+      className={`flex items-start gap-2 px-4 py-2.5 rounded-md border mb-4 ${C.bgDanger10} ${C.borderDanger20} ${C.danger}`}
+      role="alert"
+      aria-label="未請求候補に請求不能な項目があるため会計を確定できません"
+    >
+      <AlertTriangle className={`shrink-0 h-4 w-4 mt-0.5 ${C.danger}`} aria-hidden="true" />
+      <div className="text-sm">
+        <span className="font-medium">
+          未請求候補に請求不能な項目があるため会計を確定できません（{labels.join(" / ")}）。
+        </span>
+        <span className={`block ${C.text60} mt-0.5`}>
+          ワクチンマスタの価格を整備してから会計してください。有効な処置・トリミングのみでの部分会計は許可されません。
+        </span>
+      </div>
+    </div>
+  );
+}
+
 interface AccountingCalculationView {
   subtotal: number;
   taxTotal: number;

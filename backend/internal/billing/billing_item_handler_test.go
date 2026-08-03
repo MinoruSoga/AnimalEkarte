@@ -30,6 +30,8 @@ type mockBillingItemService struct {
 	updateItemFn                 func(ctx context.Context, clinicID, id uint64, input *UpdateBillingItemInput) (*model.BillingItem, error)
 	deleteItemFn                 func(ctx context.Context, clinicID, id uint64, input *DeleteBillingItemInput) error
 	getUnbilledItemsFn           func(ctx context.Context, clinicID, petID uint64) ([]model.BillingItem, error)
+	getUnbilledItemDetailsFn     func(ctx context.Context, clinicID, petID uint64) (*UnbilledDetails, error)
+	assertNoBlockingUnbilledFn   func(ctx context.Context, clinicID, petID uint64) error
 	getUngroupedSameDaySummaryFn func(ctx context.Context, clinicID, petID uint64, date time.Time) (UngroupedSameDaySummary, error)
 	getDiscountSuggestionsFn     func(ctx context.Context, clinicID, itemID uint64) ([]DiscountSuggestion, error)
 	getBillingFn                 func(ctx context.Context, clinicID, billingID uint64) (*model.Billing, error)
@@ -50,6 +52,20 @@ func (m *mockBillingItemService) DeleteItem(ctx context.Context, clinicID, id ui
 
 func (m *mockBillingItemService) GetUnbilledItems(ctx context.Context, clinicID, petID uint64) ([]model.BillingItem, error) {
 	return m.getUnbilledItemsFn(ctx, clinicID, petID)
+}
+
+func (m *mockBillingItemService) GetUnbilledItemDetails(ctx context.Context, clinicID, petID uint64) (*UnbilledDetails, error) {
+	if m.getUnbilledItemDetailsFn != nil {
+		return m.getUnbilledItemDetailsFn(ctx, clinicID, petID)
+	}
+	return &UnbilledDetails{Items: nil, Warnings: []UnbilledWarning{}}, nil
+}
+
+func (m *mockBillingItemService) AssertNoBlockingUnbilled(ctx context.Context, clinicID, petID uint64) error {
+	if m.assertNoBlockingUnbilledFn != nil {
+		return m.assertNoBlockingUnbilledFn(ctx, clinicID, petID)
+	}
+	return nil
 }
 
 func (m *mockBillingItemService) GetUngroupedSameDaySummary(ctx context.Context, clinicID, petID uint64, date time.Time) (UngroupedSameDaySummary, error) {

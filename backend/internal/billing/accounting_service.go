@@ -127,6 +127,11 @@ type AccountingService interface {
 	GetDailySummaryForClinics(ctx context.Context, clinicIDs []uint64, dateStr string) ([]ClinicDailySummary, error)
 }
 
+// unbilledWriteGuard は BUG-013 write-time fail-closed 用（blocking unbilled warning の再集計）。
+type unbilledWriteGuard interface {
+	AssertNoBlockingUnbilled(ctx context.Context, clinicID, petID uint64) error
+}
+
 type accountingService struct {
 	repo              AccountingRepository
 	medicalRecordRepo billingMedicalRecordLocker
@@ -139,6 +144,8 @@ type accountingService struct {
 	// closeRepo は W-013 締め後訂正台帳（cash_register_close_adjustments）書込用。
 	// WithCashRegisterCloseRepository で注入。IsPostClose 経路では必須（欠落は fail-closed）。
 	closeRepo CashRegisterCloseRepository
+	// unbilledGuard は BUG-013: pet に blocking unbilled warning がある会計作成を拒否する。
+	unbilledGuard unbilledWriteGuard
 }
 
 type accountingReservationRepository interface {
@@ -152,6 +159,13 @@ type accountingServiceOption func(*accountingService)
 func WithCashRegisterCloseRepository(repo CashRegisterCloseRepository) accountingServiceOption {
 	return func(s *accountingService) {
 		s.closeRepo = repo
+	}
+}
+
+// WithUnbilledWriteGuard は BUG-013 の write-time 再集計ガードを配線する。
+func WithUnbilledWriteGuard(guard unbilledWriteGuard) accountingServiceOption {
+	return func(s *accountingService) {
+		s.unbilledGuard = guard
 	}
 }
 
