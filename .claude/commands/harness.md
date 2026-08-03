@@ -1,6 +1,6 @@
 ---
 description: 実装→規約チェック→承認ループ型ハーネス（最大3イテレーション）
-argument-hint: "FEAT-XXX | BUG-XXX | <タスク説明>"
+argument-hint: "TASK-XXX | BUG-XXX | <タスク説明>"
 ---
 
 # 実装ハーネス（Implement → Verify → Approve Loop）
@@ -26,7 +26,7 @@ argument-hint: "FEAT-XXX | BUG-XXX | <タスク説明>"
 
 ## $ARGUMENTS の解釈
 
-- `TASK-XXX` / `FEAT-XXX` / `BUG-XXX` / `PERF-XXX` / `SEC-XXX` のタスクID → repo 直下 `3-session-agent.html` の `#ledger` 節にある該当タスクを `grep -n 'id="<タスクID>"' 3-session-agent.html` で検索し、実装モードで対象化
+- `TASK-XXX` / `BUG-XXX` のタスクID → repo 直下のローカル台帳（`TASK-XXX` = `todo.md`・`BUG-XXX` = `bug.md`）から `grep -n '<タスクID>' todo.md bug.md` で検索し、実装モードで対象化（旧 `3-session-agent.html#ledger` は 2026-07-31 廃止）
 - テキスト → タスク説明として直接扱う
 - 省略 → `git status` で未コミット変更を対象として検証のみ実行
 

@@ -1,33 +1,39 @@
 ---
-description: "タスク実装（3-session-agent.html #ledger のタスクID）→ セルフレビュー → クローズ"
-argument-hint: "TASK-XXX | FEAT-XXX | PERF-XXX | BUG-XXX | SEC-XXX"
+description: "タスク実装（todo.md の TASK-XXX / bug.md の BUG-XXX）→ セルフレビュー → クローズ"
+argument-hint: "TASK-XXX | BUG-XXX"
 ---
 
 # タスク実装
 
-指定されたタスクID（repo 直下 `3-session-agent.html` の `#ledger` 節に `<section class="task" id="<タスクID>">` 形式で記載）を実装する。
+指定されたタスクIDを実装する。台帳は repo 直下の 2 ファイル（いずれも git 追跡・ローカル連番）:
+
+- `TASK-XXX` → `todo.md`（残タスク台帳。索引/サマリー表 + `## 個別タスク詳細` の `### TASK-XXX:` 節）
+- `BUG-XXX` → `bug.md`（受入テストバグ台帳。`## BUG-XXX:` 節 + `### 実装計画`）
+
+タスクが GitHub Issue（`#NNN`）を参照する場合、仕様・受け入れ条件の正本は該当 Issue 本文とコメント。`3-session-agent.html` は Issue 分類ビューであり台帳ではない（旧 `#ledger` は 2026-07-31 廃止・経緯は git 履歴）。
 
 スキル `implement-issue` を使用して、以下の5フェーズを実行:
-1. タスク読み込み・依存関係チェック
+1. タスク読み込み・claim 確認（AGENTS.md packet claim protocol）・依存関係チェック
 2. コンテキスト収集（対象ファイル・参照実装・コーディングルール）
 3. コード規約準拠の実装
-4. セルフレビュー（reviewer エージェント + Lint/Build）
-5. クローズ処理（`3-session-agent.html` の `#ledger` 節から該当 `<section>` を削除）
+4. セルフレビュー（reviewer エージェント + スコープ限定検証）
+5. クローズ処理（台帳の該当節を更新・claim ブランチは USER が解放）
 
 ## 使い方
 
 ```
-/implement PERF-FOLLOWUP-01   # 特定タスクを実装（`#ledger` 内の `id="<タスクID>"` を grep で検索）
-/implement FEAT-searchable-select-targets
-/implement                    # `#ledger` のタスクID一覧を表示して選択
+/implement TASK-027   # todo.md のタスクを実装
+/implement BUG-009    # bug.md のバグを実装
+/implement            # 両台帳の open ID 一覧を表示して選択
 
 # タスクlookup / ID一覧
-grep -n 'id="<タスクID>"' 3-session-agent.html
-grep -oE 'id="(TASK|BUG|FEAT|PERF|SEC)[A-Za-z0-9-]*"' 3-session-agent.html
+grep -n '<タスクID>' todo.md bug.md
+grep -oE '^### TASK-[0-9A-Za-z-]+' todo.md
+grep -oE '^## BUG-[0-9]+' bug.md
 ```
 
 ## 引数
 
-$ARGUMENTS — タスクID（例: `TASK-XXX`, `PERF-FOLLOWUP-01`, `FEAT-searchable-select-targets`, `BUG-XXX`, `SEC-XXX`）。省略時は `3-session-agent.html` の `#ledger` 節にあるタスクID一覧を表示。
+$ARGUMENTS — タスクID（例: `TASK-027`, `BUG-009`）。省略時は `todo.md` 索引表と `bug.md` 対応状況サマリの open ID 一覧を表示。
 
-> 旧 `BE-XXX` / `FE-XXX` イシュー体系および旧 `docs/tasks/` 体系は廃止済み（経緯は git 履歴参照）。新規実装には使用しない。
+> 旧 `3-session-agent.html#ledger`・`BE-XXX` / `FE-XXX`・`docs/tasks/` 体系はすべて廃止済み（経緯は git 履歴参照）。新規実装には使用しない。

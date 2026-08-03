@@ -3,7 +3,7 @@
 オープン residual のみを列挙する。対応済み TASK / closed 索引行は **削除済み**（2026-07-31 更新）。  
 根拠・完了証拠は git 履歴と `reports/2026-07-31-*.md` を参照。
 
-> **ID namespace**: 本ファイルの `TASK-*` はローカル連番。`3-session-agent.html#ledger` 体系外。`/implement` は正本 ledger からのみ解決。
+> **ID namespace**: 本ファイルの `TASK-*` はローカル連番で、現行の実装タスク番号系そのもの（claim ブランチ `claim/TASK-XXX` も同一番号）。受入テストバグは `bug.md` の `BUG-*`。`/implement` は本ファイルと `bug.md` から解決する。旧 `3-session-agent.html#ledger` 体系は 2026-07-31 廃止（同ファイルは GitHub Issue 分類ビュー）。
 
 ## 索引 / サマリー
 
