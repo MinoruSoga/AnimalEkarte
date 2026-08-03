@@ -1,6 +1,6 @@
 // React/Framework
 import { C, ICON, LAYOUT } from "@/lib/design-tokens";
-import { useState, useCallback, useEffect, useMemo, useDeferredValue } from "react";
+import { useState, useCallback, useMemo, useDeferredValue } from "react";
 import { useSearchParams } from "react-router";
 import { normalizeKana } from "@/lib/normalize-kana";
 
@@ -23,7 +23,11 @@ import { HospitalizationBoard } from "../components/HospitalizationBoard";
 import { HospitalizationListView } from "../components/HospitalizationListView";
 import { useHospitalizationList } from "../hooks/use-hospitalization-list";
 import { useGetHospitalizations } from "../api/get-hospitalizations";
-import { HOSPITALIZATION_FILTER_STATUS, HOSPITALIZATION_STATUS } from "../constants";
+import {
+  HOSPITALIZATION_FILTER_STATUS,
+  HOSPITALIZATION_LIST_DEFAULT_LIMIT,
+  HOSPITALIZATION_LIST_DEFAULT_PAGE,
+} from "../constants";
 import { usePermission } from "@/hooks/use-permission";
 
 // Types
@@ -103,19 +107,33 @@ export function HospitalizationList() {
   // rerender-transitions: 検索ワードを useDeferredValue で遅延させ、入力中のリスト再計算コストを抑制
   const deferredSearchTerm = useDeferredValue(searchTerm);
 
-  // rerender-dependencies: activeFilters から日付フィルタを抽出してサーバーサイドフィルタに渡す
-  const dateFilters = useMemo<HospitalizationFilters>(() => {
+  // FE-144: URLクエリパラメータからページ番号を読み取る（サーバ page の正本）
+  const urlPage = Number(searchParams.get("page") ?? HOSPITALIZATION_LIST_DEFAULT_PAGE);
+  const serverPage = Number.isFinite(urlPage) && urlPage >= 1 ? urlPage : HOSPITALIZATION_LIST_DEFAULT_PAGE;
+
+  // rerender-dependencies: 日付 + タブ status + page/limit をサーバ query の正本へ寄せる（BUG-009）
+  const listFilters = useMemo<HospitalizationFilters>(() => {
     const dateFilter = activeFilters.find((f) => f.key === "startDate")?.value as
       | { from?: string; to?: string }
       | undefined;
     return {
       startDate: dateFilter?.from,
       endDate: dateFilter?.to,
+      statusFilter,
+      page: serverPage,
+      limit: HOSPITALIZATION_LIST_DEFAULT_LIMIT,
     };
-  }, [activeFilters]);
+  }, [activeFilters, statusFilter, serverPage]);
 
-  // サーバーサイド日付フィルタ適用済みデータを取得
-  const { data: allHospitalizations = [], isLoading: hospitalizationsLoading, isError: hospitalizationsError } = useGetHospitalizations(dateFilters);
+  // サーバ status/date/page 適用済みデータを取得（total を捨てない）
+  const {
+    data: hospitalizationsPage,
+    isLoading: hospitalizationsLoading,
+    isError: hospitalizationsError,
+  } = useGetHospitalizations(listFilters);
+  const allHospitalizations = hospitalizationsPage?.data ?? [];
+  // 件数表示の正本は server total（page-window で欠落しない）
+  const serverTotal = hospitalizationsPage?.total ?? 0;
 
   // js-cache-function-results: ロード済みデータから種の選択肢を動的生成
   const filterProperties = useMemo<FilterProperty[]>(() => {
@@ -131,19 +149,10 @@ export function HospitalizationList() {
     setActiveSorts(sorts);
   }, []);
 
-  // 入院区分・ステータス・テキスト検索・種フィルタ（クライアントサイド、日付フィルタはサーバーサイドに移行済み）
+  // 入院区分・テキスト検索・種フィルタのみクライアント（status は server 正本 — 二重 filter 禁止）
+  // board / list は同一 typeFilteredHospitalizations を参照する（実装分岐なし）
   const typeFilteredHospitalizations = useMemo(() => {
     let result = allHospitalizations;
-
-    // Status フィルタ（タブ）
-    if (statusFilter !== "all") {
-      result = result.filter((h) => {
-        if (statusFilter === "active") return h.status === HOSPITALIZATION_STATUS.ACTIVE || h.status === HOSPITALIZATION_STATUS.TEMP_DISCHARGE;
-        if (statusFilter === "discharged") return h.status === HOSPITALIZATION_STATUS.DISCHARGED;
-        if (statusFilter === "reserved") return h.status === HOSPITALIZATION_STATUS.RESERVED;
-        return true;
-      });
-    }
 
     // テキスト検索（deferredSearchTerm で遅延評価）
     if (deferredSearchTerm) {
@@ -183,7 +192,7 @@ export function HospitalizationList() {
     }
 
     return result;
-  }, [allHospitalizations, statusFilter, deferredSearchTerm, activeFilters]);
+  }, [allHospitalizations, deferredSearchTerm, activeFilters]);
 
   // Sort data for list view
   const sortedHospitalizations = useMemo(() => {
@@ -202,27 +211,14 @@ export function HospitalizationList() {
     return sorted;
   }, [typeFilteredHospitalizations, activeSorts]);
 
+  // list view の client ページネーションは「取得済み server page 内」の再スライス用。
+  // タブ件数の正本は serverTotal。server page 切替は URL `page` → listFilters.page。
   const pagination = usePagination(sortedHospitalizations, {
-    resetKey: `${deferredSearchTerm}:${statusFilter}`,
+    resetKey: `${deferredSearchTerm}:${statusFilter}:${serverPage}`,
   });
 
-  // FE-144: URLクエリパラメータからページ番号を読み取る
-  const urlPage = Number(searchParams.get("page") ?? 1);
-
-  // FE-144: URLのページ番号とローカル状態を同期（URLが変わったときのみ）
-  // rerender-dependencies: pagination（オブジェクト）を destructure し primitive を deps に使用
-  const { totalPages, currentPage, goToPage } = pagination;
-  useEffect(() => {
-    const clampedPage = Math.max(1, Math.min(urlPage, totalPages));
-    if (clampedPage !== currentPage) {
-      goToPage(clampedPage);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [urlPage, totalPages]);
-
-  // FE-144: ページ変更時にURLクエリパラメータを更新
+  // FE-144: ページ変更時に URL を更新し、server re-fetch を誘発する
   const handlePageChange = useCallback((page: number) => {
-    goToPage(page);
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
       if (page === 1) {
@@ -232,7 +228,7 @@ export function HospitalizationList() {
       }
       return next;
     }, { replace: true });
-  }, [goToPage, setSearchParams]);
+  }, [setSearchParams]);
 
   if (hospitalizationsLoading) return <LoadingFallback />;
   if (hospitalizationsError) return <ErrorFallback />;
@@ -270,7 +266,7 @@ export function HospitalizationList() {
                   searchTerm={searchTerm}
                   onSearchChange={setSearchTerm}
                   searchPlaceholder="飼主名、ペット名、入院No..."
-                  count={typeFilteredHospitalizations.length}
+                  count={serverTotal}
                   sortProperties={HOSPITALIZATION_SORT_PROPERTIES}
                   activeSorts={activeSorts}
                   onSortChange={handleSortChange}
@@ -300,6 +296,7 @@ export function HospitalizationList() {
             />
         ) : (
             <>
+              {/* board と同じ typeFilteredHospitalizations を list の正本とし、client slice のみ paginate */}
               <HospitalizationListView
                   hospitalizations={pagination.paginatedData}
                   onNavigate={handleNavigateToForm}
@@ -309,7 +306,7 @@ export function HospitalizationList() {
                 <Pagination
                   currentPage={pagination.currentPage}
                   totalPages={pagination.totalPages}
-                  totalCount={pagination.totalCount}
+                  totalCount={serverTotal}
                   startIndex={pagination.startIndex}
                   endIndex={pagination.endIndex}
                   onPageChange={handlePageChange}

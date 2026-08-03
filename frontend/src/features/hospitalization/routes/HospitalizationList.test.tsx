@@ -18,7 +18,11 @@ vi.mock("@/hooks/use-permission", () => ({
 }));
 
 vi.mock("@/hooks/use-master-items", () => ({
-  useMasterItems: vi.fn(() => ({ data: [], isLoading: false, error: null })),
+  useMasterItems: vi.fn(() => ({
+    data: [{ id: "cage-1", name: "ケージ1", category: "犬舎", price: 0, status: "active" as const }],
+    isLoading: false,
+    error: null,
+  })),
 }));
 
 import { useGetHospitalizations } from "../api/get-hospitalizations";
@@ -81,13 +85,25 @@ function createWrapper() {
   );
 }
 
-beforeEach(() => {
-  localStorage.setItem("auth_current_clinic:v1", "clinic-1");
+function mockHospitalizationsPage(
+  items: ReturnType<typeof makeHosp>[],
+  total = items.length,
+) {
   vi.mocked(useGetHospitalizations).mockReturnValue({
-    data: [],
+    data: {
+      data: items,
+      total,
+      page: 1,
+      limit: 20,
+    },
     isLoading: false,
     isError: false,
   } as ReturnType<typeof useGetHospitalizations>);
+}
+
+beforeEach(() => {
+  localStorage.setItem("auth_current_clinic:v1", "clinic-1");
+  mockHospitalizationsPage([]);
 });
 
 describe("HospitalizationList — view切替の操作領域", () => {
@@ -106,14 +122,10 @@ describe("HospitalizationList — view切替の操作領域", () => {
 
 describe("HospitalizationList — かな正規化テキスト検索", () => {
   it("ひらがな入力でカタカナ petName がヒットする", async () => {
-    vi.mocked(useGetHospitalizations).mockReturnValue({
-      data: [
-        makeHosp({ id: "1", petName: "ポチ", ownerName: "ヤマダ", hospitalizationNo: "H-001" }),
-        makeHosp({ id: "2", petName: "たろう", ownerName: "さとう", hospitalizationNo: "H-002" }),
-      ],
-      isLoading: false,
-      isError: false,
-    } as ReturnType<typeof useGetHospitalizations>);
+    mockHospitalizationsPage([
+      makeHosp({ id: "1", petName: "ポチ", ownerName: "ヤマダ", hospitalizationNo: "H-001" }),
+      makeHosp({ id: "2", petName: "たろう", ownerName: "さとう", hospitalizationNo: "H-002" }),
+    ]);
 
     const user = userEvent.setup();
     render(<HospitalizationList />, { wrapper: createWrapper() });
@@ -130,14 +142,10 @@ describe("HospitalizationList — かな正規化テキスト検索", () => {
   });
 
   it("カタカナ入力でひらがな ownerName がヒットする", async () => {
-    vi.mocked(useGetHospitalizations).mockReturnValue({
-      data: [
-        makeHosp({ id: "1", petName: "ポチ", ownerName: "ヤマダ", hospitalizationNo: "H-001" }),
-        makeHosp({ id: "2", petName: "たろう", ownerName: "さとう", hospitalizationNo: "H-002" }),
-      ],
-      isLoading: false,
-      isError: false,
-    } as ReturnType<typeof useGetHospitalizations>);
+    mockHospitalizationsPage([
+      makeHosp({ id: "1", petName: "ポチ", ownerName: "ヤマダ", hospitalizationNo: "H-001" }),
+      makeHosp({ id: "2", petName: "たろう", ownerName: "さとう", hospitalizationNo: "H-002" }),
+    ]);
 
     const user = userEvent.setup();
     render(<HospitalizationList />, { wrapper: createWrapper() });
@@ -148,5 +156,78 @@ describe("HospitalizationList — かな正規化テキスト検索", () => {
 
     expect(await screen.findByText("たろう")).toBeInTheDocument();
     expect(screen.queryByText("ポチ")).not.toBeInTheDocument();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────
+// BUG-009: タブ status → server query 連動 / page-window 件数 / 二重 filter 除去
+// ─────────────────────────────────────────────────────────────
+
+describe("HospitalizationList — BUG-009 status tab → server filter", () => {
+  it("タブ切替で useGetHospitalizations に statusFilter が渡り、reserved 行が表示対象になる", async () => {
+    // 実装は server が status で絞った集合をそのまま描画する（client status 二重 filter なし）
+    mockHospitalizationsPage(
+      [
+        makeHosp({
+          id: "r-1",
+          petName: "予約ワン",
+          status: "予約",
+          hospitalizationNo: "H-R1",
+          cageId: "cage-1",
+        }),
+      ],
+      12,
+    );
+
+    const user = userEvent.setup();
+    render(<HospitalizationList />, { wrapper: createWrapper() });
+
+    await user.click(screen.getByRole("tab", { name: "予約" }));
+
+    const calls = vi.mocked(useGetHospitalizations).mock.calls;
+    const lastFilters = calls[calls.length - 1]?.[0];
+    expect(lastFilters).toEqual(
+      expect.objectContaining({
+        statusFilter: "reserved",
+        page: 1,
+        limit: 20,
+      }),
+    );
+
+    // list view で reserved 行が残る（旧失敗: client が admitted のみ残す）
+    await user.click(screen.getByRole("radio", { name: "List View" }));
+    expect(await screen.findByText("予約ワン")).toBeInTheDocument();
+    expect(screen.getByText("H-R1")).toBeInTheDocument();
+  });
+
+  it("board と list が同一 data source を参照する", async () => {
+    mockHospitalizationsPage([
+      makeHosp({
+        id: "1",
+        petName: "ボード兼リスト",
+        status: "入院中",
+        cageId: "cage-1",
+      }),
+    ]);
+
+    const user = userEvent.setup();
+    render(<HospitalizationList />, { wrapper: createWrapper() });
+
+    // board: cage に紐づく petName
+    expect(await screen.findByText("ボード兼リスト")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("radio", { name: "List View" }));
+    expect(await screen.findByText("ボード兼リスト")).toBeInTheDocument();
+  });
+
+  it("件数表示の正本が server total である（page 内 length ではない）", async () => {
+    mockHospitalizationsPage(
+      [makeHosp({ id: "1", petName: "1件だけ返却", status: "入院中" })],
+      42,
+    );
+
+    render(<HospitalizationList />, { wrapper: createWrapper() });
+
+    expect(await screen.findByText(/42/)).toBeInTheDocument();
   });
 });

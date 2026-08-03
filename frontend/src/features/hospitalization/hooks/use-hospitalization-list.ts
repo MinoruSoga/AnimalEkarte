@@ -25,9 +25,17 @@ export const useHospitalizationList = (canEdit = false) => {
   // React Query キャッシュから現在の入院データを取得してケージ移動を処理する。
   // optimistic update は行わず、updateHospitalization 後の invalidateQueries で UI を更新する。
   const movePet = useCallback(async (hospitalizationId: string, targetCageId: string) => {
-    // 全キャッシュエントリから入院リストを取得（フィルタに関わらず）
-    const allEntries = queryClient.getQueriesData<Hospitalization[]>({ queryKey: queryKeys.hospitalizations.all() });
-    const hospitalizations = allEntries.flatMap(([, data]) => data ?? []);
+    // list query は HospitalizationsResult { data, total, page, limit }（BUG-009）。
+    // 旧形 Hospitalization[] キャッシュが残っていても壊さないよう両対応する。
+    const allEntries = queryClient.getQueriesData({ queryKey: queryKeys.hospitalizations.all() });
+    const hospitalizations = allEntries.flatMap(([, data]): Hospitalization[] => {
+      if (data == null) return [];
+      if (Array.isArray(data)) return data as Hospitalization[];
+      if (typeof data === "object" && Array.isArray((data as { data?: unknown }).data)) {
+        return (data as { data: Hospitalization[] }).data;
+      }
+      return [];
+    });
 
     const sourceHosp = hospitalizations.find((h) => h.id === hospitalizationId);
     if (!sourceHosp) return;

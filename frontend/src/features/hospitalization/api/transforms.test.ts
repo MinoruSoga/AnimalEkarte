@@ -36,8 +36,12 @@ describe("transformHospitalization (HospitalizationResponse wire)", () => {
     expect(transformHospitalization({ ...minimal, status: "reserved" }).status).toBe("予約");
   });
 
-  it("未知の status は '予約' にフォールバックする", () => {
-    expect(transformHospitalization({ ...minimal, status: "unknown" }).status).toBe("予約");
+  it("未知の status は '予約' へ推測せず '不明' で fail-closed する (BUG-009)", () => {
+    expect(transformHospitalization({ ...minimal, status: "unknown" }).status).toBe("不明");
+  });
+
+  it("空文字 status も '不明' で fail-closed する (BUG-009)", () => {
+    expect(transformHospitalization({ ...minimal, status: "" }).status).toBe("不明");
   });
 
   it("hospitalization_type: hospitalization → '入院'", () => {

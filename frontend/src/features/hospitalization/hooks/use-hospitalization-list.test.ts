@@ -59,8 +59,8 @@ describe("useHospitalizationList — cage move mutation boundary", () => {
   it("callback取得後に編集権限が失効した場合は移動mutationを実行しない", async () => {
     const queryClient = new QueryClient();
     queryClient.setQueryData(
-      queryKeys.hospitalizations.list({ status: "active" }),
-      [makeHospitalization()],
+      queryKeys.hospitalizations.list({ statusFilter: "active" }),
+      { data: [makeHospitalization()], total: 1, page: 1, limit: 20 },
     );
     const { result, rerender } = renderHook(
       ({ canEdit }) => useHospitalizationList(canEdit),
@@ -82,8 +82,8 @@ describe("useHospitalizationList — cage move mutation boundary", () => {
   it("source petが死亡している場合は編集権限があっても移動mutationを実行しない", async () => {
     const queryClient = new QueryClient();
     queryClient.setQueryData(
-      queryKeys.hospitalizations.list({ status: "active" }),
-      [makeHospitalization({ petIsDeceased: true })],
+      queryKeys.hospitalizations.list({ statusFilter: "active" }),
+      { data: [makeHospitalization({ petIsDeceased: true })], total: 1, page: 1, limit: 20 },
     );
     const { result } = renderHook(
       () => useHospitalizationList(true),
@@ -100,15 +100,20 @@ describe("useHospitalizationList — cage move mutation boundary", () => {
   it("swap先のpetが死亡している場合は両方の移動mutationを実行しない", async () => {
     const queryClient = new QueryClient();
     queryClient.setQueryData(
-      queryKeys.hospitalizations.list({ status: "active" }),
-      [
-        makeHospitalization(),
-        makeHospitalization({
-          id: "hospitalization-2",
-          cageId: "cage-2",
-          petIsDeceased: true,
-        }),
-      ],
+      queryKeys.hospitalizations.list({ statusFilter: "active" }),
+      {
+        data: [
+          makeHospitalization(),
+          makeHospitalization({
+            id: "hospitalization-2",
+            cageId: "cage-2",
+            petIsDeceased: true,
+          }),
+        ],
+        total: 2,
+        page: 1,
+        limit: 20,
+      },
     );
     const { result } = renderHook(
       () => useHospitalizationList(true),
@@ -125,8 +130,8 @@ describe("useHospitalizationList — cage move mutation boundary", () => {
   it("生存petかつ編集権限ありなら既存の移動payloadを維持する", async () => {
     const queryClient = new QueryClient();
     queryClient.setQueryData(
-      queryKeys.hospitalizations.list({ status: "active" }),
-      [makeHospitalization()],
+      queryKeys.hospitalizations.list({ statusFilter: "active" }),
+      { data: [makeHospitalization()], total: 1, page: 1, limit: 20 },
     );
     const { result } = renderHook(
       () => useHospitalizationList(true),
