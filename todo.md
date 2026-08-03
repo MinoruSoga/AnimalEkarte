@@ -27,11 +27,11 @@
 | SPEC-TOP-CLAIM-RELEASE | claim 解放 | **SCEN-OPS-CLAIM-001** |
 | ISSUE-201-DOSE-LOOKUP | dose parameter 取得障害の silent fallback | **TASK-025**（READY_AGENT・臨床値は別 gate） |
 | ISSUE-249-CONFIRMED-LOCK | confirmed 検査の更新/削除 lock・audit | **TASK-026**（DONE `2a8aca33c`・`main` 統合済み） |
-| ISSUE-249-MANUAL-LIFECYCLE | 手動検査 edit / confirmed→completed 確定解除 | **TASK-027**（READY_AGENT） |
+| ISSUE-249-MANUAL-LIFECYCLE | 手動検査 edit / confirmed→completed 確定解除 | **TASK-027**（DONE `046615f4b`〜`dfd653eaa`・migration 004 適用済み） |
 | ISSUE-252-STANDARD-PATCH | 締め設定 standard PATCH の validation/audit | **TASK-028**（DONE `bbf82e2b8`・値投入は USER） |
 | ISSUE-259-DOC-CONTRACT | Lステップ disabled 時の旧 noop 文書 | **TASK-029**（DONE・`9fc5b9ffb` push 済。残は先方 enable + USER runtime 実測） |
 | ISSUE-261-TRIMMING-DECEASED | trimming 死亡ペット拒否の経路別回帰 | **TASK-030**（DONE `6e5a945ef`・runtime は USER） |
-| ISSUE-249-PRINT-SNAPSHOT | 検査結果の保存 snapshot 印刷 | **TASK-031**（READY_AGENT） |
+| ISSUE-249-PRINT-SNAPSHOT | 検査結果の保存 snapshot 印刷 | **TASK-031**（READY_AGENT・TASK-027 の interface freeze 完了により着手可能） |
 | ISSUE-249-IMPORT-REVERT | lab import job の compensating revert | **TASK-032**（READY_AGENT・migration review 必須） |
 | ISSUE-201-EMERGENCY-ADMIN | 構造化救急投薬記録と欠落時 fail-closed cutover | **TASK-033**（臨床承認・migration review 後） |
 
@@ -529,11 +529,11 @@ validator_exit=0
 
 - **対応 Issue**: GitHub Issue #249。
 - **問題**: manual workflow の row add/delete、confirm 前 patient change、権限付き確定解除が未完。現行 examination status に <code>unconfirmed</code>/<code>cancelled</code> はなく、lab import job の取消と混ぜてはならない。
-- **状態**: **BLOCKED_DATABASE_PLAN_REVIEW / migration review required**。TASK-026 の confirmed guard は実装済み。revision→examination parent FK が final DB review で未充足のため、次の bounded plan revision と再審査まで実装を開始しない。
-- **claim**: `claim/TASK-027` — **not live**（2026-08-01 USER 解放済み。起票時の過剰取得を是正したもので、本タスクは未着手）。
+- **状態**: **DONE**（2026-08-03 実装完了。詳細は下記「実施結果」。DB review が要求した revision→examination parent FK は tenant-safe composite FK として解決済み、migration `004_examination_revisions.sql` は適用済み）。
+- **claim**: `claim/TASK-027` — **live**（実装 unit が取得。解放は USER 専権）。
 
-#### 実装プラン（2026-08-02・adversarial revision 2）
-- **Ready**: BLOCKED_DATABASE_PLAN_REVIEW。exams の clinic-first candidate key と revision→examination parent FK を次の plan revision で明示し、fresh DB review が RESOLVED を返した後だけ foundation を land する。interface freeze 後に TASK-031、共有 route/OpenAPI を持つ TASK-032 の順で進める。external format、clinical range、auto-commit は対象外。
+#### 実装プラン（2026-08-02・adversarial revision 2 / 実行済み）
+- **Ready**: 実行済み。exams の clinic-first candidate key と revision→examination parent FK を明示した上で foundation を land した。interface freeze 完了により TASK-031 が着手可能。共有 route/OpenAPI を持つ TASK-032 は fresh DB review 待ちのまま。external format、clinical range、auto-commit は対象外。
 - **Owner lane**: backend medicalrecord + frontend examinations + additive revision migration + dedicated permission/API contract。
 - **Fixed clinical-record contract**: status は `pending / in_progress / result_entered / completed / confirmed` のみ。理由必須の `POST /v1/examinations/:id/unconfirm` は `confirmed -> completed` だけを許すが、遷移前に parent+items の official revision を append-only に保存し、新しい working revision を append する。解除後の edit も既存 revision/item を更新せず、新しい working revision+items を append して exam pointer を version CAS する。再 confirm は current working revision から新しい official version を append する。official print/history は revision store だけを読み、mutable legacy parent/current items と混ぜない。過去に一度でも confirmed version がある examination は pet を変更不可。pre-first-confirm の pet change だけを record/pet/owner/species/doctor/master 相関再検証と items assessment 再計算の同一 transaction で許可する。
 - **Migration impact**: **YES**。開始時に root 番号を再測定し、append-only `examination_revisions` + `examination_revision_items`（clinic/examination/version/kind/status/pet/record/snapshot/reason/actor/timestamp/official flag）を additive migration で追加する。revision は `UNIQUE(clinic_id,examination_id,version)`、items は同じ clinic/exam/version composite FK。`exams.current_revision_version` は `(clinic_id,id,current_revision_version)` から revision `(clinic_id,examination_id,version)` への tenant-safe FK とし、`WHERE clinic_id=? AND id=? AND current_revision_version=?` の pointer CAS だけを更新可能にする。revision parent/items は official/working を問わず UPDATE/DELETE rejection triggerを持つ。両表へ project helper の `ENABLE ROW LEVEL SECURITY` + clinic `USING`/`WITH CHECK` を明示適用し、`FORCE` は role compatibility review なしに追加しない。indexes は revisions `(clinic_id,examination_id,version)` と official lookup、items `(clinic_id,examination_id,version,sort_order,id)`。既存 confirmed record は fail-closed backfill inventory を通し、official revision がない confirmed record は unconfirm/official print を拒否する。既適用 migration/seed は編集・apply しない。
@@ -677,7 +677,7 @@ validator_exit=0
 
 - **対応 Issue**: GitHub Issue #249 F-5a。
 - **問題**: 飼主説明・他院添付・院内保管向け print surface が未完。画面 state や FE 再計算を印刷正本にすると保存済み臨床記録と不一致になり得る。
-- **状態**: **READY_AFTER_TASK-027_INTERFACE_FREEZE**。TASK-026 の immutable/audit contract は実装済み。official/working revision interface は TASK-027 で先に固定する。
+- **状態**: **READY_AGENT**。TASK-026 の immutable/audit contract、および TASK-027 の official/working revision interface はいずれも実装済みで凍結された（2026-08-03）。本 task 固有の migration は不要。
 - **claim**: `claim/TASK-031` — **not live**（2026-08-01 USER 解放済み。起票時の過剰取得を是正したもので、本タスクは未着手）。
 
 #### 実装プラン（2026-08-02・adversarial revision 2）

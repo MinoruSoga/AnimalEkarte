@@ -90,7 +90,7 @@
 <h2>Issue 一覧</h2>
 
 <div class="notice">
-下表の分類は <b>2026-08-02 時点の実測</b>である。<b>各 Issue の現況は <code>gh issue view &lt;番号&gt;</code> で実測して確認すること</b> — 直近の作業が本 view へ反映されていない場合がある。分類が実態とずれていたら実態に合わせて本表を直す。
+下表の分類は <b>2026-08-03 時点の実測</b>である。<b>各 Issue の現況は <code>gh issue view &lt;番号&gt;</code> で実測して確認すること</b> — 直近の作業が本 view へ反映されていない場合がある。分類が実態とずれていたら実態に合わせて本表を直す。
 </div>
 
 <div class="table-wrap">
@@ -114,7 +114,7 @@
     <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/201">#201</a></td>
     <td>薬量自動計算 — 上限超過の物理ブロックと例外統制</td>
     <td><span class="status judge">判断待ち</span></td>
-    <td>technical failure の先行停止は完了（TASK-025・push 済）。dose parameter 取得障害を欠落と型で分離し、固定文言＋再試行を出して通常保存を止める。残るのは体重/species/parameter 欠落の cutover（TASK-033）で、active/draft の構造化救急投薬記録と臨床承認が揃うまで着手できない。上限値、warning 帯、記録対象条件は臨床責任者に残す</td>
+    <td>technical failure の先行停止は完了（TASK-025 = <code>eaa608b6a</code> + <code>db8387035</code>。到達性は <code>git merge-base --is-ancestor db8387035 HEAD</code> で測る）。dose parameter 取得障害を欠落と型で分離し、固定文言＋再試行を出して通常保存を止める。残るのは体重/species/parameter 欠落の cutover（TASK-033）で、active/draft の構造化救急投薬記録と臨床承認が揃うまで着手できない。上限値、warning 帯、記録対象条件は臨床責任者に残す</td>
   </tr>
   <tr>
     <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/211">#211</a></td>
@@ -126,7 +126,7 @@
     <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/249">#249</a></td>
     <td>検査機能 — 院内検査結果管理の内製</td>
     <td><span class="status go">着手可能</span></td>
-    <td>confirm 順序、confirmed conflict 409、parent mutation の actor/audit 原子性は完了（TASK-026・main 到達済み）。今すぐできる作業は TASK-027/032 の final DB review で残った FK/index plan gap の補正と再審査。RESOLVED 後に TASK-027 foundation、interface freeze、TASK-031、TASK-032 の順で直列化する。臨床 range と外部自動化は承認待ちのまま分離する</td>
+    <td>confirm 順序・confirmed conflict 409・parent mutation の actor/audit 原子性（TASK-026 = <code>2a8aca33c</code>）と、append-only official/working revision・理由必須 unconfirm・default-deny permission・初回確定前患者変更・結果行 add/delete・死亡患者拒否（TASK-027 = <code>046615f4b</code>〜<code>dfd653eaa</code>、migration <code>004_examination_revisions.sql</code> 適用済み）は完了。<b>revision interface は凍結された</b>ため次は TASK-031（保存 snapshot 印刷）が着手可能。TASK-032（lab import revert）は FK/index plan gap の補正と fresh DB review が RESOLVED を返すまで着手しない。臨床 range と外部自動化は承認待ちのまま分離する</td>
   </tr>
   <tr>
     <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/258">#258</a></td>
@@ -169,7 +169,7 @@
     <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/252">#252</a></td>
     <td>各院の締め時間設定値の投入</td>
     <td><span class="status user">USER 専権</span></td>
-    <td>standard PATCH の validation、clinic-scoped 行ロックによる直列化、actor 付き transaction-bound audit の補強は完了（push 済）。残るのは USER が批准済み値との差分だけを投入・preview すること</td>
+    <td>standard PATCH の validation、clinic-scoped 行ロックによる直列化、actor 付き transaction-bound audit の補強は完了（TASK-028 = <code>bbf82e2b8</code>）。残るのは USER が批准済み値との差分だけを投入・preview すること</td>
   </tr>
   <tr>
     <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/253">#253</a></td>
@@ -181,7 +181,7 @@
     <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/257">#257</a></td>
     <td>本番切替（Go-live）— 切替手順・切り戻し基準・直後サポート</td>
     <td><span class="status judge">判断待ち</span></td>
-    <td>current runbook は 2026-08-03 を USER 決定済み日とする一方、当日 timeline 見出しは 2026-07-18 のまま。Go/No-Go authority が A: 全 prerequisite green と日付整合を確認して 8/3 proceed、B: 延期、C: 中止、D: 新 window へ再設定、を直ちに決める。green 未達のまま proceed しない</td>
+    <td><b>runbook 上の切替日 2026-08-03 は本日であり、Go/No-Go は未決のまま期日に到達している。</b>当日 timeline 見出しは 2026-07-18 のままで日付整合も取れていない。前提（#89/#97/#98/#99 の credential、#253 の CI/CD・backup gate、#254 の UAT）はいずれも USER 側で未完了のため、現時点で proceed は成立しない。Go/No-Go authority が B: 延期、C: 中止、D: 新 window へ再設定、のいずれかを直ちに決める。green 未達のまま proceed しない</td>
   </tr>
   <tr>
     <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/260">#260</a></td>
