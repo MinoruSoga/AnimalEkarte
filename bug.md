@@ -6,14 +6,33 @@
 
 ---
 
-## 対応状況サマリ（2026-08-01 JST）
+## 対応状況サマリ（2026-08-03 JST）
 
-- **Snapshot HEAD**: `b6d0945810060fefffb69fdb62ed8ab090c3ff1a`（`main` は `origin/main` より docs-only commit 1件先行）
-- **判定基準**: current checkout の到達可能な code/test を正本。GitHub Issue/PR の closed/merged 単独は closure に使わない。監査基準 `fa74ef92e` 以後の到達可能な差分は文書のみで、本32件に対する product fix は確認できない。原文ブラウザシナリオは未実行。
-- **件数**: OPEN=31 / IN_PROGRESS=0 / IMPLEMENTED_UNVERIFIED=1 / VERIFIED_FIXED=0 / BLOCKED=0 / DUPLICATE=0 / NOT_REPRODUCIBLE=0 / **合計=32**
+- **Product evidence snapshot**: 台帳 commit parent HEAD `fb0cf9c910aef842fdde1a0206bb5546163096c3`。飼主・ペット・受付は到達済み commit `d7bf32f2214d6bb6c252b99b001d2ed2044de7c9`（BUG-001）、`a17d39d6f46ddaf8afcba7ed53419dbc4f92e968`（BUG-002）、`eb7db0dc94fb842c7e569252a9cebc6aee96cd60`（BUG-021）、`fc3c12b2800942c7527b0be951aad20860c6131c`（BUG-022）、`617f6f9bf88be3627ba789d447c98858dd34c80a`（BUG-020）。その他の `IMPLEMENTED_UNVERIFIED` は BUG-004（到達済み commit `2a8aca33c1848613e7c3ccd9ffa2f2a4e3c9ad5e`）と BUG-011（到達済み commit `b65cf69ef56785c473ddd233624292a3c338401e`）を正本とする。
+- **判定基準**: current checkout から到達可能な code/test を正本とする。GitHub Issue/PR の closed/merged 単独は closure に使わない。本更新では原文ブラウザシナリオを再実行していない。
+- **件数**: OPEN=25 / IN_PROGRESS=0 / IMPLEMENTED_UNVERIFIED=7 / VERIFIED_FIXED=0 / BLOCKED=0 / DUPLICATE=0 / NOT_REPRODUCIBLE=0 / **合計=32**
 - **原文シナリオ再検証**: PASS=0 / FAIL=0 / BLOCKED=0 / UNREPORTED=32 / **合計=32**
-- **未検証境界**: ブラウザ/DB mutation 再現、Docker-scoped runtime の全 candidate 実行、個別 BUG の live claim 実装は scope 外。`VERIFIED_FIXED` は 0。
-- **個票正本**: 各 `## BUG-NNN` 節の `対応状況（2026-08-01 JST）` 行。
+- **未検証境界**: 本更新でのブラウザ/DB mutation 再現、Docker-scoped runtime の全 candidate 実行、個別 BUG の live claim 実装は scope 外。`VERIFIED_FIXED` は 0。
+- **個票正本**: 各 `## BUG-NNN` 節の最新 `対応状況` 行。
+
+# ドメイン別タスク索引
+
+各 BUG は実装を主導する**一次担当ドメインへ1回だけ**配置する。複数ドメインにまたがる依存・同時回帰は、後段の「横断クラスタ索引」を併用する。この索引は担当分割用であり、個票の重大度・対応状況・Waveを変更しない。
+
+| 一次担当ドメイン | 対象 BUG | 件数 | 状態内訳 | 主な責務境界 |
+|---|---|---:|---|---|
+| 飼主・ペット・受付 | BUG-001, BUG-002, BUG-020, BUG-021, BUG-022 | 5 | IMPLEMENTED_UNVERIFIED 5 | `owner`, `pet`, owners UI、予約モーダルの新規飼主入力 |
+| 検査 | BUG-003, BUG-004, BUG-005, BUG-017 | 4 | IMPLEMENTED_UNVERIFIED 1 / OPEN 3 | `examination`、検査フォーム、担当医選択、異常値判定・確定 |
+| 予防接種 | BUG-006, BUG-007 | 2 | OPEN 2 | `vaccination`、対象ペット表示、ペット別接種履歴 |
+| LINE・LIFF・Lステップ連携 | BUG-008, BUG-014, BUG-030, BUG-032 | 4 | OPEN 4 | `line-reserve`, `liff`, LINE予約設定、`lstep/checkup-sync` |
+| 入院・ホテル | BUG-009 | 1 | OPEN 1 | `hospitalization`、ステータスタブ・一覧取得 |
+| カルテ・バイタル | BUG-010, BUG-015 | 2 | OPEN 2 | `medicalrecord`, `vital`、診察/治療プラン、体重単位 |
+| 見積・会計 | BUG-011, BUG-013, BUG-018, BUG-019 | 4 | IMPLEMENTED_UNVERIFIED 1 / OPEN 3 | `estimate`, `billing`、未請求明細、締め後会計、Not Found |
+| 顧客集計 | BUG-012 | 1 | OPEN 1 | `aggregation`、LTV/売上集計、CPM取得 |
+| 横断フォーム基盤 | BUG-016 | 1 | OPEN 1 | 予防接種・検査・入院フォーム共通の取得失敗/Not Found 契約 |
+| 認証・権限 | BUG-023, BUG-024, BUG-031 | 3 | OPEN 3 | `auth`、権限グループ、セッション復元・ログイン遷移 |
+| 設定・マスタ | BUG-025, BUG-026, BUG-027, BUG-028, BUG-029 | 5 | OPEN 5 | settings UI、各 master owner、共通保存・重複エラー契約 |
+| **合計** | **BUG-001〜BUG-032** | **32** | **IMPLEMENTED_UNVERIFIED 7 / OPEN 25** | 各個票を正本とする |
 
 # 実装優先ウェーブ / 横断クラスタ索引
 
@@ -44,7 +63,7 @@
 ## BUG-001: 飼主・ペット一覧の検索が「姓 スペース 名」形式でヒットしない
 
 - **重大度**: 中（受付業務で頻出する検索パターンが機能しない）
-- **対応状況（2026-08-01 JST）**: OPEN | **根拠**: current HEAD `70da134ad` product code unchanged after report; `backend/internal/pet/repository.go` Search は pets/owners 各列と phone の個別 ILIKE のみで空白連結フルネーム・owner_number 未対応（wave-3） | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: S01 手順1を Docker ローカルで再計測し、空白フルネーム/飼主NO の SQL 設計を実装
+- **対応状況（2026-08-03 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: 到達済み commit `d7bf32f2214d6bb6c252b99b001d2ed2044de7c9` で `PetRepository.FindAll` が空白非依存の飼主フルネーム、`owners.id` 文字列一致の飼主No、`pets.pet_number` 部分一致、空白のみ fail-closed、clinic-scoped JOIN を実装。`TestPetRepository_FindAll_Search` と owners list / OpenAPI / 画面仕様も更新済み | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: S01 手順1を専用 synthetic fixture でブラウザ再検証し、`VERIFIED_FIXED` 可否を判定
 - **発見シナリオ**: S01 手順1の確認中（飼主・ペット一覧 `/owners`）
 - **再現手順**:
   1. `/owners` の検索ボックス（プレースホルダ「飼主名、ペット名、飼主No、種別...」）に `伊藤` とだけ入力 → 120件ヒット（正常）。
@@ -132,7 +151,7 @@
 ## BUG-002: 死亡登録直後、飼主編集画面のペット一覧テーブルの生死列がリロードするまで更新されない
 
 - **重大度**: 低（データ自体は正しく保存されるが、画面表示が古いままになりスタッフが「保存されていない」と誤解し得る）
-- **対応状況（2026-08-01 JST）**: OPEN | **根拠**: `use-record-pet-death.ts` は pets.detail/list invalidate のみ; 飼主編集の外側ペット表は `use-pet-form-list-state` の local state で死亡成功後も未同期（wave-0） | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: 死亡成功時に owners 編集リストを同期する回帰テスト＋UI再検証
+- **対応状況（2026-08-03 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: 到達済み commit `a17d39d6f46ddaf8afcba7ed53419dbc4f92e968` で、死亡登録・解除成功時に modal-local form と外側の `pets` / `editingPet` を同一 `petId` の `status`・`deceasedAt` で不変同期する。foreign/absent ID では `pets` / `editingPet` の参照を保ち、非同期中に別ペットへ切り替えた場合は表示中 modal state を上書きしない。focused BUG-002 20件、hook＋BUG-373 42件、focused statements 95.00%、対象 ESLint / diff-check が green | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: S01 の専用 synthetic fixture で死亡登録直後の外側一覧表示をブラウザ再検証
 - **発見シナリオ**: S01 手順1（`/owners/:id` でペット編集モーダルから死亡登録）
 - **再現手順**:
   1. `/owners/307867` を開き、ペット「豆助」（001）の詳細・編集から「死亡を記録」→死亡日・理由を入力し確定。
@@ -221,7 +240,7 @@
 ## BUG-003: 検査結果の異常値判定（H/L ハイライト）が常に「未判定」のまま計算されない【重大】
 
 - **重大度**: 高（S02 の中核機能。臨床安全に直結する異常値の見落とし防止が機能していない）
-- **対応状況（2026-08-01 JST）**: OPEN | **根拠**: `exam_result_assessment.go` は基準値解決時のみ H/L; demo seed に `exam_reference_ranges` なしで unassessed/normal 経路が残る（wave-0） | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: clinic/species 基準値 seed または保存時導出を実装し S02 で H/L を確認
+- **対応状況（2026-08-03 JST）**: OPEN | **根拠**: `exam_result_assessment.go` は基準値解決時のみ H/L; demo seed に `exam_reference_ranges` なしで unassessed/normal 経路が残る（wave-0） | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: clinic/species 基準値 seed または保存時導出を実装し S02 で H/L を確認
 - **発見シナリオ**: S02 手順2〜4（検査管理 `/examinations`）
 - **再現手順**:
   1. `/examinations/select-pet` から生存ペット（伊藤史安/豆助）を選び、新規検査登録。検査種別「血液検査（院内）」を選択（WBC基準値 6.0-17.0、RBC基準値 5.5-8.5、HCT基準値 37-55 などが動的表示される）。
@@ -312,7 +331,7 @@
 ## BUG-004: 検査記録を初めて「確定」ステータスへ保存しようとすると「確定済みの検査は編集できません」と拒否され、確定できない【重大】
 
 - **重大度**: 高（S02 の中核機能。検査確定ロック自体に到達できない）
-- **対応状況（2026-08-01 JST）**: OPEN | **根拠**: `examination_service` が status を confirmed にした後に items replace; `examination_repository.go` は confirmed で「確定済みの検査は編集できません」（wave-0） | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: 初回 result_entered→confirmed+items を同一 tx で成功させる回帰を追加
+- **対応状況（2026-08-03 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: 到達済み commit `2a8aca33c1848613e7c3ccd9ffa2f2a4e3c9ad5e` で `ExaminationService.Update` が confirmed 遷移時に `status` を一旦除外し、items/range 検証・置換後に `confirmed` を最終 write として同一 tx で保存する。`TestExaminationService_ConfirmWithItemsPersistsItemsBeforeStatusTransition` と `TestDB_ExaminationService_CreateConfirmedWithItemsPersistsItemsBeforeStatusTransition` が `items -> status -> audit` 順序、409、audit rollback 回帰を固定済み | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: S02 手順6を専用 synthetic fixture でブラウザ再検証し、`VERIFIED_FIXED` 可否を判定
 - **発見シナリオ**: S02 手順6（検査詳細・編集画面 `/examinations/:id`）
 - **再現手順**:
   1. 上記 BUG-003 で作成した検査（現在ステータス=結果入力済み、未確定）を開く。
@@ -398,7 +417,7 @@
 ## BUG-005（軽微・要確認）: 検査の「担当医」選択肢にスタッフ以外の項目が混在している
 
 - **重大度**: 低〜中（データ品質・UI混乱の懸念。実害は要確認）
-- **対応状況（2026-08-01 JST）**: OPEN | **根拠**: 担当医が `useMasterItems("staff")` 全件; `staff_type` 未フィルタ; demo seed に `staff_type=resource` 混在、BE は doctor のみ fail-closed（wave-4） | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: doctor のみのセレクタに絞り S02 で resource 名が出ないことを確認
+- **対応状況（2026-08-03 JST）**: OPEN | **根拠**: 担当医が `useMasterItems("staff")` 全件; `staff_type` 未フィルタ; demo seed に `staff_type=resource` 混在、BE は doctor のみ fail-closed（wave-4） | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: doctor のみのセレクタに絞り S02 で resource 名が出ないことを確認
 - **発見シナリオ**: S02 手順1（新規検査登録の担当医セレクタ）
 - **内容**: `/examinations/new` の「担当医」ドロップダウンの選択肢に、スタッフ氏名（林文明、ノア、倉田春香 等）に混じって「お手入れ・オゾン療法」「健診・ワクチン・狂犬病」「ドッグラン(アジリティ解放)」「クイックシャンプー」のような、明らかに施術・サービスメニュー名と思われる項目が含まれていた。
 - **備考**: マスタデータ側の混入か、コンポーネントの参照先マスタ取り違えの可能性。実害（誤って選択されるリスク）は未検証。
@@ -480,7 +499,7 @@
 ## BUG-006: 予防接種登録画面のヘッダーに表示される年齢・性別・去勢避妊状況が、対象ペットによらず常に同じ誤った固定値になっている【重大】
 
 - **重大度**: 高（診療画面に誤った患者属性が表示される。臨床安全観点で懸念）
-- **対応状況（2026-08-01 JST）**: OPEN | **根拠**: `VaccinationForm` が `PatientInfoCard` に petDetails 未渡し; 既定「9才5ヶ月 / メス / 避妊済」固定（wave-3） | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: 選択ペット属性を渡し固定デフォルトを除去する FE 修正＋画面確認
+- **対応状況（2026-08-03 JST）**: OPEN | **根拠**: `VaccinationForm` が `PatientInfoCard` に petDetails 未渡し; 既定「9才5ヶ月 / メス / 避妊済」固定（wave-3） | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: 選択ペット属性を渡し固定デフォルトを除去する FE 修正＋画面確認
 - **発見シナリオ**: S03 手順1（予防接種 新規登録 `/vaccinations/new?petId=...`）
 - **再現手順**:
   1. `/vaccinations/new?petId=1000002`（伊藤史安／豆助、実データ: 生年月日2012-12-20＝13才7ヶ月、性別=雄）を開く。
@@ -570,7 +589,7 @@
 ## BUG-007: 予防接種を新規登録しても、一覧・対象ペットの「過去の接種履歴」パネルのどちらにも表示されず、登録結果を画面上で確認できない
 
 - **重大度**: 中〜高（S03 手順6の中核要件「自動計算結果を画面上でいつでも確認できる」が満たされない）
-- **対応状況（2026-08-01 JST）**: OPEN | **根拠**: 履歴/一覧が unscoped page1+client pet filter; `useGetPetVaccinations` 未使用で page-window が残る（wave-3） | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: pet_id 付き履歴 API に切替し新規接種が表示されることを確認
+- **対応状況（2026-08-03 JST）**: OPEN | **根拠**: 履歴/一覧が unscoped page1+client pet filter; `useGetPetVaccinations` 未使用で page-window が残る（wave-3） | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: pet_id 付き履歴 API に切替し新規接種が表示されることを確認
 - **発見シナリオ**: S03 手順6・7（予防接種管理 `/vaccinations`）
 - **再現手順**:
   1. `/vaccinations/new?petId=1000002`（伊藤史安／豆助）で接種日=2026/07/31、ワクチン=バンガードL4(4種)、次回予定=2026/09/15（手動調整）として保存 → 「予防接種を登録しました」の成功トーストが出る。
@@ -659,7 +678,7 @@
 ## BUG-008: LIFF予約フローがコース選択画面で必ず「ログイン情報の有効期限が切れました」となり、以降に一切進めない【重大】【S04ブロッカー】
 
 - **重大度**: 高（S04 全体のブロッカー。LIFF飼い主予約ジャーニーが手順2「コース選択」より先へ一切進めない）
-- **対応状況（2026-08-01 JST）**: OPEN | **根拠**: LIFF mock/auth: `VITE_LIFF_MOCK`/`LIFF_MOCK` 不整合時に 401→`handle-fetch-error.ts`「ログイン情報の有効期限が切れました」；compose は mock 未固定（wave-1） | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: ローカル両 mock 有効でコース一覧 200 を確認し C-LIFF-AUTH を実装
+- **対応状況（2026-08-03 JST）**: OPEN | **根拠**: LIFF mock/auth: `VITE_LIFF_MOCK`/`LIFF_MOCK` 不整合時に 401→`handle-fetch-error.ts`「ログイン情報の有効期限が切れました」；compose は mock 未固定（wave-1） | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: ローカル両 mock 有効でコース一覧 200 を確認し C-LIFF-AUTH を実装
 - **発見シナリオ**: S04 手順1→2（LIFF予約アプリ `/line-reserve/1/`、`VITE_LIFF_MOCK=true`／バックエンド`LIFF_MOCK=true`前提）
 - **再現手順**:
   1. `/line-reserve/1/` を開き「新規予約」→お客様情報（お名前・電話番号・飼い主名・ペット追加）を入力し「次へ」を押す。
@@ -751,7 +770,7 @@
 ## BUG-009: 入院・ホテル管理画面のタブ切替（予約／退院済／すべて）が機能せず、常に「入院中」のデータしか表示されない【重大】
 
 - **重大度**: 高（S05 の中核機能。予約中・退院済の入院を画面上で一切確認できない）
-- **対応状況（2026-08-01 JST）**: OPEN | **根拠**: 既定 `statusFilter=active`、client filter、`get-hospitalizations` が status/page を送らない経路が残る（wave-1） | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: 予約/退院済/すべてタブ×status の回帰＋実データ再計測
+- **対応状況（2026-08-03 JST）**: OPEN | **根拠**: 既定 `statusFilter=active`、client filter、`get-hospitalizations` が status/page を送らない経路が残る（wave-1） | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: 予約/退院済/すべてタブ×status の回帰＋実データ再計測
 - **発見シナリオ**: S05 手順1・2・2b（入院・ホテル管理 `/hospitalization`）
 - **再現手順**:
   1. `/hospitalization/new?petId=1000002`（伊藤史安／豆助）で新規入院登録（入院タイプ=入院、ケージ=犬用ケージ（中）、期間はデフォルトの本日〜+7日）を保存 → 「入院情報を登録しました」トースト。保存直後のステータスは `reserved`（チェックイン前）。
@@ -841,7 +860,7 @@
 ## BUG-010: カルテ「診察/治療プラン」タブの身体検査所見・診断詳細・治療方針が、入力しても保存されず空欄化または固定文字列に置き換わる【重大】
 
 - **重大度**: 高（S06 手順1の中核要件。臨床所見・診断・治療方針という法的記録の根幹部分が保存されない／改ざんされる）
-- **対応状況（2026-08-01 JST）**: OPEN | **根拠**: 臨床プラン保存が template 既定や post-save 二重書き込み経路を残し physical_exam 等の往復が保証されない（wave-0） | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: 単一 versioned PATCH で身体所見/診断/治療方針の往復を証明
+- **対応状況（2026-08-03 JST）**: OPEN | **根拠**: 臨床プラン保存が template 既定や post-save 二重書き込み経路を残し physical_exam 等の往復が保証されない（wave-0） | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: 単一 versioned PATCH で身体所見/診断/治療方針の往復を証明
 - **発見シナリオ**: S06 手順1（カルテ編集 `/medical-records/:id`、「診察/治療プラン」タブ）
 - **再現手順**（他の操作を一切介さないクリーンな単離手順で2回再現）:
   1. カルテ新規作成 → 生存ペット（小玉哲博／ラッキー、pet_id 1000019）を選択（カルテID 1425547 が自動作成される）。
@@ -937,7 +956,7 @@
 ## BUG-011: 2件目以降の見積書新規作成が、タイトル内容によらず常に「estimate '' already exists」(409)で拒否される【重大】【S07ブロッカー】
 
 - **重大度**: 高（見積書の新規作成機能そのものが1クリニックにつき実質1回しか使えなくなる）
-- **対応状況（2026-08-01 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: Create は同一 tx で `AllocateNextEstimateNo`→`EST-{N}`（`estimate_service.go` TASK-012）；`TestEstimateService_Create_AssignsEstimateNo` 存在。fa74ef92e..HEAD に BUG 専用 fix なし。原文 2件目409 は未再実行。23505 時 `estimate '' already exists` メッセージ残渣は別品質問題 | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: 2件目以降 POST /estimates の受け入れ再実行＋必要ならメッセージ品質を分離修正
+- **対応状況（2026-08-03 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: 到達済み commit `b65cf69ef56785c473ddd233624292a3c338401e` で Create は同一 tx 内の `AllocateNextEstimateNo` から `EST-{N}` を採番し、`TestEstimateService_Create_AssignsEstimateNo` が空の `estimate_no` を送らず作成する契約を固定。原文の2件目409は未再実行で、23505時の `estimate '' already exists` メッセージ残渣は別品質問題 | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: 2件目以降の `POST /estimates` を専用 synthetic fixture で再検証し、必要ならメッセージ品質を分離修正
 - **発見シナリオ**: S07 手順1・7・9（見積書管理 `/estimates/new`）
 - **再現手順**:
   1. `/estimates/new` でタイトル「S07 検証用A」・小計10,000円・ステータス「下書き」を入力し「作成」→ 成功（一覧に追加され、以後ステータスを送付済み→承認済みへ遷移できることまで確認済み＝BUG-011とは無関係に正常動作）。
@@ -1050,7 +1069,7 @@
 ## BUG-012: 顧客集計ダッシュボードが恒久的に「読み込み中...」のまま表示されず、バックエンドAPIが応答しない【重大】【S10ブロッカー】
 
 - **重大度**: 高（S10の対象機能が完全に使用不能。集計・分析機能全体が機能していない）
-- **対応状況（2026-08-01 JST）**: OPEN | **根拠**: `ListOwnerAggregation` が全 LTV 行を読込後 filter; payments 集計に clinic_id 欠落リスク; FE が CPM fan-out 7 重 call（wave-1） | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: 集計 SQL/ページングと CPM bulk を直しタイムアウト内応答を計測
+- **対応状況（2026-08-03 JST）**: OPEN | **根拠**: `ListOwnerAggregation` が全 LTV 行を読込後 filter; payments 集計に clinic_id 欠落リスク; FE が CPM fan-out 7 重 call（wave-1） | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: 集計 SQL/ページングと CPM bulk を直しタイムアウト内応答を計測
 - **発見シナリオ**: S10 手順1（顧客集計ダッシュボード `/aggregation`）
 - **再現手順**:
   1. `/aggregation` を開く（売上ランキングタブが既定表示）。
@@ -1140,7 +1159,7 @@
 ## BUG-013: 未請求明細取得APIが実データ存在時に500エラーを返し、トリミング×診察の統合会計が機能しない【重大】【S11ブロッカー】
 
 - **重大度**: 高（S11の中核機能である「同日同一ペットの未請求明細の会計統合」が完全に機能しない）
-- **対応状況（2026-08-01 JST）**: OPEN | **根拠**: 未請求集約で vaccination master 欠損/負価格が内部エラー化しリクエスト全体 500（`billing_item_repository`）（wave-1） | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: 部分成功/警告契約またはスキップ方針で S11 統合会計を再計測
+- **対応状況（2026-08-03 JST）**: OPEN | **根拠**: 未請求集約で vaccination master 欠損/負価格が内部エラー化しリクエスト全体 500（`billing_item_repository`）（wave-1） | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: 部分成功/警告契約またはスキップ方針で S11 統合会計を再計測
 - **発見シナリオ**: S11 手順5（会計新規作成 `/accounting/new?petId=xxx`）
 - **再現手順**:
   1. 川崎和久／ナッツ（petId=1004170）に対し、トリミング登録（コース「八王子カット」¥0＋オプション「爪切り」¥300、ステータス予約→受付済→施術open→診療中）と、同日の通常カルテ（一般診察、処置「S11検証用処置」¥15,000を追加し確定）をそれぞれ作成。
@@ -1239,7 +1258,7 @@
 ## BUG-014: LIFFペットヘルスページが「ログイン情報の有効期限が切れました」で必ず失敗し閲覧不能（BUG-008と同根）【重大】【S12ブロッカー】
 
 - **重大度**: 高（S12対象機能であるペットヘルスページが完全に閲覧不能。S04で確認したBUG-008と同じ「LIFFモックがAPI呼び出しにAuthorizationヘッダを一切付与しない」という根本原因が、別のLIFFアプリ（frontend/liff＝ペットヘルス・連携用）でも再現）
-- **対応状況（2026-08-01 JST）**: OPEN | **根拠**: BUG-008 と同 C-LIFF-AUTH（shared use-liff / 401 copy / liff_auth）だが health-card 別 app; DUPLICATE 未証明のため OPEN 維持（wave-1） | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: 008 と同一 auth 修正後に health-card 単独で 200 表示を確認
+- **対応状況（2026-08-03 JST）**: OPEN | **根拠**: BUG-008 と同 C-LIFF-AUTH（shared use-liff / 401 copy / liff_auth）だが health-card 別 app; DUPLICATE 未証明のため OPEN 維持（wave-1） | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: 008 と同一 auth 修正後に health-card 単独で 200 表示を確認
 - **発見シナリオ**: S12 手順5（token無しURL `/liff/1?clinic_id=1` でペットヘルスページを開く）
 - **再現手順**:
   1. `/liff/1?clinic_id=1`（tokenパラメータなし）を開く。
@@ -1331,7 +1350,7 @@ S01〜S12の業務シナリオ検証に続き、個別フォーム単位の受�
 ## BUG-015: バイタルの体重 Kg/g 単位切替で数値が単位換算されずそのまま保存され、1000倍のデータ破損が生じる【重大】
 
 - **重大度**: 高（体重 8.5kg の記録が数値そのまま「8.5g」として永続化される。薬量自動計算は直近バイタルの体重を基準にするため、下流で致死的な過小投与量が算出されるリスクがある）
-- **対応状況（2026-08-01 JST）**: OPEN | **根拠**: 単位トグルは weight_unit のみ変更; BE は換算せずペア受理（VitalsTabRows / vital_service）（wave-0） | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: Kg↔g 物理量換算と薬量連動の回帰テストを実装
+- **対応状況（2026-08-03 JST）**: OPEN | **根拠**: 単位トグルは weight_unit のみ変更; BE は換算せずペア受理（VitalsTabRows / vital_service）（wave-0） | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: Kg↔g 物理量換算と薬量連動の回帰テストを実装
 - **発見シナリオ**: V01 §3 手順4（カルテ バイタル `/medical-records/:id` バイタル記録モーダル）
 - **再現手順**:
   1. `/medical-records/1425549` を開き、バイタル記録モーダルで既存レコード（体温45℃・体重8.5kg）を編集
@@ -1420,7 +1439,7 @@ S01〜S12の業務シナリオ検証に続き、個別フォーム単位の受�
 ## BUG-016: 予防接種・検査・入院の各独立フォームで、存在しないIDのURLを直叩きすると空の編集可能フォームが開いてしまう
 
 - **重大度**: 中（バックエンドは正しく404を返しており保存を試みても失敗するためデータ破損には至らないが、「存在しないIDのURL直叩きはエラー画面になるべき」という異常系要件に反する）
-- **対応状況（2026-08-01 JST）**: OPEN | **根拠**: edit route が 404 を DEFAULT 空フォームへ潰す（vaccination/examination/hospitalization form hooks）（wave-3） | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: not-found 非編集 UI をゲートし保存 0 回を証明
+- **対応状況（2026-08-03 JST）**: OPEN | **根拠**: edit route が 404 を DEFAULT 空フォームへ潰す（vaccination/examination/hospitalization form hooks）（wave-3） | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: not-found 非編集 UI をゲートし保存 0 回を証明
 - **発見シナリオ**: V01 §8 手順5（予防接種独立画面 `/vaccinations/:id`）、§7 手順4（検査入力 `/examinations/:id`）、§10 手順7（入院登録 `/hospitalization/:id/edit`）
 - **再現手順**:
   1. `/vaccinations/999999999` を直接開く → 空の「予防接種詳細・編集」フォームが表示され、削除・保存ボタンが有効な状態で開く
@@ -1506,7 +1525,7 @@ S01〜S12の業務シナリオ検証に続き、個別フォーム単位の受�
 ## BUG-017: 検査入力フォームで必須項目（検査種別・担当医）が未入力のまま保存を押しても、保存はブロックされるがエラーメッセージが一切表示されない
 
 - **重大度**: 中（保存自体は正しくブロックされデータ破損はないが、職員には保存失敗の理由が一切示されない「無音失敗」に該当する）
-- **対応状況（2026-08-01 JST）**: OPEN | **根拠**: hook は fieldErrors を立てるが `ExaminationFormFields` に未配線でメッセージ非表示（wave-3） | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: 必須フィールド近傍エラー表示＋aria を追加
+- **対応状況（2026-08-03 JST）**: OPEN | **根拠**: hook は fieldErrors を立てるが `ExaminationFormFields` に未配線でメッセージ非表示（wave-3） | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: 必須フィールド近傍エラー表示＋aria を追加
 - **発見シナリオ**: V01 §7 手順1（検査入力 `/examinations/new?petId=xxx`）
 - **再現手順**:
   1. `/examinations/new?petId=1000002` を開く（検査種別・担当医とも未選択のまま）
@@ -1592,7 +1611,7 @@ S01〜S12の業務シナリオ検証に続き、個別フォーム単位の受�
 ## BUG-018: レジ締め済み期間に作成した会計の明細追加が400で失敗し、合計金額と明細が不整合な「壊れた」会計が残る
 
 - **重大度**: 高（会計データの整合性が崩れ、金額と明細が食い違ったレコードがDBに残る。かつUIはエラーを警告するのみで自動的にロールバックしない）
-- **対応状況（2026-08-01 JST）**: OPEN | **根拠**: 締め後会計が header 作成→items 逐次で post_close_reason 欠落時に orphan header 可能（wave-0） | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: header+items+理由の原子的 complete または create ブロックを実装
+- **対応状況（2026-08-03 JST）**: OPEN | **根拠**: 締め後会計が header 作成→items 逐次で post_close_reason 欠落時に orphan header 可能（wave-0） | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: header+items+理由の原子的 complete または create ブロックを実装
 - **発見シナリオ**: V02 §1 会計・精算フォーム（新規会計作成） `/accounting/new?petId=X` → 確定後の明細追加
 - **再現手順**:
   1. 当日のレジ締め（PM）が既に完了している状態で `/accounting/new?petId=X` から新規会計を作成する
@@ -1684,7 +1703,7 @@ S01〜S12の業務シナリオ検証に続き、個別フォーム単位の受�
 ## BUG-019: 存在しない見積書IDで編集画面を開くとエラー画面ではなく空白のフォームが表示される
 
 - **重大度**: 中（クラッシュや無限ローディングではないが、ユーザーが「新規作成中」と誤認しうる）
-- **対応状況（2026-08-01 JST）**: OPEN | **根拠**: `EstimateForm` が isError 未処理で blank edit form（wave-3; C-NOT-FOUND-EMPTY） | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: 存在しない見積 ID で not-found UI を表示
+- **対応状況（2026-08-03 JST）**: OPEN | **根拠**: `EstimateForm` が isError 未処理で blank edit form（wave-3; C-NOT-FOUND-EMPTY） | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: 存在しない見積 ID で not-found UI を表示
 - **発見シナリオ**: V02 §6 見積書フォーム（異常系） `/estimates/:id`（存在しないID）
 - **再現手順**:
   1. 存在しない見積書ID（DBに存在しない大きな数値）を使って `/estimates/999999999` のようなURLに直接アクセスする
@@ -1768,7 +1787,7 @@ S01〜S12の業務シナリオ検証に続き、個別フォーム単位の受�
 ## BUG-020: 電話番号フォーマットの検証エラーメッセージが、正しい値に修正した後も表示され続ける
 
 - **重大度**: 低（機能的にはフォーム送信をブロックしない。ネットワークログでオーナー作成POSTが実際に正しい値で発火していることを確認済み。UI表示が古いままになる見た目のみの問題）
-- **対応状況（2026-08-01 JST）**: OPEN | **根拠**: phone error は submit 時のみ set; `NewOwnerInlineForm` onChange が clear/revalidate しない（wave-4） | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: 修正入力で errors.phone が消える test を追加
+- **対応状況（2026-08-03 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: 到達済み commit `617f6f9bf88be3627ba789d447c98858dd34c80a` で raw phone を共通 validator で検証し、有効値への修正時に `newOwnerErrors.phone` だけを不変更新で解除する。空白付き無効値、他 field error、invalid path の `onSave` 0回を維持し、依存更新後の scoped Vitest 2 files / 18 tests、statements 84.28%、対象 ESLint / diff-check が green | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: V02 §7を専用 synthetic fixture でブラウザ再検証し、`VERIFIED_FIXED` 可否を判定
 - **発見シナリオ**: V02 §7 予約登録モーダル（新規飼主タブ） 電話番号入力欄
 - **再現手順**:
   1. 予約登録モーダルの「新規飼主」タブを開く
@@ -1854,7 +1873,7 @@ S01〜S12の業務シナリオ検証に続き、個別フォーム単位の受�
 ## BUG-021: 死亡記録ダイアログの必須・未来日バリデーションでエラーメッセージが一切表示されない
 
 - **重大度**: 中
-- **対応状況（2026-08-01 JST）**: OPEN | **根拠**: 死亡日 required/未来日の button 経路で silent validation が残る; BE 未来日拒否も不十分（wave-0） | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: 実 button 経路でメッセージ表示と API 0 回を証明
+- **対応状況（2026-08-03 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: 到達済み commit `eb7db0dc94fb842c7e569252a9cebc6aee96cd60` で、実ボタン経路から空欄・未来日の field error と `aria-invalid` / `aria-describedby` を表示し、mutation 0回を回帰固定。BEもJST基準で欠損・空・不正形式・未来日を service 呼出前に400で拒否し、当日・過去日のみ通す | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: V03 §4チェック1・2を専用 synthetic fixture でブラウザ再検証し、`VERIFIED_FIXED` 可否を判定
 - **発見シナリオ**: V03 §4 ペット死亡登録ダイアログ（pet-deceased-dialog）チェック1・チェック2
 - **再現手順**:
   1. 飼主編集画面（`/owners/310374`）でペット「V03テストペット改」の編集モーダルを開く
@@ -1940,7 +1959,7 @@ S01〜S12の業務シナリオ検証に続き、個別フォーム単位の受�
 ## BUG-022: 死亡記録後、フルリロード後もペット編集モーダル・一覧の生死ステータスが「生存」のまま表示される（DBはdeceasedで正しい）
 
 - **重大度**: 高
-- **対応状況（2026-08-01 JST）**: OPEN | **根拠**: 現行 FE transform は deceased→「死亡」（wave-0）だがフルリロード原文シナリオ未実行のため NOT_REPRODUCIBLE にせず OPEN; 修正因果未証明 | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: DB deceased のペットでフルリロード後の一覧/モーダル表示をブラウザ計測
+- **対応状況（2026-08-03 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: 到達済み commit `fc3c12b2800942c7527b0be951aad20860c6131c` で、pet detail・owner埋込petは `deceased` / `deceased_at` を保持し、`deceased_at` を返さない一覧APIでは owners loader が `deceased` status を「死亡」へ変換、編集formは提供された `deceasedAt` を保持する。未知・欠損statusは「生存」へ推測せず「不明」にし、死亡記録・患者選択などの臨床操作をfail-closedにする回帰を追加済み | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: V03 §4チェック3を専用 synthetic fixture の真のフルリロードで再検証し、`VERIFIED_FIXED` 可否を判定
 - **発見シナリオ**: V03 §4 pet-deceased-dialog チェック3（C2永続化確認: 記録→一覧→再読込→再オープン）
 - **再現手順**:
   1. ペット編集モーダルで死亡日（当日）・死亡理由を入力し「死亡を記録する」で保存 → 「死亡を記録しました」トースト表示、モーダル内の生死ステータスが「死亡」に切り替わり永眠バナーが表示される
@@ -2028,7 +2047,7 @@ S01〜S12の業務シナリオ検証に続き、個別フォーム単位の受�
 ## BUG-023: 権限グループ名の重複エラーが未整形の生バックエンドメッセージのまま表示され、グループ名部分が空文字になる
 
 - **重大度**: 中
-- **対応状況（2026-08-01 JST）**: OPEN | **根拠**: `apperrors.FromGORM` 23505 が `WrapAlreadyExists(resource,"")` 固定; V03/batch3 で `permission_group '' already exists` 再観測（wave-2, reports/2026-08-01-task-010-batch3.md） | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: identifier/JA メッセージ契約を直し V03 C3 を再計測
+- **対応状況（2026-08-03 JST）**: OPEN | **根拠**: `apperrors.FromGORM` 23505 が `WrapAlreadyExists(resource,"")` 固定; V03/batch3 で `permission_group '' already exists` 再観測（wave-2, reports/2026-08-01-task-010-batch3.md） | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: identifier/JA メッセージ契約を直し V03 C3 を再計測
 - **発見シナリオ**: V03 §6 permission-group-side-panel チェック3
 - **再現手順**:
   1. `/settings/permission-groups` で「新規登録」をクリック
@@ -2114,7 +2133,7 @@ S01〜S12の業務シナリオ検証に続き、個別フォーム単位の受�
 ## BUG-024: 権限グループの権限マトリクス（表示/作成/編集/削除チェックボックス）の変更が保存されない（成功トースト・200応答にもかかわらずDBに反映されない）【重大】
 
 - **重大度**: 高
-- **対応状況（2026-08-01 JST）**: OPEN | **根拠**: FE rules[] + BE `UpdateWithRules` 経路は存在; 原文「200だがDB未反映」は request/DB トレース未実施で否定不能（wave-1） | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: トグル→PATCH body→GET/DB 一致の統合確認
+- **対応状況（2026-08-03 JST）**: OPEN | **根拠**: FE rules[] + BE `UpdateWithRules` 経路は存在; 原文「200だがDB未反映」は request/DB トレース未実施で否定不能（wave-1） | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: トグル→PATCH body→GET/DB 一致の統合確認
 - **発見シナリオ**: V03 §6 permission-group-side-panel チェック2（C2永続化確認）およびチェック4（自己剥奪ガード確認）
 - **再現手順**:
   1. `/settings/permission-groups` で「執行」グループの編集パネルを開く
@@ -2201,7 +2220,7 @@ S01〜S12の業務シナリオ検証に続き、個別フォーム単位の受�
 ## BUG-025: 主訴種別・問診テンプレートなど一部マスタで新規作成時に is_active=false（無効）で保存される
 
 - **重大度**: 高（新規作成したマスタが画面上「有効」に見えるトグル状態のまま保存すると、実際には無効状態でDBに保存され、他画面のドロップダウン等に一切現れず、ユーザーが気づかないまま機能しない）
-- **対応状況（2026-08-01 JST）**: OPEN | **根拠**: 主訴/問診 create builder が is_active 省略 → BE non-pointer false 永続（wave-2） | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: create payload に is_active:true を明示し V04 再計測
+- **対応状況（2026-08-03 JST）**: OPEN | **根拠**: 主訴/問診 create builder が is_active 省略 → BE non-pointer false 永続（wave-2） | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: create payload に is_active:true を明示し V04 再計測
 - **発見シナリオ**: V04 §1 主訴種別 `/settings/interview/chief-complaint`、問診・定型文テンプレート `/settings/inquiry-templates`
 - **再現手順**:
   1. `/settings/interview/chief-complaint` を開く
@@ -2289,7 +2308,7 @@ S01〜S12の業務シナリオ検証に続き、個別フォーム単位の受�
 ## BUG-026: 保険マスタで補償率が範囲外（>100）の値を保存しようとすると、実際には保存されていないのに「登録しました」の成功トーストが表示される
 
 - **重大度**: 高（無音失敗どころか、偽の成功通知によりユーザーが保存されたと誤認する）
-- **対応状況（2026-08-01 JST）**: OPEN | **根拠**: 受入実測は「POST 0件＋成功 toast」だが、current `InsuranceSettings` の validate は名称のみ、共有 `useMasterSave` は mutation 成功後だけ success toast を出す。この source は実測前から存在し、事後 fix の証拠ではなく、観測経路との矛盾が未解決。原文シナリオ未再実行のため IMPLEMENTED_UNVERIFIED へ上げない | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: coverage=101 で click/request/mutation/toast timeline を再取得し、再現後に最小修正を決める（REPRODUCE_FIRST）
+- **対応状況（2026-08-03 JST）**: OPEN | **根拠**: 受入実測は「POST 0件＋成功 toast」だが、current `InsuranceSettings` の validate は名称のみ、共有 `useMasterSave` は mutation 成功後だけ success toast を出す。この source は実測前から存在し、事後 fix の証拠ではなく、観測経路との矛盾が未解決。原文シナリオ未再実行のため IMPLEMENTED_UNVERIFIED へ上げない | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: coverage=101 で click/request/mutation/toast timeline を再取得し、再現後に最小修正を決める（REPRODUCE_FIRST）
 - **発見シナリオ**: V04 §1 保険 `/settings/insurance`（C1-3 境界値チェック）
 - **再現手順**:
   1. `/settings/insurance` で「新規登録」→ 名称「V04保険2」、補償率(%)に `101` を入力
@@ -2378,7 +2397,7 @@ S01〜S12の業務シナリオ検証に続き、個別フォーム単位の受�
 ## BUG-027: 動物種類マスタで一意制約違反時のエラートーストに実際の名称が表示されず空文字になる
 
 - **重大度**: 低（機能的には重複登録が正しく拒否されており「無音失敗・白画面」にはならないが、エラーメッセージの品質が低く、内部テーブル名を露出した上に該当の名称が空欄になっている）
-- **対応状況（2026-08-01 JST）**: OPEN | **根拠**: animal_species Create も FromGORM 空 identifier → `animal_species '' already exists`（C-MASTER-DUPLICATE-MSG, wave-2） | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: 023 と共通 adapter 修正後に名称付き JA メッセージを確認
+- **対応状況（2026-08-03 JST）**: OPEN | **根拠**: animal_species Create も FromGORM 空 identifier → `animal_species '' already exists`（C-MASTER-DUPLICATE-MSG, wave-2） | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: 023 と共通 adapter 修正後に名称付き JA メッセージを確認
 - **発見シナリオ**: V04 §1 動物種類 `/settings/animal-species`（C3-2 一意制約違反チェック）
 - **再現手順**:
   1. `/settings/animal-species` で「V04動物種類」という名称を新規登録
@@ -2464,7 +2483,7 @@ S01〜S12の業務シナリオ検証に続き、個別フォーム単位の受�
 ## BUG-028: 診療項目マスタ「処置」タブで新規登録が常に失敗する（内部フィールド名 anesthesia が必須なのにSidePanelに入力欄がない）
 
 - **重大度**: 高（処置タブへの新規項目登録が事実上全くできない。エラートーストは表示されるが内部英語フィールド名が露出しており原因が分かりにくく、無音失敗に近い）
-- **対応状況（2026-08-01 JST）**: OPEN | **根拠**: FE SidePanel/builder に anesthesia なし; BE create `binding:"required,oneof=..."` で常時 400（wave-2） | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: anesthesia 入力/既定と FE バリデーションを追加
+- **対応状況（2026-08-03 JST）**: OPEN | **根拠**: FE SidePanel/builder に anesthesia なし; BE create `binding:"required,oneof=..."` で常時 400（wave-2） | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: anesthesia 入力/既定と FE バリデーションを追加
 - **発見シナリオ**: V04 §2 診療項目マスタ 処置タブ `/settings/treatment-items?tab=procedure`
 - **再現手順**:
   1. `/settings/treatment-items?tab=procedure` で「新規登録」→ 名称「V04処置テスト」、単価に `-100`（負値）を入力して保存 → 何の反応もなくパネルが開いたまま（無音失敗）
@@ -2552,7 +2571,7 @@ S01〜S12の業務シナリオ検証に続き、個別フォーム単位の受�
 ## BUG-029: 支払方法マスタで名称重複時、実際には保存されていないのに「登録しました」の成功トーストが表示される（BUG-026と同一パターン）
 
 - **重大度**: 中〜高（BUG-026と同根と見られる。無音失敗ではなく虚偽の成功通知が出る点でUXへの実害が大きい。2つの異なるマスタ・2種類の異なるバリデーション〈範囲外値／一意制約違反〉で再現しており、共通基盤（useMasterSave等）の問題である可能性が高い）
-- **対応状況（2026-08-01 JST）**: OPEN | **根拠**: 受入実測は「2回目 POST 0件＋成功 toast」だが、current `PaymentMethodSettings` の validate は名称のみ、共有 `useMasterSave` は mutation 成功後だけ success toast を出す。この source/test は実測前から存在し、同名 precheck の実経路と観測矛盾が未解決。原文シナリオ未再実行のため IMPLEMENTED_UNVERIFIED または DUPLICATE へ上げない | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: 同名2件目で click/request/mutation/toast timeline を再取得し、BUG-023 の409文言問題と分離する（REPRODUCE_FIRST）
+- **対応状況（2026-08-03 JST）**: OPEN | **根拠**: 受入実測は「2回目 POST 0件＋成功 toast」だが、current `PaymentMethodSettings` の validate は名称のみ、共有 `useMasterSave` は mutation 成功後だけ success toast を出す。この source/test は実測前から存在し、同名 precheck の実経路と観測矛盾が未解決。原文シナリオ未再実行のため IMPLEMENTED_UNVERIFIED または DUPLICATE へ上げない | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: 同名2件目で click/request/mutation/toast timeline を再取得し、BUG-023 の409文言問題と分離する（REPRODUCE_FIRST）
 - **発見シナリオ**: V04 §1 支払方法 `/settings/payment-methods`（C3-2 一意制約違反チェック）
 - **再現手順**:
   1. `/settings/payment-methods` で「V04支払方法」を新規登録（正常に保存され一覧に反映、`is_active:true`）
@@ -2639,7 +2658,7 @@ S01〜S12の業務シナリオ検証に続き、個別フォーム単位の受�
 ## BUG-030: LINE予約設定の最短予約受付日数を0に変更して保存すると、200成功・updated_at更新にもかかわらず値が永続化されない
 
 - **重大度**: 中
-- **対応状況（2026-08-01 JST）**: OPEN | **根拠**: booking_window_min_days=0 が GORM zero+default:2 で upsert 再書込み; show_no_staff のみ zero 特例（wave-2） | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: 0 永続の repo 回帰と V05-8 再計測
+- **対応状況（2026-08-03 JST）**: OPEN | **根拠**: booking_window_min_days=0 が GORM zero+default:2 で upsert 再書込み; show_no_staff のみ zero 特例（wave-2） | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: 0 永続の repo 回帰と V05-8 再計測
 - **発見シナリオ**: V05-8 稼働・受付ルール設定（`/line-reservation/settings`）#2
 - **再現手順**:
   1. `/line-reservation/settings` を開く（八王子病院、既存値: 最短予約受付日数=2）
@@ -2728,7 +2747,7 @@ S01〜S12の業務シナリオ検証に続き、個別フォーム単位の受�
 ## BUG-031: ログイン済み状態で `/login` に直接アクセスしても自動リダイレクトされない
 
 - **重大度**: 低〜中（セキュリティ上の実害は小さいが、仕様と異なる導線）
-- **対応状況（2026-08-01 JST）**: OPEN | **根拠**: `LoginForm` は isAuthenticated で Navigate するが `/login` は `restoreSession=false` で session 非 hydrate（wave-4） | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: 有効 cookie で /login 直開き→home の session hydrate 契約を実装
+- **対応状況（2026-08-03 JST）**: OPEN | **根拠**: `LoginForm` は isAuthenticated で Navigate するが `/login` は `restoreSession=false` で session 非 hydrate（wave-4） | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: 有効 cookie で /login 直開き→home の session hydrate 契約を実装
 - **発見シナリオ**: V05-1 ログイン #3
 - **再現手順**:
   1. ノアとしてログイン済みの状態（`/owners` 等が正常表示されることで確認済み）で `/login` に直接アクセス
@@ -2815,7 +2834,7 @@ S01〜S12の業務シナリオ検証に続き、個別フォーム単位の受�
 ## BUG-032: 健診対象者抽出プレビューAPIがハングし応答しない（外部Lステップ連携先タイムアウト未実装の疑い）
 
 - **重大度**: 中〜高
-- **対応状況（2026-08-01 JST）**: OPEN | **根拠**: preview は外部 LSTEP ではなく unbounded ローカル SQL; FE/BE timeout なし（checkup_sync_*）（wave-3） | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: deadline/limit と UI 回復を入れ応答時間を計測
+- **対応状況（2026-08-03 JST）**: OPEN | **根拠**: preview は外部 LSTEP ではなく unbounded ローカル SQL; FE/BE timeout なし（checkup_sync_*）（wave-3） | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: deadline/limit と UI 回復を入れ応答時間を計測
 - **発見シナリオ**: V05-18 健診対象者一括タグ付与（`/lstep/checkup-sync`）#1-2 検証中
 - **再現手順**:
   1. `/lstep/checkup-sync` を開く
