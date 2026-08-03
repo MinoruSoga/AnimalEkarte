@@ -556,6 +556,16 @@ validator_exit=0
 - **Non-actions / HOLD**: print、lab import revert、clinical range、external format、auto-commit、migration apply、Issue close、claim 削除を行わない。
 - **Exit criteria for close**: original confirmed snapshot と patient identity が不変で、unconfirm/re-edit/reconfirm が version/permission/status/actor/audit/correlation contract を満たし、TASK-026、permission rollout、clinic isolation、migration/API regression が green。
 
+#### 実施結果（2026-08-03・TASK-027 saved-prompt run）
+
+- **Outcome**: **COMPLETE / IMPLEMENTED_UNMERGED**。Slice A/B/C と final safety repair を sequential TDD と独立 review で実装し、全指定 test・codegen・go vet は green。migration は未適用、push/merge/Issue close は未実施。
+- **Slice reach / commits**: Slice A `046615f4bc923869f189c4e104e27d0539d8c88d`、Slice B `1dd1cf04e77fa7adef38b0230a1b824e4f9abff6`、Slice C `c161baffb2372b8da3195a3b3474f4824f23ada6`、repair `fb0cf9c910aef842fdde1a0206bb5546163096c3`。append-only official/working revision、理由必須 unconfirm、default-deny permission、初回確定前患者変更、結果行 add/delete UI、死亡患者への create/rebind 拒否、items query/readiness と record-local state 分離まで実装済み。
+- **Evidence**: medicalrecord revision gate `ok ... 5.834s`、lintscan `ok ... 1.549s`、unconfirm/item/pet gate `ok ... 4.117s`、apicontract/clinic `ok ... 0.029s / 0.369s`、`make codegen-check` exit 0、frontend `160 + 2` tests PASS、repair race/DB/ambient-tx gates PASS、go vet exit 0。最終 Go・clinic isolation・React/a11y・security・clinical safety review は全て APPROVE（CRITICAL/HIGH/MEDIUM 0）。
+- **Lint truth**: `GOLANGCI_LINT_VERSION := v2.11.4` の pinned imageで完全件数を実測し、package baseline 62 issues / `EXIT_CODE=1`。Slice B 時点と同数・同分類で新規 finding はなく **baseline-red / delta-green**。repo-wide lint green とは扱わない。
+- **Report**: `reports/2026-08-03-task-027-examination-revisions.md`。
+- **Git / claim**: `claim/TASK-027` は live のまま。解放は main 統合後の USER 専権。着手時の foreign WIP は本 unitが触れないまま、`ReservationFormModal` 2 files が別ownerの `617f6f9bf`、`bug.md` が別ownerの `fc1cc5a8e` へ入った。
+- **HOLD / manual action**: 001 は RLS baseline の該当箇所だけを read-only 確認し、001/002/003 は未変更、seeds は未アクセス。004 は自動適用していない。統合・pull 後にユーザーが `make migrate` を手動実行する。
+
 ### TASK-028: #252 standard closing settings PATCH の validation・lost-update 防止・transaction-bound audit（High）
 
 - **対応 Issue**: GitHub Issue #252 の OPS apply から分離した technical gap。
