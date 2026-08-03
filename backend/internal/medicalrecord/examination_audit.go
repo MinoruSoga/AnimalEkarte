@@ -36,16 +36,17 @@ func examinationAuditValue(exam *model.Examination) map[string]any {
 		return nil
 	}
 	return map[string]any{
-		"id":                exam.ID,
-		"medical_record_id": examinationAuditOptionalID(exam.MedicalRecordID),
-		"pet_id":            examinationAuditOptionalID(exam.PetID),
-		"exam_type_id":      exam.ExamTypeID,
-		"doctor_id":         examinationAuditOptionalID(exam.DoctorID),
-		"job_id":            examinationAuditJobID(exam),
-		"date":              exam.Date,
-		"result_summary":    exam.ResultSummary,
-		"machine":           exam.Machine,
-		"status":            exam.Status,
+		"id":                       exam.ID,
+		"medical_record_id":        examinationAuditOptionalID(exam.MedicalRecordID),
+		"pet_id":                   examinationAuditOptionalID(exam.PetID),
+		"exam_type_id":             exam.ExamTypeID,
+		"doctor_id":                examinationAuditOptionalID(exam.DoctorID),
+		"job_id":                   examinationAuditJobID(exam),
+		"date":                     exam.Date,
+		"result_summary":           exam.ResultSummary,
+		"machine":                  exam.Machine,
+		"status":                   exam.Status,
+		"current_revision_version": examinationAuditOptionalID(exam.CurrentRevisionVersion),
 	}
 }
 

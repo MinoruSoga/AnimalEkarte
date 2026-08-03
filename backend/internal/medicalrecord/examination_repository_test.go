@@ -33,7 +33,10 @@ func setupExaminationTestDB(t *testing.T) *gorm.DB {
 		&model.Owner{}, &model.AnimalSpecies{}, &model.Pet{},
 		&model.MedicalRecord{}, &model.Staff{}, &model.StaffClinicAssignment{},
 		&model.Examination{}, &model.ExamResult{},
+		&model.ExaminationRevision{}, &model.ExaminationRevisionItem{},
 	))
+	db.Exec("TRUNCATE TABLE examination_revision_items CASCADE")
+	db.Exec("TRUNCATE TABLE examination_revisions CASCADE")
 	db.Exec("TRUNCATE TABLE exam_results CASCADE")
 	db.Exec("TRUNCATE TABLE exams CASCADE")
 	db.Exec("TRUNCATE TABLE exam_type_fields CASCADE")
@@ -42,6 +45,22 @@ func setupExaminationTestDB(t *testing.T) *gorm.DB {
 	db.Exec("TRUNCATE TABLE animal_species CASCADE")
 	db.Exec("TRUNCATE TABLE staffs CASCADE")
 	return db
+}
+
+func makeExaminationActor(t *testing.T, db *gorm.DB, clinicID uint64, name string) uint64 {
+	t.Helper()
+	actor := &model.Staff{
+		ClinicID:  clinicID,
+		Name:      name,
+		IsActive:  true,
+		StaffType: model.StaffTypeNurse,
+	}
+	require.NoError(t, db.Create(actor).Error)
+	require.NoError(t, db.Create(&model.StaffClinicAssignment{
+		StaffID:  actor.ID,
+		ClinicID: clinicID,
+	}).Error)
+	return actor.ID
 }
 
 func TestExaminationRepository_FindAll_ClinicIsolationAndFilters(t *testing.T) {
@@ -223,7 +242,8 @@ func TestExaminationRepository_PatientRelationsAreClinicScoped(t *testing.T) {
 		"検査関係スコープ別院飼主ペット",
 	)
 
-	polluted := []*model.Examination{
+	polluted := make([]*model.Examination, 0, 7)
+	polluted = append(polluted,
 		makeExaminationRec(t, db, &model.Examination{
 			ClinicID: clinicA, PetID: &petB.ID, ExamTypeID: typeA.ID, Date: time.Now(),
 		}),
@@ -240,7 +260,7 @@ func TestExaminationRepository_PatientRelationsAreClinicScoped(t *testing.T) {
 		makeExaminationRec(t, db, &model.Examination{
 			ClinicID: clinicA, PetID: &petA.ID, ExamTypeID: typeB.ID, Date: time.Now(),
 		}),
-	}
+	)
 	for _, doctorID := range []uint64{unassignedDoctor.ID, inactiveDoctor.ID, nurse.ID} {
 		polluted = append(polluted, makeExaminationRec(t, db, &model.Examination{
 			ClinicID: clinicA, PetID: &petA.ID, ExamTypeID: typeA.ID,
@@ -248,7 +268,8 @@ func TestExaminationRepository_PatientRelationsAreClinicScoped(t *testing.T) {
 		}))
 	}
 	jobID := uuid.New()
-	jobScopedIDs := []uint64{valid.ID}
+	jobScopedIDs := make([]uint64, 0, 1+len(polluted))
+	jobScopedIDs = append(jobScopedIDs, valid.ID)
 	for _, item := range polluted {
 		jobScopedIDs = append(jobScopedIDs, item.ID)
 	}

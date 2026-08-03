@@ -18,10 +18,8 @@ import (
 func TestDB_ExaminationService_CreateConfirmedWithItemsPersistsItemsBeforeStatusTransition(t *testing.T) {
 	db := setupExaminationTestDB(t)
 	ctx := context.Background()
-	const (
-		clinicID = uint64(1)
-		actorID  = uint64(42)
-	)
+	const clinicID = uint64(1)
+	actorID := makeExaminationActor(t, db, clinicID, "TASK-027 confirm actor")
 	examType := makeExamTypeMaster(t, db, clinicID, "TASK-026 initial confirm")
 	repo := NewExaminationRepository(db)
 	audit := &mockAuditTxLogger{logEntryTxFn: func(txCtx context.Context, _ *AuditEntry) error {
@@ -50,10 +48,17 @@ func TestDB_ExaminationService_CreateConfirmedWithItemsPersistsItemsBeforeStatus
 	persisted, err := repo.FindByID(ctx, clinicID, exam.ID)
 	require.NoError(t, err)
 	assert.Equal(t, model.ExaminationStatusConfirmed, persisted.Status)
+	require.NotNil(t, persisted.CurrentRevisionVersion)
+	assert.Equal(t, initialExaminationRevisionVersion, *persisted.CurrentRevisionVersion)
 	saved, err := repo.FindAllItemsByExamID(ctx, clinicID, exam.ID)
 	require.NoError(t, err)
 	require.Len(t, saved, 1)
 	assert.Equal(t, "WBC", saved[0].Name)
+	var revisionCount int64
+	require.NoError(t, db.Model(&model.ExaminationRevision{}).
+		Where("clinic_id = ? AND examination_id = ?", clinicID, exam.ID).
+		Count(&revisionCount).Error)
+	assert.Equal(t, int64(1), revisionCount)
 }
 
 func TestDB_ExaminationService_CreateAuditUsesPersistedParentSnapshot(t *testing.T) {
@@ -154,6 +159,7 @@ func TestDB_ExaminationService_ParentMutationAuditFailureRollsBack(t *testing.T)
 	t.Run("confirm including new items", func(t *testing.T) {
 		db := setupExaminationTestDB(t)
 		ctx := context.Background()
+		confirmedActorID := makeExaminationActor(t, db, clinicID, "TASK-027 rollback actor")
 		examType := makeExamTypeMaster(t, db, clinicID, "TASK-026 confirm rollback")
 		exam := makeExaminationRec(t, db, &model.Examination{
 			ClinicID: clinicID, ExamTypeID: examType.ID,
@@ -168,7 +174,7 @@ func TestDB_ExaminationService_ParentMutationAuditFailureRollsBack(t *testing.T)
 		got, err := svc.Update(ctx, clinicID, exam.ID, UpdateExaminationInput{
 			Status:  &confirmed,
 			Items:   &items,
-			ActorID: ptrUint64(actorID),
+			ActorID: ptrUint64(confirmedActorID),
 		})
 
 		assert.ErrorIs(t, err, errAudit)
@@ -176,9 +182,19 @@ func TestDB_ExaminationService_ParentMutationAuditFailureRollsBack(t *testing.T)
 		persisted, findErr := repo.FindByID(ctx, clinicID, exam.ID)
 		require.NoError(t, findErr)
 		assert.Equal(t, model.ExaminationStatusCompleted, persisted.Status)
+		assert.Nil(t, persisted.CurrentRevisionVersion)
 		saved, itemsErr := repo.FindAllItemsByExamID(ctx, clinicID, exam.ID)
 		require.NoError(t, itemsErr)
 		assert.Empty(t, saved)
+		var revisionCount, revisionItemCount int64
+		require.NoError(t, db.Model(&model.ExaminationRevision{}).
+			Where("clinic_id = ? AND examination_id = ?", clinicID, exam.ID).
+			Count(&revisionCount).Error)
+		require.NoError(t, db.Model(&model.ExaminationRevisionItem{}).
+			Where("clinic_id = ? AND examination_id = ?", clinicID, exam.ID).
+			Count(&revisionItemCount).Error)
+		assert.Zero(t, revisionCount)
+		assert.Zero(t, revisionItemCount)
 	})
 
 	t.Run("delete", func(t *testing.T) {

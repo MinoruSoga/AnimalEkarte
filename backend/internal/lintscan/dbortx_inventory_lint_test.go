@@ -164,11 +164,11 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"billing/campaign_repository.go|campaignRepository.Update":   {},
 	// BE-X06-LSTEP-SETTINGS-01 / LSA-06: settings write graph joins ambient tx.
 	// Runtime: lstep_settings_tx_atomicity_test.go
-	"lstep/lstep_settings_repository.go|lstepSettingsRepository.FindByClinicAndService":              {},
-	"lstep/lstep_settings_repository.go|lstepSettingsRepository.Upsert":                              {},
-	"lstep/lstep_settings_repository.go|lstepSettingsRepository.DeleteByClinicAndService":            {},
+	"lstep/lstep_settings_repository.go|lstepSettingsRepository.FindByClinicAndService":   {},
+	"lstep/lstep_settings_repository.go|lstepSettingsRepository.Upsert":                   {},
+	"lstep/lstep_settings_repository.go|lstepSettingsRepository.DeleteByClinicAndService": {},
 	// Runtime: TestLstepSettingsRepository_FindCredentialByClinicServiceKey_SeesUncommittedUpsert
-	"lstep/lstep_settings_repository.go|lstepSettingsRepository.FindCredentialByClinicServiceKey": {},
+	"lstep/lstep_settings_repository.go|lstepSettingsRepository.FindCredentialByClinicServiceKey":    {},
 	"lstep/lstep_sync_settings_repository.go|lstepSyncSettingsRepository.FindByClinicID":             {},
 	"lstep/lstep_sync_settings_repository.go|lstepSyncSettingsRepository.Upsert":                     {},
 	"clinic/clinic_settings_repository.go|clinicSettingsRepository.FindByClinicID":                   {},
@@ -267,9 +267,17 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"medicalrecord/examination_repository.go|examinationRepository.FindByJobID":          {},
 	// Required ambient tx lock serializes status/move/delete/result replacement.
 	// Runtime: TestDB_ExaminationRepository_LockByIDForUpdateSerializesConcurrentStatusUpdate.
-	"medicalrecord/examination_repository.go|examinationRepository.LockByIDForUpdate":        {},
-	"medicalrecord/examination_repository.go|examinationRepository.ReplaceItemsByExamID":     {},
-	"medicalrecord/examination_repository.go|examinationRepository.Update":                   {},
+	"medicalrecord/examination_repository.go|examinationRepository.LockByIDForUpdate":    {},
+	"medicalrecord/examination_repository.go|examinationRepository.ReplaceItemsByExamID": {},
+	"medicalrecord/examination_repository.go|examinationRepository.Update":               {},
+
+	// TASK-027 Slice A: append, revision-only read, and status/pointer CAS must observe the
+	// same service-owned transaction. Runtime rollback/visibility proof:
+	// TestExaminationRevision_RepositoryMethodsParticipateInAmbientTransaction.
+	"medicalrecord/examination_revision_repository.go|examinationRepository.AppendOfficialRevision": {},
+	"medicalrecord/examination_revision_repository.go|examinationRepository.ConfirmWithRevisionCAS": {},
+	"medicalrecord/examination_revision_repository.go|examinationRepository.FindOfficialByID":       {},
+
 	"medicalrecord/exam_type_repository.go|examTypeRepository.FindByID":                      {},
 	"medicalrecord/exam_type_repository.go|examTypeRepository.Create":                        {},
 	"medicalrecord/exam_type_repository.go|examTypeRepository.Update":                        {},
@@ -411,16 +419,16 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	// Runtime: cage_delete_concurrency_test.go ConcurrentAssignFirst / DeleteFirst /
 	// CountUsage_AmbientTxSeesUncommittedHospitalization /
 	// LockByIDForUpdate_RequiresAmbientTransaction.
-	"medicalrecord/cage_repository.go|cageRepositoryImpl.FindAll":            {},
-	"medicalrecord/cage_repository.go|cageRepositoryImpl.FindByID":            {},
-	"medicalrecord/cage_repository.go|cageRepositoryImpl.LockByIDForUpdate":   {},
-	"medicalrecord/cage_repository.go|cageRepositoryImpl.Create":              {},
-	"medicalrecord/cage_repository.go|cageRepositoryImpl.Update":              {},
-	"medicalrecord/cage_repository.go|cageRepositoryImpl.Delete":              {},
-	"medicalrecord/cage_repository.go|cageRepositoryImpl.CountUsageByCageID":  {},
-	"medicalrecord/prescription_repository.go|prescriptionRepository.Create":                {}, // BE8-4 batch7: moved from prescription_repository.go
-	"medicalrecord/prescription_repository.go|prescriptionRepository.FindByID":              {}, // MRC-01: response re-fetch must observe and govern the same tx mutation
-	"medicalrecord/prescription_repository.go|prescriptionRepository.Update":                {}, // BE8-4 batch7: moved from prescription_repository.go
+	"medicalrecord/cage_repository.go|cageRepositoryImpl.FindAll":              {},
+	"medicalrecord/cage_repository.go|cageRepositoryImpl.FindByID":             {},
+	"medicalrecord/cage_repository.go|cageRepositoryImpl.LockByIDForUpdate":    {},
+	"medicalrecord/cage_repository.go|cageRepositoryImpl.Create":               {},
+	"medicalrecord/cage_repository.go|cageRepositoryImpl.Update":               {},
+	"medicalrecord/cage_repository.go|cageRepositoryImpl.Delete":               {},
+	"medicalrecord/cage_repository.go|cageRepositoryImpl.CountUsageByCageID":   {},
+	"medicalrecord/prescription_repository.go|prescriptionRepository.Create":   {}, // BE8-4 batch7: moved from prescription_repository.go
+	"medicalrecord/prescription_repository.go|prescriptionRepository.FindByID": {}, // MRC-01: response re-fetch must observe and govern the same tx mutation
+	"medicalrecord/prescription_repository.go|prescriptionRepository.Update":   {}, // BE8-4 batch7: moved from prescription_repository.go
 	// prescription Delete (BE-refactor.md H-8e: prescriptionService.Delete が finalize ロック確認・
 	// Delete を s.transactor.WithTx で束ねるようになったための追加。examination Delete=H-8d と同型)
 	"medicalrecord/prescription_repository.go|prescriptionRepository.Delete": {}, // BE8-4 batch7: moved from prescription_repository.go
@@ -593,13 +601,13 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"medicalrecord/vital_repository.go|vitalRepository.Delete":                {},
 	// G6-2 (BE-refactor.md tx-mechanism-consolidation): repo-internal r.db.WithContext(ctx).Transaction
 	// → dbOrTx(ctx, r.db).Transaction conversion, no ambient-tx caller into any of these (verified per-file).
-	"manualarticle/repository.go|repository.Upsert":                                                            {}, // BE8-4 batch3: moved from manual_article_repository.go
-	"owner/repository.go|ownerRepository.CreateWithPets":                                                       {},
+	"manualarticle/repository.go|repository.Upsert":      {}, // BE8-4 batch3: moved from manual_article_repository.go
+	"owner/repository.go|ownerRepository.CreateWithPets": {},
 	// SEC-CS-F15: UpdateAndFindApplying owns DBOrTx + LockByIDForUpdate; UpdateAndFind is a thin
 	// delegate without its own DBOrTx shape (removed from allowlist after F15).
 	// Runtime: owner_discount_toctou_test.go.
-	"owner/repository.go|ownerRepository.UpdateAndFindApplying": {},
-	"owner/repository.go|ownerRepository.LockByIDForUpdate":     {},
+	"owner/repository.go|ownerRepository.UpdateAndFindApplying":                                                {},
+	"owner/repository.go|ownerRepository.LockByIDForUpdate":                                                    {},
 	"owner/repository.go|ownerRepository.RecordLstepOptOut":                                                    {},
 	"owner/repository.go|ownerRepository.ClearLstepOptOut":                                                     {},
 	"reservation/reservation_type_liff_repository.go|reservationTypeLiffRepository.UpdateSortOrder":            {},
@@ -615,7 +623,7 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"medicalrecord/treatment_repository.go|treatmentRepository.BulkUpdateSortOrder": {},
 	// SEC-CS-F09/F10: treatment / treatment-plan discount recheck under FOR UPDATE in write TX.
 	// Runtime: treatment_discount_toctou_test.go, treatment_plan_discount_toctou_test.go.
-	"medicalrecord/treatment_repository.go|treatmentRepository.LockByIDForUpdate":             {},
+	"medicalrecord/treatment_repository.go|treatmentRepository.LockByIDForUpdate":          {},
 	"medicalrecord/treatment_plan_repository.go|treatmentPlanRepository.LockByIDForUpdate": {},
 	// X-6 (Appendix-A tx-atomicity fix, commit d7eff8c8): medicine/inventory repo-internal
 	// r.db.WithContext(ctx).Transaction → dbOrTx(ctx, r.db).Transaction. Allowlist backfill
@@ -675,13 +683,13 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	// DBOrTx — inventory the leaf methods instead. Runtime leaf coverage:
 	// TestReservationStaffRepository_LeafReads_SeeUncommittedAmbientWrites
 	// (optional composition probe still calls FindAllExcluded* facades).
-	"reservation/reservation_staff_repository.go|reservationStaffRepository.hasActiveClinicAssignment":            {},
-	"reservation/reservation_staff_repository.go|reservationStaffRepository.filterStaffIDsWithActiveAssignment":   {},
-	"reservation/reservation_staff_repository.go|reservationStaffRepository.listActiveReservationTypeUniverse":    {},
-	"reservation/reservation_staff_repository.go|reservationStaffRepository.FindAllReservationCapabilities":       {},
+	"reservation/reservation_staff_repository.go|reservationStaffRepository.hasActiveClinicAssignment":                {},
+	"reservation/reservation_staff_repository.go|reservationStaffRepository.filterStaffIDsWithActiveAssignment":       {},
+	"reservation/reservation_staff_repository.go|reservationStaffRepository.listActiveReservationTypeUniverse":        {},
+	"reservation/reservation_staff_repository.go|reservationStaffRepository.FindAllReservationCapabilities":           {},
 	"reservation/reservation_staff_repository.go|reservationStaffRepository.FindAllReservationCapabilitiesByStaffIDs": {},
-	"reservation/reservation_staff_repository.go|reservationStaffRepository.LockForMutation":                      {},
-	"reservation/reservation_staff_repository.go|reservationStaffRepository.SupportsReservationType":              {}, // assignment/capability SHARE-lock concurrency proof
+	"reservation/reservation_staff_repository.go|reservationStaffRepository.LockForMutation":                          {},
+	"reservation/reservation_staff_repository.go|reservationStaffRepository.SupportsReservationType":                  {}, // assignment/capability SHARE-lock concurrency proof
 	// Durable scheduler reads use an explicit slot timestamp and participate in the caller's tx.
 	"reservation/reservation_repository.go|reservationRepository.FindNoShowCandidatesAt": {},
 	// SD-10 deceased write guard: ambient SHARE-lock read. Runtime:
@@ -717,6 +725,11 @@ type ambientTxParticipationExpectation struct {
 // must keep a literal persistence.TxFromContext call, so it cannot silently weaken back to
 // fallback-on-base-DB behavior.
 var ambientTxParticipationExpectations = map[string]ambientTxParticipationExpectation{
+	// TASK-027 Slice A append is fail-closed: it must receive an ambient transaction and
+	// never fall back to the repository base DB. Runtime proof is named in the allowlist above.
+	"medicalrecord/examination_revision_repository.go|examinationRepository.AppendOfficialRevision": {
+		shape: ambientTxRequired,
+	},
 	"auth/account_repository.go|accountRepository.CompareAndSwapPasswordHash": {
 		shape: ambientTxRequired,
 	},

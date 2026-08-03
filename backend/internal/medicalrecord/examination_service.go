@@ -125,6 +125,7 @@ type examinationService struct {
 	medRec          medicalRecordLocker // lockDraftMedicalRecord のみ使用（⑦で narrow 化）
 	examTypeRepo    ExamTypeRepository
 	referenceRanges ExamReferenceRangeResolver
+	revisions       ExaminationRevisionRepository
 	auditTx         AuditTxLogger
 	transactor      Transactor
 	relations       ClinicalRelationVerifier
@@ -150,9 +151,10 @@ func NewExaminationService(
 		transactor, _ = medRec.(Transactor)
 	}
 	referenceRanges, _ := repo.(ExamReferenceRangeResolver)
+	revisions, _ := repo.(ExaminationRevisionRepository)
 	return &examinationService{
 		repo: repo, medRec: medRec, examTypeRepo: examTypeRepo, referenceRanges: referenceRanges,
-		auditTx: auditTx, transactor: transactor, relations: relations,
+		revisions: revisions, auditTx: auditTx, transactor: transactor, relations: relations,
 	}
 }
 
@@ -237,14 +239,20 @@ func (s *examinationService) Create(ctx context.Context, clinicID uint64, input 
 			}
 		}
 		if targetStatus == model.ExaminationStatusConfirmed {
-			updated, err := s.repo.Update(txCtx, clinicID, exam.ID, map[string]any{
-				"status": model.ExaminationStatusConfirmed,
-			})
+			locked, err := s.repo.LockByIDForUpdate(txCtx, clinicID, exam.ID)
 			if err != nil {
-				slog.ErrorContext(txCtx, "failed to confirm created examination", "error", err)
-				return apperrors.Wrap(err, "failed to confirm created examination")
+				return apperrors.Wrap(err, "failed to lock created examination for confirmation")
 			}
-			exam = updated
+			exam, err = s.confirmFirstRevisionTx(
+				txCtx,
+				clinicID,
+				input.ActorID,
+				locked,
+				nil,
+				model.AuditActionExaminationCreate,
+				"create",
+			)
+			return err
 		}
 		// Create does not reload database-normalized columns (notably the PostgreSQL date value).
 		// Audit and response data must describe the durable parent row, not the caller's timestamp.
@@ -337,21 +345,27 @@ func (s *examinationService) Update(ctx context.Context, clinicID, id uint64, in
 				return err
 			}
 		}
-		action := model.AuditActionExaminationUpdate
-		operation := "update"
 		if confirming {
-			updated, err := s.repo.Update(txCtx, clinicID, id, map[string]any{
-				"status": model.ExaminationStatusConfirmed,
-			})
-			if err != nil {
-				slog.ErrorContext(txCtx, "failed to confirm examination", "error", err)
-				return apperrors.Wrap(err, "failed to confirm examination")
-			}
-			exam = updated
-			action = model.AuditActionExaminationConfirm
-			operation = "confirm"
+			exam, err = s.confirmFirstRevisionTx(
+				txCtx,
+				clinicID,
+				input.ActorID,
+				exam,
+				&before,
+				model.AuditActionExaminationConfirm,
+				"confirm",
+			)
+			return err
 		}
-		return s.logParentMutationTx(txCtx, clinicID, input.ActorID, action, operation, &before, exam)
+		return s.logParentMutationTx(
+			txCtx,
+			clinicID,
+			input.ActorID,
+			model.AuditActionExaminationUpdate,
+			"update",
+			&before,
+			exam,
+		)
 	}); err != nil {
 		return nil, err
 	}

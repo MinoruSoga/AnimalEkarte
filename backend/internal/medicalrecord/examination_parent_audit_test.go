@@ -30,7 +30,7 @@ func TestExaminationService_ConfirmWithItemsPersistsItemsBeforeStatusTransition(
 		actorID  = uint64(42)
 	)
 	status := model.ExaminationStatusCompleted
-	order := make([]string, 0, 3)
+	order := make([]string, 0, 4)
 	var auditEntry *AuditEntry
 	repo := &mockExaminationRepository{
 		lockByIDForUpdateFn: func(_ context.Context, gotClinicID, gotExamID uint64) (*model.Examination, error) {
@@ -57,6 +57,10 @@ func TestExaminationService_ConfirmWithItemsPersistsItemsBeforeStatusTransition(
 			order = append(order, "items")
 			return items, 0, nil
 		},
+		appendOfficialRevisionFn: func(_ context.Context, _, _, _ uint64, _ string) (uint64, error) {
+			order = append(order, "revision")
+			return initialExaminationRevisionVersion, nil
+		},
 	}
 	audit := &mockAuditTxLogger{logEntryTxFn: func(_ context.Context, entry *AuditEntry) error {
 		order = append(order, "audit")
@@ -75,7 +79,7 @@ func TestExaminationService_ConfirmWithItemsPersistsItemsBeforeStatusTransition(
 	require.NoError(t, err)
 	require.NotNil(t, got)
 	assert.Equal(t, model.ExaminationStatusConfirmed, got.Status)
-	assert.Equal(t, []string{"items", "status", "audit"}, order)
+	assert.Equal(t, []string{"items", "revision", "audit", "status"}, order)
 	require.NotNil(t, auditEntry)
 	assert.Equal(t, model.AuditActionExaminationConfirm, auditEntry.Action)
 	assert.Equal(t, model.AuditResourceExamination, auditEntry.Resource)
@@ -94,7 +98,7 @@ func TestExaminationService_CreateConfirmedWithItemsPersistsItemsBeforeStatusTra
 		actorID  = uint64(42)
 	)
 	status := model.ExaminationStatusPending
-	order := make([]string, 0, 3)
+	order := make([]string, 0, 4)
 	repo := &mockExaminationRepository{
 		findByIDFn: func(_ context.Context, gotClinicID, gotExamID uint64) (*model.Examination, error) {
 			assert.Equal(t, clinicID, gotClinicID)
@@ -120,6 +124,10 @@ func TestExaminationService_CreateConfirmedWithItemsPersistsItemsBeforeStatusTra
 			order = append(order, "items")
 			return items, 0, nil
 		},
+		appendOfficialRevisionFn: func(_ context.Context, _, _, _ uint64, _ string) (uint64, error) {
+			order = append(order, "revision")
+			return initialExaminationRevisionVersion, nil
+		},
 	}
 	audit := &mockAuditTxLogger{logEntryTxFn: func(_ context.Context, entry *AuditEntry) error {
 		order = append(order, "audit")
@@ -140,7 +148,7 @@ func TestExaminationService_CreateConfirmedWithItemsPersistsItemsBeforeStatusTra
 	require.NoError(t, err)
 	require.NotNil(t, got)
 	assert.Equal(t, model.ExaminationStatusConfirmed, got.Status)
-	assert.Equal(t, []string{"items", "status", "audit"}, order)
+	assert.Equal(t, []string{"items", "revision", "audit", "status"}, order)
 }
 
 func TestExaminationService_ConfirmedMutationsReturnConflict(t *testing.T) {

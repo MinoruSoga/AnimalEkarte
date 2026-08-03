@@ -16,15 +16,18 @@ import (
 
 // mockExaminationRepository は ExaminationRepository のテスト用モック実装
 type mockExaminationRepository struct {
-	findAllFn              func(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Examination, int64, error)
-	findByIDFn             func(ctx context.Context, clinicID, id uint64) (*model.Examination, error)
-	lockByIDForUpdateFn    func(ctx context.Context, clinicID, id uint64) (*model.Examination, error)
-	createFn               func(ctx context.Context, exam *model.Examination) error
-	updateFieldsFn         func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Examination, error)
-	deleteFn               func(ctx context.Context, clinicID, id uint64) error
-	countItemsByExamIDFn   func(ctx context.Context, clinicID, examID uint64) (int64, error)
-	findAllItemsByExamIDFn func(ctx context.Context, clinicID, examID uint64) ([]model.ExamResult, error)
-	replaceItemsByExamIDFn func(ctx context.Context, clinicID, examID uint64, items []model.ExamResult) ([]model.ExamResult, int64, error)
+	findAllFn                func(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Examination, int64, error)
+	findByIDFn               func(ctx context.Context, clinicID, id uint64) (*model.Examination, error)
+	lockByIDForUpdateFn      func(ctx context.Context, clinicID, id uint64) (*model.Examination, error)
+	createFn                 func(ctx context.Context, exam *model.Examination) error
+	updateFieldsFn           func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Examination, error)
+	deleteFn                 func(ctx context.Context, clinicID, id uint64) error
+	countItemsByExamIDFn     func(ctx context.Context, clinicID, examID uint64) (int64, error)
+	findAllItemsByExamIDFn   func(ctx context.Context, clinicID, examID uint64) ([]model.ExamResult, error)
+	replaceItemsByExamIDFn   func(ctx context.Context, clinicID, examID uint64, items []model.ExamResult) ([]model.ExamResult, int64, error)
+	appendOfficialRevisionFn func(ctx context.Context, clinicID, examinationID, actorID uint64, changeReason string) (uint64, error)
+	confirmWithRevisionCASFn func(ctx context.Context, clinicID, examinationID uint64, expectedStatus model.ExaminationStatus, version uint64) (*model.Examination, error)
+	findOfficialByIDFn       func(ctx context.Context, clinicID, examinationID uint64) (*ExaminationOfficialProjection, error)
 }
 
 func (m *mockExaminationRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Examination, int64, error) {
@@ -81,6 +84,52 @@ func (m *mockExaminationRepository) ReplaceItemsByExamID(ctx context.Context, cl
 
 func (m *mockExaminationRepository) FindByJobID(_ context.Context, _ uint64, _ uuid.UUID) ([]*model.Examination, error) {
 	return nil, nil
+}
+
+func (m *mockExaminationRepository) AppendOfficialRevision(
+	ctx context.Context,
+	clinicID, examinationID, actorID uint64,
+	changeReason string,
+) (uint64, error) {
+	if m.appendOfficialRevisionFn != nil {
+		return m.appendOfficialRevisionFn(ctx, clinicID, examinationID, actorID, changeReason)
+	}
+	return initialExaminationRevisionVersion, nil
+}
+
+func (m *mockExaminationRepository) ConfirmWithRevisionCAS(
+	ctx context.Context,
+	clinicID, examinationID uint64,
+	expectedStatus model.ExaminationStatus,
+	version uint64,
+) (*model.Examination, error) {
+	if m.confirmWithRevisionCASFn != nil {
+		return m.confirmWithRevisionCASFn(ctx, clinicID, examinationID, expectedStatus, version)
+	}
+	updated, err := m.Update(ctx, clinicID, examinationID, map[string]any{
+		"status": model.ExaminationStatusConfirmed,
+	})
+	if updated != nil {
+		updated.CurrentRevisionVersion = cloneUint64(version)
+	}
+	return updated, err
+}
+
+func (m *mockExaminationRepository) FindOfficialByID(
+	ctx context.Context,
+	clinicID, examinationID uint64,
+) (*ExaminationOfficialProjection, error) {
+	if m.findOfficialByIDFn != nil {
+		return m.findOfficialByIDFn(ctx, clinicID, examinationID)
+	}
+	exam, err := m.FindByID(ctx, clinicID, examinationID)
+	if err != nil {
+		return nil, err
+	}
+	return &ExaminationOfficialProjection{
+		Examination:     *exam,
+		OfficialVersion: initialExaminationRevisionVersion,
+	}, nil
 }
 
 // ptrFloat64 は旧 internal/service 共有 helper の最小複製（⑦移動）。

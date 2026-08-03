@@ -39,9 +39,12 @@ type Examination struct {
 	ResultSummary string            `gorm:"default:''"                                     json:"result_summary"`
 	Machine       string            `gorm:"default:''"                                     json:"machine"`
 	Status        ExaminationStatus `gorm:"type:exam_status;default:'pending'"                json:"status"`
-	DeletedAt     gorm.DeletedAt    `                                                      json:"-"`
-	CreatedAt     time.Time         `gorm:"autoCreateTime"                                 json:"created_at"`
-	UpdatedAt     time.Time         `gorm:"autoUpdateTime"                                 json:"updated_at"`
+	// CurrentRevisionVersion points at the append-only working/official revision selected by
+	// the examination workflow. A nil pointer denotes a legacy or not-yet-revisioned row.
+	CurrentRevisionVersion *uint64        `gorm:"column:current_revision_version"                    json:"current_revision_version,omitempty"`
+	DeletedAt              gorm.DeletedAt `                                                      json:"-"`
+	CreatedAt              time.Time      `gorm:"autoCreateTime"                                 json:"created_at"`
+	UpdatedAt              time.Time      `gorm:"autoUpdateTime"                                 json:"updated_at"`
 
 	// Relations
 	MedicalRecord   *MedicalRecord   `gorm:"foreignKey:MedicalRecordID" json:"medical_record,omitempty"`
