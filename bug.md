@@ -27,7 +27,7 @@
 | LINE・LIFF・Lステップ連携 | BUG-008, BUG-014, BUG-030, BUG-032 | 4 | OPEN 4 | `line-reserve`, `liff`, LINE予約設定、`lstep/checkup-sync` |
 | 入院・ホテル | BUG-009 | 1 | OPEN 1 | `hospitalization`、ステータスタブ・一覧取得 |
 | カルテ・バイタル | BUG-010, BUG-015 | 2 | OPEN 2 | `medicalrecord`, `vital`、診察/治療プラン、体重単位 |
-| 見積・会計 | BUG-011, BUG-013, BUG-018, BUG-019 | 4 | IMPLEMENTED_UNVERIFIED 1 / OPEN 3 | `estimate`, `billing`、未請求明細、締め後会計、Not Found |
+| 見積・会計 | BUG-011, BUG-013, BUG-018, BUG-019 | 4 | IMPLEMENTED_UNVERIFIED 2 / OPEN 2 | `estimate`, `billing`、未請求明細、締め後会計、Not Found |
 | 顧客集計 | BUG-012 | 1 | OPEN 1 | `aggregation`、LTV/売上集計、CPM取得 |
 | 横断フォーム基盤 | BUG-016 | 1 | OPEN 1 | 予防接種・検査・入院フォーム共通の取得失敗/Not Found 契約 |
 | 認証・権限 | BUG-023, BUG-024, BUG-031 | 3 | OPEN 3 | `auth`、権限グループ、セッション復元・ログイン遷移 |
