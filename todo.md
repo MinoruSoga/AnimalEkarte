@@ -681,7 +681,7 @@ validator_exit=0
 
 - **対応 Issue**: GitHub Issue #249 F-5a。
 - **問題**: 飼主説明・他院添付・院内保管向け print surface が未完。画面 state や FE 再計算を印刷正本にすると保存済み臨床記録と不一致になり得る。
-- **状態**: **READY_AGENT**。TASK-026 の immutable/audit contract、および TASK-027 の official/working revision interface はいずれも実装済みで凍結された（2026-08-03）。本 task 固有の migration は不要。
+- **状態**: **DONE (agent 2026-08-04 session-a)**。`GET /v1/examinations/:id/print-snapshot` + FE PrintPortal 配線を実装。claim `claim/TASK-031` 取得済・未解放。Issue #249 open のまま。migration なし。scoped tests green。codegen-check は pre-existing models.ts drift（ClinicalPlan audit）のため uncommitted regen あり。
 - **claim**: `claim/TASK-031` — **not live**（2026-08-01 USER 解放済み。起票時の過剰取得を是正したもので、本タスクは未着手）。
 
 #### 実装プラン（2026-08-02・adversarial revision 2）
@@ -792,7 +792,7 @@ validator_exit=0
 
 - **対応 Issue**: GitHub Issue #211。
 - **問題**: `checkup_types` と `checkup_type_fields` は clinic-scoped だが、provisional 定義は shared environment で禁止された `003_demo` に属する。table 単位の `seed-export` は承認済み subset を安全な別 bundle へ出せず、臨床承認だけでは実 clinic へ原子的に反映できない。
-- **状態**: **READY_AGENT / additive migration + fresh database/clinic-isolation/healthcare review required**。設計正本は DEC-59。agent は synthetic fixture で RED・migration・import/preflight 実装まで着手できるが、migration apply と real manifest 実行は USER-only。
+- **状態**: **DONE (agent 2026-08-04 session-a / synthetic)**。migration `006_checkup_package_import.sql` 作成（未適用）、manifest/canonicalizer、preview/apply endpoint、default-deny permission、provenance+fail-closed audit を実装。claim `claim/TASK-374` 取得済・未解放。Issue #211 open のまま。migration apply / real manifest は USER-only。scoped tests green。
 - **claim**: 実装セッションが編集前に `claim/TASK-374` を確認・取得する。本裁定 run では claim を取得しない。
 - **Owner lane**: backend checkup master import/preflight + transaction-bound audit + scoped docs/tests。実データ、migration apply、GitHub write は USER-only。
 - **独立 gate**: DR-CLINICAL は臨床値/単位、出典、臨床承認者 role、発効日、opaque clinical-row/approval reference だけを所有する。DR-OPS は target clinic authorization、environment、DB history、operator role、dry-run/apply/rollback の結果 enum と opaque restricted reference だけを所有する。manifest/stable key、実 identity、receipt/audit 本文は repo 外に置き、片方の承認を他方へ流用しない。
@@ -826,8 +826,11 @@ validator_exit=0
 
 - **対応 Issue**: GitHub Issue #257。
 - **問題**: `docs/delivery/GOLIVE_RUNBOOK.md` は失効した 2026-08-03 window と 2026-07-18 timeline を併存させ、open prerequisite と未確定 authority/support があるのに当日手順として読める。
-- **状態**: **READY_AGENT / docs-only**。DEC-60 が旧 window の No-Go と D「全 gate green 後の新 window」を確定済み。具体日付・人名・契約/連絡先は FORM のまま空欄にする。
-- **claim**: 実装セッションが編集前に `claim/TASK-375` を確認・取得する。本裁定 run では claim を取得しない。
+- **状態**: **DONE (docs sync 2026-08-04 session-b)**。`docs/delivery/GOLIVE_RUNBOOK.md` を historical No-Go（2026-08-03）+ 相対 T-/T+ timeline + 新 window 一箇所記入欄 + fail-closed prerequisites（#89/#97/#98/#99/#250/#253/#254/#255 + authority/support/rollback）へ同期。値（日付・人名・contact）は空欄のまま。claim `claim/TASK-375` 取得済・未解放。Issue #257 は open のまま。
+  - claim: `git branch --list 'claim/TASK-375'` → empty → `git branch claim/TASK-375` exit 0
+  - gates: `rg -n '2026-08-03|No-Go|2026-07-18|T-[0-9]|T\+[0-9]|#89|#97|#98|#99|#250|#253|#254' docs/delivery/GOLIVE_RUNBOOK.md` 目視 PASS; `git diff --check -- docs/delivery/GOLIVE_RUNBOOK.md` exit 0
+  - Assumption: 新 window 記入欄は冒頭 1 箇所へ集約（既存分散 blank は §4/§5 の 確定待ち を残しつつ冒頭表を SSOT 化）
+- **claim**: 実装セッションが編集前に `claim/TASK-375` を確認・取得する。本裁定 run では claim を取得しない。**実装 session-b が claim 取得済み。解放は USER 専権。**
 - **Owner lane**: `docs/delivery/GOLIVE_RUNBOOK.md` と、その日付/ownershipを直接参照する delivery docs の最小同期。
 - **Steps**:
   1. 失効 window を historical No-Go と明記し、実行可能な current window として表示しない。
@@ -842,8 +845,11 @@ validator_exit=0
 
 - **対応 Issue**: GitHub Issue #258（U13 owner は #256）。
 - **問題**: `q&a.html`/current view は #258 を U1〜U12、U13 を #256 の納品後研修とする一方、`docs/delivery/DELIVERY_PACKAGE.md` の冒頭は U1〜U13 全てを #258 final approval 条件として読める。二重 blocker と ownership drift が残る。
-- **状態**: **READY_AGENT / docs-only**。既存 DR-DELIVERY/current authority の同期であり、新しい契約値・研修日程を決めない。
-- **claim**: 実装セッションが編集前に `claim/TASK-376` を確認・取得する。本裁定 run では claim を取得しない。
+- **状態**: **DONE (docs sync 2026-08-04 session-b)**。`DELIVERY_PACKAGE.md` の #258 completion/approval を U1〜U12 に限定し U13 行を除去。U13 日程・形式・参加者・実施 receipt は `OPERATION_MANUAL.md` §10/#256 に一意集約。値は空欄のまま。claim `claim/TASK-376` 取得済・未解放。Issue #258 は open のまま。
+  - claim: `git branch --list 'claim/TASK-376'` → empty → `git branch claim/TASK-376` exit 0
+  - gates: `rg -n 'U1|U12|U13|#256|#258|研修' docs/delivery/DELIVERY_PACKAGE.md docs/delivery/OPERATION_MANUAL.md` 目視 PASS; `git diff --check -- docs/delivery/DELIVERY_PACKAGE.md docs/delivery/OPERATION_MANUAL.md` exit 0; `U1–U13` 残存 0
+  - Assumption: OPERATION_MANUAL §10 は既存。新規節は作らず §10 に記入欄（日程/形式/参加者/receipt）を追加
+- **claim**: 実装セッションが編集前に `claim/TASK-376` を確認・取得する。本裁定 run では claim を取得しない。**実装 session-b が claim 取得済み。解放は USER 専権。**
 - **Owner lane**: `docs/delivery/DELIVERY_PACKAGE.md`、`docs/delivery/OPERATION_MANUAL.md` と直接参照する delivery docs の最小同期。
 - **Steps**:
   1. #258 の document completion/approval input を U1〜U12 に限定し、各値の正本を既存表のまま維持する。
