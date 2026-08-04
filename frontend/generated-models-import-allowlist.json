@@ -132,6 +132,7 @@
   "src/features/master/components/medicine-dose-params-editor-model.ts",
   "src/features/master/components/medicine-side-panel-model.ts",
   "src/features/master/components/merchandise-side-panel-model.ts",
+  "src/features/master/components/permission-rule-table-model.test.ts",
   "src/features/master/constants/category-config.ts",
   "src/features/master/routes/AnimalSpeciesSettings.tsx",
   "src/features/master/routes/CageSettings.test.tsx",

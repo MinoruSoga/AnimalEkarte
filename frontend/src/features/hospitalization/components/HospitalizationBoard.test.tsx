@@ -255,7 +255,10 @@ describe("HospitalizationBoard narrow layout (BUG-458)", () => {
         canEdit
       />,
     );
-    expect(container.innerHTML).not.toContain("min-w-[800px]");
+    const hasMinWidthConstraint = Array.from(container.querySelectorAll("*")).some(
+      (el) => typeof el.className === "string" && el.className.includes("min-w-[800px]"),
+    );
+    expect(hasMinWidthConstraint).toBe(false);
     expect(container.querySelector(".grid-cols-1")).not.toBeNull();
   });
 });

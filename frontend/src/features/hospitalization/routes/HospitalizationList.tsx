@@ -130,7 +130,10 @@ export function HospitalizationList() {
     isLoading: hospitalizationsLoading,
     isError: hospitalizationsError,
   } = useGetHospitalizations(listFilters);
-  const allHospitalizations = hospitalizationsPage?.data ?? [];
+  const allHospitalizations = useMemo(
+    () => hospitalizationsPage?.data ?? [],
+    [hospitalizationsPage?.data],
+  );
   // 件数表示の正本は server total（page-window で欠落しない）
   const serverTotal = hospitalizationsPage?.total ?? 0;
 

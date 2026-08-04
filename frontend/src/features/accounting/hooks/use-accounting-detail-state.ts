@@ -76,7 +76,10 @@ export function useAccountingDetailState({
   });
 
   const unbilledItems = unbilledDetails?.items;
-  const unbilledWarnings: UnbilledWarning[] = unbilledDetails?.warnings ?? [];
+  const unbilledWarnings: UnbilledWarning[] = useMemo(
+    () => unbilledDetails?.warnings ?? [],
+    [unbilledDetails?.warnings],
+  );
   const hasBlockingUnbilledWarning = useMemo(
     () => unbilledWarnings.some((w) => w.blocking && w.count > 0),
     [unbilledWarnings],

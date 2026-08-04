@@ -344,7 +344,7 @@ function ExaminationFormContent({ id }: { id: string | undefined }) {
             <button
               type="button"
               data-testid="examination-print-button"
-              className={`rounded-xs border px-3 py-1.5 text-sm ${C.border} ${C.text60} hover:bg-black/5 disabled:opacity-50`}
+              className={`rounded-xs border px-3 py-1.5 text-sm ${C.borderLight} ${C.text60} hover:bg-black/5 disabled:opacity-50`}
               disabled={!printModel}
               onClick={() => window.print()}
             >

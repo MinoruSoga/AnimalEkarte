@@ -52,13 +52,33 @@ function IdentityLinksWorkbench({ canEdit }: { canEdit: boolean }) {
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
-  useEffect(() => {
-    if (debouncedOwnerQuery.trim().length < 1) {
+  // Clear hits when the debounced query becomes empty via render-time state
+  // adjustment (React-recommended pattern) so we do not call setState inside
+  // the effect body. Timing still follows debouncedOwnerQuery / debouncedPetQuery,
+  // matching the previous early-return setHits([]) path.
+  const trimmedOwnerQuery = debouncedOwnerQuery.trim();
+  const trimmedPetQuery = debouncedPetQuery.trim();
+  const [prevTrimmedOwnerQuery, setPrevTrimmedOwnerQuery] = useState(trimmedOwnerQuery);
+  const [prevTrimmedPetQuery, setPrevTrimmedPetQuery] = useState(trimmedPetQuery);
+  if (trimmedOwnerQuery !== prevTrimmedOwnerQuery) {
+    setPrevTrimmedOwnerQuery(trimmedOwnerQuery);
+    if (trimmedOwnerQuery.length < 1) {
       setOwnerHits([]);
+    }
+  }
+  if (trimmedPetQuery !== prevTrimmedPetQuery) {
+    setPrevTrimmedPetQuery(trimmedPetQuery);
+    if (trimmedPetQuery.length < 1) {
+      setPetHits([]);
+    }
+  }
+
+  useEffect(() => {
+    if (trimmedOwnerQuery.length < 1) {
       return;
     }
     let cancelled = false;
-    void searchOwnersForLink(debouncedOwnerQuery.trim())
+    void searchOwnersForLink(trimmedOwnerQuery)
       .then((items) => {
         if (!cancelled) setOwnerHits(items);
       })
@@ -68,15 +88,14 @@ function IdentityLinksWorkbench({ canEdit }: { canEdit: boolean }) {
     return () => {
       cancelled = true;
     };
-  }, [debouncedOwnerQuery]);
+  }, [trimmedOwnerQuery]);
 
   useEffect(() => {
-    if (debouncedPetQuery.trim().length < 1) {
-      setPetHits([]);
+    if (trimmedPetQuery.length < 1) {
       return;
     }
     let cancelled = false;
-    void searchPetsForLink(debouncedPetQuery.trim())
+    void searchPetsForLink(trimmedPetQuery)
       .then((items) => {
         if (!cancelled) setPetHits(items);
       })
@@ -86,7 +105,7 @@ function IdentityLinksWorkbench({ canEdit }: { canEdit: boolean }) {
     return () => {
       cancelled = true;
     };
-  }, [debouncedPetQuery]);
+  }, [trimmedPetQuery]);
 
   const toggleOwner = (item: OwnerSearchItem) => {
     setSelectedOwners((prev) => {
@@ -207,14 +226,14 @@ function IdentityLinksWorkbench({ canEdit }: { canEdit: boolean }) {
           </p>
         )}
 
-        {error && (
+        {error ? (
           <div
             className={`rounded border p-3 text-sm ${C.borderDanger} ${C.bgDanger10} ${C.textWarning}`}
             role="alert"
           >
             {error}
           </div>
-        )}
+        ) : null}
 
         <section className={`rounded border p-4 space-y-3 ${C.borderLight} ${C.bgWhite}`} aria-label="飼主リンク">
           <h2 className={`font-semibold ${C.textInk}`}>飼主リンク</h2>
@@ -244,7 +263,7 @@ function IdentityLinksWorkbench({ canEdit }: { canEdit: boolean }) {
             選択: {selectedOwners.map((o) => `${o.clinic_id}/${o.owner_id}`).join(", ") || "なし"}
             {ownerGroupId != null && ` / group #${ownerGroupId}`}
           </div>
-          {canEdit && (
+          {canEdit ? (
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"
@@ -266,7 +285,7 @@ function IdentityLinksWorkbench({ canEdit }: { canEdit: boolean }) {
                 </button>
               ))}
             </div>
-          )}
+          ) : null}
         </section>
 
         <section className={`rounded border p-4 space-y-3 ${C.borderLight} ${C.bgWhite}`} aria-label="ペットリンク">
@@ -298,7 +317,7 @@ function IdentityLinksWorkbench({ canEdit }: { canEdit: boolean }) {
             選択: {selectedPets.map((p) => `${p.clinic_id}/${p.pet_id}`).join(", ") || "なし"}
             {petGroupId != null && ` / group #${petGroupId}`}
           </div>
-          {canEdit && (
+          {canEdit ? (
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"
@@ -320,7 +339,7 @@ function IdentityLinksWorkbench({ canEdit }: { canEdit: boolean }) {
                 </button>
               ))}
             </div>
-          )}
+          ) : null}
           <div className="flex flex-wrap gap-2">
             {selectedPets.map((p) => (
               <button
@@ -334,9 +353,9 @@ function IdentityLinksWorkbench({ canEdit }: { canEdit: boolean }) {
               </button>
             ))}
           </div>
-          {historyText && (
+          {historyText ? (
             <pre className={`text-xs whitespace-pre-wrap rounded p-2 ${C.bgMuted} ${C.textInk}`}>{historyText}</pre>
-          )}
+          ) : null}
         </section>
       </div>
     </PageLayout>

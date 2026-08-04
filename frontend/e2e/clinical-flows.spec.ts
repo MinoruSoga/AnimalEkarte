@@ -4,7 +4,7 @@ import { createAuthedContext } from './helpers/context';
 import { MedicalRecordsPage } from './pages/medical-records-page';
 
 // E2E flow tests for clinical (medical records) pages.
-// Demo seed: owner 「林　文明」(ideographic space), pet Iris id=1000099.
+// Demo seed: owner 「林\u3000文明」(ideographic space U+3000), pet Iris id=1000099.
 // admin@noavet.jp is system_admin with full access.
 
 test.describe('カルテ フロー E2E', () => {
