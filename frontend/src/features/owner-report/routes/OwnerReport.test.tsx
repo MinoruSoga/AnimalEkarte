@@ -15,7 +15,8 @@ import {
   ResourceVaccinations,
 } from "@/types/generated/models";
 
-import { OwnerReport } from "./OwnerReport";
+import type { OwnerReportPet } from "../api/get-owner-report-pets";
+import { OwnerReport, toPet } from "./OwnerReport";
 
 // ---- data hooks をモックしてセクションデータを決定的に注入する ----
 const hooks = vi.hoisted(() => ({
@@ -317,6 +318,45 @@ beforeEach(() => {
 });
 
 const allowAll = () => true;
+
+function baseReportPet(
+  overrides: Partial<OwnerReportPet> = {},
+): OwnerReportPet {
+  return {
+    id: "7",
+    name: "ポチ",
+    petNameKana: "",
+    gender: "",
+    status: "生存",
+    breed: "",
+    color: "",
+    food: "",
+    environment: "",
+    remarks: "",
+    species: "犬",
+    ...overrides,
+  };
+}
+
+describe("toPet status mapping (fail-closed)", () => {
+  it("既知 status「生存」「死亡」はそのまま写像する", () => {
+    expect(toPet(baseReportPet({ status: "生存" }), "42").status).toBe("生存");
+    expect(toPet(baseReportPet({ status: "死亡" }), "42").status).toBe("死亡");
+  });
+
+  it("未知・欠損 status は「不明」へ fail-closed 写像する", () => {
+    expect(toPet(baseReportPet({ status: "pending" }), "42").status).toBe(
+      "不明",
+    );
+    expect(toPet(baseReportPet({ status: "" }), "42").status).toBe("不明");
+    expect(
+      toPet(
+        baseReportPet({ status: undefined as unknown as string }),
+        "42",
+      ).status,
+    ).toBe("不明");
+  });
+});
 
 describe("OwnerReport", () => {
   it("飼主パネルを常時表示し、タブを使わず6パネルを同時表示する", () => {

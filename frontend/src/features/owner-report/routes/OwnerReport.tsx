@@ -156,7 +156,8 @@ function ReportBody(props: ReportBodyProps) {
   );
 }
 
-function toPet(
+/** Owner-report wire → Pet. 未知・欠損 status は fail-closed で「不明」（BUG-022 契約）。 */
+export function toPet(
   pet: OwnerReportPet,
   ownerId: string,
 ): Pet {
@@ -180,7 +181,7 @@ function toPet(
     bloodType: pet.bloodType,
     microchipNumber: pet.microchipNumber,
     gender: pet.gender,
-    status: pet.status === "生存" || pet.status === "死亡" ? pet.status : undefined,
+    status: pet.status === "生存" || pet.status === "死亡" ? pet.status : "不明",
     birthDate: pet.birthDate,
     neuteredDate: pet.neuteredDate,
     weight: pet.weight,
