@@ -151,6 +151,7 @@ export function buildProcedureCreateRequest(
     is_active: data.isActive,
     tax_type: data.taxType,
     tax_rate: data.taxRate,
+    anesthesia: data.anesthesia,
     ...(data.parentId ? { parent_id: Number(data.parentId) } : {}),
   };
 }

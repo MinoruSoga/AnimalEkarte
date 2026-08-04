@@ -46,8 +46,9 @@ export type UpdateExaminationTypeRequest = Partial<ExaminationTypeWritable> & {
 
 type ProcedureWritable = Omit<Procedure, ServerFields>;
 
-export type CreateProcedureRequest = Pick<ProcedureWritable, "name"> &
-  Partial<Omit<ProcedureWritable, "name">>;
+// anesthesia は BE create binding:"required" と一致させる（BUG-028）
+export type CreateProcedureRequest = Pick<ProcedureWritable, "name" | "anesthesia"> &
+  Partial<Omit<ProcedureWritable, "name" | "anesthesia">>;
 
 export type UpdateProcedureRequest = Partial<ProcedureWritable> & {
   clear_parent_id?: boolean;

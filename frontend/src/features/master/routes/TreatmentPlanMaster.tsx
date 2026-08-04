@@ -328,6 +328,7 @@ export function TreatmentPlanMaster() {
           canCreate={activeCanCreate}
           canEdit={activeCanEdit}
           examinationType={selectedExamination}
+          showAnesthesia={activeTab === "procedure"}
           onClose={handleClose}
           onSave={handleSave}
           onDeleteRequest={handleDeleteRequest}

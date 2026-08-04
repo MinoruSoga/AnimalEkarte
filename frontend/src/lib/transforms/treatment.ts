@@ -1,4 +1,5 @@
 import type {
+  AnesthesiaType,
   Consultation,
   ExaminationType,
   Procedure,
@@ -125,4 +126,6 @@ export type TreatmentItem = {
   taxType?: TaxType;
   taxRate?: number;
   isNonInsurance?: boolean;
+  /** Procedure only — present when the item is a procedure master row */
+  anesthesia?: AnesthesiaType;
 };

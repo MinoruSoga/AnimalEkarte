@@ -16,6 +16,8 @@ interface TreatmentPlanSidePanelHostProps {
   canCreate: boolean;
   canEdit: boolean;
   examinationType?: ExaminationTypeMaster;
+  /** true when active tab is procedure — show anesthesia control (BUG-028) */
+  showAnesthesia?: boolean;
   onClose: () => void;
   onSave: (data: TreatmentFormData) => void;
   onDeleteRequest: () => void;
@@ -45,6 +47,7 @@ function TreatmentPlanSidePanelHostContent({
   canCreate,
   canEdit,
   examinationType,
+  showAnesthesia = false,
   onClose,
   onSave,
   onDeleteRequest,
@@ -74,6 +77,7 @@ function TreatmentPlanSidePanelHostContent({
       onDeleteRequest={canDelete ? onDeleteRequest : undefined}
       readOnly={!canEdit}
       onDirtyChange={setParentDirty}
+      showAnesthesia={showAnesthesia}
       details={examinationType ? (
         <ExamTypeFieldsEditor
           examType={examinationType}
