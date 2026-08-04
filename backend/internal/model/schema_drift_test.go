@@ -60,6 +60,7 @@ func allModels() []any {
 		&model.Procedure{},
 		&model.Vaccine{},
 		&model.CheckupType{},
+		&model.CheckupPackageImportReceipt{},
 		&model.ExaminationType{},
 		&model.ExamTypeField{},
 		&model.ExamReferenceRange{},

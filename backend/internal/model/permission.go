@@ -60,6 +60,9 @@ const (
 
 	// #239: 医院別 owner/pet を残したままの identity link（view / edit 分離・fail-closed default）
 	ResourceIdentityLinks Resource = "identity-links"
+
+	// TASK-374 / #211: 健診 package versioned import（default-deny）
+	ResourceCheckupPackageImport Resource = "checkup-package-import"
 )
 
 // AllResources は全リソース一覧（is_system_admin=true 全権限バイパス用）
@@ -100,6 +103,7 @@ var AllResources = []Resource{
 	ResourceAccountingPostCloseEdit,
 	ResourceLabImport,
 	ResourceIdentityLinks,
+	ResourceCheckupPackageImport,
 }
 
 // IsValidResource は指定されたリソース名が有効かどうかを判定する（BUG-146）

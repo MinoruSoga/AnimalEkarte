@@ -18,14 +18,15 @@ import (
 // ---- mock ExaminationService ----
 
 type mockExaminationService struct {
-	listFn         func(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Examination, int64, error)
-	getByIDFn      func(ctx context.Context, clinicID, id uint64) (*model.Examination, error)
-	createFn       func(ctx context.Context, clinicID uint64, input *CreateExaminationInput) (*model.Examination, error)
-	updateFn       func(ctx context.Context, clinicID, id uint64, input UpdateExaminationInput) (*model.Examination, error)
-	unconfirmFn    func(ctx context.Context, clinicID, id uint64, input UnconfirmExaminationInput) (*model.Examination, error)
-	deleteFn       func(ctx context.Context, clinicID, id uint64, actorID *uint64) error
-	listItemsFn    func(ctx context.Context, clinicID, examID uint64) ([]model.ExamResult, error)
-	replaceItemsFn func(ctx context.Context, clinicID, examID uint64, actorID *uint64, inputs []UpsertExamItemInput) ([]model.ExamResult, error)
+	listFn             func(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Examination, int64, error)
+	getByIDFn          func(ctx context.Context, clinicID, id uint64) (*model.Examination, error)
+	getPrintSnapshotFn func(ctx context.Context, clinicID, examinationID uint64, version *uint64) (*ExaminationPrintSnapshot, error)
+	createFn           func(ctx context.Context, clinicID uint64, input *CreateExaminationInput) (*model.Examination, error)
+	updateFn           func(ctx context.Context, clinicID, id uint64, input UpdateExaminationInput) (*model.Examination, error)
+	unconfirmFn        func(ctx context.Context, clinicID, id uint64, input UnconfirmExaminationInput) (*model.Examination, error)
+	deleteFn           func(ctx context.Context, clinicID, id uint64, actorID *uint64) error
+	listItemsFn        func(ctx context.Context, clinicID, examID uint64) ([]model.ExamResult, error)
+	replaceItemsFn     func(ctx context.Context, clinicID, examID uint64, actorID *uint64, inputs []UpsertExamItemInput) ([]model.ExamResult, error)
 }
 
 func (m *mockExaminationService) List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Examination, int64, error) {
@@ -34,6 +35,13 @@ func (m *mockExaminationService) List(ctx context.Context, clinicID uint64, petI
 
 func (m *mockExaminationService) GetByID(ctx context.Context, clinicID, id uint64) (*model.Examination, error) {
 	return m.getByIDFn(ctx, clinicID, id)
+}
+
+func (m *mockExaminationService) GetPrintSnapshot(ctx context.Context, clinicID, examinationID uint64, version *uint64) (*ExaminationPrintSnapshot, error) {
+	if m.getPrintSnapshotFn != nil {
+		return m.getPrintSnapshotFn(ctx, clinicID, examinationID, version)
+	}
+	return nil, apperrors.WrapNotFound("examination_print_snapshot", "not_configured")
 }
 
 func (m *mockExaminationService) Create(ctx context.Context, clinicID uint64, input *CreateExaminationInput) (*model.Examination, error) {

@@ -54,8 +54,9 @@ type Handler struct {
 	treatmentPlan         *TreatmentPlanHandler
 	medicalRecord         *MedicalRecordHandler
 	medicalRecordAddendum *MedicalRecordAddendumHandler
-	examination           *ExaminationHandler
-	requirePermission     PermissionMiddleware
+	examination             *ExaminationHandler
+	checkupPackageImport    *CheckupPackageImportHandler
+	requirePermission       PermissionMiddleware
 }
 
 // NewHandler initializes a Handler.
@@ -89,6 +90,7 @@ func NewHandler(
 	medicalRecord *MedicalRecordHandler,
 	medicalRecordAddendum *MedicalRecordAddendumHandler,
 	examination *ExaminationHandler,
+	checkupPackageImport *CheckupPackageImportHandler,
 	requirePermission PermissionMiddleware,
 ) *Handler {
 	return &Handler{
@@ -121,6 +123,7 @@ func NewHandler(
 		medicalRecord:         medicalRecord,
 		medicalRecordAddendum: medicalRecordAddendum,
 		examination:           examination,
+		checkupPackageImport:  checkupPackageImport,
 		requirePermission:     requirePermission,
 	}
 }
@@ -360,6 +363,7 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	examinations := rg.Group("/examinations")
 	examinations.GET("", perm(model.ResourceExaminations, "view"), h.examination.ListExaminations)
 	examinations.GET("/:id", perm(model.ResourceExaminations, "view"), h.examination.GetExamination)
+	examinations.GET("/:id/print-snapshot", perm(model.ResourceExaminations, "view"), h.examination.GetExaminationPrintSnapshot)
 	examinations.POST("",
 		perm(model.ResourceExaminations, "create"),
 		perm(model.ResourceExaminations, "edit"),
@@ -370,6 +374,12 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	examinations.DELETE("/:id", perm(model.ResourceExaminations, "delete"), h.examination.DeleteExamination)
 	examinations.GET("/:id/items", perm(model.ResourceExaminations, "view"), h.examination.ListExaminationItems)
 	examinations.PUT("/:id/items", perm(model.ResourceExaminations, "edit"), h.examination.ReplaceExaminationItems)
+
+	// TASK-374: versioned clinic-scoped checkup package import (default-deny permission).
+	// preview = dry-run zero domain write; apply = explicit create action.
+	checkupPackageImports := rg.Group("/checkup-package-imports")
+	checkupPackageImports.POST("/preview", perm(model.ResourceCheckupPackageImport, "create"), h.checkupPackageImport.PreviewCheckupPackageImport)
+	checkupPackageImports.POST("", perm(model.ResourceCheckupPackageImport, "create"), h.checkupPackageImport.ApplyCheckupPackageImport)
 
 	// Lab import saga (BE9-2D sub-batch③: moved from internal/handler lab_import_handler.go
 	// RegisterLabImportRoutes). All routes guard ResourceLabImport (preview/commit=create,

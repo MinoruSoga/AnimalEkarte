@@ -477,10 +477,10 @@ func TestClinicService_CreateClinic_DefaultPermissionGroupRules(t *testing.T) {
 }
 
 // TestDefaultPermissionRuleTable_CoversAllResources は defaultPermissionRuleTable が
-// model.AllResources (36) を過不足なくカバーし、共有マスタ animal-species が
-// 執行・一般とも view-only、examination-unconfirm が default-deny であることを固定する。
+// model.AllResources (37) を過不足なくカバーし、共有マスタ animal-species が
+// 執行・一般とも view-only、examination-unconfirm / checkup-package-import が default-deny であることを固定する。
 func TestDefaultPermissionRuleTable_CoversAllResources(t *testing.T) {
-	require.Len(t, model.AllResources, 36, "AllResources 件数の契約が変わったら permission rollout を同時に更新すること")
+	require.Len(t, model.AllResources, 37, "AllResources 件数の契約が変わったら permission rollout を同時に更新すること")
 	require.Len(t, defaultPermissionRuleTable, len(model.AllResources),
 		"defaultPermissionRuleTable は AllResources と同数であること")
 
@@ -528,6 +528,20 @@ func TestDefaultPermissionRuleTable_CoversAllResources(t *testing.T) {
 			assert.False(t, unconfirm.CanCreate)
 			assert.False(t, unconfirm.CanEdit)
 			assert.False(t, unconfirm.CanDelete)
+		}
+
+		var pkgImport *model.PermissionGroupRule
+		for i := range rules {
+			if rules[i].Resource == string(model.ResourceCheckupPackageImport) {
+				pkgImport = &rules[i]
+				break
+			}
+		}
+		if assert.NotNilf(t, pkgImport, "%s に checkup-package-import があること", profile) {
+			assert.False(t, pkgImport.CanView)
+			assert.False(t, pkgImport.CanCreate)
+			assert.False(t, pkgImport.CanEdit)
+			assert.False(t, pkgImport.CanDelete)
 		}
 	}
 }

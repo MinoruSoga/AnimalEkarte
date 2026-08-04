@@ -247,6 +247,8 @@ var defaultPermissionRuleTable = []defaultPermissionRule{
 	{model.ResourceLabImport, true, false, true, false, true, false, false, false},
 	// #239 identity-links: fail-closed（通常 staff へ自動付与しない。運用で明示付与）
 	{model.ResourceIdentityLinks, false, false, false, false, false, false, false, false},
+	// TASK-374 / #211 checkup package import: default-deny（明示付与のみ）
+	{model.ResourceCheckupPackageImport, false, false, false, false, false, false, false, false},
 }
 
 // buildDefaultPermissionGroupRules は defaultPermissionRuleTable から、指定グループが

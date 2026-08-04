@@ -26,6 +26,10 @@ export const useUpdateExaminationItems = () => {
     onSuccess: (_data, { id }) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.examinations.items(id) });
       queryClient.invalidateQueries({ queryKey: queryKeys.examinations.detail(id) });
+      // Nested under examinations.all() prefix is not enough here — items path does not call all().
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.examinations.printSnapshot(id),
+      });
     },
     onError: (error) => handleApiError(error, "検査項目の保存"),
   });

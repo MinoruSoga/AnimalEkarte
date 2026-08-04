@@ -277,6 +277,12 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"medicalrecord/examination_revision_repository.go|examinationRepository.AppendOfficialRevision": {},
 	"medicalrecord/examination_revision_repository.go|examinationRepository.ConfirmWithRevisionCAS": {},
 	"medicalrecord/examination_revision_repository.go|examinationRepository.FindOfficialByID":       {},
+	// TASK-031: print snapshot is read-only revision load; ambient tx optional via DBOrTx.
+	"medicalrecord/examination_print_snapshot.go|examinationRepository.FindPrintSnapshot": {},
+	// TASK-374: clinic-scoped package import apply/preflight participate in ambient tx.
+	"medicalrecord/checkup_package_import_service.go|checkupPackageImportService.Apply":                 {},
+	"medicalrecord/checkup_package_import_service.go|checkupPackageImportService.preflightCollisions": {},
+	"medicalrecord/checkup_package_import_service.go|checkupPackageImportService.validateActorInClinic": {},
 	// TASK-027 Slice B: unconfirm/edit/reconfirm revision writes and pointer CAS all fail closed
 	// without the service-owned ambient transaction. Runtime rollback proof:
 	// TestExaminationRevision_UnconfirmAuditFailureRollsBackWorkingRevisionAndPointer.

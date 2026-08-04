@@ -3544,6 +3544,168 @@ components:
           maxLength: 500
           pattern: '\S'
           description: 確定解除を必要とする人手入力の理由
+    CheckupPackageImportRequest:
+      type: object
+      required: [manifest]
+      properties:
+        manifest:
+          type: object
+          additionalProperties: true
+          description: versioned checkup package manifest (strict; re-validated server-side)
+    CheckupPackageImportOperatorReceipt:
+      type: object
+      required: [receipt_id, result, types_created, fields_created]
+      properties:
+        receipt_id:
+          type: string
+          description: opaque operator receipt id (no clinic/actor/digest)
+        result:
+          type: string
+          enum: [dry_run_ok, applied, noop, conflict]
+        types_created:
+          type: integer
+        fields_created:
+          type: integer
+    ExaminationPrintDisplay:
+      type: object
+      description: 印刷用の凍結表示ラベル（display_snapshot）。mutable master の現在値は使わない。
+      properties:
+        medical_record_no:
+          type: string
+        pet_name:
+          type: string
+        medical_record_owner_name:
+          type: string
+        pet_owner_name:
+          type: string
+        species_name:
+          type: string
+        exam_type_name:
+          type: string
+        doctor_name:
+          type: string
+    ExaminationPrintItem:
+      type: object
+      description: リビジョンに保存された検査項目。is_assessed は再計算せず保存値を返す。
+      required: [id, name, is_assessed, is_abnormal, status, sort_order]
+      properties:
+        id:
+          type: integer
+          format: int64
+          readOnly: true
+        exam_type_field_id:
+          type: integer
+          format: int64
+          nullable: true
+        name:
+          type: string
+        inspection_value:
+          type: string
+        normal_value:
+          type: string
+        result:
+          type: string
+        unit:
+          type: string
+        reference_value:
+          type: string
+        ref_min:
+          type: number
+          format: double
+          nullable: true
+        ref_max:
+          type: number
+          format: double
+          nullable: true
+        qualitative_min:
+          type: string
+          nullable: true
+        qualitative_max:
+          type: string
+          nullable: true
+        is_assessed:
+          type: boolean
+          description: リビジョン保存時の評価有無（印刷時に再計算しない）
+        is_abnormal:
+          type: boolean
+        status:
+          type: string
+          enum: [normal, high, low]
+        sort_order:
+          type: integer
+    ExaminationPrintSnapshot:
+      type: object
+      description: |
+        検査印刷用の atomic revision snapshot。examination_revisions + examination_revision_items のみから構成する。
+        FE の formItems・未保存値・range/status 再計算・danger_reason は含めない。
+      required: [examination_id, clinic_id, version, kind, status, print_boundary, date, exam_type_id, display, items]
+      properties:
+        examination_id:
+          type: integer
+          format: int64
+          readOnly: true
+        clinic_id:
+          type: integer
+          format: int64
+          readOnly: true
+        version:
+          type: integer
+          format: int64
+          minimum: 1
+          readOnly: true
+        kind:
+          type: string
+          enum: [working, official]
+          readOnly: true
+        status:
+          type: string
+          enum: [pending, in_progress, result_entered, completed, confirmed]
+          readOnly: true
+        print_boundary:
+          type: string
+          enum: [official, draft]
+          description: official=確定公式リビジョン、draft=院内用未確定（DRAFT watermark）
+          readOnly: true
+        watermark:
+          type: string
+          description: draft 時は "DRAFT / 未確定"。official では省略または空。
+          readOnly: true
+        date:
+          type: string
+          format: date
+          readOnly: true
+        result_summary:
+          type: string
+          readOnly: true
+        machine:
+          type: string
+          readOnly: true
+        exam_type_id:
+          type: integer
+          format: int64
+          readOnly: true
+        medical_record_id:
+          type: integer
+          format: int64
+          nullable: true
+          readOnly: true
+        pet_id:
+          type: integer
+          format: int64
+          nullable: true
+          readOnly: true
+        doctor_id:
+          type: integer
+          format: int64
+          nullable: true
+          readOnly: true
+        display:
+          $ref: '#/components/schemas/ExaminationPrintDisplay'
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExaminationPrintItem'
+          readOnly: true
     Vaccination:
       type: object
       required: [medical_record_id, vaccine_id, date]
@@ -13165,6 +13327,43 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
+  /examinations/{id}/print-snapshot:
+    get:
+      operationId: getExaminationPrintSnapshot
+      summary: 検査印刷用 revision snapshot 取得
+      description: |
+        保存済み revision（parent/items/status/version）を atomic に返す read-only API。
+        version 省略時は exams.current_revision_version を用いる。
+        official は confirmed revision のみ print_boundary=official。
+        未確定 working は院内用 watermark "DRAFT / 未確定"。
+        FE formItems・未保存 edit・range 再計算・danger_reason は含めない。
+      tags: [Examinations]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: integer, format: int64}
+        - name: version
+          in: query
+          required: false
+          description: 印刷対象リビジョン番号。省略時は current_revision_version。
+          schema: {type: integer, format: int64, minimum: 1}
+      responses:
+        '200':
+          description: 印刷用 snapshot
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExaminationPrintSnapshot'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
   # ─── Examination items (検査項目明細) ──────────────────────────
   /examinations/{id}/items:
     get:
@@ -22205,6 +22404,66 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /checkup-package-imports/preview:
+    post:
+      operationId: previewCheckupPackageImport
+      summary: 健診 package import dry-run
+      tags: [Checkups]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CheckupPackageImportRequest'
+      responses:
+        '200':
+          description: dry-run result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckupPackageImportOperatorReceipt'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /checkup-package-imports:
+    post:
+      operationId: applyCheckupPackageImport
+      summary: 健診 package import apply
+      tags: [Checkups]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CheckupPackageImportRequest'
+      responses:
+        '200':
+          description: apply result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckupPackageImportOperatorReceipt'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '500':
           $ref: '#/components/responses/InternalError'
   /lab-imports:

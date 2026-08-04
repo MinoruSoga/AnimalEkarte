@@ -63,6 +63,7 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		NewMedicalRecordHandler(nil),
 		NewMedicalRecordAddendumHandler(nil),
 		NewExaminationHandler(nil),
+		NewCheckupPackageImportHandler(nil),
 		noopPermission,
 	)
 
@@ -110,6 +111,7 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		"GET /api/v1/examinations ListExaminations\n" +
 		"GET /api/v1/examinations/:id GetExamination\n" +
 		"GET /api/v1/examinations/:id/items ListExaminationItems\n" +
+		"GET /api/v1/examinations/:id/print-snapshot GetExaminationPrintSnapshot\n" +
 		"GET /api/v1/hospitalizations ListHospitalizations\n" +
 		"GET /api/v1/hospitalizations/:id GetHospitalization\n" +
 		"GET /api/v1/hospitalizations/:id/care-plan-items ListCarePlanItems\n" +
@@ -201,6 +203,8 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		"PATCH /api/v1/medical-records/:id/treatments/:treatmentId UpdateTreatment\n" +
 		"PATCH /api/v1/medical-records/:id/vitals/:vitalId UpdateVital\n" +
 		"PATCH /api/v1/vaccinations/:id UpdateVaccination\n" +
+		"POST /api/v1/checkup-package-imports ApplyCheckupPackageImport\n" +
+		"POST /api/v1/checkup-package-imports/preview PreviewCheckupPackageImport\n" +
 		"POST /api/v1/examinations CreateExamination\n" +
 		"POST /api/v1/examinations/:id/unconfirm UnconfirmExamination\n" +
 		"POST /api/v1/hospitalizations CreateHospitalization\n" +
@@ -292,6 +296,7 @@ func TestRegisterRoutes_HospitalizationDischargeAndExaminationUnconfirmPermissio
 		NewMedicalRecordHandler(nil),
 		NewMedicalRecordAddendumHandler(nil),
 		NewExaminationHandler(nil),
+		NewCheckupPackageImportHandler(nil),
 		permSpy,
 	)
 

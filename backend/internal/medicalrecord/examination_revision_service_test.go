@@ -39,7 +39,8 @@ type examinationRevisionCapabilityRepository struct {
 		expectedStatus model.ExaminationStatus,
 		version uint64,
 	) (*model.Examination, error)
-	findOfficialByIDFn func(ctx context.Context, clinicID, examinationID uint64) (*ExaminationOfficialProjection, error)
+	findOfficialByIDFn  func(ctx context.Context, clinicID, examinationID uint64) (*ExaminationOfficialProjection, error)
+	findPrintSnapshotFn func(ctx context.Context, clinicID, examinationID uint64, version *uint64) (*ExaminationPrintSnapshot, error)
 }
 
 func (r *examinationRevisionCapabilityRepository) AppendOfficialRevision(
@@ -64,6 +65,17 @@ func (r *examinationRevisionCapabilityRepository) FindOfficialByID(
 	clinicID, examinationID uint64,
 ) (*ExaminationOfficialProjection, error) {
 	return r.findOfficialByIDFn(ctx, clinicID, examinationID)
+}
+
+func (r *examinationRevisionCapabilityRepository) FindPrintSnapshot(
+	ctx context.Context,
+	clinicID, examinationID uint64,
+	version *uint64,
+) (*ExaminationPrintSnapshot, error) {
+	if r.findPrintSnapshotFn != nil {
+		return r.findPrintSnapshotFn(ctx, clinicID, examinationID, version)
+	}
+	return nil, apperrors.WrapNotFound("examination_print_snapshot", "mock")
 }
 
 func TestExaminationRevision_FirstConfirmAppendsBeforeAuditAndCAS(t *testing.T) {

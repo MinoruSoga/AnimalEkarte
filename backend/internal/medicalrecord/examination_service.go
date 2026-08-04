@@ -117,6 +117,9 @@ func effectiveExaminationRelations(existing *model.Examination, input UpdateExam
 type ExaminationService interface {
 	List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Examination, int64, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.Examination, error)
+	// GetPrintSnapshot returns a clinic-scoped atomic revision print DTO.
+	// version nil uses the parent's current_revision_version (fail-closed if unset).
+	GetPrintSnapshot(ctx context.Context, clinicID, examinationID uint64, version *uint64) (*ExaminationPrintSnapshot, error)
 	Create(ctx context.Context, clinicID uint64, input *CreateExaminationInput) (*model.Examination, error)
 	Update(ctx context.Context, clinicID, id uint64, input UpdateExaminationInput) (*model.Examination, error)
 	Unconfirm(ctx context.Context, clinicID, id uint64, input UnconfirmExaminationInput) (*model.Examination, error)

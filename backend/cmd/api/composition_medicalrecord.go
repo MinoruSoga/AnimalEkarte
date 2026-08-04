@@ -12,6 +12,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/inventory"
 	"github.com/animal-ekarte/backend/internal/lstep"
 	"github.com/animal-ekarte/backend/internal/medicalrecord"
+	"github.com/animal-ekarte/backend/internal/persistence"
 	"github.com/animal-ekarte/backend/internal/pet"
 	"github.com/animal-ekarte/backend/internal/reservation"
 	"github.com/animal-ekarte/backend/internal/staff"
@@ -44,6 +45,7 @@ type medicalRecordComposition struct {
 	Checkups       medicalrecord.CheckupService
 	DrainCheckups  func()
 	services       medicalRecordServices
+	auditTx        medicalRecordAuditTxBridge
 }
 
 func newMedicalRecordComposition(
@@ -67,6 +69,7 @@ func newMedicalRecordComposition(
 		Checkups:       services.preventive.checkups,
 		DrainCheckups:  nilSafeDrain(services.preventive.checkups.Wait),
 		services:       services,
+		auditTx:        auditTx,
 	}
 }
 
@@ -109,6 +112,13 @@ func (c medicalRecordComposition) newHandler(
 		medicalrecord.NewMedicalRecordHandler(s.core.medicalRecords),
 		medicalrecord.NewMedicalRecordAddendumHandler(s.core.addenda),
 		medicalrecord.NewExaminationHandler(s.core.examinations),
+		medicalrecord.NewCheckupPackageImportHandler(
+			medicalrecord.NewCheckupPackageImportService(
+				dependencies.DB,
+				persistence.NewTransactor(dependencies.DB),
+				c.auditTx,
+			),
+		),
 		dependencies.RequirePermission,
 	)
 }

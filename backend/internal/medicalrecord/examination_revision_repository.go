@@ -39,6 +39,9 @@ type ExaminationRevisionRepository interface {
 		version uint64,
 	) (*model.Examination, error)
 	FindOfficialByID(ctx context.Context, clinicID, examinationID uint64) (*ExaminationOfficialProjection, error)
+	// FindPrintSnapshot loads a versioned revision+items print DTO from revision tables only.
+	// A nil version resolves to the parent's current_revision_version (fail-closed if unset).
+	FindPrintSnapshot(ctx context.Context, clinicID, examinationID uint64, version *uint64) (*ExaminationPrintSnapshot, error)
 }
 
 // ExaminationRevisionWorkflowRepository is the Slice-B capability for reopening,

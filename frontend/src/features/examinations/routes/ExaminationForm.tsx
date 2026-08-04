@@ -30,6 +30,9 @@ import { ExaminationFormFields } from "../components/ExaminationFormFields";
 import { ExaminationHistoryPanel } from "../components/ExaminationHistoryPanel";
 import { ExaminationPatientChangeDialog } from "../components/ExaminationPatientChangeDialog";
 import { ExaminationUnconfirmDialog } from "../components/ExaminationUnconfirmDialog";
+import { ExaminationPrintArea } from "../components/ExaminationPrintArea";
+import { useGetExaminationPrintSnapshot } from "../api/get-examination-print-snapshot";
+import { buildExaminationPrintModel } from "../lib/examination-print-model";
 import { useMasterItems } from "@/hooks/use-master-items";
 import { useGetStaffs } from "@/features/master";
 import { paths } from "@/config/paths";
@@ -102,6 +105,15 @@ function ExaminationFormContent({ id }: { id: string | undefined }) {
     canDelete,
     canUnconfirm,
   });
+
+  // Print uses saved revision snapshot only — never formItems / unsaved edits.
+  const { data: printSnapshot } = useGetExaminationPrintSnapshot(
+    isEdit ? id : undefined,
+  );
+  const printModel = useMemo(
+    () => (printSnapshot ? buildExaminationPrintModel(printSnapshot) : null),
+    [printSnapshot],
+  );
 
   const { isDirty, markDirty, markClean } = useUnsavedChanges();
 
@@ -326,6 +338,22 @@ function ExaminationFormContent({ id }: { id: string | undefined }) {
             <ExaminationUnconfirmDialog onUnconfirm={handleUnconfirm} />
           </div>
         ) : null}
+
+        {isEdit && id ? (
+          <div className="flex justify-end print:hidden">
+            <button
+              type="button"
+              data-testid="examination-print-button"
+              className={`rounded-xs border px-3 py-1.5 text-sm ${C.border} ${C.text60} hover:bg-black/5 disabled:opacity-50`}
+              disabled={!printModel}
+              onClick={() => window.print()}
+            >
+              印刷 / PDF出力
+            </button>
+          </div>
+        ) : null}
+
+        {printModel ? <ExaminationPrintArea model={printModel} /> : null}
 
         {/* 2カラムレイアウト: 左 3/5（フォーム）・右 2/5（履歴） */}
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 items-start">

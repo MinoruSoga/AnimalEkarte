@@ -28,6 +28,7 @@ type mockExaminationRepository struct {
 	appendOfficialRevisionFn func(ctx context.Context, clinicID, examinationID, actorID uint64, changeReason string) (uint64, error)
 	confirmWithRevisionCASFn func(ctx context.Context, clinicID, examinationID uint64, expectedStatus model.ExaminationStatus, version uint64) (*model.Examination, error)
 	findOfficialByIDFn       func(ctx context.Context, clinicID, examinationID uint64) (*ExaminationOfficialProjection, error)
+	findPrintSnapshotFn      func(ctx context.Context, clinicID, examinationID uint64, version *uint64) (*ExaminationPrintSnapshot, error)
 }
 
 func (m *mockExaminationRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Examination, int64, error) {
@@ -130,6 +131,17 @@ func (m *mockExaminationRepository) FindOfficialByID(
 		Examination:     *exam,
 		OfficialVersion: initialExaminationRevisionVersion,
 	}, nil
+}
+
+func (m *mockExaminationRepository) FindPrintSnapshot(
+	ctx context.Context,
+	clinicID, examinationID uint64,
+	version *uint64,
+) (*ExaminationPrintSnapshot, error) {
+	if m.findPrintSnapshotFn != nil {
+		return m.findPrintSnapshotFn(ctx, clinicID, examinationID, version)
+	}
+	return nil, apperrors.WrapNotFound("examination_print_snapshot", "mock")
 }
 
 // ptrFloat64 は旧 internal/service 共有 helper の最小複製（⑦移動）。

@@ -82,6 +82,29 @@ func (h *ExaminationHandler) GetExamination(c *gin.Context) {
 	c.JSON(http.StatusOK, toExaminationResponse(exam))
 }
 
+// GetExaminationPrintSnapshot godoc
+// GET /examinations/:id/print-snapshot?version=
+func (h *ExaminationHandler) GetExaminationPrintSnapshot(c *gin.Context) {
+	clinicID, ok := httpapi.ExtractClinicID(c)
+	if !ok {
+		return
+	}
+	id, ok := httpapi.ParseIDParam(c, "id")
+	if !ok {
+		return
+	}
+	version, ok := httpapi.ParseOptionalUint64Query(c, "version")
+	if !ok {
+		return
+	}
+	snapshot, err := h.service.GetPrintSnapshot(c.Request.Context(), clinicID, id, version)
+	if err != nil {
+		httpapi.RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, toExaminationPrintSnapshotResponse(snapshot))
+}
+
 // CreateExamination godoc
 func (h *ExaminationHandler) CreateExamination(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)

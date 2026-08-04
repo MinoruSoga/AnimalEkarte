@@ -146,6 +146,9 @@ export const queryKeys = {
     list: <F>(filters: F) => ["examinations", filters] as const,
     detail: (id: string) => ["examination", id] as const,
     items: (id: string) => ["examination-items", id] as const,
+    // Nested under examinations.all() so update/unconfirm/items invalidations refresh print.
+    printSnapshot: (id: string, version?: number) =>
+      ["examinations", "print-snapshot", id, version ?? "current"] as const,
     typeFields: (examTypeId: string) => ["exam-type-fields", examTypeId] as const,
     /** features/medical-records 側からの参照。["pet",...]ではなく["examinations","pet",petId] */
     byPet: (petId: string) => ["examinations", "pet", petId] as const,

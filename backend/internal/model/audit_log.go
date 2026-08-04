@@ -91,6 +91,8 @@ const (
 
 	// #211 健診結果値の置換（既存削除を伴う PUT）監査アクション
 	AuditActionCheckupFieldResultReplace = "checkup_field_result.replace"
+	// TASK-374 / #211: 健診 package の versioned clinic-scoped import apply
+	AuditActionCheckupPackageImportApply = "checkup_package_import.apply"
 
 	// BE-refactor.md R1-2 (D1): 検査結果値（exam_results）の置換（既存削除を伴う PUT）監査アクション。
 	// checkup_field_result と同型の tx 内 fail-closed 監査。
@@ -137,6 +139,8 @@ const (
 	AuditResourceTreatmentDose     = "treatment_dose"
 	// #211 健診パッケージ型付き結果値の置換（既存削除を伴う）監査
 	AuditResourceCheckupFieldResult = "checkup_field_result"
+	// TASK-374 / #211: 健診 package import provenance / apply 監査
+	AuditResourceCheckupPackageImport = "checkup_package_import"
 	// BE-refactor.md R1-2: 検査結果値の置換（既存削除を伴う）監査
 	AuditResourceExamResult = "exam_result"
 	// #249 / DEC-53: parent exams row の create/update/confirm/delete 監査。

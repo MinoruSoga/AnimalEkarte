@@ -73,6 +73,14 @@ vi.mock("../api/get-examinations", () => ({
   useGetExaminations: mocks.useGetExaminations,
 }));
 
+vi.mock("../api/get-examination-print-snapshot", () => ({
+  useGetExaminationPrintSnapshot: () => ({ data: undefined, isLoading: false }),
+}));
+
+vi.mock("../components/ExaminationPrintArea", () => ({
+  ExaminationPrintArea: () => null,
+}));
+
 vi.mock("@/components/shared/PageLayout/PageLayout", () => ({
   PageLayout: ({ children }: { children: ReactNode }) => <div>{children}</div>,
 }));
