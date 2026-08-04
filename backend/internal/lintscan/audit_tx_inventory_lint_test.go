@@ -164,6 +164,23 @@ var clinicalResultAuditTxAllowlist = []auditInventoryEntry{
 			"and the caller rolls back, the delete is also reverted (fail-closed). " +
 			"Runtime proof: examination_repository_tx_atomicity_test.go.",
 	},
+	{
+		file:        "medicalrecord/examination_revision_workflow_repository.go",
+		function:    "restoreMutableExaminationFromRevision",
+		modelType:   "ExamResult",
+		occurrences: 1,
+		status:      statusAuditedTxInternal,
+		reason: "Free function restoreMutableExaminationFromRevision hard-deletes ExamResult once (examination_revision_workflow_repository.go:486-497) " +
+			"via the injected ambient tx parameter (tx *gorm.DB). Both callers AppendWorkingRevisionFromOfficial " +
+			"(lines 21-24, 66-77) and AppendOfficialRevisionFromWorking (lines 160-163, 206-216) fail-closed when " +
+			"persistence.TxFromContext(ctx) is nil, so the delete never runs outside an ambient transaction. " +
+			"Service layer examinationService.Unconfirm (examination_revision_service.go:129-184) and " +
+			"reconfirmRevisionTx (lines 250-310, invoked from examination_service.go:342 inside WithTx) write " +
+			"parent-mutation audit via logParentMutationWithReasonTx / logParentMutationTx → AuditTxLogger.LogEntryTx " +
+			"in the same ambient tx after the restore; audit failure returns error and rolls back the delete " +
+			"(fail-closed). Official revision items remain append-only; this delete only clears the mutable " +
+			"working projection before restore. Runtime rollback proof: examination_revision_workflow_safety_test.go.",
+	},
 }
 
 // ─── Analyzer (pure over (filename, src), same as preload lint) ─────────────────────
