@@ -38,6 +38,7 @@
 | ISSUE-257-GOLIVE-REPLAN | 期限切れ go-live runbook の gate-driven 再計画 | **TASK-375**（READY_AGENT・docs-only） |
 | ISSUE-258-DELIVERY-BOUNDARY | #258 U1〜U12 と #256 U13 の文書境界同期 | **TASK-376**（READY_AGENT・docs-only） |
 | ISSUE-201-DOSE-DEVIATION-REASON | warning 逸脱理由を FE/BE・snapshot・同一 transaction audit へ接続 | **TASK-377**（READY_AGENT・臨床値は別 gate） |
+| MIG-CONSOLIDATE-002-008 | 増分 DDL 002〜008 を 001_init へ統合し ERD 件数 gate を green 化 | **TASK-378**（DONE agent・DB_RESET は USER） |
 
 ### 対応済み（削除済み・再掲しない）
 
@@ -945,5 +946,40 @@ validator_exit=0
   - `make codegen-check`
 - **Non-actions / HOLD**: 上限値・warning threshold・taxonomy・救急適用条件の決定、TASK-033 missing-data cutover、通常 mutation override、migration/DB apply、Issue close、claim 解放を行わない。
 - **Exit criteria**: warning/deviation の全 create/update 経路が理由なし zero-write、理由付き時だけ authenticated actor、snapshot、transaction-bound audit を伴って成功し、FE は inline で理由を要求して modal を使わず、直接 API bypass・missing actor・nil audit dependency・audit failure・snapshot serialization failure・clinic crossing の regression が green。残る委任外判断は DR-CLINICAL の #201 bundle 1 行だけ。
+
+### TASK-378: 増分 migration 002〜008 の 001_init 統合と ERD 件数 gate 是正（High / Schema inventory）
+
+- **対応**: `TestERDTableCount_MatchesSchema` が `schema=115 declared=116` で恒常赤。原因は増分 002〜008 が追加した表が `001_init.sql` だけを数える gate から外れること。USER が「002〜008 を 001_init へ統合」方針を選択。
+- **状態**: **DONE (agent 2026-08-04)**。claim `claim/TASK-378` 取得済・未解放（解放は USER 専権）。
+- **claim**: `claim/TASK-378`（実装 run が取得。解放は USER）。
+- **Owner lane**: `backend/migrations/001_init.sql` 統合アーカイブ節、増分 002〜008 削除、`docs/architecture/erd.md` テーブル数宣言、`todo.md` 本節。seed CSV・DB apply/reset・push は所有しない。
+
+#### 固定契約
+- DDL の意味を変えない。セクション 9・10 と同様式で原文・元コミット・SHA-256 付きでセクション 11 へ移設。CREATE TABLE への畳み込み・順序変更・重複除去を行わない。
+- 取り込み完了・SHA 突合・本文比較の後にだけ増分ファイルを削除する。
+- erd.md のテーブル数は統合後 `001_init.sql` の distinct CREATE TABLE 実測値へ揃える（推測禁止）。
+- seed バンドル（CSV/manifest）を編集しない。seed 列遅れ是正は DB 再構築後の別 unit。
+- agent は `make migrate` / DB_RESET / `psql` を実行しない。001 checksum 変更により既存 DB は再構築必須であることを Deliverables で handoff する。
+
+#### 実施記録（2026-08-04）
+- 共有連番 max=377 → **TASK-378**。`git branch --list 'claim/TASK-378'` empty → `git branch claim/TASK-378` exit 0。
+- 統合対象 SHA-256（削除前）:
+  - 002 `d93217de4b6eb5b1c264ce66b187937576852ab7b3da9cb9fb120c11e0b056c4`
+  - 003 `f07de224ba2f1987c9962252fb942dbd7a2d10ae5675f57599250641ab017f48`
+  - 004 `935466024cd36d98e0bf991b14080930712a0602a8f5b9afeb4199c7ec6f8037`
+  - 005 `777e3694ecace1dbb5ae8683cabeaa3b2a2dc888dfa1e464fe5b9e69085d181a`
+  - 006 `9a7f4b4ec66f7a97f59d06c437bcc0fc3086c6928f403c81d8b1894fcc15cbf1`
+  - 007 `eabec224ea5d18630f037676ca25ac11b243ef24276bb092fa76fc12014f72ee`
+  - 008 `851e9571f2a224a220009ba748e3a985d9f5079de75047f713a1b6fdf508d243`
+- `001_init.sql` セクション 11「増分マイグレーション統合アーカイブ (旧 002〜008 / 2026-08-04)」を末尾に追加。7 ブロック全文一致確認後、増分ファイル削除。`ls backend/migrations/*.sql` = `001_init.sql` のみ。
+- distinct CREATE TABLE: **115 → 123**。`erd.md` の目的文・marker・バージョン行および現行総数の他箇所を 123 へ同期。
+- `erd_table_count_drift_test.go` の hard-pin `want 115` を `want 123` へ更新（schema=declared=123 でも pin が旧値のまま FAIL するため）。
+- seed drift baseline = post: `003_demo` checkup_types / checkup_type_fields（import_namespace/import_key）・exams（current_revision_version）。失敗集合同一。
+- **USER handoff**: ローカル/STG の `001_init.sql` checksum mismatch は `docs/ops/deploy/LOCAL_DB_RESET.md` の DB volume 再構築のみ。agent は再構築しない。後続 unit: seed CSV 列遅れ是正（`cmd/seed-export` 再実行）。
+- **Scoped verification**:
+  - `docker compose exec -T backend go test -p 1 ./internal/lintscan -run 'TestERDTableCount_MatchesSchema' -count=1`
+  - `docker compose exec -T backend go test -p 1 ./internal/lintscan -run 'TestSeedCSVSchemaDrift' -count=1`
+- **Non-actions / HOLD**: DB apply/reset、seed CSV 編集、STG/本番操作、push、Issue close、claim 解放を行わない。
+- **Exit criteria**: ERD gate green、増分 002〜008 が 001 セクション11 に原文保存、直下 DDL が 001 のみ、seed drift 非悪化、claim 解放は USER。
 
 ---
