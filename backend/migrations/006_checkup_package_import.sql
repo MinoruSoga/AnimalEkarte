@@ -1,8 +1,9 @@
 -- 006_checkup_package_import.sql
 -- TASK-374 / #211 / DEC-59: versioned clinic-scoped checkup package import
 -- Additive only. Do not edit applied migrations. Agent does not apply this file.
-
-BEGIN;
+-- No BEGIN/COMMIT here: cmd/migrate wraps each file in its own transaction, so a
+-- COMMIT in the file ends that transaction early and the runner's commit then fails
+-- with "unexpected transaction status idle". Every statement stays re-run safe.
 
 -- 1) Import stable keys on checkup_types
 ALTER TABLE checkup_types
@@ -56,11 +57,24 @@ BEGIN
     END IF;
 END $$;
 
-ALTER TABLE checkup_types
-    ADD CONSTRAINT fk_checkup_types_parent_clinic
-    FOREIGN KEY (parent_id, clinic_id)
-    REFERENCES checkup_types (id, clinic_id)
-    ON DELETE SET NULL (parent_id);
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint con
+        JOIN pg_class rel ON rel.oid = con.conrelid
+        JOIN pg_namespace nsp ON nsp.oid = rel.relnamespace
+        WHERE nsp.nspname = 'public'
+          AND rel.relname = 'checkup_types'
+          AND con.conname = 'fk_checkup_types_parent_clinic'
+    ) THEN
+        ALTER TABLE checkup_types
+            ADD CONSTRAINT fk_checkup_types_parent_clinic
+            FOREIGN KEY (parent_id, clinic_id)
+            REFERENCES checkup_types (id, clinic_id)
+            ON DELETE SET NULL (parent_id);
+    END IF;
+END $$;
 
 DROP INDEX IF EXISTS idx_checkup_types_parent_id;
 CREATE INDEX IF NOT EXISTS idx_checkup_types_clinic_parent
@@ -97,5 +111,3 @@ SELECT app_private.apply_rls_policy(
     'app_private.has_clinic_access(clinic_id)',
     'app_private.has_clinic_access(clinic_id)'
 );
-
-COMMIT;
