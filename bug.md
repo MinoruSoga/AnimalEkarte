@@ -2483,7 +2483,7 @@ S01〜S12の業務シナリオ検証に続き、個別フォーム単位の受�
 ## BUG-028: 診療項目マスタ「処置」タブで新規登録が常に失敗する（内部フィールド名 anesthesia が必須なのにSidePanelに入力欄がない）
 
 - **重大度**: 高（処置タブへの新規項目登録が事実上全くできない。エラートーストは表示されるが内部英語フィールド名が露出しており原因が分かりにくく、無音失敗に近い）
-- **対応状況（2026-08-03 JST）**: OPEN | **根拠**: FE SidePanel/builder に anesthesia なし; BE create `binding:"required,oneof=..."` で常時 400（wave-2） | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: anesthesia 入力/既定と FE バリデーションを追加
+- **対応状況（2026-08-04 JST）**: IMPLEMENTED_UNVERIFIED | **実装 commit**: `842fe78d47f3609fc23a538f7c4613635e4fa84b` | **根拠**: FE 処置 SidePanel に麻酔区分 Select 追加、`CreateProcedureRequest.anesthesia` 必須化、create/update builder が送信、負値単価は field error で mutation 0 回 | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: ブラウザ実地再検証（localhost/backend 起動後に VERIFIED_FIXED へ昇格可）
 - **発見シナリオ**: V04 §2 診療項目マスタ 処置タブ `/settings/treatment-items?tab=procedure`
 - **再現手順**:
   1. `/settings/treatment-items?tab=procedure` で「新規登録」→ 名称「V04処置テスト」、単価に `-100`（負値）を入力して保存 → 何の反応もなくパネルが開いたまま（無音失敗）
