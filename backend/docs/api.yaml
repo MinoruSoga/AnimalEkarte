@@ -7874,6 +7874,32 @@ components:
         updated_at:
           type: string
           format: date-time
+    LabImportRevertRequest:
+      type: object
+      required: [reason]
+      properties:
+        reason:
+          type: string
+          description: Compensating revert reason (required). Distinct from examination unconfirm.
+          maxLength: 500
+    LabImportRevertResponse:
+      type: object
+      properties:
+        job_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          description: Terminal job status after revert (reverted)
+          example: reverted
+        retracted_exam_ids:
+          type: array
+          items:
+            type: string
+          description: Soft-deleted import-created draft exam IDs
+        idempotent_replay:
+          type: boolean
+          description: true when the same Idempotency-Key + payload was replayed
     LabImportEvent:
       type: object
       properties:
@@ -22809,6 +22835,54 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /lab-imports/{job_id}/revert:
+    post:
+      operationId: postLabImportRevert
+      summary: 検査取込ジョブの補償 revert（persisted → reverted）
+      description: |
+        ResourceLabImport edit 権限が必要。手動 examination 確定解除とは別 endpoint・別 status・別 permission（DEC-57 / TASK-032）。
+        reason 必須。Idempotency-Key（UUID）ヘッダ必須。
+        confirmed examination / finalized medical record / manual mutation / downstream clinical use / usage_unknown のいずれかがあれば 409 かつ write ゼロ。
+        安全な import 由来 draft parent のみ条件付き soft delete。child exam_results は hard delete しない。
+      tags: [LabImports]
+      parameters:
+        - name: job_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LabImportRevertRequest'
+      responses:
+        '200':
+          description: revert 成功（または同一 payload の冪等 replay）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LabImportRevertResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '500':
           $ref: '#/components/responses/InternalError'
   /lab-reports/jobs/{job_id}/summaries:

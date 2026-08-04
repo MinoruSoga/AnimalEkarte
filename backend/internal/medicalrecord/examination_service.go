@@ -141,6 +141,28 @@ type examinationService struct {
 	transactor       Transactor
 	relations        ClinicalRelationVerifier
 	petStatuses      examinationPetByIDInClinicFinder
+	// usageTracker records import-linked clinical use / manual mutation receipts (TASK-032).
+	// Nil-safe: treated as noop when unset (legacy tests / composition without lab receipts).
+	usageTracker LabImportUsageTracker
+}
+
+// AttachLabImportUsageTracker wires TASK-032 usage receipt instrumentation onto an ExaminationService.
+// No-op when svc is not the concrete examinationService or tracker is nil.
+func AttachLabImportUsageTracker(svc ExaminationService, tracker LabImportUsageTracker) ExaminationService {
+	if tracker == nil {
+		return svc
+	}
+	if s, ok := svc.(*examinationService); ok {
+		s.usageTracker = tracker
+	}
+	return svc
+}
+
+func (s *examinationService) usage() LabImportUsageTracker {
+	if s.usageTracker != nil {
+		return s.usageTracker
+	}
+	return noopLabImportUsageTracker{}
 }
 
 func NewExaminationService(
@@ -187,6 +209,10 @@ func (s *examinationService) GetByID(ctx context.Context, clinicID, id uint64) (
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get examination", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get examination")
+	}
+	// TASK-032: record usage receipt before returning clinical payload.
+	if err := s.usage().RecordClinicalUse(ctx, clinicID, result, model.LabImportUsageKindExaminationDetail, nil); err != nil {
+		return nil, err
 	}
 	return result, nil
 }
@@ -406,13 +432,19 @@ func (s *examinationService) Update(ctx context.Context, clinicID, id uint64, in
 				model.AuditActionExaminationConfirm,
 				"confirm",
 			)
-			return err
+			if err != nil {
+				return err
+			}
+			return s.usage().RecordManualMutation(txCtx, clinicID, exam, input.ActorID)
 		}
 		if revisioned {
 			exam, err = s.appendWorkingRevisionTx(txCtx, clinicID, input.ActorID, &before, exam, examinationWorkingUpdateReason)
-			return err
+			if err != nil {
+				return err
+			}
+			return s.usage().RecordManualMutation(txCtx, clinicID, exam, input.ActorID)
 		}
-		return s.logParentMutationTx(
+		if err := s.logParentMutationTx(
 			txCtx,
 			clinicID,
 			input.ActorID,
@@ -420,7 +452,11 @@ func (s *examinationService) Update(ctx context.Context, clinicID, id uint64, in
 			"update",
 			&before,
 			exam,
-		)
+		); err != nil {
+			return err
+		}
+		// TASK-032: import-linked exams record manual_mutation in the same mutation tx.
+		return s.usage().RecordManualMutation(txCtx, clinicID, exam, input.ActorID)
 	}); err != nil {
 		return nil, err
 	}
@@ -464,8 +500,13 @@ func (s *examinationService) lockExaminationUpdateMedicalRecords(
 // ListItems は検査項目一覧を返す。clinic_id 隔離は repository の JOIN 条件で保証する。
 // 親 exam の存在確認は FindByID で先行する（404 を返すため）。
 func (s *examinationService) ListItems(ctx context.Context, clinicID, examID uint64) ([]model.ExamResult, error) {
-	if _, err := s.repo.FindByID(ctx, clinicID, examID); err != nil {
+	// Use repo.FindByID directly so GetByID's clinical-detail usage receipt is not double-written.
+	exam, err := s.repo.FindByID(ctx, clinicID, examID)
+	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to find examination")
+	}
+	if err := s.usage().RecordClinicalUse(ctx, clinicID, exam, model.LabImportUsageKindExaminationItems, nil); err != nil {
+		return nil, err
 	}
 	items, err := s.repo.FindAllItemsByExamID(ctx, clinicID, examID)
 	if err != nil {
@@ -532,17 +573,19 @@ func (s *examinationService) ReplaceItems(ctx context.Context, clinicID, examID 
 		}
 		saved = replaced
 		if revisioned {
-			_, err = s.appendWorkingRevisionTx(
+			if _, err = s.appendWorkingRevisionTx(
 				txCtx,
 				clinicID,
 				actorID,
 				&before,
 				locked,
 				examinationWorkingItemsReason,
-			)
-			return err
+			); err != nil {
+				return err
+			}
+			return s.usage().RecordManualMutation(txCtx, clinicID, locked, actorID)
 		}
-		return nil
+		return s.usage().RecordManualMutation(txCtx, clinicID, locked, actorID)
 	}); err != nil {
 		return nil, apperrors.Wrap(err, "failed to replace examination items in transaction")
 	}

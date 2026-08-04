@@ -1288,7 +1288,7 @@ export interface Examination {
   doctor_id?: number /* uint64 */;
   /**
    * JobID は lab_import_jobs.id への nullable FK。手動作成の exam は NULL。
-   * ON DELETE SET NULL のため job 削除時も exam は保持される（Phase 4B.2）。
+   * TASK-032: composite (clinic_id, job_id) ON DELETE RESTRICT（SET NULL から置換）。
    */
   job_id?: string;
   date: string;
@@ -1826,7 +1826,12 @@ export const LabImportJobStatusPersisted = "persisted";
 export const LabImportJobStatusDuplicate = "duplicate";
 export const LabImportJobStatusNeedsReview = "needs_review";
 export const LabImportJobStatusFailed = "failed";
-export type LabImportJobStatus = typeof LabImportJobStatusReceived | typeof LabImportJobStatusValidated | typeof LabImportJobStatusMapped | typeof LabImportJobStatusPersisted | typeof LabImportJobStatusDuplicate | typeof LabImportJobStatusNeedsReview | typeof LabImportJobStatusFailed;
+/**
+ * LabImportJobStatusReverted is the terminal compensating-revert status (TASK-032).
+ * Distinct from examination unconfirm; reached only via POST /lab-imports/:id/revert.
+ */
+export const LabImportJobStatusReverted = "reverted";
+export type LabImportJobStatus = typeof LabImportJobStatusReceived | typeof LabImportJobStatusValidated | typeof LabImportJobStatusMapped | typeof LabImportJobStatusPersisted | typeof LabImportJobStatusDuplicate | typeof LabImportJobStatusNeedsReview | typeof LabImportJobStatusFailed | typeof LabImportJobStatusReverted;
 /**
  * LabImportSourceType は入力元の種別。
  * fixture: Phase 0 テスト用。drwan: Phase BLOCKED（MDB スキーマ未確認）。
@@ -1866,7 +1871,17 @@ export const LabImportEventTypeValidationResult = "validation_result";
 export const LabImportEventTypeMappingResult = "mapping_result";
 export const LabImportEventTypePersistenceResult = "persistence_result";
 export const LabImportEventTypeRetryRequested = "retry_requested";
-export type LabImportEventType = typeof LabImportEventTypeStatusTransition | typeof LabImportEventTypeValidationResult | typeof LabImportEventTypeMappingResult | typeof LabImportEventTypePersistenceResult | typeof LabImportEventTypeRetryRequested;
+/**
+ * LabImportEventTypeUsageTrackingStarted marks that downstream usage receipts
+ * are authoritative for this job (TASK-032). Recorded in the same transaction
+ * as a successful import commit. Absence means usage_unknown (revert 409).
+ */
+export const LabImportEventTypeUsageTrackingStarted = "usage_tracking_started";
+/**
+ * LabImportEventTypeRevertRequested records a compensating revert transition.
+ */
+export const LabImportEventTypeRevertRequested = "revert_requested";
+export type LabImportEventType = typeof LabImportEventTypeStatusTransition | typeof LabImportEventTypeValidationResult | typeof LabImportEventTypeMappingResult | typeof LabImportEventTypePersistenceResult | typeof LabImportEventTypeRetryRequested | typeof LabImportEventTypeUsageTrackingStarted | typeof LabImportEventTypeRevertRequested;
 /**
  * LabImportEvent は検査インポートジョブの監査イベント。
  * PHI・raw デバイスペイロード・接続情報は格納しない。
@@ -1929,6 +1944,79 @@ export interface LabImportCommitResponse {
   duplicate_count: number /* int */;
   needs_review_count: number /* int */;
   failed_count: number /* int */;
+}
+/**
+ * LabImportUsageKind は clinical downstream use / manual mutation の種別。
+ */
+export const LabImportUsageKindExaminationDetail = "examination_detail";
+export const LabImportUsageKindExaminationItems = "examination_items";
+export const LabImportUsageKindLabReport = "lab_report";
+export const LabImportUsageKindPrintSnapshot = "print_snapshot";
+export const LabImportUsageKindManualMutation = "manual_mutation";
+export type LabImportUsageKind = typeof LabImportUsageKindExaminationDetail | typeof LabImportUsageKindExaminationItems | typeof LabImportUsageKindLabReport | typeof LabImportUsageKindPrintSnapshot | typeof LabImportUsageKindManualMutation;
+/**
+ * LabImportUsageReceipt は import 由来 exam の clinical use / manual mutation を記録する append-only 台帳。
+ * audit_logs には相乗りしない（sink 分離）。
+ */
+export interface LabImportUsageReceipt {
+  id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  job_id: string;
+  exam_id: number /* uint64 */;
+  use_kind: LabImportUsageKind;
+  actor_id?: number /* uint64 */;
+  created_at: string;
+}
+/**
+ * LabImportExamRetraction は compensating revert 時の parent 不変スナップショット。
+ */
+export interface LabImportExamRetraction {
+  id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  job_id: string;
+  exam_id: number /* uint64 */;
+  actor_id?: number /* uint64 */;
+  reason: string;
+  parent_snapshot: string;
+  created_at: string;
+}
+/**
+ * LabImportExamRetractionItem は retraction の item 不変スナップショット。
+ * exam_results 本体は hard delete しない。
+ */
+export interface LabImportExamRetractionItem {
+  id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  retraction_id: number /* uint64 */;
+  job_id: string;
+  exam_id: number /* uint64 */;
+  item_snapshot: string;
+  sort_order: number /* int */;
+  created_at: string;
+}
+/**
+ * LabImportRevertReceipt は POST /lab-imports/:id/revert の冪等レシート。
+ */
+export interface LabImportRevertReceipt {
+  id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  job_id: string;
+  idempotency_key: string;
+  request_hash: string;
+  reason: string;
+  actor_id?: number /* uint64 */;
+  result_status: string;
+  retracted_exam_ids: string;
+  created_at: string;
+}
+/**
+ * LabImportRevertResponse は revert エンドポイントのレスポンス。
+ */
+export interface LabImportRevertResponse {
+  job_id: string;
+  status: string;
+  retracted_exam_ids: number /* uint64 */[];
+  idempotent_replay: boolean;
 }
 
 //////////

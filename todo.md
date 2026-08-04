@@ -32,7 +32,7 @@
 | ISSUE-259-DOC-CONTRACT | Lステップ disabled 時の旧 noop 文書 | **TASK-029**（DONE・`9fc5b9ffb` push 済。残は先方 enable + USER runtime 実測） |
 | ISSUE-261-TRIMMING-DECEASED | trimming 死亡ペット拒否の経路別回帰 | **TASK-030**（DONE `6e5a945ef`・runtime は USER） |
 | ISSUE-249-PRINT-SNAPSHOT | 検査結果の保存 snapshot 印刷 | **TASK-031**（READY_AGENT・TASK-027 の interface freeze 完了により着手可能） |
-| ISSUE-249-IMPORT-REVERT | lab import job の compensating revert | **TASK-032**（READY_AGENT・migration review 必須） |
+| ISSUE-249-IMPORT-REVERT | lab import job の compensating revert | **TASK-032**（DONE code・migration 未適用・claim 解放 USER） |
 | ISSUE-201-EMERGENCY-ADMIN | 構造化救急投薬記録と欠落時 fail-closed cutover | **TASK-033**（臨床承認・migration review 後） |
 | ISSUE-211-CLINIC-PACKAGE-IMPORT | 健診 package の clinic-scoped import/preflight | **TASK-374**（READY_AGENT・additive migration review 必須・実値/apply は USER） |
 | ISSUE-257-GOLIVE-REPLAN | 期限切れ go-live runbook の gate-driven 再計画 | **TASK-375**（READY_AGENT・docs-only） |
@@ -709,8 +709,8 @@ validator_exit=0
 
 - **対応 Issue**: GitHub Issue #249 F-3c(a)。
 - **問題**: persisted import job を取消す endpoint/状態がなく、手動 examination の確定解除と混ぜると status・permission・audit・rollback の意味が不定になる。
-- **状態**: **READY_AGENT / migration review required**。設計は DEC-57。2026-08-04 bounded plan revision で FK-supporting index を全 FK に明記し、独立 `database-reviewer`（CRITICAL=0 HIGH=0）と `clinic-isolation-auditor`（CRITICAL=0 HIGH=0）が PASS。実装は別 unit。**実装着手前に USER による `claim/TASK-032` 解放が必要**。
-- **claim**: `claim/TASK-032` — **live**（2026-08-04 plan-revision セッション取得。claim 解放は USER 専権。実装セッションは解放後に再取得すること）。
+- **状態**: **DONE (agent 2026-08-04)** — code + tests + OpenAPI/codegen + composition + 2 migrations land。**migration 未適用**（USER が `make migrate`）。**claim 未解放**（USER が `git branch -D claim/TASK-032`）。Issue close / push は USER 専権。
+- **claim**: `claim/TASK-032` — **live**（実装セッションが再取得・保持。解放は USER 専権。main 統合後に USER が削除）。
 
 #### 実装プラン（2026-08-04・FK-supporting index revision / adversarial revision 2 継承）
 - **Ready**: **READY_AGENT / migration review required**。FK/index 欠陥補正 + independent DB review CRITICAL/HIGH ゼロ確認済み（2026-08-04）。MEDIUM は preflight 対象の events 明示・新 table FK 列 NOT NULL・clinic_id NOT NULL の implementer 記述を同 revision で吸収済み。external format/crosswalk と auto-commit enable は対象外。
@@ -762,6 +762,30 @@ validator_exit=0
 - **Non-actions / HOLD**: confirmed examination の自動解除、child result hard delete、external format/crosswalk、auto-commit enable、seed edit、migration apply、Issue close、claim 削除を行わない。
 - **Exit criteria for close**: caller census と番号が再計測済みで、manual unconfirm と別 endpoint/status/permission、confirmed/finalized/manual/downstream/unknown conflict 409、clinical response 前 usage receipt、retraction snapshot、status-independent idempotent retry、DBOrTx/lock/RLS/FK/RowsAffected/audit atomicity、clinic isolation、migration/API regression が green。
 - **Plan revision log (2026-08-04)**: FK-supporting index 欠陥を補正。active-only `(clinic_id,job_id,id) WHERE deleted_at IS NULL` を RI 用と誤認しないよう、FK-X1 に soft-deleted 行を含む `(clinic_id,job_id) WHERE job_id IS NOT NULL` を必須化。FK-R2/U2 に FK 列順一致 index、FK-RI1 に複合 FK 全列 index を追加。independent review: database-reviewer CRITICAL=0 HIGH=0 MEDIUM=2（events preflight / 新 table FK NOT NULL）→ 同 revision で吸収; clinic-isolation-auditor CRITICAL=0 HIGH=0 MEDIUM=2（clinic_id NOT NULL 明示 / FORCE RLS  defer は project posture として許容）→ clinic_id NOT NULL を parents/keys に明記。他設計（transaction/idempotency/RLS/receipt）は adversarial revision 2 を継承。状態を READY_AGENT / migration review required へ更新。
+
+#### 実施記録（2026-08-04 implementation unit）
+- **Delivered**:
+  - migrations: `007_lab_import_job_status_reverted.sql`（enum ADD VALUE only）、`008_lab_import_revert_compensation.sql`（複合 FK/index/receipts/retractions/RLS/preflight）
+  - endpoint: `POST /api/v1/lab-imports/:job_id/revert`（`lab-import:edit` + reason + Idempotency-Key）
+  - state machine: `persisted → reverted` terminal compensation（TransitionStatus からは到達不可）
+  - usage receipts before clinical payload（detail/items/lab report/print snapshot）+ manual mutation in mutation tx
+  - atomic terminal: production composition で status transition + `usage_tracking_started` を同一 `WithTx`
+  - OpenAPI `api.yaml` + codegen `frontend/src/types/generated/models.ts` + route smoke 504
+- **Scoped gates**（agent 実行）:
+  - `go test -p 1 ./internal/medicalrecord -run 'Test.*LabImport.*(Revert|Transition|...)'` → PASS
+  - `go test -p 1 ./cmd/api` → PASS（route count 504）
+  - `TestDBOrTxInventory_MatchesAllowlist` → PASS
+  - `make codegen-check`（models staged）→ PASS
+  - full `./internal/lintscan` は pre-existing ERD marker 115/116 drift と seed CSV drift（checkup_types/exams）で FAIL — TASK-032 起因ではない
+- **Independent reviews**（round ≤2）:
+  - database / clinic-isolation / healthcare / security: PASS（CRIT=0 HIGH=0）— plan/implementation session
+  - go-reviewer round1: FAIL HIGH=1（marker/tx + clinical TOCTOU）→ fix
+  - go-reviewer recheck: **PASS CRIT=0 HIGH=0**（atomic terminal + LogRevertSucceeded + usage lock order）
+- **USER handoff**:
+  1. `make migrate`（007→008 の順で適用）
+  2. main 統合後 `git branch -D claim/TASK-032`
+  3. push / Issue close は USER 判断
+- **Non-actions honored**: migration apply なし、seed 編集なし、unconfirm 経路変更なし、child result hard delete なし、TASK-033 未着手
 
 ### TASK-033: #201 active/draft 構造化救急投薬記録 + 欠落時 fail-closed cutover（Critical / Clinical safety）
 

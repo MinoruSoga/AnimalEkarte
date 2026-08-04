@@ -6,6 +6,8 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
 )
@@ -39,19 +41,43 @@ type LabResultImportService interface {
 }
 
 type labResultImportService struct {
-	jobSvc  LabImportJobService
-	examSvc LabImportExaminationService
+	jobSvc    LabImportJobService
+	examSvc   LabImportExaminationService
+	eventRepo LabImportEventRepository // optional: records usage_tracking_started on persisted (TASK-032)
+	tx        Transactor               // optional: when set, terminal status + usage marker share one tx
 }
 
 // NewLabResultImportService は LabResultImportService を初期化して返す。
+// eventRepo may be nil; when set, a successful persisted terminal transition also writes
+// usage_tracking_started so compensating revert can measure downstream use.
+// When tx is non-nil, terminal TransitionStatus and usage_tracking_started run in one WithTx
+// so a marker failure cannot leave a committed persisted job without the marker (TASK-032).
 func NewLabResultImportService(
 	jobSvc LabImportJobService,
 	examSvc LabImportExaminationService,
+	eventRepo ...LabImportEventRepository,
 ) LabResultImportService {
-	return &labResultImportService{
-		jobSvc:  jobSvc,
-		examSvc: examSvc,
+	var events LabImportEventRepository
+	if len(eventRepo) > 0 {
+		events = eventRepo[0]
 	}
+	return &labResultImportService{jobSvc: jobSvc, examSvc: examSvc, eventRepo: events}
+}
+
+// WithTransactor attaches a Transactor for atomic terminal status + usage marker writes.
+func (s *labResultImportService) WithTransactor(tx Transactor) *labResultImportService {
+	s.tx = tx
+	return s
+}
+
+// NewLabResultImportServiceWithTx is the composition-root constructor that binds eventRepo and Transactor.
+func NewLabResultImportServiceWithTx(
+	jobSvc LabImportJobService,
+	examSvc LabImportExaminationService,
+	eventRepo LabImportEventRepository,
+	tx Transactor,
+) LabResultImportService {
+	return &labResultImportService{jobSvc: jobSvc, examSvc: examSvc, eventRepo: eventRepo, tx: tx}
 }
 
 func (s *labResultImportService) Preview(ctx context.Context, clinicID uint64, batch model.LabInboundBatch) (*model.LabImportPreviewResponse, error) {
@@ -179,13 +205,10 @@ func (s *labResultImportService) Commit(ctx context.Context, clinicID uint64, ba
 		return nil, apperrors.Wrap(err, "lab import batch interrupted")
 	}
 
-	// 結果集計
+	// 結果集計 + 終端遷移。persisted 時は usage_tracking_started を同一 transaction で書く（TASK-032）。
 	termStatus, finalCounts := summarizeLabBatchResults(len(inputs), batchResults)
-	if _, err := s.jobSvc.TransitionStatus(ctx, clinicID, jobID, termStatus, finalCounts); err != nil {
-		slog.ErrorContext(ctx, "lab result import: failed to transition to terminal status",
-			"error", err, "job_id", jobID, "status", termStatus)
-		// 永続化は完了しているため、エラーはログのみで返さない。
-		// 呼び出し元は jobID から状態を確認できる。
+	if err := s.transitionTerminalWithUsageMarker(ctx, clinicID, jobID, termStatus, finalCounts); err != nil {
+		return nil, err
 	}
 
 	slog.InfoContext(ctx, "lab result import commit complete",
@@ -202,4 +225,51 @@ func (s *labResultImportService) Commit(ctx context.Context, clinicID uint64, ba
 		NeedsReviewCount: 0,
 		FailedCount:      finalCounts.FailedCount,
 	}, nil
+}
+
+// transitionTerminalWithUsageMarker writes the terminal status transition and, when
+// status is persisted, the usage_tracking_started marker. Both writes share one
+// ambient transaction when s.tx is configured so a marker failure cannot leave a
+// committed persisted job without the marker (and cannot reverse a committed success).
+func (s *labResultImportService) transitionTerminalWithUsageMarker(
+	ctx context.Context,
+	clinicID uint64,
+	jobID uuid.UUID,
+	termStatus model.LabImportJobStatus,
+	finalCounts TransitionCounts,
+) error {
+	run := func(txCtx context.Context) error {
+		if _, err := s.jobSvc.TransitionStatus(txCtx, clinicID, jobID, termStatus, finalCounts); err != nil {
+			slog.ErrorContext(txCtx, "lab result import: failed to transition to terminal status",
+				"error", err, "job_id", jobID, "status", termStatus)
+			return apperrors.Wrap(err, "failed to transition job to terminal status")
+		}
+		if termStatus != model.LabImportJobStatusPersisted {
+			return nil
+		}
+		// Production composition always wires eventRepo. Nil is only for pure unit stubs;
+		// without a marker the job is usage_unknown and revert is refused (safe default).
+		if s.eventRepo == nil {
+			slog.WarnContext(txCtx, "lab result import: event repository nil; skipping usage_tracking_started",
+				"job_id", jobID)
+			return nil
+		}
+		if err := s.eventRepo.Create(txCtx, &model.LabImportEvent{
+			ClinicID:  clinicID,
+			JobID:     jobID,
+			EventType: model.LabImportEventTypeUsageTrackingStarted,
+			RowCount:  finalCounts.PersistedCount,
+		}); err != nil {
+			slog.ErrorContext(txCtx, "lab result import: failed to record usage_tracking_started",
+				"error", err, "job_id", jobID)
+			return apperrors.Wrap(err, "failed to record usage_tracking_started")
+		}
+		return nil
+	}
+
+	if s.tx == nil {
+		// Test / legacy path without Transactor: still sequential fail-closed, but not atomic.
+		return run(ctx)
+	}
+	return s.tx.WithTx(ctx, run)
 }

@@ -128,6 +128,8 @@ type medicalRecordLabServices struct {
 	jobs         medicalrecord.LabImportJobService
 	audit        medicalrecord.LabAuditLogger
 	reports      medicalrecord.LabReportQueryService
+	revert       medicalrecord.LabImportRevertService
+	usageTracker medicalrecord.LabImportUsageTracker
 }
 
 func newMedicalRecordLabServices(
@@ -135,8 +137,15 @@ func newMedicalRecordLabServices(
 	d medicalRecordCompositionDependencies,
 ) medicalRecordLabServices {
 	jobs := medicalrecord.NewLabImportJobService(r.labImportJobs, r.labImportEvents)
+	usageTracker := medicalrecord.NewLabImportUsageTracker(
+		d.DB,
+		d.Transactor,
+		r.labImportJobs,
+		r.labImportUsageReceipts,
+	)
+	audit := medicalrecord.NewLabAuditLogger(medicalRecordAuditBridge{logger: d.Audit})
 	return medicalRecordLabServices{
-		resultImport: medicalrecord.NewLabResultImportService(
+		resultImport: medicalrecord.NewLabResultImportServiceWithTx(
 			jobs,
 			medicalrecord.NewLabImportExaminationService(
 				r.examinations,
@@ -146,10 +155,24 @@ func newMedicalRecordLabServices(
 				r.medicalRecords,
 				d.Transactor,
 			),
+			r.labImportEvents,
+			d.Transactor,
 		),
-		jobs:    jobs,
-		audit:   medicalrecord.NewLabAuditLogger(medicalRecordAuditBridge{logger: d.Audit}),
-		reports: medicalrecord.NewLabReportQueryService(r.examinations),
+		jobs:         jobs,
+		audit:        audit,
+		reports:      medicalrecord.NewLabReportQueryService(r.examinations, usageTracker),
+		usageTracker: usageTracker,
+		revert: medicalrecord.NewLabImportRevertService(
+			d.DB,
+			d.Transactor,
+			r.labImportJobs,
+			r.labImportEvents,
+			r.examinations,
+			r.labImportUsageReceipts,
+			r.labImportRevertReceipts,
+			r.labImportRetractions,
+			audit,
+		),
 	}
 }
 

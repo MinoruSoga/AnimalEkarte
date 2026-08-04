@@ -604,8 +604,9 @@ func TestLabResultImportService_Commit_TransitionToMappedError(t *testing.T) {
 }
 
 // TestLabResultImportService_Commit_TerminalTransitionError verifies that a failure on the
-// final terminal transition (persisted/duplicate/failed) is logged only — persistence already
-// happened, so Commit still returns the response successfully (best-effort per production comment).
+// final terminal transition is returned as an error (TASK-032: do not report a successful
+// persisted import when the job remains non-terminal; compensation gate depends on status).
+// Exams may already be written; callers must treat the commit as failed and inspect job status.
 func TestLabResultImportService_Commit_TerminalTransitionError(t *testing.T) {
 	jobSvc := newStubLabJobService()
 	jobSvc.transErr = errors.New("db error on terminal transition")
@@ -617,14 +618,14 @@ func TestLabResultImportService_Commit_TerminalTransitionError(t *testing.T) {
 	inputs := []LabExamPersistInput{{ClinicID: 1, ExamTypeID: 1, Date: time.Now()}}
 
 	resp, err := svc.Commit(context.Background(), 1, batch, inputs)
-	if err != nil {
-		t.Fatalf("Commit must not fail when only the terminal transition errors: %v", err)
+	if err == nil {
+		t.Fatal("expected Commit to fail when terminal transition errors")
 	}
-	if resp.PersistedCount != 1 {
-		t.Errorf("expected persisted_count=1, got %d", resp.PersistedCount)
+	if resp != nil {
+		t.Fatalf("expected nil response on terminal transition failure, got %+v", resp)
 	}
 	if examSvc.callCount != 1 {
-		t.Errorf("expected PersistExam called once, got %d", examSvc.callCount)
+		t.Errorf("expected PersistExam called once before terminal failure, got %d", examSvc.callCount)
 	}
 }
 

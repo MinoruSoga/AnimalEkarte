@@ -180,7 +180,11 @@ func (s *examinationService) Unconfirm(
 			model.ExaminationStatusCompleted,
 			nextVersion,
 		)
-		return err
+		if err != nil {
+			return err
+		}
+		// TASK-032: unconfirm is a manual mutation of an import-linked exam when job_id is set.
+		return s.usage().RecordManualMutation(txCtx, clinicID, unconfirmed, input.ActorID)
 	}); err != nil {
 		return nil, err
 	}

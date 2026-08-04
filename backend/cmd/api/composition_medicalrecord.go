@@ -19,6 +19,7 @@ import (
 )
 
 type medicalRecordCompositionDependencies struct {
+	DB               *gorm.DB
 	Transactor       medicalrecord.Transactor
 	Audit            audit.Kernel
 	TagSync          lstep.LstepTagSyncService
@@ -53,15 +54,19 @@ func newMedicalRecordComposition(
 	dependencies medicalRecordCompositionDependencies,
 ) medicalRecordComposition {
 	auditTx := medicalRecordAuditTxBridge{logger: dependencies.Audit}
+	lab := newMedicalRecordLabServices(repositories, dependencies)
+	core := newMedicalRecordCoreServices(repositories, dependencies, auditTx)
+	// TASK-032: examination clinical reads/mutations share the lab usage receipt sink.
+	core.examinations = medicalrecord.AttachLabImportUsageTracker(core.examinations, lab.usageTracker)
 	services := medicalRecordServices{
 		reference:  newMedicalRecordReferenceServices(repositories, dependencies),
 		masters:    newMedicalRecordMasterServices(repositories, dependencies, auditTx),
 		preventive: newMedicalRecordPreventiveServices(repositories, dependencies, auditTx),
-		lab:        newMedicalRecordLabServices(repositories, dependencies),
+		lab:        lab,
 		clinical:   newMedicalRecordClinicalServices(repositories, dependencies, auditTx),
 		hospital:   newMedicalRecordHospitalServices(repositories, dependencies, auditTx),
 		treatment:  newMedicalRecordTreatmentServices(repositories, dependencies, auditTx),
-		core:       newMedicalRecordCoreServices(repositories, dependencies, auditTx),
+		core:       core,
 	}
 
 	return medicalRecordComposition{
@@ -88,7 +93,7 @@ func (c medicalRecordComposition) newHandler(
 		medicalrecord.NewPrescriptionHandler(s.preventive.prescriptions),
 		medicalrecord.NewInquiryHandler(s.preventive.inquiries),
 		medicalrecord.NewInquiryTemplateHandler(s.reference.inquiryTemplates),
-		medicalrecord.NewLabImportHandler(s.lab.resultImport, s.lab.jobs, s.lab.audit),
+		medicalrecord.NewLabImportHandler(s.lab.resultImport, s.lab.jobs, s.lab.audit, s.lab.revert),
 		medicalrecord.NewLabReportHandler(s.lab.reports),
 		medicalrecord.NewVitalHandler(s.clinical.vitals, s.core.medicalRecords),
 		medicalrecord.NewClinicalPlanHandler(s.clinical.plans),

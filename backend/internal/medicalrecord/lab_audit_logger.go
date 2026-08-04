@@ -42,6 +42,9 @@ type LabAuditLogger interface {
 	// LogSourceBlocked は drwan / manual 等のブロック対象ソースへの操作を記録する。
 	// reason には model.LabBlockedReason の定数を使用すること。free-form string は受け付けない。
 	LogSourceBlocked(ctx context.Context, clinicID uint64, actorID *uint64, sourceType, operation string, reason model.LabBlockedReason)
+	// LogRevertSucceeded は compensating revert（persisted → reverted）の成功を記録する。
+	// commit 成功監査と混同しない（TASK-032 / DEC-57）。
+	LogRevertSucceeded(ctx context.Context, clinicID uint64, actorID *uint64, jobID uuid.UUID, retractedExamCount int)
 }
 
 // CommitAuditCounts は commit 成功時の集計カウンタ。PII を含まない。
@@ -108,6 +111,13 @@ func (l *labAuditLogger) LogSourceBlocked(ctx context.Context, clinicID uint64, 
 		"source_type": sourceType,
 		"operation":   operation,
 		"reason":      string(reason),
+	})
+}
+
+func (l *labAuditLogger) LogRevertSucceeded(ctx context.Context, clinicID uint64, actorID *uint64, jobID uuid.UUID, retractedExamCount int) {
+	l.logBestEffort(ctx, clinicID, actorID, model.AuditActionLabImportRevertSucceeded, map[string]any{
+		"job_id":               jobID.String(),
+		"retracted_exam_count": retractedExamCount,
 	})
 }
 

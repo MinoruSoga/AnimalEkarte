@@ -199,6 +199,7 @@ func newRuntimeDomainCompositions(
 		lstepApplication,
 	)
 	medicalRecordComposition := newRuntimeMedicalRecordComposition(
+		dependencies.DB,
 		repositories,
 		transactor,
 		auditKernel,
@@ -270,6 +271,7 @@ func newRuntimeOwnerPetComposition(
 }
 
 func newRuntimeMedicalRecordComposition(
+	db *gorm.DB,
 	repositories runtimeRepositories,
 	transactor persistence.Transactor,
 	auditKernel audit.Kernel,
@@ -278,6 +280,7 @@ func newRuntimeMedicalRecordComposition(
 	return newMedicalRecordComposition(
 		repositories.medicalRecord,
 		medicalRecordCompositionDependencies{
+			DB:               db,
 			Transactor:       transactor,
 			Audit:            auditKernel,
 			TagSync:          lstepApplication.TagSync,

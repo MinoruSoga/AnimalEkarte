@@ -1077,6 +1077,8 @@ func (s *stubLabAuditLoggerForHandler) LogCommitSucceeded(_ context.Context, cli
 func (s *stubLabAuditLoggerForHandler) LogCommitFailed(_ context.Context, clinicID uint64, actorID *uint64, errorCategory model.LabAuditErrorCategory) {
 	s.commitFailed = append(s.commitFailed, commitFailedCall{clinicID, actorID, errorCategory})
 }
+func (s *stubLabAuditLoggerForHandler) LogRevertSucceeded(_ context.Context, clinicID uint64, actorID *uint64, jobID uuid.UUID, retractedExamCount int) {
+}
 func (s *stubLabAuditLoggerForHandler) LogSourceBlocked(_ context.Context, clinicID uint64, actorID *uint64, sourceType, operation string, reason model.LabBlockedReason) {
 	s.sourceBlocked = append(s.sourceBlocked, sourceBlockedCall{clinicID, actorID, sourceType, operation, reason})
 }

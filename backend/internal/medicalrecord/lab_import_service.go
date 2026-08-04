@@ -22,10 +22,13 @@ var labImportTransitions = map[model.LabImportJobStatus][]model.LabImportJobStat
 	model.LabImportJobStatusReceived:    {model.LabImportJobStatusValidated, model.LabImportJobStatusFailed},
 	model.LabImportJobStatusValidated:   {model.LabImportJobStatusMapped, model.LabImportJobStatusNeedsReview, model.LabImportJobStatusFailed},
 	model.LabImportJobStatusMapped:      {model.LabImportJobStatusPersisted, model.LabImportJobStatusDuplicate, model.LabImportJobStatusNeedsReview, model.LabImportJobStatusFailed},
-	model.LabImportJobStatusPersisted:   {},
+	// TASK-032: persisted → reverted is the sole compensating terminal transition.
+	// It is owned by RevertLabImport, not TransitionStatus (different permission/endpoint).
+	model.LabImportJobStatusPersisted:   {model.LabImportJobStatusReverted},
 	model.LabImportJobStatusDuplicate:   {},
 	model.LabImportJobStatusNeedsReview: {model.LabImportJobStatusValidated, model.LabImportJobStatusFailed},
 	model.LabImportJobStatusFailed:      {model.LabImportJobStatusReceived},
+	model.LabImportJobStatusReverted:    {},
 }
 
 // CanTransitionTo は from → to の遷移が許可されているかを返す。
@@ -125,6 +128,12 @@ func (s *labImportJobService) TransitionStatus(
 		return nil, apperrors.Wrap(err, "failed to find lab import job")
 	}
 	from := job.Status
+	// TASK-032: compensating revert is a dedicated endpoint/state machine, not TransitionStatus.
+	if to == model.LabImportJobStatusReverted {
+		return nil, apperrors.WrapInvalidInput(
+			"persisted → reverted must use POST /lab-imports/:id/revert, not TransitionStatus",
+		)
+	}
 	if !CanTransitionTo(from, to) {
 		return nil, apperrors.WrapInvalidInput(
 			fmt.Sprintf("invalid lab import job transition: %s → %s", from, to),
@@ -154,7 +163,7 @@ func (s *labImportJobService) TransitionStatus(
 	job.ErrorMessage = counts.ErrorMessage
 
 	switch to {
-	case model.LabImportJobStatusPersisted, model.LabImportJobStatusDuplicate, model.LabImportJobStatusFailed:
+	case model.LabImportJobStatusPersisted, model.LabImportJobStatusDuplicate, model.LabImportJobStatusFailed, model.LabImportJobStatusReverted:
 		now := time.Now()
 		job.FinishedAt = &now
 	case model.LabImportJobStatusReceived:

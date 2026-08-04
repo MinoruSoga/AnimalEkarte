@@ -7,25 +7,36 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-// LabImportHandler serves the lab-import saga HTTP boundary (preview / commit / job / events).
-// It holds only the services these four endpoints use (Go/Gin guideline: consumer declares its
-// minimal dependencies). audit is nil-safe: a nil LabAuditLogger disables the best-effort audit
-// trail without changing the import flow (preserving the pre-move h.labAudit() nil-guard).
+// LabImportHandler serves the lab-import saga HTTP boundary (preview / commit / job / events / revert).
+// audit is nil-safe: a nil LabAuditLogger disables the best-effort audit trail without changing
+// the import flow. revert may be nil only in legacy tests that do not exercise compensating revert.
 type LabImportHandler struct {
 	resultImport LabResultImportService
 	job          LabImportJobService
 	audit        LabAuditLogger
+	revert       LabImportRevertService
 }
 
 // NewLabImportHandler initializes a LabImportHandler. audit may be nil (audit trail disabled).
-func NewLabImportHandler(resultImport LabResultImportService, job LabImportJobService, audit LabAuditLogger) *LabImportHandler {
-	return &LabImportHandler{resultImport: resultImport, job: job, audit: audit}
+// Optional revert service is accepted as a trailing argument for TASK-032 composition.
+func NewLabImportHandler(
+	resultImport LabResultImportService,
+	job LabImportJobService,
+	audit LabAuditLogger,
+	revert ...LabImportRevertService,
+) *LabImportHandler {
+	var rev LabImportRevertService
+	if len(revert) > 0 {
+		rev = revert[0]
+	}
+	return &LabImportHandler{resultImport: resultImport, job: job, audit: audit, revert: rev}
 }
 
 // PreviewLabImport godoc
@@ -175,6 +186,56 @@ func (h *LabImportHandler) ListLabImportEvents(c *gin.Context) {
 		resp[i] = toLabImportEventResponse(e)
 	}
 	c.JSON(http.StatusOK, resp)
+}
+
+// RevertLabImport godoc
+// POST /api/v1/lab-imports/:job_id/revert — compensating terminal transition persisted → reverted.
+// Distinct from examination unconfirm (DEC-57 / TASK-032). Requires lab-import:edit, reason, and
+// Idempotency-Key header (UUID).
+func (h *LabImportHandler) RevertLabImport(c *gin.Context) {
+	if h.revert == nil {
+		httpapi.RespondError(c, apperrors.WrapInternalServerError("lab import revert service is not configured"))
+		return
+	}
+	clinicID, ok := httpapi.ExtractClinicID(c)
+	if !ok {
+		return
+	}
+	jobID, ok := httpapi.ParseUUIDParam(c, "job_id")
+	if !ok {
+		return
+	}
+	actorID, ok := httpapi.ExtractStaffID(c)
+	if !ok {
+		return
+	}
+
+	var req labImportRevertRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		httpapi.RespondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
+		return
+	}
+
+	idempotencyKeyRaw := c.GetHeader("Idempotency-Key")
+	idempotencyKey, err := uuid.Parse(idempotencyKeyRaw)
+	if err != nil || idempotencyKey == uuid.Nil {
+		httpapi.RespondError(c, apperrors.WrapInvalidInput("Idempotency-Key must be a UUID"))
+		return
+	}
+
+	actor := actorID
+	result, err := h.revert.Revert(c.Request.Context(), RevertLabImportInput{
+		ClinicID:       clinicID,
+		JobID:          jobID,
+		ActorID:        &actor,
+		Reason:         req.Reason,
+		IdempotencyKey: idempotencyKey,
+	})
+	if err != nil {
+		httpapi.RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, toLabImportRevertResponse(result))
 }
 
 // labAudit は nil-safe な LabAuditLogger アクセサ。

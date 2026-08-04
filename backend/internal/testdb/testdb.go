@@ -327,7 +327,7 @@ var SharedTestSchemaEnumTypes = []EnumType{
 	{"shift_type", "CREATE TYPE shift_type AS ENUM ('full', 'morning', 'afternoon', 'off', 'paid_leave')"},
 	{"tax_type", "CREATE TYPE tax_type AS ENUM ('included', 'excluded', 'exempt')"},
 	// lab_import（検査結果取込ジョブ）関連
-	{"lab_import_job_status", "CREATE TYPE lab_import_job_status AS ENUM ('received', 'validated', 'mapped', 'persisted', 'duplicate', 'needs_review', 'failed')"},
+	{"lab_import_job_status", "CREATE TYPE lab_import_job_status AS ENUM ('received', 'validated', 'mapped', 'persisted', 'duplicate', 'needs_review', 'failed', 'reverted')"},
 	{"lab_import_source_type", "CREATE TYPE lab_import_source_type AS ENUM ('fixture', 'drwan', 'manual')"},
 	// #211 健診パッケージ（migration 010 → 001_init.sql 統合済み）
 	{"checkup_field_type", "CREATE TYPE checkup_field_type AS ENUM ('number', 'single_select', 'multi_select', 'boolean', 'checklist', 'text')"},

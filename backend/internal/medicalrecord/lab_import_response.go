@@ -61,6 +61,14 @@ type labImportCommitResponse struct {
 	FailedCount      int    `json:"failed_count"`
 }
 
+// labImportRevertResponse は compensating revert のハンドラー境界 DTO（TASK-032）。
+type labImportRevertResponse struct {
+	JobID            string   `json:"job_id"`
+	Status           string   `json:"status"`
+	RetractedExamIDs []string `json:"retracted_exam_ids"`
+	IdempotentReplay bool     `json:"idempotent_replay"`
+}
+
 // ------------------------------------
 // Conversion functions (P18)
 // ------------------------------------
@@ -140,4 +148,17 @@ func toLabImportEventResponse(e *model.LabImportEvent) labImportEventResponse {
 		r.ToStatus = &s
 	}
 	return r
+}
+
+func toLabImportRevertResponse(r *model.LabImportRevertResponse) labImportRevertResponse {
+	ids := make([]string, len(r.RetractedExamIDs))
+	for i, id := range r.RetractedExamIDs {
+		ids[i] = strconv.FormatUint(id, 10)
+	}
+	return labImportRevertResponse{
+		JobID:            r.JobID.String(),
+		Status:           r.Status,
+		RetractedExamIDs: ids,
+		IdempotentReplay: r.IdempotentReplay,
+	}
 }

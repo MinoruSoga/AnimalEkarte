@@ -389,6 +389,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	labImports.POST("", perm(model.ResourceLabImport, "create"), h.labImport.CommitLabImport)
 	labImports.GET("/:job_id", perm(model.ResourceLabImport, "view"), h.labImport.GetLabImportJob)
 	labImports.GET("/:job_id/events", perm(model.ResourceLabImport, "view"), h.labImport.ListLabImportEvents)
+	// TASK-032: compensating revert is a dedicated endpoint under lab-import:edit (not examination unconfirm).
+	labImports.POST("/:job_id/revert", perm(model.ResourceLabImport, "edit"), h.labImport.RevertLabImport)
 
 	// Lab report read-only queries (BE9-2D sub-batch③: moved from lab_report_handler.go
 	// RegisterLabReportRoutes). Both reads guard ResourceLabImport "view" — NOT a separate

@@ -33,7 +33,7 @@ type Examination struct {
 	ExamTypeID      uint64  `gorm:"not null"                                       json:"exam_type_id"`
 	DoctorID        *uint64 `                                                      json:"doctor_id,omitempty"`
 	// JobID は lab_import_jobs.id への nullable FK。手動作成の exam は NULL。
-	// ON DELETE SET NULL のため job 削除時も exam は保持される（Phase 4B.2）。
+	// TASK-032: composite (clinic_id, job_id) ON DELETE RESTRICT（SET NULL から置換）。
 	JobID         *uuid.UUID        `gorm:"type:uuid"                                      json:"job_id,omitempty"`
 	Date          time.Time         `gorm:"type:date;not null"                             json:"date"`
 	ResultSummary string            `gorm:"default:''"                                     json:"result_summary"`

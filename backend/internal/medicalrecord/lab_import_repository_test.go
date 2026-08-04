@@ -54,7 +54,7 @@ func setupLabImportTestDB(t *testing.T) *gorm.DB {
 	// 42704 type does not exist で失敗する）。
 	for _, stmt := range []string{
 		`DO $$ BEGIN
-			CREATE TYPE lab_import_job_status AS ENUM ('received','validated','mapped','persisted','duplicate','needs_review','failed');
+			CREATE TYPE lab_import_job_status AS ENUM ('received','validated','mapped','persisted','duplicate','needs_review','failed','reverted');
 		EXCEPTION WHEN duplicate_object THEN NULL; END $$;`,
 		`DO $$ BEGIN
 			CREATE TYPE lab_import_source_type AS ENUM ('fixture','drwan','manual');

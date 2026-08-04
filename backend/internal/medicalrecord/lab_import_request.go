@@ -20,6 +20,12 @@ type labImportPreviewRequest struct {
 	ResultRows        []labImportResultRowReq `json:"result_rows"`
 }
 
+// labImportRevertRequest は compensating revert のボディ（TASK-032）。
+// reason 必須。Idempotency-Key はヘッダで受け取る。
+type labImportRevertRequest struct {
+	Reason string `json:"reason" binding:"required"`
+}
+
 // labImportCommitRequest は commit エンドポイントのリクエストボディ。
 // Inputs は呼び出し元がバッチ行から解決した LabExamPersistInput スライス。
 // clinic_id はリクエストボディで受け取らず JWT コンテキストから注入する（改ざん防止）。

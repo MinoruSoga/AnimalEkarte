@@ -88,6 +88,8 @@ const (
 	AuditActionLabImportCommitSucceeded  = "lab_import.commit.succeeded"
 	AuditActionLabImportCommitFailed     = "lab_import.commit.failed"
 	AuditActionLabImportSourceBlocked    = "lab_import.source.blocked"
+	// AuditActionLabImportRevertSucceeded records compensating revert (TASK-032). Distinct from commit.
+	AuditActionLabImportRevertSucceeded = "lab_import.revert.succeeded"
 
 	// #211 健診結果値の置換（既存削除を伴う PUT）監査アクション
 	AuditActionCheckupFieldResultReplace = "checkup_field_result.replace"

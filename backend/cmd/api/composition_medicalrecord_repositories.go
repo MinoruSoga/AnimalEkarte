@@ -31,6 +31,9 @@ type medicalRecordRepositories struct {
 	labDuplicateChecker    medicalrecord.LabImportDuplicateChecker
 	labImportEvents        medicalrecord.LabImportEventRepository
 	labImportJobs          medicalrecord.LabImportJobRepository
+	labImportUsageReceipts medicalrecord.LabImportUsageReceiptRepository
+	labImportRevertReceipts medicalrecord.LabImportRevertReceiptRepository
+	labImportRetractions   medicalrecord.LabImportRetractionRepository
 	medicalRecordAddenda   medicalrecord.MedicalRecordAddendumRepository
 	medicalRecordImages    medicalrecord.MedicalRecordImageRepository
 	medicalRecords         medicalrecord.MedicalRecordRepository
@@ -65,10 +68,13 @@ func newMedicalRecordRepositories(db *gorm.DB) medicalRecordRepositories {
 		hospitalizations:       medicalrecord.NewHospitalizationRepository(db),
 		inquiries:              medicalrecord.NewInquiryRepository(db),
 		inquiryTemplates:       medicalrecord.NewInquiryTemplateRepository(db),
-		labDuplicateChecker:    medicalrecord.NewLabImportDuplicateCheckerDB(db),
-		labImportEvents:        medicalrecord.NewLabImportEventRepository(db),
-		labImportJobs:          medicalrecord.NewLabImportJobRepository(db),
-		medicalRecordAddenda:   medicalrecord.NewMedicalRecordAddendumRepository(db),
+		labDuplicateChecker:     medicalrecord.NewLabImportDuplicateCheckerDB(db),
+		labImportEvents:         medicalrecord.NewLabImportEventRepository(db),
+		labImportJobs:           medicalrecord.NewLabImportJobRepository(db),
+		labImportUsageReceipts:  medicalrecord.NewLabImportUsageReceiptRepository(db),
+		labImportRevertReceipts: medicalrecord.NewLabImportRevertReceiptRepository(db),
+		labImportRetractions:    medicalrecord.NewLabImportRetractionRepository(db),
+		medicalRecordAddenda:    medicalrecord.NewMedicalRecordAddendumRepository(db),
 		medicalRecordImages:    medicalrecord.NewMedicalRecordImageRepository(db),
 		medicalRecords:         medicalrecord.NewMedicalRecordRepository(db),
 		medicineDoseParameters: medicalrecord.NewMedicineDoseParamRepository(db),

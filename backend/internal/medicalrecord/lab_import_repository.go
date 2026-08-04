@@ -1,19 +1,17 @@
 package medicalrecord
 
-// lab_import_repository.go — moved from internal/repository (BE9-2D sub-batch③, lab_import/lab_report
-// saga roll-up). lab is a leaf domain, so the flat internal/repository side keeps only a temporary
-// facade (repository/lab_import_repository.go) until the lab service/handler also move; that facade is
-// deleted in Batch B/C. Behavior is unchanged: the package-private clinicScope helper is replaced by the
-// exported persistence.ClinicScope (identical predicate), and r.db is referenced directly (no ambient-tx
-// DBOrTx conversion) exactly as before.
+// lab_import_repository.go — lab import job/event persistence + TASK-032 compensation receipts.
+// All methods use persistence.DBOrTx. Lock / CAS methods reject ambient-tx absence (no base DB fallback).
 
 import (
 	"context"
+	"encoding/json"
 	"sort"
 	"time"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -22,20 +20,48 @@ import (
 
 // LabImportJobRepository は lab_import_jobs の永続化インターフェース。
 type LabImportJobRepository interface {
-	// Create は新規インポートジョブを作成する。
 	Create(ctx context.Context, job *model.LabImportJob) error
-	// Update はジョブ状態を保存する（clinic_id スコープ）。
 	Update(ctx context.Context, job *model.LabImportJob) error
-	// FindByID はクリニックスコープで ID に一致するジョブを返す。
 	FindByID(ctx context.Context, clinicID uint64, id uuid.UUID) (*model.LabImportJob, error)
+	// LockByIDForUpdate locks the job by (clinic_id, id) without filtering on status.
+	// Requires an ambient transaction.
+	LockByIDForUpdate(ctx context.Context, clinicID uint64, id uuid.UUID) (*model.LabImportJob, error)
+	// CompareAndSetStatus updates status only when current status equals from.
+	// Returns RowsAffected. Requires an ambient transaction.
+	CompareAndSetStatus(ctx context.Context, clinicID uint64, id uuid.UUID, from, to model.LabImportJobStatus, finishedAt *time.Time) (int64, error)
 }
 
 // LabImportEventRepository は lab_import_events の永続化インターフェース。
 type LabImportEventRepository interface {
-	// Create は監査イベントを追記する。
 	Create(ctx context.Context, event *model.LabImportEvent) error
-	// FindByJob はジョブ ID に紐づくイベントを時系列昇順で返す。
 	FindByJob(ctx context.Context, clinicID uint64, jobID uuid.UUID) ([]*model.LabImportEvent, error)
+	// HasEventType reports whether the job has at least one event of the given type (clinic-scoped).
+	HasEventType(ctx context.Context, clinicID uint64, jobID uuid.UUID, eventType model.LabImportEventType) (bool, error)
+}
+
+// LabImportUsageReceiptRepository は append-only usage receipts。
+type LabImportUsageReceiptRepository interface {
+	Create(ctx context.Context, receipt *model.LabImportUsageReceipt) error
+	// LockByJobForUpdate locks all usage receipts for a job (clinic-scoped). Requires ambient tx.
+	LockByJobForUpdate(ctx context.Context, clinicID uint64, jobID uuid.UUID) ([]*model.LabImportUsageReceipt, error)
+	// CountByJob returns total receipt count for the job (clinic-scoped).
+	CountByJob(ctx context.Context, clinicID uint64, jobID uuid.UUID) (int64, error)
+	// CountManualMutationByJob returns manual_mutation receipt count for the job.
+	CountManualMutationByJob(ctx context.Context, clinicID uint64, jobID uuid.UUID) (int64, error)
+}
+
+// LabImportRevertReceiptRepository は idempotent revert receipts。
+type LabImportRevertReceiptRepository interface {
+	// FindByIdempotencyKey looks up a receipt by clinic + key (no lock).
+	FindByIdempotencyKey(ctx context.Context, clinicID uint64, key uuid.UUID) (*model.LabImportRevertReceipt, error)
+	// LockByIdempotencyKey locks the receipt row if present. Requires ambient tx.
+	LockByIdempotencyKey(ctx context.Context, clinicID uint64, key uuid.UUID) (*model.LabImportRevertReceipt, error)
+	Create(ctx context.Context, receipt *model.LabImportRevertReceipt) error
+}
+
+// LabImportRetractionRepository は retraction snapshots。
+type LabImportRetractionRepository interface {
+	CreateWithItems(ctx context.Context, retraction *model.LabImportExamRetraction, items []model.LabImportExamRetractionItem) error
 }
 
 // ------------------------------------
@@ -50,19 +76,14 @@ func NewLabImportJobRepository(db *gorm.DB) LabImportJobRepository {
 }
 
 func (r *labImportJobRepository) Create(ctx context.Context, job *model.LabImportJob) error {
-	if err := r.db.WithContext(ctx).Create(job).Error; err != nil {
+	if err := persistence.DBOrTx(ctx, r.db).Create(job).Error; err != nil {
 		return apperrors.FromGORM(err, "lab_import_job", "")
 	}
 	return nil
 }
 
 func (r *labImportJobRepository) Update(ctx context.Context, job *model.LabImportJob) error {
-	// NOTE: GORM's Save() keys UPDATE purely on the primary key when it is already populated
-	// (job.ID is a non-zero UUID here) and silently ignores the chained Scopes(persistence.ClinicScope(...))
-	// condition — the clinic_id predicate would have zero effect and allow cross-tenant
-	// overwrites. Use an explicit Model+Where+Updates(map) so clinic_id actually gates the
-	// UPDATE's WHERE clause (P4: clinicScope on Update, MANDATORY).
-	result := r.db.WithContext(ctx).
+	result := persistence.DBOrTx(ctx, r.db).
 		Model(&model.LabImportJob{}).
 		Where("id = ?", job.ID).
 		Scopes(persistence.ClinicScope(job.ClinicID)).
@@ -91,13 +112,52 @@ func (r *labImportJobRepository) Update(ctx context.Context, job *model.LabImpor
 
 func (r *labImportJobRepository) FindByID(ctx context.Context, clinicID uint64, id uuid.UUID) (*model.LabImportJob, error) {
 	var job model.LabImportJob
-	err := r.db.WithContext(ctx).
+	err := persistence.DBOrTx(ctx, r.db).
 		Where("clinic_id = ? AND id = ?", clinicID, id).
 		First(&job).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "lab_import_job", id.String())
 	}
 	return &job, nil
+}
+
+func (r *labImportJobRepository) LockByIDForUpdate(ctx context.Context, clinicID uint64, id uuid.UUID) (*model.LabImportJob, error) {
+	if persistence.TxFromContext(ctx) == nil {
+		return nil, apperrors.WrapInternalServerError("lab import job lock requires an ambient transaction")
+	}
+	var job model.LabImportJob
+	err := persistence.DBOrTx(ctx, r.db).
+		Clauses(clause.Locking{Strength: "UPDATE"}).
+		Where("clinic_id = ? AND id = ?", clinicID, id).
+		First(&job).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "lab_import_job", id.String())
+	}
+	return &job, nil
+}
+
+func (r *labImportJobRepository) CompareAndSetStatus(
+	ctx context.Context,
+	clinicID uint64,
+	id uuid.UUID,
+	from, to model.LabImportJobStatus,
+	finishedAt *time.Time,
+) (int64, error) {
+	if persistence.TxFromContext(ctx) == nil {
+		return 0, apperrors.WrapInternalServerError("lab import job CAS requires an ambient transaction")
+	}
+	updates := map[string]any{"status": to}
+	if finishedAt != nil {
+		updates["finished_at"] = finishedAt
+	}
+	result := persistence.DBOrTx(ctx, r.db).
+		Model(&model.LabImportJob{}).
+		Where("clinic_id = ? AND id = ? AND status = ?", clinicID, id, from).
+		Updates(updates)
+	if result.Error != nil {
+		return 0, apperrors.FromGORM(result.Error, "lab_import_job", id.String())
+	}
+	return result.RowsAffected, nil
 }
 
 // ------------------------------------
@@ -112,7 +172,7 @@ func NewLabImportEventRepository(db *gorm.DB) LabImportEventRepository {
 }
 
 func (r *labImportEventRepository) Create(ctx context.Context, event *model.LabImportEvent) error {
-	if err := r.db.WithContext(ctx).Create(event).Error; err != nil {
+	if err := persistence.DBOrTx(ctx, r.db).Create(event).Error; err != nil {
 		return apperrors.FromGORM(err, "lab_import_event", "")
 	}
 	return nil
@@ -120,7 +180,7 @@ func (r *labImportEventRepository) Create(ctx context.Context, event *model.LabI
 
 func (r *labImportEventRepository) FindByJob(ctx context.Context, clinicID uint64, jobID uuid.UUID) ([]*model.LabImportEvent, error) {
 	var events []*model.LabImportEvent
-	err := r.db.WithContext(ctx).
+	err := persistence.DBOrTx(ctx, r.db).
 		Where("clinic_id = ? AND job_id = ?", clinicID, jobID).
 		Order("created_at ASC").
 		Find(&events).Error
@@ -128,6 +188,172 @@ func (r *labImportEventRepository) FindByJob(ctx context.Context, clinicID uint6
 		return nil, apperrors.FromGORM(err, "lab_import_event", jobID.String())
 	}
 	return events, nil
+}
+
+func (r *labImportEventRepository) HasEventType(
+	ctx context.Context,
+	clinicID uint64,
+	jobID uuid.UUID,
+	eventType model.LabImportEventType,
+) (bool, error) {
+	var count int64
+	err := persistence.DBOrTx(ctx, r.db).
+		Model(&model.LabImportEvent{}).
+		Where("clinic_id = ? AND job_id = ? AND event_type = ?", clinicID, jobID, eventType).
+		Count(&count).Error
+	if err != nil {
+		return false, apperrors.FromGORM(err, "lab_import_event", jobID.String())
+	}
+	return count > 0, nil
+}
+
+// ------------------------------------
+// LabImportUsageReceiptRepository 実装
+// ------------------------------------
+
+type labImportUsageReceiptRepository struct{ db *gorm.DB }
+
+// NewLabImportUsageReceiptRepository は LabImportUsageReceiptRepository を返す。
+func NewLabImportUsageReceiptRepository(db *gorm.DB) LabImportUsageReceiptRepository {
+	return &labImportUsageReceiptRepository{db: db}
+}
+
+func (r *labImportUsageReceiptRepository) Create(ctx context.Context, receipt *model.LabImportUsageReceipt) error {
+	if err := persistence.DBOrTx(ctx, r.db).Create(receipt).Error; err != nil {
+		return apperrors.FromGORM(err, "lab_import_usage_receipt", "")
+	}
+	return nil
+}
+
+func (r *labImportUsageReceiptRepository) LockByJobForUpdate(
+	ctx context.Context,
+	clinicID uint64,
+	jobID uuid.UUID,
+) ([]*model.LabImportUsageReceipt, error) {
+	if persistence.TxFromContext(ctx) == nil {
+		return nil, apperrors.WrapInternalServerError("lab import usage receipt lock requires an ambient transaction")
+	}
+	var receipts []*model.LabImportUsageReceipt
+	err := persistence.DBOrTx(ctx, r.db).
+		Clauses(clause.Locking{Strength: "UPDATE"}).
+		Where("clinic_id = ? AND job_id = ?", clinicID, jobID).
+		Order("id ASC").
+		Find(&receipts).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "lab_import_usage_receipt", jobID.String())
+	}
+	return receipts, nil
+}
+
+func (r *labImportUsageReceiptRepository) CountByJob(ctx context.Context, clinicID uint64, jobID uuid.UUID) (int64, error) {
+	var count int64
+	err := persistence.DBOrTx(ctx, r.db).
+		Model(&model.LabImportUsageReceipt{}).
+		Where("clinic_id = ? AND job_id = ?", clinicID, jobID).
+		Count(&count).Error
+	if err != nil {
+		return 0, apperrors.FromGORM(err, "lab_import_usage_receipt", jobID.String())
+	}
+	return count, nil
+}
+
+func (r *labImportUsageReceiptRepository) CountManualMutationByJob(ctx context.Context, clinicID uint64, jobID uuid.UUID) (int64, error) {
+	var count int64
+	err := persistence.DBOrTx(ctx, r.db).
+		Model(&model.LabImportUsageReceipt{}).
+		Where("clinic_id = ? AND job_id = ? AND use_kind = ?", clinicID, jobID, model.LabImportUsageKindManualMutation).
+		Count(&count).Error
+	if err != nil {
+		return 0, apperrors.FromGORM(err, "lab_import_usage_receipt", jobID.String())
+	}
+	return count, nil
+}
+
+// ------------------------------------
+// LabImportRevertReceiptRepository 実装
+// ------------------------------------
+
+type labImportRevertReceiptRepository struct{ db *gorm.DB }
+
+// NewLabImportRevertReceiptRepository は LabImportRevertReceiptRepository を返す。
+func NewLabImportRevertReceiptRepository(db *gorm.DB) LabImportRevertReceiptRepository {
+	return &labImportRevertReceiptRepository{db: db}
+}
+
+func (r *labImportRevertReceiptRepository) FindByIdempotencyKey(
+	ctx context.Context,
+	clinicID uint64,
+	key uuid.UUID,
+) (*model.LabImportRevertReceipt, error) {
+	var receipt model.LabImportRevertReceipt
+	err := persistence.DBOrTx(ctx, r.db).
+		Where("clinic_id = ? AND idempotency_key = ?", clinicID, key).
+		First(&receipt).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "lab_import_revert_receipt", key.String())
+	}
+	return &receipt, nil
+}
+
+func (r *labImportRevertReceiptRepository) LockByIdempotencyKey(
+	ctx context.Context,
+	clinicID uint64,
+	key uuid.UUID,
+) (*model.LabImportRevertReceipt, error) {
+	if persistence.TxFromContext(ctx) == nil {
+		return nil, apperrors.WrapInternalServerError("lab import revert receipt lock requires an ambient transaction")
+	}
+	var receipt model.LabImportRevertReceipt
+	err := persistence.DBOrTx(ctx, r.db).
+		Clauses(clause.Locking{Strength: "UPDATE"}).
+		Where("clinic_id = ? AND idempotency_key = ?", clinicID, key).
+		First(&receipt).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "lab_import_revert_receipt", key.String())
+	}
+	return &receipt, nil
+}
+
+func (r *labImportRevertReceiptRepository) Create(ctx context.Context, receipt *model.LabImportRevertReceipt) error {
+	if err := persistence.DBOrTx(ctx, r.db).Create(receipt).Error; err != nil {
+		return apperrors.FromGORM(err, "lab_import_revert_receipt", "")
+	}
+	return nil
+}
+
+// ------------------------------------
+// LabImportRetractionRepository 実装
+// ------------------------------------
+
+type labImportRetractionRepository struct{ db *gorm.DB }
+
+// NewLabImportRetractionRepository は LabImportRetractionRepository を返す。
+func NewLabImportRetractionRepository(db *gorm.DB) LabImportRetractionRepository {
+	return &labImportRetractionRepository{db: db}
+}
+
+func (r *labImportRetractionRepository) CreateWithItems(
+	ctx context.Context,
+	retraction *model.LabImportExamRetraction,
+	items []model.LabImportExamRetractionItem,
+) error {
+	if persistence.TxFromContext(ctx) == nil {
+		return apperrors.WrapInternalServerError("lab import retraction write requires an ambient transaction")
+	}
+	db := persistence.DBOrTx(ctx, r.db)
+	if err := db.Create(retraction).Error; err != nil {
+		return apperrors.FromGORM(err, "lab_import_exam_retraction", "")
+	}
+	for i := range items {
+		items[i].RetractionID = retraction.ID
+		items[i].ClinicID = retraction.ClinicID
+		items[i].JobID = retraction.JobID
+		items[i].ExamID = retraction.ExamID
+		if err := db.Create(&items[i]).Error; err != nil {
+			return apperrors.FromGORM(err, "lab_import_exam_retraction_item", "")
+		}
+	}
+	return nil
 }
 
 // ------------------------------------
@@ -185,7 +411,7 @@ func (c *LabImportDuplicateCheckerDB) IsDuplicate(ctx context.Context, input Lab
 	normalised := time.Date(input.Date.Year(), input.Date.Month(), input.Date.Day(), 0, 0, 0, 0, time.UTC)
 
 	// 4-col 候補フィルタ（idx_exams_clinic_exam_type_date を利用）。内容比較は後段。
-	q := c.db.WithContext(ctx).
+	q := persistence.DBOrTx(ctx, c.db).
 		Model(&model.Examination{}).
 		Preload("Items").
 		Where("clinic_id = ? AND exam_type_id = ? AND date = ?", input.ClinicID, input.ExamTypeID, normalised)
@@ -208,7 +434,6 @@ func (c *LabImportDuplicateCheckerDB) IsDuplicate(ctx context.Context, input Lab
 }
 
 // labImportExamFullyMatches は候補 exam が import 入力と完全同一かを判定する。
-// 候補は既に clinic_id / exam_type_id / date / pet_id で絞られている前提。
 func labImportExamFullyMatches(exam *model.Examination, input LabExamPersistInput) bool {
 	if !labImportNullableUint64Equal(exam.MedicalRecordID, input.MedicalRecordID) {
 		return false
@@ -220,8 +445,6 @@ func labImportExamFullyMatches(exam *model.Examination, input LabExamPersistInpu
 }
 
 // labImportExamResultsMatch は stored exam_results と入力 items の payload 一致を判定する。
-// 比較対象: name, inspection_value, unit, reference_value, ref_min, ref_max, sort_order
-// （IsAbnormal / Status は write 時の派生値のため identity から除外）。
 func labImportExamResultsMatch(stored []model.ExamResult, input []LabExamItemInput) bool {
 	if len(stored) != len(input) {
 		return false
@@ -281,4 +504,44 @@ func labImportNullableFloat64Equal(a, b *float64) bool {
 		return a == nil && b == nil
 	}
 	return *a == *b
+}
+
+// SoftDeleteExamByJob は clinic+exam+job で active exam を条件付き soft delete する。
+// RowsAffected を返す。Requires ambient tx.
+func SoftDeleteExamByJob(ctx context.Context, db *gorm.DB, clinicID, examID uint64, jobID uuid.UUID) (int64, error) {
+	if persistence.TxFromContext(ctx) == nil {
+		return 0, apperrors.WrapInternalServerError("lab import exam soft delete requires an ambient transaction")
+	}
+	result := persistence.DBOrTx(ctx, db).
+		Model(&model.Examination{}).
+		Where("clinic_id = ? AND id = ? AND job_id = ? AND deleted_at IS NULL", clinicID, examID, jobID).
+		Delete(&model.Examination{})
+	if result.Error != nil {
+		return 0, apperrors.FromGORM(result.Error, "exam", "")
+	}
+	return result.RowsAffected, nil
+}
+
+// CountMedicalRecordImagesByExam counts durable image relations for an exam.
+// medical_record_images has no clinic_id column; scope via medical_records join.
+func CountMedicalRecordImagesByExam(ctx context.Context, db *gorm.DB, clinicID, examID uint64) (int64, error) {
+	var count int64
+	err := persistence.DBOrTx(ctx, db).
+		Table("medical_record_images").
+		Joins("JOIN medical_records ON medical_records.id = medical_record_images.medical_record_id").
+		Where("medical_record_images.exam_id = ? AND medical_records.clinic_id = ?", examID, clinicID).
+		Count(&count).Error
+	if err != nil {
+		return 0, apperrors.FromGORM(err, "medical_record_image", "")
+	}
+	return count, nil
+}
+
+// MustJSON is a small helper for retraction snapshots.
+func MustJSON(v any) string {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return "{}"
+	}
+	return string(b)
 }

@@ -216,6 +216,7 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		"POST /api/v1/hospitalizations/:id/discharge-with-billing DischargeWithBilling\n" +
 		"POST /api/v1/hospitalizations/:id/treatment-plans CreateTreatmentPlanForHospitalization\n" +
 		"POST /api/v1/lab-imports CommitLabImport\n" +
+		"POST /api/v1/lab-imports/:job_id/revert RevertLabImport\n" +
 		"POST /api/v1/lab-imports/preview PreviewLabImport\n" +
 		"POST /api/v1/masters/cages CreateCage\n" +
 		"POST /api/v1/masters/checkup-types CreateCheckupType\n" +

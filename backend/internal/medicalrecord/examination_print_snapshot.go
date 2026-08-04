@@ -174,6 +174,14 @@ func (s *examinationService) GetPrintSnapshot(
 	if s.revisions == nil {
 		return nil, apperrors.WrapInternalServerError("examination revision repository capability is required")
 	}
+	// Load parent first for usage receipt (TASK-032) before clinical payload response.
+	exam, err := s.repo.FindByID(ctx, clinicID, examinationID)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to find examination")
+	}
+	if err := s.usage().RecordClinicalUse(ctx, clinicID, exam, model.LabImportUsageKindPrintSnapshot, nil); err != nil {
+		return nil, err
+	}
 	snapshot, err := s.revisions.FindPrintSnapshot(ctx, clinicID, examinationID, version)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to read examination print snapshot", "error", err)

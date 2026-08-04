@@ -50,8 +50,9 @@ func TestRouteCompositionSmoke_TargetGraphRegistersEverySurface(t *testing.T) {
 	//   f609832ce (TASK-031) GET  /api/v1/examinations/:id/print-snapshot
 	//   f609832ce (TASK-374) POST /api/v1/checkup-package-imports/preview
 	//   f609832ce (TASK-374) POST /api/v1/checkup-package-imports
-	// All six are documented in docs/api.yaml and covered by the OpenAPI drift test.
-	require.Len(t, routes, 503)
+	// 2026-08-04: 504 — TASK-032 POST /api/v1/lab-imports/:job_id/revert
+	// All seven are documented in docs/api.yaml and covered by the OpenAPI drift test.
+	require.Len(t, routes, 504)
 	for _, expected := range []string{
 		"GET /health",
 		"GET /uploads/*filepath",

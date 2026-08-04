@@ -31,6 +31,8 @@ func TestCanTransitionTo_ValidTransitions(t *testing.T) {
 		{model.LabImportJobStatusMapped, model.LabImportJobStatusDuplicate},
 		{model.LabImportJobStatusMapped, model.LabImportJobStatusNeedsReview},
 		{model.LabImportJobStatusMapped, model.LabImportJobStatusFailed},
+		// TASK-032: compensating terminal transition (owned by Revert endpoint, not TransitionStatus).
+		{model.LabImportJobStatusPersisted, model.LabImportJobStatusReverted},
 		{model.LabImportJobStatusNeedsReview, model.LabImportJobStatusValidated},
 		{model.LabImportJobStatusNeedsReview, model.LabImportJobStatusFailed},
 		{model.LabImportJobStatusFailed, model.LabImportJobStatusReceived},
@@ -48,9 +50,11 @@ func TestCanTransitionTo_InvalidTransitions(t *testing.T) {
 		from model.LabImportJobStatus
 		to   model.LabImportJobStatus
 	}{
-		// terminal states cannot transition
+		// terminal states cannot transition (except persisted → reverted via CanTransitionTo)
 		{model.LabImportJobStatusPersisted, model.LabImportJobStatusValidated},
 		{model.LabImportJobStatusPersisted, model.LabImportJobStatusFailed},
+		{model.LabImportJobStatusReverted, model.LabImportJobStatusPersisted},
+		{model.LabImportJobStatusReverted, model.LabImportJobStatusReceived},
 		{model.LabImportJobStatusDuplicate, model.LabImportJobStatusValidated},
 		{model.LabImportJobStatusDuplicate, model.LabImportJobStatusFailed},
 		// backward skips
@@ -198,6 +202,28 @@ func (r *stubJobRepo) FindByID(_ context.Context, clinicID uint64, id uuid.UUID)
 	return &cp, nil
 }
 
+func (r *stubJobRepo) LockByIDForUpdate(ctx context.Context, clinicID uint64, id uuid.UUID) (*model.LabImportJob, error) {
+	return r.FindByID(ctx, clinicID, id)
+}
+
+func (r *stubJobRepo) CompareAndSetStatus(
+	_ context.Context,
+	clinicID uint64,
+	id uuid.UUID,
+	from, to model.LabImportJobStatus,
+	finishedAt *time.Time,
+) (int64, error) {
+	j, ok := r.jobs[id]
+	if !ok || j.ClinicID != clinicID || j.Status != from {
+		return 0, nil
+	}
+	j.Status = to
+	if finishedAt != nil {
+		j.FinishedAt = finishedAt
+	}
+	return 1, nil
+}
+
 // stubEventRepo はテスト用のインメモリ LabImportEventRepository。
 // createErr/findByJobErr はゼロ値(nil)の場合は通常動作となり、既存テストの挙動には影響しない。
 type stubEventRepo struct {
@@ -227,6 +253,15 @@ func (r *stubEventRepo) FindByJob(_ context.Context, _ uint64, jobID uuid.UUID) 
 		}
 	}
 	return out, nil
+}
+
+func (r *stubEventRepo) HasEventType(_ context.Context, _ uint64, jobID uuid.UUID, eventType model.LabImportEventType) (bool, error) {
+	for _, e := range r.events {
+		if e.JobID == jobID && e.EventType == eventType {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 // TestTransitionStatus_ValidPath は received → validated → persisted の正常経路を確認する。

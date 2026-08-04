@@ -289,6 +289,31 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"medicalrecord/examination_repository.go|examinationRepository.ReplaceItemsByExamID": {},
 	"medicalrecord/examination_repository.go|examinationRepository.Update":               {},
 
+	// TASK-032: lab import job/event/receipt/retraction repos participate in ambient tx.
+	// Lock/CAS methods require ambient tx (no base DB fallback).
+	"medicalrecord/lab_import_repository.go|labImportJobRepository.Create":                       {},
+	"medicalrecord/lab_import_repository.go|labImportJobRepository.Update":                       {},
+	"medicalrecord/lab_import_repository.go|labImportJobRepository.FindByID":                     {},
+	"medicalrecord/lab_import_repository.go|labImportJobRepository.LockByIDForUpdate":            {},
+	"medicalrecord/lab_import_repository.go|labImportJobRepository.CompareAndSetStatus":          {},
+	"medicalrecord/lab_import_repository.go|labImportEventRepository.Create":                     {},
+	"medicalrecord/lab_import_repository.go|labImportEventRepository.FindByJob":                  {},
+	"medicalrecord/lab_import_repository.go|labImportEventRepository.HasEventType":               {},
+	"medicalrecord/lab_import_repository.go|labImportUsageReceiptRepository.Create":              {},
+	"medicalrecord/lab_import_repository.go|labImportUsageReceiptRepository.LockByJobForUpdate":  {},
+	"medicalrecord/lab_import_repository.go|labImportUsageReceiptRepository.CountByJob":          {},
+	"medicalrecord/lab_import_repository.go|labImportUsageReceiptRepository.CountManualMutationByJob": {},
+	"medicalrecord/lab_import_repository.go|labImportRevertReceiptRepository.FindByIdempotencyKey":    {},
+	"medicalrecord/lab_import_repository.go|labImportRevertReceiptRepository.LockByIdempotencyKey":    {},
+	"medicalrecord/lab_import_repository.go|labImportRevertReceiptRepository.Create":                  {},
+	"medicalrecord/lab_import_repository.go|labImportRetractionRepository.CreateWithItems":            {},
+	"medicalrecord/lab_import_repository.go|LabImportDuplicateCheckerDB.IsDuplicate":                 {},
+	// TASK-032 revert service helpers that read under ambient tx.
+	"medicalrecord/lab_import_revert_service.go|labImportRevertService.lockLinkedExamsByJob": {},
+	"medicalrecord/lab_import_revert_service.go|labImportRevertService.assertRevertSafe":     {},
+	"medicalrecord/lab_import_revert_service.go|labImportRevertService.assertExamRelations":  {},
+	"medicalrecord/lab_import_usage_tracker.go|labImportUsageTracker.RecordClinicalUse":      {},
+
 	// TASK-027 Slice A: append, revision-only read, and status/pointer CAS must observe the
 	// same service-owned transaction. Runtime rollback/visibility proof:
 	// TestExaminationRevision_RepositoryMethodsParticipateInAmbientTransaction.

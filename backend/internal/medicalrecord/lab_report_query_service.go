@@ -34,12 +34,24 @@ type LabReportQueryService interface {
 }
 
 type labReportQueryService struct {
-	examRepo examinationReportRepo
+	examRepo     examinationReportRepo
+	usageTracker LabImportUsageTracker
 }
 
 // NewLabReportQueryService は LabReportQueryService を初期化して返す。
-func NewLabReportQueryService(examRepo examinationReportRepo) LabReportQueryService {
-	return &labReportQueryService{examRepo: examRepo}
+func NewLabReportQueryService(examRepo examinationReportRepo, usageTracker ...LabImportUsageTracker) LabReportQueryService {
+	var tracker LabImportUsageTracker
+	if len(usageTracker) > 0 {
+		tracker = usageTracker[0]
+	}
+	return &labReportQueryService{examRepo: examRepo, usageTracker: tracker}
+}
+
+func (s *labReportQueryService) usage() LabImportUsageTracker {
+	if s.usageTracker != nil {
+		return s.usageTracker
+	}
+	return noopLabImportUsageTracker{}
 }
 
 func (s *labReportQueryService) ListJobReportSummaries(ctx context.Context, clinicID uint64, jobID uuid.UUID) ([]model.LabExamReportSummary, error) {
@@ -64,6 +76,10 @@ func (s *labReportQueryService) GetExamReport(ctx context.Context, clinicID, exa
 	exam, err := s.examRepo.FindByID(ctx, clinicID, examID)
 	if err != nil {
 		return nil, apperrors.Wrap(err, fmt.Sprintf("failed to get exam report %d", examID))
+	}
+	// TASK-032: record usage receipt before returning clinical payload.
+	if err := s.usage().RecordClinicalUse(ctx, clinicID, exam, model.LabImportUsageKindLabReport, nil); err != nil {
+		return nil, err
 	}
 	return toLabExamReportDetail(exam), nil
 }
