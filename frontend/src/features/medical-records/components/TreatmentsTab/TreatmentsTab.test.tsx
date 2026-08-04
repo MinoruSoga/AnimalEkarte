@@ -30,7 +30,7 @@ const UNSAFE_MASTER_ITEM: TreatmentMasterItem = {
 };
 
 // 負のコントロール: medicineId を持たない（per-weight 計算対象外の）選択は
-// doseCalcInput が常に null → computeDoseGate は常に requiresConfirm=false。
+// doseCalcInput が常に null → computeDoseGate は常に requiresDeviationReason=false。
 // hard gate が「常にダイアログを出す」実装に劣化していないことを確認する。
 const SAFE_MASTER_ITEM: TreatmentMasterItem = {
   id: "cons-1",

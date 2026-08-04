@@ -123,8 +123,32 @@ export const TreatmentRow = memo(function TreatmentRow({
 
   // #201: 保存操作で検出した絶対上限超過を、保存値が更新されるまでインライン表示する。
   const [attemptedDoseBlockReason, setAttemptedDoseBlockReason] = useState("");
+  // TASK-377: 上限内の著しい乖離/下限割れで必須の free-text 逸脱理由（inline、modal なし）。
+  const [localDeviationReason, setLocalDeviationReason] = useState("");
+  const [showDeviationReason, setShowDeviationReason] = useState(false);
+  // Enter + blur の二重送信を防ぐ idempotency key（quantity\0reason）。
+  const lastDeviationCommitKeyRef = useRef<string | null>(null);
   const doseBlockReason = attemptedDoseBlockReason || currentGate.blockReason;
-  const hasDoseMessage = doseBlockReason !== "" || currentGate.warning !== "none";
+  const pendingQty = parseFloat(localQuantity) || treatment.quantity;
+  const pendingGate = useMemo(
+    () => computeDoseGate(doseGateSource, pendingQty),
+    [doseGateSource, pendingQty]
+  );
+  // 理由 UI は「未コミットの逸脱 quantity」または空理由でゲートされた直後だけ。
+  // 保存済み乖離行で常時フォームを出して blur 再送しない。
+  const quantityDirty = pendingQty !== treatment.quantity;
+  const needsDeviationReasonUI =
+    showDeviationReason || (quantityDirty && pendingGate.requiresDeviationReason);
+  const doseWarningText =
+    doseBlockReason ||
+    (needsDeviationReasonUI
+      ? pendingGate.reason || "用量が推奨域から逸脱しています"
+      : currentGate.warning !== "none"
+        ? currentGate.warning === "exceeds-max"
+          ? "上限超過"
+          : "下限未満"
+        : "");
+  const hasDoseMessage = doseWarningText !== "" || needsDeviationReasonUI;
 
   // 外部からの treatment 変更を反映
   useEffect(() => {
@@ -134,6 +158,9 @@ export const TreatmentRow = memo(function TreatmentRow({
     setLocalDiscountAmount(String(treatment.discount_amount));
     setLocalMemo(treatment.memo);
     setAttemptedDoseBlockReason("");
+    setLocalDeviationReason("");
+    setShowDeviationReason(false);
+    lastDeviationCommitKeyRef.current = null;
   }, [treatment]);
 
   // フォーカス時に input を選択
@@ -193,21 +220,81 @@ export const TreatmentRow = memo(function TreatmentRow({
 
   const commitQuantity = useCallback(() => {
     const val = parseFloat(localQuantity) || 1;
-    setEditField(null);
-    if (val === treatment.quantity) return;
-
     // #201: マスタの絶対上限超過を物理ブロックする。
     // TASK-025: technical failure も isBlocked として通常保存を止める。
-    // 下限未満・推奨値からの乖離・評価情報不足（missing）は保存を継続する。
+    // TASK-377: 上限内の下限割れ/著しい乖離は free-text 理由必須。空なら mutation を送らない。
     const gate = computeDoseGate(doseGateSource, val);
     if (gate.isBlocked) {
       setLocalQuantity(String(treatment.quantity));
       setAttemptedDoseBlockReason(gate.blockReason);
+      setShowDeviationReason(false);
+      setEditField(null);
       return;
     }
     setAttemptedDoseBlockReason("");
+
+    if (gate.requiresDeviationReason) {
+      const reason = localDeviationReason.trim();
+      if (!reason) {
+        setShowDeviationReason(true);
+        // 数量編集は閉じるが理由入力を出す（modal なし inline）。
+        setEditField(null);
+        return;
+      }
+      const commitKey = `${val}\0${reason}`;
+      if (lastDeviationCommitKeyRef.current === commitKey) {
+        setEditField(null);
+        return;
+      }
+      lastDeviationCommitKeyRef.current = commitKey;
+      setShowDeviationReason(false);
+      setEditField(null);
+      onUpdate(treatment.id, { quantity: val, dose_deviation_reason: reason });
+      return;
+    }
+
+    setShowDeviationReason(false);
+    setLocalDeviationReason("");
+    lastDeviationCommitKeyRef.current = null;
+    setEditField(null);
+    if (val === treatment.quantity) return;
     onUpdate(treatment.id, { quantity: val });
-  }, [localQuantity, treatment.quantity, treatment.id, onUpdate, doseGateSource]);
+  }, [
+    localQuantity,
+    localDeviationReason,
+    treatment.quantity,
+    treatment.id,
+    onUpdate,
+    doseGateSource,
+  ]);
+
+  const commitDeviationReason = useCallback(() => {
+    const val = parseFloat(localQuantity) || 1;
+    const gate = computeDoseGate(doseGateSource, val);
+    if (gate.isBlocked) return;
+    if (!gate.requiresDeviationReason) {
+      setShowDeviationReason(false);
+      setLocalDeviationReason("");
+      lastDeviationCommitKeyRef.current = null;
+      return;
+    }
+    const reason = localDeviationReason.trim();
+    if (!reason) {
+      setShowDeviationReason(true);
+      return;
+    }
+    const commitKey = `${val}\0${reason}`;
+    if (lastDeviationCommitKeyRef.current === commitKey) return;
+    lastDeviationCommitKeyRef.current = commitKey;
+    setShowDeviationReason(false);
+    onUpdate(treatment.id, { quantity: val, dose_deviation_reason: reason });
+  }, [
+    localQuantity,
+    localDeviationReason,
+    treatment.id,
+    onUpdate,
+    doseGateSource,
+  ]);
 
   const handleRetryDoseParamsLookup = useCallback(() => {
     void doseParamsQuery.refetch();
@@ -338,20 +425,22 @@ export const TreatmentRow = memo(function TreatmentRow({
         ) : (
           <button type="button"
             className={`w-full text-right text-sm ${C.hoverBgLight} px-1 py-0.5 rounded-xxs transition-colors ${
-              currentGate.warning === "exceeds-max"
+              currentGate.warning === "exceeds-max" || pendingGate.warning === "exceeds-max"
                 ? C.textRed700
-                : currentGate.warning === "below-min"
+                : currentGate.warning === "below-min" ||
+                    pendingGate.warning === "below-min" ||
+                    needsDeviationReasonUI
                   ? C.textWarning
                   : C.text
             }`}
             onClick={() => setEditField("quantity")}
             aria-describedby={hasDoseMessage ? doseWarningId : undefined}
           >
-            {treatment.quantity}
+            {/* 理由入力待ち中はローカル数量を表示（未保存の逸脱 quantity を失わない） */}
+            {showDeviationReason ? localQuantity : treatment.quantity}
           </button>
         )}
-        {/* #201: 色だけに依存しない警告表示（react-review-201 HIGH-2）。アイコン/接頭辞テキスト併用 +
-            aria-describedby で読み上げ可能にする。 */}
+        {/* #201 / TASK-377: 色だけに依存しない警告表示。著しい乖離で warning=none でも理由 UI を出す。 */}
         {doseBlockReason ? (
           <div
             id={doseWarningId}
@@ -370,6 +459,14 @@ export const TreatmentRow = memo(function TreatmentRow({
               </button>
             ) : null}
           </div>
+        ) : needsDeviationReasonUI && doseWarningText ? (
+          <div
+            id={doseWarningId}
+            role="alert"
+            className={`text-xs text-right mt-0.5 ${C.textWarning}`}
+          >
+            ⚠ {doseWarningText}
+          </div>
         ) : currentGate.warning !== "none" ? (
           <div
             id={doseWarningId}
@@ -379,6 +476,30 @@ export const TreatmentRow = memo(function TreatmentRow({
             }`}
           >
             {currentGate.warning === "exceeds-max" ? "⚠ 上限超過" : "⚠ 下限未満"}
+          </div>
+        ) : null}
+        {needsDeviationReasonUI && !doseBlockReason ? (
+          <div className="mt-1 text-right">
+            <label className="sr-only" htmlFor={`dose-deviation-reason-${treatment.id}`}>
+              用量逸脱の理由
+            </label>
+            <Input
+              id={`dose-deviation-reason-${treatment.id}`}
+              value={localDeviationReason}
+              onChange={(e) => setLocalDeviationReason(e.target.value)}
+              onBlur={commitDeviationReason}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  commitDeviationReason();
+                }
+              }}
+              placeholder="逸脱理由（必須）"
+              maxLength={500}
+              className={`h-8 text-xs px-2 ${C.borderMedium}`}
+              aria-label="用量逸脱の理由"
+              aria-required={true}
+            />
           </div>
         ) : null}
         {/* #201: per_weight 計算対象の薬剤のみ、丸め前/丸め後 mg と推奨値を併記する */}

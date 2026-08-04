@@ -71,6 +71,8 @@ export interface CreateTreatmentInput {
   discount_rate?: number;
   discount_amount?: number;
   sort_order?: number;
+  /** TASK-377: 上限内の下限割れ/著しい乖離時に必須の free-text 逸脱理由（1〜500 Unicode） */
+  dose_deviation_reason?: string;
 }
 
 export interface UpdateTreatmentInput {
@@ -89,6 +91,8 @@ export interface UpdateTreatmentInput {
   discount_rate?: number;
   discount_amount?: number;
   sort_order?: number;
+  /** TASK-377: 上限内の下限割れ/著しい乖離時に必須の free-text 逸脱理由（1〜500 Unicode） */
+  dose_deviation_reason?: string;
 }
 
 export interface BulkReorderTreatmentsInput {

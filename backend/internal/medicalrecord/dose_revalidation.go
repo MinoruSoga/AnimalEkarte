@@ -8,14 +8,26 @@ package medicalrecord
 //   - submitted vs computed の乖離検出（獣医の上書き＝逸脱）
 // を行い、計算根拠スナップショットを値で固定する。species は pet から正規化した値で param を引くため
 // 犬↔猫 越境は構造的に発生しない（HIGH-4）。B-1 の純粋関数 CalculateDose を再利用する（DRY）。
+//
+// TASK-377: 上限内の BelowMinSaved / DeviatesFromComputed では free-text 逸脱理由を必須とし、
+// reason-required 経路の snapshot marshal は fail-closed（best-effort を使わない）。
 
 import (
 	"context"
 	"encoding/json"
 	"log/slog"
+	"strings"
+	"unicode/utf8"
 
+	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
 )
+
+// doseDeviationReasonMaxRunes は transport の技術上限（臨床 taxonomy ではない）。
+const doseDeviationReasonMaxRunes = 500
+
+// doseSnapshotMarshal は test から marshal 失敗を注入できる hook（本番は json.Marshal）。
+var doseSnapshotMarshal = json.Marshal
 
 const doseAmountUnitMg = "mg"
 
@@ -53,23 +65,35 @@ func (e *SavedDoseEvaluation) IsDeviation() bool {
 	return e.ExceedsCapSaved || e.BelowMinSaved || e.DeviatesFromComputed
 }
 
+// RequiresDeviationReason は上限内の下限割れまたは著しい乖離で clinician 理由が必須かを返す。
+// 上限超過は hard reject 済み前提で false（理由で解除しない）。
+func (e *SavedDoseEvaluation) RequiresDeviationReason() bool {
+	if e == nil || e.ExceedsCapSaved {
+		return false
+	}
+	return e.BelowMinSaved || e.DeviatesFromComputed
+}
+
 // DoseSnapshot は treatment.dose_param_snapshot(jsonb) に値で固定する計算根拠。
 // マスタの後変更・論理削除があっても当時の計算根拠を保全する（FK 非依存）。
 type DoseSnapshot struct {
-	Species         model.MedicineDoseSpecies `json:"species"`
-	WeightKg        float64                   `json:"weight_kg"`
-	DoseBasis       model.MedicineDoseBasis   `json:"dose_basis"`
-	DosePerKg       float64                   `json:"dose_per_kg"`
-	Strength        float64                   `json:"strength"`
-	MinMgPerKg      *float64                  `json:"min_mg_per_kg,omitempty"`
-	MaxMgPerKg      *float64                  `json:"max_mg_per_kg,omitempty"`
-	AbsoluteMaxDose *float64                  `json:"absolute_max_dose,omitempty"`
-	ComputedQty     float64                   `json:"computed_quantity"`
-	SubmittedQty    float64                   `json:"submitted_quantity"`
-	EffectiveMg     float64                   `json:"effective_mg"`
-	ExceedsMax      bool                      `json:"exceeds_max"`
-	BelowMin        bool                      `json:"below_min"`
-	FormulaVersion  string                    `json:"formula_version"`
+	Species              model.MedicineDoseSpecies `json:"species"`
+	WeightKg             float64                   `json:"weight_kg"`
+	DoseBasis            model.MedicineDoseBasis   `json:"dose_basis"`
+	DosePerKg            float64                   `json:"dose_per_kg"`
+	Strength             float64                   `json:"strength"`
+	MinMgPerKg           *float64                  `json:"min_mg_per_kg,omitempty"`
+	MaxMgPerKg           *float64                  `json:"max_mg_per_kg,omitempty"`
+	AbsoluteMaxDose      *float64                  `json:"absolute_max_dose,omitempty"`
+	ComputedQty          float64                   `json:"computed_quantity"`
+	SubmittedQty         float64                   `json:"submitted_quantity"`
+	EffectiveMg          float64                   `json:"effective_mg"`
+	ExceedsMax           bool                      `json:"exceeds_max"`
+	BelowMin             bool                      `json:"below_min"`
+	DeviatesFromComputed bool                      `json:"deviates_from_computed"`
+	// DoseDeviationReason は reason-required 保存時のみ値固定。safe re-evaluation では空にする。
+	DoseDeviationReason string `json:"dose_deviation_reason,omitempty"`
+	FormulaVersion      string `json:"formula_version"`
 }
 
 // doseCalcInputFrom は medicine + param + weight + species から B-1 計算入力を構築する。
@@ -134,27 +158,60 @@ func EvaluateSavedDose(in SavedDoseInput) SavedDoseEvaluation {
 	}
 
 	eval.Snapshot = DoseSnapshot{
-		Species:         in.Species,
-		WeightKg:        in.WeightKg,
-		DoseBasis:       in.Param.DoseBasis,
-		DosePerKg:       in.Param.DosePerKg,
-		Strength:        strength,
-		MinMgPerKg:      in.Param.MinMgPerKg,
-		MaxMgPerKg:      in.Param.MaxMgPerKg,
-		AbsoluteMaxDose: in.Param.AbsoluteMaxDose,
-		ComputedQty:     computed.Quantity,
-		SubmittedQty:    in.SubmittedQty,
-		EffectiveMg:     savedMg,
-		ExceedsMax:      eval.ExceedsCapSaved,
-		BelowMin:        eval.BelowMinSaved,
-		FormulaVersion:  doseFormulaVersion,
+		Species:              in.Species,
+		WeightKg:             in.WeightKg,
+		DoseBasis:            in.Param.DoseBasis,
+		DosePerKg:            in.Param.DosePerKg,
+		Strength:             strength,
+		MinMgPerKg:           in.Param.MinMgPerKg,
+		MaxMgPerKg:           in.Param.MaxMgPerKg,
+		AbsoluteMaxDose:      in.Param.AbsoluteMaxDose,
+		ComputedQty:          computed.Quantity,
+		SubmittedQty:         in.SubmittedQty,
+		EffectiveMg:          savedMg,
+		ExceedsMax:           eval.ExceedsCapSaved,
+		BelowMin:             eval.BelowMinSaved,
+		DeviatesFromComputed: eval.DeviatesFromComputed,
+		FormulaVersion:       doseFormulaVersion,
 	}
 	return eval
 }
 
+// normalizeDoseDeviationReason は transport 上限で free-text 理由を正規化する。
+// reason-required でない呼び出しでは使わない（safe 経路で stale 理由を残さないため）。
+func normalizeDoseDeviationReason(raw string) (string, error) {
+	reason := strings.TrimSpace(raw)
+	if reason == "" {
+		return "", apperrors.WrapInvalidInput("用量逸脱の理由を入力してください")
+	}
+	if utf8.RuneCountInString(reason) > doseDeviationReasonMaxRunes {
+		return "", apperrors.WrapInvalidInput("用量逸脱の理由は500文字以内で入力してください")
+	}
+	return reason, nil
+}
+
+// applyDeviationReasonToEval は eval に normalized reason を固定する。
+// reason-required でない場合は snapshot から理由を必ず除去する（stale 防止）。
+func applyDeviationReasonToEval(eval *SavedDoseEvaluation, rawReason string) error {
+	if eval == nil {
+		return nil
+	}
+	if !eval.RequiresDeviationReason() {
+		eval.Snapshot.DoseDeviationReason = ""
+		return nil
+	}
+	reason, err := normalizeDoseDeviationReason(rawReason)
+	if err != nil {
+		return err
+	}
+	eval.Snapshot.DoseDeviationReason = reason
+	return nil
+}
+
 // marshalDoseSnapshot は計算根拠スナップショットを JSON 化する（失敗はベストエフォートで nil）。
+// safe dose など reason-required でない経路専用。reason-required は marshalDoseSnapshotStrict を使う。
 func marshalDoseSnapshot(ctx context.Context, eval *SavedDoseEvaluation) []byte {
-	b, err := json.Marshal(eval.Snapshot)
+	b, err := doseSnapshotMarshal(eval.Snapshot)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to marshal dose snapshot", "error", err)
 		return nil
@@ -162,8 +219,19 @@ func marshalDoseSnapshot(ctx context.Context, eval *SavedDoseEvaluation) []byte 
 	return b
 }
 
+// marshalDoseSnapshotStrict は reason-required 経路用。serialization 失敗を error で返す（黙って成功させない）。
+func marshalDoseSnapshotStrict(eval *SavedDoseEvaluation) ([]byte, error) {
+	b, err := doseSnapshotMarshal(eval.Snapshot)
+	if err != nil {
+		// 理由本文は log に出さない
+		return nil, apperrors.Wrap(err, "failed to marshal dose param snapshot")
+	}
+	return b, nil
+}
+
 // doseSnapshotColumns は treatment の dose_* 列に書き込む値を GORM Updates 用 map で返す（Update 経路）。
-func doseSnapshotColumns(ctx context.Context, eval *SavedDoseEvaluation) map[string]any {
+// reason-required では strict marshal を使い、失敗時は error を返す。
+func doseSnapshotColumns(ctx context.Context, eval *SavedDoseEvaluation) (map[string]any, error) {
 	cols := map[string]any{
 		"dose_weight_kg":   eval.Snapshot.WeightKg,
 		"dose_amount_mg":   eval.SavedEffectiveMg,
@@ -172,10 +240,18 @@ func doseSnapshotColumns(ctx context.Context, eval *SavedDoseEvaluation) map[str
 	if eval.WeightSource != "" {
 		cols["dose_weight_source"] = eval.WeightSource
 	}
+	if eval.RequiresDeviationReason() {
+		snapJSON, err := marshalDoseSnapshotStrict(eval)
+		if err != nil {
+			return nil, err
+		}
+		cols["dose_param_snapshot"] = json.RawMessage(snapJSON)
+		return cols, nil
+	}
 	if snapJSON := marshalDoseSnapshot(ctx, eval); snapJSON != nil {
 		cols["dose_param_snapshot"] = json.RawMessage(snapJSON)
 	}
-	return cols
+	return cols, nil
 }
 
 // clearedDoseColumns は dose スナップショット列を NULL クリアする map を返す。
@@ -196,7 +272,8 @@ func treatmentHasDoseSnapshot(t *model.Treatment) bool {
 }
 
 // applyDoseSnapshotToTreatment は計算根拠スナップショットを treatment struct に値で固定する（Create 経路）。
-func applyDoseSnapshotToTreatment(ctx context.Context, t *model.Treatment, eval *SavedDoseEvaluation) {
+// reason-required では strict marshal 失敗を error で返す。
+func applyDoseSnapshotToTreatment(ctx context.Context, t *model.Treatment, eval *SavedDoseEvaluation) error {
 	weight := eval.Snapshot.WeightKg
 	mg := eval.SavedEffectiveMg
 	unit := doseAmountUnitMg
@@ -207,7 +284,16 @@ func applyDoseSnapshotToTreatment(ctx context.Context, t *model.Treatment, eval 
 		src := eval.WeightSource
 		t.DoseWeightSource = &src
 	}
+	if eval.RequiresDeviationReason() {
+		snapJSON, err := marshalDoseSnapshotStrict(eval)
+		if err != nil {
+			return err
+		}
+		t.DoseParamSnapshot = snapJSON
+		return nil
+	}
 	if snapJSON := marshalDoseSnapshot(ctx, eval); snapJSON != nil {
 		t.DoseParamSnapshot = snapJSON
 	}
+	return nil
 }

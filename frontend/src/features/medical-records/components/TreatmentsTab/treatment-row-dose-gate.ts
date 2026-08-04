@@ -27,7 +27,11 @@ export interface DoseGateResult {
   isBlocked: boolean;
   /** 保存不能時にインライン表示する理由 */
   blockReason: string;
-  requiresConfirm: boolean;
+  /**
+   * TASK-377: 上限内の下限割れ / 推奨値からの著しい乖離で free-text 逸脱理由が必須か。
+   * 上限超過（isBlocked）では false（理由で解除しない）。旧 requiresConfirm を reason-required 契約へ同期。
+   */
+  requiresDeviationReason: boolean;
   /** 非ブロックの注意事項を含む理由（複数該当時は " / " 区切り） */
   reason: string;
   warning: "none" | "below-min" | "exceeds-max";
@@ -63,7 +67,7 @@ export function computeDoseGate(
     return {
       isBlocked: true,
       blockReason: DOSE_PARAMS_LOOKUP_FAILED_MESSAGE,
-      requiresConfirm: false,
+      requiresDeviationReason: false,
       reason: "",
       warning: "none",
       recommendedQuantity: null,
@@ -75,7 +79,7 @@ export function computeDoseGate(
     return {
       isBlocked: false,
       blockReason: "",
-      requiresConfirm: false,
+      requiresDeviationReason: false,
       reason: "",
       warning: "none",
       recommendedQuantity: null,
@@ -90,7 +94,9 @@ export function computeDoseGate(
   const reasons: string[] = [];
   if (submitted.exceedsMax) reasons.push("実効用量が安全域の上限を超えています");
   if (submitted.belowMin) reasons.push("実効用量が安全域の下限を下回っています");
-  if (recommended.eligible && isSignificantDoseDeviation(submittedQty, recommended.quantity)) {
+  const significantDeviation =
+    recommended.eligible && isSignificantDoseDeviation(submittedQty, recommended.quantity);
+  if (significantDeviation) {
     reasons.push(`推奨値（${recommended.quantity}）から著しく乖離しています`);
   }
 
@@ -100,12 +106,16 @@ export function computeDoseGate(
       ? "below-min"
       : "none";
 
+  // 上限超過は hard block。理由必須は上限内の下限割れ / 著しい乖離のみ。
+  const requiresDeviationReason =
+    !submitted.exceedsMax && (submitted.belowMin || significantDeviation);
+
   return {
     isBlocked: submitted.exceedsMax,
     blockReason: submitted.exceedsMax
       ? "実効用量がマスタで設定された絶対上限を超えているため保存できません"
       : "",
-    requiresConfirm: reasons.length > 0,
+    requiresDeviationReason,
     reason: reasons.join(" / "),
     warning,
     recommendedQuantity: recommended.eligible ? recommended.quantity : null,

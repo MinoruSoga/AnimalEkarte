@@ -886,9 +886,21 @@ validator_exit=0
 
 - **対応 Issue**: GitHub Issue #201。
 - **問題**: live Issue は warning 範囲で inline warning と必須逸脱理由、FE bypass 時の BE 同一境界を要求する。しかし `computeDoseGate` が返す `requiresConfirm/reason` を `TreatmentRow` が消費せず、上限内の著しい乖離は表示なし・理由なしで保存される。BE request/service に理由 input がなく、既存 deviation audit も clinician-entered reason を持たない。
-- **状態**: **READY_AGENT / no migration**。設計正本は DEC-65。live Issue が mandatory reason を要求し、現行 evaluator/20% は source/comment 上で暫定確定済みのため、その判定結果に値非依存の理由契約を接続できる。本 task は 20% を臨床正本へ昇格・変更せず、将来承認された threshold も同じ reason-required contract を通す。上限値・warning 帯の authoritative clinical source、理由 taxonomy、TASK-033 の救急記録 policy は臨床 gate のまま。
-- **claim**: 実装セッションが編集前に `claim/TASK-377` を確認・取得する。本裁定 run では claim を取得しない。
+- **状態**: **DONE / no migration（2026-08-04）**。claim `claim/TASK-377` 取得済み（解放は USER 専権）。設計正本は DEC-65。20% 閾値は未変更。上限値・warning 帯・taxonomy・TASK-033 は臨床 gate のまま。
+- **claim**: `claim/TASK-377`（実装 run が取得。解放は USER）。
 - **Owner lane**: medicalrecord treatment create/update request・service・dose snapshot/audit、TreatmentsTab quantity editor、OpenAPI/types、focused tests。TASK-033、dose master 値、migration、GitHub write は所有しない。
+
+#### 実施記録（2026-08-04）
+- **理由契約**: JSON field `dose_deviation_reason`、trim 後 1〜500 Unicode、error は固定文言 `InvalidInput` / technical は actor・nil audit・strict marshal。snapshot に `deviates_from_computed` + `dose_deviation_reason`。audit NewValue に flags + reason + actor。露出は staff treatment snapshot / audit のみ（owner history・validation error・slog に本文なし）。
+- **BE**: `RequiresDeviationReason`、write 前 `ensureDoseDeviationAuditReady`、reason-required は strict marshal、safe は best-effort 維持、stale reason 除去。
+- **FE**: `requiresConfirm` → `requiresDeviationReason`、inline 理由 UI（modal なし）、空理由 mutation 0、idempotent 1 回送信、create 経路は reason-required で create 停止。
+- **Scoped gates**:
+  - `docker compose exec -T backend go test -p 1 ./internal/medicalrecord -run 'Test.*Treatment.*Dose.*(DeviationReason|Audit|Rollback|Clinic)' -count=1` → ok
+  - `docker compose exec -T backend go test -p 1 ./internal/apicontract -run 'Test.*Treatment.*Dose.*Reason' -count=1` → ok
+  - FE vitest TreatmentRow + dose-gate → 23 passed
+  - `make codegen-check` → FAIL（pre-existing TASK-374 models drift。本 unit は request field を手書き型 + OpenAPI で同期。generated models は未変更コミット）
+- **Review**: healthcare/security/go → CRITICAL/HIGH 0。react HIGH（Enter+blur 二重送信）を idempotency + dirty-only reason UI で修正後 FE green。typescript CRITICAL/HIGH 0。
+- **migration 本数**: 6（開始時と同一）。
 
 #### 固定契約
 - 上限超過は従来どおり hard reject、technical failure は通常保存停止、missing data は TASK-033 cutover まで現行 contract を維持する。上限内で `BelowMinSaved || DeviatesFromComputed` の時だけ、trim 後 1〜500 Unicode 文字の generic free-text `dose_deviation_reason` を create/update の必須入力にする。これは transport の技術上限であり、臨床 taxonomy の決定ではない。modal と confirm-to-bypass は作らない。

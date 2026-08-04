@@ -119,16 +119,51 @@ func (s *treatmentService) resolveDoseWeight(ctx context.Context, clinicID, medi
 	return kg, fmt.Sprintf("vital_records:%d", chosen.ID), true, nil
 }
 
+// ensureDoseDeviationAuditReady は reason-required 保存の事前条件（actor・audit 依存）を write 前に検証する。
+func (s *treatmentService) ensureDoseDeviationAuditReady(eval *SavedDoseEvaluation, actorID *uint64) error {
+	if eval == nil || !eval.RequiresDeviationReason() {
+		return nil
+	}
+	if s.auditTx == nil {
+		return apperrors.WrapInternalServerError("dose deviation audit dependency is required")
+	}
+	if actorID == nil {
+		return apperrors.WrapInternalServerError("authenticated actor is required for dose deviation recording")
+	}
+	return nil
+}
+
 // auditDoseDeviationTx は逸脱（過量/過少/著しい上書き）を audit_logs に fail-closed で記録する。
 // 保存 tx（Transactor.WithTx）の txCtx で呼ばれ、AuditTxLogger.LogEntryTx（composition root の
 // medicalRecordAuditTxAdapter → service.AuditService.LogEntryTx → CreateTx が dbOrTx で ambient tx
 // に参加）が同一 tx へ書く（R1-2 (D1)・#211/refund パターン・checkupFieldResult と同経路）。
 // エラーを返すと呼び出し元の WithTx が rollback し、treatment 書込ごと無効になる。
+//
+// TASK-377: reason-required 経路では ensureDoseDeviationAuditReady を write 前に呼び、
+// audit 本文へ理由・flags を載せる。理由本文は slog に出さない。
 func (s *treatmentService) auditDoseDeviationTx(ctx context.Context, clinicID uint64, actorID *uint64, treatmentID, medicineID uint64, eval *SavedDoseEvaluation) error {
-	if s.auditTx == nil || eval == nil || !eval.IsDeviation() {
+	if eval == nil || !eval.IsDeviation() {
 		return nil
 	}
+	if err := s.ensureDoseDeviationAuditReady(eval, actorID); err != nil {
+		return err
+	}
+	if s.auditTx == nil {
+		// 非 reason-required の IsDeviation（理論上 exceeds-only）で audit 無しは no-op。
+		return nil
+	}
+	reasonRequired := eval.RequiresDeviationReason()
 	actorType := auditActorTypeFor(actorID)
+	newValue := map[string]any{
+		"submitted_quantity":     eval.Snapshot.SubmittedQty,
+		"effective_mg":           eval.SavedEffectiveMg,
+		"exceeds_max":            eval.ExceedsCapSaved,
+		"below_min":              eval.BelowMinSaved,
+		"deviates_from_computed": eval.DeviatesFromComputed,
+	}
+	if reasonRequired && eval.Snapshot.DoseDeviationReason != "" {
+		newValue["dose_deviation_reason"] = eval.Snapshot.DoseDeviationReason
+	}
 	input := &AuditEntry{
 		ClinicID:   &clinicID,
 		ActorID:    actorID,
@@ -137,7 +172,7 @@ func (s *treatmentService) auditDoseDeviationTx(ctx context.Context, clinicID ui
 		Resource:   model.AuditResourceTreatmentDose,
 		ResourceID: &treatmentID,
 		OldValue:   map[string]any{"computed_quantity": eval.Computed.Quantity, "upper_cap_mg": eval.UpperCapMg, "has_upper_cap": eval.HasUpperCap},
-		NewValue:   map[string]any{"submitted_quantity": eval.Snapshot.SubmittedQty, "effective_mg": eval.SavedEffectiveMg, "exceeds_max": eval.ExceedsCapSaved, "below_min": eval.BelowMinSaved},
+		NewValue:   newValue,
 		Metadata:   map[string]any{"medicine_id": medicineID, "deviation_threshold_pending_operational": true},
 	}
 	if err := s.auditTx.LogEntryTx(ctx, input); err != nil {
@@ -145,3 +180,4 @@ func (s *treatmentService) auditDoseDeviationTx(ctx context.Context, clinicID ui
 	}
 	return nil
 }
+

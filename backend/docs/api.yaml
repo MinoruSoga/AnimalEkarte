@@ -4786,6 +4786,14 @@ components:
           format: double
         sort_order:
           type: integer
+        dose_deviation_reason:
+          type: string
+          minLength: 1
+          maxLength: 500
+          description: |
+            TASK-377: 上限内の下限割れまたは推奨値からの著しい乖離時に必須の free-text 逸脱理由。
+            transport 技術上限は trim 後 1〜500 Unicode 文字。臨床 taxonomy ではない。
+            backend が locked effective state で再評価し、欠落時は treatment/inventory/audit を書かずに拒否する。
 
     UpdateTreatmentRequest:
       type: object
@@ -4842,6 +4850,14 @@ components:
         sort_order:
           type: integer
           nullable: true
+        dose_deviation_reason:
+          type: string
+          minLength: 1
+          maxLength: 500
+          nullable: true
+          description: |
+            TASK-377: 上限内の下限割れまたは推奨値からの著しい乖離時に必須の free-text 逸脱理由。
+            transport 技術上限は trim 後 1〜500 Unicode 文字。backend が再評価する。
 
     # ─── BillingConfirmation ────────────────────────────────────────────────────────
     BillingConfirmation:

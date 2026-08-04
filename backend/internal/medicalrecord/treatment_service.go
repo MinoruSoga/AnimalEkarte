@@ -32,6 +32,9 @@ type CreateTreatmentInput struct {
 	DiscountAmount int64
 	SortOrder      int
 	ActorID        *uint64 // #201 監査ログ用: 操作スタッフ ID（nil = システム）
+	// DoseDeviationReason は TASK-377: 上限内の下限割れ/著しい乖離で必須の free-text 理由。
+	// reason-required でない経路では無視され snapshot に残さない。
+	DoseDeviationReason string
 }
 
 // UpdateTreatmentInput は治療項目更新の入力DTO（ポインタ型 = nil は未送信）
@@ -53,6 +56,8 @@ type UpdateTreatmentInput struct {
 	DiscountAmount *int64
 	SortOrder      *int
 	ActorID        *uint64 // #201 監査ログ用: 操作スタッフ ID（nil = システム）
+	// DoseDeviationReason は TASK-377: reason-required 時に必須。nil = 未送信（欠落と同義）。
+	DoseDeviationReason *string
 	// DiscountEditAllowed is set by the HTTP boundary from discount:edit RBAC.
 	// Service rechecks discount fields against the FOR UPDATE locked row (SEC-CS-F09).
 	DiscountEditAllowed bool
@@ -313,6 +318,7 @@ func (s *treatmentService) Create(ctx context.Context, clinicID, medicalRecordID
 		}
 
 		// #201 B-2: per_weight 医薬の保存時 BE 再検証＋スナップショット値固定（C1/両上限/species 一致）。
+		// TASK-377: reason-required では理由 validation → strict snapshot → audit を同一 tx で fail-closed。
 		eval, derr := s.evaluateDoseForSave(txCtx, clinicID, medicalRecordID, input.ItemType, input.MedicineID, input.Quantity)
 		if derr != nil {
 			return derr // species 不一致など fail-closed
@@ -321,8 +327,18 @@ func (s *treatmentService) Create(ctx context.Context, clinicID, medicalRecordID
 			return apperrors.WrapInvalidInput("投与量がマスタで設定された絶対上限を超えているため保存できません")
 		}
 		if eval != nil {
+			if err := applyDeviationReasonToEval(eval, input.DoseDeviationReason); err != nil {
+				return err
+			}
+			// reason-required の actor / audit 依存は treatment write 前に fail-closed する
+			// （tx rollback に依存せず write ゼロを保証する）。
+			if err := s.ensureDoseDeviationAuditReady(eval, input.ActorID); err != nil {
+				return err
+			}
 			doseEval = eval
-			applyDoseSnapshotToTreatment(txCtx, treatment, eval)
+			if err := applyDoseSnapshotToTreatment(txCtx, treatment, eval); err != nil {
+				return err
+			}
 		}
 
 		// 1. Create Treatment
@@ -480,9 +496,23 @@ func (s *treatmentService) Update(ctx context.Context, clinicID, medicalRecordID
 				return apperrors.WrapInvalidInput("投与量がマスタで設定された絶対上限を超えているため保存できません")
 			}
 			if eval != nil {
+				rawReason := ""
+				if input.DoseDeviationReason != nil {
+					rawReason = *input.DoseDeviationReason
+				}
+				if err := applyDeviationReasonToEval(eval, rawReason); err != nil {
+					return err
+				}
+				if err := s.ensureDoseDeviationAuditReady(eval, input.ActorID); err != nil {
+					return err
+				}
 				doseEval = eval
 				doseMedicineID = *effMedicineID
-				maps.Copy(fields, doseSnapshotColumns(txCtx, eval))
+				snapCols, err := doseSnapshotColumns(txCtx, eval)
+				if err != nil {
+					return err
+				}
+				maps.Copy(fields, snapCols)
 			} else if treatmentHasDoseSnapshot(current) {
 				// per_weight 対象でなくなった（薬剤/item_type 変更）→ stale スナップショットをクリア（L-3）。
 				maps.Copy(fields, clearedDoseColumns())

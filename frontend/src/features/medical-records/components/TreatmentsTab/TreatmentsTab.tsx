@@ -288,9 +288,20 @@ export const TreatmentsTab = memo(function TreatmentsTab({
 
     // #201: 実際に submit される quantity がマスタの絶対上限を超える場合は、
     // ConfirmDialog で解除できない物理ブロックを create 前に適用する。
+    // TASK-377: create 経路に inline 理由 UI が無いため、理由必須の quantity では create を止める
+    // （行追加後の quantity 編集で理由を入力する導線へ誘導）。
     const gate = computeDoseGate(doseGateSource, quantity);
     if (gate.isBlocked) {
       setMasterDoseBlockReason(gate.blockReason);
+      setPendingMasterLookupItem(null);
+      return;
+    }
+    if (gate.requiresDeviationReason) {
+      setMasterDoseBlockReason(
+        gate.reason
+          ? `${gate.reason}。推奨値付近で追加してから数量と逸脱理由を入力してください`
+          : "用量逸脱の理由入力が必要です。推奨値付近で追加してから数量と理由を入力してください"
+      );
       setPendingMasterLookupItem(null);
       return;
     }

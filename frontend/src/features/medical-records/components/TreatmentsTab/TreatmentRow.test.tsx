@@ -249,7 +249,8 @@ describe("TreatmentRow — dose-params technical failure (TASK-025)", () => {
     medicine_id: 5,
     species: "dog",
     dose_basis: "per_administration",
-    dose_per_kg: 2.5,
+    // dose_per_kg 5 × weight 4kg / strength 10mg = 推奨 2。1→2 は安全域内・乖離なし。
+    dose_per_kg: 5,
     max_mg_per_kg: 100,
     notes: "",
     created_at: "2026-07-15T00:00:00Z",
@@ -320,7 +321,8 @@ describe("TreatmentRow — dose-params technical failure (TASK-025)", () => {
       screen.getByRole("button", { name: /投与量パラメータの取得を再試行/ })
     );
 
-    await screen.findByText(/推奨/);
+    // dose_per_kg=5 × 4kg / strength10 = 推奨2。プレビュー文言で ready を待つ。
+    await screen.findByText(/推奨2/);
 
     await user.click(screen.getByRole("button", { name: "1" }));
     const quantityInput = screen.getByRole("spinbutton", { name: "数量" });
@@ -424,5 +426,157 @@ describe("TreatmentRow — dose-params technical failure (TASK-025)", () => {
     await user.keyboard("{Enter}");
 
     expect(onUpdate).toHaveBeenCalledWith("1", { quantity: 3 });
+  });
+});
+
+// TASK-377: 上限内の著しい乖離 / 下限割れで inline 理由を要求し、空理由では mutation 0 回。
+describe("TreatmentRow — dose deviation reason (TASK-377)", () => {
+  const deviationParam = {
+    id: 1,
+    clinic_id: 1,
+    medicine_id: 5,
+    species: "dog",
+    dose_basis: "per_administration",
+    dose_per_kg: 5,
+    max_mg_per_kg: 100,
+    notes: "",
+    created_at: "2026-07-15T00:00:00Z",
+    updated_at: "2026-07-15T00:00:00Z",
+  };
+
+  const belowMinParam = {
+    ...deviationParam,
+    min_mg_per_kg: 4,
+    max_mg_per_kg: 10,
+    dose_per_kg: 5,
+  };
+
+  beforeEach(() => {
+    server.use(
+      http.get("*/v1/masters/medicines/5/dose-params", () =>
+        HttpResponse.json([deviationParam])
+      )
+    );
+  });
+
+  it("著しい乖離で inline 理由を表示し、空理由では onUpdate を呼ばない", async () => {
+    const onUpdate = vi.fn();
+    const user = userEvent.setup();
+    renderRow(
+      {
+        ...baseTreatment,
+        item_type: "medicine",
+        medicine_id: "5",
+        quantity: 2,
+      },
+      { onUpdate, doseContext: blockingDoseContext }
+    );
+
+    await screen.findByText(/推奨2/);
+    await user.click(screen.getByRole("button", { name: "2" }));
+    const quantityInput = screen.getByRole("spinbutton", { name: "数量" });
+    await user.clear(quantityInput);
+    await user.type(quantityInput, "5");
+    await user.keyboard("{Enter}");
+
+    expect(onUpdate).not.toHaveBeenCalled();
+    expect(screen.getByRole("alert")).toHaveTextContent(/推奨値/);
+    expect(screen.getByLabelText("用量逸脱の理由")).toBeInTheDocument();
+    // modal / confirm dialog を使わない
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.queryByText("投与量を確認してください")).not.toBeInTheDocument();
+  });
+
+  it("理由付きで quantity mutation を1回だけ送る", async () => {
+    const onUpdate = vi.fn();
+    const user = userEvent.setup();
+    renderRow(
+      {
+        ...baseTreatment,
+        item_type: "medicine",
+        medicine_id: "5",
+        quantity: 2,
+      },
+      { onUpdate, doseContext: blockingDoseContext }
+    );
+
+    await screen.findByText(/推奨2/);
+    await user.click(screen.getByRole("button", { name: "2" }));
+    const quantityInput = screen.getByRole("spinbutton", { name: "数量" });
+    await user.clear(quantityInput);
+    await user.type(quantityInput, "5");
+    await user.keyboard("{Enter}");
+    expect(onUpdate).not.toHaveBeenCalled();
+
+    const reasonInput = screen.getByLabelText("用量逸脱の理由");
+    await user.type(reasonInput, "体重再計測のため");
+    await user.keyboard("{Enter}");
+    // Enter 後の blur でも idempotent に 1 回だけ
+    await user.tab();
+
+    expect(onUpdate).toHaveBeenCalledTimes(1);
+    expect(onUpdate).toHaveBeenCalledWith("1", {
+      quantity: 5,
+      dose_deviation_reason: "体重再計測のため",
+    });
+  });
+
+  it("下限割れでも inline 理由を要求し空理由では送らない", async () => {
+    server.use(
+      http.get("*/v1/masters/medicines/5/dose-params", () =>
+        HttpResponse.json([belowMinParam])
+      )
+    );
+    const onUpdate = vi.fn();
+    const user = userEvent.setup();
+    // weightKg 1.5 → min 4*1.5=6mg → qty 0.1 = 1mg below min; recommended ~0.75
+    const belowContext: MedicineDoseContext = {
+      ...blockingDoseContext,
+      weightKg: 1.5,
+    };
+    renderRow(
+      {
+        ...baseTreatment,
+        item_type: "medicine",
+        medicine_id: "5",
+        quantity: 1,
+      },
+      { onUpdate, doseContext: belowContext }
+    );
+
+    await screen.findByText(/推奨0\.75/);
+    await user.click(screen.getByRole("button", { name: "1" }));
+    const quantityInput = screen.getByRole("spinbutton", { name: "数量" });
+    await user.clear(quantityInput);
+    await user.type(quantityInput, "0.1");
+    await user.keyboard("{Enter}");
+
+    expect(onUpdate).not.toHaveBeenCalled();
+    expect(screen.getByRole("alert")).toHaveTextContent(/下限|推奨値/);
+    expect(screen.getByLabelText("用量逸脱の理由")).toBeInTheDocument();
+  });
+
+  it("safe dose へ戻した quantity は理由なしで1回送信する", async () => {
+    const onUpdate = vi.fn();
+    const user = userEvent.setup();
+    renderRow(
+      {
+        ...baseTreatment,
+        item_type: "medicine",
+        medicine_id: "5",
+        quantity: 5,
+      },
+      { onUpdate, doseContext: blockingDoseContext }
+    );
+
+    await screen.findByText(/推奨2/);
+    await user.click(screen.getByRole("button", { name: "5" }));
+    const quantityInput = screen.getByRole("spinbutton", { name: "数量" });
+    await user.clear(quantityInput);
+    await user.type(quantityInput, "2");
+    await user.keyboard("{Enter}");
+
+    expect(onUpdate).toHaveBeenCalledTimes(1);
+    expect(onUpdate).toHaveBeenCalledWith("1", { quantity: 2 });
   });
 });

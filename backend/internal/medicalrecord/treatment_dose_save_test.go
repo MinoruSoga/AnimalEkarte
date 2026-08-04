@@ -36,16 +36,50 @@ type doseSaveFixture struct {
 	audit   *mockTreatmentAuditTxLogger
 	created *model.Treatment
 
-	createCalls int
-	updateCalls int
+	createCalls    int
+	updateCalls    int
+	inventoryCalls int
+}
+
+// rollbackAwareTransactor は mock で tx rollback をシミュレートする。
+// fn が error を返したら create/update/inventory/audit の side-effect カウンタを実行前に戻す。
+type rollbackAwareTransactor struct {
+	f *doseSaveFixture
+}
+
+func (t *rollbackAwareTransactor) WithTx(ctx context.Context, fn func(ctx context.Context) error) error {
+	createBefore := t.f.createCalls
+	updateBefore := t.f.updateCalls
+	invBefore := t.f.inventoryCalls
+	createdBefore := t.f.created
+	var auditBefore []*AuditEntry
+	if t.f.audit != nil {
+		auditBefore = append([]*AuditEntry(nil), t.f.audit.entries...)
+	}
+	err := fn(ctx)
+	if err != nil {
+		t.f.createCalls = createBefore
+		t.f.updateCalls = updateBefore
+		t.f.inventoryCalls = invBefore
+		t.f.created = createdBefore
+		if t.f.audit != nil {
+			t.f.audit.entries = auditBefore
+		}
+	}
+	return err
 }
 
 // newSvc は個別依存注入コンストラクタ（BE9-2D ④b）で fixture の mock を配線する。
-// 旧 harness の repos.TransactionFn インライン実行は mockTransactor の WithTx 素通しが等価。
+// WithTx は rollbackAwareTransactor で error 時 side-effect を巻き戻す。
+// audit の typed-nil（*mockTreatmentAuditTxLogger(nil)）を interface の真の nil に正規化する。
 func (f *doseSaveFixture) newSvc() TreatmentService {
+	var audit AuditTxLogger
+	if f.audit != nil {
+		audit = f.audit
+	}
 	return NewTreatmentServiceWithAudit(
 		f.treatRepo, f.mrRepo, f.medRepo, okProcedureRepo(), okConsultationRepo(), f.invRepo,
-		f.vitalRepo, f.paramRepo, &mockTransactor{}, f.audit)
+		f.vitalRepo, f.paramRepo, &rollbackAwareTransactor{f: f}, audit)
 }
 
 // newDoseSaveFixture は per_weight 医薬 1 種・犬・体重 4kg・dose 5mg/kg・max 5・strength 10mg/錠 の保存環境を構築する。
@@ -149,7 +183,7 @@ func TestTreatmentDoseSave_Create(t *testing.T) {
 		assert.Empty(t, f.audit.entries, "拒否された保存に逸脱 audit を書かない")
 	})
 
-	t.Run("BelowMinSaved のみは保存でき audit を記録する", func(t *testing.T) {
+	t.Run("BelowMinSaved のみは理由付きで保存でき audit を記録する", func(t *testing.T) {
 		f := newDoseSaveFixture(t, model.MedicineCalculationTypePerWeight, model.MedicineDoseSpeciesDog)
 		minMgPerKg := 4.5
 		maxMgPerKg := 10.0
@@ -162,7 +196,9 @@ func TestTreatmentDoseSave_Create(t *testing.T) {
 		}
 		svc := f.newSvc()
 
-		_, err := svc.Create(context.Background(), clinicID, 100, medicineCreateInput(1.7))
+		in := medicineCreateInput(1.7)
+		in.DoseDeviationReason = "漸増開始"
+		_, err := svc.Create(context.Background(), clinicID, 100, in)
 		require.NoError(t, err)
 		assert.Equal(t, 1, f.createCalls)
 		require.Len(t, f.audit.entries, 1)
@@ -170,9 +206,10 @@ func TestTreatmentDoseSave_Create(t *testing.T) {
 		require.True(t, ok)
 		assert.Equal(t, true, newValue["below_min"])
 		assert.Equal(t, false, newValue["exceeds_max"])
+		assert.Equal(t, "漸増開始", newValue["dose_deviation_reason"])
 	})
 
-	t.Run("DeviatesFromComputed のみは保存でき audit を記録する", func(t *testing.T) {
+	t.Run("DeviatesFromComputed のみは理由付きで保存でき audit を記録する", func(t *testing.T) {
 		f := newDoseSaveFixture(t, model.MedicineCalculationTypePerWeight, model.MedicineDoseSpeciesDog)
 		maxMgPerKg := 10.0
 		f.paramRepo.findByMedicineAndSpeciesFn = func(_ context.Context, _, _ uint64, _ model.MedicineDoseSpecies) (*model.MedicineDoseParam, error) {
@@ -184,7 +221,9 @@ func TestTreatmentDoseSave_Create(t *testing.T) {
 		}
 		svc := f.newSvc()
 
-		_, err := svc.Create(context.Background(), clinicID, 100, medicineCreateInput(3))
+		in := medicineCreateInput(3)
+		in.DoseDeviationReason = "臨床判断による増量"
+		_, err := svc.Create(context.Background(), clinicID, 100, in)
 		require.NoError(t, err)
 		assert.Equal(t, 1, f.createCalls)
 		require.Len(t, f.audit.entries, 1)
@@ -192,6 +231,8 @@ func TestTreatmentDoseSave_Create(t *testing.T) {
 		require.True(t, ok)
 		assert.Equal(t, false, newValue["below_min"])
 		assert.Equal(t, false, newValue["exceeds_max"])
+		assert.Equal(t, true, newValue["deviates_from_computed"])
+		assert.Equal(t, "臨床判断による増量", newValue["dose_deviation_reason"])
 	})
 
 	t.Run("情報欠落時は従来どおり評価をスキップして保存する", func(t *testing.T) {
@@ -324,8 +365,11 @@ func TestTreatmentDoseSave_Create(t *testing.T) {
 		f.audit.logEntryTxErr = errAuditWriteFailed
 		svc := f.newSvc()
 
-		_, err := svc.Create(context.Background(), clinicID, 100, medicineCreateInput(3)) // 上限内の推奨値乖離
+		in := medicineCreateInput(3) // 上限内の推奨値乖離
+		in.DoseDeviationReason = "audit failure injection"
+		_, err := svc.Create(context.Background(), clinicID, 100, in)
 		require.Error(t, err, "audit 失敗は treatment 作成全体を失敗させる")
+		assert.Zero(t, f.createCalls)
 	})
 }
 
@@ -369,11 +413,12 @@ func TestTreatmentDoseSave_Update(t *testing.T) {
 		assert.Empty(t, f.audit.entries)
 	})
 
-	t.Run("下限未満・推奨値乖離・評価情報なしは保存を継続する", func(t *testing.T) {
+	t.Run("下限未満・推奨値乖離は理由付きで保存継続、評価情報なしは理由なしで継続", func(t *testing.T) {
 		tests := []struct {
 			name      string
 			quantity  float64
 			setup     func(*doseSaveFixture)
+			reason    *string
 			wantAudit bool
 		}{
 			{
@@ -390,6 +435,7 @@ func TestTreatmentDoseSave_Update(t *testing.T) {
 						}, nil
 					}
 				},
+				reason:    strPtr("漸増"),
 				wantAudit: true,
 			},
 			{
@@ -405,6 +451,7 @@ func TestTreatmentDoseSave_Update(t *testing.T) {
 						}, nil
 					}
 				},
+				reason:    strPtr("臨床判断"),
 				wantAudit: true,
 			},
 			{
@@ -425,7 +472,12 @@ func TestTreatmentDoseSave_Update(t *testing.T) {
 				svc := f.newSvc()
 
 				qty := tt.quantity
-				_, err := svc.Update(context.Background(), clinicID, 100, treatmentID, &UpdateTreatmentInput{Quantity: &qty})
+				actor := uint64(3)
+				_, err := svc.Update(context.Background(), clinicID, 100, treatmentID, &UpdateTreatmentInput{
+					Quantity:            &qty,
+					DoseDeviationReason: tt.reason,
+					ActorID:             &actor,
+				})
 				require.NoError(t, err)
 				assert.Equal(t, 1, f.updateCalls)
 				if tt.wantAudit {
@@ -499,7 +551,12 @@ func TestTreatmentDoseSave_Update(t *testing.T) {
 		svc := f.newSvc()
 
 		qty := 3.0
-		_, err := svc.Update(context.Background(), clinicID, 100, treatmentID, &UpdateTreatmentInput{Quantity: &qty})
+		reason := "audit failure injection"
+		actor := uint64(3)
+		_, err := svc.Update(context.Background(), clinicID, 100, treatmentID, &UpdateTreatmentInput{
+			Quantity: &qty, DoseDeviationReason: &reason, ActorID: &actor,
+		})
 		require.Error(t, err, "audit 失敗は treatment 更新全体を失敗させる")
+		assert.Zero(t, f.updateCalls)
 	})
 }
