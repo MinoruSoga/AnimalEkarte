@@ -16,7 +16,8 @@ import {
 } from "@/types/generated/models";
 
 import type { OwnerReportPet } from "../api/get-owner-report-pets";
-import { OwnerReport, toPet } from "./OwnerReport";
+import { toPet } from "../lib/owner-report-pet";
+import { OwnerReport } from "./OwnerReport";
 
 // ---- data hooks をモックしてセクションデータを決定的に注入する ----
 const hooks = vi.hoisted(() => ({

@@ -42,7 +42,16 @@ func TestRouteCompositionSmoke_TargetGraphRegistersEverySurface(t *testing.T) {
 	// 2026-08-01: 497 — b65cf69ef added POST /api/v1/estimates/:id/successors
 	// (TASK-012 estimate successor drafts), documented in api.yaml and covered
 	// by the OpenAPI drift test.
-	require.Len(t, routes, 497)
+	// 2026-08-04: 503 — six routes landed between b65cf69ef and this bump without
+	// the constant being updated. Enumerated so the number is auditable:
+	//   74aa3e2c6 (BUG-013) GET  /api/v1/billing-items/unbilled-details
+	//   75f8912fc (BUG-018) POST /api/v1/accountings/complete
+	//   1dd1cf04e           POST /api/v1/examinations/:id/unconfirm
+	//   f609832ce (TASK-031) GET  /api/v1/examinations/:id/print-snapshot
+	//   f609832ce (TASK-374) POST /api/v1/checkup-package-imports/preview
+	//   f609832ce (TASK-374) POST /api/v1/checkup-package-imports
+	// All six are documented in docs/api.yaml and covered by the OpenAPI drift test.
+	require.Len(t, routes, 503)
 	for _, expected := range []string{
 		"GET /health",
 		"GET /uploads/*filepath",

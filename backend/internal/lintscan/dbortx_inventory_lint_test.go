@@ -125,6 +125,10 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"billing/accounting_repository.go|accountingRepository.SavePayment":        {},
 	"billing/accounting_repository.go|accountingRepository.SavePaymentSplits":  {},
 	"billing/accounting_repository.go|accountingRepository.Update":             {},
+	// BUG-018 idempotency probe: the completion-request key must be looked up inside the
+	// caller's ambient transaction so a replay cannot observe a pre-commit gap and create a
+	// second billing for the same key. Unscoped + ClinicScope keeps soft-deleted keys reserved.
+	"billing/accounting_repository.go|accountingRepository.FindByCompletionRequestID": {},
 	// Audit writes deliberately require an already-open ambient transaction and call
 	// persistence.TxFromContext directly. The explicit expectation below prevents weakening
 	// this fail-closed contract back to fallback DBOrTx behavior.
@@ -233,6 +237,20 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	// Runtime: TestDB_CheckupRepository_ParentThenChildLocksSerializeMedicalRecordFinalization.
 	"medicalrecord/checkup_repository.go|checkupRepository.LockByIDForUpdate": {},
 	"medicalrecord/checkup_repository.go|checkupRepository.Update":            {},
+	// clinical_plan (BUG-010 residual 929fef0fa / 90ee096bf): clinical plan Update and Delete
+	// record a staff-actor audit entry fail-closed in the SAME transaction as the business
+	// write, so every method on this repository must join the caller's ambient tx. The reads
+	// (FindByMedicalRecordID) and the two unexported guards (existsInClinic, parentStillDraft)
+	// participate as well: they re-check ownership and draft state from inside that tx, and a
+	// non-ambient read would let a concurrent finalize slip between the guard and the write.
+	// Runtime: TestClinicalPlanService_Update_AuditFailureRollsBackDB,
+	// TestClinicalPlanService_Update_AuditSuccessCommitsDB.
+	"medicalrecord/clinical_plan_repository.go|clinicalPlanRepository.Create":                {},
+	"medicalrecord/clinical_plan_repository.go|clinicalPlanRepository.Delete":                {},
+	"medicalrecord/clinical_plan_repository.go|clinicalPlanRepository.FindByMedicalRecordID": {},
+	"medicalrecord/clinical_plan_repository.go|clinicalPlanRepository.Update":                {},
+	"medicalrecord/clinical_plan_repository.go|clinicalPlanRepository.existsInClinic":        {},
+	"medicalrecord/clinical_plan_repository.go|clinicalPlanRepository.parentStillDraft":      {},
 	// estimate (SD-2 系ガード監査: 見積書 Create/Update/Delete が確定済みカルテ書込ガード対象と判明。
 	// estimateService の LockByIDForUpdate ambient tx に参加させる。FindByID は
 	// UpdateIfNotLocked/normalizeDeleteIfNotLockedMiss の tx 内再取得のため併せて追加)
@@ -281,7 +299,7 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"medicalrecord/examination_print_snapshot.go|examinationRepository.FindPrintSnapshot": {},
 	// TASK-374: clinic-scoped package import apply/preflight participate in ambient tx.
 	"medicalrecord/checkup_package_import_service.go|checkupPackageImportService.Apply":                 {},
-	"medicalrecord/checkup_package_import_service.go|checkupPackageImportService.preflightCollisions": {},
+	"medicalrecord/checkup_package_import_service.go|checkupPackageImportService.preflightCollisions":   {},
 	"medicalrecord/checkup_package_import_service.go|checkupPackageImportService.validateActorInClinic": {},
 	// TASK-027 Slice B: unconfirm/edit/reconfirm revision writes and pointer CAS all fail closed
 	// without the service-owned ambient transaction. Runtime rollback proof:

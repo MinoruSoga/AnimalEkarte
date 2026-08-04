@@ -2068,6 +2068,168 @@ components:
           readOnly: true
           items:
             $ref: '#/components/schemas/BillingRefund'
+    UnbilledWarning:
+      type: object
+      description: >
+        未請求集約で検出したデータ品質警告（BUG-013）。ID・名称・価格・SQL は含めない。
+      required: [source, code, count, blocking]
+      properties:
+        source:
+          type: string
+          description: 警告の発生源
+          enum: [vaccination]
+        code:
+          type: string
+          description: 安定した警告コード
+          enum: [vaccination_master_unbillable]
+        count:
+          type: integer
+          description: 該当件数
+        blocking:
+          type: boolean
+          description: true の場合、呼び出し側は会計確定を無効化する
+    UnbilledDetailsResponse:
+      type: object
+      required: [items, warnings]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/BillingItem'
+        warnings:
+          type: array
+          items:
+            $ref: '#/components/schemas/UnbilledWarning'
+    CompleteAccountingItemRequest:
+      type: object
+      description: 会計確定時に一括作成する明細1件（BUG-018）
+      required: [name, quantity]
+      properties:
+        category:
+          type: string
+          enum: [examination, test, procedure, surgery, medicine, food, goods, other, vaccine, trimming, hotel, training]
+        name:
+          type: string
+        unit_price:
+          type: integer
+          format: int64
+          minimum: 0
+        quantity:
+          type: number
+          format: double
+          exclusiveMinimum: true
+          minimum: 0
+        discount_rate:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 100
+        discount_amount:
+          type: integer
+          format: int64
+          minimum: 0
+          description: 非ゼロの場合 discount:edit 権限が必要
+        tax_type:
+          type: string
+          enum: [included, excluded, exempt]
+        tax_rate:
+          type: number
+          format: double
+        is_insurance_applicable:
+          type: boolean
+        source:
+          type: string
+          enum: [medical_record, manual, hospitalization, trimming]
+        other_reason:
+          type: string
+          nullable: true
+          description: category=other の場合の理由
+        merchandise_item_id:
+          type: integer
+          format: int64
+          nullable: true
+        treatment_id:
+          type: integer
+          format: int64
+          nullable: true
+        vaccination_id:
+          type: integer
+          format: int64
+          nullable: true
+        appointment_id:
+          type: integer
+          format: int64
+          nullable: true
+        trimming_course_id:
+          type: integer
+          format: int64
+          nullable: true
+        trimming_option_id:
+          type: integer
+          format: int64
+          nullable: true
+        sort_order:
+          type: integer
+    CompleteAccountingRequest:
+      type: object
+      description: >
+        POST /accountings/complete の body（BUG-018）。
+        合計金額は含めない — server が items から再計算する。
+      required: [scheduled_date, items]
+      properties:
+        medical_record_id:
+          type: integer
+          format: int64
+          nullable: true
+        hospitalization_id:
+          type: integer
+          format: int64
+          nullable: true
+        owner_id:
+          type: integer
+          format: int64
+          nullable: true
+        pet_id:
+          type: integer
+          format: int64
+          nullable: true
+        scheduled_date:
+          type: string
+          format: date-time
+        memo:
+          type: string
+        has_insurance:
+          type: boolean
+        insurance_ratio:
+          type: number
+          format: double
+          nullable: true
+        insurance_name:
+          type: string
+          nullable: true
+        insurance_amount:
+          type: integer
+          format: int64
+          nullable: true
+        discount_amount:
+          type: integer
+          format: int64
+          nullable: true
+          description: 非ゼロの場合 discount:edit 権限が必要
+        items:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/CompleteAccountingItemRequest'
+        payment_splits:
+          type: array
+          maxItems: 50
+          items:
+            $ref: '#/components/schemas/PaymentSplit'
+        post_close_reason:
+          type: string
+          nullable: true
+          description: レジ締め後編集の理由。締め済み期間では必須
     BillingRefund:
       type: object
       required: [amount]
@@ -11636,6 +11798,59 @@ paths:
           $ref: '#/components/responses/Conflict'
         '500':
           $ref: '#/components/responses/InternalError'
+  /accountings/complete:
+    post:
+      operationId: completeAccounting
+      summary: 会計確定（明細一括作成＋支払い確定を単一トランザクションで実行）
+      description: >
+        BUG-018: 会計・明細・支払い分割を1リクエストで原子的に確定する。
+        合計金額は client から受け取らず、server が items から再計算する。
+        Idempotency-Key ヘッダで再送を冪等化し、同一キーの再送は新規作成せず既存会計を 200 で返す。
+      tags: [Accountings]
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          description: UUID 形式の冪等キー。同一キーの再送は既存の会計を返す。
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompleteAccountingRequest'
+      responses:
+        '200':
+          description: 冪等再送。同一 Idempotency-Key で既に確定済みの会計を返す
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Billing'
+        '201':
+          description: 確定成功
+          headers:
+            Location:
+              description: 作成されたリソースのURL
+              schema:
+                type: string
+                format: uri
+                example: /v1/accountings/1234
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Billing'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /accountings/{id}:
     get:
       operationId: getAccounting
@@ -12637,6 +12852,37 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/BillingItem'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /billing-items/unbilled-details:
+    get:
+      operationId: getUnbilledItemDetails
+      summary: 未会計対象明細一覧（データ品質警告付き）
+      description: >
+        BUG-013: additive エンドポイント。/billing-items/unbilled と同じ明細に加え、
+        集約中に検出したデータ品質警告を返す。blocking=true の警告がある間、
+        呼び出し側は会計確定を無効化する。警告に ID・名称・価格は含めない。
+      tags: [BillingItems]
+      parameters:
+        - name: pet_id
+          in: query
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 未会計対象明細と警告
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnbilledDetailsResponse'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
