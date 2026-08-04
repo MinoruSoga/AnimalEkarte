@@ -114,7 +114,7 @@
     <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/201">#201</a></td>
     <td>薬量自動計算 — 上限超過の物理ブロックと例外統制</td>
     <td><span class="status judge">判断待ち</span></td>
-    <td>R0 で warning 逸脱理由の未接続を検出し、<a href="q&amp;a.html#dec-65">DEC-65</a>/TASK-377 の独立 local taskへ分離した。TASK-377 は <b>READY_AGENT・未着手</b>（値非依存の理由契約を既存 evaluator へ接続するもので、臨床値の決定を含まない）。本 view は Issue-level の次 actor を示すため、TASK-377 の完了だけでは close gate を満たさない #201 は判断待ちを維持する。臨床責任者が canonical #201 bundle 1行へ上限/warning の継続または修正と救急記録 policy を出典付きで記入するまで TASK-033 cutover は HOLD</td>
+    <td>R0 で warning 逸脱理由の未接続を検出し、<a href="q&amp;a.html#dec-65">DEC-65</a>/TASK-377 の独立 local taskへ分離した。TASK-377 は <b>完了</b>（上限内の著しい乖離と下限割れで理由を必須化し、FE inline 要求・BE 再評価・snapshot・同一 transaction audit を fail-closed で接続。臨床値は決めていない）。本 view は Issue-level の次 actor を示すため、TASK-377 の完了だけでは close gate を満たさない #201 は判断待ちを維持する。臨床責任者が canonical #201 bundle 1行へ上限/warning の継続または修正と救急記録 policy を出典付きで記入するまで TASK-033 cutover は HOLD</td>
   </tr>
   <tr>
     <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/211">#211</a></td>
@@ -126,7 +126,7 @@
     <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/249">#249</a></td>
     <td>検査機能 — 院内検査結果管理の内製</td>
     <td><span class="status go">着手可能</span></td>
-    <td>TASK-026（confirm 順序・conflict 409・actor/audit 原子性）、TASK-027（append-only revision・理由必須 unconfirm・default-deny permission・死亡患者拒否）、TASK-031（保存 snapshot 印刷 API と FE print surface）はいずれも完了。次に着手できるのは TASK-032（lab import revert）だが、soft-deleted child にも効く非部分 FK-supporting index の plan 補正と fresh DB review が RESOLVED を返すまで実装を開始しない — この plan revision 自体はエージェント作業である。臨床 range と外部自動化は承認待ちのまま分離する</td>
+    <td>TASK-026（confirm 順序・conflict 409・actor/audit 原子性）、TASK-027（append-only revision・理由必須 unconfirm・default-deny permission・死亡患者拒否）、TASK-031（保存 snapshot 印刷 API と FE print surface）はいずれも完了。残るのは TASK-032（lab import revert）で、plan 補正は完了し独立 database review と clinic-isolation review がいずれも CRITICAL/HIGH ゼロを返したため <b>READY_AGENT</b> へ移行済み。ただし plan revision run が <code>claim/TASK-032</code> を保持しているため、実装着手には USER による claim 解放が先に要る。臨床 range と外部自動化は承認待ちのまま分離する</td>
   </tr>
   <tr>
     <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/258">#258</a></td>
