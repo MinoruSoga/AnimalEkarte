@@ -6,11 +6,12 @@
 
 ---
 
-## 対応状況サマリ（2026-08-03 JST）
+## 対応状況サマリ（2026-08-04 JST）
 
-- **Product evidence snapshot**: 台帳 commit parent HEAD `fb0cf9c910aef842fdde1a0206bb5546163096c3`。飼主・ペット・受付は到達済み commit `d7bf32f2214d6bb6c252b99b001d2ed2044de7c9`（BUG-001）、`a17d39d6f46ddaf8afcba7ed53419dbc4f92e968`（BUG-002）、`eb7db0dc94fb842c7e569252a9cebc6aee96cd60`（BUG-021）、`fc3c12b2800942c7527b0be951aad20860c6131c`（BUG-022）、`617f6f9bf88be3627ba789d447c98858dd34c80a`（BUG-020）。検査は BUG-004（`2a8aca33c1848613e7c3ccd9ffa2f2a4e3c9ad5e`）、BUG-005（`dfd653eaa5ccb089707c3a088863c39c07669288`）、BUG-017（`7f71063759974257be14a4ed0a8a5fd04a5c6880`）。その他 `IMPLEMENTED_UNVERIFIED` に BUG-011（`b65cf69ef56785c473ddd233624292a3c338401e`）。BUG-003 は承認済み構造化 range data 不在で BLOCKED。
+- **Product evidence snapshot（2026-08-03 時点の履歴スナップショット。現況の正本ではない）**: この bullet は列挙した commit 群を固定記録するものであり、以後の更新で追記しない。現況は各個票の `対応状況` 行を見ること。台帳 commit parent HEAD `fb0cf9c910aef842fdde1a0206bb5546163096c3`。飼主・ペット・受付は到達済み commit `d7bf32f2214d6bb6c252b99b001d2ed2044de7c9`（BUG-001）、`a17d39d6f46ddaf8afcba7ed53419dbc4f92e968`（BUG-002）、`eb7db0dc94fb842c7e569252a9cebc6aee96cd60`（BUG-021）、`fc3c12b2800942c7527b0be951aad20860c6131c`（BUG-022）、`617f6f9bf88be3627ba789d447c98858dd34c80a`（BUG-020）。検査は BUG-004（`2a8aca33c1848613e7c3ccd9ffa2f2a4e3c9ad5e`）、BUG-005（`dfd653eaa5ccb089707c3a088863c39c07669288`）、BUG-017（`7f71063759974257be14a4ed0a8a5fd04a5c6880`）。その他 `IMPLEMENTED_UNVERIFIED` に BUG-011（`b65cf69ef56785c473ddd233624292a3c338401e`）。BUG-003 は承認済み構造化 range data 不在で BLOCKED。
 - **判定基準**: current checkout から到達可能な code/test を正本とする。GitHub Issue/PR の closed/merged 単独は closure に使わない。本更新では原文ブラウザシナリオを再実行していない。
-- **件数**: OPEN=20 / IN_PROGRESS=0 / IMPLEMENTED_UNVERIFIED=11 / VERIFIED_FIXED=0 / BLOCKED=1 / DUPLICATE=0 / NOT_REPRODUCIBLE=0 / **合計=32**
+- **件数**: OPEN=13 / IN_PROGRESS=0 / IMPLEMENTED_UNVERIFIED=18 / VERIFIED_FIXED=0 / BLOCKED=1 / DUPLICATE=0 / NOT_REPRODUCIBLE=0 / **合計=32**
+- **集計の取得方法**: 2026-08-04 に各 `## BUG-NNN` 節の最初の `対応状況` 行を機械抽出して再計上した（32/32 を取得）。以後この集計を更新するときは、記憶や差分ではなく同じ全数抽出をやり直すこと。個票を更新して集計を据え置くと必ずドリフトする（実際 08-03 集計は OPEN=20 / IMPLEMENTED_UNVERIFIED=11 のまま 7 件ずれていた）。
 - **原文シナリオ再検証**: PASS=0 / FAIL=0 / BLOCKED=0 / UNREPORTED=32 / **合計=32**
 - **未検証境界**: 本更新でのブラウザ/DB mutation 再現は未実施。`VERIFIED_FIXED` は 0。
 - **個票正本**: 各 `## BUG-NNN` 節の最新 `対応状況` 行。
@@ -26,13 +27,13 @@
 | 予防接種 | BUG-006, BUG-007 | 2 | OPEN 2 | `vaccination`、対象ペット表示、ペット別接種履歴 |
 | LINE・LIFF・Lステップ連携 | BUG-008, BUG-014, BUG-030, BUG-032 | 4 | OPEN 4 | `line-reserve`, `liff`, LINE予約設定、`lstep/checkup-sync` |
 | 入院・ホテル | BUG-009 | 1 | IMPLEMENTED_UNVERIFIED 1 | `hospitalization`、ステータスタブ・一覧取得 |
-| カルテ・バイタル | BUG-010, BUG-015 | 2 | OPEN 1 / IMPLEMENTED_UNVERIFIED 1 | `medicalrecord`, `vital`、診察/治療プラン、体重単位 |
-| 見積・会計 | BUG-011, BUG-013, BUG-018, BUG-019 | 4 | IMPLEMENTED_UNVERIFIED 2 / OPEN 2 | `estimate`, `billing`、未請求明細、締め後会計、Not Found |
+| カルテ・バイタル | BUG-010, BUG-015 | 2 | IMPLEMENTED_UNVERIFIED 2 | `medicalrecord`, `vital`、診察/治療プラン、体重単位 |
+| 見積・会計 | BUG-011, BUG-013, BUG-018, BUG-019 | 4 | IMPLEMENTED_UNVERIFIED 3 / OPEN 1 | `estimate`, `billing`、未請求明細、締め後会計、Not Found |
 | 顧客集計 | BUG-012 | 1 | OPEN 1 | `aggregation`、LTV/売上集計、CPM取得 |
 | 横断フォーム基盤 | BUG-016 | 1 | OPEN 1 | 予防接種・検査・入院フォーム共通の取得失敗/Not Found 契約 |
-| 認証・権限 | BUG-023, BUG-024, BUG-031 | 3 | OPEN 3 | `auth`、権限グループ、セッション復元・ログイン遷移 |
-| 設定・マスタ | BUG-025, BUG-026, BUG-027, BUG-028, BUG-029 | 5 | OPEN 5 | settings UI、各 master owner、共通保存・重複エラー契約 |
-| **合計** | **BUG-001〜BUG-032** | **32** | **IMPLEMENTED_UNVERIFIED 11 / OPEN 20 / BLOCKED 1** | 各個票を正本とする |
+| 認証・権限 | BUG-023, BUG-024, BUG-031 | 3 | IMPLEMENTED_UNVERIFIED 1 / OPEN 2 | `auth`、権限グループ、セッション復元・ログイン遷移 |
+| 設定・マスタ | BUG-025, BUG-026, BUG-027, BUG-028, BUG-029 | 5 | IMPLEMENTED_UNVERIFIED 3 / OPEN 2 | settings UI、各 master owner、共通保存・重複エラー契約 |
+| **合計** | **BUG-001〜BUG-032** | **32** | **IMPLEMENTED_UNVERIFIED 18 / OPEN 13 / BLOCKED 1** | 各個票を正本とする |
 
 # 実装優先ウェーブ / 横断クラスタ索引
 
