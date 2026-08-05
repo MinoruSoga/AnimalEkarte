@@ -2660,7 +2660,7 @@ S01〜S12の業務シナリオ検証に続き、個別フォーム単位の受�
 ## BUG-030: LINE予約設定の最短予約受付日数を0に変更して保存すると、200成功・updated_at更新にもかかわらず値が永続化されない
 
 - **重大度**: 中
-- **対応状況（2026-08-03 JST）**: OPEN | **根拠**: booking_window_min_days=0 が GORM zero+default:2 で upsert 再書込み; show_no_staff のみ zero 特例（wave-2） | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: 0 永続の repo 回帰と V05-8 再計測
+- **対応状況（2026-08-05 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: 到達済み commit `37c84041b00335cb5899cad86102034f77ead855` — Save を Create(DoNothing)+Select Updates に変更し explicit 0/false を永続化; updatable 列集合は credential/bot id 除外のまま; scoped test green | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: V05-8 稼働・受付ルール設定 #2 のブラウザ再実行で VERIFIED_FIXED 判定
 - **発見シナリオ**: V05-8 稼働・受付ルール設定（`/line-reservation/settings`）#2
 - **再現手順**:
   1. `/line-reservation/settings` を開く（八王子病院、既存値: 最短予約受付日数=2）
