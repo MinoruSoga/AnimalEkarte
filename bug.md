@@ -6,11 +6,12 @@
 
 ---
 
-## 対応状況サマリ（2026-08-04 JST）
+## 対応状況サマリ（2026-08-05 JST）
 
 - **Product evidence snapshot（2026-08-03 時点の履歴スナップショット。現況の正本ではない）**: この bullet は列挙した commit 群を固定記録するものであり、以後の更新で追記しない。現況は各個票の `対応状況` 行を見ること。台帳 commit parent HEAD `fb0cf9c910aef842fdde1a0206bb5546163096c3`。飼主・ペット・受付は到達済み commit `d7bf32f2214d6bb6c252b99b001d2ed2044de7c9`（BUG-001）、`a17d39d6f46ddaf8afcba7ed53419dbc4f92e968`（BUG-002）、`eb7db0dc94fb842c7e569252a9cebc6aee96cd60`（BUG-021）、`fc3c12b2800942c7527b0be951aad20860c6131c`（BUG-022）、`617f6f9bf88be3627ba789d447c98858dd34c80a`（BUG-020）。検査は BUG-004（`2a8aca33c1848613e7c3ccd9ffa2f2a4e3c9ad5e`）、BUG-005（`dfd653eaa5ccb089707c3a088863c39c07669288`）、BUG-017（`7f71063759974257be14a4ed0a8a5fd04a5c6880`）。その他 `IMPLEMENTED_UNVERIFIED` に BUG-011（`b65cf69ef56785c473ddd233624292a3c338401e`）。BUG-003 は承認済み構造化 range data 不在で BLOCKED。
 - **判定基準**: current checkout から到達可能な code/test を正本とする。GitHub Issue/PR の closed/merged 単独は closure に使わない。本更新では原文ブラウザシナリオを再実行していない。
 - **件数**: OPEN=13 / IN_PROGRESS=0 / IMPLEMENTED_UNVERIFIED=18 / VERIFIED_FIXED=0 / BLOCKED=1 / DUPLICATE=0 / NOT_REPRODUCIBLE=0 / **合計=32**
+- **コードベース照合（2026-08-05）**: 集計の再計算ではなく、**各個票の `根拠` が現行コードで今も成立するかを source で検証**した。結果は全件一致で、状態変更を要する個票は 0 件。検証内容: ① OPEN 13 件それぞれの `根拠` が指す実装箇所を grep/read で実査（BUG-006 `PatientInfoCard` に petDetails 未渡し / BUG-007 `useGetPetVaccinations` は owner-report のみで vaccinations 側は page 方式 / BUG-016 hospitalization hook の `isError` は `handleApiError` のトースト表示のみで not-found ゲートではない / BUG-019 `EstimateForm` に isError 処理なし / BUG-026・029 の validate は `!d.name.trim()` のみ / BUG-031 `restoreSession = !isAuthPublicPath(pathname)` / BUG-032 checkup sync に timeout・LIMIT なし、ほか）② 個票が引用する commit hash 20 件が全て HEAD から到達可能であることを `git merge-base --is-ancestor` で確認（stale・revert 済み参照 0 件）。**次回このセクションを更新するときも、集計の再計算だけで「最新化した」と書かないこと。**
 - **集計の取得方法**: 2026-08-04 に各 `## BUG-NNN` 節の最初の `対応状況` 行を機械抽出して再計上した（32/32 を取得）。以後この集計を更新するときは、記憶や差分ではなく同じ全数抽出をやり直すこと。個票を更新して集計を据え置くと必ずドリフトする（実際 08-03 集計は OPEN=20 / IMPLEMENTED_UNVERIFIED=11 のまま 7 件ずれていた）。
 - **原文シナリオ再検証**: PASS=0 / FAIL=0 / BLOCKED=0 / UNREPORTED=32 / **合計=32**
 - **未検証境界**: 本更新でのブラウザ/DB mutation 再現は未実施。`VERIFIED_FIXED` は 0。
