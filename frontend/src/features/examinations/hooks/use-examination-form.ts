@@ -16,6 +16,11 @@ import type { ExaminationRecord } from "../api/transforms";
 import { paths } from "@/config/paths";
 import { usePetSelection } from "@/hooks/use-pet-selection";
 import { useGetPet } from "@/hooks/use-pet";
+import {
+  isNonDisclosureReadStatus,
+  resolveEntityReadResult,
+  type EntityReadResult,
+} from "@/lib/entity-read-result";
 import { useGetExamination } from "../api/get-examination";
 import { useCreateExamination } from "../api/create-examination";
 import { useUpdateExamination } from "../api/update-examination";
@@ -110,8 +115,28 @@ export function useExaminationForm(
   const petSelection = usePetSelection();
   const { setSelectedPets, selectedPets } = petSelection;
 
-  // API hooks
-  const { data: existingExam } = useGetExamination(id ?? "");
+  // API hooks — BUG-016: classify read failures; never fold into blank edit model
+  const {
+    data: examinationData,
+    isLoading: isExaminationLoading,
+    isError: isExaminationError,
+    error: examinationError,
+    refetch: refetchExamination,
+  } = useGetExamination(id ?? "");
+  const entityRead: EntityReadResult<ExaminationRecord> = resolveEntityReadResult({
+    id: isEdit ? id : undefined,
+    data: examinationData,
+    isLoading: isExaminationLoading,
+    isError: isExaminationError,
+    error: examinationError,
+    refetch: refetchExamination,
+  });
+  const existingExam =
+    entityRead.status === "found" ? entityRead.data : undefined;
+  const entityReadRef = useRef(entityRead);
+  useLayoutEffect(() => {
+    entityReadRef.current = entityRead;
+  }, [entityRead]);
   const mutationPetId = isEdit ? (existingExam?.petId ?? "") : (petId ?? "");
   const { data: mutationPet, isLoading: isPetLoading } =
     useGetPet(mutationPetId);
@@ -495,6 +520,10 @@ export function useExaminationForm(
         }
 
         if (isEdit && id) {
+          // BUG-016: edit route without a found entity must not create/update
+          if (entityReadRef.current.status !== "found") {
+            return { success: false, timestamp: Date.now() };
+          }
           const patientChanged =
             current.petId !== undefined &&
             current.petId !== existingPetIdRef.current;
@@ -639,6 +668,11 @@ export function useExaminationForm(
     fieldErrors: manualFieldErrors,
     handleDelete,
     isEdit,
+    entityRead,
+    isReadLoading: entityRead.status === "loading",
+    isReadNotFound: isNonDisclosureReadStatus(entityRead.status),
+    isReadError: entityRead.status === "error",
+    retryRead: entityRead.status === "error" ? entityRead.retry : undefined,
     isSaving,
     isDeleting,
     handleUnconfirm,

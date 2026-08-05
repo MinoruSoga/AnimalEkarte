@@ -2,6 +2,11 @@ import { useState, useEffect, useActionState, useCallback, useLayoutEffect, useR
 import { useNavigate, useSearchParams } from "react-router";
 import { toast } from "sonner";
 import { handleApiError } from "@/lib/handle-api-error";
+import {
+  isNonDisclosureReadStatus,
+  resolveEntityReadResult,
+  type EntityReadResult,
+} from "@/lib/entity-read-result";
 import { paths } from "@/config/paths";
 import type { ActionState } from "@/types/form";
 import { INITIAL_ACTION_STATE } from "@/types/form";
@@ -12,6 +17,7 @@ import { useGetPet } from "@/hooks/use-pet";
 import { createHospitalization } from "../api/create-hospitalization";
 import { updateHospitalization } from "../api/update-hospitalization";
 import { useGetHospitalizationRaw } from "../api/get-hospitalization";
+import type { BackendHospitalization } from "../api/types";
 import { useGetTreatmentPlans } from "../api/get-treatment-plans";
 import { calculateBillingTotals } from "@/lib/calculations";
 import {
@@ -65,6 +71,28 @@ export function useHospitalizationForm(id?: string, canSubmit = false) {
   }, [canSubmit]);
   const isMutationAllowed = useCallback(() => canSubmitRef.current === true, []);
 
+  const {
+    data: hospitalizationData,
+    isLoading,
+    isError,
+    error: hospitalizationError,
+    refetch: refetchHospitalization,
+  } = useGetHospitalizationRaw(id);
+
+  // BUG-016: classify read failures; never fold into blank editable form
+  const entityRead: EntityReadResult<BackendHospitalization> = resolveEntityReadResult({
+    id: isEdit ? id : undefined,
+    data: hospitalizationData,
+    isLoading,
+    isError,
+    error: hospitalizationError,
+    refetch: refetchHospitalization,
+  });
+  const entityReadRef = useRef(entityRead);
+  useLayoutEffect(() => {
+    entityReadRef.current = entityRead;
+  }, [entityRead]);
+
   const [formState, formAction, isPending] = useActionState(
     async (_prevState: ActionState, _formData: FormData): Promise<ActionState> => {
       const pet = selectedPetRef.current;
@@ -86,6 +114,9 @@ export function useHospitalizationForm(id?: string, canSubmit = false) {
       try {
         const latestFormData = formDataRef.current;
         if (isEdit && id) {
+          if (entityReadRef.current.status !== "found") {
+            return { success: false, timestamp: Date.now() };
+          }
           if (!isMutationAllowed()) return { success: false, timestamp: Date.now() };
           // Edit: parent fields only. Treatment plans are create-time snapshots (RO on this screen).
           await updateHospitalization(id, buildUpdateHospitalizationRequest(latestFormData));
@@ -108,13 +139,6 @@ export function useHospitalizationForm(id?: string, canSubmit = false) {
     INITIAL_ACTION_STATE
   );
 
-  const {
-    data: hospitalizationData,
-    isLoading,
-    isError,
-    error: hospitalizationError,
-  } = useGetHospitalizationRaw(id);
-
   // Real wire: GET /hospitalizations/:id/treatment-plans (not embedded on detail).
   const {
     data: treatmentPlanWire,
@@ -123,29 +147,27 @@ export function useHospitalizationForm(id?: string, canSubmit = false) {
 
   const hydratedHospitalizationId = useRef<number | undefined>(undefined);
   useEffect(() => {
-    if (!hospitalizationData || hydratedHospitalizationId.current === hospitalizationData.id) return;
-    hydratedHospitalizationId.current = hospitalizationData.id;
-    setFormData((prev) => buildHospitalizationFormDataFromRecord(prev, hospitalizationData));
-    const selectedPet = buildSelectedPetFromHospitalization(hospitalizationData);
+    // Only hydrate form model when the entity is actually found
+    if (entityRead.status !== "found") return;
+    const record = entityRead.data;
+    if (hydratedHospitalizationId.current === record.id) return;
+    hydratedHospitalizationId.current = record.id;
+    setFormData((prev) => buildHospitalizationFormDataFromRecord(prev, record));
+    const selectedPet = buildSelectedPetFromHospitalization(record);
     if (selectedPet) {
       selectedPetRef.current = selectedPet;
       setSelectedPets([selectedPet]);
     }
-  }, [hospitalizationData, setSelectedPets]);
+  }, [entityRead, setSelectedPets]);
 
   const hydratedTreatmentPlansForId = useRef<string | undefined>(undefined);
   useEffect(() => {
     if (!isEdit || !id || !isTreatmentPlansSuccess || treatmentPlanWire === undefined) return;
+    if (entityRead.status !== "found") return;
     if (hydratedTreatmentPlansForId.current === id) return;
     hydratedTreatmentPlansForId.current = id;
     setTreatmentPlans(buildTreatmentPlansFromRecord(treatmentPlanWire));
-  }, [isEdit, id, isTreatmentPlansSuccess, treatmentPlanWire]);
-
-  useEffect(() => {
-    if (isError) {
-      handleApiError(hospitalizationError, "入院情報の取得");
-    }
-  }, [isError, hospitalizationError]);
+  }, [isEdit, id, isTreatmentPlansSuccess, treatmentPlanWire, entityRead.status]);
 
   useEffect(() => {
     if (!petId || id) return;
@@ -203,8 +225,13 @@ export function useHospitalizationForm(id?: string, canSubmit = false) {
 
   return {
     isEdit,
-    isLoading,
-    isError,
+    isLoading: entityRead.status === "loading",
+    isError: entityRead.status === "error",
+    entityRead,
+    isReadLoading: entityRead.status === "loading",
+    isReadNotFound: isNonDisclosureReadStatus(entityRead.status),
+    isReadError: entityRead.status === "error",
+    retryRead: entityRead.status === "error" ? entityRead.retry : undefined,
     isSaving: isPending,
     formData: formDataWithPet,
     setFormData,

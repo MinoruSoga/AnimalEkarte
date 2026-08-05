@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { AxiosError, AxiosHeaders, type InternalAxiosRequestConfig } from "axios";
 import { renderHook, act, waitFor } from "@testing-library/react";
 import { startTransition, useLayoutEffect, useRef } from "react";
 import { calculateBillingTotals } from "@/lib/calculations";
@@ -14,6 +15,31 @@ async function submitForm(action: ReturnType<typeof useHospitalizationForm>["for
 
 function renderHospitalizationForm(id?: string, canSubmit = true) {
   return renderHook(() => useHospitalizationForm(id, canSubmit));
+}
+
+/** BUG-016: edit mode submit requires a found entity; shared fixture for regression tests. */
+function mockFoundHospitalization(id = 42) {
+  vi.mocked(useGetHospitalizationRaw).mockReturnValue({
+    data: {
+      id,
+      clinic_id: 1,
+      owner_id: 2,
+      pet_id: 3,
+      hospitalization_type: "hospitalization",
+      start_date: "2026-07-23T00:00:00+09:00",
+      end_date: "2026-07-30T00:00:00+09:00",
+      status: "admitted",
+      memo: "m",
+      owner_request: "o",
+      staff_notes: "s",
+      created_at: "2026-07-23T00:00:00+09:00",
+      updated_at: "2026-07-23T00:00:00+09:00",
+    },
+    isLoading: false,
+    isError: false,
+    error: null,
+    refetch: vi.fn(),
+  } as unknown as ReturnType<typeof useGetHospitalizationRaw>);
 }
 
 // ──────────────────────────────────────────────────────────
@@ -85,6 +111,7 @@ vi.mock("../api/get-hospitalization", () => ({
     isLoading: false,
     isError: false,
     error: null,
+    refetch: vi.fn(),
   })),
 }));
 
@@ -387,6 +414,7 @@ describe("useHospitalizationForm", () => {
   // ──────────────────────────
   describe("編集モード（id あり）", () => {
     beforeEach(() => {
+      mockFoundHospitalization(42);
       mockSelectedPets.push({
         id: "1",
         ownerId: "2",
@@ -604,6 +632,14 @@ describe("useHospitalizationForm", () => {
     });
 
     it("isInsurance = false → update 時 保険フィールドが null になる", async () => {
+      mockFoundHospitalization(42);
+      mockSelectedPets.push({
+        id: "1",
+        ownerId: "2",
+        ownerName: "田中太郎",
+        name: "ポチ",
+        species: "犬",
+      });
       const { result } = renderHospitalizationForm("42");
 
       act(() => {
@@ -627,6 +663,14 @@ describe("useHospitalizationForm", () => {
     });
 
     it("isInsurance = true → update 時 保険フィールドが渡される", async () => {
+      mockFoundHospitalization(42);
+      mockSelectedPets.push({
+        id: "1",
+        ownerId: "2",
+        ownerName: "田中太郎",
+        name: "ポチ",
+        species: "犬",
+      });
       const { result } = renderHospitalizationForm("42");
 
       act(() => {
@@ -775,5 +819,103 @@ describe("useHospitalizationForm", () => {
       expect(result.current.formData.ownerRequest).toBe("o");
       expect(useGetTreatmentPlans).toHaveBeenCalledWith("7");
     });
+  });
+});
+
+
+// ──────────────────────────────────────────────────────────
+// BUG-016: 不存在 ID / 別 clinic / network error を空 edit に潰さない
+// ──────────────────────────────────────────────────────────
+
+describe("useHospitalizationForm BUG-016 entity read", () => {
+  function axiosError(status: number | undefined) {
+    const config = { headers: new AxiosHeaders() } as InternalAxiosRequestConfig;
+    if (status === undefined) {
+      return new AxiosError("Network Error", AxiosError.ERR_NETWORK, config, undefined, undefined);
+    }
+    return new AxiosError(
+      "request failed",
+      AxiosError.ERR_BAD_RESPONSE,
+      config,
+      undefined,
+      {
+        config,
+        data: { error: "not found" },
+        headers: new AxiosHeaders(),
+        status,
+        statusText: "Error",
+      },
+    );
+  }
+
+  beforeEach(() => {
+    mockUpdateHospitalization.mockClear();
+    mockCreateHospitalization.mockClear();
+  });
+
+  it("404 → isReadNotFound、formAction で update/create 0 回", async () => {
+    vi.mocked(useGetHospitalizationRaw).mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: true,
+      error: axiosError(404),
+      refetch: vi.fn(),
+    } as unknown as ReturnType<typeof useGetHospitalizationRaw>);
+
+    const { result } = renderHospitalizationForm("999999999");
+    expect(result.current.isReadNotFound).toBe(true);
+    expect(result.current.entityRead.status).toBe("notFound");
+
+    await submitForm(result.current.formAction);
+    expect(mockUpdateHospitalization).not.toHaveBeenCalled();
+    expect(mockCreateHospitalization).not.toHaveBeenCalled();
+  });
+
+  it("403 → forbiddenOrHidden を isReadNotFound として非開示", async () => {
+    vi.mocked(useGetHospitalizationRaw).mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: true,
+      error: axiosError(403),
+      refetch: vi.fn(),
+    } as unknown as ReturnType<typeof useGetHospitalizationRaw>);
+
+    const { result } = renderHospitalizationForm("42");
+    expect(result.current.isReadNotFound).toBe(true);
+    expect(result.current.entityRead.status).toBe("forbiddenOrHidden");
+    await submitForm(result.current.formAction);
+    expect(mockUpdateHospitalization).not.toHaveBeenCalled();
+  });
+
+  it("network error → isReadError と retry、mutation 0 回", async () => {
+    const refetch = vi.fn();
+    vi.mocked(useGetHospitalizationRaw).mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: true,
+      error: axiosError(undefined),
+      refetch,
+    } as unknown as ReturnType<typeof useGetHospitalizationRaw>);
+
+    const { result } = renderHospitalizationForm("999999999");
+    expect(result.current.isReadError).toBe(true);
+    expect(result.current.isReadNotFound).toBe(false);
+    result.current.retryRead?.();
+    expect(refetch).toHaveBeenCalledTimes(1);
+    await submitForm(result.current.formAction);
+    expect(mockUpdateHospitalization).not.toHaveBeenCalled();
+  });
+
+  it("create route: idle", () => {
+    vi.mocked(useGetHospitalizationRaw).mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    } as unknown as ReturnType<typeof useGetHospitalizationRaw>);
+    const { result } = renderHospitalizationForm();
+    expect(result.current.entityRead.status).toBe("idle");
+    expect(result.current.isEdit).toBe(false);
   });
 });

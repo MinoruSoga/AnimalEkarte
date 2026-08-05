@@ -26,7 +26,7 @@ import { HospitalizationTreatmentTable } from "../components/HospitalizationTrea
 import { HospitalizationCostSummary } from "../components/HospitalizationCostSummary";
 import { H_STYLES } from "../styles";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
-import { LoadingFallback } from "@/components/shared/DataStates";
+import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
 import { FormFieldError } from "@/components/shared/FormFieldError";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { C, STYLE, ICON, LAYOUT } from "@/lib/design-tokens";
@@ -51,6 +51,10 @@ export function HospitalizationForm() {
 
   const {
       isEdit,
+      isReadLoading,
+      isReadNotFound,
+      isReadError,
+      retryRead,
       formData,
       handleFormDataChange: handleFormDataChangeRaw,
       treatmentPlans,
@@ -143,6 +147,54 @@ export function HospitalizationForm() {
 
   if (!selectedPet && !isEdit && petId) return <LoadingFallback />;
   if (!selectedPet && !isEdit) return null;
+
+  // BUG-016: never render blank editable form for missing / other-clinic / forbidden IDs
+  if (isEdit && isReadLoading) {
+    return (
+      <PageLayout
+        title="入院"
+        onBack={handleBack}
+        icon={<FileText className={`${ICON.page} ${C.text}`} />}
+        resource={ResourceHospitalization}
+        maxWidth={LAYOUT.pageContentMaxWidth.form}
+      >
+        <LoadingFallback />
+      </PageLayout>
+    );
+  }
+  if (isEdit && isReadNotFound) {
+    return (
+      <PageLayout
+        title="入院"
+        onBack={handleBack}
+        icon={<FileText className={`${ICON.page} ${C.text}`} />}
+        resource={ResourceHospitalization}
+        maxWidth={LAYOUT.pageContentMaxWidth.form}
+      >
+        <ErrorFallback message="入院情報が見つかりません" />
+      </PageLayout>
+    );
+  }
+  if (isEdit && isReadError) {
+    return (
+      <PageLayout
+        title="入院"
+        onBack={handleBack}
+        icon={<FileText className={`${ICON.page} ${C.text}`} />}
+        resource={ResourceHospitalization}
+        maxWidth={LAYOUT.pageContentMaxWidth.form}
+      >
+        <div className="space-y-3">
+          <ErrorFallback message="入院情報の取得に失敗しました" />
+          {retryRead ? (
+            <Button type="button" variant="outline" size="sm" onClick={retryRead}>
+              再試行
+            </Button>
+          ) : null}
+        </div>
+      </PageLayout>
+    );
+  }
 
   return (
     <>

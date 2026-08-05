@@ -1,11 +1,15 @@
 import { renderHook, act, waitFor } from "@testing-library/react";
 import { startTransition, useLayoutEffect, useRef } from "react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { AxiosError, AxiosHeaders, type InternalAxiosRequestConfig } from "axios";
 import { useExaminationForm } from "./use-examination-form";
 import { useSearchParams } from "react-router";
 import { useGetPet } from "@/hooks/use-pet";
 import { usePetSelection } from "@/hooks/use-pet-selection";
 import { useDeleteExamination } from "../api/delete-examination";
+import { useGetExamination } from "../api/get-examination";
+import { useCreateExamination } from "../api/create-examination";
+import { useUpdateExamination } from "../api/update-examination";
 import { jstDateStartISOString, todayJSTISO } from "@/lib/jst-date";
 
 // Mock dependencies
@@ -35,7 +39,13 @@ vi.mock("@/hooks/use-pet", () => ({
 }));
 
 vi.mock("../api/get-examination", () => ({
-  useGetExamination: vi.fn(() => ({ data: null })),
+  useGetExamination: vi.fn(() => ({
+    data: undefined,
+    isLoading: false,
+    isError: false,
+    error: null,
+    refetch: vi.fn(),
+  })),
 }));
 
 vi.mock("../api/create-examination", () => ({
@@ -2396,5 +2406,152 @@ describe("useExaminationForm — mutation permission boundary (FE12-02 U8)", () 
     expect(updateMutate).not.toHaveBeenCalled();
     expect(updateItemsMutate).not.toHaveBeenCalled();
     expect(deleteMutate).not.toHaveBeenCalled();
+  });
+});
+
+
+// ──────────────────────────────────────────────────────────
+// BUG-016: 不存在 ID / 別 clinic / network error を空 edit に潰さない
+// ──────────────────────────────────────────────────────────
+
+describe("useExaminationForm BUG-016 entity read", () => {
+  function axiosError(status: number | undefined) {
+    const config = { headers: new AxiosHeaders() } as InternalAxiosRequestConfig;
+    if (status === undefined) {
+      return new AxiosError("Network Error", AxiosError.ERR_NETWORK, config, undefined, undefined);
+    }
+    return new AxiosError(
+      "request failed",
+      AxiosError.ERR_BAD_RESPONSE,
+      config,
+      undefined,
+      {
+        config,
+        data: { error: "not found" },
+        headers: new AxiosHeaders(),
+        status,
+        statusText: "Error",
+      },
+    );
+  }
+
+  it("404 → isReadNotFound、formAction で mutation 0 回", async () => {
+    const updateMutate = vi.fn().mockResolvedValue({});
+    const createMutate = vi.fn().mockResolvedValue({});
+    vi.mocked(useGetExamination).mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: true,
+      error: axiosError(404),
+      refetch: vi.fn(),
+    } as unknown as ReturnType<typeof useGetExamination>);
+    vi.mocked(useUpdateExamination).mockReturnValue({
+      mutateAsync: updateMutate,
+    } as ReturnType<typeof useUpdateExamination>);
+    vi.mocked(useCreateExamination).mockReturnValue({
+      mutateAsync: createMutate,
+    } as ReturnType<typeof useCreateExamination>);
+
+    const { result } = renderHook(() =>
+      useExaminationForm("999999999", undefined, {
+        canCreate: true,
+        canEdit: true,
+        canDelete: true,
+        canUnconfirm: true,
+      }),
+    );
+    expect(result.current.isReadNotFound).toBe(true);
+    expect(result.current.entityRead.status).toBe("notFound");
+
+    await act(async () => {
+      startTransition(() => {
+        result.current.formAction(new FormData());
+      });
+    });
+    await waitFor(() => {
+      expect(result.current.formState.success).toBe(false);
+    });
+    expect(updateMutate).not.toHaveBeenCalled();
+    expect(createMutate).not.toHaveBeenCalled();
+  });
+
+  it("403 → forbiddenOrHidden を isReadNotFound として非開示", async () => {
+    vi.mocked(useGetExamination).mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: true,
+      error: axiosError(403),
+      refetch: vi.fn(),
+    } as unknown as ReturnType<typeof useGetExamination>);
+
+    const { result } = renderHook(() =>
+      useExaminationForm("42", undefined, {
+        canCreate: true,
+        canEdit: true,
+        canDelete: true,
+        canUnconfirm: true,
+      }),
+    );
+    expect(result.current.isReadNotFound).toBe(true);
+    expect(result.current.entityRead.status).toBe("forbiddenOrHidden");
+  });
+
+  it("network error → isReadError と retry、mutation 0 回", async () => {
+    const refetch = vi.fn();
+    const updateMutate = vi.fn().mockResolvedValue({});
+    vi.mocked(useGetExamination).mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: true,
+      error: axiosError(undefined),
+      refetch,
+    } as unknown as ReturnType<typeof useGetExamination>);
+    vi.mocked(useUpdateExamination).mockReturnValue({
+      mutateAsync: updateMutate,
+    } as ReturnType<typeof useUpdateExamination>);
+
+    const { result } = renderHook(() =>
+      useExaminationForm("999999999", undefined, {
+        canCreate: true,
+        canEdit: true,
+        canDelete: true,
+        canUnconfirm: true,
+      }),
+    );
+    expect(result.current.isReadError).toBe(true);
+    expect(result.current.isReadNotFound).toBe(false);
+    result.current.retryRead?.();
+    expect(refetch).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      startTransition(() => {
+        result.current.formAction(new FormData());
+      });
+    });
+    await waitFor(() => {
+      expect(result.current.formState.success).toBe(false);
+    });
+    expect(updateMutate).not.toHaveBeenCalled();
+  });
+
+  it("create route: idle かつ isEdit false", () => {
+    vi.mocked(useGetExamination).mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    } as unknown as ReturnType<typeof useGetExamination>);
+
+    const { result } = renderHook(() =>
+      useExaminationForm(undefined, undefined, {
+        canCreate: true,
+        canEdit: true,
+        canDelete: true,
+        canUnconfirm: true,
+      }),
+    );
+    expect(result.current.entityRead.status).toBe("idle");
+    expect(result.current.isEdit).toBe(false);
   });
 });

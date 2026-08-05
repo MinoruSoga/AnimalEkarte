@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
 import { startTransition, useLayoutEffect, useRef } from "react";
+import { AxiosError, AxiosHeaders, type InternalAxiosRequestConfig } from "axios";
 import { calculateNextDate, useVaccinationForm } from "./use-vaccination-form";
 import { useGetPet } from "@/hooks/use-pet";
 import { useGetAllVaccinesMaster } from "@/hooks/use-treatment-master";
@@ -40,7 +41,13 @@ vi.mock("@/hooks/use-treatment-master", () => ({
   })),
 }));
 vi.mock("../api/get-vaccination", () => ({
-  useGetVaccination: vi.fn(() => ({ data: undefined })),
+  useGetVaccination: vi.fn(() => ({
+    data: undefined,
+    isLoading: false,
+    isError: false,
+    error: null,
+    refetch: vi.fn(),
+  })),
 }));
 vi.mock("../api/create-vaccination", () => ({
   useCreateVaccination: vi.fn(() => ({ mutateAsync: vi.fn().mockResolvedValue({}), isPending: false })),
@@ -127,7 +134,13 @@ describe("useVaccinationForm", () => {
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(new Date("2026-07-10T01:00:00.000Z")); // JST 2026-07-10 10:00
     vi.mocked(useGetPet).mockReturnValue({ data: undefined, isLoading: false } as ReturnType<typeof useGetPet>);
-    vi.mocked(useGetVaccination).mockReturnValue({ data: undefined } as ReturnType<typeof useGetVaccination>);
+    vi.mocked(useGetVaccination).mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    } as unknown as ReturnType<typeof useGetVaccination>);
     // BUG-401: renderHook 内の act() で複数回再レンダーが起きるため、mockReturnValueOnce だと
     // 2 回目以降の呼び出しでモック実装がデフォルトへ巻き戻ってしまう（1 回限りの upvalue が枯渇する）。
     // beforeEach でテストごとに明示的にデフォルトへ戻し、個別テストは mockReturnValue（永続）で上書きする。
@@ -946,5 +959,173 @@ describe("useVaccinationForm", () => {
       expect(result.current.formState.success).toBe(false);
       expect(mockMutateAsync).not.toHaveBeenCalled();
     });
+  });
+});
+
+// ──────────────────────────────────────────────────────────
+// BUG-016: 不存在 ID / 別 clinic / network error を空 edit に潰さない
+// ──────────────────────────────────────────────────────────
+
+describe("useVaccinationForm BUG-016 entity read", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockSearchParams = new URLSearchParams();
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-07-10T01:00:00.000Z"));
+    vi.mocked(useGetPet).mockReturnValue({ data: undefined, isLoading: false } as ReturnType<typeof useGetPet>);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  function axiosError(status: number | undefined) {
+    const config = { headers: new AxiosHeaders() } as InternalAxiosRequestConfig;
+    if (status === undefined) {
+      return new AxiosError("Network Error", AxiosError.ERR_NETWORK, config, undefined, undefined);
+    }
+    return new AxiosError(
+      "request failed",
+      AxiosError.ERR_BAD_RESPONSE,
+      config,
+      undefined,
+      {
+        config,
+        data: { error: "not found" },
+        headers: new AxiosHeaders(),
+        status,
+        statusText: "Error",
+      },
+    );
+  }
+
+  it("404 → isReadNotFound、formAction で update/create が 0 回", async () => {
+    const updateMutate = vi.fn().mockResolvedValue({});
+    const createMutate = vi.fn().mockResolvedValue({});
+    vi.mocked(useUpdateVaccination).mockReturnValue({
+      mutateAsync: updateMutate,
+      isPending: false,
+    } as ReturnType<typeof useUpdateVaccination>);
+    vi.mocked(useCreateVaccination).mockReturnValue({
+      mutateAsync: createMutate,
+      isPending: false,
+    } as ReturnType<typeof useCreateVaccination>);
+    vi.mocked(useGetVaccination).mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: true,
+      error: axiosError(404),
+      refetch: vi.fn(),
+    } as unknown as ReturnType<typeof useGetVaccination>);
+
+    const { result } = renderVaccinationForm("999999999");
+    expect(result.current.isReadNotFound).toBe(true);
+    expect(result.current.isReadError).toBe(false);
+    expect(result.current.entityRead.status).toBe("notFound");
+
+    await act(async () => {
+      startTransition(() => {
+        result.current.formAction(new FormData());
+      });
+    });
+    await waitFor(() => {
+      expect(result.current.formState.success).toBe(false);
+    });
+    expect(updateMutate).not.toHaveBeenCalled();
+    expect(createMutate).not.toHaveBeenCalled();
+  });
+
+  it("403（別 clinic 相当）→ isReadNotFound と同一非開示、mutation 0 回", async () => {
+    const updateMutate = vi.fn().mockResolvedValue({});
+    vi.mocked(useUpdateVaccination).mockReturnValue({
+      mutateAsync: updateMutate,
+      isPending: false,
+    } as ReturnType<typeof useUpdateVaccination>);
+    vi.mocked(useGetVaccination).mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: true,
+      error: axiosError(403),
+      refetch: vi.fn(),
+    } as unknown as ReturnType<typeof useGetVaccination>);
+
+    const { result } = renderVaccinationForm("42");
+    expect(result.current.isReadNotFound).toBe(true);
+    expect(result.current.entityRead.status).toBe("forbiddenOrHidden");
+
+    await act(async () => {
+      startTransition(() => {
+        result.current.formAction(new FormData());
+      });
+    });
+    await waitFor(() => {
+      expect(result.current.formState.success).toBe(false);
+    });
+    expect(updateMutate).not.toHaveBeenCalled();
+  });
+
+  it("network error → isReadError（notFound と区別）かつ retry あり、mutation 0 回", async () => {
+    const refetch = vi.fn();
+    const updateMutate = vi.fn().mockResolvedValue({});
+    vi.mocked(useUpdateVaccination).mockReturnValue({
+      mutateAsync: updateMutate,
+      isPending: false,
+    } as ReturnType<typeof useUpdateVaccination>);
+    vi.mocked(useGetVaccination).mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: true,
+      error: axiosError(undefined),
+      refetch,
+    } as unknown as ReturnType<typeof useGetVaccination>);
+
+    const { result } = renderVaccinationForm("999999999");
+    expect(result.current.isReadError).toBe(true);
+    expect(result.current.isReadNotFound).toBe(false);
+    expect(result.current.retryRead).toBeTypeOf("function");
+    result.current.retryRead?.();
+    expect(refetch).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      startTransition(() => {
+        result.current.formAction(new FormData());
+      });
+    });
+    await waitFor(() => {
+      expect(result.current.formState.success).toBe(false);
+    });
+    expect(updateMutate).not.toHaveBeenCalled();
+  });
+
+  it("正常 edit: found レコードを form に反映する", () => {
+    vi.mocked(useGetVaccination).mockReturnValue({
+      data: {
+        id: "10",
+        petId: "5",
+        vaccineId: "1",
+        date: "2026-01-15T00:00:00+09:00",
+        nextScheduleType: "1year",
+        nextDate: "2027-01-15T00:00:00+09:00",
+        doctor: "Dr.A",
+      },
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    } as unknown as ReturnType<typeof useGetVaccination>);
+
+    const { result } = renderVaccinationForm("10");
+    expect(result.current.entityRead.status).toBe("found");
+    expect(result.current.isEdit).toBe(true);
+    expect(result.current.form.vaccineId).toBe("1");
+    expect(result.current.form.date).toBe("2026-01-15");
+  });
+
+  it("create route (id なし): idle かつ default form", () => {
+    mockSearchParams = new URLSearchParams({ petId: "5" });
+    const { result } = renderVaccinationForm();
+    expect(result.current.entityRead.status).toBe("idle");
+    expect(result.current.isEdit).toBe(false);
+    expect(result.current.form.vaccineId).toBe("");
   });
 });

@@ -8,11 +8,17 @@ import { paths } from "@/config/paths";
 import { usePetSelection } from "@/hooks/use-pet-selection";
 import { useGetPet } from "@/hooks/use-pet";
 import { useGetAllVaccinesMaster } from "@/hooks/use-treatment-master";
+import {
+  isNonDisclosureReadStatus,
+  resolveEntityReadResult,
+  type EntityReadResult,
+} from "@/lib/entity-read-result";
 import { useGetVaccination } from "../api/get-vaccination";
 import { useCreateVaccination } from "../api/create-vaccination";
 import { useUpdateVaccination } from "../api/update-vaccination";
 import { useDeleteVaccination } from "../api/delete-vaccination";
 import type { CreateVaccinationRequest, UpdateVaccinationRequest } from "../api/types";
+import type { VaccinationRecord } from "@/types";
 
 interface VaccinationFormState {
   vaccineId: string;
@@ -117,8 +123,28 @@ export function useVaccinationForm(
     [vaccinesMaster],
   );
 
-  // API hooks
-  const { data: existingVaccination } = useGetVaccination(id ?? "");
+  // API hooks — BUG-016: classify read failures; never fold into blank edit model
+  const {
+    data: vaccinationData,
+    isLoading: isVaccinationLoading,
+    isError: isVaccinationError,
+    error: vaccinationError,
+    refetch: refetchVaccination,
+  } = useGetVaccination(id ?? "");
+  const entityRead: EntityReadResult<VaccinationRecord> = resolveEntityReadResult({
+    id: isEdit ? id : undefined,
+    data: vaccinationData,
+    isLoading: isVaccinationLoading,
+    isError: isVaccinationError,
+    error: vaccinationError,
+    refetch: refetchVaccination,
+  });
+  const existingVaccination =
+    entityRead.status === "found" ? entityRead.data : undefined;
+  const entityReadRef = useRef(entityRead);
+  useLayoutEffect(() => {
+    entityReadRef.current = entityRead;
+  }, [entityRead]);
   // 編集時: レコードに紐づくペットIDを解決するため、existingVaccination.petId から取得
   const editPetId = isEdit ? (existingVaccination?.petId ?? "") : "";
   const { data: petFromQuery, isLoading: isPetLoading } = useGetPet(petId ?? "");
@@ -228,6 +254,10 @@ export function useVaccinationForm(
 
       try {
         if (isEdit && id) {
+          // BUG-016: edit route without a found entity must not create/update
+          if (entityReadRef.current.status !== "found") {
+            return { success: false, timestamp: Date.now() };
+          }
           const toRFC3339 = (d: string) => d ? jstDateStartISOString(d) : undefined;
           const req: UpdateVaccinationRequest = {
             date: toRFC3339(formData.date),
@@ -420,6 +450,11 @@ export function useVaccinationForm(
 
   return {
     isEdit,
+    entityRead,
+    isReadLoading: entityRead.status === "loading",
+    isReadNotFound: isNonDisclosureReadStatus(entityRead.status),
+    isReadError: entityRead.status === "error",
+    retryRead: entityRead.status === "error" ? entityRead.retry : undefined,
     petSelection,
     form,
     historyFilter: {

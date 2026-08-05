@@ -18,6 +18,8 @@ import { PatientInfoCard } from "@/components/shared/PatientInfoCard";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
+import { Button } from "@/components/ui/button";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { C, LAYOUT } from "@/lib/design-tokens";
 import type { Pet, SortOrder } from "@/types";
@@ -89,6 +91,10 @@ function ExaminationFormContent({ id }: { id: string | undefined }) {
     fieldErrors,
     handleDelete,
     isEdit,
+    isReadLoading,
+    isReadNotFound,
+    isReadError,
+    retryRead,
     isSaving,
     isDeleting,
     formItems,
@@ -295,6 +301,54 @@ function ExaminationFormContent({ id }: { id: string | undefined }) {
 
   if (!selectedPet && !isEdit && petId) return null;
   if (!selectedPet && !isEdit) return null;
+
+  // BUG-016: never render blank editable form for missing / other-clinic / forbidden IDs
+  if (isEdit && isReadLoading) {
+    return (
+      <PageLayout
+        title="検査"
+        resource={ResourceExaminations}
+        onBack={handleBack}
+        maxWidth={LAYOUT.pageContentMaxWidth.formMid}
+        align="left"
+      >
+        <LoadingFallback />
+      </PageLayout>
+    );
+  }
+  if (isEdit && isReadNotFound) {
+    return (
+      <PageLayout
+        title="検査"
+        resource={ResourceExaminations}
+        onBack={handleBack}
+        maxWidth={LAYOUT.pageContentMaxWidth.formMid}
+        align="left"
+      >
+        <ErrorFallback message="検査記録が見つかりません" />
+      </PageLayout>
+    );
+  }
+  if (isEdit && isReadError) {
+    return (
+      <PageLayout
+        title="検査"
+        resource={ResourceExaminations}
+        onBack={handleBack}
+        maxWidth={LAYOUT.pageContentMaxWidth.formMid}
+        align="left"
+      >
+        <div className="space-y-3">
+          <ErrorFallback message="検査記録の取得に失敗しました" />
+          {retryRead ? (
+            <Button type="button" variant="outline" size="sm" onClick={retryRead}>
+              再試行
+            </Button>
+          ) : null}
+        </div>
+      </PageLayout>
+    );
+  }
 
   return (
     <PageLayout

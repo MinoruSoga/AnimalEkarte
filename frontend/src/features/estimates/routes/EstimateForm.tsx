@@ -1,6 +1,10 @@
 import { ICON, C } from "@/lib/design-tokens";
 import { paths } from "@/config/paths";
-import { LoadingFallback } from "@/components/shared/DataStates";
+import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
+import {
+  isNonDisclosureReadStatus,
+  resolveEntityReadResult,
+} from "@/lib/entity-read-result";
 import { memo, useCallback, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router';
 import { toast } from "sonner";
@@ -272,12 +276,30 @@ const TextSection = memo(function TextSection({
 
 function EstimateFormContent({ id }: { id?: string }) {
   const navigate = useNavigate();
-  const { data: estimate, isLoading } = useGetEstimate(id);
-  const { form, handleChange, formAction, formState, handleCancel, isPending } = useEstimateForm(
-    id ? estimate : undefined
-  );
-
+  // BUG-019: mode from route param; found state from classified read result
   const isEdit = !!id;
+  const {
+    data: estimateData,
+    isLoading,
+    isError,
+    error: estimateError,
+    refetch: refetchEstimate,
+  } = useGetEstimate(id);
+  const entityRead = resolveEntityReadResult({
+    id,
+    data: estimateData,
+    isLoading,
+    isError,
+    error: estimateError,
+    refetch: refetchEstimate,
+  });
+  const foundEstimate = entityRead.status === "found" ? entityRead.data : undefined;
+
+  const { form, handleChange, formAction, formState, handleCancel, isPending } = useEstimateForm({
+    mode: isEdit ? "edit" : "create",
+    estimate: foundEstimate,
+  });
+
   const { canEdit, canCreate } = usePermission("estimates");
   // BUG-372: 割引権限（割引額制御）
   const { canEdit: canEditDiscount } = usePermission("discount");
@@ -287,8 +309,8 @@ function EstimateFormContent({ id }: { id?: string }) {
 
   // React 19 Action の成功を検知して遷移
   // rerender-dependencies: estimate（オブジェクト）の代わりに estimate?.id（primitive）を deps に使用
-  const estimateId = estimate?.id;
-  const estimateStatus = estimate?.status;
+  const estimateId = foundEstimate?.id;
+  const estimateStatus = foundEstimate?.status;
   const isLockedEdit =
     isEdit && estimateId != null && estimateStatus != null
       ? isEstimateLockedStatus(estimateStatus)
@@ -324,8 +346,42 @@ function EstimateFormContent({ id }: { id?: string }) {
     [markDirty, handleChange]
   );
 
-  if (isEdit && isLoading) {
+  if (isEdit && entityRead.status === "loading") {
     return <LoadingFallback />;
+  }
+
+  // BUG-019: missing / other-clinic / forbidden → Not Found (non-disclosure), never blank form
+  if (isEdit && isNonDisclosureReadStatus(entityRead.status)) {
+    return (
+      <PageLayout
+        title="見積書"
+        resource={ResourceEstimates}
+        icon={<FileText className={`${ICON.page} ${C.text}`} />}
+        maxWidth="max-w-2xl"
+      >
+        <ErrorFallback message="見積書が見つかりません" />
+      </PageLayout>
+    );
+  }
+
+  if (isEdit && entityRead.status === "error") {
+    return (
+      <PageLayout
+        title="見積書"
+        resource={ResourceEstimates}
+        icon={<FileText className={`${ICON.page} ${C.text}`} />}
+        maxWidth="max-w-2xl"
+      >
+        <div className="space-y-3">
+          <ErrorFallback message="見積書の取得に失敗しました" />
+          {entityRead.retry ? (
+            <Button type="button" variant="outline" size="sm" onClick={entityRead.retry}>
+              再試行
+            </Button>
+          ) : null}
+        </div>
+      </PageLayout>
+    );
   }
 
   // locked 見積の edit 直アクセス: 更新 UI を出さず detail へリダイレクト中

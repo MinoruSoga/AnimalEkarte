@@ -51,9 +51,21 @@ interface FormState {
   fieldErrors?: Record<string, string>;
 }
 
-export function useEstimateForm(estimate?: Estimate) {
+export interface UseEstimateFormArgs {
+  /**
+   * Route-derived mode. Must NOT be inferred from fetched object truthiness
+   * (BUG-019: missing ID must not fall through to create-like blank edit).
+   */
+  mode: "create" | "edit";
+  /** Present only when the edit entity was successfully loaded. */
+  estimate?: Estimate;
+}
+
+export function useEstimateForm(args: UseEstimateFormArgs = { mode: "create" }) {
   const navigate = useNavigate();
-  const isEdit = !!estimate;
+  // BUG-019: mode is route-param driven, not `!!estimate`
+  const isEdit = args.mode === "edit";
+  const estimate = args.estimate;
 
   const [form, setForm] = useState<EstimateFormState>(() => buildInitialState(estimate));
 
@@ -76,7 +88,11 @@ export function useEstimateForm(estimate?: Estimate) {
       }
 
       try {
-        if (isEdit && estimate) {
+        if (isEdit) {
+          // BUG-019: edit mode without a found estimate must not create/update
+          if (!estimate) {
+            return { success: false, timestamp: Date.now() };
+          }
           if (isEstimateLockedStatus(estimate.status)) {
             toast.info(ESTIMATE_LOCKED_EDIT_MESSAGE);
             return { success: false, timestamp: Date.now() };
@@ -145,5 +161,5 @@ export function useEstimateForm(estimate?: Estimate) {
     }
   }, [isEdit, estimate, navigate]);
 
-  return { form, handleChange, formAction, formState, handleCancel, isPending };
+  return { form, handleChange, formAction, formState, handleCancel, isPending, isEdit };
 }

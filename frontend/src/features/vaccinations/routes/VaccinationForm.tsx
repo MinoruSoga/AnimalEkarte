@@ -12,6 +12,7 @@ import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { PatientInfoCard } from "@/components/shared/PatientInfoCard";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
+import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { C, STYLE, ICON, LAYOUT } from "@/lib/design-tokens";
 import { normalizeKana } from "@/lib/normalize-kana";
@@ -39,6 +40,10 @@ export const VaccinationForm = memo(function VaccinationForm() {
 
   const {
     isEdit,
+    isReadLoading,
+    isReadNotFound,
+    isReadError,
+    retryRead,
     petSelection,
     form,
     formAction,
@@ -142,6 +147,51 @@ export const VaccinationForm = memo(function VaccinationForm() {
       <div className={`flex items-center justify-center p-8 text-base ${C.text50}`}>
         <p>ペットを選択してください</p>
       </div>
+    );
+  }
+
+  // BUG-016: never render blank editable form for missing / other-clinic / forbidden IDs
+  if (isEdit && isReadLoading) {
+    return (
+      <PageLayout
+        title="予防接種"
+        resource={ResourceVaccinations}
+        onBack={handleBack}
+        maxWidth={LAYOUT.pageContentMaxWidth.formMid}
+      >
+        <LoadingFallback />
+      </PageLayout>
+    );
+  }
+  if (isEdit && isReadNotFound) {
+    return (
+      <PageLayout
+        title="予防接種"
+        resource={ResourceVaccinations}
+        onBack={handleBack}
+        maxWidth={LAYOUT.pageContentMaxWidth.formMid}
+      >
+        <ErrorFallback message="予防接種が見つかりません" />
+      </PageLayout>
+    );
+  }
+  if (isEdit && isReadError) {
+    return (
+      <PageLayout
+        title="予防接種"
+        resource={ResourceVaccinations}
+        onBack={handleBack}
+        maxWidth={LAYOUT.pageContentMaxWidth.formMid}
+      >
+        <div className="space-y-3">
+          <ErrorFallback message="予防接種の取得に失敗しました" />
+          {retryRead ? (
+            <Button type="button" variant="outline" size="sm" onClick={retryRead}>
+              再試行
+            </Button>
+          ) : null}
+        </div>
+      </PageLayout>
     );
   }
 

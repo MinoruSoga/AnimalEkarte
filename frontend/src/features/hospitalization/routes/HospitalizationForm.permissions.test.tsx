@@ -73,7 +73,10 @@ vi.mock("../components/HospitalizationNoteCard", () => ({ HospitalizationNoteCar
 vi.mock("../components/HospitalizationTreatmentTable", () => ({ HospitalizationTreatmentTable: () => null }));
 vi.mock("../components/HospitalizationCostSummary", () => ({ HospitalizationCostSummary: () => null }));
 vi.mock("@/components/shared/NavigationBlocker", () => ({ NavigationBlocker: () => null }));
-vi.mock("@/components/shared/DataStates", () => ({ LoadingFallback: () => null }));
+vi.mock("@/components/shared/DataStates", () => ({
+  LoadingFallback: () => <div>loading</div>,
+  ErrorFallback: ({ message }: { message?: string }) => <div role="alert">{message}</div>,
+}));
 vi.mock("@/components/shared/FormFieldError", () => ({ FormFieldError: () => null }));
 
 function renderForm() {
@@ -87,6 +90,10 @@ beforeEach(() => {
   mocks.useHospitalizationForm.mockReset();
   mocks.useHospitalizationForm.mockImplementation(() => ({
     isEdit: true,
+    isReadLoading: false,
+    isReadNotFound: false,
+    isReadError: false,
+    retryRead: undefined,
     formData: {
       hospitalizationType: "入院",
       ownerRequest: "",
@@ -192,5 +199,81 @@ describe("HospitalizationForm — mutation permission boundary", () => {
 
     expect(screen.queryByRole("button", { name: "削除" })).not.toBeInTheDocument();
     expect(screen.getByRole("status")).toHaveTextContent("治療プランが紐付いているため、この入院は削除できません。");
+  });
+});
+
+
+describe("HospitalizationForm BUG-016 not-found gate", () => {
+  it("isReadNotFound 時は ErrorFallback を出し保存ボタンを出さない", () => {
+    mocks.useHospitalizationForm.mockImplementation(() => ({
+      isEdit: true,
+      isReadLoading: false,
+      isReadNotFound: true,
+      isReadError: false,
+      retryRead: undefined,
+      formData: {
+        hospitalizationType: "入院",
+        ownerRequest: "",
+        staffNotes: "",
+      },
+      handleFormDataChange: vi.fn(),
+      treatmentPlans: [],
+      addTreatmentPlan: vi.fn(),
+      removeTreatmentPlan: vi.fn(),
+      updateTreatmentPlan: vi.fn(),
+      calculateTotals: () => ({
+        subtotalBeforeDiscount: 0,
+        discountAmount: 0,
+        subtotalAfterDiscount: 0,
+        consumptionTax: 0,
+        total: 0,
+      }),
+      petSelection: { selectedPets: [] },
+      formAction: vi.fn(),
+      formState: { success: false },
+    }));
+
+    renderForm();
+    expect(screen.getByRole("alert")).toHaveTextContent("入院情報が見つかりません");
+    expect(screen.queryByRole("button", { name: "更新" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "登録" })).not.toBeInTheDocument();
+  });
+
+  it("isReadError 時は retry 導線を出し保存ボタンを出さない", () => {
+    const retry = vi.fn();
+    mocks.useHospitalizationForm.mockImplementation(() => ({
+      isEdit: true,
+      isReadLoading: false,
+      isReadNotFound: false,
+      isReadError: true,
+      retryRead: retry,
+      formData: {
+        hospitalizationType: "入院",
+        ownerRequest: "",
+        staffNotes: "",
+      },
+      handleFormDataChange: vi.fn(),
+      treatmentPlans: [],
+      addTreatmentPlan: vi.fn(),
+      removeTreatmentPlan: vi.fn(),
+      updateTreatmentPlan: vi.fn(),
+      calculateTotals: () => ({
+        subtotalBeforeDiscount: 0,
+        discountAmount: 0,
+        subtotalAfterDiscount: 0,
+        consumptionTax: 0,
+        total: 0,
+      }),
+      petSelection: { selectedPets: [] },
+      formAction: vi.fn(),
+      formState: { success: false },
+    }));
+
+    renderForm();
+    expect(screen.getByRole("alert")).toHaveTextContent("入院情報の取得に失敗しました");
+    expect(screen.getByRole("button", { name: "再試行" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "再試行" }));
+    expect(retry).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("button", { name: "更新" })).not.toBeInTheDocument();
   });
 });
