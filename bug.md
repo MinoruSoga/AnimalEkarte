@@ -1441,7 +1441,7 @@ S01〜S12の業務シナリオ検証に続き、個別フォーム単位の受�
 ## BUG-016: 予防接種・検査・入院の各独立フォームで、存在しないIDのURLを直叩きすると空の編集可能フォームが開いてしまう
 
 - **重大度**: 中（バックエンドは正しく404を返しており保存を試みても失敗するためデータ破損には至らないが、「存在しないIDのURL直叩きはエラー画面になるべき」という異常系要件に反する）
-- **対応状況（2026-08-03 JST）**: OPEN | **根拠**: edit route が 404 を DEFAULT 空フォームへ潰す（vaccination/examination/hospitalization form hooks）（wave-3） | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: not-found 非編集 UI をゲートし保存 0 回を証明
+- **対応状況（2026-08-05 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: 到達済み commit `7ee0edbacdc7aeff60c3f4f764889fe28a431010` — entity read を `loading|found|notFound|forbiddenOrHidden|error` に分類し vaccination/examination/hospitalization edit で Not Found ゲート + mutation 0 を vitest 固定 | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: V01 §8 手順5 / §7 手順4 / §10 手順7 をブラウザ再検証し `VERIFIED_FIXED` 可否を判定
 - **発見シナリオ**: V01 §8 手順5（予防接種独立画面 `/vaccinations/:id`）、§7 手順4（検査入力 `/examinations/:id`）、§10 手順7（入院登録 `/hospitalization/:id/edit`）
 - **再現手順**:
   1. `/vaccinations/999999999` を直接開く → 空の「予防接種詳細・編集」フォームが表示され、削除・保存ボタンが有効な状態で開く
@@ -1705,7 +1705,7 @@ S01〜S12の業務シナリオ検証に続き、個別フォーム単位の受�
 ## BUG-019: 存在しない見積書IDで編集画面を開くとエラー画面ではなく空白のフォームが表示される
 
 - **重大度**: 中（クラッシュや無限ローディングではないが、ユーザーが「新規作成中」と誤認しうる）
-- **対応状況（2026-08-03 JST）**: OPEN | **根拠**: `EstimateForm` が isError 未処理で blank edit form（wave-3; C-NOT-FOUND-EMPTY） | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: 存在しない見積 ID で not-found UI を表示
+- **対応状況（2026-08-05 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: 到達済み commit `7ee0edbacdc7aeff60c3f4f764889fe28a431010` — estimate edit を route param mode + found 状態で判定し 404/403 非開示 Not Found / network retry を vitest 固定（BUG-016 shared contract 再利用） | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: V02 §6 をブラウザ再検証し `VERIFIED_FIXED` 可否を判定
 - **発見シナリオ**: V02 §6 見積書フォーム（異常系） `/estimates/:id`（存在しないID）
 - **再現手順**:
   1. 存在しない見積書ID（DBに存在しない大きな数値）を使って `/estimates/999999999` のようなURLに直接アクセスする
