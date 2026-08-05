@@ -772,7 +772,7 @@
 ## BUG-009: 入院・ホテル管理画面のタブ切替（予約／退院済／すべて）が機能せず、常に「入院中」のデータしか表示されない【重大】
 
 - **重大度**: 高（S05 の中核機能。予約中・退院済の入院を画面上で一切確認できない）
-- **対応状況（2026-08-04 JST）**: IMPLEMENTED_UNVERIFIED | **実装 commit**: `6e9674286` | **review-gate commit**: `55125f858` | **根拠**: タブ→server status/page/limit、server total 件数正本、client status 二重 filter 削除、未知 status「不明」fail-closed、Pagination server 正本（`6e9674286` + `55125f858`） | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: S05 手順1・2・2b をブラウザ再検証し VERIFIED_FIXED 可否を判定
+- **対応状況（2026-08-04 JST）**: IMPLEMENTED_UNVERIFIED | **実装 commit**: `6e9674286` | **review-gate commit**: `55125f858` | **根拠**: タブ→server status/page/limit、server total 件数正本、client status 二重 filter 削除、未知 status「不明」fail-closed、Pagination server 正本（`6e9674286` + `55125f858`） | **原文シナリオ再検証**: WAIVED（2026-08-05 USER 判断・ブラウザ再検証を実施しない） | **次のアクション**: なし（検証見送り。claim 解放済み）
 - **発見シナリオ**: S05 手順1・2・2b（入院・ホテル管理 `/hospitalization`）
 - **再現手順**:
   1. `/hospitalization/new?petId=1000002`（伊藤史安／豆助）で新規入院登録（入院タイプ=入院、ケージ=犬用ケージ（中）、期間はデフォルトの本日〜+7日）を保存 → 「入院情報を登録しました」トースト。保存直後のステータスは `reserved`（チェックイン前）。
@@ -862,7 +862,7 @@
 ## BUG-010: カルテ「診察/治療プラン」タブの身体検査所見・診断詳細・治療方針が、入力しても保存されず空欄化または固定文字列に置き換わる【重大】
 
 - **重大度**: 高（S06 手順1の中核要件。臨床所見・診断・治療方針という法的記録の根幹部分が保存されない／改ざんされる）
-- **対応状況（2026-08-03 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: commit `646fb4353fb6b66c2a86daf17145ed8eece2cee4` — 単一 versioned PATCH で physical_exam / diagnosis_details / treatment_policy を常送、ClinicalPlanSection controlled 化、post-save 二重書き込み除去、hydrate 前空クリア拒否、mutation 応答で version cache 更新。audit residual commit `929fef0fa66609f7811fcef7cb254a6c035e68fb` — clinical plan Update を staff actor 付き audit と同一 DBOrTx で fail-closed 記録（scoped FE/BE tests green）。delete-audit residual commit `90ee096bfaddb6dc41298be9903507f8c9aef553` — clinical plan Delete を staff actor 付き pre-delete 値 audit と同一 DBOrTx で fail-closed 記録（scoped BE tests green） | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: S06 手順1 を localhost:3003 + seed でブラウザ再検証して VERIFIED_FIXED へ
+- **対応状況（2026-08-03 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: commit `646fb4353fb6b66c2a86daf17145ed8eece2cee4` — 単一 versioned PATCH で physical_exam / diagnosis_details / treatment_policy を常送、ClinicalPlanSection controlled 化、post-save 二重書き込み除去、hydrate 前空クリア拒否、mutation 応答で version cache 更新。audit residual commit `929fef0fa66609f7811fcef7cb254a6c035e68fb` — clinical plan Update を staff actor 付き audit と同一 DBOrTx で fail-closed 記録（scoped FE/BE tests green）。delete-audit residual commit `90ee096bfaddb6dc41298be9903507f8c9aef553` — clinical plan Delete を staff actor 付き pre-delete 値 audit と同一 DBOrTx で fail-closed 記録（scoped BE tests green） | **原文シナリオ再検証**: WAIVED（2026-08-05 USER 判断・ブラウザ再検証を実施しない） | **次のアクション**: なし（検証見送り。claim 解放済み）
 - **発見シナリオ**: S06 手順1（カルテ編集 `/medical-records/:id`、「診察/治療プラン」タブ）
 - **再現手順**（他の操作を一切介さないクリーンな単離手順で2回再現）:
   1. カルテ新規作成 → 生存ペット（小玉哲博／ラッキー、pet_id 1000019）を選択（カルテID 1425547 が自動作成される）。
@@ -1161,7 +1161,7 @@
 ## BUG-013: 未請求明細取得APIが実データ存在時に500エラーを返し、トリミング×診察の統合会計が機能しない【重大】【S11ブロッカー】
 
 - **重大度**: 高（S11の中核機能である「同日同一ペットの未請求明細の会計統合」が完全に機能しない）
-- **対応状況（2026-08-03 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: commit `74aa3e2c6e6dfe6c43227b2aacc0a699cc416a1a` — additive `GET /billing-items/unbilled-details` が items + `vaccination_master_unbillable` blocking warning を返し、legacy `/unbilled` raw-array は維持。vaccination unbillable は skip+count（infra は 500）。CreateAccounting/CreateItem は write-time 再集計で 409 fail-closed。FE 新会計 consumer は details へ移行し blocking/未取得中は確定無効化。scoped BE/FE tests green | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: S11 手順5（`/accounting/new?petId=1004170`）を localhost:3003 + seed でブラウザ再検証して VERIFIED_FIXED へ
+- **対応状況（2026-08-03 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: commit `74aa3e2c6e6dfe6c43227b2aacc0a699cc416a1a` — additive `GET /billing-items/unbilled-details` が items + `vaccination_master_unbillable` blocking warning を返し、legacy `/unbilled` raw-array は維持。vaccination unbillable は skip+count（infra は 500）。CreateAccounting/CreateItem は write-time 再集計で 409 fail-closed。FE 新会計 consumer は details へ移行し blocking/未取得中は確定無効化。scoped BE/FE tests green | **原文シナリオ再検証**: WAIVED（2026-08-05 USER 判断・ブラウザ再検証を実施しない） | **次のアクション**: なし（検証見送り。claim 解放済み）
 - **発見シナリオ**: S11 手順5（会計新規作成 `/accounting/new?petId=xxx`）
 - **再現手順**:
   1. 川崎和久／ナッツ（petId=1004170）に対し、トリミング登録（コース「八王子カット」¥0＋オプション「爪切り」¥300、ステータス予約→受付済→施術open→診療中）と、同日の通常カルテ（一般診察、処置「S11検証用処置」¥15,000を追加し確定）をそれぞれ作成。
@@ -1352,7 +1352,7 @@ S01〜S12の業務シナリオ検証に続き、個別フォーム単位の受�
 ## BUG-015: バイタルの体重 Kg/g 単位切替で数値が単位換算されずそのまま保存され、1000倍のデータ破損が生じる【重大】
 
 - **重大度**: 高（体重 8.5kg の記録が数値そのまま「8.5g」として永続化される。薬量自動計算は直近バイタルの体重を基準にするため、下流で致死的な過小投与量が算出されるリスクがある）
-- **対応状況（2026-08-03 JST）**: IMPLEMENTED_UNVERIFIED | **実装 commit**: `98639b4fa` | **review-gate commit**: `28539d466` | **根拠**: FE `toggleWeightValueAndUnit` で Kg↔g 原子換算; BE weight 構造検証（finite・正数・unit enum）; vital create/update/delete を `AuditTxLogger.LogEntryTx`（ambient tx）で fail-closed（`98639b4fa` + `28539d466`） | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: V01 §3 手順4 のブラウザ再検証と既存破損データ候補の read-only 抽出（補修は別承認）
+- **対応状況（2026-08-03 JST）**: IMPLEMENTED_UNVERIFIED | **実装 commit**: `98639b4fa` | **review-gate commit**: `28539d466` | **根拠**: FE `toggleWeightValueAndUnit` で Kg↔g 原子換算; BE weight 構造検証（finite・正数・unit enum）; vital create/update/delete を `AuditTxLogger.LogEntryTx`（ambient tx）で fail-closed（`98639b4fa` + `28539d466`） | **原文シナリオ再検証**: WAIVED（2026-08-05 USER 判断・ブラウザ再検証を実施しない） | **次のアクション**: なし（検証見送り。claim 解放済み）
 - **発見シナリオ**: V01 §3 手順4（カルテ バイタル `/medical-records/:id` バイタル記録モーダル）
 - **再現手順**:
   1. `/medical-records/1425549` を開き、バイタル記録モーダルで既存レコード（体温45℃・体重8.5kg）を編集
@@ -1613,7 +1613,7 @@ S01〜S12の業務シナリオ検証に続き、個別フォーム単位の受�
 ## BUG-018: レジ締め済み期間に作成した会計の明細追加が400で失敗し、合計金額と明細が不整合な「壊れた」会計が残る
 
 - **重大度**: 高（会計データの整合性が崩れ、金額と明細が食い違ったレコードがDBに残る。かつUIはエラーを警告するのみで自動的にロールバックしない）
-- **対応状況（2026-08-03 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: commit `75f8912fc2a8d3b2fb5c0290a766bb0f5fc12ac5` claim/BUG-018 + additive complete command + migration 005 作成のみ（**`make migrate` 未適用**）+ FE 単一 mutation。**Independent Review Gate（5 agent）実施**: code-reviewer / go-reviewer / typescript-reviewer / database-reviewer / clinic-isolation-auditor。HIGH 修正 commit `0b2bde8154677d88654ff0d6b557813a3f394541`: AlreadyExists→idempotent replay、CreatedBy 手入力 other、discount:edit on complete、FE Idempotency-Key mutation reuse + discount fields、seed `003_demo/billings.csv` 列追従。MEDIUM 記録のみ: post-close 権限 write-time 再検証・source-linked 価格 master 再解決・Complete isolation 専用 test。scoped BE/FE green | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: ユーザーが `make migrate` 後 V02 §1 再検証 → VERIFIED_FIXED
+- **対応状況（2026-08-03 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: commit `75f8912fc2a8d3b2fb5c0290a766bb0f5fc12ac5` claim/BUG-018 + additive complete command + migration 005 作成のみ（**`make migrate` 未適用**）+ FE 単一 mutation。**Independent Review Gate（5 agent）実施**: code-reviewer / go-reviewer / typescript-reviewer / database-reviewer / clinic-isolation-auditor。HIGH 修正 commit `0b2bde8154677d88654ff0d6b557813a3f394541`: AlreadyExists→idempotent replay、CreatedBy 手入力 other、discount:edit on complete、FE Idempotency-Key mutation reuse + discount fields、seed `003_demo/billings.csv` 列追従。MEDIUM 記録のみ: post-close 権限 write-time 再検証・source-linked 価格 master 再解決・Complete isolation 専用 test。scoped BE/FE green | **原文シナリオ再検証**: WAIVED（2026-08-05 USER 判断・ブラウザ再検証を実施しない） | **次のアクション**: なし（検証見送り。claim 解放済み）
 - **発見シナリオ**: V02 §1 会計・精算フォーム（新規会計作成） `/accounting/new?petId=X` → 確定後の明細追加
 - **再現手順**:
   1. 当日のレジ締め（PM）が既に完了している状態で `/accounting/new?petId=X` から新規会計を作成する
@@ -2049,7 +2049,7 @@ S01〜S12の業務シナリオ検証に続き、個別フォーム単位の受�
 ## BUG-023: 権限グループ名の重複エラーが未整形の生バックエンドメッセージのまま表示され、グループ名部分が空文字になる
 
 - **重大度**: 中
-- **対応状況（2026-08-04 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: 到達済み commit `41ba79b4ce8db01e4743bbfcaf77fa1612a3a186` で permission group name unique を `permission_group_name_conflict` + safe params に変換し FE が「権限グループ名『X』は既に使用されています」を表示。`uk_permission_group_rules` は name conflict へ昇格しない | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: V03 §6 チェック3をブラウザ再検証し VERIFIED_FIXED 可否を判定
+- **対応状況（2026-08-04 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: 到達済み commit `41ba79b4ce8db01e4743bbfcaf77fa1612a3a186` で permission group name unique を `permission_group_name_conflict` + safe params に変換し FE が「権限グループ名『X』は既に使用されています」を表示。`uk_permission_group_rules` は name conflict へ昇格しない | **原文シナリオ再検証**: WAIVED（2026-08-05 USER 判断・ブラウザ再検証を実施しない） | **次のアクション**: なし（検証見送り。claim 解放済み）
 - **発見シナリオ**: V03 §6 permission-group-side-panel チェック3
 - **再現手順**:
   1. `/settings/permission-groups` で「新規登録」をクリック
@@ -2222,7 +2222,7 @@ S01〜S12の業務シナリオ検証に続き、個別フォーム単位の受�
 ## BUG-025: 主訴種別・問診テンプレートなど一部マスタで新規作成時に is_active=false（無効）で保存される
 
 - **重大度**: 高（新規作成したマスタが画面上「有効」に見えるトグル状態のまま保存すると、実際には無効状態でDBに保存され、他画面のドロップダウン等に一切現れず、ユーザーが気づかないまま機能しない）
-- **対応状況（2026-08-04 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: 到達済み commit `4335e3a99718f90157f739f887f965c3e341a905` で FE create builder が `is_active` を明示送信し、BE create request は presence-aware `*bool`（欠落→true / 明示 false は false）に変更。builder unit + medicalrecord package 回帰 green。| **原文シナリオ再検証**: UNREPORTED | **次のアクション**: V04 §1 主訴種別・問診テンプレートをブラウザ再検証し VERIFIED_FIXED 可否を判定
+- **対応状況（2026-08-04 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: 到達済み commit `4335e3a99718f90157f739f887f965c3e341a905` で FE create builder が `is_active` を明示送信し、BE create request は presence-aware `*bool`（欠落→true / 明示 false は false）に変更。builder unit + medicalrecord package 回帰 green。| **原文シナリオ再検証**: WAIVED（2026-08-05 USER 判断・ブラウザ再検証を実施しない） | **次のアクション**: なし（検証見送り。claim 解放済み）
 - **発見シナリオ**: V04 §1 主訴種別 `/settings/interview/chief-complaint`、問診・定型文テンプレート `/settings/inquiry-templates`
 - **再現手順**:
   1. `/settings/interview/chief-complaint` を開く
@@ -2399,7 +2399,7 @@ S01〜S12の業務シナリオ検証に続き、個別フォーム単位の受�
 ## BUG-027: 動物種類マスタで一意制約違反時のエラートーストに実際の名称が表示されず空文字になる
 
 - **重大度**: 低（機能的には重複登録が正しく拒否されており「無音失敗・白画面」にはならないが、エラーメッセージの品質が低く、内部テーブル名を露出した上に該当の名称が空欄になっている）
-- **対応状況（2026-08-04 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: 到達済み commit `41ba79b4ce8db01e4743bbfcaf77fa1612a3a186`（C-MASTER-DUPLICATE-MSG と同一）で animal species name unique を `animal_species_name_conflict` + safe params に変換し FE が「動物種類『X』は既に使用されています」を表示 | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: V04 §1 C3-2 をブラウザ再検証し VERIFIED_FIXED 可否を判定
+- **対応状況（2026-08-04 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: 到達済み commit `41ba79b4ce8db01e4743bbfcaf77fa1612a3a186`（C-MASTER-DUPLICATE-MSG と同一）で animal species name unique を `animal_species_name_conflict` + safe params に変換し FE が「動物種類『X』は既に使用されています」を表示 | **原文シナリオ再検証**: WAIVED（2026-08-05 USER 判断・ブラウザ再検証を実施しない） | **次のアクション**: なし（検証見送り。claim 解放済み）
 - **発見シナリオ**: V04 §1 動物種類 `/settings/animal-species`（C3-2 一意制約違反チェック）
 - **再現手順**:
   1. `/settings/animal-species` で「V04動物種類」という名称を新規登録
@@ -2485,7 +2485,7 @@ S01〜S12の業務シナリオ検証に続き、個別フォーム単位の受�
 ## BUG-028: 診療項目マスタ「処置」タブで新規登録が常に失敗する（内部フィールド名 anesthesia が必須なのにSidePanelに入力欄がない）
 
 - **重大度**: 高（処置タブへの新規項目登録が事実上全くできない。エラートーストは表示されるが内部英語フィールド名が露出しており原因が分かりにくく、無音失敗に近い）
-- **対応状況（2026-08-04 JST）**: IMPLEMENTED_UNVERIFIED | **実装 commit**: `842fe78d47f3609fc23a538f7c4613635e4fa84b` | **根拠**: FE 処置 SidePanel に麻酔区分 Select 追加、`CreateProcedureRequest.anesthesia` 必須化、create/update builder が送信、負値単価は field error で mutation 0 回 | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: ブラウザ実地再検証（localhost/backend 起動後に VERIFIED_FIXED へ昇格可）
+- **対応状況（2026-08-04 JST）**: IMPLEMENTED_UNVERIFIED | **実装 commit**: `842fe78d47f3609fc23a538f7c4613635e4fa84b` | **根拠**: FE 処置 SidePanel に麻酔区分 Select 追加、`CreateProcedureRequest.anesthesia` 必須化、create/update builder が送信、負値単価は field error で mutation 0 回 | **原文シナリオ再検証**: WAIVED（2026-08-05 USER 判断・ブラウザ再検証を実施しない） | **次のアクション**: なし（検証見送り。claim 解放済み）
 - **発見シナリオ**: V04 §2 診療項目マスタ 処置タブ `/settings/treatment-items?tab=procedure`
 - **再現手順**:
   1. `/settings/treatment-items?tab=procedure` で「新規登録」→ 名称「V04処置テスト」、単価に `-100`（負値）を入力して保存 → 何の反応もなくパネルが開いたまま（無音失敗）
