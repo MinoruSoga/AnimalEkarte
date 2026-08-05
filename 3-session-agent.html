@@ -90,7 +90,7 @@
 <h2>Issue 一覧</h2>
 
 <div class="notice">
-下表の分類は <b>2026-08-04 時点の実測</b>である。<b>各 Issue の現況は <code>gh issue view &lt;番号&gt;</code> で実測して確認すること</b> — 直近の作業が本 view へ反映されていない場合がある。分類が実態とずれていたら実態に合わせて本表を直す。
+下表の分類は <b>2026-08-05 時点の実測</b>である。<b>各 Issue の現況は <code>gh issue view &lt;番号&gt;</code> で実測して確認すること</b> — 直近の作業が本 view へ反映されていない場合がある。分類が実態とずれていたら実態に合わせて本表を直す。
 </div>
 
 <div class="table-wrap">
@@ -114,25 +114,25 @@
     <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/201">#201</a></td>
     <td>薬量自動計算 — 上限超過の物理ブロックと例外統制</td>
     <td><span class="status judge">判断待ち</span></td>
-    <td>R0 で warning 逸脱理由の未接続を検出し、<a href="q&amp;a.html#dec-65">DEC-65</a>/TASK-377 の独立 local taskへ分離した。TASK-377 は <b>完了</b>（上限内の著しい乖離と下限割れで理由を必須化し、FE inline 要求・BE 再評価・snapshot・同一 transaction audit を fail-closed で接続。臨床値は決めていない）。本 view は Issue-level の次 actor を示すため、TASK-377 の完了だけでは close gate を満たさない #201 は判断待ちを維持する。臨床責任者が canonical #201 bundle 1行へ上限/warning の継続または修正と救急記録 policy を出典付きで記入するまで TASK-033 cutover は HOLD</td>
+    <td>逸脱理由の接続（<a href="q&amp;a.html#dec-65">DEC-65</a>）はエージェント側で着地済み。残るのは臨床責任者が canonical #201 bundle 1行へ、上限/warning の継続または修正と救急記録 policy を出典付きで記入すること。それまで TASK-033 cutover は HOLD</td>
   </tr>
   <tr>
     <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/211">#211</a></td>
     <td>健診パッケージ実装 — DB 適用・provisional seed 臨床確認</td>
     <td><span class="status user">USER 専権</span></td>
-    <td><a href="q&amp;a.html#dec-59">DEC-59</a> の versioned clinic-scoped import/preflight は TASK-374 で実装済み（synthetic fixture・additive migration は作成のみで未適用）。残るのは全て人の操作 — USER が <code>make migrate</code> を実行し、DR-OPS が対象 clinic authorization・environment・operator role・apply/rollback 結果を、DR-CLINICAL が実 row の臨床承認と出典を、それぞれ一行記録する。エージェントは実 manifest を repo へ置かない</td>
+    <td><a href="q&amp;a.html#dec-59">DEC-59</a> の versioned import/preflight はエージェント側で着地し、schema も適用済み。残るのは全て人の操作 — DR-OPS が対象 clinic authorization・environment・operator role・apply/rollback 結果を、DR-CLINICAL が実 row の臨床承認と出典を、それぞれ一行記録する。エージェントは実 manifest を repo へ置かない</td>
   </tr>
   <tr>
     <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/249">#249</a></td>
     <td>検査機能 — 院内検査結果管理の内製</td>
-    <td><span class="status go">着手可能</span></td>
-    <td>TASK-026（confirm 順序・conflict 409・actor/audit 原子性）、TASK-027（append-only revision・理由必須 unconfirm・default-deny permission・死亡患者拒否）、TASK-031（保存 snapshot 印刷 API と FE print surface）はいずれも完了。残るのは TASK-032（lab import revert）で、plan 補正は完了し独立 database review と clinic-isolation review がいずれも CRITICAL/HIGH ゼロを返したため <b>READY_AGENT</b> へ移行済み。ただし plan revision run が <code>claim/TASK-032</code> を保持しているため、実装着手には USER による claim 解放が先に要る。臨床 range と外部自動化は承認待ちのまま分離する</td>
+    <td><span class="status judge">判断待ち</span></td>
+    <td>確定解除・append-only revision・保存 snapshot 印刷・lab import の補償 revert まで、エージェント側の実装はすべて着地し schema も適用済み。残るのは臨床 range の値と外部自動化の可否で、いずれも臨床・PO の承認事項。承認が出るまで新しい実装 unit を起票しない</td>
   </tr>
   <tr>
     <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/258">#258</a></td>
     <td>納品ドキュメントの整備</td>
     <td><span class="status user">USER 専権</span></td>
-    <td><a href="q&amp;a.html#dec-62">DEC-62</a> の文書境界同期は TASK-376 で完了 — <code>DELIVERY_PACKAGE.md</code> の承認条件は U1〜U12 に限定され、U13 研修は <code>OPERATION_MANUAL.md</code> §10 / #256 へ一意に移した。残るのは契約責任者とクライアントが U1〜U12 へ非機密結果と opaque restricted reference を一行記録すること。値・秘密・契約内容は空欄のまま維持する</td>
+    <td><a href="q&amp;a.html#dec-62">DEC-62</a> の文書境界同期は着地済み — 承認条件は U1〜U12 に限定され、U13 研修は <code>OPERATION_MANUAL.md</code> §10 / #256 が所有する。残るのは契約責任者とクライアントが U1〜U12 へ非機密結果と opaque restricted reference を一行記録すること。値・秘密・契約内容は空欄のまま維持する</td>
   </tr>
   <tr>
     <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/261">#261</a></td>
@@ -169,7 +169,7 @@
     <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/252">#252</a></td>
     <td>各院の締め時間設定値の投入</td>
     <td><span class="status user">USER 専権</span></td>
-    <td>standard PATCH の validation、clinic-scoped 行ロックによる直列化、actor 付き transaction-bound audit の補強は完了（TASK-028 = <code>bbf82e2b8</code>）。残るのは USER が批准済み値との差分だけを投入・preview すること</td>
+    <td>validation・行ロックによる直列化・actor 付き audit の補強はエージェント側で着地済み。残るのは USER が批准済み値との差分だけを投入・preview すること</td>
   </tr>
   <tr>
     <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/253">#253</a></td>
@@ -181,7 +181,7 @@
     <td class="num"><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/257">#257</a></td>
     <td>本番切替（Go-live）— 切替手順・切り戻し基準・直後サポート</td>
     <td><span class="status user">USER 専権</span></td>
-    <td><a href="q&amp;a.html#dec-60">DEC-60</a> により旧 window は No-Go。TASK-375 で runbook を historical No-Go 明記＋相対 T-/T+ timeline＋gate-driven HOLD へ同期済みで、新 window の記入欄は冒頭 1 箇所に集約した。残るのは USER が #89/#97/#98/#99・#250・#253・#254・#255 の gate green evidence を揃え、新 window と Go/No-Go・support・rollback の owner role を一行記入すること。日付・人名・contact は空欄のまま</td>
+    <td><a href="q&amp;a.html#dec-60">DEC-60</a> により旧 window は No-Go。runbook は相対 timeline と gate-driven HOLD へ同期済みで、新 window の記入欄は冒頭 1 箇所にある。残るのは USER が #89/#97/#98/#99・#250・#253・#254・#255 の gate green evidence を揃え、新 window と Go/No-Go・support・rollback の owner role を一行記入すること。日付・人名・contact は空欄のまま</td>
   </tr>
 
   <tr>
