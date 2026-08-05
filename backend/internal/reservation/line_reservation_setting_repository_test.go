@@ -3,6 +3,7 @@ package reservation
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -160,6 +161,71 @@ func TestLineReservationSettingRepository_Save(t *testing.T) {
 		var count int64
 		require.NoError(t, db.Model(&model.LineReservationSetting{}).Where("clinic_id = ?", clinicA).Count(&count).Error)
 		assert.Equal(t, int64(1), count)
+	})
+
+	// BUG-030 follow-up: OnConflict DO NOTHING does not RETURNING on conflict, so
+	// update path left setting.ID at 0 and PUT response id became 0 (RSV-03 no re-fetch).
+	t.Run("populates setting.ID matching DB row on create path", func(t *testing.T) {
+		const clinicCreateID = uint64(40)
+		setting := &model.LineReservationSetting{
+			ClinicID:         clinicCreateID,
+			Status:           "stopped",
+			ClosedWeekdays:   []byte(`[]`),
+			ClosedDates:      []byte(`[]`),
+			BusinessHours:    []byte(`{"start":"0900","end":"1900"}`),
+			BreakHours:       []byte(`[]`),
+			AdditionalFields: []byte(`{}`),
+		}
+		require.NoError(t, repo.Save(ctx, clinicCreateID, setting))
+
+		var rawID uint64
+		require.NoError(t, db.WithContext(ctx).
+			Model(&model.LineReservationSetting{}).
+			Select("id").
+			Where("clinic_id = ?", clinicCreateID).
+			Scan(&rawID).Error)
+		require.NotZero(t, rawID, "DB row must have a non-zero primary key")
+		assert.Equal(t, rawID, setting.ID, "Save must reflect persisted id on create path")
+	})
+
+	t.Run("populates setting.ID matching DB row on update path", func(t *testing.T) {
+		const clinicUpdateID = uint64(41)
+		seed := makeLineReservationSetting(t, db, clinicUpdateID)
+		require.NotZero(t, seed.ID)
+		require.False(t, seed.CreatedAt.IsZero(), "seed must have created_at")
+
+		updated := &model.LineReservationSetting{
+			ClinicID:         clinicUpdateID,
+			Status:           "active",
+			ClosedWeekdays:   []byte(`[]`),
+			ClosedDates:      []byte(`[]`),
+			BusinessHours:    []byte(`{"start":"1000","end":"1800"}`),
+			BreakHours:       []byte(`[]`),
+			AdditionalFields: []byte(`{}`),
+			PhoneNumber:      "03-9999-0000",
+			// ID/CreatedAt intentionally zero — service builds request struct without them.
+		}
+		require.NoError(t, repo.Save(ctx, clinicUpdateID, updated))
+
+		var rawID uint64
+		require.NoError(t, db.WithContext(ctx).
+			Model(&model.LineReservationSetting{}).
+			Select("id").
+			Where("clinic_id = ?", clinicUpdateID).
+			Scan(&rawID).Error)
+		require.Equal(t, seed.ID, rawID, "update must not create a second row / change PK")
+		assert.Equal(t, rawID, updated.ID, "Save must reflect persisted id on update path")
+
+		// created_at: BUG-030's *setting = intended zeroed timestamps; reflect DB value.
+		var rawCreatedAt time.Time
+		require.NoError(t, db.WithContext(ctx).
+			Model(&model.LineReservationSetting{}).
+			Select("created_at").
+			Where("clinic_id = ?", clinicUpdateID).
+			Scan(&rawCreatedAt).Error)
+		require.False(t, rawCreatedAt.IsZero())
+		assert.WithinDuration(t, rawCreatedAt, updated.CreatedAt, time.Second,
+			"Save must reflect persisted created_at on update path")
 	})
 
 	t.Run("Save does not wipe provisioned line_bot_user_id (SEC-CS-F05-R1)", func(t *testing.T) {

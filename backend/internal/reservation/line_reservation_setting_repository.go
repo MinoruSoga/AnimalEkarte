@@ -108,12 +108,26 @@ func (r *lineReservationSettingRepository) Save(ctx context.Context, clinicID ui
 			return apperrors.FromGORM(err, "line_reservation_setting", fmt.Sprintf("clinic:%d", clinicID))
 		}
 
-		// Reflect persisted intent for callers (Create may have mutated zeros on setting).
-		id := setting.ID
-		*setting = intended
-		if id != 0 {
-			setting.ID = id
+		// ON CONFLICT DO NOTHING does not RETURNING on conflict, so Create leaves setting.ID
+		// at 0 on the update path. Read identity/timestamps back (not write them) so RSV-03
+		// callers can return a non-zero id without a post-commit re-fetch.
+		var persisted struct {
+			ID        uint64
+			CreatedAt time.Time
 		}
+		if err := tx.
+			Scopes(persistence.ClinicScope(clinicID)).
+			Model(&model.LineReservationSetting{}).
+			Select("id", "created_at").
+			Where("clinic_id = ?", clinicID).
+			Take(&persisted).Error; err != nil {
+			return apperrors.FromGORM(err, "line_reservation_setting", fmt.Sprintf("clinic:%d", clinicID))
+		}
+
+		// Reflect persisted intent for callers (Create may have mutated zeros on setting).
+		*setting = intended
+		setting.ID = persisted.ID
+		setting.CreatedAt = persisted.CreatedAt
 		return nil
 	})
 }
