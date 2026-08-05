@@ -3,6 +3,7 @@ package reservation
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -71,29 +72,50 @@ func (r *lineReservationSettingRepository) FindByClinicID(ctx context.Context, c
 }
 
 func (r *lineReservationSettingRepository) Save(ctx context.Context, clinicID uint64, setting *model.LineReservationSetting) error {
-	db := r.db.WithContext(ctx)
-	// Capture intent before Create: gorm default:true omits zero bools from INSERT.
-	wantShowNoStaff := setting.ShowNoStaffOption
-	err := db.
-		Scopes(persistence.ClinicScope(clinicID)).
-		Clauses(clause.OnConflict{
-			Columns:   []clause.Column{{Name: "clinic_id"}},
-			DoUpdates: clause.AssignmentColumns(lineReservationSettingUpdatableColumns()),
-		}).
-		Create(setting).Error
-	if err != nil {
-		return apperrors.FromGORM(err, "line_reservation_setting", "")
-	}
-	if !wantShowNoStaff {
-		if err := db.Scopes(persistence.ClinicScope(clinicID)).
+	// Tenant authority is the clinicID argument — never trust a mismatched setting.ClinicID.
+	setting.ClinicID = clinicID
+
+	// Snapshot before Create: GORM 1.31 ConvertToCreateValues replaces zero-valued
+	// default-tagged fields with DefaultValueInterface in-place on the struct AND in
+	// the INSERT row. Select() alone does not prevent that, so excluded.* / the struct
+	// cannot carry explicit 0/false through Create (BUG-030).
+	intended := *setting
+	intended.UpdatedAt = time.Now()
+
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// Ensure the clinic row exists without rewriting credentials/routing identity on
+		// conflict. DoUpdates column set is intentionally empty here — full intended state
+		// is written next via Select+Updates over lineReservationSettingUpdatableColumns only.
+		if err := tx.
+			Scopes(persistence.ClinicScope(clinicID)).
+			Clauses(clause.OnConflict{
+				Columns:   []clause.Column{{Name: "clinic_id"}},
+				DoNothing: true,
+			}).
+			Create(setting).Error; err != nil {
+			return apperrors.FromGORM(err, "line_reservation_setting", "")
+		}
+
+		// Force every updatable column, including explicit zeros/false. Does not select
+		// line_channel_secret, line_bot_user_id, or id — provisioned routing/credentials
+		// survive UI Save (SEC-CS-F05-R1). Same column set as the former OnConflict DoUpdates.
+		if err := tx.
+			Scopes(persistence.ClinicScope(clinicID)).
 			Model(&model.LineReservationSetting{}).
 			Where("clinic_id = ?", clinicID).
-			Update("show_no_staff_option", false).Error; err != nil {
+			Select(lineReservationSettingUpdatableColumns()).
+			Updates(&intended).Error; err != nil {
 			return apperrors.FromGORM(err, "line_reservation_setting", fmt.Sprintf("clinic:%d", clinicID))
 		}
-		setting.ShowNoStaffOption = false
-	}
-	return nil
+
+		// Reflect persisted intent for callers (Create may have mutated zeros on setting).
+		id := setting.ID
+		*setting = intended
+		if id != 0 {
+			setting.ID = id
+		}
+		return nil
+	})
 }
 
 func lineReservationSettingUpdatableColumns() []string {
@@ -123,12 +145,12 @@ func lineReservationSettingUpdatableColumns() []string {
 		"show_no_staff_option",
 		"additional_fields",
 		"line_channel_id",
-		// R-05 Phase B: line_channel_secret is excluded from OnConflict updates.
+		// R-05 Phase B: line_channel_secret is excluded from Save Updates.
 		// Canonical channel secret SoT is clinic_integrations. Column remains for
 		// legacy_credential_present presence SELECT until inventory-zero DROP (HOLD).
 		// line_bot_user_id is ops/migration-provisioned for O(1) webhook routing
-		// (SEC-CS-F05-R1). Exclude from OnConflict updates so UI/API Save cannot
-		// wipe a provisioned bot user ID with the zero value.
+		// (SEC-CS-F05-R1). Exclude from Save Updates so UI/API Save cannot wipe a
+		// provisioned bot user ID with the zero value.
 		"liff_id",
 		"line_access_token",
 		"updated_at",
