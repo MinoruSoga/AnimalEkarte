@@ -36,9 +36,10 @@
 | # | 操作 | 期待結果 |
 |:--|:--|:--|
 | 1 | 両欄空・不正メール形式（`a@`）でそれぞれ送信 | エラーが表示されログインされない |
-| 2 | 正しいメール + 7 文字パスワードで送信 | ログインされない。**FE/BE 乖離の重点確認**: FE input は minLength=6 のため通過するが、BE が 8 文字未満を拒否する（`LoginForm.tsx` vs `backend/internal/auth/http_response.go`） |
-| 3 | 正しい資格情報で送信 → ページ再読込 → `/login` を直アクセス | ダッシュボードへ遷移。再読込後もセッション維持（httpOnly Cookie — [21-login.md §3.1](../../../spec/screens/21-login.md)）。ログイン済みの `/login` 直アクセスは即リダイレクト（`LoginForm.tsx` の認証済み Navigate） |
-| 4 | 誤パスワードで 1 分内に 6 回連続送信 | レート制限（5 回/分）で拒否される（[21-login.md §1.2](../../../spec/screens/21-login.md)） |
+| 2 | 正しいメール + 7 文字パスワードで送信 | ログインされない。**FE/BE 乖離の重点確認**: フォームは `noValidate` のため HTML `minLength={6}` は submit を止めない（FE は空欄のみ拒否）。BE は `binding:"required,min=8,max=72"`（`http_response.go`）で 8 文字未満を拒否する |
+| 3 | 正しい資格情報で送信 → ページ再読込 → `/login` を直アクセス | ダッシュボード（または `from` state/query の内部パス）へ遷移。再読込後もセッション維持（httpOnly Cookie — [21-login.md §3.1](../../../spec/screens/21-login.md)）。**BUG-031**: `/login` でも cookie セッションを restore し、認証済みなら `LoginForm` が `<Navigate to="/" />`（password-recovery 公開ルート `/forgot-password`・`/reset-password` のみ restore スキップ） |
+| 4 | 保護ルートへ未ログインでアクセス後にログイン成功 | ログイン後は `location.state.from` または `?from=` の内部パスへ戻る（`parseInternalPath` で open redirect 防止）。未指定時は `/` |
+| 5 | 誤パスワードで 1 分内に 6 回連続送信 | レート制限（5 回/分）で拒否される（[21-login.md §1.2](../../../spec/screens/21-login.md)） |
 
 ### V05-2 パスワード変更（`auth-change-password` / 全画面共通 Sidebar アカウントメニュー）
 
@@ -114,9 +115,9 @@ clinic 単位 1 レコードの全量 PUT（一意制約は UI 上到達不能�
 | # | 操作 | 期待結果 |
 |:--|:--|:--|
 | 1 | LINE予約受付を「停止中」で保存 → 飼い主側予約アプリを起動 | 保存され永続する（C2）。**2026-08-01 実測**: hospital PUT `status=stopped` 200 → public `GET /api/liff/1/settings` も `status:"stopped"`。コード意図は `App.tsx` で maintenance（`MaintenancePage`「メンテナンス中」・unit test あり）。**ただし runtime の owner SPA は Top（「新規予約」）のまま** — LIFF 初期化後の `setPage('top')` が maintenance を上書きし得る（**BUG-141**）。測定後 `running` へ復元済み |
-| 2 | 受付期間・表示月数・スロット間隔へ 0/負値/範囲外を入力して保存 | FE の native min により拒否される: 最長受付 `min=1`・表示月数 `min=1`・スロット間隔 `min=5`。保存時 alert「値は 1 以上にする必要があります。」で API 未到達。最短受付は `min=0` で 0 入力可（2026-07-31 実測）。BE 到達時の境界は FE 通過後のみ別途確認 |
-| 3 | 営業時間・休憩時間を編集して保存 | HHMM 形式で永続する（BE: break_hours は `[{start,end}]` HHMM 形式必須 — `backend/internal/reservation/line_reservation_setting_service.go`）。曜日別営業時間の有効/無効切替も再オープンで保持される |
-| 4 | チャネル ID・LIFF ID を入力して保存 → 再読込 | 保存され永続する。チャネルシークレット・アクセストークンはこの画面では入力・再表示しない（2026-07-31 実測: 入力欄はチャネルID・LIFF ID のみ。secret/token ラベル・input なし） |
+| 2 | 受付期間・表示月数・スロット間隔へ 0/負値/範囲外を入力して保存 | FE の native min により拒否される: 最長受付 `booking_window_max_days` `min=1`・表示月数 `calendar_months` `min=1` max=6・スロット間隔 `time_slot_interval_minutes` `min=5` step=5。ブラウザ制約メッセージ（例: 「値は 1 以上にする必要があります。」）で API 未到達。最短受付 `booking_window_min_days` は `min=0` で 0 入力可。BE 到達時の境界は FE 通過後のみ別途確認 |
+| 3 | 営業時間・休憩時間を編集して保存 | HHMM 形式で永続する（BE: `break_hours` は `[{start,end}]` HHMM 形式必須 — `line_reservation_setting_service.go`）。曜日別営業時間（`business_hours_by_weekday`）の有効/無効切替・定休曜日（`closed_weekdays`）も再オープンで保持される |
+| 4 | チャネル ID・LIFF ID を入力して保存 → 再読込 | 保存され永続する。入力欄は `line_channel_id`・`liff_id` のみ。**`line_channel_secret` / `line_access_token` はこの画面では入力・再表示せず、PUT body にもキー自体を含めない**（`LineReservationSettingsForm.test.tsx` 回帰） |
 
 ### V05-9 表示ページ編集（`line-reservation-page-editor` / `/line-reservation/page-editor`）
 
@@ -154,14 +155,14 @@ clinic 単位 1 レコードの全量 PUT（一意制約は UI 上到達不能�
 
 ### V05-12 Lステップ連携設定（`lstep-settings` / `/settings/integrations/lstep`）
 
-clinic 単位 1 レコードの PATCH（C3(b) は UI 上到達不能）。シークレット 3（APIキー・channel access token・channel secret）+ テキスト 2（LIFF ID・ベース URL）+ 数値閾値 23 フィールド。
+clinic 単位 1 レコードの PATCH（C3(b) は UI 上到達不能）。フィールド契約（`lstep-settings-form-request.ts`）: シークレット 3（`lstep_api_key`・`line_channel_access_token`・`line_channel_secret`）+ テキスト 2（`liff_id`・`lstep_base_url`）+ 数値 23（dormant/health/vaccine/cpm_v1/cpm_v2 閾値群）+ `cpm_version` + `is_sync_enabled`。
 
 | # | 操作 | 期待結果 |
 |:--|:--|:--|
 | 1 | 閾値数値・LIFF ID・ベース URL を変更して C2 一式 | 永続し、再オープンで保存値が初期表示される |
 | 2 | CPM バージョンを切り替えて保存 | V1/V2 の選択式（[31-lstep-integration.md §1.2](../../../spec/screens/31-lstep-integration.md)）。保存後に自動管理タグ体系が選択バージョンに対応する（同 §2.1） |
-| 3 | 閾値へ 0 または負値を入力して保存 | FE の spinbutton `min=1` により 0 は invalid。保存時 alert「値は 1 以上にする必要があります。」で API 未到達（2026-07-31 実測）。読み出し側の 0 以下デフォルト補完（`lstep_settings_thresholds.go`）は FE 通過後の防御層 |
-| 4 | シークレット 3 種を保存 → 再度開き空欄のまま別項目のみ変更して保存 | シークレットは「空欄=変更なし」として維持され、上書き消去されない（`lstep-settings-form-request.ts` の空値スキップ） |
+| 3 | 閾値へ 0 または負値を入力して保存 | FE `NumberInputField` は `min={1}`（ブラウザ制約で invalid になり得る）。すり抜け時も `setPositiveInteger`（>=1 のみ payload）により **送信されず既存値維持**（V04 §8 と同契約）。読み出し側 0 以下デフォルト補完は FE 通過後の防御層 |
+| 4 | シークレット 3 種を保存 → 再度開き空欄のまま別項目のみ変更して保存 | シークレットは「空欄=変更なし」として維持され、上書き消去されない（`setTrimmedString(..., skipEmpty=true)`）。`liff_id` のみ空文字でクリア可（V04 §8 手順 2） |
 | 5 | Lステップ/LINE の接続テストボタンを実行 | 結果（成功/失敗）が表示される。ローカルの疑似クレデンシャルでは失敗表示で可（導線と表示の確認が目的） |
 
 ### V05-13〜17 同ページ・薄いフォーム群（共通手順参照 + フォーム別差分表）
@@ -195,3 +196,12 @@ clinic 単位 1 レコードの PATCH（C3(b) は UI 上到達不能）。シー
 - 本シナリオは上記が個別レイヤで検証済みの挙動を**実ブラウザ + 実 DB の統合点（FE→BE→永続化→再表示）で通す受け入れ時の実機検証**であり、FE/BE バリデーション乖離（ログイン最小長 6 vs 8・パスワード英数字混在は BE のみ）・E2E 対象外の独立 SPA（liff / line-reserve）・予約可能枠の加算方式を重点とする。
 - ログインのレート制限・リセットトークンのワンタイム性・リセット申請の列挙防止はセキュリティ境界（[21-login.md](../../../spec/screens/21-login.md) §1.2/§2）— 「拒否される/漏れない」ことを必ず確認する。
 - NG 項目は [`STATUS.md` §3 受入バグ（正本）](../../../../STATUS.md) へ `## BUG-XXX:` 節として起票する（ローカル連番 最大+1・[README.md](README.md) のルールに従う）。
+
+## 実装突合
+- 突合日: 2026-08-07
+- HEAD: 844e43f69
+- 変更:
+  - V05-1: BUG-031（`/login` での session restore）と `from` 戻り先リダイレクト、`noValidate` 下のパスワード長 FE/BE 乖離を実装に合わせて更新
+  - V05-8: LINE 予約設定フィールド名（booking_window_* / calendar_months / time_slot_interval / line_channel_id / liff_id）と secret/token 非送信を明記
+  - V05-12: Lステップ設定のフィールド契約（secret3+text2+numeric23）と閾値 0/負値の二段ガードを V04 §8 と整合
+  - 認証ルート（`/login`・`/forgot-password`・`/reset-password`）・LINE（`/line-reservation/settings|page-editor|slots`）・Lステップ（`/settings/integrations/lstep`・`/settings/lstep/tags`）を `paths.ts` と一致確認

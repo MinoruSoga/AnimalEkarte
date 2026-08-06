@@ -63,13 +63,13 @@
 | 入院・宿泊プラン (master-hospitalization-plan) | /settings/hospitalization | name | (clinic_id,name) | 体格 bodySize・課金単位 billingUnit は空許容 — 未選択のまま保存できる |
 | ケージ (master-cage) | /settings/cage | ケージ名 | (clinic_id,name) | 種別 icu/dog/cat/general・サイズ small/medium/large は選択式（BE enum 検証あり — 不正値 400） |
 | 物販・商品 (master-merchandise-item) | /settings/merchandise-items | 品目名 | (clinic_id,name) **WHERE is_active=true** | 無効化すると同名を再登録できる（is_active 条件付き一意）。税率 8% の選択が永続する |
-| 保険 (master-insurance) | /settings/insurance | name | (clinic_id,name) | (C1-3) 補償率 100→受理、101→拒否（BE 0〜100 範囲検証） |
+| 保険 (master-insurance) | /settings/insurance | name | (clinic_id,name) | (C1-3) 補償率 0→受理、100→受理、101→拒否、-1→拒否（FE `insurance-settings-model.ts` BUG-026 / BE `ValidateCoverageRate`・`binding:"omitempty,min=0,max=100"` 同一境界 0〜100 整数） |
 | 職種 (master-occupation) | /settings/occupations | name | (clinic_id,name) | 追加した「V04職種」が §4 予約区分の職種セクション選択肢に反映される（C3-1） |
 | トリミングコース (master-trimming-course) | /settings/trimming?tab=course | name | (clinic_id,name) | (C3-1) 「V04種別」追加→コース種別選択肢に反映。**【代表・削除済みマスタ】**下記注記参照 |
 | トリミングオプション (master-trimming-option) | /settings/trimming?tab=option | name | (clinic_id,name) | 併用可 combinable トグル（既定 ON）を OFF にして保存→再オープンで保持 |
 | トリミングコース種別 (master-trimming-course-type) | /settings/trimming-course-type | name | (clinic_id,name) | name+isActive のみの最小構成（空文字保存不可 — master-trimming-course-type.md） |
 | 割引キャンペーン (master-campaign) | /settings/campaigns | キャンペーン名 | —（name 一意なし） | (C3-1) 対象商品選択肢が物販マスタ実データ由来。終了日 < 開始日は FE で拒否され API 未到達（エラー「終了日は開始日以降にしてください」— `CampaignSidePanel.tsx`）。BE も `validateCampaignPeriod` で同趣旨（2026-07-31 実測） |
-| 支払方法 (master-payment-method) | /settings/payment-methods | name | (clinic_id,name) | **システム標準行ポリシー（W-014 / ADR-003）**: `system_key` 保持行（cash / credit_card / electronic_money / bank_transfer）は **名称・表示順の変更は可**。`system_key` 自体は immutable かつ編集 UI 非公開（FE に system_key 参照なし）。**無効化・削除は不可**（BE Conflict: 「システム標準の支払方法は無効化できません」「システム標準の支払方法は削除できません」）。カスタム行（system_key nil）は従来どおり無効化・未使用時削除可 |
+| 支払方法 (master-payment-method) | /settings/payment-methods | name | (clinic_id,name) WHERE deleted_at IS NULL（`idx_payment_methods_clinic_name`） | **C3-2**: 同医院で同名のカスタム支払方法を再登録 → 拒否（名称一意）。**システム標準行ポリシー（W-014 / ADR-003）**: `system_key` 保持行（cash / credit_card / electronic_money / bank_transfer）は **名称・表示順の変更は可**。`system_key` 自体は immutable かつ編集 UI 非公開（FE に system_key 参照なし）。**無効化・削除は不可**（BE Conflict: 「システム標準の支払方法は無効化できません」「システム標準の支払方法は削除できません」）。DDL 追加一意: `(clinic_id, system_key)` WHERE system_key IS NOT NULL（UI 非到達・トリガー既定行）。カスタム行（system_key nil）は無効化・未使用時削除可。精算時の split method 重複禁止は V02 §1 |
 
 - 【代表・削除済みマスタ】: 「V04コース」にコース種別「V04種別」を設定して保存 → コース種別マスタから「V04種別」を削除 → コース編集を再オープン。**使用中種別の削除は拒否される（2026-08-01 実測）**: `POST` type+course 後 `DELETE /api/v1/masters/trimming-course-types/:id` → **409** `この種別は使用中のため削除できません`。コースは `course_type_id` 保持のまま。削除済み FK の編集 UI 到達は製品ガードにより通常不可。クリーンアップは course 削除（204）→ type 削除（204）の順。
 - 割引キャンペーンの権限は ResourceAccounting（会計）、支払方法は ResourcePaymentMethod — admin 以外で実行する場合は権限に注意。
@@ -169,7 +169,7 @@
 |:--|:--|:--|
 | 1 | 連携設定: シークレット 3 種（API キー・チャネルトークン・チャネルシークレット）を空のまま他項目を変更して保存 | 保存成功し、シークレットは既存値維持（空=未変更扱いのマスク運用） |
 | 2 | 連携設定: LIFF ID を空にして保存 | クリアされる（空文字でクリアできる唯一の項目） |
-| 3 | 連携設定: 数値項目（休眠予防閾値等）に 0 / 負値を入力して保存 → 再読込 | 送信されず既存値のまま表示される（parseInt>=1 のみ送信 — **黙って無視される仕様**であることの確認。DB 側にも CHECK >=1） |
+| 3 | 連携設定: 数値項目（休眠予防閾値等）に 0 / 負値を入力して保存 → 再読込 | FE `NumberInputField` は `min={1}`（ブラウザ制約で 0 は invalid になり得る）。制約をすり抜けた場合も `buildLstepSettingsRequest` の `setPositiveInteger`（parseInt>=1 のみ payload に載せる）により **送信されず既存値のまま**（黙って無視）。DB 側にも CHECK >=1。V05-12 と同契約 |
 | 4 | 連携設定: (C1-3) 数値項目に 1 を入力して保存 → 再読込 | 受理され永続する |
 | 5 | タグ設定: 自動管理プレフィックス/条件タグ対応/送信目的プレフィックスの 3 フォームに各 1 件追加・行削除 | 追加・削除とも一覧に反映される |
 | 6 | タグ設定: (C3-2) 既存と同一キー（prefix / conditionCode / purpose）で追加 | 拒否される（各列 UNIQUE — **グローバル・clinic 無関係**のため既存行全体と衝突し得る） |
@@ -207,3 +207,12 @@
 - 重複登録は FE 事前チェックなしで BE の UNIQUE 違反頼み — 全マスタ共通で「無音失敗・白画面にならない」ことが最重点の確認事項。
 - animal_species と Lステップタグ 3 テーブルは clinic 無関係のグローバル一意 — 変更が他クリニックにも見える点に注意（それ以外の clinic_id 隔離検証はスコープ外 — BE isolation テスト正本）。
 - NG 項目は [`STATUS.md` §3 受入バグ（正本）](../../../../STATUS.md) へ `## BUG-XXX:` 節として起票する（ローカル連番 最大+1・[README.md](README.md) のルールに従う）。
+
+## 実装突合
+- 突合日: 2026-08-07
+- HEAD: 844e43f69
+- 変更:
+  - 保険補償率境界を 0/100/101/-1 と FE/BE 実装参照（BUG-026・`ValidateCoverageRate`）で明示
+  - 支払方法: `(clinic_id,name)` 部分 UNIQUE と system_key 一意・標準行ポリシーを C3-2 手順として補強（DDL `idx_payment_methods_*`）
+  - Lステップ閾値 0/負値の挙動を V05-12 と整合（`min={1}` + request builder の silent skip）
+  - マスタ URL（`/settings/insurance`・`/settings/payment-methods`・`/settings/inquiry-templates`・`/settings/interview/*`・`/settings/shift-templates`・`/settings/treatment-items?tab=` 等）を `paths.ts` / `settings-routes.tsx` と一致確認。旧 dead route リダイレクト（job-title→occupations 等）は router 側で担保済み

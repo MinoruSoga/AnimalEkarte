@@ -28,12 +28,14 @@
 ## 確認観点
 
 - **帰属の判定軸**: 区分・営業日の帰属は完了時刻（`completed_at`）と締め時間設定の照合で決まる（仕様正本 締め時間設定 §主要な機能）。会計の予定日（scheduled_date）ではない。AM/PM/EMG は連続・非重複で 24 時間を被覆する。
-- **越日 EMG（#215）**: 深夜 0:00〜AM 開始の会計は前日の EMG に帰属する（`backend/internal/billing/cash_register_service.go` の `resolvePeriodRange`。集計は completed_at の終端排他レンジ）。境界設定を後から変更しても締め済みレコードは再計算されない（仕様正本 29 §1）。
-- **締め済み警告の判定粒度**: FE の締め済み判定は会計の予定日単位で、その日のいずれかの区分が締め済みなら警告される（区分単位ではない）。#8 の観察時に留意する。
+- **半開区間（終端排他）**: `resolvePeriodRange` は AM=`[am_start, boundary)` / PM=`[boundary, pmEnd)` / EMG=`[pmEnd, 翌日 am_start)`。集計クエリは `completed_at >= start AND completed_at < end`。よって **境界ちょうど（例: 13:30:00）は PM 帰属**（#5）。
+- **越日 EMG（#215）**: 深夜 0:00〜AM 開始の会計は前日の EMG に帰属する（`backend/internal/billing/cash_register_service.go`）。境界設定を後から変更しても締め済みレコードは再計算されない（仕様正本 29 §1）。
+- **締め済み警告の判定粒度**: FE の締め済み判定は会計の **scheduled_date の暦日** 単位で、その日のいずれかの区分が締め済みなら警告される（区分単位ではない — `isScheduledDateClosed`）。#8 の観察時に留意する。
 - **不変性（W-013）**: 締めレコードに更新・削除・soft-delete 再開・巻き戻し API は存在せず append-only。不変性は `(clinic_id, close_date, period)` の **完全 UNIQUE**（二重締め防止）と DB immutability trigger で担保される（仕様正本 §5）。soft-delete して同一区分を再締めする reopen は不可。
 - **締め後訂正**: #8 で理由を入れて会計を保存した場合、監査ログに加え `cash_register_close_adjustments` へ追記される。close 自体の reverse/取消は productize されていない。
-- **#10 のフィルタ粒度**: 締め履歴の区分フィルタはクライアント側フィルタで、現在ページ内の行だけに作用する（`frontend/src/features/cash-register/routes/CashRegisterHistoryPage.tsx`）。ページを跨ぐ絞り込み漏れを不具合と誤認しない。
-- **seed の既存締めレコード**: seed 003_demo には八王子病院の締め記録（2026-05-21 AM/PM 等）が含まれる。城東センター病院での検証には影響しない（clinic_id 隔離の副次確認になる）。
+- **#10 のフィルタ粒度**: 締め履歴の区分フィルタはクライアント側フィルタで、現在ページ内の行だけに作用する（`CashRegisterHistoryPage.tsx` コメントどおり）。ページを跨ぐ絞り込み漏れを不具合と誤認しない。
+- **seed の既存締めレコード**: seed 003_demo の `cash_register_closes.csv` は八王子病院（clinic_id=1）の 2026-05-21 AM/PM のみ。城東（clinic_id=2）での検証には影響しない（clinic_id 隔離の副次確認になる）。
+- **城東の締め時間 seed**: `clinic_settings` clinic_id=2 は `closing_am_start=09:00` / `closing_am_pm_boundary=13:30` / `closing_weekday_end=19:00`（日曜 end は 18:00）。#1 のプレビューと一致すること。
 - **実時間での帰属確認**: 「精算した瞬間の実時刻で正しい区分に入るか」は実行時刻に依存するため本シナリオの対象外。実行時間帯が偶然合致する場合のみ追加確認する【要実測・データ準備要検討】。
 
 ## 異常系
@@ -41,3 +43,12 @@
 - **二重締め**: #7 と同一日・同一区分でもう一度締めを実行 → 拒否される（UNIQUE 制約）。【要実測: エラー表示の表現】**DEFER** — append-only のため本 session は締めを作らずバナー未観測。source-supported: UI バナー + API 409。runtime: 2026-08-01 AM は未締めフォーム表示
 - **soft-delete reopen 不可**: 締め履歴から close を取り消して同一区分を再締めする UI/API は存在しない。存在しない操作を期待結果に含めない（W-013）。
 - **締め済み期間の編集強行**: #8 の状態で修正理由を入力せずに保存 → 保存できない（修正理由必須、仕様正本 11 §2.1）。理由を入力して保存した場合は監査ログと adjustment 台帳に記録される（#115 / W-013）。
+
+## 実装突合
+- 突合日: 2026-08-07
+- HEAD: 844e43f69
+- 変更:
+  - `resolvePeriodRange` 半開区間と境界ちょうど PM 帰属を明示
+  - FE 締め済み警告が scheduled_date 日単位であることを再確認
+  - seed の締めレコード・城東 closing 設定値を CSV と突合
+  - ルート `/accounting/close`・`/accounting/close/history`・`/settings/closing-time` は変更なし

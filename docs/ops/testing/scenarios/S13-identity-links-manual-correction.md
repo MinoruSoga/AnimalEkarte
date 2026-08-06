@@ -27,11 +27,12 @@
 
 ## 確認観点
 
-- **全医院セット認可**: mutation は parent owner anchor + 全 owner member clinics + 対象 pet clinics を要求。any-member フォールバックなし。
-- **view / edit 分離**: GET/search/history は actor clinic でフィルタ。link/unlink は edit 必須。
+- **全医院セット認可**: mutation は parent owner anchor（`CreatedClinicID`）+ 全 active owner member clinics + 対象 pet clinics を要求（`assertActorCoversOwnerGroupClinics`）。any-member フォールバックなし。親 owner member 1 院欠けでも CreatePetGroup は Forbidden・ゼロ書き込み（回帰: `TestCreatePetGroup_RejectsMissingParentOwnerMemberClinic_NoPartialWrite`）。
+- **view / edit 分離**: GET/search/history は actor clinic でフィルタ。link/unlink は `identity-links:edit` 必須。`identity-links` は staff へ自動付与されない（運用で明示付与 — clinic_service）。
 - **原子性**: mixed / hidden / cross-clinic ID は全体 reject・部分書き込みなし。audit 失敗は business write と同一 tx で rollback。
 - **非 PHI audit**: audit payload は group_id / clinic_id / owner_id / pet_id のみ。氏名・電話を含めない。
-- **RLS runtime**: DB ロールでの runtime 証明は本シナリオ外（レポート PENDING）。ソース／ユニットテストでの認可意図は TASK-022 で証明済み。
+- **API 表面**: `POST/DELETE /api/v1/identity-links/owner-groups…` / `pet-groups…`、treatment-history は `GET …/pets/:clinicId/:petId/treatment-history?include_linked=`（`frontend/src/features/identity-links/api/identity-links-api.ts`）。FE ルート `/identity-links`。
+- **RLS runtime**: DB ロールでの runtime 証明は本シナリオ外（レポート PENDING）。ソース／ユニットテストでの認可意図は TASK-022 / #239 Phase1 で証明済み。
 
 ## 人間サインオフ（HUMAN — エージェントは埋めない）
 
@@ -45,3 +46,11 @@
 | 特記・不具合 | PENDING |
 | 承認者（記名） | PENDING |
 | 承認日 | PENDING |
+
+## 実装突合
+- 突合日: 2026-08-07
+- HEAD: 844e43f69
+- 変更:
+  - parent owner 全医院セット認可（anchor + members）を現行 identitylink サービス／回帰テストと突合
+  - API パス・FE `/identity-links`・`include_linked` history・resource 非自動付与を明記
+  - 手順 1–8 の期待は実装と一致（大きな手順変更なし）

@@ -28,8 +28,9 @@
 | [S10](S10-customer-aggregation-consistency.md) | 顧客集計ダッシュボード整合 | 経営 | 薄い |
 | [S11](S11-trimming-combined-accounting.md) | トリミング業務と診察併用精算 | 会計/トリミング | 深い |
 | [S12](S12-liff-pet-health.md) | LIFF ペットヘルスとアカウント連携 | 顧客体験 | 薄い |
+| [S13](S13-identity-links-manual-correction.md) | 同一飼主・ペット連携 — 手動訂正（link → history → unlink → relink） | 顧客/組織 | 中 |
 
-実行順の制約: S01 を最初に（対象ペットを生存へ戻すため他と干渉しない）、S10 は S08 の後（seed に直近365日の完了会計がないため S08 の精算データを使う）。それ以外は任意順。
+実行順の制約: S01 を最初に（対象ペットを生存へ戻すため他と干渉しない）、S10 は S08 の後（seed に直近365日の完了会計がないため S08 の精算データを使う）。S13 は 2 医院所属 + `identity-links:view/edit` が前提で他シナリオと独立。それ以外は任意順。
 
 ## V シリーズ — フォーム検証（入力・更新・DB 整合）
 

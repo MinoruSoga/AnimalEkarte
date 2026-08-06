@@ -53,7 +53,7 @@
 | 1 | (C1-1) 支払方法別金額の合計が請求金額に満たないまま精算確定 | 確定できない（残額 ≠ 0 では Submit 不可 — FE/BE とも合計=請求金額一致を検証） |
 | 2 | (C1-2) 現金選択でお預かり金額を請求金額未満にして確定 | 拒否される（現金は お預かり ≥ 金額。BE も預り不足を拒否） |
 | 3 | (C1-3) お釣りを手動上書きし -1 → 確定、0 → 確定 | -1 は拒否、0 は受理（#188 上書き時の下限は 0 のみ） |
-| 4 | 支払 split の 1 手段に金額 0 を入れて確定 | 拒否される（BE validatePaymentSplits: 各 split 金額 1 円以上・支払手段の重複禁止） |
+| 4 | 支払 split の 1 手段に金額 0 を入れて確定。別ケースで同一支払手段を 2 行に分けて確定 | 金額 0 は拒否（BE validatePaymentSplits: 各 split 金額 1 円以上）。同一手段の重複 split も拒否（`支払い手段 {method} が重複しています` — method 単位の一意。支払方法マスタの名称一意は V04 §1） |
 | 5 | (C2) 未精算会計で明細・支払方法を変更して保存 → 一覧/詳細反映 → 再読込 → 再オープン | C2-1〜C2-3 のとおり永続・初期表示される |
 | 6 | (C3-2) 既に会計が存在するカルテから 2 件目の会計を作成しようとする | 【要実測】**DEFER**（同一 medical_record 2 件目会計 fixture 未用意）。source-supported: DB partial UNIQUE → Create → HTTP **409**。FE 主 UI は `medical_record_id` 未送信で UNIQUE 非到達 |
 | 7 | (C3-3) `/accounting/<存在しない ID>` を直叩き | エラー画面が表示される |
@@ -194,3 +194,11 @@
 - テスト空白地帯: `CashRegisterClosePage`・`ShiftFormDialog`・`ClinicHolidayModal` は component test が存在せず、E2E も全対象フォームで表示確認どまり（保存実行なし）— §5・§10・§11 は本シナリオが唯一の保存実行検証。`ItemListCard` には component test がある。
 - 監査 fail-closed（クレジット訂正・返金は監査ログと同一トランザクション、監査失敗で操作ごとロールバック #211）は BE テスト正本 — 画面側では検証しない。
 - クロステナント隔離はスコープ外（BE isolation テスト正本）。NG 項目は [`STATUS.md` §3 受入バグ（正本）](../../../../STATUS.md) へ `## BUG-XXX:` 節として起票する（ローカル連番 最大+1・[README.md](README.md) のルールに従う）。
+
+## 実装突合
+- 突合日: 2026-08-07
+- HEAD: 844e43f69
+- 変更:
+  - §1 支払 split: 金額下限（1 円以上）に加え method 重複禁止を手順として明示（`validatePaymentSplits` / `accounting_service_builders.go`）
+  - 会計・見積・レジ締め・予約/受付・シフトのルートを `paths.ts`（`/accounting`・`/accounting/close`・`/estimates`・`/shifts`・`/` 受付）と一致確認
+  - 支払方法マスタ側の `(clinic_id, name)` 一意・system_key ポリシーは V04 正本のまま相互参照のみ
