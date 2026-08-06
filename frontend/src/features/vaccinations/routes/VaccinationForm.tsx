@@ -103,18 +103,23 @@ export const VaccinationForm = memo(function VaccinationForm() {
     navigate(paths.vaccinations.getHref());
   }, [navigate]);
 
-  // --- 履歴セクション ---
-  const { data: allVaccinations = [] } = useGetVaccinations();
+  // --- 履歴セクション (BUG-007) ---
+  // Server-side pet_id filter: unscoped page1 + client filter missed 2026 rows
+  // behind 2029 seed dates. Key includes petId so caches never cross pets.
+  const historyPetId = selectedPet?.id;
+  const { data: petVaccinations = [] } = useGetVaccinations({
+    // Always pass petId key so query never falls back to unscoped page-window list.
+    petId: historyPetId ?? "",
+  });
 
   // rerender-dependencies: オブジェクト参照ではなく primitive を deps に渡す
   const { historySearchTerm, filterStartDate, filterEndDate, sortOrder } = historyFilter;
 
   const petHistory = useMemo(() => {
-    if (!selectedPet) return [];
+    if (!historyPetId) return [];
 
-    let result = allVaccinations.filter(
-      (v) => v.petId === selectedPet.id && v.id !== id,
-    );
+    // Server already scoped to pet; still exclude the open edit record.
+    let result = petVaccinations.filter((v) => v.id !== id);
 
     // キーワード検索
     const term = normalizeKana(historySearchTerm).toLowerCase();
@@ -140,7 +145,7 @@ export const VaccinationForm = memo(function VaccinationForm() {
     );
 
     return result;
-  }, [allVaccinations, selectedPet, id, historySearchTerm, filterStartDate, filterEndDate, sortOrder]);
+  }, [petVaccinations, historyPetId, id, historySearchTerm, filterStartDate, filterEndDate, sortOrder]);
 
   if (!selectedPet && !isEdit) {
     return (

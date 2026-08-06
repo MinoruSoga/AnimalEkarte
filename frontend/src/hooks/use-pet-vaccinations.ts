@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { HISTORY_FETCH_LIMIT } from "@/config/fetch-limits";
 import { queryKeys } from "@/lib/query-keys";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import { formatJSTDate, toJSTWallDate } from "@/lib/jst-date";
@@ -50,8 +51,10 @@ export type PetVaccinationHistoryItem = ReturnType<typeof transformToHistoryItem
 const getPetVaccinations = async (
   petId: string,
 ): Promise<PetVaccinationHistoryItem[]> => {
+  // BUG-007: always pass page/limit + pet_id. Default BE limit=20 page-window
+  // hid newer rows behind future-dated seed data when clients omitted limit.
   const { data } = await axios.get<{ data: Vaccination[] }>("/v1/vaccinations", {
-    params: { pet_id: petId },
+    params: { pet_id: petId, page: 1, limit: HISTORY_FETCH_LIMIT },
   });
   return (data.data ?? []).map(transformToHistoryItem);
 };
