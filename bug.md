@@ -2836,7 +2836,7 @@ S01〜S12の業務シナリオ検証に続き、個別フォーム単位の受�
 ## BUG-032: 健診対象者抽出プレビューAPIがハングし応答しない（外部Lステップ連携先タイムアウト未実装の疑い）
 
 - **重大度**: 中〜高
-- **対応状況（2026-08-03 JST）**: OPEN | **根拠**: preview は外部 LSTEP ではなく unbounded ローカル SQL; FE/BE timeout なし（checkup_sync_*）（wave-3） | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: deadline/limit と UI 回復を入れ応答時間を計測
+- **対応状況（2026-08-06 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: PreviewCheckupSync に 15s context timeout、SQL LIMIT 500、owner cap 100; FE axios timeout 20s。unit TestCheckupSyncPreview_Bounds + Preview tests green | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: 実DB件数で preview 応答時間を計測し S シナリオ再検証
 - **発見シナリオ**: V05-18 健診対象者一括タグ付与（`/lstep/checkup-sync`）#1-2 検証中
 - **再現手順**:
   1. `/lstep/checkup-sync` を開く

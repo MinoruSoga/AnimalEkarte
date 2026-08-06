@@ -2,18 +2,32 @@ package lstep
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"strings"
+	"time"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
+// CheckupSyncPreviewTimeout bounds PreviewCheckupSync wall time (BUG-032).
+// Local SQL (not external LSTEP) still needs a deadline so the UI can recover.
+const CheckupSyncPreviewTimeout = 15 * time.Second
+
+// CheckupSyncPreviewOwnerCap is the max owners returned after CPM post-filter.
+// Matches FE CHECKUP_SYNC_OWNER_LIMIT.
+const CheckupSyncPreviewOwnerCap = 100
+
 func (s *checkupSyncService) PreviewCheckupSync(ctx context.Context, clinicID uint64, input *PreviewCheckupSyncInput, actorID *uint64) (*PreviewCheckupSyncResult, error) {
 	if input == nil {
 		return nil, apperrors.WrapInvalidInput("input is nil")
 	}
-	rows, err := s.repo.FindCheckupSyncPreview(ctx, &FindCheckupSyncPreviewParams{
+	// BUG-032: enforce deadline so unbounded SQL cannot hang the request forever.
+	previewCtx, cancel := context.WithTimeout(ctx, CheckupSyncPreviewTimeout)
+	defer cancel()
+
+	rows, err := s.repo.FindCheckupSyncPreview(previewCtx, &FindCheckupSyncPreviewParams{
 		ClinicID:            clinicID,
 		Species:             input.Species,
 		LastVisitBefore:     input.LastVisitBefore,
@@ -27,11 +41,15 @@ func (s *checkupSyncService) PreviewCheckupSync(ctx context.Context, clinicID ui
 		LastCheckupAfter:    input.LastCheckupAfter,
 	})
 	if err != nil {
+		if errors.Is(err, context.DeadlineExceeded) || errors.Is(previewCtx.Err(), context.DeadlineExceeded) {
+			slog.ErrorContext(ctx, "checkup sync preview timed out", "error", err, "clinic_id", clinicID, "timeout", CheckupSyncPreviewTimeout)
+			return nil, apperrors.Wrap(err, "健診対象者プレビューがタイムアウトしました。条件を絞り込んで再試行してください")
+		}
 		slog.ErrorContext(ctx, "failed to find checkup sync preview", "error", err, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to find checkup sync preview")
 	}
 
-	thresholds, err := s.settingsSvc.GetCPMV1Thresholds(ctx, clinicID)
+	thresholds, err := s.settingsSvc.GetCPMV1Thresholds(previewCtx, clinicID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get cpm v1 thresholds for checkup preview", "error", err, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to get cpm v1 thresholds")
@@ -45,7 +63,7 @@ func (s *checkupSyncService) PreviewCheckupSync(ctx context.Context, clinicID ui
 			lineLinkedOwnerIDs = append(lineLinkedOwnerIDs, row.OwnerID)
 		}
 	}
-	tagCacheByOwner, err := s.tagCacheRepo.FindByOwners(ctx, clinicID, lineLinkedOwnerIDs)
+	tagCacheByOwner, err := s.tagCacheRepo.FindByOwners(previewCtx, clinicID, lineLinkedOwnerIDs)
 	if err != nil {
 		// 一括取得の失敗は non-fatal: 全員分のタグを空扱いにしてプレビューは継続する
 		// （per-owner版と異なり、失敗が全体に及ぶ点は仕様として G7-2 で固定した挙動差）。
@@ -57,6 +75,9 @@ func (s *checkupSyncService) PreviewCheckupSync(ctx context.Context, clinicID ui
 	var counters checkupPreviewCounters
 
 	for i := range rows {
+		if len(owners) >= CheckupSyncPreviewOwnerCap {
+			break
+		}
 		row := &rows[i]
 		// ISSUE-009: CPM ステージは集計値ベースの後段フィルタとして適用する。
 		// SQL ではなく service 層で判定することで、タグ同期側 CalculateCPMStage と同じロジックを共有する。

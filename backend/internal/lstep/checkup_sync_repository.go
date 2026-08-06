@@ -60,6 +60,10 @@ type FindCheckupSyncPreviewParams struct {
 	LastCheckupAfter    *time.Time // 最終健診実施日 >= この日
 }
 
+// CheckupSyncPreviewRowLimit bounds SQL result size (BUG-032). Aligns with FE
+// CHECKUP_SYNC_OWNER_LIMIT (100) with headroom for post-SQL CPM filtering.
+const CheckupSyncPreviewRowLimit = 500
+
 // CheckupSyncRepository は健診同期プレビューのリポジトリインターフェース（BE-004）。
 type CheckupSyncRepository interface {
 	FindCheckupSyncPreview(ctx context.Context, params *FindCheckupSyncPreviewParams) ([]CheckupSyncPreviewRow, error)
@@ -155,7 +159,9 @@ WHERE %s
 GROUP BY o.id, o.name, o.line_user_id, o.lstep_opt_out
 %s
 ORDER BY MAX(mr.date) DESC NULLS LAST
+LIMIT ?
 `, where, havingClause)
+	args = append(args, CheckupSyncPreviewRowLimit)
 
 	var rows []CheckupSyncPreviewRow
 	if err := r.db.WithContext(ctx).Raw(query, args...).Scan(&rows).Error; err != nil {

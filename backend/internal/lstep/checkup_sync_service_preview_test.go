@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 
@@ -21,6 +22,14 @@ func TestCheckupSyncService_PreviewCheckupSync_NilInput(t *testing.T) {
 	assert.Error(t, err)
 	assert.True(t, apperrors.IsInvalidInput(err))
 	assert.Nil(t, result)
+}
+
+func TestCheckupSyncPreview_Bounds(t *testing.T) {
+	// BUG-032: hard bounds so preview cannot hang unbounded.
+	assert.Equal(t, 15*time.Second, CheckupSyncPreviewTimeout)
+	assert.Equal(t, 100, CheckupSyncPreviewOwnerCap)
+	assert.Equal(t, 500, CheckupSyncPreviewRowLimit)
+	assert.LessOrEqual(t, CheckupSyncPreviewOwnerCap, CheckupSyncPreviewRowLimit)
 }
 
 func TestCheckupSyncService_PreviewCheckupSync_RepositoryError(t *testing.T) {
