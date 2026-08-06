@@ -3,12 +3,10 @@ package medicalrecord
 import (
 	"context"
 	"log/slog"
-	"math"
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 // CreateVitalInput はバイタル作成の入力DTO（HTTP非依存）
@@ -36,36 +34,6 @@ type UpdateVitalInput struct {
 	WeightUnit      *model.BodyWeightUnit
 	Notes           *string
 	ActorID         *uint64 // 監査ログ用: 操作スタッフ ID（nil = システム）
-}
-
-// buildVitalUpdate はnilでないフィールドのみmap[string]anyに変換する
-func buildVitalUpdate(input *UpdateVitalInput) map[string]any {
-	fields := map[string]any{}
-	if input.RecordedAt != nil {
-		fields["recorded_at"] = *input.RecordedAt
-	}
-	if input.StaffID != nil {
-		fields["staff_id"] = *input.StaffID
-	}
-	if input.Temperature != nil {
-		fields["temperature"] = *input.Temperature
-	}
-	if input.HeartRate != nil {
-		fields["heart_rate"] = *input.HeartRate
-	}
-	if input.RespirationRate != nil {
-		fields["respiration_rate"] = *input.RespirationRate
-	}
-	if input.Weight != nil {
-		fields["weight"] = *input.Weight
-	}
-	if input.WeightUnit != nil {
-		fields["weight_unit"] = *input.WeightUnit
-	}
-	if input.Notes != nil {
-		fields["notes"] = *input.Notes
-	}
-	return fields
 }
 
 // VitalService はバイタル記録のビジネスロジックインターフェース
@@ -350,21 +318,6 @@ func (s *vitalService) Update(ctx context.Context, clinicID, medicalRecordID, vi
 	return result, nil
 }
 
-func validateUpdatedVitalRelation(
-	vital *model.VitalRecord,
-	clinicID, medicalRecordID, vitalID, petID uint64,
-) error {
-	if vital == nil ||
-		vital.ID != vitalID ||
-		vital.ClinicID != clinicID ||
-		vital.PetID != petID ||
-		vital.MedicalRecordID == nil ||
-		*vital.MedicalRecordID != medicalRecordID {
-		return apperrors.WrapNotFound("vital", "not found in medical record")
-	}
-	return nil
-}
-
 func (s *vitalService) lockDraftParent(
 	ctx context.Context,
 	clinicID, medicalRecordID uint64,
@@ -387,20 +340,6 @@ func (s *vitalService) lockDraftParent(
 		return nil, apperrors.WrapConflict(conflictMsg)
 	}
 	return parent, nil
-}
-
-func validateVitalMedicalRecordRelation(
-	parent *model.MedicalRecord,
-	clinicID, medicalRecordID, petID uint64,
-) error {
-	if parent == nil ||
-		parent.ID != medicalRecordID ||
-		parent.ClinicID != clinicID ||
-		parent.PetID == nil ||
-		*parent.PetID != petID {
-		return apperrors.WrapNotFound("medical_record", "relation")
-	}
-	return nil
 }
 
 func (s *vitalService) Delete(ctx context.Context, clinicID, medicalRecordID, vitalID uint64) error {
@@ -450,72 +389,4 @@ func (s *vitalService) Delete(ctx context.Context, clinicID, medicalRecordID, vi
 		slog.Uint64("medical_record_id", medicalRecordID))
 
 	return nil
-}
-
-// auditVitalTx は vital create/update/delete の監査を ambient transaction へ参加させる（BUG-015）。
-// LogVitalChange（base conn Create）は使わず、LogEntryTx → CreateTx と同型にする。
-func (s *vitalService) auditVitalTx(
-	ctx context.Context,
-	clinicID uint64,
-	actorID *uint64,
-	action string,
-	vitalID, medicalRecordID uint64,
-	oldValue, newValue map[string]any,
-) error {
-	if s.auditTx == nil {
-		return apperrors.WrapInternalServerError("vital audit dependency is required")
-	}
-	resourceID := vitalID
-	entry := &AuditEntry{
-		ClinicID:   &clinicID,
-		ActorID:    actorID,
-		ActorType:  sharedkernel.AuditActorTypeFor(actorID),
-		Action:     action,
-		Resource:   "vital",
-		ResourceID: &resourceID,
-		OldValue:   oldValue,
-		NewValue:   newValue,
-		Metadata: map[string]any{
-			"medical_record_id": medicalRecordID,
-		},
-	}
-	if err := s.auditTx.LogEntryTx(ctx, entry); err != nil {
-		slog.ErrorContext(ctx, "failed to write vital audit",
-			"error", err,
-			"action", action,
-			"vital_id", vitalID,
-			"medical_record_id", medicalRecordID,
-		)
-		return apperrors.Wrap(err, "failed to write vital "+action+" audit")
-	}
-	return nil
-}
-
-// validateVitalWeight は service 層での weight 構造検証（request 境界と二重）。
-func validateVitalWeight(weight *float64, unit *model.BodyWeightUnit) error {
-	if weight != nil {
-		if math.IsNaN(*weight) || math.IsInf(*weight, 0) {
-			return apperrors.WrapInvalidInput("weight must be a finite number")
-		}
-		if *weight <= 0 {
-			return apperrors.WrapInvalidInput("weight must be greater than zero")
-		}
-	}
-	if unit != nil {
-		switch *unit {
-		case model.BodyWeightUnitKg, model.BodyWeightUnitG:
-			// ok
-		default:
-			return apperrors.WrapInvalidInput("weight_unit must be Kg or g")
-		}
-	}
-	return nil
-}
-
-// weightUnitOrDefault は nil の場合に BodyWeightUnitKg を返すヘルパー。
-func weightUnitOrDefault(u *model.BodyWeightUnit) model.BodyWeightUnit {
-	if u != nil {
-		return *u
-	}
-	return model.BodyWeightUnitKg
 }
