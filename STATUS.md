@@ -66,13 +66,17 @@ rg -n '^- \*\*対応状況' STATUS.md | rg -o 'IMPLEMENTED_UNVERIFIED|OPEN|BLOCK
 ## 推奨 USER 順（local 実測反映 · **ブラウザ検証は residual 対象外**）
 
 > **除外 (2026-08-06)**: TASK-010 / IU ブラウザバッチ / `BROWSER_VERIFICATION_*` は residual closeout に含めない。手順書は保管のみ（[`reports/BROWSER_VERIFICATION_RUNBOOK.md`](reports/BROWSER_VERIFICATION_RUNBOOK.md)）。`VERIFIED_FIXED` 付与も residual では扱わない。  
-> **PO 決裁**: 代理 Decision Pack [`reports/2026-08-06-po-proxy-decision-pack.md`](reports/2026-08-06-po-proxy-decision-pack.md)（2026-08-06）。プロンプト原本 [`reports/2026-08-06-po-decision-prompt-for-opus.md`](reports/2026-08-06-po-decision-prompt-for-opus.md)。**USER は全件を後から覆せる。**1. ~~TASK-378-reset + TASK-009~~ — **local 完了**（`make reset` postflight OK · ranges=20 · stack healthy）
+> **PO 決裁**: Opus 代理 pack [`reports/2026-08-06-po-proxy-decision-pack.md`](reports/2026-08-06-po-proxy-decision-pack.md)。**Fable 推奨で最終採否** → [`reports/2026-08-06-po-decision-prompt-for-fable.md`](reports/2026-08-06-po-decision-prompt-for-fable.md)。Opus 用プロンプトは [`po-decision-prompt-for-opus.md`](reports/2026-08-06-po-decision-prompt-for-opus.md)。**USER は全件を後から覆せる。**
+
+1. ~~TASK-378-reset + TASK-009~~ — **local 完了**（`make reset` postflight OK · ranges=20 · stack healthy）
 2. **E2E_LOGIN_*** 注入 → TASK-020 / TASK-023（Playwright · 5 フロー UAT。ブラウザ手作業バッチとは別）
 3. **POST-PULL / 他 env の TASK-032-apply / TASK-374-apply** — 未適用環境のみ `make migrate` / 必要時 reset
 4. **TASK-022 / TASK-024** 人証跡（S13 · screenshot/FAQ）
 5. **TASK-021-B/C/D** external inventory 後のみ（response / route / migrate DROP）
 6. **TASK-033** 臨床 #201 bundle 記入後のみ（骨格先行禁止）
-7. **LINE-R05** presence 依存解消 + inventory 後### local 現状（2026-08-06 reset 後）
+7. **LINE-R05** presence 依存解消 + inventory 後
+
+### local 現状（2026-08-06 reset 後）
 
 ```text
 db/backend/frontend = healthy
