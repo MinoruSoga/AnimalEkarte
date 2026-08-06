@@ -43,7 +43,6 @@ type CreateReservationStaffInput struct {
 	ReservationVisible bool
 	ReservationComment string
 	SortOrder          int
-	ExcludedTypeIDs    []uint64
 }
 
 // UpdateReservationStaffInput は予約スタッフ更新の入力データ（ポインタ型でゼロ値を区別）
@@ -53,9 +52,7 @@ type UpdateReservationStaffInput struct {
 	ReservationVisible *bool
 	ReservationComment *string
 	SortOrder          *int
-	ExcludedTypeIDs    *[]uint64
 }
-
 // ReservationStaffCoreService は予約スタッフの CRUD・ステータス・並び順操作
 type ReservationStaffCoreService interface {
 	List(ctx context.Context, clinicID uint64) ([]model.Staff, error)
@@ -123,17 +120,9 @@ func (s *reservationStaffService) GetByID(ctx context.Context, clinicID, id uint
 	return staff, nil
 }
 
-// errDeprecatedExcludedTypeIDs は reservation-staffs Create/Update で deprecated な
-// excluded_type_ids が非空または存在する場合に返す validation error。
-// 対応可能区分の変更は capable-reservation-types API を使う。
-const errDeprecatedExcludedTypeIDs = "excluded_type_ids is deprecated and rejected; use capable-reservation-types API"
-
 func (s *reservationStaffService) Create(ctx context.Context, clinicID uint64, input *CreateReservationStaffInput) (*model.Staff, []model.StaffReservationExclusion, error) {
-	// TASK-021 Phase2 slice2: non-empty excluded_type_ids is hard-rejected on write.
-	// Empty slice remains allowed so Create seeds the full active universe via inverse facade.
-	if len(input.ExcludedTypeIDs) > 0 {
-		return nil, nil, apperrors.WrapInvalidInput(errDeprecatedExcludedTypeIDs)
-	}
+	// TASK-021 UNIT-021-A: request excluded_type_ids removed. Create always seeds full active
+	// universe via inverse facade with empty exclusion (same as former empty-array path).
 	staffType := model.StaffType(input.StaffType)
 	if staffType == "" {
 		staffType = model.StaffTypeDoctor
@@ -153,10 +142,8 @@ func (s *reservationStaffService) Create(ctx context.Context, clinicID uint64, i
 			slog.ErrorContext(txCtx, "failed to create reservation staff", "error", err)
 			return apperrors.Wrap(err, "failed to create reservation staff")
 		}
-		// Stage B: always run inverse facade (empty excluded ⇒ full active universe capable).
-		// Skipping empty write left staff with zero capabilities (fail-closed strand).
-		// Non-empty request values are rejected above; seed path always passes empty.
-		if err := s.repo.UpdateExcludedReservationTypes(txCtx, clinicID, staff.ID, input.ExcludedTypeIDs); err != nil {
+		// Stage B: inverse facade with empty excluded ⇒ full active universe capable.
+		if err := s.repo.UpdateExcludedReservationTypes(txCtx, clinicID, staff.ID, []uint64{}); err != nil {
 			slog.ErrorContext(txCtx, "failed to set excluded courses", "error", err)
 			return apperrors.Wrap(err, "failed to set excluded courses")
 		}
@@ -182,13 +169,9 @@ func (s *reservationStaffService) Create(ctx context.Context, clinicID uint64, i
 }
 
 func (s *reservationStaffService) Update(ctx context.Context, clinicID, id uint64, input *UpdateReservationStaffInput) (*model.Staff, []model.StaffReservationExclusion, error) {
-	// TASK-021 Phase2 slice2: present excluded_type_ids (including empty slice) is hard-rejected.
-	// Capability replacement must use capable-reservation-types API. Omitted field keeps staff-only update.
-	if input.ExcludedTypeIDs != nil {
-		return nil, nil, apperrors.WrapInvalidInput(errDeprecatedExcludedTypeIDs)
-	}
-	// BE-refactor.md X-8: staff 本体更新を WithTx で括り原子化する。
-	// mutation-specific UPDATE lock を最初に取得し、所有権確認から更新までを直列化する。
+	// TASK-021 UNIT-021-A: request excluded_type_ids removed. Capability replacement is only via
+	// capable-reservation-types API. Update is staff-fields only + exclusion readback.
+	// BE-refactor.md X-8: staff 本体更新を WithTx で括り原子化する。	// mutation-specific UPDATE lock を最初に取得し、所有権確認から更新までを直列化する。
 	// FindByID の SHARE lock から UPDATE への lock upgrade は、Update と PatchStatus が
 	// 同時実行された際に相互待ちを作り得るため mutation の先頭では使用しない。
 	var updated *model.Staff

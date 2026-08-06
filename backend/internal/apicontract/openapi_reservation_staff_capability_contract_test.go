@@ -132,14 +132,10 @@ func TestOpenAPIReservationStaffRetainsDeprecatedExclusionCompatibility(t *testi
 	for _, schemaName := range []string{"CreateReservationStaffRequest", "UpdateReservationStaffRequest"} {
 		schema, ok := decodeReservationStaffContractSchema(t, spec, schemaName)
 		require.True(t, ok, "%s schema must remain documented", schemaName)
-		excludedTypeIDs, ok := schema.Properties["excluded_type_ids"]
-		require.True(t, ok, "%s.excluded_type_ids must remain during deprecation", schemaName)
-		assert.True(t, excludedTypeIDs.Deprecated)
-		// TASK-021 Phase2 slice2 honesty: property stays, but description states reject-if-present/non-empty.
-		assert.Contains(t, excludedTypeIDs.Description, "400")
-		assert.Contains(t, excludedTypeIDs.Description, "capable-reservation-types")
+		// TASK-021 UNIT-021-A: request excluded_type_ids removed (response excluded_courses still deprecated).
+		_, hasExcludedTypeIDs := schema.Properties["excluded_type_ids"]
+		assert.False(t, hasExcludedTypeIDs, "%s.excluded_type_ids must be removed after UNIT-021-A", schemaName)
 	}
-
 	legacyPath, ok := decodeReservationStaffContractPath(
 		t,
 		spec,

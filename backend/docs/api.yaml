@@ -9148,16 +9148,6 @@ components:
           type: string
         sort_order:
           type: integer
-        excluded_type_ids:
-          type: array
-          deprecated: true
-          description: |
-            非推奨。非空で送信すると 400 で拒否する。
-            対応可能区分の変更は capable-reservation-types API を使用する。
-            省略または空配列は Create 時に全アクティブ区分を capable として初期化する（互換 seed）。
-          items:
-            type: integer
-            format: int64
     UpdateReservationStaffRequest:
       type: object
       properties:
@@ -9176,17 +9166,6 @@ components:
           nullable: true
         sort_order:
           type: integer
-          nullable: true
-        excluded_type_ids:
-          type: array
-          deprecated: true
-          description: |
-            非推奨。フィールドが存在する場合（空配列含む）は 400 で拒否する。
-            対応可能区分の変更は capable-reservation-types API を使用する。
-            プロパティは deprecation 期間中は削除しない。
-          items:
-            type: integer
-            format: int64
           nullable: true
     PatchReservationStaffStatusRequest:
       type: object

@@ -10,7 +10,6 @@ func TestCreateReservationStaffRequest_ToServiceInput(t *testing.T) {
 		ReservationVisible: &visible,
 		ReservationComment: "comment",
 		SortOrder:          3,
-		ExcludedTypeIDs:    []uint64{1, 2},
 	}
 
 	input := req.toServiceInput()
@@ -21,11 +20,10 @@ func TestCreateReservationStaffRequest_ToServiceInput(t *testing.T) {
 	if !input.ReservationVisible {
 		t.Error("ReservationVisible = false, want true")
 	}
-	if len(input.ExcludedTypeIDs) != 2 {
-		t.Errorf("len(ExcludedTypeIDs) = %d, want 2", len(input.ExcludedTypeIDs))
+	if input.SortOrder != 3 {
+		t.Errorf("SortOrder = %d, want 3", input.SortOrder)
 	}
 }
-
 func TestCreateReservationStaffRequest_ReservationVisibleOmittedDefaultsTrue(t *testing.T) {
 	req := createReservationStaffRequest{Name: "Dr. A"}
 	if !req.toServiceInput().ReservationVisible {
@@ -45,12 +43,10 @@ func TestUpdateReservationStaffRequest_ToServiceInput(t *testing.T) {
 	name := ""
 	visible := false
 	sortOrder := 0
-	excludedTypeIDs := []uint64{}
 	req := updateReservationStaffRequest{
 		Name:               &name,
 		ReservationVisible: &visible,
 		SortOrder:          &sortOrder,
-		ExcludedTypeIDs:    &excludedTypeIDs,
 	}
 
 	input := req.toServiceInput()
@@ -63,8 +59,5 @@ func TestUpdateReservationStaffRequest_ToServiceInput(t *testing.T) {
 	}
 	if input.SortOrder == nil || *input.SortOrder != sortOrder {
 		t.Errorf("SortOrder = %v, want %d", input.SortOrder, sortOrder)
-	}
-	if input.ExcludedTypeIDs == nil || len(*input.ExcludedTypeIDs) != 0 {
-		t.Errorf("ExcludedTypeIDs = %v, want empty slice pointer", input.ExcludedTypeIDs)
 	}
 }

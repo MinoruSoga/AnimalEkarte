@@ -52,29 +52,27 @@ rg -n '^- \*\*対応状況' STATUS.md | rg -o 'IMPLEMENTED_UNVERIFIED|OPEN|BLOCK
 | TASK-009 | 003_demo seed の **DB 適用**（static 済） | USER | **local DONE**（ranges=20）· 他 env 残 |
 | TASK-010 | scenarios 要実測 / ブラウザ IU 32 | USER | **除外**（2026-08-06 · residual 対象外。手順は RUNBOOK に保管） |
 | TASK-020 | Playwright runtime（要 E2E_LOGIN_*） | USER | open · credential 待ち |
-| TASK-021 | exclusion 破壊削除（PO 承認後） | USER+PO | HOLD |
+| TASK-021 | exclusion 破壊削除 | USER+PO | **A DONE**（request DTO/OpenAPI 削除）· B/C/D HOLD（external inventory） |
 | TASK-022 | #239 S13 手動 correction / RLS 証跡 | USER | open |
 | TASK-023 | #254 5 フロー UAT | USER | open · credential 待ち |
-| TASK-024 | #256 screenshot / FAQ sign-off | USER | open |
-| TASK-032-apply | lab import migration 適用 + claim | USER | local DDL 済 · 他 env 残 |
-| TASK-033 | #201 救急投薬 cutover | 臨床+USER | HOLD |
-| TASK-374-apply | checkup package import migration 適用 | USER | local DDL 済 · 他 env / #211 残 |
-| TASK-378-reset | checksum mismatch 環境の DB_RESET | USER | **local DONE**（2026-08-06 reset OK）· 他 env 要時 |
+| TASK-024 | #256 screenshot / FAQ sign-off | USER | open · **必須残**（#256 close gate · DEC-61） |
+| TASK-032-apply | lab import migration 適用 + claim | USER | local DDL 済 · claim 0 · 他 env 残 |
+| TASK-033 | #201 救急投薬 cutover | 臨床+USER | HOLD · **骨格先行も禁止**（DEC-48 一体所有） |
+| TASK-374-apply | checkup package import | USER | HOLD — DR-CLINICAL 実 row + DR-OPS 環境 |
+| TASK-378-reset | checksum mismatch 環境の DB_RESET | USER | **local DONE** · 他 env 要時 |
 | POST-PULL | 各環境 `make migrate` | USER | open |
-| LINE-R05 | production rollout + column DROP | USER/PO | HOLD |
+| LINE-R05 | production + `line_channel_secret` DROP | USER/PO | HOLD — presence SELECT 依存解消が先 |
 | R6/R7 | worktree 隔離 / empty-diff COMPLETE 禁止 | ops | 継続規律 |
-
 ## 推奨 USER 順（local 実測反映 · **ブラウザ検証は residual 対象外**）
 
 > **除外 (2026-08-06)**: TASK-010 / IU ブラウザバッチ / `BROWSER_VERIFICATION_*` は residual closeout に含めない。手順書は保管のみ（[`reports/BROWSER_VERIFICATION_RUNBOOK.md`](reports/BROWSER_VERIFICATION_RUNBOOK.md)）。`VERIFIED_FIXED` 付与も residual では扱わない。  
-> **PO 決裁**: HOLD ゲート（021 / 033 / LINE-R05 / 判断待ち Issue）は Opus 用プロンプト [`reports/2026-08-06-po-decision-prompt-for-opus.md`](reports/2026-08-06-po-decision-prompt-for-opus.md) へ。
-1. ~~TASK-378-reset + TASK-009~~ — **local 完了**（`make reset` postflight OK · ranges=20 · stack healthy）
+> **PO 決裁**: 代理 Decision Pack [`reports/2026-08-06-po-proxy-decision-pack.md`](reports/2026-08-06-po-proxy-decision-pack.md)（2026-08-06）。プロンプト原本 [`reports/2026-08-06-po-decision-prompt-for-opus.md`](reports/2026-08-06-po-decision-prompt-for-opus.md)。**USER は全件を後から覆せる。**1. ~~TASK-378-reset + TASK-009~~ — **local 完了**（`make reset` postflight OK · ranges=20 · stack healthy）
 2. **E2E_LOGIN_*** 注入 → TASK-020 / TASK-023（Playwright · 5 フロー UAT。ブラウザ手作業バッチとは別）
 3. **POST-PULL / 他 env の TASK-032-apply / TASK-374-apply** — 未適用環境のみ `make migrate` / 必要時 reset
 4. **TASK-022 / TASK-024** 人証跡（S13 · screenshot/FAQ）
-5. **TASK-033** 臨床 SoT 揃い後のみ agent 再開可
-6. **TASK-021** 破壊承認後のみ
-### local 現状（2026-08-06 reset 後）
+5. **TASK-021-B/C/D** external inventory 後のみ（response / route / migrate DROP）
+6. **TASK-033** 臨床 #201 bundle 記入後のみ（骨格先行禁止）
+7. **LINE-R05** presence 依存解消 + inventory 後### local 現状（2026-08-06 reset 後）
 
 ```text
 db/backend/frontend = healthy
@@ -112,8 +110,9 @@ schema_migrations = 001_init + 002_master + 003_demo + 004_staging
 
 ### TASK-021 — exclusion 破壊削除
 
-- 破壊承認と external use 確認が揃うまで着手しない。
-- 参照: `reports/2026-07-31-task-021-phase2-slice2.md`
+- **UNIT-021-A DONE (2026-08-06)**: request `excluded_type_ids` を DTO / OpenAPI から削除。Create は常に empty inverse で full universe seed。PO pack D-021-A。
+- **HOLD**: response `excluded_courses` · master exclusion route · DB migrate DROP（external inventory 待ち）。
+- 参照: `reports/2026-07-31-task-021-phase2-slice2.md` · `reports/2026-08-06-po-proxy-decision-pack.md`
 
 ### TASK-022 / 023 / 024 — human residual
 
@@ -128,7 +127,9 @@ schema_migrations = 001_init + 002_master + 003_demo + 004_staging
 
 ### TASK-033 — 救急投薬 cutover
 
-- **BLOCKED**: 臨床入力 + decision SoT + DB review まで実装開始禁止。
+- **BLOCKED / NEEDS_CLINICAL**: DEC-48 により構造化救急記録と fail-closed cutover を**一体所有**。骨格先行も禁止。
+- TASK-377（dose_deviation_reason）は **landed 済み**（順序争点なし）。
+- 解除: #201 bundle 1 行の全列記入（値は代理裁定しない）。
 
 ### TASK-378-reset
 
@@ -137,7 +138,8 @@ schema_migrations = 001_init + 002_master + 003_demo + 004_staging
 
 ### LINE-R05 residual
 
-- production rollout + column DROP は HOLD。
+- DROP 対象: **`line_reservation_setting.line_channel_secret`**（特定済み）。
+- HOLD: presence SELECT `(line_channel_secret <> '')` が webhook routing で使用中。inventory ゼロ + composition test 更新 + 列参照除去が先。
 
 ### SCEN-OPS-CLAIM（クローズ）
 
@@ -148,6 +150,7 @@ schema_migrations = 001_init + 002_master + 003_demo + 004_staging
 - migrate / seed apply / force-push / claim 解放 / VERIFIED_FIXED 付与はしない。
 - 次の実装 unit は TASK-033 または TASK-021 の gate 解除後（1 unit = 1 graph）。
 - residual team が agent 側で完了できる作業は **2026-08-06 時点で尽きた**（監査・ops pack・SoT 更新）。以降は USER gate。
+- **例外**: PO pack D-021-A のみ READY → **UNIT-021-A landed**（request `excluded_type_ids` 削除）。次の agent unit は B/C/D または 033 gate 解除まで **NONE**。
 ---
 
 ## 2. open GitHub Issue の次の一手
