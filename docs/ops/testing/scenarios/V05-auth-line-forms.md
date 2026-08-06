@@ -194,4 +194,4 @@ clinic 単位 1 レコードの PATCH（C3(b) は UI 上到達不能）。シー
 - 既存の機械テストが覆う範囲: FE component test（`ChangePasswordDialog` / `ForgotPasswordPage` / `use-liff-link` / `CustomerInfoPage` / `ConfirmPage` / `MyReservationsPage` / `LstepSettingsForm` / `TriggerPrioritySection` / `LstepTagCodeMappingsSection` / `LstepTagConfigSection` 等）が FE 単体のバリデーション分岐を、BE テスト（auth/password_reset・liff_validation・line_reservation_setting・lstep_settings/tag/csv/checkup_sync 各 service/handler test）がサーバ側検証・部分更新非破壊・テナント隔離を網羅する。E2E（auth-flows / line-reservation-flow / lstep-flow）は表示と主要導線のみ。
 - 本シナリオは上記が個別レイヤで検証済みの挙動を**実ブラウザ + 実 DB の統合点（FE→BE→永続化→再表示）で通す受け入れ時の実機検証**であり、FE/BE バリデーション乖離（ログイン最小長 6 vs 8・パスワード英数字混在は BE のみ）・E2E 対象外の独立 SPA（liff / line-reserve）・予約可能枠の加算方式を重点とする。
 - ログインのレート制限・リセットトークンのワンタイム性・リセット申請の列挙防止はセキュリティ境界（[21-login.md](../../../spec/screens/21-login.md) §1.2/§2）— 「拒否される/漏れない」ことを必ず確認する。
-- NG 項目は [`bug.md` の受入テストバグ台帳（正本）](../../../../bug.md) の末尾へ `## BUG-XXX:` 節として起票する（ローカル連番 最大+1・[README.md](README.md) のルールに従う）。
+- NG 項目は [`STATUS.md` §3 受入バグ（正本）](../../../../STATUS.md) へ `## BUG-XXX:` 節として起票する（ローカル連番 最大+1・[README.md](README.md) のルールに従う）。

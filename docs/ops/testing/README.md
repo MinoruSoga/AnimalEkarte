@@ -20,4 +20,4 @@
 
 - カバレッジ基準の正本は [../coverage-policy.md](../coverage-policy.md)（ratchet 方式）。
 - BE9完了後のHTTPテストは各`internal/<domain>`と`cmd/api`に配置する。削除済み`internal/handler`を前提にした旧集計はgit履歴で参照する。
-- 検証結果はテスト実施時のレポートとして記録する（旧 FUNCTIONAL_TEST_REPORT.md は凍結スナップショットだったため削除済み — git 履歴参照）。
+- 検証の手順正本は [scenarios/](scenarios/README.md)。FAIL / 要対応は root [`STATUS.md`](../../../STATUS.md) へ短く記録する（専用ブラウザ結果レポートや旧 FUNCTIONAL_TEST_REPORT は置かない — git 履歴参照）。

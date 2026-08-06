@@ -193,4 +193,4 @@
 - 既存の機械テストとの分担: FE component test（`PaymentCard`・`CreditCorrectionDialog`・`RefundSection`・`EstimateForm`・`ReservationFormModal`・受付 hooks/`ReceptionDialogActionButtons`・`ShiftCalendar`）と BE validator/service test（validatePaymentSplits・billing_item・refund・cash_register・estimate・appointment/checkSlotConflict・shift_entry の各 service test）が単体レベルの検証を網羅済み。**本シナリオはブラウザ → API → DB を通した受け入れ時の実機フォーム検証**である。
 - テスト空白地帯: `CashRegisterClosePage`・`ShiftFormDialog`・`ClinicHolidayModal` は component test が存在せず、E2E も全対象フォームで表示確認どまり（保存実行なし）— §5・§10・§11 は本シナリオが唯一の保存実行検証。`ItemListCard` には component test がある。
 - 監査 fail-closed（クレジット訂正・返金は監査ログと同一トランザクション、監査失敗で操作ごとロールバック #211）は BE テスト正本 — 画面側では検証しない。
-- クロステナント隔離はスコープ外（BE isolation テスト正本）。NG 項目は [`bug.md` の受入テストバグ台帳（正本）](../../../../bug.md) の末尾へ `## BUG-XXX:` 節として起票する（ローカル連番 最大+1・[README.md](README.md) のルールに従う）。
+- クロステナント隔離はスコープ外（BE isolation テスト正本）。NG 項目は [`STATUS.md` §3 受入バグ（正本）](../../../../STATUS.md) へ `## BUG-XXX:` 節として起票する（ローカル連番 最大+1・[README.md](README.md) のルールに従う）。

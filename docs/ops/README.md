@@ -21,5 +21,5 @@
 
 ## AI エージェント向け注記
 
-- タスク台帳はリポジトリ直下 [`todo.md`](../../todo.md)（残タスク・ops 手順）と [`bug.md`](../../bug.md)（受入テストバグ）に一元化されている。運用作業で発見した課題は `todo.md` の索引表 + `## 個別タスク詳細` へ `### TASK-XXX:` 節で起票する（旧 `3-session-agent.html#ledger` は 2026-07-31 廃止）。
+- タスク台帳の正本はリポジトリ直下 [`STATUS.md`](../../STATUS.md)（§1 残作業 · §2 Issue · §3 BUG）。USER 実行リストは [`PO-todo.md`](../../PO-todo.md)。運用作業で発見した課題は `STATUS.md` の `## 個別タスク詳細` へ `### TASK-XXX:` 節で起票する（旧 `todo.md` / `bug.md` / `3-session-agent.html` は STATUS へのスタブのみ）。
 - migration/seed に触れる作業は `migration-seed-safety` スキル、リリース前チェックは `stg-release-readiness` スキルを先に読むこと。

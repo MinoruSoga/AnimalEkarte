@@ -153,4 +153,4 @@
 - 既存の機械テストが覆う範囲: FE component test（`OwnerForm` 系 3 本＋`OwnerInfoSection`、`PetEditModalFields`・`PetCareSection`・`pet-form-data`・`use-pet-form-list-state`、`PetDeceasedDialog`/`PetDeceasedBanner`、`StaffSettings`・`StaffSidePanelSections`、`permission-rule-table-model`、clinic `transforms`）が FE 単体のバリデーション分岐を、BE テスト（validators_owner/contact/pet/auth・`backend/internal/owner/service_core_test.go` の重複 409・staff_service_account/permissions・permission_group_service・clinic_service）がサーバ側検証を網羅する。E2E は owners-flow（フォーム表示まで）と settings-smoke（表示のみ）で、保存成功・一意制約違反の通しフローは存在しない。
 - 本シナリオは上記が個別レイヤで検証済みの挙動を**実ブラウザ → API → DB → 再表示の統合点で通す受け入れ時の実機検証**であり、特に「保存の永続化（C2）」と FE/BE 非対称ガード（ペット性別・体重上限 200kg = FE のみ、スタッフパスワード英数字混在 = BE のみ）を重点とする。
 - マスタ系 3 フォーム（§5〜§7）は共通の MasterSidePanel シェル上にあり、FE 必須は名称のみ・形式/範囲は BE 依存という構造 — BE エラー（409/400）がトーストへ正しく表示されること（handleApiError 経由）が共通確認点。
-- NG 項目はリポジトリ直下 [`bug.md` の受入テストバグ台帳（正本）](../../../../bug.md) の末尾へ `## BUG-XXX:` 節として起票する（ローカル連番 最大+1・[README.md](README.md) のルールに従う）。
+- NG 項目はリポジトリ直下 [`STATUS.md` §3 受入バグ（正本）](../../../../STATUS.md) へ `## BUG-XXX:` 節として起票する（ローカル連番 最大+1・[README.md](README.md) のルールに従う）。

@@ -196,7 +196,7 @@
 <div class="container">
   <header>
     <h1>内部 PO 判断キュー</h1>
-    <p class="meta">開発内部向け ／ 生成日: 2026-07-15 ／ 最終更新: 2026-08-03 ／ 運用: 本ファイルは「現在、人の判断・操作を待っているもの」だけを保持する（記入フォーム・P0 ブロッカー表・USER 操作 OPS-1〜18・PO-008 ファクトシート）。決裁記録の正本は本ファイルの git 履歴（全量版 = <code>ab68c61f5</code>）と各 Issue への転記（DEC-1/14〜21 は #201/#234/#239/#251/#247/#262/#250/#235/#212 へ転記済み）、ローカル残タスクの正本は <a href="todo.md"><code>todo.md</code></a>、Issue の分類ビューは <a href="3-session-agent.html"><code>3-session-agent.html</code></a>。PO は過去裁定を覆せる — その場合は新カードとして再起票し、エージェントが実装を巻き戻す。2026-08-03 時点: DEC-40〜67 は代理判定済み。2026-08-06: DEC-68 採択（Fable 推奨）。残る USER 入力待ちは DR-CLINICAL / OPS 行と close 一行確認。委任外の値は下記の空欄フォームへ分離し、未入力を代理裁定しない。残 = OPS-1〜18・P0 ブロッカー3行・記入フォーム。</p>
+    <p class="meta">開発内部向け ／ 生成日: 2026-07-15 ／ 最終更新: 2026-08-03 ／ 運用: 本ファイルは「現在、人の判断・操作を待っているもの」だけを保持する（記入フォーム・P0 ブロッカー表・USER 操作 OPS-1〜18・PO-008 ファクトシート）。決裁記録の正本は本ファイルの git 履歴（全量版 = <code>ab68c61f5</code>）と各 Issue への転記（DEC-1/14〜21 は #201/#234/#239/#251/#247/#262/#250/#235/#212 へ転記済み）、ローカル残タスク・Issue 分類・受入バグの正本は <a href="STATUS.md"><code>STATUS.md</code></a>（§1 / §2 / §3）。USER 実行リストは <a href="PO-todo.md"><code>PO-todo.md</code></a>。旧 <code>todo.md</code> / <code>bug.md</code> / <code>3-session-agent.html</code> は STATUS へのスタブ。PO は過去裁定を覆せる — その場合は新カードとして再起票し、エージェントが実装を巻き戻す。2026-08-03 時点: DEC-40〜67 は代理判定済み。2026-08-06: DEC-68 採択（Fable 推奨）。残る USER 入力待ちは DR-CLINICAL / OPS 行と close 一行確認。委任外の値は下記の空欄フォームへ分離し、未入力を代理裁定しない。残 = OPS-1〜18・P0 ブロッカー3行・記入フォーム。</p>
   </header>
 
   <p class="summary">USER 入力待ちDECカード: 0件。DEC-40〜67は代理判定済み。委任外の臨床値・価格・契約値・実在 identity・外部実行値は空欄フォームだけを示し、決定済みに数えない。</p>
@@ -1169,7 +1169,7 @@ ORDER BY pg.clinic_id, pg.id;</pre>
 <template id="cf-retired-history" data-status="retired-do-not-execute">
 <h2 id="cf-history">Cloudflare 移行 — 旧人間タスクチェックリスト（凍結・実行禁止）</h2>
 <p class="section-intro">
-  <a href="migration-cloudflare.md">migration-cloudflare.md</a> の実施記録から、人間の判断・承認・ダッシュボード操作が必要なタスクだけを依存順・優先度別に抽出（旧 <code>todo-me.html</code> を統合・タスク ID とチェック状態は継承）。
+  <a href="docs/ops/infra/_archive/migration-cloudflare.md">migration-cloudflare.md</a> の実施記録から、人間の判断・承認・ダッシュボード操作が必要なタスクだけを依存順・優先度別に抽出（旧 <code>todo-me.html</code> を統合・タスク ID とチェック状態は継承）。
   Phase 0〜6 のエージェント自律作業は完了済み（作成 2026-07-07 / HEAD <code>7125789a</code> 時点）。次のクリティカルパス: <b>P5-2 → P5-5 → Phase7 前確認 → P1-2</b>。検証 URL: <span class="mono">animalekarte-stg-api.baritech-soga.workers.dev</span>。参照: <a href="research-cloudflare.html">research-cloudflare.html</a>。
 </p>
 
@@ -1215,7 +1215,7 @@ terraform plan -out=tfplan   # 内容を確認
 # ここで承認者自身が確認・承認
 terraform apply tfplan
 # apply後、送信先メールに確認リンクが届いていればクリックして検証を完了する</pre>
-    <p class="small">完了条件: apply 成功・送信先メール verified。関連: <a href="infra/cloudflare/README.md">infra/cloudflare/README.md</a> §P6-3 / <a href="migration-cloudflare.md">migration-cloudflare.md</a> Phase 6</p>
+    <p class="small">完了条件: apply 成功・送信先メール verified。関連: <a href="infra/cloudflare/README.md">infra/cloudflare/README.md</a> §P6-3 / <a href="docs/ops/infra/_archive/migration-cloudflare.md">migration-cloudflare.md</a> Phase 6</p>
   </div>
 </article>
 
@@ -1242,13 +1242,13 @@ terraform apply tfplan
 <article class="task" data-task="P2-4-5">
   <div class="task-head"><label class="task-check"><input type="checkbox"><span class="task-id">P2-4 / P2-5</span></label><h3 class="task-title">画像データ移行の実行 + 突合（S3 → R2）</h3></div>
   <p class="dep-badge" hidden></p>
-  <p class="task-desc">移行スクリプト雛形（<code>infra/scripts/migrate-images-r2.sh</code>）は作成済みだが、AWS 認証情報 + R2 認証情報（<code>R2_ACCESS_KEY_ID</code>/<code>R2_SECRET_ACCESS_KEY</code>）の両方が必要なため未実行。<code>./infra/scripts/migrate-images-r2.sh</code>（dry-run 確認プロンプトあり）→ <code>rclone check</code> で突合。完了条件: 差分0件（P2-5 突合 PASS）。関連: <a href="migration-cloudflare.md">migration-cloudflare.md</a> Phase 2</p>
+  <p class="task-desc">移行スクリプト雛形（<code>infra/scripts/migrate-images-r2.sh</code>）は作成済みだが、AWS 認証情報 + R2 認証情報（<code>R2_ACCESS_KEY_ID</code>/<code>R2_SECRET_ACCESS_KEY</code>）の両方が必要なため未実行。<code>./infra/scripts/migrate-images-r2.sh</code>（dry-run 確認プロンプトあり）→ <code>rclone check</code> で突合。完了条件: 差分0件（P2-5 突合 PASS）。関連: <a href="docs/ops/infra/_archive/migration-cloudflare.md">migration-cloudflare.md</a> Phase 2</p>
 </article>
 
 <article class="task" data-task="P3-6-7">
   <div class="task-head"><label class="task-check"><input type="checkbox"><span class="task-id">P3-6 / P3-7</span></label><h3 class="task-title">DB データ移行リハーサル + 本切替（RDS → PlanetScale）</h3></div>
   <p class="dep-badge" hidden></p>
-  <p class="task-desc">private RDS への接続経路（SSM port-forward 等）が必要なためエージェント単独では未実施。P0-6（凍結ウィンドウ）確定後、①リハーサル: dump/restore＋チェックサム突合 ②凍結ウィンドウ内で本切替（アプリの DB 接続を PlanetScale/Hyperdrive 経由へ）③切替後 RDS は即削除せず2週間目安で保持。完了条件: チェックサム一致・アプリが PlanetScale 接続で正常動作。関連: <a href="migration-cloudflare.md">migration-cloudflare.md</a> Phase 3 / §9「DB切替時のデータ差分」</p>
+  <p class="task-desc">private RDS への接続経路（SSM port-forward 等）が必要なためエージェント単独では未実施。P0-6（凍結ウィンドウ）確定後、①リハーサル: dump/restore＋チェックサム突合 ②凍結ウィンドウ内で本切替（アプリの DB 接続を PlanetScale/Hyperdrive 経由へ）③切替後 RDS は即削除せず2週間目安で保持。完了条件: チェックサム一致・アプリが PlanetScale 接続で正常動作。関連: <a href="docs/ops/infra/_archive/migration-cloudflare.md">migration-cloudflare.md</a> Phase 3 / §9「DB切替時のデータ差分」</p>
 </article>
 
 <h3 class="sub">CF-P3 — 切替（Phase 7）: P2 グループ Go 判定後。<code>noah-karte.com</code> registrar は Vercel（NS 未切替: <span class="mono">melissa.ns.cloudflare.com</span> / <span class="mono">yadiel.ns.cloudflare.com</span> へ変更予定）。</h3>

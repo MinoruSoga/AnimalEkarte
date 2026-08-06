@@ -10,7 +10,7 @@
 | **PO-todo.md** | root | **USER 実行リスト** |
 | **q&a.html** | root | DEC / 記入フォーム |
 | **phase2.html** | root | 次期送り |
-| Fable 採択方針 | [decisions/fable-po-recommendation.md](./decisions/fable-po-recommendation.md) | PO 推奨の採択結果 |
+| 採択済み決裁 | [decisions/](./decisions/README.md) | PO 採択方針（例: [Fable](./decisions/fable-po-recommendation.md)） |
 
 ## 置かないもの
 

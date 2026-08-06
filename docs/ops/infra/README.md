@@ -12,5 +12,5 @@
 | [production/runbook.md](production/runbook.md) | 本番運用手順（構築後に整備） |
 | [_archive/](_archive/) | 完了した作業の凍結記録（STG 移行全記録・AWS 時代の文書） |
 
-- コードの所在: Terraform = `infra/cloudflare/`（Phase B で `envs/{staging,production}` + `modules/` へ移行予定 — `reorg-plan.md`）／Wrangler = `backend/wrangler*.jsonc`
+- コードの所在: Terraform = `infra/cloudflare/`（Phase B で `envs/{staging,production}` + `modules/` へ移行予定 — [reorg-plan.md](reorg-plan.md)）／Wrangler = `backend/wrangler*.jsonc`
 - デプロイ・seed 等の作業手順は [docs/ops/deploy/](../deploy/README.md) が正本（本ディレクトリからは重複させず参照する）

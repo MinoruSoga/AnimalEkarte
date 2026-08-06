@@ -207,7 +207,7 @@ schema_migrations = 001_init + 002_master + 003_demo + 004_staging
 
 ## 対応状況サマリ（2026-08-06 JST）
 
-- **正本の優先順位**: **実装（code + 根拠 commit）> bug.md 状態 > ブラウザ再検証**。ブラウザ確認は bug.md の完了ゲートにしない。ブラウザ実施時は `docs/ops/testing/scenarios/` を正とし、結果は必要なら Issue / STATUS 個票へ短く書く（専用レポートは置かない）。
+- **正本の優先順位**: **実装（code + 根拠 commit）> STATUS §3 個票状態 > ブラウザ再検証**。ブラウザ確認は完了ゲートにしない。ブラウザ実施時は `docs/ops/testing/scenarios/` を正とし、結果は必要なら Issue / STATUS 個票へ短く書く（専用レポートは置かない）。
 - **件数（個票 `対応状況` 機械抽出・32/32）**: OPEN=0 / IN_PROGRESS=0 / IMPLEMENTED_UNVERIFIED=32 / VERIFIED_FIXED=0 / BLOCKED=0 / DUPLICATE=0 / NOT_REPRODUCIBLE=0 / **合計=32**
 - **OPEN 残**: なし（LIFF mock と reference range seed を実装側で供給）
 - **BLOCKED 残**: なし（BUG-003 は demo `exam_reference_ranges` seed 追加で IU へ。適用は人が seed 手順で実施）

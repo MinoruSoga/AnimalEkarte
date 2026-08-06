@@ -27,7 +27,7 @@ docs/
 | **仕様系** | [spec/README.md](spec/README.md) | 機能要件・全画面仕様・会計/顧客分析/予約フロー・デザイン規約・LINE 連携 |
 | **運用系** | [ops/README.md](ops/README.md) | デプロイ・ランブック・テスト・CI/カバレッジポリシー・インフラ構成 |
 | **納品系** | [delivery/README.md](delivery/README.md) | 納品パッケージ・Go-live 手順・現場向け操作マニュアル |
-| **作業台帳** | [work/README.md](work/README.md) | 進行中 residual・PO 採択方針（SoT の補助。正本は root `STATUS.md`） |
+| **作業台帳** | [work/README.md](work/README.md) | 進行中の補助メモ・採択済み決裁（正本は root `STATUS.md` / `PO-todo.md`） |
 > **フォルダ規律**: docs/ 直下に新カテゴリを追加する場合は本表と CI ゲート（`scripts/check-docs-symbol-drift.sh` の TOP_ALLOWLIST）を同コミットで更新すること。allowlist 外のフォルダは CI が拒否する。
 
 ## 横断事項
