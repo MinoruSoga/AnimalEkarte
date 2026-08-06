@@ -186,7 +186,7 @@ schema_migrations = 001_init + 002_master + 003_demo + 004_staging
 | [#258](https://github.com/MinoruSoga/AnimalEkarte/issues/258) | 納品ドキュメント（U1–U12） | USER 専権 | 契約責任者・クライアントが U1〜U12 へ非機密結果と opaque ref を一行記録。秘密・契約本文は空欄維持 |
 | [#259](https://github.com/MinoruSoga/AnimalEkarte/issues/259) | L ステップ Write API + cron | 依存待ち | 先方 enable 後、USER が live send・cron 発火・stop/rollback を実測 |
 | [#261](https://github.com/MinoruSoga/AnimalEkarte/issues/261) | 臨床安全・画面仕様ギャップ PO | USER 専権 | DB 方針・権限監査・real LINE/LIFF・対象環境 runtime・close の非機密結果と restricted ref を一行記録 |
-| [#284](https://github.com/MinoruSoga/AnimalEkarte/issues/284) | line-reserve 実機フォント確認 | 依存待ち | 試験環境と対象 3 実機受領後、cold/warm/offline・Rendered Fonts・fallback・clip を人が確認 |
+| [#284](https://github.com/MinoruSoga/AnimalEkarte/issues/284) | line-reserve 実機フォント確認 | 依存待ち | **Fable: DEFER_PHASE2** — 実機 3 台受領後に新 Issue で再開 |
 
 | 分類 | 意味 |
 |------|------|
