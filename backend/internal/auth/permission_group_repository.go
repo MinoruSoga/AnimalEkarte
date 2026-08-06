@@ -242,9 +242,26 @@ func (r *permissionGroupRepository) replaceRules(
 	persistedRules := make([]model.PermissionGroupRule, len(rules))
 	copy(persistedRules, rules)
 	for i := range persistedRules {
+		// Force explicit bool columns on INSERT. GORM can omit zero-value
+		// booleans when a column has a default tag, which historically made
+		// "uncheck" (true→false) look like a successful no-op after reload.
+		persistedRules[i].ID = 0
 		persistedRules[i].GroupID = groupID
+		persistedRules[i].CanView = rules[i].CanView
+		persistedRules[i].CanCreate = rules[i].CanCreate
+		persistedRules[i].CanEdit = rules[i].CanEdit
+		persistedRules[i].CanDelete = rules[i].CanDelete
 	}
-	if err := db.CreateInBatches(persistedRules, 100).Error; err != nil {
+	if err := db.
+		Select(
+			"GroupID",
+			"Resource",
+			"CanView",
+			"CanCreate",
+			"CanEdit",
+			"CanDelete",
+		).
+		CreateInBatches(persistedRules, 100).Error; err != nil {
 		return apperrors.FromGORM(err, "permission_group_rule", "")
 	}
 	return nil
@@ -297,24 +314,8 @@ func (r *permissionGroupRepository) UpdateRules(
 			return apperrors.FromGORM(err, "permission_group", fmt.Sprintf("%d", groupID))
 		}
 
-		// 既存ルールを全削除（物理削除してユニーク制約重複を防止）
-		if err := tx.Unscoped().Where("group_id = ?", groupID).Delete(&model.PermissionGroupRule{}).Error; err != nil {
-			return apperrors.FromGORM(err, "permission_group_rule", "")
-		}
-
-		// 新しいルールを一括作成
-		if len(rules) > 0 {
-			persistedRules := make([]model.PermissionGroupRule, len(rules))
-			copy(persistedRules, rules)
-			for i := range persistedRules {
-				persistedRules[i].GroupID = groupID
-			}
-			if err := tx.CreateInBatches(persistedRules, 100).Error; err != nil {
-				return apperrors.FromGORM(err, "permission_group_rule", "")
-			}
-		}
-
-		return nil
+		txCtx := persistence.WithTxValue(ctx, tx)
+		return r.replaceRules(txCtx, groupID, rules)
 	}); err != nil {
 		return apperrors.Wrap(err, "failed to set permission group rules")
 	}

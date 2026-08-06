@@ -30,9 +30,9 @@
 | 入院・ホテル | BUG-009 | 1 | IMPLEMENTED_UNVERIFIED 1 | `hospitalization`、ステータスタブ・一覧取得 |
 | カルテ・バイタル | BUG-010, BUG-015 | 2 | IMPLEMENTED_UNVERIFIED 2 | `medicalrecord`, `vital`、診察/治療プラン、体重単位 |
 | 見積・会計 | BUG-011, BUG-013, BUG-018, BUG-019 | 4 | IMPLEMENTED_UNVERIFIED 4 | `estimate`, `billing`、未請求明細、締め後会計、Not Found |
-| 顧客集計 | BUG-012 | 1 | OPEN 1 | `aggregation`、LTV/売上集計、CPM取得 |
+| 顧客集計 | BUG-012 | 1 | IMPLEMENTED_UNVERIFIED 1 | `aggregation`、LTV/売上集計、CPM取得 |
 | 横断フォーム基盤 | BUG-016 | 1 | IMPLEMENTED_UNVERIFIED 1 | 予防接種・検査・入院フォーム共通の取得失敗/Not Found 契約 |
-| 認証・権限 | BUG-023, BUG-024, BUG-031 | 3 | IMPLEMENTED_UNVERIFIED 1 / OPEN 2 | `auth`、権限グループ、セッション復元・ログイン遷移 |
+| 認証・権限 | BUG-023, BUG-024, BUG-031 | 3 | IMPLEMENTED_UNVERIFIED 3 | `auth`、権限グループ、セッション復元・ログイン遷移 |
 | 設定・マスタ | BUG-025, BUG-026, BUG-027, BUG-028, BUG-029 | 5 | IMPLEMENTED_UNVERIFIED 3 / OPEN 2 | settings UI、各 master owner、共通保存・重複エラー契約 |
 | **合計** | **BUG-001〜BUG-032** | **32** | **IMPLEMENTED_UNVERIFIED 21 / OPEN 10 / BLOCKED 1** | 各個票を正本とする |
 
@@ -2135,7 +2135,7 @@ S01〜S12の業務シナリオ検証に続き、個別フォーム単位の受�
 ## BUG-024: 権限グループの権限マトリクス（表示/作成/編集/削除チェックボックス）の変更が保存されない（成功トースト・200応答にもかかわらずDBに反映されない）【重大】
 
 - **重大度**: 高
-- **対応状況（2026-08-03 JST）**: OPEN | **根拠**: FE rules[] + BE `UpdateWithRules` 経路は存在; 原文「200だがDB未反映」は request/DB トレース未実施で否定不能（wave-1） | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: トグル→PATCH body→GET/DB 一致の統合確認
+- **対応状況（2026-08-06 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: claim/BUG-024 — FE がマトリクス全リソース+明示 false を PATCH し、応答 rules 不一致時は成功トーストを出さない; BE `replaceRules` が bool 列を Select 固定で INSERT（true→false 永続化 regression 付き） | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: V03 §6 C2/C4 ブラウザで PATCH body・GET・DB 一致を確認（VERIFIED_FIXED は人間）
 - **発見シナリオ**: V03 §6 permission-group-side-panel チェック2（C2永続化確認）およびチェック4（自己剥奪ガード確認）
 - **再現手順**:
   1. `/settings/permission-groups` で「執行」グループの編集パネルを開く

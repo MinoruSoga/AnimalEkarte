@@ -214,6 +214,43 @@ func TestPermissionGroupRepository_UpdateRules(t *testing.T) {
 		assert.True(t, got.Rules[0].CanView)
 	})
 
+	// BUG-024: uncheck (true→false) must survive replace-all insert, including when
+	// GORM default tags would otherwise omit zero-value bool columns.
+	t.Run("trueからfalseへのフラグ反転が永続化される", func(t *testing.T) {
+		g := makePermissionGroup(t, db, clinicA, "UpdateRules false persist")
+		makeEffPermRule(t, db, g.ID, "reception", true, true, true, true)
+
+		atomicRepo := repo.(PermissionGroupRulesAtomicWriter)
+		updated, err := atomicRepo.UpdateWithRules(
+			ctx,
+			clinicA,
+			g.ID,
+			map[string]any{"name": "UpdateRules false persist"},
+			[]model.PermissionGroupRule{{
+				Resource:  "reception",
+				CanView:   false,
+				CanCreate: true,
+				CanEdit:   false,
+				CanDelete: false,
+			}},
+		)
+		require.NoError(t, err)
+		require.Len(t, updated.Rules, 1)
+		assert.False(t, updated.Rules[0].CanView)
+		assert.True(t, updated.Rules[0].CanCreate)
+		assert.False(t, updated.Rules[0].CanEdit)
+		assert.False(t, updated.Rules[0].CanDelete)
+
+		got, findErr := repo.FindByID(ctx, clinicA, g.ID)
+		require.NoError(t, findErr)
+		require.Len(t, got.Rules, 1)
+		assert.Equal(t, "reception", got.Rules[0].Resource)
+		assert.False(t, got.Rules[0].CanView, "can_view false must round-trip after UpdateWithRules")
+		assert.True(t, got.Rules[0].CanCreate)
+		assert.False(t, got.Rules[0].CanEdit)
+		assert.False(t, got.Rules[0].CanDelete)
+	})
+
 	t.Run("空スライスを渡すと全ルールが削除される", func(t *testing.T) {
 		g := makePermissionGroup(t, db, clinicA, "UpdateRules空スライス対象")
 		makeEffPermRule(t, db, g.ID, "medical_record", true, true, true, true)
