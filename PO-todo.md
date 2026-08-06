@@ -68,10 +68,10 @@
   - **Fable**: `NEEDS_USER_OPS`（PO 方針ではなく ops）  
   - **2026-08-07**: `.env.local` に SET · login cookie 200（値は chat/repo に書かない）
 
-- [x] **PO-05 · TASK-020**（partial）  
+- [x] **PO-05 · TASK-020**（partial → core green）  
   - **何を**: Playwright 実行  
   - **完了条件**: green / 失敗ログを手元保管  
-  - **2026-08-07**: focused suite 33/37 PASS · 失敗 4 = owners 検索 placeholder / accounting Iris かな（auth ではない）
+  - **2026-08-07**: core 16-spec suite **80/80** PASS（placeholder/kana seed 整合 + 一覧は DataTableRowLink クリック）
 
 - [ ] **PO-06 · TASK-023 / #254**  
   - **何を**: 5 業務フロー UAT  

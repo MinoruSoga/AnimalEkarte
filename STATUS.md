@@ -50,7 +50,7 @@ rg -n '^- \*\*対応状況' STATUS.md | rg -o 'IMPLEMENTED_UNVERIFIED|OPEN|BLOCK
 | TASK-005 | land 前 closed-pack 回帰 | USER | open（land 都度） |
 | TASK-009 | 003_demo seed の **DB 適用**（static 済） | USER | **local DONE**（ranges=20）· 他 env 残 |
 | TASK-010 | scenarios 要実測 / ブラウザ IU 32 | USER | **除外**（2026-08-06 · residual 対象外。手順は RUNBOOK に保管） |
-| TASK-020 | Playwright runtime（要 E2E_LOGIN_*） | USER | **partial** · cred 済 · owners/accounting smoke 13/13 green（placeholder/kana seed 整合作業済）· フル suite は残 |
+| TASK-020 | Playwright runtime（要 E2E_LOGIN_*） | USER | **partial** · cred 済 · core 16-spec suite **80/80** green（link 遷移・seed 整合）· 残り e2e ファイルは任意 |
 | TASK-021 | exclusion 破壊削除 | USER+PO | **A 追認+DEC-68** · B/C/D HOLD（client registry + access log · 90 日再裁定） |
 | TASK-022 | #239 S13 手動 correction / RLS 証跡 | USER | open |
 | TASK-023 | #254 5 フロー UAT | USER | open · cred 済 · 通し 5 フローは未完 |

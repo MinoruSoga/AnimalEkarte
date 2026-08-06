@@ -63,6 +63,18 @@ export class AccountingPage extends BasePage {
       .first();
   }
 
+  /**
+   * Detail navigation link inside a row (DataTableRowLink on the date cell).
+   * Row click alone does not navigate — only this link does.
+   */
+  firstDetailLink(): Locator {
+    return this.firstRow().getByRole('link').first();
+  }
+
+  kanaPetDetailLink(): Locator {
+    return this.irisRow().getByRole('link').first();
+  }
+
   detailHeading(): Locator {
     return this.page.getByRole('heading', { name: '会計精算' });
   }
