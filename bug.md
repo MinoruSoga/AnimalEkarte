@@ -2310,7 +2310,7 @@ S01〜S12の業務シナリオ検証に続き、個別フォーム単位の受�
 ## BUG-026: 保険マスタで補償率が範囲外（>100）の値を保存しようとすると、実際には保存されていないのに「登録しました」の成功トーストが表示される
 
 - **重大度**: 高（無音失敗どころか、偽の成功通知によりユーザーが保存されたと誤認する）
-- **対応状況（2026-08-06 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: claim/BUG-026 — `validateInsuranceForm` で補償率 0–100（FE/BE 一致）、SidePanel は await 成功時のみ dirty クリア（失敗時は成功トーストなし） | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: V04 保険 C1-3 ブラウザ再確認（VERIFIED_FIXED は人間）
+- **対応状況（2026-08-06 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: 到達済み commit `e0c5cc5e1` — `validateInsuranceForm` で補償率 0–100（FE/BE 一致）、SidePanel は await 成功時のみ dirty クリア（失敗時は成功トーストなし） | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: V04 保険 C1-3 ブラウザ再確認（VERIFIED_FIXED は人間）
 - **発見シナリオ**: V04 §1 保険 `/settings/insurance`（C1-3 境界値チェック）
 - **再現手順**:
   1. `/settings/insurance` で「新規登録」→ 名称「V04保険2」、補償率(%)に `101` を入力
@@ -2573,7 +2573,7 @@ S01〜S12の業務シナリオ検証に続き、個別フォーム単位の受�
 ## BUG-029: 支払方法マスタで名称重複時、実際には保存されていないのに「登録しました」の成功トーストが表示される（BUG-026と同一パターン）
 
 - **重大度**: 中〜高（BUG-026と同根と見られる。無音失敗ではなく虚偽の成功通知が出る点でUXへの実害が大きい。2つの異なるマスタ・2種類の異なるバリデーション〈範囲外値／一意制約違反〉で再現しており、共通基盤（useMasterSave等）の問題である可能性が高い）
-- **対応状況（2026-08-06 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: claim/BUG-026（同クラスタ C-MASTER-FALSE-SUCCESS）— FE で同名 precheck、SidePanel await 成功時のみ dirty クリア | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: V04 支払方法 重複保存のブラウザ再確認（VERIFIED_FIXED は人間）
+- **対応状況（2026-08-06 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: 到達済み commit `e0c5cc5e1`（同クラスタ C-MASTER-FALSE-SUCCESS）— FE で同名 precheck、SidePanel await 成功時のみ dirty クリア | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: V04 支払方法 重複保存のブラウザ再確認（VERIFIED_FIXED は人間）
 - **発見シナリオ**: V04 §1 支払方法 `/settings/payment-methods`（C3-2 一意制約違反チェック）
 - **再現手順**:
   1. `/settings/payment-methods` で「V04支払方法」を新規登録（正常に保存され一覧に反映、`is_active:true`）
