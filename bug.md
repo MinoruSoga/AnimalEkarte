@@ -1,5 +1,7 @@
 # 受入テスト バグ報告
 
+**状況ハブ:** [`STATUS.md`](STATUS.md)（全体の入口。本ファイルは `BUG-*` 実装状態の正本）
+
 実施環境: ローカル (seed 003_demo) / URL: http://localhost:3003
 実施範囲: docs/ops/testing/scenarios 配下 S01〜S12, V01〜V05
 実施日: 2026-07-31

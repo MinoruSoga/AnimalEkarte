@@ -1,5 +1,7 @@
 # Remaining work ledger (open residual only)
 
+**状況ハブ:** [`STATUS.md`](STATUS.md)（全体の入口）
+
 最終整理: **2026-08-06**。  
 製品コードの agent 実装 open は **0**。本ファイルは **未完了 residual のみ**（完了 TASK の一覧・証拠表は置かない。git 履歴が正本）。
 
