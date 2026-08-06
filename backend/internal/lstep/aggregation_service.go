@@ -178,7 +178,14 @@ func NewAggregationService(repo OwnerAggregationRepository, settingsSvc aggregat
 	return &aggregationService{repo: repo, settingsSvc: settingsSvc}
 }
 
+// aggregationQueryTimeout bounds the heavy LTV scan (BUG-012). Client should
+// surface a retryable error instead of infinite "loading".
+const aggregationQueryTimeout = 20 * time.Second
+
 func (s *aggregationService) ListOwnerAggregation(ctx context.Context, clinicID uint64, input *ListOwnerAggregationInput) (*ListOwnerAggregationResult, error) {
+	ctx, cancel := context.WithTimeout(ctx, aggregationQueryTimeout)
+	defer cancel()
+
 	rows, err := s.repo.FindOwnerLTV(ctx, &FindOwnerLTVParams{
 		ClinicID:        clinicID,
 		Sort:            input.Sort,

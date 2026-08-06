@@ -1071,7 +1071,7 @@
 ## BUG-012: 顧客集計ダッシュボードが恒久的に「読み込み中...」のまま表示されず、バックエンドAPIが応答しない【重大】【S10ブロッカー】
 
 - **重大度**: 高（S10の対象機能が完全に使用不能。集計・分析機能全体が機能していない）
-- **対応状況（2026-08-03 JST）**: OPEN | **根拠**: `ListOwnerAggregation` が全 LTV 行を読込後 filter; payments 集計に clinic_id 欠落リスク; FE が CPM fan-out 7 重 call（wave-1） | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: 集計 SQL/ページングと CPM bulk を直しタイムアウト内応答を計測
+- **対応状況（2026-08-06 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: BUG-012 — payments を clinic_id スコープ、max_single_visit を相関サブクエリ→JOIN、ListOwnerAggregation 20s timeout、FE aggregations/CPM 25s axios timeout。**原文シナリオ再検証**: UNREPORTED | **次のアクション**: S10 ブラウザ再計測で VERIFIED_FIXED 可否
 - **発見シナリオ**: S10 手順1（顧客集計ダッシュボード `/aggregation`）
 - **再現手順**:
   1. `/aggregation` を開く（売上ランキングタブが既定表示）。

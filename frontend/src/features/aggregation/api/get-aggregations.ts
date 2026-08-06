@@ -98,9 +98,10 @@ export function useGetOwnerAggregations(params: AggregationParams) {
     queryKey: queryKeys.ownerAggregations.list(params),
     queryFn: async () => {
       const clinicId = requireStoredClinicId();
+      // BUG-012: client timeout so dashboard leaves infinite loading on BE hang.
       const { data } = await axios.get<AggregationResponse>(
         `/v1/clinics/${clinicId}/owners/aggregations`,
-        { params }
+        { params, timeout: 25_000 }
       );
       return data;
     },

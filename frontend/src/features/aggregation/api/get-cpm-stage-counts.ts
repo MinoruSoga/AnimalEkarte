@@ -48,9 +48,13 @@ export function useGetCPMStageCounts(
       queryKey: queryKeys.ownerAggregations.cpmStageCounts(stage, baseParams),
       queryFn: async (): Promise<number> => {
         const clinicId = requireStoredClinicId();
+        // BUG-012: bound hang so chips leave "loading" with error instead of forever-pending.
         const { data } = await axios.get<AggregationResponse>(
           `/v1/clinics/${clinicId}/owners/aggregations`,
-          { params: { ...baseParams, cpm_stage: stage, page: 1, per_page: 1 } }
+          {
+            params: { ...baseParams, cpm_stage: stage, page: 1, per_page: 1 },
+            timeout: 25_000,
+          }
         );
         return data.total;
       },

@@ -169,25 +169,7 @@ SELECT
     WHEN EXTRACT(DAY FROM NOW() - MAX(mr.date)) < 365 THEN 'over_6m'
     ELSE 'over_1y'
   END AS last_visit_bucket,
-  COALESCE((
-    SELECT MAX(b2.total_amount)
-    FROM billings b2
-    WHERE b2.clinic_id = o.clinic_id
-      AND b2.owner_id = o.id
-      AND b2.status = ?
-      AND b2.deleted_at IS NULL
-      AND (
-        b2.medical_record_id IS NULL
-        OR EXISTS (
-          SELECT 1
-          FROM medical_records mr2
-          WHERE mr2.id = b2.medical_record_id
-            AND mr2.clinic_id = b2.clinic_id
-            AND mr2.owner_id = b2.owner_id
-            AND mr2.deleted_at IS NULL
-        )
-      )
-  ), 0)                                                                              AS max_single_visit_amount
+  COALESCE(MAX(maxb.max_single_visit_amount), 0)                                      AS max_single_visit_amount
 FROM owners o
 LEFT JOIN medical_records mr
   ON mr.clinic_id = o.clinic_id
@@ -211,11 +193,15 @@ LEFT JOIN (
     ON bmr.id = b.medical_record_id
     AND bmr.clinic_id = b.clinic_id
   LEFT JOIN (
-    SELECT billing_id, SUM(billing_amount) AS billing_amount
-    FROM payments
-    WHERE deleted_at IS NULL
-    GROUP BY billing_id
-  ) p ON p.billing_id = b.id
+    SELECT p.billing_id, b0.clinic_id, SUM(p.billing_amount) AS billing_amount
+    FROM payments p
+    INNER JOIN billings b0
+      ON b0.id = p.billing_id
+     AND b0.deleted_at IS NULL
+     AND b0.clinic_id = ?
+    WHERE p.deleted_at IS NULL
+    GROUP BY p.billing_id, b0.clinic_id
+  ) p ON p.billing_id = b.id AND p.clinic_id = b.clinic_id
   LEFT JOIN (
     SELECT billing_id, clinic_id, SUM(amount) AS amount
     FROM billing_refunds
@@ -234,20 +220,44 @@ LEFT JOIN (
     )
   GROUP BY b.clinic_id, COALESCE(b.owner_id, bmr.owner_id)
 ) ba ON ba.clinic_id = o.clinic_id AND ba.owner_id = o.id
+LEFT JOIN (
+  SELECT
+    b2.clinic_id,
+    b2.owner_id,
+    MAX(b2.total_amount) AS max_single_visit_amount
+  FROM billings b2
+  WHERE b2.clinic_id = ?
+    AND b2.status = ?
+    AND b2.deleted_at IS NULL
+    AND b2.owner_id IS NOT NULL
+    AND (
+      b2.medical_record_id IS NULL
+      OR EXISTS (
+        SELECT 1
+        FROM medical_records mr2
+        WHERE mr2.id = b2.medical_record_id
+          AND mr2.clinic_id = b2.clinic_id
+          AND mr2.owner_id = b2.owner_id
+          AND mr2.deleted_at IS NULL
+      )
+    )
+  GROUP BY b2.clinic_id, b2.owner_id
+) maxb ON maxb.clinic_id = o.clinic_id AND maxb.owner_id = o.id
 WHERE %s
 GROUP BY o.id, o.name, o.line_user_id, o.lstep_opt_out
 %s
 ORDER BY %s
 `, periodVisitCountCondition, amountExpr, billingCountExpr, where, havingClause, orderBy)
 
-	// Assemble args in SQL placeholder order: visit count, max amount status, annual amount,
-	// billing count, billing aggregate clinic/status, owner scope, then HAVING.
-	args := make([]any, 0, len(periodVisitCountArgs)+len(amountExprArgs)+len(billingCountArgs)+3+len(whereArgs)+len(havingArgs))
+	// Assemble args: period visit CASE, annual amount, billing count, payments clinic,
+	// ba clinic/status, maxb clinic/status, owner scope, HAVING. (BUG-012)
+	args := make([]any, 0, len(periodVisitCountArgs)+len(amountExprArgs)+len(billingCountArgs)+5+len(whereArgs)+len(havingArgs))
 	args = append(args, periodVisitCountArgs...)
-	args = append(args, model.BillingStatusCompleted)
 	args = append(args, amountExprArgs...)
 	args = append(args, billingCountArgs...)
+	args = append(args, params.ClinicID) // payments clinic scope
 	args = append(args, params.ClinicID, model.BillingStatusCompleted)
+	args = append(args, params.ClinicID, model.BillingStatusCompleted) // maxb
 	args = append(args, whereArgs...)
 	args = append(args, havingArgs...)
 
