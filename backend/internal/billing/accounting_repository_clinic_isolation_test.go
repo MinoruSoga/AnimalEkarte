@@ -134,14 +134,14 @@ func TestAccountingRepository_FindAll_ClinicIsolation(t *testing.T) {
 	makeBillingRet(t, db, clinicA)
 
 	t.Run("別クリニックIDでは0件（clinic_id 隔離）", func(t *testing.T) {
-		billings, total, err := repo.FindAll(ctx, clinicB, nil, nil, nil, nil, nil, "", 1, 100)
+		billings, total, err := repo.FindAll(ctx, clinicB, AccountingListFilters{}, 1, 100)
 		require.NoError(t, err)
 		assert.Equal(t, int64(0), total, "clinic B から clinic A の会計一覧は0件でなければならない")
 		assert.Empty(t, billings)
 	})
 
 	t.Run("同一クリニックIDでは取得できる", func(t *testing.T) {
-		billings, total, err := repo.FindAll(ctx, clinicA, nil, nil, nil, nil, nil, "", 1, 100)
+		billings, total, err := repo.FindAll(ctx, clinicA, AccountingListFilters{}, 1, 100)
 		require.NoError(t, err)
 		assert.Equal(t, int64(1), total)
 		assert.Len(t, billings, 1)

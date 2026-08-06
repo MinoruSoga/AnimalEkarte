@@ -58,12 +58,7 @@ func (h *AccountingHandler) ListAccountings(c *gin.Context) {
 		accountings, total, err = h.svc.List(
 			c.Request.Context(),
 			clinicIDs[0],
-			filters.PetID,
-			filters.OwnerID,
-			filters.Status,
-			filters.StartDate,
-			filters.EndDate,
-			filters.Search,
+			filters,
 			page,
 			limit,
 		)
@@ -71,12 +66,7 @@ func (h *AccountingHandler) ListAccountings(c *gin.Context) {
 		accountings, total, err = h.svc.ListForClinics(
 			c.Request.Context(),
 			clinicIDs,
-			filters.PetID,
-			filters.OwnerID,
-			filters.Status,
-			filters.StartDate,
-			filters.EndDate,
-			filters.Search,
+			filters,
 			page,
 			limit,
 		)

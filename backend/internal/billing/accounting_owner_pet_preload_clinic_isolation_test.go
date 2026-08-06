@@ -91,12 +91,8 @@ func TestAccountingRepository_FindAll_RejectsCorruptCrossClinicPetRelation(
 	items, total, err := repo.FindAll(
 		ctx,
 		clinicA,
-		nil,
-		nil,
-		nil,
-		nil,
-		nil,
-		"", 1,
+		AccountingListFilters{},
+		1,
 		50,
 	)
 
@@ -128,12 +124,8 @@ func TestAccountingRepository_FindAllForClinics_RejectsCorruptCrossClinicPetRela
 	items, total, err := repo.FindAllForClinics(
 		ctx,
 		[]uint64{clinicA},
-		nil,
-		nil,
-		nil,
-		nil,
-		nil,
-		"", 1,
+		AccountingListFilters{},
+		1,
 		50,
 	)
 
@@ -153,12 +145,8 @@ func TestAccountingRepository_FindAll_PreservesBillingWithoutPet(t *testing.T) {
 	items, total, err := repo.FindAll(
 		ctx,
 		clinicA,
-		nil,
-		nil,
-		nil,
-		nil,
-		nil,
-		"", 1,
+		AccountingListFilters{},
+		1,
 		50,
 	)
 
@@ -245,12 +233,8 @@ func TestAccountingRepository_CoreReadsEnforceExactOwnerPetCorrelation(
 		items, _, err := repo.FindAll(
 			ctx,
 			clinicA,
-			nil,
-			nil,
-			nil,
-			nil,
-			nil,
-			"", 1,
+			AccountingListFilters{},
+			1,
 			100,
 		)
 		require.NoError(t, err)
@@ -289,12 +273,8 @@ func TestAccountingRepository_CoreReadsEnforceExactOwnerPetCorrelation(
 		items, _, err := repo.FindAllForClinics(
 			ctx,
 			[]uint64{clinicA, clinicB},
-			nil,
-			nil,
-			nil,
-			nil,
-			nil,
-			"", 1,
+			AccountingListFilters{},
+			1,
 			100,
 		)
 		require.NoError(t, err)

@@ -221,13 +221,13 @@ func TestAccountingService_List(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockAccountingRepository{
-				findAllFn: func(_ context.Context, _ uint64, _ *uint64, _ *uint64, _, _, _ *string, _ string, _, _ int) ([]model.Billing, int64, error) {
+				findAllFn: func(_ context.Context, _ uint64, _ AccountingListFilters, _, _ int) ([]model.Billing, int64, error) {
 					return tt.repoBillings, tt.repoTotal, tt.repoErr
 				},
 			}
 			svc := NewAccountingService(repo, nil, nil, &mockReservationRepository{}, nil, &mockTransactor{}, &mockAuditService{}, &mockPaymentMethodMasterRepository{})
 
-			billings, total, err := svc.List(context.Background(), tt.clinicID, tt.petID, tt.ownerID, tt.status, nil, nil, "", tt.page, tt.limit)
+			billings, total, err := svc.List(context.Background(), tt.clinicID, AccountingListFilters{PetID: tt.petID, OwnerID: tt.ownerID, Status: tt.status}, tt.page, tt.limit)
 
 			if tt.wantErr {
 				assert.Error(t, err)

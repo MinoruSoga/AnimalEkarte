@@ -196,12 +196,8 @@ func TestAccountingRepository_ReadsExcludeForeignSplitAndRefundRows(t *testing.T
 		got, total, err := repo.FindAll(
 			ctx,
 			clinicA,
-			nil,
-			nil,
-			nil,
-			nil,
-			nil,
-			"", 1,
+			AccountingListFilters{},
+			1,
 			100,
 		)
 		require.NoError(t, err)
@@ -218,12 +214,8 @@ func TestAccountingRepository_ReadsExcludeForeignSplitAndRefundRows(t *testing.T
 		got, total, err := repo.FindAllForClinics(
 			ctx,
 			[]uint64{clinicA, clinicB},
-			nil,
-			nil,
-			nil,
-			nil,
-			nil,
-			"", 1,
+			AccountingListFilters{},
+			1,
 			100,
 		)
 		require.NoError(t, err)
@@ -874,12 +866,8 @@ func TestAccountingRepository_NestedStaffPreloadsRequireExactBillingClinic(
 		items, _, err := repo.FindAllForClinics(
 			ctx,
 			[]uint64{clinicA, clinicB},
-			nil,
-			nil,
-			nil,
-			nil,
-			nil,
-			"", 1,
+			AccountingListFilters{},
+			1,
 			100,
 		)
 		require.NoError(t, err)
@@ -904,12 +892,8 @@ func TestAccountingRepository_NestedStaffPreloadsRequireExactBillingClinic(
 		items, _, err := repo.FindAll(
 			ctx,
 			clinicA,
-			nil,
-			nil,
-			nil,
-			nil,
-			nil,
-			"", 1,
+			AccountingListFilters{},
+			1,
 			100,
 		)
 		require.NoError(t, err)

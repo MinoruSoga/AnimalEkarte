@@ -13,7 +13,7 @@ import { useSortableData } from "@/hooks/use-sortable-data";
 import { useClinicScope } from "@/hooks/use-clinic-scope";
 
 // External
-import { Plus, CreditCard, Info } from "lucide-react";
+import { Plus, CreditCard } from "lucide-react";
 
 // Internal
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
@@ -46,13 +46,25 @@ const CLINIC_TOGGLE_RESET_PARAMS = ["page"] as const;
 // backend parsePagination の既定 limit(20) を踏襲する。
 const ACCOUNTING_PAGE_SIZE = 20;
 
-// BUG-411: status / paymentMethod は backend 未対応のため client-only のまま。
-// テキスト検索 (search) はサーバサイド化済み — ページ横断で飼主名・ペット名を探す。
-const CLIENT_ONLY_FILTER_KEYS = ["status", "paymentMethod"];
-
 // rerender-stable-empty-array: pageResult 未ロード時のフォールバックを毎レンダー新規配列にしない
 // （useMemo の deps に使うため参照が安定している必要がある）
 const EMPTY_ACCOUNTINGS: AccountingType[] = [];
+
+function extractSelectFilter(
+  filters: ActiveFilter[],
+  key: string,
+): { value?: string; op?: "is" | "is_not" | "is_empty" | "is_not_empty" } {
+  const f = filters.find((x) => x.key === key);
+  if (!f) return {};
+  const op = (f.condition ?? "is") as "is" | "is_not" | "is_empty" | "is_not_empty";
+  if (op === "is_empty" || op === "is_not_empty") {
+    return { op };
+  }
+  if (typeof f.value === "string" && f.value !== "") {
+    return { value: f.value, op };
+  }
+  return {};
+}
 
 export function AccountingList() {
   const navigate = useNavigate();
@@ -101,15 +113,21 @@ export function AccountingList() {
   // FE-144: URLクエリパラメータからページ番号を読み取る（BUG-411: サーバフェッチのキーそのものになる）
   const urlPage = Math.max(1, Number(searchParams.get("page") ?? 1) || 1);
 
-  // 日付 + テキスト検索はサーバへ。ステータス・支払方法は backend 未対応のため client-only。
+  // 日付・検索・ステータス・支払方法はすべてサーバへ（ページ横断）。
   const apiFilters = useMemo<AccountingPageFilters>(() => {
     const dateFilter = activeFilters.find((f) => f.key === "date")?.value as
       | { from?: string; to?: string }
       | undefined;
+    const status = extractSelectFilter(activeFilters, "status");
+    const paymentMethod = extractSelectFilter(activeFilters, "paymentMethod");
     return {
       startDate: dateFilter?.from,
       endDate: dateFilter?.to,
       search: deferredSearch.trim() || undefined,
+      status: status.value,
+      statusOp: status.op,
+      paymentMethod: paymentMethod.value,
+      paymentMethodOp: paymentMethod.op,
       clinicIds: isMultiClinic ? selectedClinicIds : undefined,
       page: urlPage,
       limit: ACCOUNTING_PAGE_SIZE,
@@ -119,67 +137,20 @@ export function AccountingList() {
   const { data: pageResult, isLoading, isError } = useGetAccountingsPage(apiFilters);
   const accountings = pageResult?.data ?? EMPTY_ACCOUNTINGS;
 
-  // js-cache-function-results: client-only フィルタ結果を useMemo でキャッシュ
-  const filteredRecords = useMemo(() => {
-    let result = accountings;
-
-    // ActiveFilter からフィルタ適用（condition 対応）— status は client-only
-    const statusFilter = activeFilters.find((f) => f.key === "status");
-    if (statusFilter && typeof statusFilter.value === "string") {
-      result = result.filter((r) => {
-        switch (statusFilter.condition) {
-          case "is":
-            return r.status === statusFilter.value;
-          case "is_not":
-            return r.status !== statusFilter.value;
-          case "is_empty":
-            return !r.status;
-          case "is_not_empty":
-            return !!r.status;
-          default:
-            return r.status === statusFilter.value;
-        }
-      });
-    }
-
-    // 支払方法フィルタ（クライアントサイド）
-    const paymentMethodFilter = activeFilters.find((f) => f.key === "paymentMethod");
-    if (paymentMethodFilter && typeof paymentMethodFilter.value === "string") {
-      result = result.filter((r) => {
-        const method = r.payment?.method ?? "";
-        switch (paymentMethodFilter.condition) {
-          case "is":           return method === paymentMethodFilter.value;
-          case "is_not":       return method !== paymentMethodFilter.value;
-          case "is_empty":     return !method;
-          case "is_not_empty": return !!method;
-          default:             return method === paymentMethodFilter.value;
-        }
-      });
-    }
-
-    return result;
-  }, [accountings, activeFilters]);
-
   const getSortValue = useCallback((item: AccountingType, key: string) => {
     if (key === "totalAmount") return calculateAccountingTotal(item);
     return String(item[key as keyof AccountingType] ?? "");
   }, []);
 
+  // サーバがフィルタ済みのページを返すので、クライアントはソートのみ。
   const { activeSorts, setActiveSorts, toggleSort, directionFor, sortedData } =
-    useSortableData(filteredRecords, { getSortValue });
+    useSortableData(accountings, { getSortValue });
 
-  // client-only フィルタ中のみ、表示件数と Pagination total が乖離しうる。
-  const hasPageScopedFilter = activeFilters.some((f) =>
-    CLIENT_ONLY_FILTER_KEYS.includes(f.key),
-  );
-
-  // BUG-411: usePagination() のクライアントスライスを撤去し、サーバの total/page/limit をそのまま使う。
-  // テキスト検索はサーバ total と一致。client-only フィルタ時のみページ内絞込（表示件数のみ乖離しうる）。
+  // BUG-411: サーバの total/page/limit をそのまま使う。
   const serverTotal = pageResult?.total ?? 0;
   const serverLimit = pageResult?.limit ?? ACCOUNTING_PAGE_SIZE;
   const serverPage = pageResult?.page ?? urlPage;
   const totalPages = Math.max(1, Math.ceil(serverTotal / serverLimit));
-  const displayTotal = hasPageScopedFilter ? filteredRecords.length : serverTotal;
   const pagination = {
     paginatedData: sortedData,
     totalPages,
@@ -294,18 +265,9 @@ export function AccountingList() {
           <UnifiedTabsContent value="list" className="mt-4">
             {isLoading ? <LoadingFallback /> : null}
             {isError ? <ErrorFallback /> : null}
-            {!isLoading && !isError && hasPageScopedFilter ? (
-              <div className={`flex items-start gap-2 rounded-md px-3 py-2 mb-3 text-sm ${C.textWarning}`}>
-                <Info className={`${ICON.action} ${C.textWarningIcon} shrink-0 mt-0.5`} />
-                <span>
-                  ステータス・支払方法での絞り込みは現在表示中のページ内のみが対象です。
-                  飼主名・ペット名の検索は全件を対象にサーバで行います。
-                </span>
-              </div>
-            ) : null}
             {!isLoading && !isError ? (
               <AccountingListTable
-                filteredCount={displayTotal}
+                filteredCount={serverTotal}
                 pagination={pagination}
                 searchTerm={searchTerm}
                 activeFilters={activeFilters}

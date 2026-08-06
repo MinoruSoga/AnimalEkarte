@@ -23,17 +23,20 @@ func TestNewListAccountingQuery(t *testing.T) {
 		{
 			name: "normal: all params present",
 			values: url.Values{
-				"pet_id":     {"10"},
-				"owner_id":   {"20"},
-				"status":     {"completed"},
-				"start_date": {"2026-05-01"},
-				"end_date":   {"2026-05-31"},
-				"search":     {"べるす"},
+				"pet_id":            {"10"},
+				"owner_id":          {"20"},
+				"status":            {"completed"},
+				"status_op":         {"is_not"},
+				"start_date":        {"2026-05-01"},
+				"end_date":          {"2026-05-31"},
+				"search":            {"べるす"},
+				"payment_method":    {"cash"},
+				"payment_method_op": {"is"},
 			},
 			want: listAccountingQuery{
-				PetID: "10", OwnerID: "20", Status: "completed",
+				PetID: "10", OwnerID: "20", Status: "completed", StatusOp: "is_not",
 				StartDate: "2026-05-01", EndDate: "2026-05-31",
-				Search: "べるす",
+				Search: "べるす", PaymentMethod: "cash", PaymentMethodOp: "is",
 			},
 		},
 		{
@@ -186,7 +189,7 @@ func TestListAccountingQuery_ToServiceFilters_InvalidInput(t *testing.T) {
 			if err == nil {
 				t.Fatal("toServiceFilters returned nil error")
 			}
-			if filters != (listAccountingFilters{}) {
+			if filters != (AccountingListFilters{}) {
 				t.Fatalf("filters = %#v, want zero value", filters)
 			}
 			if !apperrors.IsInvalidInput(err) {

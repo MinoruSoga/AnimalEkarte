@@ -10,58 +10,58 @@ import (
 )
 
 type listAccountingQuery struct {
-	PetID     string
-	OwnerID   string
-	Status    string
-	StartDate string
-	EndDate   string
-	Search    string
+	PetID           string
+	OwnerID         string
+	Status          string
+	StatusOp        string
+	StartDate       string
+	EndDate         string
+	Search          string
+	PaymentMethod   string
+	PaymentMethodOp string
 }
 
 func newListAccountingQuery(values url.Values) listAccountingQuery {
 	return listAccountingQuery{
-		PetID:     values.Get("pet_id"),
-		OwnerID:   values.Get("owner_id"),
-		Status:    values.Get("status"),
-		StartDate: values.Get("start_date"),
-		EndDate:   values.Get("end_date"),
-		Search:    values.Get("search"),
+		PetID:           values.Get("pet_id"),
+		OwnerID:         values.Get("owner_id"),
+		Status:          values.Get("status"),
+		StatusOp:        values.Get("status_op"),
+		StartDate:       values.Get("start_date"),
+		EndDate:         values.Get("end_date"),
+		Search:          values.Get("search"),
+		PaymentMethod:   values.Get("payment_method"),
+		PaymentMethodOp: values.Get("payment_method_op"),
 	}
 }
 
-type listAccountingFilters struct {
-	PetID     *uint64
-	OwnerID   *uint64
-	Status    *string
-	StartDate *string
-	EndDate   *string
-	Search    string
-}
-
-func (q *listAccountingQuery) toServiceFilters() (listAccountingFilters, error) {
+func (q *listAccountingQuery) toServiceFilters() (AccountingListFilters, error) {
 	petID, err := parseOptionalUintQueryFilter(q.PetID, "pet_id")
 	if err != nil {
-		return listAccountingFilters{}, err
+		return AccountingListFilters{}, err
 	}
 	ownerID, err := parseOptionalUintQueryFilter(q.OwnerID, "owner_id")
 	if err != nil {
-		return listAccountingFilters{}, err
+		return AccountingListFilters{}, err
 	}
 	startDate, err := parseOptionalDateQueryFilter(q.StartDate, "start_date")
 	if err != nil {
-		return listAccountingFilters{}, err
+		return AccountingListFilters{}, err
 	}
 	endDate, err := parseOptionalDateQueryFilter(q.EndDate, "end_date")
 	if err != nil {
-		return listAccountingFilters{}, err
+		return AccountingListFilters{}, err
 	}
-	return listAccountingFilters{
-		PetID:     petID,
-		OwnerID:   ownerID,
-		Status:    optionalStringQueryFilter(q.Status),
-		StartDate: startDate,
-		EndDate:   endDate,
-		Search:    q.Search,
+	return AccountingListFilters{
+		PetID:           petID,
+		OwnerID:         ownerID,
+		Status:          optionalStringQueryFilter(q.Status),
+		StatusOp:        q.StatusOp,
+		StartDate:       startDate,
+		EndDate:         endDate,
+		Search:          q.Search,
+		PaymentMethod:   optionalStringQueryFilter(q.PaymentMethod),
+		PaymentMethodOp: q.PaymentMethodOp,
 	}, nil
 }
 

@@ -13,6 +13,9 @@ interface AccountingsListResponse {
   limit: number;
 }
 
+/** select フィルタ条件（PropertyFilter と同値）。 */
+export type AccountingSelectFilterOp = "is" | "is_not" | "is_empty" | "is_not_empty";
+
 export interface AccountingFilters {
   startDate?: string; // YYYY-MM-DD
   endDate?: string;   // YYYY-MM-DD
@@ -27,6 +30,18 @@ export interface AccountingFilters {
    * Backend: GET /api/v1/accountings?search=...
    */
   search?: string;
+  /**
+   * ステータス（waiting / pending / completed / cancelled）。
+   * Backend: status + optional status_op (is | is_not)
+   */
+  status?: string;
+  statusOp?: AccountingSelectFilterOp;
+  /**
+   * 支払方法（cash / credit_card / ...）。
+   * Backend: payment_method + payment_method_op (is | is_not | is_empty | is_not_empty)
+   */
+  paymentMethod?: string;
+  paymentMethodOp?: AccountingSelectFilterOp;
   /** 拠点横断表示 (#86 段階3): 2件以上の場合に clinic_ids クエリパラメータとして送信する。 */
   clinicIds?: string[];
 }
@@ -37,14 +52,32 @@ function buildAccountingParams(filters?: AccountingFilters): Record<string, stri
   if (filters?.endDate) params.end_date = filters.endDate;
   if (filters?.ownerId) params.owner_id = filters.ownerId;
   if (filters?.search?.trim()) params.search = filters.search.trim();
-  if (filters?.clinicIds && filters.clinicIds.length > 1) params.clinic_ids = filters.clinicIds.join(",");
+  if (filters?.status?.trim()) {
+    params.status = filters.status.trim();
+    if (filters.statusOp && filters.statusOp !== "is") {
+      params.status_op = filters.statusOp;
+    }
+  }
+  if (filters?.paymentMethodOp === "is_empty" || filters?.paymentMethodOp === "is_not_empty") {
+    params.payment_method_op = filters.paymentMethodOp;
+  } else if (filters?.paymentMethod?.trim()) {
+    params.payment_method = filters.paymentMethod.trim();
+    if (filters.paymentMethodOp && filters.paymentMethodOp !== "is") {
+      params.payment_method_op = filters.paymentMethodOp;
+    }
+  }
+  if (filters?.clinicIds && filters.clinicIds.length > 1) {
+    params.clinic_ids = filters.clinicIds.join(",");
+  }
   return params;
 }
 
 const getAccountings = async (
   filters?: AccountingFilters,
 ): Promise<Accounting[]> => {
-  const { data } = await axios.get<AccountingsListResponse>("/v1/accountings", { params: buildAccountingParams(filters) });
+  const { data } = await axios.get<AccountingsListResponse>("/v1/accountings", {
+    params: buildAccountingParams(filters),
+  });
   return data.data.map(transformToAccounting);
 };
 
@@ -78,7 +111,12 @@ const getAccountingsPage = async (
   params.page = String(filters.page);
   params.limit = String(filters.limit);
   const { data } = await axios.get<AccountingsListResponse>("/v1/accountings", { params });
-  return { data: data.data.map(transformToAccounting), total: data.total, page: data.page, limit: data.limit };
+  return {
+    data: data.data.map(transformToAccounting),
+    total: data.total,
+    page: data.page,
+    limit: data.limit,
+  };
 };
 
 /**

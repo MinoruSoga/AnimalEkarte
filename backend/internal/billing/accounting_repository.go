@@ -18,6 +18,56 @@ import (
 
 // applyBillingOwnerPetSearch scopes billings by owner/pet display names with
 // katakana→hiragana symmetry (same translate/NormalizeKana contract as owners list).
+
+// applyBillingPaymentMethodFilter scopes by payments / payment_splits method.
+// Op: is (default), is_not, is_empty, is_not_empty. Empty method with is/is_not is a no-op.
+func applyBillingPaymentMethodFilter(q *gorm.DB, method *string, op string) *gorm.DB {
+	op = strings.ToLower(strings.TrimSpace(op))
+	if op == "" {
+		op = "is"
+	}
+	hasPayment := `EXISTS (
+		SELECT 1 FROM payments p
+		WHERE p.billing_id = billings.id
+		  AND p.clinic_id = billings.clinic_id
+		  AND p.deleted_at IS NULL
+	)`
+	hasSplit := `EXISTS (
+		SELECT 1 FROM payment_splits ps
+		WHERE ps.billing_id = billings.id
+		  AND ps.clinic_id = billings.clinic_id
+	)`
+	switch op {
+	case "is_empty":
+		return q.Where("NOT (" + hasPayment + " OR " + hasSplit + ")")
+	case "is_not_empty":
+		return q.Where("(" + hasPayment + " OR " + hasSplit + ")")
+	}
+	if method == nil || strings.TrimSpace(*method) == "" {
+		return q
+	}
+	m := strings.TrimSpace(*method)
+	methodMatch := `(
+		EXISTS (
+			SELECT 1 FROM payments p
+			WHERE p.billing_id = billings.id
+			  AND p.clinic_id = billings.clinic_id
+			  AND p.deleted_at IS NULL
+			  AND p.method = ?
+		)
+		OR EXISTS (
+			SELECT 1 FROM payment_splits ps
+			WHERE ps.billing_id = billings.id
+			  AND ps.clinic_id = billings.clinic_id
+			  AND ps.method = ?
+		)
+	)`
+	if op == "is_not" {
+		return q.Where("NOT "+methodMatch, m, m)
+	}
+	return q.Where(methodMatch, m, m)
+}
+
 func applyBillingOwnerPetSearch(q *gorm.DB, search string) *gorm.DB {
 	rawPattern := "%" + textsearch.EscapeLike(search) + "%"
 	normalizedPattern := "%" + textsearch.EscapeLike(textsearch.NormalizeKana(search)) + "%"
@@ -55,10 +105,25 @@ func applyBillingOwnerPetSearch(q *gorm.DB, search string) *gorm.DB {
 	)
 }
 
+// AccountingListFilters is the list query contract for FindAll / List.
+// StatusOp: "is" (default) | "is_not".
+// PaymentMethodOp: "is" (default) | "is_not" | "is_empty" | "is_not_empty".
+type AccountingListFilters struct {
+	PetID           *uint64
+	OwnerID         *uint64
+	Status          *string
+	StatusOp        string
+	StartDate       *string
+	EndDate         *string
+	Search          string
+	PaymentMethod   *string
+	PaymentMethodOp string
+}
+
 type AccountingRepository interface {
-	FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, search string, page, limit int) ([]model.Billing, int64, error)
+	FindAll(ctx context.Context, clinicID uint64, filters AccountingListFilters, page, limit int) ([]model.Billing, int64, error)
 	// FindAllForClinics は複数医院の会計を横断検索する (#86 段階3)。clinicIDs はハンドラ層で所属検証済みであること。
-	FindAllForClinics(ctx context.Context, clinicIDs []uint64, petID, ownerID *uint64, status, startDate, endDate *string, search string, page, limit int) ([]model.Billing, int64, error)
+	FindAllForClinics(ctx context.Context, clinicIDs []uint64, filters AccountingListFilters, page, limit int) ([]model.Billing, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Billing, error)
 	// FindByIDForClinics は複数医院スコープで会計を1件取得する (#86 詳細画面拠点横断)。clinicIDs はハンドラ層で所属検証済みであること。
 	FindByIDForClinics(ctx context.Context, clinicIDs []uint64, id uint64) (*model.Billing, error)
@@ -235,43 +300,49 @@ func sanitizeBillingSliceRelations(billings []model.Billing) {
 	}
 }
 
-func (r *accountingRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, search string, page, limit int) ([]model.Billing, int64, error) {
+func (r *accountingRepository) FindAll(ctx context.Context, clinicID uint64, filters AccountingListFilters, page, limit int) ([]model.Billing, int64, error) {
 	q := r.db.WithContext(ctx).Model(&model.Billing{}).Scopes(persistence.ClinicScope(clinicID))
-	return r.findBillingsWithFilters(ctx, q, []uint64{clinicID}, petID, ownerID, status, startDate, endDate, search, page, limit)
+	return r.findBillingsWithFilters(ctx, q, []uint64{clinicID}, filters, page, limit)
 }
 
-func (r *accountingRepository) FindAllForClinics(ctx context.Context, clinicIDs []uint64, petID, ownerID *uint64, status, startDate, endDate *string, search string, page, limit int) ([]model.Billing, int64, error) {
+func (r *accountingRepository) FindAllForClinics(ctx context.Context, clinicIDs []uint64, filters AccountingListFilters, page, limit int) ([]model.Billing, int64, error) {
 	q := r.db.WithContext(ctx).Model(&model.Billing{}).Scopes(persistence.ClinicScopeIn(clinicIDs))
-	return r.findBillingsWithFilters(ctx, q, clinicIDs, petID, ownerID, status, startDate, endDate, search, page, limit)
+	return r.findBillingsWithFilters(ctx, q, clinicIDs, filters, page, limit)
 }
 
 // findBillingsWithFilters はフィルタ・ページネーション適用後に返金合計を付与して返す共通実装。
 // FindAll / FindAllForClinics の clinic スコープ差分は呼び出し元で適用済みのクエリ q を受け取る。
 // clinicIDs は Owner/Pet Preload の P3.1 clinic_id 述語用（AUD-002）。
-// search は飼主名・ペット名（かな正規化含む）のサーバサイド部分一致（BUG-411 後続 / ページ横断検索）。
-func (r *accountingRepository) findBillingsWithFilters(ctx context.Context, q *gorm.DB, clinicIDs []uint64, petID, ownerID *uint64, status, startDate, endDate *string, search string, page, limit int) ([]model.Billing, int64, error) {
+// search / status / payment_method はサーバサイド（ページ横断）。
+func (r *accountingRepository) findBillingsWithFilters(ctx context.Context, q *gorm.DB, clinicIDs []uint64, filters AccountingListFilters, page, limit int) ([]model.Billing, int64, error) {
 	billings := make([]model.Billing, 0)
 	var total int64
 
 	q = q.Where("(billings.pet_id IS NULL OR EXISTS (SELECT 1 FROM pets p WHERE p.id = billings.pet_id AND p.clinic_id = billings.clinic_id))")
-	if petID != nil {
-		q = q.Where("pet_id = ?", *petID)
+	if filters.PetID != nil {
+		q = q.Where("pet_id = ?", *filters.PetID)
 	}
-	if ownerID != nil {
-		q = q.Where("owner_id = ?", *ownerID)
+	if filters.OwnerID != nil {
+		q = q.Where("owner_id = ?", *filters.OwnerID)
 	}
-	if status != nil {
-		q = q.Where("status = ?", *status)
+	if filters.Status != nil && *filters.Status != "" {
+		op := strings.ToLower(strings.TrimSpace(filters.StatusOp))
+		if op == "is_not" {
+			q = q.Where("status <> ?", *filters.Status)
+		} else {
+			q = q.Where("status = ?", *filters.Status)
+		}
 	}
-	if startDate != nil {
-		q = q.Where("scheduled_date >= ?", *startDate)
+	if filters.StartDate != nil {
+		q = q.Where("scheduled_date >= ?", *filters.StartDate)
 	}
-	if endDate != nil {
-		q = q.Where("scheduled_date <= ?", *endDate)
+	if filters.EndDate != nil {
+		q = q.Where("scheduled_date <= ?", *filters.EndDate)
 	}
-	if search = strings.TrimSpace(search); search != "" {
+	if search := strings.TrimSpace(filters.Search); search != "" {
 		q = applyBillingOwnerPetSearch(q, search)
 	}
+	q = applyBillingPaymentMethodFilter(q, filters.PaymentMethod, filters.PaymentMethodOp)
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "billing", "")
 	}
