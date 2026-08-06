@@ -18,8 +18,8 @@
 | E2E_LOGIN | USER | **BLOCKED** | host/` .env.local` UNSET |
 | TASK-020 | USER | BLOCKED | credential + stack up |
 | TASK-023 | USER | BLOCKED | credential + 五フロー UAT（#254） |
-| TASK-010 | USER | READY_USER after up | browser backlog |
-| BROWSER_BACKLOG | USER | READY_USER after up | IU 32 UNREPORTED; no VERIFIED_FIXED by agent |
+| TASK-010 | USER | **EXCLUDED** | residual 対象外 (2026-08-06); RUNBOOK 保管のみ |
+| BROWSER_BACKLOG | USER | **EXCLUDED** | 同上 · 手作業 IU 32 は residual closeout に含めない |
 | TASK-022 | USER | READY_USER | S13 + RLS runtime |
 | TASK-024 | USER | READY_USER | #256 visual sign-off |
 | TASK-033 | 臨床+USER | **HOLD** | #201 clinical SoT |

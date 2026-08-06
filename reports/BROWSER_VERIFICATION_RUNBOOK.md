@@ -8,11 +8,12 @@
 | **実装状態の正本** | [`../STATUS.md`](../STATUS.md) §3 |
 | **詳細シナリオ原文** | [`../docs/ops/testing/scenarios/`](../docs/ops/testing/scenarios/) |
 | **環境前提（local 2026-08-06）** | `make reset` 済み · `exam_reference_ranges`=20 · stack healthy |
+| **residual 方針** | **2026-08-06 以降 residual closeout 対象外**（USER）。保管用手順書。 |
 
 > **この文書の役割**  
 > ブラウザで何を・どの順で・どう判定するかを **1 ファイルに集約**する。  
+> **現状 residual の必須作業ではない**（除外）。任意実施時のみ使う。  
 > 結果の UNREPORTED/PASS/FAIL は **バックログ表** に書く。`VERIFIED_FIXED` は人間判断のみ（エージェントは付けない）。
-
 ---
 
 ## 0. ルール（必読）

@@ -50,7 +50,7 @@ rg -n '^- \*\*対応状況' STATUS.md | rg -o 'IMPLEMENTED_UNVERIFIED|OPEN|BLOCK
 | TASK-004 | land 時 screens-drift 隔離 | USER | open（land 都度） |
 | TASK-005 | land 前 closed-pack 回帰 | USER | open（land 都度） |
 | TASK-009 | 003_demo seed の **DB 適用**（static 済） | USER | **local DONE**（ranges=20）· 他 env 残 |
-| TASK-010 | scenarios 要実測の残 | USER | open |
+| TASK-010 | scenarios 要実測 / ブラウザ IU 32 | USER | **除外**（2026-08-06 · residual 対象外。手順は RUNBOOK に保管） |
 | TASK-020 | Playwright runtime（要 E2E_LOGIN_*） | USER | open · credential 待ち |
 | TASK-021 | exclusion 破壊削除（PO 承認後） | USER+PO | HOLD |
 | TASK-022 | #239 S13 手動 correction / RLS 証跡 | USER | open |
@@ -64,16 +64,16 @@ rg -n '^- \*\*対応状況' STATUS.md | rg -o 'IMPLEMENTED_UNVERIFIED|OPEN|BLOCK
 | LINE-R05 | production rollout + column DROP | USER/PO | HOLD |
 | R6/R7 | worktree 隔離 / empty-diff COMPLETE 禁止 | ops | 継続規律 |
 
-## 推奨 USER 順（local 実測反映）
+## 推奨 USER 順（local 実測反映 · **ブラウザ検証は residual 対象外**）
+
+> **除外 (2026-08-06)**: TASK-010 / IU ブラウザバッチ / `BROWSER_VERIFICATION_*` は residual closeout に含めない。手順書は保管のみ（[`reports/BROWSER_VERIFICATION_RUNBOOK.md`](reports/BROWSER_VERIFICATION_RUNBOOK.md)）。`VERIFIED_FIXED` 付与も residual では扱わない。
 
 1. ~~TASK-378-reset + TASK-009~~ — **local 完了**（`make reset` postflight OK · ranges=20 · stack healthy）
-2. **E2E_LOGIN_*** 注入 → TASK-020 / TASK-023
-3. **TASK-010** + `reports/BROWSER_VERIFICATION_BACKLOG.md`（agent は VERIFIED_FIXED しない）· UI は http://localhost:3003
-4. **POST-PULL / 他 env の TASK-032-apply / TASK-374-apply** — 未適用環境のみ `make migrate` / 必要時 reset
-5. **TASK-022 / TASK-024** 人証跡
-6. **TASK-033** 臨床 SoT 揃い後のみ agent 再開可
-7. **TASK-021** 破壊承認後のみ
-
+2. **E2E_LOGIN_*** 注入 → TASK-020 / TASK-023（Playwright · 5 フロー UAT。ブラウザ手作業バッチとは別）
+3. **POST-PULL / 他 env の TASK-032-apply / TASK-374-apply** — 未適用環境のみ `make migrate` / 必要時 reset
+4. **TASK-022 / TASK-024** 人証跡（S13 · screenshot/FAQ）
+5. **TASK-033** 臨床 SoT 揃い後のみ agent 再開可
+6. **TASK-021** 破壊承認後のみ
 ### local 現状（2026-08-06 reset 後）
 
 ```text
@@ -84,7 +84,7 @@ exam_reference_ranges = 20
 schema_migrations = 001_init + 002_master + 003_demo + 004_staging
 ```
 
-次のブロッカー: host の `E2E_LOGIN_EMAIL` / `E2E_LOGIN_PASSWORD`（値は repo に書かない）。
+次のブロッカー（ブラウザ除外後）: host の `E2E_LOGIN_EMAIL` / `E2E_LOGIN_PASSWORD`（値は repo に書かない）→ 020/023。
 ## 詳細（open only）
 
 ### TASK-004 / TASK-005（ops・land 都度）
@@ -100,11 +100,11 @@ schema_migrations = 001_init + 002_master + 003_demo + 004_staging
 - 他環境は各自 migrate/reset。agent は通常 seed apply / DB_RESET しない。
 - 参照: `reports/2026-07-31-task-009-reseed-ops.md` · team pack 上記
 
-### TASK-010 — 要実測
+### TASK-010 — 要実測 / ブラウザ（**residual 除外**）
 
-- Owner: USER（ブラウザ）。stack up + seed 後。
-- 参照: `reports/2026-08-01-task-010-batch5.md`、`reports/BROWSER_VERIFICATION_BACKLOG.md`
-
+- **2026-08-06**: residual closeout 対象から除外（USER 判断）。
+- 手順・結果表は保管: [`reports/BROWSER_VERIFICATION_RUNBOOK.md`](reports/BROWSER_VERIFICATION_RUNBOOK.md) · [`reports/BROWSER_VERIFICATION_BACKLOG.md`](reports/BROWSER_VERIFICATION_BACKLOG.md)
+- 任意で後日実施可。agent は VERIFIED_FIXED を付けない（従来どおり）。
 ### TASK-020 — Playwright
 
 - 要 host `E2E_LOGIN_EMAIL` / `E2E_LOGIN_PASSWORD`（現状 UNSET）。
