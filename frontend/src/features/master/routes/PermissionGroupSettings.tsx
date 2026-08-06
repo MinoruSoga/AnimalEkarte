@@ -27,6 +27,7 @@ import {
   type UpdatePermissionGroupRequest,
 } from "../api/permission-groups";
 import {
+  assertSavedPermissionRulesMatch,
   buildPermissionGroupCreateRequest,
   buildPermissionGroupUpdateRequest,
 } from "./permission-group-settings-model";
@@ -106,6 +107,13 @@ export function PermissionGroupSettings() {
     },
     toCreateRequest: buildPermissionGroupCreateRequest,
     toUpdateRequest: buildPermissionGroupUpdateRequest,
+    // BUG-024: do not toast success when parent updated_at moves but rules lag.
+    onSuccess: (saved, formData) => {
+      assertSavedPermissionRulesMatch(
+        buildPermissionGroupUpdateRequest(formData).rules,
+        saved,
+      );
+    },
     closeOnSuccess: false,
   });
 

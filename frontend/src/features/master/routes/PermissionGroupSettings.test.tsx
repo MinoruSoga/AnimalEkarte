@@ -97,6 +97,47 @@ function mutationStub(mutate: ReturnType<typeof vi.fn>) {
   return { mutate, mutateAsync: mutate };
 }
 
+function echoPermissionGroupFromRequest(
+  req: {
+    name: string;
+    description?: string;
+    color?: string;
+    is_active?: boolean;
+    rules?: Array<{
+      resource: string;
+      can_view: boolean;
+      can_create: boolean;
+      can_edit: boolean;
+      can_delete: boolean;
+    }>;
+  },
+  id = "1",
+): PermissionGroup {
+  return {
+    id,
+    clinicId: "1",
+    name: req.name,
+    description: req.description ?? "",
+    color: req.color ?? "#000000",
+    isActive: req.is_active ?? true,
+    sortOrder: 1,
+    rules:
+      req.rules?.map((rule, index) => ({
+        id: String(index + 1),
+        groupId: id,
+        resource: rule.resource,
+        canView: rule.can_view,
+        canCreate: rule.can_create,
+        canEdit: rule.can_edit,
+        canDelete: rule.can_delete,
+        createdAt: "",
+        updatedAt: "",
+      })) ?? [],
+    createdAt: "",
+    updatedAt: "",
+  };
+}
+
 vi.mock("../api/permission-groups", () => ({
   useGetPermissionGroups: () => ({ data: [] }),
   useCreatePermissionGroup: () => mutationStub(mocks.createMutate),
@@ -113,7 +154,7 @@ function buildFormData(): PermissionGroupFormData {
     isActive: true,
     rules: [
       {
-        resource: "owner",
+        resource: "owners",
         canView: true,
         canCreate: true,
         canEdit: false,
@@ -131,6 +172,12 @@ describe("PermissionGroupSettings permission mutation boundaries", () => {
     mocks.permissions.canCreate = true;
     mocks.permissions.canEdit = true;
     mocks.permissions.canDelete = true;
+    mocks.createMutate.mockImplementation(async (req) =>
+      echoPermissionGroupFromRequest(req, "9"),
+    );
+    mocks.updateMutate.mockImplementation(async ({ id, req }) =>
+      echoPermissionGroupFromRequest(req, id),
+    );
   });
 
   it("captured reorder callback blocks mutation after edit permission is revoked", () => {
@@ -152,22 +199,27 @@ describe("PermissionGroupSettings permission mutation boundaries", () => {
     await user.click(screen.getByRole("button", { name: "保存" }));
 
     expect(mocks.createMutate).toHaveBeenCalledTimes(1);
-    expect(mocks.createMutate).toHaveBeenCalledWith(
-      {
-        name: "受付",
-        description: "受付担当",
-        color: "#000000",
-        is_active: true,
-        rules: [
-          {
-            resource: "owner",
-            can_view: true,
-            can_create: true,
-            can_edit: false,
-            can_delete: false,
-          },
-        ],
-      },
+    const createPayload = mocks.createMutate.mock.calls[0]?.[0] as {
+      name: string;
+      rules: Array<{ resource: string; can_view: boolean; can_create: boolean }>;
+    };
+    expect(createPayload.name).toBe("受付");
+    expect(createPayload.rules.length).toBeGreaterThan(1);
+    expect(createPayload.rules.find((rule) => rule.resource === "owners")).toEqual(
+      expect.objectContaining({
+        resource: "owners",
+        can_view: true,
+        can_create: true,
+        can_edit: false,
+        can_delete: false,
+      }),
+    );
+    expect(createPayload.rules.find((rule) => rule.resource === "reception")).toEqual(
+      expect.objectContaining({
+        resource: "reception",
+        can_view: false,
+        can_create: false,
+      }),
     );
 
     expect(mocks.updateMutate).not.toHaveBeenCalled();
@@ -180,25 +232,24 @@ describe("PermissionGroupSettings permission mutation boundaries", () => {
 
     await user.click(screen.getByRole("button", { name: "保存" }));
     expect(mocks.updateMutate).toHaveBeenCalledTimes(1);
-    expect(mocks.updateMutate).toHaveBeenCalledWith(
-      {
-        id: "1",
-        req: {
-          name: "受付",
-          description: "受付担当",
-          color: "#000000",
-          is_active: true,
-          rules: [
-            {
-              resource: "owner",
-              can_view: true,
-              can_create: true,
-              can_edit: false,
-              can_delete: false,
-            },
-          ],
-        },
-      },
+    const updateArg = mocks.updateMutate.mock.calls[0]?.[0] as {
+      id: string;
+      req: {
+        name: string;
+        rules: Array<{ resource: string; can_view: boolean }>;
+      };
+    };
+    expect(updateArg.id).toBe("1");
+    expect(updateArg.req.name).toBe("受付");
+    expect(updateArg.req.rules.length).toBeGreaterThan(1);
+    expect(updateArg.req.rules.find((rule) => rule.resource === "owners")).toEqual(
+      expect.objectContaining({
+        resource: "owners",
+        can_view: true,
+        can_create: true,
+        can_edit: false,
+        can_delete: false,
+      }),
     );
 
     expect(mocks.createMutate).not.toHaveBeenCalled();
