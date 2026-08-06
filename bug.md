@@ -244,7 +244,7 @@
 ## BUG-003: 検査結果の異常値判定（H/L ハイライト）が常に「未判定」のまま計算されない【重大】
 
 - **重大度**: 高（S02 の中核機能。臨床安全に直結する異常値の見落とし防止が機能していない）
-- **対応状況（2026-08-06 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: 到達済み commit — `003_demo` に `exam_reference_ranges.csv` を追加（犬/猫×CBC 表示基準値と一致する ref_min/ref_max）。`assessExamResult` が構造化 range を解決できる状態に。seed 適用は人が migrate/seed 手順で実施 | **原文シナリオ再検証**: DEFERRED → `reports/BROWSER_VERIFICATION_BACKLOG.md` | **次のアクション**: demo seed 適用後 S02 H/L をブラウザバッチで確認
+- **対応状況（2026-08-06 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: 到達済み commit `1c6395915` — 到達済み commit — `003_demo` に `exam_reference_ranges.csv` を追加（犬/猫×CBC 表示基準値と一致する ref_min/ref_max）。`assessExamResult` が構造化 range を解決できる状態に。seed 適用は人が migrate/seed 手順で実施 | **原文シナリオ再検証**: DEFERRED → `reports/BROWSER_VERIFICATION_BACKLOG.md` | **次のアクション**: demo seed 適用後 S02 H/L をブラウザバッチで確認
 - **発見シナリオ**: S02 手順2〜4（検査管理 `/examinations`）
 - **再現手順**:
   1. `/examinations/select-pet` から生存ペット（伊藤史安/豆助）を選び、新規検査登録。検査種別「血液検査（院内）」を選択（WBC基準値 6.0-17.0、RBC基準値 5.5-8.5、HCT基準値 37-55 などが動的表示される）。
@@ -682,7 +682,7 @@
 ## BUG-008: LIFF予約フローがコース選択画面で必ず「ログイン情報の有効期限が切れました」となり、以降に一切進めない【重大】【S04ブロッカー】
 
 - **重大度**: 高（S04 全体のブロッカー。LIFF飼い主予約ジャーニーが手順2「コース選択」より先へ一切進めない）
-- **対応状況（2026-08-06 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: 到達済み commit — compose で `LIFF_MOCK=true` / `VITE_LIFF_MOCK=true` を明示固定; `LiffAuth` は mock 有効時 real auth へ fallthrough せず lookup 失敗は 503 fail-closed | **原文シナリオ再検証**: DEFERRED → `reports/BROWSER_VERIFICATION_BACKLOG.md` | **次のアクション**: frontend/backend 再起動後 S04 コース選択をブラウザバッチで確認
+- **対応状況（2026-08-06 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: 到達済み commit `1c6395915` — 到達済み commit — compose で `LIFF_MOCK=true` / `VITE_LIFF_MOCK=true` を明示固定; `LiffAuth` は mock 有効時 real auth へ fallthrough せず lookup 失敗は 503 fail-closed | **原文シナリオ再検証**: DEFERRED → `reports/BROWSER_VERIFICATION_BACKLOG.md` | **次のアクション**: frontend/backend 再起動後 S04 コース選択をブラウザバッチで確認
 - **発見シナリオ**: S04 手順1→2（LIFF予約アプリ `/line-reserve/1/`、`VITE_LIFF_MOCK=true`／バックエンド`LIFF_MOCK=true`前提）
 - **再現手順**:
   1. `/line-reserve/1/` を開き「新規予約」→お客様情報（お名前・電話番号・飼い主名・ペット追加）を入力し「次へ」を押す。
