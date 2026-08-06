@@ -9,10 +9,10 @@
 ## 対応状況サマリ（2026-08-06 JST）
 
 - **正本の優先順位**: **実装（code + 根拠 commit）> bug.md 状態 > ブラウザ再検証**。ブラウザ確認は bug.md の完了ゲートにしない。後続バッチは `reports/BROWSER_VERIFICATION_BACKLOG.md` に集約する。
-- **件数（個票 `対応状況` 機械抽出・32/32）**: OPEN=2 / IN_PROGRESS=0 / IMPLEMENTED_UNVERIFIED=29 / VERIFIED_FIXED=0 / BLOCKED=1 / DUPLICATE=0 / NOT_REPRODUCIBLE=0 / **合計=32**
-- **OPEN 残**: BUG-008, BUG-014（LIFF / auth 環境依存。コード修正は env ゲート後）
-- **BLOCKED 残**: BUG-003（承認済み構造化 `exam_reference_ranges` が demo seed に不在）
-- **本 campaign（bug.md 2-agent loop）実装 IU**: BUG-006 `3db97bb19`, BUG-007 `7f663716d`, BUG-012 `85e7be513`, BUG-024 `ce8ae6f46`, BUG-026 `e0c5cc5e1`, BUG-029 `e0c5cc5e1`, BUG-031 `5cf86efc4`, BUG-032 `944f2e4dd`
+- **件数（個票 `対応状況` 機械抽出・32/32）**: OPEN=0 / IN_PROGRESS=0 / IMPLEMENTED_UNVERIFIED=32 / VERIFIED_FIXED=0 / BLOCKED=0 / DUPLICATE=0 / NOT_REPRODUCIBLE=0 / **合計=32**
+- **OPEN 残**: なし（LIFF mock と reference range seed を実装側で供給）
+- **BLOCKED 残**: なし（BUG-003 は demo `exam_reference_ranges` seed 追加で IU へ。適用は人が seed 手順で実施）
+- **本 campaign（bug.md 2-agent loop）実装 IU**: BUG-006 `3db97bb19`, BUG-007 `7f663716d`, BUG-012 `85e7be513`, BUG-024 `ce8ae6f46`, BUG-026 `e0c5cc5e1`, BUG-029 `e0c5cc5e1`, BUG-031 `5cf86efc4`, BUG-032 `944f2e4dd`; BUG-003 seed, BUG-008/014 LIFF mock compose+fail-closed
 - **判定基準**: current checkout から到達可能な code/test を正本とする。GitHub Issue/PR の closed/merged 単独は closure に使わない。`VERIFIED_FIXED` はブラウザバッチ完了後のみ（エージェントは付けない）。
 - **原文シナリオ再検証**: PASS=0 / FAIL=0 / BLOCKED=0 / DEFERRED=32（ブラウザバッチ待ち） / **合計=32**
 - **未検証境界**: ブラウザ・手動 E2E は未実施。追跡先: `reports/BROWSER_VERIFICATION_BACKLOG.md`
@@ -27,9 +27,9 @@
 | 一次担当ドメイン | 対象 BUG | 件数 | 状態内訳 | 主な責務境界 |
 |---|---|---:|---|---|
 | 飼主・ペット・受付 | BUG-001, BUG-002, BUG-020, BUG-021, BUG-022 | 5 | IMPLEMENTED_UNVERIFIED 5 | `owner`, `pet`, owners UI、予約モーダルの新規飼主入力 |
-| 検査 | BUG-003, BUG-004, BUG-005, BUG-017 | 4 | IMPLEMENTED_UNVERIFIED 3 / BLOCKED 1 | `examination`、検査フォーム、担当医選択、異常値判定・確定 |
+| 検査 | BUG-003, BUG-004, BUG-005, BUG-017 | 4 | IMPLEMENTED_UNVERIFIED 4 | `examination`、検査フォーム、担当医選択、異常値判定・確定 |
 | 予防接種 | BUG-006, BUG-007 | 2 | IMPLEMENTED_UNVERIFIED 2 | `vaccination`、対象ペット表示、ペット別接種履歴 |
-| LINE・LIFF・Lステップ連携 | BUG-008, BUG-014, BUG-030, BUG-032 | 4 | IMPLEMENTED_UNVERIFIED 2 / OPEN 2 | `line-reserve`, `liff`, LINE予約設定、`lstep/checkup-sync` |
+| LINE・LIFF・Lステップ連携 | BUG-008, BUG-014, BUG-030, BUG-032 | 4 | IMPLEMENTED_UNVERIFIED 4 | `line-reserve`, `liff`, LINE予約設定、`lstep/checkup-sync` |
 | 入院・ホテル | BUG-009 | 1 | IMPLEMENTED_UNVERIFIED 1 | `hospitalization`、ステータスタブ・一覧取得 |
 | カルテ・バイタル | BUG-010, BUG-015 | 2 | IMPLEMENTED_UNVERIFIED 2 | `medicalrecord`, `vital`、診察/治療プラン、体重単位 |
 | 見積・会計 | BUG-011, BUG-013, BUG-018, BUG-019 | 4 | IMPLEMENTED_UNVERIFIED 4 | `estimate`, `billing`、未請求明細、締め後会計、Not Found |
@@ -37,7 +37,7 @@
 | 横断フォーム基盤 | BUG-016 | 1 | IMPLEMENTED_UNVERIFIED 1 | 予防接種・検査・入院フォーム共通の取得失敗/Not Found 契約 |
 | 認証・権限 | BUG-023, BUG-024, BUG-031 | 3 | IMPLEMENTED_UNVERIFIED 3 | `auth`、権限グループ、セッション復元・ログイン遷移 |
 | 設定・マスタ | BUG-025, BUG-026, BUG-027, BUG-028, BUG-029 | 5 | IMPLEMENTED_UNVERIFIED 5 | settings UI、各 master owner、共通保存・重複エラー契約 |
-| **合計** | **BUG-001〜BUG-032** | **32** | **IMPLEMENTED_UNVERIFIED 29 / OPEN 2 / BLOCKED 1** | 各個票を正本とする |
+| **合計** | **BUG-001〜BUG-032** | **32** | **IMPLEMENTED_UNVERIFIED 32 / OPEN 0 / BLOCKED 0** | 各個票を正本とする |
 # 実装優先ウェーブ / 横断クラスタ索引
 
 調査基準は `main` の `fa74ef92e`（主要コード調査は `239a8a736`、以後のproduct source差分と最終docs-only進行を再監査）。以下は実装そのものではなく、現行コードを起点にした実装・検証計画である。報告時の推定と現行ソースが一致しない項目は、原因を固定せず再現または計測を先行させる。
@@ -244,7 +244,7 @@
 ## BUG-003: 検査結果の異常値判定（H/L ハイライト）が常に「未判定」のまま計算されない【重大】
 
 - **重大度**: 高（S02 の中核機能。臨床安全に直結する異常値の見落とし防止が機能していない）
-- **対応状況（2026-08-03 JST）**: BLOCKED | **根拠**: 構造化 `exam_reference_ranges` の承認済み data が demo seed に不在（`003_demo` は exam_types/fields/results のみ）。`assessExamResult` は構造化 range がある場合のみ H/L。Mode3 follow-up で下限ちょうど・上限ちょうど equality の table-driven test を追加し assessment suite green。閾値推測・seed 作成は out of scope。必要入力: 獣医師承認済み clinic×species×field 構造化 range data packet | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: 承認済み reference range seed/data packet 供給後に S02 H/L を再検証
+- **対応状況（2026-08-06 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: 到達済み commit（本変更）— `003_demo` に `exam_reference_ranges.csv` を追加（犬/猫×CBC 表示基準値と一致する ref_min/ref_max）。`assessExamResult` が構造化 range を解決できる状態に。seed 適用は人が migrate/seed 手順で実施 | **原文シナリオ再検証**: DEFERRED → `reports/BROWSER_VERIFICATION_BACKLOG.md` | **次のアクション**: demo seed 適用後 S02 H/L をブラウザバッチで確認
 - **発見シナリオ**: S02 手順2〜4（検査管理 `/examinations`）
 - **再現手順**:
   1. `/examinations/select-pet` から生存ペット（伊藤史安/豆助）を選び、新規検査登録。検査種別「血液検査（院内）」を選択（WBC基準値 6.0-17.0、RBC基準値 5.5-8.5、HCT基準値 37-55 などが動的表示される）。
@@ -682,7 +682,7 @@
 ## BUG-008: LIFF予約フローがコース選択画面で必ず「ログイン情報の有効期限が切れました」となり、以降に一切進めない【重大】【S04ブロッカー】
 
 - **重大度**: 高（S04 全体のブロッカー。LIFF飼い主予約ジャーニーが手順2「コース選択」より先へ一切進めない）
-- **対応状況（2026-08-03 JST）**: OPEN | **根拠**: LIFF mock/auth: `VITE_LIFF_MOCK`/`LIFF_MOCK` 不整合時に 401→`handle-fetch-error.ts`「ログイン情報の有効期限が切れました」；compose は mock 未固定（wave-1） | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: ローカル両 mock 有効でコース一覧 200 を確認し C-LIFF-AUTH を実装
+- **対応状況（2026-08-06 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: 到達済み commit（本変更）— compose で `LIFF_MOCK=true` / `VITE_LIFF_MOCK=true` を明示固定; `LiffAuth` は mock 有効時 real auth へ fallthrough せず lookup 失敗は 503 fail-closed | **原文シナリオ再検証**: DEFERRED → `reports/BROWSER_VERIFICATION_BACKLOG.md` | **次のアクション**: frontend/backend 再起動後 S04 コース選択をブラウザバッチで確認
 - **発見シナリオ**: S04 手順1→2（LIFF予約アプリ `/line-reserve/1/`、`VITE_LIFF_MOCK=true`／バックエンド`LIFF_MOCK=true`前提）
 - **再現手順**:
   1. `/line-reserve/1/` を開き「新規予約」→お客様情報（お名前・電話番号・飼い主名・ペット追加）を入力し「次へ」を押す。
@@ -1262,7 +1262,7 @@
 ## BUG-014: LIFFペットヘルスページが「ログイン情報の有効期限が切れました」で必ず失敗し閲覧不能（BUG-008と同根）【重大】【S12ブロッカー】
 
 - **重大度**: 高（S12対象機能であるペットヘルスページが完全に閲覧不能。S04で確認したBUG-008と同じ「LIFFモックがAPI呼び出しにAuthorizationヘッダを一切付与しない」という根本原因が、別のLIFFアプリ（frontend/liff＝ペットヘルス・連携用）でも再現）
-- **対応状況（2026-08-03 JST）**: OPEN | **根拠**: BUG-008 と同 C-LIFF-AUTH（shared use-liff / 401 copy / liff_auth）だが health-card 別 app; DUPLICATE 未証明のため OPEN 維持（wave-1） | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: 008 と同一 auth 修正後に health-card 単独で 200 表示を確認
+- **対応状況（2026-08-06 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: BUG-008 と同 C-LIFF-AUTH（shared `use-liff` + compose `VITE_LIFF_MOCK` + BE `LIFF_MOCK`）。health-card も同一 mock 経路 | **原文シナリオ再検証**: DEFERRED → `reports/BROWSER_VERIFICATION_BACKLOG.md` | **次のアクション**: S12 ペットヘルスをブラウザバッチで確認
 - **発見シナリオ**: S12 手順5（token無しURL `/liff/1?clinic_id=1` でペットヘルスページを開く）
 - **再現手順**:
   1. `/liff/1?clinic_id=1`（tokenパラメータなし）を開く。

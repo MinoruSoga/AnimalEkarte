@@ -393,3 +393,49 @@ func TestExtractLiffCustomerID(t *testing.T) {
 		assert.Equal(t, uint64(0), id)
 	})
 }
+
+// BUG-008/014: LIFF_MOCK must not fall through to real auth on success or failure.
+func TestLiffAuth_MockModeBypassesWithoutAuthorization(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	t.Setenv("LIFF_MOCK", "true")
+
+	r := newLiffAuthRouter(validCustomerLookup(), validSettingLookup("1234567890-abcdefgh"))
+	req := httptest.NewRequest(http.MethodGet, "/api/liff/3/test", http.NoBody)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Contains(t, w.Body.String(), `"customer_id":1`)
+}
+
+func TestLiffAuth_MockModeLookupFailureIsFailClosed(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	t.Setenv("LIFF_MOCK", "true")
+
+	failing := &mockCustomerLookup{
+		findOrCreateFn: func(context.Context, uint64, string, string) (*model.LineCustomer, error) {
+			return nil, errors.New("db unavailable")
+		},
+	}
+	r := newLiffAuthRouter(failing, validSettingLookup("1234567890-abcdefgh"))
+	req := httptest.NewRequest(http.MethodGet, "/api/liff/3/test", http.NoBody)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusServiceUnavailable, w.Code)
+	assert.Contains(t, w.Body.String(), "LIFF mock authentication failed")
+	assert.NotContains(t, w.Body.String(), "missing authorization header")
+}
+
+func TestLiffAuth_MockModeInvalidClinicID(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	t.Setenv("LIFF_MOCK", "true")
+
+	r := newLiffAuthRouter(validCustomerLookup(), validSettingLookup("1234567890-abcdefgh"))
+	req := httptest.NewRequest(http.MethodGet, "/api/liff/abc/test", http.NoBody)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+	assert.Contains(t, w.Body.String(), "invalid clinic id")
+}

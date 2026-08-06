@@ -49,19 +49,36 @@ type LineReservationSettingLookup interface {
 // settingLookup でクリニックの LiffID を取得し、LINE API の client_id 照合に使用する。
 func LiffAuth(lookup LineCustomerLookup, settingLookup LineReservationSettingLookup) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// ローカル開発用: LIFF_MOCK=true で認証バイパス（release モードでは無効）
+		// ローカル開発用: LIFF_MOCK=true で認証バイパス（release モードでは無効）。
+		// BUG-008/014: mock 有効時に lookup 失敗や clinicId 不正を real auth へ
+		// silent fallthrough すると「missing authorization」になり、FE は期限切れ文言を出す。
 		if os.Getenv("LIFF_MOCK") == "true" && gin.Mode() != gin.ReleaseMode {
 			clinicIDStr := c.Param("clinicId")
 			var clinicID uint64
-			if _, err := fmt.Sscanf(clinicIDStr, "%d", &clinicID); err == nil && clinicID > 0 {
-				customer, err := lookup.FindOrCreateByLineUserID(c.Request.Context(), clinicID, "mock-line-user-id", "テストユーザー")
-				if err == nil {
-					c.Set(liffCustomerIDKey, customer.ID)
-					c.Set(liffLineUserIDKey, "mock-line-user-id")
-					c.Next()
-					return
-				}
+			if _, err := fmt.Sscanf(clinicIDStr, "%d", &clinicID); err != nil || clinicID == 0 {
+				respondError(c, http.StatusBadRequest, "invalid clinic id")
+				return
 			}
+			customer, err := lookup.FindOrCreateByLineUserID(
+				c.Request.Context(),
+				clinicID,
+				"mock-line-user-id",
+				"テストユーザー",
+			)
+			if err != nil {
+				slog.ErrorContext(
+					c.Request.Context(),
+					"LIFF_MOCK customer lookup failed",
+					slog.String("error", err.Error()),
+					slog.Uint64("clinic_id", clinicID),
+				)
+				respondError(c, http.StatusServiceUnavailable, "LIFF mock authentication failed")
+				return
+			}
+			c.Set(liffCustomerIDKey, customer.ID)
+			c.Set(liffLineUserIDKey, "mock-line-user-id")
+			c.Next()
+			return
 		}
 
 		// Authorization: Bearer {ID Token}

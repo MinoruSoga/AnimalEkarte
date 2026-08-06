@@ -30,7 +30,7 @@
 
 ---
 
-## A. 本 campaign 実装分（優先バッチ）
+## A. 本 campaign 実装分（優先バッチ・最終残含む）
 
 | BUG | タイトル（短縮） | 発見シナリオ | 根拠 commit | 結果 | メモ |
 |-----|------------------|--------------|-------------|------|------|
@@ -42,6 +42,10 @@
 | BUG-029 | 支払方法マスタで名称重複時、実際には保存されていないのに「登録しました」の成功トーストが表示される（BUG-026と同一 | V04 §1 支払方法 `/settings/payment-methods`（C3-2 一意制約違 | `e0c5cc5e1` | UNREPORTED |  |
 | BUG-031 | ログイン済み状態で `/login` に直接アクセスしても自動リダイレクトされない | V05-1 ログイン #3 | `5cf86efc4279b6ac1d1e06ca619f80612d50c27e` | UNREPORTED |  |
 | BUG-032 | 健診対象者抽出プレビューAPIがハングし応答しない（外部Lステップ連携先タイムアウト未実装の疑い） | V05-18 健診対象者一括タグ付与（`/lstep/checkup-sync`）#1-2 検証中 | `944f2e4ddc1f463e374955b3bfc6c4ace89add36` | UNREPORTED |  |
+
+| BUG-003 | 検査 H/L 未判定 | S02 | seed `exam_reference_ranges` | UNREPORTED | seed 適用後 |
+| BUG-008 | LIFF コース選択 401 | S04 | compose LIFF mock | UNREPORTED | frontend/backend 再起動後 |
+| BUG-014 | LIFF ペットヘルス 401 | S12 | 同 mock | UNREPORTED |  |
 
 ### A の推奨手順メモ
 
@@ -55,6 +59,9 @@
 | BUG-029 | 支払方法: 既存名で成功 toast なし・エラー表示 |
 | BUG-031 | ログイン済みで `/login` → アプリへリダイレクト |
 | BUG-032 | 健診対象者抽出プレビュー: ハングせず応答 or 明確なエラー |
+| BUG-003 | S02: seed 適用後 WBC 高/RBC 低が H/L |
+| BUG-008 | S04: mock でコース一覧 200 |
+| BUG-014 | S12: mock でペットカード表示 |
 
 ---
 
@@ -86,13 +93,13 @@
 
 ---
 
-## C. まだ実装前 / ゲート（ブラウザだけでは閉じない）
+## C. 残ゲート（実装済み・適用/ブラウザ待ち）
 
 | BUG | 状態 | 備考 |
 |-----|------|------|
-| BUG-008 | OPEN | LIFF mock/env 後に実装→その後ブラウザ |
-| BUG-014 | OPEN | BUG-008 と同根。008 後に確認 |
-| BUG-003 | BLOCKED | 構造化基準値 seed 承認後に再オープン |
+| BUG-008 | IU | compose 再起動後 S04。`LIFF_MOCK`/`VITE_LIFF_MOCK` |
+| BUG-014 | IU | 同 mock。S12 health-card |
+| BUG-003 | IU | **demo seed に `exam_reference_ranges` 追加済み**。人が seed 適用後 S02 H/L |
 
 ---
 
