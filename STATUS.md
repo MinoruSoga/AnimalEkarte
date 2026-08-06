@@ -91,7 +91,7 @@ schema_migrations = 001_init + 002_master + 003_demo + 004_staging
 ### TASK-004 / TASK-005（ops・land 都度）
 
 - land セットの intentional/foreign 分離と closed-pack 回帰。
-- 参照: `reports/2026-07-31-task-004-005-land-proc.md`
+- land 時の intentional/foreign 分離。証跡は git 履歴（旧 report は削除済み）。
 
 ### TASK-009 — seed DB 適用
 
@@ -99,7 +99,7 @@ schema_migrations = 001_init + 002_master + 003_demo + 004_staging
 - **local DONE (2026-08-06)**: USER 承認下で `make reset` → `exam_reference_ranges` = 20 · `003_demo` 記録済み。
 - reset 中に判明した CSV/スキーマ列ずれを修正して再 reset（checkup import 列 · exams.current_revision_version）。
 - 他環境は各自 migrate/reset。agent は通常 seed apply / DB_RESET しない。
-- 参照: `reports/2026-07-31-task-009-reseed-ops.md` · team pack 上記
+- 手順: [`docs/ops/deploy/LOCAL_DB_RESET.md`](docs/ops/deploy/LOCAL_DB_RESET.md)。
 
 ### TASK-010 — 要実測 / ブラウザ（**residual 除外**）
 
@@ -109,14 +109,14 @@ schema_migrations = 001_init + 002_master + 003_demo + 004_staging
 ### TASK-020 — Playwright
 
 - 要 host `E2E_LOGIN_EMAIL` / `E2E_LOGIN_PASSWORD`（現状 UNSET）。
-- 参照: `reports/2026-07-31-task-020-env-forward.md`
+- 手順: host に `E2E_LOGIN_*` を注入してから Playwright（[`PO-todo.md`](PO-todo.md)）。
 
 ### TASK-021 — exclusion 破壊削除
 
 - **A 追認 + DEC-68 (2026-08-06 Fable 採択)**: UNIT-021-A landed（`b917c2992`）。request `excluded_type_ids` 削除を黙認せず DEC-68 で記録。
 - **B/C/D HOLD**: response `excluded_courses` → master exclusion route → DB DROP。順序固定。B 証拠は **client registry** 必須（access log のみ不可）。
 - **F-021-X**: inventory 依頼から **90 日無応答**で ACCEPT_RESIDUAL_RISK 再裁定へ上げる（silent HOLD 禁止）。
-- 参照: `reports/2026-07-31-task-021-phase2-slice2.md` · Fable pack · `q&a.html#dec-68` · UNIT-021-A commit `b917c2992`
+- 参照: Fable pack · `q&a.html#dec-68` · UNIT-021-A commit `b917c2992`（slice2 等の旧 report は git 履歴）。
 
 ### TASK-022 / 023 / 024 — human residual
 
@@ -3261,7 +3261,8 @@ S01〜S12の業務シナリオ検証に続き、個別フォーム単位の受�
 | 今フェーズ外 | [`phase2.html`](phase2.html) |
 | ブラウザ結果表（任意） | [`reports/BROWSER_VERIFICATION_BACKLOG.md`](reports/BROWSER_VERIFICATION_BACKLOG.md) |
 | PO 実行 ToDo | [`PO-todo.md`](PO-todo.md) |
-| 採択済み PO 方針 | [`reports/2026-08-06-fable-po-recommendation-pack.md`](reports/2026-08-06-fable-po-recommendation-pack.md) || 完了証跡 | git 履歴・Issue close |
+| 採択済み PO 方針 | [`reports/2026-08-06-fable-po-recommendation-pack.md`](reports/2026-08-06-fable-po-recommendation-pack.md) |
+| 完了証跡 | git 履歴・Issue close |
 
 **安全:** migrate 適用・DB reset・credential・STG/PROD・force-push・Issue 自動書き込みは明示承認。agent は seed apply / claim 解放をしない。
 

@@ -772,7 +772,7 @@
     <p class="section-label">決裁</p>
     <p class="qa-text">#256 の既定は sanitized current tree を維持する no-rewrite とする。reachable history の risk は restricted evidence で Privacy/Repository owner が disposition し、clean-demo 再撮影、privacy review、visual/content sign-off を行う。history rewrite/force-push は両 owner の明示承認と USER 実行者・影響範囲・rollback plan が揃った例外時だけ USER が実施し、agent は実行しない。U13 の日程・形式・参加者は #256 の納品後研修に残す。</p>
     <p class="section-label">一次資料</p>
-    <p class="qa-text">Issue <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/256">#256</a>、<code>reports/2026-07-31-task-024-manual-audit.md:164-182</code>（差し戻し後も reachable history risk が残り、rewrite は USER 判断）、既存 <a href="#decision-pack-issue-256-manual-privacy">DR-PRIVACY-256</a>（default no-rewrite、restricted reference、USER-only 実行）。</p>
+    <p class="qa-text">Issue <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/256">#256</a>、<code>git 履歴（旧 task-024-manual-audit）</code>（差し戻し後も reachable history risk が残り、rewrite は USER 判断）、既存 <a href="#decision-pack-issue-256-manual-privacy">DR-PRIVACY-256</a>（default no-rewrite、restricted reference、USER-only 実行）。</p>
     <p class="section-label">退けた代替案と理由</p>
     <p class="qa-text">即時 rewrite は不可逆で clone/fork/共同作業へ影響するため棄却する。差し戻し前画像または full-seed 画像の再採用は PII 再露出 risk のため棄却する。risk を無かったことにする案も privacy closure を偽るため棄却する。</p>
     <p class="section-label">委任境界・覆し方</p>
@@ -906,7 +906,7 @@
     <p class="section-label">決裁</p>
     <p class="qa-text"><strong>TASK-021 を A→B→C→D に分割する。</strong> 段階 A（request DTO / OpenAPI から <code>excluded_type_ids</code> 削除）は Opus D-021-A / Fable F-021-A により承認され、UNIT-021-A（<code>b917c2992</code>）として landed。Fable 推奨を USER が採択し、本 DEC で記録を残す（黙認しない）。段階 B（response <code>excluded_courses</code>）・C（master exclusion route DROP）・D（DB migrate DROP）は HOLD。B の証拠は access log だけでは足りず <strong>client registry</strong> が必須。順序 B→C→D を固定。inventory 依頼から 90 日無応答の場合は ACCEPT_RESIDUAL_RISK として再裁定に上げる（F-021-X）。</p>
     <p class="section-label">一次資料</p>
-    <p class="qa-text"><code>reports/2026-08-06-fable-po-recommendation-pack.md</code>（採択方針）· <code>reports/2026-07-31-task-021-phase2-slice2.md</code> · UNIT-021-A commit <code>b917c2992</code> · <code>STATUS.md</code> §1 · <code>PO-todo.md</code>。</p>
+    <p class="qa-text"><code>reports/2026-08-06-fable-po-recommendation-pack.md</code>（採択方針）· UNIT-021-A commit <code>b917c2992</code> · <code>STATUS.md</code> §1 · <code>PO-todo.md</code> · <code>q&a.html#dec-68</code>。</p>
     <p class="section-label">退けた代替案と理由</p>
     <p class="qa-text">4 段階一括 CLEAN-GO は live response/route を external 未確認のまま破壊し得るため棄却。in-repo ZERO だけで B を承認する案は、field が既存 GET に同乗し access log で証明できないため棄却。A の REVERT は既に 400 reject 済みの dead write を戻すだけであり理由なし。</p>
     <p class="section-label">委任境界・覆し方</p>
@@ -966,7 +966,7 @@
   </div>
   <div class="task-body">
     <p class="qa-text"><strong>確定済み既定:</strong> <a href="#dec-61">DEC-61</a> どおり history は no-rewrite のまま維持する。Privacy/Repository owner は画像内容を公開せず restricted evidence で残存 risk を disposition し、clean-demo 再撮影、privacy review、全対象画像の visual/content sign-off を close 条件にする。</p>
-    <p class="qa-text"><strong>出典:</strong> <code>reports/2026-07-31-task-024-manual-audit.md:132-180</code> と current reachable history。<strong>リスク:</strong> 承認なしの history rewrite は clone/fork/共同作業を壊し、再撮影前の画像採用は個人情報を再露出させる。<strong>対案:</strong> 方針と clean-demo が揃うまで差し戻し済み baseline を維持し、画像・履歴を変更しない。</p>
+    <p class="qa-text"><strong>出典:</strong> <code>git 履歴（旧 task-024-manual-audit）</code> と current reachable history。<strong>リスク:</strong> 承認なしの history rewrite は clone/fork/共同作業を壊し、再撮影前の画像採用は個人情報を再露出させる。<strong>対案:</strong> 方針と clean-demo が揃うまで差し戻し済み baseline を維持し、画像・履歴を変更しない。</p>
     <p class="qa-text"><strong>実行境界:</strong> default は no-rewrite。承認後も rewrite/force-push の実行は USER-only とし、agent は非機密の状態と restricted evidence reference の整合確認だけを行う。履歴の path/hash、画像識別子、principal/session 識別子を本ファイルへ記入しない。</p>
     <div class="need"><strong>承認一行:</strong> （未記入: #256 非機密結果 enum、owner role、no-rewrite 例外 decision ID（例外時のみ）、clean-demo/sign-off 結果、U13 実施状態、発効日、opaque restricted-evidence reference）。氏名・email・staff/clinic/group ID・参加者 roster・receipt 本文は repo 外に置く。</div>
   </div>
@@ -1042,7 +1042,7 @@
 <article class="task" data-task="OPS-2">
   <div class="task-head"><label class="task-check"><input type="checkbox"><span class="task-id">OPS-2 (U-3)</span></label><h3 class="task-title">ローカル fresh 再適用と対象環境の migration 証跡（STG/PROD reset 禁止）</h3></div>
   <p class="dep-badge" hidden></p>
-  <p class="task-desc">統合前 <code>001_init.sql</code> が記録済みで checksum mismatch となる既存ローカル DB は、USER が <code>reports/2026-07-31-task-009-reseed-ops.md</code> に従って fresh 再適用する。<strong>STG/PROD で reset・volume 削除を行わず、承認済み通常 migration と schema/起動証跡を別に取得する。</strong>migration/reset はエージェント実行禁止。完了条件: ローカル fresh 適用と対象環境の非破壊 migration/起動証跡が揃う。完了後のエージェント作業: S02 権限差・S05 を再実行する。</p>
+  <p class="task-desc">統合前 <code>001_init.sql</code> が記録済みで checksum mismatch となる既存ローカル DB は、USER が <code>docs/ops/deploy/LOCAL_DB_RESET.md</code> に従って fresh 再適用する。<strong>STG/PROD で reset・volume 削除を行わず、承認済み通常 migration と schema/起動証跡を別に取得する。</strong>migration/reset はエージェント実行禁止。完了条件: ローカル fresh 適用と対象環境の非破壊 migration/起動証跡が揃う。完了後のエージェント作業: S02 権限差・S05 を再実行する。</p>
 </article>
 
 <article class="task" data-task="OPS-3">
@@ -1070,7 +1070,7 @@ ORDER BY pg.clinic_id, pg.id;</pre>
 <article class="task" data-task="OPS-5">
   <div class="task-head"><label class="task-check"><input type="checkbox"><span class="task-id">OPS-5 (U-6)</span></label><h3 class="task-title">受け入れシナリオ実行（続き）</h3></div>
   <p class="dep-badge" hidden></p>
-  <p class="task-desc">既存の S01〜S12・V01〜V05 と TASK-010 の部分証跡を再利用する。scenario 本文の current <code>【要実測】</code> 残件は <code>reports/2026-07-31-task-010-batch2.md</code> を正とする。残 = 未実施 step、OPS-2 後の S02/S05 再測、DB/audit 観測、実機 LINE/LIFF、FAIL の owner/disposition。エージェント側の統合 packet は <code>todo.md</code> TASK-023。USER は credential値を記録せず、目視・DB・実機・最終 disposition を1回で提供する。</p>
+  <p class="task-desc">既存の S01〜S12・V01〜V05 と TASK-010 の部分証跡を再利用する。scenario 本文の current <code>【要実測】</code> 残件は <code>docs/ops/testing/scenarios/</code> と <code>STATUS.md</code> を正とする。残 = 未実施 step、OPS-2 後の S02/S05 再測、DB/audit 観測、実機 LINE/LIFF、FAIL の owner/disposition。エージェント側の統合 packet は <code>todo.md</code> TASK-023。USER は credential値を記録せず、目視・DB・実機・最終 disposition を1回で提供する。</p>
 </article>
 
 <article class="task" data-task="OPS-6">
