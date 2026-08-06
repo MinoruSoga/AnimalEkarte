@@ -52,22 +52,23 @@ rg -n '^- \*\*対応状況' STATUS.md | rg -o 'IMPLEMENTED_UNVERIFIED|OPEN|BLOCK
 | TASK-009 | 003_demo seed の **DB 適用**（static 済） | USER | **local DONE**（ranges=20）· 他 env 残 |
 | TASK-010 | scenarios 要実測 / ブラウザ IU 32 | USER | **除外**（2026-08-06 · residual 対象外。手順は RUNBOOK に保管） |
 | TASK-020 | Playwright runtime（要 E2E_LOGIN_*） | USER | open · credential 待ち |
-| TASK-021 | exclusion 破壊削除 | USER+PO | **A DONE**（request DTO/OpenAPI 削除）· B/C/D HOLD（external inventory） |
+| TASK-021 | exclusion 破壊削除 | USER+PO | **A 追認+DEC-68** · B/C/D HOLD（client registry + access log · 90 日再裁定） |
 | TASK-022 | #239 S13 手動 correction / RLS 証跡 | USER | open |
 | TASK-023 | #254 5 フロー UAT | USER | open · credential 待ち |
-| TASK-024 | #256 screenshot / FAQ sign-off | USER | open · **必須残**（#256 close gate · DEC-61） |
+| TASK-024 | #256 screenshot / FAQ sign-off | USER | open · **必須残**（Fable RATIFY · #256 close gate） |
 | TASK-032-apply | lab import migration 適用 + claim | USER | local DDL 済 · claim 0 · 他 env 残 |
-| TASK-033 | #201 救急投薬 cutover | 臨床+USER | HOLD · **骨格先行も禁止**（DEC-48 一体所有） |
+| TASK-033 | #201 救急投薬 cutover | 臨床+USER | HOLD · 骨格先行禁止 **Fable RATIFY** · 解除後 UNIT-033 一体 |
 | TASK-374-apply | checkup package import | USER | HOLD — DR-CLINICAL 実 row + DR-OPS 環境 |
 | TASK-378-reset | checksum mismatch 環境の DB_RESET | USER | **local DONE** · 他 env 要時 |
 | POST-PULL | 各環境 `make migrate` | USER | open |
-| LINE-R05 | production + `line_channel_secret` DROP | USER/PO | HOLD — presence SELECT 依存解消が先 |
+| LINE-R05 | production + `line_channel_secret` DROP | USER/PO | HOLD — 残条件①inventory ゼロ ③presence 除去（**② composition green 済**） |
 | R6/R7 | worktree 隔離 / empty-diff COMPLETE 禁止 | ops | 継続規律 |
 ## 推奨 USER 順（local 実測反映 · **ブラウザ検証は residual 対象外**）
 
 > **除外 (2026-08-06)**: TASK-010 / IU ブラウザバッチ / `BROWSER_VERIFICATION_*` は residual closeout に含めない。手順書は保管のみ（[`reports/BROWSER_VERIFICATION_RUNBOOK.md`](reports/BROWSER_VERIFICATION_RUNBOOK.md)）。`VERIFIED_FIXED` 付与も residual では扱わない。  
-> **PO 決裁**: Opus 代理 pack [`reports/2026-08-06-po-proxy-decision-pack.md`](reports/2026-08-06-po-proxy-decision-pack.md)。**Fable 推奨で最終採否** → [`reports/2026-08-06-po-decision-prompt-for-fable.md`](reports/2026-08-06-po-decision-prompt-for-fable.md)。Opus 用プロンプトは [`po-decision-prompt-for-opus.md`](reports/2026-08-06-po-decision-prompt-for-opus.md)。**USER は全件を後から覆せる。**
+> **PO 決裁（2026-08-06 採択）**: Fable 推奨 pack [`reports/2026-08-06-fable-po-recommendation-pack.md`](reports/2026-08-06-fable-po-recommendation-pack.md) を **USER 採択**（Opus 20 裁定 RATIFY · OVERTURN 0 · DEC-68）。Opus 代理 [`po-proxy-decision-pack.md`](reports/2026-08-06-po-proxy-decision-pack.md) · プロンプト [`po-decision-prompt-for-fable.md`](reports/2026-08-06-po-decision-prompt-for-fable.md)。**USER は後から覆せる。**
 
+0. ~~Fable 採択 + DEC-68~~ — **docs 完了**（本更新）
 1. ~~TASK-378-reset + TASK-009~~ — **local 完了**（`make reset` postflight OK · ranges=20 · stack healthy）
 2. **E2E_LOGIN_*** 注入 → TASK-020 / TASK-023（Playwright · 5 フロー UAT。ブラウザ手作業バッチとは別）
 3. **POST-PULL / 他 env の TASK-032-apply / TASK-374-apply** — 未適用環境のみ `make migrate` / 必要時 reset
@@ -114,9 +115,10 @@ schema_migrations = 001_init + 002_master + 003_demo + 004_staging
 
 ### TASK-021 — exclusion 破壊削除
 
-- **UNIT-021-A DONE (2026-08-06)**: request `excluded_type_ids` を DTO / OpenAPI から削除。Create は常に empty inverse で full universe seed。PO pack D-021-A。
-- **HOLD**: response `excluded_courses` · master exclusion route · DB migrate DROP（external inventory 待ち）。
-- 参照: `reports/2026-07-31-task-021-phase2-slice2.md` · `reports/2026-08-06-po-proxy-decision-pack.md`
+- **A 追認 + DEC-68 (2026-08-06 Fable 採択)**: UNIT-021-A landed（`b917c2992`）。request `excluded_type_ids` 削除を黙認せず DEC-68 で記録。
+- **B/C/D HOLD**: response `excluded_courses` → master exclusion route → DB DROP。順序固定。B 証拠は **client registry** 必須（access log のみ不可）。
+- **F-021-X**: inventory 依頼から **90 日無応答**で ACCEPT_RESIDUAL_RISK 再裁定へ上げる（silent HOLD 禁止）。
+- 参照: slice2 · Opus pack · Fable pack · `q&a.html#dec-68`
 
 ### TASK-022 / 023 / 024 — human residual
 
@@ -131,8 +133,8 @@ schema_migrations = 001_init + 002_master + 003_demo + 004_staging
 
 ### TASK-033 — 救急投薬 cutover
 
-- **BLOCKED / NEEDS_CLINICAL**: DEC-48 により構造化救急記録と fail-closed cutover を**一体所有**。骨格先行も禁止。
-- TASK-377（dose_deviation_reason）は **landed 済み**（順序争点なし）。
+- **BLOCKED / NEEDS_CLINICAL（Fable RATIFY · 例外なし）**: DEC-48 一体所有。骨格先行禁止。
+- TASK-377 landed 済み。解除後の最初 unit 案: **UNIT-033**（構造化救急記録 + 欠落時 fail-closed · local 限定 · bundle 準拠）。
 - 解除: #201 bundle 1 行の全列記入（値は代理裁定しない）。
 
 ### TASK-378-reset
@@ -142,8 +144,9 @@ schema_migrations = 001_init + 002_master + 003_demo + 004_staging
 
 ### LINE-R05 residual
 
-- DROP 対象: **`line_reservation_setting.line_channel_secret`**（特定済み）。
-- HOLD: presence SELECT `(line_channel_secret <> '')` が webhook routing で使用中。inventory ゼロ + composition test 更新 + 列参照除去が先。
+- DROP 対象: **`line_reservation_setting.line_channel_secret`**。
+- **条件② composition test は充足済み**（`fac8c86b2` · Fable 実測 green）。
+- 残 HOLD: ① clinic 別 presence inventory ゼロ（値非保存） ③ presence 参照除去 unit（**inventory 後のみ READY** · 先行禁止）。その後 STG → backup → prod DROP。恒久 REJECT にはしない。
 
 ### SCEN-OPS-CLAIM（クローズ）
 
@@ -154,7 +157,8 @@ schema_migrations = 001_init + 002_master + 003_demo + 004_staging
 - migrate / seed apply / force-push / claim 解放 / VERIFIED_FIXED 付与はしない。
 - 次の実装 unit は TASK-033 または TASK-021 の gate 解除後（1 unit = 1 graph）。
 - residual team が agent 側で完了できる作業は **2026-08-06 時点で尽きた**（監査・ops pack・SoT 更新）。以降は USER gate。
-- **例外**: PO pack D-021-A のみ READY → **UNIT-021-A landed**（request `excluded_type_ids` 削除）。次の agent unit は B/C/D または 033 gate 解除まで **NONE**。
+- **例外**: UNIT-021-A landed · UNIT-DEC-68-DOC（本コミット）。次の製品 agent unit は **NONE**（B/C/D · 033 · LINE presence は各 human gate 後）。
+- **Fable 採択 (2026-08-06)**: Opus 20 裁定 RATIFY · OVERTURN 0。USER 実行: #98/#99 close 一行 · inventory · 臨床 bundle 依頼 · 024/022。
 ---
 
 ## 2. open GitHub Issue の次の一手
@@ -167,11 +171,11 @@ schema_migrations = 001_init + 002_master + 003_demo + 004_staging
 |---|------|------|----------------|
 | [#89](https://github.com/MinoruSoga/AnimalEkarte/issues/89) | 露出 credential のローテーション | USER 専権 | credential class ごとの無効化・再発行 playbook を実行。値は repo に書かない |
 | [#97](https://github.com/MinoruSoga/AnimalEkarte/issues/97) | git/公開面由来の credential 露出 | USER 専権 | provider/JWT/session/DB の旧値失効と必要 session 無効化。#89 と役割分離 |
-| [#98](https://github.com/MinoruSoga/AnimalEkarte/issues/98) | 旧 RDS credential 履歴の残余リスク | USER 専権 | provider 旧値無効化 or residual-risk 受容を明示し close 判断 |
-| [#99](https://github.com/MinoruSoga/AnimalEkarte/issues/99) | 旧 ECS deploy 経路の撤去確認 | USER 専権 | provider に実行可能経路が無いこと確認。rollback SoT は #253 と一本化 |
-| [#201](https://github.com/MinoruSoga/AnimalEkarte/issues/201) | 薬量自動計算・例外統制 | 判断待ち | 臨床責任者が canonical #201 bundle 1 行へ上限/warning 継続可否と救急記録 policy を出典付き記入。TASK-033 cutover はそれまで HOLD（[todo.md](todo.md)） |
+| [#98](https://github.com/MinoruSoga/AnimalEkarte/issues/98) | 旧 RDS credential 履歴の残余リスク | USER 専権 | **Fable: ACCEPT_RESIDUAL_RISK** — provider 失効の非機密確認 enum + opaque ref 一行で close 可 |
+| [#99](https://github.com/MinoruSoga/AnimalEkarte/issues/99) | 旧 ECS deploy 経路の撤去確認 | USER 専権 | **Fable: APPROVE** — 経路ゼロ確認一行 + rollback SoT=#253 で close 可 |
+| [#201](https://github.com/MinoruSoga/AnimalEkarte/issues/201) | 薬量自動計算・例外統制 | 判断待ち | 臨床責任者が canonical #201 bundle 1 行へ上限/warning 継続可否と救急記録 policy を出典付き記入。TASK-033 cutover はそれまで HOLD（正本: 本ファイル §1 · DEC-48 · Fable pack） |
 | [#211](https://github.com/MinoruSoga/AnimalEkarte/issues/211) | 健診 package の clinic import | USER 専権 | DR-OPS: clinic 認可・環境・apply/rollback 結果。DR-CLINICAL: 実 row 承認と出典。実 manifest は repo 外 |
-| [#249](https://github.com/MinoruSoga/AnimalEkarte/issues/249) | 検査機能（院内結果管理） | 判断待ち | 臨床 range 値と外部自動化可否の承認のみ。承認前に新 unit を起票しない |
+| [#249](https://github.com/MinoruSoga/AnimalEkarte/issues/249) | 検査機能（院内結果管理） | 判断待ち | **Fable HOLD** — 臨床 range 前は値非依存 unit も起票禁止。外部自動化は DEFER_PHASE2 |
 | [#250](https://github.com/MinoruSoga/AnimalEkarte/issues/250) | 旧 Access データ移行 cutover | 依存待ち | producer bundle（completed_at・payment graph・crosswalk）受領待ち |
 | [#252](https://github.com/MinoruSoga/AnimalEkarte/issues/252) | 各院の締め時間設定値の投入 | USER 専権 | 批准済み値との差分だけを preview のうえ投入 |
 | [#253](https://github.com/MinoruSoga/AnimalEkarte/issues/253) | 本番環境整備（CI/CD・backup gate） | USER 専権 | billing / protected Production / required reviewer を先に用意。deploy・restore・rollback の実行と観測 |

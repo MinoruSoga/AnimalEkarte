@@ -196,7 +196,7 @@
 <div class="container">
   <header>
     <h1>内部 PO 判断キュー</h1>
-    <p class="meta">開発内部向け ／ 生成日: 2026-07-15 ／ 最終更新: 2026-08-03 ／ 運用: 本ファイルは「現在、人の判断・操作を待っているもの」だけを保持する（記入フォーム・P0 ブロッカー表・USER 操作 OPS-1〜18・PO-008 ファクトシート）。決裁記録の正本は本ファイルの git 履歴（全量版 = <code>ab68c61f5</code>）と各 Issue への転記（DEC-1/14〜21 は #201/#234/#239/#251/#247/#262/#250/#235/#212 へ転記済み）、ローカル残タスクの正本は <a href="todo.md"><code>todo.md</code></a>、Issue の分類ビューは <a href="3-session-agent.html"><code>3-session-agent.html</code></a>。PO は過去裁定を覆せる — その場合は新カードとして再起票し、エージェントが実装を巻き戻す。2026-08-03 時点: DEC-40〜67 は代理判定済み。現在の USER 入力待ち決裁カードは0件。委任外の値は下記の空欄フォームへ分離し、未入力を代理裁定しない。残 = OPS-1〜18・P0 ブロッカー3行・記入フォーム。</p>
+    <p class="meta">開発内部向け ／ 生成日: 2026-07-15 ／ 最終更新: 2026-08-03 ／ 運用: 本ファイルは「現在、人の判断・操作を待っているもの」だけを保持する（記入フォーム・P0 ブロッカー表・USER 操作 OPS-1〜18・PO-008 ファクトシート）。決裁記録の正本は本ファイルの git 履歴（全量版 = <code>ab68c61f5</code>）と各 Issue への転記（DEC-1/14〜21 は #201/#234/#239/#251/#247/#262/#250/#235/#212 へ転記済み）、ローカル残タスクの正本は <a href="todo.md"><code>todo.md</code></a>、Issue の分類ビューは <a href="3-session-agent.html"><code>3-session-agent.html</code></a>。PO は過去裁定を覆せる — その場合は新カードとして再起票し、エージェントが実装を巻き戻す。2026-08-03 時点: DEC-40〜67 は代理判定済み。2026-08-06: DEC-68 採択（Fable 推奨）。残る USER 入力待ちは DR-CLINICAL / OPS 行と close 一行確認。委任外の値は下記の空欄フォームへ分離し、未入力を代理裁定しない。残 = OPS-1〜18・P0 ブロッカー3行・記入フォーム。</p>
   </header>
 
   <p class="summary">USER 入力待ちDECカード: 0件。DEC-40〜67は代理判定済み。委任外の臨床値・価格・契約値・実在 identity・外部実行値は空欄フォームだけを示し、決定済みに数えない。</p>
@@ -891,6 +891,26 @@
     <p class="qa-text">conditional FORM を live view に残す案は既裁定を再び人へ問い続ける工程を残すため棄却する。測定前に実装する案は削除できる工程と改善幅を証明できないため棄却する。再開可能性を永久削除する案は、将来の利用実測が追加 UI の価値を示す場合まで閉ざすため棄却する。</p>
     <p class="section-label">委任境界・覆し方</p>
     <p class="qa-text">本裁定は scope、tracking、再開 trigger の構造だけを決める。利用実測、実 identity、GitHub close/reopen は USER/業務責任者の境界であり、repo には実 identity を記録しない。<strong>USER は後から覆せる — 覆す場合は新カード再起票＋実装巻き戻し</strong>とし、再開は phase2 条件を満たした新 Issue / 新 DEC で行う。</p>
+  </div>
+</article>
+
+
+<article class="task" id="dec-68" data-status="proxy-decided">
+  <div class="task-head">
+    <span class="qno">DEC-68</span>
+    <span class="badge category">TASK-021 exclusion 4 段階 / Fable+Opus 採択</span>
+    <span class="badge status">USER 採択（Fable 推奨）· 段階 A 実装済み</span>
+    <h3 class="task-title">exclusion 破壊削除は 4 段階分割とし、request 側のみ先行完了・read/route/DROP は external 証拠待ち</h3>
+  </div>
+  <div class="task-body">
+    <p class="section-label">決裁</p>
+    <p class="qa-text"><strong>TASK-021 を A→B→C→D に分割する。</strong> 段階 A（request DTO / OpenAPI から <code>excluded_type_ids</code> 削除）は Opus D-021-A / Fable F-021-A により承認され、UNIT-021-A（<code>b917c2992</code>）として landed。Fable 推奨を USER が採択し、本 DEC で記録を残す（黙認しない）。段階 B（response <code>excluded_courses</code>）・C（master exclusion route DROP）・D（DB migrate DROP）は HOLD。B の証拠は access log だけでは足りず <strong>client registry</strong> が必須。順序 B→C→D を固定。inventory 依頼から 90 日無応答の場合は ACCEPT_RESIDUAL_RISK として再裁定に上げる（F-021-X）。</p>
+    <p class="section-label">一次資料</p>
+    <p class="qa-text"><code>reports/2026-08-06-po-proxy-decision-pack.md</code> · <code>reports/2026-08-06-fable-po-recommendation-pack.md</code> · <code>reports/2026-07-31-task-021-phase2-slice2.md</code> · UNIT-021-A report · <code>STATUS.md</code> §1。</p>
+    <p class="section-label">退けた代替案と理由</p>
+    <p class="qa-text">4 段階一括 CLEAN-GO は live response/route を external 未確認のまま破壊し得るため棄却。in-repo ZERO だけで B を承認する案は、field が既存 GET に同乗し access log で証明できないため棄却。A の REVERT は既に 400 reject 済みの dead write を戻すだけであり理由なし。</p>
+    <p class="section-label">委任境界・覆し方</p>
+    <p class="qa-text">migrate / production DROP / external inventory 実行は USER。agent は B/C/D の製品削除を inventory 報告前に着手しない。<strong>USER は後から覆せる — 覆す場合は新カード再起票＋必要なら A の revert</strong>。</p>
   </div>
 </article>
 
