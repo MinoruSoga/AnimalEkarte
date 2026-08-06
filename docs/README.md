@@ -27,7 +27,7 @@ docs/
 | **仕様系** | [spec/README.md](spec/README.md) | 機能要件・全画面仕様・会計/顧客分析/予約フロー・デザイン規約・LINE 連携 |
 | **運用系** | [ops/README.md](ops/README.md) | デプロイ・ランブック・テスト・CI/カバレッジポリシー・インフラ構成 |
 | **納品系** | [delivery/README.md](delivery/README.md) | 納品パッケージ・Go-live 手順・現場向け操作マニュアル |
-| **作業台帳** | [work/README.md](work/README.md) | 進行中 residual・PO 採択方針・任意ブラウザ結果（SoT の補助。正本は root `STATUS.md`） |
+| **作業台帳** | [work/README.md](work/README.md) | 進行中 residual・PO 採択方針（SoT の補助。正本は root `STATUS.md`） |
 > **フォルダ規律**: docs/ 直下に新カテゴリを追加する場合は本表と CI ゲート（`scripts/check-docs-symbol-drift.sh` の TOP_ALLOWLIST）を同コミットで更新すること。allowlist 外のフォルダは CI が拒否する。
 
 ## 横断事項
@@ -35,8 +35,8 @@ docs/
 - **API contract**: 正本は [`backend/docs/api.yaml`](../backend/docs/api.yaml)（Swagger UI 表示は `docker compose -f docker-compose.swagger.yml up`）。
 - **docs ドリフトゲート**: `scripts/check-docs-symbol-drift.sh`（CI の docs-symbol-drift ジョブ）が、spec/screens/ 系ドキュメントの言及シンボル実在と宣言数値（テーブル数・リソース数等）の実装一致を機械検査する。
 - **タスク台帳（正本）**: リポジトリ直下 [`STATUS.md`](../STATUS.md)（§1 残作業 · §2 Issue · §3 BUG）。USER 実行リストは [`PO-todo.md`](../PO-todo.md)。旧 `todo.md` / `bug.md` / `3-session-agent.html` は STATUS へのスタブのみ。
-- **作業補助**: [`work/README.md`](work/README.md)（採択済み Fable 方針・ブラウザ結果表）。
-- 過去の dated `reports/*` は削除済み — 必要なら git 履歴。
+- **作業補助**: [`work/README.md`](work/README.md)（採択済み Fable 方針のみ。レポート置き場ではない）。
+- 旧 `reports/` とブラウザ結果専用 md は削除済み — 必要なら git 履歴。
 
 ---
 

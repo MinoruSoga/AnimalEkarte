@@ -4,6 +4,6 @@
 
 - 残作業 → [`STATUS.md`](STATUS.md) §1  
 - GitHub Issue → §2  
-- ブラウザ → [`docs/work/browser/verification-backlog.md`](docs/work/browser/verification-backlog.md)
+- ブラウザ → [`docs/ops/testing/scenarios/`](docs/ops/testing/scenarios/)
 
 編集は **STATUS.md のみ**。
