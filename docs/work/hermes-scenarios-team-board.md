@@ -94,7 +94,7 @@ Hermes には上の **runtime 検証カード**を渡し、PCG は将来の **�
 | RT-S05-A2 | **PARTIAL** | Playwright `hospitalization-flow` 4/4; discharge atomic A2 not run |
 | RT-S08-partial | **PARTIAL** | accounting list/unpaid/reports PASS; partial-pay complete path not fully walked |
 | RT-S11 | **PARTIAL** | Playwright `trimming-flow` 3/3; complete→badge e2e not run |
-| RT-S10 | **FAIL (timeout)** | `GET /clinics/1/owners/aggregations` 500 @ ~20s context deadline |
+| RT-S10 | **PASS (API ~0.22s)** | visit preagg rewrite in `ltv_repository.go`; was 500@20s on 425k MR |
 
 ### Playwright focused suite（E2E_LOGIN_* 注入後）
 
@@ -104,9 +104,10 @@ Hermes には上の **runtime 検証カード**を渡し、PCG は将来の **�
 
 - ~~E2E_LOGIN_* 未設定~~ → **解除**（`.env.local` に USER が設定。値は chat に出さない）
 - 残り: 破壊的/fixture 依存カード（死亡 A1、退院会計失敗、部分入金通し、会計→トリミング完了）
-- **製品候補**: S10 顧客集計クエリ timeout（large seed）
+- ~~**製品候補**: S10 顧客集計クエリ timeout~~ → **fixed 2026-08-07**（visit preagg）
 
 ### 次の製品 unit（PCG 候補）
 
-1. **S10** `ListOwnerAggregation` 20s timeout — インデックス/クエリ or ページ戦略  
-2. Seed free-text `normal_value` のみの検査が UI で未判定に見える件 — 実害は field_id パスでは PASS なので優先度低（表示説明 or レガシー seed 整理）
+1. ~~**S10** aggregation timeout~~ **done**  
+2. Seed free-text `normal_value` のみの検査が UI で未判定に見える件 — 実害は field_id パスでは PASS なので優先度低  
+3. Playwright owners 検索 placeholder / accounting Iris かな drift

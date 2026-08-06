@@ -121,18 +121,20 @@ func (r *ltvRepository) FindOwnerLTV(ctx context.Context, params *FindOwnerLTVPa
 	// 金額式の構築（期間フィルタ付き）
 	amountExpr, amountExprArgs := buildLTVAmountExpr(amountBasis, fromDate, toDate)
 
-	// HAVING句構築
-	having, havingArgs := buildLTVHaving(params, "COALESCE(MAX(ba.annual_amount), 0)", nil, fromDate, toDate)
+	// 外付けフィルタ（旧 HAVING）。来院は preagg 後の列参照なので GROUP BY 不要 → WHERE に AND 結合。
+	having, havingArgs := buildLTVHaving(params, "COALESCE(ba.annual_amount, 0)", nil, fromDate, toDate)
 
 	havingClause := ""
 	if len(having) > 0 {
-		havingClause = "HAVING " + strings.Join(having, " AND ")
+		havingClause = "AND " + strings.Join(having, " AND ")
 	}
 
 	// ORDER BY構築
 	orderBy := r.buildOrderBy(params.Sort, params.Order)
 
-	// 期間フィルタをCASE式で適用（total_visit_countは全期間、period_visit_countのみ期間制限）
+	// 期間フィルタを CASE 式で適用（total_visit_count は全期間、period_visit_count のみ期間制限）。
+	// 来院は owners ⟂ medical_records の nested loop ではなく、clinic 単位で pets 経由に
+	// 事前集約してから owners に LEFT JOIN する（S10 / BUG-012: 40万件 MR で 20s timeout 回避）。
 	periodVisitCountCondition := ""
 	var periodVisitCountArgs []any
 	billingCountExpr := "COUNT(DISTINCT b.id)"
@@ -147,40 +149,48 @@ func (r *ltvRepository) FindOwnerLTV(ctx context.Context, params *FindOwnerLTVPa
 	// last_visit_bucket CASE 式のリテラル ('no_visit'/'within_3m'/'over_3m'/'over_6m'/'over_1y')
 	// は Go 定数 ltvBucket* と一致必須（C-10）。
 	// 会計集計は医院単位で一度だけ飼主別に行い、来院行との直積による金額重複を防ぐ。
+	// 来院帰属は medical_records.owner_id ではなく **現在の pets.owner_id**（譲渡後は現飼主）。
 	query := fmt.Sprintf(`
 SELECT
   o.id               AS owner_id,
   o.name             AS owner_name,
   o.line_user_id,
   o.lstep_opt_out,
-  COALESCE(MAX(ba.total_amount), 0)                                                 AS total_amount,
-  COUNT(DISTINCT mr.date)                                                            AS total_visit_count,
-  COUNT(DISTINCT CASE WHEN mr.date >= NOW() - INTERVAL '365 days' THEN mr.date END) AS annual_visit_count,
-  MAX(mr.date)                                                                        AS last_visit_date,
-  MIN(mr.date)                                                                        AS first_visit_date,
-  COALESCE(MAX(ba.annual_amount), 0)                                                 AS annual_amount,
-  COALESCE(MAX(ba.billing_count), 0)                                                 AS billing_count,
-  COUNT(DISTINCT CASE WHEN mr.clinic_id = o.clinic_id %s THEN mr.date END)           AS period_visit_count,
-  EXTRACT(DAY FROM NOW() - MAX(mr.date))::int                                        AS days_since_last_visit,
+  COALESCE(ba.total_amount, 0)                                                      AS total_amount,
+  COALESCE(vs.total_visit_count, 0)                                                 AS total_visit_count,
+  COALESCE(vs.annual_visit_count, 0)                                                AS annual_visit_count,
+  vs.last_visit_date                                                                AS last_visit_date,
+  vs.first_visit_date                                                               AS first_visit_date,
+  COALESCE(ba.annual_amount, 0)                                                     AS annual_amount,
+  COALESCE(ba.billing_count, 0)                                                     AS billing_count,
+  COALESCE(vs.period_visit_count, 0)                                                AS period_visit_count,
+  EXTRACT(DAY FROM NOW() - vs.last_visit_date)::int                                 AS days_since_last_visit,
   CASE
-    WHEN MAX(mr.date) IS NULL THEN 'no_visit'
-    WHEN EXTRACT(DAY FROM NOW() - MAX(mr.date)) < 90 THEN 'within_3m'
-    WHEN EXTRACT(DAY FROM NOW() - MAX(mr.date)) < 180 THEN 'over_3m'
-    WHEN EXTRACT(DAY FROM NOW() - MAX(mr.date)) < 365 THEN 'over_6m'
+    WHEN vs.last_visit_date IS NULL THEN 'no_visit'
+    WHEN EXTRACT(DAY FROM NOW() - vs.last_visit_date) < 90 THEN 'within_3m'
+    WHEN EXTRACT(DAY FROM NOW() - vs.last_visit_date) < 180 THEN 'over_3m'
+    WHEN EXTRACT(DAY FROM NOW() - vs.last_visit_date) < 365 THEN 'over_6m'
     ELSE 'over_1y'
   END AS last_visit_bucket,
-  COALESCE(MAX(maxb.max_single_visit_amount), 0)                                      AS max_single_visit_amount
+  COALESCE(maxb.max_single_visit_amount, 0)                                         AS max_single_visit_amount
 FROM owners o
-LEFT JOIN medical_records mr
-  ON mr.clinic_id = o.clinic_id
- AND mr.deleted_at IS NULL
- AND EXISTS (
-   SELECT 1
-   FROM pets current_owner_pet
-   WHERE current_owner_pet.id = mr.pet_id
-     AND current_owner_pet.clinic_id = mr.clinic_id
-     AND current_owner_pet.owner_id = o.id
- )
+LEFT JOIN (
+  SELECT
+    p.owner_id,
+    p.clinic_id,
+    COUNT(DISTINCT mr.date) AS total_visit_count,
+    COUNT(DISTINCT CASE WHEN mr.date >= NOW() - INTERVAL '365 days' THEN mr.date END) AS annual_visit_count,
+    MAX(mr.date) AS last_visit_date,
+    MIN(mr.date) AS first_visit_date,
+    COUNT(DISTINCT CASE WHEN TRUE %s THEN mr.date END) AS period_visit_count
+  FROM medical_records mr
+  INNER JOIN pets p
+    ON p.id = mr.pet_id
+   AND p.clinic_id = mr.clinic_id
+  WHERE mr.clinic_id = ?
+    AND mr.deleted_at IS NULL
+  GROUP BY p.owner_id, p.clinic_id
+) vs ON vs.clinic_id = o.clinic_id AND vs.owner_id = o.id
 LEFT JOIN (
   SELECT
     b.clinic_id,
@@ -244,15 +254,15 @@ LEFT JOIN (
   GROUP BY b2.clinic_id, b2.owner_id
 ) maxb ON maxb.clinic_id = o.clinic_id AND maxb.owner_id = o.id
 WHERE %s
-GROUP BY o.id, o.name, o.line_user_id, o.lstep_opt_out
 %s
 ORDER BY %s
 `, periodVisitCountCondition, amountExpr, billingCountExpr, where, havingClause, orderBy)
 
-	// Assemble args: period visit CASE, annual amount, billing count, payments clinic,
-	// ba clinic/status, maxb clinic/status, owner scope, HAVING. (BUG-012)
-	args := make([]any, 0, len(periodVisitCountArgs)+len(amountExprArgs)+len(billingCountArgs)+5+len(whereArgs)+len(havingArgs))
+	// Assemble args: visit period CASE, visit clinic, annual amount, billing count,
+	// payments clinic, ba clinic/status, maxb clinic/status, owner scope, outer filters. (BUG-012 / S10)
+	args := make([]any, 0, len(periodVisitCountArgs)+len(amountExprArgs)+len(billingCountArgs)+6+len(whereArgs)+len(havingArgs))
 	args = append(args, periodVisitCountArgs...)
+	args = append(args, params.ClinicID) // visit preagg clinic scope
 	args = append(args, amountExprArgs...)
 	args = append(args, billingCountArgs...)
 	args = append(args, params.ClinicID) // payments clinic scope
@@ -305,8 +315,10 @@ func buildLTVAmountExpr(basis string, from, to *time.Time) (amountExpr string, a
 
 // buildLTVHaving は HAVING 句の条件断片とバインド引数を構築する（BE-refactor.md E-12）。
 func buildLTVHaving(params *FindOwnerLTVParams, amountExpr string, amountExprArgs []any, from, to *time.Time) (having []string, havingArgs []any) {
+	_ = from
+	_ = to
 
-	// 全期間の会計額フィルタ（AGG-BE-001: min_amount/max_amount は期間内）
+	// 会計額フィルタ（AGG-BE-001: min_amount/max_amount は期間内 annual_amount）
 	if params.MinTotalAmount != nil {
 		having, havingArgs = appendAmountHaving(having, havingArgs, amountExpr, amountExprArgs, ">=", *params.MinTotalAmount)
 	}
@@ -314,14 +326,14 @@ func buildLTVHaving(params *FindOwnerLTVParams, amountExpr string, amountExprArg
 		having, havingArgs = appendAmountHaving(having, havingArgs, amountExpr, amountExprArgs, "<=", *params.MaxTotalAmount)
 	}
 
-	// 来院回数フィルタ（AGG-BE-002）
+	// 来院回数フィルタ（AGG-BE-002）— vs.period_visit_count は期間指定時のみ期間内、未指定時は全期間。
 	if params.MinVisitCount != nil {
-		having = append(having, "COUNT(DISTINCT CASE WHEN (mr.date >= COALESCE(?::date, mr.date) AND mr.date <= COALESCE(?::date, mr.date)) THEN mr.date END) >= ?")
-		havingArgs = append(havingArgs, from, to, *params.MinVisitCount)
+		having = append(having, "COALESCE(vs.period_visit_count, 0) >= ?")
+		havingArgs = append(havingArgs, *params.MinVisitCount)
 	}
 	if params.MaxVisitCount != nil {
-		having = append(having, "COUNT(DISTINCT CASE WHEN (mr.date >= COALESCE(?::date, mr.date) AND mr.date <= COALESCE(?::date, mr.date)) THEN mr.date END) <= ?")
-		havingArgs = append(havingArgs, from, to, *params.MaxVisitCount)
+		having = append(having, "COALESCE(vs.period_visit_count, 0) <= ?")
+		havingArgs = append(havingArgs, *params.MaxVisitCount)
 	}
 	return having, havingArgs
 }

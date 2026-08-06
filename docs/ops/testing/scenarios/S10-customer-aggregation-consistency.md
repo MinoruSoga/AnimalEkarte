@@ -53,4 +53,5 @@
   - 金額基準 API 値（gross/paid/net）と UI ラベル「精算済」を明記
   - LTV 期間軸 `COALESCE(bmr.date, b.scheduled_date)` を実装どおり記載
 
-- runtime 2026-08-07: **FAIL (API timeout)** — auth OK; canonical `GET /api/v1/clinics/1/owners/aggregations` → **500** after ~20s (`database error: timeout: context deadline exceeded`, log `ListOwnerAggregation`). Non-canonical `/owners/aggregations` → 400 (`id` param). Large seed (owners≈10k) makes aggregation unusable under default timeout; product/performance follow-up, not credential issue.
+- runtime 2026-08-07: **FAIL (API timeout)** — auth OK; `GET /clinics/1/owners/aggregations` → 500 after ~20s (MR nested-loop join on ~425k rows).
+- runtime 2026-08-07 (fix): **PASS (API)** — rewrote `FindOwnerLTV` visit side to clinic-scoped preagg (`medical_records ⋈ pets` → LEFT JOIN owners). Live probe clinic=1: `include_zero=true&include_no_visit=true` → **200 in ~0.22s**, total=10414, page size 50; year=2026 revenue default total=0 (no completed billings in seed — expected). Unit: `go test ./internal/owner -run TestFindOwnerLTV` green; `./internal/lstep -run TestListOwnerAggregation` green.
