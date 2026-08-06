@@ -9,7 +9,7 @@ import { Trash2 } from "lucide-react";
 import { paths } from "@/config/paths";
 import { Button } from "@/components/ui/button";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
-import { PatientInfoCard } from "@/components/shared/PatientInfoCard";
+import { PatientInfoCard, formatPatientPetDetails } from "@/components/shared/PatientInfoCard";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
 import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
@@ -236,6 +236,15 @@ export const VaccinationForm = memo(function VaccinationForm() {
             petName={selectedPet.name}
             petNumber={selectedPet.petNumber ?? ""}
             weight={selectedPet.weight ?? ""}
+            // BUG-006: 対象ペットの年齢・性別・去勢避妊を渡し、固定デフォルトを使わない
+            petDetails={formatPatientPetDetails({
+              birthDate: selectedPet.birthDate,
+              gender: selectedPet.gender,
+              neuteredDate: selectedPet.neuteredDate,
+            })}
+            status={selectedPet.status === "死亡" ? "deceased" : "alive"}
+            insuranceName={selectedPet.insuranceName}
+            insuranceDetails={selectedPet.insuranceDetails}
           />
         ) : null}
 

@@ -61,7 +61,8 @@ export const PatientInfoCard = memo(function PatientInfoCard({
   staffLabel = "",
   reservationType = "診療",
   reservationTypeLabel = "診療種別",
-  petDetails = "9才5ヶ月 / メス / 避妊済",
+  // BUG-006: 臨床画面に固定ダミー属性を出さない。未指定は不明。
+  petDetails = "不明",
   insuranceName = "ペット保険Aプラン",
   insuranceDetails = "普通or危険",
   nextVisitDate = "-",

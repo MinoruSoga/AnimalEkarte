@@ -25,6 +25,25 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
+describe("PatientInfoCard petDetails (BUG-006)", () => {
+  it("未指定時は固定の「9才5ヶ月 / メス / 避妊済」を出さず不明を表示する", () => {
+    render(<PatientInfoCard {...baseProps} />);
+    expect(screen.getByText("不明")).toBeInTheDocument();
+    expect(screen.queryByText("9才5ヶ月 / メス / 避妊済")).not.toBeInTheDocument();
+  });
+
+  it("渡した petDetails をそのまま表示する", () => {
+    render(
+      <PatientInfoCard
+        {...baseProps}
+        petDetails="13才7ヶ月 / 雄 / 不明"
+      />,
+    );
+    expect(screen.getByText("13才7ヶ月 / 雄 / 不明")).toBeInTheDocument();
+    expect(screen.queryByText("9才5ヶ月 / メス / 避妊済")).not.toBeInTheDocument();
+  });
+});
+
 describe("PatientInfoCard next visit alert", () => {
   it("次回予定日が過去なら日付に加えて非色依存の「期限切れ」表示を出す", () => {
     vi.useFakeTimers();

@@ -501,7 +501,7 @@
 ## BUG-006: 予防接種登録画面のヘッダーに表示される年齢・性別・去勢避妊状況が、対象ペットによらず常に同じ誤った固定値になっている【重大】
 
 - **重大度**: 高（診療画面に誤った患者属性が表示される。臨床安全観点で懸念）
-- **対応状況（2026-08-03 JST）**: OPEN | **根拠**: `VaccinationForm` が `PatientInfoCard` に petDetails 未渡し; 既定「9才5ヶ月 / メス / 避妊済」固定（wave-3） | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: 選択ペット属性を渡し固定デフォルトを除去する FE 修正＋画面確認
+- **対応状況（2026-08-06 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: 到達済み commit `0c043e856196eeb32644a3e515025dea50aee88e` で `formatPatientPetDetails` 追加、`VaccinationForm` が birthDate/gender/neuteredDate から petDetails を渡し、`PatientInfoCard` 固定既定「9才5ヶ月 / メス / 避妊済」を「不明」へ変更。scoped vitest 12/12 green | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: S03 手順1を専用 fixture でブラウザ再検証し VERIFIED_FIXED 可否を判定
 - **発見シナリオ**: S03 手順1（予防接種 新規登録 `/vaccinations/new?petId=...`）
 - **再現手順**:
   1. `/vaccinations/new?petId=1000002`（伊藤史安／豆助、実データ: 生年月日2012-12-20＝13才7ヶ月、性別=雄）を開く。

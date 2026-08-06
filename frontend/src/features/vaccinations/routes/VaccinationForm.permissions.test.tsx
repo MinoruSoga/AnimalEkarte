@@ -55,6 +55,7 @@ vi.mock("@/components/shared/ConfirmDialog/ConfirmDialog", () => ({
 
 vi.mock("@/components/shared/PatientInfoCard", () => ({
   PatientInfoCard: () => null,
+  formatPatientPetDetails: () => "不明 / 不明 / 不明",
 }));
 
 vi.mock("../components/VaccinationFormPanels", () => ({
