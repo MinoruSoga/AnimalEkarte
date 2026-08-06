@@ -2135,7 +2135,7 @@ S01〜S12の業務シナリオ検証に続き、個別フォーム単位の受�
 ## BUG-024: 権限グループの権限マトリクス（表示/作成/編集/削除チェックボックス）の変更が保存されない（成功トースト・200応答にもかかわらずDBに反映されない）【重大】
 
 - **重大度**: 高
-- **対応状況（2026-08-06 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: claim/BUG-024 — FE がマトリクス全リソース+明示 false を PATCH し、応答 rules 不一致時は成功トーストを出さない; BE `replaceRules` が bool 列を Select 固定で INSERT（true→false 永続化 regression 付き） | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: V03 §6 C2/C4 ブラウザで PATCH body・GET・DB 一致を確認（VERIFIED_FIXED は人間）
+- **対応状況（2026-08-06 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: 到達済み commit `ce8ae6f46` — FE がマトリクス全リソース+明示 false を PATCH し、応答 rules 不一致時は成功トーストを出さない; BE `replaceRules` が bool 列を Select 固定で INSERT（true→false 永続化 regression 付き） | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: V03 §6 C2/C4 ブラウザで PATCH body・GET・DB 一致を確認（VERIFIED_FIXED は人間）
 - **発見シナリオ**: V03 §6 permission-group-side-panel チェック2（C2永続化確認）およびチェック4（自己剥奪ガード確認）
 - **再現手順**:
   1. `/settings/permission-groups` で「執行」グループの編集パネルを開く
