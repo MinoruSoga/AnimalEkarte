@@ -66,8 +66,8 @@ rg -n '^- \*\*対応状況' STATUS.md | rg -o 'IMPLEMENTED_UNVERIFIED|OPEN|BLOCK
 ## 推奨 USER 順（local 実測反映 · **ブラウザ検証は residual 対象外**）
 
 > **除外 (2026-08-06)**: TASK-010 / IU ブラウザバッチ / `BROWSER_VERIFICATION_*` は residual closeout に含めない。手順書は保管のみ（[`reports/BROWSER_VERIFICATION_RUNBOOK.md`](reports/BROWSER_VERIFICATION_RUNBOOK.md)）。`VERIFIED_FIXED` 付与も residual では扱わない。  
-> **PO 決裁（2026-08-06 採択）**: Fable 推奨 pack [`reports/2026-08-06-fable-po-recommendation-pack.md`](reports/2026-08-06-fable-po-recommendation-pack.md) を **USER 採択**（Opus 20 裁定 RATIFY · OVERTURN 0 · DEC-68）。Opus 代理 [`po-proxy-decision-pack.md`](reports/2026-08-06-po-proxy-decision-pack.md) · プロンプト [`po-decision-prompt-for-fable.md`](reports/2026-08-06-po-decision-prompt-for-fable.md)。**USER は後から覆せる。**
-
+> **PO 決裁（2026-08-06 採択）**: Fable 推奨 pack [`reports/2026-08-06-fable-po-recommendation-pack.md`](reports/2026-08-06-fable-po-recommendation-pack.md) を **USER 採択**（Opus 20 裁定 RATIFY · OVERTURN 0 · DEC-68）。Opus 代理 [`po-proxy-decision-pack.md`](reports/2026-08-06-po-proxy-decision-pack.md) · プロンプト [`po-decision-prompt-for-fable.md`](reports/2026-08-06-po-decision-prompt-for-fable.md)。**USER は後から覆せる。**  
+> **あなたが手を動かすリスト**: [`PO-todo.md`](PO-todo.md)（方針未決ではなく、採択後の **実行・依頼・証拠集め**）。
 0. ~~Fable 採択 + DEC-68~~ — **docs 完了**（本更新）
 1. ~~TASK-378-reset + TASK-009~~ — **local 完了**（`make reset` postflight OK · ranges=20 · stack healthy）
 2. **E2E_LOGIN_*** 注入 → TASK-020 / TASK-023（Playwright · 5 フロー UAT。ブラウザ手作業バッチとは別）
