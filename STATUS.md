@@ -21,43 +21,71 @@ rg -n '^- \*\*対応状況' STATUS.md | rg -o 'IMPLEMENTED_UNVERIFIED|OPEN|BLOCK
 
 ## 1. 残作業（USER / ops）
 
-最終整理: **2026-08-06**。  
-製品コードの agent 実装 open は **0**。本ファイルは **未完了 residual のみ**（完了 TASK の一覧・証拠表は置かない。git 履歴が正本）。
+最終整理: **2026-08-06**（residual agent team 実行後更新）。  
+製品コードの agent 実装 open は **0**（IU 32 静的 CODE_PRESENT / CODE_MISSING=0）。本ファイルは **未完了 residual のみ**。
 
-> **ID**: `TASK-*` = §1 / `BUG-*` = §3 / Issue `#n` = §2。ブラウザ結果表は `reports/BROWSER_VERIFICATION_BACKLOG.md`。
+> **ID**: `TASK-*` = §1 / `BUG-*` = §3 / Issue `#n` = §2。ブラウザ結果表は `reports/BROWSER_VERIFICATION_BACKLOG.md`。  
+> **Team pack**: [`reports/2026-08-06-residual-user-ops-pack.md`](reports/2026-08-06-residual-user-ops-pack.md) · 環境実測 [`reports/2026-08-06-residual-team-env-inventory.md`](reports/2026-08-06-residual-team-env-inventory.md) · コード監査 [`reports/2026-08-06-residual-team-code-audit.md`](reports/2026-08-06-residual-team-code-audit.md) · ボード [`reports/2026-08-06-residual-agent-board.md`](reports/2026-08-06-residual-agent-board.md)
+
+### Residual team 実測（local main @ 2026-08-06）
+
+| 項目 | 結果 |
+|------|------|
+| agent product open | **0** |
+| IU 32 static | **CODE_PRESENT 32 / MISSING 0** |
+| compose | `db` healthy; `backend` Exited(1); `frontend` never started; host :8080/:3003 なし |
+| `exam_reference_ranges` | テーブルあり・**行数 0**（CSV 20 行はディスクに存在） |
+| `seeds/003_demo` checksum | **disk ≠ DB** → `make migrate` は fail-closed。local は **`make reset` 必須** |
+| seed crash 履歴 | 2026-08-05 `hospitalizations.owner_request` NULL。**`7b929231a` FORCE_NOT_NULL で loader 修正済み**（現行 main）。reset 再試行のブロッカーではない |
+| `E2E_LOGIN_*` | host / `.env.local` とも **UNSET** |
+| claim/* | local / origin とも **0**（SCEN-OPS-CLAIM クローズ） |
+| open GitHub Issue | **18**（§2） |
+| TASK-032/374 DDL local | `lab_import_*` / `checkup_package_import_receipts` **存在**（他環境 apply は残） |
 
 ## 索引
 
-| ID | 内容 | Owner |
-|----|------|-------|
-| TASK-004 | land 時 screens-drift 隔離 | USER |
-| TASK-005 | land 前 closed-pack 回帰 | USER |
-| TASK-009 | 003_demo seed の **DB 適用**（static は済） | USER |
-| TASK-010 | scenarios 要実測の残 | USER |
-| TASK-020 | Playwright runtime（要 E2E_LOGIN_*） | USER |
-| TASK-021 | exclusion 破壊削除（PO 承認後） | USER+PO |
-| TASK-022 | #239 S13 手動 correction / RLS 証跡 | USER |
-| TASK-023 | #254 5 フロー UAT | USER |
-| TASK-024 | #256 screenshot / FAQ sign-off | USER |
-| TASK-032-apply | lab import migration 適用 + claim 解放 | USER |
-| TASK-033 | #201 救急投薬 cutover（**臨床 gate 未**） | 臨床+USER |
-| TASK-374-apply | checkup package import migration 適用 | USER |
-| TASK-378-reset | 001 統合後の環境 DB_RESET | USER |
-| POST-PULL | 各環境 `make migrate` | USER |
-| SCEN-OPS-CLAIM | claim ブランチ解放 | USER |
-| LINE-R05 | production rollout + column DROP（HOLD） | USER/PO |
-| R6/R7 | worktree 隔離 / empty-diff COMPLETE 禁止 | ops（継続規律） |
+| ID | 内容 | Owner | 状態 |
+|----|------|-------|------|
+| TASK-004 | land 時 screens-drift 隔離 | USER | open（land 都度） |
+| TASK-005 | land 前 closed-pack 回帰 | USER | open（land 都度） |
+| TASK-009 | 003_demo seed の **DB 適用**（static 済・ranges 行 0） | USER | open · **local は 378 と一体** |
+| TASK-010 | scenarios 要実測の残 | USER | open |
+| TASK-020 | Playwright runtime（要 E2E_LOGIN_*） | USER | open · credential 待ち |
+| TASK-021 | exclusion 破壊削除（PO 承認後） | USER+PO | HOLD |
+| TASK-022 | #239 S13 手動 correction / RLS 証跡 | USER | open |
+| TASK-023 | #254 5 フロー UAT | USER | open · credential 待ち |
+| TASK-024 | #256 screenshot / FAQ sign-off | USER | open |
+| TASK-032-apply | lab import migration 適用 + claim | USER | local DDL 済 · 他 env 残 |
+| TASK-033 | #201 救急投薬 cutover | 臨床+USER | HOLD |
+| TASK-374-apply | checkup package import migration 適用 | USER | local DDL 済 · 他 env / #211 残 |
+| TASK-378-reset | checksum mismatch 環境の DB_RESET | USER | **local 必須** |
+| POST-PULL | 各環境 `make migrate` | USER | open |
+| LINE-R05 | production rollout + column DROP | USER/PO | HOLD |
+| R6/R7 | worktree 隔離 / empty-diff COMPLETE 禁止 | ops | 継続規律 |
 
-## 推奨 USER 順
+## 推奨 USER 順（local 実測反映）
 
-1. **TASK-009** — 003_demo 適用（`exam_reference_ranges` 含む）
-2. **POST-PULL / TASK-032-apply / TASK-374-apply** — migrate
-3. **TASK-378-reset** — 必要な環境だけ volume 再構築
-4. **E2E_LOGIN_*** → TASK-020 / TASK-023
-5. **TASK-010** + `reports/BROWSER_VERIFICATION_BACKLOG.md`
+1. **TASK-378-reset + TASK-009** — local は checksum mismatch のため **`make reset` 一発**（`docs/ops/deploy/LOCAL_DB_RESET.md`）。成功条件: `exam_reference_ranges` COUNT > 0 かつ backend/frontend healthy
+2. **`make up`** — backend / frontend 起動（LIFF mock は compose 済み）
+3. **POST-PULL / 他 env の TASK-032-apply / TASK-374-apply** — 未適用環境のみ `make migrate`
+4. **E2E_LOGIN_*** 注入 → TASK-020 / TASK-023
+5. **TASK-010** + `reports/BROWSER_VERIFICATION_BACKLOG.md`（agent は VERIFIED_FIXED しない）
 6. **TASK-022 / TASK-024** 人証跡
 7. **TASK-033** 臨床 SoT 揃い後のみ agent 再開可
 8. **TASK-021** 破壊承認後のみ
+
+### local 最小コピペ（secret は書かない）
+
+```bash
+cd /path/to/AnimalEkarte
+python3 scripts/verify_seed.py          # static OK を確認
+make reset                              # USER のみ。volume 再構築 + migrate/seed
+make up
+# 成功確認（例）
+docker compose --env-file .env.local exec -T db \
+  psql -U "$DB_USER" -d "$DB_NAME" -c 'SELECT COUNT(*) FROM exam_reference_ranges;'
+# 続けて host に E2E_LOGIN_EMAIL / E2E_LOGIN_PASSWORD を注入してから e2e / ブラウザ
+```
 
 ## 詳細（open only）
 
@@ -68,18 +96,19 @@ rg -n '^- \*\*対応状況' STATUS.md | rg -o 'IMPLEMENTED_UNVERIFIED|OPEN|BLOCK
 
 ### TASK-009 — seed DB 適用
 
-- static verifier GREEN。残は USER による DB 適用のみ。
+- static verifier GREEN（`exam_reference_ranges.csv` + manifest 含む）。
+- **local DB**: `003_demo` は記録済みだが checksum 不一致・`exam_reference_ranges` = 0。再適用は migrate 不可 → **TASK-378-reset**。
 - agent は seed apply / DB_RESET しない。
-- 参照: `reports/2026-07-31-task-009-reseed-ops.md`
+- 参照: `reports/2026-07-31-task-009-reseed-ops.md` · team pack 上記
 
 ### TASK-010 — 要実測
 
-- Owner: USER（ブラウザ）。
+- Owner: USER（ブラウザ）。stack up + seed 後。
 - 参照: `reports/2026-08-01-task-010-batch5.md`、`reports/BROWSER_VERIFICATION_BACKLOG.md`
 
 ### TASK-020 — Playwright
 
-- 要 host `E2E_LOGIN_EMAIL` / `E2E_LOGIN_PASSWORD`。
+- 要 host `E2E_LOGIN_EMAIL` / `E2E_LOGIN_PASSWORD`（現状 UNSET）。
 - 参照: `reports/2026-07-31-task-020-env-forward.md`
 
 ### TASK-021 — exclusion 破壊削除
@@ -95,7 +124,8 @@ rg -n '^- \*\*対応状況' STATUS.md | rg -o 'IMPLEMENTED_UNVERIFIED|OPEN|BLOCK
 
 ### TASK-032-apply / TASK-374-apply
 
-- migration 適用と claim 解放のみ残（製品コードは main 済み）。
+- 製品コード・`001_init.sql` 統合済み。local は関連テーブル存在。
+- 他環境: `make migrate`（checksum mismatch 時は reset 判断）。#211 clinic import の実 row は USER/臨床。
 
 ### TASK-033 — 救急投薬 cutover
 
@@ -103,17 +133,22 @@ rg -n '^- \*\*対応状況' STATUS.md | rg -o 'IMPLEMENTED_UNVERIFIED|OPEN|BLOCK
 
 ### TASK-378-reset
 
-- 001 統合後 checksum 変更。必要環境のみ `docs/ops/deploy/LOCAL_DB_RESET.md` に従う。
+- local: `seeds/003_demo` checksum mismatch 実測済み → **reset 必須**。
+- 手順: `docs/ops/deploy/LOCAL_DB_RESET.md`。FORCE_NOT_NULL（`7b929231a`）により過去の hosp `owner_request` empty は loader 側で吸収。
 
 ### LINE-R05 residual
 
 - production rollout + column DROP は HOLD。
 
+### SCEN-OPS-CLAIM（クローズ）
+
+- 2026-08-06 実測: `claim/*` local/origin **0**。追加解放不要。再出現時のみ USER が `git branch -D`。
+
 ## Agent 規律
 
 - migrate / seed apply / force-push / claim 解放 / VERIFIED_FIXED 付与はしない。
 - 次の実装 unit は TASK-033 または TASK-021 の gate 解除後（1 unit = 1 graph）。
-
+- residual team が agent 側で完了できる作業は **2026-08-06 時点で尽きた**（監査・ops pack・SoT 更新）。以降は USER gate。
 ---
 
 ## 2. open GitHub Issue の次の一手
