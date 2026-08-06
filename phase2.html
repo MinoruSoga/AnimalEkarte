@@ -100,7 +100,7 @@
 <section>
   <h2>運用ルール</h2>
   <ul>
-    <li>本書は「今フェーズで着手しない」項目の正本。<strong>着手判断が出たら該当項目を <a href="todo.md">todo.md の残タスク台帳（正本）</a>へ実装単位で戻し、本書から削除する</strong>（二重管理禁止）。</li>
+    <li>本書は「今フェーズで着手しない」項目の正本。<strong>着手判断が出たら該当項目を <a href="STATUS.md">STATUS.md §1（残タスク）</a>へ実装単位で戻し、本書から削除する</strong>（二重管理禁止）。</li>
     <li><span class="badge never">やらない</span> = PO 決裁済み。再開条件が満たされるまで<strong>実装着手禁止</strong>。</li>
     <li><span class="badge hold">見送り</span> = 再開条件付き。<span class="badge next">次期</span> = 次期監査・次期リファクタ対象。</li>
   </ul>
@@ -150,7 +150,7 @@
     <li><strong>根拠</strong>: <code>frontend/src/features/medical-records/hooks/use-apply-medical-record.ts:44-68</code>は非null項目だけhydrateする。現在はdetail→detailの直接navigationが存在せず未到達。</li>
     <li><strong>再開時の方針</strong>: routeのrecord IDをkeyにフォーム全体を再生成する。診断だけを個別resetしない。同一record IDのbackground refetchではdirtyな未保存入力を上書きしない。</li>
     <li><strong>受け入れ条件</strong>: Aの全項目に値、BはnullのfixtureでA→Bを直接遷移し、画面stateとBの保存payloadへAの値が1項目も混入しない。同一ID refetchではdirty stateを維持する。</li>
-    <li><em>再開条件</em>: 「前/次の来院」等、同一画面内でrecord IDだけを変えるnavigationの実装時。navigationタスクの必須受入条件として<a href="todo.md">todo.md の残タスク台帳（正本）</a>へ戻す。</li>
+    <li><em>再開条件</em>: 「前/次の来院」等、同一画面内でrecord IDだけを変えるnavigationの実装時。navigationタスクの必須受入条件として<a href="STATUS.md">STATUS.md §1（残タスク）</a>へ戻す。</li>
   </ul>
 
   <h3><span class="badge hold">見送り</span>BUG-413-A: 予防接種一覧の全件集合ページング</h3>
@@ -182,7 +182,7 @@
     <li><strong>seed運用</strong>: seed bundle checksumが変わるため適用済み環境はDB_RESET必須。<code>python3 scripts/verify_seed.py</code>と、ユーザー手動のfresh DB全migration+3 bundle適用を完了条件にする。POST SQLはseed生成用のlocal disposable DB以外へ実行しない。</li>
     <li><strong>実装順序</strong>: ①CSV header対応＋DB/model/API（<code>internal/pet</code> 上） ②ユーザー手動codegen ③seed bootstrap＋マスタcategory UI ④共有pure filterをstandaloneとカルテ内の両フォームへ適用 ⑤画面仕様とtest同期。schema 変更と filter UX を同一batchへ混ぜない。</li>
     <li><strong>受け入れ条件</strong>: 旧6列→新7列schemaのbootstrapと、生成済み7列CSVからのfresh applyが両方成功する。既存DB backfillとfresh seedが承認済みmappingどおり。不正enumは400で未保存、categoryのcreate/get/update/reloadを保持。承認済みの犬/猫/other/未選択/全件表示/nullable/inactive/既存不一致contractが両フォームで一致する。<code>docs/spec/screens/15-vaccinations-form.md</code>と<code>docs/spec/screens/settings/master-animal-species.md</code>も同期する。</li>
-    <li><strong>状態</strong>: BLOCKED（製品/所有者ブロック）。依存=提案デフォルトと要件責任者（個人名）の正本記録、正本GitHub Issue作成。BE9 依存は解消済み。再開時は少なくとも「DB/BE/API＋seed tooling」と「master UI＋2フォームfilter」の<code>TASK-xxx-BE</code>/<code>TASK-xxx-FE</code>へ分割してから<a href="todo.md">todo.md の残タスク台帳（正本）</a>へ戻す。FEAT系はGitHub Issuesが正本だが、2026-07-22のread-only検索では対応Issueなし。外部Issue作成は明示承認後に行う。</li>
+    <li><strong>状態</strong>: BLOCKED（製品/所有者ブロック）。依存=提案デフォルトと要件責任者（個人名）の正本記録、正本GitHub Issue作成。BE9 依存は解消済み。再開時は少なくとも「DB/BE/API＋seed tooling」と「master UI＋2フォームfilter」の<code>TASK-xxx-BE</code>/<code>TASK-xxx-FE</code>へ分割してから<a href="STATUS.md">STATUS.md §1（残タスク）</a>へ戻す。FEAT系はGitHub Issuesが正本だが、2026-07-22のread-only検索では対応Issueなし。外部Issue作成は明示承認後に行う。</li>
   </ul>
 
   <h3><span class="badge hold">依存待ち</span>#239 Phase 2: identity linkのmerge・auto-link・追加surface（DEC-46）</h3>
@@ -285,7 +285,7 @@
   <h2>関連台帳</h2>
   <table>
     <tr><th>台帳</th><th>役割</th></tr>
-    <tr><td><a href="todo.md"><code>todo.md</code></a> / <a href="bug.md"><code>bug.md</code></a></td><td>今フェーズで着手可能な実装タスクの正本（todo.md=残タスク・bug.md=受入テストバグ。旧 <code>3-session-agent.html#ledger</code> は 2026-07-31 廃止 — 同ファイルは GitHub Issue 分類ビュー）</td></tr>
+    <tr><td><a href="STATUS.md"><code>todo.md</code></a> / <a href="bug.md"><code>bug.md</code></a></td><td>今フェーズで着手可能な実装タスクの正本（STATUS.md が唯一の作業台帳（§1 残作業 / §2 Issue / §3 BUG）<code>3-session-agent.html#ledger</code> は 2026-07-31 廃止 — 同ファイルは GitHub Issue 分類ビュー）</td></tr>
     <tr><td><code>BE-pending.md</code></td><td>着手保留・次期送り・任意検証の BE 詳細</td></tr>
     <tr><td><code>q&amp;a.html</code></td><td>内部 PO 判断キュー（決裁記録の正本。PO-001〜008 回答済み）</td></tr>
   </table>

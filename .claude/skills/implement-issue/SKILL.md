@@ -1,23 +1,23 @@
 ---
 name: implement-issue
-description: "repo 直下のローカル台帳にあるタスクID（todo.md の TASK-XXX / bug.md の BUG-XXX）を指定して、コード規約準拠の実装 → セルフレビュー → タスククローズ（台帳更新）までを自動化する。`/implement TASK-027` のように使用。旧 3-session-agent.html#ledger 台帳・BE-XXX / FE-XXX・docs/tasks 体系は廃止済み（経緯は git 履歴参照）。"
+description: "repo 直下のローカル台帳にあるタスクID（STATUS.md の TASK-XXX / STATUS.md の BUG-XXX）を指定して、コード規約準拠の実装 → セルフレビュー → タスククローズ（台帳更新）までを自動化する。`/implement TASK-027` のように使用。旧 3-session-agent.html#ledger 台帳・BE-XXX / FE-XXX・docs/tasks 体系は廃止済み（経緯は git 履歴参照）。"
 ---
 
 # Implement Issue — タスク実装ワークフロー
 
-repo 直下のローカル台帳（`todo.md` / `bug.md`）にある該当タスク節を読み込み、コード規約に準拠した実装 → セルフレビュー → クローズ処理までを実行する。
+repo 直下のローカル台帳（`STATUS.md`）にある該当タスク節を読み込み、コード規約に準拠した実装 → セルフレビュー → クローズ処理までを実行する。
 
 > **パス正本の注意**: 旧 `3-session-agent.html#ledger` 台帳は **2026-07-31 廃止**（同ファイルは GitHub Issue 分類ビューへ転換）。旧 `backend/issues/` / `frontend/issues/`・docs/tasks 体系も廃止済み（経緯は git 履歴参照）。
 > 現行のローカル台帳は 2 ファイル（いずれも repo 直下・git 追跡・変更はコミット対象・ローカル連番）:
-> - `TASK-XXX` → `todo.md`（残タスク台帳。索引/サマリー表 + `## 個別タスク詳細` の `### TASK-XXX:` 節）
-> - `BUG-XXX` → `bug.md`（受入テストバグ台帳。`## BUG-XXX:` 節 + `### 実装計画`）
+> - `TASK-XXX` → `STATUS.md`（残タスク台帳。索引/サマリー表 + `## 個別タスク詳細` の `### TASK-XXX:` 節）
+> - `BUG-XXX` → `STATUS.md`（受入テストバグ台帳。`## BUG-XXX:` 節 + `### 実装計画`）
 >
 > タスクが GitHub Issue（`#NNN` / `ISSUE-XXX`）を参照する場合、仕様・受け入れ条件の正本は該当 Issue 本文とコメント（`gh issue view <NNN>`）。
 
 ## 起動トリガー
 
-- `/implement <タスクID>`（例: `/implement TASK-027`）— `TASK-XXX` は `todo.md`、`BUG-XXX` は `bug.md` から grep で検索
-- 引数なしの場合: `todo.md` 索引表と `bug.md` 対応状況サマリの open タスクID一覧を表示し、ユーザーに選択させる
+- `/implement <タスクID>`（例: `/implement TASK-027`）— `TASK-XXX` は `STATUS.md`、`BUG-XXX` は `STATUS.md` から grep で検索
+- 引数なしの場合: `STATUS.md` 索引表と `STATUS.md` 対応状況サマリの open タスクID一覧を表示し、ユーザーに選択させる
 - 旧 `BE-XXX` / `FE-XXX` 番号を指定された場合: git 履歴（`git log --all -- docs/archive/` / `git show <rev>:<path>`）で経緯確認のみ行い、新規実装には使わない
 
 引数は `$ARGUMENTS` 変数で受け取る。
@@ -28,18 +28,18 @@ repo 直下のローカル台帳（`todo.md` / `bug.md`）にある該当タス�
 
 ### 1.1 引数解析
 
-- タスクID → 台帳（`TASK-XXX` = `todo.md`・`BUG-XXX` = `bug.md`）の該当節を grep で検索:
+- タスクID → 台帳（`TASK-XXX` = `STATUS.md`・`BUG-XXX` = `STATUS.md`）の該当節を grep で検索:
 
 ```bash
-grep -n '<タスクID>' todo.md bug.md
+grep -n '<タスクID>' STATUS.md
 ```
 
 - 引数なし → 以下を実行して open タスクID一覧を表示:
 
 ```bash
-# 台帳のタスクID一覧（todo.md 個別タスク詳細 / bug.md バグ節）
-grep -oE '^### TASK-[0-9A-Za-z-]+' todo.md
-grep -oE '^## BUG-[0-9]+' bug.md
+# 台帳のタスクID一覧（STATUS.md 個別タスク詳細 / STATUS.md バグ節）
+grep -oE '^### TASK-[0-9A-Za-z-]+' STATUS.md
+grep -oE '^## BUG-[0-9]+' STATUS.md
 ```
 
 着手保留は [`phase2.html`](../../../phase2.html) が担う（旧 pending/ の概念は廃止）。
@@ -55,7 +55,7 @@ git branch --list 'claim/<タスクID>'
 
 ### 1.2 タスクセクション読み込み
 
-台帳の該当節（`todo.md` の `### <タスクID>:` 節 / `bug.md` の `## <バグID>:` 節と `### 実装計画`）を Read で読み込み、以下を抽出:
+台帳の該当節（`STATUS.md` の `### <タスクID>:` 節 / `STATUS.md` の `## <バグID>:` 節と `### 実装計画`）を Read で読み込み、以下を抽出:
 - **問題**: 何が問題か・実装内容の概要
 - **根拠**: 対象ファイル・行番号・現状コードの実測情報
 - **修正方針**: 採用案・参照実装・具体的なコード変更指示
@@ -70,13 +70,13 @@ git branch --list 'claim/<タスクID>'
 
 ### 1.3 依存関係チェック
 
-- 「状態」等に記載された前提タスクが `todo.md` / `bug.md` にも `phase2.html` にも**残っていなければ完了済み**とみなす（完了記録の正本は git 履歴: `git log --all -- todo.md bug.md`。旧 HTML 台帳期の経緯は `git log --all -- 3-session-agent.html` で確認可）
+- 「状態」等に記載された前提タスクが `STATUS.md` にも `phase2.html` にも**残っていなければ完了済み**とみなす（完了記録の正本は git 履歴: `git log --all -- STATUS.md`。旧 HTML 台帳期の経緯は `git log --all -- 3-session-agent.html` で確認可）
 - 前提タスクが台帳または `phase2.html` に残存する場合:
   - ユーザーに警告: 「<前提ID> が未完了。先に実装するか？」
 
 ```bash
 # 依存タスクの残存確認（ヒットしなければ完了済み）
-grep -n '<前提ID>' todo.md bug.md phase2.html
+grep -n '<前提ID>' STATUS.md phase2.html
 # 旧イシュー体系（BE-XXX / FE-XXX）の経緯は git 履歴で確認
 git log --all --oneline -- 'docs/archive/**' | head
 ```
@@ -228,8 +228,8 @@ Lint エラー・型エラー・テスト失敗・規約違反があれば修正
 
 ### 5.1 台帳の該当節を更新
 
-- **TASK-XXX（`todo.md`）**: 索引/サマリー表の該当行を実測結果（**DONE** + commit hash。残余があれば residual を明記）へ更新し、`## 個別タスク詳細` の該当 `### <タスクID>:` 節を**丸ごと削除**する。todo.md は open のみの台帳 — 完了詳細を残さない。
-- **BUG-XXX（`bug.md`）**: 該当 `## <バグID>:` 節の `対応状況` 行を更新する（実装直後は `IMPLEMENTED_UNVERIFIED` + commit hash。`VERIFIED_FIXED` はブラウザ/runtime 再検証後のみ）。冒頭の件数サマリ行も整合させる。
+- **TASK-XXX（`STATUS.md`）**: 索引/サマリー表の該当行を実測結果（**DONE** + commit hash。残余があれば residual を明記）へ更新し、`## 個別タスク詳細` の該当 `### <タスクID>:` 節を**丸ごと削除**する。STATUS.md は open のみの台帳 — 完了詳細を残さない。
+- **BUG-XXX（`STATUS.md`）**: 該当 `## <バグID>:` 節の `対応状況` 行を更新する（実装直後は `IMPLEMENTED_UNVERIFIED` + commit hash。`VERIFIED_FIXED` はブラウザ/runtime 再検証後のみ）。冒頭の件数サマリ行も整合させる。
 
 「closed への移動」という概念はもう無い — 完了記録は git 履歴が正本（コミットメッセージに実装内容を残す）。
 
@@ -237,7 +237,7 @@ Lint エラー・型エラー・テスト失敗・規約違反があれば修正
 
 同じ親タスク・Wave・クラスタの関連記述に該当 ID が列挙されている場合、その記述も現状に合わせて更新する。
 
-`todo.md` / `bug.md` は **git 追跡ファイル**なので、この変更は実装コミットのコミット対象に含める（`git commit -- <paths>` で path 限定）。
+`STATUS.md` は **git 追跡ファイル**なので、この変更は実装コミットのコミット対象に含める（`git commit -- <paths>` で path 限定）。
 
 ### 5.3 claim 報告（解放は USER 専権）
 
@@ -260,7 +260,7 @@ claim ブランチ（`claim/<タスクID>`）は**削除しない**。実装コ�
 - 全体 lint/test: ユーザー手動実行待ち（コマンド提示済み）
 
 ### タスク
-- <タスクID> → 台帳更新済み（todo.md: 索引 DONE 化 + 詳細節削除 / bug.md: 対応状況行更新。関連記述も更新・コミット対象。完了記録は git 履歴）
+- <タスクID> → 台帳更新済み（STATUS.md: 索引 DONE 化 + 詳細節削除 / STATUS.md: 対応状況行更新。関連記述も更新・コミット対象。完了記録は git 履歴）
 - claim/<タスクID> 保持中 — main 統合後に USER が解放
 ```
 
@@ -270,7 +270,7 @@ claim ブランチ（`claim/<タスクID>`）は**削除しない**。実装コ�
 
 | 状況 | 対応 |
 |------|------|
-| タスクIDが `todo.md` / `bug.md` に見つからない | `phase2.html` の着手保留項目と両台帳の git 履歴を確認し、どちらにも無ければユーザーにIDの確認を求める |
+| タスクIDが `STATUS.md` に見つからない | `phase2.html` の着手保留項目と両台帳の git 履歴を確認し、どちらにも無ければユーザーにIDの確認を求める |
 | 依存イシューが未完了 | 警告表示、ユーザーに続行確認 |
 | Docker コンテナ未起動 | `make up` の実行を提案 |
 | Lint/Build 失敗 | エラー内容を表示し、Phase 3 に戻って修正 |
