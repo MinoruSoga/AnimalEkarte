@@ -25,3 +25,8 @@ export function isPasswordRecoveryPublicPath(pathname: string): boolean {
 export function isAuthPublicPath(pathname: string): boolean {
   return AUTH_PUBLIC_PATHS.some((path) => matchesExactPath(pathname, path));
 }
+
+/** Login route only — BUG-031: hydrate session so authenticated users redirect home. */
+export function isLoginPublicPath(pathname: string): boolean {
+  return matchesExactPath(pathname, paths.auth.login.path);
+}

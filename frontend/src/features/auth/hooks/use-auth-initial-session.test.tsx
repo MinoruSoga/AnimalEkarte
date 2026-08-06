@@ -115,7 +115,7 @@ describe("AuthProvider initial session restoration", () => {
     });
   });
 
-  it("skips all public auth routes and restores the session once on the next protected mount", async () => {
+  it("skips password-recovery public routes and restores once on login (BUG-031)", async () => {
     setWindowLocation("/forgot-password/");
     const { AuthProvider } = await import("./use-auth");
 
@@ -145,14 +145,11 @@ describe("AuthProvider initial session restoration", () => {
     await waitFor(() =>
       expect(screen.getByTestId("pathname")).toHaveTextContent("/login"),
     );
-    expect(refreshTokenMock).not.toHaveBeenCalled();
-
-    fireEvent.click(screen.getByRole("button", { name: "go-protected" }));
+    // BUG-031: /login hydrates session so authenticated cookie users redirect.
     await waitFor(() => expect(refreshTokenMock).toHaveBeenCalledOnce());
-    expect(screen.getByTestId("pathname")).toHaveTextContent("/");
   });
 
-  it("takes a fresh session snapshot after login when returning from recovery to a protected route", async () => {
+  it("hydrates valid session on cold /login and exposes authenticated state (BUG-031)", async () => {
     setWindowLocation("/login");
     refreshTokenMock.mockResolvedValueOnce({ user: AUTH_USER });
     const { AuthProvider } = await import("./use-auth");
@@ -167,7 +164,26 @@ describe("AuthProvider initial session restoration", () => {
       </MemoryRouter>,
     );
 
-    expect(refreshTokenMock).not.toHaveBeenCalled();
+    await waitFor(() => expect(refreshTokenMock).toHaveBeenCalledOnce());
+    expect(await screen.findByTestId("auth-state")).toHaveTextContent(AUTH_USER.id);
+  });
+
+  it("takes a fresh session snapshot after login when returning from recovery to a protected route", async () => {
+    setWindowLocation("/login");
+    refreshTokenMock.mockResolvedValue(null);
+    const { AuthProvider } = await import("./use-auth");
+
+    render(
+      <MemoryRouter initialEntries={["/login"]}>
+        <Suspense fallback={<div>loading</div>}>
+          <AuthProvider>
+            <RouteControls />
+          </AuthProvider>
+        </Suspense>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => expect(refreshTokenMock).toHaveBeenCalledTimes(1));
     expect(await screen.findByTestId("auth-state")).toHaveTextContent("anonymous");
 
     fireEvent.click(screen.getByRole("button", { name: "authenticate" }));
@@ -178,9 +194,10 @@ describe("AuthProvider initial session restoration", () => {
     fireEvent.click(screen.getByRole("button", { name: "go-reset" }));
     expect(await screen.findByTestId("auth-state")).toHaveTextContent("anonymous");
 
+    refreshTokenMock.mockResolvedValueOnce({ user: AUTH_USER });
     fireEvent.click(screen.getByRole("button", { name: "go-protected" }));
 
-    await waitFor(() => expect(refreshTokenMock).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(refreshTokenMock).toHaveBeenCalledTimes(2));
     await waitFor(() =>
       expect(screen.getByTestId("auth-state")).toHaveTextContent(AUTH_USER.id),
     );

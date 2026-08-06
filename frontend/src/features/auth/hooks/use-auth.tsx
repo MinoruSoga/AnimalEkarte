@@ -5,10 +5,7 @@ import { useLocation } from "react-router";
 import { toast } from "sonner";
 import type { AuthContextValue, AuthUser, Resource, ResourceAction } from "@/types/auth";
 import { AuthContext } from "@/hooks/auth-context";
-import {
-  isAuthPublicPath,
-  isPasswordRecoveryPublicPath,
-} from "@/lib/auth-route-policy";
+import { isPasswordRecoveryPublicPath } from "@/lib/auth-route-policy";
 import { CURRENT_CLINIC_STORAGE_KEY, getStoredClinicId } from "@/lib/current-clinic";
 import { login as loginApi } from "../api/login";
 import { logout as logoutApi } from "../api/logout";
@@ -49,12 +46,11 @@ interface AuthProviderProps {
 export function AuthProvider({ children }: AuthProviderProps) {
   const { pathname } = useLocation();
   const passwordRecovery = isPasswordRecoveryPublicPath(pathname);
-  const restoreSession = !isAuthPublicPath(pathname);
-  const sessionKey = restoreSession
-    ? "session"
-    : passwordRecovery
-      ? "password-recovery"
-      : "login";
+  // BUG-031: restore on `/login` (and all protected routes) so an existing
+  // cookie session hydrates and LoginForm can redirect. Password-recovery
+  // public routes still skip restore to avoid noisy 401s on cold entry.
+  const restoreSession = !passwordRecovery;
+  const sessionKey = passwordRecovery ? "password-recovery" : "session";
 
   return (
     <AuthProviderSession

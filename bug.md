@@ -2749,7 +2749,7 @@ S01〜S12の業務シナリオ検証に続き、個別フォーム単位の受�
 ## BUG-031: ログイン済み状態で `/login` に直接アクセスしても自動リダイレクトされない
 
 - **重大度**: 低〜中（セキュリティ上の実害は小さいが、仕様と異なる導線）
-- **対応状況（2026-08-03 JST）**: OPEN | **根拠**: `LoginForm` は isAuthenticated で Navigate するが `/login` は `restoreSession=false` で session 非 hydrate（wave-4） | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: 有効 cookie で /login 直開き→home の session hydrate 契約を実装
+- **対応状況（2026-08-06 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: AuthProvider が password-recovery 以外（`/login` 含む）で session restore。cold `/login` で refreshToken 1 回後 isAuthenticated→LoginForm Navigate。scoped vitest 33/33 green | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: V05-1 #3 ブラウザ再検証
 - **発見シナリオ**: V05-1 ログイン #3
 - **再現手順**:
   1. ノアとしてログイン済みの状態（`/owners` 等が正常表示されることで確認済み）で `/login` に直接アクセス

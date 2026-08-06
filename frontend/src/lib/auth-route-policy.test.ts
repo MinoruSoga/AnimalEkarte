@@ -4,6 +4,7 @@ import { paths } from "@/config/paths";
 
 import {
   isAuthPublicPath,
+  isLoginPublicPath,
   isPasswordRecoveryPublicPath,
 } from "./auth-route-policy";
 
@@ -20,6 +21,13 @@ describe("isPasswordRecoveryPublicPath", () => {
     expect(isAuthPublicPath(paths.auth.forgotPassword.path)).toBe(true);
     expect(isAuthPublicPath(paths.auth.resetPassword.path)).toBe(true);
     expect(isAuthPublicPath(paths.home.path)).toBe(false);
+  });
+
+  it("identifies login for BUG-031 session hydrate without treating recovery as login", () => {
+    expect(isLoginPublicPath(paths.auth.login.path)).toBe(true);
+    expect(isLoginPublicPath("/login/")).toBe(true);
+    expect(isLoginPublicPath(paths.auth.forgotPassword.path)).toBe(false);
+    expect(isLoginPublicPath(paths.home.path)).toBe(false);
   });
 
   it.each([
