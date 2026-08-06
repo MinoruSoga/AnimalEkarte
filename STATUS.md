@@ -66,8 +66,8 @@ rg -n '^- \*\*対応状況' STATUS.md | rg -o 'IMPLEMENTED_UNVERIFIED|OPEN|BLOCK
 
 ## 推奨 USER 順（local 実測反映 · **ブラウザ検証は residual 対象外**）
 
-> **除外 (2026-08-06)**: TASK-010 / IU ブラウザバッチ / `BROWSER_VERIFICATION_*` は residual closeout に含めない。手順書は保管のみ（[`reports/BROWSER_VERIFICATION_RUNBOOK.md`](reports/BROWSER_VERIFICATION_RUNBOOK.md)）。`VERIFIED_FIXED` 付与も residual では扱わない。
-
+> **除外 (2026-08-06)**: TASK-010 / IU ブラウザバッチ / `BROWSER_VERIFICATION_*` は residual closeout に含めない。手順書は保管のみ（[`reports/BROWSER_VERIFICATION_RUNBOOK.md`](reports/BROWSER_VERIFICATION_RUNBOOK.md)）。`VERIFIED_FIXED` 付与も residual では扱わない。  
+> **PO 決裁**: HOLD ゲート（021 / 033 / LINE-R05 / 判断待ち Issue）は Opus 用プロンプト [`reports/2026-08-06-po-decision-prompt-for-opus.md`](reports/2026-08-06-po-decision-prompt-for-opus.md) へ。
 1. ~~TASK-378-reset + TASK-009~~ — **local 完了**（`make reset` postflight OK · ranges=20 · stack healthy）
 2. **E2E_LOGIN_*** 注入 → TASK-020 / TASK-023（Playwright · 5 フロー UAT。ブラウザ手作業バッチとは別）
 3. **POST-PULL / 他 env の TASK-032-apply / TASK-374-apply** — 未適用環境のみ `make migrate` / 必要時 reset
