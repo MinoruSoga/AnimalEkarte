@@ -3233,13 +3233,13 @@ S01〜S12の業務シナリオ検証に続き、個別フォーム単位の受�
 
 ## 4. ブラウザ再検証
 
-詳細表は複製しない。正本:
-
-**[`reports/BROWSER_VERIFICATION_BACKLOG.md`](reports/BROWSER_VERIFICATION_BACKLOG.md)**
+| 文書 | 役割 |
+|------|------|
+| **[`reports/BROWSER_VERIFICATION_RUNBOOK.md`](reports/BROWSER_VERIFICATION_RUNBOOK.md)** | **手順の単一入口**（実施順・合格条件・チェックリスト） |
+| [`reports/BROWSER_VERIFICATION_BACKLOG.md`](reports/BROWSER_VERIFICATION_BACKLOG.md) | 結果表（PASS/FAIL 記入） |
 
 - §3 は実装状態（IU 等）の正本
 - ブラウザ PASS 後に §3 の `原文シナリオ再検証` / `VERIFIED_FIXED` を人が更新
-
 ---
 
 ## 5. 正本境界・安全
@@ -3250,6 +3250,7 @@ S01〜S12の業務シナリオ検証に続き、個別フォーム単位の受�
 | Issue 受け入れ条件・議論 | 各 GitHub Issue |
 | PO 判断・記入フォーム | [`q&a.html`](q&a.html) |
 | 今フェーズ外 | [`phase2.html`](phase2.html) |
+| ブラウザ手順 | [`reports/BROWSER_VERIFICATION_RUNBOOK.md`](reports/BROWSER_VERIFICATION_RUNBOOK.md) |
 | ブラウザ結果表 | [`reports/BROWSER_VERIFICATION_BACKLOG.md`](reports/BROWSER_VERIFICATION_BACKLOG.md) |
 | 完了証跡 | git 履歴・Issue close |
 

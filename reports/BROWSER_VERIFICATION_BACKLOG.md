@@ -1,14 +1,18 @@
 # ブラウザ確認バックログ（bug.md 分離）
 
-**作業台帳:** [`../STATUS.md`](../STATUS.md)（§3 = BUG 実装、§4 = 本ファイル）
+**作業台帳:** [`../STATUS.md`](../STATUS.md)（§3 = BUG 実装、§4 = ブラウザ）
+
+| 文書 | 役割 |
+|------|------|
+| **[`BROWSER_VERIFICATION_RUNBOOK.md`](./BROWSER_VERIFICATION_RUNBOOK.md)** | **手順の単一入口**（実施順・画面・合格条件・チェックリスト） |
+| **本ファイル** | **結果表**（UNREPORTED / PASS / FAIL / BLOCKED / WAIVED） |
 
 - **作成日**: 2026-08-06
-- **目的**: `STATUS.md` §3 が BUG 実装状態の正本。ブラウザ / 手動 E2E / 原文シナリオ再検証は**本ドキュメントに集約**し、後から一括実施する。
+- **目的**: `STATUS.md` §3 が BUG 実装状態の正本。ブラウザ結果は本表、**手の動かし方は RUNBOOK**。
 - **方針**:
   - エージェントは `VERIFIED_FIXED` を付けない
   - ブラウザ未実施でも実装完了は `IMPLEMENTED_UNVERIFIED` のまま正とする
-  - 本バッチ完了後、結果を本表に記入し、必要なら `STATUS.md` §3 個票の `原文シナリオ再検証` と `VERIFIED_FIXED` を更新する
-
+  - 実施時は RUNBOOK に従い、結果だけを本表に記入。PASS 後に必要なら `STATUS.md` §3 個票を人が更新
 ## 実施環境（バッチ時に記入）
 
 | 項目 | 値 |
