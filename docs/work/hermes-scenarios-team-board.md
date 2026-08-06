@@ -89,19 +89,24 @@ Hermes には上の **runtime 検証カード**を渡し、PCG は将来の **�
 |----|------|------|
 | RT-S04 | **PASS (API)** | `GET /api/liff/1/courses` 200; container `LIFF_MOCK=true` |
 | RT-S12 | **PASS (API)** | `GET /api/liff/1/health-card` 200; `VITE_LIFF_MOCK=true` |
-| RT-S02 | **PARTIAL** | ranges=20; unit assessment green; **UI BLOCKED** no login creds |
-| RT-S01-A1 | **BLOCKED** | needs authenticated UI + data |
-| RT-S05-A2 | **BLOCKED** | needs authenticated UI + data |
-| RT-S08-partial | **BLOCKED** | needs authenticated UI |
-| RT-S11 | **BLOCKED** | needs authenticated UI |
+| RT-S02 | **PASS (API H/L)** · UI e2e smoke PASS | auth cookie login 200; create exam+`exam_type_field_id` → high/low/normal + `is_assessed=true`; Playwright `examinations-flow` 5/5; seed free-text-only rows still 未判定 |
+| RT-S01-A1 | **PARTIAL** | auth OK; death A1 not executed (destructive) |
+| RT-S05-A2 | **PARTIAL** | Playwright `hospitalization-flow` 4/4; discharge atomic A2 not run |
+| RT-S08-partial | **PARTIAL** | accounting list/unpaid/reports PASS; partial-pay complete path not fully walked |
+| RT-S11 | **PARTIAL** | Playwright `trimming-flow` 3/3; complete→badge e2e not run |
+| RT-S10 | **FAIL (timeout)** | `GET /clinics/1/owners/aggregations` 500 @ ~20s context deadline |
 
-### ブロッカー
+### Playwright focused suite（E2E_LOGIN_* 注入後）
 
-- `.env.local` の `DEV_ADMIN_EMAIL` / `DEV_ADMIN_PASSWORD` および `E2E_LOGIN_*` が **空**
-- seed に `admin@example.com` 等の email はあるが、**平文パスワードは repo に無い**（hash のみ）
-- USER: `PO-todo` PO-04 で E2E 資格情報を host に注入すれば RT 残りを消化可能
+- **33 passed / 4 failed** (`auth-flows`, `business-smoke`, `examinations-flow`, `hospitalization-flow`, `trimming-flow` green; failures = owners search placeholder + accounting Iris かな検索 locator/seed drift)
 
-### 次の製品 unit（PCG 候補 · 再現後）
+### ブロッカー（更新）
 
-1. S02 UI で ranges ありなのに未判定のままなら — assess 配線調査 unit  
-2. 現状 API/unit は PASS なので **まず認証注入 → ブラウザ RT-S02** を優先
+- ~~E2E_LOGIN_* 未設定~~ → **解除**（`.env.local` に USER が設定。値は chat に出さない）
+- 残り: 破壊的/fixture 依存カード（死亡 A1、退院会計失敗、部分入金通し、会計→トリミング完了）
+- **製品候補**: S10 顧客集計クエリ timeout（large seed）
+
+### 次の製品 unit（PCG 候補）
+
+1. **S10** `ListOwnerAggregation` 20s timeout — インデックス/クエリ or ページ戦略  
+2. Seed free-text `normal_value` のみの検査が UI で未判定に見える件 — 実害は field_id パスでは PASS なので優先度低（表示説明 or レガシー seed 整理）

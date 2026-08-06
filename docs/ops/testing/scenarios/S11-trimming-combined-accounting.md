@@ -51,4 +51,4 @@
   - 精算を `POST /accountings/complete` に合わせて記載
   - trimming UNION ALL 取得・pet_id 単位 pull は現行 main で再確認
 
-- runtime 2026-08-07: **BLOCKED** — authenticated UI requires E2E_LOGIN_* or non-empty DEV_ADMIN_* in host `.env.local` (currently empty). Stack healthy :3003/:8080.
+- runtime 2026-08-07: **PARTIAL** — auth OK; Playwright `trimming-flow` 3/3 PASS (list/new/form). Accounting-complete → trimming 完了 badge e2e **not executed** (needs multi-step fixture).

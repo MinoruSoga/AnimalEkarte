@@ -36,7 +36,7 @@ rg -n '^- \*\*対応状況' STATUS.md | rg -o 'IMPLEMENTED_UNVERIFIED|OPEN|BLOCK
 | `exam_reference_ranges` | **COUNT = 20**（TASK-009 local 適用完了） |
 | `seeds/003_demo` | schema_migrations 記録済み・postflight missing=0 |
 | seed CSV 列ずれ修正 | `checkup_types` / `checkup_type_fields` に `import_namespace,import_key`、`exams` に `current_revision_version` を末尾追加（COPY 位置合わせ） |
-| `E2E_LOGIN_*` | host / `.env.local` とも **UNSET**（020/023 は未） |
+| `E2E_LOGIN_*` | **SET**（host `.env.local` · 2026-08-07）· login cookie 200 · Playwright focused 33/37 · 020/023 フル UAT は残 |
 | claim/* | local / origin とも **0**（SCEN-OPS-CLAIM クローズ） |
 | open GitHub Issue | **18**（§2） |
 | TASK-032/374 DDL local | 存在（他環境 apply は残） |
@@ -50,10 +50,10 @@ rg -n '^- \*\*対応状況' STATUS.md | rg -o 'IMPLEMENTED_UNVERIFIED|OPEN|BLOCK
 | TASK-005 | land 前 closed-pack 回帰 | USER | open（land 都度） |
 | TASK-009 | 003_demo seed の **DB 適用**（static 済） | USER | **local DONE**（ranges=20）· 他 env 残 |
 | TASK-010 | scenarios 要実測 / ブラウザ IU 32 | USER | **除外**（2026-08-06 · residual 対象外。手順は RUNBOOK に保管） |
-| TASK-020 | Playwright runtime（要 E2E_LOGIN_*） | USER | open · credential 待ち |
+| TASK-020 | Playwright runtime（要 E2E_LOGIN_*） | USER | **partial** · cred 済 · focused 33/37 · 失敗 4 は検索 locator drift |
 | TASK-021 | exclusion 破壊削除 | USER+PO | **A 追認+DEC-68** · B/C/D HOLD（client registry + access log · 90 日再裁定） |
 | TASK-022 | #239 S13 手動 correction / RLS 証跡 | USER | open |
-| TASK-023 | #254 5 フロー UAT | USER | open · credential 待ち |
+| TASK-023 | #254 5 フロー UAT | USER | open · cred 済 · 通し 5 フローは未完 |
 | TASK-024 | #256 screenshot / FAQ sign-off | USER | open · **必須残**（Fable RATIFY · #256 close gate） |
 | TASK-032-apply | lab import migration 適用 + claim | USER | local DDL 済 · claim 0 · 他 env 残 |
 | TASK-033 | #201 救急投薬 cutover | 臨床+USER | HOLD · 骨格先行禁止 **Fable RATIFY** · 解除後 UNIT-033 一体 |
@@ -68,7 +68,7 @@ rg -n '^- \*\*対応状況' STATUS.md | rg -o 'IMPLEMENTED_UNVERIFIED|OPEN|BLOCK
 > **PO 決裁（2026-08-06 採択）**: [`docs/work/decisions/fable-po-recommendation.md`](docs/work/decisions/fable-po-recommendation.md)（Opus 20 RATIFY · DEC-68）。中間プロンプト/Opus pack/residual team レポートは削除済み（git 履歴参照）。**USER は後から覆せる。**  
 > **あなたが手を動かすリスト**: [`PO-todo.md`](PO-todo.md)。0. ~~Fable 採択 + DEC-68~~ — **docs 完了**（本更新）
 1. ~~TASK-378-reset + TASK-009~~ — **local 完了**（`make reset` postflight OK · ranges=20 · stack healthy）
-2. **E2E_LOGIN_*** 注入 → TASK-020 / TASK-023（Playwright · 5 フロー UAT。ブラウザ手作業バッチとは別）
+2. ~~**E2E_LOGIN_*** 注入~~ **済** → TASK-020 partial / TASK-023 5 フロー UAT 通し・失敗 4（owners 検索 placeholder · accounting Iris かな）の整理
 3. **POST-PULL / 他 env の TASK-032-apply / TASK-374-apply** — 未適用環境のみ `make migrate` / 必要時 reset
 4. **TASK-022 / TASK-024** 人証跡（S13 · screenshot/FAQ）
 5. **TASK-021-B/C/D** external inventory 後のみ（response / route / migrate DROP）

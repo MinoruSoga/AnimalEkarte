@@ -49,4 +49,4 @@
   - クレジット訂正 API パス・カード系 method・未納定義（waiting）を現行実装に合わせて整理
   - 監査 fail-closed / X-Clinic-ID 拠点横断は変更なし
 
-- runtime 2026-08-07: **BLOCKED** — authenticated UI requires E2E_LOGIN_* or non-empty DEV_ADMIN_* in host `.env.local` (currently empty). Stack healthy :3003/:8080.
+- runtime 2026-08-07: **PARTIAL** — auth OK; Playwright accounting list/unpaid tab/reports PASS; `GET /accountings` 200 total=163. Partial-payment UI still expected disabled (`remaining !== 0`) — full correction/complete path not walked end-to-end this session. Kana search e2e for「Iris」2 cases FAIL (seed/UI locator drift, not auth).

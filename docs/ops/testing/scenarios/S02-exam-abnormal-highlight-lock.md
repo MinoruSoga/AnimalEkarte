@@ -52,4 +52,4 @@
   - inclusive range・未判定バッジ・status 5 値の BE enum をソースに合わせて明記
   - 確定解除は専用権限がある旨を手順 7 に注記（本シナリオのロック確認は通常 edit）
 
-- runtime 2026-08-07: **PARTIAL** — DB `exam_reference_ranges` COUNT=20; pure unit `TestComputeExamResultAssessment` green on host. Browser H/L path **BLOCKED** (E2E_LOGIN/DEV_ADMIN empty in .env.local).
+- runtime 2026-08-07: **PARTIAL** (auth unlocked) — DB `exam_reference_ranges` COUNT=20; pure unit green. Authenticated API: create exam type=血液検査（院内）+ `exam_type_field_id` on living dog pet → PUT items yields **high/low/normal** with `is_assessed=true` (300→high, 1→low, 6/10/17→normal, inclusive). Seed pending exams with free-text `normal_value` only (no field id) stay `is_assessed=false` even when range text shows. Playwright `examinations-flow` 5/5 PASS (list/select-pet/new/detail/search). Full UI HIGH/LOW badge still needs browser entry on form (not asserted in e2e). Cleanup: probe exams deleted.

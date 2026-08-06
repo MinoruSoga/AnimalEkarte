@@ -62,14 +62,16 @@
 
 ### 帯 2 — 認証付き検証を進めたいとき
 
-- [ ] **PO-04 · E2E 資格情報**  
+- [x] **PO-04 · E2E 資格情報**  
   - **何を**: host に `E2E_LOGIN_EMAIL` / `E2E_LOGIN_PASSWORD` を注入  
   - **完了条件**: シェルで SET（値は repo に書かない）  
   - **Fable**: `NEEDS_USER_OPS`（PO 方針ではなく ops）  
+  - **2026-08-07**: `.env.local` に SET · login cookie 200（値は chat/repo に書かない）
 
-- [ ] **PO-05 · TASK-020**  
+- [x] **PO-05 · TASK-020**（partial）  
   - **何を**: Playwright 実行  
   - **完了条件**: green / 失敗ログを手元保管  
+  - **2026-08-07**: focused suite 33/37 PASS · 失敗 4 = owners 検索 placeholder / accounting Iris かな（auth ではない）
 
 - [ ] **PO-06 · TASK-023 / #254**  
   - **何を**: 5 業務フロー UAT  

@@ -52,3 +52,5 @@
   - BUG-012: BE 20s / FE 25s timeout と payments clinic scope を確認観点に追加
   - 金額基準 API 値（gross/paid/net）と UI ラベル「精算済」を明記
   - LTV 期間軸 `COALESCE(bmr.date, b.scheduled_date)` を実装どおり記載
+
+- runtime 2026-08-07: **FAIL (API timeout)** — auth OK; canonical `GET /api/v1/clinics/1/owners/aggregations` → **500** after ~20s (`database error: timeout: context deadline exceeded`, log `ListOwnerAggregation`). Non-canonical `/owners/aggregations` → 400 (`id` param). Large seed (owners≈10k) makes aggregation unusable under default timeout; product/performance follow-up, not credential issue.
