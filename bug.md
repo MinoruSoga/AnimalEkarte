@@ -591,7 +591,7 @@
 ## BUG-007: 予防接種を新規登録しても、一覧・対象ペットの「過去の接種履歴」パネルのどちらにも表示されず、登録結果を画面上で確認できない
 
 - **重大度**: 中〜高（S03 手順6の中核要件「自動計算結果を画面上でいつでも確認できる」が満たされない）
-- **対応状況（2026-08-06 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: `useGetVaccinations` が `pet_id` + `page`/`limit=HISTORY_FETCH_LIMIT` を送る。`VaccinationForm` 履歴は pet スコープ取得に切替（unscoped page1+client filter 廃止）。`useGetPetVaccinations` も limit 明示。scoped vitest 30/30 green | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: S03 手順6・7で登録直後の履歴・一覧をブラウザ再検証
+- **対応状況（2026-08-06 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: 到達済み commit `7f663716d0b2bfac3a8f5fd5cfe7e9291b2d22da` で `useGetVaccinations` が `pet_id` + `page`/`limit=HISTORY_FETCH_LIMIT` を送る。`VaccinationForm` 履歴は pet スコープ取得に切替（unscoped page1+client filter 廃止）。`useGetPetVaccinations` も limit 明示。scoped vitest 30/30 green | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: S03 手順6・7で登録直後の履歴・一覧をブラウザ再検証
 - **発見シナリオ**: S03 手順6・7（予防接種管理 `/vaccinations`）
 - **再現手順**:
   1. `/vaccinations/new?petId=1000002`（伊藤史安／豆助）で接種日=2026/07/31、ワクチン=バンガードL4(4種)、次回予定=2026/09/15（手動調整）として保存 → 「予防接種を登録しました」の成功トーストが出る。
