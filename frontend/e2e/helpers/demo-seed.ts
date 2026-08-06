@@ -18,12 +18,20 @@ export const DEMO_PETER_PET = {
 } as const;
 
 /**
- * Accounting list client-side kana filter (page-scoped).
- * Must appear on GET /accountings?page=1&limit=20 for clinic 1 seed.
+ * Accounting list text search targets (server-side `?search=`).
  * Iris has no billing rows in 003_demo — do not use for accounting smoke.
+ *
+ * - SAKI: page-1 pet (also used when list is already loaded)
+ * - BERUSU: not on page 1 without search — proves cross-page server search + kana
  */
 export const DEMO_ACCOUNTING_KANA_PET = {
   displayName: 'サキ',
   hiraganaSearch: 'さき',
   katakanaSearch: 'サキ',
+} as const;
+
+export const DEMO_ACCOUNTING_OFFPAGE_PET = {
+  displayName: 'ベルス',
+  hiraganaSearch: 'べるす',
+  katakanaSearch: 'ベルス',
 } as const;

@@ -28,10 +28,12 @@ func TestNewListAccountingQuery(t *testing.T) {
 				"status":     {"completed"},
 				"start_date": {"2026-05-01"},
 				"end_date":   {"2026-05-31"},
+				"search":     {"べるす"},
 			},
 			want: listAccountingQuery{
 				PetID: "10", OwnerID: "20", Status: "completed",
 				StartDate: "2026-05-01", EndDate: "2026-05-31",
+				Search: "べるす",
 			},
 		},
 		{

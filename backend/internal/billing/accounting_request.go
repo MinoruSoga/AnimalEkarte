@@ -15,6 +15,7 @@ type listAccountingQuery struct {
 	Status    string
 	StartDate string
 	EndDate   string
+	Search    string
 }
 
 func newListAccountingQuery(values url.Values) listAccountingQuery {
@@ -24,6 +25,7 @@ func newListAccountingQuery(values url.Values) listAccountingQuery {
 		Status:    values.Get("status"),
 		StartDate: values.Get("start_date"),
 		EndDate:   values.Get("end_date"),
+		Search:    values.Get("search"),
 	}
 }
 
@@ -33,6 +35,7 @@ type listAccountingFilters struct {
 	Status    *string
 	StartDate *string
 	EndDate   *string
+	Search    string
 }
 
 func (q *listAccountingQuery) toServiceFilters() (listAccountingFilters, error) {
@@ -58,6 +61,7 @@ func (q *listAccountingQuery) toServiceFilters() (listAccountingFilters, error) 
 		Status:    optionalStringQueryFilter(q.Status),
 		StartDate: startDate,
 		EndDate:   endDate,
+		Search:    q.Search,
 	}, nil
 }
 

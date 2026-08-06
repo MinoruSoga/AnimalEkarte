@@ -201,7 +201,7 @@ func TestAccountingRepository_ReadsExcludeForeignSplitAndRefundRows(t *testing.T
 			nil,
 			nil,
 			nil,
-			1,
+			"", 1,
 			100,
 		)
 		require.NoError(t, err)
@@ -223,7 +223,7 @@ func TestAccountingRepository_ReadsExcludeForeignSplitAndRefundRows(t *testing.T
 			nil,
 			nil,
 			nil,
-			1,
+			"", 1,
 			100,
 		)
 		require.NoError(t, err)
@@ -879,7 +879,7 @@ func TestAccountingRepository_NestedStaffPreloadsRequireExactBillingClinic(
 			nil,
 			nil,
 			nil,
-			1,
+			"", 1,
 			100,
 		)
 		require.NoError(t, err)
@@ -909,7 +909,7 @@ func TestAccountingRepository_NestedStaffPreloadsRequireExactBillingClinic(
 			nil,
 			nil,
 			nil,
-			1,
+			"", 1,
 			100,
 		)
 		require.NoError(t, err)

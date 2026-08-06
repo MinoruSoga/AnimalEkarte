@@ -161,7 +161,7 @@ func (m *mockReservationRepository) CompleteForAccounting(ctx context.Context, c
 }
 
 type mockAccountingRepository struct {
-	findAllFn           func(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Billing, int64, error)
+	findAllFn           func(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, search string, page, limit int) ([]model.Billing, int64, error)
 	findByIDFn          func(ctx context.Context, clinicID, id uint64) (*model.Billing, error)
 	createFn            func(ctx context.Context, clinicID uint64, accounting *model.Billing) error
 	updateFieldsFn      func(ctx context.Context, clinicID, billingID uint64, fields map[string]any) (*model.Billing, error)
@@ -186,14 +186,14 @@ type mockAccountingRepository struct {
 	findByCompletionRequestIDFn func(ctx context.Context, clinicID uint64, requestID string) (*model.Billing, error)
 }
 
-func (m *mockAccountingRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Billing, int64, error) {
+func (m *mockAccountingRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, search string, page, limit int) ([]model.Billing, int64, error) {
 	if m.findAllFn != nil {
-		return m.findAllFn(ctx, clinicID, petID, ownerID, status, startDate, endDate, page, limit)
+		return m.findAllFn(ctx, clinicID, petID, ownerID, status, startDate, endDate, search, page, limit)
 	}
 	return nil, 0, nil
 }
 
-func (m *mockAccountingRepository) FindAllForClinics(_ context.Context, _ []uint64, _, _ *uint64, _, _, _ *string, _, _ int) ([]model.Billing, int64, error) {
+func (m *mockAccountingRepository) FindAllForClinics(_ context.Context, _ []uint64, _, _ *uint64, _, _, _ *string, _ string, _, _ int) ([]model.Billing, int64, error) {
 	return nil, 0, nil
 }
 

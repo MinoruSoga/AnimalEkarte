@@ -11,8 +11,8 @@ import (
 	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
-func (s *accountingService) List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Billing, int64, error) {
-	result, total, err := s.repo.FindAll(ctx, clinicID, petID, ownerID, status, startDate, endDate, page, limit)
+func (s *accountingService) List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, search string, page, limit int) ([]model.Billing, int64, error) {
+	result, total, err := s.repo.FindAll(ctx, clinicID, petID, ownerID, status, startDate, endDate, search, page, limit)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list accounting", "error", err)
 		return nil, 0, apperrors.Wrap(err, "failed to list accounting")
@@ -20,8 +20,8 @@ func (s *accountingService) List(ctx context.Context, clinicID uint64, petID, ow
 	return result, total, nil
 }
 
-func (s *accountingService) ListForClinics(ctx context.Context, clinicIDs []uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Billing, int64, error) {
-	result, total, err := s.repo.FindAllForClinics(ctx, clinicIDs, petID, ownerID, status, startDate, endDate, page, limit)
+func (s *accountingService) ListForClinics(ctx context.Context, clinicIDs []uint64, petID, ownerID *uint64, status, startDate, endDate *string, search string, page, limit int) ([]model.Billing, int64, error) {
+	result, total, err := s.repo.FindAllForClinics(ctx, clinicIDs, petID, ownerID, status, startDate, endDate, search, page, limit)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list accounting for clinics", "error", err)
 		return nil, 0, apperrors.Wrap(err, "failed to list accounting for clinics")

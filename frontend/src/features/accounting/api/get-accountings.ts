@@ -22,6 +22,11 @@ export interface AccountingFilters {
    * Backend: GET /api/v1/accountings?owner_id=...
    */
   ownerId?: string;
+  /**
+   * 飼主名・ペット名の部分一致検索（サーバサイド・かな正規化）。
+   * Backend: GET /api/v1/accountings?search=...
+   */
+  search?: string;
   /** 拠点横断表示 (#86 段階3): 2件以上の場合に clinic_ids クエリパラメータとして送信する。 */
   clinicIds?: string[];
 }
@@ -31,6 +36,7 @@ function buildAccountingParams(filters?: AccountingFilters): Record<string, stri
   if (filters?.startDate) params.start_date = filters.startDate;
   if (filters?.endDate) params.end_date = filters.endDate;
   if (filters?.ownerId) params.owner_id = filters.ownerId;
+  if (filters?.search?.trim()) params.search = filters.search.trim();
   if (filters?.clinicIds && filters.clinicIds.length > 1) params.clinic_ids = filters.clinicIds.join(",");
   return params;
 }

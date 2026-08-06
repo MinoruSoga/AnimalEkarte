@@ -151,8 +151,8 @@ func TestUpdateAccounting_PostClose(t *testing.T) {
 // ---- mock AccountingService (full interface, nil-safe forwarding) ----
 
 type mockAccountingService struct {
-	listFn                      func(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Billing, int64, error)
-	listForClinicsFn            func(ctx context.Context, clinicIDs []uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Billing, int64, error)
+	listFn                      func(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, search string, page, limit int) ([]model.Billing, int64, error)
+	listForClinicsFn            func(ctx context.Context, clinicIDs []uint64, petID, ownerID *uint64, status, startDate, endDate *string, search string, page, limit int) ([]model.Billing, int64, error)
 	getByIDFn                   func(ctx context.Context, clinicID, id uint64) (*model.Billing, error)
 	getByIDForClinicsFn         func(ctx context.Context, clinicIDs []uint64, id uint64) (*model.Billing, error)
 	createFn                    func(ctx context.Context, input *CreateAccountingInput) (*model.Billing, error)
@@ -167,12 +167,12 @@ type mockAccountingService struct {
 	getDailySummaryForClinicsFn func(ctx context.Context, clinicIDs []uint64, dateStr string) ([]ClinicDailySummary, error)
 }
 
-func (m *mockAccountingService) List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Billing, int64, error) {
-	return m.listFn(ctx, clinicID, petID, ownerID, status, startDate, endDate, page, limit)
+func (m *mockAccountingService) List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, search string, page, limit int) ([]model.Billing, int64, error) {
+	return m.listFn(ctx, clinicID, petID, ownerID, status, startDate, endDate, search, page, limit)
 }
 
-func (m *mockAccountingService) ListForClinics(ctx context.Context, clinicIDs []uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Billing, int64, error) {
-	return m.listForClinicsFn(ctx, clinicIDs, petID, ownerID, status, startDate, endDate, page, limit)
+func (m *mockAccountingService) ListForClinics(ctx context.Context, clinicIDs []uint64, petID, ownerID *uint64, status, startDate, endDate *string, search string, page, limit int) ([]model.Billing, int64, error) {
+	return m.listForClinicsFn(ctx, clinicIDs, petID, ownerID, status, startDate, endDate, search, page, limit)
 }
 
 func (m *mockAccountingService) GetByID(ctx context.Context, clinicID, id uint64) (*model.Billing, error) {
@@ -249,7 +249,7 @@ func TestListAccountings(t *testing.T) {
 			query:    "",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockAccountingService{
-				listFn: func(_ context.Context, clinicID uint64, _, _ *uint64, _, _, _ *string, page, limit int) ([]model.Billing, int64, error) {
+				listFn: func(_ context.Context, clinicID uint64, _, _ *uint64, _, _, _ *string, _ string, page, limit int) ([]model.Billing, int64, error) {
 					assert.Equal(t, uint64(1), clinicID)
 					assert.Equal(t, 1, page)
 					assert.Equal(t, 20, limit)
@@ -268,7 +268,7 @@ func TestListAccountings(t *testing.T) {
 				c.Set("clinic_ids", []uint64{1, 2})
 			},
 			svc: &mockAccountingService{
-				listForClinicsFn: func(_ context.Context, clinicIDs []uint64, _, _ *uint64, _, _, _ *string, _, _ int) ([]model.Billing, int64, error) {
+				listForClinicsFn: func(_ context.Context, clinicIDs []uint64, _, _ *uint64, _, _, _ *string, _ string, _, _ int) ([]model.Billing, int64, error) {
 					assert.Equal(t, []uint64{1, 2}, clinicIDs)
 					return []model.Billing{{ID: 2, ClinicID: 2, ScheduledDate: time.Now()}}, 1, nil
 				},
@@ -300,7 +300,7 @@ func TestListAccountings(t *testing.T) {
 			name:     "returns 500 on service error",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockAccountingService{
-				listFn: func(_ context.Context, _ uint64, _, _ *uint64, _, _, _ *string, _, _ int) ([]model.Billing, int64, error) {
+				listFn: func(_ context.Context, _ uint64, _, _ *uint64, _, _, _ *string, _ string, _, _ int) ([]model.Billing, int64, error) {
 					return nil, 0, fmt.Errorf("db failure")
 				},
 			},

@@ -1,6 +1,5 @@
 // React/Framework
 import { ICON, C, LAYOUT } from "@/lib/design-tokens";
-import { normalizeKana } from "@/lib/normalize-kana";
 import { useCallback, useDeferredValue, useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 
@@ -47,9 +46,8 @@ const CLINIC_TOGGLE_RESET_PARAMS = ["page"] as const;
 // backend parsePagination の既定 limit(20) を踏襲する。
 const ACCOUNTING_PAGE_SIZE = 20;
 
-// BUG-411 react-reviewer指摘(HIGH): backend が受け付けないため client-only のまま残るフィルタキー。
-// これらが有効な間は「表示件数」と Pagination の「総件数」が別ソース（前者=現在ページの絞込結果、
-// 後者=サーバ生total）になり乖離しうる。ユーザーへの明示的な告知で対応する（案B）。
+// BUG-411: status / paymentMethod は backend 未対応のため client-only のまま。
+// テキスト検索 (search) はサーバサイド化済み — ページ横断で飼主名・ペット名を探す。
 const CLIENT_ONLY_FILTER_KEYS = ["status", "paymentMethod"];
 
 // rerender-stable-empty-array: pageResult 未ロード時のフォールバックを毎レンダー新規配列にしない
@@ -103,10 +101,7 @@ export function AccountingList() {
   // FE-144: URLクエリパラメータからページ番号を読み取る（BUG-411: サーバフェッチのキーそのものになる）
   const urlPage = Math.max(1, Number(searchParams.get("page") ?? 1) || 1);
 
-  // activeFilters から日付フィルタのみを抽出してAPIに渡す
-  // ステータス・支払方法フィルタは backend が受け付けないためクライアントサイドのまま維持
-  // （BUG-411: この制約は修正前から変わらない — 以前も「取得済み20件の中でだけ」フィルタされていた。
-  //  サーバページネーション化後も「取得済み1ページの中でだけ」に変わるのみで、退行ではない）
+  // 日付 + テキスト検索はサーバへ。ステータス・支払方法は backend 未対応のため client-only。
   const apiFilters = useMemo<AccountingPageFilters>(() => {
     const dateFilter = activeFilters.find((f) => f.key === "date")?.value as
       | { from?: string; to?: string }
@@ -114,20 +109,21 @@ export function AccountingList() {
     return {
       startDate: dateFilter?.from,
       endDate: dateFilter?.to,
+      search: deferredSearch.trim() || undefined,
       clinicIds: isMultiClinic ? selectedClinicIds : undefined,
       page: urlPage,
       limit: ACCOUNTING_PAGE_SIZE,
     };
-  }, [activeFilters, isMultiClinic, selectedClinicIds, urlPage]);
+  }, [activeFilters, deferredSearch, isMultiClinic, selectedClinicIds, urlPage]);
 
   const { data: pageResult, isLoading, isError } = useGetAccountingsPage(apiFilters);
   const accountings = pageResult?.data ?? EMPTY_ACCOUNTINGS;
 
-  // js-cache-function-results: フィルタ結果を useMemo でキャッシュ
+  // js-cache-function-results: client-only フィルタ結果を useMemo でキャッシュ
   const filteredRecords = useMemo(() => {
     let result = accountings;
 
-    // ActiveFilter からフィルタ適用（condition 対応）
+    // ActiveFilter からフィルタ適用（condition 対応）— status は client-only
     const statusFilter = activeFilters.find((f) => f.key === "status");
     if (statusFilter && typeof statusFilter.value === "string") {
       result = result.filter((r) => {
@@ -161,18 +157,8 @@ export function AccountingList() {
       });
     }
 
-    // テキスト検索（カタカナ・ひらがな非区別）
-    if (deferredSearch) {
-      const normalizedTerm = normalizeKana(deferredSearch).toLowerCase();
-      result = result.filter(
-        (r) =>
-          normalizeKana(r.ownerName).toLowerCase().includes(normalizedTerm) ||
-          normalizeKana(r.petName).toLowerCase().includes(normalizedTerm),
-      );
-    }
-
     return result;
-  }, [accountings, activeFilters, deferredSearch]);
+  }, [accountings, activeFilters]);
 
   const getSortValue = useCallback((item: AccountingType, key: string) => {
     if (key === "totalAmount") return calculateAccountingTotal(item);
@@ -182,18 +168,18 @@ export function AccountingList() {
   const { activeSorts, setActiveSorts, toggleSort, directionFor, sortedData } =
     useSortableData(filteredRecords, { getSortValue });
 
-  // BUG-411 react-reviewer指摘(HIGH): 検索語 or client-only フィルタ（ステータス・支払方法）が
-  // 有効な間は、表示行数（現在ページ内で絞り込み済み）と Pagination の総件数（サーバ生total）が
-  // 一致しない。ユーザーに明示する。
-  const hasPageScopedFilter =
-    deferredSearch !== "" || activeFilters.some((f) => CLIENT_ONLY_FILTER_KEYS.includes(f.key));
+  // client-only フィルタ中のみ、表示件数と Pagination total が乖離しうる。
+  const hasPageScopedFilter = activeFilters.some((f) =>
+    CLIENT_ONLY_FILTER_KEYS.includes(f.key),
+  );
 
   // BUG-411: usePagination() のクライアントスライスを撤去し、サーバの total/page/limit をそのまま使う。
-  // paginatedData はクライアントフィルタ・ソート済みの「現在ページの行」（サーバは既にページ分だけ返す）。
+  // テキスト検索はサーバ total と一致。client-only フィルタ時のみページ内絞込（表示件数のみ乖離しうる）。
   const serverTotal = pageResult?.total ?? 0;
   const serverLimit = pageResult?.limit ?? ACCOUNTING_PAGE_SIZE;
   const serverPage = pageResult?.page ?? urlPage;
   const totalPages = Math.max(1, Math.ceil(serverTotal / serverLimit));
+  const displayTotal = hasPageScopedFilter ? filteredRecords.length : serverTotal;
   const pagination = {
     paginatedData: sortedData,
     totalPages,
@@ -308,18 +294,18 @@ export function AccountingList() {
           <UnifiedTabsContent value="list" className="mt-4">
             {isLoading ? <LoadingFallback /> : null}
             {isError ? <ErrorFallback /> : null}
-            {!isLoading && !isError && hasPageScopedFilter && pagination.totalPages > 1 ? (
+            {!isLoading && !isError && hasPageScopedFilter ? (
               <div className={`flex items-start gap-2 rounded-md px-3 py-2 mb-3 text-sm ${C.textWarning}`}>
                 <Info className={`${ICON.action} ${C.textWarningIcon} shrink-0 mt-0.5`} />
                 <span>
-                  検索・ステータス・支払方法での絞り込みは現在表示中のページ内のみが対象です。
-                  他のページにある会計はこの検索では見つかりません。全期間から探す場合は日付での絞り込みをご利用ください。
+                  ステータス・支払方法での絞り込みは現在表示中のページ内のみが対象です。
+                  飼主名・ペット名の検索は全件を対象にサーバで行います。
                 </span>
               </div>
             ) : null}
             {!isLoading && !isError ? (
               <AccountingListTable
-                filteredCount={filteredRecords.length}
+                filteredCount={displayTotal}
                 pagination={pagination}
                 searchTerm={searchTerm}
                 activeFilters={activeFilters}

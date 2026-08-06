@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"gorm.io/gorm"
@@ -12,12 +13,52 @@ import (
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/persistence"
+	"github.com/animal-ekarte/backend/internal/textsearch"
 )
 
+// applyBillingOwnerPetSearch scopes billings by owner/pet display names with
+// katakana→hiragana symmetry (same translate/NormalizeKana contract as owners list).
+func applyBillingOwnerPetSearch(q *gorm.DB, search string) *gorm.DB {
+	rawPattern := "%" + textsearch.EscapeLike(search) + "%"
+	normalizedPattern := "%" + textsearch.EscapeLike(textsearch.NormalizeKana(search)) + "%"
+	return q.Where(
+		`(
+			EXISTS (
+				SELECT 1 FROM owners o
+				WHERE o.id = billings.owner_id
+				  AND o.clinic_id = billings.clinic_id
+				  AND o.deleted_at IS NULL
+				  AND (
+				    o.name ILIKE ? ESCAPE '\'
+				    OR translate(o.name, ?, ?) ILIKE ? ESCAPE '\'
+				    OR translate(COALESCE(o.name_kana, ''), ?, ?) ILIKE ? ESCAPE '\'
+				  )
+			)
+			OR EXISTS (
+				SELECT 1 FROM pets p
+				WHERE p.id = billings.pet_id
+				  AND p.clinic_id = billings.clinic_id
+				  AND p.deleted_at IS NULL
+				  AND (
+				    p.name ILIKE ? ESCAPE '\'
+				    OR translate(p.name, ?, ?) ILIKE ? ESCAPE '\'
+				    OR translate(COALESCE(p.name_kana, ''), ?, ?) ILIKE ? ESCAPE '\'
+				  )
+			)
+		)`,
+		rawPattern,
+		textsearch.KanaSourceChars, textsearch.KanaTargetChars, normalizedPattern,
+		textsearch.KanaSourceChars, textsearch.KanaTargetChars, normalizedPattern,
+		rawPattern,
+		textsearch.KanaSourceChars, textsearch.KanaTargetChars, normalizedPattern,
+		textsearch.KanaSourceChars, textsearch.KanaTargetChars, normalizedPattern,
+	)
+}
+
 type AccountingRepository interface {
-	FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Billing, int64, error)
+	FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, search string, page, limit int) ([]model.Billing, int64, error)
 	// FindAllForClinics は複数医院の会計を横断検索する (#86 段階3)。clinicIDs はハンドラ層で所属検証済みであること。
-	FindAllForClinics(ctx context.Context, clinicIDs []uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Billing, int64, error)
+	FindAllForClinics(ctx context.Context, clinicIDs []uint64, petID, ownerID *uint64, status, startDate, endDate *string, search string, page, limit int) ([]model.Billing, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Billing, error)
 	// FindByIDForClinics は複数医院スコープで会計を1件取得する (#86 詳細画面拠点横断)。clinicIDs はハンドラ層で所属検証済みであること。
 	FindByIDForClinics(ctx context.Context, clinicIDs []uint64, id uint64) (*model.Billing, error)
@@ -194,20 +235,21 @@ func sanitizeBillingSliceRelations(billings []model.Billing) {
 	}
 }
 
-func (r *accountingRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Billing, int64, error) {
+func (r *accountingRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, search string, page, limit int) ([]model.Billing, int64, error) {
 	q := r.db.WithContext(ctx).Model(&model.Billing{}).Scopes(persistence.ClinicScope(clinicID))
-	return r.findBillingsWithFilters(ctx, q, []uint64{clinicID}, petID, ownerID, status, startDate, endDate, page, limit)
+	return r.findBillingsWithFilters(ctx, q, []uint64{clinicID}, petID, ownerID, status, startDate, endDate, search, page, limit)
 }
 
-func (r *accountingRepository) FindAllForClinics(ctx context.Context, clinicIDs []uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Billing, int64, error) {
+func (r *accountingRepository) FindAllForClinics(ctx context.Context, clinicIDs []uint64, petID, ownerID *uint64, status, startDate, endDate *string, search string, page, limit int) ([]model.Billing, int64, error) {
 	q := r.db.WithContext(ctx).Model(&model.Billing{}).Scopes(persistence.ClinicScopeIn(clinicIDs))
-	return r.findBillingsWithFilters(ctx, q, clinicIDs, petID, ownerID, status, startDate, endDate, page, limit)
+	return r.findBillingsWithFilters(ctx, q, clinicIDs, petID, ownerID, status, startDate, endDate, search, page, limit)
 }
 
 // findBillingsWithFilters はフィルタ・ページネーション適用後に返金合計を付与して返す共通実装。
 // FindAll / FindAllForClinics の clinic スコープ差分は呼び出し元で適用済みのクエリ q を受け取る。
 // clinicIDs は Owner/Pet Preload の P3.1 clinic_id 述語用（AUD-002）。
-func (r *accountingRepository) findBillingsWithFilters(ctx context.Context, q *gorm.DB, clinicIDs []uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Billing, int64, error) {
+// search は飼主名・ペット名（かな正規化含む）のサーバサイド部分一致（BUG-411 後続 / ページ横断検索）。
+func (r *accountingRepository) findBillingsWithFilters(ctx context.Context, q *gorm.DB, clinicIDs []uint64, petID, ownerID *uint64, status, startDate, endDate *string, search string, page, limit int) ([]model.Billing, int64, error) {
 	billings := make([]model.Billing, 0)
 	var total int64
 
@@ -226,6 +268,9 @@ func (r *accountingRepository) findBillingsWithFilters(ctx context.Context, q *g
 	}
 	if endDate != nil {
 		q = q.Where("scheduled_date <= ?", *endDate)
+	}
+	if search = strings.TrimSpace(search); search != "" {
+		q = applyBillingOwnerPetSearch(q, search)
 	}
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "billing", "")

@@ -96,7 +96,7 @@ func TestAccountingRepository_FindAll_RejectsCorruptCrossClinicPetRelation(
 		nil,
 		nil,
 		nil,
-		1,
+		"", 1,
 		50,
 	)
 
@@ -133,7 +133,7 @@ func TestAccountingRepository_FindAllForClinics_RejectsCorruptCrossClinicPetRela
 		nil,
 		nil,
 		nil,
-		1,
+		"", 1,
 		50,
 	)
 
@@ -158,7 +158,7 @@ func TestAccountingRepository_FindAll_PreservesBillingWithoutPet(t *testing.T) {
 		nil,
 		nil,
 		nil,
-		1,
+		"", 1,
 		50,
 	)
 
@@ -250,7 +250,7 @@ func TestAccountingRepository_CoreReadsEnforceExactOwnerPetCorrelation(
 			nil,
 			nil,
 			nil,
-			1,
+			"", 1,
 			100,
 		)
 		require.NoError(t, err)
@@ -294,7 +294,7 @@ func TestAccountingRepository_CoreReadsEnforceExactOwnerPetCorrelation(
 			nil,
 			nil,
 			nil,
-			1,
+			"", 1,
 			100,
 		)
 		require.NoError(t, err)

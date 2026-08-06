@@ -63,6 +63,7 @@ func (h *AccountingHandler) ListAccountings(c *gin.Context) {
 			filters.Status,
 			filters.StartDate,
 			filters.EndDate,
+			filters.Search,
 			page,
 			limit,
 		)
@@ -75,6 +76,7 @@ func (h *AccountingHandler) ListAccountings(c *gin.Context) {
 			filters.Status,
 			filters.StartDate,
 			filters.EndDate,
+			filters.Search,
 			page,
 			limit,
 		)
