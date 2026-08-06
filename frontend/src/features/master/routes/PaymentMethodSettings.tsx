@@ -27,6 +27,7 @@ import type {
 import {
   buildPaymentMethodCreateRequest,
   buildPaymentMethodUpdateRequest,
+  validatePaymentMethodForm,
 } from "./payment-method-settings-model";
 import { ResourcePaymentMethod } from "@/types/generated/models";
 
@@ -55,6 +56,8 @@ export function PaymentMethodSettings() {
   });
   const handleDirtyChange = useCallback((d: boolean) => { if (d) dirty.markDirty(); else dirty.markClean(); }, [dirty]);
 
+  const editingId =
+    crud.editTarget !== null && crud.editTarget !== "new" ? crud.editTarget.id : null;
   const { handleSave } = useMasterSave<
     PaymentMethod,
     PaymentMethodFormData,
@@ -65,7 +68,11 @@ export function PaymentMethodSettings() {
     createMutation,
     updateMutation,
     permissions: { canCreate, canEdit },
-    validate: (d) => (!d.name.trim() ? "名称は必須です" : null),
+    validate: (d) =>
+      validatePaymentMethodForm(d, {
+        existing: data,
+        editingId,
+      }),
     toCreateRequest: buildPaymentMethodCreateRequest,
     toUpdateRequest: buildPaymentMethodUpdateRequest,
   });

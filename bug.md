@@ -33,7 +33,7 @@
 | 顧客集計 | BUG-012 | 1 | OPEN 1 | `aggregation`、LTV/売上集計、CPM取得 |
 | 横断フォーム基盤 | BUG-016 | 1 | IMPLEMENTED_UNVERIFIED 1 | 予防接種・検査・入院フォーム共通の取得失敗/Not Found 契約 |
 | 認証・権限 | BUG-023, BUG-024, BUG-031 | 3 | IMPLEMENTED_UNVERIFIED 1 / OPEN 2 | `auth`、権限グループ、セッション復元・ログイン遷移 |
-| 設定・マスタ | BUG-025, BUG-026, BUG-027, BUG-028, BUG-029 | 5 | IMPLEMENTED_UNVERIFIED 3 / OPEN 2 | settings UI、各 master owner、共通保存・重複エラー契約 |
+| 設定・マスタ | BUG-025, BUG-026, BUG-027, BUG-028, BUG-029 | 5 | IMPLEMENTED_UNVERIFIED 5 | settings UI、各 master owner、共通保存・重複エラー契約 |
 | **合計** | **BUG-001〜BUG-032** | **32** | **IMPLEMENTED_UNVERIFIED 21 / OPEN 10 / BLOCKED 1** | 各個票を正本とする |
 
 # 実装優先ウェーブ / 横断クラスタ索引
@@ -2310,7 +2310,7 @@ S01〜S12の業務シナリオ検証に続き、個別フォーム単位の受�
 ## BUG-026: 保険マスタで補償率が範囲外（>100）の値を保存しようとすると、実際には保存されていないのに「登録しました」の成功トーストが表示される
 
 - **重大度**: 高（無音失敗どころか、偽の成功通知によりユーザーが保存されたと誤認する）
-- **対応状況（2026-08-03 JST）**: OPEN | **根拠**: 受入実測は「POST 0件＋成功 toast」だが、current `InsuranceSettings` の validate は名称のみ、共有 `useMasterSave` は mutation 成功後だけ success toast を出す。この source は実測前から存在し、事後 fix の証拠ではなく、観測経路との矛盾が未解決。原文シナリオ未再実行のため IMPLEMENTED_UNVERIFIED へ上げない | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: coverage=101 で click/request/mutation/toast timeline を再取得し、再現後に最小修正を決める（REPRODUCE_FIRST）
+- **対応状況（2026-08-06 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: claim/BUG-026 — `validateInsuranceForm` で補償率 0–100（FE/BE 一致）、SidePanel は await 成功時のみ dirty クリア（失敗時は成功トーストなし） | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: V04 保険 C1-3 ブラウザ再確認（VERIFIED_FIXED は人間）
 - **発見シナリオ**: V04 §1 保険 `/settings/insurance`（C1-3 境界値チェック）
 - **再現手順**:
   1. `/settings/insurance` で「新規登録」→ 名称「V04保険2」、補償率(%)に `101` を入力
@@ -2573,7 +2573,7 @@ S01〜S12の業務シナリオ検証に続き、個別フォーム単位の受�
 ## BUG-029: 支払方法マスタで名称重複時、実際には保存されていないのに「登録しました」の成功トーストが表示される（BUG-026と同一パターン）
 
 - **重大度**: 中〜高（BUG-026と同根と見られる。無音失敗ではなく虚偽の成功通知が出る点でUXへの実害が大きい。2つの異なるマスタ・2種類の異なるバリデーション〈範囲外値／一意制約違反〉で再現しており、共通基盤（useMasterSave等）の問題である可能性が高い）
-- **対応状況（2026-08-03 JST）**: OPEN | **根拠**: 受入実測は「2回目 POST 0件＋成功 toast」だが、current `PaymentMethodSettings` の validate は名称のみ、共有 `useMasterSave` は mutation 成功後だけ success toast を出す。この source/test は実測前から存在し、同名 precheck の実経路と観測矛盾が未解決。原文シナリオ未再実行のため IMPLEMENTED_UNVERIFIED または DUPLICATE へ上げない | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: 同名2件目で click/request/mutation/toast timeline を再取得し、BUG-023 の409文言問題と分離する（REPRODUCE_FIRST）
+- **対応状況（2026-08-06 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: claim/BUG-026（同クラスタ C-MASTER-FALSE-SUCCESS）— FE で同名 precheck、SidePanel await 成功時のみ dirty クリア | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: V04 支払方法 重複保存のブラウザ再確認（VERIFIED_FIXED は人間）
 - **発見シナリオ**: V04 §1 支払方法 `/settings/payment-methods`（C3-2 一意制約違反チェック）
 - **再現手順**:
   1. `/settings/payment-methods` で「V04支払方法」を新規登録（正常に保存され一覧に反映、`is_active:true`）
