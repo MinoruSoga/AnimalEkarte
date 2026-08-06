@@ -50,3 +50,5 @@
   - blocking unbilled で確定拒否・AssertNoBlockingUnbilled を確認観点に追加
   - 精算を `POST /accountings/complete` に合わせて記載
   - trimming UNION ALL 取得・pet_id 単位 pull は現行 main で再確認
+
+- runtime 2026-08-07: **BLOCKED** — authenticated UI requires E2E_LOGIN_* or non-empty DEV_ADMIN_* in host `.env.local` (currently empty). Stack healthy :3003/:8080.

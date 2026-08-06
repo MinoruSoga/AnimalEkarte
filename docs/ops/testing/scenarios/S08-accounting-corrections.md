@@ -48,3 +48,5 @@
   - 部分入金拒否を FE `remaining !== 0` + BE `validatePaymentSplits` で再確認
   - クレジット訂正 API パス・カード系 method・未納定義（waiting）を現行実装に合わせて整理
   - 監査 fail-closed / X-Clinic-ID 拠点横断は変更なし
+
+- runtime 2026-08-07: **BLOCKED** — authenticated UI requires E2E_LOGIN_* or non-empty DEV_ADMIN_* in host `.env.local` (currently empty). Stack healthy :3003/:8080.

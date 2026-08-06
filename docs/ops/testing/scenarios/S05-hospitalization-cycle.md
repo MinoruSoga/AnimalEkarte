@@ -51,3 +51,5 @@
   - 会計あり/なしで API 経路が分岐（`discharge-with-billing` vs PATCH）することを手順 5/7 と確認観点に反映
   - チェック「会計画面へ進む」既定 OFF を明記
   - A2 削除拒否メッセージを実装文言に合わせて更新
+
+- runtime 2026-08-07: **BLOCKED** — authenticated UI requires E2E_LOGIN_* or non-empty DEV_ADMIN_* in host `.env.local` (currently empty). Stack healthy :3003/:8080.

@@ -51,3 +51,5 @@
   - 死亡登録導線を `PetDeceasedDialog` / `/:id/death` に明記（generic PATCH status ではない）
   - 予約既定検索は死亡除外、共通ペット選択は `includeDeceased: true` +「選択不可」と経路差を正確化
   - LSTEP は `HandlePetDeath` / `HandlePetRevival` をソースパス付きで記載
+
+- runtime 2026-08-07: **BLOCKED** — authenticated UI requires E2E_LOGIN_* or non-empty DEV_ADMIN_* in host `.env.local` (currently empty). Stack healthy :3003/:8080.

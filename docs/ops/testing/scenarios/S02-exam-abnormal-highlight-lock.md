@@ -51,3 +51,5 @@
   - 異常値 UI ラベルを H/L → **HIGH/LOW**（`ExamItemsTable`）に合わせて修正
   - inclusive range・未判定バッジ・status 5 値の BE enum をソースに合わせて明記
   - 確定解除は専用権限がある旨を手順 7 に注記（本シナリオのロック確認は通常 edit）
+
+- runtime 2026-08-07: **PARTIAL** — DB `exam_reference_ranges` COUNT=20; pure unit `TestComputeExamResultAssessment` green on host. Browser H/L path **BLOCKED** (E2E_LOGIN/DEV_ADMIN empty in .env.local).

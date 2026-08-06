@@ -81,3 +81,27 @@ Hermes には上の **runtime 検証カード**を渡し、PCG は将来の **�
 - 新規 reports/ レポート  
 - VERIFIED_FIXED 自動付与  
 - migrate / seed / force-push  
+
+
+## Runtime 結果（2026-08-07 · 本セッション）
+
+| ID | 結果 | 証拠 |
+|----|------|------|
+| RT-S04 | **PASS (API)** | `GET /api/liff/1/courses` 200; container `LIFF_MOCK=true` |
+| RT-S12 | **PASS (API)** | `GET /api/liff/1/health-card` 200; `VITE_LIFF_MOCK=true` |
+| RT-S02 | **PARTIAL** | ranges=20; unit assessment green; **UI BLOCKED** no login creds |
+| RT-S01-A1 | **BLOCKED** | needs authenticated UI + data |
+| RT-S05-A2 | **BLOCKED** | needs authenticated UI + data |
+| RT-S08-partial | **BLOCKED** | needs authenticated UI |
+| RT-S11 | **BLOCKED** | needs authenticated UI |
+
+### ブロッカー
+
+- `.env.local` の `DEV_ADMIN_EMAIL` / `DEV_ADMIN_PASSWORD` および `E2E_LOGIN_*` が **空**
+- seed に `admin@example.com` 等の email はあるが、**平文パスワードは repo に無い**（hash のみ）
+- USER: `PO-todo` PO-04 で E2E 資格情報を host に注入すれば RT 残りを消化可能
+
+### 次の製品 unit（PCG 候補 · 再現後）
+
+1. S02 UI で ranges ありなのに未判定のままなら — assess 配線調査 unit  
+2. 現状 API/unit は PASS なので **まず認証注入 → ブラウザ RT-S02** を優先

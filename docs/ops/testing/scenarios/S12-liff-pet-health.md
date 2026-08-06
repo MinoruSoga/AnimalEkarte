@@ -48,3 +48,5 @@
   - ヘルス API を `health-card` に統一（誤った profile 参照を除去）
   - SEC-CS2-F02（name+phone 自動紐付け無効）を前提に追記（S04 予約経路と同趣旨）
   - deceased 除外・token 分岐（`App.tsx`）は現行 main で一致
+
+- runtime 2026-08-07: **PASS (API)** — `GET /api/liff/1/health-card` HTTP 200 body owner_name present (pets may be empty under mock). VITE_LIFF_MOCK=true in frontend container. Full UI not run (no login credentials in .env.local).

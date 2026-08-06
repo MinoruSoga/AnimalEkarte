@@ -50,3 +50,5 @@
   - フローを日付/時間分割・トリミング step2b/2c を含む現行 `App.tsx` 順に更新
   - 病院側ソースフィルタ UI ラベルを「LINE予約」（value=`line`）に修正（「のみ」は無し）
   - 401 メッセージ全文・`VITE_LIFF_MOCK`/`LIFF_MOCK` release guard を明記
+
+- runtime 2026-08-07: **PASS (API)** — `GET /api/liff/1/courses` HTTP 200 with LIFF_MOCK=true (container env); mock Authorization present. Browser full journey not run (E2E_LOGIN/DEV_ADMIN empty in .env.local).
