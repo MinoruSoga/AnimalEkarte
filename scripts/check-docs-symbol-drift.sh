@@ -71,7 +71,7 @@ trap 'rm -rf "$TMP"' EXIT
 # 再編当日に旧 docs/infra/ へ新ファイルが置かれる違反が実際に発生したため、
 # シンボル・数値と同様にフォルダ規律もこのゲートで守る。
 # 新カテゴリを正式追加する場合は docs/README.md の構成表と本 allowlist を同コミットで更新すること。
-TOP_DIR_ALLOWLIST=(architecture spec ops delivery)
+TOP_DIR_ALLOWLIST=(architecture spec ops delivery work)
 TOP_FILE_ALLOWLIST=("README.md" "product-philosophy.md")
 for p in "$ROOT"/docs/*; do
   base="$(basename "$p")"

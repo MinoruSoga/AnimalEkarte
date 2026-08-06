@@ -23,7 +23,7 @@
 | `backend-deploy.yml` production トリガー | **未適用** | 実ファイルは `on.push.branches: [staging]` のみ（production 無し）。setup.md §8 は **提案 diff** のまま未適用 |
 | `frontend-deploy.yml` production 経路 | **branch トリガーのみ存在** | `on.push.branches` に `staging` と `production` あり。GitHub Environment ゲートは **無い**（CI-CD-PIPELINE.md §0.2 と同旨） |
 | ECS / AWS 切り戻し先 | **存在しない** | 2026-07-20 廃止。`backend-deploy.yml` ヘッダも ECS 版削除済み。**再導入禁止** |
-| CI green on latest main | **BLOCKED**（docs 上の前提） | GitHub Actions billing/spending は USER 復旧のみ。agent は課金状態を実測・変更しない。候補 required check は §8 と [reports/2026-08-01-issue-253-readiness.md](../../../../reports/2026-08-01-issue-253-readiness.md) |
+| CI green on latest main | **BLOCKED**（docs 上の前提） | GitHub Actions billing/spending は USER 復旧のみ。agent は課金状態を実測・変更しない。候補 required check は §8 と [STATUS.md](../../../../STATUS.md) §2 #253（旧 readiness report は git 履歴） |
 | PROD backup / restore / rollback **実行スクリプト** | **repo に存在しない** | `scripts/` に backup/restore/rollback/deploy 名のスクリプト 0 本。`pg_restore` は `scripts/`・`Makefile` とも 0 ヒット。手順は §3.1 / §5.1 の **文書のみ** |
 
 ---
@@ -329,7 +329,7 @@ WORKER_URL=https://api.noah-karte.com ./infra/scripts/cf-crud-smoke.sh
 
 | AC | docs/prep（実測で確認できた成果物のみ） | 実地 | 備考 |
 |---|---|---|---|
-| latest main required CI green | 候補 job 列挙済: `ci.yml` の `changes` / `secret-scan` / `backend` / `frontend` / `worker` / `codegen-check` / `migration-verify`（詳細と paths-filter 罠は [reports/2026-08-01-issue-253-readiness.md](../../../../reports/2026-08-01-issue-253-readiness.md)） | **BLOCKED** | GitHub billing/spending — USER only。**安全な常時 required 候補は `secret-scan`（表示名 Gitleaks Secret Scan）と必要なら `changes` のみ**。他 5 job は path/`if` で skip され required にすると永久 pending になり得る |
+| latest main required CI green | 候補 job 列挙済: `ci.yml` の `changes` / `secret-scan` / `backend` / `frontend` / `worker` / `codegen-check` / `migration-verify`（詳細と paths-filter 罠は [STATUS.md](../../../../STATUS.md) §2 #253（旧 readiness report は git 履歴）） | **BLOCKED** | GitHub billing/spending — USER only。**安全な常時 required 候補は `secret-scan`（表示名 Gitleaks Secret Scan）と必要なら `changes` のみ**。他 5 job は path/`if` で skip され required にすると永久 pending になり得る |
 | STG deploy / health / failure notification 実地確認 | 契約: [CI-CD-PIPELINE.md](../../deploy/CI-CD-PIPELINE.md) §0、本 runbook §1/§4 | billing 復旧後 | 本 unit は STG runtime を叩いていない |
 | production deploy は Required reviewers なしに開始できない | 契約・手順: setup.md §7、本 runbook §1.1。**workflow 実測: `environment:` 未設定** | Environment 未作成 | setup.md §7 → §8 の順。§8 提案 diff は未適用 |
 | rollback rehearsal + 復旧時間記録 | 本 runbook **§3.1**（コマンド列 + 判定基準）。専用スクリプトは **不在** | 環境構築後 | CF-only。チェックボックスは USER 実施まで `[ ]` |
@@ -339,7 +339,7 @@ WORKER_URL=https://api.noah-karte.com ./infra/scripts/cf-crud-smoke.sh
 
 ### 8.1 USER 直列 8 段（実行は USER 専権。agent は 1 段も実行しない）
 
-詳細な前提・コマンド・判定・失敗分岐は [reports/2026-08-01-issue-253-readiness.md](../../../../reports/2026-08-01-issue-253-readiness.md) を正本とする。
+詳細な前提・コマンド・判定・失敗分岐は [STATUS.md](../../../../STATUS.md) §2 #253（旧 readiness report は git 履歴） を正本とする。
 
 1. GitHub Actions の billing / spending 復旧
 2. GitHub Environment `production` 作成（setup.md §7）

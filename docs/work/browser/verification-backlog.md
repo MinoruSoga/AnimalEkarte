@@ -1,20 +1,22 @@
 # ブラウザ確認バックログ（bug.md 分離）
 
-**作業台帳:** [`../STATUS.md`](../STATUS.md)（§3 = BUG 実装、§4 = ブラウザ）
+**作業台帳:** [`../../STATUS.md`](../../STATUS.md)（§3 = BUG 実装、§4 = ブラウザ）
 
 | 文書 | 役割 |
 |------|------|
 | **本ファイル** | ブラウザ結果表（任意） |
 | `docs/ops/testing/scenarios/` | シナリオ原文 |
-| [`../STATUS.md`](../STATUS.md) §3 | BUG 実装状態の正本 |
-| [`../PO-todo.md`](../PO-todo.md) | residual の USER 実行リスト（ブラウザは必須外） |
+| [`../../STATUS.md`](../../STATUS.md) §3 | BUG 実装状態の正本 |
+| [`../../PO-todo.md`](../../PO-todo.md) | residual の USER 実行リスト（ブラウザは必須外） |
 
 - **作成日**: 2026-08-06
 - **方針**:
   - residual closeout ではブラウザ必須としない
   - エージェントは `VERIFIED_FIXED` を付けない
   - ブラウザ未実施でも実装完了は `IMPLEMENTED_UNVERIFIED` のまま正
-  - 実施する場合のみ本表に結果を記入## 実施環境（バッチ時に記入）
+  - 実施する場合のみ本表に結果を記入
+
+## 実施環境（バッチ時に記入）
 
 | 項目 | 値 |
 |------|-----|

@@ -4,7 +4,7 @@
 |------|-----|
 | **作成** | 2026-08-06 |
 | **対象読者** | あなた（PO / オペレータ） |
-| **方針の正本** | [`reports/2026-08-06-fable-po-recommendation-pack.md`](reports/2026-08-06-fable-po-recommendation-pack.md)（**採択済み**） |
+| **方針の正本** | [`docs/work/decisions/fable-po-recommendation.md`](docs/work/decisions/fable-po-recommendation.md)（**採択済み**） |
 | **作業台帳** | [`STATUS.md`](STATUS.md) §1 · §2 |
 | **除外** | ブラウザ IU 検証（TASK-010）· agent 製品実装（現在 NONE） |
 
@@ -187,6 +187,6 @@ G〜J が揃うまで **response 削除 / route DROP / DB DROP / 本番 secret �
 |------|------|
 | [`STATUS.md`](STATUS.md) | 全体 SoT |
 | [`q&a.html#dec-68`](q&a.html#dec-68) | TASK-021 4段階 |
-| [`reports/2026-08-06-fable-po-recommendation-pack.md`](reports/2026-08-06-fable-po-recommendation-pack.md) | 採択した推奨 |
+| [`docs/work/decisions/fable-po-recommendation.md`](docs/work/decisions/fable-po-recommendation.md) | 採択した推奨 |
 | [`docs/ops/deploy/LOCAL_DB_RESET.md`](docs/ops/deploy/LOCAL_DB_RESET.md) | local DB reset 手順 |
 | [`docs/ops/testing/scenarios/`](docs/ops/testing/scenarios/) | シナリオ原文 |

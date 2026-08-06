@@ -65,12 +65,12 @@ make codegen
 
 | カテゴリ | 主要ドキュメント |
 |:---|:---|
+| **作業台帳（進行中）** | [STATUS.md](STATUS.md)（SoT） / [PO-todo.md](PO-todo.md) / [docs/work/](docs/work/README.md) |
 | **業務仕様** | [SPECIFICATION.md](docs/spec/specification.md) / [screens/](docs/spec/screens/) |
 | **機能詳細** | [Lステップ連携](docs/spec/line/lstep-integration.md) / [会計・集計](docs/spec/cash-register.md) / [顧客分析](docs/spec/customer-aggregation.md) |
 | **技術設計** | [Architecture](docs/architecture/overview.md) / [ER図](docs/architecture/erd.md)（テーブル数の正本） / [認証・認可](docs/architecture/auth.md)（RBACリソース数の正本） |
 | **API** | [backend/docs/api.yaml](backend/docs/api.yaml)（contract 正本。Swagger UI 表示は `docker compose -f docker-compose.swagger.yml up`） |
 | **運用・テスト** | [Deployment Hub](docs/ops/deploy/README.md) / [Manual Test Guide](docs/ops/testing/SECTION_14_MANUAL_TEST_GUIDE.md) |
-
 ---
 
 ## 🌐 インタラクティブ API ドキュメント

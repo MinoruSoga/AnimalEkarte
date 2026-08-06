@@ -25,7 +25,7 @@ rg -n '^- \*\*対応状況' STATUS.md | rg -o 'IMPLEMENTED_UNVERIFIED|OPEN|BLOCK
 製品コードの agent 実装 open は **0**（IU 32 静的 CODE_PRESENT / CODE_MISSING=0）。本ファイルは **未完了 residual のみ**。
 
 > **ID**: `TASK-*` = §1 / `BUG-*` = §3 / Issue `#n` = §2。  
-> **生きている補助文書**: [`PO-todo.md`](PO-todo.md)（USER 実行）· [`reports/2026-08-06-fable-po-recommendation-pack.md`](reports/2026-08-06-fable-po-recommendation-pack.md)（採択方針）· [`reports/BROWSER_VERIFICATION_BACKLOG.md`](reports/BROWSER_VERIFICATION_BACKLOG.md)（IU ブラウザ結果表・任意）
+> **生きている補助文書**: [`PO-todo.md`](PO-todo.md)（USER 実行）· [`docs/work/decisions/fable-po-recommendation.md`](docs/work/decisions/fable-po-recommendation.md)（採択方針）· [`docs/work/browser/verification-backlog.md`](docs/work/browser/verification-backlog.md)（IU ブラウザ結果表・任意）
 ### Residual team 実測（local main @ 2026-08-06）
 
 | 項目 | 結果 |
@@ -64,8 +64,8 @@ rg -n '^- \*\*対応状況' STATUS.md | rg -o 'IMPLEMENTED_UNVERIFIED|OPEN|BLOCK
 | R6/R7 | worktree 隔離 / empty-diff COMPLETE 禁止 | ops | 継続規律 |
 ## 推奨 USER 順（local 実測反映 · **ブラウザ検証は residual 対象外**）
 
-> **除外 (2026-08-06)**: TASK-010 / IU ブラウザバッチは residual closeout 対象外。結果表のみ任意保管: [`reports/BROWSER_VERIFICATION_BACKLOG.md`](reports/BROWSER_VERIFICATION_BACKLOG.md)。`VERIFIED_FIXED` は residual で扱わない。  
-> **PO 決裁（2026-08-06 採択）**: [`reports/2026-08-06-fable-po-recommendation-pack.md`](reports/2026-08-06-fable-po-recommendation-pack.md)（Opus 20 RATIFY · DEC-68）。中間プロンプト/Opus pack/residual team レポートは削除済み（git 履歴参照）。**USER は後から覆せる。**  
+> **除外 (2026-08-06)**: TASK-010 / IU ブラウザバッチは residual closeout 対象外。結果表のみ任意保管: [`docs/work/browser/verification-backlog.md`](docs/work/browser/verification-backlog.md)。`VERIFIED_FIXED` は residual で扱わない。  
+> **PO 決裁（2026-08-06 採択）**: [`docs/work/decisions/fable-po-recommendation.md`](docs/work/decisions/fable-po-recommendation.md)（Opus 20 RATIFY · DEC-68）。中間プロンプト/Opus pack/residual team レポートは削除済み（git 履歴参照）。**USER は後から覆せる。**  
 > **あなたが手を動かすリスト**: [`PO-todo.md`](PO-todo.md)。0. ~~Fable 採択 + DEC-68~~ — **docs 完了**（本更新）
 1. ~~TASK-378-reset + TASK-009~~ — **local 完了**（`make reset` postflight OK · ranges=20 · stack healthy）
 2. **E2E_LOGIN_*** 注入 → TASK-020 / TASK-023（Playwright · 5 フロー UAT。ブラウザ手作業バッチとは別）
@@ -104,7 +104,7 @@ schema_migrations = 001_init + 002_master + 003_demo + 004_staging
 ### TASK-010 — 要実測 / ブラウザ（**residual 除外**）
 
 - **2026-08-06**: residual closeout 対象から除外（USER 判断）。
-- 結果表（任意）: [`reports/BROWSER_VERIFICATION_BACKLOG.md`](reports/BROWSER_VERIFICATION_BACKLOG.md)。シナリオ原文は `docs/ops/testing/scenarios/`。
+- 結果表（任意）: [`docs/work/browser/verification-backlog.md`](docs/work/browser/verification-backlog.md)。シナリオ原文は `docs/ops/testing/scenarios/`。
 - agent は VERIFIED_FIXED を付けない。
 ### TASK-020 — Playwright
 
@@ -207,14 +207,14 @@ schema_migrations = 001_init + 002_master + 003_demo + 004_staging
 
 ## 対応状況サマリ（2026-08-06 JST）
 
-- **正本の優先順位**: **実装（code + 根拠 commit）> bug.md 状態 > ブラウザ再検証**。ブラウザ確認は bug.md の完了ゲートにしない。後続バッチは `reports/BROWSER_VERIFICATION_BACKLOG.md`（§4） に集約する。
+- **正本の優先順位**: **実装（code + 根拠 commit）> bug.md 状態 > ブラウザ再検証**。ブラウザ確認は bug.md の完了ゲートにしない。後続バッチは `docs/work/browser/verification-backlog.md`（§4） に集約する。
 - **件数（個票 `対応状況` 機械抽出・32/32）**: OPEN=0 / IN_PROGRESS=0 / IMPLEMENTED_UNVERIFIED=32 / VERIFIED_FIXED=0 / BLOCKED=0 / DUPLICATE=0 / NOT_REPRODUCIBLE=0 / **合計=32**
 - **OPEN 残**: なし（LIFF mock と reference range seed を実装側で供給）
 - **BLOCKED 残**: なし（BUG-003 は demo `exam_reference_ranges` seed 追加で IU へ。適用は人が seed 手順で実施）
 - **本 campaign（bug.md 2-agent loop）実装 IU**: BUG-006 `3db97bb19`, BUG-007 `7f663716d`, BUG-012 `85e7be513`, BUG-024 `ce8ae6f46`, BUG-026 `e0c5cc5e1`, BUG-029 `e0c5cc5e1`, BUG-031 `5cf86efc4`, BUG-032 `944f2e4dd`; BUG-003 seed, BUG-008/014 LIFF mock compose+fail-closed
 - **判定基準**: current checkout から到達可能な code/test を正本とする。GitHub Issue/PR の closed/merged 単独は closure に使わない。`VERIFIED_FIXED` はブラウザバッチ完了後のみ（エージェントは付けない）。
 - **原文シナリオ再検証**: PASS=0 / FAIL=0 / BLOCKED=0 / DEFERRED=32（ブラウザバッチ待ち） / **合計=32**
-- **未検証境界**: ブラウザ・手動 E2E は未実施。追跡先: `reports/BROWSER_VERIFICATION_BACKLOG.md`（§4）
+- **未検証境界**: ブラウザ・手動 E2E は未実施。追跡先: `docs/work/browser/verification-backlog.md`（§4）
 - **個票正本**: 各 `## BUG-NNN` 節の最新 `対応状況` 行。
 - **履歴**: 2026-08-05 の「コードベース照合 / OPEN 13」等は履歴スナップショット。**現況は上の件数と個票のみを正とする。**
 
@@ -443,7 +443,7 @@ schema_migrations = 001_init + 002_master + 003_demo + 004_staging
 ## BUG-003: 検査結果の異常値判定（H/L ハイライト）が常に「未判定」のまま計算されない【重大】
 
 - **重大度**: 高（S02 の中核機能。臨床安全に直結する異常値の見落とし防止が機能していない）
-- **対応状況（2026-08-06 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: 到達済み commit `1c6395915` — 到達済み commit — `003_demo` に `exam_reference_ranges.csv` を追加（犬/猫×CBC 表示基準値と一致する ref_min/ref_max）。`assessExamResult` が構造化 range を解決できる状態に。seed 適用は人が migrate/seed 手順で実施 | **原文シナリオ再検証**: DEFERRED → `reports/BROWSER_VERIFICATION_BACKLOG.md`（§4） | **次のアクション**: demo seed 適用後 S02 H/L をブラウザバッチで確認
+- **対応状況（2026-08-06 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: 到達済み commit `1c6395915` — 到達済み commit — `003_demo` に `exam_reference_ranges.csv` を追加（犬/猫×CBC 表示基準値と一致する ref_min/ref_max）。`assessExamResult` が構造化 range を解決できる状態に。seed 適用は人が migrate/seed 手順で実施 | **原文シナリオ再検証**: DEFERRED → `docs/work/browser/verification-backlog.md`（§4） | **次のアクション**: demo seed 適用後 S02 H/L をブラウザバッチで確認
 - **発見シナリオ**: S02 手順2〜4（検査管理 `/examinations`）
 - **再現手順**:
   1. `/examinations/select-pet` から生存ペット（伊藤史安/豆助）を選び、新規検査登録。検査種別「血液検査（院内）」を選択（WBC基準値 6.0-17.0、RBC基準値 5.5-8.5、HCT基準値 37-55 などが動的表示される）。
@@ -702,7 +702,7 @@ schema_migrations = 001_init + 002_master + 003_demo + 004_staging
 ## BUG-006: 予防接種登録画面のヘッダーに表示される年齢・性別・去勢避妊状況が、対象ペットによらず常に同じ誤った固定値になっている【重大】
 
 - **重大度**: 高（診療画面に誤った患者属性が表示される。臨床安全観点で懸念）
-- **対応状況（2026-08-06 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: 到達済み commit `3db97bb19e8bcc823eaf75029519ad2be895bcd2` で `formatPatientPetDetails` 追加、`VaccinationForm` が birthDate/gender/neuteredDate から petDetails を渡し、`PatientInfoCard` 固定既定「9才5ヶ月 / メス / 避妊済」を「不明」へ変更。scoped vitest 12/12 green | **原文シナリオ再検証**: DEFERRED → `reports/BROWSER_VERIFICATION_BACKLOG.md`（§4） | **次のアクション**: 実装完了。ブラウザ確認は `reports/BROWSER_VERIFICATION_BACKLOG.md`（§4） のバッチへ
+- **対応状況（2026-08-06 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: 到達済み commit `3db97bb19e8bcc823eaf75029519ad2be895bcd2` で `formatPatientPetDetails` 追加、`VaccinationForm` が birthDate/gender/neuteredDate から petDetails を渡し、`PatientInfoCard` 固定既定「9才5ヶ月 / メス / 避妊済」を「不明」へ変更。scoped vitest 12/12 green | **原文シナリオ再検証**: DEFERRED → `docs/work/browser/verification-backlog.md`（§4） | **次のアクション**: 実装完了。ブラウザ確認は `docs/work/browser/verification-backlog.md`（§4） のバッチへ
 - **発見シナリオ**: S03 手順1（予防接種 新規登録 `/vaccinations/new?petId=...`）
 - **再現手順**:
   1. `/vaccinations/new?petId=1000002`（伊藤史安／豆助、実データ: 生年月日2012-12-20＝13才7ヶ月、性別=雄）を開く。
@@ -792,7 +792,7 @@ schema_migrations = 001_init + 002_master + 003_demo + 004_staging
 ## BUG-007: 予防接種を新規登録しても、一覧・対象ペットの「過去の接種履歴」パネルのどちらにも表示されず、登録結果を画面上で確認できない
 
 - **重大度**: 中〜高（S03 手順6の中核要件「自動計算結果を画面上でいつでも確認できる」が満たされない）
-- **対応状況（2026-08-06 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: 到達済み commit `7f663716d0b2bfac3a8f5fd5cfe7e9291b2d22da` で `useGetVaccinations` が `pet_id` + `page`/`limit=HISTORY_FETCH_LIMIT` を送る。`VaccinationForm` 履歴は pet スコープ取得に切替（unscoped page1+client filter 廃止）。`useGetPetVaccinations` も limit 明示。scoped vitest 30/30 green | **原文シナリオ再検証**: DEFERRED → `reports/BROWSER_VERIFICATION_BACKLOG.md`（§4） | **次のアクション**: 実装完了。ブラウザ確認は `reports/BROWSER_VERIFICATION_BACKLOG.md`（§4） のバッチへ
+- **対応状況（2026-08-06 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: 到達済み commit `7f663716d0b2bfac3a8f5fd5cfe7e9291b2d22da` で `useGetVaccinations` が `pet_id` + `page`/`limit=HISTORY_FETCH_LIMIT` を送る。`VaccinationForm` 履歴は pet スコープ取得に切替（unscoped page1+client filter 廃止）。`useGetPetVaccinations` も limit 明示。scoped vitest 30/30 green | **原文シナリオ再検証**: DEFERRED → `docs/work/browser/verification-backlog.md`（§4） | **次のアクション**: 実装完了。ブラウザ確認は `docs/work/browser/verification-backlog.md`（§4） のバッチへ
 - **発見シナリオ**: S03 手順6・7（予防接種管理 `/vaccinations`）
 - **再現手順**:
   1. `/vaccinations/new?petId=1000002`（伊藤史安／豆助）で接種日=2026/07/31、ワクチン=バンガードL4(4種)、次回予定=2026/09/15（手動調整）として保存 → 「予防接種を登録しました」の成功トーストが出る。
@@ -881,7 +881,7 @@ schema_migrations = 001_init + 002_master + 003_demo + 004_staging
 ## BUG-008: LIFF予約フローがコース選択画面で必ず「ログイン情報の有効期限が切れました」となり、以降に一切進めない【重大】【S04ブロッカー】
 
 - **重大度**: 高（S04 全体のブロッカー。LIFF飼い主予約ジャーニーが手順2「コース選択」より先へ一切進めない）
-- **対応状況（2026-08-06 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: 到達済み commit `1c6395915` — 到達済み commit — compose で `LIFF_MOCK=true` / `VITE_LIFF_MOCK=true` を明示固定; `LiffAuth` は mock 有効時 real auth へ fallthrough せず lookup 失敗は 503 fail-closed | **原文シナリオ再検証**: DEFERRED → `reports/BROWSER_VERIFICATION_BACKLOG.md`（§4） | **次のアクション**: frontend/backend 再起動後 S04 コース選択をブラウザバッチで確認
+- **対応状況（2026-08-06 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: 到達済み commit `1c6395915` — 到達済み commit — compose で `LIFF_MOCK=true` / `VITE_LIFF_MOCK=true` を明示固定; `LiffAuth` は mock 有効時 real auth へ fallthrough せず lookup 失敗は 503 fail-closed | **原文シナリオ再検証**: DEFERRED → `docs/work/browser/verification-backlog.md`（§4） | **次のアクション**: frontend/backend 再起動後 S04 コース選択をブラウザバッチで確認
 - **発見シナリオ**: S04 手順1→2（LIFF予約アプリ `/line-reserve/1/`、`VITE_LIFF_MOCK=true`／バックエンド`LIFF_MOCK=true`前提）
 - **再現手順**:
   1. `/line-reserve/1/` を開き「新規予約」→お客様情報（お名前・電話番号・飼い主名・ペット追加）を入力し「次へ」を押す。
@@ -1272,7 +1272,7 @@ schema_migrations = 001_init + 002_master + 003_demo + 004_staging
 ## BUG-012: 顧客集計ダッシュボードが恒久的に「読み込み中...」のまま表示されず、バックエンドAPIが応答しない【重大】【S10ブロッカー】
 
 - **重大度**: 高（S10の対象機能が完全に使用不能。集計・分析機能全体が機能していない）
-- **対応状況（2026-08-06 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: BUG-012 — payments を clinic_id スコープ、max_single_visit を相関サブクエリ→JOIN、ListOwnerAggregation 20s timeout、FE aggregations/CPM 25s axios timeout。**原文シナリオ再検証**: DEFERRED → `reports/BROWSER_VERIFICATION_BACKLOG.md`（§4） | **次のアクション**: 実装完了。ブラウザ確認は `reports/BROWSER_VERIFICATION_BACKLOG.md`（§4） のバッチへ
+- **対応状況（2026-08-06 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: BUG-012 — payments を clinic_id スコープ、max_single_visit を相関サブクエリ→JOIN、ListOwnerAggregation 20s timeout、FE aggregations/CPM 25s axios timeout。**原文シナリオ再検証**: DEFERRED → `docs/work/browser/verification-backlog.md`（§4） | **次のアクション**: 実装完了。ブラウザ確認は `docs/work/browser/verification-backlog.md`（§4） のバッチへ
 - **発見シナリオ**: S10 手順1（顧客集計ダッシュボード `/aggregation`）
 - **再現手順**:
   1. `/aggregation` を開く（売上ランキングタブが既定表示）。
@@ -1461,7 +1461,7 @@ schema_migrations = 001_init + 002_master + 003_demo + 004_staging
 ## BUG-014: LIFFペットヘルスページが「ログイン情報の有効期限が切れました」で必ず失敗し閲覧不能（BUG-008と同根）【重大】【S12ブロッカー】
 
 - **重大度**: 高（S12対象機能であるペットヘルスページが完全に閲覧不能。S04で確認したBUG-008と同じ「LIFFモックがAPI呼び出しにAuthorizationヘッダを一切付与しない」という根本原因が、別のLIFFアプリ（frontend/liff＝ペットヘルス・連携用）でも再現）
-- **対応状況（2026-08-06 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: BUG-008 と同 C-LIFF-AUTH（shared `use-liff` + compose `VITE_LIFF_MOCK` + BE `LIFF_MOCK`）。health-card も同一 mock 経路 | **原文シナリオ再検証**: DEFERRED → `reports/BROWSER_VERIFICATION_BACKLOG.md`（§4） | **次のアクション**: S12 ペットヘルスをブラウザバッチで確認
+- **対応状況（2026-08-06 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: BUG-008 と同 C-LIFF-AUTH（shared `use-liff` + compose `VITE_LIFF_MOCK` + BE `LIFF_MOCK`）。health-card も同一 mock 経路 | **原文シナリオ再検証**: DEFERRED → `docs/work/browser/verification-backlog.md`（§4） | **次のアクション**: S12 ペットヘルスをブラウザバッチで確認
 - **発見シナリオ**: S12 手順5（token無しURL `/liff/1?clinic_id=1` でペットヘルスページを開く）
 - **再現手順**:
   1. `/liff/1?clinic_id=1`（tokenパラメータなし）を開く。
@@ -2336,7 +2336,7 @@ S01〜S12の業務シナリオ検証に続き、個別フォーム単位の受�
 ## BUG-024: 権限グループの権限マトリクス（表示/作成/編集/削除チェックボックス）の変更が保存されない（成功トースト・200応答にもかかわらずDBに反映されない）【重大】
 
 - **重大度**: 高
-- **対応状況（2026-08-06 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: 到達済み commit `ce8ae6f46` — FE 全リソース matrix + 明示 false PATCH、応答 rules 不一致時は成功トースト抑止; BE `replaceRules` で bool 列 Select 固定 INSERT | **原文シナリオ再検証**: DEFERRED → `reports/BROWSER_VERIFICATION_BACKLOG.md`（§4） | **次のアクション**: 実装完了。ブラウザ確認は同バックログのバッチへ- **発見シナリオ**: V03 §6 permission-group-side-panel チェック2（C2永続化確認）およびチェック4（自己剥奪ガード確認）
+- **対応状況（2026-08-06 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: 到達済み commit `ce8ae6f46` — FE 全リソース matrix + 明示 false PATCH、応答 rules 不一致時は成功トースト抑止; BE `replaceRules` で bool 列 Select 固定 INSERT | **原文シナリオ再検証**: DEFERRED → `docs/work/browser/verification-backlog.md`（§4） | **次のアクション**: 実装完了。ブラウザ確認は同バックログのバッチへ- **発見シナリオ**: V03 §6 permission-group-side-panel チェック2（C2永続化確認）およびチェック4（自己剥奪ガード確認）
 - **再現手順**:
   1. `/settings/permission-groups` で「執行」グループの編集パネルを開く
   2. 権限マトリクスの任意のリソース行（例:「当日の受付」の「表示」列、または「権限グループ」の「編集」列）のチェックを外す
@@ -2510,7 +2510,7 @@ S01〜S12の業務シナリオ検証に続き、個別フォーム単位の受�
 ## BUG-026: 保険マスタで補償率が範囲外（>100）の値を保存しようとすると、実際には保存されていないのに「登録しました」の成功トーストが表示される
 
 - **重大度**: 高（無音失敗どころか、偽の成功通知によりユーザーが保存されたと誤認する）
-- **対応状況（2026-08-06 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: 到達済み commit `e0c5cc5e1` — `validateInsuranceForm` で補償率 0–100（FE/BE 一致）、SidePanel は await 成功時のみ dirty クリア（失敗時は成功トーストなし） | **原文シナリオ再検証**: DEFERRED → `reports/BROWSER_VERIFICATION_BACKLOG.md`（§4） | **次のアクション**: 実装完了。ブラウザ確認は `reports/BROWSER_VERIFICATION_BACKLOG.md`（§4） のバッチへ
+- **対応状況（2026-08-06 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: 到達済み commit `e0c5cc5e1` — `validateInsuranceForm` で補償率 0–100（FE/BE 一致）、SidePanel は await 成功時のみ dirty クリア（失敗時は成功トーストなし） | **原文シナリオ再検証**: DEFERRED → `docs/work/browser/verification-backlog.md`（§4） | **次のアクション**: 実装完了。ブラウザ確認は `docs/work/browser/verification-backlog.md`（§4） のバッチへ
 - **発見シナリオ**: V04 §1 保険 `/settings/insurance`（C1-3 境界値チェック）
 - **再現手順**:
   1. `/settings/insurance` で「新規登録」→ 名称「V04保険2」、補償率(%)に `101` を入力
@@ -2773,7 +2773,7 @@ S01〜S12の業務シナリオ検証に続き、個別フォーム単位の受�
 ## BUG-029: 支払方法マスタで名称重複時、実際には保存されていないのに「登録しました」の成功トーストが表示される（BUG-026と同一パターン）
 
 - **重大度**: 中〜高（BUG-026と同根と見られる。無音失敗ではなく虚偽の成功通知が出る点でUXへの実害が大きい。2つの異なるマスタ・2種類の異なるバリデーション〈範囲外値／一意制約違反〉で再現しており、共通基盤（useMasterSave等）の問題である可能性が高い）
-- **対応状況（2026-08-06 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: 到達済み commit `e0c5cc5e1`（同クラスタ C-MASTER-FALSE-SUCCESS）— FE で同名 precheck、SidePanel await 成功時のみ dirty クリア | **原文シナリオ再検証**: DEFERRED → `reports/BROWSER_VERIFICATION_BACKLOG.md`（§4） | **次のアクション**: 実装完了。ブラウザ確認は `reports/BROWSER_VERIFICATION_BACKLOG.md`（§4） のバッチへ
+- **対応状況（2026-08-06 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: 到達済み commit `e0c5cc5e1`（同クラスタ C-MASTER-FALSE-SUCCESS）— FE で同名 precheck、SidePanel await 成功時のみ dirty クリア | **原文シナリオ再検証**: DEFERRED → `docs/work/browser/verification-backlog.md`（§4） | **次のアクション**: 実装完了。ブラウザ確認は `docs/work/browser/verification-backlog.md`（§4） のバッチへ
 - **発見シナリオ**: V04 §1 支払方法 `/settings/payment-methods`（C3-2 一意制約違反チェック）
 - **再現手順**:
   1. `/settings/payment-methods` で「V04支払方法」を新規登録（正常に保存され一覧に反映、`is_active:true`）
@@ -2949,7 +2949,7 @@ S01〜S12の業務シナリオ検証に続き、個別フォーム単位の受�
 ## BUG-031: ログイン済み状態で `/login` に直接アクセスしても自動リダイレクトされない
 
 - **重大度**: 低〜中（セキュリティ上の実害は小さいが、仕様と異なる導線）
-- **対応状況（2026-08-06 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: 到達済み commit `5cf86efc4279b6ac1d1e06ca619f80612d50c27e` で AuthProvider が password-recovery 以外（`/login` 含む）で session restore。cold `/login` で refreshToken 1 回後 isAuthenticated→LoginForm Navigate。scoped vitest 33/33 green | **原文シナリオ再検証**: DEFERRED → `reports/BROWSER_VERIFICATION_BACKLOG.md`（§4） | **次のアクション**: 実装完了。ブラウザ確認は `reports/BROWSER_VERIFICATION_BACKLOG.md`（§4） のバッチへ
+- **対応状況（2026-08-06 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: 到達済み commit `5cf86efc4279b6ac1d1e06ca619f80612d50c27e` で AuthProvider が password-recovery 以外（`/login` 含む）で session restore。cold `/login` で refreshToken 1 回後 isAuthenticated→LoginForm Navigate。scoped vitest 33/33 green | **原文シナリオ再検証**: DEFERRED → `docs/work/browser/verification-backlog.md`（§4） | **次のアクション**: 実装完了。ブラウザ確認は `docs/work/browser/verification-backlog.md`（§4） のバッチへ
 - **発見シナリオ**: V05-1 ログイン #3
 - **再現手順**:
   1. ノアとしてログイン済みの状態（`/owners` 等が正常表示されることで確認済み）で `/login` に直接アクセス
@@ -3036,7 +3036,7 @@ S01〜S12の業務シナリオ検証に続き、個別フォーム単位の受�
 ## BUG-032: 健診対象者抽出プレビューAPIがハングし応答しない（外部Lステップ連携先タイムアウト未実装の疑い）
 
 - **重大度**: 中〜高
-- **対応状況（2026-08-06 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: 到達済み commit `944f2e4ddc1f463e374955b3bfc6c4ace89add36` で PreviewCheckupSync に 15s context timeout、SQL LIMIT 500、owner cap 100; FE axios timeout 20s。unit TestCheckupSyncPreview_Bounds + Preview tests green | **原文シナリオ再検証**: DEFERRED → `reports/BROWSER_VERIFICATION_BACKLOG.md`（§4） | **次のアクション**: 実装完了。ブラウザ確認は `reports/BROWSER_VERIFICATION_BACKLOG.md`（§4） のバッチへ
+- **対応状況（2026-08-06 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: 到達済み commit `944f2e4ddc1f463e374955b3bfc6c4ace89add36` で PreviewCheckupSync に 15s context timeout、SQL LIMIT 500、owner cap 100; FE axios timeout 20s。unit TestCheckupSyncPreview_Bounds + Preview tests green | **原文シナリオ再検証**: DEFERRED → `docs/work/browser/verification-backlog.md`（§4） | **次のアクション**: 実装完了。ブラウザ確認は `docs/work/browser/verification-backlog.md`（§4） のバッチへ
 - **発見シナリオ**: V05-18 健診対象者一括タグ付与（`/lstep/checkup-sync`）#1-2 検証中
 - **再現手順**:
   1. `/lstep/checkup-sync` を開く
@@ -3244,7 +3244,7 @@ S01〜S12の業務シナリオ検証に続き、個別フォーム単位の受�
 
 | 文書 | 役割 |
 |------|------|
-| [`reports/BROWSER_VERIFICATION_BACKLOG.md`](reports/BROWSER_VERIFICATION_BACKLOG.md) | 結果表（任意・residual 必須ではない） |
+| [`docs/work/browser/verification-backlog.md`](docs/work/browser/verification-backlog.md) | 結果表（任意・residual 必須ではない） |
 | `docs/ops/testing/scenarios/` | シナリオ原文 |
 
 - §3 は実装状態（IU 等）の正本
@@ -3259,9 +3259,9 @@ S01〜S12の業務シナリオ検証に続き、個別フォーム単位の受�
 | Issue 受け入れ条件・議論 | 各 GitHub Issue |
 | PO 判断・記入フォーム | [`q&a.html`](q&a.html) |
 | 今フェーズ外 | [`phase2.html`](phase2.html) |
-| ブラウザ結果表（任意） | [`reports/BROWSER_VERIFICATION_BACKLOG.md`](reports/BROWSER_VERIFICATION_BACKLOG.md) |
+| ブラウザ結果表（任意） | [`docs/work/browser/verification-backlog.md`](docs/work/browser/verification-backlog.md) |
 | PO 実行 ToDo | [`PO-todo.md`](PO-todo.md) |
-| 採択済み PO 方針 | [`reports/2026-08-06-fable-po-recommendation-pack.md`](reports/2026-08-06-fable-po-recommendation-pack.md) |
+| 採択済み PO 方針 | [`docs/work/decisions/fable-po-recommendation.md`](docs/work/decisions/fable-po-recommendation.md) |
 | 完了証跡 | git 履歴・Issue close |
 
 **安全:** migrate 適用・DB reset・credential・STG/PROD・force-push・Issue 自動書き込みは明示承認。agent は seed apply / claim 解放をしない。

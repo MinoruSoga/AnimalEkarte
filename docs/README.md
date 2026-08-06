@@ -16,7 +16,8 @@ docs/
 ├── architecture/           … 説明系: システムがどう作られているか
 ├── spec/                   … 仕様系: システムが何をするか（業務・画面・UI）
 ├── ops/                    … 運用系: デプロイ・CI・テスト・インフラ
-└── delivery/               … 納品系: クライアント納品物（Go-live・操作マニュアル）
+├── delivery/               … 納品系: クライアント納品物（Go-live・操作マニュアル）
+└── work/                   … 進行中の作業台帳・採択済み決裁・任意ブラウザ結果
 ```
 
 | カテゴリ | 索引 | 概要 |
@@ -26,15 +27,17 @@ docs/
 | **仕様系** | [spec/README.md](spec/README.md) | 機能要件・全画面仕様・会計/顧客分析/予約フロー・デザイン規約・LINE 連携 |
 | **運用系** | [ops/README.md](ops/README.md) | デプロイ・ランブック・テスト・CI/カバレッジポリシー・インフラ構成 |
 | **納品系** | [delivery/README.md](delivery/README.md) | 納品パッケージ・Go-live 手順・現場向け操作マニュアル |
-
+| **作業台帳** | [work/README.md](work/README.md) | 進行中 residual・PO 採択方針・任意ブラウザ結果（SoT の補助。正本は root `STATUS.md`） |
 > **フォルダ規律**: docs/ 直下に新カテゴリを追加する場合は本表と CI ゲート（`scripts/check-docs-symbol-drift.sh` の TOP_ALLOWLIST）を同コミットで更新すること。allowlist 外のフォルダは CI が拒否する。
 
 ## 横断事項
 
 - **API contract**: 正本は [`backend/docs/api.yaml`](../backend/docs/api.yaml)（Swagger UI 表示は `docker compose -f docker-compose.swagger.yml up`）。
 - **docs ドリフトゲート**: `scripts/check-docs-symbol-drift.sh`（CI の docs-symbol-drift ジョブ）が、spec/screens/ 系ドキュメントの言及シンボル実在と宣言数値（テーブル数・リソース数等）の実装一致を機械検査する。
-- **タスク台帳**: ローカル残タスクはリポジトリ直下 [`todo.md`](../todo.md)（open のみ・索引表 + `## 個別タスク詳細` へ `### TASK-XXX:` 節で追記）、受入テストバグは [`bug.md`](../bug.md)（`## BUG-XXX:` 節）に一元化する。GitHub Issue の分類ビューは [`3-session-agent.html`](../3-session-agent.html)（旧 `#ledger` 台帳は 2026-07-31 廃止・旧 `docs/tasks/` も廃止）。過去の完了記録・監査アーカイブは git 履歴を参照（旧 `docs/archive/` は削除済み）。
+- **タスク台帳（正本）**: リポジトリ直下 [`STATUS.md`](../STATUS.md)（§1 残作業 · §2 Issue · §3 BUG）。USER 実行リストは [`PO-todo.md`](../PO-todo.md)。旧 `todo.md` / `bug.md` / `3-session-agent.html` は STATUS へのスタブのみ。
+- **作業補助**: [`work/README.md`](work/README.md)（採択済み Fable 方針・ブラウザ結果表）。
+- 過去の dated `reports/*` は削除済み — 必要なら git 履歴。
 
 ---
 
-**最新更新**: 2026-07-27 | **ステータス**: Static/Code Sync (115 Tables / 35 Resources; Fresh DB Apply Pending — `q&a.html` OPS-13)
+**最新更新**: 2026-08-07 | **ステータス**: work 台帳を `docs/work/` に集約。実装 SoT は root `STATUS.md`

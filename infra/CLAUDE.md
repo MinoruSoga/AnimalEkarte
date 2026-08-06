@@ -3,7 +3,7 @@
 > AWS STG は 2026-07-20 に廃止済み（terraform destroy・課金停止）。経緯と実施記録は
 > `../docs/ops/infra/_archive/migration-cloudflare.md`（Phase 8）と
 > `../docs/ops/infra/_archive/aws-legacy/` を参照。
-> 再編計画は `../infra-reorg-plan.md`（Phase Bでenvs/ + modules/構造へ移行予定）。
+> 再編計画は `../docs/ops/infra/reorg-plan.md`（Phase Bでenvs/ + modules/構造へ移行予定）。
 
 ## 構成の2層境界（MANDATORY）
 

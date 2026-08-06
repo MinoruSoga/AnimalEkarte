@@ -11,7 +11,7 @@
 
 ## 2. state
 
-- **リモート backend 必須**（R2 の S3 互換 backend。現状 local は Phase B で解消 — `infra-reorg-plan.md`）
+- **リモート backend 必須**（R2 の S3 互換 backend。現状 local は Phase B で解消 — `reorg-plan.md`）
 - **env ごとに state key を分離**（`stg/` と `prod/` を同じ state に入れない）
 - tfstate を git 管理しない（属性が平文で入る）。state に secret を持つリソースを作らない
 
@@ -25,7 +25,7 @@
 
 - **手動ダッシュボード操作は原則禁止**。やむを得ない場合は実施記録を残し `cf-terraforming import` で state に取り込む
   （実害例: 手動作成の CloudFront が AWS destroy を 409 でブロックした — _archive/migration-cloudflare.md Phase 8）
-- 定期 `terraform plan` によるドリフト検知 CI を置く（infra-reorg-plan.md Phase D）
+- 定期 `terraform plan` によるドリフト検知 CI を置く（docs/ops/infra/reorg-plan.md Phase D）
 
 ## 5. 変更フロー
 
