@@ -110,4 +110,4 @@ Hermes には上の **runtime 検証カード**を渡し、PCG は将来の **�
 
 1. ~~**S10** aggregation timeout~~ **done**  
 2. Seed free-text `normal_value` のみの検査が UI で未判定に見える件 — 実害は field_id パスでは PASS なので優先度低  
-3. Playwright owners 検索 placeholder / accounting Iris かな drift
+3. ~~Playwright owners 検索 placeholder / accounting Iris かな drift~~ **done**（e2e を現行 UI/seed に整合 · 13/13 green）

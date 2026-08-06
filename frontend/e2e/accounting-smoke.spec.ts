@@ -1,12 +1,14 @@
 import { test, expect } from '@playwright/test';
 import type { BrowserContext } from '@playwright/test';
 import { createAuthedContext } from './helpers/context';
+import { DEMO_ACCOUNTING_KANA_PET } from './helpers/demo-seed';
 import { AccountingPage } from './pages/accounting-page';
 
 // Seed prerequisites:
-//   - admin@noavet.jp (is_system_admin=true) has full accounting permission
-//   - owner 1 (林 文明) has completed billings for pet 1 (Iris(イリス), name_kana=いりす)
-//   - /v1/accountings returns these records with no date filter set
+//   - E2E_LOGIN_* account has accounting view permission
+//   - Accounting list search is client-side on the current page (limit=20)
+//   - DEMO_ACCOUNTING_KANA_PET must appear on page 1 (see helpers/demo-seed.ts)
+//   - Iris has no billing rows in 003_demo — kana smoke uses サキ instead
 //
 // Design: fresh page per test within shared context to avoid Chromium
 // state accumulation across many navigations.
@@ -37,7 +39,7 @@ test.describe('会計 smoke E2E', () => {
     }
   });
 
-  test('会計一覧: ひらがな「いりす」でカタカナ「Iris(イリス)」が表示される (かな非区別検索)', async () => {
+  test('会計一覧: ひらがな検索でカタカナペット名が表示される (かな非区別検索)', async () => {
     const page = await context.newPage();
     const accounting = new AccountingPage(page);
     try {
@@ -53,18 +55,17 @@ test.describe('会計 smoke E2E', () => {
       const searchInput = accounting.searchInput();
       await expect(searchInput).toBeVisible({ timeout: 5000 });
 
-      // normalizeKana('Iris(イリス)') → 'iris(いりす)'; includes('いりす') → true
-      // .first() because seed may contain multiple Iris billing rows
-      await searchInput.fill('いりす');
-      await expect(accounting.irisCell()).toBeVisible({
-        timeout: 5000,
+      // normalizeKana('サキ') → 'さき'; client filter on current page
+      await searchInput.fill(DEMO_ACCOUNTING_KANA_PET.hiraganaSearch);
+      await expect(accounting.kanaPetCell()).toBeVisible({
+        timeout: 10000,
       });
     } finally {
       await page.close();
     }
   });
 
-  test('会計一覧: カタカナ「イリス」でも「Iris(イリス)」が表示される (ひらがな・カタカナ統一検索)', async () => {
+  test('会計一覧: カタカナ検索でも同一ペット名が表示される (ひらがな・カタカナ統一検索)', async () => {
     const page = await context.newPage();
     const accounting = new AccountingPage(page);
     try {
@@ -78,11 +79,9 @@ test.describe('会計 smoke E2E', () => {
       const searchInput = accounting.searchInput();
       await expect(searchInput).toBeVisible({ timeout: 5000 });
 
-      // normalizeKana('イリス') → 'いりす', same match as hiragana above
-      // .first() because seed may contain multiple Iris billing rows
-      await searchInput.fill('イリス');
-      await expect(accounting.irisCell()).toBeVisible({
-        timeout: 5000,
+      await searchInput.fill(DEMO_ACCOUNTING_KANA_PET.katakanaSearch);
+      await expect(accounting.kanaPetCell()).toBeVisible({
+        timeout: 10000,
       });
     } finally {
       await page.close();

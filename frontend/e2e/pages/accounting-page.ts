@@ -1,4 +1,5 @@
 import { type Locator, type Page } from '@playwright/test';
+import { DEMO_ACCOUNTING_KANA_PET } from '../helpers/demo-seed';
 import { BasePage } from './base-page';
 
 type GotoOptions = Parameters<Page['goto']>[1];
@@ -38,14 +39,28 @@ export class AccountingPage extends BasePage {
     return this.page.getByPlaceholder('飼主名、ペット名...');
   }
 
-  /** First "Iris" cell inside the table body. */
-  irisCell(): Locator {
-    return this.page.locator('tbody').getByText('Iris', { exact: false }).first();
+  /**
+   * Pet cell used for client-side kana-symmetry smoke.
+   * Prefer DEMO_ACCOUNTING_KANA_PET (on page 1) over Iris (no billing in 003_demo).
+   */
+  kanaPetCell(): Locator {
+    return this.page
+      .locator('tbody')
+      .getByText(DEMO_ACCOUNTING_KANA_PET.displayName, { exact: true })
+      .first();
   }
 
-  /** First table row that contains "Iris". */
+  /** @deprecated Prefer kanaPetCell — Iris has no billing rows in current seed. */
+  irisCell(): Locator {
+    return this.kanaPetCell();
+  }
+
+  /** First table row that contains the kana-smoke pet name. */
   irisRow(): Locator {
-    return this.page.locator('tbody tr').filter({ hasText: 'Iris' }).first();
+    return this.page
+      .locator('tbody tr')
+      .filter({ hasText: DEMO_ACCOUNTING_KANA_PET.displayName })
+      .first();
   }
 
   detailHeading(): Locator {
