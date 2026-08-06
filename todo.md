@@ -34,7 +34,7 @@
 | TASK | 要約 | 証拠（main 到達） |
 |------|------|-------------------|
 | TASK-025 | dose silent fallback 停止 | `eaa608b6a` + `db8387035` |
-| TASK-026 | confirmed exam lock/audit | `2a8aca33c` |
+| TASK-026 | confirmed exam lock/audit | `e572e941c` (merge TASK-026) |
 | TASK-027 | manual exam lifecycle / revision | `046615f4b`〜`dfd653eaa` 系 |
 | TASK-028 | closing settings PATCH | `bbf82e2b8` |
 | TASK-029 | L-step disabled 文書 | `9fc5b9ffb` |

@@ -36,3 +36,7 @@ See `git merge-base --is-ancestor` for TASK-025/026/028/029/030 evidence hashes 
 2. TASK-021 after external-use inventory + destroy approval
 3. Browser batch (not a code graph)
 
+## Post-audit correction
+
+- TASK-026 evidence hash `2a8aca33c` is **not** in git; land evidence is merge `e572e941c`.
+- Explore audit confirmed agent-implementable open = 0.
