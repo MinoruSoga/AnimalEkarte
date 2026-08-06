@@ -130,7 +130,7 @@ func TestMedicalRecordService_Create_AuditFailureRemainsBestEffort(t *testing.T)
 	const clinicID = uint64(71003)
 	db := setupMedicalRecordAddendumTestDB(t)
 	repo := NewMedicalRecordRepository(db)
-	service := NewMedicalRecordService(
+	service := NewMedicalRecordServiceWithTxAudit(
 		repo,
 		nil,
 		nil,
@@ -141,8 +141,8 @@ func TestMedicalRecordService_Create_AuditFailureRemainsBestEffort(t *testing.T)
 		nil,
 		nil,
 		&failingMedicalRecordAuditLogger{},
-		persistence.NewTransactor(db),
-	)
+		nil,
+		persistence.NewTransactor(db))
 	draft := model.MedicalRecordStatusDraft
 
 	created, err := service.Create(context.Background(), clinicID, &CreateMedicalRecordInput{
@@ -171,7 +171,7 @@ func TestMedicalRecordService_Update_AuditFailureRemainsBestEffort(t *testing.T)
 	}
 	require.NoError(t, db.WithContext(context.Background()).Create(record).Error)
 
-	service := NewMedicalRecordService(
+	service := NewMedicalRecordServiceWithTxAudit(
 		NewMedicalRecordRepository(db),
 		nil,
 		nil,
@@ -182,8 +182,8 @@ func TestMedicalRecordService_Update_AuditFailureRemainsBestEffort(t *testing.T)
 		nil,
 		nil,
 		&failingMedicalRecordAuditLogger{},
-		persistence.NewTransactor(db),
-	)
+		nil,
+		persistence.NewTransactor(db))
 	updatedDate := time.Date(2026, 7, 26, 0, 0, 0, 0, time.UTC)
 
 	updated, err := service.Update(context.Background(), clinicID, record.ID, UpdateMedicalRecordInput{

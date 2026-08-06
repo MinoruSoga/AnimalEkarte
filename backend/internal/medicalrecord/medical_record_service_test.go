@@ -119,7 +119,7 @@ func TestMedicalRecordService_List(t *testing.T) {
 					return tt.repoRecords, tt.repoTotal, tt.repoErr
 				},
 			}
-			svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, &mockTransactor{})
+			svc := NewMedicalRecordServiceWithTxAudit(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, &mockTransactor{})
 
 			records, total, err := svc.List(context.Background(), []uint64{tt.clinicID}, MedicalRecordListFilters{PetID: tt.petID, OwnerID: tt.ownerID}, tt.page, tt.limit)
 
@@ -183,7 +183,7 @@ func TestMedicalRecordService_GetByID(t *testing.T) {
 					return tt.repoRecord, tt.repoErr
 				},
 			}
-			svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, &mockTransactor{})
+			svc := NewMedicalRecordServiceWithTxAudit(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, &mockTransactor{})
 
 			record, err := svc.GetByID(context.Background(), tt.clinicID, tt.id)
 
@@ -206,7 +206,7 @@ func TestMedicalRecordService_GetByID_NotFound(t *testing.T) {
 			return nil, apperrors.WrapNotFound("medical_record", "999")
 		},
 	}
-	svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, &mockTransactor{})
+	svc := NewMedicalRecordServiceWithTxAudit(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, &mockTransactor{})
 
 	record, err := svc.GetByID(context.Background(), 1, 999)
 
@@ -286,7 +286,7 @@ func TestMedicalRecordService_Create(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, &mockTransactor{})
+			svc := NewMedicalRecordServiceWithTxAudit(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, &mockTransactor{})
 
 			record, err := svc.Create(context.Background(), 1, &tt.input)
 
@@ -310,7 +310,7 @@ func TestMedicalRecordService_Create(t *testing.T) {
 				return nil
 			},
 		}
-		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, &mockTransactor{})
+		svc := NewMedicalRecordServiceWithTxAudit(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, &mockTransactor{})
 		record, err := svc.Create(context.Background(), 1, &CreateMedicalRecordInput{
 			Date:                 time.Now(),
 			RecommendationReason: &reason,
@@ -331,7 +331,7 @@ func TestMedicalRecordService_Create(t *testing.T) {
 				return nil
 			},
 		}
-		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, &mockTransactor{})
+		svc := NewMedicalRecordServiceWithTxAudit(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, &mockTransactor{})
 		record, err := svc.Create(context.Background(), 1, &CreateMedicalRecordInput{
 			Date:                 time.Now(),
 			RecommendationReason: &reason,
@@ -349,7 +349,7 @@ func TestMedicalRecordService_Create(t *testing.T) {
 				return nil
 			},
 		}
-		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, &mockTransactor{})
+		svc := NewMedicalRecordServiceWithTxAudit(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, &mockTransactor{})
 		record, err := svc.Create(context.Background(), 1, &CreateMedicalRecordInput{
 			Date: time.Now(),
 		})
@@ -392,7 +392,7 @@ func TestMedicalRecordService_Create(t *testing.T) {
 				return appointment, nil
 			},
 		}
-		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, reservationRepo, nil, nil, &mockTransactor{})
+		svc := NewMedicalRecordServiceWithTxAudit(repo, nil, nil, nil, nil, nil, nil, reservationRepo, nil, nil, nil, &mockTransactor{})
 
 		record, err := svc.Create(context.Background(), 1, &CreateMedicalRecordInput{
 			Date:          time.Date(2026, 6, 15, 0, 0, 0, 0, time.UTC),
@@ -424,7 +424,7 @@ func TestMedicalRecordService_Create(t *testing.T) {
 				return &model.Reservation{ID: id, PetID: &petID, StartTime: time.Now()}, nil
 			},
 		}
-		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, resRepo, nil, nil, &mockTransactor{})
+		svc := NewMedicalRecordServiceWithTxAudit(repo, nil, nil, nil, nil, nil, nil, resRepo, nil, nil, nil, &mockTransactor{})
 
 		record, err := svc.Create(context.Background(), 1, &CreateMedicalRecordInput{
 			Date:          time.Now(),
@@ -453,7 +453,7 @@ func TestMedicalRecordService_Create(t *testing.T) {
 				return &model.Reservation{ID: id, PetID: &petID, StartTime: appointmentStart}, nil
 			},
 		}
-		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, resRepo, nil, nil, &mockTransactor{})
+		svc := NewMedicalRecordServiceWithTxAudit(repo, nil, nil, nil, nil, nil, nil, resRepo, nil, nil, nil, &mockTransactor{})
 
 		_, err := svc.Create(context.Background(), 1, &CreateMedicalRecordInput{
 			Date:          time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC),
@@ -483,7 +483,7 @@ func TestMedicalRecordService_Create(t *testing.T) {
 				return &model.Reservation{ID: id, PetID: &appointmentPetID}, nil
 			},
 		}
-		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, resRepo, nil, nil, &mockTransactor{})
+		svc := NewMedicalRecordServiceWithTxAudit(repo, nil, nil, nil, nil, nil, nil, resRepo, nil, nil, nil, &mockTransactor{})
 
 		record, err := svc.Create(context.Background(), 1, &CreateMedicalRecordInput{
 			Date:          time.Date(2026, 5, 29, 0, 0, 0, 0, time.UTC),
@@ -535,7 +535,7 @@ func TestMedicalRecordService_Create(t *testing.T) {
 				return nil
 			},
 		}
-		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, resRepo, nil, nil, &mockTransactor{})
+		svc := NewMedicalRecordServiceWithTxAudit(repo, nil, nil, nil, nil, nil, nil, resRepo, nil, nil, nil, &mockTransactor{})
 
 		record, err := svc.Create(context.Background(), 1, &CreateMedicalRecordInput{
 			Date:          time.Date(2026, 5, 29, 0, 0, 0, 0, time.UTC),
@@ -598,7 +598,7 @@ func TestMedicalRecordService_Create_AppointmentLifecycleGuard(t *testing.T) {
 				return ownerID, nil
 			},
 		}
-		svc := NewMedicalRecordService(recordRepo, nil, nil, nil, nil, nil, nil, reservationRepo, nil, nil, medicalRecordTxMarker{})
+		svc := NewMedicalRecordServiceWithTxAudit(recordRepo, nil, nil, nil, nil, nil, nil, reservationRepo, nil, nil, nil, medicalRecordTxMarker{})
 
 		record, err := svc.Create(context.Background(), 1, &CreateMedicalRecordInput{
 			OwnerID:       &ownerID,
@@ -649,7 +649,7 @@ func TestMedicalRecordService_Create_AppointmentLifecycleGuard(t *testing.T) {
 				return ownerID, nil
 			},
 		}
-		svc := NewMedicalRecordService(recordRepo, nil, nil, nil, nil, nil, nil, reservationRepo, nil, nil, medicalRecordTxMarker{})
+		svc := NewMedicalRecordServiceWithTxAudit(recordRepo, nil, nil, nil, nil, nil, nil, reservationRepo, nil, nil, nil, medicalRecordTxMarker{})
 
 		record, err := svc.Create(context.Background(), 1, &CreateMedicalRecordInput{
 			OwnerID:       &ownerID,
@@ -690,7 +690,7 @@ func TestMedicalRecordService_Create_SyncsNextVisitTagBestEffort(t *testing.T) {
 			return nil
 		},
 	}
-	svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, reservationVerifier, nil, nil, &mockTransactor{}, tagSync)
+	svc := NewMedicalRecordServiceWithTxAudit(repo, nil, nil, nil, nil, nil, nil, reservationVerifier, nil, nil, nil, &mockTransactor{}, tagSync)
 
 	record, err := svc.Create(context.Background(), 1, &CreateMedicalRecordInput{
 		Date:    time.Date(2026, 5, 28, 0, 0, 0, 0, time.UTC),
@@ -833,7 +833,7 @@ func TestMedicalRecordService_Update_RejectsAppointmentRelink(t *testing.T) {
 			return nil
 		},
 	}
-	svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, reservationRepo, nil, nil, medicalRecordTxMarker{})
+	svc := NewMedicalRecordServiceWithTxAudit(repo, nil, nil, nil, nil, nil, nil, reservationRepo, nil, nil, nil, medicalRecordTxMarker{})
 
 	record, err := svc.Update(context.Background(), 1, 1, UpdateMedicalRecordInput{AppointmentID: &otherAppointmentID})
 
@@ -859,7 +859,7 @@ func TestMedicalRecordService_Update_RejectsDateChangeForAppointmentLinkedRecord
 			return nil, nil
 		},
 	}
-	svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, &mockReservationRepoForMedicalRecord{}, nil, nil, medicalRecordTxMarker{})
+	svc := NewMedicalRecordServiceWithTxAudit(repo, nil, nil, nil, nil, nil, nil, &mockReservationRepoForMedicalRecord{}, nil, nil, nil, medicalRecordTxMarker{})
 
 	record, err := svc.Update(context.Background(), 1, 1, UpdateMedicalRecordInput{Date: &changedDate})
 
@@ -877,7 +877,7 @@ func TestMedicalRecordService_Create_FailsClosedWithoutRequiredDependencies(t *t
 				return nil
 			},
 		}
-		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, &mockTransactor{})
+		svc := NewMedicalRecordServiceWithTxAudit(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, &mockTransactor{})
 
 		record, err := svc.Create(context.Background(), 1, &CreateMedicalRecordInput{Date: time.Now(), OwnerID: &ownerID})
 
@@ -892,7 +892,7 @@ func TestMedicalRecordService_Create_FailsClosedWithoutRequiredDependencies(t *t
 				return nil
 			},
 		}
-		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, &mockReservationRepoForMedicalRecord{}, nil, nil, nil)
+		svc := NewMedicalRecordServiceWithTxAudit(repo, nil, nil, nil, nil, nil, nil, &mockReservationRepoForMedicalRecord{}, nil, nil, nil, nil)
 
 		record, err := svc.Create(context.Background(), 1, &CreateMedicalRecordInput{Date: time.Now()})
 
@@ -937,7 +937,7 @@ func TestMedicalRecordService_Update_LinkedContextUsesReservationGuard(t *testin
 			return apperrors.WrapNotFound("staff", "99")
 		},
 	}
-	svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, reservationRepo, nil, nil, medicalRecordTxMarker{})
+	svc := NewMedicalRecordServiceWithTxAudit(repo, nil, nil, nil, nil, nil, nil, reservationRepo, nil, nil, nil, medicalRecordTxMarker{})
 
 	record, err := svc.Update(context.Background(), 1, 1, UpdateMedicalRecordInput{DoctorID: &foreignDoctorID})
 
@@ -1021,7 +1021,7 @@ func TestMedicalRecordService_Update_FinalizationUsesAppointmentLifecycleGuard(t
 				return nil
 			},
 		}
-		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, reservationRepo, nil, nil, medicalRecordTxMarker{})
+		svc := NewMedicalRecordServiceWithTxAudit(repo, nil, nil, nil, nil, nil, nil, reservationRepo, nil, nil, nil, medicalRecordTxMarker{})
 
 		record, err := svc.Update(context.Background(), 1, 1, UpdateMedicalRecordInput{Status: &finalized})
 
@@ -1083,7 +1083,7 @@ func TestMedicalRecordService_Update_OwnerValidation(t *testing.T) {
 				return apperrors.WrapNotFound("owner", "100")
 			},
 		}
-		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, resRepo, nil, nil, &mockTransactor{})
+		svc := NewMedicalRecordServiceWithTxAudit(repo, nil, nil, nil, nil, nil, nil, resRepo, nil, nil, nil, &mockTransactor{})
 
 		_, err := svc.Update(context.Background(), 1, 1, UpdateMedicalRecordInput{
 			OwnerID: &ownerID,
@@ -1108,7 +1108,7 @@ func TestMedicalRecordService_Update_OwnerValidation(t *testing.T) {
 				return nil
 			},
 		}
-		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, resRepo, nil, nil, &mockTransactor{})
+		svc := NewMedicalRecordServiceWithTxAudit(repo, nil, nil, nil, nil, nil, nil, resRepo, nil, nil, nil, &mockTransactor{})
 
 		record, err := svc.Update(context.Background(), 1, 1, UpdateMedicalRecordInput{
 			OwnerID: &ownerID,
@@ -1139,7 +1139,7 @@ func TestMedicalRecordService_Update_PetValidation(t *testing.T) {
 				return 0, apperrors.WrapNotFound("pet", "200")
 			},
 		}
-		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, resRepo, nil, nil, &mockTransactor{})
+		svc := NewMedicalRecordServiceWithTxAudit(repo, nil, nil, nil, nil, nil, nil, resRepo, nil, nil, nil, &mockTransactor{})
 
 		_, err := svc.Update(context.Background(), 1, 1, UpdateMedicalRecordInput{
 			PetID: &petID,
@@ -1164,7 +1164,7 @@ func TestMedicalRecordService_Update_PetValidation(t *testing.T) {
 				return 1, nil
 			},
 		}
-		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, resRepo, nil, nil, &mockTransactor{})
+		svc := NewMedicalRecordServiceWithTxAudit(repo, nil, nil, nil, nil, nil, nil, resRepo, nil, nil, nil, &mockTransactor{})
 
 		_, err := svc.Update(context.Background(), 1, 1, UpdateMedicalRecordInput{
 			PetID: &petID,
@@ -1250,7 +1250,7 @@ func TestMedicalRecordService_Delete(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, &mockTransactor{})
+			svc := NewMedicalRecordServiceWithTxAudit(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, &mockTransactor{})
 
 			err := svc.Delete(context.Background(), tt.clinicID, tt.id)
 
@@ -1304,7 +1304,7 @@ func TestMedicalRecordService_Delete_SyncsVisitCompletionAndNextVisitTagsAfterDe
 			return nil
 		},
 	}
-	svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, &mockTransactor{}, tagSync)
+	svc := NewMedicalRecordServiceWithTxAudit(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, &mockTransactor{}, tagSync)
 
 	err := svc.Delete(context.Background(), 1, 30)
 
@@ -1315,7 +1315,7 @@ func TestMedicalRecordService_Delete_SyncsVisitCompletionAndNextVisitTagsAfterDe
 
 func TestMedicalRecordService_CreateSubRecords_SkipsEmptyInquiryInput(t *testing.T) {
 	inquiryRepo := &spyInquiryRepo{}
-	svc := NewMedicalRecordService(nil, inquiryRepo, &noopClinicalPlanRepo{}, nil, nil, nil, nil, nil, nil, nil, &mockTransactor{})
+	svc := NewMedicalRecordServiceWithTxAudit(nil, inquiryRepo, &noopClinicalPlanRepo{}, nil, nil, nil, nil, nil, nil, nil, nil, &mockTransactor{})
 
 	_ = svc.CreateSubRecords(context.Background(), 1, 10, CreateSubRecordsInput{})
 
@@ -1324,7 +1324,7 @@ func TestMedicalRecordService_CreateSubRecords_SkipsEmptyInquiryInput(t *testing
 
 func TestMedicalRecordService_CreateSubRecords_SavesInquiryWhenInputProvided(t *testing.T) {
 	inquiryRepo := &spyInquiryRepo{}
-	svc := NewMedicalRecordService(nil, inquiryRepo, &noopClinicalPlanRepo{}, nil, nil, nil, nil, nil, nil, nil, &mockTransactor{})
+	svc := NewMedicalRecordServiceWithTxAudit(nil, inquiryRepo, &noopClinicalPlanRepo{}, nil, nil, nil, nil, nil, nil, nil, nil, &mockTransactor{})
 	chiefComplaint := "食欲不振"
 
 	_ = svc.CreateSubRecords(context.Background(), 1, 10, CreateSubRecordsInput{
@@ -1409,7 +1409,7 @@ func TestAutoCreateFromReservation_BUG386(t *testing.T) {
 				return nil, 0, nil
 			},
 		}
-		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, &mockTransactor{})
+		svc := NewMedicalRecordServiceWithTxAudit(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, &mockTransactor{})
 		appt := &model.Reservation{
 			ID:        1,
 			ClinicID:  1,
@@ -1432,7 +1432,7 @@ func TestAutoCreateFromReservation_BUG386(t *testing.T) {
 				return nil
 			},
 		}
-		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, &mockTransactor{})
+		svc := NewMedicalRecordServiceWithTxAudit(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, &mockTransactor{})
 		appt := &model.Reservation{
 			ID:              1,
 			ClinicID:        1,
@@ -1461,7 +1461,7 @@ func TestAutoCreateFromReservation_BUG386(t *testing.T) {
 				return nil
 			},
 		}
-		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, &mockTransactor{})
+		svc := NewMedicalRecordServiceWithTxAudit(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, &mockTransactor{})
 		appt := &model.Reservation{
 			ID:        1,
 			ClinicID:  1,
@@ -1521,7 +1521,7 @@ func TestAutoCreateFromReservation_BUG386(t *testing.T) {
 				return ownerID, nil
 			},
 		}
-		svc := NewMedicalRecordService(repo, &noopInquiryRepo{}, &noopClinicalPlanRepo{}, nil, nil, nil, lineCustomerRepo, reservationRepo, nil, nil, &mockTransactor{})
+		svc := NewMedicalRecordServiceWithTxAudit(repo, &noopInquiryRepo{}, &noopClinicalPlanRepo{}, nil, nil, nil, lineCustomerRepo, reservationRepo, nil, nil, nil, &mockTransactor{})
 
 		svc.AutoCreateFromReservation(context.Background(), 1, appt)
 
@@ -1551,7 +1551,7 @@ func TestAutoCreateFromReservation_BUG386(t *testing.T) {
 				}, nil
 			},
 		}
-		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, lineCustomerRepo, nil, nil, nil, &mockTransactor{})
+		svc := NewMedicalRecordServiceWithTxAudit(repo, nil, nil, nil, nil, nil, lineCustomerRepo, nil, nil, nil, nil, &mockTransactor{})
 
 		appt := &model.Reservation{
 			ID:             1,
@@ -1711,7 +1711,7 @@ func TestMedicalRecordService_Create_FirstVisitTrigger(t *testing.T) {
 		}
 		trigger := &mockLstepDeliveryTriggerForMR{}
 
-		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, resRepo, trigger, nil, &mockTransactor{})
+		svc := NewMedicalRecordServiceWithTxAudit(repo, nil, nil, nil, nil, nil, nil, resRepo, trigger, nil, nil, &mockTransactor{})
 		_, err := createMedicalRecordForTest(context.Background(), svc, newRecord(&appointmentID))
 
 		assert.NoError(t, err)
@@ -1731,7 +1731,7 @@ func TestMedicalRecordService_Create_FirstVisitTrigger(t *testing.T) {
 		}
 		trigger := &mockLstepDeliveryTriggerForMR{}
 
-		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, resRepo, trigger, nil, &mockTransactor{})
+		svc := NewMedicalRecordServiceWithTxAudit(repo, nil, nil, nil, nil, nil, nil, resRepo, trigger, nil, nil, &mockTransactor{})
 		_, err := createMedicalRecordForTest(context.Background(), svc, newRecord(&appointmentID))
 
 		assert.NoError(t, err)
@@ -1748,7 +1748,7 @@ func TestMedicalRecordService_Create_FirstVisitTrigger(t *testing.T) {
 		}
 		trigger := &mockLstepDeliveryTriggerForMR{}
 
-		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, resRepo, trigger, nil, &mockTransactor{})
+		svc := NewMedicalRecordServiceWithTxAudit(repo, nil, nil, nil, nil, nil, nil, resRepo, trigger, nil, nil, &mockTransactor{})
 		_, err := createMedicalRecordForTest(context.Background(), svc, newRecord(&appointmentID))
 
 		assert.NoError(t, err)
@@ -1767,7 +1767,7 @@ func TestMedicalRecordService_Create_FirstVisitTrigger(t *testing.T) {
 		}
 		trigger := &mockLstepDeliveryTriggerForMR{}
 
-		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, resRepo, trigger, nil, &mockTransactor{})
+		svc := NewMedicalRecordServiceWithTxAudit(repo, nil, nil, nil, nil, nil, nil, resRepo, trigger, nil, nil, &mockTransactor{})
 		_, err := createMedicalRecordForTest(context.Background(), svc, newRecord(&appointmentID))
 
 		assert.NoError(t, err)
@@ -1786,7 +1786,7 @@ func TestMedicalRecordService_Create_FirstVisitTrigger(t *testing.T) {
 		}
 		trigger := &mockLstepDeliveryTriggerForMR{}
 
-		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, resRepo, trigger, nil, &mockTransactor{})
+		svc := NewMedicalRecordServiceWithTxAudit(repo, nil, nil, nil, nil, nil, nil, resRepo, trigger, nil, nil, &mockTransactor{})
 		_, err := createMedicalRecordForTest(context.Background(), svc, newRecord(&appointmentID))
 
 		assert.NoError(t, err)
@@ -1801,7 +1801,7 @@ func TestMedicalRecordService_Create_FirstVisitTrigger(t *testing.T) {
 		resRepo := &mockReservationRepoForMedicalRecord{}
 		trigger := &mockLstepDeliveryTriggerForMR{}
 
-		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, resRepo, trigger, nil, &mockTransactor{})
+		svc := NewMedicalRecordServiceWithTxAudit(repo, nil, nil, nil, nil, nil, nil, resRepo, trigger, nil, nil, &mockTransactor{})
 		_, err := createMedicalRecordForTest(context.Background(), svc, newRecord(nil)) // no AppointmentID
 
 		assert.NoError(t, err)
@@ -1817,7 +1817,7 @@ func TestMedicalRecordService_Create_FirstVisitTrigger(t *testing.T) {
 		resRepo := &mockReservationRepoForMedicalRecord{}
 		trigger := &mockLstepDeliveryTriggerForMR{}
 
-		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, resRepo, trigger, nil, &mockTransactor{})
+		svc := NewMedicalRecordServiceWithTxAudit(repo, nil, nil, nil, nil, nil, nil, resRepo, trigger, nil, nil, &mockTransactor{})
 		_, err := createMedicalRecordForTest(context.Background(), svc, newRecord(nil))
 
 		assert.NoError(t, err)
@@ -1837,7 +1837,7 @@ func TestMedicalRecordService_Create_FirstVisitTrigger(t *testing.T) {
 		}
 		trigger := &mockLstepDeliveryTriggerForMR{}
 
-		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, resRepo, trigger, nil, &mockTransactor{})
+		svc := NewMedicalRecordServiceWithTxAudit(repo, nil, nil, nil, nil, nil, nil, resRepo, trigger, nil, nil, &mockTransactor{})
 		_, err := createMedicalRecordForTest(context.Background(), svc, newRecord(&appointmentID))
 
 		assert.Error(t, err, "appointment-linked medical record creation must fail closed when the stable appointment read fails")
@@ -1857,7 +1857,7 @@ func TestMedicalRecordService_Create_FirstVisitTrigger(t *testing.T) {
 		}
 		trigger := &mockLstepDeliveryTriggerForMR{}
 
-		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, resRepo, trigger, nil, &mockTransactor{})
+		svc := NewMedicalRecordServiceWithTxAudit(repo, nil, nil, nil, nil, nil, nil, resRepo, trigger, nil, nil, &mockTransactor{})
 		_, err := createMedicalRecordForTest(context.Background(), svc, newRecord(&appointmentID))
 
 		assert.Error(t, err)
@@ -1875,7 +1875,7 @@ func TestMedicalRecordService_UpdateRecommendationReason(t *testing.T) {
 	)
 
 	newSvc := func(repo *mockMedicalRecordRepository) MedicalRecordService {
-		return NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, &mockTransactor{})
+		return NewMedicalRecordServiceWithTxAudit(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, &mockTransactor{})
 	}
 
 	t.Run("valid_reason_revisit", func(t *testing.T) {
@@ -2020,7 +2020,7 @@ func TestMedicalRecordService_Create_AuditLog(t *testing.T) {
 			return nil
 		},
 	}
-	svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, auditSvc, &mockTransactor{})
+	svc := NewMedicalRecordServiceWithTxAudit(repo, nil, nil, nil, nil, nil, nil, nil, nil, auditSvc, nil, &mockTransactor{})
 
 	enteredBy := uint64(7)
 	record := &model.MedicalRecord{
@@ -2058,7 +2058,7 @@ func TestMedicalRecordService_Update_AuditLog(t *testing.T) {
 		},
 	}
 	reservationRepo := &mockReservationRepoForMedicalRecord{}
-	svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, reservationRepo, nil, auditSvc, &mockTransactor{})
+	svc := NewMedicalRecordServiceWithTxAudit(repo, nil, nil, nil, nil, nil, nil, reservationRepo, nil, auditSvc, nil, &mockTransactor{})
 
 	staffID := uint64(7)
 	_, err := svc.Update(context.Background(), 1, 10, UpdateMedicalRecordInput{
@@ -2129,7 +2129,7 @@ func TestMedicalRecordService_Delete_AuditLog(t *testing.T) {
 			return nil
 		},
 	}
-	svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, auditSvc, &mockTransactor{})
+	svc := NewMedicalRecordServiceWithTxAudit(repo, nil, nil, nil, nil, nil, nil, nil, nil, auditSvc, nil, &mockTransactor{})
 
 	err := svc.Delete(context.Background(), 1, 10)
 	assert.NoError(t, err)
@@ -2149,7 +2149,7 @@ func TestMedicalRecordService_AuditFailure_NonFatal(t *testing.T) {
 			return nil
 		},
 	}
-	svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, auditSvc, &mockTransactor{})
+	svc := NewMedicalRecordServiceWithTxAudit(repo, nil, nil, nil, nil, nil, nil, nil, nil, auditSvc, nil, &mockTransactor{})
 
 	record := &model.MedicalRecord{ClinicID: 1, Date: time.Now(), Status: model.MedicalRecordStatusDraft}
 	created, err := createMedicalRecordForTest(context.Background(), svc, record)

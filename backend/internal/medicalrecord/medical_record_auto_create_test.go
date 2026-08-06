@@ -210,7 +210,7 @@ func TestMedicalRecordService_DeleteDraftFromReservation(t *testing.T) {
 			},
 		}
 		auditSvc := &mockAuditService{}
-		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, auditSvc, &mockTransactor{})
+		svc := NewMedicalRecordServiceWithTxAudit(repo, nil, nil, nil, nil, nil, nil, nil, nil, auditSvc, nil, &mockTransactor{})
 
 		svc.DeleteDraftFromReservation(context.Background(), clinicID, reservationID)
 
@@ -224,7 +224,7 @@ func TestMedicalRecordService_DeleteDraftFromReservation(t *testing.T) {
 				return nil, errors.New("db error")
 			},
 		}
-		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, &mockTransactor{})
+		svc := NewMedicalRecordServiceWithTxAudit(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, &mockTransactor{})
 
 		assert.NotPanics(t, func() {
 			svc.DeleteDraftFromReservation(context.Background(), 3, 77)
@@ -241,7 +241,7 @@ func TestMedicalRecordService_DeleteDraftFromReservation(t *testing.T) {
 			},
 		}
 		audit := &reservationCancelCleanupAuditCapture{mockAuditService: &mockAuditService{}}
-		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, audit, &mockTransactor{})
+		svc := NewMedicalRecordServiceWithTxAudit(repo, nil, nil, nil, nil, nil, nil, nil, nil, audit, nil, &mockTransactor{})
 
 		svc.DeleteDraftFromReservation(context.Background(), clinicID, reservationID)
 
@@ -284,7 +284,7 @@ func TestMedicalRecordService_DeleteDraftFromReservation(t *testing.T) {
 			},
 		}
 		audit := &reservationCancelCleanupAuditCapture{mockAuditService: &mockAuditService{}}
-		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, audit, &mockTransactor{})
+		svc := NewMedicalRecordServiceWithTxAudit(repo, nil, nil, nil, nil, nil, nil, nil, nil, audit, nil, &mockTransactor{})
 
 		svc.DeleteDraftFromReservation(context.Background(), clinicID, reservationID)
 
@@ -323,7 +323,7 @@ func TestMedicalRecordService_DeleteDraftFromReservation(t *testing.T) {
 			},
 		}
 		audit := &reservationCancelCleanupAuditCapture{mockAuditService: &mockAuditService{}}
-		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, audit, &mockTransactor{})
+		svc := NewMedicalRecordServiceWithTxAudit(repo, nil, nil, nil, nil, nil, nil, nil, nil, audit, nil, &mockTransactor{})
 
 		svc.DeleteDraftFromReservation(context.Background(), clinicID, reservationID)
 
@@ -360,7 +360,7 @@ func TestMedicalRecordService_DeleteDraftFromReservation(t *testing.T) {
 			},
 		}
 		audit := &reservationCancelCleanupAuditCapture{mockAuditService: &mockAuditService{}}
-		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, audit, &mockTransactor{})
+		svc := NewMedicalRecordServiceWithTxAudit(repo, nil, nil, nil, nil, nil, nil, nil, nil, audit, nil, &mockTransactor{})
 
 		svc.DeleteDraftFromReservation(context.Background(), clinicID, reservationID)
 
@@ -388,7 +388,7 @@ func TestMedicalRecordService_DeleteDraftFromReservation(t *testing.T) {
 			mockAuditService: &mockAuditService{},
 			err:              errors.New("audit unavailable"),
 		}
-		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, audit, &mockTransactor{})
+		svc := NewMedicalRecordServiceWithTxAudit(repo, nil, nil, nil, nil, nil, nil, nil, nil, audit, nil, &mockTransactor{})
 
 		svc.DeleteDraftFromReservation(context.Background(), clinicID, reservationID)
 
@@ -433,7 +433,7 @@ func TestMedicalRecordService_DeleteDraftFromReservation(t *testing.T) {
 				return nil
 			},
 		}
-		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, audit, &mockTransactor{})
+		svc := NewMedicalRecordServiceWithTxAudit(repo, nil, nil, nil, nil, nil, nil, nil, nil, audit, nil, &mockTransactor{})
 		parentWithTx := persistence.WithTxValue(context.Background(), &gorm.DB{})
 		parentCtx, cancelParent := context.WithCancel(parentWithTx)
 		cancelParent()
@@ -459,9 +459,8 @@ func TestMedicalRecordService_DeleteDraftFromReservation(t *testing.T) {
 				return nil
 			},
 		}
-		svc := NewMedicalRecordService(
-			&mockMedicalRecordRepository{}, nil, nil, nil, nil, nil, nil, nil, nil, audit, &mockTransactor{},
-		).(*medicalRecordService)
+		svc := NewMedicalRecordServiceWithTxAudit(
+			&mockMedicalRecordRepository{}, nil, nil, nil, nil, nil, nil, nil, nil, audit, nil, &mockTransactor{}).(*medicalRecordService)
 		expiredCleanupCtx, cancelCleanup := context.WithDeadline(context.Background(), time.Now().Add(-time.Second))
 		defer cancelCleanup()
 
@@ -486,7 +485,7 @@ func TestMedicalRecordService_fallbackFirstVisitCheck(t *testing.T) {
 		repo := &mockMedicalRecordRepository{
 			countByOwnerIDFn: func(_ context.Context, _, _ uint64) (int64, error) { return 0, nil },
 		}
-		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, &mockTransactor{})
+		svc := NewMedicalRecordServiceWithTxAudit(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, &mockTransactor{})
 		impl, ok := svc.(*medicalRecordService)
 		require.True(t, ok)
 
@@ -497,7 +496,7 @@ func TestMedicalRecordService_fallbackFirstVisitCheck(t *testing.T) {
 		repo := &mockMedicalRecordRepository{
 			countByOwnerIDFn: func(_ context.Context, _, _ uint64) (int64, error) { return 3, nil },
 		}
-		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, &mockTransactor{})
+		svc := NewMedicalRecordServiceWithTxAudit(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, &mockTransactor{})
 		impl := svc.(*medicalRecordService)
 
 		assert.False(t, impl.fallbackFirstVisitCheck(context.Background(), 1, 10))
@@ -509,7 +508,7 @@ func TestMedicalRecordService_fallbackFirstVisitCheck(t *testing.T) {
 				return 0, errors.New("db error")
 			},
 		}
-		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, &mockTransactor{})
+		svc := NewMedicalRecordServiceWithTxAudit(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, &mockTransactor{})
 		impl := svc.(*medicalRecordService)
 
 		assert.False(t, impl.fallbackFirstVisitCheck(context.Background(), 1, 10))
@@ -527,7 +526,7 @@ func TestAutoCreateFromReservation_AdditionalBranches(t *testing.T) {
 	doctorID := uint64(99)
 
 	t.Run("reservation が nil の場合はパニックせず即座にスキップする", func(t *testing.T) {
-		svc := NewMedicalRecordService(&mockMedicalRecordRepository{}, nil, nil, nil, nil, nil, nil, nil, nil, nil, &mockTransactor{})
+		svc := NewMedicalRecordServiceWithTxAudit(&mockMedicalRecordRepository{}, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, &mockTransactor{})
 		assert.NotPanics(t, func() {
 			svc.AutoCreateFromReservation(context.Background(), 1, nil)
 		})
@@ -546,7 +545,7 @@ func TestAutoCreateFromReservation_AdditionalBranches(t *testing.T) {
 				return 1, nil
 			},
 		}
-		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, &mockTransactor{})
+		svc := NewMedicalRecordServiceWithTxAudit(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, &mockTransactor{})
 		appt := &model.Reservation{ID: 1, ClinicID: 1, StartTime: now, OwnerID: &ownerID, PetID: &petID}
 
 		svc.AutoCreateFromReservation(context.Background(), 1, appt)
@@ -566,7 +565,7 @@ func TestAutoCreateFromReservation_AdditionalBranches(t *testing.T) {
 				return 0, errors.New("db error")
 			},
 		}
-		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, &mockTransactor{})
+		svc := NewMedicalRecordServiceWithTxAudit(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, &mockTransactor{})
 		appt := &model.Reservation{ID: 1, ClinicID: 1, StartTime: now, OwnerID: &ownerID, PetID: &petID}
 
 		svc.AutoCreateFromReservation(context.Background(), 1, appt)
@@ -601,7 +600,7 @@ func TestAutoCreateFromReservation_AdditionalBranches(t *testing.T) {
 				return ownerID, nil
 			},
 		}
-		svc := NewMedicalRecordService(repo, nil, clinicalPlanRepo, nil, nil, nil, nil, reservationRepo, nil, nil, &mockTransactor{})
+		svc := NewMedicalRecordServiceWithTxAudit(repo, nil, clinicalPlanRepo, nil, nil, nil, nil, reservationRepo, nil, nil, nil, &mockTransactor{})
 
 		svc.AutoCreateFromReservation(context.Background(), 1, appt)
 		require.NotNil(t, createdRecord)
@@ -631,7 +630,7 @@ func TestAutoCreateFromReservation_AdditionalBranches(t *testing.T) {
 				return ownerID, nil
 			},
 		}
-		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, reservationRepo, nil, nil, &mockTransactor{})
+		svc := NewMedicalRecordServiceWithTxAudit(repo, nil, nil, nil, nil, nil, nil, reservationRepo, nil, nil, nil, &mockTransactor{})
 
 		assert.NotPanics(t, func() {
 			svc.AutoCreateFromReservation(context.Background(), 1, appt)
@@ -682,9 +681,8 @@ func TestAutoCreateFromReservation_AuditLogBeforeCreateCoreExtraction(t *testing
 			return &model.ClinicalPlan{ID: 1}, nil
 		},
 	}
-	svc := NewMedicalRecordService(
-		repo, nil, clinicalPlanRepo, nil, nil, nil, nil, reservationRepo, nil, auditSvc, &mockTransactor{},
-	)
+	svc := NewMedicalRecordServiceWithTxAudit(
+		repo, nil, clinicalPlanRepo, nil, nil, nil, nil, reservationRepo, nil, auditSvc, nil, &mockTransactor{})
 
 	svc.AutoCreateFromReservation(context.Background(), clinicID, reservation)
 
@@ -753,9 +751,8 @@ func TestAutoCreateFromReservation_ExistingAppointmentRepairsSubrecordsWithoutCr
 			return nil
 		},
 	}
-	svc := NewMedicalRecordService(
-		repo, nil, clinicalPlanRepo, nil, nil, nil, nil, reservationRepo, nil, auditSvc, &mockTransactor{}, tagSyncSvc,
-	)
+	svc := NewMedicalRecordServiceWithTxAudit(
+		repo, nil, clinicalPlanRepo, nil, nil, nil, nil, reservationRepo, nil, auditSvc, nil, &mockTransactor{}, tagSyncSvc)
 
 	svc.AutoCreateFromReservation(context.Background(), clinicID, reservation)
 
@@ -792,7 +789,7 @@ func TestAutoCreateFromReservation_RollsBackCreateWhenOuterTransactionFails(t *t
 		},
 	}
 	sentinel := errors.New("force outer auto-create rollback")
-	svc := NewMedicalRecordService(
+	svc := NewMedicalRecordServiceWithTxAudit(
 		NewMedicalRecordRepository(db),
 		nil,
 		clinicalPlanRepo,
@@ -803,8 +800,8 @@ func TestAutoCreateFromReservation_RollsBackCreateWhenOuterTransactionFails(t *t
 		reservationdomain.NewReservationRepository(db),
 		nil,
 		nil,
-		forceOuterRollbackTransactor{db: db, sentinel: sentinel},
-	)
+		nil,
+		forceOuterRollbackTransactor{db: db, sentinel: sentinel})
 
 	svc.AutoCreateFromReservation(context.Background(), clinicID, reservation)
 
@@ -847,7 +844,7 @@ func TestAutoCreateFromReservation_RollsBackWhenLockedAppointmentDateDriftsFromL
 			return &model.ClinicalPlan{ID: 1}, nil
 		},
 	}
-	svc := NewMedicalRecordService(
+	svc := NewMedicalRecordServiceWithTxAudit(
 		NewMedicalRecordRepository(db),
 		nil,
 		clinicalPlanRepo,
@@ -858,8 +855,8 @@ func TestAutoCreateFromReservation_RollsBackWhenLockedAppointmentDateDriftsFromL
 		reservationdomain.NewReservationRepository(db),
 		nil,
 		nil,
-		testTransactor{db: db},
-	)
+		nil,
+		testTransactor{db: db})
 
 	svc.AutoCreateFromReservation(context.Background(), clinicID, &staleSnapshot)
 
@@ -929,7 +926,7 @@ func TestAutoCreateFromReservation_JSTDateBoundaryPreventsDuplicate(t *testing.T
 			return owner.ID, nil
 		},
 	}
-	svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, reservationRepo, nil, nil, &mockTransactor{})
+	svc := NewMedicalRecordServiceWithTxAudit(repo, nil, nil, nil, nil, nil, nil, reservationRepo, nil, nil, nil, &mockTransactor{})
 
 	svc.AutoCreateFromReservation(context.Background(), clinicID, reservation)
 
@@ -974,7 +971,7 @@ func TestAutoCreateFromReservation_UsesReservationDateInJST(t *testing.T) {
 					return 1, nil
 				},
 			}
-			svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, &mockTransactor{})
+			svc := NewMedicalRecordServiceWithTxAudit(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, &mockTransactor{})
 			reservation := &model.Reservation{
 				ID:        7100,
 				ClinicID:  clinicID,
@@ -1034,7 +1031,7 @@ func TestAutoCreateFromReservation_ConcurrentSameClinicPetJSTDayCreatesOneRecord
 			return &model.ClinicalPlan{ID: 1}, nil
 		},
 	}
-	svc := NewMedicalRecordService(
+	svc := NewMedicalRecordServiceWithTxAudit(
 		raceRepo,
 		nil,
 		clinicalPlanRepo,
@@ -1045,8 +1042,8 @@ func TestAutoCreateFromReservation_ConcurrentSameClinicPetJSTDayCreatesOneRecord
 		reservationdomain.NewReservationRepository(db),
 		nil,
 		nil,
-		testTransactor{db: db},
-	)
+		nil,
+		testTransactor{db: db})
 
 	ready := make(chan struct{})
 	done := make(chan struct{}, len(reservations))
@@ -1116,7 +1113,7 @@ func TestAutoCreateFromReservation_LockScopeAndFailure(t *testing.T) {
 					OwnerID:   &ownerID,
 					PetID:     &reservationPetID,
 				}
-				svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, &mockTransactor{})
+				svc := NewMedicalRecordServiceWithTxAudit(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, &mockTransactor{})
 
 				svc.AutoCreateFromReservation(context.Background(), tt.clinicID, reservation)
 
@@ -1156,7 +1153,7 @@ func TestAutoCreateFromReservation_LockScopeAndFailure(t *testing.T) {
 			OwnerID:   &ownerID,
 			PetID:     &reservationPetID,
 		}
-		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, &mockTransactor{})
+		svc := NewMedicalRecordServiceWithTxAudit(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, &mockTransactor{})
 
 		assert.NotPanics(t, func() {
 			svc.AutoCreateFromReservation(context.Background(), 7, reservation)
@@ -1197,7 +1194,7 @@ func TestAutoCreateFromReservation_LockScopeAndFailure(t *testing.T) {
 			OwnerID:   &ownerID,
 			PetID:     &reservationPetID,
 		}
-		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, &mockTransactor{})
+		svc := NewMedicalRecordServiceWithTxAudit(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, &mockTransactor{})
 
 		assert.NotPanics(t, func() {
 			svc.AutoCreateFromReservation(context.Background(), 7, reservation)

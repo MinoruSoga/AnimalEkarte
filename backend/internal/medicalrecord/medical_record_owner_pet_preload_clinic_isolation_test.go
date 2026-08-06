@@ -265,9 +265,8 @@ func TestMedicalRecordService_Create_RejectsSameClinicPetLinkedToForeignOwner(t 
 
 	recordRepo := NewMedicalRecordRepository(db)
 	reservationRepo := reservationdomain.NewReservationRepository(db)
-	svc := NewMedicalRecordService(
-		recordRepo, nil, nil, nil, nil, nil, nil, reservationRepo, nil, nil, testTransactor{db: db},
-	)
+	svc := NewMedicalRecordServiceWithTxAudit(
+		recordRepo, nil, nil, nil, nil, nil, nil, reservationRepo, nil, nil, nil, testTransactor{db: db})
 	record, err := svc.Create(ctx, clinicA, &CreateMedicalRecordInput{
 		Date:  time.Now().UTC(),
 		PetID: &pollutedPet.ID,
@@ -308,9 +307,8 @@ func TestMedicalRecordService_Create_SerializesDuplicateAppointmentRecords(t *te
 
 	recordRepo := NewMedicalRecordRepository(db)
 	reservationRepo := reservationdomain.NewReservationRepository(db)
-	svc := NewMedicalRecordService(
-		recordRepo, nil, nil, nil, nil, nil, nil, reservationRepo, nil, nil, testTransactor{db: db},
-	)
+	svc := NewMedicalRecordServiceWithTxAudit(
+		recordRepo, nil, nil, nil, nil, nil, nil, reservationRepo, nil, nil, nil, testTransactor{db: db})
 
 	type createResult struct {
 		record *model.MedicalRecord

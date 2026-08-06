@@ -49,9 +49,8 @@ func TestMedicalRecordService_DeleteConflictKindsPreservePublicContract(t *testi
 					return tt.estimateCount, nil
 				},
 			}
-			svc := NewMedicalRecordService(
-				repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, &mockTransactor{},
-			)
+			svc := NewMedicalRecordServiceWithTxAudit(
+				repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, &mockTransactor{})
 
 			err := svc.Delete(context.Background(), 3, 91)
 

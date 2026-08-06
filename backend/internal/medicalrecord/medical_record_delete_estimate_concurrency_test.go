@@ -61,7 +61,7 @@ func TestMedicalRecordService_DeleteSerializesWithEstimateCreation(t *testing.T)
 		db := setupMedicalRecordListTestDB(t)
 		record := makeDraftRecordForDeleteEstimateRace(t, db, clinicID, "DEL-ESTIMATE-FIRST")
 		repo := NewMedicalRecordRepository(db)
-		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, testTransactor{db: db})
+		svc := NewMedicalRecordServiceWithTxAudit(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, testTransactor{db: db})
 		estimateReady := make(chan struct{})
 		releaseEstimate := make(chan struct{})
 		estimateDone := make(chan error, 1)
@@ -109,7 +109,7 @@ func TestMedicalRecordService_DeleteSerializesWithEstimateCreation(t *testing.T)
 			locked:                  make(chan struct{}),
 			proceed:                 make(chan struct{}),
 		}
-		svc := NewMedicalRecordService(blockingRepo, nil, nil, nil, nil, nil, nil, nil, nil, nil, testTransactor{db: db})
+		svc := NewMedicalRecordServiceWithTxAudit(blockingRepo, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, testTransactor{db: db})
 		deleteDone := make(chan error, 1)
 		go func() { deleteDone <- svc.Delete(context.Background(), clinicID, record.ID) }()
 		select {

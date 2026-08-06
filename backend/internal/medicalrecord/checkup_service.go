@@ -10,6 +10,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/persistence"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 // CreateCheckupInput は健診記録作成の入力DTO
@@ -244,7 +245,7 @@ func (s *checkupService) Create(ctx context.Context, medicalRecordID uint64, inp
 		// goroutine 境界を跨ぐ WithoutCancel は ambient tx を剥がすこと（BE-refactor.md B-2）。
 		bgCtx := persistence.DetachTx(ctx)
 		s.wg.Add(1)
-		goSafe("checkup followup trigger", func() {
+		sharedkernel.GoSafe("checkup followup trigger", func() {
 			defer s.wg.Done()
 			trigCtx, cancel := context.WithTimeout(bgCtx, 35*time.Second)
 			defer cancel()
