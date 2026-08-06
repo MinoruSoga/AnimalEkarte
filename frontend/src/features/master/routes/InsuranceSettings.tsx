@@ -18,6 +18,7 @@ import type { Insurance, CreateInsuranceRequest, UpdateInsuranceRequest } from "
 import {
   buildInsuranceCreateRequest,
   buildInsuranceUpdateRequest,
+  validateInsuranceForm,
 } from "./insurance-settings-model";
 import { ResourceMasterInsurance } from "@/types/generated/models";
 
@@ -47,7 +48,7 @@ export function InsuranceSettings() {
   const { handleSave } = useMasterSave<Insurance, InsuranceFormData, CreateInsuranceRequest, UpdateInsuranceRequest>({
     crud, createMutation, updateMutation,
     permissions: { canCreate, canEdit },
-    validate: (d) => (!d.name.trim() ? "名称は必須です" : null),
+    validate: validateInsuranceForm,
     toCreateRequest: buildInsuranceCreateRequest,
     toUpdateRequest: buildInsuranceUpdateRequest,
   });

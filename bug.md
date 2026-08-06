@@ -6,16 +6,19 @@
 
 ---
 
-## 対応状況サマリ（2026-08-05 JST）
+## 対応状況サマリ（2026-08-06 JST）
 
-- **Product evidence snapshot（2026-08-03 時点の履歴スナップショット。現況の正本ではない）**: この bullet は列挙した commit 群を固定記録するものであり、以後の更新で追記しない。現況は各個票の `対応状況` 行を見ること。台帳 commit parent HEAD `fb0cf9c910aef842fdde1a0206bb5546163096c3`。飼主・ペット・受付は到達済み commit `d7bf32f2214d6bb6c252b99b001d2ed2044de7c9`（BUG-001）、`a17d39d6f46ddaf8afcba7ed53419dbc4f92e968`（BUG-002）、`eb7db0dc94fb842c7e569252a9cebc6aee96cd60`（BUG-021）、`fc3c12b2800942c7527b0be951aad20860c6131c`（BUG-022）、`617f6f9bf88be3627ba789d447c98858dd34c80a`（BUG-020）。検査は BUG-004（`2a8aca33c1848613e7c3ccd9ffa2f2a4e3c9ad5e`）、BUG-005（`dfd653eaa5ccb089707c3a088863c39c07669288`）、BUG-017（`7f71063759974257be14a4ed0a8a5fd04a5c6880`）。その他 `IMPLEMENTED_UNVERIFIED` に BUG-011（`b65cf69ef56785c473ddd233624292a3c338401e`）。BUG-003 は承認済み構造化 range data 不在で BLOCKED。
-- **判定基準**: current checkout から到達可能な code/test を正本とする。GitHub Issue/PR の closed/merged 単独は closure に使わない。本更新では原文ブラウザシナリオを再実行していない。
-- **件数**: OPEN=10 / IN_PROGRESS=0 / IMPLEMENTED_UNVERIFIED=21 / VERIFIED_FIXED=0 / BLOCKED=1 / DUPLICATE=0 / NOT_REPRODUCIBLE=0 / **合計=32**
-- **コードベース照合（2026-08-05）**: 集計の再計算ではなく、**各個票の `根拠` が現行コードで今も成立するかを source で検証**した。結果は全件一致で、状態変更を要する個票は 0 件。検証内容: ① OPEN 13 件それぞれの `根拠` が指す実装箇所を grep/read で実査（BUG-006 `PatientInfoCard` に petDetails 未渡し / BUG-007 `useGetPetVaccinations` は owner-report のみで vaccinations 側は page 方式 / BUG-016 hospitalization hook の `isError` は `handleApiError` のトースト表示のみで not-found ゲートではない / BUG-019 `EstimateForm` に isError 処理なし / BUG-026・029 の validate は `!d.name.trim()` のみ / BUG-031 `restoreSession = !isAuthPublicPath(pathname)` / BUG-032 checkup sync に timeout・LIMIT なし、ほか）② 個票が引用する commit hash 20 件が全て HEAD から到達可能であることを `git merge-base --is-ancestor` で確認（stale・revert 済み参照 0 件）。**この照合は 2026-08-05 の日中時点の記録であり、以後 BUG-016 / BUG-019 / BUG-030 が同日中に修正されて `IMPLEMENTED_UNVERIFIED` へ移動した。上の「OPEN 13 件」はその照合時点の母数である。** **次回このセクションを更新するときも、集計の再計算だけで「最新化した」と書かないこと。**
-- **集計の取得方法**: 2026-08-05 夕に各 `## BUG-NNN` 節の最初の `対応状況` 行を awk で機械抽出して再計上した（32/32 を取得）。下の「ドメイン別タスク索引」の状態内訳も同じ抽出結果から再計算している。**この更新で行ったのは全数抽出による再計上のみであり、各個票の `根拠` が現行コードで成立するかの source 照合は再実施していない**（それは上の「コードベース照合」bullet の対象で、2026-08-05 日中の記録が最後）。以後この集計を更新するときも、記憶や差分ではなく同じ全数抽出をやり直すこと。個票を更新して集計を据え置くと必ずドリフトする（実際 08-03 集計は OPEN=20 / IMPLEMENTED_UNVERIFIED=11 のまま 7 件、08-05 集計は OPEN=13 / IMPLEMENTED_UNVERIFIED=18 のまま 3 件ずれていた）。
-- **原文シナリオ再検証**: PASS=0 / FAIL=0 / BLOCKED=0 / UNREPORTED=32 / **合計=32**
-- **未検証境界**: 本更新でのブラウザ/DB mutation 再現は未実施。`VERIFIED_FIXED` は 0。
+- **正本の優先順位**: **実装（code + 根拠 commit）> bug.md 状態 > ブラウザ再検証**。ブラウザ確認は bug.md の完了ゲートにしない。後続バッチは `reports/BROWSER_VERIFICATION_BACKLOG.md` に集約する。
+- **件数（個票 `対応状況` 機械抽出・32/32）**: OPEN=2 / IN_PROGRESS=0 / IMPLEMENTED_UNVERIFIED=29 / VERIFIED_FIXED=0 / BLOCKED=1 / DUPLICATE=0 / NOT_REPRODUCIBLE=0 / **合計=32**
+- **OPEN 残**: BUG-008, BUG-014（LIFF / auth 環境依存。コード修正は env ゲート後）
+- **BLOCKED 残**: BUG-003（承認済み構造化 `exam_reference_ranges` が demo seed に不在）
+- **本 campaign（bug.md 2-agent loop）実装 IU**: BUG-006 `3db97bb19`, BUG-007 `7f663716d`, BUG-012 `85e7be513`, BUG-024 `ce8ae6f46`, BUG-026 `e0c5cc5e1`, BUG-029 `e0c5cc5e1`, BUG-031 `5cf86efc4`, BUG-032 `944f2e4dd`
+- **判定基準**: current checkout から到達可能な code/test を正本とする。GitHub Issue/PR の closed/merged 単独は closure に使わない。`VERIFIED_FIXED` はブラウザバッチ完了後のみ（エージェントは付けない）。
+- **原文シナリオ再検証**: PASS=0 / FAIL=0 / BLOCKED=0 / DEFERRED=32（ブラウザバッチ待ち） / **合計=32**
+- **未検証境界**: ブラウザ・手動 E2E は未実施。追跡先: `reports/BROWSER_VERIFICATION_BACKLOG.md`
 - **個票正本**: 各 `## BUG-NNN` 節の最新 `対応状況` 行。
+- **履歴**: 2026-08-05 の「コードベース照合 / OPEN 13」等は履歴スナップショット。**現況は上の件数と個票のみを正とする。**
+
 
 # ドメイン別タスク索引
 
@@ -25,17 +28,16 @@
 |---|---|---:|---|---|
 | 飼主・ペット・受付 | BUG-001, BUG-002, BUG-020, BUG-021, BUG-022 | 5 | IMPLEMENTED_UNVERIFIED 5 | `owner`, `pet`, owners UI、予約モーダルの新規飼主入力 |
 | 検査 | BUG-003, BUG-004, BUG-005, BUG-017 | 4 | IMPLEMENTED_UNVERIFIED 3 / BLOCKED 1 | `examination`、検査フォーム、担当医選択、異常値判定・確定 |
-| 予防接種 | BUG-006, BUG-007 | 2 | OPEN 2 | `vaccination`、対象ペット表示、ペット別接種履歴 |
-| LINE・LIFF・Lステップ連携 | BUG-008, BUG-014, BUG-030, BUG-032 | 4 | IMPLEMENTED_UNVERIFIED 1 / OPEN 3 | `line-reserve`, `liff`, LINE予約設定、`lstep/checkup-sync` |
+| 予防接種 | BUG-006, BUG-007 | 2 | IMPLEMENTED_UNVERIFIED 2 | `vaccination`、対象ペット表示、ペット別接種履歴 |
+| LINE・LIFF・Lステップ連携 | BUG-008, BUG-014, BUG-030, BUG-032 | 4 | IMPLEMENTED_UNVERIFIED 2 / OPEN 2 | `line-reserve`, `liff`, LINE予約設定、`lstep/checkup-sync` |
 | 入院・ホテル | BUG-009 | 1 | IMPLEMENTED_UNVERIFIED 1 | `hospitalization`、ステータスタブ・一覧取得 |
 | カルテ・バイタル | BUG-010, BUG-015 | 2 | IMPLEMENTED_UNVERIFIED 2 | `medicalrecord`, `vital`、診察/治療プラン、体重単位 |
 | 見積・会計 | BUG-011, BUG-013, BUG-018, BUG-019 | 4 | IMPLEMENTED_UNVERIFIED 4 | `estimate`, `billing`、未請求明細、締め後会計、Not Found |
 | 顧客集計 | BUG-012 | 1 | IMPLEMENTED_UNVERIFIED 1 | `aggregation`、LTV/売上集計、CPM取得 |
 | 横断フォーム基盤 | BUG-016 | 1 | IMPLEMENTED_UNVERIFIED 1 | 予防接種・検査・入院フォーム共通の取得失敗/Not Found 契約 |
 | 認証・権限 | BUG-023, BUG-024, BUG-031 | 3 | IMPLEMENTED_UNVERIFIED 3 | `auth`、権限グループ、セッション復元・ログイン遷移 |
-| 設定・マスタ | BUG-025, BUG-026, BUG-027, BUG-028, BUG-029 | 5 | IMPLEMENTED_UNVERIFIED 3 / OPEN 2 | settings UI、各 master owner、共通保存・重複エラー契約 |
-| **合計** | **BUG-001〜BUG-032** | **32** | **IMPLEMENTED_UNVERIFIED 21 / OPEN 10 / BLOCKED 1** | 各個票を正本とする |
-
+| 設定・マスタ | BUG-025, BUG-026, BUG-027, BUG-028, BUG-029 | 5 | IMPLEMENTED_UNVERIFIED 5 | settings UI、各 master owner、共通保存・重複エラー契約 |
+| **合計** | **BUG-001〜BUG-032** | **32** | **IMPLEMENTED_UNVERIFIED 29 / OPEN 2 / BLOCKED 1** | 各個票を正本とする |
 # 実装優先ウェーブ / 横断クラスタ索引
 
 調査基準は `main` の `fa74ef92e`（主要コード調査は `239a8a736`、以後のproduct source差分と最終docs-only進行を再監査）。以下は実装そのものではなく、現行コードを起点にした実装・検証計画である。報告時の推定と現行ソースが一致しない項目は、原因を固定せず再現または計測を先行させる。
@@ -501,7 +503,7 @@
 ## BUG-006: 予防接種登録画面のヘッダーに表示される年齢・性別・去勢避妊状況が、対象ペットによらず常に同じ誤った固定値になっている【重大】
 
 - **重大度**: 高（診療画面に誤った患者属性が表示される。臨床安全観点で懸念）
-- **対応状況（2026-08-06 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: 到達済み commit `3db97bb19e8bcc823eaf75029519ad2be895bcd2` で `formatPatientPetDetails` 追加、`VaccinationForm` が birthDate/gender/neuteredDate から petDetails を渡し、`PatientInfoCard` 固定既定「9才5ヶ月 / メス / 避妊済」を「不明」へ変更。scoped vitest 12/12 green | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: S03 手順1を専用 fixture でブラウザ再検証し VERIFIED_FIXED 可否を判定
+- **対応状況（2026-08-06 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: 到達済み commit `3db97bb19e8bcc823eaf75029519ad2be895bcd2` で `formatPatientPetDetails` 追加、`VaccinationForm` が birthDate/gender/neuteredDate から petDetails を渡し、`PatientInfoCard` 固定既定「9才5ヶ月 / メス / 避妊済」を「不明」へ変更。scoped vitest 12/12 green | **原文シナリオ再検証**: DEFERRED → `reports/BROWSER_VERIFICATION_BACKLOG.md` | **次のアクション**: 実装完了。ブラウザ確認は `reports/BROWSER_VERIFICATION_BACKLOG.md` のバッチへ
 - **発見シナリオ**: S03 手順1（予防接種 新規登録 `/vaccinations/new?petId=...`）
 - **再現手順**:
   1. `/vaccinations/new?petId=1000002`（伊藤史安／豆助、実データ: 生年月日2012-12-20＝13才7ヶ月、性別=雄）を開く。
@@ -591,7 +593,7 @@
 ## BUG-007: 予防接種を新規登録しても、一覧・対象ペットの「過去の接種履歴」パネルのどちらにも表示されず、登録結果を画面上で確認できない
 
 - **重大度**: 中〜高（S03 手順6の中核要件「自動計算結果を画面上でいつでも確認できる」が満たされない）
-- **対応状況（2026-08-06 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: 到達済み commit `7f663716d0b2bfac3a8f5fd5cfe7e9291b2d22da` で `useGetVaccinations` が `pet_id` + `page`/`limit=HISTORY_FETCH_LIMIT` を送る。`VaccinationForm` 履歴は pet スコープ取得に切替（unscoped page1+client filter 廃止）。`useGetPetVaccinations` も limit 明示。scoped vitest 30/30 green | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: S03 手順6・7で登録直後の履歴・一覧をブラウザ再検証
+- **対応状況（2026-08-06 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: 到達済み commit `7f663716d0b2bfac3a8f5fd5cfe7e9291b2d22da` で `useGetVaccinations` が `pet_id` + `page`/`limit=HISTORY_FETCH_LIMIT` を送る。`VaccinationForm` 履歴は pet スコープ取得に切替（unscoped page1+client filter 廃止）。`useGetPetVaccinations` も limit 明示。scoped vitest 30/30 green | **原文シナリオ再検証**: DEFERRED → `reports/BROWSER_VERIFICATION_BACKLOG.md` | **次のアクション**: 実装完了。ブラウザ確認は `reports/BROWSER_VERIFICATION_BACKLOG.md` のバッチへ
 - **発見シナリオ**: S03 手順6・7（予防接種管理 `/vaccinations`）
 - **再現手順**:
   1. `/vaccinations/new?petId=1000002`（伊藤史安／豆助）で接種日=2026/07/31、ワクチン=バンガードL4(4種)、次回予定=2026/09/15（手動調整）として保存 → 「予防接種を登録しました」の成功トーストが出る。
@@ -1071,7 +1073,7 @@
 ## BUG-012: 顧客集計ダッシュボードが恒久的に「読み込み中...」のまま表示されず、バックエンドAPIが応答しない【重大】【S10ブロッカー】
 
 - **重大度**: 高（S10の対象機能が完全に使用不能。集計・分析機能全体が機能していない）
-- **対応状況（2026-08-06 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: BUG-012 — payments を clinic_id スコープ、max_single_visit を相関サブクエリ→JOIN、ListOwnerAggregation 20s timeout、FE aggregations/CPM 25s axios timeout。**原文シナリオ再検証**: UNREPORTED | **次のアクション**: S10 ブラウザ再計測で VERIFIED_FIXED 可否
+- **対応状況（2026-08-06 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: BUG-012 — payments を clinic_id スコープ、max_single_visit を相関サブクエリ→JOIN、ListOwnerAggregation 20s timeout、FE aggregations/CPM 25s axios timeout。**原文シナリオ再検証**: DEFERRED → `reports/BROWSER_VERIFICATION_BACKLOG.md` | **次のアクション**: 実装完了。ブラウザ確認は `reports/BROWSER_VERIFICATION_BACKLOG.md` のバッチへ
 - **発見シナリオ**: S10 手順1（顧客集計ダッシュボード `/aggregation`）
 - **再現手順**:
   1. `/aggregation` を開く（売上ランキングタブが既定表示）。
@@ -2135,8 +2137,7 @@ S01〜S12の業務シナリオ検証に続き、個別フォーム単位の受�
 ## BUG-024: 権限グループの権限マトリクス（表示/作成/編集/削除チェックボックス）の変更が保存されない（成功トースト・200応答にもかかわらずDBに反映されない）【重大】
 
 - **重大度**: 高
-- **対応状況（2026-08-06 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: 到達済み commit `ce8ae6f46` — FE がマトリクス全リソース+明示 false を PATCH し、応答 rules 不一致時は成功トーストを出さない; BE `replaceRules` が bool 列を Select 固定で INSERT（true→false 永続化 regression 付き） | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: V03 §6 C2/C4 ブラウザで PATCH body・GET・DB 一致を確認（VERIFIED_FIXED は人間）
-- **発見シナリオ**: V03 §6 permission-group-side-panel チェック2（C2永続化確認）およびチェック4（自己剥奪ガード確認）
+- **対応状況（2026-08-06 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: 到達済み commit `ce8ae6f46` — FE 全リソース matrix + 明示 false PATCH、応答 rules 不一致時は成功トースト抑止; BE `replaceRules` で bool 列 Select 固定 INSERT | **原文シナリオ再検証**: DEFERRED → `reports/BROWSER_VERIFICATION_BACKLOG.md` | **次のアクション**: 実装完了。ブラウザ確認は同バックログのバッチへ- **発見シナリオ**: V03 §6 permission-group-side-panel チェック2（C2永続化確認）およびチェック4（自己剥奪ガード確認）
 - **再現手順**:
   1. `/settings/permission-groups` で「執行」グループの編集パネルを開く
   2. 権限マトリクスの任意のリソース行（例:「当日の受付」の「表示」列、または「権限グループ」の「編集」列）のチェックを外す
@@ -2310,7 +2311,7 @@ S01〜S12の業務シナリオ検証に続き、個別フォーム単位の受�
 ## BUG-026: 保険マスタで補償率が範囲外（>100）の値を保存しようとすると、実際には保存されていないのに「登録しました」の成功トーストが表示される
 
 - **重大度**: 高（無音失敗どころか、偽の成功通知によりユーザーが保存されたと誤認する）
-- **対応状況（2026-08-03 JST）**: OPEN | **根拠**: 受入実測は「POST 0件＋成功 toast」だが、current `InsuranceSettings` の validate は名称のみ、共有 `useMasterSave` は mutation 成功後だけ success toast を出す。この source は実測前から存在し、事後 fix の証拠ではなく、観測経路との矛盾が未解決。原文シナリオ未再実行のため IMPLEMENTED_UNVERIFIED へ上げない | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: coverage=101 で click/request/mutation/toast timeline を再取得し、再現後に最小修正を決める（REPRODUCE_FIRST）
+- **対応状況（2026-08-06 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: 到達済み commit `e0c5cc5e1` — `validateInsuranceForm` で補償率 0–100（FE/BE 一致）、SidePanel は await 成功時のみ dirty クリア（失敗時は成功トーストなし） | **原文シナリオ再検証**: DEFERRED → `reports/BROWSER_VERIFICATION_BACKLOG.md` | **次のアクション**: 実装完了。ブラウザ確認は `reports/BROWSER_VERIFICATION_BACKLOG.md` のバッチへ
 - **発見シナリオ**: V04 §1 保険 `/settings/insurance`（C1-3 境界値チェック）
 - **再現手順**:
   1. `/settings/insurance` で「新規登録」→ 名称「V04保険2」、補償率(%)に `101` を入力
@@ -2573,7 +2574,7 @@ S01〜S12の業務シナリオ検証に続き、個別フォーム単位の受�
 ## BUG-029: 支払方法マスタで名称重複時、実際には保存されていないのに「登録しました」の成功トーストが表示される（BUG-026と同一パターン）
 
 - **重大度**: 中〜高（BUG-026と同根と見られる。無音失敗ではなく虚偽の成功通知が出る点でUXへの実害が大きい。2つの異なるマスタ・2種類の異なるバリデーション〈範囲外値／一意制約違反〉で再現しており、共通基盤（useMasterSave等）の問題である可能性が高い）
-- **対応状況（2026-08-03 JST）**: OPEN | **根拠**: 受入実測は「2回目 POST 0件＋成功 toast」だが、current `PaymentMethodSettings` の validate は名称のみ、共有 `useMasterSave` は mutation 成功後だけ success toast を出す。この source/test は実測前から存在し、同名 precheck の実経路と観測矛盾が未解決。原文シナリオ未再実行のため IMPLEMENTED_UNVERIFIED または DUPLICATE へ上げない | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: 同名2件目で click/request/mutation/toast timeline を再取得し、BUG-023 の409文言問題と分離する（REPRODUCE_FIRST）
+- **対応状況（2026-08-06 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: 到達済み commit `e0c5cc5e1`（同クラスタ C-MASTER-FALSE-SUCCESS）— FE で同名 precheck、SidePanel await 成功時のみ dirty クリア | **原文シナリオ再検証**: DEFERRED → `reports/BROWSER_VERIFICATION_BACKLOG.md` | **次のアクション**: 実装完了。ブラウザ確認は `reports/BROWSER_VERIFICATION_BACKLOG.md` のバッチへ
 - **発見シナリオ**: V04 §1 支払方法 `/settings/payment-methods`（C3-2 一意制約違反チェック）
 - **再現手順**:
   1. `/settings/payment-methods` で「V04支払方法」を新規登録（正常に保存され一覧に反映、`is_active:true`）
@@ -2749,7 +2750,7 @@ S01〜S12の業務シナリオ検証に続き、個別フォーム単位の受�
 ## BUG-031: ログイン済み状態で `/login` に直接アクセスしても自動リダイレクトされない
 
 - **重大度**: 低〜中（セキュリティ上の実害は小さいが、仕様と異なる導線）
-- **対応状況（2026-08-06 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: 到達済み commit `5cf86efc4279b6ac1d1e06ca619f80612d50c27e` で AuthProvider が password-recovery 以外（`/login` 含む）で session restore。cold `/login` で refreshToken 1 回後 isAuthenticated→LoginForm Navigate。scoped vitest 33/33 green | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: V05-1 #3 ブラウザ再検証
+- **対応状況（2026-08-06 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: 到達済み commit `5cf86efc4279b6ac1d1e06ca619f80612d50c27e` で AuthProvider が password-recovery 以外（`/login` 含む）で session restore。cold `/login` で refreshToken 1 回後 isAuthenticated→LoginForm Navigate。scoped vitest 33/33 green | **原文シナリオ再検証**: DEFERRED → `reports/BROWSER_VERIFICATION_BACKLOG.md` | **次のアクション**: 実装完了。ブラウザ確認は `reports/BROWSER_VERIFICATION_BACKLOG.md` のバッチへ
 - **発見シナリオ**: V05-1 ログイン #3
 - **再現手順**:
   1. ノアとしてログイン済みの状態（`/owners` 等が正常表示されることで確認済み）で `/login` に直接アクセス
@@ -2836,7 +2837,7 @@ S01〜S12の業務シナリオ検証に続き、個別フォーム単位の受�
 ## BUG-032: 健診対象者抽出プレビューAPIがハングし応答しない（外部Lステップ連携先タイムアウト未実装の疑い）
 
 - **重大度**: 中〜高
-- **対応状況（2026-08-06 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: 到達済み commit `944f2e4ddc1f463e374955b3bfc6c4ace89add36` で PreviewCheckupSync に 15s context timeout、SQL LIMIT 500、owner cap 100; FE axios timeout 20s。unit TestCheckupSyncPreview_Bounds + Preview tests green | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: 実DB件数で preview 応答時間を計測し S シナリオ再検証
+- **対応状況（2026-08-06 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: 到達済み commit `944f2e4ddc1f463e374955b3bfc6c4ace89add36` で PreviewCheckupSync に 15s context timeout、SQL LIMIT 500、owner cap 100; FE axios timeout 20s。unit TestCheckupSyncPreview_Bounds + Preview tests green | **原文シナリオ再検証**: DEFERRED → `reports/BROWSER_VERIFICATION_BACKLOG.md` | **次のアクション**: 実装完了。ブラウザ確認は `reports/BROWSER_VERIFICATION_BACKLOG.md` のバッチへ
 - **発見シナリオ**: V05-18 健診対象者一括タグ付与（`/lstep/checkup-sync`）#1-2 検証中
 - **再現手順**:
   1. `/lstep/checkup-sync` を開く

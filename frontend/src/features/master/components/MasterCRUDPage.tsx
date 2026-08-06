@@ -23,7 +23,7 @@ interface Column {
 interface SidePanelRenderProps<T, TForm = Record<string, unknown>> {
   item: T | null;
   onClose: () => void;
-  onSave: (data: TForm) => void;
+  onSave: (data: TForm) => Promise<boolean> | boolean | void;
   onDeleteRequest: ((item: T) => void) | undefined;
   /** BUG-158: true の場合、保存・削除ボタンを非表示にする */
   readOnly?: boolean;
@@ -46,7 +46,7 @@ interface MasterCRUDPageProps<T extends MasterEntity, TForm = Record<string, unk
   /** CRUD state from useMasterCRUD */
   crud: UseMasterCRUDReturn<T>;
   /** Save handler from useMasterSave */
-  handleSave: (data: TForm) => void;
+  handleSave: (data: TForm) => Promise<boolean> | boolean | void;
 
   /** Table columns */
   columns: Column[];
