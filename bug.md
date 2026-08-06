@@ -2749,7 +2749,7 @@ S01〜S12の業務シナリオ検証に続き、個別フォーム単位の受�
 ## BUG-031: ログイン済み状態で `/login` に直接アクセスしても自動リダイレクトされない
 
 - **重大度**: 低〜中（セキュリティ上の実害は小さいが、仕様と異なる導線）
-- **対応状況（2026-08-06 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: AuthProvider が password-recovery 以外（`/login` 含む）で session restore。cold `/login` で refreshToken 1 回後 isAuthenticated→LoginForm Navigate。scoped vitest 33/33 green | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: V05-1 #3 ブラウザ再検証
+- **対応状況（2026-08-06 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: 到達済み commit `5cf86efc4279b6ac1d1e06ca619f80612d50c27e` で AuthProvider が password-recovery 以外（`/login` 含む）で session restore。cold `/login` で refreshToken 1 回後 isAuthenticated→LoginForm Navigate。scoped vitest 33/33 green | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: V05-1 #3 ブラウザ再検証
 - **発見シナリオ**: V05-1 ログイン #3
 - **再現手順**:
   1. ノアとしてログイン済みの状態（`/owners` 等が正常表示されることで確認済み）で `/login` に直接アクセス
