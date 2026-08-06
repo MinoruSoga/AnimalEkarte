@@ -906,7 +906,7 @@
     <p class="section-label">決裁</p>
     <p class="qa-text"><strong>TASK-021 を A→B→C→D に分割する。</strong> 段階 A（request DTO / OpenAPI から <code>excluded_type_ids</code> 削除）は Opus D-021-A / Fable F-021-A により承認され、UNIT-021-A（<code>b917c2992</code>）として landed。Fable 推奨を USER が採択し、本 DEC で記録を残す（黙認しない）。段階 B（response <code>excluded_courses</code>）・C（master exclusion route DROP）・D（DB migrate DROP）は HOLD。B の証拠は access log だけでは足りず <strong>client registry</strong> が必須。順序 B→C→D を固定。inventory 依頼から 90 日無応答の場合は ACCEPT_RESIDUAL_RISK として再裁定に上げる（F-021-X）。</p>
     <p class="section-label">一次資料</p>
-    <p class="qa-text"><code>reports/2026-08-06-po-proxy-decision-pack.md</code> · <code>reports/2026-08-06-fable-po-recommendation-pack.md</code> · <code>reports/2026-07-31-task-021-phase2-slice2.md</code> · UNIT-021-A report · <code>STATUS.md</code> §1。</p>
+    <p class="qa-text"><code>reports/2026-08-06-fable-po-recommendation-pack.md</code>（採択方針）· <code>reports/2026-07-31-task-021-phase2-slice2.md</code> · UNIT-021-A commit <code>b917c2992</code> · <code>STATUS.md</code> §1 · <code>PO-todo.md</code>。</p>
     <p class="section-label">退けた代替案と理由</p>
     <p class="qa-text">4 段階一括 CLEAN-GO は live response/route を external 未確認のまま破壊し得るため棄却。in-repo ZERO だけで B を承認する案は、field が既存 GET に同乗し access log で証明できないため棄却。A の REVERT は既に 400 reject 済みの dead write を戻すだけであり理由なし。</p>
     <p class="section-label">委任境界・覆し方</p>

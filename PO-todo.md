@@ -188,4 +188,5 @@ G〜J が揃うまで **response 削除 / route DROP / DB DROP / 本番 secret �
 | [`STATUS.md`](STATUS.md) | 全体 SoT |
 | [`q&a.html#dec-68`](q&a.html#dec-68) | TASK-021 4段階 |
 | [`reports/2026-08-06-fable-po-recommendation-pack.md`](reports/2026-08-06-fable-po-recommendation-pack.md) | 採択した推奨 |
-| [`reports/2026-08-06-residual-user-ops-pack.md`](reports/2026-08-06-residual-user-ops-pack.md) | ops 手順の詳細 |
+| [`docs/ops/deploy/LOCAL_DB_RESET.md`](docs/ops/deploy/LOCAL_DB_RESET.md) | local DB reset 手順 |
+| [`docs/ops/testing/scenarios/`](docs/ops/testing/scenarios/) | シナリオ原文 |

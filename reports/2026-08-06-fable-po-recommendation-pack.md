@@ -1,8 +1,7 @@
 # FABLE PO RECOMMENDATION PACK — residual ゲート最終推奨（2026-08-06）
 
 > 起草: PO 推奨裁定官（Fable）。**USER（実 PO）が本 pack の推奨に従って最終決定する。Fable は実行しない。USER は全件を後から覆せる。**
-> 入力: `STATUS.md` §1/§2 · `reports/2026-08-06-po-proxy-decision-pack.md`（Opus 代理）· `q&a.html` DEC-40〜67 / DR-CLINICAL · slice2 / Phase B report · 実測（下記）
-> 実測（本 pack 起草時）: UNIT-021-A landed（`b917c2992` · request DTO/api.yaml に `excluded_type_ids` なし）· LINE-R05 presence SELECT 使用中（`line_reservation_setting_repository.go:56`）· **composition test は Phase B 契約へ更新済み・green（`fac8c86b2` 2026-07-31 · `go test ./cmd/api/ -run Composition` = ok）** · open Issue 18 · claim/* 0
+> 入力: `STATUS.md` §1/§2 · Opus 代理 pack（git 履歴 · 採択時点で Fable が全件 RATIFY）· `q&a.html` DEC-40〜68 / DR-CLINICAL · slice2 / Phase B report · 実測（下記）> 実測（本 pack 起草時）: UNIT-021-A landed（`b917c2992` · request DTO/api.yaml に `excluded_type_ids` なし）· LINE-R05 presence SELECT 使用中（`line_reservation_setting_repository.go:56`）· **composition test は Phase B 契約へ更新済み・green（`fac8c86b2` 2026-07-31 · `go test ./cmd/api/ -run Composition` = ok）** · open Issue 18 · claim/* 0
 
 ---
 > **採択**: 2026-08-06 USER — Fable 推奨を最終決定として採択（チェックリスト方針 Yes）。実装取り込み: DEC-68 · STATUS 更新（UNIT-DEC-68-DOC）。製品コード追加変更なし。
@@ -57,7 +56,7 @@
 4. **Counter-argument**: OpenAPI から property が消えると、生成 client を再生成した外部 SDK は送信コード自体が型エラーになり、「400 で気づく」から「ビルドで壊れる」へ障害の顕在化点が変わる。
 5. **Why still recommend**: その経路は既に機能していない（常時 400）。ビルド時に壊れる方がむしろ早期検知であり、fail-closed 原則に沿う。
 6. **Constraints / non-goals**: response `excluded_courses`・master exclusion route・migrate・inverse facade `UpdateExcludedReservationTypes` は触らない。
-7. **Evidence**: `b917c2992` · `reports/2026-08-06-unit-021-a-excluded-type-ids-request-removal.md` · slice2 §1.3/§2.1 · 実測 `backend/internal/reservation/reservation_staff_request.go:10,30`。
+7. **Evidence**: `b917c2992` · slice2 §1.3/§2.1 · 実測 request DTO / `api.yaml` から `excluded_type_ids` 削除済み。
 8. **USER Yes/No 一文**: 「Yes: UNIT-021-A を追認し、DEC-68（4 段階分割・段階 A のみ先行）を q&a.html に起票して記録を残す。」
 9. **Unblock checklist**: USER が Yes → agent が UNIT-DEC-68-DOC（§5）で DEC-68 カード起票 + STATUS stale リンク修正 → USER が目視確認。
 10. **STATUS.md 更新案**: `| TASK-021 | exclusion 破壊削除 | USER+PO | A 追認済み（DEC-68 起票）· B/C/D HOLD（external inventory 待ち） |`

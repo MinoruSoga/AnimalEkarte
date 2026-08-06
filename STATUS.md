@@ -24,9 +24,8 @@ rg -n '^- \*\*対応状況' STATUS.md | rg -o 'IMPLEMENTED_UNVERIFIED|OPEN|BLOCK
 最終整理: **2026-08-06**（residual agent team 実行後更新）。  
 製品コードの agent 実装 open は **0**（IU 32 静的 CODE_PRESENT / CODE_MISSING=0）。本ファイルは **未完了 residual のみ**。
 
-> **ID**: `TASK-*` = §1 / `BUG-*` = §3 / Issue `#n` = §2。ブラウザ結果表は `reports/BROWSER_VERIFICATION_BACKLOG.md`。  
-> **Team pack**: [`reports/2026-08-06-residual-user-ops-pack.md`](reports/2026-08-06-residual-user-ops-pack.md) · 環境実測 [`reports/2026-08-06-residual-team-env-inventory.md`](reports/2026-08-06-residual-team-env-inventory.md) · コード監査 [`reports/2026-08-06-residual-team-code-audit.md`](reports/2026-08-06-residual-team-code-audit.md) · ボード [`reports/2026-08-06-residual-agent-board.md`](reports/2026-08-06-residual-agent-board.md)
-
+> **ID**: `TASK-*` = §1 / `BUG-*` = §3 / Issue `#n` = §2。  
+> **生きている補助文書**: [`PO-todo.md`](PO-todo.md)（USER 実行）· [`reports/2026-08-06-fable-po-recommendation-pack.md`](reports/2026-08-06-fable-po-recommendation-pack.md)（採択方針）· [`reports/BROWSER_VERIFICATION_BACKLOG.md`](reports/BROWSER_VERIFICATION_BACKLOG.md)（IU ブラウザ結果表・任意）
 ### Residual team 実測（local main @ 2026-08-06）
 
 | 項目 | 結果 |
@@ -65,10 +64,9 @@ rg -n '^- \*\*対応状況' STATUS.md | rg -o 'IMPLEMENTED_UNVERIFIED|OPEN|BLOCK
 | R6/R7 | worktree 隔離 / empty-diff COMPLETE 禁止 | ops | 継続規律 |
 ## 推奨 USER 順（local 実測反映 · **ブラウザ検証は residual 対象外**）
 
-> **除外 (2026-08-06)**: TASK-010 / IU ブラウザバッチ / `BROWSER_VERIFICATION_*` は residual closeout に含めない。手順書は保管のみ（[`reports/BROWSER_VERIFICATION_RUNBOOK.md`](reports/BROWSER_VERIFICATION_RUNBOOK.md)）。`VERIFIED_FIXED` 付与も residual では扱わない。  
-> **PO 決裁（2026-08-06 採択）**: Fable 推奨 pack [`reports/2026-08-06-fable-po-recommendation-pack.md`](reports/2026-08-06-fable-po-recommendation-pack.md) を **USER 採択**（Opus 20 裁定 RATIFY · OVERTURN 0 · DEC-68）。Opus 代理 [`po-proxy-decision-pack.md`](reports/2026-08-06-po-proxy-decision-pack.md) · プロンプト [`po-decision-prompt-for-fable.md`](reports/2026-08-06-po-decision-prompt-for-fable.md)。**USER は後から覆せる。**  
-> **あなたが手を動かすリスト**: [`PO-todo.md`](PO-todo.md)（方針未決ではなく、採択後の **実行・依頼・証拠集め**）。
-0. ~~Fable 採択 + DEC-68~~ — **docs 完了**（本更新）
+> **除外 (2026-08-06)**: TASK-010 / IU ブラウザバッチは residual closeout 対象外。結果表のみ任意保管: [`reports/BROWSER_VERIFICATION_BACKLOG.md`](reports/BROWSER_VERIFICATION_BACKLOG.md)。`VERIFIED_FIXED` は residual で扱わない。  
+> **PO 決裁（2026-08-06 採択）**: [`reports/2026-08-06-fable-po-recommendation-pack.md`](reports/2026-08-06-fable-po-recommendation-pack.md)（Opus 20 RATIFY · DEC-68）。中間プロンプト/Opus pack/residual team レポートは削除済み（git 履歴参照）。**USER は後から覆せる。**  
+> **あなたが手を動かすリスト**: [`PO-todo.md`](PO-todo.md)。0. ~~Fable 採択 + DEC-68~~ — **docs 完了**（本更新）
 1. ~~TASK-378-reset + TASK-009~~ — **local 完了**（`make reset` postflight OK · ranges=20 · stack healthy）
 2. **E2E_LOGIN_*** 注入 → TASK-020 / TASK-023（Playwright · 5 フロー UAT。ブラウザ手作業バッチとは別）
 3. **POST-PULL / 他 env の TASK-032-apply / TASK-374-apply** — 未適用環境のみ `make migrate` / 必要時 reset
@@ -106,8 +104,8 @@ schema_migrations = 001_init + 002_master + 003_demo + 004_staging
 ### TASK-010 — 要実測 / ブラウザ（**residual 除外**）
 
 - **2026-08-06**: residual closeout 対象から除外（USER 判断）。
-- 手順・結果表は保管: [`reports/BROWSER_VERIFICATION_RUNBOOK.md`](reports/BROWSER_VERIFICATION_RUNBOOK.md) · [`reports/BROWSER_VERIFICATION_BACKLOG.md`](reports/BROWSER_VERIFICATION_BACKLOG.md)
-- 任意で後日実施可。agent は VERIFIED_FIXED を付けない（従来どおり）。
+- 結果表（任意）: [`reports/BROWSER_VERIFICATION_BACKLOG.md`](reports/BROWSER_VERIFICATION_BACKLOG.md)。シナリオ原文は `docs/ops/testing/scenarios/`。
+- agent は VERIFIED_FIXED を付けない。
 ### TASK-020 — Playwright
 
 - 要 host `E2E_LOGIN_EMAIL` / `E2E_LOGIN_PASSWORD`（現状 UNSET）。
@@ -118,7 +116,7 @@ schema_migrations = 001_init + 002_master + 003_demo + 004_staging
 - **A 追認 + DEC-68 (2026-08-06 Fable 採択)**: UNIT-021-A landed（`b917c2992`）。request `excluded_type_ids` 削除を黙認せず DEC-68 で記録。
 - **B/C/D HOLD**: response `excluded_courses` → master exclusion route → DB DROP。順序固定。B 証拠は **client registry** 必須（access log のみ不可）。
 - **F-021-X**: inventory 依頼から **90 日無応答**で ACCEPT_RESIDUAL_RISK 再裁定へ上げる（silent HOLD 禁止）。
-- 参照: slice2 · Opus pack · Fable pack · `q&a.html#dec-68`
+- 参照: `reports/2026-07-31-task-021-phase2-slice2.md` · Fable pack · `q&a.html#dec-68` · UNIT-021-A commit `b917c2992`
 
 ### TASK-022 / 023 / 024 — human residual
 
@@ -3246,12 +3244,12 @@ S01〜S12の業務シナリオ検証に続き、個別フォーム単位の受�
 
 | 文書 | 役割 |
 |------|------|
-| **[`reports/BROWSER_VERIFICATION_RUNBOOK.md`](reports/BROWSER_VERIFICATION_RUNBOOK.md)** | **手順の単一入口**（実施順・合格条件・チェックリスト） |
-| [`reports/BROWSER_VERIFICATION_BACKLOG.md`](reports/BROWSER_VERIFICATION_BACKLOG.md) | 結果表（PASS/FAIL 記入） |
+| [`reports/BROWSER_VERIFICATION_BACKLOG.md`](reports/BROWSER_VERIFICATION_BACKLOG.md) | 結果表（任意・residual 必須ではない） |
+| `docs/ops/testing/scenarios/` | シナリオ原文 |
 
 - §3 は実装状態（IU 等）の正本
-- ブラウザ PASS 後に §3 の `原文シナリオ再検証` / `VERIFIED_FIXED` を人が更新
----
+- residual closeout ではブラウザバッチを必須にしない
+- 実施する場合のみ BACKLOG に結果を書き、`VERIFIED_FIXED` は人が判断---
 
 ## 5. 正本境界・安全
 
@@ -3261,9 +3259,9 @@ S01〜S12の業務シナリオ検証に続き、個別フォーム単位の受�
 | Issue 受け入れ条件・議論 | 各 GitHub Issue |
 | PO 判断・記入フォーム | [`q&a.html`](q&a.html) |
 | 今フェーズ外 | [`phase2.html`](phase2.html) |
-| ブラウザ手順 | [`reports/BROWSER_VERIFICATION_RUNBOOK.md`](reports/BROWSER_VERIFICATION_RUNBOOK.md) |
-| ブラウザ結果表 | [`reports/BROWSER_VERIFICATION_BACKLOG.md`](reports/BROWSER_VERIFICATION_BACKLOG.md) |
-| 完了証跡 | git 履歴・Issue close |
+| ブラウザ結果表（任意） | [`reports/BROWSER_VERIFICATION_BACKLOG.md`](reports/BROWSER_VERIFICATION_BACKLOG.md) |
+| PO 実行 ToDo | [`PO-todo.md`](PO-todo.md) |
+| 採択済み PO 方針 | [`reports/2026-08-06-fable-po-recommendation-pack.md`](reports/2026-08-06-fable-po-recommendation-pack.md) || 完了証跡 | git 履歴・Issue close |
 
 **安全:** migrate 適用・DB reset・credential・STG/PROD・force-push・Issue 自動書き込みは明示承認。agent は seed apply / claim 解放をしない。
 
