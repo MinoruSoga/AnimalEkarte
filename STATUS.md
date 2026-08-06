@@ -33,14 +33,15 @@ rg -n '^- \*\*対応状況' STATUS.md | rg -o 'IMPLEMENTED_UNVERIFIED|OPEN|BLOCK
 |------|------|
 | agent product open | **0** |
 | IU 32 static | **CODE_PRESENT 32 / MISSING 0** |
-| compose | `db` healthy; `backend` Exited(1); `frontend` never started; host :8080/:3003 なし |
-| `exam_reference_ranges` | テーブルあり・**行数 0**（CSV 20 行はディスクに存在） |
-| `seeds/003_demo` checksum | **disk ≠ DB** → `make migrate` は fail-closed。local は **`make reset` 必須** |
-| seed crash 履歴 | 2026-08-05 `hospitalizations.owner_request` NULL。**`7b929231a` FORCE_NOT_NULL で loader 修正済み**（現行 main）。reset 再試行のブロッカーではない |
-| `E2E_LOGIN_*` | host / `.env.local` とも **UNSET** |
+| compose（reset 後） | **db / backend / frontend すべて healthy** · `:8080` `/health` 200 · `:3003` 200 |
+| `exam_reference_ranges` | **COUNT = 20**（TASK-009 local 適用完了） |
+| `seeds/003_demo` | schema_migrations 記録済み・postflight missing=0 |
+| seed CSV 列ずれ修正 | `checkup_types` / `checkup_type_fields` に `import_namespace,import_key`、`exams` に `current_revision_version` を末尾追加（COPY 位置合わせ） |
+| `E2E_LOGIN_*` | host / `.env.local` とも **UNSET**（020/023 は未） |
 | claim/* | local / origin とも **0**（SCEN-OPS-CLAIM クローズ） |
 | open GitHub Issue | **18**（§2） |
-| TASK-032/374 DDL local | `lab_import_*` / `checkup_package_import_receipts` **存在**（他環境 apply は残） |
+| TASK-032/374 DDL local | 存在（他環境 apply は残） |
+| snapshot | `.local-db-backups/20260806T082000Z`（reset 前） |
 
 ## 索引
 
@@ -48,7 +49,7 @@ rg -n '^- \*\*対応状況' STATUS.md | rg -o 'IMPLEMENTED_UNVERIFIED|OPEN|BLOCK
 |----|------|-------|------|
 | TASK-004 | land 時 screens-drift 隔離 | USER | open（land 都度） |
 | TASK-005 | land 前 closed-pack 回帰 | USER | open（land 都度） |
-| TASK-009 | 003_demo seed の **DB 適用**（static 済・ranges 行 0） | USER | open · **local は 378 と一体** |
+| TASK-009 | 003_demo seed の **DB 適用**（static 済） | USER | **local DONE**（ranges=20）· 他 env 残 |
 | TASK-010 | scenarios 要実測の残 | USER | open |
 | TASK-020 | Playwright runtime（要 E2E_LOGIN_*） | USER | open · credential 待ち |
 | TASK-021 | exclusion 破壊削除（PO 承認後） | USER+PO | HOLD |
@@ -58,35 +59,32 @@ rg -n '^- \*\*対応状況' STATUS.md | rg -o 'IMPLEMENTED_UNVERIFIED|OPEN|BLOCK
 | TASK-032-apply | lab import migration 適用 + claim | USER | local DDL 済 · 他 env 残 |
 | TASK-033 | #201 救急投薬 cutover | 臨床+USER | HOLD |
 | TASK-374-apply | checkup package import migration 適用 | USER | local DDL 済 · 他 env / #211 残 |
-| TASK-378-reset | checksum mismatch 環境の DB_RESET | USER | **local 必須** |
+| TASK-378-reset | checksum mismatch 環境の DB_RESET | USER | **local DONE**（2026-08-06 reset OK）· 他 env 要時 |
 | POST-PULL | 各環境 `make migrate` | USER | open |
 | LINE-R05 | production rollout + column DROP | USER/PO | HOLD |
 | R6/R7 | worktree 隔離 / empty-diff COMPLETE 禁止 | ops | 継続規律 |
 
 ## 推奨 USER 順（local 実測反映）
 
-1. **TASK-378-reset + TASK-009** — local は checksum mismatch のため **`make reset` 一発**（`docs/ops/deploy/LOCAL_DB_RESET.md`）。成功条件: `exam_reference_ranges` COUNT > 0 かつ backend/frontend healthy
-2. **`make up`** — backend / frontend 起動（LIFF mock は compose 済み）
-3. **POST-PULL / 他 env の TASK-032-apply / TASK-374-apply** — 未適用環境のみ `make migrate`
-4. **E2E_LOGIN_*** 注入 → TASK-020 / TASK-023
-5. **TASK-010** + `reports/BROWSER_VERIFICATION_BACKLOG.md`（agent は VERIFIED_FIXED しない）
-6. **TASK-022 / TASK-024** 人証跡
-7. **TASK-033** 臨床 SoT 揃い後のみ agent 再開可
-8. **TASK-021** 破壊承認後のみ
+1. ~~TASK-378-reset + TASK-009~~ — **local 完了**（`make reset` postflight OK · ranges=20 · stack healthy）
+2. **E2E_LOGIN_*** 注入 → TASK-020 / TASK-023
+3. **TASK-010** + `reports/BROWSER_VERIFICATION_BACKLOG.md`（agent は VERIFIED_FIXED しない）· UI は http://localhost:3003
+4. **POST-PULL / 他 env の TASK-032-apply / TASK-374-apply** — 未適用環境のみ `make migrate` / 必要時 reset
+5. **TASK-022 / TASK-024** 人証跡
+6. **TASK-033** 臨床 SoT 揃い後のみ agent 再開可
+7. **TASK-021** 破壊承認後のみ
 
-### local 最小コピペ（secret は書かない）
+### local 現状（2026-08-06 reset 後）
 
-```bash
-cd /path/to/AnimalEkarte
-python3 scripts/verify_seed.py          # static OK を確認
-make reset                              # USER のみ。volume 再構築 + migrate/seed
-make up
-# 成功確認（例）
-docker compose --env-file .env.local exec -T db \
-  psql -U "$DB_USER" -d "$DB_NAME" -c 'SELECT COUNT(*) FROM exam_reference_ranges;'
-# 続けて host に E2E_LOGIN_EMAIL / E2E_LOGIN_PASSWORD を注入してから e2e / ブラウザ
+```text
+db/backend/frontend = healthy
+GET :8080/health = 200
+GET :3003/ = 200
+exam_reference_ranges = 20
+schema_migrations = 001_init + 002_master + 003_demo + 004_staging
 ```
 
+次のブロッカー: host の `E2E_LOGIN_EMAIL` / `E2E_LOGIN_PASSWORD`（値は repo に書かない）。
 ## 詳細（open only）
 
 ### TASK-004 / TASK-005（ops・land 都度）
@@ -97,8 +95,9 @@ docker compose --env-file .env.local exec -T db \
 ### TASK-009 — seed DB 適用
 
 - static verifier GREEN（`exam_reference_ranges.csv` + manifest 含む）。
-- **local DB**: `003_demo` は記録済みだが checksum 不一致・`exam_reference_ranges` = 0。再適用は migrate 不可 → **TASK-378-reset**。
-- agent は seed apply / DB_RESET しない。
+- **local DONE (2026-08-06)**: USER 承認下で `make reset` → `exam_reference_ranges` = 20 · `003_demo` 記録済み。
+- reset 中に判明した CSV/スキーマ列ずれを修正して再 reset（checkup import 列 · exams.current_revision_version）。
+- 他環境は各自 migrate/reset。agent は通常 seed apply / DB_RESET しない。
 - 参照: `reports/2026-07-31-task-009-reseed-ops.md` · team pack 上記
 
 ### TASK-010 — 要実測
@@ -133,8 +132,8 @@ docker compose --env-file .env.local exec -T db \
 
 ### TASK-378-reset
 
-- local: `seeds/003_demo` checksum mismatch 実測済み → **reset 必須**。
-- 手順: `docs/ops/deploy/LOCAL_DB_RESET.md`。FORCE_NOT_NULL（`7b929231a`）により過去の hosp `owner_request` empty は loader 側で吸収。
+- **local DONE (2026-08-06)**: `make reset` postflight OK（snapshot `.local-db-backups/20260806T082000Z`）。
+- 他環境で checksum mismatch が出たときのみ `docs/ops/deploy/LOCAL_DB_RESET.md`。
 
 ### LINE-R05 residual
 

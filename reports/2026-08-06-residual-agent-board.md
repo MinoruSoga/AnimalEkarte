@@ -10,8 +10,8 @@
 
 | id | owner | state | blocker |
 |----|-------|-------|---------|
-| TASK-378-reset | USER | **READY_USER (local 必須)** | `seeds/003_demo` disk≠DB checksum |
-| TASK-009 | USER | READY_USER · 378 と一体 | `exam_reference_ranges` rows=0; static GREEN |
+| TASK-378-reset | USER | **local DONE** | 2026-08-06 make reset postflight OK |
+| TASK-009 | USER | **local DONE** | exam_reference_ranges=20; seed CSV col fix |
 | POST-PULL | USER | READY_USER | 他 env の `make migrate` |
 | TASK-032-apply | USER | local DDL 済 / 他 env 残 | claim 0; lab_import tables exist local |
 | TASK-374-apply | USER | local DDL 済 / 他 env+#211 残 | checkup import receipts exist local |
