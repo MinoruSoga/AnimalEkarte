@@ -244,7 +244,7 @@ docker compose exec backend go test ./internal/medicalrecord/ -count=1 -run 'Tes
 |------|------|
 | **ID** | ARCH-A4 |
 | **優先度** | P2 |
-| **状態** | open（着手条件付き） |
+| **状態** | open（着手条件付き — 2026-08-07 時点: LINE 再開・広域 billing PR の実測トリガー未達のため未着手） |
 | **方針** | 大きいから割らない。変更痛みの実測が出てから |
 
 #### A4-lstep（~16.5k prod LOC）
@@ -330,22 +330,23 @@ docker compose exec backend go test ./internal/medicalrecord/ -count=1 -run 'Tes
 |------|------|
 | **ID** | ARCH-A7 |
 | **優先度** | P2 |
-| **状態** | open |
+| **状態** | **done**（claim `claim/ARCH-A7` — user release after merge） |
 | **対象** | `frontend/src/features/**` · `components` · `hooks` · `lib` · `shared-liff` |
 | **問題** | feature 分割は良いが、FE↔BE domain / RBAC 対応が暗黙。共有層肥大で境界が薄まる |
+| **成果物** | `docs/architecture/fe-feature-be-domain-map.md` + TAP test |
 
 #### チェックリスト
 
-- [ ] **A7-1** 主要フローの FE feature ↔ BE domain / RBAC resource 対応表（薄い 1 枚）
-- [ ] **A7-2** 新規 UI は必ず `features/` 配下
-- [ ] **A7-3** 共有昇格ルール: 消費者 2 以上 + 理由。`components`/`hooks`/`lib` の安易な肥大を止める
-- [ ] **A7-4** `shared-liff` と `line-reservation` の責務境界を維持
-- [ ] **A7-5** Feature Indexing / `index.ts` 公開面の崩れを見つけたらその feature だけ直す（一括再編しない）
+- [x] **A7-1** 主要フローの FE feature ↔ BE domain / RBAC resource 対応表 — catalog map
+- [x] **A7-2** 新規 UI は必ず `features/` 配下 — Rules A7-2
+- [x] **A7-3** 共有昇格ルール（消費者 2+ + 理由）— Rules A7-3
+- [x] **A7-4** `shared-liff` と `line-reservation` の責務境界 — Rules A7-4
+- [x] **A7-5** Feature Indexing は該当 feature のみ修正 — Rules A7-5
 
 #### 完了条件
 
-- [ ] 新規画面の置き場で迷わない
-- [ ] FE 全体の Clean/layer 再編をしない
+- [x] 新規画面の置き場で迷わない（map + rules）
+- [x] FE 全体の Clean/layer 再編をしない（明示 anti-pattern）
 
 ---
 
