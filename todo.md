@@ -244,31 +244,33 @@ docker compose exec backend go test ./internal/medicalrecord/ -count=1 -run 'Tes
 |------|------|
 | **ID** | ARCH-A4 |
 | **優先度** | P2 |
-| **状態** | open（着手条件付き — 2026-08-07 時点: LINE 再開・広域 billing PR の実測トリガー未達のため未着手） |
+| **状態** | **in progress**（ledger + billing S1）· claim `claim/ARCH-A4` |
 | **方針** | 大きいから割らない。変更痛みの実測が出てから |
+| **ledger** | [arch-a4-trigger-ledger.md](docs/architecture/arch-a4-trigger-ledger.md) |
 
 #### A4-lstep（~16.5k prod LOC）
 
-- [ ] 着手条件: LINE 再開（#259 等）が実際に始まる直前
+- [ ] 着手条件: LINE 再開（#259 等）が実際に始まる直前 — **2026-08-07 blocked**（STATUS 依存待ち）
 - [ ] batch / tag sync / delivery の内部凝集を見直す（同一 package 内）
 - [ ] 通常 app から変な cross write を増やさない
 
 #### A4-billing（~14.5k prod LOC）
 
-- [ ] 着手条件: estimate / accounting / billing_item の PR が毎回広域
-- [ ] 巨大 file 分割候補: `billing_item_service.go` · `billing_item_repository.go` · `estimate_service.go` · accounting 系
-- [ ] 締め後編集の audit 同 tx fail-closed を壊さない
+- [x] **S1** `billing_item_service.go` unbilled 凝集を `billing_item_unbilled.go` へ同一 package 分割（挙動不変）
+- [ ] 巨大 file 分割候補 residual: `billing_item_repository.go` · `estimate_service.go` · accounting 系（触る PR があるときだけ）
+- [ ] 締め後編集の audit 同 tx fail-closed を壊さない（分割時の不変条件）
 
 #### A4-reservation（~13.3k prod LOC）
 
-- [ ] write owner lint を維持（owner 外 generic update 禁止）
+- [x] write owner lint を維持（既存 gate・今回変更なし）
 - [ ] owner **内** `map[string]any` update を、触る変更のたびに typed command へ寄せる（一括禁止）
 - [ ] intent repository / reservation_service の肥大が痛みになったら file 分割
 
 #### 完了条件
 
-- [ ] 各 subdomain は「トリガー記録 → スライス 1 本」単位で閉じる
-- [ ] 三つ同時リファクタをしない
+- [x] トリガー記録 → スライス 1 本（billing S1）を閉じた
+- [x] 三つ同時リファクタをしない（billing のみ）
+- [ ] lstep / reservation はトリガー後に別スライス
 
 ---
 
