@@ -37,6 +37,13 @@ vi.mock("../api/delete-estimate", () => ({
   }),
 }));
 
+vi.mock("../api/create-estimate-successor", () => ({
+  useCreateEstimateSuccessor: () => ({
+    mutate: vi.fn(),
+    isPending: false,
+  }),
+}));
+
 function makeEstimate(status: Estimate["status"]): Estimate {
   return {
     id: "1",
@@ -104,6 +111,45 @@ describe("EstimateDetail locked status actions", () => {
 
     expect(screen.queryByRole("button", { name: "編集" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "削除" })).not.toBeInTheDocument();
+  });
+
+  it("approved + create権限あり → 後継ドラフト導線を表示する", () => {
+    mockEstimate.current = makeEstimate("approved");
+    renderDetail();
+
+    expect(
+      screen.getByRole("button", { name: "後継ドラフトを作成" }),
+    ).toBeInTheDocument();
+  });
+
+  it("rejected + create権限あり → 後継ドラフト導線を表示する", () => {
+    mockEstimate.current = makeEstimate("rejected");
+    renderDetail();
+
+    expect(
+      screen.getByRole("button", { name: "後継ドラフトを作成" }),
+    ).toBeInTheDocument();
+  });
+
+  it("draft → 後継ドラフト導線を表示しない", () => {
+    mockEstimate.current = makeEstimate("draft");
+    renderDetail();
+
+    expect(
+      screen.queryByRole("button", { name: "後継ドラフトを作成" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("approved + create権限なし → 後継ドラフト導線を表示しない", () => {
+    mockHasPermission.mockImplementation(
+      (_resource: string, action: string) => action !== "create",
+    );
+    mockEstimate.current = makeEstimate("approved");
+    renderDetail();
+
+    expect(
+      screen.queryByRole("button", { name: "後継ドラフトを作成" }),
+    ).not.toBeInTheDocument();
   });
 });
 
