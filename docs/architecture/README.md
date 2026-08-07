@@ -11,6 +11,7 @@
 | ドキュメント | 内容 | いつ読むか |
 |:---|:---|:---|
 | [overview.md](overview.md) | Go/Gin公式ベースラインに基づく backend 設計・request lifecycle | backend の package境界・責務・運用設計の確認時 |
+| [cross-domain-orchestration-catalog.md](cross-domain-orchestration-catalog.md) | cross-domain write の same-tx / best-effort 契約表と new-path ルール（ARCH-A3） | 他 domain を跨ぐ write・intent・tx 境界の設計・レビュー時 |
 | [erd.md](erd.md) | データベース設計（全テーブル・リレーション。テーブル数の正本） | スキーマ調査・migration 作成前 |
 | [auth.md](auth.md) | RBAC 権限モデル・マルチテナント（clinic_id）隔離 | 認可・権限・テナント境界の実装前 |
 | [data-flow.md](data-flow.md) | リクエスト追跡（Request ID）と非同期同期の仕組み | ログ調査・非同期処理の実装前 |
