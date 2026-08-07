@@ -302,22 +302,23 @@ docker compose exec backend go test ./internal/medicalrecord/ -count=1 -run 'Tes
 |------|------|
 | **ID** | ARCH-A6 |
 | **優先度** | P1 |
-| **状態** | open |
+| **状態** | **done**（claim `claim/ARCH-A6` — user release after merge） |
 | **対象** | domain 間 production import · [boundary map §5](docs/architecture/be9-2a-boundary-map.md) · ADR-006 |
 | **問題** | 文書上の許可依存と実装がドリフトしうる |
+| **成果物** | `backend/internal/lintscan/domain_import_allowlist_lint_test.go` · boundary map §5.2 |
 
 #### チェックリスト
 
-- [ ] **A6-1** production import の allowlist（誰が誰を import してよいか）を定義
-- [ ] **A6-2** `lintscan` または専用 test で機械チェック
-- [ ] **A6-3** 新規 edge は ADR / boundary map 更新を必須にする運用を書く
-- [ ] **A6-4** code-review-graph の community / bridge を四半期境界監査に使う手順を 1 節で固定
-- [ ] **A6-5** consumer-side interface 経由であるべき結合が具象 import に戻っていないか重点監視
+- [x] **A6-1** production import の allowlist（誰が誰を import してよいか）を定義 — `domainImportAllowlist`
+- [x] **A6-2** 専用 test で機械チェック — `TestDomainImportAllowlistLint`（allowlist acyclic + real tree + mutations）
+- [x] **A6-3** 新規 edge は ADR / boundary map 更新を必須にする運用を書く — §5.2
+- [x] **A6-4** code-review-graph の community / bridge を四半期境界監査に使う手順を 1 節で固定 — §5.2
+- [x] **A6-5** consumer-side interface 経由であるべき結合が具象 import に戻っていないか重点監視 — §5.2 禁止例 + allowlist 非掲載
 
 #### 完了条件
 
-- [ ] 許可外 import が scoped test または CI で落ちる
-- [ ] 新規 domain edge のレビュー観点がチェックリスト化されている
+- [x] 許可外 import が scoped test で落ちる（`go test ./internal/lintscan/ -run DomainImportAllowlist`）
+- [x] 新規 domain edge のレビュー観点がチェックリスト化されている（§5.2）
 
 ---
 

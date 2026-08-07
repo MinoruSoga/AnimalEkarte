@@ -349,6 +349,30 @@ edge定義（`EDGES[X] = X が依存してよい対象のリスト`、Kahn法で
 
 10組中9組（#1-6,#8-10）はconsumer-side interfaceで解消可能。#7はpublic contract変更を要したため案Aを裁定し、reservation Phase 0でstaff write ownerへ収束済み。したがって、現時点で解消方式未確定のcycleは0件。
 
+### 5.2 許可依存の機械ガード（ARCH-A6）
+
+文書上の許可グラフと実装のドリフトを防ぐため、**production domain→domain Go import** を CI / scoped test で固定する。
+
+| 項目 | 正本 |
+|------|------|
+| 許可 edge 表 | `backend/internal/lintscan/domain_import_allowlist_lint_test.go` の `domainImportAllowlist` |
+| 機械チェック | 同ファイル `TestDomainImportAllowlistLint`（`go/parser` ImportsOnly、production `.go` のみ） |
+| 対象外 | `model` / `apperrors` / `audit` / `persistence` / `sharedkernel` / `middleware` 等の cross-cutting import（domain 間 edge ではない） |
+| 同一 domain 内 | top-level が同じ `internal/<domain>` への import は gate 対象外 |
+
+**新規 domain edge を足すとき（必須）**
+
+1. 本 boundary map §3（deps）と §5（残るエッジ / cycle 解消）を同じ PR で更新する。必要なら ADR-006 も。
+2. `domainImportAllowlist` に importer → dep を追加する（allowlist 自体が acyclic であること — 同 test が検証）。
+3. 逆方向が「consumer-side interface で解消済み」の edge を **具象 import で復活させない**（A6-5）。例: `medicalrecord`↛`lstep`、`billing`↛`medicalrecord`、`reservation`↛`trimming`、`owner`↛`billing`/`lstep`、`clinic`↛`auth`。
+4. レビューチェック: 許可外 import が無いこと + silent 部分成功や write-owner 迂回が無いこと（[cross-domain-orchestration-catalog](cross-domain-orchestration-catalog.md) も更新対象なら同 PR）。
+
+**四半期境界監査（A6-4）**
+
+1. `code-review-graph`（または同等）で domain community / bridge edge を一覧する。
+2. 観測された production import を `domainImportAllowlist` と突合し、差分は「allowlist 更新 + 文書」か「具象 import の interface 化」で閉じる。
+3. 結果を短いメモ（PR または STATUS 1 行）に残す。フル `go test ./...` は不要 — `docker compose exec backend go test ./internal/lintscan/ -run DomainImportAllowlist -count=1` で足りる。
+
 ## 6. §9（旧BE8-2、serviceのみのgo/ast実測）との差分
 
 | domain | BE-refactor.md旧見積(filename-prefixのみ) | classification manifest source rows（RBAC resource + route構造 + 8並列エージェント検証） | 差分の理由 |
