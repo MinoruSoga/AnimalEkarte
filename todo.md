@@ -183,24 +183,25 @@ docker compose exec backend go test ./internal/medicalrecord/ -count=1 -run 'Tes
 |------|------|
 | **ID** | ARCH-A2 |
 | **優先度** | P1 |
-| **状態** | open |
+| **状態** | **done**（claim `claim/ARCH-A2` — user release after merge） |
 | **対象** | `backend/internal/model/**` · 各 domain の DTO/command |
 | **実測** | ~91 production files / ~4.5k LOC |
 | **問題** | package 境界は domain だが型所有が中央に残り、見えない結合が増えやすい |
 | **方針** | 一括移動しない。新規と触った箇所だけ owner を明確化 |
+| **成果物** | `docs/architecture/model-write-owner-catalog.md` + TAP test |
 
 #### チェックリスト
 
-- [ ] **A2-1** 主要 business fact について「GORM 型の write owner package」一覧を作る（薄い表でよい）
-- [ ] **A2-2** 新規型: owner domain に寄せるか、model に置くなら owner を明記
-- [ ] **A2-3** domain 専用 command / DTO を model から分離し続ける（既存パターン踏襲）
-- [ ] **A2-4** 「model に足しただけ・振る舞いが owner にない」新規をレビューで落とす
-- [ ] **A2-5** 共有 ID / 列挙の複製はしない（過剰分散を避ける）
+- [x] **A2-1** 主要 business fact について「GORM 型の write owner package」一覧を作る — catalog table
+- [x] **A2-2** 新規型: owner domain に寄せるか、model に置くなら owner を明記 — Rules §1–2
+- [x] **A2-3** domain 専用 command / DTO を model から分離し続ける — Rules §3
+- [x] **A2-4** 「model に足しただけ・振る舞いが owner にない」新規をレビューで落とす — Rules §4 + PR checklist
+- [x] **A2-5** 共有 ID / 列挙の複製はしない — Rules §5
 
 #### 完了条件
 
-- [ ] 新規 fact の owner が PR 説明で必ず言える
-- [ ] model 一括再配置の Issue を起票しない（漸進のみ）
+- [x] 新規 fact の owner が PR 説明で必ず言える（catalog Rules + checklist）
+- [x] model 一括再配置の Issue を起票しない（Rules §6）
 
 ---
 
