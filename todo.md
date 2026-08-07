@@ -355,20 +355,21 @@ docker compose exec backend go test ./internal/medicalrecord/ -count=1 -run 'Tes
 |------|------|
 | **ID** | ARCH-A8 |
 | **優先度** | P2 |
-| **状態** | open（継続規律） |
+| **状態** | **done（継続規律 + 機械 pin）** · claim `claim/ARCH-A8` |
 | **対象** | `csvimport` · `identitylink` · `httpapi` · `sharedkernel` · `persistence` · `audit` 等 |
+| **成果物** | `docs/architecture/exception-package-discipline.md` · `lintscan/exception_package_discipline_lint_test.go` |
 
 #### チェックリスト
 
-- [ ] **A8-1** `csvimport` は 21 表 cutover 専用のまま。通常 app から汎用 write API 化しない
-- [ ] **A8-2** 新規「便利な cross-domain write 例外」を作らない。作るなら ADR 級
-- [ ] **A8-3** `identitylink` は owner/pet を Go import しない設計を維持
-- [ ] **A8-4** `common` / `util` 的 bucket package を新設しない
-- [ ] **A8-5** 横断能力は実 consumer が 2+ になってから命名抽出（先回り抽出禁止）
+- [x] **A8-1** `csvimport` は cutover/tooling 専用 — cmd-only import lint
+- [x] **A8-2** 新規 cross-domain write 例外は ADR + orchestration catalog — discipline doc
+- [x] **A8-3** `identitylink` は owner/pet を Go import しない — discipline lint + domain allowlist
+- [x] **A8-4** `common` / `util` bucket 禁止 — package boundary C4（doc から参照）
+- [x] **A8-5** 横断抽出は consumer 2+ — discipline doc
 
 #### 完了条件
 
-- [ ] 例外 package の増加が ADR なしで起きていない
+- [x] 例外 package の増加手順が ADR/allowlist 更新必須として文書化・一部機械 pin
 
 ---
 
