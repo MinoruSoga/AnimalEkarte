@@ -15,11 +15,12 @@
 
 | Slice | Change | Commit |
 |-------|--------|--------|
-| **A4-billing-S1** | Extract unbilled aggregation helpers to `billing_item_unbilled.go` (same package, behavior unchanged) | (this PR) |
+| **A4-billing-S1** | Extract unbilled aggregation helpers to `billing_item_unbilled.go` (same package, behavior unchanged) | `eca651da3` |
+| **A4-billing-S2** | Extract unbilled repo queries to `billing_item_repository_unbilled.go` (769 → ~559 + 224, behavior unchanged) | (this PR) |
 
 ## Next candidates (still trigger-gated)
 
-1. **billing_item_repository.go** (~769) — only when a PR already touches most of the file.  
-2. **estimate_service.go** (~598) — only with estimate feature work.  
+1. **estimate_service.go** (~598) — only with estimate feature work.  
+2. **billing_item_service/repository residual** — only when a feature PR already forces wide touch.  
 3. **reservation_intent_repository.go** (~626) — only when intent API changes already force large touch.  
 4. **lstep** batch/tag/delivery — after #259 unblocked.

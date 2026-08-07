@@ -256,8 +256,9 @@ docker compose exec backend go test ./internal/medicalrecord/ -count=1 -run 'Tes
 
 #### A4-billing（~14.5k prod LOC）
 
-- [x] **S1** `billing_item_service.go` unbilled 凝集を `billing_item_unbilled.go` へ同一 package 分割（挙動不変）
-- [ ] 巨大 file 分割候補 residual: `billing_item_repository.go` · `estimate_service.go` · accounting 系（触る PR があるときだけ）
+- [x] **S1** `billing_item_service.go` unbilled 凝集を `billing_item_unbilled.go` へ同一 package 分割（挙動不変）— `eca651da3`
+- [x] **S2** `billing_item_repository.go` unbilled クエリを `billing_item_repository_unbilled.go` へ分割（挙動不変）
+- [ ] 巨大 file 分割候補 residual: `estimate_service.go` · accounting 系（触る PR があるときだけ）
 - [ ] 締め後編集の audit 同 tx fail-closed を壊さない（分割時の不変条件）
 
 #### A4-reservation（~13.3k prod LOC）
