@@ -334,6 +334,11 @@ func TestPetRepository_FindAll_Search(t *testing.T) {
 	t.Run("pet number exact", func(t *testing.T) {
 		assertHitA(t, petNumberShared)
 	})
+	t.Run("pet number partial ILIKE", func(t *testing.T) {
+		// AC: pets.pet_number is substring match (string, not numeric parse).
+		assertHitA(t, "BUG001-SHARED")
+		assertHitA(t, "PN-BUG001")
+	})
 	t.Run("whitespace only returns zero without listing clinic", func(t *testing.T) {
 		assertZero(t, []uint64{clinicA}, "   ")
 		assertZero(t, []uint64{clinicA}, "　　")

@@ -266,7 +266,7 @@ schema_migrations = 001_init + 002_master + 003_demo + 004_staging
 ## BUG-001: 飼主・ペット一覧の検索が「姓 スペース 名」形式でヒットしない
 
 - **重大度**: 中（受付業務で頻出する検索パターンが機能しない）
-- **対応状況（2026-08-03 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: 到達済み commit `d7bf32f2214d6bb6c252b99b001d2ed2044de7c9` で `PetRepository.FindAll` が空白非依存の飼主フルネーム、`owners.id` 文字列一致の飼主No、`pets.pet_number` 部分一致、空白のみ fail-closed、clinic-scoped JOIN を実装。`TestPetRepository_FindAll_Search` と owners list / OpenAPI / 画面仕様も更新済み | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: S01 手順1を専用 synthetic fixture でブラウザ再検証し、`VERIFIED_FIXED` 可否を判定
+- **対応状況（2026-08-07 JST）**: IMPLEMENTED_UNVERIFIED | **根拠**: 到達済み product fix `d7bf32f2214d6bb6c252b99b001d2ed2044de7c9`（`PetRepository.FindAll` 空白非依存フルネーム / `owners.id` 文字列一致の飼主No / `pets.pet_number` ILIKE / 空白のみ fail-closed / clinic-scoped JOIN）。Agent2 再検証（03:22 JST）: AC 補強 subtest `TestPetRepository_FindAll_Search/pet_number_partial_ILIKE` を含む scoped PASS（BE: `docker compose exec -T backend go test -p 1 ./internal/pet -run 'TestPetRepository_FindAll_Search|TestPetRepository_FindAll_Kana' -count=1 -v` exit 0, ok 0.359s; FE: `docker compose exec -T frontend npx vitest run` owners loaders/list/table 3 files 32 tests exit 0）。claim `claim/BUG-001` 保持、実装 branch `fix/BUG-001` @ `25ff98d97` | **原文シナリオ再検証**: UNREPORTED | **次のアクション**: S01 手順1を専用 synthetic fixture でブラウザ再検証し、人間/Agent3 が `VERIFIED_FIXED` 可否を判定（agent は VERIFIED_FIXED にしない）
 - **発見シナリオ**: S01 手順1の確認中（飼主・ペット一覧 `/owners`）
 - **再現手順**:
   1. `/owners` の検索ボックス（プレースホルダ「飼主名、ペット名、飼主No、種別...」）に `伊藤` とだけ入力 → 120件ヒット（正常）。
