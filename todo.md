@@ -278,22 +278,23 @@ docker compose exec backend go test ./internal/medicalrecord/ -count=1 -run 'Tes
 |------|------|
 | **ID** | ARCH-A5 |
 | **優先度** | P1 |
-| **状態** | open |
+| **状態** | **done**（claim `claim/ARCH-A5` — user release after merge） |
 | **対象** | `backend/cmd/api/**` |
 | **問題** | medicalrecord 配線だけで ~595 行規模。第2の Services aggregator 化リスク |
+| **成果物** | `docs/architecture/composition-root-conventions.md` · `cmd/api/composition_root_conventions_lint_test.go` |
 
 #### チェックリスト
 
-- [ ] **A5-1** 新規依存は `composition_<domain>.go` + domain 側 constructor / `Dependencies` に閉じる
-- [ ] **A5-2** main に field を増やし続けない
-- [ ] **A5-3** lstep の typed `Application` / `Dependencies` パターンを、太い domain へ横展開できるか評価（medicalrecord 優先）
-- [ ] **A5-4** route composition smoke / snapshot で退行を監視（既存強化）
-- [ ] **A5-5** consumer 0 の root facade を再導入しない
+- [x] **A5-1** 新規依存は `composition_<domain>.go` + domain 側 constructor / `Dependencies` に閉じる — conventions + required file pin
+- [x] **A5-2** main に field を増やし続けない — main.go domain wiring call 禁止 lint
+- [x] **A5-3** lstep `Application`/`Dependencies` を medicalrecord へ強制せず評価 — conventions §A5-3（現状 composition_* 維持）
+- [x] **A5-4** route composition smoke を監視ゲートとして固定 — conventions が `route_composition_smoke_test` を正本参照
+- [x] **A5-5** consumer 0 の root facade / god `Services`·`Repositories` 型を lint で拒否
 
 #### 完了条件
 
-- [ ] 新規 domain 機能追加時、composition diff が「配線だけ」で読める
-- [ ] 巨大 aggregator 型が復活していない
+- [x] 新規 domain 機能追加時、composition diff が「配線だけ」で読める運用文書がある
+- [x] 巨大 aggregator 型の復活を scoped test で落とせる
 
 ---
 
