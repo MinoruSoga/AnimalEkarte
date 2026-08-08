@@ -132,3 +132,5 @@ sensitive-local/
 # 監査レポート（秘密の抜粋を含みうるローカル作業ファイル。git外に保つ）
 improvement.html
 improvement_ai.html
+# Added by code-review-graph
+.code-review-graph/
