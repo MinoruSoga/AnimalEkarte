@@ -52,9 +52,9 @@ rg -n '^- \*\*対応状況' STATUS.md | rg -o 'IMPLEMENTED_UNVERIFIED|OPEN|BLOCK
 | TASK-010 | scenarios 要実測 / ブラウザ IU 32 | USER | **除外**（2026-08-06 · residual 対象外。手順は RUNBOOK に保管） |
 | TASK-020 | Playwright runtime（要 E2E_LOGIN_*） | USER | **partial** · cred 済 · core 16-spec suite **80/80** green（link 遷移・seed 整合）· 残り e2e ファイルは任意 |
 | TASK-021 | exclusion 破壊削除 | USER+PO | **A 追認+DEC-68** · B/C/D HOLD（client registry + access log · 90 日再裁定） |
-| TASK-022 | #239 S13 手動 correction / RLS 証跡 | USER | open |
-| TASK-023 | #254 5 フロー UAT | USER | open · cred 済 · 通し 5 フローは未完 |
-| TASK-024 | #256 screenshot / FAQ sign-off | USER | open · **必須残**（Fable RATIFY · #256 close gate） |
+| TASK-022 | #239 S13 手動 correction / RLS 証跡 | USER | open · **PO-15 (2026-08-09)** s13=NOT_RUN rls_runtime=N_A_APP_LAYER_ONLY env=UNKNOWN · opaque_ref=`2026-08-09-PO-TASK-022-residual` · memo=S13 human 1-8 not executed this session; RLS runtime out of S13; app-layer identitylink tests only · #239 CLOSED (evidence record only; LEDGER_PO) |
+| TASK-023 | #254 5 フロー UAT | USER | open · **PO-06 (2026-08-08)** overall=PARTIAL f1=PASS f2=PASS f3=FAIL f4=UNTESTED f5=BLOCKED · opaque_ref=`2026-08-08-PO-uat-TASK-023` · #254 OPEN · f3/f4/f5 residual |
+| TASK-024 | #256 screenshot / FAQ sign-off | USER | open · **PO-14 (2026-08-08)** privacy=SIGNED_OFF repo=SIGNED_OFF overall=PASS · opaque_ref=`2026-08-08-PO-signoff-TASK-024` · F-256 RATIFY / DEC-61 no-rewrite · #256 OPEN（close 別承認） |
 | TASK-032-apply | lab import migration 適用 + claim | USER | local DDL 済 · claim 0 · 他 env 残 |
 | TASK-033 | #201 救急投薬 cutover | 臨床+USER | HOLD · 骨格先行禁止 **Fable RATIFY** · 解除後 UNIT-033 一体 |
 | TASK-374-apply | checkup package import | USER | HOLD — DR-CLINICAL 実 row + DR-OPS 環境 |
@@ -169,18 +169,16 @@ schema_migrations = 001_init + 002_master + 003_demo + 004_staging
 |---|------|------|----------------|
 | [#89](https://github.com/MinoruSoga/AnimalEkarte/issues/89) | 露出 credential のローテーション | USER 専権 | credential class ごとの無効化・再発行 playbook を実行。値は repo に書かない |
 | [#97](https://github.com/MinoruSoga/AnimalEkarte/issues/97) | git/公開面由来の credential 露出 | USER 専権 | provider/JWT/session/DB の旧値失効と必要 session 無効化。#89 と役割分離 |
-| [#98](https://github.com/MinoruSoga/AnimalEkarte/issues/98) | 旧 RDS credential 履歴の残余リスク | USER 専権 | **Fable: ACCEPT_RESIDUAL_RISK** — provider 失効の非機密確認 enum + opaque ref 一行で close 可 |
-| [#99](https://github.com/MinoruSoga/AnimalEkarte/issues/99) | 旧 ECS deploy 経路の撤去確認 | USER 専権 | **Fable: APPROVE** — 経路ゼロ確認一行 + rollback SoT=#253 で close 可 |
 | [#201](https://github.com/MinoruSoga/AnimalEkarte/issues/201) | 薬量自動計算・例外統制 | 判断待ち | 臨床責任者が canonical #201 bundle 1 行へ上限/warning 継続可否と救急記録 policy を出典付き記入。TASK-033 cutover はそれまで HOLD（正本: 本ファイル §1 · DEC-48 · Fable pack） |
 | [#211](https://github.com/MinoruSoga/AnimalEkarte/issues/211) | 健診 package の clinic import | USER 専権 | DR-OPS: clinic 認可・環境・apply/rollback 結果。DR-CLINICAL: 実 row 承認と出典。実 manifest は repo 外 |
 | [#249](https://github.com/MinoruSoga/AnimalEkarte/issues/249) | 検査機能（院内結果管理） | 判断待ち | **Fable HOLD** — 臨床 range 前は値非依存 unit も起票禁止。外部自動化は DEFER_PHASE2 |
 | [#250](https://github.com/MinoruSoga/AnimalEkarte/issues/250) | 旧 Access データ移行 cutover | 依存待ち | producer bundle（completed_at・payment graph・crosswalk）受領待ち |
 | [#252](https://github.com/MinoruSoga/AnimalEkarte/issues/252) | 各院の締め時間設定値の投入 | USER 専権 | 批准済み値との差分だけを preview のうえ投入 |
 | [#253](https://github.com/MinoruSoga/AnimalEkarte/issues/253) | 本番環境整備（CI/CD・backup gate） | USER 専権 | billing / protected Production / required reviewer を先に用意。deploy・restore・rollback の実行と観測 |
-| [#254](https://github.com/MinoruSoga/AnimalEkarte/issues/254) | 納品前 UAT 通し確認 | USER 専権 | `E2E_LOGIN_*` 注入、5 フローブラウザ通し、DB/audit 目視、実機 LINE/LIFF、FAIL 処置の承認 |
+| [#254](https://github.com/MinoruSoga/AnimalEkarte/issues/254) | 納品前 UAT 通し確認 | USER 専権 | `E2E_LOGIN_*` 注入、5 フローブラウザ通し、DB/audit 目視、実機 LINE/LIFF、FAIL 処置の承認 · **PO-06 (2026-08-08)**: overall=PARTIAL f1=PASS f2=PASS f3=FAIL f4=UNTESTED f5=BLOCKED · opaque_ref=`2026-08-08-PO-uat-TASK-023` · memo=stack local demo; f3 trimming fail TBD; f4/f5 not run · #254 open のまま（close 別承認） |
 | [#255](https://github.com/MinoruSoga/AnimalEkarte/issues/255) | スタッフ一括発行と権限設定 | USER 専権 | repo 外 restricted manifest を確定。台帳には role・結果 enum・opaque ref のみ |
-| [#256](https://github.com/MinoruSoga/AnimalEkarte/issues/256) | 操作マニュアル・研修（U13） | USER 専権 | [DEC-61](q&a.html#dec-61) default no-rewrite。非機密結果と opaque ref を一行記録（roster/receipt 本文は repo 外） |
-| [#257](https://github.com/MinoruSoga/AnimalEkarte/issues/257) | Go-live 手順・support | USER 専権 | 前提 gate の green evidence を揃え、新 window と Go/No-Go / support / rollback owner を一行記入 |
+| [#256](https://github.com/MinoruSoga/AnimalEkarte/issues/256) | 操作マニュアル・研修（U13） | USER 専権 | [DEC-61](q&a.html#dec-61) default no-rewrite。非機密結果と opaque ref を一行記録（roster/receipt 本文は repo 外） · **PO-14 (2026-08-08)**: privacy=SIGNED_OFF repo=SIGNED_OFF overall=PASS · opaque_ref=`2026-08-08-PO-signoff-TASK-024` · memo=visual FAQ+manual screenshots reviewed off-repo; no PII in comment · #256 open のまま（close 別承認） |
+| [#257](https://github.com/MinoruSoga/AnimalEkarte/issues/257) | Go-live 手順・support | USER 専権 | 前提 gate の green evidence を揃え、新 window と Go/No-Go / support / rollback owner を一行記入 · **PO-03 (2026-08-08)**: go-live_gate_include_#252=YES · opaque_ref=`2026-08-08-PO-attestation-F257-gate252` · Fable F-257 HOLD on new window 維持 · #252/#257 open のまま（実行 work は別） |
 | [#258](https://github.com/MinoruSoga/AnimalEkarte/issues/258) | 納品ドキュメント（U1–U12） | USER 専権 | 契約責任者・クライアントが U1〜U12 へ非機密結果と opaque ref を一行記録。秘密・契約本文は空欄維持 |
 | [#259](https://github.com/MinoruSoga/AnimalEkarte/issues/259) | L ステップ Write API + cron | 依存待ち | 先方 enable 後、USER が live send・cron 発火・stop/rollback を実測 |
 | [#261](https://github.com/MinoruSoga/AnimalEkarte/issues/261) | 臨床安全・画面仕様ギャップ PO | USER 専権 | DB 方針・権限監査・real LINE/LIFF・対象環境 runtime・close の非機密結果と restricted ref を一行記録 |

@@ -42,21 +42,25 @@
 
 ### 帯 1 — 判断・1行記録（その日で可）
 
-- [ ] **PO-01 · #98**  
+- [x] **PO-01 · #98**  
   - **何を**: 旧 RDS 系 credential が provider 側で失効済みか確認  
   - **完了条件**: Issue に非機密1行（結果 enum + opaque ref）→ close  
   - **Fable**: `ACCEPT_RESIDUAL_RISK`（close 経路は確定済み。**実行だけ残**）  
   - **書かない**: 秘密・接続文字列  
+  - **完了 (2026-08-08)**: #98 CLOSED · enum=`ACCEPT_RESIDUAL_RISK_WITH_OPAQUE_REF` · opaque_ref=`2026-08-08-PO-attestation-F098`（秘密なし）
 
-- [ ] **PO-02 · #99**  
+- [x] **PO-02 · #99**  
   - **何を**: 旧 ECS deploy 経路が実行不能であることの確認  
   - **完了条件**: 同上1行 + rollback SoT = **#253** → close  
   - **Fable**: `APPROVE`（close 経路確定 · **実行だけ残**）  
+  - **完了 (2026-08-08)**: #99 CLOSED · enum=`WORKFLOW_ABSENT` · opaque_ref=`2026-08-08-PO-attestation-F099` · rollback_sot=#253（秘密なし）  
 
-- [ ] **PO-03 · #252 ↔ #257**  
+- [x] **PO-03 · #252 ↔ #257**  
   - **何を**: Go-live 前提 gate に **#252（締め時間）を含めるか** Yes/No  
   - **完了条件**: #257 または STATUS に一行メモ  
   - **Fable**: 候補提示 · **最終 Yes/No は USER**  
+  - **完了 (2026-08-08)**: go-live_gate_include_#252=`YES` · opaque_ref=`2026-08-08-PO-attestation-F257-gate252` · recorded on STATUS §2 #257 · #252/#257 remain OPEN · new go-live window **not** set (F-257 HOLD) · 秘密なし  
+ 
 
 ---
 
@@ -73,9 +77,10 @@
   - **完了条件**: green / 失敗ログを手元保管  
   - **2026-08-07**: core 16-spec suite **80/80** PASS（placeholder/kana seed 整合 + 一覧は DataTableRowLink クリック）
 
-- [ ] **PO-06 · TASK-023 / #254**  
+- [x] **PO-06 · TASK-023 / #254**  
   - **何を**: 5 業務フロー UAT  
   - **完了条件**: 結果 enum 一行（PASS/FAIL + メモ）  
+  - **完了 (2026-08-08)**: overall=`PARTIAL` f1=PASS f2=PASS f3=FAIL f4=UNTESTED f5=BLOCKED · opaque_ref=`2026-08-08-PO-uat-TASK-023` · memo=stack local demo; f3 trimming fail TBD; f4/f5 not run · #254 remains OPEN (close not performed) · 秘密なし  
 
 前提 UI: http://localhost:3003 · 落ちていれば `make up`。
 
@@ -126,12 +131,14 @@ G〜J が揃うまで **response 削除 / route DROP / DB DROP / 本番 secret �
 
 ### 帯 5 — 人の証跡（納品・privacy）
 
-- [ ] **PO-14 · TASK-024 / #256**  
+- [x] **PO-14 · TASK-024 / #256**  
   - **何を**: screenshot / FAQ visual sign-off（Privacy + Repository owner）  
   - **Fable**: **必須残**（DEFER しない）  
+  - **完了 (2026-08-08)**: privacy=`SIGNED_OFF` repo=`SIGNED_OFF` overall=`PASS` · opaque_ref=`2026-08-08-PO-signoff-TASK-024` · memo=visual FAQ+manual screenshots reviewed off-repo; no PII in comment · #256 remains OPEN (close not performed unless separately approved) · 秘密なし  
 
-- [ ] **PO-15 · TASK-022**  
+- [x] **PO-15 · TASK-022**  
   - **何を**: S13 手動 correction + RLS 証跡  
+  - **完了 (2026-08-09)**: s13=`NOT_RUN` rls_runtime=`N_A_APP_LAYER_ONLY` env=`UNKNOWN` · opaque_ref=`2026-08-09-PO-TASK-022-residual` · memo=S13 human 1-8 not executed this session; RLS runtime out of S13; app-layer identitylink tests only · #239 already CLOSED (no reopen/close; LEDGER_PO only) · 秘密なし・PHI なし  
 
 - [ ] **PO-16 · #261**  
   - **何を**: 5項目を 結果 enum + opaque ref の1行ずつ  
