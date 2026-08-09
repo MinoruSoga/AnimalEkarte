@@ -155,7 +155,31 @@ type accountingService struct {
 
 type accountingReservationRepository interface {
 	sharedkernel.OwnerPetLinkVerifier
+	// FindPetByIDInClinic は BUG-001 死亡ペット write ガード用（DeceasedAt 判定）。
+	FindPetByIDInClinic(ctx context.Context, clinicID, petID uint64) (*model.Pet, error)
 	CompleteForAccounting(ctx context.Context, clinicID uint64, medicalRecordID, ownerID, petID *uint64, scheduledDate time.Time) (int64, error)
+}
+
+// accountingDeceasedPetMessage は会計 Create/Complete が死亡ペットを拒否するときの安定メッセージ（BUG-001）。
+const accountingDeceasedPetMessage = "死亡したペットは会計を作成できません"
+
+// accountingPetByIDAdapter は FindPetByIDInClinic を sharedkernel.PetByIDFinder へ適合する。
+type accountingPetByIDAdapter struct {
+	repo accountingReservationRepository
+}
+
+func (a accountingPetByIDAdapter) FindByID(ctx context.Context, clinicID, id uint64) (*model.Pet, error) {
+	return a.repo.FindPetByIDInClinic(ctx, clinicID, id)
+}
+
+// assertAccountingPetNotDeceased は petID 非 nil のとき死亡ペットへの会計 Create/Complete を fail-closed で拒否する（BUG-001）。
+// 入院登録と同様、FE 選択 UI だけでは API 直叩きを防げないため BE でも検証する。
+// reservationRepo 未配線時は判定不能のためスキップ（本番配線では常に注入。unbilledGuard と同様）。
+func (s *accountingService) assertAccountingPetNotDeceased(ctx context.Context, clinicID uint64, petID *uint64) error {
+	if petID == nil || s.reservationRepo == nil {
+		return nil
+	}
+	return sharedkernel.ValidatePetNotDeceased(ctx, accountingPetByIDAdapter{repo: s.reservationRepo}, clinicID, *petID, accountingDeceasedPetMessage)
 }
 
 type accountingServiceOption func(*accountingService)

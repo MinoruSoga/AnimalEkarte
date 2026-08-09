@@ -64,6 +64,10 @@ func (s *accountingService) Create(ctx context.Context, input *CreateAccountingI
 			return nil, err
 		}
 	}
+	// BUG-001: 死亡ペットへの新規会計作成は BE で物理ブロック（入院登録と同型）。
+	if err := s.assertAccountingPetNotDeceased(ctx, input.ClinicID, input.PetID); err != nil {
+		return nil, err
+	}
 	billing := &model.Billing{
 		ClinicID:          input.ClinicID,
 		MedicalRecordID:   input.MedicalRecordID,
