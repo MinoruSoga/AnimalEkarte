@@ -141,6 +141,8 @@ type BillingItemResponse struct {
 	Source                string    `json:"source"`
 	OtherReason           *string   `json:"other_reason,omitempty"`
 	TreatmentID           *uint64   `json:"treatment_id,omitempty"`
+	// MedicalRecordID は未請求候補など、treatment 由来の親カルテ（DB 列ではない仮想値）。
+	MedicalRecordID       *uint64   `json:"medical_record_id,omitempty"`
 	VaccinationID         *uint64   `json:"vaccination_id,omitempty"`
 	AppointmentID         *uint64   `json:"appointment_id,omitempty"`
 	TrimmingCourseID      *uint64   `json:"trimming_course_id,omitempty"`
@@ -171,6 +173,7 @@ func ToBillingItemResponse(item *model.BillingItem) BillingItemResponse {
 		Source:                string(item.Source),
 		OtherReason:           item.OtherReason,
 		TreatmentID:           item.TreatmentID,
+		MedicalRecordID:       item.MedicalRecordID,
 		VaccinationID:         item.VaccinationID,
 		AppointmentID:         item.AppointmentID,
 		TrimmingCourseID:      item.TrimmingCourseID,

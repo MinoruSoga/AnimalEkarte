@@ -15,6 +15,8 @@ export interface BackendAccountingItem extends BillingItem {
   other_reason?: string;
   tax_amount?: number;
   subtotal?: number;
+  /** 未請求候補など treatment 由来の親カルテ（仮想。DB 列ではない） */
+  medical_record_id?: number;
 }
 
 // BillingItem の更新リクエスト

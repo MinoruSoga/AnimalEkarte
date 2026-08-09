@@ -46,10 +46,32 @@ function toCompleteItems(
   }));
 }
 
+/** BUG-011: complete ヘッダ medical_record_id。会計本体 → 明細の一意値の順で解決。 */
+function resolveCompleteMedicalRecordId(
+  accounting: Accounting,
+  items: ReadonlyArray<AccountingItem>,
+): number | undefined {
+  if (accounting.medicalRecordId) {
+    const n = Number(accounting.medicalRecordId);
+    if (Number.isFinite(n) && n > 0) return n;
+  }
+  const fromItems = new Set<number>();
+  for (const item of items) {
+    if (!item.medicalRecordId) continue;
+    const n = Number(item.medicalRecordId);
+    if (Number.isFinite(n) && n > 0) fromItems.add(n);
+  }
+  if (fromItems.size === 1) {
+    return [...fromItems][0];
+  }
+  return undefined;
+}
+
 /** mutation 単位の Idempotency-Key を payload 指紋付きで保持する（失敗 retry で再利用）。 */
 function buildCompletePayloadFingerprint(parts: {
   petId: string | number;
   ownerId: string | number;
+  medicalRecordId?: number;
   scheduledDate: string;
   items: CompleteAccountingItemRequest[];
   paymentSplits: PaymentSplitRequest[];
@@ -141,6 +163,7 @@ export function useAccountingCompletionAction({
           // BUG-018: 新規確定は header/items/payments を単一 complete command で原子的に送信する。
           // legacy create + sequential items は残置（他 consumer 用）だが本経路では呼ばない。
           const completeItems = toCompleteItems(displayItems);
+          const medicalRecordId = resolveCompleteMedicalRecordId(accounting, displayItems);
           const scheduledDate = accounting.scheduledDate
             ? jstDateStartISOString(accounting.scheduledDate)
             : jstNowISOString();
@@ -150,6 +173,7 @@ export function useAccountingCompletionAction({
           const fingerprint = buildCompletePayloadFingerprint({
             petId: accounting.petId,
             ownerId: accounting.ownerId,
+            medicalRecordId,
             scheduledDate,
             items: completeItems,
             paymentSplits: builtSplits,
@@ -169,6 +193,7 @@ export function useAccountingCompletionAction({
             {
               pet_id: Number(accounting.petId),
               owner_id: Number(accounting.ownerId),
+              medical_record_id: medicalRecordId ?? null,
               scheduled_date: scheduledDate,
               has_insurance: hasInsurance,
               insurance_ratio: insuranceRatioValue,

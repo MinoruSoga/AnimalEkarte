@@ -537,14 +537,15 @@ func TestBillingItemService_GetUnbilledItems_IncludesMedicalAndTrimming(t *testi
 			assert.Equal(t, uint64(20), petID)
 			return []model.Treatment{
 				{
-					ID:          10,
-					ItemType:    model.TreatmentItemTypeProcedure,
-					Content:     "処置",
-					UnitPrice:   1000,
-					Quantity:    1,
-					IsInsurance: true,
-					SortOrder:   2,
-					Procedure:   &model.Procedure{IsSurgery: true},
+					ID:              10,
+					MedicalRecordID: 55,
+					ItemType:        model.TreatmentItemTypeProcedure,
+					Content:         "処置",
+					UnitPrice:       1000,
+					Quantity:        1,
+					IsInsurance:     true,
+					SortOrder:       2,
+					Procedure:       &model.Procedure{IsSurgery: true},
 				},
 			}, nil
 		},
@@ -558,6 +559,8 @@ func TestBillingItemService_GetUnbilledItems_IncludesMedicalAndTrimming(t *testi
 		assert.Equal(t, model.ItemSourceMedicalRecord, items[0].Source)
 		assert.Equal(t, model.ItemCategorySurgery, items[0].Category)
 		assert.Equal(t, ptrUint64(10), items[0].TreatmentID)
+		// BUG-011: unbilled treatment 候補は親 medical_record_id を返す
+		assert.Equal(t, ptrUint64(55), items[0].MedicalRecordID)
 		assert.Equal(t, model.ItemSourceTrimming, items[1].Source)
 		assert.Equal(t, model.ItemCategoryTrimming, items[1].Category)
 		assert.Equal(t, &appointmentID, items[1].AppointmentID)

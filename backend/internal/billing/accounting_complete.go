@@ -244,6 +244,69 @@ func ComputeCompleteAccountingDigest(input *CompleteAccountingInput) (string, er
 	return hex.EncodeToString(sum[:]), nil
 }
 
+// resolveCompleteMedicalRecordID は BUG-011: complete ヘッダの medical_record_id を確定する。
+// - 明示値がある場合は treatment 由来の親カルテと一致することを検証する
+// - 未指定でも treatment 付き明細があれば treatments.medical_record_id から一意に解決する
+// - treatment が複数カルテにまたがる場合は参照組み合わせ不正
+// - treatment が無い場合は tx 不要（明示値をそのまま返す）
+func resolveCompleteMedicalRecordID(
+	ctx context.Context,
+	clinicID uint64,
+	explicit *uint64,
+	items []CompleteAccountingItemInput,
+) (*uint64, error) {
+	hasTreatment := false
+	for i := range items {
+		if items[i].TreatmentID != nil {
+			hasTreatment = true
+			break
+		}
+	}
+	if !hasTreatment {
+		return explicit, nil
+	}
+
+	tx := persistence.TxFromContext(ctx)
+	if tx == nil {
+		return nil, apperrors.WrapInternalServerError("complete medical_record resolution requires an active transaction")
+	}
+	tx = tx.WithContext(ctx)
+
+	var resolvedFromTreatments *uint64
+	for i := range items {
+		if items[i].TreatmentID == nil {
+			continue
+		}
+		var treatmentRef struct {
+			MedicalRecordID uint64
+		}
+		if err := tx.
+			Table("treatments").
+			Select("treatments.medical_record_id").
+			Joins("JOIN medical_records ON medical_records.id = treatments.medical_record_id AND medical_records.clinic_id = ? AND medical_records.deleted_at IS NULL", clinicID).
+			Where("treatments.id = ? AND treatments.deleted_at IS NULL", *items[i].TreatmentID).
+			Take(&treatmentRef).Error; err != nil {
+			return nil, apperrors.FromGORM(err, "treatment", fmt.Sprintf("%d", *items[i].TreatmentID))
+		}
+		if resolvedFromTreatments == nil {
+			id := treatmentRef.MedicalRecordID
+			resolvedFromTreatments = &id
+			continue
+		}
+		if *resolvedFromTreatments != treatmentRef.MedicalRecordID {
+			return nil, invalidBillingItemReferenceCombination()
+		}
+	}
+
+	if explicit != nil {
+		if resolvedFromTreatments != nil && *explicit != *resolvedFromTreatments {
+			return nil, invalidBillingItemReferenceCombination()
+		}
+		return explicit, nil
+	}
+	return resolvedFromTreatments, nil
+}
+
 // Complete は header/items/totals/payments/splits/reservation/audit を単一 tx で全 commit または全 rollback する（BUG-018）。
 func (s *accountingService) Complete(ctx context.Context, input *CompleteAccountingInput) (*CompleteAccountingResult, error) {
 	if input == nil {
@@ -298,9 +361,16 @@ func (s *accountingService) Complete(ctx context.Context, input *CompleteAccount
 			return nil
 		}
 
+		// BUG-011: treatment 付き明細があるとき billing.medical_record_id が必須。
+		// FE が未送信でも treatment から一意に解決する（明示値は優先・不一致は拒否）。
+		medicalRecordID, err := resolveCompleteMedicalRecordID(txCtx, input.ClinicID, input.MedicalRecordID, input.Items)
+		if err != nil {
+			return err
+		}
+
 		if err := s.validateAccountingRelatedFKs(
 			txCtx, input.ClinicID,
-			input.MedicalRecordID, input.HospitalizationID, input.OwnerID, input.PetID,
+			medicalRecordID, input.HospitalizationID, input.OwnerID, input.PetID,
 		); err != nil {
 			return err
 		}
@@ -328,7 +398,7 @@ func (s *accountingService) Complete(ctx context.Context, input *CompleteAccount
 		hash := digest
 		billing := &model.Billing{
 			ClinicID:              input.ClinicID,
-			MedicalRecordID:       input.MedicalRecordID,
+			MedicalRecordID:       medicalRecordID,
 			HospitalizationID:     input.HospitalizationID,
 			OwnerID:               input.OwnerID,
 			PetID:                 input.PetID,
