@@ -1,8 +1,9 @@
 # AnimalEkarte 作業台帳（統合 SoT）
 
 最終統合: **2026-08-06**。  
-**ドキュメント状況スナップショット: 2026-08-09**（residual U0–U6 · PO-07 · UAT-R1 land 後）。  
-旧 `todo.md` / `3-session-agent.html` / `bug.md` と薄いハブを **本ファイル 1 本**に統合した。対応済みの長文履歴は載せず、完了証跡は git / GitHub Issue。
+**ドキュメント状況スナップショット: 2026-08-09**（residual land 後 · 互換スタブ削除含む）。  
+旧 residual ハブ（`3-session-agent.html` / `bug.md` / 旧 ops `todo` 相当）を **本ファイル 1 本**に統合した。対応済みの長文履歴は載せず、完了証跡は git / GitHub Issue。  
+**注:** root [`todo.md`](todo.md) は別用途の **アーキテクチャ改善バックログ**（残作業 SoT ではない）。
 
 | セクション | 内容 |
 |------------|------|
@@ -3286,4 +3287,4 @@ S01〜S12の業務シナリオ検証に続き、個別フォーム単位の受�
 
 **安全:** migrate 適用・DB reset・credential・STG/PROD・force-push・Issue 自動書き込みは明示承認。agent は seed apply / claim 解放をしない。
 
-旧 `todo.md` / `bug.md` / `3-session-agent.html` は互換スタブのみ。**編集は STATUS.md だけ。**
+旧互換スタブ `bug.md` / `BE-pending.md` / `3-session-agent.html` は **2026-08-09 削除**（正本 = 本ファイル / `phase2.html`）。root `todo.md` はアーキ改善バックログ。**残作業の編集は STATUS.md · PO-todo.md のみ。**

@@ -23,5 +23,7 @@
 |------|------|
 | `STATUS.md` · `PO-todo.md` | 第一入口 |
 | `q&a.html` · `phase2.html` | 決裁 UI |
+| `todo.md` | **アーキテクチャ改善バックログ**（UAT/ops residual ではない） |
 | `README` / `CLAUDE` / `AGENTS` / `SECURITY` / `DESIGN` | ツール定位置 |
-| 互換スタブ `todo.md` / `bug.md` / `BE-pending.md` / `3-session-agent.html` | lint・旧リンク |
+
+**削除済み互換スタブ (2026-08-09):** `bug.md` · `BE-pending.md` · `3-session-agent.html`（内容は `STATUS.md` / `phase2.html` に統合済み · 旧リンクは git 履歴）
