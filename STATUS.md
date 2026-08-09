@@ -53,7 +53,7 @@ rg -n '^- \*\*対応状況' STATUS.md | rg -o 'IMPLEMENTED_UNVERIFIED|OPEN|BLOCK
 | TASK-020 | Playwright runtime（要 E2E_LOGIN_*） | USER | **partial** · cred 済 · core 16-spec suite **80/80** green（link 遷移・seed 整合）· 残り e2e ファイルは任意 |
 | TASK-021 | exclusion 破壊削除 | USER+PO | **A 追認+DEC-68** · **PO-07 (2026-08-09)** client_registry declaration=`NO_KNOWN_EXTERNAL_CONSUMERS` opaque_ref=`2026-08-09-PO-TASK-021-registry` inventory_start=`2026-08-09` · B/C/D HOLD（B 証拠 registry 済 · C は PO-08 access log · F-021-X 90 日） |
 | TASK-022 | #239 S13 手動 correction / RLS 証跡 | USER | open · **PO-15 (2026-08-09)** s13=NOT_RUN rls_runtime=N_A_APP_LAYER_ONLY env=UNKNOWN · opaque_ref=`2026-08-09-PO-TASK-022-residual` · memo=S13 human 1-8 not executed this session; RLS runtime out of S13; app-layer identitylink tests only · #239 CLOSED (evidence record only; LEDGER_PO) |
-| TASK-023 | #254 5 フロー UAT | USER | open · **PO-06 (2026-08-08)** overall=PARTIAL f1=PASS f2=PASS f3=FAIL f4=UNTESTED f5=BLOCKED · opaque_ref=`2026-08-08-PO-uat-TASK-023` · #254 OPEN · f3/f4/f5 residual |
+| TASK-023 | #254 5 フロー UAT | USER | open · **PO-06 (2026-08-08)** overall=PARTIAL f1=PASS f2=PASS f3=FAIL f4=UNTESTED f5=BLOCKED · opaque_ref=`2026-08-08-PO-uat-TASK-023` · **UAT-R1 (2026-08-09)** residual f3–f5 re-record: overall=PARTIAL f1=PASS(INHERIT_U4) f2=PASS(INHERIT_U4) f3=FAIL f4=UNTESTED f5=BLOCKED · opaque_ref=`2026-08-09-PO-uat-R1` · memo=no re-run yet; stack may be down; residual f3-f5 unchanged from U4 · #254 OPEN · f3/f4/f5 residual |
 | TASK-024 | #256 screenshot / FAQ sign-off | USER | open · **PO-14 (2026-08-08)** privacy=SIGNED_OFF repo=SIGNED_OFF overall=PASS · opaque_ref=`2026-08-08-PO-signoff-TASK-024` · F-256 RATIFY / DEC-61 no-rewrite · #256 OPEN（close 別承認） |
 | TASK-032-apply | lab import migration 適用 + claim | USER | local DDL 済 · claim 0 · 他 env 残 |
 | TASK-033 | #201 救急投薬 cutover | 臨床+USER | HOLD · 骨格先行禁止 **Fable RATIFY** · 解除後 UNIT-033 一体 |
@@ -123,6 +123,7 @@ schema_migrations = 001_init + 002_master + 003_demo + 004_staging
 
 - 022: S13 手動 correction + signer + RLS runtime
 - 023: 5 業務フロー UAT（認証後）
+- 023 / **UAT-R1 (2026-08-09)**: residual f3–f5 RECORD_ONLY · overall=PARTIAL f1=PASS(INHERIT_U4) f2=PASS(INHERIT_U4) f3=FAIL f4=UNTESTED f5=BLOCKED · opaque_ref=`2026-08-09-PO-uat-R1` · memo=no re-run yet; stack may be down; residual f3-f5 unchanged from U4 · env fe/be `000` DOWN · #254 remains OPEN (close 別承認) · PO-08 out of scope
 - 024: screenshot / FAQ visual sign-off
 
 ### TASK-032-apply / TASK-374-apply
@@ -176,7 +177,7 @@ schema_migrations = 001_init + 002_master + 003_demo + 004_staging
 | [#250](https://github.com/MinoruSoga/AnimalEkarte/issues/250) | 旧 Access データ移行 cutover | 依存待ち | producer bundle（completed_at・payment graph・crosswalk）受領待ち |
 | [#252](https://github.com/MinoruSoga/AnimalEkarte/issues/252) | 各院の締め時間設定値の投入 | USER 専権 | 批准済み値との差分だけを preview のうえ投入 |
 | [#253](https://github.com/MinoruSoga/AnimalEkarte/issues/253) | 本番環境整備（CI/CD・backup gate） | USER 専権 | billing / protected Production / required reviewer を先に用意。deploy・restore・rollback の実行と観測 |
-| [#254](https://github.com/MinoruSoga/AnimalEkarte/issues/254) | 納品前 UAT 通し確認 | USER 専権 | `E2E_LOGIN_*` 注入、5 フローブラウザ通し、DB/audit 目視、実機 LINE/LIFF、FAIL 処置の承認 · **PO-06 (2026-08-08)**: overall=PARTIAL f1=PASS f2=PASS f3=FAIL f4=UNTESTED f5=BLOCKED · opaque_ref=`2026-08-08-PO-uat-TASK-023` · memo=stack local demo; f3 trimming fail TBD; f4/f5 not run · #254 open のまま（close 別承認） |
+| [#254](https://github.com/MinoruSoga/AnimalEkarte/issues/254) | 納品前 UAT 通し確認 | USER 専権 | `E2E_LOGIN_*` 注入、5 フローブラウザ通し、DB/audit 目視、実機 LINE/LIFF、FAIL 処置の承認 · **PO-06 (2026-08-08)**: overall=PARTIAL f1=PASS f2=PASS f3=FAIL f4=UNTESTED f5=BLOCKED · opaque_ref=`2026-08-08-PO-uat-TASK-023` · **UAT-R1 (2026-08-09)**: overall=PARTIAL f1=PASS(INHERIT_U4) f2=PASS(INHERIT_U4) f3=FAIL f4=UNTESTED f5=BLOCKED · opaque_ref=`2026-08-09-PO-uat-R1` · memo=no re-run yet; stack may be down; residual f3-f5 unchanged from U4 · #254 open のまま（close 別承認） |
 | [#255](https://github.com/MinoruSoga/AnimalEkarte/issues/255) | スタッフ一括発行と権限設定 | USER 専権 | repo 外 restricted manifest を確定。台帳には role・結果 enum・opaque ref のみ |
 | [#256](https://github.com/MinoruSoga/AnimalEkarte/issues/256) | 操作マニュアル・研修（U13） | USER 専権 | [DEC-61](q&a.html#dec-61) default no-rewrite。非機密結果と opaque ref を一行記録（roster/receipt 本文は repo 外） · **PO-14 (2026-08-08)**: privacy=SIGNED_OFF repo=SIGNED_OFF overall=PASS · opaque_ref=`2026-08-08-PO-signoff-TASK-024` · memo=visual FAQ+manual screenshots reviewed off-repo; no PII in comment · #256 open のまま（close 別承認） |
 | [#257](https://github.com/MinoruSoga/AnimalEkarte/issues/257) | Go-live 手順・support | USER 専権 | 前提 gate の green evidence を揃え、新 window と Go/No-Go / support / rollback owner を一行記入 · **PO-03 (2026-08-08)**: go-live_gate_include_#252=YES · opaque_ref=`2026-08-08-PO-attestation-F257-gate252` · Fable F-257 HOLD on new window 維持 · #252/#257 open のまま（実行 work は別） |

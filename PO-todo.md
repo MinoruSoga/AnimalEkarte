@@ -81,6 +81,7 @@
   - **何を**: 5 業務フロー UAT  
   - **完了条件**: 結果 enum 一行（PASS/FAIL + メモ）  
   - **完了 (2026-08-08)**: overall=`PARTIAL` f1=PASS f2=PASS f3=FAIL f4=UNTESTED f5=BLOCKED · opaque_ref=`2026-08-08-PO-uat-TASK-023` · memo=stack local demo; f3 trimming fail TBD; f4/f5 not run · #254 remains OPEN (close not performed) · 秘密なし  
+  - **UAT-R1 residual (2026-08-09)**: RECORD_ONLY re-record f3–f5 · overall=`PARTIAL` f1=PASS(INHERIT_U4) f2=PASS(INHERIT_U4) f3=FAIL f4=UNTESTED f5=BLOCKED · opaque_ref=`2026-08-09-PO-uat-R1` · memo=no re-run yet; stack may be down; residual f3-f5 unchanged from U4 · env fe/be `000` DOWN · #254 remains OPEN · no re-run yet · 秘密なし  
 
 前提 UI: http://localhost:3003 · 落ちていれば `make up`。
 

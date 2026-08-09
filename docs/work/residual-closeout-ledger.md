@@ -16,10 +16,11 @@
 | **U5** | TASK-024 / #256 screenshot-FAQ sign-off | Yes (evidence) | **COMPLETE** (2026-08-08) — dual SIGNED_OFF overall=PASS; #256 not closed |
 | **U6** | TASK-022 / #239 S13 / RLS evidence | Yes (evidence) | **COMPLETE** (2026-08-09) — LEDGER_PO s13=NOT_RUN rls=N_A_APP_LAYER_ONLY; #239 not reopened |
 | **PO-07** | TASK-021-B client registry inventory | No (local BOTH_LOCAL) | **COMPLETE** (2026-08-09) — declaration=NO_KNOWN_EXTERNAL_CONSUMERS; B/C/D DROP not performed |
+| **UAT-R1** | TASK-023 / #254 residual f3–f5 re-record | No (local STATUS_LEDGER) | **COMPLETE** (2026-08-09) — RECORD_ONLY overall=PARTIAL; f3–f5 unchanged from U4; #254 not closed |
 
 **HOLD** (separate decision required): TASK-021 B/C/D product DROP (registry evidence recorded; B still needs PO approve before delete; C needs PO-08 access log), LINE-R05 DROP, TASK-033/#201 clinical, #249 clinical ranges.
 
-**Residual series U0–U6:** frozen order complete (no U7). **Post-series:** PO-07 client registry recorded 2026-08-09 (does not invent U7 product unit).
+**Residual series U0–U6:** frozen order complete (no U7). **Post-series:** PO-07 client registry recorded 2026-08-09; **UAT-R1** residual f3–f5 re-record 2026-08-09 (does not invent U7 product unit).
 
 ---
 
@@ -551,3 +552,67 @@ In-repo scan: FE/LIFF/OpenAPI/handler cites summarized in ledger/STATUS (paths o
 ### Out of scope honored
 
 - No TASK-021-B response field delete; no C route DROP; no D migrate DROP; no PO-08 STG/prod log access; no push/PR; no secrets/IP/UA/token; no gh issue comment
+
+---
+
+## UAT-R1 — TASK-023 / #254 residual f3–f5 re-record
+
+| Field | Value |
+|-------|--------|
+| Date | 2026-08-09 |
+| Branch / HEAD | `main` (local residual docs dirty; `?? reports/`) |
+| Run status | **COMPLETE** (RECORD_ONLY STATUS_LEDGER; no #254 comment; no issue close) |
+| Next unit | **S13 human steps 1–8** (recommended order #2) — do not auto-start; PO-08 still deferred |
+| Prompt | `~/.claude/prompt-craft-runs/fast-uat-residual-f3-f5.md` |
+| Orchestration | native Workflow `uat-r1-residual-record` + parallel explore probes B/C; Probe A env curls on main |
+
+### Hard gate (launch message)
+
+| Field | Value |
+|-------|--------|
+| mode | **PASS** — `RECORD_ONLY` |
+| overall | **PASS** — `PARTIAL` (consistent with f3=FAIL + f4=UNTESTED + f5=BLOCKED) |
+| f1–f5 | **PASS** — f1=PASS(INHERIT_U4) f2=PASS(INHERIT_U4) f3=FAIL f4=UNTESTED f5=BLOCKED |
+| opaque_ref | **PASS** — `2026-08-09-PO-uat-R1` (non-secret) |
+| write_target | **PASS** — `STATUS_LEDGER` |
+| memo | no re-run yet; stack may be down; residual f3-f5 unchanged from U4 |
+| external-write approval | **N/A** — STATUS_LEDGER only (no ISSUE_254 / BOTH) |
+
+### Environment re-measure (non-secret)
+
+| Probe | Result |
+|-------|--------|
+| `curl -s -o /dev/null -w '%{http_code}' --connect-timeout 3 http://127.0.0.1:3003/` | http_code=`000` → **DOWN/unreachable** |
+| `curl -s -o /dev/null -w '%{http_code}' --connect-timeout 3 http://127.0.0.1:8080/health` | http_code=`000` → **DOWN/unreachable** |
+| mode | RECORD_ONLY — no assisted browser UAT; USER matrix accepted without inventing PASS |
+
+### Result matrix
+
+| ID | Flow | Result | Notes |
+|----|------|--------|-------|
+| f1 | 受付→診察→検査→会計→締め | PASS | INHERIT_U4 |
+| f2 | 予約→来院→再予約 | PASS | INHERIT_U4 |
+| f3 | トリミング受付→実施→精算 | FAIL | residual unchanged; no re-run |
+| f4 | LINE予約→カルテ反映 | UNTESTED | residual unchanged; no re-run |
+| f5 | 月次集計→帳票出力 | BLOCKED | residual unchanged; no re-run |
+| overall | — | PARTIAL | not all PASS/waived SKIP |
+
+### Local docs
+
+| Path | Action |
+|------|--------|
+| `STATUS.md` TASK-023 table | UAT-R1 residual one-liner; remains open |
+| `STATUS.md` §1 TASK-022/023/024 | UAT-R1 bullet |
+| `STATUS.md` §2 #254 | UAT-R1 one-liner; #254 OPEN |
+| `PO-todo.md` PO-06 | residual UAT-R1 line under checked PO-06 |
+| Issue #254 comment | **skipped** (write_target=STATUS_LEDGER; no approval sentence) |
+
+**Recorded body (verbatim):**
+```text
+UAT-R1 / TASK-023 / #254 residual f3–f5: overall=PARTIAL f1=PASS f2=PASS f3=FAIL f4=UNTESTED f5=BLOCKED opaque_ref=2026-08-09-PO-uat-R1 memo=no re-run yet; stack may be down; residual f3-f5 unchanged from U4
+Policy: local demo residual fill after U4 PARTIAL. No secrets/PHI. No prod. PO-08 STG/prod logs out of scope. #254 close not performed unless separately approved.
+```
+
+### Out of scope honored
+
+- No inventing f3–f5 PASS; no assisted UAT while stack DOWN; no #254 comment/close; no PO-08 STG/prod log counts; no TASK-021 B/C/D DROP; no S13 execution; no U7 product unit; no push/PR; no secrets/PHI
