@@ -1,6 +1,7 @@
 # AnimalEkarte 作業台帳（統合 SoT）
 
 最終統合: **2026-08-06**。  
+**ドキュメント状況スナップショット: 2026-08-09**（residual U0–U6 · PO-07 · UAT-R1 land 後）。  
 旧 `todo.md` / `3-session-agent.html` / `bug.md` と薄いハブを **本ファイル 1 本**に統合した。対応済みの長文履歴は載せず、完了証跡は git / GitHub Issue。
 
 | セクション | 内容 |
@@ -21,26 +22,40 @@ rg -n '^- \*\*対応状況' STATUS.md | rg -o 'IMPLEMENTED_UNVERIFIED|OPEN|BLOCK
 
 ## 1. 残作業（USER / ops）
 
-最終整理: **2026-08-06**（residual agent team 実行後更新）。  
+最終整理: **2026-08-09**（ドキュメント状況最新化）。  
 製品コードの agent 実装 open は **0**（IU 32 静的 CODE_PRESENT / CODE_MISSING=0）。本ファイルは **未完了 residual のみ**。
 
 > **ID**: `TASK-*` = §1 / `BUG-*` = §3 / Issue `#n` = §2。  
-> **生きている補助文書**: [`PO-todo.md`](PO-todo.md)（USER 実行）· [`docs/work/decisions/fable-po-recommendation.md`](docs/work/decisions/fable-po-recommendation.md)（採択方針）· [`docs/work/README.md`](docs/work/README.md)
-### Residual team 実測（local main @ 2026-08-06）
+> **生きている補助文書**: [`PO-todo.md`](PO-todo.md)（USER 実行）· [`docs/work/decisions/fable-po-recommendation.md`](docs/work/decisions/fable-po-recommendation.md)（採択方針）· [`docs/work/residual-closeout-ledger.md`](docs/work/residual-closeout-ledger.md)（U0–U6 / PO-07 / UAT-R1 実行台帳）· [`docs/work/README.md`](docs/work/README.md)
+
+### スナップショット（local main @ 2026-08-09 · `82d442a2c` 付近）
 
 | 項目 | 結果 |
 |------|------|
 | agent product open | **0** |
-| IU 32 static | **CODE_PRESENT 32 / MISSING 0** |
+| residual closeout U0–U6 | **COMPLETE · land 済**（`a23b2a64f` ほか） |
+| PO-07 client registry | **COMPLETE · land 済**（`c29fd2847`）· F-021-X clock start **2026-08-09** |
+| UAT-R1 f3–f5 re-record | **COMPLETE · land 済**（`82d442a2c`）· overall は **PARTIAL のまま**（実通しなし） |
+| #98 / #99 | **CLOSED**（PO-01/02） |
+| #252 go-live gate | **include=YES** 記録済 · #252/#257 **OPEN** |
+| #254 UAT | **OPEN** · f3 FAIL / f4 UNTESTED / f5 BLOCKED · f1/f2 PASS |
+| #256 FAQ sign-off | disposition dual **SIGNED_OFF** · Issue **OPEN**（close 別承認） |
+| #239 S13 | Issue **CLOSED** · human S13 手順は **NOT_RUN** 記録のみ |
+| PROD | **未構築** · STG は **ほぼ未使用** → PO-08 本集計は **後回し**（N/A 扱い推奨） |
+| claim/* | **0**（ARCH-A4/A7 · PO-07 claim 解放済） |
+| open GitHub Issue | **16**（2026-08-09 `gh` 実測） |
+| IU 32 static | **CODE_PRESENT 32 / MISSING 0**（2026-08-06 時点） |
+
+### Residual team 実測（local main @ 2026-08-06 · 参考）
+
+| 項目 | 結果 |
+|------|------|
 | compose（reset 後） | **db / backend / frontend すべて healthy** · `:8080` `/health` 200 · `:3003` 200 |
 | `exam_reference_ranges` | **COUNT = 20**（TASK-009 local 適用完了） |
 | `seeds/003_demo` | schema_migrations 記録済み・postflight missing=0 |
-| seed CSV 列ずれ修正 | `checkup_types` / `checkup_type_fields` に `import_namespace,import_key`、`exams` に `current_revision_version` を末尾追加（COPY 位置合わせ） |
-| `E2E_LOGIN_*` | **SET**（host `.env.local` · 2026-08-07）· login cookie 200 · Playwright focused 33/37 · 020/023 フル UAT は残 |
-| claim/* | local / origin とも **0**（SCEN-OPS-CLAIM クローズ） |
-| open GitHub Issue | **18**（§2） |
-| TASK-032/374 DDL local | 存在（他環境 apply は残） |
+| `E2E_LOGIN_*` | **SET**（host `.env.local` · 2026-08-07）· login cookie 200 · Playwright core 16-spec **80/80** |
 | snapshot | `.local-db-backups/20260806T082000Z`（reset 前） |
+| 注 | 2026-08-09 時点の local stack は **DOWN 観測あり**（UAT-R1 · fe/be `000`）。再起動は `make up` |
 
 ## 索引
 
@@ -62,30 +77,39 @@ rg -n '^- \*\*対応状況' STATUS.md | rg -o 'IMPLEMENTED_UNVERIFIED|OPEN|BLOCK
 | POST-PULL | 各環境 `make migrate` | USER | open |
 | LINE-R05 | production + `line_channel_secret` DROP | USER/PO | HOLD — 残条件①inventory ゼロ ③presence 除去（**② composition green 済**） |
 | R6/R7 | worktree 隔離 / empty-diff COMPLETE 禁止 | ops | 継続規律 |
-## 推奨 USER 順（local 実測反映 · **ブラウザ検証は residual 対象外**）
+## 推奨 USER 順（**2026-08-09** · residual land 後）
 
 > **除外 (2026-08-06)**: TASK-010 / IU ブラウザバッチは residual closeout 対象外。シナリオ原文は `docs/ops/testing/scenarios/`。`VERIFIED_FIXED` は residual で扱わない。  
-> **PO 決裁（2026-08-06 採択）**: [`docs/work/decisions/fable-po-recommendation.md`](docs/work/decisions/fable-po-recommendation.md)（Opus 20 RATIFY · DEC-68）。中間プロンプト/Opus pack/residual team レポートは削除済み（git 履歴参照）。**USER は後から覆せる。**  
-> **あなたが手を動かすリスト**: [`PO-todo.md`](PO-todo.md)。0. ~~Fable 採択 + DEC-68~~ — **docs 完了**（本更新）
-1. ~~TASK-378-reset + TASK-009~~ — **local 完了**（`make reset` postflight OK · ranges=20 · stack healthy）
-2. ~~**E2E_LOGIN_*** 注入~~ **済** → TASK-020 partial / TASK-023 5 フロー UAT 通し・失敗 4（owners 検索 placeholder · accounting Iris かな）の整理
-3. **POST-PULL / 他 env の TASK-032-apply / TASK-374-apply** — 未適用環境のみ `make migrate` / 必要時 reset
-4. **TASK-022 / TASK-024** 人証跡（S13 · screenshot/FAQ）
-5. **TASK-021-B/C/D** external inventory 後のみ（response / route / migrate DROP）
-6. **TASK-033** 臨床 #201 bundle 記入後のみ（骨格先行禁止）
-7. **LINE-R05** presence 依存解消 + inventory 後
+> **PO 決裁（2026-08-06 採択）**: [`docs/work/decisions/fable-po-recommendation.md`](docs/work/decisions/fable-po-recommendation.md)（Opus 20 RATIFY · DEC-68）。**USER は後から覆せる。**  
+> **あなたが手を動かすリスト**: [`PO-todo.md`](PO-todo.md)。実行証跡の縦ログ: [`docs/work/residual-closeout-ledger.md`](docs/work/residual-closeout-ledger.md)。
 
-### local 現状（2026-08-06 reset 後）
+**済（2026-08-08〜09 · docs land 済み）**
+
+0. ~~Fable 採択 + DEC-68~~ · ~~TASK-378-reset + TASK-009 local~~ · ~~E2E_LOGIN_*~~ · ~~TASK-020 core 80/80~~  
+1. ~~PO-01/#98 · PO-02/#99 close~~ · ~~PO-03 #252 gate YES~~  
+2. ~~PO-06 UAT 結果一行（PARTIAL）~~ · ~~PO-14 visual sign-off~~ · ~~PO-15 S13 記録（NOT_RUN）~~  
+3. ~~residual U0–U6 series~~ · ~~PO-07 client registry + PO-09 F-021-X clock~~ · ~~UAT-R1 re-record~~ · ~~claim 解放~~
+
+**次（現実ベース · PROD なし · STG ほぼ未使用）**
+
+1. **local UAT 穴埋め** — `make up` → f3 トリミング / f4 LINE→カルテ / f5 月次帳票を実通し → overall 更新（UAT-R1 は記録のみで穴は未解消）  
+2. **S13 人手** — 手順 1–8（現状 NOT_RUN）· PHI 非記載  
+3. **PO-11** — #201 臨床へ bundle 1 行依頼（値は書かない）  
+4. **PO-08** — access log 90 日は **PROD 未構築・STG 低利用のため後回し**（実トラフィック後に件数 1 行）。今は silent にせず「環境未整備」と認識すればよい  
+5. **POST-PULL / 他 env migrate** — 必要な環境のみ  
+6. **TASK-021-B/C/D 破壊削除** — PO-08 後 · 順序 B→C→D · 別 unit（B 証拠 registry は済でも自動 GO しない）  
+7. **TASK-033 / LINE-R05** — 臨床 bundle · presence inventory 後のみ  
+
+### local 現状
 
 ```text
-db/backend/frontend = healthy
-GET :8080/health = 200
-GET :3003/ = 200
-exam_reference_ranges = 20
-schema_migrations = 001_init + 002_master + 003_demo + 004_staging
-```
+# 2026-08-06 reset 後（参考）
+db/backend/frontend = healthy · :8080/health 200 · :3003 200 · ranges=20
 
-次のブロッカー（ブラウザ除外後）: host の `E2E_LOGIN_EMAIL` / `E2E_LOGIN_PASSWORD`（値は repo に書かない）→ 020/023。
+# 2026-08-09 UAT-R1 観測
+:3003 / :8080 = DOWN (http 000) — 再作業前に make up
+E2E_LOGIN_* = host .env.local に SET 済み（2026-08-07 · 値は repo に書かない）
+```
 ## 詳細（open only）
 
 ### TASK-004 / TASK-005（ops・land 都度）
@@ -108,23 +132,23 @@ schema_migrations = 001_init + 002_master + 003_demo + 004_staging
 - agent は VERIFIED_FIXED を付けない。
 ### TASK-020 — Playwright
 
-- 要 host `E2E_LOGIN_EMAIL` / `E2E_LOGIN_PASSWORD`（現状 UNSET）。
-- 手順: host に `E2E_LOGIN_*` を注入してから Playwright（[`PO-todo.md`](PO-todo.md)）。
+- host `E2E_LOGIN_*` **SET 済**（2026-08-07 · 値は repo に書かない）。
+- core 16-spec suite **80/80** green（2026-08-07）。残り e2e ファイルは任意。
 
 ### TASK-021 — exclusion 破壊削除
 
 - **A 追認 + DEC-68 (2026-08-06 Fable 採択)**: UNIT-021-A landed（`b917c2992`）。request `excluded_type_ids` 削除を黙認せず DEC-68 で記録。
 - **B/C/D HOLD**: response `excluded_courses` → master exclusion route → DB DROP。順序固定。B 証拠は **client registry** 必須（access log のみ不可）。
-- **PO-07 client_registry (2026-08-09)**: declaration=`NO_KNOWN_EXTERNAL_CONSUMERS` opaque_ref=`2026-08-09-PO-TASK-021-registry` inventory_start=`2026-08-09` memo=in-repo FE/LIFF only known consumers of exclusion surfaces; no partner/mobile clients known。In-repo scan: FE は `capable-reservation-types` のみ永続化（`frontend/src/features/master/api/staff-reservation-types.ts`）；`excluded-reservation-types` path は FE/LIFF に 0 ヒット；`excluded_courses` は FE test 互換面のみ（`use-reservation-types.test.ts` が property 不在を assert）；OpenAPI/handler は live 表面のまま（B/C/D DROP 未実施）。USER 宣言は agent 走査の限界を補う（out-of-repo 絶対ゼロの暗号証明ではない）。
+- **PO-07 client_registry (2026-08-09 · land `c29fd2847`)**: declaration=`NO_KNOWN_EXTERNAL_CONSUMERS` opaque_ref=`2026-08-09-PO-TASK-021-registry` inventory_start=`2026-08-09`。In-repo: FE は capable 側のみ · LIFF 0 ヒット · OpenAPI/handler は live のまま（DROP 未実施）。USER 宣言は agent 走査の限界を補う。
+- **PO-08 (C 用 access log)**: **後回し** — **PROD 未構築** · **STG ほぼ未使用**のため 90 日件数の本集計は時期尚早。実トラフィック後に path+件数のみ 1 行。silent 放置はせず、環境未整備を認識する（F-021-X clock は 2026-08-09 開始 · 再裁定目安 ~2026-11-07）。
 - **F-021-X**: inventory 依頼から **90 日無応答**で ACCEPT_RESIDUAL_RISK 再裁定へ上げる（silent HOLD 禁止）。**clock start=`2026-08-09`**（PO-07/PO-09）。
-- 参照: Fable pack · `q&a.html#dec-68` · UNIT-021-A commit `b917c2992`（slice2 等の旧 report は git 履歴）。
+- 参照: Fable pack · `q&a.html#dec-68` · UNIT-021-A commit `b917c2992`。
 
 ### TASK-022 / 023 / 024 — human residual
 
-- 022: S13 手動 correction + signer + RLS runtime
-- 023: 5 業務フロー UAT（認証後）
-- 023 / **UAT-R1 (2026-08-09)**: residual f3–f5 RECORD_ONLY · overall=PARTIAL f1=PASS(INHERIT_U4) f2=PASS(INHERIT_U4) f3=FAIL f4=UNTESTED f5=BLOCKED · opaque_ref=`2026-08-09-PO-uat-R1` · memo=no re-run yet; stack may be down; residual f3-f5 unchanged from U4 · env fe/be `000` DOWN · #254 remains OPEN (close 別承認) · PO-08 out of scope
-- 024: screenshot / FAQ visual sign-off
+- **022 / PO-15 (2026-08-09)**: 記録 COMPLETE · s13=`NOT_RUN` · rls_runtime=`N_A_APP_LAYER_ONLY` · #239 CLOSED · **人手 S13 手順 1–8 は未実施**（緑 UAT ではない）
+- **023 / PO-06 + UAT-R1 (2026-08-09 · land `82d442a2c`)**: 結果記録 COMPLETE · overall=`PARTIAL` · f3 FAIL / f4 UNTESTED / f5 BLOCKED · f1/f2 PASS · #254 OPEN · **実通しの穴埋めは未完**（stack DOWN 時の re-record のみ）
+- **024 / PO-14 (2026-08-08)**: dual SIGNED_OFF overall=PASS · #256 OPEN（close は別承認 · U13 研修 residual あり得る）
 
 ### TASK-032-apply / TASK-374-apply
 

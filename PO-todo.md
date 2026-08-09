@@ -3,10 +3,13 @@
 | 項目 | 値 |
 |------|-----|
 | **作成** | 2026-08-06 |
+| **状況更新** | **2026-08-09**（U0–U6 residual · PO-07 · UAT-R1 land 後） |
 | **対象読者** | あなた（PO / オペレータ） |
 | **方針の正本** | [`docs/work/decisions/fable-po-recommendation.md`](docs/work/decisions/fable-po-recommendation.md)（**採択済み**） |
 | **作業台帳** | [`STATUS.md`](STATUS.md) §1 · §2 |
+| **実行証跡** | [`docs/work/residual-closeout-ledger.md`](docs/work/residual-closeout-ledger.md) |
 | **除外** | ブラウザ IU 検証（TASK-010）· agent 製品実装（現在 NONE） |
+| **環境前提** | **PROD 未構築** · **STG ほぼ未使用** · local は UAT 時に `make up` |
 
 ---
 
@@ -27,7 +30,7 @@
 | HOLD / APPROVE / DEFER / NEEDS_CLINICAL などの **判定** | その判定を **現場で完了させる手作業** |
 | 021-A 追認 · 033 骨格禁止 · LINE-R05 条件整理 など | provider 確認、inventory、臨床への依頼文、sign-off |
 | 臨床 **数値の発明はしない**（正しい） | 臨床責任者への **bundle 記入依頼**（値は彼らが書く） |
-| credential **実行の代行はしない**（正しい） | #89/#97 の **実行** と #98/#99 の **close 一行** |
+| credential **実行の代行はしない**（正しい） | #89/#97 の **実行**（#98/#99 close は **済**） |
 
 ### 本ファイルに **書かない** もの
 
@@ -99,6 +102,8 @@
 - [ ] **PO-08 · TASK-021 inventory（C 用）**  
   - **何を**: STG/prod access log で `excluded-reservation-types` の **90日呼び出し件数**（path + 件数のみ）  
   - **完了条件**: 件数の一行（token / IP / UA は書かない）  
+  - **2026-08-09 状況**: **後回し** — PROD **未構築** · STG **ほぼ未使用**のため本集計は時期尚早。F-021-X clock は 2026-08-09 開始（~2026-11-07 再裁定）。実トラフィック後に更新  
+ 
 
 - [x] **PO-09 · 021 inventory 依頼日のメモ**  
   - **何を**: 依頼開始日を記録  
@@ -176,12 +181,15 @@ G〜J が揃うまで **response 削除 / route DROP / DB DROP / 本番 secret �
 
 ---
 
-## 今日の最小セット（推奨）
+## 今日の最小セット（推奨 · **2026-08-09**）
 
-1. **PO-01 · PO-02**（#98 / #99 close）  
-2. **PO-04**（E2E 資格情報）— 検証を進めるなら  
-3. **PO-11**（#201 臨床への依頼文）  
-4. 余裕があれば ~~**PO-07**~~ **済** · **PO-08**（021 access-log inventory · C 用）  
+**済**: PO-01〜07 · PO-09 · PO-14〜15 · residual U0–U6 · UAT-R1 記録（穴は未解消）
+
+1. **local UAT 穴** — `make up` → f3 / f4 / f5 実通し（UAT-R1 は re-record のみ · overall は PARTIAL のまま）  
+2. **S13 人手** — 手順 1–8（現状 NOT_RUN）  
+3. **PO-11** — #201 臨床へ依頼文 1 通  
+4. **PO-08** — STG 利用増 or PROD 後に access-log 件数（今は環境未整備で後回しでよい）  
+
 
 
 ---

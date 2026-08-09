@@ -2,7 +2,8 @@
 
 > **Role:** Live residual-closeout run state only (not a second product backlog).  
 > **SoT for product residual:** root `STATUS.md` + `PO-todo.md`.  
-> **Policy:** `docs/work/decisions/fable-po-recommendation.md`.
+> **Policy:** `docs/work/decisions/fable-po-recommendation.md`.  
+> **Docs snapshot:** 2026-08-09 — STATUS/PO-todo 推奨順と環境前提（no PROD · STG low use · UAT holes open）を同期済み。
 
 ## Frozen unit order (do not re-order without USER)
 
