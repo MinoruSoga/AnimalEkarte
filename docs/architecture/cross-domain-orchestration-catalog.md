@@ -17,6 +17,12 @@
 | PATH-TRIM-APPT-CREATE | `trimming` Create | `reservation.CreateForTrimming` + trimming detail/options | **same-tx** (ambient required; advisory lock → appointment → detail → options) | **fail-closed** (any write failure rolls back whole graph) | Retry create; no orphan appointment without detail when path creates both | `AuditTxLogger` trimming create audit in same tx (fail-closed if audit sink missing) | `backend/internal/trimming/trimming_service.go` (`Create`); `ReservationIntentRepository.CreateForTrimming` |
 | PATH-TRIM-APPT-UPDATE (related) | `trimming` Update | `reservation.UpdateForTrimming` + detail/options | **same-tx** (ambient + booking lock + row lock) | **fail-closed** | Retry update under lock order | Trimming update audit in same tx | `trimming_service.go` (`Update`); `UpdateForTrimming` |
 | PATH-TRIM-APPT-DELETE (related) | `trimming` Delete | `reservation.DeleteForTrimming` | **same-tx** (ambient + lock + medical-record dependency check) | **fail-closed** (medical-record dependency → conflict) | Resolve dependency or abandon delete | Trimming delete audit in same tx | `trimming_service.go` (`Delete`); `DeleteForTrimming` |
+| PATH-SCHED-DURABLE-JOBS | Durable Cloudflare scheduler Worker → private HTTP `POST /_internal/scheduled-jobs/:jobAction` (auth: `X-Scheduler-Token` fail-closed when unset/mismatch) | `batch_scheduler` adapter (`lstepScheduledJobExecutor.Execute`) dispatches closed job set `JobNoShow` / `JobDelivery` / `JobDormant` | **explicit orchestration** (Worker lease/fence owns durable ledger; Go work uses request timeout + domain CAS/idempotency; not request ambient-tx) | **fail-closed** at boundary (unknown job, invalid `BatchRunResult`/`scheduler.Result`, missing batch service → HTTP 5xx failed outcome); per-job partial counters allowed only via validated `BatchRunResult` | Worker catch-up/retry per durable run_id; pause/resume and ops runbook; domain jobs retain CAS so re-runs are safe no-ops when already applied | Boundary logs execution failures; domain batch audit is per-clinic (see batch paths below). No secrets/token values in catalog | `backend/cmd/api/batch_scheduler.go`; `backend/internal/scheduler/handler.go` (`JobNoShow`, `JobDelivery`, `JobDormant`, `Result`) |
+| PATH-BATCH-NOSHOW | Scheduler job `JobNoShow` → `LstepBatchService.RunNoShowCheckAllClinicsAt` (all clinics with sync enabled) | Per candidate: `reservation.MarkNoShow` / `MarkNoShowAt` + `LogNoShowTransitionTx` inside `transactor.WithTx` | **same-tx** per reservation transition (lock/CAS + system audit commit together); **separate-tx** across candidates and clinics (batch loop) | **fail-closed** per candidate when tx, mark, or audit dependency missing/fails (transition rolls back with audit); batch continues other candidates | Stale candidates no-op (`Changed=false`); later durable runs re-select; candidate list hard-capped (drain on later cycles) | On real transition: `NoShowAuditTxLogger.LogNoShowTransitionTx` same tx (previous status, rule version, evaluatedAt, batch run id). Clinic-level `batch_no_show_detect` audit metadata when processed/errors > 0 | `backend/internal/lstep/lstep_batch_noshow.go` (`RunNoShowCheckAllClinicsAt`, `MarkNoShow`, `LogNoShowTransitionTx`); ADR-006 `MarkNoShow` intent |
+| PATH-BATCH-DELIVERY | Scheduler job `JobDelivery` → `LstepBatchService.RunDeliveryTriggerBatchAllClinicsAt` (10:00 JST gate on immutable `scheduledAt`) | `lstep` delivery trigger batch (`runDeliveryTriggersForClinicAt` priority-ordered triggers) | **explicit orchestration** all-clinic loop; per-trigger calls are independent (not one global business tx) | **best-effort** across clinics/triggers (partial `BatchRunResult` counters); hour gate miss returns empty success aggregate | Next durable delivery run; per-trigger suppression/idempotency in delivery path; failed clinics counted not fatal to whole process | Clinic-level `batch_delivery_trigger` audit with processed/error counts + scheduled metadata when work or errors; delivery trigger log owned by delivery subsystem | `backend/internal/lstep/lstep_batch_delivery.go` (`RunDeliveryTriggerBatchAllClinicsAt`); `BatchRunResult` in `lstep_batch_service.go` |
+| PATH-BATCH-DORMANT | Scheduler job `JobDormant` → `LstepBatchService.RunDormantDetectionAllClinicsAt` | `tagSyncSvc.SyncDormantTagsWithThresholds` per dormant owner page (thresholds loaded once per clinic) | **explicit orchestration** all-clinic cursor pages; per-owner tag sync not joined to other owners' writes | **best-effort** across owners/clinics (owner failures append errors and continue; aggregate `BatchRunResult`) | Next scheduled dormant run; page fetch failure stops further pages for that clinic but other clinics continue | Clinic-level `batch_dormant_detect` audit with `min_days_since`, processed/error counts, scheduled metadata | `backend/internal/lstep/lstep_batch_dormant.go` (`RunDormantDetectionAllClinicsAt`); `lstep_batch_service.go` (`BatchRunResult`) |
+| PATH-BATCH-TAG-HEALTH | Cron/batch entry `LstepBatchService.RunHealthPreventionTagSyncAllClinics` (tag-sync batch; not in durable three-job closed set) | `tagSyncSvc.SyncHealthPreventionTagsForClinic` per clinic (FEAT-379 health/prevention/retail tags) | **explicit orchestration** all-clinic loop via shared `runBatchAllClinics` skeleton | **best-effort** (per-clinic partial errors counted; batch does not abort whole fleet on one clinic failure) | Next batch cycle; individual owner/tag failures logged as error counts | Clinic-level batch audit when processed/errors > 0 (same skeleton as other lstep all-clinic jobs) | `backend/internal/lstep/lstep_batch_service.go` (`RunHealthPreventionTagSyncAllClinics`); `LstepTagSyncService.SyncHealthPreventionTagsForClinic` |
+| PATH-BILL-LSTEP-CPM-SYNC | `billing` accounting Create/Update after billing success (request path side effect) | `lstep` `SyncCPMStageTag` (via billing `syncCPMStageTag` → tag sync) | **separate-tx** / post-success call (not joined to billing commit; synchronous but fail-open relative to accounting) | **best-effort** (intentional; tag sync failure is logged only — accounting remains successful) | Retry on later accounting/visit completion paths that re-sync CPM; deploy kill switch + clinic `is_sync_enabled` gates writes | Tag-sync path does not write `audit_logs` for CPM tag changes; structured logs + tag cache/error counter only | `docs/architecture/data-flow.md` §3; `backend/internal/lstep` `SyncCPMStageTag` (`lstep_tag_sync_service.go`) |
 
 ### Intentional best-effort contracts (do not silently upgrade)
 
@@ -24,21 +30,25 @@ The following paths are **documented separate-tx best-effort** contracts. Do **n
 
 1. **PATH-RES-MR-AUTOCREATE** — reservation confirmed/received medical-record auto-create runs after reservation commit.
 2. **PATH-RES-MR-CANCEL-CLEANUP** — draft medical-record cleanup after cancel runs detached from the cancel transaction.
+3. **PATH-BILL-LSTEP-CPM-SYNC** — `SyncCPMStageTag` after accounting success is fail-open relative to billing; partial success (billing ok, CPM tag missing) is expected until a later re-sync.
+4. **PATH-BATCH-DELIVERY** / **PATH-BATCH-DORMANT** / **PATH-BATCH-TAG-HEALTH** — all-clinic batch aggregates use `BatchRunResult` partial counters; one clinic/owner failure must not silently become a same-tx fleet rollback.
 
-Both must retain failure audit/observability when side effects fail. Partial success (reservation ok, medical-record side effect missing) is expected under this contract and is recovered by retry on later writes and durable failure audits—not by silent upgrade to same-tx.
+Both PATH-RES-MR-* request paths must retain failure audit/observability when side effects fail. Partial success (reservation ok, medical-record side effect missing) is expected under this contract and is recovered by retry on later writes and durable failure audits—not by silent upgrade to same-tx.
+
+**Note on PATH-BATCH-NOSHOW**: each *candidate* transition is **fail-closed same-tx** (mark + `LogNoShowTransitionTx`). The *batch loop* across candidates/clinics is multi-tx by design; do not confuse per-row fail-closed with fleet-wide atomicity.
 
 ## New-path rules
 
-Any **new** cross-domain write or orchestration path MUST follow these rules before merge:
+Any **new** cross-domain write or orchestration path — including **automation/batch** and durable scheduler jobs — MUST follow these rules before merge:
 
 1. **Owner typed intents only**  
-   Consumer domains call reservation/billing/medicalrecord (etc.) through **owner typed intents** or a minimal consumer-side interface. Do not add generic field-update APIs or independent write implementations against another domain's tables (especially `appointments` — write owner remains `reservation`).
+   Consumer domains call reservation/billing/medicalrecord (etc.) through **owner typed intents** or a minimal consumer-side interface. Do not add generic field-update APIs or independent write implementations against another domain's tables (especially `appointments` — write owner remains `reservation`). Automation must reuse the same owner intents as manual paths where a write exists (example: no-show → `MarkNoShow`).
 
 2. **Ambient-tx participation or explicit orchestration**  
    Multi-domain writes either:
    - participate in the initiator's **ambient transaction** (`WithTx` + `dbOrTx`/txCtx), or
    - use an **explicit orchestration** boundary with a documented owner and commit order.  
-   Do not open ad-hoc nested independent transactions that can commit while the outer path rolls back.
+   Do not open ad-hoc nested independent transactions that can commit while the outer path rolls back. Durable scheduler entry points are explicit orchestration (Worker ledger + domain batch), not ambient request tx.
 
 3. **Fail-closed by default**  
    Default is **fail-closed**: missing ambient tx for locks, missing required dependencies, validation failure, or audit failure (when audit is part of the integrity contract) aborts the whole business write.
@@ -49,13 +59,13 @@ Any **new** cross-domain write or orchestration path MUST follow these rules bef
    - **failure recovery** (retry, compensation, or next-write re-entry),
    - **observability** (structured log + durable audit or equivalent),
    - explicit acceptance of partial success.  
-   Undocumented best-effort is forbidden.
+   Undocumented best-effort is forbidden. Automation/batch partial success must surface via `BatchRunResult` (or equivalent) and audit/ops signals—not silent HTTP/job success with unobserved damage.
 
 5. **No silent partial success**  
    If any part of a multi-write graph can succeed while another fails, the contract must label that outcome (best-effort + recovery). Operators and tests must be able to detect the failure. Never return HTTP success while leaving an unobserved partial write for fail-closed clinical/financial integrity paths.
 
 6. **Catalog update required**  
-   Adding a path requires a new row (or stable Path ID) in this catalog with initiator, owner operation, transaction boundary (same-tx vs separate-tx), fail-closed vs best-effort, failure recovery, audit participation, and test anchors.
+   Adding a path requires a new row (or stable Path ID) in this catalog with initiator, owner operation, transaction boundary (same-tx vs separate-tx), fail-closed vs best-effort, failure recovery, audit participation, and test anchors. New automation/batch jobs and scheduler job IDs are in scope for this rule.
 
 ## Out of scope for this catalog
 

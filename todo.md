@@ -211,7 +211,7 @@ docker compose exec backend go test ./internal/medicalrecord/ -count=1 -run 'Tes
 |------|------|
 | **ID** | ARCH-A3 |
 | **優先度** | P0–P1 |
-| **状態** | done（A3-4 residual） |
+| **状態** | done（A3-4 closed via graph r8） |
 | **対象** | reservation ↔ medicalrecord ↔ billing ↔ trimming ↔ lstep ↔ staff 等 |
 | **問題** | intent API（良い）と best-effort 別 tx（契約として残存）が混在し、保証範囲が path ごとに違う |
 | **既知例** | 予約確定→カルテ auto-create best-effort · キャンセル→draft カルテ cleanup best-effort · billing の ambient tx 参加 intent |
@@ -228,7 +228,7 @@ docker compose exec backend go test ./internal/medicalrecord/ -count=1 -run 'Tes
   - silent 部分成功を増やさない
 - [x] **A3-3** 既存 best-effort path をカタログ上で「意図的契約」としてラベル付け（無断で同 tx 化しない）  
   PATH-RES-MR-AUTOCREATE / PATH-RES-MR-CANCEL-CLEANUP
-- [ ] **A3-4** automation / batch も同じ契約表に載せる（residual — 次バッチで lstep/batch 等を追記）
+- [x] **A3-4** automation / batch も同じ契約表に載せる（residual — graph r8 COMPLETE `946122b9-0ea9-4a5b-bfcd-cc9eab3fa7c9`）
 - [x] **A3-5** カタログの置き場: `docs/architecture/cross-domain-orchestration-catalog.md`（STATUS 長文なし）
 
 #### 完了条件
