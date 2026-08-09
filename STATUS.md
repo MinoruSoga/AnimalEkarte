@@ -51,7 +51,7 @@ rg -n '^- \*\*対応状況' STATUS.md | rg -o 'IMPLEMENTED_UNVERIFIED|OPEN|BLOCK
 | TASK-009 | 003_demo seed の **DB 適用**（static 済） | USER | **local DONE**（ranges=20）· 他 env 残 |
 | TASK-010 | scenarios 要実測 / ブラウザ IU 32 | USER | **除外**（2026-08-06 · residual 対象外。手順は RUNBOOK に保管） |
 | TASK-020 | Playwright runtime（要 E2E_LOGIN_*） | USER | **partial** · cred 済 · core 16-spec suite **80/80** green（link 遷移・seed 整合）· 残り e2e ファイルは任意 |
-| TASK-021 | exclusion 破壊削除 | USER+PO | **A 追認+DEC-68** · B/C/D HOLD（client registry + access log · 90 日再裁定） |
+| TASK-021 | exclusion 破壊削除 | USER+PO | **A 追認+DEC-68** · **PO-07 (2026-08-09)** client_registry declaration=`NO_KNOWN_EXTERNAL_CONSUMERS` opaque_ref=`2026-08-09-PO-TASK-021-registry` inventory_start=`2026-08-09` · B/C/D HOLD（B 証拠 registry 済 · C は PO-08 access log · F-021-X 90 日） |
 | TASK-022 | #239 S13 手動 correction / RLS 証跡 | USER | open · **PO-15 (2026-08-09)** s13=NOT_RUN rls_runtime=N_A_APP_LAYER_ONLY env=UNKNOWN · opaque_ref=`2026-08-09-PO-TASK-022-residual` · memo=S13 human 1-8 not executed this session; RLS runtime out of S13; app-layer identitylink tests only · #239 CLOSED (evidence record only; LEDGER_PO) |
 | TASK-023 | #254 5 フロー UAT | USER | open · **PO-06 (2026-08-08)** overall=PARTIAL f1=PASS f2=PASS f3=FAIL f4=UNTESTED f5=BLOCKED · opaque_ref=`2026-08-08-PO-uat-TASK-023` · #254 OPEN · f3/f4/f5 residual |
 | TASK-024 | #256 screenshot / FAQ sign-off | USER | open · **PO-14 (2026-08-08)** privacy=SIGNED_OFF repo=SIGNED_OFF overall=PASS · opaque_ref=`2026-08-08-PO-signoff-TASK-024` · F-256 RATIFY / DEC-61 no-rewrite · #256 OPEN（close 別承認） |
@@ -115,7 +115,8 @@ schema_migrations = 001_init + 002_master + 003_demo + 004_staging
 
 - **A 追認 + DEC-68 (2026-08-06 Fable 採択)**: UNIT-021-A landed（`b917c2992`）。request `excluded_type_ids` 削除を黙認せず DEC-68 で記録。
 - **B/C/D HOLD**: response `excluded_courses` → master exclusion route → DB DROP。順序固定。B 証拠は **client registry** 必須（access log のみ不可）。
-- **F-021-X**: inventory 依頼から **90 日無応答**で ACCEPT_RESIDUAL_RISK 再裁定へ上げる（silent HOLD 禁止）。
+- **PO-07 client_registry (2026-08-09)**: declaration=`NO_KNOWN_EXTERNAL_CONSUMERS` opaque_ref=`2026-08-09-PO-TASK-021-registry` inventory_start=`2026-08-09` memo=in-repo FE/LIFF only known consumers of exclusion surfaces; no partner/mobile clients known。In-repo scan: FE は `capable-reservation-types` のみ永続化（`frontend/src/features/master/api/staff-reservation-types.ts`）；`excluded-reservation-types` path は FE/LIFF に 0 ヒット；`excluded_courses` は FE test 互換面のみ（`use-reservation-types.test.ts` が property 不在を assert）；OpenAPI/handler は live 表面のまま（B/C/D DROP 未実施）。USER 宣言は agent 走査の限界を補う（out-of-repo 絶対ゼロの暗号証明ではない）。
+- **F-021-X**: inventory 依頼から **90 日無応答**で ACCEPT_RESIDUAL_RISK 再裁定へ上げる（silent HOLD 禁止）。**clock start=`2026-08-09`**（PO-07/PO-09）。
 - 参照: Fable pack · `q&a.html#dec-68` · UNIT-021-A commit `b917c2992`（slice2 等の旧 report は git 履歴）。
 
 ### TASK-022 / 023 / 024 — human residual

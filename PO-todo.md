@@ -88,19 +88,21 @@
 
 ### 帯 3 — 破壊削除・本番 DROP の前提証拠
 
-- [ ] **PO-07 · TASK-021 inventory（B 用）**  
+- [x] **PO-07 · TASK-021 inventory（B 用）**  
   - **何を**: **client registry** — in-repo FE / LIFF **以外**の API consumer がいない、と一行宣言  
   - **完了条件**: STATUS または Issue に非機密一行  
   - **なぜ**: Fable TIGHTEN — B（`excluded_courses`）は access log だけでは証明不可  
   - **Fable**: B/C/D は **HOLD**（方針決済済み · **証拠集めだけ残**）  
+  - **完了 (2026-08-09)**: declaration=`NO_KNOWN_EXTERNAL_CONSUMERS` opaque_ref=`2026-08-09-PO-TASK-021-registry` inventory_start=`2026-08-09` memo=in-repo FE/LIFF only known consumers of exclusion surfaces; no partner/mobile clients known · In-repo scan: FE/LIFF/OpenAPI/handler cites on STATUS TASK-021 + ledger（paths only）· B/C/D DROP not performed · 秘密なし  
 
 - [ ] **PO-08 · TASK-021 inventory（C 用）**  
   - **何を**: STG/prod access log で `excluded-reservation-types` の **90日呼び出し件数**（path + 件数のみ）  
   - **完了条件**: 件数の一行（token / IP / UA は書かない）  
 
-- [ ] **PO-09 · 021 inventory 依頼日のメモ**  
+- [x] **PO-09 · 021 inventory 依頼日のメモ**  
   - **何を**: 依頼開始日を記録  
   - **完了条件**: 90日無応答なら F-021-X どおり **再裁定**に上げる（silent HOLD 禁止）  
+  - **完了 (2026-08-09)**: inventory_start=`2026-08-09` · F-021-X 90 日 clock 開始 · opaque_ref=`2026-08-09-PO-TASK-021-registry`（PO-07 同一）  
 
 - [ ] **PO-10 · LINE-R05 presence inventory**  
   - **何を**: clinic ごとの legacy presence **有無の件数のみ**（secret 値は保存しない）  
@@ -178,7 +180,8 @@ G〜J が揃うまで **response 削除 / route DROP / DB DROP / 本番 secret �
 1. **PO-01 · PO-02**（#98 / #99 close）  
 2. **PO-04**（E2E 資格情報）— 検証を進めるなら  
 3. **PO-11**（#201 臨床への依頼文）  
-4. 余裕があれば **PO-07 · PO-08**（021 inventory）  
+4. 余裕があれば ~~**PO-07**~~ **済** · **PO-08**（021 access-log inventory · C 用）  
+
 
 ---
 

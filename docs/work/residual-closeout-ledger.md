@@ -15,10 +15,11 @@
 | **U4** | PO-06 · TASK-023 / #254 five-flow UAT | Yes (evidence) | **COMPLETE** (2026-08-08) — RECORD_ONLY overall=PARTIAL; #254 not closed |
 | **U5** | TASK-024 / #256 screenshot-FAQ sign-off | Yes (evidence) | **COMPLETE** (2026-08-08) — dual SIGNED_OFF overall=PASS; #256 not closed |
 | **U6** | TASK-022 / #239 S13 / RLS evidence | Yes (evidence) | **COMPLETE** (2026-08-09) — LEDGER_PO s13=NOT_RUN rls=N_A_APP_LAYER_ONLY; #239 not reopened |
+| **PO-07** | TASK-021-B client registry inventory | No (local BOTH_LOCAL) | **COMPLETE** (2026-08-09) — declaration=NO_KNOWN_EXTERNAL_CONSUMERS; B/C/D DROP not performed |
 
-**HOLD** (separate decision required): TASK-021 B/C/D, LINE-R05 DROP, TASK-033/#201 clinical, #249 clinical ranges.
+**HOLD** (separate decision required): TASK-021 B/C/D product DROP (registry evidence recorded; B still needs PO approve before delete; C needs PO-08 access log), LINE-R05 DROP, TASK-033/#201 clinical, #249 clinical ranges.
 
-**Residual series U0–U6:** frozen order complete (no U7).
+**Residual series U0–U6:** frozen order complete (no U7). **Post-series:** PO-07 client registry recorded 2026-08-09 (does not invent U7 product unit).
 
 ---
 
@@ -488,3 +489,65 @@ Policy: human residual evidence only. No PHI. #239 may already be CLOSED; no reo
 ### Out of scope honored
 
 - No inventing S13 PASS; no filling S13 HUMAN table; no #239 reopen/close/comment; no PHI/secrets; no production exercise; no push; no U7 invented
+
+---
+
+## PO-07 — TASK-021-B client registry inventory
+
+| Field | Value |
+|-------|--------|
+| Date | 2026-08-09 |
+| Branch / HEAD | `main` (local residual docs; claim=`claim/PO-07-TASK-021-CLIENT-REGISTRY`) |
+| Run status | **COMPLETE** (BOTH_LOCAL: STATUS + PO-todo + ledger; no gh issue comment; no B/C/D DROP) |
+| Next unit | **PO-08** access-log 90d counts (USER ops / STG-prod) — do not auto-chain product delete |
+| Prompt | `~/.claude/prompt-craft-runs/fast-po07-task021-client-registry.md` |
+| Orchestration | native Workflow `po07-task021-client-registry-scan` (probes A/B/C parallel explore) |
+
+### Hard gate (launch message)
+
+| Field | Value |
+|-------|--------|
+| declaration | **PASS** — `NO_KNOWN_EXTERNAL_CONSUMERS` |
+| opaque_ref | **PASS** — `2026-08-09-PO-TASK-021-registry` |
+| write_target | **PASS** — `BOTH_LOCAL` |
+| inventory_start | **PASS** — `2026-08-09` (F-021-X / PO-09 clock) |
+| memo | in-repo FE/LIFF only known consumers of exclusion surfaces; no partner/mobile clients known |
+| external-write approval | **N/A** — BOTH_LOCAL only (no STATUS_AND_ISSUE) |
+
+### In-repo client registry (paths only; no secrets)
+
+| Surface | Path (representative) | Kind | Notes |
+|---------|----------------------|------|-------|
+| FE test compat | `frontend/src/hooks/use-reservation-types.test.ts:29,50,61,81,93,113` | test_compat | Asserts `excluded_courses` **not** on projected data |
+| FE capable API | `frontend/src/features/master/api/staff-reservation-types.ts:19,39` | production_consumer (capable-side) | GET/PUT `capable-reservation-types` only — **not** exclusion route |
+| FE UI (name legacy) | `frontend/src/features/master/components/StaffSidePanelSections.tsx:32` | other | `StaffExcludedReservationTypesSection` uses `capableIdSet` |
+| FE generated type | `frontend/src/types/generated/models.ts` (StaffReservationExclusion) | type_def / unused_ref | No production import of exclusion routes |
+| LIFF | `frontend/liff`, `frontend/src/shared-liff`, `frontend/line-reserve` | **absence** | **0 hits** for `excluded_courses` / `excluded-reservation-types` |
+| OpenAPI field | `backend/docs/api.yaml:9119` | openapi_surface | `excluded_courses` deprecated:true |
+| OpenAPI route | `backend/docs/api.yaml:14431` | openapi_surface | GET/PUT `/masters/staffs/{id}/excluded-reservation-types` |
+| Handler routes | `backend/internal/staff/handler.go:209-210` | handler_route | GET/PUT still registered |
+| Handler impl | `backend/internal/staff/staff_handler.go:314,329` | handler_route | Get/Set still live |
+| Response DTO | `backend/internal/reservation/reservation_staff_response.go:20` | model_dto | `excluded_courses` JSON facade |
+| Spec note | `docs/spec/screens/settings/master-staff.md:60-61` | doc | FE は capable 側で永続化のため exclusion 未呼出 |
+| Policy | `docs/work/decisions/fable-po-recommendation.md:23,74` | policy | F-021-B HOLD + client registry mandatory |
+
+**USER declaration:** `NO_KNOWN_EXTERNAL_CONSUMERS` — agent scan supports in-repo FE/LIFF-only known consumers; **not** absolute cryptographic proof of zero out-of-repo clients.
+
+### Local docs
+
+| Path | Action |
+|------|--------|
+| `STATUS.md` TASK-021 table + detail | one-liner + registry summary; B/C/D remain HOLD |
+| `PO-todo.md` PO-07 | checkbox checked + 完了 one-liner |
+| `PO-todo.md` PO-09 | checkbox checked + inventory_start=`2026-08-09` |
+| Issue comment | **skipped** (write_target=BOTH_LOCAL) |
+
+**Recorded body (verbatim):**
+```text
+PO-07 / TASK-021-B client_registry: declaration=NO_KNOWN_EXTERNAL_CONSUMERS opaque_ref=2026-08-09-PO-TASK-021-registry inventory_start=2026-08-09 memo=in-repo FE/LIFF only known consumers of exclusion surfaces; no partner/mobile clients known
+In-repo scan: FE/LIFF/OpenAPI/handler cites summarized in ledger/STATUS (paths only). B/C/D DROP not performed. F-021-X clock starts only if inventory_start set.
+```
+
+### Out of scope honored
+
+- No TASK-021-B response field delete; no C route DROP; no D migrate DROP; no PO-08 STG/prod log access; no push/PR; no secrets/IP/UA/token; no gh issue comment
