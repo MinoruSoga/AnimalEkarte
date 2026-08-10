@@ -42,8 +42,9 @@ func (s *checkupSyncService) PreviewCheckupSync(ctx context.Context, clinicID ui
 	})
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) || errors.Is(previewCtx.Err(), context.DeadlineExceeded) {
+			// BUG-030: do not surface opaque 500 — timeout is a recoverable client condition.
 			slog.ErrorContext(ctx, "checkup sync preview timed out", "error", err, "clinic_id", clinicID, "timeout", CheckupSyncPreviewTimeout)
-			return nil, apperrors.Wrap(err, "健診対象者プレビューがタイムアウトしました。条件を絞り込んで再試行してください")
+			return nil, apperrors.WrapInvalidInput("健診対象者プレビューがタイムアウトしました。条件を絞り込んで再試行してください")
 		}
 		slog.ErrorContext(ctx, "failed to find checkup sync preview", "error", err, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to find checkup sync preview")

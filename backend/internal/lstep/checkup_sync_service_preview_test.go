@@ -44,6 +44,20 @@ func TestCheckupSyncService_PreviewCheckupSync_RepositoryError(t *testing.T) {
 	assert.Nil(t, result)
 }
 
+func TestCheckupSyncService_PreviewCheckupSync_DeadlineReturnsInvalidInput(t *testing.T) {
+	// BUG-030: deadline must not become opaque 500.
+	repo := &mockCheckupSyncRepository{
+		findCheckupSyncPreviewFn: func(_ context.Context, _ *FindCheckupSyncPreviewParams) ([]CheckupSyncPreviewRow, error) {
+			return nil, context.DeadlineExceeded
+		},
+	}
+	svc := NewCheckupSyncService(repo, &mockOwnerRepository{}, &mockPetRepository{}, &mockLstepTagCacheRepository{}, &mockLstepSettingsService{}, &mockAuditService{})
+	result, err := svc.PreviewCheckupSync(context.Background(), 1, &PreviewCheckupSyncInput{CheckupType: "annual"}, nil)
+	assert.Error(t, err)
+	assert.True(t, apperrors.IsInvalidInput(err))
+	assert.Nil(t, result)
+}
+
 // thresholdsFailingSettingsService embeds mockLstepSettingsService (stable) and overrides
 // GetCPMV1Thresholds, which the base mock hardcodes to always succeed with no injection hook.
 type thresholdsFailingSettingsService struct {
