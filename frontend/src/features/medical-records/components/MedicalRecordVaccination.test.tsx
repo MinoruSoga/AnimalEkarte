@@ -25,12 +25,14 @@ vi.mock("./VaccinationForm", () => ({
     setDate,
     setSupplemental,
     setNextScheduleType,
+    fieldErrors,
     onSave,
   }: {
     setVaccineName: (value: string) => void;
     setDate: (value: string) => void;
     setSupplemental: (value: string) => void;
     setNextScheduleType: (value: string) => void;
+    fieldErrors?: Record<string, string>;
     onSave?: () => void;
   }) => (
     <div data-testid="vaccination-form">
@@ -38,7 +40,15 @@ vi.mock("./VaccinationForm", () => ({
       <input aria-label="接種日" onChange={(event) => setDate(event.target.value)} />
       <input aria-label="補助説明" onChange={(event) => setSupplemental(event.target.value)} />
       <input aria-label="次回予定種別" onChange={(event) => setNextScheduleType(event.target.value)} />
-      <button type="button" onClick={onSave}>保存</button>
+      {fieldErrors?.vaccineId ? (
+        <p role="alert">{fieldErrors.vaccineId}</p>
+      ) : null}
+      {fieldErrors?.date ? (
+        <p role="alert">{fieldErrors.date}</p>
+      ) : null}
+      <button type="button" onClick={onSave}>
+        保存
+      </button>
     </div>
   ),
 }));
@@ -81,5 +91,48 @@ describe("MedicalRecordVaccination vaccination payload", () => {
         }),
       );
     });
+  });
+});
+
+describe("MedicalRecordVaccination BUG-015 required validation", () => {
+  it("ワクチン未選択のまま追加すると明示エラーを出し API を呼ばない", async () => {
+    render(<MedicalRecordVaccination petId="1" />);
+
+    fireEvent.change(screen.getByLabelText("接種日"), { target: { value: "2026-07-20" } });
+    fireEvent.click(screen.getByRole("button", { name: "保存" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "ワクチン種別を選択してください",
+    );
+    expect(mockCreateVaccination).not.toHaveBeenCalled();
+  });
+
+  it("接種日未入力のまま追加すると明示エラーを出し API を呼ばない", async () => {
+    render(<MedicalRecordVaccination petId="1" />);
+
+    fireEvent.change(screen.getByLabelText("ワクチンID"), { target: { value: "7" } });
+    fireEvent.click(screen.getByRole("button", { name: "保存" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("接種日を入力してください");
+    expect(mockCreateVaccination).not.toHaveBeenCalled();
+  });
+
+  it("ワクチンと接種日を選択すると create が呼ばれ成功する", async () => {
+    render(<MedicalRecordVaccination petId="1" />);
+
+    fireEvent.change(screen.getByLabelText("ワクチンID"), { target: { value: "7" } });
+    fireEvent.change(screen.getByLabelText("接種日"), { target: { value: "2026-07-20" } });
+    fireEvent.click(screen.getByRole("button", { name: "保存" }));
+
+    await waitFor(() => {
+      expect(mockCreateVaccination).toHaveBeenCalledWith(
+        expect.objectContaining({
+          pet_id: 1,
+          vaccine_id: 7,
+          date: "2026-07-20",
+        }),
+      );
+    });
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 });

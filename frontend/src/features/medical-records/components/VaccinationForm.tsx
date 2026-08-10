@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { DatePicker } from "@/components/shared/DatePicker";
+import { FormFieldError } from "@/components/shared/FormFieldError";
 import { MasterLink } from "@/components/shared/MasterLink";
 import { C } from "@/lib/design-tokens";
 
@@ -39,6 +40,8 @@ interface VaccinationFormProps {
   setNextDate: (v: string) => void;
   remarks: string;
   setRemarks: (v: string) => void;
+  /** BUG-015: 必須未選択時のインラインエラー（独立フォームと同文言） */
+  fieldErrors?: Record<string, string>;
   onSave?: () => void;
   isSaving?: boolean;
 }
@@ -65,6 +68,7 @@ export const VaccinationForm = memo(function VaccinationForm({
   setNextDate,
   remarks,
   setRemarks,
+  fieldErrors = {},
   onSave,
   isSaving,
 }: VaccinationFormProps) {
@@ -83,13 +87,17 @@ export const VaccinationForm = memo(function VaccinationForm({
             options={vaccineOptions}
             placeholder="ワクチンを選択"
             searchPlaceholder="ワクチンを検索..."
+            ariaInvalid={Boolean(fieldErrors.vaccineId)}
+            ariaDescribedBy={fieldErrors.vaccineId ? "mr-vaccine-error" : undefined}
           />
+          <FormFieldError id="mr-vaccine-error" message={fieldErrors.vaccineId} />
         </div>
         <div className="flex flex-col gap-1.5">
           <Label className={`text-sm font-medium ${C.text60}`}>
             予防接種日
           </Label>
           <DatePicker value={date} onChange={setDate} />
+          <FormFieldError id="mr-vaccine-date-error" message={fieldErrors.date} />
         </div>
       </div>
 
