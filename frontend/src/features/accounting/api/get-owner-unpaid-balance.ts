@@ -18,7 +18,7 @@ export interface OwnerUnpaidBalance {
 /**
  * 飼主の未納残高を取得する（#182）。
  * Backend: GET /v1/accountings/unpaid-balance?owner_id=...
- * 残高定義は未納者一覧(#120)/月次繰越(#114)と同一（status=waiting 合計）。
+ * 残高定義は未納者一覧(#120)/月次繰越(#114)と同一（waiting 全額 + クレジット訂正差額 — BUG-007）。
  *
  * P2-11 (PR #186 review): 拠点横断の会計詳細から開いた場合、未納残高は
  * グローバル選択クリニックではなく対象会計（accounting.clinicId）のクリニックで

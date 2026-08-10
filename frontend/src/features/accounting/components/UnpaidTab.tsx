@@ -262,7 +262,11 @@ export function UnpaidTab() {
               </TableHeader>
               <TableBody>
                 {(billingQuery.data?.data ?? []).map((b) => {
-                  const total = b.items.reduce((s, i) => s + i.subtotal + i.taxAmount, 0);
+                  // BUG-007: outstanding_amount を優先（クレジット訂正差額）。未設定時は明細合計へフォールバック。
+                  const unpaidAmount =
+                    (b.outstandingAmount ?? 0) > 0
+                      ? (b.outstandingAmount as number)
+                      : b.items.reduce((s: number, i: { subtotal: number; taxAmount: number }) => s + i.subtotal + i.taxAmount, 0);
                   return (
                     <TableRow key={b.id} className={STYLE.tableRowHover}>
                       <TableCell className="font-medium">
@@ -276,7 +280,7 @@ export function UnpaidTab() {
                       <TableCell>{b.petName}</TableCell>
                       <TableCell>{b.scheduledDate || "-"}</TableCell>
                       <TableCell className="text-right font-mono">
-                        {formatCurrency(total)}
+                        {formatCurrency(unpaidAmount)}
                       </TableCell>
                       <TableCell className="text-right">
                         {b.scheduledDate ? `${daysSince(b.scheduledDate, endDate)}日` : "-"}

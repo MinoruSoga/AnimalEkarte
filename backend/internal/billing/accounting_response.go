@@ -217,17 +217,19 @@ type accountingResponse struct {
 	TaxTotal            int64                   `json:"tax_total"`
 	TotalAmount         int64                   `json:"total_amount"`
 	TotalRefundedAmount int64                   `json:"total_refunded_amount"`
-	HasInsurance        bool                    `json:"has_insurance"`
-	Status              string                  `json:"status"`
-	ScheduledDate       time.Time               `json:"scheduled_date"`
-	CompletedAt         *time.Time              `json:"completed_at,omitempty"`
-	Memo                string                  `json:"memo"`
-	Items               []BillingItemResponse   `json:"items,omitempty"`
-	Payments            []paymentResponse       `json:"payments,omitempty"`
-	PaymentSplits       []paymentSplitResponse  `json:"payment_splits,omitempty"`
-	Refunds             []RefundResponse        `json:"refunds,omitempty"`
-	CreatedAt           time.Time               `json:"created_at"`
-	UpdatedAt           time.Time               `json:"updated_at"`
+	// OutstandingAmount は未収残高（円）。waiting 全額 or クレジット訂正後の差額（BUG-007）。
+	OutstandingAmount int64                   `json:"outstanding_amount"`
+	HasInsurance      bool                    `json:"has_insurance"`
+	Status            string                  `json:"status"`
+	ScheduledDate     time.Time               `json:"scheduled_date"`
+	CompletedAt       *time.Time              `json:"completed_at,omitempty"`
+	Memo              string                  `json:"memo"`
+	Items             []BillingItemResponse   `json:"items,omitempty"`
+	Payments          []paymentResponse       `json:"payments,omitempty"`
+	PaymentSplits     []paymentSplitResponse  `json:"payment_splits,omitempty"`
+	Refunds           []RefundResponse        `json:"refunds,omitempty"`
+	CreatedAt         time.Time               `json:"created_at"`
+	UpdatedAt         time.Time               `json:"updated_at"`
 }
 
 func toPaymentResponse(p *model.Payment) paymentResponse {
@@ -323,6 +325,7 @@ func toAccountingResponse(b *model.Billing) accountingResponse {
 		TaxTotal:            b.TaxTotal,
 		TotalAmount:         b.TotalAmount,
 		TotalRefundedAmount: b.TotalRefundedAmount,
+		OutstandingAmount:   OutstandingAmount(b),
 		HasInsurance:        b.HasInsurance,
 		Status:              string(b.Status),
 		ScheduledDate:       httpapi.LocalTime(b.ScheduledDate),

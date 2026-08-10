@@ -102,6 +102,8 @@ type Billing struct {
 
 	// 仮想フィールド（DB列なし）— FindAll のサブクエリで集計
 	TotalRefundedAmount int64 `gorm:"-" json:"total_refunded_amount"`
+	// OutstandingAmount は未収残高（円）。waiting 全額 or クレジット訂正後の patient_due−支払額（BUG-007）。
+	OutstandingAmount int64 `gorm:"-" json:"outstanding_amount"`
 
 	// Relations
 	Owner         *Owner          `gorm:"foreignKey:OwnerID"          json:"owner,omitempty"`

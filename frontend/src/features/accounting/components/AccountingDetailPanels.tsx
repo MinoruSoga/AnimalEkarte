@@ -1,7 +1,9 @@
 import { AlertTriangle, EyeOff, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { C, ICON, Z_CLASS } from "@/lib/design-tokens";
+import { formatCurrency } from "@/lib/format/number";
 import type { TaxType } from "@/types/generated/models";
 import type { Accounting, AddAccountingItemInput, PaymentMethod } from "../types";
 import { AccountingDocument, type ClinicInfo } from "./AccountingDocument";
@@ -222,6 +224,23 @@ export function AccountingDetailColumns({
       </div>
 
       <div className="w-full lg:w-[400px] flex flex-col gap-4 overflow-y-auto">
+        {/* BUG-007: 当該会計のクレジット訂正差額など、この会計固有の未収 */}
+        {accounting.outstandingAmount != null && accounting.outstandingAmount > 0 ? (
+          <Card data-testid="billing-outstanding-amount">
+            <CardContent className="p-4 flex items-center justify-between">
+              <div className="flex flex-col gap-0.5">
+                <span className={`text-sm font-medium ${C.text60}`}>この会計の未収残高</span>
+                <span className={`text-xs ${C.text40}`}>
+                  支払額と請求額の差額（クレジット訂正などを含む）
+                </span>
+              </div>
+              <span className={`text-xl font-bold ${C.danger}`}>
+                {formatCurrency(accounting.outstandingAmount)}
+              </span>
+            </CardContent>
+          </Card>
+        ) : null}
+
         {/* #182: 飼主の未納残高（未納がある場合のみ表示） */}
         {/* P2-11: 拠点横断で開いた会計の場合、残高は accounting.clinicId のクリニックで解決する */}
         <OwnerUnpaidBalanceCard ownerId={accounting.ownerId} clinicId={accounting.clinicId} />
