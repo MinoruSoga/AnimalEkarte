@@ -1,13 +1,19 @@
-import { describe, it, expect, afterEach } from "vitest";
+import { describe, it, expect, afterEach, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
+import { toast } from "sonner";
 import { server } from "@/testing/mocks/node";
 import { createTestWrapper } from "@/testing/utils";
 import { CURRENT_CLINIC_STORAGE_KEY } from "@/lib/current-clinic";
 
 import { CreditCorrectionDialog } from "./CreditCorrectionDialog";
 import type { Accounting } from "../types";
+
+// BUG-008/018: 理由未入力時のアプリ独自 toast を assert する
+vi.mock("sonner", () => ({
+  toast: { error: vi.fn(), success: vi.fn() },
+}));
 
 function makeAccounting(overrides: Partial<Accounting>): Accounting {
   return {
@@ -21,6 +27,8 @@ function makeAccounting(overrides: Partial<Accounting>): Accounting {
 
 afterEach(() => {
   localStorage.clear();
+  vi.mocked(toast.error).mockClear();
+  vi.mocked(toast.success).mockClear();
 });
 
 function renderDialog(accounting: Accounting, isPostClose = false) {
@@ -104,7 +112,7 @@ describe("CreditCorrectionDialog 送信 (#189)", () => {
     expect(patchCalled).toBe(false); // 確定済みカードの訂正は専用経路のみ
   });
 
-  it("理由未入力では送信せず、エンドポイントを呼ばない", async () => {
+  it("理由未入力では送信せず、アプリ独自 toast を出す (BUG-008/018)", async () => {
     let posted = false;
     server.use(
       http.post("*/v1/accountings/10/credit-correction", () => {
@@ -117,10 +125,37 @@ describe("CreditCorrectionDialog 送信 (#189)", () => {
     renderDialog(makeAccounting({}));
     await user.click(screen.getByRole("button", { name: "クレジット訂正" }));
     await screen.findByLabelText("訂正理由（必須）");
+    // form に noValidate があること（HTML5 が先にインターセプトしない）
+    expect(document.querySelector("form")).toHaveAttribute("novalidate");
     await user.click(screen.getByRole("button", { name: "訂正を保存" }));
 
-    // 短時間待っても POST は発火しない（クライアント側で reason 必須を弾く）
-    await new Promise((r) => setTimeout(r, 50));
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith("訂正理由を入力してください");
+    });
+    expect(posted).toBe(false);
+  });
+
+  it("金額が1円未満のとき toast でブロックし POST しない", async () => {
+    let posted = false;
+    server.use(
+      http.post("*/v1/accountings/10/credit-correction", () => {
+        posted = true;
+        return HttpResponse.json({ id: 10, clinic_id: 1, status: "completed", payment_splits: [], payments: [] });
+      }),
+    );
+
+    const user = userEvent.setup();
+    renderDialog(makeAccounting({}));
+    await user.click(screen.getByRole("button", { name: "クレジット訂正" }));
+    const amount = await screen.findByLabelText("訂正後の金額");
+    await user.clear(amount);
+    await user.type(amount, "0");
+    await user.type(await screen.findByLabelText("訂正理由（必須）"), "理由あり");
+    await user.click(screen.getByRole("button", { name: "訂正を保存" }));
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith("金額は1円以上で入力してください");
+    });
     expect(posted).toBe(false);
   });
 });
