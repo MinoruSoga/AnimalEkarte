@@ -4,6 +4,8 @@ import { useMemo } from "react";
 import { SelectItem } from "@/components/ui/select";
 import { type SearchableSelectOption } from "@/components/ui/searchable-select";
 
+import { isPersistedPetId } from "@/lib/pet-id";
+
 import { PetIdentitySection, type AnimalSpeciesOption } from "./PetIdentitySection";
 import { PetPhysicalSection } from "./PetPhysicalSection";
 import { PetCareSection, type InsuranceOption } from "./PetCareSection";
@@ -119,7 +121,8 @@ export function PetEditModalFields({
         onInsuranceChange={handleInsuranceChange}
         onPetLifecycleChange={onPetLifecycleChange}
       />
-      {isEdit && formData.id ? (
+      {/* BUG-022: pending (temp-*) はローカル編集のみ。副飼主 API を出さない */}
+      {isEdit && isPersistedPetId(formData.id) && formData.isPending !== true ? (
         <PetSubOwnersSection petId={formData.id} canEdit={canEdit} />
       ) : null}
     </div>

@@ -67,4 +67,24 @@ describe("createPetFormData", () => {
 
     expect(form).toEqual(expect.objectContaining({ status: "死亡", deceasedAt }));
   });
+
+  it("BUG-022: pending フラグをモーダル formData に保持する", () => {
+    const form = createPetFormData({
+      id: "temp-99",
+      isPending: true,
+      petNumber: "",
+      petName: "未保存ポチ",
+      status: "生存",
+      species: "犬",
+      gender: "不明",
+      birthDate: "",
+      color: "",
+      weight: "",
+      environment: "",
+      remarks: "",
+    });
+
+    expect(form.id).toBe("temp-99");
+    expect(form.isPending).toBe(true);
+  });
 });

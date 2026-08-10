@@ -85,6 +85,18 @@ describe("PetCareSection (PR#186 P2-2 Bug#1)", () => {
     expect(screen.queryByText(/永眠/)).not.toBeInTheDocument();
   });
 
+  it("BUG-022: pending (temp-*) では死亡記録ボタンを出さない", () => {
+    renderPetCareSection({
+      ...basePet,
+      id: "temp-1710000000000",
+      isPending: true,
+      status: "生存",
+      deceasedAt: null,
+    });
+
+    expect(screen.queryByRole("button", { name: "死亡を記録" })).not.toBeInTheDocument();
+  });
+
   it("死亡ステータスだが deceasedAt が未取得のとき、不整合を表示して再登録導線を閉じる", () => {
     renderPetCareSection({ ...basePet, status: "死亡", deceasedAt: undefined });
 

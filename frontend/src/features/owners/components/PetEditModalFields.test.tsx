@@ -107,6 +107,35 @@ describe("PetEditModalFields", () => {
 
     expect(screen.getByTestId("pet-sub-owners-section")).toHaveTextContent("7");
   });
+
+  it("BUG-022: pending (temp-*) ペットでは副飼主セクションを出さない", () => {
+    function PendingHarness() {
+      const [formData, setFormData] = useState<PetFormData>({
+        ...basePet,
+        id: "temp-1710000000000",
+        isPending: true,
+      });
+      return (
+        <MemoryRouter>
+          <PetEditModalFields
+            formData={formData}
+            setFormData={setFormData}
+            fieldErrors={{}}
+            clearFieldError={() => {}}
+            animalSpeciesList={[{ id: 1, name: "犬" }]}
+            isLoadingSpecies={false}
+            insuranceList={[]}
+            isLoadingInsurances={false}
+            canEdit
+            isEdit
+          />
+        </MemoryRouter>
+      );
+    }
+
+    render(<PendingHarness />);
+    expect(screen.queryByTestId("pet-sub-owners-section")).not.toBeInTheDocument();
+  });
 });
 
 function renderPetEditModal(

@@ -174,4 +174,25 @@ describe("pet sub-owner queries", () => {
     expect(metadata.result.current.data).toEqual({ owner_id: 10, version: 3 });
     expect(mockedGet).toHaveBeenCalledTimes(2);
   });
+
+  it.each(["temp-1", "temp-1710000000000", ""])(
+    "BUG-022: 非永続 petId %j では sub-owners / metadata API を発行しない",
+    async (petId) => {
+      const wrapper = createWrapper();
+      const subOwners = renderHook(() => useGetPetSubOwners(petId), { wrapper });
+      const metadata = renderHook(() => useGetPetSubOwnerMetadata(petId), {
+        wrapper,
+      });
+
+      await waitFor(() =>
+        expect(subOwners.result.current.fetchStatus).toBe("idle"),
+      );
+      await waitFor(() =>
+        expect(metadata.result.current.fetchStatus).toBe("idle"),
+      );
+      expect(subOwners.result.current.isFetching).toBe(false);
+      expect(metadata.result.current.isFetching).toBe(false);
+      expect(mockedGet).not.toHaveBeenCalled();
+    },
+  );
 });

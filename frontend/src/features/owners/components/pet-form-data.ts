@@ -7,6 +7,8 @@ import {
 export function createPetFormData(petData?: PetFormData): PetFormData {
   return {
     id: petData?.id || "",
+    // BUG-022: pending フラグをモーダル formData に保持し、API 依存 UI を抑止する
+    isPending: petData?.isPending,
     petNumber: petData?.petNumber || "",
     petName: petData?.petName || "",
     petNameKana: petData?.petNameKana || "",
