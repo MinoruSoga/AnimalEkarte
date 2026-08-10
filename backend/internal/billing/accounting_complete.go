@@ -312,6 +312,11 @@ func (s *accountingService) Complete(ctx context.Context, input *CompleteAccount
 			}
 		}
 
+		// BUG-001: 死亡ペットへの complete 確定を同一 tx 内で拒否（URL 直叩き経路の物理ブロック）。
+		if err := s.assertAccountingPetNotDeceased(txCtx, input.ClinicID, input.PetID); err != nil {
+			return err
+		}
+
 		// Close 境界の write-time 再評価。
 		postClose, err := s.resolvePostCloseInTx(txCtx, input.ClinicID, input.ScheduledDate, input.IsPostClose)
 		if err != nil {

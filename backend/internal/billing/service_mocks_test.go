@@ -132,6 +132,7 @@ func (noopTransactor) WithTx(ctx context.Context, fn func(ctx context.Context) e
 type mockReservationRepository struct {
 	assertOwnerInClinicFn   func(ctx context.Context, clinicID, ownerID uint64) error
 	findPetOwnerInClinicFn  func(ctx context.Context, clinicID, petID uint64) (uint64, error)
+	findPetByIDInClinicFn   func(ctx context.Context, clinicID, petID uint64) (*model.Pet, error)
 	completeForAccountingFn func(ctx context.Context, clinicID uint64, medicalRecordID, ownerID, petID *uint64, scheduledDate time.Time) (int64, error)
 }
 
@@ -149,8 +150,12 @@ func (m *mockReservationRepository) FindPetOwnerInClinic(ctx context.Context, cl
 	return 0, nil
 }
 
-func (m *mockReservationRepository) FindPetByIDInClinic(_ context.Context, _, petID uint64) (*model.Pet, error) {
-	return &model.Pet{ID: petID, Status: model.PetStatusAlive}, nil
+func (m *mockReservationRepository) FindPetByIDInClinic(ctx context.Context, clinicID, petID uint64) (*model.Pet, error) {
+	if m.findPetByIDInClinicFn != nil {
+		return m.findPetByIDInClinicFn(ctx, clinicID, petID)
+	}
+	// 既定は生存ペット（既存 Create/Complete テストが死亡ガードで落ちないようにする）。
+	return &model.Pet{ID: petID, Status: model.PetStatusAlive, DeceasedAt: nil}, nil
 }
 
 func (m *mockReservationRepository) CompleteForAccounting(ctx context.Context, clinicID uint64, medicalRecordID, ownerID, petID *uint64, scheduledDate time.Time) (int64, error) {
