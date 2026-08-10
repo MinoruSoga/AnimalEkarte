@@ -175,7 +175,9 @@ func (s *ownerService) ensureOwnerPhoneUnique(ctx context.Context, clinicID, cur
 		return apperrors.Wrap(err, "failed to check phone uniqueness")
 	}
 	if existing != nil && existing.ID != currentOwnerID {
-		return apperrors.WrapAlreadyExists("owner", "この電話番号はすでに登録されています")
+		// BUG-019: 日本語完成文を WrapAlreadyExists の identifier に渡すと
+		// `owner '…' already exists` の英日混在になるため message 直渡しにする。
+		return apperrors.WrapAlreadyExistsMessage("この電話番号はすでに登録されています")
 	}
 	return nil
 }

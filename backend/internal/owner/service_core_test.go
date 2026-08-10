@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -117,6 +118,11 @@ func TestOwnerService_CreateWithPets_UniquenessAndSyncBranches(t *testing.T) {
 		assert.Error(t, err)
 		assert.Nil(t, owner)
 		assert.True(t, apperrors.IsAlreadyExists(err))
+		// BUG-019: natural Japanese, not owner '…' already exists
+		var appErr *apperrors.AppError
+		require.True(t, errors.As(err, &appErr))
+		assert.Equal(t, "この電話番号はすでに登録されています", appErr.Message)
+		assert.NotContains(t, appErr.Message, "already exists")
 	})
 
 	t.Run("phone uniqueness check repository error propagates", func(t *testing.T) {
@@ -255,6 +261,10 @@ func TestOwnerService_Update_AdditionalBranches(t *testing.T) {
 		_, err := svc.Update(ctx, 1, 1, &UpdateOwnerInput{Phone: &phone})
 		assert.Error(t, err)
 		assert.True(t, apperrors.IsAlreadyExists(err))
+		var appErr *apperrors.AppError
+		require.True(t, errors.As(err, &appErr))
+		assert.Equal(t, "この電話番号はすでに登録されています", appErr.Message)
+		assert.NotContains(t, appErr.Message, "already exists")
 	})
 
 	t.Run("phone uniqueness check repository error propagates", func(t *testing.T) {
