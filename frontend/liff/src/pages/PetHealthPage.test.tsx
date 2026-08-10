@@ -23,7 +23,20 @@ function renderWithClinicId() {
   return render(<PetHealthPage {...BASE_PROPS} />);
 }
 
+function renderWithoutClinicId() {
+  window.history.pushState({}, '', '/liff/health-card');
+  return render(<PetHealthPage {...BASE_PROPS} />);
+}
+
 describe('PetHealthPage（R-F22/R-F23: 共通フェッチ状態管理・ステータス別エラー）', () => {
+  it('clinic_id 欠落時は専用文言を表示し、再試行ボタンは出さない（BUG-014）', async () => {
+    renderWithoutClinicId();
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('クリニックIDが見つかりません');
+    expect(screen.queryByText('しばらく経ってから再度お試しください')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '再試行' })).not.toBeInTheDocument();
+  });
+
   it('取得後は飼い主名を表示する', async () => {
     server.use(http.get('/api/liff/:clinicId/health-card', () => HttpResponse.json(healthCard)));
 

@@ -9,13 +9,50 @@ interface PetHealthPageProps {
   pictureUrl: string | null;
 }
 
+/**
+ * BUG-014: clinic_id 欠落は再試行で解消しない恒久的な設定ミス。
+ * useFetchState → resolveFetchError に載せると status 無し Error が汎用リトライ文言に潰れるため、
+ * line-reserve と同様に fetch 前で専用文言へ分岐する（再試行ボタンも出さない）。
+ * hooks 規則のため、欠落分岐と fetch 本体はコンポーネントを分ける。
+ */
 export function PetHealthPage({ idToken, displayName, pictureUrl }: PetHealthPageProps) {
   const clinicId = new URLSearchParams(window.location.search).get('clinic_id') ?? '';
 
+  if (!clinicId) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-liff-brand-bg">
+        <div className="max-w-md mx-auto px-4 text-center">
+          <div className="text-6xl mb-4" aria-hidden="true">⚠️</div>
+          <h1 className="text-xl font-bold text-gray-800 mb-2">データ取得に失敗しました</h1>
+          <p className="text-gray-500 text-sm mb-6" role="alert">
+            クリニックIDが見つかりません
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <PetHealthPageContent
+      clinicId={clinicId}
+      idToken={idToken}
+      displayName={displayName}
+      pictureUrl={pictureUrl}
+    />
+  );
+}
+
+interface PetHealthPageContentProps extends PetHealthPageProps {
+  clinicId: string;
+}
+
+function PetHealthPageContent({
+  clinicId,
+  idToken,
+  displayName,
+  pictureUrl,
+}: PetHealthPageContentProps) {
   const fetcher = useCallback(() => {
-    if (!clinicId) {
-      return Promise.reject(new Error('クリニックIDが見つかりません'));
-    }
     return fetchHealthCard(idToken, clinicId);
   }, [idToken, clinicId]);
 
