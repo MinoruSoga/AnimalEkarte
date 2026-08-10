@@ -511,6 +511,144 @@ describe("useVaccinationForm", () => {
   });
 
   // ──────────────────────────
+  // BUG-005: 手動 nextDate と nextScheduleType の整合
+  // ──────────────────────────
+  describe("次回予定 type/日付の整合（BUG-005）", () => {
+    it("標準間隔選択後に nextDate を手動上書き → nextScheduleType が other になる", async () => {
+      const { result } = renderVaccinationForm();
+      act(() => {
+        result.current.form.setDate("2026-07-01");
+        result.current.form.setNextScheduleType("1year");
+      });
+      await waitFor(() => {
+        expect(result.current.form.nextDate).toBe("2027-07-01");
+        expect(result.current.form.nextScheduleType).toBe("1year");
+      });
+
+      act(() => {
+        result.current.form.setNextDate("2027-07-20");
+      });
+
+      await waitFor(() => {
+        expect(result.current.form.nextDate).toBe("2027-07-20");
+        expect(result.current.form.nextScheduleType).toBe("other");
+      });
+    });
+
+    it("手動上書き後の保存 payload は next_schedule_type=other と手動 next_date を送る", async () => {
+      const mockMutateAsync = vi.fn().mockResolvedValue({});
+      vi.mocked(useCreateVaccination).mockReturnValue({
+        mutateAsync: mockMutateAsync,
+        isPending: false,
+      } as ReturnType<typeof useCreateVaccination>);
+
+      const { result } = renderVaccinationForm();
+      act(() => {
+        result.current.petSelection.setSelectedPets([
+          { id: "5", ownerId: "1", name: "ポチ" } as Parameters<typeof result.current.petSelection.setSelectedPets>[0][number],
+        ]);
+        result.current.form.setVaccineId("1");
+        // systemTime = 2026-07-10 のため接種日は過去、次回は本日以降
+        result.current.form.setDate("2026-07-01");
+        result.current.form.setNextScheduleType("1year");
+        result.current.form.setNextDate("2027-07-20");
+      });
+      runFormAction(result.current.formAction);
+
+      await waitFor(() => {
+        expect(result.current.formState.success).toBe(true);
+      });
+      expect(mockMutateAsync).toHaveBeenCalledWith(
+        expect.objectContaining({
+          next_schedule_type: "other",
+          next_date: jstDateStartISOString("2027-07-20"),
+        }),
+      );
+    });
+
+    it("手動 nextDate が標準計算と一致するなら type は維持する", async () => {
+      const { result } = renderVaccinationForm();
+      act(() => {
+        result.current.form.setDate("2026-07-01");
+        result.current.form.setNextScheduleType("1year");
+      });
+      await waitFor(() => expect(result.current.form.nextDate).toBe("2027-07-01"));
+
+      act(() => {
+        result.current.form.setNextDate("2027-07-01");
+      });
+
+      await waitFor(() => {
+        expect(result.current.form.nextScheduleType).toBe("1year");
+        expect(result.current.form.nextDate).toBe("2027-07-01");
+      });
+    });
+
+    it("編集時: localOverrides に date がなくても setNextScheduleType は server date から再計算する", async () => {
+      vi.mocked(useGetVaccination).mockReturnValue({
+        data: {
+          id: "10",
+          petId: "5",
+          vaccineId: "1",
+          date: "2026-07-01",
+          nextDate: "2027-07-01",
+          nextScheduleType: "1year",
+        },
+      } as ReturnType<typeof useGetVaccination>);
+
+      const { result } = renderVaccinationForm("10");
+      await waitFor(() => expect(result.current.form.date).toBe("2026-07-01"));
+
+      act(() => {
+        result.current.form.setNextScheduleType("4weeks");
+      });
+
+      await waitFor(() => {
+        expect(result.current.form.nextScheduleType).toBe("4weeks");
+        expect(result.current.form.nextDate).toBe("2026-07-29");
+      });
+    });
+
+    it("編集時: 手動 nextDate 上書きで type が other になり update payload に載る", async () => {
+      vi.mocked(useGetVaccination).mockReturnValue({
+        data: {
+          id: "10",
+          petId: "5",
+          vaccineId: "1",
+          date: "2026-07-01",
+          nextDate: "2027-07-01",
+          nextScheduleType: "1year",
+        },
+      } as ReturnType<typeof useGetVaccination>);
+      const mockMutateAsync = vi.fn().mockResolvedValue({});
+      vi.mocked(useUpdateVaccination).mockReturnValue({
+        mutateAsync: mockMutateAsync,
+        isPending: false,
+      } as ReturnType<typeof useUpdateVaccination>);
+
+      const { result } = renderVaccinationForm("10");
+      await waitFor(() => expect(result.current.form.nextScheduleType).toBe("1year"));
+
+      act(() => {
+        result.current.form.setNextDate("2027-07-20");
+      });
+      runFormAction(result.current.formAction);
+
+      await waitFor(() => {
+        expect(result.current.formState.success).toBe(true);
+      });
+      expect(mockMutateAsync).toHaveBeenCalledWith(
+        expect.objectContaining({
+          req: expect.objectContaining({
+            next_schedule_type: "other",
+            next_date: jstDateStartISOString("2027-07-20"),
+          }),
+        }),
+      );
+    });
+  });
+
+  // ──────────────────────────
   // BUG-401: 実マスタ参照化後も vaccine_id → schedule 自動計算が退行しないこと
   // ──────────────────────────
   describe("ワクチンマスタ interval に基づく次回予定自動計算（BUG-401）", () => {

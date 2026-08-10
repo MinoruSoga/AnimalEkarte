@@ -12,12 +12,14 @@ import type { SortOrder } from "@/types";
 import type { VaccinationRecord } from "../api/transforms";
 import { VaccinationCard } from "./VaccinationCard";
 
+// BUG-005: API/DB enum は "other"（model.NextScheduleTypeOther）。旧 "custom" は無効値で
+// 保存失敗 or セレクタ非表示になり、手動相当 type を選べない/再表示できない。
 const NEXT_SCHEDULE_ITEMS = (
   <>
     <SelectItem value="3weeks">3週後</SelectItem>
     <SelectItem value="4weeks">4週後</SelectItem>
     <SelectItem value="1year">1年後</SelectItem>
-    <SelectItem value="custom">以外（手動）</SelectItem>
+    <SelectItem value="other">以外（手動）</SelectItem>
   </>
 );
 
