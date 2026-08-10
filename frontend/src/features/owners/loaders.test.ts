@@ -5,7 +5,7 @@ vi.mock("@/lib/axios", () => ({
 }));
 
 import { axios } from "@/lib/axios";
-import { ownersLoader } from "./loaders";
+import { ownerLoader, ownersLoader } from "./loaders";
 
 const mockedGet = vi.mocked(axios.get);
 
@@ -274,5 +274,35 @@ describe("ownersLoader — 上流ステータスの保全", () => {
 
     expect(thrown).toBeInstanceOf(Response);
     expect((thrown as Response).status).toBe(500);
+  });
+});
+
+describe("ownerLoader — BUG-010 clinic mismatch 404", () => {
+  beforeEach(() => {
+    mockedGet.mockReset();
+  });
+
+  it("GET /owners/:id が 404 のとき明示メッセージの Response を投げる", async () => {
+    mockedGet.mockRejectedValue({
+      isAxiosError: true,
+      response: { status: 404 },
+    });
+
+    const thrown = await ownerLoader({ params: { id: "99" } }).then(
+      () => undefined,
+      (err: unknown) => err,
+    );
+
+    expect(thrown).toBeInstanceOf(Response);
+    expect((thrown as Response).status).toBe(404);
+    await expect((thrown as Response).text()).resolves.toContain("異なる医院");
+  });
+
+  it("id 未指定は 400", async () => {
+    const thrown = await ownerLoader({ params: {} }).then(
+      () => undefined,
+      (err: unknown) => err,
+    );
+    expect((thrown as Response).status).toBe(400);
   });
 });

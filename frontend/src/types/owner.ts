@@ -14,6 +14,8 @@ import type {
 /** UI-facing Owner type (camelCase, string IDs — post-transform) */
 export interface Owner {
   id: string;
+  /** 所属医院。詳細 GET の X-Clinic-ID 整合に使用（BUG-010） */
+  clinicId?: string;
   ownerName: string;
   ownerNameKana?: string;
   company: string;

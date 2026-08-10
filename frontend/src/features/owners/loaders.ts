@@ -181,12 +181,24 @@ export const ownerLoader = async ({ params }: { params: Record<string, string | 
   if (!id) {
     throw new Response("Owner ID is required", { status: 400 });
   }
-  const owner = await getOwner(id);
-  const pets = await Promise.all(
-    (owner.pets ?? []).map(async (pet) => {
-      const { data } = await axios.get<PetResponse>(`/v1/pets/${pet.id}`);
-      return transformBackendPetToFrontend(data);
-    }),
-  );
-  return { owner: { ...owner, pets } };
+  try {
+    const owner = await getOwner(id);
+    const pets = await Promise.all(
+      (owner.pets ?? []).map(async (pet) => {
+        const { data } = await axios.get<PetResponse>(`/v1/pets/${pet.id}`);
+        return transformBackendPetToFrontend(data);
+      }),
+    );
+    return { owner: { ...owner, pets } };
+  } catch (err) {
+    // BUG-010: 他医院作成直後に旧 X-Clinic-ID で GET すると 404。汎用クラッシュではなく明示メッセージにする。
+    const status = isAxiosError(err) ? (err.response?.status ?? 500) : 500;
+    if (status === 404) {
+      throw new Response(
+        "飼主が見つかりません。選択中の医院と異なる医院に登録されている可能性があります。医院を切り替えて再度お試しください。",
+        { status: 404 },
+      );
+    }
+    throw new Response("飼主情報の取得に失敗しました", { status });
+  }
 };
