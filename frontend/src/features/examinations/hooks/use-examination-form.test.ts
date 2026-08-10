@@ -298,11 +298,8 @@ describe("useExaminationForm — 患者変更と確定解除", () => {
     );
   });
 
-  it.each([
-    { status: "完了" as const, currentRevisionVersion: 2 },
-    { status: "確定" as const, currentRevisionVersion: undefined },
-  ])(
-    "履歴または確定状態では患者変更をPATCHしない: $status/$currentRevisionVersion",
+  it.each([{ status: "完了" as const, currentRevisionVersion: 2 }])(
+    "履歴がある状態では患者変更をPATCHしない: $status/$currentRevisionVersion",
     async ({ status, currentRevisionVersion }) => {
       const { useGetExamination } = await import("../api/get-examination");
       const { useUpdateExamination } =
@@ -344,6 +341,44 @@ describe("useExaminationForm — 患者変更と確定解除", () => {
       );
     },
   );
+
+  it("確定済みでは formAction が PATCH 自体を発行しない", async () => {
+    const { useGetExamination } = await import("../api/get-examination");
+    const { useUpdateExamination } = await import("../api/update-examination");
+    vi.mocked(usePetSelection).mockReturnValue({
+      selectedPets: [selectedPet("生存")],
+      setSelectedPets: vi.fn(),
+    } as ReturnType<typeof usePetSelection>);
+    vi.mocked(useGetExamination).mockReturnValue({
+      data: {
+        id: "exam-001",
+        petId: "42",
+        testTypeId: "5",
+        doctorId: "3",
+        status: "確定" as const,
+        ownerName: "",
+        petName: "",
+        date: "",
+      },
+    } as ReturnType<typeof useGetExamination>);
+    const updateMutate = vi.fn().mockResolvedValue({});
+    vi.mocked(useUpdateExamination).mockReturnValue({
+      mutateAsync: updateMutate,
+    } as ReturnType<typeof useUpdateExamination>);
+
+    const { result } = renderExaminationForm("exam-001");
+    expect(result.current.isPatientChangeLocked).toBe(true);
+    expect(result.current.isPersistedConfirmed).toBe(true);
+
+    await act(async () => {
+      startTransition(() => result.current.formAction(new FormData()));
+    });
+
+    await waitFor(() =>
+      expect(result.current.formState.success).toBe(false),
+    );
+    expect(updateMutate).not.toHaveBeenCalled();
+  });
 
   it("revision lock が到着済みの異なる患者候補を保存せず fail-closed にする", async () => {
     const { useGetExamination } = await import("../api/get-examination");
@@ -1725,7 +1760,7 @@ describe("useExaminationForm — 検査項目テーブル（FE-EXAM-001）", () 
     );
   });
 
-  it("確定済み (status=確定) では PATCH から items を省略する", async () => {
+  it("確定済み (status=確定) では PATCH を発行しない", async () => {
     const { useGetExamination } = await import("../api/get-examination");
     const { useGetExaminationItems } =
       await import("../api/get-examination-items");
@@ -1775,14 +1810,86 @@ describe("useExaminationForm — 検査項目テーブル（FE-EXAM-001）", () 
       startTransition(() => result.current.formAction(new FormData()));
     });
 
+    await waitFor(() =>
+      expect(result.current.isPersistedConfirmed).toBe(true),
+    );
+    expect(result.current.isPersistedResultsLocked).toBe(true);
+    expect(updateMutate).not.toHaveBeenCalled();
+  });
+
+  it("BUG-033: 完了シールでは PATCH から items を省略し status 遷移を送る", async () => {
+    const { useGetExamination } = await import("../api/get-examination");
+    const { useGetExaminationItems } =
+      await import("../api/get-examination-items");
+    const { useUpdateExamination } = await import("../api/update-examination");
+
+    vi.mocked(useGetExamination).mockReturnValue({
+      data: {
+        id: "exam-001",
+        testTypeId: "5",
+        doctorId: "3",
+        status: "完了" as const,
+        ownerName: "",
+        petName: "",
+        date: "",
+      },
+    } as ReturnType<typeof useGetExamination>);
+    vi.mocked(useGetExaminationItems).mockReturnValue({
+      data: [
+        {
+          id: "101",
+          examTypeFieldId: 1,
+          name: "WBC",
+          result: "",
+          inspectionValue: "5.0",
+          normalValue: "",
+          unit: "",
+          referenceValue: "",
+          refMin: undefined,
+          refMax: undefined,
+          isAbnormal: false,
+          status: "normal" as const,
+          sortOrder: 1,
+        },
+      ],
+      isSuccess: true,
+      isError: false,
+    } as ReturnType<typeof useGetExaminationItems>);
+
+    const updateMutate = vi.fn().mockResolvedValue({});
+    vi.mocked(useUpdateExamination).mockReturnValue({
+      mutateAsync: updateMutate,
+    } as ReturnType<typeof useUpdateExamination>);
+
+    const { result } = renderExaminationForm("exam-001");
+
+    await waitFor(() =>
+      expect(result.current.isPersistedCompletedLocked).toBe(true),
+    );
+    expect(result.current.isPersistedResultsLocked).toBe(true);
+
+    await act(async () => {
+      result.current.setFormData({ status: "確定" });
+    });
+
+    await act(async () => {
+      startTransition(() => result.current.formAction(new FormData()));
+    });
+
     await waitFor(() => expect(updateMutate).toHaveBeenCalledOnce());
     expect(updateMutate).toHaveBeenCalledWith(
       expect.objectContaining({
         id: "exam-001",
+        req: expect.objectContaining({
+          status: "confirmed",
+        }),
+      }),
+    );
+    expect(updateMutate).toHaveBeenCalledWith(
+      expect.objectContaining({
         req: expect.not.objectContaining({ items: expect.anything() }),
       }),
     );
-    expect(result.current.isPersistedConfirmed).toBe(true);
   });
 
   it("未確定検査でステータスを確定に変えても items を PATCH に含め保存できる（A-S02-01）", async () => {
