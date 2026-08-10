@@ -595,6 +595,136 @@ func TestFindOwnerLTV_IncludeZero(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Len(t, result2, 1)
 	assert.Equal(t, int64(0), *result2[0].AnnualAmount)
+
+	// Test 3: 売上タブ相当（year）でも include_zero=false なら除外
+	year := time.Now().Year()
+	result3, err := repo.FindOwnerLTV(ctx, &FindOwnerLTVParams{
+		ClinicID:    clinicID,
+		Year:        &year,
+		AmountBasis: "gross_total_amount",
+		Sort:        "annual_amount",
+		IncludeZero: false,
+	})
+	assert.NoError(t, err)
+	assert.Equal(t, 0, len(result3), "revenue tab params should still exclude zero when include_zero=false")
+}
+
+// TestShouldExcludeZeroAnnualAmount_BUG012 は 0 円除外の適用範囲（売上軸のみ）を表で固定する。
+func TestShouldExcludeZeroAnnualAmount_BUG012(t *testing.T) {
+	year := 2026
+	minAmt := int64(1)
+	minVisit := int64(1)
+
+	tests := []struct {
+		name   string
+		params FindOwnerLTVParams
+		want   bool
+	}{
+		{
+			name:   "default LTV list excludes zero",
+			params: FindOwnerLTVParams{},
+			want:   true,
+		},
+		{
+			name:   "include_zero true never excludes",
+			params: FindOwnerLTVParams{IncludeZero: true, Year: &year, Sort: "annual_amount"},
+			want:   false,
+		},
+		{
+			name:   "revenue year+amount_basis excludes",
+			params: FindOwnerLTVParams{Year: &year, AmountBasis: "gross_total_amount", Sort: "annual_amount"},
+			want:   true,
+		},
+		{
+			name:   "visit tab period_preset does not exclude",
+			params: FindOwnerLTVParams{PeriodPreset: "last_12_months", Sort: "period_visit_count"},
+			want:   false,
+		},
+		{
+			name:   "last_visit bucket does not exclude",
+			params: FindOwnerLTVParams{LastVisitBucket: "over_3m", Sort: "last_visit_date"},
+			want:   false,
+		},
+		{
+			name:   "amount range still excludes on visit sort",
+			params: FindOwnerLTVParams{MinTotalAmount: &minAmt, Sort: "period_visit_count"},
+			want:   true,
+		},
+		{
+			name:   "min visit count alone does not exclude",
+			params: FindOwnerLTVParams{MinVisitCount: &minVisit, Sort: "period_visit_count"},
+			want:   false,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.want, shouldExcludeZeroAnnualAmount(&tc.params))
+		})
+	}
+}
+
+// TestFindOwnerLTV_VisitAndLastVisitTabsKeepZeroAmountOwners_BUG012
+// 来院回数・最終来院タブ相当の params では annual_amount=0 でも飼主が残る（BUG-012）。
+func TestFindOwnerLTV_VisitAndLastVisitTabsKeepZeroAmountOwners_BUG012(t *testing.T) {
+	db := setupLTVTestDB(t)
+	repo := newLTVTestRepository(t, db)
+	ctx := context.Background()
+	clinicID := uint64(8012)
+
+	owner := &model.Owner{
+		ClinicID: clinicID,
+		Name:     "Owner Visit Zero Yen BUG012",
+	}
+	require.NoError(t, db.WithContext(ctx).Create(owner).Error)
+
+	// 120 日前の来院 → last_visit_bucket = over_3m、会計なし → annual_amount=0
+	visitDate := time.Now().AddDate(0, 0, -120)
+	mr := &model.MedicalRecord{
+		ClinicID: clinicID,
+		OwnerID:  &owner.ID,
+		Date:     visitDate,
+	}
+	require.NoError(t, db.WithContext(ctx).Create(mr).Error)
+
+	// 来院回数タブ既定（include_zero 未指定 = false）
+	visitRows, err := repo.FindOwnerLTV(ctx, &FindOwnerLTVParams{
+		ClinicID:     clinicID,
+		PeriodPreset: "last_12_months",
+		Sort:         "period_visit_count",
+		Order:        "desc",
+		IncludeZero:  false,
+	})
+	require.NoError(t, err)
+	require.Len(t, visitRows, 1, "visit tab must list owners with visits even when annual_amount=0")
+	assert.Equal(t, owner.ID, visitRows[0].OwnerID)
+	require.NotNil(t, visitRows[0].AnnualAmount)
+	assert.Equal(t, int64(0), *visitRows[0].AnnualAmount)
+	require.NotNil(t, visitRows[0].PeriodVisitCount)
+	assert.Equal(t, int64(1), *visitRows[0].PeriodVisitCount)
+
+	// 最終来院タブ既定
+	lastRows, err := repo.FindOwnerLTV(ctx, &FindOwnerLTVParams{
+		ClinicID:        clinicID,
+		LastVisitBucket: "over_3m",
+		Sort:            "last_visit_date",
+		Order:           "asc",
+		IncludeZero:     false,
+	})
+	require.NoError(t, err)
+	require.Len(t, lastRows, 1, "last_visit tab must list matching bucket even when annual_amount=0")
+	assert.Equal(t, owner.ID, lastRows[0].OwnerID)
+
+	// 売上タブ相当は依然として除外
+	year := time.Now().Year()
+	revenueRows, err := repo.FindOwnerLTV(ctx, &FindOwnerLTVParams{
+		ClinicID:    clinicID,
+		Year:        &year,
+		AmountBasis: "gross_total_amount",
+		Sort:        "annual_amount",
+		IncludeZero: false,
+	})
+	require.NoError(t, err)
+	assert.Equal(t, 0, len(revenueRows), "revenue ranking must still exclude zero-amount owners")
 }
 
 // TestFindOwnerLTV_AmountBasisSwitching
