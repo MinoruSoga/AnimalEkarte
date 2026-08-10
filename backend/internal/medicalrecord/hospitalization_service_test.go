@@ -281,12 +281,15 @@ func TestHospitalizationService_GetByID(t *testing.T) {
 
 func TestHospitalizationService_Create(t *testing.T) {
 	now := time.Now()
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.Local)
+	futureStart := today.AddDate(0, 0, 3)
 	tests := []struct {
-		name     string
-		clinicID uint64
-		input    *CreateHospitalizationInput
-		repoErr  error
-		wantErr  bool
+		name       string
+		clinicID   uint64
+		input      *CreateHospitalizationInput
+		repoErr    error
+		wantErr    bool
+		wantStatus model.HospitalizationStatus
 	}{
 		{
 			name:     "creates hospitalization successfully",
@@ -299,21 +302,37 @@ func TestHospitalizationService_Create(t *testing.T) {
 				EndDate:             now.Add(24 * time.Hour),
 				Status:              model.HospitalizationStatusReserved,
 			},
-			repoErr: nil,
-			wantErr: false,
+			repoErr:    nil,
+			wantErr:    false,
+			wantStatus: model.HospitalizationStatusReserved, // explicit status kept
 		},
 		{
-			name:     "defaults status to reserved when empty",
+			name:     "defaults status to admitted when empty and start_date is today (BUG-031)",
 			clinicID: 1,
 			input: &CreateHospitalizationInput{
 				OwnerID:             2,
 				PetID:               5,
 				HospitalizationType: model.HospitalizationTypeHotel,
-				StartDate:           now,
-				EndDate:             now.Add(24 * time.Hour),
+				StartDate:           today,
+				EndDate:             today.AddDate(0, 0, 7),
 			},
-			repoErr: nil,
-			wantErr: false,
+			repoErr:    nil,
+			wantErr:    false,
+			wantStatus: model.HospitalizationStatusAdmitted,
+		},
+		{
+			name:     "defaults status to reserved when empty and start_date is future (BUG-031)",
+			clinicID: 1,
+			input: &CreateHospitalizationInput{
+				OwnerID:             2,
+				PetID:               5,
+				HospitalizationType: model.HospitalizationTypeInpatient,
+				StartDate:           futureStart,
+				EndDate:             futureStart.AddDate(0, 0, 7),
+			},
+			repoErr:    nil,
+			wantErr:    false,
+			wantStatus: model.HospitalizationStatusReserved,
 		},
 		{
 			name:     "returns error when already exists",
@@ -341,8 +360,10 @@ func TestHospitalizationService_Create(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			var created *model.Hospitalization
 			repo := &mockHospitalizationRepository{
-				createFn: func(_ context.Context, _ *model.Hospitalization) error {
+				createFn: func(_ context.Context, h *model.Hospitalization) error {
+					created = h
 					return tt.repoErr
 				},
 			}
@@ -365,9 +386,25 @@ func TestHospitalizationService_Create(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 				assert.NotNil(t, hosp)
+				require.NotNil(t, created)
+				assert.Equal(t, tt.wantStatus, created.Status)
+				assert.Equal(t, tt.wantStatus, hosp.Status)
 			}
 		})
 	}
+}
+
+func TestDefaultHospitalizationStatus(t *testing.T) {
+	loc := time.Local
+	now := time.Date(2026, 8, 10, 15, 30, 0, 0, loc)
+	today := time.Date(2026, 8, 10, 0, 0, 0, 0, loc)
+	assert.Equal(t, model.HospitalizationStatusAdmitted, defaultHospitalizationStatus(today, now))
+	assert.Equal(t, model.HospitalizationStatusAdmitted, defaultHospitalizationStatus(today.Add(-time.Hour), now))
+	assert.Equal(t, model.HospitalizationStatusAdmitted, defaultHospitalizationStatus(today.AddDate(0, 0, -1), now))
+	assert.Equal(t, model.HospitalizationStatusReserved, defaultHospitalizationStatus(today.AddDate(0, 0, 1), now))
+	// UTC midnight that is still clinic-local "today" when offset is +9
+	utcStillToday := time.Date(2026, 8, 10, 0, 0, 0, 0, time.UTC)
+	assert.Equal(t, model.HospitalizationStatusAdmitted, defaultHospitalizationStatus(utcStillToday, now))
 }
 
 func TestHospitalizationService_Update(t *testing.T) {

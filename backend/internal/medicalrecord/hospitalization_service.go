@@ -264,13 +264,28 @@ func (s *hospitalizationService) GetByID(ctx context.Context, clinicID, id uint6
 	return result, nil
 }
 
+// defaultHospitalizationStatus picks Create default when client omits status (BUG-031).
+// Clinic calendar day uses time.Local (compose TZ=Asia/Tokyo). start_date on/before today → admitted;
+// future start_date → reserved. Explicit client status is never overridden.
+func defaultHospitalizationStatus(startDate, now time.Time) model.HospitalizationStatus {
+	loc := time.Local
+	start := startDate.In(loc)
+	startDay := time.Date(start.Year(), start.Month(), start.Day(), 0, 0, 0, 0, loc)
+	n := now.In(loc)
+	today := time.Date(n.Year(), n.Month(), n.Day(), 0, 0, 0, 0, loc)
+	if !startDay.After(today) {
+		return model.HospitalizationStatusAdmitted
+	}
+	return model.HospitalizationStatusReserved
+}
+
 func (s *hospitalizationService) Create(ctx context.Context, clinicID uint64, input *CreateHospitalizationInput) (*model.Hospitalization, error) {
 	if input == nil {
 		return nil, apperrors.WrapInvalidInput("input must not be nil")
 	}
 	status := input.Status
 	if status == "" {
-		status = model.HospitalizationStatusReserved
+		status = defaultHospitalizationStatus(input.StartDate, time.Now())
 	}
 	// is_insurance == false の場合は保険情報を NULL にする
 	var insuranceCompanyName *string
