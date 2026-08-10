@@ -75,15 +75,16 @@ type PetResponse struct {
 	LastVisit       *time.Time `json:"last_visit,omitempty"`
 	InsuranceID     *uint64    `json:"insurance_id,omitempty"`
 	Remarks         string     `json:"remarks"`
-	// DeceasedReason は含めない（セキュリティレビュー指摘と平仄を合わせる: 現状どの UI
-	// コンポーネントもこの値を読み取らない — 死亡ダイアログは書き込み専用。将来的な読み取り
-	// UI が実装されるまでは意図的に未追加とする。DeceasedAt のみで死亡バナー表示は成立する）。
-	DeceasedAt    *time.Time              `json:"deceased_at,omitempty"`
-	CreatedAt     time.Time               `json:"created_at"`
-	UpdatedAt     time.Time               `json:"updated_at"`
-	Owner         *PetOwnerNested         `json:"owner,omitempty"`
-	AnimalSpecies *PetAnimalSpeciesNested `json:"animal_species,omitempty"`
-	Insurance     *PetInsuranceNested     `json:"insurance,omitempty"`
+	// DeceasedReason は staff 向け GET /pets/{id} (本 DTO) のみに載せる（BUG-003）。
+	// owner.PetInOwnerResponse / LIFF 向け DTO には載せない（飼主経路への死因漏洩防止）。
+	// omitempty: 生存ペットや未記録時は JSON から物理的に欠落させる。
+	DeceasedReason *string                 `json:"deceased_reason,omitempty"`
+	DeceasedAt     *time.Time              `json:"deceased_at,omitempty"`
+	CreatedAt      time.Time               `json:"created_at"`
+	UpdatedAt      time.Time               `json:"updated_at"`
+	Owner          *PetOwnerNested         `json:"owner,omitempty"`
+	AnimalSpecies  *PetAnimalSpeciesNested `json:"animal_species,omitempty"`
+	Insurance      *PetInsuranceNested     `json:"insurance,omitempty"`
 }
 
 // petFirstVisitResponse は #158 飼主レポートのペット初診日（最古カルテ date 由来）。
@@ -246,6 +247,7 @@ func toPetResponse(p *model.Pet) PetResponse {
 		LastVisit:       httpapi.LocalTimePtr(p.LastVisit),
 		InsuranceID:     p.InsuranceID,
 		Remarks:         p.Remarks,
+		DeceasedReason:  p.DeceasedReason,
 		DeceasedAt:      httpapi.LocalTimePtr(p.DeceasedAt),
 		CreatedAt:       httpapi.LocalTime(p.CreatedAt),
 		UpdatedAt:       httpapi.LocalTime(p.UpdatedAt),

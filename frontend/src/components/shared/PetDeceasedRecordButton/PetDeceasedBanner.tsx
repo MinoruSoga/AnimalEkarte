@@ -7,6 +7,7 @@ import { useRevokePetDeath } from "@/hooks/use-revoke-pet-death";
 
 interface PetDeceasedBannerProps {
   deceasedAt: string;
+  deceasedReason?: string | null;
   birthDate?: string;
   petId: string;
   canEdit?: boolean;
@@ -27,6 +28,7 @@ function formatDeceasedDate(deceasedAt: string): string {
 
 export function PetDeceasedBanner({
   deceasedAt,
+  deceasedReason,
   birthDate,
   petId,
   canEdit = false,
@@ -42,6 +44,7 @@ export function PetDeceasedBanner({
 
   const age = birthDate ? calcAgeAt(deceasedAt, birthDate) : null;
   const formattedDate = formatDeceasedDate(deceasedAt);
+  const trimmedReason = deceasedReason?.trim() || "";
 
   const handleRevokeConfirm = () => {
     if (canEditRef.current !== true) return;
@@ -81,6 +84,12 @@ export function PetDeceasedBanner({
           </button>
         ) : null}
       </div>
+
+      {trimmedReason ? (
+        <p className={`mt-1.5 ${C.text50}`}>
+          死亡理由: <span className={C.text70}>{trimmedReason}</span>
+        </p>
+      ) : null}
 
       {canEdit ? (
         <ConfirmDialog

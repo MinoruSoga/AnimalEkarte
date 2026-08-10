@@ -29,6 +29,7 @@ interface PetCareSectionProps {
     petId: string;
     status: "死亡" | "生存";
     deceasedAt: string | null;
+    deceasedReason?: string | null;
   }) => void;
 }
 
@@ -126,12 +127,18 @@ export function PetCareSection({
               petGender={formData.gender}
               birthDate={formData.birthDate}
               deceasedAt={formData.deceasedAt ?? null}
+              deceasedReason={formData.deceasedReason}
               petStatus={formData.status}
               canEdit={canEdit}
-              onRecorded={({ deceasedAt }) => {
+              onRecorded={({ deceasedAt, deceasedReason }) => {
                 setFormData((prev) =>
                   prev.id === targetPetId
-                    ? { ...prev, status: "死亡", deceasedAt }
+                    ? {
+                        ...prev,
+                        status: "死亡",
+                        deceasedAt,
+                        deceasedReason: deceasedReason ?? null,
+                      }
                     : prev,
                 );
                 // BUG-002: mutation 成功後のみ外側一覧へ通知（API は 204・本文なし）
@@ -139,18 +146,20 @@ export function PetCareSection({
                   petId: targetPetId,
                   status: "死亡",
                   deceasedAt,
+                  deceasedReason: deceasedReason ?? null,
                 });
               }}
               onRevoked={() => {
                 setFormData((prev) =>
                   prev.id === targetPetId
-                    ? { ...prev, status: "生存", deceasedAt: null }
+                    ? { ...prev, status: "生存", deceasedAt: null, deceasedReason: null }
                     : prev,
                 );
                 onPetLifecycleChange?.({
                   petId: targetPetId,
                   status: "生存",
                   deceasedAt: null,
+                  deceasedReason: null,
                 });
               }}
             />

@@ -101,25 +101,26 @@ describe("transformBackendPetToFrontend", () => {
 
   // PR#186 P2-2 Bug#1 回帰テスト: deceased_at は response DTO への追加のみで
   // transform 層の配線が漏れると、値が API から届いても UI に渡らない。
-  // deceased_reason はセキュリティレビュー指摘によりバックエンド response DTO
-  // から意図的に除外済み（未curationの LIFF 経路での漏洩防止）のため、
-  // transform 層も対応するフィールドを持たない。
+  // BUG-003: deceased_reason も staff PetResponse 経由で deceasedReason へ。
   it("deceased_at を deceasedAt へマッピングする", () => {
     const pet = transformBackendPetToFrontend(
       makeBackendPet({
         status: "deceased",
         deceased_at: "2026-07-10T12:00:00+09:00",
+        deceased_reason: "老衰",
       }),
     );
 
     expect(pet.status).toBe("死亡");
     expect(pet.deceasedAt).toBe("2026-07-10T12:00:00+09:00");
+    expect(pet.deceasedReason).toBe("老衰");
   });
 
   it("deceased_at 未設定（生存中）は undefined のまま（捏造しない）", () => {
     const pet = transformBackendPetToFrontend(makeBackendPet());
 
     expect(pet.deceasedAt).toBeUndefined();
+    expect(pet.deceasedReason).toBeUndefined();
   });
 
   it("未知statusは生存へ推測せず不明にする", () => {

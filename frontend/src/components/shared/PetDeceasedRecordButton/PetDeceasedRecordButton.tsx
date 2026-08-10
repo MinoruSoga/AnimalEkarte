@@ -11,6 +11,8 @@ interface PetDeceasedRecordButtonProps {
   petGender?: string;
   birthDate?: string;
   deceasedAt?: string | null;
+  /** BUG-003: 再表示用。GET /pets/{id} 由来 */
+  deceasedReason?: string | null;
   petStatus?: string | null;
   canEdit?: boolean;
   /** BUG-407: 死亡記録成功時に外側フォームのローカル状態へ同期するためのコールバック */
@@ -26,6 +28,7 @@ export function PetDeceasedRecordButton({
   petGender,
   birthDate,
   deceasedAt,
+  deceasedReason,
   petStatus,
   canEdit = false,
   onRecorded,
@@ -39,6 +42,7 @@ export function PetDeceasedRecordButton({
     return (
       <PetDeceasedBanner
         deceasedAt={deceasedAt}
+        deceasedReason={deceasedReason}
         birthDate={birthDate}
         petId={petId}
         canEdit={canEdit}

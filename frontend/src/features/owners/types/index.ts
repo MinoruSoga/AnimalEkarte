@@ -53,6 +53,8 @@ export interface PetFormData {
   insuranceDetails?: string;
   /** PR#186 P2-2 Bug#1: 死亡記録日時。未死亡 = undefined/null */
   deceasedAt?: string | null;
+  /** BUG-003: staff GET /pets/{id} 由来の死亡理由。owner nested には無い */
+  deceasedReason?: string | null;
 }
 
 // Owner data

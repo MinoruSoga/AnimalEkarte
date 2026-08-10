@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
+import { useGetPet } from "@/hooks/use-pet";
 import { usePermission } from "@/hooks/use-permission";
 import { C, LAYOUT } from "@/lib/design-tokens";
 import { useGetInsurances } from "../api/get-insurances";
@@ -28,6 +29,7 @@ interface PetEditModalProps {
     petId: string;
     status: "死亡" | "生存";
     deceasedAt: string | null;
+    deceasedReason?: string | null;
   }) => void;
 }
 
@@ -56,6 +58,9 @@ export const PetEditModal = memo(function PetEditModal({
         ? "登録されていません"
         : "選択してください";
   const { data: insuranceList = [], isLoading: isLoadingInsurances } = useGetInsurances();
+  // BUG-003: owner nested には deceased_reason が無いため、編集再オープン時に GET /pets/{id} で水和する。
+  const detailPetId = open && petData?.id ? petData.id : "";
+  const { data: petDetail } = useGetPet(detailPetId);
 
   const [formData, setFormData] = useState<PetFormData>(() => createPetFormData(petData));
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -76,6 +81,26 @@ export const PetEditModal = memo(function PetEditModal({
   // petData の各フィールドではなく petData 参照自体の変化（open トリガー）で十分
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
+
+  // BUG-003: detail GET が返ったら死亡日・理由をマージ（他フィールドはローカル編集中の値を維持）
+  useEffect(() => {
+    if (!open || !petDetail || !petData?.id) return;
+    if (String(petDetail.id) !== String(petData.id)) return;
+    setFormData((prev) => {
+      if (prev.id !== petData.id) return prev;
+      const nextReason = petDetail.deceasedReason ?? null;
+      const nextAt = petDetail.deceasedAt ?? prev.deceasedAt ?? null;
+      if (prev.deceasedReason === nextReason && prev.deceasedAt === nextAt) {
+        return prev;
+      }
+      return {
+        ...prev,
+        deceasedAt: nextAt,
+        deceasedReason: nextReason,
+        status: petDetail.status === "死亡" || petDetail.status === "生存" ? petDetail.status : prev.status,
+      };
+    });
+  }, [open, petDetail, petData?.id]);
 
   const handleSave = () => {
     const errors: Record<string, string> = {};

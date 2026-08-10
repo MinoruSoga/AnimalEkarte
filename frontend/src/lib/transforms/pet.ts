@@ -126,10 +126,9 @@ export const transformBackendPetToFrontend = (p: PetResponse) => ({
       : undefined,
   remarks: p.remarks,
   // PR#186 P2-2 Bug#1: 死亡記録日時。null許容 (未死亡 = undefined)。
-  // deceasedReason は含めない — セキュリティレビュー指摘によりバックエンド
-  // response DTO (PetResponse / petInOwnerResponse) から意図的に除外済み
-  // (未curationの LIFF 経路での漏洩防止。UI側にも読み取り消費者が無い)。
+  // BUG-003: staff GET /pets/{id} の deceased_reason を deceasedReason へ（owner/LIFF は別契約）。
   deceasedAt: p.deceased_at,
+  deceasedReason: p.deceased_reason,
 });
 
 /**
