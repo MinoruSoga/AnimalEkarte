@@ -104,6 +104,8 @@ function ExaminationFormContent({ id }: { id: string | undefined }) {
     setItemName,
     handleUnconfirm,
     isPersistedConfirmed,
+    isPersistedCompletedLocked,
+    isPersistedResultsLocked,
     isPatientChangeLocked,
   } = useExaminationForm(id, medicalRecordId ?? undefined, {
     canCreate,
@@ -177,8 +179,9 @@ function ExaminationFormContent({ id }: { id: string | undefined }) {
 
   const { selectedPets, setSelectedPets } = petSelection;
   const selectedPet = selectedPets[0];
-  // 編集ロックはサーバ保存済み確定のみ。ドラフトで「確定」を選んでも保存 UI を消さない（A-S02-01）。
   const isConfirmed = isPersistedConfirmed;
+  const isCompletedLocked = isPersistedCompletedLocked;
+  const isResultsLocked = isPersistedResultsLocked;
 
   // 現在のペットID（履歴フィルタ用）
   const currentPetId = formData.petId ?? selectedPet?.id ?? petId ?? undefined;
@@ -426,6 +429,7 @@ function ExaminationFormContent({ id }: { id: string | undefined }) {
                   isEdit={isEdit}
                   isDeleting={isDeleting}
                   isConfirmed={isConfirmed}
+                  isCompletedLocked={isCompletedLocked}
                   canEdit={canEdit}
                   canCreate={canCreate}
                   canDelete={canDelete}
@@ -455,7 +459,7 @@ function ExaminationFormContent({ id }: { id: string | undefined }) {
                     onChangeName={handleItemNameChange}
                     onAddItem={handleAddItem}
                     onRemoveItem={handleRemoveItem}
-                    disabled={isConfirmed}
+                    disabled={isResultsLocked}
                   />
                 </div>
               </div>

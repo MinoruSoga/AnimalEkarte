@@ -30,7 +30,10 @@ interface ExaminationFormFieldsProps {
   masterLoading: boolean;
   isEdit: boolean;
   isDeleting: boolean;
+  /** Server-persisted confirmed — full lock (S02). */
   isConfirmed: boolean;
+  /** BUG-033: first-pass completed seal — results/delete lock; status transition save allowed. */
+  isCompletedLocked?: boolean;
   canEdit: boolean;
   canCreate: boolean;
   canDelete: boolean;
@@ -48,6 +51,7 @@ function ExaminationFormFieldsBase({
   isEdit,
   isDeleting,
   isConfirmed,
+  isCompletedLocked = false,
   canEdit,
   canCreate,
   canDelete,
@@ -57,6 +61,10 @@ function ExaminationFormFieldsBase({
   onDeleteClick,
 }: ExaminationFormFieldsProps) {
   const canSubmit = isEdit ? canEdit : canCreate && canEdit;
+  const fieldsLocked = isConfirmed || isCompletedLocked;
+  // completed seal: hide save/delete while status remains 完了; allow save after status change (confirm/unlock).
+  const showActions =
+    !isConfirmed && !(isCompletedLocked && formData.status === "完了");
   const testTypeError = fieldErrors?.testTypeId;
   const doctorError = fieldErrors?.doctorId;
 
@@ -75,6 +83,11 @@ function ExaminationFormFieldsBase({
       {isConfirmed ? (
         <p className={`text-sm font-medium ${C.text60}`}>確定済みのため編集できません。</p>
       ) : null}
+      {isCompletedLocked && !isConfirmed ? (
+        <p className={`text-sm font-medium ${C.text60}`}>
+          完了済みのため結果の編集・削除はできません。確定する場合はステータスを「確定」に変更して保存してください。
+        </p>
+      ) : null}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-1.5">
           <div className="flex items-center justify-between">
@@ -86,7 +99,7 @@ function ExaminationFormFieldsBase({
           ) : (
             <SearchableSelect
               value={formData.testTypeId ?? ""}
-              disabled={isConfirmed}
+              disabled={fieldsLocked}
               onValueChange={(value) => {
                 const item = examTypes.find((examType) => examType.id === value);
                 onSetFormData({ testTypeId: value, testType: item?.name ?? value });
@@ -111,7 +124,7 @@ function ExaminationFormFieldsBase({
           ) : (
             <SearchableSelect
               value={formData.doctorId ?? ""}
-              disabled={isConfirmed}
+              disabled={fieldsLocked}
               onValueChange={(value) => {
                 const staff = staffList.find((item) => String(item.id) === value);
                 onSetFormData({ doctorId: value, doctor: staff?.name ?? value });
@@ -133,8 +146,11 @@ function ExaminationFormFieldsBase({
         <DatePicker
           id="examination-date"
           value={formData.date ? formData.date.split("T")[0] : ""}
-          onChange={(value) => onSetFormData({ date: value ? jstDateStartISOString(value) : jstDateStartISOString(todayJSTISO()) })}
-          disabledDays={{ after: toJSTWallDate(new Date()) }}
+          onChange={(value) => {
+            if (fieldsLocked) return;
+            onSetFormData({ date: value ? jstDateStartISOString(value) : jstDateStartISOString(todayJSTISO()) });
+          }}
+          disabledDays={fieldsLocked ? () => true : { after: toJSTWallDate(new Date()) }}
         />
       </div>
 
@@ -161,14 +177,14 @@ function ExaminationFormFieldsBase({
           className={`h-24 text-sm ${C.text} ${C.bgWhite} ${C.borderMedium} resize-none`}
           placeholder="検査結果や備考を入力"
           value={formData.resultSummary || ""}
-          disabled={isConfirmed}
+          disabled={fieldsLocked}
           onChange={(event) => onSetFormData({ resultSummary: event.target.value })}
         />
       </div>
 
-      {isConfirmed ? null : (
+      {showActions ? (
         <div className="flex justify-end gap-2 pt-2">
-          {canDelete && isEdit ? (
+          {canDelete && isEdit && !isCompletedLocked ? (
             <Button
               variant="ghost"
               type="button"
@@ -187,7 +203,11 @@ function ExaminationFormFieldsBase({
             </SubmitButton>
           ) : null}
         </div>
-      )}
+      ) : isCompletedLocked ? (
+        <div className="flex justify-end gap-2 pt-2">
+          <Button variant="outline" type="button" onClick={onBack} className="text-sm">戻る</Button>
+        </div>
+      ) : null}
     </div>
   );
 }

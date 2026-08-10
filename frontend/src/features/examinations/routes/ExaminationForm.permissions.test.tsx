@@ -184,6 +184,8 @@ beforeEach(() => {
     handleUnconfirm: vi.fn(),
     isUnconfirming: false,
     isPersistedConfirmed: mocks.isPersistedConfirmed,
+    isPersistedCompletedLocked: false,
+    isPersistedResultsLocked: mocks.isPersistedConfirmed,
     isPatientChangeLocked: mocks.isPatientChangeLocked,
   }));
 });

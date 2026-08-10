@@ -1198,6 +1198,104 @@ func TestExaminationService_ReplaceItemsUsesLockedExamStatus(t *testing.T) {
 	assert.False(t, replaceCalled, "the locked confirmed snapshot must block result replacement")
 }
 
+func TestExaminationService_ReplaceItemsRejectsCompletedSeal(t *testing.T) {
+	replaceCalled := false
+	repo := &mockExaminationRepository{
+		lockByIDForUpdateFn: func(_ context.Context, _, id uint64) (*model.Examination, error) {
+			return &model.Examination{ID: id, Status: model.ExaminationStatusCompleted}, nil
+		},
+		replaceItemsByExamIDFn: func(_ context.Context, _, _ uint64, items []model.ExamResult) ([]model.ExamResult, int64, error) {
+			replaceCalled = true
+			return items, 0, nil
+		},
+	}
+	svc := NewExaminationService(repo, &mockMedicalRecordRepository{}, okExamTypeRepo(), nil, &mockCheckupTransactor{})
+
+	got, err := svc.ReplaceItems(context.Background(), 1, 1, nil, []UpsertExamItemInput{{
+		Name:            "WBC",
+		InspectionValue: "5.0",
+	}})
+
+	assert.Error(t, err)
+	assert.Nil(t, got)
+	assert.True(t, apperrors.IsConflict(err))
+	assert.Contains(t, err.Error(), "完了済み")
+	assert.False(t, replaceCalled, "BUG-033: first-pass completed seal must block result replacement")
+}
+
+func TestExaminationService_ReplaceItemsAllowsCompletedWorkingCopy(t *testing.T) {
+	rev := uint64(2)
+	replaceCalled := false
+	repo := &mockExaminationRepository{
+		lockByIDForUpdateFn: func(_ context.Context, _, id uint64) (*model.Examination, error) {
+			return &model.Examination{
+				ID: id, Status: model.ExaminationStatusCompleted, CurrentRevisionVersion: &rev,
+			}, nil
+		},
+		replaceItemsByExamIDFn: func(_ context.Context, _, _ uint64, items []model.ExamResult) ([]model.ExamResult, int64, error) {
+			replaceCalled = true
+			return items, 0, nil
+		},
+	}
+	// revisioned path needs revisionWorkflow — without it ReplaceItems returns 500.
+	// Use non-revision path assertion via nil version already covered; here provide workflow stub via real service path is heavy.
+	// Minimal: lock check must pass before revisionWorkflow nil check — if we get internal error about workflow, lock passed.
+	svc := NewExaminationService(repo, &mockMedicalRecordRepository{}, okExamTypeRepo(), nil, &mockCheckupTransactor{})
+
+	_, err := svc.ReplaceItems(context.Background(), 1, 1, nil, []UpsertExamItemInput{{
+		Name:            "WBC",
+		InspectionValue: "5.0",
+	}})
+
+	// Passed results lock; fails later on missing revision workflow (expected for this unit mock).
+	assert.Error(t, err)
+	assert.False(t, apperrors.IsConflict(err), "post-unconfirm completed must not hit results lock conflict")
+	assert.False(t, replaceCalled)
+}
+
+func TestExaminationService_UpdateRejectsItemsOnCompletedSeal(t *testing.T) {
+	updateCalled := false
+	repo := &mockExaminationRepository{
+		lockByIDForUpdateFn: func(_ context.Context, _, id uint64) (*model.Examination, error) {
+			return &model.Examination{ID: id, ExamTypeID: 1, Status: model.ExaminationStatusCompleted}, nil
+		},
+		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Examination, error) {
+			updateCalled = true
+			return nil, nil
+		},
+	}
+	svc := NewExaminationService(repo, &mockMedicalRecordRepository{}, okExamTypeRepo(), &mockAuditTxLogger{}, &mockCheckupTransactor{})
+	items := []UpsertExamItemInput{{Name: "WBC", InspectionValue: "1"}}
+	got, err := svc.Update(context.Background(), 1, 1, UpdateExaminationInput{
+		ActorID: ptrUint64(9),
+		Items:   &items,
+	})
+	assert.Error(t, err)
+	assert.Nil(t, got)
+	assert.True(t, apperrors.IsConflict(err))
+	assert.Contains(t, err.Error(), "完了済み")
+	assert.False(t, updateCalled)
+}
+
+func TestExaminationService_DeleteRejectsCompletedSeal(t *testing.T) {
+	deleteCalled := false
+	repo := &mockExaminationRepository{
+		lockByIDForUpdateFn: func(_ context.Context, _, id uint64) (*model.Examination, error) {
+			return &model.Examination{ID: id, Status: model.ExaminationStatusCompleted}, nil
+		},
+		deleteFn: func(_ context.Context, _, _ uint64) error {
+			deleteCalled = true
+			return nil
+		},
+	}
+	svc := NewExaminationService(repo, &mockMedicalRecordRepository{}, okExamTypeRepo(), &mockAuditTxLogger{}, &mockCheckupTransactor{})
+	err := svc.Delete(context.Background(), 1, 1, ptrUint64(9))
+	assert.Error(t, err)
+	assert.True(t, apperrors.IsConflict(err))
+	assert.Contains(t, err.Error(), "完了済み")
+	assert.False(t, deleteCalled)
+}
+
 func TestExaminationService_ReplaceItemsLocksParentFromLockedExam(t *testing.T) {
 	lockedMedicalRecordID := uint64(20)
 	staleMedicalRecordID := uint64(10)

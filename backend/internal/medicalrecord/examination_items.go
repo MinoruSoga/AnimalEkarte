@@ -31,7 +31,7 @@ func (s *examinationService) ListItems(ctx context.Context, clinicID, examID uin
 //
 // 仕様:
 //  1. 親 exam の存在を FindByID で確認（P1）
-//  2. 親 exam が confirmed の場合は Conflict (409) で拒否
+//  2. 親 exam が confirmed、または revision なし completed（BUG-033 初回完了シール）の場合は Conflict (409) で拒否
 //  3. 各 input の inspection_value とサーバで解決した基準値から status / is_abnormal を導出
 //  4. repository の ReplaceItemsByExamID（トランザクション内で全削除→一括挿入）に委譲
 //  5. 実削除が発生した場合（deletedCount > 0）は同一 tx 内で監査ログを書き込む。監査書込が失敗したら
@@ -52,8 +52,8 @@ func (s *examinationService) ReplaceItems(ctx context.Context, clinicID, examID 
 		if err != nil {
 			return apperrors.Wrap(err, "failed to lock examination")
 		}
-		if locked.Status == model.ExaminationStatusConfirmed {
-			return apperrors.WrapConflict("確定済みの検査は編集できません")
+		if examinationResultsLocked(locked) {
+			return errExaminationResultsLocked(locked)
 		}
 		before := *locked
 		revisioned := locked.CurrentRevisionVersion != nil
