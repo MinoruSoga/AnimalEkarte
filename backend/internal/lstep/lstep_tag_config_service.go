@@ -81,6 +81,15 @@ func (s *lstepTagConfigService) CreateAutoManagedPrefix(ctx context.Context, inp
 		Description: input.Description,
 	}
 	if err := s.repo.CreateAutoManagedPrefix(ctx, m); err != nil {
+		// BUG-026: map measured prefix unique_violation to stable domain code + value echo.
+		if conflict := apperrors.AsNameUniqueConflict(
+			err,
+			input.Prefix,
+			apperrors.ConstraintLstepAutoManagedPrefix,
+			apperrors.CodeLstepAutoManagedPrefixConflict,
+		); conflict != nil {
+			return nil, conflict
+		}
 		slog.ErrorContext(ctx, "failed to create auto managed prefix", "prefix", input.Prefix, "error", err)
 		return nil, apperrors.Wrap(err, "failed to create auto managed prefix")
 	}

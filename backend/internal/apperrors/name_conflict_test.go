@@ -90,6 +90,28 @@ func TestAsNameUniqueConflict_AnimalSpeciesName(t *testing.T) {
 	assert.Equal(t, "V04動物種類", appErr.Params["name"])
 }
 
+func TestAsNameUniqueConflict_ShiftTemplateAndLstepPrefix(t *testing.T) {
+	shift := AsNameUniqueConflict(
+		FromGORM(&pgconn.PgError{Code: "23505", ConstraintName: ConstraintShiftTemplateName}, "shift_template", ""),
+		"早番",
+		ConstraintShiftTemplateName,
+		CodeShiftTemplateNameConflict,
+	)
+	require.Error(t, shift)
+	assert.True(t, IsNameConflict(shift, CodeShiftTemplateNameConflict))
+	assert.True(t, RespondWithConflictCode(shift))
+
+	prefix := AsNameUniqueConflict(
+		FromGORM(&pgconn.PgError{Code: "23505", ConstraintName: ConstraintLstepAutoManagedPrefix}, "lstep_auto_managed_prefix", ""),
+		"checkup_",
+		ConstraintLstepAutoManagedPrefix,
+		CodeLstepAutoManagedPrefixConflict,
+	)
+	require.Error(t, prefix)
+	assert.True(t, IsNameConflict(prefix, CodeLstepAutoManagedPrefixConflict))
+	assert.True(t, RespondWithConflictCode(prefix))
+}
+
 func TestConflictHTTPExtras_AndRespondFlag(t *testing.T) {
 	err := WrapNameConflict(CodePermissionGroupNameConflict, "執行")
 	extras := ConflictHTTPExtras(err)

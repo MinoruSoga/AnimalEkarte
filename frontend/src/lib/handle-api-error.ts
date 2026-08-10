@@ -1,15 +1,26 @@
 import axios from "axios";
 import { toast } from "sonner";
 
-/** Stable BE domain conflict codes (BUG-023 / BUG-027). */
+/** Stable BE domain conflict codes (BUG-023 / BUG-027 / BUG-026). */
 export const CONFLICT_CODE_PERMISSION_GROUP_NAME =
   "permission_group_name_conflict" as const;
 export const CONFLICT_CODE_ANIMAL_SPECIES_NAME =
   "animal_species_name_conflict" as const;
+export const CONFLICT_CODE_SHIFT_TEMPLATE_NAME =
+  "shift_template_name_conflict" as const;
+export const CONFLICT_CODE_LSTEP_AUTO_MANAGED_PREFIX =
+  "lstep_auto_managed_prefix_conflict" as const;
 
-type KnownConflictCode =
-  | typeof CONFLICT_CODE_PERMISSION_GROUP_NAME
-  | typeof CONFLICT_CODE_ANIMAL_SPECIES_NAME;
+const KNOWN_CONFLICT_MESSAGES: Record<string, (name: string) => string> = {
+  [CONFLICT_CODE_PERMISSION_GROUP_NAME]: (name) =>
+    `権限グループ名『${name}』は既に使用されています`,
+  [CONFLICT_CODE_ANIMAL_SPECIES_NAME]: (name) =>
+    `動物種類『${name}』は既に使用されています`,
+  [CONFLICT_CODE_SHIFT_TEMPLATE_NAME]: (name) =>
+    `シフトテンプレート名『${name}』は既に使用されています`,
+  [CONFLICT_CODE_LSTEP_AUTO_MANAGED_PREFIX]: (name) =>
+    `自動管理プレフィックス『${name}』は既に使用されています`,
+};
 
 interface ApiErrorBody {
   error?: string;
@@ -28,19 +39,18 @@ export function localizeConflictMessage(
   code: string | undefined,
   params: ApiErrorBody["params"] | undefined,
 ): string | null {
-  if (code !== CONFLICT_CODE_PERMISSION_GROUP_NAME &&
-      code !== CONFLICT_CODE_ANIMAL_SPECIES_NAME) {
+  if (!code) {
     return null;
   }
-  const knownCode = code as KnownConflictCode;
+  const formatter = KNOWN_CONFLICT_MESSAGES[code];
+  if (!formatter) {
+    return null;
+  }
   const name = params?.name?.trim();
   if (!name) {
     return null;
   }
-  if (knownCode === CONFLICT_CODE_PERMISSION_GROUP_NAME) {
-    return `権限グループ名『${name}』は既に使用されています`;
-  }
-  return `動物種類『${name}』は既に使用されています`;
+  return formatter(name);
 }
 
 /**
@@ -70,7 +80,7 @@ export function handleApiError(err: unknown, context: string): void {
       toast.error(serverMessage ?? `${context}対象が見つかりません。`);
     } else if (status === 409) {
       // Prefer stable domain code → JA localization over raw English serverMessage
-      // (BUG-023/027: permission_group '' already exists / animal_species '' already exists).
+      // (BUG-023/027/026: internal id + empty string already-exists toasts).
       const localized = localizeConflictMessage(data?.code, data?.params);
       toast.error(
         localized ??

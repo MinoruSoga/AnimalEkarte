@@ -33,7 +33,8 @@ func (h *Handler) CreateAutoManagedPrefix(c *gin.Context) {
 	}
 	item, err := h.tagConfig.CreateAutoManagedPrefix(c.Request.Context(), req.toServiceInput())
 	if err != nil {
-		httpapi.RespondError(c, err)
+		// BUG-026: emit stable prefix-conflict code + params when present.
+		httpapi.RespondErrorPreferringConflictCode(c, err)
 		return
 	}
 	c.Header("Location", fmt.Sprintf("/api/v1/lstep-tag-config/auto-managed-prefixes/%d", item.ID))

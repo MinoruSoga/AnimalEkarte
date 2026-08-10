@@ -29,10 +29,16 @@ const (
 	// CodeAnimalSpeciesNameConflict is returned when an active animal species name
 	// collides (constraint idx_animal_species_name).
 	CodeAnimalSpeciesNameConflict = "animal_species_name_conflict"
+	// CodeShiftTemplateNameConflict is returned when a clinic-scoped shift template
+	// name collides (constraint uk_shift_templates_clinic_name). BUG-026.
+	CodeShiftTemplateNameConflict = "shift_template_name_conflict"
+	// CodeLstepAutoManagedPrefixConflict is returned when an auto-managed L-step
+	// prefix collides (constraint lstep_auto_managed_prefixes_prefix_key). BUG-026.
+	CodeLstepAutoManagedPrefixConflict = "lstep_auto_managed_prefix_conflict"
 )
 
 // Measured PostgreSQL unique constraint names used for fail-closed mapping.
-// Values match backend/migrations/001_init.sql (not guessed).
+// Values match backend/migrations/001_init.sql / live DB (not guessed).
 const (
 	// ConstraintPermissionGroupName is UNIQUE (clinic_id, name) WHERE deleted_at IS NULL.
 	ConstraintPermissionGroupName = "uk_permission_groups"
@@ -40,6 +46,10 @@ const (
 	ConstraintPermissionGroupRules = "uk_permission_group_rules"
 	// ConstraintAnimalSpeciesName is UNIQUE (name) WHERE is_active = true.
 	ConstraintAnimalSpeciesName = "idx_animal_species_name"
+	// ConstraintShiftTemplateName is UNIQUE (clinic_id, name) WHERE deleted_at IS NULL.
+	ConstraintShiftTemplateName = "uk_shift_templates_clinic_name"
+	// ConstraintLstepAutoManagedPrefix is UNIQUE (prefix) on lstep_auto_managed_prefixes.
+	ConstraintLstepAutoManagedPrefix = "lstep_auto_managed_prefixes_prefix_key"
 )
 
 // AppError はアプリケーション固有のエラー
@@ -200,7 +210,10 @@ func RespondWithConflictCode(err error) bool {
 		return false
 	}
 	switch appErr.Code {
-	case CodePermissionGroupNameConflict, CodeAnimalSpeciesNameConflict:
+	case CodePermissionGroupNameConflict,
+		CodeAnimalSpeciesNameConflict,
+		CodeShiftTemplateNameConflict,
+		CodeLstepAutoManagedPrefixConflict:
 		return true
 	default:
 		return len(appErr.Params) > 0

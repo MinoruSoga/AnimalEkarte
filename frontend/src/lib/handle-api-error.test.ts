@@ -4,7 +4,9 @@ import { toast } from "sonner";
 
 import {
   CONFLICT_CODE_ANIMAL_SPECIES_NAME,
+  CONFLICT_CODE_LSTEP_AUTO_MANAGED_PREFIX,
   CONFLICT_CODE_PERMISSION_GROUP_NAME,
+  CONFLICT_CODE_SHIFT_TEMPLATE_NAME,
   handleApiError,
   localizeConflictMessage,
 } from "./handle-api-error";
@@ -50,6 +52,22 @@ describe("localizeConflictMessage", () => {
         name: "V04動物種類",
       }),
     ).toBe("動物種類『V04動物種類』は既に使用されています");
+  });
+
+  it("maps shift_template_name_conflict with name (BUG-026)", () => {
+    expect(
+      localizeConflictMessage(CONFLICT_CODE_SHIFT_TEMPLATE_NAME, {
+        name: "早番",
+      }),
+    ).toBe("シフトテンプレート名『早番』は既に使用されています");
+  });
+
+  it("maps lstep_auto_managed_prefix_conflict with name (BUG-026)", () => {
+    expect(
+      localizeConflictMessage(CONFLICT_CODE_LSTEP_AUTO_MANAGED_PREFIX, {
+        name: "checkup_",
+      }),
+    ).toBe("自動管理プレフィックス『checkup_』は既に使用されています");
   });
 
   it("returns null for unknown code (keep fallback)", () => {
@@ -107,6 +125,37 @@ describe("handleApiError 409 localization", () => {
     );
     expect(toast.error).toHaveBeenCalledWith(
       "動物種類『V04動物種類』は既に使用されています",
+    );
+  });
+
+  it("shows Japanese message for shift template name conflict (BUG-026)", () => {
+    handleApiError(
+      axiosError(409, {
+        error: "shift_template '' already exists",
+        code: CONFLICT_CODE_SHIFT_TEMPLATE_NAME,
+        params: { name: "早番" },
+      }),
+      "シフトテンプレートの作成",
+    );
+    expect(toast.error).toHaveBeenCalledWith(
+      "シフトテンプレート名『早番』は既に使用されています",
+    );
+    expect(toast.error).not.toHaveBeenCalledWith(
+      expect.stringContaining("already exists"),
+    );
+  });
+
+  it("shows Japanese message for lstep auto managed prefix conflict (BUG-026)", () => {
+    handleApiError(
+      axiosError(409, {
+        error: "lstep_auto_managed_prefix '' already exists",
+        code: CONFLICT_CODE_LSTEP_AUTO_MANAGED_PREFIX,
+        params: { name: "checkup_" },
+      }),
+      "自動管理プレフィックスの追加",
+    );
+    expect(toast.error).toHaveBeenCalledWith(
+      "自動管理プレフィックス『checkup_』は既に使用されています",
     );
   });
 

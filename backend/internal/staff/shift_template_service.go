@@ -156,6 +156,15 @@ func (s *shiftTemplateService) Create(ctx context.Context, clinicID uint64, inpu
 	var result *model.ShiftTemplate
 	if err := s.repo.WithTx(ctx, func(txCtx context.Context) error {
 		if err := s.repo.Create(txCtx, template); err != nil {
+			// BUG-026: map measured name unique_violation to stable domain code + name echo.
+			if conflict := apperrors.AsNameUniqueConflict(
+				err,
+				input.Name,
+				apperrors.ConstraintShiftTemplateName,
+				apperrors.CodeShiftTemplateNameConflict,
+			); conflict != nil {
+				return conflict
+			}
 			return apperrors.Wrap(err, "failed to create shift template")
 		}
 		if len(breaks) > 0 {
@@ -170,6 +179,9 @@ func (s *shiftTemplateService) Create(ctx context.Context, clinicID uint64, inpu
 		result = created
 		return nil
 	}); err != nil {
+		if apperrors.IsNameConflict(err, apperrors.CodeShiftTemplateNameConflict) {
+			return nil, err
+		}
 		slog.ErrorContext(ctx, "failed to create shift template", "error", err, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to create shift template")
 	}
@@ -232,6 +244,19 @@ func (s *shiftTemplateService) Update(ctx context.Context, clinicID, id uint64, 
 
 		if len(fields) > 0 {
 			if _, err := s.repo.Update(txCtx, clinicID, id, fields); err != nil {
+				// BUG-026: map measured name unique_violation to stable domain code + name echo.
+				nameForConflict := ""
+				if input.Name != nil {
+					nameForConflict = *input.Name
+				}
+				if conflict := apperrors.AsNameUniqueConflict(
+					err,
+					nameForConflict,
+					apperrors.ConstraintShiftTemplateName,
+					apperrors.CodeShiftTemplateNameConflict,
+				); conflict != nil {
+					return conflict
+				}
 				return apperrors.Wrap(err, "failed to update shift template")
 			}
 		}
@@ -247,6 +272,9 @@ func (s *shiftTemplateService) Update(ctx context.Context, clinicID, id uint64, 
 		result = updated
 		return nil
 	}); err != nil {
+		if apperrors.IsNameConflict(err, apperrors.CodeShiftTemplateNameConflict) {
+			return nil, err
+		}
 		slog.ErrorContext(ctx, "failed to update shift template", "error", err, "id", id, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to update shift template")
 	}
