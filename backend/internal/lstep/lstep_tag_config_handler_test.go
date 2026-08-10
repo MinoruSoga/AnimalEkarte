@@ -327,6 +327,30 @@ func TestCreateConditionTagMapping_Handler(t *testing.T) {
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
 
+	// BUG-025: VARCHAR(50) overflow must be 400 with explicit bind message, not 500.
+	t.Run("400 condition_code longer than 50", func(t *testing.T) {
+		called := false
+		r := newLstepTagConfigRouter(
+			&mockLstepTagConfigService{
+				createConditionTagMappingFn: func(_ context.Context, _ CreateConditionTagMappingInput) (*model.LstepConditionTagMapping, error) {
+					called = true
+					return &model.LstepConditionTagMapping{ID: 1}, nil
+				},
+			},
+			nil,
+			func(c *gin.Context) { setSystemAdmin(c) },
+		)
+		code51 := strings.Repeat("A", 51)
+		body := fmt.Sprintf(`{"condition_code":%q,"tag_name":"CHRON_DM"}`, code51)
+		req := httptest.NewRequest(http.MethodPost, "/lstep-tag-config/condition-tag-mappings", strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+		assert.Contains(t, w.Body.String(), "condition_code は 50 以下で入力してください")
+		assert.False(t, called, "service must not run when condition_code exceeds max")
+	})
+
 	t.Run("201 created", func(t *testing.T) {
 		r := newLstepTagConfigRouter(
 			&mockLstepTagConfigService{
@@ -344,6 +368,29 @@ func TestCreateConditionTagMapping_Handler(t *testing.T) {
 		r.ServeHTTP(w, req)
 		assert.Equal(t, http.StatusCreated, w.Code)
 		assert.Contains(t, w.Header().Get("Location"), "5")
+	})
+
+	// BUG-025 regression: boundary length 50 is accepted (201).
+	t.Run("201 condition_code exactly 50", func(t *testing.T) {
+		var gotCode string
+		r := newLstepTagConfigRouter(
+			&mockLstepTagConfigService{
+				createConditionTagMappingFn: func(_ context.Context, input CreateConditionTagMappingInput) (*model.LstepConditionTagMapping, error) {
+					gotCode = input.ConditionCode
+					return &model.LstepConditionTagMapping{ID: 6, ConditionCode: input.ConditionCode, TagName: input.TagName}, nil
+				},
+			},
+			nil,
+			func(c *gin.Context) { setSystemAdmin(c) },
+		)
+		code50 := strings.Repeat("B", 50)
+		body := fmt.Sprintf(`{"condition_code":%q,"tag_name":"CHRON_DM"}`, code50)
+		req := httptest.NewRequest(http.MethodPost, "/lstep-tag-config/condition-tag-mappings", strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		assert.Equal(t, http.StatusCreated, w.Code)
+		assert.Equal(t, code50, gotCode)
 	})
 
 	t.Run("500 service error", func(t *testing.T) {

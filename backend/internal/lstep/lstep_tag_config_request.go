@@ -12,7 +12,9 @@ func (r createAutoManagedPrefixRequest) toServiceInput() CreateAutoManagedPrefix
 }
 
 type createConditionTagMappingRequest struct {
-	ConditionCode string  `json:"condition_code" binding:"required"`
+	// condition_code matches DDL lstep_condition_tag_mappings.condition_code VARCHAR(50).
+	// max=50 rejects overflow at bind time (BUG-025: DB length violation was leaking as 500).
+	ConditionCode string  `json:"condition_code" binding:"required,max=50"`
 	TagName       string  `json:"tag_name"       binding:"required"`
 	Description   *string `json:"description"`
 }
