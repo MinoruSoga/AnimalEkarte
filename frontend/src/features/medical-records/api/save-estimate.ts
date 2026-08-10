@@ -16,6 +16,12 @@ export interface SaveEstimatePayload {
   medical_record_id?: number;
 }
 
+export interface UpdateEstimateRecordVariables {
+  /** BUG-016: id は mutation 変数で渡し、hook 生成時のクロージャ id=0 を避ける */
+  id: number;
+  payload: Partial<SaveEstimatePayload>;
+}
+
 const getEstimatesByRecord = async (
   medicalRecordId: string,
 ): Promise<Estimate | null> => {
@@ -38,22 +44,36 @@ export const useGetEstimateByRecord = (medicalRecordId?: string) => {
 export const useCreateEstimateRecord = (medicalRecordId: string) => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (payload: SaveEstimatePayload) =>
-      axios.post<Estimate>("/v1/estimates", payload),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: queryKeys.medicalRecords.estimate(medicalRecordId) });
+    mutationFn: async (payload: SaveEstimatePayload): Promise<Estimate> => {
+      const { data } = await axios.post<Estimate>("/v1/estimates", payload);
+      return data;
+    },
+    onSuccess: (created) => {
+      // 直後の再保存で existing が null のまま POST されるのを防ぐ
+      qc.setQueryData(queryKeys.medicalRecords.estimate(medicalRecordId), created);
+      void qc.invalidateQueries({
+        queryKey: queryKeys.medicalRecords.estimate(medicalRecordId),
+      });
     },
     onError: (error) => handleApiError(error, "見積登録"),
   });
 };
 
-export const useUpdateEstimateRecord = (estimateId: number, medicalRecordId: string) => {
+export const useUpdateEstimateRecord = (medicalRecordId: string) => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (payload: Partial<SaveEstimatePayload>) =>
-      axios.patch<Estimate>(`/v1/estimates/${estimateId}`, payload),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: queryKeys.medicalRecords.estimate(medicalRecordId) });
+    mutationFn: async ({
+      id,
+      payload,
+    }: UpdateEstimateRecordVariables): Promise<Estimate> => {
+      const { data } = await axios.patch<Estimate>(`/v1/estimates/${id}`, payload);
+      return data;
+    },
+    onSuccess: (updated) => {
+      qc.setQueryData(queryKeys.medicalRecords.estimate(medicalRecordId), updated);
+      void qc.invalidateQueries({
+        queryKey: queryKeys.medicalRecords.estimate(medicalRecordId),
+      });
     },
     onError: (error) => handleApiError(error, "見積更新"),
   });

@@ -192,6 +192,13 @@ export function useMedicalRecordSaveAction({
             break;
           }
 
+          case "見積書":
+            // BUG-016: 見積の永続化は post-save の estimateSave が正本。
+            // ここで汎用「保存しました」を出すと API 未送信でも成功に見える。
+            // 成功トーストは MedicalRecordEstimate が実 API 成功時のみ出す。
+            queryClient.invalidateQueries({ queryKey: queryKeys.reception.all() });
+            return { success: true, timestamp: Date.now() };
+
           default:
             break;
         }

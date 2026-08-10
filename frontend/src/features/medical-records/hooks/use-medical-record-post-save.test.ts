@@ -1,6 +1,7 @@
-import { act, renderHook } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+import { handleApiError } from "@/lib/handle-api-error";
 import { useMedicalRecordPostSave } from "./use-medical-record-post-save";
 
 vi.mock("@/lib/handle-api-error", () => ({
@@ -67,7 +68,98 @@ describe("useMedicalRecordPostSave BUG-010", () => {
       rerender({ formState: { success: true, timestamp: 2 } });
     });
 
-    expect(estimateSave).toHaveBeenCalledOnce();
+    await waitFor(() => expect(estimateSave).toHaveBeenCalledOnce());
     expect(markClean).toHaveBeenCalled();
+  });
+});
+
+describe("useMedicalRecordPostSave BUG-016", () => {
+  it("見積書 tab で save 失敗時は markClean しない（偽クリーン防止）", async () => {
+    const markClean = vi.fn();
+    const estimateSave = vi.fn().mockRejectedValue(new Error("patch failed"));
+
+    const { result, rerender } = renderHook(
+      ({ formState }) =>
+        useMedicalRecordPostSave({
+          activeTab: "見積書",
+          formState,
+          markClean,
+        }),
+      {
+        initialProps: {
+          formState: { success: false, timestamp: 0 },
+        },
+      },
+    );
+
+    act(() => {
+      result.current.handleRegisterEstimateSave(estimateSave);
+    });
+
+    await act(async () => {
+      rerender({ formState: { success: true, timestamp: 3 } });
+    });
+
+    await waitFor(() => expect(estimateSave).toHaveBeenCalledOnce());
+    expect(markClean).not.toHaveBeenCalled();
+  });
+
+  it("見積書 tab で save 未登録なら markClean せずエラー通知", async () => {
+    const markClean = vi.fn();
+
+    const { rerender } = renderHook(
+      ({ formState }) =>
+        useMedicalRecordPostSave({
+          activeTab: "見積書",
+          formState,
+          markClean,
+        }),
+      {
+        initialProps: {
+          formState: { success: false, timestamp: 0 },
+        },
+      },
+    );
+
+    await act(async () => {
+      rerender({ formState: { success: true, timestamp: 4 } });
+    });
+
+    await waitFor(() => expect(handleApiError).toHaveBeenCalled());
+    expect(markClean).not.toHaveBeenCalled();
+  });
+
+  it("2回目以降の success でも estimate save を毎回呼ぶ", async () => {
+    const markClean = vi.fn();
+    const estimateSave = vi.fn().mockResolvedValue(undefined);
+
+    const { result, rerender } = renderHook(
+      ({ formState }) =>
+        useMedicalRecordPostSave({
+          activeTab: "見積書",
+          formState,
+          markClean,
+        }),
+      {
+        initialProps: {
+          formState: { success: false, timestamp: 0 },
+        },
+      },
+    );
+
+    act(() => {
+      result.current.handleRegisterEstimateSave(estimateSave);
+    });
+
+    await act(async () => {
+      rerender({ formState: { success: true, timestamp: 10 } });
+    });
+    await waitFor(() => expect(estimateSave).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      rerender({ formState: { success: true, timestamp: 11 } });
+    });
+    await waitFor(() => expect(estimateSave).toHaveBeenCalledTimes(2));
+    expect(markClean).toHaveBeenCalledTimes(2);
   });
 });
