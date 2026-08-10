@@ -94,5 +94,7 @@ export interface Accounting {
   payment?: PaymentInfo;
   paymentSplits?: PaymentSplitInfo[];
   totalRefundedAmount: number; // 返金合計（0の場合はバッジ非表示）
+  /** BUG-007: 未収残高（waiting 全額 or クレジット訂正後の patient_due−支払額） */
+  outstandingAmount?: number;
   memo?: string;
 }

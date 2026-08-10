@@ -565,3 +565,74 @@ func TestFindMonthlyUnpaidCarryover_NextMonthCarryoverEquality(t *testing.T) {
 	assert.Equal(t, summary.PrevMonthCarryover+summary.CurrentMonthUnpaid, summary.NextMonthCarryover,
 		"next_month_carryover は prev + current の和でなければならない")
 }
+
+// TestUnpaidIncludesCreditCorrectionResidual_BUG007 はクレジット訂正で生じた
+// completed 会計の差額が未納者一覧・飼主残高に載ることを検証する（BUG-007）。
+// 通常の全額精算済み completed は依然として未収に出ないこと（回帰）。
+func TestUnpaidIncludesCreditCorrectionResidual_BUG007(t *testing.T) {
+	db := setupUnpaidCarryoverTestDB(t)
+	repo := NewAccountingRepository(db)
+	ctx := context.Background()
+	clinicID := uint64(1)
+
+	owner := testdb.MakeTestOwner(t, db, clinicID, "クレジット訂正未収飼主")
+	oid := owner.ID
+	date := time.Date(2026, 6, 15, 0, 0, 0, 0, time.UTC)
+
+	// waiting 全額 500（従来経路）
+	makeBilling(t, db, clinicID, &oid, nil, 500, model.BillingStatusWaiting, date)
+
+	// completed 全額精算（残差 0 → 未収に出ない）
+	full := makeBillingWith(t, db, billingFixtureOpts{
+		ClinicID: clinicID, OwnerID: &oid, TotalAmount: 1100,
+		Status: model.BillingStatusCompleted, ScheduledDate: date,
+	})
+	require.NoError(t, db.Create(&model.Payment{
+		BillingID: full.ID, ClinicID: clinicID,
+		TotalAmount: 1100, BillingAmount: 1100, Method: model.PaymentMethodCreditCard,
+	}).Error)
+
+	// completed + クレジット訂正で 1100→900（残差 200 → 未収）
+	under := makeBillingWith(t, db, billingFixtureOpts{
+		ClinicID: clinicID, OwnerID: &oid, TotalAmount: 1100,
+		Status: model.BillingStatusCompleted, ScheduledDate: date,
+	})
+	require.NoError(t, db.Create(&model.Payment{
+		BillingID: under.ID, ClinicID: clinicID,
+		TotalAmount: 1100, BillingAmount: 900, Method: model.PaymentMethodCreditCard,
+	}).Error)
+
+	t.Run("FindUnpaidByBilling includes residual amount", func(t *testing.T) {
+		got, total, err := repo.FindUnpaidByBilling(ctx, clinicID, firstDay2026June, lastDay2026June, 1, 100)
+		require.NoError(t, err)
+		assert.Equal(t, int64(2), total, "waiting + residual completed の 2 件")
+		require.Len(t, got, 2)
+
+		byID := map[uint64]model.Billing{}
+		for _, b := range got {
+			byID[b.ID] = b
+		}
+		assert.Contains(t, byID, under.ID)
+		assert.NotContains(t, byID, full.ID, "全額精算 completed は未収に出ない")
+		assert.Equal(t, int64(200), byID[under.ID].OutstandingAmount)
+	})
+
+	t.Run("FindUnpaidByOwner sums residual into owner total", func(t *testing.T) {
+		aggs, owners, summary, err := repo.FindUnpaidByOwner(ctx, clinicID, firstDay2026June, lastDay2026June, 1, 100)
+		require.NoError(t, err)
+		assert.Equal(t, int64(1), owners)
+		require.Len(t, aggs, 1)
+		// 500 (waiting) + 200 (residual) = 700
+		assert.Equal(t, int64(700), aggs[0].TotalAmount)
+		assert.Equal(t, int64(2), aggs[0].Count)
+		assert.Equal(t, int64(700), summary.TotalAmount)
+		assert.Equal(t, int64(2), summary.BillingCount)
+	})
+
+	t.Run("SumUnpaidByOwner includes residual", func(t *testing.T) {
+		bal, err := repo.SumUnpaidByOwner(ctx, clinicID, oid)
+		require.NoError(t, err)
+		assert.Equal(t, int64(700), bal.TotalAmount)
+		assert.Equal(t, int64(2), bal.Count)
+	})
+}

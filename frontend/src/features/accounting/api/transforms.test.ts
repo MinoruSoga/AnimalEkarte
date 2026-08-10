@@ -131,6 +131,7 @@ describe("transformToAccounting", () => {
       subtotal: 1000,
       tax_total: 100,
       total_amount: 1100,
+      outstanding_amount: 0,
       payments: [{
         id: 1,
         billing_id: 1,
@@ -140,6 +141,7 @@ describe("transformToAccounting", () => {
         change_amount: 900,
         insurance_amount: 0,
         discount_amount: 0,
+        total_amount: 1100,
         created_at: "2026-03-25T00:00:00Z",
         updated_at: "2026-03-25T00:00:00Z",
       }],
@@ -147,6 +149,27 @@ describe("transformToAccounting", () => {
     expect(result.payment).toBeDefined();
     expect(result.payment!.totalAmount).toBe(1100);
     expect(result.payment!.method).toBe("cash");
+    expect(result.outstandingAmount).toBe(0);
+  });
+
+  it("BUG-007: outstanding_amount を outstandingAmount にマップする", () => {
+    const result = transformToAccounting({
+      ...minimal,
+      status: "completed" as BackendAccounting["status"],
+      outstanding_amount: 200,
+      payments: [{
+        id: 1,
+        billing_id: 1,
+        method: "credit_card" as BackendAccounting["payments"][0]["method"],
+        billing_amount: 900,
+        total_amount: 1100,
+        insurance_amount: 0,
+        discount_amount: 0,
+        created_at: "2026-03-25T00:00:00Z",
+        updated_at: "2026-03-25T00:00:00Z",
+      }],
+    });
+    expect(result.outstandingAmount).toBe(200);
   });
 
   it("medical_record_id が存在するとき string に変換して medicalRecordId にマップする", () => {

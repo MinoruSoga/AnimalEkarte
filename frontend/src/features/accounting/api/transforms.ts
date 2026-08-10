@@ -111,6 +111,8 @@ export function transformToAccounting(data: BackendAccounting) {
       ? splits.map((s) => transformPaymentSplit(s as PaymentSplitWithStaff))
       : undefined,
     totalRefundedAmount: data.total_refunded_amount ?? 0,
+    /** BUG-007: 未収残高（waiting 全額 or クレジット訂正後の patient_due−支払額） */
+    outstandingAmount: data.outstanding_amount ?? 0,
     memo: data.memo || undefined,
   };
 }
