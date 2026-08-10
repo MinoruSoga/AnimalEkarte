@@ -102,6 +102,36 @@ func (s *medicalRecordService) validateMedicalRecordOwnerPetLinks(
 	return sharedkernel.ValidateReservationOwnerPetLinks(ctx, s.reservationRepo, clinicID, ownerID, petID)
 }
 
+// medicalRecordDeceasedPetMessage はカルテ Create が死亡ペットを拒否するときの安定メッセージ（BUG-002）。
+const medicalRecordDeceasedPetMessage = "死亡したペットは新規カルテを作成できません"
+
+// medicalRecordPetByIDAdapter は FindPetByIDInClinic を sharedkernel.PetByIDFinder へ適合する。
+type medicalRecordPetByIDAdapter struct {
+	repo mrReservationRepo
+}
+
+func (a medicalRecordPetByIDAdapter) FindByID(ctx context.Context, clinicID, id uint64) (*model.Pet, error) {
+	return a.repo.FindPetByIDInClinic(ctx, clinicID, id)
+}
+
+// assertMedicalRecordPetNotDeceased は petID 非 nil のとき死亡ペットへの新規カルテ作成を fail-closed で拒否する（BUG-002）。
+// 入院登録・会計（BUG-001）と同様、FE 選択 UI だけでは API 直叩きを防げないため BE でも検証する。
+func (s *medicalRecordService) assertMedicalRecordPetNotDeceased(ctx context.Context, clinicID uint64, petID *uint64) error {
+	if petID == nil {
+		return nil
+	}
+	if s.reservationRepo == nil {
+		return apperrors.WrapInternalServerError("reservation ownership verifier is required")
+	}
+	return sharedkernel.ValidatePetNotDeceased(
+		ctx,
+		medicalRecordPetByIDAdapter{repo: s.reservationRepo},
+		clinicID,
+		*petID,
+		medicalRecordDeceasedPetMessage,
+	)
+}
+
 func (s *medicalRecordService) validateMedicalRecordSnapshotOwnerPetClinicRelations(
 	ctx context.Context,
 	clinicID uint64,

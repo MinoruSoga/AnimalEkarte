@@ -1573,6 +1573,7 @@ type mockReservationRepoForMedicalRecord struct {
 	prepareFinalizationFn func(ctx context.Context, clinicID, id uint64) error
 	assertOwnerFn         func(ctx context.Context, clinicID, ownerID uint64) error
 	findPetOwnerFn        func(ctx context.Context, clinicID, petID uint64) (uint64, error)
+	findPetByIDFn         func(ctx context.Context, clinicID, petID uint64) (*model.Pet, error)
 	findByIDCallCount     int
 }
 
@@ -1619,8 +1620,11 @@ func (m *mockReservationRepoForMedicalRecord) FindPetOwnerInClinic(ctx context.C
 	return 0, nil
 }
 
-func (m *mockReservationRepoForMedicalRecord) FindPetByIDInClinic(_ context.Context, _, petID uint64) (*model.Pet, error) {
-	return &model.Pet{ID: petID, Status: model.PetStatusAlive}, nil
+func (m *mockReservationRepoForMedicalRecord) FindPetByIDInClinic(ctx context.Context, clinicID, petID uint64) (*model.Pet, error) {
+	if m.findPetByIDFn != nil {
+		return m.findPetByIDFn(ctx, clinicID, petID)
+	}
+	return &model.Pet{ID: petID, Status: model.PetStatusAlive, DeceasedAt: nil}, nil
 }
 
 

@@ -100,6 +100,10 @@ func (s *medicalRecordService) createMedicalRecordInTx(
 	if err := s.validateMedicalRecordDoctor(ctx, clinicID, input.DoctorID); err != nil {
 		return medicalRecordCreateTxResult{}, err
 	}
+	// BUG-002: 最終 pet が確定したあとに死亡ガード（repo.Create 前・fail-closed）。
+	if err := s.assertMedicalRecordPetNotDeceased(ctx, clinicID, input.PetID); err != nil {
+		return medicalRecordCreateTxResult{}, err
+	}
 
 	built := buildMedicalRecordForCreate(clinicID, input)
 	existing, err := s.findExistingRecordByAppointment(ctx, clinicID, built)
