@@ -52,9 +52,12 @@ function buildPostClosePayload(args: {
 }): { ok: true; reason?: string } | { ok: false } {
   const isCompleted = args.accountingStatus === "completed";
   const needsReason = isCompleted || Boolean(args.isScheduledDateClosed);
+  const optionalReason = (args.postCloseReason ?? "").trim() || undefined;
+  // 通常フロー: 理由は任意配線のみ（BUG-021）。BE が締め時に必須検証する。
   if (!needsReason) {
-    return { ok: true };
+    return optionalReason ? { ok: true, reason: optionalReason } : { ok: true };
   }
+  // 確定済み / レジ締め済み: 権限 + 理由必須（BUG-009）
   if (isCompleted && !args.canPostCloseEdit) {
     toast.error("確定済み会計の明細修正には締め後編集権限が必要です");
     return { ok: false };
@@ -63,8 +66,7 @@ function buildPostClosePayload(args: {
     toast.error("レジ締め済み期間の明細修正には締め後編集権限が必要です");
     return { ok: false };
   }
-  const reason = (args.postCloseReason ?? "").trim();
-  if (!reason) {
+  if (!optionalReason) {
     toast.error(
       isCompleted
         ? "確定済み会計の明細を修正するには修正理由を入力してください"
@@ -72,7 +74,7 @@ function buildPostClosePayload(args: {
     );
     return { ok: false };
   }
-  return { ok: true, reason };
+  return { ok: true, reason: optionalReason };
 }
 
 export function useAccountingItemActions({
