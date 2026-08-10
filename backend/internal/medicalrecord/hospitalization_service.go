@@ -332,6 +332,11 @@ func (s *hospitalizationService) Create(ctx context.Context, clinicID uint64, in
 			if s.treatmentPlanRepo == nil {
 				return apperrors.WrapInternalServerError("hospitalization treatment plan repository is required for nested create")
 			}
+			// BUG-032: registration-time treatment rows must surface on detail CarePlan tab
+			// (GET .../care-plan-items). carePlanItemService.Create opens its own TX and cannot join.
+			if s.carePlanItemRepo == nil {
+				return apperrors.WrapInternalServerError("hospitalization care plan item repository is required for nested create")
+			}
 			hospID := hospitalization.ID
 			for i := range input.TreatmentPlans {
 				planInput := &input.TreatmentPlans[i]
@@ -358,6 +363,21 @@ func (s *hospitalizationService) Create(ctx context.Context, clinicID uint64, in
 				if err := s.treatmentPlanRepo.Create(txCtx, plan); err != nil {
 					slog.ErrorContext(txCtx, "failed to create nested treatment plan", "error", err, "index", i)
 					return apperrors.Wrap(err, "failed to create nested treatment plan")
+				}
+				// Seed instruction care-plan rows from the same registration snapshot (BUG-032).
+				// type=instruction needs no master FK (chk_care_plan_item_ref). unit_price stays 0 so
+				// discharge billing is not auto-charged from estimate-only treatment lines.
+				careItem := &model.CarePlanItem{
+					HospitalizationID: hospID,
+					Type:              model.CarePlanTypeInstruction,
+					Name:              planInput.TreatmentContent,
+					Notes:             planInput.Memo,
+					Status:            model.CarePlanStatusActive,
+					SortOrder:         planInput.SortOrder,
+				}
+				if err := s.carePlanItemRepo.Create(txCtx, careItem); err != nil {
+					slog.ErrorContext(txCtx, "failed to create nested care plan item from treatment plan", "error", err, "index", i)
+					return apperrors.Wrap(err, "failed to create nested care plan item")
 				}
 			}
 		}
