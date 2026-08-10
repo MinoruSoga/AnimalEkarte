@@ -122,7 +122,8 @@ export function CreditCorrectionDialog({ accounting, isPostClose = false }: Cred
             ⚠ この会計はレジ締め確定済み期間です。訂正すると締め時点の帳票と差異が生じます。
           </p>
         ) : null}
-        <form action={formAction} className="space-y-4">
+        {/* BUG-008/018: HTML5 required/min が JS toast より先にインターセプトしないよう noValidate */}
+        <form action={formAction} noValidate className="space-y-4">
           {correctable.length > 1 ? (
             <div className="space-y-1">
               <Label htmlFor="cc-method">支払い手段</Label>
@@ -163,7 +164,7 @@ export function CreditCorrectionDialog({ accounting, isPostClose = false }: Cred
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               placeholder="例: レジ端末への入力金額を打ち間違えたため"
-              required
+              aria-required="true"
             />
           </div>
           <div className="space-y-1">
