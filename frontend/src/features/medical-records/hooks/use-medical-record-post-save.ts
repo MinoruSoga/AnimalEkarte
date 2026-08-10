@@ -38,15 +38,25 @@ export function useMedicalRecordPostSave({
     const doPostSave = async () => {
       try {
         if (currentTab === "見積書") {
-          await (estimateSaveRef.current?.() ?? Promise.resolve());
+          const save = estimateSaveRef.current;
+          // BUG-016: 登録済み save が無い成功は黙って dirty クリアしない
+          if (!save) {
+            handleApiError(
+              new Error("見積書の保存ハンドラが未登録です"),
+              "データの保存",
+            );
+            return;
+          }
+          await save();
         }
-      } catch (error) {
-        handleApiError(error, "データの保存");
+        markClean();
+      } catch {
+        // 見積 API 失敗は mutation onError、件名未入力は FormFieldError 側。
+        // ここでは dirty を維持するだけ（偽成功の markClean をしない）。
       }
-      markClean();
     };
 
-    doPostSave();
+    void doPostSave();
   }, [formState.success, formState.timestamp, markClean]);
 
   return {

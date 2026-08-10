@@ -321,3 +321,22 @@ describe("useMedicalRecordSaveAction permission boundary", () => {
     expect(result.current.formState.success).toBe(false);
   });
 });
+
+describe("useMedicalRecordSaveAction BUG-016 estimate tab", () => {
+  it("見積書タブ保存では親の汎用成功トーストを出さない（post-save が正本）", async () => {
+    const { result } = renderHook(() =>
+      useMedicalRecordSaveAction(
+        buildSaveArgs({
+          activeTab: "見積書",
+        }),
+      ),
+    );
+
+    act(() => {
+      startTransition(() => result.current.formAction(new FormData()));
+    });
+
+    await waitFor(() => expect(result.current.formState.success).toBe(true));
+    expect(toast.success).not.toHaveBeenCalled();
+  });
+});
