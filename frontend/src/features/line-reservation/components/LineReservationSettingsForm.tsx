@@ -59,6 +59,11 @@ export function LineReservationSettingsForm({ setting, clinicId }: SettingsFormP
   );
   const [timeSlotMode, setTimeSlotMode] = useState(setting.time_slot_mode);
   const [noStaffMode, setNoStaffMode] = useState(setting.no_staff_mode);
+  // BUG-028: defaultValue のままだと form action 完了後に初期 props へリセットされ、
+  // 保存済みの新値（0 含む）が UI に残らない。controlled で保持する。
+  const [bookingWindowMinDays, setBookingWindowMinDays] = useState(
+    setting.booking_window_min_days,
+  );
 
   // JSONB フィールド（lazy init — 初回レンダー時のみパース）
   const [closedWeekdays, setClosedWeekdays] = useState<string[]>(
@@ -118,7 +123,7 @@ export function LineReservationSettingsForm({ setting, clinicId }: SettingsFormP
       daily_limit: setting.daily_limit,
       monthly_limit: setting.monthly_limit,
       booking_window_max_days: Number(formData.get("booking_window_max_days")),
-      booking_window_min_days: Number(formData.get("booking_window_min_days")),
+      booking_window_min_days: bookingWindowMinDays,
       calendar_months: Number(formData.get("calendar_months")),
       phone_number: formData.get("phone_number") as string,
       notification_email: formData.get("notification_email") as string,
@@ -130,7 +135,13 @@ export function LineReservationSettingsForm({ setting, clinicId }: SettingsFormP
       liff_id: formData.get("liff_id") as string,
     };
     try {
-      await updateLineReservationSetting(clinicId, payload);
+      const updated = await updateLineReservationSetting(clinicId, payload);
+      // 0 は falsy だが正当値。レスポンス優先、無ければ送信値で UI を同期
+      setBookingWindowMinDays(
+        typeof updated?.booking_window_min_days === "number"
+          ? updated.booking_window_min_days
+          : bookingWindowMinDays,
+      );
       toast.success("設定を保存しました");
     } catch (err) {
       handleApiError(err, "設定保存");
@@ -244,7 +255,11 @@ export function LineReservationSettingsForm({ setting, clinicId }: SettingsFormP
             aria-label="最短予約受付（日数）"
             type="number"
             min={0}
-            defaultValue={setting.booking_window_min_days}
+            value={bookingWindowMinDays}
+            onChange={(e) => {
+              const n = e.target.valueAsNumber;
+              setBookingWindowMinDays(Number.isNaN(n) ? 0 : n);
+            }}
             className="max-w-[120px]"
           />
         </FieldRow>
