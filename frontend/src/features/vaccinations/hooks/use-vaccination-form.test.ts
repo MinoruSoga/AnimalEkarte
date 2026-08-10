@@ -156,6 +156,50 @@ describe("useVaccinationForm", () => {
     vi.useRealTimers();
   });
 
+  // ──────────────────────────
+  // BUG-004: 新規オープン時の接種日デフォルト＝当日（JST）
+  // ──────────────────────────
+  describe("新規登録時の接種日デフォルト（BUG-004）", () => {
+    it("新規オープンで form.date が JST 当日になる", () => {
+      mockSearchParams = new URLSearchParams({ petId: "5" });
+      const { result } = renderVaccinationForm();
+
+      expect(result.current.form.date).toBe("2026-07-10");
+    });
+
+    it("接種日は手動変更できる（当日デフォルト後に上書き可能）", () => {
+      mockSearchParams = new URLSearchParams({ petId: "5" });
+      const { result } = renderVaccinationForm();
+
+      expect(result.current.form.date).toBe("2026-07-10");
+      act(() => {
+        result.current.form.setDate("2026-07-01");
+      });
+      expect(result.current.form.date).toBe("2026-07-01");
+    });
+
+    it("編集モードでは既存レコードの接種日を使い当日で上書きしない", () => {
+      vi.mocked(useGetVaccination).mockReturnValue({
+        data: {
+          id: "10",
+          petId: "5",
+          vaccineId: "1",
+          date: "2026-01-15",
+          nextDate: "2027-01-15",
+          nextScheduleType: "1year",
+        },
+        isLoading: false,
+        isError: false,
+        error: null,
+        refetch: vi.fn(),
+      } as unknown as ReturnType<typeof useGetVaccination>);
+
+      const { result } = renderVaccinationForm("10");
+
+      expect(result.current.form.date).toBe("2026-01-15");
+    });
+  });
+
   describe("新規登録時のバリデーション", () => {
     it("BUG-074: vaccineId 未選択 → fieldErrors.vaccineId がセットされる", async () => {
       mockSearchParams = new URLSearchParams({ petId: "5" });
@@ -184,7 +228,11 @@ describe("useVaccinationForm", () => {
 
     it("接種日未入力 → fieldErrors.date がセットされる", async () => {
       const { result } = renderVaccinationForm();
-      act(() => { result.current.form.setVaccineId("1"); });
+      // BUG-004: 新規は当日デフォルトのため、未入力検証は明示クリアが必要
+      act(() => {
+        result.current.form.setVaccineId("1");
+        result.current.form.setDate("");
+      });
       runFormAction(result.current.formAction);
 
       await waitFor(() => {
