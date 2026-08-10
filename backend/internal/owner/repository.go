@@ -379,6 +379,7 @@ func (r *ownerRepository) UpdateAndFindApplying(
 
 // mapOwnerUniqueConstraintErr maps owners partial unique indexes (email/phone)
 // to AlreadyExists. POC-06 / U-X05-OWNER-PHONE.
+// BUG-024: client-facing JA message (no English "%s '%s' already exists" template).
 func mapOwnerUniqueConstraintErr(err error) error {
 	if err == nil || !persistence.IsUniqueConstraintErr(err) {
 		return nil
@@ -387,13 +388,13 @@ func mapOwnerUniqueConstraintErr(err error) error {
 	if errors.As(err, &pgErr) {
 		switch pgErr.ConstraintName {
 		case "uk_owners_clinic_phone":
-			return apperrors.WrapAlreadyExists("owner", "phone already registered")
+			return apperrors.WrapAlreadyExistsMessage("この電話番号はすでに登録されています")
 		case "uk_owners_clinic_email":
-			return apperrors.WrapAlreadyExists("owner", "email already registered")
+			return apperrors.WrapAlreadyExistsMessage("このメールアドレスはすでに登録されています")
 		}
 	}
 	// Constraint name missing (driver wrap) — still fail closed as already-exists.
-	return apperrors.WrapAlreadyExists("owner", "")
+	return apperrors.WrapAlreadyExistsMessage("この飼主はすでに登録されています")
 }
 
 func (r *ownerRepository) Delete(ctx context.Context, clinicID, id uint64) error {

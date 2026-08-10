@@ -160,7 +160,8 @@ func (s *ownerService) ensureOwnerEmailUnique(ctx context.Context, clinicID, cur
 		return apperrors.Wrap(err, "failed to check email uniqueness")
 	}
 	if existing != nil && existing.ID != currentOwnerID {
-		return apperrors.WrapAlreadyExists("owner", "このメールアドレスはすでに登録されています")
+		// BUG-024: 完成文を identifier に渡すと英語テンプレで英日混在になる
+		return apperrors.WrapAlreadyExistsMessage("このメールアドレスはすでに登録されています")
 	}
 	return nil
 }
@@ -175,7 +176,8 @@ func (s *ownerService) ensureOwnerPhoneUnique(ctx context.Context, clinicID, cur
 		return apperrors.Wrap(err, "failed to check phone uniqueness")
 	}
 	if existing != nil && existing.ID != currentOwnerID {
-		return apperrors.WrapAlreadyExists("owner", "この電話番号はすでに登録されています")
+		// BUG-024 / BUG-019: 同上
+		return apperrors.WrapAlreadyExistsMessage("この電話番号はすでに登録されています")
 	}
 	return nil
 }

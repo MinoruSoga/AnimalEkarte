@@ -117,6 +117,20 @@ func WrapAlreadyExists(resource, identifier string) error {
 	}
 }
 
+// WrapAlreadyExistsMessage は完成済みのクライアント向けメッセージで ALREADY_EXISTS を返す。
+// すでに日本語の完成文を持つ場合に使う（WrapAlreadyExists の英語テンプレートに埋め込まない）。
+// BUG-024 / BUG-019: owner email/phone 重複など。
+func WrapAlreadyExistsMessage(message string) error {
+	if message == "" {
+		message = "resource already exists"
+	}
+	return &AppError{
+		Code:    "ALREADY_EXISTS",
+		Message: message,
+		Err:     ErrAlreadyExists,
+	}
+}
+
 // IsAlreadyExists はErrAlreadyExistsかどうかを判定する
 func IsAlreadyExists(err error) bool {
 	return errors.Is(err, ErrAlreadyExists)
