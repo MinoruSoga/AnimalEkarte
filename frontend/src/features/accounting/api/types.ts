@@ -31,7 +31,7 @@ export interface UpdateBillingItemRequest {
   tax_type?: TaxType;
   tax_rate?: number;
   is_insurance_applicable?: boolean;
-  /** #115 / BUG-021: レジ締め済み期間の明細更新理由（BE が締め判定時に必須） */
+  /** #115 / BUG-021 / BUG-009: レジ締め済み・確定済み明細更新理由（BE が必須検証） */
   post_close_reason?: string;
 }
 

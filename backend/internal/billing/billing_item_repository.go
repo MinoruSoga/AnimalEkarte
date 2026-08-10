@@ -31,6 +31,9 @@ type BillingItemRepository interface {
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
 	Delete(ctx context.Context, clinicID, id uint64) error
 	UpdateBillingTotals(ctx context.Context, clinicID, billingID uint64, subtotal, taxTotal, totalAmount int64) error
+	// UpdateBillingTotalsForCompletedCorrection は確定済み会計の明細訂正時のみ totals 再計算を許可する（BUG-009）。
+	// cancelled は引き続き拒否。通常経路は UpdateBillingTotals を使う。
+	UpdateBillingTotalsForCompletedCorrection(ctx context.Context, clinicID, billingID uint64, subtotal, taxTotal, totalAmount int64) error
 	// HasItemByOwnerSince は指定飼い主の請求アイテムに names いずれかが存在するか返す（FEAT-379）。
 	HasItemByOwnerSince(ctx context.Context, clinicID, ownerID uint64, since time.Time, names []string) (bool, error)
 	// HasFoodPurchaseByOwnerSince は names 指定時は名前で、未指定時は category=food で判定する（FEAT-379）。
@@ -490,15 +493,30 @@ func (r *billingItemRepository) Delete(ctx context.Context, clinicID, id uint64)
 func (r *billingItemRepository) UpdateBillingTotals(ctx context.Context, clinicID, billingID uint64, subtotal, taxTotal, totalAmount int64) error {
 	// BUG-463: exclude completed/cancelled so totals cannot be rewritten after finalization
 	// even if a caller bypasses service-level status guards.
-	result := persistence.DBOrTx(ctx, r.db).
+	return r.updateBillingTotals(ctx, clinicID, billingID, subtotal, taxTotal, totalAmount, false)
+}
+
+// UpdateBillingTotalsForCompletedCorrection は BUG-009: 理由付き確定済み明細訂正の totals 再計算専用。
+func (r *billingItemRepository) UpdateBillingTotalsForCompletedCorrection(ctx context.Context, clinicID, billingID uint64, subtotal, taxTotal, totalAmount int64) error {
+	return r.updateBillingTotals(ctx, clinicID, billingID, subtotal, taxTotal, totalAmount, true)
+}
+
+func (r *billingItemRepository) updateBillingTotals(ctx context.Context, clinicID, billingID uint64, subtotal, taxTotal, totalAmount int64, allowCompleted bool) error {
+	q := persistence.DBOrTx(ctx, r.db).
 		Model(&model.Billing{}).
 		Scopes(persistence.ClinicScope(clinicID)).
-		Where("id = ? AND status NOT IN (?, ?)", billingID, model.BillingStatusCompleted, model.BillingStatusCancelled).
-		Updates(map[string]any{
-			"subtotal":     subtotal,
-			"tax_total":    taxTotal,
-			"total_amount": totalAmount,
-		})
+		Where("id = ?", billingID)
+	if allowCompleted {
+		// cancelled のみ除外（completed は訂正経路で許可）
+		q = q.Where("status <> ?", model.BillingStatusCancelled)
+	} else {
+		q = q.Where("status NOT IN (?, ?)", model.BillingStatusCompleted, model.BillingStatusCancelled)
+	}
+	result := q.Updates(map[string]any{
+		"subtotal":     subtotal,
+		"tax_total":    taxTotal,
+		"total_amount": totalAmount,
+	})
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "billing", fmt.Sprintf("%d", billingID))
 	}
@@ -516,7 +534,7 @@ func (r *billingItemRepository) UpdateBillingTotals(ctx context.Context, clinicI
 		if err != nil {
 			return apperrors.FromGORM(err, "billing", fmt.Sprintf("%d", billingID))
 		}
-		if row.Status == model.BillingStatusCompleted || row.Status == model.BillingStatusCancelled {
+		if row.Status == model.BillingStatusCancelled || (!allowCompleted && row.Status == model.BillingStatusCompleted) {
 			return apperrors.WrapConflict("確定済みまたは取消済みの会計合計は更新できません")
 		}
 		return apperrors.WrapNotFound("billing", fmt.Sprintf("%d", billingID))
