@@ -38,6 +38,7 @@ const transformPetInOwner = (pet: PetInOwnerResponse, ownerName: string) => ({
 
 export const transformOwner = (owner: OwnerResponse): Owner => ({
   id: String(owner.id ?? 0),
+  clinicId: owner.clinic_id != null ? String(owner.clinic_id) : undefined,
   ownerName: owner.owner_name ?? "",
   ownerNameKana: owner.owner_name_kana || undefined,
   company: owner.company ?? "",

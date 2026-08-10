@@ -6,7 +6,11 @@ import { toast } from "sonner";
 import type { AuthContextValue, AuthUser, Resource, ResourceAction } from "@/types/auth";
 import { AuthContext } from "@/hooks/auth-context";
 import { isPasswordRecoveryPublicPath } from "@/lib/auth-route-policy";
-import { CURRENT_CLINIC_STORAGE_KEY, getStoredClinicId } from "@/lib/current-clinic";
+import {
+  CURRENT_CLINIC_STORAGE_KEY,
+  getStoredClinicId,
+  setStoredClinicId,
+} from "@/lib/current-clinic";
 import { login as loginApi } from "../api/login";
 import { logout as logoutApi } from "../api/logout";
 import { refreshToken } from "../api/refresh-token";
@@ -18,15 +22,11 @@ export { useAuth } from "@/hooks/use-auth";
 /* セッション情報は httpOnly Cookie で管理するため localStorage への保存は不要。
  * 選択中のクリニック ID のみ localStorage に残す（権限情報ではないためリスク低） */
 function saveClinicToStorage(clinicId: string): boolean {
-  try {
-    localStorage.setItem(CURRENT_CLINIC_STORAGE_KEY, clinicId);
-    return true;
-  } catch (error) {
-    if (import.meta.env.DEV) {
-      console.warn("[auth] failed to save clinic to localStorage", error);
-    }
-    return false;
+  const ok = setStoredClinicId(clinicId);
+  if (!ok && import.meta.env.DEV) {
+    console.warn("[auth] failed to save clinic to localStorage");
   }
+  return ok;
 }
 
 function removeClinicFromStorage(): void {

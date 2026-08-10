@@ -8,6 +8,7 @@ import {
   useRef,
 } from "react";
 import { useNavigate, useParams, useLoaderData } from "react-router";
+import { useQueryClient } from "@tanstack/react-query";
 import { User, Receipt } from "lucide-react";
 import { toast } from "sonner";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
@@ -20,11 +21,13 @@ import { usePostalCodeLookup } from "../hooks/use-postal-code-lookup";
 import { useAuth } from "@/hooks/use-auth";
 import { C, ICON, LAYOUT } from "@/lib/design-tokens";
 import { handleApiError } from "@/lib/handle-api-error";
+import { setStoredClinicId } from "@/lib/current-clinic";
 import { paths } from "@/config/paths";
 import { usePermission } from "@/hooks/use-permission";
 import { OwnerInfoSection } from "../components/OwnerInfoSection";
 import { OwnerPetsSection } from "../components/OwnerPetsSection";
 import { useOwnerForm } from "../hooks/use-owner-form";
+import { resolvePostCreateOwnerNavigation } from "../lib/post-create-owner-navigation";
 import type { PetMutations } from "@/types/pet";
 import type { OwnerData, MembershipTypeLabel } from "../types";
 import type { OwnerLoaderData } from "../loaders";
@@ -53,6 +56,7 @@ interface OwnerFormProps {
 
 export function OwnerForm({ petMutations, lineSection, accountingSection }: OwnerFormProps = {}) {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { id: ownerId } = useParams();
   const { canEdit, canCreate, canDelete } = usePermission("owners");
   const canEditRef = useRef(canEdit);
@@ -113,16 +117,49 @@ export function OwnerForm({ petMutations, lineSection, accountingSection }: Owne
 
   // React 19 Action の成功を検知して遷移
   // BUG-065: 新規登録後は詳細ページへリダイレクト
+  // BUG-010: 登録先医院 ≠ グローバル選択なら clinic を切替えて hard navigate（X-Clinic-ID 整合）
   useEffect(() => {
     if (formState.success) {
       markClean();
       if (!isEdit && formState.data) {
-        navigate(paths.owners.detail.getHref(formState.data as string));
+        const payload = formState.data as { id: string; clinicId?: string } | string;
+        const createdOwnerId = typeof payload === "string" ? payload : payload.id;
+        const targetClinicId =
+          typeof payload === "string"
+            ? ownerData.clinicId
+            : (payload.clinicId ?? ownerData.clinicId);
+        const plan = resolvePostCreateOwnerNavigation({
+          ownerId: createdOwnerId,
+          targetClinicId,
+          currentClinicId,
+        });
+        if (plan.mode === "hard") {
+          if (!setStoredClinicId(plan.clinicId)) {
+            toast.error("クリニックの切替に失敗しました。登録は完了しています。医院を切り替えてから詳細を開いてください。");
+            navigate(paths.owners.getHref());
+            return;
+          }
+          // switchClinic と同様: 旧 clinic キャッシュを捨ててから新 X-Clinic-ID で詳細をロード
+          queryClient.clear();
+          window.location.assign(plan.href);
+          return;
+        }
+        navigate(plan.href);
       } else if (isEdit) {
         navigate(paths.owners.getHref());
       }
     }
-  }, [formState.success, formState.data, formState.timestamp, navigate, markClean, isEdit]);
+  }, [
+    formState.success,
+    formState.data,
+    formState.timestamp,
+    navigate,
+    markClean,
+    isEdit,
+    ownerData.clinicId,
+    currentClinicId,
+    queryClient,
+  ]);
 
   // BUG-084: バリデーションエラー後に最初のエラーフィールドへフォーカスを移動する
   // フォームのアクセシビリティ改善（WCAG 2.4.3 Focus Order / 3.3.1 Error Identification）

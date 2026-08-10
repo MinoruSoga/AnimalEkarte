@@ -394,6 +394,62 @@ describe("useOwnerForm atomic owner and pets creation", () => {
   });
 });
 
+describe("useOwnerForm create success payload (BUG-010)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockCreateOwner.mockResolvedValue(makeOwner({ id: "new-owner", clinicId: "2" }));
+  });
+
+  it("登録先 clinicId を formState.data に載せる", async () => {
+    const { result } = renderHook(
+      () => useOwnerForm(undefined, undefined, undefined, CREATE_PERMISSIONS),
+      { wrapper: createTestWrapper() },
+    );
+    act(() => {
+      result.current.setOwnerData((previous) => ({
+        ...previous,
+        ownerName: "山田太郎",
+        ownerNameKana: "ヤマダタロウ",
+        phone: "090-1234-5678",
+        clinicId: "2",
+      }));
+    });
+
+    await submitForm(result.current.formAction);
+
+    await waitFor(() => {
+      expect(result.current.formState.success).toBe(true);
+    });
+    expect(mockCreateOwner).toHaveBeenCalledWith(
+      expect.objectContaining({ clinic_id: 2 }),
+    );
+    expect(result.current.formState.data).toEqual({ id: "new-owner", clinicId: "2" });
+  });
+
+  it("登録先未指定でも API 応答の clinicId を data に載せる", async () => {
+    mockCreateOwner.mockResolvedValue(makeOwner({ id: "new-owner", clinicId: "1" }));
+    const { result } = renderHook(
+      () => useOwnerForm(undefined, undefined, undefined, CREATE_PERMISSIONS),
+      { wrapper: createTestWrapper() },
+    );
+    act(() => {
+      result.current.setOwnerData((previous) => ({
+        ...previous,
+        ownerName: "山田太郎",
+        ownerNameKana: "ヤマダタロウ",
+        phone: "090-1234-5678",
+      }));
+    });
+
+    await submitForm(result.current.formAction);
+
+    await waitFor(() => {
+      expect(result.current.formState.success).toBe(true);
+    });
+    expect(result.current.formState.data).toEqual({ id: "new-owner", clinicId: "1" });
+  });
+});
+
 describe("useOwnerForm mutation permission boundary (FE12-02 C6a)", () => {
   beforeEach(() => {
     vi.clearAllMocks();

@@ -302,7 +302,16 @@ export function useOwnerForm(
           await queryClient.invalidateQueries({ queryKey: queryKeys.owners.all() });
 
           toast.success("飼主情報を登録しました");
-          return { success: true, data: newOwner.id, timestamp: Date.now() };
+          // BUG-010: 詳細遷移時に登録先 clinic を渡す（グローバル選択と不一致時の 404 回避）
+          const createdClinicId =
+            ownerData.clinicId
+            ?? newOwner.clinicId
+            ?? (createData.clinic_id != null ? String(createData.clinic_id) : undefined);
+          return {
+            success: true,
+            data: { id: newOwner.id, clinicId: createdClinicId },
+            timestamp: Date.now(),
+          };
         }
       } catch (error) {
         handleApiError(error, "保存");
