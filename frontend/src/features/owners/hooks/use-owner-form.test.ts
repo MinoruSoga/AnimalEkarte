@@ -394,6 +394,125 @@ describe("useOwnerForm atomic owner and pets creation", () => {
   });
 });
 
+describe("useOwnerForm format/range validation display (BUG-023)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockCreateOwner.mockResolvedValue(makeOwner({ id: "new-owner" }));
+    mockUpdateOwner.mockResolvedValue(makeOwner());
+  });
+
+  async function fillRequiredAndSubmit(
+    setOwnerData: ReturnType<typeof useOwnerForm>["setOwnerData"],
+    formAction: ReturnType<typeof useOwnerForm>["formAction"],
+    overrides: Partial<ReturnType<typeof useOwnerForm>["ownerData"]>,
+  ) {
+    act(() => {
+      setOwnerData((previous) => ({
+        ...previous,
+        ownerName: "山田太郎",
+        ownerNameKana: "ヤマダタロウ",
+        phone: "090-1234-5678",
+        ...overrides,
+      }));
+    });
+    await submitForm(formAction);
+  }
+
+  it("不正メールで create を送らず fieldErrors.email を返す", async () => {
+    const { result } = renderHook(
+      () => useOwnerForm(undefined, undefined, undefined, CREATE_PERMISSIONS),
+      { wrapper: createTestWrapper() },
+    );
+
+    await fillRequiredAndSubmit(result.current.setOwnerData, result.current.formAction, {
+      email: "abc",
+    });
+
+    await waitFor(() => {
+      expect(result.current.fieldErrors.email).toBe("メールアドレスの形式が正しくありません");
+    });
+    expect(mockCreateOwner).not.toHaveBeenCalled();
+    expect(result.current.formState.success).toBe(false);
+  });
+
+  it("不正電話で create を送らず fieldErrors.phone を返す", async () => {
+    const { result } = renderHook(
+      () => useOwnerForm(undefined, undefined, undefined, CREATE_PERMISSIONS),
+      { wrapper: createTestWrapper() },
+    );
+
+    await fillRequiredAndSubmit(result.current.setOwnerData, result.current.formAction, {
+      phone: "090-ABCD-4444",
+    });
+
+    await waitFor(() => {
+      expect(result.current.fieldErrors.phone).toBe(
+        "電話番号の形式が正しくありません（数字・ハイフンのみ）",
+      );
+    });
+    expect(mockCreateOwner).not.toHaveBeenCalled();
+  });
+
+  it("不正郵便番号で create を送らず fieldErrors.postalCode を返す", async () => {
+    const { result } = renderHook(
+      () => useOwnerForm(undefined, undefined, undefined, CREATE_PERMISSIONS),
+      { wrapper: createTestWrapper() },
+    );
+
+    await fillRequiredAndSubmit(result.current.setOwnerData, result.current.formAction, {
+      postalCode: "12-3456",
+    });
+
+    await waitFor(() => {
+      expect(result.current.fieldErrors.postalCode).toBe(
+        "郵便番号の形式が正しくありません（例: 123-4567）",
+      );
+    });
+    expect(mockCreateOwner).not.toHaveBeenCalled();
+  });
+
+  it("値引率101で update を送らず fieldErrors.discountRate を返す", async () => {
+    const { result } = renderHook(
+      () => useOwnerForm("123", makeOwner(), undefined, EDIT_PERMISSIONS),
+      { wrapper: createTestWrapper() },
+    );
+
+    act(() => {
+      result.current.setOwnerData((previous) => ({
+        ...previous,
+        discountRate: 101,
+      }));
+    });
+    await submitForm(result.current.formAction);
+
+    await waitFor(() => {
+      expect(result.current.fieldErrors.discountRate).toBe(
+        "値引率は0〜100の範囲で入力してください",
+      );
+    });
+    expect(mockUpdateOwner).not.toHaveBeenCalled();
+  });
+
+  it("正常値では fieldErrors を空のまま create する", async () => {
+    const { result } = renderHook(
+      () => useOwnerForm(undefined, undefined, undefined, CREATE_PERMISSIONS),
+      { wrapper: createTestWrapper() },
+    );
+
+    await fillRequiredAndSubmit(result.current.setOwnerData, result.current.formAction, {
+      email: "taro@example.com",
+      postalCode: "123-4567",
+      discountRate: 10,
+    });
+
+    await waitFor(() => {
+      expect(mockCreateOwner).toHaveBeenCalledTimes(1);
+    });
+    expect(result.current.fieldErrors).toEqual({});
+    expect(result.current.formState.success).toBe(true);
+  });
+});
+
 describe("useOwnerForm mutation permission boundary (FE12-02 C6a)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
