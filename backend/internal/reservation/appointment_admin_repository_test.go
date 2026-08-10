@@ -299,16 +299,23 @@ func TestReservationAdminRepository_CancelByID(t *testing.T) {
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	t.Run("正しい顧客・クリニックからのキャンセルは成功しソフトデリートされる", func(t *testing.T) {
+	t.Run("正しい顧客・クリニックからのキャンセルは status=cancelled を残し deleted_at は立てない", func(t *testing.T) {
 		customer := makeLineCustomerForAdmin(t, db, clinicA, "U-cancel-001")
 		res := makeAdminReservationAt(t, db, clinicA, time.Now().UTC(), nil, nil, nil, &customer.ID)
 
 		require.NoError(t, repo.CancelByID(ctx, clinicA, customer.ID, res.ID))
 
-		var withDeleted model.Reservation
-		require.NoError(t, db.Unscoped().First(&withDeleted, res.ID).Error)
-		assert.True(t, withDeleted.DeletedAt.Valid)
-		assert.Equal(t, model.ReservationStatusCancelled, withDeleted.Status)
+		var cancelled model.Reservation
+		require.NoError(t, db.First(&cancelled, res.ID).Error, "通常クエリで履歴として見えるべき")
+		assert.False(t, cancelled.DeletedAt.Valid, "BUG-029: LIFF cancel must not soft-delete")
+		assert.Equal(t, model.ReservationStatusCancelled, cancelled.Status)
+
+		// my-reservations 相当: FindAllByCustomerID に cancelled が残る
+		history, err := repo.FindAllByCustomerID(ctx, clinicA, customer.ID)
+		require.NoError(t, err)
+		require.Len(t, history, 1)
+		assert.Equal(t, res.ID, history[0].ID)
+		assert.Equal(t, model.ReservationStatusCancelled, history[0].Status)
 	})
 
 	t.Run("存在しない予約IDはNotFoundを返す", func(t *testing.T) {
