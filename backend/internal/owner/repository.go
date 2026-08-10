@@ -387,7 +387,8 @@ func mapOwnerUniqueConstraintErr(err error) error {
 	if errors.As(err, &pgErr) {
 		switch pgErr.ConstraintName {
 		case "uk_owners_clinic_phone":
-			return apperrors.WrapAlreadyExists("owner", "phone already registered")
+			// BUG-019: クライアント表示用の自然な日本語（英語テンプレ埋め込み禁止）
+			return apperrors.WrapAlreadyExistsMessage("この電話番号はすでに登録されています")
 		case "uk_owners_clinic_email":
 			return apperrors.WrapAlreadyExists("owner", "email already registered")
 		}

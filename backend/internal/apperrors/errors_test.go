@@ -133,6 +133,19 @@ func TestWrapAlreadyExists(t *testing.T) {
 	assert.Equal(t, "ALREADY_EXISTS", appErr.Code)
 }
 
+func TestWrapAlreadyExistsMessage(t *testing.T) {
+	const msg = "この電話番号はすでに登録されています"
+	err := WrapAlreadyExistsMessage(msg)
+	assert.NotNil(t, err)
+	assert.True(t, IsAlreadyExists(err))
+	var appErr *AppError
+	assert.True(t, errors.As(err, &appErr))
+	assert.Equal(t, "ALREADY_EXISTS", appErr.Code)
+	assert.Equal(t, msg, appErr.Message)
+	assert.NotContains(t, appErr.Message, "already exists")
+	assert.NotContains(t, appErr.Message, "owner '")
+}
+
 func TestIsAlreadyExists(t *testing.T) {
 	assert.True(t, IsAlreadyExists(ErrAlreadyExists))
 	assert.True(t, IsAlreadyExists(Wrap(ErrAlreadyExists, "context")))

@@ -12,6 +12,7 @@ package owner
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -251,6 +252,11 @@ func TestOwnerRepository_PhoneUniqueConstraint(t *testing.T) {
 	err := repo.CreateWithPets(ctx, dup, nil)
 	require.Error(t, err)
 	assert.True(t, apperrors.IsAlreadyExists(err), "expected AlreadyExists, got %v", err)
+	// BUG-019: natural Japanese message on phone unique constraint
+	var appErr *apperrors.AppError
+	require.True(t, errors.As(err, &appErr))
+	assert.Equal(t, "この電話番号はすでに登録されています", appErr.Message)
+	assert.NotContains(t, appErr.Message, "already exists")
 
 	// Empty phones may coexist (partial index excludes '').
 	empty1 := &model.Owner{ClinicID: clinicA, Name: "空電話1", Phone: ""}
