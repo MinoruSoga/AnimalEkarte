@@ -27,6 +27,14 @@ interface UseAccountingItemActionsParams {
   startAddItemTransition: (callback: () => void) => void;
   startDeleteItemTransition: (callback: () => void) => void;
   startItemUpdateTransition: (callback: () => void) => void;
+  /** #115 / BUG-021: 締め後編集理由（空なら送らない。BE が締め時に必須検証） */
+  postCloseReason?: string;
+}
+
+/** 空文字は送らない。trim 後の理由のみ API に載せる。 */
+export function buildPostCloseReasonField(postCloseReason?: string): { post_close_reason?: string } {
+  const trimmed = postCloseReason?.trim();
+  return trimmed ? { post_close_reason: trimmed } : {};
 }
 
 export function useAccountingItemActions({
@@ -38,6 +46,7 @@ export function useAccountingItemActions({
   startAddItemTransition,
   startDeleteItemTransition,
   startItemUpdateTransition,
+  postCloseReason,
 }: UseAccountingItemActionsParams) {
   const handleAddItem = useCallback(
     ({ name, price, category, otherReason, taxRate, merchandiseItemId }: AddAccountingItemInput) => {
@@ -82,6 +91,7 @@ export function useAccountingItemActions({
               source: "manual",
               ...(manualOtherReason !== undefined ? { other_reason: manualOtherReason } : {}),
               merchandise_item_id: merchandiseItemId ? Number(merchandiseItemId) : undefined,
+              ...buildPostCloseReasonField(postCloseReason),
             };
             await createBillingItem(request);
             await queryClient.refetchQueries({ queryKey: queryKeys.accountings.detail(accountingId) });
@@ -96,7 +106,15 @@ export function useAccountingItemActions({
         toast.success("明細を追加しました");
       }
     },
-    [accountingId, baseItems, queryClient, setLocalItems, setNewItemOpen, startAddItemTransition],
+    [
+      accountingId,
+      baseItems,
+      postCloseReason,
+      queryClient,
+      setLocalItems,
+      setNewItemOpen,
+      startAddItemTransition,
+    ],
   );
 
   const handleDeleteItem = useCallback(
@@ -110,7 +128,11 @@ export function useAccountingItemActions({
       setLocalItems((prev) => (prev ?? baseItems).filter((i) => i.id !== itemId));
       startDeleteItemTransition(async () => {
         try {
-          await deleteBillingItem(itemId);
+          const reasonField = buildPostCloseReasonField(postCloseReason);
+          await deleteBillingItem(
+            itemId,
+            Object.keys(reasonField).length > 0 ? reasonField : undefined,
+          );
           await queryClient.refetchQueries({ queryKey: queryKeys.accountings.detail(accountingId) });
           setLocalItems(null);
           toast.success("明細を削除しました");
@@ -120,7 +142,7 @@ export function useAccountingItemActions({
         }
       });
     },
-    [accountingId, baseItems, queryClient, setLocalItems, startDeleteItemTransition],
+    [accountingId, baseItems, postCloseReason, queryClient, setLocalItems, startDeleteItemTransition],
   );
 
   const handleUpdateItemTax = useCallback(
@@ -128,14 +150,18 @@ export function useAccountingItemActions({
       if (!accountingId) return;
       startItemUpdateTransition(async () => {
         try {
-          await updateBillingItem(itemId, { tax_type: taxType, tax_rate: taxRate });
+          await updateBillingItem(itemId, {
+            tax_type: taxType,
+            tax_rate: taxRate,
+            ...buildPostCloseReasonField(postCloseReason),
+          });
           queryClient.invalidateQueries({ queryKey: queryKeys.accountings.detail(accountingId) });
         } catch (error) {
           handleApiError(error, "税区分の更新");
         }
       });
     },
-    [accountingId, queryClient, startItemUpdateTransition],
+    [accountingId, postCloseReason, queryClient, startItemUpdateTransition],
   );
 
   const handleUpdateItemDiscount = useCallback(
@@ -143,14 +169,17 @@ export function useAccountingItemActions({
       if (!accountingId) return;
       startItemUpdateTransition(async () => {
         try {
-          await updateBillingItem(itemId, { discount_amount: discountAmount });
+          await updateBillingItem(itemId, {
+            discount_amount: discountAmount,
+            ...buildPostCloseReasonField(postCloseReason),
+          });
           queryClient.invalidateQueries({ queryKey: queryKeys.accountings.detail(accountingId) });
         } catch (error) {
           handleApiError(error, "割引の更新");
         }
       });
     },
-    [accountingId, queryClient, startItemUpdateTransition],
+    [accountingId, postCloseReason, queryClient, startItemUpdateTransition],
   );
 
   return {

@@ -31,6 +31,13 @@ export interface UpdateBillingItemRequest {
   tax_type?: TaxType;
   tax_rate?: number;
   is_insurance_applicable?: boolean;
+  /** #115 / BUG-021: レジ締め済み期間の明細更新理由（BE が締め判定時に必須） */
+  post_close_reason?: string;
+}
+
+/** 明細削除 body（締め後のみ post_close_reason を送る） */
+export interface DeleteBillingItemRequest {
+  post_close_reason?: string;
 }
 
 // API リクエスト型（models.ts から導出）
