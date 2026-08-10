@@ -144,15 +144,15 @@ func (r *reservationAdminRepository) FindByIDForNotify(ctx context.Context, clin
 }
 
 func (r *reservationAdminRepository) CancelByID(ctx context.Context, clinicID, customerID, id uint64) error {
+	// BUG-029: LIFF cancel must keep the row visible as status=cancelled
+	// (my-reservations + staff calendar). Do not set deleted_at.
 	result := r.db.WithContext(ctx).
 		Model(&model.Reservation{}).
 		Scopes(persistence.ClinicScope(clinicID)).
-		Where("id = ? AND line_customer_id = ? AND status != ?",
+		Where("id = ? AND line_customer_id = ? AND status != ? AND deleted_at IS NULL",
 			id, customerID, model.ReservationStatusCancelled).
-		// Q7: キャンセルは予約管理から消す（ソフトデリート）。status を残しつつ deleted_at をセット
 		Updates(map[string]any{
-			"status":     model.ReservationStatusCancelled,
-			"deleted_at": time.Now(),
+			"status": model.ReservationStatusCancelled,
 		})
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "appointment", fmt.Sprintf("%d", id))
