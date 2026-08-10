@@ -195,6 +195,13 @@ export function useVaccinationForm(
       }
     : { ...DEFAULT_FORM, ...localOverrides };
 
+  // localOverrides は部分更新のみ。編集時に未タッチの date/type は server base 側にあるため、
+  // setDate / setNextScheduleType / setNextDate は formData 合成結果を ref 経由で読む（BUG-005/026）。
+  const formDataRef = useRef(formData);
+  useLayoutEffect(() => {
+    formDataRef.current = formData;
+  }, [formData]);
+
   const setField = useCallback(<K extends keyof VaccinationFormState>(key: K, value: VaccinationFormState[K]) => {
     setLocalOverrides((prev) => ({ ...prev, [key]: value }));
   }, []);
@@ -350,7 +357,7 @@ export function useVaccinationForm(
     setLocalOverrides((prev) => {
       const selected = vaccinesMaster.find((vac) => vac.id === v);
       const scheduleType = scheduleTypeForInterval(selected?.interval);
-      const currentDate = prev.date ?? "";
+      const currentDate = prev.date ?? formDataRef.current.date;
       const calculated = calculateNextDate(currentDate, scheduleType);
       return {
         ...prev,
@@ -361,10 +368,11 @@ export function useVaccinationForm(
     });
   }, [vaccinesMaster]);
 
-  // BUG-026: auto-calculate nextDate when date changes
+  // BUG-026: auto-calculate nextDate when date changes（other のときは手入力 nextDate を維持）
   const setDate = useCallback((v: string) => {
     setLocalOverrides((prev) => {
-      const scheduleType = prev.nextScheduleType ?? DEFAULT_NEXT_SCHEDULE_TYPE;
+      const scheduleType =
+        prev.nextScheduleType ?? formDataRef.current.nextScheduleType ?? DEFAULT_NEXT_SCHEDULE_TYPE;
       const calculated = calculateNextDate(v, scheduleType);
       return { ...prev, date: v, ...(calculated ? { nextDate: calculated } : {}) };
     });
@@ -379,13 +387,29 @@ export function useVaccinationForm(
   // BUG-026: auto-calculate nextDate when schedule type changes
   const setNextScheduleType = useCallback((v: string) => {
     setLocalOverrides((prev) => {
-      const currentDate = prev.date ?? "";
+      const currentDate = prev.date ?? formDataRef.current.date;
       const calculated = calculateNextDate(currentDate, v);
       return { ...prev, nextScheduleType: v, ...(calculated ? { nextDate: calculated } : {}) };
     });
   }, []);
 
-  const setNextDate = useCallback((v: string) => setField("nextDate", v), [setField]);
+  // BUG-005: 次回予定日の手動上書き時、標準間隔の計算結果と一致しなければ type を other へ切替。
+  // type=1year のまま next_date だけずらす矛盾永続化を防ぐ。一致する場合は標準 type を維持。
+  const setNextDate = useCallback((v: string) => {
+    setLocalOverrides((prev) => {
+      const base = formDataRef.current;
+      const vaccinationDate = prev.date ?? base.date;
+      const currentType =
+        prev.nextScheduleType ?? base.nextScheduleType ?? DEFAULT_NEXT_SCHEDULE_TYPE;
+      if (currentType !== "other" && vaccinationDate && v) {
+        const calculated = calculateNextDate(vaccinationDate, currentType);
+        if (calculated && calculated === v) {
+          return { ...prev, nextDate: v };
+        }
+      }
+      return { ...prev, nextDate: v, nextScheduleType: "other" };
+    });
+  }, []);
   const setRemarks = useCallback((v: string) => setField("remarks", v), [setField]);
 
   // BUG-025: delete handler
