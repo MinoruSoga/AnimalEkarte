@@ -1,5 +1,6 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { isPersistedPetId } from "@/lib/pet-id";
 import { queryKeys } from "@/lib/query-keys";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import { transformBackendPetToFrontend } from "@/lib/transforms/pet";
@@ -50,13 +51,14 @@ function transformBackendPetListToFrontend(pet: BackendPetList): Pet {
  * Uses the same query key as features/pets to share React Query cache.
  */
 export function useGetPet(petId: string) {
+  // BUG-022: ローカル pending の temp-* ID で GET /v1/pets/:id を打たない
   return useQuery({
     queryKey: queryKeys.pets.detail(petId),
     queryFn: async (): Promise<Pet> => {
       const { data } = await axios.get<PetResponse>(`/v1/pets/${petId}`);
       return transformBackendPetToFrontend(data);
     },
-    enabled: !!petId,
+    enabled: isPersistedPetId(petId),
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,
   });

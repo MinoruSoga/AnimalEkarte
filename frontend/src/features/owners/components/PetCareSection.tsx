@@ -8,6 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { C } from "@/lib/design-tokens";
 
+import { isPersistedPetId } from "@/lib/pet-id";
+
 import type { PetFormData } from "../types";
 import { LABEL_CLS, INPUT_CLS } from "./pet-edit-field-shared";
 
@@ -42,7 +44,11 @@ export function PetCareSection({
   onInsuranceChange,
   onPetLifecycleChange,
 }: PetCareSectionProps) {
-  const targetPetId = formData.id;
+  // BUG-022: pending ペットはサーバ未登録のため死亡記録 API を出さない
+  const targetPetId =
+    formData.isPending === true || !isPersistedPetId(formData.id)
+      ? undefined
+      : formData.id;
 
   return (
     <div className="space-y-2">

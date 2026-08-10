@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { axios } from "@/lib/axios";
+import { isPersistedPetId } from "@/lib/pet-id";
 import { queryKeys } from "@/lib/query-keys";
 import { QUERY_GC_TIMES, QUERY_STALE_TIMES } from "@/lib/react-query";
 
@@ -76,22 +77,26 @@ export async function getSubOwnerCandidates(
 }
 
 export function useGetPetSubOwners(petId: string) {
+  // BUG-022: pending ペットの temp-* など非永続 ID では API を発行しない
+  const canFetch = isPersistedPetId(petId);
   return useQuery({
     queryKey: queryKeys.petSubOwners.detail(petId),
     queryFn: () => getPetSubOwners(petId),
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,
-    enabled: petId !== "",
+    enabled: canFetch,
   });
 }
 
 export function useGetPetSubOwnerMetadata(petId: string) {
+  // BUG-022: pending ペットの temp-* など非永続 ID では API を発行しない
+  const canFetch = isPersistedPetId(petId);
   return useQuery({
     queryKey: queryKeys.petSubOwners.metadata(petId),
     queryFn: () => getPetSubOwnerMetadata(petId),
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,
-    enabled: petId !== "",
+    enabled: canFetch,
   });
 }
 
