@@ -160,7 +160,8 @@ func (s *ownerService) ensureOwnerEmailUnique(ctx context.Context, clinicID, cur
 		return apperrors.Wrap(err, "failed to check email uniqueness")
 	}
 	if existing != nil && existing.ID != currentOwnerID {
-		return apperrors.WrapAlreadyExists("owner", "このメールアドレスはすでに登録されています")
+		// BUG-024: 完成文を identifier に渡すと英語テンプレで英日混在になる
+		return apperrors.WrapAlreadyExistsMessage("このメールアドレスはすでに登録されています")
 	}
 	return nil
 }
@@ -175,8 +176,7 @@ func (s *ownerService) ensureOwnerPhoneUnique(ctx context.Context, clinicID, cur
 		return apperrors.Wrap(err, "failed to check phone uniqueness")
 	}
 	if existing != nil && existing.ID != currentOwnerID {
-		// BUG-019: 日本語完成文を WrapAlreadyExists の identifier に渡すと
-		// `owner '…' already exists` の英日混在になるため message 直渡しにする。
+		// BUG-019 / BUG-024: 日本語完成文を message 直渡し（英語テンプレ埋め込み禁止）
 		return apperrors.WrapAlreadyExistsMessage("この電話番号はすでに登録されています")
 	}
 	return nil

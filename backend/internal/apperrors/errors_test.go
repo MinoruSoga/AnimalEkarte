@@ -6,6 +6,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 )
 
@@ -134,16 +135,25 @@ func TestWrapAlreadyExists(t *testing.T) {
 }
 
 func TestWrapAlreadyExistsMessage(t *testing.T) {
-	const msg = "この電話番号はすでに登録されています"
-	err := WrapAlreadyExistsMessage(msg)
+	const phoneMsg = "この電話番号はすでに登録されています"
+	err := WrapAlreadyExistsMessage(phoneMsg)
 	assert.NotNil(t, err)
 	assert.True(t, IsAlreadyExists(err))
 	var appErr *AppError
-	assert.True(t, errors.As(err, &appErr))
+	require.True(t, errors.As(err, &appErr))
 	assert.Equal(t, "ALREADY_EXISTS", appErr.Code)
-	assert.Equal(t, msg, appErr.Message)
+	assert.Equal(t, phoneMsg, appErr.Message)
 	assert.NotContains(t, appErr.Message, "already exists")
 	assert.NotContains(t, appErr.Message, "owner '")
+
+	err = WrapAlreadyExistsMessage("このメールアドレスはすでに登録されています")
+	require.True(t, errors.As(err, &appErr))
+	assert.Equal(t, "このメールアドレスはすでに登録されています", appErr.Message)
+	assert.NotContains(t, appErr.Message, "already exists")
+
+	empty := WrapAlreadyExistsMessage("")
+	require.True(t, errors.As(empty, &appErr))
+	assert.Equal(t, "resource already exists", appErr.Message)
 }
 
 func TestIsAlreadyExists(t *testing.T) {

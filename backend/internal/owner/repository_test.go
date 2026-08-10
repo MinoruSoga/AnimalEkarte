@@ -252,7 +252,7 @@ func TestOwnerRepository_PhoneUniqueConstraint(t *testing.T) {
 	err := repo.CreateWithPets(ctx, dup, nil)
 	require.Error(t, err)
 	assert.True(t, apperrors.IsAlreadyExists(err), "expected AlreadyExists, got %v", err)
-	// BUG-019: natural Japanese message on phone unique constraint
+	// BUG-019 / BUG-024: unique constraint path returns JA-only message
 	var appErr *apperrors.AppError
 	require.True(t, errors.As(err, &appErr))
 	assert.Equal(t, "この電話番号はすでに登録されています", appErr.Message)

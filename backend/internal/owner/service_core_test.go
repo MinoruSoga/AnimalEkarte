@@ -91,6 +91,12 @@ func TestOwnerService_CreateWithPets_UniquenessAndSyncBranches(t *testing.T) {
 		assert.Error(t, err)
 		assert.Nil(t, owner)
 		assert.True(t, apperrors.IsAlreadyExists(err))
+		// BUG-024: 日本語完成文のみ（英語テンプレ混在なし）
+		var appErr *apperrors.AppError
+		require.True(t, errors.As(err, &appErr))
+		assert.Equal(t, "このメールアドレスはすでに登録されています", appErr.Message)
+		assert.NotContains(t, appErr.Message, "already exists")
+		assert.NotContains(t, appErr.Message, "owner '")
 	})
 
 	t.Run("email uniqueness check repository error propagates", func(t *testing.T) {
@@ -118,7 +124,7 @@ func TestOwnerService_CreateWithPets_UniquenessAndSyncBranches(t *testing.T) {
 		assert.Error(t, err)
 		assert.Nil(t, owner)
 		assert.True(t, apperrors.IsAlreadyExists(err))
-		// BUG-019: natural Japanese, not owner '…' already exists
+		// BUG-019 / BUG-024: natural Japanese, not owner '…' already exists
 		var appErr *apperrors.AppError
 		require.True(t, errors.As(err, &appErr))
 		assert.Equal(t, "この電話番号はすでに登録されています", appErr.Message)
@@ -209,6 +215,9 @@ func TestOwnerService_Update_AdditionalBranches(t *testing.T) {
 		_, err := svc.Update(ctx, 1, 1, &UpdateOwnerInput{Email: &email})
 		assert.Error(t, err)
 		assert.True(t, apperrors.IsAlreadyExists(err))
+		var appErr *apperrors.AppError
+		require.True(t, errors.As(err, &appErr))
+		assert.Equal(t, "このメールアドレスはすでに登録されています", appErr.Message)
 	})
 
 	t.Run("email matching same owner does not conflict", func(t *testing.T) {
