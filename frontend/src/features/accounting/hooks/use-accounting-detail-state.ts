@@ -130,11 +130,13 @@ export function useAccountingDetailState({
   const calculation = useMemo(() => {
     if (!accounting) return null;
 
+    // BUG-006: 明細ごとの taxRate を尊重（10% 固定を渡さない）。
+    // calculateBillingTotals が item.taxRate 未指定時のみ既定 10% にフォールバックする。
     const billingResult = calculateBillingTotals(
       accounting.items,
       0,
       0,
-      0.10,
+      undefined,
       hasInsurance ? parseFloat(insuranceRatio) : 0,
     );
 
