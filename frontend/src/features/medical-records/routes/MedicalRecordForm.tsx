@@ -18,6 +18,7 @@ import { paths } from "@/config/paths";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { C, ICON, LAYOUT } from "@/lib/design-tokens";
 import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
+import { Button } from "@/components/ui/button";
 import { UnifiedTabsRoot } from "@/components/shared/UnifiedTabs";
 
 // Relative
@@ -62,6 +63,10 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
     isPetLoading,
     shouldRedirectToSelectPet,
     notFound,
+    isReadLoading,
+    isReadNotFound,
+    isReadError,
+    retryRead,
     handleBack,
     formAction,
     formState,
@@ -270,7 +275,21 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
     }
   }, [recordId, handleChangeDoctor, setStaffName]);
 
-  if (notFound) {
+  if (isReadLoading) {
+    return (
+      <PageLayout
+        title="カルテ"
+        onBack={handleBack}
+        icon={<HeartPulse className={`${ICON.page} ${C.text}`} />}
+        maxWidth={LAYOUT.pageContentMaxWidth.full}
+      >
+        <LoadingFallback />
+      </PageLayout>
+    );
+  }
+
+  // BUG-017: missing / other-clinic / forbidden → Not Found (non-disclosure), never blank
+  if (notFound || isReadNotFound) {
     return (
       <PageLayout
         title="カルテ"
@@ -283,11 +302,44 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
     );
   }
 
+  if (isReadError) {
+    return (
+      <PageLayout
+        title="カルテ"
+        onBack={handleBack}
+        icon={<HeartPulse className={`${ICON.page} ${C.text}`} />}
+        maxWidth={LAYOUT.pageContentMaxWidth.full}
+      >
+        <div className="space-y-3">
+          <ErrorFallback message="カルテの取得に失敗しました" />
+          {retryRead ? (
+            <Button type="button" variant="outline" size="sm" onClick={retryRead}>
+              再試行
+            </Button>
+          ) : null}
+        </div>
+      </PageLayout>
+    );
+  }
+
   if (isPetLoading) {
     return <LoadingFallback />;
   }
 
+  // Edit route with loaded record but pet unresolved: never blank white page
   if (!selectedPet) {
+    if (!isNewRecord) {
+      return (
+        <PageLayout
+          title="カルテ"
+          onBack={handleBack}
+          icon={<HeartPulse className={`${ICON.page} ${C.text}`} />}
+          maxWidth={LAYOUT.pageContentMaxWidth.full}
+        >
+          <ErrorFallback message="カルテが見つかりません" />
+        </PageLayout>
+      );
+    }
     return null;
   }
 

@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
+import { AxiosError, AxiosHeaders, type InternalAxiosRequestConfig } from "axios";
 import { useMedicalRecordForm } from "./use-medical-record-form";
 import { useGetPet } from "@/hooks/use-pet";
 import { useGetOwner } from "@/hooks/use-owner";
@@ -603,6 +604,127 @@ describe("useMedicalRecordForm", () => {
       });
       expect(result.current.pendingOwnerChange).toBeNull();
       expect(noMutation.mutateAsync).toHaveBeenCalled();
+    });
+  });
+
+  // ──────────────────────────
+  // BUG-017: missing chart ID read gate
+  // ──────────────────────────
+  describe("BUG-017: 存在しないカルテIDの read gate", () => {
+    function axiosError(status: number | undefined) {
+      const config = { headers: new AxiosHeaders() } as InternalAxiosRequestConfig;
+      if (status === undefined) {
+        return new AxiosError("Network Error", AxiosError.ERR_NETWORK, config, undefined, undefined);
+      }
+      return new AxiosError(
+        "request failed",
+        AxiosError.ERR_BAD_RESPONSE,
+        config,
+        undefined,
+        {
+          config,
+          data: { error: "not found" },
+          headers: new AxiosHeaders(),
+          status,
+          statusText: "Error",
+        },
+      );
+    }
+
+    it("loading → isReadLoading、notFound ではない", () => {
+      mockUseGetMedicalRecord.mockReturnValue({
+        data: undefined,
+        isLoading: true,
+        isError: false,
+        error: null,
+        refetch: vi.fn(),
+      } as never);
+      const { result } = renderHook(() => useMedicalRecordForm("999999999"));
+      expect(result.current.isReadLoading).toBe(true);
+      expect(result.current.isReadNotFound).toBe(false);
+      expect(result.current.notFound).toBe(false);
+      expect(result.current.isReadError).toBe(false);
+    });
+
+    it("404 → isReadNotFound / notFound", () => {
+      mockUseGetMedicalRecord.mockReturnValue({
+        data: undefined,
+        isLoading: false,
+        isError: true,
+        error: axiosError(404),
+        refetch: vi.fn(),
+      } as never);
+      const { result } = renderHook(() => useMedicalRecordForm("999999999"));
+      expect(result.current.isReadNotFound).toBe(true);
+      expect(result.current.notFound).toBe(true);
+      expect(result.current.isReadError).toBe(false);
+      expect(result.current.isReadLoading).toBe(false);
+    });
+
+    it("403 → 404 と同一の非開示 (isReadNotFound)", () => {
+      mockUseGetMedicalRecord.mockReturnValue({
+        data: undefined,
+        isLoading: false,
+        isError: true,
+        error: axiosError(403),
+        refetch: vi.fn(),
+      } as never);
+      const { result } = renderHook(() => useMedicalRecordForm("42"));
+      expect(result.current.isReadNotFound).toBe(true);
+      expect(result.current.notFound).toBe(true);
+      expect(result.current.isReadError).toBe(false);
+    });
+
+    it("network error → isReadError + retry、404 へ偽装しない", () => {
+      const refetch = vi.fn();
+      mockUseGetMedicalRecord.mockReturnValue({
+        data: undefined,
+        isLoading: false,
+        isError: true,
+        error: axiosError(undefined),
+        refetch,
+      } as never);
+      const { result } = renderHook(() => useMedicalRecordForm("999"));
+      expect(result.current.isReadError).toBe(true);
+      expect(result.current.isReadNotFound).toBe(false);
+      expect(result.current.notFound).toBe(false);
+      expect(result.current.retryRead).toBeTypeOf("function");
+      result.current.retryRead?.();
+      expect(refetch).toHaveBeenCalledTimes(1);
+    });
+
+    it("settled で data なし（isError=false）→ notFound（空白にしない）", () => {
+      mockUseGetMedicalRecord.mockReturnValue({
+        data: undefined,
+        isLoading: false,
+        isError: false,
+        error: null,
+        refetch: vi.fn(),
+      } as never);
+      const { result } = renderHook(() => useMedicalRecordForm("999999999"));
+      expect(result.current.isReadNotFound).toBe(true);
+      expect(result.current.notFound).toBe(true);
+    });
+
+    it("found → notFound ではない", () => {
+      mockUseGetMedicalRecord.mockReturnValue({
+        data: {
+          id: "10",
+          petId: "pet-1",
+          visitType: "再診",
+          status: "作成中",
+          version: 1,
+        },
+        isLoading: false,
+        isError: false,
+        error: null,
+        refetch: vi.fn(),
+      } as never);
+      const { result } = renderHook(() => useMedicalRecordForm("10"));
+      expect(result.current.isReadNotFound).toBe(false);
+      expect(result.current.notFound).toBe(false);
+      expect(result.current.isReadLoading).toBe(false);
+      expect(result.current.isReadError).toBe(false);
     });
   });
 });
