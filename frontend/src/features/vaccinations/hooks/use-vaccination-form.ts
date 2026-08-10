@@ -179,6 +179,9 @@ export function useVaccinationForm(
   const [localOverrides, setLocalOverrides] = useState<Partial<VaccinationFormState>>({});
 
   // Merge: server data as base + user edits on top
+  // BUG-004: 新規オープン時は接種日を JST 当日で初期表示（編集は既存 date を保持）。
+  // todayJSTISO() は merge 時に評価し、モジュール定数に焼き込まない（日跨ぎ対策）。
+  // localOverrides.date があれば上書き可能（手動変更 DoD）。
   const formData: VaccinationFormState = isEdit && existingVaccination
     ? {
         vaccineId: existingVaccination.vaccineId,
@@ -193,7 +196,7 @@ export function useVaccinationForm(
         remarks: existingVaccination.remarks ?? "",
         ...localOverrides,
       }
-    : { ...DEFAULT_FORM, ...localOverrides };
+    : { ...DEFAULT_FORM, date: todayJSTISO(), ...localOverrides };
 
   // localOverrides は部分更新のみ。編集時に未タッチの date/type は server base 側にあるため、
   // setDate / setNextScheduleType / setNextDate は formData 合成結果を ref 経由で読む（BUG-005/026）。
