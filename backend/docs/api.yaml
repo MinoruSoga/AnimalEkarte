@@ -1000,6 +1000,13 @@ components:
           type: string
           format: date-time
           nullable: true
+        deceased_reason:
+          type: string
+          nullable: true
+          readOnly: true
+          description: |
+            BUG-003: 院内スタッフ向け死亡理由（GET /pets/{id} の Pet 詳細のみ）。
+            Owner.pets / LIFF 向けレスポンスには含めない。
         created_at:
           type: string
           format: date-time

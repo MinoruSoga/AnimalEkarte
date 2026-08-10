@@ -43,6 +43,27 @@ describe("PetDeceasedBanner (FE4-9)", () => {
     );
     expect(screen.getByText("2026年7月11日 永眠")).toBeInTheDocument();
   });
+
+  // BUG-003: GET pets から取得した死亡理由を再表示する
+  it("deceasedReason がある場合は死亡理由を表示する", () => {
+    render(
+      <PetDeceasedBanner
+        deceasedAt="2026-07-11T00:00:00+09:00"
+        deceasedReason="老衰"
+        petId="1"
+        canEdit={false}
+      />,
+    );
+    expect(screen.getByText("老衰")).toBeInTheDocument();
+    expect(screen.getByText(/死亡理由/)).toBeInTheDocument();
+  });
+
+  it("deceasedReason が無い場合は死亡理由行を出さない", () => {
+    render(
+      <PetDeceasedBanner deceasedAt="2026-07-11T00:00:00+09:00" petId="1" canEdit={false} />,
+    );
+    expect(screen.queryByText(/死亡理由/)).not.toBeInTheDocument();
+  });
 });
 
 // BUG-407: 解除成功時に外側フォームのローカル formData（生死ラジオ・deceasedAt）へ

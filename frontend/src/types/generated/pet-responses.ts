@@ -58,10 +58,10 @@ export interface PetResponse {
   insurance_id?: number /* uint64 */;
   remarks: string;
   /**
-   * DeceasedReason は含めない（セキュリティレビュー指摘と平仄を合わせる: 現状どの UI
-   * コンポーネントもこの値を読み取らない — 死亡ダイアログは書き込み専用。将来的な読み取り
-   * UI が実装されるまでは意図的に未追加とする。DeceasedAt のみで死亡バナー表示は成立する）。
+   * DeceasedReason は staff 向け GET /pets/{id} のみ（BUG-003）。
+   * owner nested / LIFF DTO には載せない。
    */
+  deceased_reason?: string;
   deceased_at?: string;
   created_at: string;
   updated_at: string;

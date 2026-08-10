@@ -30,6 +30,7 @@ type PetLifecycleChange = {
   petId: string;
   status: "死亡" | "生存";
   deceasedAt: string | null;
+  deceasedReason?: string | null;
 };
 
 export function usePetFormListState({
@@ -54,18 +55,32 @@ export function usePetFormListState({
   // BUG-002: 死亡登録/解除は専用 API が完了済み。外側 pets と編集中 pet を ID 一致で不変更新する。
   // OwnerForm の editingPetRef.status ガードが stale にならないよう editingPet も同期する。
   const handlePetLifecycleChange = useCallback(
-    ({ petId, status, deceasedAt }: PetLifecycleChange) => {
+    ({ petId, status, deceasedAt, deceasedReason }: PetLifecycleChange) => {
       setPets((prev) => {
         // foreign/absent ID: 配列参照ごと no-op（map で新配列を作らない）
         if (!prev.some((pet) => pet.id === petId)) {
           return prev;
         }
         return prev.map((pet) =>
-          pet.id === petId ? { ...pet, status, deceasedAt } : pet,
+          pet.id === petId
+            ? {
+                ...pet,
+                status,
+                deceasedAt,
+                deceasedReason: status === "生存" ? null : (deceasedReason ?? pet.deceasedReason),
+              }
+            : pet,
         );
       });
       setEditingPet((prev) =>
-        prev?.id === petId ? { ...prev, status, deceasedAt } : prev,
+        prev?.id === petId
+          ? {
+              ...prev,
+              status,
+              deceasedAt,
+              deceasedReason: status === "生存" ? null : (deceasedReason ?? prev.deceasedReason),
+            }
+          : prev,
       );
     },
     [],

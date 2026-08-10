@@ -31,5 +31,6 @@ export function createPetFormData(petData?: PetFormData): PetFormData {
     insuranceName: petData?.insuranceName,
     insuranceDetails: petData?.insuranceDetails,
     deceasedAt: petData?.deceasedAt,
+    deceasedReason: petData?.deceasedReason,
   };
 }

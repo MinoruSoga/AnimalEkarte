@@ -27,6 +27,7 @@ interface PetEditModalFieldsProps {
     petId: string;
     status: "死亡" | "生存";
     deceasedAt: string | null;
+    deceasedReason?: string | null;
   }) => void;
 }
 

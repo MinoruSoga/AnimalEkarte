@@ -83,9 +83,7 @@ func TestToPetListResponseIncludesOwnerReportDetailFields(t *testing.T) {
 // deceased_at が pet 詳細 (toPetResponse) で serialize されることを保証する。
 // 修正前は両方の response DTO にフィールド自体が存在せず、フロントに値が
 // 一切渡らなかった。
-// deceased_reason はセキュリティレビュー指摘により意図的に含めない
-// （未curationの LIFF LinkLiffAccount 経路でも同じ DTO が再利用されるため。
-// UI側にも読み取り消費者が存在しない）。
+// BUG-003: staff 向け PetResponse には deceased_reason も載せる（owner/LIFF DTO は別契約）。
 func TestToPetResponseSerializesDeceasedAt(t *testing.T) {
 	deceasedAt := time.Date(2026, 7, 10, 3, 0, 0, 0, time.UTC)
 	deceasedReason := "老衰"
@@ -102,12 +100,18 @@ func TestToPetResponseSerializesDeceasedAt(t *testing.T) {
 	detail := toPetResponse(pet)
 	require.NotNil(t, detail.DeceasedAt)
 	assert.True(t, deceasedAt.Equal(*detail.DeceasedAt))
+	require.NotNil(t, detail.DeceasedReason)
+	assert.Equal(t, deceasedReason, *detail.DeceasedReason)
 
+	body, err := json.Marshal(detail)
+	require.NoError(t, err)
+	assert.Contains(t, string(body), `"deceased_reason":"老衰"`)
 }
 
 // TestToPetResponseOmitsDeceasedAtWhenAlive は、
 // 生存中ペット（DeceasedAt が nil）で DeceasedAt が nil のままであることを
 // 保証する（誤って死亡日を捏造しない）。
+// BUG-003: 生存ペットでは deceased_reason も JSON から物理的に欠落する。
 func TestToPetResponseOmitsDeceasedAtWhenAlive(t *testing.T) {
 	pet := &model.Pet{
 		ID:      7,
@@ -118,5 +122,10 @@ func TestToPetResponseOmitsDeceasedAtWhenAlive(t *testing.T) {
 
 	detail := toPetResponse(pet)
 	assert.Nil(t, detail.DeceasedAt)
+	assert.Nil(t, detail.DeceasedReason)
 
+	body, err := json.Marshal(detail)
+	require.NoError(t, err)
+	assert.NotContains(t, string(body), "deceased_at")
+	assert.NotContains(t, string(body), "deceased_reason")
 }
