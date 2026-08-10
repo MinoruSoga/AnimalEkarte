@@ -42,8 +42,19 @@ const OWNER_FIELD_ID_MAP: Record<string, string> = {
   phone: "phone",
   email: "email",
   discountRate: "discountRate",
+  postalCode: "postalCode",
+  homePostalCode: "homePostalCode",
 };
-const OWNER_PRIORITY_FIELDS = ["ownerName", "ownerNameKana", "phone", "email", "discountRate"] as const;
+// BUG-023: 形式/範囲エラーも優先フォーカス対象に含める
+const OWNER_PRIORITY_FIELDS = [
+  "ownerName",
+  "ownerNameKana",
+  "phone",
+  "email",
+  "postalCode",
+  "homePostalCode",
+  "discountRate",
+] as const;
 
 interface OwnerFormProps {
   petMutations?: PetMutations;
@@ -244,8 +255,10 @@ export function OwnerForm({ petMutations, lineSection, accountingSection }: Owne
     [ownerData, lookup, handleInputChange],
   );
 
+  // BUG-023: HTML5 の type=email / type=number max が formAction 前に静かにブロックするため noValidate。
+  // 表示は useOwnerForm の fieldErrors に一本化。
   return (
-    <form action={formAction} className="h-full">
+    <form action={formAction} noValidate className="h-full">
       <PageLayout
         title={isEdit ? "飼主・ペット　編集" : "飼主・ペット　登録"}
         onBack={handleBack}
