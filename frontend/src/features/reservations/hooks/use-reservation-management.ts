@@ -11,7 +11,10 @@ import type {
 import type { ReservationCreateMutations } from "@/types/reservation-create-mutations";
 
 import { useGetReservations } from "../api/get-reservations";
-import { useReservationActions } from "./use-reservation-actions";
+import {
+  useReservationActions,
+  type StatusConfirmTarget,
+} from "./use-reservation-actions";
 import { useReservationModalState } from "./use-reservation-modal-state";
 import { useReservationRecordNavigation } from "./use-reservation-record-navigation";
 
@@ -49,6 +52,8 @@ export function useReservationManagement({ currentDate, view, days, clinicIds, c
 
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Reservation | null>(null);
+  const [statusConfirmOpen, setStatusConfirmOpen] = useState(false);
+  const [statusConfirmTarget, setStatusConfirmTarget] = useState<StatusConfirmTarget | null>(null);
 
   const {
     isFormOpen,
@@ -82,6 +87,7 @@ export function useReservationManagement({ currentDate, view, days, clinicIds, c
     handleSave,
     handleReservationUpdate,
     handleStatusChange,
+    executeStatusChange,
     executeDelete,
   } = useReservationActions({
     appointments,
@@ -89,6 +95,9 @@ export function useReservationManagement({ currentDate, view, days, clinicIds, c
     deleteTarget,
     setDeleteConfirmOpen,
     setDeleteTarget,
+    statusConfirmTarget,
+    setStatusConfirmOpen,
+    setStatusConfirmTarget,
     setDetailAppointment,
     handleCloseForm,
     handleCloseDetail,
@@ -112,6 +121,11 @@ export function useReservationManagement({ currentDate, view, days, clinicIds, c
   const handleDeleteConfirmClose = useCallback(() => {
     setDeleteConfirmOpen(false);
     setDeleteTarget(null);
+  }, []);
+
+  const handleStatusConfirmClose = useCallback(() => {
+    setStatusConfirmOpen(false);
+    setStatusConfirmTarget(null);
   }, []);
 
   return {
@@ -144,6 +158,12 @@ export function useReservationManagement({ currentDate, view, days, clinicIds, c
     deleteTarget,
     executeDelete,
     handleDeleteConfirmClose,
+
+    // Status confirm (BUG-020 destructive statuses)
+    statusConfirmOpen,
+    statusConfirmTarget,
+    executeStatusChange,
+    handleStatusConfirmClose,
 
     // Pet select confirm
     petSelectConfirmOpen,
