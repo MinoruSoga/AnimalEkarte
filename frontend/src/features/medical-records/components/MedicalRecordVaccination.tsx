@@ -59,6 +59,8 @@ export const MedicalRecordVaccination = memo(function MedicalRecordVaccination({
   const [nextScheduleType, setNextScheduleType] = useState("4weeks");
   const [nextDate, setNextDate] = useState("");
   const [remarks, setRemarks] = useState("");
+  // BUG-015: 未選択のまま追加すると early return で無音失敗していた → 明示 fieldErrors
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const [isSaving, startSaveTransition] = useTransition();
 
@@ -84,8 +86,40 @@ export const MedicalRecordVaccination = memo(function MedicalRecordVaccination({
     setRemarks(item.remarks);
   }, []);
 
+  const handleVaccineNameChange = useCallback((value: string) => {
+    setVaccineName(value);
+    setFieldErrors((prev) => {
+      if (!prev.vaccineId) return prev;
+      const { vaccineId: _removed, ...rest } = prev;
+      return rest;
+    });
+  }, []);
+
+  const handleDateChange = useCallback((value: string) => {
+    setDate(value);
+    setFieldErrors((prev) => {
+      if (!prev.date) return prev;
+      const { date: _removed, ...rest } = prev;
+      return rest;
+    });
+  }, []);
+
   const handleSave = useCallback(() => {
-    if (!petId || !vaccineName || !date) return;
+    // 独立フォーム (use-vaccination-form) と同じ必須文言。未選択は API を叩かない。
+    const errors: Record<string, string> = {};
+    if (!vaccineName || vaccineName === "0") {
+      errors.vaccineId = "ワクチン種別を選択してください";
+    }
+    if (!date) {
+      errors.date = "接種日を入力してください";
+    }
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      return;
+    }
+    if (!petId) return;
+
+    setFieldErrors({});
     startSaveTransition(async () => {
       try {
         await createVaccination({
@@ -112,6 +146,7 @@ export const MedicalRecordVaccination = memo(function MedicalRecordVaccination({
         setNextScheduleType("4weeks");
         setNextDate("");
         setRemarks("");
+        setFieldErrors({});
       } catch (err) {
         handleApiError(err, "予防接種の登録");
       }
@@ -130,9 +165,9 @@ export const MedicalRecordVaccination = memo(function MedicalRecordVaccination({
       <VaccinationForm
         vaccineOptions={vaccineOptions}
         vaccineName={vaccineName}
-        setVaccineName={setVaccineName}
+        setVaccineName={handleVaccineNameChange}
         date={date}
-        setDate={setDate}
+        setDate={handleDateChange}
         supplemental={supplemental}
         setSupplemental={setSupplemental}
         lot1={lot1}
@@ -149,6 +184,7 @@ export const MedicalRecordVaccination = memo(function MedicalRecordVaccination({
         setNextDate={setNextDate}
         remarks={remarks}
         setRemarks={setRemarks}
+        fieldErrors={fieldErrors}
         onSave={handleSave}
         isSaving={isSaving}
       />
