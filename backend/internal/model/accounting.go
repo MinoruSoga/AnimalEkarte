@@ -133,6 +133,8 @@ type BillingItem struct {
 	CreatedBy             *uint64        `                                                      json:"-"`
 	MerchandiseItemID     *uint64        `                                                      json:"merchandise_item_id,omitempty"`
 	TreatmentID           *uint64        `                                                      json:"treatment_id,omitempty"`
+	// MedicalRecordID は DB 列ではない。未請求候補（treatment 由来）など API 応答用の仮想フィールド。
+	MedicalRecordID       *uint64        `gorm:"-"                                              json:"medical_record_id,omitempty"`
 	VaccinationID         *uint64        `                                                      json:"vaccination_id,omitempty"`
 	AppointmentID         *uint64        `                                                      json:"appointment_id,omitempty"`
 	TrimmingCourseID      *uint64        `                                                      json:"trimming_course_id,omitempty"`

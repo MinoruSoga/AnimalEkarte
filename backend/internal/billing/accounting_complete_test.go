@@ -25,6 +25,24 @@ func TestValidateIdempotencyKeyUUID(t *testing.T) {
 	assert.NoError(t, ValidateIdempotencyKeyUUID(uuid.NewString()))
 }
 
+func TestResolveCompleteMedicalRecordID_NoTreatmentPassesExplicit(t *testing.T) {
+	t.Parallel()
+	// treatment 無しは tx 不要。明示値をそのまま返す（BUG-011）。
+	explicit := uint64(9)
+	got, err := resolveCompleteMedicalRecordID(context.Background(), 1, &explicit, []CompleteAccountingItemInput{
+		{Name: "手動", UnitPrice: 100, Quantity: 1, Source: "manual"},
+	})
+	require.NoError(t, err)
+	require.NotNil(t, got)
+	assert.Equal(t, uint64(9), *got)
+
+	got, err = resolveCompleteMedicalRecordID(context.Background(), 1, nil, []CompleteAccountingItemInput{
+		{Name: "手動", UnitPrice: 100, Quantity: 1, Source: "manual"},
+	})
+	require.NoError(t, err)
+	assert.Nil(t, got)
+}
+
 func TestComputeCompleteAccountingDigest_Deterministic(t *testing.T) {
 	t.Parallel()
 	ownerID := uint64(1)

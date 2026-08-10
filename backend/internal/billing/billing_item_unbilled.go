@@ -110,6 +110,7 @@ func (s *billingItemService) GetUngroupedSameDaySummary(ctx context.Context, cli
 
 func treatmentToUnbilledBillingItem(t *model.Treatment) model.BillingItem {
 	treatmentID := t.ID
+	medicalRecordID := t.MedicalRecordID
 	return model.BillingItem{
 		ID:                    t.ID,
 		BillingID:             0,
@@ -122,7 +123,9 @@ func treatmentToUnbilledBillingItem(t *model.Treatment) model.BillingItem {
 		IsInsuranceApplicable: t.IsInsurance,
 		Source:                model.ItemSourceMedicalRecord,
 		TreatmentID:           &treatmentID,
-		SortOrder:             t.SortOrder,
+		// BUG-011: complete が treatment 付き明細に medical_record_id を載せるため未請求候補で返す。
+		MedicalRecordID: &medicalRecordID,
+		SortOrder:       t.SortOrder,
 	}
 }
 

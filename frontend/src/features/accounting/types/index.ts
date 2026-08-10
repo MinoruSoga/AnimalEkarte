@@ -43,6 +43,8 @@ export interface AccountingItem {
   merchandiseItemId?: string;
   vaccinationId?: string;
   treatmentId?: string;
+  /** treatment 由来の親カルテ（未請求候補などで付与） */
+  medicalRecordId?: string;
   appointmentId?: string;
   trimmingCourseId?: string;
   trimmingOptionId?: string;
