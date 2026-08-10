@@ -416,3 +416,54 @@ func TestCheckupSyncRepository_FindCheckupSyncPreview_RejectsCrossClinicChildRow
 	require.NoError(t, err)
 	assert.Empty(t, rows)
 }
+
+// BUG-030: CTE rewrite must keep hard row cap (formerly only LIMIT after full GROUP BY).
+func TestCheckupSyncRepository_FindCheckupSyncPreview_RespectsRowLimit(t *testing.T) {
+	db := setupCheckupSyncTestDB(t)
+	repo := NewCheckupSyncRepository(db)
+	ctx := context.Background()
+	const clinicID = uint64(73030)
+
+	dogSpecies := makeSyncSpecies(t, db, "制限テスト種")
+	// Cap is 500; seed slightly over so the bound is observable.
+	const seed = CheckupSyncPreviewRowLimit + 25
+	for i := 0; i < seed; i++ {
+		owner := testdb.MakeTestOwner(t, db, clinicID, fmt.Sprintf("制限飼主-%d", i))
+		pet := makeSyncPet(t, db, clinicID, owner.ID, dogSpecies.ID, fmt.Sprintf("制限ペット-%d", i), nil, nil)
+		makeSyncMedicalRecord(t, db, clinicID, owner.ID, pet.ID, time.Now().AddDate(0, 0, -i))
+	}
+
+	rows, err := repo.FindCheckupSyncPreview(ctx, &FindCheckupSyncPreviewParams{ClinicID: clinicID})
+	require.NoError(t, err)
+	assert.LessOrEqual(t, len(rows), CheckupSyncPreviewRowLimit)
+	assert.Equal(t, CheckupSyncPreviewRowLimit, len(rows))
+}
+
+func TestBuildCheckupSyncPostJoinFilters_DateAndAmount(t *testing.T) {
+	before := time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC)
+	after := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	minAge := 3
+	maxAge := 12
+	minAmount := int64(1000)
+	minVisits := int64(2)
+	checkupBefore := time.Date(2025, 12, 1, 0, 0, 0, 0, time.UTC)
+	checkupAfter := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+
+	filters, args := buildCheckupSyncPostJoinFilters(&FindCheckupSyncPreviewParams{
+		LastVisitBefore:     &before,
+		LastVisitAfter:      &after,
+		MinAgeYears:         &minAge,
+		MaxAgeYears:         &maxAge,
+		MinTotalAmount:      &minAmount,
+		MinAnnualVisitCount: &minVisits,
+		LastCheckupBefore:   &checkupBefore,
+		LastCheckupAfter:    &checkupAfter,
+	})
+	require.Len(t, filters, 8)
+	require.Len(t, args, 8)
+	assert.Contains(t, filters[0], "va.last_visit_date <=")
+	assert.Equal(t, "2026-03-01", args[0])
+	// order: before, after, minAge, maxAge, minVisits, minAmount, checkupBefore, checkupAfter
+	assert.Equal(t, minVisits, args[4])
+	assert.Equal(t, minAmount, args[5])
+}
