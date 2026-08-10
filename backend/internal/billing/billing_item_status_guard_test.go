@@ -66,10 +66,12 @@ func TestBillingItemService_UpdateItem_StatusGuard(t *testing.T) {
 		name         string
 		status       model.BillingStatus
 		wantConflict bool
+		wantInvalid  bool
 	}{
 		{name: "waiting billing accepts update", status: model.BillingStatusWaiting},
 		{name: "pending billing accepts update", status: model.BillingStatusPending},
-		{name: "completed billing rejects update", status: model.BillingStatusCompleted, wantConflict: true},
+		// BUG-009: completed without reason is invalid input (reason required), not silent conflict alone
+		{name: "completed billing rejects update without reason", status: model.BillingStatusCompleted, wantInvalid: true},
 		{name: "cancelled billing rejects update", status: model.BillingStatusCancelled, wantConflict: true},
 	}
 
@@ -103,12 +105,75 @@ func TestBillingItemService_UpdateItem_StatusGuard(t *testing.T) {
 				assert.Equal(t, created.UnitPrice, stored.UnitPrice, "rejected update must not change unit price")
 				return
 			}
+			if tt.wantInvalid {
+				require.Error(t, err)
+				assert.True(t, apperrors.IsInvalidInput(err), "completed update without reason must be invalid input: %v", err)
+				assert.Nil(t, updated)
+				assert.Equal(t, created.UnitPrice, stored.UnitPrice, "rejected update must not change unit price")
+				return
+			}
 
 			require.NoError(t, err)
 			require.NotNil(t, updated)
 			assert.Equal(t, newPrice, stored.UnitPrice)
 		})
 	}
+}
+
+func TestBillingItemService_UpdateItem_CompletedWithReason_EmitsAudit(t *testing.T) {
+	f := setupBillingItemReferenceFixture(t)
+	baseSvc := newBillingItemReferenceService(f, f.repo)
+	created, err := baseSvc.CreateItem(context.Background(), billingItemReferenceCreateInput(f))
+	require.NoError(t, err)
+
+	require.NoError(t, f.db.Model(&model.Billing{}).
+		Where("id = ? AND clinic_id = ?", f.billing.ID, f.clinicID).
+		Update("status", model.BillingStatusCompleted).Error)
+	f.billing.Status = model.BillingStatusCompleted
+
+	audit := &mockAuditService{}
+	billingRepo := defaultMockBillingRepo()
+	billingRepo.findByIDFn = func(_ context.Context, clinicID, billingID uint64) (*model.Billing, error) {
+		if clinicID != f.clinicID || billingID != f.billing.ID {
+			return nil, apperrors.WrapNotFound("billing", "test")
+		}
+		return f.billing, nil
+	}
+	svc := NewBillingItemServiceWithCampaign(
+		f.repo,
+		billingRepo,
+		defaultMockTreatmentRepo(),
+		testNewTransactor(f.db),
+		okTrimmingCourseRepo(),
+		okTrimmingOptionRepo(),
+		nil,
+		nil,
+		WithBillingItemAuditTx(audit),
+	)
+
+	reason := "割引額の入力誤り"
+	staffID := uint64(11)
+	newPrice := int64(8888)
+	updated, err := svc.UpdateItem(context.Background(), f.clinicID, created.ID, &UpdateBillingItemInput{
+		UnitPrice:       &newPrice,
+		PostCloseReason: &reason,
+		StaffID:         &staffID,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, updated)
+	assert.Equal(t, newPrice, updated.UnitPrice)
+	require.True(t, audit.logEntryTxCalled)
+	require.NotNil(t, audit.logEntryTxInput)
+	assert.Equal(t, model.AuditActionBillingPostCloseEdit, audit.logEntryTxInput.Action)
+	meta, ok := audit.logEntryTxInput.Metadata.(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, reason, meta["reason"])
+	assert.Equal(t, "update", meta["operation"])
+
+	var storedBilling model.Billing
+	require.NoError(t, f.db.First(&storedBilling, f.billing.ID).Error)
+	// totals が completed でも再計算されていること
+	assert.NotEqual(t, int64(0), storedBilling.TotalAmount)
 }
 
 func TestBillingItemRepository_ValidateCreateReferences_StatusGuard(t *testing.T) {

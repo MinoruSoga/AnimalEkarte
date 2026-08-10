@@ -148,6 +148,10 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
 
   const { handleAddItem, handleDeleteItem, handleUpdateItemTax, handleUpdateItemDiscount } = useAccountingItemActions({
     accountingId: id,
+    accountingStatus: accounting?.status,
+    postCloseReason,
+    canPostCloseEdit,
+    isScheduledDateClosed,
     baseItems,
     queryClient,
     setLocalItems,
@@ -247,11 +251,13 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
             </div>
           ) : null}
 
-          {/* #115: 締め後編集理由入力（レジ締め済み期間かつ編集権限あり） */}
-          {isScheduledDateClosed && canSubmit && canPostCloseEdit ? (
+          {/* #115 / BUG-009: 締め後または確定済み会計の明細修正理由（権限あり時） */}
+          {(isScheduledDateClosed || accounting.status === "completed") && canSubmit && canPostCloseEdit ? (
             <div className="px-4 pb-4">
               <label htmlFor="postCloseReason" className={`block text-sm font-semibold ${C.danger} mb-1`}>
-                ⚠ レジ締め済み期間の編集 — 修正理由（必須）
+                {isScheduledDateClosed
+                  ? "⚠ レジ締め済み期間の編集 — 修正理由（必須）"
+                  : "⚠ 確定済み会計の明細修正 — 修正理由（必須）"}
               </label>
               <textarea
                 id="postCloseReason"
@@ -261,6 +267,12 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
                 rows={2}
                 placeholder="例: 入力金額の誤りのため修正"
               />
+            </div>
+          ) : null}
+          {/* 確定済みだが締め後編集権限が無い場合は拒否理由を明示（BUG-009） */}
+          {accounting.status === "completed" && canSubmit && !canPostCloseEdit ? (
+            <div className={`px-4 pb-4 text-sm font-semibold ${C.danger}`} role="status">
+              確定済み会計の明細修正には締め後編集権限（accounting-post-close-edit）が必要です。カード金額の訂正以外はクレジット訂正導線または権限付与を確認してください。
             </div>
           ) : null}
 

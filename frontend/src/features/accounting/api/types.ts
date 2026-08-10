@@ -28,6 +28,8 @@ export interface UpdateBillingItemRequest {
   tax_type?: TaxType;
   tax_rate?: number;
   is_insurance_applicable?: boolean;
+  /** #115 / BUG-009: 締め後・確定済み明細修正の理由 */
+  post_close_reason?: string;
 }
 
 // API リクエスト型（models.ts から導出）

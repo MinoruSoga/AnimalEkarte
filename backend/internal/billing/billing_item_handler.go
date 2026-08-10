@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -150,6 +151,36 @@ func (h *BillingItemHandler) applyPostCloseFlags(
 	}
 	if billing == nil {
 		return apperrors.WrapNotFound("billing", fmt.Sprintf("%d", billingID))
+	}
+
+	// BUG-009: 確定済み会計の明細更新は post-close-edit 権限 + 修正理由必須（締め有無に依存しない）。
+	// create/delete 経路は従来どおり status guard（create）/ 締め後フラグ（delete）に委ねる。
+	if itemID > 0 && billing.Status == model.BillingStatusCompleted {
+		if h.hasPermission == nil || !h.hasPermission(c, string(model.ResourceAccountingPostCloseEdit), "edit") {
+			return apperrors.WrapForbidden("確定済み会計の明細修正には accounting-post-close-edit:edit 権限が必要です")
+		}
+		if staffID == nil || *staffID == nil {
+			id, ok := httpapi.ExtractStaffID(c)
+			if !ok {
+				return errHandlerAlreadyResponded
+			}
+			*staffID = &id
+		}
+		if requestReason == nil || strings.TrimSpace(*requestReason) == "" {
+			return apperrors.WrapInvalidInput("確定済み会計の明細修正には修正理由（post_close_reason）が必要です")
+		}
+		*postCloseReason = requestReason
+		// 締め済み日なら既存 post-close フラグも立てる（サービス側の二重防御）
+		if h.cashRegister != nil {
+			closed, err := h.cashRegister.IsDateClosed(ctx, clinicID, billing.ScheduledDate)
+			if err != nil {
+				return err
+			}
+			if closed {
+				*isPostClose = true
+			}
+		}
+		return nil
 	}
 
 	closed, err := h.cashRegister.IsDateClosed(ctx, clinicID, billing.ScheduledDate)

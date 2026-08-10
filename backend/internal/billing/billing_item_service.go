@@ -303,6 +303,24 @@ func rejectIfBillingFinalized(billing *model.Billing, action string) error {
 	return nil
 }
 
+// rejectUnlessCompletedCorrectionAllowed は UpdateItem 用。
+// cancelled は常に拒否。completed は post_close_reason 付きの訂正のみ許可（BUG-009）。
+func rejectUnlessCompletedCorrectionAllowed(billing *model.Billing, action string, reason *string) error {
+	if billing == nil {
+		return apperrors.WrapInternalServerError("locked billing is nil")
+	}
+	if billing.Status == model.BillingStatusCancelled {
+		return apperrors.WrapConflict(fmt.Sprintf("確定済みまたは取消済みの会計明細は%sできません", action))
+	}
+	if billing.Status == model.BillingStatusCompleted {
+		if reason == nil || strings.TrimSpace(*reason) == "" {
+			return apperrors.WrapInvalidInput("確定済み会計の明細修正には修正理由（post_close_reason）が必要です")
+		}
+		return nil
+	}
+	return nil
+}
+
 func requirePostCloseReason(isPostClose bool, reason *string) error {
 	if isPostClose && (reason == nil || *reason == "") {
 		return apperrors.WrapInvalidInput("レジ締め済み期間の会計編集には post_close_reason の入力が必要です")
@@ -531,7 +549,7 @@ func (s *billingItemService) createItemInAmbientTx(ctx context.Context, input *C
 	}
 
 	if opts.recalculate {
-		if err := s.recalculateTotals(ctx, input.ClinicID, input.BillingID); err != nil {
+		if err := s.recalculateTotals(ctx, input.ClinicID, input.BillingID, false); err != nil {
 			slog.ErrorContext(ctx, "failed to recalculate billing totals after create",
 				slog.Uint64("billing_id", input.BillingID),
 				slog.String("error", err.Error()),
@@ -601,12 +619,12 @@ func (s *billingItemService) UpdateItem(ctx context.Context, clinicID, id uint64
 
 	var updated *model.BillingItem
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
-		// BUG-463: lock parent billing and reject finalized status before any mutation
+		// BUG-463 / BUG-009: lock parent; cancelled 拒否、completed は理由付き訂正のみ許可
 		billing, err := s.billingRepo.LockAndFindByID(txCtx, clinicID, item.BillingID)
 		if err != nil {
 			return apperrors.Wrap(err, "failed to lock billing before updating item")
 		}
-		if err := rejectIfBillingFinalized(billing, "更新"); err != nil {
+		if err := rejectUnlessCompletedCorrectionAllowed(billing, "更新", input.PostCloseReason); err != nil {
 			return err
 		}
 
@@ -615,7 +633,8 @@ func (s *billingItemService) UpdateItem(ctx context.Context, clinicID, id uint64
 			return apperrors.Wrap(err, "failed to update billing item")
 		}
 
-		if err := s.recalculateTotals(txCtx, clinicID, item.BillingID); err != nil {
+		completedCorrection := billing.Status == model.BillingStatusCompleted
+		if err := s.recalculateTotals(txCtx, clinicID, item.BillingID, completedCorrection); err != nil {
 			slog.ErrorContext(txCtx, "failed to recalculate billing totals after update",
 				slog.Uint64("billing_id", item.BillingID),
 				slog.String("error", err.Error()),
@@ -624,7 +643,12 @@ func (s *billingItemService) UpdateItem(ctx context.Context, clinicID, id uint64
 		}
 
 		itemID := id
-		if err := s.recordBillingItemPostClose(txCtx, input.IsPostClose, clinicID, item.BillingID, billing, input.StaffID, input.PostCloseReason, "update", &itemID); err != nil {
+		if completedCorrection {
+			// BUG-009: 確定済み訂正は常に監査。締め済み日なら adjustment 台帳も同 tx。
+			if err := s.recordCompletedItemCorrection(txCtx, clinicID, item.BillingID, billing, input.StaffID, input.PostCloseReason, "update", &itemID); err != nil {
+				return err
+			}
+		} else if err := s.recordBillingItemPostClose(txCtx, input.IsPostClose, clinicID, item.BillingID, billing, input.StaffID, input.PostCloseReason, "update", &itemID); err != nil {
 			return err
 		}
 
@@ -677,7 +701,7 @@ func (s *billingItemService) DeleteItem(ctx context.Context, clinicID, id uint64
 			return apperrors.Wrap(err, "failed to delete billing item")
 		}
 
-		if err := s.recalculateTotals(txCtx, clinicID, billingID); err != nil {
+		if err := s.recalculateTotals(txCtx, clinicID, billingID, false); err != nil {
 			slog.ErrorContext(txCtx, "failed to recalculate billing totals after delete",
 				slog.Uint64("billing_id", billingID),
 				slog.String("error", err.Error()),
@@ -732,17 +756,55 @@ func (s *billingItemService) GetDiscountSuggestions(ctx context.Context, clinicI
 	return BuildDiscountSuggestions(itemSubtotal, campaigns, ownerRate), nil
 }
 
-// recalculateTotals は billing の全明細から subtotal/tax_total/total_amount を再計算して保存する
-func (s *billingItemService) recalculateTotals(ctx context.Context, clinicID, billingID uint64) error {
+// recalculateTotals は billing の全明細から subtotal/tax_total/total_amount を再計算して保存する。
+// allowCompleted は BUG-009 の確定済み明細訂正経路でのみ true。
+func (s *billingItemService) recalculateTotals(ctx context.Context, clinicID, billingID uint64, allowCompleted bool) error {
 	items, err := s.repo.FindByBillingID(ctx, clinicID, billingID)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to find billing items")
 	}
 	subtotal, taxTotal, totalAmount := CalculateBillingTotals(items)
-	if err := s.repo.UpdateBillingTotals(ctx, clinicID, billingID, subtotal, taxTotal, totalAmount); err != nil {
-		return apperrors.Wrap(err, "failed to update billing totals")
+	var writeErr error
+	if allowCompleted {
+		writeErr = s.repo.UpdateBillingTotalsForCompletedCorrection(ctx, clinicID, billingID, subtotal, taxTotal, totalAmount)
+	} else {
+		writeErr = s.repo.UpdateBillingTotals(ctx, clinicID, billingID, subtotal, taxTotal, totalAmount)
+	}
+	if writeErr != nil {
+		return apperrors.Wrap(writeErr, "failed to update billing totals")
 	}
 	return nil
+}
+
+// recordCompletedItemCorrection は確定済み明細の理由付き訂正を監査し、締め済み日なら adjustment も書く（BUG-009）。
+func (s *billingItemService) recordCompletedItemCorrection(
+	ctx context.Context,
+	clinicID, billingID uint64,
+	billing *model.Billing,
+	staffID *uint64,
+	reason *string,
+	operation string,
+	itemID *uint64,
+) error {
+	if reason == nil || strings.TrimSpace(*reason) == "" {
+		return apperrors.WrapInvalidInput("確定済み会計の明細修正には修正理由（post_close_reason）が必要です")
+	}
+	if billing == nil {
+		return apperrors.WrapInternalServerError("billing is required for completed item correction")
+	}
+	// 締め済み日のみ台帳追記（close 無しで createPostCloseAdjustment すると Conflict になる）
+	if s.closeRepo != nil {
+		closed, err := s.closeRepo.HasCloseOnDate(ctx, clinicID, billing.ScheduledDate)
+		if err != nil {
+			return apperrors.Wrap(err, "failed to re-check cash register close state for completed item correction")
+		}
+		if closed {
+			if err := createPostCloseAdjustment(ctx, s.closeRepo, clinicID, billingID, billing.ScheduledDate, strings.TrimSpace(*reason), staffID, 0); err != nil {
+				return err
+			}
+		}
+	}
+	return s.logBillingItemPostCloseEdit(ctx, clinicID, billingID, itemID, staffID, reason, operation)
 }
 
 // GetBilling は締め後編集判定用に請求ヘッダを返す。

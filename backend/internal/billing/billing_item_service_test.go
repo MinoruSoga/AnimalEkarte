@@ -47,6 +47,13 @@ func (m *mockBillingItemRepository) UpdateBillingTotals(ctx context.Context, cli
 	}
 	return nil
 }
+func (m *mockBillingItemRepository) UpdateBillingTotalsForCompletedCorrection(ctx context.Context, clinicID, billingID uint64, subtotal, taxTotal, totalAmount int64) error {
+	// テストでは通常 totals mock に委譲（確定済み訂正の totals 経路）
+	if m.updateBillingTotals != nil {
+		return m.updateBillingTotals(ctx, clinicID, billingID, subtotal, taxTotal, totalAmount)
+	}
+	return nil
+}
 func (m *mockBillingItemRepository) HasItemByOwnerSince(ctx context.Context, clinicID, ownerID uint64, since time.Time, names []string) (bool, error) {
 	if m.hasItemByOwnerSinceFn != nil {
 		return m.hasItemByOwnerSinceFn(ctx, clinicID, ownerID, since, names)
@@ -1267,7 +1274,7 @@ func TestBillingItemService_RecalculateTotals(t *testing.T) {
 			return nil, errors.New("find failed")
 		}
 		svc := &billingItemService{repo: repo}
-		err := svc.recalculateTotals(context.Background(), 1, 10)
+		err := svc.recalculateTotals(context.Background(), 1, 10, false)
 		assert.Error(t, err)
 	})
 
@@ -1277,7 +1284,7 @@ func TestBillingItemService_RecalculateTotals(t *testing.T) {
 			return errors.New("update failed")
 		}
 		svc := &billingItemService{repo: repo}
-		err := svc.recalculateTotals(context.Background(), 1, 10)
+		err := svc.recalculateTotals(context.Background(), 1, 10, false)
 		assert.Error(t, err)
 	})
 
@@ -1289,7 +1296,7 @@ func TestBillingItemService_RecalculateTotals(t *testing.T) {
 			}, nil
 		}
 		svc := &billingItemService{repo: repo}
-		err := svc.recalculateTotals(context.Background(), 1, 10)
+		err := svc.recalculateTotals(context.Background(), 1, 10, false)
 		assert.NoError(t, err)
 	})
 }

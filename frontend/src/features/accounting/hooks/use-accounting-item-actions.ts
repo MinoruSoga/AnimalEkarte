@@ -12,6 +12,7 @@ import { createBillingItem } from "../api/create-billing-item";
 import type { CreateBillingItemRequest } from "../api/create-billing-item";
 import { deleteBillingItem } from "../api/delete-billing-item";
 import { updateBillingItem } from "../api/update-billing-item";
+import type { UpdateBillingItemRequest } from "../api/types";
 import type { AccountingItem, AddAccountingItemInput, ItemCategory } from "../types";
 
 type CreateManualBillingItemRequest = CreateBillingItemRequest & {
@@ -20,6 +21,14 @@ type CreateManualBillingItemRequest = CreateBillingItemRequest & {
 
 interface UseAccountingItemActionsParams {
   accountingId: string | undefined;
+  /** 会計 status（completed 時は明細 PATCH に修正理由必須 — BUG-009） */
+  accountingStatus?: string;
+  /** #115 / BUG-009: 締め後・確定済み修正理由 */
+  postCloseReason?: string;
+  /** 確定済み明細修正に必要な権限 */
+  canPostCloseEdit?: boolean;
+  /** 対象日がレジ締め済みか */
+  isScheduledDateClosed?: boolean;
   baseItems: AccountingItem[];
   queryClient: QueryClient;
   setLocalItems: Dispatch<SetStateAction<AccountingItem[] | null>>;
@@ -29,8 +38,43 @@ interface UseAccountingItemActionsParams {
   startItemUpdateTransition: (callback: () => void) => void;
 }
 
+function buildPostClosePayload(args: {
+  accountingStatus?: string;
+  postCloseReason?: string;
+  canPostCloseEdit?: boolean;
+  isScheduledDateClosed?: boolean;
+}): { ok: true; reason?: string } | { ok: false } {
+  const isCompleted = args.accountingStatus === "completed";
+  const needsReason = isCompleted || Boolean(args.isScheduledDateClosed);
+  if (!needsReason) {
+    return { ok: true };
+  }
+  if (isCompleted && !args.canPostCloseEdit) {
+    toast.error("確定済み会計の明細修正には締め後編集権限が必要です");
+    return { ok: false };
+  }
+  if (args.isScheduledDateClosed && !args.canPostCloseEdit) {
+    toast.error("レジ締め済み期間の明細修正には締め後編集権限が必要です");
+    return { ok: false };
+  }
+  const reason = (args.postCloseReason ?? "").trim();
+  if (!reason) {
+    toast.error(
+      isCompleted
+        ? "確定済み会計の明細を修正するには修正理由を入力してください"
+        : "レジ締め済み期間の明細を修正するには修正理由を入力してください",
+    );
+    return { ok: false };
+  }
+  return { ok: true, reason };
+}
+
 export function useAccountingItemActions({
   accountingId,
+  accountingStatus,
+  postCloseReason,
+  canPostCloseEdit,
+  isScheduledDateClosed,
   baseItems,
   queryClient,
   setLocalItems,
@@ -126,31 +170,70 @@ export function useAccountingItemActions({
   const handleUpdateItemTax = useCallback(
     (itemId: string, taxType: TaxType, taxRate: number) => {
       if (!accountingId) return;
+      const gate = buildPostClosePayload({
+        accountingStatus,
+        postCloseReason,
+        canPostCloseEdit,
+        isScheduledDateClosed,
+      });
+      if (!gate.ok) return;
       startItemUpdateTransition(async () => {
         try {
-          await updateBillingItem(itemId, { tax_type: taxType, tax_rate: taxRate });
+          const req: UpdateBillingItemRequest = {
+            tax_type: taxType,
+            tax_rate: taxRate,
+            ...(gate.reason ? { post_close_reason: gate.reason } : {}),
+          };
+          await updateBillingItem(itemId, req);
           queryClient.invalidateQueries({ queryKey: queryKeys.accountings.detail(accountingId) });
         } catch (error) {
           handleApiError(error, "税区分の更新");
         }
       });
     },
-    [accountingId, queryClient, startItemUpdateTransition],
+    [
+      accountingId,
+      accountingStatus,
+      canPostCloseEdit,
+      isScheduledDateClosed,
+      postCloseReason,
+      queryClient,
+      startItemUpdateTransition,
+    ],
   );
 
   const handleUpdateItemDiscount = useCallback(
     (itemId: string, discountAmount: number) => {
       if (!accountingId) return;
+      const gate = buildPostClosePayload({
+        accountingStatus,
+        postCloseReason,
+        canPostCloseEdit,
+        isScheduledDateClosed,
+      });
+      if (!gate.ok) return;
       startItemUpdateTransition(async () => {
         try {
-          await updateBillingItem(itemId, { discount_amount: discountAmount });
+          const req: UpdateBillingItemRequest = {
+            discount_amount: discountAmount,
+            ...(gate.reason ? { post_close_reason: gate.reason } : {}),
+          };
+          await updateBillingItem(itemId, req);
           queryClient.invalidateQueries({ queryKey: queryKeys.accountings.detail(accountingId) });
         } catch (error) {
           handleApiError(error, "割引の更新");
         }
       });
     },
-    [accountingId, queryClient, startItemUpdateTransition],
+    [
+      accountingId,
+      accountingStatus,
+      canPostCloseEdit,
+      isScheduledDateClosed,
+      postCloseReason,
+      queryClient,
+      startItemUpdateTransition,
+    ],
   );
 
   return {
