@@ -30,6 +30,12 @@ import {
   normalizeAppointmentId,
   normalizeVisitDate,
 } from "./use-medical-record-form-model";
+import {
+  isNonDisclosureReadStatus,
+  resolveEntityReadResult,
+  type EntityReadResult,
+} from "@/lib/entity-read-result";
+import type { MedicalRecord } from "../api/transforms";
 import type { Pet } from "@/types";
 
 export function selectCohabitingPets(pets: Pet[], selectedPet: Pet): Pet[] {
@@ -88,7 +94,30 @@ export function useMedicalRecordForm(recordId?: string) {
   } = useMedicalRecordDiagnosisState();
 
   // 編集モード: カルテからpetIdを取得
-  const { data: existingRecord, isError: isRecordError, isLoading: isRecordLoading } = useGetMedicalRecord(recordId ?? "");
+  // BUG-017: classify read failures; never fold missing ID into blank page via selectedPet=null
+  const {
+    data: existingRecordData,
+    isError: isRecordError,
+    isLoading: isRecordLoading,
+    error: recordError,
+    refetch: refetchRecord,
+  } = useGetMedicalRecord(recordId ?? "");
+  const entityRead: EntityReadResult<MedicalRecord> = resolveEntityReadResult({
+    id: isNewRecord ? undefined : recordId,
+    data: existingRecordData,
+    isLoading: isRecordLoading,
+    isError: isRecordError,
+    error: recordError,
+    refetch: refetchRecord,
+  });
+  const existingRecord =
+    entityRead.status === "found" ? entityRead.data : undefined;
+  const isReadLoading = !isNewRecord && entityRead.status === "loading";
+  const isReadNotFound =
+    !isNewRecord && isNonDisclosureReadStatus(entityRead.status);
+  const isReadError = !isNewRecord && entityRead.status === "error";
+  const retryRead =
+    entityRead.status === "error" ? entityRead.retry : undefined;
   const isFinalized = existingRecord?.status === "確定済";
 
   useApplyMedicalRecord({
@@ -273,7 +302,8 @@ export function useMedicalRecordForm(recordId?: string) {
   });
 
   const shouldRedirectToSelectPet = isNewRecord && !petId;
-  const notFound = !isNewRecord && !!recordId && !isRecordLoading && isRecordError;
+  // backward-compat alias for MedicalRecordForm / tests (BUG-017 non-disclosure UI)
+  const notFound = isReadNotFound;
 
   return {
     isNewRecord,
@@ -286,6 +316,10 @@ export function useMedicalRecordForm(recordId?: string) {
     isPetLoading,
     shouldRedirectToSelectPet,
     notFound,
+    isReadLoading,
+    isReadNotFound,
+    isReadError,
+    retryRead,
     handleBack,
     formAction,
     formState,
