@@ -11,6 +11,7 @@ import { ResourceReservations } from "@/types/generated/models";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { toJSTWallDate } from "@/lib/jst-date";
+import { getReservationStatusLabel } from "@/lib/status-helpers";
 import type { ReservationCreateMutations } from "@/types/reservation-create-mutations";
 import type { CalendarView, Reservation } from "../types";
 
@@ -93,6 +94,10 @@ export function ReservationManagement({ createMutations }: ReservationManagement
     deleteTarget,
     executeDelete,
     handleDeleteConfirmClose,
+    statusConfirmOpen,
+    statusConfirmTarget,
+    executeStatusChange,
+    handleStatusConfirmClose,
     petSelectConfirmOpen,
     setPetSelectConfirmOpen,
     handlePetSelectConfirm,
@@ -242,6 +247,29 @@ export function ReservationManagement({ createMutations }: ReservationManagement
             : ""
         }
         confirmLabel="削除する"
+        variant="destructive"
+      />
+
+      {/* BUG-020: destructive status confirm (cancel / no_show) */}
+      <ConfirmDialog
+        open={statusConfirmOpen}
+        onClose={handleStatusConfirmClose}
+        onConfirm={executeStatusChange}
+        title={
+          statusConfirmTarget
+            ? `ステータスを「${getReservationStatusLabel(statusConfirmTarget.status)}」に変更しますか？`
+            : "ステータスを変更しますか？"
+        }
+        description={
+          statusConfirmTarget
+            ? `${statusConfirmTarget.reservation.petName || ""}${
+                statusConfirmTarget.reservation.ownerName
+                  ? `（${statusConfirmTarget.reservation.ownerName}）`
+                  : ""
+              } の予約ステータスを変更します。`
+            : ""
+        }
+        confirmLabel="変更する"
         variant="destructive"
       />
 
