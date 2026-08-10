@@ -338,14 +338,54 @@ func buildLTVHaving(params *FindOwnerLTVParams, amountExpr string, amountExprArg
 	return having, havingArgs
 }
 
+// shouldExcludeZeroAnnualAmount は include_zero=false 時に annual_amount=0 を落とすかを決める（BUG-012）。
+// include_zero は AGG-BE-001 売上ランキング向け。来院回数・最終来院軸では 0 円除外を適用しない
+//（UI の「0円を含む」は売上タブのみ。来院あり・会計 0 の飼主が常に消えるのを防ぐ）。
+func shouldExcludeZeroAnnualAmount(params *FindOwnerLTVParams) bool {
+	if params.IncludeZero {
+		return false
+	}
+	// 金額レンジ明示時は常に売上フィルタ
+	if params.MinTotalAmount != nil || params.MaxTotalAmount != nil {
+		return true
+	}
+	// 売上タブ既定: year / amount_basis / 金額ソート
+	if params.Year != nil {
+		return true
+	}
+	if params.AmountBasis != "" {
+		return true
+	}
+	switch params.Sort {
+	case "annual_amount", "total_amount":
+		return true
+	}
+	// 来院・最終来院中心クエリは 0 円除外しない
+	if params.PeriodPreset != "" ||
+		params.LastVisitBucket != "" ||
+		params.MinVisitCount != nil ||
+		params.MaxVisitCount != nil ||
+		params.Sort == "visit_count" ||
+		params.Sort == "period_visit_count" ||
+		params.Sort == "total_visit_count" ||
+		params.Sort == "annual_visit_count" ||
+		params.Sort == "last_visit_date" ||
+		params.Sort == "days_since_last_visit" {
+		return false
+	}
+	// 後方互換: 素の LTV 一覧（既定 sort=total_amount 相当）は 0 円除外
+	return true
+}
+
 // filterLTVRows は include_zero / include_no_visit / last_visit_bucket の Go 側後段フィルタを
 // 適用する（BE-refactor.md E-12）。
 func filterLTVRows(rows []OwnerLTVRow, params *FindOwnerLTVParams) []OwnerLTVRow {
 	var filtered []OwnerLTVRow
+	excludeZero := shouldExcludeZeroAnnualAmount(params)
 	for i := range rows {
 		row := &rows[i]
-		// include_zero フィルタ（AGG-BE-001）
-		if !params.IncludeZero && row.AnnualAmount != nil && *row.AnnualAmount == 0 {
+		// include_zero フィルタ（AGG-BE-001 / BUG-012: 売上軸のみ）
+		if excludeZero && row.AnnualAmount != nil && *row.AnnualAmount == 0 {
 			continue
 		}
 		// include_no_visit フィルタ（AGG-BE-003）

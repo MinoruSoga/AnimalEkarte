@@ -31,12 +31,14 @@ const TAB_DEFAULT_PARAMS: Record<AggregationTab, AggregationParams> = {
     sort: "annual_amount",
     order: "desc",
   },
+  // BUG-012: 来院/最終来院は売上0除外の対象外。UIに include_zero が無いため明示 true。
   visit: {
     page: 1,
     per_page: 50,
     period_preset: "last_12_months",
     sort: "period_visit_count",
     order: "desc",
+    include_zero: true,
   },
   last_visit: {
     page: 1,
@@ -44,6 +46,7 @@ const TAB_DEFAULT_PARAMS: Record<AggregationTab, AggregationParams> = {
     last_visit_bucket: "over_3m",
     sort: "last_visit_date",
     order: "asc",
+    include_zero: true,
   },
 };
 
