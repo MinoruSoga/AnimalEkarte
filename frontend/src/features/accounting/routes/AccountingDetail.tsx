@@ -155,6 +155,8 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
     startAddItemTransition,
     startDeleteItemTransition,
     startItemUpdateTransition,
+    // BUG-021: 締め後理由を明細 CRUD にも配線（確定フローのみ渡していた）
+    postCloseReason,
   });
 
   const { handleCancelConfirm, handlePrint, handleRefund } = useAccountingSettlementActions({
