@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -54,7 +55,8 @@ func (h *Handler) CreateShiftTemplate(c *gin.Context) {
 	}
 	tpl, err := h.svc.ShiftTemplate.Create(c.Request.Context(), clinicID, req.toServiceInput())
 	if err != nil {
-		RespondError(c, err)
+		// BUG-026: emit stable name-conflict code + params when present.
+		httpapi.RespondErrorPreferringConflictCode(c, err)
 		return
 	}
 	c.Header("Location", fmt.Sprintf("/api/v1/shift-templates/%d", tpl.ID))
@@ -78,7 +80,8 @@ func (h *Handler) UpdateShiftTemplate(c *gin.Context) {
 	}
 	tpl, err := h.svc.ShiftTemplate.Update(c.Request.Context(), clinicID, id, req.toServiceInput())
 	if err != nil {
-		RespondError(c, err)
+		// BUG-026: emit stable name-conflict code + params when present.
+		httpapi.RespondErrorPreferringConflictCode(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, toShiftTemplateResponse(tpl))

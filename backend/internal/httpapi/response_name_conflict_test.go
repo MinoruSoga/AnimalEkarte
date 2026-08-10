@@ -49,6 +49,38 @@ func TestRespondErrorPreferringConflictCode_AnimalSpecies(t *testing.T) {
 	assert.Equal(t, "V04動物種類", params["name"])
 }
 
+func TestRespondErrorPreferringConflictCode_ShiftTemplate(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	c, w := newTestContext()
+
+	err := apperrors.WrapNameConflict(apperrors.CodeShiftTemplateNameConflict, "早番")
+	RespondErrorPreferringConflictCode(c, err)
+
+	assert.Equal(t, http.StatusConflict, w.Code)
+	var body map[string]any
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &body))
+	assert.Equal(t, apperrors.CodeShiftTemplateNameConflict, body["code"])
+	params := body["params"].(map[string]any)
+	assert.Equal(t, "早番", params["name"])
+	assert.NotContains(t, w.Body.String(), "uk_shift_templates")
+}
+
+func TestRespondErrorPreferringConflictCode_LstepAutoManagedPrefix(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	c, w := newTestContext()
+
+	err := apperrors.WrapNameConflict(apperrors.CodeLstepAutoManagedPrefixConflict, "checkup_")
+	RespondErrorPreferringConflictCode(c, err)
+
+	assert.Equal(t, http.StatusConflict, w.Code)
+	var body map[string]any
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &body))
+	assert.Equal(t, apperrors.CodeLstepAutoManagedPrefixConflict, body["code"])
+	params := body["params"].(map[string]any)
+	assert.Equal(t, "checkup_", params["name"])
+	assert.NotContains(t, w.Body.String(), "lstep_auto_managed_prefixes_prefix_key")
+}
+
 func TestRespondErrorPreferringConflictCode_FallsBackToRespondError(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	c, w := newTestContext()
