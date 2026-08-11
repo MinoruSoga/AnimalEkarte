@@ -62,6 +62,7 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
     unbilledWarnings,
     hasBlockingUnbilledWarning,
     blocksNewAccountingSubmit,
+    deceasedPetBlockMessage,
     unbilledDetailsError,
     calculation,
     setCompletedPayment,
@@ -110,6 +111,7 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
     navigate,
     setCompletedPayment,
     postCloseReason,
+    blockCreateReason: deceasedPetBlockMessage,
   });
 
   // clinic 情報（AccountingDocument に props 注入）
@@ -174,11 +176,13 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
   if (id && isLoading) return <LoadingFallback />;
   if (!accounting || !calculation) return <ErrorFallback message="データが見つかりません" />;
 
-  const readOnlyMessage = !hasAccountingMutationPermission
-    ? "閲覧専用 — 編集権限がないため変更できません"
-    : !canViewCashRegisterClose
-      ? "閲覧専用 — レジ締め状態を確認する権限がないため変更できません"
-      : undefined;
+  const readOnlyMessage = deceasedPetBlockMessage
+    ? deceasedPetBlockMessage
+    : !hasAccountingMutationPermission
+      ? "閲覧専用 — 編集権限がないため変更できません"
+      : !canViewCashRegisterClose
+        ? "閲覧専用 — レジ締め状態を確認する権限がないため変更できません"
+        : undefined;
 
   return (
     <>
@@ -204,12 +208,14 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
             message={readOnlyMessage}
           />
           <UngroupedItemsWarningBanner
-            show={Boolean(!id && ungroupedSummary?.hasUngrouped)}
+            show={Boolean(!id && !deceasedPetBlockMessage && ungroupedSummary?.hasUngrouped)}
             medicalRecordCount={ungroupedSummary?.medicalRecordCount ?? 0}
             trimmingCount={ungroupedSummary?.trimmingCount ?? 0}
           />
           <UnbilledBlockingWarningBanner
-            show={Boolean(!id && (hasBlockingUnbilledWarning || unbilledDetailsError))}
+            show={Boolean(
+              !id && !deceasedPetBlockMessage && (hasBlockingUnbilledWarning || unbilledDetailsError),
+            )}
             warnings={
               unbilledDetailsError
                 ? [{ source: "unbilled", code: "unbilled_details_unavailable", count: 1, blocking: true }]
