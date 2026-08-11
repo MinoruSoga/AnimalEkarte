@@ -102,6 +102,8 @@ interface UseAccountingCompletionActionArgs {
   navigate: NavigateFunction;
   setCompletedPayment: Dispatch<SetStateAction<PaymentInfo | null>>;
   postCloseReason?: string; // #115: 締め後編集理由
+  /** BUG-001: 新規会計でペット生死が拒否対象のとき complete を発行しない */
+  blockCreateReason?: string;
 }
 
 export function useAccountingCompletionAction({
@@ -116,6 +118,7 @@ export function useAccountingCompletionAction({
   navigate,
   setCompletedPayment,
   postCloseReason,
+  blockCreateReason,
 }: UseAccountingCompletionActionArgs) {
   const [editConfirmOpen, setEditConfirmOpen] = useState(false);
   const editConfirmedRef = useRef(false);
@@ -123,10 +126,20 @@ export function useAccountingCompletionAction({
   // BUG-018: mutation 単位の Idempotency-Key。失敗 retry で再利用し、成功後のみクリア。
   const completeIdempotencyKeyRef = useRef<string | null>(null);
   const completePayloadFingerprintRef = useRef<string | null>(null);
+  const blockCreateReasonRef = useRef(blockCreateReason);
+  useEffect(() => {
+    blockCreateReasonRef.current = blockCreateReason;
+  }, [blockCreateReason]);
 
   const [formState, formAction, isPending] = useActionState(
     async (_prevState: AccountingFormState, _formData: FormData): Promise<AccountingFormState> => {
       if (!accounting || !calculation) return { success: false, timestamp: Date.now() };
+
+      // BUG-001: 死亡 / 未確認ペットの新規確定は API を叩かず fail-closed。
+      if (!accountingId && blockCreateReasonRef.current) {
+        toast.error(blockCreateReasonRef.current);
+        return { success: false, timestamp: Date.now() };
+      }
 
       if (accounting.status === "completed" && !editConfirmedRef.current) {
         setEditConfirmOpen(true);

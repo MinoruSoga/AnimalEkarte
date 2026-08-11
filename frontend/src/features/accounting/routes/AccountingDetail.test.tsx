@@ -566,3 +566,120 @@ describe("AccountingDetail — C: 混在支払い UI / payment_splits", () => {
     });
   });
 });
+
+// ─────────────────────────────────────────────────────────────
+// BUG-001: 死亡ペットの /accounting/new?petId= 直打ちガード
+// ─────────────────────────────────────────────────────────────
+
+const DECEASED_PET_ID = "1000003";
+const LIVING_PET_ID = "1000019";
+
+function makePetResponse(overrides: {
+  id: number;
+  status: "alive" | "deceased";
+  name?: string;
+}) {
+  return {
+    id: overrides.id,
+    version: 1,
+    clinic_id: 1,
+    owner_id: 10,
+    animal_species_id: 1,
+    pet_number: String(overrides.id),
+    name: overrides.name ?? "テストペット",
+    pet_name_kana: "",
+    gender: "unknown",
+    status: overrides.status,
+    breed: "",
+    color: "",
+    danger_level: "none",
+    food: "",
+    environment: "",
+    phone: "",
+    remarks: "",
+    created_at: "2026-01-01T00:00:00Z",
+    updated_at: "2026-01-01T00:00:00Z",
+    deceased_at: overrides.status === "deceased" ? "2026-07-01T00:00:00+09:00" : undefined,
+    owner: {
+      id: 10,
+      owner_number: 10,
+      name: "テスト飼い主",
+      name_kana: "",
+      phone: "",
+      is_dangerous: false,
+    },
+    animal_species: { id: 1, name: "犬", sort_order: 1 },
+  };
+}
+
+async function renderNewWithPetIdAndWait(petId: string) {
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  render(
+    <AuthContext.Provider value={makeAuthCtx(true)}>
+      <QueryClientProvider client={qc}>
+        <MemoryRouter initialEntries={[`/accounting/new?petId=${petId}`]}>
+          <Routes>
+            <Route path="/accounting/new" element={<AccountingDetail />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>
+    </AuthContext.Provider>,
+  );
+  await waitFor(() => {
+    expect(screen.getByRole("heading", { name: "会計精算" })).toBeInTheDocument();
+  });
+}
+
+describe("AccountingDetail — BUG-001: 死亡ペット新規会計ガード", () => {
+  it("deceased petId 直打ち → 拒否メッセージ + fieldset disabled + 確定ボタンなし", async () => {
+    server.use(
+      http.get(`/api/v1/pets/${DECEASED_PET_ID}`, () =>
+        HttpResponse.json(makePetResponse({ id: Number(DECEASED_PET_ID), status: "deceased", name: "クロ" })),
+      ),
+      http.get("/api/v1/masters/merchandise-items", () => HttpResponse.json([])),
+      http.get("/api/v1/cash-register/closes", () => HttpResponse.json({ data: [], total: 0 })),
+      http.get("/api/v1/billing-items/unbilled-details", () =>
+        HttpResponse.json({ items: [], warnings: [] }),
+      ),
+      http.get("/api/v1/billing-items/ungrouped-same-day", () =>
+        HttpResponse.json({ has_ungrouped: false, medical_record_count: 0, trimming_count: 0 }),
+      ),
+      http.get("/api/v1/accountings/unpaid-balance", () =>
+        HttpResponse.json({ unpaid_count: 0, unpaid_total: 0 }),
+      ),
+    );
+
+    await renderNewWithPetIdAndWait(DECEASED_PET_ID);
+
+    expect(await screen.findByText("死亡したペットは会計を作成できません")).toBeInTheDocument();
+    expect(document.querySelector("fieldset")).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "会計を確定する" })).not.toBeInTheDocument();
+  });
+
+  it("生存 petId 直打ち → 拒否メッセージなし + 確定ボタンが有効", async () => {
+    server.use(
+      http.get(`/api/v1/pets/${LIVING_PET_ID}`, () =>
+        HttpResponse.json(makePetResponse({ id: Number(LIVING_PET_ID), status: "alive", name: "ラッキー" })),
+      ),
+      http.get("/api/v1/masters/merchandise-items", () => HttpResponse.json([])),
+      http.get("/api/v1/cash-register/closes", () => HttpResponse.json({ data: [], total: 0 })),
+      http.get("/api/v1/billing-items/unbilled-details", () =>
+        HttpResponse.json({ items: [], warnings: [] }),
+      ),
+      http.get("/api/v1/billing-items/ungrouped-same-day", () =>
+        HttpResponse.json({ has_ungrouped: false, medical_record_count: 0, trimming_count: 0 }),
+      ),
+      http.get("/api/v1/accountings/unpaid-balance", () =>
+        HttpResponse.json({ unpaid_count: 0, unpaid_total: 0 }),
+      ),
+    );
+
+    await renderNewWithPetIdAndWait(LIVING_PET_ID);
+
+    await waitFor(() => {
+      expect(screen.queryByText("死亡したペットは会計を作成できません")).not.toBeInTheDocument();
+      expect(document.querySelector("fieldset")).not.toBeDisabled();
+    });
+    expect(screen.getByRole("button", { name: "会計を確定する" })).toBeEnabled();
+  });
+});
