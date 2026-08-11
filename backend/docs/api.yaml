@@ -1846,8 +1846,7 @@ components:
           $ref: '#/components/schemas/MedicalRecordInquirySummary'
           description: |
             問診情報（Preload時のみ含まれる）。BE-refactor.md Phase D-2: 実ワイヤは
-            inquirySummaryResponse(id・chief_complaint のみ)であり、旧記載の
-            $ref Inquiry(全フィールド)は phantom だった。
+            inquirySummaryResponse(id・chief_complaint・notes)。notes は問診「治療方針」(BUG-034)。
           nullable: true
         appointment_id:
           type: integer
@@ -1866,14 +1865,17 @@ components:
       type: object
       description: |
         カルテ一覧/詳細に埋め込まれる問診の要約(inquirySummaryResponse)。
-        全フィールドが必要な場合は /medical-records/{id}/addenda 等、問診専用
-        エンドポイントの Inquiry スキーマを参照する。
+        notes は問診タブ「治療方針」(BUG-034)。全フィールドが必要な場合は
+        問診専用エンドポイントの Inquiry スキーマを参照する。
       properties:
         id:
           type: integer
           format: int64
         chief_complaint:
           type: string
+        notes:
+          type: string
+          description: 問診タブ「治療方針」(inquiry.notes)
     Hospitalization:
       type: object
       required: [owner_id, pet_id, hospitalization_type, start_date, end_date]

@@ -171,10 +171,26 @@ describe("transformMedicalRecord", () => {
     expect(result.species).toBe("犬");
   });
 
-  it("InquirySummary wire に notes が無いため notes は undefined", () => {
+  it("inquiry.notes を notes にマップする（問診治療方針・BUG-034）", () => {
     const result = transformMedicalRecord({
       ...minimal,
-      inquiry: { id: 1, chief_complaint: "x" },
+      inquiry: { id: 1, chief_complaint: "x", notes: "UAT再検証 治療方針" },
+    });
+    expect(result.notes).toBe("UAT再検証 治療方針");
+  });
+
+  it("inquiry.notes が空のとき notes は undefined（DEFAULT 表示は form state）", () => {
+    const result = transformMedicalRecord({
+      ...minimal,
+      inquiry: { id: 1, chief_complaint: "x", notes: "" },
+    });
+    expect(result.notes).toBeUndefined();
+  });
+
+  it("inquiry 未設定のとき notes は undefined", () => {
+    const result = transformMedicalRecord({
+      ...minimal,
+      inquiry: undefined,
     });
     expect(result.notes).toBeUndefined();
   });

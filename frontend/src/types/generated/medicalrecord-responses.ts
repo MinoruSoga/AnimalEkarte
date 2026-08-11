@@ -34,10 +34,12 @@ export interface MedicalRecordResponse {
 }
 /**
  * InquirySummaryResponse is the inquiry embed on medical-record list/detail wire.
+ * notes = 問診「治療方針」(BUG-034: must round-trip on medical-record detail).
  */
 export interface InquirySummaryResponse {
   id: number /* uint64 */;
   chief_complaint: string;
+  notes: string;
 }
 
 //////////
