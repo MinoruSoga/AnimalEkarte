@@ -343,6 +343,23 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
     return null;
   }
 
+  // BUG-002: 死亡ペットへの /medical-records/new?petId=… 直叩きは編集フォームを出さない。
+  // mutation 拒否だけでは UAT で【死亡】バナー付きフルフォームが残るため、UI を hard stop する。
+  // BE medicalRecordDeceasedPetMessage と同文言。
+  if (isNewRecord && selectedPet.status === "死亡") {
+    return (
+      <PageLayout
+        title="カルテ入力"
+        onBack={handleBack}
+        icon={<HeartPulse className={`${ICON.page} ${C.text}`} />}
+        resource={ResourceMedicalRecords}
+        maxWidth={LAYOUT.pageContentMaxWidth.full}
+      >
+        <ErrorFallback message="死亡したペットは新規カルテを作成できません" />
+      </PageLayout>
+    );
+  }
+
   return (
     <form action={formAction} className={LAYOUT.fullHeight}>
     <PageLayout
