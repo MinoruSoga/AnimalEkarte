@@ -35,10 +35,10 @@ describe("MedicalRecordFloatingActions", () => {
     expect(screen.queryByRole("button", { name: "確定する" })).not.toBeInTheDocument();
   });
 
-  it("確定済みカルテではfieldset外の保存ボタンも操作不可にする", () => {
+  it("確定済みカルテでは保存ボタンを表示しない", () => {
     render(<MedicalRecordFloatingActions {...baseProps} isFinalized />);
 
-    expect(screen.getByRole("button", { name: "保存" })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "保存" })).not.toBeInTheDocument();
   });
 
   it("保存処理中は重複submitを防ぐため保存ボタンを操作不可にする", () => {
