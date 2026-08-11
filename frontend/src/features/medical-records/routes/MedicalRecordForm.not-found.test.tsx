@@ -294,3 +294,68 @@ describe("MedicalRecordForm BUG-017 not-found / network gate", () => {
     expect(screen.queryByText("カルテが見つかりません")).not.toBeInTheDocument();
   });
 });
+
+describe("MedicalRecordForm BUG-002 deceased new hard stop", () => {
+  const livingPet = {
+    id: "pet-1",
+    ownerId: "owner-1",
+    ownerName: "飼主",
+    name: "ポチ",
+    petNumber: "P-1",
+    species: "犬",
+    status: "生存" as const,
+  };
+
+  const deceasedPet = {
+    ...livingPet,
+    id: "1000003",
+    name: "クロ",
+    status: "死亡" as const,
+  };
+
+  beforeEach(() => {
+    mockFormState.current = {
+      isNewRecord: false,
+      notFound: false,
+      isReadLoading: false,
+      isReadNotFound: false,
+      isReadError: false,
+      retryRead: undefined,
+      selectedPet: null,
+      isPetLoading: false,
+    };
+  });
+
+  it("新規 + 死亡 pet: フルフォームを出さず BE 同文言で hard stop", () => {
+    mockFormState.current.isNewRecord = true;
+    mockFormState.current.selectedPet = deceasedPet;
+    render(<MedicalRecordForm />);
+    expect(
+      screen.getByText("死亡したペットは新規カルテを作成できません"),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("sticky-header")).not.toBeInTheDocument();
+    expect(screen.queryByText("tabs-area")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "保存" })).not.toBeInTheDocument();
+  });
+
+  it("新規 + 生存 pet: フォーム本体を出す", () => {
+    mockFormState.current.isNewRecord = true;
+    mockFormState.current.selectedPet = livingPet;
+    render(<MedicalRecordForm />);
+    expect(screen.getByText("sticky-header")).toBeInTheDocument();
+    expect(screen.getByText("tabs-area")).toBeInTheDocument();
+    expect(
+      screen.queryByText("死亡したペットは新規カルテを作成できません"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("編集 + 死亡 pet: 既存カルテ閲覧のため hard stop しない（新規のみ対象）", () => {
+    mockFormState.current.isNewRecord = false;
+    mockFormState.current.selectedPet = deceasedPet;
+    render(<MedicalRecordForm />);
+    expect(screen.getByText("sticky-header")).toBeInTheDocument();
+    expect(
+      screen.queryByText("死亡したペットは新規カルテを作成できません"),
+    ).not.toBeInTheDocument();
+  });
+});
