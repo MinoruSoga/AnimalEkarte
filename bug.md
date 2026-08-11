@@ -1,171 +1,69 @@
 # AnimalEkarte 受入テスト バグ報告（再検証）— 残件
 
 - **元レポート実施日**: 2026-08-09
-- **追加検出**: 2026-08-10（BUG-031 / 032 / 033）
+- **追加検出**: 2026-08-10（BUG-031 / 032 / 033）· 2026-08-11（BUG-034 / 035 · 001/002/033 ブラウザ再NG）
 - **実施環境**: http://localhost:3003（ローカル・seed 003_demo）
 - **r2 クローズ日**: 2026-08-10
-- **残タスク締め（自動再検証）**: 2026-08-11
-- **main**: 本コミット時点の `origin/main`（docs 更新を含む）
+- **r3 クローズ日**: 2026-08-11（UAT 残バグ対応 · main 通常 merge+push）
+- **main tip（本更新時点）**: `c8623130b`（`origin/main` 反映済み）
 
 ## 対応状況（結論）
 
 | 区分 | 状態 |
 |------|------|
-| BUG-001〜030（本レポート採番） | **FIXED on main**（r1 実装・検証・統合 + r2 再確認 PASS） |
+| BUG-001〜030（本レポート採番） | **FIXED on main**（r1 + r2） |
 | BUG-013 / BUG-018 | それぞれ BUG-006 / BUG-008 と同一根因として解消扱い |
-| BUG-027 | 仕様判断（締め時間の境界逆転拒否は意図的 fail-closed。コード変更なし / SPEC） |
-| BUG-031 / 032 / 033 | **FIXED on main**（r2 実装・検証・通常 merge+push） |
-| BUG-033 ブラウザ再検証 | **NG（ローカル実行中アプリでは未反映または再発）** |
-| BUG-001 / 002 ブラウザ再検証 | **NG（死亡ペットの直接URLガードが未反映または再発）** |
-| **S05 ブラウザ E2E** | **PASS（2026-08-11 再実施）** — 入院作成・ケアプラン・ケア記録・退院・会計遷移を確認 |
-| **S06 ブラウザ E2E** | **PARTIAL/NG（2026-08-11 再実施）** — 確定・追記は確認、治療方針の再読込不整合は BUG-034、監査DB裏取りは未実施 |
+| BUG-027 | 仕様判断（締め時間の境界逆転拒否は意図的 fail-closed。コード変更なし / **SPEC**） |
+| BUG-031 / 032 / 033 | **FIXED on main**（r2 実装・検証・通常 merge+push）。033 の unit/FE は main 上 PASS |
+| BUG-001 / 002 | **FIXED on main（r3 FE 直URLガード追加）**。BE 拒否は r1 時点で ALREADY。ブラウザ再NG は stale コンテナ + FE 表示漏れ |
+| BUG-034 / 035 | **FIXED on main（r3）** |
+| **S05 ブラウザ E2E** | **PASS（2026-08-11）** |
+| **S06 ブラウザ E2E** | **PARTIAL** — コード上 034/035 は r3 で修正。**ローカル再ビルド後のブラウザ再確認は人間**。監査DB裏取りは未実施 |
 
-### r2 新規実装（main 反映）
+### r3 新規実装（main 反映）
 
 | BUG | 要約 | branch / tip | merge |
 |-----|------|--------------|-------|
-| 031 | 当日開始入院 → status admitted 既定 | `fix/bug-031-hosp-today-admitted` @ `817c9b448` | fe2031b89 |
-| 032 | 入院 create の nested treatment_plans から care_plan_items を同一 TX seed | `fix/bug-032-hosp-care-plan-persist` @ `142675a16` | 474c1fb0a |
-| 033 | 完了検査の結果編集/保存/削除ロック（FE+BE） | `fix/bug-033-exam-completed-lock` @ `5ed8a6b1b` | 5ef39c185 |
+| 034 | 問診「治療方針」= inquiry.notes の GET 往復欠落を修正 | `fix/bug-034-treatment-policy-reload` @ `fec644128` | 64cada44a |
+| 035 | 確定済カルテ: fieldset `display:contents` 撤去 + 保存非表示 | `fix/bug-035-finalized-mr-lock` @ `a3643a58b` | d96ea911c |
+| 002 | `/medical-records/new` 死亡ペット hard-stop | `fix/bug-002-deceased-mr-new-block` @ `d9c9b193b` | 4d3c214de |
+| 001 | `/accounting/new` 死亡ペット FE ブロック | `fix/bug-001-deceased-accounting-new-fe` @ `6370be3ea` | c8623130b |
 
-### 2026-08-11 main 上の自動再検証（Docker · migrate 未適用）
+### Phase 0 分類（r3 · 根拠）
 
-**BE** `go test ./internal/medicalrecord/`（`--entrypoint ''`）focused:
+| ID | 分類 | 根拠 |
+|----|------|------|
+| 001 | BE ALREADY + FE STILL_OPEN→FIXED + ENV_STALE | BE unit PASS; FE accounting に死亡ガード無し; 実行 image が 7月 |
+| 002 | BE ALREADY + FE display STILL_OPEN→FIXED + ENV_STALE | BE unit PASS; new でフォーム表示が残存 |
+| 033 | **ENV_STALE**（コード ALREADY） | main に exam lock + unit PASS。ブラウザ NG は古い frontend/backend イメージが主因 |
+| 034 | STILL_OPEN→FIXED | InquirySummary が notes を落とす |
+| 035 | STILL_OPEN→FIXED | fieldset + contents で disabled 非伝播 |
+| 027 | SPEC | 触らない |
 
-- PASS: `TestDefaultHospitalizationStatus`
-- PASS: `TestHospitalizationService_Create`（BUG-031 today→admitted / future→reserved 含む）
-- PASS: `TestHospitalizationService_Create_NestedPlansAtomicity`（BUG-032 seed 含む 6 subtests）
-- PASS: `TestExaminationResultsLocked` / `TestExaminationLockErrorMessages`
-- PASS: `TestExaminationService_UpdateUsesLockedExamStatus` / `ReplaceItemsUsesLockedExamStatus`
-- PASS: `ReplaceItemsRejectsCompletedSeal` / `UpdateRejectsItemsOnCompletedSeal` / `DeleteRejectsCompletedSeal`
-- PASS: `TestMedicalRecordService_Update_FinalizeAuditLog`（確定時 finalize 監査）
+### 2026-08-11 r3 検証（kanban · Docker · migrate 未適用）
 
-**FE** vitest 3 files / **78 tests PASS**:
-
-- `examination-lock.test.ts`
-- `use-examination-form.test.ts`
-- `ExaminationFormFields.test.tsx`
-
-※ DB フル migrate 依存の結合テスト（例: `vital_records` 欠落環境での FinalizeAuditFailureRollsBack）は本ラウンド対象外。`make migrate` はエージェント未実行。
-
-Hermes ボード `animalekarte-bugmd-202608-r2`: 実装可能カード done / blocked = DEFER ブラウザ再実施 + SPEC 027。  
-**staging への merge は人間担当（本キャンペーンでは実施しない）。**
-
----
-
-## S05（入院サイクル）— 2026-08-11 再実施結果
-
-- **コード**: BUG-031/032 は main 反映済み。上記 unit 再 PASS
-- **実施**: 入院作成（当日開始で入院中）、ケアプラン2件、日次記録・バイタル・ケア記録、退院後会計遷移、退院済み表示、二重退院導線なしを確認。
-- **判定**: **PASS**（検証用入院 ID 6、会計 ID 1384152）。会計は未収状態のため、テストデータとして残存。
-
-## S06（カルテロック・監査証跡）— 2026-08-11 再実施結果
-
-- **コード**: 確定 finalize 監査 unit PASS。検査 completed ロック（BUG-033）unit+FE PASS
-- **実施**: 実カルテの保存・確定(Lock)・確定済み表示・訂正追記の保存と再読込を確認。
-- **未実施**: 監査証跡の DB 裏取り、および確定済み削除拒否の API 応答確認。
-- **特に未確認（人間）**: 過去報告「カルテ確定時に身体検査所見が空・診断/方針が固定文で上書き」の **本番相当データでの再発有無**
-- **扱い**: **PARTIAL/NG**。治療方針の再読込不整合は BUG-034 として記録。
-
-### 環境障害メモ（S04〜S06 共通 · 元レポート）
-
-複数テスターのブラウザタブ競合、およびブラウザ操作ツール障害によりアクション系検証が不能だった記録あり。人間による S05/S06 E2E 再実施を推奨。
-
-S04（LIFF 予約ジャーニー）手順 2〜12 も元レポートでは未実施。コード open bug としては起票しない。
-
----
+- ボード: `animalekarte-bugmd-202608-r3`
+- 実装+検証 4 本すべて reviewer **APPROVE (PASS)**
+- 新規 migration ファイル: **なし**（`make migrate` 不要）
 
 ## 削除済み（対応完了のため個別詳細を圧縮）
 
-BUG-001〜033 の再現手順・当時エビデンスのフル本文は git 履歴（本ファイル旧版 / `29abc8963` Find bug #298）を参照。
+BUG-001〜035 の再現手順・当時エビデンスのフル本文は git 履歴（本ファイル旧版 / `8077f00f3` 以前）を参照。
 
 ## 人間アクション（残り）
 
-1. 必要なら **deploy 確認**（main）
-2. **staging へ main を取り込む**（人間のみ · 本作業では未実施）
-3. S05 / S06 の **ブラウザ E2E 再実施**
-4. BUG-027 は追加実装不要（仕様のまま）
+1. **ローカル Docker 再ビルド / 再起動**（UAT が乗っている image が古い）:
+   ```bash
+   cd /Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte
+   docker compose build frontend backend
+   docker compose up -d frontend backend
+   ```
+2. ブラウザ再確認: 死亡 petId=1000003 の `/medical-records/new` `/accounting/new` · 完了検査 1014563 · 確定カルテ 治療方針保持 · 確定後 input disabled
+3. **staging へ main を取り込む**（人間のみ · 本キャンペーンでは未実施）
+4. S06 監査ログ DB 裏取り（任意）
+5. BUG-027 は追加実装不要（仕様のまま）
+6. `make migrate` — 本 r3 では新 migration なし
+
+**staging への merge は人間担当（本作業では実施しない）。**
 
 以上。
-
----
-
-## BUG-001 / BUG-002 ブラウザ再検証結果: 死亡ペットの直接URLガードが機能していない
-
-- **再検証日**: 2026-08-11
-- **環境**: `http://localhost:3003` ローカル UAT
-- **再現手順**:
-  1. 死亡ペット `クロ (ID 1000003)` に対して `/medical-records/new?petId=1000003` を直接開く。
-  2. `/accounting/new?petId=1000003` を直接開く。
-- **期待結果**: 死亡ペットに対する新規カルテ・新規会計は、直接URLでも画面表示または保存処理が拒否される。
-- **実際の結果**: 前者は「【死亡】」表示付きのカルテ編集フォームが表示され、後者は「会計精算」フォームが表示された。どちらも直接URL時点でブロックされなかった。
-- **判定**: **NG**。BUG-001/002 の main 上の修正記録と、現在ブラウザで稼働しているアプリの挙動が一致していない。デプロイまたは実行中コンテナへの反映状態を確認する必要がある。
-- **証拠**: 上記2 URLの画面スナップショットで、死亡ペット情報と通常の編集・会計フォームを確認。
-
----
-
-## BUG-033 ブラウザ再検証結果: 完了済み検査の編集ロックが未反映
-
-- **再検証日**: 2026-08-11
-- **環境**: `http://localhost:3003` ローカル UAT
-- **画面**: `/examinations/1014563`
-- **実際の結果**: ステータスが「完了」の検査で、結果値 textbox、検査項目削除ボタン、画面の保存・削除ボタンがいずれも有効表示された。
-- **判定**: **NG**。main 上の自動テスト PASS 記録と、現在ブラウザで稼働しているアプリの挙動が一致していない。デプロイまたは実行中コンテナへの反映状態を確認する必要がある。
-- **証拠**: 完了済み検査 `1014563` の画面スナップショットで、`WBC（白血球数）の結果値` textbox、`WBC（白血球数）を削除`、`保存`、`削除` が有効表示。
-
----
-
-## BUG-034: カルテ確定後の再読込で保存済みの治療方針が初期文言に戻る
-
-- **発見日**: 2026-08-11
-- **環境**: `http://localhost:3003` ローカル UAT（main）
-- **画面**: `/medical-records/new` → `/medical-records/1425558`
-- **再現手順**:
-  1. 生存ペットを選択して新規カルテを作成する。
-  2. 問診タブの「主訴詳細」に `UAT再検証 主訴`、「治療方針」に `UAT再検証 治療方針`を入力して保存する。
-  3. 保存直後に入力値が表示されることを確認し、カルテを確定する。
-  4. 確定済みカルテを再読込する。
-- **期待結果**: 保存・確定した治療方針が再読込後も保持される。
-- **実際の結果**: 保存直後は「UAT再検証 治療方針」と表示されたが、確定後の再読込では「# 治療方針」に戻った。主訴詳細は保存値が保持されており、治療方針だけが失われた。
-- **証拠**: カルテID `1425558` で、保存直後の画面スナップショットと、確定後再読込時の画面スナップショットを比較して再現。
-
----
-
-## 2026-08-11 全件再実施ラウンド追記
-
-### 今回ブラウザで実施した主な確認
-
-- **S01**: ラッキー（ID 1000019）で死亡登録 → カルテ/入院選択画面で「死亡・選択不可」 → 死亡記録解除。テストデータは生存へ復帰。
-- **S02**: 新規検査 ID 1014564 を作成。血液検査の動的項目・基準値、WBC HIGH/RBC LOW 入力を確認。完了済み ID 1014563 は BUG-033 の状態を再確認。
-- **S03**: ワクチン犬、3週後（2026-09-01）、手動予定日入力、LOT1入力、保存成功を確認。
-- **S05**: 入院 ID 7 を作成。ケアプラン2件、バイタル38.5℃、ケアログ、退院後会計遷移を確認。会計 ID 1384153 は未精算状態で残存。
-- **S07**: 承認済み見積の詳細表示と `/edit` 直アクセス拒否（詳細へ戻り、編集不可メッセージ）を確認。
-- **S08**: 精算済み会計 ID 1384150 で理由なしクレジット訂正を拒否、理由付き訂正を保存、未収残高の再計算を確認。
-- **S09/S10**: 締め時間プレビュー（AM/PM/EMG）と集計ダッシュボードの売上・会計件数・来院回数を確認。
-- **S11**: トリミング ID 1425498 を登録し、コース・爪切り・担当者・希望スタイルの一覧反映を確認。
-- **S12**: `clinic_id=1` のmockヘルスカードで飼主表示と「ペット情報はありません」を確認。token付き実連携は未実施。
-- **S04追加確認**: 2026年8月・9月を確認したが、8/1〜12は予約不可、8/13〜9/10はスタッフ不在、9/11以降は予約不可。診察系コースのスタッフ選択まで、およびトリミングコース→オプション選択分岐までは確認できたが、日付・時間・確定はBLOCKED。
-- **V03/V04/V05**: 飼主登録・治療項目マスタ・パスワードリセットの必須エラー、未登録メールの列挙防止、主要設定フォームの表示を確認。
-
-### 未完了・BLOCKED
-
-- V01〜V05の全84フォームについて、各フォームのC1/C2/C3を個別に完遂するところまでは未完了。
-- S04は予約可能日がなく、時間枠取得・予約確定・キャンセル・枠解放を実行できない。
-- S06の監査ログDB裏取り、S02の閲覧専用スタッフ切替、S13の2医院所属・identity-links権限が未準備。
-- S12の有効link tokenを用いたLINE連携は、ローカルmock認証のため未実施。
-
----
-
-## BUG-035: 確定済みカルテの入力項目と保存操作が有効のまま
-
-- **発見日**: 2026-08-11
-- **環境**: `http://localhost:3003` ローカル UAT
-- **画面**: `/medical-records/1425559`
-- **再現手順**:
-  1. 生存ペット（ろっぷ、ID 1000020）で新規カルテを作成する。
-  2. 主訴、身体検査所見、診断詳細、治療方針、治療プランを入力して保存する。
-  3. 「確定する」から確認ダイアログを承認する。
-- **期待結果**: 確定後は入力項目が編集不可になり、修正は「追記する」からのみ行える。
-- **実際の結果**: 「確定済」「このカルテは確定済みのため編集できません」と表示された後も、身体検査所見・診断詳細・治療方針・治療内容の input/textarea が `disabled=false` で、保存ボタンも表示された。画面には「追記する」も表示される。
-- **判定**: **NG**。確定済み検査の編集ロック（BUG-033）と同系統のカルテ編集ロック不備。
-- **証拠**: 確定後のカルテID `1425559` の画面表示および入力要素状態を確認。
