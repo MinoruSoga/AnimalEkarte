@@ -93,10 +93,11 @@ export function MedicalRecordFloatingActions({
           確定する
         </Button>
       ) : null}
-      {canSubmit ? (
+      {/* BUG-035: 確定済みでは保存を出さない（disabled 表示より導線除去）。印刷・追記は残す。 */}
+      {canSubmit && !isFinalized ? (
         <SubmitButton
           className="px-4"
-          disabled={isCreating || isSaving || isFinalized}
+          disabled={isCreating || isSaving}
         >
           {isCreating ? "カルテ作成中..." : "保存"}
         </SubmitButton>

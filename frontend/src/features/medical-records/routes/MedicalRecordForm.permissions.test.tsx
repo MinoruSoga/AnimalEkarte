@@ -7,6 +7,7 @@ const mockDeleteRecord = vi.hoisted(() => vi.fn());
 const mockUsePermission = vi.hoisted(() => vi.fn());
 const mockBoundaryState = vi.hoisted(() => ({
   selectedPetStatus: "生存" as "生存" | "死亡",
+  isFinalized: false,
   capturedDeleteConfirm: undefined as (() => void) | undefined,
   setPermissions: undefined as ((permissions: {
     canEdit: boolean;
@@ -57,7 +58,7 @@ vi.mock("../hooks/use-medical-record-form", () => ({
     formAction: vi.fn(),
     formState: {},
     isSaving: false,
-    isFinalized: false,
+    isFinalized: mockBoundaryState.isFinalized,
     isCreating: false,
     treatmentPlanItems: [],
     setTreatmentPlanItems: vi.fn(),
@@ -170,7 +171,15 @@ vi.mock("../components/MedicalRecordFormPanels", () => ({
   MedicalRecordTabsArea: () => <input aria-label="clinical field" />,
 }));
 vi.mock("../components/MedicalRecordFormActions", () => ({
-  MedicalRecordFloatingActions: () => null,
+  MedicalRecordFloatingActions: ({
+    isFinalized,
+    canSubmit,
+  }: {
+    isFinalized: boolean;
+    canSubmit: boolean;
+  }) => (
+    canSubmit && !isFinalized ? <button type="submit">保存</button> : null
+  ),
   MedicalRecordFinalizeDialog: () => null,
   MedicalRecordPrintArea: () => null,
 }));
@@ -192,6 +201,7 @@ vi.mock("@/components/shared/UnifiedTabs", () => ({
 beforeEach(() => {
   vi.clearAllMocks();
   mockBoundaryState.selectedPetStatus = "生存";
+  mockBoundaryState.isFinalized = false;
   mockBoundaryState.capturedDeleteConfirm = undefined;
   mockBoundaryState.setPermissions = undefined;
   mockUsePermission.mockReturnValue({ canEdit: false, canCreate: true, canDelete: false });
@@ -214,11 +224,24 @@ describe("MedicalRecordForm — mutation permission boundary", () => {
     render(<MedicalRecordForm />);
 
     expect(screen.getByRole("group")).toBeDisabled();
+    expect(screen.getByTestId("medical-record-edit-lock")).toBeDisabled();
     expect(screen.getByRole("textbox", { name: "clinical field" })).toBeDisabled();
 
     fireEvent.click(screen.getByRole("button", { name: "confirm delete" }));
 
     expect(mockDeleteRecord).not.toHaveBeenCalled();
+  });
+
+  it("isFinalized=true では clinical 入力を disabled にし保存ボタンを出さない", () => {
+    mockBoundaryState.isFinalized = true;
+    mockUsePermission.mockReturnValue({ canEdit: true, canCreate: true, canDelete: true });
+
+    render(<MedicalRecordForm />);
+
+    expect(screen.getByTestId("medical-record-edit-lock")).toBeDisabled();
+    expect(screen.getByRole("textbox", { name: "clinical field" })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "保存" })).not.toBeInTheDocument();
+    expect(screen.getByText(/このカルテは確定済みのため編集できません/)).toBeInTheDocument();
   });
 
   it("delete権限を失ったcommit直後は取得済み削除callbackがmutationを発行しない", () => {

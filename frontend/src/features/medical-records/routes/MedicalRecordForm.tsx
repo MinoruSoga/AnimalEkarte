@@ -386,12 +386,14 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
         onNextVisitDateValidChange={handleNextVisitDateValidChange}
         hasLineIntegration={hasLineIntegration}
       />
-      {/* SPEC-GAP (GAP-1): 確定済みカルテと非編集権限のカルテは編集不可 UI。BE は主要な子リソース
-          (治療/検査/バイタル/処方/健診/画像) を 409 で拒否するが、UI が押せて
-          エラーになるのは不可のため、タブ内の全編集導線をここで一括無効化する。
-          個別コンポーネントへ disabled を都度配線すると新規フィールド追加時に
-          ガード漏れが起きやすいため、fieldset の cascade を単一の強制点にする。 */}
-      <fieldset disabled={isFinalized || !canSubmit} className="contents border-0 m-0 p-0">
+      {/* SPEC-GAP (GAP-1) / BUG-035: 確定済み・非編集権限のカルテは編集不可 UI。
+          display:contents の fieldset はブラウザで disabled が子孫へ伝播しないため使わない。
+          BE は更新を 409 で拒否するが、UI が押せてエラーになるのは不可。 */}
+      <fieldset
+        disabled={isFinalized || !canSubmit}
+        className="border-0 p-0 m-0 min-w-0"
+        data-testid="medical-record-edit-lock"
+      >
         {isFinalized ? (
           <div className={`mx-4 mt-3 rounded border ${C.borderMedium} ${C.bgPage} px-3 py-2 text-sm ${C.text60}`}>
             このカルテは確定済みのため編集できません。修正が必要な場合は下部の訂正追記（addendum）をご利用ください。
