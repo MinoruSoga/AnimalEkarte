@@ -22,8 +22,8 @@ export const toBackendMedicalRecordStatus = (label: string): string | undefined 
 
 /**
  * MedicalRecordResponse wire → UI.
- * clinical_plan / visit_type / inquiry notes は detail wire に無い。
- * 診断・SOAP は clinical-plan 専用 API、visitType は form state / 別経路で扱う（BUG-416）。
+ * clinical_plan / visit_type は detail wire に無い（clinical-plan API / form 別経路）。
+ * inquiry.notes は InquirySummary に載せ、問診「治療方針」を再読込 hydrate する（BUG-034）。
  * version は wire 必須（TASK-444-S2 選択肢A）。?? 1 フォールバックは置かない。
  */
 export const transformMedicalRecord = (record: BackendMedicalRecord) => {
@@ -38,7 +38,7 @@ export const transformMedicalRecord = (record: BackendMedicalRecord) => {
     petIsDeceased: record.pet?.status === PetStatusDeceased,
     species: record.pet?.animal_species?.name ?? "",
     chiefComplaint: record.inquiry?.chief_complaint ?? "",
-    // InquirySummary wire は id + chief_complaint のみ
+    // InquirySummary wire に chief_complaint_type_id は無い
     chiefComplaintTypeId: null as number | null,
     doctor: record.doctor?.name ?? String(record.doctor_id ?? ""),
     // visit_type は medical-record detail wire に無い（form / 別経路）
@@ -57,7 +57,8 @@ export const transformMedicalRecord = (record: BackendMedicalRecord) => {
     diagnosis1NameId: null as number | null,
     diagnosis2CategoryId: null as number | null,
     diagnosis2NameId: null as number | null,
-    notes: undefined as string | undefined,
+    // 問診タブ「治療方針」= inquiry.notes（clinical_plan.treatment_policy とは別 state）
+    notes: record.inquiry?.notes || undefined,
     accountingId: record.accounting_id ? String(record.accounting_id) : undefined,
     visitCount: record.visit_count,
     version: record.version,

@@ -362,6 +362,63 @@ describe("useMedicalRecordForm", () => {
         expect(result.current.diagnosis2NameId).toBe(9);
       });
     });
+
+    // BUG-034: 問診「治療方針」は inquiry.notes → treatmentPolicy。
+    // detail wire で notes が落ちると再読込後 DEFAULT「# 治療方針」に戻る。
+    it("BUG-034: 既存レコード notes を treatmentPolicy に hydrate する（確定後再読込でも保持）", async () => {
+      const loadedRecord = {
+        data: {
+          id: "1425558",
+          visitType: "再診",
+          chiefComplaint: "UAT再検証 主訴",
+          plan: "",
+          assessment: "",
+          notes: "UAT再検証 治療方針",
+          version: 2,
+          status: "確定済",
+        },
+        isLoading: false,
+        isError: false,
+      };
+      mockUseGetMedicalRecord.mockReturnValue({ data: undefined, isLoading: true, isError: false });
+      const { result, rerender } = renderHook(() => useMedicalRecordForm("1425558"));
+
+      mockUseGetMedicalRecord.mockReturnValue(loadedRecord as never);
+      rerender();
+
+      await waitFor(() => {
+        expect(result.current.chiefComplaint).toBe("UAT再検証 主訴");
+        expect(result.current.treatmentPolicy).toBe("UAT再検証 治療方針");
+      });
+    });
+
+    it("BUG-034: notes が空のとき treatmentPolicy は DEFAULT のまま（clinical_plan.plan と混同しない）", async () => {
+      const loadedRecord = {
+        data: {
+          id: "10",
+          chiefComplaint: "主訴のみ",
+          plan: "診察タブ側の治療方針テキスト",
+          assessment: "",
+          notes: "",
+          version: 1,
+        },
+        isLoading: false,
+        isError: false,
+      };
+      mockUseGetMedicalRecord.mockReturnValue({ data: undefined, isLoading: true, isError: false });
+      const { result, rerender } = renderHook(() => useMedicalRecordForm("10"));
+
+      mockUseGetMedicalRecord.mockReturnValue(loadedRecord as never);
+      rerender();
+
+      await waitFor(() => {
+        expect(result.current.chiefComplaint).toBe("主訴のみ");
+      });
+      // notes が空なので setTreatmentPolicy は呼ばれず DEFAULT のまま
+      expect(result.current.treatmentPolicy).toBe("# 治療方針");
+      // medical-record wire の plan は clinical_plan 正本ではない（useApply は truthy plan を setPlan）
+      expect(result.current.plan).toBe("診察タブ側の治療方針テキスト");
+    });
   });
 
   // ──────────────────────────
