@@ -29,6 +29,7 @@ import { VisitTypeSelect } from "./VisitTypeSelect";
 import { NextVisitButton } from "./NextVisitButton";
 import type { RecommendationReason } from "../constants/recommendation-reason";
 import type { InterviewHistoryItem } from "../types";
+import { isMedicalRecordFinalizedStatus } from "../lib/medical-record-lock";
 
 interface MedicalRecordStickyHeaderProps {
   selectedPet: Pet;
@@ -109,7 +110,7 @@ export function MedicalRecordStickyHeader({
   onNextVisitDateValidChange,
   hasLineIntegration,
 }: MedicalRecordStickyHeaderProps) {
-  const isFinalized = recordStatus === "確定済";
+  const isFinalized = isMedicalRecordFinalizedStatus(recordStatus);
   const canEditDate = canEdit && !isFinalized && !!onDateChange && !isNewRecord;
   const dateInputValue = recordDate ? recordDate.replace(/\//g, "-") : undefined;
 
@@ -318,6 +319,7 @@ export function MedicalRecordTabsArea({
   onRecommendationReasonChange,
   onRegisterEstimateSave,
 }: MedicalRecordTabsAreaProps) {
+  const isFinalized = isMedicalRecordFinalizedStatus(recordStatus);
   return (
     <div className={`mt-4 ${LAYOUT.fullHeight}`}>
       {mountedTabs.has("問診") ? (
@@ -331,6 +333,7 @@ export function MedicalRecordTabsArea({
               treatmentPolicy={treatmentPolicy}
               setTreatmentPolicy={onTreatmentPolicyChange}
               historyItems={historyItems}
+              isFinalized={isFinalized}
             />
           </div>
         </UnifiedTabsContent>
@@ -366,21 +369,21 @@ export function MedicalRecordTabsArea({
                 onChange={onNextVisitDateChange}
                 onValidationChange={onNextVisitDateValidChange}
                 hasLineIntegration={hasLineIntegration}
-                disabled={isNewRecord}
+                disabled={isNewRecord || isFinalized}
               />
               {recordId ? (
                 <RecommendationReasonSelect
                   mode="edit"
                   medicalRecordId={recordId}
                   value={recommendationReason}
-                  disabled={false}
+                  disabled={isFinalized}
                 />
               ) : (
                 <RecommendationReasonSelect
                   mode="create"
                   value={recommendationReason}
                   onChange={onRecommendationReasonChange}
-                  disabled={false}
+                  disabled={isFinalized}
                 />
               )}
             </div>
@@ -414,7 +417,7 @@ export function MedicalRecordTabsArea({
                 カルテを保存してから使用できます
               </div>
             ) : (
-              <CheckupsTab medicalRecordId={recordId} lstepStatus={lstepStatus} isFinalized={recordStatus === "確定済"} />
+              <CheckupsTab medicalRecordId={recordId} lstepStatus={lstepStatus} isFinalized={isFinalized} />
             )}
           </div>
         </UnifiedTabsContent>

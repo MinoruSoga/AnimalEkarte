@@ -50,6 +50,7 @@ import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { useTitle } from "@/hooks/use-title";
 import { ResourceMedicalRecords } from "@/types/generated/models";
+import { isMedicalRecordFinalizedStatus } from "../lib/medical-record-lock";
 
 export const MedicalRecordForm = memo(function MedicalRecordForm() {
   const { id: recordId } = useParams();
@@ -164,6 +165,10 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
 
   // addenda セクション用: キャッシュ共有のため追加ネットワーク要求なし
   const { data: currentRecord } = useGetMedicalRecord(recordId ?? "");
+  // BUG-035 residual: hook の isFinalized と detail キャッシュを OR で単一ロック判定にする
+  // （banner/addenda が 確定済 なのに保存が残る dual-source を塞ぐ）
+  const recordFinalized =
+    isFinalized || isMedicalRecordFinalizedStatus(currentRecord?.status);
   // P2-15: 拠点横断で開いたカルテ（record.clinicId）の子リソースは、グローバル選択クリニックではなく
   // レコード自身の clinicId を X-Clinic-ID として送る必要がある。currentRecord 解決前は undefined —
   // クエリキーに clinicId を含めているため解決後に自動で正しいクリニックへ再フェッチされる。
@@ -405,13 +410,14 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
       />
       {/* SPEC-GAP (GAP-1) / BUG-035: 確定済み・非編集権限のカルテは編集不可 UI。
           display:contents の fieldset はブラウザで disabled が子孫へ伝播しないため使わない。
-          BE は更新を 409 で拒否するが、UI が押せてエラーになるのは不可。 */}
+          BE は更新を 409 で拒否するが、UI が押せてエラーになるのは不可。
+          加えて問診臨床欄は isFinalized prop で content attribute を明示する（UAT residual）。 */}
       <fieldset
-        disabled={isFinalized || !canSubmit}
+        disabled={recordFinalized || !canSubmit}
         className="border-0 p-0 m-0 min-w-0"
         data-testid="medical-record-edit-lock"
       >
-        {isFinalized ? (
+        {recordFinalized ? (
           <div className={`mx-4 mt-3 rounded border ${C.borderMedium} ${C.bgPage} px-3 py-2 text-sm ${C.text60}`}>
             このカルテは確定済みのため編集できません。修正が必要な場合は下部の訂正追記（addendum）をご利用ください。
           </div>
@@ -469,13 +475,13 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
 
       <MedicalRecordFloatingActions
         activeTab={activeTab}
-        canDelete={!!canDelete && !isFinalized}
+        canDelete={!!canDelete && !recordFinalized}
         canEdit={canEdit}
         canSubmit={canSubmit}
         isNewRecord={isNewRecord}
         isCreating={isCreating}
         isSaving={isSaving}
-        isFinalized={isFinalized}
+        isFinalized={recordFinalized}
         onDeleteClick={() => setIsDeleteConfirmOpen(true)}
         onVitalsClick={() => setIsVitalsOpen(true)}
         onPrintClick={handlePrintClick}

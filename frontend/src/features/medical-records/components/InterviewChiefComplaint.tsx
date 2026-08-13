@@ -25,6 +25,8 @@ interface InterviewChiefComplaintProps {
   setChiefComplaintTypeId: (id: number | null) => void;
   templates: { label: string; text: string }[];
   onInsertTemplate: (text: string) => void;
+  /** BUG-035: 確定済みは権限があっても content attribute で disabled（fieldset 継承だけに依存しない） */
+  isFinalized?: boolean;
 }
 
 export const InterviewChiefComplaint = memo(function InterviewChiefComplaint({
@@ -35,9 +37,11 @@ export const InterviewChiefComplaint = memo(function InterviewChiefComplaint({
   setChiefComplaintTypeId,
   templates,
   onInsertTemplate,
+  isFinalized = false,
 }: InterviewChiefComplaintProps) {
   const navigate = useNavigate();
   const { canEdit } = usePermission("medical-records");
+  const fieldsDisabled = !canEdit || isFinalized;
   const { data: categories = [], isLoading } = useGetChiefComplaintTypes();
 
   // SearchableSelect 用に選択肢を {value,label} 形へ変換(参照安定のため memo 化)
@@ -53,12 +57,12 @@ export const InterviewChiefComplaint = memo(function InterviewChiefComplaint({
         size="sm"
         className={`${LAYOUT.touch.md} text-sm px-3 ${C.bgWhite} ${C.hoverBgPage} ${C.text60} ${C.borderMedium}`}
         onClick={() => onInsertTemplate(tmpl.text)}
-        disabled={!canEdit}
+        disabled={fieldsDisabled}
       >
         {tmpl.label}
       </Button>
     )),
-    [templates, onInsertTemplate, canEdit]
+    [templates, onInsertTemplate, fieldsDisabled]
   );
 
   return (
@@ -73,7 +77,7 @@ export const InterviewChiefComplaint = memo(function InterviewChiefComplaint({
         <div className="space-y-1.5">
           <div className="flex items-center justify-between">
             <Label htmlFor="medical-record-chief-complaint-type" className={`text-sm ${C.text60}`}>主訴区分</Label>
-            {canEdit ? (
+            {!fieldsDisabled ? (
               <button
                 type="button"
                 onClick={() => navigate(paths.settings.interview.chiefComplaint.getHref())}
@@ -89,7 +93,7 @@ export const InterviewChiefComplaint = memo(function InterviewChiefComplaint({
             value={chiefComplaintTypeId ? String(chiefComplaintTypeId) : ""}
             onValueChange={(value) => setChiefComplaintTypeId(value ? Number(value) : null)}
             options={categoryOptions}
-            disabled={isLoading || !canEdit}
+            disabled={isLoading || fieldsDisabled}
             placeholder={isLoading ? "読み込み中..." : "選択してください"}
             searchPlaceholder="主訴区分を検索..."
             className={LAYOUT.touch.md}
@@ -101,7 +105,7 @@ export const InterviewChiefComplaint = memo(function InterviewChiefComplaint({
             <span className={`mb-2 flex items-center gap-2 text-sm leading-none select-none ${C.text60}`}>
               定型文挿入
             </span>
-            {canEdit ? (
+            {!fieldsDisabled ? (
               <button
                 type="button"
                 onClick={() => navigate(paths.settings.interview.interviewTemplate.getHref())}
@@ -126,7 +130,7 @@ export const InterviewChiefComplaint = memo(function InterviewChiefComplaint({
             onChange={setChiefComplaint}
             className="flex-1 min-h-0"
             textareaClassName={`${STYLE.textarea} min-h-0`}
-            disabled={!canEdit}
+            disabled={fieldsDisabled}
           />
         </div>
       </div>

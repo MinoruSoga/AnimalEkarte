@@ -14,14 +14,18 @@ interface InterviewTreatmentPolicyProps {
   className?: string;
   treatmentPolicy: string;
   setTreatmentPolicy: (value: string) => void;
+  /** BUG-035: 確定済みは権限があっても content attribute で disabled（fieldset 継承だけに依存しない） */
+  isFinalized?: boolean;
 }
 
 export const InterviewTreatmentPolicy = memo(function InterviewTreatmentPolicy({
   className,
   treatmentPolicy,
   setTreatmentPolicy,
+  isFinalized = false,
 }: InterviewTreatmentPolicyProps) {
   const { canEdit } = usePermission("medical-records");
+  const fieldsDisabled = !canEdit || isFinalized;
   return (
     <div className={`flex flex-col ${className ?? ""} h-full`}>
       <div className="pb-1.5 shrink-0">
@@ -43,7 +47,7 @@ export const InterviewTreatmentPolicy = memo(function InterviewTreatmentPolicy({
         onChange={setTreatmentPolicy}
         className="flex-1 min-h-0"
         textareaClassName={`${STYLE.textarea} min-h-0`}
-        disabled={!canEdit}
+        disabled={fieldsDisabled}
       />
     </div>
   );
