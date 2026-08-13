@@ -2,6 +2,7 @@ import { useActionState, useCallback, useDeferredValue, useEffect, useMemo, useS
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
 
+import { ErrorFallback, LoadingFallback } from "@/components/shared/DataStates";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker/NavigationBlocker";
 import { paths } from "@/config/paths";
 import { usePermission } from "@/hooks/use-permission";
@@ -46,7 +47,7 @@ export function ClinicMasterSettings() {
   const [isDeletePending, startDeleteTransition] = useTransition();
   const deferredSearch = useDeferredValue(searchTerm);
 
-  const { data: rawClinics } = useGetClinics();
+  const { data: rawClinics, isPending, isError } = useGetClinics();
   const createMutation = useCreateClinic();
   const updateMutation = useUpdateClinic();
   const deleteMutation = useDeleteClinic();
@@ -166,6 +167,22 @@ export function ClinicMasterSettings() {
       });
     });
   }, [pendingDeleteId, deleteClinicMasterFn]);
+
+  if (isError) {
+    return (
+      <div className="flex h-full items-center justify-center p-6">
+        <ErrorFallback message="医院一覧の取得に失敗しました" />
+      </div>
+    );
+  }
+
+  if (isPending) {
+    return (
+      <div className="flex h-full items-center justify-center p-6">
+        <LoadingFallback />
+      </div>
+    );
+  }
 
   return (
     <>

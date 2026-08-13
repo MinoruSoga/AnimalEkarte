@@ -58,13 +58,12 @@ export interface UpdateClinicRequest {
 // ─────────────────────────────────────────────────
 
 async function listClinics(): Promise<TransformedClinic[]> {
-  // BUG-378: 医院マスタ管理画面では staff_clinic_assignments に紐づかない
-  // クリニックも含めて全件を返す必要があるため scope=all を指定する。
-  // バックエンド側で hospital-settings.can_view 権限が必要。
+  // BUG-378 / BUG-038: 医院マスタでは割当外も含む全件が必要のため scope=all。
+  // 認可は hospital-settings.view（system_admin 不要）。失敗時は throw して silent empty を避ける。
   const { data } = await axios.get<BackendClinic[]>("/v1/clinics", {
     params: { scope: "all" },
   });
-  return data.map(transformClinic);
+  return (data ?? []).map(transformClinic);
 }
 
 async function createClinic(
