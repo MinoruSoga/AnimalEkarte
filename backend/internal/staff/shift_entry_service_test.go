@@ -335,6 +335,19 @@ func TestShiftEntryService_Create(t *testing.T) {
 			wantInvalidInput: false,
 		},
 		{
+			// BUG-036: full で時刻未指定は InvalidInput（DB に NULL を残さない）
+			name:     "returns invalid input when full shift has no times",
+			clinicID: 1,
+			input: &CreateShiftEntryInput{
+				StaffID:   1,
+				Date:      date,
+				ShiftType: string(model.ShiftTypeFull),
+			},
+			repoErr:          nil,
+			wantErr:          true,
+			wantInvalidInput: true,
+		},
+		{
 			// BUG-028: end_time == start_time は InvalidInput
 			name:     "returns invalid input when end_time equals start_time",
 			clinicID: 1,
@@ -371,6 +384,8 @@ func TestShiftEntryService_Create(t *testing.T) {
 				StaffID:   1,
 				Date:      date,
 				ShiftType: string(model.ShiftTypeMorning),
+				StartTime: &startTime,
+				EndTime:   &endTime,
 			},
 			repoErr:          errors.New("db error"),
 			wantErr:          true,
@@ -396,8 +411,7 @@ func TestShiftEntryService_Create(t *testing.T) {
 				assert.Error(t, err)
 				assert.Nil(t, entry)
 				if tt.wantInvalidInput {
-					// apperrors パッケージを直接importしていないが、エラーメッセージで確認
-					assert.Contains(t, err.Error(), "end_time must be after start_time")
+					assert.True(t, apperrors.IsInvalidInput(err), "unexpected error: %v", err)
 				}
 			} else {
 				assert.NoError(t, err)
