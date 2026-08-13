@@ -299,6 +299,10 @@ func (s *hospitalizationService) Create(ctx context.Context, clinicID uint64, in
 	if err := validateHospitalizationDateRange(input.StartDate, input.EndDate); err != nil {
 		return nil, err
 	}
+	// BUG-037: fail-closed — create without cage must not persist (UAT: cage_id=NULL).
+	if input.CageID == nil || *input.CageID == 0 {
+		return nil, apperrors.WrapInvalidInput("cage_id is required")
+	}
 	hospitalization := &model.Hospitalization{
 		ClinicID:             clinicID,
 		OwnerID:              input.OwnerID,

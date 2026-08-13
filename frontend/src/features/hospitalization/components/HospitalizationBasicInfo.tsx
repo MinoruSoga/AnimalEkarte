@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { DatePicker } from "@/components/shared/DatePicker/DatePicker";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { SearchableSelect } from "@/components/ui/searchable-select";
+import { FormFieldError } from "@/components/shared/FormFieldError";
 
 // Relative
 import { H_STYLES } from "../styles";
@@ -24,9 +25,10 @@ interface HospitalizationBasicInfoProps {
   formData: HospitalizationFormData;
   onChange: (updates: Partial<HospitalizationFormData>) => void;
   cageItems: MasterItem[];
+  fieldErrors?: Partial<Record<"cage_id", string>>;
 }
 
-export const HospitalizationBasicInfo = memo(function HospitalizationBasicInfo({ formData, onChange, cageItems }: HospitalizationBasicInfoProps) {
+export const HospitalizationBasicInfo = memo(function HospitalizationBasicInfo({ formData, onChange, cageItems, fieldErrors }: HospitalizationBasicInfoProps) {
   return (
     <div className={`${C.bgWhite} rounded-lg border ${C.borderMedium} ${H_STYLES.padding.box}`}>
       <h2 className={`${H_STYLES.text.base} font-bold mb-3 flex items-center gap-2 ${C.text}`}>
@@ -93,10 +95,12 @@ export const HospitalizationBasicInfo = memo(function HospitalizationBasicInfo({
         </div>
       </div>
 
-      {/* ケージ/個室 */}
+      {/* ケージ/個室（BUG-037: 必須） */}
       <div className="mb-3">
           <div className="flex items-center justify-between mb-1.5">
-            <Label htmlFor="cage_id" className={`${H_STYLES.text.sm} ${C.text60}`}>ケージ・個室</Label>
+            <Label htmlFor="cage_id" className={`${H_STYLES.text.sm} ${C.text60}`}>
+              ケージ・個室<span className="text-destructive ml-0.5" aria-hidden="true">*</span>
+            </Label>
             <MasterLink category="cage" label="編集" className="text-2xs" />
           </div>
           <SearchableSelect
@@ -109,7 +113,9 @@ export const HospitalizationBasicInfo = memo(function HospitalizationBasicInfo({
               }))}
               placeholder="選択してください"
               searchPlaceholder="ケージを検索..."
+              ariaInvalid={Boolean(fieldErrors?.cage_id)}
           />
+          <FormFieldError message={fieldErrors?.cage_id} />
       </div>
 
       {/* 保険 */}
