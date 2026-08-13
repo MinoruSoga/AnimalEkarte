@@ -268,6 +268,7 @@ export function HospitalizationForm() {
             formData={formData}
             onChange={handleFormChange}
             cageItems={cageItems}
+            fieldErrors={{ cage_id: formState.fieldErrors?.cage_id }}
           />
 
           {/* Middle Column - 飼主からのリクエスト */}

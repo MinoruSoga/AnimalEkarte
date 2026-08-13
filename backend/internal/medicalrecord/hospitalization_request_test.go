@@ -177,12 +177,14 @@ func TestCreateHospitalizationRequest_ToServiceInput(t *testing.T) {
 func TestCreateHospitalizationRequest_ToServiceInput_NestedTreatmentPlans(t *testing.T) {
 	startDate := time.Date(2026, 5, 28, 0, 0, 0, 0, time.UTC)
 	endDate := time.Date(2026, 5, 30, 0, 0, 0, 0, time.UTC)
+	cageID := uint64(10)
 	input, err := (&createHospitalizationRequest{
 		OwnerID:             1,
 		PetID:               2,
 		HospitalizationType: string(model.HospitalizationTypeInpatient),
 		StartDate:           startDate,
 		EndDate:             endDate,
+		CageID:              &cageID,
 		TreatmentPlans: []createTreatmentPlanRequest{
 			{TreatmentContent: "adm", UnitPrice: 990, Quantity: 1, SortOrder: 0},
 			{TreatmentContent: "monitor", UnitPrice: 500, Quantity: 2, DiscountRate: 10, SortOrder: 1},
@@ -203,11 +205,13 @@ func TestCreateHospitalizationRequest_ToServiceInput_NestedTreatmentPlans(t *tes
 }
 
 func TestCreateHospitalizationRequest_ToServiceInput_EmptyStatus(t *testing.T) {
+	cageID := uint64(10)
 	input, err := (&createHospitalizationRequest{
 		OwnerID:             1,
 		PetID:               2,
 		HospitalizationType: string(model.HospitalizationTypeInpatient),
 		Status:              "",
+		CageID:              &cageID,
 	}).toServiceInput()
 	if err != nil {
 		t.Fatalf("toServiceInput() error = %v", err)
@@ -215,6 +219,33 @@ func TestCreateHospitalizationRequest_ToServiceInput_EmptyStatus(t *testing.T) {
 	if input.Status != "" {
 		t.Fatalf("Status = %q, want empty (zero value)", input.Status)
 	}
+}
+
+func TestCreateHospitalizationRequest_ToServiceInput_RequiresCageID(t *testing.T) {
+	startDate := time.Date(2026, 5, 28, 0, 0, 0, 0, time.UTC)
+	endDate := time.Date(2026, 5, 30, 0, 0, 0, 0, time.UTC)
+	base := createHospitalizationRequest{
+		OwnerID:             1,
+		PetID:               2,
+		HospitalizationType: string(model.HospitalizationTypeInpatient),
+		StartDate:           startDate,
+		EndDate:             endDate,
+	}
+	t.Run("nil cage_id", func(t *testing.T) {
+		_, err := base.toServiceInput()
+		if err == nil {
+			t.Fatal("toServiceInput() error = nil, want cage_id required")
+		}
+	})
+	t.Run("zero cage_id", func(t *testing.T) {
+		zero := uint64(0)
+		req := base
+		req.CageID = &zero
+		_, err := req.toServiceInput()
+		if err == nil {
+			t.Fatal("toServiceInput() error = nil, want cage_id required")
+		}
+	})
 }
 
 func TestCreateHospitalizationRequest_ToServiceInput_InvalidHospitalizationType(t *testing.T) {

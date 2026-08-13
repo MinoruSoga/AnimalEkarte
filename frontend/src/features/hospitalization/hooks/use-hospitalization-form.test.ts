@@ -248,8 +248,27 @@ describe("useHospitalizationForm", () => {
       mockSelectedPets.length = 0;
     });
 
+    async function selectCage(result: { current: { handleFormDataChange: (u: { cageId: string }) => void } }) {
+      await act(async () => {
+        result.current.handleFormDataChange({ cageId: "10" });
+      });
+    }
+
+    it("ケージ未選択 → create せず fieldErrors.cage_id（BUG-037）", async () => {
+      const { result } = renderHospitalizationForm();
+
+      await submitForm(result.current.formAction);
+
+      expect(mockCreateHospitalization).not.toHaveBeenCalled();
+      expect(result.current.formState.success).toBe(false);
+      expect(result.current.formState.fieldErrors?.cage_id).toBe(
+        "ケージ・個室を選択してください",
+      );
+    });
+
     it("selectedPets がある & id なし → createHospitalization が呼ばれる", async () => {
       const { result } = renderHospitalizationForm();
+      await selectCage(result);
 
       await submitForm(result.current.formAction);
 
@@ -259,6 +278,7 @@ describe("useHospitalizationForm", () => {
 
     it("createHospitalization に pet_id と owner_id が渡される", async () => {
       const { result } = renderHospitalizationForm();
+      await selectCage(result);
 
       await submitForm(result.current.formAction);
 
@@ -266,12 +286,14 @@ describe("useHospitalizationForm", () => {
         expect.objectContaining({
           pet_id: "1",
           owner_id: "2",
+          cage_id: "10",
         })
       );
     });
 
     it("成功時 → toast.success が呼ばれる", async () => {
       const { result } = renderHospitalizationForm();
+      await selectCage(result);
 
       await submitForm(result.current.formAction);
 
@@ -280,6 +302,7 @@ describe("useHospitalizationForm", () => {
 
     it("成功時 → formState.success = true", async () => {
       const { result } = renderHospitalizationForm();
+      await selectCage(result);
 
       await submitForm(result.current.formAction);
 
@@ -290,6 +313,7 @@ describe("useHospitalizationForm", () => {
       mockCreateHospitalization.mockRejectedValueOnce(new Error("API Error"));
 
       const { result } = renderHospitalizationForm();
+      await selectCage(result);
 
       await submitForm(result.current.formAction);
 
@@ -298,6 +322,7 @@ describe("useHospitalizationForm", () => {
 
     it("作成権限なし → createHospitalization は呼ばれない", async () => {
       const { result } = renderHospitalizationForm(undefined, false);
+      await selectCage(result);
 
       await submitForm(result.current.formAction);
 
@@ -326,6 +351,7 @@ describe("useHospitalizationForm", () => {
 
     it("治療内容ありの行は create の treatment_plans に同梱され nested POST しない", async () => {
       const { result } = renderHospitalizationForm();
+      await selectCage(result);
 
       await act(async () => {
         result.current.addTreatmentPlan();
@@ -356,6 +382,7 @@ describe("useHospitalizationForm", () => {
 
     it("空の治療内容行は treatment_plans に含めない", async () => {
       const { result } = renderHospitalizationForm();
+      await selectCage(result);
       await act(async () => {
         result.current.addTreatmentPlan();
       });
@@ -396,6 +423,10 @@ describe("useHospitalizationForm", () => {
         { initialProps: { pet: livingPet } },
       );
 
+      await act(async () => {
+        result.current.handleFormDataChange({ cageId: "10" });
+      });
+
       const initialTimestamp = result.current.formState.timestamp;
       await act(async () => {
         rerender({ pet: deceasedPet });
@@ -430,8 +461,26 @@ describe("useHospitalizationForm", () => {
       mockSelectedPets.length = 0;
     });
 
+    async function selectCage(result: { current: { handleFormDataChange: (u: { cageId: string }) => void } }) {
+      await act(async () => {
+        result.current.handleFormDataChange({ cageId: "10" });
+      });
+    }
+
+    it("ケージ未選択 → update せず fieldErrors.cage_id（BUG-037）", async () => {
+      const { result } = renderHospitalizationForm("42");
+
+      await submitForm(result.current.formAction);
+
+      expect(mockUpdateHospitalization).not.toHaveBeenCalled();
+      expect(result.current.formState.fieldErrors?.cage_id).toBe(
+        "ケージ・個室を選択してください",
+      );
+    });
+
     it("selectedPets がある & id あり → updateHospitalization が呼ばれる", async () => {
       const { result } = renderHospitalizationForm("42");
+      await selectCage(result);
 
       await submitForm(result.current.formAction);
 
@@ -441,6 +490,7 @@ describe("useHospitalizationForm", () => {
 
     it("updateHospitalization に id が渡される", async () => {
       const { result } = renderHospitalizationForm("42");
+      await selectCage(result);
 
       await submitForm(result.current.formAction);
 
@@ -452,6 +502,7 @@ describe("useHospitalizationForm", () => {
 
     it("成功時 → toast.success が呼ばれる（更新メッセージ）", async () => {
       const { result } = renderHospitalizationForm("42");
+      await selectCage(result);
 
       await submitForm(result.current.formAction);
 
@@ -460,6 +511,7 @@ describe("useHospitalizationForm", () => {
 
     it("成功時 → formState.success = true", async () => {
       const { result } = renderHospitalizationForm("42");
+      await selectCage(result);
 
       await submitForm(result.current.formAction);
 
@@ -470,6 +522,7 @@ describe("useHospitalizationForm", () => {
       mockUpdateHospitalization.mockRejectedValueOnce(new Error("API Error"));
 
       const { result } = renderHospitalizationForm("42");
+      await selectCage(result);
 
       await submitForm(result.current.formAction);
 
@@ -478,6 +531,7 @@ describe("useHospitalizationForm", () => {
 
     it("編集権限なし → updateHospitalization は呼ばれない", async () => {
       const { result } = renderHospitalizationForm("42", false);
+      await selectCage(result);
 
       await submitForm(result.current.formAction);
 
@@ -577,6 +631,9 @@ describe("useHospitalizationForm", () => {
 
     it("isInsurance = false (デフォルト) → create 時 insurance_company_name: null, insurance_number: null", async () => {
       const { result } = renderHospitalizationForm();
+      await act(async () => {
+        result.current.handleFormDataChange({ cageId: "10" });
+      });
 
       await submitForm(result.current.formAction);
 
@@ -593,6 +650,7 @@ describe("useHospitalizationForm", () => {
 
       act(() => {
         result.current.handleFormDataChange({
+          cageId: "10",
           isInsurance: true,
           insuranceCompanyName: "アニコム損保",
           insuranceNumber: "INS-001",
@@ -615,6 +673,7 @@ describe("useHospitalizationForm", () => {
 
       act(() => {
         result.current.handleFormDataChange({
+          cageId: "10",
           isInsurance: false,
           insuranceCompanyName: "残留データ",
           insuranceNumber: "LEFTOVER",
@@ -644,6 +703,7 @@ describe("useHospitalizationForm", () => {
 
       act(() => {
         result.current.handleFormDataChange({
+          cageId: "10",
           isInsurance: false,
           insuranceCompanyName: "消去対象",
           insuranceNumber: "REMOVE",
@@ -675,6 +735,7 @@ describe("useHospitalizationForm", () => {
 
       act(() => {
         result.current.handleFormDataChange({
+          cageId: "10",
           isInsurance: true,
           insuranceCompanyName: "ペット保険",
           insuranceNumber: "P-999",

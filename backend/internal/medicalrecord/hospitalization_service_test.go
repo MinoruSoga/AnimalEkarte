@@ -295,6 +295,7 @@ func TestHospitalizationService_Create(t *testing.T) {
 			name:     "creates hospitalization successfully",
 			clinicID: 1,
 			input: &CreateHospitalizationInput{
+				CageID:              func() *uint64 { v := uint64(10); return &v }(),
 				OwnerID:             2,
 				PetID:               5,
 				HospitalizationType: model.HospitalizationTypeInpatient,
@@ -310,6 +311,7 @@ func TestHospitalizationService_Create(t *testing.T) {
 			name:     "defaults status to admitted when empty and start_date is today (BUG-031)",
 			clinicID: 1,
 			input: &CreateHospitalizationInput{
+				CageID:              func() *uint64 { v := uint64(10); return &v }(),
 				OwnerID:             2,
 				PetID:               5,
 				HospitalizationType: model.HospitalizationTypeHotel,
@@ -324,6 +326,7 @@ func TestHospitalizationService_Create(t *testing.T) {
 			name:     "defaults status to reserved when empty and start_date is future (BUG-031)",
 			clinicID: 1,
 			input: &CreateHospitalizationInput{
+				CageID:              func() *uint64 { v := uint64(10); return &v }(),
 				OwnerID:             2,
 				PetID:               5,
 				HospitalizationType: model.HospitalizationTypeInpatient,
@@ -338,6 +341,7 @@ func TestHospitalizationService_Create(t *testing.T) {
 			name:     "returns error when already exists",
 			clinicID: 1,
 			input: &CreateHospitalizationInput{
+				CageID:              func() *uint64 { v := uint64(10); return &v }(),
 				OwnerID:   2,
 				PetID:     5,
 				StartDate: now,
@@ -350,10 +354,26 @@ func TestHospitalizationService_Create(t *testing.T) {
 			name:     "returns error on repository failure",
 			clinicID: 1,
 			input: &CreateHospitalizationInput{
-				OwnerID: 2,
-				PetID:   5,
+				CageID:              func() *uint64 { v := uint64(10); return &v }(),
+				OwnerID:             2,
+				PetID:               5,
+				StartDate:           now,
+				EndDate:             now.Add(24 * time.Hour),
 			},
 			repoErr: errors.New("db error"),
+			wantErr: true,
+		},
+		{
+			name:     "rejects missing cage_id without persisting (BUG-037)",
+			clinicID: 1,
+			input: &CreateHospitalizationInput{
+				OwnerID:             2,
+				PetID:               5,
+				HospitalizationType: model.HospitalizationTypeInpatient,
+				StartDate:           now,
+				EndDate:             now.Add(24 * time.Hour),
+			},
+			repoErr: nil,
 			wantErr: true,
 		},
 	}
@@ -361,8 +381,10 @@ func TestHospitalizationService_Create(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var created *model.Hospitalization
+			createCalls := 0
 			repo := &mockHospitalizationRepository{
 				createFn: func(_ context.Context, h *model.Hospitalization) error {
+					createCalls++
 					created = h
 					return tt.repoErr
 				},
@@ -376,13 +398,17 @@ func TestHospitalizationService_Create(t *testing.T) {
 				findByIDFn: func(_ context.Context, _, id uint64) (*model.Pet, error) {
 					return &model.Pet{ID: id}, nil
 				},
-			}, nil, nil, nil, nil, &mockTransactor{})
+			}, acceptAnyCageRepo(), nil, nil, nil, &mockTransactor{})
 
 			hosp, err := svc.Create(context.Background(), tt.clinicID, tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)
 				assert.Nil(t, hosp)
+				if tt.name == "rejects missing cage_id without persisting (BUG-037)" {
+					assert.Equal(t, 0, createCalls)
+					assert.True(t, apperrors.IsInvalidInput(err))
+				}
 			} else {
 				assert.NoError(t, err)
 				assert.NotNil(t, hosp)
@@ -676,6 +702,7 @@ func TestHospitalizationService_Create_InsuranceFields(t *testing.T) {
 		{
 			name: "is_insurance=true の場合は保険フィールドを保存する",
 			input: &CreateHospitalizationInput{
+				CageID:              func() *uint64 { v := uint64(10); return &v }(),
 				OwnerID:              2,
 				PetID:                5,
 				HospitalizationType:  model.HospitalizationTypeInpatient,
@@ -691,6 +718,7 @@ func TestHospitalizationService_Create_InsuranceFields(t *testing.T) {
 		{
 			name: "is_insurance=false の場合は保険フィールドを NULL にする",
 			input: &CreateHospitalizationInput{
+				CageID:              func() *uint64 { v := uint64(10); return &v }(),
 				OwnerID:              2,
 				PetID:                5,
 				HospitalizationType:  model.HospitalizationTypeInpatient,
@@ -723,7 +751,7 @@ func TestHospitalizationService_Create_InsuranceFields(t *testing.T) {
 				findByIDFn: func(_ context.Context, _, id uint64) (*model.Pet, error) {
 					return &model.Pet{ID: id}, nil
 				},
-			}, nil, nil, nil, nil, &mockTransactor{})
+			}, acceptAnyCageRepo(), nil, nil, nil, &mockTransactor{})
 
 			hosp, err := svc.Create(context.Background(), 1, tt.input)
 
@@ -751,9 +779,10 @@ func TestHospitalizationService_Create_RejectsDeceasedPet(t *testing.T) {
 		findByIDFn: func(_ context.Context, _, id uint64) (*model.Pet, error) {
 			return &model.Pet{ID: id, DeceasedAt: &deceasedAt}, nil
 		},
-	}, nil, nil, nil, nil, &mockTransactor{})
+	}, acceptAnyCageRepo(), nil, nil, nil, &mockTransactor{})
 
 	hosp, err := svc.Create(context.Background(), 1, &CreateHospitalizationInput{
+		CageID:              func() *uint64 { v := uint64(10); return &v }(),
 		OwnerID:             2,
 		PetID:               5,
 		HospitalizationType: model.HospitalizationTypeInpatient,

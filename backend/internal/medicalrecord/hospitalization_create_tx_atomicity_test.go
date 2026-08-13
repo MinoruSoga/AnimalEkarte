@@ -49,7 +49,7 @@ func TestHospitalizationService_Create_NestedPlansAtomicity(t *testing.T) {
 					return &model.Pet{ID: id}, nil
 				},
 			},
-			nil,
+			acceptAnyCageRepo(),
 			&mockCarePlanItemRepository{
 				createFn: func(_ context.Context, _ *model.CarePlanItem) error {
 					t.Fatal("care plan create must not run after plan failure")
@@ -62,6 +62,7 @@ func TestHospitalizationService_Create_NestedPlansAtomicity(t *testing.T) {
 		)
 
 		hosp, err := svc.Create(context.Background(), clinicID, &CreateHospitalizationInput{
+			CageID:              func() *uint64 { v := uint64(10); return &v }(),
 			OwnerID:             2,
 			PetID:               5,
 			HospitalizationType: model.HospitalizationTypeInpatient,
@@ -119,12 +120,13 @@ func TestHospitalizationService_Create_NestedPlansAtomicity(t *testing.T) {
 					return &model.Pet{ID: id}, nil
 				},
 			},
-			nil, careRepo, nil, nil,
+			acceptAnyCageRepo(), careRepo, nil, nil,
 			&mockTransactor{},
 			WithTreatmentPlanRepository(planRepo),
 		)
 
 		hosp, err := svc.Create(context.Background(), clinicID, &CreateHospitalizationInput{
+			CageID:              func() *uint64 { v := uint64(10); return &v }(),
 			OwnerID:             2,
 			PetID:               5,
 			HospitalizationType: model.HospitalizationTypeInpatient,
@@ -177,7 +179,7 @@ func TestHospitalizationService_Create_NestedPlansAtomicity(t *testing.T) {
 					return &model.Pet{ID: id}, nil
 				},
 			},
-			nil,
+			acceptAnyCageRepo(),
 			&mockCarePlanItemRepository{
 				createFn: func(_ context.Context, _ *model.CarePlanItem) error {
 					t.Fatal("care plan create must not run without plan repo")
@@ -189,6 +191,7 @@ func TestHospitalizationService_Create_NestedPlansAtomicity(t *testing.T) {
 		)
 
 		hosp, err := svc.Create(context.Background(), clinicID, &CreateHospitalizationInput{
+			CageID:              func() *uint64 { v := uint64(10); return &v }(),
 			OwnerID:             2,
 			PetID:               5,
 			HospitalizationType: model.HospitalizationTypeInpatient,
@@ -241,12 +244,13 @@ func TestHospitalizationService_Create_NestedPlansAtomicity(t *testing.T) {
 					return &model.Pet{ID: id}, nil
 				},
 			},
-			nil, careRepo, nil, nil,
+			acceptAnyCageRepo(), careRepo, nil, nil,
 			&mockTransactor{},
 			WithTreatmentPlanRepository(planRepo),
 		)
 
 		hosp, err := svc.Create(context.Background(), clinicID, &CreateHospitalizationInput{
+			CageID:              func() *uint64 { v := uint64(10); return &v }(),
 			OwnerID:             2,
 			PetID:               5,
 			HospitalizationType: model.HospitalizationTypeInpatient,
@@ -287,7 +291,7 @@ func TestHospitalizationService_Create_NestedPlansAtomicity(t *testing.T) {
 					return &model.Pet{ID: id}, nil
 				},
 			},
-			nil, nil, nil, nil,
+			acceptAnyCageRepo(), nil, nil, nil,
 			&mockTransactor{},
 			WithTreatmentPlanRepository(&mockTreatmentPlanRepository{
 				createFn: func(_ context.Context, _ *model.TreatmentPlan) error { return nil },
@@ -295,6 +299,7 @@ func TestHospitalizationService_Create_NestedPlansAtomicity(t *testing.T) {
 		)
 
 		hosp, err := svc.Create(context.Background(), clinicID, &CreateHospitalizationInput{
+			CageID:              func() *uint64 { v := uint64(10); return &v }(),
 			OwnerID:             2,
 			PetID:               5,
 			HospitalizationType: model.HospitalizationTypeInpatient,
@@ -328,7 +333,7 @@ func TestHospitalizationService_Create_NestedPlansAtomicity(t *testing.T) {
 					return &model.Pet{ID: id}, nil
 				},
 			},
-			nil,
+			acceptAnyCageRepo(),
 			&mockCarePlanItemRepository{
 				createFn: func(_ context.Context, _ *model.CarePlanItem) error {
 					return errors.New("forced care plan failure")
@@ -345,6 +350,7 @@ func TestHospitalizationService_Create_NestedPlansAtomicity(t *testing.T) {
 		)
 
 		hosp, err := svc.Create(context.Background(), clinicID, &CreateHospitalizationInput{
+			CageID:              func() *uint64 { v := uint64(10); return &v }(),
 			OwnerID:             2,
 			PetID:               5,
 			HospitalizationType: model.HospitalizationTypeInpatient,
