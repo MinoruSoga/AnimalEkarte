@@ -1,55 +1,37 @@
-# AnimalEkarte 受入テスト バグ報告 — クローズ（r4）
+# AnimalEkarte 受入バグ台帳（bug.md）
 
-- **r3 コード land**: 2026-08-11
-- **r3 環境反映 + ブラウザ**: 2026-08-12
-- **r4 コード land**: 2026-08-13（main 通常 merge+push）
-- **main tip**: `48a17ae68`（origin/main）
-- **migrate in r4 land**: **なし**
+- **更新**: 2026-08-13
+- **main tip**: 下記 docs コミット時点の `origin/main`
+- **方針**: **未対応のコード欠陥のみ**を残す。対応済み BUG 行は削除（履歴は git）。
 
-## 結論
+## Open（コード欠陥）
 
-| 区分 | 状態 |
-|------|------|
-| BUG-001〜026, 028〜032 | **FIXED on main**（r3 以前） |
-| BUG-027 | **SPEC**（実装不要） |
-| BUG-033 | **FIXED on main**（r4）— 完了検査シール EN/JA normalize harden。UAT 1014563 は soft-deleted pending（404）で residual 対象外 |
-| BUG-034 | **FIXED on main**（r3） |
-| BUG-035 | **FIXED on main**（r4）— 確定済カルテ臨床欄の explicit disabled + status OR ロック |
-| BUG-036 | **FIXED on main**（r4）— 勤務シフトの開始/終了必須（FE+BE） |
-| BUG-037 | **FIXED on main**（r4）— 入院ケージ必須（FE+BE create） |
-| BUG-038 | **FIXED on main**（r4）— clinics `scope=all` を hospital-settings.view で一覧可 + FE エラー表示 |
-| S04 予約枠・全日付 disabled | **DEFER / 環境・データ前提**（コード sprint 外） |
-| S12 有効 LINE token / S13 複数医院リンク実操作 | **DEFER / 前提不足** |
+**なし。**
 
-**r4 対象の open コード欠陥は main 上 FIXED。** ブラウザ再確認は人間推奨（特に 033/035/038）。
+## クローズ済み（参照のみ・本文削除済）
 
-## r4 実装（main）
+| 範囲 | 結果 | 根拠 |
+|------|------|------|
+| BUG-001〜026, 028〜038 | FIXED on main | r3/r4 land · 2026-08-13 ブラウザ/API 再確認 |
+| BUG-027 | SPEC（実装不要） | 製品判断。コード変更なし |
+| S04 LIFF 予約（全日付 disabled） | **解消** | 原因はコードではなく **シフト未登録**。デモ用に staff_id=1 の 2026-08-15〜28 シフトを API 投入後、日付 14 日選択可・時間枠表示・予約確定 `R-20260815-0001`・キャンセル済まで通し |
+| S12 mock ヘルスカード | **解消（mock）** | `/liff/health-card?clinic_id=1` で飼主「テストユーザー」表示。実 LINE token 連携は STG/本番の人間レーン（ローカル mock 対象外） |
+| S13 identity-links | **解消** | `/identity-links` 到達・飼主/ペットリンク UI 表示（identity-links 権限ありユーザ）。複数医院の実リンク操作は任意の深い UAT |
 
-| BUG | 要約 | tip | merge |
-|-----|------|-----|-------|
-| 033 | completed exam seal status normalize | `a433d3e43` | `ca9e706ce` |
-| 035 | finalized MR clinical lock residual | `7595b0083` | `0cc6eb739` |
-| 036 | shift required start/end | `86d09676b` | `5b22180d5` |
-| 037 | hospitalization cage required | `56538fbf0` | `97ea499d8` |
-| 038 | clinic master list scope=all | `393b49205` | `48a17ae68` |
+## 2026-08-13 再確認ログ（要約）
 
-Board: `animalekarte-bugmd-202608-r4` — impl+verify 10 done · APPROVE (PASS)×5 · SPEC/Phase0 blocked.
+- FE/BE: `docker compose up -d --force-recreate frontend backend` 実施
+- BUG-033 `/examinations/1014565`: 完了ロック文言 + 結果テーブル入力 disabled
+- BUG-035 `/medical-records/1080036`: 確定済バナー + 保存非表示 + textarea disabled
+- BUG-038 `/settings/clinic` + `GET /clinics?scope=all`: 医院 4 件
+- S04: 上記シフト投入後 E2E 通し（確定→キャンセル）
+- 証跡: `reports/r4-closeout/`（未追跡）
 
-## 人間側の任意・別レーン
+## 人間レーン（bug.md 外・任意）
 
-1. **staging へ main を取り込む**（本レポート範囲外 · 人間のみ）
-2. デモユーザで 033/035/038 のブラウザ再確認（force-recreate 後推奨）
-3. S04 枠データ整備後の予約 E2E
-4. BUG-027 は変更しない
-5. Linear Done / VERIFIED_FIXED は人間のみ
-
-## ローカル再反映（任意）
-
-```bash
-cd /Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte
-git checkout main && git pull --ff-only
-docker compose up -d --force-recreate frontend backend
-# migrate は r4 差分なし — 不要
-```
+1. staging へ main 取り込み
+2. 実 LINE token での S12/S04 通知受信（STG）
+3. Linear Done / VERIFIED_FIXED は人間のみ
+4. migrate: r4 差分なし
 
 以上。
