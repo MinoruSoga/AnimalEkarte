@@ -139,6 +139,15 @@ func setupCheckupCascadeTestDB(t *testing.T) *gorm.DB {
 
 	require.NoError(t, db.Exec(fieldsDDL).Error, "checkup_type_fields を実 DDL で再作成できること")
 	require.NoError(t, db.Exec(resultsDDL).Error, "checkup_field_results を実 DDL で再作成できること")
+	// Later 001_init ALTERs add import provenance columns used by the GORM model.
+	require.NoError(t, db.Exec(`
+		ALTER TABLE checkup_type_fields
+			ADD COLUMN IF NOT EXISTS import_namespace text,
+			ADD COLUMN IF NOT EXISTS import_key text;
+		ALTER TABLE checkup_types
+			ADD COLUMN IF NOT EXISTS import_namespace text,
+			ADD COLUMN IF NOT EXISTS import_key text;
+	`).Error)
 	return db
 }
 

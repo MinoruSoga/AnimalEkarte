@@ -40,7 +40,7 @@ func (m *mockExaminationRepository) FindByID(ctx context.Context, clinicID, id u
 		return m.findByIDFn(ctx, clinicID, id)
 	}
 	mrID := uint64(1)
-	return &model.Examination{ID: id, Status: model.ExaminationStatusCompleted, MedicalRecordID: &mrID}, nil
+	return &model.Examination{ID: id, Status: model.ExaminationStatusPending, MedicalRecordID: &mrID}, nil
 }
 
 func (m *mockExaminationRepository) LockByIDForUpdate(ctx context.Context, clinicID, id uint64) (*model.Examination, error) {

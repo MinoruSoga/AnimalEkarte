@@ -3229,7 +3229,8 @@ CREATE TYPE lab_import_job_status AS ENUM (
     'persisted',
     'duplicate',
     'needs_review',
-    'failed'
+    'failed',
+    'reverted'
 );
 
 CREATE TYPE lab_import_source_type AS ENUM (
