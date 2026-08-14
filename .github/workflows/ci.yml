@@ -119,6 +119,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7.0.1
+        with:
+          lfs: true
 
       - name: Apply migrations
         env:
@@ -128,15 +130,9 @@ jobs:
           PGPASSWORD: ekarte_password
           PGDATABASE: ekarte_db
         run: |
-          # go tests use testdb → ${DB_NAME}_test. Migrate both DBs.
-          for db in ekarte_db ekarte_db_test; do
-            psql -v ON_ERROR_STOP=1 -d postgres -tc "SELECT 1 FROM pg_database WHERE datname='${db}'" | grep -q 1 \
-              || psql -v ON_ERROR_STOP=1 -d postgres -c "CREATE DATABASE ${db} OWNER ekarte_user;"
-            echo "=== Applying migrations to ${db} ==="
-            for f in backend/migrations/*.sql; do
-              echo "Applying $f → ${db} ..."
-              psql -v ON_ERROR_STOP=1 -d "${db}" -1 -f "$f"
-            done
+          for f in backend/migrations/*.sql; do
+            echo "Applying $f ..."
+            psql -v ON_ERROR_STOP=1 -1 -f "$f"
           done
 
       - name: Verify seed invariants
@@ -444,6 +440,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7.0.1
+        with:
+          lfs: true
 
       - name: Apply migrations
         env:
@@ -453,15 +451,9 @@ jobs:
           PGPASSWORD: ekarte_password
           PGDATABASE: ekarte_db
         run: |
-          # go tests use testdb → ${DB_NAME}_test. Migrate both DBs.
-          for db in ekarte_db ekarte_db_test; do
-            psql -v ON_ERROR_STOP=1 -d postgres -tc "SELECT 1 FROM pg_database WHERE datname='${db}'" | grep -q 1 \
-              || psql -v ON_ERROR_STOP=1 -d postgres -c "CREATE DATABASE ${db} OWNER ekarte_user;"
-            echo "=== Applying migrations to ${db} ==="
-            for f in backend/migrations/*.sql; do
-              echo "Applying $f → ${db} ..."
-              psql -v ON_ERROR_STOP=1 -d "${db}" -1 -f "$f"
-            done
+          for f in backend/migrations/*.sql; do
+            echo "Applying $f ..."
+            psql -v ON_ERROR_STOP=1 -1 -f "$f"
           done
 
       - name: Verify seed invariants
