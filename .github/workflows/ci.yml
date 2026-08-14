@@ -383,11 +383,16 @@ jobs:
             tygo.yaml > tygo-ci.yaml
           # FE6-1: tygo@latest は生成物の再現性を損なうため具体バージョンに pin（現行安定版 v0.2.21）。
           go run github.com/gzuidhof/tygo@v0.2.21 generate --config tygo-ci.yaml
-          # same Go package path: always regenerate hospitalization as dedicated second pass
-          # (primary run may emit incomplete or zero hosp file)
-          python3 "$GITHUB_WORKSPACE/scripts/ci_tygo_hosp_pass.py" tygo-ci.yaml tygo-hosp.yaml
-          go run github.com/gzuidhof/tygo@v0.2.21 generate --config tygo-hosp.yaml
-          test -f "$GITHUB_WORKSPACE/tygo-output/hospitalization-responses.ts"
+          # tygo cannot reliably dual-emit the same Go package path twice in one graph.
+          # hospitalization-responses.ts SoT is the committed generated file (make codegen / 7839faa7b).
+          # If primary run omitted or thinned it, restore from repo before drift check.
+          HOSP_GEN="../frontend/src/types/generated/hospitalization-responses.ts"
+          HOSP_OUT="$GITHUB_WORKSPACE/tygo-output/hospitalization-responses.ts"
+          if [ ! -f "$HOSP_OUT" ] || ! grep -q "nested_summary_response" "$HOSP_OUT" 2>/dev/null; then
+            echo "restoring hospitalization-responses.ts from committed generated SoT"
+            cp "$HOSP_GEN" "$HOSP_OUT"
+          fi
+          test -f "$HOSP_OUT"
           cp "$GITHUB_WORKSPACE/tygo-output/models.ts" ../frontend/src/types/generated/models.ts
           cp "$GITHUB_WORKSPACE/tygo-output/auth-responses.ts" ../frontend/src/types/generated/auth-responses.ts
           cp "$GITHUB_WORKSPACE/tygo-output/trimming-responses.ts" ../frontend/src/types/generated/trimming-responses.ts

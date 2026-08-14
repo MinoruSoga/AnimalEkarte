@@ -46,6 +46,7 @@ function renderPetCareSection(
     petId: string;
     status: "死亡" | "生存";
     deceasedAt: string | null;
+    deceasedReason?: string | null;
   }) => void,
 ) {
   return render(
@@ -266,9 +267,10 @@ describe("PetCareSection (BUG-002 outer-list lifecycle notify)", () => {
       petId: "pet-synth-1",
       status: "死亡",
       deceasedAt: expect.any(String),
+      deceasedReason: null,
     });
     const [{ deceasedAt }] = onPetLifecycleChange.mock.calls[0] as [
-      { petId: string; status: string; deceasedAt: string },
+      { petId: string; status: string; deceasedAt: string; deceasedReason: string | null },
     ];
     expect(latestFormData.status).toBe("死亡");
     expect(latestFormData.deceasedAt).toBe(deceasedAt);
@@ -333,6 +335,7 @@ describe("PetCareSection (BUG-002 outer-list lifecycle notify)", () => {
       petId: "pet-synth-1",
       status: "死亡",
       deceasedAt: expect.any(String),
+      deceasedReason: null,
     });
   });
 
@@ -389,6 +392,7 @@ describe("PetCareSection (BUG-002 outer-list lifecycle notify)", () => {
       petId: "pet-synth-1",
       status: "生存",
       deceasedAt: null,
+      deceasedReason: null,
     });
     expect(latestFormData.status).toBe("生存");
     expect(latestFormData.deceasedAt).toBeNull();
@@ -451,6 +455,7 @@ describe("PetCareSection (BUG-002 outer-list lifecycle notify)", () => {
       petId: "pet-synth-1",
       status: "生存",
       deceasedAt: null,
+      deceasedReason: null,
     });
   });
 });

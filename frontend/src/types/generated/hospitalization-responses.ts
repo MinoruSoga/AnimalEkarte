@@ -3,6 +3,46 @@
 // DO NOT EDIT manually — run `make codegen` to regenerate
 
 //////////
+// source: nested_summary_response.go
+
+/**
+ * StaffSummaryResponse is the staff/doctor nest on medicalrecord domain wire DTOs.
+ */
+export interface StaffSummaryResponse {
+  id: number /* uint64 */;
+  name: string;
+}
+/**
+ * OwnerSummaryResponse is the owner nest on medicalrecord domain wire DTOs.
+ * OwnerName uses json:"name" (BUG-374 wire key), not owner_name.
+ */
+export interface OwnerSummaryResponse {
+  id: number /* uint64 */;
+  name: string;
+}
+/**
+ * AnimalSpeciesSummaryResponse is the species nest under PetSummaryResponse.
+ */
+export interface AnimalSpeciesSummaryResponse {
+  id: number /* uint64 */;
+  name: string;
+}
+/**
+ * PetSummaryResponse is the pet nest on medicalrecord domain wire DTOs.
+ * Only the fields list/detail responses serialize are populated by toPetSummary.
+ */
+export interface PetSummaryResponse {
+  id: number /* uint64 */;
+  name: string;
+  pet_number: string;
+  weight?: number /* float64 */;
+  status?: string;
+  breed?: string;
+  animal_species?: AnimalSpeciesSummaryResponse;
+  owner?: OwnerSummaryResponse;
+}
+
+//////////
 // source: hospitalization_response.go
 
 /**
@@ -35,47 +75,6 @@ export interface HospitalizationResponse {
   owner?: OwnerSummaryResponse;
   pet?: PetSummaryResponse;
   doctor?: StaffSummaryResponse;
-}
-
-//////////
-// source: nested_summary_response.go
-
-/**
- * StaffSummaryResponse mirrors internal/handler.StaffSummaryResponse (staff_response.go).
- */
-export interface StaffSummaryResponse {
-  id: number /* uint64 */;
-  name: string;
-}
-/**
- * OwnerSummaryResponse mirrors internal/handler.OwnerSummaryResponse (owner_response.go).
- */
-export interface OwnerSummaryResponse {
-  id: number /* uint64 */;
-  name: string;
-}
-/**
- * AnimalSpeciesSummaryResponse mirrors internal/handler.AnimalSpeciesSummaryResponse
- * (pet_response.go).
- */
-export interface AnimalSpeciesSummaryResponse {
-  id: number /* uint64 */;
-  name: string;
-}
-/**
- * PetSummaryResponse mirrors internal/handler.PetSummaryResponse (pet_response.go). Only the
- * fields the vaccination list response actually serializes are populated by toPetSummary,
- * identical to the original.
- */
-export interface PetSummaryResponse {
-  id: number /* uint64 */;
-  name: string;
-  pet_number: string;
-  weight?: number /* float64 */;
-  status?: string;
-  breed?: string;
-  animal_species?: AnimalSpeciesSummaryResponse;
-  owner?: OwnerSummaryResponse;
 }
 
 //////////

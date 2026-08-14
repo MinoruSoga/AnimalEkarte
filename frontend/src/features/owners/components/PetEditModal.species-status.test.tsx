@@ -12,6 +12,10 @@ const mocks = vi.hoisted(() => ({
   useAnimalSpecies: vi.fn<() => AnimalSpeciesState>(),
 }));
 
+vi.mock("@/hooks/use-pet", () => ({
+  useGetPet: () => ({ data: undefined, isLoading: false, isError: false }),
+}));
+
 vi.mock("@/hooks/use-permission", () => ({
   usePermission: () => ({ canEdit: true }),
 }));

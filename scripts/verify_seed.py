@@ -125,8 +125,10 @@ def build_table_index() -> dict[str, Path]:
     return index
 
 
-def to_int(value: str) -> int | None:
-    return int(value) if value != "" else None
+def to_int(value: str | None) -> int | None:
+    if value is None or value == "":
+        return None
+    return int(value)
 
 
 def to_bool(value: str) -> bool | None:
@@ -527,16 +529,20 @@ def check_appointment_time_window(table_index: dict[str, Path], errors: list[str
     for row in read_rows(table_index, "appointments"):
         if row.get("deleted_at"):
             continue
-        if to_int(row["doctor_id"]) == DASHBOARD_STATS_DOCTOR_ID:
+        if to_int(row.get("doctor_id")) == DASHBOARD_STATS_DOCTOR_ID:
             continue
         # Imported production-history appointments (id ≥ 1e6) are not synthetic
         # demo fixtures; business-hours / hourly-spread gates apply only to
         # hand-authored small-id demo rows.
-        appt_id = to_int(row["id"])
+        appt_id = to_int(row.get("id"))
         if appt_id is not None and appt_id >= IMPORTED_APPOINTMENT_ID_FLOOR:
             continue
-        start = parse_timestamptz(row["start_time"]).astimezone(JST)
-        end = parse_timestamptz(row["end_time"]).astimezone(JST)
+        start_raw = row.get("start_time")
+        end_raw = row.get("end_time")
+        if not start_raw or not end_raw:
+            continue
+        start = parse_timestamptz(start_raw).astimezone(JST)
+        end = parse_timestamptz(end_raw).astimezone(JST)
         start_minutes = start.hour * 60 + start.minute
         end_minutes = end.hour * 60 + end.minute
         day_key = f"appointments:{start.date().isoformat()}"

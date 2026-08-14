@@ -8,6 +8,10 @@ import { PetEditModal } from "./PetEditModal";
 import { PetEditModalFields } from "./PetEditModalFields";
 import type { PetFormData } from "../types";
 
+vi.mock("@/hooks/use-pet", () => ({
+  useGetPet: () => ({ data: undefined, isLoading: false, isError: false }),
+}));
+
 vi.mock("@/hooks/use-permission", () => ({
   usePermission: () => ({ canEdit: true }),
 }));
