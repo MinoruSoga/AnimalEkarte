@@ -383,6 +383,13 @@ jobs:
             tygo.yaml > tygo-ci.yaml
           # FE6-1: tygo@latest は生成物の再現性を損なうため具体バージョンに pin（現行安定版 v0.2.21）。
           go run github.com/gzuidhof/tygo@v0.2.21 generate --config tygo-ci.yaml
+          # same Go package path may only emit one output per tygo run — second pass for hospitalization
+          if [ ! -f "$GITHUB_WORKSPACE/tygo-output/hospitalization-responses.ts" ]; then
+            echo "hospitalization-responses.ts missing after primary tygo — second pass"
+            python3 "$GITHUB_WORKSPACE/scripts/ci_tygo_hosp_pass.py" tygo-ci.yaml tygo-hosp.yaml
+            go run github.com/gzuidhof/tygo@v0.2.21 generate --config tygo-hosp.yaml
+          fi
+          test -f "$GITHUB_WORKSPACE/tygo-output/hospitalization-responses.ts"
           cp "$GITHUB_WORKSPACE/tygo-output/models.ts" ../frontend/src/types/generated/models.ts
           cp "$GITHUB_WORKSPACE/tygo-output/auth-responses.ts" ../frontend/src/types/generated/auth-responses.ts
           cp "$GITHUB_WORKSPACE/tygo-output/trimming-responses.ts" ../frontend/src/types/generated/trimming-responses.ts

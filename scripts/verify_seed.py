@@ -260,7 +260,9 @@ def is_imported_clinical_graph(state: SeedState) -> bool:
     clinical graph is dump-scale — requiring EXPECTED_TREATMENTS then false-fails TASK-009.
     """
     owners = state.tables.get("owners", {})
-    if owners and min(owners) >= IMPORTED_OWNER_ID_FLOOR:
+    # owner id キーに None が混ざると min() 比較で TypeError になる（CI seed verify）
+    owner_ids = [oid for oid in owners if isinstance(oid, int)]
+    if owner_ids and min(owner_ids) >= IMPORTED_OWNER_ID_FLOOR:
         return True
     treatments = state.tables.get("treatments", {})
     medical_records = state.tables.get("medical_records", {})
