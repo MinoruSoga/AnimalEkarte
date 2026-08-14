@@ -58,8 +58,9 @@ export interface PetResponse {
   insurance_id?: number /* uint64 */;
   remarks: string;
   /**
-   * DeceasedReason は staff 向け GET /pets/{id} のみ（BUG-003）。
-   * owner nested / LIFF DTO には載せない。
+   * DeceasedReason は staff 向け GET /pets/{id} (本 DTO) のみに載せる（BUG-003）。
+   * owner.PetInOwnerResponse / LIFF 向け DTO には載せない（飼主経路への死因漏洩防止）。
+   * omitempty: 生存ペットや未記録時は JSON から物理的に欠落させる。
    */
   deceased_reason?: string;
   deceased_at?: string;
