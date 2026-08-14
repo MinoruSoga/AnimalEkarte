@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -104,8 +105,12 @@ func TestSeedBundlesForCurrentEnv_ReadsAPP_ENV(t *testing.T) {
 func TestDemoBundleHasActiveSystemAdminDocumentsIntentionalDemoOnly(t *testing.T) {
 	t.Parallel()
 
-	// Resolve seeds relative to this package: backend/cmd/migrate → backend/migrations/seeds
-	accountsPath := filepath.Join("..", "..", "migrations", "seeds", "003_demo", "accounts.csv")
+	// Resolve seeds relative to this source file (cwd-independent for CI working-directory=backend).
+	_, thisFile, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("runtime.Caller failed")
+	}
+	accountsPath := filepath.Join(filepath.Dir(thisFile), "..", "..", "migrations", "seeds", "003_demo", "accounts.csv")
 	raw, err := os.ReadFile(accountsPath)
 	if err != nil {
 		t.Fatalf("read demo accounts.csv: %v", err)

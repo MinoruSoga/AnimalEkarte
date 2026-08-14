@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"sort"
 	"strings"
 	"testing"
@@ -116,9 +117,18 @@ WHERE filename NOT LIKE 'seeds/%'`).Scan(&appliedAfterRerun); err != nil {
 // disk topology: only 001_init.sql remains under migrations/ (maxdepth 1).
 // Six-file baselines fail this assertion (RED); the consolidated tree is GREEN.
 func TestTopLevelDDLMigrationInventoryIsSingleInit(t *testing.T) {
-	entries, err := os.ReadDir(migrationsDir)
+	dir := migrationsDir
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		// CI / host: resolve relative to this test file (backend/cmd/migrate → backend/migrations).
+		_, thisFile, _, ok := runtime.Caller(0)
+		if !ok {
+			t.Fatal("runtime.Caller failed")
+		}
+		dir = filepath.Join(filepath.Dir(thisFile), "..", "..", "migrations")
+	}
+	entries, err := os.ReadDir(dir)
 	if err != nil {
-		t.Fatalf("read migrations dir %s: %v", migrationsDir, err)
+		t.Fatalf("read migrations dir %s: %v", dir, err)
 	}
 	var sqlFiles []string
 	for _, e := range entries {
@@ -134,9 +144,8 @@ func TestTopLevelDDLMigrationInventoryIsSingleInit(t *testing.T) {
 	if len(sqlFiles) != 1 || sqlFiles[0] != "001_init.sql" {
 		t.Fatalf("top-level DDL files = %v, want exactly [001_init.sql]", sqlFiles)
 	}
-	// Absolute path check keeps the fixed /app/migrations contract honest.
-	if filepath.Base(migrationsDir) != "migrations" {
-		t.Fatalf("migrationsDir base = %q, want migrations", filepath.Base(migrationsDir))
+	if filepath.Base(dir) != "migrations" {
+		t.Fatalf("migrationsDir base = %q, want migrations", filepath.Base(dir))
 	}
 }
 

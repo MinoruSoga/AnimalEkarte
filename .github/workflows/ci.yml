@@ -128,9 +128,15 @@ jobs:
           PGPASSWORD: ekarte_password
           PGDATABASE: ekarte_db
         run: |
-          for f in backend/migrations/*.sql; do
-            echo "Applying $f ..."
-            psql -v ON_ERROR_STOP=1 -1 -f "$f"
+          # go tests use testdb → ${DB_NAME}_test. Migrate both DBs.
+          for db in ekarte_db ekarte_db_test; do
+            psql -v ON_ERROR_STOP=1 -d postgres -tc "SELECT 1 FROM pg_database WHERE datname='${db}'" | grep -q 1 \
+              || psql -v ON_ERROR_STOP=1 -d postgres -c "CREATE DATABASE ${db} OWNER ekarte_user;"
+            echo "=== Applying migrations to ${db} ==="
+            for f in backend/migrations/*.sql; do
+              echo "Applying $f → ${db} ..."
+              psql -v ON_ERROR_STOP=1 -d "${db}" -1 -f "$f"
+            done
           done
 
       - name: Verify seed invariants
@@ -447,9 +453,15 @@ jobs:
           PGPASSWORD: ekarte_password
           PGDATABASE: ekarte_db
         run: |
-          for f in backend/migrations/*.sql; do
-            echo "Applying $f ..."
-            psql -v ON_ERROR_STOP=1 -1 -f "$f"
+          # go tests use testdb → ${DB_NAME}_test. Migrate both DBs.
+          for db in ekarte_db ekarte_db_test; do
+            psql -v ON_ERROR_STOP=1 -d postgres -tc "SELECT 1 FROM pg_database WHERE datname='${db}'" | grep -q 1 \
+              || psql -v ON_ERROR_STOP=1 -d postgres -c "CREATE DATABASE ${db} OWNER ekarte_user;"
+            echo "=== Applying migrations to ${db} ==="
+            for f in backend/migrations/*.sql; do
+              echo "Applying $f → ${db} ..."
+              psql -v ON_ERROR_STOP=1 -d "${db}" -1 -f "$f"
+            done
           done
 
       - name: Verify seed invariants
