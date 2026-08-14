@@ -48,7 +48,7 @@ func (m *mockShiftTemplateRepository) FindByID(ctx context.Context, clinicID, id
 	if m.findByIDFn != nil {
 		return m.findByIDFn(ctx, clinicID, id)
 	}
-	start, end := "09:00", "13:00"
+	start, end := "09:00:00", "13:00:00"
 	return &model.ShiftTemplate{ID: id, ClinicID: clinicID, ShiftType: model.ShiftTypeMorning, StartTime: &start, EndTime: &end}, nil
 }
 
@@ -73,7 +73,7 @@ func (m *mockShiftTemplateRepository) Update(ctx context.Context, clinicID, id u
 	if m.updateFn != nil {
 		return m.updateFn(ctx, clinicID, id, fields)
 	}
-	start, end := "09:00", "13:00"
+	start, end := "09:00:00", "13:00:00"
 	return &model.ShiftTemplate{ID: id, ClinicID: clinicID, ShiftType: model.ShiftTypeMorning, StartTime: &start, EndTime: &end}, nil
 }
 
@@ -168,7 +168,7 @@ func TestBuildShiftTemplateUpdate(t *testing.T) {
 			input: &UpdateShiftTemplateInput{
 				Name:      strPtr("遅番"),
 				ShiftType: shiftTypePtr(model.ShiftTypeAfternoon),
-				StartTime: strPtr("13:00"),
+				StartTime: strPtr("13:00:00"),
 				EndTime:   strPtr("18:00"),
 				Notes:     strPtr("メモ"),
 				SortOrder: shiftTemplateIntPtr(2),
@@ -177,7 +177,7 @@ func TestBuildShiftTemplateUpdate(t *testing.T) {
 			want: map[string]any{
 				colShiftTemplateName:      "遅番",
 				colShiftTemplateShiftType: model.ShiftTypeAfternoon,
-				colShiftTemplateStartTime: normalizeTimeString(strPtr("13:00")),
+				colShiftTemplateStartTime: normalizeTimeString(strPtr("13:00:00")),
 				colShiftTemplateEndTime:   normalizeTimeString(strPtr("18:00")),
 				colShiftTemplateNotes:     "メモ",
 				colShiftTemplateSortOrder: 2,
@@ -262,7 +262,7 @@ func TestShiftTemplateService_Create(t *testing.T) {
 				Name:      "早番",
 				ShiftType: string(model.ShiftTypeMorning),
 				StartTime: "08:00",
-				EndTime:   "13:00",
+				EndTime:   "13:00:00",
 				IsActive:  boolPtr(true),
 			},
 			setupFn: func(repo *mockShiftTemplateRepository) {
@@ -301,7 +301,7 @@ func TestShiftTemplateService_Create(t *testing.T) {
 			input: &CreateShiftTemplateInput{
 				Name:      "不正シフト",
 				ShiftType: string(model.ShiftTypeMorning),
-				StartTime: "13:00",
+				StartTime: "13:00:00",
 				EndTime:   "08:00",
 				IsActive:  boolPtr(true),
 			},
@@ -315,7 +315,7 @@ func TestShiftTemplateService_Create(t *testing.T) {
 				Name:      "早番",
 				ShiftType: string(model.ShiftTypeMorning),
 				StartTime: "08:00",
-				EndTime:   "13:00",
+				EndTime:   "13:00:00",
 				IsActive:  boolPtr(true),
 			},
 			setupFn: func(repo *mockShiftTemplateRepository) {
@@ -333,7 +333,7 @@ func TestShiftTemplateService_Create(t *testing.T) {
 				StartTime: "08:00",
 				EndTime:   "17:00",
 				IsActive:  boolPtr(true),
-				Breaks:    []ShiftBreakTemplateInput{{BreakStart: "12:00", BreakEnd: "13:00"}},
+				Breaks:    []ShiftBreakTemplateInput{{BreakStart: "12:00", BreakEnd: "13:00:00"}},
 			},
 			setupFn: func(repo *mockShiftTemplateRepository) {
 				repo.createFn = func(_ context.Context, tpl *model.ShiftTemplate) error {
@@ -359,7 +359,7 @@ func TestShiftTemplateService_Create(t *testing.T) {
 				StartTime: "08:00",
 				EndTime:   "17:00",
 				IsActive:  boolPtr(true),
-				Breaks:    []ShiftBreakTemplateInput{{BreakStart: "12:00", BreakEnd: "13:00"}},
+				Breaks:    []ShiftBreakTemplateInput{{BreakStart: "12:00", BreakEnd: "13:00:00"}},
 			},
 			setupFn: func(repo *mockShiftTemplateRepository) {
 				repo.createFn = func(_ context.Context, tpl *model.ShiftTemplate) error {
@@ -378,7 +378,7 @@ func TestShiftTemplateService_Create(t *testing.T) {
 				Name:      "早番",
 				ShiftType: string(model.ShiftTypeMorning),
 				StartTime: "08:00",
-				EndTime:   "13:00",
+				EndTime:   "13:00:00",
 				IsActive:  boolPtr(true),
 			},
 			setupFn: func(repo *mockShiftTemplateRepository) {
