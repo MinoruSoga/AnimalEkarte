@@ -56,6 +56,10 @@ func modelElemType(m any) reflect.Type {
 // EnsureAutoMigrated は各モデル型についてプロセス全体で一度だけ db.AutoMigrate を実行する。
 // 既に migrate 済みの型はスキップし、GORM のスキーマ内省コストを削減する。
 // DROP TABLE 後の再作成には使わないこと（キャッシュが再 CREATE を抑止する）。
+//
+// CI が 001_init.sql を ekarte_db_test に適用済みの場合、GORM の uniqueIndex 名
+// （uni_accounts_email 等）が SQL 側と一致せず AutoMigrate が落ちるため、SQL スキーマ
+// 検出時は AutoMigrate を行わず「済み」扱いだけする。
 func EnsureAutoMigrated(db *gorm.DB, models ...any) error {
 	if len(models) == 0 {
 		return nil
@@ -94,6 +98,12 @@ func EnsureAutoMigrated(db *gorm.DB, models ...any) error {
 		types = append(types, t)
 	}
 	if len(still) == 0 {
+		return nil
+	}
+	if hasSQLInitSchema(db) {
+		for _, t := range types {
+			autoMigratedTypes.Store(t, struct{}{})
+		}
 		return nil
 	}
 	if err := db.AutoMigrate(still...); err != nil {
@@ -428,6 +438,20 @@ func enumAppendedValues(existing, expectedQuoted []string) (appended []string, o
 // setupSharedTestSchema は PostgreSQL カスタム ENUM 型の作成とベースモデルの AutoMigrate を行います。
 // SetupTestDB から sharedTestSchemaOnce 経由でプロセス全体につき一度だけ呼ばれます。
 func setupSharedTestSchema(db *gorm.DB) error {
+	// CI: 001_init.sql 適用済みなら ENUM/テーブルは揃っている。GORM AutoMigrate は
+	// uniqueIndex 名の不一致で失敗するためスキップする。
+	if hasSQLInitSchema(db) {
+		MarkAutoMigrated(
+			&model.Owner{},
+			&model.MedicalRecord{},
+			&model.Billing{},
+			&model.Payment{},
+			&model.BillingRefund{},
+			&model.Treatment{},
+		)
+		return nil
+	}
+
 	// AutoMigrate の前に、PostgreSQL カスタム ENUM 型を作成する（SharedTestSchemaEnumTypes 参照）。
 	for _, et := range SharedTestSchemaEnumTypes {
 		if err := reconcileEnumTypeDefinition(db, et.Name, et.Create); err != nil {
@@ -448,6 +472,20 @@ func setupSharedTestSchema(db *gorm.DB) error {
 	}
 	MarkAutoMigrated(coreModels...)
 	return nil
+}
+
+// hasSQLInitSchema reports whether 001_init.sql (or equivalent production DDL)
+// is already applied. idx_accounts_email is created by 001_init and is not the
+// GORM default uniqueIndex name (uni_accounts_email).
+func hasSQLInitSchema(db *gorm.DB) bool {
+	var exists bool
+	err := db.Raw(`
+		SELECT EXISTS (
+			SELECT 1
+			FROM pg_indexes
+			WHERE schemaname = 'public' AND indexname = 'idx_accounts_email'
+		)`).Scan(&exists).Error
+	return err == nil && exists
 }
 
 // getTestDatabaseConnection はテスト用の DB コネクションを返す。接続確立（テストDB存在確認込み）は
