@@ -24,5 +24,5 @@
 
 ## 同期
 
-- 技術: [`todo.md`](todo.md) §2 Open なし
-- PO: [`todo-po.md`](todo-po.md)
+- 技術・PO タスク: **Linear**（[todo.md](todo.md) はポインタ · マップ [todo-docs-linear-map](reports/todo-walk-2026-08-14/todo-docs-linear-map.md)）
+- 受入バグ Open: なし（新規は Linear / 必要なら GitHub）
