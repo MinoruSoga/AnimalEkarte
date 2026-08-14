@@ -5538,3 +5538,39 @@ SELECT app_private.apply_rls_policy(
     'app_private.has_clinic_access(clinic_id)'
 );
 
+-- =============================================================================
+-- Section 12: post-integration tenant-boundary hardening
+-- =============================================================================
+-- cash_register_close_adjustments was introduced after the section-6 automatic
+-- RLS loop. Preserve the archived source blocks above byte-for-byte and apply the
+-- missing clinic-correlated FKs and explicit RLS policy here.
+
+ALTER TABLE cash_register_closes
+    ADD CONSTRAINT uq_cash_register_closes_id_clinic
+        UNIQUE (id, clinic_id);
+
+ALTER TABLE staffs
+    ADD CONSTRAINT uq_staffs_id_clinic
+        UNIQUE (id, clinic_id);
+
+ALTER TABLE cash_register_close_adjustments
+    DROP CONSTRAINT IF EXISTS cash_register_close_adjustments_close_id_fkey,
+    ADD CONSTRAINT fk_cash_register_close_adjustments_close_clinic
+        FOREIGN KEY (close_id, clinic_id)
+        REFERENCES cash_register_closes (id, clinic_id)
+        ON DELETE RESTRICT,
+    ADD CONSTRAINT fk_cash_register_close_adjustments_billing_clinic
+        FOREIGN KEY (billing_id, clinic_id)
+        REFERENCES billings (id, clinic_id)
+        ON DELETE RESTRICT,
+    ADD CONSTRAINT fk_cash_register_close_adjustments_actor_clinic
+        FOREIGN KEY (actor_id, clinic_id)
+        REFERENCES staffs (id, clinic_id)
+        ON DELETE RESTRICT;
+
+SELECT app_private.apply_rls_policy(
+    'cash_register_close_adjustments',
+    'tenant_cash_register_close_adjustments_isolation',
+    'app_private.has_clinic_access(clinic_id)',
+    'app_private.has_clinic_access(clinic_id)'
+);

@@ -5,7 +5,7 @@
 > **タイミング**: 認可ロジックの実装時・レビュー時。
 
 > **Animal Ekarte**: マルチクリニック対応の堅牢なセキュリティ基盤
-> **バージョン**: v9.0 | **最新更新**: 2026-07-24
+> **バージョン**: v9.1 | **最新更新**: 2026-08-14
 
 ---
 
@@ -19,7 +19,7 @@
 - **一般スタッフ (Staff)**: 業務ロール（獣医師、看護師、受付等）に応じた権限グループに所属。
 
 ### 1.2 リソースベース認可 (RBAC)
-システム内の **35 種類のリソース** に対し、`View (閲覧)`, `Create (作成)`, `Edit (編集)`, `Delete (削除)` の 4 アクション単位でアクセスを制御します。
+システム内の **37 種類のリソース** に対し、`View (閲覧)`, `Create (作成)`, `Edit (編集)`, `Delete (削除)` の 4 アクション単位でアクセスを制御します。
 
 ---
 
@@ -36,11 +36,11 @@
 
 ## 3. 全リソース・キー一覧 (Verified)
 
-実装コード (`backend/internal/model/permission.go` の `AllResources`) に定義されている全 35 リソースキーです。
+実装コード (`backend/internal/model/permission.go` の `AllResources`) に定義されている全 37 リソースキーです。
 
 | カテゴリ | リソースキー | 管理対象 |
 |:---|:---|:---|
-| **臨床コア** | `reception`, `owners`, `reservations`, `medical-records`, `hospitalization`, `trimming`, `examinations`, `vaccinations`, `checkups`, `lab-import` | 受付、飼主、予約、カルテ、入院、トリミング、検査、ワクチン、健診、外部検査結果インポート。 |
+| **臨床コア** | `reception`, `owners`, `reservations`, `medical-records`, `hospitalization`, `trimming`, `examinations`, `examination-unconfirm`, `vaccinations`, `checkups`, `checkup-package-import`, `lab-import` | 受付、飼主、予約、カルテ、入院、トリミング、検査、検査確定解除、ワクチン、健診、健診パッケージ取込、外部検査結果インポート。 |
 | **会計・経営** | `accounting`, `accounting-cancel`, `accounting-post-close-edit`, `cash-register-close`, `accounting-reports`, `discount`, `closing-settings`, `master-payment-method` | 会計、会計キャンセル、締め後編集、レジ締め、売上レポート、値引操作、締め時間設定、支払方法。 |
 | **物流・管理** | `inventory`, `estimates`, `shifts`, `hospital-settings` | 在庫、見積書、シフト、医院基本設定。 |
 | **マスタ設定** | `master-animal-species`, `master-medical`, `master-reservation-type`, `master-hospitalization`, `master-trimming`, `master-permission`, `master-staff`, `master-insurance`, `master-merchandise` | 各種定義データの管理。 |

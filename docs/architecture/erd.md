@@ -7,7 +7,7 @@
 <!-- ERD:TABLE_COUNT=123 -->
 
 > **Animal Ekarte**: 高精度・高整合な動物病院データモデル
-> **バージョン**: v31.34 | **最新更新**: 2026-08-04 | **状態**: Production Ready (123 Tables Verified)
+> **バージョン**: v31.36 | **最新更新**: 2026-08-14 | **状態**: Production Ready (123 Tables Verified)
 
 ---
 
@@ -22,9 +22,9 @@
 | **システム基盤 (13)** | `accounts`, `clinics`, `clinic_settings`, `clinic_holidays`, `closing_special_periods`, `staffs`, `permission_groups`, `permission_group_rules`, `audit_logs`, `companies`, `password_reset_tokens`, `token_blacklist`, `occupations` |
 | **入院・稼働 (11)** | `hospitalizations`, `daily_records`, `care_plan_items`, `care_logs`, `cages`, `hospitalization_plans`, `staff_notes`, `staff_clinic_assignments`, `staff_permission_groups`, `staff_reservation_exclusions`, `staff_reservation_capabilities` |
 | **臨床・診察 (24)** | `owners`, `pets`, `pet_owners`, `pet_chronic_conditions`, `animal_species`, `chief_complaint_types`, `medical_records`, `medical_record_addenda`, `medical_record_images`, `medical_record_image_upload_quota`, `clinical_plans`, `treatment_plans`, `treatments`, `prescriptions`, `procedures`, `vital_records`, `inquiries`, `consultations`, `diagnosis_names`, `diagnosis_types`, `inquiry_templates`, `medicines`, `medicine_dose_params`, `vaccines` |
-| **検査・予防 (13)** | `exams`, `exam_results`, `exam_types`, `exam_type_fields`, `exam_reference_ranges`, `vaccinations`, `checkups`, `checkup_types`, `checkup_type_fields`, `checkup_field_results`, `shared_files`, `lab_import_jobs`, `lab_import_events` |
+| **検査・予防 (20)** | `exams`, `exam_results`, `exam_types`, `exam_type_fields`, `exam_reference_ranges`, `examination_revisions`, `examination_revision_items`, `vaccinations`, `checkups`, `checkup_types`, `checkup_type_fields`, `checkup_field_results`, `checkup_package_import_receipts`, `shared_files`, `lab_import_jobs`, `lab_import_events`, `lab_import_exam_retractions`, `lab_import_exam_retraction_items`, `lab_import_usage_receipts`, `lab_import_revert_receipts` |
 | **予約・シフト (12)** | `appointments`, `reservation_types`, `reservation_type_groups`, `reservation_type_occupations`, `reservation_type_available_slots`, `reservation_type_unavailable_times`, `appointment_trimming_details`, `appointment_trimming_options`, `shift_entries`, `shift_entry_breaks`, `shift_templates`, `shift_template_breaks` |
-| **会計・経営 (15)** | `billings`, `billing_items`, `payments`, `payment_splits`, `billing_refunds`, `billing_confirmations`, `cash_register_closes`, `payment_methods`, `merchandise_items`, `estimate_items`, `estimates`, `insurances`, `campaigns`, `campaign_target_categories`, `campaign_target_items` |
+| **会計・経営 (16)** | `billings`, `billing_items`, `payments`, `payment_splits`, `billing_refunds`, `billing_confirmations`, `cash_register_closes`, `cash_register_close_adjustments`, `payment_methods`, `merchandise_items`, `estimate_items`, `estimates`, `insurances`, `campaigns`, `campaign_target_categories`, `campaign_target_items` |
 | **トリミング (3)** | `trimming_course_types`, `trimming_courses`, `trimming_options` |
 | **在庫 (1)** | `inventory_items` |
 | **LINE/CRM (19)** | `line_customers`, `line_link_tokens`, `line_send_logs`, `line_reservation_settings`, `lstep_settings`, `lstep_trigger_priorities`, `lstep_delivery_trigger_log`, `lstep_csv_imports`, `lstep_tag_cache`, `lstep_tag_code_mappings`, `lstep_auto_managed_prefixes`, `lstep_condition_tag_mappings`, `lstep_send_purpose_tag_prefixes`, `lstep_friend_attribute_snapshots`, `lstep_sync_error_counters`, `clinic_integrations`, `manual_articles`, `manual_article_versions`, `lstep_migration_progress` |
@@ -69,6 +69,10 @@ erDiagram
 
     %% 会計・集計 (拡張)
     clinics ||--o{ cash_register_closes : "clinic_id"
+    clinics ||--o{ cash_register_close_adjustments : "clinic_id"
+    cash_register_closes ||--o{ cash_register_close_adjustments : "(close_id, clinic_id)"
+    billings ||--o{ cash_register_close_adjustments : "(billing_id, clinic_id)"
+    staffs ||--o{ cash_register_close_adjustments : "(actor_id, clinic_id)"
     clinics ||--o{ payment_methods : "clinic_id"
     clinics ||--o{ closing_special_periods : "clinic_id"
 
@@ -81,6 +85,16 @@ erDiagram
     checkup_type_fields ||--o{ checkup_field_results : "checkup_type_field_id"
     exam_type_fields ||--o{ exam_reference_ranges : "exam_type_field_id"
     animal_species ||--o{ exam_reference_ranges : "animal_species_id"
+    exams ||--o{ examination_revisions : "(clinic_id, examination_id)"
+    examination_revisions ||--o{ examination_revision_items : "(clinic_id, examination_id, version)"
+    clinics ||--o{ checkup_package_import_receipts : "clinic_id"
+    staffs ||--o{ checkup_package_import_receipts : "actor_id"
+    lab_import_jobs ||--o{ lab_import_exam_retractions : "(clinic_id, job_id)"
+    exams ||--o{ lab_import_exam_retractions : "(clinic_id, exam_id, job_id)"
+    lab_import_exam_retractions ||--o{ lab_import_exam_retraction_items : "(clinic_id, retraction_id, job_id, exam_id)"
+    lab_import_jobs ||--o{ lab_import_usage_receipts : "(clinic_id, job_id)"
+    exams ||--o{ lab_import_usage_receipts : "(clinic_id, exam_id, job_id)"
+    lab_import_jobs ||--o{ lab_import_revert_receipts : "(clinic_id, job_id)"
 ```
 
 ---
@@ -134,6 +148,8 @@ erDiagram
 > **2026-07-31 統合第5回**: 上記 incremental `002`–`006` を原文・元commit・SHA-256付きで `001_init.sql` 末尾セクション10へ統合し独立ファイルを削除した。物理テーブル総数は 2026-07 時点 **115** 後、`003_cash_register_close_append_only` で **116**。001 の checksum が変わるため既存 DB の適用経路は引き続き `DB_RESET=true` 再構築のみ。
 >
 > **2026-08-04 統合第6回（TASK-378）**: その後の append-only incremental `002_estimate_successor_and_numbering` / `003_cash_register_close_append_only` / `004_examination_revisions` / `005_accounting_completion_idempotency` / `006_checkup_package_import` / `007_lab_import_job_status_reverted` / `008_lab_import_revert_compensation` を原文・元commit・SHA-256付きで `001_init.sql` 末尾セクション11へ統合し独立ファイルを削除した。新規テーブル 8（close adjustments 1 + examination revisions 2 + checkup package receipts 1 + lab import compensation 4）により物理テーブル総数は **123**。001 の checksum が変わるため既存 DB の適用経路は引き続き `DB_RESET=true` 再構築のみ（`docs/ops/deploy/LOCAL_DB_RESET.md`）。
+>
+> **2026-08-14 セクション12 hardening**: 統合済み旧003本文とその元SHA証跡は変更せず、`cash_register_close_adjustments` に対する close / billing / actor の clinic 複合FKと明示RLSを `001_init.sql` 末尾へ追加した。新規テーブルはなく総数123は不変。001 checksum が変わるため適用経路は同じく USER 手動の `DB_RESET=true` 再構築のみ。
 
 | 項目 | 結果 | 判定 |
 |:---|:---|:---|

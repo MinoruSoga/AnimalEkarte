@@ -66,7 +66,17 @@ EOF
 全1画面のインデックス。
 EOF
   cat > "$d/docs/architecture/erd.md" <<'EOF'
-全2テーブルの設計。なお、この5テーブルという表現は部分集合の言及であり総数ではない。
+## 1. データモデルの全体像 (全 2 テーブル)
+
+なお、この5テーブルという表現は部分集合の言及であり総数ではない。
+
+### 1.1 主要ドメイン別構成
+
+| 区分 | 管理対象（物理テーブル名抜粋） |
+|:---|:---|
+| **基盤 (2)** | `a`, `b` |
+
+## 2. エンティティ・リレーション図
 EOF
   cat > "$d/docs/README.md" <<'EOF'
 索引 (2 Tables / 2 Resources)。1画面。
@@ -118,6 +128,13 @@ mutate_wrong_table_total() {
   printf '全3テーブルの設計。\n' > "$1/docs/architecture/erd.md"
 }
 
+mutate_incomplete_erd_domain_inventory() {
+  # 上段の総数宣言は正しいまま、old_db が読むドメイン在庫から b だけを欠落させる。
+  sed 's/\*\*基盤 (2)\*\* | `a`, `b`/\*\*基盤 (1)\*\* | `a`/' \
+    "$1/docs/architecture/erd.md" > "$1/docs/architecture/erd.md.tmp"
+  mv "$1/docs/architecture/erd.md.tmp" "$1/docs/architecture/erd.md"
+}
+
 mutate_disallowed_topdir() {
   # docs/ 直下 allowlist 外のフォルダ（旧 docs/infra/ 復活の再発防止）
   mkdir -p "$1/docs/infra"
@@ -134,6 +151,7 @@ run_case "phantom-component"    1 mutate_phantom_component
 run_case "phantom-hook"         1 mutate_phantom_hook
 run_case "phantom-file"         1 mutate_phantom_file
 run_case "wrong-table-total"    1 mutate_wrong_table_total
+run_case "incomplete-erd-domain-inventory" 1 mutate_incomplete_erd_domain_inventory
 run_case "disallowed-topdir"    1 mutate_disallowed_topdir
 run_case "disallowed-topfile"   1 mutate_disallowed_topfile
 
