@@ -138,7 +138,7 @@ func TestDB_ExaminationService_ParentMutationAuditFailureRollsBack(t *testing.T)
 		exam := makeExaminationRec(t, db, &model.Examination{
 			ClinicID: clinicID, ExamTypeID: examType.ID,
 			Date:          time.Date(2026, time.August, 1, 0, 0, 0, 0, time.UTC),
-			ResultSummary: "before", Status: model.ExaminationStatusCompleted,
+			ResultSummary: "before", Status: model.ExaminationStatusPending,
 		})
 		repo := NewExaminationRepository(db)
 		svc := newFailingAuditExaminationService(db, repo, errAudit)
@@ -164,7 +164,7 @@ func TestDB_ExaminationService_ParentMutationAuditFailureRollsBack(t *testing.T)
 		exam := makeExaminationRec(t, db, &model.Examination{
 			ClinicID: clinicID, ExamTypeID: examType.ID,
 			Date:   time.Date(2026, time.August, 1, 0, 0, 0, 0, time.UTC),
-			Status: model.ExaminationStatusCompleted,
+			Status: model.ExaminationStatusPending,
 		})
 		repo := NewExaminationRepository(db)
 		svc := newFailingAuditExaminationService(db, repo, errAudit)
@@ -181,7 +181,7 @@ func TestDB_ExaminationService_ParentMutationAuditFailureRollsBack(t *testing.T)
 		assert.Nil(t, got)
 		persisted, findErr := repo.FindByID(ctx, clinicID, exam.ID)
 		require.NoError(t, findErr)
-		assert.Equal(t, model.ExaminationStatusCompleted, persisted.Status)
+		assert.Equal(t, model.ExaminationStatusPending, persisted.Status)
 		assert.Nil(t, persisted.CurrentRevisionVersion)
 		saved, itemsErr := repo.FindAllItemsByExamID(ctx, clinicID, exam.ID)
 		require.NoError(t, itemsErr)
@@ -204,7 +204,7 @@ func TestDB_ExaminationService_ParentMutationAuditFailureRollsBack(t *testing.T)
 		exam := makeExaminationRec(t, db, &model.Examination{
 			ClinicID: clinicID, ExamTypeID: examType.ID,
 			Date:   time.Date(2026, time.August, 1, 0, 0, 0, 0, time.UTC),
-			Status: model.ExaminationStatusCompleted,
+			Status: model.ExaminationStatusPending,
 		})
 		repo := NewExaminationRepository(db)
 		svc := newFailingAuditExaminationService(db, repo, errAudit)
@@ -230,7 +230,7 @@ func TestDB_ExaminationService_ClinicIsolationPreventsMutationAndAudit(t *testin
 	exam := makeExaminationRec(t, db, &model.Examination{
 		ClinicID: clinicA, ExamTypeID: examType.ID,
 		Date:          time.Date(2026, time.August, 1, 0, 0, 0, 0, time.UTC),
-		ResultSummary: "clinic A", Status: model.ExaminationStatusCompleted,
+		ResultSummary: "clinic A", Status: model.ExaminationStatusPending,
 	})
 	repo := NewExaminationRepository(db)
 	auditCalls := 0
@@ -259,7 +259,7 @@ func TestDB_ExaminationService_ClinicIsolationPreventsMutationAndAudit(t *testin
 	persisted, err := repo.FindByID(ctx, clinicA, exam.ID)
 	require.NoError(t, err)
 	assert.Equal(t, "clinic A", persisted.ResultSummary)
-	assert.Equal(t, model.ExaminationStatusCompleted, persisted.Status)
+	assert.Equal(t, model.ExaminationStatusPending, persisted.Status)
 }
 
 func newFailingAuditExaminationService(

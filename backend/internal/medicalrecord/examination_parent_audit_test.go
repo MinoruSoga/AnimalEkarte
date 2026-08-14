@@ -29,7 +29,7 @@ func TestExaminationService_ConfirmWithItemsPersistsItemsBeforeStatusTransition(
 		examID   = uint64(10)
 		actorID  = uint64(42)
 	)
-	status := model.ExaminationStatusCompleted
+	status := model.ExaminationStatusPending
 	order := make([]string, 0, 4)
 	var auditEntry *AuditEntry
 	repo := &mockExaminationRepository{
@@ -85,7 +85,7 @@ func TestExaminationService_ConfirmWithItemsPersistsItemsBeforeStatusTransition(
 	assert.Equal(t, model.AuditResourceExamination, auditEntry.Resource)
 	assert.Equal(t, actorID, *auditEntry.ActorID)
 	assert.Equal(t, model.AuditActorTypeStaff, auditEntry.ActorType)
-	assert.Equal(t, model.ExaminationStatusCompleted, auditEntry.OldValue.(map[string]any)["status"])
+	assert.Equal(t, model.ExaminationStatusPending, auditEntry.OldValue.(map[string]any)["status"])
 	assert.Equal(t, model.ExaminationStatusConfirmed, auditEntry.NewValue.(map[string]any)["status"])
 	assert.Equal(t, "confirm", auditEntry.Metadata.(map[string]any)["operation_type"])
 	assert.Equal(t, examinationAuditReasonAuthenticatedRequest, auditEntry.Metadata.(map[string]any)["reason"])
@@ -262,7 +262,7 @@ func TestExaminationService_ParentMutationsWriteActorAndBeforeAfterAudit(t *test
 		var entry *AuditEntry
 		before := &model.Examination{
 			ID: examID, ClinicID: clinicID, ExamTypeID: 7, Date: date,
-			ResultSummary: "before", Status: model.ExaminationStatusCompleted,
+			ResultSummary: "before", Status: model.ExaminationStatusPending,
 		}
 		repo := &mockExaminationRepository{
 			lockByIDForUpdateFn: func(_ context.Context, _, _ uint64) (*model.Examination, error) {
@@ -297,7 +297,7 @@ func TestExaminationService_ParentMutationsWriteActorAndBeforeAfterAudit(t *test
 		var entry *AuditEntry
 		before := &model.Examination{
 			ID: examID, ClinicID: clinicID, ExamTypeID: 7, Date: date,
-			ResultSummary: "before delete", Status: model.ExaminationStatusCompleted,
+			ResultSummary: "before delete", Status: model.ExaminationStatusPending,
 		}
 		repo := &mockExaminationRepository{
 			lockByIDForUpdateFn: func(_ context.Context, _, _ uint64) (*model.Examination, error) {
@@ -364,7 +364,7 @@ func TestExaminationService_ParentMutationRequiresActorAndAuditDependencyBeforeW
 						return nil
 					},
 					lockByIDForUpdateFn: func(_ context.Context, clinicID, id uint64) (*model.Examination, error) {
-						return &model.Examination{ID: id, ClinicID: clinicID, ExamTypeID: 7, Status: model.ExaminationStatusCompleted}, nil
+						return &model.Examination{ID: id, ClinicID: clinicID, ExamTypeID: 7, Status: model.ExaminationStatusPending}, nil
 					},
 					updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Examination, error) {
 						mutationCalls++
@@ -411,7 +411,7 @@ func TestExaminationService_ParentMutationAuditFailureRollsBack(t *testing.T) {
 	})
 
 	t.Run("update", func(t *testing.T) {
-		state := examinationMutationState{exists: true, status: model.ExaminationStatusCompleted, resultSummary: "before"}
+		state := examinationMutationState{exists: true, status: model.ExaminationStatusPending, resultSummary: "before"}
 		tx := &examinationStateRollbackTransactor{state: &state}
 		repo := statefulExaminationRepository(&state)
 		svc := NewExaminationService(repo, &mockMedicalRecordRepository{}, okExamTypeRepo(), &mockAuditTxLogger{
@@ -428,7 +428,7 @@ func TestExaminationService_ParentMutationAuditFailureRollsBack(t *testing.T) {
 	})
 
 	t.Run("confirm", func(t *testing.T) {
-		state := examinationMutationState{exists: true, status: model.ExaminationStatusCompleted}
+		state := examinationMutationState{exists: true, status: model.ExaminationStatusPending}
 		tx := &examinationStateRollbackTransactor{state: &state}
 		repo := statefulExaminationRepository(&state)
 		svc := NewExaminationService(repo, &mockMedicalRecordRepository{}, okExamTypeRepo(), &mockAuditTxLogger{
@@ -440,12 +440,12 @@ func TestExaminationService_ParentMutationAuditFailureRollsBack(t *testing.T) {
 
 		assert.ErrorIs(t, err, errAudit)
 		assert.Nil(t, got)
-		assert.Equal(t, model.ExaminationStatusCompleted, state.status)
+		assert.Equal(t, model.ExaminationStatusPending, state.status)
 		assert.True(t, tx.rolledBack)
 	})
 
 	t.Run("delete", func(t *testing.T) {
-		state := examinationMutationState{exists: true, status: model.ExaminationStatusCompleted}
+		state := examinationMutationState{exists: true, status: model.ExaminationStatusPending}
 		tx := &examinationStateRollbackTransactor{state: &state}
 		repo := statefulExaminationRepository(&state)
 		svc := NewExaminationService(repo, &mockMedicalRecordRepository{}, okExamTypeRepo(), &mockAuditTxLogger{
