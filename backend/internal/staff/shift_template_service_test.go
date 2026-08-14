@@ -48,7 +48,8 @@ func (m *mockShiftTemplateRepository) FindByID(ctx context.Context, clinicID, id
 	if m.findByIDFn != nil {
 		return m.findByIDFn(ctx, clinicID, id)
 	}
-	return &model.ShiftTemplate{ID: id, ClinicID: clinicID}, nil
+	start, end := "09:00", "13:00"
+	return &model.ShiftTemplate{ID: id, ClinicID: clinicID, ShiftType: model.ShiftTypeMorning, StartTime: &start, EndTime: &end}, nil
 }
 
 func (m *mockShiftTemplateRepository) LockActiveByIDForUpdate(
@@ -72,7 +73,8 @@ func (m *mockShiftTemplateRepository) Update(ctx context.Context, clinicID, id u
 	if m.updateFn != nil {
 		return m.updateFn(ctx, clinicID, id, fields)
 	}
-	return &model.ShiftTemplate{ID: id, ClinicID: clinicID}, nil
+	start, end := "09:00", "13:00"
+	return &model.ShiftTemplate{ID: id, ClinicID: clinicID, ShiftType: model.ShiftTypeMorning, StartTime: &start, EndTime: &end}, nil
 }
 
 func (m *mockShiftTemplateRepository) Delete(ctx context.Context, clinicID, id uint64) error {

@@ -151,6 +151,8 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"billing/billing_item_repository.go|billingItemRepository.FindByID":            {},
 	"billing/billing_item_repository.go|billingItemRepository.Update":              {},
 	"billing/billing_item_repository.go|billingItemRepository.UpdateBillingTotals": {},
+	// private helper used by UpdateBillingTotals / UpdateBillingTotalsForCompletedCorrection
+	"billing/billing_item_repository.go|billingItemRepository.updateBillingTotals": {},
 	// Create validates every request-derived FK under shared locks in the same
 	// transaction. Runtime: billing_item_reference_repository_test.go.
 	"billing/billing_item_repository.go|billingItemRepository.ValidateCreateReferences":           {},
