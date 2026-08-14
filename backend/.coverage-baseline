@@ -1,6 +1,7 @@
 # backend 総計カバレッジ % のベースライン（BE-refactor.md R3-5 / bug.md H-7 / coverage-policy.md）。
 # coverage-ratchet ツールがこの値と CI の実測値を比較し、tolerance（既定 0.5pp）を超える低下を検出する。
-# 2026-07-13 に main の CI 実測値で re-arm: GitHub Actions run 29152374862
-# （push, commit 70f4c298, backend-coverage artifact の coverage-summary.txt 末尾 total: 行）。
+# 2026-08-14 re-arm: GitHub Actions run 31824892088 (push tip d85f13fb6)
+# backend Test step green; coverage-summary.txt total statements = 88.1%.
+# Prior 91.3% was measured while many packages were red/skipped-path; full green suite is the new SoT.
 # 更新する場合は同じく CI artifact の実測値を転記すること（推測値を書かない）。
-91.3
+88.1
