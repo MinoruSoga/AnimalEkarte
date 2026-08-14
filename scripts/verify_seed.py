@@ -250,6 +250,11 @@ def check_unique_name_duplicates(state: SeedState, errors: list[str]) -> None:
         add_result(errors, not duplicates, f"{table}: effective (clinic_id, name) duplicates found: {duplicates}")
 
 
+def _int_keys(table: dict) -> list[int]:
+    """table id keys that are int (CSV may inject None keys)."""
+    return [k for k in table if isinstance(k, int)]
+
+
 def is_imported_clinical_graph(state: SeedState) -> bool:
     """True when 003_demo is an imported clinical dump, not the tiny legacy demo fixtures.
 
@@ -260,8 +265,7 @@ def is_imported_clinical_graph(state: SeedState) -> bool:
     clinical graph is dump-scale — requiring EXPECTED_TREATMENTS then false-fails TASK-009.
     """
     owners = state.tables.get("owners", {})
-    # owner id キーに None が混ざると min() 比較で TypeError になる（CI seed verify）
-    owner_ids = [oid for oid in owners if isinstance(oid, int)]
+    owner_ids = _int_keys(owners)
     if owner_ids and min(owner_ids) >= IMPORTED_OWNER_ID_FLOOR:
         return True
     treatments = state.tables.get("treatments", {})
@@ -365,7 +369,8 @@ def check_demo_id_harden_invariants(state: SeedState, errors: list[str]) -> None
     """
     owners = state.tables.get("owners", {})
     estimates = state.tables.get("estimates", {})
-    if estimates and owners and min(owners) >= IMPORTED_OWNER_ID_FLOOR:
+    owner_ids = _int_keys(owners)
+    if estimates and owner_ids and min(owner_ids) >= IMPORTED_OWNER_ID_FLOOR:
         low_owner_refs: list[tuple[int, object]] = []
         for est_id, row in sorted(estimates.items()):
             owner_id = row.get("owner_id")
