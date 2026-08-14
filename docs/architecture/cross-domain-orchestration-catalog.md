@@ -71,5 +71,5 @@ Any **new** cross-domain write or orchestration path — including **automation/
 
 - Changing production Go behavior or reservation write-owner lint.
 - Layer-first / Clean Architecture package revival.
-- Long-form task dumps (STATUS.md).
+- Long-form task dumps (historical STATUS.md archive / prefer todo.md).
 - Secrets, credentials, PII, or PHI examples.

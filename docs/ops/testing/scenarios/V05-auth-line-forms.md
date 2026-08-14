@@ -1,7 +1,9 @@
 # V05: 認証・LINE系フォーム検証（入力・更新・DB整合）
 
 > **目的**: 認証（ログイン・パスワード管理）・LIFF/LINE予約（飼い主側）・LINE予約設定（病院側）・Lステップ連携の全 18 フォームについて、入力バリデーション・更新の永続化・DB 整合（FK 選択肢・一意制約・URL 直叩き）が実機ブラウザ経由で機能することを納品前に証明する。
-> **所要目安**: 90分 / **深度**: フォーム検証
+> **所要目安**: 120分 / **深度**: フォーム検証 + **項目単位 F プロトコル**
+> **フォーム数**: 18
+> **項目単位**: [FIELD-LEVEL-PROTOCOL.md](FIELD-LEVEL-PROTOCOL.md) + [FORM-FIELD-INVENTORY.md](FORM-FIELD-INVENTORY.md) §V05。line-reserve は**ステップ上の全入力**、Lステップ設定は secret/閾値/タグ行を含む全項目。
 > **仕様正本**: [screens/21-login.md](../../../spec/screens/21-login.md)・[screens/28-line-reservation.md](../../../spec/screens/28-line-reservation.md)・[screens/31-lstep-integration.md](../../../spec/screens/31-lstep-integration.md)・[line/reservation-spec.md](../../../spec/line/reservation-spec.md)・[line/architecture.md](../../../spec/line/architecture.md)
 
 ## 前提条件
@@ -13,7 +15,7 @@
 
 ## 共通チェック手順
 
-各フォームに対し、特記のない限り以下 C1〜C3 を適用する。個別セクションはフォーム固有の差分・重点のみを記載する。
+各フォームに対し、特記のない限り以下 C1〜C3 を適用する。加えて **F プロトコルを inventory 全項目に適用**する。個別セクションはフォーム固有の差分・重点のみを記載する。
 
 | ID | チェック | 手順 | 期待結果 |
 |:--|:--|:--|:--|
@@ -195,7 +197,7 @@ clinic 単位 1 レコードの PATCH（C3(b) は UI 上到達不能）。フィ
 - 既存の機械テストが覆う範囲: FE component test（`ChangePasswordDialog` / `ForgotPasswordPage` / `use-liff-link` / `CustomerInfoPage` / `ConfirmPage` / `MyReservationsPage` / `LstepSettingsForm` / `TriggerPrioritySection` / `LstepTagCodeMappingsSection` / `LstepTagConfigSection` 等）が FE 単体のバリデーション分岐を、BE テスト（auth/password_reset・liff_validation・line_reservation_setting・lstep_settings/tag/csv/checkup_sync 各 service/handler test）がサーバ側検証・部分更新非破壊・テナント隔離を網羅する。E2E（auth-flows / line-reservation-flow / lstep-flow）は表示と主要導線のみ。
 - 本シナリオは上記が個別レイヤで検証済みの挙動を**実ブラウザ + 実 DB の統合点（FE→BE→永続化→再表示）で通す受け入れ時の実機検証**であり、FE/BE バリデーション乖離（ログイン最小長 6 vs 8・パスワード英数字混在は BE のみ）・E2E 対象外の独立 SPA（liff / line-reserve）・予約可能枠の加算方式を重点とする。
 - ログインのレート制限・リセットトークンのワンタイム性・リセット申請の列挙防止はセキュリティ境界（[21-login.md](../../../spec/screens/21-login.md) §1.2/§2）— 「拒否される/漏れない」ことを必ず確認する。
-- NG 項目は [`STATUS.md` §3 受入バグ（正本）](../../../../STATUS.md) へ `## BUG-XXX:` 節として起票する（ローカル連番 最大+1・[README.md](README.md) のルールに従う）。
+- NG 項目は [`todo.md` 受入バグ](../../../../todo.md) へ `### BUG-XXX` 節として起票する（ローカル連番 最大+1・[README.md](README.md) のルールに従う）。
 
 ## 実装突合
 - 突合日: 2026-08-07

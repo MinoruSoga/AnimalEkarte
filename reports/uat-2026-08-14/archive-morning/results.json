@@ -1,0 +1,737 @@
+[
+  {
+    "scenario": "ENV",
+    "step": "health",
+    "status": "PASS",
+    "note": "200",
+    "at": "2026-08-13T15:41:55.576Z"
+  },
+  {
+    "scenario": "ENV",
+    "step": "login",
+    "status": "PASS",
+    "note": "http://localhost:3003/",
+    "at": "2026-08-13T15:41:57.005Z"
+  },
+  {
+    "scenario": "ENV",
+    "step": "api_login",
+    "status": "PASS",
+    "note": "200",
+    "at": "2026-08-13T15:41:57.085Z"
+  },
+  {
+    "scenario": "S01",
+    "step": "death",
+    "status": "PASS",
+    "note": "204",
+    "at": "2026-08-13T15:41:57.096Z"
+  },
+  {
+    "scenario": "S01",
+    "step": "block_mr",
+    "status": "PASS",
+    "note": "dis=1",
+    "at": "2026-08-13T15:41:59.511Z"
+  },
+  {
+    "scenario": "S01",
+    "step": "block_acc",
+    "status": "PASS",
+    "note": "dis=1",
+    "at": "2026-08-13T15:42:01.749Z"
+  },
+  {
+    "scenario": "S01",
+    "step": "block_hosp",
+    "status": "PASS",
+    "note": "dis=1",
+    "at": "2026-08-13T15:42:04.067Z"
+  },
+  {
+    "scenario": "S01",
+    "step": "revive",
+    "status": "PASS",
+    "note": "204",
+    "at": "2026-08-13T15:42:04.093Z"
+  },
+  {
+    "scenario": "S01",
+    "step": "alive",
+    "status": "PASS",
+    "note": "{\"status\":\"alive\"}",
+    "at": "2026-08-13T15:42:04.099Z"
+  },
+  {
+    "scenario": "S02",
+    "step": "select",
+    "status": "PASS",
+    "note": "http://localhost:3003/examinations/new?petId=1000005",
+    "at": "2026-08-13T15:42:10.955Z"
+  },
+  {
+    "scenario": "S02",
+    "step": "type",
+    "status": "PASS",
+    "note": "血液検査（院内）",
+    "at": "2026-08-13T15:42:11.852Z"
+  },
+  {
+    "scenario": "S02",
+    "step": "items_rows",
+    "status": "PASS",
+    "note": "n=8",
+    "at": "2026-08-13T15:42:11.894Z"
+  },
+  {
+    "scenario": "S02",
+    "step": "save",
+    "status": "PASS",
+    "note": "POST 201",
+    "at": "2026-08-13T15:42:12.475Z"
+  },
+  {
+    "scenario": "S02",
+    "step": "HL",
+    "status": "PASS",
+    "note": "id=1014577",
+    "at": "2026-08-13T15:42:21.128Z"
+  },
+  {
+    "scenario": "S02",
+    "step": "completed_lock",
+    "status": "PASS",
+    "note": "lock=true en=0",
+    "at": "2026-08-13T15:42:23.694Z"
+  },
+  {
+    "scenario": "S03",
+    "step": "select",
+    "status": "PASS",
+    "note": "http://localhost:3003/vaccinations/new?petId=1000005",
+    "at": "2026-08-13T15:42:29.321Z"
+  },
+  {
+    "scenario": "S03",
+    "step": "opts",
+    "status": "PASS",
+    "note": "n=108",
+    "at": "2026-08-13T15:42:29.330Z"
+  },
+  {
+    "scenario": "S03",
+    "step": "interval",
+    "status": "PASS",
+    "note": "3週後",
+    "at": "2026-08-13T15:42:29.488Z"
+  },
+  {
+    "scenario": "S03",
+    "step": "save",
+    "status": "PASS",
+    "note": "201",
+    "at": "2026-08-13T15:42:29.550Z"
+  },
+  {
+    "scenario": "S04",
+    "step": "entry",
+    "status": "PASS",
+    "note": "http://localhost:3003/line-reserve/1/",
+    "at": "2026-08-13T15:42:30.654Z"
+  },
+  {
+    "scenario": "S04",
+    "step": "dates",
+    "status": "PASS",
+    "note": "enabled=13",
+    "at": "2026-08-13T15:43:34.279Z"
+  },
+  {
+    "scenario": "S04",
+    "step": "times",
+    "status": "PASS",
+    "note": "n=36",
+    "at": "2026-08-13T15:43:35.117Z"
+  },
+  {
+    "scenario": "S04",
+    "step": "confirm",
+    "status": "PASS",
+    "note": "✅ ご予約を承りました 予約番号 R-20260816-0004 日時 2026年08月16日(日) 10:15〜10:30 コース 一般診察 担当 指名なし キャンセルは「予約確認・キャンセル」から",
+    "at": "2026-08-13T15:43:38.294Z"
+  },
+  {
+    "scenario": "S04",
+    "step": "my_res",
+    "status": "PASS",
+    "note": "list",
+    "at": "2026-08-13T15:43:40.371Z"
+  },
+  {
+    "scenario": "S04",
+    "step": "cancel",
+    "status": "PASS",
+    "note": "done",
+    "at": "2026-08-13T15:43:42.318Z"
+  },
+  {
+    "scenario": "S04",
+    "step": "real_line_notify",
+    "status": "BLOCKED",
+    "note": "real LINE push STG",
+    "at": "2026-08-13T15:43:42.318Z"
+  },
+  {
+    "scenario": "S05",
+    "step": "select",
+    "status": "PASS",
+    "note": "http://localhost:3003/hospitalization/new?petId=1000002",
+    "at": "2026-08-13T15:43:47.229Z"
+  },
+  {
+    "scenario": "S05",
+    "step": "cage_required",
+    "status": "PASS",
+    "note": "validation",
+    "at": "2026-08-13T15:43:48.079Z"
+  },
+  {
+    "scenario": "S05",
+    "step": "create",
+    "status": "PASS",
+    "note": "201",
+    "at": "2026-08-13T15:43:48.953Z"
+  },
+  {
+    "scenario": "S05",
+    "step": "list",
+    "status": "PASS",
+    "note": "list",
+    "at": "2026-08-13T15:43:49.661Z"
+  },
+  {
+    "scenario": "S05",
+    "step": "tab_入院中",
+    "status": "PASS",
+    "note": "ok",
+    "at": "2026-08-13T15:43:49.687Z"
+  },
+  {
+    "scenario": "S05",
+    "step": "discharge_dialog",
+    "status": "PASS",
+    "note": "dialog",
+    "at": "2026-08-13T15:43:51.128Z"
+  },
+  {
+    "scenario": "S05",
+    "step": "discharge",
+    "status": "PASS",
+    "note": "200",
+    "at": "2026-08-13T15:43:51.176Z"
+  },
+  {
+    "scenario": "S06",
+    "step": "select",
+    "status": "PASS",
+    "note": "http://localhost:3003/medical-records/1425549",
+    "at": "2026-08-13T15:43:56.594Z"
+  },
+  {
+    "scenario": "S06",
+    "step": "already_final",
+    "status": "PASS",
+    "note": "landed finalized",
+    "at": "2026-08-13T15:43:56.599Z"
+  },
+  {
+    "scenario": "S06",
+    "step": "lock",
+    "status": "PASS",
+    "note": "saveVis=false",
+    "at": "2026-08-13T15:43:57.642Z"
+  },
+  {
+    "scenario": "S06",
+    "step": "addendum_ui",
+    "status": "PASS",
+    "note": "open",
+    "at": "2026-08-13T15:43:58.119Z"
+  },
+  {
+    "scenario": "S06",
+    "step": "addendum_save",
+    "status": "PASS",
+    "note": "ok",
+    "at": "2026-08-13T15:44:00.166Z"
+  },
+  {
+    "scenario": "S06",
+    "step": "audit_db",
+    "status": "BLOCKED",
+    "note": "USER",
+    "at": "2026-08-13T15:44:00.173Z"
+  },
+  {
+    "scenario": "S07",
+    "step": "list",
+    "status": "PASS",
+    "note": "list",
+    "at": "2026-08-13T15:44:00.970Z"
+  },
+  {
+    "scenario": "S07",
+    "step": "create",
+    "status": "PASS",
+    "note": "201",
+    "at": "2026-08-13T15:44:23.426Z"
+  },
+  {
+    "scenario": "S07",
+    "step": "empty_title_gate",
+    "status": "PASS",
+    "note": "disabled",
+    "at": "2026-08-13T15:44:24.109Z"
+  },
+  {
+    "scenario": "S08",
+    "step": "list",
+    "status": "PASS",
+    "note": "list",
+    "at": "2026-08-13T15:44:24.812Z"
+  },
+  {
+    "scenario": "S08",
+    "step": "new_form",
+    "status": "PASS",
+    "note": "http://localhost:3003/accounting/new?petId=1000005",
+    "at": "2026-08-13T15:44:29.695Z"
+  },
+  {
+    "scenario": "S08",
+    "step": "partial_pay",
+    "status": "BLOCKED",
+    "note": "product spec",
+    "at": "2026-08-13T15:44:29.695Z"
+  },
+  {
+    "scenario": "S08",
+    "step": "detail",
+    "status": "PASS",
+    "note": "http://localhost:3003/accounting/1195418",
+    "at": "2026-08-13T15:44:31.401Z"
+  },
+  {
+    "scenario": "S09",
+    "step": "close_ui",
+    "status": "PASS",
+    "note": "八王子病院 診療業務 当日の受付 飼主・ペット 予約管理 カルテ 検査管理 トリミング 予防接種 定期健診 運用・管理 会計管理 レジ締め 締め履歴 月次集計レ",
+    "at": "2026-08-13T15:44:32.071Z"
+  },
+  {
+    "scenario": "S09",
+    "step": "preview",
+    "status": "PASS",
+    "note": "ok",
+    "at": "2026-08-13T15:44:33.098Z"
+  },
+  {
+    "scenario": "S09",
+    "step": "fixture_attribution",
+    "status": "BLOCKED",
+    "note": "needs human DB",
+    "at": "2026-08-13T15:44:33.098Z"
+  },
+  {
+    "scenario": "S09",
+    "step": "history",
+    "status": "PASS",
+    "note": "history",
+    "at": "2026-08-13T15:44:33.733Z"
+  },
+  {
+    "scenario": "S09",
+    "step": "settings",
+    "status": "PASS",
+    "note": "settings",
+    "at": "2026-08-13T15:44:34.433Z"
+  },
+  {
+    "scenario": "S10",
+    "step": "load",
+    "status": "PASS",
+    "note": "八王子病院 診療業務 当日の受付 飼主・ペット 予約管理 カルテ 検査管理 トリミング 予防接種 定期健診 運用・管理 会計管理 レジ締め 締め履歴 月次集計レポート 入院・ホテル 在庫管理 シフト管",
+    "at": "2026-08-13T15:44:38.139Z"
+  },
+  {
+    "scenario": "S10",
+    "step": "tabs",
+    "status": "PASS",
+    "note": "n=3",
+    "at": "2026-08-13T15:44:39.714Z"
+  },
+  {
+    "scenario": "S11",
+    "step": "list",
+    "status": "PASS",
+    "note": "list",
+    "at": "2026-08-13T15:44:40.491Z"
+  },
+  {
+    "scenario": "S11",
+    "step": "new_select",
+    "status": "PASS",
+    "note": "http://localhost:3003/trimming/new?petId=1000005",
+    "at": "2026-08-13T15:44:45.337Z"
+  },
+  {
+    "scenario": "S11",
+    "step": "create",
+    "status": "PARTIAL",
+    "note": "http://localhost:3003/trimming/new?petId=1000005",
+    "at": "2026-08-13T15:44:57.022Z"
+  },
+  {
+    "scenario": "S11",
+    "step": "unbilled",
+    "status": "PASS",
+    "note": "200",
+    "at": "2026-08-13T15:44:57.050Z"
+  },
+  {
+    "scenario": "S11",
+    "step": "accounting_with_pet",
+    "status": "PASS",
+    "note": "http://localhost:3003/accounting/new?petId=1000005",
+    "at": "2026-08-13T15:44:57.843Z"
+  },
+  {
+    "scenario": "S12",
+    "step": "courses_api",
+    "status": "PASS",
+    "note": "200",
+    "at": "2026-08-13T15:44:57.884Z"
+  },
+  {
+    "scenario": "S12",
+    "step": "mock_ui",
+    "status": "PASS",
+    "note": "飼い主 テストユーザー ペット情報はありません",
+    "at": "2026-08-13T15:44:58.432Z"
+  },
+  {
+    "scenario": "S12",
+    "step": "missing_clinic",
+    "status": "PASS",
+    "note": "⚠️ データ取得に失敗しました クリニックIDが見つかりません",
+    "at": "2026-08-13T15:44:58.957Z"
+  },
+  {
+    "scenario": "S12",
+    "step": "real_token",
+    "status": "BLOCKED",
+    "note": "real LINE token",
+    "at": "2026-08-13T15:44:58.958Z"
+  },
+  {
+    "scenario": "S13",
+    "step": "page",
+    "status": "PASS",
+    "note": "http://localhost:3003/identity-links",
+    "at": "2026-08-13T15:45:00.410Z"
+  },
+  {
+    "scenario": "S13",
+    "step": "search",
+    "status": "PASS",
+    "note": "query",
+    "at": "2026-08-13T15:45:01.619Z"
+  },
+  {
+    "scenario": "S13",
+    "step": "link_btn",
+    "status": "PASS",
+    "note": "n=2",
+    "at": "2026-08-13T15:45:01.625Z"
+  },
+  {
+    "scenario": "S13",
+    "step": "owner_link",
+    "status": "PARTIAL",
+    "note": "need 2 owners fixture",
+    "at": "2026-08-13T15:45:01.627Z"
+  },
+  {
+    "scenario": "LOCK",
+    "step": "033",
+    "status": "PASS",
+    "note": "exam",
+    "at": "2026-08-13T15:45:04.266Z"
+  },
+  {
+    "scenario": "LOCK",
+    "step": "035",
+    "status": "PASS",
+    "note": "mr",
+    "at": "2026-08-13T15:45:05.316Z"
+  },
+  {
+    "scenario": "LOCK",
+    "step": "038",
+    "status": "PASS",
+    "note": "clinic",
+    "at": "2026-08-13T15:45:06.053Z"
+  },
+  {
+    "scenario": "V01",
+    "step": "/medical-records",
+    "status": "PASS",
+    "note": "八王子病院 診療業務 当日の受付 飼主・ペット 予約管理 カルテ 検査管理 トリミング 予防接種 定期健診 運用・管理 会計管理 レジ締め ",
+    "at": "2026-08-13T15:45:07.394Z"
+  },
+  {
+    "scenario": "V01",
+    "step": "/examinations",
+    "status": "PASS",
+    "note": "八王子病院 診療業務 当日の受付 飼主・ペット 予約管理 カルテ 検査管理 トリミング 予防接種 定期健診 運用・管理 会計管理 レジ締め ",
+    "at": "2026-08-13T15:45:10.218Z"
+  },
+  {
+    "scenario": "V01",
+    "step": "/vaccinations",
+    "status": "PASS",
+    "note": "八王子病院 診療業務 当日の受付 飼主・ペット 予約管理 カルテ 検査管理 トリミング 予防接種 定期健診 運用・管理 会計管理 レジ締め ",
+    "at": "2026-08-13T15:45:11.864Z"
+  },
+  {
+    "scenario": "V01",
+    "step": "/hospitalization",
+    "status": "PASS",
+    "note": "八王子病院 診療業務 当日の受付 飼主・ペット 予約管理 カルテ 検査管理 トリミング 予防接種 定期健診 運用・管理 会計管理 レジ締め ",
+    "at": "2026-08-13T15:45:12.877Z"
+  },
+  {
+    "scenario": "V01",
+    "step": "/trimming",
+    "status": "PASS",
+    "note": "八王子病院 診療業務 当日の受付 飼主・ペット 予約管理 カルテ 検査管理 トリミング 予防接種 定期健診 運用・管理 会計管理 レジ締め ",
+    "at": "2026-08-13T15:45:13.841Z"
+  },
+  {
+    "scenario": "V01",
+    "step": "/checkups",
+    "status": "PASS",
+    "note": "八王子病院 診療業務 当日の受付 飼主・ペット 予約管理 カルテ 検査管理 トリミング 予防接種 定期健診 運用・管理 会計管理 レジ締め ",
+    "at": "2026-08-13T15:45:14.775Z"
+  },
+  {
+    "scenario": "V02",
+    "step": "/accounting",
+    "status": "PASS",
+    "note": "八王子病院 診療業務 当日の受付 飼主・ペット 予約管理 カルテ 検査管理 トリミング 予防接種 定期健診 運用・管理 会計管理 レジ締め ",
+    "at": "2026-08-13T15:45:15.745Z"
+  },
+  {
+    "scenario": "V02",
+    "step": "/estimates",
+    "status": "PASS",
+    "note": "八王子病院 診療業務 当日の受付 飼主・ペット 予約管理 カルテ 検査管理 トリミング 予防接種 定期健診 運用・管理 会計管理 レジ締め ",
+    "at": "2026-08-13T15:45:16.676Z"
+  },
+  {
+    "scenario": "V02",
+    "step": "/accounting/close",
+    "status": "PASS",
+    "note": "八王子病院 診療業務 当日の受付 飼主・ペット 予約管理 カルテ 検査管理 トリミング 予防接種 定期健診 運用・管理 会計管理 レジ締め ",
+    "at": "2026-08-13T15:45:17.599Z"
+  },
+  {
+    "scenario": "V02",
+    "step": "/shifts",
+    "status": "PASS",
+    "note": "八王子病院 診療業務 当日の受付 飼主・ペット 予約管理 カルテ 検査管理 トリミング 予防接種 定期健診 運用・管理 会計管理 レジ締め ",
+    "at": "2026-08-13T15:45:18.912Z"
+  },
+  {
+    "scenario": "V02",
+    "step": "/",
+    "status": "PASS",
+    "note": "八王子病院 診療業務 当日の受付 飼主・ペット 予約管理 カルテ 検査管理 トリミング 予防接種 定期健診 運用・管理 会計管理 レジ締め ",
+    "at": "2026-08-13T15:45:19.839Z"
+  },
+  {
+    "scenario": "V03",
+    "step": "/owners/new",
+    "status": "PASS",
+    "note": "八王子病院 診療業務 当日の受付 飼主・ペット 予約管理 カルテ 検査管理 トリミング 予防接種 定期健診 運用・管理 会計管理 レジ締め ",
+    "at": "2026-08-13T15:45:21.101Z"
+  },
+  {
+    "scenario": "V03",
+    "step": "/owners",
+    "status": "PASS",
+    "note": "八王子病院 診療業務 当日の受付 飼主・ペット 予約管理 カルテ 検査管理 トリミング 予防接種 定期健診 運用・管理 会計管理 レジ締め ",
+    "at": "2026-08-13T15:45:22.154Z"
+  },
+  {
+    "scenario": "V03",
+    "step": "/settings/staff",
+    "status": "PASS",
+    "note": "八王子病院 診療業務 当日の受付 飼主・ペット 予約管理 カルテ 検査管理 トリミング 予防接種 定期健診 運用・管理 会計管理 レジ締め ",
+    "at": "2026-08-13T15:45:23.230Z"
+  },
+  {
+    "scenario": "V03",
+    "step": "/settings/permission-groups",
+    "status": "PASS",
+    "note": "八王子病院 診療業務 当日の受付 飼主・ペット 予約管理 カルテ 検査管理 トリミング 予防接種 定期健診 運用・管理 会計管理 レジ締め ",
+    "at": "2026-08-13T15:45:24.235Z"
+  },
+  {
+    "scenario": "V03",
+    "step": "/settings/clinic",
+    "status": "PASS",
+    "note": "八王子病院 診療業務 当日の受付 飼主・ペット 予約管理 カルテ 検査管理 トリミング 予防接種 定期健診 運用・管理 会計管理 レジ締め ",
+    "at": "2026-08-13T15:45:25.277Z"
+  },
+  {
+    "scenario": "V04",
+    "step": "/settings",
+    "status": "PASS",
+    "note": "八王子病院 診療業務 当日の受付 飼主・ペット 予約管理 カルテ 検査管理 トリミング 予防接種 定期健診 運用・管理 会計管理 レジ締め ",
+    "at": "2026-08-13T15:45:26.292Z"
+  },
+  {
+    "scenario": "V04",
+    "step": "/settings/payment-methods",
+    "status": "PASS",
+    "note": "八王子病院 診療業務 当日の受付 飼主・ペット 予約管理 カルテ 検査管理 トリミング 予防接種 定期健診 運用・管理 会計管理 レジ締め ",
+    "at": "2026-08-13T15:45:27.296Z"
+  },
+  {
+    "scenario": "V04",
+    "step": "/settings/campaigns",
+    "status": "PASS",
+    "note": "八王子病院 診療業務 当日の受付 飼主・ペット 予約管理 カルテ 検査管理 トリミング 予防接種 定期健診 運用・管理 会計管理 レジ締め ",
+    "at": "2026-08-13T15:45:28.295Z"
+  },
+  {
+    "scenario": "V04",
+    "step": "/settings/diagnosis",
+    "status": "PASS",
+    "note": "八王子病院 診療業務 当日の受付 飼主・ペット 予約管理 カルテ 検査管理 トリミング 予防接種 定期健診 運用・管理 会計管理 レジ締め ",
+    "at": "2026-08-13T15:45:29.425Z"
+  },
+  {
+    "scenario": "V04",
+    "step": "/settings/insurance",
+    "status": "PASS",
+    "note": "八王子病院 診療業務 当日の受付 飼主・ペット 予約管理 カルテ 検査管理 トリミング 予防接種 定期健診 運用・管理 会計管理 レジ締め ",
+    "at": "2026-08-13T15:45:30.438Z"
+  },
+  {
+    "scenario": "V05",
+    "step": "/forgot-password",
+    "status": "PASS",
+    "note": "パスワードのリセット 登録済みのメールアドレスを入力してください メールアドレス リセットリンクを送信 ログインページに戻る",
+    "at": "2026-08-13T15:45:31.310Z"
+  },
+  {
+    "scenario": "V05",
+    "step": "/reset-password",
+    "status": "PASS",
+    "note": "無効なリンクです パスワードリセットリンクが無効または期限切れです。再度リセットを申請してください。 パスワードリセットを再申請する",
+    "at": "2026-08-13T15:45:32.178Z"
+  },
+  {
+    "scenario": "V05",
+    "step": "/line-reservation/settings",
+    "status": "PASS",
+    "note": "八王子病院 診療業務 当日の受付 飼主・ペット 予約管理 カルテ 検査管理 トリミング 予防接種 定期健診 運用・管理 会計管理 レジ締め ",
+    "at": "2026-08-13T15:45:33.114Z"
+  },
+  {
+    "scenario": "V05",
+    "step": "/line-reservation/page-editor",
+    "status": "PASS",
+    "note": "八王子病院 診療業務 当日の受付 飼主・ペット 予約管理 カルテ 検査管理 トリミング 予防接種 定期健診 運用・管理 会計管理 レジ締め ",
+    "at": "2026-08-13T15:45:34.049Z"
+  },
+  {
+    "scenario": "V05",
+    "step": "/line-reservation/slots",
+    "status": "PASS",
+    "note": "八王子病院 診療業務 当日の受付 飼主・ペット 予約管理 カルテ 検査管理 トリミング 予防接種 定期健診 運用・管理 会計管理 レジ締め ",
+    "at": "2026-08-13T15:45:35.115Z"
+  },
+  {
+    "scenario": "V05",
+    "step": "/settings/integrations/lstep",
+    "status": "PASS",
+    "note": "八王子病院 診療業務 当日の受付 飼主・ペット 予約管理 カルテ 検査管理 トリミング 予防接種 定期健診 運用・管理 会計管理 レジ締め ",
+    "at": "2026-08-13T15:45:36.141Z"
+  },
+  {
+    "scenario": "V05",
+    "step": "/settings/lstep/tags",
+    "status": "PASS",
+    "note": "八王子病院 診療業務 当日の受付 飼主・ペット 予約管理 カルテ 検査管理 トリミング 予防接種 定期健診 運用・管理 会計管理 レジ締め ",
+    "at": "2026-08-13T15:45:37.141Z"
+  },
+  {
+    "scenario": "V05",
+    "step": "/lstep/analytics",
+    "status": "PASS",
+    "note": "八王子病院 診療業務 当日の受付 飼主・ペット 予約管理 カルテ 検査管理 トリミング 予防接種 定期健診 運用・管理 会計管理 レジ締め ",
+    "at": "2026-08-13T15:45:38.111Z"
+  },
+  {
+    "scenario": "V05",
+    "step": "/lstep/checkup-sync",
+    "status": "PASS",
+    "note": "八王子病院 診療業務 当日の受付 飼主・ペット 予約管理 カルテ 検査管理 トリミング 予防接種 定期健診 運用・管理 会計管理 レジ締め ",
+    "at": "2026-08-13T15:45:39.062Z"
+  },
+  {
+    "scenario": "V03",
+    "step": "/owners/new#c1",
+    "status": "PASS",
+    "note": "八王子病院 診療業務 当日の受付 飼主・ペット 予約管理 カルテ 検査管理 トリミング 予防接種 定期健診 運用・管理 会計管理 レジ締め 締め履歴 月次集計レ",
+    "at": "2026-08-13T15:45:40.772Z"
+  },
+  {
+    "scenario": "V05",
+    "step": "/forgot-password#c1",
+    "status": "PASS",
+    "note": "パスワードのリセット 登録済みのメールアドレスを入力してください メールアドレス メールアドレスを入力してください リセットリンクを送信 ログインページに戻る",
+    "at": "2026-08-13T15:45:42.062Z"
+  },
+  {
+    "scenario": "V02",
+    "step": "reservation_empty",
+    "status": "PASS",
+    "note": "八王子病院 診療業務 当日の受付 飼主・ペット 予約管理 カルテ 検査管理 トリミング 予防接種 定期健診 運用・管理 会計管理 レジ締め 締め履歴 月次集計レ",
+    "at": "2026-08-13T15:45:44.209Z"
+  },
+  {
+    "scenario": "V04",
+    "step": "/settings/payment-methods#c1",
+    "status": "PARTIAL",
+    "note": "八王子病院 診療業務 当日の受付 飼主・ペット 予約管理 カルテ 検査管理 トリミング 予防接種 定期健診 運用・管理 ",
+    "at": "2026-08-13T15:45:46.103Z"
+  },
+  {
+    "scenario": "V04",
+    "step": "/settings/campaigns#c1",
+    "status": "PARTIAL",
+    "note": "八王子病院 診療業務 当日の受付 飼主・ペット 予約管理 カルテ 検査管理 トリミング 予防接種 定期健診 運用・管理 ",
+    "at": "2026-08-13T15:45:48.005Z"
+  },
+  {
+    "scenario": "S01",
+    "step": "final_alive",
+    "status": "PASS",
+    "note": "{\"status\":\"alive\"}",
+    "at": "2026-08-13T15:45:48.031Z"
+  }
+]

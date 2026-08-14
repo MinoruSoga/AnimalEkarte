@@ -1,428 +1,217 @@
-# Architecture improvement backlog
+# todo.md — 技術・エージェント作業台帳
 
 | 項目 | 値 |
 |------|-----|
-| **作成** | 2026-08-07 |
-| **範囲** | アーキテクチャのみ（UAT / credential / seed / 納品 ops は [`STATUS.md`](STATUS.md) / [`PO-todo.md`](PO-todo.md)） |
-| **正本の前提** | [ADR-005](docs/architecture/adr/005-go-gin-backend-guidelines.md) · [ADR-006](docs/architecture/adr/006-backend-domain-package-boundaries.md) · [boundary map](docs/architecture/be9-2a-boundary-map.md) · [product-philosophy](docs/product-philosophy.md) |
-| **現状** | BE9 domain-first **完了** · 旧 `internal/handler\|service\|repository` **削除済み** · agent 製品実装 open **0**（2026-08-06 時点） |
+| **更新** | 2026-08-14（Open Issue 16 件を1件ずつ main 判定 · close 0） |
+| **main tip** | `697d5c597` |
+| **読者** | agent / 開発 / 実行者 |
+| **対になる正本** | [`todo-po.md`](todo-po.md)（PO / 人間レーン · Fable UAT-human 裁定済） |
+| **方針** | 規律 · バグ · UAT · 確定裁定（**§4＝旧 §7**）· 着手可能な実行（**§5＝旧 §8**） |
+
+旧 `STATUS.md` / `bug.md` / `PO-todo.md` は本ファイル＋ [`todo-po.md`](todo-po.md) に統合（`STATUS.md` 削除済）。長文履歴は  
+[`docs/work/archives/STATUS-before-2026-08-13-slim.md`](docs/work/archives/STATUS-before-2026-08-13-slim.md) と git。
+
+| 内容 | 正本 |
+|------|------|
+| 技術・バグ・規律・UAT・着手可能な実行 | **todo.md（このファイル）** |
+| 確定済み PO 裁定・完了証跡 | **todo.md §4**（旧 §7） |
+| 着手可能な実行 | **todo.md §5**（旧 §8） |
+| PO 確認待ち | **[`todo-po.md`](todo-po.md)**（§1 H1–H7 open · 実施設計 [exec-session](reports/fable-po-confirm-answer-2026-08-14-exec-session.md) · 証跡 [uat-human](reports/uat-human-2026-08-14/)） |
+| Issue 本文 | GitHub |
+| 開発規約 | [`.claude/CLAUDE.md`](.claude/CLAUDE.md) · [`AGENTS.md`](AGENTS.md) |
+| 採択方針 | [`docs/work/decisions/`](docs/work/decisions/) |
+
+**agent 製品 unit: NONE。** Open 実行行はすべて §5。gate 未充足の作業は §4.2 に置き、解禁しない。
 
 ---
 
-## 0. 前提（触らない土台）
+## 1. 規律
 
-既に正しい。作り直さない。
+### Agent
 
-- [x] `internal/<domain>` vertical slice（domain/capability-first modular monolith）
-- [x] 旧 layer package（`handler` / `service` / `repository`）の廃止
-- [x] `cmd/api` 明示 composition root
-- [x] write owner（例: `appointments` → `reservation`）と lint gate
-- [x] consumer-side interface による import cycle 解消
-- [x] clinic isolation / clinical safety を package 配置だけで証明しない（runtime test + invariant）
+- merge / push は依頼時のみ · migrate を自動適用しない · Done / VERIFIED_FIXED は人間
+- シナリオ md は編集しない
+- 秘密 · token · 臨床数値 · 契約金額 · 実 identity · Go-live 日付を repo / chat / 本台帳に書かない
+- 破壊削除（TASK-021 B/C/D · LINE-R05 DROP）は gate 後のみ（確認待ちは [`todo-po.md`](todo-po.md)）
+- 製品コードの Open unit を無断で増やさない（**NONE 維持**）
 
-### やらないこと（アーキ改善に見せかけた退行）
+### 常設（トリガー時だけ実行。§5 の open 行にしない）
 
-- [ ] ~~Clean Architecture の folder 導入（`domain/` `application/` `infrastructure/`）~~ — **禁止**
-- [ ] ~~`internal/handler|service|repository` の復活~~ — **禁止**
-- [ ] ~~medicalrecord を entity 単位 18 package に機械分割~~ — **禁止**（ADR-006 却下済み粒度）
-- [ ] ~~全 `internal/model` の一括 domain 分散~~ — **禁止**（漸進のみ可）
-- [ ] ~~mock のためだけの interface 先創り~~ — **禁止**
-- [ ] ~~behavior change / schema / API 破壊を「整理」に同梱~~ — **禁止**
+1. **OPS-2 local fresh** — checksum mismatch の **local** だけ承認済み fresh（[`LOCAL_DB_RESET.md`](docs/ops/deploy/LOCAL_DB_RESET.md)）。STG / PROD reset はしない
+2. **TASK-004 / 005** — screens-drift / closed-pack が land したときだけ
+3. **ARCH-A4** — **痛み駆動**のみ。予防的一括リファクタ禁止。ledger: [`arch-a4-trigger-ledger.md`](docs/architecture/arch-a4-trigger-ledger.md)
+
+**POST-PULL:** migration を含む commit を pull したら、利用前に USER が `make migrate`。agent は適用しない。
 
 ---
 
-## 1. 目標像
+## 2. 受入バグ（Open のみ）
 
-```text
-同じ ADR-006 のまま:
+**方針:** 未対応コード欠陥だけ残す。FIXED は削除。
 
-  - 各 domain の「1 PR の自然な単位」が小さい
-  - write owner と cross-domain tx 契約が全部説明できる
-  - composition と model が再び god にならない
-  - 許可依存グラフがテストで守られる
+### Open
+
+**なし。**
+
+| メモ | 内容 |
+|------|------|
+| 仕様（BUG にしない） | S08 部分入金不可（[`todo-po.md`](todo-po.md) UAT-S1） |
+| 環境・実機（人間） | **正本 [`todo-po.md`](todo-po.md) §1**（H1〜H7 · 実 LINE · audit · 締め · シフト · S13 · PARTIAL spot-check） |
+| UAT 証跡 | [`reports/uat-2026-08-14/FINAL.md`](reports/uat-2026-08-14/FINAL.md)（CDP :9222 フル · 製品 FAIL 0） |
+
+新規バグはここに `### BUG-xxx` を追加。対応後は削除して git に任せる。
+
+---
+
+## 3. UAT（技術ポインタ）
+
+| レポート | 内容 |
+|----------|------|
+| **アーキテクチャ** | [`docs/ops/testing/TEST_ARCHITECTURE.md`](docs/ops/testing/TEST_ARCHITECTURE.md) |
+| **環境** | [`docs/ops/testing/UAT-ENV-SETUP.md`](docs/ops/testing/UAT-ENV-SETUP.md) · [`reports/uat-ready/ENV-STATUS.md`](reports/uat-ready/ENV-STATUS.md) |
+| **項目単位** | [`FIELD-LEVEL-PROTOCOL.md`](docs/ops/testing/scenarios/FIELD-LEVEL-PROTOCOL.md) · [`FORM-FIELD-INVENTORY.md`](docs/ops/testing/scenarios/FORM-FIELD-INVENTORY.md) |
+| **最新フル** | [`reports/uat-2026-08-14/FINAL.md`](reports/uat-2026-08-14/FINAL.md) · 製品 FAIL **0** · PASS 1352 · PARTIAL 26 · BLOCKED 7 · build `1386e1db0` |
+| **Fable（UAT 後）** | [`reports/fable-po-confirm-answer-2026-08-14-uat-human.md`](reports/fable-po-confirm-answer-2026-08-14-uat-human.md) · RATIFY 21 · TIGHTEN 4 · OVERTURN 0 |
+| **Fable（実施設計）** | [`reports/fable-po-confirm-answer-2026-08-14-exec-session.md`](reports/fable-po-confirm-answer-2026-08-14-exec-session.md) · P1 · ケース B · M1–M5 |
+| **サイドバーマスタ** | [`reports/uat-2026-08-14-sidebar-masters/FINAL.md`](reports/uat-2026-08-14-sidebar-masters/FINAL.md) · PASS 161 · FAIL 0 · 起票 0 |
+| **V04 マスタ項目** | [`reports/uat-2026-08-14-v04/FINAL.md`](reports/uat-2026-08-14-v04/FINAL.md) |
+| シナリオ正本 | [`docs/ops/testing/scenarios/`](docs/ops/testing/scenarios/)（**結果を書かない**） |
+
+local FAIL 0 は閉証拠にしない。実 LINE / staging merge / Issue close は §4.2 または §5。
+
+---
+
+## 4. 確定裁定（旧 §7） {#7}
+
+USER 採択: [Sol r2](reports/gpt-5.6sol-po-qa-answer-2026-08-14-r2.md) + [Fable 確認](reports/fable-po-confirm-answer-2026-08-14.md)（RATIFY 79 · TIGHTEN 4 · OVERTURN 0 · DEC-40〜68 / Fable pack 維持）。  
+値の空欄は **§5** と [`DELIVERY_PACKAGE.md`](docs/delivery/DELIVERY_PACKAGE.md)。証跡は [`docs/work/residual-closeout-ledger.md`](docs/work/residual-closeout-ledger.md)。  
+完成物本文の正本は r2 §E（#258 は Fable 修正版 = r2 E-11 現行稿）。
+
+禁止の正本はこの節（とくに §4.2）。旧 §8.9 を消したことは解禁ではない。
+
+### 4.1 完了
+
+| ID | 内容 | 証跡 |
+|----|------|------|
+| PO-01 · #98 | RDS credential 受容 · GitHub **CLOSED** | `2026-08-08-PO-attestation-F098` · gh 2026-08-14 |
+| PO-02 · #99 | ECS 経路 WORKFLOW_ABSENT · GitHub **CLOSED** | `…-F099` · gh 2026-08-14 |
+| PO-03 · #252↔#257 | go-live gate に #252=`YES` · window 未設定 | `…-F257-gate252` |
+| PO-04 | E2E_LOGIN_* を `.env.local` に SET | 値は書かない |
+| PO-05 | Playwright core **80/80** | 2026-08-07 |
+| PO-06 · #254 | local scenarios UAT FAIL 0 | [`reports/uat-2026-08-14/FINAL.md`](reports/uat-2026-08-14/FINAL.md) · **close は未了** |
+| PO-07 · TASK-021-B | `NO_KNOWN_EXTERNAL_CONSUMERS` | `2026-08-09-PO-TASK-021-registry` |
+| PO-09 | inventory_start=`2026-08-09` | F-021-X clock 開始 |
+| PO-14 · #256 | visual sign-off dual SIGNED_OFF | `2026-08-08-PO-signoff-TASK-024` · **U13/close は未了** |
+| PO-15 · TASK-022/S13 | 記録済 · #239 CLOSED | residual U6 |
+| residual U0–U6 | closeout 縦ログ完了 | ledger |
+| 受入バグ | Open **0** | §2 |
+| OPS-7 | 旧 AWS IaC 退役 | 再開・apply しない |
+| OPS-10 / 11 / 12 | 任意・repo 外・full seed 非 default | 残件化しない |
+| TASK-009 | seed local | `exam_reference_ranges` COUNT **20** |
+| ARCH-A1〜A3, A5〜A8 | domain / composition / lint | **done** · A4 は §4.2 |
+| #212 / #235 / #260 | GitHub **CLOSED** · plan hub 復活なし | gh 2026-08-14 |
+| agent §5 準備 | Issue 依頼投稿 · staging KEEP 推奨 · local PO-10 · ドラフト | [`SECTION5-STATUS.md`](reports/todo-walk-2026-08-14/SECTION5-STATUS.md) |
+| staging-only disposition | 4 件 **KEEP** | [`staging-preflight-status.md`](reports/todo-walk-2026-08-14/staging-preflight-status.md) |
+| staging draft PR | main→staging draft **#299**（未 merge） | https://github.com/MinoruSoga/AnimalEkarte/pull/299 |
+| PO-10 local presence | secret present=0（local のみ） | [`po10-local-presence.md`](reports/todo-walk-2026-08-14/po10-local-presence.md) |
+| Open Issue 1件ずつ | 16 件コメント · close **0** | [`github-issues-walk.md`](reports/todo-walk-2026-08-14/github-issues-walk.md) |
+| GH→Linear 起票 | **BRT-37〜52**（16）Ready · parent BRT-4 | [`github-linear-map.md`](reports/todo-walk-2026-08-14/github-linear-map.md) |
+
+### 4.2 裁定索引（HOLD / DEFER は §5 に出さない） {#ops}
+
+| ID | Verdict | 回答 |
+|----|---------|------|
+| 再審 | なし | DEC-40〜68 / Fable pack 維持。UAT-human 裁定も OVERTURN 0（境界は人間・環境・外部起因） |
+| PO-08 / TASK-021-C/D | **DEFER** | B→C→D。DROP しない。F-021-X: inventory_start=2026-08-09 → **2026-11-07** 無応答なら ACCEPT_RESIDUAL_RISK を再裁定（[`todo-po.md`](todo-po.md) 予約） |
+| PO-10 / LINE-R05 | **DO_NEXT** | STG/PROD presence は未。local は §4.1 済。ゼロ前 DROP 禁止 → **§5 #8** |
+| PO-11 / #201 | **DO_NOW** | Issue 依頼済。空欄記入待ち。TASK-033 禁止 → **§5 #1** |
+| PO-12 / #249 | **DO_NEXT** | Issue 依頼済。承認前 unit 禁止 → **§5 #4** |
+| PO-13 / #211 | **DO_NEXT** | Issue 依頼済。apply HOLD → **§5 #5** |
+| PO-16 / #261 | **HOLD** | #201 opaque ref と runtime 5 項目が揃うまで |
+| #254 close | **HOLD**（TIGHTEN） | local FAIL 0 単独不可。**UAT-H1〜H7**（H4〜H7 は disposition 可）+ build SHA `1386e1db0` + 別 USER sign-off — 正本 [`todo-po.md`](todo-po.md) §2 · [Fable](reports/fable-po-confirm-answer-2026-08-14-uat-human.md) §E |
+| #256 close | **CLOSE_RECOMMEND** | U13 + 発効日 + opaque ref + 別承認後のみ → **§5 #3** |
+| staging ← main merge | **DO_NEXT** | preflight 残り green 後に merge-commit PR のみ。disposition KEEP は §4.1 |
+| 実 LINE UAT · OPS-4 · OPS-5 | **DO_NEXT** | current main の STG health 後。本文 r2 §E-8 |
+| PO-17 · OPS-13 | **DO_NEXT** | named env 非破壊 migrate。agent migrate / reset 禁止 |
+| PO-18 / #89·#97 · OPS-1 | **DO_NEXT** | rotation → **§5 #7** |
+| PO-19 / #253 | **HOLD** | PROD 未構築 |
+| PO-20 / #257 | **HOLD** | Go-live 日付を置かない |
+| #250 | **HOLD** | Issue 催促済 · producer 回答待ち → **§5 #9** |
+| #259 | **HOLD** | Issue 催促済 · enable 待ち · gate OFF → **§5 #10** |
+| #284 | **DEFER** | DEFER_PHASE2 |
+| OPS-3 | **DEFER** | STG health 後 0-rule 件数。SQL 下記 |
+| OPS-14 | **DEFER** | staging PR 後 remote CI |
+| #252 | **DEFER** | staging 準備後 preview |
+| OPS-6 / 8 / 15 / 16 / 17 | **HOLD** | PROD 未構築または domain 未入力 |
+| OPS-2 | 常設 | local fresh のみ → **§1** |
+| OPS-9 | **DEFER** | 非 blocking 目視 |
+| OPS-18 | **DEFER** | Sentry free-only |
+| #249 外部 import | **DEFER** | phase2 |
+| #255 | **UNANSWERABLE** | roster は repo 外 |
+| ARCH-A4 | **DEFER** | 痛み駆動 → **§1** |
+| TASK-004 / 005 | 都度 | land 時のみ → **§1** |
+| TASK-033 | **HOLD** | #201 後 |
+| TASK-374-apply | **HOLD** | #211 両行後 |
+| POST-PULL | **KEEP_OPEN** | USER `make migrate` → **§1** |
+| DR-CLINICAL 全行 | **UNANSWERABLE** | 依頼は §5 |
+| DR-DELIVERY 全行 | **UNANSWERABLE** | `DELIVERY_PACKAGE.md` |
+| DR-PRIVACY-256 一行 | **UNANSWERABLE** | U13 は USER |
+| VACCINE-SPECIES 値 | **HOLD** | §5 #4 に添付 |
+
+**OPS-3**（STG health 後 · read-only · 件数のみ）:
+
+```sql
+SELECT pg.id, pg.clinic_id, pg.name, COUNT(DISTINCT sp.staff_id) AS assigned_staff
+FROM permission_groups pg
+LEFT JOIN permission_group_rules r ON r.group_id = pg.id AND r.deleted_at IS NULL
+LEFT JOIN staff_permission_groups sp ON sp.group_id = pg.id
+WHERE pg.deleted_at IS NULL
+GROUP BY pg.id, pg.clinic_id, pg.name
+HAVING COUNT(r.id) = 0
+ORDER BY pg.clinic_id, pg.id;
 ```
 
-成功の測り方（アーキ）:
+### 4.3 DEC アンカー
 
-- 機能改修 PR の平均タッチファイル数が下がる（domain ごと）
-- cross-domain 新規 path に「tx / fail-closed or best-effort+補償」が必ず書かれる
-- composition / model への「なんでも追加」がレビューで弾ける
-- import allowlist 違反が CI または scoped test で落ちる
+<a id="dec-40"></a><a id="dec-41"></a><a id="dec-42"></a><a id="dec-43"></a><a id="dec-44"></a><a id="dec-45"></a><a id="dec-46"></a><a id="dec-47"></a><a id="dec-48"></a><a id="dec-49"></a><a id="dec-50"></a><a id="dec-51"></a><a id="dec-52"></a><a id="dec-53"></a><a id="dec-54"></a><a id="dec-55"></a><a id="dec-56"></a><a id="dec-57"></a><a id="dec-58"></a><a id="dec-59"></a><a id="dec-60"></a><a id="dec-61"></a><a id="dec-62"></a><a id="dec-63"></a><a id="dec-64"></a><a id="dec-65"></a><a id="dec-66"></a><a id="dec-67"></a><a id="dec-68"></a>
 
----
-
-## 2. バックログ（優先度順）
-
-### ARCH-A1: `medicalrecord` 内凝集（最高）
-
-| 項目 | 内容 |
-|------|------|
-| **ID** | ARCH-A1 |
-| **優先度** | P0 |
-| **状態** | **COMPLETE + landed on origin/main（2026-08-07）** · tip `bd7f9f677` |
-| **対象** | `backend/internal/medicalrecord/**` · composition は原則触らない（S1） |
-| **実測（計画）** | prod ~34k LOC / ~195 files · test ~88k · 最大: examination 841 / hospitalization 725 / treatment 678 等 |
-| **方針** | B 削除 → C 同一 package 内 file 分割。**D（subpackage / Clean / 境界またぎ）不採用** |
-| **計画ソース** | Grok Plan-only 実行結果（code-review-graph + grep/read + ADR-006） |
-
-#### チェックリスト
-
-- [x] **A1-0** グラフ・肥大 file・write path 調査（計画完了）
-- [x] **A1-1** S1: BE9 残骸削除・thin path 収束 — `e7a2a53b4`
-- [x] **A1-2a** S2: examination items 分割 — `fe3bed53f`
-- [x] **A1-2b** S3: hospitalization discharge 分割 — `a4b830648`
-- [x] **A1-2c** S4: treatment helpers 分割 — `c56ad84c3`
-- [x] **A1-2d** S6: vital 分離 — `1e58c85d0`
-- [x] **A1-2e** S5: medical_record appointment context — `bd7f9f677`
-- [x] **A1-3** 間接 isolation: repository 述語は書き換えず service 分割のみ
-- [x] **A1-4** appointment: reservation intent のみ維持（reservation diff empty + write-owner PASS）
-- [x] **A1-5** composition 未変更（全スライス）
-- [x] **A1-6** 1 スライス 1 commit · API/schema 不変 · scoped Docker test
-
-#### 不変条件（全スライス）
-
-- clinic isolation（直接・親経由）— JOIN/EXISTS/subquery を「整理」名目で書き換えない
-- appointment 通常カルテ — reservation owner のみ。medicalrecord は Backfill/Prepare intent のみ
-- fail-closed — tx/validator 欠落を成功にしない
-- required audit は同 tx
-- 公開 HTTP contract 不変（status / error code / JSON / RBAC）
-
-#### スライス計画（確定）
-
-```text
-S1 ──► S2
- │
- ├──► S3（S1 後）
- ├──► S4（S1 後）
- ├──► S6（S1 後）
- └──► S5（S1 後・高リスクは後ろ）
-S2 ∥ S3 ∥ S4 ∥ S6 は file 衝突少なら並列可
-```
-
-| Slice | 目的 | リスク | 主なパス | 状態 |
-|-------|------|--------|----------|------|
-| **S1** | BE9 残骸削除: legacy `NewMedicalRecordService`（test helper）除去 + `goSafe` thin wrapper 削除 | **LOW** | `go_safe.go` 削除、`checkup_service.go`→`sharedkernel.GoSafe`、test を `WithTxAudit` へ、`medical_record_legacy_constructor_test.go` 削除 | **done** `e7a2a53b4` |
-| **S2** | `examination_service.go`（841）純粋分割（items/replaceItemsTx 等） | MEDIUM | → `examination_items.go` | **done** `fe3bed53f` |
-| **S3** | `hospitalization_service.go` から Discharge 分離 | **HIGH** | → `hospitalization_discharge.go` | **done** `a4b830648` |
-| **S4** | `treatment_service.go`（678）fields / master FK 分離 | MEDIUM | `treatment_fields.go` / `treatment_master_fk.go` | **done** `c56ad84c3` |
-| **S5** | `medical_record_crud` の appointment context 可視化 | CRITICAL〜HIGH | → `medical_record_appointment_context.go` | **done** `bd7f9f677` |
-| **S6** | `vital_service` の validation/audit 分離 | MEDIUM | `vital_validation.go` / `vital_audit.go` | **done** `1e58c85d0` |
-
-#### S1 詳細（実装仕様）
-
-| 項目 | 内容 |
-|------|------|
-| 削除 | `go_safe.go`（`sharedkernel.GoSafe` への 1 行 delegate） |
-| 削除 | `medical_record_legacy_constructor_test.go` の `NewMedicalRecordService` helper |
-| 変更 | `checkup_service.go` の `goSafe(...)` → `sharedkernel.GoSafe(...)` |
-| 変更 | medicalrecord 配下 test の `NewMedicalRecordService(` → `NewMedicalRecordServiceWithTxAudit(`（audit 引数は既存 production 署名に合わせ `nil` 等） |
-| 触らない | examination/hospitalization/treatment 本体、`medical_record_lock.go`、routes、`cmd/api` composition（既に `WithTxAudit`） |
-| 検証 | `docker compose exec backend go test ./internal/medicalrecord/ -count=1 -run 'TestMedicalRecordService_'` および影響 test 名を必要最小追加 |
-| ロールバック | 単一 commit revert |
-| 完了条件 | production/test から legacy ctor 消滅 · `go_safe.go` 削除 · 公開 API 無変更を PR 説明に明記 · focused test green |
-
-**S1 完了証跡（2026-08-07）:**
-
-- Commit: `e7a2a53b4` — `refactor(medicalrecord): remove BE9 thin delegates`
-- 削除: `go_safe.go` · `medical_record_legacy_constructor_test.go`
-- 変更: `checkup_service.go` + 9 `*_test.go` → `WithTxAudit(..., nil /*auditTx*/, ...)`
-- 確認: `rg 'func goSafe|goSafe\(|NewMedicalRecordService\('` → 0 hits
-- 検証: 共有 DB 依存の広い `TestMedicalRecordService_` は schema 欠落で不安定なため、モック系 + `TestCheckupService_` + auto-create の focused run で green
-- composition / lock / API 未変更 · push/PR 未実施
-
-#### 次ラウンド（今回 Out of scope）
-
-- lab_import_repository 547 行分割
-- medicine_service + inventory 交差
-- 巨大 `_test.go` 分割（prod と混ぜない）
-- validators.go 全 call site の sharedkernel 直参照化
-- daily_record（S6 でも原則触らない）
-- RegisterRoutes / checkup package import 肥大
-
-#### 検証（例）
-
-```bash
-docker compose exec backend go test ./internal/medicalrecord/ -count=1 -run 'TestMedicalRecordService_'
-# S2: -run 'TestExamination'
-# S3: -run 'TestHospitalization'
-# S4: -run 'TestTreatment'
-# S5: medicalrecord + 必要なら reservation write-owner focused
-# S6: -run 'TestVital'
-```
-
-#### 完了条件（A1 全体）
-
-- [x] S1–S6 が各 commit で着地（behavior-preserving file split）
-- [x] examination / hospitalization discharge / treatment helpers / vital / appointment context が分離
-- [x] composition 未変更
-- [x] 公開 API / write owner / isolation 不変（focused test + reservation write-owner）
-
-#### ARCH-A1 完了証跡（全コミット）
-
-| Slice | Commit | Message |
-|-------|--------|---------|
-| S1 | `e7a2a53b4` | remove BE9 thin delegates |
-| S2 | `fe3bed53f` | split examination items write path |
-| S3 | `a4b830648` | split hospitalization discharge with billing path |
-| S4 | `c56ad84c3` | split treatment field and master FK helpers |
-| S6 | `1e58c85d0` | split vital validation and audit helpers |
-| S5 | `bd7f9f677` | extract medical record appointment context helpers |
-
-**USER 残作業**
-
-- [x] push: `main` → `origin/main`（`54e876262..bd7f9f677`）
-- [x] claim release:
-  - `claim/ARCH-A1-S5` deleted（was `1e58c85d0`）
-  - `claim/ARCH-A1-S6` deleted（was `c56ad84c3`）
+索引は上表。全文は git 履歴の旧 `q&a.html`。
 
 ---
 
-### ARCH-A2: 共有 `internal/model` の所有明確化（高）
-
-| 項目 | 内容 |
-|------|------|
-| **ID** | ARCH-A2 |
-| **優先度** | P1 |
-| **状態** | **done**（claim `claim/ARCH-A2` — user release after merge） |
-| **対象** | `backend/internal/model/**` · 各 domain の DTO/command |
-| **実測** | ~91 production files / ~4.5k LOC |
-| **問題** | package 境界は domain だが型所有が中央に残り、見えない結合が増えやすい |
-| **方針** | 一括移動しない。新規と触った箇所だけ owner を明確化 |
-| **成果物** | `docs/architecture/model-write-owner-catalog.md` + TAP test |
-
-#### チェックリスト
-
-- [x] **A2-1** 主要 business fact について「GORM 型の write owner package」一覧を作る — catalog table
-- [x] **A2-2** 新規型: owner domain に寄せるか、model に置くなら owner を明記 — Rules §1–2
-- [x] **A2-3** domain 専用 command / DTO を model から分離し続ける — Rules §3
-- [x] **A2-4** 「model に足しただけ・振る舞いが owner にない」新規をレビューで落とす — Rules §4 + PR checklist
-- [x] **A2-5** 共有 ID / 列挙の複製はしない — Rules §5
-
-#### 完了条件
-
-- [x] 新規 fact の owner が PR 説明で必ず言える（catalog Rules + checklist）
-- [x] model 一括再配置の Issue を起票しない（Rules §6）
-
----
-
-### ARCH-A3: Cross-domain orchestration 契約の固定（高）
-
-| 項目 | 内容 |
-|------|------|
-| **ID** | ARCH-A3 |
-| **優先度** | P0–P1 |
-| **状態** | done（A3-4 closed via graph r8） |
-| **対象** | reservation ↔ medicalrecord ↔ billing ↔ trimming ↔ lstep ↔ staff 等 |
-| **問題** | intent API（良い）と best-effort 別 tx（契約として残存）が混在し、保証範囲が path ごとに違う |
-| **既知例** | 予約確定→カルテ auto-create best-effort · キャンセル→draft カルテ cleanup best-effort · billing の ambient tx 参加 intent |
-| **成果物** | `docs/architecture/cross-domain-orchestration-catalog.md` + `cross-domain-orchestration-catalog.test.mjs`（graph r8 COMPLETE `9d706c97-8fa3-4f41-854e-d753d474cafd`） |
-
-#### チェックリスト
-
-- [x] **A3-1** cross-domain 経路カタログを作る（1 表）  
-  列: initiator / owner operation / transaction boundary / fail-closed vs best-effort / failure recovery / audit participation / test anchors
-- [x] **A3-2** 新規 path ルールを明文化（catalog「New-path rules」）  
-  - owner の typed intent のみ  
-  - ambient tx 参加 or 明示 orchestration  
-  - fail-closed か、best-effort なら補償・再試行・観測をセット  
-  - silent 部分成功を増やさない
-- [x] **A3-3** 既存 best-effort path をカタログ上で「意図的契約」としてラベル付け（無断で同 tx 化しない）  
-  PATH-RES-MR-AUTOCREATE / PATH-RES-MR-CANCEL-CLEANUP
-- [x] **A3-4** automation / batch も同じ契約表に載せる（residual — graph r8 COMPLETE `946122b9-0ea9-4a5b-bfcd-cc9eab3fa7c9`）
-- [x] **A3-5** カタログの置き場: `docs/architecture/cross-domain-orchestration-catalog.md`（STATUS 長文なし）
-
-#### 完了条件
-
-- [x] 主要 cross-domain path が一覧で追える（TAP 回帰付き）
-- [x] 新規 path の設計レビューで表の列が埋まらないとマージしない運用になる（catalog new-path rules + 行追加必須）
-
----
-
-### ARCH-A4: 次点 domain の局所整理（中・トリガー駆動）
-
-| 項目 | 内容 |
-|------|------|
-| **ID** | ARCH-A4 |
-| **優先度** | P2 |
-| **状態** | **in progress**（ledger + billing S1）· claim `claim/ARCH-A4` |
-| **方針** | 大きいから割らない。変更痛みの実測が出てから |
-| **ledger** | [arch-a4-trigger-ledger.md](docs/architecture/arch-a4-trigger-ledger.md) |
-
-#### A4-lstep（~16.5k prod LOC）
-
-- [ ] 着手条件: LINE 再開（#259 等）が実際に始まる直前 — **2026-08-07 blocked**（STATUS 依存待ち）
-- [ ] batch / tag sync / delivery の内部凝集を見直す（同一 package 内）
-- [ ] 通常 app から変な cross write を増やさない
-
-#### A4-billing（~14.5k prod LOC）
-
-- [x] **S1** `billing_item_service.go` unbilled 凝集を `billing_item_unbilled.go` へ同一 package 分割（挙動不変）— `eca651da3`
-- [x] **S2** `billing_item_repository.go` unbilled クエリを `billing_item_repository_unbilled.go` へ分割（挙動不変）— `13d043315`
-- [x] **S3** `estimate_service.go` successor を `estimate_service_successor.go` へ分割（挙動不変）
-- [ ] residual: billing_item post-close/create helpers · accounting 系（触る PR があるときだけ）
-- [ ] 締め後編集の audit 同 tx fail-closed を壊さない（分割時の不変条件）
-
-#### A4-reservation（~13.3k prod LOC）
-
-- [x] write owner lint を維持（既存 gate・今回変更なし）
-- [ ] owner **内** `map[string]any` update を、触る変更のたびに typed command へ寄せる（一括禁止）
-- [ ] intent repository / reservation_service の肥大が痛みになったら file 分割
-
-#### 完了条件
-
-- [x] トリガー記録 → スライス 1 本（billing S1）を閉じた
-- [x] 三つ同時リファクタをしない（billing のみ）
-- [ ] lstep / reservation はトリガー後に別スライス
-
----
-
-### ARCH-A5: Composition root の再 god 化防止（中）
-
-| 項目 | 内容 |
-|------|------|
-| **ID** | ARCH-A5 |
-| **優先度** | P1 |
-| **状態** | **done**（claim `claim/ARCH-A5` — user release after merge） |
-| **対象** | `backend/cmd/api/**` |
-| **問題** | medicalrecord 配線だけで ~595 行規模。第2の Services aggregator 化リスク |
-| **成果物** | `docs/architecture/composition-root-conventions.md` · `cmd/api/composition_root_conventions_lint_test.go` |
-
-#### チェックリスト
-
-- [x] **A5-1** 新規依存は `composition_<domain>.go` + domain 側 constructor / `Dependencies` に閉じる — conventions + required file pin
-- [x] **A5-2** main に field を増やし続けない — main.go domain wiring call 禁止 lint
-- [x] **A5-3** lstep `Application`/`Dependencies` を medicalrecord へ強制せず評価 — conventions §A5-3（現状 composition_* 維持）
-- [x] **A5-4** route composition smoke を監視ゲートとして固定 — conventions が `route_composition_smoke_test` を正本参照
-- [x] **A5-5** consumer 0 の root facade / god `Services`·`Repositories` 型を lint で拒否
-
-#### 完了条件
-
-- [x] 新規 domain 機能追加時、composition diff が「配線だけ」で読める運用文書がある
-- [x] 巨大 aggregator 型の復活を scoped test で落とせる
-
----
-
-### ARCH-A6: 許可依存グラフの機械ガード（中）
-
-| 項目 | 内容 |
-|------|------|
-| **ID** | ARCH-A6 |
-| **優先度** | P1 |
-| **状態** | **done**（claim `claim/ARCH-A6` — user release after merge） |
-| **対象** | domain 間 production import · [boundary map §5](docs/architecture/be9-2a-boundary-map.md) · ADR-006 |
-| **問題** | 文書上の許可依存と実装がドリフトしうる |
-| **成果物** | `backend/internal/lintscan/domain_import_allowlist_lint_test.go` · boundary map §5.2 |
-
-#### チェックリスト
-
-- [x] **A6-1** production import の allowlist（誰が誰を import してよいか）を定義 — `domainImportAllowlist`
-- [x] **A6-2** 専用 test で機械チェック — `TestDomainImportAllowlistLint`（allowlist acyclic + real tree + mutations）
-- [x] **A6-3** 新規 edge は ADR / boundary map 更新を必須にする運用を書く — §5.2
-- [x] **A6-4** code-review-graph の community / bridge を四半期境界監査に使う手順を 1 節で固定 — §5.2
-- [x] **A6-5** consumer-side interface 経由であるべき結合が具象 import に戻っていないか重点監視 — §5.2 禁止例 + allowlist 非掲載
-
-#### 完了条件
-
-- [x] 許可外 import が scoped test で落ちる（`go test ./internal/lintscan/ -run DomainImportAllowlist`）
-- [x] 新規 domain edge のレビュー観点がチェックリスト化されている（§5.2）
-
----
-
-### ARCH-A7: Frontend feature 境界と BE 対応（中〜低）
-
-| 項目 | 内容 |
-|------|------|
-| **ID** | ARCH-A7 |
-| **優先度** | P2 |
-| **状態** | **done**（claim `claim/ARCH-A7` — user release after merge） |
-| **対象** | `frontend/src/features/**` · `components` · `hooks` · `lib` · `shared-liff` |
-| **問題** | feature 分割は良いが、FE↔BE domain / RBAC 対応が暗黙。共有層肥大で境界が薄まる |
-| **成果物** | `docs/architecture/fe-feature-be-domain-map.md` + TAP test |
-
-#### チェックリスト
-
-- [x] **A7-1** 主要フローの FE feature ↔ BE domain / RBAC resource 対応表 — catalog map
-- [x] **A7-2** 新規 UI は必ず `features/` 配下 — Rules A7-2
-- [x] **A7-3** 共有昇格ルール（消費者 2+ + 理由）— Rules A7-3
-- [x] **A7-4** `shared-liff` と `line-reservation` の責務境界 — Rules A7-4
-- [x] **A7-5** Feature Indexing は該当 feature のみ修正 — Rules A7-5
-
-#### 完了条件
-
-- [x] 新規画面の置き場で迷わない（map + rules）
-- [x] FE 全体の Clean/layer 再編をしない（明示 anti-pattern）
-
----
-
-### ARCH-A8: 例外 package を増やさない（低・規律）
-
-| 項目 | 内容 |
-|------|------|
-| **ID** | ARCH-A8 |
-| **優先度** | P2 |
-| **状態** | **done（継続規律 + 機械 pin）** · claim `claim/ARCH-A8` |
-| **対象** | `csvimport` · `identitylink` · `httpapi` · `sharedkernel` · `persistence` · `audit` 等 |
-| **成果物** | `docs/architecture/exception-package-discipline.md` · `lintscan/exception_package_discipline_lint_test.go` |
-
-#### チェックリスト
-
-- [x] **A8-1** `csvimport` は cutover/tooling 専用 — cmd-only import lint
-- [x] **A8-2** 新規 cross-domain write 例外は ADR + orchestration catalog — discipline doc
-- [x] **A8-3** `identitylink` は owner/pet を Go import しない — discipline lint + domain allowlist
-- [x] **A8-4** `common` / `util` bucket 禁止 — package boundary C4（doc から参照）
-- [x] **A8-5** 横断抽出は consumer 2+ — discipline doc
-
-#### 完了条件
-
-- [x] 例外 package の増加手順が ADR/allowlist 更新必須として文書化・一部機械 pin
-
----
-
-## 3. 実施順（アーキのみ）
-
-| 順 | ID | 内容 |
-|----|-----|------|
-| 1 | ARCH-A1 | medicalrecord 内凝集（削除 → file 分割） |
-| 2 | ARCH-A3 | cross-domain 契約カタログ |
-| 3 | ARCH-A6 | 許可依存の機械ガード |
-| 4 | ARCH-A2 | model 所有の漸進明確化 |
-| 5 | ARCH-A5 | composition 規律・Dependencies 横展開 |
-| 6 | ARCH-A4 / A7 | 痛みが出た domain / FE のみ |
-| 継続 | ARCH-A8 | 例外を増やさない |
-
----
-
-## 4. 作業ルール（このバックログ用）
-
-1. **Plan-only → 小さな PR**。大きな「アーキ刷新」PR を作らない  
-2. **product-philosophy**: 追加より削除・簡素化。存在すべきでない最適化をしない  
-3. **検証**: Docker スコープ限定。フル `go test ./...` / フル lint / DB reset は agent 自動実行禁止  
-4. **migration**: agent は適用しない。必要になったスライスは別ゲート  
-5. **並行作業**: claim プロトコル / worktree 隔離（[`git-worktree-safety`](.claude/rules/git-worktree-safety.md)）  
-6. **正本**: 製品 residual・BUG・Issue は [`STATUS.md`](STATUS.md)。**本ファイルはアーキ改善専用**  
-7. 完了したら該当チェックを `[x]` にし、証跡（commit / PR / 短いメモ）を 1 行足す  
-
----
-
-## 5. 参考コマンド（調査）
-
-```bash
-# グラフ
-code-review-graph status
-code-review-graph update
-code-review-graph detect-changes --brief
-
-# package 規模（prod）
-# find backend/internal/<pkg> -name '*.go' ! -name '*_test.go' | xargs wc -l
-
-# 許可依存の下調べ例
-# rg -l 'AnimalEkarte/backend/internal/medicalrecord' backend --glob '*.go' -g '!*_test.go'
-```
-
----
-
-## 6. 一行まとめ
-
-> アーキの次の仕事は流派の乗り換えではない。  
-> domain-first を保ったまま、巨大 module・共有 model・境界オーケストレーション・依存グラフを、  
-> **変更単位と write owner** の軸で締める。
+## 5. 着手可能な実行（未完のみ） {#today} {#actions} {#forms} {#p0} {#8}
+
+完了分は **§4.1**（依頼投稿・CLOSED 確認・local PO-10・staging KEEP 含む）。  
+本文: [r2 §E](reports/gpt-5.6sol-po-qa-answer-2026-08-14-r2.md) · 証跡一覧: [`SECTION5-STATUS.md`](reports/todo-walk-2026-08-14/SECTION5-STATUS.md)  
+**agent 製品 unit: NONE。** 値は人が埋める。
+
+先頭 3: **#1 #201 空欄** · **#2 preflight 残り** · **#3 U13**。
+
+| # | ID | 次の一手 | 実行者 | 参照 | 空欄 |
+|---|----|----------|--------|------|------|
+| 1 | PO-11 / #201 | bundle 空欄を埋める | 臨床 | [Issue](https://github.com/MinoruSoga/AnimalEkarte/issues/201#issuecomment-5290074638) | 対象·policy·単位·出典·approver·発効日·opaque ref |
+| 2 | staging preflight 残り | draft **#299** 作成済。checksum·backup owner·PR CI green のあと merge-commit | リリース | [PR #299](https://github.com/MinoruSoga/AnimalEkarte/pull/299) · [status](reports/todo-walk-2026-08-14/staging-preflight-status.md) | checksum·ownership·backup/rollback owner·CI green 確認·role·時刻·opaque ref |
+| 3 | #256 U13 | 完了/未完を明示。完了時のみ close | 納品 | [Issue](https://github.com/MinoruSoga/AnimalEkarte/issues/256#issuecomment-5290075164) | U13_status·発効日·close 承認·opaque ref |
+| 4 | PO-12 / #249 | range·vaccine 空欄 | 臨床 | [Issue](https://github.com/MinoruSoga/AnimalEkarte/issues/249#issuecomment-5290074797) | range·vaccine 全欄 |
+| 5 | PO-13 / #211 | clinical / OPS 空欄 | 臨床→OPS | [Issue](https://github.com/MinoruSoga/AnimalEkarte/issues/211#issuecomment-5290075039) | clinical·OPS 全欄 |
+| 6 | #258 U1–U8/10/11 | DELIVERY_PACKAGE へ記入 | 契約 | [draft](reports/todo-walk-2026-08-14/drafts/E-11-258.md) | A/B·各 U·opaque ref |
+| 7 | PO-18 / OPS-1 | 4 系統 rotation | セキュリティ | r2 §E-12 | enum·owner·opaque ref |
+| 8 | PO-10 STG/PROD | 承認 window で presence 件数のみ | DB 運用 | r2 §E-14 · local は §4.1 | env·件数·role·opaque ref |
+| 9 | #250 | producer の complete bundle 回答 | 移行元 | [Issue](https://github.com/MinoruSoga/AnimalEkarte/issues/250#issuecomment-5290075276) | bundle·complete·authority |
+| 10 | #259 | 先方 enable 回答。gate OFF 維持 | 外部連携 | [Issue](https://github.com/MinoruSoga/AnimalEkarte/issues/259#issuecomment-5290075415) | enable·gate·rollback ref |
+| 11 | PO-008 | §5.1 を承認または修正 | クライアント仕様 | §5.1 | decision·修正·承認·発効日 |
+
+**やらない:** merge（#2 green 前）· DROP · 値発明 · #254 close · TASK-033 先行
+
+### 5.1 PO-008（クライアント確認） {#po008}
+
+| 項目 | 現行 | 確認 |
+|------|------|------|
+| annual_visit_count | 直近 365 日 rolling | 承認または修正。他指標と統一しない |
+| annual_amount | From/To → Year → preset → 全期間 | 承認または修正。visit と統一しない |
+| CSV | 顧客集計 API に CSV なし | default 追加しない |
+| last_visit / dormant | 別ロジック | 統一しない |
+| L-step write | default-off · 実 2xx だけ成功 | enable は #259 後 |
+| L-step cleanup | 本体削除は止めない。失敗通知必須 | silent success 禁止 |
+
+以上。

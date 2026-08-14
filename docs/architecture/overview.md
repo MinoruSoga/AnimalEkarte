@@ -49,7 +49,7 @@ Handler → Service → Repository、Clean Architecture、repository pattern、l
 
 BE9の構造移行後、production実装は`internal/<domain>`へ収束した。旧`internal/handler`、`internal/service`、`internal/repository` directoryは**完全削除済み**（test-only residualも含め残存しない）。production codeから旧3 packageへのimport edgeはない。live mechanical lint gateは`backend/internal/lintscan/`に置く。
 
-`cmd/api`は、domainごとのconstructorとroute registrationを直接合成するcomposition rootである。共通機能は責務に応じて`audit`、`persistence`、`scheduler`、`sharedkernel`、`infra/smtp`（package `smtp`）、`testdb`、`textsearch`等の凝集packageへ置き、巨大なlayer aggregateを復活させない。移行の最終証跡はgit履歴と[ADR-006](adr/006-backend-domain-package-boundaries.md)、release gateは[`q&a.html` OPS-13〜17](../../q&a.html#ops)を正本とする。
+`cmd/api`は、domainごとのconstructorとroute registrationを直接合成するcomposition rootである。共通機能は責務に応じて`audit`、`persistence`、`scheduler`、`sharedkernel`、`infra/smtp`（package `smtp`）、`testdb`、`textsearch`等の凝集packageへ置き、巨大なlayer aggregateを復活させない。移行の最終証跡はgit履歴と[ADR-006](adr/006-backend-domain-package-boundaries.md)、release gateは[`todo.md` OPS-13〜17](../../todo.md#ops)を正本とする。
 
 この構成は「Clean Architectureのfolderを再現する」ことではない。ただし、依存方向、consumer-side interface、明示的DI、境界をまたぐtransactionといった原則は必要な箇所で選択的に使う。効率化よりclinical safetyとclinic isolationを優先する。
 

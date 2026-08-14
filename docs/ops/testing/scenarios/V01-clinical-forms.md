@@ -1,7 +1,9 @@
 # V01: 臨床系フォーム検証（入力・更新・DB整合）
 
 > **目的**: カルテ（本体・治療・バイタル・健診・予防接種・画像・追記・検査取込・見積）・検査・予防接種・定期健診・入院・トリミングの全臨床フォームについて、入力検証（必須・形式・境界）・更新の永続化・DB 整合（FK 選択肢・一意制約・不在 ID）が実機ブラウザ経由で正しく機能することを納品前に証明する。
-> **所要目安**: 90分 / **深度**: 深い
+> **所要目安**: 120分 / **深度**: 深い + **項目単位 F プロトコル**
+> **フォーム数**: 18
+> **項目単位**: [FIELD-LEVEL-PROTOCOL.md](FIELD-LEVEL-PROTOCOL.md) + [FORM-FIELD-INVENTORY.md](FORM-FIELD-INVENTORY.md) §V01。C1 は入口。**全 fieldKey に F0–F6 を適用**して完了とする（代表 1 項目のみでは未完了）。
 > **仕様正本**: [screens/06-medical-records-form.md](../../../spec/screens/06-medical-records-form.md)・[screens/13-examinations-form.md](../../../spec/screens/13-examinations-form.md)・[screens/15-vaccinations-form.md](../../../spec/screens/15-vaccinations-form.md)・[screens/25-checkups-list.md](../../../spec/screens/25-checkups-list.md)・[screens/08-hospitalization-detail.md](../../../spec/screens/08-hospitalization-detail.md)・[screens/09-hospitalization-form.md](../../../spec/screens/09-hospitalization-form.md)・[screens/17-trimming-form.md](../../../spec/screens/17-trimming-form.md)
 
 ## 前提条件
@@ -12,7 +14,7 @@
 
 ## 共通チェック手順
 
-各フォームのセクションで (C1)(C2)(C3) を参照する。フィールド・境界値は各セクションの指定に従う。
+各フォームのセクションで (C1)(C2)(C3) を参照する。加えて **F プロトコルを inventory 全項目に適用**する。フィールド・境界値は各セクションおよび [FORM-FIELD-INVENTORY.md](FORM-FIELD-INVENTORY.md) の指定に従う。
 
 **C1 入力チェック**
 
@@ -201,7 +203,7 @@
 
 - 既存の機械テストとの分担: FE component/hook test（use-medical-record-form・TreatmentsTab/dose gate・CheckupsTab・use-examination-form・use-vaccination-form・use-hospitalization-form・use-trimming-form-validation 等）と BE service/validator test（treatment/dose_validators・vital・checkup・vaccination・clinical_plan・hospitalization・trimming 各 service）が単体レベルの入力検証を網羅済み。**E2E は全臨床フローで表示・遷移スモークのみで、フォーム送信〜永続化を検証する E2E は存在しない — 本シナリオはブラウザ → API → DB を貫く受け入れ時の実機フォーム検証である。**
 - FE 側にしかガードが無い（または有無が未確定の）項目（バイタルの体温範囲・未来日時、健診/ワクチンの未来日、トリミング必須）はブラウザ経由確認が必須。逆に治療明細の quantity/price・追記 500 字・カルテタブのワクチン必須は BE 拒否が期待線で、FE 側のエラー提示の有無を観察する。
-- クロステナント隔離はスコープ外（BE isolation テスト正本）。finalized ロック・監査証跡は S06、異常値ハイライトは S02、次回予定自動計算は S03、入院サイクルは S05 へ委譲。NG 項目は [`STATUS.md` §3 受入バグ（正本）](../../../../STATUS.md) へ `## BUG-XXX:` 節として起票する（ローカル連番 最大+1・[README.md](README.md) のルール）。
+- クロステナント隔離はスコープ外（BE isolation テスト正本）。finalized ロック・監査証跡は S06、異常値ハイライトは S02、次回予定自動計算は S03、入院サイクルは S05 へ委譲。NG 項目は [`todo.md` 受入バグ](../../../../todo.md) へ `### BUG-XXX` 節として起票する（ローカル連番 最大+1・[README.md](README.md) のルール）。
 - 本文中の具体的なエラー文言・プリフィル挙動のうち画面仕様書に記載のないもの（薬量プリフィル+dose gate・追記/健診/トリミングの必須文言・入院差分表の必須断定・トリミングの予約区分前提）は、FE hook / BE バリデータの実装を確認済み（2026-07-16）。文言はリファクタで変わりうるため、合格基準は「該当エラーが表示され保存されないこと」であり文言の完全一致ではない。
 
 ## 異常系（臨床安全に直結する独立確認）

@@ -1,9 +1,9 @@
 # Residual Closeout Ledger
 
 > **Role:** Live residual-closeout run state only (not a second product backlog).  
-> **SoT for product residual:** root `STATUS.md` + `PO-todo.md`.  
+> **SoT for product residual:** root `todo.md` + `todo-po.md`.  
 > **Policy:** `docs/work/decisions/fable-po-recommendation.md`.  
-> **Docs snapshot:** 2026-08-09 — STATUS/PO-todo 推奨順と環境前提（no PROD · STG low use · UAT holes open）を同期済み。
+> **Docs snapshot:** 2026-08-13 — SoT を todo / todo-po に統合。  
 
 ## Frozen unit order (do not re-order without USER)
 
@@ -477,7 +477,7 @@ Policy: F-256 RATIFY + DEC-61 no-rewrite. Visual sign-off record only; no screen
 
 | Path | Action |
 |------|--------|
-| `PO-todo.md` PO-15 | checkbox checked + 完了 one-liner |
+| `todo-po.md` PO-15 | checkbox checked + 完了 one-liner |
 | `STATUS.md` TASK-022 | optional residual one-liner; remains open (human S13 still PENDING in scenario) |
 | ISSUE_239 | **skipped** (write_target=LEDGER_PO); #239 stays CLOSED |
 | S13 HUMAN table | **unchanged** (agent does not fill) |
@@ -540,8 +540,8 @@ Policy: human residual evidence only. No PHI. #239 may already be CLOSED; no reo
 | Path | Action |
 |------|--------|
 | `STATUS.md` TASK-021 table + detail | one-liner + registry summary; B/C/D remain HOLD |
-| `PO-todo.md` PO-07 | checkbox checked + 完了 one-liner |
-| `PO-todo.md` PO-09 | checkbox checked + inventory_start=`2026-08-09` |
+| `todo-po.md` PO-07 | checkbox checked + 完了 one-liner |
+| `todo-po.md` PO-09 | checkbox checked + inventory_start=`2026-08-09` |
 | Issue comment | **skipped** (write_target=BOTH_LOCAL) |
 
 **Recorded body (verbatim):**
@@ -605,7 +605,7 @@ In-repo scan: FE/LIFF/OpenAPI/handler cites summarized in ledger/STATUS (paths o
 | `STATUS.md` TASK-023 table | UAT-R1 residual one-liner; remains open |
 | `STATUS.md` §1 TASK-022/023/024 | UAT-R1 bullet |
 | `STATUS.md` §2 #254 | UAT-R1 one-liner; #254 OPEN |
-| `PO-todo.md` PO-06 | residual UAT-R1 line under checked PO-06 |
+| `todo-po.md` PO-06 | residual UAT-R1 line under checked PO-06 |
 | Issue #254 comment | **skipped** (write_target=STATUS_LEDGER; no approval sentence) |
 
 **Recorded body (verbatim):**

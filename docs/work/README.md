@@ -1,29 +1,23 @@
 # 作業台帳（docs/work）
 
-進行中の **作業・採択済み決裁** のみ。レポート置き場ではない。
+## 入口（root 正本は 2 本だけ）
 
-## 入口マップ
+| 文書 | 役割 |
+|------|------|
+| [`../../todo.md`](../../todo.md) | **技術 · バグ · アーキ · 確定裁定（§7）· 実行（§8）** |
+| [`../../todo-po.md`](../../todo-po.md) | **PO 確認待ちだけ** |
 
-| 文書 | 場所 | 役割 |
-|------|------|------|
-| **STATUS.md** | root | **全体 SoT** |
-| **PO-todo.md** | root | **USER 実行リスト** |
-| **q&a.html** | root | DEC / 記入フォーム |
-| **phase2.html** | root | 次期送り |
-| 採択済み決裁 | [decisions/](./decisions/README.md) | PO 採択方針（例: [Fable](./decisions/fable-po-recommendation.md)） |
+| 補助 | 役割 |
+|------|------|
+| [decisions/](./decisions/README.md) | 採択済み方針 |
+| [residual-closeout-ledger.md](./residual-closeout-ledger.md) | opaque_ref 縦ログ |
+| [archives/](./archives/) | 旧 STATUS 全文など |
+| root `todo.md` §8 · `phase2.html` | 着手可能な実行 · 今期外 |
+
+**削除統合済:** `STATUS.md` · `PO-todo.md` ·（`bug.md` はポインタ可）
+**正本:** `todo.md` · `todo-po.md`
 
 ## 置かないもの
 
-- dated 調査・完了レポート（旧 `reports/`）→ git 履歴
-- ブラウザ結果専用レポート → 不要。実施時は `docs/ops/testing/scenarios/` を正とする
-
-## root に残すもの
-
-| root | 理由 |
-|------|------|
-| `STATUS.md` · `PO-todo.md` | 第一入口 |
-| `q&a.html` · `phase2.html` | 決裁 UI |
-| `todo.md` | **アーキテクチャ改善バックログ**（UAT/ops residual ではない） |
-| `README` / `CLAUDE` / `AGENTS` / `SECURITY` / `DESIGN` | ツール定位置 |
-
-**削除済み互換スタブ (2026-08-09):** `bug.md` · `BE-pending.md` · `3-session-agent.html`（内容は `STATUS.md` / `phase2.html` に統合済み · 旧リンクは git 履歴）
+- シナリオ md への実行結果書き込み
+- 秘密 · 臨床数値の発明

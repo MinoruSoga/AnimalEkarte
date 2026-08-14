@@ -3271,6 +3271,50 @@ S01〜S12の業務シナリオ検証に続き、個別フォーム単位の受�
 - 実施する場合の手順正本: [`docs/ops/testing/scenarios/`](docs/ops/testing/scenarios/)
 - §3 は実装状態（IU）の正本。`VERIFIED_FIXED` は人が判断する場合のみ。
 
+### UAT ローカル再受入 2026-08-12（S01–S12）
+
+- **レポート正本**: [`reports/uat-2026-08-12/FINAL.md`](reports/uat-2026-08-12/FINAL.md)（証跡 png / results JSON 同梱）
+- **環境**: local main @ `2a7a622c4` · `:3003`/`:8080` healthy · seed 003_demo · `LIFF_MOCK` 双方 true · `exam_reference_ranges` COUNT=20
+- **シナリオ判定**: S01 **PASS** · S02/S03/S04/S05/S07/S09/S10/S11/S12 **PARTIAL** · S06/S08 **BLOCKED（深い一巡未完）** · V01–V05 未実施（任意）
+- **新規 BUG**: なし（S07 ロック疑義は draft 残存による誤検知で却下）
+- **既存 IU 継続**: BUG-003（H/L ブラウザ未証明）· S08 部分入金は仕様 BLOCKED
+- **cleanup**: 豆助 1000002 は死亡試験後 alive 復元済 · 見積 draft `S07 検証用A UAT0812` (id 1000819) 残置
+- **禁止遵守**: merge/push なし · migrate 自動適用なし · シナリオ md 未編集 · agent は VERIFIED_FIXED / Done にしない
+
+### UAT ローカル全通し 2026-08-13（S01–S13 + V01–V05）
+
+- **レポート正本**: [`reports/uat-2026-08-13/FINAL.md`](reports/uat-2026-08-13/FINAL.md)
+- **環境**: local main @ `1386e1db0` · LIFF mock 双方 true · ranges=20
+- **判定**: S01/S04/S10/S11/S12/S13/LOCK **PASS** · S02/S05/S09 **PARTIAL** · S08 **BLOCKED（仕様・部分入金）** · V01–V05 到達中心 PASS · S03/S06/S07 中核 PASS
+- **新規 BUG**: なし（`bug.md` Open も空のまま）
+- **cleanup**: 豆助 1000002 alive · S04 予約キャンセル済
+
+### UAT ローカル全シナリオ 2026-08-13-full（S01–S13 + V01–V05 深め）
+
+- **レポート正本**: [`reports/uat-2026-08-13-full/FINAL.md`](reports/uat-2026-08-13-full/FINAL.md)
+- **環境**: main @ `1386e1db0` · LIFF mock · ranges=20
+- **判定**: S01/S03/S04/S05(中核)/S06/S07/S10/S11(中核)/S12mock/S13(中核)/V到達/LOCK **PASS 寄り** · S02 **PARTIAL**（項目/H-L） · S08 **仕様 BLOCKED** · S09 fixture BLOCKED
+- **新規 BUG**: **0**（bug.md Open 空）
+- **cleanup**: 豆助 alive · 入院退院実施 · LIFF 予約キャンセル
+
+### UAT 2026-08-13-noline（LINE除外・全実施）
+
+- **レポート**: [`reports/uat-2026-08-13-noline/FINAL.md`](reports/uat-2026-08-13-noline/FINAL.md)
+- **除外**: S04/S12/V05 LINE·Lstep（人間手動）
+- **結果**: PASS 84 · PARTIAL 4 · BLOCKED 3 · SKIP 3 · **FAIL 0** · **新規 BUG 0**
+- **S02**: HIGH/LOW + 完了ロックまで PASS（入力セレクタ修正後）
+
+### UAT 2026-08-13-all（全シナリオ・LIFF mock 含む）
+
+- **レポート**: [`reports/uat-2026-08-13-all/FINAL.md`](reports/uat-2026-08-13-all/FINAL.md)
+- **結果**: **FAIL 0 · 新規 BUG 0** · S04 mock 確定→キャンセル PASS · S12 mock PASS
+- **BLOCKED（非バグ）**: 実 LINE 通知/token · S08 部分入金仕様 · S09 fixture · audit DB
+
+### UAT 2026-08-13-rerun（再実施）
+
+- **レポート**: [`reports/uat-2026-08-13-rerun/FINAL.md`](reports/uat-2026-08-13-rerun/FINAL.md)
+- **結果**: PASS 97 · PARTIAL 5 · BLOCKED 6 · **FAIL 0 · 新規 BUG 0**
+- **S04**: mock 確定 `R-20260815-0009` → キャンセル PASS
 
 ## 5. 正本境界・安全
 
