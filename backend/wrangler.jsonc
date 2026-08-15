@@ -1,9 +1,10 @@
 // P4-1〜P4-4: Cloudflare Workers + Containers 設定。
 //
-// 各バインディングの確定状況(2026-07-05 試行9時点):
-//   - hyperdrive[0].id … 試行7で確定済み(45ae9b2a018a4c0fa84c1744c0f12efa)。Worker binding として
-//     残すが、Container(Go API)は PlanetScale へ直結するため Phase 4 では未使用
-//     (Hyperdrive は Container 内非対応: https://github.com/cloudflare/containers/issues/97)
+// 各バインディングの確定状況:
+//   - DB 接続 … Container(Go API)は PlanetScale へ DB_* secrets で直結
+//     (Workers 接続プール binding は Container 内非対応:
+//     https://github.com/cloudflare/containers/issues/97)。SEC-CS2-F03 で未使用の
+//     プール binding と対応 Terraform resource を除去済み。
 //   - r2_buckets[0].bucket_name … 試行4で apply 済み(animalekarte-stg-images)。S3互換 Access Key/
 //     Secret は試行8で発行済みのため、試行9で Container の STORAGE_TYPE=s3 化も完了(vars/envVars参照)
 //   - routes[0] … P1-2 の NS 切替後でないと Custom Domain として機能しない(現時点では参考値)。
@@ -16,8 +17,8 @@
 // migrate one-shot タスク(現行 ECS one-shot 相当)は P4-5(試行10)で実装済み: Worker の
 // POST /_internal/migrate(MIGRATE_RUN_SECRET認証)→ Containers の低レベル exec() API →
 // /app/migrate 実行、という経路(backend/worker/index.ts の AnimalEkarteApiContainer.runMigrate()
-// 参照)。本ファイルにはコンテナ定義のみ含む。migrate バイナリは Hyperdrive を経由せず
-// PlanetScale へ直結する(pg_advisory_lock 使用のため。P3-5 の判断を参照)。
+// 参照)。本ファイルにはコンテナ定義のみ含む。migrate バイナリは PlanetScale へ直結する
+// (pg_advisory_lock 使用のため)。
 {
   "$schema": "../node_modules/wrangler/config-schema.json",
   "name": "animalekarte-stg-api",
@@ -27,7 +28,7 @@
   // TODO(P1-2 NS切替完了後にfalseへ戻す): 試行9はP4-4疎通確認のため一時的にtrue。
   // P1-2(NS切替)完了まで api.stg.noah-karte.com への route は機能しないため、*.workers.dev を
   // 検証用の公開経路として使う。切替後は「STG APIを不要に公開しない」方針に合わせて false に戻す
-  // (migration-cloudflare.md 試行9の残課題参照)。
+  // (docs/ops/infra/_archive/migration-cloudflare.md 試行9の残課題参照)。
   "workers_dev": true,
 
   "routes": [
@@ -43,25 +44,26 @@
   "vars": {
     "GIN_MODE": "release",
     "LOG_LEVEL": "info",
+    "SCHEDULER_ENVIRONMENT": "staging",
     "DB_PORT": "5432",
     "DB_NAME": "postgres",
-    // PlanetScale Postgres はTLS必須。証明書検証はスキップしつつ暗号化のみ要求する
-    // (試行7で確認済みの sslmode=require 運用を踏襲)。
-    "DB_SSL_MODE": "require",
+    // PlanetScale Postgres はTLSとserver identity検証を必須化する。
+    "DB_SSL_MODE": "verify-full",
+    "DB_SSL_ROOT_CERT": "system",
     // DB接続プール上限(Goコード既定=50/25はローカル・単一プロセス前提)。
-    // Containers は直結(Hyperdrive/プーラー無し)かつ max_instances=3 + ローリング更新中の新旧並存が
+    // Containers は PlanetScale 直結(プーラー無し)かつ max_instances=3 + ローリング更新中の新旧並存が
     // ありうるため、インスタンスあたりを低く抑えないと PlanetScale の接続スロットを食い潰す
     // (2026-07-17 実障害: 旧インスタンス滞留×50conn でスロット枯渇→新インスタンス起動不能ループ)。
     "DB_MAX_OPEN_CONNS": "10",
     "DB_MAX_IDLE_CONNS": "5",
-    // 試行9で実測確定(migration-cloudflare.md参照)。/health に一時追加した診断フィールドで
+    // 試行9で実測確定(docs/ops/infra/_archive/migration-cloudflare.md参照)。/health に一時追加した診断フィールドで
     // 確認した Worker→Container 内部プロキシの実ソースIP。複数リクエストにわたり 10.1.0.0 で
     // 安定(ポートのみ変動)。RFC1918プライベートアドレスであり、Container の :8080 には Worker の
     // containerFetch(worker/index.ts で CF-Connecting-IP → X-Forwarded-For に転記)経由以外の
     // 到達路が無いため、この単一IPを信頼しても外部からのX-Forwarded-For偽装によるレート制限
     // バイパス経路は生まれない(H2)。他リージョンで異なるIPが観測された場合は本値を見直す。
     "TRUSTED_PROXY_CIDR": "10.1.0.0/32",
-    // ルート .env.staging(ECS用)の実測値と一致させる(docs/ops/infra-architecture.md記載の値は
+    // ルート .env.staging(ECS用)の実測値と一致させる(docs/ops/infra/architecture.md記載の値は
     // 旧ドメインで陳腐化していたため実値を採用。試行9で確認)。
     "CORS_ALLOWED_ORIGIN": "https://stg.noah-karte.com,https://api.stg.noah-karte.com",
     "FRONTEND_URL": "https://stg.noah-karte.com",
@@ -92,6 +94,13 @@
     "head_sampling_rate": 1,
   },
 
+  // Cron は UTC。Worker の exact allowlist と同じ3式だけを登録する。
+  // 01:00 UTC = 10:00 JST(no_show → delivery)、06:00/11:00 UTC =
+  // 15:00/20:00 JST(no_show)、17:00 UTC = 翌02:00 JST(dormant)。
+  "triggers": {
+    "crons": ["0 1 * * *", "0 6,11 * * *", "0 17 * * *"],
+  },
+
   "containers": [
     {
       "class_name": "AnimalEkarteApiContainer",
@@ -100,7 +109,7 @@
       // ローカル Docker でビルドし、Cloudflare 管理の Registry(R2バック)へ自動 push する。
       // 完全なイメージURL直書きは不要(旧TODOは誤り。試行9で公式ドキュメント確認済み)。
       "image": "./Dockerfile.production",
-      "instance_type": "basic", // 1/4 vCPU / 1GiB。migration-cloudflare.md の想定コストに合わせる
+      "instance_type": "basic", // 1/4 vCPU / 1GiB。docs/ops/infra/_archive/migration-cloudflare.md の想定コストに合わせる
       "max_instances": 3,
     },
   ],
@@ -118,15 +127,6 @@
     {
       "tag": "v1",
       "new_sqlite_classes": ["AnimalEkarteApiContainer"],
-    },
-  ],
-
-  "hyperdrive": [
-    {
-      "binding": "HYPERDRIVE",
-      // 2026-07-05 試行7: infra/cloudflare/hyperdrive.tf apply 済み(animalekarte-stg-planetscale)。
-      // wrangler dev --remote での実接続 CRUD/トランザクション検証 PASS(migration-cloudflare.md 試行7参照)。
-      "id": "45ae9b2a018a4c0fa84c1744c0f12efa",
     },
   ],
 
@@ -148,6 +148,22 @@
       // 試行10(P4-5): POST /_internal/migrate 用の管理シークレット。Bearer token として使用。
       // JWT_SECRET等とは独立させる(用途混同・ローテーション影響範囲を分離するため)。
       "MIGRATE_RUN_SECRET",
+      // BE9-3: scheduler status/control/catch-up 専用。MIGRATE/JWT と共有しない。
+      "SCHEDULER_OPS_SECRET",
+      // DEC-36 / CMD-02: Worker→Container scheduled-jobs の X-Scheduler-Token 共有秘密。
+      // 値は `wrangler secret put SCHEDULER_INTERNAL_TOKEN` のみで投入（本ファイルに値を書かない）。
+      // Cutover 順序: secret put を先 → その後に Worker をデプロイする。
+      // Go の requireSchedulerInternalToken は expected が空だと全リクエストを 401 にするため
+      // (fail-closed on missing config)、secret 不在のままデプロイすると全院バッチが停止する。
+      "SCHEDULER_INTERNAL_TOKEN",
+      // Cloudflare Access の署名済み operator identity。JWT は Worker 内で
+      // team-domain JWKS / issuer / audience / exp / nbf を検証し、任意 header は信用しない。
+      "SCHEDULER_ACCESS_TEAM_DOMAIN",
+      "SCHEDULER_ACCESS_AUDIENCE",
+      // 失敗通知先 URL 自体も credential を含み得るため secret として扱う。
+      "SCHEDULER_ALERT_ALLOWED_HOST",
+      "SCHEDULER_ALERT_WEBHOOK_URL",
+      "SCHEDULER_ALERT_WEBHOOK_SECRET",
       "JWT_SECRET",
       "INTEGRATION_ENCRYPTION_KEY",
       "SMTP_HOST",

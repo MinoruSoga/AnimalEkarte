@@ -57,6 +57,13 @@ export const queryKeys = {
   masters: {
     /** 汎用マスタカテゴリキー。"masterItems" の代わりにこれを使う */
     category: (name: string) => ["masters", name] as const,
+    /**
+     * 担当者セレクト用の薄い staff 一覧。
+     * masters.category("staffs") のフル master Staff shape とは別キー。
+     * 異なる transform 結果を同一 key に載せない（cache poison 防止）。
+     * invalidate は ["masters","staffs"] prefix で両方を無効化できる。
+     */
+    staffSelectorList: () => ["masters", "staffs", "selector-list"] as const,
     animalSpecies: {
       /** features/master/api/animal-species.ts の CRUD 用ベースキー */
       all: () => ["masters", "animal-species"] as const,
@@ -89,7 +96,7 @@ export const queryKeys = {
   staffs: {
     subResource: (
       staffId: string,
-      resource: "excluded-reservation-types" | "capable-reservation-types" | "clinics" | "permission-groups",
+      resource: "capable-reservation-types" | "clinics" | "permission-groups",
     ) => ["masters", "staffs", staffId, resource] as const,
     allPermissionGroupMap: (staffIds: readonly string[]) =>
       ["masters", "staffs", "all-permission-group-map", ...staffIds] as const,
@@ -139,6 +146,9 @@ export const queryKeys = {
     list: <F>(filters: F) => ["examinations", filters] as const,
     detail: (id: string) => ["examination", id] as const,
     items: (id: string) => ["examination-items", id] as const,
+    // Nested under examinations.all() so update/unconfirm/items invalidations refresh print.
+    printSnapshot: (id: string, version?: number) =>
+      ["examinations", "print-snapshot", id, version ?? "current"] as const,
     typeFields: (examTypeId: string) => ["exam-type-fields", examTypeId] as const,
     /** features/medical-records 側からの参照。["pet",...]ではなく["examinations","pet",petId] */
     byPet: (petId: string) => ["examinations", "pet", petId] as const,
@@ -158,6 +168,8 @@ export const queryKeys = {
     detailRaw: (id: string) => ["hospitalization", "raw", id] as const,
     carePlanItems: (hospitalizationId: string) =>
       ["hospitalizations", hospitalizationId, "care-plan-items"] as const,
+    treatmentPlans: (hospitalizationId: string) =>
+      ["hospitalizations", hospitalizationId, "treatment-plans"] as const,
     dailyRecords: {
       all: (hospitalizationId: string) => ["hospitalizations", hospitalizationId, "daily-records"] as const,
       byDate: (hospitalizationId: string, date: string) =>
@@ -261,6 +273,11 @@ export const queryKeys = {
   owners: {
     all: () => ["owners"] as const,
     detail: (id: string) => ["owners", id] as const,
+    subOwnerOptions: (search: string) =>
+      ["owners", { scope: "sub-owner-options", search }] as const,
+  },
+  ownerSharedPets: {
+    detail: (ownerId: string) => ["owner-shared-pets", ownerId] as const,
   },
   ownerLineTags: (ownerId: string) => ["owner-line-tags", ownerId] as const,
   lineSendHistory: (ownerId: string) => ["line-send-history", ownerId] as const,
@@ -272,11 +289,23 @@ export const queryKeys = {
   // ── pets ──────────────────────────────────────────────────────────
   pets: {
     /** ownerId 指定時は {ownerId} オブジェクトを第2要素に持つ（既存シェイプを温存） */
-    list: (ownerId?: string) => (ownerId ? (["pets", { ownerId }] as const) : (["pets"] as const)),
+    list: (ownerId?: string, options?: { includeDeceased?: boolean }) => {
+      if (options?.includeDeceased) {
+        return ["pets", { ...(ownerId ? { ownerId } : {}), includeDeceased: true }] as const;
+      }
+      return ownerId ? (["pets", { ownerId }] as const) : (["pets"] as const);
+    },
     detail: (id: string) => ["pet", id] as const,
+  },
+  petSubOwners: {
+    detail: (petId: string) => ["pet-sub-owners", petId] as const,
+    metadata: (petId: string) =>
+      ["pet", petId, "sub-owner-metadata"] as const,
   },
 
   // ── owner-report ──────────────────────────────────────────────────
+  ownerReportPets: (ownerId: string) =>
+    ["owner-report-pets", ownerId] as const,
   petTrimmingHistory: (petId: string) => ["pet-trimmings", "report", petId] as const,
   petTreatmentHistory: <F, O>(petId: string, filter: F, options: O) =>
     ["pet-treatment-history", petId, filter, options] as const,

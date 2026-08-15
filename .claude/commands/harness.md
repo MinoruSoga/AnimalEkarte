@@ -1,11 +1,11 @@
 ---
 description: 実装→規約チェック→承認ループ型ハーネス（最大3イテレーション）
-argument-hint: "FEAT-XXX | BUG-XXX | <タスク説明>"
+argument-hint: "TASK-XXX | BUG-XXX | <タスク説明>"
 ---
 
 # 実装ハーネス（Implement → Verify → Approve Loop）
 
-このプロジェクトのアーキテクチャ規約（P1-P18、React 19パターン、Clean Architecture）への
+このプロジェクトのGo/Gin公式ガイド、application安全不変条件、React 19パターンへの
 準拠を自動ループで保証する実装ハーネス。最大3イテレーションで承認を目指す。
 
 ---
@@ -26,7 +26,7 @@ argument-hint: "FEAT-XXX | BUG-XXX | <タスク説明>"
 
 ## $ARGUMENTS の解釈
 
-- `FEAT-XXX` / `BUG-XXX` / `PERF-XXX` / `SEED-XXX` 等のタスクID → repo 直下 `todo.md` の「個別タスク詳細」節の該当タスク（`### <タスクID>` 見出し）を実装モードで対象化
+- `TASK-XXX` / `BUG-XXX` のタスクID → repo 直下のローカル台帳（`TASK-XXX` = `STATUS.md`・`BUG-XXX` = `STATUS.md`）から `grep -n '<タスクID>' STATUS.md` で検索し、実装モードで対象化（旧 `3-session-agent.html#ledger` は 2026-07-31 廃止）
 - テキスト → タスク説明として直接扱う
 - 省略 → `git status` で未コミット変更を対象として検証のみ実行
 
@@ -40,9 +40,10 @@ git diff --name-only HEAD
 ```
 
 1. 引数からタスク種別を判定（BE/FE/テキスト/変更済みファイル）
-2. 影響レイヤーを特定：handler / service / repository / migration / frontend
+2. 影響するpackage・request lifecycle・migration・frontendを特定
 3. 関連する規約ファイルを特定：
-   - Go変更 → `.claude/refs/gin-architecture-compliance.md`（P1-P18）
+   - Go変更 → `.claude/rules/go-gin-backend-guidelines.md` と `.claude/refs/go-gin-backend-review.md`
+   - tenant/ownership変更 → `.claude/refs/backend-application-invariants.md`
    - TS変更 → `.claude/refs/typescript-react.md`
    - DB変更 → `postgres-patterns` / `migration-seed-safety` スキル
 4. ハーネス状態を初期化：
@@ -76,16 +77,9 @@ git diff --name-only HEAD
 git diff --staged --name-only
 ```
 
-### 3-2. Go変更がある場合：P1-P18 チェック
+### 3-2. Go変更がある場合：Go/Gin backendチェック
 
-`go-reviewer` エージェントを起動し、以下を確認：
-
-| レイヤー | チェック項目 |
-|---------|------------|
-| Handler | P7(エラーハンドリング), P12(バリデーション), P14(認証), P15(clinic_id), P18(レスポンス形式) |
-| Service | P1(ビジネスロジック集中), P8(トランザクション), P10(エラーラップ), P11(ゼロ値), P13(コンテキスト伝播), P17(副作用分離) |
-| Repository | P2(GORM使用), P3(クエリ最適化), P4(clinicScope), P9(N+1回避), P16(ソフトデリート) |
-| Routes | P5(RESTful), P6(ミドルウェア順) |
+`go-reviewer` エージェントを起動し、package API、Context、HTTP boundary、error/log、database/security、server lifecycle、testsを確認する。Handler/Service/Repositoryの存在や特定helper名は合否条件にしない。
 
 判定基準：
 - CRITICAL違反（マージブロック）→ **FAIL**
@@ -135,7 +129,7 @@ ITERATION N RESULT:
 <変更ファイル一覧>
 
 ### 規約準拠
-- Go (P1-P18): ✅ PASS
+- Go/Gin backend: ✅ PASS
 - TypeScript: ✅ PASS
 - Database: ✅ PASS
 

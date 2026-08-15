@@ -130,7 +130,7 @@ export function NextVisitDateField({
         min={today()}
         onChange={(e) => handleChange(e.target.value)}
         disabled={disabled}
-        className={`${STYLE.formInput} rounded-[4px] border px-3 w-full max-w-[220px] outline-none focus:ring-2 ${C.focusRingAccent30} ${
+        className={`${STYLE.formInput} rounded-xs border px-3 w-full max-w-[220px] outline-none focus:ring-2 ${C.focusRingAccent30} ${
           !isValid && value !== "" ? STYLE.formInputError : ""
         }`}
       />
@@ -143,7 +143,7 @@ export function NextVisitDateField({
             type="button"
             disabled={disabled}
             onClick={() => handleQuickSelect(opt.getValue)}
-            className={`text-sm px-3 py-1 rounded-[4px] border ${C.borderMedium} ${C.text60} ${C.hoverBgLight} ${C.hoverText} transition-colors disabled:opacity-40 disabled:cursor-not-allowed`}
+            className={`text-sm px-3 py-1 rounded-xs border ${C.borderMedium} ${C.text60} ${C.hoverBgLight} ${C.hoverText} transition-colors disabled:opacity-40 disabled:cursor-not-allowed`}
           >
             {opt.label}
           </button>
@@ -153,7 +153,7 @@ export function NextVisitDateField({
             type="button"
             disabled={disabled}
             onClick={() => handleChange("")}
-            className={`text-sm px-3 py-1 rounded-[4px] ${C.text40} ${C.hoverText} ${C.hoverBgLight} transition-colors disabled:opacity-40 disabled:cursor-not-allowed`}
+            className={`text-sm px-3 py-1 rounded-xs ${C.text40} ${C.hoverText} ${C.hoverBgLight} transition-colors disabled:opacity-40 disabled:cursor-not-allowed`}
           >
             クリア
           </button>

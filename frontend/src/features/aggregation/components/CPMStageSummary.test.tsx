@@ -31,6 +31,9 @@ describe('CPMStageSummary (ISSUE-180)', () => {
     expect(screen.getByText('Dormant')).toBeInTheDocument();
     expect(screen.getByText('すべて')).toBeInTheDocument();
     expect(screen.getByText('83')).toBeInTheDocument();
+    screen.getAllByRole('button').forEach((button) => {
+      expect(button).toHaveClass('min-h-11', 'min-w-11');
+    });
   });
 
   it('calls onSelect with the stage when a chip is clicked', async () => {

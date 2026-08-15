@@ -33,7 +33,7 @@ export const OwnerInfoSection = memo(function OwnerInfoSection({
   onPostalCodeLookup,
 }: OwnerInfoSectionProps) {
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid w-full grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
       <OwnerBasicFields
         ownerData={ownerData}
         fieldErrors={fieldErrors}

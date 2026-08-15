@@ -1,6 +1,6 @@
 import { C } from "@/lib/design-tokens";
 import type { Pet } from "@/types";
-import { formatDate } from "@/utils/format/date";
+import { formatDate } from "@/lib/format/date";
 import { formatPetAge } from "../lib/pet-age";
 import { ReportPanel } from "./ReportPanel";
 

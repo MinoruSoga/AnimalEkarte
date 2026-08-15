@@ -4,7 +4,8 @@ import { NumberInput } from "@/components/shared/NumberInput/NumberInput";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { STYLE } from "@/lib/design-tokens";
+import { Textarea } from "@/components/ui/textarea";
+import { C, STYLE } from "@/lib/design-tokens";
 import { isOneOf } from "@/lib/type-utils";
 
 import { ACQUISITION_TYPE_VALUES, DANGER_LEVEL_VALUES } from "../types";
@@ -131,14 +132,41 @@ export function PetPhysicalSection({
           onValueChange={(value) => {
             if (isOneOf(value, DANGER_LEVEL_VALUES)) {
               setFormData((prev) => ({ ...prev, dangerLevel: value }));
+              if (value !== "高") {
+                clearFieldError("dangerReason");
+              }
             }
           }}
         >
-          <SelectTrigger className={INPUT_CLS}>
+          <SelectTrigger id="dangerLevel" className={INPUT_CLS}>
             <SelectValue placeholder="選択してください" />
           </SelectTrigger>
           <SelectContent>{DANGER_SELECT_ITEMS}</SelectContent>
         </Select>
+      </div>
+
+      <div className="space-y-1">
+        <Label htmlFor="dangerReason" className={LABEL_CLS}>
+          危険と判断した理由
+          {formData.dangerLevel === "高" ? (
+            <span className={C.textRequired} aria-hidden="true">*</span>
+          ) : null}
+        </Label>
+        <Textarea
+          id="dangerReason"
+          value={formData.dangerReason || ""}
+          placeholder="危険と判断した理由を入力してください（500文字以内）"
+          aria-label="危険と判断した理由"
+          aria-required={formData.dangerLevel === "高"}
+          aria-invalid={!!fieldErrors.dangerReason}
+          aria-describedby={fieldErrors.dangerReason ? "dangerReason-error" : undefined}
+          onChange={(e) => {
+            setFormData((prev) => ({ ...prev, dangerReason: e.target.value }));
+            clearFieldError("dangerReason");
+          }}
+          className={`${STYLE.textarea} ${fieldErrors.dangerReason ? STYLE.formInputError : ""}`}
+        />
+        <FormFieldError id="dangerReason-error" message={fieldErrors.dangerReason} />
       </div>
     </div>
   );

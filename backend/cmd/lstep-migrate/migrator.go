@@ -13,8 +13,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository"
-	"github.com/animal-ekarte/backend/internal/service"
+	"github.com/animal-ekarte/backend/internal/owner"
 )
 
 // Config はバッチ実行の設定。
@@ -53,12 +52,21 @@ type progressRow struct {
 
 func (progressRow) TableName() string { return "lstep_migration_progress" }
 
+type migrationTagSync interface {
+	SyncOwnerAnimalClassificationTags(ctx context.Context, clinicID, ownerID uint64) error
+	SyncPetBasicInfoTags(ctx context.Context, clinicID, ownerID uint64) error
+	SyncVisitCompletionTags(ctx context.Context, clinicID, ownerID uint64) error
+	SyncCPMStageTag(ctx context.Context, clinicID, ownerID uint64) error
+	SyncNextVisitTag(ctx context.Context, clinicID, ownerID uint64) error
+	SyncPrescriptionTag(ctx context.Context, clinicID, ownerID uint64) error
+}
+
 // Migrator はLステップ初回一括同期を実行する。
 type Migrator struct {
 	cfg     Config
 	db      *gorm.DB
-	owners  repository.OwnerRepository
-	tagSync service.LstepTagSyncService
+	owners  owner.LstepRepository
+	tagSync migrationTagSync
 	logger  *slog.Logger
 	records []ProgressRecord
 	mu      sync.Mutex
@@ -68,8 +76,8 @@ type Migrator struct {
 func NewMigrator(
 	cfg Config,
 	db *gorm.DB,
-	owners repository.OwnerRepository,
-	tagSync service.LstepTagSyncService,
+	owners owner.LstepRepository,
+	tagSync migrationTagSync,
 	logger *slog.Logger,
 ) *Migrator {
 	return &Migrator{cfg: cfg, db: db, owners: owners, tagSync: tagSync, logger: logger}
@@ -166,7 +174,11 @@ func (m *Migrator) processOwner(ctx context.Context, owner *model.Owner) Progres
 	startedAt := time.Now()
 
 	if !m.cfg.DryRun {
-		m.updateProgress(ctx, owner.ID, "pending", 0, 0, "", &startedAt, nil)
+		if err := m.updateProgress(ctx, owner.ID, "pending", 0, 0, "", &startedAt, nil); err != nil {
+			rec.Status = "failed"
+			rec.ErrorMessage = "progress ledger write failed: " + err.Error()
+			return rec
+		}
 	}
 
 	type syncFn struct {
@@ -246,7 +258,21 @@ func (m *Migrator) processOwner(ctx context.Context, owner *model.Owner) Progres
 		return rec
 	}
 
-	m.updateProgress(ctx, owner.ID, rec.Status, rec.TagsAdded, rec.TagsFailed, rec.ErrorMessage, &startedAt, &now)
+	if err := m.updateProgress(ctx, owner.ID, rec.Status, rec.TagsAdded, rec.TagsFailed, rec.ErrorMessage, &startedAt, &now); err != nil {
+		// CMD-07: do not report success when the progress ledger diverges from the run result.
+		if rec.Status == "success" {
+			rec.Status = "partial"
+		}
+		if rec.ErrorMessage == "" {
+			rec.ErrorMessage = "progress ledger write failed: " + err.Error()
+		} else {
+			rec.ErrorMessage = rec.ErrorMessage + "; progress ledger write failed: " + err.Error()
+		}
+		m.logger.Error("failed to update progress ledger",
+			slog.Uint64("owner_id", owner.ID),
+			slog.String("error", err.Error()),
+		)
+	}
 	m.logger.Info("owner synced",
 		slog.Uint64("owner_id", owner.ID),
 		slog.String("status", rec.Status),
@@ -266,7 +292,7 @@ func (m *Migrator) initProgressRows(ctx context.Context, owners []model.Owner) e
 		CreateInBatches(rows, 100).Error
 }
 
-func (m *Migrator) updateProgress(ctx context.Context, ownerID uint64, status string, added, failed int, errMsg string, startedAt, completedAt *time.Time) {
+func (m *Migrator) updateProgress(ctx context.Context, ownerID uint64, status string, added, failed int, errMsg string, startedAt, completedAt *time.Time) error {
 	var errPtr *string
 	if errMsg != "" {
 		errPtr = &errMsg
@@ -285,8 +311,9 @@ func (m *Migrator) updateProgress(ctx context.Context, ownerID uint64, status st
 		Where("clinic_id = ? AND owner_id = ?", m.cfg.ClinicID, ownerID).
 		Assign(row).
 		FirstOrCreate(&row).Error; err != nil {
-		m.logger.Warn("failed to update progress", slog.Uint64("owner_id", ownerID), slog.String("error", err.Error()))
+		return fmt.Errorf("update progress owner_id=%d: %w", ownerID, err)
 	}
+	return nil
 }
 
 func join(parts []string, sep string) string {

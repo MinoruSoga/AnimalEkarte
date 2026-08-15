@@ -5,6 +5,7 @@ import { Plus } from "lucide-react";
 
 import { RowActionButton } from "@/components/shared/RowActionButton";
 import { StatusPill } from "@/components/shared/StatusPill/StatusPill";
+import { DataTableRowButton } from "@/components/shared/DataTable/DataTableRowButton";
 import { SortableDataTableRow } from "@/components/shared/DataTable/SortableDataTableRow";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
@@ -18,7 +19,7 @@ import {
 import { CageRowOverlay } from "./CageRowOverlay";
 
 const TABLE_COLUMNS = [
-  { key: "grip", className: "w-8 px-0" },
+  { key: "grip", className: "w-11 px-0" },
   { key: "name", label: "ケージ名", className: "pl-3" },
   { key: "type", label: "エリア", className: "w-[100px]" },
   { key: "size", label: "サイズ", className: "w-[90px]" },
@@ -87,22 +88,39 @@ export function CageSortableTable({
               ) : null}
               <SortableContext items={items.map((item) => item.id)} strategy={verticalListSortingStrategy}>
                 {items.map((item) => (
-                  <SortableDataTableRow key={item.id} id={item.id} onClick={() => onEdit(item)}>
-                    <TableCell className={`font-medium text-base ${C.text}`}>{item.name}</TableCell>
-                    <TableCell className={`text-base ${C.text70}`}>
+                  <SortableDataTableRow
+                    key={item.id}
+                    id={item.id}
+                    dragLabel={`並べ替え: ケージ ${item.name} (ID ${item.id})`}
+                    dragDisabled={!canEdit}
+                  >
+                    <TableCell className={`font-medium ${C.text}`}>
+                      <DataTableRowButton
+                        aria-label={`詳細: ケージ ${item.name} (ID ${item.id})`}
+                        onClick={() => onEdit(item)}
+                      >
+                        {item.name}
+                      </DataTableRowButton>
+                    </TableCell>
+                    <TableCell className={C.text70}>
                       {CAGE_TYPE_LABELS[item.cageType] || item.cageType}
                     </TableCell>
-                    <TableCell className={`text-base ${C.text70}`}>
+                    <TableCell className={C.text70}>
                       {CAGE_SIZE_LABELS[item.cageSize] || item.cageSize}
                     </TableCell>
-                    <TableCell className={`text-right font-mono text-base ${C.text} pr-4`}>
+                    <TableCell className={`text-right font-mono ${C.text} pr-4`}>
                       {formatCagePrice(item.price)}
                     </TableCell>
                     <TableCell className="text-center">
                       <StatusPill isActive={item.isActive} />
                     </TableCell>
-                    <TableCell className="p-0 text-right pr-2">
-                      {canEdit ? <RowActionButton onClick={() => onEdit(item)} /> : null}
+                    <TableCell className="text-right pr-2">
+                      {canEdit ? (
+                        <RowActionButton
+                          aria-label={`編集: ケージ ${item.name} (ID ${item.id})`}
+                          onClick={() => onEdit(item)}
+                        />
+                      ) : null}
                     </TableCell>
                   </SortableDataTableRow>
                 ))}

@@ -1,4 +1,11 @@
-import { useState, useCallback, useActionState, useEffect } from "react";
+import {
+  useState,
+  useCallback,
+  useActionState,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+} from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { handleApiError } from "@/lib/handle-api-error";
@@ -6,12 +13,21 @@ import { queryKeys } from "@/lib/query-keys";
 import type { ActionState } from "@/types/form";
 import { INITIAL_ACTION_STATE } from "@/types/form";
 import { transformCreatePetRequest, PET_STATUS_REVERSE_MAP } from "@/lib/transforms/pet";
-import type { CreateOwnerRequest, UpdateOwnerRequest, Owner } from "@/types/owner";
+import type {
+  CreateOwnerPetRequest,
+  CreateOwnerRequest,
+  UpdateOwnerRequest,
+  Owner,
+} from "@/types/owner";
 import type { PetMutations } from "@/types/pet";
 import type { OwnerData, PetFormData, MembershipTypeLabel } from "../types";
 import { createOwner } from "../api/create-owner";
 import { updateOwner } from "../api/update-owner";
 import { usePetFormListState } from "./use-pet-form-list-state";
+
+type CreateOwnerPetRequestWithDangerReason = CreateOwnerPetRequest & {
+  danger_reason?: string;
+};
 
 const MEMBERSHIP_TYPE_TO_API: Record<string, string> = {
   "非会員": "non_member",
@@ -37,6 +53,18 @@ const DEFAULT_OWNER_DATA: OwnerData = {
   phone: "",
   companyPhone: "",
   remarks: "",
+};
+
+export interface OwnerMutationPermissions {
+  canCreate: boolean;
+  canEdit: boolean;
+  canDelete: boolean;
+}
+
+const DENIED_MUTATION_PERMISSIONS: Readonly<OwnerMutationPermissions> = {
+  canCreate: false,
+  canEdit: false,
+  canDelete: false,
 };
 
 function mapOwnerToFormData(owner: Owner): OwnerData {
@@ -84,22 +112,84 @@ function mapOwnerPetsToFormData(owner: Owner): PetFormData[] {
     neuteredDate: backendPet.neuteredDate || "",
     acquisitionType: (backendPet.acquisitionType as PetFormData["acquisitionType"]) || "購入",
     dangerLevel: (backendPet.dangerLevel as PetFormData["dangerLevel"]) || "低",
+    dangerReason: backendPet.dangerReason || "",
     remarks: backendPet.remarks || "",
     breed: backendPet.breed,
     insuranceId: backendPet.insuranceId,
     insuranceName: undefined,
     insuranceDetails: backendPet.insuranceDetails,
     deceasedAt: backendPet.deceasedAt,
+    deceasedReason: backendPet.deceasedReason,
   }));
+}
+
+function mapPendingPetToCreateRequest(
+  pet: PetFormData & { animalSpeciesId: string },
+): CreateOwnerPetRequestWithDangerReason {
+  const request = transformCreatePetRequest({
+    ownerId: "0",
+    name: pet.petName || "",
+    animalSpeciesId: pet.animalSpeciesId,
+    petNameKana: pet.petNameKana,
+    breed: pet.breed,
+    color: pet.color,
+    bloodType: pet.bloodType,
+    microchipNumber: pet.microchipNumber,
+    gender: pet.gender,
+    birthDate: pet.birthDate,
+    weight: pet.weight,
+    food: pet.food,
+    environment: pet.environment,
+    neuteredDate: pet.neuteredDate,
+    acquisitionType: pet.acquisitionType,
+    dangerLevel: pet.dangerLevel,
+    dangerReason: pet.dangerReason,
+    status: PET_STATUS_REVERSE_MAP[pet.status],
+    insuranceId: pet.insuranceId,
+    remarks: pet.remarks,
+  });
+
+  return {
+    name: request.name,
+    animal_species_id: request.animal_species_id,
+    name_kana: request.name_kana,
+    breed: request.breed,
+    color: request.color,
+    blood_type: request.blood_type,
+    microchip_number: request.microchip_number,
+    gender: request.gender,
+    status: request.status,
+    birth_date: request.birth_date,
+    weight: request.weight,
+    neutered_date: request.neutered_date,
+    acquisition_type: request.acquisition_type,
+    danger_level: request.danger_level,
+    danger_reason: request.danger_reason,
+    food: request.food,
+    environment: request.environment,
+    insurance_id: request.insurance_id,
+    remarks: request.remarks,
+  };
 }
 
 export function useOwnerForm(
   id?: string,
   initialOwner?: Owner,
-  petMutations?: PetMutations
+  petMutations?: PetMutations,
+  permissions: Readonly<OwnerMutationPermissions> = DENIED_MUTATION_PERMISSIONS,
 ) {
   const isEdit = !!id;
   const queryClient = useQueryClient();
+  const { canCreate, canEdit, canDelete } = permissions;
+  const permissionsRef = useRef(permissions);
+  useLayoutEffect(() => {
+    permissionsRef.current = { canCreate, canEdit, canDelete };
+  }, [canCreate, canDelete, canEdit]);
+  const isMutationAllowed = useCallback(
+    (action: keyof OwnerMutationPermissions) =>
+      permissionsRef.current[action] === true,
+    [],
+  );
 
   const [ownerData, setOwnerData] = useState<OwnerData>(
     () => initialOwner ? mapOwnerToFormData(initialOwner) : DEFAULT_OWNER_DATA
@@ -115,10 +205,12 @@ export function useOwnerForm(
     handleEditPet,
     handleDeletePet,
     handleSavePet,
+    handlePetLifecycleChange,
   } = usePetFormListState({
     id,
     initialPets: initialOwner ? mapOwnerPetsToFormData(initialOwner) : [],
     petMutations,
+    permissions,
   });
 
   const [manualErrors, setManualErrors] = useState<Record<string, string>>({});
@@ -181,58 +273,46 @@ export function useOwnerForm(
         };
 
         if (isEdit && id) {
-          const updateData: UpdateOwnerRequest = ownerRequestPayload;
+          const updateData: UpdateOwnerRequest = {
+            ...ownerRequestPayload,
+            birth_date: ownerData.birthDate || null,
+          };
+          if (!isMutationAllowed("canEdit")) {
+            return { success: false, timestamp: Date.now() };
+          }
           await updateOwner(id, updateData);
           await queryClient.invalidateQueries({ queryKey: queryKeys.owners.all() });
           toast.success("飼主情報を更新しました");
           return { success: true, timestamp: Date.now() };
         } else {
+          const pendingPets = pets.filter(
+            (pet): pet is PetFormData & { animalSpeciesId: string } =>
+              pet.isPending === true && Boolean(pet.animalSpeciesId),
+          );
           const createData: CreateOwnerRequest = {
             ...ownerRequestPayload,
+            birth_date: ownerData.birthDate || undefined,
             // #84: 登録先医院の指定（未選択時は undefined → サーバ側で現在の医院）
             clinic_id: ownerData.clinicId ? Number(ownerData.clinicId) : undefined,
+            pets: pendingPets.map(mapPendingPetToCreateRequest),
           };
+          if (!isMutationAllowed("canCreate")) {
+            return { success: false, timestamp: Date.now() };
+          }
           const newOwner = await createOwner(createData);
           await queryClient.invalidateQueries({ queryKey: queryKeys.owners.all() });
 
-          const pendingPets = pets.filter(p => p.isPending && p.animalSpeciesId);
-          if (pendingPets.length > 0 && petMutations) {
-            const results = await Promise.allSettled(
-              pendingPets.map(pet =>
-                petMutations.createPetFn(
-                  transformCreatePetRequest({
-                    ownerId: newOwner.id,
-                    name: pet.petName || "",
-                    animalSpeciesId: pet.animalSpeciesId!,
-                    petNumber: pet.petNumber,
-                    petNameKana: pet.petNameKana,
-                    breed: pet.breed,
-                    color: pet.color,
-                    bloodType: pet.bloodType,
-                    microchipNumber: pet.microchipNumber,
-                    gender: pet.gender,
-                    birthDate: pet.birthDate,
-                    weight: pet.weight,
-                    food: pet.food,
-                    environment: pet.environment,
-                    neuteredDate: pet.neuteredDate,
-                    acquisitionType: pet.acquisitionType,
-                    dangerLevel: pet.dangerLevel,
-                    status: PET_STATUS_REVERSE_MAP[pet.status],
-                    insuranceId: pet.insuranceId,
-                    remarks: pet.remarks,
-                  })
-                )
-              )
-            );
-            const failedCount = results.filter(r => r.status === "rejected").length;
-            if (failedCount > 0) {
-              toast.warning(`${failedCount}件のペット追加に失敗しました`);
-            }
-          }
-
           toast.success("飼主情報を登録しました");
-          return { success: true, data: newOwner.id, timestamp: Date.now() };
+          // BUG-010: 詳細遷移時に登録先 clinic を渡す（グローバル選択と不一致時の 404 回避）
+          const createdClinicId =
+            ownerData.clinicId
+            ?? newOwner.clinicId
+            ?? (createData.clinic_id != null ? String(createData.clinic_id) : undefined);
+          return {
+            success: true,
+            data: { id: newOwner.id, clinicId: createdClinicId },
+            timestamp: Date.now(),
+          };
         }
       } catch (error) {
         handleApiError(error, "保存");
@@ -271,6 +351,7 @@ export function useOwnerForm(
     handleEditPet,
     handleDeletePet,
     handleSavePet,
+    handlePetLifecycleChange,
     formAction,
     formState,
     fieldErrors: manualErrors,

@@ -1,13 +1,16 @@
-import { useCallback } from "react";
+import { memo, useCallback } from "react";
+import { Link } from "react-router";
 import { ChevronDown, FileText } from "lucide-react";
 import { PatientContextHeader } from "@/components/shared/PatientContextHeader";
 import { StatusBadge } from "@/components/shared/StatusBadge/StatusBadge";
 import { UnifiedTabsContent, UnifiedTabsList } from "@/components/shared/UnifiedTabs";
 import { Button } from "@/components/ui/button";
 import { C, ICON, LAYOUT } from "@/lib/design-tokens";
+import { paths } from "@/config/paths";
+import { cn } from "@/lib/utils";
 import { openOwnerReport } from "@/lib/owner-report-window";
 import { usePermission } from "@/hooks/use-permission";
-import { getMedicalRecordStatusColor } from "@/utils/status-helpers";
+import { getMedicalRecordStatusColor } from "@/lib/status-helpers";
 import { ResourceMedicalRecords } from "@/types/generated/models";
 import { todayJSTISO } from "@/lib/jst-date";
 import type { Pet } from "@/types";
@@ -26,9 +29,11 @@ import { VisitTypeSelect } from "./VisitTypeSelect";
 import { NextVisitButton } from "./NextVisitButton";
 import type { RecommendationReason } from "../constants/recommendation-reason";
 import type { InterviewHistoryItem } from "../types";
+import { isMedicalRecordFinalizedStatus } from "../lib/medical-record-lock";
 
 interface MedicalRecordStickyHeaderProps {
   selectedPet: Pet;
+  cohabitingPets: Pet[];
   staffName: string;
   visitType: string;
   visitCount: number;
@@ -47,8 +52,47 @@ interface MedicalRecordStickyHeaderProps {
   hasLineIntegration?: boolean;
 }
 
+const CohabitingPetChips = memo(function CohabitingPetChips({
+  pets,
+}: {
+  pets: Pet[];
+}) {
+  return (
+    <section
+      aria-label="同居ペット"
+      className={cn(
+        "flex items-center gap-1.5 overflow-x-auto rounded-md p-2 [&::-webkit-scrollbar]:hidden",
+        C.bgPage30,
+      )}
+      style={{ scrollbarWidth: "none" }}
+    >
+      <span className={`shrink-0 text-xs ${C.text50}`}>同居ペット</span>
+      <div className="flex min-w-max gap-1.5">
+        {pets.map((pet) => {
+          const label = pet.species ? `${pet.name}（${pet.species}）` : pet.name;
+          return (
+            <Link
+              key={pet.id}
+              to={`${paths.medicalRecords.getHref()}?pet_id=${encodeURIComponent(pet.id)}`}
+              className={cn(
+                "h-8 shrink-0 rounded-md border bg-white px-2.5 text-sm leading-8 whitespace-nowrap transition-colors",
+                C.text,
+                C.borderMedium,
+                C.hoverBgLight,
+              )}
+            >
+              {label}
+            </Link>
+          );
+        })}
+      </div>
+    </section>
+  );
+});
+
 export function MedicalRecordStickyHeader({
   selectedPet,
+  cohabitingPets,
   staffName,
   visitType,
   visitCount,
@@ -66,7 +110,7 @@ export function MedicalRecordStickyHeader({
   onNextVisitDateValidChange,
   hasLineIntegration,
 }: MedicalRecordStickyHeaderProps) {
-  const isFinalized = recordStatus === "確定済";
+  const isFinalized = isMedicalRecordFinalizedStatus(recordStatus);
   const canEditDate = canEdit && !isFinalized && !!onDateChange && !isNewRecord;
   const dateInputValue = recordDate ? recordDate.replace(/\//g, "-") : undefined;
 
@@ -106,7 +150,7 @@ export function MedicalRecordStickyHeader({
             onChange={(e) => {
               if (e.target.value) onDateChange!(e.target.value);
             }}
-            className={`h-8 text-sm ${C.text} bg-transparent rounded px-1 cursor-pointer focus:outline-none focus:ring-1 focus:ring-current`}
+            className={`h-11 text-sm ${C.text} bg-transparent rounded px-1 cursor-pointer focus:outline-none focus:ring-1 focus:ring-current`}
           />
         ) : (
           <span className={`h-8 flex items-center text-sm ${C.text}`}>
@@ -174,12 +218,18 @@ export function MedicalRecordStickyHeader({
         status={selectedPet.status === "死亡" ? "deceased" : "alive"}
         birthDate={selectedPet.birthDate ?? undefined}
         species={selectedPet.species}
+        gender={selectedPet.gender}
+        neuteredDate={selectedPet.neuteredDate}
+        breed={selectedPet.breed}
         insuranceName={selectedPet.insuranceName ?? undefined}
         insuranceDetails={selectedPet.insuranceDetails ?? undefined}
         visitCount={visitCount}
-        onOwnerClick={!isNewRecord && !isFinalized ? onOwnerClick : undefined}
+        onOwnerClick={!isNewRecord && canEdit && !isFinalized ? onOwnerClick : undefined}
         contextControls={contextControls}
       />
+      {!isNewRecord && cohabitingPets.length > 0 ? (
+        <CohabitingPetChips pets={cohabitingPets} />
+      ) : null}
       <div className={`flex shrink-0 overflow-x-auto ${C.bgPage}`}>
         <UnifiedTabsList items={tabs} />
       </div>
@@ -197,6 +247,7 @@ interface MedicalRecordTabsAreaProps {
   chiefComplaintTypeId: number | null;
   treatmentPolicy: string;
   historyItems: InterviewHistoryItem[];
+  physicalExam: string;
   plan: string;
   assessment: string;
   diagnosis1CategoryId: number | null;
@@ -215,6 +266,7 @@ interface MedicalRecordTabsAreaProps {
   onChiefComplaintChange: (value: string) => void;
   onChiefComplaintTypeIdChange: (id: number | null) => void;
   onTreatmentPolicyChange: (value: string) => void;
+  onPhysicalExamChange: (value: string) => void;
   onPlanChange: (value: string) => void;
   onAssessmentChange: (value: string) => void;
   onDiagnosis1CategoryIdChange: (id: number | null) => void;
@@ -224,7 +276,6 @@ interface MedicalRecordTabsAreaProps {
   onNextVisitDateChange: (value: string) => void;
   onNextVisitDateValidChange: (valid: boolean) => void;
   onRecommendationReasonChange: (value: RecommendationReason | null) => void;
-  onRegisterClinicalPlanSave: (fn: () => Promise<void>) => void;
   onRegisterEstimateSave: (fn: () => Promise<void>) => void;
 }
 
@@ -238,6 +289,7 @@ export function MedicalRecordTabsArea({
   chiefComplaintTypeId,
   treatmentPolicy,
   historyItems,
+  physicalExam,
   plan,
   assessment,
   diagnosis1CategoryId,
@@ -255,6 +307,7 @@ export function MedicalRecordTabsArea({
   onChiefComplaintChange,
   onChiefComplaintTypeIdChange,
   onTreatmentPolicyChange,
+  onPhysicalExamChange,
   onPlanChange,
   onAssessmentChange,
   onDiagnosis1CategoryIdChange,
@@ -264,13 +317,13 @@ export function MedicalRecordTabsArea({
   onNextVisitDateChange,
   onNextVisitDateValidChange,
   onRecommendationReasonChange,
-  onRegisterClinicalPlanSave,
   onRegisterEstimateSave,
 }: MedicalRecordTabsAreaProps) {
+  const isFinalized = isMedicalRecordFinalizedStatus(recordStatus);
   return (
     <div className={`mt-4 ${LAYOUT.fullHeight}`}>
       {mountedTabs.has("問診") ? (
-        <UnifiedTabsContent value="問診">
+        <UnifiedTabsContent value="問診" className="min-h-0 flex flex-col">
           <div className={`${LAYOUT.fullHeight} ${activeTab === "問診" ? "" : "hidden"}`}>
             <MedicalRecordInterview
               chiefComplaint={chiefComplaint}
@@ -280,6 +333,7 @@ export function MedicalRecordTabsArea({
               treatmentPolicy={treatmentPolicy}
               setTreatmentPolicy={onTreatmentPolicyChange}
               historyItems={historyItems}
+              isFinalized={isFinalized}
             />
           </div>
         </UnifiedTabsContent>
@@ -290,6 +344,8 @@ export function MedicalRecordTabsArea({
             <MedicalRecordDiagnosisPlan
               isNewRecord={isNewRecord}
               chiefComplaint={chiefComplaint}
+              physicalExam={physicalExam}
+              setPhysicalExam={onPhysicalExamChange}
               plan={plan}
               setPlan={onPlanChange}
               assessment={assessment}
@@ -304,7 +360,6 @@ export function MedicalRecordTabsArea({
               setDiagnosis2NameId={onDiagnosis2NameIdChange}
               medicalRecordId={recordId}
               ownerDiscountRate={ownerDiscountRate}
-              onRegisterClinicalPlanSave={onRegisterClinicalPlanSave}
               diagnosis1NameIdError={diagnosis1NameIdError}
               recordClinicId={recordClinicId}
             />
@@ -314,21 +369,21 @@ export function MedicalRecordTabsArea({
                 onChange={onNextVisitDateChange}
                 onValidationChange={onNextVisitDateValidChange}
                 hasLineIntegration={hasLineIntegration}
-                disabled={isNewRecord}
+                disabled={isNewRecord || isFinalized}
               />
               {recordId ? (
                 <RecommendationReasonSelect
                   mode="edit"
                   medicalRecordId={recordId}
                   value={recommendationReason}
-                  disabled={false}
+                  disabled={isFinalized}
                 />
               ) : (
                 <RecommendationReasonSelect
                   mode="create"
                   value={recommendationReason}
                   onChange={onRecommendationReasonChange}
-                  disabled={false}
+                  disabled={isFinalized}
                 />
               )}
             </div>
@@ -362,7 +417,7 @@ export function MedicalRecordTabsArea({
                 カルテを保存してから使用できます
               </div>
             ) : (
-              <CheckupsTab medicalRecordId={recordId} lstepStatus={lstepStatus} isFinalized={recordStatus === "確定済"} />
+              <CheckupsTab medicalRecordId={recordId} lstepStatus={lstepStatus} isFinalized={isFinalized} />
             )}
           </div>
         </UnifiedTabsContent>
@@ -377,7 +432,12 @@ export function MedicalRecordTabsArea({
       {mountedTabs.has("画像") ? (
         <UnifiedTabsContent value="画像">
           <div className={`${LAYOUT.fullHeight} ${activeTab === "画像" ? "" : "hidden"}`}>
-            <MedicalRecordImage isNewRecord={isNewRecord} medicalRecordId={recordId} recordClinicId={recordClinicId} />
+            <MedicalRecordImage
+              isNewRecord={isNewRecord}
+              medicalRecordId={recordId}
+              recordClinicId={recordClinicId}
+              isPetDeceased={selectedPet.status === "死亡"}
+            />
           </div>
         </UnifiedTabsContent>
       ) : null}

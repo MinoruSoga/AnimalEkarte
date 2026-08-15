@@ -1,10 +1,16 @@
-import { describe, it, expect, afterEach } from "vitest";
+import { describe, it, expect, afterEach, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter, Routes, Route } from "react-router";
 import { http, HttpResponse } from "msw";
 import { server } from "@/testing/mocks/node";
 import { HospitalizationDetail } from "./HospitalizationDetail";
+
+vi.mock("@/hooks/use-auth", () => ({
+  useAuth: () => ({
+    hasPermission: () => true,
+  }),
+}));
 
 const HOSP_ID = "42";
 

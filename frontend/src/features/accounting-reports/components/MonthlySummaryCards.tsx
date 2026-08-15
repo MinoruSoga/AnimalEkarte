@@ -1,7 +1,7 @@
-import { memo } from "react";
+import { memo, type ReactNode } from "react";
 import { C } from "@/lib/design-tokens";
 import { formatTaxRatePercent } from "@/hooks/use-clinic-tax-rates";
-import { formatCurrency } from "@/utils/format/number";
+import { formatCurrency } from "@/lib/format/number";
 import type { MonthlyReportResponse } from "../api/get-monthly-report";
 
 interface MonthlySummaryCardsProps {
@@ -10,12 +10,15 @@ interface MonthlySummaryCardsProps {
   standardTaxRate: number;
   /** #179 ②: 病院マスタ設定の軽減税率（例: 0.08）。固定「8%」表記を撤廃。 */
   reducedTaxRate: number;
+  /** #179 ②: 税率設定導線。ページ側で権限判定して渡す（Router 依存をカードに持ち込まない） */
+  taxSettingsLink?: ReactNode;
 }
 
 export const MonthlySummaryCards = memo(function MonthlySummaryCards({
   summary,
   standardTaxRate,
   reducedTaxRate,
+  taxSettingsLink,
 }: MonthlySummaryCardsProps) {
   const topCards = [
     { label: "診療日数", value: `${summary.workingDays}日`, sub: null },
@@ -23,7 +26,7 @@ export const MonthlySummaryCards = memo(function MonthlySummaryCards({
     {
       label: "売上合計",
       value: formatCurrency(summary.totalAmount),
-      sub: `返金: -¥${summary.totalRefund.toLocaleString()}`,
+      sub: `返金: -${formatCurrency(summary.totalRefund)}`,
     },
     {
       label: "純売上",
@@ -90,7 +93,12 @@ export const MonthlySummaryCards = memo(function MonthlySummaryCards({
 
         {/* 消費税内訳 */}
         <div className={`${C.bgWhite} rounded-lg border ${C.borderLight} p-4`}>
-          <p className={`text-base font-medium ${C.text70} mb-2`}>消費税内訳</p>
+          <div className="flex items-center justify-between gap-3 mb-2">
+            <p className={`text-base font-medium ${C.text70}`}>消費税内訳</p>
+            {taxSettingsLink ? (
+              <div className="print:hidden">{taxSettingsLink}</div>
+            ) : null}
+          </div>
           <ul className="space-y-2">
             <li>
               <p className={`text-xs ${C.text40} mb-0.5`}>

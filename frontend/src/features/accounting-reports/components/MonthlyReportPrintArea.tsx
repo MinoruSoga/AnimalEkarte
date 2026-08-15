@@ -1,7 +1,11 @@
 import { PrintPortal } from "@/components/shared/PrintPortal";
 import { formatTaxRatePercent } from "@/hooks/use-clinic-tax-rates";
-import { formatCurrency } from "@/utils/format/number";
-import type { MonthlyReportResponse } from "../api/get-monthly-report";
+import { formatCurrency } from "@/lib/format/number";
+import type {
+  CategoryPaymentMatrix,
+  MonthlyReportResponse,
+} from "../api/get-monthly-report";
+import { CategoryPaymentMatrixTable } from "./CategoryPaymentMatrixTable";
 
 interface MonthlyReportPrintAreaProps {
   periodLabel: string;
@@ -12,6 +16,8 @@ interface MonthlyReportPrintAreaProps {
   standardTaxRate: number;
   /** #179 ②: 病院マスタ設定の軽減税率。印刷面でも固定「8%」を撤廃。 */
   reducedTaxRate: number;
+  /** #247: 部門×支払方法（画面と同一データ） */
+  categoryPaymentMatrix?: CategoryPaymentMatrix | null;
 }
 
 /**
@@ -28,6 +34,7 @@ export function MonthlyReportPrintArea({
   dailyDetails,
   standardTaxRate,
   reducedTaxRate,
+  categoryPaymentMatrix = null,
 }: MonthlyReportPrintAreaProps) {
   const { standard, reduced } = summary.taxBreakdown;
   const paymentEntries = Object.entries(summary.byPaymentMethod);
@@ -109,6 +116,14 @@ export function MonthlyReportPrintArea({
           </table>
         </div>
       </div>
+
+      {/* #247 部門×支払方法（画面と同一 matrix） */}
+      {categoryPaymentMatrix ? (
+        <div className="mb-3">
+          <p className="font-semibold text-[9pt] mb-1">部門×支払方法</p>
+          <CategoryPaymentMatrixTable matrix={categoryPaymentMatrix} compact />
+        </div>
+      ) : null}
 
       {/* 日次明細 */}
       <p className="font-semibold text-[9pt] mb-1">日次明細</p>

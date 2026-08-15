@@ -56,4 +56,41 @@ describe('buildCsvContent (ISSUE-180)', () => {
     const dataRow = csv.split('\n')[1];
     expect(dataRow).toContain('"田中,""太郎"""');
   });
+
+  // SEC-CS-F06: spreadsheet formula injection via owner_name
+  it.each([
+    { name: 'equals', owner_name: '=SUM(A1:A2)', expected: '"\'=SUM(A1:A2)"' },
+    { name: 'plus', owner_name: '+1234', expected: '"\'+1234"' },
+    { name: 'minus', owner_name: '-1234', expected: '"\'-1234"' },
+    { name: 'at', owner_name: '@cmd', expected: '"\'@cmd"' },
+    { name: 'leading tab', owner_name: '\t=1+1', expected: '"\'\t=1+1"' },
+    { name: 'leading CR', owner_name: '\r=1+1', expected: '"\'\r=1+1"' },
+  ])(
+    'neutralizes formula-active owner_name starting with dangerous char ($name)',
+    ({ owner_name, expected }) => {
+      const owner: AggregationOwner = { ...baseOwner, owner_name };
+      const csv = buildCsvContent([owner], 'revenue');
+      const [headerLine, dataLine] = csv.split('\n');
+      const nameIndex = headerLine.split(',').indexOf('owner_name');
+      // owner_name is always double-quoted, so extract the quoted field via CSV-ish parse:
+      // fields before owner_name have no embedded commas/quotes in fixtures.
+      const prefix = dataLine.split(',').slice(0, nameIndex).join(',');
+      const rest = dataLine.slice(prefix.length + (prefix ? 1 : 0));
+      // rest starts with the quoted owner_name cell
+      const match = rest.match(/^("(?:[^"]|"")*")/);
+      expect(match).not.toBeNull();
+      expect(match![1]).toBe(expected);
+    }
+  );
+
+  it('does not prefix owner_name when formula char is not at the start', () => {
+    const owner: AggregationOwner = {
+      ...baseOwner,
+      owner_name: 'a=b+c',
+    };
+    const csv = buildCsvContent([owner], 'revenue');
+    const dataRow = csv.split('\n')[1];
+    expect(dataRow).toContain('"a=b+c"');
+    expect(dataRow).not.toContain("\"'a=b+c\"");
+  });
 });

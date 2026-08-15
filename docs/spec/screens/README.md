@@ -1,10 +1,10 @@
 # 画面詳細仕様書 インデックス (Screen Specifications Index)
 
-> **目的**: 全40画面の仕様書インデックスを提供する。
+> **目的**: 全41画面の仕様書インデックスを提供する。
 > **読者**: 新規参加エンジニア・PdM。
 > **タイミング**: 画面インデックス参照・全体像把握時。
 
-本ディレクトリには、Animal Ekarte を構成する全 40 ページの具体的な機能、レイアウト、および API 連携の詳細が定義されています。
+本ディレクトリ直下の番号付き仕様（`[0-9]*.md`）は **41 ファイル**（フロー文書 `99-medical-record-flow` を含む）。製品ルートの product leaf 数（`route-inventory` の 84）とは数え方が異なる。各ファイルに画面の機能、レイアウト、API 連携の詳細を定義する。
 
 ---
 
@@ -72,6 +72,7 @@
 | - | └ **Lステップ顧客分析** | [31-lstep-integration.md](./31-lstep-integration.md) | CPM 分析と友だち属性推移ダッシュボード。 |
 | 34 | **Lステップ配信監視** | [34-lstep-delivery-monitor.md](./34-lstep-delivery-monitor.md) | 自動配信トリガーの実行ログと失敗検知。 |
 | 35 | **取扱説明書** | [35-internal-manual.md](./35-internal-manual.md) | システム内マニュアルの閲覧と編集。 |
+| 40 | **同一飼主・ペット連携** | [40-identity-links.md](./40-identity-links.md) | 所属医院内の飼主・ペット手動 identity link と最小連携履歴。 |
 | 21 | **ログイン** | [21-login.md](./21-login.md) | 認証プロセスとパスワード再設定。 |
 | 19 | **医院マスタ設定** | [19-clinic-settings.md](./19-clinic-settings.md) | 拠点基本情報と税務設定。 |
 
@@ -86,5 +87,4 @@
 
 ---
 
-**最新更新**: 2026-07-16 | **ステータス**: All Sync with Implementation (108 Tables / 34 Resources)
-
+**最新更新**: 2026-08-14 | **ステータス**: Static/Code Sync (123 Tables / 37 Resources; Fresh DB Apply Pending — `todo.md` OPS-13)

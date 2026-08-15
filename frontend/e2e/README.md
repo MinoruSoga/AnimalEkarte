@@ -13,7 +13,8 @@ End-to-end tests for Animal Ekarte using Playwright.
 | `accounting-smoke.spec.ts` | /accounting タブ smoke + いりす/イリス→Iris かな非区別検索 + /accounting?tab=unpaid + /accounting/reports |
 | `accounting-flow.spec.ts` | /accounting 行クリック→詳細遷移・Iris 検索→詳細・/accounting/reports セレクタ・会計精算フォーム確定ボタン表示 |
 | `reservations-smoke.spec.ts` | /reservations auth guard + カレンダーナビ smoke |
-| `reservation-patient-search.spec.ts` | 新規予約作成モーダル PatientSelectionTable: ひらがな→カタカナ名一致 (たろう→タロウ, いりす→Iris(イリス)), カタカナ→カタカナ名一致 (かな統一検索 #161) |
+| `reservation-patient-search.spec.ts` | 新規予約作成モーダル PatientSelectionTable: 先頭20件外の患者1003298（SPANKY）を `#search` の自動デバウンスでpet-name検索し選択 |
+| `medical-records-patient-search.spec.ts` | usePetSelectionPage代表面: `include_deceased=true` の先頭20件外から患者1003298（SPANKY）をpet-name検索し、accessible name付き選択ボタンを確認 |
 | `clinical-smoke.spec.ts` | 受付/顧客集計/カルテ管理/入院管理/トリミング/検査/予防接種/定期健診 各ページ smoke |
 | `clinical-flows.spec.ts` | カルテ管理 一覧/検索/行クリック詳細・ペット選択画面 |
 | `medical-records-create.spec.ts` | /medical-records/new?petId=1 直接 URL アクセスで新規カルテ入力フォーム表示確認 |
@@ -76,7 +77,8 @@ docker compose up -d   # if not already running
 | `accounting-smoke.spec.ts` | owner 1 (林 文明, はやし ふみあき) with completed billing for pet 1 (`Iris(イリス)`, name_kana=`いりす`) | `003_seed_demo.sql` |
 | `accounting-flow.spec.ts` | same as `accounting-smoke.spec.ts` | `003_seed_demo.sql` |
 | `reservations-smoke.spec.ts` | admin user at clinic 1 with reservations permission | `003_seed_demo.sql` |
-| `reservation-patient-search.spec.ts` | pet id=4 `タロウ` (name_kana=`たろう`) owner 3, pet id=1 `Iris(イリス)` (name_kana=`いりす`) owner 1, clinic 1; /v1/pets page 1 (limit=20) | `003_seed_demo.sql` |
+| `reservation-patient-search.spec.ts` | clinic 1 の pet id=1003298 `SPANKY` が `/v1/pets?page=1&limit=20` の外に存在し、`search=SPANKY` で返る | `003_demo/pets.csv` |
+| `medical-records-patient-search.spec.ts` | 同じ pet id=1003298 `SPANKY`; 初期一覧と検索の双方が `include_deceased=true` | `003_demo/pets.csv` |
 | `master-crud.spec.ts` | treatment procedure items incl. `注射` (root with children) | `003_seed_demo.sql` |
 | `hospitalization-flow.spec.ts` | 1+ active hospitalization records at clinic 1 | `003_seed_demo.sql` |
 | `vaccinations-flow.spec.ts` | 1+ vaccination records; owner `林 文明` with pet `林 文明` | `003_seed_demo.sql` |
@@ -90,8 +92,15 @@ make reset   # resets and re-applies all migrations + seeds
 
 ### Auth
 
-All specs use `admin@noavet.jp` / `password` (demo seed, clinic 1, `is_system_admin=true`).
-Login is handled automatically via `helpers/auth.ts`; no manual pre-auth step is needed.
+Credentials are **env-injected only** (SEC-CS2-F01). There is no in-repository password fallback.
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `E2E_LOGIN_EMAIL` | yes (for authenticated specs) | Admin account email present in the target DB (local demo seed) |
+| `E2E_LOGIN_PASSWORD` | yes (for authenticated specs) | Matching password (never commit; inject via shell/CI secrets) |
+| `E2E_AUTH_STATE_PATH` | no | Cached storage-state path (default `/tmp/animal-ekarte-demo-admin-storage-state.json`) |
+
+Login is handled automatically via `helpers/auth.ts`; no manual pre-auth step is needed once the env vars are set.
 
 ## Running Tests
 
@@ -109,6 +118,8 @@ This script mounts only spec/config files and installs a fresh `@playwright/test
 inside the playwright container. This avoids the chromium-1217 vs chromium-1223 version
 conflict caused by the host node_modules (pnpm-lock pins 1217, Docker image ships 1223).
 Override the target with `PLAYWRIGHT_TEST_BASE_URL` when needed.
+When set on the host, `E2E_LOGIN_EMAIL`, `E2E_LOGIN_PASSWORD`, and `E2E_AUTH_STATE_PATH`
+are forwarded into the Playwright container (name-only `-e`; unset vars are not injected).
 
 ### Alternative: macOS native (if pnpm and playwright browsers are installed on host)
 
@@ -131,12 +142,17 @@ pnpm test:e2e:ui
 ## Authentication
 
 All specs (except those that test unauthenticated redirect) log in automatically via
-`helpers/auth.ts:loginAsDemoAdmin`. The helper navigates to `/login`, fills the demo credentials,
-waits for the login API to succeed, then stores the authenticated storage state in `/tmp`.
+`helpers/auth.ts:loginAsDemoAdmin`. The helper reads `E2E_LOGIN_EMAIL` / `E2E_LOGIN_PASSWORD`
+(required; throws if unset), navigates to `/login`, waits for the login API to succeed, then
+stores the authenticated storage state in `/tmp` (or `E2E_AUTH_STATE_PATH`).
 Later specs restore that state instead of repeating UI login, avoiding the backend login
 rate limit during full-suite runs.
 
-- Email: `admin@noavet.jp` / Password: `password`
+```bash
+export E2E_LOGIN_EMAIL='…'      # local demo admin email
+export E2E_LOGIN_PASSWORD='…'   # never commit
+./scripts/run-e2e.sh
+```
 
 `master-crud.spec.ts` shares a `BrowserContext` across all tests via `beforeAll` (same pattern
 used in `owners-search.spec.ts`, `accounting-smoke.spec.ts`, and `reservations-smoke.spec.ts`).
@@ -155,16 +171,14 @@ E2E validation of this filter would require seeding appointments for the current
 a date-dependent setup that is intentionally excluded to avoid flakiness.
 `reservations-smoke.spec.ts` provides a page-load smoke test; the filter guarantee is the unit test.
 
-### Kana non-distinction search
+### Patient server-side search
 
-Tested on three surfaces:
-- `/owners` — pet name `ピーター` matched by `ぴ` (hiragana) and `ピ` (katakana)
-- `/accounting` — pet name `Iris(イリス)` matched by `いりす` (hiragana) and `イリス` (katakana)
-- 新規予約作成モーダル `PatientSelectionTable` — pet name `タロウ` matched by `たろう` (hiragana) and `タロウ` (katakana); `Iris(イリス)` matched by `いりす` (Issue #161)
-
-All use the shared `normalizeKana` utility (`src/lib/normalize-kana.ts`) which converts katakana
-to hiragana before comparison. The unit tests for `normalizeKana` live in
-`src/lib/normalize-kana.test.ts`.
+The reservation modal and the shared `usePetSelectionPage` selection flow both
+prove that exact runtime pet `1003298` (`SPANKY`) is absent from the unfiltered
+first 20 rows, returned by a debounced pet-name backend `search`
+predicate, rendered, and exposed through an exact accessible select-button name. Kana normalization
+for other list surfaces remains covered by their dedicated specs and the
+`normalizeKana` unit tests.
 
 ## Architecture Support
 

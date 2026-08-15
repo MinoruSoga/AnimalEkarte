@@ -1,6 +1,5 @@
-import { memo, useState, useMemo, useCallback, useEffect, useTransition } from "react";
+import { memo, useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { toast } from "sonner";
-import { handleApiError } from "@/lib/handle-api-error";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -11,7 +10,7 @@ import { TreatmentDetailedSummary } from "./TreatmentDetailedSummary";
 import { useGetEstimateByRecord, useCreateEstimateRecord, useUpdateEstimateRecord } from "../api/save-estimate";
 import { C } from "@/lib/design-tokens";
 import { usePermission } from "@/hooks/use-permission";
-import type { EstimateItem } from "@/types/generated/models";
+import type { Estimate, EstimateItem } from "@/types/generated/models";
 
 // EstimateItem (BE snake_case) → TreatmentItem (UI camelCase) の明示変換。
 // 旧実装の `as any` キャストはフィールド名非互換 (name→content, unit_price→unitPrice 等) を
@@ -27,6 +26,23 @@ function toTreatmentItem(item: EstimateItem): TreatmentItem {
     discountRate: item.discount_rate,
     discountAmount: item.discount_amount,
   };
+}
+
+function hydrateFromEstimate(
+  estimate: Estimate,
+  setters: {
+    setSubject: (v: string) => void;
+    setComment: (v: string) => void;
+    setRemarks: (v: string) => void;
+    setGlobalDiscountAmount: (v: number) => void;
+    setItems: (v: TreatmentItem[]) => void;
+  },
+) {
+  setters.setSubject(estimate.title ?? "");
+  setters.setComment(estimate.comment ?? "");
+  setters.setRemarks(estimate.notes ?? "");
+  setters.setGlobalDiscountAmount(estimate.discount_amount ?? 0);
+  setters.setItems((estimate.items ?? []).map(toTreatmentItem));
 }
 
 interface MedicalRecordEstimateProps {
@@ -47,30 +63,36 @@ export const MedicalRecordEstimate = memo(function MedicalRecordEstimate({
   const [comment, setComment] = useState("");
   const [remarks, setRemarks] = useState("");
   const [globalDiscountAmount, setGlobalDiscountAmount] = useState(0);
-  const [, startSaveTransition] = useTransition();
+  const [items, setItems] = useState<TreatmentItem[]>([]);
 
   const { canEdit } = usePermission("medical-records");
-  const [items, setItems] = useState<TreatmentItem[]>([]);
 
   // Load existing estimate
   const { data: existingEstimate } = useGetEstimateByRecord(
     isNewRecord ? undefined : medicalRecordId,
   );
   const createEstimate = useCreateEstimateRecord(medicalRecordId ?? "");
-  const updateEstimate = useUpdateEstimateRecord(
-    existingEstimate?.id ?? 0,
-    medicalRecordId ?? "",
-  );
+  // BUG-016: id は mutate 時に渡す（hook 引数の id クロージャに依存しない）
+  const updateEstimate = useUpdateEstimateRecord(medicalRecordId ?? "");
 
-  // Populate form from existing estimate
-  useEffect(() => {
-    if (!existingEstimate) return;
-    setSubject(existingEstimate.title ?? "");
-    setComment(existingEstimate.comment ?? "");
-    setRemarks(existingEstimate.notes ?? "");
-    setGlobalDiscountAmount(existingEstimate.discount_amount ?? 0);
-    setItems((existingEstimate.items ?? []).map(toTreatmentItem));
-  }, [existingEstimate]);
+  // create 成功直後も PATCH できるよう id を ref で保持
+  const estimateIdRef = useRef<number | null>(null);
+
+  // id が変わったときだけ hydrate（refetch の参照変更で入力を巻き戻さない）
+  const [hydratedEstimateId, setHydratedEstimateId] = useState<number | null>(null);
+  if (existingEstimate?.id != null && existingEstimate.id !== hydratedEstimateId) {
+    setHydratedEstimateId(existingEstimate.id);
+    estimateIdRef.current = existingEstimate.id;
+    hydrateFromEstimate(existingEstimate, {
+      setSubject,
+      setComment,
+      setRemarks,
+      setGlobalDiscountAmount,
+      setItems,
+    });
+  } else if (existingEstimate?.id != null) {
+    estimateIdRef.current = existingEstimate.id;
+  }
 
   const handleAddItem = useCallback(() => {
     setItems((prev) => [
@@ -113,14 +135,19 @@ export const MedicalRecordEstimate = memo(function MedicalRecordEstimate({
     return { subtotal: sub, tax: taxAmount, total: sub + taxAmount };
   }, [items]);
 
+  /**
+   * BUG-016: メイン保存 post-save から await される。
+   * startTransition で包まない（await 不能・2回目以降の偽成功の温床）。
+   * 成功トーストは実 API 成功時のみ。
+   */
   const handleSave = useCallback(async (): Promise<void> => {
     if (!medicalRecordId) {
       toast.error("カルテを保存してから見積書を保存してください");
-      return;
+      throw new Error("medicalRecordId missing");
     }
     if (!subject.trim()) {
       setSubjectError("件名を入力してください");
-      return;
+      throw new Error("subject required");
     }
     setSubjectError("");
 
@@ -135,22 +162,21 @@ export const MedicalRecordEstimate = memo(function MedicalRecordEstimate({
       medical_record_id: Number(medicalRecordId),
     };
 
-    await new Promise<void>((resolve, reject) => {
-      startSaveTransition(async () => {
-        try {
-          if (existingEstimate) {
-            await updateEstimate.mutateAsync(payload);
-          } else {
-            await createEstimate.mutateAsync(payload);
-          }
-          toast.success("見積書を保存しました");
-          resolve();
-        } catch (error) {
-          handleApiError(error, "保存");
-          reject(new Error("見積書の保存に失敗しました"));
-        }
-      });
-    });
+    try {
+      const knownId = estimateIdRef.current ?? existingEstimate?.id ?? null;
+      if (knownId != null && knownId > 0) {
+        const updated = await updateEstimate.mutateAsync({ id: knownId, payload });
+        estimateIdRef.current = updated.id;
+      } else {
+        const created = await createEstimate.mutateAsync(payload);
+        estimateIdRef.current = created.id;
+        setHydratedEstimateId(created.id);
+      }
+      toast.success("見積書を保存しました");
+    } catch (error) {
+      // API エラーは mutation onError が handleApiError 済み。ここでは再通知しない。
+      throw error instanceof Error ? error : new Error("見積書の保存に失敗しました");
+    }
   }, [
     medicalRecordId,
     subject,
@@ -160,7 +186,7 @@ export const MedicalRecordEstimate = memo(function MedicalRecordEstimate({
     globalDiscountAmount,
     comment,
     remarks,
-    existingEstimate,
+    existingEstimate?.id,
     updateEstimate,
     createEstimate,
   ]);

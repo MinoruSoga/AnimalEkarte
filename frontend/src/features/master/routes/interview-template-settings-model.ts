@@ -11,6 +11,7 @@ export function buildInterviewTemplateCreateRequest(
     category: data.category,
     title: data.title,
     content: data.content,
+    is_active: data.isActive,
   };
 }
 

@@ -1,4 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef } from "react";
+
+import { useUnsavedChanges } from "./use-unsaved-changes";
 
 /**
  * BUG-380: サイドパネル編集中の未保存変更を追跡し、破棄操作前に確認ダイアログを出すための共通フック。
@@ -21,26 +23,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
  *  ```
  */
 export function useSidePeekDirty() {
-  const [isDirty, setIsDirty] = useState(false);
+  const { isDirty, markDirty, markClean } = useUnsavedChanges();
   const isDirtyRef = useRef(false);
 
   useEffect(() => {
     isDirtyRef.current = isDirty;
   }, [isDirty]);
-
-  // beforeunload: タブクローズ・リロード防止
-  useEffect(() => {
-    if (!isDirty) return;
-    const handler = (e: BeforeUnloadEvent) => {
-      e.preventDefault();
-      e.returnValue = "";
-    };
-    window.addEventListener("beforeunload", handler);
-    return () => window.removeEventListener("beforeunload", handler);
-  }, [isDirty]);
-
-  const markDirty = useCallback(() => setIsDirty(true), []);
-  const markClean = useCallback(() => setIsDirty(false), []);
 
   /**
    * 未保存変更の破棄確認。dirty でなければ常に true。
@@ -50,10 +38,10 @@ export function useSidePeekDirty() {
     if (!isDirtyRef.current) return true;
     const ok = window.confirm("未保存の変更があります。破棄してよろしいですか?");
     if (ok) {
-      setIsDirty(false);
+      markClean();
     }
     return ok;
-  }, []);
+  }, [markClean]);
 
   return {
     isDirty,

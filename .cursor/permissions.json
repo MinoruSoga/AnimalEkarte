@@ -1,8 +1,10 @@
 {
-  // Run Everything: 全ツールを承認なしで実行（Cursor Settings > Agents と同期）
+  // Agent tool approval: allowlist only (no unrestricted auto-run).
   // https://cursor.com/docs/reference/permissions
-  "approvalMode": "unrestricted",
-  "mcpAllowlist": ["*:*"],
+  "approvalMode": "allowlist",
+  "mcpAllowlist": [
+    "chrome-devtools"
+  ],
   "terminalAllowlist": [
     "git",
     "docker",
@@ -41,11 +43,12 @@
   ],
   "autoRun": {
     "allow_instructions": [
-      "Allow all standard local development shell commands without approval.",
+      "Allow standard local development shell commands on the terminalAllowlist without approval.",
       "Allow git commit, git add, git push, and git status when the user requested version control work."
     ],
     "block_instructions": [
-      "Block git commit only when .env.staging or other obvious secret files are staged."
+      "Block git commit when .env.staging or other obvious secret files are staged.",
+      "Block unrestricted network installs (remote pipe-to-shell or unpinned installers)."
     ]
   }
 }

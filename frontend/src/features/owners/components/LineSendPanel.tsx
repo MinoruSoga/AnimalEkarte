@@ -2,6 +2,7 @@ import { useActionState, useState } from "react";
 import {
   Sheet,
   SheetContent,
+  SheetDescription,
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
@@ -103,14 +104,17 @@ export function LineSendPanel({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className={`${C.bgPage} w-[480px] sm:max-w-[480px] flex flex-col`}>
-        <SheetHeader className={`border-b ${C.borderLight}`}>
+      <SheetContent side="right" className={`${C.bgPage} w-full max-w-full sm:max-w-[480px] flex flex-col`}>
+        <SheetHeader className={`border-b pr-16 ${C.borderLight}`}>
           <SheetTitle className={`text-base font-semibold ${C.text}`}>
             LINE送信 — {ownerName}
           </SheetTitle>
+          <SheetDescription className="sr-only">
+            {ownerName}さんへLINEメッセージを送信します
+          </SheetDescription>
         </SheetHeader>
 
-        <div className="flex-1 overflow-y-auto flex flex-col gap-5 p-4">
+        <div className="flex-1 overflow-y-auto flex flex-col gap-6 p-4">
           {!isLinked ? (
             <div
               className={`rounded-md border ${C.borderDanger} ${C.bgDanger8} px-4 py-3 text-sm ${C.danger}`}
@@ -152,7 +156,7 @@ export function LineSendPanel({
                     name="text"
                     rows={5}
                     placeholder="送信するメッセージを入力してください"
-                    className={`w-full rounded-[3px] border ${C.borderMedium} bg-white p-3 text-sm ${C.text} ${C.textPlaceholder} outline-none ${C.focusBorderAccent} transition-colors resize-none leading-relaxed`}
+                    className={`w-full rounded-xxs border ${C.borderMedium} bg-white p-3 text-sm ${C.text} ${C.textPlaceholder} outline-none ${C.focusBorderAccent} transition-colors resize-none leading-relaxed`}
                   />
                 </div>
               ) : null}
@@ -204,7 +208,7 @@ export function LineSendPanel({
                   name="purpose"
                   type="text"
                   placeholder="例: 術後フォロー"
-                  className={`${STYLE.formInput} rounded-[3px] px-3`}
+                  className={`${STYLE.formInput} rounded-xxs px-3`}
                 />
               </div>
 
@@ -218,13 +222,13 @@ export function LineSendPanel({
                 </p>
               ) : null}
 
-              <SubmitButton loadingText="送信中..." colorVariant="brand">送信する</SubmitButton>
+              <SubmitButton loadingText="送信中..." colorVariant="primary">送信する</SubmitButton>
             </form>
           ) : null}
 
           {/* 送信履歴 */}
           <div className={`border-t ${C.borderLight} pt-4 flex flex-col gap-2`}>
-            <span className={`text-xs ${C.text55} uppercase tracking-wide`}>
+            <span className={`text-xs ${C.text55} uppercase`}>
               送信履歴（最新5件）
             </span>
             <LineSendHistory ownerId={ownerId} />

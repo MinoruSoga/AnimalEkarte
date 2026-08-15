@@ -8,7 +8,7 @@ import { CalendarNavToolbar } from "@/components/shared/CalendarNavToolbar";
 import type { LegendEntry, ReservationTypeColor } from "@/hooks/use-reservation-type-color-map";
 import { C, ICON } from "@/lib/design-tokens";
 import { typedSetter } from "@/lib/type-utils";
-import { getCalendarViewLabel } from "@/utils/status-helpers";
+import { getCalendarViewLabel } from "@/lib/status-helpers";
 import type { CalendarView, Reservation } from "../types";
 import { CALENDAR_VIEW_VALUES } from "../types";
 import { DaysRangeToggle } from "./DaysRangeToggle";
@@ -91,7 +91,10 @@ export function ReservationManagementCalendar({
 
   return (
     <div className="flex-1 flex flex-col p-4 overflow-hidden w-full min-w-0">
-      <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+      <div
+        className="flex flex-col items-stretch gap-2 mb-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between"
+        data-testid="reservation-toolbar"
+      >
         <CalendarNavToolbar
           onPrev={onNavigatePrevious}
           onToday={onNavigateToday}
@@ -105,9 +108,12 @@ export function ReservationManagementCalendar({
           }
         />
 
-        <div className="flex items-center gap-2">
+        <div
+          className="flex w-full flex-wrap items-center gap-2 sm:w-auto"
+          data-testid="reservation-toolbar-filters"
+        >
           <Select value={sourceFilter} onValueChange={onSourceFilterChange}>
-            <SelectTrigger className={`w-[140px] ${C.bgWhite} ${C.borderMedium} h-10 text-base`}>
+            <SelectTrigger aria-label="予約ソース" className={`w-[140px] ${C.bgWhite} ${C.borderMedium} h-11 text-base`}>
               <SelectValue placeholder="予約ソース" />
             </SelectTrigger>
             <SelectContent>{SOURCE_FILTER_SELECT_ITEMS}</SelectContent>
@@ -117,13 +123,14 @@ export function ReservationManagementCalendar({
             value={doctorFilter}
             onValueChange={onDoctorFilterChange}
             options={doctorFilterOptions}
+            ariaLabel="担当医絞り込み"
             placeholder="担当医で絞込"
             searchPlaceholder="担当医を検索..."
-            className="w-[160px]"
+            className="w-[160px] h-11"
           />
 
           <Select value={view} onValueChange={typedSetter(onViewChange, CALENDAR_VIEW_VALUES)}>
-            <SelectTrigger className={`w-[140px] ${C.bgWhite} ${C.borderMedium} h-10 text-base`}>
+            <SelectTrigger aria-label="カレンダー表示切替" className={`w-[140px] ${C.bgWhite} ${C.borderMedium} h-11 text-base`}>
               <SelectValue placeholder="表示切替" />
             </SelectTrigger>
             <SelectContent>

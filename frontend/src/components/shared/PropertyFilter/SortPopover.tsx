@@ -34,7 +34,7 @@ const SortRuleRow = memo(function SortRuleRow({
         <PopoverTrigger asChild>
           <button
             type="button"
-            className={`flex items-center gap-1 px-2 py-1 text-base ${C.text} ${C.bgMutedBadge} ${C.hoverBgMutedBadge} rounded-[3px] transition-colors max-w-[160px] truncate`}
+            className={`flex items-center gap-1 px-2 py-1 text-base ${C.text} ${C.bgMutedBadge} ${C.hoverBgMutedBadge} rounded-xxs transition-colors max-w-[160px] truncate`}
           >
             {property?.icon ? (
               <property.icon className={`${ICON.action} shrink-0 opacity-50`} />
@@ -71,7 +71,7 @@ const SortRuleRow = memo(function SortRuleRow({
       <button
         type="button"
         onClick={() => onToggleDirection(sort.key)}
-        className={`flex items-center gap-1 px-2 py-1 text-base ${C.text} ${C.bgMutedBadge} ${C.hoverBgMutedBadge} rounded-[3px] transition-colors whitespace-nowrap`}
+        className={`flex items-center gap-1 px-2 py-1 text-base ${C.text} ${C.bgMutedBadge} ${C.hoverBgMutedBadge} rounded-xxs transition-colors whitespace-nowrap`}
       >
         {sort.direction === "asc" ? (
           <ArrowUp className={`${ICON.page} shrink-0`} />
@@ -85,7 +85,7 @@ const SortRuleRow = memo(function SortRuleRow({
       <button
         type="button"
         onClick={() => onRemove(sort.key)}
-        className={`p-0.5 rounded-[3px] ${C.text30} ${C.hoverText60} ${C.hoverBgLight} opacity-0 group-hover:opacity-100 transition-opacity ml-auto`}
+        className={`p-0.5 rounded-xxs ${C.text30} ${C.hoverText60} ${C.hoverBgLight} opacity-0 group-hover:opacity-100 transition-opacity ml-auto`}
         aria-label={`${property?.label ?? sort.key} ソートを削除`}
       >
         <X className={ICON.page} />
@@ -219,7 +219,7 @@ export const SortPopover = memo(function SortPopover({
               <button
                 type="button"
                 onClick={() => setAddingSort(true)}
-                className={`flex items-center gap-1 mt-1 px-1 py-1 text-base ${C.text50} ${C.hoverText}/80 ${C.hoverBgLight} rounded-[3px] transition-colors w-full`}
+                className={`flex items-center gap-1 mt-1 px-1 py-1 text-base ${C.text50} ${C.hoverText}/80 ${C.hoverBgLight} rounded-xxs transition-colors w-full`}
               >
                 <Plus className={ICON.page} />
                 並べ替えを追加

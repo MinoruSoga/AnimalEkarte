@@ -3,6 +3,102 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { DatePicker } from "./DatePicker";
+import { CalendarNav, ClearButton, MonthGrid, YearNav } from "./DatePickerParts";
+
+describe("DatePicker — 44px touch targets", () => {
+  it("CalendarNavの前月・タイトル・次月を44x44px以上に保つ", () => {
+    render(
+      <CalendarNav
+        displayMonth={new Date(2026, 3, 1)}
+        onPrev={() => {}}
+        onNext={() => {}}
+        onTitleClick={() => {}}
+      />,
+    );
+
+    const prev = screen.getByRole("button", { name: "前の月" });
+    const title = screen.getByRole("button", { name: "2026年 4月" });
+    const next = screen.getByRole("button", { name: "次の月" });
+
+    for (const button of [prev, title, next]) {
+      expect(button).toHaveClass("min-h-11", "min-w-11");
+    }
+    expect(prev.querySelector("svg")).toHaveClass("size-5");
+    expect(title).toHaveClass("text-sm");
+    expect(next.querySelector("svg")).toHaveClass("size-5");
+  });
+
+  it("YearNavの前年・次年を44x44px以上に保つ", () => {
+    render(<YearNav year={2026} onPrevYear={() => {}} onNextYear={() => {}} />);
+
+    const prev = screen.getByRole("button", { name: "前の年" });
+    const next = screen.getByRole("button", { name: "次の年" });
+
+    for (const button of [prev, next]) {
+      expect(button).toHaveClass("min-h-11", "min-w-11");
+      expect(button.querySelector("svg")).toHaveClass("size-5");
+    }
+  });
+
+  it("MonthGridの各月を44x44px以上にし、文字サイズを維持する", () => {
+    render(<MonthGrid currentMonth={3} onSelect={() => {}} />);
+
+    const monthButtons = screen.getAllByRole("button");
+    expect(monthButtons).toHaveLength(12);
+    for (const button of monthButtons) {
+      expect(button).toHaveClass("min-h-11", "min-w-11", "text-sm");
+    }
+  });
+
+  it("ClearButtonを44x44px以上にし、glyphサイズを維持する", () => {
+    render(<ClearButton onClick={() => {}} />);
+
+    const clear = screen.getByRole("button", { name: "日付をクリア" });
+    expect(clear).toHaveClass("min-h-11", "min-w-11", "-my-px");
+    expect(clear.querySelector("svg")).toHaveClass("size-5");
+  });
+
+  it("single modeのcalendar triggerを44x44px以上に保つ", () => {
+    render(<DatePicker value="" onChange={() => {}} />);
+
+    expect(screen.getByRole("button", { name: "カレンダーを開く" })).toHaveClass(
+      "min-h-11",
+      "min-w-11",
+      "-my-px",
+    );
+    const input = screen.getByPlaceholderText("日付を選択…");
+    expect(input).toHaveClass("min-h-11");
+    expect(input.parentElement).toHaveClass("focus-within:ring-1", "focus-within:ring-ring");
+  });
+
+  it("single modeのToday buttonを44x44px以上に保つ", async () => {
+    const user = userEvent.setup();
+    render(<DatePicker value="" onChange={() => {}} />);
+
+    await user.click(screen.getByRole("button", { name: "カレンダーを開く" }));
+
+    expect(screen.getByRole("button", { name: "Today" })).toHaveClass(
+      "min-h-11",
+      "min-w-11",
+    );
+  });
+
+  it("flex内で複数配置しても親幅を押し広げない", () => {
+    render(<DatePicker value="" onChange={() => {}} placeholder="開始日" />);
+
+    expect(screen.getByPlaceholderText("開始日").parentElement).toHaveClass("min-w-0");
+  });
+
+  it("range modeのpopover triggerとclear操作を別buttonにしてinteractive要素をネストしない", () => {
+    const { container } = render(
+      <DatePicker mode="range" value="2026-04-01~2026-04-30" onChange={() => {}} />,
+    );
+
+    expect(screen.getByRole("button", { name: /2026\/4\/1.*2026\/4\/30/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "日付をクリア" })).toBeInTheDocument();
+    expect(container.querySelector("button button")).toBeNull();
+  });
+});
 
 /**
  * Issue #48 回帰テスト

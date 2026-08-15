@@ -39,7 +39,8 @@ export type UpdateStaffRequest = Partial<StaffModelFields> & {
 // Transform
 // ─────────────────────────────────────────────────
 
-function transformStaff(data: ModelStaff & { email?: string }) {
+/** Exported for unit tests — missing/unknown staff_type must not become "doctor". */
+export function transformStaff(data: ModelStaff & { email?: string }) {
   // 複数所属は clinic_assignments を正とし、なければ staffs.clinic_id を主所属として使う。
   const mainClinicAssignment = data.clinic_assignments?.find((a) => a.is_main);
   const clinicId = mainClinicAssignment?.clinic_id ?? data.clinic_id ?? null;
@@ -58,8 +59,8 @@ function transformStaff(data: ModelStaff & { email?: string }) {
     email,
     createdAt: data.created_at,
     updatedAt: data.updated_at,
-    // LINE予約用フィールド
-    staffType: data.staff_type ?? "doctor",
+    // LINE予約用フィールド — staff_type 欠損/非文字列は doctor に昇格させない
+    staffType: typeof data.staff_type === "string" ? data.staff_type : "",
     reservationDisplayName: data.reservation_display_name ?? "",
     reservationVisible: data.reservation_visible ?? true,
     reservationComment: data.reservation_comment ?? "",

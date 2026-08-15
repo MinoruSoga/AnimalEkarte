@@ -1,7 +1,9 @@
 import { isAxiosError } from "axios";
 import { toast } from "sonner";
+import { useLayoutEffect, useRef } from "react";
 import { handleApiError } from "@/lib/handle-api-error";
 import { jstNowISOString } from "@/lib/jst-date";
+import { usePermission } from "@/hooks/use-permission";
 import { useGetHospitalization } from "../api/get-hospitalization";
 import { useUpdateHospitalization } from "../api/update-hospitalization";
 import { dischargeWithBilling } from "../api/discharge-with-billing";
@@ -12,9 +14,19 @@ export const useHospitalizationDetail = (hospitalizationId?: string) => {
   const { data: hospitalization, isLoading, isError, error } = useGetHospitalization(id);
   const isNotFound = isAxiosError(error) && error.response?.status === 404;
   const { mutateAsync: updateHosp } = useUpdateHospitalization();
+  const { canEdit } = usePermission("hospitalization");
+  const canEditRef = useRef(canEdit);
+  const petIsDeceasedRef = useRef(hospitalization?.petIsDeceased);
+  useLayoutEffect(() => {
+    canEditRef.current = canEdit;
+    petIsDeceasedRef.current = hospitalization?.petIsDeceased;
+  }, [canEdit, hospitalization?.petIsDeceased]);
 
   const dischargeHospitalization = async (createAccounting = false): Promise<{ success: boolean; accountingId?: number }> => {
     if (!hospitalizationId || !hospitalization) {
+      return { success: false };
+    }
+    if (canEditRef.current !== true || petIsDeceasedRef.current === true) {
       return { success: false };
     }
     try {

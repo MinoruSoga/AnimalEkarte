@@ -4,7 +4,7 @@
  */
 import { z } from "zod";
 import type { AuthUser, AuthClinic } from "../types";
-import type { MeResponse } from "@/types/generated/handler-responses";
+import type { MeResponse } from "@/types/generated/auth-responses";
 
 const clinicMembershipSchema = z.object({
   clinic_id: z.string(),

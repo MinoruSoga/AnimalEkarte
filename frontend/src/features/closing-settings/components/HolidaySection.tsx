@@ -53,7 +53,7 @@ export const HolidaySection = memo(function HolidaySection({ holidays }: Holiday
         <button
           type="button"
           onClick={handleShowForm}
-          className={`flex items-center gap-1.5 text-base ${C.textBrand} ${C.hoverBgBrand} hover:text-white rounded-[4px] px-3 py-1.5 transition-colors`}
+          className={`flex min-h-11 min-w-11 items-center gap-1.5 text-base ${C.textBrand} ${C.hoverBgBrand} hover:text-white rounded-xs px-3 transition-colors`}
         >
           <Plus className="size-4" />
           追加
@@ -63,7 +63,7 @@ export const HolidaySection = memo(function HolidaySection({ holidays }: Holiday
       {showForm ? (
         <form action={formAction} className={`mb-4 p-4 rounded-lg border ${C.borderMedium} space-y-3`}>
           <p className={`text-base font-medium ${C.text}`}>新しい休診日</p>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
               <label htmlFor="holiday_date" className={STYLE.formLabel}>
                 日付
@@ -72,7 +72,7 @@ export const HolidaySection = memo(function HolidaySection({ holidays }: Holiday
                 id="holiday_date"
                 name="date"
                 type="date"
-                className={`${STYLE.formInput} mt-1 w-full rounded-[4px] border px-3`}
+                className={`${STYLE.formInput} mt-1 w-full rounded-xs border px-3`}
                 required
               />
             </div>
@@ -84,7 +84,7 @@ export const HolidaySection = memo(function HolidaySection({ holidays }: Holiday
                 id="holiday_reason"
                 name="reason"
                 type="text"
-                className={`${STYLE.formInput} mt-1 w-full rounded-[4px] border px-3`}
+                className={`${STYLE.formInput} mt-1 w-full rounded-xs border px-3`}
                 placeholder="例: 院内研修"
               />
             </div>
@@ -93,7 +93,7 @@ export const HolidaySection = memo(function HolidaySection({ holidays }: Holiday
             <button
               type="button"
               onClick={handleHideForm}
-              className={`px-4 py-2 text-base ${C.text60} ${C.hoverBgLight} rounded-[4px] transition-colors`}
+              className={`min-h-11 px-4 text-base ${C.text60} ${C.hoverBgLight} rounded-xs transition-colors`}
             >
               キャンセル
             </button>
@@ -118,8 +118,8 @@ export const HolidaySection = memo(function HolidaySection({ holidays }: Holiday
               <button
                 type="button"
                 onClick={() => handleDelete(holiday.date)}
-                aria-label="削除"
-                className={`size-8 flex items-center justify-center rounded-[3px] ${C.text50} ${C.hoverTextDanger} ${C.hoverBgDanger5} transition-colors`}
+                aria-label={`${holiday.date}の休診日を削除`}
+                className={`flex size-11 min-h-11 min-w-11 shrink-0 items-center justify-center rounded-xxs ${C.text50} ${C.hoverTextDanger} ${C.hoverBgDanger5} transition-colors`}
               >
                 <Trash2 className="size-4" />
               </button>

@@ -193,11 +193,13 @@ func (r *Repo) DeleteParentWithSoftDeletedChildren(ctx context.Context,
 ## 7. 親子両者 Soft Delete のケース
 
 ### 7.1 適用シーン
-- 医療記録の addendum 削除：親 medical_record，子 addendums 双方 soft delete
-- スタッフ権限グループ：両者とも監査対象
+- **スタッフ権限グループ**: 親 `permission_groups` と子 `permission_group_rules` / 割当はいずれも監査対象として Soft Delete が妥当（§4.2）
+- **医療記録本体**: 親 `medical_records` は Soft Delete（§4.1）
+- **対象外 — `medical_record_addenda`**: 追記は Append-only。`deleted_at` カラムを持たず、削除 API / Soft Delete も存在しない（§4.1 と一致）。親子 Soft Delete の例に使わない
 
 ### 7.2 実装上の留意点
-- **FK チェック**: 親 soft delete 時に、アクティブ子を確認（service 層で 409）
+- **FK チェック**: 親 soft delete 時に、アクティブ子を確認（409）
+- **Append-only 子**: `medical_record_addenda` のように子に `deleted_at` が無い場合、親 Soft Delete 時の子 cleanup / 子 Soft Delete は適用しない。親側の active 判定と clinic 軸 FK のみを扱う
 - **クエリの明示性**: soft delete 後のジョイン時に `Unscoped()` を明示的に記載
   ```go
   // ❌ 暗黙：WHERE 句に deleted_at 混在判断があいまい
@@ -361,7 +363,7 @@ func (r *Repo) DeleteParentWithSoftDeletedChildren(ctx context.Context,
 
 ### 13.2 Hard Delete 下での隔離
 - clinic A が clinic B のデータを hard delete できないか確認
-- Repository 層での `clinic_id` WHERE 句は削除時も必須
+- persistence pathでの `clinic_id` WHERE句は削除時も必須
 - テスト項目：clinic A の staff が clinic B の staff を削除できないことを確認
 
 ### 13.3 FK で clinic_id の一貫性を検証
@@ -379,19 +381,19 @@ func (r *Repo) DeleteParentWithSoftDeletedChildren(ctx context.Context,
   - [ ] FK 関係を mapper（外部キー制約）で確認
   - [ ] 親子関係の削除順序を定義
 
-- [ ] **Service 層**
+- [ ] **Application invariant**
   - [ ] 削除前チェック：アクティブな子レコード数をカウント（FK チェック）
   - [ ] 409 Conflict を返す条件を明示
   - [ ] トランザクション制御：begin / commit / rollback の実装
 
-- [ ] **Repository 層**
+- [ ] **Persistence**
   - [ ] FK チェック済み前提で削除実行
   - [ ] Hard delete の場合：clinic_id スコープを必ず含める
   - [ ] Soft delete の場合：audit log タイムスタンプを記録
   - [ ] Unscoped() の使用箇所を限定（FK cleanup のみ）
   - [ ] コメント：Unscoped 使用理由を記載（保守性のため）
 
-- [ ] **Handler 層**
+- [ ] **HTTP boundary**
   - [ ] DELETE ハンドラの実装
   - [ ] 409 vs 400 vs 403 のステータスコード判定
   - [ ] エラーレスポンスに blocking_type / blocking_count を含める

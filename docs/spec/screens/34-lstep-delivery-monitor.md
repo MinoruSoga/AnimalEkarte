@@ -1,9 +1,12 @@
 # Lステップ配信監視 仕様書 (L-Step Delivery Monitor)
 
 ## 概要
-- **画面の目的**: システムが自動生成した Lステップ配信トリガーの実行状況、除外判定、および API 通信の成否をリアルタイムに監視する。
+- **画面の目的**: システムが自動生成した Lステップ **配信トリガー** の実行状況、除外判定、および API 通信の成否をリアルタイムに監視する。
+- **観測範囲**: `lstep_delivery_trigger_log` のみ。会計確定後の CPM 同期など **ordinary タグ同期（request-local secondary）は本画面の対象外**であり、当該経路は trigger log に書かない。
 - **URLパターン**: `/lstep/delivery-monitor`
-- **アクセス権限**: フロントエンド表示には外部連携管理権限（`ResourceHospitalSettings`）が必要。バックエンドAPIには Lステップ分析閲覧権限（`ResourceLstepAnalytics`）が必要。
+- **アクセス権限**: FE は親 `/lstep` の `ResourceHospitalSettings` **かつ** 子 `ResourceLstepAnalytics` の両方。BE API は `ResourceLstepAnalytics`。
+- **Deploy gate（`LSTEP_WRITE_API_ENABLED`）**: Write 系が無効のとき HTTP を送らず **`ErrWriteDisabled` を返す（`nil` 成功にしない）**。判定・除外・ログ行の作成と監視 UI は継続する（[`LSTEP_WRITE_API_PAUSE.md`](../../ops/deploy/LSTEP_WRITE_API_PAUSE.md)。enable / stop / rollback 手順は同 runbook が正本）。
+- **Clinic gate（`is_sync_enabled` / API キー）**: 同期無効または API キー未設定の clinic はクライアント未構築による意図的スキップ（`nil, nil`）。deploy gate とは**別契約**である。
 
 ---
 
@@ -46,6 +49,17 @@
 
 ### 2.2 優先順位制御 (Priority Suppression)
 `lstep_trigger_priorities` マスタの設定に基づき、同日に優先度の高い別トリガーがある場合、低優先度のトリガーはログの `suppressed_by_priority` フラグ（+`suppression_reason`）が立てられ配信されません（`excluded_reason` とは別カラムで管理）。
+
+### 2.3 バッチ失敗契約と durable 計上
+定時の配信トリガーバッチは **scheduled multi-resource best effort** である。
+
+- multi-clinic / multi-owner / multi-trigger で 1 件失敗後も他対象は続行する。
+- 1 飼主処理の失敗は **single-owner propagation** で上位へ伝播し、`BatchRunResult`（`Processed = Succeeded + Failed`）と監査 metadata の `processed_count`/`error_count` に **必ず計上**する（silent swallow 禁止）。
+- 必須 dependency 欠落（settings 未構成・clinic 一覧取得失敗等）は fail-closed。
+- 画面上の `failed` 行・失敗サマリは、上記 durable 計上のうち **配信トリガーログに落ちた owner 単位の結果**を観測する UI である。バッチ全体の `BatchRunResult` は scheduler / 監査側の観測点であり、本画面 API のレスポンス envelope ではない。
+- 候補 owner に対する owner / 当日 claim / 抑制 / tag-cache 読みは clinic スコープ bulk-read を必須とし、owner 数線形の N+1 を置かない（opt-out・suppression・daily-claim 意味論と bounded memory は維持）。
+
+Deploy gate（`LSTEP_WRITE_API_ENABLED`）OFF 時は外部タグ write が HTTP 未送信かつ `ErrWriteDisabled` でも、除外・抑制・ログ作成と本監視 UI は動作する。Clinic gate（`is_sync_enabled=false` 等）のクライアント未構築スキップとは別契約である。再有効化の enable / stop / rollback は [`LSTEP_WRITE_API_PAUSE.md`](../../ops/deploy/LSTEP_WRITE_API_PAUSE.md) を正とし、本 spec に手順を複製しない。
 
 ---
 

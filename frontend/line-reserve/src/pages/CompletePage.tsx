@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { PrimaryButton } from '../components/PrimaryButton';
 import type { ReservationFlow } from '../types/models';
-import { formatJapaneseDate } from '@/shared-liff/jst-date';
+import { formatJapaneseDate, formatTimeHHMM } from '@/shared-liff/jst-date';
 
 interface CompletePageProps {
   reservationId: number;
@@ -14,15 +14,6 @@ interface CompletePageProps {
 function extractConfirmationNumber(notes: string): string | null {
   const match = notes.match(/R-\d{8}-\d{4}/);
   return match ? match[0] : null;
-}
-
-function formatDate(dateStr: string): string {
-  return formatJapaneseDate(dateStr, true);
-}
-
-function formatTime(startTime: string, endTime: string): string {
-  const fmt = (t: string) => `${t.slice(0, 2)}:${t.slice(2)}`;
-  return `${fmt(startTime)}〜${fmt(endTime)}`;
 }
 
 export function CompletePage({
@@ -44,7 +35,7 @@ export function CompletePage({
         </div>
 
         {/* 予約詳細カード */}
-        <div className="w-full bg-white rounded-xl border border-gray-200 shadow-sm p-5 mb-4">
+        <div className="w-full bg-white rounded-xl border border-gray-200 p-5 mb-4">
           {displayNumber ? (
             <div className="mb-4 pb-4 border-b border-gray-100">
               <p className="text-xs text-noah-text-sub mb-1">予約番号</p>
@@ -57,7 +48,8 @@ export function CompletePage({
               <div className="flex">
                 <span className="text-noah-text-sub w-16 shrink-0">日時</span>
                 <span className="text-noah-text font-medium">
-                  {formatDate(flow.date)} {formatTime(flow.startTime, flow.endTime)}
+                  {formatJapaneseDate(flow.date, true)}{' '}
+                  {`${formatTimeHHMM(flow.startTime)}〜${formatTimeHHMM(flow.endTime)}`}
                 </span>
               </div>
             ) : null}

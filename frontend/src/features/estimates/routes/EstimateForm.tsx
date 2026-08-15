@@ -1,6 +1,10 @@
 import { ICON, C } from "@/lib/design-tokens";
 import { paths } from "@/config/paths";
-import { LoadingFallback } from "@/components/shared/DataStates";
+import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
+import {
+  isNonDisclosureReadStatus,
+  resolveEntityReadResult,
+} from "@/lib/entity-read-result";
 import { memo, useCallback, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router';
 import { toast } from "sonner";
@@ -31,11 +35,11 @@ import { ResourceEstimates } from "@/types/generated/models";
 import {
   CREATE_STATUS_OPTIONS,
   EDIT_STATUS_OPTIONS,
-} from "../utils/estimate-status-options";
+} from "../constants/estimate-status-options";
 import {
   ESTIMATE_LOCKED_EDIT_MESSAGE,
   isEstimateLockedStatus,
-} from "../utils/is-estimate-locked-status";
+} from "../lib/is-estimate-locked-status";
 
 // rendering-hoist-jsx: SelectItem リストは静的なのでモジュール定数に巻き上げ
 const EDIT_STATUS_SELECT_ITEMS = EDIT_STATUS_OPTIONS.map(opt => (
@@ -83,7 +87,7 @@ const BasicInfoSection = memo(function BasicInfoSection({
           value={title}
           onChange={e => onChange('title', e.target.value)}
           placeholder="見積書タイトルを入力"
-          className="h-9 text-sm"
+          className="h-11 text-sm"
         />
         <FormFieldError message={titleError} />
       </div>
@@ -99,7 +103,7 @@ const BasicInfoSection = memo(function BasicInfoSection({
         >
           <SelectTrigger
             id="status"
-            className="h-9 text-sm w-[200px]"
+            className="h-11 text-sm w-full sm:w-[200px]"
             aria-describedby={statusError ? "status-error" : undefined}
           >
             <SelectValue />
@@ -121,7 +125,7 @@ const BasicInfoSection = memo(function BasicInfoSection({
           value={validUntil ? validUntil.slice(0, 10) : ''}
           onChange={(v) => onChange('validUntil', v)}
           placeholder="有効期限を選択…"
-          className="w-[220px]"
+          className="w-full sm:w-[220px]"
         />
       </div>
     </>
@@ -150,7 +154,7 @@ const AmountSection = memo(function AmountSection({
   onChange,
 }: AmountSectionProps) {
   return (
-    <div className="grid grid-cols-2 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
       <div className="space-y-1.5">
         <Label htmlFor="subtotal" className={`text-sm font-medium ${C.text}`}>
           小計（税抜）
@@ -161,7 +165,7 @@ const AmountSection = memo(function AmountSection({
           value={subtotal}
           onChange={v => onChange('subtotal', Number(v))}
           suffix="円"
-          className="h-9 text-sm"
+          className="h-11 text-sm"
         />
       </div>
       <div className="space-y-1.5">
@@ -174,7 +178,7 @@ const AmountSection = memo(function AmountSection({
           value={taxTotal}
           onChange={v => onChange('taxTotal', Number(v))}
           suffix="円"
-          className="h-9 text-sm"
+          className="h-11 text-sm"
         />
       </div>
       <div className="space-y-1.5">
@@ -187,7 +191,7 @@ const AmountSection = memo(function AmountSection({
           value={insuranceAmount}
           onChange={v => onChange('insuranceAmount', Number(v))}
           suffix="円"
-          className="h-9 text-sm"
+          className="h-11 text-sm"
         />
       </div>
       <div className="space-y-1.5">
@@ -201,7 +205,7 @@ const AmountSection = memo(function AmountSection({
           disabled={!canEditDiscount}
           onChange={v => onChange('discountAmount', Number(v))}
           suffix="円"
-          className="h-9 text-sm"
+          className="h-11 text-sm"
         />
         {!canEditDiscount ? (
           <p className={`text-xs ${C.text50}`}>割引額の変更には権限が必要です</p>
@@ -217,7 +221,7 @@ const AmountSection = memo(function AmountSection({
           value={totalAmount}
           onChange={v => onChange('totalAmount', Number(v))}
           suffix="円"
-          className="h-9 text-sm"
+          className="h-11 text-sm"
         />
       </div>
     </div>
@@ -272,12 +276,30 @@ const TextSection = memo(function TextSection({
 
 function EstimateFormContent({ id }: { id?: string }) {
   const navigate = useNavigate();
-  const { data: estimate, isLoading } = useGetEstimate(id);
-  const { form, handleChange, formAction, formState, handleCancel, isPending } = useEstimateForm(
-    id ? estimate : undefined
-  );
-
+  // BUG-019: mode from route param; found state from classified read result
   const isEdit = !!id;
+  const {
+    data: estimateData,
+    isLoading,
+    isError,
+    error: estimateError,
+    refetch: refetchEstimate,
+  } = useGetEstimate(id);
+  const entityRead = resolveEntityReadResult({
+    id,
+    data: estimateData,
+    isLoading,
+    isError,
+    error: estimateError,
+    refetch: refetchEstimate,
+  });
+  const foundEstimate = entityRead.status === "found" ? entityRead.data : undefined;
+
+  const { form, handleChange, formAction, formState, handleCancel, isPending } = useEstimateForm({
+    mode: isEdit ? "edit" : "create",
+    estimate: foundEstimate,
+  });
+
   const { canEdit, canCreate } = usePermission("estimates");
   // BUG-372: 割引権限（割引額制御）
   const { canEdit: canEditDiscount } = usePermission("discount");
@@ -287,8 +309,8 @@ function EstimateFormContent({ id }: { id?: string }) {
 
   // React 19 Action の成功を検知して遷移
   // rerender-dependencies: estimate（オブジェクト）の代わりに estimate?.id（primitive）を deps に使用
-  const estimateId = estimate?.id;
-  const estimateStatus = estimate?.status;
+  const estimateId = foundEstimate?.id;
+  const estimateStatus = foundEstimate?.status;
   const isLockedEdit =
     isEdit && estimateId != null && estimateStatus != null
       ? isEstimateLockedStatus(estimateStatus)
@@ -324,8 +346,42 @@ function EstimateFormContent({ id }: { id?: string }) {
     [markDirty, handleChange]
   );
 
-  if (isEdit && isLoading) {
+  if (isEdit && entityRead.status === "loading") {
     return <LoadingFallback />;
+  }
+
+  // BUG-019: missing / other-clinic / forbidden → Not Found (non-disclosure), never blank form
+  if (isEdit && isNonDisclosureReadStatus(entityRead.status)) {
+    return (
+      <PageLayout
+        title="見積書"
+        resource={ResourceEstimates}
+        icon={<FileText className={`${ICON.page} ${C.text}`} />}
+        maxWidth="max-w-2xl"
+      >
+        <ErrorFallback message="見積書が見つかりません" />
+      </PageLayout>
+    );
+  }
+
+  if (isEdit && entityRead.status === "error") {
+    return (
+      <PageLayout
+        title="見積書"
+        resource={ResourceEstimates}
+        icon={<FileText className={`${ICON.page} ${C.text}`} />}
+        maxWidth="max-w-2xl"
+      >
+        <div className="space-y-3">
+          <ErrorFallback message="見積書の取得に失敗しました" />
+          {entityRead.retry ? (
+            <Button type="button" variant="outline" size="sm" onClick={entityRead.retry}>
+              再試行
+            </Button>
+          ) : null}
+        </div>
+      </PageLayout>
+    );
   }
 
   // locked 見積の edit 直アクセス: 更新 UI を出さず detail へリダイレクト中
@@ -341,15 +397,15 @@ function EstimateFormContent({ id }: { id?: string }) {
       icon={<FileText className={`${ICON.page} ${C.text}`} />}
       headerAction={
         <div className="flex gap-2">
-          <Button variant="outline" type="button" size="sm" onClick={handleCancel} className="h-9 text-sm">
+          <Button variant="outline" type="button" size="sm" onClick={handleCancel} className="h-11 text-sm">
             キャンセル
           </Button>
           {canSubmit ? (
             <SubmitButton
               size="sm"
-              colorVariant="brand"
+              colorVariant="primary"
               disabled={!form.title.trim()}
-              className="h-9 text-sm"
+              className="h-11 text-sm"
             >
               {isEdit ? '更新' : '作成'}
             </SubmitButton>
@@ -360,7 +416,7 @@ function EstimateFormContent({ id }: { id?: string }) {
     >
       {/* FE6-8: jsx-no-leaked-render は非型認識のため isDirty を boolean と静的に断定できず !! で明示する */}
       <NavigationBlocker when={!!isDirty && !isPending} />
-      <div className={`${C.bgWhite} border ${C.borderLight} rounded-md p-5 space-y-5`}>
+      <div className={`${C.bgWhite} border ${C.borderLight} rounded-md p-6 space-y-6`}>
         {/* rerender-memo: BasicInfoSection — 金額/テキスト変更では再レンダーしない */}
         <BasicInfoSection
           title={form.title}

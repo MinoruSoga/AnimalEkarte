@@ -18,28 +18,7 @@
 
 ## ディレクトリ構成
 
-```
-features/manual/
-├── index.ts                    # 公開 API (ManualPage のみ)
-├── manual-print.css            # @media print スタイル
-├── CLAUDE.md                   # このファイル
-├── routes/
-│   └── ManualPage.tsx          # トップレベルレイアウト + 編集モード切替
-├── components/
-│   ├── ManualSidebar.tsx       # 左目次 + ビューモード切替 + 検索
-│   ├── ManualContent.tsx       # 本文 (react-markdown)
-│   └── ManualEditor.tsx        # 編集モード (FE only) — textarea + プレビュー + コピー/DL
-├── hooks/
-│   └── use-manual-search.ts    # Fuse.js 検索フック
-├── lib/
-│   └── manual-index.ts         # MD glob 取り込み + frontmatter parser
-├── content/
-│   ├── screens/                # 画面別マニュアル (NN-name.md)
-│   ├── workflows/              # 業務フロー別マニュアル (NN-name.md)
-│   └── images/                 # スクリーンショット (.png)
-└── __tests__/
-    └── parse-frontmatter.test.ts
-```
+`ls -R features/manual` で再構築可能（Feature Indexing の標準構造 + `content/{screens,workflows,images}`）。
 
 ## 編集モード（DB 永続化対応）
 
@@ -187,13 +166,7 @@ NN-kebab-case.md     例: 01-login.md, 03-hospitalization-flow.md
 
 ## 依存パッケージ
 
-```json
-"react-markdown": "^9.0.1",
-"remark-gfm": "^4.0.0",
-"fuse.js": "^7.0.0"
-```
-
-これらは `frontend/package.json` の `dependencies` に登録済み。追加時は `docker compose exec frontend pnpm install` を実行。
+`react-markdown` / `remark-gfm` / `fuse.js`（バージョンは `frontend/package.json` 参照）。追加時は `docker compose exec frontend pnpm install` を実行。
 
 ## 将来の拡張候補
 

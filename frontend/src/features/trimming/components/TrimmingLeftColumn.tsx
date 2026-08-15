@@ -7,9 +7,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { FormFieldError } from "@/components/shared/FormFieldError/FormFieldError";
 import { MasterLink } from "@/components/shared/MasterLink";
-import { MasterSelectTrigger } from "@/components/shared/MasterSelectModal";
+import { MasterSelectTrigger } from "@/components/shared/MasterSelectModal/MasterSelectTrigger";
 import { C, ICON } from "@/lib/design-tokens";
-import { formatCurrency } from "@/utils/format/number";
+import { formatCurrency } from "@/lib/format/number";
 
 import type { TrimmingLeftColumnProps } from "./trimming-form-column-types";
 import { TrimmingImageUploadField } from "./TrimmingImageUploadField";
@@ -42,7 +42,7 @@ export const TrimmingLeftColumn = memo(function TrimmingLeftColumn({
   const optionIdSet = useMemo(() => new Set(formData.optionIds), [formData.optionIds]);
 
   return (
-    <div className={`${C.bgWhite} rounded-lg shadow-sm border ${C.borderMedium} p-3 space-y-4`}>
+    <div className={`${C.bgWhite} rounded-lg border ${C.borderMedium} p-3 space-y-4`}>
       {showInitialStatusSelector ? (
         <div>
           <Label className={`text-sm ${C.text60} mb-2 block`}>登録時ステータス</Label>
@@ -79,8 +79,11 @@ export const TrimmingLeftColumn = memo(function TrimmingLeftColumn({
       </div>
 
       <div>
-        <Label className={`text-sm ${C.text60} mb-2 block`}>スタイルの希望</Label>
+        <Label htmlFor="trimming-style-request" className={`text-sm ${C.text60} mb-2 block`}>
+          スタイルの希望
+        </Label>
         <Textarea
+          id="trimming-style-request"
           value={formData.styleRequest}
           onChange={(event) => onFormChange({ styleRequest: event.target.value })}
           placeholder="スタイルの希望を入力..."
@@ -99,6 +102,8 @@ export const TrimmingLeftColumn = memo(function TrimmingLeftColumn({
               <div key={option.id} className="flex items-center gap-2">
                 <Checkbox
                   id={`option-${option.id}`}
+                  aria-label={option.name}
+                  touchTarget
                   checked={optionIdSet.has(option.id)}
                   onCheckedChange={(checked) => {
                     if (checked) {

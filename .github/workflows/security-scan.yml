@@ -29,7 +29,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v7.0.0
+        uses: actions/checkout@v7.0.1
 
       - name: Run AgentShield
         # Pinned to v1.3.0 (commit 0b5e1bc9 — also where the upstream `v1` tag points).

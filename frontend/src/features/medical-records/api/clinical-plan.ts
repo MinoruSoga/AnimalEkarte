@@ -1,13 +1,9 @@
 // React/Framework
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
-// External
-import { toast } from "sonner";
-
 // Internal
 import { axios } from "@/lib/axios";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
-import { handleApiError } from "@/lib/handle-api-error";
 import { queryKeys } from "@/lib/query-keys";
 
 function transformClinicalPlan(item: {
@@ -26,6 +22,7 @@ function transformClinicalPlan(item: {
   diagnosis_name?: { id: string; name: string } | null;
   diagnosis_2_type?: { id: string; name: string } | null;
   diagnosis_2_name?: { id: string; name: string } | null;
+  version: number;
 }) {
   return {
     id: item.id,
@@ -43,6 +40,7 @@ function transformClinicalPlan(item: {
     diagnosis_name: item.diagnosis_name,
     diagnosis_2_type: item.diagnosis_2_type,
     diagnosis_2_name: item.diagnosis_2_name,
+    version: item.version,
   };
 }
 export type ClinicalPlan = ReturnType<typeof transformClinicalPlan>;
@@ -55,6 +53,7 @@ export interface UpdateClinicalPlanInput {
   diagnosis_2_name_id?: number | null;
   diagnosis_details?: string;
   treatment_policy?: string;
+  version?: number;
 }
 
 // P2-15 (PR #186 review): 拠点横断で開いたカルテ（record.clinicId）の子リソースを操作する場合、
@@ -90,18 +89,24 @@ export const useUpdateClinicalPlan = (medicalRecordId: string, clinicId?: string
   return useMutation({
     mutationFn: (input: UpdateClinicalPlanInput) =>
       axios
-        .patch<ClinicalPlan>(
+        .patch<Parameters<typeof transformClinicalPlan>[0]>(
           `/v1/medical-records/${medicalRecordId}/clinical-plan`,
           input,
           clinicHeaderConfig(clinicId)
         )
-        .then((r) => r.data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.medicalRecords.clinicalPlan(medicalRecordId) });
-      toast.success("保存しました");
+        .then((r) => transformClinicalPlan(r.data)),
+    onSuccess: (data) => {
+      // BUG-010: toast は親 save action が一括で出す。mutation 側では出さない。
+      // version CAS 用に応答を即キャッシュへ書き、invalidate 待ちで stale version を送らない。
+      queryClient.setQueryData(
+        queryKeys.medicalRecords.clinicalPlan(medicalRecordId, clinicId),
+        data,
+      );
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.medicalRecords.clinicalPlan(medicalRecordId),
+      });
     },
-    onError: (error) => {
-      handleApiError(error, "保存");
-    },
+    // onError は置かない: mutateAsync 呼び出し側 (save action) が handleApiError する。
+    // ここに置くと二重 toast になる。
   });
 };

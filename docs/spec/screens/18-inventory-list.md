@@ -3,7 +3,7 @@
 ## 概要
 - **画面の目的**: 院内で使用・販売する医薬品、フード、備品等の在庫状況の監視と、適切な発注タイミングの把握。
 - **URLパターン**: `/inventory`
-- **アクセス権限**: 認証済ユーザー全員（`ResourceInventory` 権限が必要）
+- **アクセス権限**: `ResourceInventory` の **`view`**（`RequirePermission`）
 
 ---
 

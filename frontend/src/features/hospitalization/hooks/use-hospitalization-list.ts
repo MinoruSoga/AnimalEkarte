@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useLayoutEffect, useRef } from "react";
 import { useNavigate } from "react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { updateHospitalization } from "../api/update-hospitalization";
@@ -9,24 +9,37 @@ import { useMasterItems } from "@/hooks/use-master-items";
 import { HospitalizationFilterStatus, HOSPITALIZATION_FILTER_STATUS, HOSPITALIZATION_STATUS } from "../constants";
 import type { Hospitalization } from "@/types";
 
-export const useHospitalizationList = () => {
+export const useHospitalizationList = (canEdit = false) => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<HospitalizationFilterStatus>(HOSPITALIZATION_FILTER_STATUS.ACTIVE);
   const [viewMode, setViewMode] = useState<"list" | "board">("board");
+  const canEditRef = useRef(canEdit);
+  useLayoutEffect(() => {
+    canEditRef.current = canEdit;
+  }, [canEdit]);
 
   const { data: cages } = useMasterItems("cage");
 
   // React Query キャッシュから現在の入院データを取得してケージ移動を処理する。
   // optimistic update は行わず、updateHospitalization 後の invalidateQueries で UI を更新する。
   const movePet = useCallback(async (hospitalizationId: string, targetCageId: string) => {
-    // 全キャッシュエントリから入院リストを取得（フィルタに関わらず）
-    const allEntries = queryClient.getQueriesData<Hospitalization[]>({ queryKey: queryKeys.hospitalizations.all() });
-    const hospitalizations = allEntries.flatMap(([, data]) => data ?? []);
+    // list query は HospitalizationsResult { data, total, page, limit }（BUG-009）。
+    // 旧形 Hospitalization[] キャッシュが残っていても壊さないよう両対応する。
+    const allEntries = queryClient.getQueriesData({ queryKey: queryKeys.hospitalizations.all() });
+    const hospitalizations = allEntries.flatMap(([, data]): Hospitalization[] => {
+      if (data == null) return [];
+      if (Array.isArray(data)) return data as Hospitalization[];
+      if (typeof data === "object" && Array.isArray((data as { data?: unknown }).data)) {
+        return (data as { data: Hospitalization[] }).data;
+      }
+      return [];
+    });
 
     const sourceHosp = hospitalizations.find((h) => h.id === hospitalizationId);
     if (!sourceHosp) return;
+    if (canEditRef.current !== true || sourceHosp.petIsDeceased) return;
 
     // 移動先にアクティブな入院がある場合はスワップ
     const targetHosp = hospitalizations.find(
@@ -35,6 +48,7 @@ export const useHospitalizationList = () => {
         h.status === HOSPITALIZATION_STATUS.ACTIVE &&
         h.id !== hospitalizationId,
     );
+    if (targetHosp?.petIsDeceased) return;
 
     try {
       if (targetHosp) {

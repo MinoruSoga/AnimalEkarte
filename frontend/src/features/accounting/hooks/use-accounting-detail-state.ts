@@ -8,7 +8,7 @@ import { todayJSTISO } from "@/lib/jst-date";
 import { queryKeys } from "@/lib/query-keys";
 import { QUERY_STALE_TIMES } from "@/lib/react-query";
 
-import { getUnbilledItems } from "../api/get-unbilled-items";
+import { getUnbilledItemDetails, type UnbilledWarning } from "../api/get-unbilled-items";
 import { useGetUngroupedSameDay } from "../api/get-ungrouped-items";
 import type { PaymentSplitDraft } from "../components/PaymentCard";
 import type { Accounting, AccountingItem, PaymentInfo } from "../types";
@@ -33,7 +33,12 @@ export function useAccountingDetailState({
     return new URLSearchParams(locationSearch).get("petId") ?? "";
   }, [accountingId, locationSearch]);
 
-  const { data: newPetData } = useGetPet(newPetId);
+  const {
+    data: newPetData,
+    isPending: newPetPending,
+    isError: newPetError,
+    isSuccess: newPetSuccess,
+  } = useGetPet(newPetId);
 
   const baseAccounting = useMemo<Accounting | null>(() => {
     if (accountingId) {
@@ -61,12 +66,64 @@ export function useAccountingDetailState({
 
   const baseItems = useMemo(() => baseAccounting?.items ?? [], [baseAccounting]);
 
-  const { data: unbilledItems } = useQuery({
+  // BUG-001: 死亡ペットへの /accounting/new?petId= 直打ちは FE で確定前に拒否する（BE と文言整合）。
+  // 選択 UI と同様、生存が明示されるまで fail-closed（pending / error / 不明 status）。
+  const isNewAccountingPetDeceased = Boolean(
+    !accountingId && newPetId && newPetSuccess && newPetData?.status === "死亡",
+  );
+  const blocksDeceasedOrUnconfirmedPet = Boolean(
+    !accountingId &&
+      newPetId &&
+      (newPetPending ||
+        newPetError ||
+        !newPetSuccess ||
+        !newPetData ||
+        newPetData.status !== "生存"),
+  );
+  // 表示メッセージは settle 後のみ（pending 中は fieldset disabled のみ）。
+  const deceasedPetBlockMessage = (() => {
+    if (accountingId || !newPetId || newPetPending) return undefined;
+    if (isNewAccountingPetDeceased) return "死亡したペットは会計を作成できません";
+    if (newPetError || (newPetSuccess && newPetData?.status !== "生存")) {
+      return "ペットの生死状態を確認できないため、新規会計を作成できません";
+    }
+    return undefined;
+  })();
+
+  // BUG-013: new accounting consumer uses details envelope (items + typed warnings).
+  // Fail-closed while pending/error: do not treat "unknown warnings" as clear.
+  const {
+    data: unbilledDetails,
+    isPending: unbilledDetailsPending,
+    isError: unbilledDetailsError,
+    isSuccess: unbilledDetailsSuccess,
+  } = useQuery({
     queryKey: queryKeys.unbilledItems(newPetId),
-    queryFn: () => getUnbilledItems(newPetId),
-    enabled: !accountingId && !!newPetId,
+    queryFn: () => getUnbilledItemDetails(newPetId),
+    enabled: !accountingId && !!newPetId && !isNewAccountingPetDeceased,
     staleTime: QUERY_STALE_TIMES.SHORT,
   });
+
+  const unbilledItems = unbilledDetails?.items;
+  const unbilledWarnings: UnbilledWarning[] = useMemo(
+    () => unbilledDetails?.warnings ?? [],
+    [unbilledDetails?.warnings],
+  );
+  const hasBlockingUnbilledWarning = useMemo(
+    () => unbilledWarnings.some((w) => w.blocking && w.count > 0),
+    [unbilledWarnings],
+  );
+  // New accounting only: ready when details succeeded (or not needed for existing accounting).
+  // Deceased path skips unbilled fetch — treat as ready so the deceased banner is the sole block reason.
+  const unbilledDetailsReady =
+    Boolean(accountingId) || !newPetId || isNewAccountingPetDeceased || unbilledDetailsSuccess;
+  const blocksNewAccountingSubmit =
+    !accountingId &&
+    !!newPetId &&
+    (blocksDeceasedOrUnconfirmedPet ||
+      unbilledDetailsPending ||
+      unbilledDetailsError ||
+      hasBlockingUnbilledWarning);
 
   const editableBaseItems = useMemo(
     () => (!accountingId && unbilledItems && unbilledItems.length > 0 ? unbilledItems : baseItems),
@@ -107,11 +164,13 @@ export function useAccountingDetailState({
   const calculation = useMemo(() => {
     if (!accounting) return null;
 
+    // BUG-006: 明細ごとの taxRate を尊重（10% 固定を渡さない）。
+    // calculateBillingTotals が item.taxRate 未指定時のみ既定 10% にフォールバックする。
     const billingResult = calculateBillingTotals(
       accounting.items,
       0,
       0,
-      0.10,
+      undefined,
       hasInsurance ? parseFloat(insuranceRatio) : 0,
     );
 
@@ -144,6 +203,13 @@ export function useAccountingDetailState({
     newPetId,
     baseAccounting,
     ungroupedSummary,
+    unbilledWarnings,
+    hasBlockingUnbilledWarning,
+    unbilledDetailsReady,
+    unbilledDetailsError,
+    blocksNewAccountingSubmit,
+    isNewAccountingPetDeceased,
+    deceasedPetBlockMessage,
     baseItems: editableBaseItems,
     displayItems,
     localItems,

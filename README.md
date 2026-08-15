@@ -30,11 +30,12 @@
 ### 1. 環境変数の準備
 
 ```bash
-# ローカル開発用のテンプレートをコピー
+# ローカル開発用のテンプレートをコピー（別マシンでも同じ手順）
 cp .env.example .env.local
 ```
 
-コピー後、`.env.local` のプレースホルダーをローカル環境用に設定してください。開発用の Make ターゲットは、このファイルを Docker Compose の変数展開元として使用します。クイックスタートでは `.env` は使用しません。`.env.local` は Git 管理対象外です。実際の認証情報は README や `.env.example` に記載しないでください。
+`.env.example` にはローカル Docker 用のキーとダミー値が入っています。**コピーしただけで `make up` できます。**  
+開発用 Make / Compose は `.env.local` を変数源にします（`.env` は使わない）。`.env.local` は Git 管理外です。STG/本番の認証情報・LINE/Vercel トークンは `.env.example` に書かず、必要な人だけ `.env.local` に追記してください。
 
 ### 2. 起動
 
@@ -64,12 +65,12 @@ make codegen
 
 | カテゴリ | 主要ドキュメント |
 |:---|:---|
+| **作業台帳（進行中）** | **Linear**（hub [BRT-4](https://linear.app/baritechllc/issue/BRT-4)）· 入口 [todo.md](todo.md) / [todo-po.md](todo-po.md)（ポインタのみ）· マップ [todo-docs-linear-map](reports/todo-walk-2026-08-14/todo-docs-linear-map.md) · [docs/work/](docs/work/README.md) |
 | **業務仕様** | [SPECIFICATION.md](docs/spec/specification.md) / [screens/](docs/spec/screens/) |
 | **機能詳細** | [Lステップ連携](docs/spec/line/lstep-integration.md) / [会計・集計](docs/spec/cash-register.md) / [顧客分析](docs/spec/customer-aggregation.md) |
 | **技術設計** | [Architecture](docs/architecture/overview.md) / [ER図](docs/architecture/erd.md)（テーブル数の正本） / [認証・認可](docs/architecture/auth.md)（RBACリソース数の正本） |
 | **API** | [backend/docs/api.yaml](backend/docs/api.yaml)（contract 正本。Swagger UI 表示は `docker compose -f docker-compose.swagger.yml up`） |
 | **運用・テスト** | [Deployment Hub](docs/ops/deploy/README.md) / [Manual Test Guide](docs/ops/testing/SECTION_14_MANUAL_TEST_GUIDE.md) |
-
 ---
 
 ## 🌐 インタラクティブ API ドキュメント

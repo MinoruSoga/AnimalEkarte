@@ -1,9 +1,10 @@
 import { ChevronDown, ChevronUp, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { TableCell } from "@/components/ui/table";
 import { DeleteIconButton } from "@/components/shared/DeleteIconButton/DeleteIconButton";
 import { BADGE, C, ICON, STYLE } from "@/lib/design-tokens";
-import { formatCurrency } from "@/utils/format/number";
+import { formatCurrency } from "@/lib/format/number";
 import type { TreatmentItemType } from "../../types";
 
 const ITEM_TYPE_LABELS: Record<TreatmentItemType, string> = {
@@ -30,13 +31,13 @@ export function TreatmentSelectionCell({
   onChange,
 }: TreatmentSelectionCellProps) {
   return (
-    <td className="px-3 py-2 w-10 text-center">
+    <TableCell className="w-10 text-center">
       <Checkbox
         checked={checked}
         onCheckedChange={onChange}
         className={`${C.dataCheckedBgAccent} ${C.dataCheckedBorderAccent}`}
       />
-    </td>
+    </TableCell>
   );
 }
 
@@ -49,11 +50,11 @@ export function TreatmentTypeCell({ itemType }: TreatmentTypeCellProps) {
   const typeLabel = ITEM_TYPE_LABELS[itemType] ?? itemType;
 
   return (
-    <td className="px-3 py-2 w-24">
+    <TableCell className="w-24">
       <span className={`inline-flex items-center h-[22px] px-2 text-xs font-medium rounded border ${badgeClass}`}>
         {typeLabel}
       </span>
-    </td>
+    </TableCell>
   );
 }
 
@@ -67,7 +68,7 @@ export function TreatmentInsuranceCell({
   onChange,
 }: TreatmentInsuranceCellProps) {
   return (
-    <td className="px-3 py-2 w-16 text-center">
+    <TableCell className="w-16 text-center">
       <Checkbox
         checked={checked}
         onCheckedChange={onChange}
@@ -76,7 +77,7 @@ export function TreatmentInsuranceCell({
       {checked ? (
         <Shield className={`${ICON.xs} mt-0.5 mx-auto ${C.textStatusGreen}`} />
       ) : null}
-    </td>
+    </TableCell>
   );
 }
 
@@ -86,11 +87,11 @@ interface TreatmentSubtotalCellProps {
 
 export function TreatmentSubtotalCell({ subtotal }: TreatmentSubtotalCellProps) {
   return (
-    <td className="px-3 py-2 w-28 text-right">
+    <TableCell className="w-28 text-right">
       <span className={`text-sm font-medium ${C.text} font-mono`}>
         {formatCurrency(subtotal)}
       </span>
-    </td>
+    </TableCell>
   );
 }
 
@@ -112,7 +113,7 @@ export function TreatmentRowActions({
   onDelete,
 }: TreatmentRowActionsProps) {
   return (
-    <td className="px-2 py-2 w-28">
+    <TableCell className="w-36">
       <div className="flex items-center gap-0.5 justify-end">
         <Button
           variant="ghost"
@@ -138,6 +139,6 @@ export function TreatmentRowActions({
           <DeleteIconButton onClick={onDelete} className={STYLE.iconBtn28} />
         ) : null}
       </div>
-    </td>
+    </TableCell>
   );
 }

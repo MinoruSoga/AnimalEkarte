@@ -63,6 +63,61 @@ export interface UpdateCarePlanItemInput {
     sort_order?: number;
 }
 
+type CarePlanItemRequestReferenceId = number | null;
+
+interface CarePlanItemRequestReferenceIds {
+    medicine_id?: CarePlanItemRequestReferenceId;
+    procedure_id?: CarePlanItemRequestReferenceId;
+    hospitalization_plan_id?: CarePlanItemRequestReferenceId;
+}
+
+type CarePlanItemRequestInput<
+    T extends CreateCarePlanItemInput | UpdateCarePlanItemInput
+> = Omit<T, keyof CarePlanItemRequestReferenceIds> & CarePlanItemRequestReferenceIds;
+
+function toRequestReferenceId(
+    value: string | null | undefined
+): CarePlanItemRequestReferenceId | undefined {
+    if (value === null || value === undefined) {
+        return value;
+    }
+    if (value === "") {
+        return undefined;
+    }
+    if (!/^[1-9]\d*$/.test(value)) {
+        throw new Error("Care plan reference ID must be a positive safe integer");
+    }
+
+    const numericValue = Number(value);
+    if (!Number.isSafeInteger(numericValue)) {
+        throw new Error("Care plan reference ID must be a positive safe integer");
+    }
+    return numericValue;
+}
+
+function toCarePlanItemRequestInput<
+    T extends CreateCarePlanItemInput | UpdateCarePlanItemInput
+>(input: T): CarePlanItemRequestInput<T> {
+    const {
+        medicine_id,
+        procedure_id,
+        hospitalization_plan_id,
+        ...requestInput
+    } = input;
+    const medicineId = toRequestReferenceId(medicine_id);
+    const procedureId = toRequestReferenceId(procedure_id);
+    const hospitalizationPlanId = toRequestReferenceId(hospitalization_plan_id);
+
+    return {
+        ...requestInput,
+        ...(medicineId !== undefined ? { medicine_id: medicineId } : {}),
+        ...(procedureId !== undefined ? { procedure_id: procedureId } : {}),
+        ...(hospitalizationPlanId !== undefined
+            ? { hospitalization_plan_id: hospitalizationPlanId }
+            : {}),
+    };
+}
+
 // ---- Fetchers ----
 
 const listCarePlanItems = async (hospitalizationId: string): Promise<CarePlanItem[]> => {
@@ -78,7 +133,7 @@ const createCarePlanItem = async (
 ): Promise<CarePlanItem> => {
     const { data } = await axios.post<CarePlanItem>(
         `/v1/hospitalizations/${hospitalizationId}/care-plan-items`,
-        input
+        toCarePlanItemRequestInput(input)
     );
     return data;
 };
@@ -90,7 +145,7 @@ const updateCarePlanItem = async (
 ): Promise<CarePlanItem> => {
     const { data } = await axios.patch<CarePlanItem>(
         `/v1/hospitalizations/${hospitalizationId}/care-plan-items/${itemId}`,
-        input
+        toCarePlanItemRequestInput(input)
     );
     return data;
 };

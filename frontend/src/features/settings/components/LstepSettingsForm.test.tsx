@@ -122,6 +122,18 @@ afterEach(() => {
 // ─────────────────────────────────────────────────────────────
 
 describe('LstepSettingsForm — A: Switch 表示・バッジ (FEAT-376)', () => {
+  it('Switch は見た目のトラック寸法を保ちつつ44px以上の操作領域を持つ', async () => {
+    await renderAndWait(configuredSyncOn);
+
+    expect(screen.getByRole('switch', { name: '同期を有効にする' })).toHaveClass(
+      'h-11',
+      'w-12',
+      'relative',
+      'before:h-7'
+    );
+    expect(screen.getByRole('switch', { name: '同期を有効にする' })).not.toHaveClass('border-y-8');
+  });
+
   it('同期ON: Switch が aria-checked="true"、"同期中" バッジが表示される', async () => {
     await renderAndWait(configuredSyncOn);
     expect(screen.getByRole('switch', { name: '同期を有効にする' })).toHaveAttribute(

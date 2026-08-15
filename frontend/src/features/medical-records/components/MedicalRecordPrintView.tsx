@@ -29,8 +29,10 @@ interface MedicalRecordPrintViewProps {
   treatmentPolicy?: string;
   physicalExam?: string;
   diagnosisDetails?: string;
-  treatments?: Treatment[];
+  treatments?: ReadonlyArray<Treatment>;
 }
+
+const EMPTY_TREATMENTS: ReadonlyArray<Treatment> = [];
 
 /**
  * カルテ印刷レイアウト。
@@ -47,7 +49,7 @@ export const MedicalRecordPrintView = memo(function MedicalRecordPrintView({
   treatmentPolicy,
   physicalExam,
   diagnosisDetails,
-  treatments = [],
+  treatments = EMPTY_TREATMENTS,
 }: MedicalRecordPrintViewProps) {
   const medicineTreatments = treatments.filter((t) => t.item_type === "medicine" && t.is_selected);
 

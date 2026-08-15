@@ -1,17 +1,17 @@
 import { useFormStatus } from "react-dom";
 import { Button, type ButtonProps } from "@/components/ui/button";
-import { C, STYLE } from "@/lib/design-tokens";
+import { C } from "@/lib/design-tokens";
 
 interface SubmitButtonProps extends Omit<ButtonProps, "variant"> {
   loadingText?: string;
   /**
-   * "brand"（既定） — docs/spec/design-system.md `button-primary`（ブランドティール + pill `{rounded.full}`）。
-   * "default" — 旧 accent ブルー + 4px 角丸（`STYLE.confirmPrimary`）。DESIGN.md 未準拠のため
-   * 新規実装では使用しないこと。既存の視覚差分を一時的に避ける必要がある場合のみの opt-out。
+   * "primary"（既定） — 汎用の主操作（brand と同じ primary teal + pill）。
+   * "brand" — 認証など製品識別面の Brand CTA（teal + pill）。
+   * "default" — "primary" の後方互換 alias。
    * 単一の className 文字列を選択（連結しない）ことで Tailwind の同一 specificity クラス競合を避ける。
    * shadcn Button 自身の `variant`（outline/ghost 等）と名前が衝突するため `colorVariant` という名前にしている。
    */
-  colorVariant?: "default" | "brand";
+  colorVariant?: "default" | "primary" | "brand";
 }
 
 /**
@@ -23,15 +23,15 @@ export function SubmitButton({
   loadingText = "保存中...",
   className,
   disabled,
-  colorVariant = "brand",
+  colorVariant = "primary",
   ...props
 }: SubmitButtonProps) {
   const { pending } = useFormStatus();
 
   const baseClassName =
     colorVariant === "brand"
-      ? `${C.bgBrand} ${C.hoverBgBrand} text-white h-11 text-base rounded-full transition-colors shadow-none border-transparent`
-      : STYLE.confirmPrimary;
+      ? `${C.bgBrandIdentity} ${C.textOnBrandIdentity} ${C.hoverBgBrandIdentity} ${C.hoverTextOnBrandIdentity} ${C.activeBgBrandIdentity} ${C.activeTextOnBrandIdentity} h-11 text-xl font-bold rounded-full transition-colors shadow-none border-transparent`
+      : `${C.bgActionPrimary} ${C.textOnActionPrimary} ${C.hoverBgActionPrimary} ${C.hoverTextOnActionPrimary} ${C.activeBgActionPrimary} ${C.activeTextOnActionPrimary} h-11 text-base rounded-full transition-colors shadow-none border-transparent`;
 
   return (
     <Button

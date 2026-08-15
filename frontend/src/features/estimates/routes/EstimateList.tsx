@@ -1,4 +1,4 @@
-import { ICON, C } from "@/lib/design-tokens";
+import { ICON, C, LAYOUT } from "@/lib/design-tokens";
 import { normalizeKana } from "@/lib/normalize-kana";
 import { LoadingFallback } from "@/components/shared/DataStates";
 import { useState, useMemo, useDeferredValue, useCallback, useTransition } from "react";
@@ -6,13 +6,14 @@ import { useNavigate } from "react-router";
 import { usePermission } from "@/hooks/use-permission";
 import { useModalState } from "@/hooks/use-modal-state";
 import { usePagination } from "@/hooks/use-pagination";
-import { formatCurrency } from "@/utils/format/number";
+import { formatCurrency } from "@/lib/format/number";
 import { Plus, FileText, Trash2, ExternalLink, CircleDot, Calendar } from "lucide-react";
 import { TableCell } from "@/components/ui/table";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { PropertyFilter } from "@/components/shared/PropertyFilter/PropertyFilter";
 import { DataTable, DESIGN_TABLE_HEADER_ROW, DESIGN_TABLE_HEADER_CELL } from "@/components/shared/DataTable/DataTable";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
+import { DataTableRowLink } from "@/components/shared/DataTable/DataTableRowLink";
 import { Pagination } from "@/components/shared/Pagination/Pagination";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { RowActionDropdown } from "@/components/shared/RowActionDropdown";
@@ -22,7 +23,7 @@ import { paths } from "@/config/paths";
 import { useGetEstimates } from "../api/get-estimates";
 import { useDeleteEstimate } from "../api/delete-estimate";
 import type { Estimate } from "../types";
-import { isEstimateLockedStatus } from "../utils/is-estimate-locked-status";
+import { isEstimateLockedStatus } from "../lib/is-estimate-locked-status";
 import type {
   FilterProperty,
   ActiveFilter,
@@ -197,22 +198,30 @@ export function EstimateList() {
     const showDelete = canDelete && !isLocked;
 
     return (
-      <DataTableRow key={estimate.id} onClick={() => navigate(paths.estimates.detail.getHref(estimate.id))}>
-        <TableCell className={`font-mono text-base ${C.text60} py-2`}>{estimate.estimateNo}</TableCell>
-        <TableCell className={`text-base ${C.text} py-2 font-medium`}>{estimate.title}</TableCell>
-        <TableCell className={`text-base ${C.text} py-2`}>{estimate.ownerName ?? "-"}</TableCell>
-        <TableCell className={`text-base ${C.text60} py-2`}>
+      <DataTableRow key={estimate.id}>
+        <TableCell className={`font-mono ${C.text60}`}>
+          <DataTableRowLink
+            to={paths.estimates.detail.getHref(estimate.id)}
+            aria-label={`見積書「${estimate.estimateNo} / ${estimate.title}」(ID: ${estimate.id}) の詳細を開く`}
+          >
+            {estimate.estimateNo}
+          </DataTableRowLink>
+        </TableCell>
+        <TableCell className={`${C.text} font-medium`}>{estimate.title}</TableCell>
+        <TableCell className={C.text}>{estimate.ownerName ?? "-"}</TableCell>
+        <TableCell className={C.text60}>
           {estimate.validUntil ? estimate.validUntil.slice(0, 10) : "-"}
         </TableCell>
-        <TableCell className={`text-right font-mono font-medium text-base ${C.text} py-2`}>
+        <TableCell className={`text-right font-mono font-medium ${C.text}`}>
           {formatCurrency(estimate.totalAmount)}
         </TableCell>
-        <TableCell className="py-2">
+        <TableCell>
           <EstimateStatusBadge status={estimate.status} />
         </TableCell>
-        <TableCell className="text-right py-2">
+        <TableCell className="text-right">
           {(canEdit || canDelete) ? (
             <RowActionDropdown
+              ariaLabel={`見積書「${estimate.estimateNo} / ${estimate.title}」(ID: ${estimate.id}) の操作`}
               actions={[
                 {
                   label: "詳細",
@@ -252,13 +261,13 @@ export function EstimateList() {
       icon={<FileText className={`${ICON.page} ${C.text}`} />}
       headerAction={
         canCreate ? (
-          <PrimaryButton colorVariant="brand" onClick={() => navigate(paths.estimates.new.getHref())}>
+          <PrimaryButton colorVariant="primary" onClick={() => navigate(paths.estimates.new.getHref())}>
             <Plus className={`mr-1.5 ${ICON.action}`} />
             新規見積書登録
           </PrimaryButton>
         ) : null
       }
-      maxWidth="max-w-full"
+      maxWidth={LAYOUT.pageContentMaxWidth.full}
     >
       <div className="flex flex-col gap-4">
         <PropertyFilter

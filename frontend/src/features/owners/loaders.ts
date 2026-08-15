@@ -1,18 +1,22 @@
+import { isAxiosError } from "axios";
 import { getOwner } from "./api/get-owner";
+// `axios` は Axios.create() 由来の instance で isAxiosError static を持たないため、
+// 型ガードは axios package の named export を使う（features/auth 等と同じ流儀）。
 import { axios } from "@/lib/axios";
 import {
   PET_GENDER_MAP,
-  PET_STATUS_MAP,
   ACQUISITION_TYPE_MAP,
   DANGER_LEVEL_MAP,
+  mapPetStatusLabel,
+  transformBackendPetToFrontend,
 } from "@/lib/transforms/pet";
 import type { Pet } from "@/types";
+import type { PetResponse } from "@/types/generated/pet-responses";
 import type { Owner } from "@/types/owner";
 
-// #266: GET /v1/pets 専用の petListResponse（pet_response.go 参照）は petResponse（詳細）より
-// 薄いDTOで、owner も id/owner_number/name/name_kana/phone/is_dangerous のみのサマリを埋め込む。
-// docs/api.yaml 未同期（make codegen 未実行）のため、生成型 (BackendPet/Owner) を流用せず
-// 実際のワイヤー契約に忠実なローカル型を定義する。
+// #266: GET /v1/pets 専用の list DTO は PetResponse（詳細）より薄い。
+// PetOwnerNested 等は pet-responses と一致するが、list 専用の欠落フィールドがあるため
+// ローカル型を維持する。
 interface PetListOwnerNested {
   id: number;
   owner_number: number;
@@ -54,6 +58,7 @@ interface PetListApiItem {
   neutered_date?: string;
   acquisition_type?: string;
   danger_level: string;
+  danger_reason?: string;
   food: string;
   environment: string;
   last_visit?: string;
@@ -73,7 +78,7 @@ interface PetsResponse {
 
 // #266: 飼主・ペット一覧のページサイズ。以前の client-side usePagination のデフォルト(20件)を踏襲。
 // ページ粒度はペット行単位（旧: 飼主単位のフラット化）— 1ページの行数は常に一定になる。
-export const OWNERS_PAGE_SIZE = 20;
+const OWNERS_PAGE_SIZE = 20;
 
 export interface OwnersLoaderData {
   pets: Pet[];
@@ -105,7 +110,7 @@ function transformPetListItemToFrontend(p: PetListApiItem): Pet {
     bloodType: p.blood_type ?? undefined,
     microchipNumber: p.microchip_number ?? undefined,
     gender: p.gender ? (PET_GENDER_MAP[p.gender] ?? p.gender) : undefined,
-    status: p.status ? PET_STATUS_MAP[p.status] : undefined,
+    status: mapPetStatusLabel(p.status),
     birthDate: p.birth_date ? p.birth_date.split("T")[0] : undefined,
     neuteredDate: p.neutered_date ? p.neutered_date.split("T")[0] : undefined,
     weight: p.weight?.toString(),
@@ -113,6 +118,7 @@ function transformPetListItemToFrontend(p: PetListApiItem): Pet {
     environment: p.environment,
     acquisitionType: p.acquisition_type ? (ACQUISITION_TYPE_MAP[p.acquisition_type] ?? p.acquisition_type) : undefined,
     dangerLevel: p.danger_level ? (DANGER_LEVEL_MAP[p.danger_level] ?? p.danger_level) : undefined,
+    dangerReason: p.danger_reason,
     lastVisit: p.last_visit ? p.last_visit.split("T")[0] : undefined,
     insuranceId: p.insurance_id != null ? String(p.insurance_id) : undefined,
     insuranceName: p.insurance?.name,
@@ -157,8 +163,12 @@ export const ownersLoader = async ({ request }: { request: Request }): Promise<O
       limit: result.limit,
       total: result.total,
     };
-  } catch {
-    throw new Response("飼主一覧の取得に失敗しました", { status: 500 });
+  } catch (err) {
+    // 上流のHTTPステータスを保全する。500 へ潰すと 400（リクエスト不正・スキーマ不整合）や
+    // 403（権限不足）がすべて「サーバ内部エラー」に見え、原因の切り分けが不可能になる。
+    // status を持たない通信エラー（ネットワーク断）と非 axios 例外のみ 500 とする。
+    const status = isAxiosError(err) ? (err.response?.status ?? 500) : 500;
+    throw new Response("飼主一覧の取得に失敗しました", { status });
   }
 };
 
@@ -171,6 +181,24 @@ export const ownerLoader = async ({ params }: { params: Record<string, string | 
   if (!id) {
     throw new Response("Owner ID is required", { status: 400 });
   }
-  const owner = await getOwner(id);
-  return { owner };
+  try {
+    const owner = await getOwner(id);
+    const pets = await Promise.all(
+      (owner.pets ?? []).map(async (pet) => {
+        const { data } = await axios.get<PetResponse>(`/v1/pets/${pet.id}`);
+        return transformBackendPetToFrontend(data);
+      }),
+    );
+    return { owner: { ...owner, pets } };
+  } catch (err) {
+    // BUG-010: 他医院作成直後に旧 X-Clinic-ID で GET すると 404。汎用クラッシュではなく明示メッセージにする。
+    const status = isAxiosError(err) ? (err.response?.status ?? 500) : 500;
+    if (status === 404) {
+      throw new Response(
+        "飼主が見つかりません。選択中の医院と異なる医院に登録されている可能性があります。医院を切り替えて再度お試しください。",
+        { status: 404 },
+      );
+    }
+    throw new Response("飼主情報の取得に失敗しました", { status });
+  }
 };

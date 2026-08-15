@@ -8,42 +8,57 @@ Animal Ekarte の負荷テストは k6 を使用しています。API エンド�
 |--------|---------|------|----------|
 | API エンドポイント | `k6-api-endpoints.js` | 通常運用負荷 | 10 → 50 |
 | スパイテスト | `k6-spike-test.js` | 急激な負荷増加対応 | 5 → 100 → 5 |
+| CF STG 持続負荷 | `k6-cf-stg-sustained.js` | STG Container 低 VU 観測 | 3 |
 
 ## 前提条件
 
-k6 がインストール済み（Docker 推奨）
+- k6 がインストール済み（Docker 推奨）
+- 認証は **`STG_DEMO_EMAIL` / `STG_DEMO_PASSWORD` のみ**（literal fallback なし）
+- GitHub Actions では同名 Secrets が必須（未設定は fail-closed）
 
 ```bash
-# Docker で k6 実行
-docker run -i grafana/k6 run - < load-tests/k6-api-endpoints.js
+# Docker で k6 実行（認証 env 必須）
+docker run --rm -i \
+  -e BASE_URL=http://host.docker.internal:8080 \
+  -e STG_DEMO_EMAIL \
+  -e STG_DEMO_PASSWORD \
+  -v "$(pwd)/load-tests:/scripts" \
+  grafana/k6 run /scripts/k6-api-endpoints.js
 ```
+
+## 認証契約（#109 / TASK-606）
+
+| 項目 | 契約 |
+|------|------|
+| 環境変数 | `STG_DEMO_EMAIL`, `STG_DEMO_PASSWORD` のみ |
+| 禁止 | 旧 CI テスト用 secret 名・汎用 TEST_* env・ハードコード demo 認証の fallback |
+| login | `POST /api/v1/login` が非 200、または `Set-Cookie` 欠落 → 非 0 終了 |
+| protected | 認証付き GET が非 200 → check 失敗（401 合格扱いは禁止） |
+| aggregate | `http_reqs` / `iterations` / `checks` / `successful_logins` が 0 → 非 0 終了 |
+| 秘匿 | パスワード・body・cookie・token 値を log / summary / artifact に出さない |
+
+`setup()` で 1 回だけログインし Cookie を再利用する（login レートリミット回避。`k6-cf-stg-sustained.js` と同型）。
 
 ## テスト実行
 
 ### API エンドポイント負荷テスト
 
 ```bash
-# 標準実行（ローカル k6）
-k6 run load-tests/k6-api-endpoints.js
-
-# 環境指定
 BASE_URL=http://localhost:8080 \
-TEST_EMAIL=admin@example.com \
-TEST_CRED=test \
-k6 run load-tests/k6-api-endpoints.js
-
-# Docker 経由
-docker run -v $(pwd):/scripts -e BASE_URL=http://host.docker.internal:8080 \
-  grafana/k6 run /scripts/load-tests/k6-api-endpoints.js
+STG_DEMO_EMAIL="$STG_DEMO_EMAIL" \
+STG_DEMO_PASSWORD="$STG_DEMO_PASSWORD" \
+k6 run load-tests/k6-api-endpoints.js \
+  --summary-export load-tests/results-endpoints-summary.json
 ```
 
 ### スパイクテスト
 
 ```bash
-k6 run load-tests/k6-spike-test.js
-
-# リモート結果送信（Grafana Cloud）
-k6 run --out cloud load-tests/k6-spike-test.js
+BASE_URL=http://localhost:8080 \
+STG_DEMO_EMAIL="$STG_DEMO_EMAIL" \
+STG_DEMO_PASSWORD="$STG_DEMO_PASSWORD" \
+k6 run load-tests/k6-spike-test.js \
+  --summary-export load-tests/results-spike-summary.json
 ```
 
 ## テストパラメータ
@@ -58,14 +73,15 @@ k6 run --out cloud load-tests/k6-spike-test.js
 5. **Ramp-down** (180-210s): 0ユーザーに減少
 
 **テスト対象 API**:
-- POST `/api/v1/login` — ログイン
-- GET `/api/v1/appointments` — 診察一覧
-- GET `/api/v1/medical-records` — 医療記録
-- GET `/api/v1/permission-groups` — 権限グループ
+- POST `/api/v1/login` — setup で 1 回（`successful_logins` 計上）
+- GET `/api/v1/appointments` — 診察一覧（status 200 必須）
+- GET `/api/v1/medical-records` — 医療記録（status 200 必須）
+- GET `/api/v1/permission-groups` — 権限グループ（status 200 必須）
 
 **パフォーマンス閾値**:
 - レスポンスタイム: p95 < 500ms, p99 < 1000ms
 - エラー率: < 10%
+- fail-closed: `http_reqs` / `iterations` / `checks` / `successful_logins` > 0
 
 ### k6-spike-test.js
 
@@ -75,160 +91,79 @@ k6 run --out cloud load-tests/k6-spike-test.js
 3. **Sustained** (15-25s): 100ユーザーで保持
 4. **Recovery** (25-30s): 5ユーザーに復帰
 
+**認証**: setup で `STG_DEMO_*` ログイン → Cookie 付き GET `/api/v1/appointments`（status 200 必須）
+
 **パフォーマンス閾値**:
 - レスポンスタイム: p95 < 2000ms, p99 < 5000ms
 - エラー率: < 20% (スパイク時は許容)
+- fail-closed: `http_reqs` / `iterations` / `checks` / `successful_logins` > 0
 
 ## 結果分析
 
 ### 生成ファイル
 
 ```
-load-tests/results.json — JSON形式の詳細結果
+load-tests/results-endpoints-summary.json — k6 --summary-export（API endpoints）
+load-tests/results-spike-summary.json     — k6 --summary-export（spike）
 ```
+
+CI は time-series の `--out json` も artifact に残すが、合格判定は **summary-export の aggregate** のみ（`http_reqs` 等）。`metrics.http_requests` のような誤キーや silent parse は使わない。
 
 ### メトリクス解釈
 
 | メトリクス | 説明 | 目標値 |
 |----------|------|-------|
-| `http_req_duration` | レスポンスタイム | p95 < 500ms |
+| `http_req_duration` | レスポンスタイム | p95 < 500ms（endpoints） |
 | `http_req_failed` | リクエスト失敗率 | < 10% |
+| `http_reqs` | 総リクエスト数 | > 0（必須） |
+| `iterations` | VU イテレーション数 | > 0（必須） |
+| `checks` | check 実行 | rate > 0 かつ活動量 > 0 |
+| `successful_logins` | setup ログイン成功数 | > 0（必須） |
 | `errors` | カスタムエラー率 | < 10% |
-| `successful_logins` | 成功ログイン数 | 最大化 |
-| `api_errors` | API エラー数 | 最小化 |
-
-### 例: テスト結果の読み方
-
-```
-=== Load Test Results ===
-
-HTTP Requests:
-  Total: 500
-  Failed: 5
-  Avg Duration: 450ms
-
-✓ http_req_duration: p95=480ms, p99=950ms
-✓ http_req_failed: rate=1%
-✓ errors: rate=1%
-```
-
-**解釈**:
-- ✅ パフォーマンス目標達成（p95 < 500ms）
-- ✅ エラー率低い（1%）
-- ✅ 500リクエスト中 5失敗（許容範囲）
 
 ## トラブルシューティング
+
+### エラー: "STG_DEMO_EMAIL / STG_DEMO_PASSWORD must be set"
+- 環境変数または GitHub Secrets が未設定
+- literal fallback は廃止済み。値を export して再実行
+
+### エラー: "setup login failed: status=..."
+- 認証情報が対象環境のアカウントと一致しているか確認
+- status 以外（body/cookie 値）はログに出ない仕様
 
 ### エラー: "Connection refused"
 - バックエンドが起動していることを確認
 - BASE_URL が正しいことを確認
 
 ```bash
-docker compose ps   # Docker Compose 確認
-curl http://localhost:8080/health   # API ヘルスチェック
+docker compose ps
+curl http://localhost:8080/health
 ```
 
 ### エラー: "Too many open files"
-- k6 が開けるファイル数制限に達した
-- システムリソース制限を増やす
 
 ```bash
-# macOS / Linux
 ulimit -n 4096
-
-# Docker の場合
 docker run --ulimit nofile=65536:65536 grafana/k6 run ...
-```
-
-### スパイクテスト失敗
-- システムが高負荷に対応できていない可能性
-- エンドポイント最適化を検討
-- キャッシング戦略を実装
-
-## パフォーマンス最適化ガイド
-
-### 1. データベースクエリ最適化
-
-```go
-// 例: N+1 問題を避ける
-appointments, _ := repo.FindAllWithPreload(ctx)  // ✅ プリロード
-appointments, _ := repo.FindAll(ctx)             // ❌ N+1 クエリ
-```
-
-### 2. API レスポンス キャッシング
-
-```go
-// Redis キャッシング例
-if cached, ok := cache.Get("appointments"); ok {
-    return cached, nil
-}
-appointments, _ := repo.FindAll(ctx)
-cache.Set("appointments", appointments, 5*time.Minute)
-return appointments, nil
-```
-
-### 3. コネクションプール調整
-
-```go
-// GORM コネクションプール設定
-db.DB().SetMaxIdleConns(10)
-db.DB().SetMaxOpenConns(100)
-```
-
-### 4. インデックス追加
-
-```sql
--- 頻繁なクエリ対象にインデックスを追加
-CREATE INDEX idx_clinic_id ON appointments(clinic_id);
-CREATE INDEX idx_staff_id ON staff_clinic_assignments(staff_id);
 ```
 
 ## CI/CD 統合
 
-### GitHub Actions での負荷テスト実行
+`.github/workflows/performance-tests.yml`:
 
-`.github/workflows/load-test.yml`:
-
-```yaml
-name: Load Tests
-on:
-  schedule:
-    - cron: '0 2 * * *'  # 毎日 02:00 実行
-  workflow_dispatch
-
-jobs:
-  load-test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: grafana/setup-k6-action@v1
-      - run: docker compose up -d
-      - run: k6 run load-tests/k6-api-endpoints.js
-      - uses: actions/upload-artifact@v3
-        if: always()
-        with:
-          name: load-test-results
-          path: load-tests/results.json
-```
+- 両 k6 step は **required**（`continue-on-error` なし）
+- env: `STG_DEMO_EMAIL` / `STG_DEMO_PASSWORD`（Secrets、fallback なし）
+- `--summary-export load-tests/results-endpoints-summary.json` / `results-spike-summary.json`
+- 後段 step が aggregate（`http_reqs`, `iterations`, `checks`, `successful_logins`）を fail-closed 検証
+- Lighthouse のみ既存どおり `continue-on-error: true` 可
 
 ## 参考資料
 
 - [k6 公式ドキュメント](https://k6.io/docs/)
 - [k6 API リファレンス](https://k6.io/docs/javascript-api/)
-- [Grafana Cloud k6](https://grafana.com/products/cloud/k6/)
-
-## パフォーマンスベンチマーク目標
-
-| 指標 | 目標 | 現状 | 状態 |
-|------|------|------|------|
-| ログイン レスポンス | < 300ms | TBD | 🔄 |
-| 診察一覧 取得 | < 500ms | TBD | 🔄 |
-| 医療記録 取得 | < 1000ms | TBD | 🔄 |
-| 権限グループ 取得 | < 500ms | TBD | 🔄 |
-| **全体エラー率** | < 5% | TBD | 🔄 |
-| **同時接続数** | 100+ | TBD | 🔄 |
+- `load-tests/k6-cf-stg-sustained.js` — STG 持続負荷・setup 認証の参考実装
 
 ---
 
-**最終更新**: 2026-04-23  
-**担当**: Claude Code (TIER 3 Load Testing)
+**最終更新**: 2026-07-30
+**担当**: TASK-606 (#109 performance-tests auth / fail-closed)

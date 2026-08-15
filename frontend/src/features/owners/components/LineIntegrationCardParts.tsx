@@ -1,8 +1,8 @@
+import { useCallback, useRef, useTransition } from "react";
 import { CheckCircle2, Circle } from "lucide-react";
 import { toast } from "sonner";
 
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
-import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { Button } from "@/components/ui/button";
 import { C, ICON, PALETTE, STYLE } from "@/lib/design-tokens";
 
@@ -14,7 +14,7 @@ import type { LineIdFormState } from "../hooks/use-line-integration-card-state";
 export function LineIntegrationCardFrame({ children }: { children: React.ReactNode }) {
   return (
     <div className={`rounded-lg border ${C.borderLight} p-4 flex flex-col gap-4`}>
-      <h3 className={`text-sm font-medium ${C.text70} uppercase tracking-wide`}>
+      <h3 className={`text-sm font-medium ${C.text70} uppercase`}>
         LINE / Lステップ連携
       </h3>
       {children}
@@ -104,7 +104,7 @@ export function LstepTagsSection({
 }: LstepTagsSectionProps) {
   return (
     <div className="flex flex-col gap-2">
-      <span className={`text-xs ${C.text55} uppercase tracking-wide`}>
+      <span className={`text-xs ${C.text55} uppercase`}>
         Lステップタグ
       </span>
 
@@ -149,27 +149,51 @@ export function UnlinkedLineIdForm({
   lineIdFormAction,
   lineIdState,
 }: UnlinkedLineIdFormProps) {
+  const lineUserIdRef = useRef<HTMLInputElement>(null);
+  const [isPending, startTransition] = useTransition();
+  const handleSubmit = useCallback(() => {
+    const payload = new FormData();
+    payload.set("line_user_id", lineUserIdRef.current?.value ?? "");
+    startTransition(() => lineIdFormAction(payload));
+  }, [lineIdFormAction]);
+
   if (!canEdit) return null;
 
   return (
-    <form action={lineIdFormAction} className="flex flex-col gap-2">
+    <fieldset
+      className="flex flex-col gap-2 border-0 p-0 m-0 min-w-0"
+      disabled={isPending}
+    >
       <label htmlFor="line_user_id" className={STYLE.formLabel}>
         LINE User ID
       </label>
       <div className="flex gap-2">
         <input
           id="line_user_id"
+          ref={lineUserIdRef}
           name="line_user_id"
           type="text"
           placeholder="Uxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
           className={`${STYLE.formInput} flex-1 rounded-md px-3`}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              handleSubmit();
+            }
+          }}
         />
-        <SubmitButton loadingText="設定中..." colorVariant="brand">設定</SubmitButton>
+        <Button
+          type="button"
+          className={`${C.bgBrand} ${C.hoverBgBrand} ${C.hoverTextOnBrand} ${C.textOnBrand} h-11 rounded-full px-4`}
+          onClick={handleSubmit}
+        >
+          {isPending ? "設定中..." : "設定"}
+        </Button>
       </div>
       {lineIdState.error !== null ? (
         <p className={`text-sm ${C.danger}`}>{lineIdState.error}</p>
       ) : null}
-    </form>
+    </fieldset>
   );
 }
 

@@ -14,7 +14,7 @@ export function resolveItemTypeFromCategory(category: string): TreatmentItemType
  *
  * ts-review-201 CRITICAL 回帰防止: `item.medicineId` は FE 表示用の文字列 ID
  * （`Medicine.id = String(data.id)`）だが、BE の `createTreatmentRequest.MedicineID` は
- * `*uint64`（JSON number）を期待する（`backend/internal/handler/treatment_request.go`）。
+ * `*uint64`（JSON number）を期待する（`backend/internal/medicalrecord/treatment_request.go`）。
  * 文字列のまま送ると `ShouldBindJSON` が失敗し 400 になり、薬剤選択からの治療行追加が
  * 常に失敗する（一度この回帰が発生した）。ここで必ず `Number(...)` に変換すること。
  */

@@ -79,7 +79,7 @@ function PasswordField({
           required
           minLength={minLength}
           placeholder={placeholder}
-          className="pr-10"
+          className="pr-12"
         />
         <button
           type="button"

@@ -1,5 +1,5 @@
 // React/Framework
-import { useEffect, useState, useCallback, useTransition } from "react";
+import { useEffect, useState, useCallback, useLayoutEffect, useRef, useTransition } from "react";
 import { useNavigate, useParams, useLocation, useSearchParams } from "react-router";
 
 // External
@@ -24,11 +24,12 @@ import { HospitalizationBasicInfo } from "../components/HospitalizationBasicInfo
 import { HospitalizationNoteCard } from "../components/HospitalizationNoteCard";
 import { HospitalizationTreatmentTable } from "../components/HospitalizationTreatmentTable";
 import { HospitalizationCostSummary } from "../components/HospitalizationCostSummary";
+import { H_STYLES } from "../styles";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
-import { LoadingFallback } from "@/components/shared/DataStates";
+import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
 import { FormFieldError } from "@/components/shared/FormFieldError";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
-import { C, STYLE, ICON } from "@/lib/design-tokens";
+import { C, STYLE, ICON, LAYOUT } from "@/lib/design-tokens";
 import { ResourceHospitalization } from "@/types/generated/models";
 
 export function HospitalizationForm() {
@@ -43,27 +44,28 @@ export function HospitalizationForm() {
   const { user } = useAuth();
   const { canEdit, canCreate, canDelete } = usePermission("hospitalization");
   const canSubmit = hospitalizationId ? canEdit : canCreate;
+  const canDeleteRef = useRef(canDelete);
   const deleteMutation = useDeleteHospitalization();
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [isDeletePending, startDeleteTransition] = useTransition();
 
   const {
       isEdit,
+      isReadLoading,
+      isReadNotFound,
+      isReadError,
+      retryRead,
       formData,
       handleFormDataChange: handleFormDataChangeRaw,
       treatmentPlans,
       addTreatmentPlan,
       removeTreatmentPlan,
       updateTreatmentPlan,
-      globalDiscount,
-      setGlobalDiscount,
-      globalDiscountAmount,
-      setGlobalDiscountAmount,
       calculateTotals,
       petSelection,
       formAction,
       formState,
-  } = useHospitalizationForm(hospitalizationId);
+  } = useHospitalizationForm(hospitalizationId, canSubmit === true);
 
   const { isDirty, markDirty, markClean } = useUnsavedChanges();
 
@@ -96,6 +98,12 @@ export function HospitalizationForm() {
 
   const { selectedPets } = petSelection;
   const selectedPet = selectedPets[0];
+  const petIsDeceased = selectedPet?.status === "死亡";
+  const petIsDeceasedRef = useRef(petIsDeceased);
+  useLayoutEffect(() => {
+    canDeleteRef.current = canDelete;
+    petIsDeceasedRef.current = petIsDeceased;
+  }, [canDelete, petIsDeceased]);
   const totals = calculateTotals();
 
   const handleBack = useCallback(() => {
@@ -107,7 +115,11 @@ export function HospitalizationForm() {
   }, [locationFrom, navigate]);
 
   const handleDelete = useCallback(() => {
-    if (!hospitalizationId) return;
+    if (
+      !hospitalizationId ||
+      canDeleteRef.current !== true ||
+      petIsDeceasedRef.current === true
+    ) return;
     startDeleteTransition(() => {
       deleteMutation.mutate(hospitalizationId, {
         onSuccess: () => {
@@ -123,15 +135,9 @@ export function HospitalizationForm() {
     handleFormDataChangeRaw(updates);
   }, [markDirty, handleFormDataChangeRaw]);
 
-  const handleGlobalDiscountChange = useCallback((val: number) => {
-    markDirty();
-    setGlobalDiscount(val);
-  }, [markDirty, setGlobalDiscount]);
-
-  const handleGlobalDiscountAmountChange = useCallback((val: number) => {
-    markDirty();
-    setGlobalDiscountAmount(val);
-  }, [markDirty, setGlobalDiscountAmount]);
+  // Parent delete is blocked when child treatment plans exist (BE Conflict + UI guard).
+  const hasChildTreatmentPlans = isEdit && treatmentPlans.length > 0;
+  const canShowDelete = canDelete === true && !hasChildTreatmentPlans;
 
   useEffect(() => {
     if (!selectedPet && !isEdit && !petId) {
@@ -142,15 +148,63 @@ export function HospitalizationForm() {
   if (!selectedPet && !isEdit && petId) return <LoadingFallback />;
   if (!selectedPet && !isEdit) return null;
 
+  // BUG-016: never render blank editable form for missing / other-clinic / forbidden IDs
+  if (isEdit && isReadLoading) {
+    return (
+      <PageLayout
+        title="入院"
+        onBack={handleBack}
+        icon={<FileText className={`${ICON.page} ${C.text}`} />}
+        resource={ResourceHospitalization}
+        maxWidth={LAYOUT.pageContentMaxWidth.form}
+      >
+        <LoadingFallback />
+      </PageLayout>
+    );
+  }
+  if (isEdit && isReadNotFound) {
+    return (
+      <PageLayout
+        title="入院"
+        onBack={handleBack}
+        icon={<FileText className={`${ICON.page} ${C.text}`} />}
+        resource={ResourceHospitalization}
+        maxWidth={LAYOUT.pageContentMaxWidth.form}
+      >
+        <ErrorFallback message="入院情報が見つかりません" />
+      </PageLayout>
+    );
+  }
+  if (isEdit && isReadError) {
+    return (
+      <PageLayout
+        title="入院"
+        onBack={handleBack}
+        icon={<FileText className={`${ICON.page} ${C.text}`} />}
+        resource={ResourceHospitalization}
+        maxWidth={LAYOUT.pageContentMaxWidth.form}
+      >
+        <div className="space-y-3">
+          <ErrorFallback message="入院情報の取得に失敗しました" />
+          {retryRead ? (
+            <Button type="button" variant="outline" size="sm" onClick={retryRead}>
+              再試行
+            </Button>
+          ) : null}
+        </div>
+      </PageLayout>
+    );
+  }
+
   return (
     <>
-    <form action={formAction}>
+    <form action={formAction} className="h-full">
     <PageLayout
       title={hospitalizationId ? "入院編集" : "入院登録"}
       onBack={handleBack}
       icon={<FileText className={`${ICON.page} ${C.text}`} />}
       resource={ResourceHospitalization}
-      maxWidth="max-w-[1400px]"
+      maxWidth={LAYOUT.pageContentMaxWidth.form}
       headerAction={
         <div className="flex gap-2">
             {hospitalizationId ? (
@@ -164,7 +218,7 @@ export function HospitalizationForm() {
                     <FileText className={ICON.action} />
                     デイリーカルテ
                   </Button>
-                  {canDelete ? (
+                  {canShowDelete ? (
                     <Button
                       variant="ghost"
                       type="button"
@@ -214,6 +268,7 @@ export function HospitalizationForm() {
             formData={formData}
             onChange={handleFormChange}
             cageItems={cageItems}
+            fieldErrors={{ cage_id: formState.fieldErrors?.cage_id }}
           />
 
           {/* Middle Column - 飼主からのリクエスト */}
@@ -237,22 +292,34 @@ export function HospitalizationForm() {
           />
         </div>
 
-        {/* 治療プラン */}
+        {/* 治療プラン: create 時のみ入力可（登録時スナップショット）。edit は参照のみ。ケアプランは入院詳細。 */}
+        {isEdit ? (
+          <p className={`mb-2 ${H_STYLES.text.sm} ${C.text60}`}>
+            登録時の治療プランはスナップショットとして参照のみです。この画面では変更・削除できません。入院中の投薬・給餌などは入院詳細のケアプランで管理します。
+          </p>
+        ) : (
+          <p className={`mb-2 ${H_STYLES.text.sm} ${C.text60}`}>
+            治療内容・メモが入力された行のみ、入院登録時に治療プラン（登録時スナップショット）として保存されます。空行は保存されません。
+          </p>
+        )}
+        {hasChildTreatmentPlans ? (
+          <p className={`mb-2 ${H_STYLES.text.sm} ${C.text60}`} role="status">
+            治療プランが紐付いているため、この入院は削除できません。
+          </p>
+        ) : null}
         <HospitalizationTreatmentTable
             treatmentPlans={treatmentPlans}
             onAdd={addTreatmentPlan}
             onUpdate={updateTreatmentPlan}
             onRemove={canDelete ? removeTreatmentPlan : undefined}
+            readOnly={isEdit}
         />
 
-        {/* 診療費計算 */}
-        <HospitalizationCostSummary
-            totals={totals}
-            globalDiscount={globalDiscount}
-            setGlobalDiscount={handleGlobalDiscountChange}
-            globalDiscountAmount={globalDiscountAmount}
-            setGlobalDiscountAmount={handleGlobalDiscountAmountChange}
-        />
+        {/* 一括割引 UI は提供しない（W-003）。金額は明細小計の概算のみ。 */}
+        <p className={`mb-2 ${H_STYLES.text.sm} ${C.text60}`}>
+          一括割引（%／円）はこの画面では利用できません。表示金額は治療プラン明細に基づく概算です。
+        </p>
+        <HospitalizationCostSummary totals={totals} />
         </fieldset>
     </PageLayout>
     </form>

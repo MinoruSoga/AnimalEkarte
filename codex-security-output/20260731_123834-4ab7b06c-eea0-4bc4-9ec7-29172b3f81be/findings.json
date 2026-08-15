@@ -1,0 +1,538 @@
+{
+  "documentType": "codex-security.findings",
+  "findings": [
+    {
+      "attackPath": {
+        "dataflow": "stored owner data -> ProgressRecord -> CSV cell -> spreadsheet",
+        "impact": "Operator spreadsheet execution or deceptive links.",
+        "reachability": "A user can supply stored owner text before an operator opens the report."
+      },
+      "codeEvidence": [
+        {
+          "code": "row := []string{fmt.Sprintf(\"%d\", r.OwnerID), r.OwnerName, r.Status, fmt.Sprintf(\"%d\", r.TagsAdded), fmt.Sprintf(\"%d\", r.TagsFailed), r.ErrorMessage}; cw.Write(row)",
+          "endLine": 27,
+          "explanation": "OwnerName and ErrorMessage reach CSV cells without formula neutralization.",
+          "id": "report-sink",
+          "label": "Unsanitized report cells",
+          "language": "go",
+          "path": "backend/cmd/lstep-migrate/reporter.go",
+          "role": "sink",
+          "startLine": 19
+        }
+      ],
+      "confidence": {
+        "level": "high",
+        "rationale": "Source-to-sink trace is direct and a neighboring CSV exporter implements the missing control."
+      },
+      "extensions": {
+        "candidateId": "candidate-1f9dc64e744cf89f"
+      },
+      "findingId": "csf_994fad306f365bc04f092ab7",
+      "fingerprints": {
+        "algorithm": "codex-security/v1",
+        "primary": "codex-security/v1:sha256:e65d36ee6607f88cb24cd6a34869c09e84f97e3d0f02b4a39d372fc98c8e347c"
+      },
+      "identity": {
+        "anchor": "lstep-migration-report",
+        "instance": "owner-name-and-error-message"
+      },
+      "locations": [
+        {
+          "endLine": 27,
+          "path": "backend/cmd/lstep-migrate/reporter.go",
+          "role": "root_control",
+          "startLine": 21
+        },
+        {
+          "path": "backend/cmd/lstep-migrate/migrator.go",
+          "role": "source",
+          "startLine": 173
+        }
+      ],
+      "occurrenceId": "occ_22da1880c348923f9c4ebcac",
+      "preventiveControls": [
+        "Centralize spreadsheet-safe CSV serialization."
+      ],
+      "provenance": {
+        "source": "repository-wide standard scan"
+      },
+      "remediation": "Apply a shared CSV-cell sanitizer to every untrusted textual report field before calling csv.Writer.",
+      "remediationTests": [
+        "Add a table-driven reporter test for values beginning =, +, -, and @ in both owner and error fields."
+      ],
+      "rootCause": {
+        "evidenceRefs": [
+          "report-sink"
+        ],
+        "summary": "The report writer relies on CSV quoting but does not apply the leading-character neutralization required for spreadsheet consumers."
+      },
+      "ruleId": "csv-injection.spreadsheet-formula",
+      "severity": {
+        "changeConditions": "Severity rises if the report is automatically distributed to broader recipients.",
+        "level": "low",
+        "rationale": "Stored data can trigger spreadsheet execution only when an operator runs the migration and opens its report.",
+        "score": 3.8,
+        "scoringSystem": "CVSS-like"
+      },
+      "summary": "The operator CSV report writes stored owner names and error messages directly, allowing leading spreadsheet formula markers to be interpreted when the report is opened.",
+      "taxonomy": {
+        "category": "CSV formula injection",
+        "cwe": [
+          "CWE-1236"
+        ]
+      },
+      "title": "LSTEP migration report permits spreadsheet-formula injection",
+      "validation": {
+        "counterevidence": "The report is an operator-run artifact.",
+        "evidence": "Owner.Name is copied into ProgressRecord and a neighboring exporter has sanitizeCSVCell for this precise control.",
+        "method": "static source-to-sink review"
+      }
+    },
+    {
+      "attackPath": {
+        "dataflow": "authorized fractional treatment request -> DecreaseStock -> int conversion -> zero/truncated decrement",
+        "impact": "Stock availability, clinical supply, and financial records diverge.",
+        "reachability": "Any treatment creator can select an inventory ID and submit a fractional quantity."
+      },
+      "codeEvidence": [
+        {
+          "code": "func (r *repository) DecreaseStock(ctx context.Context, clinicID, id uint64, quantity float64) error { qty := int(quantity); ... UpdateColumn(\"quantity\", gorm.Expr(\"quantity - ?\", qty)) }",
+          "endLine": 157,
+          "explanation": "Converting a positive fractional quantity to int yields zero before both the stock guard and decrement.",
+          "id": "truncation",
+          "label": "Truncating stock decrement",
+          "language": "go",
+          "path": "backend/internal/inventory/repository.go",
+          "role": "root_control",
+          "startLine": 152
+        }
+      ],
+      "confidence": {
+        "level": "high",
+        "rationale": "The exact float-to-int conversion is visible on the path from HTTP request to atomic update."
+      },
+      "extensions": {
+        "candidateId": "candidate-e9adb38d103c0fa0"
+      },
+      "findingId": "csf_68f782ebf443017344059373",
+      "fingerprints": {
+        "algorithm": "codex-security/v1",
+        "primary": "codex-security/v1:sha256:2ae275669c2e2cb8e82fc20d869355a91356b43a3d1c9366c00c6a0b30896169"
+      },
+      "identity": {
+        "anchor": "inventory-decrease-stock",
+        "instance": "fractional-treatment-quantity"
+      },
+      "locations": [
+        {
+          "endLine": 157,
+          "path": "backend/internal/inventory/repository.go",
+          "role": "root_control",
+          "startLine": 152
+        },
+        {
+          "path": "backend/internal/medicalrecord/treatment_request.go",
+          "role": "source",
+          "startLine": 14
+        },
+        {
+          "endLine": 340,
+          "path": "backend/internal/medicalrecord/treatment_service.go",
+          "role": "sink",
+          "startLine": 337
+        }
+      ],
+      "occurrenceId": "occ_776c992a4866558cb32a2f4c",
+      "preventiveControls": [
+        "Use one domain quantity type for treatments and inventory."
+      ],
+      "provenance": {
+        "source": "repository-wide standard scan"
+      },
+      "remediation": "Either reject non-integral quantities for integer-stock items before creating the treatment, or store and atomically decrement inventory using a precise decimal representation.",
+      "remediationTests": [
+        "Assert that quantity 0.5 is rejected or decrements precisely and that 1.5 cannot under-decrement stock."
+      ],
+      "rootCause": {
+        "evidenceRefs": [
+          "truncation"
+        ],
+        "summary": "The treatment quantity type and inventory quantity semantics are inconsistent, with loss of precision at the enforcement point."
+      },
+      "ruleId": "business-logic.inventory-fractional-decrement",
+      "severity": {
+        "changeConditions": "Severity rises if fractional quantities are valid for regulated or high-value supplies.",
+        "level": "medium",
+        "rationale": "A clinic staff member authorized to create treatments can defeat stock accounting and availability checks for inventory-backed medical items.",
+        "score": 5.9,
+        "scoringSystem": "CVSS-like"
+      },
+      "summary": "Inventory-backed treatments accept fractional quantities, but stock decrement truncates the value to an integer before enforcing availability and updating stock.",
+      "taxonomy": {
+        "category": "Business logic integrity",
+        "cwe": [
+          "CWE-682",
+          "CWE-840"
+        ]
+      },
+      "title": "Fractional treatment quantities bypass inventory decrement",
+      "validation": {
+        "counterevidence": "The action is clinic-scoped and permission-protected, but those controls do not preserve stock integrity.",
+        "evidence": "float64 input is forwarded unchanged into int(quantity); Go conversion is deterministic.",
+        "method": "static code understanding"
+      }
+    },
+    {
+      "attackPath": {
+        "dataflow": "repository read access -> account identities and bcrypt verifiers -> offline credential attack or local/test deployment access",
+        "impact": "Staff privacy and privileged local/test account security are weakened.",
+        "reachability": "All repository readers can obtain the tracked seed material."
+      },
+      "codeEvidence": [
+        {
+          "code": "\u5b9f\u30b9\u30bf\u30c3\u30d5\u306e\u6c0f\u540d\u30fbemail\u30fbpassword hash\u306a\u3069\u306ePII/credential verifier\u3092seed\u3084Git\u5c65\u6b74\u3078\u8ffd\u52a0\u3057\u306a\u3044\u3002",
+          "explanation": "The repository explicitly defines the tracked data as prohibited.",
+          "id": "seed-policy",
+          "label": "Seed-data policy",
+          "language": "markdown",
+          "path": "backend/migrations/CLAUDE.md",
+          "role": "evidence",
+          "startLine": 69
+        }
+      ],
+      "confidence": {
+        "level": "high",
+        "rationale": "The tracked CSV, migration plan, and policy are explicit; no credential value was exposed in this report."
+      },
+      "extensions": {
+        "candidateId": "candidate-f708f0201c99ac05"
+      },
+      "findingId": "csf_7b11c07c2b28d2ea1fce48fc",
+      "fingerprints": {
+        "algorithm": "codex-security/v1",
+        "primary": "codex-security/v1:sha256:33ca34ec55337f217a7e9c5c44a2603eb842ff18351e9770a5fb326290dc41d6"
+      },
+      "identity": {
+        "anchor": "demo-seed-accounts",
+        "instance": "privileged-account-verifiers"
+      },
+      "locations": [
+        {
+          "path": "backend/migrations/seeds/003_demo/accounts.csv",
+          "role": "root_control",
+          "startLine": 2
+        },
+        {
+          "endLine": 492,
+          "path": "backend/cmd/migrate/main.go",
+          "role": "sink",
+          "startLine": 490
+        },
+        {
+          "path": "backend/migrations/CLAUDE.md",
+          "role": "evidence",
+          "startLine": 69
+        }
+      ],
+      "occurrenceId": "occ_97a38a49537ba9eb5ac32fa7",
+      "preventiveControls": [
+        "Run secret and PII scanning on seed exports before commit."
+      ],
+      "provenance": {
+        "source": "repository-wide standard scan"
+      },
+      "remediation": "Replace tracked identities and verifiers with synthetic disabled fixtures, and provision any necessary local accounts through a secret-managed one-time path.",
+      "remediationTests": [
+        "Add a seed-content test that rejects active privileged accounts, email addresses, and password-hash columns or values in tracked demo bundles."
+      ],
+      "rootCause": {
+        "evidenceRefs": [
+          "seed-policy"
+        ],
+        "summary": "Privileged local/test identities and password verifiers are committed rather than provisioned through a non-versioned local or secret-managed path."
+      },
+      "ruleId": "sensitive-data.privileged-demo-seed",
+      "severity": {
+        "changeConditions": "Severity rises if any demo credential, identity, or seed bundle is reused in a release environment.",
+        "level": "medium",
+        "rationale": "Repository readers receive data usable for offline password attacks or test-environment access; production and staging have a seed-selection mitigation.",
+        "score": 5.4,
+        "scoringSystem": "CVSS-like"
+      },
+      "summary": "The local/test demo seed stores active system-admin account rows, staff email identities, and bcrypt password verifiers in the repository despite the repository policy prohibiting that material in seeds or Git history.",
+      "taxonomy": {
+        "category": "Sensitive data exposure",
+        "cwe": [
+          "CWE-359",
+          "CWE-522"
+        ]
+      },
+      "title": "Tracked demo seed exposes privileged-account verifiers and staff identity data",
+      "validation": {
+        "counterevidence": "Production and staging migration plans exclude the bundle.",
+        "evidence": "The CSV contains active admin metadata and verifiers, and the development/test migration plan loads 003_demo.",
+        "method": "static repository and configuration review"
+      }
+    },
+    {
+      "attackPath": {
+        "dataflow": "compromised registry artifact -> npx execution -> runner secrets -> exfiltration or Worker modification",
+        "impact": "Cloudflare and staging database credential compromise.",
+        "reachability": "The manually dispatched workflow runs with staging secrets."
+      },
+      "codeEvidence": [
+        {
+          "code": "CLOUDFLARE_API_TOKEN and staging DB secrets are exported before npx -y wrangler@4.107.0 secret put commands.",
+          "endLine": 38,
+          "explanation": "Registry-fetched code executes with the deployment token and database credentials available.",
+          "id": "secret-npx",
+          "label": "Credentialed npx execution",
+          "language": "yaml",
+          "path": ".github/workflows/worker-secret-sync.yml",
+          "role": "sink",
+          "startLine": 25
+        }
+      ],
+      "confidence": {
+        "level": "high",
+        "rationale": "The secret environment and npx execution are adjacent in the workflow."
+      },
+      "extensions": {
+        "candidateId": "candidate-8be5f9cf785c3be6"
+      },
+      "findingId": "csf_02051827e509b18c3688a46b",
+      "fingerprints": {
+        "algorithm": "codex-security/v1",
+        "primary": "codex-security/v1:sha256:9ef6815e10799a1e22d12b143c0b9cd6eef7efe1eb2528e07e91f12fd49210d3"
+      },
+      "identity": {
+        "anchor": "worker-secret-sync",
+        "instance": "registry-wrangler"
+      },
+      "locations": [
+        {
+          "endLine": 38,
+          "path": ".github/workflows/worker-secret-sync.yml",
+          "role": "root_control",
+          "startLine": 25
+        }
+      ],
+      "occurrenceId": "occ_dbd8cb24041d2dca09817500",
+      "preventiveControls": [
+        "Use least-privilege, environment-scoped deployment tokens."
+      ],
+      "provenance": {
+        "source": "repository-wide standard scan"
+      },
+      "remediation": "Install Wrangler through a frozen lockfile and invoke the resolved local binary, or verify a downloaded artifact against a maintained digest before exposing secrets.",
+      "remediationTests": [
+        "Add a workflow policy check rejecting npx or npm remote execution in secret-bearing steps."
+      ],
+      "rootCause": {
+        "evidenceRefs": [
+          "secret-npx"
+        ],
+        "summary": "A secret-bearing workflow resolves executable package code outside the repository's lockfile and without artifact verification."
+      },
+      "ruleId": "supply-chain.secret-job-npx",
+      "severity": {
+        "changeConditions": "Severity rises if the token is production-wide or the workflow becomes reachable by untrusted code.",
+        "level": "medium",
+        "rationale": "A substituted package can exfiltrate a Cloudflare deployment token and staging database credentials, though exploitation requires compromise of the external package-distribution path.",
+        "score": 6.1,
+        "scoringSystem": "CVSS-like"
+      },
+      "summary": "The staging Worker secret-sync job downloads and executes Wrangler through npx in the same step that exposes Cloudflare and database secrets, without a lockfile or artifact-digest integrity binding.",
+      "taxonomy": {
+        "category": "CI supply chain",
+        "cwe": [
+          "CWE-829",
+          "CWE-494"
+        ]
+      },
+      "title": "Secret-sync workflow executes an unverified npm artifact",
+      "validation": {
+        "counterevidence": "The named package version and normal npm transport reduce but do not remove artifact-substitution risk.",
+        "evidence": "The workflow exports secrets and calls npx twice in the same step.",
+        "method": "static CI supply-chain review"
+      }
+    },
+    {
+      "attackPath": {
+        "dataflow": "compromised package trust path -> runner code execution -> later credentialed k6 process",
+        "impact": "Staging credential disclosure.",
+        "reachability": "The performance workflow installs and later invokes k6 with staging credentials."
+      },
+      "codeEvidence": [
+        {
+          "code": "curl https://dl.k6.io/key.gpg | sudo apt-key add - && sudo add-apt-repository ... && sudo apt-get install k6",
+          "explanation": "Neither an expected signing-key fingerprint nor a package version/digest is enforced.",
+          "id": "k6-install",
+          "label": "Unpinned k6 installation",
+          "language": "yaml",
+          "path": ".github/workflows/performance-tests.yml",
+          "role": "root_control",
+          "startLine": 52
+        }
+      ],
+      "confidence": {
+        "level": "high",
+        "rationale": "The package installation and later credentialed commands are explicit in one workflow."
+      },
+      "extensions": {
+        "candidateId": "candidate-018b6282314d90e3"
+      },
+      "findingId": "csf_73fba5d9f3578a352b42f626",
+      "fingerprints": {
+        "algorithm": "codex-security/v1",
+        "primary": "codex-security/v1:sha256:21d15caec40666fd19218b87ca0df7868e85810fe00616594184f2477b82d0d3"
+      },
+      "identity": {
+        "anchor": "performance-tests",
+        "instance": "k6-apt-trust-path"
+      },
+      "locations": [
+        {
+          "path": ".github/workflows/performance-tests.yml",
+          "role": "root_control",
+          "startLine": 52
+        },
+        {
+          "endLine": 108,
+          "path": ".github/workflows/performance-tests.yml",
+          "role": "sink",
+          "startLine": 90
+        }
+      ],
+      "occurrenceId": "occ_c8dc01b78a472341aa03c5ea",
+      "preventiveControls": [
+        "Keep secrets unavailable until after verified tool setup where possible."
+      ],
+      "provenance": {
+        "source": "repository-wide standard scan"
+      },
+      "remediation": "Use a version-and-digest-pinned k6 artifact or image, or verify a known signing-key fingerprint and exact package version before installation.",
+      "remediationTests": [
+        "Add a CI policy test rejecting apt-key, unversioned privileged package installs, and unverified remote keys."
+      ],
+      "rootCause": {
+        "evidenceRefs": [
+          "k6-install"
+        ],
+        "summary": "The workflow extends its package trust root dynamically without binding it to an expected key or artifact."
+      },
+      "ruleId": "supply-chain.unpinned-k6-install",
+      "severity": {
+        "changeConditions": "Severity rises if the workflow handles production secrets.",
+        "level": "medium",
+        "rationale": "A compromised external key, repository, or package can run code on the hosted runner before credentialed k6 commands, but requires upstream distribution compromise.",
+        "score": 5.8,
+        "scoringSystem": "CVSS-like"
+      },
+      "summary": "The performance workflow imports a remote APT key through apt-key, installs an unversioned k6 package, and later runs it with staging demo credentials.",
+      "taxonomy": {
+        "category": "CI supply chain",
+        "cwe": [
+          "CWE-829",
+          "CWE-494"
+        ]
+      },
+      "title": "Performance workflow trusts an unpinned k6 installation path before credentialed execution",
+      "validation": {
+        "counterevidence": "The runner is ephemeral and HTTPS/signing are present, but expected provenance is not pinned.",
+        "evidence": "The subsequent k6 commands receive staging demo credentials.",
+        "method": "static CI supply-chain review"
+      }
+    },
+    {
+      "attackPath": {
+        "dataflow": "compromised action tag -> runner action code -> deployment credentials -> release or credential compromise",
+        "impact": "Deployment credential or release integrity compromise.",
+        "reachability": "Both deployment workflows execute the tags before credentialed commands."
+      },
+      "codeEvidence": [
+        {
+          "code": "actions/checkout@v7.0.1, pnpm/action-setup@v6, and actions/setup-node@v7",
+          "endLine": 41,
+          "explanation": "These semantic version tags are not immutable commit references.",
+          "id": "backend-action-tags",
+          "label": "Backend action tags",
+          "language": "yaml",
+          "path": ".github/workflows/backend-deploy.yml",
+          "role": "source",
+          "startLine": 33
+        }
+      ],
+      "confidence": {
+        "level": "high",
+        "rationale": "The action tags and later credentialed commands are directly visible in both workflows."
+      },
+      "extensions": {
+        "candidateId": "candidate-7e932f415fbd16b4"
+      },
+      "findingId": "csf_c8fddaaf6a437595020eece6",
+      "fingerprints": {
+        "algorithm": "codex-security/v1",
+        "primary": "codex-security/v1:sha256:5f152683d7007f307b2769ab1a8328d4d7aa9b2977891b6a5eb67e85ee51c2ce"
+      },
+      "identity": {
+        "anchor": "deployment-workflows",
+        "instance": "third-party-action-tags"
+      },
+      "locations": [
+        {
+          "endLine": 41,
+          "path": ".github/workflows/backend-deploy.yml",
+          "role": "root_control",
+          "startLine": 33
+        },
+        {
+          "endLine": 45,
+          "path": ".github/workflows/frontend-deploy.yml",
+          "role": "root_control",
+          "startLine": 39
+        }
+      ],
+      "occurrenceId": "occ_48e1e7f4fb12652e6b8053e1",
+      "preventiveControls": [
+        "Scope tokens minimally and protect deployment environments."
+      ],
+      "provenance": {
+        "source": "repository-wide standard scan"
+      },
+      "remediation": "Pin every third-party Action in privileged workflows to a full commit SHA and use an automated reviewed updater for SHA changes.",
+      "remediationTests": [
+        "Add a workflow lint rule requiring full SHA pins for third-party actions in secret-bearing jobs."
+      ],
+      "rootCause": {
+        "evidenceRefs": [
+          "backend-action-tags"
+        ],
+        "summary": "Privileged workflows trust mutable external action labels rather than reviewed, immutable action revisions."
+      },
+      "ruleId": "supply-chain.mutable-action-reference",
+      "severity": {
+        "changeConditions": "Severity rises if the workflows become reachable from untrusted pull requests.",
+        "level": "medium",
+        "rationale": "A compromised or retargeted upstream Action tag can execute on a runner before Cloudflare or Vercel credentials are used; this requires a third-party publisher compromise.",
+        "score": 5.8,
+        "scoringSystem": "CVSS-like"
+      },
+      "summary": "Backend and frontend deployment jobs execute checkout, pnpm setup, and Node setup through version tags rather than immutable commit SHAs before credentialed deployment commands.",
+      "taxonomy": {
+        "category": "CI supply chain",
+        "cwe": [
+          "CWE-829"
+        ]
+      },
+      "title": "Deployment workflows use mutable third-party Action references",
+      "validation": {
+        "counterevidence": "The actions are reputable and versioned, but their tags remain retargetable.",
+        "evidence": "Deployment actions run before Cloudflare or Vercel token use.",
+        "method": "static CI supply-chain review"
+      }
+    }
+  ],
+  "scanId": "4ab7b06c-eea0-4bc4-9ec7-29172b3f81be",
+  "schemaVersion": "1.0"
+}

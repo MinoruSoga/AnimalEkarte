@@ -9,7 +9,11 @@
 
 ---
 
-> **注記 (2026-07-10)**: 以下の配信ボリューム試算はフル稼働時の想定シミュレーションである。Lステップへの Write API（タグ付与・タグ解除・プロパティ更新）は現在一時停止中（noop）のため、現状の実配信量・実 API 呼び出し量はほぼ 0 件。詳細: [`docs/ops/deploy/LSTEP_WRITE_API_PAUSE.md`](../../ops/deploy/LSTEP_WRITE_API_PAUSE.md)
+> **注記 (2026-08-01)**: 以下の配信ボリューム試算はフル稼働時の想定シミュレーションである。試算値は稼働前提のモデルであり、対象環境の実測ボリュームではない。
+>
+> - **Deploy gate（`LSTEP_WRITE_API_ENABLED`）**: Write API（タグ付与・タグ解除・プロパティ更新）が OFF のとき、クライアントは **`ErrWriteDisabled` を返し HTTP を送らない（`nil` 成功にしない）**。したがって deploy gate が OFF の環境では Lステップ側への実 write 呼び出しは契約上発生しない（実測データの主張ではない。環境変数の実値は記載しない）。
+> - **Clinic gate（`is_sync_enabled` / API キー）**: 同期無効または API キー未設定の clinic はクライアント未構築による意図的スキップ（`nil, nil`）であり、deploy gate とは**別契約**である。
+> - enable / stop / rollback の運用手順正本: [`docs/ops/deploy/LSTEP_WRITE_API_PAUSE.md`](../../ops/deploy/LSTEP_WRITE_API_PAUSE.md)（本 doc に手順を複製しない）。
 
 ---
 

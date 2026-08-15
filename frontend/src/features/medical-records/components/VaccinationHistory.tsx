@@ -60,11 +60,11 @@ export const VaccinationHistory = memo(function VaccinationHistory({
     });
 
   return (
-    <div className="col-span-6 flex flex-col gap-3">
+    <div className="col-span-1 flex flex-col gap-3 lg:col-span-6">
       <h2 className={`text-sm font-bold ${C.text}`}>予防接種履歴</h2>
 
       {/* Filters */}
-      <div className={`space-y-3 ${C.bgWhite} p-3 rounded-lg border ${C.borderMedium} shadow-sm`}>
+      <div className={`space-y-3 ${C.bgWhite} p-3 rounded-lg border ${C.borderMedium}`}>
         <div className="flex flex-col gap-1.5">
           <Label className={`text-sm ${C.text60}`}>実施日</Label>
           <div className="flex items-center gap-2">
@@ -94,7 +94,7 @@ export const VaccinationHistory = memo(function VaccinationHistory({
             />
             <Button
               variant="outline"
-              className={`h-10 ${C.bgWhite} ${C.text} ${C.borderMedium} ${C.hoverBgPage} text-sm shadow-sm px-3`}
+              className={`h-10 ${C.bgWhite} ${C.text} ${C.borderMedium} ${C.hoverBgPage} text-sm px-3`}
               onClick={() => setSearchTerm("")}
             >
               クリア
@@ -110,7 +110,7 @@ export const VaccinationHistory = memo(function VaccinationHistory({
       </div>
 
       {/* Table */}
-      <div className={`border ${C.borderMedium} rounded-lg ${C.bgWhite} overflow-hidden flex-1 flex flex-col shadow-sm`}>
+      <div className={`border ${C.borderMedium} rounded-lg ${C.bgWhite} overflow-hidden flex-1 flex flex-col`}>
         {/* Header — DESIGN.md ex-data-table-cell: canvas-soft 背景 + eyebrow 相当タイポグラフィ（STYLE.sectionLabel） */}
         <div className={`flex items-center border-b ${C.borderMedium} ${C.bgPage} ${STYLE.sectionLabel} h-12 shrink-0`}>
           <div className="flex-1 px-3 text-center">予防接種名</div>
@@ -152,7 +152,7 @@ export const VaccinationHistory = memo(function VaccinationHistory({
                 {canCreate ? (
                   <Button
                     size="sm"
-                    className={`h-10 w-[50px] text-sm ${C.bgBrand} ${C.textWhite} ${C.hoverBgBrand} rounded-full border-transparent px-0`}
+                    className={`h-10 w-[50px] text-sm ${C.bgBrand} ${C.textOnBrand} ${C.hoverBgBrand} ${C.hoverTextOnBrand} rounded-full border-transparent px-0`}
                     onClick={() => onDuplicate?.(item)}
                   >
                     複製

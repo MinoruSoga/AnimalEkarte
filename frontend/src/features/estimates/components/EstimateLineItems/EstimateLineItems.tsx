@@ -1,7 +1,7 @@
 import { memo, useMemo } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { formatCurrency } from '@/utils/format/number';
-import { calcLineItemAmount } from '@/utils/line-item-helpers';
+import { formatCurrency } from '@/lib/format/number';
+import { calcLineItemAmount } from '@/lib/line-item-helpers';
 import type { EstimateLineItem } from '../../types';
 import { C } from '@/lib/design-tokens';
 // FE5-26: 会計側の訳語(処方/フード/物販等)へ統一。旧ローカル定義(薬剤/食事/物品)は廃止。
@@ -33,18 +33,18 @@ export const EstimateLineItems = memo(function EstimateLineItems({
           const { total: lineTotal } = calcLineItemAmount(item);
           return (
             <TableRow key={item.id} className={`text-sm ${C.text}`}>
-              <TableCell className={`${C.text40} py-2`}>{idx + 1}</TableCell>
-              <TableCell className="py-2">{item.name}</TableCell>
-              <TableCell className={`py-2 ${C.text60}`}>
+              <TableCell className={C.text40}>{idx + 1}</TableCell>
+              <TableCell>{item.name}</TableCell>
+              <TableCell className={C.text60}>
                 {CATEGORY_LABELS[item.category] ?? item.category}
               </TableCell>
-              <TableCell className="text-right font-mono py-2">{formatCurrency(item.unitPrice)}</TableCell>
-              <TableCell className="text-right py-2">{item.quantity}</TableCell>
-              <TableCell className="text-right py-2">{Math.round(item.taxRate * 100)}%</TableCell>
-              <TableCell className="text-right py-2">
+              <TableCell className="text-right font-mono">{formatCurrency(item.unitPrice)}</TableCell>
+              <TableCell className="text-right">{item.quantity}</TableCell>
+              <TableCell className="text-right">{Math.round(item.taxRate * 100)}%</TableCell>
+              <TableCell className="text-right">
                 {item.discountAmount > 0 ? `-${formatCurrency(item.discountAmount)}` : '-'}
               </TableCell>
-              <TableCell className="text-right font-mono font-medium py-2">
+              <TableCell className="text-right font-mono font-medium">
                 {formatCurrency(lineTotal)}
               </TableCell>
             </TableRow>
@@ -71,7 +71,7 @@ export const EstimateLineItems = memo(function EstimateLineItems({
         <TableBody>
           {items.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={8} className={`text-center text-sm ${C.text40} py-6`}>
+              <TableCell data-empty-state colSpan={8} className={`text-center text-sm ${C.text40} py-6`}>
                 明細がありません
               </TableCell>
             </TableRow>

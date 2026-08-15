@@ -8,11 +8,35 @@ interface CsvColumnDef {
   getValue: (o: AggregationOwner) => string;
 }
 
+/**
+ * Escape a free-text CSV cell and neutralize spreadsheet formula injection.
+ * Leading = + - @ (and tab/CR, which can hide those prefixes) get a single-quote
+ * prefix so Excel/Sheets treat the value as text. Then double-quote escape.
+ * Mirrors backend sanitizeCSVCell (lstep_tag_summary_service.go).
+ */
+export function escapeCsvTextCell(value: string): string {
+  let cell = value;
+  if (cell.length > 0) {
+    const first = cell[0];
+    if (
+      first === "=" ||
+      first === "+" ||
+      first === "-" ||
+      first === "@" ||
+      first === "\t" ||
+      first === "\r"
+    ) {
+      cell = "'" + cell;
+    }
+  }
+  return `"${cell.replace(/"/g, '""')}"`;
+}
+
 const CSV_COMMON_COLUMNS: CsvColumnDef[] = [
   { header: "owner_id", getValue: (o) => o.owner_id },
   {
     header: "owner_name",
-    getValue: (o) => `"${o.owner_name.replace(/"/g, '""')}"`,
+    getValue: (o) => escapeCsvTextCell(o.owner_name),
   },
   // ISSUE-180: CPM セグメント列（全タブ共通・owner 直後）。短縮ラベルを出力する。
   // 画面の一覧列 (AggregationOwnerTableColumns) と表示を揃える。

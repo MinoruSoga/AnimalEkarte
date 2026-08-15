@@ -65,7 +65,10 @@ function makeEstimate(status: Estimate["status"], id = "1"): Estimate {
     id,
     clinicId: "1",
     estimateNo: `EST-00${id}`,
+    medicalRecordId: null,
     title: "テスト見積書",
+    ownerId: null,
+    ownerName: undefined,
     status,
     subtotal: 1000,
     taxTotal: 100,
@@ -75,6 +78,7 @@ function makeEstimate(status: Estimate["status"], id = "1"): Estimate {
     validUntil: null,
     comment: "",
     notes: "",
+    createdBy: null,
     items: [],
     createdAt: "2026-01-01T00:00:00Z",
     updatedAt: "2026-01-01T00:00:00Z",
@@ -93,7 +97,9 @@ function renderList() {
 
 async function openRowActions() {
   const user = userEvent.setup();
-  await user.click(screen.getByRole("button", { name: "操作" }));
+  await user.click(screen.getByRole("button", {
+    name: /見積書.*EST-001.*テスト見積書.*ID: 1.*操作/,
+  }));
   return user;
 }
 
@@ -147,13 +153,25 @@ describe("EstimateList locked status row actions", () => {
     expect(screen.queryByRole("menuitem", { name: /削除/ })).not.toBeInTheDocument();
   });
 
-  it("approved 行クリックで詳細へ遷移する", async () => {
+  it("approved 行に見積番号・タイトル・IDを含む44px native detail linkを表示する", () => {
+    mockEstimates.current = [makeEstimate("approved", "42")];
+    renderList();
+
+    const detailLink = screen.getByRole("link", { name: /EST-0042/ });
+    expect(detailLink).toHaveAttribute("href", "/estimates/42");
+    expect(detailLink).toHaveAccessibleName(/EST-0042/);
+    expect(detailLink).toHaveAccessibleName(/テスト見積書/);
+    expect(detailLink).toHaveAccessibleName(/ID:? 42/);
+    expect(detailLink).toHaveClass("min-h-11", "min-w-11");
+  });
+
+  it("detail link以外のセルclickでは行遷移しない", async () => {
     mockEstimates.current = [makeEstimate("approved", "42")];
     renderList();
 
     const user = userEvent.setup();
-    await user.click(screen.getByText("EST-0042"));
+    await user.click(screen.getByText("テスト見積書"));
 
-    expect(mockNavigate).toHaveBeenCalledWith("/estimates/42");
+    expect(mockNavigate).not.toHaveBeenCalled();
   });
 });

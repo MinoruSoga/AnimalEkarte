@@ -55,7 +55,11 @@ func main() {
 		os.Exit(2)
 	}
 
-	baseline := readBaseline(*baselinePath)
+	baseline, err := readBaseline(*baselinePath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "coverage-ratchet: baseline error: %v\n", err)
+		os.Exit(2)
+	}
 
 	res := evaluateRatchet(current, baseline, *tolerance)
 	fmt.Println(res.message)
@@ -86,23 +90,31 @@ func parseTotalCoverage(funcOutput string) (float64, error) {
 	return pct, nil
 }
 
-// readBaseline は baseline ファイルから記録済みカバレッジ % を読む。欠落・空・解析不能なら 0 を返す
-// （未記録扱い＝warn のみ）。
-func readBaseline(path string) float64 {
+// readBaseline は baseline ファイルから記録済みカバレッジ % を読む。
+// CMD-03: ファイル欠落は未記録 (0, nil)。読取/解析失敗は error で分離する。
+func readBaseline(path string) (float64, error) {
 	b, err := os.ReadFile(path) //nolint:gosec // path is an operator-provided CLI flag (CI-controlled), not untrusted input
 	if err != nil {
-		return 0
+		if os.IsNotExist(err) {
+			return 0, nil
+		}
+		return 0, fmt.Errorf("read baseline %s: %w", path, err)
 	}
+	sawContent := false
 	for line := range strings.SplitSeq(string(b), "\n") {
 		s := strings.TrimSpace(line)
 		if s == "" || strings.HasPrefix(s, "#") {
 			continue
 		}
+		sawContent = true
 		if v, err := strconv.ParseFloat(strings.TrimSuffix(s, "%"), 64); err == nil {
-			return v
+			return v, nil
 		}
 	}
-	return 0
+	if sawContent {
+		return 0, fmt.Errorf("baseline %s has no parseable coverage value", path)
+	}
+	return 0, nil
 }
 
 type ratchetResult struct {

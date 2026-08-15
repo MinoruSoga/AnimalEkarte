@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { paths } from "@/config/paths";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
 import { ACCOUNTING_STATUS_LABELS } from "@/constants/accounting-status";
-import { formatCurrency } from "@/utils/format/number";
+import { formatCurrency } from "@/lib/format/number";
 import type { Accounting } from "../api/transforms";
 
 export type AccountingHistorySortField = "date" | "amount" | "status";
@@ -56,13 +56,13 @@ export function AccountingHistoryUnpaidAlert({
   return (
     <div
       role="alert"
-      className={`flex items-center gap-2 rounded-lg ${C.bgWarning50} ${C.textWarning} px-4 py-3 border ${C.borderWarning20} text-sm`}
+      className={`flex items-center gap-2 rounded-lg ${C.bgWarning50} ${C.textWarning} px-4 border ${C.borderWarning20} text-sm`}
     >
       <AlertTriangle className={`${ICON.action} ${C.textWarningIcon} shrink-0`} aria-hidden />
       <button
         type="button"
         onClick={onScrollToFirstUnpaid}
-        className="flex-1 text-left bg-transparent cursor-pointer hover:underline underline-offset-2"
+        className="flex min-h-11 flex-1 items-center text-left bg-transparent cursor-pointer hover:underline underline-offset-2"
       >
         未払いの会計が <strong>{unpaidCount}</strong> 件あります。
         <span className="ml-1 font-medium">先頭の未払い行を確認する</span>
@@ -138,12 +138,12 @@ export function AccountingHistoryTable({
       <Table>
         <TableHeader>
           <TableRow className={`hover:bg-transparent ${C.bgPage} border-b ${C.borderMedium} h-12`}>
-            <TableHead className={STYLE.tableCellMuted}>受付日</TableHead>
-            <TableHead className={STYLE.tableCellMuted}>受付No</TableHead>
-            <TableHead className={STYLE.tableCellMuted}>ペット</TableHead>
-            <TableHead className={STYLE.tableCellMuted}>ステータス</TableHead>
-            <TableHead className={`${STYLE.tableCellMuted} text-right`}>金額</TableHead>
-            <TableHead className={STYLE.tableCellMuted}>操作</TableHead>
+            <TableHead>受付日</TableHead>
+            <TableHead>受付No</TableHead>
+            <TableHead>ペット</TableHead>
+            <TableHead>ステータス</TableHead>
+            <TableHead className="text-right">金額</TableHead>
+            <TableHead>操作</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -195,14 +195,14 @@ const AccountingHistoryRow = memo(function AccountingHistoryRow({
         </Badge>
       </TableCell>
       <TableCell className={`${STYLE.tableCell} text-right font-mono`}>
-        {isCompleted ? `¥${totalAmount.toLocaleString()}` : "-"}
+        {isCompleted ? formatCurrency(totalAmount) : "-"}
       </TableCell>
-      <TableCell className="py-2">
+                    <TableCell>
         <div className="flex items-center justify-end gap-3">
           {isCompleted ? (
             <Link
               to={detailHref}
-              className={`inline-flex items-center gap-1 text-xs ${C.textBrand} hover:underline`}
+              className={`inline-flex min-h-11 min-w-11 items-center gap-1 text-xs ${C.textBrand} hover:underline`}
               aria-label={`受付No ${accounting.id} の明細兼領収書を表示`}
             >
               <Receipt className={ICON.action} />
@@ -211,7 +211,7 @@ const AccountingHistoryRow = memo(function AccountingHistoryRow({
           ) : null}
           <Link
             to={detailHref}
-            className={`inline-flex items-center gap-1 text-xs ${C.text65} hover:underline`}
+            className={`inline-flex min-h-11 min-w-11 items-center gap-1 text-xs ${C.text65} hover:underline`}
             aria-label={`受付No ${accounting.id} の会計詳細を開く`}
           >
             <FileText className={ICON.action} />

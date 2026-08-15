@@ -260,10 +260,84 @@ func quoteLiteral(s string) string {
 	return "'" + strings.ReplaceAll(s, "'", "''") + "'"
 }
 
+// textDataTypes are information_schema.data_type values that accept empty
+// string as a meaningful non-NULL value. FORCE_NOT_NULL is only safe for
+// these: applying it to bigint/numeric/boolean/timestamptz/enum would turn
+// unquoted empty CSV fields into ” and fail type coercion.
+var textDataTypes = map[string]struct{}{
+	"text":              {},
+	"character varying": {},
+	"character":         {},
+}
+
+// notNullTextColumns returns public.<table> columns that are NOT NULL and
+// text-family (text / varchar / char). Used to build COPY FORCE_NOT_NULL so
+// unquoted empty CSV fields become ” instead of NULL — matching
+// `text NOT NULL DEFAULT ”` semantics when COPY supplies every column.
+//
+// Columns are ordered by ordinal_position for stable SQL. Identifiers are
+// still quoteIdent'd at SQL assembly time even though they come from
+// information_schema.
+func notNullTextColumns(ctx context.Context, conn *pgx.Conn, table string) ([]string, error) {
+	rows, err := conn.Query(ctx, `
+		SELECT column_name, data_type
+		FROM information_schema.columns
+		WHERE table_schema = 'public'
+		  AND table_name = $1
+		  AND is_nullable = 'NO'
+		ORDER BY ordinal_position
+	`, table)
+	if err != nil {
+		return nil, fmt.Errorf("query not-null columns for %s: %w", table, err)
+	}
+	defer rows.Close()
+
+	var cols []string
+	for rows.Next() {
+		var name, dataType string
+		if err := rows.Scan(&name, &dataType); err != nil {
+			return nil, fmt.Errorf("scan not-null column for %s: %w", table, err)
+		}
+		if _, ok := textDataTypes[dataType]; !ok {
+			continue
+		}
+		cols = append(cols, name)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate not-null columns for %s: %w", table, err)
+	}
+	return cols, nil
+}
+
+// buildCopyFromCSVSQL builds COPY ... FROM STDIN for seed load. When forceNotNull
+// is non-empty it appends FORCE_NOT_NULL (col, ...) with quoteIdent-safe names.
+// Column list is omitted: COPY targets the table's declared column order, which
+// matches cmd/seed-export's SELECT * dump order.
+func buildCopyFromCSVSQL(table string, forceNotNull []string) string {
+	options := []string{"FORMAT csv", "HEADER true"}
+	if len(forceNotNull) > 0 {
+		quoted := make([]string, len(forceNotNull))
+		for i, col := range forceNotNull {
+			quoted[i] = quoteIdent(col)
+		}
+		options = append(options, "FORCE_NOT_NULL ("+strings.Join(quoted, ", ")+")")
+	}
+	return fmt.Sprintf(
+		"COPY %s FROM STDIN WITH (%s)",
+		quoteIdent(table),
+		strings.Join(options, ", "),
+	)
+}
+
 // copyTableFromCSV streams one CSV file into one table via COPY FROM STDIN.
 // No explicit column list is given — COPY defaults to the table's declared
 // column order, which matches cmd/seed-export's `SELECT *` dump order exactly
 // since both sides read the same, unmodified 001_init.sql schema.
+//
+// NOT NULL text-family columns receive FORCE_NOT_NULL so unquoted empty CSV
+// fields become empty strings (not NULL). NULL-allowed columns and non-text
+// NOT NULL columns are left alone: the former keep NULL-from-empty semantics;
+// the latter would type-coerce ” and fail.
 func copyTableFromCSV(ctx context.Context, conn *pgx.Conn, csvPath, table string) (int64, error) {
 	f, err := os.Open(csvPath) //nolint:gosec // path built from our own manifest, under the fixed migrations dir
 	if err != nil {
@@ -271,7 +345,11 @@ func copyTableFromCSV(ctx context.Context, conn *pgx.Conn, csvPath, table string
 	}
 	defer f.Close() //nolint:errcheck // read-only fd; close failure is not actionable here
 
-	copySQL := fmt.Sprintf("COPY %s FROM STDIN WITH (FORMAT csv, HEADER true)", quoteIdent(table))
+	forceNotNull, err := notNullTextColumns(ctx, conn, table)
+	if err != nil {
+		return 0, err
+	}
+	copySQL := buildCopyFromCSVSQL(table, forceNotNull)
 	tag, err := conn.PgConn().CopyFrom(ctx, f, copySQL)
 	if err != nil {
 		return 0, err

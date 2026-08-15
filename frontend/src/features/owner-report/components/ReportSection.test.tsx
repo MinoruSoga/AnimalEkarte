@@ -37,13 +37,13 @@ describe("ReportSection", () => {
 
   it("ローディング中は読み込み表示にする", () => {
     renderSection({ isLoading: true });
-    expect(screen.getByText("読み込み中...")).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("読み込み中...");
     expect(screen.queryByText("本文コンテンツ")).not.toBeInTheDocument();
   });
 
   it("エラー時はエラー表示にする", () => {
     renderSection({ isError: true });
-    expect(screen.getByText("読み込みに失敗しました")).toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent("読み込みに失敗しました");
     expect(screen.queryByText("本文コンテンツ")).not.toBeInTheDocument();
   });
 

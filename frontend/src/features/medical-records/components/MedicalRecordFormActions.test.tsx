@@ -16,6 +16,7 @@ const baseProps = {
   canSubmit: true,
   isNewRecord: false,
   isCreating: false,
+  isSaving: false,
   isFinalized: false,
   onDeleteClick: vi.fn(),
   onVitalsClick: vi.fn(),
@@ -32,6 +33,24 @@ describe("MedicalRecordFloatingActions", () => {
   it("確定済みカルテでは確定ボタンを表示しない", () => {
     render(<MedicalRecordFloatingActions {...baseProps} isFinalized />);
     expect(screen.queryByRole("button", { name: "確定する" })).not.toBeInTheDocument();
+  });
+
+  it("確定済みカルテでは保存ボタンを表示しない", () => {
+    render(<MedicalRecordFloatingActions {...baseProps} isFinalized />);
+
+    expect(screen.queryByRole("button", { name: "保存" })).not.toBeInTheDocument();
+  });
+
+  it("保存処理中は重複submitを防ぐため保存ボタンを操作不可にする", () => {
+    render(<MedicalRecordFloatingActions {...baseProps} isSaving />);
+
+    expect(screen.getByRole("button", { name: "保存" })).toBeDisabled();
+  });
+
+  it("保存権限がない場合は保存ボタンを表示しない", () => {
+    render(<MedicalRecordFloatingActions {...baseProps} canEdit={false} canSubmit={false} />);
+
+    expect(screen.queryByRole("button", { name: "保存" })).not.toBeInTheDocument();
   });
 
   it("新規作成中（未保存）のカルテでは確定ボタンを表示しない", () => {

@@ -29,6 +29,7 @@ export function SinglePicker({
   placeholder = "日付を選択…",
   className,
   id,
+  name,
   disabledDays,
 }: SingleDatePickerProps) {
   const [open, setOpen] = useState(false);
@@ -136,7 +137,7 @@ export function SinglePicker({
           <PopoverTrigger asChild>
             <button
               type="button"
-              className="shrink-0 cursor-pointer bg-transparent border-none p-0"
+              className="-my-px min-h-11 min-w-11 shrink-0 cursor-pointer bg-transparent border-none p-0"
               aria-label="カレンダーを開く"
             >
               <CalendarIcon className={`${ICON.action} ${C.text40}`} />
@@ -144,6 +145,7 @@ export function SinglePicker({
           </PopoverTrigger>
           <input
             id={id}
+            name={name}
             type="text"
             value={displayText}
             onChange={(e) => setInputText(e.target.value)}
@@ -151,7 +153,7 @@ export function SinglePicker({
             onBlur={handleBlur}
             onKeyDown={handleInputKeyDown}
             placeholder={placeholder}
-            className={`flex-1 min-w-0 bg-transparent outline-none text-sm ${C.text} placeholder:${C.text40}`}
+            className={`-my-px min-h-11 flex-1 min-w-0 bg-transparent outline-none text-sm ${C.text} placeholder:${C.text40}`}
           />
           {value ? <ClearButton onClick={handleClear} /> : null}
         </div>
@@ -197,7 +199,7 @@ export function SinglePicker({
           <button
             type="button"
             onClick={handleToday}
-            className={`rounded px-2 py-1 text-sm ${C.text60} ${C.hoverBgPage} ${C.hoverText} transition-colors`}
+            className={`inline-flex min-h-11 min-w-11 items-center justify-center rounded px-2 py-1 text-sm ${C.text60} ${C.hoverBgPage} ${C.hoverText} transition-colors`}
           >
             Today
           </button>

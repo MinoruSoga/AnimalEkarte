@@ -1,7 +1,34 @@
-// R-F2-S8: shared hook (@/hooks/use-update-examination) へ昇格。
-// medical-records から examinations feature への直接 import を避けるための re-export。
-// 注意: このモジュールの UpdateExaminationRequest は shared hook 内の narrow 定義。
-// feature 内部の正本は ./types.ts の同名 interface（BE 契約は同一）。
-export {
-  useUpdateExamination,
-} from "@/hooks/use-update-examination";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { axios } from "@/lib/axios";
+import { handleApiError } from "@/lib/handle-api-error";
+import { queryKeys } from "@/lib/query-keys";
+import type { Examination } from "@/types/generated/models";
+import { transformExamination, type ExaminationRecord } from "./transforms";
+import type { UpdateExaminationRequest } from "./types";
+
+const updateExamination = async (
+  id: string,
+  req: UpdateExaminationRequest,
+): Promise<ExaminationRecord> => {
+  const { data } = await axios.patch<Examination>(`/v1/examinations/${id}`, req);
+  return transformExamination(data);
+};
+
+/**
+ * Feature-local update supports the atomic parent + items PATCH contract.
+ * The shared hook remains parent-only for consumers outside examinations.
+ */
+export const useUpdateExamination = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, req }: { id: string; req: UpdateExaminationRequest }) =>
+      updateExamination(id, req),
+    onSuccess: (_data, { id }) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.examinations.all() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.examinations.detail(id) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.examinations.items(id) });
+    },
+    onError: (error) => handleApiError(error, "検査更新"),
+  });
+};

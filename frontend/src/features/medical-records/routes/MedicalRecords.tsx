@@ -1,6 +1,14 @@
 // React/Framework
-import { useState, useCallback, useDeferredValue, useMemo, useEffect } from "react";
-import { useNavigate } from "react-router";
+import {
+  useState,
+  useCallback,
+  useDeferredValue,
+  useMemo,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+} from "react";
+import { useNavigate, useSearchParams } from "react-router";
 
 // Auth
 import { useClinicScope } from "@/hooks/use-clinic-scope";
@@ -19,6 +27,7 @@ import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { PropertyFilter } from "@/components/shared/PropertyFilter/PropertyFilter";
 import { DataTable } from "@/components/shared/DataTable/DataTable";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
+import { DataTableRowLink } from "@/components/shared/DataTable/DataTableRowLink";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { StatusBadge } from "@/components/shared/StatusBadge/StatusBadge";
 import { RowActionDropdown } from "@/components/shared/RowActionDropdown";
@@ -28,7 +37,7 @@ import { Pagination } from "@/components/shared/Pagination";
 import { FilteringIndicator } from "@/components/shared/FilteringIndicator/FilteringIndicator";
 import { ClinicScopeFilter } from "@/components/shared/ClinicScopeFilter/ClinicScopeFilter";
 import { C, STYLE, ICON, LAYOUT } from "@/lib/design-tokens";
-import { getMedicalRecordStatusColor } from "@/utils/status-helpers";
+import { getMedicalRecordStatusColor } from "@/lib/status-helpers";
 import { useStaffValidation } from "@/hooks/use-staff-validation";
 
 // Relative
@@ -45,7 +54,7 @@ import type {
   ActiveFilter,
   FilterCondition,
 } from "@/components/shared/PropertyFilter/types";
-import { ResourceMedicalRecords } from "@/types/generated/models";
+import { ResourceAccounting, ResourceMedicalRecords } from "@/types/generated/models";
 
 const PAGE_SIZE = 20;
 
@@ -85,7 +94,10 @@ const MEDICAL_RECORDS_HEADER_CELL = `${STYLE.sectionLabel} h-11`;
 
 export function MedicalRecords() {
   const navigate = useNavigate();
-  const { canCreate, canEdit, canDelete } = usePermission("medical-records");
+  const [searchParams] = useSearchParams();
+  const petId = searchParams.get("pet_id") || undefined;
+  const { canCreate, canEdit, canDelete } = usePermission(ResourceMedicalRecords);
+  const { canView: canViewAccounting } = usePermission(ResourceAccounting);
   const {
     assignedClinics,
     selectedClinicIds,
@@ -99,23 +111,30 @@ export function MedicalRecords() {
   const deferredSearch = useDeferredValue(searchTerm);
 
   const { data: staffs } = useGetStaffs();
-  const { activeSpecies } = useAnimalSpecies();
+  const {
+    activeSpecies,
+    isLoading: isSpeciesLoading,
+    isError: isSpeciesError,
+  } = useAnimalSpecies();
 
   // js-cache-function-results: staff/species master から担当医・種の選択肢を動的生成（allRecords 非依存）
   const filterProperties = useMemo<FilterProperty[]>(() => {
     const doctorOptions = (staffs ?? [])
       .filter((s) => s.isActive)
       .map((s) => ({ value: s.id, label: s.name }));
-    const speciesOptions = activeSpecies.map((s) => ({ value: String(s.id), label: s.name }));
+    const speciesOptions =
+      isSpeciesError || isSpeciesLoading
+        ? []
+        : activeSpecies.map((s) => ({ value: String(s.id), label: s.name }));
     return [
       ...STATIC_FILTER_PROPERTIES,
       { key: "doctor", label: "担当医", type: "select" as const, icon: User, conditions: SERVER_EQUALITY_ONLY, options: doctorOptions },
       { key: "species", label: "種", type: "select" as const, icon: PawPrint, conditions: SERVER_EQUALITY_ONLY, options: speciesOptions },
     ];
-  }, [staffs, activeSpecies]);
+  }, [staffs, activeSpecies, isSpeciesError, isSpeciesLoading]);
 
   // rerender-derived-state-no-effect: 検索/フィルタが変わったら1ページ目へリセット（useEffect不使用）
-  const resetKey = `${deferredSearch}|${JSON.stringify(activeFilters)}`;
+  const resetKey = `${deferredSearch}|${JSON.stringify(activeFilters)}|${petId ?? ""}`;
   const {
     currentPage,
     sortKey,
@@ -130,6 +149,7 @@ export function MedicalRecords() {
     searchTerm: deferredSearch,
     activeFilters,
     clinicIds: clinicIdsForApi,
+    petId,
     page: currentPage,
     limit: PAGE_SIZE,
     sort: sortKey,
@@ -146,9 +166,26 @@ export function MedicalRecords() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [totalPages, total]);
 
-  const deleteModal = useModalState<{ id: string; label: string }>();
+  const deleteModal = useModalState<{
+    id: string;
+    label: string;
+    petIsDeceased: boolean;
+  }>();
   const { mutate: deleteRecord } = useDeleteMedicalRecord();
   const { isValidStaff } = useStaffValidation();
+  const canDeleteRef = useRef(canDelete);
+  const recordsByIdRef = useRef(
+    new Map(records.map((record) => [record.id, record])),
+  );
+
+  useLayoutEffect(() => {
+    canDeleteRef.current = canDelete;
+  }, [canDelete]);
+  useLayoutEffect(() => {
+    recordsByIdRef.current = new Map(
+      records.map((record) => [record.id, record]),
+    );
+  }, [records]);
 
   const startIndex = total === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1;
   const endIndex = Math.min(currentPage * PAGE_SIZE, total);
@@ -196,6 +233,34 @@ export function MedicalRecords() {
           onToggle={handleToggleClinic}
         />
 
+        {isSpeciesError ? (
+          <p
+            role="alert"
+            aria-atomic="true"
+            className={`text-sm ${C.danger}`}
+          >
+            動物種の取得に失敗しました。
+          </p>
+        ) : isSpeciesLoading ? (
+          <p
+            role="status"
+            aria-live="polite"
+            aria-atomic="true"
+            className={`text-sm ${C.text50}`}
+          >
+            動物種を読み込み中です。
+          </p>
+        ) : activeSpecies.length === 0 ? (
+          <p
+            role="status"
+            aria-live="polite"
+            aria-atomic="true"
+            className={`text-sm ${C.text50}`}
+          >
+            動物種マスタが登録されていません。
+          </p>
+        ) : null}
+
         {/* Search */}
         <PropertyFilter
           properties={filterProperties}
@@ -203,7 +268,7 @@ export function MedicalRecords() {
           onFilterChange={setActiveFilters}
           searchTerm={searchTerm}
           onSearchChange={setSearchTerm}
-          searchPlaceholder="飼主名、ペット名、カルテNo、主訴で検索..."
+          searchPlaceholder="飼主名、ペット名、カルテNo、主訴、治療内容・メモ、処置・薬剤・診察・在庫品名で検索..."
           count={total}
         />
 
@@ -217,45 +282,60 @@ export function MedicalRecords() {
             headerCellClassName={MEDICAL_RECORDS_HEADER_CELL}
             renderRow={(r) => {
               const isOtherClinic = showClinicColumn && r.clinicId !== currentClinicId;
+              const accountingId = r.accountingId;
               return (
-              <DataTableRow
-                key={r.id}
-                onClick={isOtherClinic ? undefined : () => handleNavigateToForm(r.id)}
-              >
+                <DataTableRow key={r.id}>
                 <TableCell className={STYLE.tableCellMono}>{r.date}</TableCell>
                 <TableCell className={STYLE.tableCell}>{r.ownerName}</TableCell>
-                <TableCell className={STYLE.tableCell}>{r.petName}</TableCell>
+                <TableCell className={STYLE.tableCell}>
+                  {isOtherClinic ? r.petName : (
+                    <DataTableRowLink
+                      to={paths.medicalRecords.detail.getHref(r.id)}
+                      state={{ from: paths.medicalRecords.getHref() }}
+                      aria-label={`カルテ詳細: ${r.petName} ${r.date} ID ${r.id}`}
+                    >
+                      {r.petName}
+                    </DataTableRowLink>
+                  )}
+                </TableCell>
                 <TableCell className={`${STYLE.tableCell} hidden lg:table-cell`}>{r.species}</TableCell>
-                <TableCell className={`${STYLE.tableCell} max-w-[200px] truncate`} title={r.chiefComplaint}>
+                <TableCell className={`${STYLE.tableCell} max-w-[200px] truncate hidden md:table-cell`} title={r.chiefComplaint}>
                   {r.chiefComplaint}
                 </TableCell>
-                <TableCell className="py-2.5 hidden lg:table-cell">
-                  {r.accountingId ? (
+                <TableCell className="hidden lg:table-cell">
+                  {!isOtherClinic && canViewAccounting && accountingId ? (
                     <button type="button"
                       onClick={(e) => {
                         e.stopPropagation();
-                        navigate(paths.accounting.detail.getHref(r.accountingId ?? ""));
+                        navigate(paths.accounting.detail.getHref(accountingId));
                       }}
-                      className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-[3px] border ${C.textSuccess} ${C.bgSuccess10} ${C.borderSuccess30} ${C.hoverBgSuccess20} transition-colors`}
+                      className={`inline-flex min-h-11 min-w-11 items-center gap-1 rounded-xxs border px-2 text-xs font-medium ${C.textSuccess} ${C.bgSuccess10} ${C.borderSuccess30} ${C.hoverBgSuccess20} transition-colors`}
+                      aria-label={`会計詳細: ${r.petName} ${r.date} カルテID ${r.id}`}
                     >
-                      <Receipt className={ICON.xs} />
+                      <Receipt className={ICON.xs} aria-hidden="true" />
                       会計
                     </button>
                   ) : (
                     <span className={`text-sm ${C.text40}`}>—</span>
                   )}
                 </TableCell>
-                <TableCell className={STYLE.tableCell}>
+                <TableCell className={`${STYLE.tableCell} hidden md:table-cell`}>
                   <div className="flex items-center gap-1">
                     <span className={!isValidStaff(r.doctor) ? `${C.danger} font-medium` : ""}>
                       {r.doctor}
                     </span>
                     {!isValidStaff(r.doctor) ? (
-                      <span title="担当医が無効（退職等）に設定されています"><AlertTriangle className={`${ICON.xs} ${C.danger}`} /></span>
+                      <span
+                        role="img"
+                        aria-label={`無効な担当医: ${r.doctor}（退職等）`}
+                        title="担当医が無効（退職等）に設定されています"
+                      >
+                        <AlertTriangle className={`${ICON.xs} ${C.danger}`} aria-hidden="true" />
+                      </span>
                     ) : null}
                   </div>
                 </TableCell>
-                <TableCell className="py-2.5">
+                <TableCell>
                   <StatusBadge colorClass={getMedicalRecordStatusColor(r.status)}>
                     {r.status}
                   </StatusBadge>
@@ -267,14 +347,18 @@ export function MedicalRecords() {
                     </span>
                   </TableCell>
                 ) : null}
-                <TableCell className="text-right py-2.5">
-                  {(canEdit || canDelete) && !isOtherClinic ? (
+                <TableCell className="text-right">
+                  {(canEdit || canDelete) && !isOtherClinic && !r.petIsDeceased ? (
                     <RowActionDropdown
+                      ariaLabel={`カルテ操作: ${r.petName} ${r.date} ID ${r.id}`}
                       actions={[
                         ...(canEdit ? [{
                           label: "編集",
                           icon: Edit,
-                          onClick: () => handleNavigateToForm(r.id),
+                          onClick: () => {
+                            if (r.petIsDeceased) return;
+                            handleNavigateToForm(r.id);
+                          },
                         }] : []),
                         ...(canDelete ? [{
                           label: "削除",
@@ -283,6 +367,7 @@ export function MedicalRecords() {
                             deleteModal.open({
                               id: r.id,
                               label: `${r.recordNo} ${r.petName}`,
+                              petIsDeceased: r.petIsDeceased,
                             }),
                           variant: "destructive" as const,
                         }] : []),
@@ -314,8 +399,16 @@ export function MedicalRecords() {
         open={deleteModal.isOpen}
         onClose={deleteModal.close}
         onConfirm={() => {
-          if (deleteModal.item) {
-            deleteRecord(deleteModal.item.id);
+          const item = deleteModal.item;
+          const currentRecord = item
+            ? recordsByIdRef.current.get(item.id)
+            : undefined;
+          if (
+            canDeleteRef.current === true
+            && item?.petIsDeceased === false
+            && currentRecord?.petIsDeceased === false
+          ) {
+            deleteRecord(item.id);
           }
           deleteModal.close();
         }}

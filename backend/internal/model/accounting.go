@@ -50,6 +50,24 @@ const (
 	ItemCategoryTraining    ItemCategory = "training"
 )
 
+// AllItemCategories returns every supported billing item category in declaration order.
+func AllItemCategories() []ItemCategory {
+	return []ItemCategory{
+		ItemCategoryExamination,
+		ItemCategoryTest,
+		ItemCategoryProcedure,
+		ItemCategorySurgery,
+		ItemCategoryMedicine,
+		ItemCategoryFood,
+		ItemCategoryGoods,
+		ItemCategoryOther,
+		ItemCategoryVaccine,
+		ItemCategoryTrimming,
+		ItemCategoryHotel,
+		ItemCategoryTraining,
+	}
+}
+
 type ItemSource string
 
 const (
@@ -60,26 +78,32 @@ const (
 )
 
 type Billing struct {
-	ID                uint64         `gorm:"primaryKey;autoIncrement"                       json:"id"`
-	ClinicID          uint64         `gorm:"not null"                                       json:"clinic_id"`
-	MedicalRecordID   *uint64        `                                                      json:"medical_record_id,omitempty"`
-	HospitalizationID *uint64        `                                                      json:"hospitalization_id,omitempty"`
-	OwnerID           *uint64        `                                                      json:"owner_id,omitempty"`
-	PetID             *uint64        `                                                      json:"pet_id,omitempty"`
-	Subtotal          int64          `gorm:"default:0"                                      json:"subtotal"`
-	TaxTotal          int64          `gorm:"default:0"                                      json:"tax_total"`
-	TotalAmount       int64          `gorm:"default:0"                                      json:"total_amount"`
-	HasInsurance      bool           `gorm:"default:false"                                  json:"has_insurance"`
-	Status            BillingStatus  `gorm:"type:billing_status;default:'waiting'"          json:"status"`
-	ScheduledDate     time.Time      `gorm:"type:date;not null"                             json:"scheduled_date"`
-	CompletedAt       *time.Time     `                                                      json:"completed_at,omitempty"`
-	Memo              string         `gorm:"default:''"                                     json:"memo"`
-	DeletedAt         gorm.DeletedAt `                                                      json:"-"`
-	CreatedAt         time.Time      `gorm:"autoCreateTime"                                 json:"created_at"`
-	UpdatedAt         time.Time      `gorm:"autoUpdateTime"                                 json:"updated_at"`
+	ID                uint64        `gorm:"primaryKey;autoIncrement"                       json:"id"`
+	ClinicID          uint64        `gorm:"not null"                                       json:"clinic_id"`
+	MedicalRecordID   *uint64       `                                                      json:"medical_record_id,omitempty"`
+	HospitalizationID *uint64       `                                                      json:"hospitalization_id,omitempty"`
+	OwnerID           *uint64       `                                                      json:"owner_id,omitempty"`
+	PetID             *uint64       `                                                      json:"pet_id,omitempty"`
+	Subtotal          int64         `gorm:"default:0"                                      json:"subtotal"`
+	TaxTotal          int64         `gorm:"default:0"                                      json:"tax_total"`
+	TotalAmount       int64         `gorm:"default:0"                                      json:"total_amount"`
+	HasInsurance      bool          `gorm:"default:false"                                  json:"has_insurance"`
+	Status            BillingStatus `gorm:"type:billing_status;default:'waiting'"          json:"status"`
+	ScheduledDate     time.Time     `gorm:"type:date;not null"                             json:"scheduled_date"`
+	CompletedAt       *time.Time    `                                                      json:"completed_at,omitempty"`
+	Memo              string        `gorm:"default:''"                                     json:"memo"`
+	// CompletionRequestID / CompletionRequestHash は BUG-018 complete command の冪等キー。
+	// NULL は legacy POST /accountings 経路。soft-delete 後も key 再利用不可（full UNIQUE）。
+	CompletionRequestID   *string        `gorm:"type:uuid"                                   json:"completion_request_id,omitempty"`
+	CompletionRequestHash *string        `                                                   json:"-"`
+	DeletedAt             gorm.DeletedAt `                                                   json:"-"`
+	CreatedAt             time.Time      `gorm:"autoCreateTime"                              json:"created_at"`
+	UpdatedAt             time.Time      `gorm:"autoUpdateTime"                              json:"updated_at"`
 
 	// 仮想フィールド（DB列なし）— FindAll のサブクエリで集計
 	TotalRefundedAmount int64 `gorm:"-" json:"total_refunded_amount"`
+	// OutstandingAmount は未収残高（円）。waiting 全額 or クレジット訂正後の patient_due−支払額（BUG-007）。
+	OutstandingAmount int64 `gorm:"-" json:"outstanding_amount"`
 
 	// Relations
 	Owner         *Owner          `gorm:"foreignKey:OwnerID"          json:"owner,omitempty"`
@@ -96,6 +120,7 @@ func (Billing) TableName() string { return "billings" }
 type BillingItem struct {
 	ID                    uint64         `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	BillingID             uint64         `gorm:"not null"                                       json:"billing_id"`
+	ClinicID              *uint64        `                                                      json:"-"`
 	Category              ItemCategory   `gorm:"type:item_category;not null"                    json:"category"`
 	Name                  string         `gorm:"not null;default:''"                            json:"name"`
 	UnitPrice             int64          `gorm:"not null;default:0"                             json:"unit_price"`
@@ -106,8 +131,13 @@ type BillingItem struct {
 	TaxRate               float64        `gorm:"type:numeric(3,2);default:0.10"                 json:"tax_rate"`
 	IsInsuranceApplicable bool           `gorm:"default:false"                                  json:"is_insurance_applicable"`
 	Source                ItemSource     `gorm:"type:item_source;default:'manual'"              json:"source"`
+	OtherReason           *string        `                                                      json:"other_reason,omitempty"`
+	CreatedBy             *uint64        `                                                      json:"-"`
 	MerchandiseItemID     *uint64        `                                                      json:"merchandise_item_id,omitempty"`
 	TreatmentID           *uint64        `                                                      json:"treatment_id,omitempty"`
+	// MedicalRecordID は DB 列ではない。未請求候補（treatment 由来）など API 応答用の仮想フィールド。
+	MedicalRecordID       *uint64        `gorm:"-"                                              json:"medical_record_id,omitempty"`
+	VaccinationID         *uint64        `                                                      json:"vaccination_id,omitempty"`
 	AppointmentID         *uint64        `                                                      json:"appointment_id,omitempty"`
 	TrimmingCourseID      *uint64        `                                                      json:"trimming_course_id,omitempty"`
 	TrimmingOptionID      *uint64        `                                                      json:"trimming_option_id,omitempty"`
@@ -141,6 +171,7 @@ func (item *BillingItem) CalculateTaxAmount() int64 {
 type Payment struct {
 	ID              uint64  `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	BillingID       uint64  `gorm:"not null;uniqueIndex"                           json:"billing_id"`
+	ClinicID        uint64  `gorm:"not null"                                       json:"-"` // internal tenant key; not on FE wire
 	Subtotal        int64   `gorm:"not null;default:0"                             json:"subtotal"`
 	TaxTotal        int64   `gorm:"not null;default:0"                             json:"tax_total"`
 	TotalAmount     int64   `gorm:"not null;default:0"                             json:"total_amount"`

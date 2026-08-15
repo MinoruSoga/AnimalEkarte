@@ -42,7 +42,7 @@ export interface ReservationAvailableTimeSlot {
   end_time: string;
 }
 
-interface ReservationStaffExcludedCourse {
+interface ReservationStaffCourse {
   id: number;
   name?: string;
 }
@@ -51,7 +51,15 @@ export interface ReservationStaff {
   id: number;
   name: string;
   is_active: boolean;
-  excluded_courses: ReservationStaffExcludedCourse[];
+  /** Affirmative capability surface (TASK-021 Stage B). */
+  capable_courses: ReservationStaffCourse[];
+}
+
+interface ReservationStaffWire {
+  id: number;
+  name: string;
+  is_active: boolean;
+  capable_courses?: ReservationStaffCourse[] | null;
 }
 
 // GET /v1/masters/reservation-types
@@ -73,10 +81,17 @@ export const getCurrentClinicId = (): string | null => {
 };
 
 const fetchReservationStaffs = async (clinicId: string): Promise<ReservationStaff[]> => {
-  const { data } = await axios.get<ReservationStaff[]>(
+  const { data } = await axios.get<ReservationStaffWire[]>(
     `/v1/clinics/${clinicId}/reservation-staffs`,
   );
-  return data;
+  // Project only the positive contract so legacy wire fields cannot propagate.
+  // Missing capabilities stay fail-closed rather than meaning "all capable".
+  return data.map((staff) => ({
+    id: staff.id,
+    name: staff.name,
+    is_active: staff.is_active,
+    capable_courses: staff.capable_courses ?? [],
+  }));
 };
 
 const fetchReservationAvailableTimes = async (
@@ -139,7 +154,8 @@ export function useGetOnDutyStaffs(date: string | null) {
 
 /**
  * 予約スタッフ一覧を取得する。
- * excluded_courses は院内予約フォームの担当者候補から非対応コースを除外するために使う。
+ * capable_courses は院内予約フォームの担当者候補を肯定形で絞り込む（TASK-021 Stage B）。
+ * 欠落・未取得時は fail-closed（候補に載せない）。
  */
 export function useGetReservationStaffs() {
   const clinicId = getCurrentClinicId();

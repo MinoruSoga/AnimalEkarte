@@ -1,15 +1,25 @@
 import { memo, useMemo } from "react";
 import { EmptyState } from "@/components/shared/DataStates";
+import { TableCell, TableHead } from "@/components/ui/table";
 import { C, STYLE } from "@/lib/design-tokens";
-import { formatCurrency } from "@/utils/format/number";
+import { formatCurrency } from "@/lib/format/number";
 import type { PaymentMethodMaster } from "@/types/generated/models";
 import type { CloseBillingDetail } from "../api/get-cash-register-preview";
-import { buildUnifiedClosingRows, buildUnifiedClosingTotals } from "../closing-summary";
+import {
+  buildUnifiedClosingRows,
+  buildUnifiedClosingTotals,
+  formatClosingCount,
+  type UnclassifiedOtherCountInput,
+} from "../closing-summary";
 
 interface UnifiedClosingSummaryTableProps {
   categories: Record<string, Record<string, number>>;
   paymentMethods: PaymentMethodMaster[];
   billingDetails: CloseBillingDetail[];
+  /** DEC-40: other 行の会計 distinct 件数。null = 記録なし */
+  unclassifiedOtherCount?: UnclassifiedOtherCountInput;
+  /** #247: 部門ごとの会計 distinct 件数 */
+  categoryCounts?: Record<string, number>;
 }
 
 /**
@@ -21,10 +31,12 @@ export const UnifiedClosingSummaryTable = memo(function UnifiedClosingSummaryTab
   categories,
   paymentMethods,
   billingDetails,
+  unclassifiedOtherCount,
+  categoryCounts,
 }: UnifiedClosingSummaryTableProps) {
   const rows = useMemo(
-    () => buildUnifiedClosingRows(categories, billingDetails),
-    [categories, billingDetails],
+    () => buildUnifiedClosingRows(categories, billingDetails, unclassifiedOtherCount, categoryCounts),
+    [categories, billingDetails, unclassifiedOtherCount, categoryCounts],
   );
   const totals = useMemo(() => buildUnifiedClosingTotals(rows), [rows]);
 
@@ -37,48 +49,52 @@ export const UnifiedClosingSummaryTable = memo(function UnifiedClosingSummaryTab
       <table className="w-full text-base">
         <thead>
           <tr className={`border-b ${C.borderLight} ${C.bgPage}`}>
-            <th className={`text-left px-3 py-2 font-medium ${C.text70} w-24`}>部門</th>
-            <th className={`text-right px-3 py-2 font-medium ${C.text70}`}>件数</th>
+            <TableHead className={`${C.text70} w-24`}>部門</TableHead>
+            <TableHead className={`text-right ${C.text70}`}>件数</TableHead>
             {paymentMethods.map((pm) => (
-              <th key={pm.id} className={`text-right px-3 py-2 font-medium ${C.text70}`}>
+              <TableHead key={pm.id} className={`text-right ${C.text70}`}>
                 {pm.name}
-              </th>
+              </TableHead>
             ))}
-            <th className={`text-right px-3 py-2 font-medium ${C.text70}`}>合計</th>
+            <TableHead className={`text-right ${C.text70}`}>合計</TableHead>
           </tr>
         </thead>
         <tbody>
           {rows.map((row) => (
             <tr key={row.label} className={`border-b ${C.borderLight} ${STYLE.tableRow}`}>
-              <td className={`px-3 py-2 font-medium ${C.text}`}>{row.label}</td>
-              <td className={`text-right px-3 py-2 ${C.text60}`}>{row.count}件</td>
+              <TableCell className={`font-medium ${C.text}`}>{row.label}</TableCell>
+              <TableCell className={`text-right ${C.text60}`}>
+                {formatClosingCount(row.count)}
+              </TableCell>
               {paymentMethods.map((pm) => (
-                <td key={pm.id} className={`text-right px-3 py-2 ${C.text}`}>
+                <TableCell key={pm.id} className={`text-right ${C.text}`}>
                   {row.byMethod[pm.name] != null
-                    ? `¥${row.byMethod[pm.name].toLocaleString()}`
+                    ? formatCurrency(row.byMethod[pm.name])
                     : "—"}
-                </td>
+                </TableCell>
               ))}
-              <td className={`text-right px-3 py-2 font-medium ${C.text}`}>
+              <TableCell className={`text-right font-medium ${C.text}`}>
                 {formatCurrency(row.rowTotal)}
-              </td>
+              </TableCell>
             </tr>
           ))}
         </tbody>
         <tfoot>
           <tr className={`border-t-2 ${C.borderMedium} ${C.bgPage}`}>
-            <td className={`px-3 py-2 font-semibold ${C.text}`}>合計</td>
-            <td className={`text-right px-3 py-2 font-semibold ${C.text}`}>{totals.count}件</td>
+            <TableCell className={`font-semibold ${C.text}`}>合計</TableCell>
+            <TableCell className={`text-right font-semibold ${C.text}`}>
+              {formatClosingCount(totals.count)}
+            </TableCell>
             {paymentMethods.map((pm) => (
-              <td key={pm.id} className={`text-right px-3 py-2 font-semibold ${C.text}`}>
+              <TableCell key={pm.id} className={`text-right font-semibold ${C.text}`}>
                 {totals.byMethod[pm.name] != null
-                  ? `¥${totals.byMethod[pm.name].toLocaleString()}`
+                  ? formatCurrency(totals.byMethod[pm.name])
                   : "—"}
-              </td>
+              </TableCell>
             ))}
-            <td className={`text-right px-3 py-2 font-semibold ${C.text}`}>
+            <TableCell className={`text-right font-semibold ${C.text}`}>
               {formatCurrency(totals.grandTotal)}
-            </td>
+            </TableCell>
           </tr>
         </tfoot>
       </table>

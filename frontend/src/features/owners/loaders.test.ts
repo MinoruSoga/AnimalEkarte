@@ -5,7 +5,7 @@ vi.mock("@/lib/axios", () => ({
 }));
 
 import { axios } from "@/lib/axios";
-import { ownersLoader } from "./loaders";
+import { ownerLoader, ownersLoader } from "./loaders";
 
 const mockedGet = vi.mocked(axios.get);
 
@@ -33,6 +33,7 @@ describe("ownersLoader — #266 pets API (ペット行粒度)", () => {
             breed: "柴犬",
             color: "茶",
             danger_level: "low",
+            danger_reason: "保定時に噛む",
             food: "ドライ",
             environment: "室内",
             remarks: "",
@@ -70,6 +71,7 @@ describe("ownersLoader — #266 pets API (ペット行粒度)", () => {
     expect(pet.species).toBe("犬");
     expect(pet.animalSpeciesId).toBe("2");
     expect(pet.status).toBe("生存");
+    expect(pet.dangerReason).toBe("保定時に噛む");
     expect(pet.deceasedAt).toBeUndefined();
   });
 
@@ -106,6 +108,42 @@ describe("ownersLoader — #266 pets API (ペット行粒度)", () => {
     expect(result.pets[0].ownerName).toBe("");
     expect(result.pets[0].ownerNumber).toBeUndefined();
     expect(result.pets[0].phone).toBe("");
+  });
+
+  it("死亡は死亡のまま、未知・null status は生存へ推測せず不明へ変換する", async () => {
+    const makeRow = (id: number, status: string | null) => ({
+      id,
+      clinic_id: 1,
+      owner_id: 9,
+      animal_species_id: 1,
+      pet_number: `P-${id}`,
+      name: `合成ペット${id}`,
+      pet_name_kana: "ゴウセイ",
+      gender: "unknown",
+      status,
+      breed: "",
+      color: "",
+      danger_level: "low",
+      food: "",
+      environment: "",
+      remarks: "",
+    });
+    mockedGet.mockResolvedValue({
+      data: {
+        data: [
+          makeRow(1, "deceased"),
+          makeRow(2, "unexpected"),
+          makeRow(3, null),
+        ],
+        total: 3,
+        page: 1,
+        limit: 20,
+      },
+    });
+
+    const result = await ownersLoader({ request: new Request("http://localhost/owners") });
+
+    expect(result.pets.map((pet) => pet.status)).toEqual(["死亡", "不明", "不明"]);
   });
 });
 
@@ -175,5 +213,96 @@ describe("ownersLoader — #266 サーバサイドページネーション", () 
     expect(result.page).toBe(2);
     expect(result.limit).toBe(20);
     expect(result.total).toBe(42);
+  });
+});
+
+// 回帰防止: 旧実装は `} catch { throw new Response(..., { status: 500 }) }` で
+// 上流のHTTPステータスを握り潰していたため、GET /v1/pets の 400（DB スキーマ不整合等）が
+// errorElement 側では 500 として見え、原因の切り分けを不可能にしていた。
+describe("ownersLoader — 上流ステータスの保全", () => {
+  beforeEach(() => {
+    mockedGet.mockReset();
+  });
+
+  it.each([
+    [400, "リクエスト不正"],
+    [403, "権限不足"],
+    [404, "未検出"],
+  ])("上流の%dを500へ潰さずそのまま伝播する", async (status, _label) => {
+    mockedGet.mockRejectedValue({
+      isAxiosError: true,
+      response: { status },
+    });
+
+    const thrown = await ownersLoader({
+      request: new Request("http://localhost/owners"),
+    }).then(
+      () => undefined,
+      (err: unknown) => err,
+    );
+
+    expect(thrown).toBeInstanceOf(Response);
+    expect((thrown as Response).status).toBe(status);
+    expect((thrown as Response).status).not.toBe(500);
+    await expect((thrown as Response).text()).resolves.toBe(
+      "飼主一覧の取得に失敗しました",
+    );
+  });
+
+  it("response を持たない通信エラー（ネットワーク断）は500になる", async () => {
+    mockedGet.mockRejectedValue({ isAxiosError: true, response: undefined });
+
+    const thrown = await ownersLoader({
+      request: new Request("http://localhost/owners"),
+    }).then(
+      () => undefined,
+      (err: unknown) => err,
+    );
+
+    expect((thrown as Response).status).toBe(500);
+  });
+
+  it("axios 由来でない例外は500になる", async () => {
+    mockedGet.mockRejectedValue(new Error("boom"));
+
+    const thrown = await ownersLoader({
+      request: new Request("http://localhost/owners"),
+    }).then(
+      () => undefined,
+      (err: unknown) => err,
+    );
+
+    expect(thrown).toBeInstanceOf(Response);
+    expect((thrown as Response).status).toBe(500);
+  });
+});
+
+describe("ownerLoader — BUG-010 clinic mismatch 404", () => {
+  beforeEach(() => {
+    mockedGet.mockReset();
+  });
+
+  it("GET /owners/:id が 404 のとき明示メッセージの Response を投げる", async () => {
+    mockedGet.mockRejectedValue({
+      isAxiosError: true,
+      response: { status: 404 },
+    });
+
+    const thrown = await ownerLoader({ params: { id: "99" } }).then(
+      () => undefined,
+      (err: unknown) => err,
+    );
+
+    expect(thrown).toBeInstanceOf(Response);
+    expect((thrown as Response).status).toBe(404);
+    await expect((thrown as Response).text()).resolves.toContain("異なる医院");
+  });
+
+  it("id 未指定は 400", async () => {
+    const thrown = await ownerLoader({ params: {} }).then(
+      () => undefined,
+      (err: unknown) => err,
+    );
+    expect((thrown as Response).status).toBe(400);
   });
 });

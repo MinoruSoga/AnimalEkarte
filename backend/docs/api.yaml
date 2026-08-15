@@ -12,7 +12,7 @@ info:
     | Cookie 名 | 内容 | 有効期限 | Path | 用途 |
     |----------|------|---------|------|------|
     | `access_token` | JWT (HS256) | 15分 | `/` | 全保護エンドポイントの認証 |
-    | `refresh_token` | JWT (HS256, sub=refresh) | 7日 | `/api/v1/auth/refresh` | アクセストークン再発行 |
+    | `refresh_token` | JWT (HS256, sub=refresh) | 7日 | `/api/v1/auth` | アクセストークン再発行・ログアウト |
     | `prev_clinic_id` | クリニックID数値 | 15分 | `/` | クリニック切替の監査・履歴用 |
     | `auth_token` | (legacy) | — | `/` | 旧 Cookie 名。読み取りのみ後方互換 |
 
@@ -28,6 +28,15 @@ servers:
   - url: http://localhost:8080/api/v1
     description: 開発環境
 components:
+  parameters:
+    XRequestedWith:
+      name: X-Requested-With
+      in: header
+      required: true
+      description: CSRF 防止のため `XMLHttpRequest` を指定する。
+      schema:
+        type: string
+        enum: [XMLHttpRequest]
   securitySchemes:
     CookieAuth:
       type: apiKey
@@ -42,7 +51,7 @@ components:
       in: cookie
       name: refresh_token
       description: |
-        `POST /auth/refresh` 専用の HttpOnly な JWT（Path=/auth/refresh、MaxAge=7days）。
+        認証更新・ログアウト専用の HttpOnly な JWT（Path=/api/v1/auth、MaxAge=7days）。
         Token Rotation により毎回置換される。
     BearerAuth:
       type: http
@@ -78,9 +87,10 @@ components:
       type: object
       description: |
         ペットサマリー（Preload時のみ含まれる）。BE-refactor.md Phase D-2: 実ワイヤ形
-        petSummaryResponse（7消費者共通: MedicalRecord/Hospitalization/Reservation/
-        Trimming/Vaccination/Examination/Pet の pet フィールド）に合わせ、weight・
-        status に加え #231 で breed を追加（トリミング一覧の犬種列向け。空文字は未設定）。
+        petSummaryResponse の共有base fields（7消費者: MedicalRecord/Hospitalization/
+        Reservation/Trimming/Vaccination/Examination/Pet の pet フィールド）に合わせ、
+        weight・status に加え #231 で breed を追加（トリミング一覧の犬種列向け。
+        空文字は未設定）。
       properties:
         id:
           type: integer
@@ -105,6 +115,23 @@ components:
         owner:
           $ref: '#/components/schemas/OwnerSummary'
           nullable: true
+    ReservationPetSummary:
+      description: 受付・予約管理のスタッフ向けペットサマリー
+      allOf:
+        - $ref: '#/components/schemas/PetSummary'
+        - type: object
+          properties:
+            danger_level:
+              type: string
+              enum: [low, medium, high]
+              readOnly: true
+              description: 受付での臨床安全表示に使用する危険度
+            danger_reason:
+              type: string
+              maxLength: 500
+              nullable: true
+              readOnly: true
+              description: 院内スタッフ向け危険理由。danger_level が high の場合は必須。
     StaffSummary:
       type: object
       description: スタッフサマリー（Preload時のみ含まれる）
@@ -198,10 +225,20 @@ components:
         source:
           type: string
           enum: [medical_record, hospitalization, manual, trimming]
+        other_reason:
+          type: string
+          nullable: true
+          maxLength: 500
+          description: manual かつ category=other の明細理由。新規作成時はtrim後1〜500文字が必須。
         treatment_id:
           type: integer
           format: int64
           nullable: true
+        vaccination_id:
+          type: integer
+          format: int64
+          nullable: true
+          description: 予防接種イベント由来の明細に紐づく接種記録ID
         appointment_id:
           type: integer
           format: int64
@@ -214,6 +251,11 @@ components:
           type: integer
           format: int64
           nullable: true
+        merchandise_item_id:
+          type: integer
+          format: int64
+          nullable: true
+          description: 物販マスタ由来の明細に紐づく商品ID（#251 U2a-1／BUG-436）
         sort_order:
           type: integer
         created_at:
@@ -344,6 +386,123 @@ components:
         limit:
           type: integer
           example: 20
+    CreateOwnerPetRequest:
+      type: object
+      required: [name, animal_species_id]
+      properties:
+        name:
+          type: string
+        animal_species_id:
+          type: integer
+          format: int64
+        name_kana:
+          type: string
+        breed:
+          type: string
+        color:
+          type: string
+        blood_type:
+          type: string
+          maxLength: 32
+          nullable: true
+        microchip_number:
+          type: string
+          maxLength: 64
+          nullable: true
+        gender:
+          type: string
+          enum: [male, female, unknown]
+        status:
+          type: string
+          enum: [alive, deceased]
+        birth_date:
+          type: string
+          format: date
+          nullable: true
+        weight:
+          type: number
+          format: double
+          nullable: true
+        neutered_date:
+          type: string
+          format: date
+          nullable: true
+        acquisition_type:
+          type: string
+          enum: [purchased, transferred, rescued, other]
+          nullable: true
+        danger_level:
+          type: string
+          enum: [low, medium, high]
+        danger_reason:
+          type: string
+          maxLength: 500
+          nullable: true
+          description: danger_level が high の場合は trim 後1文字以上必須
+        food:
+          type: string
+        environment:
+          type: string
+        insurance_id:
+          type: integer
+          format: int64
+          nullable: true
+        remarks:
+          type: string
+    CreateOwnerRequest:
+      type: object
+      required: [owner_name]
+      properties:
+        clinic_id:
+          type: integer
+          format: int64
+          nullable: true
+        owner_name:
+          type: string
+        owner_name_kana:
+          type: string
+        birth_date:
+          type: string
+          format: date
+          nullable: true
+        company:
+          type: string
+        postal_code:
+          type: string
+        address1:
+          type: string
+        address2:
+          type: string
+        home_postal_code:
+          type: string
+        home_address1:
+          type: string
+        home_address2:
+          type: string
+        phone:
+          type: string
+        company_phone:
+          type: string
+        email:
+          type: string
+          format: email
+        remarks:
+          type: string
+        is_dangerous:
+          type: boolean
+        discount_rate:
+          type: number
+          format: double
+        membership_type:
+          type: string
+          enum: [non_member, member, deceased, transferred]
+        dm_preference:
+          type: boolean
+          nullable: true
+        pets:
+          type: array
+          items:
+            $ref: '#/components/schemas/CreateOwnerPetRequest'
     Owner:
       type: object
       required: [owner_name]
@@ -815,6 +974,12 @@ components:
             - low
             - medium
             - high
+        danger_reason:
+          type: string
+          maxLength: 500
+          nullable: true
+          readOnly: true
+          description: 院内スタッフ向け危険理由
         food:
           type: string
         environment:
@@ -835,6 +1000,13 @@ components:
           type: string
           format: date-time
           nullable: true
+        deceased_reason:
+          type: string
+          nullable: true
+          readOnly: true
+          description: |
+            BUG-003: 院内スタッフ向け死亡理由（GET /pets/{id} の Pet 詳細のみ）。
+            Owner.pets / LIFF 向けレスポンスには含めない。
         created_at:
           type: string
           format: date-time
@@ -883,6 +1055,115 @@ components:
               type: string
         name_kana:
           type: string
+        version:
+          type: integer
+          readOnly: true
+          description: 楽観的ロック用バージョン
+    PetSubOwner:
+      type: object
+      required: [owner_id, name, name_kana, relationship]
+      properties:
+        owner_id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        name_kana:
+          type: string
+        relationship:
+          type: string
+    PetSubOwnersResponse:
+      type: object
+      required: [sub_owners]
+      properties:
+        sub_owners:
+          type: array
+          items:
+            $ref: '#/components/schemas/PetSubOwner'
+    ReplacePetSubOwnerRequest:
+      type: object
+      required: [owner_id, relationship]
+      properties:
+        owner_id:
+          type: integer
+          format: int64
+        relationship:
+          type: string
+          description: 前後空白除去後1〜50文字の続柄
+    ReplacePetSubOwnersRequest:
+      type: object
+      required: [version, sub_owners]
+      properties:
+        version:
+          type: integer
+        sub_owners:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReplacePetSubOwnerRequest'
+    OwnerSharedPet:
+      type: object
+      additionalProperties: false
+      description: 対象飼主が副飼主として紐付いているペットの表示用サマリ
+      required:
+        - id
+        - pet_number
+        - name
+        - status
+        - animal_species
+        - gender
+        - birth_date
+        - color
+        - weight
+        - environment
+        - remarks
+        - relationship
+      properties:
+        id:
+          type: integer
+          format: int64
+          readOnly: true
+        pet_number:
+          type: string
+        name:
+          type: string
+        status:
+          type: string
+          enum: [alive, deceased]
+        animal_species:
+          type: object
+          additionalProperties: false
+          required: [name]
+          properties:
+            name:
+              type: string
+        gender:
+          type: string
+          enum: [male, female, unknown]
+        birth_date:
+          type: string
+          format: date
+          nullable: true
+        color:
+          type: string
+        weight:
+          type: number
+          format: double
+          nullable: true
+        environment:
+          type: string
+        remarks:
+          type: string
+        relationship:
+          type: string
+    OwnerSharedPetsResponse:
+      type: object
+      additionalProperties: false
+      required: [shared_pets]
+      properties:
+        shared_pets:
+          type: array
+          items:
+            $ref: '#/components/schemas/OwnerSharedPet'
     PetListItem:
       type: object
       description: ペット一覧レスポンス（GET /v1/pets 専用・必要最小限フィールド。#266 でペット行粒度の一覧基盤として拡張）
@@ -941,6 +1222,12 @@ components:
         danger_level:
           type: string
           enum: [low, medium, high]
+        danger_reason:
+          type: string
+          maxLength: 500
+          nullable: true
+          readOnly: true
+          description: 院内スタッフ向け危険理由
         food:
           type: string
         environment:
@@ -1001,6 +1288,108 @@ components:
               type: integer
             contact_phone:
               type: string
+    OwnerReportPet:
+      type: object
+      additionalProperties: false
+      description: Owner Report 専用の curated ペット表現。staff 専用フィールドと内部IDは含めない。
+      required:
+        - id
+        - name
+        - pet_name_kana
+        - gender
+        - status
+        - birth_date
+        - breed
+        - color
+        - blood_type
+        - microchip_number
+        - weight
+        - neutered_date
+        - acquisition_type
+        - food
+        - environment
+        - last_visit
+        - remarks
+        - animal_species
+        - insurance
+      properties:
+        id:
+          type: integer
+          format: int64
+          readOnly: true
+        name:
+          type: string
+        pet_name_kana:
+          type: string
+        gender:
+          type: string
+          enum: [male, female, unknown]
+        status:
+          type: string
+          enum: [alive, deceased]
+        birth_date:
+          type: string
+          format: date-time
+          nullable: true
+        breed:
+          type: string
+        color:
+          type: string
+        blood_type:
+          type: string
+          nullable: true
+        microchip_number:
+          type: string
+          nullable: true
+        weight:
+          type: number
+          format: double
+          nullable: true
+        neutered_date:
+          type: string
+          format: date-time
+          nullable: true
+        acquisition_type:
+          type: string
+          enum: [purchased, transferred, rescued, other]
+          nullable: true
+        food:
+          type: string
+        environment:
+          type: string
+        last_visit:
+          type: string
+          format: date-time
+          nullable: true
+        remarks:
+          type: string
+        animal_species:
+          type: object
+          additionalProperties: false
+          nullable: true
+          required: [name]
+          properties:
+            name:
+              type: string
+        insurance:
+          type: object
+          additionalProperties: false
+          nullable: true
+          required: [name, coverage_rate]
+          properties:
+            name:
+              type: string
+            coverage_rate:
+              type: integer
+    OwnerReportPetsResponse:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/OwnerReportPet'
     CreatePetRequest:
       type: object
       required: [owner_id, animal_species_id, name]
@@ -1044,6 +1433,11 @@ components:
         danger_level:
           type: string
           enum: [low, medium, high]
+        danger_reason:
+          type: string
+          maxLength: 500
+          nullable: true
+          description: danger_level が high の場合は trim 後1文字以上必須
         food:
           type: string
         environment:
@@ -1102,6 +1496,11 @@ components:
         danger_level:
           type: string
           enum: [low, medium, high]
+        danger_reason:
+          type: string
+          maxLength: 500
+          nullable: true
+          description: 更新後の danger_level が high の場合は trim 後1文字以上必須
         food:
           type: string
         environment:
@@ -1346,7 +1745,7 @@ components:
           format: date-time
           nullable: true
         pet:
-          $ref: '#/components/schemas/PetSummary'
+          $ref: '#/components/schemas/ReservationPetSummary'
           description: ペット情報（owner含む、Preload時のみ含まれる）
           nullable: true
         reservation_type:
@@ -1447,8 +1846,7 @@ components:
           $ref: '#/components/schemas/MedicalRecordInquirySummary'
           description: |
             問診情報（Preload時のみ含まれる）。BE-refactor.md Phase D-2: 実ワイヤは
-            inquirySummaryResponse(id・chief_complaint のみ)であり、旧記載の
-            $ref Inquiry(全フィールド)は phantom だった。
+            inquirySummaryResponse(id・chief_complaint・notes)。notes は問診「治療方針」(BUG-034)。
           nullable: true
         appointment_id:
           type: integer
@@ -1467,14 +1865,17 @@ components:
       type: object
       description: |
         カルテ一覧/詳細に埋め込まれる問診の要約(inquirySummaryResponse)。
-        全フィールドが必要な場合は /medical-records/{id}/addenda 等、問診専用
-        エンドポイントの Inquiry スキーマを参照する。
+        notes は問診タブ「治療方針」(BUG-034)。全フィールドが必要な場合は
+        問診専用エンドポイントの Inquiry スキーマを参照する。
       properties:
         id:
           type: integer
           format: int64
         chief_complaint:
           type: string
+        notes:
+          type: string
+          description: 問診タブ「治療方針」(inquiry.notes)
     Hospitalization:
       type: object
       required: [owner_id, pet_id, hospitalization_type, start_date, end_date]
@@ -1676,6 +2077,168 @@ components:
           readOnly: true
           items:
             $ref: '#/components/schemas/BillingRefund'
+    UnbilledWarning:
+      type: object
+      description: >
+        未請求集約で検出したデータ品質警告（BUG-013）。ID・名称・価格・SQL は含めない。
+      required: [source, code, count, blocking]
+      properties:
+        source:
+          type: string
+          description: 警告の発生源
+          enum: [vaccination]
+        code:
+          type: string
+          description: 安定した警告コード
+          enum: [vaccination_master_unbillable]
+        count:
+          type: integer
+          description: 該当件数
+        blocking:
+          type: boolean
+          description: true の場合、呼び出し側は会計確定を無効化する
+    UnbilledDetailsResponse:
+      type: object
+      required: [items, warnings]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/BillingItem'
+        warnings:
+          type: array
+          items:
+            $ref: '#/components/schemas/UnbilledWarning'
+    CompleteAccountingItemRequest:
+      type: object
+      description: 会計確定時に一括作成する明細1件（BUG-018）
+      required: [name, quantity]
+      properties:
+        category:
+          type: string
+          enum: [examination, test, procedure, surgery, medicine, food, goods, other, vaccine, trimming, hotel, training]
+        name:
+          type: string
+        unit_price:
+          type: integer
+          format: int64
+          minimum: 0
+        quantity:
+          type: number
+          format: double
+          exclusiveMinimum: true
+          minimum: 0
+        discount_rate:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 100
+        discount_amount:
+          type: integer
+          format: int64
+          minimum: 0
+          description: 非ゼロの場合 discount:edit 権限が必要
+        tax_type:
+          type: string
+          enum: [included, excluded, exempt]
+        tax_rate:
+          type: number
+          format: double
+        is_insurance_applicable:
+          type: boolean
+        source:
+          type: string
+          enum: [medical_record, manual, hospitalization, trimming]
+        other_reason:
+          type: string
+          nullable: true
+          description: category=other の場合の理由
+        merchandise_item_id:
+          type: integer
+          format: int64
+          nullable: true
+        treatment_id:
+          type: integer
+          format: int64
+          nullable: true
+        vaccination_id:
+          type: integer
+          format: int64
+          nullable: true
+        appointment_id:
+          type: integer
+          format: int64
+          nullable: true
+        trimming_course_id:
+          type: integer
+          format: int64
+          nullable: true
+        trimming_option_id:
+          type: integer
+          format: int64
+          nullable: true
+        sort_order:
+          type: integer
+    CompleteAccountingRequest:
+      type: object
+      description: >
+        POST /accountings/complete の body（BUG-018）。
+        合計金額は含めない — server が items から再計算する。
+      required: [scheduled_date, items]
+      properties:
+        medical_record_id:
+          type: integer
+          format: int64
+          nullable: true
+        hospitalization_id:
+          type: integer
+          format: int64
+          nullable: true
+        owner_id:
+          type: integer
+          format: int64
+          nullable: true
+        pet_id:
+          type: integer
+          format: int64
+          nullable: true
+        scheduled_date:
+          type: string
+          format: date-time
+        memo:
+          type: string
+        has_insurance:
+          type: boolean
+        insurance_ratio:
+          type: number
+          format: double
+          nullable: true
+        insurance_name:
+          type: string
+          nullable: true
+        insurance_amount:
+          type: integer
+          format: int64
+          nullable: true
+        discount_amount:
+          type: integer
+          format: int64
+          nullable: true
+          description: 非ゼロの場合 discount:edit 権限が必要
+        items:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/CompleteAccountingItemRequest'
+        payment_splits:
+          type: array
+          maxItems: 50
+          items:
+            $ref: '#/components/schemas/PaymentSplit'
+        post_close_reason:
+          type: string
+          nullable: true
+          description: レジ締め後編集の理由。締め済み期間では必須
     BillingRefund:
       type: object
       required: [amount]
@@ -1904,9 +2467,9 @@ components:
           type: string
     StaffRegistrationRequest:
       type: object
-      description: スタッフ登録リクエスト。スタッフ情報とシステムアカウントをアトミックに作成する。clinic_id 
-        はJWTトークンから取得するためリクエストには含めない。
-      required: [name, email, password]
+      description: スタッフ登録リクエスト。スタッフ情報を作成し、email/password が指定された場合はシステムアカウントもアトミックに作成する。clinic_id
+        はJWTトークンから取得するためリクエストには含めない。email/password を省略するとアカウントを持たない staff として登録する。
+      required: [name]
       properties:
         name:
           type: string
@@ -1915,13 +2478,13 @@ components:
         email:
           type: string
           format: email
-          description: ログイン用メールアドレス（user_accounts に登録）
+          description: ログイン用メールアドレス（user_accounts に登録）。任意。email/password をともに省略するとアカウントを持たない staff として登録される
           example: yamada@clinic.com
         password:
           type: string
           format: password
           minLength: 8
-          description: 初期パスワード（8文字以上）
+          description: 初期パスワード（8文字以上）。任意。email を指定してアカウントを作成する場合は必須。email/password をともに省略するとアカウントを持たない staff として登録される
           example: secure_pass_123
         license_number:
           type: string
@@ -2630,6 +3193,11 @@ components:
           type: string
         sort_order:
           type: integer
+        items:
+          type: array
+          readOnly: true
+          items:
+            $ref: '#/components/schemas/ExaminationTypeField'
         created_at:
           type: string
           format: date-time
@@ -2638,6 +3206,128 @@ components:
           type: string
           format: date-time
           readOnly: true
+    ExaminationTypeField:
+      type: object
+      required: [name]
+      properties:
+        id:
+          type: integer
+          format: int64
+          readOnly: true
+        exam_type_id:
+          type: integer
+          format: int64
+          readOnly: true
+        name:
+          type: string
+        inspection_value:
+          type: string
+        normal_value:
+          type: string
+        unit:
+          type: string
+        sort_order:
+          type: integer
+        reference_ranges:
+          type: array
+          readOnly: true
+          items:
+            $ref: '#/components/schemas/ExamReferenceRange'
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+    CreateExamTypeFieldRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+        inspection_value:
+          type: string
+        normal_value:
+          type: string
+        unit:
+          type: string
+        sort_order:
+          type: integer
+    UpdateExamTypeFieldRequest:
+      type: object
+      minProperties: 1
+      properties:
+        name:
+          type: string
+        inspection_value:
+          type: string
+        normal_value:
+          type: string
+        unit:
+          type: string
+        sort_order:
+          type: integer
+    ExamReferenceRange:
+      type: object
+      required: [animal_species_id]
+      properties:
+        id:
+          type: integer
+          format: int64
+          readOnly: true
+        exam_type_field_id:
+          type: integer
+          format: int64
+          readOnly: true
+        animal_species_id:
+          type: integer
+          format: int64
+        ref_min:
+          type: number
+          format: double
+          nullable: true
+        ref_max:
+          type: number
+          format: double
+          nullable: true
+        qualitative_min:
+          type: string
+          nullable: true
+        qualitative_max:
+          type: string
+          nullable: true
+    ExamReferenceRangeInput:
+      type: object
+      required: [animal_species_id]
+      properties:
+        animal_species_id:
+          type: integer
+          format: int64
+        ref_min:
+          type: number
+          format: double
+          nullable: true
+        ref_max:
+          type: number
+          format: double
+          nullable: true
+        qualitative_min:
+          type: string
+          nullable: true
+        qualitative_max:
+          type: string
+          nullable: true
+    ReplaceExamReferenceRangesRequest:
+      type: object
+      required: [ranges]
+      properties:
+        ranges:
+          type: array
+          nullable: false
+          items:
+            $ref: '#/components/schemas/ExamReferenceRangeInput'
     DiagnosisCategory:
       type: object
       required: [name]
@@ -2921,6 +3611,10 @@ components:
           type: boolean
           default: false
           description: 異常値フラグ
+        is_assessed:
+          type: boolean
+          default: false
+          description: 基準値比較が実施されたかどうか
         status:
           type: string
           enum: [normal, high, low]
@@ -2973,8 +3667,14 @@ components:
           nullable: true
         status:
           type: string
-          enum: [pending, in_progress, completed]
+          enum: [pending, in_progress, result_entered, completed, confirmed]
           default: pending
+        current_revision_version:
+          type: integer
+          format: int64
+          minimum: 1
+          readOnly: true
+          description: 現在選択中の作業版または公式リビジョン番号（未リビジョン行では省略）
         items:
           type: array
           items:
@@ -3005,6 +3705,178 @@ components:
           format: date-time
           nullable: true
           description: 削除日時（ソフトデリート）
+    UnconfirmExaminationRequest:
+      type: object
+      required: [reason]
+      properties:
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 500
+          pattern: '\S'
+          description: 確定解除を必要とする人手入力の理由
+    CheckupPackageImportRequest:
+      type: object
+      required: [manifest]
+      properties:
+        manifest:
+          type: object
+          additionalProperties: true
+          description: versioned checkup package manifest (strict; re-validated server-side)
+    CheckupPackageImportOperatorReceipt:
+      type: object
+      required: [receipt_id, result, types_created, fields_created]
+      properties:
+        receipt_id:
+          type: string
+          description: opaque operator receipt id (no clinic/actor/digest)
+        result:
+          type: string
+          enum: [dry_run_ok, applied, noop, conflict]
+        types_created:
+          type: integer
+        fields_created:
+          type: integer
+    ExaminationPrintDisplay:
+      type: object
+      description: 印刷用の凍結表示ラベル（display_snapshot）。mutable master の現在値は使わない。
+      properties:
+        medical_record_no:
+          type: string
+        pet_name:
+          type: string
+        medical_record_owner_name:
+          type: string
+        pet_owner_name:
+          type: string
+        species_name:
+          type: string
+        exam_type_name:
+          type: string
+        doctor_name:
+          type: string
+    ExaminationPrintItem:
+      type: object
+      description: リビジョンに保存された検査項目。is_assessed は再計算せず保存値を返す。
+      required: [id, name, is_assessed, is_abnormal, status, sort_order]
+      properties:
+        id:
+          type: integer
+          format: int64
+          readOnly: true
+        exam_type_field_id:
+          type: integer
+          format: int64
+          nullable: true
+        name:
+          type: string
+        inspection_value:
+          type: string
+        normal_value:
+          type: string
+        result:
+          type: string
+        unit:
+          type: string
+        reference_value:
+          type: string
+        ref_min:
+          type: number
+          format: double
+          nullable: true
+        ref_max:
+          type: number
+          format: double
+          nullable: true
+        qualitative_min:
+          type: string
+          nullable: true
+        qualitative_max:
+          type: string
+          nullable: true
+        is_assessed:
+          type: boolean
+          description: リビジョン保存時の評価有無（印刷時に再計算しない）
+        is_abnormal:
+          type: boolean
+        status:
+          type: string
+          enum: [normal, high, low]
+        sort_order:
+          type: integer
+    ExaminationPrintSnapshot:
+      type: object
+      description: |
+        検査印刷用の atomic revision snapshot。examination_revisions + examination_revision_items のみから構成する。
+        FE の formItems・未保存値・range/status 再計算・danger_reason は含めない。
+      required: [examination_id, clinic_id, version, kind, status, print_boundary, date, exam_type_id, display, items]
+      properties:
+        examination_id:
+          type: integer
+          format: int64
+          readOnly: true
+        clinic_id:
+          type: integer
+          format: int64
+          readOnly: true
+        version:
+          type: integer
+          format: int64
+          minimum: 1
+          readOnly: true
+        kind:
+          type: string
+          enum: [working, official]
+          readOnly: true
+        status:
+          type: string
+          enum: [pending, in_progress, result_entered, completed, confirmed]
+          readOnly: true
+        print_boundary:
+          type: string
+          enum: [official, draft]
+          description: official=確定公式リビジョン、draft=院内用未確定（DRAFT watermark）
+          readOnly: true
+        watermark:
+          type: string
+          description: draft 時は "DRAFT / 未確定"。official では省略または空。
+          readOnly: true
+        date:
+          type: string
+          format: date
+          readOnly: true
+        result_summary:
+          type: string
+          readOnly: true
+        machine:
+          type: string
+          readOnly: true
+        exam_type_id:
+          type: integer
+          format: int64
+          readOnly: true
+        medical_record_id:
+          type: integer
+          format: int64
+          nullable: true
+          readOnly: true
+        pet_id:
+          type: integer
+          format: int64
+          nullable: true
+          readOnly: true
+        doctor_id:
+          type: integer
+          format: int64
+          nullable: true
+          readOnly: true
+        display:
+          $ref: '#/components/schemas/ExaminationPrintDisplay'
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExaminationPrintItem'
+          readOnly: true
     Vaccination:
       type: object
       required: [medical_record_id, vaccine_id, date]
@@ -3923,6 +4795,14 @@ components:
           format: double
         sort_order:
           type: integer
+        dose_deviation_reason:
+          type: string
+          minLength: 1
+          maxLength: 500
+          description: |
+            TASK-377: 上限内の下限割れまたは推奨値からの著しい乖離時に必須の free-text 逸脱理由。
+            transport 技術上限は trim 後 1〜500 Unicode 文字。臨床 taxonomy ではない。
+            backend が locked effective state で再評価し、欠落時は treatment/inventory/audit を書かずに拒否する。
 
     UpdateTreatmentRequest:
       type: object
@@ -3979,6 +4859,14 @@ components:
         sort_order:
           type: integer
           nullable: true
+        dose_deviation_reason:
+          type: string
+          minLength: 1
+          maxLength: 500
+          nullable: true
+          description: |
+            TASK-377: 上限内の下限割れまたは推奨値からの著しい乖離時に必須の free-text 逸脱理由。
+            transport 技術上限は trim 後 1〜500 Unicode 文字。backend が再評価する。
 
     # ─── BillingConfirmation ────────────────────────────────────────────────────────
     BillingConfirmation:
@@ -4256,6 +5144,13 @@ components:
         updated_at:
           type: string
           format: date-time
+        version:
+          type: integer
+          format: int32
+          description: |
+            楽観的ロック用バージョン番号（BUG-416③）。medical_record と異なり、
+            clinicalPlanResponse は Version を実際に返却する（toClinicalPlanResponse で
+            マッピング済み）。次回 PATCH の version にはこの値をそのまま使う。
 
         diagnosis_type_id:
           type: integer
@@ -4294,6 +5189,14 @@ components:
         treatment_policy:
           type: string
           nullable: true
+        version:
+          type: integer
+          format: int32
+          nullable: true
+          description: |
+            楽観的ロック用バージョン番号（BUG-416③、updateClinicalPlanRequest.Version）。
+            省略/null の場合はバージョン照合をスキップする（後方互換）。GET/PATCH レスポンス
+            の ClinicalPlan.version をそのまま次回送信すること。不一致時は 409 Conflict。
 
     # ─── Checkup (健診記録) ───────────────────────────────────────────────────
     Checkup:
@@ -5434,7 +6337,7 @@ components:
     UpsertExamItemRequest:
       type: object
       description: >-
-        検査項目 1 行分。status / is_abnormal はサーバ側で ref_min/ref_max から導出するため
+        検査項目 1 行分。status / is_abnormal はサーバ側でマスタ基準値から導出するため
         受け付けない。
       required: [name]
       properties:
@@ -5452,14 +6355,6 @@ components:
           type: string
         reference_value:
           type: string
-        ref_min:
-          type: number
-          format: double
-          nullable: true
-        ref_max:
-          type: number
-          format: double
-          nullable: true
         sort_order:
           type: integer
           format: int32
@@ -6013,6 +6908,7 @@ components:
           format: date-time
     StaffReservationExclusion:
       type: object
+      deprecated: true
       description: staff_reservation_exclusions schema
       properties:
         id:
@@ -6987,6 +7883,32 @@ components:
         updated_at:
           type: string
           format: date-time
+    LabImportRevertRequest:
+      type: object
+      required: [reason]
+      properties:
+        reason:
+          type: string
+          description: Compensating revert reason (required). Distinct from examination unconfirm.
+          maxLength: 500
+    LabImportRevertResponse:
+      type: object
+      properties:
+        job_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          description: Terminal job status after revert (reverted)
+          example: reverted
+        retracted_exam_ids:
+          type: array
+          items:
+            type: string
+          description: Soft-deleted import-created draft exam IDs
+        idempotent_replay:
+          type: boolean
+          description: true when the same Idempotency-Key + payload was replayed
     LabImportEvent:
       type: object
       properties:
@@ -7124,14 +8046,15 @@ components:
           description: 予約可能日数の上限
     LiffLinkAccountRequest:
       type: object
+      additionalProperties: false
       required: [link_token, line_id_token]
       properties:
         link_token:
           type: string
+          maxLength: 128
         line_id_token:
           type: string
-        force:
-          type: boolean
+          maxLength: 12288
     LiffCourse:
       type: object
       properties:
@@ -7847,8 +8770,19 @@ components:
         status:
           type: string
         error_log:
-          type: object
-          additionalProperties: true
+          type: array
+          maxItems: 100
+          description: インポート直後の応答に含まれる先頭100件までのエラー概要。履歴一覧では省略し、LINE user IDは含めない。
+          items:
+            type: object
+            required: [row, reason]
+            properties:
+              row:
+                type: integer
+              reason:
+                type: string
+              detail:
+                type: string
           nullable: true
         imported_at:
           type: string
@@ -8071,6 +9005,7 @@ components:
           items:
             type: string
           minItems: 1
+          maxItems: 100
         tag_name:
           type: string
     CheckupSyncResult:
@@ -8151,6 +9086,17 @@ components:
     # ─── ReservationStaff (TASK-RES-012/013 LINE予約スタッフ・スケジュール管理) ─
     ExcludedCourse:
       type: object
+      deprecated: true
+      description: 互換用の除外予約区分。新規 consumer は capable_courses を使用する。
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+    CapableCourse:
+      type: object
+      required: [id, name]
       properties:
         id:
           type: integer
@@ -8159,6 +9105,7 @@ components:
           type: string
     ReservationStaff:
       type: object
+      required: [capable_courses]
       properties:
         id:
           type: integer
@@ -8180,8 +9127,15 @@ components:
           type: string
         excluded_courses:
           type: array
+          deprecated: true
+          description: 互換用。新規 consumer は capable_courses を使用する。
           items:
             $ref: '#/components/schemas/ExcludedCourse'
+        capable_courses:
+          type: array
+          description: このスタッフが対応可能な予約区分。欠落時に対応可能とみなしてはならない。
+          items:
+            $ref: '#/components/schemas/CapableCourse'
         created_at:
           type: string
           format: date-time
@@ -8203,11 +9157,6 @@ components:
           type: string
         sort_order:
           type: integer
-        excluded_type_ids:
-          type: array
-          items:
-            type: integer
-            format: int64
     UpdateReservationStaffRequest:
       type: object
       properties:
@@ -8226,12 +9175,6 @@ components:
           nullable: true
         sort_order:
           type: integer
-          nullable: true
-        excluded_type_ids:
-          type: array
-          items:
-            type: integer
-            format: int64
           nullable: true
     PatchReservationStaffStatusRequest:
       type: object
@@ -8580,6 +9523,24 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
+    TooManyRequests:
+      description: レート制限を超過
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    PayloadTooLarge:
+      description: リクエストボディが上限を超過
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    UnsupportedMediaType:
+      description: Content-Type が application/json ではない
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
     InternalError:
       description: サーバー内部エラー
       content:
@@ -8597,6 +9558,8 @@ paths:
       description: メールアドレスとパスワードで認証してJWTトークンを返す
       tags: [Auth]
       security: []
+      parameters:
+        - $ref: '#/components/parameters/XRequestedWith'
       requestBody:
         required: true
         content:
@@ -8614,16 +9577,49 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
         '500':
           $ref: '#/components/responses/InternalError'
   /logout:
     post:
       operationId: logout
-      summary: ログアウト
-      description: httpOnly Cookie (`auth_token`) を無効化してログアウトする。Cookie は 
-        HttpOnly のため JS から直接削除できないためサーバー側で MaxAge=-1 でクリアする。
+      summary: 旧ログアウト経路（互換 redirect）
+      description: |
+        キャッシュされた旧クライアント向け互換経路。POST と CSRF ヘッダーを維持する
+        `307 Temporary Redirect` で `/auth/refresh/logout` へ転送し、
+        Path が狭い refresh Cookie もブラウザから送信させる。
       tags: [Auth]
       security: []
+      parameters:
+        - $ref: '#/components/parameters/XRequestedWith'
+      responses:
+        '307':
+          description: refresh Cookie 互換ログアウト経路へ転送
+          headers:
+            Location:
+              schema:
+                type: string
+                example: /api/v1/auth/refresh/logout
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /auth/refresh/logout:
+    post:
+      operationId: logoutRefreshCookieCompatible
+      summary: ログアウト（refresh Cookie Path 互換）
+      description: |
+        現行の `/api/v1/auth` Path と旧 `/api/v1/auth/refresh` Path の
+        `refresh_token` Cookie を同時に受信し、署名検証済み JTI を失効してから
+        認証 Cookie を削除する。旧 Cookie の移行期間を安全に終了するため、
+        クライアントの標準ログアウト経路はこちらを使用する。
+      tags: [Auth]
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/XRequestedWith'
       responses:
         '200':
           description: ログアウト成功
@@ -8635,6 +9631,12 @@ paths:
                   message:
                     type: string
                     example: logged out
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
         '500':
           $ref: '#/components/responses/InternalError'
   /me:
@@ -8665,15 +9667,27 @@ paths:
       tags: [Auth]
       security:
         - RefreshCookie: []
+      parameters:
+        - $ref: '#/components/parameters/XRequestedWith'
       responses:
         '200':
           description: トークン再発行成功。新しい access_token / refresh_token を Cookie でセット。
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/LoginResponse'
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: token refreshed
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
 
   /auth/forgot-password:
     post:
@@ -8800,7 +9814,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Owner'
+              $ref: '#/components/schemas/CreateOwnerRequest'
       responses:
         '201':
           description: 登録成功
@@ -8900,6 +9914,73 @@ paths:
       responses:
         '204':
           description: 削除成功
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /owners/{id}/shared-pets:
+    get:
+      operationId: listOwnerSharedPets
+      summary: 副飼主として紐付いているペット一覧
+      description: |
+        owners:view 権限が必要。対象飼主が pet_owners 経由で副飼主として
+        紐付いている現在のペットを返す。死亡ペットは含み、削除済みペットは含まない。
+      tags: [Owners, Pets]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: 飼主ID
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
+      responses:
+        '200':
+          description: 副飼主として紐付いているペット一覧
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OwnerSharedPetsResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /owners/{id}/report/pets:
+    get:
+      operationId: listOwnerReportPets
+      summary: Owner Report 用ペット一覧
+      description: |
+        認可済み医院内の対象飼主に属するペットを、Owner Report が描画する
+        curated フィールドだけで返す。死亡ペットを含む。
+      tags: [Owners, Pets]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: 飼主ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Owner Report 用ペット一覧
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OwnerReportPetsResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -9502,6 +10583,11 @@ paths:
             default: 20
         - name: search
           in: query
+          description: >-
+            Clinic-scoped free text over pet name/kana, owner name/kana, owner phone
+            (partial ILIKE; kana-normalized), whitespace-insensitive ordered owner full name,
+            owner No as owners.id text equality (response owner_number alias), and pets.pet_number
+            (partial). Whitespace-only yields zero rows. Species name is not searched.
           schema:
             type: string
         - name: owner_id
@@ -9662,6 +10748,72 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /pets/{id}/sub-owners:
+    get:
+      operationId: listPetSubOwners
+      summary: ペット副飼主一覧
+      description: owners:view 権限が必要。
+      tags: [Pets]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ペットID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: ペット副飼主一覧
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PetSubOwnersResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    put:
+      operationId: replacePetSubOwners
+      summary: ペット副飼主置換
+      description: owners:edit 権限が必要。
+      tags: [Pets]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ペットID
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReplacePetSubOwnersRequest'
+      responses:
+        '204':
+          description: 更新成功
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '500':
           $ref: '#/components/responses/InternalError'
 
@@ -10203,6 +11355,11 @@ paths:
           schema:
             type: integer
             format: int64
+        - name: search
+          in: query
+          description: 飼主名（かな）、ペット名（かな）、カルテNo、主訴、治療内容、治療メモ、処置名、薬剤名、診察名、在庫品名を部分一致で横断検索
+          schema:
+            type: string
       responses:
         '200':
           description: カルテ一覧
@@ -10657,6 +11814,59 @@ paths:
                 type: string
                 format: uri
                 example: /accountings/550e8400-e29b-41d4-a716-446655440000
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Billing'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /accountings/complete:
+    post:
+      operationId: completeAccounting
+      summary: 会計確定（明細一括作成＋支払い確定を単一トランザクションで実行）
+      description: >
+        BUG-018: 会計・明細・支払い分割を1リクエストで原子的に確定する。
+        合計金額は client から受け取らず、server が items から再計算する。
+        Idempotency-Key ヘッダで再送を冪等化し、同一キーの再送は新規作成せず既存会計を 200 で返す。
+      tags: [Accountings]
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          description: UUID 形式の冪等キー。同一キーの再送は既存の会計を返す。
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompleteAccountingRequest'
+      responses:
+        '200':
+          description: 冪等再送。同一 Idempotency-Key で既に確定済みの会計を返す
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Billing'
+        '201':
+          description: 確定成功
+          headers:
+            Location:
+              description: 作成されたリソースのURL
+              schema:
+                type: string
+                format: uri
+                example: /v1/accountings/1234
           content:
             application/json:
               schema:
@@ -11680,6 +12890,37 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '500':
           $ref: '#/components/responses/InternalError'
+  /billing-items/unbilled-details:
+    get:
+      operationId: getUnbilledItemDetails
+      summary: 未会計対象明細一覧（データ品質警告付き）
+      description: >
+        BUG-013: additive エンドポイント。/billing-items/unbilled と同じ明細に加え、
+        集約中に検出したデータ品質警告を返す。blocking=true の警告がある間、
+        呼び出し側は会計確定を無効化する。警告に ID・名称・価格は含めない。
+      tags: [BillingItems]
+      parameters:
+        - name: pet_id
+          in: query
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 未会計対象明細と警告
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnbilledDetailsResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /billing-items/ungrouped-same-day:
     get:
       operationId: getUngroupedSameDay
@@ -11726,7 +12967,7 @@ paths:
           application/json:
             schema:
               type: object
-              required: [billing_id, name]
+              required: [billing_id, category, name]
               properties:
                 billing_id:
                   type: integer
@@ -11759,7 +13000,18 @@ paths:
                 source:
                   type: string
                   enum: [medical_record, manual, hospitalization, trimming]
+                  default: manual
+                other_reason:
+                  type: string
+                  nullable: true
+                  minLength: 1
+                  maxLength: 500
+                  description: manual かつ category=other の場合のみ必須。other以外・非manual・物販マスタ由来では保存しない。
                 treatment_id:
+                  type: integer
+                  format: int64
+                  nullable: true
+                vaccination_id:
                   type: integer
                   format: int64
                   nullable: true
@@ -12192,6 +13444,12 @@ paths:
           schema:
             type: string
             enum: [pending, in_progress, completed]
+        - name: include_items
+          in: query
+          description: true のとき検査項目明細を含めて返す
+          schema:
+            type: boolean
+            default: false
       responses:
         '200':
           description: 検査記録一覧
@@ -12284,6 +13542,8 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '500':
           $ref: '#/components/responses/InternalError'
     delete:
@@ -12298,6 +13558,81 @@ paths:
       responses:
         '204':
           description: 削除成功
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /examinations/{id}/unconfirm:
+    post:
+      operationId: unconfirmExamination
+      summary: 確定済み検査を新しい作業版として再開
+      tags: [Examinations]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: integer, format: int64}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UnconfirmExaminationRequest'
+      responses:
+        '200':
+          description: 確定解除成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Examination'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /examinations/{id}/print-snapshot:
+    get:
+      operationId: getExaminationPrintSnapshot
+      summary: 検査印刷用 revision snapshot 取得
+      description: |
+        保存済み revision（parent/items/status/version）を atomic に返す read-only API。
+        version 省略時は exams.current_revision_version を用いる。
+        official は confirmed revision のみ print_boundary=official。
+        未確定 working は院内用 watermark "DRAFT / 未確定"。
+        FE formItems・未保存 edit・range 再計算・danger_reason は含めない。
+      tags: [Examinations]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: integer, format: int64}
+        - name: version
+          in: query
+          required: false
+          description: 印刷対象リビジョン番号。省略時は current_revision_version。
+          schema: {type: integer, format: int64, minimum: 1}
+      responses:
+        '200':
+          description: 印刷用 snapshot
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExaminationPrintSnapshot'
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '404':
@@ -12355,6 +13690,8 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '500':
           $ref: '#/components/responses/InternalError'
 
@@ -13102,8 +14439,10 @@ paths:
           $ref: '#/components/responses/InternalError'
   /masters/staffs/{id}/excluded-reservation-types:
     get:
+      deprecated: true
       operationId: getStaffExcludedReservationTypes
       summary: スタッフの予約種別除外一覧取得
+      description: 互換用 endpoint。新規 consumer は capable-reservation-types を使用する。
       tags: [Masters]
       parameters:
         - name: id
@@ -13134,8 +14473,10 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
     put:
+      deprecated: true
       operationId: setStaffExcludedReservationTypes
       summary: スタッフの予約種別除外設定更新
+      description: 互換用 endpoint。新規 consumer は capable-reservation-types を使用する。
       tags: [Masters]
       parameters:
         - name: id
@@ -16054,6 +17395,172 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalError'
+  /masters/examination-types/{id}/fields:
+    post:
+      operationId: createExaminationTypeField
+      summary: 検査項目登録
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateExamTypeFieldRequest'
+      responses:
+        '201':
+          description: 登録成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExaminationTypeField'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /masters/examination-types/{id}/fields/reorder:
+    patch:
+      operationId: reorderExaminationTypeFields
+      summary: 検査項目一括並び替え
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MasterReorderRequest'
+      responses:
+        '204':
+          description: 並び替え成功
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /masters/examination-types/{id}/fields/{fieldId}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      - name: fieldId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+    patch:
+      operationId: updateExaminationTypeField
+      summary: 検査項目更新
+      tags: [Masters]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateExamTypeFieldRequest'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExaminationTypeField'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      operationId: deleteExaminationTypeField
+      summary: 検査項目削除
+      tags: [Masters]
+      responses:
+        '204':
+          description: 削除成功
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /masters/examination-types/{id}/fields/{fieldId}/reference-ranges:
+    put:
+      operationId: replaceExaminationTypeFieldReferenceRanges
+      summary: 検査項目の動物種別基準値を全置換
+      description: ranges は必須の非 null 配列。空配列は既存基準値を全削除する。
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: fieldId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReplaceExamReferenceRangesRequest'
+      responses:
+        '200':
+          description: 全置換成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExaminationTypeField'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /masters/diagnosis-types:
     get:
       operationId: listDiagnosisCategories
@@ -17302,6 +18809,55 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
+  /estimates/{id}/successors:
+    post:
+      operationId: createEstimateSuccessor
+      summary: 確定見積の後継ドラフト作成（原行不変・unlock なし）
+      description: |
+        承認済み・却下済み見積の訂正経路。原見積は変更せず、新しい draft を採番して
+        supersedes_estimate_id で原見積を参照する（TASK-012 FINAL B）。
+      tags: [Estimates]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason:
+                  type: string
+                  minLength: 1
+                  maxLength: 500
+                  description: 後継作成理由（監査必須）
+                title:
+                  type: string
+                comment:
+                  type: string
+                notes:
+                  type: string
+      responses:
+        '201':
+          description: 後継ドラフト作成成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Estimate'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '500':
           $ref: '#/components/responses/InternalError'
 
@@ -18447,6 +20003,7 @@ paths:
     post:
       operationId: confirmBillingConfirmation
       summary: 会計医師確認
+      description: 確認者は認証済みスタッフコンテキストから決定され、request body では指定しない
       tags: [MedicalRecords]
       parameters:
         - name: id
@@ -18461,12 +20018,12 @@ paths:
           application/json:
             schema:
               type: object
+              additionalProperties: false
               properties:
-                confirmed_by:
-                  type: integer
-                  format: int64
                 memo:
                   type: string
+                  maxLength: 1000
+                  description: 前後の空白を除去した会計確認メモ
       responses:
         '200':
           description: 確認成功
@@ -18478,12 +20035,23 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
         '500':
           $ref: '#/components/responses/InternalError'
   /medical-records/{id}/billing-confirmation/return:
     post:
       operationId: returnBillingConfirmation
       summary: 会計差し戻し
+      description: 差し戻し者は認証済みスタッフコンテキストから決定され、request body では指定しない
       tags: [MedicalRecords]
       parameters:
         - name: id
@@ -18498,14 +20066,20 @@ paths:
           application/json:
             schema:
               type: object
+              additionalProperties: false
+              required:
+                - return_reason
               properties:
-                returned_by:
-                  type: integer
-                  format: int64
                 return_reason:
                   type: string
+                  minLength: 1
+                  maxLength: 500
+                  pattern: '\S'
+                  description: 前後の空白を除去後、空白以外を1文字以上含む差し戻し理由
                 memo:
                   type: string
+                  maxLength: 1000
+                  description: 前後の空白を除去した差し戻しメモ
       responses:
         '200':
           description: 差し戻し成功
@@ -18517,6 +20091,16 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
         '500':
           $ref: '#/components/responses/InternalError'
 
@@ -21098,6 +22682,66 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/InternalError'
+  /checkup-package-imports/preview:
+    post:
+      operationId: previewCheckupPackageImport
+      summary: 健診 package import dry-run
+      tags: [Checkups]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CheckupPackageImportRequest'
+      responses:
+        '200':
+          description: dry-run result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckupPackageImportOperatorReceipt'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /checkup-package-imports:
+    post:
+      operationId: applyCheckupPackageImport
+      summary: 健診 package import apply
+      tags: [Checkups]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CheckupPackageImportRequest'
+      responses:
+        '200':
+          description: apply result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckupPackageImportOperatorReceipt'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /lab-imports:
     post:
       operationId: postLabImportCommit
@@ -21179,6 +22823,54 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /lab-imports/{job_id}/revert:
+    post:
+      operationId: postLabImportRevert
+      summary: 検査取込ジョブの補償 revert（persisted → reverted）
+      description: |
+        ResourceLabImport edit 権限が必要。手動 examination 確定解除とは別 endpoint・別 status・別 permission（DEC-57 / TASK-032）。
+        reason 必須。Idempotency-Key（UUID）ヘッダ必須。
+        confirmed examination / finalized medical record / manual mutation / downstream clinical use / usage_unknown のいずれかがあれば 409 かつ write ゼロ。
+        安全な import 由来 draft parent のみ条件付き soft delete。child exam_results は hard delete しない。
+      tags: [LabImports]
+      parameters:
+        - name: job_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LabImportRevertRequest'
+      responses:
+        '200':
+          description: revert 成功（または同一 payload の冪等 replay）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LabImportRevertResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '500':
           $ref: '#/components/responses/InternalError'
   /lab-reports/jobs/{job_id}/summaries:
@@ -21290,18 +22982,30 @@ paths:
             schema:
               $ref: '#/components/schemas/LiffLinkAccountRequest'
       responses:
-        '200':
-          description: 紐付け成功
+        '204':
+          description: 紐付け成功。レスポンスボディなし。
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '413':
+          description: リクエストボディが16KiBの上限を超過
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Owner'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '404':
-          $ref: '#/components/responses/NotFound'
+                $ref: '#/components/schemas/ErrorResponse'
         '500':
           $ref: '#/components/responses/InternalError'
+        '502':
+          description: LINE IDトークン検証サービスの応答エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /api/liff/{clinicId}/profile:
     servers:
       - url: http://localhost:8080
@@ -22368,7 +24072,7 @@ paths:
     post:
       operationId: postLstepCsvImportFriendAttributes
       summary: 友だち属性 CSV インポート(FEAT-385)
-      description: lstep-csv-import edit 権限が必要。
+      description: lstep-csv-import edit 権限が必要。CSV本体は50MiB、100,000データ行、64列、1セル64KiBまで。1病院1件、APIプロセス全体で2件まで同時実行でき、いずれかの上限を超えた場合は本文を解析せず429を返す。
       tags: [LstepCsvImports]
       parameters:
         - name: clinic_id
@@ -22403,6 +24107,8 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '429':
+          description: 病院単位またはAPIプロセス全体の同時実行上限に達している
         '500':
           $ref: '#/components/responses/InternalError'
   /clinics/{clinic_id}/lstep/analytics/delivery-stats:
@@ -22462,6 +24168,9 @@ paths:
           description: 来院判定の集計日数窓(デフォルト30)
           schema:
             type: integer
+            minimum: 1
+            maximum: 365
+            default: 30
       responses:
         '200':
           description: 来院率集計
@@ -22505,3 +24214,325 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalError'
+
+  # ---------------------------------------------------------------------------
+  # #239 identity-links (Phase 1 manual link/unlink + minimal linked history)
+  # Permission resource: identity-links (view / edit). Fail-closed defaults.
+  # ---------------------------------------------------------------------------
+  /identity-links/owners/search:
+    get:
+      operationId: searchOwnersForIdentityLink
+      summary: 手動 identity link 用の飼主検索（所属医院スコープ）
+      tags: [IdentityLinks]
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema: { type: string }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 50, default: 20 }
+      responses:
+        '200': { description: 検索結果 }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /identity-links/owners/{clinic_id}/{owner_id}/group:
+    get:
+      operationId: findOwnerIdentityGroupByMember
+      summary: 飼主メンバーから identity group を逆引き（可視メンバーのみ）
+      description: |
+        actor の verified clinic scope 外の clinic_id は 403。
+        所属 group が無い／可視メンバーが 0 件なら 404（fail-closed）。
+      tags: [IdentityLinks]
+      parameters:
+        - name: clinic_id
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+        - name: owner_id
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '200': { description: group（可視メンバーのみ） }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /identity-links/pets/search:
+    get:
+      operationId: searchPetsForIdentityLink
+      summary: 手動 identity link 用のペット検索（所属医院スコープ）
+      tags: [IdentityLinks]
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema: { type: string }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 50, default: 20 }
+      responses:
+        '200': { description: 検索結果 }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /identity-links/pets/{clinic_id}/{pet_id}/group:
+    get:
+      operationId: findPetIdentityGroupByMember
+      summary: ペットメンバーから identity group を逆引き（可視メンバーのみ）
+      description: |
+        actor の verified clinic scope 外の clinic_id は 403。
+        所属 group が無い／可視メンバーが 0 件なら 404（fail-closed）。
+      tags: [IdentityLinks]
+      parameters:
+        - name: clinic_id
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+        - name: pet_id
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '200': { description: group（可視メンバーのみ） }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /identity-links/owner-groups:
+    post:
+      operationId: createOwnerIdentityGroup
+      summary: 飼主 identity group を作成（2件以上・同一 tx audit）
+      description: |
+        mixed / cross-clinic / hidden owner ids は全体 reject（部分書き込みなし）。
+        audit は同一 tx で fail-closed。PHI（氏名・電話）は audit に含めない。
+      tags: [IdentityLinks]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [members]
+              properties:
+                members:
+                  type: array
+                  minItems: 2
+                  items:
+                    type: object
+                    required: [clinic_id, owner_id]
+                    properties:
+                      clinic_id: { type: integer, format: int64 }
+                      owner_id: { type: integer, format: int64 }
+      responses:
+        '201': { description: 作成済み group }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /identity-links/owner-groups/{id}:
+    get:
+      operationId: getOwnerIdentityGroup
+      summary: 飼主 identity group 取得（可視メンバーのみ）
+      tags: [IdentityLinks]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '200': { description: group }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /identity-links/owner-groups/{id}/members:
+    post:
+      operationId: addOwnerIdentityMembers
+      summary: 飼主 identity group にメンバー追加
+      description: |
+        mixed / cross-clinic / hidden owner ids は全体 reject（部分書き込みなし）。
+        audit は同一 tx で fail-closed。PHI（氏名・電話）は audit に含めない。
+      tags: [IdentityLinks]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [members]
+              properties:
+                members:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: object
+                    required: [clinic_id, owner_id]
+                    properties:
+                      clinic_id: { type: integer, format: int64 }
+                      owner_id: { type: integer, format: int64 }
+      responses:
+        '200': { description: 更新後 group }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    delete:
+      operationId: unlinkOwnerIdentityMember
+      summary: 飼主 identity member を unlink（last-member で group soft-delete）
+      tags: [IdentityLinks]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [clinic_id, owner_id]
+              properties:
+                clinic_id: { type: integer, format: int64 }
+                owner_id: { type: integer, format: int64 }
+      responses:
+        '204': { description: unlinked }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /identity-links/pet-groups:
+    post:
+      operationId: createPetIdentityGroup
+      summary: ペット identity group 作成（親 owner group 必須）
+      description: |
+        mixed / cross-clinic / hidden pet ids は全体 reject（部分書き込みなし）。
+        親 owner group 所属外のペットは 409。audit は同一 tx で fail-closed（PHI なし）。
+      tags: [IdentityLinks]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [owner_group_id, members]
+              properties:
+                owner_group_id: { type: integer, format: int64 }
+                members:
+                  type: array
+                  minItems: 2
+                  items:
+                    type: object
+                    required: [clinic_id, pet_id]
+                    properties:
+                      clinic_id: { type: integer, format: int64 }
+                      pet_id: { type: integer, format: int64 }
+      responses:
+        '201': { description: 作成済み group }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /identity-links/pet-groups/{id}:
+    get:
+      operationId: getPetIdentityGroup
+      summary: ペット identity group 取得
+      tags: [IdentityLinks]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '200': { description: group }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /identity-links/pet-groups/{id}/members:
+    post:
+      operationId: addPetIdentityMembers
+      summary: ペット identity group にメンバー追加
+      description: |
+        mixed / cross-clinic / hidden pet ids は全体 reject（部分書き込みなし）。
+        親 owner group 所属外のペットは 409。audit は同一 tx で fail-closed（PHI なし）。
+      tags: [IdentityLinks]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [members]
+              properties:
+                members:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: object
+                    required: [clinic_id, pet_id]
+                    properties:
+                      clinic_id: { type: integer, format: int64 }
+                      pet_id: { type: integer, format: int64 }
+      responses:
+        '200': { description: 更新後 group }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    delete:
+      operationId: unlinkPetIdentityMember
+      summary: ペット identity member を unlink（last-member で group soft-delete）
+      tags: [IdentityLinks]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [clinic_id, pet_id]
+              properties:
+                clinic_id: { type: integer, format: int64 }
+                pet_id: { type: integer, format: int64 }
+      responses:
+        '204': { description: unlinked }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /identity-links/pets/{clinic_id}/{pet_id}/treatment-history:
+    get:
+      operationId: listLinkedTreatmentHistory
+      summary: 最小治療履歴（include_linked 時は相関 (clinic_id,pet_id) ペアのみ）
+      tags: [IdentityLinks]
+      parameters:
+        - name: clinic_id
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+        - name: pet_id
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+        - name: include_linked
+          in: query
+          schema: { type: boolean, default: false }
+        - name: page
+          in: query
+          schema: { type: integer, default: 1 }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 20 }
+      responses:
+        '200': { description: ページネーション付き履歴 }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }

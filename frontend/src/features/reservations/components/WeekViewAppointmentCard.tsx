@@ -4,8 +4,8 @@ import { motion } from "motion/react";
 
 import { useReducedMotion } from "@/hooks/use-reduced-motion";
 import { C } from "@/lib/design-tokens";
-import { getReservationTypeColor, getReservationTypeName } from "@/utils/status-helpers";
-import { DISPLAY_TIME_FORMAT } from "@/utils/format/date";
+import { getReservationTypeColor, getReservationTypeName } from "@/lib/status-helpers";
+import { DISPLAY_TIME_FORMAT } from "@/lib/format/date";
 import type { Reservation } from "@/types";
 
 import {
@@ -53,7 +53,7 @@ export const AppointmentCard = memo(function AppointmentCard({
   const startMinutes = appointment.start.getHours() * 60 + appointment.start.getMinutes();
   const endMinutes = appointment.end.getHours() * 60 + appointment.end.getMinutes();
   const durationMinutes = endMinutes - startMinutes;
-  const height = Math.max((durationMinutes / 60) * HOUR_HEIGHT, 24);
+  const height = Math.max((durationMinutes / 60) * HOUR_HEIGHT, 44);
   const top = (startMinutes / 60) * HOUR_HEIGHT;
 
   const dragConstraints = useMemo(
@@ -93,7 +93,7 @@ export const AppointmentCard = memo(function AppointmentCard({
   return (
     <motion.button
       type="button"
-      className={`absolute rounded border hover:ring-1 ${C.ringPrimary20} transition-all cursor-grab active:cursor-grabbing z-10 overflow-hidden group touch-none
+      className={`absolute min-h-11 rounded border hover:ring-1 ${C.ringPrimary20} transition-all cursor-grab active:cursor-grabbing z-10 overflow-hidden group touch-none
         ${isCompact ? "py-px px-1" : isNarrow ? "px-1 py-0.5" : "p-1"}
         ${isClassNameColor ? colorStyle : ""}
         ${isDimmed ? "opacity-60" : "opacity-100"}
@@ -136,7 +136,7 @@ export const AppointmentCard = memo(function AppointmentCard({
     >
       {dotInfo ? (
         <div
-          className={`rounded-full ${dotInfo.color} border border-white absolute shadow-sm z-20 ${
+          className={`rounded-full ${dotInfo.color} border border-white absolute z-20 ${
             isCompact ? "w-1.5 h-1.5 top-0.5 right-0.5" : "w-2.5 h-2.5 top-1 right-1"
           }`}
           title={dotInfo.label}

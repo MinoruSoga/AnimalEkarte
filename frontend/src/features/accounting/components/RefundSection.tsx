@@ -8,10 +8,11 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { TableCell, TableHead } from "@/components/ui/table";
 import { C, ICON } from "@/lib/design-tokens";
 import { PAYMENT_METHOD_LABELS } from "@/constants/payment-method";
 import { formatJSTDate } from "@/lib/jst-date";
-import { formatCurrency } from "@/utils/format/number";
+import { formatCurrency } from "@/lib/format/number";
 
 import { useGetRefunds } from "../api/get-refunds";
 import type { PaymentMethod, PaymentSplitInfo } from "../types";
@@ -58,7 +59,7 @@ export const RefundSection = memo(function RefundSection({
     const amount = parseInt(refundAmount, 10);
     if (!amount || amount <= 0) return;
     if (amount > refundableAmount) {
-      toast.error(`返金額は残額 ¥${refundableAmount.toLocaleString()} 以下で入力してください`);
+      toast.error(`返金額は残額 ${formatCurrency(refundableAmount)} 以下で入力してください`);
       return;
     }
     const paymentMethod =
@@ -78,11 +79,11 @@ export const RefundSection = memo(function RefundSection({
             <RotateCcw className={`${ICON.action} ${C.textDiscount}`} />
             返金管理
             <span className={`text-xs font-normal ${C.text50}`}>
-              残額 ¥{refundableAmount.toLocaleString()}
+              残額 {formatCurrency(refundableAmount)}
             </span>
             {totalRefunded > 0 ? (
               <span className={`text-xs font-normal ${C.textDiscount} ${C.bgDiscountLight} px-2 py-0.5 rounded`}>
-                合計 ¥{totalRefunded.toLocaleString()} 返金済
+                合計 {formatCurrency(totalRefunded)} 返金済
               </span>
             ) : null}
           </CardTitle>
@@ -168,31 +169,31 @@ export const RefundSection = memo(function RefundSection({
           <table className="w-full text-sm">
             <thead>
               <tr className={`border-b ${C.bgPage30} text-xs`}>
-                <th className="px-3 py-2 text-left font-medium">日時</th>
-                <th className="px-3 py-2 text-left font-medium">処理者</th>
-                <th className="px-3 py-2 text-right font-medium">金額</th>
-                <th className="px-3 py-2 text-left font-medium">支払方法</th>
-                <th className="px-3 py-2 text-left font-medium">理由</th>
+                <TableHead>日時</TableHead>
+                <TableHead>処理者</TableHead>
+                <TableHead className="text-right">金額</TableHead>
+                <TableHead>支払方法</TableHead>
+                <TableHead>理由</TableHead>
               </tr>
             </thead>
             <tbody>
               {refunds.map((r) => (
                 <tr key={r.id} className="border-b last:border-0">
-                  <td className={`px-3 py-2 font-mono text-xs ${C.text50}`}>
+                  <TableCell className={`font-mono ${C.text50}`}>
                     {formatJSTDate(r.refundedAt)}
-                  </td>
-                  <td className={`px-3 py-2 text-xs ${C.text50}`}>
+                  </TableCell>
+                  <TableCell className={C.text50}>
                     {r.refundedByName || "-"}
-                  </td>
-                  <td className={`px-3 py-2 text-right font-medium ${C.textDiscount}`}>
+                  </TableCell>
+                  <TableCell className={`text-right font-medium ${C.textDiscount}`}>
                     {formatCurrency(r.amount)}
-                  </td>
-                  <td className={`px-3 py-2 text-xs ${C.text50}`}>
+                  </TableCell>
+                  <TableCell className={C.text50}>
                     {r.paymentMethod ? (PAYMENT_METHOD_LABELS[r.paymentMethod as PaymentMethod] ?? r.paymentMethod) : "-"}
-                  </td>
-                  <td className={`px-3 py-2 ${C.text50} truncate max-w-[120px]`}>
+                  </TableCell>
+                  <TableCell className={`${C.text50} max-w-[120px] truncate`}>
                     {r.reason || "-"}
-                  </td>
+                  </TableCell>
                 </tr>
               ))}
             </tbody>

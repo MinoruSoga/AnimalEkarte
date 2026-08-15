@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import { createBrowserRouter, Outlet } from "react-router";
 
 import { RootErrorBoundary } from "@/components/errors/RouteErrorBoundary";
-import { AuthProvider } from "@/features/auth";
+import { AuthProvider } from "@/features/auth/provider";
 
 import { appRoutes } from "./routes/app-routes";
 

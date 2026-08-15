@@ -4,7 +4,17 @@ import {
   transformReservationsToReceptionColumns,
   RECEPTION_COLUMNS,
 } from "./transforms";
-import type { Appointment as BackendReservation } from "@/types/generated/models";
+import {
+  DangerLevelHigh,
+  PetGenderMale,
+  PetStatusDeceased,
+  ReservationSourceManual,
+  type Reservation as BackendReservation,
+} from "@/types/generated/models";
+
+type BackendPetWithDangerReason = NonNullable<BackendReservation["pet"]> & {
+  danger_reason?: string;
+};
 
 const minimal: BackendReservation = {
   id: 1,
@@ -17,6 +27,10 @@ const minimal: BackendReservation = {
   is_designated: false,
   pet_id: 10,
   owner_id: 20,
+  notes: "",
+  source: ReservationSourceManual,
+  is_staff_delegated: false,
+  customer_fields: {},
   created_at: "2026-03-25T00:00:00Z",
   updated_at: "2026-03-25T00:00:00Z",
 };
@@ -85,6 +99,76 @@ describe("transformReservationToReceptionAppointment", () => {
       pet: { id: 10, clinic_id: 1, name: "ポチ" } as BackendReservation["pet"],
     });
     expect(result.petName).toBe("ポチ");
+  });
+
+  it("pet.status と pet.danger_level を reception sentinel にマップする", () => {
+    const result = transformReservationToReceptionAppointment({
+      ...minimal,
+      pet: {
+        id: 10,
+        clinic_id: 1,
+        owner_id: 20,
+        animal_species_id: 1,
+        pet_number: "P00010",
+        name: "ポチ",
+        name_kana: "ポチ",
+        gender: PetGenderMale,
+        status: PetStatusDeceased,
+        breed: "",
+        color: "",
+        danger_level: DangerLevelHigh,
+        food: "",
+        environment: "",
+        phone: "",
+        remarks: "",
+        created_at: "2026-03-25T00:00:00Z",
+        updated_at: "2026-03-25T00:00:00Z",
+      } satisfies NonNullable<BackendReservation["pet"]>,
+    });
+
+    expect(result.petStatus).toBe(PetStatusDeceased);
+    expect(result.petDangerLevel).toBe(DangerLevelHigh);
+  });
+
+  it("pet.danger_reason を petDangerReason にマップする", () => {
+    const pet = {
+      id: 10,
+      clinic_id: 1,
+      owner_id: 20,
+      animal_species_id: 1,
+      pet_number: "P00010",
+      name: "ポチ",
+      name_kana: "ポチ",
+      gender: PetGenderMale,
+      status: PetStatusDeceased,
+      breed: "",
+      color: "",
+      danger_level: DangerLevelHigh,
+      danger_reason: "保定時に噛む",
+      food: "",
+      environment: "",
+      phone: "",
+      remarks: "",
+      created_at: "2026-03-25T00:00:00Z",
+      updated_at: "2026-03-25T00:00:00Z",
+    } satisfies BackendPetWithDangerReason;
+
+    const result = transformReservationToReceptionAppointment({
+      ...minimal,
+      pet,
+    });
+
+    expect(result.petDangerReason).toBe("保定時に噛む");
+  });
+
+  it("pet が未紐付けの場合 reception sentinel は undefined", () => {
+    const result = transformReservationToReceptionAppointment({
+      ...minimal,
+      pet: undefined,
+    });
+
+    expect(result.petStatus).toBeUndefined();
+    expect(result.petDangerLevel).toBeUndefined();
   });
 
   it("LINE予約で relation が無い場合 customer_fields.owner_name を ownerName にフォールバックする", () => {

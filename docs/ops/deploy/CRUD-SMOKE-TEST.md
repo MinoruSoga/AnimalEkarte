@@ -187,8 +187,9 @@ curl -X DELETE "${API_V1}/masters/staffs/${TEST_STAFF_ID}" \
 - タイムスタンプが操作時刻と一致するか
 
 ```bash
-# 例: CloudWatch Logs でエラー確認（旧 ECS ロールバック経路使用時のみ。Cloudflare 正系統は Workers Logs を参照）
-aws logs tail /ecs/animalekarte-stg --follow --region us-east-1 | grep -i error
+# 例: Cloudflare Workers Logs を確認
+cd backend
+npx wrangler tail --config wrangler.jsonc --format pretty
 ```
 
 ---
@@ -212,7 +213,7 @@ aws logs tail /ecs/animalekarte-stg --follow --region us-east-1 | grep -i error
 ### 6.3 Cleanup タイムライン
 1. テスト完了直後: CLI での削除実行
 2. 削除確認: GET で 404 or リスト外を確認（API 層）
-3. 監査ログ確認: DELETE アクション記録を audit_logs テーブル（旧 ECS ロールバック経路使用時は CloudWatch）で確認
+3. 監査ログ確認: DELETE アクション記録を audit_logs テーブルで確認し、runtime errorはWorkers Logsで確認
 4. レポート作成: 削除したレコード数・操作者・タイムスタンプをログに記録
 
 ---
@@ -226,7 +227,7 @@ aws logs tail /ecs/animalekarte-stg --follow --region us-east-1 | grep -i error
 | 权限エラー（期待外） | 403 / 401 | 認証情報確認、キャッシュクリア |
 | FK 保護失敗（409 でなく 400/500） | 400 / 500 | **即座にロールバック** |
 | 404（レコード存在が期待） | 404 | 入力データ確認、test データ状態確認 |
-| 5xx エラー | 500+ | **即座にロールバック**、ログ確認（Cloudflare 正系統は Workers Logs、旧 ECS ロールバック経路は CloudWatch） |
+| 5xx エラー | 500+ | **即座に復旧判断**、Workers Logsを確認してlast-known-good再デプロイまたは基盤復旧へ進む |
 | 監査ログ未記録 | (実行済も記録なし) | DB トランザクション確認、ロールバック判断 |
 
 詳細は `docs/ops/deploy/README.md` §4 のロールバック判定基準を参照してください。

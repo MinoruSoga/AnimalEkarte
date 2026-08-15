@@ -28,6 +28,11 @@ export class VaccinationsPage extends BasePage {
   }
 
   hayashiText(): Locator {
-    return this.page.getByText('林 文明').first();
+    // Seed uses ideographic space (U+3000) between family/given name.
+    return this.page.getByText(/林[\s\u3000]*文明/).first();
+  }
+
+  firstDetailLink(): Locator {
+    return this.page.getByRole('link', { name: /予防接種詳細:/ }).first();
   }
 }

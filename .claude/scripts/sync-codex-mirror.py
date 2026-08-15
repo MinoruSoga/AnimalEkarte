@@ -8,6 +8,7 @@ import re
 import shutil
 import sys
 import tempfile
+import tomllib
 from pathlib import Path
 
 
@@ -54,14 +55,16 @@ def main() -> int:
         for f in sorted(src_agents.glob("*.md")):
             name = f.stem
             desc, body = read_frontmatter_and_body(f)
-            # TOML basic multi-line string: escape any literal """ so it can't
-            # terminate the string early.
-            safe_body = body.replace('"""', "'''")
+            # TOML basic multi-line strings interpret backslashes and quotes.
+            # Escape the complete body so generated agent roles remain valid
+            # while parsing back to the original instructions.
+            safe_body = toml_quote(body)
             toml = (
                 f'name = "{toml_quote(name)}"\n'
                 f'description = "{toml_quote(desc)}"\n'
                 f'developer_instructions = """\n{safe_body}\n"""\n'
             )
+            tomllib.loads(toml)
             (tmp_agents / f"{name}.toml").write_text(toml, encoding="utf-8")
             agent_count += 1
 

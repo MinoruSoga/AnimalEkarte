@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { ResourceExaminationUnconfirm } from "@/types/generated/models";
 import {
   ALL_PERMISSION_RESOURCES,
   RESOURCE_LABELS,
@@ -63,6 +64,11 @@ describe("buildPermissionRuleMap", () => {
 });
 
 describe("ALL_PERMISSION_RESOURCES / RESOURCE_LABELS 整合性", () => {
+  it("backend-generated examination unconfirm resource has an explicit label", () => {
+    expect(ALL_PERMISSION_RESOURCES).toContain(ResourceExaminationUnconfirm);
+    expect(RESOURCE_LABELS[ResourceExaminationUnconfirm]).toBe("検査確定解除");
+  });
+
   it("ALL_PERMISSION_RESOURCES は RESOURCE_LABELS の全キーと一致する（欠落・重複がない）", () => {
     expect(ALL_PERMISSION_RESOURCES).toEqual(Object.keys(RESOURCE_LABELS));
     expect(new Set(ALL_PERMISSION_RESOURCES).size).toBe(ALL_PERMISSION_RESOURCES.length);

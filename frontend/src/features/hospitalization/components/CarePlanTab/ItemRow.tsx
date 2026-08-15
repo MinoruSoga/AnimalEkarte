@@ -23,9 +23,12 @@ interface ItemRowProps {
 
 export function ItemRow({ item, onEdit, onDelete, isDeleting }: ItemRowProps) {
     return (
-        <div className={`flex items-center gap-3 py-2 px-3 rounded-lg ${C.hoverBgPage} transition-colors`}>
+        <div className={`flex flex-wrap sm:flex-nowrap items-center gap-3 py-2 px-3 rounded-lg ${C.hoverBgPage} transition-colors`}>
             <TypeIcon type={item.type} />
-            <span className={`flex-1 text-sm font-medium ${C.text} truncate`}>{item.name}</span>
+            <span className={`min-w-[8rem] flex-1 text-sm font-medium ${C.text} truncate`}>{item.name}</span>
+            <span className={`shrink-0 text-xs ${C.text60}`}>
+                単価 ￥{item.unit_price.toLocaleString()}
+            </span>
             <TimingBadges timing={item.timing} />
             <StatusBadge status={item.status} />
             <div className="flex gap-1 shrink-0">
@@ -33,7 +36,7 @@ export function ItemRow({ item, onEdit, onDelete, isDeleting }: ItemRowProps) {
                     <Button
                         variant="ghost"
                         size="icon"
-                        className="h-7 w-7"
+                        className="min-h-11 min-w-11"
                         onClick={() => onEdit(item.id)}
                         aria-label="編集"
                     >
@@ -44,7 +47,7 @@ export function ItemRow({ item, onEdit, onDelete, isDeleting }: ItemRowProps) {
                     <DeleteIconButton
                         onClick={() => onDelete(item.id)}
                         disabled={isDeleting}
-                        className={STYLE.iconBtn28}
+                        className={`${STYLE.iconBtn28} min-h-11 min-w-11`}
                     />
                 ) : null}
             </div>

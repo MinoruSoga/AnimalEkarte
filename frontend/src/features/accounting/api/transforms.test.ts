@@ -81,16 +81,35 @@ describe("transformToAccounting", () => {
       ...minimal,
       items: [{
         ...item,
+        vaccination_id: 5,
         treatment_id: 10,
+        medical_record_id: 77,
         appointment_id: 20,
         trimming_course_id: 30,
         trimming_option_id: 40,
       }],
     });
+    expect(result.items[0].vaccinationId).toBe("5");
     expect(result.items[0].treatmentId).toBe("10");
+    expect(result.items[0].medicalRecordId).toBe("77");
     expect(result.items[0].appointmentId).toBe("20");
     expect(result.items[0].trimmingCourseId).toBe("30");
     expect(result.items[0].trimmingOptionId).toBe("40");
+  });
+
+  it("merchandise_item_id を merchandiseItemId に変換する", () => {
+    const result = transformToAccounting({
+      ...minimal,
+      items: [{ ...item, merchandise_item_id: 50 }],
+    });
+
+    expect(result.items[0].merchandiseItemId).toBe("50");
+  });
+
+  it("merchandise_item_id が無い明細では merchandiseItemId は undefined", () => {
+    const result = transformToAccounting({ ...minimal, items: [item] });
+
+    expect(result.items[0].merchandiseItemId).toBeUndefined();
   });
 
   it("tax_rate 0.08 は 0.08 として保持する", () => {
@@ -112,6 +131,7 @@ describe("transformToAccounting", () => {
       subtotal: 1000,
       tax_total: 100,
       total_amount: 1100,
+      outstanding_amount: 0,
       payments: [{
         id: 1,
         billing_id: 1,
@@ -121,6 +141,7 @@ describe("transformToAccounting", () => {
         change_amount: 900,
         insurance_amount: 0,
         discount_amount: 0,
+        total_amount: 1100,
         created_at: "2026-03-25T00:00:00Z",
         updated_at: "2026-03-25T00:00:00Z",
       }],
@@ -128,6 +149,27 @@ describe("transformToAccounting", () => {
     expect(result.payment).toBeDefined();
     expect(result.payment!.totalAmount).toBe(1100);
     expect(result.payment!.method).toBe("cash");
+    expect(result.outstandingAmount).toBe(0);
+  });
+
+  it("BUG-007: outstanding_amount を outstandingAmount にマップする", () => {
+    const result = transformToAccounting({
+      ...minimal,
+      status: "completed" as BackendAccounting["status"],
+      outstanding_amount: 200,
+      payments: [{
+        id: 1,
+        billing_id: 1,
+        method: "credit_card" as BackendAccounting["payments"][0]["method"],
+        billing_amount: 900,
+        total_amount: 1100,
+        insurance_amount: 0,
+        discount_amount: 0,
+        created_at: "2026-03-25T00:00:00Z",
+        updated_at: "2026-03-25T00:00:00Z",
+      }],
+    });
+    expect(result.outstandingAmount).toBe(200);
   });
 
   it("medical_record_id が存在するとき string に変換して medicalRecordId にマップする", () => {

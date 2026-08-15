@@ -5,7 +5,7 @@ import { useCallback, useMemo } from "react";
 // Internal
 import { CalendarNavToolbar } from "@/components/shared/CalendarNavToolbar";
 import { formatJSTWallDate } from "@/lib/jst-date";
-import { formatJapaneseDate } from "@/utils/format/date";
+import { formatJapaneseDate } from "@/lib/format/date";
 
 interface DailyDateNavProps {
     selectedDate: string; // YYYY-MM-DD
@@ -26,14 +26,8 @@ export function DailyDateNav({
     dischargeDate,
     onDateChange,
 }: DailyDateNavProps) {
-    const canGoPrev = useMemo(
-        () => selectedDate > admissionDate,
-        [selectedDate, admissionDate]
-    );
-    const canGoNext = useMemo(
-        () => selectedDate < dischargeDate,
-        [selectedDate, dischargeDate]
-    );
+    const canGoPrev = selectedDate > admissionDate;
+    const canGoNext = selectedDate < dischargeDate;
 
     const handlePrev = useCallback(() => {
         if (canGoPrev) {

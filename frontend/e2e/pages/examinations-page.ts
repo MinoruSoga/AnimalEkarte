@@ -41,6 +41,14 @@ export class ExaminationsPage extends BasePage {
     return this.page.getByText('Iris').first();
   }
 
+  patientSearchInput(): Locator {
+    return this.page.locator('#search');
+  }
+
+  firstDetailLink(): Locator {
+    return this.page.getByRole('link', { name: /検査詳細:/ }).first();
+  }
+
   saveButton(): Locator {
     return this.page.getByRole('button', { name: '保存' });
   }

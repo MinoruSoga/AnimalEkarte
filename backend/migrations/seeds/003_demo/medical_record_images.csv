@@ -1,11 +1,3 @@
-id,medical_record_id,image_url,thumbnail_url,file_name,file_size,mime_type,image_type,description,taken_at,exam_id,staff_id,sort_order,created_at,updated_at
-1,61,files/clinic1/iris.jpg,files/clinic1/iris_t.jpg,iris_portrait.jpg,102400,image/jpeg,photo,初診時の写真,,,,1,2026-07-06 14:59:40.511971+09,2026-07-06 14:59:40.511971+09
-2,63,files/clinic1/mike_x.png,files/clinic1/mike_x_t.png,mike_xray.png,204800,image/png,xray,腹部レントゲン正面,,,,1,2026-07-06 14:59:40.511971+09,2026-07-06 14:59:40.511971+09
-3,65,files/clinic1/rocky_b.pdf,files/clinic1/rocky_b_t.jpg,rocky_blood_report.pdf,512000,application/pdf,other,血液検査結果PDF,,,,1,2026-07-06 14:59:40.511971+09,2026-07-06 14:59:40.511971+09
-4,64,files/clinic1/luna_c.pdf,files/clinic1/luna_c_t.jpg,luna_surgery_consent.pdf,128000,application/pdf,other,手術同意書（スキャン）,,,,1,2026-07-06 14:59:40.511971+09,2026-07-06 14:59:40.511971+09
-5,62,files/clinic1/choco_v.png,files/clinic1/choco_v_t.jpg,choco_vaccine_cert.png,153600,image/png,photo,ワクチン証明書,,,,1,2026-07-06 14:59:40.511971+09,2026-07-06 14:59:40.511971+09
-6,7,files/clinic1/bone_xray.jpg,files/clinic1/bone_xray_t.jpg,fracture.jpg,300000,image/jpeg,xray,大腿骨骨折（術前）,,,,1,2026-07-06 14:59:40.511971+09,2026-07-06 14:59:40.511971+09
-7,10,files/clinic1/heart_echo.jpg,files/clinic1/heart_echo_t.jpg,echo.jpg,250000,image/jpeg,echo,心臓逆流所見,,,,1,2026-07-06 14:59:40.511971+09,2026-07-06 14:59:40.511971+09
-8,15,files/clinic1/skin_photo.jpg,files/clinic1/skin_photo_t.jpg,atopy.jpg,150000,image/jpeg,photo,腹部発赤の状態,,,,1,2026-07-06 14:59:40.511971+09,2026-07-06 14:59:40.511971+09
-9,17,files/clinic1/dental_x.jpg,files/clinic1/dental_x_t.jpg,dental.jpg,200000,image/jpeg,xray,臼歯部の歯石付着,,,,1,2026-07-06 14:59:40.511971+09,2026-07-06 14:59:40.511971+09
-10,75,files/clinic1/patella_x.jpg,files/clinic1/patella_x_t.jpg,patella.jpg,350000,image/jpeg,xray,膝蓋骨脱臼（右）,,,,1,2026-07-06 14:59:40.511971+09,2026-07-06 14:59:40.511971+09
+version https://git-lfs.github.com/spec/v1
+oid sha256:bb6ea3aa7d3f5d9d40a4d61c3feaa91ef7330d86b58a79d3595ed7215b01b252
+size 157

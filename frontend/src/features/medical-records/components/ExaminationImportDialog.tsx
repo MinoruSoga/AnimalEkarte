@@ -146,7 +146,7 @@ export const ExaminationImportDialog = memo(function ExaminationImportDialog({
             type="button"
             onClick={handleImport}
             disabled={selectedIds.size === 0 || isLinking}
-            className={`${C.bgBrand} ${C.hoverBgBrand} ${C.textWhite} rounded-full border-transparent`}
+            className={`${C.bgBrand} ${C.hoverBgBrand} ${C.hoverTextOnBrand} ${C.textOnBrand} rounded-full border-transparent`}
           >
             {isLinking ? "取り込み中..." : `${selectedIds.size}件取り込む`}
           </Button>

@@ -8,11 +8,31 @@ import (
 func baseReleaseConfigForValidateTest() *Config {
 	return &Config{
 		GinMode:                  "release",
-		JWTSecret:                "secure-jwt-secret",
+		JWTSecret:                "0123456789abcdef0123456789abcdef",
+		DBHost:                   "db.example.com",
+		DBPort:                   "5432",
+		DBUser:                   "animalekarte_app",
 		DBPass:                   "secure-db-password",
+		DBName:                   "animalekarte",
+		DBSSLMode:                "verify-full",
+		DBSSLRootCert:            "system",
+		DBMaxOpenConns:           10,
+		DBMaxIdleConns:           5,
 		SMTPPort:                 "587",
+		SMTPHost:                 "smtp.example.com",
+		SMTPUser:                 "smtp-user",
+		SMTPPass:                 "smtp-password",
+		SMTPFrom:                 "sender@example.com",
+		FrontendURL:              "https://example.com",
 		IntegrationEncryptionKey: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
 		TrustedProxyCIDR:         "10.0.0.0/8",
+		CORSAllowedOrigin:        "https://example.com",
+		StorageType:              "s3",
+		S3Bucket:                 "upload-bucket",
+		S3Region:                 "ap-northeast-1",
+		S3SharedBucket:           "shared-bucket",
+		AWSAccessKeyID:           "test-access-key",
+		AWSSecretAccessKey:       "test-secret-key",
 	}
 }
 
@@ -24,6 +44,7 @@ func TestConfigLoad(t *testing.T) {
 	t.Setenv("DB_PASSWORD", "mypass")
 	t.Setenv("DB_NAME", "mydb")
 	t.Setenv("DB_SSL_MODE", "require")
+	t.Setenv("DB_SSL_ROOT_CERT", "system")
 	t.Setenv("GIN_MODE", "release")
 	t.Setenv("JWT_SECRET", "mysecret")
 	t.Setenv("SMTP_HOST", "smtp.example.com")
@@ -40,6 +61,8 @@ func TestConfigLoad(t *testing.T) {
 	t.Setenv("S3_BUCKET", "upload-bucket")
 	t.Setenv("S3_REGION", "ap-northeast-1")
 	t.Setenv("S3_PUBLIC_BASE_URL", "https://images.example.com")
+	t.Setenv("AWS_ACCESS_KEY_ID", "access-key")
+	t.Setenv("AWS_SECRET_ACCESS_KEY", "secret-key")
 	t.Setenv("TRUSTED_PROXY_CIDR", "10.0.0.0/8")
 	t.Setenv("LOG_LEVEL", "debug")
 	t.Setenv("CORS_ALLOWED_ORIGIN", "https://example.com")
@@ -66,6 +89,9 @@ func TestConfigLoad(t *testing.T) {
 	}
 	if cfg.DBSSLMode != "require" {
 		t.Errorf("DBSSLMode = %s, want require", cfg.DBSSLMode)
+	}
+	if cfg.DBSSLRootCert != "system" {
+		t.Errorf("DBSSLRootCert = %s, want system", cfg.DBSSLRootCert)
 	}
 	if cfg.GinMode != "release" {
 		t.Errorf("GinMode = %s, want release", cfg.GinMode)
@@ -115,6 +141,12 @@ func TestConfigLoad(t *testing.T) {
 	if cfg.S3PublicBaseURL != "https://images.example.com" {
 		t.Errorf("S3PublicBaseURL = %s, want https://images.example.com", cfg.S3PublicBaseURL)
 	}
+	if cfg.AWSAccessKeyID != "access-key" {
+		t.Errorf("AWSAccessKeyID was not loaded")
+	}
+	if cfg.AWSSecretAccessKey != "secret-key" {
+		t.Errorf("AWSSecretAccessKey was not loaded")
+	}
 	if cfg.TrustedProxyCIDR != "10.0.0.0/8" {
 		t.Errorf("TrustedProxyCIDR = %s, want 10.0.0.0/8", cfg.TrustedProxyCIDR)
 	}
@@ -133,6 +165,28 @@ func TestConfigLoad_S3EndpointDefaultsEmpty(t *testing.T) {
 
 	if cfg.S3Endpoint != "" {
 		t.Errorf("S3Endpoint = %q, want empty (AWS S3 既定挙動を維持)", cfg.S3Endpoint)
+	}
+}
+
+func TestConfigLoad_ReleaseDoesNotInheritDevelopmentDatabaseDefaults(t *testing.T) {
+	t.Setenv("GIN_MODE", "release")
+	t.Setenv("DB_HOST", "")
+	t.Setenv("DB_PORT", "")
+	t.Setenv("DB_USER", "")
+	t.Setenv("DB_PASSWORD", "")
+	t.Setenv("DB_NAME", "")
+
+	cfg := Load()
+
+	if cfg.DBHost != "" || cfg.DBPort != "" || cfg.DBUser != "" || cfg.DBPass != "" || cfg.DBName != "" {
+		t.Fatalf(
+			"release database target inherited a default: host=%q port=%q user=%q password_set=%t name=%q",
+			cfg.DBHost,
+			cfg.DBPort,
+			cfg.DBUser,
+			cfg.DBPass != "",
+			cfg.DBName,
+		)
 	}
 }
 
@@ -165,6 +219,17 @@ func TestConfigValidate_ReleaseRequiresJWTSecret(t *testing.T) {
 	}
 }
 
+func TestConfigValidate_ReleaseRejectsShortJWTSecret(t *testing.T) {
+	cfg := baseReleaseConfigForValidateTest()
+	cfg.JWTSecret = strings.Repeat("a", 31)
+
+	err := cfg.Validate()
+
+	if err == nil || !strings.Contains(err.Error(), "at least 32 bytes") {
+		t.Fatalf("expected short JWT_SECRET error, got %v", err)
+	}
+}
+
 func TestConfigValidate_ReleaseProhibitsDevDBPassword(t *testing.T) {
 	cfg := baseReleaseConfigForValidateTest()
 	cfg.DBPass = "ekarte_password"
@@ -177,6 +242,78 @@ func TestConfigValidate_ReleaseProhibitsDevDBPassword(t *testing.T) {
 	err = cfg.Validate()
 	if err == nil || !strings.Contains(err.Error(), "DB_PASSWORD must be explicitly set") {
 		t.Fatalf("expected error for empty DB_PASSWORD in release mode, got %v", err)
+	}
+}
+
+func TestConfigValidate_ReleaseRequiresExplicitDatabaseTarget(t *testing.T) {
+	tests := []struct {
+		name       string
+		mutate     func(*Config)
+		wantErrMsg string
+	}{
+		{
+			name:       "host is required",
+			mutate:     func(cfg *Config) { cfg.DBHost = "" },
+			wantErrMsg: "DB_HOST",
+		},
+		{
+			name:       "development host is prohibited",
+			mutate:     func(cfg *Config) { cfg.DBHost = "localhost" },
+			wantErrMsg: "DB_HOST",
+		},
+		{
+			name:       "loopback host is prohibited",
+			mutate:     func(cfg *Config) { cfg.DBHost = "127.0.0.1" },
+			wantErrMsg: "DB_HOST",
+		},
+		{
+			name:       "port is required",
+			mutate:     func(cfg *Config) { cfg.DBPort = "" },
+			wantErrMsg: "DB_PORT",
+		},
+		{
+			name:       "port must be numeric",
+			mutate:     func(cfg *Config) { cfg.DBPort = "postgres" },
+			wantErrMsg: "DB_PORT",
+		},
+		{
+			name:       "port must be in range",
+			mutate:     func(cfg *Config) { cfg.DBPort = "65536" },
+			wantErrMsg: "DB_PORT",
+		},
+		{
+			name:       "user is required",
+			mutate:     func(cfg *Config) { cfg.DBUser = "" },
+			wantErrMsg: "DB_USER",
+		},
+		{
+			name:       "development user is prohibited",
+			mutate:     func(cfg *Config) { cfg.DBUser = "ekarte_user" },
+			wantErrMsg: "DB_USER",
+		},
+		{
+			name:       "name is required",
+			mutate:     func(cfg *Config) { cfg.DBName = "" },
+			wantErrMsg: "DB_NAME",
+		},
+		{
+			name:       "development name is prohibited",
+			mutate:     func(cfg *Config) { cfg.DBName = "ekarte_db" },
+			wantErrMsg: "DB_NAME",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := baseReleaseConfigForValidateTest()
+			tt.mutate(cfg)
+
+			err := cfg.Validate()
+
+			if err == nil || !strings.Contains(err.Error(), tt.wantErrMsg) {
+				t.Fatalf("Validate() error = %v, want %s error", err, tt.wantErrMsg)
+			}
+		})
 	}
 }
 
@@ -242,6 +379,373 @@ func TestConfigValidate_ReleaseRequiresTrustedProxyCIDR(t *testing.T) {
 	}
 }
 
+func TestConfigValidate_ReleaseRejectsInvalidTrustedProxyCIDR(t *testing.T) {
+	cfg := baseReleaseConfigForValidateTest()
+	cfg.TrustedProxyCIDR = "not-a-cidr"
+
+	err := cfg.Validate()
+
+	if err == nil || !strings.Contains(err.Error(), "TRUSTED_PROXY_CIDR must be a valid CIDR") {
+		t.Fatalf("expected invalid TRUSTED_PROXY_CIDR error, got %v", err)
+	}
+}
+
+func TestConfigValidate_ReleaseRejectsUntrustedProxyNetworks(t *testing.T) {
+	for _, cidr := range []string{
+		"0.0.0.0/0",
+		"::/0",
+		"203.0.113.0/24",
+	} {
+		t.Run(cidr, func(t *testing.T) {
+			cfg := baseReleaseConfigForValidateTest()
+			cfg.TrustedProxyCIDR = cidr
+
+			err := cfg.Validate()
+
+			if err == nil || !strings.Contains(err.Error(), "TRUSTED_PROXY_CIDR") {
+				t.Fatalf("Validate() error = %v, want TRUSTED_PROXY_CIDR error", err)
+			}
+		})
+	}
+}
+
+func TestConfigValidate_ReleaseRejectsUnsafeExternalEndpoints(t *testing.T) {
+	tests := []struct {
+		name       string
+		mutate     func(*Config)
+		wantErrMsg string
+	}{
+		{
+			name: "CORS origin is required",
+			mutate: func(cfg *Config) {
+				cfg.CORSAllowedOrigin = ""
+			},
+			wantErrMsg: "CORS_ALLOWED_ORIGIN",
+		},
+		{
+			name: "CORS wildcard is prohibited",
+			mutate: func(cfg *Config) {
+				cfg.CORSAllowedOrigin = "*"
+			},
+			wantErrMsg: "CORS_ALLOWED_ORIGIN",
+		},
+		{
+			name: "CORS origin must use HTTPS",
+			mutate: func(cfg *Config) {
+				cfg.CORSAllowedOrigin = "http://example.com"
+			},
+			wantErrMsg: "CORS_ALLOWED_ORIGIN",
+		},
+		{
+			name: "CORS origin must not use localhost",
+			mutate: func(cfg *Config) {
+				cfg.CORSAllowedOrigin = "https://localhost"
+			},
+			wantErrMsg: "CORS_ALLOWED_ORIGIN",
+		},
+		{
+			name: "CORS origin must not contain a path",
+			mutate: func(cfg *Config) {
+				cfg.CORSAllowedOrigin = "https://example.com/"
+			},
+			wantErrMsg: "CORS_ALLOWED_ORIGIN",
+		},
+		{
+			name: "frontend URL is required",
+			mutate: func(cfg *Config) {
+				cfg.FrontendURL = ""
+			},
+			wantErrMsg: "FRONTEND_URL",
+		},
+		{
+			name: "frontend URL must use HTTPS",
+			mutate: func(cfg *Config) {
+				cfg.FrontendURL = "http://example.com"
+			},
+			wantErrMsg: "FRONTEND_URL",
+		},
+		{
+			name: "frontend URL must not use loopback",
+			mutate: func(cfg *Config) {
+				cfg.FrontendURL = "https://127.0.0.1"
+			},
+			wantErrMsg: "FRONTEND_URL",
+		},
+		{
+			name: "frontend URL must not contain user info",
+			mutate: func(cfg *Config) {
+				cfg.FrontendURL = "https://user:pass@example.com"
+			},
+			wantErrMsg: "FRONTEND_URL",
+		},
+		{
+			name: "frontend URL must not contain query or fragment",
+			mutate: func(cfg *Config) {
+				cfg.FrontendURL = "https://example.com?redirect=unsafe#fragment"
+			},
+			wantErrMsg: "FRONTEND_URL",
+		},
+		{
+			name: "database SSL mode must not be disabled",
+			mutate: func(cfg *Config) {
+				cfg.DBSSLMode = "disable"
+			},
+			wantErrMsg: "DB_SSL_MODE",
+		},
+		{
+			name: "database SSL mode must be recognized",
+			mutate: func(cfg *Config) {
+				cfg.DBSSLMode = "prefer"
+			},
+			wantErrMsg: "DB_SSL_MODE",
+		},
+		{
+			name: "database SSL mode must verify server identity",
+			mutate: func(cfg *Config) {
+				cfg.DBSSLMode = "require"
+			},
+			wantErrMsg: "DB_SSL_MODE",
+		},
+		{
+			name: "database SSL root cert is required",
+			mutate: func(cfg *Config) {
+				cfg.DBSSLRootCert = ""
+			},
+			wantErrMsg: "DB_SSL_ROOT_CERT",
+		},
+		{
+			name: "database SSL root cert must use system trust",
+			mutate: func(cfg *Config) {
+				cfg.DBSSLRootCert = "/tmp/untrusted.pem"
+			},
+			wantErrMsg: "DB_SSL_ROOT_CERT",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv("LIFF_MOCK", "")
+			cfg := baseReleaseConfigForValidateTest()
+			tt.mutate(cfg)
+
+			err := cfg.Validate()
+
+			if err == nil || !strings.Contains(err.Error(), tt.wantErrMsg) {
+				t.Fatalf("Validate() error = %v, want %s error", err, tt.wantErrMsg)
+			}
+		})
+	}
+}
+
+func TestConfigValidate_ReleaseRequiresSMTPDelivery(t *testing.T) {
+	tests := []struct {
+		name       string
+		mutate     func(*Config)
+		wantErrMsg string
+	}{
+		{
+			name:       "SMTP host is required",
+			mutate:     func(cfg *Config) { cfg.SMTPHost = "" },
+			wantErrMsg: "SMTP_HOST",
+		},
+		{
+			name:       "SMTP user is required",
+			mutate:     func(cfg *Config) { cfg.SMTPUser = "" },
+			wantErrMsg: "SMTP_USER",
+		},
+		{
+			name:       "SMTP password is required",
+			mutate:     func(cfg *Config) { cfg.SMTPPass = "" },
+			wantErrMsg: "SMTP_PASS",
+		},
+		{
+			name:       "SMTP from address is required",
+			mutate:     func(cfg *Config) { cfg.SMTPFrom = "" },
+			wantErrMsg: "SMTP_FROM",
+		},
+		{
+			name: "SMTP from address rejects CRLF",
+			mutate: func(cfg *Config) {
+				cfg.SMTPFrom = "sender@example.com\r\nBcc: attacker@example.com"
+			},
+			wantErrMsg: "SMTP_FROM",
+		},
+		{
+			name:       "SMTP from address must be valid",
+			mutate:     func(cfg *Config) { cfg.SMTPFrom = "not-an-email" },
+			wantErrMsg: "SMTP_FROM",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv("LIFF_MOCK", "")
+			cfg := baseReleaseConfigForValidateTest()
+			tt.mutate(cfg)
+
+			err := cfg.Validate()
+
+			if err == nil || !strings.Contains(err.Error(), tt.wantErrMsg) {
+				t.Fatalf("Validate() error = %v, want %s error", err, tt.wantErrMsg)
+			}
+		})
+	}
+}
+
+func TestConfigValidate_ReleaseRequiresDurableHTTPSStorage(t *testing.T) {
+	tests := []struct {
+		name       string
+		config     *Config
+		mutate     func(*Config)
+		wantErrMsg string
+	}{
+		{
+			name:       "release requires S3 storage",
+			config:     baseReleaseConfigForValidateTest(),
+			mutate:     func(cfg *Config) { cfg.StorageType = "" },
+			wantErrMsg: "STORAGE_TYPE",
+		},
+		{
+			name:       "release rejects local storage",
+			config:     baseReleaseConfigForValidateTest(),
+			mutate:     func(cfg *Config) { cfg.StorageType = "local" },
+			wantErrMsg: "STORAGE_TYPE",
+		},
+		{
+			name:       "debug rejects unknown storage type",
+			config:     &Config{GinMode: "debug", JWTSecret: "secure-jwt-secret"},
+			mutate:     func(cfg *Config) { cfg.StorageType = "unknown" },
+			wantErrMsg: "STORAGE_TYPE",
+		},
+		{
+			name:   "S3 endpoint must use HTTPS",
+			config: baseReleaseConfigForValidateTest(),
+			mutate: func(cfg *Config) {
+				cfg.S3Endpoint = "http://storage.example.com"
+			},
+			wantErrMsg: "S3_ENDPOINT",
+		},
+		{
+			name:   "S3 public base URL must use HTTPS",
+			config: baseReleaseConfigForValidateTest(),
+			mutate: func(cfg *Config) {
+				cfg.S3PublicBaseURL = "http://images.example.com"
+			},
+			wantErrMsg: "S3_PUBLIC_BASE_URL",
+		},
+		{
+			name:   "S3 public base URL must not contain user info",
+			config: baseReleaseConfigForValidateTest(),
+			mutate: func(cfg *Config) {
+				cfg.S3PublicBaseURL = "https://user:pass@images.example.com"
+			},
+			wantErrMsg: "S3_PUBLIC_BASE_URL",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv("LIFF_MOCK", "")
+			tt.mutate(tt.config)
+
+			err := tt.config.Validate()
+
+			if err == nil || !strings.Contains(err.Error(), tt.wantErrMsg) {
+				t.Fatalf("Validate() error = %v, want %s error", err, tt.wantErrMsg)
+			}
+		})
+	}
+}
+
+func TestConfigValidate_ReleaseRequiresS3Credentials(t *testing.T) {
+	tests := []struct {
+		name       string
+		mutate     func(*Config)
+		wantErrMsg string
+	}{
+		{
+			name:       "access key is required",
+			mutate:     func(cfg *Config) { cfg.AWSAccessKeyID = "" },
+			wantErrMsg: "AWS_ACCESS_KEY_ID",
+		},
+		{
+			name:       "secret key is required",
+			mutate:     func(cfg *Config) { cfg.AWSSecretAccessKey = "" },
+			wantErrMsg: "AWS_SECRET_ACCESS_KEY",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := baseReleaseConfigForValidateTest()
+			tt.mutate(cfg)
+
+			err := cfg.Validate()
+
+			if err == nil || !strings.Contains(err.Error(), tt.wantErrMsg) {
+				t.Fatalf("Validate() error = %v, want %s error", err, tt.wantErrMsg)
+			}
+		})
+	}
+}
+
+func TestConfigValidate_ReleaseRejectsInvalidDatabasePoolLimits(t *testing.T) {
+	tests := []struct {
+		name string
+		open int
+		idle int
+	}{
+		{name: "open must be positive", open: 0, idle: 0},
+		{name: "idle must be positive", open: 10, idle: 0},
+		{name: "idle must not exceed open", open: 5, idle: 10},
+		{name: "open must not exceed Cloudflare safe limit", open: 11, idle: 5},
+		{name: "idle must not exceed Cloudflare safe limit", open: 10, idle: 6},
+		{name: "legacy defaults must not pass release validation", open: 50, idle: 25},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := baseReleaseConfigForValidateTest()
+			cfg.DBMaxOpenConns = tt.open
+			cfg.DBMaxIdleConns = tt.idle
+
+			err := cfg.Validate()
+
+			if err == nil || !strings.Contains(err.Error(), "DB_MAX_") {
+				t.Fatalf("Validate() error = %v, want DB_MAX_* error", err)
+			}
+		})
+	}
+}
+
+func TestConfigValidate_ReleaseFailsClosedForMissingOrInvalidDatabasePoolEnv(t *testing.T) {
+	tests := []struct {
+		name string
+		open string
+		idle string
+	}{
+		{name: "missing", open: "", idle: ""},
+		{name: "invalid", open: "not-a-number", idle: "also-invalid"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv("DB_MAX_OPEN_CONNS", tt.open)
+			t.Setenv("DB_MAX_IDLE_CONNS", tt.idle)
+			loaded := Load()
+			cfg := baseReleaseConfigForValidateTest()
+			cfg.DBMaxOpenConns = loaded.DBMaxOpenConns
+			cfg.DBMaxIdleConns = loaded.DBMaxIdleConns
+
+			err := cfg.Validate()
+
+			if err == nil || !strings.Contains(err.Error(), "DB_MAX_") {
+				t.Fatalf("Validate() error = %v, want DB_MAX_* error", err)
+			}
+		})
+	}
+}
+
 func TestConfigValidate_StorageTypeS3RequiresBucketAndRegion(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -282,8 +786,8 @@ func TestConfigValidate_StorageTypeS3RequiresBucketAndRegion(t *testing.T) {
 	}
 }
 
-func TestConfigValidate_StorageTypeNonS3SkipsBucketRegionCheck(t *testing.T) {
-	cfg := &Config{GinMode: "debug", JWTSecret: "secure-jwt-secret", StorageType: "local"}
+func TestConfigValidate_StorageTypeEmptyUsesLocalDevelopmentStorage(t *testing.T) {
+	cfg := &Config{GinMode: "debug", JWTSecret: "secure-jwt-secret", StorageType: ""}
 	if err := cfg.Validate(); err != nil {
 		t.Fatalf("Validate() error = %v, want nil", err)
 	}

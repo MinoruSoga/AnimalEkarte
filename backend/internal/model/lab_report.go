@@ -47,6 +47,8 @@ type LabExamResultItem struct {
 	ReferenceValue  string
 	RefMin          *float64
 	RefMax          *float64
+	QualitativeMin  *string
+	QualitativeMax  *string
 	IsAbnormal      bool
 	Status          string
 	SortOrder       int

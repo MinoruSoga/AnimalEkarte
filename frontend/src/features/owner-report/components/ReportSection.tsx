@@ -42,11 +42,19 @@ export function ReportSection({
       閲覧権限がありません
     </p>
   ) : isLoading ? (
-    <p className={`text-sm ${C.text50}`}>読み込み中...</p>
+    <p className={`text-sm ${C.text50}`} role="status" aria-live="polite">
+      読み込み中...
+    </p>
   ) : isError ? (
-    <p className={`text-sm ${C.danger}`}>読み込みに失敗しました</p>
+    <p className={`text-sm ${C.danger}`} role="alert">
+      読み込みに失敗しました
+    </p>
   ) : isEmpty ? (
-    <p className={`text-sm ${C.text50}`}>{emptyMessage}</p>
+    <div
+      className={`flex h-full min-h-14 items-center justify-center rounded-lg border border-dashed px-4 py-3 text-center ${C.borderLight} ${C.bgPage30}`}
+    >
+      <p className={`text-sm ${C.text50}`}>{emptyMessage}</p>
+    </div>
   ) : (
     <>
       {isTruncated ? (

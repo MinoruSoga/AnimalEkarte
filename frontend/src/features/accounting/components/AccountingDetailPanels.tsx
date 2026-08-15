@@ -1,9 +1,11 @@
 import { AlertTriangle, EyeOff, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { C, ICON, Z_CLASS } from "@/lib/design-tokens";
+import { formatCurrency } from "@/lib/format/number";
 import type { TaxType } from "@/types/generated/models";
-import type { Accounting, PaymentMethod } from "../types";
+import type { Accounting, AddAccountingItemInput, PaymentMethod } from "../types";
 import { AccountingDocument, type ClinicInfo } from "./AccountingDocument";
 import { InsuranceCard } from "./InsuranceCard";
 import { ItemListCard } from "./ItemListCard";
@@ -52,9 +54,13 @@ export function AccountingHeaderActions({
 
 interface ReadOnlyAccountingBannerProps {
   show: boolean;
+  message?: string;
 }
 
-export function ReadOnlyAccountingBanner({ show }: ReadOnlyAccountingBannerProps) {
+export function ReadOnlyAccountingBanner({
+  show,
+  message = "閲覧専用 — 編集権限がないため変更できません",
+}: ReadOnlyAccountingBannerProps) {
   if (!show) return null;
 
   return (
@@ -64,7 +70,7 @@ export function ReadOnlyAccountingBanner({ show }: ReadOnlyAccountingBannerProps
       aria-label="閲覧専用モード"
     >
       <EyeOff className={`shrink-0 h-4 w-4 ${C.textWarningIcon}`} aria-hidden="true" />
-      <span className="text-sm font-medium">閲覧専用 — 編集権限がないため変更できません</span>
+      <span className="text-sm font-medium">{message}</span>
     </div>
   );
 }
@@ -104,6 +110,46 @@ export function UngroupedItemsWarningBanner({
   );
 }
 
+interface UnbilledBlockingWarningBannerProps {
+  show: boolean;
+  warnings: ReadonlyArray<{ source: string; code: string; count: number; blocking: boolean }>;
+}
+
+/** BUG-013: blocking unbilled warning 中は会計確定を無効化する。 */
+export function UnbilledBlockingWarningBanner({
+  show,
+  warnings,
+}: UnbilledBlockingWarningBannerProps) {
+  if (!show) return null;
+  const blocking = warnings.filter((w) => w.blocking && w.count > 0);
+  if (blocking.length === 0) return null;
+
+  const labels = blocking.map((w) => {
+    if (w.code === "vaccination_master_unbillable") {
+      return `予防接種マスタ未設定/価格不正 ${w.count}件`;
+    }
+    return `${w.source} ${w.count}件`;
+  });
+
+  return (
+    <div
+      className={`flex items-start gap-2 px-4 py-2.5 rounded-md border mb-4 ${C.bgDanger10} ${C.borderDanger20} ${C.danger}`}
+      role="alert"
+      aria-label="未請求候補に請求不能な項目があるため会計を確定できません"
+    >
+      <AlertTriangle className={`shrink-0 h-4 w-4 mt-0.5 ${C.danger}`} aria-hidden="true" />
+      <div className="text-sm">
+        <span className="font-medium">
+          未請求候補に請求不能な項目があるため会計を確定できません（{labels.join(" / ")}）。
+        </span>
+        <span className={`block ${C.text60} mt-0.5`}>
+          ワクチンマスタの価格を整備してから会計してください。有効な処置・トリミングのみでの部分会計は許可されません。
+        </span>
+      </div>
+    </div>
+  );
+}
+
 interface AccountingCalculationView {
   subtotal: number;
   taxTotal: number;
@@ -125,7 +171,7 @@ interface AccountingDetailColumnsProps {
   canCreate: boolean;
   canDelete: boolean;
   onNewItemOpenChange: (open: boolean) => void;
-  onAddItem: (name: string, price: string, category: string, taxRate?: number) => void;
+  onAddItem: (input: AddAccountingItemInput) => void;
   onDeleteItem: (itemId: string) => void;
   onUpdateItemTax: (itemId: string, taxType: TaxType, taxRate: number) => void;
   onUpdateItemDiscount: (itemId: string, discountAmount: number) => void;
@@ -178,6 +224,23 @@ export function AccountingDetailColumns({
       </div>
 
       <div className="w-full lg:w-[400px] flex flex-col gap-4 overflow-y-auto">
+        {/* BUG-007: 当該会計のクレジット訂正差額など、この会計固有の未収 */}
+        {accounting.outstandingAmount != null && accounting.outstandingAmount > 0 ? (
+          <Card data-testid="billing-outstanding-amount">
+            <CardContent className="p-4 flex items-center justify-between">
+              <div className="flex flex-col gap-0.5">
+                <span className={`text-sm font-medium ${C.text60}`}>この会計の未収残高</span>
+                <span className={`text-xs ${C.text40}`}>
+                  支払額と請求額の差額（クレジット訂正などを含む）
+                </span>
+              </div>
+              <span className={`text-xl font-bold ${C.danger}`}>
+                {formatCurrency(accounting.outstandingAmount)}
+              </span>
+            </CardContent>
+          </Card>
+        ) : null}
+
         {/* #182: 飼主の未納残高（未納がある場合のみ表示） */}
         {/* P2-11: 拠点横断で開いた会計の場合、残高は accounting.clinicId のクリニックで解決する */}
         <OwnerUnpaidBalanceCard ownerId={accounting.ownerId} clinicId={accounting.clinicId} />
@@ -236,7 +299,7 @@ export function AccountingDocumentPreviewDialog({
           <DialogDescription>印刷イメージを確認できます。</DialogDescription>
         </DialogHeader>
         <div className={`flex-1 ${C.bgActive} overflow-auto p-8 flex items-center justify-center`}>
-          <div className="shadow-lg transform scale-100 origin-top">
+          <div className="shadow-level1 transform scale-100 origin-top">
             {accounting.payment ? (
               <AccountingDocument
                 accounting={accounting}

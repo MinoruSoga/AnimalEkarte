@@ -1,6 +1,15 @@
 import { formatJSTDate, formatJSTTime } from "@/lib/jst-date";
 import type { ReservationStatus } from "@/types";
-import type { Reservation as BackendReceptionReservation } from "@/types/generated/models";
+import type {
+  DangerLevel,
+  PetStatus,
+  Reservation as BackendReceptionReservation,
+} from "@/types/generated/models";
+
+type BackendReceptionPetWithDangerReason =
+  NonNullable<BackendReceptionReservation["pet"]> & {
+    danger_reason?: string;
+  };
 
 interface CustomerFieldsJSON {
   customer_name?: string;
@@ -75,13 +84,23 @@ export function transformReservationToReceptionAppointment(
 ) {
   const time = formatJSTTime(reservation.start_time);
   const cf = parseCustomerFields(reservation.customer_fields);
+  const pet = reservation.pet as BackendReceptionPetWithDangerReason | undefined;
 
-  const petName = reservation.pet?.name ?? cf.pets?.[0]?.name ?? "";
+  const petName = pet?.name ?? cf.pets?.[0]?.name ?? "";
   // animal_species ネストがないため、animal_species_id からマッピング
-  const petType = reservation.pet?.animal_species?.name
-    ?? (reservation.pet?.animal_species_id ? ANIMAL_SPECIES_MAP[reservation.pet.animal_species_id] : undefined)
+  const petType = pet?.animal_species?.name
+    ?? (pet?.animal_species_id ? ANIMAL_SPECIES_MAP[pet.animal_species_id] : undefined)
     ?? cf.pets?.[0]?.type
     ?? "犬";
+  const petSentinelFields: {
+    petStatus?: PetStatus;
+    petDangerLevel?: DangerLevel;
+    petDangerReason?: string;
+  } = {
+    petStatus: pet?.status,
+    petDangerLevel: pet?.danger_level,
+    petDangerReason: pet?.danger_reason,
+  };
   const ownerName = reservation.owner?.name ?? cf.owner_name ?? cf.customer_name ?? "";
 
   const status = STATUS_TO_COLUMN_ID[reservation.status] ?? "pending";
@@ -93,6 +112,7 @@ export function transformReservationToReceptionAppointment(
     ownerName,
     petType,
     petName,
+    ...petSentinelFields,
     visitType: visitTypeToJapanese(reservation.visit_type),
     reservationType: reservation.reservation_type?.name ?? "",
     reservationTypeId: optionalID(reservation.reservation_type_id),

@@ -28,6 +28,7 @@ func TestFromEnv_AppliesDefaults(t *testing.T) {
 	t.Setenv("DB_PASSWORD", "p")
 	t.Setenv("DB_PORT", "")
 	t.Setenv("DB_SSL_MODE", "")
+	t.Setenv("DB_SSL_ROOT_CERT", "")
 
 	got, err := FromEnv()
 	if err != nil {
@@ -39,6 +40,9 @@ func TestFromEnv_AppliesDefaults(t *testing.T) {
 	if got.SSLMode != "disable" {
 		t.Errorf("FromEnv().SSLMode = %q, want default disable", got.SSLMode)
 	}
+	if got.SSLRootCert != "" {
+		t.Errorf("FromEnv().SSLRootCert = %q, want empty default", got.SSLRootCert)
+	}
 }
 
 func TestFromEnv_HonoursOverrides(t *testing.T) {
@@ -46,21 +50,38 @@ func TestFromEnv_HonoursOverrides(t *testing.T) {
 	t.Setenv("DB_USER", "u")
 	t.Setenv("DB_PASSWORD", "p")
 	t.Setenv("DB_PORT", "5433")
-	t.Setenv("DB_SSL_MODE", "require")
+	t.Setenv("DB_SSL_MODE", "verify-full")
+	t.Setenv("DB_SSL_ROOT_CERT", "system")
 
 	got, err := FromEnv()
 	if err != nil {
 		t.Fatalf("FromEnv() unexpected error: %v", err)
 	}
-	if got.Port != "5433" || got.SSLMode != "require" {
+	if got.Port != "5433" || got.SSLMode != "verify-full" || got.SSLRootCert != "system" {
 		t.Fatalf("FromEnv() = %+v, want overrides applied", got)
 	}
 }
 
 func TestConnParams_DSN(t *testing.T) {
-	c := ConnParams{Host: "db", Port: "5432", User: "u", Password: "p", SSLMode: "disable"}
+	c := ConnParams{
+		Host:        "db",
+		Port:        "5432",
+		User:        "u",
+		Password:    "p",
+		SSLMode:     "verify-full",
+		SSLRootCert: "system",
+	}
 	got := c.DSN("mydb")
-	for _, want := range []string{"host=db", "port=5432", "user=u", "password=p", "dbname=mydb", "sslmode=disable", "TimeZone=" + config.JapanTimeZone} {
+	for _, want := range []string{
+		"host=db",
+		"port=5432",
+		"user=u",
+		"password=p",
+		"dbname=mydb",
+		"sslmode=verify-full",
+		"sslrootcert=system",
+		"TimeZone=" + config.JapanTimeZone,
+	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("DSN() = %q, want it to contain %q", got, want)
 		}

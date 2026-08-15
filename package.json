@@ -2,21 +2,32 @@
   "scripts": {
     "deploy:frontend": "cd frontend && vercel deploy",
     "deploy:frontend:prod": "cd frontend && vercel deploy --prod",
+    "codex-security:export": "bash scripts/export-codex-security-latest.sh",
     "cf:whoami": "wrangler whoami",
     "cf:deploy": "cd backend && wrangler deploy",
     "cf:migrate": "./infra/scripts/cf-run-migrate.sh",
+    "cf:scheduler": "./infra/scripts/cf-scheduler-ops.sh",
     "cf:smoke": "./infra/scripts/cf-crud-smoke.sh",
     "cf:load-smoke": "k6 run load-tests/k6-cf-stg-sustained.js",
-    "test:worker": "vitest run --config backend/worker/vitest.config.ts backend/worker"
+    "test:worker": "vitest run --config backend/worker/vitest.config.mts backend/worker",
+    "typecheck:worker": "tsc --project backend/worker/tsconfig.test.json"
   },
   "dependencies": {
-    "@openai/codex": "^0.120.0",
-    "@cloudflare/containers": "^0.3.7"
+    "@cloudflare/containers": "^0.3.7",
+    "@openai/codex": "^0.120.0"
   },
   "devDependencies": {
-    "wrangler": "4.107.0",
-    "vitest": "^3.2.4",
-    "@cloudflare/vitest-pool-workers": "^0.9.4"
+    "@cloudflare/vitest-pool-workers": "0.18.8",
+    "@openai/codex-security": "^0.1.4",
+    "typescript": "6.0.3",
+    "vitest": "4.1.10",
+    "wrangler": "4.114.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "workerd"
+    ]
   },
   "packageManager": "pnpm@10.15.0+sha512.486ebc259d3e999a4e8691ce03b5cac4a71cbeca39372a9b762cb500cfdf0873e2cb16abe3d951b1ee2cf012503f027b98b6584e4df22524e0c7450d9ec7aa7b"
 }

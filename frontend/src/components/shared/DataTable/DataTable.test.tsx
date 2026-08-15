@@ -47,11 +47,31 @@ describe("DataTable", () => {
 
     const headerCell = screen.getByRole("columnheader", { name: "名前" });
     expect(headerCell.className).toContain("custom-cell-class");
-    // 置換（併記ではない）ことを保証: 既定の tableHeaderCell 由来のクラスは残らない
-    expect(headerCell.className).not.toContain(STYLE.tableHeaderCell.split(" ")[0]);
+    // 置換（併記ではない）ことを保証: 既定の DESIGN_TABLE_HEADER_CELL（sectionLabel）由来の uppercase は残らない
+    // （FE10: TableHead 基底が text-2xs を持つため、基底クラスでなくトークン固有クラスで判定する）
+    expect(headerCell.className).not.toContain("uppercase");
 
     const headerRow = headerCell.closest("tr");
     expect(headerRow?.className).toContain("custom-row-class");
+  });
+
+  it("table は固定 min-w-[640px] を持たず min-w-0 で狭幅スクロール可能 (BUG-458)", () => {
+    const { container } = render(
+      <DataTable
+        columns={[{ header: "名前" }]}
+        data={rows}
+        renderRow={(row) => (
+          <tr key={row.id}>
+            <td>{row.name}</td>
+          </tr>
+        )}
+      />,
+    );
+    const scroll = container.querySelector(".overflow-auto");
+    expect(scroll).toHaveClass("min-w-0");
+    const table = container.querySelector("table");
+    expect(table?.className ?? "").not.toContain("min-w-[640px]");
+    expect(table).toHaveClass("min-w-0");
   });
 
   it("DESIGN_TABLE_HEADER_ROW/CELL は ex-data-table-cell（canvas-soft + sectionLabel）を構成する", () => {

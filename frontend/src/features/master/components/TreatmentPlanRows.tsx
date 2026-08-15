@@ -2,12 +2,13 @@ import ChevronDown from "lucide-react/dist/esm/icons/chevron-down";
 import ChevronRight from "lucide-react/dist/esm/icons/chevron-right";
 
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
+import { DataTableRowButton } from "@/components/shared/DataTable/DataTableRowButton";
 import { SortableDataTableRow } from "@/components/shared/DataTable/SortableDataTableRow";
 import { RowActionButton } from "@/components/shared/RowActionButton";
 import { StatusPill } from "@/components/shared/StatusPill/StatusPill";
 import { TableCell } from "@/components/ui/table";
 import { C, ICON } from "@/lib/design-tokens";
-import { formatCurrencyOrDash } from "@/utils/format/number";
+import { formatCurrencyOrDash } from "@/lib/format/number";
 import type { TreatmentItem } from "@/lib/transforms/treatment";
 
 import type { TreatmentTreeItem, TreatmentVirtualRow } from "./treatment-plan-tab-content-model";
@@ -62,17 +63,30 @@ function RootTreatmentRow({
   onToggleExpanded,
 }: RootTreatmentRowProps) {
   const hasChildren = item.children.length > 0;
+  const expandLabel = `治療プラン ${item.name} (ID ${item.id}) の子項目を${isExpanded ? "折りたたむ" : "展開"}`;
 
   return (
-    <SortableDataTableRow key={item.id} id={item.id} onClick={onEdit}>
+    <SortableDataTableRow
+      key={item.id}
+      id={item.id}
+      dragLabel={`並べ替え: 治療プラン ${item.name} (ID ${item.id})`}
+      dragDisabled={!canEdit}
+    >
       <TableCell>
         <div className="flex items-center gap-1">
           <TreatmentExpandButton
             hasChildren={hasChildren}
             isExpanded={isExpanded}
+            ariaLabel={expandLabel}
             onToggle={onToggleExpanded}
           />
-          <span className={`text-base font-medium ${C.text}`}>{item.name}</span>
+          <DataTableRowButton
+            aria-label={`詳細: 治療プラン ${item.name} (ID ${item.id})`}
+            className="text-base"
+            onClick={onEdit}
+          >
+            {item.name}
+          </DataTableRowButton>
           {hasChildren ? (
             <span className={`text-base ${C.text25} ml-0.5`}>{item.children.length}</span>
           ) : null}
@@ -82,8 +96,13 @@ function RootTreatmentRow({
       <TableCell className="text-center">
         <StatusPill isActive={item.isActive} />
       </TableCell>
-      <TableCell className="p-0 text-right">
-        {canEdit ? <RowActionButton onClick={onEdit} /> : null}
+      <TableCell className="text-right">
+        {canEdit ? (
+          <RowActionButton
+            aria-label={`編集: 治療プラン ${item.name} (ID ${item.id})`}
+            onClick={onEdit}
+          />
+        ) : null}
       </TableCell>
     </SortableDataTableRow>
   );
@@ -92,12 +111,14 @@ function RootTreatmentRow({
 interface TreatmentExpandButtonProps {
   hasChildren: boolean;
   isExpanded: boolean;
+  ariaLabel: string;
   onToggle: () => void;
 }
 
 function TreatmentExpandButton({
   hasChildren,
   isExpanded,
+  ariaLabel,
   onToggle,
 }: TreatmentExpandButtonProps) {
   if (!hasChildren) {
@@ -111,7 +132,8 @@ function TreatmentExpandButton({
         event.stopPropagation();
         onToggle();
       }}
-      className={`size-[22px] flex items-center justify-center rounded-[3px] ${C.text40} ${C.hoverBgMedium} transition-colors shrink-0`}
+      aria-label={ariaLabel}
+      className={`size-[22px] min-h-11 min-w-11 flex items-center justify-center rounded-xxs ${C.text40} ${C.hoverBgMedium} transition-colors shrink-0`}
     >
       {isExpanded ? (
         <ChevronDown className={ICON.xs} />
@@ -130,20 +152,31 @@ interface ChildTreatmentRowProps {
 
 function ChildTreatmentRow({ item, onEdit, canEdit }: ChildTreatmentRowProps) {
   return (
-    <DataTableRow onClick={onEdit}>
-      <TableCell className="w-[32px]" />
+    <DataTableRow>
+      <TableCell className="w-11 px-0" />
       <TableCell>
         <div className="flex items-center gap-1 pl-[22px]">
           <span className="size-[22px] shrink-0" />
-          <span className={`text-base ${C.text}`}>{item.name}</span>
+          <DataTableRowButton
+            aria-label={`詳細: 治療プラン ${item.name} (ID ${item.id})`}
+            className="text-base font-normal"
+            onClick={onEdit}
+          >
+            {item.name}
+          </DataTableRowButton>
         </div>
       </TableCell>
       <TreatmentPriceCell price={item.price} />
       <TableCell className="text-center">
         <StatusPill isActive={item.isActive} />
       </TableCell>
-      <TableCell className="p-0 text-right">
-        {canEdit ? <RowActionButton onClick={onEdit} /> : null}
+      <TableCell className="text-right">
+        {canEdit ? (
+          <RowActionButton
+            aria-label={`編集: 治療プラン ${item.name} (ID ${item.id})`}
+            onClick={onEdit}
+          />
+        ) : null}
       </TableCell>
     </DataTableRow>
   );

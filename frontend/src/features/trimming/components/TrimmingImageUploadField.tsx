@@ -32,7 +32,7 @@ export function TrimmingImageUploadField({
           <button
             type="button"
             onClick={onRemoveImage}
-            className={`absolute top-1 right-1 p-1 ${C.bgWhite} rounded-full shadow-sm ${C.hoverBgPage}`}
+            className={`absolute top-1 right-1 p-1 ${C.bgWhite} rounded-full shadow-level1 ${C.hoverBgPage}`}
           >
             <X className={`${ICON.action} ${C.text}`} />
           </button>

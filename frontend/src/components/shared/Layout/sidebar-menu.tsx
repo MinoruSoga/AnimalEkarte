@@ -120,9 +120,10 @@ export const sidebarMenuSections: SidebarMenuSection[] = [
         resource: ResourceHospitalSettings,
         subItems: [
           { icon: <MessageSquare className={ICON.toolbar} />, label: "連携設定", path: paths.lstep.settings.getHref(), resource: ResourceHospitalSettings },
-          { icon: <Tag className={ICON.toolbar} />, label: "タグ管理", path: paths.lstep.tags.getHref(), resource: ResourceHospitalSettings },
+          { icon: <Tag className={ICON.toolbar} />, label: "タグ管理", path: paths.lstep.tags.getHref(), resource: ResourceLstepAnalytics },
           { icon: <ClipboardSignature className={ICON.toolbar} />, label: "健診対象者抽出", path: paths.lstep.checkupSync.getHref(), resource: ResourceHospitalSettings },
           { icon: <BarChart3 className={ICON.toolbar} />, label: "分析レポート", path: paths.lstep.analytics.getHref(), resource: ResourceLstepAnalytics },
+          { icon: <Activity className={ICON.toolbar} />, label: "配信監視", path: paths.lstep.deliveryMonitor.getHref(), resource: ResourceLstepAnalytics },
         ],
       },
     ],

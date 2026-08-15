@@ -6,8 +6,8 @@ import { ja } from "date-fns/locale";
 // Internal
 import { C } from "@/lib/design-tokens";
 import { useClinicTaxRates } from "@/hooks/use-clinic-tax-rates";
-import { formatCurrency } from "@/utils/format/number";
-import { DISPLAY_DATE_FORMAT } from "@/utils/format/date";
+import { formatCurrency } from "@/lib/format/number";
+import { DISPLAY_DATE_FORMAT } from "@/lib/format/date";
 // #190: セクション定数 — R-F2-S9 で src/config/ へ抽出
 import {
   DOCUMENT_SECTION_KEYS,
@@ -145,7 +145,7 @@ export const AccountingDocument = memo(function AccountingDocument({ accounting,
           return (
             <div key="clinic_header" className="flex justify-between items-end border-b pb-4">
               <div>
-                <h1 className="text-2xl font-bold mb-2">明細兼領収書</h1>
+                <h1 className="text-heading-3 font-bold mb-2">明細兼領収書</h1>
                 <p className={C.text60}>No. {accounting.id}</p>
                 <p className={C.text60}>発行日: {currentDate}</p>
               </div>
@@ -205,7 +205,7 @@ export const AccountingDocument = memo(function AccountingDocument({ accounting,
                           </div>
                           {item.category && showItemCategory ? <span className={`text-xs ${C.text50}`}>{item.category}</span> : null}
                           {item.discountAmount > 0 ? (
-                            <span className={`block text-xs ${C.text50}`}>割引 −¥{item.discountAmount.toLocaleString()}</span>
+                            <span className={`block text-xs ${C.text50}`}>割引 −{formatCurrency(item.discountAmount)}</span>
                           ) : null}
                         </td>
                         <td className="py-2 text-right text-xs">{ratePercent}%{isReduced ? "※" : ""}</td>
@@ -234,12 +234,12 @@ export const AccountingDocument = memo(function AccountingDocument({ accounting,
                 <div className={`text-xs ${C.text60} space-y-1 pt-2`}>
                   <div className="flex justify-between">
                     <span>{taxBreakdown.standardRatePercent}%対象</span>
-                    <span>¥{taxBreakdown.standardBase.toLocaleString()}（内 消費税 ¥{taxBreakdown.standardAmount.toLocaleString()}）</span>
+                    <span>{formatCurrency(taxBreakdown.standardBase)}（内 消費税 {formatCurrency(taxBreakdown.standardAmount)}）</span>
                   </div>
                   {taxBreakdown.reducedBase > 0 ? (
                     <div className="flex justify-between">
                       <span>{taxBreakdown.reducedRatePercent}%対象 ※軽減税率</span>
-                      <span>¥{taxBreakdown.reducedBase.toLocaleString()}（内 消費税 ¥{taxBreakdown.reducedAmount.toLocaleString()}）</span>
+                      <span>{formatCurrency(taxBreakdown.reducedBase)}（内 消費税 {formatCurrency(taxBreakdown.reducedAmount)}）</span>
                     </div>
                   ) : null}
                 </div>
@@ -251,7 +251,7 @@ export const AccountingDocument = memo(function AccountingDocument({ accounting,
                   </div>
                 ) : null}
 
-                <div className="flex justify-between font-bold text-lg pt-2 border-t border-black">
+                <div className="flex justify-between font-bold text-xl pt-2 border-t border-black">
                   <span>請求金額</span>
                   <span>{formatCurrency(paymentInfo.billingAmount)}</span>
                 </div>

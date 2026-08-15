@@ -1,5 +1,5 @@
-# Cloudflare Workers + Containers デプロイ (migration-cloudflare.md Phase 5 / P5-1)
-# ECS 版は backend-deploy-ecs.yml (workflow_dispatch のみ、ロールバック用)
+# Cloudflare Workers + Containers デプロイ (docs/ops/infra/_archive/migration-cloudflare.md Phase 5 / P5-1)
+# 旧 AWS ECS 版 CI は 2026-07-20 の AWS 廃止(docs/ops/infra/_archive/migration-cloudflare.md Phase 8)で削除済み
 
 name: Backend Deploy
 
@@ -30,7 +30,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v7.0.0
+        uses: actions/checkout@v7.0.1
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
@@ -38,7 +38,7 @@ jobs:
           version: 10.15.0
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
@@ -52,7 +52,7 @@ jobs:
         run: |
           set -euo pipefail
           if [ -z "${CLOUDFLARE_API_TOKEN}" ]; then
-            echo "::error::CLOUDFLARE_API_TOKEN secret is not configured (migration-cloudflare.md P5-2)"
+            echo "::error::CLOUDFLARE_API_TOKEN secret is not configured (docs/ops/infra/_archive/migration-cloudflare.md P5-2)"
             exit 1
           fi
           pnpm exec wrangler whoami
@@ -67,7 +67,7 @@ jobs:
         run: npx wrangler deploy
 
       # PR#186 P2-3: wrangler deploy は Worker/Container を即座に切り替える(段階的ロールアウト機構なし)ため、
-      # 旧ECSフロー(migrateジョブ→exit code検証→失敗ならAPI deployをabort、migration-cloudflare.md:425が
+      # 旧ECSフロー(migrateジョブ→exit code検証→失敗ならAPI deployをabort、docs/ops/infra/_archive/migration-cloudflare.md:425が
       # 本来の意図として明記)の意図を守るには、新バージョンに対する検証系ステップより前に migration を
       # 通す必要がある。cf-run-migrate.sh の self-test(15s)/本実行(150s)タイムアウトはコンテナのコールド
       # スタート(最大 ~3s)を吸収できるため、/health ポーリングより前段に置ける。
@@ -96,7 +96,7 @@ jobs:
         run: |
           set -euo pipefail
           if [ -z "${MIGRATE_RUN_SECRET}" ]; then
-            echo "::error::MIGRATE_RUN_SECRET secret is not configured (migration-cloudflare.md P5-2)"
+            echo "::error::MIGRATE_RUN_SECRET secret is not configured (docs/ops/infra/_archive/migration-cloudflare.md P5-2)"
             exit 1
           fi
           ./infra/scripts/cf-run-migrate.sh

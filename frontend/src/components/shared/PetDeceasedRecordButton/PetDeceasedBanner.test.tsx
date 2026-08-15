@@ -3,6 +3,22 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { PetDeceasedBanner } from "./PetDeceasedBanner";
 
 const { mockMutate } = vi.hoisted(() => ({ mockMutate: vi.fn() }));
+const { capturedConfirm } = vi.hoisted(() => ({
+  capturedConfirm: { current: undefined as (() => void) | undefined },
+}));
+
+vi.mock("@/components/shared/ConfirmDialog", () => ({
+  ConfirmDialog: ({
+    open,
+    onConfirm,
+  }: {
+    open: boolean;
+    onConfirm: () => void;
+  }) => {
+    capturedConfirm.current = onConfirm;
+    return open ? <button onClick={onConfirm}>解除する</button> : null;
+  },
+}));
 
 vi.mock("@/hooks/use-revoke-pet-death", () => ({
   useRevokePetDeath: () => ({ mutate: mockMutate, isPending: false }),
@@ -26,6 +42,27 @@ describe("PetDeceasedBanner (FE4-9)", () => {
       <PetDeceasedBanner deceasedAt="2026-07-11T23:30:00+09:00" petId="1" canEdit={false} />,
     );
     expect(screen.getByText("2026年7月11日 永眠")).toBeInTheDocument();
+  });
+
+  // BUG-003: GET pets から取得した死亡理由を再表示する
+  it("deceasedReason がある場合は死亡理由を表示する", () => {
+    render(
+      <PetDeceasedBanner
+        deceasedAt="2026-07-11T00:00:00+09:00"
+        deceasedReason="老衰"
+        petId="1"
+        canEdit={false}
+      />,
+    );
+    expect(screen.getByText("老衰")).toBeInTheDocument();
+    expect(screen.getByText(/死亡理由/)).toBeInTheDocument();
+  });
+
+  it("deceasedReason が無い場合は死亡理由行を出さない", () => {
+    render(
+      <PetDeceasedBanner deceasedAt="2026-07-11T00:00:00+09:00" petId="1" canEdit={false} />,
+    );
+    expect(screen.queryByText(/死亡理由/)).not.toBeInTheDocument();
   });
 });
 
@@ -58,5 +95,23 @@ describe("PetDeceasedBanner (BUG-407)", () => {
     fireEvent.click(screen.getByRole("button", { name: "解除する" }));
 
     await waitFor(() => expect(onRevoked).toHaveBeenCalledTimes(1));
+  });
+
+  it("取得済み解除callbackは最新の編集権限がfalseなら解除mutationを発行しない", () => {
+    const props = {
+      deceasedAt: "2026-07-11T00:00:00+09:00",
+      petId: "1",
+      canEdit: true,
+    };
+    const { rerender } = render(<PetDeceasedBanner {...props} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "死亡記録を解除" }));
+    const confirm = capturedConfirm.current;
+    expect(confirm).toBeDefined();
+
+    rerender(<PetDeceasedBanner {...props} canEdit={false} />);
+    confirm?.();
+
+    expect(mockMutate).not.toHaveBeenCalled();
   });
 });

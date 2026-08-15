@@ -5,6 +5,7 @@ import { FormFieldError } from "@/components/shared/FormFieldError";
 import { DatePicker } from "@/components/shared/DatePicker";
 import { C, STYLE } from "@/lib/design-tokens";
 import { toJSTWallDate } from "@/lib/jst-date";
+import { calculateSaigram } from "@/lib/saigram";
 import type { OwnerFieldSectionProps } from "./owner-info-field-shared";
 
 interface OwnerAddressFieldsProps extends OwnerFieldSectionProps {
@@ -18,6 +19,8 @@ export function OwnerAddressFields({
   onClearError,
   onPostalCodeLookup,
 }: OwnerAddressFieldsProps) {
+  const saigram = calculateSaigram(ownerData.birthDate);
+
   return (
     <>
       <div className="space-y-1.5">
@@ -111,13 +114,30 @@ export function OwnerAddressFields({
 
       <div className="space-y-1.5">
         <Label htmlFor="birthDate" className={`text-sm ${C.text60}`}>飼主生年月日</Label>
-        <DatePicker
-          id="birthDate"
-          value={ownerData.birthDate}
-          onChange={(value) => onChange("birthDate", value)}
-          placeholder="生年月日を選択…"
-          disabledDays={{ after: toJSTWallDate(new Date()) }}
-        />
+        <div className="flex flex-wrap items-center gap-2">
+          <DatePicker
+            id="birthDate"
+            value={ownerData.birthDate}
+            onChange={(value) => onChange("birthDate", value)}
+            placeholder="生年月日を選択…"
+            disabledDays={{ after: toJSTWallDate(new Date()) }}
+            className="min-w-0 flex-1"
+          />
+          <span
+            role="status"
+            aria-live="polite"
+            aria-atomic="true"
+            className={`shrink-0 text-sm ${C.text60}`}
+          >
+            {saigram ? (
+              <>
+                サイグラム: {saigram.typeNo}（{saigram.typeCode}）{saigram.ha}
+              </>
+            ) : (
+              <span className="sr-only">サイグラム分類なし</span>
+            )}
+          </span>
+        </div>
       </div>
 
       <div className="space-y-1.5">

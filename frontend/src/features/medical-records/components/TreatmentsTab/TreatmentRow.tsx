@@ -3,15 +3,16 @@ import { memo, useState, useCallback, useMemo, useRef, useEffect, useLayoutEffec
 
 // Internal
 import { Input } from "@/components/ui/input";
+import { TableCell } from "@/components/ui/table";
 import { FormFieldError } from "@/components/shared/FormFieldError/FormFieldError";
-import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { C } from "@/lib/design-tokens";
 import { calculateDose } from "@/lib/medicine-dose";
-import { formatCurrency } from "@/utils/format/number";
+import { formatCurrency } from "@/lib/format/number";
 
 // Relative
 import {
   buildDoseCalcInput,
+  toDoseParamsAuthority,
   useMedicineDoseParams,
   type MedicineDoseContext,
 } from "../../api/medicine-dose-lookup";
@@ -23,7 +24,7 @@ import {
   TreatmentSubtotalCell,
   TreatmentTypeCell,
 } from "./TreatmentRowParts";
-import { computeDoseGate, type DoseGateResult } from "./treatment-row-dose-gate";
+import { computeDoseGate, resolveDoseGateSource } from "./treatment-row-dose-gate";
 
 // ── Props ─────────────────────────────────────────────────────────────
 
@@ -43,7 +44,7 @@ interface TreatmentRowProps {
   autoFocusQuantity?: boolean;
   /** autoFocusQuantity 完了後に親へ通知するコールバック */
   onAutoFocusDone?: () => void;
-  /** #201: 投与量自動計算プレビュー・hard gate 判定に使うコンテキスト */
+  /** #201: 投与量自動計算プレビュー・保存ゲート判定に使うコンテキスト */
   doseContext: MedicineDoseContext;
 }
 
@@ -78,29 +79,76 @@ export const TreatmentRow = memo(function TreatmentRow({
   const inputRef = useRef<HTMLInputElement>(null);
 
   // #201: 投与量自動計算（薬剤行のみ）。medicine_id が無い/薬剤以外の行は全て null に落ちる
-  // （fail-closed・既存の手動入力挙動は完全に不変）。
+  // （評価情報が無い場合は既存の手動入力・保存挙動を維持する）。
   const isMedicineRow = treatment.item_type === "medicine" && !!treatment.medicine_id;
   const medicine = isMedicineRow
     ? doseContext.medicines?.find((m) => m.id === treatment.medicine_id)
     : undefined;
-  const { data: doseParams } = useMedicineDoseParams(isMedicineRow ? treatment.medicine_id : undefined);
+  const doseParamsQuery = useMedicineDoseParams(
+    isMedicineRow ? treatment.medicine_id : undefined
+  );
+  const doseParamsAuthority = useMemo(
+    () =>
+      toDoseParamsAuthority(isMedicineRow ? treatment.medicine_id : undefined, {
+        data: doseParamsQuery.data,
+        isError: doseParamsQuery.isError,
+      }),
+    [isMedicineRow, treatment.medicine_id, doseParamsQuery.data, doseParamsQuery.isError]
+  );
   const doseCalcInput = useMemo(
-    () => buildDoseCalcInput(medicine, doseParams, doseContext.petSpecies, doseContext.weightKg),
-    [medicine, doseParams, doseContext.petSpecies, doseContext.weightKg]
+    () =>
+      buildDoseCalcInput(
+        medicine,
+        doseParamsAuthority.status === "success" ? doseParamsAuthority.params : undefined,
+        doseContext.petSpecies,
+        doseContext.weightKg
+      ),
+    [medicine, doseParamsAuthority, doseContext.petSpecies, doseContext.weightKg]
+  );
+  const doseGateSource = useMemo(
+    () => resolveDoseGateSource(doseCalcInput, doseParamsAuthority),
+    [doseCalcInput, doseParamsAuthority]
   );
   const dosePreview = useMemo(
     () => (doseCalcInput ? calculateDose(doseCalcInput) : null),
     [doseCalcInput]
   );
   const currentGate = useMemo(
-    () => computeDoseGate(doseCalcInput, treatment.quantity),
-    [doseCalcInput, treatment.quantity]
+    () => computeDoseGate(doseGateSource, treatment.quantity),
+    [doseGateSource, treatment.quantity]
   );
+  const isDoseLookupFailed = doseGateSource.kind === "technical_failure";
   // react-review-201 HIGH-2: 警告テキストを aria-describedby で数量セルに紐付けるための安定 id。
   const doseWarningId = `dose-warning-${treatment.id}`;
 
-  // hard gate 確認ダイアログ（丸め境界越え・著しい逸脱・安全域外は確認必須。警告への格下げ禁止）。
-  const [pendingGate, setPendingGate] = useState<{ quantity: number; result: DoseGateResult } | null>(null);
+  // #201: 保存操作で検出した絶対上限超過を、保存値が更新されるまでインライン表示する。
+  const [attemptedDoseBlockReason, setAttemptedDoseBlockReason] = useState("");
+  // TASK-377: 上限内の著しい乖離/下限割れで必須の free-text 逸脱理由（inline、modal なし）。
+  const [localDeviationReason, setLocalDeviationReason] = useState("");
+  const [showDeviationReason, setShowDeviationReason] = useState(false);
+  // Enter + blur の二重送信を防ぐ idempotency key（quantity\0reason）。
+  const lastDeviationCommitKeyRef = useRef<string | null>(null);
+  const doseBlockReason = attemptedDoseBlockReason || currentGate.blockReason;
+  const pendingQty = parseFloat(localQuantity) || treatment.quantity;
+  const pendingGate = useMemo(
+    () => computeDoseGate(doseGateSource, pendingQty),
+    [doseGateSource, pendingQty]
+  );
+  // 理由 UI は「未コミットの逸脱 quantity」または空理由でゲートされた直後だけ。
+  // 保存済み乖離行で常時フォームを出して blur 再送しない。
+  const quantityDirty = pendingQty !== treatment.quantity;
+  const needsDeviationReasonUI =
+    showDeviationReason || (quantityDirty && pendingGate.requiresDeviationReason);
+  const doseWarningText =
+    doseBlockReason ||
+    (needsDeviationReasonUI
+      ? pendingGate.reason || "用量が推奨域から逸脱しています"
+      : currentGate.warning !== "none"
+        ? currentGate.warning === "exceeds-max"
+          ? "上限超過"
+          : "下限未満"
+        : "");
+  const hasDoseMessage = doseWarningText !== "" || needsDeviationReasonUI;
 
   // 外部からの treatment 変更を反映
   useEffect(() => {
@@ -109,6 +157,10 @@ export const TreatmentRow = memo(function TreatmentRow({
     setLocalQuantity(String(treatment.quantity));
     setLocalDiscountAmount(String(treatment.discount_amount));
     setLocalMemo(treatment.memo);
+    setAttemptedDoseBlockReason("");
+    setLocalDeviationReason("");
+    setShowDeviationReason(false);
+    lastDeviationCommitKeyRef.current = null;
   }, [treatment]);
 
   // フォーカス時に input を選択
@@ -168,36 +220,85 @@ export const TreatmentRow = memo(function TreatmentRow({
 
   const commitQuantity = useCallback(() => {
     const val = parseFloat(localQuantity) || 1;
-    setEditField(null);
-    if (val === treatment.quantity) return;
-
-    // #201: 丸め境界越え・著しい逸脱・安全域外は確認ダイアログ必須（hard gate）。
-    // PRODUCT_PHILOSOPHY の確認ダイアログ禁止より臨床安全（SPECIFICATION 2.1）を優先する。
-    const gate = computeDoseGate(doseCalcInput, val);
-    if (gate.requiresConfirm) {
-      setPendingGate({ quantity: val, result: gate });
+    // #201: マスタの絶対上限超過を物理ブロックする。
+    // TASK-025: technical failure も isBlocked として通常保存を止める。
+    // TASK-377: 上限内の下限割れ/著しい乖離は free-text 理由必須。空なら mutation を送らない。
+    const gate = computeDoseGate(doseGateSource, val);
+    if (gate.isBlocked) {
+      setLocalQuantity(String(treatment.quantity));
+      setAttemptedDoseBlockReason(gate.blockReason);
+      setShowDeviationReason(false);
+      setEditField(null);
       return;
     }
+    setAttemptedDoseBlockReason("");
+
+    if (gate.requiresDeviationReason) {
+      const reason = localDeviationReason.trim();
+      if (!reason) {
+        setShowDeviationReason(true);
+        // 数量編集は閉じるが理由入力を出す（modal なし inline）。
+        setEditField(null);
+        return;
+      }
+      const commitKey = `${val}\0${reason}`;
+      if (lastDeviationCommitKeyRef.current === commitKey) {
+        setEditField(null);
+        return;
+      }
+      lastDeviationCommitKeyRef.current = commitKey;
+      setShowDeviationReason(false);
+      setEditField(null);
+      onUpdate(treatment.id, { quantity: val, dose_deviation_reason: reason });
+      return;
+    }
+
+    setShowDeviationReason(false);
+    setLocalDeviationReason("");
+    lastDeviationCommitKeyRef.current = null;
+    setEditField(null);
+    if (val === treatment.quantity) return;
     onUpdate(treatment.id, { quantity: val });
-  }, [localQuantity, treatment.quantity, treatment.id, onUpdate, doseCalcInput]);
+  }, [
+    localQuantity,
+    localDeviationReason,
+    treatment.quantity,
+    treatment.id,
+    onUpdate,
+    doseGateSource,
+  ]);
 
-  const handleGateConfirm = useCallback(() => {
-    if (!pendingGate) return;
-    onUpdate(treatment.id, { quantity: pendingGate.quantity });
-    setPendingGate(null);
-  }, [pendingGate, treatment.id, onUpdate]);
+  const commitDeviationReason = useCallback(() => {
+    const val = parseFloat(localQuantity) || 1;
+    const gate = computeDoseGate(doseGateSource, val);
+    if (gate.isBlocked) return;
+    if (!gate.requiresDeviationReason) {
+      setShowDeviationReason(false);
+      setLocalDeviationReason("");
+      lastDeviationCommitKeyRef.current = null;
+      return;
+    }
+    const reason = localDeviationReason.trim();
+    if (!reason) {
+      setShowDeviationReason(true);
+      return;
+    }
+    const commitKey = `${val}\0${reason}`;
+    if (lastDeviationCommitKeyRef.current === commitKey) return;
+    lastDeviationCommitKeyRef.current = commitKey;
+    setShowDeviationReason(false);
+    onUpdate(treatment.id, { quantity: val, dose_deviation_reason: reason });
+  }, [
+    localQuantity,
+    localDeviationReason,
+    treatment.id,
+    onUpdate,
+    doseGateSource,
+  ]);
 
-  const handleGateCancel = useCallback(() => {
-    // 上書きを取り消し、表示中の quantity を保存値へ戻す（round-trip の安全側）。
-    // healthcare-review-201 NOTE: Radix AlertDialogAction は onConfirm 実行後にも
-    // onOpenChange(false) 経由でこの handleGateCancel を呼ぶ（ConfirmDialog.tsx:36-42）。
-    // handleGateConfirm は pendingGate.quantity を確定値として先に onUpdate 済みなので無害だが、
-    // ここで treatment.quantity（更新前の古い値）に一瞬戻る。mutation 完了後は上の useEffect が
-    // 新しい treatment.quantity へ再同期するため最終表示は正しい。将来この関数を変更する際、
-    // 「確定後に revert される」ように見えても実際は競合ではないことに注意。
-    setLocalQuantity(String(treatment.quantity));
-    setPendingGate(null);
-  }, [treatment.quantity]);
+  const handleRetryDoseParamsLookup = useCallback(() => {
+    void doseParamsQuery.refetch();
+  }, [doseParamsQuery]);
 
   const commitDiscountAmount = useCallback(() => {
     const val = parseFloat(localDiscountAmount) || 0;
@@ -245,7 +346,6 @@ export const TreatmentRow = memo(function TreatmentRow({
   const subtotal = treatment.unit_price * treatment.quantity - treatment.discount_amount;
 
   return (
-    <>
     <tr
       className={`border-b ${C.borderLight} ${C.hoverBgPageHalf} transition-colors ${
         !treatment.is_selected ? "opacity-50" : ""
@@ -255,7 +355,7 @@ export const TreatmentRow = memo(function TreatmentRow({
       <TreatmentTypeCell itemType={treatment.item_type} />
 
       {/* 内容 */}
-      <td className="px-3 py-2 min-w-[160px]">
+      <TableCell className="min-w-[160px]">
         {editField === "content" ? (
           <Input
             ref={inputRef}
@@ -267,7 +367,7 @@ export const TreatmentRow = memo(function TreatmentRow({
           />
         ) : (
           <button type="button"
-            className={`w-full text-left text-sm ${C.text} ${C.hoverBgLight} px-1 py-0.5 rounded-[3px] transition-colors`}
+            className={`w-full text-left text-sm ${C.text} ${C.hoverBgLight} px-1 py-0.5 rounded-xxs transition-colors`}
             onClick={() => setEditField("content")}
           >
             {treatment.content || (
@@ -275,12 +375,12 @@ export const TreatmentRow = memo(function TreatmentRow({
             )}
           </button>
         )}
-      </td>
+      </TableCell>
 
       <TreatmentInsuranceCell checked={treatment.is_insurance} onChange={handleInsuranceChange} />
 
       {/* 単価 */}
-      <td className="px-3 py-2 w-28 text-right">
+      <TableCell className="w-28 text-right">
         {editField === "unit_price" ? (
           <>
             <Input
@@ -297,16 +397,16 @@ export const TreatmentRow = memo(function TreatmentRow({
           </>
         ) : (
           <button type="button"
-            className={`w-full text-right text-sm ${C.text} ${C.hoverBgLight} px-1 py-0.5 rounded-[3px] transition-colors font-mono`}
+            className={`w-full text-right text-sm ${C.text} ${C.hoverBgLight} px-1 py-0.5 rounded-xxs transition-colors font-mono`}
             onClick={() => setEditField("unit_price")}
           >
             {formatCurrency(treatment.unit_price)}
           </button>
         )}
-      </td>
+      </TableCell>
 
       {/* 数量 */}
-      <td className="px-3 py-2 w-20 text-right">
+      <TableCell className="w-20 text-right">
         {editField === "quantity" ? (
           <Input
             ref={inputRef}
@@ -318,26 +418,56 @@ export const TreatmentRow = memo(function TreatmentRow({
             onBlur={commitQuantity}
             onKeyDown={(e) => handleKeyDown(e, commitQuantity)}
             className={`h-8 text-sm text-right px-2 ${C.borderMedium}`}
-            aria-describedby={currentGate.warning !== "none" ? doseWarningId : undefined}
+            aria-label="数量"
+            aria-describedby={hasDoseMessage ? doseWarningId : undefined}
+            aria-invalid={doseBlockReason !== "" ? true : undefined}
           />
         ) : (
           <button type="button"
-            className={`w-full text-right text-sm ${C.hoverBgLight} px-1 py-0.5 rounded-[3px] transition-colors ${
-              currentGate.warning === "exceeds-max"
+            className={`w-full text-right text-sm ${C.hoverBgLight} px-1 py-0.5 rounded-xxs transition-colors ${
+              currentGate.warning === "exceeds-max" || pendingGate.warning === "exceeds-max"
                 ? C.textRed700
-                : currentGate.warning === "below-min"
+                : currentGate.warning === "below-min" ||
+                    pendingGate.warning === "below-min" ||
+                    needsDeviationReasonUI
                   ? C.textWarning
                   : C.text
             }`}
             onClick={() => setEditField("quantity")}
-            aria-describedby={currentGate.warning !== "none" ? doseWarningId : undefined}
+            aria-describedby={hasDoseMessage ? doseWarningId : undefined}
           >
-            {treatment.quantity}
+            {/* 理由入力待ち中はローカル数量を表示（未保存の逸脱 quantity を失わない） */}
+            {showDeviationReason ? localQuantity : treatment.quantity}
           </button>
         )}
-        {/* #201: 色だけに依存しない警告表示（react-review-201 HIGH-2）。アイコン/接頭辞テキスト併用 +
-            aria-describedby で読み上げ可能にする。 */}
-        {currentGate.warning !== "none" ? (
+        {/* #201 / TASK-377: 色だけに依存しない警告表示。著しい乖離で warning=none でも理由 UI を出す。 */}
+        {doseBlockReason ? (
+          <div
+            id={doseWarningId}
+            role="alert"
+            className={`text-xs text-right mt-0.5 ${C.textRed700}`}
+          >
+            <div>⚠ {doseBlockReason}</div>
+            {isDoseLookupFailed ? (
+              <button
+                type="button"
+                className={`mt-0.5 text-xs underline ${C.textRed700}`}
+                onClick={handleRetryDoseParamsLookup}
+                aria-label="投与量パラメータの取得を再試行する"
+              >
+                再試行する
+              </button>
+            ) : null}
+          </div>
+        ) : needsDeviationReasonUI && doseWarningText ? (
+          <div
+            id={doseWarningId}
+            role="alert"
+            className={`text-xs text-right mt-0.5 ${C.textWarning}`}
+          >
+            ⚠ {doseWarningText}
+          </div>
+        ) : currentGate.warning !== "none" ? (
           <div
             id={doseWarningId}
             role="alert"
@@ -346,6 +476,30 @@ export const TreatmentRow = memo(function TreatmentRow({
             }`}
           >
             {currentGate.warning === "exceeds-max" ? "⚠ 上限超過" : "⚠ 下限未満"}
+          </div>
+        ) : null}
+        {needsDeviationReasonUI && !doseBlockReason ? (
+          <div className="mt-1 text-right">
+            <label className="sr-only" htmlFor={`dose-deviation-reason-${treatment.id}`}>
+              用量逸脱の理由
+            </label>
+            <Input
+              id={`dose-deviation-reason-${treatment.id}`}
+              value={localDeviationReason}
+              onChange={(e) => setLocalDeviationReason(e.target.value)}
+              onBlur={commitDeviationReason}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  commitDeviationReason();
+                }
+              }}
+              placeholder="逸脱理由（必須）"
+              maxLength={500}
+              className={`h-8 text-xs px-2 ${C.borderMedium}`}
+              aria-label="用量逸脱の理由"
+              aria-required={true}
+            />
           </div>
         ) : null}
         {/* #201: per_weight 計算対象の薬剤のみ、丸め前/丸め後 mg と推奨値を併記する */}
@@ -369,10 +523,10 @@ export const TreatmentRow = memo(function TreatmentRow({
             {treatment.dose_weight_kg != null ? `（体重${treatment.dose_weight_kg}kg）` : ""}
           </div>
         ) : null}
-      </td>
+      </TableCell>
 
       {/* 値引き */}
-      <td className="px-3 py-2 w-28 text-right">
+      <TableCell className="w-28 text-right">
         {editField === "discount_amount" ? (
           <>
             <Input
@@ -391,22 +545,22 @@ export const TreatmentRow = memo(function TreatmentRow({
           <button type="button"
             className={`w-full text-right text-sm ${
               treatment.discount_amount > 0 ? C.textDiscount : C.text40
-            } ${canEditDiscount ? C.hoverBgLight : ""} px-1 py-0.5 rounded-[3px] transition-colors font-mono ${!canEditDiscount ? "cursor-not-allowed opacity-60" : ""}`}
+            } ${canEditDiscount ? C.hoverBgLight : ""} px-1 py-0.5 rounded-xxs transition-colors font-mono ${!canEditDiscount ? "cursor-not-allowed opacity-60" : ""}`}
             onClick={() => { if (canEditDiscount) setEditField("discount_amount"); }}
             disabled={!canEditDiscount}
             title={!canEditDiscount ? "値引の変更には権限が必要です" : undefined}
           >
             {treatment.discount_amount > 0
-              ? `-¥${treatment.discount_amount.toLocaleString()}`
+              ? `-${formatCurrency(treatment.discount_amount)}`
               : "—"}
           </button>
         )}
-      </td>
+      </TableCell>
 
       <TreatmentSubtotalCell subtotal={subtotal} />
 
       {/* メモ */}
-      <td className="px-3 py-2 min-w-[120px]">
+      <TableCell className="min-w-[120px]">
         {editField === "memo" ? (
           <Input
             ref={inputRef}
@@ -418,13 +572,13 @@ export const TreatmentRow = memo(function TreatmentRow({
           />
         ) : (
           <button type="button"
-            className={`w-full text-left text-sm ${C.text60} ${C.hoverBgLight} px-1 py-0.5 rounded-[3px] transition-colors`}
+            className={`w-full text-left text-sm ${C.text60} ${C.hoverBgLight} px-1 py-0.5 rounded-xxs transition-colors`}
             onClick={() => setEditField("memo")}
           >
             {treatment.memo || <span className={C.text30}>メモ</span>}
           </button>
         )}
-      </td>
+      </TableCell>
 
       <TreatmentRowActions
         isFirst={isFirst}
@@ -435,18 +589,5 @@ export const TreatmentRow = memo(function TreatmentRow({
         onDelete={handleDelete}
       />
     </tr>
-    {/* #201: hard gate — 丸め境界越え・著しい逸脱・安全域外は確認必須（警告への格下げ禁止） */}
-    <ConfirmDialog
-      open={pendingGate !== null}
-      onClose={handleGateCancel}
-      onConfirm={handleGateConfirm}
-      title="投与量を確認してください"
-      description={pendingGate?.result.reason || ""}
-      confirmLabel="この数量で保存する"
-      cancelLabel="キャンセル"
-      variant="destructive"
-      isPending={false}
-    />
-    </>
   );
 });

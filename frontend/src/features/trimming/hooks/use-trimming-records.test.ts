@@ -4,14 +4,18 @@ import { describe, expect, it, vi } from "vitest";
 import { useFilterTrimmingRecords } from "./use-trimming-records";
 
 vi.mock("../api/get-trimmings", () => ({
-  useGetTrimmings: vi.fn(() => ({ data: [], isLoading: false, error: null })),
+  useGetTrimmingsPage: vi.fn(() => ({
+    data: { items: [], total: 0, isTruncated: false },
+    isLoading: false,
+    error: null,
+  })),
 }));
 
 vi.mock("../api/delete-trimming", () => ({
   useDeleteTrimming: vi.fn(() => ({ mutate: vi.fn() })),
 }));
 
-import { useGetTrimmings } from "../api/get-trimmings";
+import { useGetTrimmingsPage } from "../api/get-trimmings";
 
 const mockRecords = [
   { ownerName: "ヤマダタロウ", petName: "ポチ", status: "active", species: "犬", staff: "田中", breed: "トイプードル" },
@@ -19,7 +23,11 @@ const mockRecords = [
 ];
 
 function setup(searchTerm: string) {
-  vi.mocked(useGetTrimmings).mockReturnValue({ data: mockRecords as never, isLoading: false, error: null });
+  vi.mocked(useGetTrimmingsPage).mockReturnValue({
+    data: { items: mockRecords as never, total: mockRecords.length, isTruncated: false },
+    isLoading: false,
+    error: null,
+  });
   return renderHook(() => useFilterTrimmingRecords(searchTerm));
 }
 
@@ -63,5 +71,17 @@ describe("useFilterTrimmingRecords かな正規化", () => {
     const { result } = setup("田中");
     // ownerName/petName に「田中」はないのでヒットなし
     expect(result.current.data).toHaveLength(0);
+  });
+
+  it("APIの打ち切り状態を一覧UIへ伝播する", () => {
+    vi.mocked(useGetTrimmingsPage).mockReturnValue({
+      data: { items: mockRecords as never, total: 250, isTruncated: true },
+      isLoading: false,
+      error: null,
+    });
+
+    const { result } = renderHook(() => useFilterTrimmingRecords(""));
+
+    expect(result.current.isTruncated).toBe(true);
   });
 });

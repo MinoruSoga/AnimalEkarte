@@ -33,8 +33,10 @@ interface UnifiedTabsProps {
 // Notion-like bottom-line defaults. Each token is chosen to defeat the
 // corresponding pill default from components/ui/tabs.tsx via tailwind-merge.
 // Background is transparent — only a thin hair-line under the strip remains.
-const DEFAULT_LIST_CLASS = `flex h-9 w-auto items-center justify-start rounded-none p-0 border-b ${C.borderLight} bg-transparent gap-0`;
-const DEFAULT_TRIGGER_CLASS = `h-9 flex-none rounded-none border-0 border-b-2 border-b-transparent bg-transparent px-4 ${C.text60} data-[state=active]:bg-transparent data-[state=active]:shadow-none ${C.dataActiveBorderB} ${C.dataActiveText}`;
+// max-w-full + overflow-x-auto: all tabs stay reachable at narrow widths (BUG-458).
+// Triggers keep min-h-11 (44px) via h-11 / h-9 stack; do not shrink hit targets.
+const DEFAULT_LIST_CLASS = `flex h-11 max-w-full w-full items-center justify-start overflow-x-auto rounded-none p-0 border-b ${C.borderLight} bg-transparent gap-0`;
+const DEFAULT_TRIGGER_CLASS = `h-9 min-h-11 flex-none shrink-0 rounded-none border-0 border-b-2 border-b-transparent bg-transparent px-4 ${C.text60} data-[state=active]:bg-transparent data-[state=active]:shadow-none ${C.dataActiveBorderB} ${C.dataActiveText}`;
 
 export function UnifiedTabs({
   items,
@@ -46,7 +48,7 @@ export function UnifiedTabs({
   triggerClassName = '',
 }: UnifiedTabsProps) {
   return (
-    <ShadcnTabs value={value} onValueChange={onValueChange} className={className}>
+    <ShadcnTabs value={value} onValueChange={onValueChange} className={`min-w-0 ${className}`}>
       <ShadcnTabsList className={`${DEFAULT_LIST_CLASS} ${listClassName}`}>
         {items.map((item) => (
           <ShadcnTabsTrigger
@@ -94,14 +96,21 @@ export function UnifiedTabsRoot({
   onValueChange,
   children,
   className,
+  ariaBusy = false,
 }: {
   value: string;
   onValueChange: (value: string) => void;
   children: ReactNode;
   className?: string;
+  ariaBusy?: boolean;
 }) {
   return (
-    <ShadcnTabs value={value} onValueChange={onValueChange} className={className}>
+    <ShadcnTabs
+      value={value}
+      onValueChange={onValueChange}
+      className={className}
+      aria-busy={ariaBusy}
+    >
       {children}
     </ShadcnTabs>
   );

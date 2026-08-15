@@ -1,43 +1,44 @@
 ---
 name: clinic-id-isolation
-description: repository/service で Preload・Where・FindByID・Create/Update・Count を変更した際の clinic_id 越境監査ルータ。実チェックは clinic-isolation-auditor エージェントに委譲する。
+description: package配置に依存せず、database read/write・resource ownership・tenant scope変更をclinic_id越境の観点で監査するルータ。実チェックはclinic-isolation-auditorへ委譲する。
 ---
 
-# Clinic ID Isolation（ルータ）
+# Clinic ID Isolation Router
 
-このskillはチェックロジックを持たない薄いルータである。実際の機械的チェックリストは `clinic-isolation-auditor` エージェントが担当する。ここで判定ロジックを重複実装しない。
+このskillはチェックロジックを重複実装しない。`.claude/refs/backend-application-invariants.md` を基準に、詳細監査を `clinic-isolation-auditor` へ委譲する。
 
-## いつ発動するか
+## Trigger
 
-`backend/internal/repository/*.go` または `backend/internal/service/*.go` で以下のいずれかを変更した時:
-- `Preload` 呼び出し
-- `Where` / `FindByID` 呼び出し
-- `Create` / `Update` 呼び出し
-- `Count` / `Exists` 系クエリ
+backend の任意のpackage、migration、background jobで、次のいずれかを変更したときに発動する。
 
-## 3規則の要約
+- SELECT / preload / join / count / exists / export
+- create / update / upsert / delete / bulk operation
+- request由来のclinic-scoped foreign keyやresource IDの永続化
+- authentication identityからclinic scopeを決める処理
+- transaction、audit、raw SQL、ORM scope
 
-1. **read: clinic-scoped master の Preload に clinic_id述語**——`Preload("Vaccine", "clinic_id = ? AND deleted_at IS NULL", clinicID)` のように、clinic_idを持つマスタ/区分テーブルへのPreloadには必ずclinic_id述語を付ける。Staff関連（Doctor等）は多医院所属のため単純スコープ禁止の例外
-2. **parent-FK: clinic-less子の親をFindByID(clinicID, parentID)で検証**——親テーブル経由でしかclinic_idを持たない子レコードを書き込む前に、親の所有クリニックを検証する
-3. **master-FK write: request由来FKをwrite前に検証**——request由来の `XxxID`（`vaccine_id`/`medicine_id`等）をそのままCreate/Updateに渡さず、`FindByID(ctx, clinicID, id)` で当該クリニック所有か検証してから永続化する。ネストしたDTO内の子フィールドのFK漏れ（#124の再発パターン）にも注意
+`internal/repository` / `internal/service` というdirectory名や、特定method名だけで発火を限定しない。
 
-## 実チェックの委譲
+## Invariants summary
 
-詳細な機械チェック・CRITICAL/HIGH/MEDIUM判定・承認基準は本skillでは再実装しない。`clinic-isolation-auditor` エージェントを起動して実施する。
+1. **Read**: base query、join、preload、countを含む全read pathで、認証済みclinicまたは明示的に認可された横断scopeを保証する。
+2. **Write**: target rowとrequest由来のparent/master FKが同じ認証済みclinicに属することを、永続化前またはatomic predicateで保証する。
+3. **Delete/bulk/background**: interactive requestと同じtenant/ownership条件を維持し、scope外resourceの存在を漏らさない。
+4. **Verification**: helper名やcodeの見た目だけで合格にせず、cross-tenant runtime testで実際の拒否を証明する。
 
-```
+`clinicScope`、`FindByID`、GORM `Scopes` は現在利用できる実装手段であり、唯一の正解ではない。同等以上のtenant predicate、ownership check、schema constraint、testがあればpackage形状に依存せず評価する。
+
+## Delegation
+
+`clinic-isolation-auditor` を起動し、変更された全data pathを監査する。
+
+```text
 Task(subagent_type: clinic-isolation-auditor)
 ```
 
-## 完了条件
+## Completion
 
-- 変更経路が上記3規則いずれかで隔離されていることを確認した、または
-- `clinic-isolation-auditor` エージェントの監査結果（Approve/Warning/Block）が添付されている
-
-## 出典
-
-memory: `cross_tenant_read_idor_audit_20260629` / `cross_tenant_write_audit_20260629` / `cross_tenant_master_fk_write_audit_20260629` / `preload_clinic_scope_lint_p0_20260630`
-
-## 関連エージェント
-
-- `clinic-isolation-auditor`（`.claude/agents/clinic-isolation-auditor.md`）: 本skillが委譲する実チェック本体
+- 全read/write/delete/background pathのtenant保証が確認されている。
+- request由来FKのnested fieldまでownershipを確認している。
+- 新規または変更したboundaryにcross-tenant testがある。
+- auditorのApprove/Warning/Block結果が添付されている。

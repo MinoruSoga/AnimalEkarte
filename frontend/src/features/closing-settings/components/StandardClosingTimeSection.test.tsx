@@ -20,6 +20,14 @@ function makeSettings(overrides: Partial<ClinicSettings> = {}): ClinicSettings {
 }
 
 describe("StandardClosingTimeSection (#151 時間帯プレビュー・#215 越日対応)", () => {
+  it("休診曜日checkboxのfocusable targetを44px以上に保つ", () => {
+    render(<StandardClosingTimeSection settings={makeSettings()} />);
+
+    const sunday = screen.getByRole("checkbox", { name: "日" });
+    expect(sunday).toHaveClass("absolute", "inset-0", "size-full");
+    expect(sunday.closest("label")).toHaveClass("relative", "min-h-11", "min-w-11");
+  });
+
   it("初期設定から平日・日曜の AM/PM/EMG レンジを表示する", () => {
     render(<StandardClosingTimeSection settings={makeSettings()} />);
 

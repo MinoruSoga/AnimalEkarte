@@ -5,6 +5,7 @@ import {
   getStoredClinicId,
   normalizeClinicId,
   requireStoredClinicId,
+  setStoredClinicId,
 } from "./current-clinic";
 
 afterEach(() => {
@@ -25,6 +26,12 @@ describe("current-clinic storage helpers", () => {
 
     localStorage.setItem(CURRENT_CLINIC_STORAGE_KEY, " 3 ");
     expect(getStoredClinicId()).toBe("3");
+  });
+
+  it("setStoredClinicId は trim して保存し空値は拒否する", () => {
+    expect(setStoredClinicId("  5  ")).toBe(true);
+    expect(getStoredClinicId()).toBe("5");
+    expect(setStoredClinicId("   ")).toBe(false);
   });
 
   it("clinic_id が未選択なら requireStoredClinicId は例外を投げる", () => {

@@ -127,17 +127,18 @@ export function CheckupSyncFilterForm({
   );
 
   return (
-    <form action={formAction} className={`bg-white rounded-[4px] border ${C.borderLight} p-5 space-y-4`}>
+    <form action={formAction} className={`${C.bgWhite} rounded-xs border ${C.borderLight} p-6 space-y-4`}>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* 検診種別 */}
         <div className="space-y-1.5">
-          <label className={STYLE.formLabel}>
+          <label htmlFor="checkup_type" className={STYLE.formLabel}>
             検診種別
             <span className={`ml-1 ${C.textRequired}`}>*</span>
           </label>
           <select
+            id="checkup_type"
             name="checkup_type"
-            className={`w-full ${STYLE.formInput} border rounded-[4px] px-3`}
+            className={`w-full ${STYLE.formInput} border rounded-xs px-3`}
           >
             <option value="">選択してください</option>
             {CHECKUP_TYPE_OPTIONS.map((opt) => (
@@ -156,7 +157,7 @@ export function CheckupSyncFilterForm({
             type="text"
             name="species"
             placeholder="例: dog, cat"
-            className={`w-full ${STYLE.formInput} border rounded-[4px] px-3 ${C.textPlaceholder}`}
+            className={`w-full ${STYLE.formInput} border rounded-xs px-3 ${C.textPlaceholder}`}
           />
         </div>
 
@@ -167,7 +168,7 @@ export function CheckupSyncFilterForm({
             id="last_visit_after"
             type="date"
             name="last_visit_after"
-            className={`w-full ${STYLE.formInput} border rounded-[4px] px-3`}
+            className={`w-full ${STYLE.formInput} border rounded-xs px-3`}
           />
         </div>
 
@@ -178,7 +179,7 @@ export function CheckupSyncFilterForm({
             id="last_visit_before"
             type="date"
             name="last_visit_before"
-            className={`w-full ${STYLE.formInput} border rounded-[4px] px-3`}
+            className={`w-full ${STYLE.formInput} border rounded-xs px-3`}
           />
         </div>
 
@@ -192,7 +193,7 @@ export function CheckupSyncFilterForm({
             min={0}
             step={1}
             placeholder="例: 7"
-            className={`w-full ${STYLE.formInput} border rounded-[4px] px-3`}
+            className={`w-full ${STYLE.formInput} border rounded-xs px-3`}
           />
         </div>
 
@@ -206,17 +207,18 @@ export function CheckupSyncFilterForm({
             min={0}
             step={1}
             placeholder="例: 12"
-            className={`w-full ${STYLE.formInput} border rounded-[4px] px-3`}
+            className={`w-full ${STYLE.formInput} border rounded-xs px-3`}
           />
         </div>
 
         {/* ISSUE-009: 慢性疾患 */}
         <div className="space-y-1.5">
-          <label className={STYLE.formLabel}>慢性疾患（任意）</label>
+          <label htmlFor="has_chronic_condition" className={STYLE.formLabel}>慢性疾患（任意）</label>
           <select
+            id="has_chronic_condition"
             name="has_chronic_condition"
             defaultValue=""
-            className={`w-full ${STYLE.formInput} border rounded-[4px] px-3`}
+            className={`w-full ${STYLE.formInput} border rounded-xs px-3`}
           >
             {CHRONIC_OPTIONS.map((opt) => (
               <option key={opt.value || "any"} value={opt.value}>
@@ -228,11 +230,12 @@ export function CheckupSyncFilterForm({
 
         {/* ISSUE-009: CPM ステージ */}
         <div className="space-y-1.5">
-          <label className={STYLE.formLabel}>CPMステージ（任意）</label>
+          <label htmlFor="cpm_stage" className={STYLE.formLabel}>CPMステージ（任意）</label>
           <select
+            id="cpm_stage"
             name="cpm_stage"
             defaultValue=""
-            className={`w-full ${STYLE.formInput} border rounded-[4px] px-3`}
+            className={`w-full ${STYLE.formInput} border rounded-xs px-3`}
           >
             <option value="">指定しない</option>
             {CPM_STAGE_OPTIONS.map((opt) => (
@@ -253,7 +256,7 @@ export function CheckupSyncFilterForm({
             min={0}
             step={1000}
             placeholder="例: 50000"
-            className={`w-full ${STYLE.formInput} border rounded-[4px] px-3`}
+            className={`w-full ${STYLE.formInput} border rounded-xs px-3`}
           />
         </div>
 
@@ -267,7 +270,7 @@ export function CheckupSyncFilterForm({
             min={0}
             step={1}
             placeholder="例: 2"
-            className={`w-full ${STYLE.formInput} border rounded-[4px] px-3`}
+            className={`w-full ${STYLE.formInput} border rounded-xs px-3`}
           />
         </div>
 
@@ -278,7 +281,7 @@ export function CheckupSyncFilterForm({
             id="last_checkup_after"
             type="date"
             name="last_checkup_after"
-            className={`w-full ${STYLE.formInput} border rounded-[4px] px-3`}
+            className={`w-full ${STYLE.formInput} border rounded-xs px-3`}
           />
         </div>
 
@@ -289,7 +292,7 @@ export function CheckupSyncFilterForm({
             id="last_checkup_before"
             type="date"
             name="last_checkup_before"
-            className={`w-full ${STYLE.formInput} border rounded-[4px] px-3`}
+            className={`w-full ${STYLE.formInput} border rounded-xs px-3`}
           />
         </div>
       </div>

@@ -1,11 +1,12 @@
 ---
 name: Deployment
-description: バックエンド(Cloudflare Workers + Containers。ECS は backend-deploy-ecs.yml によるロールバック専用)・フロントエンド(Vercel)へのアプリケーションデプロイ。両方とも GitHub Actions 経由で自動化。
+description: バックエンド(Cloudflare Workers + Containers)・フロントエンド(Vercel)へのアプリケーションデプロイ。両方とも GitHub Actions 経由で自動化。
 ---
 
 # デプロイメントスキル
 
-> AnimalEkarte は **バックエンドを Cloudflare Workers + Containers**、**フロントエンドを Vercel** にデプロイ。両方とも GitHub Actions ワークフロー経由で自動化（`backend-deploy.yml` / `frontend-deploy.yml`）。AWS ECS はロールバック専用経路（`backend-deploy-ecs.yml`・DEPRECATED）として残存。
+> AnimalEkarte は **バックエンドを Cloudflare Workers + Containers**、**フロントエンドを Vercel** にデプロイ。両方とも GitHub Actions ワークフロー経由で自動化（`backend-deploy.yml` / `frontend-deploy.yml`）。
+> AWS ECS/RDS は廃止済みで、切り戻し先やホットスタンバイではない。
 
 ## このスキルを使用するタイミング
 
@@ -17,7 +18,6 @@ description: バックエンド(Cloudflare Workers + Containers。ECS は backen
 
 ```
 Backend:  git push → backend-deploy.yml → wrangler deploy → migrate（Cloudflare Workers + Containers）
-          ※ ECS ロールバックは backend-deploy-ecs.yml (workflow_dispatch・DEPRECATED)
 Frontend: git push → frontend-deploy.yml → vercel pull → vercel build → vercel deploy（VERCEL_TOKEN使用）
 ```
 
@@ -45,10 +45,12 @@ gh run watch
 ## 重要な注意事項
 
 - 必ずステージングで検証してから本番へ
-- バックエンドのロールバックは `backend-deploy-ecs.yml`（workflow_dispatch）経由の ECS 切り戻し（手順は platforms/aws.md）
+- バックエンド障害時は `docs/ops/infra/staging/runbook.md` に従う。AWS への切り戻しはできないため、Cloudflare 側の修正・再デプロイ、またはスナップショット + 現行 IaC からの再建で復旧する
 - デプロイ後はモニタリングダッシュボードを確認
 
 ## プラットフォーム参照
 
-- AWS ECS（バックエンドのロールバック専用・DEPRECATED）: [platforms/aws.md](./platforms/aws.md)
+- 現行インフラ: [`docs/ops/infra/architecture.md`](../../../docs/ops/infra/architecture.md)
+- STG 運用: [`docs/ops/infra/staging/runbook.md`](../../../docs/ops/infra/staging/runbook.md)
+- AWS 退役記録（実行禁止）: [platforms/aws.md](./platforms/aws.md)
 - フロントエンドは Vercel（`.github/workflows/frontend-deploy.yml`）にデプロイ。AWS 対象外。

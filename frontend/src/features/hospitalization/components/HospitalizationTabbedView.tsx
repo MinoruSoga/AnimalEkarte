@@ -2,7 +2,7 @@
 import { C, ICON } from "@/lib/design-tokens";
 import { todayJSTISO } from "@/lib/jst-date";
 import { memo, useState } from "react";
-import { formatDate } from "@/utils/format/date";
+import { formatDate } from "@/lib/format/date";
 
 // External
 import { Calendar, FileText, Settings } from "lucide-react";
@@ -53,19 +53,20 @@ export const HospitalizationTabbedView = memo(function HospitalizationTabbedView
 
             <UnifiedTabs items={tabItems} value={activeTab} onValueChange={handleTabChange} className="flex flex-col">
                 <UnifiedTabsContent value="daily" className="mt-2">
-                    <div className={`${C.bgWhite} rounded-lg border ${C.borderMedium} shadow-sm flex flex-col`}>
+                    <div className={`${C.bgWhite} rounded-lg border ${C.borderMedium} flex flex-col`}>
                         <div className={H_STYLES.padding.box}>
                             <DailyRecordsTab
                                 hospitalizationId={String(hospitalization.id)}
                                 admissionDate={hospitalization.startDate}
                                 dischargeDate={dischargeDate}
+                                petIsDeceased={hospitalization.petIsDeceased}
                             />
                         </div>
                     </div>
                 </UnifiedTabsContent>
 
                 <UnifiedTabsContent value="plan" className="mt-2">
-                    <div className={`${C.bgWhite} rounded-lg border ${C.borderMedium} ${H_STYLES.padding.box} shadow-sm mb-20`}>
+                    <div className={`${C.bgWhite} rounded-lg border ${C.borderMedium} ${H_STYLES.padding.box} mb-20`}>
                         <div className={`flex items-center gap-2 mb-4 ${C.text60} text-sm`}>
                             <Calendar className={ICON.action} />
                             <span>入院期間: {formatDate(hospitalization.startDate)} 〜 {formatDate(dischargeDate)}</span>
@@ -73,6 +74,7 @@ export const HospitalizationTabbedView = memo(function HospitalizationTabbedView
                         <Separator className="mb-4" />
                         <CarePlanTab
                             hospitalizationId={String(hospitalization.id)}
+                            petIsDeceased={hospitalization.petIsDeceased}
                         />
                     </div>
                 </UnifiedTabsContent>

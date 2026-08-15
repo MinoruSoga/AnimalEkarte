@@ -146,6 +146,30 @@ describe("ReservationFormModal — 新規飼主モード (Issue #51)", () => {
     expect(screen.queryByTestId("new-owner-name")).not.toBeInTheDocument();
   });
 
+  it("既存飼主モードで患者と予約区分が未選択なら保存しない", async () => {
+    server.use(...silentApiHandlers);
+    const onSave = vi.fn();
+    const user = userEvent.setup({ delay: null });
+
+    render(
+      <ReservationFormModal
+        isOpen={true}
+        onClose={noop}
+        onSave={onSave}
+        initialData={null}
+        canCreate={true}
+        canEdit={false}
+      />,
+      { wrapper: createWrapper() }
+    );
+
+    await user.click(screen.getByRole("button", { name: "予約を確定" }));
+
+    expect(await screen.findByText("患者を選択してください")).toBeInTheDocument();
+    expect(screen.getByText("予約区分を選択してください")).toBeInTheDocument();
+    expect(onSave).not.toHaveBeenCalled();
+  });
+
   it("「新規飼主」ボタンをクリックすると4項目の入力フォームが表示される", () => {
     server.use(...silentApiHandlers);
 
@@ -201,6 +225,53 @@ describe("ReservationFormModal — 新規飼主モード (Issue #51)", () => {
         screen.getByText("電話番号の形式が正しくありません（例：090-1234-5678 または 09012345678）")
       ).toBeInTheDocument();
     });
+  });
+
+  it("BUG-020: 電話番号を正しい形式へ直すと電話エラーだけが消える", async () => {
+    server.use(...silentApiHandlers);
+    const onSave = vi.fn();
+    const user = userEvent.setup({ delay: null });
+
+    render(
+      <ReservationFormModal
+        isOpen={true}
+        onClose={noop}
+        onSave={onSave}
+        initialData={null}
+        canCreate={true}
+        canEdit={false}
+      />,
+      { wrapper: createWrapper() }
+    );
+
+    await user.click(screen.getByTestId("mode-new"));
+    fireEvent.change(screen.getByTestId("new-owner-name"), { target: { value: "合成飼主" } });
+    fireEvent.change(screen.getByTestId("new-owner-phone"), { target: { value: "1234-5678" } });
+    await user.click(screen.getByRole("button", { name: "予約を確定" }));
+
+    const phoneError =
+      "電話番号の形式が正しくありません（例：090-1234-5678 または 09012345678）";
+    const phoneErrorElement = await screen.findByText(phoneError);
+    expect(phoneErrorElement).toBeVisible();
+    expect(phoneErrorElement).toHaveAttribute("role", "alert");
+    expect(screen.getByText("ペット名を入力してください")).toBeInTheDocument();
+    expect(onSave).not.toHaveBeenCalled();
+
+    fireEvent.change(screen.getByTestId("new-owner-phone"), {
+      target: { value: " 090-0000-0000 " },
+    });
+    expect(screen.getByText(phoneError)).toBeVisible();
+    expect(onSave).not.toHaveBeenCalled();
+
+    fireEvent.change(screen.getByTestId("new-owner-phone"), {
+      target: { value: "090-0000-0000" },
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByText(phoneError)).not.toBeInTheDocument();
+    });
+    expect(screen.getByText("ペット名を入力してください")).toBeInTheDocument();
+    expect(onSave).not.toHaveBeenCalled();
   });
 
   // Radix Select x2 + MSW + waitFor x3 → Docker jsdom で累計 5 秒超えが稀に発生するため 15s に設定
@@ -277,7 +348,7 @@ describe("ReservationFormModal — 新規飼主モード (Issue #51)", () => {
 });
 
 describe("ReservationFormModal — 担当者候補", () => {
-  it("選択した予約区分を対応不可にしているスタッフを担当者候補から除外する", async () => {
+  it("対応可能コースを持つスタッフだけを担当者候補に残す（肯定形 capability）", async () => {
     localStorage.setItem("auth_current_clinic:v1", "1");
     server.use(
       http.get("/api/v1/clinic-holidays", () => HttpResponse.json([])),
@@ -311,13 +382,13 @@ describe("ReservationFormModal — 担当者候補", () => {
             id: 10,
             name: "非対応スタッフ",
             is_active: true,
-            excluded_courses: [{ id: 5, name: "トリミング" }],
+            capable_courses: [],
           },
           {
             id: 11,
             name: "対応スタッフ",
             is_active: true,
-            excluded_courses: [],
+            capable_courses: [{ id: 5, name: "トリミング" }],
           },
         ])
       ),

@@ -1,5 +1,6 @@
 import { Plus } from "lucide-react";
 
+import { TableCell, TableHead } from "@/components/ui/table";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
 import type { StaffItem } from "@/hooks/use-staffs";
 import type { CheckupTypeItem } from "@/hooks/use-treatment-master";
@@ -13,12 +14,12 @@ export { LstepStatusBadge, type LstepStatus } from "./CheckupsTabBadges";
 const TABLE_HEADER = (
   <thead>
     <tr className={`border-b ${C.borderLight} ${C.bgPage} h-11`}>
-      <th scope="col" className={`px-3 text-left ${STYLE.sectionLabel} w-32`}>日付</th>
-      <th scope="col" className={`px-3 text-left ${STYLE.sectionLabel} w-40`}>健診種別</th>
-      <th scope="col" className={`px-3 text-left ${STYLE.sectionLabel} w-32`}>次回予定日</th>
-      <th scope="col" className={`px-3 text-left ${STYLE.sectionLabel} w-32`}>担当医</th>
-      <th scope="col" className={`px-3 text-left ${STYLE.sectionLabel}`}>結果</th>
-      <th scope="col" className={`px-2 text-right ${STYLE.sectionLabel} w-24`}>操作</th>
+      <TableHead className="w-32">日付</TableHead>
+      <TableHead className="w-40">健診種別</TableHead>
+      <TableHead className="w-32">次回予定日</TableHead>
+      <TableHead className="w-32">担当医</TableHead>
+      <TableHead>結果</TableHead>
+      <TableHead className="w-24 text-right">操作</TableHead>
     </tr>
   </thead>
 );
@@ -79,9 +80,9 @@ export function CheckupsTable({
         <tbody>
           {checkups.length === 0 ? (
             <tr>
-              <td colSpan={6} className={STYLE.tableEmptySm}>
+              <TableCell data-empty-state colSpan={6} className={STYLE.tableEmptySm}>
                 健診記録がありません。下の「記録を追加」ボタンから追加してください。
-              </td>
+              </TableCell>
             </tr>
           ) : (
             checkups.map((checkup) =>

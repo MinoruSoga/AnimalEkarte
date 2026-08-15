@@ -1,22 +1,24 @@
 import { describe, it, expect } from "vitest";
 
 import {
+  mapPetStatusLabel,
   transformBackendPetToFrontend,
   transformCreatePetRequest,
   transformUpdatePetRequest,
 } from "./pet";
-import type { Pet as BackendPet } from "@/types/generated/models";
+import type { PetResponse } from "@/types/generated/pet-responses";
 
-// makeBackendPet は transformBackendPetToFrontend に渡す最小の BackendPet を組み立てる。
-function makeBackendPet(overrides: Partial<BackendPet> = {}): BackendPet {
+// makeBackendPet は transformBackendPetToFrontend に渡す最小の PetResponse を組み立てる。
+function makeBackendPet(overrides: Partial<PetResponse> = {}): PetResponse {
   return {
     id: 7,
+    version: 1,
     clinic_id: 1,
     owner_id: 42,
     animal_species_id: 1,
     pet_number: "42-1",
     name: "ポチ",
-    name_kana: "ぽち",
+    pet_name_kana: "ぽち",
     gender: "male",
     status: "alive",
     breed: "",
@@ -99,20 +101,89 @@ describe("transformBackendPetToFrontend", () => {
 
   // PR#186 P2-2 Bug#1 回帰テスト: deceased_at は response DTO への追加のみで
   // transform 層の配線が漏れると、値が API から届いても UI に渡らない。
-  // deceased_reason はセキュリティレビュー指摘によりバックエンド response DTO
-  // から意図的に除外済み（未curationの LIFF 経路での漏洩防止）のため、
-  // transform 層も対応するフィールドを持たない。
+  // BUG-003: deceased_reason も staff PetResponse 経由で deceasedReason へ。
   it("deceased_at を deceasedAt へマッピングする", () => {
     const pet = transformBackendPetToFrontend(
-      makeBackendPet({ deceased_at: "2026-07-10T12:00:00+09:00" }),
+      makeBackendPet({
+        status: "deceased",
+        deceased_at: "2026-07-10T12:00:00+09:00",
+        deceased_reason: "老衰",
+      }),
     );
 
+    expect(pet.status).toBe("死亡");
     expect(pet.deceasedAt).toBe("2026-07-10T12:00:00+09:00");
+    expect(pet.deceasedReason).toBe("老衰");
   });
 
   it("deceased_at 未設定（生存中）は undefined のまま（捏造しない）", () => {
     const pet = transformBackendPetToFrontend(makeBackendPet());
 
     expect(pet.deceasedAt).toBeUndefined();
+    expect(pet.deceasedReason).toBeUndefined();
+  });
+
+  it("未知statusは生存へ推測せず不明にする", () => {
+    const pet = transformBackendPetToFrontend(makeBackendPet({ status: "unexpected" }));
+
+    expect(pet.status).toBe("不明");
+  });
+
+  it.each([
+    ["unexpected", "未知値"],
+    ["constructor", "Object prototype key"],
+    ["toString", "Object prototype method"],
+    ["__proto__", "Object prototype accessor"],
+    ["", "空文字"],
+    [null, "null"],
+    [undefined, "未指定"],
+  ])("API境界のstatus %s は不明にする（%s）", (status) => {
+    expect(mapPetStatusLabel(status)).toBe("不明");
+  });
+
+  // BUG-415: generic PATCH /pets/:id 経由の status 書込は deceased_at・監査ログと
+  // 無結合のため除去した。status 変更は監査付きの死亡登録/取消
+  // (PetDeceasedRecordButton → /:id/death)に一本化済み。
+  // このテストは修正前は落ちていた(RED): 旧実装は status を無条件送信していたため
+  // request.status が "alive" になり toBeUndefined() は失敗していた。
+  it("更新リクエストは status を送信しない（死亡/復活は /:id/death に一本化）", () => {
+    const request = transformUpdatePetRequest({
+      name: "ポチ",
+      status: "alive",
+    });
+
+    expect(request.status).toBeUndefined();
+  });
+
+  it("pet_name_kana を petNameKana へマッピングする（models.Pet の name_kana ではない）", () => {
+    const pet = transformBackendPetToFrontend(
+      makeBackendPet({ pet_name_kana: "ぽちたろう" }),
+    );
+    expect(pet.petNameKana).toBe("ぽちたろう");
+  });
+});
+
+describe("transformUpdatePetRequest", () => {
+  it("既存の危険理由をクリアすると danger_reason を null として送信する", () => {
+    const request = transformUpdatePetRequest({
+      dangerReason: "",
+      originalDangerReason: "咬傷歴あり",
+    });
+
+    expect(
+      Object.prototype.hasOwnProperty.call(request, "danger_reason"),
+    ).toBe(true);
+    expect(request.danger_reason).toBeNull();
+  });
+
+  it("危険理由が未変更なら danger_reason を送信しない", () => {
+    const request = transformUpdatePetRequest({
+      dangerReason: "咬傷歴あり",
+      originalDangerReason: "咬傷歴あり",
+    });
+
+    expect(
+      Object.prototype.hasOwnProperty.call(request, "danger_reason"),
+    ).toBe(false);
   });
 });

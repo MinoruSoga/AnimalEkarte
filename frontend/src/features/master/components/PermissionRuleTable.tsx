@@ -1,5 +1,6 @@
 import { memo } from "react";
 
+import { TableHead } from "@/components/ui/table";
 import { C } from "@/lib/design-tokens";
 
 import {
@@ -32,16 +33,16 @@ export const PermissionRuleTable = memo(function PermissionRuleTable({
         <table className="w-full">
           <thead>
             <tr className={`border-b ${C.borderLight}`}>
-              <th className={`px-4 py-2 text-left text-xs font-semibold ${C.text50}`}>
+              <TableHead className={C.text50}>
                 リソース
-              </th>
+              </TableHead>
               {PERMISSION_ACTION_COLUMNS.map(({ field, label }) => (
-                <th
+                <TableHead
                   key={field}
-                  className={`px-4 py-2 text-center text-xs font-semibold ${C.text50}`}
+                  className={`text-center ${C.text50}`}
                 >
                   {label}
-                </th>
+                </TableHead>
               ))}
             </tr>
           </thead>

@@ -1,11 +1,22 @@
 import type {
-  Pet as BackendPet,
   PetGender,
   AcquisitionType,
   DangerLevel,
 } from "@/types/generated/models";
+import type { PetResponse } from "@/types/generated/pet-responses";
 import { jstDateStartISOString } from "@/lib/jst-date";
 import type { CreatePetRequest, UpdatePetRequest } from "@/types/pet";
+
+type CreatePetRequestWithDangerReason = CreatePetRequest & {
+  danger_reason?: string;
+};
+
+// UpdatePetRequest(生成基底)は danger_reason?: string を持つため、単純な交差では
+// (string|undefined) & (string|null|undefined) = string|undefined に狭まり null クリアが型落ちする。
+// Omit してから合成し、tri-state(絶対不在=変更なし / null=クリア / 値=更新)を型で保つ。
+type UpdatePetRequestWithDangerReason = Omit<UpdatePetRequest, "danger_reason"> & {
+  danger_reason?: string | null;
+};
 
 // #266: pets 一覧のペット行粒度化 (features/owners/loaders.ts) が同じ status マッピングを
 // 必要とするため export する（挙動変更なし）。
@@ -13,6 +24,15 @@ export const PET_STATUS_MAP: Partial<Record<string, "生存" | "死亡">> = {
   alive: "生存",
   deceased: "死亡",
 };
+
+export type PetStatusLabel = "生存" | "死亡" | "不明";
+
+/** API境界の未知・欠損statusを生存へ推測せず、臨床操作をfail-closedにする。 */
+export function mapPetStatusLabel(status: string | null | undefined): PetStatusLabel {
+  if (status === "alive") return "生存";
+  if (status === "deceased") return "死亡";
+  return "不明";
+}
 
 // 外部公開: useOwnerForm で使用
 export const PET_STATUS_REVERSE_MAP: Record<string, "alive" | "deceased"> = {
@@ -60,27 +80,24 @@ export const DANGER_LEVEL_MAP: Record<string, string> = {
 };
 
 /**
- * バックエンドペットレスポンスをフロントエンド Pet 型に変換
- * ReturnType<typeof transformBackendPetToFrontend> が Pet 型の正式定義
+ * バックエンドペット詳細レスポンス（PetResponse）をフロントエンド Pet 型に変換。
+ * ReturnType<typeof transformBackendPetToFrontend> が Pet 型の正式定義。
+ * wire 正本は pet domain の PetResponse（pet_name_kana 等）。models.Pet は使わない（BUG-433）。
  */
-export const transformBackendPetToFrontend = (p: BackendPet) => ({
+export const transformBackendPetToFrontend = (p: PetResponse) => ({
   id: String(p.id ?? 0),
-  // #86: 拠点横断一覧での医院名表示用。飼主の所属医院を優先し、無ければペット自身の clinic_id
-  clinicId:
-    p.owner?.clinic_id != null
-      ? String(p.owner.clinic_id)
-      : p.clinic_id != null
-        ? String(p.clinic_id)
-        : undefined,
+  // #86: 医院名表示用。detail wire の PetOwnerNested に clinic_id は無いため pet.clinic_id を使う。
+  clinicId: p.clinic_id != null ? String(p.clinic_id) : undefined,
   ownerId: String(p.owner_id ?? 0),
-  ownerNumber: p.owner?.id,
+  ownerNumber: p.owner?.owner_number ?? p.owner?.id,
   ownerName: p.owner?.name ?? "",
   ownerNameKana: p.owner?.name_kana ?? undefined,
-  address: [p.owner?.address1, p.owner?.address2].filter(Boolean).join(" ") || undefined,
-  phone: p.owner?.phone ?? "",
+  // PetOwnerNested に住所フィールドは無い（detail/list 共有の軽量サマリ）。
+  address: undefined as string | undefined,
+  phone: p.owner?.phone || p.phone || "",
   petNumber: p.pet_number,
   name: p.name ?? "",
-  petNameKana: p.name_kana ?? undefined,
+  petNameKana: p.pet_name_kana || undefined,
   species: p.animal_species?.name ?? "",
   animalSpeciesId: p.animal_species_id != null ? String(p.animal_species_id) : undefined,
   breed: p.breed,
@@ -89,7 +106,7 @@ export const transformBackendPetToFrontend = (p: BackendPet) => ({
   bloodType: p.blood_type ?? undefined,
   microchipNumber: p.microchip_number ?? undefined,
   gender: p.gender ? (PET_GENDER_MAP[p.gender] ?? p.gender) : undefined,
-  status: p.status ? PET_STATUS_MAP[p.status] : undefined,
+  status: mapPetStatusLabel(p.status),
   birthDate: p.birth_date ? p.birth_date.split("T")[0] : undefined,
   neuteredDate: p.neutered_date ? p.neutered_date.split("T")[0] : undefined,
   weight: p.weight?.toString(),
@@ -97,6 +114,7 @@ export const transformBackendPetToFrontend = (p: BackendPet) => ({
   environment: p.environment,
   acquisitionType: p.acquisition_type ? (ACQUISITION_TYPE_MAP[p.acquisition_type] ?? p.acquisition_type) : undefined,
   dangerLevel: p.danger_level ? (DANGER_LEVEL_MAP[p.danger_level] ?? p.danger_level) : undefined,
+  dangerReason: p.danger_reason,
   // last_visit は birth_date / neutered_date と同じ date 型。兄弟フィールドと同様に
   // 日付部分のみへ正規化し、変換層の非対称を解消する（全消費者は formatDate 経由で無回帰）。
   lastVisit: p.last_visit ? p.last_visit.split("T")[0] : undefined,
@@ -108,15 +126,14 @@ export const transformBackendPetToFrontend = (p: BackendPet) => ({
       : undefined,
   remarks: p.remarks,
   // PR#186 P2-2 Bug#1: 死亡記録日時。null許容 (未死亡 = undefined)。
-  // deceasedReason は含めない — セキュリティレビュー指摘によりバックエンド
-  // response DTO (petResponse/petInOwnerResponse) から意図的に除外済み
-  // (未curationの LIFF 経路での漏洩防止。UI側にも読み取り消費者が無い)。
+  // BUG-003: staff GET /pets/{id} の deceased_reason を deceasedReason へ（owner/LIFF は別契約）。
   deceasedAt: p.deceased_at,
+  deceasedReason: p.deceased_reason,
 });
 
 /**
  * Pet フロントエンド型 — transformBackendPetToFrontend の戻り値から自動導出
- * 手動管理せず BackendPet（models.ts）と常に同期される
+ * wire 正本は PetResponse（pet-responses.ts）
  */
 export type Pet = ReturnType<typeof transformBackendPetToFrontend>;
 
@@ -142,6 +159,8 @@ type PetFormInput = {
   neuteredDate?: string;
   acquisitionType?: string;
   dangerLevel?: string;
+  dangerReason?: string;
+  originalDangerReason?: string;
   status?: "alive" | "deceased";
   insuranceId?: string;
   remarks?: string;
@@ -154,7 +173,7 @@ export const transformCreatePetRequest = (data: PetFormInput & {
   ownerId: string;
   name: string;
   animalSpeciesId: string;
-}): CreatePetRequest => ({
+}): CreatePetRequestWithDangerReason => ({
   owner_id: Number(data.ownerId),
   name: data.name,
   animal_species_id: Number(data.animalSpeciesId),
@@ -172,15 +191,39 @@ export const transformCreatePetRequest = (data: PetFormInput & {
   neutered_date: data.neuteredDate ? jstDateStartISOString(data.neuteredDate) : undefined,
   acquisition_type: data.acquisitionType ? (ACQUISITION_TYPE_REVERSE_MAP[data.acquisitionType] ?? data.acquisitionType) : undefined,
   danger_level: data.dangerLevel ? (DANGER_LEVEL_REVERSE_MAP[data.dangerLevel] ?? data.dangerLevel) : undefined,
+  ...(data.dangerReason?.trim()
+    ? { danger_reason: data.dangerReason.trim() }
+    : {}),
   status: data.status,
   insurance_id: data.insuranceId ? Number(data.insuranceId) : undefined,
   remarks: data.remarks,
 });
 
+function transformDangerReasonUpdate(
+  dangerReason: string | undefined,
+  originalDangerReason: string | undefined,
+  hasOriginalDangerReason: boolean,
+): Pick<UpdatePetRequestWithDangerReason, "danger_reason"> {
+  if (
+    dangerReason === undefined ||
+    (
+      hasOriginalDangerReason &&
+      dangerReason.trim() === (originalDangerReason ?? "").trim()
+    )
+  ) {
+    return {};
+  }
+  return { danger_reason: dangerReason.trim() || null };
+}
+
 /**
  * フロントエンドフォームデータからバックエンド UpdatePetRequest に変換
+ *
+ * status は意図的に送信しない(BUG-415)。生死ステータスの変更は監査付きの
+ * 死亡登録/取消エンドポイント(PetDeceasedRecordButton → /:id/death)に一本化されており、
+ * generic PATCH 経由での status 書込は backend 側でも除去済み(buildPetUpdate)。
  */
-export const transformUpdatePetRequest = (data: PetFormInput): UpdatePetRequest => ({
+export const transformUpdatePetRequest = (data: PetFormInput): UpdatePetRequestWithDangerReason => ({
   owner_id: data.ownerId ? Number(data.ownerId) : undefined,
   name: data.name,
   animal_species_id: data.animalSpeciesId ? Number(data.animalSpeciesId) : undefined,
@@ -198,7 +241,11 @@ export const transformUpdatePetRequest = (data: PetFormInput): UpdatePetRequest 
   neutered_date: data.neuteredDate ? jstDateStartISOString(data.neuteredDate) : undefined,
   acquisition_type: data.acquisitionType ? (ACQUISITION_TYPE_REVERSE_MAP[data.acquisitionType] ?? data.acquisitionType) : undefined,
   danger_level: data.dangerLevel ? (DANGER_LEVEL_REVERSE_MAP[data.dangerLevel] ?? data.dangerLevel) : undefined,
-  status: data.status,
+  ...transformDangerReasonUpdate(
+    data.dangerReason,
+    data.originalDangerReason,
+    "originalDangerReason" in data,
+  ),
   insurance_id: data.insuranceId ? Number(data.insuranceId) : undefined,
   remarks: data.remarks,
 });

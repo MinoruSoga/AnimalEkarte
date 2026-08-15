@@ -17,12 +17,14 @@ interface UseMedicineTableStateOptions {
   medicines: Medicine[];
   reorderMutation: UseMutationResult<void, Error, ReorderMedicinesRequest>;
   updateMutation: UseMutationResult<Medicine, Error, { id: string; req: UpdateMedicineRequest }>;
+  canEdit: boolean;
 }
 
 export function useMedicineTableState({
   medicines,
   reorderMutation,
   updateMutation,
+  canEdit,
 }: UseMedicineTableStateOptions) {
   const [searchTerm, setSearchTerm] = useState("");
   const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
@@ -42,6 +44,7 @@ export function useMedicineTableState({
   } = useSortableList({
     items: medicines,
     onReorder: (newIds) => {
+      if (!canEdit) return;
       reorderMutation.mutate(
         { ids: newIds.map(Number) },
         { onSuccess: resetOrder },
@@ -88,6 +91,7 @@ export function useMedicineTableState({
 
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
+      if (!canEdit) return;
       const { active, over } = event;
       if (!over || active.id === over.id) return;
 
@@ -134,7 +138,7 @@ export function useMedicineTableState({
 
       handleFlatSortDragEnd(event);
     },
-    [orderedMedicinesById, updateMutation, handleFlatSortDragEnd],
+    [canEdit, orderedMedicinesById, updateMutation, handleFlatSortDragEnd],
   );
 
   return {

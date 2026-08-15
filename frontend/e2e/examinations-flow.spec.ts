@@ -1,11 +1,12 @@
 import { test, expect } from '@playwright/test';
 import type { BrowserContext } from '@playwright/test';
 import { createAuthedContext } from './helpers/context';
+import { DEMO_IRIS_PET } from './helpers/demo-seed';
 import { ExaminationsPage } from './pages/examinations-page';
 
 // E2E flow tests for examinations (/examinations) pages.
 // Covers: list page, pet selection, new form, detail form.
-// Seed data: admin@noavet.jp is system_admin with full access.
+// Demo seed: Iris pet id=1000099 (not petId=1).
 
 test.describe('検査管理 フロー E2E', () => {
   let context: BrowserContext;
@@ -40,18 +41,18 @@ test.describe('検査管理 フロー E2E', () => {
       await expect(examinations.selectPetHeading()).toBeVisible({
         timeout: 15000,
       });
-      await expect(examinations.irisText()).toBeVisible({ timeout: 10000 });
+      await examinations.patientSearchInput().fill(DEMO_IRIS_PET.name);
+      await expect(examinations.irisText()).toBeVisible({ timeout: 15000 });
     } finally {
       await page.close();
     }
   });
 
-  test('/examinations/new?petId=1 — 検査登録フォームが表示される', async () => {
+  test(`/examinations/new?petId=${DEMO_IRIS_PET.id} — 検査登録フォームが表示される`, async () => {
     const page = await context.newPage();
     const examinations = new ExaminationsPage(page);
     try {
-      // Use petId=1 (Iris from seed)
-      await examinations.gotoNew('?petId=1');
+      await examinations.gotoNew(`?petId=${DEMO_IRIS_PET.id}`);
       await expect(examinations.newFormHeading()).toBeVisible({
         timeout: 15000,
       });
@@ -73,7 +74,8 @@ test.describe('検査管理 フロー E2E', () => {
       });
       await expect(examinations.firstRow()).toBeVisible({ timeout: 15000 });
 
-      await examinations.firstRow().click();
+      // DataTableRow is non-interactive; open via DataTableRowLink.
+      await examinations.firstDetailLink().click();
 
       await expect(examinations.detailHeading()).toBeVisible({ timeout: 15000 });
       await expect(page).toHaveURL(/\/examinations\/\d+/);

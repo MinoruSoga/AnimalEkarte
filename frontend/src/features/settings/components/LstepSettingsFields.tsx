@@ -25,7 +25,7 @@ function PasswordField({
         name={name}
         placeholder={placeholder ?? "新しい値を入力（空欄で変更なし）"}
         autoComplete="new-password"
-        className={`${STYLE.formInput} rounded-[4px] border px-3 w-full outline-none ${C.focusRingAccent}`}
+        className={`${STYLE.formInput} rounded-xs border px-3 w-full outline-none ${C.focusRingAccent}`}
       />
     </div>
   );
@@ -57,7 +57,7 @@ function TextField({
         name={name}
         defaultValue={defaultValue ?? ""}
         placeholder={placeholder ?? ""}
-        className={`${STYLE.formInput} rounded-[4px] border px-3 w-full outline-none ${C.focusRingAccent}`}
+        className={`${STYLE.formInput} rounded-xs border px-3 w-full outline-none ${C.focusRingAccent}`}
       />
     </div>
   );
@@ -85,7 +85,7 @@ function CPMVersionSelectField({
         id={id}
         name={name}
         defaultValue={defaultValue}
-        className={`${STYLE.formInput} rounded-[4px] border px-3 w-full outline-none ${C.focusRingAccent}`}
+        className={`${STYLE.formInput} rounded-xs border px-3 w-full outline-none ${C.focusRingAccent}`}
       >
         <option value="v1">V1</option>
         <option value="v2">V2</option>
@@ -118,7 +118,7 @@ function NumberInputField({
         name={name}
         defaultValue={defaultValue}
         min={1}
-        className={`${STYLE.formInput} rounded-[4px] border px-3 w-full outline-none ${C.focusRingAccent}`}
+        className={`${STYLE.formInput} rounded-xs border px-3 w-full outline-none ${C.focusRingAccent}`}
       />
     </div>
   );

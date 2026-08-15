@@ -1,8 +1,8 @@
 # ADR-003: 支払方法の安定識別と payment_methods 整合性の設計判断
 
-**Status**: Decided — 論点2（system_key）#197 済・論点3（representativeMethod）#198 済・論点1（TRIGGER）保留（独立 Issue で再評価）・論点4（ENUM DROP）WONTFIX 維持。
-**Date**: 2026-06-25 / Updated: 2026-06-26
-**Deciders**: Engineering（論点2/3）。論点1 は PO 判断待ち。
+**Status**: Decided — system_key / TRIGGER（method⇔system_key match）/ payments.clinic_id・複合 FK 実装済（#197・TASK-445・TASK-ADR003）。論点3（representativeMethod）#198 済。論点4（ENUM DROP）WONTFIX 維持。残差: レガシー `payment_method_id IS NULL` 許容・TRIGGER は soft-deleted master を拒否しない・確定後訂正経路は保存済 method/payment_method_id 組合せを再検証しない。
+**Date**: 2026-06-25 / Updated: 2026-07-31
+**Deciders**: Engineering（論点2/3 決裁・論点1 実装反映）。
 **Drafted by**: Engineering（#185 follow-up）
 
 ## Context
@@ -17,22 +17,23 @@
 
 ### マイグレーション安全性（全論点共通の前提）
 
-適用済み migration（`001`〜`004`）の **in-place 編集は checksum mismatch を起こし STG db_reset 必須**になる。
+適用済み migration の **in-place 編集は checksum mismatch を起こす**。2026-07-27に当時のincremental 002〜009は `001_init.sql` 末尾へ統合され、現行DDLは001の単一ファイルになった。この統合前の001が記録済みのDBは `DB_RESET=true` 相当の手動再構築が必要であり、共有環境の復旧・再構築には明示承認が必要、現行workflowに自動reset経路はない。
 一方、かつて `007_add_bank_transfer_payment_method.sql`（#127）が実証した通り（同ファイルは 2026-06-26 の統合で `001_init.sql` に取り込み済み）、
 **新規ファイルで additive に変更すれば適用済みファイルの checksum は破壊されず、通常デプロイで適用される（db_reset 不要）**。
-本 ADR の全案は新規ファイル（`005+`、現行ベースラインは `001`〜`004`）で実現可能であり、**技術リスクは低い**。
+本 ADR 作成時点では全案を新規ファイル（当時の `004+`）で実現可能と評価していた。現行ベースラインは統合済み `001` のみであり、今後の追加方式はmigration運用規約とchecksum影響を再評価する。
 よって各論点を退ける/保留する根拠は「技術的危険」ではなく「設計の意味論を PO が確定すべき」というガバナンス事由である。
 
 ---
 
 ## Decision Point 1: DB レベルの整合制約（CHECK / TRIGGER）
 
-### 現状
+### 現状（2026-07-31 live）
 - 新規の `method` ⇔ `payment_method_id` 矛盾はアプリ層 `resolvePaymentMethodMasterID`
-  （`backend/internal/service/accounting_service_builders.go:28-44`）で防止。
+  （`backend/internal/billing/accounting_service_builders.go`）で防止。
   他院 id 混入・method 不一致を拒否、master 欠落は明示エラーで会計確定を止める（NULL→現金フォールバックなし）。
-- ただし**直接 SQL 書込み（手動・外部ツール・将来の雑な migration）は防げない**。
-  payment 系トリガーは `trg_create_default_payment_methods`（`001_init.sql:2735`）のみで整合制約は存在しない。
+- DB 側では `app_private.enforce_payment_method_system_key_match` を `payments` / `payment_splits` の BEFORE INSERT/UPDATE に接続し、`method` ⇔ `payment_methods.system_key` 一致を強制する（旧006相当・`001_init.sql` 末尾アーカイブ）。
+- `payments.clinic_id` と clinic 軸複合 FK（TASK-445 / 旧005相当）により payment 行のテナント境界を DB でも harden 済み。
+- 残差: レガシー `payment_method_id IS NULL` 行は許容し得る。TRIGGER は soft-deleted master を拒否しない。確定後訂正経路は保存済 method/payment_method_id 組合せを再検証しない。
 
 ### 設計案
 `payment_method_id` は per-clinic master を参照するため、**単純 CHECK では表現不可**（クロステーブル参照が必要）。
@@ -178,7 +179,13 @@ bank_transfer を含む優先順位ルール、または金額最大方式への
 
 - #185（本 follow-up・残論点の単一追跡先）/ #128（中核バグ解消済・CLOSED）/ #127（bank_transfer ENUM 追加）
 - hotfix `d9bcd387` / `007_add_bank_transfer_payment_method.sql`（additive migration の実証・2026-06-26 統合により `001_init.sql` に取り込み済み）
-- `backend/internal/service/accounting_service_builders.go`（`resolvePaymentMethodMasterID` / `representativeMethod`）
-- `backend/internal/service/cash_register_service.go`（`findCashMethodID` / `calcTheoreticalCash`）
+- `backend/internal/billing/accounting_service_builders.go`（`resolvePaymentMethodMasterID` / `representativeMethod`；BE9 以前は `internal/service`）
+- `backend/internal/billing/cash_register_service.go`（`findCashMethodID` / `calcTheoreticalCash`；BE9 以前は `internal/service`）
 - `backend/migrations/001_init.sql:1885`（payment_methods スキーマ）/ `:2722`（create_default_payment_methods）
 - [ADR-002: マルチテナント設計](002-multitenancy-clinic-id-isolation.md)
+
+## 実装メモ（2026-07-25・TASK-ADR003）
+
+Decision Point 1 のうち、`payment_splits.payment_method_id` の clinic 一致は、ADR 作成後に導入された既存の複合 FK パターンを使って宣言的に実装した。旧 `backend/migrations/006_payment_splits_payment_method_clinic_fk.sql`（`c434c4e66`、2026-07-27に001へ統合。現行所在は `001_init.sql` 末尾の旧006アーカイブブロック）は `payment_methods` に述語なしの `UNIQUE (id, clinic_id)` を追加し、`payment_splits (payment_method_id, clinic_id)` から `payment_methods (id, clinic_id)` への複合 FK を追加する。既定の `MATCH SIMPLE` により legacy の `payment_method_id IS NULL` 行は許容し、削除動作は `ON DELETE RESTRICT` とした。soft-delete 済み master への既存参照を許す挙動は変えない。
+
+続報（2026-07-29 統合 / live）: `method` ⇔ `system_key` 一致は `app_private.enforce_payment_method_system_key_match` と `payments`/`payment_splits` トリガーで実装済み。`payments.clinic_id` と複合 FK（billing / payment_methods との clinic 軸）も TASK-445 相当として `001_init.sql` に統合済み。通常の会計作成・更新経路は引き続き `backend/internal/billing/accounting_service_builders.go` の `resolvePaymentMethodMasterID` が不一致を拒否する。確定後訂正経路は `method` / `payment_method_id` 自体を変更しないが、保存済みの組合せは再検証しない。レガシー `payment_method_id IS NULL` 行と soft-deleted master 参照の扱いは Status の残差を参照。

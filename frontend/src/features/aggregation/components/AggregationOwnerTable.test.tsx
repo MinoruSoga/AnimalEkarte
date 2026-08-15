@@ -44,6 +44,27 @@ const createWrapper = () => {
 };
 
 describe('AggregationOwnerTable', () => {
+  it('keeps header and row selection targets at 44px without expanding table cell padding', () => {
+    render(
+      <AggregationOwnerTable
+        owners={mockOwners}
+        selectedOwnerIds={new Set()}
+        onSelectAll={() => {}}
+        onSelectOwner={() => {}}
+        isLoading={false}
+        activeTab="revenue"
+      />,
+      { wrapper: createWrapper() }
+    );
+
+    const checkboxes = screen.getAllByRole('checkbox');
+    expect(checkboxes).toHaveLength(3);
+    for (const checkbox of checkboxes) {
+      expect(checkbox).toHaveClass('size-11', '-my-3');
+      expect(checkbox.closest('th, td')).not.toHaveClass('py-0');
+    }
+  });
+
   it('should render owners in revenue tab', () => {
     render(
       <AggregationOwnerTable

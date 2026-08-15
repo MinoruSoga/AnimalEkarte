@@ -2,12 +2,12 @@
 // files under backend/migrations/seeds/{002_master,003_demo,004_staging}/, so
 // cmd/migrate can load them via COPY at startup. As of the 2026-07 CSV-only
 // migration there is no seed SQL left to read: backend/migrations/ contains
-// only 001_init.sql (DDL), and 002/003/004 exist solely as directories of
+// DDL-only SQL migrations, and 002/003/004 seed data exists solely as directories of
 // CSV + manifest.json under seeds/ — the stub SELECT-1 *.sql files that used
 // to sit between them and cmd/migrate have been deleted.
 //
 // This tool never reads or parses seed SQL — there is none. It creates a
-// disposable database, applies 001_init.sql plus the seed bundles to it via
+// disposable database, applies the DDL migrations plus the seed bundles to it via
 // the existing, UNMODIFIED cmd/migrate binary (so the historical `DO $$ ...
 // random() ...` reservation-generator block, now frozen into the 003_demo
 // CSV bundle, is never re-executed), then COPY-dumps the resulting tables.
@@ -112,7 +112,7 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		if err := tmpPool.QueryRow(ctx, `SELECT id FROM exam_types WHERE name = $1 AND clinic_id = $2 LIMIT 1`, "検査", clinicID).Scan(&examTypeID); err != nil {
 			return fmt.Errorf("resolve import exam type: %w", err)
 		}
-		counts, err := csvimport.Import(ctx, tmpPool, sourceDir, clinicID, speciesID, examTypeID)
+		counts, err := csvimport.Import(ctx, tmpPool, sourceDir, tmpDBName, clinicID, speciesID, examTypeID)
 		if err != nil {
 			return fmt.Errorf("CSV source import failed: %w", err)
 		}
@@ -176,6 +176,7 @@ func applyMigrationsToTmpDB(ctx context.Context, conn dbconn.ConnParams, logger 
 		"DB_USER="+conn.User,
 		"DB_PASSWORD="+conn.Password,
 		"DB_SSL_MODE="+conn.SSLMode,
+		"DB_SSL_ROOT_CERT="+conn.SSLRootCert,
 		"DB_NAME="+tmpDBName,
 		"DB_RESET=false",
 	)

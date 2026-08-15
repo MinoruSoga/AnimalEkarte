@@ -78,6 +78,7 @@ export function ClinicMasterSidePanel({
                     fontSize: LAYOUT.pageTitle.fontSize,
                     fontWeight: LAYOUT.pageTitle.fontWeight,
                     lineHeight: LAYOUT.pageTitle.lineHeight,
+                    letterSpacing: LAYOUT.pageTitle.letterSpacing,
                   }}
                   value={formData.name}
                   onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
@@ -96,7 +97,7 @@ export function ClinicMasterSidePanel({
                     onClick={() =>
                       setFormData((prev) => ({ ...prev, is_active: !prev.is_active }))
                     }
-                    className={`inline-flex items-center rounded-[3px] ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
+                    className={`inline-flex items-center rounded-xxs ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
                   >
                     <StatusPill status={formData.is_active ? "active" : "inactive"} />
                   </button>
@@ -299,7 +300,7 @@ export function ClinicMasterSidePanel({
               キャンセル
             </button>
             {canEdit ? (
-              <SubmitButton className="h-9 px-5">保存</SubmitButton>
+              <SubmitButton className="h-9 px-4">保存</SubmitButton>
             ) : null}
           </div>
         </fieldset>

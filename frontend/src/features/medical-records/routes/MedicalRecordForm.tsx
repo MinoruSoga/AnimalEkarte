@@ -1,5 +1,13 @@
 // React/Framework
-import { memo, useCallback, useEffect, useRef, useState } from "react";
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import { useParams, useNavigate } from "react-router";
 
 // External
@@ -10,10 +18,12 @@ import { paths } from "@/config/paths";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { C, ICON, LAYOUT } from "@/lib/design-tokens";
 import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
+import { Button } from "@/components/ui/button";
 import { UnifiedTabsRoot } from "@/components/shared/UnifiedTabs";
 
 // Relative
 import { MedicalRecordAddenda } from "../components/MedicalRecordAddenda";
+import { MedicalRecordAutoCreateFailure } from "../components/MedicalRecordAutoCreateFailure";
 import { MedicalRecordStickyHeader, MedicalRecordTabsArea } from "../components/MedicalRecordFormPanels";
 import {
   MedicalRecordFinalizeDialog,
@@ -40,6 +50,7 @@ import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { useTitle } from "@/hooks/use-title";
 import { ResourceMedicalRecords } from "@/types/generated/models";
+import { isMedicalRecordFinalizedStatus } from "../lib/medical-record-lock";
 
 export const MedicalRecordForm = memo(function MedicalRecordForm() {
   const { id: recordId } = useParams();
@@ -49,13 +60,22 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
     activeTab,
     setActiveTab,
     selectedPet,
+    cohabitingPets,
     isPetLoading,
     shouldRedirectToSelectPet,
     notFound,
+    isReadLoading,
+    isReadNotFound,
+    isReadError,
+    retryRead,
     handleBack,
     formAction,
     formState,
+    isSaving,
+    isFinalized,
     isCreating,
+    autoCreateFailurePhase,
+    retryAutoCreate,
     treatmentPlanItems: _treatmentPlanItems,
     setTreatmentPlanItems: _setTreatmentPlanItems,
     chiefComplaint,
@@ -64,6 +84,8 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
     setChiefComplaintTypeId,
     treatmentPolicy,
     setTreatmentPolicy,
+    physicalExam,
+    setPhysicalExam,
     plan,
     setPlan,
     assessment,
@@ -122,7 +144,6 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const {
-    handleRegisterClinicalPlanSave,
     handleRegisterEstimateSave,
   } = useMedicalRecordPostSave({
     activeTab,
@@ -133,9 +154,21 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
   const { user } = useAuth();
   const { canEdit, canCreate, canDelete } = usePermission("medical-records");
   const canSubmit = isNewRecord ? canCreate : canEdit;
+  const canDeleteRef = useRef(canDelete);
+  const selectedPetStatusRef = useRef(selectedPet?.status);
+  useLayoutEffect(() => {
+    canDeleteRef.current = canDelete;
+  }, [canDelete]);
+  useLayoutEffect(() => {
+    selectedPetStatusRef.current = selectedPet?.status;
+  }, [selectedPet?.status]);
 
   // addenda セクション用: キャッシュ共有のため追加ネットワーク要求なし
   const { data: currentRecord } = useGetMedicalRecord(recordId ?? "");
+  // BUG-035 residual: hook の isFinalized と detail キャッシュを OR で単一ロック判定にする
+  // （banner/addenda が 確定済 なのに保存が残る dual-source を塞ぐ）
+  const recordFinalized =
+    isFinalized || isMedicalRecordFinalizedStatus(currentRecord?.status);
   // P2-15: 拠点横断で開いたカルテ（record.clinicId）の子リソースは、グローバル選択クリニックではなく
   // レコード自身の clinicId を X-Clinic-ID として送る必要がある。currentRecord 解決前は undefined —
   // クエリキーに clinicId を含めているため解決後に自動で正しいクリニックへ再フェッチされる。
@@ -165,11 +198,9 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
   } = useMedicalRecordFormModals();
   // 一度マウントしたタブを記録してhide/show方式で管理
   const [mountedTabs, setMountedTabs] = useState<Set<string>>(() => new Set(["問診"]));
+  const [isTabPending, startTabTransition] = useTransition();
 
   const { mutate: deleteRecord, isPending: isDeleting } = useDeleteMedicalRecord(recordClinicId);
-
-  // SPEC-GAP: カルテ確定状態。確定済みは編集不可となり、以降の修正は追記(addendum)のみ
-  const isFinalized = currentRecord?.status === "確定済";
 
   const handleFinalizeConfirm = useCallback(() => {
     handleFinalize();
@@ -177,7 +208,11 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
   }, [handleFinalize, setIsFinalizeConfirmOpen]);
 
   const handleDeleteConfirm = useCallback(() => {
-    if (!recordId) return;
+    if (
+      !recordId
+      || canDeleteRef.current !== true
+      || selectedPetStatusRef.current === "死亡"
+    ) return;
     deleteRecord(recordId, {
       onSuccess: () => {
         toast.success("カルテを削除しました");
@@ -199,12 +234,14 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
   // タブ切り替え: 一度開いたタブはhide/showで状態を維持する
   // BUG-MEDI-005: タブ切替時にスクロール位置をトップにリセット
   const handleTabChange = useCallback((tab: string) => {
-    setActiveTab(tab);
-    setMountedTabs((prev) => {
-      if (prev.has(tab)) return prev;
-      const next = new Set(prev);
-      next.add(tab);
-      return next;
+    startTabTransition(() => {
+      setActiveTab(tab);
+      setMountedTabs((prev) => {
+        if (prev.has(tab)) return prev;
+        const next = new Set(prev);
+        next.add(tab);
+        return next;
+      });
     });
     if (scrollContainerRef.current) {
       scrollContainerRef.current.scrollTop = 0;
@@ -219,6 +256,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
     handleSetDiagnosis1NameId,
     handleSetDiagnosis2CategoryId,
     handleSetDiagnosis2NameId,
+    handleSetPhysicalExam,
     handleSetPlan,
     handleSetTreatmentPolicy,
   } = useMedicalRecordDirtyFields({
@@ -230,6 +268,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
     setDiagnosis1NameId,
     setDiagnosis2CategoryId,
     setDiagnosis2NameId,
+    setPhysicalExam,
     setPlan,
     setTreatmentPolicy,
   });
@@ -241,7 +280,21 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
     }
   }, [recordId, handleChangeDoctor, setStaffName]);
 
-  if (notFound) {
+  if (isReadLoading) {
+    return (
+      <PageLayout
+        title="カルテ"
+        onBack={handleBack}
+        icon={<HeartPulse className={`${ICON.page} ${C.text}`} />}
+        maxWidth={LAYOUT.pageContentMaxWidth.full}
+      >
+        <LoadingFallback />
+      </PageLayout>
+    );
+  }
+
+  // BUG-017: missing / other-clinic / forbidden → Not Found (non-disclosure), never blank
+  if (notFound || isReadNotFound) {
     return (
       <PageLayout
         title="カルテ"
@@ -254,12 +307,62 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
     );
   }
 
+  if (isReadError) {
+    return (
+      <PageLayout
+        title="カルテ"
+        onBack={handleBack}
+        icon={<HeartPulse className={`${ICON.page} ${C.text}`} />}
+        maxWidth={LAYOUT.pageContentMaxWidth.full}
+      >
+        <div className="space-y-3">
+          <ErrorFallback message="カルテの取得に失敗しました" />
+          {retryRead ? (
+            <Button type="button" variant="outline" size="sm" onClick={retryRead}>
+              再試行
+            </Button>
+          ) : null}
+        </div>
+      </PageLayout>
+    );
+  }
+
   if (isPetLoading) {
     return <LoadingFallback />;
   }
 
+  // Edit route with loaded record but pet unresolved: never blank white page
   if (!selectedPet) {
+    if (!isNewRecord) {
+      return (
+        <PageLayout
+          title="カルテ"
+          onBack={handleBack}
+          icon={<HeartPulse className={`${ICON.page} ${C.text}`} />}
+          maxWidth={LAYOUT.pageContentMaxWidth.full}
+        >
+          <ErrorFallback message="カルテが見つかりません" />
+        </PageLayout>
+      );
+    }
     return null;
+  }
+
+  // BUG-002: 死亡ペットへの /medical-records/new?petId=… 直叩きは編集フォームを出さない。
+  // mutation 拒否だけでは UAT で【死亡】バナー付きフルフォームが残るため、UI を hard stop する。
+  // BE medicalRecordDeceasedPetMessage と同文言。
+  if (isNewRecord && selectedPet.status === "死亡") {
+    return (
+      <PageLayout
+        title="カルテ入力"
+        onBack={handleBack}
+        icon={<HeartPulse className={`${ICON.page} ${C.text}`} />}
+        resource={ResourceMedicalRecords}
+        maxWidth={LAYOUT.pageContentMaxWidth.full}
+      >
+        <ErrorFallback message="死亡したペットは新規カルテを作成できません" />
+      </PageLayout>
+    );
   }
 
   return (
@@ -272,9 +375,22 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
       scrollContainerRef={scrollContainerRef}
     >
       <NavigationBlocker when={isDirty} />
-      <UnifiedTabsRoot value={activeTab} onValueChange={handleTabChange}>
+      {autoCreateFailurePhase !== null ? (
+        <MedicalRecordAutoCreateFailure
+          failurePhase={autoCreateFailurePhase}
+          isRetrying={isCreating}
+          onRetry={retryAutoCreate}
+        />
+      ) : null}
+      <UnifiedTabsRoot
+        value={activeTab}
+        onValueChange={handleTabChange}
+        className={activeTab === "問診" ? "flex-1 min-h-0" : undefined}
+        ariaBusy={isTabPending}
+      >
       <MedicalRecordStickyHeader
         selectedPet={selectedPet}
+        cohabitingPets={cohabitingPets}
         staffName={staffName}
         visitType={visitType}
         visitCount={visitCount ?? 0}
@@ -292,13 +408,16 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
         onNextVisitDateValidChange={handleNextVisitDateValidChange}
         hasLineIntegration={hasLineIntegration}
       />
-      {/* SPEC-GAP (GAP-1): 確定済みカルテは編集不可 UI。BE は主要な子リソース
-          (治療/検査/バイタル/処方/健診/画像) を 409 で拒否するが、UI が押せて
-          エラーになるのは不可のため、タブ内の全編集導線をここで一括無効化する。
-          個別コンポーネントへ disabled を都度配線すると新規フィールド追加時に
-          ガード漏れが起きやすいため、fieldset の cascade を単一の強制点にする。 */}
-      <fieldset disabled={isFinalized} className="contents border-0 m-0 p-0">
-        {isFinalized ? (
+      {/* SPEC-GAP (GAP-1) / BUG-035: 確定済み・非編集権限のカルテは編集不可 UI。
+          display:contents の fieldset はブラウザで disabled が子孫へ伝播しないため使わない。
+          BE は更新を 409 で拒否するが、UI が押せてエラーになるのは不可。
+          加えて問診臨床欄は isFinalized prop で content attribute を明示する（UAT residual）。 */}
+      <fieldset
+        disabled={recordFinalized || !canSubmit}
+        className="border-0 p-0 m-0 min-w-0"
+        data-testid="medical-record-edit-lock"
+      >
+        {recordFinalized ? (
           <div className={`mx-4 mt-3 rounded border ${C.borderMedium} ${C.bgPage} px-3 py-2 text-sm ${C.text60}`}>
             このカルテは確定済みのため編集できません。修正が必要な場合は下部の訂正追記（addendum）をご利用ください。
           </div>
@@ -313,6 +432,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
           chiefComplaintTypeId={chiefComplaintTypeId}
           treatmentPolicy={treatmentPolicy}
           historyItems={historyItems}
+          physicalExam={physicalExam}
           plan={plan}
           assessment={assessment}
           diagnosis1CategoryId={diagnosis1CategoryId}
@@ -329,6 +449,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
           onChiefComplaintChange={handleSetChiefComplaint}
           onChiefComplaintTypeIdChange={handleSetChiefComplaintTypeId}
           onTreatmentPolicyChange={handleSetTreatmentPolicy}
+          onPhysicalExamChange={handleSetPhysicalExam}
           onPlanChange={handleSetPlan}
           onAssessmentChange={handleSetAssessment}
           onDiagnosis1CategoryIdChange={handleSetDiagnosis1CategoryId}
@@ -338,7 +459,6 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
           onNextVisitDateChange={handleNextVisitDateChange}
           onNextVisitDateValidChange={handleNextVisitDateValidChange}
           onRecommendationReasonChange={setRecommendationReason}
-          onRegisterClinicalPlanSave={handleRegisterClinicalPlanSave}
           onRegisterEstimateSave={handleRegisterEstimateSave}
           recordClinicId={recordClinicId}
         />
@@ -355,12 +475,13 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
 
       <MedicalRecordFloatingActions
         activeTab={activeTab}
-        canDelete={!!canDelete && !isFinalized}
+        canDelete={!!canDelete && !recordFinalized}
         canEdit={canEdit}
         canSubmit={canSubmit}
         isNewRecord={isNewRecord}
         isCreating={isCreating}
-        isFinalized={isFinalized}
+        isSaving={isSaving}
+        isFinalized={recordFinalized}
         onDeleteClick={() => setIsDeleteConfirmOpen(true)}
         onVitalsClick={() => setIsVitalsOpen(true)}
         onPrintClick={handlePrintClick}

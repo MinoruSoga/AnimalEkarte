@@ -2,7 +2,7 @@ import { lazy, Suspense } from "react";
 import { type RouteObject } from "react-router";
 
 import { Layout } from "@/components/shared/Layout/Layout";
-import { C } from "@/lib/design-tokens";
+import { C, STYLE } from "@/lib/design-tokens";
 import { paths } from "@/config/paths";
 
 import { accountingRoutes } from "./accounting-routes";
@@ -17,7 +17,7 @@ const Login = lazy(() =>
 
 const authRoutes: RouteObject[] = [
   {
-    path: "/login",
+    path: paths.auth.login.path,
     element: (
       <Suspense fallback={null}>
         <Login />
@@ -25,14 +25,14 @@ const authRoutes: RouteObject[] = [
     ),
   },
   {
-    path: "/forgot-password",
+    path: paths.auth.forgotPassword.path,
     lazy: async () => {
       const { ForgotPasswordPage } = await import("@/features/auth");
       return { Component: ForgotPasswordPage };
     },
   },
   {
-    path: "/reset-password",
+    path: paths.auth.resetPassword.path,
     lazy: async () => {
       const { ResetPasswordPage } = await import("@/features/auth");
       return { Component: ResetPasswordPage };
@@ -53,7 +53,7 @@ const ownerReportRoute: RouteObject = {
 const notFoundRoute: RouteObject = {
   path: "*",
   element: (
-    <div className="flex-1 p-5 flex items-center justify-center">
+    <div className={`flex-1 p-6 flex items-center justify-center ${STYLE.page}`}>
       <p className={C.text50}>ページが見つかりません</p>
     </div>
   ),

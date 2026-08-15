@@ -8,6 +8,7 @@ import { isAxiosError } from "axios";
 import { FormFieldError } from "@/components/shared/FormFieldError";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
+import { parseInternalPath } from "@/lib/internal-navigation";
 import type { ActionState } from "@/types/form";
 import { INITIAL_ACTION_STATE } from "@/types/form";
 import { useAuth } from "../hooks/use-auth";
@@ -23,12 +24,10 @@ interface DemoCredential {
   isSystemAdmin?: boolean;
 }
 
-// M-10 (#91): Vercel Production では __VERCEL_ENV__ 一次ガードで他フラグに関わらず false にする。
+// M-10 (#91) / SEC-CS2-F01: local Vite DEV only。preview/production では非表示。
 // ロジックは computeShowDemoAccounts (show-demo-accounts.ts) と同一 — 定数畳み込み維持のためインライン化。
 // export はテスト用（本番バンドルの tree-shake には影響しない — 参照は test 側 dynamic import のみ）。
-export const SHOW_DEMO =
-  __VERCEL_ENV__ !== "production" &&
-  (import.meta.env.DEV || import.meta.env.VITE_SHOW_DEMO_ACCOUNTS === "true");
+export const SHOW_DEMO = import.meta.env.DEV;
 
 const DEMO_ACCOUNTS: readonly DemoCredential[] = SHOW_DEMO ? [
   // システム管理者（全医院）
@@ -59,7 +58,7 @@ const DemoAccount = memo(function DemoAccount({
     <button
       type="button"
       onClick={() => onSelect(email)}
-      className={`w-full text-left px-2.5 py-2 rounded-[3px] ${C.hoverBgLight} transition-colors flex items-center gap-3`}
+      className={`w-full text-left px-2.5 py-2 rounded-xxs ${C.hoverBgLight} transition-colors flex items-center gap-3`}
     >
       <div className={`size-[36px] rounded-full flex items-center justify-center shrink-0 ${C.bgInactive}`}>
         <span className={`text-sm font-medium ${C.text65}`}>{displayName.charAt(0)}</span>
@@ -67,14 +66,14 @@ const DemoAccount = memo(function DemoAccount({
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5 flex-wrap">
           <span className={`text-sm font-medium ${C.text}`}>{displayName}</span>
-          <span className={`text-xs px-1.5 py-px rounded-[3px] ${C.text50} ${C.bgInactive}`}>
+          <span className={`text-xs px-1.5 py-px rounded-xxs ${C.text50} ${C.bgInactive}`}>
             {occupationLabel}
           </span>
-          <span className={`text-xs px-1.5 py-px rounded-[3px] ${C.textBrand} ${C.bgBrand10}`}>
+          <span className={`text-xs px-1.5 py-px rounded-xxs ${C.textBrand} ${C.bgBrand10}`}>
             {permissionLabel}
           </span>
           {isSystemAdmin ? (
-            <span className={`text-xs px-1.5 py-px rounded-[3px] ${C.danger} ${C.bgDanger8}`}>
+            <span className={`text-xs px-1.5 py-px rounded-xxs ${C.danger} ${C.bgDanger8}`}>
               システム管理者
             </span>
           ) : null}
@@ -91,7 +90,7 @@ const DemoAccount = memo(function DemoAccount({
 
 /* ---- Shared input classes (padding-x set per field to avoid conflict) ---- */
 // Figma実測: fontSize=15px, height=~48px, bg=warm neutral 60%透過（PALETTE.hoverBgInput相当の色調）, borderRadius=3px
-const INPUT_BASE = `w-full h-[48px] text-base rounded-[3px] ${C.bgInputLogin} border ${C.borderMedium} ${C.text} ${C.textPlaceholder} outline-none transition-all focus:ring-2 ${C.focusRingBrand} focus:border-transparent disabled:opacity-60`;
+const INPUT_BASE = `w-full h-[48px] text-base rounded-xxs ${C.bgInputLogin} border ${C.borderMedium} ${C.text} ${C.textPlaceholder} outline-none transition-all focus:ring-2 ${C.focusRingActionPrimary} focus:border-transparent disabled:opacity-60`;
 
 /* ---- Login Form ---- */
 
@@ -118,12 +117,12 @@ export const LoginForm = memo(function LoginForm() {
 
         // 1. location.state から取得 (内部遷移)
         // 2. URL クエリパラメータから取得 (Axios インターセプター等からの強制遷移)
-        // オープンリダイレクト対策: "/" 始まりかつ "//" 始まりでないパスのみ許可
-        const isSafePath = (s: string | null | undefined): s is string =>
-          typeof s === "string" && s.startsWith("/") && !s.startsWith("//");
         const stateFrom = (location.state as { from?: string })?.from;
         const queryFrom = new URLSearchParams(window.location.search).get("from");
-        const from = isSafePath(stateFrom) ? stateFrom : isSafePath(queryFrom) ? queryFrom : "/";
+        const from =
+          parseInternalPath(stateFrom) ??
+          parseInternalPath(queryFrom) ??
+          paths.home.getHref();
 
         navigate(from, { replace: true });
         return { success: true, error: null, timestamp: Date.now() };
@@ -164,10 +163,10 @@ export const LoginForm = memo(function LoginForm() {
     <div className="w-full max-w-[380px] mx-auto">
       {/* Header */}
       <div className="text-center mb-8">
-        <div className={`inline-flex items-center justify-center size-[48px] rounded-xl mb-4 ${C.bgBrand}`}>
+        <div className={`inline-flex items-center justify-center size-[48px] rounded-xl mb-4 ${C.bgBrandIdentity}`}>
           <Stethoscope className={`size-[26px] ${C.textWhite}`} />
         </div>
-        <h1 className={`text-[24px] font-bold leading-tight ${C.text} mb-1`}>
+        <h1 className={`text-heading-3 font-bold leading-tight ${C.text} mb-1`}>
           ノア動物病院
         </h1>
         <p className={`text-base ${C.text50}`}>管理システムにログイン</p>
@@ -210,7 +209,7 @@ export const LoginForm = memo(function LoginForm() {
               onChange={handlePasswordChange}
               placeholder="パスワードを入力"
               minLength={6}
-              className={`${INPUT_BASE} pl-2.5 pr-10`}
+              className={`${INPUT_BASE} pl-2.5 pr-12`}
               aria-invalid={formState.error !== null}
               aria-describedby={formState.error ? "login-error" : undefined}
               disabled={isPending}
@@ -230,7 +229,8 @@ export const LoginForm = memo(function LoginForm() {
 
         {/* Submit */}
         <SubmitButton
-          className="w-full h-[52px] text-base font-medium"
+          colorVariant="brand"
+          className="w-full h-[52px]"
           loadingText="ログイン中..."
         >
           ログイン
@@ -239,7 +239,7 @@ export const LoginForm = memo(function LoginForm() {
         <div className="text-center">
           <Link
             to={paths.auth.forgotPassword.getHref()}
-            className={`text-sm ${C.text50} hover:underline`}
+            className={`inline-flex min-h-11 items-center justify-center text-sm ${C.textBrand} hover:underline`}
           >
             パスワードをお忘れですか？
           </Link>

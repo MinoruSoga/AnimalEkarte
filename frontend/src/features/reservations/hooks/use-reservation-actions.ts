@@ -5,7 +5,7 @@ import { toast } from "sonner";
 
 import { handleApiError } from "@/lib/handle-api-error";
 import { jstWallDateToISOString } from "@/lib/jst-date";
-import { getReservationStatusLabel } from "@/utils/status-helpers";
+import { getReservationStatusLabel } from "@/lib/status-helpers";
 import type { ReservationCreateMutations } from "@/types/reservation-create-mutations";
 
 import { useCreateReservation } from "../api/create-reservation";
@@ -21,12 +21,30 @@ import type {
   ReservationStatus,
 } from "../types";
 
+/** 詳細モーダルからの破壊的 status 変更（確認ダイアログ対象）。BUG-020 */
+export const DESTRUCTIVE_RESERVATION_STATUSES: readonly ReservationStatus[] = [
+  "cancelled",
+  "no_show",
+] as const;
+
+export function isDestructiveReservationStatus(status: ReservationStatus): boolean {
+  return (DESTRUCTIVE_RESERVATION_STATUSES as readonly string[]).includes(status);
+}
+
+export interface StatusConfirmTarget {
+  reservation: Reservation;
+  status: ReservationStatus;
+}
+
 interface UseReservationActionsArgs {
   appointments: Reservation[];
   editingAppointmentRef: RefObject<ReservationFormData | null>;
   deleteTarget: Reservation | null;
   setDeleteConfirmOpen: Dispatch<SetStateAction<boolean>>;
   setDeleteTarget: Dispatch<SetStateAction<Reservation | null>>;
+  statusConfirmTarget: StatusConfirmTarget | null;
+  setStatusConfirmOpen: Dispatch<SetStateAction<boolean>>;
+  setStatusConfirmTarget: Dispatch<SetStateAction<StatusConfirmTarget | null>>;
   setDetailAppointment: Dispatch<SetStateAction<Reservation | null>>;
   handleCloseForm: () => void;
   handleCloseDetail: () => void;
@@ -61,6 +79,9 @@ export function useReservationActions({
   deleteTarget,
   setDeleteConfirmOpen,
   setDeleteTarget,
+  statusConfirmTarget,
+  setStatusConfirmOpen,
+  setStatusConfirmTarget,
   setDetailAppointment,
   handleCloseForm,
   handleCloseDetail,
@@ -220,22 +241,47 @@ export function useReservationActions({
     [checkOverlap, updateReservationFn],
   );
 
-  const handleStatusChange = useCallback(
+  /** BUG-020: status のみの最小 payload（日時・担当医の再検証を避ける） */
+  const applyStatusChange = useCallback(
     (reservation: Reservation, status: ReservationStatus) => {
       startUpdateTransition(() => {
-        updateReservationFn(buildUpdatePayload(reservation, reservation.start, reservation.end, status), {
-          onSuccess: () => {
-            setDetailAppointment((prev) => (prev ? { ...prev, status } : null));
-            const statusLabel = getReservationStatusLabel(status);
-            toast.success("ステータスを更新しました", {
-              description: `${reservation.petName} → ${statusLabel}`,
-            });
+        updateReservationFn(
+          { id: reservation.id, req: { status } },
+          {
+            onSuccess: () => {
+              setDetailAppointment((prev) => (prev ? { ...prev, status } : null));
+              const statusLabel = getReservationStatusLabel(status);
+              toast.success("ステータスを更新しました", {
+                description: `${reservation.petName} → ${statusLabel}`,
+              });
+            },
           },
-        });
+        );
       });
     },
     [setDetailAppointment, updateReservationFn],
   );
+
+  const handleStatusChange = useCallback(
+    (reservation: Reservation, status: ReservationStatus) => {
+      if (status === reservation.status) return;
+      if (isDestructiveReservationStatus(status)) {
+        setStatusConfirmTarget({ reservation, status });
+        setStatusConfirmOpen(true);
+        return;
+      }
+      applyStatusChange(reservation, status);
+    },
+    [applyStatusChange, setStatusConfirmOpen, setStatusConfirmTarget],
+  );
+
+  const executeStatusChange = useCallback(() => {
+    if (!statusConfirmTarget) return;
+    const { reservation, status } = statusConfirmTarget;
+    setStatusConfirmOpen(false);
+    setStatusConfirmTarget(null);
+    applyStatusChange(reservation, status);
+  }, [applyStatusChange, setStatusConfirmOpen, setStatusConfirmTarget, statusConfirmTarget]);
 
   const executeDelete = useCallback(() => {
     if (!deleteTarget) return;
@@ -260,6 +306,7 @@ export function useReservationActions({
     handleSave,
     handleReservationUpdate,
     handleStatusChange,
+    executeStatusChange,
     executeDelete,
   };
 }

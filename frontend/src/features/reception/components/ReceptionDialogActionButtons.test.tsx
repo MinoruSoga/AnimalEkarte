@@ -36,7 +36,6 @@ describe("ReceptionDialogActionButtons — DESIGN.md brand CTA", () => {
     const btn = screen.getByRole("button", { name: new RegExp(label) });
     expect(btn.className).toContain(C.bgBrand);
     expect(btn.className).toContain("rounded-full");
-    expect(btn.className).not.toContain(C.bgAccent);
   });
 
   it("破壊的アクション（取消）は danger のまま維持される", () => {

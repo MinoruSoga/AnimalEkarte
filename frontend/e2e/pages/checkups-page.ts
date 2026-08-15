@@ -35,6 +35,10 @@ export class CheckupsPage extends BasePage {
     return this.page.getByText('Iris').first();
   }
 
+  patientSearchInput(): Locator {
+    return this.page.locator('#search');
+  }
+
   saveButton(): Locator {
     return this.page.getByRole('button', { name: '保存' });
   }

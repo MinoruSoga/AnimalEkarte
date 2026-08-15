@@ -1,5 +1,6 @@
 import { Plus } from "lucide-react";
 
+import { TableCell, TableHead } from "@/components/ui/table";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
 import type { UpdateVitalInput, Vital } from "../../types";
 
@@ -10,13 +11,13 @@ import type { VitalsAddFormState } from "./vitals-tab-table-model";
 const TABLE_HEADER = (
   <thead>
     <tr className={`border-b ${C.borderLight} ${C.bgPage} h-11`}>
-      <th scope="col" className={`px-3 text-left ${STYLE.sectionLabel} w-40`}>記録日時</th>
-      <th scope="col" className={`px-3 text-right ${STYLE.sectionLabel} w-24`}>体温 (℃)</th>
-      <th scope="col" className={`px-3 text-right ${STYLE.sectionLabel} w-24`}>心拍数 (bpm)</th>
-      <th scope="col" className={`px-3 text-right ${STYLE.sectionLabel} w-24`}>呼吸数 (/min)</th>
-      <th scope="col" className={`px-3 text-right ${STYLE.sectionLabel} w-32`}>体重</th>
-      <th scope="col" className={`px-3 text-left ${STYLE.sectionLabel}`}>メモ</th>
-      <th scope="col" className={`px-2 text-right ${STYLE.sectionLabel} w-24`}>操作</th>
+      <TableHead className="w-40">記録日時</TableHead>
+      <TableHead className="w-24 text-right">体温 (℃)</TableHead>
+      <TableHead className="w-24 text-right">心拍数 (bpm)</TableHead>
+      <TableHead className="w-24 text-right">呼吸数 (/min)</TableHead>
+      <TableHead className="w-32 text-right">体重</TableHead>
+      <TableHead>メモ</TableHead>
+      <TableHead className="w-24 text-right">操作</TableHead>
     </tr>
   </thead>
 );
@@ -34,7 +35,7 @@ interface VitalsTableProps {
   updatePending: boolean;
   deletePending: boolean;
   onStartAdd: () => void;
-  onAddFormChange: (field: keyof VitalsAddFormState, value: string) => void;
+  onAddFormChange: (patch: Partial<VitalsAddFormState>) => void;
   onAddSubmit: () => void;
   onAddCancel: () => void;
   onStartEdit: (vitalId: string) => void;
@@ -71,9 +72,9 @@ export function VitalsTable({
         <tbody>
           {vitals.length === 0 ? (
             <tr>
-              <td colSpan={7} className={STYLE.tableEmptySm}>
+              <TableCell data-empty-state colSpan={7} className={STYLE.tableEmptySm}>
                 バイタル記録がありません。下の「記録を追加」ボタンから追加してください。
-              </td>
+              </TableCell>
             </tr>
           ) : (
             vitals.map((vital) =>

@@ -5,7 +5,7 @@
 > **タイミング**: STGデータの分類判断・cleanup時。
 
 > **Animal Ekarte**: ステージング環境におけるデモ・テストデータの作成から廃棄までの完全ガイド
-> **最新更新**: 2026-07-10 | **ステータス**: STG-001 インシデント対応済
+> **最新更新**: 2026-07-31 | **ステータス**: STG-001 対応済 / SEC-CS2-F01 staging master-only
 
 ---
 
@@ -15,8 +15,8 @@
 
 | カテゴリ | 説明 | 作成時期 | 保有者 | 削除義務 |
 |---------|------|--------|-------|--------|
-| **Seed Data** | migration で自動生成。system_admin、base clinics、デフォルト permission_groups | DB 初期化時 | インフラ/DevOps | なし（永続） |
-| **Demo Accounts** | 営業デモ、顧客向けプレゼンテーション用。固定アカウント数、予め作成済 | 環境構築時 | PO/営業チーム | なし（永続） |
+| **Seed Data** | migration で自動生成。`APP_ENV=staging` では **master のみ**（`002_master`）。reference masters / 権限マスタ | DB 初期化時 | インフラ/DevOps | なし（永続） |
+| **Demo Accounts** | 営業デモ用の特権アカウント。**リポジトリ seed（`003_demo`）経由では STG に投入しない**（SEC-CS2-F01）。必要な場合は運用側で明示プロビジョニング | 明示作成時のみ | PO/営業・運用 | 環境方針に従う |
 | **Smoke Test Data** | デプロイ直後の機能検証用。CRUD-SMOKE-TEST.md に従い作成・削除 | デプロイ直後 | DevOps/エンジニア | **あり（デプロイ直後に全削除）** |
 | **Investigation Data** | バグ調査、仕様検証用の一時データ。調査完了後は廃棄対象 | 随時（必要時） | エンジニア | あり（調査終了時） |
 
@@ -31,17 +31,14 @@
   - 初期医院レコード（clinic id=1）
   - デフォルト権限マスタ（resource + action 組み合わせ）
 - **生存期間**: 環境存在期間中は永続
-- **管理**: migrations で定義、DB_RESET で復元
+- **管理**: migrations で定義。fresh DB または明示承認済みの再構築時に `cmd/migrate` で復元
 
 ### 2.2 Demo Accounts
-- **目的**: 営業・顧客向けデモ環境でのロールプレイ
-- **具体例**: 
-  - demo-admin@example.com（システム管理者権限）
-  - demo-staff@example.com（医院スタッフ権限、clinic_id 限定）
-  - demo-owner@example.com（飼い主アカウント）
-- **生存期間**: 環境存在期間中は永続
-- **管理**: seed data として migration 定義、または デプロイ初期化スクリプトで作成
-- **重要**: 本番移行時に全削除。ステージング環境でのみ有効
+- **目的**: 営業・顧客向けデモ環境でのロールプレイ（必要な場合のみ）
+- **SEC-CS2-F01**: `cmd/migrate` の `APP_ENV=staging` は **master-only**。`003_demo` / `004_staging` CSV（active system_admin を含む）は STG に自動投入されない。ローカル `development` / `local` / `dev` / `test` のみ full order。
+- **フロント**: ログイン画面のデモアカウント UI は **ローカル Vite DEV のみ**。Vercel preview（STG）では `VITE_SHOW_DEMO_ACCOUNTS` が true でも表示しない。
+- **管理**: STG でデモが必要な場合は seed に依存せず、運用プロビジョニング（[STAFF_ACCOUNT_PROVISIONING.md](./STAFF_ACCOUNT_PROVISIONING.md)）で作成し、資格情報は secrets 管理する
+- **重要**: 本番移行時に全削除。リポジトリ既知のデモパスワードを STG/本番へ持ち込まない
 
 ### 2.3 Smoke Test Data
 - **目的**: デプロイ直後の機能確認（CRUD 操作、外部キー保護、権限チェック）
@@ -60,9 +57,9 @@
   - 特定の condition を満たす飼い主の作成（LTV 計算検証等）
   - エラーログ再現用の特殊レコード
   - 監査ログ動作確認用の一時データ
-- **生存期間**: 調査完了まで。終了後は翌 DB_RESET で廃棄
-- **管理**: 調査用途、作成者、削除予定日をリポジトリ直下 todo.md に記録
-- **重要**: 調査完了後は即削除推奨（DB_RESET 待ちは放置リスク高）
+- **生存期間**: 調査完了まで。終了後は API 経由で速やかに削除
+- **管理**: 調査用途、作成者、削除予定日をリポジトリ直下 [`todo.md` / `todo-po.md`](../../../todo.md) の該当タスク節に記録
+- **重要**: 共有 STG の再作成を cleanup 手段にしない。調査完了後は API 経由で削除する
 
 ---
 
@@ -71,10 +68,12 @@
 STG データは以下の 4 つの方法で作成されます。それぞれの作成元ごとに、削除責任者が異なります。
 
 ### 3.1 Migration（自動）
-- **対象**: seed data のみ
-- **ファイル**: `backend/migrations/` の .sql ファイル
+- **対象**: seed data のみ（環境ゲート付き）
+- **ファイル**: `backend/migrations/` の DDL SQL と `backend/migrations/seeds/` の CSV バンドル
+- **STG 計画**（`APP_ENV=staging`）: `002_master` のみ。`003_demo` / `004_staging` はロードしない（`seedbundle.BundleOrderForEnv`）
+- **ローカル計画**（`development` / `local` / `dev` / `test`）: `002_master` → `003_demo` → `004_staging`
 - **削除方法**: 不可。migration は immutable。削除は新規 migration で実装
-- **例**: `migration_001_initial_setup.sql` で system_admin group 作成
+- **例**: STG の最初期 seed は `001_init.sql` DDL + `002_master` の reference masters。特権デモアカウント CSV は STG 自動経路に乗らない
 
 ### 3.2 API 経由（推奨）
 - **対象**: demo accounts, smoke test data, investigation data
@@ -154,18 +153,10 @@ curl -s "${API_V1}/clinics/${TEST_CLINIC_ID}" \
 
 ### 4.2 削除完了記録
 
-削除後、以下を audit_logs テーブル（または旧 ECS ロールバック経路使用時は CloudWatch ログ）で確認：
+削除後、DB の `audit_logs` テーブルで DELETE / SOFT_DELETE の監査行を確認する。
+Cloudflare Workers Logs はインフラ障害調査用で、業務操作監査の正本ではない。
 
-```bash
-# 監査ログ確認（旧 ECS ロールバック経路のみ。Cloudflare 正系統は Workers Logs を参照）
-aws logs tail /ecs/animalekarte-stg --follow --region us-east-1 \
-  | grep -E "DELETE|SOFT_DELETE" | tail -20
-
-# 例: 期待ログ
-# 2026-05-26T16:30:45.123Z staff_id=admin resource=staff resource_id=test-staff-123 action=DELETE
-```
-
-記録内容（todo.md の該当タスク項目 または audit_logs / CloudWatch):
+記録内容（[`todo.md` / `todo-po.md`](../../../todo.md) の該当タスク節または `audit_logs`）:
 - 削除日時（JST）
 - 削除した レコード種別 + ID + 件数
 - 削除操作者（staff_id または CI/CD job）
@@ -181,12 +172,12 @@ aws logs tail /ecs/animalekarte-stg --follow --region us-east-1 \
 |---|------|--------|------|
 | **1** | UI に表示されない | ブラウザで確認、list API で 404 | ✅ |
 | **2** | マルチテナント隔離に影響しない | clinic_id scope 確認 | ✅ |
-| **3** | 次の DB_RESET で自動消滅 | DB_RESET=true 環境変数未設定なら DB_RESET 発動日を確認 | ✅ |
-| **4** | 残置理由が文書化されている | todo.md の該当タスク項目に記載 | ✅ |
+| **3** | API で安全に削除でき、削除期限が確定している | cleanup 手順と期限を確認 | ✅ |
+| **4** | 残置理由が文書化されている | [`todo.md` / `todo-po.md`](../../../todo.md) の該当タスク節に記載 | ✅ |
 
 **許容例**:
-- 調査結果を todo.md に記録し、「2026-05-31 DB_RESET で廃棄」と明記
-- 次の本番反映時に DB_RESET 発動予定の場合
+- 調査結果と API cleanup 手順を [`todo.md` / `todo-po.md`](../../../todo.md) の該当タスク節に記録し、「2026-07-24 18:00 JST までに削除」と明記
+- 調査継続に必要な最小データだけを、担当者と期限を定めて一時保持
 
 **許容されない例**:
 - 理由なく放置
@@ -208,48 +199,35 @@ aws logs tail /ecs/animalekarte-stg --follow --region us-east-1 \
 
 ---
 
-## 7. DB_RESET=true の扱い
+## 7. `DB_RESET=true` の破壊的操作境界
 
 ### 7.1 DB_RESET とは
 
-`DB_RESET=true` 環境変数を設定してアプリケーションを起動すると、**ステージング環境のデータベースが完全にリセット** されます。
+`cmd/migrate` を `DB_RESET=true` で実行すると、接続先の `public` schemaを削除・再作成します。
+既存の `schema_migrations` の有無に関係なく発動する、破壊的な経路です。
 
 **実行内容**:
-1. 全テーブルのレコードを削除（seed data 含む）
-2. 全 migration を再実行（001 → 最新）
-3. seed data を migration から再生成
-4. demo accounts を初期化スクリプトから再生成
-5. アプリケーション起動完了
+1. `DROP SCHEMA public CASCADE`
+2. `CREATE SCHEMA public`
+3. DDL migrationを昇順適用
+4. `APP_ENV` ゲート付き seed バンドルを適用（STG は `APP_ENV=staging` で **master のみ** `002_master`。production も master のみ。full order は local development/test のみ — SEC-CS2-F01）
 
 ### 7.2 使用シーン
 
 | シーン | 実行者 | 条件 |
 |--------|--------|------|
-| **開発環境ローカル化** | エンジニア | 個人的に schema をリセット、ローカル検証したい時 |
-| **CI/CD パイプライン** | GitHub Actions | PR merge → staging deploy 時、自動実行（オプション） |
-| **本番リリース前検証** | DevOps | staging → production 反映前、クリーンな状態を保証したい時 |
-| **定期保守（計画停止）** | DevOps | 毎月末日 or 四半期ごと、garbage collection（データベース最適化） |
+| **使い捨てローカルDB** | エンジニア | [LOCAL_DB_RESET.md](./LOCAL_DB_RESET.md) に従い、対象がローカル専用と確認済み |
+| **共有環境の隔離再構築** | 承認された運用担当者 | 保存データ・対象DB・停止時間・復元手順を確認し、破壊的操作の明示承認を取得済み |
 
-### 7.3 DB_RESET 発動の設定方法
+通常デプロイ、定期保守、garbage collectionのためには使用しません。
 
-#### ローカル開発（Docker）
-```bash
-# docker compose で環境変数を設定
-export DB_RESET=true
-docker compose up backend
+### 7.3 実行経路
 
-# または docker run で直接
-docker run -e DB_RESET=true backend:latest
-```
-
-#### GitHub Actions CI/CD
-Cloudflare 正系統の `.github/workflows/backend-deploy.yml` には `db_reset` の `workflow_dispatch` 入力は
-**存在しない**（push トリガー時は `.env.staging` の `DB_RESET` 値がそのまま使用される想定）。
-`db_reset` を明示指定できるのは旧 AWS ECS ロールバック経路 `.github/workflows/backend-deploy-ecs.yml` のみ:
-
-```bash
-gh workflow run backend-deploy-ecs.yml --ref staging -f db_reset=true
-```
+ローカル開発では [LOCAL_DB_RESET.md](./LOCAL_DB_RESET.md) の対象確認済み手順だけを使用します。
+現行 `.github/workflows/backend-deploy.yml` に `db_reset` 入力は存在しない。
+AWS ECS/RDS と旧 reset workflow は廃止済みで、共有 STG の DB 再作成には使用できない。
+再作成が必要な場合は、破壊的操作として明示承認を得て
+[STG_PLANETSCALE_SEED_RUNBOOK.md](./STG_PLANETSCALE_SEED_RUNBOOK.md) に従う。
 
 ### 7.4 DB_RESET 実行前のチェックリスト
 
@@ -259,20 +237,20 @@ gh workflow run backend-deploy-ecs.yml --ref staging -f db_reset=true
   - demo account 設定変更（パスワード等）を記録したか
 - [ ] 他のエンジニアが staging で作業中でないことを確認（Slack 確認）
 - [ ] 本番への反映予定日時を確認（リセット予定時刻と重複しないか）
-- [ ] ログを取得（変更前の state 記録。旧 ECS ロールバック経路使用時は CloudWatch）
+- [ ] Cloudflare / PlanetScale の変更前 state と対象 GitHub Actions run を記録
 
 **実行後**:
 - [ ] API ヘルスチェック `/health` で 200 OK 確認
-- [ ] migration logs を確認（004 までの full execution。旧 ECS ロールバック経路使用時は CloudWatch、Cloudflare 正系統は migrate レスポンス/Workers Logs）
-- [ ] seed data（system_admin group, clinic id=1）が再生成されたことを確認
-- [ ] demo accounts でログイン可能か確認
+- [ ] migrate レスポンスと Workers / Containers のログを確認（STG: `002_master` のみ。demo/staging バンドルが plan に含まれないこと）
+- [ ] seed data（reference masters / permission masters）が再生成されたことを確認
+- [ ] 運用プロビジョニング済みアカウントでログイン可能か確認（リポジトリ demo seed に依存しない）
 - [ ] スモークテストを再実行（一度のみ）
 
 ### 7.5 DB_RESET が実行されないケース
 
-- `DB_RESET` 環境変数が設定されていない（デフォルト: false）
-- `DB_RESET=false` を明示設定
-- アプリケーション起動時に `schema_migrations` テーブルが既に存在
+- `DB_RESET` 環境変数が設定されていない
+- 値が文字列 `true` と完全一致しない
+- 現行 Cloudflare migrate 経路（`backend/worker/index.ts`）のように、`DB_RESET` をプロセスへ渡さない経路
 
 ---
 
@@ -383,9 +361,9 @@ jobs:
 
 ## 参考資料
 
-- **[デプロイメント運用](./README.md)**: ロールバック判定、ヘルスチェック、成功基準
+- **[デプロイメント運用](./README.md)**: 障害判定、ヘルスチェック、成功基準
 - **[CRUD スモークテスト](./CRUD-SMOKE-TEST.md)**: テスト実行手順、ステータスコード期待値、cleanup 手順
 - **[CI/CD パイプライン](./CI-CD-PIPELINE.md)**: デプロイ自動化フロー
 - **[本番反映前チェック](./runbooks/STG_PRE_DEPLOY_READINESS_CHECK.md)**: リリース前最終検証
-- DB: PlanetScale Postgres（Cloudflare 正系統。旧 AWS RDS `animalekarte-stg` cluster はロールバック経路のみ）
-- ログ: Cloudflare Workers Logs（正系統） / CloudWatch Logs `/ecs/animalekarte-stg`（旧 ECS ロールバック経路のみ）
+- DB: PlanetScale Postgres
+- ログ: Cloudflare Workers Logs / Containers（インフラ障害調査）と DB `audit_logs`（業務操作監査）

@@ -28,9 +28,10 @@ export function PermissionRuleTableRow({
       <TableCell className={`text-sm ${C.text}`}>
         {RESOURCE_LABELS[resource] || resource}
       </TableCell>
-      {PERMISSION_ACTION_COLUMNS.map(({ field }) => (
+      {PERMISSION_ACTION_COLUMNS.map(({ field, label }) => (
         <PermissionCheckboxCell
           key={field}
+          accessibleName={`${RESOURCE_LABELS[resource] || resource} ${label}`}
           checked={rule[field]}
           disabled={disabled}
           onChange={(checked) => onRuleChange(resource, field, checked)}
@@ -41,12 +42,14 @@ export function PermissionRuleTableRow({
 }
 
 interface PermissionCheckboxCellProps {
+  accessibleName: string;
   checked: boolean;
   disabled?: boolean;
   onChange: (checked: boolean) => void;
 }
 
 function PermissionCheckboxCell({
+  accessibleName,
   checked,
   disabled,
   onChange,
@@ -54,6 +57,7 @@ function PermissionCheckboxCell({
   return (
     <TableCell className="text-center">
       <Checkbox
+        aria-label={accessibleName}
         checked={checked}
         disabled={disabled}
         onCheckedChange={(value) => onChange(value === true)}

@@ -123,4 +123,49 @@ test.describe('LINE予約 フロー E2E', () => {
       await page.close();
     }
   });
+
+  test('/line-reservation/slots — 390pxはcalendar内だけ横scrollし、500px/desktopもdocument overflowしない', async () => {
+    for (const viewport of [
+      { width: 390, height: 844, expectsInnerScroll: true },
+      { width: 500, height: 844, expectsInnerScroll: false },
+      { width: 1440, height: 900, expectsInnerScroll: false },
+    ]) {
+      const page = await context.newPage();
+      try {
+        await page.setViewportSize({ width: viewport.width, height: viewport.height });
+        await page.goto('/line-reservation/slots', { waitUntil: 'domcontentloaded' });
+        await expect(page.getByRole('heading', { name: 'LINE予約枠', level: 1 })).toBeVisible({
+          timeout: 15000,
+        });
+
+        const calendar = page.getByTestId('reservation-slots-calendar-scroll');
+        await expect(calendar).toBeVisible({ timeout: 15000 });
+        await expect(calendar.getByRole('button')).toHaveCount(7);
+
+        const metrics = await calendar.evaluate((element) => {
+          const dayButtons = Array.from(element.querySelectorAll('button'));
+          const documentElement = document.scrollingElement ?? document.documentElement;
+          return {
+            documentScrollWidth: documentElement.scrollWidth,
+            viewportWidth: window.innerWidth,
+            calendarClientWidth: element.clientWidth,
+            calendarScrollWidth: element.scrollWidth,
+            minimumDayButtonWidth: Math.min(
+              ...dayButtons.map((button) => button.getBoundingClientRect().width),
+            ),
+          };
+        });
+
+        expect(metrics.documentScrollWidth).toBeLessThanOrEqual(metrics.viewportWidth + 2);
+        expect(metrics.minimumDayButtonWidth).toBeGreaterThanOrEqual(44);
+        if (viewport.expectsInnerScroll) {
+          expect(metrics.calendarScrollWidth).toBeGreaterThan(metrics.calendarClientWidth);
+        } else {
+          expect(metrics.calendarScrollWidth).toBeLessThanOrEqual(metrics.calendarClientWidth + 2);
+        }
+      } finally {
+        await page.close();
+      }
+    }
+  });
 });

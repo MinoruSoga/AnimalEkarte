@@ -103,7 +103,7 @@ export const ImageGalleryGroup = memo(function ImageGalleryGroup({
                     aria-label={`${img.name}を削除`}
                     onClick={(e) => handleDeleteClick(e, img.id)}
                     disabled={isDeleting}
-                    className={`absolute top-1 right-1 p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity ${C.bgWhite} shadow-sm border ${C.borderDanger20} ${C.hoverBgDanger5} disabled:opacity-50`}
+                    className={`absolute top-1 right-1 p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity ${C.bgWhite} border ${C.borderDanger20} ${C.hoverBgDanger5} disabled:opacity-50`}
                   >
                     <Trash2 className={`${ICON.smXs} ${C.danger}`} />
                   </button>

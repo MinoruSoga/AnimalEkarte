@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useActionState } from "react";
+import { useState, useEffect, useLayoutEffect, useCallback, useMemo, useActionState, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { addWeeks, addYears, format } from "date-fns";
 import { toast } from "sonner";
@@ -8,11 +8,17 @@ import { paths } from "@/config/paths";
 import { usePetSelection } from "@/hooks/use-pet-selection";
 import { useGetPet } from "@/hooks/use-pet";
 import { useGetAllVaccinesMaster } from "@/hooks/use-treatment-master";
+import {
+  isNonDisclosureReadStatus,
+  resolveEntityReadResult,
+  type EntityReadResult,
+} from "@/lib/entity-read-result";
 import { useGetVaccination } from "../api/get-vaccination";
 import { useCreateVaccination } from "../api/create-vaccination";
 import { useUpdateVaccination } from "../api/update-vaccination";
 import { useDeleteVaccination } from "../api/delete-vaccination";
 import type { CreateVaccinationRequest, UpdateVaccinationRequest } from "../api/types";
+import type { VaccinationRecord } from "@/types";
 
 interface VaccinationFormState {
   vaccineId: string;
@@ -27,11 +33,26 @@ interface VaccinationFormState {
   remarks: string;
 }
 
+interface VaccinationMutationPermissions {
+  canCreate: boolean;
+  canEdit: boolean;
+  canDelete: boolean;
+}
+
+const DENIED_MUTATION_PERMISSIONS: Readonly<VaccinationMutationPermissions> = {
+  canCreate: false,
+  canEdit: false,
+  canDelete: false,
+};
+
 const DEFAULT_NEXT_SCHEDULE_TYPE = "1year" as const;
 
 // react-reviewer指摘: インラインの `?? []` は毎レンダー新規参照になり vaccineOptions の
 // useMemo を不必要に再計算させる（取得未完了/エラー時に顕著）。安定参照にする。
-const EMPTY_VACCINES_MASTER: ReturnType<typeof useGetAllVaccinesMaster>["data"] = [];
+// NonNullable: react-query の data は T[] | undefined。undefined を残したままだと
+// 分割代入デフォルト値(= vaccinesMaster = EMPTY_VACCINES_MASTER)の型も undefined を
+// 含んだままになり、既定値を与えた意味が消えて possibly-undefined エラーになる。
+const EMPTY_VACCINES_MASTER: NonNullable<ReturnType<typeof useGetAllVaccinesMaster>["data"]> = [];
 
 // BUG-401/BUG-026: vaccine interval (vaccines master 実データ) → schedule type。
 // 旧実装はハードコードの vaccine_id "1"/"2" をキーにしていたため、実マスタ ID（例: "14"）に
@@ -78,7 +99,10 @@ export function calculateNextDate(vaccinationDate: string, scheduleType: string)
   }
 }
 
-export function useVaccinationForm(id?: string) {
+export function useVaccinationForm(
+  id?: string,
+  permissions: Readonly<VaccinationMutationPermissions> = DENIED_MUTATION_PERMISSIONS,
+) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const petId = searchParams.get("petId");
@@ -99,15 +123,54 @@ export function useVaccinationForm(id?: string) {
     [vaccinesMaster],
   );
 
-  // API hooks
-  const { data: existingVaccination } = useGetVaccination(id ?? "");
+  // API hooks — BUG-016: classify read failures; never fold into blank edit model
+  const {
+    data: vaccinationData,
+    isLoading: isVaccinationLoading,
+    isError: isVaccinationError,
+    error: vaccinationError,
+    refetch: refetchVaccination,
+  } = useGetVaccination(id ?? "");
+  const entityRead: EntityReadResult<VaccinationRecord> = resolveEntityReadResult({
+    id: isEdit ? id : undefined,
+    data: vaccinationData,
+    isLoading: isVaccinationLoading,
+    isError: isVaccinationError,
+    error: vaccinationError,
+    refetch: refetchVaccination,
+  });
+  const existingVaccination =
+    entityRead.status === "found" ? entityRead.data : undefined;
+  const entityReadRef = useRef(entityRead);
+  useLayoutEffect(() => {
+    entityReadRef.current = entityRead;
+  }, [entityRead]);
   // 編集時: レコードに紐づくペットIDを解決するため、existingVaccination.petId から取得
   const editPetId = isEdit ? (existingVaccination?.petId ?? "") : "";
   const { data: petFromQuery, isLoading: isPetLoading } = useGetPet(petId ?? "");
   const { data: petFromEdit } = useGetPet(editPetId);
+  const selectedPetRef = useRef(selectedPets[0]);
+  const queryPetRef = useRef(petFromQuery);
+  const editPetRef = useRef(petFromEdit);
+  useLayoutEffect(() => {
+    selectedPetRef.current = selectedPets[0];
+    queryPetRef.current = petFromQuery;
+  }, [petFromQuery, selectedPets]);
+  useLayoutEffect(() => {
+    editPetRef.current = petFromEdit;
+  }, [petFromEdit]);
   const createMutation = useCreateVaccination();
   const updateMutation = useUpdateVaccination();
   const deleteMutation = useDeleteVaccination();
+  const { canCreate, canEdit, canDelete } = permissions;
+  const permissionsRef = useRef(permissions);
+  useLayoutEffect(() => {
+    permissionsRef.current = { canCreate, canEdit, canDelete };
+  }, [canCreate, canDelete, canEdit]);
+  const isMutationAllowed = useCallback(
+    (action: keyof VaccinationMutationPermissions) => permissionsRef.current[action] === true,
+    [],
+  );
 
   // BUG-024/074: validation errors
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -116,6 +179,9 @@ export function useVaccinationForm(id?: string) {
   const [localOverrides, setLocalOverrides] = useState<Partial<VaccinationFormState>>({});
 
   // Merge: server data as base + user edits on top
+  // BUG-004: 新規オープン時は接種日を JST 当日で初期表示（編集は既存 date を保持）。
+  // todayJSTISO() は merge 時に評価し、モジュール定数に焼き込まない（日跨ぎ対策）。
+  // localOverrides.date があれば上書き可能（手動変更 DoD）。
   const formData: VaccinationFormState = isEdit && existingVaccination
     ? {
         vaccineId: existingVaccination.vaccineId,
@@ -130,7 +196,14 @@ export function useVaccinationForm(id?: string) {
         remarks: existingVaccination.remarks ?? "",
         ...localOverrides,
       }
-    : { ...DEFAULT_FORM, ...localOverrides };
+    : { ...DEFAULT_FORM, date: todayJSTISO(), ...localOverrides };
+
+  // localOverrides は部分更新のみ。編集時に未タッチの date/type は server base 側にあるため、
+  // setDate / setNextScheduleType / setNextDate は formData 合成結果を ref 経由で読む（BUG-005/026）。
+  const formDataRef = useRef(formData);
+  useLayoutEffect(() => {
+    formDataRef.current = formData;
+  }, [formData]);
 
   const setField = useCallback(<K extends keyof VaccinationFormState>(key: K, value: VaccinationFormState[K]) => {
     setLocalOverrides((prev) => ({ ...prev, [key]: value }));
@@ -191,6 +264,10 @@ export function useVaccinationForm(id?: string) {
 
       try {
         if (isEdit && id) {
+          // BUG-016: edit route without a found entity must not create/update
+          if (entityReadRef.current.status !== "found") {
+            return { success: false, timestamp: Date.now() };
+          }
           const toRFC3339 = (d: string) => d ? jstDateStartISOString(d) : undefined;
           const req: UpdateVaccinationRequest = {
             date: toRFC3339(formData.date),
@@ -203,10 +280,16 @@ export function useVaccinationForm(id?: string) {
             supplemental: formData.supplemental || undefined,
             next_schedule_type: formData.nextScheduleType || undefined,
           };
+          if (
+            !isMutationAllowed("canEdit") ||
+            editPetRef.current?.status === "死亡"
+          ) {
+            return { success: false, timestamp: Date.now() };
+          }
           await updateMutation.mutateAsync({ id, req });
           toast.success("予防接種情報を更新しました");
         } else {
-          const pet = selectedPets[0];
+          const pet = petId ? queryPetRef.current : selectedPetRef.current;
           if (!pet) return { success: false, timestamp: Date.now() };
           const req: CreateVaccinationRequest = {
             medical_record_id: null,
@@ -222,6 +305,12 @@ export function useVaccinationForm(id?: string) {
             supplemental: formData.supplemental || undefined,
             next_schedule_type: formData.nextScheduleType || undefined,
           };
+          if (
+            !isMutationAllowed("canCreate") ||
+            pet.status === "死亡"
+          ) {
+            return { success: false, timestamp: Date.now() };
+          }
           await createMutation.mutateAsync(req);
           toast.success("予防接種を登録しました");
         }
@@ -271,7 +360,7 @@ export function useVaccinationForm(id?: string) {
     setLocalOverrides((prev) => {
       const selected = vaccinesMaster.find((vac) => vac.id === v);
       const scheduleType = scheduleTypeForInterval(selected?.interval);
-      const currentDate = prev.date ?? "";
+      const currentDate = prev.date ?? formDataRef.current.date;
       const calculated = calculateNextDate(currentDate, scheduleType);
       return {
         ...prev,
@@ -282,10 +371,11 @@ export function useVaccinationForm(id?: string) {
     });
   }, [vaccinesMaster]);
 
-  // BUG-026: auto-calculate nextDate when date changes
+  // BUG-026: auto-calculate nextDate when date changes（other のときは手入力 nextDate を維持）
   const setDate = useCallback((v: string) => {
     setLocalOverrides((prev) => {
-      const scheduleType = prev.nextScheduleType ?? DEFAULT_NEXT_SCHEDULE_TYPE;
+      const scheduleType =
+        prev.nextScheduleType ?? formDataRef.current.nextScheduleType ?? DEFAULT_NEXT_SCHEDULE_TYPE;
       const calculated = calculateNextDate(v, scheduleType);
       return { ...prev, date: v, ...(calculated ? { nextDate: calculated } : {}) };
     });
@@ -300,19 +390,41 @@ export function useVaccinationForm(id?: string) {
   // BUG-026: auto-calculate nextDate when schedule type changes
   const setNextScheduleType = useCallback((v: string) => {
     setLocalOverrides((prev) => {
-      const currentDate = prev.date ?? "";
+      const currentDate = prev.date ?? formDataRef.current.date;
       const calculated = calculateNextDate(currentDate, v);
       return { ...prev, nextScheduleType: v, ...(calculated ? { nextDate: calculated } : {}) };
     });
   }, []);
 
-  const setNextDate = useCallback((v: string) => setField("nextDate", v), [setField]);
+  // BUG-005: 次回予定日の手動上書き時、標準間隔の計算結果と一致しなければ type を other へ切替。
+  // type=1year のまま next_date だけずらす矛盾永続化を防ぐ。一致する場合は標準 type を維持。
+  const setNextDate = useCallback((v: string) => {
+    setLocalOverrides((prev) => {
+      const base = formDataRef.current;
+      const vaccinationDate = prev.date ?? base.date;
+      const currentType =
+        prev.nextScheduleType ?? base.nextScheduleType ?? DEFAULT_NEXT_SCHEDULE_TYPE;
+      if (currentType !== "other" && vaccinationDate && v) {
+        const calculated = calculateNextDate(vaccinationDate, currentType);
+        if (calculated && calculated === v) {
+          return { ...prev, nextDate: v };
+        }
+      }
+      return { ...prev, nextDate: v, nextScheduleType: "other" };
+    });
+  }, []);
   const setRemarks = useCallback((v: string) => setField("remarks", v), [setField]);
 
   // BUG-025: delete handler
   const { mutate: deleteVaccinationFn } = deleteMutation;
   const handleDelete = useCallback((onSuccess?: () => void) => {
     if (!isEdit || !id) return;
+    if (
+      !isMutationAllowed("canDelete") ||
+      editPetRef.current?.status === "死亡"
+    ) {
+      return;
+    }
     deleteVaccinationFn(id, {
       onSuccess: () => {
         toast.success("予防接種情報を削除しました");
@@ -322,11 +434,12 @@ export function useVaccinationForm(id?: string) {
         handleApiError(error, "削除");
       },
     });
-  }, [isEdit, id, deleteVaccinationFn]);
+  }, [isEdit, id, isMutationAllowed, deleteVaccinationFn]);
 
   const isDeleting = deleteMutation.isPending;
 
   const form = useMemo(() => ({
+    doctorName: existingVaccination?.doctor ?? "",
     vaccineId: formData.vaccineId,
     setVaccineId,
     vaccineOptions,
@@ -349,6 +462,7 @@ export function useVaccinationForm(id?: string) {
     remarks: formData.remarks,
     setRemarks,
   }), [
+    existingVaccination?.doctor,
     formData.vaccineId, setVaccineId, vaccineOptions,
     formData.date, setDate,
     formData.supplemental, setSupplemental,
@@ -363,6 +477,11 @@ export function useVaccinationForm(id?: string) {
 
   return {
     isEdit,
+    entityRead,
+    isReadLoading: entityRead.status === "loading",
+    isReadNotFound: isNonDisclosureReadStatus(entityRead.status),
+    isReadError: entityRead.status === "error",
+    retryRead: entityRead.status === "error" ? entityRead.retry : undefined,
     petSelection,
     form,
     historyFilter: {

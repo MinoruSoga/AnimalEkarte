@@ -295,7 +295,7 @@ curl -s https://api.stg.noah-karte.com/health | jq '.status'
 
 ### 7.4 Vercel キャッシュ無効化
 
-> **訂正(2026-07-10)**: `docs/ops/infra-architecture.md` の構成図が示す通り、CloudFront は
+> **訂正(2026-07-10)**: `../infra/architecture.md` の構成図が示す通り、CloudFront は
 > バックエンド API（`api.noah-karte.com`）専用であり、Vercel フロントエンド（`stg.noah-karte.com`）は
 > CloudFront を経由しない。旧「CloudFront キャッシュ無効化」の記述はアーキテクチャと矛盾していたため訂正する。
 

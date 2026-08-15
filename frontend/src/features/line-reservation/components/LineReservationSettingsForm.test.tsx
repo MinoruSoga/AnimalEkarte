@@ -40,12 +40,12 @@ const baseSetting: ReservationSetting = {
   updated_at: "2026-01-01T00:00:00Z",
 };
 
-function setupPutHandler() {
+function setupPutHandler(responseOverrides: Partial<ReservationSetting> = {}) {
   let capturedBody: Record<string, unknown> | null = null;
   server.use(
     http.put(`/api/v1/clinics/${CLINIC_ID}/line-reservation-settings`, async ({ request }) => {
       capturedBody = (await request.json()) as Record<string, unknown>;
-      return HttpResponse.json({ ...baseSetting });
+      return HttpResponse.json({ ...baseSetting, ...capturedBody, ...responseOverrides });
     })
   );
   return () => capturedBody;
@@ -55,6 +55,19 @@ function setupPutHandler() {
 // 平文 UI に置かない。この画面はそもそも credential を扱わないため、
 // 対応する input・formData 読み取り・payload キーのいずれも存在してはならない。
 describe("LineReservationSettingsForm — LINE credential 非取扱い (SD-3 決裁A)", () => {
+  it("定休曜日checkboxのfocusable hit areaを44px以上に保つ", () => {
+    render(<LineReservationSettingsForm setting={baseSetting} clinicId={CLINIC_ID} />);
+
+    const weekdayCheckboxes = Array.from(
+      document.querySelectorAll<HTMLElement>('[role="checkbox"][id^="closed-weekday-"]'),
+    );
+
+    expect(weekdayCheckboxes).toHaveLength(7);
+    weekdayCheckboxes.forEach((checkbox) => {
+      expect(checkbox).toHaveClass("size-11");
+    });
+  });
+
   it("チャネルシークレット・アクセストークンの input は画面に存在しない", () => {
     render(<LineReservationSettingsForm setting={baseSetting} clinicId={CLINIC_ID} />);
 
@@ -94,5 +107,53 @@ describe("LineReservationSettingsForm — LINE credential 非取扱い (SD-3 決
     });
     expect(getBody()?.line_channel_id).toBe("existing-channel-id");
     expect(getBody()?.liff_id).toBe("existing-liff-id");
+  });
+});
+
+// BUG-028: 最短予約受付（日数）を 0 含む新値で保存後、form action 完了後も UI が新値のまま
+describe("LineReservationSettingsForm — booking_window_min_days UI sync (BUG-028)", () => {
+  it("最短予約受付を0に変更して保存すると、保存後も入力欄が0のまま残る", async () => {
+    const initial: ReservationSetting = { ...baseSetting, booking_window_min_days: 2 };
+    const getBody = setupPutHandler({ booking_window_min_days: 0 });
+    render(<LineReservationSettingsForm setting={initial} clinicId={CLINIC_ID} />);
+
+    const input = screen.getByRole("spinbutton", { name: "最短予約受付（日数）" });
+    expect(input).toHaveValue(2);
+
+    const user = userEvent.setup();
+    await user.clear(input);
+    await user.type(input, "0");
+    expect(input).toHaveValue(0);
+
+    await user.click(screen.getByRole("button", { name: "設定を保存" }));
+
+    await waitFor(() => {
+      expect(getBody()).not.toBeNull();
+    });
+    expect(getBody()?.booking_window_min_days).toBe(0);
+
+    // form action 完了後も controlled 状態が維持され、古い defaultValue(2) に戻らない
+    await waitFor(() => {
+      expect(screen.getByRole("spinbutton", { name: "最短予約受付（日数）" })).toHaveValue(0);
+    });
+  });
+
+  it("最短予約受付を非0の新値で保存しても入力欄が新値のまま残る", async () => {
+    const initial: ReservationSetting = { ...baseSetting, booking_window_min_days: 2 };
+    const getBody = setupPutHandler({ booking_window_min_days: 5 });
+    render(<LineReservationSettingsForm setting={initial} clinicId={CLINIC_ID} />);
+
+    const input = screen.getByRole("spinbutton", { name: "最短予約受付（日数）" });
+    const user = userEvent.setup();
+    await user.clear(input);
+    await user.type(input, "5");
+    await user.click(screen.getByRole("button", { name: "設定を保存" }));
+
+    await waitFor(() => {
+      expect(getBody()?.booking_window_min_days).toBe(5);
+    });
+    await waitFor(() => {
+      expect(screen.getByRole("spinbutton", { name: "最短予約受付（日数）" })).toHaveValue(5);
+    });
   });
 });

@@ -19,7 +19,7 @@ export class EstimatesPage extends BasePage {
     return this.heading('新規見積書作成', 1);
   }
 
-  /** Detail heading "見積書 <title>". */
+  /** Detail heading "見積書 <estimateNo>" (title may be empty in seed). */
   detailHeading(): Locator {
     return this.heading(/見積書\s+\S+/, 1);
   }
@@ -51,5 +51,17 @@ export class EstimatesPage extends BasePage {
   /** Row with status badge text 下書き (editable; not approved/rejected). */
   draftRow(): Locator {
     return this.page.locator('tbody tr').filter({ hasText: '下書き' }).first();
+  }
+
+  /**
+   * Detail link on the estimate-no cell (DataTableRowLink).
+   * Row body click does not navigate — use this link.
+   */
+  draftDetailLink(): Locator {
+    return this.draftRow().getByRole('link').first();
+  }
+
+  searchToggle(): Locator {
+    return this.page.getByRole('button', { name: '検索' });
   }
 }

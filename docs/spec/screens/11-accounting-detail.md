@@ -5,7 +5,7 @@
 - **URLパターン**: 
   - 新規作成: `/accounting/new?petId=xxx`
   - 編集・精算: `/accounting/:id`
-- **アクセス権限**: 閲覧・編集・確定・返金は `ResourceAccounting`、キャンセルは `ResourceAccountingCancel`、確定後修正は `ResourceAccountingPostCloseEdit` で個別に権限管理。
+- **アクセス権限**: ルートは `ResourceAccounting`（view/create）。画面内確定・編集（`canSubmit`）は **加えて `ResourceCashRegisterClose` の view** が必須。キャンセル=`ResourceAccountingCancel`、確定後修正=`ResourceAccountingPostCloseEdit`。
 
 ---
 

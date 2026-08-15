@@ -5,7 +5,7 @@
 - **URLパターン**: 
   - 新規作成: `/vaccinations/new?petId=xxx`
   - 編集: `/vaccinations/:id`
-- **アクセス権限**: 認証済ユーザー全員（操作権限は `usePermission` で制御）
+- **アクセス権限**: 親 `/vaccinations` は `ResourceVaccinations` **`view`**。`/new` は **`create`**。`:id` は親 view 継承、保存/削除は `usePermission`
 
 ---
 
@@ -13,7 +13,7 @@
 
 ### 1.1 接種基本情報
 - **接種日**: 必須入力（未入力はエラー）。未来日は選択不可。
-- **ワクチン**: 固定 2 択（混合ワクチン / 狂犬病ワクチン）から選択（必須）。`MasterLink` の「編集」からワクチンマスタ設定画面へ遷移可能。
+- **ワクチン**: 有効なワクチンマスタ（`useGetAllVaccinesMaster` の isActive）から選択（必須）。固定2択ハードコードではない。`MasterLink` でマスタへ遷移可。
 - **補助説明**: 自由入力の補足テキスト。
 - **備考**: 自由入力の備考テキスト。
 

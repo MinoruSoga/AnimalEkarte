@@ -8,10 +8,15 @@ interface RowActionButtonProps {
   icon?: React.ElementType;
   onClick: (e: React.MouseEvent) => void;
   className?: string;
-  "aria-label"?: string;
+  "aria-label": string;
 }
 
-export const RowActionButton = memo(function RowActionButton({ icon: Icon = Edit, onClick, className, "aria-label": ariaLabel = "操作" }: RowActionButtonProps) {
+export const RowActionButton = memo(function RowActionButton({
+  icon: Icon = Edit,
+  onClick,
+  className,
+  "aria-label": ariaLabel,
+}: RowActionButtonProps) {
   return (
     <div className="flex items-center justify-end gap-1">
       <Button

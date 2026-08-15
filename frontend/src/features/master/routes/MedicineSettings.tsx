@@ -1,5 +1,12 @@
 // React/Framework
-import { useState, useMemo, useCallback, useTransition } from "react";
+import {
+  useState,
+  useMemo,
+  useCallback,
+  useLayoutEffect,
+  useRef,
+  useTransition,
+} from "react";
 import { useNavigate } from "react-router";
 import { paths } from "@/config/paths";
 import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
@@ -13,7 +20,7 @@ import Plus from "lucide-react/dist/esm/icons/plus";
 // Internal – shared
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
-import { C, ICON } from "@/lib/design-tokens";
+import { C, ICON, LAYOUT } from "@/lib/design-tokens";
 import { useReducedMotion } from "@/hooks/use-reduced-motion";
 import { useMasterCRUD } from "../hooks/use-master-crud";
 import { useMasterSave } from "../hooks/use-master-save";
@@ -40,6 +47,10 @@ import type { Medicine } from "@/types";
 export function MedicineSettings() {
   const navigate = useNavigate();
   const { canCreate, canEdit, canDelete } = usePermission(ResourceMasterMedical);
+  const permissionsRef = useRef({ canDelete: canDelete === true });
+  useLayoutEffect(() => {
+    permissionsRef.current = { canDelete: canDelete === true };
+  }, [canDelete]);
   const reduced = useReducedMotion();
   const panelDuration = reduced ? 0 : 0.2;
 
@@ -72,6 +83,7 @@ export function MedicineSettings() {
     deleteMutation,
     entityLabel: "薬品",
     dirtyGuard,
+    permissions: { canDelete },
   });
 
   // ── Derived: editTarget → selectedMedicine / isEditing / isCategory ──
@@ -84,6 +96,7 @@ export function MedicineSettings() {
     medicines,
     reorderMutation,
     updateMutation,
+    canEdit,
   });
 
   // ── Derived: カテゴリ medicine（parentId なし、price === 0）(js-cache-function-results) ──
@@ -128,6 +141,7 @@ export function MedicineSettings() {
     },
     createMutation,
     updateMutation,
+    permissions: { canCreate, canEdit },
     validate: (data) => data.name.trim() ? null : "名称を入力してください",
     toCreateRequest: (data) => buildMedicineCreateRequest(data, isCategory),
     toUpdateRequest: (data) => buildMedicineUpdateRequest({ data, isCategory, selectedMedicine }),
@@ -145,6 +159,7 @@ export function MedicineSettings() {
 
   const executeDelete = useCallback(() => {
     if (!selectedMedicine) return;
+    if (permissionsRef.current.canDelete !== true) return;
     deleteMutation.mutate(selectedMedicine.id, {
       onSuccess: () => {
         toast.success("削除しました");
@@ -164,7 +179,7 @@ export function MedicineSettings() {
             icon={<Pill className={`${ICON.page} ${C.text}`} />}
             resource={ResourceMasterMedical}
             onBack={() => navigate(paths.settings.getHref())}
-            maxWidth="max-w-full"
+            maxWidth={LAYOUT.pageContentMaxWidth.full}
             headerAction={
               canCreate ? (
                 <PrimaryButton onClick={() => handleCreate()}>

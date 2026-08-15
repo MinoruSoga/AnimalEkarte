@@ -1,12 +1,20 @@
-import { memo, useCallback, useEffect, useState } from "react";
+import { memo, useCallback, useEffect, useState, type ReactNode } from "react";
 import Stethoscope from "lucide-react/dist/esm/icons/stethoscope";
 import { MasterSidePanel, MoneyInput, PropertyInput, PropertyRow, StatusToggleButton } from "@/components/shared/SidePeek";
 import { TaxRateSelector } from "@/components/shared/TaxRateSelector/TaxRateSelector";
 import { TaxTypeSelector } from "@/components/shared/TaxTypeSelector/TaxTypeSelector";
 import { SearchableSelect } from "@/components/ui/searchable-select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { C, LAYOUT } from "@/lib/design-tokens";
 import type { TreatmentItem } from "@/lib/transforms/treatment";
 import type { TaxType } from "@/types/generated/models";
+import {
+  ANESTHESIA_OPTIONS,
+  PRICE_ERROR_MESSAGE,
+  initialAnesthesia,
+  isAnesthesiaOptionValue,
+  type AnesthesiaOptionValue,
+} from "./treatment-item-side-panel-model";
 
 export type TreatmentFormData = {
   name: string;
@@ -18,9 +26,17 @@ export type TreatmentFormData = {
   isNonInsurance: boolean;
   /** undefined = 未変更(Update時に送らない), "" = 親なし明示, "123" = 親指定 */
   parentId?: string;
+  /** Procedure only — BE create requires anesthesia enum */
+  anesthesia: AnesthesiaOptionValue;
 };
 
-const SELECT_TRIGGER_FULL = `h-[30px] text-base bg-transparent ${C.text} border-0 ${C.hoverBgLight} px-1.5 shadow-none rounded-[3px] w-full`;
+const ANESTHESIA_SELECT_ITEMS = ANESTHESIA_OPTIONS.map((option) => (
+  <SelectItem key={option.value} value={option.value}>
+    {option.label}
+  </SelectItem>
+));
+
+const SELECT_TRIGGER_FULL = `h-[30px] text-base bg-transparent ${C.text} border-0 ${C.hoverBgLight} px-1.5 shadow-none rounded-xxs w-full`;
 
 interface TreatmentItemSidePanelProps {
   item: TreatmentItem | null;
@@ -33,6 +49,9 @@ interface TreatmentItemSidePanelProps {
   onDeleteRequest?: () => void;
   readOnly?: boolean;
   onDirtyChange?: (dirty: boolean) => void;
+  details?: ReactNode;
+  /** true = 処置タブ — 麻酔区分入力を表示 */
+  showAnesthesia?: boolean;
 }
 
 export const TreatmentItemSidePanel = memo(function TreatmentItemSidePanel({
@@ -44,6 +63,8 @@ export const TreatmentItemSidePanel = memo(function TreatmentItemSidePanel({
   onDeleteRequest,
   readOnly,
   onDirtyChange,
+  details,
+  showAnesthesia = false,
 }: TreatmentItemSidePanelProps) {
   const [formData, setFormData] = useState<TreatmentFormData>(() => ({
     name: item?.name ?? "",
@@ -54,8 +75,10 @@ export const TreatmentItemSidePanel = memo(function TreatmentItemSidePanel({
     taxRate: item?.taxRate ?? 0.1,
     isNonInsurance: item?.isNonInsurance ?? false,
     parentId: undefined,
+    anesthesia: initialAnesthesia(item?.anesthesia),
   }));
   const [nameError, setNameError] = useState("");
+  const [priceError, setPriceError] = useState("");
   const [isDirty, setIsDirty] = useState(false);
 
   useEffect(() => {
@@ -68,11 +91,20 @@ export const TreatmentItemSidePanel = memo(function TreatmentItemSidePanel({
   }, []);
 
   const handleAction = useCallback(() => {
+    let hasError = false;
     if (!formData.name.trim()) {
       setNameError("名称を入力してください");
-      return;
+      hasError = true;
+    } else {
+      setNameError("");
     }
-    setNameError("");
+    if (formData.price < 0) {
+      setPriceError(PRICE_ERROR_MESSAGE);
+      hasError = true;
+    } else {
+      setPriceError("");
+    }
+    if (hasError) return;
     onSave(formData);
     setIsDirty(false);
   }, [formData, onSave]);
@@ -80,6 +112,11 @@ export const TreatmentItemSidePanel = memo(function TreatmentItemSidePanel({
   const handleTitleChange = useCallback((value: string) => {
     setFormDataDirty((prev) => ({ ...prev, name: value }));
     if (value.trim()) setNameError("");
+  }, [setFormDataDirty]);
+
+  const handlePriceChange = useCallback((value: number) => {
+    setFormDataDirty((prev) => ({ ...prev, price: value }));
+    if (value >= 0) setPriceError("");
   }, [setFormDataDirty]);
 
   return (
@@ -101,8 +138,39 @@ export const TreatmentItemSidePanel = memo(function TreatmentItemSidePanel({
       />
       <MoneyInput
         value={formData.price}
-        onChange={(value) => setFormDataDirty((prev) => ({ ...prev, price: value }))}
+        onChange={handlePriceChange}
+        error={priceError}
       />
+      {showAnesthesia ? (
+        <PropertyRow label="麻酔区分">
+          {readOnly ? (
+            <span className={`text-base ${C.text}`}>
+              {ANESTHESIA_OPTIONS.find((o) => o.value === formData.anesthesia)?.label ?? formData.anesthesia}
+            </span>
+          ) : (
+            <Select
+              value={formData.anesthesia}
+              onValueChange={(value) => {
+                if (!isAnesthesiaOptionValue(value)) return;
+                setFormDataDirty((prev) => ({
+                  ...prev,
+                  anesthesia: value,
+                }));
+              }}
+            >
+              <SelectTrigger
+                className={SELECT_TRIGGER_FULL}
+                aria-label="麻酔区分"
+              >
+                <SelectValue placeholder="麻酔区分を選択" />
+              </SelectTrigger>
+              <SelectContent>
+                {ANESTHESIA_SELECT_ITEMS}
+              </SelectContent>
+            </Select>
+          )}
+        </PropertyRow>
+      ) : null}
       <PropertyRow label="課税区分">
         <TaxTypeSelector
           value={formData.taxType}
@@ -120,7 +188,7 @@ export const TreatmentItemSidePanel = memo(function TreatmentItemSidePanel({
           type="button"
           onClick={() => setFormDataDirty((prev) => ({ ...prev, isNonInsurance: !prev.isNonInsurance }))}
           aria-label="保険対象外を切り替え"
-          className={`inline-flex items-center rounded-[3px] ${C.hoverBgLight} transition-colors py-0.5 px-1.5 cursor-pointer text-sm ${formData.isNonInsurance ? C.textBrand : C.text50}`}
+          className={`inline-flex items-center rounded-xxs ${C.hoverBgLight} transition-colors py-0.5 px-1.5 cursor-pointer text-sm ${formData.isNonInsurance ? C.textBrand : C.text50}`}
         >
           {formData.isNonInsurance ? "対象外" : "対象"}
         </button>
@@ -169,6 +237,7 @@ export const TreatmentItemSidePanel = memo(function TreatmentItemSidePanel({
           placeholder="補足情報など"
         />
       </PropertyRow>
+      {details}
     </MasterSidePanel>
   );
 });

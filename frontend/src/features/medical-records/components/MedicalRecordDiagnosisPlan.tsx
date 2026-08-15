@@ -19,7 +19,9 @@ import { calculateBillingTotals } from "@/lib/calculations";
 export interface DiagnosisPlanProps {
   isNewRecord?: boolean;
   chiefComplaint?: string;
-  // 制御型props（親フックから状態を受け取る）
+  // 制御型props（親フックから状態を受け取る）— clinical_plan 3欄の単一 owner
+  physicalExam: string;
+  setPhysicalExam: (value: string) => void;
   plan: string;
   setPlan: (value: string) => void;
   assessment: string;
@@ -34,7 +36,6 @@ export interface DiagnosisPlanProps {
   setDiagnosis2NameId: (id: number | null) => void;
   medicalRecordId?: string;
   ownerDiscountRate?: number;
-  onRegisterClinicalPlanSave?: (fn: () => Promise<void>) => void;
   diagnosis1NameIdError?: string | null;
   /** P2-15: 拠点横断で開いたカルテの子リソース操作用。レコード自身の clinicId */
   recordClinicId?: string;
@@ -43,6 +44,8 @@ export interface DiagnosisPlanProps {
 export const MedicalRecordDiagnosisPlan = memo(function MedicalRecordDiagnosisPlan({
   isNewRecord = false,
   chiefComplaint,
+  physicalExam,
+  setPhysicalExam,
   plan,
   setPlan,
   assessment,
@@ -57,7 +60,6 @@ export const MedicalRecordDiagnosisPlan = memo(function MedicalRecordDiagnosisPl
   setDiagnosis2NameId,
   medicalRecordId,
   ownerDiscountRate = 0,
-  onRegisterClinicalPlanSave,
   diagnosis1NameIdError,
   recordClinicId,
 }: DiagnosisPlanProps) {
@@ -156,34 +158,46 @@ export const MedicalRecordDiagnosisPlan = memo(function MedicalRecordDiagnosisPl
 
   return (
     <div className={`gap-3 ${LAYOUT.fullHeight}`}>
-      <div className="shrink-0">
-        <DiagnosisHeader
-          chiefComplaint={chiefComplaint}
-          policy={plan}
-          setPolicy={setPlan}
-          diagnosisDetails={assessment}
-          setDiagnosisDetails={setAssessment}
-          diagnosis1CategoryId={diagnosis1CategoryId}
-          setDiagnosis1CategoryId={setDiagnosis1CategoryId}
-          diagnosis1NameId={diagnosis1NameId}
-          setDiagnosis1NameId={setDiagnosis1NameId}
-          diagnosis2CategoryId={diagnosis2CategoryId}
-          setDiagnosis2CategoryId={setDiagnosis2CategoryId}
-          diagnosis2NameId={diagnosis2NameId}
-          setDiagnosis2NameId={setDiagnosis2NameId}
-          diagnosis1NameIdError={diagnosis1NameIdError}
-        />
-      </div>
+      <DiagnosisHeader
+        chiefComplaint={chiefComplaint}
+        physicalExam={physicalExam}
+        setPhysicalExam={setPhysicalExam}
+        diagnosisDetails={assessment}
+        setDiagnosisDetails={setAssessment}
+        diagnosis1CategoryId={diagnosis1CategoryId}
+        setDiagnosis1CategoryId={setDiagnosis1CategoryId}
+        diagnosis1NameId={diagnosis1NameId}
+        setDiagnosis1NameId={setDiagnosis1NameId}
+        diagnosis2CategoryId={diagnosis2CategoryId}
+        setDiagnosis2CategoryId={setDiagnosis2CategoryId}
+        diagnosis2NameId={diagnosis2NameId}
+        setDiagnosis2NameId={setDiagnosis2NameId}
+        diagnosis1NameIdError={diagnosis1NameIdError}
+      />
 
       {!isNewRecord && medicalRecordId ? (
         <div className="shrink-0">
-          <ClinicalPlanSection medicalRecordId={medicalRecordId} onRegisterSave={onRegisterClinicalPlanSave} canEdit={canEdit} recordClinicId={recordClinicId} />
+          <ClinicalPlanSection
+            medicalRecordId={medicalRecordId}
+            canEdit={canEdit}
+            recordClinicId={recordClinicId}
+            physicalExam={physicalExam}
+            onPhysicalExamChange={setPhysicalExam}
+            diagnosisDetails={assessment}
+            onDiagnosisDetailsChange={setAssessment}
+            treatmentPolicy={plan}
+            onTreatmentPolicyChange={setPlan}
+            diagnosisTypeId={diagnosis1CategoryId}
+            onDiagnosisTypeIdChange={setDiagnosis1CategoryId}
+            diagnosisNameId={diagnosis1NameId}
+            onDiagnosisNameIdChange={setDiagnosis1NameId}
+          />
         </div>
       ) : null}
 
       {/* Bottom Section: Treatment Plan */}
       <div className="flex-1 min-h-0 flex flex-col">
-        <h2 className={`text-sm font-bold ${C.text} mb-1.5`}>治療プラン</h2>
+        <h2 className={`text-sm font-bold ${C.text} mb-2`}>治療プラン</h2>
 
         <div className={`flex-1 min-h-0 flex flex-col ${C.bgWhite} rounded-lg border ${C.borderLight} overflow-hidden`}>
           {isNewRecord ? (

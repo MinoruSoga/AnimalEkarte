@@ -1,7 +1,8 @@
 import { Plus, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { TableCell, TableHead } from "@/components/ui/table";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
-import { formatCurrency } from "@/utils/format/number";
+import { formatCurrency } from "@/lib/format/number";
 import type { MedicineDoseContext } from "../../api/medicine-dose-lookup";
 import type { Treatment, TreatmentItemType, UpdateTreatmentInput } from "../../types";
 import { TreatmentRow } from "./TreatmentRow";
@@ -10,16 +11,16 @@ import { TreatmentRow } from "./TreatmentRow";
 const TABLE_HEADER = (
   <thead>
     <tr className={`border-b ${C.borderLight} ${C.bgPage} h-11`}>
-      <th scope="col" className={`px-3 text-left ${STYLE.sectionLabel} w-10`}></th>
-      <th scope="col" className={`px-3 text-left ${STYLE.sectionLabel} w-24`}>種別</th>
-      <th scope="col" className={`px-3 text-left ${STYLE.sectionLabel}`}>内容</th>
-      <th scope="col" className={`px-3 text-center ${STYLE.sectionLabel} w-16`}>保険</th>
-      <th scope="col" className={`px-3 text-right ${STYLE.sectionLabel} w-28`}>単価</th>
-      <th scope="col" className={`px-3 text-right ${STYLE.sectionLabel} w-20`}>数量</th>
-      <th scope="col" className={`px-3 text-right ${STYLE.sectionLabel} w-28`}>値引き</th>
-      <th scope="col" className={`px-3 text-right ${STYLE.sectionLabel} w-28`}>小計</th>
-      <th scope="col" className={`px-3 text-left ${STYLE.sectionLabel}`}>メモ</th>
-      <th scope="col" className={`px-2 text-right ${STYLE.sectionLabel} w-28`}></th>
+      <TableHead className="w-10" />
+      <TableHead className="w-24">種別</TableHead>
+      <TableHead>内容</TableHead>
+      <TableHead className="w-16 text-center">保険</TableHead>
+      <TableHead className="w-28 text-right">単価</TableHead>
+      <TableHead className="w-20 text-right">数量</TableHead>
+      <TableHead className="w-28 text-right">値引き</TableHead>
+      <TableHead className="w-28 text-right">小計</TableHead>
+      <TableHead>メモ</TableHead>
+      <TableHead className="w-28 text-right" />
     </tr>
   </thead>
 );
@@ -76,9 +77,9 @@ export function TreatmentsTable({
       <tbody>
         {treatments.length === 0 ? (
           <tr>
-            <td colSpan={10} className={STYLE.tableEmptySm}>
+            <TableCell data-empty-state colSpan={10} className={STYLE.tableEmptySm}>
               治療明細がありません。下の「明細を追加」ボタンから追加してください。
-            </td>
+            </TableCell>
           </tr>
         ) : (
           treatments.map((treatment, index) => {
@@ -145,7 +146,7 @@ export function TreatmentAddControls({
         <select
           value={addItemType}
           onChange={(event) => onItemTypeChange(event.target.value as TreatmentItemType)}
-          className={`h-8 text-sm rounded-[3px] border ${C.borderMedium} ${C.bgWhite} px-2 ${C.text}`}
+          className={`h-8 text-sm rounded-xxs border ${C.borderMedium} ${C.bgWhite} px-2 ${C.text}`}
         >
           {ITEM_TYPE_OPTIONS.map((option) => (
             <option key={option.value} value={option.value}>
@@ -157,7 +158,7 @@ export function TreatmentAddControls({
           <select
             value={addAdminRoute}
             onChange={(event) => onAdminRouteChange(event.target.value)}
-            className={`h-8 text-sm rounded-[3px] border ${C.borderMedium} ${C.bgWhite} px-2 ${C.text}`}
+            className={`h-8 text-sm rounded-xxs border ${C.borderMedium} ${C.bgWhite} px-2 ${C.text}`}
           >
             {ADMIN_ROUTE_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
@@ -177,11 +178,11 @@ export function TreatmentAddControls({
             if (event.key === "Escape") onCancel();
           }}
           aria-label="治療内容"
-          className={`flex-1 h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 ${C.bgWhite} ${C.text} outline-none ${C.focusBorderAccent}`}
+          className={`flex-1 h-8 text-sm border ${C.borderMedium} rounded-xxs px-2 ${C.bgWhite} ${C.text} outline-none ${C.focusBorderAccent}`}
         />
         <Button
           size="sm"
-          className={`${C.bgBrand} ${C.hoverBgBrand} text-white rounded-full border-transparent transition-colors h-8 text-xs px-3`}
+          className={`${C.bgBrand} ${C.hoverBgBrand} ${C.hoverTextOnBrand} ${C.textOnBrand} rounded-full border-transparent transition-colors h-8 text-xs px-3`}
           onClick={onSubmit}
           disabled={isPending || !addContent.trim()}
         >
@@ -233,7 +234,7 @@ export function TreatmentTotals({
   ownerDiscountRate,
 }: TreatmentTotalsProps) {
   return (
-    <div className={`${C.bgWhite} border ${C.borderLight} rounded-[4px] px-4 py-3`}>
+    <div className={`${C.bgWhite} border ${C.borderLight} rounded-xs px-4 py-3`}>
       <div className="flex flex-col gap-1.5">
         <div className={`flex items-center justify-between text-sm ${C.text60}`}>
           <span>全明細合計 ({totalCount}件)</span>

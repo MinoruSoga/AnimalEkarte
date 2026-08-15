@@ -1,15 +1,14 @@
 /**
- * M-10: 本番ビルドでデモアカウント欄を必ず非表示にするための判定ロジックの仕様。
+ * M-10 / SEC-CS2-F01: デモアカウント欄をローカル Vite DEV のみに制限する判定ロジック。
  *
- * `frontend/.env.production` の `VITE_SHOW_DEMO_ACCOUNTS` は STG 環境（Vercel preview
- * デプロイ）向けの動作確認用フラグであり、意図的に "true" のまま維持される。しかし
- * この値だけに頼ると、設定ミスや preview 用の値が本番へ紛れ込んだ場合に本番でも
- * デモアカウントが露出してしまう。
+ * 以前は Vercel preview（STG）+ `VITE_SHOW_DEMO_ACCOUNTS=true` でも表示していたが、
+ * 特権デモ資格情報（system_admin 等）が共有 STG / preview へ露出するリスクがあるため、
+ * local DEV のみ許可する deny-by-default に変更した。
  *
- * `VERCEL_ENV` は Vercel がビルド時に自動注入する値（"production" | "preview" |
- * "development"）で、Vercel Dashboard の環境変数設定ミスの影響を受けない。これを
- * vite.config.ts の `define` でビルド時定数として埋め込み、Vercel Production
- * デプロイでは他の設定に関わらず常に false にする一次ガードとして使う。
+ * - ローカル dev（isDev）→ 表示
+ * - それ以外（Vercel preview / production / 未定義 / flag 有無を問わず）→ 非表示
+ *
+ * `VERCEL_ENV` と `VITE_SHOW_DEMO_ACCOUNTS` は後方互換のため引数に残すが、判定には使わない。
  *
  * 注意: `LoginForm.tsx` の `SHOW_DEMO` は本関数を呼ばず同じロジックをリテラル式で
  * インライン化している（関数呼び出しにすると Vite/esbuild が定数畳み込みできず、
@@ -22,8 +21,8 @@ export function computeShowDemoAccounts(params: {
   isDev: boolean;
   showDemoAccountsFlag: string | undefined;
 }): boolean {
-  const { vercelEnv, isDev, showDemoAccountsFlag } = params;
-  const isVercelProduction = vercelEnv === "production";
-  if (isVercelProduction) return false;
-  return isDev || showDemoAccountsFlag === "true";
+  // SEC-CS2-F01: local Vite DEV only. Preview/flag must never enable demo UI.
+  void params.vercelEnv;
+  void params.showDemoAccountsFlag;
+  return params.isDev;
 }

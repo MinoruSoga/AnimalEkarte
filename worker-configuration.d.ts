@@ -8,7 +8,10 @@ interface __BaseEnv_Env {
 	LOG_LEVEL: "info";
 	DB_PORT: "5432";
 	DB_NAME: "postgres";
-	DB_SSL_MODE: "require";
+	DB_SSL_MODE: "verify-full";
+	DB_SSL_ROOT_CERT: "system";
+	DB_MAX_OPEN_CONNS: "10";
+	DB_MAX_IDLE_CONNS: "5";
 	TRUSTED_PROXY_CIDR: "10.1.0.0/32";
 	CORS_ALLOWED_ORIGIN: "https://stg.noah-karte.com,https://api.stg.noah-karte.com";
 	FRONTEND_URL: "https://stg.noah-karte.com";

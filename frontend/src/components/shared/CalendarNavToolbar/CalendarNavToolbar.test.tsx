@@ -4,6 +4,27 @@ import userEvent from "@testing-library/user-event";
 import { CalendarNavToolbar } from "./CalendarNavToolbar";
 
 describe("CalendarNavToolbar", () => {
+  it.each(["sm", "lg", "auto"] as const)(
+    "%s サイズでも全ボタンが44px以上のタッチターゲットを持つ",
+    (size) => {
+      render(
+        <CalendarNavToolbar
+          size={size}
+          label={<span>2026年7月</span>}
+          onPrev={() => {}}
+          onToday={() => {}}
+          onNext={() => {}}
+          prevAriaLabel="前の月"
+          nextAriaLabel="次の月"
+        />,
+      );
+
+      expect(screen.getByRole("button", { name: "前の月" })).toHaveClass("min-h-11", "min-w-11");
+      expect(screen.getByRole("button", { name: "今日" })).toHaveClass("h-11");
+      expect(screen.getByRole("button", { name: "次の月" })).toHaveClass("min-h-11", "min-w-11");
+    },
+  );
+
   it("clustered レイアウトでは today ボタンが表示され、クリックで onToday が呼ばれる", async () => {
     const user = userEvent.setup();
     const onToday = vi.fn();

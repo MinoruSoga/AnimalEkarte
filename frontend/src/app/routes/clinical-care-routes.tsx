@@ -329,17 +329,37 @@ export const clinicalCareRoutes: RouteObject[] = [
           },
           {
             path: "select-pet",
-            lazy: async () => {
-              const { CheckupPetSelection } = await import("@/features/checkups");
-              return { Component: CheckupPetSelection };
-            },
+            element: (
+              <RequirePermission resource={ResourceMedicalRecords} action="create">
+                <RequirePermission resource={ResourceMedicalRecords} action="edit">
+                  <Outlet />
+                </RequirePermission>
+              </RequirePermission>
+            ),
+            children: [{
+              index: true,
+              lazy: async () => {
+                const { CheckupPetSelection } = await import("@/features/checkups");
+                return { Component: CheckupPetSelection };
+              },
+            }],
           },
           {
             path: "new",
-            lazy: async () => {
-              const { CheckupForm } = await import("@/features/checkups");
-              return { Component: CheckupForm };
-            },
+            element: (
+              <RequirePermission resource={ResourceMedicalRecords} action="create">
+                <RequirePermission resource={ResourceMedicalRecords} action="edit">
+                  <Outlet />
+                </RequirePermission>
+              </RequirePermission>
+            ),
+            children: [{
+              index: true,
+              lazy: async () => {
+                const { CheckupForm } = await import("@/features/checkups");
+                return { Component: CheckupForm };
+              },
+            }],
           },
         ],
       },

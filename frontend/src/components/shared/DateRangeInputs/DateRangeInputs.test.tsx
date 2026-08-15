@@ -26,6 +26,15 @@ describe("DateRangeInputs", () => {
     expect(screen.getByText("〜")).toBeInTheDocument();
   });
 
+  it("2つの日付入力に個別の accessible name を付ける", () => {
+    render(
+      <DateRangeInputs fromValue="" toValue="" onFromChange={() => {}} onToChange={() => {}} />,
+    );
+
+    expect(screen.getByLabelText("開始日")).toBeInTheDocument();
+    expect(screen.getByLabelText("終了日")).toBeInTheDocument();
+  });
+
   it("separator を差し替えられる", () => {
     render(
       <DateRangeInputs

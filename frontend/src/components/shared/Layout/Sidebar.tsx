@@ -1,15 +1,13 @@
 import { C, ICON, STYLE, LAYOUT } from "@/lib/design-tokens";
 import { ChevronDown, PanelLeftClose, PanelLeft, KeyRound, LogOut, User } from "lucide-react";
-import { useState, useEffect, memo, useCallback, lazy, Suspense } from "react";
+import { useState, useEffect, memo, useCallback } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { ChangePasswordDialog } from "@/components/shared/ChangePasswordDialog/ChangePasswordDialog";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { useAuth } from "@/hooks/use-auth";
+import { cn } from "@/lib/utils";
 import { SidebarItemWithPermission } from "./SidebarItems";
 import { sidebarMenuSections, type SidebarMenuSection } from "./sidebar-menu";
-
-const ChangePasswordDialog = lazy(() =>
-  import("@/features/auth").then((m) => ({ default: m.ChangePasswordDialog })),
-);
 
 interface SidebarSectionProps {
   section: SidebarMenuSection;
@@ -19,10 +17,9 @@ interface SidebarSectionProps {
 function SidebarSection({ section, collapsed = false }: SidebarSectionProps) {
   return (
     <div className="space-y-px">
+      {/* FE9-2: design-system.md §3.4 micro ロールへ全面統一。旧 10px 任意値は廃止。 */}
       {!collapsed ? (
-        // text-[10px]: コードベース全体で30+ファイルが使う既存の極小ラベル慣習値(DESIGN.mdの最小スケールeyebrow=12pxとは別系統)。
-        // Sidebar単体で新スケールに置換すると他箇所と不整合になるため、全面改修(範囲外)まで維持する。
-        <p className={`px-3 mb-1 text-[10px] font-bold ${C.text40} uppercase tracking-wider`}>
+        <p className={`px-3 mb-1 text-2xs font-semibold ${C.text40} uppercase`}>
           {section.title}
         </p>
       ) : null}
@@ -83,16 +80,17 @@ export const Sidebar = memo(function Sidebar() {
       className={`${STYLE.sidebarContainer} ${collapsed ? LAYOUT.sidebar.collapsed : LAYOUT.sidebar.expanded}`}
     >
       {/* Header */}
-      <div className={STYLE.sidebarHeader}>
+      <div className={cn(STYLE.sidebarHeader, collapsed ? "px-1.5" : undefined)}>
         {!collapsed ? (
           <div className="flex items-center justify-between w-full">
             {hasMultipleClinics ? (
               <Popover open={clinicPopoverOpen} onOpenChange={setClinicPopoverOpen}>
                 <PopoverTrigger asChild>
-                  {/* rounded-[3px]: コードベース全体112箇所の既存compact-control標準値。以降の同値も同様(全面改修は範囲外) */}
+                  {/* rounded-xxs: コードベース全体112箇所の既存compact-control標準値。以降の同値も同様(全面改修は範囲外) */}
                   <button
                     type="button"
-                    className={`flex items-center gap-1 min-w-0 text-base font-semibold ${C.text} ${C.hoverBgLight} rounded-[3px] px-1.5 py-1 transition-colors outline-none`}
+                    aria-label={clinicName || "医院を切り替える"}
+                    className={`flex min-h-11 min-w-11 max-w-full items-center gap-1 text-base font-semibold ${C.text} ${C.hoverBgLight} rounded-xxs px-1.5 py-1 transition-colors outline-none focus-visible:ring-2 ${C.focusRingAccent40}`}
                   >
                     <span className={`${ICON.dot} rounded-full ${C.bgBrand} shrink-0`} />
                     <span className="truncate">{clinicName}</span>
@@ -101,23 +99,28 @@ export const Sidebar = memo(function Sidebar() {
                 </PopoverTrigger>
                 {/* w-[200px]: 15ファイルで使われる既存の慣習値。Sidebar単体でのtoken化は他箇所との不整合を招くため範囲外 */}
                 <PopoverContent align="start" className="w-[200px] p-1">
-                  {user?.clinics.map((c) => (
-                    <button
-                      key={c.clinicId}
-                      type="button"
-                      onClick={() => handleRequestSwitch(c.clinicId)}
-                      className={`w-full text-left px-2.5 py-1.5 rounded-[3px] text-sm transition-colors flex items-center gap-2 ${
-                        c.clinicId === currentClinicId
-                          ? `font-medium ${C.text} ${C.bgBrand10}`
-                          : `${C.text65} ${C.hoverBgLight}`
-                      }`}
-                    >
-                      <span className={`${ICON.dotSm} rounded-full shrink-0 ${
-                        c.clinicId === currentClinicId ? C.bgBrand : C.bgInactive
-                      }`} />
-                      {c.clinicName}
-                    </button>
-                  ))}
+                  {user?.clinics.map((c) => {
+                    const isCurrentClinic = c.clinicId === currentClinicId;
+                    return (
+                      <button
+                        key={c.clinicId}
+                        type="button"
+                        onClick={() => handleRequestSwitch(c.clinicId)}
+                        aria-pressed={isCurrentClinic}
+                        disabled={isCurrentClinic}
+                        className={`flex min-h-11 min-w-11 w-full items-center gap-2 rounded-xxs px-2.5 py-1.5 text-left text-sm outline-none transition-colors focus-visible:ring-2 ${C.focusRingAccent40} ${
+                          isCurrentClinic
+                            ? `font-medium ${C.text} ${C.bgBrand10}`
+                            : `${C.text65} ${C.hoverBgLight}`
+                        }`}
+                      >
+                        <span className={`${ICON.dotSm} rounded-full shrink-0 ${
+                          isCurrentClinic ? C.bgBrand : C.bgInactive
+                        }`} />
+                        {c.clinicName}
+                      </button>
+                    );
+                  })}
                 </PopoverContent>
               </Popover>
             ) : (
@@ -140,8 +143,8 @@ export const Sidebar = memo(function Sidebar() {
             type="button"
             onClick={() => setCollapsed(false)}
             aria-label="サイドバーを展開"
-            // rounded-[3px]: コードベース全体112箇所の既存compact-control標準値(全面改修は範囲外)
-            className={`w-full flex items-center justify-center ${LAYOUT.sidebar.collapsedItemH} ${C.text50} ${C.hoverBgLight} rounded-[3px] transition-colors`}
+            // rounded-xxs: コードベース全体112箇所の既存compact-control標準値(全面改修は範囲外)
+            className={`w-full min-w-11 flex items-center justify-center ${LAYOUT.sidebar.collapsedItemH} ${C.text50} ${C.hoverBgLight} rounded-xxs transition-colors`}
           >
             <PanelLeft className={ICON.page} />
           </button>
@@ -159,7 +162,7 @@ export const Sidebar = memo(function Sidebar() {
       <div className={`border-t ${C.borderDivider} px-1 py-1.5`}>
         {!collapsed ? (
           <>
-            <div className={`flex items-center gap-2 px-2 py-1 rounded-[3px] ${C.hoverBgLight} transition-colors`}>
+            <div className={`flex items-center gap-2 px-2 py-1 rounded-xxs ${C.hoverBgLight} transition-colors`}>
               <div className={`${ICON.avatar} rounded-full flex items-center justify-center shrink-0 ${C.bgHoverMd}`}>
                 <User className={`${ICON.avatarGlyph} ${C.text50}`} />
               </div>
@@ -185,13 +188,11 @@ export const Sidebar = memo(function Sidebar() {
                 <LogOut className={ICON.action} />
               </button>
             </div>
-            <Suspense fallback={null}>
-              <ChangePasswordDialog
-                open={isChangePasswordOpen}
-                onOpenChange={setIsChangePasswordOpen}
-                onSuccess={logout}
-              />
-            </Suspense>
+            <ChangePasswordDialog
+              open={isChangePasswordOpen}
+              onOpenChange={setIsChangePasswordOpen}
+              onSuccess={logout}
+            />
           </>
         ) : (
           <button
@@ -199,7 +200,7 @@ export const Sidebar = memo(function Sidebar() {
             onClick={logout}
             aria-label="ログアウト"
             title="ログアウト"
-            className={`w-full ${LAYOUT.sidebar.collapsedItemH} flex items-center justify-center rounded-[3px] ${C.hoverBgMedium} transition-colors`}
+            className={`w-full min-w-11 ${LAYOUT.sidebar.collapsedItemH} flex items-center justify-center rounded-xxs ${C.hoverBgMedium} transition-colors`}
           >
             <LogOut className={`${ICON.action} ${C.text40}`} />
           </button>

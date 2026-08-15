@@ -1,6 +1,6 @@
 // Internal
 import { PatientInfoCard } from "@/components/shared/PatientInfoCard";
-import { formatDate } from "@/utils/format/date";
+import { formatDate } from "@/lib/format/date";
 
 // Types
 import type { Hospitalization } from "@/types";
@@ -17,6 +17,7 @@ export function HospitalizationPatientHeader({ hospitalization, currentWeight }:
             petName={hospitalization.petName}
             petNumber={hospitalization.hospitalizationNo}
             weight={currentWeight || "-"}
+            status={hospitalization.petIsDeceased ? "deceased" : "alive"}
             staffName={hospitalization.doctorName ?? "担当医未設定"}
             reservationType={hospitalization.hospitalizationType}
             petDetails={hospitalization.species}

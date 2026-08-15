@@ -43,7 +43,7 @@
 
 ### 2.3 臨床安全ガード
 - **確定ロック**: `finalized`（確定済）ステータスのカルテはバックエンドが更新を拒否し（409）、訂正は追記（addendum）のみ許可することで真正性を担保。確定への遷移は `PATCH /medical-records/:id` の `status` 指定によるもの。画面右下のフローティングアクション（`MedicalRecordFloatingActions`）に「確定する」ボタンが表示され（編集権限あり・保存済み・未確定の場合のみ）、`MedicalRecordFinalizeDialog` で不可逆であることを確認した上で確定する。確定取り消し（unfinalize）API は存在しないため、確定後の修正経路は訂正追記（addendum）のみ。会計完了時の自動確定は現状存在しない。確定済みカルテはサイドヘッダーに「確定済」バッジ（`StatusBadge`）を常時表示する。
-- **薬量自動計算と上限ゲート（#201）**: 「治療」タブの処方明細（`TreatmentRow`）は、対象ペットの species と当日 vital 体重から数量を自動プリフィルする（`calculateDose`。体重未記録・パラメータ未設定時はプリフィルせず手動入力）。保存時は `computeDoseGate` が上限（体重連動上限 weight×max_mg/kg と体重非依存の絶対上限 absolute_max_dose の小さい方）との乖離を判定し、著しい逸脱・上限超過時は `ConfirmDialog`（「この数量で保存する」）を提示する。**既知の是正対象**: 現行はこのダイアログで超過を通過でき、バックエンドも拒否せず audit 記録のみで保存する。確認ダイアログを安全統制に使わない原則（product-philosophy ③）および fail-closed 不成立経路の是正が [#201 [SAFETY]](https://github.com/MinoruSoga/AnimalEkarte/issues/201) で再オープン済み（物理ブロックまたは権限付き例外フローへ変更予定・Lock UI 等の判定は #261）。
+- **薬量自動計算と絶対上限ゲート（#201）**: 「治療」タブの処方明細（`TreatmentRow`）は、対象ペットの species と当日 vital 体重から数量を自動プリフィルする（`calculateDose`）。保存値がマスタ上限（体重連動上限 weight×max_mg/kg と体重非依存の絶対上限 absolute_max_dose の小さい方）を超える場合、フロントエンドは理由をインライン表示して追加・更新を送信せず、バックエンドも Create/Update の永続化前に 400 で拒否する。`ConfirmDialog` による解除経路は設けない。下限未満または推奨値からの著しい乖離は保存を許可して audit に記録する。体重未記録・species 正規化不能・投与量パラメータ未設定時は評価をスキップして従来どおり保存を継続する。パラメータ取得の非 NotFound エラーと species 不一致は既存どおり fail-closed とする。権限付き例外フロー（Design B）は実装しない。
 - **未保存警告**: 変更がある状態でページを離れようとすると `NavigationBlocker` が警告を表示。
 
 ---

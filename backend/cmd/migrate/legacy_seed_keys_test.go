@@ -23,8 +23,7 @@ func TestLegacyKeysAmongDetectsAllLegacyFilenames(t *testing.T) {
 
 func TestLegacyKeysAmongEmptyOnFreshLayout(t *testing.T) {
 	// Fresh layout schema_migrations keys: DDL filenames plus seeds/<bundle>
-	// (DDL count is not asserted here; see migrations/CLAUDE.md for current set)
-	// (4 rows). None of these are legacy stub filenames.
+	// (4 rows as of 2026-07-27). None of these are legacy stub filenames.
 	applied := []string{
 		"001_init.sql",
 		"seeds/002_master",
@@ -35,6 +34,63 @@ func TestLegacyKeysAmongEmptyOnFreshLayout(t *testing.T) {
 	got := legacyKeysAmong(applied)
 	if len(got) != 0 {
 		t.Fatalf("legacyKeysAmong(%v) = %v, want empty — current seed keys must never be mistaken for legacy ones", applied, got)
+	}
+}
+
+func TestValidateBaselineSafety(t *testing.T) {
+	tests := []struct {
+		name           string
+		count          int
+		hasSchema      bool
+		wantErr        bool
+		wantSubstrings []string
+	}{
+		{name: "fresh database", count: 0, hasSchema: false},
+		{name: "migration history with application schema", count: 1, hasSchema: true},
+		{
+			name:      "migration history without application schema",
+			count:     1,
+			hasSchema: false,
+			wantErr:   true,
+			wantSubstrings: []string{
+				"migration history exists",
+				"application schema is missing",
+				"LOCAL_DB_RESET.md",
+			},
+		},
+		{
+			name:      "application schema without migration history",
+			count:     0,
+			hasSchema: true,
+			wantErr:   true,
+			wantSubstrings: []string{
+				"existing application schema",
+				"schema_migrations is empty",
+				"schema completeness cannot be verified",
+				"LOCAL_DB_RESET.md",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateBaselineSafety(tt.count, tt.hasSchema)
+			if !tt.wantErr {
+				if err != nil {
+					t.Fatalf("validateBaselineSafety(%d, %t) returned unexpected error: %v", tt.count, tt.hasSchema, err)
+				}
+				return
+			}
+
+			if err == nil {
+				t.Fatalf("validateBaselineSafety(%d, %t) returned nil, want error", tt.count, tt.hasSchema)
+			}
+			for _, substring := range tt.wantSubstrings {
+				if !strings.Contains(err.Error(), substring) {
+					t.Errorf("error %q does not contain %q", err, substring)
+				}
+			}
+		})
 	}
 }
 
@@ -64,14 +120,12 @@ func TestLegacyKeysAmongPartialDetection(t *testing.T) {
 // already established for this package.
 //
 // It intentionally takes no "which legacy keys were found" input and always
-// returns ALL bundle keys (PR #186 security review, HIGH): baselining only
-// the bundles whose specific legacy filename was found would leave the rest
-// "unapplied" for a DB whose legacy key set is genuinely partial, letting the
-// following runSeedBundles call auto-load those CSV bundles onto what may be
-// a real database — see the doc comment on legacyTranslationTargets in
-// main.go for the full hazard.
+// returns all three legacy-equivalent bundle keys (PR #186 security review,
+// HIGH). Bundles introduced after the stub-SQL era must not be translated:
+// they have no legacy applied-history equivalent and must remain eligible for
+// normal application.
 
-func TestLegacyTranslationTargetsCoversAllBundlesInOrder(t *testing.T) {
+func TestLegacyTranslationTargetsCoversOnlyLegacyEquivalentBundles(t *testing.T) {
 	got := legacyTranslationTargets()
 	want := []string{"seeds/002_master", "seeds/003_demo", "seeds/004_staging"}
 	if !reflect.DeepEqual(got, want) {

@@ -4,7 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { Button } from "@/components/ui/button";
-import { ICON, STYLE } from "@/lib/design-tokens";
+import { ICON, STYLE, LAYOUT } from "@/lib/design-tokens";
 import { queryKeys } from "@/lib/query-keys";
 
 import { useGetLstepDeliveryTriggerLogs } from "../api/get-lstep-delivery-trigger-logs";
@@ -78,7 +78,7 @@ export function LstepDeliveryMonitorPage() {
   return (
     <PageLayout
       title="自動配信トリガー監視"
-      maxWidth="max-w-full"
+      maxWidth={LAYOUT.pageContentMaxWidth.full}
       headerAction={
         <Button variant="outline" className={STYLE.btnOutline} onClick={handleRefresh} disabled={isLoading}>
           <RefreshCw className={`mr-1.5 ${ICON.sm} ${isLoading ? "animate-spin" : ""}`} />

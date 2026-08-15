@@ -10,6 +10,7 @@ import { render, screen, act } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { toast } from "sonner";
+import { C } from "@/lib/design-tokens";
 import { ForgotPasswordPage } from "./ForgotPasswordPage";
 import { forgotPassword } from "../api/forgot-password";
 
@@ -62,5 +63,29 @@ describe("FE6-6: ForgotPasswordPage anti-enumeration", () => {
       await screen.findByText("パスワードリセットのリンクをメールに送信しました。メールをご確認ください。"),
     ).toBeInTheDocument();
     expect(toast.error).not.toHaveBeenCalled();
+  });
+
+  it("ログインへ戻るリンクは44px以上の操作領域を持つ", () => {
+    render(
+      <MemoryRouter>
+        <ForgotPasswordPage />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole("link", { name: "ログインページに戻る" })).toHaveClass("min-h-11");
+  });
+
+  it("認証CTAとロゴは brand identity teal を明示する", () => {
+    render(
+      <MemoryRouter>
+        <ForgotPasswordPage />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole("button", { name: "リセットリンクを送信" })).toHaveClass(
+      C.bgBrandIdentity,
+      C.hoverBgBrandIdentity,
+    );
+    expect(screen.getByTestId("forgot-password-brand-mark")).toHaveClass(C.bgBrandIdentity);
   });
 });

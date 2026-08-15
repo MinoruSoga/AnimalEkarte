@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { DatePicker } from "@/components/shared/DatePicker";
+import { FormFieldError } from "@/components/shared/FormFieldError";
 import { MasterLink } from "@/components/shared/MasterLink";
 import { C } from "@/lib/design-tokens";
 
@@ -39,6 +40,8 @@ interface VaccinationFormProps {
   setNextDate: (v: string) => void;
   remarks: string;
   setRemarks: (v: string) => void;
+  /** BUG-015: 必須未選択時のインラインエラー（独立フォームと同文言） */
+  fieldErrors?: Record<string, string>;
   onSave?: () => void;
   isSaving?: boolean;
 }
@@ -65,17 +68,18 @@ export const VaccinationForm = memo(function VaccinationForm({
   setNextDate,
   remarks,
   setRemarks,
+  fieldErrors = {},
   onSave,
   isSaving,
 }: VaccinationFormProps) {
   return (
-    <div className="col-span-6 flex flex-col gap-4">
+    <div className="col-span-1 flex flex-col gap-4 lg:col-span-6">
       {/* Row 1: Name and Date */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid w-full grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="flex flex-col gap-1.5">
           <div className="flex items-center justify-between">
             <Label className={`text-sm font-medium ${C.text60}`}>予防接種名</Label>
-            <MasterLink category="vaccine" label="編集" className="text-[11px]" />
+            <MasterLink category="vaccine" label="編集" className="text-2xs" />
           </div>
           <SearchableSelect
             value={vaccineName}
@@ -83,13 +87,17 @@ export const VaccinationForm = memo(function VaccinationForm({
             options={vaccineOptions}
             placeholder="ワクチンを選択"
             searchPlaceholder="ワクチンを検索..."
+            ariaInvalid={Boolean(fieldErrors.vaccineId)}
+            ariaDescribedBy={fieldErrors.vaccineId ? "mr-vaccine-error" : undefined}
           />
+          <FormFieldError id="mr-vaccine-error" message={fieldErrors.vaccineId} />
         </div>
         <div className="flex flex-col gap-1.5">
           <Label className={`text-sm font-medium ${C.text60}`}>
             予防接種日
           </Label>
           <DatePicker value={date} onChange={setDate} />
+          <FormFieldError id="mr-vaccine-date-error" message={fieldErrors.date} />
         </div>
       </div>
 
@@ -106,7 +114,7 @@ export const VaccinationForm = memo(function VaccinationForm({
       </div>
 
       {/* LOT Numbers */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid w-full grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="flex flex-col gap-1.5">
           <Label className={`text-sm font-medium ${C.text60}`}>
             LOT1
@@ -241,7 +249,7 @@ export const VaccinationForm = memo(function VaccinationForm({
             type="button"
             onClick={onSave}
             disabled={isSaving}
-            className={`${C.bgBrand} ${C.hoverBgBrand} text-white rounded-full border-transparent transition-colors`}
+            className={`${C.bgBrand} ${C.hoverBgBrand} ${C.hoverTextOnBrand} ${C.textOnBrand} rounded-full border-transparent transition-colors`}
           >
             {isSaving ? "登録中..." : "接種記録を追加"}
           </Button>

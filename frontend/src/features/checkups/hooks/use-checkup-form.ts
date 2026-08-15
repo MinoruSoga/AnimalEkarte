@@ -1,4 +1,11 @@
-import { useState, useEffect, useCallback, useActionState } from "react";
+import {
+  useState,
+  useEffect,
+  useLayoutEffect,
+  useCallback,
+  useActionState,
+  useRef,
+} from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { toast } from "sonner";
 import { handleApiError } from "@/lib/handle-api-error";
@@ -25,6 +32,16 @@ interface ActionState {
   timestamp: number;
 }
 
+interface CheckupMutationPermissions {
+  canCreate: boolean;
+  canEdit: boolean;
+}
+
+const DENIED_MUTATION_PERMISSIONS: Readonly<CheckupMutationPermissions> = {
+  canCreate: false,
+  canEdit: false,
+};
+
 const DEFAULT_FORM: CheckupFormState = {
   checkupTypeId: "",
   date: "",
@@ -34,7 +51,9 @@ const DEFAULT_FORM: CheckupFormState = {
 };
 
 // useCheckupForm — checkup新規登録フォームのロジックを管理するフック
-export function useCheckupForm() {
+export function useCheckupForm(
+  permissions: Readonly<CheckupMutationPermissions> = DENIED_MUTATION_PERMISSIONS,
+) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const petId = searchParams.get("petId") ?? "";
@@ -48,6 +67,24 @@ export function useCheckupForm() {
   // #211: 選択中の健診パッケージのフィールド定義 + 入力値。
   const { data: checkupFields = [] } = useGetCheckupTypeFields(formData.checkupTypeId);
   const [fieldValues, setFieldValues] = useState<Record<number, CheckupFieldValue>>({});
+  const { canCreate, canEdit } = permissions;
+  const permissionsRef = useRef(permissions);
+  const petStatusRef = useRef(pet?.status);
+  useLayoutEffect(() => {
+    permissionsRef.current = { canCreate, canEdit };
+  }, [canCreate, canEdit]);
+  useLayoutEffect(() => {
+    petStatusRef.current = pet?.status;
+  }, [pet?.status]);
+  const isMutationAllowed = useCallback(
+    (action: keyof CheckupMutationPermissions) =>
+      permissionsRef.current[action] === true,
+    [],
+  );
+  const isMutationPetDeceased = useCallback(
+    () => petStatusRef.current === "死亡",
+    [],
+  );
 
   const setField = useCallback(<K extends keyof CheckupFormState>(key: K, value: CheckupFormState[K]) => {
     setLocalOverrides((prev) => ({ ...prev, [key]: value }));
@@ -69,9 +106,19 @@ export function useCheckupForm() {
       }
       setFieldErrors({});
 
-      if (!pet) return { success: false, timestamp: Date.now() };
+      if (!pet || pet.status === "死亡") {
+        return { success: false, timestamp: Date.now() };
+      }
 
       try {
+        if (
+          !isMutationAllowed("canCreate") ||
+          !isMutationAllowed("canEdit") ||
+          isMutationPetDeceased()
+        ) {
+          return { success: false, timestamp: Date.now() };
+        }
+
         // 1. カルテを作成（checkupのサブリソース登録に medical_record_id が必須）
         const medicalRecord = await createMedicalRecordForCheckup({
           pet_id: pet.id,
@@ -80,6 +127,13 @@ export function useCheckupForm() {
         });
 
         // 2. 作成したカルテに健診記録を登録
+        if (
+          !isMutationAllowed("canCreate")
+          || !isMutationAllowed("canEdit")
+          || isMutationPetDeceased()
+        ) {
+          return { success: false, timestamp: Date.now() };
+        }
         const checkup = await createCheckupOnMedicalRecord(medicalRecord.id, {
           checkup_type_id: Number(formData.checkupTypeId),
           date: formData.date,
@@ -91,6 +145,13 @@ export function useCheckupForm() {
         // 3. #211 健診パッケージの型付き結果値を保存（入力がある場合のみ）。
         const resultsPayload = buildCheckupResultsPayload(checkupFields, fieldValues);
         if (resultsPayload.length > 0) {
+          if (
+            !isMutationAllowed("canCreate")
+            || !isMutationAllowed("canEdit")
+            || isMutationPetDeceased()
+          ) {
+            return { success: false, timestamp: Date.now() };
+          }
           await replaceCheckupFieldResults(medicalRecord.id, checkup.id, resultsPayload);
         }
 

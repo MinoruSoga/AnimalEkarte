@@ -9,10 +9,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { TableCell, TableHead } from "@/components/ui/table";
 import { formatJSTDateTimeLocal, toJSTWallDate } from "@/lib/jst-date";
 import { Pagination } from "@/components/shared/Pagination";
+import { DataTableRowButton } from "@/components/shared/DataTable/DataTableRowButton";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
-import { formatCurrency } from "@/utils/format/number";
+import { formatCurrency } from "@/lib/format/number";
 import { useGetCashRegisterCloses } from "../api/get-cash-register-closes";
 import type { CashRegisterClose } from "../api/get-cash-register-closes";
 import { PERIOD_LABELS, PERIOD_OPTIONS, type CashRegisterPeriod } from "../constants";
@@ -130,7 +132,7 @@ export function CashRegisterHistoryPage() {
               id="hist_year"
               value={year}
               onChange={handleYearChange}
-              className={`${STYLE.formInput} rounded-[4px] border px-3 inline-block w-auto`}
+              className={`${STYLE.formInput} rounded-xs border px-3 inline-block w-auto`}
             >
               {yearOptions.map((y) => (
                 <option key={y} value={y}>
@@ -147,7 +149,7 @@ export function CashRegisterHistoryPage() {
               id="hist_month"
               value={month}
               onChange={handleMonthChange}
-              className={`${STYLE.formInput} rounded-[4px] border px-3 inline-block w-auto`}
+              className={`${STYLE.formInput} rounded-xs border px-3 inline-block w-auto`}
             >
               {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
                 <option key={m} value={m}>
@@ -164,7 +166,7 @@ export function CashRegisterHistoryPage() {
               id="hist_period"
               value={periodFilter}
               onChange={handlePeriodFilterChange}
-              className={`${STYLE.formInput} rounded-[4px] border px-3 inline-block w-auto`}
+              className={`${STYLE.formInput} rounded-xs border px-3 inline-block w-auto`}
             >
               <option value="all">すべて</option>
               {PERIOD_OPTIONS.map((p) => (
@@ -185,18 +187,18 @@ export function CashRegisterHistoryPage() {
             <p className={`text-base ${C.danger}`}>データの取得に失敗しました</p>
           </div>
         ) : (
-          <div className={`${C.bgWhite} rounded-lg border ${C.borderLight}`}>
+          <div className={`${C.bgWhite} rounded-lg border ${C.borderLight} overflow-x-auto`}>
             {rows.length > 0 ? (
-              <table className="w-full text-base">
+              <table className="w-full text-sm">
                 <thead>
-                  <tr className={`border-b ${C.borderLight} ${C.bgPage}`}>
-                    <th className={`text-left px-4 py-2 font-medium ${C.text70}`}>日付</th>
-                    <th className={`text-left px-4 py-2 font-medium ${C.text70}`}>区分</th>
-                    <th className={`text-right px-4 py-2 font-medium ${C.text70}`}>理論現金</th>
-                    <th className={`text-right px-4 py-2 font-medium ${C.text70}`}>実際の現金</th>
-                    <th className={`text-right px-4 py-2 font-medium ${C.text70}`}>差額</th>
-                    <th className={`text-left px-4 py-2 font-medium ${C.text70}`}>担当者</th>
-                    <th className={`text-left px-4 py-2 font-medium ${C.text70}`}>締め時刻</th>
+                  <tr className={STYLE.tableHeaderRow}>
+                    <TableHead>日付</TableHead>
+                    <TableHead>区分</TableHead>
+                    <TableHead className="text-right">理論現金</TableHead>
+                    <TableHead className="text-right">実際の現金</TableHead>
+                    <TableHead className="text-right">差額</TableHead>
+                    <TableHead>担当者</TableHead>
+                    <TableHead>締め時刻</TableHead>
                   </tr>
                 </thead>
                 <tbody>
@@ -207,42 +209,39 @@ export function CashRegisterHistoryPage() {
                     return (
                       <tr
                         key={close.id}
-                        role="button"
-                        tabIndex={0}
-                        aria-label={`${close.closeDate} ${PERIOD_LABELS[close.period]} の締め詳細を表示`}
                         data-highlighted={isHighlighted ? "true" : undefined}
-                        onClick={() => setSelectedClose(close)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" || e.key === " ") {
-                            e.preventDefault();
-                            setSelectedClose(close);
-                          }
-                        }}
-                        className={`border-b ${C.borderLight} cursor-pointer ${
+                        className={`border-b ${C.borderLight} ${
                           isHighlighted ? C.bgBrandLight40 : STYLE.tableRow
                         }`}
                       >
-                        <td className={`px-4 py-3 ${C.text}`}>{close.closeDate}</td>
-                        <td className={`px-4 py-3 ${C.text}`}>
+                        <TableCell className={C.text}>
+                          <DataTableRowButton
+                            aria-label={`締め詳細: ${close.closeDate} ${PERIOD_LABELS[close.period]} (ID ${close.id})`}
+                            onClick={() => setSelectedClose(close)}
+                          >
+                            {close.closeDate}
+                          </DataTableRowButton>
+                        </TableCell>
+                        <TableCell className={C.text}>
                           {PERIOD_LABELS[close.period]}
-                        </td>
-                        <td className={`px-4 py-3 text-right ${C.text}`}>
+                        </TableCell>
+                        <TableCell className={`text-right ${C.text}`}>
                           {formatCurrency(close.theoreticalCash ?? 0)}
-                        </td>
-                        <td className={`px-4 py-3 text-right ${C.text}`}>
+                        </TableCell>
+                        <TableCell className={`text-right ${C.text}`}>
                           {formatCurrency(close.actualCash ?? 0)}
-                        </td>
-                        <td className={`px-4 py-3 text-right font-medium ${diffClass(diff)}`}>
+                        </TableCell>
+                        <TableCell className={`text-right font-medium ${diffClass(diff)}`}>
                           {formatDiff(diff)}
-                        </td>
-                        <td className={`px-4 py-3 ${C.text}`}>
+                        </TableCell>
+                        <TableCell className={C.text}>
                           {close.closedByStaffName ?? "—"}
-                        </td>
-                        <td className={`px-4 py-3 ${C.text60}`}>
+                        </TableCell>
+                        <TableCell className={C.text60}>
                           {close.closedAt
                             ? formatJSTDateTimeLocal(close.closedAt).slice(5).replace("T", " ")
                             : "—"}
-                        </td>
+                        </TableCell>
                       </tr>
                     );
                   })}
@@ -327,7 +326,15 @@ export function CashRegisterHistoryPage() {
                         {detailSubtotals.map((row) => (
                           <div key={row.label} className="flex justify-between text-base">
                             <dt className={C.text60}>{row.label}</dt>
-                            <dd className={C.text}>{formatCurrency(row.total)}</dd>
+                            <dd className={C.text}>
+                              {formatCurrency(row.total)}
+                              {/* DEC-40: 未分類・要確認の件数は締め時点 snapshot。欠落は「記録なし」 */}
+                              {row.count !== undefined ? (
+                                <span className={`ml-2 ${C.text60}`}>
+                                  {row.count === null ? "記録なし" : `${row.count}件`}
+                                </span>
+                              ) : null}
+                            </dd>
                           </div>
                         ))}
                       </dl>

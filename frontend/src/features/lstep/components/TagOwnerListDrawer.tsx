@@ -4,6 +4,7 @@ import { Download, Trash2 } from "lucide-react";
 import {
   Sheet,
   SheetContent,
+  SheetDescription,
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
@@ -13,7 +14,8 @@ import { EmptyState } from "@/components/shared/DataStates";
 import { handleApiError } from "@/lib/handle-api-error";
 import { isAutoManagedTag } from "@/constants/lstep-auto-tag-prefixes";
 import { paths } from "@/config/paths";
-import { useGetLstepTagOwners, fetchAllLstepTagOwners } from "../api/get-lstep-tag-owners";
+import { HISTORY_FETCH_LIMIT } from "@/config/fetch-limits";
+import { useGetLstepTagOwners, fetchLstepTagOwnersCsv } from "../api/get-lstep-tag-owners";
 import type { LstepTagOwner } from "../api/get-lstep-tag-owners";
 import { BulkTagRemoveDialog } from "./BulkTagRemoveDialog";
 
@@ -31,21 +33,9 @@ function formatDate(dateStr: string | null): string {
   return dateStr.slice(0, 10);
 }
 
-function buildOwnersCsv(
-  owners: Array<{ owner_id: string; owner_name: string; last_visit_date: string | null }>,
-  tagName: string
-): string {
-  const header = "owner_id,owner_name,tag_name,last_visit_date";
-  const rows = owners.map(
-    (o) =>
-      `${o.owner_id},"${o.owner_name.replace(/"/g, '""')}","${tagName}",${o.last_visit_date ?? ""}`
-  );
-  return [header, ...rows].join("\n");
-}
+const LSTEP_CSV_EXPORT_LIMIT = 5_000;
 
-function downloadCsv(content: string, filename: string): void {
-  const bom = "﻿";
-  const blob = new Blob([bom + content], { type: "text/csv;charset=utf-8;" });
+function downloadCsv(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
@@ -78,7 +68,7 @@ const TagOwnerListItem = memo(function TagOwnerListItem({
       </div>
       <Link
         to={paths.owners.detail.getHref(owner.owner_id)}
-        className={`shrink-0 ml-3 text-xs ${C.textBrand} hover:underline whitespace-nowrap`}
+        className={`inline-flex min-h-11 shrink-0 items-center ml-3 text-xs ${C.textBrand} hover:underline whitespace-nowrap`}
       >
         カルテを開く
       </Link>
@@ -99,24 +89,25 @@ export function TagOwnerListDrawer({
 
   const { data, isLoading } = useGetLstepTagOwners({
     tag: tagName,
-    per_page: 200,
+    per_page: HISTORY_FETCH_LIMIT,
   });
 
   const owners = data?.owners ?? [];
-  const canBulkDelete = canDelete && !isAutoManagedTag(tagName);
+  const isTruncated = typeof data?.total === "number" && data.total > owners.length;
+  const isCsvOverLimit = Math.max(ownerCount, data?.total ?? 0) > LSTEP_CSV_EXPORT_LIMIT;
+  const canBulkDelete = canDelete && !isAutoManagedTag(tagName) && !isTruncated;
 
   const handleExportCsv = useCallback(() => {
-    if (ownerCount === 0 || !canExportCsv) return;
+    if (ownerCount === 0 || !canExportCsv || isCsvOverLimit) return;
     startCsvTransition(async () => {
       try {
-        const allOwners = await fetchAllLstepTagOwners(tagName, ownerCount);
-        const csv = buildOwnersCsv(allOwners, tagName);
+        const csv = await fetchLstepTagOwnersCsv(tagName);
         downloadCsv(csv, `lstep-tag-${tagName}-owners.csv`);
       } catch (error) {
         handleApiError(error, "CSV出力");
       }
     });
-  }, [ownerCount, tagName, canExportCsv]);
+  }, [ownerCount, tagName, canExportCsv, isCsvOverLimit]);
 
   const handleRemoveClick = useCallback(() => {
     setRemoveDialogOpen(true);
@@ -125,12 +116,14 @@ export function TagOwnerListDrawer({
   return (
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetContent side="right" className="w-[480px] sm:max-w-[480px] flex flex-col p-0">
-          <SheetHeader className="px-4 py-4 border-b shrink-0">
+        <SheetContent side="right" className="w-full max-w-full sm:max-w-[480px] flex flex-col p-0">
+          <SheetHeader className="px-4 py-4 pr-16 border-b shrink-0">
             <SheetTitle className={`${C.text} text-base`}>
               タグ「{tagName}」の対象者一覧
             </SheetTitle>
-            <p className={`text-sm ${C.text50}`}>{ownerCount}名</p>
+            <SheetDescription className={C.text50}>
+              {ownerCount}名
+            </SheetDescription>
           </SheetHeader>
 
           {/* ツールバー */}
@@ -138,9 +131,9 @@ export function TagOwnerListDrawer({
             {canExportCsv ? (
               <Button
                 variant="outline"
-                className={`h-9 px-3 text-sm ${STYLE.btnOutline}`}
+                className={`min-h-11 px-3 text-sm ${STYLE.btnOutline}`}
                 onClick={handleExportCsv}
-                disabled={isLoading || csvLoading || ownerCount === 0}
+                disabled={isLoading || csvLoading || ownerCount === 0 || isCsvOverLimit}
               >
                 <Download className={`mr-1.5 ${ICON.sm}`} />
                 {csvLoading ? "取得中..." : "CSV"}
@@ -149,7 +142,7 @@ export function TagOwnerListDrawer({
             {canBulkDelete ? (
               <Button
                 variant="outline"
-                className={`h-9 px-3 text-sm ${C.danger} border ${C.borderDanger} ${C.hoverBgDanger5}`}
+                className={`min-h-11 px-3 text-sm ${C.danger} border ${C.borderDanger} ${C.hoverBgDanger5}`}
                 onClick={handleRemoveClick}
                 disabled={isLoading || owners.length === 0}
               >
@@ -158,6 +151,16 @@ export function TagOwnerListDrawer({
               </Button>
             ) : null}
           </div>
+
+          {isTruncated || isCsvOverLimit ? (
+            <div
+              className={`flex flex-col gap-1 border-b px-4 py-2 text-xs ${C.borderLight} ${C.text50}`}
+              role="status"
+            >
+              {isTruncated ? <span>先頭100名を表示しています</span> : null}
+              {isCsvOverLimit ? <span>CSV出力は5000名までです</span> : null}
+            </div>
+          ) : null}
 
           {/* オーナーリスト */}
           <div className="flex-1 overflow-y-auto">

@@ -1,0 +1,131 @@
+package lstep
+
+import (
+	"context"
+	"errors"
+	"io"
+	"log/slog"
+	"net/http"
+	"strings"
+	"time"
+
+	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/infra/line"
+	"github.com/animal-ekarte/backend/internal/model"
+)
+
+// connectionProbeClient is a timeout-bound client for connectivity probes (LSA-01/LSA-08).
+// Do not use http.DefaultClient (no timeout).
+var connectionProbeClient = &http.Client{Timeout: 10 * time.Second}
+
+func (s *lstepSettingsService) TestConnection(ctx context.Context, clinicID uint64) (*LstepConnectionTestResult, error) {
+	records, err := s.repo.FindByClinicAndService(ctx, clinicID, model.IntegrationServiceLstep)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to find lstep settings for test", "error", err)
+		return nil, apperrors.Wrap(err, "failed to load settings for connection test")
+	}
+
+	kvMap := make(map[string]string, len(records))
+	for _, r := range records {
+		val, decErr := s.decrypt(r.KeyName, r.KeyValue)
+		if decErr != nil {
+			// LSB-04 / DEC-35: 復号失敗を空文字へ置換して握り潰さない（サイレント停止を防ぐ）
+			slog.ErrorContext(ctx, "failed to decrypt integration value", "key_name", r.KeyName, "error", decErr)
+			return nil, apperrors.Wrap(decErr, "failed to decrypt integration value")
+		}
+		kvMap[r.KeyName] = val
+	}
+
+	result := &LstepConnectionTestResult{}
+
+	// Lステップ疎通確認 — only allowlisted base URL (LSA-01)
+	lstepKey := kvMap[model.IntegrationKeyLstepAPIKey]
+	lstepBase, baseErr := ValidateLstepBaseURL(kvMap[model.IntegrationKeyLstepBaseURL])
+	if lstepKey != "" {
+		if baseErr != nil {
+			slog.WarnContext(ctx, "lstep connection test rejected base URL", "error", baseErr, "clinic_id", clinicID)
+			result.LstepOK = false
+			result.LstepError = "invalid_base_url"
+		} else if err := testLstepAPI(ctx, lstepBase, lstepKey); err != nil {
+			slog.WarnContext(ctx, "lstep connection test failed", "error", err, "clinic_id", clinicID)
+			result.LstepOK = false
+			result.LstepError = classifyConnectionProbeError(err)
+		} else {
+			result.LstepOK = true
+		}
+	}
+
+	// LINE Messaging API疎通確認
+	lineToken := kvMap[model.IntegrationKeyLineChannelAccessToken]
+	if lineToken != "" {
+		if err := testLineAPI(ctx, line.APIHost, lineToken); err != nil {
+			slog.WarnContext(ctx, "line connection test failed", "error", err, "clinic_id", clinicID)
+			result.LineOK = false
+			result.LineError = classifyConnectionProbeError(err)
+		} else {
+			result.LineOK = true
+		}
+	}
+
+	return result, nil
+}
+
+func testLstepAPI(ctx context.Context, baseURL, apiKey string) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, baseURL+"/api/v1/tags", http.NoBody)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Authorization", "Bearer "+apiKey)
+	resp, err := connectionProbeClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()               //nolint:errcheck // close error on connectivity probe is not actionable
+	_, _ = io.Copy(io.Discard, resp.Body) //nolint:errcheck // body drain failure on connectivity probe is not actionable
+	if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
+		return errConnectionUnauthorized
+	}
+	return nil
+}
+
+func testLineAPI(ctx context.Context, baseURL, channelToken string) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, baseURL+"/v2/bot/info", http.NoBody)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Authorization", "Bearer "+channelToken)
+	resp, err := connectionProbeClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()               //nolint:errcheck // close error on connectivity probe is not actionable
+	_, _ = io.Copy(io.Discard, resp.Body) //nolint:errcheck // body drain failure on connectivity probe is not actionable
+	if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
+		return errConnectionUnauthorized
+	}
+	return nil
+}
+
+var errConnectionUnauthorized = errors.New("authentication failed")
+
+// classifyConnectionProbeError returns stable codes for JSON (LSA-08); raw details stay in slog.
+func classifyConnectionProbeError(err error) string {
+	if err == nil {
+		return "unreachable"
+	}
+	if errors.Is(err, errConnectionUnauthorized) {
+		return "unauthorized"
+	}
+	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+		return "timeout"
+	}
+	msg := strings.ToLower(err.Error())
+	switch {
+	case strings.Contains(msg, "timeout") || strings.Contains(msg, "deadline"):
+		return "timeout"
+	case strings.Contains(msg, "unauthorized") || strings.Contains(msg, "forbidden"):
+		return "unauthorized"
+	default:
+		return "unreachable"
+	}
+}

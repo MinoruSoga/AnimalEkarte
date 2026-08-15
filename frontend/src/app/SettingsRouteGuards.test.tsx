@@ -3,7 +3,7 @@ import { render, screen, cleanup } from "@testing-library/react";
 import { Suspense } from "react";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { AuthContext } from "@/contexts/auth-context";
+import { AuthContext } from "@/hooks/auth-context";
 import { appRoutes } from "@/app/routes/app-routes";
 import type { ResourceAction } from "@/types/auth";
 

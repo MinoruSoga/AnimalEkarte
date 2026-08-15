@@ -14,7 +14,6 @@ func RequestLoggingMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		start := time.Now()
 		path := c.Request.URL.Path
-		raw := c.Request.URL.RawQuery
 
 		// 処理
 		c.Next()
@@ -34,11 +33,6 @@ func RequestLoggingMiddleware() gin.HandlerFunc {
 			logLevel = slog.LevelWarn
 		} else if statusCode >= 500 {
 			logLevel = slog.LevelError
-		}
-
-		// パスとクエリ
-		if raw != "" {
-			path = path + "?" + raw
 		}
 
 		// 構造化ログ出力（method, path, status, latency, request_id, client_ip のみ）

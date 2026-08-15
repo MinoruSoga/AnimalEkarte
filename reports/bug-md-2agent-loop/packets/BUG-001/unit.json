@@ -1,0 +1,33 @@
+{
+  "schema": "bug-md-2agent-loop.unit/v1",
+  "bug_id": "BUG-001",
+  "title": "飼主・ペット一覧の検索が「姓 スペース 名」形式でヒットしない",
+  "workspace": "/Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte",
+  "section_path": "/Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte/reports/bug-md-2agent-loop/packets/BUG-001/bug_section.md",
+  "read_paths_hint": [
+    "AGENTS.md",
+    ".claude/CLAUDE.md",
+    "STATUS.md",
+    "bug.md"
+  ],
+  "ledger_note": "Noah: bug.md is a stub → STATUS.md §3 is the unit ledger",
+  "success": [
+    "BUG-001 root cause addressed in code",
+    "scoped tests green or explicit BLOCKED with reason",
+    "handoff written",
+    "bug.md not VERIFIED_FIXED by agent"
+  ],
+  "forbidden": [
+    "migrate apply",
+    "seed apply",
+    "force-push",
+    "secrets/PHI in prompts",
+    "multi-bug edits",
+    "VERIFIED_FIXED"
+  ],
+  "prompt_craft_graph": {
+    "preferred_profile": "v2",
+    "classification": "internal-source-only",
+    "note": "Campaign consent: bug ledger + scoped code may go to selected provider; no PHI/secrets"
+  }
+}

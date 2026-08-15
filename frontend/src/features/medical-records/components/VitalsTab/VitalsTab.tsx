@@ -58,12 +58,9 @@ export const VitalsTab = memo(function VitalsTab({ medicalRecordId, recordClinic
     [vitals]
   );
 
-  const handleAddFormChange = useCallback(
-    (field: keyof VitalsAddFormState, value: string) => {
-      setAddForm((prev) => ({ ...prev, [field]: value }));
-    },
-    []
-  );
+  const handleAddFormChange = useCallback((patch: Partial<VitalsAddFormState>) => {
+    setAddForm((prev) => ({ ...prev, ...patch }));
+  }, []);
 
   const handleAddSubmit = useCallback(() => {
     if (!canCreate) return;
@@ -200,7 +197,7 @@ export const VitalsTab = memo(function VitalsTab({ medicalRecordId, recordClinic
       />
 
       {sortedVitals.length > 0 ? (
-        <div className={`${C.bgWhite} border ${C.borderLight} rounded-[4px] px-4 py-3`}>
+        <div className={`${C.bgWhite} border ${C.borderLight} rounded-xs px-4 py-3`}>
           <span className={`text-sm ${C.text60}`}>
             バイタル記録 {sortedVitals.length} 件
           </span>
@@ -230,7 +227,7 @@ interface VitalsViewToggleProps {
 function VitalsViewToggle({ showGraph, onChange }: VitalsViewToggleProps) {
   return (
     <div className="flex items-center justify-end">
-      <div className={`flex items-center border ${C.borderLight} rounded-[4px] overflow-hidden`}>
+      <div className={`flex items-center border ${C.borderLight} rounded-xs overflow-hidden`}>
         <button
           type="button"
           onClick={() => onChange(false)}

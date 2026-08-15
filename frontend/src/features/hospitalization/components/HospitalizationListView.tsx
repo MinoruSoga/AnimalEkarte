@@ -5,11 +5,13 @@ import { memo } from "react";
 import { TableCell } from "@/components/ui/table";
 import { DataTable, DESIGN_TABLE_HEADER_ROW, DESIGN_TABLE_HEADER_CELL } from "@/components/shared/DataTable/DataTable";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
+import { DataTableRowLink } from "@/components/shared/DataTable/DataTableRowLink";
 import { StatusBadge } from "@/components/shared/StatusBadge/StatusBadge";
 import { RowActionButton } from "@/components/shared/RowActionButton";
-import { getHospitalizationStatusColor, getHospitalizationTypeColor } from "@/utils/status-helpers";
+import { getHospitalizationStatusColor, getHospitalizationTypeColor } from "@/lib/status-helpers";
 import { C, STYLE } from "@/lib/design-tokens";
-import { formatDate } from "@/utils/format/date";
+import { formatDate } from "@/lib/format/date";
+import { paths } from "@/config/paths";
 
 // Types
 import type { Hospitalization } from "@/types";
@@ -44,32 +46,41 @@ export const HospitalizationListView = memo(function HospitalizationListView({ h
       renderRow={(h) => (
         <DataTableRow
           key={h.id}
-          onClick={h.petIsDeceased ? undefined : () => onNavigate(h.id)}
           className={h.petIsDeceased ? "opacity-40 cursor-default" : ""}
         >
           <TableCell className={`${STYLE.tableCellMono}`}>
-            {h.hospitalizationNo}
+            {h.petIsDeceased ? h.hospitalizationNo : (
+              <DataTableRowLink
+                to={paths.hospitalization.detail.getHref(h.id)}
+                aria-label={`入院「${h.hospitalizationNo} ${h.petName}」(ID: ${h.id}) の詳細を開く`}
+              >
+                {h.hospitalizationNo}
+              </DataTableRowLink>
+            )}
           </TableCell>
           <TableCell className={STYLE.tableCell}>{h.ownerName}</TableCell>
           <TableCell className={STYLE.tableCell}>{h.petName}</TableCell>
           <TableCell className={`${STYLE.tableCell} hidden lg:table-cell`}>{h.species}</TableCell>
-          <TableCell className="py-2">
+          <TableCell>
             <StatusBadge colorClass={getHospitalizationTypeColor(h.hospitalizationType)}>
               {h.hospitalizationType}
             </StatusBadge>
           </TableCell>
           <TableCell className={`${STYLE.tableCellMono}`}>{formatDate(h.startDate)}</TableCell>
           <TableCell className={`${STYLE.tableCellMono} hidden lg:table-cell`}>{formatDate(h.endDate)}</TableCell>
-          <TableCell className="py-2">
+          <TableCell>
             <StatusBadge colorClass={getHospitalizationStatusColor(h.status)}>
               {h.status}
             </StatusBadge>
           </TableCell>
-          <TableCell className="text-right py-2">
+          <TableCell className="text-right">
             {h.petIsDeceased ? (
               <span className={`text-xs ${C.text40} font-medium`}>死亡</span>
             ) : canEdit ? (
-              <RowActionButton onClick={() => onNavigate(h.id)} />
+              <RowActionButton
+                onClick={() => onNavigate(h.id)}
+                aria-label={`入院「${h.hospitalizationNo} ${h.petName}」(ID: ${h.id}) を開く`}
+              />
             ) : null}
           </TableCell>
         </DataTableRow>

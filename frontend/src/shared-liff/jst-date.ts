@@ -53,3 +53,8 @@ export function formatJSTApplicationDate(isoStr: string): string {
   const date = toJSTWallDate(new Date(isoStr));
   return `${date.getUTCFullYear()}年${date.getUTCMonth() + 1}月${date.getUTCDate()}日 申し込み`;
 }
+
+export function formatTimeHHMM(hhmm: string): string {
+  if (!hhmm || hhmm.length < 4) return hhmm;
+  return `${hhmm.slice(0, 2)}:${hhmm.slice(2, 4)}`;
+}

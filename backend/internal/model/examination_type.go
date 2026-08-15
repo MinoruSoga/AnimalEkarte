@@ -29,6 +29,7 @@ func (ExaminationType) TableName() string { return "exam_types" }
 type ExamTypeField struct {
 	ID              uint64    `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	ExamTypeID      uint64    `gorm:"not null"                                       json:"exam_type_id"`
+	ClinicID        uint64    `gorm:"not null"                                       json:"-"`
 	Name            string    `gorm:"not null"                                       json:"name"`
 	InspectionValue string    `gorm:"default:''"                                     json:"inspection_value"`
 	NormalValue     string    `gorm:"default:''"                                     json:"normal_value"`

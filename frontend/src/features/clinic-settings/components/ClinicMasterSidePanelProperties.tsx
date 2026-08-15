@@ -9,7 +9,7 @@ import {
 
 import { C, LAYOUT, STYLE } from "@/lib/design-tokens";
 
-const PROP_INPUT_CLASS = `w-full bg-transparent text-sm ${C.text} outline-none border-none px-1.5 py-0.5 rounded-[3px] ${C.hoverBgLight} ${C.focusBgLight} transition-colors ${C.textPlaceholder}`;
+const PROP_INPUT_CLASS = `w-full bg-transparent text-sm ${C.text} outline-none border-none px-1.5 py-0.5 rounded-xxs ${C.hoverBgLight} ${C.focusBgLight} transition-colors ${C.textPlaceholder}`;
 
 export const PropertyRow = memo(function PropertyRow({
   label,
@@ -97,7 +97,7 @@ export function ClinicBooleanProperty({
       <button
         type="button"
         onClick={() => onChange(!value)}
-        className={`inline-flex items-center rounded-[3px] ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
+        className={`inline-flex items-center rounded-xxs ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
       >
         <StatusPill status={value ? "active" : "inactive"} />
       </button>

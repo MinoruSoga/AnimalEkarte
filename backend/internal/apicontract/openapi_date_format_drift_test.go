@@ -1,11 +1,11 @@
 package apicontract
 
-// openapi_date_format_drift_test.go — BE-refactor.md R3-3 (D9・P1): OpenAPI ↔ handler
+// openapi_date_format_drift_test.go — BE-refactor.md R3-3 (D9・P1): OpenAPI ↔ response DTO
 // serialization format drift の検出ゲート。
 //
 // ─── Background ──────────────────────────────────────────────────────────────────────
 //
-// docs/api.yaml が `format: date`（日付のみ）と宣言したプロパティを、handler の response 構造体が
+// docs/api.yaml が `format: date`（日付のみ）と宣言したプロパティを、target package の response 構造体が
 // Go の time.Time / *time.Time フィールドで持つと、JSON encoding は RFC3339 datetime
 // （`2020-01-15T00:00:00+09:00`）になり、宣言（`2020-01-15`）と wire 表現が乖離する。これは
 // R2-1（inventory expiry_date）で顕在化したバグクラスそのもの。
@@ -13,17 +13,17 @@ package apicontract
 // ⚠️ 実測（2026-07-02）: BE-refactor.md R3-3 が前提とした「6/30 調査で format↔実装は整合（0/76）」は
 // 現 HEAD では成立しない。docs/api.yaml が `format: date` を宣言する date 系フィールド（birth_date /
 // last_visit / neutered_date / date / scheduled_date / valid_until / expiry_date …）の多くが、
-// handler では *time.Time（datetime wire）で配信されており、response 側だけで 22 箇所の drift が既存する
+// target response DTO では *time.Time（datetime wire）で配信されており、response 側だけで 22 箇所の drift が既存する
 // （下記 knownDateFormatDrifts）。これは本タスクが導入する前から存在する systemic な状態で、
-// 「openapi を date-time に直す」か「handler を date-only 文字列にする」かは FE との contract 判断
+// 「openapi を date-time に直す」か「response DTO を date-only 文字列にする」かは FE との contract 判断
 // （PO follow-up）。本ゲートはその判断を下さず、現状を allowlist に固定して **CI 可視化** し、
 // **新規 drift の混入と、allowlist と実態の乖離**を fail させる（migration_cascade_lint と同枠組み）。
 //
 // ─── Scope ──────────────────────────────────────────────────────────────────────────
 //
-// - 対象: response serialization（handler の *_response.go）。request DTO（*_request.go）は入力
+// - 対象: response serialization（target package の *_response.go）。request DTO（*_request.go）は入力
 //   binding の別関心事のため対象外。
-// - 検出クラス: openapi `format: date`（date-only）↔ handler time.Time/*time.Time（datetime wire）。
+// - 検出クラス: openapi `format: date`（date-only）↔ response time.Time/*time.Time（datetime wire）。
 //   逆方向（date-time 宣言を date-only 文字列で配信）は severity が低く別途（対象外）。
 // - keying は json タグ名（openapi property 名）。schema 単位の厳密対応はしない（drift 検出には十分・
 //   name 衝突は allowlist で吸収）。
@@ -42,66 +42,81 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-const (
-	openapiPath        = "../../docs/api.yaml"
-	handlerResponseDir = "../handler"
-)
+const openapiPath = "../../docs/api.yaml"
 
-// knownDateFormatDrifts は現 HEAD に存在する「openapi format:date ↔ handler time.Time」drift を
+// responseScanDirs enumerates every target domain package that owns HTTP response DTOs.
+// Keys include the package-relative path so same-named files in different domains cannot
+// collapse into one allowlist entry.
+var responseScanDirs = []string{
+	"../auth",
+	"../billing",
+	"../clinic",
+	"../inventory",
+	"../lstep",
+	"../manualarticle",
+	"../medicalrecord",
+	"../owner",
+	"../pet",
+	"../reservation",
+	"../staff",
+	"../trimming",
+}
+
+// knownDateFormatDrifts は現 HEAD に存在する「openapi format:date ↔ response time.Time」drift を
 // (file, json名) → 出現数 で固定する。値は response 側の time.Time/*time.Time フィールド数。
 // 新規 drift（未登録キー）・出現数変化・stale エントリ（drift が解消された）はすべて fail。
 //
-// これらは本ゲート導入前から存在する既存 drift。解消（openapi を date-time にするか handler を
+// これらは本ゲート導入前から存在する既存 drift。解消（openapi を date-time にするか response DTO を
 // date-only 文字列にするか）は FE contract 判断の follow-up。解消した際は該当エントリを削除すること。
 var knownDateFormatDrifts = map[string]int{
-	"accounting_response.go|scheduled_date":  1,
-	"daily_record_response.go|date":          1,
-	"estimate_response.go|valid_until":       1,
-	"examination_response.go|date":           1,
-	"hospitalization_response.go|start_date": 1,
-	"hospitalization_response.go|end_date":   1,
-	"inventory_response.go|expiry_date":      1,
-	"inventory_response.go|last_restocked":   1,
-	"medical_record_response.go|date":        1,
-	"owner_response.go|birth_date":           2,
-	"owner_response.go|neutered_date":        1,
-	"owner_response.go|last_visit":           1,
-	"pet_response.go|birth_date":             2,
-	"pet_response.go|neutered_date":          2,
-	"pet_response.go|last_visit":             2,
-	"treatment_response.go|date":             1,
-	"vaccination_response.go|date":           1,
-	"vaccination_response.go|next_date":      1,
+	"billing/accounting_response.go|scheduled_date":        1,
+	"billing/estimate_response.go|valid_until":             1,
+	"inventory/inventory_response.go|expiry_date":          1,
+	"inventory/inventory_response.go|last_restocked":       1,
+	"medicalrecord/daily_record_response.go|date":          1,
+	"medicalrecord/examination_response.go|date":           1,
+	"medicalrecord/hospitalization_response.go|start_date": 1,
+	"medicalrecord/hospitalization_response.go|end_date":   1,
+	"medicalrecord/medical_record_response.go|date":        1,
+	"medicalrecord/treatment_response.go|date":             1,
+	"medicalrecord/vaccination_response.go|date":           1,
+	"medicalrecord/vaccination_response.go|next_date":      1,
+	"owner/http_response.go|birth_date":                    2,
+	"owner/http_response.go|neutered_date":                 1,
+	"owner/http_response.go|last_visit":                    1,
+	"pet/pet_response.go|birth_date":                       2,
+	"pet/pet_response.go|neutered_date":                    2,
+	"pet/pet_response.go|last_visit":                       2,
 
-	// pet_response.go|first_visit_date: benign json-name collision, NOT a real drift.
+	// pet/pet_response.go|first_visit_date: benign json-name collision, NOT a real drift.
 	// docs/api.yaml declares two unrelated `first_visit_date` properties: `PetFirstVisit`
-	// (line ~1126, `format: date-time`, correctly backed by pet_response.go's
+	// (line ~1126, `format: date-time`, correctly backed by pet/pet_response.go's
 	// petFirstVisitResponse.FirstVisitDate *time.Time) and the newer owner-aggregation
-	// schema (line ~7977, `format: date`, correctly backed by aggregation_handler.go's
-	// FirstVisitDate *string, already date-only — see aggregation_handler_test.go:163).
-	// dateOnly-prop parsing (parseOpenAPIDateOnlyProps) and the handler AST scan
+	// schema (line ~7977, `format: date`, correctly backed by the lstep aggregation
+	// response's FirstVisitDate *string, already date-only).
+	// dateOnly-prop parsing (parseOpenAPIDateOnlyProps) and the response AST scan
 	// (analyzeResponseFileDateDrift) both key by bare json tag name only, not by schema/
 	// struct identity, so the new `format: date` property makes the matcher pick up
-	// pet_response.go's *unrelated*, pre-existing, correctly date-time-typed field as if
-	// it were drift against the new date-only schema. It isn't: pet_response.go never
-	// serves the aggregation endpoint, and aggregation_handler.go already serves date-only
+	// pet/pet_response.go's *unrelated*, pre-existing, correctly date-time-typed field as if
+	// it were drift against the new date-only schema. It isn't: pet/pet_response.go never
+	// serves the aggregation endpoint, and the lstep aggregation response already serves date-only
 	// correctly. Pinned here rather than reworking the matcher to be schema-scoped (would
 	// require ownership tracking not worth it for one collision).
-	"pet_response.go|first_visit_date": 1,
+	"pet/pet_response.go|first_visit_date": 1,
 
-	// owner_response.go|deceased_at, pet_response.go|deceased_at: benign json-name collision,
+	// owner/http_response.go|deceased_at, pet/pet_response.go|deceased_at: benign json-name collision,
 	// NOT a real drift (same class as first_visit_date above). docs/api.yaml declares two
 	// unrelated `deceased_at` properties: `PatchPetDeathRequest.deceased_at` (request DTO,
 	// `format: date`, date-only — matches lstep_lifecycle_request.go's jsonDate input type)
 	// and the response-side `deceased_at` on OwnerPetSummary/Pet (`format: date-time`,
-	// correctly backed by owner_response.go/pet_response.go's *time.Time + localTimePtr,
+	// correctly backed by owner/http_response.go and pet/pet_response.go's *time.Time,
 	// since pets.deceased_at is a `timestamptz` column, not a date column). The matcher keys
 	// by bare json tag name only (not by schema/request-vs-response identity), so the
 	// pre-existing date-only request property makes it flag the new datetime response field.
 	// It isn't real drift: the response schemas declare `format: date-time` for deceased_at,
-	// matching the handler's time.Time wire format exactly.
-	"owner_response.go|deceased_at": 1,
-	"pet_response.go|deceased_at":   1,
+	// matching the target response DTO's time.Time wire format exactly.
+	"owner/http_response.go|deceased_at": 1,
+	"pet/pet_response.go|deceased_at":    1,
 }
 
 func driftKey(file, jsonName string) string { return file + "|" + jsonName }
@@ -148,7 +163,7 @@ func parseOpenAPIDateOnlyProps(yamlSrc []byte) (map[string]struct{}, error) {
 	return out, nil
 }
 
-// ─── Handler AST scan ────────────────────────────────────────────────────────────────
+// ─── Response DTO AST scan ───────────────────────────────────────────────────────────
 
 type driftFinding struct {
 	file     string
@@ -165,7 +180,7 @@ func analyzeResponseFileDateDrift(filename string, src []byte, dateOnly map[stri
 	if err != nil {
 		return nil, err
 	}
-	base := filepath.Base(filename)
+	fileKey := filepath.ToSlash(filename)
 	var findings []driftFinding
 	for _, decl := range f.Decls {
 		gd, ok := decl.(*ast.GenDecl)
@@ -194,7 +209,10 @@ func analyzeResponseFileDateDrift(filename string, src []byte, dateOnly map[stri
 					continue
 				}
 				if _, isDateOnly := dateOnly[name]; isDateOnly {
-					findings = append(findings, driftFinding{file: base, jsonName: name})
+					findings = append(
+						findings,
+						driftFinding{file: fileKey, jsonName: name},
+					)
 				}
 			}
 		}
@@ -204,7 +222,7 @@ func analyzeResponseFileDateDrift(filename string, src []byte, dateOnly map[stri
 
 // isTimeTimeType は expr が time.Time または *time.Time かを判定する。
 // go-reviewer M-2: AST-only 判定のため `import t "time"` のエイリアスや `type Date = time.Time` の
-// 型エイリアスは見逃す（go/types なしの構造的限界）。現行 handler パッケージにエイリアスは無く、
+// 型エイリアスは見逃す（go/types なしの構造的限界）。現行 target response package にエイリアスは無く、
 // sql.NullTime / civil.Date 等の別 time 型は正しく除外される。エイリアス導入時は本判定の拡張が要る。
 func isTimeTimeType(expr ast.Expr) bool {
 	if star, ok := expr.(*ast.StarExpr); ok {
@@ -218,27 +236,37 @@ func isTimeTimeType(expr ast.Expr) bool {
 	return ok && pkg.Name == "time" && sel.Sel.Name == "Time"
 }
 
-// walkHandlerResponseDrifts は handler の *_response.go 全ソースを走査し drift を集計する。
-func walkHandlerResponseDrifts(t *testing.T, dateOnly map[string]struct{}) map[string]int {
+// walkResponseDrifts は responseScanDirs 配下の *_response.go 全ソースを走査し drift を集計する。
+func walkResponseDrifts(t *testing.T, dateOnly map[string]struct{}) map[string]int {
 	t.Helper()
-	files, err := filepath.Glob(filepath.Join(handlerResponseDir, "*_response.go"))
-	if err != nil {
-		t.Fatalf("glob handler response files: %v", err)
-	}
-	// glob "*_response.go" は *_response_test.go にマッチしない（末尾が _test.go のため）ので
-	// test ファイル除外の追加チェックは不要。
 	agg := map[string]int{}
-	for _, fp := range files {
-		src, err := os.ReadFile(fp) //nolint:gosec // fixed handler source dir, not untrusted input
+	for _, dir := range responseScanDirs {
+		files, err := filepath.Glob(filepath.Join(dir, "*_response.go"))
 		if err != nil {
-			t.Fatalf("read %s: %v", fp, err)
+			t.Fatalf("glob response files in %s: %v", dir, err)
 		}
-		findings, err := analyzeResponseFileDateDrift(fp, src, dateOnly)
-		if err != nil {
-			t.Fatalf("parse %s: %v", fp, err)
-		}
-		for _, fnd := range findings {
-			agg[driftKey(fnd.file, fnd.jsonName)]++
+		// glob "*_response.go" は *_response_test.go にマッチしない（末尾が _test.go のため）ので
+		// test ファイル除外の追加チェックは不要。
+		for _, fp := range files {
+			src, err := os.ReadFile(fp) //nolint:gosec // fixed source dirs enumerated in this test, not untrusted input
+			if err != nil {
+				t.Fatalf("read %s: %v", fp, err)
+			}
+			relativePath, err := filepath.Rel("..", fp)
+			if err != nil {
+				t.Fatalf("resolve response path %s: %v", fp, err)
+			}
+			findings, err := analyzeResponseFileDateDrift(
+				relativePath,
+				src,
+				dateOnly,
+			)
+			if err != nil {
+				t.Fatalf("parse %s: %v", fp, err)
+			}
+			for _, fnd := range findings {
+				agg[driftKey(fnd.file, fnd.jsonName)]++
+			}
 		}
 	}
 	return agg
@@ -253,7 +281,7 @@ func reconcileDateFormatDrift(found, allow map[string]int) []string {
 		switch {
 		case !ok:
 			violations = append(violations,
-				"NEW openapi format:date ↔ handler time.Time drift at "+key+" (count="+strconv.Itoa(cnt)+"). "+
+				"NEW openapi format:date ↔ response time.Time drift at "+key+" (count="+strconv.Itoa(cnt)+"). "+
 					"Serve this field as a date-only string (In(time.Local).Format(\"2006-01-02\")) to match the "+
 					"OpenAPI `format: date` declaration, or (if the wire format should be datetime) change the "+
 					"OpenAPI declaration to `format: date-time`. If this is an accepted pre-existing drift, add it "+
@@ -276,9 +304,9 @@ func reconcileDateFormatDrift(found, allow map[string]int) []string {
 
 // ─── Gate tests ──────────────────────────────────────────────────────────────────────
 
-// TestOpenAPIDateFormatDrift_MatchesAllowlist is the gate: every openapi format:date ↔ handler
+// TestOpenAPIDateFormatDrift_MatchesAllowlist is the gate: every openapi format:date ↔ response
 // time.Time drift must be on the pinned allowlist; no new drift, no stale entry. Floors guard
-// against a vacuous pass if openapi parsing or the handler glob silently breaks.
+// against a vacuous pass if openapi parsing or the response glob silently breaks.
 func TestOpenAPIDateFormatDrift_MatchesAllowlist(t *testing.T) {
 	yamlSrc, err := os.ReadFile(openapiPath) //nolint:gosec // fixed docs path, not untrusted input
 	if err != nil {
@@ -299,9 +327,9 @@ func TestOpenAPIDateFormatDrift_MatchesAllowlist(t *testing.T) {
 		}
 	}
 
-	found := walkHandlerResponseDrifts(t, dateOnly)
+	found := walkResponseDrifts(t, dateOnly)
 	if len(found) < 10 {
-		t.Fatalf("only %d handler date-drift sites found; AST scan or glob likely broke (expected ~18 keys). "+
+		t.Fatalf("only %d response date-drift sites found; AST scan or glob likely broke (expected ~18 keys). "+
 			"Would vacuously pass.", len(found))
 	}
 
@@ -366,10 +394,10 @@ func TestOpenAPIDateFormatDrift_OpenAPIParser(t *testing.T) {
 	}
 }
 
-// TestOpenAPIDateFormatDrift_HandlerAnalyzer pins the handler AST scan on inline fixtures:
+// TestOpenAPIDateFormatDrift_ResponseAnalyzer pins the response AST scan on inline fixtures:
 // time.Time / *time.Time fields whose json name is date-only are detected; string fields and
 // non-date-only names are not.
-func TestOpenAPIDateFormatDrift_HandlerAnalyzer(t *testing.T) {
+func TestOpenAPIDateFormatDrift_ResponseAnalyzer(t *testing.T) {
 	dateOnly := map[string]struct{}{"birth_date": {}, "expiry_date": {}}
 	cases := []struct {
 		name string

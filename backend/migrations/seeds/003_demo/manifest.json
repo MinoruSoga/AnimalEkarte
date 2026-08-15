@@ -58,6 +58,10 @@
       "csvFile": "exam_type_fields.csv"
     },
     {
+      "table": "exam_reference_ranges",
+      "csvFile": "exam_reference_ranges.csv"
+    },
+    {
       "table": "vaccines",
       "csvFile": "vaccines.csv"
     },

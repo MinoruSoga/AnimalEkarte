@@ -55,7 +55,7 @@
 ### 3. 予約完了時の連携
 - 確定成功後、LINE トーク画面へ予約番号・日時・コース・ペットを含む確認メッセージを送信（`sendLiffMessage`。LINE アプリ外・失敗時は無視される best-effort）。
 - サーバー側でも予約確定/キャンセル通知（飼主 LINE + 病院メール）を fire-and-forget 送信。
-- 入力した氏名・電話・ペットは顧客の additional_fields に自動保存され、次回予約時に復元される。氏名+電話番号が既存オーナー 1 件に完全一致した場合はオーナー自動紐付けを行う。
+- 入力した氏名・電話・ペットは顧客の `additional_fields` に自動保存され、次回予約時に復元される。**氏名+電話番号による `line_customers.owner_id` 自動紐付けは行わない**（SEC-CS2-F02 / `liff_service_reservations.go`）。既に link-token またはスタッフ操作で owner が紐付いている顧客のみ、予約へ `owner_id` / `pet_id` を best-effort で反映する。
 
 ### 4. マイ予約のキャンセル可否ルール
 - 一覧は本人（LINE 顧客 ID）の予約のみ。ステータスバッジ（確定/確認中/受付済/診察中/会計中/完了/未来院/キャンセル済）を色分け表示。
@@ -79,7 +79,7 @@
 - **`ProgressDots` / `Calendar` / `ListItem` / `PrimaryButton` / `BackButton`**: line-reserve 専用のプレゼンテーション部品。
 
 ### API連携
-認証は `/settings` を除き全て LINE IDトークン（`Authorization: Bearer`）。院内 RBAC 権限は適用されない（`RegisterLiffRoutes`・`reservation_line_routes.go`）。
+認証は `/settings` を除き全て LINE IDトークン（`Authorization: Bearer`）。院内 RBAC 権限は適用されない（`RegisterLiffRoutes`・`internal/reservation/routes.go`）。
 
 | メソッド | エンドポイント | 用途 |
 |:---|:---|:---|

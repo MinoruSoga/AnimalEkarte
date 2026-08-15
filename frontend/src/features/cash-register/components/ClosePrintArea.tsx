@@ -1,9 +1,14 @@
 import { PrintPortal } from "@/components/shared/PrintPortal";
 import { formatJSTTime } from "@/lib/jst-date";
-import { formatCurrency } from "@/utils/format/number";
+import { formatCurrency } from "@/lib/format/number";
 import type { PaymentMethodMaster } from "@/types/generated/models";
 import type { CloseBillingDetail } from "../api/get-cash-register-preview";
-import { buildUnifiedClosingRows, buildUnifiedClosingTotals } from "../closing-summary";
+import {
+  buildUnifiedClosingRows,
+  buildUnifiedClosingTotals,
+  formatClosingCount,
+  type UnclassifiedOtherCountInput,
+} from "../closing-summary";
 import { CATEGORY_LABELS, PERIOD_LABELS, type CashRegisterPeriod } from "../constants";
 
 interface TaxEntry {
@@ -22,6 +27,10 @@ interface ClosePrintAreaProps {
   theoreticalCash: number;
   /** 実際のレジ現金。未入力時は null（差額は出力しない）。 */
   actualCash: number | null;
+  /** DEC-40: other 行の会計 distinct 件数。null = 記録なし */
+  unclassifiedOtherCount?: UnclassifiedOtherCountInput;
+  /** #247: 部門ごとの会計 distinct 件数 */
+  categoryCounts?: Record<string, number>;
 }
 
 /**
@@ -42,8 +51,15 @@ export function ClosePrintArea({
   taxBreakdown,
   theoreticalCash,
   actualCash,
+  unclassifiedOtherCount,
+  categoryCounts,
 }: ClosePrintAreaProps) {
-  const rows = buildUnifiedClosingRows(categories, billingDetails);
+  const rows = buildUnifiedClosingRows(
+    categories,
+    billingDetails,
+    unclassifiedOtherCount,
+    categoryCounts,
+  );
   const totals = buildUnifiedClosingTotals(rows);
   const { standard, reduced } = taxBreakdown;
   const difference = actualCash !== null ? actualCash - theoreticalCash : null;
@@ -78,7 +94,9 @@ export function ClosePrintArea({
           {rows.map((row) => (
             <tr key={row.label}>
               <td className="border border-gray-300 px-1 py-0.5">{row.label}</td>
-              <td className="border border-gray-300 px-1 py-0.5 text-right">{row.count}件</td>
+              <td className="border border-gray-300 px-1 py-0.5 text-right">
+                {formatClosingCount(row.count)}
+              </td>
               {paymentMethods.map((pm) => (
                 <td key={pm.id} className="border border-gray-300 px-1 py-0.5 text-right">
                   {row.byMethod[pm.name] != null ? formatCurrency(row.byMethod[pm.name]) : "—"}
@@ -93,7 +111,9 @@ export function ClosePrintArea({
         <tfoot>
           <tr className="bg-gray-50 font-semibold">
             <td className="border border-gray-400 px-1 py-0.5">合計</td>
-            <td className="border border-gray-400 px-1 py-0.5 text-right">{totals.count}件</td>
+            <td className="border border-gray-400 px-1 py-0.5 text-right">
+              {formatClosingCount(totals.count)}
+            </td>
             {paymentMethods.map((pm) => (
               <td key={pm.id} className="border border-gray-400 px-1 py-0.5 text-right">
                 {totals.byMethod[pm.name] != null ? formatCurrency(totals.byMethod[pm.name]) : "—"}

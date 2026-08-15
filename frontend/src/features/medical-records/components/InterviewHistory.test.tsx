@@ -10,6 +10,19 @@ const ITEMS: InterviewHistoryItem[] = [
 ];
 
 describe("InterviewHistory — カナ混同検索", () => {
+  it("過去カルテ検索inputに明示labelとid/nameを接続する", () => {
+    render(<InterviewHistory historyItems={ITEMS} />);
+
+    expect(screen.getByRole("textbox", { name: "過去のカルテを検索" })).toHaveAttribute(
+      "id",
+      "medical-record-history-search",
+    );
+    expect(screen.getByRole("textbox", { name: "過去のカルテを検索" })).toHaveAttribute(
+      "name",
+      "medicalRecordHistorySearch",
+    );
+  });
+
   it("空の検索語は全件表示する", () => {
     render(<InterviewHistory historyItems={ITEMS} />);
     expect(screen.getByText("タイトルカタカナ")).toBeInTheDocument();

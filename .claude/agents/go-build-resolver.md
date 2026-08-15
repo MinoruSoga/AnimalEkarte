@@ -54,7 +54,7 @@ docker compose exec backend golangci-lint run ./internal/<変更パッケージ>
 - **apperrors パターン**: `apperrors.FromGORM()` / `apperrors.Wrap()` は正しく使用されているか
 - **Docker 実行**: `go build` は必ず `docker compose exec backend` 経由
 - **Module 問題**: `go.mod` / `go.sum` の不整合は `docker compose exec backend go mod tidy` で解決
-- **リントエラー**: `golangci-lint` の指摘は P1-P18 パターン違反と関連することが多い
+- **設計規約**: build修復でarchitectureを変更せず、必要な場合は `.claude/rules/go-gin-backend-guidelines.md` を参照する
 
 ## やらないこと
 

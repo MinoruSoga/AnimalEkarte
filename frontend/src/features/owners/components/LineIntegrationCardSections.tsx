@@ -140,6 +140,7 @@ export function LineDeliveryControls({
         <div className="flex items-center justify-between gap-3">
           <span className={`text-sm ${C.text60}`}>配信除外</span>
           <Switch
+            aria-label="配信除外"
             checked={owner?.deliveryExcluded ?? false}
             disabled={isUpdatingDeliveryExclusion || !owner}
             onCheckedChange={(checked) => {
@@ -191,6 +192,7 @@ export function LineDeliveryControls({
         <div className="flex items-center justify-between gap-3">
           <span className={`text-sm ${C.text60}`}>配信注意</span>
           <Switch
+            aria-label="配信注意"
             checked={owner?.deliveryCaution ?? false}
             disabled={isUpdatingDeliveryCaution || !owner}
             onCheckedChange={(checked) => {
@@ -245,6 +247,7 @@ export function LineDeliveryControls({
         <div className="flex items-center justify-between gap-3">
           <span className={`text-sm ${C.text60}`}>転院済み</span>
           <Switch
+            aria-label="転院済み"
             checked={owner?.isTransferred ?? false}
             disabled={isUpdatingTransferStatus || !owner}
             onCheckedChange={(checked) => {

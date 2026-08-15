@@ -25,7 +25,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v7.0.0
+        uses: actions/checkout@v7.0.1
 
       - name: Create CI environment file
         # .env.local はリポジトリに含まれない。CI 用の最小限の値をインラインで生成する。

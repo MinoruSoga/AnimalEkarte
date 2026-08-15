@@ -81,12 +81,21 @@ export interface Billing {
   scheduled_date: string;
   completed_at?: string;
   memo: string;
+  /**
+   * CompletionRequestID / CompletionRequestHash は BUG-018 complete command の冪等キー。
+   * NULL は legacy POST /accountings 経路。soft-delete 後も key 再利用不可（full UNIQUE）。
+   */
+  completion_request_id?: string;
   created_at: string;
   updated_at: string;
   /**
    * 仮想フィールド（DB列なし）— FindAll のサブクエリで集計
    */
   total_refunded_amount: number /* int64 */;
+  /**
+   * OutstandingAmount は未収残高（円）。waiting 全額 or クレジット訂正後の patient_due−支払額（BUG-007）。
+   */
+  outstanding_amount: number /* int64 */;
   /**
    * Relations
    */
@@ -111,8 +120,14 @@ export interface BillingItem {
   tax_rate: number /* float64 */;
   is_insurance_applicable: boolean;
   source: ItemSource;
+  other_reason?: string;
   merchandise_item_id?: number /* uint64 */;
   treatment_id?: number /* uint64 */;
+  /**
+   * MedicalRecordID は DB 列ではない。未請求候補（treatment 由来）など API 応答用の仮想フィールド。
+   */
+  medical_record_id?: number /* uint64 */;
+  vaccination_id?: number /* uint64 */;
   appointment_id?: number /* uint64 */;
   trimming_course_id?: number /* uint64 */;
   trimming_option_id?: number /* uint64 */;
@@ -207,13 +222,13 @@ export interface AuditLog {
   action: string;
   resource: string;
   resource_id?: number /* uint64 */;
-  old_value: any /* json.RawMessage */;
-  new_value: any /* json.RawMessage */;
+  old_value: unknown;
+  new_value: unknown;
   /**
    * Metadata は LSTEP 操作の件数・抽出条件を保存する多次元メタデータ（ISSUE-010）。
    * resource_id 単一 ID では表現できない情報（例: 健診対象抽出のフィルタ条件 + 件数集計）を JSON で永続化する。
    */
-  metadata: any /* json.RawMessage */;
+  metadata: unknown;
   /**
    * IPAddress は実DDLで inet NULL（X-3）。空文字列は `''::inet` として 22P02 になるため、
    * 未設定/空を表す値は Go の nil として保持する（*string、"" ではない）。
@@ -228,9 +243,13 @@ export const AuditActionPermissionGroupCreate = "permission_group.create";
 export const AuditActionPermissionGroupUpdate = "permission_group.update";
 export const AuditActionPermissionGroupDelete = "permission_group.delete";
 export const AuditActionPermissionRulesUpdate = "permission_rules.update";
+export const AuditActionStaffPermissionGroupsReplace = "staff.permission_groups.replace";
 export const AuditActionAuthLoginSuccess = "auth.login.success";
 export const AuditActionAuthLoginFailure = "auth.login.failure";
 export const AuditActionAuthLogout = "auth.logout";
+export const AuditActionAuthPasswordChange = "auth.password.change";
+export const AuditActionAuthPasswordReset = "auth.password.reset";
+export const AuditActionAuthPasswordAdminReplace = "auth.password.admin_replace";
 /**
  * Lステップ / LINE連携 監査アクション
  */
@@ -240,11 +259,18 @@ export const AuditActionLstepTagSyncBulk = "lstep.tag.sync_bulk";
 export const AuditActionLineNotificationSend = "line.notification.send";
 export const AuditActionOwnerLineUserIDUpdate = "owner.line_user_id.update";
 export const AuditActionOwnerLineUserIDUnlink = "owner.line_user_id.unlink";
+export const AuditActionReservationNoShow = "reservation.no_show.auto";
 /**
  * 取扱説明書（マニュアル）編集 監査アクション
  */
 export const AuditActionManualArticleUpsert = "manual_article.upsert";
 export const AuditActionManualArticleDelete = "manual_article.delete";
+/**
+ * トリミング予約の臨床変更監査（BUG-422）
+ */
+export const AuditActionTrimmingCreate = "trimming.create";
+export const AuditActionTrimmingUpdate = "trimming.update";
+export const AuditActionTrimmingDelete = "trimming.delete";
 /**
  * 会計・返金 監査アクション（#122）
  */
@@ -255,6 +281,10 @@ export const AuditActionBillingRefundCreate = "billing_refund.create";
  * #189: 確定済み会計のクレジット（カード）金額の確定後訂正
  */
 export const AuditActionBillingCreditCorrection = "billing.credit_correction";
+/**
+ * BUG-440: 明細削除による予防接種 claim 解放（再取込可能化）の actor 監査
+ */
+export const AuditActionBillingVaccinationClaimRelease = "billing.vaccination_claim_release";
 /**
  * #201 薬量自動計算 監査アクション
  * dose パラメータ変更（作成/更新/削除）・per_weight 有効化・著しい逸脱上書き
@@ -272,18 +302,63 @@ export const AuditActionLabImportCommitSucceeded = "lab_import.commit.succeeded"
 export const AuditActionLabImportCommitFailed = "lab_import.commit.failed";
 export const AuditActionLabImportSourceBlocked = "lab_import.source.blocked";
 /**
+ * AuditActionLabImportRevertSucceeded records compensating revert (TASK-032). Distinct from commit.
+ */
+export const AuditActionLabImportRevertSucceeded = "lab_import.revert.succeeded";
+/**
  * #211 健診結果値の置換（既存削除を伴う PUT）監査アクション
  */
 export const AuditActionCheckupFieldResultReplace = "checkup_field_result.replace";
+/**
+ * TASK-374 / #211: 健診 package の versioned clinic-scoped import apply
+ */
+export const AuditActionCheckupPackageImportApply = "checkup_package_import.apply";
 /**
  * BE-refactor.md R1-2 (D1): 検査結果値（exam_results）の置換（既存削除を伴う PUT）監査アクション。
  * checkup_field_result と同型の tx 内 fail-closed 監査。
  */
 export const AuditActionExamResultReplace = "exam_result.replace";
 /**
+ * #249 / DEC-53: parent examination mutation は authenticated actor と before/after を
+ * mutation と同じ transaction で記録する。confirm は update と分離して状態遷移を識別する。
+ */
+export const AuditActionExaminationCreate = "examination.create";
+export const AuditActionExaminationUpdate = "examination.update";
+export const AuditActionExaminationConfirm = "examination.confirm";
+export const AuditActionExaminationUnconfirm = "examination.unconfirm";
+export const AuditActionExaminationDelete = "examination.delete";
+/**
+ * BUG-010 residual: clinical plan (診察所見・診断詳細・治療方針) の versioned update 監査。
+ * examination parent mutation と同型で before/after を同一 tx に書く。
+ */
+export const AuditActionClinicalPlanUpdate = "clinical_plan.update";
+/**
+ * BUG-010 residual (delete): clinical_plans の破壊的削除（GORM soft-delete）でも
+ * 法的臨床フィールドの削除前値を同一 DBOrTx に fail-closed で残す（MRA-01 と同型）。
+ */
+export const AuditActionClinicalPlanDelete = "clinical_plan.delete";
+export const AuditActionPetOwnerReplace = "pet_owner.replace";
+export const AuditActionHospitalizationDischargeWithBilling = "hospitalization.discharge_with_billing";
+/**
+ * #239 identity link 手動 link/unlink（PHI を載せない ID のみ）
+ */
+export const AuditActionOwnerIdentityLinkCreate = "owner_identity_link.create";
+export const AuditActionOwnerIdentityLinkAdd = "owner_identity_link.add_members";
+export const AuditActionOwnerIdentityLinkUnlink = "owner_identity_link.unlink";
+export const AuditActionPetIdentityLinkCreate = "pet_identity_link.create";
+export const AuditActionPetIdentityLinkAdd = "pet_identity_link.add_members";
+export const AuditActionPetIdentityLinkUnlink = "pet_identity_link.unlink";
+/**
+ * #255 staff batch provisioning（PII 非搭載: batch_id / digest / count / external_staff_id のみ）
+ */
+export const AuditActionStaffProvisionCreate = "staff.provision.create";
+export const AuditActionStaffProvisionReceipt = "staff.provision.receipt";
+/**
  * 監査アクション定数
  */
-export type AuditAct = typeof AuditActorTypeStaff | typeof AuditActorTypeSystem | typeof AuditActionPermissionGroupCreate | typeof AuditActionPermissionGroupUpdate | typeof AuditActionPermissionGroupDelete | typeof AuditActionPermissionRulesUpdate | typeof AuditActionAuthLoginSuccess | typeof AuditActionAuthLoginFailure | typeof AuditActionAuthLogout | typeof AuditActionLstepSettingsSave | typeof AuditActionLstepTagSync | typeof AuditActionLstepTagSyncBulk | typeof AuditActionLineNotificationSend | typeof AuditActionOwnerLineUserIDUpdate | typeof AuditActionOwnerLineUserIDUnlink | typeof AuditActionManualArticleUpsert | typeof AuditActionManualArticleDelete | typeof AuditActionBillingCancel | typeof AuditActionBillingPostCloseEdit | typeof AuditActionBillingRefundCreate | typeof AuditActionBillingCreditCorrection | typeof AuditActionMedicineDoseParamUpsert | typeof AuditActionMedicineDoseParamDelete | typeof AuditActionMedicinePerWeightEnable | typeof AuditActionTreatmentDoseDeviation | typeof AuditActionLabImportPreviewRequested | typeof AuditActionLabImportCommitRequested | typeof AuditActionLabImportCommitSucceeded | typeof AuditActionLabImportCommitFailed | typeof AuditActionLabImportSourceBlocked | typeof AuditActionCheckupFieldResultReplace | typeof AuditActionExamResultReplace;
+export type AuditAct = typeof AuditActorTypeStaff | typeof AuditActorTypeSystem | typeof AuditActionPermissionGroupCreate | typeof AuditActionPermissionGroupUpdate | typeof AuditActionPermissionGroupDelete | typeof AuditActionPermissionRulesUpdate | typeof AuditActionStaffPermissionGroupsReplace | typeof AuditActionAuthLoginSuccess | typeof AuditActionAuthLoginFailure | typeof AuditActionAuthLogout | typeof AuditActionAuthPasswordChange | typeof AuditActionAuthPasswordReset | typeof AuditActionAuthPasswordAdminReplace | typeof AuditActionLstepSettingsSave | typeof AuditActionLstepTagSync | typeof AuditActionLstepTagSyncBulk | typeof AuditActionLineNotificationSend | typeof AuditActionOwnerLineUserIDUpdate | typeof AuditActionOwnerLineUserIDUnlink | typeof AuditActionReservationNoShow | typeof AuditActionManualArticleUpsert | typeof AuditActionManualArticleDelete | typeof AuditActionTrimmingCreate | typeof AuditActionTrimmingUpdate | typeof AuditActionTrimmingDelete | typeof AuditActionBillingCancel | typeof AuditActionBillingPostCloseEdit | typeof AuditActionBillingRefundCreate | typeof AuditActionBillingCreditCorrection | typeof AuditActionBillingVaccinationClaimRelease | typeof AuditActionMedicineDoseParamUpsert | typeof AuditActionMedicineDoseParamDelete | typeof AuditActionMedicinePerWeightEnable | typeof AuditActionTreatmentDoseDeviation | typeof AuditActionLabImportPreviewRequested | typeof AuditActionLabImportCommitRequested | typeof AuditActionLabImportCommitSucceeded | typeof AuditActionLabImportCommitFailed | typeof AuditActionLabImportSourceBlocked | typeof AuditActionLabImportRevertSucceeded | typeof AuditActionCheckupFieldResultReplace | typeof AuditActionCheckupPackageImportApply | typeof AuditActionExamResultReplace | typeof AuditActionExaminationCreate | typeof AuditActionExaminationUpdate | typeof AuditActionExaminationConfirm | typeof AuditActionExaminationUnconfirm | typeof AuditActionExaminationDelete | typeof AuditActionClinicalPlanUpdate | typeof AuditActionClinicalPlanDelete | typeof AuditActionPetOwnerReplace | typeof AuditActionHospitalizationDischargeWithBilling | typeof AuditActionOwnerIdentityLinkCreate | typeof AuditActionOwnerIdentityLinkAdd | typeof AuditActionOwnerIdentityLinkUnlink | typeof AuditActionPetIdentityLinkCreate | typeof AuditActionPetIdentityLinkAdd | typeof AuditActionPetIdentityLinkUnlink | typeof AuditActionStaffProvisionCreate | typeof AuditActionStaffProvisionReceipt;
+export const AuditResourceAccount = "account";
+export const AuditResourceStaff = "staff";
 export const AuditResourceLabImport = "lab_import";
 /**
  * #201 薬量自動計算
@@ -296,13 +371,44 @@ export const AuditResourceTreatmentDose = "treatment_dose";
  */
 export const AuditResourceCheckupFieldResult = "checkup_field_result";
 /**
+ * TASK-374 / #211: 健診 package import provenance / apply 監査
+ */
+export const AuditResourceCheckupPackageImport = "checkup_package_import";
+/**
  * BE-refactor.md R1-2: 検査結果値の置換（既存削除を伴う）監査
  */
 export const AuditResourceExamResult = "exam_result";
 /**
+ * #249 / DEC-53: parent exams row の create/update/confirm/delete 監査。
+ */
+export const AuditResourceExamination = "examination";
+/**
+ * BUG-010 residual: clinical_plans 行の更新監査。
+ */
+export const AuditResourceClinicalPlan = "clinical_plan";
+export const AuditResourceReservation = "reservation";
+export const AuditResourceHospitalization = "hospitalization";
+export const AuditResourceTrimming = "trimming";
+/**
+ * U-X01X03-MR-CARE / MRA-01: hard-delete care plan items need durable audit resource.
+ */
+export const AuditResourceCarePlanItem = "care_plan_item";
+/**
+ * #239 identity link groups（owner / pet 共通 resource 名）
+ */
+export const AuditResourceIdentityLink = "identity_link";
+/**
+ * #255 staff batch provisioning receipt（clinic-scoped, PII-free）
+ */
+export const AuditResourceStaffProvisionBatch = "staff_provision_batch";
+/**
  * audit_logs.resource 定数
  */
-export type AuditResource = typeof AuditResourceLabImport | typeof AuditResourceMedicineDoseParam | typeof AuditResourceMedicine | typeof AuditResourceTreatmentDose | typeof AuditResourceCheckupFieldResult | typeof AuditResourceExamResult;
+export type AuditResource = typeof AuditResourceAccount | typeof AuditResourceStaff | typeof AuditResourceLabImport | typeof AuditResourceMedicineDoseParam | typeof AuditResourceMedicine | typeof AuditResourceTreatmentDose | typeof AuditResourceCheckupFieldResult | typeof AuditResourceCheckupPackageImport | typeof AuditResourceExamResult | typeof AuditResourceExamination | typeof AuditResourceClinicalPlan | typeof AuditResourceReservation | typeof AuditResourceHospitalization | typeof AuditResourceTrimming | typeof AuditResourceCarePlanItem | typeof AuditResourceIdentityLink | typeof AuditResourceStaffProvisionBatch;
+/**
+ * care plan item destructive actions (MRA-01)
+ */
+export const AuditActionCarePlanItemDelete = "care_plan_item.delete";
 /**
  * LabBlockedReason は source_blocked 監査イベントの reason フィールドに使用できる
  * 許可された値のみを表す型。free-form string は使用不可。
@@ -480,7 +586,10 @@ export interface CampaignTargetItem {
 // source: cash_register_close.go
 
 /**
- * CashRegisterClose はレジ締めレコード
+ * CashRegisterClose はレジ締めレコード。
+ * W-013 FINAL B: append-only。app は Update/Delete/soft-delete しない。
+ * DB の deleted_at 列は migration 003 以降未使用（完全 UNIQUE と immutability trigger で再オープン不可）。
+ * 締め後の会計訂正は CashRegisterCloseAdjustment への追記で表現する（close 自体の reverse は productize しない）。
  */
 export interface CashRegisterClose {
   id: number /* uint64 */;
@@ -490,7 +599,7 @@ export interface CashRegisterClose {
   theoretical_cash: number /* int64 */;
   actual_cash: number /* int64 */;
   cash_difference: number /* int64 */;
-  category_breakdown: any /* json.RawMessage */;
+  category_breakdown: unknown;
   memo: string;
   closed_by?: number /* uint64 */;
   closed_at: string;
@@ -507,6 +616,12 @@ export interface CashRegisterClose {
 export interface CategoryBreakdownSchema {
   categories: { [key: string]: { [key: string]: number /* int64 */}}; // category → payment_method_name → amount
   tax_breakdown: TaxBreakdown;
+  /**
+   * UnclassifiedOtherCount は category=other 明細を1件以上持つ会計の distinct 件数（DEC-40）。
+   * ポインタ + omitempty により旧 snapshot ではフィールド欠落（FE は「記録なし」表示）。
+   * 0 件の場合もポインタ先 0 として保存し、欠落と区別する。
+   */
+  unclassified_other_count?: number /* int64 */;
 }
 /**
  * TaxBreakdown は消費税区分別の集計
@@ -521,6 +636,27 @@ export interface TaxBreakdown {
 export interface TaxBreakdownItem {
   taxable_amount: number /* int64 */;
   tax_amount: number /* int64 */;
+}
+
+//////////
+// source: cash_register_close_adjustment.go
+
+/**
+ * CashRegisterCloseAdjustment はレジ締め後の会計訂正台帳（W-013 append-only）。
+ * close レコード自体の reverse/取消は productize しない。締め後の会計編集は本テーブルへ追記し、
+ * 監査ログ（AuditActionBillingPostCloseEdit）と同一 transaction で fail-closed に記録する。
+ */
+export interface CashRegisterCloseAdjustment {
+  id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  close_id: number /* uint64 */;
+  billing_id: number /* uint64 */;
+  accounting_delta: number /* int64 */;
+  cash_movement_amount: number /* int64 */;
+  reason: string;
+  actor_id?: number /* uint64 */;
+  executed_at: string;
+  created_at: string;
 }
 
 //////////
@@ -549,8 +685,13 @@ export interface CheckupTypeField {
   unit: string;
   min_value?: number /* float64 */;
   max_value?: number /* float64 */;
-  options: any /* datatypes.JSON */;
+  options: unknown;
   is_provisional: boolean;
+  /**
+   * ImportNamespace / ImportKey are nullable stable keys for versioned package import (TASK-374).
+   */
+  import_namespace?: string;
+  import_key?: string;
   sort_order: number /* int */;
   created_at: string;
   updated_at: string;
@@ -592,6 +733,36 @@ export interface CheckupFieldResult {
 }
 
 //////////
+// source: checkup_package_import.go
+
+/**
+ * CheckupPackageImportStatus is the durable provenance status for one clinic/namespace/version.
+ */
+export const CheckupPackageImportStatusApplied = "applied";
+export const CheckupPackageImportStatusNoop = "noop";
+export const CheckupPackageImportStatusConflict = "conflict";
+export const CheckupPackageImportStatusFailed = "failed";
+export type CheckupPackageImportStatus = typeof CheckupPackageImportStatusApplied | typeof CheckupPackageImportStatusNoop | typeof CheckupPackageImportStatusConflict | typeof CheckupPackageImportStatusFailed;
+/**
+ * CheckupPackageImportReceipt is the clinic-scoped import provenance row (internal sink).
+ * Operator receipt DTOs and application logs must not expose actor/clinic/digest/mapping.
+ */
+export interface CheckupPackageImportReceipt {
+  id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  namespace: string;
+  version: string;
+  content_digest: string;
+  status: CheckupPackageImportStatus;
+  actor_id: number /* uint64 */;
+  types_created: number /* int */;
+  fields_created: number /* int */;
+  resource_mapping: unknown;
+  clinical_approval_ref: string;
+  created_at: string;
+}
+
+//////////
 // source: checkup_record.go
 
 export interface Checkup {
@@ -628,6 +799,11 @@ export interface CheckupType {
   interval: string;
   target_age: string;
   parent_id?: number /* uint64 */;
+  /**
+   * ImportNamespace / ImportKey are nullable stable keys for versioned package import (TASK-374).
+   */
+  import_namespace?: string;
+  import_key?: string;
   sort_order: number /* int */;
   created_at: string;
   updated_at: string;
@@ -744,7 +920,7 @@ export interface ClinicSettings {
    * #215: AM 開始時刻。AM=[am_start, boundary) / EMG=[pm_end, 翌日 am_start) の越日レンジに使う（migration 011）。
    */
   closing_am_start: string;
-  closed_weekdays: any /* pq.Int64Array */;
+  closed_weekdays: number[];
   cpm_version: string;
   /**
    * Q21 SPEC-004 dormant prevention 閾値 (clinic 単位調整可能)
@@ -804,6 +980,7 @@ export interface ClinicalPlan {
   diagnosis_2_name_id?: number /* uint64 */;
   diagnosis_details: string;
   treatment_policy: string;
+  version: number /* int */;
   created_at: string;
   updated_at: string;
   /**
@@ -1042,6 +1219,7 @@ export interface Estimate {
   comment: string;
   notes: string;
   created_by?: number /* uint64 */;
+  supersedes_estimate_id?: number /* uint64 */;
   created_at: string;
   updated_at: string;
   /**
@@ -1083,6 +1261,24 @@ export interface EstimateItem {
 }
 
 //////////
+// source: exam_reference_range.go
+
+/**
+ * ExamReferenceRange is a clinic-owned reference range for an examination field and species.
+ */
+export interface ExamReferenceRange {
+  id: number /* uint64 */;
+  exam_type_field_id: number /* uint64 */;
+  animal_species_id: number /* uint64 */;
+  ref_min?: number /* float64 */;
+  ref_max?: number /* float64 */;
+  qualitative_min?: string;
+  qualitative_max?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+//////////
 // source: examination_record.go
 
 export const ExaminationStatusPending = "pending";
@@ -1104,13 +1300,18 @@ export interface Examination {
   doctor_id?: number /* uint64 */;
   /**
    * JobID は lab_import_jobs.id への nullable FK。手動作成の exam は NULL。
-   * ON DELETE SET NULL のため job 削除時も exam は保持される（Phase 4B.2）。
+   * TASK-032: composite (clinic_id, job_id) ON DELETE RESTRICT（SET NULL から置換）。
    */
-  job_id?: any /* uuid.UUID */;
+  job_id?: string;
   date: string;
   result_summary: string;
   machine: string;
   status: ExaminationStatus;
+  /**
+   * CurrentRevisionVersion points at the append-only working/official revision selected by
+   * the examination workflow. A nil pointer denotes a legacy or not-yet-revisioned row.
+   */
+  current_revision_version?: number /* uint64 */;
   created_at: string;
   updated_at: string;
   /**
@@ -1134,6 +1335,8 @@ export interface ExamResult {
   reference_value: string;
   ref_min?: number /* float64 */;
   ref_max?: number /* float64 */;
+  qualitative_min?: string;
+  qualitative_max?: string;
   is_abnormal: boolean;
   status: ExaminationResultStatus;
   sort_order: number /* int */;
@@ -1143,6 +1346,83 @@ export interface ExamResult {
    * Relations
    */
   exam_type_field?: ExamTypeField;
+}
+
+//////////
+// source: examination_revision.go
+
+/**
+ * ExaminationRevisionKind is the sole discriminator between an editable working
+ * snapshot and an immutable official snapshot.
+ */
+export const ExaminationRevisionKindWorking = "working";
+export const ExaminationRevisionKindOfficial = "official";
+export type ExaminationRevisionKind = typeof ExaminationRevisionKindWorking | typeof ExaminationRevisionKindOfficial;
+/**
+ * ExaminationDisplaySnapshot contains the human-readable identity/master labels that
+ * must remain stable even after mutable source rows are renamed or transferred.
+ */
+export interface ExaminationDisplaySnapshot {
+  medical_record_no: string;
+  pet_name: string;
+  medical_record_owner_name: string;
+  pet_owner_name: string;
+  species_name: string;
+  exam_type_name: string;
+  doctor_name: string;
+}
+/**
+ * ExaminationRevision is an append-only snapshot of one examination parent version.
+ * Mutable identity and master rows are intentionally not modeled as GORM relations.
+ */
+export interface ExaminationRevision {
+  id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  examination_id: number /* uint64 */;
+  version: number /* uint64 */;
+  kind: ExaminationRevisionKind;
+  status: ExaminationStatus;
+  medical_record_id?: number /* uint64 */;
+  pet_id?: number /* uint64 */;
+  medical_record_owner_id?: number /* uint64 */;
+  pet_owner_id?: number /* uint64 */;
+  animal_species_id?: number /* uint64 */;
+  exam_type_id: number /* uint64 */;
+  doctor_id?: number /* uint64 */;
+  job_id?: string;
+  actor_id: number /* uint64 */;
+  date: string;
+  result_summary: string;
+  machine: string;
+  display_snapshot: unknown;
+  schema_version: number /* int16 */;
+  change_reason?: string;
+  created_at: string;
+}
+/**
+ * ExaminationRevisionItem is an immutable item snapshot owned by one revision triple.
+ */
+export interface ExaminationRevisionItem {
+  id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  examination_id: number /* uint64 */;
+  version: number /* uint64 */;
+  exam_type_field_id?: number /* uint64 */;
+  name: string;
+  inspection_value: string;
+  normal_value: string;
+  result: string;
+  unit: string;
+  reference_value: string;
+  ref_min?: number /* float64 */;
+  ref_max?: number /* float64 */;
+  qualitative_min?: string;
+  qualitative_max?: string;
+  is_assessed: boolean;
+  is_abnormal: boolean;
+  status: ExaminationResultStatus;
+  sort_order: number /* int */;
+  created_at: string;
 }
 
 //////////
@@ -1381,6 +1661,59 @@ export interface HospitalizationPlan {
 }
 
 //////////
+// source: identity_link.go
+
+/**
+ * OwnerIdentityGroup anchors a manual multi-clinic owner identity link (#239).
+ * created_clinic_id is the RLS/write anchor and is immutable after insert.
+ */
+export interface OwnerIdentityGroup {
+  id: number /* uint64 */;
+  created_clinic_id: number /* uint64 */;
+  version: number /* int64 */;
+  created_at: string;
+  updated_at: string;
+  members?: OwnerIdentityGroupMember[];
+}
+/**
+ * OwnerIdentityGroupMember is a clinic-scoped owner row participating in a group.
+ */
+export interface OwnerIdentityGroupMember {
+  id: number /* uint64 */;
+  group_created_clinic_id: number /* uint64 */;
+  group_id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  owner_id: number /* uint64 */;
+  created_at: string;
+  updated_at: string;
+}
+/**
+ * PetIdentityGroup anchors a pet identity link that must hang under an owner identity group.
+ */
+export interface PetIdentityGroup {
+  id: number /* uint64 */;
+  created_clinic_id: number /* uint64 */;
+  owner_group_created_clinic_id: number /* uint64 */;
+  owner_group_id: number /* uint64 */;
+  version: number /* int64 */;
+  created_at: string;
+  updated_at: string;
+  members?: PetIdentityGroupMember[];
+}
+/**
+ * PetIdentityGroupMember is a clinic-scoped pet row participating in a pet identity group.
+ */
+export interface PetIdentityGroupMember {
+  id: number /* uint64 */;
+  group_created_clinic_id: number /* uint64 */;
+  group_id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  pet_id: number /* uint64 */;
+  created_at: string;
+  updated_at: string;
+}
+
+//////////
 // source: inquiry.go
 
 /**
@@ -1496,7 +1829,7 @@ export interface InventoryItem {
 
 /**
  * LabImportJobStatus は lab_import_jobs のジョブ状態。
- * 許可された遷移は service.LabImportJobStatus.CanTransitionTo で強制される。
+ * 許可された遷移は medicalrecord.CanTransitionTo で強制される（BE9-2D sub-batch③ で internal/service から移動）。
  */
 export const LabImportJobStatusReceived = "received";
 export const LabImportJobStatusValidated = "validated";
@@ -1505,7 +1838,12 @@ export const LabImportJobStatusPersisted = "persisted";
 export const LabImportJobStatusDuplicate = "duplicate";
 export const LabImportJobStatusNeedsReview = "needs_review";
 export const LabImportJobStatusFailed = "failed";
-export type LabImportJobStatus = typeof LabImportJobStatusReceived | typeof LabImportJobStatusValidated | typeof LabImportJobStatusMapped | typeof LabImportJobStatusPersisted | typeof LabImportJobStatusDuplicate | typeof LabImportJobStatusNeedsReview | typeof LabImportJobStatusFailed;
+/**
+ * LabImportJobStatusReverted is the terminal compensating-revert status (TASK-032).
+ * Distinct from examination unconfirm; reached only via POST /lab-imports/:id/revert.
+ */
+export const LabImportJobStatusReverted = "reverted";
+export type LabImportJobStatus = typeof LabImportJobStatusReceived | typeof LabImportJobStatusValidated | typeof LabImportJobStatusMapped | typeof LabImportJobStatusPersisted | typeof LabImportJobStatusDuplicate | typeof LabImportJobStatusNeedsReview | typeof LabImportJobStatusFailed | typeof LabImportJobStatusReverted;
 /**
  * LabImportSourceType は入力元の種別。
  * fixture: Phase 0 テスト用。drwan: Phase BLOCKED（MDB スキーマ未確認）。
@@ -1520,7 +1858,7 @@ export type LabImportSourceType = typeof LabImportSourceTypeFixture | typeof Lab
  * error_message には安全なメッセージのみ格納し、スタックトレース・PHI 不可。
  */
 export interface LabImportJob {
-  id: any /* uuid.UUID */;
+  id: string;
   clinic_id: number /* uint64 */;
   source_type: LabImportSourceType;
   source_fingerprint: string;
@@ -1545,7 +1883,17 @@ export const LabImportEventTypeValidationResult = "validation_result";
 export const LabImportEventTypeMappingResult = "mapping_result";
 export const LabImportEventTypePersistenceResult = "persistence_result";
 export const LabImportEventTypeRetryRequested = "retry_requested";
-export type LabImportEventType = typeof LabImportEventTypeStatusTransition | typeof LabImportEventTypeValidationResult | typeof LabImportEventTypeMappingResult | typeof LabImportEventTypePersistenceResult | typeof LabImportEventTypeRetryRequested;
+/**
+ * LabImportEventTypeUsageTrackingStarted marks that downstream usage receipts
+ * are authoritative for this job (TASK-032). Recorded in the same transaction
+ * as a successful import commit. Absence means usage_unknown (revert 409).
+ */
+export const LabImportEventTypeUsageTrackingStarted = "usage_tracking_started";
+/**
+ * LabImportEventTypeRevertRequested records a compensating revert transition.
+ */
+export const LabImportEventTypeRevertRequested = "revert_requested";
+export type LabImportEventType = typeof LabImportEventTypeStatusTransition | typeof LabImportEventTypeValidationResult | typeof LabImportEventTypeMappingResult | typeof LabImportEventTypePersistenceResult | typeof LabImportEventTypeRetryRequested | typeof LabImportEventTypeUsageTrackingStarted | typeof LabImportEventTypeRevertRequested;
 /**
  * LabImportEvent は検査インポートジョブの監査イベント。
  * PHI・raw デバイスペイロード・接続情報は格納しない。
@@ -1554,7 +1902,7 @@ export type LabImportEventType = typeof LabImportEventTypeStatusTransition | typ
 export interface LabImportEvent {
   id: number /* uint64 */;
   clinic_id: number /* uint64 */;
-  job_id: any /* uuid.UUID */;
+  job_id: string;
   event_type: LabImportEventType;
   from_status?: LabImportJobStatus;
   to_status?: LabImportJobStatus;
@@ -1603,11 +1951,84 @@ export interface LabImportPreviewResponse {
  * LabImportCommitResponse は commit エンドポイントのレスポンス。
  */
 export interface LabImportCommitResponse {
-  job_id: any /* uuid.UUID */;
+  job_id: string;
   persisted_count: number /* int */;
   duplicate_count: number /* int */;
   needs_review_count: number /* int */;
   failed_count: number /* int */;
+}
+/**
+ * LabImportUsageKind は clinical downstream use / manual mutation の種別。
+ */
+export const LabImportUsageKindExaminationDetail = "examination_detail";
+export const LabImportUsageKindExaminationItems = "examination_items";
+export const LabImportUsageKindLabReport = "lab_report";
+export const LabImportUsageKindPrintSnapshot = "print_snapshot";
+export const LabImportUsageKindManualMutation = "manual_mutation";
+export type LabImportUsageKind = typeof LabImportUsageKindExaminationDetail | typeof LabImportUsageKindExaminationItems | typeof LabImportUsageKindLabReport | typeof LabImportUsageKindPrintSnapshot | typeof LabImportUsageKindManualMutation;
+/**
+ * LabImportUsageReceipt は import 由来 exam の clinical use / manual mutation を記録する append-only 台帳。
+ * audit_logs には相乗りしない（sink 分離）。
+ */
+export interface LabImportUsageReceipt {
+  id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  job_id: string;
+  exam_id: number /* uint64 */;
+  use_kind: LabImportUsageKind;
+  actor_id?: number /* uint64 */;
+  created_at: string;
+}
+/**
+ * LabImportExamRetraction は compensating revert 時の parent 不変スナップショット。
+ */
+export interface LabImportExamRetraction {
+  id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  job_id: string;
+  exam_id: number /* uint64 */;
+  actor_id?: number /* uint64 */;
+  reason: string;
+  parent_snapshot: string;
+  created_at: string;
+}
+/**
+ * LabImportExamRetractionItem は retraction の item 不変スナップショット。
+ * exam_results 本体は hard delete しない。
+ */
+export interface LabImportExamRetractionItem {
+  id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  retraction_id: number /* uint64 */;
+  job_id: string;
+  exam_id: number /* uint64 */;
+  item_snapshot: string;
+  sort_order: number /* int */;
+  created_at: string;
+}
+/**
+ * LabImportRevertReceipt は POST /lab-imports/:id/revert の冪等レシート。
+ */
+export interface LabImportRevertReceipt {
+  id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  job_id: string;
+  idempotency_key: string;
+  request_hash: string;
+  reason: string;
+  actor_id?: number /* uint64 */;
+  result_status: string;
+  retracted_exam_ids: string;
+  created_at: string;
+}
+/**
+ * LabImportRevertResponse は revert エンドポイントのレスポンス。
+ */
+export interface LabImportRevertResponse {
+  job_id: string;
+  status: string;
+  retracted_exam_ids: number /* uint64 */[];
+  idempotent_replay: boolean;
 }
 
 //////////
@@ -1676,6 +2097,11 @@ export interface LineReservationSetting {
   show_no_staff_option: boolean;
   additional_fields: string /* []byte */;
   line_channel_id: string;
+  /**
+   * LineBotUserID is the LINE Messaging API bot user ID (webhook destination).
+   * Used for O(1) webhook signature routing (SEC-CS-F05-R1). Empty until provisioned.
+   */
+  line_bot_user_id?: string;
   liff_id: string;
   created_at: string;
   updated_at: string;
@@ -1728,7 +2154,7 @@ export interface LstepConditionTagMapping {
  * LstepCsvImport は Lステップ CSV インポート履歴。
  */
 export interface LstepCsvImport {
-  id: any /* uuid.UUID */;
+  id: string;
   clinic_id: number /* uint64 */;
   csv_type: string;
   file_name: string;
@@ -1737,7 +2163,7 @@ export interface LstepCsvImport {
   success_count: number /* int */;
   error_count: number /* int */;
   status: string;
-  error_log?: any /* datatypes.JSON */;
+  error_log?: unknown;
   imported_at?: string;
   created_at: string;
 }
@@ -1808,13 +2234,13 @@ export interface LstepFriendAttributeSnapshot {
   line_user_id: string;
   display_name?: string;
   registered_at?: string;
-  tags?: any /* datatypes.JSON */;
-  scenarios?: any /* datatypes.JSON */;
+  tags?: unknown;
+  scenarios?: unknown;
   traffic_source?: string;
   block_status?: string;
   last_message_at?: string;
   snapshot_taken_at: string;
-  csv_import_id?: any /* uuid.UUID */;
+  csv_import_id?: string;
   created_at: string;
   updated_at: string;
 }
@@ -2292,6 +2718,7 @@ export const ResourceMedicalRecords = "medical-records";
 export const ResourceHospitalization = "hospitalization";
 export const ResourceTrimming = "trimming";
 export const ResourceExaminations = "examinations";
+export const ResourceExaminationUnconfirm = "examination-unconfirm";
 export const ResourceAccounting = "accounting";
 export const ResourceVaccinations = "vaccinations";
 export const ResourceCheckups = "checkups";
@@ -2346,7 +2773,15 @@ export const ResourceAccountingPostCloseEdit = "accounting-post-close-edit";
  * lab import: 外部検査結果インポートジョブ管理
  */
 export const ResourceLabImport = "lab-import";
-export type Resource = typeof ResourceReception | typeof ResourceOwners | typeof ResourceReservations | typeof ResourceMedicalRecords | typeof ResourceHospitalization | typeof ResourceTrimming | typeof ResourceExaminations | typeof ResourceAccounting | typeof ResourceVaccinations | typeof ResourceCheckups | typeof ResourceInventory | typeof ResourceEstimates | typeof ResourceShifts | typeof ResourceHospitalSettings | typeof ResourceMasterAnimalSpecies | typeof ResourceMasterMedical | typeof ResourceMasterReservationType | typeof ResourceMasterHospitalization | typeof ResourceMasterTrimming | typeof ResourceMasterPermission | typeof ResourceMasterStaff | typeof ResourceMasterInsurance | typeof ResourceMasterMerchandise | typeof ResourceDiscount | typeof ResourceCashRegisterClose | typeof ResourceAccountingReports | typeof ResourceClosingSettings | typeof ResourcePaymentMethod | typeof ResourceLstepCsvImport | typeof ResourceLstepAnalytics | typeof ResourceManualEdit | typeof ResourceAccountingCancel | typeof ResourceAccountingPostCloseEdit | typeof ResourceLabImport;
+/**
+ * #239: 医院別 owner/pet を残したままの identity link（view / edit 分離・fail-closed default）
+ */
+export const ResourceIdentityLinks = "identity-links";
+/**
+ * TASK-374 / #211: 健診 package versioned import（default-deny）
+ */
+export const ResourceCheckupPackageImport = "checkup-package-import";
+export type Resource = typeof ResourceReception | typeof ResourceOwners | typeof ResourceReservations | typeof ResourceMedicalRecords | typeof ResourceHospitalization | typeof ResourceTrimming | typeof ResourceExaminations | typeof ResourceExaminationUnconfirm | typeof ResourceAccounting | typeof ResourceVaccinations | typeof ResourceCheckups | typeof ResourceInventory | typeof ResourceEstimates | typeof ResourceShifts | typeof ResourceHospitalSettings | typeof ResourceMasterAnimalSpecies | typeof ResourceMasterMedical | typeof ResourceMasterReservationType | typeof ResourceMasterHospitalization | typeof ResourceMasterTrimming | typeof ResourceMasterPermission | typeof ResourceMasterStaff | typeof ResourceMasterInsurance | typeof ResourceMasterMerchandise | typeof ResourceDiscount | typeof ResourceCashRegisterClose | typeof ResourceAccountingReports | typeof ResourceClosingSettings | typeof ResourcePaymentMethod | typeof ResourceLstepCsvImport | typeof ResourceLstepAnalytics | typeof ResourceManualEdit | typeof ResourceAccountingCancel | typeof ResourceAccountingPostCloseEdit | typeof ResourceLabImport | typeof ResourceIdentityLinks | typeof ResourceCheckupPackageImport;
 
 //////////
 // source: permission_group.go
@@ -2440,6 +2875,7 @@ export interface Pet {
   neutered_date?: string;
   acquisition_type?: AcquisitionType;
   danger_level: DangerLevel;
+  danger_reason?: string;
   food: string;
   environment: string;
   phone: string;
@@ -2448,6 +2884,7 @@ export interface Pet {
   remarks: string;
   deceased_at?: string;
   deceased_reason?: string;
+  version: number /* int */;
   created_at: string;
   updated_at: string;
   /**
@@ -2479,6 +2916,26 @@ export interface PetChronicCondition {
    * Relations
    */
   pet?: Pet;
+}
+
+//////////
+// source: pet_owner.go
+
+/**
+ * PetOwner はペットと副飼主の追加紐付けを表す。
+ */
+export interface PetOwner {
+  id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  /**
+   * PetID / OwnerID: DDL の UNIQUE (pet_id, owner_id) を宣言する。
+   * index 名は PostgreSQL が UNIQUE 制約へ自動採番する名前に合わせる。
+   */
+  pet_id: number /* uint64 */;
+  owner_id: number /* uint64 */;
+  relationship: string;
+  created_at: string;
+  updated_at: string;
 }
 
 //////////
@@ -2583,7 +3040,7 @@ export interface Reservation {
   created_by?: number /* uint64 */;
   line_customer_id?: number /* uint64 */;
   is_staff_delegated: boolean;
-  customer_fields: any /* json.RawMessage */;
+  customer_fields: unknown;
   /**
    * Relations
    */
@@ -2913,8 +3370,8 @@ export interface StaffReservationExclusion {
 // source: token_blacklist.go
 
 /**
- * TokenBlacklist は失効済み refresh_token の JTI を記録する。
- * ログアウト時に JTI を登録し、RefreshToken エンドポイントで照合する。
+ * TokenBlacklist は失効済み refresh_token の JTI または family marker を記録する。
+ * family marker は既存の JTI denylist 上で token family 全体を失効させる。
  */
 export interface TokenBlacklist {
   jti: string;
@@ -2970,7 +3427,7 @@ export interface Treatment {
   dose_weight_source?: string; // 体重の出典（vital_records.id / 時刻 pin）
   dose_amount_mg?: number /* float64 */; // 実効用量(mg)。安全域判定(C1)はこの丸め後の値
   dose_amount_unit?: string; // 'mg' | 'ug'
-  dose_param_snapshot?: any /* json.RawMessage */; // species/dose_per_kg/strength/丸め設定/計算式版
+  dose_param_snapshot?: unknown; // species/dose_per_kg/strength/丸め設定/計算式版
   created_at: string;
   updated_at: string;
   /**

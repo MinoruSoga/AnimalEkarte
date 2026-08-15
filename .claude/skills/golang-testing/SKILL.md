@@ -246,10 +246,10 @@ func TestOwnerService_Create_DuplicateEmail(t *testing.T)
 ## カバレッジ要件
 
 ```
-新機能: 最低 80% カバレッジ
-Service 層: 90%+ 推奨（ビジネスロジックの中枢）
-Handler 層: 70%+ （ハッピーパス + 主要エラーケース）
-Repository 層: 実DB テストで主要クエリをカバー
+Project quality gate: 最低 80% カバレッジ（Go/Gin公式要件ではない）
+HTTP boundary: 正常系 + binding/validation/authn/authz/主要errorをhttptestでカバー
+Business/security invariant: 分岐と境界条件を重点的にカバー
+Persistence/transaction: 実DB testで主要query・atomicity・tenant isolationをカバー
 ```
 
 ## テストアンチパターン（禁止）

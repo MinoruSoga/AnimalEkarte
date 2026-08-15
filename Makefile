@@ -1,10 +1,15 @@
-.PHONY: up down build logs logs-api logs-front ps db clean reset migrate seed stage-import-dry-run stage-import verify-stage-import stage-import-rollback-test restart-api restart-front build-prod lint lint-fix test test-cover lint-front test-front build-front e2e build-go mod-download mod-tidy help codegen codegen-check sync-modules schema-check setup-hooks ci dump-stg check-reset-contract check-reset-contract-test shellcheck shellcheck-test
+.PHONY: up down build logs logs-api logs-front ps db clean reset migrate seed csv-import-preflight csv-import csv-import-verify a4-csv-import-preflight a4-csv-import a4-csv-import-verify a4-rehearsal-contract-test a4-rehearsal-config-check a4-rehearsal-up a4-rehearsal-ps a4-rehearsal-runtime-report a4-rehearsal-down f8-g4-rehearsal-contract-test f8-g4-rehearsal-config-check f8-g4-rehearsal-run f8-g4-rehearsal-down restart-api restart-front build-prod lint lint-fix test test-cover lint-front test-front build-front e2e build-go mod-download mod-tidy help codegen codegen-check sync-modules schema-check setup-hooks ci check-reset-contract check-reset-contract-test shellcheck shellcheck-test codex-security-scan
 
 # デフォルトターゲット
 .DEFAULT_GOAL := help
 
 # $(DC) に --env-file を渡す（.env.local を変数展開の source of truth にする）
 DC = docker compose --env-file .env.local
+
+# Codex Security scan + latest artifact export
+CODEX_SECURITY_MODEL ?= gpt-5.6-terra
+CODEX_SECURITY_EFFORT ?= high
+CODEX_SECURITY_OUTPUT_DIR ?= $(CURDIR)/codex-security-output
 
 # 起動
 # --wait で db / backend / frontend の ready を待つ
@@ -53,17 +58,16 @@ clean:
 	$(DC) down --rmi local --volumes --remove-orphans
 	$(DC) build --no-cache
 
-# 完全リセット（スキーマ・シーダー含む）
-# migration は backend の entrypoint 内で go run ./cmd/migrate として実行されるため、
-# reset は DB 初期化 + 起動完了待ちだけに絞る
-# --wait は up と同じく長寿命サービス（db backend frontend）だけを対象にする。
-# codegen は一発実行で正常終了する one-shot のため、wait 対象に含めると正常終了が
-# --wait の失敗扱いになり cosmetic exit 1 を起こす（必要時は make codegen で個別実行）。
+# 完全リセット（スキーマ・シーダー含む）— local 専用・USER のみ実行
+# 単一入口: scripts/local-db-reset-contract.sh
+#   1) project/volume を固定値と compose 実測で照合（他環境は拒否）
+#   2) umask 077 で .local-db-backups/<UTC>/ に pg_dumpall + sha256 + manifest
+#   3) サービス停止後 ekarte-postgres-data のみ削除（cache 3 volume は保持）
+#   4) 再起動 + missing=0 / DDL / 002_master,003_demo,004_staging /health を fail-closed 確認
+# snapshot 失敗時は volume 削除へ進まない。compose の全 volume 一括削除は使わない。
+# --wait の wait-set（db backend frontend, codegen 除外）は contract スクリプト側。
 reset:
-	@echo "🔄 Resetting database..."
-	$(DC) down -v
-	$(DC) up -d --build --wait --wait-timeout 1200 db backend frontend
-	@echo "✓ Reset complete — database reinitialized and services are healthy"
+	@bash scripts/local-db-reset-contract.sh
 
 # reset の wait-set 契約チェック（Docker 不要・純テキスト検査・高速）
 # `make reset` の `up --wait` が長寿命サービス (db backend frontend) だけを
@@ -90,6 +94,16 @@ shellcheck:
 shellcheck-test:
 	@bash scripts/shellcheck-scripts.test.sh
 
+# Codex Security の有料 scan が成功した場合だけ、全 artifact を export する。
+# latest-* は codex-security-output/ 直下、原本は timestamped directory に保存される。
+codex-security-scan:
+	corepack pnpm exec codex-security scan . \
+		--model "$(CODEX_SECURITY_MODEL)" \
+		--effort "$(CODEX_SECURITY_EFFORT)"
+	@bash scripts/export-codex-security-latest.sh \
+		"$(CODEX_SECURITY_OUTPUT_DIR)" \
+		--full-keep-files
+
 # マイグレーション適用（差分のみ・DBは落とさない）
 # 専用の migrate サービスは廃止し、backend イメージの entrypoint を go に差し替えて
 # one-off 実行する（db が未起動なら depends_on 経由で自動起動される）。
@@ -103,48 +117,138 @@ seed:
 	@echo "✓ Seed data applied"
 
 # ============================================================================
-# stage-import: animalekarte_stage -> 本テーブル (推奨経路 / replaces seed-old-db(archived))
+# F6 CSV import: old_db's immutable 21-table CSV hand-off -> AnimalEkarte
 # ============================================================================
-# 検証済みの old_db 3層パイプライン (legacy_raw -> legacy_canonical ->
-# animalekarte_stage) の stage スキーマを唯一の投入元として本テーブルへ取り込む。
-# 旧 direct seeder (seed-old-db、backend/cmd/_archive/seed-old-db へアーカイブ済み) は
-# comparison-only として deprecated。
-#
-# 前提:
-#   - AnimalEkarte: make up でスタック起動済み (db healthy)。
-#   - old_db: 別 repo で make local-postgres-up + make migration-pipeline 実行済み
-#     (old-db-postgres コンテナと外部ネットワーク old_db_default が存在すること)。
-#   - OLD_DB_POSTGRES_PASSWORD: old_db Postgres の TCP 接続パスワード。stage への
-#     接続は read-only。未設定なら importer は SASL 認証で失敗する。
-#
-# Safety: importer は非ローカル TARGET DB_HOST を拒否し、stage 接続は read-only。
-# apply は --apply かつ --confirm-local-destroy の両方が必須 (本テーブルの old_db 行を
-# 削除して再投入する破壊的操作)。
-STAGE_IMPORT_DC = $(DC) -f docker-compose.yml -f docker-compose.stage-import.yml
+# Required variables:
+#   CSV_IMPORT_SOURCE_DIR (absolute host path), CSV_MANIFEST_SHA256,
+#   CLINIC_CODE, CLINIC_ORDINAL, MIGRATION_RUN_ID,
+#   TARGET_CLINIC_ID, FALLBACK_ANIMAL_SPECIES_ID, FALLBACK_EXAM_TYPE_ID,
+#   TRIMMING_RESERVATION_TYPE_ID, PAYMENT_METHOD_CASH_ID,
+#   PAYMENT_METHOD_CREDIT_CARD_ID.
+# Apply additionally requires TARGET_DB_NAME to exactly match DB_NAME from
+# .env.local. Reports contain aggregate counts and the six non-PHI seed IDs,
+# and are owner-only under sensitive-local/. The source volume is read-only and
+# no old_db network exists.
+CSV_IMPORT_DC = $(DC) -f docker-compose.yml -f docker-compose.csv-import.yml
+export CSV_IMPORT_SOURCE_DIR CSV_MANIFEST_SHA256 CLINIC_CODE CLINIC_ORDINAL MIGRATION_RUN_ID
+export TARGET_CLINIC_ID FALLBACK_ANIMAL_SPECIES_ID FALLBACK_EXAM_TYPE_ID
+export TRIMMING_RESERVATION_TYPE_ID PAYMENT_METHOD_CASH_ID
+export PAYMENT_METHOD_CREDIT_CARD_ID TARGET_DB_NAME
+CSV_IMPORT_COMMON_ARGS = \
+	--source-dir /migration-input \
+	--expected-manifest-sha256 "$${CSV_MANIFEST_SHA256}" \
+	--clinic-code "$${CLINIC_CODE}" \
+	--clinic-ordinal "$${CLINIC_ORDINAL}" \
+	--run-id "$${MIGRATION_RUN_ID}" \
+	--clinic-id "$${TARGET_CLINIC_ID}" \
+	--fallback-animal-species-id "$${FALLBACK_ANIMAL_SPECIES_ID}" \
+	--fallback-exam-type-id "$${FALLBACK_EXAM_TYPE_ID}" \
+	--trimming-reservation-type-id "$${TRIMMING_RESERVATION_TYPE_ID}" \
+	--cash-payment-method-id "$${PAYMENT_METHOD_CASH_ID}" \
+	--credit-card-payment-method-id "$${PAYMENT_METHOD_CREDIT_CARD_ID}"
 
-# dry-run: 件数のみ表示。本テーブルへの書き込みは 0。
-stage-import-dry-run:
-	@echo "🔎 stage-import DRY-RUN (no writes) ..."
-	$(STAGE_IMPORT_DC) run --rm stage-import
+csv-import-preflight:
+	@install -d -m 700 sensitive-local/csv-import-reports
+	$(CSV_IMPORT_DC) run --rm --no-deps csv-import preflight $(CSV_IMPORT_COMMON_ARGS)
 
-# apply: 破壊的。old_db 由来行を削除し stage から再投入 (単一トランザクション)。
-# demo / master / config は保持。失敗時は全ロールバック。
-stage-import:
-	@echo "⚠️  stage-import APPLY (destructive: delete old_db rows + reinsert) ..."
-	$(STAGE_IMPORT_DC) run --rm stage-import --apply --confirm-local-destroy
+csv-import:
+	@install -d -m 700 sensitive-local/csv-import-reports
+	$(CSV_IMPORT_DC) run --rm --no-deps csv-import apply $(CSV_IMPORT_COMMON_ARGS) \
+		--confirm-target-write --confirm-backup-ready \
+		--confirm-target-host db --confirm-target-database "$${TARGET_DB_NAME}" \
+		--report-path "/migration-reports/$${CLINIC_CODE}-$${MIGRATION_RUN_ID}-apply.json"
 
-# 投入後検証: 空 clinic / branch leakage / owner collision / orphan / record_no /
-# blocked leakage / demo 混入 を全チェック。exit 0 で PASS。
-verify-stage-import:
-	@echo "🔍 Verifying stage-import results ..."
-	@bash scripts/verify-stage-import.sh
+csv-import-verify:
+	@install -d -m 700 sensitive-local/csv-import-reports
+	$(CSV_IMPORT_DC) run --rm --no-deps csv-import verify $(CSV_IMPORT_COMMON_ARGS)
 
-# rollback / read-only 安全性の統合テスト (実 DB 必要・STAGE_IMPORT_INTEGRATION=1)。
-# 注入した失敗後に本テーブル件数が不変であること、stage 接続が read-only であることを検証。
-stage-import-rollback-test:
-	@echo "🧪 stage-import rollback + read-only integration test ..."
-	$(STAGE_IMPORT_DC) run --rm -e STAGE_IMPORT_INTEGRATION=1 --entrypoint go \
-		stage-import test ./cmd/stage-import/ -run 'RollsBack|ReadOnly' -count=1 -v -timeout 300s
+# ============================================================================
+# A4 UI rehearsal: isolated, disposable, localhost-only full stack
+# ============================================================================
+# Required variables:
+#   A4_COMPOSE_PROJECT=animalekarte-a4-<clinic/run slug>
+#   A4_RUN_ID=<migration run ID>
+#   A4_TARGET_RELEASE_COMMIT=<clean canonical 40-char HEAD>
+# Stack startup does not import data. Use only the explicit a4-csv-import-*
+# targets against this project's DB, then collect owner-only evidence in old_db.
+A4_REHEARSAL_DC = COMPOSE_PROJECT_NAME="$${A4_COMPOSE_PROJECT}" docker compose \
+	--env-file "$${A4_ENV_FILE}" \
+	-p "$${A4_COMPOSE_PROJECT}" \
+	-f docker-compose.yml -f docker-compose.a4-rehearsal.yml
+A4_CSV_IMPORT_DC = COMPOSE_PROJECT_NAME="$${A4_COMPOSE_PROJECT}" docker compose \
+	--env-file "$${A4_ENV_FILE}" \
+	-p "$${A4_COMPOSE_PROJECT}" \
+	-f docker-compose.yml -f docker-compose.a4-rehearsal.yml \
+	-f docker-compose.csv-import.yml
+export A4_COMPOSE_PROJECT A4_RUN_ID A4_TARGET_RELEASE_COMMIT A4_ENV_FILE
+
+a4-rehearsal-contract-test:
+	@node --test scripts/check-a4-rehearsal-compose.test.mjs \
+		scripts/check-a4-env-file.test.mjs \
+		scripts/check-a4-resource-boundary.test.mjs \
+		scripts/write-a4-runtime-report.test.mjs
+
+a4-rehearsal-config-check:
+	@node scripts/check-a4-rehearsal-compose.mjs
+
+a4-rehearsal-up: a4-rehearsal-config-check
+	@node scripts/check-a4-resource-boundary.mjs start
+	$(A4_REHEARSAL_DC) up -d --build --wait --wait-timeout 1200 db backend frontend
+
+a4-rehearsal-ps:
+	$(A4_REHEARSAL_DC) ps db backend frontend
+
+a4-csv-import-preflight: a4-rehearsal-config-check
+	@node scripts/check-a4-resource-boundary.mjs destroy
+	@install -d -m 700 sensitive-local/csv-import-reports
+	$(A4_CSV_IMPORT_DC) run --rm --no-deps csv-import preflight $(CSV_IMPORT_COMMON_ARGS)
+
+a4-csv-import: a4-rehearsal-config-check
+	@node scripts/check-a4-resource-boundary.mjs destroy
+	@install -d -m 700 sensitive-local/csv-import-reports
+	$(A4_CSV_IMPORT_DC) run --rm --no-deps csv-import apply $(CSV_IMPORT_COMMON_ARGS) \
+		--confirm-target-write --confirm-backup-ready \
+		--confirm-target-host db --confirm-target-database "$${TARGET_DB_NAME}" \
+		--report-path "/migration-reports/$${CLINIC_CODE}-$${MIGRATION_RUN_ID}-apply.json"
+
+a4-csv-import-verify: a4-rehearsal-config-check
+	@node scripts/check-a4-resource-boundary.mjs destroy
+	@install -d -m 700 sensitive-local/csv-import-reports
+	$(A4_CSV_IMPORT_DC) run --rm --no-deps csv-import verify $(CSV_IMPORT_COMMON_ARGS)
+
+a4-rehearsal-runtime-report: a4-rehearsal-config-check
+	@node scripts/write-a4-runtime-report.mjs
+
+# Explicit stop/cleanup path for the disposable project. The project name is
+# mandatory, so this cannot fall back to the normal development stack.
+a4-rehearsal-down:
+	@node scripts/check-a4-resource-boundary.mjs destroy
+	$(A4_REHEARSAL_DC) down --volumes --remove-orphans
+
+# ============================================================================
+# F8 G4 failure rehearsal: fixed synthetic rollback on a dedicated stack
+# ============================================================================
+F8_G4_DC = COMPOSE_PROJECT_NAME="$${F8_G4_COMPOSE_PROJECT}" docker compose \
+	--env-file "$${F8_G4_ENV_FILE}" \
+	-p "$${F8_G4_COMPOSE_PROJECT}" \
+	-f docker-compose.f8-g4-rehearsal.yml
+export F8_G4_COMPOSE_PROJECT F8_G4_RUN_ID F8_G4_TARGET_RELEASE_COMMIT
+export F8_G4_ENV_FILE F8_G4_DB_PORT F8_G4_CLINIC_CODE F8_G4_CLINIC_ORDINAL
+
+f8-g4-rehearsal-contract-test:
+	@node --test scripts/lib/f8-g4-evidence.test.mjs scripts/lib/f8-g4-host-safety.test.mjs
+
+f8-g4-rehearsal-config-check:
+	@F8_G4_BUILD_CONTEXT="$(CURDIR)/backend" \
+		F8_G4_BACKEND_TREE_ID=config-check-unattested \
+		F8_G4_RUNNER_IMAGE=config-check-runner:unattested \
+		$(F8_G4_DC) config --quiet
+
+f8-g4-rehearsal-run:
+	@node scripts/run-f8-g4-rehearsal.mjs
+
+f8-g4-rehearsal-down:
+	@node scripts/check-f8-g4-resources.mjs
 
 # バックエンドのみ再起動
 restart-api:
@@ -167,7 +271,7 @@ GOLANGCI_LINT_VERSION := v2.11.4
 # リモート CI 必須: path-filtered build/test/coverage、gitleaks、
 #                   codegen/migration 検証、AgentShield
 # ローカル必須（make ci）: inventory / guardrail / shellcheck / golangci /
-#                          ESLint / type-check / knip / design CTA + build/test
+#                          ESLint / type-check / knip / design CTA + design-audit + build/test
 # ローカル任意: make e2e（Playwright。リモート自動 CI には含めない）
 # ────────────────────────────────────────────────────────────────
 
@@ -203,9 +307,6 @@ test:
 test-cover:
 	$(DC) exec backend go test -race -cover -p 1 ./...
 
-# repository パッケージのみ（共有 DB・必ず serial）
-test-repository:
-	$(DC) exec backend go test ./internal/repository/ -count=1 -p 1 -timeout 900s
 
 # フロント静的チェック一式（ローカル必須・CI ゲート外）
 # ESLint + TypeScript type-check + knip（旧 CI Frontend の静的ステップ相当）
@@ -268,13 +369,6 @@ setup-hooks:
 	chmod +x .githooks/pre-commit
 	@echo "Git hooks を .githooks に設定しました（pre-commit: lint + 型チェック）"
 
-# STG DB ダンプ（SSM ポートフォワード経由 pg_dump → prodData/ekarte-stg-<実行日>.sql）
-# 前提: AWS プロファイル(AnimalEkarte)認証済み。DB 認証は既定で .env.staging の
-#       DB_USER / DB_NAME / DB_PASSWORD を使用（PGPASSWORD 等の env で上書き可）。
-# prodData/ は .gitignore 済。
-dump-stg:
-	@bash scripts/dump-stg.sh
-
 # ヘルプ
 help:
 	@echo "Animal Ekarte - 開発コマンド"
@@ -282,6 +376,7 @@ help:
 	@echo "使用方法: make [コマンド]"
 	@echo ""
 	@echo "コマンド:"
+	@echo "  codex-security-scan Codex Security scan後、最新版をcodex-security-output/直下へexport（有料）"
 	@echo "  up            コンテナ起動"
 	@echo "  build         コンテナ起動（ビルド付き）"
 	@echo "  down          コンテナ停止"
@@ -291,19 +386,25 @@ help:
 	@echo "  ps            コンテナ状態確認"
 	@echo "  db            DB接続（psql）"
 	@echo "  clean         キャッシュクリア＆再ビルド"
-	@echo "  reset         完全リセット（ボリューム削除→マイグレーション＋シーダー全適用）"
+	@echo "  reset         local DB 再構築（snapshot→ekarte-postgres-data のみ削除→postflight。USER のみ）"
 	@echo "  migrate       差分マイグレーションのみ適用（DBは落とさない）"
 	@echo "  seed              シーダーのみ適用（差分のみ・べき等）"
 	@echo ""
-	@echo "旧DB移行（推奨経路: animalekarte_stage -> 本テーブル）:"
-	@echo "  stage-import-dry-run      stage 取り込みの dry-run（件数表示・書き込み0）"
-	@echo "  stage-import              stage から本テーブルへ投入（破壊的・要 OLD_DB_POSTGRES_PASSWORD）"
-	@echo "  verify-stage-import       stage 投入後の検証（空clinic/orphan/collision等・exit 0でPASS）"
-	@echo "  stage-import-rollback-test rollback/read-only 安全性の統合テスト（要 実DB）"
+	@echo "旧DB移行（正式経路: 21表CSV + manifest -> 本テーブル）:"
+	@echo "  csv-import-preflight      source/seed/schema/空band検査（read-only）"
+	@echo "  csv-import                21表CSVを単一transactionで投入（backup・target確認必須）"
+	@echo "  csv-import-verify         manifest件数/clinic/sequence検証（read-only）"
+	@echo "  a4-rehearsal-contract-test A4隔離構成/runtime report契約テスト（Docker起動不要）"
+	@echo "  a4-rehearsal-config-check A4 Composeのlocalhost/network/volume契約検査"
+	@echo "  a4-rehearsal-up          A4専用disposable stackをbuild/start"
+	@echo "  a4-csv-import-*          A4専用DBへのcanonical preflight/apply/verify"
+	@echo "  a4-rehearsal-runtime-report 稼働中A4 stackのowner-only証跡生成"
+	@echo "  a4-rehearsal-down        指定A4 projectと専用volumeを明示破棄"
+	@echo "  f8-g4-rehearsal-run      固定synthetic G4失敗を専用DBで実行しrollback証跡を生成"
+	@echo "  f8-g4-rehearsal-down     labels検証後にF8 G4専用stack/volumeを削除"
 	@echo "  restart-api   API再起動"
 	@echo "  restart-front フロントエンド再起動"
 	@echo "  build-prod    本番ビルド"
-	@echo "  dump-stg      STG DBダンプ(SSM経由 pg_dump → prodData/ekarte-stg-<実行日>.sql)"
 	@echo ""
 	@echo "品質管理:"
 	@echo "  【ローカル必須】make ci（inventory/guardrail/lint/build/test 一括）"

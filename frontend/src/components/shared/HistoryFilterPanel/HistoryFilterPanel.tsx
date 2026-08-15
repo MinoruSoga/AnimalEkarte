@@ -1,4 +1,4 @@
-import { memo } from "react";
+import { memo, useId } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -6,7 +6,7 @@ import { DatePicker } from "@/components/shared/DatePicker";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { SortOrder } from "@/types";
 import { SORT_ORDER_VALUES } from "@/types";
-import { getSortOrderLabel } from "@/utils/status-helpers";
+import { getSortOrderLabel } from "@/lib/status-helpers";
 import { isOneOf } from "@/lib/type-utils";
 import { C } from "@/lib/design-tokens";
 
@@ -41,25 +41,39 @@ export const HistoryFilterPanel = memo(function HistoryFilterPanel({
   onSortOrderChange,
   onClear,
 }: HistoryFilterPanelProps) {
+  const dateRangeId = useId();
+  const startDateId = `${dateRangeId}-start-date`;
+  const endDateId = `${dateRangeId}-end-date`;
+
   return (
-    <div className={`space-y-3 bg-white p-3 rounded-lg border ${C.borderMedium} shadow-sm`}>
+    <div className={`space-y-3 bg-white p-3 rounded-lg border ${C.borderMedium}`}>
       {showDateRange ? (
         <div className="flex flex-col gap-1.5">
-          <Label className={`text-sm ${C.text60}`}>実施日</Label>
+          <span className={`mb-2 flex items-center gap-2 text-sm leading-none select-none ${C.text60}`}>
+            実施日
+          </span>
           <div className="flex items-center gap-2">
-            <DatePicker
-              value={filterStartDate}
-              onChange={(val) => onFilterStartDateChange?.(val)}
-              className="flex-1"
-              placeholder="開始日"
-            />
+            <div className="flex-1 min-w-0">
+              <Label htmlFor={startDateId} className="sr-only">開始日</Label>
+              <DatePicker
+                id={startDateId}
+                name="historyStartDate"
+                value={filterStartDate}
+                onChange={(val) => onFilterStartDateChange?.(val)}
+                placeholder="開始日"
+              />
+            </div>
             <span className={`${C.text} text-sm shrink-0`}>〜</span>
-            <DatePicker
-              value={filterEndDate}
-              onChange={(val) => onFilterEndDateChange?.(val)}
-              className="flex-1"
-              placeholder="終了日"
-            />
+            <div className="flex-1 min-w-0">
+              <Label htmlFor={endDateId} className="sr-only">終了日</Label>
+              <DatePicker
+                id={endDateId}
+                name="historyEndDate"
+                value={filterEndDate}
+                onChange={(val) => onFilterEndDateChange?.(val)}
+                placeholder="終了日"
+              />
+            </div>
           </div>
         </div>
       ) : null}
@@ -70,12 +84,12 @@ export const HistoryFilterPanel = memo(function HistoryFilterPanel({
             id="history-filter-search"
             value={searchTerm}
             onChange={(e) => onSearchTermChange(e.target.value)}
-            className={`flex-1 bg-white ${C.borderMedium} h-10 text-sm ${C.text}`}
+            className={`flex-1 bg-white ${C.borderMedium} h-11 text-sm ${C.text}`}
             placeholder={searchPlaceholder}
           />
           <Button
             variant="outline"
-            className={`h-10 text-sm ${C.text60} ${C.hoverText} ${C.hoverBgPage} ${C.borderMedium}`}
+            className={`h-11 text-sm ${C.text60} ${C.hoverText} ${C.hoverBgPage} ${C.borderMedium}`}
             onClick={onClear}
           >
             クリア
@@ -85,7 +99,7 @@ export const HistoryFilterPanel = memo(function HistoryFilterPanel({
               onSortOrderChange(val);
             }
           }}>
-            <SelectTrigger aria-label="並び順" className={`w-[80px] h-10 text-sm bg-white ${C.borderMedium} ${C.text}`}>
+            <SelectTrigger aria-label="並び順" className={`w-[80px] h-11 text-sm bg-white ${C.borderMedium} ${C.text}`}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

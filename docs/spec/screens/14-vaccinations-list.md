@@ -3,7 +3,7 @@
 ## 概要
 - **画面の目的**: 院内で行われた全予防接種（混合ワクチン、狂犬病ワクチン、フィラリア・ノミダニ予防等）の実績管理。
 - **URLパターン**: `/vaccinations`
-- **アクセス権限**: 認証済ユーザー全員（`ResourceVaccinations` 権限が必要）
+- **アクセス権限**: `ResourceVaccinations` の **`view`**（`RequirePermission`。create/edit/delete は `usePermission`）
 
 ---
 

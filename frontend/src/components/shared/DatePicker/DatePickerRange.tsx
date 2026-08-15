@@ -99,19 +99,25 @@ export function RangePicker({
 
   return (
     <Popover open={open} onOpenChange={handleOpenChange}>
-      <PopoverTrigger asChild>
-        <button
-          id={id}
-          type="button"
-          className={cn(TRIGGER_BASE, !value && C.text40, className)}
-        >
-          <span className="flex items-center gap-2 truncate">
-            <CalendarIcon className={`${ICON.action} shrink-0 ${C.text40}`} />
-            {displayLabel}
+      <div className="relative w-full">
+        <PopoverTrigger asChild>
+          <button
+            id={id}
+            type="button"
+            className={cn(TRIGGER_BASE, value && "pr-12", !value && C.text40, className)}
+          >
+            <span className="flex items-center gap-2 truncate">
+              <CalendarIcon className={`${ICON.action} shrink-0 ${C.text40}`} />
+              {displayLabel}
+            </span>
+          </button>
+        </PopoverTrigger>
+        {value ? (
+          <span className="absolute inset-y-0 right-0 flex items-center">
+            <ClearButton onClick={handleClear} />
           </span>
-          {value ? <ClearButton onClick={handleClear} /> : null}
-        </button>
-      </PopoverTrigger>
+        ) : null}
+      </div>
 
       <PopoverContent className="w-auto p-0" align="start">
         {view === "calendar" ? (

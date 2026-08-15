@@ -298,7 +298,7 @@ export const FilterAddPopover = memo(function FilterAddPopover({
             {/* Calendar column */}
             <div className="p-3">
               {/* FROM → TO header */}
-              <div className={`flex items-center justify-center gap-3 mb-3 px-3 py-2 ${C.bgPage} rounded-[4px]`}>
+              <div className={`flex items-center justify-center gap-3 mb-3 px-3 py-2 ${C.bgPage} rounded-xs`}>
                 <span className={`text-sm font-mono tabular-nums ${hasFrom ? `${C.text} font-medium` : C.text30}`}>
                   {fromDisplay}
                 </span>

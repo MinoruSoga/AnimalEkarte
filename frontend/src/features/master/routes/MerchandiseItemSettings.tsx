@@ -26,7 +26,7 @@ import { usePermission } from "@/hooks/use-permission";
 // ─── Page ───
 
 export function MerchandiseItemSettings() {
-  const { canCreate, canEdit } = usePermission(ResourceMasterMerchandise);
+  const { canCreate, canEdit, canDelete } = usePermission(ResourceMasterMerchandise);
   const { data } = useGetAllMerchandiseItems();
   const createMutation = useCreateMerchandiseItem();
   const updateMutation = useUpdateMerchandiseItem();
@@ -39,6 +39,7 @@ export function MerchandiseItemSettings() {
     deleteMutation,
     entityLabel: "品目",
     dirtyGuard: dirty,
+    permissions: { canDelete },
   });
   const handleDirtyChange = useCallback((d: boolean) => { if (d) dirty.markDirty(); else dirty.markClean(); }, [dirty]);
 
@@ -53,6 +54,7 @@ export function MerchandiseItemSettings() {
   } = useSortableList({
     items: crud.filteredItems,
     onReorder: (newIds) => {
+      if (!canEdit) return;
       reorderMutation.mutate(
         { ids: newIds.map(Number) },
         { onSuccess: resetOrder },
@@ -72,6 +74,7 @@ export function MerchandiseItemSettings() {
     validate: (d) => (!d.name.trim() ? "品目名は必須です" : null),
     toCreateRequest: buildMerchandiseCreateRequest,
     toUpdateRequest: buildMerchandiseUpdateRequest,
+    permissions: { canCreate, canEdit },
   });
 
   return (

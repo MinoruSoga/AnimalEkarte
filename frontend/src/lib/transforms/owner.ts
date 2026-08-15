@@ -1,17 +1,19 @@
 import type { Owner } from "@/types/owner";
-import type { Owner as BackendOwner, Pet as BackendPet } from "@/types/generated/models";
+import type {
+  OwnerResponse,
+  PetInOwnerResponse,
+} from "@/types/generated/owner-responses";
+import type { PetResponse } from "@/types/generated/pet-responses";
 import { transformBackendPetToFrontend } from "@/lib/transforms/pet";
 
 /**
- * API レスポンス型 — ownerResponse Go struct に準拠（json:"owner_name"）
- * models.ts の Owner（json:"name"）とは異なる。
- * @see backend/internal/handler/owner_response.go ownerResponse
+ * API レスポンス型 — OwnerResponse Go struct に準拠（json:"owner_name"）。
+ * models.ts の Owner（json:"name"）は使わない（BUG-433 / TASK-444-S2）。
+ * @see backend/internal/owner/http_response.go OwnerResponse
+ *
+ * OwnerApiResponse は既存 import 互換の alias。新規コードは OwnerResponse を使う。
  */
-export interface OwnerApiResponse extends Omit<BackendOwner, "name" | "name_kana" | "dm_preference"> {
-  owner_name: string;
-  owner_name_kana?: string;
-  dm_preference?: boolean | null;
-}
+export type OwnerApiResponse = OwnerResponse;
 
 const MEMBERSHIP_TYPE_FROM_API: Record<string, string> = {
   "non_member": "非会員",
@@ -21,19 +23,24 @@ const MEMBERSHIP_TYPE_FROM_API: Record<string, string> = {
 };
 
 /**
- * Owner配下のペット変換
- * transformBackendPetToFrontendをベースにownerName/phoneをオーナー親から上書き
+ * Owner配下のペット変換。
+ * owner 埋め込み wire は PetInOwnerResponse（pet_name_kana）。
+ * detail 専用 PetResponse との共通フィールドへアサートして変換を再利用する。
+ * LINE / lstep 系フィールドは owner detail DTO に無い — LINE 専用 API 経由で取得する。
  */
-const transformPetInOwner = (pet: BackendPet, ownerName: string) => ({
-  ...transformBackendPetToFrontend(pet),
+const transformPetInOwner = (pet: PetInOwnerResponse, ownerName: string) => ({
+  // PetInOwnerResponse は clinic_id/phone/owner ネストを持たない subset。
+  // transformBackendPetToFrontend は欠落フィールドを optional として扱う。
+  ...transformBackendPetToFrontend(pet as unknown as PetResponse),
   ownerName,
   phone: "",
 });
 
-export const transformOwner = (owner: OwnerApiResponse): Owner => ({
+export const transformOwner = (owner: OwnerResponse): Owner => ({
   id: String(owner.id ?? 0),
+  clinicId: owner.clinic_id != null ? String(owner.clinic_id) : undefined,
   ownerName: owner.owner_name ?? "",
-  ownerNameKana: owner.owner_name_kana,
+  ownerNameKana: owner.owner_name_kana || undefined,
   company: owner.company ?? "",
   postalCode: owner.postal_code ?? "",
   address1: owner.address1 ?? "",
@@ -49,7 +56,9 @@ export const transformOwner = (owner: OwnerApiResponse): Owner => ({
   isDangerous: owner.is_dangerous ?? false,
   discountRate: owner.discount_rate ?? 0,
   membershipType: MEMBERSHIP_TYPE_FROM_API[owner.membership_type ?? ""] ?? owner.membership_type ?? "",
-  lineUserId: owner.line_user_id,
+  // line_user_id / lstep_* は OwnerResponse に存在しない（models.Owner のみ）。
+  // LINE 連携 UI は owner-line-tags 等の専用 API を参照する（use-line-integration-card-state）。
+  lineUserId: undefined,
   lineIdConfirmedAt: owner.line_id_confirmed_at,
   deliveryExcluded: owner.delivery_excluded ?? false,
   deliveryExcludedReason: owner.delivery_excluded_reason,
@@ -59,9 +68,9 @@ export const transformOwner = (owner: OwnerApiResponse): Owner => ({
   transferAt: owner.transfer_at,
   // #158: 未設定（undefined）と false（不要）を区別するため ?? false で潰さない。
   dmPreference: owner.dm_preference,
-  lstepOptOut: owner.lstep_opt_out ?? false,
-  lstepOptOutAt: owner.lstep_opt_out_at,
-  lstepOptOutReason: owner.lstep_opt_out_reason,
+  lstepOptOut: false,
+  lstepOptOutAt: undefined,
+  lstepOptOutReason: undefined,
   createdAt: owner.created_at ?? "",
   updatedAt: owner.updated_at ?? "",
   pets: owner.pets?.map((pet) => transformPetInOwner(pet, owner.owner_name ?? "")),

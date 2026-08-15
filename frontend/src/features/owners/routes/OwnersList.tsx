@@ -1,5 +1,15 @@
 // React/Framework
-import { useState, useMemo, useCallback, useTransition, lazy, Suspense, useEffect } from "react";
+import {
+  useState,
+  useMemo,
+  useCallback,
+  useTransition,
+  lazy,
+  Suspense,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+} from "react";
 import { useNavigate, useLoaderData, useRevalidator, useSearchParams, useNavigation } from "react-router";
 
 // Hooks
@@ -16,7 +26,7 @@ import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { ClinicScopeFilter } from "@/components/shared/ClinicScopeFilter/ClinicScopeFilter";
-import { ICON } from "@/lib/design-tokens";
+import { C, ICON, LAYOUT } from "@/lib/design-tokens";
 import { paths } from "@/config/paths";
 import { transformUpdatePetRequest } from "@/lib/transforms/pet";
 import { handleApiError } from "@/lib/handle-api-error";
@@ -65,6 +75,7 @@ function petToFormData(pet: Pet): PetFormData {
     neuteredDate: pet.neuteredDate || "",
     acquisitionType: (pet.acquisitionType as PetFormData["acquisitionType"]) || undefined,
     dangerLevel: (pet.dangerLevel as PetFormData["dangerLevel"]) || undefined,
+    dangerReason: pet.dangerReason || "",
     remarks: pet.remarks || "",
     breed: pet.breed,
     insuranceId: pet.insuranceId,
@@ -85,6 +96,12 @@ export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { canCreate, canEdit, canDelete } = usePermission("owners");
+  const canEditRef = useRef(canEdit);
+  const canDeleteRef = useRef(canDelete);
+  useLayoutEffect(() => {
+    canEditRef.current = canEdit;
+    canDeleteRef.current = canDelete;
+  }, [canDelete, canEdit]);
   // #158: レポート導線は medical-records:view でゲートする（カルテ内容を横断表示するため）
   const { canView: canReport } = usePermission(ResourceMedicalRecords);
   const revalidator = useRevalidator();
@@ -108,8 +125,15 @@ export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
   const [searchTerm, setSearchTerm] = useState(urlSearch);
 
   // #266: species フィルタは pets.animal_species_id（数値ID）契約のためマスタ取得が必要。
-  const { activeSpecies } = useAnimalSpecies();
-  const speciesFilterOptions = useMemo(() => buildSpeciesFilterOptions(activeSpecies), [activeSpecies]);
+  const {
+    activeSpecies,
+    isLoading: isSpeciesLoading,
+    isError: isSpeciesError,
+  } = useAnimalSpecies();
+  const speciesFilterOptions = useMemo(
+    () => isSpeciesError || isSpeciesLoading ? [] : buildSpeciesFilterOptions(activeSpecies),
+    [activeSpecies, isSpeciesError, isSpeciesLoading],
+  );
   const filterProperties = useMemo(() => buildOwnerFilterProperties(speciesFilterOptions), [speciesFilterOptions]);
 
   // rerender-derived-state-no-effect: activeFilters は URL(searchParams) からの純粋な派生値のため
@@ -194,16 +218,6 @@ export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
     openOwnerReport(ownerId, petId);
   }, []);
 
-  // 行クリック → 飼主編集・ペット一覧ページに遷移
-  // #86: 別医院の行は詳細 API が現在医院スコープで 404 になるため遷移させない（閲覧のみ）
-  const handleRowClick = useCallback((pet: Pet) => {
-    if (pet.clinicId && currentClinicId && pet.clinicId !== currentClinicId) {
-      toast.info("別医院のデータです。医院を切り替えると詳細を表示できます");
-      return;
-    }
-    navigate(paths.owners.detail.getHref(pet.ownerId));
-  }, [navigate, currentClinicId]);
-
   // rerender-dependencies: object 依存を避け stable な変数に抽出してから deps に渡す
   const petModalItem = petModal.item;
   const closePetModal = petModal.close;
@@ -227,10 +241,13 @@ export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
           neuteredDate: formData.neuteredDate,
           acquisitionType: formData.acquisitionType,
           dangerLevel: formData.dangerLevel,
-          status: formData.status === "死亡" ? "deceased" : "alive",
+          dangerReason: formData.dangerReason,
+          originalDangerReason: petModalItem.dangerReason,
+          // status は渡さない(BUG-415): transformUpdatePetRequest は status を無視する。
           insuranceId: formData.insuranceId,
           remarks: formData.remarks,
         });
+        if (canEditRef.current !== true) return;
         await onUpdatePet(petModalItem.id, req);
         toast.success("ペット情報を更新しました");
         closePetModal();
@@ -251,7 +268,7 @@ export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
   const closeDeleteModal = deleteModal.close;
 
   const handleConfirmDelete = useCallback(() => {
-    if (!pendingDeleteOwnerId) return;
+    if (canDeleteRef.current !== true || !pendingDeleteOwnerId) return;
 
     startDeleteTransition(async () => {
       try {
@@ -271,13 +288,13 @@ export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
       resource={ResourceOwners}
       headerAction={
         canCreate ? (
-          <PrimaryButton colorVariant="brand" onClick={handleCreate}>
+          <PrimaryButton colorVariant="primary" onClick={handleCreate}>
             <Plus className={`mr-1.5 ${ICON.action}`} />
             新規登録
           </PrimaryButton>
         ) : null
       }
-      maxWidth="max-w-full"
+      maxWidth={LAYOUT.pageContentMaxWidth.full}
     >
       {/* #86: 複数所属ユーザーのみ拠点横断フィルタを表示 */}
       {assignedClinics.length >= 2 ? (
@@ -288,6 +305,29 @@ export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
             onToggle={handleToggleClinic}
           />
         </div>
+      ) : null}
+      {isSpeciesError ? (
+        <p role="alert" aria-atomic="true" className={`mb-3 text-sm ${C.danger}`}>
+          動物種の取得に失敗しました。
+        </p>
+      ) : isSpeciesLoading ? (
+        <p
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
+          className={`mb-3 text-sm ${C.text50}`}
+        >
+          動物種を読み込み中です。
+        </p>
+      ) : activeSpecies.length === 0 ? (
+        <p
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
+          className={`mb-3 text-sm ${C.text50}`}
+        >
+          動物種マスタが登録されていません。
+        </p>
       ) : null}
       <OwnersListTable
         pets={pets}
@@ -304,7 +344,6 @@ export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
         currentClinicId={currentClinicId}
         onSearchChange={setSearchTerm}
         onFilterChange={handleFilterChange}
-        onRowClick={handleRowClick}
         onEdit={handleEdit}
         onDeleteRequest={handleDeleteRequest}
         onReport={handleReport}

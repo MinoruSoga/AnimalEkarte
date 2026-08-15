@@ -1,0 +1,24 @@
+{
+  "extends": "./tsconfig.json",
+  "include": [
+    "../../worker-configuration.d.ts",
+    "./runtime-augmentations.d.ts",
+    "./index.ts",
+    "./migrate-exec.ts",
+    "./migrate-exec.test.ts",
+    "./scheduled-handler.ts",
+    "./scheduled-handler.test.ts",
+    "./scheduled-jobs.ts",
+    "./scheduled-jobs.test.ts",
+    "./scheduler-access-auth.ts",
+    "./scheduler-alerts.test.ts",
+    "./scheduler-coordinator.ts",
+    "./scheduler-coordinator-records.ts",
+    "./scheduler-coordinator.test.ts",
+    "./scheduler-history.ts",
+    "./scheduler-manual-recovery.test.ts",
+    "./scheduler-rate-limit.ts",
+    "./scheduler-ops.ts",
+    "./scheduler-ops.test.ts"
+  ]
+}

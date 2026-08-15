@@ -1,15 +1,16 @@
 import { useMemo, useState, useCallback } from "react";
-import { useNavigate, useSearchParams } from "react-router";
+import { useSearchParams } from "react-router";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Pagination } from "@/components/shared/Pagination/Pagination";
+import { DataTableRowLink } from "@/components/shared/DataTable/DataTableRowLink";
 import { LoadingFallback, ErrorFallback, EmptyState } from "@/components/shared/DataStates";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { C, STYLE } from "@/lib/design-tokens";
 import { paths } from "@/config/paths";
-import { formatCurrency } from "@/utils/format/number";
+import { formatCurrency } from "@/lib/format/number";
 import { daysSince, currentJSTYearMonth } from "@/lib/jst-date";
 
 import {
@@ -22,7 +23,6 @@ import {
 type GroupBy = "owner" | "billing" | "monthly";
 
 export function UnpaidTab() {
-  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const rawGroupBy = searchParams.get("group_by");
@@ -169,7 +169,7 @@ export function UnpaidTab() {
       {groupBy !== "monthly" && summary ? (
         <div className={`rounded-lg border ${C.borderLight} p-4 ${C.bgWhite}`}>
           <p className={`text-xs ${C.text50} mb-1`}>売掛金総額</p>
-          <p className="text-2xl font-bold">{formatCurrency(summary.total_amount)}</p>
+          <p className="text-heading-3 font-bold">{formatCurrency(summary.total_amount)}</p>
           <p className={`text-xs ${C.text60} mt-1`}>
             {summary.billing_count}件 / {summary.owner_count}名
           </p>
@@ -218,12 +218,15 @@ export function UnpaidTab() {
               </TableHeader>
               <TableBody>
                 {ownerRows.map((row) => (
-                  <TableRow
-                    key={row.owner_id}
-                    className={`cursor-pointer ${STYLE.tableRowHover}`}
-                    onClick={() => navigate(paths.owners.detail.getHref(String(row.owner_id)))}
-                  >
-                    <TableCell className="font-medium">{row.owner_name}</TableCell>
+                  <TableRow key={row.owner_id} className={STYLE.tableRowHover}>
+                    <TableCell className="font-medium">
+                      <DataTableRowLink
+                        to={paths.owners.detail.getHref(String(row.owner_id))}
+                        aria-label={`飼主詳細: ${row.owner_name} (ID ${row.owner_id})`}
+                      >
+                        {row.owner_name}
+                      </DataTableRowLink>
+                    </TableCell>
                     <TableCell className="text-right">{row.count}</TableCell>
                     <TableCell className="text-right font-mono">
                       {formatCurrency(row.total_amount)}
@@ -259,18 +262,25 @@ export function UnpaidTab() {
               </TableHeader>
               <TableBody>
                 {(billingQuery.data?.data ?? []).map((b) => {
-                  const total = b.items.reduce((s, i) => s + i.subtotal + i.taxAmount, 0);
+                  // BUG-007: outstanding_amount を優先（クレジット訂正差額）。未設定時は明細合計へフォールバック。
+                  const unpaidAmount =
+                    (b.outstandingAmount ?? 0) > 0
+                      ? (b.outstandingAmount as number)
+                      : b.items.reduce((s: number, i: { subtotal: number; taxAmount: number }) => s + i.subtotal + i.taxAmount, 0);
                   return (
-                    <TableRow
-                      key={b.id}
-                      className={`cursor-pointer ${STYLE.tableRowHover}`}
-                      onClick={() => navigate(paths.accounting.detail.getHref(b.id))}
-                    >
-                      <TableCell className="font-medium">{b.ownerName}</TableCell>
+                    <TableRow key={b.id} className={STYLE.tableRowHover}>
+                      <TableCell className="font-medium">
+                        <DataTableRowLink
+                          to={paths.accounting.detail.getHref(b.id)}
+                          aria-label={`会計詳細: ${b.ownerName} / ${b.petName} (ID ${b.id})`}
+                        >
+                          {b.ownerName}
+                        </DataTableRowLink>
+                      </TableCell>
                       <TableCell>{b.petName}</TableCell>
                       <TableCell>{b.scheduledDate || "-"}</TableCell>
                       <TableCell className="text-right font-mono">
-                        {formatCurrency(total)}
+                        {formatCurrency(unpaidAmount)}
                       </TableCell>
                       <TableCell className="text-right">
                         {b.scheduledDate ? `${daysSince(b.scheduledDate, endDate)}日` : "-"}
@@ -302,12 +312,15 @@ export function UnpaidTab() {
               </TableHeader>
               <TableBody>
                 {monthlyRows.map((row) => (
-                  <TableRow
-                    key={`${row.owner_id}-${row.pet_id ?? "none"}`}
-                    className={`cursor-pointer ${STYLE.tableRowHover}`}
-                    onClick={() => navigate(paths.owners.detail.getHref(String(row.owner_id)))}
-                  >
-                    <TableCell className="font-medium">{row.owner_name}</TableCell>
+                  <TableRow key={`${row.owner_id}-${row.pet_id ?? "none"}`} className={STYLE.tableRowHover}>
+                    <TableCell className="font-medium">
+                      <DataTableRowLink
+                        to={paths.owners.detail.getHref(String(row.owner_id))}
+                        aria-label={`飼主詳細: ${row.owner_name} (ID ${row.owner_id})`}
+                      >
+                        {row.owner_name}
+                      </DataTableRowLink>
+                    </TableCell>
                     <TableCell>{row.pet_name || "-"}</TableCell>
                     <TableCell className="text-right font-mono">
                       {formatCurrency(row.prev_month_carryover)}
@@ -344,8 +357,8 @@ export function UnpaidTab() {
             startIndex={startIndex}
             endIndex={endIndex}
             onPageChange={setPage}
-            onPrev={() => setPage(Math.max(1, page - 1))}
-            onNext={() => setPage(Math.min(totalPages, page + 1))}
+            onPrev={() => setPage((currentPage) => Math.max(1, currentPage - 1))}
+            onNext={() => setPage((currentPage) => Math.min(totalPages, currentPage + 1))}
           />
         );
       })()}

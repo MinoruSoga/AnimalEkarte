@@ -39,7 +39,7 @@ const COLUMNS = [
 
 // ─── Page ───
 export function TrimmingCourseTypeSettings() {
-  usePermission(ResourceMasterTrimming);
+  const { canCreate, canEdit, canDelete } = usePermission(ResourceMasterTrimming);
   const { data } = useGetTrimmingCourseTypes();
   const createMutation = useCreateTrimmingCourseType();
   const updateMutation = useUpdateTrimmingCourseType();
@@ -51,6 +51,7 @@ export function TrimmingCourseTypeSettings() {
     deleteMutation,
     entityLabel: "コース種別",
     dirtyGuard: dirty,
+    permissions: { canDelete },
   });
   const handleDirtyChange = useCallback((d: boolean) => {
     if (d) dirty.markDirty();
@@ -69,6 +70,7 @@ export function TrimmingCourseTypeSettings() {
     validate: (d) => (!d.name.trim() ? "名称は必須です" : null),
     toCreateRequest: buildTrimmingCourseTypeCreateRequest,
     toUpdateRequest: buildTrimmingCourseTypeUpdateRequest,
+    permissions: { canCreate, canEdit },
   });
 
   return (
@@ -84,10 +86,17 @@ export function TrimmingCourseTypeSettings() {
       columns={COLUMNS}
       filterProperties={[MASTER_STATUS_FILTER]}
       renderRow={(item, onEdit, canEdit) => (
-        <DataTableRow key={item.id} onClick={canEdit ? () => onEdit(item) : undefined}>
-          <TableCell className={`font-medium text-base ${C.text}`}>{item.name}</TableCell>
+        <DataTableRow key={item.id}>
+          <TableCell className={`font-medium ${C.text}`}>{item.name}</TableCell>
           <TableCell className="text-center"><StatusPill isActive={item.isActive} /></TableCell>
-          <TableCell className="p-0 text-right">{canEdit ? <RowActionButton onClick={() => onEdit(item)} /> : null}</TableCell>
+          <TableCell className="text-right">
+            {canEdit ? (
+              <RowActionButton
+                onClick={() => onEdit(item)}
+                aria-label={`コース種別「${item.name}」(ID: ${item.id}) を編集`}
+              />
+            ) : null}
+          </TableCell>
         </DataTableRow>
       )}
       renderSidePanel={(props) => (

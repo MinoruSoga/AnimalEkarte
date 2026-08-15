@@ -41,24 +41,32 @@ docker compose exec db psql ...  # 直接 SQL 実行
 
 ## seed データは CSV が正、SQL は DDL のみ（2026-07 stub 削除 + 001 完全統合）
 
-`backend/migrations/` 直下の `.sql` は DDL 専用で、**統合スキーマ `001_init.sql` の 1 ファイルのみ**（2026-07-17 に upgrade path incremental 002–011 を 001 へ完全統合して削除済み）。fresh install はこの 1 ファイルで完結する。
+`backend/migrations/` 直下の `.sql` は DDL 専用。2026-07-27 に当時の incremental 002–009 を原文のまま `001_init.sql` 末尾へ統合し、同日夕に追加分の incremental 002–004（`002_pets_owners_clinic_composite_unique` / `003_add_pet_owners` / `004_add_exam_result_qualitative_bounds`）も同じ方式で統合して、直下 DDL を単一ファイルへ戻した。2026-07-29 にさらに incremental 002–007（`pets.version` / exam_results index / inventory quantity CHECK / payments.clinic_id+clinic軸複合FK / payment method system_key 一致トリガー / owners phone 部分 unique）をセクション9へ同様式で統合した。2026-07-31 に append-only だった incremental 002–006（LSTEP day unique / closing EXCLUDE / identity links / LINE bot user id / medical-record image upload quota）をセクション10へ同様式で統合し、直下 DDL を再び `001_init.sql` 単一ファイルへ戻した。今後スキーマ変更を追加する場合も、適用済みファイルの checksum を変える影響を先に評価する。
 
-現行ファイル構成（2026-07-17 時点）:
+直下 DDL の顔ぶれ・本数は固定ではない（増分の追加・`001_init.sql` への統合で変わる）。正の在庫は次の実測とする:
 
-1. `001_init.sql` — 統合スキーマ（108 テーブル + 全インデックス/複合FK/RLS。旧増分の原文は末尾セクション7に番号順追記）
-2. `seeds/{002_master,003_demo,004_staging}/` — CSV シードバンドル（`*.csv` + `manifest.json`。SQL ファイルではない）
+```bash
+ls backend/migrations/*.sql
+```
 
-旧 002/003/004 の seed stub SQL、旧インデックス増分（`002_add_checkup_vaccination_indexes.sql` 等）、旧 005–012、および 2026-07-17 朝に一時的に存在した upgrade path incremental（`002_checkup_field_clinic_composite_fk.sql` / `003`–`011`）は全て削除済み。
+seed 側の構成は `seeds/{002_master,003_demo,004_staging}/` — CSV シードバンドル（`*.csv` + `manifest.json`。SQL ファイルではない。`internal/seedbundle.BundleOrder` 固定順）。`001_init.sql` に取り込まれた旧増分の本文は、末尾の統合セクション（セクション8・9・10 等）に原文・元コミット・SHA-256 付きで残る。
 
-**no-reset アップグレード経路は存在しない**: 薄い/旧 `001_init.sql` が `schema_migrations` に記録済みの既存 DB（ローカル/STG/PROD）は、001 の checksum 変更により migrate が fail する。適用経路は `DB_RESET=true`（スキーマ再構築・USER 手動）のみ。
+旧 002/003/004 の seed stub SQL、旧インデックス増分（`002_add_checkup_vaccination_indexes.sql` 等）、旧 005–012、2026-07-17 朝に一時的に存在した upgrade path incremental（`002_checkup_field_clinic_composite_fk.sql` / `003`–`011`）、2026-07-22〜27に追加された旧 incremental 002–009、2026-07-27 夕に統合した `002_pets_owners_clinic_composite_unique.sql` / `003_add_pet_owners.sql` / `004_add_exam_result_qualitative_bounds.sql`、2026-07-29に統合した `002_add_pets_version.sql`〜`007_owners_clinic_phone_unique.sql`、および2026-07-31に統合した `002_lstep_delivery_trigger_log_daily_unique.sql`〜`006_medical_record_image_upload_quota.sql` は全て独立ファイルとしては削除済み（統合当時の事実）。それら統合済み本文の所在は `001_init.sql` の統合セクション。**直下の現行増分の在庫は `ls backend/migrations/*.sql` を正とする**（本節にファイル名・本数を列挙しない）。
 
-- **cmd/migrate は二段フェーズ構成**: ①直下の `*.sql`（DDL: 現状 `001_init.sql` のみ）を昇順適用 → ②`internal/seedbundle.BundleOrder`（`002_master → 003_demo → 004_staging`固定順）で CSV バンドルを pgx `COPY FROM STDIN` ロード（`backend/cmd/migrate/csvbundle.go`）。DDL 失敗時は seed フェーズへ進まない
-- **schema_migrations の記録キー**: DDL は従来通り各ファイル名。seed バンドルは `internal/seedbundle.BundleMigrationKey(bundleDir)` が返す `"seeds/<bundle>"`（例: `seeds/002_master`）— stub SQL ファイル名には二度と紐付かない。fresh DB 適用後の正しい終了状態は、**直下 DDL ファイル数 + seed 3 バンドル**（2026-07-17 時点は DDL 1 + seed 3 = 4 行）
+**統合前DBのno-resetアップグレード経路は存在しない**: 旧 `001_init.sql` が `schema_migrations` に記録済みの既存 DB（ローカル/STG/PROD）は、001 統合による checksum 変更で migrate が fail する。適用経路は `DB_RESET=true` のスキーマ再構築（USER手動）のみ。ローカルは `LOCAL_DB_RESET.md`、STGは明示承認後の再構築計画に従う。現行Cloudflare workflowに自動reset経路はない。
+
+- **cmd/migrate は二段フェーズ構成**: ①直下の `*.sql`（本数は固定ではない。検算: `ls backend/migrations/*.sql`）を昇順適用 → ②`internal/seedbundle.BundleOrderForEnv(APP_ENV)` が許可した順で CSV バンドルを pgx `COPY FROM STDIN` ロード（`backend/cmd/migrate/csvbundle.go`）。local/dev/testは3 bundle、staging/production/空/未知は`002_master`のみ。DDL 失敗時は seed フェーズへ進まない
+- 実行対象seedは `BundleOrderForEnv(APP_ENV)` が列挙する exact directoryだけ。`backend/migrations/seeds/_old_db_handoff/` はローカル保管用であり、`cmd/migrate` の入力bundleとして列挙しない
+- **schema_migrations の記録キー**: DDL は従来通りファイル名。seed バンドルは `internal/seedbundle.BundleMigrationKey(bundleDir)` が返す `"seeds/<bundle>"`（例: `seeds/002_master`）— stub SQL ファイル名には二度と紐付かない。fresh DB 適用後の正しい終了状態の行数は **直下 `*.sql` の本数 + `BundleOrderForEnv(APP_ENV)` が許可したseed数**。DDL 本数の検算は `ls backend/migrations/*.sql`
+- **両フェーズ後のキー突合（fail-closed）**: `cmd/migrate` は適用完了後に `Migration key coverage` 行を1行出す（`missing` / `extra` / `expected` / `recorded`）。`missing=0` なら期待キーは全て記録済み。欠落があれば非ゼロ終了する。`extra` は統合・削除でディスクから消えた履歴キーであり失敗にしない。再構築の成否は固定在庫数ではなくこのサマリー行で判定する
+- **空履歴 + 既存schemaはfail-closed**: `schema_migrations`が空で`clinics`が既に存在する場合、`guardEmptyMigrationHistory`はschema完全性を検証できないため起動を拒否する。現行DDL/seedのchecksumを適用済みとして記録するbaseline処理は存在しない。USER承認済みのreset/再構築を行い、通常のDDL・seed適用経路を完走させる
 - seed バンドルの checksum（`bundleChecksum`）は manifest.json + 全 CSV ファイルの内容を合成したもの。CSV だけの編集でも、既に適用済みの DB では通常の migration ファイル編集と同じ checksum mismatch ガードが働く
 - COPY はシーケンスを進めないため、テーブルロード後に自動 setval される（`advanceSerialSequence`）
-- **旧形式（stub SQL 時代）の seed キー**: `schema_migrations` に `002_seed_master.sql` 等の旧キーが残っている DB では `detectLegacySeedKeys` が現行の `seeds/<bundle>` キー全件を baseline 記録する（PR #186 P1-3 で fail-fast から translate 方式へ変更済み・CSV の再ロードはしない）。ただし DDL 側は上記の checksum mismatch により結局 `db_reset` が必要になる点は変わらない
+- **旧形式（stub SQL 時代）の seed キー**: `schema_migrations` に `002_seed_master.sql` 等の旧キーが残っている DB では、履歴が存在するため上記の空履歴ガードとは別に、`detectLegacySeedKeys` が旧stubと同等な `seeds/{002_master,003_demo,004_staging}` を現行キーへ翻訳して適用済み記録する（PR #186 P1-3 で fail-fast から translate 方式へ変更済み・CSV の再ロードはしない）。この翻訳はDDL側のchecksum検証を迂回せず、統合前001のchecksumを持つDBには上記のreset/再構築が必要
 - CSV の正データ生成経路は使い捨てDBダンプのみ: `docker compose exec backend go run ./cmd/seed-export`。SQL の静的パース/手編集による CSV 生成は禁止（ON CONFLICT の最終マージ状態・`random()` 依存データは静的パースでは再現できない）
+- `SEED_EXPORT_CSV_SOURCE` は旧7表adapterであり21表には使わない。現行 `cmd/seed-export` に21表handoff入力経路はない。21表CSVを `003_demo` へ直接コピーせず、専用adapter実装・検証までは `_old_db_handoff/` に隔離する
 - テーブル→バンドル割当は「最初に触れたファイル」基準（earliest-file-wins、`cmd/seed-export/tables.go` の `bundleTables`）で固定済み。新しいシードテーブルの追加は `cmd/seed-export` の再設計が必要
+- 実スタッフの氏名・email・password hashなどのPII/credential verifierをseedやGit履歴へ追加しない。スタッフ初期登録は、データ管理承認を得たsecret-managedな一回限りのimport経路で行う
 
 ## seed / migration 差し替え時の注意
 

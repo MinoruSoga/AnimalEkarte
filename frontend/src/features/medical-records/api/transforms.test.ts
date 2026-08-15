@@ -11,6 +11,8 @@ const minimal: BackendMedicalRecord = {
   record_no: "MR-001",
   date: "2026-03-25T00:00:00Z",
   status: "draft",
+  version: 1,
+  visit_count: 0,
   created_at: "2026-03-25T00:00:00Z",
   updated_at: "2026-03-25T00:00:00Z",
 };
@@ -37,13 +39,13 @@ describe("transformMedicalRecord", () => {
   });
 
   it("未知の status は '作成中' にフォールバックする", () => {
-    expect(transformMedicalRecord({ ...minimal, status: "unknown" as "draft" }).status).toBe("作成中");
+    expect(transformMedicalRecord({ ...minimal, status: "unknown" }).status).toBe("作成中");
   });
 
   it("owner.name を ownerName にマップする", () => {
     const result = transformMedicalRecord({
       ...minimal,
-      owner: { id: 20, clinic_id: 1, name: "田中太郎" } as BackendMedicalRecord["owner"],
+      owner: { id: 20, name: "田中太郎" },
     });
     expect(result.ownerName).toBe("田中太郎");
   });
@@ -51,15 +53,43 @@ describe("transformMedicalRecord", () => {
   it("pet.name を petName にマップする", () => {
     const result = transformMedicalRecord({
       ...minimal,
-      pet: { id: 10, clinic_id: 1, name: "ポチ" } as BackendMedicalRecord["pet"],
+      pet: { id: 10, name: "ポチ", pet_number: "P-1" },
     });
     expect(result.petName).toBe("ポチ");
+  });
+
+  it("pet.status=deceased は明示的な死亡状態へ正規化する", () => {
+    const result = transformMedicalRecord({
+      ...minimal,
+      pet: {
+        id: 10,
+        name: "ポチ",
+        pet_number: "P-1",
+        status: "deceased",
+      },
+    });
+    expect(result.petIsDeceased).toBe(true);
+  });
+
+  it("pet.status がaliveまたは未取得なら死亡扱いにしない", () => {
+    expect(
+      transformMedicalRecord({
+        ...minimal,
+        pet: {
+          id: 10,
+          name: "ポチ",
+          pet_number: "P-1",
+          status: "alive",
+        },
+      }).petIsDeceased
+    ).toBe(false);
+    expect(transformMedicalRecord({ ...minimal, pet: undefined }).petIsDeceased).toBe(false);
   });
 
   it("doctor.name を doctor にマップする", () => {
     const result = transformMedicalRecord({
       ...minimal,
-      doctor: { id: 3, clinic_id: 1, name: "山田医師" } as BackendMedicalRecord["doctor"],
+      doctor: { id: 3, name: "山田医師" },
     });
     expect(result.doctor).toBe("山田医師");
   });
@@ -88,73 +118,81 @@ describe("transformMedicalRecord", () => {
     expect(transformMedicalRecord({ ...minimal, accounting_id: undefined }).accountingId).toBeUndefined();
   });
 
-  it("clinical_plan の情報を objective/assessment/plan にマップする", () => {
-    const result = transformMedicalRecord({
-      ...minimal,
-      clinical_plan: {
-        physical_exam: "体重3kg",
-        diagnosis_details: "風邪",
-        treatment_policy: "安静",
-      } as BackendMedicalRecord["clinical_plan"],
-    });
-    expect(result.objective).toBe("体重3kg");
-    expect(result.assessment).toBe("風邪");
-    expect(result.plan).toBe("安静");
+  it("wire に clinical_plan が無いため objective/assessment/plan は undefined（clinical-plan API が正本）", () => {
+    const result = transformMedicalRecord(minimal);
+    expect(result.objective).toBeUndefined();
+    expect(result.assessment).toBeUndefined();
+    expect(result.plan).toBeUndefined();
   });
 
   it("inquiry.chief_complaint を chiefComplaint にマップする", () => {
     const result = transformMedicalRecord({
       ...minimal,
-      inquiry: { chief_complaint: "元気がない", notes: "" } as BackendMedicalRecord["inquiry"],
+      inquiry: { id: 1, chief_complaint: "元気がない" },
     });
     expect(result.chiefComplaint).toBe("元気がない");
   });
 
-  it("BUG-406 follow-up: inquiry.chief_complaint_type_id を chiefComplaintTypeId にマップする", () => {
+  it("InquirySummary wire に chief_complaint_type_id が無いため chiefComplaintTypeId は null", () => {
     const result = transformMedicalRecord({
       ...minimal,
-      inquiry: { chief_complaint: "", chief_complaint_type_id: 5, notes: "" } as BackendMedicalRecord["inquiry"],
-    });
-    expect(result.chiefComplaintTypeId).toBe(5);
-  });
-
-  it("BUG-406 follow-up: inquiry.chief_complaint_type_id が未設定のとき chiefComplaintTypeId は null", () => {
-    const result = transformMedicalRecord({
-      ...minimal,
-      inquiry: { chief_complaint: "", notes: "" } as BackendMedicalRecord["inquiry"],
+      inquiry: { id: 1, chief_complaint: "" },
     });
     expect(result.chiefComplaintTypeId).toBeNull();
+  });
+
+  it("wire に clinical_plan が無いため diagnosis*Id は null（clinical-plan API が正本）", () => {
+    const result = transformMedicalRecord(minimal);
+    expect(result.diagnosis1CategoryId).toBeNull();
+    expect(result.diagnosis1NameId).toBeNull();
+    expect(result.diagnosis2CategoryId).toBeNull();
+    expect(result.diagnosis2NameId).toBeNull();
   });
 
   it("visit_count をそのまま返す", () => {
     expect(transformMedicalRecord({ ...minimal, visit_count: 5 }).visitCount).toBe(5);
   });
 
-  it("version が未設定のとき 1 を返す", () => {
-    expect(transformMedicalRecord({ ...minimal, version: undefined }).version).toBe(1);
-  });
-
-  it("version が設定済みのときその値を返す", () => {
+  it("version を wire からそのまま返す（既定値フォールバック無し）", () => {
     expect(transformMedicalRecord({ ...minimal, version: 3 }).version).toBe(3);
+    expect(transformMedicalRecord({ ...minimal, version: 1 }).version).toBe(1);
   });
 
   it("pet.animal_species.name を species にマップする", () => {
     const result = transformMedicalRecord({
       ...minimal,
       pet: {
-        id: 10, clinic_id: 1, name: "ポチ",
-        animal_species: { id: 1, clinic_id: 1, name: "犬" },
-      } as BackendMedicalRecord["pet"],
+        id: 10,
+        name: "ポチ",
+        pet_number: "P-1",
+        animal_species: { id: 1, name: "犬" },
+      },
     });
     expect(result.species).toBe("犬");
   });
 
-  it("inquiry.notes を notes にマップする", () => {
+  it("inquiry.notes を notes にマップする（問診治療方針・BUG-034）", () => {
     const result = transformMedicalRecord({
       ...minimal,
-      inquiry: { chief_complaint: "", notes: "備考テキスト" } as BackendMedicalRecord["inquiry"],
+      inquiry: { id: 1, chief_complaint: "x", notes: "UAT再検証 治療方針" },
     });
-    expect(result.notes).toBe("備考テキスト");
+    expect(result.notes).toBe("UAT再検証 治療方針");
+  });
+
+  it("inquiry.notes が空のとき notes は undefined（DEFAULT 表示は form state）", () => {
+    const result = transformMedicalRecord({
+      ...minimal,
+      inquiry: { id: 1, chief_complaint: "x", notes: "" },
+    });
+    expect(result.notes).toBeUndefined();
+  });
+
+  it("inquiry 未設定のとき notes は undefined", () => {
+    const result = transformMedicalRecord({
+      ...minimal,
+      inquiry: undefined,
+    });
+    expect(result.notes).toBeUndefined();
   });
 });
 
@@ -162,7 +200,7 @@ describe("transformMedicalRecord", () => {
 // transformToHistoryItem
 // ─────────────────────────────────────────────────────────────
 describe("transformToHistoryItem", () => {
-  const minimal: BackendMedicalRecord = {
+  const minimalHistory: BackendMedicalRecord = {
     id: 1,
     clinic_id: 1,
     pet_id: 10,
@@ -171,86 +209,84 @@ describe("transformToHistoryItem", () => {
     record_no: "MR-001",
     date: "2026-03-25T00:00:00Z",
     status: "draft",
+    version: 1,
+    visit_count: 0,
     created_at: "2026-03-25T00:00:00Z",
     updated_at: "2026-03-25T00:00:00Z",
   };
 
   it("id を string に変換する", () => {
-    expect(transformToHistoryItem({ ...minimal, id: 42 }).id).toBe("42");
+    expect(transformToHistoryItem({ ...minimalHistory, id: 42 }).id).toBe("42");
   });
 
   it("doctor.name を author にマップする", () => {
     const result = transformToHistoryItem({
-      ...minimal,
-      doctor: { id: 3, clinic_id: 1, name: "山田医師" } as BackendMedicalRecord["doctor"],
+      ...minimalHistory,
+      doctor: { id: 3, name: "山田医師" },
     });
     expect(result.author).toBe("山田医師");
   });
 
   it("doctor が未設定のとき author は '-'", () => {
-    expect(transformToHistoryItem({ ...minimal, doctor: undefined }).author).toBe("-");
+    expect(transformToHistoryItem({ ...minimalHistory, doctor: undefined }).author).toBe("-");
   });
 
   it("status: finalized → type '確定済'", () => {
-    expect(transformToHistoryItem({ ...minimal, status: "finalized" }).type).toBe("確定済");
+    expect(transformToHistoryItem({ ...minimalHistory, status: "finalized" }).type).toBe("確定済");
   });
 
   it("status: draft → type '作成中'", () => {
-    expect(transformToHistoryItem({ ...minimal, status: "draft" }).type).toBe("作成中");
+    expect(transformToHistoryItem({ ...minimalHistory, status: "draft" }).type).toBe("作成中");
   });
 
-  it("chief_complaint と notes を改行で結合して content にする", () => {
+  it("chief_complaint を content にする（InquirySummary に notes は無い）", () => {
     const result = transformToHistoryItem({
-      ...minimal,
+      ...minimalHistory,
       inquiry: {
+        id: 1,
         chief_complaint: "元気がない",
-        notes: "食欲なし",
-      } as BackendMedicalRecord["inquiry"],
+      },
     });
-    expect(result.content).toBe("元気がない\n食欲なし");
+    expect(result.content).toBe("元気がない");
   });
 
-  it("chief_complaint のみのとき content は chief_complaint", () => {
+  it("chief_complaint がないとき content は '（記録なし）'", () => {
     const result = transformToHistoryItem({
-      ...minimal,
+      ...minimalHistory,
       inquiry: {
-        chief_complaint: "嘔吐",
-        notes: "",
-      } as BackendMedicalRecord["inquiry"],
-    });
-    expect(result.content).toBe("嘔吐");
-  });
-
-  it("chief_complaint も notes もないとき content は '（記録なし）'", () => {
-    const result = transformToHistoryItem({
-      ...minimal,
-      inquiry: { chief_complaint: "", notes: "" } as BackendMedicalRecord["inquiry"],
+        id: 1,
+        chief_complaint: "",
+      },
     });
     expect(result.content).toBe("（記録なし）");
   });
 
   it("inquiry が未設定のとき content は '（記録なし）'", () => {
-    expect(transformToHistoryItem({ ...minimal, inquiry: undefined }).content).toBe("（記録なし）");
+    expect(transformToHistoryItem({ ...minimalHistory, inquiry: undefined }).content).toBe(
+      "（記録なし）"
+    );
   });
 
   it("title は chief_complaint、なければ record_no", () => {
     expect(
       transformToHistoryItem({
-        ...minimal,
-        inquiry: { chief_complaint: "発熱", notes: "" } as BackendMedicalRecord["inquiry"],
+        ...minimalHistory,
+        inquiry: { id: 1, chief_complaint: "発熱" },
       }).title
     ).toBe("発熱");
 
     expect(
       transformToHistoryItem({
-        ...minimal,
-        inquiry: { chief_complaint: "", notes: "" } as BackendMedicalRecord["inquiry"],
+        ...minimalHistory,
+        inquiry: { id: 1, chief_complaint: "" },
       }).title
     ).toBe("MR-001");
   });
 
   it("date を YYYY/MM/DD 形式にフォーマットする", () => {
-    expect(transformToHistoryItem({ ...minimal, date: "2026-03-25T00:00:00Z" }).date).toBe("2026/03/25");
+    expect(transformToHistoryItem({ ...minimalHistory, date: "2026-03-25T00:00:00Z" }).date).toBe(
+      "2026/03/25"
+    );
   });
 });
 

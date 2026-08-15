@@ -4,7 +4,7 @@ import { createAuthedContext } from './helpers/context';
 import { MedicalRecordsPage } from './pages/medical-records-page';
 
 // E2E flow tests for clinical (medical records) pages.
-// Seed data: owner id=1 "林 文明", pet id=1 "Iris(イリス)", medical record id=91.
+// Demo seed: owner 「林\u3000文明」(ideographic space U+3000), pet Iris id=1000099.
 // admin@noavet.jp is system_admin with full access.
 
 test.describe('カルテ フロー E2E', () => {
@@ -57,7 +57,8 @@ test.describe('カルテ フロー E2E', () => {
       await expect(medical.listHeading()).toBeVisible();
       await expect(medical.firstRow()).toBeVisible({ timeout: 15000 });
 
-      await medical.firstRow().click();
+      // DataTableRow is non-interactive; navigation is via DataTableRowLink only.
+      await medical.firstDetailLink().click();
       await expect(medical.editHeading()).toBeVisible({ timeout: 15000 });
       await expect(page).toHaveURL(/\/medical-records\/\d+/);
     } finally {

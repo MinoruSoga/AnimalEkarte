@@ -11,27 +11,41 @@ import {
 
 export const operationsRoutes: RouteObject[] = [
   {
+    // Child-specific guards only (LINE residual FINAL R-06): parent must not AND HospitalSettings
+    // onto Analytics-only routes such as delivery-monitor / analytics.
     path: "/lstep",
-    element: (
-      <RequirePermission resource={ResourceHospitalSettings}>
-        <Outlet />
-      </RequirePermission>
-    ),
+    element: <Outlet />,
     errorElement: <RouteErrorBoundary />,
     children: [
       {
         path: "checkup-sync",
-        lazy: async () => {
-          const { CheckupSyncPage } = await import("@/features/lstep");
-          return { Component: CheckupSyncPage };
-        },
+        element: (
+          <RequirePermission resource={ResourceHospitalSettings}>
+            <Outlet />
+          </RequirePermission>
+        ),
+        children: [{
+          index: true,
+          lazy: async () => {
+            const { CheckupSyncPage } = await import("@/features/lstep");
+            return { Component: CheckupSyncPage };
+          },
+        }],
       },
       {
         path: "delivery-monitor",
-        lazy: async () => {
-          const { LstepDeliveryMonitorPage } = await import("@/features/lstep");
-          return { Component: LstepDeliveryMonitorPage };
-        },
+        element: (
+          <RequirePermission resource={ResourceLstepAnalytics}>
+            <Outlet />
+          </RequirePermission>
+        ),
+        children: [{
+          index: true,
+          lazy: async () => {
+            const { LstepDeliveryMonitorPage } = await import("@/features/lstep");
+            return { Component: LstepDeliveryMonitorPage };
+          },
+        }],
       },
       {
         path: "analytics",
@@ -140,5 +154,13 @@ export const operationsRoutes: RouteObject[] = [
         },
       },
     ],
+  },
+  {
+    path: "/identity-links",
+    errorElement: <RouteErrorBoundary />,
+    lazy: async () => {
+      const { IdentityLinksPage } = await import("@/features/identity-links");
+      return { Component: IdentityLinksPage };
+    },
   },
 ];

@@ -35,7 +35,45 @@
 ### 2. 日次報告書の出力
 レジ締め画面のプレビュー表示（未締め時）から、「印刷 / PDF出力」ボタンで A4 横形式の「レジ締めサマリー」を印刷・PDF保存できます（`PrintPortal` 基盤を再利用）。院内保管用や本部への提出資料として使用します。締め履歴の詳細ダイアログには印刷導線はありません。
 
+### 3. 部門×支払方法マトリクス（#247 / DEC-16⑥）
+- **金額基準**: 支払実額（割引適用後）。期間全体の payment 比率による擬似按分は行わない。
+- **配賦**: 会計（billing）単位で明細金額比例・最大剰余法によりカテゴリへ配賦。行合計=列合計=総計を円単位で保存する。
+- **返金**: 発生日（`refunded_at`）の負値としてマトリクスに載せる。
+- **件数**: 会計 distinct（payment split による二重計上なし）。`other` 行は DEC-40 の独立 distinct。
+- **支払方法列**: 医院 master の display_order。期間内にデータがある inactive / 削除済み / 不明 method は末尾表示。
+- **画面と印刷**: `UnifiedClosingSummaryTable` / `ClosePrintArea` は同一の配賦マトリクスを描画源とする。
+
+#### DEC-16⑥ 返金・総額契約（#247 review MEDIUM / W15）
+
+> ⑥#247 配賦契約: matrix 総額=支払実額基準（割引適用後・締め合計と一致）・割引は明細金額比例で配賦・返金は発生日の負値行・端数は最大剰余法で行合計=列合計=総計を円単位保存・「件数」=会計 distinct・支払方法列は医院 master 順で構築し期間内データを持つ無効/削除済み method は末尾表示。
+
+##### (a) 返金は発生日の負値行（pre-aggregation 禁止）
+
+| 項目 | 内容 |
+|:---|:---|
+| DEC 引用 | 返金は発生日の負値行 |
+| 実装 | `GetCategoryPaymentAllocationData` が `billing_refunds` を `refunded_at ∈ [periodStart, periodEnd)` で **行単位** 取得（`GROUP BY` / 期間内 net 合算なし）。`BuildAllocationBillings` が各返金を `Amount: -ref.Amount` の独立 `AllocationPayment` として `Payments` に append。`AllocateBillingPayments` は payment / 負値 refund を **1 行ずつ** 最大剰余法で配賦する。 |
+| 参照 | `backend/internal/billing/accounting_repository_reports_allocation.go`（refund SQL / `BuildAllocationBillings`）、`allocation.go`（`AllocateBillingPayments` / `AggregateCategoryPaymentMatrix`） |
+| 判定 | **match** — 同一 billing×method に支払と返金が同居しても、支払へ事前相殺（pre-net）してから配賦しない。親会計が期間外完了でも `RefundParentWeights` でカテゴリ重みだけ補い、返金は発生日の負値行のまま。billing 単位の 1 allocation pass は可（負値行セマンティクスを壊さない）。 |
+| 回帰 | `TestBuildAllocationBillings_RefundsRemainSeparateNegativeRows`、`TestAllocateBillingPayments_RefundNegative`、`TestBuildAllocationBillings_Conservation` |
+
+##### (b) matrix 総額 = 締め合計（KPI NetAmount との二重定義）
+
+| 定義 | 算式 | 用途 |
+|:---|:---|:---|
+| **締め合計 / matrix grand（DEC-16⑥）** | `Σ payment_splits(completed_at ∈ 期間)` − `Σ billing_refunds(refunded_at ∈ 期間)` | レジ締めプレビューの部門×支払マトリクス、締め snapshot の `category_breakdown`、月次 `category_payment_matrix.totals.grand_total`。close / monthly は同一 helper（`GetCategoryPaymentAllocationData` → `BuildAllocationBillings` → `AggregateCategoryPaymentMatrix`）。 |
+| **KPI NetAmount（完了会計帰属の返金）** | `Σ payment_splits(completed_at ∈ 期間)` − `Σ refunds(親 billing.completed_at ∈ 期間)` | 月次 `summary.net_amount`（`MonthlyReportResult.GrandTotal`）、`GetCloseAggregate.TotalRefund` 経由の理論現金控除。`sumRefundsForCompletedBillings` / close Query3。 |
+
+| 項目 | 内容 |
+|:---|:---|
+| DEC 引用 | matrix 総額=支払実額基準（割引適用後・締め合計と一致） |
+| 実装 | matrix grand は上記「締め合計」定義そのもの。支払は割引適用後の `payment_splits.amount`（税・保険・会計割引は支払実額側に折り込み済み）。行合計=列合計=総計は最大剰余法で円単位保存。 |
+| 判定 | **match（matrix == 締め合計）**。同一期間・同一 clinic では close マトリクス総額と monthly `category_payment_matrix.totals.grand_total` が一致する。 |
+| KPI との差 | 返金発生日 ≠ 親会計完了日のとき、`summary.net_amount` / `TotalRefund`（完了会計帰属）と matrix grand（発生日帰属）は **意図的に不一致** になり得る。DEC-16⑥ が正とするのは matrix / 締め合計側。KPI 側は「完了会計に紐づく返金」のレガシー集計であり、matrix を KPI に合わせて書き換えない。 |
+| 回帰 | `TestBuildAllocationBillings_Conservation`、`TestBuildAllocationBillings_MatrixGrandEqualsOccurrenceNetNotCompletedAttachedKPI`、`TestAggregateCategoryPaymentMatrix_MultiBillingConservation` |
+
 ---
+
 
 ## 技術仕様
 

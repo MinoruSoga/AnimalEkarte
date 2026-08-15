@@ -25,7 +25,7 @@ export const InlineSelector = memo(function InlineSelector({
       <PopoverTrigger asChild>
         <button
           type="button"
-          className={`flex items-center gap-1 px-2 py-1 text-base ${C.text} ${C.bgMutedBadge} ${C.hoverBgMutedBadge} rounded-[3px] transition-colors whitespace-nowrap max-w-[200px] truncate`}
+          className={`flex items-center gap-1 px-2 py-1 text-base ${C.text} ${C.bgMutedBadge} ${C.hoverBgMutedBadge} rounded-xxs transition-colors whitespace-nowrap max-w-[200px] truncate`}
         >
           <span className="truncate">{label}</span>
           <ChevronDown className={`${ICON.page} shrink-0 opacity-50`} />

@@ -10,7 +10,7 @@ interface DataTableColumn {
 }
 
 export const DIAGNOSIS_TYPE_COLUMNS: DataTableColumn[] = [
-  { header: "", className: "w-[32px]" },
+  { header: "", className: "w-11 px-0" },
   { header: "カテゴリ名" },
   { header: "備考", className: "w-[240px]" },
   { header: "ステータス", className: "w-[100px]", align: "center" },
@@ -18,7 +18,7 @@ export const DIAGNOSIS_TYPE_COLUMNS: DataTableColumn[] = [
 ];
 
 export const DIAGNOSIS_NAME_COLUMNS: DataTableColumn[] = [
-  { header: "", className: "w-[32px]" },
+  { header: "", className: "w-11 px-0" },
   { header: "所属カテゴリ", className: "w-[160px]" },
   { header: "診断病名" },
   { header: "ステータス", className: "w-[100px]", align: "center" },

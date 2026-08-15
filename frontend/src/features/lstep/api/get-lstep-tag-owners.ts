@@ -1,7 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { requireStoredClinicId } from "@/lib/current-clinic";
-import { HISTORY_FETCH_LIMIT } from "@/config/fetch-limits";
 import { queryKeys } from "@/lib/query-keys";
 
 export interface LstepTagOwner {
@@ -40,26 +39,15 @@ export function useGetLstepTagOwners(params: LstepTagOwnersParams) {
   });
 }
 
-// GET /api/clinics/:clinic_id/lstep/owners（全ページを逐次取得。CSV出力用）
-export async function fetchAllLstepTagOwners(
-  tagName: string,
-  ownerCount: number
-): Promise<LstepTagOwner[]> {
+// GET /api/clinics/:clinic_id/lstep/owners?format=csv
+export async function fetchLstepTagOwnersCsv(tagName: string): Promise<Blob> {
   const clinicId = requireStoredClinicId();
-  const perPage = HISTORY_FETCH_LIMIT;
-  const totalPages = Math.max(1, Math.ceil(ownerCount / perPage));
-  const owners: LstepTagOwner[] = [];
-
-  for (let page = 1; page <= totalPages; page += 1) {
-    const { data } = await axios.get<LstepTagOwnersResponse>(
-      `/v1/clinics/${clinicId}/lstep/owners`,
-      { params: { tag: tagName, page, per_page: perPage } }
-    );
-    owners.push(...data.owners);
-    if (owners.length >= data.total || data.owners.length === 0) {
-      break;
-    }
-  }
-
-  return owners;
+  const { data } = await axios.get<Blob>(
+    `/v1/clinics/${clinicId}/lstep/owners`,
+    {
+      params: { tag: tagName, format: "csv" },
+      responseType: "blob",
+    },
+  );
+  return data;
 }

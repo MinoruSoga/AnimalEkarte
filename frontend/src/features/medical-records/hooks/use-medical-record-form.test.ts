@@ -1,11 +1,15 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
+import { http, HttpResponse } from "msw";
+import { AxiosError, AxiosHeaders, type InternalAxiosRequestConfig } from "axios";
 import { useMedicalRecordForm } from "./use-medical-record-form";
 import { useGetPet } from "@/hooks/use-pet";
 import { useGetOwner } from "@/hooks/use-owner";
 import { useGetReservationTypesGrouped } from "@/hooks/use-reservation-types";
 import { useCreateReservation } from "@/hooks/use-create-reservation";
 import { useGetReservations } from "@/hooks/use-get-reservations";
+import { server } from "@/testing/mocks/node";
+import { createTestWrapper } from "@/testing/utils";
 
 // ──────────────────────────────────────────────────────────
 // モック定義
@@ -27,9 +31,13 @@ vi.mock("react-router", () => ({
   useLocation: () => ({ pathname: "/medical-records/10", search: "", state: mockLocationState }),
 }));
 
-vi.mock("@tanstack/react-query", () => ({
-  useQueryClient: () => ({ invalidateQueries: vi.fn() }),
-}));
+vi.mock("@tanstack/react-query", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@tanstack/react-query")>();
+  return {
+    ...actual,
+    useQueryClient: () => ({ invalidateQueries: vi.fn() }),
+  };
+});
 
 vi.mock("sonner", () => ({ toast: { error: vi.fn(), success: vi.fn(), info: vi.fn() } }));
 vi.mock("@/lib/handle-api-error", () => ({ handleApiError: vi.fn() }));
@@ -41,7 +49,10 @@ vi.mock("@/hooks/use-permission", () => ({
 const noData = { data: undefined, isLoading: false, isError: false };
 const noMutation = { mutateAsync: vi.fn().mockResolvedValue({}), isPending: false };
 
-vi.mock("@/hooks/use-pet", () => ({ useGetPet: vi.fn(() => ({ data: undefined, isLoading: false, isError: false })) }));
+vi.mock("@/hooks/use-pet", () => ({
+  useGetPet: vi.fn(() => ({ data: undefined, isLoading: false, isError: false })),
+  useGetPets: vi.fn(() => ({ data: [], isLoading: false, isError: false })),
+}));
 vi.mock("@/hooks/use-owner", () => ({ useGetOwner: vi.fn(() => noData) }));
 const mockUseGetMedicalRecord = vi.fn(() => noData);
 vi.mock("../api/get-medical-record", () => ({ useGetMedicalRecord: (...args: unknown[]) => mockUseGetMedicalRecord(...args) }));
@@ -54,7 +65,12 @@ vi.mock("@/hooks/use-get-reservations", () => ({
 }));
 vi.mock("../api/update-medical-record", () => ({ useUpdateMedicalRecord: () => noMutation }));
 vi.mock("../api/inquiries", () => ({ useUpdateInquiry: () => noMutation }));
-vi.mock("../api/clinical-plan", () => ({ useUpdateClinicalPlan: () => noMutation }));
+// BUG-416③: useGetClinicalPlan は clinical_plan の version（楽観ロック用）取得元。
+const mockUseGetClinicalPlan = vi.fn(() => noData);
+vi.mock("../api/clinical-plan", () => ({
+  useUpdateClinicalPlan: () => noMutation,
+  useGetClinicalPlan: (...args: unknown[]) => mockUseGetClinicalPlan(...args),
+}));
 vi.mock("@/hooks/use-reservation-types", () => ({
   useGetReservationTypesGrouped: vi.fn(() => ({
     data: [
@@ -83,12 +99,39 @@ vi.mock("@/hooks/use-reservation-types", () => ({
 // テスト
 // ──────────────────────────────────────────────────────────
 
+describe("useGetPets enabled guard", () => {
+  it.each([
+    ["undefined", undefined],
+    ["空文字", ""],
+  ])("ownerId が%sで enabled=false のときAPIリクエストを発行しない", async (_label, ownerId) => {
+    let requestCount = 0;
+    server.use(
+      http.get("/api/v1/pets", () => {
+        requestCount += 1;
+        return HttpResponse.json({ data: [] });
+      }),
+    );
+    const { useGetPets: useActualGetPets } = await vi.importActual<
+      typeof import("@/hooks/use-pet")
+    >("@/hooks/use-pet");
+
+    const { result } = renderHook(
+      () => useActualGetPets(ownerId, {}, { enabled: false }),
+      { wrapper: createTestWrapper() },
+    );
+
+    await waitFor(() => expect(result.current.fetchStatus).toBe("idle"));
+    expect(requestCount).toBe(0);
+  });
+});
+
 describe("useMedicalRecordForm", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockSearchParams = new URLSearchParams();
     mockLocationState = null;
     mockUseGetMedicalRecord.mockReturnValue(noData);
+    mockUseGetClinicalPlan.mockReturnValue(noData);
     // デフォルト: pet データなし
     vi.mocked(useGetPet).mockReturnValue({ data: undefined, isLoading: false, isError: false });
     // デフォルト: owner データなし
@@ -249,6 +292,132 @@ describe("useMedicalRecordForm", () => {
       await waitFor(() => {
         expect(result.current.chiefComplaintTypeId).toBe(5);
       });
+    });
+
+    it("BUG-410: 既存レコードに diagnosis1/2 の category/name ID がある場合、state に反映される（未反映だと編集保存で無言クリアされる）", async () => {
+      const loadedRecord = {
+        data: {
+          id: "10",
+          visitType: "再診",
+          chiefComplaint: "",
+          plan: "",
+          assessment: "",
+          notes: "",
+          version: 1,
+          diagnosis1CategoryId: 3,
+          diagnosis1NameId: 7,
+          diagnosis2CategoryId: 4,
+          diagnosis2NameId: 9,
+        },
+        isLoading: false,
+        isError: false,
+      };
+      mockUseGetMedicalRecord.mockReturnValue({ data: undefined, isLoading: true, isError: false });
+      const { result, rerender } = renderHook(() => useMedicalRecordForm("10"));
+
+      mockUseGetMedicalRecord.mockReturnValue(loadedRecord as never);
+      rerender();
+
+      await waitFor(() => {
+        expect(result.current.diagnosis1CategoryId).toBe(3);
+        expect(result.current.diagnosis1NameId).toBe(7);
+        expect(result.current.diagnosis2CategoryId).toBe(4);
+        expect(result.current.diagnosis2NameId).toBe(9);
+      });
+    });
+
+    // react-reviewer 指摘: TanStack Query のウォームキャッシュ（staleTime=5分、
+    // QUERY_STALE_TIMES.MEDIUM）により、同一カルテを短時間内に再訪問すると
+    // useGetMedicalRecord は「ローディング→到着」ではなく初回レンダーから
+    // 既に data を返す。この場合 useState(existingRecord) で初期化される
+    // prevExistingRecord が existingRecord と同一参照になり、hydrate が
+    // 一度も発火しない可能性がある（render-phase setState の既知の穴）。
+    it("BUG-410: ウォームキャッシュ（初回レンダーから既に既存レコードを保持）でも diagnosis1/2 が state に反映される", async () => {
+      const loadedRecord = {
+        data: {
+          id: "10",
+          visitType: "再診",
+          chiefComplaint: "",
+          plan: "",
+          assessment: "",
+          notes: "",
+          version: 1,
+          diagnosis1CategoryId: 3,
+          diagnosis1NameId: 7,
+          diagnosis2CategoryId: 4,
+          diagnosis2NameId: 9,
+        },
+        isLoading: false,
+        isError: false,
+      };
+      // ローディング状態を経由せず、初回レンダーから既にデータ到着済みにする
+      // （TanStack Query のウォームキャッシュ相当）。
+      mockUseGetMedicalRecord.mockReturnValue(loadedRecord as never);
+      const { result } = renderHook(() => useMedicalRecordForm("10"));
+
+      await waitFor(() => {
+        expect(result.current.diagnosis1CategoryId).toBe(3);
+        expect(result.current.diagnosis1NameId).toBe(7);
+        expect(result.current.diagnosis2CategoryId).toBe(4);
+        expect(result.current.diagnosis2NameId).toBe(9);
+      });
+    });
+
+    // BUG-034: 問診「治療方針」は inquiry.notes → treatmentPolicy。
+    // detail wire で notes が落ちると再読込後 DEFAULT「# 治療方針」に戻る。
+    it("BUG-034: 既存レコード notes を treatmentPolicy に hydrate する（確定後再読込でも保持）", async () => {
+      const loadedRecord = {
+        data: {
+          id: "1425558",
+          visitType: "再診",
+          chiefComplaint: "UAT再検証 主訴",
+          plan: "",
+          assessment: "",
+          notes: "UAT再検証 治療方針",
+          version: 2,
+          status: "確定済",
+        },
+        isLoading: false,
+        isError: false,
+      };
+      mockUseGetMedicalRecord.mockReturnValue({ data: undefined, isLoading: true, isError: false });
+      const { result, rerender } = renderHook(() => useMedicalRecordForm("1425558"));
+
+      mockUseGetMedicalRecord.mockReturnValue(loadedRecord as never);
+      rerender();
+
+      await waitFor(() => {
+        expect(result.current.chiefComplaint).toBe("UAT再検証 主訴");
+        expect(result.current.treatmentPolicy).toBe("UAT再検証 治療方針");
+      });
+    });
+
+    it("BUG-034: notes が空のとき treatmentPolicy は DEFAULT のまま（clinical_plan.plan と混同しない）", async () => {
+      const loadedRecord = {
+        data: {
+          id: "10",
+          chiefComplaint: "主訴のみ",
+          plan: "診察タブ側の治療方針テキスト",
+          assessment: "",
+          notes: "",
+          version: 1,
+        },
+        isLoading: false,
+        isError: false,
+      };
+      mockUseGetMedicalRecord.mockReturnValue({ data: undefined, isLoading: true, isError: false });
+      const { result, rerender } = renderHook(() => useMedicalRecordForm("10"));
+
+      mockUseGetMedicalRecord.mockReturnValue(loadedRecord as never);
+      rerender();
+
+      await waitFor(() => {
+        expect(result.current.chiefComplaint).toBe("主訴のみ");
+      });
+      // notes が空なので setTreatmentPolicy は呼ばれず DEFAULT のまま
+      expect(result.current.treatmentPolicy).toBe("# 治療方針");
+      // medical-record wire の plan は clinical_plan 正本ではない（useApply は truthy plan を setPlan）
+      expect(result.current.plan).toBe("診察タブ側の治療方針テキスト");
     });
   });
 
@@ -492,6 +661,127 @@ describe("useMedicalRecordForm", () => {
       });
       expect(result.current.pendingOwnerChange).toBeNull();
       expect(noMutation.mutateAsync).toHaveBeenCalled();
+    });
+  });
+
+  // ──────────────────────────
+  // BUG-017: missing chart ID read gate
+  // ──────────────────────────
+  describe("BUG-017: 存在しないカルテIDの read gate", () => {
+    function axiosError(status: number | undefined) {
+      const config = { headers: new AxiosHeaders() } as InternalAxiosRequestConfig;
+      if (status === undefined) {
+        return new AxiosError("Network Error", AxiosError.ERR_NETWORK, config, undefined, undefined);
+      }
+      return new AxiosError(
+        "request failed",
+        AxiosError.ERR_BAD_RESPONSE,
+        config,
+        undefined,
+        {
+          config,
+          data: { error: "not found" },
+          headers: new AxiosHeaders(),
+          status,
+          statusText: "Error",
+        },
+      );
+    }
+
+    it("loading → isReadLoading、notFound ではない", () => {
+      mockUseGetMedicalRecord.mockReturnValue({
+        data: undefined,
+        isLoading: true,
+        isError: false,
+        error: null,
+        refetch: vi.fn(),
+      } as never);
+      const { result } = renderHook(() => useMedicalRecordForm("999999999"));
+      expect(result.current.isReadLoading).toBe(true);
+      expect(result.current.isReadNotFound).toBe(false);
+      expect(result.current.notFound).toBe(false);
+      expect(result.current.isReadError).toBe(false);
+    });
+
+    it("404 → isReadNotFound / notFound", () => {
+      mockUseGetMedicalRecord.mockReturnValue({
+        data: undefined,
+        isLoading: false,
+        isError: true,
+        error: axiosError(404),
+        refetch: vi.fn(),
+      } as never);
+      const { result } = renderHook(() => useMedicalRecordForm("999999999"));
+      expect(result.current.isReadNotFound).toBe(true);
+      expect(result.current.notFound).toBe(true);
+      expect(result.current.isReadError).toBe(false);
+      expect(result.current.isReadLoading).toBe(false);
+    });
+
+    it("403 → 404 と同一の非開示 (isReadNotFound)", () => {
+      mockUseGetMedicalRecord.mockReturnValue({
+        data: undefined,
+        isLoading: false,
+        isError: true,
+        error: axiosError(403),
+        refetch: vi.fn(),
+      } as never);
+      const { result } = renderHook(() => useMedicalRecordForm("42"));
+      expect(result.current.isReadNotFound).toBe(true);
+      expect(result.current.notFound).toBe(true);
+      expect(result.current.isReadError).toBe(false);
+    });
+
+    it("network error → isReadError + retry、404 へ偽装しない", () => {
+      const refetch = vi.fn();
+      mockUseGetMedicalRecord.mockReturnValue({
+        data: undefined,
+        isLoading: false,
+        isError: true,
+        error: axiosError(undefined),
+        refetch,
+      } as never);
+      const { result } = renderHook(() => useMedicalRecordForm("999"));
+      expect(result.current.isReadError).toBe(true);
+      expect(result.current.isReadNotFound).toBe(false);
+      expect(result.current.notFound).toBe(false);
+      expect(result.current.retryRead).toBeTypeOf("function");
+      result.current.retryRead?.();
+      expect(refetch).toHaveBeenCalledTimes(1);
+    });
+
+    it("settled で data なし（isError=false）→ notFound（空白にしない）", () => {
+      mockUseGetMedicalRecord.mockReturnValue({
+        data: undefined,
+        isLoading: false,
+        isError: false,
+        error: null,
+        refetch: vi.fn(),
+      } as never);
+      const { result } = renderHook(() => useMedicalRecordForm("999999999"));
+      expect(result.current.isReadNotFound).toBe(true);
+      expect(result.current.notFound).toBe(true);
+    });
+
+    it("found → notFound ではない", () => {
+      mockUseGetMedicalRecord.mockReturnValue({
+        data: {
+          id: "10",
+          petId: "pet-1",
+          visitType: "再診",
+          status: "作成中",
+          version: 1,
+        },
+        isLoading: false,
+        isError: false,
+        error: null,
+        refetch: vi.fn(),
+      } as never);
+      const { result } = renderHook(() => useMedicalRecordForm("10"));
+      expect(result.current.isReadNotFound).toBe(false);
+      expect(result.current.notFound).toBe(false);
+      expect(result.current.isReadLoading).toBe(false);
+      expect(result.current.isReadError).toBe(false);
     });
   });
 });

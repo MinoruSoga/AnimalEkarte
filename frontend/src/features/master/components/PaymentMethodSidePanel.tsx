@@ -3,6 +3,7 @@ import { CreditCard } from "lucide-react";
 
 import { MasterSidePanel, StatusToggleButton } from "@/components/shared/SidePeek";
 import { LAYOUT } from "@/lib/design-tokens";
+import { handleApiError } from "@/lib/handle-api-error";
 
 import type { PaymentMethod } from "../api/payment-method-master";
 import {
@@ -13,7 +14,8 @@ import {
 interface PaymentMethodSidePanelProps {
   item: PaymentMethod | null;
   onClose: () => void;
-  onSave: (data: PaymentMethodFormData) => void;
+  /** Returns true only when mutation succeeded (BUG-029: keep dirty on fail). */
+  onSave: (data: PaymentMethodFormData) => Promise<boolean> | boolean;
   onDeleteRequest?: (item: PaymentMethod) => void;
   readOnly?: boolean;
   onDirtyChange?: (dirty: boolean) => void;
@@ -49,15 +51,22 @@ export const PaymentMethodSidePanel = memo(function PaymentMethodSidePanel({
     setFormDataDirty((prev) => ({ ...prev, isActive: !prev.isActive }));
   }, [setFormDataDirty]);
 
-  const handleAction = useCallback(() => {
+  const handleAction = useCallback(async () => {
     if (!formData.name.trim()) {
       setNameError("名称を入力してください");
       return;
     }
     setNameError("");
-    onSave(formData);
-    setIsDirty(false);
-  }, [formData, onSave]);
+    try {
+      const saved = await onSave(formData);
+      if (saved) {
+        setIsDirty(false);
+        onDirtyChange?.(false);
+      }
+    } catch (error) {
+      handleApiError(error, "保存");
+    }
+  }, [formData, onDirtyChange, onSave]);
 
   const handleClose = useCallback(() => {
     setIsDirty(false);
@@ -70,7 +79,7 @@ export const PaymentMethodSidePanel = memo(function PaymentMethodSidePanel({
       title={formData.name}
       onTitleChange={handleTitleChange}
       onClose={handleClose}
-      action={handleAction}
+      action={readOnly ? undefined : handleAction}
       onDelete={item !== null && onDeleteRequest ? () => onDeleteRequest(item) : undefined}
       icon={<CreditCard className={LAYOUT.pageIcon.innerIcon} />}
       isDirty={isDirty}

@@ -28,6 +28,9 @@ frontend/coverage/
 frontend/test-results/
 frontend/playwright-report/
 frontend/debug_*.png
+# Playwright MCP のブラウザQA成果物（console ログ・page snapshot yml）。
+# curated な証跡は tmp/ 配下（同じく ignore 済み）へ置く運用のため commit しない。
+.playwright-mcp/
 
 # Backend coverage artifacts (CI generates these; non-gating)
 backend/coverage.out
@@ -40,6 +43,10 @@ backend/coverage-summary.txt
 # Local data dumps
 prodData/
 cookies.txt
+
+# Local DB reset recovery snapshots (owner-only pg_dumpall under umask 077).
+# Created by scripts/local-db-reset-contract.sh / make reset — never commit.
+.local-db-backups/
 
 # IDE
 .idea/
@@ -59,11 +66,15 @@ npm-debug.log*
 backend/tmp/
 backend/uploads/
 # Compiled cmd binaries: consolidated into backend/.gitignore (/migrate, /seed-old-db,
-# /stage-import, /lstep-migrate) to avoid drift between root and backend/ ignore lists.
+# /lstep-migrate) to avoid drift between root and backend/ ignore lists.
 
 # Terraform
 *.tfplan
 tfplan
+# Retired AWS Terraform paths may still contain local state, providers, and
+# tfvars after the tracked IaC is removed. Never surface or recommit them.
+infra/terraform/
+infra/terraform-bootstrap/
 
 # Docker
 postgres_data/
@@ -121,3 +132,5 @@ sensitive-local/
 # 監査レポート（秘密の抜粋を含みうるローカル作業ファイル。git外に保つ）
 improvement.html
 improvement_ai.html
+# Added by code-review-graph
+.code-review-graph/

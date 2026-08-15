@@ -1,15 +1,14 @@
 import { memo } from "react";
 import ChevronRight from "lucide-react/dist/esm/icons/chevron-right";
 import GripVertical from "lucide-react/dist/esm/icons/grip-vertical";
-import Maximize2 from "lucide-react/dist/esm/icons/maximize-2";
-import MoreHorizontal from "lucide-react/dist/esm/icons/more-horizontal";
 import Plus from "lucide-react/dist/esm/icons/plus";
+import { DataTableRowButton } from "@/components/shared/DataTable/DataTableRowButton";
+import { RowActionButton } from "@/components/shared/RowActionButton";
 import { SortableDataTableRow } from "@/components/shared/DataTable/SortableDataTableRow";
 import { StatusPill } from "@/components/shared/StatusPill/StatusPill";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
-import { formatCurrencyOrDash } from "@/utils/format/number";
+import { formatCurrencyOrDash } from "@/lib/format/number";
 import type { Medicine } from "@/types";
 
 const DOSAGE_FORM_LABELS: Record<string, string> = {
@@ -51,22 +50,17 @@ export const MedicineCategoryHeaderRow = memo(function MedicineCategoryHeaderRow
   onCreate,
 }: MedicineCategoryHeaderRowProps) {
   return (
-    <TableRow
-      onClick={() => onEdit(header)}
-      className={`${STYLE.tableRow} border-b ${C.borderLight} ${C.bgPage30} group/header ${C.hoverBgPage60}`}
-    >
-      <TableCell className="w-8 px-0 py-0">
-        <button
-          type="button"
-          tabIndex={-1}
-          onClick={(event) => event.stopPropagation()}
+    <TableRow className={`${STYLE.tableRow} border-b ${C.borderLight} ${C.bgPage30} group/header ${C.hoverBgPage60}`}>
+      <TableCell className="w-11 px-0">
+        <span
+          aria-hidden="true"
           className={`${STYLE.iconBtn32} ${C.text20} ${C.hoverBgMedium} ${C.hoverText60} cursor-grab`}
         >
           <GripVertical className={ICON.action} />
-        </button>
+        </span>
       </TableCell>
 
-      <TableCell className="py-0 pl-0 pr-2">
+      <TableCell className="pl-0 pr-2">
         <div className="flex items-center">
           <button
             type="button"
@@ -74,7 +68,7 @@ export const MedicineCategoryHeaderRow = memo(function MedicineCategoryHeaderRow
               event.stopPropagation();
               onToggleGroup(parentId);
             }}
-            className={`flex items-center gap-1.5 py-1.5 px-1 ${C.hoverBgLight} rounded-[3px] transition-colors`}
+            className={`flex min-h-11 min-w-11 items-center gap-1.5 py-1.5 px-1 ${C.hoverBgLight} rounded-xxs transition-colors`}
           >
             <ChevronRight
               className={`${ICON.xs} ${C.text50} transition-transform duration-150 ${
@@ -90,8 +84,8 @@ export const MedicineCategoryHeaderRow = memo(function MedicineCategoryHeaderRow
           {canCreate ? (
             <button
               type="button"
-              onClick={(event) => {
-                event.stopPropagation();
+              aria-label={`追加: 薬剤カテゴリ ${header.name} (ID ${header.id})`}
+              onClick={() => {
                 onCreate(parentId);
               }}
               className={`${STYLE.iconBtn32} ${C.text40} ${C.hoverBgMedium} ${C.hoverText} opacity-0 group-hover/header:opacity-100`}
@@ -102,26 +96,18 @@ export const MedicineCategoryHeaderRow = memo(function MedicineCategoryHeaderRow
         </div>
       </TableCell>
 
-      <TableCell className="w-[100px] py-0" />
-      <TableCell className="w-[130px] py-0" />
-      <TableCell className="w-[110px] py-0 text-center">
+      <TableCell className="w-[100px]" />
+      <TableCell className="w-[130px]" />
+      <TableCell className="w-[110px] text-center">
         <StatusPill isActive={true} />
       </TableCell>
-      <TableCell className="w-[80px] py-0 text-center" onClick={(event) => event.stopPropagation()}>
+      <TableCell className="w-[80px] text-center">
         {canEdit ? (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                type="button"
-                className={`${STYLE.iconBtn28} ${C.text40} ${C.hoverBgMedium} ${C.hoverText} opacity-0 group-hover/header:opacity-100`}
-              >
-                <MoreHorizontal className={ICON.action} />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => onEdit(header)}>編集</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <RowActionButton
+            aria-label={`詳細: 薬剤カテゴリ ${header.name} (ID ${header.id})`}
+            onClick={() => onEdit(header)}
+            className="opacity-0 group-hover/header:opacity-100 focus-visible:opacity-100"
+          />
         ) : null}
       </TableCell>
     </TableRow>
@@ -135,43 +121,36 @@ export const SortableMedicineRow = memo(function SortableMedicineRow({
   canEdit,
 }: SortableMedicineRowProps) {
   return (
-    <SortableDataTableRow id={medicine.id} onClick={canEdit ? () => onEdit(medicine) : undefined}>
+    <SortableDataTableRow
+      id={medicine.id}
+      dragLabel={`並べ替え: 薬剤 ${medicine.name} (ID ${medicine.id})`}
+      dragDisabled={!canEdit}
+    >
       <TableCell className={`${STYLE.tableCell} font-medium ${grouped ? "pl-12!" : "pl-2"}`}>
-        {medicine.name}
+        {canEdit ? (
+          <DataTableRowButton
+            aria-label={`詳細: 薬剤 ${medicine.name} (ID ${medicine.id})`}
+            onClick={() => onEdit(medicine)}
+          >
+            {medicine.name}
+          </DataTableRowButton>
+        ) : medicine.name}
       </TableCell>
-      <TableCell className={`${STYLE.tableCell} w-[100px] text-center text-base`}>
+      <TableCell className={`${STYLE.tableCell} w-[100px] text-center`}>
         {medicine.dosageForm ? (DOSAGE_FORM_LABELS[medicine.dosageForm] ?? medicine.dosageForm) : "-"}
       </TableCell>
       <TableCell className={`${STYLE.tableCell} w-[130px] text-right pr-4 font-mono`}>
         {formatCurrencyOrDash(medicine.price)}
       </TableCell>
-      <TableCell className="w-[110px] py-2.5 text-center">
+      <TableCell className="w-[110px] text-center">
         <StatusPill isActive={medicine.isActive} />
       </TableCell>
-      <TableCell className="w-[80px] py-2.5 text-center" onClick={(e) => e.stopPropagation()}>
+      <TableCell className="w-[80px] text-center">
         {canEdit ? (
-          <div className="flex items-center justify-center gap-1">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  className={`${STYLE.iconBtn28} ${C.text40} ${C.hoverBgMedium} ${C.hoverText}`}
-                >
-                  <MoreHorizontal className={ICON.action} />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => onEdit(medicine)}>編集</DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-            <button
-              type="button"
-              onClick={() => onEdit(medicine)}
-              className={`${STYLE.iconBtn28} ${C.text40} ${C.hoverBgMedium} ${C.hoverText}`}
-            >
-              <Maximize2 className={ICON.xs} />
-            </button>
-          </div>
+          <RowActionButton
+            aria-label={`編集: 薬剤 ${medicine.name} (ID ${medicine.id})`}
+            onClick={() => onEdit(medicine)}
+          />
         ) : null}
       </TableCell>
     </SortableDataTableRow>
@@ -186,10 +165,10 @@ interface MedicineRowOverlayProps {
 export function MedicineRowOverlay({ medicine, grouped }: MedicineRowOverlayProps) {
   return (
     <div
-      className={`flex items-center h-12 ${C.bgWhite} border ${C.borderLight} rounded-[4px] ${STYLE.dragOverlayShadow} cursor-grabbing`}
+      className={`flex items-center h-12 ${C.bgWhite} border ${C.borderLight} rounded-xs ${STYLE.dragOverlayShadow} cursor-grabbing`}
       style={{ width: "100%" }}
     >
-      <div className={`w-8 shrink-0 flex items-center justify-center ${C.text50}`}>
+      <div className={`w-11 shrink-0 flex items-center justify-center ${C.text50}`}>
         <GripVertical className={ICON.action} />
       </div>
       <div className={`flex-1 min-w-0 text-base font-medium ${C.text} ${grouped ? "pl-10" : "pl-0"}`}>

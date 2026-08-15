@@ -1,18 +1,21 @@
 import { FileText, Pencil, Trash2 } from "lucide-react";
 
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { TableCell } from "@/components/ui/table";
 import { DataTable } from "@/components/shared/DataTable/DataTable";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
+import { DataTableRowLink } from "@/components/shared/DataTable/DataTableRowLink";
 import { FilteringIndicator } from "@/components/shared/FilteringIndicator/FilteringIndicator";
 import { PropertyFilter } from "@/components/shared/PropertyFilter/PropertyFilter";
 import { Pagination } from "@/components/shared/Pagination";
 import { RowActionDropdown } from "@/components/shared/RowActionDropdown";
 import { StatusBadge } from "@/components/shared/StatusBadge/StatusBadge";
 import type { ActiveFilter, FilterProperty } from "@/components/shared/PropertyFilter/types";
+import { paths } from "@/config/paths";
 import { C, STYLE } from "@/lib/design-tokens";
-import { formatDate } from "@/utils/format/date";
-import { formatWeight } from "@/utils/format/number";
-import { getPetStatusColor } from "@/utils/status-helpers";
+import { formatDate } from "@/lib/format/date";
+import { formatWeight } from "@/lib/format/number";
+import { getPetStatusColor } from "@/lib/status-helpers";
 import type { Pet } from "@/types";
 
 // DESIGN.md ex-data-table-cell: header は canvas-soft 背景 + eyebrow 相当タイポグラフィ（12px/600/tracking）。
@@ -50,7 +53,6 @@ interface OwnersListTableProps {
   currentClinicId?: string | null;
   onSearchChange: (value: string) => void;
   onFilterChange: (filters: ActiveFilter[]) => void;
-  onRowClick: (pet: Pet) => void;
   onEdit: (ownerId: string) => void;
   onDeleteRequest: (ownerId: string, ownerName: string) => void;
   /** #158: 飼主レポートを別ウィンドウで開く（ownerId + 初期 petId）。 */
@@ -73,7 +75,6 @@ export function OwnersListTable({
   currentClinicId,
   onSearchChange,
   onFilterChange,
-  onRowClick,
   onEdit,
   onDeleteRequest,
   onReport,
@@ -87,7 +88,7 @@ export function OwnersListTable({
     ...(showClinicColumn ? [{ header: "医院", className: "w-[110px]" }] : []),
     { header: "ペット番号", className: "w-[100px] hidden lg:table-cell" },
     { header: "ペット名", className: "w-[120px]" },
-    { header: "生死", className: "w-[60px] hidden lg:table-cell" },
+    { header: "生死", className: "w-[60px]" },
     { header: "種", className: "w-[60px]" },
     { header: "生年月日", className: "w-[100px] hidden lg:table-cell" },
     { header: "体重", className: "w-[80px] hidden lg:table-cell" },
@@ -104,7 +105,7 @@ export function OwnersListTable({
         onFilterChange={onFilterChange}
         searchTerm={searchTerm}
         onSearchChange={onSearchChange}
-        searchPlaceholder="飼主名、ペット名、飼主No、種別..."
+        searchPlaceholder="飼主名、ペット名、電話番号、飼主No、ペット番号..."
         count={pagination.totalCount}
       />
 
@@ -116,7 +117,7 @@ export function OwnersListTable({
           headerRowClassName={OWNERS_TABLE_HEADER_ROW}
           headerCellClassName={OWNERS_TABLE_HEADER_CELL}
           renderRow={(pet) => {
-            // #86: 別医院の行は編集・削除を抑止（閲覧のみ）。行クリックの遷移ガードは呼び出し側
+            // #86: 別医院の行は詳細リンク・編集・削除を抑止（閲覧のみ）。
             const isOtherClinic = !!(
               currentClinicId && pet.clinicId && pet.clinicId !== currentClinicId
             );
@@ -125,12 +126,12 @@ export function OwnersListTable({
               <OwnersListRow
                 key={pet.id}
                 pet={pet}
+                canViewDetail={!isOtherClinic}
                 canEdit={!!canEdit && !isOtherClinic}
                 canDelete={!!canDelete && !isOtherClinic}
                 canReport={!!canReport && !isOtherClinic}
                 showClinicColumn={showClinicColumn}
                 clinicNameById={clinicNameById}
-                onRowClick={onRowClick}
                 onEdit={onEdit}
                 onDeleteRequest={onDeleteRequest}
                 onReport={onReport}
@@ -158,12 +159,12 @@ export function OwnersListTable({
 
 interface OwnersListRowProps {
   pet: Pet;
+  canViewDetail: boolean;
   canEdit: boolean;
   canDelete: boolean;
   canReport: boolean;
   showClinicColumn?: boolean;
   clinicNameById?: Map<string, string>;
-  onRowClick: (pet: Pet) => void;
   onEdit: (ownerId: string) => void;
   onDeleteRequest: (ownerId: string, ownerName: string) => void;
   onReport: (ownerId: string, petId: string) => void;
@@ -171,28 +172,54 @@ interface OwnersListRowProps {
 
 function OwnersListRow({
   pet,
+  canViewDetail,
   canEdit,
   canDelete,
   canReport,
   showClinicColumn = false,
   clinicNameById,
-  onRowClick,
   onEdit,
   onDeleteRequest,
   onReport,
 }: OwnersListRowProps) {
   return (
-    <DataTableRow onClick={canEdit ? () => onRowClick(pet) : undefined}>
+    <DataTableRow>
       <TableCell className={`${STYLE.tableCell} whitespace-nowrap hidden lg:table-cell`}>
         {pet.ownerNumber ?? "-"}
       </TableCell>
       <TableCell className={`${STYLE.tableCell} whitespace-nowrap`}>
         <span className="flex items-center gap-1.5">
-          {pet.ownerName}
+          {canViewDetail ? (
+            <DataTableRowLink
+              to={paths.owners.detail.getHref(pet.ownerId)}
+              aria-label={`飼主「${pet.ownerName}」(ID: ${pet.ownerId}) をペット「${pet.name}」(ID: ${pet.id}) の行から開く`}
+            >
+              {pet.ownerName}
+            </DataTableRowLink>
+          ) : pet.ownerName}
           {pet.dangerLevel === "高" ? (
-            <span className={`inline-flex items-center rounded px-1.5 py-0.5 text-xs font-semibold ${C.bgDanger10} ${C.danger} ${C.borderDanger20}`}>
-              ⚠ 危険
-            </span>
+            <Popover>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  aria-label={`${pet.name}の危険理由を表示`}
+                  className={`inline-flex items-center rounded px-1.5 py-0.5 text-xs font-semibold ${C.bgDanger10} ${C.danger} ${C.borderDanger20} outline-none focus-visible:ring-2 ${C.focusRingAccent40}`}
+                >
+                  ⚠ 危険
+                </button>
+              </PopoverTrigger>
+              <PopoverContent
+                align="start"
+                aria-label={`${pet.name}の危険理由`}
+                onOpenAutoFocus={(event) => event.preventDefault()}
+                className="w-64"
+              >
+                <p className={`text-sm font-semibold ${C.danger}`}>危険理由</p>
+                <p className={`mt-1 whitespace-pre-wrap break-words text-sm ${C.textInkSecondary}`}>
+                  {pet.dangerReason?.trim() || "理由未登録"}
+                </p>
+              </PopoverContent>
+            </Popover>
           ) : null}
         </span>
       </TableCell>
@@ -206,7 +233,7 @@ function OwnersListRow({
         {pet.petNumber || "-"}
       </TableCell>
       <TableCell className={`${STYLE.tableCell} whitespace-nowrap`}>{pet.name}</TableCell>
-      <TableCell className="whitespace-nowrap py-2 hidden lg:table-cell">
+      <TableCell className="whitespace-nowrap">
         {pet.status ? (
           <StatusBadge colorClass={getPetStatusColor(pet.status)}>
             {pet.status}
@@ -226,9 +253,10 @@ function OwnersListRow({
       <TableCell className={`${STYLE.tableCell} font-mono whitespace-nowrap hidden lg:table-cell`}>
         {formatDate(pet.lastVisit)}
       </TableCell>
-      <TableCell className="whitespace-nowrap py-2 text-right">
+      <TableCell className="whitespace-nowrap text-right">
         {canEdit || canDelete || canReport ? (
           <RowActionDropdown
+            ariaLabel={`飼主「${pet.ownerName}」(ID: ${pet.ownerId})・ペット「${pet.name}」(ID: ${pet.id}) の操作`}
             actions={[
               ...(canEdit ? [{
                 label: "編集",

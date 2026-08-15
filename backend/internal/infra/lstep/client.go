@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/infra/httpx"
@@ -17,6 +18,11 @@ const (
 	defaultTimeout   = 10 * time.Second
 	maxRetries       = 3
 	retryInitialWait = time.Second
+
+	// EnvWriteAPIEnabled は Lステップ write API の deploy-level kill switch。
+	// 未設定・空・"false"・未知値は全て無効。exact "true" のみ有効。
+	// 既存 UI/API/seed/migration からは変更できない（運用者が deploy 環境変数のみ設定）。
+	EnvWriteAPIEnabled = "LSTEP_WRITE_API_ENABLED"
 )
 
 // sharedHTTPClient はLステップAPI呼出全体で共有するhttp.Client。
@@ -51,12 +57,31 @@ type httpLstepClient struct {
 // NewClient はLステップAPIクライアントを生成する。
 // apiKey: LステップAPIキー（BE-000設定サービス経由で解決済みの値を渡す）
 // baseURL: LステップAPIベースURL（例: https://api.lstep.jp/api/v1）
+//
+// Write 系（AddTag / RemoveTag / AddTagBulk / SetProperty）は
+// EnvWriteAPIEnabled が exact "true" のときだけ HTTP を送る。
+// clinic 別 is_sync_enabled はサービス層 buildClient が gate する（二重 gate）。
 func NewClient(apiKey, baseURL string) Client {
 	return &httpLstepClient{
 		apiKey:  apiKey,
 		baseURL: baseURL,
 		http:    sharedHTTPClient,
 	}
+}
+
+// isWriteAPIEnabled は deploy-level kill switch を評価する。
+// exact "true" のみ true。unset/empty/false/未知値は全て false。
+func isWriteAPIEnabled() bool {
+	return os.Getenv(EnvWriteAPIEnabled) == "true"
+}
+
+// ensureWriteEnabled は write 系メソッドの共通 gate。
+// 無効時は HTTP を送らず ErrWriteDisabled を返す（nil 成功にしない）。
+func ensureWriteEnabled() error {
+	if !isWriteAPIEnabled() {
+		return ErrWriteDisabled
+	}
+	return nil
 }
 
 // doWithRetry はレート制限時に指数バックオフで最大 maxRetries 回リトライする
@@ -85,6 +110,23 @@ func (c *httpLstepClient) newRequest(ctx context.Context, method, path string, b
 	return req, nil
 }
 
+// checkResponse はLステップ write API レスポンスのステータスコードを検査する。
+// 404 は ErrUserNotFound（lineUserID は error 文字列に埋め込まない）。
+// それ以外の 4xx/5xx は status のみを含む observable error。
+// api key / request body / response body は error にも log にも出さない。
+func checkResponse(resp *http.Response) error {
+	if resp.StatusCode == http.StatusNotFound {
+		_, _ = io.Copy(io.Discard, resp.Body)
+		return ErrUserNotFound
+	}
+	if resp.StatusCode >= 400 {
+		_, _ = io.Copy(io.Discard, resp.Body)
+		return fmt.Errorf("lstep API error: status=%d", resp.StatusCode)
+	}
+	_, _ = io.Copy(io.Discard, resp.Body)
+	return nil
+}
+
 // decodeJSON はレスポンスボディをJSONデコードする。
 func decodeJSON(resp *http.Response, dst any) error {
 	defer func() { _, _ = io.Copy(io.Discard, resp.Body) }()
@@ -97,4 +139,9 @@ func decodeJSON(resp *http.Response, dst any) error {
 // IsUserNotFound はエラーが ErrUserNotFound かどうかを判定する。
 func IsUserNotFound(err error) bool {
 	return errors.Is(err, ErrUserNotFound)
+}
+
+// IsWriteDisabled はエラーが ErrWriteDisabled かどうかを判定する。
+func IsWriteDisabled(err error) bool {
+	return errors.Is(err, ErrWriteDisabled)
 }

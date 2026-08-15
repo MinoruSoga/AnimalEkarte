@@ -19,7 +19,7 @@
 | 案 | 概要 | 所要目安 | リスク | 採否 |
 |---|---|---|---|---|
 | **A. seed 再投入**（本書の主手順） | `backend/migrations/seeds/{002_master,003_demo,004_staging}/` の CSV を `cmd/migrate` の既存メカニズムで自動投入し、検証する | 数分（migrate 自体）＋検証 10〜15分 | 低（既存の起動時経路をそのまま使うだけ。新規コードなし） | **採用** |
-| B. RDS ダンプ移行 | 旧 AWS RDS `animalekarte-stg` から `pg_dump`/`pg_restore` で実データを PlanetScale へ移す | 半日〜（スキーマ差分・接続経路の再構築が必要） | 高（RDS は private subnet 限定・SSM port-forward 前提で PlanetScale への直接 dump/restore 経路が未整備。本番同等の PII を STG に持ち込む運用上のリスクも増える） | 不採用（§6 参照） |
+| B. 旧 RDS ダンプ移行（凍結比較） | AWS 廃止前に検討した方式。基盤廃止後は実行不能 | — | 本番同等の PII を STG に持ち込むリスク。旧基盤の復元も禁止 | **退役・実行禁止**（§6） |
 
 STG はデモデータ運用（`docs/ops/deploy/STG-DEMO-DATA-LIFECYCLE.md` §2.1「Seed Data」）であり、実データの忠実な移行を要求されていない。したがって A を主手順とする。
 
@@ -31,14 +31,14 @@ STG はデモデータ運用（`docs/ops/deploy/STG-DEMO-DATA-LIFECYCLE.md` §2.
 
 `backend/cmd/migrate/main.go` の `run()`:
 
-- `DB_RESET` は `resetSchema`（`DROP SCHEMA public CASCADE` → `CREATE SCHEMA public`）の実行有無だけを制御する（main.go:88-94, 590-617）。
-- seed バンドルのロード（`runSeedBundles`, main.go:539-588）は `DB_RESET` の値と**無関係**に、`runSQLMigrations`（DDL 適用, main.go:441-526）の直後に必ず呼ばれる（main.go:117-127）。
-- `runSeedBundles` は各バンドルが `schema_migrations` に未記録の場合のみ CSV を投入する（`isAlreadyApplied` ガード, main.go:551-559）。**未記録かどうか**が投入有無を決める唯一の条件であり、`DB_RESET` は関係しない。
-- 既存 DB（テーブルが実在する）への誤投入を防ぐガードは `baselineIfNeeded`（main.go:293-394）。`clinics` テーブルが存在しなければ「新規 DB」と判定し baseline せず（main.go:324-327）、そのまま `runSeedBundles` が CSV を実投入する。
+- `DB_RESET` は `resetSchema`（`DROP SCHEMA public CASCADE` → `CREATE SCHEMA public`）の実行有無だけを制御する（main.go:87-94, 525-552）。
+- seed バンドルのロード（`runSeedBundles`, main.go:463-523）は `DB_RESET` の値と**無関係**に、`runSQLMigrations`（DDL 適用, main.go:372-461）の直後に必ず呼ばれる（main.go:115-125）。
+- `runSeedBundles` は各バンドルが `schema_migrations` に未記録の場合のみ CSV を投入する（`isAlreadyApplied` ガード, main.go:486-494）。**未記録かどうか**が投入有無を決める唯一の条件であり、`DB_RESET` は関係しない。
+- 空のmigration履歴に既存アプリケーションschemaがある場合のガードは `guardEmptyMigrationHistory`（main.go:295-328）。`clinics` テーブルが存在すればschema完全性を検証できないためfail-closedで停止し、現行DDL/seedのchecksumは記録しない。`clinics` が存在しないfresh DBだけが、そのまま通常のDDL・seed適用へ進む。
 
-CF 経路（`POST /_internal/migrate` → `Container.exec(["/app/migrate"])`）は起動引数が固定で `DB_RESET` を注入する経路が構造的に存在しない（`migration-cloudflare.md:431` 「DB_RESETは本経路から渡せない(常にfalse)」、同 L622 のセキュリティレビュー所見も参照）。
+CF 経路（`POST /_internal/migrate` → `Container.exec(["/app/migrate"])`）は起動引数が固定で `DB_RESET` を注入する経路が構造的に存在しない（`../infra/_archive/migration-cloudflare.md:431` 「DB_RESETは本経路から渡せない(常にfalse)」、同 L622 のセキュリティレビュー所見も参照）。
 
-**結論**: `DROP SCHEMA public CASCADE` 実行後の STG は「`clinics` テーブルが存在しない = 新規 DB」と cmd/migrate から見える。したがって次の `POST /_internal/migrate` は DB_RESET の値に関係なく、001_init.sql 適用 → 002_master → 003_demo → 004_staging の順で CSV を **自動投入する**（`seedbundle.BundleOrder`, `backend/internal/seedbundle/manifest.go:23`）。`docs/ops/deploy/SEED_MIGRATION_OPERATIONS.md:18` も「fresh DB 適用後の正しい終了状態は `schema_migrations` に4行」と明記しており、これは自動投入を前提にした記述。
+**結論**: `DROP SCHEMA public CASCADE` 実行後の STG は「`clinics` テーブルが存在しない = 新規 DB」と cmd/migrate から見える。したがって次の `POST /_internal/migrate` は DB_RESET の値に関係なく、直下 DDL（`ls backend/migrations/*.sql` を正とする）を昇順に適用後、002_master → 003_demo → 004_staging の順で CSV を **自動投入する**（`seedbundle.BundleOrder`, `backend/internal/seedbundle/manifest.go`）。fresh DB の終了状態は、`schema_migrations` の行数が直下 DDL 本数 + seed バンドル数に一致することである。一方、統合前001が記録済みの現行STGへ通常の `POST /_internal/migrate` を実行するとchecksum mismatchでfailする。現行Cloudflare経路は `DB_RESET` を注入できないため、明示承認した再構築を先に完了させる必要がある。
 
 ### 2.2 ただし前提条件が一つだけある: `public` スキーマの実在
 
@@ -85,15 +85,18 @@ CF 経路（`POST /_internal/migrate` → `Container.exec(["/app/migrate"])`）�
 
 → 何もしなければ CF デプロイで STG に入るのは**小さいデモ**（上表）。フルデモが必要な場合は §5 Step E-b（pscale role 経由の直接投入）以外に経路がない。
 
-### 2.4 従来の STG seed 投入経路（ECS/RDS 前提。現在は非該当）
+### 2.4 凍結履歴: 廃止した STG seed 投入経路
 
-`docs/ops/deploy/SEED_MIGRATION_OPERATIONS.md` と `STG-DEMO-DATA-LIFECYCLE.md` に記載の `DB_RESET=true` 起動や `backend-deploy-ecs.yml -f db_reset=true`（`SEED_MIGRATION_OPERATIONS.md:27`, `STG-DEMO-DATA-LIFECYCLE.md:246-252`）は、いずれも**旧 AWS ECS ロールバック経路専用**の手段であり、Cloudflare 正系統の `backend-deploy.yml` には `db_reset` の `workflow_dispatch` 入力が存在しない（同ファイル、`.github/workflows/backend-deploy.yml:6-15` にも当該入力なし）。`make stage-import`（`SEED_MIGRATION_OPERATIONS.md:57-114`）は old_db（旧カルテ）由来データを**ローカル開発DB**へ投入する経路であり、PlanetScale STG への投入手段ではない。これらは今回の PlanetScale STG 投入には使えない・使わない。
+AWS ECS/RDS の `db_reset` workflow は基盤廃止時に削除済みで、復元・実行しない。
+現行 `backend-deploy.yml` に `db_reset` 入力はない。`make csv-import` は old_db（旧カルテ）由来データを
+**正式な CSV cutover 経路**として投入するためのコマンドであり、PlanetScale STG への手動 direct-import 代替ではない。
+当時の AWS 手順を調査する場合だけ [`../infra/_archive/aws-legacy/`](../infra/_archive/aws-legacy/) の凍結記録を参照する。
 
 ### 2.5 PlanetScale への直接投入経路: `pscale role` + psql
 
 PlanetScale Postgres は `pscale role create <database> <branch> <name> --inherited-roles <roles> --ttl <duration>` で、期限付き（TTL）の Postgres ロールを都度発行できる（ローカル `pscale role create --help` で確認済み。`--ttl duration` は `"2h"` 等を受け付け、デフォルト無期限）。STG では `noah-animalekarte` 組織の `animalekarte-stg` データベース・`main` ブランチが対象（`infra/scripts/pscale-create-stg.sh:8-11`）。
 
-既存運用は `pscale role reset-default`（アプリ本体が使う既定 `postgres` ロールのパスワードを都度再発行・失効）だが（`migration-cloudflare.md:403,570,622,694` 等）、これはアプリ稼働用の共有クレデンシャルを毎回ローテーションする前提で、本番稼働中の Worker/Hyperdrive 設定にも影響する。本書の検証・任意投入作業は本番トラフィックに影響しない**別ロール**を使うべきなので、`pscale role reset-default` ではなく `pscale role create` で使い捨てロールを発行する（TTL 失効で自動的に片付く）。
+既存運用は `pscale role reset-default`（アプリ本体が使う既定 `postgres` ロールのパスワードを都度再発行・失効）だが（`../infra/_archive/migration-cloudflare.md:403,570,622,694` 等）、これはアプリ稼働用の共有クレデンシャルを毎回ローテーションする前提で、本番稼働中の Worker/Hyperdrive 設定にも影響する。本書の検証・任意投入作業は本番トラフィックに影響しない**別ロール**を使うべきなので、`pscale role reset-default` ではなく `pscale role create` で使い捨てロールを発行する（TTL 失効で自動的に片付く）。
 
 直結接続が必要な理由: `cmd/migrate` は `pg_advisory_lock` を使うため Hyperdrive 経由の接続では動作しない（`infra/scripts/pscale-create-stg.sh:34-35` 「Hyperdrive 経由では advisory lock が非対応」）。同じ理由で、手動の `CREATE SCHEMA public;` やロールバック用 `DROP SCHEMA` も **Hyperdrive を経由しない直結接続**（`pscale role` で発行したロールの host/port へ直接 psql）で行う。
 
@@ -190,10 +193,11 @@ export PGPASSWORD="<password>"; export PGDATABASE="<database>"
 ### Step D. 検証クエリ（テーブル別件数 + 主要マスタの存在確認）
 
 ```sql
--- 1. schema_migrations が4行そろっているか（fresh apply の正しい終了状態）
+-- 1. schema_migrations が「直下 DDL 本数 + seed バンドル数」そろっているか（fresh apply の正しい終了状態）
 --    SEED_MIGRATION_OPERATIONS.md:18 の期待値
 SELECT filename, checksum, executed_at FROM schema_migrations ORDER BY filename;
--- 期待: 001_init.sql / seeds/002_master / seeds/003_demo / seeds/004_staging の4行
+-- 期待: 001_init.sql /
+--       seeds/002_master / seeds/003_demo / seeds/004_staging の4行
 -- checksum の期待値（2026-07-16 時点、git HEAD の committed 内容から算出。
 --   seeds/*.csv や manifest.json を編集した場合は再計算が必要。算出方法は §5 Step E-a 参照）:
 --   seeds/002_master = 5a46c460e51bf617602c0812f100d077df36a3f5855a85d23ba84f63a2bf9945
@@ -300,7 +304,7 @@ BEGIN
 END $$;
 EOSQL
 
-# 5. 必須の後処理: schema_migrations に3行を記録する。これを省略すると、
+# 5. 必須の後処理: schema_migrations に seed バンドル数ぶんの行を記録する。これを省略すると、
 #    次に正常な migrate が動いた時に「未適用」と誤認して同じCSVを再COPYし、
 #    PK重複で失敗する。checksum は Step D に記載の値（committed content 由来。
 #    seeds編集後は再計算要）を使う。
@@ -313,7 +317,7 @@ ON CONFLICT (filename) DO NOTHING;
 EOSQL
 ```
 
-これは `baselineIfNeeded`／`translateLegacySeedKeys`（main.go:293-394, 218-271）が使っているのと同じ「投入せず適用済みとしてだけ記録する」パターンの逆（実際に投入した上でその記録を後追いする）であり、cmd/migrate の設計と整合する。
+これは通常の `runSeedBundles` がCSV投入成功後に `recordMigration` する順序（main.go:496-510）と同じく、実データ投入の完了後に対応する履歴を記録する手動復旧である。`guardEmptyMigrationHistory`（main.go:295-328）は読取り専用で、空履歴の既存schemaへ現行checksumを書き込まない。`translateLegacySeedKeys`（main.go:220-272）はmigration履歴に旧stubキーが存在する場合だけ、CSVを再投入せず現行seedキーへ翻訳する別の互換処理である。
 
 #### E-b. フルデモ投入（ローカルのみ・本書のスコープ外 — 着手前に別途判断すること）
 
@@ -333,17 +337,20 @@ EOSQL
 
 ---
 
-## 6. 代替案: RDS ダンプ移行（不採用・簡易比較のみ）
+## 6. 凍結比較: 旧 RDS ダンプ移行（退役・実行禁止）
 
-| 観点 | seed 再投入（採用） | RDS ダンプ移行 |
+> AWS ECS/RDS 基盤は 2026-07-20 に廃止済みで、ライブな取得元や切り戻し先ではない。
+> 以下は当時の方式選定理由を残す比較記録であり、旧基盤や IaC を復元して実行してはならない。
+
+| 観点 | seed 再投入（採用） | 旧 RDS ダンプ案（凍結） |
 |---|---|---|
-| 実データ忠実性 | デモデータのみ（本番同等ではない） | 旧 RDS の実データをそのまま反映可能 |
-| 実装コスト | ゼロ（既存 cmd/migrate をそのまま使う） | 高：RDS は private subnet + SSM port-forward 前提（`infra/CLAUDE.md`「RDS Public Access 無効」）で PlanetScale への直接 dump/restore 経路が未整備。SSM 経由でダンプを取得しローカル経由で `pg_restore` する迂回が必要 |
-| スキーマ整合性 | `cmd/migrate` が保証（同一 DDL から生成） | RDS 側スキーマと現行 `001_init.sql` の差分検証が別途必要 |
+| 実データ忠実性 | デモデータのみ（本番同等ではない） | 当時は旧 DB の実データを反映できたが、現在は基盤廃止済み |
+| 実装コスト | ゼロ（既存 cmd/migrate をそのまま使う） | 退役済み経路の再構築が必要なため禁止 |
+| スキーマ整合性 | `cmd/migrate` が保証（同一 DDL から生成） | 旧スキーマとの差分検証が別途必要 |
 | PII/コンプライアンス | デモデータのみ、リスク低 | 本番同等データを STG に複製することになり、`ANIMALEKARTE_CSV_IMPORT_COMPLETION.md` で懸念された「PHI が STG に残る」問題を re-introduce しかねない |
 | 運用方針との整合 | `STG-DEMO-DATA-LIFECYCLE.md` の「STG=デモデータ運用」方針に合致 | 方針からの逸脱（要 PO 判断） |
 
-**結論**: RDS ダンプ移行は今回採用しない。STG の目的（デモ・スモークテスト）に対して過剰なコストとリスクを伴うため。
+**結論**: 旧 RDS ダンプ案は不採用の凍結履歴であり、現在は実行禁止。STG は現行 seed / snapshot 手順だけで復旧する。
 
 ---
 

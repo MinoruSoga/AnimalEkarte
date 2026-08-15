@@ -13,14 +13,28 @@ jobs:
     name: Validate workflow YAML
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7.0.0
+      - uses: actions/checkout@v7.0.1
+      - name: Install actionlint (pinned release + checksum)
+        shell: bash
+        # サプライチェーン対策: リモート pipe-to-shell / process-substitution installer 禁止
+        # （docs/ops/ci-policy.md）。GitHub Releases tarball を SHA-256 検証してから展開する。
+        # 更新時は ACTIONLINT_VERSION と ACTIONLINT_SHA256 を同時に bump すること。
+        # checksum source: rhysd/actionlint releases v1.7.12 checksums.txt
+        env:
+          ACTIONLINT_VERSION: "1.7.12"
+          ACTIONLINT_SHA256: "8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8"
+        run: |
+          set -euo pipefail
+          archive="actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          url="https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/${archive}"
+          curl -fsSL "$url" -o "$archive"
+          echo "${ACTIONLINT_SHA256}  ${archive}" | sha256sum -c -
+          tar -xzf "$archive" actionlint
+          chmod +x ./actionlint
+          ./actionlint -version
       - name: Run actionlint
         shell: bash
-        # バージョン固定: main からの未ピン取得はサプライチェーン・再現性リスク（bug.md M-9）。
-        # 更新時は URL のタグと引数の両方を同じバージョンに揃えること。
-        run: |
-          bash <(curl -Ls https://raw.githubusercontent.com/rhysd/actionlint/v1.7.12/scripts/download-actionlint.bash) 1.7.12
-          ./actionlint
+        run: ./actionlint
       # actionlint は構文・式のみを検査しバージョンドリフトを検出しない（#195 回帰の教訓）。
       # 同一 action の複数バージョン混在はこのスクリプトで機械的に fail させる。
       - name: Check actions version drift

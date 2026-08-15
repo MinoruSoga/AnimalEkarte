@@ -50,7 +50,7 @@ export function MedicineDoseParamsEditor({ medicineId }: MedicineDoseParamsEdito
       <div className={`${STYLE.sectionDivider} mt-3 mb-1`} />
       <div className="py-1">
         <div className="flex items-center gap-1.5 py-2 mb-1">
-          <span className={`text-base font-medium ${C.text50} uppercase tracking-wide select-none`}>
+          <span className={`${STYLE.sectionLabel}`}>
             種別パラメータ（犬・猫）
           </span>
         </div>
@@ -109,7 +109,7 @@ function SpeciesDoseParamPanel({ medicineId, species, existingParam }: SpeciesDo
   };
 
   return (
-    <div className="py-2 px-1 mb-2 rounded-[3px] border border-black/5">
+    <div className="py-2 px-1 mb-2 rounded-xxs border border-black/5">
       <div className="flex items-center justify-between px-1 py-1">
         <span className={`text-sm font-medium ${C.text65}`}>{SPECIES_LABEL[species]}</span>
         {existingParam ? (

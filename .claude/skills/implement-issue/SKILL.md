@@ -1,20 +1,23 @@
 ---
 name: implement-issue
-description: repo 直下 todo.md「個別タスク詳細」節のタスクID（FEAT-XXX / PERF-XXX / BUG-XXX / SEED-XXX 等）を指定して、コード規約準拠の実装 → セルフレビュー → タスククローズ（todo.md からのセクション削除）までを自動化する。`/implement PERF-FOLLOWUP-01` のように使用。旧 BE-XXX / FE-XXX イシュー体系および旧 docs/tasks 体系は廃止済み（経緯は git 履歴参照）。
+description: "repo 直下のローカル台帳にあるタスクID（STATUS.md の TASK-XXX / STATUS.md の BUG-XXX）を指定して、コード規約準拠の実装 → セルフレビュー → タスククローズ（台帳更新）までを自動化する。`/implement TASK-027` のように使用。旧 3-session-agent.html#ledger 台帳・BE-XXX / FE-XXX・docs/tasks 体系は廃止済み（経緯は git 履歴参照）。"
 ---
 
 # Implement Issue — タスク実装ワークフロー
 
-todo.md の該当タスクセクションを読み込み、コード規約に準拠した実装 → セルフレビュー → クローズ処理までを実行する。
+repo 直下のローカル台帳（`STATUS.md`）にある該当タスク節を読み込み、コード規約に準拠した実装 → セルフレビュー → クローズ処理までを実行する。
 
-> **パス正本の注意**: 旧 `backend/issues/` / `frontend/issues/` 体系、および旧 docs/tasks 体系（open/closed/pending）は**廃止済み**（経緯は git 履歴参照）。
-> 現行のタスク台帳は repo 直下 `todo.md` のみ。open タスクは「個別タスク詳細」節に `### <タスクID>: <タイトル>` 形式で記載される。
-> todo.md は git 追跡ファイルであり、変更はコミット対象。
+> **パス正本の注意**: 旧 `3-session-agent.html#ledger` 台帳は **2026-07-31 廃止**（同ファイルは GitHub Issue 分類ビューへ転換）。旧 `backend/issues/` / `frontend/issues/`・docs/tasks 体系も廃止済み（経緯は git 履歴参照）。
+> 現行のローカル台帳は 2 ファイル（いずれも repo 直下・git 追跡・変更はコミット対象・ローカル連番）:
+> - `TASK-XXX` → `STATUS.md`（残タスク台帳。索引/サマリー表 + `## 個別タスク詳細` の `### TASK-XXX:` 節）
+> - `BUG-XXX` → `STATUS.md`（受入テストバグ台帳。`## BUG-XXX:` 節 + `### 実装計画`）
+>
+> タスクが GitHub Issue（`#NNN` / `ISSUE-XXX`）を参照する場合、仕様・受け入れ条件の正本は該当 Issue 本文とコメント（`gh issue view <NNN>`）。
 
 ## 起動トリガー
 
-- `/implement <タスクID>`（例: `/implement PERF-FOLLOWUP-01`）— `todo.md` の「個別タスク詳細」節から `### <タスクID>` 見出しを grep で検索
-- 引数なしの場合: 「個別タスク詳細」節の見出し一覧を表示し、ユーザーに選択させる
+- `/implement <タスクID>`（例: `/implement TASK-027`）— `TASK-XXX` は `STATUS.md`、`BUG-XXX` は `STATUS.md` から grep で検索
+- 引数なしの場合: `STATUS.md` 索引表と `STATUS.md` 対応状況サマリの open タスクID一覧を表示し、ユーザーに選択させる
 - 旧 `BE-XXX` / `FE-XXX` 番号を指定された場合: git 履歴（`git log --all -- docs/archive/` / `git show <rev>:<path>`）で経緯確認のみ行い、新規実装には使わない
 
 引数は `$ARGUMENTS` 変数で受け取る。
@@ -25,25 +28,34 @@ todo.md の該当タスクセクションを読み込み、コード規約に準
 
 ### 1.1 引数解析
 
-- タスクID（`FEAT-XXX`, `PERF-XXX`, `BUG-XXX`, `SEED-XXX` 等）→ `todo.md` 内の `### <タスクID>` 見出しを grep で検索:
+- タスクID → 台帳（`TASK-XXX` = `STATUS.md`・`BUG-XXX` = `STATUS.md`）の該当節を grep で検索:
 
 ```bash
-grep -n "^### <タスクID>" todo.md
+grep -n '<タスクID>' STATUS.md
 ```
 
-- 引数なし → 以下を実行して「個別タスク詳細」節の見出し一覧を表示:
+- 引数なし → 以下を実行して open タスクID一覧を表示:
 
 ```bash
-# 個別タスク詳細節のタスク見出し一覧（節外の見出しは無視する）
-grep -n '^### ' todo.md
+# 台帳のタスクID一覧（STATUS.md 個別タスク詳細 / STATUS.md バグ節）
+grep -oE '^### TASK-[0-9A-Za-z-]+' STATUS.md
+grep -oE '^## BUG-[0-9]+' STATUS.md
 ```
 
-着手保留は todo.md の「見送り（再開条件付き・今期着手しない）」節が担う（旧 pending/ の概念は廃止）。
+着手保留は [`phase2.html`](../../../phase2.html) が担う（旧 pending/ の概念は廃止）。
 ユーザーに番号またはタスクIDを選択させる。
+
+### 1.1b claim 確認（着手前必須・AGENTS.md packet claim protocol）
+
+```bash
+git branch --list 'claim/<タスクID>'
+```
+
+非空なら**ハードストップ**: claim ブランチ名を挙げて BLOCKED を報告し、編集しない。空なら `git branch claim/<タスクID>` で取得してから着手する（取得失敗も BLOCKED）。claim ブランチの削除（解放）は main 統合後の USER 専権 — エージェントは自他を問わず削除しない。
 
 ### 1.2 タスクセクション読み込み
 
-todo.md の該当 `###` セクションを Read で読み込み、以下を抽出:
+台帳の該当節（`STATUS.md` の `### <タスクID>:` 節 / `STATUS.md` の `## <バグID>:` 節と `### 実装計画`）を Read で読み込み、以下を抽出:
 - **問題**: 何が問題か・実装内容の概要
 - **根拠**: 対象ファイル・行番号・現状コードの実測情報
 - **修正方針**: 採用案・参照実装・具体的なコード変更指示
@@ -58,13 +70,13 @@ todo.md の該当 `###` セクションを Read で読み込み、以下を抽�
 
 ### 1.3 依存関係チェック
 
-- 「状態」等に記載された前提タスクが todo.md に**残っていなければ完了済み**とみなす（完了記録は git 履歴が正本。経緯は `git log --all --oneline -- todo.md` や `git show <rev>:todo.md` で確認可）
-- 前提タスクが todo.md に残存（「個別タスク詳細」または「見送り」節）する場合:
+- 「状態」等に記載された前提タスクが `STATUS.md` にも `phase2.html` にも**残っていなければ完了済み**とみなす（完了記録の正本は git 履歴: `git log --all -- STATUS.md`。旧 HTML 台帳期の経緯は `git log --all -- 3-session-agent.html` で確認可）
+- 前提タスクが台帳または `phase2.html` に残存する場合:
   - ユーザーに警告: 「<前提ID> が未完了。先に実装するか？」
 
 ```bash
 # 依存タスクの残存確認（ヒットしなければ完了済み）
-grep -n '<前提ID>' todo.md
+grep -n '<前提ID>' STATUS.md phase2.html
 # 旧イシュー体系（BE-XXX / FE-XXX）の経緯は git 履歴で確認
 git log --all --oneline -- 'docs/archive/**' | head
 ```
@@ -88,8 +100,8 @@ git log --all --oneline -- 'docs/archive/**' | head
   - loader → `features/owners/loaders.ts`
 
 **BE イシューの場合:**
-- `backend/CLAUDE.md` のレイヤードパターンを確認
-- 同じドメインの既存実装を参照（例: owners の handler/service/repository）
+- `.claude/rules/go-gin-backend-guidelines.md` と `backend/CLAUDE.md` を確認
+- 同じresourceの既存contractと実装を参照し、packageは凝集性・利用者・依存方向で選ぶ（固定layerをtemplate化しない）
 
 ### 2.3 コーディングルール読み込み
 
@@ -131,13 +143,14 @@ git log --all --oneline -- 'docs/archive/**' | head
 
 | # | パターン | 適用条件 |
 |---|---------|---------|
-| 1 | 全関数に `ctx context.Context` 第一引数 | 全関数 |
-| 2 | handler: `*_request.go` → `service.XxxInput` → `toXxxResponse()` | 新規/修正ハンドラ |
-| 3 | service: HTTP を知らない（`binding:` タグ禁止、`*gin.Context` 禁止） | service 層 |
-| 4 | PATCH: ポインタ型 + `buildXxxUpdateFields()` → `map[string]any` | PATCH エンドポイント |
-| 5 | エラー: sentinel → `fmt.Errorf("...: %w", err)` → `RespondError(c, err)` | エラー処理 |
-| 6 | slog は service 層のみ（handler・repository には書かない） | ログ |
-| 7 | インターフェース最小化（3-5メソッド） | 新規インターフェース |
+| 1 | request-scoped関数は `ctx context.Context` を第1引数で受け、下流へ伝播 | request/DB/外部API |
+| 2 | body/query/URI/headerを型付き入力へbindし、error・形式・範囲を検証 | HTTP boundary |
+| 3 | authentication / authorization / ownershipを独立して確認 | protected resource |
+| 4 | packageを凝集性・利用者・依存方向で選び、固定layerを増やさない | 新規package/API |
+| 5 | error chainを `%w` で保持し、unknown errorの内部情報を返さない | error処理 |
+| 6 | 同じerrorを重複ログせず、secret・個人情報をlogに含めない | logging |
+| 7 | interfaceはconsumer側の必要最小methodだけ。mock目的で先行作成しない | abstraction |
+| 8 | HTTPは`httptest`、DB/transaction/tenant境界はriskに応じintegration test | testing |
 
 ### 3.3 実装実行
 
@@ -175,11 +188,12 @@ make codegen
 - [ ] feature 間 import なし
 
 **BE の場合:**
-- [ ] 全関数に `ctx context.Context`
+- [ ] request-scoped処理にContextを伝播し、structへ保存していない
 - [ ] エラーは `fmt.Errorf("...: %w", err)` でラップ
-- [ ] slog は service 層のみ
-- [ ] PATCH はポインタ型 + `buildXxxUpdateFields()`
-- [ ] service に `*gin.Context` / `binding:` タグなし
+- [ ] binding/validation/authentication/authorization/ownershipを分離
+- [ ] package/interfaceは利用者と凝集性に基づく必要最小限
+- [ ] unknown error・secret・個人情報をresponse/logに出していない
+- [ ] tenant boundaryとOpenAPI contractをtestしている
 
 ### 4.4 Lint・ビルド・テスト実行（Docker 経由・スコープ限定）
 
@@ -212,24 +226,22 @@ Lint エラー・型エラー・テスト失敗・規約違反があれば修正
 
 ## Phase 5: クローズ処理
 
-### 5.1 todo.md から該当セクションを削除
+### 5.1 台帳の該当節を更新
 
-完了したタスクは todo.md の「個別タスク詳細」節から該当 `### <タスクID>` セクションを**丸ごと削除**する。
+- **TASK-XXX（`STATUS.md`）**: 索引/サマリー表の該当行を実測結果（**DONE** + commit hash。残余があれば residual を明記）へ更新し、`## 個別タスク詳細` の該当 `### <タスクID>:` 節を**丸ごと削除**する。STATUS.md は open のみの台帳 — 完了詳細を残さない。
+- **BUG-XXX（`STATUS.md`）**: 該当 `## <バグID>:` 節の `対応状況` 行を更新する（実装直後は `IMPLEMENTED_UNVERIFIED` + commit hash。`VERIFIED_FIXED` はブラウザ/runtime 再検証後のみ）。冒頭の件数サマリ行も整合させる。
+
 「closed への移動」という概念はもう無い — 完了記録は git 履歴が正本（コミットメッセージに実装内容を残す）。
 
-### 5.2 索引行の更新
+### 5.2 関連記述の更新
 
-P2 節等の索引行（例: 「PERF/FOLLOWUP 系 — 未消化（`PERF-FOLLOWUP-01/02/05`…）」）に該当 ID が列挙されている場合、そこからも ID を除去する。
-節内の最後のタスクだった場合は索引行自体の要否も整理する。
+同じ親タスク・Wave・クラスタの関連記述に該当 ID が列挙されている場合、その記述も現状に合わせて更新する。
 
-todo.md は **git 追跡ファイル**なので、この変更は実装コミットのコミット対象に含める。
+`STATUS.md` は **git 追跡ファイル**なので、この変更は実装コミットのコミット対象に含める（`git commit -- <paths>` で path 限定）。
 
-### 5.3 親 TASK セクション更新（存在する場合）
+### 5.3 claim 報告（解放は USER 専権）
 
-タスクの「状態」等に親 `TASK-XXX` の記載がある場合:
-1. todo.md の `### TASK-XXX` セクションを読み込む
-2. サブタスク一覧の該当行にチェックを入れる（または該当サブタスク記述を削除）
-3. 全サブタスクが完了していれば、親セクション自体も削除（クローズ）候補としてユーザーに通知
+claim ブランチ（`claim/<タスクID>`）は**削除しない**。実装コミット完了後にブランチ名をユーザーへ報告し、main 統合後の解放（`git branch -D`）は USER が行う（AGENTS.md packet claim protocol）。
 
 ### 5.4 完了報告
 
@@ -248,7 +260,8 @@ todo.md は **git 追跡ファイル**なので、この変更は実装コミッ
 - 全体 lint/test: ユーザー手動実行待ち（コマンド提示済み）
 
 ### タスク
-- <タスクID> → todo.md から該当セクション削除済み（索引行も更新・コミット対象。完了記録は git 履歴）
+- <タスクID> → 台帳更新済み（STATUS.md: 索引 DONE 化 + 詳細節削除 / STATUS.md: 対応状況行更新。関連記述も更新・コミット対象。完了記録は git 履歴）
+- claim/<タスクID> 保持中 — main 統合後に USER が解放
 ```
 
 ---
@@ -257,7 +270,7 @@ todo.md は **git 追跡ファイル**なので、この変更は実装コミッ
 
 | 状況 | 対応 |
 |------|------|
-| タスクIDが todo.md に見つからない | ユーザーにIDの確認を求める（完了済みで削除された可能性は git 履歴で確認） |
+| タスクIDが `STATUS.md` に見つからない | `phase2.html` の着手保留項目と両台帳の git 履歴を確認し、どちらにも無ければユーザーにIDの確認を求める |
 | 依存イシューが未完了 | 警告表示、ユーザーに続行確認 |
 | Docker コンテナ未起動 | `make up` の実行を提案 |
 | Lint/Build 失敗 | エラー内容を表示し、Phase 3 に戻って修正 |

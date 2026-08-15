@@ -25,7 +25,7 @@ import { BillingDetailTable } from "../components/BillingDetailTable";
 import { ClosePrintArea } from "../components/ClosePrintArea";
 import { useCashRegisterCloseForm } from "../hooks/use-cash-register-close-form";
 import { ResourceCashRegisterClose } from "@/types/generated/models";
-import { formatCurrency } from "@/utils/format/number";
+import { formatCurrency } from "@/lib/format/number";
 
 export function CashRegisterClosePage() {
   const { date, period, previewEnabled, handleDateChange, handlePeriodChange, enablePreview } =
@@ -99,7 +99,7 @@ export function CashRegisterClosePage() {
                 type="date"
                 value={date}
                 onChange={(e) => handleDateChange(e.target.value)}
-                className={`${STYLE.formInput} mt-1 rounded-[4px] border px-3 block`}
+                className={`${STYLE.formInput} mt-1 rounded-xs border px-3 block`}
               />
             </div>
             <div>
@@ -110,9 +110,9 @@ export function CashRegisterClosePage() {
                     key={p}
                     type="button"
                     onClick={() => handlePeriodChange(p)}
-                    className={`px-4 h-11 text-base rounded-[4px] border transition-colors ${
+                    className={`px-4 h-11 text-base rounded-xs border transition-colors ${
                       period === p
-                        ? `${C.bgBrand} ${C.textWhite} border-transparent`
+                        ? `${C.bgBrand} ${C.textOnBrand} border-transparent`
                         : `${C.bgWhite} ${C.borderMedium} ${C.text} ${C.hoverBgLight}`
                     }`}
                   >
@@ -124,7 +124,7 @@ export function CashRegisterClosePage() {
             <button
               type="button"
               onClick={enablePreview}
-              className={`h-11 px-5 text-base rounded-[4px] ${C.bgBrand} ${C.textWhite} ${C.hoverBgBrand} transition-colors`}
+              className={`h-11 px-4 text-base rounded-full ${C.bgBrand} ${C.textOnBrand} ${C.hoverBgBrand} ${C.hoverTextOnBrand} transition-colors`}
             >
               プレビュー
             </button>
@@ -159,7 +159,7 @@ export function CashRegisterClosePage() {
                     type="button"
                     onClick={() => window.print()}
                     data-testid="close-print-button"
-                    className={`flex items-center gap-2 px-4 h-10 text-base rounded-[4px] ${C.bgWhite} border ${C.borderMedium} ${C.text} ${C.hoverBgLight} transition-colors`}
+                    className={`flex min-h-11 items-center gap-2 px-4 text-base rounded-xs ${C.bgWhite} border ${C.borderMedium} ${C.text} ${C.hoverBgLight} transition-colors`}
                   >
                     <Printer className="size-4" />
                     印刷 / PDF出力
@@ -173,6 +173,8 @@ export function CashRegisterClosePage() {
                     categories={preview.aggregate.categories}
                     paymentMethods={preview.aggregate.paymentMethods}
                     billingDetails={preview.billingDetails}
+                    unclassifiedOtherCount={preview.aggregate.unclassifiedOtherCount}
+                    categoryCounts={preview.aggregate.categoryCounts}
                   />
                 </section>
 
@@ -187,6 +189,8 @@ export function CashRegisterClosePage() {
                   taxBreakdown={preview.aggregate.taxBreakdown}
                   theoreticalCash={preview.aggregate.theoreticalCash}
                   actualCash={actualCash !== "" ? Number(actualCash) : null}
+                  unclassifiedOtherCount={preview.aggregate.unclassifiedOtherCount}
+                  categoryCounts={preview.aggregate.categoryCounts}
                 />
 
                 {/* 消費税内訳 */}
@@ -227,10 +231,10 @@ export function CashRegisterClosePage() {
                   <div className={`mt-3 pt-3 border-t ${C.borderLight} flex justify-between text-sm font-medium max-w-lg`}>
                     <span className={C.text70}>消費税合計</span>
                     <span className={C.text}>
-                      ¥{(
+                      {formatCurrency(
                         preview.aggregate.taxBreakdown.standard.taxAmount +
-                        preview.aggregate.taxBreakdown.reduced.taxAmount
-                      ).toLocaleString()}
+                          preview.aggregate.taxBreakdown.reduced.taxAmount,
+                      )}
                     </span>
                   </div>
                 </section>
@@ -252,7 +256,7 @@ export function CashRegisterClosePage() {
                         min="0"
                         value={actualCash}
                         onChange={handleActualCashChange}
-                        className={`${STYLE.formInput} mt-1 w-full rounded-[4px] border px-3`}
+                        className={`${STYLE.formInput} mt-1 w-full rounded-xs border px-3`}
                         placeholder="0"
                         required
                       />
@@ -271,12 +275,12 @@ export function CashRegisterClosePage() {
                         id="close_memo"
                         name="memo"
                         type="text"
-                        className={`${STYLE.formInput} mt-1 w-full rounded-[4px] border px-3`}
+                        className={`${STYLE.formInput} mt-1 w-full rounded-xs border px-3`}
                         placeholder="特記事項があれば入力"
                       />
                     </div>
                     <div className="flex justify-end">
-                      <SubmitButton colorVariant="brand" loadingText="締め中...">締める</SubmitButton>
+                      <SubmitButton colorVariant="primary" loadingText="締め中...">締める</SubmitButton>
                     </div>
                   </form>
                 </section>
@@ -305,7 +309,7 @@ export function CashRegisterClosePage() {
               <AlertDialogCancel onClick={handleCancelConfirm}>キャンセル</AlertDialogCancel>
               <AlertDialogAction
                 onClick={handleConfirmClose}
-                className={`${C.bgBrand} ${C.textWhite} ${C.hoverBgBrand} rounded-full`}
+                className={`${C.bgBrand} ${C.textOnBrand} ${C.hoverBgBrand} ${C.hoverTextOnBrand} rounded-full`}
               >
                 締める
               </AlertDialogAction>

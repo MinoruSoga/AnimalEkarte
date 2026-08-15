@@ -20,9 +20,10 @@
 ### 導入・設定
 - **[setup.md](./setup.md)**: LINE Developers Console、Messaging API、および Lステップ管理画面の初期設定手順。
 - **[lstep-integration.md](./lstep-integration.md)**: **【重要】** マーケティング戦略、CPM 判定ロジック、15 種の自動配信トリガー詳細。
+- **[cost-analysis.md](./cost-analysis.md)**: Messaging / Lステップ課金と配信ボリューム試算（docs-only）。
 
 ### 原本・ソース
-- **[`01_曽我さん向け_カルテLステップ連携実装仕様書.md`](../../../01_曽我さん向け_カルテLステップ連携実装仕様書.md)**: クライアント受領の正本仕様書。
+- **[`01_曽我さん向け_カルテLステップ連携実装仕様書.md`](./01_曽我さん向け_カルテLステップ連携実装仕様書.md)**: クライアント受領の正本仕様書。
 
 ---
 
@@ -46,5 +47,6 @@
 | **タグ管理** | `/settings/lstep/tags` |
 | **分析レポート** | `/lstep/analytics` |
 | **対象者抽出** | `/lstep/checkup-sync` |
+| **配信監視** | `/lstep/delivery-monitor` |
 
 ---

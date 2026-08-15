@@ -26,7 +26,11 @@ export function transformAccountingItem(item: BackendAccountingItem) {
     subtotal: item.subtotal ?? Math.max(Math.round(unitPrice * quantity) - (item.discount_amount ?? 0), 0),
     isInsuranceApplicable: item.is_insurance_applicable,
     source: item.source as "medical_record" | "manual" | "hospitalization" | "trimming",
+    otherReason: item.other_reason,
+    merchandiseItemId: item.merchandise_item_id ? String(item.merchandise_item_id) : undefined,
+    vaccinationId: item.vaccination_id ? String(item.vaccination_id) : undefined,
     treatmentId: item.treatment_id ? String(item.treatment_id) : undefined,
+    medicalRecordId: item.medical_record_id ? String(item.medical_record_id) : undefined,
     appointmentId: item.appointment_id ? String(item.appointment_id) : undefined,
     trimmingCourseId: item.trimming_course_id ? String(item.trimming_course_id) : undefined,
     trimmingOptionId: item.trimming_option_id ? String(item.trimming_option_id) : undefined,
@@ -107,6 +111,8 @@ export function transformToAccounting(data: BackendAccounting) {
       ? splits.map((s) => transformPaymentSplit(s as PaymentSplitWithStaff))
       : undefined,
     totalRefundedAmount: data.total_refunded_amount ?? 0,
+    /** BUG-007: 未収残高（waiting 全額 or クレジット訂正後の patient_due−支払額） */
+    outstandingAmount: data.outstanding_amount ?? 0,
     memo: data.memo || undefined,
   };
 }

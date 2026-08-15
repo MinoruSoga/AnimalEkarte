@@ -1,10 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { MemoryRouter } from "react-router";
-import { AuthContext } from "@/contexts/auth-context";
-import type { ResourceAction } from "@/types/auth";
+import { MemoryRouter, useLocation } from "react-router";
+import { AuthContext } from "@/hooks/auth-context";
+import type { AuthContextValue } from "@/types/auth";
+import { ResourceCheckups, ResourceMedicalRecords } from "@/types/generated/models";
 import { CheckupsList } from "./CheckupsList";
 import type { CheckupFilters } from "../api/types";
 
@@ -24,7 +25,11 @@ function getISODate(dayOffset: number): string {
   return d.toISOString().slice(0, 10);
 }
 
-function makeAuthCtx() {
+const allowAllPermissions: AuthContextValue["hasPermission"] = () => true;
+
+function makeAuthCtx(
+  hasPermission: AuthContextValue["hasPermission"] = allowAllPermissions,
+): AuthContextValue {
   return {
     user: null,
     currentClinicId: "clinic-test-1",
@@ -33,7 +38,7 @@ function makeAuthCtx() {
     login: async () => {},
     logout: async () => {},
     switchClinic: () => {},
-    hasPermission: (_resource: string, _action: ResourceAction): boolean => true,
+    hasPermission,
     refreshPermissions: async () => {},
   };
 }
@@ -76,14 +81,24 @@ function makeCheckupsResult(
   };
 }
 
-function createWrapper() {
+function LocationProbe() {
+  const { pathname } = useLocation();
+  return <output data-testid="location">{pathname}</output>;
+}
+
+function createWrapper(
+  hasPermission: AuthContextValue["hasPermission"] = allowAllPermissions,
+) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
   return ({ children }: { children: React.ReactNode }) => (
-    <AuthContext.Provider value={makeAuthCtx()}>
+    <AuthContext.Provider value={makeAuthCtx(hasPermission)}>
       <QueryClientProvider client={queryClient}>
-        <MemoryRouter>{children}</MemoryRouter>
+        <MemoryRouter initialEntries={["/checkups"]}>
+          {children}
+          <LocationProbe />
+        </MemoryRouter>
       </QueryClientProvider>
     </AuthContext.Provider>
   );
@@ -294,5 +309,113 @@ describe("CheckupsList — E: サーバページング (X-16②)", () => {
       const lastCall = vi.mocked(useGetCheckups).mock.calls.at(-1)?.[0] as CheckupFilters | undefined;
       expect(lastCall?.page).toBe(2);
     });
+  });
+});
+
+describe("CheckupsList — row navigation accessibility", () => {
+  beforeEach(() => {
+    vi.mocked(useGetCheckups).mockReturnValue({
+      data: makeCheckupsResult([makeCheckupRecord({ date: "2026-07-13" })]),
+      isLoading: false,
+      error: null,
+    } as ReturnType<typeof useGetCheckups>);
+  });
+
+  it("ペット名・実施日を含む44px以上のnative medical record linkを行内に表示する", () => {
+    render(<CheckupsList />, { wrapper: createWrapper() });
+
+    const detailLink = screen.getByRole("link", { name: /ポチ/ });
+    expect(detailLink).toHaveAttribute("href", "/medical-records/mr-1");
+    expect(detailLink).toHaveAccessibleName(/ポチ/);
+    expect(detailLink).toHaveAccessibleName(/2026-07-13/);
+    expect(detailLink).toHaveAccessibleName(/chk-1/);
+    expect(detailLink).toHaveClass("min-h-11", "min-w-11");
+  });
+
+  it("detail link以外のセルclickでは行遷移しない", () => {
+    render(<CheckupsList />, { wrapper: createWrapper() });
+
+    fireEvent.click(screen.getByText("山田 太郎"));
+
+    expect(screen.getByTestId("location")).toHaveTextContent(/^\/checkups$/);
+  });
+});
+
+describe("CheckupsList — medical record permission boundary", () => {
+  it.each([
+    { canCreate: true, canEdit: false },
+    { canCreate: false, canEdit: true },
+  ])(
+    "新規登録CTAはmedical-records:create/editの片方だけでは表示しない ($canCreate/$canEdit)",
+    ({ canCreate, canEdit }) => {
+      const hasPermission: AuthContextValue["hasPermission"] = vi.fn(
+        (resource, action) =>
+          (resource === ResourceCheckups && action === "view") ||
+          (resource === ResourceMedicalRecords && action === "view") ||
+          (resource === ResourceMedicalRecords && action === "create" && canCreate) ||
+          (resource === ResourceMedicalRecords && action === "edit" && canEdit),
+      );
+
+      render(<CheckupsList />, { wrapper: createWrapper(hasPermission) });
+
+      expect(screen.queryByRole("button", { name: /新規登録/ })).not.toBeInTheDocument();
+      expect(hasPermission).toHaveBeenCalledWith(ResourceMedicalRecords, "create");
+      expect(hasPermission).toHaveBeenCalledWith(ResourceMedicalRecords, "edit");
+    },
+  );
+
+  it("新規登録CTAはmedical-records:create/editの両方がある場合だけ表示する", () => {
+    const hasPermission: AuthContextValue["hasPermission"] = vi.fn(
+      (resource, action) =>
+        (resource === ResourceCheckups && action === "view") ||
+        (resource === ResourceMedicalRecords && action === "view") ||
+        (resource === ResourceMedicalRecords &&
+          (action === "create" || action === "edit")),
+    );
+
+    render(<CheckupsList />, { wrapper: createWrapper(hasPermission) });
+
+    expect(screen.getByRole("button", { name: /新規登録/ })).toBeInTheDocument();
+    expect(hasPermission).toHaveBeenCalledWith(ResourceMedicalRecords, "create");
+    expect(hasPermission).toHaveBeenCalledWith(ResourceMedicalRecords, "edit");
+  });
+
+  it("row edit actionはmedical-records:editがあってもviewがなければ表示しない", () => {
+    const hasPermission: AuthContextValue["hasPermission"] = vi.fn(
+      (resource, action) =>
+        (resource === ResourceCheckups && action === "view") ||
+        (resource === ResourceMedicalRecords && action === "edit"),
+    );
+    vi.mocked(useGetCheckups).mockReturnValue({
+      data: makeCheckupsResult([makeCheckupRecord()]),
+      isLoading: false,
+      error: null,
+    } as ReturnType<typeof useGetCheckups>);
+
+    render(<CheckupsList />, { wrapper: createWrapper(hasPermission) });
+
+    expect(screen.queryByRole("button", { name: "操作" })).not.toBeInTheDocument();
+    expect(hasPermission).toHaveBeenCalledWith(ResourceMedicalRecords, "view");
+    expect(hasPermission).toHaveBeenCalledWith(ResourceMedicalRecords, "edit");
+  });
+
+  it("row edit actionはmedical-records:view/editの両方がある場合だけ表示する", () => {
+    const hasPermission: AuthContextValue["hasPermission"] = vi.fn(
+      (resource, action) =>
+        (resource === ResourceCheckups && action === "view") ||
+        (resource === ResourceMedicalRecords &&
+          (action === "view" || action === "edit")),
+    );
+    vi.mocked(useGetCheckups).mockReturnValue({
+      data: makeCheckupsResult([makeCheckupRecord()]),
+      isLoading: false,
+      error: null,
+    } as ReturnType<typeof useGetCheckups>);
+
+    render(<CheckupsList />, { wrapper: createWrapper(hasPermission) });
+
+    expect(screen.getByRole("button", { name: /chk-1/ })).toBeInTheDocument();
+    expect(hasPermission).toHaveBeenCalledWith(ResourceMedicalRecords, "view");
+    expect(hasPermission).toHaveBeenCalledWith(ResourceMedicalRecords, "edit");
   });
 });

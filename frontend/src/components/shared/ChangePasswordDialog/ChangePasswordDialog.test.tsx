@@ -43,6 +43,9 @@ describe("ChangePasswordDialog — password visibility toggle", () => {
     expect(screen.getByRole("button", { name: "現在のパスワードを表示" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "新しいパスワードを表示" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "確認用パスワードを表示" })).toBeInTheDocument();
+    for (const input of Object.values(getInputs())) {
+      expect(input).toHaveClass("pr-12");
+    }
   });
 
   it("現在のパスワードのトグルは current_password だけに作用する", async () => {

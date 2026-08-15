@@ -4,15 +4,16 @@ import { PetSelectionResultsTable } from "@/components/shared/PetSelection/PetSe
 import { usePetSelectionPage } from "@/hooks/use-pet-selection-page";
 import { ResourceHospitalization } from "@/types/generated/models";
 import { paths } from "@/config/paths";
+import { LAYOUT } from "@/lib/design-tokens";
 
 export function HospitalizationPetSelection() {
-  const { searchParams, setSearchParams, filteredPets, handleSearch, handleClear, handleSelect, handleBack } =
+  const { searchParams, setSearchParams, petPage, error, isLoading, handleClear, handleSelect, handleBack } =
     usePetSelectionPage({ selectPath: paths.hospitalization.new.getHref(), backPath: paths.hospitalization.getHref() });
 
   return (
-    <PageLayout title="入院・ホテル登録 - ペット選択" onBack={handleBack} resource={ResourceHospitalization} maxWidth="max-w-full">
-      <PetSelectionSearchForm searchParams={searchParams} setSearchParams={setSearchParams} onSearch={handleSearch} onClear={handleClear} />
-      <PetSelectionResultsTable pets={filteredPets} onSelect={handleSelect} />
+    <PageLayout title="入院・ホテル登録 - ペット選択" onBack={handleBack} resource={ResourceHospitalization} maxWidth={LAYOUT.pageContentMaxWidth.full}>
+      <PetSelectionSearchForm searchParams={searchParams} setSearchParams={setSearchParams} onClear={handleClear} />
+      <PetSelectionResultsTable pets={petPage} onSelect={handleSelect} isError={Boolean(error)} isLoading={isLoading} />
     </PageLayout>
   );
 }

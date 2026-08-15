@@ -1,17 +1,21 @@
 /**
  * K6 Load Testing - API Endpoints
  *
- * 主要 API エンドポイントの負荷テスト
- * 並行ユーザー数、スループット、レスポンスタイムを測定
+ * 主要 API エンドポイントの負荷テスト。
+ * setup() で1回だけ STG_DEMO_* 認証し、Cookie を全 VU で再利用する。
+ * login 非200 / cookie 欠落 / protected 非200 / 0 request|check|iteration|successful_logins は非0終了。
+ * パスワード・body・cookie・token 値はログに出さない。
  *
- * 実行: k6 run load-tests/k6-api-endpoints.js
+ * 実行:
+ *   BASE_URL=http://localhost:8080 \
+ *   STG_DEMO_EMAIL=... STG_DEMO_PASSWORD=... \
+ *   k6 run load-tests/k6-api-endpoints.js
  */
 
 import http from 'k6/http';
 import { check, sleep, group } from 'k6';
-import { Rate, Trend, Counter, Gauge } from 'k6/metrics';
+import { Rate, Trend, Counter } from 'k6/metrics';
 
-// カスタムメトリクス
 const errorRate = new Rate('errors');
 const loginDuration = new Trend('login_duration');
 const appointmentListDuration = new Trend('appointment_list_duration');
@@ -20,87 +24,91 @@ const permissionGroupDuration = new Trend('permission_group_duration');
 const successfulLogins = new Counter('successful_logins');
 const apiErrors = new Counter('api_errors');
 
-// テストオプション
 export const options = {
   stages: [
-    { duration: '30s', target: 10 },   // Ramp-up: 10ユーザーまで 30秒で増加
-    { duration: '1m30s', target: 10 }, // Stay: 10ユーザーで 1分30秒保持
-    { duration: '30s', target: 50 },   // Spike: 50ユーザーに急増
-    { duration: '1m', target: 50 },    // Stay: 50ユーザーで 1分保持
-    { duration: '30s', target: 0 },    // Ramp-down: 0ユーザーまで減少
+    { duration: '30s', target: 10 },
+    { duration: '1m30s', target: 10 },
+    { duration: '30s', target: 50 },
+    { duration: '1m', target: 50 },
+    { duration: '30s', target: 0 },
   ],
   thresholds: {
-    'http_req_duration': ['p(95)<500', 'p(99)<1000'],      // 95%レスポンス < 500ms, 99% < 1000ms
-    'http_req_failed': ['rate<0.1'],                        // エラー率 < 10%
-    'errors': ['rate<0.1'],                                 // カスタムエラー率 < 10%
+    http_req_duration: ['p(95)<500', 'p(99)<1000'],
+    http_req_failed: ['rate<0.1'],
+    errors: ['rate<0.1'],
+    // fail-closed: 認証済み負荷が実際に走ったことを aggregate で証明する
+    http_reqs: ['count>0'],
+    iterations: ['count>0'],
+    checks: ['rate>0'],
+    successful_logins: ['count>0'],
   },
 };
 
-// テスト用認証情報（環境変数から取得）
 const BASE_URL = __ENV.BASE_URL || 'http://localhost:8080';
-const TEST_EMAIL = __ENV.TEST_EMAIL || 'admin@example.com';
-const TEST_CRED = __ENV.TEST_CRED || 'test';
+const STG_DEMO_EMAIL = __ENV.STG_DEMO_EMAIL;
+const STG_DEMO_PASSWORD = __ENV.STG_DEMO_PASSWORD;
 
-let authToken = '';
+function requireCredentials() {
+  if (!STG_DEMO_EMAIL || !STG_DEMO_PASSWORD) {
+    throw new Error('STG_DEMO_EMAIL / STG_DEMO_PASSWORD must be set via env (no fallback)');
+  }
+}
 
+function authHeaders(cookie) {
+  return {
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Requested-With': 'XMLHttpRequest',
+      Cookie: cookie,
+    },
+  };
+}
+
+// setup() は全 VU 共有で1回のみ。login レートリミット回避のためここで認証する。
 export function setup() {
-  // グローバル認証トークン取得
-  const loginRes = http.post(`${BASE_URL}/api/v1/login`, {
-    email: TEST_EMAIL,
-    cred: TEST_CRED,
-  });
+  requireCredentials();
 
-  // レスポンスから認証情報を抽出（通常 Cookie に設定される）
+  const loginRes = http.post(
+    `${BASE_URL}/api/v1/login`,
+    JSON.stringify({ email: STG_DEMO_EMAIL, password: STG_DEMO_PASSWORD }),
+    {
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+      },
+    }
+  );
+
+  loginDuration.add(loginRes.timings.duration);
+
   if (loginRes.status !== 200) {
-    console.error('Setup: Login failed', loginRes.status, loginRes.body);
-    throw new Error('Failed to login during setup');
+    // status のみ。body / cookie / token は出さない
+    throw new Error(`setup login failed: status=${loginRes.status}`);
   }
 
-  return { token: loginRes.headers['Set-Cookie'] || '' };
+  const cookie = loginRes.headers['Set-Cookie'];
+  if (!cookie) {
+    throw new Error('setup login failed: missing Set-Cookie');
+  }
+
+  successfulLogins.add(1);
+  return { cookie };
 }
 
 export default function (data) {
-  // 認証ヘッダーを準備
-  const params = {
-    headers: {
-      'Content-Type': 'application/json',
-      'Cookie': data.token,
-    },
-  };
+  if (!data || !data.cookie) {
+    throw new Error('missing session cookie from setup');
+  }
 
-  // ========== ログインテスト ==========
-  group('Login Flow', () => {
-    const loginRes = http.post(`${BASE_URL}/api/v1/login`, {
-      email: TEST_EMAIL,
-      cred: TEST_CRED,
-    });
+  const params = authHeaders(data.cookie);
 
-    loginDuration.add(loginRes.timings.duration);
-    const loginOk = check(loginRes, {
-      'login status is 200': (r) => r.status === 200,
-      'login has Set-Cookie': (r) => r.headers['Set-Cookie'] !== undefined,
-    });
-
-    if (loginOk) {
-      successfulLogins.add(1);
-    } else {
-      errorRate.add(1);
-      apiErrors.add(1);
-    }
-  });
-
-  sleep(1);
-
-  // ========== 診察一覧取得 ==========
   group('Appointment List', () => {
     const appointmentRes = http.get(`${BASE_URL}/api/v1/appointments`, params);
-
     appointmentListDuration.add(appointmentRes.timings.duration);
     const appointmentOk = check(appointmentRes, {
-      'appointment list status 200 or 401': (r) => r.status === 200 || r.status === 401,
+      'appointment list status 200': (r) => r.status === 200,
       'appointment response time < 1000ms': (r) => r.timings.duration < 1000,
     });
-
     if (!appointmentOk) {
       errorRate.add(1);
       apiErrors.add(1);
@@ -109,16 +117,13 @@ export default function (data) {
 
   sleep(1);
 
-  // ========== 医療記録取得 ==========
   group('Medical Records', () => {
     const medicalRes = http.get(`${BASE_URL}/api/v1/medical-records`, params);
-
     medicalRecordDuration.add(medicalRes.timings.duration);
     const medicalOk = check(medicalRes, {
-      'medical records status 200 or 401': (r) => r.status === 200 || r.status === 401,
+      'medical records status 200': (r) => r.status === 200,
       'medical records response time < 1500ms': (r) => r.timings.duration < 1500,
     });
-
     if (!medicalOk) {
       errorRate.add(1);
       apiErrors.add(1);
@@ -127,16 +132,13 @@ export default function (data) {
 
   sleep(1);
 
-  // ========== 権限グループ取得 ==========
   group('Permission Groups', () => {
     const permRes = http.get(`${BASE_URL}/api/v1/permission-groups`, params);
-
     permissionGroupDuration.add(permRes.timings.duration);
     const permOk = check(permRes, {
-      'permission groups status 200 or 401': (r) => r.status === 200 || r.status === 401,
+      'permission groups status 200': (r) => r.status === 200,
       'permission groups response time < 1000ms': (r) => r.timings.duration < 1000,
     });
-
     if (!permOk) {
       errorRate.add(1);
       apiErrors.add(1);
@@ -146,31 +148,52 @@ export default function (data) {
   sleep(1);
 }
 
+// summary JSON は CI の --summary-export が正本。ここでは stdout のみ。
 export function handleSummary(data) {
-  // テスト結果をコンソールとファイルに出力
   return {
-    'stdout': textSummary(data, { indent: ' ', enableColors: true }),
-    'load-tests/results.json': JSON.stringify(data),
+    stdout: textSummary(data, { indent: ' ' }),
   };
 }
 
-/**
- * テキストサマリー生成 (簡易版)
- */
-function textSummary(data, options) {
-  const indent = options.indent || '';
-  let summary = '\n=== Load Test Results ===\n';
+function metricCount(metric) {
+  if (!metric || !metric.values) return 0;
+  if (typeof metric.values.count === 'number') return metric.values.count;
+  // Rate metrics (checks): passes + fails を活動量として数える
+  const passes = metric.values.passes;
+  const fails = metric.values.fails;
+  if (typeof passes === 'number' || typeof fails === 'number') {
+    return (passes || 0) + (fails || 0);
+  }
+  return 0;
+}
 
-  if (data.metrics) {
-    summary += `\n${indent}HTTP Requests:\n`;
-    if (data.metrics.http_requests) {
-      summary += `${indent}  Total: ${data.metrics.http_requests.value}\n`;
+function textSummary(data, options) {
+  const indent = (options && options.indent) || '';
+  const m = (data && data.metrics) || {};
+  let summary = '\n=== Load Test Results (API Endpoints) ===\n';
+
+  summary += `\n${indent}HTTP Requests (http_reqs): ${metricCount(m.http_reqs)}\n`;
+  summary += `${indent}Iterations: ${metricCount(m.iterations)}\n`;
+  summary += `${indent}Checks: ${metricCount(m.checks)}\n`;
+  summary += `${indent}Successful logins: ${metricCount(m.successful_logins)}\n`;
+
+  if (m.http_req_failed && m.http_req_failed.values) {
+    const rate = m.http_req_failed.values.rate;
+    if (typeof rate === 'number') {
+      summary += `${indent}Failed rate: ${(rate * 100).toFixed(2)}%\n`;
     }
-    if (data.metrics.http_req_failed) {
-      summary += `${indent}  Failed: ${data.metrics.http_req_failed.value}\n`;
+  }
+  if (m.http_req_duration && m.http_req_duration.values) {
+    const avg = m.http_req_duration.values.avg;
+    if (typeof avg === 'number') {
+      summary += `${indent}Avg Duration: ${Math.round(avg)}ms\n`;
     }
-    if (data.metrics.http_req_duration) {
-      summary += `${indent}  Avg Duration: ${Math.round(data.metrics.http_req_duration.value)}ms\n`;
+  }
+
+  // fail-closed 表示用（exit は k6 thresholds が担当）
+  for (const name of ['http_reqs', 'iterations', 'checks', 'successful_logins']) {
+    if (metricCount(m[name]) <= 0) {
+      summary += `${indent}FAIL: ${name} is zero or missing\n`;
     }
   }
 

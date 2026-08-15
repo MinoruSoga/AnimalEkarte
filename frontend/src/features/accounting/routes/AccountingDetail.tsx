@@ -16,13 +16,19 @@ import {
   AccountingPrintArea,
   ReadOnlyAccountingBanner,
   UngroupedItemsWarningBanner,
+  UnbilledBlockingWarningBanner,
 } from "../components/AccountingDetailPanels";
 import { useAccountingCompletionAction } from "../hooks/use-accounting-completion-action";
 import { useAccountingDetailState } from "../hooks/use-accounting-detail-state";
 import { useAccountingItemActions } from "../hooks/use-accounting-item-actions";
 import { useAccountingSettlementActions } from "../hooks/use-accounting-settlement-actions";
 import type { AccountingItem } from "../types";
-import { ResourceAccounting, ResourceAccountingCancel, ResourceAccountingPostCloseEdit } from "@/types/generated/models";
+import {
+  ResourceAccounting,
+  ResourceAccountingCancel,
+  ResourceAccountingPostCloseEdit,
+  ResourceCashRegisterClose,
+} from "@/types/generated/models";
 import { useGetCashRegisterCloses } from "@/hooks/use-cash-register-closes";
 
 const CreditCorrectionDialog = lazy(() =>
@@ -53,6 +59,11 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
     setLocalItems,
     accounting,
     ungroupedSummary,
+    unbilledWarnings,
+    hasBlockingUnbilledWarning,
+    blocksNewAccountingSubmit,
+    deceasedPetBlockMessage,
+    unbilledDetailsError,
     calculation,
     setCompletedPayment,
     hasInsurance,
@@ -100,6 +111,7 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
     navigate,
     setCompletedPayment,
     postCloseReason,
+    blockCreateReason: deceasedPetBlockMessage,
   });
 
   // clinic 情報（AccountingDocument に props 注入）
@@ -109,14 +121,19 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
   const { canEdit: canCancelAccounting } = usePermission(ResourceAccountingCancel);
   // #115: 締め後編集専用権限
   const { canEdit: canPostCloseEdit } = usePermission(ResourceAccountingPostCloseEdit);
-  const canSubmit = id ? canEdit : canCreate;
+  const { canView: canViewCashRegisterClose } = usePermission(ResourceCashRegisterClose);
+  const hasAccountingMutationPermission = id ? canEdit : canCreate;
+  // レジ締め状態を検証できない場合は、締め後編集を誤って許可しないよう fail closed にする。
+  // BUG-013: blocking unbilled / details 未取得・失敗中は新規会計確定を無効化。
+  const canSubmit =
+    hasAccountingMutationPermission && canViewCashRegisterClose && !blocksNewAccountingSubmit;
 
   // #115: billing の scheduled_date が締め済みか確認
   const scheduledDateStr = accounting?.scheduledDate ? accounting.scheduledDate.slice(0, 10) : null;
   // #115: scheduled_date が締め済みか、その 1 日分（AM/PM/EMG）を BE 契約（start_date/end_date）で問い合わせる
   const { data: closesData } = useGetCashRegisterCloses(
     scheduledDateStr ? { start_date: scheduledDateStr, end_date: scheduledDateStr } : undefined,
-    Boolean(scheduledDateStr),
+    Boolean(scheduledDateStr && hasAccountingMutationPermission && canViewCashRegisterClose),
   );
   const isScheduledDateClosed = Boolean(
     scheduledDateStr && closesData?.data.some((c) => c.closeDate?.slice(0, 10) === scheduledDateStr),
@@ -133,6 +150,10 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
 
   const { handleAddItem, handleDeleteItem, handleUpdateItemTax, handleUpdateItemDiscount } = useAccountingItemActions({
     accountingId: id,
+    accountingStatus: accounting?.status,
+    postCloseReason,
+    canPostCloseEdit,
+    isScheduledDateClosed,
     baseItems,
     queryClient,
     setLocalItems,
@@ -155,6 +176,14 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
   if (id && isLoading) return <LoadingFallback />;
   if (!accounting || !calculation) return <ErrorFallback message="データが見つかりません" />;
 
+  const readOnlyMessage = deceasedPetBlockMessage
+    ? deceasedPetBlockMessage
+    : !hasAccountingMutationPermission
+      ? "閲覧専用 — 編集権限がないため変更できません"
+      : !canViewCashRegisterClose
+        ? "閲覧専用 — レジ締め状態を確認する権限がないため変更できません"
+        : undefined;
+
   return (
     <>
       <form ref={formRef} action={formAction}>
@@ -174,11 +203,24 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
             />
           }
         >
-          <ReadOnlyAccountingBanner show={Boolean(id && !canEdit)} />
+          <ReadOnlyAccountingBanner
+            show={readOnlyMessage !== undefined}
+            message={readOnlyMessage}
+          />
           <UngroupedItemsWarningBanner
-            show={Boolean(!id && ungroupedSummary?.hasUngrouped)}
+            show={Boolean(!id && !deceasedPetBlockMessage && ungroupedSummary?.hasUngrouped)}
             medicalRecordCount={ungroupedSummary?.medicalRecordCount ?? 0}
             trimmingCount={ungroupedSummary?.trimmingCount ?? 0}
+          />
+          <UnbilledBlockingWarningBanner
+            show={Boolean(
+              !id && !deceasedPetBlockMessage && (hasBlockingUnbilledWarning || unbilledDetailsError),
+            )}
+            warnings={
+              unbilledDetailsError
+                ? [{ source: "unbilled", code: "unbilled_details_unavailable", count: 1, blocking: true }]
+                : unbilledWarnings
+            }
           />
           <fieldset disabled={!canSubmit} className="border-0 p-0 m-0 min-w-0">
             <AccountingDetailColumns
@@ -190,9 +232,9 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
               paymentSplits={paymentSplits}
               newItemOpen={newItemOpen}
               isRefunding={isRefunding}
-              canEdit={canEdit}
-              canCreate={canCreate}
-              canDelete={canDelete}
+              canEdit={Boolean(canEdit && canViewCashRegisterClose && !blocksNewAccountingSubmit)}
+              canCreate={Boolean(canCreate && canViewCashRegisterClose && !blocksNewAccountingSubmit)}
+              canDelete={Boolean(canDelete && canViewCashRegisterClose)}
               onNewItemOpenChange={setNewItemOpen}
               onAddItem={handleAddItem}
               onDeleteItem={handleDeleteItem}
@@ -207,7 +249,7 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
 
           {/* #189: 確定済みカード金額の確定後訂正（専用フロー・監査付き）。確定済み + 訂正権限がある場合のみ導線を表示。
               CreditCorrectionDialog は確定済み(completed)かつカード支払いが無ければ自動で null を返す。 */}
-          {id && canPostCloseEdit ? (
+          {id && canPostCloseEdit && canSubmit ? (
             <div className="px-4 pb-4">
               <Suspense fallback={null}>
                 <CreditCorrectionDialog accounting={accounting} isPostClose={isScheduledDateClosed} />
@@ -215,11 +257,13 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
             </div>
           ) : null}
 
-          {/* #115: 締め後編集理由入力（レジ締め済み期間かつ編集権限あり） */}
-          {isScheduledDateClosed && canSubmit && canPostCloseEdit ? (
+          {/* #115 / BUG-009: 締め後または確定済み会計の明細修正理由（権限あり時） */}
+          {(isScheduledDateClosed || accounting.status === "completed") && canSubmit && canPostCloseEdit ? (
             <div className="px-4 pb-4">
               <label htmlFor="postCloseReason" className={`block text-sm font-semibold ${C.danger} mb-1`}>
-                ⚠ レジ締め済み期間の編集 — 修正理由（必須）
+                {isScheduledDateClosed
+                  ? "⚠ レジ締め済み期間の編集 — 修正理由（必須）"
+                  : "⚠ 確定済み会計の明細修正 — 修正理由（必須）"}
               </label>
               <textarea
                 id="postCloseReason"
@@ -229,6 +273,12 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
                 rows={2}
                 placeholder="例: 入力金額の誤りのため修正"
               />
+            </div>
+          ) : null}
+          {/* 確定済みだが締め後編集権限が無い場合は拒否理由を明示（BUG-009） */}
+          {accounting.status === "completed" && canSubmit && !canPostCloseEdit ? (
+            <div className={`px-4 pb-4 text-sm font-semibold ${C.danger}`} role="status">
+              確定済み会計の明細修正には締め後編集権限（accounting-post-close-edit）が必要です。カード金額の訂正以外はクレジット訂正導線または権限付与を確認してください。
             </div>
           ) : null}
 

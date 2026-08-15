@@ -57,7 +57,7 @@ export function LineSendHistory({ ownerId }: LineSendHistoryProps) {
       {recent.map((item) => (
         <li
           key={item.id}
-          className={`flex items-center gap-2 text-xs ${C.text70} px-2 py-1.5 rounded-[3px] border ${C.borderLight}`}
+          className={`flex items-center gap-2 text-xs ${C.text70} px-2 py-1.5 rounded-xxs border ${C.borderLight}`}
         >
           <span className={`text-xs ${C.text50} font-mono shrink-0`}>
             {formatSentAt(item.sent_at)}
@@ -69,7 +69,7 @@ export function LineSendHistory({ ownerId }: LineSendHistoryProps) {
             <span className={`flex-1 truncate ${C.text60}`}>{item.content_summary}</span>
           ) : null}
           <span
-            className={`shrink-0 text-xs px-1.5 py-0.5 rounded-[3px] border font-medium ${STATUS_BADGE[item.status]}`}
+            className={`shrink-0 text-xs px-1.5 py-0.5 rounded-xxs border font-medium ${STATUS_BADGE[item.status]}`}
           >
             {STATUS_LABEL[item.status]}
           </span>

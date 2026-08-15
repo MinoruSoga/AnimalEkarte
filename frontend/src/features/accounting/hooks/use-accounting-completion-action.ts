@@ -9,13 +9,78 @@ import { handleApiError } from "@/lib/handle-api-error";
 import { jstDateStartISOString, jstNowISOString } from "@/lib/jst-date";
 import { queryKeys } from "@/lib/query-keys";
 
-import { createAccounting } from "../api/create-accounting";
+import {
+  completeAccounting,
+  createAccountingCompletionIdempotencyKey,
+} from "../api/complete-accounting";
+import type { CompleteAccountingItemRequest } from "../api/types";
 import { updateAccounting } from "../api/update-accounting";
-import { createBillingItem } from "../api/create-billing-item";
 import type { PaymentSplitRequest } from "../api/types";
 import type { PaymentSplitDraft } from "../components/PaymentCard";
 import type { Accounting, AccountingItem, PaymentInfo, PaymentMethod } from "../types";
 import { buildPaymentSplitRequests, type AccountingFormState } from "../components/accounting-detail-model";
+
+function toCompleteItems(
+  items: ReadonlyArray<AccountingItem>,
+): CompleteAccountingItemRequest[] {
+  return items.map((item) => ({
+    category: item.category,
+    name: item.name,
+    unit_price: item.unitPrice,
+    quantity: item.quantity,
+    discount_rate: item.discountRate,
+    discount_amount: item.discountAmount,
+    tax_type: item.taxType,
+    tax_rate: item.taxRate,
+    is_insurance_applicable: item.isInsuranceApplicable,
+    source: item.source,
+    ...(item.source === "manual" && item.category === "other" && item.otherReason !== undefined
+      ? { other_reason: item.otherReason }
+      : {}),
+    merchandise_item_id: item.merchandiseItemId ? Number(item.merchandiseItemId) : undefined,
+    vaccination_id: item.vaccinationId ? Number(item.vaccinationId) : undefined,
+    treatment_id: item.treatmentId ? Number(item.treatmentId) : undefined,
+    appointment_id: item.appointmentId ? Number(item.appointmentId) : undefined,
+    trimming_course_id: item.trimmingCourseId ? Number(item.trimmingCourseId) : undefined,
+    trimming_option_id: item.trimmingOptionId ? Number(item.trimmingOptionId) : undefined,
+  }));
+}
+
+/** BUG-011: complete ヘッダ medical_record_id。会計本体 → 明細の一意値の順で解決。 */
+function resolveCompleteMedicalRecordId(
+  accounting: Accounting,
+  items: ReadonlyArray<AccountingItem>,
+): number | undefined {
+  if (accounting.medicalRecordId) {
+    const n = Number(accounting.medicalRecordId);
+    if (Number.isFinite(n) && n > 0) return n;
+  }
+  const fromItems = new Set<number>();
+  for (const item of items) {
+    if (!item.medicalRecordId) continue;
+    const n = Number(item.medicalRecordId);
+    if (Number.isFinite(n) && n > 0) fromItems.add(n);
+  }
+  if (fromItems.size === 1) {
+    return [...fromItems][0];
+  }
+  return undefined;
+}
+
+/** mutation 単位の Idempotency-Key を payload 指紋付きで保持する（失敗 retry で再利用）。 */
+function buildCompletePayloadFingerprint(parts: {
+  petId: string | number;
+  ownerId: string | number;
+  medicalRecordId?: number;
+  scheduledDate: string;
+  items: CompleteAccountingItemRequest[];
+  paymentSplits: PaymentSplitRequest[];
+  postCloseReason?: string;
+  insuranceRatio: string | null;
+  insuranceAmount: number | null;
+}): string {
+  return JSON.stringify(parts);
+}
 
 interface AccountingCalculation {
   subtotal: number;
@@ -37,6 +102,8 @@ interface UseAccountingCompletionActionArgs {
   navigate: NavigateFunction;
   setCompletedPayment: Dispatch<SetStateAction<PaymentInfo | null>>;
   postCloseReason?: string; // #115: 締め後編集理由
+  /** BUG-001: 新規会計でペット生死が拒否対象のとき complete を発行しない */
+  blockCreateReason?: string;
 }
 
 export function useAccountingCompletionAction({
@@ -51,14 +118,28 @@ export function useAccountingCompletionAction({
   navigate,
   setCompletedPayment,
   postCloseReason,
+  blockCreateReason,
 }: UseAccountingCompletionActionArgs) {
   const [editConfirmOpen, setEditConfirmOpen] = useState(false);
   const editConfirmedRef = useRef(false);
   const formRef = useRef<HTMLFormElement>(null);
+  // BUG-018: mutation 単位の Idempotency-Key。失敗 retry で再利用し、成功後のみクリア。
+  const completeIdempotencyKeyRef = useRef<string | null>(null);
+  const completePayloadFingerprintRef = useRef<string | null>(null);
+  const blockCreateReasonRef = useRef(blockCreateReason);
+  useEffect(() => {
+    blockCreateReasonRef.current = blockCreateReason;
+  }, [blockCreateReason]);
 
   const [formState, formAction, isPending] = useActionState(
     async (_prevState: AccountingFormState, _formData: FormData): Promise<AccountingFormState> => {
       if (!accounting || !calculation) return { success: false, timestamp: Date.now() };
+
+      // BUG-001: 死亡 / 未確認ペットの新規確定は API を叩かず fail-closed。
+      if (!accountingId && blockCreateReasonRef.current) {
+        toast.error(blockCreateReasonRef.current);
+        return { success: false, timestamp: Date.now() };
+      }
 
       if (accounting.status === "completed" && !editConfirmedRef.current) {
         setEditConfirmOpen(true);
@@ -92,50 +173,52 @@ export function useAccountingCompletionAction({
 
       try {
         if (!accountingId) {
-          const created = await createAccounting({
-            pet_id: Number(accounting.petId),
-            owner_id: Number(accounting.ownerId),
-            scheduled_date: accounting.scheduledDate
-              ? jstDateStartISOString(accounting.scheduledDate)
-              : jstNowISOString(),
-            subtotal: calculation.subtotal,
-            tax_total: calculation.taxTotal,
-            total_amount: calculation.totalAmount,
+          // BUG-018: 新規確定は header/items/payments を単一 complete command で原子的に送信する。
+          // legacy create + sequential items は残置（他 consumer 用）だが本経路では呼ばない。
+          const completeItems = toCompleteItems(displayItems);
+          const medicalRecordId = resolveCompleteMedicalRecordId(accounting, displayItems);
+          const scheduledDate = accounting.scheduledDate
+            ? jstDateStartISOString(accounting.scheduledDate)
+            : jstNowISOString();
+          const insuranceRatioValue = hasInsurance ? parseFloat(insuranceRatio) : null;
+          const insuranceAmountValue =
+            calculation.insuranceAmount !== 0 ? calculation.insuranceAmount : null;
+          const fingerprint = buildCompletePayloadFingerprint({
+            petId: accounting.petId,
+            ownerId: accounting.ownerId,
+            medicalRecordId,
+            scheduledDate,
+            items: completeItems,
+            paymentSplits: builtSplits,
+            postCloseReason: postCloseReason || undefined,
+            insuranceRatio: insuranceRatioValue !== null ? String(insuranceRatioValue) : null,
+            insuranceAmount: insuranceAmountValue,
           });
-
-          for (const item of displayItems) {
-            await createBillingItem({
-              billing_id: Number(created.id),
-              category: item.category,
-              name: item.name,
-              unit_price: item.unitPrice,
-              quantity: item.quantity,
-              tax_type: item.taxType,
-              tax_rate: item.taxRate,
-              is_insurance_applicable: item.isInsuranceApplicable,
-              source: item.source,
-              treatment_id: item.treatmentId ? Number(item.treatmentId) : undefined,
-              appointment_id: item.appointmentId ? Number(item.appointmentId) : undefined,
-              trimming_course_id: item.trimmingCourseId ? Number(item.trimmingCourseId) : undefined,
-              trimming_option_id: item.trimmingOptionId ? Number(item.trimmingOptionId) : undefined,
-            });
+          if (
+            completeIdempotencyKeyRef.current === null ||
+            completePayloadFingerprintRef.current !== fingerprint
+          ) {
+            completeIdempotencyKeyRef.current = createAccountingCompletionIdempotencyKey();
+            completePayloadFingerprintRef.current = fingerprint;
           }
-
-          await updateAccounting(created.id, {
-            status: "completed",
-            subtotal: calculation.subtotal,
-            tax_total: calculation.taxTotal,
-            total_amount: calculation.totalAmount,
-            insurance_ratio: hasInsurance ? parseFloat(insuranceRatio) : null,
-            insurance_amount: calculation.insuranceAmount !== 0 ? calculation.insuranceAmount : null,
-            billing_amount: calculation.billingAmount,
-            received_amount: totalReceived,
-            change_amount: totalChange,
-            payment_method: repMethod,
-            payment_splits: builtSplits,
-            completed_at: jstNowISOString(),
-            post_close_reason: postCloseReason || undefined,
-          });
+          const idempotencyKey = completeIdempotencyKeyRef.current;
+          const created = await completeAccounting(
+            {
+              pet_id: Number(accounting.petId),
+              owner_id: Number(accounting.ownerId),
+              medical_record_id: medicalRecordId ?? null,
+              scheduled_date: scheduledDate,
+              has_insurance: hasInsurance,
+              insurance_ratio: insuranceRatioValue,
+              insurance_amount: insuranceAmountValue,
+              items: completeItems,
+              payment_splits: builtSplits,
+              post_close_reason: postCloseReason || undefined,
+            },
+            idempotencyKey,
+          );
+          completeIdempotencyKeyRef.current = null;
+          completePayloadFingerprintRef.current = null;
           queryClient.invalidateQueries({ queryKey: queryKeys.accountings.all() });
           toast.success("会計を登録・完了しました");
           navigate(paths.accounting.detail.getHref(created.id));

@@ -2,19 +2,11 @@
 
 ## モデル選択
 
-| タスク | 推奨モデル | 理由 |
-|--------|-----------|------|
-| アーキテクチャ設計・セキュリティ分析・大規模リファクタ計画 | opus | 複雑な多層判断が必要 |
-| 機能実装・コードレビュー・テスト作成・デバッグ | sonnet | 日常作業の最適コスパ |
-| ファイル検索・軽微な修正・フォーマット確認・質問応答 | haiku | 低コスト・高速 |
+正本は `~/.claude/rules/ecc/common/performance.md`（根拠ベースでのエスカレーション方針）。カテゴリ別の固定モデル指定はしない（2026-07-21 doctor監査でグローバル方針との矛盾を解消・project側の表を削除）。
 
 ## エージェント × モデル対応
 
 正本は各エージェントの frontmatter（`.claude/agents/*.md` の `model:`）。表による二重管理はしない（対応表がエージェント追加/削除のたびにドリフトしていたため廃止）。
-
-## `/think` 判断基準
-
-`.claude/CLAUDE.md` の「`/think` Enablement Criteria」を参照（重複記載しない）。迷ったらスキップ。
 
 ## コンテキスト管理
 
@@ -27,16 +19,19 @@
 - タスク切り替え前に `/compact` を検討する
 - `stop-save-progress.js` がセッション終了時に進捗スナップショットを保存
 
+## 並行エージェント / Git 安全
+
+- 正本: `git-worktree-safety.md`
+- 並行タスクは **worktree 隔離必須**（共有 working tree 禁止）
+- `git reset --hard` / `git clean -fd(x)` / discard-all restore / force-push は deny + PreToolUse でブロック
+
 ## 読み取り効率ルール（トークン削減）
 
 **ファイル読み取り:**
-- 大きなファイルは `limit`/`offset` で必要部分だけ読む（2000行全読みはしない）
-- 編集直後のファイルは再読み禁止 — Edit/Write は成功すれば変更済みが保証される
 - シンボルやパターン検索は `grep` (Bash) を使う。Read でファイル全体を読んでから探すな
 
 **エージェント使用:**
 - Explore エージェントは thoroughness を明示する: `"quick"` / `"medium"` / `"very thorough"`
-- 独立したクエリは単一メッセージで並列実行する（逐次は2〜5倍のコスト）
 - 既知パスへのアクセスは直接 Read — Explore/researcher エージェントは不要
 
 **コンテキスト節約:**

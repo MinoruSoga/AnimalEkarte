@@ -16,7 +16,11 @@ export const RESOURCE_LABELS: Record<string, string> = {
   hospitalization: "入院・ホテル",
   trimming: "トリミング",
   examinations: "検査管理",
+  "examination-unconfirm": "検査確定解除",
+  "lab-import": "検査取込",
   accounting: "会計管理",
+  "accounting-cancel": "会計キャンセル",
+  "accounting-post-close-edit": "締め後会計編集",
   vaccinations: "予防接種",
   checkups: "定期健診",
   inventory: "在庫管理",
@@ -37,7 +41,10 @@ export const RESOURCE_LABELS: Record<string, string> = {
   "accounting-reports": "月次売上レポート",
   "closing-settings": "締め設定",
   "master-payment-method": "支払方法マスタ",
+  "lstep-csv-import": "Lステップ CSV 取込",
+  "lstep-analytics": "Lステップ分析",
   "manual-edit": "取扱説明書 編集",
+  "identity-links": "同一飼主・ペット連携",
 };
 
 export const ALL_PERMISSION_RESOURCES = Object.keys(RESOURCE_LABELS);

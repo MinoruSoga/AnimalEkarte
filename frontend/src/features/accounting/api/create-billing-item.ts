@@ -13,10 +13,14 @@ export interface CreateBillingItemRequest {
   tax_rate: number;
   is_insurance_applicable: boolean;
   source: string;
+  merchandise_item_id?: number;
+  vaccination_id?: number;
   treatment_id?: number;
   appointment_id?: number;
   trimming_course_id?: number;
   trimming_option_id?: number;
+  /** #115 / BUG-021: レジ締め済み期間の明細追加理由（BE が締め判定時に必須） */
+  post_close_reason?: string;
 }
 
 export const createBillingItem = async (

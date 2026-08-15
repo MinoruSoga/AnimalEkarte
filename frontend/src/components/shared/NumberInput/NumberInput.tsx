@@ -1,5 +1,5 @@
 // React/Framework
-import { memo } from "react";
+import { memo, type ComponentProps } from "react";
 
 // Internal
 import { Input } from "@/components/ui/input";
@@ -18,6 +18,8 @@ interface NumberInputProps {
   className?: string;
   disabled?: boolean;
   id?: string;
+  "aria-invalid"?: ComponentProps<"input">["aria-invalid"];
+  "aria-describedby"?: ComponentProps<"input">["aria-describedby"];
 }
 
 export const NumberInput = memo(function NumberInput({
@@ -32,6 +34,8 @@ export const NumberInput = memo(function NumberInput({
   className,
   disabled,
   id,
+  "aria-invalid": ariaInvalid,
+  "aria-describedby": ariaDescribedBy,
 }: NumberInputProps) {
   return (
     <div className="relative">
@@ -45,6 +49,8 @@ export const NumberInput = memo(function NumberInput({
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         disabled={disabled}
+        aria-invalid={ariaInvalid}
+        aria-describedby={ariaDescribedBy}
         className={`${suffix ? "pr-10" : ""} ${align === "right" ? "text-right" : ""} ${className ?? ""}`.trimEnd()}
       />
       {suffix ? (

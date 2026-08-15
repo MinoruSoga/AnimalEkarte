@@ -44,7 +44,7 @@ const CompanyInvoiceForm = memo(function CompanyInvoiceForm({
           type="text"
           defaultValue={invoiceRegistrationNumber}
           placeholder="例: T1234567890123"
-          className={`${STYLE.formInput} mt-1 w-full rounded-[4px] border px-3`}
+          className={`${STYLE.formInput} mt-1 w-full rounded-xs border px-3`}
         />
       </fieldset>
       {canEdit ? <SubmitButton>保存</SubmitButton> : null}

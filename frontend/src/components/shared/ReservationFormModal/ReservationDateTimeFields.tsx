@@ -8,7 +8,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarIcon, Clock, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { DISPLAY_TIME_FORMAT } from "@/utils/format/date";
+import { DISPLAY_TIME_FORMAT } from "@/lib/format/date";
 import { TIME_OPTIONS } from "./reservation-time-utils";
 import type { Reservation } from "@/types";
 
@@ -24,7 +24,7 @@ export interface FieldLabelProps {
 export function FieldLabel({ children, required, trailing }: FieldLabelProps) {
   return (
     <div className="flex items-center justify-between gap-2">
-      <Label className={`text-[12px] ${C.text40} tracking-wide font-medium`}>
+      <Label className={`text-xs ${C.text40} font-medium`}>
         {children}
         {required ? (
           <span style={{ color: C.danger }} className="ml-1" aria-hidden="true">*</span>
@@ -107,7 +107,7 @@ export function ReservationDateTimeFields({
       </div>
 
       <div className="space-y-1.5">
-        <div className={`flex items-center gap-2 text-[12px] ${C.text40} tracking-wide font-medium`}>
+        <div className={`flex items-center gap-2 text-xs ${C.text40} font-medium`}>
           <Clock className={ICON.action} />
           時間
           <span style={{ color: C.danger }} className="ml-0.5" aria-hidden="true">*</span>

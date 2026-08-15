@@ -39,6 +39,7 @@ export function TreatmentPlanTabContent({
   const { orderedItems: orderedRoots, sensors, handleDragEnd } = useSortableList({
     items: treeItems,
     onReorder: (newIds) => {
+      if (!canEdit) return;
       onReorder(newIds.map(Number));
     },
   });

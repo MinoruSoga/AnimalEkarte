@@ -57,14 +57,32 @@ make lint-front  # FE 静的のみ
 | GitHub 公式 actions（`actions/*`） | メジャータグ（例: `actions/setup-node@v6`） | 公式の改竄リスクは低く、パッチ追従の利便を優先 |
 | ベンダー公式 actions（`aws-actions/*`、`golangci/*`、`pnpm/*` 等） | メジャータグまたは完全 semver（例: `@v6.1.0`） | 準公式。完全 semver 併用可（再現性優先の場合） |
 | サードパーティ actions（個人・小規模組織） | **コミット SHA ピン**＋バージョンをコメント明記 | サプライチェーン対策（タグは付け替え可能、SHA は不変） |
-| シェルからの外部スクリプト取得（curl 等） | **バージョンタグ固定必須**（`main`/`master` 参照禁止） | actionlint.yml の前例（`ba8cecea` で v1.7.12 固定）。未ピンは改竄・非再現の両リスク |
+| シェルからの外部スクリプト取得（curl 等） | **リモート pipe-to-shell 禁止**（下表）。Release artifact は **バージョン + SHA-256** で固定 | 未ピン / `main`/`master` 参照 / `curl\|sh` は改竄・非再現の両リスク |
+
+### リモート pipe-to-shell 禁止（Dockerfiles / workflows）
+
+次は **Dockerfile・GitHub Actions workflow で禁止**する（サプライチェーン）。
+
+| 禁止パターン | 例 | 代替 |
+|---|---|---|
+| `curl … \| sh` / `wget … \| sh` | `curl -sSfL …/install.sh \| sh` | 公式 pin イメージ、または Release tarball + checksum |
+| `bash <(curl …)` process substitution | `bash <(curl -Ls …/download-….bash)` | Release バイナリを SHA-256 検証してから実行 |
+| `raw.githubusercontent.com/…/(master\|main\|HEAD)/…` の pipe install | golangci-lint `master/install.sh` | ローカルは `make lint` の `golangci/golangci-lint:<pin>` イメージ。CI は action または checksum 付き release |
+
+機械的検査:
+
+- `scripts/check-workflow-remote-exec-policy.sh [repo-root]` — 上記パターンを Dockerfiles / workflows から検出して fail
+- `scripts/check-agent-security-policy.sh [repo-root]` — `.cursor/permissions.json` の `approvalMode: unrestricted` / `mcpAllowlist: ["*:*"]`、`.cursor/sandbox.json` の `networkPolicy.default: allow` を fail
+
+actionlint の導入例（許可）: GitHub Releases の `actionlint_<ver>_linux_amd64.tar.gz` を `sha256sum -c` で検証してから展開（`.github/workflows/actionlint.yml`）。
 
 ## 運用ルール
 
 1. **新規追加・既存変更時に本基準を適用する**（ratchet 方式）。既存の `uses:` を基準準拠のためだけに一括書き換えるスイープは行わず、該当ワークフローを触る際に合わせる。
 2. 同一 action は全ワークフローで**単一バージョンに統一**する（#195 で達成済みの状態を維持）。ドリフト検出は `scripts/check-actions-version-drift.sh`（actionlint.yml の CI job 内で実行・混在を fail）で行う。**actionlint 自体はバージョンドリフトを検出しない**（構文・式チェックのみ — backend-deploy.yml 新設時に @v4 が混入し #195 が回帰した実績あり）。env/with/working-directory のドリフトはスクリプト対象外のため PR レビューで見る（既知の盲点）。
-3. バージョン更新は四半期ごとに棚卸しする（actionlint の固定バージョン、SHA ピンの追従を含む）。
+3. バージョン更新は四半期ごとに棚卸しする（actionlint の固定バージョン、checksum ピンの追従を含む）。
 4. **新しい静的ゲートを増やすときは `make ci`（`scripts/run-local-ci.sh`）に足す。** リモート `ci.yml` に独立ジョブを増やすのは、fresh DB / 秘密スキャン / 共有ランナーでしか意味がない場合に限る。
+5. **リモート pipe-to-shell を新規に入れない。** Dockerfile への `curl\|sh` や workflow の `bash <(curl …)` は PR で reject。golangci-lint は in-image install せず `make lint` の pin イメージを使う。
 
 ## 現状の準拠状況（2026-07-17 更新）
 

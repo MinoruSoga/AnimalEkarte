@@ -5,6 +5,7 @@ import {
   getJSTToday,
   formatJapaneseDate,
   formatJSTApplicationDate,
+  formatTimeHHMM,
 } from './jst-date';
 
 // FE4-10: line-reserve/src/lib/jst-date.ts から逐語移動。日付系で唯一テストが無かったため
@@ -58,5 +59,14 @@ describe('shared-liff jst-date', () => {
 
   it('formatJSTApplicationDate: 空文字は空文字を返す', () => {
     expect(formatJSTApplicationDate('')).toBe('');
+  });
+
+  it('formatTimeHHMM: HHMM を HH:MM に変換する', () => {
+    expect(formatTimeHHMM('1000')).toBe('10:00');
+  });
+
+  it('formatTimeHHMM: 空文字と 4 文字未満はそのまま返す', () => {
+    expect(formatTimeHHMM('')).toBe('');
+    expect(formatTimeHHMM('123')).toBe('123');
   });
 });

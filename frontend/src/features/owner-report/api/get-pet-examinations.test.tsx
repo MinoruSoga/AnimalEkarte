@@ -72,4 +72,22 @@ describe("useGetPetExaminations (#158 下書き除外)", () => {
     });
     expect(result.current.fetchStatus).toBe("idle");
   });
+
+  it("BIGINT の petId を数値変換せずクエリへ渡す", async () => {
+    const largePetId = "9007199254740993";
+    let receivedPetId = "";
+    server.use(
+      http.get("/api/v1/examinations", ({ request }) => {
+        receivedPetId = new URL(request.url).searchParams.get("pet_id") ?? "";
+        return HttpResponse.json({ data: [], total: 0 });
+      }),
+    );
+
+    const { result } = renderHook(() => useGetPetExaminations(largePetId), {
+      wrapper: createWrapper(),
+    });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    expect(receivedPetId).toBe(largePetId);
+  });
 });

@@ -1,7 +1,8 @@
 import { memo } from "react";
 import { EmptyState } from "@/components/shared/DataStates";
+import { TableCell, TableHead } from "@/components/ui/table";
 import { C, STYLE } from "@/lib/design-tokens";
-import { formatCurrency } from "@/utils/format/number";
+import { formatCurrency } from "@/lib/format/number";
 import type { DailyReportDetail } from "../api/get-monthly-report";
 
 interface DailyBreakdownTableProps {
@@ -26,16 +27,16 @@ export const DailyBreakdownTable = memo(function DailyBreakdownTable({
       <table className="w-full text-base">
         <thead>
           <tr className={`border-b ${C.borderLight} ${C.bgPage}`}>
-            <th className={`text-left px-3 py-2 font-medium ${C.text70}`}>日付</th>
-            <th className={`text-left px-3 py-2 font-medium ${C.text70}`}>曜日</th>
-            <th className={`text-right px-3 py-2 font-medium ${C.text70}`}>午前件数</th>
-            <th className={`text-right px-3 py-2 font-medium ${C.text70}`}>午前売上</th>
-            <th className={`text-right px-3 py-2 font-medium ${C.text70}`}>午後件数</th>
-            <th className={`text-right px-3 py-2 font-medium ${C.text70}`}>午後売上</th>
-            <th className={`text-right px-3 py-2 font-medium ${C.text70}`}>日計</th>
-            <th className={`text-right px-3 py-2 font-medium ${C.text70}`}>返金</th>
-            <th className={`text-center px-3 py-2 font-medium ${C.text70}`}>AM締</th>
-            <th className={`text-center px-3 py-2 font-medium ${C.text70}`}>PM締</th>
+            <TableHead className={C.text55}>日付</TableHead>
+            <TableHead className={C.text55}>曜日</TableHead>
+            <TableHead className={`text-right ${C.text55}`}>午前件数</TableHead>
+            <TableHead className={`text-right ${C.text55}`}>午前売上</TableHead>
+            <TableHead className={`text-right ${C.text55}`}>午後件数</TableHead>
+            <TableHead className={`text-right ${C.text55}`}>午後売上</TableHead>
+            <TableHead className={`text-right ${C.text55}`}>日計</TableHead>
+            <TableHead className={`text-right ${C.text55}`}>返金</TableHead>
+            <TableHead className={`text-center ${C.text55}`}>AM締</TableHead>
+            <TableHead className={`text-center ${C.text55}`}>PM締</TableHead>
           </tr>
         </thead>
         <tbody>
@@ -66,34 +67,34 @@ export const DailyBreakdownTable = memo(function DailyBreakdownTable({
                     : ""
                 }`}
               >
-                <td className={`px-3 py-2 ${C.text}`}>{detail.date}</td>
-                <td className={`px-3 py-2 ${C.text}`}>{detail.weekday}</td>
-                <td className={`px-3 py-2 text-right ${C.text60}`}>{detail.amCount}件</td>
-                <td className={`px-3 py-2 text-right ${C.text}`}>
+                <TableCell className={C.text}>{detail.date}</TableCell>
+                <TableCell className={C.text}>{detail.weekday}</TableCell>
+                <TableCell className={`text-right ${C.text60}`}>{detail.amCount}件</TableCell>
+                <TableCell className={`text-right ${C.text}`}>
                   {formatCurrency(detail.amNet)}
-                </td>
-                <td className={`px-3 py-2 text-right ${C.text60}`}>{detail.pmCount}件</td>
-                <td className={`px-3 py-2 text-right ${C.text}`}>
+                </TableCell>
+                <TableCell className={`text-right ${C.text60}`}>{detail.pmCount}件</TableCell>
+                <TableCell className={`text-right ${C.text}`}>
                   {formatCurrency(detail.pmNet)}
-                </td>
-                <td className={`px-3 py-2 text-right font-medium ${C.text}`}>
+                </TableCell>
+                <TableCell className={`text-right font-medium ${C.text}`}>
                   {formatCurrency(detail.dayNet)}
-                </td>
-                <td
-                  className={`px-3 py-2 text-right ${detail.refund > 0 ? C.danger : C.text50}`}
+                </TableCell>
+                <TableCell
+                  className={`text-right ${detail.refund > 0 ? C.danger : C.text50}`}
                 >
-                  {detail.refund > 0 ? `-¥${detail.refund.toLocaleString()}` : "—"}
-                </td>
-                <td className="px-3 py-2 text-center">
+                  {detail.refund > 0 ? `-${formatCurrency(detail.refund)}` : "—"}
+                </TableCell>
+                <TableCell className="text-center">
                   <span
                     className={`inline-block size-2 rounded-full ${detail.amClosed ? C.bgStatusGreenDot : C.bgInactive}`}
                   />
-                </td>
-                <td className="px-3 py-2 text-center">
+                </TableCell>
+                <TableCell className="text-center">
                   <span
                     className={`inline-block size-2 rounded-full ${detail.pmClosed ? C.bgStatusGreenDot : C.bgInactive}`}
                   />
-                </td>
+                </TableCell>
               </tr>
             );
           })}

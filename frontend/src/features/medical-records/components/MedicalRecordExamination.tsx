@@ -10,6 +10,7 @@ import { ExaminationFilter } from "./ExaminationFilter";
 import { ExaminationGroup } from "./ExaminationGroup";
 import { ExaminationImportDialog } from "./MedicalRecordLazyModals";
 import { C } from "@/lib/design-tokens";
+import { HISTORY_FETCH_LIMIT } from "@/config/fetch-limits";
 
 interface MedicalRecordExaminationProps {
   isNewRecord?: boolean;
@@ -28,9 +29,14 @@ export const MedicalRecordExamination = memo(function MedicalRecordExamination({
   const [dateEnd, setDateEnd] = useState("");
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
 
-  const { data: apiExamGroups = [], isLoading, refetch } = useGetRecordExaminations(
+  const { data: examinationResult, isLoading, refetch } = useGetRecordExaminations(
     isNewRecord ? undefined : petId,
   );
+  const apiExamGroups = useMemo(
+    () => examinationResult?.items ?? [],
+    [examinationResult?.items],
+  );
+  const isTruncated = examinationResult?.isTruncated ?? false;
 
   const examGroups = useMemo(
     () =>
@@ -66,6 +72,11 @@ export const MedicalRecordExamination = memo(function MedicalRecordExamination({
       {/* Results Title */}
       <div>
         <h2 className={`text-sm font-bold ${C.text} pl-1`}>検査結果一覧</h2>
+        {isTruncated ? (
+          <p className={`mt-1 pl-1 text-xs ${C.text50}`} role="status">
+            直近{HISTORY_FETCH_LIMIT}件を表示しています
+          </p>
+        ) : null}
       </div>
 
       {/* Exam Groups */}
@@ -81,7 +92,7 @@ export const MedicalRecordExamination = memo(function MedicalRecordExamination({
       <div className="flex flex-col gap-4 pl-1">
         {!isLoading
           ? examGroups.map((group) => (
-              <ExaminationGroup key={group.id} group={group} />
+              <ExaminationGroup key={group.id} group={group} petId={petId} />
             ))
           : null}
       </div>

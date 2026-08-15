@@ -75,10 +75,11 @@ export function TagSummaryTable({
   return (
     <div className="flex flex-col gap-3">
       {/* フィルタバー */}
-      <div className={`bg-white border ${C.borderLight} rounded-[4px] p-3 flex flex-wrap gap-3 items-center`}>
+      <div className={`${C.bgWhite} border ${C.borderLight} rounded-xs p-3 flex flex-wrap gap-3 items-center`}>
         <div className="relative min-w-[200px]">
           <Search className={STYLE.searchIcon} />
           <Input
+            aria-label="タグ名検索"
             className={`${STYLE.searchInput} pl-8`}
             placeholder="タグ名を検索..."
             value={searchTerm}
@@ -87,7 +88,7 @@ export function TagSummaryTable({
         </div>
 
         <Select value={categoryFilter} onValueChange={handleCategoryChange}>
-          <SelectTrigger className={`h-11 w-[160px] ${C.borderMedium} ${C.text} bg-white`}>
+          <SelectTrigger aria-label="タグ種別" className={`h-11 w-[160px] ${C.borderMedium} ${C.text} ${C.bgWhite}`}>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>

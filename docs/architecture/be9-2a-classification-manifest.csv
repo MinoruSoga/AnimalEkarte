@@ -1,0 +1,762 @@
+path,bucket,reason
+cmd/api/batch_scheduler.go,keep,既存cmdエントリポイント(target treeのcmd/api等と整合済み)
+cmd/api/main.go,keep,既存cmdエントリポイント(target treeのcmd/api等と整合済み)
+cmd/coverage-ratchet/main.go,keep,既存cmdエントリポイント(target treeのcmd/api等と整合済み)
+cmd/lstep-migrate/main.go,keep,既存cmdエントリポイント(target treeのcmd/api等と整合済み)
+cmd/lstep-migrate/migrator.go,keep,既存cmdエントリポイント(target treeのcmd/api等と整合済み)
+cmd/lstep-migrate/reporter.go,keep,既存cmdエントリポイント(target treeのcmd/api等と整合済み)
+cmd/migrate/csvbundle.go,keep,既存cmdエントリポイント(target treeのcmd/api等と整合済み)
+cmd/migrate/main.go,keep,既存cmdエントリポイント(target treeのcmd/api等と整合済み)
+cmd/seed-export/dump.go,keep,既存cmdエントリポイント(target treeのcmd/api等と整合済み)
+cmd/seed-export/main.go,keep,既存cmdエントリポイント(target treeのcmd/api等と整合済み)
+cmd/seed-export/tables.go,keep,既存cmdエントリポイント(target treeのcmd/api等と整合済み)
+cmd/stage-import/apply.go,keep,既存cmdエントリポイント(target treeのcmd/api等と整合済み)
+cmd/stage-import/main.go,keep,既存cmdエントリポイント(target treeのcmd/api等と整合済み)
+cmd/stage-import/tables.go,keep,既存cmdエントリポイント(target treeのcmd/api等と整合済み)
+internal/apicontract/doc.go,keep,既存の凝集cross-cutting package
+internal/apperrors/errors.go,keep,既存の凝集cross-cutting package
+internal/authjwt/claims.go,keep,既存の凝集cross-cutting package
+internal/config/config.go,keep,既存の凝集cross-cutting package
+internal/config/timezone.go,keep,既存の凝集cross-cutting package
+internal/csvimport/import.go,keep,既存の凝集cross-cutting package(demo/seed用、lstep機能とは別)
+internal/dbconn/dbconn.go,keep,既存の凝集cross-cutting package
+internal/handler/accounting_handler.go,target:billing,prefix token='accounting'
+internal/handler/accounting_report_handler.go,target:billing,prefix token='accounting'
+internal/handler/accounting_report_request.go,target:billing,prefix token='accounting'
+internal/handler/accounting_report_response.go,target:billing,prefix token='accounting'
+internal/handler/accounting_request.go,target:billing,prefix token='accounting'
+internal/handler/accounting_response.go,target:billing,prefix token='accounting'
+internal/handler/aggregation_handler.go,target:lstep,prefix token='aggregation'
+internal/handler/aggregation_request.go,target:lstep,prefix token='aggregation'
+internal/handler/animal_species_handler.go,target:pet,prefix token='animal'
+internal/handler/animal_species_request.go,target:pet,prefix token='animal'
+internal/handler/animal_species_response.go,target:pet,prefix token='animal'
+internal/handler/appointment_admin_handler.go,target:reservation,prefix token='appointment'
+internal/handler/appointment_admin_request.go,target:reservation,prefix token='appointment'
+internal/handler/appointment_admin_response.go,target:reservation,prefix token='appointment'
+internal/handler/appointment_handler.go,target:reservation,prefix token='appointment'
+internal/handler/appointment_request.go,target:reservation,prefix token='appointment'
+internal/handler/auth_handler.go,target:auth,prefix token='auth'
+internal/handler/auth_me_response.go,target:auth,prefix token='auth'
+internal/handler/auth_password_handler.go,target:auth,prefix token='password'
+internal/handler/auth_request.go,target:auth,prefix token='auth'
+internal/handler/auth_response.go,target:auth,prefix token='auth'
+internal/handler/auth_session.go,target:auth,prefix token='auth'
+internal/handler/billing_confirmation_handler.go,target:billing,prefix token='billing'
+internal/handler/billing_confirmation_request.go,target:billing,prefix token='billing'
+internal/handler/billing_confirmation_response.go,target:billing,prefix token='billing'
+internal/handler/billing_item_handler.go,target:billing,prefix token='billing'
+internal/handler/billing_item_request.go,target:billing,prefix token='billing'
+internal/handler/bind_errors.go,target:httpapi,generic ShouldBind error mapper
+internal/handler/cage_handler.go,target:medicalrecord,prefix token='cage'
+internal/handler/cage_request.go,target:medicalrecord,prefix token='cage'
+internal/handler/cage_response.go,target:medicalrecord,prefix token='cage'
+internal/handler/campaign_handler.go,target:billing,prefix token='campaign'
+internal/handler/campaign_request.go,target:billing,prefix token='campaign'
+internal/handler/campaign_response.go,target:billing,prefix token='campaign'
+internal/handler/care_plan_item_handler.go,target:medicalrecord,prefix token='care'
+internal/handler/care_plan_item_request.go,target:medicalrecord,prefix token='care'
+internal/handler/care_plan_item_response.go,target:medicalrecord,prefix token='care'
+internal/handler/cash_register_handler.go,target:billing,prefix token='cash'
+internal/handler/cash_register_request.go,target:billing,prefix token='cash'
+internal/handler/cash_register_response.go,target:billing,prefix token='cash'
+internal/handler/checkup_field_handler.go,target:medicalrecord,prefix token='checkup'
+internal/handler/checkup_field_request.go,target:medicalrecord,prefix token='checkup'
+internal/handler/checkup_field_response.go,target:medicalrecord,prefix token='checkup'
+internal/handler/checkup_handler.go,target:medicalrecord,prefix token='checkup'
+internal/handler/checkup_request.go,target:medicalrecord,prefix token='checkup'
+internal/handler/checkup_response.go,target:medicalrecord,prefix token='checkup'
+internal/handler/checkup_sync_handler.go,target:lstep,L③b: route/application dependency is lstep
+internal/handler/checkup_sync_request.go,target:lstep,L③b: checkup sync HTTP boundary belongs to lstep
+internal/handler/checkup_sync_response.go,target:lstep,L③b: checkup sync HTTP boundary belongs to lstep
+internal/handler/checkup_type_handler.go,target:medicalrecord,prefix token='checkup'
+internal/handler/checkup_type_request.go,target:medicalrecord,prefix token='checkup'
+internal/handler/checkup_type_response.go,target:medicalrecord,prefix token='checkup'
+internal/handler/chief_complaint_handler.go,target:medicalrecord,prefix token='chief'
+internal/handler/chief_complaint_request.go,target:medicalrecord,prefix token='chief'
+internal/handler/chief_complaint_response.go,target:medicalrecord,prefix token='chief'
+internal/handler/chronic_condition_handler.go,target:pet,prefix token='chronic'
+internal/handler/chronic_condition_request.go,target:pet,prefix token='chronic'
+internal/handler/clinic_handler.go,target:clinic,prefix token='clinic'
+internal/handler/clinic_holiday_handler.go,target:clinic,prefix token='clinic'
+internal/handler/clinic_holiday_request.go,target:clinic,prefix token='clinic'
+internal/handler/clinic_holiday_response.go,target:clinic,prefix token='clinic'
+internal/handler/clinic_request.go,target:clinic,prefix token='clinic'
+internal/handler/clinic_response.go,target:clinic,prefix token='clinic'
+internal/handler/clinical_plan_handler.go,target:medicalrecord,prefix token='clinical'
+internal/handler/clinical_plan_request.go,target:medicalrecord,prefix token='clinical'
+internal/handler/clinical_plan_response.go,target:medicalrecord,prefix token='clinical'
+internal/handler/closing_settings_handler.go,target:clinic,prefix token='closing'
+internal/handler/closing_settings_request.go,target:clinic,prefix token='closing'
+internal/handler/closing_settings_response.go,target:clinic,prefix token='closing'
+internal/handler/company_handler.go,target:clinic,prefix token='company'
+internal/handler/company_request.go,target:clinic,prefix token='company'
+internal/handler/company_response.go,target:clinic,prefix token='company'
+internal/handler/consultation_handler.go,target:medicalrecord,prefix token='consultation'
+internal/handler/consultation_request.go,target:medicalrecord,prefix token='consultation'
+internal/handler/consultation_response.go,target:medicalrecord,prefix token='consultation'
+internal/handler/context_helpers.go,target:httpapi,generic Gin context helper
+internal/handler/daily_record_handler.go,target:medicalrecord,prefix token='daily'
+internal/handler/daily_record_request.go,target:medicalrecord,prefix token='daily'
+internal/handler/daily_record_response.go,target:medicalrecord,prefix token='daily'
+internal/handler/date.go,target:httpapi,generic date binding helper
+internal/handler/diagnosis_handler.go,target:medicalrecord,prefix token='diagnosis'
+internal/handler/diagnosis_request.go,target:medicalrecord,prefix token='diagnosis'
+internal/handler/diagnosis_response.go,target:medicalrecord,prefix token='diagnosis'
+internal/handler/discount_permission.go,target:auth,cross-domain discount-field RBAC helper
+internal/handler/estimate_handler.go,target:billing,prefix token='estimate'
+internal/handler/estimate_request.go,target:billing,prefix token='estimate'
+internal/handler/estimate_response.go,target:billing,prefix token='estimate'
+internal/handler/exam_type_handler.go,target:medicalrecord,prefix token='exam'
+internal/handler/exam_type_request.go,target:medicalrecord,prefix token='exam'
+internal/handler/exam_type_response.go,target:medicalrecord,prefix token='exam'
+internal/handler/examination_handler.go,target:medicalrecord,prefix token='examination'
+internal/handler/examination_request.go,target:medicalrecord,prefix token='examination'
+internal/handler/examination_response.go,target:medicalrecord,prefix token='examination'
+internal/handler/handler.go,keep,composition-root facade (BE9-2F removal target)
+internal/handler/hospitalization_handler.go,target:medicalrecord,prefix token='hospitalization'
+internal/handler/hospitalization_plan_handler.go,target:medicalrecord,prefix token='hospitalization'
+internal/handler/hospitalization_plan_request.go,target:medicalrecord,prefix token='hospitalization'
+internal/handler/hospitalization_plan_response.go,target:medicalrecord,prefix token='hospitalization'
+internal/handler/hospitalization_request.go,target:medicalrecord,prefix token='hospitalization'
+internal/handler/hospitalization_response.go,target:medicalrecord,prefix token='hospitalization'
+internal/handler/inquiry_handler.go,target:medicalrecord,prefix token='inquiry'
+internal/handler/inquiry_request.go,target:medicalrecord,prefix token='inquiry'
+internal/handler/inquiry_response.go,target:medicalrecord,prefix token='inquiry'
+internal/handler/inquiry_template_handler.go,target:medicalrecord,prefix token='inquiry'
+internal/handler/inquiry_template_request.go,target:medicalrecord,prefix token='inquiry'
+internal/handler/inquiry_template_response.go,target:medicalrecord,prefix token='inquiry'
+internal/handler/insurance_handler.go,target:billing,prefix token='insurance'
+internal/handler/insurance_request.go,target:billing,prefix token='insurance'
+internal/handler/insurance_response.go,target:billing,prefix token='insurance'
+internal/handler/inventory_handler.go,target:inventory,prefix token='inventory'
+internal/handler/inventory_request.go,target:inventory,prefix token='inventory'
+internal/handler/inventory_response.go,target:inventory,prefix token='inventory'
+internal/handler/lab_import_handler.go,target:medicalrecord,prefix token='lab'
+internal/handler/lab_import_request.go,target:medicalrecord,prefix token='lab'
+internal/handler/lab_import_response.go,target:medicalrecord,prefix token='lab'
+internal/handler/lab_report_handler.go,target:medicalrecord,prefix token='lab'
+internal/handler/lab_report_response.go,target:medicalrecord,prefix token='lab'
+internal/handler/liff_handler.go,target:reservation,"RE-CLASSIFIED (bm-reservation-trimming + bm-lstep convergent): LiffService struct is reservation-domain repos, zero Lstep*/LineLink*/LineMessaging* refs."
+internal/handler/liff_request.go,target:reservation,"RE-CLASSIFIED, see liff_handler.go"
+internal/handler/liff_response.go,target:reservation,"RE-CLASSIFIED, see liff_handler.go"
+internal/handler/liff_validation.go,target:reservation,"RE-CLASSIFIED, see liff_handler.go"
+internal/handler/line_customer_handler.go,target:lstep,prefix token='line'
+internal/handler/line_customer_request.go,target:lstep,prefix token='line'
+internal/handler/line_customer_response.go,target:lstep,prefix token='line'
+internal/handler/line_link_handler.go,target:lstep,prefix token='line'
+internal/handler/line_link_request.go,target:lstep,prefix token='line'
+internal/handler/line_reservation_setting_handler.go,target:reservation,prefix token='reservation'
+internal/handler/line_reservation_setting_request.go,target:reservation,prefix token='reservation'
+internal/handler/line_reservation_setting_response.go,target:reservation,prefix token='reservation'
+internal/handler/line_send_handler.go,target:lstep,prefix token='line'
+internal/handler/line_send_request.go,target:lstep,prefix token='line'
+internal/handler/line_send_response.go,target:lstep,prefix token='line'
+internal/handler/list_query_request.go,target:httpapi,generic list/pagination request helper
+internal/handler/lstep_analytics_handler.go,target:lstep,prefix token='lstep'
+internal/handler/lstep_analytics_request.go,target:lstep,prefix token='lstep'
+internal/handler/lstep_analytics_response.go,target:lstep,prefix token='lstep'
+internal/handler/lstep_csv_import_handler.go,target:lstep,prefix token='lstep'
+internal/handler/lstep_csv_import_request.go,target:lstep,prefix token='lstep'
+internal/handler/lstep_delivery_monitor_handler.go,target:lstep,prefix token='lstep'
+internal/handler/lstep_delivery_monitor_request.go,target:lstep,prefix token='lstep'
+internal/handler/lstep_delivery_monitor_response.go,target:lstep,prefix token='lstep'
+internal/handler/lstep_lifecycle_handler.go,target:lstep,prefix token='lstep'
+internal/handler/lstep_lifecycle_request.go,target:lstep,prefix token='lstep'
+internal/handler/lstep_settings_handler.go,target:lstep,prefix token='lstep'
+internal/handler/lstep_settings_request.go,target:lstep,prefix token='lstep'
+internal/handler/lstep_settings_response.go,target:lstep,prefix token='lstep'
+internal/handler/lstep_tag_code_mapping_handler.go,target:lstep,prefix token='lstep'
+internal/handler/lstep_tag_code_mapping_request.go,target:lstep,prefix token='lstep'
+internal/handler/lstep_tag_code_mapping_response.go,target:lstep,prefix token='lstep'
+internal/handler/lstep_tag_config_handler.go,target:lstep,prefix token='lstep'
+internal/handler/lstep_tag_config_request.go,target:lstep,prefix token='lstep'
+internal/handler/lstep_tag_config_response.go,target:lstep,prefix token='lstep'
+internal/handler/lstep_tag_handler.go,target:lstep,prefix token='lstep'
+internal/handler/lstep_tag_request.go,target:lstep,prefix token='lstep'
+internal/handler/lstep_tag_response.go,target:lstep,prefix token='lstep'
+internal/handler/lstep_tag_summary_handler.go,target:lstep,prefix token='lstep'
+internal/handler/lstep_tag_summary_request.go,target:lstep,prefix token='lstep'
+internal/handler/lstep_tag_summary_response.go,target:lstep,prefix token='lstep'
+internal/handler/lstep_trigger_priority_handler.go,target:lstep,prefix token='lstep'
+internal/handler/lstep_trigger_priority_request.go,target:lstep,prefix token='lstep'
+internal/handler/manual_article_handler.go,target:manualarticle,prefix token='manual'
+internal/handler/manual_article_request.go,target:manualarticle,prefix token='manual'
+internal/handler/manual_article_response.go,target:manualarticle,prefix token='manual'
+internal/handler/master_routes.go,target:httpapi,multi-domain route aggregator; splits across owning domains in BE9-2B
+internal/handler/medical_record_addendum_handler.go,target:medicalrecord,prefix token='medical'
+internal/handler/medical_record_addendum_request.go,target:medicalrecord,prefix token='medical'
+internal/handler/medical_record_addendum_response.go,target:medicalrecord,prefix token='medical'
+internal/handler/medical_record_handler.go,target:medicalrecord,prefix token='medical'
+internal/handler/medical_record_image_handler.go,target:medicalrecord,prefix token='medical'
+internal/handler/medical_record_image_request.go,target:medicalrecord,prefix token='medical'
+internal/handler/medical_record_image_response.go,target:medicalrecord,prefix token='medical'
+internal/handler/medical_record_request.go,target:medicalrecord,prefix token='medical'
+internal/handler/medical_record_response.go,target:medicalrecord,prefix token='medical'
+internal/handler/medicine_dose_param_handler.go,target:medicalrecord,prefix token='medicine'
+internal/handler/medicine_dose_param_request.go,target:medicalrecord,prefix token='medicine'
+internal/handler/medicine_dose_param_response.go,target:medicalrecord,prefix token='medicine'
+internal/handler/medicine_handler.go,target:medicalrecord,prefix token='medicine'
+internal/handler/medicine_request.go,target:medicalrecord,prefix token='medicine'
+internal/handler/medicine_response.go,target:medicalrecord,prefix token='medicine'
+internal/handler/merchandise_item_handler.go,target:inventory,prefix token='merchandise'
+internal/handler/merchandise_item_request.go,target:inventory,prefix token='merchandise'
+internal/handler/merchandise_item_response.go,target:inventory,prefix token='merchandise'
+internal/handler/occupation_handler.go,target:staff,prefix token='occupation'
+internal/handler/occupation_request.go,target:staff,prefix token='occupation'
+internal/handler/occupation_response.go,target:staff,prefix token='occupation'
+internal/handler/owner_handler.go,target:owner,prefix token='owner'
+internal/handler/owner_request.go,target:owner,prefix token='owner'
+internal/handler/owner_response.go,target:owner,prefix token='owner'
+internal/handler/payment_method_master_handler.go,target:billing,prefix token='payment'
+internal/handler/payment_method_master_request.go,target:billing,prefix token='payment'
+internal/handler/payment_method_master_response.go,target:billing,prefix token='payment'
+internal/handler/permission_group_handler.go,target:auth,prefix token='permission'
+internal/handler/permission_group_request.go,target:auth,prefix token='permission'
+internal/handler/permission_group_response.go,target:auth,prefix token='permission'
+internal/handler/permission_middleware.go,target:auth,prefix token='permission'
+internal/handler/pet_handler.go,target:pet,prefix token='pet'
+internal/handler/pet_request.go,target:pet,prefix token='pet'
+internal/handler/pet_response.go,target:pet,prefix token='pet'
+internal/handler/prescription_handler.go,target:medicalrecord,prefix token='prescription'
+internal/handler/prescription_request.go,target:medicalrecord,prefix token='prescription'
+internal/handler/prescription_response.go,target:medicalrecord,prefix token='prescription'
+internal/handler/procedure_handler.go,target:medicalrecord,prefix token='procedure'
+internal/handler/procedure_request.go,target:medicalrecord,prefix token='procedure'
+internal/handler/procedure_response.go,target:medicalrecord,prefix token='procedure'
+internal/handler/query_helpers.go,target:httpapi,generic query-param helper
+internal/handler/refund_handler.go,target:billing,prefix token='refund'
+internal/handler/reservation_handler.go,target:reservation,prefix token='reservation'
+internal/handler/reservation_line_routes.go,target:reservation,"RE-CLASSIFIED (bm-reservation-trimming + bm-lstep, independently convergent): RegisterLineReservationRoutes wires 16 routes, only 2 call lstep-domain handlers (line-customers), other 14 call reservation admin/staff/type-liff handlers. Routing shim, not lstep logic."
+internal/handler/reservation_response.go,target:reservation,prefix token='reservation'
+internal/handler/reservation_schedule_handler.go,target:reservation,prefix token='reservation'
+internal/handler/reservation_schedule_request.go,target:reservation,prefix token='reservation'
+internal/handler/reservation_schedule_response.go,target:reservation,prefix token='reservation'
+internal/handler/reservation_staff_handler.go,target:reservation,prefix token='reservation'
+internal/handler/reservation_staff_request.go,target:reservation,prefix token='reservation'
+internal/handler/reservation_staff_response.go,target:reservation,prefix token='reservation'
+internal/handler/reservation_type_group_handler.go,target:reservation,prefix token='reservation'
+internal/handler/reservation_type_group_request.go,target:reservation,prefix token='reservation'
+internal/handler/reservation_type_group_response.go,target:reservation,prefix token='reservation'
+internal/handler/reservation_type_handler.go,target:reservation,prefix token='reservation'
+internal/handler/reservation_type_liff_handler.go,target:reservation,prefix token='reservation'
+internal/handler/reservation_type_liff_request.go,target:reservation,prefix token='reservation'
+internal/handler/reservation_type_liff_response.go,target:reservation,prefix token='reservation'
+internal/handler/reservation_type_request.go,target:reservation,prefix token='reservation'
+internal/handler/reservation_type_response.go,target:reservation,prefix token='reservation'
+internal/handler/response.go,target:httpapi,generic Gin response helper
+internal/handler/response_pg.go,target:httpapi,generic pagination response helper
+internal/handler/shared_file_handler.go,target:lstep,L⑥: internal/lstep/shared_file_handler.goへ移動
+internal/handler/shared_file_request.go,target:lstep,L⑥: internal/lstep/shared_file_request.goへ移動
+internal/handler/shared_file_response.go,target:lstep,L⑥: internal/lstep/shared_file_response.goへ移動
+internal/handler/shift_handler.go,target:staff,prefix token='shift'
+internal/handler/shift_request.go,target:staff,prefix token='shift'
+internal/handler/shift_response.go,target:staff,prefix token='shift'
+internal/handler/shift_template_handler.go,target:staff,prefix token='shift'
+internal/handler/shift_template_request.go,target:staff,prefix token='shift'
+internal/handler/shift_template_response.go,target:staff,prefix token='shift'
+internal/handler/slice_helpers.go,target:httpapi,generic slice helper
+internal/handler/staff_handler.go,target:staff,prefix token='staff'
+internal/handler/staff_request.go,target:staff,prefix token='staff'
+internal/handler/staff_response.go,target:staff,prefix token='staff'
+internal/handler/time_response.go,target:httpapi,generic time response helper
+internal/handler/treatment_handler.go,target:medicalrecord,prefix token='treatment'
+internal/handler/treatment_plan_handler.go,target:medicalrecord,prefix token='treatment'
+internal/handler/treatment_plan_request.go,target:medicalrecord,prefix token='treatment'
+internal/handler/treatment_plan_response.go,target:medicalrecord,prefix token='treatment'
+internal/handler/treatment_request.go,target:medicalrecord,prefix token='treatment'
+internal/handler/treatment_response.go,target:medicalrecord,prefix token='treatment'
+internal/handler/trimming_course_handler.go,target:trimming,BE9-2E trimming: target実装へ移動しmaster route consumer用thin facadeをBE9-2Fまで保持
+internal/handler/trimming_course_request.go,target:trimming,BE9-2E trimming: internal/trimmingへ移動し旧path削除
+internal/handler/trimming_course_response.go,target:trimming,BE9-2E trimming: internal/trimmingへ移動し旧path削除
+internal/handler/trimming_course_type_handler.go,target:trimming,BE9-2E trimming: target実装へ移動しmaster route consumer用thin facadeをBE9-2Fまで保持
+internal/handler/trimming_course_type_request.go,target:trimming,BE9-2E trimming: internal/trimmingへ移動し旧path削除
+internal/handler/trimming_course_type_response.go,target:trimming,BE9-2E trimming: internal/trimmingへ移動し旧path削除
+internal/handler/trimming_handler.go,target:trimming,BE9-2E trimming: target実装へ移動しtrimming route consumer用thin facadeをBE9-2Fまで保持
+internal/handler/trimming_option_handler.go,target:trimming,BE9-2E trimming: target実装へ移動しmaster route consumer用thin facadeをBE9-2Fまで保持
+internal/handler/trimming_option_request.go,target:trimming,BE9-2E trimming: internal/trimmingへ移動し旧path削除
+internal/handler/trimming_option_response.go,target:trimming,BE9-2E trimming: internal/trimmingへ移動し旧path削除
+internal/handler/trimming_request.go,target:trimming,BE9-2E trimming: internal/trimmingへ移動し旧path削除
+internal/handler/trimming_response.go,target:trimming,BE9-2E trimming: runtime DTOをtargetへ移動しtygo carrierをBE9-2Fまで保持
+internal/handler/vaccination_handler.go,target:medicalrecord,prefix token='vaccination'
+internal/handler/vaccination_request.go,target:medicalrecord,prefix token='vaccination'
+internal/handler/vaccination_response.go,target:medicalrecord,prefix token='vaccination'
+internal/handler/vaccine_handler.go,target:medicalrecord,prefix token='vaccine'
+internal/handler/vaccine_request.go,target:medicalrecord,prefix token='vaccine'
+internal/handler/vaccine_response.go,target:medicalrecord,prefix token='vaccine'
+internal/handler/validation.go,target:httpapi,generic Gin input validation
+internal/handler/validators.go,target:httpapi,generic Gin input validator
+internal/handler/vital_handler.go,target:medicalrecord,prefix token='vital'
+internal/handler/vital_request.go,target:medicalrecord,prefix token='vital'
+internal/handler/vital_response.go,target:medicalrecord,prefix token='vital'
+internal/infra/crypto/aes_gcm.go,keep,既存の凝集cross-cutting package
+internal/infra/file_storage.go,keep,既存の凝集cross-cutting package
+internal/infra/httpx/retry.go,keep,既存の凝集cross-cutting package
+internal/infra/line/client.go,keep,既存の凝集cross-cutting package
+internal/infra/line/errors.go,keep,既存の凝集cross-cutting package
+internal/infra/line/push.go,keep,既存の凝集cross-cutting package
+internal/infra/local_file_storage.go,keep,既存の凝集cross-cutting package
+internal/infra/local_uploader.go,keep,既存の凝集cross-cutting package
+internal/infra/lstep/breed_codes.go,keep,既存の凝集cross-cutting package
+internal/infra/lstep/client.go,keep,既存の凝集cross-cutting package
+internal/infra/lstep/errors.go,keep,既存の凝集cross-cutting package
+internal/infra/lstep/tag.go,keep,既存の凝集cross-cutting package
+internal/infra/lstep/user.go,keep,既存の凝集cross-cutting package
+internal/infra/s3_endpoint.go,keep,既存の凝集cross-cutting package
+internal/infra/s3_file_storage.go,keep,既存の凝集cross-cutting package
+internal/infra/s3_uploader.go,keep,既存の凝集cross-cutting package
+internal/infra/uploader.go,keep,既存の凝集cross-cutting package
+internal/logger/logger.go,keep,既存の凝集cross-cutting package
+internal/middleware/auth.go,keep,既存の凝集cross-cutting package(Gin middleware)
+internal/middleware/cors.go,keep,既存の凝集cross-cutting package(Gin middleware)
+internal/middleware/csrf.go,keep,既存の凝集cross-cutting package(Gin middleware)
+internal/middleware/liff_auth.go,keep,既存の凝集cross-cutting package(Gin middleware)
+internal/middleware/logging.go,keep,既存の凝集cross-cutting package(Gin middleware)
+internal/middleware/rate_limit.go,keep,既存の凝集cross-cutting package(Gin middleware)
+internal/middleware/response.go,keep,既存の凝集cross-cutting package(Gin middleware)
+internal/middleware/sanitize_null_bytes.go,keep,既存の凝集cross-cutting package(Gin middleware)
+internal/middleware/security_headers.go,keep,既存の凝集cross-cutting package(Gin middleware)
+internal/model/account.go,keep,model一括分割は先行条件にしない(BE-refactor方針)
+internal/model/accounting.go,keep,model一括分割は先行条件にしない(BE-refactor方針)
+internal/model/animal_species.go,keep,model一括分割は先行条件にしない(BE-refactor方針)
+internal/model/audit_log.go,keep,model一括分割は先行条件にしない(BE-refactor方針)
+internal/model/billing_confirmation.go,keep,model一括分割は先行条件にしない(BE-refactor方針)
+internal/model/billing_refund.go,keep,model一括分割は先行条件にしない(BE-refactor方針)
+internal/model/cage.go,keep,model一括分割は先行条件にしない(BE-refactor方針)
+internal/model/campaign.go,keep,model一括分割は先行条件にしない(BE-refactor方針)
+internal/model/cash_register_close.go,keep,model一括分割は先行条件にしない(BE-refactor方針)
+internal/model/checkup_field.go,keep,model一括分割は先行条件にしない(BE-refactor方針)
+internal/model/checkup_record.go,keep,model一括分割は先行条件にしない(BE-refactor方針)
+internal/model/checkup_type.go,keep,model一括分割は先行条件にしない(BE-refactor方針)
+internal/model/chief_complaint_type.go,keep,model一括分割は先行条件にしない(BE-refactor方針)
+internal/model/clinic.go,keep,model一括分割は先行条件にしない(BE-refactor方針)
+internal/model/clinic_holiday.go,keep,model一括分割は先行条件にしない(BE-refactor方針)
+internal/model/clinic_integration.go,keep,model一括分割は先行条件にしない(BE-refactor方針)
+internal/model/clinic_settings.go,keep,model一括分割は先行条件にしない(BE-refactor方針)
+internal/model/clinical_plan.go,keep,model一括分割は先行条件にしない(BE-refactor方針)
+internal/model/closing_special_period.go,keep,model一括分割は先行条件にしない(BE-refactor方針)
+internal/model/company.go,keep,model一括分割は先行条件にしない(BE-refactor方針)
+internal/model/consultation.go,keep,model一括分割は先行条件にしない(BE-refactor方針)
+internal/model/cpm_v1_thresholds.go,keep,model一括分割は先行条件にしない(BE-refactor方針)
+internal/model/cpm_v2_thresholds.go,keep,model一括分割は先行条件にしない(BE-refactor方針)
+internal/model/diagnosis.go,keep,model一括分割は先行条件にしない(BE-refactor方針)
+internal/model/dormant_thresholds.go,keep,model一括分割は先行条件にしない(BE-refactor方針)
+internal/model/estimate.go,keep,model一括分割は先行条件にしない(BE-refactor方針)
+internal/model/examination_record.go,keep,model一括分割は先行条件にしない(BE-refactor方針)
+internal/model/examination_type.go,keep,model一括分割は先行条件にしない(BE-refactor方針)
+internal/model/health_prevention_thresholds.go,keep,model一括分割は先行条件にしない(BE-refactor方針)
+internal/model/hospitalization.go,keep,model一括分割は先行条件にしない(BE-refactor方針)
+internal/model/hospitalization_plan.go,keep,model一括分割は先行条件にしない(BE-refactor方針)
+internal/model/inquiry.go,keep,model一括分割は先行条件にしない(BE-refactor方針)
+internal/model/inquiry_template.go,keep,model一括分割は先行条件にしない(BE-refactor方針)
+internal/model/insurance.go,keep,model一括分割は先行条件にしない(BE-refactor方針)
+internal/model/inventory.go,keep,model一括分割は先行条件にしない(BE-refactor方針)
+internal/model/lab_import.go,keep,model一括分割は先行条件にしない(BE-refactor方針)
+internal/model/lab_report.go,keep,model一括分割は先行条件にしない(BE-refactor方針)
+internal/model/line_customer.go,keep,model一括分割は先行条件にしない(BE-refactor方針)
+internal/model/line_link_token.go,keep,model一括分割は先行条件にしない(BE-refactor方針)
+internal/model/line_reservation_setting.go,keep,model一括分割は先行条件にしない(BE-refactor方針)
+internal/model/line_send_log.go,keep,model一括分割は先行条件にしない(BE-refactor方針)
+internal/model/lstep_auto_managed_prefix.go,keep,model一括分割は先行条件にしない(BE-refactor方針)
+internal/model/lstep_condition_tag_mapping.go,keep,model一括分割は先行条件にしない(BE-refactor方針)
+internal/model/lstep_csv_import.go,keep,model一括分割は先行条件にしない(BE-refactor方針)
+internal/model/lstep_delivery_trigger_log.go,keep,model一括分割は先行条件にしない(BE-refactor方針)
+internal/model/lstep_friend_attribute_snapshot.go,keep,model一括分割は先行条件にしない(BE-refactor方針)
+internal/model/lstep_send_purpose_tag_prefix.go,keep,model一括分割は先行条件にしない(BE-refactor方針)
+internal/model/lstep_settings.go,keep,model一括分割は先行条件にしない(BE-refactor方針)
+internal/model/lstep_sync_error_counter.go,keep,model一括分割は先行条件にしない(BE-refactor方針)
+internal/model/lstep_tag_cache.go,keep,model一括分割は先行条件にしない(BE-refactor方針)
+internal/model/lstep_tag_code_mapping.go,keep,model一括分割は先行条件にしない(BE-refactor方針)
+internal/model/lstep_trigger_priority.go,keep,model一括分割は先行条件にしない(BE-refactor方針)
+internal/model/manual_article.go,keep,model一括分割は先行条件にしない(BE-refactor方針)
+internal/model/medical_record.go,keep,model一括分割は先行条件にしない(BE-refactor方針)
+internal/model/medical_record_addendum.go,keep,model一括分割は先行条件にしない(BE-refactor方針)
+internal/model/medical_record_image.go,keep,model一括分割は先行条件にしない(BE-refactor方針)
+internal/model/medicine.go,keep,model一括分割は先行条件にしない(BE-refactor方針)
+internal/model/medicine_dose_param.go,keep,model一括分割は先行条件にしない(BE-refactor方針)
+internal/model/merchandise_item.go,keep,model一括分割は先行条件にしない(BE-refactor方針)
+internal/model/occupation.go,keep,model一括分割は先行条件にしない(BE-refactor方針)
+internal/model/owner.go,keep,model一括分割は先行条件にしない(BE-refactor方針)
+internal/model/password_reset_token.go,keep,model一括分割は先行条件にしない(BE-refactor方針)
+internal/model/payment_method_master.go,keep,model一括分割は先行条件にしない(BE-refactor方針)
+internal/model/permission.go,keep,model一括分割は先行条件にしない(BE-refactor方針)
+internal/model/permission_group.go,keep,model一括分割は先行条件にしない(BE-refactor方針)
+internal/model/pet.go,keep,model一括分割は先行条件にしない(BE-refactor方針)
+internal/model/pet_chronic_condition.go,keep,model一括分割は先行条件にしない(BE-refactor方針)
+internal/model/prescription.go,keep,model一括分割は先行条件にしない(BE-refactor方針)
+internal/model/procedure.go,keep,model一括分割は先行条件にしない(BE-refactor方針)
+internal/model/reservation.go,keep,model一括分割は先行条件にしない(BE-refactor方針)
+internal/model/reservation_type.go,keep,model一括分割は先行条件にしない(BE-refactor方針)
+internal/model/reservation_type_group.go,keep,model一括分割は先行条件にしない(BE-refactor方針)
+internal/model/shared_file.go,keep,model一括分割は先行条件にしない(BE-refactor方針)
+internal/model/shift_entry_break.go,keep,model一括分割は先行条件にしない(BE-refactor方針)
+internal/model/staff.go,keep,model一括分割は先行条件にしない(BE-refactor方針)
+internal/model/staff_reservation_capability.go,keep,model一括分割は先行条件にしない(BE-refactor方針)
+internal/model/staff_reservation_exclusion.go,keep,model一括分割は先行条件にしない(BE-refactor方針)
+internal/model/token_blacklist.go,keep,model一括分割は先行条件にしない(BE-refactor方針)
+internal/model/treatment.go,keep,model一括分割は先行条件にしない(BE-refactor方針)
+internal/model/trimming.go,keep,model一括分割は先行条件にしない(BE-refactor方針)
+internal/model/trimming_course_type.go,keep,model一括分割は先行条件にしない(BE-refactor方針)
+internal/model/trimming_master.go,keep,model一括分割は先行条件にしない(BE-refactor方針)
+internal/model/vaccination_record.go,keep,model一括分割は先行条件にしない(BE-refactor方針)
+internal/model/vaccine.go,keep,model一括分割は先行条件にしない(BE-refactor方針)
+internal/model/vital.go,keep,model一括分割は先行条件にしない(BE-refactor方針)
+internal/repository/account/repository.go,target:auth,repository/account をdomain roll-up
+internal/repository/account_repository.go,target:auth,prefix token='account'
+internal/repository/accounting_repository.go,target:billing,prefix token='accounting'
+internal/repository/accounting_repository_ltv.go,target:billing,prefix token='accounting'
+internal/repository/accounting_repository_reports.go,target:billing,prefix token='accounting'
+internal/repository/accounting_repository_reports_close.go,target:billing,prefix token='accounting'
+internal/repository/accounting_repository_reports_daily.go,target:billing,"RE-CLASSIFIED (bm-medrecord-b): receiver *accountingRepository, operates on billings/payment_splits tables (GetDailySummary BUG-368)"
+internal/repository/accounting_repository_reports_monthly.go,target:billing,prefix token='accounting'
+internal/repository/accounting_repository_reports_shared.go,target:billing,prefix token='accounting'
+internal/repository/accounting_repository_unpaid.go,target:billing,prefix token='accounting'
+internal/repository/animal_species_repository.go,target:pet,prefix token='animal'
+internal/repository/animalspecies/repository.go,target:pet,repository/animalspecies をdomain roll-up
+internal/repository/appointment_admin_repository.go,target:reservation,prefix token='appointment'
+internal/repository/appointment_repository.go,target:reservation,prefix token='appointment'
+internal/repository/audit/repository.go,keep,repository/audit は既存の共有カーネル
+internal/repository/audit_repository.go,keep,shared kernel token='audit'
+internal/repository/base.go,keep,repository cross-cutting helper
+internal/repository/billing_confirmation_repository.go,target:billing,prefix token='billing'
+internal/repository/billing_item_repository.go,target:billing,prefix token='billing'
+internal/repository/cage/repository.go,target:medicalrecord,repository/cage をdomain roll-up
+internal/repository/cage_repository.go,target:medicalrecord,prefix token='cage'
+internal/repository/campaign/repository.go,target:billing,repository/campaign をdomain roll-up
+internal/repository/campaign_repository.go,target:billing,prefix token='campaign'
+internal/repository/care_plan_item_repository.go,target:medicalrecord,prefix token='care'
+internal/repository/cash_register_close_repository.go,target:billing,prefix token='cash'
+internal/repository/checkup/repository.go,target:medicalrecord,repository/checkup をdomain roll-up
+internal/repository/checkup_field_repository.go,target:medicalrecord,prefix token='checkup'
+internal/repository/checkup_repository.go,target:medicalrecord,prefix token='checkup'
+internal/repository/checkup_sync_repository.go,target:lstep,L⑥: target composition切替後consumer 0のfacadeを削除
+internal/repository/checkup_type_repository.go,target:medicalrecord,prefix token='checkup'
+internal/repository/checkupsync/repository.go,target:lstep,L③b: cross-domain preview query owned by lstep checkup sync
+internal/repository/checkuptype/repository.go,target:medicalrecord,repository/checkuptype をdomain roll-up
+internal/repository/chief_complaint_repository.go,target:medicalrecord,prefix token='chief'
+internal/repository/chiefcomplaint/repository.go,target:medicalrecord,repository/chiefcomplaint をdomain roll-up
+internal/repository/clinic_holiday_repository.go,target:clinic,prefix token='clinic'
+internal/repository/clinic_repository.go,target:clinic,prefix token='clinic'
+internal/repository/clinic_settings_repository.go,target:clinic,prefix token='clinic'
+internal/repository/clinical_plan_repository.go,target:medicalrecord,prefix token='clinical'
+internal/repository/clinicholiday/repository.go,target:clinic,repository/clinicholiday をdomain roll-up
+internal/repository/clinicsettings/repository.go,target:clinic,repository/clinicsettings をdomain roll-up
+internal/repository/closing_special_period_repository.go,target:clinic,prefix token='closing'
+internal/repository/closingspecialperiod/repository.go,target:clinic,repository/closingspecialperiod をdomain roll-up
+internal/repository/company/repository.go,target:clinic,repository/company をdomain roll-up
+internal/repository/company_repository.go,target:clinic,prefix token='company'
+internal/repository/consultation/repository.go,target:medicalrecord,repository/consultation をdomain roll-up
+internal/repository/consultation_repository.go,target:medicalrecord,prefix token='consultation'
+internal/repository/daily_record_repository.go,target:medicalrecord,prefix token='daily'
+internal/repository/dailyrecord/repository.go,target:medicalrecord,repository/dailyrecord をdomain roll-up
+internal/repository/db.go,keep,repository cross-cutting helper
+internal/repository/diagnosis_repository.go,target:medicalrecord,prefix token='diagnosis'
+internal/repository/diagnosisname/repository.go,target:medicalrecord,repository/diagnosisname をdomain roll-up
+internal/repository/diagnosistype/repository.go,target:medicalrecord,repository/diagnosistype をdomain roll-up
+internal/repository/estimate_repository.go,target:billing,prefix token='estimate'
+internal/repository/exam_type_repository.go,target:medicalrecord,prefix token='exam'
+internal/repository/examination_repository.go,target:medicalrecord,prefix token='examination'
+internal/repository/examtype/repository.go,target:medicalrecord,repository/examtype をdomain roll-up
+internal/repository/helpers.go,keep,repository cross-cutting helper
+internal/repository/hospitalization_plan_repository.go,target:medicalrecord,prefix token='hospitalization'
+internal/repository/hospitalization_repository.go,target:medicalrecord,prefix token='hospitalization'
+internal/repository/inquiry_repository.go,target:medicalrecord,prefix token='inquiry'
+internal/repository/inquiry_template_repository.go,target:medicalrecord,prefix token='inquiry'
+internal/repository/inquirytemplate/repository.go,target:medicalrecord,repository/inquirytemplate をdomain roll-up
+internal/repository/insurance/repository.go,target:billing,repository/insurance をdomain roll-up
+internal/repository/insurance_repository.go,target:billing,prefix token='insurance'
+internal/repository/inventory/repository.go,target:inventory,repository/inventory をdomain roll-up
+internal/repository/inventory_repository.go,target:inventory,prefix token='inventory'
+internal/repository/junction_helpers.go,keep,generic M:N join helper
+internal/repository/kana_normalize.go,keep,generic search-normalization utility
+internal/repository/lab_import_repository.go,target:medicalrecord,prefix token='lab'
+internal/repository/line_customer_repository.go,target:lstep,L⑥: target composition切替後consumer 0のfacadeを削除
+internal/repository/line_link_token_repository.go,target:lstep,L⑥: target composition切替後consumer 0のfacadeを削除
+internal/repository/line_reservation_setting_repository.go,target:reservation,L⑥: reservation constructor直結後consumer 0のfacadeを削除
+internal/repository/line_send_log_repository.go,target:lstep,L⑥: target composition切替後consumer 0のfacadeを削除
+internal/repository/lstep_csv_import_repository.go,target:lstep,L⑥: target composition切替後consumer 0のfacadeを削除
+internal/repository/lstep_delivery_trigger_log_repository.go,target:lstep,L⑥: target composition切替後consumer 0のfacadeを削除
+internal/repository/lstep_friend_attribute_snapshot_repository.go,target:lstep,L⑥: target composition切替後consumer 0のfacadeを削除
+internal/repository/lstep_settings_repository.go,target:lstep,L⑥: target composition切替後consumer 0のfacadeを削除
+internal/repository/lstep_sync_error_counter_repository.go,target:lstep,L⑥: target composition切替後consumer 0のfacadeを削除
+internal/repository/lstep_sync_settings_repository.go,target:lstep,L⑥: target composition切替後consumer 0のfacadeを削除
+internal/repository/lstep_tag_cache_repository.go,target:lstep,L⑥: target composition切替後consumer 0のfacadeを削除
+internal/repository/lstep_tag_code_mapping_repository.go,target:lstep,L⑥: target composition切替後consumer 0のfacadeを削除
+internal/repository/lstep_tag_config_repository.go,target:lstep,L⑥: target composition切替後consumer 0のfacadeを削除
+internal/repository/lstep_trigger_priority_repository.go,target:lstep,L⑥: target composition切替後consumer 0のfacadeを削除
+internal/repository/ltv_repository.go,target:owner,owner LTV analytics (C-10)
+internal/repository/manual_article_repository.go,target:manualarticle,prefix token='manual'
+internal/repository/manualarticle/repository.go,target:manualarticle,repository/manualarticle をdomain roll-up
+internal/repository/medical_record_addendum_repository.go,target:medicalrecord,prefix token='medical'
+internal/repository/medical_record_image_repository.go,target:medicalrecord,prefix token='medical'
+internal/repository/medical_record_owner_visit_repository.go,target:medicalrecord,prefix token='medical'
+internal/repository/medical_record_repository.go,target:medicalrecord,prefix token='medical'
+internal/repository/medicine_dose_param_repository.go,target:medicalrecord,prefix token='medicine'
+internal/repository/medicine_repository.go,target:medicalrecord,prefix token='medicine'
+internal/repository/merchandise_item_repository.go,target:inventory,prefix token='merchandise'
+internal/repository/merchandiseitem/repository.go,target:inventory,repository/merchandiseitem をdomain roll-up
+internal/repository/occupation/repository.go,target:staff,repository/occupation をdomain roll-up
+internal/repository/occupation_repository.go,target:staff,prefix token='occupation'
+internal/repository/owner_repository.go,target:owner,prefix token='owner'
+internal/repository/password_reset_token_repository.go,target:auth,legacy root file; dedup with passwordreset/ subpkg is a BE9-2B input
+internal/repository/passwordreset/repository.go,target:auth,repository/passwordreset をdomain roll-up
+internal/repository/payment_method_master_repository.go,target:billing,prefix token='payment'
+internal/repository/paymentmethod/repository.go,target:billing,repository/paymentmethod をdomain roll-up
+internal/repository/paymentmethod/scope.go,target:billing,repository/paymentmethod をdomain roll-up
+internal/repository/permission_group_repository.go,target:auth,prefix token='permission'
+internal/repository/pet_chronic_condition_repository.go,target:pet,prefix token='chronic'
+internal/repository/pet_repository.go,target:pet,prefix token='pet'
+internal/repository/prescription/repository.go,target:medicalrecord,repository/prescription をdomain roll-up
+internal/repository/prescription_repository.go,target:medicalrecord,prefix token='prescription'
+internal/repository/procedure/repository.go,target:medicalrecord,repository/procedure をdomain roll-up
+internal/repository/procedure_repository.go,target:medicalrecord,prefix token='procedure'
+internal/repository/refund/repository.go,target:billing,repository/refund をdomain roll-up
+internal/repository/refund_repository.go,target:billing,prefix token='refund'
+internal/repository/repohelpers/junction.go,keep,repository/repohelpers は既存の共有カーネル
+internal/repository/repohelpers/scope.go,keep,repository/repohelpers は既存の共有カーネル
+internal/repository/repohelpers/tx.go,keep,repository/repohelpers は既存の共有カーネル
+internal/repository/repositories.go,keep,composition-root facade (BE9-2F removal target)
+internal/repository/repotest/repotest.go,keep,repository/repotest は既存の共有カーネル
+internal/repository/reservation_repository.go,target:reservation,prefix token='reservation'
+internal/repository/reservation_schedule_repository.go,target:reservation,prefix token='reservation'
+internal/repository/reservation_staff_repository.go,target:reservation,prefix token='reservation'
+internal/repository/reservation_type_available_slot_repository.go,target:reservation,prefix token='reservation'
+internal/repository/reservation_type_group_repository.go,target:reservation,prefix token='reservation'
+internal/repository/reservation_type_liff_repository.go,target:reservation,prefix token='reservation'
+internal/repository/reservation_type_occupation_repository.go,target:reservation,prefix token='reservation'
+internal/repository/reservation_type_repository.go,target:reservation,prefix token='reservation'
+internal/repository/reservation_type_unavailable_time_repository.go,target:reservation,prefix token='reservation'
+internal/repository/reservationtype/repository.go,target:reservation,repository/reservationtype をdomain roll-up
+internal/repository/reservationtypeavailableslot/repository.go,target:reservation,repository/reservationtypeavailableslot をdomain roll-up
+internal/repository/reservationtypegroup/repository.go,target:reservation,repository/reservationtypegroup をdomain roll-up
+internal/repository/reservationtypeunavailabletime/repository.go,target:reservation,repository/reservationtypeunavailabletime をdomain roll-up
+internal/repository/shared_file_repository.go,target:lstep,L⑥: consumer 0のroot facadeを削除
+internal/repository/sharedfile/repository.go,target:lstep,L⑥: internal/lstep/shared_file_repository.goへroll-up
+internal/repository/shift_entry_repository.go,target:staff,prefix token='shift'
+internal/repository/shift_template_repository.go,target:staff,prefix token='shift'
+internal/repository/shiftentry/repository.go,target:staff,repository/shiftentry をdomain roll-up
+internal/repository/shifttemplate/repository.go,target:staff,repository/shifttemplate をdomain roll-up
+internal/repository/staff_clinic_assignment_repository.go,target:staff,prefix token='staff'
+internal/repository/staff_repository.go,target:staff,prefix token='staff'
+internal/repository/staffclinicassignment/repository.go,target:staff,repository/staffclinicassignment をdomain roll-up
+internal/repository/token_blacklist_repository.go,target:auth,legacy root file; dedup with tokenblacklist/ subpkg is a BE9-2B input
+internal/repository/tokenblacklist/repository.go,target:auth,repository/tokenblacklist をdomain roll-up
+internal/repository/transactor.go,keep,repository cross-cutting helper
+internal/repository/treatment_plan_repository.go,target:medicalrecord,prefix token='treatment'
+internal/repository/treatment_repository.go,target:medicalrecord,prefix token='treatment'
+internal/repository/trimming_course_repository.go,target:trimming,BE9-2E trimming: target実装へ移動しaggregatorまたはbilling consumer用thin facadeをBE9-2Fまで保持
+internal/repository/trimming_course_type_repository.go,target:trimming,BE9-2E trimming: target実装へ移動しaggregator consumer用thin facadeをBE9-2Fまで保持
+internal/repository/trimming_option_repository.go,target:trimming,BE9-2E trimming: target実装へ移動しaggregatorまたはbilling consumer用thin facadeをBE9-2Fまで保持
+internal/repository/trimming_repository.go,target:trimming,BE9-2E trimming: target実装へ移動しservice aggregator consumer用thin facadeをBE9-2Fまで保持
+internal/repository/trimmingcourse/repository.go,target:trimming,BE9-2E trimming: internal/trimmingへroll-upし旧subpackage削除
+internal/repository/trimmingcoursetype/repository.go,target:trimming,BE9-2E trimming: internal/trimmingへroll-upし旧subpackage削除
+internal/repository/trimmingoption/repository.go,target:trimming,BE9-2E trimming: internal/trimmingへroll-upし旧subpackage削除
+internal/repository/vaccination_repository.go,target:medicalrecord,prefix token='vaccination'
+internal/repository/vaccine/repository.go,target:medicalrecord,repository/vaccine をdomain roll-up
+internal/repository/vaccine_repository.go,target:medicalrecord,prefix token='vaccine'
+internal/repository/vital_repository.go,target:medicalrecord,prefix token='vital'
+internal/seedbundle/manifest.go,keep,既存の凝集cross-cutting package
+internal/service/account_service.go,target:auth,prefix token='account'
+internal/service/accounting_report_service.go,target:billing,prefix token='accounting'
+internal/service/accounting_service.go,target:billing,prefix token='accounting'
+internal/service/accounting_service_builders.go,target:billing,prefix token='accounting'
+internal/service/accounting_service_core.go,target:billing,prefix token='accounting'
+internal/service/accounting_service_correction.go,target:billing,prefix token='accounting'
+internal/service/accounting_service_reports.go,target:billing,prefix token='accounting'
+internal/service/aggregation_service.go,target:lstep,prefix token='aggregation'
+internal/service/animal_species_service.go,target:pet,prefix token='animal'
+internal/service/appointment_admin_service.go,target:reservation,prefix token='appointment'
+internal/service/appointment_notification_service.go,target:reservation,prefix token='appointment'
+internal/service/appointment_service.go,target:reservation,prefix token='appointment'
+internal/service/audit_diff.go,keep,shared kernel token='audit'
+internal/service/audit_service.go,keep,shared kernel token='audit'
+internal/service/auth_service.go,target:auth,prefix token='auth'
+internal/service/available_dates.go,target:reservation,reservation availability calculation
+internal/service/billing_confirmation_service.go,target:billing,prefix token='billing'
+internal/service/billing_item_service.go,target:billing,prefix token='billing'
+internal/service/billing_service.go,target:billing,prefix token='billing'
+internal/service/cage_service.go,target:medicalrecord,prefix token='cage'
+internal/service/campaign_discount.go,target:billing,prefix token='campaign'
+internal/service/campaign_service.go,target:billing,prefix token='campaign'
+internal/service/care_plan_item_service.go,target:medicalrecord,prefix token='care'
+internal/service/cash_register_service.go,target:billing,prefix token='cash'
+internal/service/checkup_field_result_service.go,target:medicalrecord,prefix token='checkup'
+internal/service/checkup_service.go,target:medicalrecord,prefix token='checkup'
+internal/service/checkup_sync_service.go,target:lstep,L③b: lstep checkup sync application service
+internal/service/checkup_sync_service_create.go,target:lstep,L③b: lstep tag application workflow
+internal/service/checkup_sync_service_metadata.go,target:lstep,L③b: lstep audit metadata
+internal/service/checkup_sync_service_preview.go,target:lstep,L③b: lstep checkup sync preview
+internal/service/checkup_type_service.go,target:medicalrecord,prefix token='checkup'
+internal/service/chief_complaint_service.go,target:medicalrecord,prefix token='chief'
+internal/service/chronic_condition_service.go,target:pet,prefix token='chronic'
+internal/service/clinic_holiday_service.go,target:clinic,prefix token='clinic'
+internal/service/clinic_service.go,target:clinic,prefix token='clinic'
+internal/service/clinical_plan_service.go,target:medicalrecord,prefix token='clinical'
+internal/service/closing_settings_service.go,target:clinic,prefix token='closing'
+internal/service/company_service.go,target:clinic,prefix token='company'
+internal/service/consultation_service.go,target:medicalrecord,prefix token='consultation'
+internal/service/daily_record_service.go,target:medicalrecord,prefix token='daily'
+internal/service/diagnosis_service.go,target:medicalrecord,prefix token='diagnosis'
+internal/service/dose_calc.go,target:medicalrecord,prefix token='dose'
+internal/service/dose_revalidation.go,target:medicalrecord,prefix token='dose'
+internal/service/dose_validators.go,target:medicalrecord,prefix token='dose'
+internal/service/estimate_service.go,target:billing,prefix token='estimate'
+internal/service/exam_type_service.go,target:medicalrecord,prefix token='exam'
+internal/service/examination_service.go,target:medicalrecord,prefix token='examination'
+internal/service/go_safe.go,keep,generic goroutine panic-recovery helper
+internal/service/hospitalization_plan_service.go,target:medicalrecord,prefix token='hospitalization'
+internal/service/hospitalization_service.go,target:medicalrecord,prefix token='hospitalization'
+internal/service/inquiry_service.go,target:medicalrecord,prefix token='inquiry'
+internal/service/inquiry_template_service.go,target:medicalrecord,prefix token='inquiry'
+internal/service/insurance_service.go,target:billing,prefix token='insurance'
+internal/service/inventory_service.go,target:inventory,prefix token='inventory'
+internal/service/lab_audit_logger.go,target:medicalrecord,prefix token='lab'
+internal/service/lab_import_examination_service.go,target:medicalrecord,prefix token='examination'
+internal/service/lab_import_service.go,target:medicalrecord,prefix token='lab'
+internal/service/lab_report_query_service.go,target:medicalrecord,prefix token='lab'
+internal/service/lab_result_import_service.go,target:medicalrecord,prefix token='lab'
+internal/service/liff_service.go,target:reservation,"RE-CLASSIFIED: struct fields are reservationRepo/typeRepo/staffRepo/scheduleRepo/adminRepo/typeLiffRepo + customerRepo/ownerRepo only, zero lstep coupling (confirms §9 out-dom=5/80 was mostly reservation logic)"
+internal/service/liff_service_availability.go,target:reservation,"RE-CLASSIFIED, see liff_service.go"
+internal/service/liff_service_availability_business.go,target:reservation,"RE-CLASSIFIED, see liff_service.go"
+internal/service/liff_service_availability_delegate.go,target:reservation,"RE-CLASSIFIED, see liff_service.go"
+internal/service/liff_service_availability_filters.go,target:reservation,"RE-CLASSIFIED, see liff_service.go"
+internal/service/liff_service_availability_slots.go,target:reservation,"RE-CLASSIFIED, see liff_service.go"
+internal/service/liff_service_availability_staff.go,target:reservation,RE-CLASSIFIED 2026-07-23 Wave 2a: BE9-2C R5(de5f0d348)でinternal/reservationへ縦移動済みの実態へ是正(旧reason: prefix token='staff')
+internal/service/liff_service_availability_time.go,target:reservation,"RE-CLASSIFIED, see liff_service.go"
+internal/service/liff_service_catalog.go,target:reservation,"RE-CLASSIFIED, see liff_service.go (trimming/reservation catalog for LIFF)"
+internal/service/liff_service_health_card.go,target:reservation,"RE-CLASSIFIED, see liff_service.go"
+internal/service/liff_service_reservations.go,target:reservation,"RE-CLASSIFIED, see liff_service.go"
+internal/service/line_credentials.go,target:lstep,prefix token='line'
+internal/service/line_customer_service.go,target:lstep,prefix token='line'
+internal/service/line_link_service.go,target:lstep,prefix token='line'
+internal/service/line_messaging_service.go,target:lstep,prefix token='line'
+internal/service/line_reservation_setting_service.go,target:reservation,prefix token='reservation'
+internal/service/line_send_service.go,target:lstep,prefix token='line'
+internal/service/lstep_analytics_service.go,target:lstep,prefix token='lstep'
+internal/service/lstep_batch_delivery.go,target:lstep,prefix token='lstep'
+internal/service/lstep_batch_dormant.go,target:lstep,prefix token='lstep'
+internal/service/lstep_batch_noshow.go,target:lstep,prefix token='lstep'
+internal/service/lstep_batch_segmentation.go,target:lstep,prefix token='lstep'
+internal/service/lstep_batch_service.go,target:lstep,prefix token='lstep'
+internal/service/lstep_csv_helpers.go,target:lstep,prefix token='lstep'
+internal/service/lstep_csv_import_service.go,target:lstep,prefix token='lstep'
+internal/service/lstep_delivery_monitor_service.go,target:lstep,prefix token='lstep'
+internal/service/lstep_delivery_trigger_batch.go,target:lstep,prefix token='lstep'
+internal/service/lstep_delivery_trigger_client.go,target:lstep,prefix token='lstep'
+internal/service/lstep_delivery_trigger_methods.go,target:lstep,prefix token='lstep'
+internal/service/lstep_delivery_trigger_service.go,target:lstep,prefix token='lstep'
+internal/service/lstep_delivery_trigger_state.go,target:lstep,prefix token='lstep'
+internal/service/lstep_delivery_trigger_suppression.go,target:lstep,prefix token='lstep'
+internal/service/lstep_health_codes.go,target:lstep,prefix token='lstep'
+internal/service/lstep_health_tag_sync.go,target:lstep,prefix token='lstep'
+internal/service/lstep_health_tag_sync_batch.go,target:lstep,prefix token='lstep'
+internal/service/lstep_health_tag_sync_checkup.go,target:lstep,"RE-CLASSIFIED (bm-medrecord-a): receiver *lstepTagSyncService (same type as lstep_tag_sync_service.go), Go requires same-package methods"
+internal/service/lstep_health_tag_sync_food.go,target:lstep,prefix token='lstep'
+internal/service/lstep_health_tag_sync_prevention.go,target:lstep,prefix token='lstep'
+internal/service/lstep_health_tag_sync_vaccine.go,target:lstep,"RE-CLASSIFIED, see lstep_health_tag_sync_checkup.go"
+internal/service/lstep_lifecycle_service.go,target:lstep,prefix token='lstep'
+internal/service/lstep_settings_connection.go,target:lstep,prefix token='lstep'
+internal/service/lstep_settings_credentials.go,target:lstep,prefix token='lstep'
+internal/service/lstep_settings_service.go,target:lstep,prefix token='lstep'
+internal/service/lstep_settings_thresholds.go,target:lstep,prefix token='lstep'
+internal/service/lstep_settings_update.go,target:lstep,prefix token='lstep'
+internal/service/lstep_tag_code_mapping_service.go,target:lstep,prefix token='lstep'
+internal/service/lstep_tag_config_service.go,target:lstep,prefix token='lstep'
+internal/service/lstep_tag_service.go,target:lstep,prefix token='lstep'
+internal/service/lstep_tag_summary_service.go,target:lstep,prefix token='lstep'
+internal/service/lstep_tag_sync_api.go,target:lstep,prefix token='lstep'
+internal/service/lstep_tag_sync_care.go,target:lstep,RE-CLASSIFIED (bm-medrecord-b): receiver *lstepTagSyncService
+internal/service/lstep_tag_sync_care_checkup.go,target:lstep,"RE-CLASSIFIED, see lstep_tag_sync_care.go"
+internal/service/lstep_tag_sync_care_chronic.go,target:lstep,"RE-CLASSIFIED, see lstep_tag_sync_care.go"
+internal/service/lstep_tag_sync_care_resync.go,target:lstep,"RE-CLASSIFIED, see lstep_tag_sync_care.go"
+internal/service/lstep_tag_sync_pet.go,target:lstep,RE-CLASSIFIED (L③a): receiver *lstepTagSyncService; pet-derived LSTEP tag protocol
+internal/service/lstep_tag_sync_pet_basic.go,target:lstep,"RE-CLASSIFIED (L③a), see lstep_tag_sync_pet.go"
+internal/service/lstep_tag_sync_pet_exclusion.go,target:lstep,"RE-CLASSIFIED (L③a), see lstep_tag_sync_pet.go"
+internal/service/lstep_tag_sync_service.go,target:lstep,prefix token='lstep'
+internal/service/lstep_tag_sync_vaccine.go,target:lstep,"RE-CLASSIFIED (bm-medrecord-a): receiver *lstepTagSyncService (same type as lstep_tag_sync_service.go), Go requires same-package methods"
+internal/service/lstep_tag_sync_visit.go,target:lstep,prefix token='lstep'
+internal/service/lstep_tag_sync_visit_cpm.go,target:lstep,prefix token='lstep'
+internal/service/lstep_tag_sync_visit_dormant.go,target:lstep,prefix token='lstep'
+internal/service/lstep_tag_sync_visit_ltv.go,target:lstep,prefix token='lstep'
+internal/service/lstep_tag_sync_visit_next.go,target:lstep,prefix token='lstep'
+internal/service/lstep_trigger_priority_service.go,target:lstep,prefix token='lstep'
+internal/service/manual_article_service.go,target:manualarticle,prefix token='manual'
+internal/service/medical_record_addendum_service.go,target:medicalrecord,prefix token='medical'
+internal/service/medical_record_auto_create.go,target:medicalrecord,prefix token='medical'
+internal/service/medical_record_builders.go,target:medicalrecord,prefix token='medical'
+internal/service/medical_record_crud.go,target:medicalrecord,prefix token='medical'
+internal/service/medical_record_image_service.go,target:medicalrecord,prefix token='medical'
+internal/service/medical_record_lock.go,target:medicalrecord,prefix token='medical'
+internal/service/medical_record_lstep_sync.go,target:medicalrecord,prefix token='medical'
+internal/service/medical_record_service.go,target:medicalrecord,prefix token='medical'
+internal/service/medical_record_subrecords.go,target:medicalrecord,prefix token='medical'
+internal/service/medicine_dose_param_service.go,target:medicalrecord,prefix token='medicine'
+internal/service/medicine_service.go,target:medicalrecord,prefix token='medicine'
+internal/service/merchandise_item_service.go,target:inventory,prefix token='merchandise'
+internal/service/occupation_service.go,target:staff,prefix token='occupation'
+internal/service/owner_mapper.go,target:owner,prefix token='owner'
+internal/service/owner_service.go,target:owner,prefix token='owner'
+internal/service/owner_service_builders.go,target:owner,prefix token='owner'
+internal/service/owner_service_core.go,target:owner,prefix token='owner'
+internal/service/owner_service_delivery.go,target:owner,prefix token='owner'
+internal/service/owner_service_line.go,target:owner,"RE-CLASSIFIED (bm-lstep): every func has receiver func(s *ownerService), Go multi-file extension of ownerService struct itself, cannot compile as part of lstep"
+internal/service/password_reset_service.go,target:auth,prefix token='password'
+internal/service/payment_method_master_service.go,target:billing,prefix token='payment'
+internal/service/permission_group_service.go,target:auth,prefix token='permission'
+internal/service/pet_mapper.go,target:pet,prefix token='pet'
+internal/service/pet_service.go,target:pet,prefix token='pet'
+internal/service/prescription_service.go,target:medicalrecord,prefix token='prescription'
+internal/service/procedure_service.go,target:medicalrecord,prefix token='procedure'
+internal/service/refund_service.go,target:billing,prefix token='refund'
+internal/service/replace_audit_tail.go,keep,shared kernel token='audit'
+internal/service/reservation_capacity.go,target:reservation,prefix token='reservation'
+internal/service/reservation_schedule_service.go,target:reservation,prefix token='reservation'
+internal/service/reservation_service.go,target:reservation,prefix token='reservation'
+internal/service/reservation_staff_capability_validator.go,target:reservation,prefix token='reservation'
+internal/service/reservation_staff_service.go,target:reservation,prefix token='reservation'
+internal/service/reservation_type_availability_validator.go,target:reservation,prefix token='reservation'
+internal/service/reservation_type_group_service.go,target:reservation,prefix token='reservation'
+internal/service/reservation_type_liff_service.go,target:reservation,prefix token='reservation'
+internal/service/reservation_type_service.go,target:reservation,prefix token='reservation'
+internal/service/reservation_type_service_available_slot.go,target:reservation,prefix token='reservation'
+internal/service/reservation_type_service_builders.go,target:reservation,prefix token='reservation'
+internal/service/reservation_type_service_core.go,target:reservation,prefix token='reservation'
+internal/service/reservation_type_service_occupation.go,target:reservation,prefix token='reservation'
+internal/service/reservation_type_service_unavailable.go,target:reservation,prefix token='reservation'
+internal/service/reservation_validators.go,target:reservation,prefix token='reservation'
+internal/service/service.go,keep,composition-root facade (BE9-2F removal target)
+internal/service/shared_file_service.go,target:lstep,L⑥: internal/lstep/shared_file_service.goへ移動
+internal/service/shift_entry_service.go,target:staff,prefix token='shift'
+internal/service/shift_template_service.go,target:staff,prefix token='shift'
+internal/service/smtp_sender.go,keep,generic email-sending infra
+internal/service/species_name_match.go,target:pet,"species fuzzy-match, pet-domain concern"
+internal/service/staff_clinic_assignment_service.go,target:staff,prefix token='staff'
+internal/service/staff_service.go,target:staff,prefix token='staff'
+internal/service/staff_service_account.go,target:staff,prefix token='staff'
+internal/service/staff_service_builders.go,target:staff,prefix token='staff'
+internal/service/staff_service_core.go,target:staff,prefix token='staff'
+internal/service/staff_service_permissions.go,target:staff,prefix token='staff'
+internal/service/timeslot_engine.go,target:reservation,reservation time-slot calculation
+internal/service/token_blacklist_service.go,target:auth,prefix token='token'
+internal/service/token_service.go,target:auth,prefix token='token'
+internal/service/treatment_dose_save.go,target:medicalrecord,prefix token='treatment'
+internal/service/treatment_plan_service.go,target:medicalrecord,prefix token='treatment'
+internal/service/treatment_service.go,target:medicalrecord,prefix token='treatment'
+internal/service/trimming_course_service.go,target:trimming,BE9-2E trimming: target実装へ移動しservice aggregator用alias facadeをBE9-2Fまで保持
+internal/service/trimming_course_type_service.go,target:trimming,BE9-2E trimming: target実装へ移動しservice aggregator用alias facadeをBE9-2Fまで保持
+internal/service/trimming_option_service.go,target:trimming,BE9-2E trimming: target実装へ移動しservice aggregator用alias facadeをBE9-2Fまで保持
+internal/service/trimming_service.go,target:trimming,BE9-2E trimming: target実装へ移動しservice aggregator用alias facadeをBE9-2Fまで保持
+internal/service/update_fields.go,keep,shared partial-update kernel (§9 2共有カーネル)
+internal/service/vaccination_service.go,target:medicalrecord,prefix token='vaccination'
+internal/service/vaccine_service.go,target:medicalrecord,prefix token='vaccine'
+internal/service/validators.go,keep,"shared validation kernel (§9 2共有カーネル, in-dom=37)"
+internal/service/validators_accounting.go,target:billing,prefix token='accounting'
+internal/service/validators_auth.go,target:auth,prefix token='auth'
+internal/service/validators_contact.go,target:owner,"RE-CLASSIFIED (bm-keep-crosscutting): validateEmailFormat/validatePhoneFormat/validatePostalCodeFormat called ONLY by validators_owner.go (owner domain), fails both keep-test arms (single domain, no lower-layer consumer)"
+internal/service/validators_master.go,keep,shared kernel token='validators'
+internal/service/validators_name.go,keep,shared kernel token='validators'
+internal/service/validators_owner.go,target:owner,prefix token='owner'
+internal/service/validators_pet.go,target:pet,prefix token='pet'
+internal/service/vital_service.go,target:medicalrecord,prefix token='vital'
+internal/timeutil/format.go,keep,既存の凝集cross-cutting package
+internal/timeutil/weekday.go,keep,既存の凝集cross-cutting package

@@ -1,4 +1,6 @@
-# AnimalEkarte CSV import completion report
+# AnimalEkarte CSV seed overlay completion report（旧7表経路）
+
+> これは2026-07-15の disposable seed-export 用7表adapterの履歴記録であり、医院カットオーバーF6の実装・運用証跡ではない。正式な21表 consumer は [CLINIC_CSV_IMPORT.md](./CLINIC_CSV_IMPORT.md)、現在のseed生成境界は [SEED_MIGRATION_OPERATIONS.md](./SEED_MIGRATION_OPERATIONS.md) を参照する。
 
 ## Completion Report
 
@@ -62,6 +64,6 @@ Requested orphan checks: `pets.owner_id`, `medical_records.owner_id/pet_id`, `ex
 
 ### Remaining risks
 
-- USER restores full dump into `backend/migrations/seeds/003_demo/` from sensitive-local, then runs `make reset` locally.
+- **RETIRED**: sensitive-localのfull dumpを `backend/migrations/seeds/003_demo/` へ直接復元する旧手順は使用しない。21表handoffから実行可能seedへ変換する専用経路は現行コードに未実装であり、実装・検証までは隔離保管に留める。
 - STG/PROD application, push of PHI-scale seeds, and external issue operations remain out of scope.
 - After local overlay, use `git update-index --skip-worktree` on overlaid CSVs to avoid accidental commits.

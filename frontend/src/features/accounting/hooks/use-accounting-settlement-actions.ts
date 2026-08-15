@@ -5,6 +5,7 @@ import type { QueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { paths } from "@/config/paths";
+import { formatCurrency } from "@/lib/format/number";
 import { handleApiError } from "@/lib/handle-api-error";
 import { queryKeys } from "@/lib/query-keys";
 
@@ -39,7 +40,7 @@ export function useAccountingSettlementActions({
           await createRefund(accountingId, { amount, reason, paymentMethod });
           queryClient.invalidateQueries({ queryKey: queryKeys.accountingRefunds(accountingId) });
           queryClient.invalidateQueries({ queryKey: queryKeys.accountings.all() });
-          toast.success(`¥${amount.toLocaleString()} の返金を登録しました`);
+          toast.success(`${formatCurrency(amount)} の返金を登録しました`);
         } catch (error) {
           handleApiError(error, "返金の登録");
         }

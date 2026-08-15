@@ -23,10 +23,12 @@ model: opus
 ### 3. アーキテクチャ確認（このプロジェクト固有）
 
 **Backend:**
-- handler → service → repository の流れを維持
-- `apperrors.FromGORM` / `apperrors.Wrap` / `RespondError` を使用
-- マスタ削除は FK 依存チェック + `apperrors.WrapConflict`
-- PATCH は ポインタ型 + `buildXxxUpdateFields()` パターン
+- `.claude/rules/go-gin-backend-guidelines.md` を正本とする
+- package は凝集性・利用者・依存方向・変更単位で設計する
+- request Context、error chain、transaction、resource cleanup を計画する
+- binding / validation / authentication / authorization / ownership を分離する
+- OpenAPI と clinic isolation invariant を成功基準に含める
+- 固定layer、repository interface、特定helperを Go/Gin公式要件として前提にしない
 
 **Frontend:**
 - Feature-based organization: `features/[feature]/` 内に配置
@@ -54,22 +56,20 @@ model: opus
 ## アーキテクチャ変更
 | 変更 | ファイルパス | 説明 |
 |------|------------|------|
-| 新規 | backend/internal/model/xxx.go | モデル定義 |
-| 新規 | backend/internal/repository/xxx_repository.go | DB 操作 |
-| 新規 | backend/internal/service/xxx_service.go | ビジネスロジック |
-| 新規 | backend/internal/handler/xxx_handler.go | HTTP ハンドラ |
+| 新規/変更 | backend/internal/&lt;cohesive-package&gt;/... | 利用者と責務に基づくGo package/API |
+| 変更 | backend/docs/api.yaml | HTTP contract |
 | 新規 | frontend/src/features/xxx/ | Feature モジュール |
 
 ## 実装ステップ
 
-### Phase 1: バックエンドモデル・DB（基盤）
+### Phase 1: Contract・security boundary・data design
 1. **[ステップ名]** (`path/to/file.go`)
    - 実施内容: 具体的なアクション
    - 理由: このステップが必要な理由
    - 依存: なし / ステップ X が必要
    - リスク: 低/中/高
 
-### Phase 2: バックエンド API
+### Phase 2: 凝集したbackend package・API
 2. **[ステップ名]** (`path/to/file.go`)
    ...
 
@@ -82,8 +82,8 @@ model: opus
    ...
 
 ## テスト戦略
-- Backend Unit: `backend/internal/service/xxx_service_test.go`
-- Backend Integration: `backend/internal/repository/xxx_repository_test.go`
+- Backend HTTP: `httptest` によるroute/handler/middleware contract
+- Backend Integration: query/transaction/clinic isolation
 - Frontend Unit: `frontend/src/features/xxx/routes/XxxList.test.tsx`
 
 ## リスク・対策

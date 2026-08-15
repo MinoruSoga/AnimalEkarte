@@ -113,7 +113,7 @@ export const TrimmingCourseSidePanel = memo(function TrimmingCourseSidePanel({
         <button
           type="button"
           onClick={handleToggleStatus}
-          className={`inline-flex items-center rounded-[3px] ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
+          className={`inline-flex items-center rounded-xxs ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
         >
           <StatusPill isActive={formData.isActive} />
         </button>

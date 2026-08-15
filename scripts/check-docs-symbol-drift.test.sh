@@ -8,6 +8,7 @@
 #   - 実在しない use* フック名                        → exit 1
 #   - 実在しないソースファイル名                      → exit 1
 #   - テーブル総数宣言の不一致（全nテーブル）          → exit 1
+#   - 直下 migrations/*.sql 合算（002/003 非CREATE・seeds 除外）→ exit 0
 #   - 部分集合の言及（「この5テーブル」）は総数扱いしない → exit 0
 #   - 16進カラーコード（`A39E98` 等）は検査対象外       → exit 0
 # で判定できることを確認する。Docker 不要・純テキスト検査。
@@ -41,7 +42,13 @@ build_fixture() {
 export function GoodWidget() { return null; }
 export function useGoodHook() { return 1; }
 EOF
+  # 直下 DDL 合算: 001=2 / 002・003=0 CREATE。seeds/ 配下の CREATE は数えない。
   printf 'CREATE TABLE a (id int);\nCREATE TABLE b (id int);\n' > "$d/backend/migrations/001_init.sql"
+  # printf treats leading -- as options; use %s format.
+  printf '%s\n' '-- index only; no CREATE TABLE' > "$d/backend/migrations/002_noop.sql"
+  printf '%s\n' '-- constraint only; no CREATE TABLE' > "$d/backend/migrations/003_constraint.sql"
+  mkdir -p "$d/backend/migrations/seeds"
+  printf '%s\n' 'CREATE TABLE seed_ghost (id int);' > "$d/backend/migrations/seeds/ghost.sql"
   printf 'package model\n\nconst (\n\tResourceAlpha Resource = "alpha"\n\tResourceBeta Resource = "beta"\n)\n' \
     > "$d/backend/internal/model/permission.go"
   printf 'package model\n\nconst (\n\tTriggerTypeFoo TriggerType = "foo"\n)\n' \
@@ -59,7 +66,17 @@ EOF
 全1画面のインデックス。
 EOF
   cat > "$d/docs/architecture/erd.md" <<'EOF'
-全2テーブルの設計。なお、この5テーブルという表現は部分集合の言及であり総数ではない。
+## 1. データモデルの全体像 (全 2 テーブル)
+
+なお、この5テーブルという表現は部分集合の言及であり総数ではない。
+
+### 1.1 主要ドメイン別構成
+
+| 区分 | 管理対象（物理テーブル名抜粋） |
+|:---|:---|
+| **基盤 (2)** | `a`, `b` |
+
+## 2. エンティティ・リレーション図
 EOF
   cat > "$d/docs/README.md" <<'EOF'
 索引 (2 Tables / 2 Resources)。1画面。
@@ -111,6 +128,13 @@ mutate_wrong_table_total() {
   printf '全3テーブルの設計。\n' > "$1/docs/architecture/erd.md"
 }
 
+mutate_incomplete_erd_domain_inventory() {
+  # 上段の総数宣言は正しいまま、old_db が読むドメイン在庫から b だけを欠落させる。
+  sed 's/\*\*基盤 (2)\*\* | `a`, `b`/\*\*基盤 (1)\*\* | `a`/' \
+    "$1/docs/architecture/erd.md" > "$1/docs/architecture/erd.md.tmp"
+  mv "$1/docs/architecture/erd.md.tmp" "$1/docs/architecture/erd.md"
+}
+
 mutate_disallowed_topdir() {
   # docs/ 直下 allowlist 外のフォルダ（旧 docs/infra/ 復活の再発防止）
   mkdir -p "$1/docs/infra"
@@ -127,6 +151,7 @@ run_case "phantom-component"    1 mutate_phantom_component
 run_case "phantom-hook"         1 mutate_phantom_hook
 run_case "phantom-file"         1 mutate_phantom_file
 run_case "wrong-table-total"    1 mutate_wrong_table_total
+run_case "incomplete-erd-domain-inventory" 1 mutate_incomplete_erd_domain_inventory
 run_case "disallowed-topdir"    1 mutate_disallowed_topdir
 run_case "disallowed-topfile"   1 mutate_disallowed_topfile
 

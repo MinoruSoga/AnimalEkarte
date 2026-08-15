@@ -15,7 +15,7 @@ import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { CalendarNavToolbar } from "@/components/shared/CalendarNavToolbar";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
 import { toJSTWallDate } from "@/lib/jst-date";
-import { DISPLAY_DATE_FORMAT } from "@/utils/format/date";
+import { DISPLAY_DATE_FORMAT } from "@/lib/format/date";
 import { paths } from "@/config/paths";
 import { AvailableSlotTypeSpecific, AvailableSlotTypeWeekly } from "@/types/generated/models";
 import {
@@ -178,65 +178,73 @@ export function ReservationTypeAvailableSlotsCalendar({
       </div>
 
       {/* 予約管理画面と同じ密度の週グリッド */}
-      <div className={`flex-1 min-h-0 overflow-y-auto flex flex-col border-l border-t ${C.borderMedium} rounded-lg ${C.bgWhite} shadow-sm`}>
-        {HEADER_ROW}
-        <div className="grid grid-cols-7 flex-1 min-h-[420px]">
-          {weekDays.map((day) => {
-            const dateKey = format(day, "yyyy-MM-dd");
-            const weeklySlots = weeklyByDow.get(day.getDay()) ?? [];
-            const specificSlots = specificByDate.get(dateKey) ?? [];
-            const chips = [
-              ...weeklySlots.map((slot) => ({ slot, weekly: true })),
-              ...specificSlots.map((slot) => ({ slot, weekly: false })),
-            ].sort((a, b) => byStartTime(a.slot, b.slot));
-            const isSelected = selectedDate === dateKey;
+      <div
+        data-testid="reservation-slots-calendar-scroll"
+        className={`flex-1 min-h-0 min-w-0 max-w-full overflow-x-auto overflow-y-auto border-l border-t ${C.borderMedium} rounded-lg ${C.bgWhite}`}
+      >
+        {/* 7日 × 44px。狭幅ではこのcalendar内だけ横scrollし、document overflowを発生させない。 */}
+        <div className="flex min-h-full w-full min-w-[308px] flex-col">
+          {HEADER_ROW}
+          <div className="grid grid-cols-7 flex-1 min-h-[420px]">
+            {weekDays.map((day) => {
+              const dateKey = format(day, "yyyy-MM-dd");
+              const weeklySlots = weeklyByDow.get(day.getDay()) ?? [];
+              const specificSlots = specificByDate.get(dateKey) ?? [];
+              const chips = [
+                ...weeklySlots.map((slot) => ({ slot, weekly: true })),
+                ...specificSlots.map((slot) => ({ slot, weekly: false })),
+              ].sort((a, b) => byStartTime(a.slot, b.slot));
+              const isSelected = selectedDate === dateKey;
 
-            return (
-              <button
-                type="button"
-                key={dateKey}
-                onClick={() => setSelectedDate(dateKey)}
-                aria-label={format(day, DISPLAY_DATE_FORMAT, { locale: ja })}
-                className={`h-full min-h-[420px] text-left border-b border-r ${C.borderLight} p-3 transition-colors cursor-pointer flex flex-col
-                  ${isSelected ? C.bgBrand8 : `${C.bgWhite} ${C.hoverBgPage}`}
-                `}
-              >
-                <div className="flex justify-between items-start mb-3">
-                  <div className="min-w-0">
-                    <span
-                      className={`text-base font-bold size-8 flex items-center justify-center rounded-full ${
-                        isSameDay(day, today) ? `${C.bgBrand} ${C.textWhite} shadow-sm` : C.text
-                      }`}
-                    >
-                      {format(day, "d")}
-                    </span>
-                    <div className={`text-xs ${C.text50} mt-1`}>{format(day, "M月", { locale: ja })}</div>
-                  </div>
-                  <span className={`text-xs ${C.text40}`}>{chips.length}件</span>
-                </div>
-                <div className="space-y-1.5 flex-1 overflow-hidden">
-                  {chips.map(({ slot, weekly }) => (
-                    <div
-                      key={slot.id}
-                      className={`text-sm px-2 py-1.5 rounded border leading-tight flex items-center gap-1 tabular-nums ${
-                        weekly
-                          ? `${C.bgPage} ${C.text50} ${C.borderLight}`
-                          : `${C.bgBrandLight} ${C.textBrandDark} ${C.borderLight}`
-                      }`}
-                    >
-                      {weekly ? <Repeat className="size-3 shrink-0" /> : null}
-                      {slot.startTime}
+              return (
+                <button
+                  type="button"
+                  key={dateKey}
+                  onClick={() => setSelectedDate(dateKey)}
+                  aria-label={format(day, DISPLAY_DATE_FORMAT, { locale: ja })}
+                  className={`h-full min-h-[420px] min-w-11 text-left border-b border-r ${C.borderLight} p-3 transition-colors cursor-pointer flex flex-col
+                    ${isSelected ? C.bgBrand8 : `${C.bgWhite} ${C.hoverBgPage}`}
+                  `}
+                >
+                  <div className="flex justify-between items-start mb-3">
+                    <div className="min-w-0">
+                      <span
+                        className={`text-base font-bold size-8 flex items-center justify-center rounded-full ${
+                          isSameDay(day, today) ? `${C.bgBrand} ${C.textOnBrand}` : C.text
+                        }`}
+                      >
+                        {format(day, "d")}
+                      </span>
+                      <div className={`text-xs ${C.text50} mt-1`}>
+                        {format(day, "M月", { locale: ja })}
+                      </div>
                     </div>
-                  ))}
-                </div>
-              </button>
-            );
-          })}
+                    <span className={`text-xs ${C.text40}`}>{chips.length}件</span>
+                  </div>
+                  <div className="space-y-1.5 flex-1 overflow-hidden">
+                    {chips.map(({ slot, weekly }) => (
+                      <div
+                        key={slot.id}
+                        className={`text-sm px-2 py-1.5 rounded border leading-tight flex items-center gap-1 tabular-nums ${
+                          weekly
+                            ? `${C.bgPage} ${C.text50} ${C.borderLight}`
+                            : `${C.bgBrandLight} ${C.textBrandDark} ${C.borderLight}`
+                        }`}
+                      >
+                        {weekly ? <Repeat className="size-3 shrink-0" /> : null}
+                        {slot.startTime}
+                      </div>
+                    ))}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
 
       {/* 日別編集パネル */}
-      <div className={`shrink-0 ${C.bgWhite} rounded-md border ${C.borderMedium} p-3 shadow-sm`}>
+      <div className={`shrink-0 ${C.bgWhite} rounded-md border ${C.borderMedium} p-3`}>
         {selectedDate === null ? (
           <p className={`text-sm ${C.text40}`}>日付をクリックすると、その日の枠を編集できます</p>
         ) : (
@@ -306,7 +314,7 @@ export function ReservationTypeAvailableSlotsCalendar({
                 <p className={`text-xs ${C.text40}`}>この時刻は既に登録済みです</p>
               ) : null}
               <SubmitButton
-                colorVariant="brand"
+                colorVariant="primary"
                 disabled={isDuplicate}
                 loadingText="追加中..."
                 className="h-8 text-sm px-3"

@@ -120,7 +120,7 @@ export function MyReservationsPage({
               {reservations.map(reservation => (
                 <div
                   key={reservation.id}
-                  className="bg-white rounded-xl border border-gray-200 shadow-sm p-4"
+                  className="bg-white rounded-xl border border-gray-200 p-4"
                 >
                   <div className="flex items-start justify-between mb-2">
                     <div>

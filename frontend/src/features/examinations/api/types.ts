@@ -3,8 +3,11 @@
  * Source: frontend/src/types/generated/models.ts (tygo generated)
  */
 import type { Examination, ExamResult } from "@/types/generated/models";
+import type { UpdateExaminationRequest as SharedUpdateExaminationRequest } from "@/hooks/use-update-examination";
 
-type BackendExamResult = ExamResult;
+export type BackendExamResult = ExamResult & {
+  is_assessed: boolean;
+};
 export type BackendExamination = Examination;
 
 export interface CreateExaminationRequest {
@@ -15,17 +18,21 @@ export interface CreateExaminationRequest {
   date: string;
   machine?: string;
   result_summary?: string;
+  items?: UpsertExamItemRequest[];
 }
 
-// R-F2-S8: 正本は shared hook (@/hooks/use-update-examination) 側に一本化。
-// ここで独立 interface を定義すると updateMutation.mutateAsync の実体
-// （useUpdateExamination は re-export 経由で hooks 側 mutationFn を使う）との
-// 契約ドリフトをコンパイラが検知できなくなるため re-export とする。
-export type { UpdateExaminationRequest } from "@/hooks/use-update-examination";
+/** Feature-local PATCH contract extends the shared parent-only mutation with atomic items. */
+export type UpdateExaminationRequest = SharedUpdateExaminationRequest & {
+  items?: UpsertExamItemRequest[];
+};
+
+export interface UnconfirmExaminationRequest {
+  reason: string;
+}
 
 /**
- * 検査項目 1 行分の入力（PUT /examinations/:id/items のリクエスト要素）。
- * status / is_abnormal はサーバ側で ref_min/ref_max から導出するため送信しない。
+ * 検査項目 1 行分の入力（POST/PATCH の nested items と PUT items で共通）。
+ * status / is_abnormal と判定基準値はサーバ側でマスタから導出するため送信しない。
  */
 export interface UpsertExamItemRequest {
   exam_type_field_id?: number | null;
@@ -34,8 +41,6 @@ export interface UpsertExamItemRequest {
   normal_value?: string;
   unit?: string;
   reference_value?: string;
-  ref_min?: number | null;
-  ref_max?: number | null;
   sort_order?: number;
 }
 

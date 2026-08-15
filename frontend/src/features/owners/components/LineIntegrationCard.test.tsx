@@ -5,7 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router";
 import { http, HttpResponse } from "msw";
 import { server } from "@/testing/mocks/node";
-import { AuthContext } from "@/contexts/auth-context";
+import { AuthContext } from "@/hooks/auth-context";
 import { LineIntegrationCard } from "./LineIntegrationCard";
 import type { Owner } from "@/types/owner";
 import { LSTEP_EXCL_DELIVERY_STOP } from "@/constants/lstep-tag-names";
@@ -51,10 +51,13 @@ const baseOwner: Owner = {
   updatedAt: "2026-01-01T00:00:00Z",
 };
 
-// mutation ハンドラーが transformOwner を通せる最低限レスポンス
+// mutation ハンドラーが transformOwner を通せる最低限 OwnerResponse（detail wire）。
+// line_user_id / lstep_opt_out は detail DTO に無い — LINE 専用 API fixture 側に置く。
 const minimalOwnerApiResponse = {
   id: 1,
+  clinic_id: 1,
   owner_name: "テスト飼い主",
+  owner_name_kana: "",
   company: "",
   postal_code: "",
   address1: "",
@@ -69,12 +72,11 @@ const minimalOwnerApiResponse = {
   is_dangerous: false,
   discount_rate: 0,
   membership_type: "member",
-  line_user_id: LINE_USER_ID,
   line_id_confirmed_at: "2026-05-01T00:00:00Z",
   delivery_excluded: false,
   delivery_caution: false,
   is_transferred: false,
-  lstep_opt_out: false,
+  pets: [] as const,
   created_at: "2026-01-01T00:00:00Z",
   updated_at: "2026-05-01T00:00:00Z",
 };
@@ -214,6 +216,14 @@ describe("LineIntegrationCard — C: 配信停止バナー表示条件", () => {
 // ─────────────────────────────────────────────────────────────
 
 describe("LineIntegrationCard — D: 配信除外スイッチ", () => {
+  it("配信制御スイッチは用途を区別できる accessible name を持つ", async () => {
+    await renderAndWait();
+
+    expect(screen.getByRole("switch", { name: "配信除外" })).toBeInTheDocument();
+    expect(screen.getByRole("switch", { name: "配信注意" })).toBeInTheDocument();
+    expect(screen.getByRole("switch", { name: "転院済み" })).toBeInTheDocument();
+  });
+
   it("除外理由入力フィールドは maxLength=100 属性を持つ", async () => {
     await renderAndWait();
     const input = screen.getByPlaceholderText("除外理由（任意・100文字以内）");

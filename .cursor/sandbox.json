@@ -1,7 +1,7 @@
 {
   "type": "workspace_readwrite",
   "networkPolicy": {
-    "default": "allow"
+    "default": "deny"
   },
   "enableSharedBuildCache": true
 }

@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { TableCell } from "@/components/ui/table";
 import { DataTable, DESIGN_TABLE_HEADER_ROW, DESIGN_TABLE_HEADER_CELL } from "@/components/shared/DataTable/DataTable";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
+import { DataTableRowLink } from "@/components/shared/DataTable/DataTableRowLink";
 import { FilteringIndicator } from "@/components/shared/FilteringIndicator/FilteringIndicator";
 import { PropertyFilter } from "@/components/shared/PropertyFilter/PropertyFilter";
 import { CONDITIONS_NO_EMPTY, CONDITIONS_WITH_EMPTY } from "@/components/shared/PropertyFilter/types";
@@ -16,11 +17,12 @@ import { Pagination } from "@/components/shared/Pagination/Pagination";
 import { RowActionButton } from "@/components/shared/RowActionButton";
 import { SortableHeader } from "@/components/shared/SortableHeader/SortableHeader";
 import { StatusBadge } from "@/components/shared/StatusBadge/StatusBadge";
+import { paths } from "@/config/paths";
 import { C, ICON } from "@/lib/design-tokens";
 import { PAYMENT_METHOD_LABELS } from "@/constants/payment-method";
 import { ACCOUNTING_STATUS_LABELS } from "@/constants/accounting-status";
-import { formatCurrency } from "@/utils/format/number";
-import { getAccountingStatusColor } from "@/utils/status-helpers";
+import { formatCurrency } from "@/lib/format/number";
+import { getAccountingStatusColor } from "@/lib/status-helpers";
 import type { Accounting as AccountingType } from "../types";
 import { calculateAccountingTotal } from "./accounting-list-table-model";
 
@@ -234,52 +236,61 @@ function AccountingListRow({
   const statusLabel = ACCOUNTING_STATUS_LABELS[accounting.status] ?? accounting.status;
 
   return (
-    <DataTableRow key={accounting.id} onClick={() => onEdit(accounting.id)}>
+    <DataTableRow key={accounting.id}>
       {showClinicColumn ? (
-        <TableCell className={`text-sm ${C.text60} py-2 whitespace-nowrap`}>
+        <TableCell className={`text-sm ${C.text60} whitespace-nowrap`}>
           {clinicNameById?.get(accounting.clinicId) ?? accounting.clinicId}
         </TableCell>
       ) : null}
-      <TableCell className={`font-mono text-base ${C.text} py-2`}>{accounting.scheduledDate}</TableCell>
-      <TableCell className={`text-base ${C.text} py-2`}>{accounting.ownerName}</TableCell>
-      <TableCell className={`text-base ${C.text} py-2`}>{accounting.petName}</TableCell>
-      <TableCell className={`text-right font-mono font-medium text-base ${C.text} py-2`}>
+      <TableCell className={`font-mono ${C.text}`}>
+        <DataTableRowLink
+          to={paths.accounting.detail.getHref(accounting.id)}
+          aria-label={`会計「${accounting.scheduledDate} ${accounting.ownerName} / ${accounting.petName}」(ID: ${accounting.id}) の詳細を開く`}
+        >
+          {accounting.scheduledDate}
+        </DataTableRowLink>
+      </TableCell>
+      <TableCell className={C.text}>{accounting.ownerName}</TableCell>
+      <TableCell className={C.text}>{accounting.petName}</TableCell>
+      <TableCell className={`text-right font-mono font-medium ${C.text}`}>
         {formatCurrency(calculateAccountingTotal(accounting))}
       </TableCell>
-      <TableCell className={`text-center text-base ${C.text} py-2`}>
+      <TableCell className={`text-center ${C.text}`}>
         {accounting.payment ? PAYMENT_METHOD_LABELS[accounting.payment.method] : "-"}
       </TableCell>
-      <TableCell className="py-2">
+      <TableCell>
         <div className="flex flex-wrap gap-1 items-center">
           <StatusBadge colorClass={getAccountingStatusColor(statusLabel)}>
             {statusLabel}
           </StatusBadge>
           {accounting.totalRefundedAmount > 0 ? (
-            <span className={`inline-flex items-center gap-0.5 text-[10px] font-medium px-1.5 py-0.5 rounded ${C.bgDiscountLight} ${C.textDiscount} ${C.borderOrangeBadge}`}>
+            <span className={`inline-flex items-center gap-0.5 text-2xs font-medium px-1.5 py-0.5 rounded ${C.bgDiscountLight} ${C.textDiscount} ${C.borderOrangeBadge}`}>
               <RotateCcw className={ICON.action} />
               返金あり
             </span>
           ) : null}
         </div>
       </TableCell>
-      <TableCell className="text-center py-2 hidden lg:table-cell">
+      <TableCell className="text-center hidden lg:table-cell">
         {accounting.medicalRecordId ? (
           <Button
             variant="ghost"
             size="icon"
-            className={`h-8 w-8 ${C.textBrand} ${C.hoverTextBrand} ${C.hoverBgBrand5}`}
-            onClick={(event) => {
-              event.stopPropagation();
-              onMedicalRecordOpen(accounting.medicalRecordId!);
-            }}
-            aria-label="カルテを開く"
+            className={`h-11 w-11 ${C.textBrand} ${C.hoverTextBrand} ${C.hoverBgBrand5}`}
+            onClick={() => onMedicalRecordOpen(accounting.medicalRecordId!)}
+            aria-label={`カルテ「${accounting.ownerName} / ${accounting.petName}」(ID: ${accounting.medicalRecordId}) を開く`}
           >
             <FileText className={ICON.action} />
           </Button>
         ) : null}
       </TableCell>
-      <TableCell className="text-right py-2">
-        {canEdit ? <RowActionButton onClick={() => onEdit(accounting.id)} /> : null}
+      <TableCell className="text-right">
+        {canEdit ? (
+          <RowActionButton
+            onClick={() => onEdit(accounting.id)}
+            aria-label={`会計「${accounting.scheduledDate} ${accounting.ownerName} / ${accounting.petName}」(ID: ${accounting.id}) を編集`}
+          />
+        ) : null}
       </TableCell>
     </DataTableRow>
   );

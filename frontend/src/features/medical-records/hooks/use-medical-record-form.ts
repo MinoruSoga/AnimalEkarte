@@ -1,8 +1,8 @@
-import { useState, useRef, useTransition, useCallback } from "react";
+import { useState, useRef, useTransition, useCallback, useMemo } from "react";
 import { useNavigate, useSearchParams, useLocation } from "react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { usePermission } from "@/hooks/use-permission";
-import { useGetPet } from "@/hooks/use-pet";
+import { useGetPet, useGetPets } from "@/hooks/use-pet";
 import { useGetOwner } from "@/hooks/use-owner";
 import { useGetReservationTypesGrouped } from "@/hooks/use-reservation-types";
 import { useCreateReservation } from "@/hooks/use-create-reservation";
@@ -12,9 +12,10 @@ import { useGetMedicalRecord } from "../api/get-medical-record";
 import { useCreateMedicalRecord } from "../api/create-medical-record";
 import { useUpdateMedicalRecord } from "../api/update-medical-record";
 import { useUpdateInquiry } from "../api/inquiries";
-import { useUpdateClinicalPlan } from "../api/clinical-plan";
+import { useUpdateClinicalPlan, useGetClinicalPlan } from "../api/clinical-plan";
 import type { TreatmentItem } from "../components/TreatmentTable";
 import { useApplyMedicalRecord } from "./use-apply-medical-record";
+import { useApplyClinicalPlan } from "./use-apply-clinical-plan";
 import { useMedicalRecordManualErrors } from "./use-medical-record-manual-errors";
 import { useMedicalRecordOwnerChange } from "./use-medical-record-owner-change";
 import { useMedicalRecordAutoCreate } from "./use-medical-record-auto-create";
@@ -29,6 +30,22 @@ import {
   normalizeAppointmentId,
   normalizeVisitDate,
 } from "./use-medical-record-form-model";
+import {
+  isNonDisclosureReadStatus,
+  resolveEntityReadResult,
+  type EntityReadResult,
+} from "@/lib/entity-read-result";
+import type { MedicalRecord } from "../api/transforms";
+import type { Pet } from "@/types";
+import { isMedicalRecordFinalizedStatus } from "../lib/medical-record-lock";
+
+export function selectCohabitingPets(pets: Pet[], selectedPet: Pet): Pet[] {
+  return pets.filter((pet) =>
+    pet.ownerId === selectedPet.ownerId
+    && pet.id !== selectedPet.id
+    && pet.status !== "死亡"
+  );
+}
 
 export function useMedicalRecordForm(recordId?: string) {
   const navigate = useNavigate();
@@ -36,7 +53,7 @@ export function useMedicalRecordForm(recordId?: string) {
   const [searchParams] = useSearchParams();
   const petId = searchParams.get("petId");
   const isNewRecord = !recordId;
-  const { canEdit } = usePermission("medical-records");
+  const { canCreate, canEdit } = usePermission("medical-records");
 
   const [activeTab, setActiveTab] = useState("問診");
   const [visitType, setVisitType] = useState("再診");
@@ -59,6 +76,8 @@ export function useMedicalRecordForm(recordId?: string) {
     setChiefComplaintTypeId,
     treatmentPolicy,
     setTreatmentPolicy,
+    physicalExam,
+    setPhysicalExam,
     plan,
     setPlan,
     assessment,
@@ -76,7 +95,31 @@ export function useMedicalRecordForm(recordId?: string) {
   } = useMedicalRecordDiagnosisState();
 
   // 編集モード: カルテからpetIdを取得
-  const { data: existingRecord, isError: isRecordError, isLoading: isRecordLoading } = useGetMedicalRecord(recordId ?? "");
+  // BUG-017: classify read failures; never fold missing ID into blank page via selectedPet=null
+  const {
+    data: existingRecordData,
+    isError: isRecordError,
+    isLoading: isRecordLoading,
+    error: recordError,
+    refetch: refetchRecord,
+  } = useGetMedicalRecord(recordId ?? "");
+  const entityRead: EntityReadResult<MedicalRecord> = resolveEntityReadResult({
+    id: isNewRecord ? undefined : recordId,
+    data: existingRecordData,
+    isLoading: isRecordLoading,
+    isError: isRecordError,
+    error: recordError,
+    refetch: refetchRecord,
+  });
+  const existingRecord =
+    entityRead.status === "found" ? entityRead.data : undefined;
+  const isReadLoading = !isNewRecord && entityRead.status === "loading";
+  const isReadNotFound =
+    !isNewRecord && isNonDisclosureReadStatus(entityRead.status);
+  const isReadError = !isNewRecord && entityRead.status === "error";
+  const retryRead =
+    entityRead.status === "error" ? entityRead.retry : undefined;
+  const isFinalized = isMedicalRecordFinalizedStatus(existingRecord?.status);
 
   useApplyMedicalRecord({
     existingRecord,
@@ -87,6 +130,10 @@ export function useMedicalRecordForm(recordId?: string) {
     setAssessment,
     setVisitType,
     setNextVisitDate,
+    setDiagnosis1CategoryId,
+    setDiagnosis1NameId,
+    setDiagnosis2CategoryId,
+    setDiagnosis2NameId,
   });
 
   // petIdを決定: 新規作成時はURLパラメータ、編集時はカルテのpetId
@@ -94,6 +141,18 @@ export function useMedicalRecordForm(recordId?: string) {
 
   // Petデータを取得
   const { data: selectedPet, isLoading: isPetLoading } = useGetPet(resolvedPetId);
+  const cohabitingOwnerId = !isNewRecord ? selectedPet?.ownerId : undefined;
+  const { data: ownerPets = [] } = useGetPets(
+    cohabitingOwnerId,
+    { includeDeceased: true },
+    { enabled: Boolean(cohabitingOwnerId) },
+  );
+  const cohabitingPets = useMemo(
+    () => !isNewRecord && selectedPet
+      ? selectCohabitingPets(ownerPets, selectedPet)
+      : [],
+    [isNewRecord, ownerPets, selectedPet],
+  );
 
   // Ownerデータを取得（飼主割引率用）
   const resolvedOwnerId = selectedPet?.ownerId ?? "";
@@ -126,16 +185,37 @@ export function useMedicalRecordForm(recordId?: string) {
   const updateMutation = useUpdateMedicalRecord(recordClinicId);
   const updateInquiryMutation = useUpdateInquiry(recordId ?? "");
   const updateTreatmentPlanMutation = useUpdateClinicalPlan(recordId ?? "", recordClinicId);
+  // BUG-416③: clinical_plan の楽観ロック用に現在バージョンを取得する。
+  // medical_record GET レスポンスに clinical_plan は同梱されないため、
+  // useGetClinicalPlan が version の唯一の取得元（TanStack Query が
+  // クエリキーで dedupe するため、MedicalRecordForm.tsx 側の呼び出しと
+  // 追加ネットワークリクエストにはならない）。
+  // BUG-010: 同データから 3欄 + 診断マスタも hydrate する（detail wire には載らない）。
+  const { data: clinicalPlan } = useGetClinicalPlan(recordId ?? "", recordClinicId);
+
+  useApplyClinicalPlan({
+    clinicalPlan,
+    setPhysicalExam,
+    setPlan,
+    setAssessment,
+    setDiagnosis1CategoryId,
+    setDiagnosis1NameId,
+    setDiagnosis2CategoryId,
+    setDiagnosis2NameId,
+  });
 
   const { formState, formAction, isSaving } = useMedicalRecordSaveAction({
     recordId,
     activeTab,
     canEdit,
+    isSelectedPetDeceased: selectedPet?.status === "死亡",
+    isFinalized,
     isNextVisitDateValid,
     diagnosis1CategoryId,
     diagnosis1NameId,
     diagnosis2CategoryId,
     diagnosis2NameId,
+    physicalExam,
     plan,
     assessment,
     chiefComplaint,
@@ -145,6 +225,7 @@ export function useMedicalRecordForm(recordId?: string) {
     treatmentPolicyDefault: DEFAULT_TREATMENT_POLICY,
     nextVisitDate,
     existingRecordVersion: existingRecord?.version,
+    existingClinicalPlanVersion: clinicalPlan?.version,
     setManualErrors,
     queryClient,
     updateInquiryMutation,
@@ -169,6 +250,7 @@ export function useMedicalRecordForm(recordId?: string) {
     setNextVisitDate,
     queryClient,
     updateMutation,
+    isSelectedPetDeceased: selectedPet?.status === "死亡",
   });
 
   const handleBack = useCallback(() => {
@@ -195,11 +277,16 @@ export function useMedicalRecordForm(recordId?: string) {
     existingRecord,
     updateMutation,
     startSaveTransition,
+    isSelectedPetDeceased: selectedPet?.status === "死亡",
   });
 
   // 新規作成時: ページ表示と同時にカルテを自動作成
-  useMedicalRecordAutoCreate({
+  const {
+    failurePhase: autoCreateFailurePhase,
+    retry: retryAutoCreate,
+  } = useMedicalRecordAutoCreate({
     isNewRecord,
+    canCreate,
     selectedPet,
     hasAutoCreatedRef,
     appointmentIdFromState,
@@ -216,7 +303,8 @@ export function useMedicalRecordForm(recordId?: string) {
   });
 
   const shouldRedirectToSelectPet = isNewRecord && !petId;
-  const notFound = !isNewRecord && !!recordId && !isRecordLoading && isRecordError;
+  // backward-compat alias for MedicalRecordForm / tests (BUG-017 non-disclosure UI)
+  const notFound = isReadNotFound;
 
   return {
     isNewRecord,
@@ -225,14 +313,22 @@ export function useMedicalRecordForm(recordId?: string) {
     visitType,
     setVisitType,
     selectedPet: selectedPet ?? null,
+    cohabitingPets,
     isPetLoading,
     shouldRedirectToSelectPet,
     notFound,
+    isReadLoading,
+    isReadNotFound,
+    isReadError,
+    retryRead,
     handleBack,
     formAction,
     formState,
     isSaving: isSaving || isSavingTransition,
+    isFinalized,
     isCreating,
+    autoCreateFailurePhase,
+    retryAutoCreate,
     treatmentPlanItems,
     setTreatmentPlanItems,
     treatmentCompletedItems,
@@ -244,7 +340,9 @@ export function useMedicalRecordForm(recordId?: string) {
     setChiefComplaintTypeId,
     treatmentPolicy,
     setTreatmentPolicy,
-    // 診察/治療プランタブ（SOAPS）
+    // 診察/治療プランタブ（clinical_plan 3欄）
+    physicalExam,
+    setPhysicalExam,
     plan,
     setPlan,
     assessment,

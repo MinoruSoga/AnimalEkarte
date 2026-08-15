@@ -5,12 +5,12 @@
 > **タイミング**: 本番反映前の最終検証時。
 
 > **Animal Ekarte**: 安全かつ確実なステージング反映と本番昇格のための手順
-> **最新更新**: 2026-07-10 | **ステータス**: 推奨運用手順
+> **最新更新**: 2026-07-23 | **ステータス**: STG 推奨運用手順（Production 未構築）
 
 ---
 
 ## 1. 概要
-本ランブックは、`main` ブランチの最新コードを `staging` 環境へ反映し、最終的なスモークテストを経て本番稼働へと昇格させるための、機械的かつ厳格なチェックリストです。
+本ランブックは、`main` ブランチの最新コードを `staging` 環境へ反映し、最終的なスモークテストを行うための、機械的かつ厳格なチェックリストです。本番環境は未構築のため、本チェックの PASS だけで本番昇格可能とは判定しません。
 
 ---
 
@@ -31,19 +31,23 @@
 
 ## 3. フェーズ 2: デプロイ実行 (Deploy)
 
-### 3.1 DB リセットとマイグレーション
-大規模なスキーマ変更を伴う場合、初回デプロイのみ DB リセットを指定して実行します。
+### 3.1 マイグレーションと、必要時のみ行う DB 再作成
 
-- **Cloudflare 正系統（`backend-deploy.yml`）**: `workflow_dispatch` に `db_reset` 入力は存在しない。
-  DB リセット要否は `.env.staging` の `DB_RESET` 値、または `infra/scripts/cf-run-migrate.sh` が叩く
-  Worker 側 migrate 経路の実装に従う（本ランブック執筆時点で push トリガー起動のみ）。
-  実行コマンド: `gh workflow run backend-deploy.yml --ref staging`
-- **旧 AWS ECS ロールバック経路（`backend-deploy-ecs.yml`）**: `workflow_dispatch` の `db_reset` 入力で明示指定可能。
-  `gh workflow run backend-deploy-ecs.yml --ref staging -f db_reset=true`
+現行の `backend-deploy.yml` は `workflow_dispatch` 可能ですが、`db_reset` 入力はありません。
+通常は次の手動トリガー、または `staging` push に伴う自動実行で `wrangler deploy` → migrate → health を通します。
+
+```bash
+gh workflow run backend-deploy.yml --ref staging
+```
+
+共有 STG の DB 再作成は workflow のオプションではなく、データを破棄する別オペレーションです。
+必要な場合だけ明示承認を得て [STG_PLANETSCALE_SEED_RUNBOOK.md](../STG_PLANETSCALE_SEED_RUNBOOK.md)
+に従います。AWS ECS/RDS は廃止済みで、DB 再作成や切り戻しには使用できません。
+
 - **監視項目**:
-  - Cloudflare 正系統: Worker の migrate レスポンス（`POST /_internal/migrate` の exit code）と `/health` ポーリング結果を確認。
-  - 旧 ECS 経路: `aws logs tail` で `001_init.sql` の適用と `002_master`/`003_demo`/`004_staging` seed バンドルのロード成功を確認（`Migration summary` / `Seed bundle summary` ログ）。
-  - いずれの経路でも Checksum mismatch エラー、`detected legacy seed migration key(s)` エラーが発生していないか確認する。
+  - Worker の migrate レスポンス（`POST /_internal/migrate` の exit code）と `/health` ポーリング結果を確認。
+  - fresh DB では直下 DDL 全数（`ls backend/migrations/*.sql` を正とする）+ seed バンドル（`002_master` → `003_demo` → `004_staging`）が完了し、`schema_migrations` の行数が「直下 DDL 本数 + seed バンドル数」に一致することを確認。
+  - Checksum mismatch がないことを確認。旧 seed key の検出時は旧形式相当の 002〜004 が legacy translation されることを確認する。
 - **シード突合検証**: `bash scripts/verify_seed_matches_stg_dump_full.sh` → exit 0 確認 (seed が STG dump と全テーブルで一致すること)。
 
 ---
@@ -51,8 +55,8 @@
 ## 4. フェーズ 3: 最終検証 (Post-Deploy Check)
 
 ### 4.1 ヘルスチェック
-- [ ] `GET /health` -> `200 OK`（Cloudflare 正系統: workers.dev 経由。旧 ECS ロールバック経路使用時のみ ALB 直接および CloudFront 経由も確認）。
-- [ ] 旧 ECS ロールバック経路を使用した場合のみ: ECS サービスのタスク実行数 (`runningCount`) が期待値と一致しているか。
+- [ ] `GET /health` -> `200 OK`（実 URL と workers.dev の両経路で確認し、DNS/Worker/Container のどこで失敗しているか切り分ける）。
+- [ ] デプロイ直後は旧コンテナイメージが残りうるため、イメージ更新を伴う検証では 15 分静置後にも再確認する。
 
 ### 4.2 スモークテスト (CRUD Smoke Test)
 [スモークテスト手順書](../CRUD-SMOKE-TEST.md) に従い、以下の基本導線をブラウザで確認します。
@@ -62,12 +66,16 @@
 
 ---
 
-## 5. ロールバック基準 (Rollback Criteria)
+## 5. リリース失敗・復旧開始基準
 
-以下のいずれか 1 つでも該当した場合、**即座にロールバック**を実行してください。
+以下のいずれか 1 つでも該当した場合、リリース成功とはせず、即座に復旧を開始してください。
 1.  API エラーレートが **1%** を超過。
 2.  画面の初期ロードに **5 秒** 以上を要する。
 3.  スモークテスト中に 1 件でも致命的なバグ（500エラー等）を発見。
+
+> AWS への切り戻しやホットスタンバイは存在しません。ここでいう復旧はリリース中止・
+> Cloudflare 側の修正または再デプロイ・必要に応じたスナップショット + 現行 IaC からの再建を指します。
+> 初動は [`../../infra/staging/runbook.md`](../../infra/staging/runbook.md) に従います。
 
 ---
 
@@ -79,7 +87,7 @@
 ### リリース記録 (YYYY-MM-DD)
 - **対象 Commit**: [sha]
 - **スモークテスト結果**: PASS / FAIL
-- **エラーログ**: 0 件（Cloudflare 正系統は Workers Logs、旧 ECS ロールバック経路使用時は CloudWatch）
+- **エラーログ**: 0 件（Cloudflare Workers Logs / Containers）
 - **特記事項**: [なし/あり]
 ```
 

@@ -5,7 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router";
 import { http, HttpResponse } from "msw";
 import { server } from "@/testing/mocks/node";
-import { AuthContext } from "@/contexts/auth-context";
+import { AuthContext } from "@/hooks/auth-context";
 import { axios } from "@/lib/axios";
 import { LstepAnalyticsPage } from "./LstepAnalyticsPage";
 import type { MonthlyDeliveryStatsResponse } from "../api/get-lstep-delivery-stats";
@@ -180,7 +180,25 @@ describe("LstepAnalyticsPage — A: セクション描画", () => {
 
   it("年月セレクトが描画される", async () => {
     await renderAndWait();
-    expect(screen.getByLabelText("集計対象年月")).toBeInTheDocument();
+    expect(screen.getByLabelText("集計対象年月")).toHaveClass("min-h-11");
+  });
+
+  it("CSV選択を44px以上のsemantic label proxyにする", async () => {
+    await renderAndWait();
+    const input = screen.getByLabelText("友だち属性CSVファイルを選択");
+    const uploadRow = screen.getByTestId("csv-upload-row");
+    const uploadControls = screen.getByTestId("csv-upload-controls");
+    const fileName = screen.getByTestId("csv-selected-file-name");
+
+    expect(input).toHaveClass("absolute", "inset-0", "size-full");
+    expect(uploadRow).toHaveClass("flex-col", "sm:flex-row", "sm:items-center");
+    expect(uploadControls).toHaveClass("w-full", "min-w-0", "sm:w-auto");
+    expect(fileName).toHaveClass("min-w-0", "flex-1", "truncate", "sm:max-w-40");
+    expect(input.closest("label")).toHaveClass(
+      "min-h-11",
+      "min-w-11",
+      "focus-within:ring-ring",
+    );
   });
 });
 

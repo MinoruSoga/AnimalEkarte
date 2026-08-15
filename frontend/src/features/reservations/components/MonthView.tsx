@@ -9,7 +9,7 @@ import { ja } from "date-fns/locale";
 // Internal
 import { C } from "@/lib/design-tokens";
 import { toJSTWallDate } from "@/lib/jst-date";
-import { getReservationTypeColor } from "@/utils/status-helpers";
+import { getReservationTypeColor } from "@/lib/status-helpers";
 import { DAY_OF_WEEK_LABEL_LIST } from "@/constants/day-of-week";
 
 // Types
@@ -77,7 +77,7 @@ export const MonthView = memo(function MonthView({ currentDate, appointments, on
             <div className="flex justify-between items-start mb-2">
                 <button
                   type="button"
-                  className={`text-base font-bold size-7 flex items-center justify-center rounded-full transition-colors ${isSameDay(day, today) ? `${C.bgBrand} ${C.textWhite} shadow-sm` : `${C.hoverBgBrandLight} ${C.hoverTextBrand}`}`}
+                  className={`text-base font-bold size-7 flex items-center justify-center rounded-full transition-colors ${isSameDay(day, today) ? `${C.bgBrand} ${C.textOnBrand}` : `${C.hoverBgBrandLight} ${C.hoverTextBrand}`}`}
                   onClick={(e) => {
                     e.stopPropagation();
                     onDateClick?.(cloneDay);
@@ -104,12 +104,12 @@ export const MonthView = memo(function MonthView({ currentDate, appointments, on
                     >
                         <div className="flex items-center gap-1 min-w-0">
                             {app.visitType === "first"
-                                ? <span className={`${C.bgRedLight} ${C.danger} text-[10px] px-1 rounded flex-shrink-0`}>初</span>
-                                : <span className={`${C.bgBrandLight} ${C.textBrandDark} text-[10px] px-1 rounded flex-shrink-0`}>再</span>
+                                ? <span className={`${C.bgRedLight} ${C.danger} text-2xs px-1 rounded flex-shrink-0`}>初</span>
+                                : <span className={`${C.bgBrandLight} ${C.textBrandDark} text-2xs px-1 rounded flex-shrink-0`}>再</span>
                             }
                             <span className="truncate text-xs font-medium">{app.petName}</span>
                         </div>
-                        <div className="text-[11px] opacity-70 truncate mt-0.5">
+                        <div className="text-2xs opacity-70 truncate mt-0.5">
                             {app.ownerName}{app.doctor ? ` / ${app.doctor}` : ""}
                         </div>
                     </button>
@@ -137,7 +137,7 @@ export const MonthView = memo(function MonthView({ currentDate, appointments, on
   }, [currentDate, appointments, dynamicColorMap, onAppointmentClick, onDateClick]);
 
   return (
-    <div className={`flex flex-col h-full border-l border-t ${C.borderMedium} rounded-lg overflow-hidden ${C.bgWhite} shadow-sm`}>
+    <div className={`flex flex-col h-full border-l border-t ${C.borderMedium} rounded-lg overflow-hidden ${C.bgWhite}`}>
       {HEADER_ROW}
       <div className="flex-1 flex flex-col">
         {rows}

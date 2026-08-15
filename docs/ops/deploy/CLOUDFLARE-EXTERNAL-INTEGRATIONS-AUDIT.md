@@ -70,9 +70,26 @@ backend/internal/infra/lstep/user.go:69:	// [DISABLED] HTTP call to POST /contac
 
 ---
 
+## LINE webhook redelivery release gate（2026-07-24 follow-up）
+
+[LINE公式のwebhook受信ガイド](https://developers.line.biz/en/docs/messaging-api/receiving-messages/)では、Webhook redeliveryは既定OFFであり、有効化済みかつbot serverが2xxを返さなかった場合に一定期間再送される。再送回数・間隔は非公開で、redelivery自体も確実な配送を保証しない。同一`webhookEventId`のeventが複数回届く場合があり、redeliveryにより受信順が発生順と異なる場合はevent `timestamp`で文脈を確認する必要がある。
+
+現行codeはfollow/unfollowを、一意に署名一致したclinic、owner ID、expected LINE user ID、event timestampによるCASとして処理する。stale・duplicate・out-of-order・再連携前IDは`RowsAffected == 0`のno-op、同一timestampはunfollow優先であり、真のlookup/DB errorはnon-2xxへ伝播する。このcodeを先にdeployした後、次をrelease operationとして実施する。
+
+1. test channel/accountでcode hashとwebhook URLを固定し、LINE Developers ConsoleのMessaging API tabで`Use webhook`を確認してから、既定OFFの`Webhook redelivery`を有効化する。
+2. 同じConsoleで既定OFFの`Error statistics aggregation`を有効化する。[LINE公式のerror statisticsガイド](https://developers.line.biz/en/docs/messaging-api/check-webhook-error-statistics/)に従い、`Webhook errors` tabでnon-2xx（`error_status_code`）、connection failure、request timeout、unclassified errorを監視する。aggregation有効化前の期間は遡及表示されないため、有効化時刻を記録する。
+3. test channel/accountだけでcontrolled non-2xxを発生させ、redeliveryを確認する。同一eventのduplicate、follow/unfollowのout-of-order、同一timestampの両順序を再現し、duplicate/staleがno-op、同一timestampはunfollowへ収束することを確認する。公式仕様上、回数・間隔は非公開であり、固定待ち時間をrunbook contractにしない。
+4. rehearsal記録にはchannel、code hash、Console変更時刻、`webhookEventId`、event timestamp、初回/non-2xx/redeliveryのstatus、最終owner watermark、Webhook errors表示、rollback結果を残す。production userへの送信・状態変更をrehearsalに使用しない。
+
+**Known LOW residual**: 同じLINE User IDへの再紐付け直後でownerの`line_followed_at` / `line_blocked_at`が両方nilの場合、そのIDに対する非常に古い正規署名済みredeliveryはtimestamp CASの初期比較を通り得る。expected LINE user ID CASにより別ID・別clinicへ波及せず、現時点ではこのwatermarkを業務判断に使うruntime decision consumerもないため、直ちにcode gateを再開するseverityではない。上記rehearsalの観測対象に含め、consumer追加または実害観測時にlink時watermark初期化やevent ID/last-event persistenceを再評価する。
+
+**現在の判定**: code側は実装済みだが、Webhook redeliveryとError statistics aggregationのConsole有効化、non-2xx/error monitoring、duplicate/out-of-order/LOW residual rehearsalはrelease pending。この文書更新ではLINE Developers Consoleその他の外部設定を変更していない。
+
+---
+
 ## リスクレジスタへの反映（AC-P47-6）
 
-`migration-cloudflare.md` §9 のリスク登録簿「IP allowlist」行について、試行12の結論（LINE既定非依存・オプション機能のみ要確認、SMTP/LIFFはBLOCKED理由付き）を追記する。詳細は `migration-cloudflare.md` 試行12セクションを参照。
+`../infra/_archive/migration-cloudflare.md` §9 のリスク登録簿「IP allowlist」行について、試行12の結論（LINE既定非依存・オプション機能のみ要確認、SMTP/LIFFはBLOCKED理由付き）を追記する。詳細は `../infra/_archive/migration-cloudflare.md` 試行12セクションを参照。
 
 ---
 
@@ -80,7 +97,7 @@ backend/internal/infra/lstep/user.go:69:	// [DISABLED] HTTP call to POST /contac
 
 | 連携 | 判定 |
 |:---|:---|
-| LINE | PASS（doc結論）／live send: BLOCKED（誤配信リスク回避のためinventory only） |
+| LINE | PASS（IP allowlist inventory）／inbound redelivery: RELEASE PENDING（code deploy後のConsole有効化・error監視・rehearsal待ち）／live send: BLOCKED（誤配信リスク回避のためinventory only） |
 | Lステップ | PASS（DISABLED状態確認） |
 | SMTP | BLOCKED（secret名確認済み・値非取得・誤配信リスク回避のためlive smoke見合わせ） |
 | LIFF | BLOCKED（P7-3 defer、DNS切替前提） |

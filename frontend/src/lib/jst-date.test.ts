@@ -11,6 +11,7 @@ import {
   jstDateTimeLocalToISOString,
   jstNowISOString,
   jstWallDateToISOString,
+  isPastJSTDate,
   toJSTWallDate,
 } from "./jst-date";
 
@@ -76,6 +77,27 @@ describe("jst-date", () => {
       // UTC 15:00 到達で JST は日付・月跨ぎ（6/1 00:00 JST）
       vi.setSystemTime(new Date("2026-05-31T15:00:00Z"));
       expect(currentJSTYearMonth()).toBe("2026-06");
+    });
+  });
+
+  describe("日付専用の期限超過判定", () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-07-23T15:30:00Z"));
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it.each([
+      ["過去日", "2026-07-23", true],
+      ["JST当日", "2026-07-24", false],
+      ["未来日", "2026-07-25", false],
+      ["空文字", "", false],
+      ["非形式", "2026/07/23", false],
+    ])("%sを厳密な過去日として判定する", (_label, date, expected) => {
+      expect(isPastJSTDate(date)).toBe(expected);
     });
   });
 });

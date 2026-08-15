@@ -3,7 +3,7 @@
 ## 概要
 - **画面の目的**: 作成済みの見積内容の最終確認、および承認ステータスの遷移。
 - **URLパターン**: `/estimates/:id`
-- **アクセス権限**: 認証済ユーザー全員（操作権限は `usePermission` で制御）
+- **アクセス権限**: 親 `/estimates` の `ResourceEstimates` **`view`** を継承。編集/削除は `usePermission`
 
 ---
 
@@ -28,7 +28,8 @@
 
 ### 2.1 編集・削除制御
 - **保護**: `ResourceEstimates` の編集・削除権限がないユーザーには、ボタンが非表示となります。
-- **確定ロック**: 承認済み・却下の見積は `isEstimateLockedStatus` 判定で編集・削除ボタン自体が非表示となり、バックエンドも `UpdateIfNotLocked` / `DeleteIfNotLocked` で更新・削除を原子的に拒否します（下書きへ戻す手段はありません）。
+- **確定ロック**: 承認済み・却下の見積は `isEstimateLockedStatus` 判定で編集・削除ボタン自体が非表示となり、バックエンドも `UpdateIfNotLocked` / `DeleteIfNotLocked` で更新・削除を原子的に拒否します（下書きへ戻す / unlock 手段はありません。不可逆）。
+- **訂正経路**: 確定見積の修正は後継ドラフトのみ（`POST /api/v1/estimates/:id/successors`）。原行は不変で、新 draft が `supersedes_estimate_id` で原見積を参照する（S07・TASK-012 FINAL B）。
 - **削除制約**: 明細が残っている見積は削除できません（バックエンドが競合エラーで拒否）。
 
 ---
@@ -44,5 +45,6 @@
 |:---|:---|:---|:---|:---|
 | GET | `/api/v1/estimates/:id` | 明細を含む見積詳細情報の取得 | `estimates` | `view` |
 | DELETE | `/api/v1/estimates/:id` | 特定の見積レコードの論理削除 | `estimates` | `delete` |
+| POST | `/api/v1/estimates/:id/successors` | 確定見積の後継ドラフト作成（原行不変） | `estimates` | `create` |
 
 ---

@@ -108,6 +108,15 @@ export function InventoryForm() {
     >
       {/* FE6-8: jsx-no-leaked-render は非型認識のため isDirty を boolean と静的に断定できず !! で明示する */}
       <NavigationBlocker when={!!isDirty && !isPending} />
+      {!canSubmit ? (
+        <div
+          role="status"
+          aria-label="閲覧専用モード"
+          className={`rounded-md border px-4 py-2.5 text-sm font-medium ${C.bgWarning50} ${C.borderWarning20} ${C.textWarning}`}
+        >
+          閲覧専用 — 編集権限がないため変更できません
+        </div>
+      ) : null}
       <form id={INVENTORY_FORM_ID} action={formAction} onChange={markDirty} className="space-y-6">
         <fieldset disabled={!canSubmit} className="border-0 p-0 m-0 min-w-0">
         <BasicInfoSection
@@ -126,6 +135,7 @@ export function InventoryForm() {
           resolvedExpiry={resolvedExpiry}
           onExpiryChange={handleExpiryChange}
           onMarkDirty={markDirty}
+          quantityError={formState.fieldErrors?.quantity}
           minStockLevelError={formState.fieldErrors?.minStockLevel}
         />
 
@@ -140,7 +150,7 @@ export function InventoryForm() {
         {/* Actions */}
         <div className="flex justify-end gap-3">
           {canSubmit ? (
-            <SubmitButton className="h-10">
+            <SubmitButton>
               <Save className={`mr-1.5 ${ICON.action}`} />
               {isEdit ? "更新" : "登録"}
             </SubmitButton>

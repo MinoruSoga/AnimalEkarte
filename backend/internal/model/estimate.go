@@ -19,25 +19,26 @@ const (
 
 // Estimate は見積書（v7.0追加）
 type Estimate struct {
-	ID              uint64         `gorm:"primaryKey;autoIncrement"                       json:"id"`
-	ClinicID        uint64         `gorm:"not null"                                       json:"clinic_id"`
-	EstimateNo      string         `gorm:"not null;default:''"                            json:"estimate_no"`
-	MedicalRecordID *uint64        `                                                      json:"medical_record_id,omitempty"`
-	Title           string         `gorm:"default:''"                                     json:"title"`
-	OwnerID         *uint64        `                                                      json:"owner_id,omitempty"`
-	Status          EstimateStatus `gorm:"type:estimate_status;default:'draft'"           json:"status"`
-	Subtotal        int64          `gorm:"default:0"                                      json:"subtotal"`
-	TaxTotal        int64          `gorm:"default:0"                                      json:"tax_total"`
-	TotalAmount     int64          `gorm:"default:0"                                      json:"total_amount"`
-	InsuranceAmount int64          `gorm:"default:0"                                      json:"insurance_amount"`
-	DiscountAmount  int64          `gorm:"default:0"                                      json:"discount_amount"`
-	ValidUntil      *time.Time     `gorm:"type:date"                                      json:"valid_until,omitempty"`
-	Comment         string         `gorm:"default:''"                                     json:"comment"`
-	Notes           string         `gorm:"default:''"                                     json:"notes"`
-	CreatedBy       *uint64        `                                                      json:"created_by,omitempty"`
-	DeletedAt       gorm.DeletedAt `                                                      json:"-"`
-	CreatedAt       time.Time      `gorm:"autoCreateTime"                                 json:"created_at"`
-	UpdatedAt       time.Time      `gorm:"autoUpdateTime"                                 json:"updated_at"`
+	ID                   uint64         `gorm:"primaryKey;autoIncrement"                       json:"id"`
+	ClinicID             uint64         `gorm:"not null"                                       json:"clinic_id"`
+	EstimateNo           string         `gorm:"not null;default:''"                            json:"estimate_no"`
+	MedicalRecordID      *uint64        `                                                      json:"medical_record_id,omitempty"`
+	Title                string         `gorm:"default:''"                                     json:"title"`
+	OwnerID              *uint64        `                                                      json:"owner_id,omitempty"`
+	Status               EstimateStatus `gorm:"type:estimate_status;default:'draft'"           json:"status"`
+	Subtotal             int64          `gorm:"default:0"                                      json:"subtotal"`
+	TaxTotal             int64          `gorm:"default:0"                                      json:"tax_total"`
+	TotalAmount          int64          `gorm:"default:0"                                      json:"total_amount"`
+	InsuranceAmount      int64          `gorm:"default:0"                                      json:"insurance_amount"`
+	DiscountAmount       int64          `gorm:"default:0"                                      json:"discount_amount"`
+	ValidUntil           *time.Time     `gorm:"type:date"                                      json:"valid_until,omitempty"`
+	Comment              string         `gorm:"default:''"                                     json:"comment"`
+	Notes                string         `gorm:"default:''"                                     json:"notes"`
+	CreatedBy            *uint64        `                                                      json:"created_by,omitempty"`
+	SupersedesEstimateID *uint64        `                                                      json:"supersedes_estimate_id,omitempty"`
+	DeletedAt            gorm.DeletedAt `                                                      json:"-"`
+	CreatedAt            time.Time      `gorm:"autoCreateTime"                                 json:"created_at"`
+	UpdatedAt            time.Time      `gorm:"autoUpdateTime"                                 json:"updated_at"`
 
 	// Relations
 	MedicalRecord *MedicalRecord `gorm:"foreignKey:MedicalRecordID" json:"medical_record,omitempty"`
@@ -79,8 +80,9 @@ type EstimateItem struct {
 func (EstimateItem) TableName() string { return "estimate_items" }
 
 // CalculateTaxAmount は課税区分に応じた税額（円）を計算する。
+// 課税ベースは BillingItem と同じく max(単価×数量−割引額, 0)（#85 / MDL-01）。
 func (item *EstimateItem) CalculateTaxAmount() int64 {
-	subtotal := float64(item.UnitPrice) * item.Quantity
+	subtotal := max(float64(item.UnitPrice)*item.Quantity-float64(item.DiscountAmount), 0)
 	switch item.TaxType {
 	case TaxTypeExcluded:
 		return int64(math.Round(subtotal * item.TaxRate))

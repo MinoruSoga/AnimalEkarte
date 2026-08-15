@@ -1,5 +1,6 @@
 import { formatJSTWallDate, jstDateStartISOString, todayJSTISO, toJSTWallDate } from "@/lib/jst-date";
 import type { Pet, HospitalizationTreatmentPlan } from "@/types";
+import type { TreatmentPlanResponse } from "@/types/generated/hospitalization-responses";
 
 import type {
   CreateHospitalizationRequest,
@@ -9,31 +10,6 @@ import type {
 import type { HospitalizationFormData } from "../types";
 
 const DEFAULT_HOSPITALIZATION_DAYS = 7;
-
-export const DEFAULT_TREATMENT_PLANS: HospitalizationTreatmentPlan[] = [
-  {
-    id: "1",
-    treatmentContent: "adm rate",
-    memo: "入院料1日分",
-    is_insurance: true,
-    unitPrice: 990,
-    quantity: 1,
-    discount: 0,
-    discountAmount: 0,
-    subtotal: 990,
-  },
-  {
-    id: "2",
-    treatmentContent: "PCG/SC ~15kg",
-    memo: "",
-    is_insurance: false,
-    unitPrice: 990,
-    quantity: 1,
-    discount: 0,
-    discountAmount: 0,
-    subtotal: 990,
-  },
-];
 
 function getDefaultHospitalizationEndDate() {
   const endDate = toJSTWallDate(new Date());
@@ -94,11 +70,13 @@ export function buildUpdateHospitalizationRequest(
 
 export function buildCreateHospitalizationRequest(
   formData: HospitalizationFormData,
-  pet: Pet
+  pet: Pet,
+  treatmentPlans: readonly HospitalizationTreatmentPlan[] = [],
 ): CreateHospitalizationRequest {
   const today = todayJSTISO();
   const startISO = jstDateStartISOString(formData.displayDate || today);
   const endISO = jstDateStartISOString(formData.endDate || getDefaultHospitalizationEndDate());
+  const nestedPlans = buildPersistableTreatmentPlanRequests(treatmentPlans);
 
   return {
     pet_id: pet.id,
@@ -113,6 +91,7 @@ export function buildCreateHospitalizationRequest(
     is_insurance: formData.isInsurance,
     insurance_company_name: toInsuranceCompanyName(formData),
     insurance_number: toInsuranceNumber(formData),
+    ...(nestedPlans.length > 0 ? { treatment_plans: nestedPlans } : {}),
   };
 }
 
@@ -140,6 +119,7 @@ export function buildSelectedPetFromHospitalization(hospitalization: BackendHosp
     return null;
   }
 
+  // PetSummaryResponse wire has name/breed/status/species — not full Pet detail (gender etc.).
   return {
     id: String(hospitalization.pet_id),
     ownerId: String(hospitalization.owner_id),
@@ -147,7 +127,7 @@ export function buildSelectedPetFromHospitalization(hospitalization: BackendHosp
     name: hospitalization.pet.name,
     species: hospitalization.pet.animal_species?.name ?? "",
     breed: hospitalization.pet.breed,
-    gender: hospitalization.pet.gender,
+    status: hospitalization.pet.status === "deceased" ? "死亡" : "生存",
   } as Pet;
 }
 
@@ -170,6 +150,26 @@ export function mergePetIntoHospitalizationFormData(
   };
 }
 
+/**
+ * Map GET /hospitalizations/:id/treatment-plans wire rows to edit-form UI shape.
+ * Does NOT read hospitalization.treatment_plans (absent on HospitalizationResponse wire).
+ */
+export function buildTreatmentPlansFromRecord(
+  plans: readonly TreatmentPlanResponse[],
+): HospitalizationTreatmentPlan[] {
+  return plans.map((plan) => ({
+    id: String(plan.id),
+    treatmentContent: plan.treatment_content,
+    memo: plan.memo,
+    is_insurance: plan.is_insurance,
+    unitPrice: plan.unit_price,
+    quantity: plan.quantity,
+    discount: plan.discount_rate,
+    discountAmount: plan.discount_amount,
+    subtotal: plan.subtotal,
+  }));
+}
+
 export function createEmptyTreatmentPlan(): HospitalizationTreatmentPlan {
   return {
     id: crypto.randomUUID(),
@@ -182,6 +182,54 @@ export function createEmptyTreatmentPlan(): HospitalizationTreatmentPlan {
     discountAmount: 0,
     subtotal: 0,
   };
+}
+
+/**
+ * UI treatment plan → POST /hospitalizations/:id/treatment-plans body.
+ * Empty treatmentContent rows are not persistable (BE requires content).
+ */
+export function buildCreateTreatmentPlanRequest(
+  plan: HospitalizationTreatmentPlan,
+  sortOrder: number,
+): {
+  treatment_content: string;
+  memo: string;
+  is_insurance: boolean;
+  unit_price: number;
+  quantity: number;
+  discount_rate: number;
+  discount_amount: number;
+  sort_order: number;
+} | null {
+  const content = plan.treatmentContent.trim();
+  if (!content) return null;
+  const quantity = plan.quantity > 0 ? plan.quantity : 1;
+  return {
+    treatment_content: content,
+    memo: plan.memo ?? "",
+    is_insurance: plan.is_insurance,
+    unit_price: plan.unitPrice,
+    quantity,
+    discount_rate: plan.discount,
+    discount_amount: plan.discountAmount,
+    sort_order: sortOrder,
+  };
+}
+
+/** Plans with non-empty content, mapped to create wire bodies in display order. */
+export function buildPersistableTreatmentPlanRequests(
+  plans: readonly HospitalizationTreatmentPlan[],
+) {
+  const bodies: NonNullable<ReturnType<typeof buildCreateTreatmentPlanRequest>>[] = [];
+  let sortOrder = 0;
+  for (const plan of plans) {
+    const body = buildCreateTreatmentPlanRequest(plan, sortOrder);
+    if (body) {
+      bodies.push(body);
+      sortOrder += 1;
+    }
+  }
+  return bodies;
 }
 
 export function updateTreatmentPlanField(

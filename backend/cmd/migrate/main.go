@@ -24,8 +24,8 @@ const migrationLockID = 7283946501
 
 // migrationsDir is the fixed on-disk location of both *.sql migration files
 // and the seeds/ bundle directory (mounted read-only into the backend
-// container). Shared by baselineIfNeeded, runSQLMigrations, and
-// runSeedBundles so all three agree on the same root.
+// container). Shared by runSQLMigrations and runSeedBundles so both agree on
+// the same root.
 const migrationsDir = "/app/migrations"
 
 func main() {
@@ -98,32 +98,38 @@ func run(logger *slog.Logger) error {
 		return fmt.Errorf("failed to create schema_migrations table: %w", err)
 	}
 
+	// migration履歴とアプリケーションschemaの存在が一致しないDBは、その完全性を
+	// 検証できないためfail-closedにする。この読取り専用guardはlegacy key翻訳より先に
+	// 実行し、矛盾状態へ001やseedの適用済み記録を書き込ませない。
+	if err := guardEmptyMigrationHistory(db); err != nil {
+		return fmt.Errorf("migration history safety check failed: %w", err)
+	}
+
 	// 旧形式（002-004 stub SQL 由来）の schema_migrations キー検出
-	// 検出したキーは seeds/<bundle> の現行キーへ翻訳/baseline する（P1-3, PR #186 review）。
-	// これにより main→staging のような通常アップグレード経路を db_reset なしで通せる。
+	// 検出したキーは seeds/<bundle> の現行キーへ翻訳して適用済み記録する（P1-3, PR #186 review）。
+	// seedキーの翻訳だけを理由とするresetは不要。ただし2026-07-27の001統合前checksumを持つDBは
+	// 後続runSQLMigrationsで失敗し、USER承認済みのDB_RESET/再構築が必要になる。
 	if err := detectLegacySeedKeys(db, logger); err != nil {
 		return err
 	}
 
-	// 既存DBへの初回適用: baseline 処理
-	// schema_migrations が空だが既にテーブルが存在する場合、直下の全 *.sql（DDL）と
-	// 全 seed バンドル（seeds/<bundle>）の両方を「適用済み」として記録しスキップする
-	// （既存DBへ demo/staging CSV を自動ロードしないための必須ガード。詳細は
-	// baselineIfNeeded 内のコメント参照）
-	if err := baselineIfNeeded(db, logger); err != nil {
-		return fmt.Errorf("baseline failed: %w", err)
-	}
-
-	// フェーズ1: DDL migration（直下の *.sql。現状は統合スキーマ 001_init.sql のみ）を適用
+	// フェーズ1: DDL migration（直下の *.sql）を昇順適用
 	if err := runSQLMigrations(db, logger); err != nil {
 		return fmt.Errorf("migration failed: %w", err)
 	}
 
-	// フェーズ2: CSV シードバンドルを固定順 (002_master→003_demo→004_staging) でロード
+	// フェーズ2: CSV シードバンドルを APP_ENV ゲート付き BundleOrder でロード。
+	// production / empty / unknown は master のみ（demo の system admin を投入しない）。
 	// connStr は pgx（CSVシードバンドルのCOPYロード用）でもそのまま使える
 	// libpq形式のDSNのため、lib/pq用に構築したものを使い回す。
 	if err := runSeedBundles(context.Background(), db, connStr, logger); err != nil {
 		return fmt.Errorf("seed bundle load failed: %w", err)
+	}
+
+	// 両フェーズ完了後: ディスク上の期待キーと schema_migrations を突合する。
+	// 欠落のみ fail-closed。余剰（統合・削除済みファイルの履歴）は情報ログのみ。
+	if err := verifyMigrationKeyCoverage(db, logger); err != nil {
+		return err
 	}
 
 	logger.Info("✓ All migrations completed successfully")
@@ -152,10 +158,11 @@ func ensureMigrationsTable(db *sql.DB) error {
 // detectLegacySeedKeys は 2026-07 の stub SQL 削除（002-004 の CSV-only 移行）より前の
 // バイナリが記録した seed 由来の schema_migrations キー（例: "002_seed_master.sql"）が
 // 残っていないか確認する。それらのキーは stub SQL ファイル自体が削除された現行バイナリでは
-// 二度と生成されない。検出した場合は translateLegacySeedKeys で現行キー全件
-// （"seeds/002_master" 等）を baseline し、通常アップグレード経路（main→staging 等）を
-// db_reset なしで通す（P1-3, PR #186 review — 旧実装は fail-fast していたが、これは
-// 既存 STG/prod DB の通常アップグレードを毎回ブロックしてしまう）。
+// 二度と生成されない。検出した場合は translateLegacySeedKeys で旧stubに対応する現行キー
+// （"seeds/002_master" 等）を適用済み記録する。seedキーの翻訳自体はdb_resetを要求しない
+// （P1-3, PR #186 review）が、DDLのchecksum検査を迂回するものではない。2026-07-27の
+// 001統合前checksumを持つDBは後続runSQLMigrationsで失敗し、USER承認済みの
+// DB_RESET/再構築が必要になる。
 //
 // DB アクセス（全 filename の読み出し）と判定ロジック（legacyKeysAmong）を分離しているのは、
 // 判定ロジック単体を DB 接続なしでユニットテストできるようにするため。
@@ -183,7 +190,7 @@ func detectLegacySeedKeys(db *sql.DB, logger *slog.Logger) error {
 		return nil
 	}
 
-	logger.Warn("⚠️ Detected legacy seed migration key(s) — baselining all current seeds/<bundle> keys",
+	logger.Warn("⚠️ Detected legacy seed migration key(s) — baselining legacy-equivalent seeds/<bundle> keys",
 		slog.String("legacy_keys", strings.Join(found, ", ")))
 	if err := translateLegacySeedKeys(db, logger); err != nil {
 		return fmt.Errorf("failed to translate legacy seed key(s) %s: %w", strings.Join(found, ", "), err)
@@ -192,38 +199,41 @@ func detectLegacySeedKeys(db *sql.DB, logger *slog.Logger) error {
 }
 
 // legacyTranslationTargets returns the schema_migrations keys that
-// translateLegacySeedKeys marks applied whenever ANY legacy key is found —
-// always ALL of seedbundle.BundleOrder, never only the bundles whose specific
-// legacy filename was found in schema_migrations. Pure, no DB access — this
-// is what the translation unit tests exercise directly.
+// translateLegacySeedKeys marks applied whenever ANY legacy key is found.
+// It always returns all three bundles that have a legacy stub equivalent,
+// never only the bundles whose specific legacy filename was found in
+// schema_migrations. Bundles introduced after the stub era must remain
+// eligible for normal application. Pure, no DB access — this is what the
+// translation unit tests exercise directly.
 //
 // Why "all", not "only the ones found" (PR #186 security review, HIGH): the
 // pre-2026-07 binary applied every *.sql file unconditionally in one pass, so
 // a routinely-migrated DB carries all three legacy keys together. But nothing
 // guarantees that invariant for every real DB (e.g. one hand-curated to skip
-// demo/staging on purpose) — baselining only the found subset would leave the
+// demo/staging on purpose) — marking only the found subset would leave the
 // other seeds/<bundle> keys "unapplied", and the runSeedBundles call right
 // after this would then auto-COPY those CSV bundles onto what may be a real
-// database. baselineIfNeeded already treats this exact hazard as
-// non-negotiable (see its doc comment); translateLegacySeedKeys must match
-// that same conservative posture, not decide per found key.
+// database. guardEmptyMigrationHistoryは履歴が空の既存schemaを拒否するが、legacy keyが
+// 存在するDBはその対象ではないため、translateLegacySeedKeysがlegacy相当3件を一括して
+// 適用済み記録する保守的な姿勢を維持し、found key単位では判断しない。
 func legacyTranslationTargets() []string {
-	keys := make([]string, 0, len(seedbundle.BundleOrder))
-	for _, bundleDir := range seedbundle.BundleOrder {
+	legacyBundleDirs := [...]string{"002_master", "003_demo", "004_staging"}
+	keys := make([]string, 0, len(legacyBundleDirs))
+	for _, bundleDir := range legacyBundleDirs {
 		keys = append(keys, seedbundle.BundleMigrationKey(bundleDir))
 	}
 	return keys
 }
 
-// translateLegacySeedKeys records every current seeds/<bundle> key
+// translateLegacySeedKeys records every legacy-equivalent seeds/<bundle> key
 // (legacyTranslationTargets) not already recorded — idempotent (an EXISTS
-// check guards each insert, so a rerun or an already-baselined/normally-
+// check guards each insert, so a rerun or an already-translated/normally-
 // applied bundle is a no-op). It never deletes the legacy row(s) that
 // triggered it: leaving them in place is harmless once the current keys
-// exist, and avoids treating an audit trail row as disposable. Mirrors
-// baselineIfNeeded's seed-bundle baselining (same recordMigration/
-// bundleChecksum helpers) — this is "mark applied without loading", not a
-// live CSV import, so it never touches application data.
+// exist, and avoids treating an audit trail row as disposable. Normal seed
+// 記録と同じrecordMigration/bundleChecksum helperを使うが、これはlegacy stub相当を
+// "mark applied without loading"する翻訳であり、live CSV importではないため
+// application dataには触れない。
 func translateLegacySeedKeys(db *sql.DB, logger *slog.Logger) error {
 	tx, err := db.Begin()
 	if err != nil {
@@ -240,7 +250,7 @@ func translateLegacySeedKeys(db *sql.DB, logger *slog.Logger) error {
 			return fmt.Errorf("failed to check existing seed bundle key %s: %w", newKey, err)
 		}
 		if exists {
-			// Already translated/baselined/normally-applied under the current key.
+			// Already translated or normally applied under the current key.
 			continue
 		}
 
@@ -290,107 +300,44 @@ func legacyKeysAmong(appliedFilenames []string) []string {
 	return found
 }
 
-// baselineIfNeeded は既存DBへの初回適用時に全マイグレーションを「適用済み」として記録する
-// 条件: schema_migrations が空 AND 既にアプリケーションテーブルが存在する
-//
-// seed バンドルも必ずこのタイミングで「適用済み」として記録する（*.sql の走査とは別に、
-// seedbundle.BundleOrder を明示的にループして baseline する）。理由: 既存DB（テーブルが
-// 実在する＝本物の運用/移行データを持つ可能性がある）へ demo/staging の CSV シードを
-// 自動ロードすることは絶対に避けなければならない
-// （docs/ops/deploy/SEED_MIGRATION_OPERATIONS.md「既存 DB にそのまま上書き適用する
-// 前提ではない」を参照）。baseline で seeds/<bundle> キーを記録しないと、この関数の
-// 直後に走る runSeedBundles がそのバンドルを「未適用」と判断し、既存DBへ CSV を
-// COPY してしまう（PK衝突でクラッシュするか、衝突しなければ demo データが紛れ込む）。
-func baselineIfNeeded(db *sql.DB, logger *slog.Logger) error {
-	// schema_migrations にレコードがあれば baseline 不要
-	var count int
-	if err := db.QueryRow("SELECT COUNT(*) FROM schema_migrations").Scan(&count); err != nil {
+func validateBaselineSafety(migrationCount int, hasApplicationSchema bool) error {
+	if migrationCount == 0 && hasApplicationSchema {
+		return errors.New(
+			"existing application schema detected while schema_migrations is empty; " +
+				"schema completeness cannot be verified; rebuild with USER-approved DB_RESET " +
+				"following docs/ops/deploy/LOCAL_DB_RESET.md",
+		)
+	}
+	if migrationCount > 0 && !hasApplicationSchema {
+		return errors.New(
+			"migration history exists while application schema is missing; " +
+				"schema completeness cannot be verified; rebuild with USER-approved DB_RESET " +
+				"following docs/ops/deploy/LOCAL_DB_RESET.md",
+		)
+	}
+	return nil
+}
+
+// guardEmptyMigrationHistory rejects either direction of inconsistency between
+// migration history and the application schema. It is read-only: current DDL
+// and seed checksums must only be recorded after their normal application paths
+// complete successfully.
+func guardEmptyMigrationHistory(db *sql.DB) error {
+	var migrationCount int
+	if err := db.QueryRow("SELECT COUNT(*) FROM schema_migrations").Scan(&migrationCount); err != nil {
 		return fmt.Errorf("failed to count schema_migrations: %w", err)
 	}
-	if count > 0 {
-		return nil
-	}
 
-	// アプリケーションテーブルの存在チェック（clinics は最も基本的なテーブル）
-	var exists bool
+	var hasApplicationSchema bool
 	if err := db.QueryRow(`
 		SELECT EXISTS (
 			SELECT 1 FROM information_schema.tables
 			WHERE table_schema = 'public' AND table_name = 'clinics'
 		)
-	`).Scan(&exists); err != nil {
+	`).Scan(&hasApplicationSchema); err != nil {
 		return fmt.Errorf("failed to check for existing tables: %w", err)
 	}
-	if !exists {
-		// テーブルが存在しない → 新規DB。baseline 不要
-		return nil
-	}
-
-	// 既存DB: 全マイグレーションファイルを適用済みとして記録
-	logger.Warn("⚠️ Existing database detected with no migration history — running baseline")
-
-	files, err := os.ReadDir(migrationsDir)
-	if err != nil {
-		return fmt.Errorf("failed to read migrations directory: %w", err)
-	}
-
-	tx, err := db.Begin()
-	if err != nil {
-		return fmt.Errorf("failed to begin baseline transaction: %w", err)
-	}
-
-	baselined := 0
-	for _, entry := range files {
-		if entry.IsDir() || filepath.Ext(entry.Name()) != ".sql" {
-			continue
-		}
-
-		content, err := os.ReadFile(filepath.Join(migrationsDir, entry.Name()))
-		if err != nil {
-			_ = tx.Rollback()
-			return fmt.Errorf("failed to read %s: %w", entry.Name(), err)
-		}
-
-		checksum := fileChecksum(content)
-		if _, err := tx.Exec(
-			"INSERT INTO schema_migrations (filename, checksum, executed_at) VALUES ($1, $2, $3)",
-			entry.Name(), checksum, time.Now(),
-		); err != nil {
-			_ = tx.Rollback()
-			return fmt.Errorf("failed to baseline %s: %w", entry.Name(), err)
-		}
-
-		logger.Info("Baselined", slog.String("file", entry.Name()))
-		baselined++
-	}
-
-	// seed バンドルも同じ baseline トランザクションで「適用済み」として記録する。
-	// これを省略すると、baselineIfNeeded 完了直後に走る runSeedBundles がこの
-	// 既存DBを「未適用」とみなし、demo/staging の CSV を誤って COPY してしまう。
-	for _, bundleDir := range seedbundle.BundleOrder {
-		key := seedbundle.BundleMigrationKey(bundleDir)
-
-		checksum, err := bundleChecksum(migrationsDir, bundleDir)
-		if err != nil {
-			_ = tx.Rollback()
-			return fmt.Errorf("failed to compute checksum for seed bundle %s during baseline: %w", bundleDir, err)
-		}
-
-		if err := recordMigration(tx, key, checksum); err != nil {
-			_ = tx.Rollback()
-			return fmt.Errorf("failed to baseline seed bundle %s: %w", bundleDir, err)
-		}
-
-		logger.Info("Baselined seed bundle", slog.String("bundle", bundleDir))
-		baselined++
-	}
-
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("failed to commit baseline: %w", err)
-	}
-
-	logger.Info("✓ Baseline completed", slog.Int("files", baselined))
-	return nil
+	return validateBaselineSafety(migrationCount, hasApplicationSchema)
 }
 
 // isAlreadyApplied は指定ファイルが既に適用済みかチェックする
@@ -436,8 +383,8 @@ func fileChecksum(content []byte) string {
 }
 
 // runSQLMigrations はフェーズ1: 直下の *.sql migration ファイル（2026-07-17 に
-// incremental 002–011 を畳み込んだ統合スキーマ 001_init.sql のみ。将来 incremental が
-// 増えた場合も昇順）を順序通りに実行する（実行済みはスキップ）。CSV シードバンドルは
+// 旧 incremental 002–011 を畳み込んだ統合スキーマ 001_init.sql と、それ以降に追加した
+// append-only incremental）を昇順実行する（実行済みはスキップ）。CSV シードバンドルは
 // フェーズ2の runSeedBundles が別途扱う — このファイル群には seed データは一切含まれない。
 func runSQLMigrations(db *sql.DB, logger *slog.Logger) error {
 	// ディレクトリが存在するか確認
@@ -526,11 +473,27 @@ func runSQLMigrations(db *sql.DB, logger *slog.Logger) error {
 	return nil
 }
 
-// runSeedBundles はフェーズ2: CSV シードバンドルを seedbundle.BundleOrder の
-// 固定順（002_master → 003_demo → 004_staging）でロードする。フェーズ1が全て
-// commit した後にのみ実行される。各バンドルは applyCSVBundle が単一トランザクション
-// で完走した後にのみ schema_migrations へ seedbundle.BundleMigrationKey で記録される
-// ため、CSVロードが失敗した場合は何も記録されず次回実行でバンドル全体がリトライされる。
+// seedBundlesForEnv is the migrate-side selection of seed bundles for an
+// APP_ENV value. Thin wrapper over seedbundle.BundleOrderForEnv so tests and
+// runSeedBundles / verifyMigrationKeyCoverage share one plan.
+func seedBundlesForEnv(env string) []string {
+	return seedbundle.BundleOrderForEnv(env)
+}
+
+// seedBundlesForCurrentEnv reads APP_ENV (same name as .env.example /
+// local-db-reset-contract). Unset or unknown values fail closed to master only.
+func seedBundlesForCurrentEnv() []string {
+	return seedBundlesForEnv(os.Getenv("APP_ENV"))
+}
+
+// runSeedBundles はフェーズ2: CSV シードバンドルを APP_ENV ゲート付き順でロードする。
+// local development/test allowlist（development/local/dev/test）では
+// 002_master → 003_demo → 004_staging。production / staging / empty / unknown は
+// 002_master のみ（SEC-CS2-F01: staging へ privileged demo 資格情報を投入しない）。
+// フェーズ1が全て commit した後にのみ実行される。各バンドルは applyCSVBundle が
+// 単一トランザクションで完走した後にのみ schema_migrations へ
+// seedbundle.BundleMigrationKey で記録されるため、CSVロードが失敗した場合は何も
+// 記録されず次回実行でバンドル全体がリトライされる。
 // 既知の限界: applyCSVBundle が commit した直後・このレコード用トランザクションの
 // commit 前にプロセスが落ちた場合のみ、CSVは投入済みだが schema_migrations は
 // 未記録という不整合が起こり得る（次回実行がCOPYを再試行しUNIQUE制約違反になる）。
@@ -540,8 +503,15 @@ func runSQLMigrations(db *sql.DB, logger *slog.Logger) error {
 func runSeedBundles(ctx context.Context, db *sql.DB, connStr string, logger *slog.Logger) error {
 	applied := 0
 	skipped := 0
+	appEnv := os.Getenv("APP_ENV")
+	bundles := seedBundlesForEnv(appEnv)
 
-	for _, bundleDir := range seedbundle.BundleOrder {
+	logger.Info("Seed bundle plan",
+		slog.String("APP_ENV", appEnv),
+		slog.Any("bundles", bundles),
+		slog.Int("total", len(bundles)))
+
+	for _, bundleDir := range bundles {
 		key := seedbundle.BundleMigrationKey(bundleDir)
 
 		checksum, err := bundleChecksum(migrationsDir, bundleDir)
@@ -583,7 +553,7 @@ func runSeedBundles(ctx context.Context, db *sql.DB, connStr string, logger *slo
 	logger.Info("Seed bundle summary",
 		slog.Int("applied", applied),
 		slog.Int("skipped", skipped),
-		slog.Int("total", len(seedbundle.BundleOrder)))
+		slog.Int("total", len(bundles)))
 
 	return nil
 }

@@ -13,18 +13,25 @@ export interface StaffItem {
   name: string;
   isActive: boolean;
   occupationName: string | null;
+  /**
+   * API staff_type as-is. Missing/unknown values stay empty — never fail-open to "doctor".
+   * Doctor-selectable UIs must require staffType === "doctor" && isActive.
+   */
+  staffType: string;
 }
 
 // ─────────────────────────────────────────────────
 // Transform
 // ─────────────────────────────────────────────────
 
-function transformStaff(data: ModelStaff): StaffItem {
+/** Exported for unit tests — untrusted API staff_type must not default to doctor. */
+export function transformStaffSelectorItem(data: ModelStaff): StaffItem {
   return {
     id: String(data.id ?? 0),
     name: data.name,
     isActive: data.is_active ?? true,
     occupationName: data.occupation?.name ?? null,
+    staffType: typeof data.staff_type === "string" ? data.staff_type : "",
   };
 }
 
@@ -35,14 +42,14 @@ function transformStaff(data: ModelStaff): StaffItem {
 /**
  * Read-only staff list hook for cross-feature consumption.
  * Returns minimal staff data needed for selection UIs.
- * Query key matches features/master/api/staffs.ts to share the React Query cache.
+ * Uses a distinct query key from master CRUD staff list (full Staff shape).
  */
 export function useGetStaffs() {
   return useQuery({
-    queryKey: queryKeys.masters.category("staffs"),
+    queryKey: queryKeys.masters.staffSelectorList(),
     queryFn: async (): Promise<StaffItem[]> => {
       const { data } = await axios.get<ModelStaff[]>("/v1/masters/staffs");
-      return data.map(transformStaff);
+      return data.map(transformStaffSelectorItem);
     },
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,

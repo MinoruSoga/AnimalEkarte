@@ -11,7 +11,6 @@ import { FormFieldError } from "@/components/shared/FormFieldError";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import type { Shift, ShiftType, ShiftBreakInput, CreateShiftInput, UpdateShiftInput } from "../../types";
 import { SHIFT_TYPE_LABELS } from "../../types";
-import { ShiftTypeOff } from "@/types/generated/models";
 import { C, ICON } from "@/lib/design-tokens";
 import { createShift } from "../../api/create-shift";
 import { updateShift } from "../../api/update-shift";
@@ -19,6 +18,7 @@ import { useDeleteShift } from "../../api/delete-shift";
 import { useGetShiftTemplates } from "../../api/get-shift-templates";
 import { handleApiError } from "@/lib/handle-api-error";
 import { queryKeys } from "@/lib/query-keys";
+import { isShiftTemplateTimeHidden } from "../shift-template-form-utils";
 
 /**
  * バックエンドから "HH:MM:SS" 形式で来る時刻を "HH:mm" に正規化する。
@@ -98,6 +98,12 @@ export const ShiftFormDialog = memo(function ShiftFormDialog({
       const resolvedShiftType = (formData.get("shiftType") as ShiftType) ?? shiftType;
       const resolvedStartTime = (formData.get("startTime") as string) ?? "";
       const resolvedEndTime = (formData.get("endTime") as string) ?? "";
+      // BUG-036: off/paid_leave 以外は開始・終了時刻必須（空のまま API に送らない）
+      const timesRequired = !isShiftTemplateTimeHidden(resolvedShiftType);
+
+      if (timesRequired && (!resolvedStartTime || !resolvedEndTime)) {
+        return { timeError: "開始時刻と終了時刻を入力してください" };
+      }
 
       if (resolvedStartTime && resolvedEndTime && resolvedEndTime <= resolvedStartTime) {
         return { timeError: "終了時刻は開始時刻より後に設定してください" };
@@ -108,8 +114,8 @@ export const ShiftFormDialog = memo(function ShiftFormDialog({
           const validBreaks = breaksRef.current.filter((b) => b.break_start && b.break_end);
           const input: UpdateShiftInput = {
             shift_type: resolvedShiftType,
-            start_time: resolvedStartTime || undefined,
-            end_time: resolvedEndTime || undefined,
+            start_time: timesRequired ? resolvedStartTime : undefined,
+            end_time: timesRequired ? resolvedEndTime : undefined,
             notes: (formData.get("notes") as string) || undefined,
             breaks: validBreaks,
           };
@@ -120,8 +126,8 @@ export const ShiftFormDialog = memo(function ShiftFormDialog({
             staff_id: staffId,
             date,
             shift_type: resolvedShiftType,
-            start_time: resolvedStartTime || undefined,
-            end_time: resolvedEndTime || undefined,
+            start_time: timesRequired ? resolvedStartTime : undefined,
+            end_time: timesRequired ? resolvedEndTime : undefined,
             notes: (formData.get("notes") as string) || undefined,
             breaks: validBreaks.length > 0 ? validBreaks : undefined,
           };
@@ -144,8 +150,8 @@ export const ShiftFormDialog = memo(function ShiftFormDialog({
   const { mutate: deleteShift, isPending: isDeletePending } = useDeleteShift();
   // BUG-093: 削除確認ダイアログの表示状態
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
-  // BUG-092: 休日・有休は時刻入力不要
-  const isTimeFieldDisabled = shiftType === ShiftTypeOff;
+  // BUG-092 / BUG-036: 休日・有休は時刻入力不要（テンプレート側と同判定）
+  const isTimeFieldDisabled = isShiftTemplateTimeHidden(shiftType);
 
   const handleApplyTemplate = useCallback(
     (templateId: string) => {
@@ -245,7 +251,7 @@ export const ShiftFormDialog = memo(function ShiftFormDialog({
 
           {/* BUG-092: 休日選択時は時刻フィールドを非活性 */}
           <div className="space-y-1.5">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <Label htmlFor="start-time" className={isTimeFieldDisabled ? "opacity-40" : ""}>開始時刻</Label>
                 <Input

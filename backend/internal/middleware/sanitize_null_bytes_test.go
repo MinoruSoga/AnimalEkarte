@@ -168,11 +168,11 @@ func TestSanitizeNullBytes(t *testing.T) {
 	}
 }
 
-func TestSanitizeNullBytes_ContentLength(t *testing.T) {
+func TestSanitizeNullBytes_StreamingBodyLengthBecomesUnknown(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	// NULL バイト除去後に ContentLength が更新されることを確認
-	t.Run("ContentLength が除去後のバイト数に更新される", func(t *testing.T) {
+	// streamingでは除去後の長さを事前計算せず、未知長としてdownstreamへ渡す。
+	t.Run("ContentLength を未知長へ変更する", func(t *testing.T) {
 		originalBody := []byte("abc\x00def") // 8 バイト
 		expectedBody := "abcdef"             // 6 バイト
 
@@ -192,7 +192,7 @@ func TestSanitizeNullBytes_ContentLength(t *testing.T) {
 		require.NoError(t, err)
 
 		assert.Equal(t, expectedBody, string(gotBytes))
-		assert.Equal(t, int64(len(expectedBody)), c.Request.ContentLength)
+		assert.Equal(t, int64(-1), c.Request.ContentLength)
 	})
 }
 
@@ -222,7 +222,8 @@ func TestSanitizeNullBytes_MultipartBinaryUntouched(t *testing.T) {
 
 	req, err := http.NewRequest(http.MethodPost, "/medical-records/1/images/upload", bytes.NewReader(originalBody))
 	require.NoError(t, err)
-	req.Header.Set("Content-Type", mw.FormDataContentType())
+	contentType := mw.FormDataContentType()
+	req.Header.Set("Content-Type", "Multipart/Form-Data"+contentType[len("multipart/form-data"):])
 	req.ContentLength = int64(len(originalBody))
 	c.Request = req
 
@@ -233,6 +234,84 @@ func TestSanitizeNullBytes_MultipartBinaryUntouched(t *testing.T) {
 	require.NoError(t, readErr)
 
 	assert.Equal(t, wantBody, gotBody, "multipart body must pass through byte-exact (PNG signature must not be corrupted)")
+}
+
+func TestSanitizeNullBytes_DoesNotPreReadNonBinaryBody(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	body := &countingSanitizerReader{reader: bytes.NewReader(bytes.Repeat([]byte("x"), 1024*1024))}
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	req, err := http.NewRequest(http.MethodPost, "/test", body)
+	require.NoError(t, err)
+	req.Header.Set("Content-Type", "text/plain")
+	req.ContentLength = -1
+	c.Request = req
+
+	SanitizeNullBytes()(c)
+
+	assert.Zero(t, body.bytesRead, "global middleware must not pre-read request bodies")
+}
+
+func TestSanitizeNullBytes_ControlOnlyBodyRespectsRawByteLimit(t *testing.T) {
+	// INF-02: filtered-byte-only bodies must still exhaust MaxBytesReader on raw reads.
+	gin.SetMode(gin.TestMode)
+	raw := bytes.Repeat([]byte{0x00}, int(DefaultJSONBodyMaxBytes)+1)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	req, err := http.NewRequest(http.MethodPost, "/test", bytes.NewReader(raw))
+	require.NoError(t, err)
+	req.Header.Set("Content-Type", "application/json")
+	req.ContentLength = int64(len(raw))
+	c.Request = req
+
+	SanitizeNullBytes()(c)
+	// Declared ContentLength above the cap aborts before wrapping.
+	assert.Equal(t, http.StatusRequestEntityTooLarge, w.Code)
+}
+
+func TestSanitizeNullBytes_ChunkedControlOnlyBodyHitsMaxBytesReader(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	raw := bytes.Repeat([]byte{0x01}, int(DefaultJSONBodyMaxBytes)+8)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	req, err := http.NewRequest(http.MethodPost, "/test", bytes.NewReader(raw))
+	require.NoError(t, err)
+	req.Header.Set("Content-Type", "application/json")
+	req.ContentLength = -1 // force stream path
+	c.Request = req
+
+	SanitizeNullBytes()(c)
+	require.Equal(t, http.StatusOK, w.Code) // middleware itself does not abort on stream
+	_, readErr := io.ReadAll(c.Request.Body)
+	require.Error(t, readErr)
+	var maxBytesError *http.MaxBytesError
+	assert.ErrorAs(t, readErr, &maxBytesError)
+}
+
+func TestLimitRequestBody_RejectsOversizedDeclaredLength(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	req, err := http.NewRequest(http.MethodPost, "/api/v1/pets", bytes.NewReader([]byte(`{}`)))
+	require.NoError(t, err)
+	req.Header.Set("Content-Type", "application/json")
+	req.ContentLength = DefaultJSONBodyMaxBytes + 1
+	c.Request = req
+
+	LimitRequestBody(DefaultJSONBodyMaxBytes)(c)
+	assert.Equal(t, http.StatusRequestEntityTooLarge, w.Code)
+	assert.True(t, c.IsAborted())
+}
+
+type countingSanitizerReader struct {
+	reader    io.Reader
+	bytesRead int
+}
+
+func (r *countingSanitizerReader) Read(p []byte) (int, error) {
+	n, err := r.reader.Read(p)
+	r.bytesRead += n
+	return n, err
 }
 
 // X-1 (security review follow-up): allowlist 方式（application/json のみサニタイズ）だと、

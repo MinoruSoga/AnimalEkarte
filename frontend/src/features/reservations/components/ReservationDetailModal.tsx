@@ -1,5 +1,5 @@
 import { memo } from "react";
-import { ICON, C } from "@/lib/design-tokens";
+import { ICON, C, STYLE } from "@/lib/design-tokens";
 import type { ReactNode } from "react";
 import { format } from "date-fns";
 import { ja } from "date-fns/locale";
@@ -12,11 +12,11 @@ import { Badge } from "@/components/ui/badge";
 import { DeleteIconButton } from "@/components/shared/DeleteIconButton/DeleteIconButton";
 import type { Reservation, ReservationStatus } from "../types";
 import { RESERVATION_STATUS_VALUES } from "../types";
-import { getReservationTypeName, getReservationStatusLabel } from "@/utils/status-helpers";
-import { DISPLAY_TIME_FORMAT } from "@/utils/format/date";
+import { getReservationTypeName, getReservationStatusLabel } from "@/lib/status-helpers";
+import { DISPLAY_TIME_FORMAT } from "@/lib/format/date";
 import { typedSetter } from "@/lib/type-utils";
 import { useReservationTypeColorMap } from "@/hooks/use-reservation-type-color-map";
-import { RESERVATION_STATUS_COLORS, getReservationStatusColor, getVisitTypeColor } from "@/utils/constants/status-colors";
+import { RESERVATION_STATUS_COLORS, getReservationStatusColor, getVisitTypeColor } from "@/constants/status-colors";
 
 interface ReservationDetailModalProps {
   isOpen: boolean;
@@ -100,7 +100,7 @@ export const ReservationDetailModal = memo(function ReservationDetailModal({
         {/* Accent Header */}
         <div className={`h-1.5 w-full ${visitAccent.dot}`} />
 
-        <DialogHeader className="px-5 pt-4 pb-0 pr-12">
+        <DialogHeader className="px-6 pt-4 pb-0 pr-12">
           <div className="flex items-center gap-2.5">
             <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full text-sm ${visitAccent.bg} ${visitAccent.text} ${visitAccent.border} border`}>
               <span className={`${ICON.dotSm} rounded-full ${visitAccent.dot}`} />
@@ -115,10 +115,10 @@ export const ReservationDetailModal = memo(function ReservationDetailModal({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="px-5 pt-3 pb-4 space-y-4">
+        <div className="px-6 pt-3 pb-4 space-y-4">
           {/* LINE Warning */}
           {lineData !== undefined && (!lineData.is_linked || lineData.lstep_opt_out) ? (
-            <div className={`flex items-start gap-2 p-3 rounded-md ${C.bgRed50} border ${C.borderRed300} text-sm ${C.textRed700}`}>
+            <div className={`flex items-start gap-2 p-3 rounded-md ${C.bgWarning50} border ${C.borderWarning20} text-sm ${C.textWarning}`}>
               <AlertTriangle className="shrink-0 mt-0.5 w-4 h-4" />
               <span>
                 {lineData.lstep_opt_out
@@ -175,7 +175,7 @@ export const ReservationDetailModal = memo(function ReservationDetailModal({
           <div className="space-y-1">
             <div className="flex items-center gap-1.5 mb-2">
               <PawPrint className={`${ICON.xs} ${C.text40}`} />
-              <span className={`text-sm ${C.text50} tracking-wide`}>患者情報</span>
+              <span className={STYLE.sectionLabel}>患者情報</span>
             </div>
             <div className={`divide-y ${C.divideDividerFaint}`}>
               <InfoRow label="ペット名">
@@ -201,14 +201,14 @@ export const ReservationDetailModal = memo(function ReservationDetailModal({
           <div className="space-y-1">
             <div className="flex items-center gap-1.5 mb-2">
               <Stethoscope className={`${ICON.xs} ${C.text40}`} />
-              <span className={`text-sm ${C.text50} tracking-wide`}>診療詳細</span>
+              <span className={STYLE.sectionLabel}>診療詳細</span>
             </div>
             <div className={`divide-y ${C.divideDividerFaint}`}>
               <InfoRow label="担当医">
                 <div className="flex items-center gap-1.5">
                   {reservation.doctor}
                   {reservation.isDesignated ? (
-                    <Badge variant="outline" className={`text-[11px] h-5 px-1.5 ${C.bgNotice} ${C.textNotice} ${C.borderNotice}`}>
+                    <Badge variant="outline" className={`text-2xs h-5 px-1.5 ${C.bgNotice} ${C.textNotice} ${C.borderNotice}`}>
                       指名
                     </Badge>
                   ) : null}
@@ -237,7 +237,7 @@ export const ReservationDetailModal = memo(function ReservationDetailModal({
           ) : null}
         </div>
 
-        <DialogFooter className={`px-5 py-3 ${C.bgSubtle} flex flex-row items-center border-t ${C.borderDivider}`}>
+        <DialogFooter className={`px-6 py-3 ${C.bgSubtle} flex flex-row items-center border-t ${C.borderDivider}`}>
           <div className="flex-1">
             {onDelete ? (
               <DeleteIconButton onClick={() => onDelete(reservation)} />
@@ -258,7 +258,7 @@ export const ReservationDetailModal = memo(function ReservationDetailModal({
             {onCreateRecord ? (
               <Button
                 size="sm"
-                className={`${C.bgBrand} ${C.textWhite} ${C.hoverBgBrand} h-9 text-sm gap-1.5 rounded-full shadow-none`}
+                className={`${C.bgBrand} ${C.textOnBrand} ${C.hoverBgBrand} ${C.hoverTextOnBrand} h-9 text-sm gap-1.5 rounded-full shadow-none`}
                 onClick={() => onCreateRecord(reservation)}
               >
                 <actionConfig.Icon className={ICON.action} />

@@ -5,7 +5,7 @@ import { EmptyState } from "@/components/shared/DataStates";
 import { ClearableSearchInput } from "@/components/shared/ClearableSearchInput";
 import { C, ICON } from "@/lib/design-tokens";
 import { normalizeKana } from "@/lib/normalize-kana";
-import { formatCurrency } from "@/utils/format/number";
+import { formatCurrency } from "@/lib/format/number";
 
 interface MasterItem {
   id: string | number;
@@ -95,7 +95,7 @@ export const MasterSelectModal = memo(function MasterSelectModal({
                     w-full p-3 border rounded-lg cursor-pointer transition-all flex items-center justify-between group text-left
                     ${
                       isSelected
-                        ? `${C.bgPage} ${C.borderPrimary} shadow-sm`
+                        ? `${C.bgPage} ${C.borderPrimary}`
                         : `bg-white ${C.borderMedium} ${C.hoverBorderPrimary30} ${C.hoverBgPageHalf}`
                     }
                   `}
@@ -110,7 +110,7 @@ export const MasterSelectModal = memo(function MasterSelectModal({
                   </div>
                   <div className="flex items-center gap-2 shrink-0 ml-3">
                     {isSelected ? (
-                      <div className={`size-5 rounded-full ${C.bgPrimary} flex items-center justify-center`}>
+                      <div className={`size-5 rounded-full ${C.bgBrand} flex items-center justify-center`}>
                         <Check className={`${ICON.xs} ${C.textWhite}`} />
                       </div>
                     ) : (

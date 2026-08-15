@@ -8,7 +8,7 @@ import type { ExamItemsResponse, ReplaceExamItemsRequest } from "./types";
 /**
  * PUT /api/v1/examinations/:id/items — 検査項目を一括置換する。
  * 既存項目を全削除して受け取った items を一括登録するセマンティクス。
- * status / is_abnormal は backend が ref_min/ref_max から導出するため送信不要。
+ * status / is_abnormal と判定基準値は backend がマスタから導出するため送信不要。
  */
 const updateExaminationItems = async (
   id: string,
@@ -26,6 +26,10 @@ export const useUpdateExaminationItems = () => {
     onSuccess: (_data, { id }) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.examinations.items(id) });
       queryClient.invalidateQueries({ queryKey: queryKeys.examinations.detail(id) });
+      // Nested under examinations.all() prefix is not enough here — items path does not call all().
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.examinations.printSnapshot(id),
+      });
     },
     onError: (error) => handleApiError(error, "検査項目の保存"),
   });

@@ -1,6 +1,5 @@
 // React/Framework
-import { ICON, C } from "@/lib/design-tokens";
-import { normalizeKana } from "@/lib/normalize-kana";
+import { ICON, C, LAYOUT } from "@/lib/design-tokens";
 import { useCallback, useDeferredValue, useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 
@@ -20,15 +19,14 @@ import { Plus, CreditCard } from "lucide-react";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { paths } from "@/config/paths";
-import { usePagination } from "@/hooks/use-pagination";
 import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
 
 // Relative
 import { AccountingListTable } from "../components/AccountingListTable";
 import { calculateAccountingTotal } from "../components/accounting-list-table-model";
 import { DailyAccountingTab } from "../components/DailyAccountingTab";
-import { useGetAccountings } from "../api/get-accountings";
-import type { AccountingFilters } from "../api/get-accountings";
+import { useGetAccountingsPage } from "../api/get-accountings";
+import type { AccountingPageFilters } from "../api/get-accountings";
 import { usePermission } from "@/hooks/use-permission";
 
 // Types
@@ -43,6 +41,30 @@ const TABS = [
 ] as const;
 
 const CLINIC_TOGGLE_RESET_PARAMS = ["page"] as const;
+
+// BUG-411: サーバサイドページネーションのページサイズ。旧 usePagination() の既定値(20件)と
+// backend parsePagination の既定 limit(20) を踏襲する。
+const ACCOUNTING_PAGE_SIZE = 20;
+
+// rerender-stable-empty-array: pageResult 未ロード時のフォールバックを毎レンダー新規配列にしない
+// （useMemo の deps に使うため参照が安定している必要がある）
+const EMPTY_ACCOUNTINGS: AccountingType[] = [];
+
+function extractSelectFilter(
+  filters: ActiveFilter[],
+  key: string,
+): { value?: string; op?: "is" | "is_not" | "is_empty" | "is_not_empty" } {
+  const f = filters.find((x) => x.key === key);
+  if (!f) return {};
+  const op = (f.condition ?? "is") as "is" | "is_not" | "is_empty" | "is_not_empty";
+  if (op === "is_empty" || op === "is_not_empty") {
+    return { op };
+  }
+  if (typeof f.value === "string" && f.value !== "") {
+    return { value: f.value, op };
+  }
+  return {};
+}
 
 export function AccountingList() {
   const navigate = useNavigate();
@@ -88,101 +110,77 @@ export function AccountingList() {
   const deferredSearch = useDeferredValue(searchTerm);
   const isFiltering = searchTerm !== deferredSearch;
 
-  // activeFilters から日付フィルタのみを抽出してAPIに渡す
-  // ステータスフィルタは is_not/is_empty/is_not_empty 条件があるためクライアントサイドのまま維持
-  const apiFilters = useMemo<AccountingFilters>(() => {
+  // FE-144: URLクエリパラメータからページ番号を読み取る（BUG-411: サーバフェッチのキーそのものになる）
+  const urlPage = Math.max(1, Number(searchParams.get("page") ?? 1) || 1);
+
+  // 日付・検索・ステータス・支払方法はすべてサーバへ（ページ横断）。
+  const apiFilters = useMemo<AccountingPageFilters>(() => {
     const dateFilter = activeFilters.find((f) => f.key === "date")?.value as
       | { from?: string; to?: string }
       | undefined;
+    const status = extractSelectFilter(activeFilters, "status");
+    const paymentMethod = extractSelectFilter(activeFilters, "paymentMethod");
     return {
       startDate: dateFilter?.from,
       endDate: dateFilter?.to,
+      search: deferredSearch.trim() || undefined,
+      status: status.value,
+      statusOp: status.op,
+      paymentMethod: paymentMethod.value,
+      paymentMethodOp: paymentMethod.op,
       clinicIds: isMultiClinic ? selectedClinicIds : undefined,
+      page: urlPage,
+      limit: ACCOUNTING_PAGE_SIZE,
     };
-  }, [activeFilters, isMultiClinic, selectedClinicIds]);
+  }, [activeFilters, deferredSearch, isMultiClinic, selectedClinicIds, urlPage]);
 
-  const { data: accountings = [], isLoading, isError } = useGetAccountings(apiFilters);
-
-  // js-cache-function-results: フィルタ結果を useMemo でキャッシュ
-  const filteredRecords = useMemo(() => {
-    let result = accountings;
-
-    // ActiveFilter からフィルタ適用（condition 対応）
-    const statusFilter = activeFilters.find((f) => f.key === "status");
-    if (statusFilter && typeof statusFilter.value === "string") {
-      result = result.filter((r) => {
-        switch (statusFilter.condition) {
-          case "is":
-            return r.status === statusFilter.value;
-          case "is_not":
-            return r.status !== statusFilter.value;
-          case "is_empty":
-            return !r.status;
-          case "is_not_empty":
-            return !!r.status;
-          default:
-            return r.status === statusFilter.value;
-        }
-      });
-    }
-
-    // 支払方法フィルタ（クライアントサイド）
-    const paymentMethodFilter = activeFilters.find((f) => f.key === "paymentMethod");
-    if (paymentMethodFilter && typeof paymentMethodFilter.value === "string") {
-      result = result.filter((r) => {
-        const method = r.payment?.method ?? "";
-        switch (paymentMethodFilter.condition) {
-          case "is":           return method === paymentMethodFilter.value;
-          case "is_not":       return method !== paymentMethodFilter.value;
-          case "is_empty":     return !method;
-          case "is_not_empty": return !!method;
-          default:             return method === paymentMethodFilter.value;
-        }
-      });
-    }
-
-    // テキスト検索（カタカナ・ひらがな非区別）
-    if (deferredSearch) {
-      const normalizedTerm = normalizeKana(deferredSearch).toLowerCase();
-      result = result.filter(
-        (r) =>
-          normalizeKana(r.ownerName).toLowerCase().includes(normalizedTerm) ||
-          normalizeKana(r.petName).toLowerCase().includes(normalizedTerm),
-      );
-    }
-
-    return result;
-  }, [accountings, activeFilters, deferredSearch]);
+  const { data: pageResult, isLoading, isError } = useGetAccountingsPage(apiFilters);
+  const accountings = pageResult?.data ?? EMPTY_ACCOUNTINGS;
 
   const getSortValue = useCallback((item: AccountingType, key: string) => {
     if (key === "totalAmount") return calculateAccountingTotal(item);
     return String(item[key as keyof AccountingType] ?? "");
   }, []);
 
+  // サーバがフィルタ済みのページを返すので、クライアントはソートのみ。
   const { activeSorts, setActiveSorts, toggleSort, directionFor, sortedData } =
-    useSortableData(filteredRecords, { getSortValue });
+    useSortableData(accountings, { getSortValue });
 
-  const pagination = usePagination(sortedData, {
-    resetKey: [deferredSearch, JSON.stringify(activeFilters)].join("|"),
-  });
+  // BUG-411: サーバの total/page/limit をそのまま使う。
+  const serverTotal = pageResult?.total ?? 0;
+  const serverLimit = pageResult?.limit ?? ACCOUNTING_PAGE_SIZE;
+  const serverPage = pageResult?.page ?? urlPage;
+  const totalPages = Math.max(1, Math.ceil(serverTotal / serverLimit));
+  const pagination = {
+    paginatedData: sortedData,
+    totalPages,
+    totalCount: serverTotal,
+    startIndex: serverTotal === 0 ? 0 : (serverPage - 1) * serverLimit + 1,
+    endIndex: Math.min(serverPage * serverLimit, serverTotal),
+    currentPage: serverPage,
+  };
 
-  // FE-144: URLクエリパラメータからページ番号を読み取る
-  const urlPage = Number(searchParams.get("page") ?? 1);
-
-  // FE-144: URLのページ番号とローカル状態を同期（URLが変わったときのみ）
-  // rerender-dependencies: pagination（オブジェクト）を destructure し primitive を deps に使用
-  const { totalPages, currentPage, goToPage } = pagination;
+  // FE-144 / BUG-411: URLの page がサーバ total から導いた totalPages を超えている場合はクランプする
+  // （日付フィルタ変更等で母集団が縮んだ場合に空ページへ迷い込むのを防ぐ。既存クランプ effect を踏襲）。
   useEffect(() => {
+    if (isLoading) return;
     const clampedPage = Math.max(1, Math.min(urlPage, totalPages));
-    if (clampedPage !== currentPage) {
-      goToPage(clampedPage);
+    if (clampedPage !== urlPage) {
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        if (clampedPage === 1) {
+          next.delete("page");
+        } else {
+          next.set("page", String(clampedPage));
+        }
+        return next;
+      }, { replace: true });
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- currentPage/goToPage は意図的に除外（URL変更時のみ同期する設計。FE-144）
-  }, [urlPage, totalPages]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- setSearchParams は安定参照。urlPage/totalPages/isLoading の変化時のみ再評価する設計（FE-144踏襲）。
+  }, [urlPage, totalPages, isLoading]);
 
   // FE-144: ページ変更時にURLクエリパラメータを更新
   const handlePageChange = useCallback((page: number) => {
-    goToPage(page);
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
       if (page === 1) {
@@ -192,7 +190,28 @@ export function AccountingList() {
       }
       return next;
     }, { replace: true });
-  }, [goToPage, setSearchParams]);
+  }, [setSearchParams]);
+
+  // BUG-411 react-reviewer指摘: 旧 usePagination() の resetKey（検索・フィルタ変更時に page を1へ戻す）
+  // を撤去したままだと、ページ3閲覧中にフィルタ変更→表示件数とPaginationのtotalが食い違ったまま
+  // page=3に留まる退行になる。検索・フィルタ変更時は常に page を1へ戻す（旧挙動を維持）。
+  const handleSearchChange = useCallback((value: string) => {
+    setSearchTerm(value);
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete("page");
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
+
+  const handleFilterChange = useCallback((next: ActiveFilter[]) => {
+    setActiveFilters(next);
+    setSearchParams((prev) => {
+      const params = new URLSearchParams(prev);
+      params.delete("page");
+      return params;
+    }, { replace: true });
+  }, [setSearchParams]);
 
   const handleCreate = useCallback(() => {
     navigate(paths.accounting.selectPet.getHref());
@@ -219,7 +238,7 @@ export function AccountingList() {
           </PrimaryButton>
         ) : null
       }
-      maxWidth="max-w-full"
+      maxWidth={LAYOUT.pageContentMaxWidth.full}
     >
       <div className="flex flex-col gap-4">
         {assignedClinics.length > 1 ? (
@@ -248,7 +267,7 @@ export function AccountingList() {
             {isError ? <ErrorFallback /> : null}
             {!isLoading && !isError ? (
               <AccountingListTable
-                filteredCount={filteredRecords.length}
+                filteredCount={serverTotal}
                 pagination={pagination}
                 searchTerm={searchTerm}
                 activeFilters={activeFilters}
@@ -256,8 +275,8 @@ export function AccountingList() {
                 isFiltering={isFiltering}
                 canEdit={canEdit}
                 directionFor={directionFor}
-                onSearchChange={setSearchTerm}
-                onFilterChange={setActiveFilters}
+                onSearchChange={handleSearchChange}
+                onFilterChange={handleFilterChange}
                 onSortChange={setActiveSorts}
                 onToggleSort={toggleSort}
                 onEdit={handleEdit}

@@ -21,7 +21,7 @@ import { usePermission } from "@/hooks/use-permission";
 
 // ─── Page ───
 export function CageSettings() {
-  const { canCreate, canEdit } = usePermission(ResourceMasterHospitalization);
+  const { canCreate, canEdit, canDelete } = usePermission(ResourceMasterHospitalization);
   const { data } = useGetAllCages();
   const createMutation = useCreateCage();
   const updateMutation = useUpdateCage();
@@ -29,13 +29,25 @@ export function CageSettings() {
   const reorderMutation = useReorderCages();
 
   const dirty = useSidePeekDirty();
-  const crud = useMasterCRUD<Cage>({ data, deleteMutation, entityLabel: "ケージ", dirtyGuard: dirty });
+  const crud = useMasterCRUD<Cage>({
+    data,
+    deleteMutation,
+    entityLabel: "ケージ",
+    dirtyGuard: dirty,
+    permissions: { canDelete },
+  });
   const handleDirtyChange = useCallback((d: boolean) => { if (d) dirty.markDirty(); else dirty.markClean(); }, [dirty]);
 
   const { orderedItems: sortedCages, sensors, activeId, handleDragStart, handleDragCancel, handleDragEnd, resetOrder } =
     useSortableList({
       items: crud.filteredItems,
-      onReorder: (newIds) => { reorderMutation.mutate({ ids: newIds.map(Number) }, { onSuccess: resetOrder }); },
+      onReorder: (newIds) => {
+        if (!canEdit) return;
+        reorderMutation.mutate(
+          { ids: newIds.map(Number) },
+          { onSuccess: resetOrder },
+        );
+      },
     });
 
   const { handleSave } = useMasterSave<Cage, CageFormData, CreateCageRequest, UpdateCageRequest>({
@@ -43,6 +55,7 @@ export function CageSettings() {
     validate: (d) => (!d.name.trim() ? "ケージ名は必須です" : null),
     toCreateRequest: buildCageCreateRequest,
     toUpdateRequest: buildCageUpdateRequest,
+    permissions: { canCreate, canEdit },
   });
 
   // CageSettings uses custom table (not DataTable) for DnD + DragOverlay + bottom "add" button

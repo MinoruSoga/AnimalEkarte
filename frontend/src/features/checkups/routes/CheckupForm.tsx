@@ -6,7 +6,7 @@ import { useNavigate } from "react-router";
 import { ClipboardCheck } from "lucide-react";
 
 // Internal
-import { C, ICON } from "@/lib/design-tokens";
+import { C, ICON, LAYOUT } from "@/lib/design-tokens";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { PatientInfoCard } from "@/components/shared/PatientInfoCard";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
@@ -20,7 +20,8 @@ import { paths } from "@/config/paths";
 import { toJSTWallDate } from "@/lib/jst-date";
 import { useGetAllCheckupTypes } from "@/hooks/use-treatment-master";
 import { useGetStaffs } from "@/hooks/use-staffs";
-import { ResourceCheckups } from "@/types/generated/models";
+import { usePermission } from "@/hooks/use-permission";
+import { ResourceMedicalRecords } from "@/types/generated/models";
 
 // Relative
 import { useCheckupForm } from "../hooks/use-checkup-form";
@@ -28,6 +29,8 @@ import { DynamicCheckupFields } from "../components/DynamicCheckupFields";
 
 export function CheckupForm() {
   const navigate = useNavigate();
+  const { canCreate, canEdit } = usePermission(ResourceMedicalRecords);
+  const canSubmit = canCreate && canEdit;
 
   const {
     pet,
@@ -44,7 +47,7 @@ export function CheckupForm() {
     setNextDate,
     setDoctorId,
     setResult,
-  } = useCheckupForm();
+  } = useCheckupForm({ canCreate, canEdit });
 
   const { data: checkupTypes = [] } = useGetAllCheckupTypes();
   const { data: staffs = [] } = useGetStaffs();
@@ -53,20 +56,25 @@ export function CheckupForm() {
     navigate(paths.checkups.getHref());
   }, [navigate]);
 
+  const guardedFormAction = useCallback((formData: FormData) => {
+    if (!canSubmit) return;
+    formAction(formData);
+  }, [canSubmit, formAction]);
+
   if (isPetLoading) return <LoadingFallback />;
 
   return (
-    <form action={formAction}>
+    <form aria-label="定期健診登録フォーム" action={guardedFormAction}>
       <PageLayout
         title="定期健診登録"
-        resource={ResourceCheckups}
+        resource={ResourceMedicalRecords}
         icon={<ClipboardCheck className={`${ICON.page} ${C.text}`} />}
         onBack={handleBack}
-        maxWidth="max-w-[900px]"
+        maxWidth={LAYOUT.pageContentMaxWidth.formNarrow}
         headerAction={
           <SubmitButton
             className="px-6 h-10 text-sm"
-            disabled={isPending}
+            disabled={isPending || !canSubmit}
           >
             {isPending ? "保存中..." : "保存"}
           </SubmitButton>
@@ -81,7 +89,11 @@ export function CheckupForm() {
           />
         ) : null}
 
-        <div className={`${C.bgWhite} p-6 rounded-lg border ${C.borderLight} space-y-6 mt-4`}>
+        <fieldset
+          aria-label="定期健診入力"
+          disabled={!canSubmit}
+          className={`${C.bgWhite} p-6 rounded-lg border ${C.borderLight} space-y-6 mt-4 min-w-0`}
+        >
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* 実施日 */}
             <div className="space-y-2">
@@ -164,7 +176,7 @@ export function CheckupForm() {
               className="min-h-[120px]"
             />
           </div>
-        </div>
+        </fieldset>
       </PageLayout>
     </form>
   );

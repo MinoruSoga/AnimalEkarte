@@ -75,9 +75,11 @@ export function useGetCheckupSyncPreview(params: CheckupSyncParams | null) {
         return Promise.reject(new Error("clinic_id is not selected"));
       }
 
+      // BUG-032: client timeout so permanent pending does not leave the UI on 読み込み中.
+      // BE also enforces a 15s context deadline + SQL LIMIT.
       const { data } = await axios.get<CheckupSyncPreviewResponse>(
         `/v1/clinics/${clinicId}/lstep/checkup-sync/preview`,
-        { params: params ?? undefined }
+        { params: params ?? undefined, timeout: 20_000 },
       );
       return data;
     },

@@ -7,7 +7,7 @@ import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { RowActionButton } from "@/components/shared/RowActionButton";
 import { StatusPill } from "@/components/shared/StatusPill/StatusPill";
 import { C, ICON } from "@/lib/design-tokens";
-import { formatCurrencyOrDash } from "@/utils/format/number";
+import { formatCurrencyOrDash } from "@/lib/format/number";
 import { MASTER_STATUS_FILTER, MASTER_TABLE_COL } from "../constants/styles";
 import { useMasterCRUD } from "../hooks/use-master-crud";
 import { useMasterSave } from "../hooks/use-master-save";
@@ -29,16 +29,23 @@ const COLUMNS = [
 ];
 
 export function HospitalizationSettings() {
-  usePermission(ResourceMasterHospitalization);
+  const { canCreate, canEdit, canDelete } = usePermission(ResourceMasterHospitalization);
   const { data } = useGetAllHospitalizationPlans();
   const createMutation = useCreateHospitalizationPlan();
   const updateMutation = useUpdateHospitalizationPlan();
   const deleteMutation = useDeleteHospitalizationPlan();
   const dirty = useSidePeekDirty();
-  const crud = useMasterCRUD<HospitalizationPlan>({ data, deleteMutation, entityLabel: "入院プラン", dirtyGuard: dirty });
+  const crud = useMasterCRUD<HospitalizationPlan>({
+    data,
+    deleteMutation,
+    entityLabel: "入院プラン",
+    dirtyGuard: dirty,
+    permissions: { canDelete },
+  });
   const handleDirtyChange = useCallback((d: boolean) => { if (d) dirty.markDirty(); else dirty.markClean(); }, [dirty]);
   const { handleSave } = useMasterSave<HospitalizationPlan, HospitalizationFormData, CreateHospitalizationPlanRequest, UpdateHospitalizationPlanRequest>({
     crud, createMutation, updateMutation,
+    permissions: { canCreate, canEdit },
     validate: (d) => (!d.name.trim() ? "名称は必須です" : null),
     toCreateRequest: buildHospitalizationCreateRequest,
     toUpdateRequest: buildHospitalizationUpdateRequest,
@@ -50,13 +57,20 @@ export function HospitalizationSettings() {
       crud={crud} handleSave={handleSave} columns={COLUMNS}
       filterProperties={[MASTER_STATUS_FILTER]}
       renderRow={(item, onEdit, canEdit) => (
-        <DataTableRow key={item.id} onClick={canEdit ? () => onEdit(item) : undefined}>
-          <TableCell className={`font-medium text-base ${C.text}`}>{item.name}</TableCell>
-          <TableCell className={`text-base ${C.text70}`}>{item.bodySize ? (BODY_SIZE_LABELS[item.bodySize] ?? item.bodySize) : "-"}</TableCell>
-          <TableCell className={`text-base ${C.text70}`}>{item.billingUnit ? (BILLING_UNIT_LABELS[item.billingUnit] ?? item.billingUnit) : "-"}</TableCell>
-          <TableCell className={`text-right font-mono text-base ${C.text}`}>{formatCurrencyOrDash(item.price)}</TableCell>
+        <DataTableRow key={item.id}>
+          <TableCell className={`font-medium ${C.text}`}>{item.name}</TableCell>
+          <TableCell className={C.text70}>{item.bodySize ? (BODY_SIZE_LABELS[item.bodySize] ?? item.bodySize) : "-"}</TableCell>
+          <TableCell className={C.text70}>{item.billingUnit ? (BILLING_UNIT_LABELS[item.billingUnit] ?? item.billingUnit) : "-"}</TableCell>
+          <TableCell className={`text-right font-mono ${C.text}`}>{formatCurrencyOrDash(item.price)}</TableCell>
           <TableCell className="text-center"><StatusPill isActive={item.isActive} /></TableCell>
-          <TableCell className="p-0 text-right">{canEdit ? <RowActionButton onClick={() => onEdit(item)} /> : null}</TableCell>
+          <TableCell className="text-right">
+            {canEdit ? (
+              <RowActionButton
+                onClick={() => onEdit(item)}
+                aria-label={`入院プラン「${item.name}」(ID: ${item.id}) を編集`}
+              />
+            ) : null}
+          </TableCell>
         </DataTableRow>
       )}
       renderSidePanel={(props) => <HospitalizationSidePanel key={props.item?.id ?? "new"} {...props} onDirtyChange={handleDirtyChange} />}

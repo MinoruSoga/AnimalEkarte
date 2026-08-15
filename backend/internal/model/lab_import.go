@@ -7,7 +7,7 @@ import (
 )
 
 // LabImportJobStatus は lab_import_jobs のジョブ状態。
-// 許可された遷移は service.LabImportJobStatus.CanTransitionTo で強制される。
+// 許可された遷移は medicalrecord.CanTransitionTo で強制される（BE9-2D sub-batch③ で internal/service から移動）。
 type LabImportJobStatus string
 
 const (
@@ -18,6 +18,9 @@ const (
 	LabImportJobStatusDuplicate   LabImportJobStatus = "duplicate"
 	LabImportJobStatusNeedsReview LabImportJobStatus = "needs_review"
 	LabImportJobStatusFailed      LabImportJobStatus = "failed"
+	// LabImportJobStatusReverted is the terminal compensating-revert status (TASK-032).
+	// Distinct from examination unconfirm; reached only via POST /lab-imports/:id/revert.
+	LabImportJobStatusReverted LabImportJobStatus = "reverted"
 )
 
 // LabImportSourceType は入力元の種別。
@@ -63,6 +66,12 @@ const (
 	LabImportEventTypeMappingResult     LabImportEventType = "mapping_result"
 	LabImportEventTypePersistenceResult LabImportEventType = "persistence_result"
 	LabImportEventTypeRetryRequested    LabImportEventType = "retry_requested"
+	// LabImportEventTypeUsageTrackingStarted marks that downstream usage receipts
+	// are authoritative for this job (TASK-032). Recorded in the same transaction
+	// as a successful import commit. Absence means usage_unknown (revert 409).
+	LabImportEventTypeUsageTrackingStarted LabImportEventType = "usage_tracking_started"
+	// LabImportEventTypeRevertRequested records a compensating revert transition.
+	LabImportEventTypeRevertRequested LabImportEventType = "revert_requested"
 )
 
 // LabImportEvent は検査インポートジョブの監査イベント。
@@ -123,4 +132,82 @@ type LabImportCommitResponse struct {
 	DuplicateCount   int       `json:"duplicate_count"`
 	NeedsReviewCount int       `json:"needs_review_count"`
 	FailedCount      int       `json:"failed_count"`
+}
+
+// LabImportUsageKind は clinical downstream use / manual mutation の種別。
+type LabImportUsageKind string
+
+const (
+	LabImportUsageKindExaminationDetail LabImportUsageKind = "examination_detail"
+	LabImportUsageKindExaminationItems  LabImportUsageKind = "examination_items"
+	LabImportUsageKindLabReport         LabImportUsageKind = "lab_report"
+	LabImportUsageKindPrintSnapshot     LabImportUsageKind = "print_snapshot"
+	LabImportUsageKindManualMutation    LabImportUsageKind = "manual_mutation"
+)
+
+// LabImportUsageReceipt は import 由来 exam の clinical use / manual mutation を記録する append-only 台帳。
+// audit_logs には相乗りしない（sink 分離）。
+type LabImportUsageReceipt struct {
+	ID        uint64             `gorm:"primaryKey;autoIncrement" json:"id"`
+	ClinicID  uint64             `gorm:"not null"                 json:"clinic_id"`
+	JobID     uuid.UUID          `gorm:"type:uuid;not null"       json:"job_id"`
+	ExamID    uint64             `gorm:"not null"                 json:"exam_id"`
+	UseKind   LabImportUsageKind `gorm:"not null"                 json:"use_kind"`
+	ActorID   *uint64            `                                json:"actor_id,omitempty"`
+	CreatedAt time.Time          `gorm:"autoCreateTime"           json:"created_at"`
+}
+
+func (LabImportUsageReceipt) TableName() string { return "lab_import_usage_receipts" }
+
+// LabImportExamRetraction は compensating revert 時の parent 不変スナップショット。
+type LabImportExamRetraction struct {
+	ID             uint64    `gorm:"primaryKey;autoIncrement" json:"id"`
+	ClinicID       uint64    `gorm:"not null"                 json:"clinic_id"`
+	JobID          uuid.UUID `gorm:"type:uuid;not null"       json:"job_id"`
+	ExamID         uint64    `gorm:"not null"                 json:"exam_id"`
+	ActorID        *uint64   `                                json:"actor_id,omitempty"`
+	Reason         string    `gorm:"not null"                 json:"reason"`
+	ParentSnapshot string    `gorm:"type:jsonb;not null"      json:"parent_snapshot"`
+	CreatedAt      time.Time `gorm:"autoCreateTime"           json:"created_at"`
+}
+
+func (LabImportExamRetraction) TableName() string { return "lab_import_exam_retractions" }
+
+// LabImportExamRetractionItem は retraction の item 不変スナップショット。
+// exam_results 本体は hard delete しない。
+type LabImportExamRetractionItem struct {
+	ID           uint64    `gorm:"primaryKey;autoIncrement" json:"id"`
+	ClinicID     uint64    `gorm:"not null"                 json:"clinic_id"`
+	RetractionID uint64    `gorm:"not null"                 json:"retraction_id"`
+	JobID        uuid.UUID `gorm:"type:uuid;not null"       json:"job_id"`
+	ExamID       uint64    `gorm:"not null"                 json:"exam_id"`
+	ItemSnapshot string    `gorm:"type:jsonb;not null"      json:"item_snapshot"`
+	SortOrder    int       `gorm:"not null;default:0"       json:"sort_order"`
+	CreatedAt    time.Time `gorm:"autoCreateTime"           json:"created_at"`
+}
+
+func (LabImportExamRetractionItem) TableName() string { return "lab_import_exam_retraction_items" }
+
+// LabImportRevertReceipt は POST /lab-imports/:id/revert の冪等レシート。
+type LabImportRevertReceipt struct {
+	ID               uint64    `gorm:"primaryKey;autoIncrement" json:"id"`
+	ClinicID         uint64    `gorm:"not null"                 json:"clinic_id"`
+	JobID            uuid.UUID `gorm:"type:uuid;not null"       json:"job_id"`
+	IdempotencyKey   uuid.UUID `gorm:"type:uuid;not null"       json:"idempotency_key"`
+	RequestHash      string    `gorm:"not null"                 json:"request_hash"`
+	Reason           string    `gorm:"not null"                 json:"reason"`
+	ActorID          *uint64   `                                json:"actor_id,omitempty"`
+	ResultStatus     string    `gorm:"not null"                 json:"result_status"`
+	RetractedExamIDs string    `gorm:"type:jsonb;not null"      json:"retracted_exam_ids"`
+	CreatedAt        time.Time `gorm:"autoCreateTime"           json:"created_at"`
+}
+
+func (LabImportRevertReceipt) TableName() string { return "lab_import_revert_receipts" }
+
+// LabImportRevertResponse は revert エンドポイントのレスポンス。
+type LabImportRevertResponse struct {
+	JobID            uuid.UUID `json:"job_id"`
+	Status           string    `json:"status"`
+	RetractedExamIDs []uint64  `json:"retracted_exam_ids"`
+	IdempotentReplay bool      `json:"idempotent_replay"`
 }

@@ -6,10 +6,10 @@
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
-import { Suspense, createElement } from "react";
+import { Suspense, createElement, useState, type ReactNode } from "react";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { AuthContext } from "@/contexts/auth-context";
+import { AuthContext } from "@/hooks/auth-context";
 import { OwnerForm } from "./OwnerForm";
 import { useOwnerForm } from "../hooks/use-owner-form";
 import type { ResourceAction } from "@/types/auth";
@@ -172,6 +172,52 @@ function renderOwnerForm(mutations: PetMutations) {
   );
 }
 
+function RevocableAuthProvider({ children }: { children: ReactNode }) {
+  const [canEdit, setCanEdit] = useState(true);
+  const grants: PermGrant[] = [
+    ["owners", "view"],
+    ["owners", "create"],
+    ["discount", "edit"],
+    ...(canEdit ? [["owners", "edit"] as PermGrant] : []),
+  ];
+
+  return (
+    <>
+      <button type="button" onClick={() => setCanEdit(false)}>
+        編集権限を失効
+      </button>
+      <AuthContext.Provider value={makeAuthCtx(grants)}>
+        {children}
+      </AuthContext.Provider>
+    </>
+  );
+}
+
+function renderOwnerFormWithRevocablePermission(mutations: PetMutations) {
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const router = createMemoryRouter(
+    [
+      {
+        path: "/owners/:id",
+        element: (
+          <Suspense fallback={null}>
+            <OwnerForm petMutations={mutations} />
+          </Suspense>
+        ),
+        loader: () => ({ owner: undefined }),
+      },
+    ],
+    { initialEntries: ["/owners/123"] },
+  );
+  render(
+    <RevocableAuthProvider>
+      <QueryClientProvider client={qc}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>
+    </RevocableAuthProvider>,
+  );
+}
+
 // ---------- tests ----------
 
 describe("BUG-373: OwnerForm.handlePetChangeOwner — 飼主変更 条件付き確認", () => {
@@ -256,6 +302,58 @@ describe("BUG-373: OwnerForm.handlePetChangeOwner — 飼主変更 条件付き�
     await waitFor(() => {
       expect(screen.queryByText("飼主変更の確認")).not.toBeInTheDocument();
     });
+    expect(updatePetMutate).not.toHaveBeenCalled();
+  });
+
+  it("明示的な死亡ペットは同条件飼主への即時変更mutationを発行しない", async () => {
+    vi.mocked(useOwnerForm).mockReturnValue(
+      makeOwnerFormReturn({ editingPet: { ...mockPet, status: "死亡" } }) as never,
+    );
+    const { mutations, updatePetMutate } = makePetMutations();
+    renderOwnerForm(mutations);
+    await screen.findByTestId("pet-edit-modal");
+
+    fireEvent.click(screen.getByText("btn-same"));
+
+    expect(updatePetMutate).not.toHaveBeenCalled();
+  });
+
+  it("明示的な死亡ペットは条件差のある飼主変更確認を開始しない", async () => {
+    vi.mocked(useOwnerForm).mockReturnValue(
+      makeOwnerFormReturn({ editingPet: { ...mockPet, status: "死亡" } }) as never,
+    );
+    const { mutations, updatePetMutate } = makePetMutations();
+    renderOwnerForm(mutations);
+    await screen.findByTestId("pet-edit-modal");
+
+    fireEvent.click(screen.getByText("btn-diff-discount"));
+
+    expect(screen.queryByText("飼主変更の確認")).not.toBeInTheDocument();
+    expect(updatePetMutate).not.toHaveBeenCalled();
+  });
+
+  it("取得済み飼主変更callbackは最新の編集権限がfalseなら即時updateを発行しない", async () => {
+    const { mutations, updatePetMutate } = makePetMutations();
+    renderOwnerFormWithRevocablePermission(mutations);
+    await screen.findByTestId("pet-edit-modal");
+
+    fireEvent.click(screen.getByRole("button", { name: "編集権限を失効" }));
+    fireEvent.click(screen.getByText("btn-same"));
+
+    expect(updatePetMutate).not.toHaveBeenCalled();
+  });
+
+  it("確認dialogの取得済み続行callbackは最新の編集権限がfalseならupdateを発行しない", async () => {
+    const { mutations, updatePetMutate } = makePetMutations();
+    renderOwnerFormWithRevocablePermission(mutations);
+    await screen.findByTestId("pet-edit-modal");
+    const revokeButton = screen.getByRole("button", { name: "編集権限を失効" });
+
+    fireEvent.click(screen.getByText("btn-diff-discount"));
+    await screen.findByText("飼主変更の確認");
+    fireEvent.click(revokeButton);
+    fireEvent.click(screen.getByRole("button", { name: "続行" }));
+
     expect(updatePetMutate).not.toHaveBeenCalled();
   });
 });

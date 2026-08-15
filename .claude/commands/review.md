@@ -38,13 +38,9 @@ git diff --staged --name-only
 
 複数カテゴリに跨る場合は並列でエージェントを起動する。
 
-## Step 3: P1-P18 コンプライアンス確認（Go変更時）
+## Step 3: Go/Gin backend確認（Go変更時）
 
-`.go` ファイルに変更がある場合、`go-reviewer` が以下を確認:
-- Handler: P7, P12, P14, P15, P18
-- Service: P1, P8, P10, P11, P13, P17
-- Repository: P2, P3, P4, P9, P16
-- Routes: P5, P6
+`.go` ファイルに変更がある場合、`go-reviewer` は `.claude/refs/go-gin-backend-review.md` に従い、package API、Context、binding/validation、authn/authz/ownership、error、database/security、server lifecycle、tests を確認する。固定layer構成は判定基準にしない。
 
 ## Step 4: React 19 パターン確認（TS変更時）
 

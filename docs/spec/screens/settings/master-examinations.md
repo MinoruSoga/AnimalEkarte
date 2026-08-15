@@ -1,50 +1,70 @@
 # 検査項目定義マスタ 仕様書 (Examination Definitions)
 
 ## 概要
-- **画面の目的**: 血液検査や生化学検査等、検査プラン（`exam_types`）の名称・価格・課税区分の定義。
+- **画面の目的**: 血液検査や生化学検査等、検査プラン（`exam_types`）の名称・価格の定義、および測定項目（`exam_type_fields`）と基準値の管理。
 - **URLパターン**: `/settings/treatment-items?tab=examination`
 - **アクセス権限**: 診療マスタ管理権限が必要（`ResourceMasterMedical`）
-- **注意**: 本画面が管理するのは検査プラン（`ExaminationType`）そのものであり、[master-treatment.md](./master-treatment.md) と同一の `TreatmentItemSidePanel` を共有する。個々の測定項目（GOT・CRE等）とその単位・基準値（`exam_type_fields` テーブル: `unit`, `normal_value`, `inspection_value`）を編集する管理画面は存在しない（backend/internal/model/examination_type.go:29-39）。
+- **注意**: 検査プラン本体は [master-treatment.md](./master-treatment.md) と同一の `TreatmentPlanMaster` / サイドパネル UI を共有する。測定項目・単位・基準値はサイドパネル内の **`ExamTypeFieldsEditor`** で編集する（「管理 UI が存在しない」は誤り）。
 
 ---
 
 ## 画面構成
 
 ### 1. 検査項目一覧
-- **タブ構造**: 診察、検査、処置、予防接種、定期健診のタブの一つとして表示（[master-treatment.md](./master-treatment.md) 1.1参照）。
-- **項目リスト**: 項目名、単価(税込)、ステータス（親子ツリー表示、検索は項目名の部分一致）。
+- **タブ構造**: 診察、検査、処置、予防接種、定期健診のタブの一つとして表示。
+- **項目リスト**: 項目名、単価、ステータス（親子ツリー表示）。
 
-### 2. 詳細編集サイドパネル (`SidePeekPanel`)
-[master-treatment.md](./master-treatment.md) 2. と同じ `TreatmentItemSidePanel` を共有するため、画面上は項目名、有効/無効ステータス、親カテゴリ、備考、単価、課税区分、税率、保険対象外が一律表示される。ただし `ExaminationType` モデル・API（`backend/internal/model/examination_type.go`、`backend/internal/handler/exam_type_request.go`）には `tax_type`/`tax_rate` 列が存在せず、課税区分・税率は画面上操作できても保存されない。実際に保存されるのは項目名、有効/無効ステータス、親カテゴリ、備考、単価、保険対象外（`is_non_insurance`）のみ。単位・基準値（Min/Max）を設定する項目は存在しない。
+### 2. 詳細編集サイドパネル
+- **プラン本体**: 項目名、有効/無効、親カテゴリ、備考、単価、保険対象外等。
+  - `ExaminationType` に `tax_type`/`tax_rate` 列は無く、課税区分 UI が出ても保存されない場合がある（master-treatment と同趣旨）。
+- **測定項目エディタ (`ExamTypeFieldsEditor`)**: 検査プラン選択時にサイドパネル詳細へ表示。
+  - フィールド名、単位（`unit`）
+  - 基準値（reference ranges: Min/Max 等）
+  - 追加・更新・削除・DnD 並び替え
 
 ---
 
 ## 主要な機能
 
 ### 1. 検査結果入力との関係
-カルテの検査結果入力画面（`/examinations`）が参照する測定項目・基準値（`exam_type_fields.normal_value` 等）は本画面では編集できない。異常値ハイライトのロジックは `frontend/src/features/examinations/` 側の実装を参照。
+カルテの検査結果入力（`/examinations`）は、本画面で定義した `exam_type_fields` / 基準値を参照して HIGH/LOW ハイライト等を行う。
 
-### 2. 表示順の柔軟なカスタマイズ
-ドラッグ&ドロップ（`dnd-kit`、`reorder` API）により項目の表示順を変更できる。
+### 2. 表示順
+プラン一覧の reorder API に加え、フィールド単位の reorder も `ExamTypeFieldsEditor` から実行できる。
 
 ---
 
 ## 技術仕様
 
 ### 使用コンポーネント
-- **`TreatmentPlanMaster`**: メインページ（検査タブ）。[master-treatment.md](./master-treatment.md) と共通。
-- **`TreatmentItemSidePanel`**: 詳細編集パネル。
+- **`TreatmentPlanMaster`**: メインページ（検査タブ）。
+- **`TreatmentPlanSidePanelHost`**: サイドパネル host。`examinationType` があるとき `ExamTypeFieldsEditor` をマウント。
+- **`ExamTypeFieldsEditor`**: 測定項目・単位・基準値・並び替え。
+- **`TreatmentItemSidePanel` / 共通 property UI**: プラン本体フィールド。
 
 ### API連携
 | メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |
 |:---|:---|:---|:---|:---|
-| GET | `/api/v1/masters/examination-types` | 定義済み項目の一覧取得 | `master-medical` | `view` |
-| GET | `/api/v1/masters/examination-types/:id` | 特定の検査項目情報の取得 | `master-medical` | `view` |
-| POST | `/api/v1/masters/examination-types` | 新規検査項目の登録 | `master-medical` | `create` |
-| PATCH | `/api/v1/masters/examination-types/:id` | 名称・単価等の属性更新 | `master-medical` | `edit` |
-| DELETE | `/api/v1/masters/examination-types/:id` | 検査項目の削除 | `master-medical` | `delete` |
-| PATCH | `/api/v1/masters/examination-types/reorder` | 並び順の一括保存 | `master-medical` | `edit` |
+| GET/POST/PATCH/DELETE | `/api/v1/masters/examination-types` 系 | 検査プラン CRUD | `master-medical` | view/create/edit/delete |
+| POST | `.../examination-types/:id/fields` | 測定項目作成 | `master-medical` | create |
+| PATCH | `.../fields/:id` | 測定項目更新 | `master-medical` | edit |
+| DELETE | `.../fields/:id` | 測定項目削除 | `master-medical` | delete |
+| PATCH | `.../fields/reorder` | 測定項目並び替え | `master-medical` | edit |
+| PUT | `.../fields/:id/reference-ranges` | 基準値更新 | `master-medical` | edit |
+
+（正確な path 接頭辞は `frontend/src/features/master/api/exam-types-master.ts` を正とする。）
 
 ---
 
+## Residual checklist (#249 · W3 LANE-3)
 
+Phase 1 FE と Phase 2 composite FK（`001_init.sql` にアーカイブ済み）は実装済み。残差は次のとおり。
+
+| ID | 残差 | 状態 | 備考 |
+|:---|:---|:---|:---|
+| R-1 | 臨床用 `exam_reference_ranges` seed（clinic×species） | OPEN | demo seed に CSV 無し。マスタ UI から投入可 |
+| R-2 | lab import の pet / medical_record 相関 fail-closed | DONE | `lab_import_examination_service` が不一致を NotFound で拒否 |
+| R-3 | IsDuplicate を「完全同一データの再取込のみ skip」へ再設計（PO 裁定 2） | DONE | 4-col 日付粒度 IsDuplicate を廃止。候補 filter は clinic_id / exam_type_id / date(UTC date-only) / pet_id(NULL-aware)。full match は medical_record_id(NULL-aware) / machine / exam_results（name, inspection_value, unit, reference_value, ref_min, ref_max, sort_order）の完全一致のみ skip。同日同 type でも内容差は insert。回帰は medicalrecord の IsDuplicate 全同一系テストと package で固定 |
+| R-4 | lab import `auto_commit` 解禁 | BLOCKED | clinic/source ごとに初期 `false` 維持。authorized enable / stop / failure notify / audit が前提 |
+| R-5 | 定性基準値の FE ピボット表示（`qualitative_min/max`） | DONE | feature-local transform が `qualitativeMin/Max` を写像。`formatStoredReference` 優先度: `referenceValue` > `refMin/refMax` > `qualitativeMin/Max` > `-`。`ExamPivotTable` に配線済み（open end は `(-)-` / `-(+)`）。ExamItemsTable/ExaminationGroup の parity は任意延期。scoped green: examinations vitest 9 files / 118 tests |
+| R-6 | Phase 2 seed/COPY redesign を伴う追加 migration | BLOCKED | 現行 seed は `clinic_id` 列付き。追加 DDL が seed 列衝突を起こす場合は redesign 後のみ |

@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { C, STYLE, ICON } from "@/lib/design-tokens";
+import { C, ICON, LAYOUT } from "@/lib/design-tokens";
 import { Button } from "@/components/ui/button";
 import { Send } from "lucide-react";
+import { CHECKUP_SYNC_OWNER_LIMIT } from "@/constants/lstep-checkup-sync";
 import { usePermission } from "@/hooks/use-permission";
 import { useGetCheckupSyncPreview } from "../api/get-checkup-sync-preview";
 import { useCreateCheckupSync } from "../api/create-checkup-sync";
@@ -11,6 +12,8 @@ import { CheckupSyncFilterForm } from "../components/CheckupSyncFilterForm";
 import { CheckupSyncPreviewTable } from "../components/CheckupSyncPreviewTable";
 import { CheckupSyncConfirmDialog } from "../components/CheckupSyncConfirmDialog";
 import { todayJSTISO } from "@/lib/jst-date";
+import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
+import { ResourceHospitalSettings } from "@/types/generated/models";
 
 function buildDefaultTagName(checkupType: CheckupType): string {
   return `checkup_done_${checkupType}_${todayJSTISO().slice(0, 7)}`;
@@ -23,7 +26,7 @@ export function CheckupSyncPage() {
   const [tagName, setTagName] = useState("");
   const [syncResult, setSyncResult] = useState<CheckupSyncResult | null>(null);
 
-  const { canCreate } = usePermission("hospital-settings");
+  const { canCreate } = usePermission(ResourceHospitalSettings);
   const { data: previewData, isFetching } = useGetCheckupSyncPreview(searchParams);
   const { mutate: createCheckupSync, isPending } = useCreateCheckupSync();
 
@@ -40,7 +43,7 @@ export function CheckupSyncPage() {
   }
 
   function handleConfirm() {
-    if (!searchParams) return;
+    if (!searchParams || selectedOwnerIds.size > CHECKUP_SYNC_OWNER_LIMIT) return;
     createCheckupSync(
       {
         checkup_type: searchParams.checkup_type,
@@ -58,17 +61,12 @@ export function CheckupSyncPage() {
   }
 
   return (
-    <div className={`${STYLE.pageContent} max-w-5xl mx-auto`}>
-      {/* ページヘッダー */}
-      <div className="mb-6">
-        <h1 className={`text-2xl font-bold ${C.text} leading-tight`}>
-          健診リマインダー抽出
-        </h1>
-        <p className={`mt-1.5 text-sm ${C.text60}`}>
-          Lステップタグを一括付与して健診リマインダーをLINE送信します。
-        </p>
-      </div>
-
+    <PageLayout
+      title="健診リマインダー抽出"
+      description="Lステップタグを一括付与して健診リマインダーをLINE送信します。"
+      maxWidth={LAYOUT.pageContentMaxWidth.formNarrow}
+      resource={ResourceHospitalSettings}
+    >
       {/* 抽出条件フォーム */}
       <CheckupSyncFilterForm onSearch={handleSearch} isLoading={isFetching} />
 
@@ -123,7 +121,7 @@ export function CheckupSyncPage() {
                     <span className={`font-semibold ${C.text}`}>
                       {selectedOwnerIds.size}名
                     </span>
-                    を選択中
+                    を選択中（最大{CHECKUP_SYNC_OWNER_LIMIT}名）
                   </>
                 ) : (
                   "LINE連携済みの対象者を選択してください"
@@ -132,8 +130,11 @@ export function CheckupSyncPage() {
               <Button
                 type="button"
                 onClick={handleOpenConfirm}
-                disabled={selectedOwnerIds.size === 0}
-                className={`${C.bgBrand} ${C.hoverBgBrand} text-white h-11 px-4 text-base rounded-full transition-colors shadow-none border-transparent`}
+                disabled={
+                  selectedOwnerIds.size === 0 ||
+                  selectedOwnerIds.size > CHECKUP_SYNC_OWNER_LIMIT
+                }
+                className={`${C.bgBrand} ${C.hoverBgBrand} ${C.hoverTextOnBrand} ${C.textOnBrand} h-11 px-4 text-base rounded-full transition-colors shadow-none border-transparent`}
               >
                 <Send className={ICON.sm} />
                 タグを一括付与する
@@ -156,6 +157,6 @@ export function CheckupSyncPage() {
           isPending={isPending}
         />
       ) : null}
-    </div>
+    </PageLayout>
   );
 }

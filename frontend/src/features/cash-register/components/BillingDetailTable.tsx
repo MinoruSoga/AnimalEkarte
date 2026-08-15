@@ -1,7 +1,8 @@
 import { memo } from "react";
+import { TableCell, TableHead } from "@/components/ui/table";
 import { C, STYLE } from "@/lib/design-tokens";
 import { formatJSTTime } from "@/lib/jst-date";
-import { formatCurrency } from "@/utils/format/number";
+import { formatCurrency } from "@/lib/format/number";
 import type { CloseBillingDetail } from "../api/get-cash-register-preview";
 import { CATEGORY_LABELS } from "../constants";
 
@@ -23,13 +24,13 @@ export const BillingDetailTable = memo(function BillingDetailTable({
       <table className="w-full text-base">
         <thead>
           <tr className={`border-b ${C.borderLight} ${C.bgPage}`}>
-            <th className={`text-left px-3 py-2 font-medium ${C.text70}`}>時刻</th>
-            <th className={`text-left px-3 py-2 font-medium ${C.text70}`}>飼主 / ペット</th>
-            <th className={`text-left px-3 py-2 font-medium ${C.text70}`}>部門</th>
-            <th className={`text-left px-3 py-2 font-medium ${C.text70}`}>支払方法</th>
-            <th className={`text-right px-3 py-2 font-medium ${C.text70}`}>請求額</th>
-            <th className={`text-right px-3 py-2 font-medium ${C.text70}`}>返金額</th>
-            <th className={`text-right px-3 py-2 font-medium ${C.text70}`}>純額</th>
+            <TableHead className={C.text70}>時刻</TableHead>
+            <TableHead className={C.text70}>飼主 / ペット</TableHead>
+            <TableHead className={C.text70}>部門</TableHead>
+            <TableHead className={C.text70}>支払方法</TableHead>
+            <TableHead className={`text-right ${C.text70}`}>請求額</TableHead>
+            <TableHead className={`text-right ${C.text70}`}>返金額</TableHead>
+            <TableHead className={`text-right ${C.text70}`}>純額</TableHead>
           </tr>
         </thead>
         <tbody>
@@ -38,29 +39,29 @@ export const BillingDetailTable = memo(function BillingDetailTable({
               key={detail.billingId}
               className={`border-b ${C.borderLight} ${STYLE.tableRow}`}
             >
-              <td className={`px-3 py-2 ${C.text60} whitespace-nowrap`}>
+              <TableCell className={`${C.text60} whitespace-nowrap`}>
                 {detail.paidAt ? formatJSTTime(detail.paidAt) : "—"}
-              </td>
-              <td className={`px-3 py-2 ${C.text}`}>
+              </TableCell>
+              <TableCell className={C.text}>
                 <div>{detail.ownerName}</div>
                 <div className={`text-sm ${C.text60}`}>
                   {detail.petName}
                   {detail.isHospitalization ? " (入院)" : ""}
                 </div>
-              </td>
-              <td className={`px-3 py-2 ${C.text}`}>
+              </TableCell>
+              <TableCell className={C.text}>
                 {CATEGORY_LABELS[detail.category] ?? detail.category}
-              </td>
-              <td className={`px-3 py-2 ${C.text}`}>{detail.paymentMethodName}</td>
-              <td className={`px-3 py-2 text-right ${C.text}`}>
+              </TableCell>
+              <TableCell className={C.text}>{detail.paymentMethodName}</TableCell>
+              <TableCell className={`text-right ${C.text}`}>
                 {formatCurrency(detail.billingAmount)}
-              </td>
-              <td className={`px-3 py-2 text-right ${detail.refundAmount > 0 ? C.danger : C.text50}`}>
-                {detail.refundAmount > 0 ? `-¥${detail.refundAmount.toLocaleString()}` : "—"}
-              </td>
-              <td className={`px-3 py-2 text-right font-medium ${C.text}`}>
+              </TableCell>
+              <TableCell className={`text-right ${detail.refundAmount > 0 ? C.danger : C.text50}`}>
+                {detail.refundAmount > 0 ? `-${formatCurrency(detail.refundAmount)}` : "—"}
+              </TableCell>
+              <TableCell className={`text-right font-medium ${C.text}`}>
                 {formatCurrency(detail.netAmount)}
-              </td>
+              </TableCell>
             </tr>
           ))}
         </tbody>

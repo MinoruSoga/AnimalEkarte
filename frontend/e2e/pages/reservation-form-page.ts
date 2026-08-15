@@ -31,17 +31,28 @@ export class ReservationFormPage extends BasePage {
     return this.dialog().getByText('患者検索');
   }
 
-  /** `#petName` input, scoped to the dialog. */
-  petNameInput(): Locator {
-    return this.dialog().locator('#petName');
+  /** Server-side cross-field search (`#search`), scoped to the dialog. */
+  patientSearchInput(): Locator {
+    return this.dialog().locator('#search');
   }
 
-  dialogSearchButton(): Locator {
-    return this.dialog().getByRole('button', { name: '検索' });
+  patientRow(name: string): Locator {
+    return this.dialog()
+      .getByRole('row')
+      .filter({ has: this.page.getByText(name, { exact: true }) });
   }
 
-  /** Result row text inside the dialog (e.g. "タロウ", "Iris(イリス)"). */
-  resultText(name: string): Locator {
-    return this.dialog().getByText(name);
+  selectPatientButton(id: string, name: string): Locator {
+    return this.dialog().getByRole('button', {
+      name: `選択: ${name} (ID ${id})`,
+      exact: true,
+    });
+  }
+
+  selectedPatientButton(id: string, name: string): Locator {
+    return this.dialog().getByRole('button', {
+      name: `選択中: ${name} (ID ${id})`,
+      exact: true,
+    });
   }
 }

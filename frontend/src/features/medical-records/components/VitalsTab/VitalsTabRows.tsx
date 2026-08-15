@@ -2,6 +2,7 @@ import { memo, useCallback, useState } from "react";
 import { Check, Pencil, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { TableCell } from "@/components/ui/table";
 import { DeleteIconButton } from "@/components/shared/DeleteIconButton/DeleteIconButton";
 import { FormFieldError } from "@/components/shared/FormFieldError/FormFieldError";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
@@ -14,6 +15,7 @@ import {
   displayNum,
   formatRecordedAt,
   parseVitalsNumber,
+  toggleWeightValueAndUnit,
   type VitalsAddFormState,
 } from "./vitals-tab-table-model";
 
@@ -36,16 +38,16 @@ export function VitalsDisplayRow({
 }: VitalsDisplayRowProps) {
   return (
     <tr className={`border-b ${C.borderLight} ${C.hoverBgPageHalf} transition-colors h-12`}>
-      <td className={`px-3 text-sm ${C.text}`}>{formatRecordedAt(vital.recorded_at)}</td>
-      <td className={`px-3 text-sm text-right ${C.text}`}>{displayNum(vital.temperature)}</td>
-      <td className={`px-3 text-sm text-right ${C.text}`}>{displayNum(vital.heart_rate)}</td>
-      <td className={`px-3 text-sm text-right ${C.text}`}>{displayNum(vital.respiration_rate)}</td>
-      <td className={`px-3 text-sm text-right ${C.text}`}>
+      <TableCell className={C.text}>{formatRecordedAt(vital.recorded_at)}</TableCell>
+      <TableCell className={`text-right ${C.text}`}>{displayNum(vital.temperature)}</TableCell>
+      <TableCell className={`text-right ${C.text}`}>{displayNum(vital.heart_rate)}</TableCell>
+      <TableCell className={`text-right ${C.text}`}>{displayNum(vital.respiration_rate)}</TableCell>
+      <TableCell className={`text-right ${C.text}`}>
         {displayNum(vital.weight)}
-        <span className={`ml-0.5 text-[10px] ${C.text40}`}>{vital.weight_unit}</span>
-      </td>
-      <td className={`px-3 text-sm ${C.text60}`}>{vital.note ? vital.note : "-"}</td>
-      <td className="px-2">
+        <span className={`ml-0.5 text-2xs ${C.text40}`}>{vital.weight_unit}</span>
+      </TableCell>
+      <TableCell className={C.text60}>{vital.note ? vital.note : "-"}</TableCell>
+      <TableCell>
         <div className="flex items-center justify-end gap-1">
           {canEdit ? (
             <button
@@ -64,7 +66,7 @@ export function VitalsDisplayRow({
             />
           ) : null}
         </div>
-      </td>
+      </TableCell>
     </tr>
   );
 }
@@ -106,6 +108,16 @@ export const VitalsEditRow = memo(function VitalsEditRow({
     []
   );
 
+  const handleWeightUnitToggle = useCallback(() => {
+    setForm((prev) => {
+      const next = toggleWeightValueAndUnit(
+        prev.weight,
+        prev.weight_unit as BodyWeightUnit
+      );
+      return { ...prev, weight: next.weight, weight_unit: next.weight_unit };
+    });
+  }, []);
+
   const handleSave = useCallback(() => {
     const errors: Record<string, string> = {};
     if (!form.recorded_at) {
@@ -139,7 +151,7 @@ export const VitalsEditRow = memo(function VitalsEditRow({
 
   return (
     <tr className={`border-b ${C.borderLight} ${C.bgNotice40}`}>
-      <td className="px-3 py-2">
+      <TableCell>
         <input
           type="datetime-local"
           value={form.recorded_at}
@@ -148,8 +160,8 @@ export const VitalsEditRow = memo(function VitalsEditRow({
           className={EDIT_INPUT_CLASS}
         />
         <FormFieldError message={editFormErrors.recorded_at} />
-      </td>
-      <td className="px-3 py-2">
+      </TableCell>
+      <TableCell>
         <input
           type="number"
           step="0.1"
@@ -160,8 +172,8 @@ export const VitalsEditRow = memo(function VitalsEditRow({
           className={EDIT_INPUT_CLASS}
         />
         <FormFieldError message={editFormErrors.temperature} />
-      </td>
-      <td className="px-3 py-2">
+      </TableCell>
+      <TableCell>
         <input
           type="number"
           value={form.heart_rate}
@@ -170,8 +182,8 @@ export const VitalsEditRow = memo(function VitalsEditRow({
           aria-label={`心拍数 (${formatRecordedAt(vital.recorded_at)})`}
           className={EDIT_INPUT_CLASS}
         />
-      </td>
-      <td className="px-3 py-2">
+      </TableCell>
+      <TableCell>
         <input
           type="number"
           value={form.respiration_rate}
@@ -180,8 +192,8 @@ export const VitalsEditRow = memo(function VitalsEditRow({
           aria-label={`呼吸数 (${formatRecordedAt(vital.recorded_at)})`}
           className={EDIT_INPUT_CLASS}
         />
-      </td>
-      <td className="px-3 py-2">
+      </TableCell>
+      <TableCell>
         <div className="flex items-center gap-1">
           <input
             type="number"
@@ -194,14 +206,14 @@ export const VitalsEditRow = memo(function VitalsEditRow({
           />
           <button
             type="button"
-            onClick={() => handleChange("weight_unit", form.weight_unit === "Kg" ? "g" : "Kg")}
-            className={`text-[10px] px-1 h-6 rounded border ${C.borderMedium} ${C.bgPage} ${C.hoverBgPage} min-w-[24px]`}
+            onClick={handleWeightUnitToggle}
+            className={`text-2xs px-1 h-6 rounded border ${C.borderMedium} ${C.bgPage} ${C.hoverBgPage} min-w-[24px]`}
           >
             {form.weight_unit}
           </button>
         </div>
-      </td>
-      <td className="px-3 py-2">
+      </TableCell>
+      <TableCell>
         <input
           type="text"
           value={form.note}
@@ -210,8 +222,8 @@ export const VitalsEditRow = memo(function VitalsEditRow({
           aria-label={`メモ (${formatRecordedAt(vital.recorded_at)})`}
           className={EDIT_INPUT_CLASS}
         />
-      </td>
-      <td className="px-2 py-2">
+      </TableCell>
+      <TableCell>
         <div className="flex items-center justify-end gap-1">
           <button
             type="button"
@@ -232,7 +244,7 @@ export const VitalsEditRow = memo(function VitalsEditRow({
             <X className={ICON.xs} />
           </button>
         </div>
-      </td>
+      </TableCell>
     </tr>
   );
 });
@@ -241,7 +253,8 @@ interface VitalsAddRowProps {
   addForm: VitalsAddFormState;
   errors: Record<string, string>;
   isPending: boolean;
-  onChange: (field: keyof VitalsAddFormState, value: string) => void;
+  /** 単一フィールドまたは体重単位トグルの原子パッチ（weight + weight_unit）。 */
+  onChange: (patch: Partial<VitalsAddFormState>) => void;
   onSubmit: () => void;
   onCancel: () => void;
 }
@@ -261,7 +274,7 @@ export function VitalsAddRow({
           autoFocus
           type="datetime-local"
           value={addForm.recorded_at}
-          onChange={(e) => onChange("recorded_at", e.target.value)}
+          onChange={(e) => onChange({ recorded_at: e.target.value })}
           aria-label="記録日時"
           className={`${ADD_INPUT_CLASS} w-40`}
         />
@@ -272,7 +285,7 @@ export function VitalsAddRow({
           type="number"
           step="0.1"
           value={addForm.temperature}
-          onChange={(e) => onChange("temperature", e.target.value)}
+          onChange={(e) => onChange({ temperature: e.target.value })}
           placeholder="体温"
           aria-label="体温"
           className={`${ADD_INPUT_CLASS} w-20`}
@@ -282,7 +295,7 @@ export function VitalsAddRow({
       <input
         type="number"
         value={addForm.heart_rate}
-        onChange={(e) => onChange("heart_rate", e.target.value)}
+        onChange={(e) => onChange({ heart_rate: e.target.value })}
         placeholder="心拍数"
         aria-label="心拍数"
         className={`${ADD_INPUT_CLASS} w-20`}
@@ -290,7 +303,7 @@ export function VitalsAddRow({
       <input
         type="number"
         value={addForm.respiration_rate}
-        onChange={(e) => onChange("respiration_rate", e.target.value)}
+        onChange={(e) => onChange({ respiration_rate: e.target.value })}
         placeholder="呼吸数"
         aria-label="呼吸数"
         className={`${ADD_INPUT_CLASS} w-20`}
@@ -300,15 +313,17 @@ export function VitalsAddRow({
           type="number"
           step="0.01"
           value={addForm.weight}
-          onChange={(e) => onChange("weight", e.target.value)}
+          onChange={(e) => onChange({ weight: e.target.value })}
           placeholder="体重"
           aria-label="体重"
           className={`${ADD_INPUT_CLASS} w-20 text-right`}
         />
         <button
           type="button"
-          onClick={() => onChange("weight_unit", addForm.weight_unit === "Kg" ? "g" : "Kg")}
-          className={`text-[10px] px-1 h-6 rounded border ${C.borderMedium} ${C.bgPage} ${C.hoverBgPage} min-w-[24px]`}
+          onClick={() =>
+            onChange(toggleWeightValueAndUnit(addForm.weight, addForm.weight_unit))
+          }
+          className={`text-2xs px-1 h-6 rounded border ${C.borderMedium} ${C.bgPage} ${C.hoverBgPage} min-w-[24px]`}
         >
           {addForm.weight_unit}
         </button>
@@ -316,7 +331,7 @@ export function VitalsAddRow({
       <input
         type="text"
         value={addForm.note}
-        onChange={(e) => onChange("note", e.target.value)}
+        onChange={(e) => onChange({ note: e.target.value })}
         onKeyDown={(e) => {
           if (e.key === "Enter") onSubmit();
           if (e.key === "Escape") onCancel();
@@ -327,7 +342,7 @@ export function VitalsAddRow({
       />
       <Button
         size="sm"
-        className={`${C.bgBrand} ${C.hoverBgBrand} text-white rounded-full border-transparent transition-colors h-8 text-xs px-3`}
+        className={`${C.bgBrand} ${C.hoverBgBrand} ${C.hoverTextOnBrand} ${C.textOnBrand} rounded-full border-transparent transition-colors h-8 text-xs px-3`}
         onClick={onSubmit}
         disabled={isPending || !addForm.recorded_at}
       >

@@ -94,13 +94,13 @@
 <div class="container">
 <header>
   <h1>Phase 2 台帳 — 今フェーズでやらないもの</h1>
-  <p class="meta">更新: 2026-07-16（todo.md から切り出し）／正本: 本書。決裁記録の正本は q&amp;a.html、BE 保留詳細は BE-pending.md</p>
+  <p class="meta">更新: 2026-08-03（第二次裁定: #212/#235 の terminal close 推奨と再開 trigger を DEC-66/67 へ同期）／正本: 本書。決裁記録の正本は todo.md §7、実行は todo.md §8、BE 保留詳細は BE-pending.md</p>
 </header>
 
 <section>
   <h2>運用ルール</h2>
   <ul>
-    <li>本書は「今フェーズで着手しない」項目の正本。<strong>着手判断が出たら該当項目を todo.md へ実装単位で戻し、本書から削除する</strong>（二重管理禁止）。</li>
+    <li>本書は「今フェーズで着手しない」項目の正本。<strong>着手判断が出たら該当項目を <a href="todo.md">todo.md / todo-po.md</a>へ実装単位で戻し、本書から削除する</strong>（二重管理禁止）。</li>
     <li><span class="badge never">やらない</span> = PO 決裁済み。再開条件が満たされるまで<strong>実装着手禁止</strong>。</li>
     <li><span class="badge hold">見送り</span> = 再開条件付き。<span class="badge next">次期</span> = 次期監査・次期リファクタ対象。</li>
   </ul>
@@ -109,13 +109,17 @@
 <section>
   <h2>長期目標</h2>
   <ul>
-    <li><span class="badge hold">見送り</span><strong>#212 全パッケージのテストカバレッジ 90%</strong> — ratchet ゲート導入済。90% 到達自体は長期目標のまま未達（gh Issue open）。</li>
+    <li><span class="badge hold">見送り</span><strong>#212 高リスク failure-mode の未検証削減</strong>（<a href="todo.md#dec-66">DEC-66</a>・terminal close 推奨）— blanket 90% epic は再開しない。<em>再開条件</em>: 納品後の安定稼働、成功した current main coverage artifact、review 済みの対象/除外 policy、業務目的、責任者 role と opaque restricted reference、package/domain baseline、未検証 failure-mode inventory が揃うこと。成立時だけ billing / medicalrecord / audit / clinic isolation / authorization / rollback / not-found 等を高リスク順の小さな新 Issue と新 DEC に分解し、数値合わせ test を作らない。</li>
   </ul>
 </section>
 
 <section>
-  <h2>PO 決裁済み「やらない」（決裁正本: q&amp;a.html）</h2>
+  <h2>PO 決裁済み「やらない」（決裁正本: todo.md §7）</h2>
   <ul>
+    <li><span class="badge hold">見送り</span><strong>#284 line-reserve 実機フォント QA</strong>（F-284・DEFER_PHASE2）— source test は Rendered Fonts / FOIT / clip を証明しない。<em>再開条件</em>: 許可済み試験環境と実機 3 台の受領。成立時だけ cold/warm/offline の device matrix を 1 回実施し、新 Issue で起票する。</li>
+    <li><span class="badge hold">見送り</span><strong>#249-EXT 検査の外部機器 / 自動化連携</strong>（F-249-EXT・DEFER_PHASE2）— 手動・default-off を維持する。<em>再開条件</em>: 臨床 range 承認、外部 format owner、停止 / 通知 / audit / 手動 fallback が揃うこと。成立時だけ新 Issue / 新 DEC で起票する。値非依存 import 契約 unit の先行起票もしない。</li>
+    <li><span class="badge hold">見送り</span><strong>#235 カルテ画像・PDF の D&amp;D アップロード</strong>（DEC-19・<a href="todo.md#dec-67">DEC-67</a>・terminal close 推奨）— <em>再開条件</em>: 業務責任者 role と opaque restricted reference、主要利用者、月次頻度、添付1件の現行クリック数/所要時間、失敗率、目標値、削除される工程が揃うこと。成立時だけ新 Issue / 新 DEC で再起票し、確定済みカルテでは drop UI・保存とも不可の制約を維持する。</li>
+    <li><span class="badge hold">見送り</span><strong>training カテゴリの自動導出 source 設計（#251 TASK-251 U4）</strong>（DEC-44・2026-07-30・決裁正本 = <a href="todo.md#dec-44">todo.md#dec-44</a>）— DEC-21 ②が求める「確定時に権威 source＋FK lineage で billing item 候補を生成する」経路のうち training 分のみを今期スコープ外とする。<strong>training カテゴリ自体と 12 分類手入力経路は維持</strong>するため売上の記録手段は失われない（DEC-21 ④「実運用売上あり・両カテゴリとも削除しない」を満たす）。hotel は <code>HospitalizationTypeHotel</code> 経路で到達済みであり、12 分類のうち training だけが自動導出 source を持たない。<em>再開条件</em>: ①料金を発生させる業務イベント（誰が・いつ・どの画面/帳票で確定させるか） ②価格・回数・取消・返金それぞれの正本 ③現行業務の責任者（個人名） ④明細に持たせる provenance FK の指す実体 ⑤重複実行を防ぐ idempotency 方針 — の5点が責任者名付きで揃うこと。手入力運用を恒久の到達点として正式化する場合は、DEC-21 が手動 U2b と U4 を明示的に分離している以上、<strong>DEC-21 ④の明示的な再審</strong>を要する（勝手な読み替えは USER 本人裁定を空文にする）。</li>
     <li><span class="badge never">やらない</span><strong>lab_import 外部検査連携の FE</strong>（PO-007）— FE 着手禁止。<em>再開条件</em>: 実データ経路開通後に最小 UX を定義してから実装可。</li>
     <li><span class="badge never">やらない</span><strong>健診 CRUD UI</strong>（#211 決裁）</li>
     <li><span class="badge never">やらない</span><strong>四季分割・腎臓ドック</strong>（#211 決裁）</li>
@@ -123,7 +127,72 @@
     <li><span class="badge never">やらない</span><strong>#211 ライブ E2E</strong>（今はやらない）</li>
     <li><span class="badge never">やらない</span><strong>admin_route・prescriptions dose 連携</strong>（#201 スコープ外確定）</li>
     <li><span class="badge never">やらない</span><strong>会計 DTO 化</strong></li>
-    <li><span class="badge never">やらない</span><strong>Sentry Phase 2</strong> — <em>再開条件</em>: Phase 1（todo.md PO-002）導入後の実測。</li>
+    <li><span class="badge never">やらない</span><strong>Sentry Phase 2</strong> — <em>再開条件</em>: Phase 1（PO-002・原文=q&amp;a.html git履歴。ベンダ=Sentry・無償プランでDEC-10裁定済み 2026-07-26・残=DSN発行 OPS-18）導入後の実測。</li>
+    <li><span class="badge never">やらない</span><strong>部分入金・未収追跡の作成経路</strong>（2026-07-26 受け入れシナリオ実装同期で発見）— 現行UIは残額0以外で会計確定不能で、S08 の部分入金・未収シナリオを成立させる正式経路が存在しない（PaymentCard.tsx 実測・S08 に BLOCKED 注記済み）。入力工程を増やす機能追加であり要件責任者（個人名）不在のため実装しない。<em>再開条件</em>: 業務目的付きの要件（誰が・どの頻度で部分入金を扱うか）が責任者名付きで出ること。月次未収繰越 API（PO-004）は既存で別物。</li>
+    <li><span class="badge never">やらない</span><strong>LIFF 型スコープ read の hidden/internal 統一</strong>（#238・`711bcf561` の残余）— inactive は閉鎖済みだが、reservation_visible=false / is_internal の type ID を直接指定した staffs/availability read は従来どおり応答する（POST は拒否済み・実害は情報露出のみ）。完全な public 述語への統一はプライバシー/製品判断。<em>再開条件</em>: 露出を問題とする判断が出ること。あわせて watch: inactive 化した type を持つ既存予約のスタッフ日時変更が availability 照会拒否で阻まれないか、編集フローで顕在化したら要判断。</li>
+  </ul>
+  <!-- 退役（2026-07-29 実装突合）: 「スタッフ作成の UI/BE 契約統一」— R-1③ で UI/BE とも email/password 任意へ揃済み（StaffSettings.tsx validateOptional* / staff.createStaffRequest omitempty）。 -->
+</section>
+
+<section>
+  <h2>条件付き再開 — todo.md から移管（2026-07-22）</h2>
+
+  <h3><span class="badge hold">見送り</span>BUG-416-A: 第1・第2診断の更新をtri-state contractへ統一</h3>
+  <ul>
+    <li><strong>問題</strong>: 第1診断はFEで<code>null</code>を<code>undefined</code>へ変換し、BEも未送信と明示<code>null</code>を区別できないため、将来の解除UIが成功表示のままno-opになり得る。第2診断だけはtri-stateで非対称。</li>
+    <li><strong>根拠</strong>: <code>frontend/src/features/medical-records/hooks/use-medical-record-save-action.ts:149-152</code>（d1 は <code>?? undefined</code>、d2 は raw null 送信）、<code>backend/internal/medicalrecord/clinical_plan_request.go:9-19,36-65</code>（d1 は <code>*uint64</code>、d2 のみ <code>nullableUint64RequestField</code>）。現行<code>SearchableSelect</code>には解除操作がなく、現在は未到達。</li>
+    <li><strong>再開時の方針</strong>: 第1診断も「未送信=保持、<code>null</code>=診断type/nameを組でDB NULL、値=clinic-scoped master検証後に更新」へ統一する。FEだけの修正にしない。</li>
+    <li><strong>受け入れ条件</strong>: 3状態のrequest/service/repository testを追加し、type/name片方だけの不整合を保存しない。解除UIのcomponent testで保存後の再取得が未選択になる。</li>
+    <li><em>再開条件</em>: 診断解除UIの要件責任者・業務目的が記録され、追加が承認された時。解除UI追加と同じタスクへ戻す。</li>
+  </ul>
+
+  <h3><span class="badge hold">見送り</span>BUG-416-B: 同一画面内カルテID切替時にフォームstateをrecord単位で再生成</h3>
+  <ul>
+    <li><strong>問題</strong>: 同じcomponent instanceでrecord A→Bへ切り替えると、Bのnull項目にsetterが呼ばれず、Aの診断・主訴・plan・assessment・notes等がBへ残る可能性がある。クロスペイシェント混入を防ぐ臨床安全上の前提条件。</li>
+    <li><strong>根拠</strong>: <code>frontend/src/features/medical-records/hooks/use-apply-medical-record.ts:44-68</code>は非null項目だけhydrateする。現在はdetail→detailの直接navigationが存在せず未到達。</li>
+    <li><strong>再開時の方針</strong>: routeのrecord IDをkeyにフォーム全体を再生成する。診断だけを個別resetしない。同一record IDのbackground refetchではdirtyな未保存入力を上書きしない。</li>
+    <li><strong>受け入れ条件</strong>: Aの全項目に値、BはnullのfixtureでA→Bを直接遷移し、画面stateとBの保存payloadへAの値が1項目も混入しない。同一ID refetchではdirty stateを維持する。</li>
+    <li><em>再開条件</em>: 「前/次の来院」等、同一画面内でrecord IDだけを変えるnavigationの実装時。navigationタスクの必須受入条件として<a href="todo.md">todo.md / todo-po.md</a>へ戻す。</li>
+  </ul>
+
+  <h3><span class="badge hold">見送り</span>BUG-413-A: 予防接種一覧の全件集合ページング</h3>
+  <ul>
+    <li><strong>問題</strong>: FEがpage/limitを送らず、BE既定20件だけを受け取ってから検索・担当医・日付filterとローカルpaginationを行うため、21件目以降が不可視になる。</li>
+    <li><strong>根拠</strong>: <code>frontend/src/features/vaccinations/api/get-vaccinations.ts:14-25</code>、<code>frontend/src/features/vaccinations/hooks/use-vaccinations.ts</code>、<code>frontend/src/features/vaccinations/routes/VaccinationList.tsx</code>。seedが0件でもfixtureで技術検証は可能であり、「検証不能」は移管理由にしない。</li>
+    <li><strong>再開時の方針</strong>: page/limit/totalと全filterをBE query contractへ送り、filter後の全件集合にserver-side paginationを適用する。既存offset APIを使い、cursor新設を前提にしない。</li>
+    <li><strong>受け入れ条件</strong>: 21件fixtureでpage 2に21件目が表示され、検索・担当医・日付filter後のtotalとページ内容が一致する。空結果・API失敗も既存UI contractどおり。BUG-420のclinic-isolation修正を先に完了する。</li>
+    <li><em>再開条件</em>: 実件数が20件を超える、または予防実装をPOが承認した時。GitHub Issue #250の現在の受入条件には件数再確認がないため、外部更新の明示承認を得て追加してから運用トリガとする。</li>
+  </ul>
+
+  <h3><span class="badge hold">見送り</span>BUG-413-B: トリミング一覧の全件集合ページング</h3>
+  <ul>
+    <li><strong>問題</strong>: FEが<code>page=1, limit=100</code>の1回だけ取得し、その100件へstatus/species/staff/search/date filterとローカルpaginationを適用するため、101件目以降が不可視になる。</li>
+    <li><strong>根拠</strong>: <code>frontend/src/features/trimming/api/get-trimmings.ts:23-28</code>（<code>page: 1, limit: HISTORY_FETCH_LIMIT</code>＝100）、<code>frontend/src/config/fetch-limits.ts</code>、<code>frontend/src/features/trimming/hooks/use-trimming-records.ts</code>、<code>frontend/src/features/trimming/routes/TrimmingList.tsx</code>。BEは既にoffsetとCOUNTを返すため、cursorは必須ではない。</li>
+    <li><strong>再開時の方針</strong>: 予防接種とは独立タスクにし、全filterをserver query contractへ移してfilter後のtotalを使う。共有reservation consumerへ無関係なsignature変更を波及させない。</li>
+    <li><strong>受け入れ条件</strong>: 101件fixtureでBE取得page 2に101件目が含まれ、FEの10件表示ではUI page 11から到達できる。全filter後のtotal・表示集合が一致し、空結果・API失敗も検証する。</li>
+    <li><em>再開条件</em>: 実件数が100件を超える、または予防実装をPOが承認した時。#250へ同じ件数再確認を追加する場合は外部更新の明示承認が必要。</li>
+  </ul>
+
+  <h3><span class="badge hold">依存待ち</span>FEAT-VACCINE-SPECIES: AnimalSpecies分類と2フォームのワクチン候補filter（DEC-3）</h3>
+  <ul>
+    <li><strong>目的・指標</strong>: 診療時に無関係なワクチン候補を走査する工程と異種選択リスクを減らす。通常表示の対象外候補0件、例外候補の全件表示は追加1操作以内、接種登録自体の必須入力は増やさない。要件責任者の個人名は未記録のため、DEC-3（原文=q&amp;a.html git履歴）または正本GitHub Issueへの記録が再開ゲート。</li>
+    <li><strong>DEC-3で確定済み</strong>: <code>AnimalSpecies.species_category</code>=<code>dog|cat|other</code>を追加し、選択中ペットとの一致候補＋<code>both</code>を既定表示する。「全て表示」で例外使用を可能にし、保存時のhard blockはしない。既存値はname patternでbackfillし、判定不能は<code>other</code>。</li>
+    <li><strong>提案デフォルト（未決定）</strong>: dog pet=dog+both、cat pet=cat+both、other pet=both、pet未選択/category取得失敗=全active、<code>Vaccine.species=null</code>と不一致候補は「全て表示」のみ、既選択値は不一致・inactiveでも編集時に保持、pet変更時はtoggle OFF。backfill aliasはtrim後の完全一致で犬/イヌ/いぬ/dog→dog、猫/ネコ/ねこ/cat→cat、その他→other。新規・編集UIではcategoryを明示選択し、name変更で暗黙再分類しない。これらは要件責任者が正本で承認するまで実装contractとして扱わない。</li>
+    <li><strong>所有package（実装済み）</strong>: AnimalSpecies CRUD は既に <code>backend/internal/pet/</code>（<code>animal_species_handler.go</code> / <code>animal_species_service.go</code> / <code>animal_species_repository.go</code> 等）。BE9-2E pet 移行は完了済みのため、再開時に package 移動を前置しない。</li>
+    <li><strong>DB/API contract</strong>: 着手時の <code>max(backend/migrations/*.sql の番号)+1</code> で新規 migration を作成する（固定番号禁止。2026-07-29 時点の最大は <code>003</code> なので着手時に再計算し、例: <code>004_add_animal_species_category.sql</code>）。適用済み <code>001_init.sql</code> は編集しない。NOT NULL・default <code>other</code>・enum外拒否をDB/APIで保証する。model（<code>backend/internal/model/animal_species.go</code>）、request/response、repository/service、OpenAPI、generated TypeScriptを同期する。</li>
+    <li><strong>seed bootstrap</strong>: DDL後に旧6列CSVを列指定なしCOPYすると、7列化したtableへloadできず<code>cmd/seed-export</code>がdump前に失敗する。先に<code>backend/cmd/migrate/csvbundle.go</code>を、CSV headerを検証・quoteして明示column list付きCOPYを生成する汎用実装へ変更し、「新schemaへ旧headerをloadすると新列のdefaultが使われる」回帰testを追加する。その上でlocal disposable DBだけに<code>SEED_EXPORT_POST_SQL</code>の決定的UPDATEを適用し、<code>cmd/seed-export</code>から7列CSVを再生成する（CSV手編集禁止）。生成後はPOST SQLなしでもseed-exportが完走することを再実行で確認する。</li>
+    <li><strong>seed運用</strong>: seed bundle checksumが変わるため適用済み環境はDB_RESET必須。<code>python3 scripts/verify_seed.py</code>と、ユーザー手動のfresh DB全migration+3 bundle適用を完了条件にする。POST SQLはseed生成用のlocal disposable DB以外へ実行しない。</li>
+    <li><strong>実装順序</strong>: ①CSV header対応＋DB/model/API（<code>internal/pet</code> 上） ②ユーザー手動codegen ③seed bootstrap＋マスタcategory UI ④共有pure filterをstandaloneとカルテ内の両フォームへ適用 ⑤画面仕様とtest同期。schema 変更と filter UX を同一batchへ混ぜない。</li>
+    <li><strong>受け入れ条件</strong>: 旧6列→新7列schemaのbootstrapと、生成済み7列CSVからのfresh applyが両方成功する。既存DB backfillとfresh seedが承認済みmappingどおり。不正enumは400で未保存、categoryのcreate/get/update/reloadを保持。承認済みの犬/猫/other/未選択/全件表示/nullable/inactive/既存不一致contractが両フォームで一致する。<code>docs/spec/screens/15-vaccinations-form.md</code>と<code>docs/spec/screens/settings/master-animal-species.md</code>も同期する。</li>
+    <li><strong>状態</strong>: BLOCKED（製品/所有者ブロック）。依存=提案デフォルトと要件責任者（個人名）の正本記録、正本GitHub Issue作成。BE9 依存は解消済み。再開時は少なくとも「DB/BE/API＋seed tooling」と「master UI＋2フォームfilter」の<code>TASK-xxx-BE</code>/<code>TASK-xxx-FE</code>へ分割してから<a href="todo.md">todo.md / todo-po.md</a>へ戻す。FEAT系はGitHub Issuesが正本だが、2026-07-22のread-only検索では対応Issueなし。外部Issue作成は明示承認後に行う。</li>
+  </ul>
+
+  <h3><span class="badge hold">依存待ち</span>#239 Phase 2: identity linkのmerge・auto-link・追加surface（DEC-46）</h3>
+  <ul>
+    <li><strong>現況</strong>: Phase 1（identity-links permission、link tables/RLS、手動link/unlink、clinic-scoped最小履歴）はsource上dev着地済み。backend停止中でruntimeはUNREPORTED。</li>
+    <li><strong>再開条件</strong>: USERによる承認済みDB再構築、migration/seed/permission付与、<code>make codegen</code>、full typecheck、Phase 1 runtime確認が全て完了し、代表1 surfaceの実施者・日時・評価指標が記録されること。</li>
+    <li><strong>再開時の順序</strong>: まず代表1 surfaceで手動link/unlink/relinkを検証し、誤link件数・復旧不能件数・1件当たり工程数を測る。手動経路で解消できない不足だけをmerge、auto-link、追加surfaceの順に1段ずつ再審する。一括実装しない。</li>
+    <li><strong>受け入れ境界</strong>: clinic isolation、単独権限、group soft-delete、監査履歴を維持し、別clinicの候補/履歴を返さない。本人同一性の業務判断・DB操作・Issue更新はUSER境界。決裁正本は <a href="todo.md#dec-46">DEC-46</a>。</li>
   </ul>
 </section>
 
@@ -133,11 +202,18 @@
   <h3><span class="badge next">次期</span>SD/GAP fix all（2026-07-17）の副産物 — triage 済み（委任裁定）</h3>
   <ul>
     <li><strong>LINE 予約設定の credential 設定経路 UX</strong>（SD-3 で送信コード削除 — 現状は seed/運用手順のみ。マスク済み値バッジの BE 拡張含む）。<em>再開条件</em>: 実運用で credential 投入・ローテーションの業務要件（責任者付き）が発生した時。要件不在のまま UI を作らない（①）。</li>
-    <li><strong><code>FieldRow</code> の label-input 関連付け欠如</strong>（a11y 既存欠陥・LineReservationSettingsForm 全体）— 次期 FE 監査レーンで一括修正。</li>
-    <li><strong>登録番号系 3 箇所分散</strong>（<code>Company.RegistrationNumber</code>/<code>Company.InvoiceRegistrationNumber</code>/<code>Clinic.RegistrationNumber</code>）— 二重管理疑い（②）。次期 BE 監査で「どれが何の番号か」の定義確定と統合可否の棚卸し。</li>
-    <li><strong>clinical_plan/inquiry の finalized ガード正規パターン統一</strong>（Transactor＋LockByIDForUpdate）。<em>再開条件</em>: <code>cross_tenant_master_fk_write_test.go</code> の制約解消後。現行の atomic WHERE 軽量パターンの限界は <code>backend/internal/service/CLAUDE.md</code> 記載。</li>
-    <li><strong><code>calculateNextDate</code> の <code>"other"</code> デッドブランチ</strong>（Select 実値は <code>"custom"</code>・実害なし）— <strong>削除確定</strong>（検討ではない。「念のため残す」禁止）。次期リファクタスイープで実施。</li>
-    <li><strong>死亡ペット直 API の一括監査</strong>（SD-10 裁定で指示済み: 予約・検査・トリミング等、入院以外の経路の BE 境界防御の棚卸し）。</li>
+    <li><strong><code>FieldRow</code> の label-input 関連付け欠如</strong>（a11y 既存欠陥・<code>frontend/src/features/line-reservation/components/LineReservationSettingsFormSections.tsx</code> の <code>FieldRow</code> は <code>Label</code> と children を関連付けない）— 次期 FE 監査レーンで一括修正。</li>
+    <li><strong>登録番号系 3 箇所分散</strong>（<code>backend/internal/clinic/company_response.go</code> の <code>RegistrationNumber</code>/<code>InvoiceRegistrationNumber</code> と <code>backend/internal/clinic/clinic_response.go</code> の <code>RegistrationNumber</code>）— 二重管理疑い（②）。次期 BE 監査で「どれが何の番号か」の定義確定と統合可否の棚卸し。</li>
+    <li><strong>clinical_plan/inquiry の finalized ガード正規パターン統一</strong>（Transactor＋LockByIDForUpdate）。<em>再開条件</em>: <code>backend/internal/medicalrecord/cross_tenant_master_fk_write_test.go</code> の制約解消後。現行の atomic WHERE 軽量パターンの限界は旧 service/CLAUDE.md（BE10で削除済み・git履歴参照）に記載。</li>
+    <li><strong>死亡ペット直 API の一括監査</strong>（SD-10 裁定で指示済み: 予約・検査・トリミング等、入院以外の経路の BE 境界防御の棚卸し）。<em>2026-08-01 source 再実測（TASK-030 unit・runtime 未実行）</em>:
+      <ul>
+        <li><strong>入院</strong>: <code>backend/internal/medicalrecord/hospitalization_service.go</code> の <code>validatePetNotDeceased</code>（sharedkernel 委譲）。test = <code>Create_RejectsDeceasedPet</code> / <code>Update_RejectsDeceasedPetReplacement</code>。</li>
+        <li><strong>trimming</strong>（<code>backend/internal/trimming/trimming_service.go</code>）: 3 経路とも <code>ValidateReservationOwnerPetLinksWithRepo</code> と <code>ValidateReservationPetNotDeceased</code> を呼ぶ。<code>Create</code>（新予約）は無条件に <code>input.PetID</code> を検証。<code>createDetailForExistingAppointment</code> / <code>Update</code> は以前 <code>input.PetID != nil</code> ゲートで予約由来 <code>finalPetID</code> を未検証だったが、TASK-030 で <code>finalPetID</code> を常時検証する形へ是正。経路別 unit = <code>TestTrimmingService_CreateExistingDetail_RejectsDeceasedPetWhenPetIDOmitted</code> / <code>Update_RejectsDeceasedPetWhenPetIDOmitted</code> / <code>Update_RejectsDeceasedPetReplacement</code> / <code>Create_RejectsDeceasedPet</code>。対象環境 runtime は未実測。</li>
+        <li><strong>一般予約 admin Create</strong>（<code>backend/internal/reservation/appointment_admin_service.go</code> の <code>Create</code>）: source 上 <code>ValidateReservationOwnerPetLinksWithRepo</code>（:137）と <code>ValidateReservationPetNotDeceased</code>（:140）を呼ぶ。2026-07-29 記述の「欠落」は current source と不一致。unit test <code>TestReservationAdminService_Create_RejectsDeceasedPet</code> あり。runtime 未実測。</li>
+        <li><strong>LIFF</strong>（<code>backend/internal/reservation/liff_service_reservations.go</code>）: <code>ValidateReservationPetNotDeceased</code> / <code>ValidateReservationOwnerPetLinksWithRepo</code> は呼ばない。<code>resolveReservationPetID</code> は in-memory の <code>livingPets</code>（<code>DeceasedAt == nil</code>）で死亡ペットを pet_id 付けから除外。DB 行固定の sharedkernel 検証ではない。runtime 未実測。</li>
+      </ul>
+      推奨方式 = write tx 内で pet 行を固定する経路へ sharedkernel の deceased 拒否を適用（入院・trimming unit がパターン正本）。LIFF の DB 固定検証への昇格とカルテ経路への適用可否は別決裁。
+    </li>
     <li>OwnerReport 印刷は SD-17 決裁で不採用済み（将来要件化時の設計メモは fix-sd17-19 最終報告と 39 doc 参照）。422 エラー種別の導入は積まない（SD-10 裁定 — 要件が出たら①から）。</li>
   </ul>
 
@@ -147,27 +223,19 @@
     <li>P0/P1 は完了済み・2026-07-12 CLOSED。詳細経緯は git 履歴（旧 docs/tasks/closed/perf/PERF-AUDIT-TX-UNIVERSAL-BEST-EFFORT.md）。</li>
   </ul>
 
-  <h3><span class="badge next">次期</span>PERF-FOLLOWUP-02: dormant/health-prevention バッチの無制限全件取得（Medium）</h3>
-  <ul>
-    <li><strong>問題</strong>: <code>SyncHealthPreventionTagsForClinic</code>→<code>ownerRepo.FindAllWithLineUserID</code>、<code>DetectDormantOwners</code>→<code>medRecordRepo.FindDormantOwnerEntries</code> が LIMIT なし全件取得。</li>
-    <li><strong>修正方針</strong>: カーソルベース推奨。<code>FindAllWithLineUserIDCursor(ctx, clinicID, afterID, limit)</code> 新設、1ページ約500件。page 境界（500/501件）unit test + カーソル前進 assert。対象: <code>lstep_health_tag_sync_batch.go</code> / <code>lstep_batch_dormant.go</code>。</li>
-    <li><strong>据え置き根拠</strong>: 現状 1,000 件以下では非問題。</li>
-  </ul>
-
-  <h3><span class="badge next">次期</span>旧 PERF-FOLLOWUP-03 相当: handler 内権限チェック残存</h3>
-  <ul>
-    <li><code>accounting_handler.go:161</code> の <code>hasPermission</code>（<code>ResourceAccountingPostCloseEdit</code>）がハンドラ内に残存。service 層への移動を検討。</li>
-  </ul>
+  <!-- 退役（2026-07-29 実装突合）PERF-FOLLOWUP-02: FindAllWithLineUserIDCursor / FindDormantOwnerEntriesCursor(+At) と
+       lstep_health_tag_sync_batch.go / lstep_batch_dormant.go / lstep_tag_sync_visit_ltv.go の cursor 利用、
+       page 境界 test（owner/repository_test.go・medical_record_owner_visit_repository_test.go・lstep batch tests）まで完了。 -->
 
   <h3><span class="badge next">次期</span>BE 第7期からの次期監査引き継ぎ</h3>
   <ul>
-    <li><strong>[要精査]</strong> <code>middleware/liff_auth.go:57,117</code>: <code>LineCustomerRepository.FindOrCreateByLineUserID</code> を middleware から直接呼んでいる（層違反の疑い）。</li>
+    <li><strong>[要精査]</strong> <code>backend/internal/middleware/liff_auth.go:57,117</code>: <code>LineCustomerLookup.FindOrCreateByLineUserID</code> を middleware から直接呼んでいる（層違反の疑い）。</li>
     <li>apicontract のフィールドレベルゲート: BE7-17 クラスの api.yaml 乖離を機械検出する拡張。</li>
-    <li>god-function 走査: <code>examination_service.go</code> ReplaceItems（101行）/ medicine・reservation・cash_register の80行台。</li>
-    <li><code>lstep_csv_import_service.go</code> が自前 <code>s.db</code>（gorm 直 import）を持つ妥当性。</li>
-    <li><code>reservation_type_handler.go</code> の weekly/specific 相互依存バリデーションの service 移動（LOW）。</li>
-    <li><code>AuthService</code>/<code>TokenService</code>（BE7-20/21 で抽出済み）と <code>validators_auth.go</code> の統合、P8/P11 準拠の付与。</li>
-    <li><code>AuditService.Log</code> の interface 露出整理。</li>
+    <li>god-function 走査: <code>backend/internal/medicalrecord/examination_service.go</code> の <code>ReplaceItems</code> / medicine・reservation・cash_register の大関数。</li>
+    <li><code>backend/internal/lstep/lstep_csv_import_service.go</code> が自前 <code>s.db</code>（gorm 直 import）を持つ妥当性。</li>
+    <li><code>backend/internal/reservation/reservation_type_handler.go</code> の weekly/specific 相互依存バリデーションの service 移動（LOW）。</li>
+    <li><code>backend/internal/auth</code> の <code>AuthService</code>/<code>TokenService</code>（抽出済み）と password 検証（<code>ValidatePassword</code> in <code>http_password.go</code>）の整理、P8/P11 準拠の付与。</li>
+    <li><code>backend/internal/audit/service.go</code> の <code>Log</code> interface 露出整理。</li>
   </ul>
 
   <h3>第7期で確定した「やらない」判断（次期でも踏襲推奨）</h3>
@@ -175,6 +243,8 @@
     <li>duration リテラル（<code>24*time.Hour</code> 等）の一括定数化・<code>INTERVAL '365 days'</code> SQL 共通化はしない。</li>
     <li><code>internal/middleware/response.go</code> の <code>respondError</code> と handler <code>RespondError</code> の統一はしない（X-17 で意図的見送り済み）。</li>
     <li>犬猫種別判定ヘルパ <code>isDog/isCatSpeciesName</code>（部分一致・マーケ）と <code>doseSpeciesAliases</code>（完全一致・投薬 fail-closed）は<strong>契約が意図的に異なるため統合禁止</strong>。</li>
+    <li><strong>会計 post-close 権限を service へ機械移動しない</strong>（旧 PERF-FOLLOWUP-03）。現行アーキテクチャ: ルート middleware は <code>backend/internal/billing/routes.go</code> の <code>requirePermission</code>（例: credit-correction は <code>ResourceAccountingPostCloseEdit:edit</code>）。通常 PATCH Update は締め状態が request 時の業務事実のため、<code>backend/internal/billing/accounting_handler.go</code> の <code>Update</code> が <code>cashRegister.IsDateClosed</code> 後に <code>hasPermission(..., ResourceAccountingPostCloseEdit, "edit")</code> を条件実行する。値引は <code>httpapi.RequireDiscountEditInt</code>（注入 <code>PermissionChecker</code>）。<code>post_close_reason</code> 必須は service（B4・<code>TestAccountingService_Update_PostCloseReasonRequired</code>）へ移設済み。handler を迂回する呼び出し元に RBAC を複製しない。</li>
+    <li><strong><code>calculateNextDate("other")</code> をデッドブランチとして削除しない</strong>。実 enum は <code>model.NextScheduleTypeOther = "other"</code>（Select/API とも <code>"other"</code>。旧「Select は custom」記述は誤り）。<code>frontend/src/features/vaccinations/hooks/use-vaccination-form.ts</code> の early-return は手入力委譲の正規分岐。</li>
   </ul>
 </section>
 
@@ -217,9 +287,9 @@
   <h2>関連台帳</h2>
   <table>
     <tr><th>台帳</th><th>役割</th></tr>
-    <tr><td><code>todo.md</code></td><td>今フェーズで着手可能なタスクの正本</td></tr>
+    <tr><td><a href="todo.md"><code>todo.md</code></a></td><td>技術 · 裁定 §7 · 着手可能な実行 §8</td></tr>
+    <tr><td><a href="todo-po.md"><code>todo-po.md</code></a></td><td>PO 確認待ちだけ</td></tr>
     <tr><td><code>BE-pending.md</code></td><td>着手保留・次期送り・任意検証の BE 詳細</td></tr>
-    <tr><td><code>q&amp;a.html</code></td><td>内部 PO 判断キュー（決裁記録の正本。PO-001〜008 回答済み）</td></tr>
   </table>
   <p class="sub">BE リファクタ第7期（BE7-0〜21）・FE リファクタ第6期（FE6-0〜18）は完了済み。詳細は git 履歴。</p>
 </section>

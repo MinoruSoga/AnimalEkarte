@@ -7,7 +7,6 @@ import { usePermission } from "@/hooks/use-permission";
 import { useGetAllMedicinesMaster } from "@/hooks/use-treatment-master";
 import { C, STYLE } from "@/lib/design-tokens";
 import { QUERY_STALE_TIMES } from "@/lib/react-query";
-import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import type { TreatmentMasterItem } from "@/components/shared/TreatmentSearchDialog/TreatmentSearchDialog";
 
 const TreatmentSearchDialog = lazy(() =>
@@ -26,14 +25,15 @@ import { useGetVitals } from "../../api/vitals";
 import {
   buildDoseCalcInput,
   computeDosePreview,
+  DOSE_PARAMS_LOOKUP_FAILED_MESSAGE,
   fetchMedicineDoseParamsOnce,
   medicineDoseParamsQueryKey,
   resolveLatestVitalWeight,
 } from "../../api/medicine-dose-lookup";
-import type { CreateTreatmentInput, TreatmentItemType, UpdateTreatmentInput } from "../../types";
+import type { TreatmentItemType, UpdateTreatmentInput } from "../../types";
 import { TreatmentAddControls, TreatmentsTable, TreatmentTotals } from "./TreatmentsTabParts";
 import { buildMasterSelectionPayload } from "./treatments-tab-model";
-import { computeDoseGate } from "./treatment-row-dose-gate";
+import { computeDoseGate, type DoseGateSource } from "./treatment-row-dose-gate";
 
 // ── Props ─────────────────────────────────────────────────────────────
 
@@ -97,13 +97,12 @@ export const TreatmentsTab = memo(function TreatmentsTab({
   // 直前の追加後に最終行へ自動フォーカスするフラグ
   const [focusLastRow, setFocusLastRow] = useState(false);
 
-  // P1-7 (PR #186 review): マスタ選択時の quantity フォールバック(既定値1)自体が
-  // per-weight 薬剤の安全域外なら、TreatmentRow.commitQuantity と同じ hard gate を
-  // create 前に適用する（確認なしでの不安全用量作成を防ぐ）。
-  const [pendingMasterGate, setPendingMasterGate] = useState<{
-    payload: CreateTreatmentInput;
-    reason: string;
-  } | null>(null);
+  // #201: マスタ選択時に絶対上限超過を検出した場合のインライン表示。
+  const [masterDoseBlockReason, setMasterDoseBlockReason] = useState("");
+  // TASK-025: technical failure 時のみ再試行対象のマスタ選択を保持する。
+  // 上限超過ブロックでは再試行しても同一結果になるため保持しない。
+  const [pendingMasterLookupItem, setPendingMasterLookupItem] =
+    useState<TreatmentMasterItem | null>(null);
 
   // sort_order 昇順でソート済みリスト
   const sortedTreatments = useMemo(() => {
@@ -243,11 +242,10 @@ export const TreatmentsTab = memo(function TreatmentsTab({
         : 0;
 
     // #201: 薬剤選択時、体重・species・薬マスタの投与量パラメータが揃えば quantity をプリフィルする。
-    // いずれか欠けている場合は既定値 1（従来通りの手動入力）にフェイルクローズする。
+    // いずれか欠けている場合は既定値 1（従来通りの手動入力・保存継続）とする。
+    // TASK-025: technical failure（fetch/HTTP/parse）は missing data と型で区別し、通常保存を止める。
     let quantity = 1;
-    // P1-7: gate 判定用の DoseCalcInput。プリフィル失敗時（fetch エラー等）は null のままとなり、
-    // computeDoseGate(null, ...) は常に requiresConfirm=false を返す（既存の fail-closed 挙動を維持）。
-    let doseCalcInput = null as ReturnType<typeof buildDoseCalcInput>;
+    let doseGateSource: DoseGateSource = { kind: "missing" };
     if (item.medicineId && resolvedWeight) {
       const medicine = medicines?.find((m) => m.id === item.medicineId);
       if (medicine) {
@@ -257,41 +255,78 @@ export const TreatmentsTab = memo(function TreatmentsTab({
             queryFn: () => fetchMedicineDoseParamsOnce(item.medicineId as string),
             staleTime: QUERY_STALE_TIMES.STATIC,
           });
-          doseCalcInput = buildDoseCalcInput(medicine, doseParams, petSpecies, resolvedWeight.weightKg);
-          const preview = computeDosePreview(medicine, doseParams, petSpecies, resolvedWeight.weightKg);
+          const doseCalcInput = buildDoseCalcInput(
+            medicine,
+            doseParams,
+            petSpecies,
+            resolvedWeight.weightKg
+          );
+          doseGateSource = doseCalcInput
+            ? { kind: "ready", input: doseCalcInput }
+            : { kind: "missing" };
+          const preview = computeDosePreview(
+            medicine,
+            doseParams,
+            petSpecies,
+            resolvedWeight.weightKg
+          );
           // healthcare-review-201 MEDIUM: 推奨値自体が丸め up 等で安全域を超えている場合、
-          // 未編集のまま hard gate を経ずに保存され得るため、その値ではプリフィルしない
-          // （既定値 1 の手動入力にフェイルクローズし、獣医の入力を commitQuantity の hard gate に通す）。
+          // 未編集のまま保存され得るため、その値ではプリフィルしない
+          // （既定値 1 の手動入力とし、実際の保存値を下の物理ブロック判定に通す）。
           if (preview && !preview.exceedsMax && !preview.belowMin) quantity = preview.quantity;
         } catch {
-          // プリフィル取得失敗時は手動入力にフェイルクローズ（quantity は既定値 1 のまま）
+          // technical failure: quantity=1 の silent fallback で create しない。
+          // upstream body は画面に出さない（固定文言のみ）。
+          setMasterDoseBlockReason(DOSE_PARAMS_LOOKUP_FAILED_MESSAGE);
+          setPendingMasterLookupItem(item);
+          return;
         }
       }
     }
 
     const payload = buildMasterSelectionPayload({ item, quantity, sortOrder: nextOrder });
 
-    // P1-7 (PR #186 review): 実際に submit される quantity（既定値 1 のフォールバック含む）が
-    // per-weight 薬剤の安全域外なら、TreatmentRow.commitQuantity と同じ hard gate（確認ダイアログ）
-    // を create 前に適用する。既定値 1 のまま無確認で保存することはない。
-    const gate = computeDoseGate(doseCalcInput, quantity);
-    if (gate.requiresConfirm) {
-      setPendingMasterGate({ payload, reason: gate.reason });
+    // #201: 実際に submit される quantity がマスタの絶対上限を超える場合は、
+    // ConfirmDialog で解除できない物理ブロックを create 前に適用する。
+    // TASK-377: create 経路に inline 理由 UI が無いため、理由必須の quantity では create を止める
+    // （行追加後の quantity 編集で理由を入力する導線へ誘導）。
+    const gate = computeDoseGate(doseGateSource, quantity);
+    if (gate.isBlocked) {
+      setMasterDoseBlockReason(gate.blockReason);
+      setPendingMasterLookupItem(null);
+      return;
+    }
+    if (gate.requiresDeviationReason) {
+      setMasterDoseBlockReason(
+        gate.reason
+          ? `${gate.reason}。推奨値付近で追加してから数量と逸脱理由を入力してください`
+          : "用量逸脱の理由入力が必要です。推奨値付近で追加してから数量と理由を入力してください"
+      );
+      setPendingMasterLookupItem(null);
       return;
     }
 
+    setMasterDoseBlockReason("");
+    setPendingMasterLookupItem(null);
     createTreatmentFn(payload, { onSuccess: () => setFocusLastRow(true) });
   }, [canCreate, sortedTreatments, createTreatmentFn, resolvedWeight, medicines, petSpecies, queryClient]);
 
-  const handleMasterGateConfirm = useCallback(() => {
-    if (!pendingMasterGate) return;
-    createTreatmentFn(pendingMasterGate.payload, { onSuccess: () => setFocusLastRow(true) });
-    setPendingMasterGate(null);
-  }, [pendingMasterGate, createTreatmentFn]);
-
-  const handleMasterGateCancel = useCallback(() => {
-    setPendingMasterGate(null);
-  }, []);
+  const handleRetryMasterDoseLookup = useCallback(() => {
+    if (!pendingMasterLookupItem) return;
+    const item = pendingMasterLookupItem;
+    void (async () => {
+      // 失敗キャッシュで retry が即 reject しないよう、再試行時にだけ error を捨てる。
+      // 通常選択経路では実行しない — 共有 queryKey を毎回リセットすると
+      // ①STATIC staleTime が無効化され ②同一薬剤の TreatmentRow が一往復のあいだ
+      // data 無しに落ちて行の投与量ゲートが一時的に開く。
+      if (item.medicineId) {
+        await queryClient.resetQueries({
+          queryKey: medicineDoseParamsQueryKey(item.medicineId),
+        });
+      }
+      await handleSelectFromMaster(item);
+    })();
+  }, [pendingMasterLookupItem, handleSelectFromMaster, queryClient]);
 
   // ── render ──
 
@@ -345,18 +380,24 @@ export const TreatmentsTab = memo(function TreatmentsTab({
         />
       </Suspense>
 
-      {/* P1-7: マスタ選択時の hard gate — 既定値1が安全域外の場合は確認必須（警告への格下げ禁止） */}
-      <ConfirmDialog
-        open={pendingMasterGate !== null}
-        onClose={handleMasterGateCancel}
-        onConfirm={handleMasterGateConfirm}
-        title="投与量を確認してください"
-        description={pendingMasterGate?.reason || ""}
-        confirmLabel="この数量で追加する"
-        cancelLabel="キャンセル"
-        variant="destructive"
-        isPending={createMutation.isPending}
-      />
+      {masterDoseBlockReason ? (
+        <div
+          role="alert"
+          className={`rounded-xs border px-3 py-2 text-sm font-semibold ${C.borderDanger20} ${C.bgDanger8} ${C.danger}`}
+        >
+          <div>⚠ {masterDoseBlockReason}</div>
+          {pendingMasterLookupItem ? (
+            <button
+              type="button"
+              className={`mt-2 text-sm font-medium underline ${C.danger}`}
+              onClick={handleRetryMasterDoseLookup}
+              aria-label="投与量パラメータの取得を再試行する"
+            >
+              再試行する
+            </button>
+          ) : null}
+        </div>
+      ) : null}
 
       {/* フッター: 合計金額 */}
       <TreatmentTotals

@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -18,17 +19,23 @@ type limiterEntry struct {
 	lastSeen time.Time
 }
 
-// RateLimitStore IP別のレートリミッター管理（TTL eviction 付き）
+type rateLimitKey struct {
+	bucketID uint64
+	ip       string
+}
+
+// RateLimitStore middleware bucket・IP別のレートリミッター管理（TTL eviction 付き）
 type RateLimitStore struct {
-	limiters map[string]*limiterEntry
-	mu       sync.RWMutex
+	limiters     map[rateLimitKey]*limiterEntry
+	mu           sync.RWMutex
+	nextBucketID atomic.Uint64
 }
 
 // NewRateLimitStore はRateLimitStoreを初期化してバックグラウンドクリーンアップを開始する。
 // ctx がキャンセルされると cleanupLoop ゴルーチンも終了する。
 func NewRateLimitStore(ctx context.Context) *RateLimitStore {
 	s := &RateLimitStore{
-		limiters: make(map[string]*limiterEntry),
+		limiters: make(map[rateLimitKey]*limiterEntry),
 	}
 	go s.cleanupLoop(ctx)
 	return s
@@ -64,20 +71,21 @@ func (s *RateLimitStore) evict(ttl time.Duration) {
 	threshold := time.Now().Add(-ttl)
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	for ip, entry := range s.limiters {
+	for key, entry := range s.limiters {
 		if entry.lastSeen.Before(threshold) {
-			delete(s.limiters, ip)
+			delete(s.limiters, key)
 		}
 	}
 }
 
-// getLimiter はIPアドレスに対応するlimiterを取得・作成し、lastSeen を更新する。
+// getLimiter は middleware bucket と IP に対応する limiter を取得・作成し、lastSeen を更新する。
 // RLock → RUnlock → Lock の TOCTOU を避けるため始めから Write Lock を取得する。
-func (s *RateLimitStore) getLimiter(ip string, rps rate.Limit, burst int) *rate.Limiter {
+func (s *RateLimitStore) getLimiter(bucketID uint64, ip string, rps rate.Limit, burst int) *rate.Limiter {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if entry, exists := s.limiters[ip]; exists {
+	key := rateLimitKey{bucketID: bucketID, ip: ip}
+	if entry, exists := s.limiters[key]; exists {
 		entry.lastSeen = time.Now()
 		return entry.limiter
 	}
@@ -86,7 +94,7 @@ func (s *RateLimitStore) getLimiter(ip string, rps rate.Limit, burst int) *rate.
 		limiter:  rate.NewLimiter(rps, burst),
 		lastSeen: time.Now(),
 	}
-	s.limiters[ip] = newEntry
+	s.limiters[key] = newEntry
 	return newEntry.limiter
 }
 
@@ -95,9 +103,10 @@ func (s *RateLimitStore) getLimiter(ip string, rps rate.Limit, burst int) *rate.
 // c.ClientIP() を使用することで TRUSTED_PROXY_CIDR 設定を尊重し、
 // X-Forwarded-For ヘッダーの偽装による IP スプーフィングを防止する
 func RateLimit(store *RateLimitStore, rps rate.Limit, burst int) gin.HandlerFunc {
+	bucketID := store.nextBucketID.Add(1)
 	return func(c *gin.Context) {
 		ip := c.ClientIP()
-		limiter := store.getLimiter(ip, rps, burst)
+		limiter := store.getLimiter(bucketID, ip, rps, burst)
 
 		if !limiter.Allow() {
 			respondError(c, http.StatusTooManyRequests, fmt.Sprintf("rate limit exceeded: %d requests per second max", int(rps)))

@@ -5,7 +5,7 @@ import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { Pagination } from "@/components/shared/Pagination";
 import { Button } from "@/components/ui/button";
 import { UnifiedTabs } from "@/components/shared/UnifiedTabs";
-import { C, ICON, STYLE } from "@/lib/design-tokens";
+import { C, ICON, STYLE, LAYOUT } from "@/lib/design-tokens";
 import { todayJSTISO } from "@/lib/jst-date";
 import type { CPMStage } from "@/lib/cpm-stage";
 import { useGetOwnerAggregations, type AggregationParams } from "../api/get-aggregations";
@@ -31,12 +31,14 @@ const TAB_DEFAULT_PARAMS: Record<AggregationTab, AggregationParams> = {
     sort: "annual_amount",
     order: "desc",
   },
+  // BUG-012: 来院/最終来院は売上0除外の対象外。UIに include_zero が無いため明示 true。
   visit: {
     page: 1,
     per_page: 50,
     period_preset: "last_12_months",
     sort: "period_visit_count",
     order: "desc",
+    include_zero: true,
   },
   last_visit: {
     page: 1,
@@ -44,6 +46,7 @@ const TAB_DEFAULT_PARAMS: Record<AggregationTab, AggregationParams> = {
     last_visit_bucket: "over_3m",
     sort: "last_visit_date",
     order: "asc",
+    include_zero: true,
   },
 };
 
@@ -192,7 +195,7 @@ export function AggregationDashboardPage() {
   return (
     <PageLayout
       title="顧客集計ダッシュボード"
-      maxWidth="max-w-full"
+      maxWidth={LAYOUT.pageContentMaxWidth.full}
       headerAction={
         <Button
           variant="outline"

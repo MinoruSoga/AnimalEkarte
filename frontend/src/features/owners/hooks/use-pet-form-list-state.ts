@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useLayoutEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { handleApiError } from "@/lib/handle-api-error";
 import { transformCreatePetRequest, transformUpdatePetRequest, PET_STATUS_REVERSE_MAP } from "@/lib/transforms/pet";
@@ -10,25 +10,102 @@ interface UsePetFormListStateArgs {
   id?: string;
   initialPets: PetFormData[];
   petMutations?: PetMutations;
+  permissions?: Readonly<PetMutationPermissions>;
 }
 
-export function usePetFormListState({ id, initialPets, petMutations }: UsePetFormListStateArgs) {
+interface PetMutationPermissions {
+  canCreate: boolean;
+  canEdit: boolean;
+  canDelete: boolean;
+}
+
+const DENIED_MUTATION_PERMISSIONS: Readonly<PetMutationPermissions> = {
+  canCreate: false,
+  canEdit: false,
+  canDelete: false,
+};
+
+/** BUG-002: 専用 lifecycle mutation 成功後の外側一覧同期ペイロード */
+type PetLifecycleChange = {
+  petId: string;
+  status: "死亡" | "生存";
+  deceasedAt: string | null;
+  deceasedReason?: string | null;
+};
+
+export function usePetFormListState({
+  id,
+  initialPets,
+  petMutations,
+  permissions = DENIED_MUTATION_PERMISSIONS,
+}: UsePetFormListStateArgs) {
   const [pets, setPets] = useState<PetFormData[]>(initialPets);
   const [petModalOpen, setPetModalOpen] = useState(false);
   const [editingPet, setEditingPet] = useState<PetFormData | null>(null);
+  const { canCreate, canEdit, canDelete } = permissions;
+  const permissionsRef = useRef(permissions);
+  const petsRef = useRef(pets);
+  useLayoutEffect(() => {
+    permissionsRef.current = { canCreate, canEdit, canDelete };
+  }, [canCreate, canDelete, canEdit]);
+  useLayoutEffect(() => {
+    petsRef.current = pets;
+  }, [pets]);
+
+  // BUG-002: 死亡登録/解除は専用 API が完了済み。外側 pets と編集中 pet を ID 一致で不変更新する。
+  // OwnerForm の editingPetRef.status ガードが stale にならないよう editingPet も同期する。
+  const handlePetLifecycleChange = useCallback(
+    ({ petId, status, deceasedAt, deceasedReason }: PetLifecycleChange) => {
+      setPets((prev) => {
+        // foreign/absent ID: 配列参照ごと no-op（map で新配列を作らない）
+        if (!prev.some((pet) => pet.id === petId)) {
+          return prev;
+        }
+        return prev.map((pet) =>
+          pet.id === petId
+            ? {
+                ...pet,
+                status,
+                deceasedAt,
+                deceasedReason: status === "生存" ? null : (deceasedReason ?? pet.deceasedReason),
+              }
+            : pet,
+        );
+      });
+      setEditingPet((prev) =>
+        prev?.id === petId
+          ? {
+              ...prev,
+              status,
+              deceasedAt,
+              deceasedReason: status === "生存" ? null : (deceasedReason ?? prev.deceasedReason),
+            }
+          : prev,
+      );
+    },
+    [],
+  );
 
   const handleAddPet = () => {
+    if (permissionsRef.current.canCreate !== true) return;
     setEditingPet(null);
     setPetModalOpen(true);
   };
 
   const handleEditPet = (pet: PetFormData) => {
+    if (permissionsRef.current.canEdit !== true) return;
     setEditingPet(pet);
     setPetModalOpen(true);
   };
 
   const handleDeletePet = (petId: string) => {
-    const target = pets.find(p => p.id === petId);
+    const target = petsRef.current.find(p => p.id === petId);
+    if (
+      target?.status === "死亡" ||
+      permissionsRef.current.canDelete !== true
+    ) {
+      return;
+    }
     if (target?.isPending) {
       setPets(prev => prev.filter(p => p.id !== petId));
       toast.success("ペットを削除しました");
@@ -49,6 +126,7 @@ export function usePetFormListState({ id, initialPets, petMutations }: UsePetFor
   const handleSavePet = (petData: PetFormData) => {
     if (editingPet) {
       if (editingPet.isPending) {
+        if (permissionsRef.current.canEdit !== true) return;
         setPets(prev =>
           prev.map(p =>
             p.id === editingPet.id
@@ -59,6 +137,7 @@ export function usePetFormListState({ id, initialPets, petMutations }: UsePetFor
         return;
       }
 
+      const currentPet = petsRef.current.find((pet) => pet.id === editingPet.id) ?? editingPet;
       const updateRequest = transformUpdatePetRequest({
         petNumber: petData.petNumber,
         name: petData.petName,
@@ -76,16 +155,24 @@ export function usePetFormListState({ id, initialPets, petMutations }: UsePetFor
         neuteredDate: petData.neuteredDate,
         acquisitionType: petData.acquisitionType,
         dangerLevel: petData.dangerLevel,
-        status: PET_STATUS_REVERSE_MAP[petData.status],
+        dangerReason: petData.dangerReason,
+        originalDangerReason: currentPet.dangerReason,
+        // status は渡さない(BUG-415): transformUpdatePetRequest は status を無視する。
         insuranceId: petData.insuranceId,
         remarks: petData.remarks,
       });
 
-      // 死亡→生存 の実際の遷移時のみ死亡記録を解除する。
-      // editingPet.status は編集開始時にロードされた初期値（handleEditPet 以外で書き換わらない）。
-      // 送信後の status が生存というだけでは発火させない（大半のペット編集は status を触らず生存のまま）。
-      const isPetRevival = editingPet.status === "死亡" && petData.status === "生存";
-
+      if (
+        permissionsRef.current.canEdit !== true ||
+        currentPet.status === "死亡"
+      ) {
+        return;
+      }
+      // BUG-415: 生死ステータスの変更は監査付きの死亡登録/取消エンドポイント
+      // (PetCareSection → PetDeceasedRecordButton → useRecordPetDeath/useRevokePetDeath) に
+      // 一本化済み。それらは status 変更を自身のミューテーションで即時完結させるため、
+      // 汎用 Save (updatePetMutate) に「死亡→生存の遷移を検知して revokePetDeathMutate を
+      // 補完発火する」旧ロジック(isPetRevival)は不要かつ二重発火の原因になるため削除した。
       petMutations?.updatePetMutate(
         { id: editingPet.id, req: updateRequest },
         {
@@ -96,10 +183,6 @@ export function usePetFormListState({ id, initialPets, petMutations }: UsePetFor
               )
             );
             toast.success("ペット情報を更新しました");
-            // status PATCH が永続化された後にのみ死亡記録を解除する。
-            if (isPetRevival) {
-              petMutations?.revokePetDeathMutate(editingPet.id);
-            }
           },
           onError: (error: unknown) => {
             handleApiError(error, "更新");
@@ -112,6 +195,7 @@ export function usePetFormListState({ id, initialPets, petMutations }: UsePetFor
       }
 
       if (!id) {
+        if (permissionsRef.current.canCreate !== true) return;
         const tempId = `temp-${Date.now()}`;
         setPets(prev => [...prev, { ...petData, id: tempId, isPending: true }]);
         return;
@@ -135,11 +219,13 @@ export function usePetFormListState({ id, initialPets, petMutations }: UsePetFor
         neuteredDate: petData.neuteredDate,
         acquisitionType: petData.acquisitionType,
         dangerLevel: petData.dangerLevel,
+        dangerReason: petData.dangerReason,
         status: PET_STATUS_REVERSE_MAP[petData.status],
         insuranceId: petData.insuranceId,
         remarks: petData.remarks,
       });
 
+      if (permissionsRef.current.canCreate !== true) return;
       petMutations?.createPetMutate(createRequest, {
         onSuccess: (newPetData: Pet) => {
           const newPet: PetFormData = {
@@ -161,6 +247,7 @@ export function usePetFormListState({ id, initialPets, petMutations }: UsePetFor
             neuteredDate: newPetData.neuteredDate || "",
             acquisitionType: (newPetData.acquisitionType as PetFormData["acquisitionType"]) || "購入",
             dangerLevel: (newPetData.dangerLevel as PetFormData["dangerLevel"]) || "低",
+            dangerReason: newPetData.dangerReason || "",
             remarks: newPetData.remarks || "",
             breed: newPetData.breed,
             insuranceId: newPetData.insuranceId,
@@ -188,5 +275,6 @@ export function usePetFormListState({ id, initialPets, petMutations }: UsePetFor
     handleEditPet,
     handleDeletePet,
     handleSavePet,
+    handlePetLifecycleChange,
   };
 }

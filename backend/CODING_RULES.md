@@ -1,916 +1,138 @@
 # Backend Coding Rules
 
-## 概要
-
-Go 1.25 / Gin / GORM のバックエンド開発規約。
-クリーンアーキテクチャに準拠する。
-
----
-
-## 1. アーキテクチャ
-
-### 1.1 ディレクトリ構成
-
-```
-backend/
-├── cmd/
-│   ├── api/                    # メインAPIサーバー エントリーポイント
-│   ├── migrate/                # SQLマイグレーション適用
-│   ├── coverage-ratchet/       # カバレッジ低下防止（BE-refactor.md R3-5）
-│   ├── seed-export/            # seed CSV エクスポート（migrations/seeds/ 用）
-│   ├── seed-old-db/            # 旧DB TSV ローカル投入（開発専用）
-│   ├── stage-import/           # 旧DB移行データの本テーブル取り込み
-│   └── lstep-migrate/          # Lステップ連携データ移行
-│
-├── internal/                   # 内部パッケージ（外部からimport不可）
-│   ├── apicontract/            # OpenAPI (docs/api.yaml) とルート実装の整合性テスト
-│   │
-│   ├── config/
-│   │   └── config.go           # 環境変数・設定読み込み
-│   │
-│   ├── dbconn/                 # DB接続確立
-│   │
-│   ├── errors/
-│   │   └── errors.go           # apperrors（センチネルエラー・FromGORM・Wrap）
-│   │
-│   ├── handler/                # HTTPハンドラ（プレゼンテーション層）
-│   │   ├── owner_handler.go
-│   │   ├── pet_handler.go
-│   │   └── ...
-│   │
-│   ├── infra/                  # 外部インフラ連携（ファイルストレージ、LINE、暗号化等）
-│   │
-│   ├── service/                # ビジネスロジック（ユースケース層）
-│   │   ├── owner_service.go
-│   │   ├── pet_service.go
-│   │   └── ...
-│   │
-│   ├── repository/             # データアクセス（インフラ層）
-│   │   ├── owner_repository.go
-│   │   ├── pet_repository.go
-│   │   └── ...
-│   │
-│   ├── model/                  # ドメインモデル
-│   │   ├── owner.go
-│   │   ├── pet.go
-│   │   └── ...
-│   │
-│   ├── middleware/             # ミドルウェア
-│   │   ├── auth.go
-│   │   ├── cors.go
-│   │   └── logging.go
-│   │
-│   ├── seedbundle/             # seedデータのバンドル定義
-│   │
-│   └── logger/                 # ロガー設定
-│       └── logger.go
-│
-├── migrations/                 # DBマイグレーション（SQL、番号付き。AutoMigrate は使用しない）
-│   ├── 001_init.sql            # 統合スキーマ（DDL only）
-│   └── seeds/                  # CSV シードバンドル（002_master / 003_demo / 004_staging）
-│
-├── docs/                       # APIドキュメント
-│   └── api.yaml
-│
-├── .golangci.yml               # Linter設定
-├── go.mod
-├── go.sum
-└── Dockerfile.dev
-```
-
-### 1.2 依存関係の方向
-
-```
-┌─────────────────────────────────────────────────┐
-│                   cmd/api                        │
-│              (エントリーポイント)                  │
-└─────────────────────────────────────────────────┘
-                        │
-                        ▼
-┌─────────────────────────────────────────────────┐
-│                   handler                        │
-│              (プレゼンテーション層)                │
-│         HTTP リクエスト/レスポンス処理            │
-└─────────────────────────────────────────────────┘
-                        │
-                        ▼
-┌─────────────────────────────────────────────────┐
-│                   service                        │
-│              (ビジネスロジック層)                 │
-│              ユースケース実装                    │
-└─────────────────────────────────────────────────┘
-                        │
-                        ▼
-┌─────────────────────────────────────────────────┐
-│                  repository                      │
-│              (データアクセス層)                   │
-│              DB操作の実装                        │
-└─────────────────────────────────────────────────┘
-                        │
-                        ▼
-┌─────────────────────────────────────────────────┐
-│                    model                         │
-│              (ドメインモデル)                     │
-│              エンティティ定義                    │
-└─────────────────────────────────────────────────┘
-```
-
-**ルール:**
-- 上位層は下位層にのみ依存
-- 逆方向の依存は禁止
-- 各層はインターフェースを通じて疎結合
-
-### 1.3 インターフェース定義
-
-```go
-// repository/owner_repository.go
-type OwnerRepository interface {
-    FindByID(ctx context.Context, clinicID, id uint64) (*model.Owner, error)
-    FindAll(ctx context.Context, clinicID uint64, filter OwnerFilter) ([]model.Owner, error)
-    Create(ctx context.Context, owner *model.Owner) error
-    Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
-    Delete(ctx context.Context, clinicID, id uint64) error
-}
-
-// service/owner_service.go
-type OwnerService interface {
-    GetOwner(ctx context.Context, id string) (*model.Owner, error)
-    ListOwners(ctx context.Context, filter OwnerFilter) ([]model.Owner, error)
-    CreateOwner(ctx context.Context, input CreateOwnerInput) (*model.Owner, error)
-    UpdateOwner(ctx context.Context, id string, input UpdateOwnerInput) (*model.Owner, error)
-    DeleteOwner(ctx context.Context, id string) error
-}
-```
-
----
-
-## 2. Context伝播
-
-### 2.1 必須ルール
-
-**全ての関数・メソッドの第一引数に `context.Context` を渡す。**
-
-```go
-// ✅ 正しい: 全レイヤーでContextを伝播
-func (h *OwnerHandler) GetOwner(c *gin.Context) {
-    ctx := c.Request.Context()
-    owner, err := h.service.GetOwner(ctx, id)
-    // ...
-}
-
-func (s *ownerService) GetOwner(ctx context.Context, id string) (*model.Owner, error) {
-    ownerID, err := strconv.ParseUint(id, 10, 64)
-    if err != nil {
-        return nil, fmt.Errorf("invalid id: %w", err)
-    }
-    return s.repo.FindByID(ctx, ownerID)
-}
-
-func (r *ownerRepository) FindByID(ctx context.Context, id uint64) (*model.Owner, error) {
-    var owner model.Owner
-    if err := r.db.WithContext(ctx).First(&owner, "id = ?", id).Error; err != nil {
-        return nil, err
-    }
-    return &owner, nil
-}
-
-// ❌ 禁止: Contextを省略
-func (s *ownerService) GetOwner(id string) (*model.Owner, error) {
-    ownerID, _ := strconv.ParseUint(id, 10, 64)
-    return s.repo.FindByID(clinicID, ownerID)  // ctx が第一引数にない
-}
-```
-
-### 2.2 Context活用
-
-```go
-// タイムアウト設定
-ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
-defer cancel()
-
-result, err := doSomething(ctx)
-if err != nil {
-    if errors.Is(err, context.DeadlineExceeded) {
-        // タイムアウト処理
-    }
-    return err
-}
-
-// リクエストID伝播
-type contextKey string
-const requestIDKey contextKey = "request_id"
-
-func SetRequestID(ctx context.Context, id string) context.Context {
-    return context.WithValue(ctx, requestIDKey, id)
-}
-
-func GetRequestID(ctx context.Context) string {
-    if id, ok := ctx.Value(requestIDKey).(string); ok {
-        return id
-    }
-    return ""
-}
-```
-
----
-
-## 3. エラーハンドリング
-
-### 3.1 センチネルエラー
-
-センチネルエラー・`AppError`・ラッピングヘルパー（`Wrap` / `WrapNotFound` / `WrapInvalidInput` /
-`WrapConflict` / `WrapAlreadyExists` / `FromGORM`）の正本は `internal/errors/errors.go` である。
-実装とのドリフトを防ぐため、本ファイルでは一覧を再掲しない。
-
-### 3.2 エラー判定
-
-`RespondError(c, err)` がセンチネルエラーを HTTP ステータスへ一元的にマッピングする。
-ハンドラで `errors.Is` の switch や `gin.H` を個別に組み立てることは禁止。
-
-```go
-func (h *OwnerHandler) GetOwner(c *gin.Context) {
-    ctx := c.Request.Context()
-    id := c.Param("id")
-
-    owner, err := h.service.GetOwner(ctx, id)
-    if err != nil {
-        RespondError(c, err)
-        return
-    }
-
-    c.JSON(http.StatusOK, toOwnerResponse(owner))
-}
-```
-
-ステータスコード対応表・`AppError` 抽出ロジックの正本は `internal/handler/response.go` であり、
-詳細は `internal/handler/CLAUDE.md` の P7/P12 を参照する。本ファイルでは再掲しない。
-
-### 3.3 エラーラッピングパターン
-
-```go
-// Repository層: GORMエラーをapperrorsに変換（clinicScopeで隔離、FromGORMで変換）
-func (r *ownerRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Owner, error) {
-    var owner model.Owner
-    if err := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).
-        Where("id = ?", id).First(&owner).Error; err != nil {
-        return nil, apperrors.FromGORM(err, "owner", fmt.Sprintf("%d", id))
-    }
-    return &owner, nil
-}
-
-// Service層: 入力パースエラーはWrapInvalidInput、下位層エラーはWrapで文脈を付加
-func (s *ownerService) GetOwner(ctx context.Context, clinicID uint64, id string) (*model.Owner, error) {
-    ownerID, err := strconv.ParseUint(id, 10, 64)
-    if err != nil {
-        return nil, apperrors.WrapInvalidInput("invalid owner id: " + id)
-    }
-
-    owner, err := s.repo.FindByID(ctx, clinicID, ownerID)
-    if err != nil {
-        return nil, apperrors.Wrap(err, "failed to get owner")
-    }
-
-    return owner, nil
-}
-```
-
-### 3.4 禁止パターン
-
-```go
-// ❌ 禁止: エラー握りつぶし
-result, _ := doSomething()
-
-// ❌ 禁止: panicの乱用
-if err != nil {
-    panic(err)
-}
-
-// ❌ 禁止: 文字列でエラー判定
-if err.Error() == "not found" {
-    // ...
-}
-
-// ❌ 禁止: エラーログだけ出して握りつぶし
-if err != nil {
-    log.Println(err)
-    return nil  // エラーを返さない
-}
-```
-
----
-
-## 4. ロギング (slog)
-
-### 4.1 基本的な使い方
-
-```go
-import "log/slog"
-
-// 情報ログ
-slog.InfoContext(ctx, "owner created",
-    slog.Uint64("owner_id", owner.ID),
-    slog.String("name", owner.Name))
-
-// エラーログ
-slog.ErrorContext(ctx, "failed to create owner",
-    slog.String("error", err.Error()),
-    slog.String("input", fmt.Sprintf("%+v", input)))
-
-// 警告ログ
-slog.WarnContext(ctx, "deprecated endpoint called",
-    slog.String("endpoint", "/api/v1/legacy"))
-
-// デバッグログ
-slog.DebugContext(ctx, "query executed",
-    slog.String("sql", query),
-    slog.Duration("duration", duration))
-```
-
-### 4.2 構造化ログ属性
-
-```go
-// ✅ 構造化された属性を使用
-slog.InfoContext(ctx, "request completed",
-    slog.String("method", c.Request.Method),
-    slog.String("path", c.Request.URL.Path),
-    slog.Int("status", c.Writer.Status()),
-    slog.Duration("duration", time.Since(start)),
-    slog.String("request_id", GetRequestID(ctx)))
-
-// ❌ 禁止: 文字列結合
-slog.Info("request completed: " + method + " " + path)
-
-// ❌ 禁止: fmt.Sprintf での構造化
-slog.Info(fmt.Sprintf("request: method=%s path=%s", method, path))
-```
-
-### 4.3 ログレベル指針
-
-| レベル | 用途 | 例 |
-|--------|------|-----|
-| Debug | 開発時のデバッグ情報 | SQL、詳細なリクエスト情報 |
-| Info | 通常の操作ログ | リクエスト完了、作成/更新成功 |
-| Warn | 注意が必要な状態 | 非推奨API使用、リトライ発生 |
-| Error | エラー発生 | DB接続失敗、外部API失敗 |
-
-### 4.4 ログ出力禁止事項
-
-```go
-// ❌ 禁止: パスワード、トークン等の機密情報
-slog.Info("user login",
-    slog.String("password", password))  // ❌
-
-// ❌ 禁止: 個人情報の過剰出力
-slog.Info("owner created",
-    slog.String("credit_card", owner.CreditCard))  // ❌
-
-// ✅ 機密情報はマスク or 出力しない
-slog.Info("user login",
-    slog.String("email", email))  // ✅
-```
-
----
-
-## 5. データベース (GORM)
-
-### 5.1 基本的なCRUD
-
-```go
-// Create
-func (r *ownerRepository) Create(ctx context.Context, owner *model.Owner) error {
-    if err := r.db.WithContext(ctx).Create(owner).Error; err != nil {
-        return apperrors.Wrap(err, "failed to create owner")
-    }
-    return nil
-}
-
-// Read (単一)
-func (r *ownerRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Owner, error) {
-    var owner model.Owner
-    if err := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).
-        Where("id = ?", id).First(&owner).Error; err != nil {
-        return nil, apperrors.FromGORM(err, "owner", fmt.Sprintf("%d", id))
-    }
-    return &owner, nil
-}
-
-// Read (複数 + フィルタ)
-func (r *ownerRepository) FindAll(ctx context.Context, filter OwnerFilter) ([]model.Owner, error) {
-    var owners []model.Owner
-    query := r.db.WithContext(ctx)
-
-    if filter.Name != "" {
-        query = query.Where("name LIKE ?", "%"+filter.Name+"%")
-    }
-    if filter.Phone != "" {
-        query = query.Where("phone = ?", filter.Phone)
-    }
-
-    if err := query.Find(&owners).Error; err != nil {
-        return nil, apperrors.Wrap(err, "failed to find owners")
-    }
-    return owners, nil
-}
-
-// Update (P4: clinicScope必須 / P16: fields mapによるPATCH更新)
-func (r *ownerRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Owner, error) {
-    result := r.db.WithContext(ctx).Model(&model.Owner{}).
-        Scopes(clinicScope(clinicID)).Where("id = ?", id).
-        Updates(fields)
-    if result.Error != nil {
-        return nil, apperrors.FromGORM(result.Error, "owner", fmt.Sprintf("%d", id))
-    }
-    if result.RowsAffected == 0 {
-        return nil, apperrors.WrapNotFound("owner", fmt.Sprintf("%d", id))
-    }
-    return r.FindByID(ctx, clinicID, id)
-}
-
-// Delete (ソフトデリート、P4: clinicScope必須)
-func (r *ownerRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-    result := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).
-        Where("id = ?", id).Delete(&model.Owner{})
-    if result.Error != nil {
-        return apperrors.FromGORM(result.Error, "owner", fmt.Sprintf("%d", id))
-    }
-    if result.RowsAffected == 0 {
-        return apperrors.WrapNotFound("owner", fmt.Sprintf("%d", id))
-    }
-    return nil
-}
-```
-
-### 5.2 N+1問題の回避
-
-```go
-// ❌ N+1問題
-func (r *ownerRepository) FindAllWithPets(ctx context.Context) ([]model.Owner, error) {
-    var owners []model.Owner
-    r.db.WithContext(ctx).Find(&owners)
-
-    for i := range owners {
-        // N回のクエリが発生
-        r.db.WithContext(ctx).Where("owner_id = ?", owners[i].ID).Find(&owners[i].Pets)
-    }
-    return owners, nil
-}
-
-// ✅ Preloadで解決
-func (r *ownerRepository) FindAllWithPets(ctx context.Context) ([]model.Owner, error) {
-    var owners []model.Owner
-    if err := r.db.WithContext(ctx).Preload("Pets").Find(&owners).Error; err != nil {
-        return nil, apperrors.Wrap(err, "failed to find owners with pets")
-    }
-    return owners, nil
-}
-
-// ✅ 条件付きPreload
-func (r *ownerRepository) FindAllWithActivePets(ctx context.Context) ([]model.Owner, error) {
-    var owners []model.Owner
-    if err := r.db.WithContext(ctx).
-        Preload("Pets", "status = ?", "active").
-        Find(&owners).Error; err != nil {
-        return nil, apperrors.Wrap(err, "failed to find owners")
-    }
-    return owners, nil
-}
-```
-
-### 5.3 トランザクション
-
-```go
-func (r *ownerRepository) CreateWithPets(ctx context.Context, owner *model.Owner) error {
-    return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-        // Owner作成
-        if err := tx.Create(owner).Error; err != nil {
-            return apperrors.Wrap(err, "failed to create owner")
-        }
-
-        // Pets作成
-        for _, pet := range owner.Pets {
-            pet.OwnerID = owner.ID
-            if err := tx.Create(&pet).Error; err != nil {
-                return apperrors.Wrap(err, "failed to create pet")
-            }
-        }
-
-        return nil  // コミット
-    })
-}
-```
-
-### 5.4 SQLインジェクション対策
-
-```go
-// ❌ 禁止: 文字列結合
-r.db.Raw("SELECT * FROM owners WHERE name = '" + name + "'")
-
-// ❌ 禁止: fmt.Sprintfでの埋め込み
-r.db.Raw(fmt.Sprintf("SELECT * FROM owners WHERE name = '%s'", name))
-
-// ✅ プレースホルダを使用
-r.db.Raw("SELECT * FROM owners WHERE name = ?", name)
-
-// ✅ Where句
-r.db.Where("name = ?", name).Find(&owners)
-
-// ✅ IN句
-r.db.Where("id IN ?", ids).Find(&owners)
-```
-
----
-
-## 6. HTTPハンドラ (Gin)
-
-### 6.1 基本構造
-
-```go
-// internal/handler/owner_handler.go
-package handler
-
-type OwnerHandler struct {
-    service service.OwnerService
-}
-
-func NewOwnerHandler(s service.OwnerService) *OwnerHandler {
-    return &OwnerHandler{service: s}
-}
-
-// GET /api/owners/:id
-func (h *OwnerHandler) GetOwner(c *gin.Context) {
-    ctx := c.Request.Context()
-    id := c.Param("id")
-
-    owner, err := h.service.GetOwner(ctx, id)
-    if err != nil {
-        RespondError(c, err)
-        return
-    }
-
-    c.JSON(http.StatusOK, toOwnerResponse(owner))
-}
-
-// POST /api/owners
-func (h *OwnerHandler) CreateOwner(c *gin.Context) {
-    ctx := c.Request.Context()
-
-    var input CreateOwnerInput
-    if err := c.ShouldBindJSON(&input); err != nil {
-        RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
-        return
-    }
-
-    owner, err := h.service.CreateOwner(ctx, input)
-    if err != nil {
-        RespondError(c, err)
-        return
-    }
-
-    c.Header("Location", fmt.Sprintf("/api/v1/owners/%d", owner.ID))
-    c.JSON(http.StatusCreated, toOwnerResponse(owner))
-}
-```
-
-### 6.2 リクエストバリデーション
-
-```go
-// 入力構造体にバリデーションタグ
-type CreateOwnerInput struct {
-    Name     string `json:"name" binding:"required,min=1,max=100"`
-    Email    string `json:"email" binding:"required,email"`
-    Phone    string `json:"phone" binding:"required,len=11"`
-    Address  string `json:"address" binding:"max=200"`
-}
-
-// カスタムバリデーション
-func init() {
-    if v, ok := binding.Validator.Engine().(*validator.Validate); ok {
-        v.RegisterValidation("phone_jp", validateJapanesePhone)
-    }
-}
-
-func validateJapanesePhone(fl validator.FieldLevel) bool {
-    phone := fl.Field().String()
-    matched, _ := regexp.MatchString(`^0\d{9,10}$`, phone)
-    return matched
-}
-```
-
-### 6.3 レスポンス形式
-
-`toXxxResponse()` でモデルをレスポンス DTO に変換して返す。素の `gin.H` map でモデルを直接
-包む（`data` キーでのラップを含む）ことは禁止。エラー系は必ず `RespondError(c, err)` を使う
-（`gin.H` によるエラーマップの直書きは禁止）。
-
-```go
-// 成功レスポンス
-c.JSON(http.StatusOK, toOwnerResponse(owner))
-
-// 一覧レスポンス
-c.JSON(http.StatusOK, toOwnerListResponse(owners))
-
-// エラーレスポンス
-RespondError(c, err)
-```
-
-ステータスコード対応・ページネーション形式の詳細は `internal/handler/CLAUDE.md` の P7/P18 を参照。
-
-### 6.4 API ドキュメント
-
-API 仕様は `docs/api.yaml`（OpenAPI 3.0）で手動管理。
-Swagger アノテーション（`@Summary` 等）は廃止済み — 使用しない。
-
-### 6.5 ルート登録と権限ゲート
-
-全ての非公開ルートに `perm(resource, verb)` を必須で付与する（AUDIT-H2 2026-05-09）。
-GET は `"view"`、POST は `"create"`、PATCH は `"edit"`、DELETE は `"delete"`。
-更新系メソッドは **PATCH を使用し、PUT は使用しない**。
-
-```go
-// ✅ in RegisterOwnerRoutes
-owners.GET("/owners", perm(model.ResourceOwner, "view"), h.ListOwners)
-owners.GET("/owners/:id", perm(model.ResourceOwner, "view"), h.GetOwner)
-owners.POST("/owners", perm(model.ResourceOwner, "create"), h.CreateOwner)
-owners.PATCH("/owners/:id", perm(model.ResourceOwner, "edit"), h.UpdateOwner)
-owners.DELETE("/owners/:id", perm(model.ResourceOwner, "delete"), h.DeleteOwner)
-
-// ❌ 禁止
-owners.GET("/owners", h.ListOwners)                          // perm 欠落
-owners.PUT("/owners/:id", perm(model.ResourceOwner, "edit"), h.UpdateOwner)   // PUT 禁止、PATCH を使う
-owners.DELETE("/owners/:id", perm(model.ResourceOwner, "edit"), h.DeleteOwner) // delete には "edit" ではなく "delete"
-```
-
-**免除ルート**（`perm` 不要）: `/login`, `/logout`, `/auth/*`, `/me`, `/health`, LIFF 公開 API, webhook。
-
-詳細は `internal/handler/CLAUDE.md` の P5/P6 を参照。
-
----
-
-## 7. モデル定義
-
-### 7.1 基本構造
-
-```go
-// internal/model/owner.go
-package model
-
-import (
-    "time"
-
-    "gorm.io/gorm"
-)
-
-type Owner struct {
-    ID        uint64         `gorm:"primaryKey;autoIncrement" json:"id"`
-    Name      string         `gorm:"type:varchar(100);not null" json:"name"`
-    NameKana  string         `gorm:"type:varchar(100)" json:"nameKana"`
-    Email     string         `gorm:"type:varchar(255);uniqueIndex" json:"email"`
-    Phone     string         `gorm:"type:varchar(20)" json:"phone"`
-    Address   string         `gorm:"type:text" json:"address"`
-    Pets      []Pet          `gorm:"foreignKey:OwnerID" json:"pets,omitempty"`
-    CreatedAt time.Time      `json:"createdAt"`
-    UpdatedAt time.Time      `json:"updatedAt"`
-    DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
-}
-
-// TableName テーブル名を明示的に指定
-func (Owner) TableName() string {
-    return "owners"
-}
-```
-
-### 7.2 リレーション
-
-```go
-// 1対多: Owner has many Pets
-type Owner struct {
-    ID   uint64 `gorm:"primaryKey"`
-    Name string
-    Pets []Pet `gorm:"foreignKey:OwnerID"`
-}
-
-type Pet struct {
-    ID      uint64 `gorm:"primaryKey"`
-    Name    string
-    OwnerID uint64 `gorm:"not null"`
-    Owner   Owner  `gorm:"foreignKey:OwnerID"`
-}
-
-// 多対多: Pet has many MedicalRecords, MedicalRecord has many Pets
-type Pet struct {
-    ID             uint64           `gorm:"primaryKey"`
-    MedicalRecords []MedicalRecord  `gorm:"many2many:pet_medical_records;"`
-}
-```
-
-### 7.3 JSONタグ
-
-```go
-type Owner struct {
-    ID        uint64    `json:"id"`                    // キャメルケース
-    Name      string    `json:"name"`
-    Email     string    `json:"email"`
-    Password  string    `json:"-"`                     // レスポンスに含めない
-    CreatedAt time.Time `json:"createdAt"`
-    DeletedAt time.Time `json:"deletedAt,omitempty"`   // 空なら省略
-}
-```
-
----
-
-## 8. 命名規則
-
-### 8.1 パッケージ名
-
-```go
-// ✅ lowercase, 短く、説明的
-package handler
-package service
-package repository
-package model
-package middleware
-
-// ❌ 禁止
-package ownerHandler    // キャメルケース禁止
-package owner_handler   // スネークケース禁止
-package handlers        // 複数形は避ける
-```
-
-### 8.2 ファイル名
-
-```go
-// ✅ snake_case
-owner_handler.go
-pet_service.go
-medical_record_repository.go
-
-// ❌ 禁止
-ownerHandler.go         // キャメルケース禁止
-owner-handler.go        // ケバブケース禁止
-```
-
-### 8.3 変数・関数名
-
-```go
-// エクスポート（公開）: PascalCase
-func GetOwner() {}
-type OwnerService struct {}
-var MaxRetryCount = 3
-
-// 非エクスポート（非公開）: camelCase
-func validateInput() {}
-type ownerRepository struct {}
-var defaultTimeout = 5 * time.Second
-
-// 定数: PascalCase or UPPER_SNAKE_CASE
-const MaxPageSize = 100
-const DB_TIMEOUT = 30 * time.Second
-
-// インターフェース: 動詞+er or 名詞
-type Reader interface {}
-type OwnerRepository interface {}
-type OwnerService interface {}
-```
-
-### 8.4 レシーバ名
-
-```go
-// ✅ 短い1-2文字
-func (h *OwnerHandler) GetOwner() {}
-func (s *ownerService) GetOwner() {}
-func (r *ownerRepository) FindByID() {}
-func (o *Owner) Validate() error {}
-
-// ❌ 禁止
-func (handler *OwnerHandler) GetOwner() {}  // 長い
-func (self *OwnerHandler) GetOwner() {}     // self禁止
-func (this *OwnerHandler) GetOwner() {}     // this禁止
-```
-
----
-
-## 9. テスト
-
-### 9.1 ファイル配置
-
-```
-internal/
-├── service/
-│   ├── owner_service.go
-│   └── owner_service_test.go    # 同パッケージ内
-├── repository/
-│   ├── owner_repository.go
-│   └── owner_repository_test.go
-```
-
-### 9.2 テスト命名
-
-```go
-// 関数名: Test + 関数名 + 条件
-func TestOwnerService_GetOwner(t *testing.T) {}
-func TestOwnerService_GetOwner_NotFound(t *testing.T) {}
-func TestOwnerService_CreateOwner_ValidationError(t *testing.T) {}
-
-// テーブル駆動テスト
-func TestOwnerService_GetOwner(t *testing.T) {
-    tests := []struct {
-        name      string
-        id        string
-        want      *model.Owner
-        wantErr   error
-    }{
-        {
-            name:    "returns owner when found",
-            id:      "1",
-            want:    &model.Owner{Name: "Test"},
-            wantErr: nil,
-        },
-        {
-            name:    "returns error when not found",
-            id:      "0",
-            want:    nil,
-            wantErr: apperrors.ErrNotFound,
-        },
-    }
-
-    for _, tt := range tests {
-        t.Run(tt.name, func(t *testing.T) {
-            // setup
-            // execute
-            // assert
-        })
-    }
-}
-```
-
-### 9.3 モック
-
-```go
-// モックの定義
-type mockOwnerRepository struct {
-    findByIDFunc func(ctx context.Context, id uint64) (*model.Owner, error)
-}
-
-func (m *mockOwnerRepository) FindByID(ctx context.Context, id uint64) (*model.Owner, error) {
-    return m.findByIDFunc(ctx, id)
-}
-
-// テストでの使用
-func TestOwnerService_GetOwner(t *testing.T) {
-    mockRepo := &mockOwnerRepository{
-        findByIDFunc: func(ctx context.Context, id uint64) (*model.Owner, error) {
-            return &model.Owner{ID: id, Name: "Test"}, nil
-        },
-    }
-
-    service := NewOwnerService(mockRepo)
-    owner, err := service.GetOwner(context.Background(), "1")
-
-    assert.NoError(t, err)
-    assert.Equal(t, "Test", owner.Name)
-}
-```
-
----
-
-## 10. 禁止事項一覧
-
-| 禁止 | 理由 | 代替 |
-|------|------|------|
-| `_ = err` | エラー握りつぶし | 適切にハンドリング |
-| `panic` の乱用 | 予期せぬクラッシュ | error返却 |
-| グローバル変数 | 状態管理の複雑化 | 依存性注入 |
-| init() の乱用 | テスト困難 | 明示的初期化 |
-| Context省略 | キャンセル・タイムアウト不可 | 第一引数に常に渡す |
-| SQL文字列結合 | SQLインジェクション | プレースホルダ |
-| 機密情報ログ出力 | セキュリティリスク | マスクまたは出力しない |
-
----
-
-## 11. チェックリスト
-
-### 新規機能開発時
-- [ ] Context伝播している
-- [ ] エラーをセンチネルエラーでラップしている
-- [ ] slogで構造化ログ出力している
-- [ ] SQLインジェクション対策している
-- [ ] N+1問題が発生していない
-- [ ] テストを書いている
-
-### PR作成時
-- [ ] 変更パッケージに絞った `docker compose exec backend go test ./internal/<pkg>/...` がパス
-      （リポジトリ全体を横断するテスト全実行・lint 全実行は自動実行禁止 — `backend/CLAUDE.md` の
-      Prohibited Commands を参照。全体検証が必要な場合はコマンドを提示しユーザーに手動実行を依頼する）
-- [ ] API仕様（docs/api.yaml）更新済み
-- [ ] 不要なコメントアウトがない
-- [ ] デバッグ用コードが残っていない
-
----
-
-## 12. 参照
-
-- [Effective Go](https://go.dev/doc/effective_go)
-- [Go Code Review Comments](https://github.com/golang/go/wiki/CodeReviewComments)
-- [Uber Go Style Guide](https://github.com/uber-go/guide/blob/master/style.md)
-- [Gin Web Framework](https://gin-gonic.com/docs/)
-- [GORM](https://gorm.io/docs/)
+この文書は backend 作業の入口である。Go/Gin の設計・実装規約の正本は [Go/Gin Backend Guidelines](../.claude/rules/go-gin-backend-guidelines.md)、レビュー手順は [Go/Gin Backend Review](../.claude/refs/go-gin-backend-review.md) とする。
+
+## Authority
+
+1. Go language/toolchain の仕様
+2. Go 公式・Gin 公式ドキュメントに基づく正本
+3. [Backend Application Invariants](../.claude/refs/backend-application-invariants.md) と ADR
+4. API/OpenAPI、database schema、migration などの project contract
+5. package 内の局所的な説明
+
+Go/Gin公式が規定しない package layout や layer pattern を、公式要件として追加してはならない。
+
+## Package design
+
+- package は凝集した責務で分ける。現在のディレクトリ名を新規設計へ機械的に複製しない。
+- package 名は短く明確な小文字の1単語を優先し、`util`、`common`、`misc` を避ける。
+- package API は小さく保ち、exported name の stutter を避ける。
+- interface は一般に利用側で、実際に必要な最小メソッドだけを定義する。
+- implementation は concrete type を返すことを基本とし、mock のためだけの interface を作らない。
+- `internal/` は外部 module から import させない code に使う。`cmd/` は複数 command の entry point を整理する場合に使う。
+
+Handler → Service → Repository、Clean Architecture、layer-first/domain-first は Go/Gin 公式規約ではない。採用・変更する場合は、依存関係と変更単位を根拠に ADR で決める。
+
+## AnimalEkarte domain/capability architecture
+
+これはGo/Gin公式要件ではなく、[Product Philosophy](../docs/product-philosophy.md)を実装へ落とすためのproject decisionである。境界の正本は[ADR-006](../docs/architecture/adr/006-backend-domain-package-boundaries.md)とする。
+
+- `internal/<domain>`を基本とするdomain/capability-firstのmodular monolithとし、route、use case、transaction、persistence、testをvertical sliceで変更する。
+- BE9-2B以降、既存未移行codeの保守・安全修正と移動に必要なcompatibility変更を除き、新規production実装を`internal/handler`、`internal/service`、`internal/repository`へ追加しない。新規実装はADR-006のtarget domain packageへ置く。BE9移行は2026-07-24にcode complete（release pending）となり、境界の正本は[ADR-006](../docs/architecture/adr/006-backend-domain-package-boundaries.md)と[boundary map](../docs/architecture/be9-2a-boundary-map.md)とする。
+- domain内の`handler`、`service`、`repository` subpackageは必須ではない。実際のconsumer、依存方向、変更周期が分かれる場合だけ分割する。
+- business factごとにsource of truthとwrite ownerを1つにする。`appointments`とそのlifecycleは`reservation`がwrite ownerであり、他domainから独立した直接writeを行わない。owner外はbusiness intentを表すconsumer-side interfaceだけを宣言し、generic field-update APIを受け取らない。この境界は[ADR-006](../docs/architecture/adr/006-backend-domain-package-boundaries.md)を正本とし、[`appointment_write_owner_lint_test.go`](internal/reservation/appointment_write_owner_lint_test.go)で回帰を検出する。
+- appointmentに紐づく通常カルテは一般診療予約だけを対象とし、appointmentごとにactive recordを最大1件とする。日付は予約日時のJST日付から導出し、紐づいている間は独立変更させない。削除は対象行をlockしたtransaction内で見積依存を再確認してから`clinic_id + id + status=draft`の原子的条件付きsoft deleteを行う。見積Createも同じ親行を先にlockし、見積が先なら削除をConflict、削除が先なら後続見積を拒否する。確定との競合でも確定済みカルテを削除しない。検証・重複確認・transaction依存の欠落や失敗はfail-closedにする。
+- cross-domain呼び出しはbusiness intentを表すconsumer側の最小interfaceと型安全なDIを基本とする。owner外へ`map[string]any`等の任意field更新APIを公開せず、複数domainにまたがるwriteはownerとtransaction境界を明示する。
+- appointment、trimming detail、option等で1つのbusiness graphを構成するwriteは同じtransactionで全体を成功またはrollbackさせる。既存trimming appointmentのowner欠損はappointment fieldを変更しないdetail-only writeでも補完する。参照master・担当者・LINE顧客を検証する必須依存が欠ける場合はwrite前にfail-closedとし、LIFFで明示指定されたstaffにはclinic所属・対応可能種別に加えて`is_active=true`かつ`reservation_visible=true`を要求する。best-effortを選ぶ場合は部分成功contract、再試行、補償、監査を明示する。
+- fail-closedと定めたclinical/financial監査はbusiness writeと同じtransactionへ参加させ、監査dependency欠落または監査write失敗時はbusiness writeもrollbackする。締め後の会計編集はこの対象とする。
+- `FOR UPDATE`、`FOR SHARE`、`pg_advisory_xact_lock`を正しさの根拠にするoperationはambient transaction不在を拒否する。request由来のclinic-scoped FKは永続化と同じtransactionで再検証し、並行master変更で判定が無効になる場合は対象行をcommitまで共有ロックする。
+- nested GORM `Preload`は末尾associationの条件だけでは中間associationをscopeできない。clinic-ownedの中間関連も明示的に`Preload(..., "clinic_id = ?", clinicID)`し、runtime clinic-isolation testとAST gateを併用する。
+- compatibility facadeは薄いdelegate/type aliasだけを許可し、business ruleやpersistence実装を複製しない。consumer移行後の削除条件を持たせる。
+- 自動処理には停止、失敗通知、監査、手動fallback、idempotencyまたは明示的retry policyを設ける。
+- 自動status transitionは、対象条件をwrite時にcompare-and-setで再評価する。臨床記録など遷移を否定するbusiness evidenceも同じ判定へ含め、resource単位の監査が必須なら状態変更と同じtransactionでfail-closedにする。同じevidenceを逆向きに変更する競合workflowがある場合は、両者を同じresource-scoped serialization機構へ参加させ、各writeのcommitまで順序を保持する。
+- masterの「使用中は削除不可」は、Find→CountUsage→Deleteの非原子シーケンスを正しさの根拠にしてはならない。正しさの境界は`clinic_id + id`とusage不在（または許可されたstatus等）を同一SQLに束ねた条件付き原子DELETE（または同等のcompare-and-set soft delete）とし、`RowsAffected == 0`をConflict/NotFoundに正規化する（正例: `billing.estimateRepository.DeleteIfNotLocked`）。早期CountはUX用に残してよいが、防御本体にしてはならない。usage attachが並行し判定を無効化し得るpathでは、上のFK再検証条項に従いrequest由来FKを同txで再検証し、必要なら親masterをcommitまで共有ロックする（`FOR UPDATE`/`FOR SHARE`を正しさの根拠にするならambient tx必須）。新規productionと当該Deleteを変更する実装はこの規則に従う。既存の非原子Count→Delete（例: inventory / merchandise 他多数master）は既知のresidual race debtとし、一括retrofitは別作業とする（本規則の文書化だけではproductionを変えない）。
+- LSTEP等のscheduled/cronバッチに、上のbest-effort条項（部分成功contract・再試行・補償・監査）と自動処理条項（停止・失敗通知・監査・手動fallback・idempotency/retry）を次のように適用する。(1) バッチ成立条件の欠落（必須dependency未構成、clinic一覧取得失敗、必須設定サービス不在）と、clinical status遷移のようにresource単位の監査が必須なwriteはfail-closedとする（正例: no-showのMark+audit同一transaction）。(2) multi-clinic / multi-owner / multi-triggerで1件失敗後も続行するintentional best-effortを選ぶ場合は、部分成功contract（`(processed, errs)`およびdurable向け`BatchRunResult`で`Processed = Succeeded + Failed`）、失敗のerrorログとFailed計上、`processed_count`/`error_count`を含む監査、再実行時のidempotencyまたは再評価、外部API失敗時の補償または次回runでの収束方針、sync無効化等の停止手段とPartial/Failedを契機とする手動fallbackを明示する。(3) 失敗をログのみで飲み込み成功扱いにするsilent swallow（例: 取得失敗で`return 0, nil`としerror_countに載せない）は新規禁止。既存のsilent pathはknown debtとし、触る変更でintentional best-effortまたはfail-closedへ寄せる。(4) 副次的side-effect（tag cache削除、API失敗カウンタ更新など）をbest-effortにする場合もログ必須とし、本処理の成功契約を反転させないことと失敗時の収束/補償を短く明示する。
+- folder移動だけでclinic isolation、authorization、clinical safetyが成立したと判断しない。既存のruntime testとapplication invariantで検証する。
+
+## HTTP with Gin
+
+- route group で prefix と middleware scope を表現する。
+- public route、authentication、authorization の境界を route 登録時に明示する。
+- handler の dependency は closure または struct で注入し、package global に固定しない。
+- application が error response を制御する通常の endpoint では `ShouldBind*` を優先し、binding error を必ず処理する。
+- body/query/URI/header を型付き input に bind し、型・形式・範囲・長さを境界で検証する。
+- response は公開 contract に必要な field だけを含める。
+- OpenAPI contract と route、request、response、status code を同期する。
+- error mapping は一貫した境界または middleware に集約し、未知の error は内部情報を含まない 500 にする。
+
+## Context and dependencies
+
+- request-scoped 処理には `c.Request.Context()` を渡し、DB と外部 API まで cancellation/deadline を伝播する。
+- Context を struct に保存しない。
+- `WithCancel` / `WithTimeout` / `WithDeadline` の cancel 関数を必ず呼ぶ。
+- dependency は constructor、closure、struct field など型安全な方法で明示する。
+- `gin.Context` への dependency 格納は型 assertion が必要なため、必要な request-scoped 値に限定する。
+
+## Errors and logging
+
+- error を無視しない。必要な文脈は `%w` で追加し、`errors.Is` / `errors.As` を使う。
+- 同じ error を複数箇所で重複ログしない。十分な request 文脈を持つ境界で1回記録する。
+- log は構造化し、secret、token、credential、owner/pet/staff/medical data を含めない。
+- DB error、SQL、stack trace、内部 path を response に出さない。
+- panic/recover は通常の error 処理の代替にしない。
+
+特定の error helper、logger package、wrap/log の配置は公式未規定である。既存 helper を変更する場合は互換性と error chain を確認する。
+
+## Persistence and integrity
+
+- query は parameterized し、DB call へ Context を渡す。
+- transaction の開始、commit、rollback、resource ownership を明確にする。
+- write後の再取得が失敗し得る場合はcommit前の同じtransaction内で行うか、commit済みの成功を後段read errorで失敗へ反転させないcontractにする。
+- schema constraint と application validation の両方を使う。
+- migration は versioned SQL で管理し、application startup の暗黙 migration に依存しない。
+- clinic-scoped data は、ORM、raw SQL、join、preload、count、bulk operation、background job のすべてで認証済み clinic に制約する。
+- client が送信した clinic/owner/pet/staff ID を認可根拠にせず、関連 resource の ownership を server-side で確認する。
+
+ORM や repository pattern の採否は Go/Gin公式未規定である。GORM 固有の規則を Go/Gin 公式規約と呼ばない。
+
+## Security and production
+
+- HTTPS、明示的 CORS allowlist、安全な cookie、認証方式に合う CSRF 対策を行う。
+- trusted proxy を明示し、proxy を使わない場合は信頼 proxy を無効化する。
+- authentication と authorization を別々に確認する。
+- rate limit、request/body/upload size、content type を制限する。
+- `http.Server` に workload に合う timeout/limit を設定する。
+- SIGINT/SIGTERM を受け、timeout 付き `Shutdown` と resource close を行う。
+- goroutine から元の `*gin.Context` を使わない。必要なら `c.Copy()`、通常は標準 Context と必要値だけを渡す。
+
+## Tests and verification
+
+- HTTP handler/middleware は `net/http/httptest` と最小 router で検証する。
+- binding、validation、authentication、authorization、not-found、conflict、internal-error を含める。
+- tenant/ownership boundary の変更には unauthorized/cross-tenant test を含める。
+- write ownerまたは状態遷移の変更には、owner外の直接writeがないこと、intent-specific operation、cross-domain transactionのrollbackを確認するtestを含める。
+- write-ownerのAST gateは`FirstOrCreate`を含むmutation、typed parameter、free function/receiver method戻り値とcross-file/package-qualified factory、query変数、local/package constant、table alias・schema-qualified table、直接または変数代入した`TableName()`、静的string helper、schema-qualified raw SQL、generic appointment map mutatorを検出する。
+- 自動処理の変更には、停止、失敗通知、監査、手動fallback、重複実行またはretry時の安全性を変更riskに応じて検証する。
+- cancellation、concurrency、transaction、shutdown は変更 risk に応じて検証する。
+- `gofmt`、`go test`、`go vet`、project lint を適用する。
+- この repository では Go command を host で直接実行せず、Docker の scoped command を使う。
+- full-project command の自動実行禁止は [`.claude/CLAUDE.md`](../.claude/CLAUDE.md) に従う。
+
+coverage threshold や TDD workflow は project quality policy であり、Go/Gin公式のアーキテクチャ要件ではない。
+
+## Before review
+
+- [ ] package boundary と名前が利用者・凝集性を反映している
+- [ ] 旧`internal/handler|service|repository`へ新規production実装を追加しておらず、残すfacade/adapterにconsumerと削除phaseがある
+- [ ] business factのsource of truth/write ownerが一意で、owner外の直接writeや重複実装がない
+- [ ] vertical slice、cross-domain transaction、自動化の停止/監査/fallbackが変更範囲に応じて検証されている
+- [ ] master「使用中は削除不可」のDeleteを新規/変更した場合、条件付き原子DELETE（または明示した親ロック+原子DELETE）になっており、非原子Count→Deleteを正しさの根拠にしていない
+- [ ] LSTEP/自動バッチのintentional best-effortに部分成功contract・Failed計上・監査・再実行/補償が明示され、silent swallowを新規に増やしていない
+- [ ] Context、error chain、resource cleanup が維持されている
+- [ ] input validation、authentication、authorization、ownership が独立している
+- [ ] response/log に内部情報や個人情報がない
+- [ ] clinic isolation がすべての data path で維持されている
+- [ ] OpenAPI と実装が一致している
+- [ ] scoped test と static checks が通っている
+- [ ] 独自設計を「Go/Gin公式」と表現していない
+
+## Primary sources
+
+- [Go module layout](https://go.dev/doc/modules/layout)
+- [Go package names](https://go.dev/blog/package-names)
+- [Go Code Review Comments](https://go.dev/wiki/CodeReviewComments)
+- [Gin API design](https://gin-gonic.com/en/docs/routing/api-design/)
+- [Gin dependency injection](https://gin-gonic.com/en/docs/middleware/dependency-injection/)
+- [Gin binding](https://gin-gonic.com/en/docs/binding/)
+- [Gin security guide](https://gin-gonic.com/en/docs/middleware/security-guide/)
+- [Gin graceful shutdown](https://gin-gonic.com/en/docs/server-config/graceful-restart-or-stop/)

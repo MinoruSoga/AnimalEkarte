@@ -9,7 +9,9 @@ import { Search, Users } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { TableCell, TableHead } from "@/components/ui/table";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
+import { DataTableRowButton } from "@/components/shared/DataTable/DataTableRowButton";
 import { EmptyState } from "@/components/shared/DataStates";
 import { handleApiError } from "@/lib/handle-api-error";
 import { axios } from "@/lib/axios";
@@ -32,6 +34,13 @@ interface OwnerSearchModalProps {
   onSelect: (owner: { id: string; name: string; discountRate: number; membershipType: string }) => void;
   currentOwnerName?: string;
 }
+
+interface OwnerSearchResponse {
+  data: OwnerApiResponse[];
+  total?: number;
+}
+
+const OWNER_SEARCH_LIMIT = 100;
 
 function toOwnerSummary(o: OwnerApiResponse): OwnerSummary {
   const owner = transformOwner(o);
@@ -56,6 +65,7 @@ export const OwnerSearchModal = memo(function OwnerSearchModal({
   const [owners, setOwners] = useState<OwnerSummary[]>([]);
   const [isSearching, startSearchTransition] = useTransition();
   const [hasSearched, setHasSearched] = useState(false);
+  const [isTruncated, setIsTruncated] = useState(false);
   const [confirmTarget, setConfirmTarget] = useState<OwnerSummary | null>(null);
 
   const handleSearch = useCallback(() => {
@@ -63,13 +73,16 @@ export const OwnerSearchModal = memo(function OwnerSearchModal({
     setHasSearched(true);
     startSearchTransition(async () => {
       try {
-        const { data } = await axios.get<{ data: OwnerApiResponse[] }>("/v1/owners", {
-          params: { search: searchTerm.trim() },
+        const { data } = await axios.get<OwnerSearchResponse>("/v1/owners", {
+          params: { search: searchTerm.trim(), page: 1, limit: OWNER_SEARCH_LIMIT },
         });
-        setOwners((data.data ?? []).map(toOwnerSummary));
+        const nextOwners = (data.data ?? []).map(toOwnerSummary);
+        setOwners(nextOwners);
+        setIsTruncated(typeof data.total === "number" && data.total > nextOwners.length);
       } catch (error) {
         handleApiError(error, "飼主検索");
         setOwners([]);
+        setIsTruncated(false);
       }
     });
   }, [searchTerm]);
@@ -99,6 +112,7 @@ export const OwnerSearchModal = memo(function OwnerSearchModal({
     setSearchTerm("");
     setOwners([]);
     setHasSearched(false);
+    setIsTruncated(false);
   }, [confirmTarget, onSelect, onOpenChange]);
 
   const handleCancel = useCallback(() => {
@@ -111,6 +125,7 @@ export const OwnerSearchModal = memo(function OwnerSearchModal({
         setSearchTerm("");
         setOwners([]);
         setHasSearched(false);
+        setIsTruncated(false);
         setConfirmTarget(null);
       }
       onOpenChange(nextOpen);
@@ -146,7 +161,7 @@ export const OwnerSearchModal = memo(function OwnerSearchModal({
                 onChange={(e) => setSearchTerm(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder="飼主名 / 飼主No / 電話番号"
-                className={`pl-9 h-10 text-base ${C.bgPage} ${C.borderMedium} ${C.focusBorderAccent} rounded-[4px]`}
+                className={`pl-9 h-10 text-base ${C.bgPage} ${C.borderMedium} ${C.focusBorderAccent} rounded-xs`}
               />
             </div>
             <Button
@@ -165,31 +180,43 @@ export const OwnerSearchModal = memo(function OwnerSearchModal({
                 検索中...
               </div>
             ) : filteredOwners.length > 0 ? (
-              <table className="w-full">
-                <thead>
-                  {/* DESIGN.md ex-data-table-cell: header は canvas-soft 背景 + eyebrow 相当タイポグラフィ */}
-                  <tr className={`border-b ${C.borderLight} ${C.bgPage}`}>
-                    <th className={`px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide ${C.text55}`}>飼主No</th>
-                    <th className={`px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide ${C.text55}`}>飼主名</th>
-                    <th className={`px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide ${C.text55}`}>電話番号</th>
-                    <th className={`px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide ${C.text55}`}>住所</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredOwners.map((owner) => (
-                    <tr
-                      key={owner.id}
-                      onClick={() => handleRowClick(owner)}
-                      className={`border-b ${C.borderDivider} cursor-pointer ${C.hoverBgLight} transition-colors`}
-                    >
-                      <td className={`px-3 py-2.5 text-sm ${C.text60} font-mono`}>{owner.id}</td>
-                      <td className={`px-3 py-2.5 text-sm font-medium ${C.text}`}>{owner.name}</td>
-                      <td className={`px-3 py-2.5 text-sm ${C.text}`}>{owner.phone || "-"}</td>
-                      <td className={`px-3 py-2.5 text-sm ${C.text60} truncate max-w-[200px]`}>{owner.address || "-"}</td>
+              <>
+                {isTruncated ? (
+                  <p className={`px-2 py-2 text-xs ${C.text50}`} role="status">
+                    検索結果の先頭100件までを表示しています
+                  </p>
+                ) : null}
+                <table className="w-full">
+                  <thead>
+                    {/* DESIGN.md ex-data-table-cell: header は canvas-soft 背景 + eyebrow 相当タイポグラフィ */}
+                    <tr className={`border-b ${C.borderLight} ${C.bgPage}`}>
+                      <TableHead className={C.text55}>飼主No</TableHead>
+                      <TableHead className={C.text55}>飼主名</TableHead>
+                      <TableHead className={C.text55}>電話番号</TableHead>
+                      <TableHead className={C.text55}>住所</TableHead>
+                      <TableHead className={C.text55}>操作</TableHead>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {filteredOwners.map((owner) => (
+                      <tr key={owner.id} className={`border-b ${C.borderDivider} ${C.hoverBgLight} transition-colors`}>
+                        <TableCell className={`${C.text60} font-mono`}>{owner.id}</TableCell>
+                        <TableCell className={`font-medium ${C.text}`}>{owner.name}</TableCell>
+                        <TableCell className={C.text}>{owner.phone || "-"}</TableCell>
+                        <TableCell className={`${C.text60} truncate max-w-[200px]`}>{owner.address || "-"}</TableCell>
+                        <TableCell>
+                          <DataTableRowButton
+                            aria-label={`選択: 飼主 ${owner.name} (ID ${owner.id})`}
+                            onClick={() => handleRowClick(owner)}
+                          >
+                            選択
+                          </DataTableRowButton>
+                        </TableCell>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </>
             ) : hasSearched ? (
               <div className="flex items-center justify-center h-full">
                 <EmptyState message="該当する飼主が見つかりません" />

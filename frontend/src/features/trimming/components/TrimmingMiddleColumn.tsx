@@ -25,11 +25,12 @@ export const TrimmingMiddleColumn = memo(function TrimmingMiddleColumn({
   onRemoveCompletedImage,
 }: TrimmingMiddleColumnProps) {
   return (
-    <div className={`${C.bgWhite} rounded-lg shadow-sm border ${C.borderMedium} p-3 space-y-4`}>
+    <div className={`${C.bgWhite} rounded-lg border ${C.borderMedium} p-3 space-y-4`}>
       <div>
-        <Label className={`text-sm ${C.text60} mb-2 block`}>体重 (BW)</Label>
+        <Label htmlFor="trimming-bw" className={`text-sm ${C.text60} mb-2 block`}>体重 (BW)</Label>
         <div className="flex gap-2">
           <NumberInput
+            id="trimming-bw"
             value={formData.bw}
             onChange={(value) => onFormChange({ bw: value })}
             placeholder="体重"
@@ -39,7 +40,7 @@ export const TrimmingMiddleColumn = memo(function TrimmingMiddleColumn({
             value={formData.bwUnit}
             onValueChange={(value) => onFormChange({ bwUnit: value as "Kg" | "g" })}
           >
-            <SelectTrigger className="w-[80px]">
+            <SelectTrigger className="w-[80px]" aria-label="体重単位">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -50,8 +51,9 @@ export const TrimmingMiddleColumn = memo(function TrimmingMiddleColumn({
       </div>
 
       <div>
-        <Label className={`text-sm ${C.text60} mb-2 block`}>体温 (BT)</Label>
+        <Label htmlFor="trimming-bt" className={`text-sm ${C.text60} mb-2 block`}>体温 (BT)</Label>
         <NumberInput
+          id="trimming-bt"
           step={0.1}
           value={formData.bt}
           onChange={(value) => onFormChange({ bt: value })}
@@ -62,8 +64,11 @@ export const TrimmingMiddleColumn = memo(function TrimmingMiddleColumn({
       </div>
 
       <div>
-        <Label className={`text-sm ${C.text60} mb-2 block`}>使用シャンプー</Label>
+        <Label htmlFor="trimming-used-shampoo" className={`text-sm ${C.text60} mb-2 block`}>
+          使用シャンプー
+        </Label>
         <Input
+          id="trimming-used-shampoo"
           value={formData.usedShampoo}
           onChange={(event) => onFormChange({ usedShampoo: event.target.value })}
           placeholder="シャンプー名"
@@ -72,8 +77,11 @@ export const TrimmingMiddleColumn = memo(function TrimmingMiddleColumn({
       </div>
 
       <div>
-        <Label className={`text-sm ${C.text60} mb-2 block`}>使用リボン</Label>
+        <Label htmlFor="trimming-used-ribbon" className={`text-sm ${C.text60} mb-2 block`}>
+          使用リボン
+        </Label>
         <Input
+          id="trimming-used-ribbon"
           value={formData.usedRibbon}
           onChange={(event) => onFormChange({ usedRibbon: event.target.value })}
           placeholder="リボン"
@@ -82,8 +90,9 @@ export const TrimmingMiddleColumn = memo(function TrimmingMiddleColumn({
       </div>
 
       <div>
-        <Label className={`text-sm ${C.text60} mb-2 block`}>備考</Label>
+        <Label htmlFor="trimming-remarks" className={`text-sm ${C.text60} mb-2 block`}>備考</Label>
         <Textarea
+          id="trimming-remarks"
           value={formData.remarks}
           onChange={(event) => onFormChange({ remarks: event.target.value })}
           placeholder="備考を入力..."

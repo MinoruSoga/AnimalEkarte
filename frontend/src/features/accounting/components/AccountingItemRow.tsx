@@ -10,7 +10,7 @@ import { TaxRateSelector } from "@/components/shared/TaxRateSelector/TaxRateSele
 import { TaxTypeSelector } from "@/components/shared/TaxTypeSelector/TaxTypeSelector";
 import { C } from "@/lib/design-tokens";
 import type { TaxType } from "@/types/generated/models";
-import { formatCurrency, formatCurrencyOrDash } from "@/utils/format/number";
+import { formatCurrency, formatCurrencyOrDash } from "@/lib/format/number";
 
 import { useGetBillingItemDiscountSuggestions } from "../api/get-discount-suggestions";
 import type { AccountingItem, ItemCategory } from "../types";
@@ -43,18 +43,20 @@ function DiscountCell({ item, canEdit, accountingId, onUpdateItemDiscount }: Dis
   return (
     <div className="flex items-center gap-1 justify-center">
       <Input
+        id={`discount-${item.id}`}
+        aria-label={`割引額: ${item.name} (ID ${item.id})`}
         type="number"
         min={0}
         defaultValue={item.discountAmount}
         onBlur={(e) => onUpdateItemDiscount(item.id, Math.max(0, parseInt(e.target.value, 10) || 0))}
-        className="w-20 text-right h-8"
+        className="w-20 min-h-11 text-right"
       />
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <button
             type="button"
-            title="割引候補を表示"
-            className={`h-8 w-6 flex items-center justify-center rounded ${C.text50} ${C.hoverBgLight} transition-colors shrink-0`}
+            aria-label={`割引候補: ${item.name} (ID ${item.id})`}
+            className={`min-h-11 min-w-11 flex items-center justify-center rounded-xs ${C.text50} ${C.hoverBgLight} transition-colors shrink-0`}
           >
             <ChevronDown className="h-3.5 w-3.5" />
           </button>
@@ -70,11 +72,12 @@ function DiscountCell({ item, canEdit, accountingId, onUpdateItemDiscount }: Dis
                 <li key={s.campaign_id ?? `owner-${i}`}>
                   <button
                     type="button"
+                    aria-label={`割引を適用: ${s.name} -${s.amount}円 (品目ID ${item.id})`}
                     onClick={() => {
                       onUpdateItemDiscount(item.id, s.amount);
                       setOpen(false);
                     }}
-                    className={`w-full text-left px-2 py-1.5 rounded text-xs ${C.hoverBgLight} transition-colors`}
+                    className={`w-full min-h-11 min-w-11 text-left px-2 py-1.5 rounded-xs text-xs ${C.hoverBgLight} transition-colors`}
                   >
                     <span className="font-medium">{s.name}</span>
                     <span className={`ml-1 ${C.text50}`}>
@@ -83,7 +86,7 @@ function DiscountCell({ item, canEdit, accountingId, onUpdateItemDiscount }: Dis
                         : formatCurrency(s.discount_value)}
                     </span>
                     <span className={`float-right font-mono ${C.textRedIcon}`}>
-                      -¥{s.amount.toLocaleString()}
+                      -{formatCurrency(s.amount)}
                     </span>
                   </button>
                 </li>
@@ -125,12 +128,12 @@ export function AccountingItemRow({
       <TableCell className="font-medium">
         {item.name}
         {item.source === "medical_record" ? (
-          <span className={`ml-2 text-[10px] ${C.textBrand} ${C.bgBrand5} px-1.5 py-0.5 rounded`}>
+          <span className={`ml-2 text-2xs ${C.textBrand} ${C.bgBrand5} px-1.5 py-0.5 rounded`}>
             カルテ連携
           </span>
         ) : null}
         {item.source === "trimming" ? (
-          <span className={`ml-2 text-[10px] ${C.textBrand} ${C.bgBrand5} px-1.5 py-0.5 rounded`}>
+          <span className={`ml-2 text-2xs ${C.textBrand} ${C.bgBrand5} px-1.5 py-0.5 rounded`}>
             トリミング
           </span>
         ) : null}
@@ -156,6 +159,8 @@ export function AccountingItemRow({
           <TaxTypeSelector
             value={item.taxType}
             onChange={(v) => onUpdateItemTax(item.id, v, item.taxRate)}
+            ariaLabel={`課税区分: ${item.name} (ID ${item.id})`}
+            className="min-h-11 min-w-11"
           />
         ) : (
           <span className={`text-sm ${C.text50}`}>
@@ -168,6 +173,8 @@ export function AccountingItemRow({
           <TaxRateSelector
             value={item.taxRate}
             onChange={(v) => onUpdateItemTax(item.id, item.taxType, v)}
+            ariaLabel={`税率: ${item.name} (ID ${item.id})`}
+            className="min-h-11 min-w-11"
           />
         ) : (
           <span className={`text-sm ${C.text50}`}>{Math.round(item.taxRate * 100)}%</span>

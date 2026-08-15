@@ -35,4 +35,24 @@ describe("MonthlySummaryCards 消費税率ラベル動的化 (#179 ②)", () => 
     expect(screen.queryByText("標準税率（10%）")).not.toBeInTheDocument();
     expect(screen.queryByText("軽減税率（8%）")).not.toBeInTheDocument();
   });
+
+  it("taxSettingsLink を渡すと消費税内訳ヘッダに表示する", () => {
+    render(
+      <MonthlySummaryCards
+        summary={SUMMARY}
+        standardTaxRate={0.1}
+        reducedTaxRate={0.08}
+        taxSettingsLink={<a href="/settings/clinic">税率設定を変更</a>}
+      />,
+    );
+    expect(screen.getByRole("link", { name: "税率設定を変更" })).toHaveAttribute(
+      "href",
+      "/settings/clinic",
+    );
+  });
+
+  it("taxSettingsLink 未指定では税率設定リンクを出さない", () => {
+    render(<MonthlySummaryCards summary={SUMMARY} standardTaxRate={0.1} reducedTaxRate={0.08} />);
+    expect(screen.queryByRole("link", { name: /税率設定を変更/ })).not.toBeInTheDocument();
+  });
 });

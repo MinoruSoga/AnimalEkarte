@@ -3,6 +3,7 @@ import { memo } from "react";
 import { TableCell } from "@/components/ui/table";
 import { DataTable, DESIGN_TABLE_HEADER_ROW, DESIGN_TABLE_HEADER_CELL } from "@/components/shared/DataTable/DataTable";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
+import { DataTableRowLink } from "@/components/shared/DataTable/DataTableRowLink";
 import { FilteringIndicator } from "@/components/shared/FilteringIndicator/FilteringIndicator";
 import { PropertyFilter } from "@/components/shared/PropertyFilter/PropertyFilter";
 import type {
@@ -17,7 +18,8 @@ import { SortableHeader } from "@/components/shared/SortableHeader/SortableHeade
 import { StatusBadge } from "@/components/shared/StatusBadge/StatusBadge";
 import { C, ICON } from "@/lib/design-tokens";
 import type { TrimmingUI } from "@/types";
-import { getTrimmingStatusColor } from "@/utils/status-helpers";
+import { getTrimmingStatusColor } from "@/lib/status-helpers";
+import { paths } from "@/config/paths";
 
 // フィルタ定義 (TRIMMING_STATIC_FILTER_PROPERTIES / buildTrimmingDynamicFilterProperties) は
 // TrimmingListTableModel.ts に分離済み (react-refresh/only-export-components)。
@@ -212,39 +214,52 @@ const TrimmingTableRow = memo(function TrimmingTableRow({
   canDelete,
 }: TrimmingTableRowProps) {
   return (
-    <DataTableRow onClick={() => onEdit(record.id)}>
-      <TableCell className={`font-mono text-base ${C.text} py-2`}>
+    <DataTableRow>
+      <TableCell className={`font-mono ${C.text}`}>
         {record.date}
       </TableCell>
-      <TableCell className={`text-base ${C.text} py-2`}>{record.ownerName}</TableCell>
-      <TableCell className="py-2">
+      <TableCell className={C.text}>{record.ownerName}</TableCell>
+      <TableCell>
         <div className="flex flex-col">
-          <span className={`text-base ${C.text}`}>{record.petName}</span>
-          <span className={`text-base ${C.text60}`}>{record.petNumber}</span>
+          <DataTableRowLink
+            to={paths.trimming.detail.getHref(record.id)}
+            state={{ from: paths.trimming.getHref() }}
+            aria-label={`トリミング詳細: ${record.petName} ${record.date} ID ${record.id}`}
+          >
+            {record.petName}
+          </DataTableRowLink>
+          <span className={`text-sm ${C.text60}`}>{record.petNumber}</span>
         </div>
       </TableCell>
-      <TableCell className={`text-base ${C.text} py-2 hidden lg:table-cell`}>{record.species}</TableCell>
-      <TableCell className={`text-base ${C.text} py-2 hidden lg:table-cell`}>{record.breed || "-"}</TableCell>
-      <TableCell className={`text-base ${C.text} py-2 hidden lg:table-cell`}>{record.weight}</TableCell>
-      <TableCell className={`text-base ${C.text} truncate max-w-[200px] py-2 hidden lg:table-cell`}>
+      <TableCell className={`${C.text} hidden lg:table-cell`}>{record.species}</TableCell>
+      <TableCell className={`${C.text} hidden lg:table-cell`}>{record.breed || "-"}</TableCell>
+      <TableCell className={`${C.text} hidden lg:table-cell`}>{record.weight}</TableCell>
+      <TableCell className={`${C.text} truncate max-w-[200px] hidden lg:table-cell`}>
         {record.styleRequest}
       </TableCell>
-      <TableCell className={`text-base ${C.text} py-2`}>
+      <TableCell className={C.text}>
         <div className="flex items-center gap-1.5">
           {!isValidStaff(record.staff) ? (
-            <AlertTriangle className={`${ICON.action} ${C.textWarningIcon}`} />
+            <span
+              role="img"
+              aria-label={`無効な担当スタッフ: ${record.staff}（退職等）`}
+              title="担当スタッフが無効（退職等）に設定されています"
+            >
+              <AlertTriangle className={`${ICON.action} ${C.textWarningIcon}`} aria-hidden="true" />
+            </span>
           ) : null}
           {record.staff}
         </div>
       </TableCell>
-      <TableCell className="py-2">
+      <TableCell>
         <StatusBadge colorClass={getTrimmingStatusColor(record.status)}>
           {record.status}
         </StatusBadge>
       </TableCell>
-      <TableCell className="text-right py-2">
+      <TableCell className="text-right">
         {canEdit || canDelete ? (
           <RowActionDropdown
+            ariaLabel={`トリミング操作: ${record.petName} ${record.date} ID ${record.id}`}
             actions={[
               ...(canEdit ? [{
                 label: "編集",

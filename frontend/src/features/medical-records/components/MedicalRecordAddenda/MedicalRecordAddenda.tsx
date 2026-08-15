@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { C } from "@/lib/design-tokens";
 import { useMedicalRecordAddenda } from "../../hooks/use-medical-record-addenda";
+import { isMedicalRecordFinalizedStatus } from "../../lib/medical-record-lock";
 import { AddendumItem } from "./AddendumItem";
 import { AddendumModal } from "./AddendumModal";
 
@@ -16,7 +17,7 @@ export function MedicalRecordAddenda({
   canEdit,
   recordStatus,
 }: MedicalRecordAddendaProps) {
-  if (recordStatus !== "確定済") return null;
+  if (!isMedicalRecordFinalizedStatus(recordStatus)) return null;
 
   return (
     <MedicalRecordAddendaContent

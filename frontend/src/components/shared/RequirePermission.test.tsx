@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
-import { AuthContext } from "@/contexts/auth-context";
+import { AuthContext } from "@/hooks/auth-context";
 import { RequirePermission } from "./RequirePermission";
 import type { ResourceAction } from "@/types/auth";
 
@@ -41,7 +41,9 @@ describe("RequirePermission — 振る舞いテスト", () => {
         </RequirePermission>
       </AuthContext.Provider>
     );
-    expect(screen.getByText(/アクセス権限がありません/)).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { level: 1, name: "アクセス権限がありません" }),
+    ).toBeInTheDocument();
     expect(screen.queryByTestId("protected-content")).not.toBeInTheDocument();
   });
 

@@ -5,7 +5,7 @@
 > **タイミング**: レジ締めロジックの実装・仕様確認時。
 
 > **Animal Ekarte**: 正確な現金管理と透明性の高い会計フロー
-> **最新更新**: 2026-07-10 | **ステータス**: 実装完了
+> **最新更新**: 2026-07-31 | **ステータス**: 実装完了（W-013 append-only 強化）
 
 ---
 
@@ -44,7 +44,8 @@
 3.  **過不足確認**: 
     - `現金決済の会計金額合計 ー 返金合計 ＝ 理論現金残高`(前回繰越残高・入金・支出の管理項目は現状なし)
     - 理論残高と実際の現金を比較し、差異（過不足）を算出。
-4.  **確定とロック**: 「締め実行」により記録を保存。レジ締めレコードには更新・削除APIが存在せず作成後は変更できない。ただし会計データ自体は `accounting-post-close-edit` 権限を持つスタッフであれば締め済み期間でも編集可能で、編集時は監査ログに記録される(#115)。
+4.  **確定とロック**: 「締め実行」により記録を保存。レジ締めレコードは **append-only** で、更新・削除・soft-delete 再開・巻き戻し（reverse）API は存在しない（W-013）。
+5.  **締め後の会計訂正**: 会計データ自体は `accounting-post-close-edit` 権限を持つスタッフであれば締め済み期間でも編集可能。編集時は理由必須で、(a) 監査ログ（#115）と (b) `cash_register_close_adjustments` への追記を **同一 transaction** で fail-closed に記録する。締めレコード自体を取り消して「開き直す」運用は productize しない。
 
 ---
 
@@ -57,7 +58,11 @@
 
 ## 5. 技術仕様
 
-- **整合性の担保**: 締め確定処理は集計結果を1レコードとして作成するのみで、更新・削除APIは存在しない(append-only)。レコードに「ロックフラグ」は無く、不変性は変更経路が存在しないことと `(clinic_id, close_date, period)` の UNIQUE 制約(二重締め防止)で担保している。
-- **権限**: `cash-register-close` 権限(`view`/`create`)はクリニック単位で付与され、この権限を持つスタッフは同一クリニックの全締め記録を閲覧・作成できる(担当者本人の記録に限定する制御はない)。確定済みレコード自体は権限の有無にかかわらず誰も修正できない。
+- **整合性の担保（append-only）**:
+  - 締め確定は集計スナップショットの **Create のみ**。Update / Delete / soft-delete 再開は app・API に存在しない。
+  - `(clinic_id, close_date, period)` は **完全 UNIQUE**（`deleted_at` を見ない）。soft-delete で同じ区分を再締めする経路は塞がれている。
+  - DB 層でも `cash_register_closes` / `cash_register_close_adjustments` の UPDATE/DELETE を immutability trigger で拒否する（migration 003）。
+- **締め後訂正モデル**: 会計編集の差分は `cash_register_close_adjustments`（`close_id` 参照・NO CASCADE DELETE）へ append-only 追記。`accounting_delta` は合計変更が分かる場合の best-effort 差分、会計のみの訂正では `cash_movement_amount=0`。
+- **権限**: `cash-register-close` 権限(`view`/`create`)はクリニック単位で付与され、この権限を持つスタッフは同一クリニックの全締め記録を閲覧・作成できる(担当者本人の記録に限定する制御はない)。確定済み close 自体は権限の有無にかかわらず誰も修正・取消できない。締め後会計編集は `accounting-post-close-edit`。
 
 ---

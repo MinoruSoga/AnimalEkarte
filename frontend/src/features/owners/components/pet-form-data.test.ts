@@ -27,4 +27,64 @@ describe("createPetFormData", () => {
     expect(form.bloodType).toBe("DEA1.1陽性");
     expect(form.microchipNumber).toBe("392140000123456");
   });
+
+  it("新規ペットだけを生存で初期化し、既存ペットの欠損statusは不明にする", () => {
+    expect(createPetFormData().status).toBe("生存");
+
+    const existing = createPetFormData({
+      id: "7",
+      petNumber: "P-7",
+      petName: "合成ペット",
+      status: "",
+      species: "犬",
+      gender: "不明",
+      birthDate: "",
+      color: "",
+      weight: "",
+      environment: "",
+      remarks: "",
+    });
+
+    expect(existing.status).toBe("不明");
+  });
+
+  it("既存死亡ペットのstatusと死亡日時をモーダル初期値へ保持する", () => {
+    const deceasedAt = "2026-07-10T12:00:00+09:00";
+    const form = createPetFormData({
+      id: "7",
+      petNumber: "P-7",
+      petName: "合成ペット",
+      status: "死亡",
+      species: "犬",
+      gender: "不明",
+      birthDate: "",
+      color: "",
+      weight: "",
+      environment: "",
+      remarks: "",
+      deceasedAt,
+    });
+
+    expect(form).toEqual(expect.objectContaining({ status: "死亡", deceasedAt }));
+  });
+
+  it("BUG-022: pending フラグをモーダル formData に保持する", () => {
+    const form = createPetFormData({
+      id: "temp-99",
+      isPending: true,
+      petNumber: "",
+      petName: "未保存ポチ",
+      status: "生存",
+      species: "犬",
+      gender: "不明",
+      birthDate: "",
+      color: "",
+      weight: "",
+      environment: "",
+      remarks: "",
+    });
+
+    expect(form.id).toBe("temp-99");
+    expect(form.isPending).toBe(true);
+  });
 });

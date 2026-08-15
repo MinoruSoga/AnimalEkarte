@@ -57,9 +57,10 @@ test.describe('見積書管理 フロー E2E', () => {
       await expect(estimates.listHeading()).toBeVisible({
         timeout: 15000,
       });
-      await expect(estimates.draftRow()).toBeVisible({ timeout: 15000 });
+      await expect(estimates.draftDetailLink()).toBeVisible({ timeout: 15000 });
 
-      await estimates.draftRow().click();
+      // Only the estimate-no cell link navigates (row click is a no-op)
+      await estimates.draftDetailLink().click();
       await expect(estimates.detailHeading()).toBeVisible({
         timeout: 15000,
       });
@@ -77,9 +78,9 @@ test.describe('見積書管理 フロー E2E', () => {
       await expect(estimates.listHeading()).toBeVisible({
         timeout: 15000,
       });
-      await expect(estimates.draftRow()).toBeVisible({ timeout: 15000 });
+      await expect(estimates.draftDetailLink()).toBeVisible({ timeout: 15000 });
 
-      await estimates.draftRow().click();
+      await estimates.draftDetailLink().click();
       await expect(estimates.detailHeading()).toBeVisible({
         timeout: 15000,
       });
@@ -106,10 +107,10 @@ test.describe('見積書管理 フロー E2E', () => {
       const rows = estimates.rows();
       const initialRowCount = await rows.count();
 
-      await page.getByLabel('検索').click();
+      await estimates.searchToggle().click();
       const searchInput = estimates.searchInput();
       await expect(searchInput).toBeVisible();
-      await searchInput.fill('Iris');
+      await searchInput.fill('Mass');
 
       // Wait for search to apply (debounce/API response)
       await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => null);
@@ -119,7 +120,7 @@ test.describe('見積書管理 フロー E2E', () => {
       expect(filteredRows).toBeLessThanOrEqual(initialRowCount);
 
       // Verify the search term is still in the input
-      await expect(searchInput).toHaveValue('Iris');
+      await expect(searchInput).toHaveValue('Mass');
     } finally {
       await page.close();
     }

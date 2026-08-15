@@ -26,16 +26,16 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v7.0.0
+        uses: actions/checkout@v7.0.1
 
       - name: Set up Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         with:
           go-version: ${{ env.GO_VERSION }}
           cache-dependency-path: backend/go.sum
 
       - name: Set up Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: ${{ env.NODE_VERSION }}
 
@@ -74,44 +74,110 @@ jobs:
           echo "=== db logs ==="
           docker compose logs --no-color db | tail -50
 
+      # #109 / TASK-606: 認証は STG_DEMO_* のみ。fallback / continue-on-error 禁止。
+      # secret 値は env 経由で k6 に渡すだけで、step log / summary には出さない。
+      - name: Require STG_DEMO credentials
+        env:
+          STG_DEMO_EMAIL: ${{ secrets.STG_DEMO_EMAIL }}
+          STG_DEMO_PASSWORD: ${{ secrets.STG_DEMO_PASSWORD }}
+        run: |
+          if [ -z "${STG_DEMO_EMAIL}" ] || [ -z "${STG_DEMO_PASSWORD}" ]; then
+            echo "STG_DEMO_EMAIL and STG_DEMO_PASSWORD secrets are required (no fallback)"
+            exit 1
+          fi
+          echo "STG_DEMO credentials present (values not logged)"
+
       - name: Run k6 API endpoints load test
         run: |
           k6 run load-tests/k6-api-endpoints.js \
-            --out json=load-tests/results-endpoints.json
+            --out json=load-tests/results-endpoints.json \
+            --summary-export load-tests/results-endpoints-summary.json
         env:
           BASE_URL: http://localhost:8080
-          # bug.md M-11 / #109: Secrets 未登録時は既存の CI seed 専用デモ値へフォールバック（JWT_SECRET と同型）
-          TEST_EMAIL: ${{ secrets.CI_TEST_EMAIL || 'admin@example.com' }}
-          TEST_CRED: ${{ secrets.CI_TEST_PASSWORD || 'test' }}
-        continue-on-error: true
+          STG_DEMO_EMAIL: ${{ secrets.STG_DEMO_EMAIL }}
+          STG_DEMO_PASSWORD: ${{ secrets.STG_DEMO_PASSWORD }}
 
       - name: Run k6 spike test
         run: |
           k6 run load-tests/k6-spike-test.js \
-            --out json=load-tests/results-spike.json
+            --out json=load-tests/results-spike.json \
+            --summary-export load-tests/results-spike-summary.json
         env:
           BASE_URL: http://localhost:8080
-          TEST_EMAIL: ${{ secrets.CI_TEST_EMAIL || 'admin@example.com' }}
-          TEST_CRED: ${{ secrets.CI_TEST_PASSWORD || 'test' }}
-        continue-on-error: true
+          STG_DEMO_EMAIL: ${{ secrets.STG_DEMO_EMAIL }}
+          STG_DEMO_PASSWORD: ${{ secrets.STG_DEMO_PASSWORD }}
 
       - name: Upload load test results
         uses: actions/upload-artifact@v7
         if: always()
         with:
           name: load-test-results
-          path: load-tests/results-*.json
+          path: |
+            load-tests/results-endpoints.json
+            load-tests/results-spike.json
+            load-tests/results-endpoints-summary.json
+            load-tests/results-spike-summary.json
           retention-days: 30
 
-      - name: Parse load test results
+      # fail-closed: --summary-export の aggregate を検証。
+      # パスワード・body・cookie・token 値は出力しない。
+      - name: Validate k6 summary aggregates
         if: always()
         run: |
-          echo "=== Load Test Results Summary ===" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          if [ -f load-tests/results-endpoints.json ]; then
-            echo "**API Endpoints Test**" >> "$GITHUB_STEP_SUMMARY"
-            jq '.metrics | keys' load-tests/results-endpoints.json >> "$GITHUB_STEP_SUMMARY" || echo "Results parsing failed" >> "$GITHUB_STEP_SUMMARY"
-          fi
+          node <<'NODE'
+          const fs = require('fs');
+
+          function metricActivity(metric) {
+            if (!metric || !metric.values) return 0;
+            if (typeof metric.values.count === 'number') return metric.values.count;
+            const passes = metric.values.passes;
+            const fails = metric.values.fails;
+            if (typeof passes === 'number' || typeof fails === 'number') {
+              return (passes || 0) + (fails || 0);
+            }
+            return 0;
+          }
+
+          function validate(path) {
+            if (!fs.existsSync(path)) {
+              console.error(`missing summary export: ${path}`);
+              process.exit(1);
+            }
+            let data;
+            try {
+              data = JSON.parse(fs.readFileSync(path, 'utf8'));
+            } catch (err) {
+              console.error(`invalid JSON summary: ${path}`);
+              process.exit(1);
+            }
+            const metrics = data.metrics || {};
+            const required = ['http_reqs', 'iterations', 'checks', 'successful_logins'];
+            const report = [];
+            let failed = false;
+            for (const name of required) {
+              const activity = metricActivity(metrics[name]);
+              report.push(`${name}=${activity}`);
+              if (activity <= 0) {
+                failed = true;
+              }
+            }
+            console.log(`${path}: ${report.join(', ')}`);
+            if (failed) {
+              console.error(`fail-closed: zero or missing aggregate metrics in ${path}`);
+              process.exit(1);
+            }
+          }
+
+          validate('load-tests/results-endpoints-summary.json');
+          validate('load-tests/results-spike-summary.json');
+          console.log('k6 summary aggregates validated');
+          NODE
+
+          {
+            echo "### Load Test Summary Aggregates"
+            echo ""
+            echo "Validated fail-closed metrics: http_reqs, iterations, checks, successful_logins (counts only; secrets not logged)."
+          } >> "$GITHUB_STEP_SUMMARY"
 
   lighthouse:
     timeout-minutes: 30
@@ -125,13 +191,13 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v7.0.0
+        uses: actions/checkout@v7.0.1
 
       - name: Install pnpm
         uses: pnpm/action-setup@v6
 
       - name: Set up Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'pnpm'

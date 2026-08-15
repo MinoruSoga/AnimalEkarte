@@ -40,10 +40,11 @@ async function getManualArticleOverrides(): Promise<ManualArticleOverride[]> {
   }
 }
 
-export function useGetManualArticleOverrides() {
+export function useGetManualArticleOverrides(enabled: boolean) {
   return useQuery({
     queryKey: queryKeys.manualArticles.all(),
     queryFn: getManualArticleOverrides,
+    enabled,
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.STANDARD,
   });

@@ -33,16 +33,23 @@ const COLUMNS = [
 ];
 
 export function ChiefComplaintSettings() {
-  usePermission(ResourceMasterMedical);
+  const { canCreate, canEdit, canDelete } = usePermission(ResourceMasterMedical);
   const { data } = useGetChiefComplaintTypes();
   const createMutation = useCreateChiefComplaintType();
   const updateMutation = useUpdateChiefComplaintType();
   const deleteMutation = useDeleteChiefComplaintType();
   const dirty = useSidePeekDirty();
-  const crud = useMasterCRUD<ChiefComplaintType>({ data, deleteMutation, entityLabel: "主訴マスタ", dirtyGuard: dirty });
+  const crud = useMasterCRUD<ChiefComplaintType>({
+    data,
+    deleteMutation,
+    entityLabel: "主訴マスタ",
+    dirtyGuard: dirty,
+    permissions: { canDelete },
+  });
   const handleDirtyChange = useCallback((d: boolean) => { if (d) dirty.markDirty(); else dirty.markClean(); }, [dirty]);
   const { handleSave } = useMasterSave<ChiefComplaintType, ChiefComplaintFormData, CreateChiefComplaintTypeRequest, UpdateChiefComplaintTypeRequest>({
     crud, createMutation, updateMutation,
+    permissions: { canCreate, canEdit },
     validate: (d) => (!d.name.trim() ? "名称は必須です" : null),
     toCreateRequest: buildChiefComplaintCreateRequest,
     toUpdateRequest: buildChiefComplaintUpdateRequest,
@@ -54,11 +61,18 @@ export function ChiefComplaintSettings() {
       crud={crud} handleSave={handleSave} columns={COLUMNS}
       filterProperties={[MASTER_STATUS_FILTER]}
       renderRow={(item, onEdit, canEdit) => (
-        <DataTableRow key={item.id} onClick={canEdit ? () => onEdit(item) : undefined}>
-          <TableCell className={`font-medium text-base ${C.text}`}>{item.name}</TableCell>
-          <TableCell className={`text-base ${C.text}`}>{item.description}</TableCell>
+        <DataTableRow key={item.id}>
+          <TableCell className={`font-medium ${C.text}`}>{item.name}</TableCell>
+          <TableCell className={C.text}>{item.description}</TableCell>
           <TableCell className="text-center"><StatusPill isActive={item.isActive} /></TableCell>
-          <TableCell className="p-0 text-right">{canEdit ? <RowActionButton onClick={() => onEdit(item)} /> : null}</TableCell>
+          <TableCell className="text-right">
+            {canEdit ? (
+              <RowActionButton
+                onClick={() => onEdit(item)}
+                aria-label={`主訴「${item.name}」(ID: ${item.id}) を編集`}
+              />
+            ) : null}
+          </TableCell>
         </DataTableRow>
       )}
       renderSidePanel={(props) => <ChiefComplaintSidePanel key={props.item?.id ?? "new"} {...props} onDirtyChange={handleDirtyChange} />}

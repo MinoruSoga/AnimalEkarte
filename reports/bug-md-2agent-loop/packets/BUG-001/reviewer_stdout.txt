@@ -1,0 +1,36 @@
+APPROVE（人間ゲート向け）
+
+コード未改変 · Done / VERIFIED_FIXED 未実施
+
+Verdict
+- Unit BUG-001 は merge_gate 通過 → 人間の approve / shelf / 修正指示待ち
+- STATUS は IMPLEMENTED_UNVERIFIED のままが正しい（S01 ブラウザ UNREPORTED）
+
+merge_gate
+1. DoD 証拠: synthetic AC は PASS。S01 原文再検証は UNREPORTED → VERIFIED_FIXED 不可
+2. スコープ: main...fix/BUG-001@8325ee588 = repository_test.go + STATUS.md のみ。product fix d7bf32f22 は main 祖先済み
+3. テスト（reviewer 再実行 12:10 JST · exit 0）
+   - BE: TestPetRepository_FindAll_Search|Kana PASS 0.332s（pet_number_partial_ILIKE 含む）
+   - FE: owners 3 files / 32 tests PASS
+4. 秘密様行なし
+5. engineer handoff あり: /Users/minoru/Vaults/CorpVault/55_Handoff/BRT-8_BUG-001_engineer.md
+6. Linear BRT-8 に LGTM 追記済み
+
+nits（non-blocking）
+1. STATUS tip SHA が 25ff98d97 表記 · HEAD は 8325ee588
+2. main WT に billing 等の他人 dirty → path-scoped 取り込みのみ（git add -A 禁止）
+3. claim/BUG-001 未解放（人間が git branch -D）
+4. test 補強 commit は main 未到達（WT に同内容あり · compose green）
+
+成果物
+- Reviewer handoff: /Users/minoru/Vaults/CorpVault/55_Handoff/BRT-8_BUG-001_reviewer.md
+
+人間向け次アクション
+1. path-scoped で fix/BUG-001 を取り込むか判断
+2. S01 ブラウザ確認後のみ VERIFIED_FIXED
+3. claim 解放
+4. Done は人間明示後のみ
+
+---STDERR---
+
+---RC 0---

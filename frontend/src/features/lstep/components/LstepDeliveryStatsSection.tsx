@@ -9,6 +9,7 @@ import {
   YAxis,
 } from "recharts";
 
+import { TableCell, TableHead } from "@/components/ui/table";
 import { C, PALETTE } from "@/lib/design-tokens";
 
 import { TriggerTypeLabels } from "../constants/trigger-types";
@@ -45,7 +46,7 @@ export function DeliveryStatsSection({
         <select
           value={yearMonth}
           onChange={(e) => onYearMonthChange(e.target.value)}
-          className={`text-sm border ${C.borderLight} rounded-[4px] px-3 py-1.5 ${C.bgWhite} ${C.text80}`}
+          className={`min-h-11 text-sm border ${C.borderLight} rounded-xs px-3 py-1.5 ${C.bgWhite} ${C.text80}`}
           aria-label="集計対象年月"
         >
           {monthOptions.map((opt) => (
@@ -56,7 +57,7 @@ export function DeliveryStatsSection({
         </select>
       </div>
 
-      <div className={`border ${C.borderLight} rounded-[4px] ${C.bgWhite} p-4`}>
+      <div className={`border ${C.borderLight} rounded-xs ${C.bgWhite} p-4`}>
         {isLoading ? (
           <p className={`text-sm ${C.text40} py-8 text-center`}>読み込み中...</p>
         ) : isError ? (
@@ -88,15 +89,15 @@ function DeliveryStatsTable({ rows }: { rows: CrossRow[] }) {
       <table className="w-full text-sm border-collapse">
         <thead>
           <tr className={`${C.bgLight} border-b ${C.borderLight}`}>
-            <th className={`text-left px-3 py-2 font-medium ${C.text80} min-w-[180px]`}>
+            <TableHead className={`${C.text55} min-w-[180px]`}>
               トリガー種別
-            </th>
+            </TableHead>
             {STATS_STATUSES.map((status) => (
-              <th key={status} className={`text-right px-3 py-2 font-medium ${C.text80}`}>
+              <TableHead key={status} className={`text-right ${C.text55}`}>
                 {STATUS_LABELS[status]}
-              </th>
+              </TableHead>
             ))}
-            <th className={`text-right px-3 py-2 font-medium ${C.text80}`}>合計</th>
+            <TableHead className={`text-right ${C.text55}`}>合計</TableHead>
           </tr>
         </thead>
         <tbody>
@@ -105,17 +106,17 @@ function DeliveryStatsTable({ rows }: { rows: CrossRow[] }) {
               key={row.trigger_type}
               className={`border-b ${C.borderLight} hover:${C.bgLight} transition-colors`}
             >
-              <td className={`px-3 py-2 ${C.text80}`}>
+              <TableCell className={C.text80}>
                 {TriggerTypeLabels[row.trigger_type] ?? row.trigger_type}
-              </td>
+              </TableCell>
               {STATS_STATUSES.map((status) => (
-                <td key={status} className={`text-right px-3 py-2 ${C.text60} tabular-nums`}>
+                <TableCell key={status} className={`text-right ${C.text60} tabular-nums`}>
                   {row[status].toLocaleString()}
-                </td>
+                </TableCell>
               ))}
-              <td className={`text-right px-3 py-2 font-medium ${C.text80} tabular-nums`}>
+              <TableCell className={`text-right font-semibold ${C.text55} tabular-nums`}>
                 {row.total.toLocaleString()}
-              </td>
+              </TableCell>
             </tr>
           ))}
         </tbody>

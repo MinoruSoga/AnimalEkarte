@@ -16,12 +16,12 @@ import { C, ICON } from "@/lib/design-tokens";
 import {
   RECEPTION_STATUS_COLOR_FALLBACK,
   RECEPTION_STATUS_COLORS,
-} from "@/utils/constants/status-colors";
+} from "@/constants/status-colors";
 
 import { ActionButtons, type ActionButtonsProps } from "./ReceptionDialogActionButtons";
 import type { ReceptionAppointment as Appointment } from "../api/types";
 
-const SECTION_LABEL = `text-sm font-semibold ${C.text60} uppercase tracking-wider`;
+const SECTION_LABEL = `text-2xs font-semibold ${C.text60} uppercase`;
 const DIVIDER_ROW = `flex items-center justify-between border-b ${C.borderLight} pb-2`;
 const ROW_ICON = `flex items-center gap-2 ${C.text60}`;
 
@@ -46,7 +46,7 @@ export function ReceptionDialogHeader({
       : `${C.bgActive} ${C.text60}`;
 
   return (
-    <DialogHeader className={`p-5 pb-4 border-b ${C.borderLight} pr-12`}>
+    <DialogHeader className={`p-6 pb-4 border-b ${C.borderLight} pr-12`}>
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-2">
           <span
@@ -54,7 +54,7 @@ export function ReceptionDialogHeader({
           >
             {appointment.visitType === "初診" ? "初" : "再"}
           </span>
-          <DialogTitle className={`text-lg font-bold ${C.text}`}>
+          <DialogTitle className={`text-xl font-bold ${C.text}`}>
             {appointment.reservationType}
           </DialogTitle>
         </div>
@@ -160,7 +160,7 @@ export function ReceptionDialogBody({
   canCreateHospitalization,
 }: ReceptionDialogBodyProps) {
   return (
-    <div className="p-5 space-y-4 overflow-y-auto">
+    <div className="p-6 space-y-4 overflow-y-auto">
       <div className={`flex items-center gap-3 p-3 ${C.bgPage} rounded-lg`}>
         <Clock className={`${ICON.page} ${C.text60} shrink-0`} />
         <span className={`font-mono text-xl font-medium ${C.text}`}>{appointment.time}</span>

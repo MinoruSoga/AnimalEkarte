@@ -1,19 +1,21 @@
-# V02: 会計・予約・受付系フォーム検証（入力・更新・DB整合）
+# V02: 会計・予約・受付・在庫系フォーム検証（入力・更新・DB整合）
 
-> **目的**: 会計精算・明細追加・クレジット訂正・返金・レジ締め・見積・予約・受付・シフト・休診日の各入力フォームについて、入力検証（必須・形式・境界）・更新の永続化・DB 整合（FK 選択肢・一意制約）が実機ブラウザ経由で正しく機能することを納品前に証明する。
-> **所要目安**: 90分 / **深度**: フォーム検証
-> **仕様正本**: [screens/11-accounting-detail.md](../../../spec/screens/11-accounting-detail.md)・[screens/29-closing-aggregation.md](../../../spec/screens/29-closing-aggregation.md)・[screens/23-estimate-form.md](../../../spec/screens/23-estimate-form.md)・[screens/02-reservations.md](../../../spec/screens/02-reservations.md)・[screens/01-reception.md](../../../spec/screens/01-reception.md)・[screens/24-shift-calendar.md](../../../spec/screens/24-shift-calendar.md)
+> **目的**: 会計精算・明細追加・クレジット訂正・返金・レジ締め・見積・予約・受付・シフト・休診日・**在庫**の各入力フォームについて、入力検証（必須・形式・境界）・更新の永続化・DB 整合（FK 選択肢・一意制約）が実機ブラウザ経由で正しく機能することを納品前に証明する。
+> **所要目安**: 110分 / **深度**: フォーム検証 + **項目単位 F プロトコル**
+> **フォーム数**: 12（README V02 と一致）
+> **項目単位**: [FIELD-LEVEL-PROTOCOL.md](FIELD-LEVEL-PROTOCOL.md) + [FORM-FIELD-INVENTORY.md](FORM-FIELD-INVENTORY.md) §V02。C1 は入口に過ぎず、**inventory の全 fieldKey に F0–F6 を適用**して完了とする。
+> **仕様正本**: [screens/11-accounting-detail.md](../../../spec/screens/11-accounting-detail.md)・[screens/29-closing-aggregation.md](../../../spec/screens/29-closing-aggregation.md)・[screens/23-estimate-form.md](../../../spec/screens/23-estimate-form.md)・[screens/02-reservations.md](../../../spec/screens/02-reservations.md)・[screens/01-reception.md](../../../spec/screens/01-reception.md)・[screens/24-shift-calendar.md](../../../spec/screens/24-shift-calendar.md)・在庫は `frontend/src/features/inventory`
 
 ## 前提条件
 
-- 環境: ローカル（seed 003_demo）。ログイン: admin ロール（accounting / accounting-post-close-edit / estimates / reservations / shifts の各権限を含む）。
+- 環境: ローカル（seed 003_demo）。ログイン: admin ロール（accounting / accounting-post-close-edit / estimates / reservations / shifts / **inventory** の各権限を含む）。
 - 本シナリオで作成するデータは名前・メモに「V02」を含め、終了時に削除またはキャンセルする。レジ締め（§5）のみ取り消し不可のため、締めが未実施の日・区分を対象にする。
-- スコープ外: クロステナント隔離（BE isolation テストが正本）。会計訂正・未収金の業務フローは [S08](S08-accounting-corrections.md)、締め時間帯境界（AM/PM/EMG・越日）は [S09](S09-closing-time-boundaries.md)、見積ステータス遷移の全パターンは [S07](S07-estimate-status-control.md) が正本 — 本シナリオはフォーム検証観点（C1〜C3）に限定する。
+- スコープ外: クロステナント隔離（BE isolation テストが正本）。会計訂正・未収金の業務フローは [S08](S08-accounting-corrections.md)、締め時間帯境界（AM/PM/EMG・越日）は [S09](S09-closing-time-boundaries.md)、見積ステータス遷移の全パターンは [S07](S07-estimate-status-control.md) が正本 — 本シナリオはフォーム検証観点（C1〜C3 + 項目単位 F）に限定する。
 - `/settings` 配下のマスタフォーム（予約区分・シフトテンプレート等の設定画面）は V04 の対象。本シナリオではそれらを FK 選択肢の供給元（C3-1）としてのみ操作する。
 
 ## 共通チェック手順
 
-各フォームのセクションで (C1)(C2)(C3) を参照する。フィールド・境界値・一意制約は各セクションの指定に従う。
+各フォームのセクションで (C1)(C2)(C3) を参照する。加えて **[FIELD-LEVEL-PROTOCOL.md](FIELD-LEVEL-PROTOCOL.md) の F0–F6 を inventory 全項目に適用**する。フィールド・境界値・一意制約は各セクションおよび inventory の指定に従う。
 
 **C1 入力チェック**
 
@@ -53,12 +55,12 @@
 | 1 | (C1-1) 支払方法別金額の合計が請求金額に満たないまま精算確定 | 確定できない（残額 ≠ 0 では Submit 不可 — FE/BE とも合計=請求金額一致を検証） |
 | 2 | (C1-2) 現金選択でお預かり金額を請求金額未満にして確定 | 拒否される（現金は お預かり ≥ 金額。BE も預り不足を拒否） |
 | 3 | (C1-3) お釣りを手動上書きし -1 → 確定、0 → 確定 | -1 は拒否、0 は受理（#188 上書き時の下限は 0 のみ） |
-| 4 | 支払 split の 1 手段に金額 0 を入れて確定 | 拒否される（BE validatePaymentSplits: 各 split 金額 1 円以上・支払手段の重複禁止） |
+| 4 | 支払 split の 1 手段に金額 0 を入れて確定。別ケースで同一支払手段を 2 行に分けて確定 | 金額 0 は拒否（BE validatePaymentSplits: 各 split 金額 1 円以上）。同一手段の重複 split も拒否（`支払い手段 {method} が重複しています` — method 単位の一意。支払方法マスタの名称一意は V04 §1） |
 | 5 | (C2) 未精算会計で明細・支払方法を変更して保存 → 一覧/詳細反映 → 再読込 → 再オープン | C2-1〜C2-3 のとおり永続・初期表示される |
-| 6 | (C3-2) 既に会計が存在するカルテから 2 件目の会計を作成しようとする | 【要実測】`billings.medical_record_id` UNIQUE（カルテ 1:1）だが、画面導線が抑止されるか BE 409 になるかは仕様文書に明記なし |
+| 6 | (C3-2) 既に会計が存在するカルテから 2 件目の会計を作成しようとする | 【要実測】**DEFER**（同一 medical_record 2 件目会計 fixture 未用意）。source-supported: DB partial UNIQUE → Create → HTTP **409**。FE 主 UI は `medical_record_id` 未送信で UNIQUE 非到達 |
 | 7 | (C3-3) `/accounting/<存在しない ID>` を直叩き | エラー画面が表示される |
 | 8 | 締め済み期間の会計を修正理由なしで保存 → 理由入力して保存 | 理由なしは拒否（#115 post_close_reason 必須）、入力後は保存成功。精算済み (completed) の修正は ConfirmDialog を経由する |
-| 9 | 部分入金: 請求額より少ない入金での保存を試みる | 【要実測】S08 に「会計待ちのまま保存」の記載があるが、PaymentCard は残額 0 必須のため画面上の操作経路が未確認（S08 側にも同注記あり） |
+| 9 | 部分入金: 請求額より少ない入金での保存を試みる | **runtime PASS（partial・2026-08-01 browser）**: `/accounting/:id` で請求>0・支払未入力時に『**残り ¥… 未入力**』+ 確定 disabled を観測（現金を請求未満に入力する操作は未実施・精算未実行）。source-supported: 部分入金 UI 経路なし・BE 合計≠請求 400。会計待ちのまま部分保存する UI は存在しない（S08 同趣旨） |
 
 ## 2. 会計明細追加ダイアログ (accounting-item-add-dialog)
 
@@ -70,7 +72,7 @@
 | 2 | (C1-3) 単価に -1 → 追加、0 → 追加。数量に 0 → 追加 | 単価 -1 は拒否・0 は受理（単価 0 以上）。数量 0 は拒否（正の値のみ） |
 | 3 | (C3-1) 設定の物販・フードマスタ（`/settings/merchandise-items`）に「V02物販」を有効状態で追加 → マスタ選択タブを開き直す | 「V02物販」が選択肢に現れる（merchandise_items 実データ由来・有効のみ表示） |
 | 4 | (C2) 既存会計（id あり）で明細を追加 → 再読込 | 即時 API で永続化されており、再読込後も明細が残る。新規会計（`/accounting/new`）ではローカル保持され、確定時に一括作成される |
-| 5 | カテゴリ・税率の全選択肢でそれぞれ 1 件追加 | すべて保存できる（FE 定数選択肢と BE validateTaxType/validateItemCategory の突合 — 保存できない選択肢があれば BUG 起票） |
+| 5 | マスタ選択タブで food/goods/other の各カテゴリに属する有効マスタを 1 件ずつ追加し、手動入力も 1 件追加 | マスタ品は `merchandise_item_id` が保存され、表示カテゴリはマスタ由来になる。手動入力は12分類からカテゴリを必須選択（デフォルトなし）し、選択した `category` が保存される（other 選択時は other_reason 必須）。各明細の税率も保存できる |
 
 ## 3. クレジット訂正ダイアログ (credit-correction-dialog)
 
@@ -102,7 +104,7 @@
 |:--|:--|:--|
 | 1 | 対象日・区分（am/pm/emg）を指定してプレビュー実行 | 対象期間の会計集計と締めフォーム（実際のレジ現金）が表示される。休診日・締め済みの日はバナー表示となりフォームは出ない |
 | 2 | (C1-1) 実際のレジ現金を空のまま送信 | 拒否される（required） |
-| 3 | (C1-3) 実際のレジ現金に -1 → 送信、0 → 送信 | -1 は拒否（min=0）、0 は受理。送信は確認ダイアログ（AlertDialog）を経由する |
+| 3 | (C1-3) 実際のレジ現金に -1 → 送信、0 → 送信 | -1 は拒否（FE min=0 および BE actual_cash>=0）、0 は受理。送信は確認ダイアログ（AlertDialog）を経由する |
 | 4 | (C2) 締めを実行 → `/accounting/close/history` を確認 → 再読込 | 締め結果（現金過不足 = 実査 - 理論値は BE 算出）が履歴に永続表示される |
 | 5 | (C3-2) 同一日・同一区分で再度プレビューを実行 | 「締め済み」バナーが表示され締めフォームが出ない（`(clinic_id, close_date, period)` UNIQUE。API 直の二重締めは 409『この日時はすでに締め済みです』） |
 
@@ -138,8 +140,8 @@
 | 5 | (C3-2 相当) 医師指定ありで既存予約と同一時間帯に重複予約を保存 | FE 保存前チェックで拒否され保存されない（API 直は BE checkSlotConflict 409） |
 | 6 | (C2) 既存予約の時刻・メモを編集して保存 → カレンダー反映 → 再読込 → 再オープン | C2-1〜C2-3 のとおり永続・初期表示される |
 | 7 | 同一飼主のペット 2 頭を選択して保存 | ペット数分（2 件）の予約が一括作成される（部分失敗時は失敗分がエラー通知される） |
-| 8 | 新規飼主モードで、手順 5 と同様に医師時間帯が重複する条件で保存 | 【要実測】owner → pet → 予約の 3 段作成のため、予約作成のみ失敗した場合に飼主・ペットが作成済みのまま残るか（中間データ残留）。仕様文書に明記なし |
-| 9 | 【代表・削除済みマスタ】「V02予約区分」をマスタに追加 → その区分で予約作成 → 区分をマスタから削除 → 予約を編集で再オープン | 【要実測】削除済み予約区分の表示挙動（保持表示か空欄か）と、そのまま保存してエラーにならないか |
+| 8 | 新規飼主モードで、手順 5 と同様に医師時間帯が重複する条件で保存 | 【要実測】**DEFER**（意図的 BE 失敗で orphan を作る検証は一時データ汚染リスク）。source-supported: 新規飼主 3 段 create は同一 TX なし |
+| 9 | 【代表・削除済みマスタ】「V02予約区分」をマスタに追加 → その区分で予約作成 → 区分をマスタから削除 → 予約を編集で再オープン | 【要実測】**DEFER**（使用中 DELETE は 409 で手順到達不能が source 上の主結果。soft-delete 表示は別経路）。source-supported: 使用中 → **409** |
 
 ## 8. 当日受付 walk-in 新規受付・予約内容編集 (reception-walkin-reservation)
 
@@ -150,7 +152,7 @@
 | 1 | 新規受付ボタンから walk-in を作成 | 受付済カラムにカードが即時表示される（status=checked_in・route=reception で登録） |
 | 2 | (C2) カード編集でメモ・担当医を変更して保存 → 再読込 | カンバンに反映され永続する（PATCH 更新）。受付時刻（checked_in_at）は編集で変わらない |
 | 3 | 未確定（pending）の予約をカンバンから編集で開いて保存 | ステータスが confirmed へ昇格して保存される |
-| 4 | 編集で終了時刻を未指定のまま保存 | 【要実測】開始 + 1 時間として保存される（FE 実装の既定値 — 仕様文書に明記なし） |
+| 4 | 編集で終了時刻を未指定のまま保存 | 【要実測】**BLOCKED**（当日受付カード 0 件で編集 UI 非到達）。source-supported / unit: end 省略時 start+1h |
 
 ## 9. 受付カンバン ステータス変更 (reception-status-change)
 
@@ -159,9 +161,9 @@
 | # | 操作 | 期待結果 |
 |:--|:--|:--|
 | 1 | (C2) カードを受付済 → 診察中へドラッグ → 再読込 | カラム移動が永続する |
-| 2 | 詳細モーダルの進行ボタンをステータス順に確認 | 【要実測】受付予約→『受付済にする』、受付済→『診察を開始/終了する』、会計待ち→『会計へ進む』（会計精算画面へ遷移）と導線が変化する（ボタン文言は実装由来 — 仕様文書に明記なし） |
+| 2 | 詳細モーダルの進行ボタンをステータス順に確認 | 【要実測】**BLOCKED**（当日カード 0 件でモーダル非到達）。source-supported / unit: CTA 文言カタログ |
 | 3 | キャンセル操作 | ConfirmDialog を経由し、status=cancelled が永続する |
-| 4 | 会計済カラムのカードを受付済へ逆方向ドラッグ | 【要実測】BE 側の遷移順序ガードの有無が未確認（逆行が保存されるか拒否されるか） |
+| 4 | 会計済カラムのカードを受付済へ逆方向ドラッグ | 【要実測】**BLOCKED**（当日カード 0 件）。source-supported: 会計済→受付済は PATCH 可・順序ガードなし |
 
 ## 10. シフト追加・編集ダイアログ (shift-form-dialog)
 
@@ -173,7 +175,7 @@
 | 2 | 種別 off（休日・有休）を選択 | 時刻フィールドが非活性になる（実装ガード: `ShiftFormDialog.tsx` のコメント参照） |
 | 3 | (C3-1) シフトテンプレートマスタに「V02テンプレ」を追加（有効状態）→ ダイアログの「テンプレートから入力」を確認 | 「V02テンプレ」が候補に現れ、選択で時刻が流し込まれる（is_active のみ表示） |
 | 4 | (C2) 既存シフトの時刻・メモ・休憩行を編集して保存 → カレンダー反映 → 再読込 → 再オープン | C2-1〜C2-3 のとおり永続・初期表示される。休憩は start/end が揃った行のみ保存される |
-| 5 | (C3-2) 同一スタッフ・同一日に 2 件目のシフトを作成しようとする | 既存日セルのクリックは編集モードで開くため通常は重複経路がない。【要実測】重複作成を直接試みた場合の画面表現（`(clinic_id, staff_id, date)` UNIQUE 違反時の 409 表示は未確認） |
+| 5 | (C3-2) 同一スタッフ・同一日に 2 件目のシフトを作成しようとする | 【要実測】**DEFER**（UI 通常は重複経路なし。API 直 409 トーストは未実測）。source-supported: UI 編集 vs 追加分岐 + API 409 |
 
 - シフトテンプレート設定画面自体の検証は V04。削除は ConfirmDialog 付き（実装確認済み: `ShiftFormDialog.tsx`）。
 
@@ -185,12 +187,38 @@
 |:--|:--|:--|
 | 1 | (C2) 任意の営業日を休診日に設定（理由「V02」）→ カレンダー反映 → 再読込 | 休診日表示が永続する |
 | 2 | 波及確認: §7 の予約モーダルを開き、設定した日をカレンダーで確認 | 該当日が選択不可（disabled）になっている（BUG-343） |
-| 3 | (C3-2) 設定済みの日に再度休診日を設定しようとする | 【要実測】`(clinic_id, date)` UNIQUE。設定済み日は解除 UI に切り替わり重複経路がない想定だが、画面表現・BE 固有バリデーションは未確認 |
+| 3 | (C3-2) 設定済みの日に再度休診日を設定しようとする | 【要実測】**DEFER**（設定→再設定のフル操作未実施。/shifts に定休日コントロール存在のみ smoke）。source-supported: UPSERT |
 | 4 | 後片付け: 休診日を解除 | カレンダーから休診日表示が消え、§7 の該当日が再び選択可能になる |
+
+## 12. 在庫登録・編集フォーム (inventory-form) — 項目単位必須
+
+- ルート: `/inventory/new`（新規）・`/inventory/:id`（編集）。実装: `InventoryForm` / `InventoryFormSections` / `use-inventory-form.ts`。
+- **項目棚卸し正本**: [FORM-FIELD-INVENTORY.md](FORM-FIELD-INVENTORY.md) § inventory-form。以下は C1〜C3 入口。**全 fieldKey に F プロトコルを適用**する。
+
+| # | 操作 | 期待結果 |
+|:--|:--|:--|
+| 1 | (C1-1 / F1) 品名を空のまま保存。現在庫数・最低在庫数を空のまま保存 | それぞれエラーが表示され保存されない（`quantity` / `minStockLevel` は 0 以上の整数必須） |
+| 2 | (C1-2 / F2–F3) 現在庫数に `-1` / `1.5`、最低在庫数に `-1` を入れて保存 | 拒否される（整数かつ ≥0）。`0` は受理 |
+| 3 | (F4) 新規「V02在庫」: 品名・カテゴリ（medicine/consumable/food/other を順に代表 1+残り F0）・単位・数量・最低在庫・保管場所・使用期限・仕入先・最終入庫日を入力して保存 → 一覧 → 再読込 → 再オープン | C2-1〜C2-3 どおり全入力項目が永続・初期表示される |
+| 4 | (F5) 任意項目（単位・保管場所・使用期限・仕入先・最終入庫日）を空にして保存 → 再オープン | 空/未設定が永続する（クリア可な契約） |
+| 5 | (C2) 既存「V02在庫」の数量のみ変更して保存 → 再オープン | 他フィールドが消えずに保持される（部分更新） |
+| 6 | (C3-3) `/inventory/<存在しない ID>` を直叩き | 404/エラー画面（白画面・無限ロードにならない） |
+| 7 | 後片付け: 「V02在庫」を削除または一覧から除外 | 受入データが残らない |
+
+- カテゴリ enum 外は UI 上選択不能（BE 拒否は unit test 正本）。一意制約（同名在庫）が UI から再現できる場合のみ C3-2 を追加実施。
 
 ## 確認観点
 
-- 既存の機械テストとの分担: FE component test（`PaymentCard`・`CreditCorrectionDialog`・`RefundSection`・`EstimateForm`・`ReservationFormModal`・受付 hooks/`ReceptionDialogActionButtons`・`ShiftCalendar`）と BE validator/service test（validatePaymentSplits・billing_item・refund・cash_register・estimate・appointment/checkSlotConflict・shift_entry の各 service test）が単体レベルの検証を網羅済み。**本シナリオはブラウザ → API → DB を通した受け入れ時の実機フォーム検証**である。
-- テスト空白地帯: `CashRegisterClosePage`・`ShiftFormDialog`・`ClinicHolidayModal`・`ItemListCard` は component test が存在せず、E2E も全対象フォームで表示確認どまり（保存実行なし）— §2・§5・§10・§11 は本シナリオが唯一の保存実行検証。
+- 既存の機械テストとの分担: FE component test（`PaymentCard`・`CreditCorrectionDialog`・`RefundSection`・`EstimateForm`・`ReservationFormModal`・受付 hooks/`ReceptionDialogActionButtons`・`ShiftCalendar`・inventory form hooks）と BE validator/service test（validatePaymentSplits・billing_item・refund・cash_register・estimate・appointment/checkSlotConflict・shift_entry の各 service test）が単体レベルの検証を網羅済み。**本シナリオはブラウザ → API → DB を通した受け入れ時の実機フォーム検証**である。
+- テスト空白地帯: `CashRegisterClosePage`・`ShiftFormDialog`・`ClinicHolidayModal` は component test が存在せず、E2E も全対象フォームで表示確認どまり（保存実行なし）— §5・§10・§11 は本シナリオが唯一の保存実行検証。`ItemListCard` には component test がある。在庫は unit/hook test があるが **E2E 保存通しは本 §12 + 項目単位 F が受入正本**。
 - 監査 fail-closed（クレジット訂正・返金は監査ログと同一トランザクション、監査失敗で操作ごとロールバック #211）は BE テスト正本 — 画面側では検証しない。
-- クロステナント隔離はスコープ外（BE isolation テスト正本）。NG 項目は bug.md へ BUG-XXX として起票する（[README.md](README.md) のルールに従う）。
+- クロステナント隔離はスコープ外（BE isolation テスト正本）。NG 項目は [`todo.md` 受入バグ](../../../../todo.md) へ `### BUG-XXX` 節として起票する（ローカル連番 最大+1・[README.md](README.md) のルールに従う）。
+
+## 実装突合
+- 突合日: 2026-08-14
+- 変更:
+  - §12 inventory-form を追加（旧 84 フォーム棚卸しから欠落していた永続フォーム）
+  - 項目単位 F プロトコル・FORM-FIELD-INVENTORY を必須完了条件に追加
+  - §1 支払 split: 金額下限（1 円以上）に加え method 重複禁止を手順として明示（`validatePaymentSplits` / `accounting_service_builders.go`）
+  - 会計・見積・レジ締め・予約/受付・シフト・在庫のルートを `paths.ts` と一致確認
+  - 支払方法マスタ側の `(clinic_id, name)` 一意・system_key ポリシーは V04 正本のまま相互参照のみ

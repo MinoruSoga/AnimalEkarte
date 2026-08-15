@@ -38,7 +38,11 @@ export const InsuranceCard = memo(function InsuranceCard({
           <CardTitle className="text-sm font-medium flex items-center gap-2">
             <CreditCard className={ICON.action} /> ペット保険（窓口精算）
           </CardTitle>
-          <Switch checked={useInsurance} onCheckedChange={onUseInsuranceChange} />
+          <Switch
+            checked={useInsurance}
+            onCheckedChange={onUseInsuranceChange}
+            aria-label="ペット保険を利用"
+          />
         </div>
       </CardHeader>
       {useInsurance ? (
@@ -46,7 +50,7 @@ export const InsuranceCard = memo(function InsuranceCard({
           <div className="space-y-2">
             <Label className="text-xs">負担割合（保険会社が支払う割合）</Label>
             <Select value={insuranceRatio} onValueChange={onInsuranceRatioChange}>
-              <SelectTrigger className="h-10">
+              <SelectTrigger className="h-11" aria-label="負担割合">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>{INSURANCE_RATIO_ITEMS}</SelectContent>

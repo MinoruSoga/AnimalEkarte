@@ -1,15 +1,23 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router";
 import { http, HttpResponse, delay } from "msw";
 import { server } from "@/testing/mocks/node";
-import { AuthContext } from "@/contexts/auth-context";
+import { AuthContext } from "@/hooks/auth-context";
+import type { AuthContextValue } from "@/types/auth";
+import {
+  ResourceLstepAnalytics,
+  ResourceOwners,
+} from "@/types/generated/models";
 import { LstepTagManagementPage } from "./LstepTagManagementPage";
 import type { LstepTagSummaryResponse } from "../api/get-lstep-tag-summary";
+import { fetchLstepTagOwnersCsv } from "../api/get-lstep-tag-owners";
 
-const mockAuthContext = {
+const mockHasPermission = vi.fn<AuthContextValue["hasPermission"]>(() => true);
+
+const mockAuthContext: AuthContextValue = {
   user: null,
   currentClinicId: "clinic-test-1",
   isAuthenticated: true,
@@ -17,7 +25,7 @@ const mockAuthContext = {
   login: async () => {},
   logout: async () => {},
   switchClinic: () => {},
-  hasPermission: () => true as boolean,
+  hasPermission: mockHasPermission,
   refreshPermissions: async () => {},
 };
 
@@ -75,6 +83,8 @@ async function renderAndWait(data: LstepTagSummaryResponse = mockSummary) {
 }
 
 beforeEach(() => {
+  mockHasPermission.mockReset();
+  mockHasPermission.mockReturnValue(true);
   localStorage.setItem("auth_current_clinic:v1", CLINIC_ID);
 });
 
@@ -160,6 +170,114 @@ describe("LstepTagManagementPage — D: タグ別飼い主一覧ドロワー (FE
         screen.getByText("タグ「HLTH_健診あり」の対象者一覧")
       ).toBeInTheDocument();
     });
+    const drawer = screen.getByRole("dialog");
+    expect(drawer).toHaveAccessibleDescription("5名");
+    expect(drawer).toHaveClass("w-full", "max-w-full", "sm:max-w-[480px]");
+    expect(drawer).not.toHaveClass("w-[480px]");
+    expect(
+      within(drawer)
+        .getByText("タグ「HLTH_健診あり」の対象者一覧")
+        .closest('[data-slot="sheet-header"]')
+    ).toHaveClass("pr-16");
+    expect(within(drawer).getByRole("button", { name: "閉じる" })).toHaveClass(
+      "min-h-11",
+      "min-w-11"
+    );
+    expect(within(drawer).getByRole("button", { name: "CSV" })).toHaveClass(
+      "min-h-11"
+    );
+  });
+
+  it("対象者が100名を超える場合は先頭100名に打ち切り、一覧APIも上限内で呼ぶ", async () => {
+    let requestedPerPage: string | null = null;
+    server.use(
+      http.get(`/api/v1/clinics/${CLINIC_ID}/lstep/owners`, ({ request }) => {
+        requestedPerPage = new URL(request.url).searchParams.get("per_page");
+        return HttpResponse.json({
+          owners: Array.from({ length: 100 }, (_, index) => ({
+            owner_id: String(index + 1),
+            owner_name: `飼主${index + 1}`,
+            line_user_id: null,
+            last_visit_date: null,
+          })),
+          total: 250,
+        });
+      }),
+    );
+    await renderAndWait({
+      ...mockSummary,
+      tags: [{ tag_name: "HLTH_健診あり", owner_count: 250, category: "auto" }],
+    });
+
+    const row = screen.getByText("HLTH_健診あり").closest("tr");
+    expect(row).not.toBeNull();
+    await userEvent.setup().click(within(row!).getByRole("button", { name: /対象者一覧/ }));
+
+    expect(await screen.findByText("先頭100名を表示しています")).toBeInTheDocument();
+    expect(requestedPerPage).toBe("100");
+  });
+
+  it("手動タグの対象者が打ち切られた場合は部分的な一括解除を許可しない", async () => {
+    server.use(
+      http.get(`/api/v1/clinics/${CLINIC_ID}/lstep/owners`, () =>
+        HttpResponse.json({
+          owners: Array.from({ length: 100 }, (_, index) => ({
+            owner_id: String(index + 1),
+            owner_name: `飼主${index + 1}`,
+            line_user_id: null,
+            last_visit_date: null,
+          })),
+          total: 250,
+        }),
+      ),
+    );
+    await renderAndWait({
+      ...mockSummary,
+      tags: [{ tag_name: "手動フォロー", owner_count: 250, category: "manual" }],
+    });
+
+    const row = screen.getByText("手動フォロー").closest("tr");
+    expect(row).not.toBeNull();
+    await userEvent.setup().click(within(row!).getByRole("button", { name: /対象者一覧/ }));
+
+    const drawer = await screen.findByRole("dialog");
+    expect(within(drawer).queryByRole("button", { name: "一括解除" })).not.toBeInTheDocument();
+  });
+
+  it("CSV出力はpageクロールせずformat=csvの1リクエストに委譲する", async () => {
+    const requests: URL[] = [];
+    server.use(
+      http.get(`/api/v1/clinics/${CLINIC_ID}/lstep/owners`, ({ request }) => {
+        requests.push(new URL(request.url));
+        return new HttpResponse("owner_id,owner_name\n1,山田", {
+          headers: { "Content-Type": "text/csv; charset=utf-8" },
+        });
+      }),
+    );
+
+    const csv = await fetchLstepTagOwnersCsv("HLTH_健診あり");
+
+    expect(csv).toBeInstanceOf(Blob);
+    expect(requests).toHaveLength(1);
+    expect(requests[0].searchParams.get("tag")).toBe("HLTH_健診あり");
+    expect(requests[0].searchParams.get("format")).toBe("csv");
+    expect(requests[0].searchParams.has("page")).toBe(false);
+  });
+
+  it("対象者が5000名を超える場合は不完全なCSV出力を無効化して上限を明示する", async () => {
+    setupOwnersHandler();
+    await renderAndWait({
+      ...mockSummary,
+      tags: [{ tag_name: "HLTH_健診あり", owner_count: 5_001, category: "auto" }],
+    });
+
+    const row = screen.getByText("HLTH_健診あり").closest("tr");
+    expect(row).not.toBeNull();
+    await userEvent.setup().click(within(row!).getByRole("button", { name: /対象者一覧/ }));
+
+    const drawer = await screen.findByRole("dialog");
+    expect(within(drawer).getByText("CSV出力は5000名までです")).toBeInTheDocument();
+    expect(within(drawer).getByRole("button", { name: "CSV" })).toBeDisabled();
   });
 });
 
@@ -179,16 +297,45 @@ describe("LstepTagManagementPage — E: ローディング・エラー状態 (FE
     expect(screen.getByText("読み込み中...")).toBeInTheDocument();
   });
 
-  it("APIエラー時はテーブルに「タグが見つかりません」が表示される", async () => {
+  it("403エラー時は空一覧ではなく権限不足を表示する", async () => {
     server.use(
       http.get(`/api/v1/clinics/${CLINIC_ID}/lstep/tag-summary`, () =>
-        HttpResponse.json({ message: "Internal Server Error" }, { status: 500 })
+        HttpResponse.json({ error: "forbidden" }, { status: 403 })
       )
     );
     render(<LstepTagManagementPage />, { wrapper: createWrapper() });
     await waitFor(() => {
-      expect(screen.getByText("タグが見つかりません")).toBeInTheDocument();
+      expect(screen.getByText(/アクセス権限がありません/)).toBeInTheDocument();
     });
+    expect(screen.queryByText("タグが見つかりません")).not.toBeInTheDocument();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────
+// G: RBAC 契約
+// ─────────────────────────────────────────────────────────────
+
+describe("LstepTagManagementPage — G: RBAC 契約", () => {
+  it("集計・対象者一覧の閲覧権限を lstep-analytics で判定する", async () => {
+    await renderAndWait();
+
+    expect(mockHasPermission).toHaveBeenCalledWith(ResourceLstepAnalytics, "view");
+  });
+
+  it("手動タグの解除操作を owners:delete で判定する", async () => {
+    mockHasPermission.mockImplementation(
+      (resource, action) =>
+        (resource === ResourceLstepAnalytics && action === "view") ||
+        (resource === ResourceOwners && action === "delete")
+    );
+    await renderAndWait({
+      ...mockSummary,
+      tags: [{ tag_name: "campaign_summer", owner_count: 2, category: "manual" }],
+    });
+
+    const row = screen.getByText("campaign_summer").closest("tr");
+    expect(row).not.toBeNull();
+    expect(within(row!).getByRole("button", { name: /削除/ })).toBeInTheDocument();
   });
 });
 
@@ -225,6 +372,9 @@ describe("LstepTagManagementPage — F: 判定理由表示 (FEAT-379-supplement)
         screen.getByText("判定理由: 最終健診: 2025-12-01")
       ).toBeInTheDocument();
     });
+    expect(screen.getByRole("link", { name: "カルテを開く" })).toHaveClass(
+      "min-h-11"
+    );
   });
 
   it("reason が undefined の場合「判定理由」テキストは描画されない", async () => {

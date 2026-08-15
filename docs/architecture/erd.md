@@ -1,17 +1,19 @@
 # データベース設計書 (Entity Relationship Diagram)
 
-> **目的**: 全108テーブルのデータベース設計(ER図)を定義し、テーブル数等の統計値の正本とする。
+> **目的**: 全123テーブルのデータベース設計(ER図)を定義し、テーブル数等の統計値の正本とする。
 > **読者**: 全開発者。
 > **タイミング**: スキーマ変更・DB設計判断時。
 
+<!-- ERD:TABLE_COUNT=123 -->
+
 > **Animal Ekarte**: 高精度・高整合な動物病院データモデル
-> **バージョン**: v31.27 | **最新更新**: 2026-07-16 | **状態**: Production Ready (108 Tables Verified)
+> **バージョン**: v31.36 | **最新更新**: 2026-08-14 | **状態**: Production Ready (123 Tables Verified)
 
 ---
 
-## 1. データモデルの全体像 (全 108 テーブル)
+## 1. データモデルの全体像 (全 123 テーブル)
 
-本システムは、臨床・経営・外部連携を支える 108 のテーブルが高度に正規化され、臨床的整合性を維持するリレーショナルモデルを採用しています。
+本システムは、臨床・経営・外部連携を支える 123 のテーブルが高度に正規化され、臨床的整合性を維持するリレーショナルモデルを採用しています。
 
 ### 1.1 主要ドメイン別構成
 
@@ -19,13 +21,14 @@
 |:---|:---|
 | **システム基盤 (13)** | `accounts`, `clinics`, `clinic_settings`, `clinic_holidays`, `closing_special_periods`, `staffs`, `permission_groups`, `permission_group_rules`, `audit_logs`, `companies`, `password_reset_tokens`, `token_blacklist`, `occupations` |
 | **入院・稼働 (11)** | `hospitalizations`, `daily_records`, `care_plan_items`, `care_logs`, `cages`, `hospitalization_plans`, `staff_notes`, `staff_clinic_assignments`, `staff_permission_groups`, `staff_reservation_exclusions`, `staff_reservation_capabilities` |
-| **臨床・診察 (22)** | `owners`, `pets`, `pet_chronic_conditions`, `animal_species`, `chief_complaint_types`, `medical_records`, `medical_record_addenda`, `medical_record_images`, `clinical_plans`, `treatment_plans`, `treatments`, `prescriptions`, `procedures`, `vital_records`, `inquiries`, `consultations`, `diagnosis_names`, `diagnosis_types`, `inquiry_templates`, `medicines`, `medicine_dose_params`, `vaccines` |
-| **検査・予防 (12)** | `exams`, `exam_results`, `exam_types`, `exam_type_fields`, `vaccinations`, `checkups`, `checkup_types`, `checkup_type_fields`, `checkup_field_results`, `shared_files`, `lab_import_jobs`, `lab_import_events` |
+| **臨床・診察 (24)** | `owners`, `pets`, `pet_owners`, `pet_chronic_conditions`, `animal_species`, `chief_complaint_types`, `medical_records`, `medical_record_addenda`, `medical_record_images`, `medical_record_image_upload_quota`, `clinical_plans`, `treatment_plans`, `treatments`, `prescriptions`, `procedures`, `vital_records`, `inquiries`, `consultations`, `diagnosis_names`, `diagnosis_types`, `inquiry_templates`, `medicines`, `medicine_dose_params`, `vaccines` |
+| **検査・予防 (20)** | `exams`, `exam_results`, `exam_types`, `exam_type_fields`, `exam_reference_ranges`, `examination_revisions`, `examination_revision_items`, `vaccinations`, `checkups`, `checkup_types`, `checkup_type_fields`, `checkup_field_results`, `checkup_package_import_receipts`, `shared_files`, `lab_import_jobs`, `lab_import_events`, `lab_import_exam_retractions`, `lab_import_exam_retraction_items`, `lab_import_usage_receipts`, `lab_import_revert_receipts` |
 | **予約・シフト (12)** | `appointments`, `reservation_types`, `reservation_type_groups`, `reservation_type_occupations`, `reservation_type_available_slots`, `reservation_type_unavailable_times`, `appointment_trimming_details`, `appointment_trimming_options`, `shift_entries`, `shift_entry_breaks`, `shift_templates`, `shift_template_breaks` |
-| **会計・経営 (15)** | `billings`, `billing_items`, `payments`, `payment_splits`, `billing_refunds`, `billing_confirmations`, `cash_register_closes`, `payment_methods`, `merchandise_items`, `estimate_items`, `estimates`, `insurances`, `campaigns`, `campaign_target_categories`, `campaign_target_items` |
+| **会計・経営 (16)** | `billings`, `billing_items`, `payments`, `payment_splits`, `billing_refunds`, `billing_confirmations`, `cash_register_closes`, `cash_register_close_adjustments`, `payment_methods`, `merchandise_items`, `estimate_items`, `estimates`, `insurances`, `campaigns`, `campaign_target_categories`, `campaign_target_items` |
 | **トリミング (3)** | `trimming_course_types`, `trimming_courses`, `trimming_options` |
 | **在庫 (1)** | `inventory_items` |
 | **LINE/CRM (19)** | `line_customers`, `line_link_tokens`, `line_send_logs`, `line_reservation_settings`, `lstep_settings`, `lstep_trigger_priorities`, `lstep_delivery_trigger_log`, `lstep_csv_imports`, `lstep_tag_cache`, `lstep_tag_code_mappings`, `lstep_auto_managed_prefixes`, `lstep_condition_tag_mappings`, `lstep_send_purpose_tag_prefixes`, `lstep_friend_attribute_snapshots`, `lstep_sync_error_counters`, `clinic_integrations`, `manual_articles`, `manual_article_versions`, `lstep_migration_progress` |
+| **横断・identity links (4)** | `owner_identity_groups`, `owner_identity_group_members`, `pet_identity_groups`, `pet_identity_group_members`（`001_init.sql` セクション10・旧 `004_add_identity_links.sql` 原文・医院横断の owner/pet 明示リンク） |
 
 ---
 
@@ -38,12 +41,17 @@ erDiagram
     owners ||--o{ pets : "owner_id"
     pets ||--o{ medical_records : "pet_id"
     pets ||--o{ pet_chronic_conditions : "pet_id"
+    clinics ||--o{ pet_owners : "clinic_id"
+    pets ||--o{ pet_owners : "(clinic_id, pet_id)"
+    owners ||--o{ pet_owners : "(clinic_id, owner_id)"
     medical_records ||--o| billings : "medical_record_id"
     billings ||--o{ billing_items : "billing_id"
     treatments ||--o{ billing_items : "treatment_id"
     appointments ||--o{ billing_items : "appointment_id"
     trimming_courses ||--o{ billing_items : "trimming_course_id"
     trimming_options ||--o{ billing_items : "trimming_option_id"
+    merchandise_items ||--o{ billing_items : "merchandise_item_id"
+    vaccinations ||--o{ billing_items : "vaccination_id"
     billings ||--o{ payments : "billing_id"
     billings ||--o{ payment_splits : "billing_id"
 
@@ -61,6 +69,10 @@ erDiagram
 
     %% 会計・集計 (拡張)
     clinics ||--o{ cash_register_closes : "clinic_id"
+    clinics ||--o{ cash_register_close_adjustments : "clinic_id"
+    cash_register_closes ||--o{ cash_register_close_adjustments : "(close_id, clinic_id)"
+    billings ||--o{ cash_register_close_adjustments : "(billing_id, clinic_id)"
+    staffs ||--o{ cash_register_close_adjustments : "(actor_id, clinic_id)"
     clinics ||--o{ payment_methods : "clinic_id"
     clinics ||--o{ closing_special_periods : "clinic_id"
 
@@ -71,6 +83,18 @@ erDiagram
     checkups ||--o{ checkup_field_results : "checkup_id"
     checkup_types ||--o{ checkup_type_fields : "checkup_type_id"
     checkup_type_fields ||--o{ checkup_field_results : "checkup_type_field_id"
+    exam_type_fields ||--o{ exam_reference_ranges : "exam_type_field_id"
+    animal_species ||--o{ exam_reference_ranges : "animal_species_id"
+    exams ||--o{ examination_revisions : "(clinic_id, examination_id)"
+    examination_revisions ||--o{ examination_revision_items : "(clinic_id, examination_id, version)"
+    clinics ||--o{ checkup_package_import_receipts : "clinic_id"
+    staffs ||--o{ checkup_package_import_receipts : "actor_id"
+    lab_import_jobs ||--o{ lab_import_exam_retractions : "(clinic_id, job_id)"
+    exams ||--o{ lab_import_exam_retractions : "(clinic_id, exam_id, job_id)"
+    lab_import_exam_retractions ||--o{ lab_import_exam_retraction_items : "(clinic_id, retraction_id, job_id, exam_id)"
+    lab_import_jobs ||--o{ lab_import_usage_receipts : "(clinic_id, job_id)"
+    exams ||--o{ lab_import_usage_receipts : "(clinic_id, exam_id, job_id)"
+    lab_import_jobs ||--o{ lab_import_revert_receipts : "(clinic_id, job_id)"
 ```
 
 ---
@@ -80,7 +104,7 @@ erDiagram
 ### 3.1 物理設計 of 健診パッケージ複合FK保護
 - **主キー**: 全テーブルで `bigint` (auto_increment) または `uuid` を採用。
 - **日時管理**: アプリケーション、DB セッション、インフラ設定は `Asia/Tokyo` を標準とする。日時カラムは主に `timestamptz` を使い、API 入出力は JST オフセット付き ISO 8601 を基本とする。
-- **整合性制約**: アプリケーション層だけでなく、DB レベルで `FOREIGN KEY` 制約によりデータの孤立を防止。特に健診パッケージの結果レコード `checkup_field_results` では、越境防止のため `(checkup_type_field_id, clinic_id)` 複合FKにより親定義とクリニックIDの不一致を物理的に排除しています。同様に `checkup_type_fields.checkup_type_id` も、`checkup_types` の `UNIQUE (id, clinic_id)` を参照する `(checkup_type_id, clinic_id)` 複合FK（`fk_checkup_type_fields_type_clinic`・#211 A6）へ置換済みです（2026-07-17 に `001_init.sql` へ統合。既存 DB への反映は USER の `DB_RESET=true` 再適用時、詳細は §4.3）。
+- **整合性制約**: アプリケーション層だけでなく、DB レベルで `FOREIGN KEY` 制約によりデータの孤立を防止。特に健診パッケージの結果レコード `checkup_field_results` では、越境防止のため `(checkup_type_field_id, clinic_id)` 複合FKにより親定義とクリニックIDの不一致を物理的に排除しています。同様に `checkup_type_fields.checkup_type_id` も、`checkup_types` の `UNIQUE (id, clinic_id)` を参照する `(checkup_type_id, clinic_id)` 複合FK（`fk_checkup_type_fields_type_clinic`・#211 A6）へ置換済みです（2026-07-17 に `001_init.sql` へ統合。既存 DB への反映は USER の `DB_RESET=true` 再適用時、詳細は §4.3）。同型の防御として、`pet_owners`（ペットと飼い主の多対多・旧003・2026-07-27統合）は `(clinic_id, pet_id)` → `pets (clinic_id, id)` と `(clinic_id, owner_id)` → `owners (clinic_id, id)` の複合FK対を持ち、両親テーブルに追加した `UNIQUE (clinic_id, id)`（旧002・`uq_pets_clinic_id_id` / `uq_owners_clinic_id_id`）を参照先とすることで、他院のペットと飼い主を跨いだ紐付けを物理的に排除しています。同様に、`billing_items` の接種 provenance（旧008・2026-07-27統合）では `(vaccination_id, clinic_id)` → `vaccinations (id, clinic_id)` と `(billing_id, clinic_id)` → `billings (id, clinic_id)` の複合FK対と lifetime 部分 unique index（`uq_billing_items_vaccination_lifetime`）により、他院接種の混入と同一接種の二重計上を物理的に排除しています。2026-07-29 統合（§9）では、会計・飼主・ペット境界の clinic 軸をさらに harden している: `payments.clinic_id` と `fk_payments_*` 複合 FK、`fk_pets_clinic_owner`、`uq_medical_records_id_clinic` および medical_records/vaccinations/billings の clinic 軸複合 FK、`app_private.enforce_payment_method_system_key_match`（method ⇔ `payment_methods.system_key`）、部分 unique index `uk_owners_clinic_phone`（非空 phone）、`chk_inventory_items_quantity_non_negative`、`pets.version`（楽観ロック）、`idx_exam_results_exam_type_field_id`。
 
 ### 3.2 高度なマルチテナント隔離
 - **`clinic_id` の強制**: ビジネスロジックが関わる全テーブルに `clinic_id` カラムを配置。
@@ -94,7 +118,7 @@ erDiagram
 
 ## 4. スキーマ整合・不要候補判定ログ
 
-現行マイグレーション (`001_init.sql` および増分 `005`〜`012`) の `CREATE TABLE` 定義と本 ERD の主要ドメイン別構成を静的照合し、2026-07-03 時点で以下の通り整理しました。実 DB のデータ量・実行時 SQL・アクセスログは確認対象外です。
+現行マイグレーション（直下 DDL 在庫は `ls backend/migrations/*.sql` を正とする。2026-08-04 統合第6回で旧 append-only `002`–`008` を `001_init.sql` セクション11へ統合済み。物理テーブル総数は直下 `*.sql` の行頭 `CREATE TABLE` 合算 = **123**（001 単体 = 123。内訳: セクション10統合後の 115 + close adjustments 1 + examination_revisions 2 + checkup_package_import_receipts 1 + lab import compensation 4）。`seeds/` は対象外）の定義と本 ERD の主要ドメイン別構成を静的照合し、2026-08-04 時点の現行構成を以下の通り整理しました。実 DB のデータ量・実行時 SQL・アクセスログは確認対象外です。
 
 > [!NOTE]
 > **2026-07-04 追記**: 増分マイグレーション `005`〜`012` は同日中に `001_init.sql`（DDL）/ `003_seed_demo.sql`（歯科検診暫定 seed DML）へ再統合された（当時の独立ファイル名は削除）。ファイル構成が変わっただけで物理テーブル定義そのものは変化していないため、以下の判定結果・テーブル総数は本追記時点でも有効です。
@@ -105,15 +129,35 @@ erDiagram
 >
 > **2026-07-15 追記**: インデックス追加のみの DDL 増分（旧 `002_add_checkup_vaccination_indexes.sql` / `003_add_pets_batch_living_count_index.sql` / `004_add_billings_hospitalization_id_unique_index.sql`）を `001_init.sql` へ統合した。テーブル総数(108)は不変。
 >
-> **2026-07-17 追記**: 上記再統合により applied `001` が §7 相当 DDL をスキップするリスクへの対策として冪等 incremental `003`–`011` を一時追加したが、同日中に方針転換し、`002_checkup_field_clinic_composite_fk.sql`（#211 A6 複合FK）を含む全 incremental `002`–`011` を `001_init.sql` へ完全統合して削除した。現在 DDL は `001_init.sql` の単一ファイルのみで、既存 DB への適用経路は `DB_RESET=true` 再構築のみ（§4.3 本文参照）。テーブル総数(108)は不変。
+> **2026-07-17 追記**: 上記再統合により applied `001` が §7 相当 DDL をスキップするリスクへの対策として冪等 incremental `003`–`011` を一時追加したが、同日中に方針転換し、`002_checkup_field_clinic_composite_fk.sql`（#211 A6 複合FK）を含む全 incremental `002`–`011` を `001_init.sql` へ完全統合して削除した。当時の既存 DB への適用経路は `DB_RESET=true` 再構築のみ。テーブル総数(108)は不変。
+>
+> **2026-07-22 追記**: 統合済み001を変更せず、`002_lstep_snapshot_import_clinic_fk.sql`を追記専用incrementalとして追加した。LSTEP属性snapshotとCSV importのclinic整合性を複合FKで保証するDDLで、新規テーブルはないため当時の総数(108)は不変だった。同ファイルは2026-07-27に001末尾の旧002アーカイブブロックへ統合済み。
+>
+> **2026-07-24 追記**: `003_medical_records_appointment_id_index.sql`と`004_payment_splits_billing_id_index.sql`を追記専用incrementalとして追加した。いずれも非一意indexで、新規テーブルはないため当時の総数(108)は不変だった。両ファイルは2026-07-27に001末尾の旧003/004アーカイブブロックへ統合済み。
+>
+> **2026-07-27 追記**: 当時のincremental 002〜009を原文・元commit・SHA-256付きで`001_init.sql`末尾へ統合し、独立ファイルを削除した。旧005が`exam_reference_ranges`を追加するため当時のテーブル総数は109。既適用001はchecksumが変わるため、local/STGとも明示承認した`DB_RESET=true`相当の再構築が必要で、現行STG workflowに自動reset経路はない。
+>
+> **2026-07-27 夕 追記（統合第3回）**: 上記統合の後に追加された incremental `002_pets_owners_clinic_composite_unique.sql`（`pets`/`owners` へ `UNIQUE (clinic_id, id)`）・`003_add_pet_owners.sql`（`pet_owners` 新設 + 複合FK対 + RLS）・`004_add_exam_result_qualitative_bounds.sql`（`exam_results.qualitative_min/max`・#249 U3 の定性判定境界snapshot）を、同じく原文・元commit・SHA-256付きで`001_init.sql`末尾へ統合し独立ファイルを削除した。**旧003が`pet_owners`を追加するため現行テーブル総数は110**（本文書の統計値を109→110へ更新済み）。この統合はファイル配置の変更であってschemaを変えないが、001のchecksumが再度変わるため既存DBの適用経路は引き続き`DB_RESET=true`再構築のみ。あわせて、この3ファイルが追加された時点で本ERDが追随できておらず`pet_owners`・複合FK・定性境界列が未記載だった drift を本更新で解消した。
+>
+> **2026-07-29 追記（統合第4回）**: その後に追加された incremental `002_add_pets_version.sql` / `003_add_exam_results_exam_type_field_id_index.sql` / `004_add_inventory_quantity_check.sql` / `005_payment_clinic_id_and_clinic_axis_composite_fks.sql` / `006_payment_method_system_key_match.sql` / `007_owners_clinic_phone_unique.sql` を、セクション8と同様式（原文・元commit・SHA-256）で `001_init.sql` 末尾セクション9へ統合し独立ファイルを削除した。新規テーブルはなく総数110は不変。001 の checksum が変わるため既存 DB の適用経路は引き続き `DB_RESET=true` 再構築のみ。seed `003_demo/owners.csv` には非空 phone の clinic 内重複が無いことを静的検証済みで、`uk_owners_clinic_phone` は 001 へ統合する（適用済み DB 上の 23505 は seed 外の既存行由来であり、リセット後は seed 経路では再現しない）。
+>
+> **2026-07-31 追記**: append-only incremental として `002_lstep_delivery_trigger_log_daily_unique.sql`（index のみ）・`003_closing_special_periods_exclude_overlap.sql`（EXCLUDE 制約のみ）・`004_add_identity_links.sql`（#239 Phase 1・医院横断 owner/pet identity link 4 テーブル）が追加された。当時の物理テーブル総数は 001 の 110 + 004 の 4 = **114**。ゲート 3a の正本は全 `backend/migrations/*.sql` の行頭 `CREATE TABLE` 合算。
+>
+> **2026-07-31 夕 追記**: `005_line_webhook_bot_user_id.sql`（カラムのみ・新規テーブルなし）および `006_medical_record_image_upload_quota.sql`（`medical_record_image_upload_quota` 1 テーブル。SEC-CS-F08-R1 画像 upload quota lease）が追加された。当時は append-only 独立ファイルとして管理し、物理テーブル総数は 110 + 4 + 1 = **115**。
+>
+> **2026-07-31 統合第5回**: 上記 incremental `002`–`006` を原文・元commit・SHA-256付きで `001_init.sql` 末尾セクション10へ統合し独立ファイルを削除した。物理テーブル総数は 2026-07 時点 **115** 後、`003_cash_register_close_append_only` で **116**。001 の checksum が変わるため既存 DB の適用経路は引き続き `DB_RESET=true` 再構築のみ。
+>
+> **2026-08-04 統合第6回（TASK-378）**: その後の append-only incremental `002_estimate_successor_and_numbering` / `003_cash_register_close_append_only` / `004_examination_revisions` / `005_accounting_completion_idempotency` / `006_checkup_package_import` / `007_lab_import_job_status_reverted` / `008_lab_import_revert_compensation` を原文・元commit・SHA-256付きで `001_init.sql` 末尾セクション11へ統合し独立ファイルを削除した。新規テーブル 8（close adjustments 1 + examination revisions 2 + checkup package receipts 1 + lab import compensation 4）により物理テーブル総数は **123**。001 の checksum が変わるため既存 DB の適用経路は引き続き `DB_RESET=true` 再構築のみ（`docs/ops/deploy/LOCAL_DB_RESET.md`）。
+>
+> **2026-08-14 セクション12 hardening**: 統合済み旧003本文とその元SHA証跡は変更せず、`cash_register_close_adjustments` に対する close / billing / actor の clinic 複合FKと明示RLSを `001_init.sql` 末尾へ追加した。新規テーブルはなく総数123は不変。001 checksum が変わるため適用経路は同じく USER 手動の `DB_RESET=true` 再構築のみ。
 
 | 項目 | 結果 | 判定 |
 |:---|:---|:---|
-| `001_init.sql` の `CREATE TABLE` 数 | 108（2026-07-04 統合前は 103） | 旧 005/009/010 由来の5テーブルが統合により `001_init.sql` に直接定義されるようになった。物理テーブル総数(108)自体は統合の前後で不変 |
-| 旧増分マイグレーションが追加していたテーブル | 5: `lab_import_jobs` / `lab_import_events` (旧`005`)、`medicine_dose_params` (旧`009`)、`checkup_type_fields` / `checkup_field_results` (旧`010`) | 2026-07-04 統合により現在は `001_init.sql` に直接定義（旧ファイルは削除済み） |
-| 全マイグレーション（`001_init.sql` 単一 DDL + seeds CSV）の物理テーブル総数 | 108 | ERD の全体数と一致 |
-| ERD ドメイン表の物理テーブル数 | 108 | migrations と一致 |
-| ERD へ追加した不足テーブル | 6: `token_blacklist`, `reservation_type_available_slots`, `trimming_course_types`, `campaigns`, `campaign_target_categories`, `campaign_target_items` | migration に存在し、用途コメントまたはドメイン上の継続理由があるため追加 |
+| `001_init.sql` の `CREATE TABLE` 数 | 123（セクション11統合後。直下 DDL は 001 のみ） | 2026-07-04統合済みの5テーブルに加え、2026-07-27統合の旧005由来 `exam_reference_ranges` と旧003由来 `pet_owners`、2026-07-31統合の identity links 4 と upload quota 1、2026-08-04統合の close adjustments / examination revisions / checkup package receipts / lab import compensation を含む |
+| 旧増分マイグレーションが追加していたテーブル | 6: `lab_import_jobs` / `lab_import_events` (旧`005`)、`medicine_dose_params` (旧`009`)、`checkup_type_fields` / `checkup_field_results` (旧`010`)、`exam_reference_ranges`（2026-07-27統合の旧`005`） | 現在は全て `001_init.sql` に直接定義（旧ファイルは削除済み） |
+| 全マイグレーション（`backend/migrations/*.sql` 行頭 `CREATE TABLE` 合算）の物理テーブル総数 | 123 | 在庫は `ls backend/migrations/*.sql`（001 のみ）。ERD の全体数と一致 |
+| ERD ドメイン表の物理テーブル数 | 123 | migrations と一致 |
+| ERD へ追加した不足テーブル | 11: 従来6（`token_blacklist`, `reservation_type_available_slots`, `trimming_course_types`, `campaigns`, `campaign_target_categories`, `campaign_target_items`）+ identity 4 + `medical_record_image_upload_quota` | migration に存在し、用途コメントまたはドメイン上の継続理由があるため追加 |
 | migrations にあり ERD にないテーブル | 0 | 整合済み |
 | ERD にあり migrations にないテーブル | 0 | 整合済み |
 | 不要確定テーブル | 0 | 静的照合では削除対象なし |
@@ -130,17 +174,55 @@ erDiagram
 - 互換注記:
   - `docker compose` 実行時、`.env.local` にて `DB_USER` / `DB_PASSWORD` / `DB_NAME` などの環境変数を読み込んでおり、検証は正常に成功しました。
 
-### 4.3 スキーマ更新履歴（001 単一統合スキーマ）
+### 4.3 スキーマ更新履歴（001 統合スキーマ + 統合アーカイブ）
 
 2026-06-26 に、かつて独立した増分ファイル (旧 005-012) として管理されていたスキーマ・シード変更を `001_init.sql` および `003_seed_demo.sql` へ統合しました。
 その後、新たな機能追加に伴い増分マイグレーション 005〜012 が再び追加されていましたが、2026-07-04 にこれらを再度 `001_init.sql`（DDL）および `003_seed_demo.sql`（歯科検診パッケージの暫定 seed DML のみ）へ統合し、独立ファイルとしての 005〜012 は削除しました。さらに 2026-07-15 に、インデックス追加のみの DDL 増分（旧 `002_add_checkup_vaccination_indexes.sql` / `003_add_pets_batch_living_count_index.sql` / `004_add_billings_hospitalization_id_unique_index.sql`）を `001_init.sql` へ統合しました。
 
 > **2026-07-17 追記（Codex PR #186 / applied-001 skip 対策 → 同日中に完全統合へ方針転換）**: applied 済みの薄い `001` が §7 相当 DDL をスキップするリスクへの対策として、旧 005–012 および `appointments.checked_in_at` 相当の additive DDL を冪等な incremental（`003`–`011`）として一時再出荷した。しかし同日中に「DDL は `001_init.sql` 単一ファイル」へ方針転換し、`002_checkup_field_clinic_composite_fk.sql`（#211 A6・`checkup_types`↔`checkup_type_fields` 複合FK。この内容のみ 001 に未収録だったため 001 末尾へ折り込み）を含む incremental `002`–`011` を全て削除した。この時点以降、既存 DB への no-reset アップグレード経路は存在せず、適用は `DB_RESET=true` 再構築のみ（USER 手動）。
 
-現行マイグレーションは以下の構成です（`backend/migrations/`、2026-07-17 時点）。
+> **2026-07-22 追記**: 上記の統合済み`001_init.sql`は変更せず、以後の新規DDLをappend-only incrementalとして再開した。最初の追加は`002_lstep_snapshot_import_clinic_fk.sql`で、当時の001が適用済みのDBにはno-resetで適用する設計だった。`baselineIfNeeded`は001だけをbaselineし、002以降を実行対象として残した。同ファイルの現行所在は2026-07-27統合後の001末尾旧002ブロック。
+>
+> **2026-07-23 追記**: 2本目のappend-only incrementalとして`003_medical_records_appointment_id_index.sql`を追加した。以後の新規DDL番号は004以降を使用する方針だった。同ファイルの現行所在は001末尾旧003ブロック。
+>
+> **2026-07-24 追記**: 3本目のappend-only incrementalとして`004_payment_splits_billing_id_index.sql`を追加した。payment graph検証とbilling単位の参照を全医院横断scanにしないための非一意indexで、新規テーブルはなく当時の総数(108)は不変だった。同ファイルの現行所在は001末尾旧004ブロック。
+>
+> **2026-07-27 追記**: 旧incremental 002〜009を`001_init.sql`末尾セクション8へ原文のまま番号順に統合し、独立ファイルを削除した。当時の直下DDLは001のみ。旧005の`exam_reference_ranges`追加により総数は109となった。
 
-- `001_init.sql`（fresh 用統合スキーマ・108 テーブル・唯一の DDL ファイル。§7 に旧 005–013 相当の原文を番号順追記）
+現行マイグレーションは以下の構成です（`backend/migrations/`、2026-07-31 統合第5回時点。在庫の正は `ls backend/migrations/*.sql`）。
+
+- `001_init.sql`（fresh用統合スキーマ・**123**テーブル。§7に旧005–013相当、§8に2026-07-27統合の旧002–009原文と同日夕統合の旧002–004原文、§9に2026-07-29統合の旧002–007原文、§10に2026-07-31統合の旧002–006原文、§11に2026-08-04統合の旧002–008原文を番号順追記）
 - `seeds/002_master/`、`seeds/003_demo/`、`seeds/004_staging/`（各 `*.csv` + `manifest.json` のシードバンドル。SQL ファイルではない）
+
+物理テーブル総数 = **123**（ゲート 3a と `TestERDTableCount_MatchesSchema` は `001_init.sql` の distinct `CREATE TABLE` を正とする。直下 DDL 在庫は `ls backend/migrations/*.sql` で確認し、現行は 001 のみ）。
+
+2026-07-31統合分の論理的な記録（旧ファイル名は履歴識別子、現行所在は全て`001_init.sql`末尾セクション10）:
+
+- 旧 `002_lstep_delivery_trigger_log_daily_unique.sql`: LSA-15・`lstep_delivery_trigger_log` の clinic/owner/type/JST-day 部分 unique index。
+- 旧 `003_closing_special_periods_exclude_overlap.sql`: POC-05・`closing_special_periods` の clinic+daterange EXCLUDE 制約（`btree_gist`）。
+- 旧 `004_add_identity_links.sql`: #239 Phase 1・医院横断 owner/pet identity link 4 テーブル + 明示 RLS。
+- 旧 `005_line_webhook_bot_user_id.sql`: SEC-CS-F05-R1・`line_reservation_settings.line_bot_user_id` + グローバル部分 unique。
+- 旧 `006_medical_record_image_upload_quota.sql`: SEC-CS-F08-R1・`medical_record_image_upload_quota` 1 テーブル（明示 RLS/FK なしを原文維持）。
+
+2026-07-29統合分の論理的な記録（旧ファイル名は履歴識別子、現行所在は全て`001_init.sql`末尾セクション9）:
+
+- 旧 `002_add_pets_version.sql`: `pets.version`（INTEGER NOT NULL DEFAULT 1・楽観ロック CAS）。
+- 旧 `003_add_exam_results_exam_type_field_id_index.sql`: `idx_exam_results_exam_type_field_id`（`exam_results(exam_type_field_id)`）。
+- 旧 `004_add_inventory_quantity_check.sql`: `chk_inventory_items_quantity_non_negative`（`quantity >= 0`）。
+- 旧 `005_payment_clinic_id_and_clinic_axis_composite_fks.sql`: `payments.clinic_id` + `fk_payments_clinic_id` / `fk_payments_billing_clinic` / `fk_payments_payment_method_clinic` / `idx_payments_clinic_id`、`fk_pets_clinic_owner`、`uq_medical_records_id_clinic` と medical_records/vaccinations/billings の clinic 軸複合 FK。
+- 旧 `006_payment_method_system_key_match.sql`: `app_private.enforce_payment_method_system_key_match` と `trg_payment_splits_method_system_key_match` / `trg_payments_method_system_key_match`。
+- 旧 `007_owners_clinic_phone_unique.sql`: 部分 unique index `uk_owners_clinic_phone` on `(clinic_id, phone)` where `deleted_at IS NULL AND phone <> ''`。
+
+2026-07-27統合分の論理的な記録（旧ファイル名は履歴識別子、現行所在は全て`001_init.sql`末尾セクション8）:
+
+- 旧 `002_lstep_snapshot_import_clinic_fk.sql`: LSTEP属性snapshotとCSV importのclinic複合FK。
+- 旧 `003_medical_records_appointment_id_index.sql`: 予約紐付きカルテ参照用の非一意部分index。
+- 旧 `004_payment_splits_billing_id_index.sql`: payment splitのbilling単位参照用の非一意index。
+- 旧 `005_exam_reference_ranges_and_clinic_fk.sql`: `exam_type_fields`のclinic複合FKと`exam_reference_ranges`（新規テーブル1件）。
+- 旧 `006_payment_splits_payment_method_clinic_fk.sql`: payment method参照のclinic複合FK。
+- 旧 `007_add_pets_danger_reason.sql`: `pets.danger_reason`。
+- 旧 `008_add_billing_item_vaccination_provenance.sql`: vaccination provenanceとclinic複合FK・index。
+- 旧 `009_add_billing_items_other_reason.sql`: other理由・作成者参照・index。
 
 以下は 2026-06-26 の統合時点で `001_init.sql` / `003_seed_demo.sql` へ畳み込まれた変更の論理的な記録です（参照用、当時の独立ファイルは存在しません）。
 

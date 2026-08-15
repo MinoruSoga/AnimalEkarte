@@ -1,4 +1,4 @@
-import { useActionState } from "react";
+import { useActionState, useLayoutEffect, useRef } from "react";
 import {
   Dialog,
   DialogContent,
@@ -10,6 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { C, STYLE } from "@/lib/design-tokens";
 import { handleApiError } from "@/lib/handle-api-error";
+import { todayJSTISO } from "@/lib/jst-date";
 import type { ActionState } from "@/types/form";
 import { INITIAL_ACTION_STATE } from "@/types/form";
 import { useRecordPetDeath } from "@/hooks/use-record-pet-death";
@@ -22,6 +23,7 @@ interface PetDeceasedDialogProps {
   petBreed?: string;
   petGender?: string;
   petAge?: string;
+  canEdit?: boolean;
   /**
    * BUG-407: 保存成功時に呼ばれる。バックエンドへの即時保存はこのダイアログが
    * 既に完結させているが、この通知が無いと外側 PetEditModal のローカル
@@ -29,14 +31,6 @@ interface PetDeceasedDialogProps {
    * 押すと status="生存" で上書きされ deceased_at のみ残る不整合を再現する。
    */
   onRecorded?: (result: { deceasedAt: string; deceasedReason?: string }) => void;
-}
-
-function todayString(): string {
-  const d = new Date();
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
-  return `${yyyy}-${mm}-${dd}`;
 }
 
 export function PetDeceasedDialog({
@@ -47,9 +41,15 @@ export function PetDeceasedDialog({
   petBreed,
   petGender,
   petAge,
+  canEdit = false,
   onRecorded,
 }: PetDeceasedDialogProps) {
   const mutation = useRecordPetDeath();
+  const canEditRef = useRef(canEdit);
+  useLayoutEffect(() => {
+    canEditRef.current = canEdit;
+  }, [canEdit]);
+  const today = todayJSTISO();
 
   const [state, formAction, isPending] = useActionState(
     async (
@@ -62,22 +62,24 @@ export function PetDeceasedDialog({
       if (!deceasedAt) {
         return {
           success: false,
-          error: "死亡日を入力してください",
+          fieldErrors: { deceased_at: "死亡日を入力してください" },
           timestamp: Date.now(),
         };
       }
 
-      const today = todayString();
-      if (deceasedAt > today) {
+      if (deceasedAt > todayJSTISO()) {
         return {
           success: false,
-          error: "未来の日付は指定できません",
+          fieldErrors: { deceased_at: "未来の日付は指定できません" },
           timestamp: Date.now(),
         };
       }
 
       try {
         const normalizedReason = deceasedReason || undefined;
+        if (canEditRef.current !== true) {
+          return { success: false, timestamp: Date.now() };
+        }
         await mutation.mutateAsync({
           petId,
           deceasedAt,
@@ -97,6 +99,7 @@ export function PetDeceasedDialog({
     },
     INITIAL_ACTION_STATE,
   );
+  const deceasedAtError = state.fieldErrors?.deceased_at;
 
   const genderLabel =
     petGender === "male" ? "オス" : petGender === "female" ? "メス" : petGender;
@@ -115,7 +118,7 @@ export function PetDeceasedDialog({
 
         {/* Pet summary */}
         <div
-          className={`rounded-[4px] border ${C.borderMedium} bg-white px-3 py-2.5 text-sm space-y-0.5`}
+          className={`rounded-xs border ${C.borderMedium} bg-white px-3 py-2.5 text-sm space-y-0.5`}
         >
           <p className={`font-medium ${C.text}`}>{petName}</p>
           <p className={C.text50}>
@@ -123,7 +126,12 @@ export function PetDeceasedDialog({
           </p>
         </div>
 
-        <form id="pet-deceased-form" action={formAction} className="space-y-4">
+        <form
+          id="pet-deceased-form"
+          action={formAction}
+          noValidate
+          className="space-y-4"
+        >
           {/* 死亡日 */}
           <div className="space-y-1.5">
             <label
@@ -137,12 +145,25 @@ export function PetDeceasedDialog({
               id="deceased_at"
               name="deceased_at"
               type="date"
-              defaultValue={todayString()}
-              max={todayString()}
+              defaultValue={today}
+              max={today}
               required
-              className={`${STYLE.formInput} w-full rounded-[4px] border px-3 text-sm`}
+              aria-invalid={deceasedAtError ? true : undefined}
+              aria-describedby={
+                deceasedAtError ? "pet-deceased-date-error" : undefined
+              }
+              className={`${STYLE.formInput} w-full rounded-xs border px-3 text-sm`}
               disabled={isPending}
             />
+            {deceasedAtError ? (
+              <p
+                id="pet-deceased-date-error"
+                className={`text-xs ${C.danger}`}
+                role="alert"
+              >
+                {deceasedAtError}
+              </p>
+            ) : null}
           </div>
 
           {/* 死亡理由 */}
@@ -166,7 +187,7 @@ export function PetDeceasedDialog({
 
           {/* 警告文 */}
           <div
-            className={`rounded-[4px] border ${C.borderNotice} ${C.bgNotice40} px-3 py-2 text-xs ${C.textNotice}`}
+            className={`rounded-xs border ${C.borderNotice} ${C.bgNotice40} px-3 py-2 text-xs ${C.textNotice}`}
           >
             記録後、このペットへの自動LINE配信が停止されます。
           </div>

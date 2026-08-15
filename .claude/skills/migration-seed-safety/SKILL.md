@@ -24,7 +24,7 @@ description: backend/migrations/ の新規作成・編集、およびseedバン�
 1. **命名規則**: `{既存最大番号+1}_{snake_case説明}.sql`。番号を飛ばしたり既存ファイルを上書きしない（`backend/migrations/CLAUDE.md`）
 2. **clinic_idスコープ**: クリニック間分離が必要な新テーブルは `clinic_id BIGINT NOT NULL` 必須。複合indexの先頭カラムに置く
 3. **ソフトデリート**: 業務データテーブルには `deleted_at TIMESTAMPTZ` を追加する
-4. **CASCADE DELETEは原則禁止**: 許容されるのは「純粋な従属データ」（join table / 親の構成要素として不可分な子行 / 業務履歴を失わないマスタ参照lookup）のみ。`owners`/`pets`/`medical_records`等PHI・業務データを親とする連鎖削除は禁止——service層の依存チェック（409応答）で代替する
+4. **CASCADE DELETEは原則禁止**: 許容されるのは「純粋な従属データ」（join table / 親の構成要素として不可分な子行 / 業務履歴を失わないマスタ参照lookup）のみ。`owners`/`pets`/`medical_records`等PHI・業務データを親とする連鎖削除は禁止——applicationの削除境界で依存確認と明示的な409応答を行う
 5. **既存ファイルを絶対に編集しない**: 一度コミットされたmigrationファイルは追記専用。修正が必要なら新しい番号のmigrationで訂正する。このリポジトリには既存migration編集時に警告する `.claude/hooks/pre-edit-migration-guard.js` フックがあるが、フックは非ブロッキングなので最終判断は書き手が行う
 
 ## 必須チェックリスト（seed差し替え時）
@@ -40,12 +40,13 @@ description: backend/migrations/ の新規作成・編集、およびseedバン�
    （出典: memory seed_lowid_remap_xtenant_regression。CI 対象ブランチは .github/workflows/ci.yml を正とする）
 8. **CSV は実 DB の COPY dump が正本** — INSERT 文の静的レビューという概念は廃止済み。verify_seed.py は CSV を直接検証する
 9. **seed のフォーマット移送（SQL→CSV 等）はテーブル単位の全数突合が必須**: 旧ソースの INSERT 対象テーブル一覧と新ソースのファイル一覧を diff で機械突合する。目視移送では欠落する（SQL→CSV 移行で checkup_type_fields が丸ごと欠落した実例）。復元は `git show <旧commit>:<旧ファイル>` を正本にする。（出典: memory closed_issue_reaudit_20260707 修正 3e9c449f / seed_csv_migration_20260706）
+10. **実スタッフ情報をGit管理しない**: 氏名・email・password hash等のPII/credential verifierをseedへ入れない。初期登録はデータ管理承認済みのsecret-managed importを使い、値をログ・成果物へ出さない
 
 ## checksum mismatchからの復旧
 
 適用済みmigrationやseedを誤って編集してしまった場合:
 - ローカル: `docs/ops/deploy/LOCAL_DB_RESET.md` の手順でDB volumeを再構築する
-- STG: `DB_RESET=true` の手動dispatchが必要（自動実行しない）
+- STG: 現行Cloudflare workflowにDB reset経路はない。診断・復旧計画を作成し、DB変更の明示承認を得てから隔離環境または承認済み手順で実施する
 - 運用メモ全般: `docs/ops/deploy/SEED_MIGRATION_OPERATIONS.md`
 
 ## 診断コマンド

@@ -7,12 +7,19 @@ import type {
 } from "@/types/generated/models";
 
 // Backend 型エイリアス
-export type BackendAccounting = Billing;
+export type BackendAccounting = Billing & {
+  /** BUG-007: 未収残高（waiting 全額 or クレジット訂正差額） */
+  outstanding_amount?: number | null;
+};
 
 // BillingItem のレスポンス型（BE handler が計算して返す追加フィールドを含む）
 export interface BackendAccountingItem extends BillingItem {
+  vaccination_id?: number;
+  other_reason?: string;
   tax_amount?: number;
   subtotal?: number;
+  /** 未請求候補など treatment 由来の親カルテ（仮想。DB 列ではない） */
+  medical_record_id?: number;
 }
 
 // BillingItem の更新リクエスト
@@ -24,6 +31,13 @@ export interface UpdateBillingItemRequest {
   tax_type?: TaxType;
   tax_rate?: number;
   is_insurance_applicable?: boolean;
+  /** #115 / BUG-021 / BUG-009: レジ締め済み・確定済み明細更新理由（BE が必須検証） */
+  post_close_reason?: string;
+}
+
+/** 明細削除 body（締め後のみ post_close_reason を送る） */
+export interface DeleteBillingItemRequest {
+  post_close_reason?: string;
 }
 
 // API リクエスト型（models.ts から導出）
@@ -42,6 +56,45 @@ export interface CreateAccountingRequest {
   billing_amount?: number | null;
   payment_method?: PaymentMethod;
   memo?: string;
+}
+
+/** BUG-018: POST /v1/accountings/complete の明細1行 */
+export interface CompleteAccountingItemRequest {
+  category: string;
+  name: string;
+  unit_price: number;
+  quantity: number;
+  discount_rate?: number;
+  discount_amount?: number;
+  tax_type: string;
+  tax_rate: number;
+  is_insurance_applicable: boolean;
+  source: string;
+  other_reason?: string;
+  merchandise_item_id?: number;
+  vaccination_id?: number;
+  treatment_id?: number;
+  appointment_id?: number;
+  trimming_course_id?: number;
+  trimming_option_id?: number;
+}
+
+/** BUG-018: 原子的会計確定 command body（client total は送らない） */
+export interface CompleteAccountingRequest {
+  pet_id: number;
+  owner_id: number;
+  medical_record_id?: number | null;
+  hospitalization_id?: number | null;
+  scheduled_date: string;
+  memo?: string;
+  has_insurance?: boolean;
+  insurance_ratio?: number | null;
+  insurance_name?: string;
+  insurance_amount?: number | null;
+  discount_amount?: number | null;
+  items: CompleteAccountingItemRequest[];
+  payment_splits?: PaymentSplitRequest[];
+  post_close_reason?: string;
 }
 
 export interface PaymentSplitRequest {

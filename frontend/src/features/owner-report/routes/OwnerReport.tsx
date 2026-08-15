@@ -1,72 +1,59 @@
 import { useCallback } from "react";
 import { Navigate, useParams, useSearchParams } from "react-router";
 
-import { C } from "@/lib/design-tokens";
+import { RequirePermission } from "@/components/shared/RequirePermission";
 import { paths } from "@/config/paths";
 import { useAuth } from "@/hooks/use-auth";
-import { useTitle } from "@/hooks/use-title";
-import { RequirePermission } from "@/components/shared/RequirePermission";
-import { ResourceMedicalRecords } from "@/types/generated/models";
 import { useGetOwner } from "@/hooks/use-owner";
-import { useGetPets } from "@/hooks/use-pet";
-
-import { OwnerReportPanel } from "../components/OwnerReportPanel";
-import { useGetPetFirstVisit } from "../api/get-pet-first-visit";
+import { useTitle } from "@/hooks/use-title";
+import { C } from "@/lib/design-tokens";
+import type { Owner, Pet } from "@/types";
 import {
-  PetSwitcher,
-  OWNER_REPORT_TABPANEL_ID,
-  ownerReportPetTabId,
-} from "../components/PetSwitcher";
-import { PetDetailSection } from "../components/PetDetailSection";
-import { VaccinationHistorySection } from "../components/VaccinationHistorySection";
-import { ExaminationHistorySection } from "../components/ExaminationHistorySection";
-import { CheckupHistorySection } from "../components/CheckupHistorySection";
-import { TreatmentHistorySection } from "../components/TreatmentHistorySection";
-import { TrimmingHistorySection } from "../components/TrimmingHistorySection";
+  ResourceMedicalRecords,
+  ResourceOwners,
+} from "@/types/generated/models";
+
+import { useGetOwnerReportPets } from "../api/get-owner-report-pets";
+import { useGetPetFirstVisit } from "../api/get-pet-first-visit";
+import { OwnerClinicalBriefing } from "../components/OwnerClinicalBriefing";
+import { OwnerReportPanel } from "../components/OwnerReportPanel";
+import { PetSwitcher } from "../components/PetSwitcher";
+import { SelectedPetContext } from "../components/SelectedPetContext";
+import { toPet } from "../lib/owner-report-pet";
 
 /**
  * #158 飼主単位カルテレポート。
- * 別ウィンドウで開く Layout 外スタンドアロンルート。自前で認証ガード + medical-records:view ゲートを持つ。
+ * 別ウィンドウで開く Layout 外スタンドアロンルート。
+ * 自前で認証ガード + medical-records:view + owners:view ゲートを持つ。
  */
 export function OwnerReport() {
   const { isAuthenticated, isLoading } = useAuth();
 
   if (isLoading) return null;
-  if (!isAuthenticated) {
+  if (!isAuthenticated)
     return <Navigate to={paths.auth.login.getHref()} replace />;
-  }
-
   return (
     <RequirePermission resource={ResourceMedicalRecords}>
-      <OwnerReportContent />
+      <RequirePermission resource={ResourceOwners}>
+        <OwnerReportContent />
+      </RequirePermission>
     </RequirePermission>
   );
 }
 
-function OwnerReportContent() {
-  const { id: ownerId = "" } = useParams();
+function useOwnerPetSelection(pets: ReadonlyArray<Pet>) {
   const [searchParams, setSearchParams] = useSearchParams();
-  const { data: owner, isLoading: ownerLoading } = useGetOwner(ownerId);
-  const { data: pets = [], isLoading: petsLoading } = useGetPets(ownerId);
-
-  // 別ウィンドウのタブ識別用にタイトルを設定する。
-  useTitle(`飼主レポート - ${owner?.ownerName ?? ownerId}`);
-
-  // D1/D2: 初期ペット = ?petId= が有効なら採用、なければ最初の関連ペット。
   const petIdParam = searchParams.get("petId");
   const selectedPetId =
-    petIdParam && pets.some((p) => p.id === petIdParam) ? petIdParam : pets[0]?.id;
-  const selectedPet = pets.find((p) => p.id === selectedPetId);
-
-  // 初診日のみ medical_records 由来の派生値。選択中ペットの分だけ取得する（一覧 N+1 を避ける）。
-  const { data: firstVisitDate } = useGetPetFirstVisit(selectedPetId);
-
-  // R5: ページ遷移なしの state 更新 + URL ?petId= 同期。
+    petIdParam && pets.some((pet) => pet.id === petIdParam)
+      ? petIdParam
+      : pets[0]?.id;
+  const selectedPet = pets.find((pet) => pet.id === selectedPetId);
   const handleSelectPet = useCallback(
     (petId: string) => {
       setSearchParams(
-        (prev) => {
-          const next = new URLSearchParams(prev);
+        (previous) => {
+          const next = new URLSearchParams(previous);
           next.set("petId", petId);
           return next;
         },
@@ -75,90 +62,129 @@ function OwnerReportContent() {
     },
     [setSearchParams],
   );
+  return { selectedPetId, selectedPet, handleSelectPet };
+}
 
-  if (ownerLoading || petsLoading) {
-    return (
-      <div className={`flex min-h-dvh items-center justify-center ${C.bgPage} p-6`}>
-        <p className={`text-sm ${C.text50}`} role="status" aria-live="polite">
-          読み込み中...
-        </p>
-      </div>
-    );
-  }
-
-  // 業務ツール向け密集レイアウト:
-  // - root を固定ビューポート高(h-dvh)にする。グローバル CSS が html/body/#root を
-  //   height:100% + overflow:hidden に固定しているため、root 自身をスクロールコンテナにする。
-  // - lg+ では overflow-hidden で root も固定し、各履歴パネルだけが内部スクロールする（ページ非スクロール）。
-  // - lg 未満（タブレット/モバイル）は root が overflow-y-auto でスクロールし、パネルは自然高さで縦積みする。
-  // - 上部 <header> = 常時固定（sticky）の飼主コンテキスト + ペット切替（R4/R5）。
-  // - <main> = 9 セクションを敷き詰めるグリッド（xl:3列×3行 / lg:2列×5行 / それ未満:1列）。
+function ReportStatus({ error = false }: { error?: boolean }) {
   return (
-    <div className={`flex h-dvh flex-col overflow-y-auto ${C.bgPage} lg:overflow-hidden`}>
-      {/* R4/R5: 飼主は固定表示、ペット切替は即アクセス可能。モバイルでも sticky で残す。 */}
-      <header
-        className={`sticky top-0 z-20 shrink-0 border-b ${C.borderLight} ${C.bgWhite} px-3 py-2`}
+    <div
+      className={`flex min-h-dvh items-center justify-center ${C.bgPage} p-6`}
+    >
+      <p
+        className={`text-sm ${error ? C.danger : C.text50}`}
+        role={error ? "alert" : "status"}
+        aria-live={error ? undefined : "polite"}
       >
-        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-          {owner ? (
-            <OwnerReportPanel owner={owner} />
-          ) : (
-            <p className={`text-sm ${C.danger}`}>飼主情報を取得できませんでした</p>
-          )}
+        {error ? "飼主・ペット情報の取得に失敗しました" : "読み込み中..."}
+      </p>
+    </div>
+  );
+}
+
+interface ReportHeaderProps {
+  owner?: Owner;
+  pets: ReadonlyArray<Pet>;
+  selectedPet?: Pet;
+  selectedPetId?: string;
+  onSelectPet: (petId: string) => void;
+}
+
+function ReportHeader({
+  owner,
+  pets,
+  selectedPet,
+  selectedPetId,
+  onSelectPet,
+}: ReportHeaderProps) {
+  return (
+    <header
+      className={`z-20 shrink-0 border-b px-2 py-1 shadow-level1 ${C.borderLight} ${C.bgWhite}`}
+    >
+      <div className="flex min-w-0 flex-wrap items-center justify-between gap-x-3 gap-y-1">
+        {owner ? (
+          <OwnerReportPanel owner={owner} />
+        ) : (
+          <p className={`text-sm ${C.danger}`}>
+            飼主情報を取得できませんでした
+          </p>
+        )}
+        <div className="flex min-w-0 items-center gap-3">
+          {selectedPet ? <SelectedPetContext pet={selectedPet} /> : null}
           {pets.length > 0 ? (
-            <PetSwitcher pets={pets} selectedPetId={selectedPetId} onSelect={handleSelectPet} />
+            <PetSwitcher
+              pets={[...pets]}
+              selectedPetId={selectedPetId}
+              onSelect={onSelectPet}
+            />
           ) : null}
         </div>
-      </header>
+      </div>
+    </header>
+  );
+}
 
-      <main className="flex-1 lg:min-h-0 lg:overflow-hidden">
-        {selectedPet ? (
-          <div
-            id={OWNER_REPORT_TABPANEL_ID}
-            role="tabpanel"
-            aria-labelledby={ownerReportPetTabId(selectedPet.id)}
-            className="grid grid-cols-1 gap-2 p-2 lg:h-full lg:min-h-0 lg:grid-cols-2 lg:grid-rows-5 xl:grid-cols-3 xl:grid-rows-3"
-          >
-            <PetDetailSection pet={selectedPet} firstVisitDate={firstVisitDate} />
-            <VaccinationHistorySection petId={selectedPet.id} />
-            <ExaminationHistorySection petId={selectedPet.id} />
-            <CheckupHistorySection petId={selectedPet.id} />
-            <TreatmentHistorySection
-              petId={selectedPet.id}
-              title="投薬履歴"
-              filter="medicine"
-              emptyMessage="投薬の履歴はありません"
-            />
-            <TreatmentHistorySection
-              petId={selectedPet.id}
-              title="麻酔処置履歴"
-              filter="procedure"
-              anesthesiaOnly
-              showAnesthesia
-              emptyMessage="麻酔処置の履歴はありません"
-            />
-            <TreatmentHistorySection
-              petId={selectedPet.id}
-              title="手術処置履歴"
-              filter="procedure"
-              isSurgery
-              showAnesthesia
-              emptyMessage="手術処置の履歴はありません"
-            />
-            <TreatmentHistorySection
-              petId={selectedPet.id}
-              title="治療履歴"
-              filter="all"
-              emptyMessage="治療の履歴はありません"
-            />
-            <TrimmingHistorySection petId={selectedPet.id} />
-          </div>
-        ) : (
-          <div className="p-3">
-            <p className={`text-sm ${C.text50}`}>この飼主に登録されたペットがありません</p>
-          </div>
-        )}
+interface ReportBodyProps {
+  owner?: Owner;
+  pet?: Pet;
+  firstVisitDate?: string | null;
+  firstVisitLoading: boolean;
+  firstVisitError: boolean;
+}
+
+function ReportBody(props: ReportBodyProps) {
+  if (!props.owner || !props.pet) {
+    return (
+      <main className="min-h-0 flex-1 p-2">
+        <div className="p-3">
+          <p className={`text-sm ${C.text50}`}>
+            この飼主に登録されたペットがありません
+          </p>
+        </div>
       </main>
+    );
+  }
+  return (
+    <OwnerClinicalBriefing
+      owner={props.owner}
+      pet={props.pet}
+      firstVisitDate={props.firstVisitDate}
+      firstVisitLoading={props.firstVisitLoading}
+      firstVisitError={props.firstVisitError}
+    />
+  );
+}
+
+
+function OwnerReportContent() {
+  const { id: ownerId = "" } = useParams();
+  const ownerQuery = useGetOwner(ownerId);
+  const petsQuery = useGetOwnerReportPets(ownerId);
+  const pets = (petsQuery.data ?? []).map((pet) => toPet(pet, ownerId));
+  const selection = useOwnerPetSelection(pets);
+  const firstVisitQuery = useGetPetFirstVisit(selection.selectedPetId);
+
+  useTitle(`飼主レポート - ${ownerQuery.data?.ownerName ?? ownerId}`);
+  if (ownerQuery.isLoading || petsQuery.isLoading) return <ReportStatus />;
+  if (ownerQuery.isError || petsQuery.isError) return <ReportStatus error />;
+  return (
+    <div
+      data-testid="owner-report-viewport"
+      className={`fixed inset-0 flex min-w-[320px] flex-col overflow-hidden ${C.bgPage}`}
+    >
+      <ReportHeader
+        owner={ownerQuery.data}
+        pets={pets}
+        selectedPet={selection.selectedPet}
+        selectedPetId={selection.selectedPetId}
+        onSelectPet={selection.handleSelectPet}
+      />
+      <ReportBody
+        owner={ownerQuery.data}
+        pet={selection.selectedPet}
+        firstVisitDate={firstVisitQuery.data}
+        firstVisitLoading={firstVisitQuery.isLoading}
+        firstVisitError={firstVisitQuery.isError}
+      />
     </div>
   );
 }

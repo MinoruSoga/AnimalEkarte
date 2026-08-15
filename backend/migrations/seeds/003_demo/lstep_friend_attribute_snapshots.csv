@@ -1,4 +1,3 @@
-id,clinic_id,line_user_id,display_name,registered_at,tags,scenarios,traffic_source,block_status,last_message_at,snapshot_taken_at,csv_import_id,created_at,updated_at
-1,1,U1234567890abcdef1234567890abcdef,,,"[""puppy"", ""last_visit_20251220""]",,,,,2026-01-06 14:59:40.511971+09,,2026-07-06 14:59:40.511971+09,2026-07-06 14:59:40.511971+09
-2,1,U1234567890abcdef1234567890abcdef,,,"[""adult"", ""last_visit_20260522""]",,,,,2026-07-06 14:59:40.511971+09,,2026-07-06 14:59:40.511971+09,2026-07-06 14:59:40.511971+09
-3,1,U9876543210fedcba9876543210fedcba,,,"[""senior"", ""care_needed""]",,,,,2026-07-05 14:59:40.511971+09,,2026-07-06 14:59:40.511971+09,2026-07-06 14:59:40.511971+09
+version https://git-lfs.github.com/spec/v1
+oid sha256:4175d25636cd536941cd9b36a63cb2f961a5ca7e5602b358aa8bfe0a302dc0d2
+size 681

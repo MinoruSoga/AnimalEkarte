@@ -1,5 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { PetDeceasedDialog } from "./PetDeceasedDialog";
 
 const { mockMutateAsync, mockToastError } = vi.hoisted(() => ({
@@ -13,25 +14,8 @@ vi.mock("@/hooks/use-record-pet-death", () => ({
 
 vi.mock("sonner", () => ({ toast: { error: mockToastError, success: vi.fn() } }));
 
-// NOTE: vi.useFakeTimers + vi.setSystemTime だと RTL の waitFor/findBy* が内部で使う
-// setTimeout ポーリングが進まずタイムアウトするため、fake timers は使わず実時刻から
-// 期待値を算出する（本番の todayString() と同じ書式のオラクル）。
-function todayStr(): string {
-  const d = new Date();
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
-  return `${yyyy}-${mm}-${dd}`;
-}
-
-function tomorrowStr(): string {
-  const d = new Date();
-  d.setDate(d.getDate() + 1);
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
-  return `${yyyy}-${mm}-${dd}`;
-}
+const TODAY_JST = "2026-08-03";
+const TOMORROW_JST = "2026-08-04";
 
 function renderDialog(overrides: Partial<React.ComponentProps<typeof PetDeceasedDialog>> = {}) {
   const onOpenChange = overrides.onOpenChange ?? vi.fn();
@@ -45,6 +29,7 @@ function renderDialog(overrides: Partial<React.ComponentProps<typeof PetDeceased
       petBreed={overrides.petBreed}
       petGender={overrides.petGender}
       petAge={overrides.petAge}
+      canEdit={overrides.canEdit ?? true}
       onRecorded={onRecorded}
     />,
   );
@@ -57,30 +42,50 @@ function submitForm() {
 
 describe("PetDeceasedDialog", () => {
   beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-08-03T14:30:00.000Z"));
     mockMutateAsync.mockReset();
     mockToastError.mockReset();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("死亡日の初期値は当日日付になる", () => {
     renderDialog();
     const dateInput = screen.getByLabelText(/死亡日/) as HTMLInputElement;
-    expect(dateInput.value).toBe(todayStr());
-    expect(dateInput.max).toBe(todayStr());
+    expect(dateInput.value).toBe(TODAY_JST);
+    expect(dateInput.max).toBe(TODAY_JST);
+  });
+
+  it("死亡日を空にして実ボタンを押すとfield errorを表示し mutateAsync を呼ばない", async () => {
+    const user = userEvent.setup();
+    renderDialog();
+    const dateInput = screen.getByLabelText(/死亡日/);
+
+    await user.clear(dateInput);
+    await user.click(screen.getByRole("button", { name: "死亡を記録する" }));
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("死亡日を入力してください");
+    expect(dateInput).toHaveAttribute("aria-invalid", "true");
+    expect(dateInput).toHaveAttribute("aria-describedby", alert.id);
+    expect(mockMutateAsync).not.toHaveBeenCalled();
   });
 
   it("未来の日付を指定すると検証エラーを表示し mutateAsync を呼ばない", async () => {
+    const user = userEvent.setup();
     renderDialog();
     const dateInput = screen.getByLabelText(/死亡日/);
-    fireEvent.change(dateInput, { target: { value: tomorrowStr() } });
+    fireEvent.change(dateInput, { target: { value: TOMORROW_JST } });
 
-    // NOTE: input には max=today も設定されており、実ブラウザ同様 jsdom もボタンクリック
-    // 経由の submit では rangeOverflow によりネイティブにブロックされ action へ到達しない
-    // （= UI 経由では事実上到達不能な防御的チェック）。action 側の検証ロジック自体を
-    // 検証するため、ここでは fireEvent.submit で制約検証をバイパスして直接 submit する。
-    const form = document.getElementById("pet-deceased-form") as HTMLFormElement;
-    fireEvent.submit(form);
+    await user.click(screen.getByRole("button", { name: "死亡を記録する" }));
 
-    expect(await screen.findByText("未来の日付は指定できません")).toBeInTheDocument();
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("未来の日付は指定できません");
+    expect(dateInput).toHaveAttribute("aria-invalid", "true");
+    expect(dateInput).toHaveAttribute("aria-describedby", alert.id);
     expect(mockMutateAsync).not.toHaveBeenCalled();
   });
 
@@ -96,7 +101,7 @@ describe("PetDeceasedDialog", () => {
     await waitFor(() => {
       expect(mockMutateAsync).toHaveBeenCalledWith({
         petId: "42",
-        deceasedAt: todayStr(),
+        deceasedAt: TODAY_JST,
         deceasedReason: "老衰",
       });
     });
@@ -111,7 +116,7 @@ describe("PetDeceasedDialog", () => {
     await waitFor(() => {
       expect(mockMutateAsync).toHaveBeenCalledWith({
         petId: "42",
-        deceasedAt: todayStr(),
+        deceasedAt: TODAY_JST,
         deceasedReason: undefined,
       });
     });
@@ -157,7 +162,7 @@ describe("PetDeceasedDialog", () => {
 
     await waitFor(() => {
       expect(onRecorded).toHaveBeenCalledWith({
-        deceasedAt: todayStr(),
+        deceasedAt: TODAY_JST,
         deceasedReason: "老衰",
       });
     });
@@ -190,5 +195,22 @@ describe("PetDeceasedDialog", () => {
 
     expect(onOpenChange).toHaveBeenCalledWith(false);
     expect(mockMutateAsync).not.toHaveBeenCalled();
+  });
+
+  it("取得済みform actionは最新の編集権限がfalseなら死亡記録mutationを発行しない", async () => {
+    const props = {
+      open: true,
+      onOpenChange: vi.fn(),
+      petId: "42",
+      petName: "ポチ",
+      canEdit: true,
+    };
+    const { rerender } = render(<PetDeceasedDialog {...props} />);
+    const form = document.getElementById("pet-deceased-form") as HTMLFormElement;
+
+    rerender(<PetDeceasedDialog {...props} canEdit={false} />);
+    fireEvent.submit(form);
+
+    await waitFor(() => expect(mockMutateAsync).not.toHaveBeenCalled());
   });
 });

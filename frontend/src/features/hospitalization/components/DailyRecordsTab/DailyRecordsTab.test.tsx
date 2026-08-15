@@ -50,6 +50,7 @@ function renderTab() {
         hospitalizationId="10"
         admissionDate="2026-07-01"
         dischargeDate="2026-07-14"
+        petIsDeceased={false}
       />
     </QueryClientProvider>
   );

@@ -11,28 +11,28 @@
 
 ## Decision
 
-すべてのテナント分割データテーブルに `clinic_id` カラムを追加し、GORM の `clinicScope` を全 repository メソッドに強制適用する。
+すべてのテナント分割データテーブルに `clinic_id` を持たせ、認証済みidentityから決定したclinic scopeを、すべてのread/write/delete pathへ適用する。packageやlayerの名称には依存しない。
 
 ```go
-// clinicScope は全 SELECT / UPDATE / DELETE に WHERE clinic_id = ? を自動付与する
+// clinicScope は現在のGORM実装でWHERE clinic_id = ?を付与するhelperの一例
 func (r *ownerRepository) FindByID(ctx context.Context, clinicID, ownerID uint) (*model.Owner, error) {
     return r.db.WithContext(ctx).Scopes(r.clinicScope(clinicID)).First(&model.Owner{}, ownerID)
 }
 ```
 
-Repository 層の P4 規約: `clinicScope` なしのデータアクセスはコードレビューで CRITICAL として拒否する。
+GORM helperの使用有無だけで安全と判定しない。raw SQL、join、preload、count、bulk処理、background job、request由来FKのownershipを含め、全data pathをruntime isolation testで検証する。cross-tenant accessを可能にする変更はCRITICALとして拒否する。
 
 ## Consequences
 
 **ポジティブ:**
-- テナント隔離が infrastructure 層で保証されるため、service 層でのミスが影響しない
+- schema、query predicate、application ownership check、runtime testの多層防御で漏洩リスクを下げられる
 - golangci-lint + `healthcare-reviewer` agent による静的検証で漏洩パターンを早期発見
 
 **ネガティブ:**
-- すべての repository メソッドで clinicID 引数が必要になり、インタフェースが冗長になる
-- system_admin 権限での全クリニック横断クエリは clinicScope を意図的にバイパスする必要があり、レビュー負荷が高い
+- clinic-scoped operationは認証済みclinic identityを明示的に受け渡す必要がある
+- system_admin等の横断queryは通常scopeと別の明示的なauthorization・audit・testが必要になる
 
 ## References
 
-- [backend/internal/repository/CLAUDE.md](../../../backend/internal/repository/CLAUDE.md)
-- [.claude/refs/gin-architecture-compliance.md](../../../.claude/refs/gin-architecture-compliance.md) (P4 規約)
+- [Backend Application Invariants](../../../.claude/refs/backend-application-invariants.md)
+- [Go/Gin Backend Review](../../../.claude/refs/go-gin-backend-review.md)

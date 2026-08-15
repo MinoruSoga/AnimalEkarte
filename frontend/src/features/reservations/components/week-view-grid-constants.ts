@@ -3,7 +3,8 @@ import type React from "react";
 import { C, STYLE } from "@/lib/design-tokens";
 import type { Reservation, ReservationStatus } from "@/types";
 
-export const HOUR_HEIGHT = 160;
+// 15分枠を44pxにし、連続する最短予約でも実buttonのタッチ領域を重ねない。
+export const HOUR_HEIGHT = 176;
 export const HOURS = Array.from({ length: 24 }, (_, i) => i);
 export const WEEK_DAYS = [0, 1, 2, 3, 4, 5, 6] as const;
 

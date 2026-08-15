@@ -6,7 +6,7 @@ export const H_STYLES = {
     base: "text-base leading-snug",
     sm: "text-sm leading-snug",
     xs: "text-xs leading-tight",
-    lg: "text-lg font-bold",
+    lg: "text-xl font-bold",
     xl: "text-xl font-bold",
     muted: C.text60,
   },

@@ -30,15 +30,26 @@ describe("transformVaccination", () => {
     expect(transformVaccination({ ...minimal, vaccine_id: 3 }).vaccineId).toBe("3");
   });
 
-  it("date をスライスして日付部分のみ返す", () => {
+  it("date を JST 壁日付 YYYY-MM-DD で返す", () => {
     expect(transformVaccination({ ...minimal, date: "2026-03-25T10:00:00Z" }).date).toBe("2026-03-25");
+  });
+
+  it("UTC 境界 instant の date/nextDate は JST 暦日になる", () => {
+    // 2026-03-25T16:30:00Z → JST 2026-03-26 01:30（UTC slice だと 03-25 のまま 1 日ずれ）
+    const result = transformVaccination({
+      ...minimal,
+      date: "2026-03-25T16:30:00Z",
+      next_date: "2026-04-25T15:00:00Z",
+    });
+    expect(result.date).toBe("2026-03-26");
+    expect(result.nextDate).toBe("2026-04-26");
   });
 
   it("date が未設定のとき空文字を返す", () => {
     expect(transformVaccination({ ...minimal, date: undefined as unknown as string }).date).toBe("");
   });
 
-  it("next_date をスライスして日付部分のみ返す", () => {
+  it("next_date を JST 壁日付 YYYY-MM-DD で返す", () => {
     expect(transformVaccination({ ...minimal, next_date: "2027-03-25T00:00:00Z" }).nextDate).toBe("2027-03-25");
   });
 

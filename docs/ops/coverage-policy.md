@@ -19,7 +19,6 @@
 | `cmd/*` | エントリポイント。テスト対象のロジックを含まない |
 | `lstep-migrate/` | L-ステップ移行ツール。インフラスクリプト |
 | `seed-old-db/` | 旧DB シードデータ。インフラスクリプト |
-| `stage-import/` | ステージング用インポートツール。インフラスクリプト |
 | `migrations/` | SQL マイグレーション。実行可能な Go ロジックなし |
 
 **`internal/model/` について**: struct 定義が主体のため行カバレッジは低くなる。
@@ -52,7 +51,8 @@
 |---|---|---|---|
 | 2026-07-01 | 実測値は CI 上に残存せず未確定（下記 07-03 arm 値が最初の正式記録） | — | `closing_settings_service`, `chronic_condition_service`, `shared_file_service`, `validators` 等の各種Service/Middlewareのテストを大幅に拡充しカバレッジを大幅向上（この時点では `.coverage-baseline` への転記・arm はまだ実施していない）。 |
 | 2026-07-03 | 89.9%（re-arm 済み、下記 07-13 参照） | — | BE-refactor.md R3-5。GitHub Actions run 28655388836（push, commit 80e0648a）の `backend-coverage` artifact `coverage-summary.txt` 末尾 `total:` 行を `backend/.coverage-baseline` に転記。以降 tolerance（既定 0.5pp）を超える低下は CI を fail させる。 |
-| 2026-07-13 | **91.3%**（re-arm 済み） | — | Issue #212。GitHub Actions run 29152374862（push, commit 70f4c298）の `backend-coverage` artifact `coverage-summary.txt` 末尾 `total:` 行を `backend/.coverage-baseline` に転記（89.9→91.3）。内訳: handler 94.7% / service 94.5% / middleware 93.4% / config 93.9% / errors・model・dbconn 100% 達成、`internal/repository` 76.0% が主な残課題（同 Issue で低カバレッジ7ファイルにテスト追加）。`internal/infra`（line 0% / lstep 52.3% / crypto 75.7%）は除外ポリシー見直しの PO 判断待ちのため対象外。 |
+| 2026-07-13 | **91.3%**（re-arm 済み） | — | Issue #212。GitHub Actions run 29152374862（push, commit 70f4c298）の `backend-coverage` artifact `coverage-summary.txt` 末尾 `total:` 行を `backend/.coverage-baseline` に転記（89.9→91.3）。当時の旧layer別内訳はBE9前の履歴値であり、移行後packageの現行基準には使用しない。`internal/infra`（line 0% / lstep 52.3% / crypto 75.7%）は除外ポリシー見直しのPO判断待ちのため対象外。 |
+| 2026-07-24 | **未再計測（91.3% ratchetを維持）** | — | BE9構造移行後のremote CI coverage artifact待ち。旧`handler/service/repository`別の値を移行後domainへ転記・推測しない。main CIの実測が得られるまでは既存baseline 91.3%と0.5pp toleranceを変更しない。 |
 | 2026-07-04 | — | 未記録（0・warn-onlyで起動）→ 07-05 に arm（下記参照） | FE-refactor.md R-F5。`vite.config.ts` の coverage reporter に `json-summary` を追加し `coverage/coverage-summary.json` を生成。`frontend/scripts/coverage-ratchet.mjs` + `frontend/.coverage-baseline` を新設し CI に ratchet ステップを追加（backend と同型）。 |
 | 2026-07-05 | — | **43.78%**（arm 済み） | GitHub Actions run 28672433856（push to main, commit 61b85d7a）の `frontend-coverage` artifact `coverage-final.json`（v8 provider）を istanbul json-summary と同じ式で全799ファイル集計（13624 statements 中 5964 covered）し `frontend/.coverage-baseline` に転記。以降 tolerance を超える低下は CI を fail させる。詳細な算出根拠は `frontend/.coverage-baseline` のコメントを参照。 |
 
@@ -94,20 +94,18 @@
 - 実装: `octocov` または `diff-cover` によるパッチカバレッジ計算
 - しきい値: **warn（fail なし）** — 既存 PR をブロックしない
 - ブランチ対象: main への PR
-- 発火条件: backend/handler/service/repository または frontend/src/features の変更を含む PR
+- 発火条件: `backend/internal/<domain>`、`backend/cmd/api`、cross-cutting package、または`frontend/src/features`の変更を含むPR
 - 着手条件: Phase 1 が安定稼働し、ベースライン数値が記録されてから
 
-### Phase 3（ディレクトリ別 fail ゲート）
+### Phase 3（domain/capability別 fail ゲート）
 
-- 目標: service / handler / repository の高重要ディレクトリに fail ゲートを設ける
-- しきい値（案）:
-  - `internal/service/`: 80%
-  - `internal/handler/`: 70%
-  - `internal/repository/`: 75%
-- 実装: `go tool cover -func` の grep + 閾値判定スクリプト
+- 目標: clinical safety、clinic isolation、authentication、billing等のriskが高いdomain/capabilityに、各packageの実測baselineから低下しないratchetを設ける
+- 単位: `internal/<domain>`を基本とし、`cmd/api`のcomposition/lifecycleと`audit`・`persistence`等のcross-cutting packageは独立単位で扱う
+- しきい値: remote CI artifactで移行後baselineを再計測してから決める。旧`handler/service/repository`の値や一律80%を移植しない
+- 実装: coverage profileをpackage単位で集計し、package追加・rename・分割を明示的manifestで追跡する
 - ブランチ対象: main, staging への PR
-- 発火条件: 対象ディレクトリの変更を含む PR
-- 着手条件: Phase 2 が安定稼働し、各ディレクトリのベースラインが目標値を上回っていること
+- 発火条件: 対象domain/capabilityまたはそのcompositionを変更するPR
+- 着手条件: BE9後のmain CI artifactが取得済みで、package別baselineと除外理由がreview済みであること
 
 ---
 

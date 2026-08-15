@@ -18,7 +18,7 @@ import { LoadingFallback, ErrorFallback, EmptyState } from "@/components/shared/
 import { C, ICON } from "@/lib/design-tokens";
 import { PAYMENT_METHOD_LABELS } from "@/constants/payment-method";
 import { todayJSTISO } from "@/lib/jst-date";
-import { formatCurrency } from "@/utils/format/number";
+import { formatCurrency } from "@/lib/format/number";
 
 import { useGetAccountings } from "../api/get-accountings";
 import { useGetDailySummary } from "../api/get-daily-summary";
@@ -198,65 +198,65 @@ export function DailyAccountingTab({
               <Table>
                 <TableHeader>
                   <TableRow className={`${C.bgPage30}`}>
-                    <TableHead className={`text-xs ${C.text60} whitespace-nowrap w-[90px]`}>領収No</TableHead>
+                    <TableHead className={`${C.text60} whitespace-nowrap w-[90px]`}>領収No</TableHead>
                     {isMultiClinic ? (
-                      <TableHead className={`text-xs ${C.text60} whitespace-nowrap w-[100px]`}>拠点</TableHead>
+                      <TableHead className={`${C.text60} whitespace-nowrap w-[100px]`}>拠点</TableHead>
                     ) : null}
-                    <TableHead className={`text-xs ${C.text60} whitespace-nowrap`}>飼主名</TableHead>
-                    <TableHead className={`text-xs ${C.text60} whitespace-nowrap`}>ペット名</TableHead>
-                    <TableHead className={`text-right text-xs ${C.text60} whitespace-nowrap`}>診療</TableHead>
-                    <TableHead className={`text-right text-xs ${C.text60} whitespace-nowrap`}>外科</TableHead>
-                    <TableHead className={`text-right text-xs ${C.text60} whitespace-nowrap`}>RV</TableHead>
-                    <TableHead className={`text-right text-xs ${C.text60} whitespace-nowrap`}>フード</TableHead>
-                    <TableHead className={`text-right text-xs ${C.text60} whitespace-nowrap`}>トリミング</TableHead>
-                    <TableHead className={`text-right text-xs ${C.text60} whitespace-nowrap`}>ホテル</TableHead>
-                    <TableHead className={`text-right text-xs ${C.text60} whitespace-nowrap`}>用品他</TableHead>
-                    <TableHead className={`text-right text-xs ${C.text60} whitespace-nowrap`}>売上合計</TableHead>
-                    <TableHead className={`text-center text-xs ${C.text60} whitespace-nowrap`}>支払方法</TableHead>
+                    <TableHead className={`${C.text60} whitespace-nowrap`}>飼主名</TableHead>
+                    <TableHead className={`${C.text60} whitespace-nowrap`}>ペット名</TableHead>
+                    <TableHead className={`text-right ${C.text60} whitespace-nowrap`}>診療</TableHead>
+                    <TableHead className={`text-right ${C.text60} whitespace-nowrap`}>外科</TableHead>
+                    <TableHead className={`text-right ${C.text60} whitespace-nowrap`}>RV</TableHead>
+                    <TableHead className={`text-right ${C.text60} whitespace-nowrap`}>フード</TableHead>
+                    <TableHead className={`text-right ${C.text60} whitespace-nowrap`}>トリミング</TableHead>
+                    <TableHead className={`text-right ${C.text60} whitespace-nowrap`}>ホテル</TableHead>
+                    <TableHead className={`text-right ${C.text60} whitespace-nowrap`}>用品他</TableHead>
+                    <TableHead className={`text-right ${C.text60} whitespace-nowrap`}>売上合計</TableHead>
+                    <TableHead className={`text-center ${C.text60} whitespace-nowrap`}>支払方法</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {rows.map(({ accounting: a, breakdown, total }) => (
                     <TableRow key={a.id} className={`border-b ${C.borderLight}`}>
-                      <TableCell className={`text-xs font-mono py-2 ${C.text60}`}>
+                      <TableCell className={`font-mono ${C.text60}`}>
                         {formatReceiptNo(a.id)}
                       </TableCell>
                       {isMultiClinic ? (
-                        <TableCell className={`text-sm ${C.text60} py-2 whitespace-nowrap`}>
+                        <TableCell className={`text-sm ${C.text60} whitespace-nowrap`}>
                           {clinicNameById.get(a.clinicId) ?? a.clinicId}
                         </TableCell>
                       ) : null}
-                      <TableCell className={`text-sm ${C.text} py-2 font-medium whitespace-nowrap`}>
+                      <TableCell className={`text-sm ${C.text} font-medium whitespace-nowrap`}>
                         {a.ownerName}
                       </TableCell>
-                      <TableCell className={`text-sm ${C.text} py-2 whitespace-nowrap`}>
+                      <TableCell className={`text-sm ${C.text} whitespace-nowrap`}>
                         {a.petName}
                       </TableCell>
-                      <TableCell className={`text-right text-sm font-mono py-2 ${C.text60}`}>
+                      <TableCell className={`text-right text-sm font-mono ${C.text60}`}>
                         {breakdown.medical > 0 ? formatCurrency(breakdown.medical) : "-"}
                       </TableCell>
-                      <TableCell className={`text-right text-sm font-mono py-2 ${C.text60}`}>
+                      <TableCell className={`text-right text-sm font-mono ${C.text60}`}>
                         {breakdown.surgery > 0 ? formatCurrency(breakdown.surgery) : "-"}
                       </TableCell>
-                      <TableCell className={`text-right text-sm font-mono py-2 ${C.text60}`}>
+                      <TableCell className={`text-right text-sm font-mono ${C.text60}`}>
                         {breakdown.rv > 0 ? formatCurrency(breakdown.rv) : "-"}
                       </TableCell>
-                      <TableCell className={`text-right text-sm font-mono py-2 ${C.text60}`}>
+                      <TableCell className={`text-right text-sm font-mono ${C.text60}`}>
                         {breakdown.food > 0 ? formatCurrency(breakdown.food) : "-"}
                       </TableCell>
-                      <TableCell className={`text-right text-sm font-mono py-2 ${C.text60}`}>
+                      <TableCell className={`text-right text-sm font-mono ${C.text60}`}>
                         {breakdown.trimming > 0 ? formatCurrency(breakdown.trimming) : "-"}
                       </TableCell>
-                      <TableCell className={`text-right text-sm font-mono py-2 ${C.text60}`}>
+                      <TableCell className={`text-right text-sm font-mono ${C.text60}`}>
                         {breakdown.hotel > 0 ? formatCurrency(breakdown.hotel) : "-"}
                       </TableCell>
-                      <TableCell className={`text-right text-sm font-mono py-2 ${C.text60}`}>
+                      <TableCell className={`text-right text-sm font-mono ${C.text60}`}>
                         {breakdown.goods > 0 ? formatCurrency(breakdown.goods) : "-"}
                       </TableCell>
-                      <TableCell className={`text-right text-sm font-mono font-semibold py-2 ${C.text}`}>
+                      <TableCell className={`text-right text-sm font-mono font-semibold ${C.text}`}>
                         {formatCurrency(total)}
                       </TableCell>
-                      <TableCell className={`text-center text-sm py-2 whitespace-nowrap ${C.text60}`}>
+                      <TableCell className={`text-center text-sm whitespace-nowrap ${C.text60}`}>
                         {a.paymentSplits && a.paymentSplits.length > 1
                           ? a.paymentSplits.map((s) => PAYMENT_METHOD_LABELS[s.method] ?? s.method).join(" / ")
                           : a.payment
@@ -268,30 +268,30 @@ export function DailyAccountingTab({
                 </TableBody>
                 <TableFooter>
                   <TableRow className={`font-bold border-t-2 ${C.borderLight}`}>
-                    <TableCell colSpan={labelColSpan} className="py-2 text-sm">合計（{rows.length}件）</TableCell>
-                    <TableCell className="text-right text-sm font-mono py-2">
+                    <TableCell colSpan={labelColSpan} className="text-sm">合計（{rows.length}件）</TableCell>
+                    <TableCell className="text-right text-sm font-mono">
                       {totals.medical > 0 ? formatCurrency(totals.medical) : "-"}
                     </TableCell>
-                    <TableCell className="text-right text-sm font-mono py-2">
+                    <TableCell className="text-right text-sm font-mono">
                       {totals.surgery > 0 ? formatCurrency(totals.surgery) : "-"}
                     </TableCell>
-                    <TableCell className="text-right text-sm font-mono py-2">
+                    <TableCell className="text-right text-sm font-mono">
                       {totals.rv > 0 ? formatCurrency(totals.rv) : "-"}
                     </TableCell>
-                    <TableCell className="text-right text-sm font-mono py-2">
+                    <TableCell className="text-right text-sm font-mono">
                       {totals.food > 0 ? formatCurrency(totals.food) : "-"}
                     </TableCell>
-                    <TableCell className="text-right text-sm font-mono py-2">
+                    <TableCell className="text-right text-sm font-mono">
                       {totals.trimming > 0 ? formatCurrency(totals.trimming) : "-"}
                     </TableCell>
-                    <TableCell className="text-right text-sm font-mono py-2">
+                    <TableCell className="text-right text-sm font-mono">
                       {totals.hotel > 0 ? formatCurrency(totals.hotel) : "-"}
                     </TableCell>
-                    <TableCell className="text-right text-sm font-mono py-2">
+                    <TableCell className="text-right text-sm font-mono">
                       {totals.goods > 0 ? formatCurrency(totals.goods) : "-"}
                     </TableCell>
-                    <TableCell className="text-right text-sm font-mono font-bold py-2">
-                      {formatCurrency(totals.total)}
+                    <TableCell className="text-right text-sm font-mono">
+                      <span className="font-bold">{formatCurrency(totals.total)}</span>
                     </TableCell>
                     <TableCell />
                   </TableRow>

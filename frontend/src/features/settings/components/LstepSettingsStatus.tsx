@@ -67,7 +67,7 @@ export function LstepConfiguredSummary({
   if (!isConfigured) return null;
 
   return (
-    <div className={`mb-6 p-3 rounded-[4px] ${C.bgPage} border ${C.borderLight} text-sm ${C.text60} flex flex-col gap-1`}>
+    <div className={`mb-6 p-3 rounded-xs ${C.bgPage} border ${C.borderLight} text-sm ${C.text60} flex flex-col gap-1`}>
       {settings?.lstep_api_key_masked ? (
         <span>Lステップ APIキー: <span className={`font-mono ${C.text}`}>••••{settings.lstep_api_key_masked}</span></span>
       ) : null}

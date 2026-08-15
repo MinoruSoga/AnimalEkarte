@@ -4,9 +4,12 @@ import { useMemo } from "react";
 import { SelectItem } from "@/components/ui/select";
 import { type SearchableSelectOption } from "@/components/ui/searchable-select";
 
+import { isPersistedPetId } from "@/lib/pet-id";
+
 import { PetIdentitySection, type AnimalSpeciesOption } from "./PetIdentitySection";
 import { PetPhysicalSection } from "./PetPhysicalSection";
 import { PetCareSection, type InsuranceOption } from "./PetCareSection";
+import { PetSubOwnersSection } from "./PetSubOwnersSection";
 import type { PetFormData } from "../types";
 
 interface PetEditModalFieldsProps {
@@ -16,10 +19,18 @@ interface PetEditModalFieldsProps {
   clearFieldError: (field: string) => void;
   animalSpeciesList: AnimalSpeciesOption[];
   isLoadingSpecies: boolean;
+  speciesPlaceholder?: string;
   insuranceList: InsuranceOption[];
   isLoadingInsurances: boolean;
   canEdit: boolean;
   isEdit: boolean;
+  /** BUG-002: 専用 lifecycle 成功後に外側 pets 一覧を同期する */
+  onPetLifecycleChange?: (result: {
+    petId: string;
+    status: "死亡" | "生存";
+    deceasedAt: string | null;
+    deceasedReason?: string | null;
+  }) => void;
 }
 
 export function PetEditModalFields({
@@ -29,10 +40,12 @@ export function PetEditModalFields({
   clearFieldError,
   animalSpeciesList,
   isLoadingSpecies,
+  speciesPlaceholder = "選択してください",
   insuranceList,
   isLoadingInsurances,
   canEdit,
   isEdit,
+  onPetLifecycleChange,
 }: PetEditModalFieldsProps) {
   const animalSpeciesOptions = useMemo<SearchableSelectOption[]>(
     () =>
@@ -90,6 +103,7 @@ export function PetEditModalFields({
         clearFieldError={clearFieldError}
         animalSpeciesOptions={animalSpeciesOptions}
         isLoadingSpecies={isLoadingSpecies}
+        speciesPlaceholder={speciesPlaceholder}
         isEdit={isEdit}
         onAnimalSpeciesChange={handleAnimalSpeciesChange}
       />
@@ -106,7 +120,12 @@ export function PetEditModalFields({
         isLoadingInsurances={isLoadingInsurances}
         canEdit={canEdit}
         onInsuranceChange={handleInsuranceChange}
+        onPetLifecycleChange={onPetLifecycleChange}
       />
+      {/* BUG-022: pending (temp-*) はローカル編集のみ。副飼主 API を出さない */}
+      {isEdit && isPersistedPetId(formData.id) && formData.isPending !== true ? (
+        <PetSubOwnersSection petId={formData.id} canEdit={canEdit} />
+      ) : null}
     </div>
   );
 }

@@ -20,7 +20,7 @@ cd "$ROOT"
 GOLANGCI_LINT_VERSION="${GOLANGCI_LINT_VERSION:-v2.11.4}"
 
 step=0
-total=16
+total=18
 
 begin_step() {
   step=$((step + 1))
@@ -65,15 +65,23 @@ begin_step "Design primary CTA guard"
 node scripts/check-design-primary-cta.mjs
 bash scripts/check-design-primary-cta.test.sh
 
+begin_step "A4 rehearsal isolation contract"
+node --test scripts/check-a4-rehearsal-compose.test.mjs \
+  scripts/check-a4-env-file.test.mjs \
+  scripts/check-a4-resource-boundary.test.mjs \
+  scripts/write-a4-runtime-report.test.mjs
+
+begin_step "Design system audit (C1/C3/C5/C6/C7/C8/C9)"
+node frontend/scripts/design-system-audit.mjs --cwd frontend
+node --test frontend/scripts/design-system-audit.test.mjs
+
 # ── 7–12: Go inventory / build / test（backend コンテナ）────────
 require_compose_service backend
 
 begin_step "Inventory gates (preload / master-FK / audit-tx / CASCADE / OpenAPI date / dbOrTx)"
-compose exec -T backend go test ./internal/repository/ \
-  -run 'TestPreloadClinicScope|TestClinicalResultAuditTxInventory|TestMigrationCascadeInventory|TestDBOrTxInventory' \
+compose exec -T backend go test ./internal/lintscan/ \
+  -run 'TestPreloadClinicScope|TestClinicalResultAuditTxInventory|TestMigrationCascadeInventory|TestDBOrTxInventory|TestMasterFKWriteInventory' \
   -count=1
-compose exec -T backend go test ./internal/service/ \
-  -run TestMasterFKWriteInventory -count=1
 compose exec -T backend go test ./internal/apicontract/ \
   -run TestOpenAPIDateFormatDrift -count=1
 
@@ -121,7 +129,7 @@ compose exec -T frontend pnpm run test:run
 
 echo ""
 echo "✓ make ci passed"
-echo "  local-only: inventory / guardrails / shellcheck / golangci / ESLint / type-check / knip / design CTA"
+echo "  local-only: inventory / guardrails / shellcheck / golangci / ESLint / type-check / knip / design CTA + design-audit"
 echo "  also covered: backend build+test+schema, frontend build+test, codegen"
 echo "  remote CI still runs: gitleaks / path-filtered build+test+coverage / AgentShield"
 echo "  E2E is local-only: make e2e (not in automatic PR CI)"

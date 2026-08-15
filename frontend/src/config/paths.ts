@@ -21,6 +21,10 @@ export const paths = {
       path: "/forgot-password",
       getHref: () => "/forgot-password",
     },
+    resetPassword: {
+      path: "/reset-password",
+      getHref: () => "/reset-password",
+    },
   },
 
   owners: {
@@ -251,6 +255,10 @@ export const paths = {
     analytics: {
       path: "/lstep/analytics",
       getHref: () => "/lstep/analytics",
+    },
+    deliveryMonitor: {
+      path: "/lstep/delivery-monitor",
+      getHref: () => "/lstep/delivery-monitor",
     },
   },
 

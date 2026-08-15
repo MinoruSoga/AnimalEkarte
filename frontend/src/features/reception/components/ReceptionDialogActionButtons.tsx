@@ -10,7 +10,7 @@ import Trash2 from "lucide-react/dist/esm/icons/trash-2";
 import User from "lucide-react/dist/esm/icons/user";
 
 import { Button } from "@/components/ui/button";
-import { BRAND_PRIMARY_BUTTON_CLASSES } from "@/components/shared/Form/brand-button-classes";
+import { PRIMARY_ACTION_BUTTON_CLASSES } from "@/components/shared/Form/primary-action-button-classes";
 import { C, ICON } from "@/lib/design-tokens";
 
 import type { ReceptionAppointment as Appointment } from "../api/types";
@@ -78,7 +78,7 @@ export const ActionButtons = memo(function ActionButtons({
         ) : null}
         {ownerDetailBtn}
         {onConfirm ? (
-          <Button onClick={onConfirm} className={BRAND_PRIMARY_BUTTON_CLASSES}>
+          <Button onClick={onConfirm} className={PRIMARY_ACTION_BUTTON_CLASSES}>
             受付済にする
           </Button>
         ) : null}
@@ -97,12 +97,12 @@ export const ActionButtons = memo(function ActionButtons({
                 if (onConfirm) onConfirm();
                 onCreateTrimming();
               }}
-              className={BRAND_PRIMARY_BUTTON_CLASSES}
+              className={PRIMARY_ACTION_BUTTON_CLASSES}
             >
               <Scissors className={ICON.action} />
               トリミングカルテ作成
             </Button>
-            <span className={`text-[10px] ${C.text40}`}>
+            <span className={`text-2xs ${C.text40}`}>
               ※カルテ作成と同時に「診療中」へ移動します
             </span>
           </div>
@@ -113,17 +113,17 @@ export const ActionButtons = memo(function ActionButtons({
                 if (onConfirm) onConfirm();
                 onCreateMedicalRecord();
               }}
-              className={BRAND_PRIMARY_BUTTON_CLASSES}
+              className={PRIMARY_ACTION_BUTTON_CLASSES}
             >
               <FileText className={ICON.action} />
               カルテ作成
             </Button>
-            <span className={`text-[10px] ${C.text40}`}>
+            <span className={`text-2xs ${C.text40}`}>
               ※カルテ作成と同時に「診療中」へ移動します
             </span>
           </div>
         ) : onConfirm ? (
-          <Button onClick={onConfirm} className={BRAND_PRIMARY_BUTTON_CLASSES}>
+          <Button onClick={onConfirm} className={PRIMARY_ACTION_BUTTON_CLASSES}>
             診察を開始する
           </Button>
         ) : null}
@@ -146,7 +146,7 @@ export const ActionButtons = memo(function ActionButtons({
         ) : null}
         {isMedical ? (
           <>
-            <Button onClick={() => onCreateMedicalRecord()} className={BRAND_PRIMARY_BUTTON_CLASSES}>
+            <Button onClick={() => onCreateMedicalRecord()} className={PRIMARY_ACTION_BUTTON_CLASSES}>
               <FileText className={ICON.action} />
               カルテ入力
             </Button>
@@ -168,7 +168,7 @@ export const ActionButtons = memo(function ActionButtons({
     return (
       <>
         {ownerDetailBtn}
-        <Button onClick={onCreateAccounting} className={BRAND_PRIMARY_BUTTON_CLASSES}>
+        <Button onClick={onCreateAccounting} className={PRIMARY_ACTION_BUTTON_CLASSES}>
           <CreditCard className={ICON.action} />
           会計へ進む
         </Button>
@@ -181,7 +181,7 @@ export const ActionButtons = memo(function ActionButtons({
       <>
         {ownerDetailBtn}
         {onConfirm ? (
-          <Button onClick={onConfirm} className={BRAND_PRIMARY_BUTTON_CLASSES}>
+          <Button onClick={onConfirm} className={PRIMARY_ACTION_BUTTON_CLASSES}>
             完了/リストから削除
           </Button>
         ) : null}
@@ -193,25 +193,25 @@ export const ActionButtons = memo(function ActionButtons({
     <>
       {ownerDetailBtn}
       {isMedical ? (
-        <Button onClick={() => onCreateMedicalRecord()} className={BRAND_PRIMARY_BUTTON_CLASSES}>
+        <Button onClick={() => onCreateMedicalRecord()} className={PRIMARY_ACTION_BUTTON_CLASSES}>
           <FileText className={ICON.action} />
           カルテ確認
         </Button>
       ) : null}
       {isTrimming ? (
-        <Button onClick={onCreateTrimming} className={BRAND_PRIMARY_BUTTON_CLASSES}>
+        <Button onClick={onCreateTrimming} className={PRIMARY_ACTION_BUTTON_CLASSES}>
           <Scissors className={ICON.action} />
           トリミング
         </Button>
       ) : null}
       {isHospitalization ? (
-        <Button onClick={onCreateHospitalization} className={BRAND_PRIMARY_BUTTON_CLASSES}>
+        <Button onClick={onCreateHospitalization} className={PRIMARY_ACTION_BUTTON_CLASSES}>
           <BedDouble className={ICON.action} />
           入院登録
         </Button>
       ) : null}
       {onConfirm ? (
-        <Button onClick={onConfirm} className={BRAND_PRIMARY_BUTTON_CLASSES}>
+        <Button onClick={onConfirm} className={PRIMARY_ACTION_BUTTON_CLASSES}>
           ステータス変更
         </Button>
       ) : null}

@@ -31,9 +31,14 @@
 - **シナリオ**: 「予約の作成」から「会計の完了」までの一連の臨床フローを、実機環境に近い状態で再現。
 - **実行**: `frontend/scripts/run-e2e.sh`（CI の `.github/workflows/e2e.yml` も同スクリプトを使用）。手順の正本は [E2E_TESTING_GUIDE.md](E2E_TESTING_GUIDE.md)。
 
-### 2.4 手動検証・受け入れシナリオ（三層を補完する層）
-- **手動検証**: [SECTION_14_MANUAL_TEST_GUIDE.md](SECTION_14_MANUAL_TEST_GUIDE.md)（browser-test スキルが使用するブラウザ検証シナリオ）。
-- **納品前受け入れ**: [scenarios/](scenarios/README.md) — 業務フロー S01〜S12 + フォーム検証 V01〜V05。上記自動テストが覆わないギャップ（臨床安全・LIFF 通し・入院ケア等）を担当する。
+### 2.4 手動検証・受け入れシナリオ（三層を補完する層 = L4/L5）
+
+> **層定義の正本**: [TEST_ARCHITECTURE.md](TEST_ARCHITECTURE.md)（L0–L5）。本節は L1–L3 計画との接続用。
+
+- **納品前受け入れ（L4）**: [scenarios/](scenarios/README.md) — 業務フロー S01〜S13 + フォーム V01〜V05。  
+  - フォームは **項目単位**まで実施（[scenarios/FIELD-LEVEL-PROTOCOL.md](scenarios/FIELD-LEVEL-PROTOCOL.md) + [scenarios/FORM-FIELD-INVENTORY.md](scenarios/FORM-FIELD-INVENTORY.md)）。  
+  - 環境: [UAT-ENV-SETUP.md](UAT-ENV-SETUP.md)。
+- **補完手動（L5）**: [SECTION_14_MANUAL_TEST_GUIDE.md](SECTION_14_MANUAL_TEST_GUIDE.md)（browser-test スキルが使用するドメイン重点シナリオ）。
 
 ---
 
@@ -55,7 +60,7 @@
 ## 4. 実行・レポート手順
 
 1.  **環境構築**: `make up` による検証用クリーン環境の起動。
-2.  **テスト実行**: フルスイートは CI（`ci.yml` / `e2e.yml`）が正本。ローカルはスコープ限定で実行する — BE は `docker compose exec backend go test ./internal/<pkg>/ -run <Name> -count=1`（フル `go test ./...` は実行禁止 — リポジトリ直下 `todo.md`「Docker 検証規約」）、E2E は `frontend/scripts/run-e2e.sh <spec>`。
+2.  **テスト実行**: フルスイートは CI（`ci.yml` / `e2e.yml`）が正本。ローカルはスコープ限定で実行する — BE は `docker compose exec backend go test ./internal/<pkg>/ -run <Name> -count=1`（フル `go test ./...` は実行禁止 — [`.claude/CLAUDE.md`](../../../.claude/CLAUDE.md) の「Auto-Execution Prohibited Commands / Scoped Verification Exception」）、E2E は `frontend/scripts/run-e2e.sh <spec>`。
 3.  **結果集計**: 失敗したテストケースのトリアージと修正、再実行。
 4.  **最終報告**: 実施時のテスト結果レポートとして記録（旧 FUNCTIONAL_TEST_REPORT.md は削除済み — git 履歴参照）。
 

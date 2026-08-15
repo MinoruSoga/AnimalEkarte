@@ -48,9 +48,10 @@ export function useMedicalRecordsColumns({
     { header: sortableHeader("owner_name") },
     { header: sortableHeader("pet_name") },
     { header: "種", className: "w-[80px] hidden lg:table-cell" },
-    { header: "主訴" },
+    // 主訴/担当医 are secondary at narrow widths; status + 操作 stay visible (BUG-458).
+    { header: "主訴", className: "hidden md:table-cell" },
     { header: "関連", className: "w-[100px] hidden lg:table-cell" },
-    { header: "担当医", className: "w-[100px]" },
+    { header: "担当医", className: "w-[100px] hidden md:table-cell" },
     { header: sortableHeader("status"), className: "w-[100px]" },
     ...(showClinicColumn ? [{ header: "医院", className: "w-[120px] hidden lg:table-cell" }] : []),
     { header: "操作", className: "w-[100px]", align: "right" as const },

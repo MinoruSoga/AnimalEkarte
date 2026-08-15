@@ -1,17 +1,17 @@
 ---
 name: task-create
-description: 抽象的なタスク依頼から repo 直下 todo.md の「個別タスク詳細」節に、AIが実装可能な粒度のタスクセクション（`### <タスクID>: <タイトル>`）を自動追記する。「タスク分解」「イシュー作成」「チケット作成」時に使用。生成先は todo.md のみ（旧 docs/tasks/・backend/issues/・frontend/issues/ 体系は廃止済み）。
+description: "抽象的なタスク依頼から repo 直下 STATUS.md（残タスク台帳）に、AIが実装可能な粒度のタスク節（索引表の行 + `## 個別タスク詳細` の `### TASK-XXX:` 節）を自動追記する。「タスク分解」「イシュー作成」「チケット作成」時に使用。受入テストのバグは STATUS.md へ。旧 3-session-agent.html#ledger・docs/tasks/・backend/issues/・frontend/issues/ 体系は廃止済み。"
 ---
 
 # Task Decompose — タスク分解・イシュー自動生成
 
 抽象的なタスク依頼を受け取り、コードベースを調査した上で:
-1. repo 直下 `todo.md` の「個別タスク詳細」節に `### TASK-XXX: <タイトル>` セクションを追記する（1タスク = 1セクション）
-2. BE/FE 分割が必要な場合は `### TASK-XXX-BE: <タイトル>` / `### TASK-XXX-FE: <タイトル>` の2セクションに分ける
+1. repo 直下 `STATUS.md` の索引/サマリー表に行を追加し、`## 個別タスク詳細` の末尾へ `### TASK-XXX: タイトル` 節を追記する（1タスク = 1節）
+2. BE/FE 分割が必要な場合は `TASK-XXX-BE` / `TASK-XXX-FE` の2節に分ける
 
-> **パス正本の注意**: 旧 `backend/issues/` / `frontend/issues/` 体系、および旧 docs/tasks 体系（open/closed/pending）は**廃止済み**（経緯は git 履歴参照）。
-> 現行のタスク台帳は repo 直下 `todo.md` のみ。todo.md は git 追跡ファイルであり、追記はコミット対象。
-> GitHub Issues（FEAT 系）は gh が正本 — todo.md と二重掲出しない。
+> **パス正本の注意**: 旧 `3-session-agent.html#ledger` 台帳は **2026-07-31 廃止**（同ファイルは GitHub Issue 分類ビューへ転換）。旧 `backend/issues/` / `frontend/issues/`・docs/tasks 体系も廃止済み（経緯は git 履歴参照）。
+> 現行のローカル台帳は `STATUS.md`（残タスク・TASK-XXX）と `STATUS.md`（受入テストバグ・BUG-XXX）。いずれも git 追跡ファイルであり、追記はコミット対象。
+> GitHub Issues は gh が正本 — 台帳と二重掲出せず、台帳節から `#NNN` で参照する。GitHub Issue の新規作成は外部書き込みのため明示承認後のみ。
 
 ## 起動トリガー
 
@@ -40,11 +40,11 @@ description: 抽象的なタスク依頼から repo 直下 todo.md の「個別�
 ### 1.1 タスク番号の決定
 
 ```bash
-# todo.md 内の最大番号 + 1
-grep -oE '(TASK|BUG|FEAT|PERF)-[0-9]+' todo.md | sort -V | tail -1
+# STATUS.md の TASK ID から最大の数値識別子を取得し、その値 + 1
+grep -oE 'TASK-[0-9]+' STATUS.md | grep -oE '[0-9]+' | sort -n | tail -1
 ```
 
-形式: `TASK-XXX`（3桁ゼロ埋め）。todo.md 内の最大番号 +1 で単純採番する（git 履歴の走査は不要。完了済みタスクは todo.md から削除されているが、番号の再利用より単純さを優先する）。
+形式: `TASK-XXX`（3桁ゼロ埋め・STATUS.md ローカル連番）。STATUS.md 内の最大の数値識別子 +1 で単純採番する（git 履歴の走査は不要。完了済みタスクは台帳から削除されているが、番号の再利用より単純さを優先する）。claim ブランチ（`claim/TASK-XXX`・AGENTS.md packet claim protocol）も同じ番号を使う。
 
 ### 1.2 BE/FE 分割時のID
 
@@ -63,23 +63,20 @@ grep -oE '(TASK|BUG|FEAT|PERF)-[0-9]+' todo.md | sort -V | tail -1
 
 ```bash
 # 関連テーブル・カラムの確認
-grep -n "関連キーワード" backend/migrations/001_init.sql
+rg -n "関連キーワード" backend/migrations --glob '*.sql'
 ```
 
 ### 2.2 Backend モデル・API 調査
 
 ```bash
-# Go モデル
-grep -rn "関連キーワード" backend/internal/model/
-# ハンドラ（エンドポイント）
-grep -rn "関連キーワード" backend/internal/handler/
-# サービス
-grep -rn "関連キーワード" backend/internal/service/
-# リポジトリ
-grep -rn "関連キーワード" backend/internal/repository/
-# ルーティング
-grep -n "関連パス" backend/cmd/api/main.go
+# package配置を仮定せずbackendの全Go codeを調査
+rg -n "関連キーワード" backend --glob '*.go'
+# route/contract
+rg -n "関連パス" backend --glob '*.go'
+rg -n "関連パス|関連キーワード" backend/docs/api.yaml
 ```
+
+現行の`model`/`handler`/`service`/`repository` directoryは追加調査の絞り込みに使ってよいが、必須layerや検索範囲の上限にしない。
 
 ### 2.3 Frontend コンポーネント・API 調査
 
@@ -167,11 +164,19 @@ grep -n "関連キーワード" frontend/src/types/generated/models.ts
 
 ## Phase 3: タスクセクション生成
 
-### 出力先: repo 直下 `todo.md` の「個別タスク詳細」節の末尾に `###` セクションを追記
+### 出力先: repo 直下 `STATUS.md` — 索引/サマリー表に1行追加し、`## 個別タスク詳細` の末尾へ `###` 節を追記
 
 旧テンプレート（概要/仕様確認ログ/サブタスク分解/受入条件/技術的判断/影響範囲/参照実装/リスク/未解決事項/実装順序）の構造を、以下の5項目に**圧縮**して記載する。**1タスク15行程度を上限の目安**とし、長くなる場合は BE/FE 分割するか、詳細を根拠ファイルパスへのポインタに落とす。
 
 ### テンプレート
+
+索引/サマリー表の行（発生源が GitHub Issue なら `#NNN` を明記）:
+
+```markdown
+| <発生源 Inv / ISSUE 等> | 内容の要旨 | **TASK-XXX**（READY_AGENT 等の状態） |
+```
+
+`## 個別タスク詳細` 末尾の節:
 
 ```markdown
 ### TASK-XXX: タスクタイトル（優先度）
@@ -187,7 +192,7 @@ grep -n "関連キーワード" frontend/src/types/generated/models.ts
 
 ## Phase 4: Backend セクション生成（BE/FE 分割時のみ）
 
-### 出力先: todo.md「個別タスク詳細」節に `### TASK-XXX-BE: <タイトル>` を追記
+### 出力先: `STATUS.md` の `## 個別タスク詳細` 末尾に `### TASK-XXX-BE:` 節を追記（索引表にも1行）
 
 上記テンプレートと同構造。観点の抜け確認に `templates/be-issue.md` を参照してよいが、出力は圧縮セクション形式（15行目安）とする。
 
@@ -195,7 +200,7 @@ grep -n "関連キーワード" frontend/src/types/generated/models.ts
 
 ## Phase 5: Frontend セクション生成（BE/FE 分割時のみ）
 
-### 出力先: todo.md「個別タスク詳細」節に `### TASK-XXX-FE: <タイトル>` を追記
+### 出力先: `STATUS.md` の `## 個別タスク詳細` 末尾に `### TASK-XXX-FE:` 節を追記（索引表にも1行）
 
 上記テンプレートと同構造。観点の抜け確認に `templates/fe-issue.md` を参照してよいが、出力は圧縮セクション形式（15行目安）とする。FE セクションの「状態」に BE 依存（`TASK-XXX-BE` 完了後に着手可能）を明記する。
 
@@ -203,12 +208,12 @@ grep -n "関連キーワード" frontend/src/types/generated/models.ts
 
 ## Phase 6: ユーザーへの報告
 
-todo.md への追記後、以下のサマリーを出力:
+`STATUS.md` への追記後、以下のサマリーを出力:
 
 ```
 ## タスク分解完了
 
-### todo.md「個別タスク詳細」節に追記（N件）
+### STATUS.md に追記（N件）
 - TASK-XXX: タイトル — 概要
 - TASK-XXX-BE: タイトル — 概要
 - TASK-XXX-FE: タイトル — 概要
@@ -217,7 +222,7 @@ todo.md への追記後、以下のサマリーを出力:
 1. TASK-XXX-BE（DB + API）
 2. TASK-XXX-FE（UI）— TASK-XXX-BE 完了後に着手可能
 
-todo.md は git 追跡ファイルのため、追記分はコミット対象。
+STATUS.md は git 追跡ファイルのため、追記分はコミット対象。
 ```
 
 ---
@@ -245,7 +250,7 @@ todo.md は git 追跡ファイルのため、追記分はコミット対象。
 ### BE イシューの粒度
 
 - **DB + Model 変更**: 1イシュー（`make codegen` まで含む）
-- **新規 API エンドポイント**: 1イシュー（handler + service + repository の3層セット）
+- **新規 API エンドポイント**: 1イシュー（contract・security boundary・必要な凝集package・testsのセット）
 - **既存 API 修正**: 影響範囲が明確なら1イシュー
 
 ### FE イシューの粒度

@@ -1,8 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { HISTORY_FETCH_LIMIT } from "@/config/fetch-limits";
 import { queryKeys } from "@/lib/query-keys";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
-import { toJSTWallDate } from "@/lib/jst-date";
+import { formatJSTDate, toJSTWallDate } from "@/lib/jst-date";
 import type { Vaccination } from "@/types/generated/models";
 
 /**
@@ -21,6 +22,14 @@ function formatDate(iso?: string): string {
   return `${yy}/${m}/${day}`;
 }
 
+/** 判定・比較用 YYYY-MM-DD。UTC の split/slice ではなく JST 壁日付に揃える。 */
+function toNextDateISO(iso?: string | null): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "";
+  return formatJSTDate(d);
+}
+
 // 履歴 UI 向け transform。`medical-records/api/transforms.ts` の同名関数とは別物。
 function transformToHistoryItem(v: Vaccination) {
   return {
@@ -33,7 +42,7 @@ function transformToHistoryItem(v: Vaccination) {
     lot2: v.lot2 ?? "",
     lot3: v.lot3 ?? "",
     lot4: v.lot4 ?? "",
-    nextDate: v.next_date ? v.next_date.split("T")[0] : "",
+    nextDate: toNextDateISO(v.next_date),
     remarks: v.remarks ?? "",
   };
 }
@@ -42,8 +51,10 @@ export type PetVaccinationHistoryItem = ReturnType<typeof transformToHistoryItem
 const getPetVaccinations = async (
   petId: string,
 ): Promise<PetVaccinationHistoryItem[]> => {
+  // BUG-007: always pass page/limit + pet_id. Default BE limit=20 page-window
+  // hid newer rows behind future-dated seed data when clients omitted limit.
   const { data } = await axios.get<{ data: Vaccination[] }>("/v1/vaccinations", {
-    params: { pet_id: Number(petId) },
+    params: { pet_id: petId, page: 1, limit: HISTORY_FETCH_LIMIT },
   });
   return (data.data ?? []).map(transformToHistoryItem);
 };

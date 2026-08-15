@@ -18,6 +18,9 @@ function clinicHeader(clinicId?: string): Record<string, string> {
 
 // ── Upload ────────────────────────────────────────────────────────────
 
+/** SEC-CS-F08: 同時アップロード数の上限（無制限 Promise.all によるバースト防止） */
+export const MEDICAL_RECORD_IMAGE_UPLOAD_CONCURRENCY = 3;
+
 const uploadImage = async (
   medicalRecordId: string,
   file: File,
@@ -33,12 +36,52 @@ const uploadImage = async (
   return data;
 };
 
+/**
+ * 有界並列プールで items を処理する（SEC-CS-F08）。
+ * JS は単一スレッドのため nextIndex のインクリメントは await 前に行い競合しない。
+ */
+export async function mapWithConcurrency<T, R>(
+  items: readonly T[],
+  concurrency: number,
+  mapper: (item: T, index: number) => Promise<R>,
+): Promise<R[]> {
+  if (items.length === 0) {
+    return [];
+  }
+  const limit = Math.max(1, Math.min(concurrency, items.length));
+  const results: R[] = new Array(items.length);
+  let nextIndex = 0;
+
+  const workers = Array.from({ length: limit }, async () => {
+    while (true) {
+      const index = nextIndex;
+      nextIndex += 1;
+      if (index >= items.length) {
+        return;
+      }
+      results[index] = await mapper(items[index], index);
+    }
+  });
+
+  await Promise.all(workers);
+  return results;
+}
+
+/** 診療画像の一括アップロード（有界並列）。テストから直接検証できるように export。 */
+export const uploadMedicalRecordImages = (
+  medicalRecordId: string,
+  files: File[],
+  clinicId?: string,
+): Promise<MedicalRecordImage[]> =>
+  mapWithConcurrency(files, MEDICAL_RECORD_IMAGE_UPLOAD_CONCURRENCY, (file) =>
+    uploadImage(medicalRecordId, file, clinicId),
+  );
+
 export const useCreateMedicalRecordImages = (medicalRecordId: string, clinicId?: string) => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (files: File[]) =>
-      Promise.all(files.map((f) => uploadImage(medicalRecordId, f, clinicId))),
+    mutationFn: (files: File[]) => uploadMedicalRecordImages(medicalRecordId, files, clinicId),
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: queryKeys.medicalRecords.images(medicalRecordId),

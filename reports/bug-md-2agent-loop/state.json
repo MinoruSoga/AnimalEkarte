@@ -1,0 +1,164 @@
+{
+  "schema": "bug-md-2agent-loop/v1",
+  "created_at": "2026-08-06T17:05:55.383613+00:00",
+  "bugs": {
+    "BUG-001": {
+      "loop_status": "DRY_PACKET",
+      "packet": "/Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte/reports/bug-md-2agent-loop/packets/BUG-001/agent2_prompt.md",
+      "picked_at": "2026-08-07T08:27:45.223490+00:00",
+      "mode_used": "reviewer_only",
+      "agent2_exit": 0,
+      "result_status": "COMPLETE",
+      "graph": null,
+      "reviewer_exit": 0,
+      "reviewer_handoff": "/Users/minoru/Vaults/CorpVault/55_Handoff/BRT-8_BUG-001_reviewer.md",
+      "finished_at": "2026-08-07T03:11:33.196170+00:00"
+    }
+  },
+  "queue_blocked": [],
+  "history": [
+    {
+      "bug": "BUG-001",
+      "event": "packet",
+      "at": "2026-08-06T17:07:17.802351+00:00"
+    },
+    {
+      "bug": "BUG-001",
+      "event": "packet",
+      "at": "2026-08-06T17:16:39.010179+00:00"
+    },
+    {
+      "bug": "BUG-001",
+      "event": "packet",
+      "at": "2026-08-06T17:16:57.500258+00:00"
+    },
+    {
+      "bug": "BUG-001",
+      "event": "packet",
+      "at": "2026-08-06T17:17:31.446310+00:00"
+    },
+    {
+      "bug": "BUG-001",
+      "event": "packet",
+      "at": "2026-08-06T17:17:31.569804+00:00"
+    },
+    {
+      "bug": "BUG-001",
+      "event": "packet",
+      "at": "2026-08-06T17:17:38.160699+00:00"
+    },
+    {
+      "bug": "BUG-001",
+      "event": "packet",
+      "at": "2026-08-06T17:17:53.810198+00:00"
+    },
+    {
+      "bug": "BUG-001",
+      "event": "packet",
+      "at": "2026-08-06T17:18:30.668149+00:00"
+    },
+    {
+      "bug": "BUG-001",
+      "event": "packet",
+      "at": "2026-08-06T17:19:01.177011+00:00"
+    },
+    {
+      "bug": "BUG-001",
+      "event": "packet",
+      "at": "2026-08-06T17:19:24.276430+00:00"
+    },
+    {
+      "bug": "BUG-001",
+      "event": "packet",
+      "at": "2026-08-06T18:08:19.583080+00:00"
+    },
+    {
+      "bug": "BUG-001",
+      "event": "packet",
+      "at": "2026-08-06T18:08:19.624636+00:00"
+    },
+    {
+      "bug": "BUG-001",
+      "event": "packet",
+      "at": "2026-08-06T18:12:30.232909+00:00"
+    },
+    {
+      "bug": "BUG-001",
+      "event": "packet",
+      "at": "2026-08-06T18:13:34.602706+00:00"
+    },
+    {
+      "bug": "BUG-001",
+      "event": "execute",
+      "mode": "hermes",
+      "status": "COMPLETE",
+      "rc": 0,
+      "at": "2026-08-06T18:16:59.195609+00:00"
+    },
+    {
+      "bug": "BUG-001",
+      "event": "packet",
+      "at": "2026-08-06T18:21:07.860821+00:00"
+    },
+    {
+      "bug": "BUG-001",
+      "event": "execute",
+      "mode": "hermes",
+      "status": "COMPLETE",
+      "rc": 0,
+      "at": "2026-08-06T18:27:21.528080+00:00"
+    },
+    {
+      "bug": "BUG-001",
+      "event": "packet",
+      "at": "2026-08-07T03:09:32.551808+00:00"
+    },
+    {
+      "bug": "BUG-001",
+      "event": "reviewer_only",
+      "mode": "reviewer_only",
+      "status": "COMPLETE",
+      "rc": 0,
+      "reviewer_rc": 0,
+      "at": "2026-08-07T03:11:33.196236+00:00"
+    },
+    {
+      "bug": "BUG-001",
+      "event": "packet",
+      "at": "2026-08-07T07:39:09.483163+00:00"
+    },
+    {
+      "bug": "BUG-001",
+      "event": "packet",
+      "at": "2026-08-07T08:27:34.935035+00:00"
+    },
+    {
+      "bug": "BUG-001",
+      "event": "packet",
+      "at": "2026-08-07T08:27:45.223494+00:00"
+    }
+  ],
+  "driver": {
+    "version": "phase1-2026-08-07",
+    "mode": "auto",
+    "plan": "/Users/minoru/Vaults/CorpVault/50_Projects/ノア動物病院電子カルテ/10_pcg_loop_automation_plan.md"
+  },
+  "last_parse": {
+    "at": "2026-08-07T08:27:45.221373+00:00",
+    "counts": {
+      "IMPLEMENTED_UNVERIFIED": 31
+    },
+    "ledger": "/Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte/STATUS.md",
+    "actionable_statuses": [
+      "BLOCKED",
+      "DUPLICATE",
+      "IMPLEMENTED_UNVERIFIED",
+      "IN_PROGRESS",
+      "NOT_REPRODUCIBLE",
+      "OPEN",
+      "UNKNOWN",
+      "VERIFIED_FIXED"
+    ]
+  },
+  "updated_at": "2026-08-07T08:27:45.223680+00:00"
+}

@@ -13,8 +13,13 @@ import { DatePicker } from "@/components/shared/DatePicker/DatePicker";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { C, ICON } from "@/lib/design-tokens";
 
-const MAX_FILE_SIZE_MB = 10;
-const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
+/** 1ファイルあたりの上限（MB） */
+export const MAX_FILE_SIZE_MB = 10;
+export const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
+/** SEC-CS-F08: 1回の選択で受け付ける最大ファイル数 */
+export const MAX_UPLOAD_FILES = 10;
+/** SEC-CS-F08: 1回の選択で受け付ける合計バイト上限（50MiB） */
+export const MAX_UPLOAD_BATCH_BYTES = 50 * 1024 * 1024;
 
 // rendering-hoist-jsx: 静的 SelectItem JSX をモジュール定数に巻き上げ
 const SORT_ORDER_SELECT_ITEMS = (
@@ -59,15 +64,29 @@ export const ImageGalleryFilter = memo(function ImageGalleryFilter({
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const allFiles = Array.from(e.target.files ?? []);
+    // SEC-CS-F08: 件数・合計バイトを onFilesSelected 前に fail-closed で拒否
+    if (allFiles.length > MAX_UPLOAD_FILES) {
+      toast.error(`一度にアップロードできるファイルは${MAX_UPLOAD_FILES}件までです`);
+      e.target.value = "";
+      return;
+    }
+    const totalBytes = allFiles.reduce((sum, f) => sum + f.size, 0);
+    if (totalBytes > MAX_UPLOAD_BATCH_BYTES) {
+      toast.error("合計ファイルサイズが上限（50MB）を超えています");
+      e.target.value = "";
+      return;
+    }
+    // SEC-CS-F08-R1: any oversized file rejects the whole batch (no partial upload).
     const oversized = allFiles.filter((f) => f.size > MAX_FILE_SIZE_BYTES);
-    const valid = allFiles.filter((f) => f.size <= MAX_FILE_SIZE_BYTES);
     if (oversized.length > 0) {
       toast.error(
         `ファイルサイズが上限（${MAX_FILE_SIZE_MB}MB）を超えています: ${oversized.map((f) => f.name).join(", ")}`
       );
+      e.target.value = "";
+      return;
     }
-    if (valid.length > 0) {
-      onFilesSelected(valid);
+    if (allFiles.length > 0) {
+      onFilesSelected(allFiles);
     }
     // Reset input so the same file can be re-selected
     e.target.value = "";
@@ -88,7 +107,7 @@ export const ImageGalleryFilter = memo(function ImageGalleryFilter({
           <Button
             type="button"
             size="sm"
-            className={`${C.bgBrand} ${C.hoverBgBrand} ${C.textWhite} gap-2 h-10 text-sm shadow-none rounded-full border-transparent px-4`}
+            className={`${C.bgBrand} ${C.hoverBgBrand} ${C.hoverTextOnBrand} ${C.textOnBrand} gap-2 h-10 text-sm shadow-none rounded-full border-transparent px-4`}
             onClick={handleUploadClick}
             disabled={isUploading}
           >
@@ -99,7 +118,7 @@ export const ImageGalleryFilter = memo(function ImageGalleryFilter({
       ) : null}
 
       {/* Filters */}
-      <div className={`flex items-end gap-4 flex-wrap ${C.bgWhite} p-4 rounded-lg border ${C.borderMedium} shadow-sm`}>
+      <div className={`flex items-end gap-4 flex-wrap ${C.bgWhite} p-4 rounded-lg border ${C.borderMedium}`}>
         <div className="flex flex-col gap-1.5 w-[300px]">
           <Label htmlFor="image-gallery-search" className={`text-sm font-medium ${C.text60}`}>
             検索単語
@@ -137,13 +156,13 @@ export const ImageGalleryFilter = memo(function ImageGalleryFilter({
           <Button
             type="button"
             variant="outline"
-            className={`h-10 ${C.bgWhite} ${C.text} ${C.borderMedium} ${C.hoverBgPage} text-sm shadow-sm px-3`}
+            className={`h-10 ${C.bgWhite} ${C.text} ${C.borderMedium} ${C.hoverBgPage} text-sm px-3`}
           >
             クリア
           </Button>
           <Button
             type="button"
-            className={`h-10 ${C.bgBrand} ${C.textWhite} ${C.hoverBgBrand} hover:text-white border-transparent text-sm shadow-none rounded-full px-3`}
+            className={`h-10 ${C.bgBrand} ${C.textOnBrand} ${C.hoverBgBrand} ${C.hoverTextOnBrand} border-transparent text-sm shadow-none rounded-full px-3`}
           >
             検索
           </Button>

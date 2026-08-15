@@ -14,13 +14,17 @@ description: このプロジェクトの GitHub Actions CI/CD 構成の把握と
 |---------|------|
 | `ci.yml` | メイン CI（下記ジョブ構成） |
 | `backend-deploy.yml` | Backend の Cloudflare Workers + Containers デプロイ |
-| `backend-deploy-ecs.yml` | ECS ロールバック専用（DEPRECATED・workflow_dispatch のみ・`db_reset` input あり） |
 | `frontend-deploy.yml` | Frontend デプロイ |
 | `e2e.yml` | E2E テスト |
 | `security-scan.yml` | agentshield（エージェント設定の監査。Go コードスキャナではない） |
 | `performance-tests.yml` | パフォーマンステスト（push 後のみ） |
 | `actionlint.yml` | ワークフロー自体の lint（`paths: .github/workflows/**` フィルタ） |
-| `staging-stop.yml` / `stg-smoke.yml` | STG 停止 / スモーク |
+| `stg-smoke.yml` | STG ヘルススモーク |
+| `worker-secret-sync.yml` | GitHub Secrets から Cloudflare Worker secrets への明示同期 |
+
+`backend-deploy-ecs.yml` と `staging-stop.yml` は AWS 廃止時に削除済み。AWS はホットスタンバイではなく、
+これらの workflow 名を復旧手順として案内・実行しない。現行インフラと障害初動の正本は
+`docs/ops/infra/architecture.md` と `docs/ops/infra/staging/runbook.md`。
 
 ## ci.yml の実ジョブ構成
 

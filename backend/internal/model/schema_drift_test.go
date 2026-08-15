@@ -60,8 +60,10 @@ func allModels() []any {
 		&model.Procedure{},
 		&model.Vaccine{},
 		&model.CheckupType{},
+		&model.CheckupPackageImportReceipt{},
 		&model.ExaminationType{},
 		&model.ExamTypeField{},
+		&model.ExamReferenceRange{},
 		&model.DiagnosisType{},
 		&model.DiagnosisName{},
 		&model.MedicalRecord{},
@@ -71,6 +73,8 @@ func allModels() []any {
 		&model.Treatment{},
 		&model.Examination{},
 		&model.ExamResult{},
+		&model.ExaminationRevision{},
+		&model.ExaminationRevisionItem{},
 		&model.Vaccination{},
 		&model.Checkup{},
 		&model.Prescription{},
@@ -120,6 +124,7 @@ func allModels() []any {
 		&model.ClosingSpecialPeriod{},
 		&model.PaymentMethodMaster{},
 		&model.CashRegisterClose{},
+		&model.CashRegisterCloseAdjustment{},
 		// G12-1: 監査・欠落モデル追記（TestAllModelsExhaustive で網羅性を担保）
 		&model.AuditLog{},
 		&model.PaymentSplit{},
@@ -128,6 +133,7 @@ func allModels() []any {
 		&model.MedicalRecordAddendum{},
 		&model.MedicineDoseParam{},
 		&model.PetChronicCondition{},
+		&model.PetOwner{},
 		&model.PasswordResetToken{},
 		&model.TokenBlacklist{},
 		&model.LineLinkToken{},
@@ -142,6 +148,10 @@ func allModels() []any {
 		&model.ClinicIntegration{},
 		&model.LabImportJob{},
 		&model.LabImportEvent{},
+		&model.LabImportUsageReceipt{},
+		&model.LabImportExamRetraction{},
+		&model.LabImportExamRetractionItem{},
+		&model.LabImportRevertReceipt{},
 		&model.ReservationTypeAvailableSlot{},
 		&model.ReservationTypeOccupation{},
 		&model.ReservationTypeUnavailableTime{},
@@ -157,6 +167,11 @@ func allModels() []any {
 		&model.LstepTagCache{},
 		&model.LstepTagCodeMapping{},
 		&model.LstepTriggerPriority{},
+		// #239 Phase 1 (fb11108c8): multi-clinic identity links
+		&model.OwnerIdentityGroup{},
+		&model.OwnerIdentityGroupMember{},
+		&model.PetIdentityGroup{},
+		&model.PetIdentityGroupMember{},
 	}
 }
 
@@ -249,6 +264,9 @@ func extractGormType(tag string) string {
 // knownSchemaDriftAllowlist は既知だが未解消のスキーマ差分を一時的に許容するための
 // allowlist。エントリを追加する際は、根拠となる Issue 番号を必ず併記すること。
 // 実修正が完了したら該当エントリを削除し、検査を再度有効化すること。
+//
+// key は "ModelType.column_name"。型不一致（差分チェック1）と、DB にだけ存在する
+// カラム（差分チェック2: Go モデルにフィールド無し）の双方で参照する。
 var knownSchemaDriftAllowlist = map[string]string{
 	// X-3 (audit-ip-inet-model-drift): audit_logs.ip_address は DB=inet, Go=*string(text) で
 	// 型カテゴリ不一致（pgTypeCategory は "inet" と "text" を区別する）。
@@ -258,6 +276,14 @@ var knownSchemaDriftAllowlist = map[string]string{
 	// として意図的に見送り、allowlist を維持する（*string でも PostgreSQL 側で text→inet の
 	// 暗黙キャストが機能するため実害はない。実測は audit_real_ddl_test.go 参照）。
 	"AuditLog.ip_address": "X-3",
+
+	// cash_register_closes.deleted_at は 001_init.sql 由来のレガシー列。append-only 契約
+	// （003_cash_register_close_append_only.sql + TestCashRegisterCloseRepository_AppendOnlyContract_NoDeleteMethod）
+	// により app は Update/Delete/soft-delete しない。Go モデルに gorm.DeletedAt を足すと
+	// GORM が全 query に deleted_at IS NULL を自動付与し append-only の前提が崩れるため、
+	// 意図的にフィールドを持たない（cash_register_close.go コメントと一致）。DDL 側の列削除は
+	// 適用済み migration 編集禁止のため行わない。
+	"CashRegisterClose.deleted_at": "append-only: intentional unmapped legacy deleted_at (no gorm.DeletedAt)",
 }
 
 // knownNullabilityDriftAllowlist は Go=pointer(NULL許容) だが DB=NOT NULL(デフォルト無し) の
@@ -449,6 +475,11 @@ func TestSchemaDrift(t *testing.T) {
 		// 差分チェック 2: DBにあるがGoモデルにないカラム
 		for colName := range dbColMap {
 			if _, exists := modelColMap[colName]; !exists {
+				key := fmt.Sprintf("%s.%s", modelType.Name(), colName)
+				if issue, ok := knownSchemaDriftAllowlist[key]; ok {
+					t.Logf("[allowlist:%s] %s DBのみのカラムを既知として許容（Goモデルにフィールド無し）", issue, key)
+					continue
+				}
 				drifts = append(drifts, fmt.Sprintf("[%s] テーブル %q のカラム %q がGoモデルにフィールドとして定義されていない", modelType.Name(), tableName, colName))
 			}
 		}

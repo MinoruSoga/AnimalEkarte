@@ -1554,6 +1554,7 @@ CREATE TABLE clinical_plans (
     diagnosis_2_name_id   bigint               REFERENCES diagnosis_names(id) ON DELETE SET NULL,
     diagnosis_details     text        NOT NULL DEFAULT '',
     treatment_policy      text        NOT NULL DEFAULT '',
+    version               INTEGER     NOT NULL DEFAULT 1,
     created_at            timestamptz NOT NULL DEFAULT now(),
     updated_at            timestamptz NOT NULL DEFAULT now(),
     deleted_at            timestamptz
@@ -3228,7 +3229,8 @@ CREATE TYPE lab_import_job_status AS ENUM (
     'persisted',
     'duplicate',
     'needs_review',
-    'failed'
+    'failed',
+    'reverted'
 );
 
 CREATE TYPE lab_import_source_type AS ENUM (
@@ -3663,10 +3665,10 @@ ALTER TABLE clinic_settings
 -- 臨床結果テーブルの DB レベル複合 FK（clinic_id 込み）で越境 INSERT/UPDATE を物理拒否する
 -- （BE-refactor.md R3-7 / D13・defense-in-depth）。
 --
--- 対象は checkup_field_results のみ。exam_results は clinic_id 列を持たず、参照先の exam_type_fields も
--- clinic_id 列を持たない（clinic は exam_type_fields→exam_types→clinics と2段先）ため、(id, clinic_id) の
--- 複合 FK が構造的に張れない。exam_results への同等防御は clinic_id 列の追加 + backfill という
--- 非 additive なスキーマ拡張を要し、behavior-preserving リファクタの範囲外（別タスク）。
+-- 対象は checkup_field_results のみ。exam_type_fields は旧005で clinic_id 列と複合FKを獲得済みだが、
+-- exam_results 自身は clinic_id 列を持たないため、(exam_type_field_id, clinic_id) の複合 FK は
+-- 構造的に張れない。exam_results への同等防御は clinic_id 列の追加 + backfill という非 additive な
+-- スキーマ拡張を要し、behavior-preserving リファクタの範囲外（別タスク）。
 --
 -- 挙動保存: migration 010 の患者結果値保護（フィールド定義削除時に結果値を残す ON DELETE SET NULL）を
 -- 列指定 SET NULL（PostgreSQL 15+ 機能・本番は PG18）で維持する。親 checkup_type_fields を削除すると
@@ -3720,3 +3722,1856 @@ ALTER TABLE checkup_type_fields
     FOREIGN KEY (checkup_type_id, clinic_id)
     REFERENCES checkup_types (id, clinic_id)
     ON DELETE CASCADE;
+
+-- =============================================================================
+-- 8. 増分マイグレーション統合アーカイブ (旧 002〜009 / 2026-07-27)
+-- =============================================================================
+-- 以下は独立ファイルとして管理されていた旧 002〜009 の原文を番号順に追記したもの。
+-- 各ブロックの元コミットと SHA-256 は統合時の出典確認用に記録する。
+
+-- Source file: 002_lstep_snapshot_import_clinic_fk.sql
+-- Purpose: LSTEP friend snapshot と CSV import の clinic 所有関係を複合 FK で保証する。
+-- Source commit: 4e8fb5b91
+-- Source SHA-256: 10222c570054a80a5d47cf4b66e4235e92ca35643c9c23ef00a9ce8bca0086b6
+-- Enforce tenant ownership across LSTEP friend snapshots and their CSV import.
+-- Existing mismatches abort the migration before either constraint is changed.
+
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1
+        FROM lstep_friend_attribute_snapshots AS snapshot
+        JOIN lstep_csv_imports AS csv_import
+          ON csv_import.id = snapshot.csv_import_id
+        WHERE snapshot.csv_import_id IS NOT NULL
+          AND snapshot.clinic_id <> csv_import.clinic_id
+    ) THEN
+        RAISE EXCEPTION
+            'cross-clinic lstep friend snapshot csv_import reference exists'
+            USING ERRCODE = '23514';
+    END IF;
+END
+$$;
+
+ALTER TABLE lstep_csv_imports
+    ADD CONSTRAINT uq_lstep_csv_imports_clinic_id_id
+    UNIQUE (clinic_id, id);
+
+ALTER TABLE lstep_friend_attribute_snapshots
+    DROP CONSTRAINT IF EXISTS lstep_friend_attribute_snapshots_csv_import_id_fkey;
+
+ALTER TABLE lstep_friend_attribute_snapshots
+    ADD CONSTRAINT fk_lstep_snapshots_clinic_csv_import
+    FOREIGN KEY (clinic_id, csv_import_id)
+    REFERENCES lstep_csv_imports (clinic_id, id)
+    ON DELETE RESTRICT;
+
+-- Source file: 003_medical_records_appointment_id_index.sql
+-- Purpose: 予約紐付きカルテの参照と cutover rollback/maintenance 確認を支える。
+-- Source commit: e4e74d1fb
+-- Source SHA-256: ac7250c9101d0d1b3d55958f18be547a0a21c0c2ab83f32caac3739aa536d675
+-- Supports cutover rollback/maintenance checks and normal appointment-linked
+-- medical-record lookups without holding avoidable long FK scans.
+CREATE INDEX IF NOT EXISTS idx_medical_records_appointment_id
+    ON medical_records (appointment_id)
+    WHERE appointment_id IS NOT NULL;
+
+-- Source file: 004_payment_splits_billing_id_index.sql
+-- Purpose: payment graph 検証と billing 単位の集計を支える。
+-- Source commit: 20e014b36
+-- Source SHA-256: 647d8cf8c89377037c4a6fc07ac81d0ed3d47e5069ab4d3a5d418a56550f1886
+-- Supports payment-graph verification and billing-scoped reporting without
+-- scanning every clinic's payment splits. The existing
+-- (clinic_id, billing_id) index remains the tenant-scoped access path.
+CREATE INDEX IF NOT EXISTS idx_payment_splits_billing_id
+    ON payment_splits (billing_id);
+
+-- Source file: 005_exam_reference_ranges_and_clinic_fk.sql
+-- Purpose: 検査項目の clinic 整合性と種別別基準範囲を DB 制約で保証する。
+-- Source commit: b4d10e083
+-- Source SHA-256: 1841ac6be05199f2666ad78bcd50db45527dadf08e0cc63549b4bf3e4fa44381
+ALTER TABLE exam_types
+    ADD CONSTRAINT uq_exam_types_id_clinic UNIQUE (id, clinic_id);
+
+ALTER TABLE exam_type_fields
+    ADD COLUMN clinic_id bigint;
+
+UPDATE exam_type_fields AS field
+SET clinic_id = exam_type.clinic_id
+FROM exam_types AS exam_type
+WHERE exam_type.id = field.exam_type_id;
+
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1
+        FROM exam_type_fields AS field
+        LEFT JOIN exam_types AS exam_type ON exam_type.id = field.exam_type_id
+        WHERE field.clinic_id IS NULL
+           OR field.clinic_id IS DISTINCT FROM exam_type.clinic_id
+    ) THEN
+        RAISE EXCEPTION
+            'exam_type_fields clinic backfill is incomplete or inconsistent'
+            USING ERRCODE = '23514';
+    END IF;
+END
+$$;
+
+ALTER TABLE exam_type_fields
+    ALTER COLUMN clinic_id SET NOT NULL,
+    ADD CONSTRAINT fk_exam_type_fields_clinic
+        FOREIGN KEY (clinic_id) REFERENCES clinics(id) ON DELETE RESTRICT,
+    ADD CONSTRAINT uq_exam_type_fields_id_clinic UNIQUE (id, clinic_id);
+
+ALTER TABLE exam_type_fields
+    DROP CONSTRAINT exam_type_fields_exam_type_id_fkey;
+
+ALTER TABLE exam_type_fields
+    ADD CONSTRAINT fk_exam_type_fields_type_clinic
+    FOREIGN KEY (exam_type_id, clinic_id)
+    REFERENCES exam_types (id, clinic_id)
+    ON DELETE CASCADE;
+
+CREATE INDEX idx_exam_type_fields_clinic_type_sort
+    ON exam_type_fields (clinic_id, exam_type_id, sort_order);
+
+CREATE TABLE exam_reference_ranges (
+    id                    BIGSERIAL     PRIMARY KEY,
+    clinic_id             bigint        NOT NULL,
+    exam_type_field_id    bigint        NOT NULL,
+    animal_species_id     bigint        NOT NULL,
+    ref_min               decimal(10,4),
+    ref_max               decimal(10,4),
+    qualitative_min       text,
+    qualitative_max       text,
+    created_at            timestamptz   NOT NULL DEFAULT now(),
+    updated_at            timestamptz   NOT NULL DEFAULT now(),
+    CONSTRAINT fk_exam_reference_ranges_clinic
+        FOREIGN KEY (clinic_id) REFERENCES clinics(id) ON DELETE RESTRICT,
+    CONSTRAINT fk_exam_reference_ranges_field_clinic
+        FOREIGN KEY (exam_type_field_id, clinic_id)
+        REFERENCES exam_type_fields (id, clinic_id)
+        ON DELETE RESTRICT,
+    CONSTRAINT fk_exam_reference_ranges_animal_species
+        FOREIGN KEY (animal_species_id) REFERENCES animal_species(id) ON DELETE RESTRICT,
+    CONSTRAINT uq_exam_reference_ranges_clinic_field_species
+        UNIQUE (clinic_id, exam_type_field_id, animal_species_id),
+    CONSTRAINT chk_exam_reference_ranges_ref_order
+        CHECK (ref_min IS NULL OR ref_max IS NULL OR ref_min <= ref_max)
+);
+
+CREATE INDEX idx_exam_reference_ranges_animal_species
+    ON exam_reference_ranges (animal_species_id);
+
+-- RLS policies
+SELECT app_private.apply_rls_policy(
+    'exam_type_fields',
+    'tenant_exam_type_fields_isolation',
+    'app_private.has_clinic_access(clinic_id)',
+    'app_private.has_clinic_access(clinic_id)'
+);
+
+SELECT app_private.apply_rls_policy(
+    'exam_reference_ranges',
+    'tenant_exam_reference_ranges_isolation',
+    'app_private.has_clinic_access(clinic_id)',
+    'app_private.has_clinic_access(clinic_id)'
+);
+
+-- Source file: 006_payment_splits_payment_method_clinic_fk.sql
+-- Purpose: payment split と payment method の clinic 一致を複合 FK で保証する。
+-- Source commit: c434c4e66
+-- Source SHA-256: dfffc94e4e0f1990842a83840c7d759390291ad76679d1cc1c253433fe64e8e7
+ALTER TABLE payment_methods
+    ADD CONSTRAINT uq_payment_methods_id_clinic UNIQUE (id, clinic_id);
+
+-- Adding the composite foreign key validates all existing rows and fails if a
+-- non-NULL payment_method_id belongs to another clinic. Before applying this
+-- migration, use the following query to identify conflicting rows:
+--
+-- SELECT
+--     payment_split.id,
+--     payment_split.clinic_id,
+--     payment_split.payment_method_id,
+--     payment_method.clinic_id AS payment_method_clinic_id
+-- FROM payment_splits AS payment_split
+-- LEFT JOIN payment_methods AS payment_method
+--     ON payment_method.id = payment_split.payment_method_id
+-- WHERE payment_split.payment_method_id IS NOT NULL
+--   AND (
+--       payment_method.id IS NULL
+--       OR payment_method.clinic_id IS DISTINCT FROM payment_split.clinic_id
+--   );
+
+ALTER TABLE payment_splits
+    ADD CONSTRAINT fk_payment_splits_payment_method_clinic
+    FOREIGN KEY (payment_method_id, clinic_id)
+    REFERENCES payment_methods (id, clinic_id)
+    ON DELETE RESTRICT;
+
+-- Source file: 007_add_pets_danger_reason.sql
+-- Purpose: ペットの危険理由を記録する。
+-- Source commit: 49029973b
+-- Source SHA-256: 4d9afc0389285ca2b6ae9bb92ae4924e869a6e71f9051bbf774e9831dbf9047c
+ALTER TABLE pets
+    ADD COLUMN danger_reason text;
+
+-- Source file: 008_add_billing_item_vaccination_provenance.sql
+-- Purpose: 会計明細へ予防接種 provenance と clinic 制約を追加する。
+-- Source commit: 65a0dd08d
+-- Source SHA-256: daa676aed130da0ddefa30c4fd72e18b422dcc67ab919c7ea76dd0e40ac73d79
+ALTER TABLE billing_items
+    ADD COLUMN vaccination_id bigint,
+    ADD COLUMN clinic_id bigint,
+    ADD CONSTRAINT chk_billing_items_vaccination_clinic_pair
+        CHECK (
+            (vaccination_id IS NULL AND clinic_id IS NULL)
+            OR (vaccination_id IS NOT NULL AND clinic_id IS NOT NULL)
+        );
+
+ALTER TABLE vaccinations
+    ADD CONSTRAINT uq_vaccinations_id_clinic UNIQUE (id, clinic_id);
+
+ALTER TABLE billings
+    ADD CONSTRAINT uq_billings_id_clinic UNIQUE (id, clinic_id);
+
+ALTER TABLE billing_items
+    ADD CONSTRAINT fk_billing_items_billing_clinic
+        FOREIGN KEY (billing_id, clinic_id)
+        REFERENCES billings (id, clinic_id),
+    ADD CONSTRAINT fk_billing_items_vaccination_clinic
+        FOREIGN KEY (vaccination_id, clinic_id)
+        REFERENCES vaccinations (id, clinic_id)
+        ON DELETE RESTRICT;
+
+CREATE INDEX idx_vaccinations_clinic_pet_date_active
+    ON vaccinations(clinic_id, pet_id, date, id)
+    WHERE deleted_at IS NULL;
+
+CREATE UNIQUE INDEX uq_billing_items_vaccination_lifetime
+    ON billing_items(vaccination_id)
+    WHERE vaccination_id IS NOT NULL;
+
+COMMENT ON COLUMN billing_items.vaccination_id IS
+    '予防接種イベント由来の会計明細を識別するprovenance';
+
+COMMENT ON COLUMN billing_items.clinic_id IS
+    '予防接種provenanceがある明細だけに保持する内部tenant scope';
+
+-- Source file: 009_add_billing_items_other_reason.sql
+-- Purpose: other 分類の理由と会計明細の作成者を記録する。
+-- Source commit: 7a64d9e63
+-- Source SHA-256: 0923a782f31e1f736b17e3bf1935e164ec56db0de032114d7849eb6637ff2809
+ALTER TABLE billing_items
+    ADD COLUMN other_reason text,
+    ADD COLUMN created_by bigint,
+    ADD CONSTRAINT fk_billing_items_created_by
+        FOREIGN KEY (created_by) REFERENCES staffs(id) ON DELETE RESTRICT;
+
+CREATE INDEX idx_billing_items_created_by
+    ON billing_items (created_by)
+    WHERE created_by IS NOT NULL;
+
+-- Source file: 002_pets_owners_clinic_composite_unique.sql
+-- Purpose: pets / owners へ (clinic_id, id) の複合 UNIQUE を追加し、clinic 相関の複合 FK 参照先を用意する。
+-- Source commit: a0165b1c5
+-- Source SHA-256: 374f105139de1aea24253bc7adb24430245922230d5d1077f65c81c320f2cbbd
+ALTER TABLE pets
+    ADD CONSTRAINT uq_pets_clinic_id_id
+    UNIQUE (clinic_id, id);
+
+ALTER TABLE owners
+    ADD CONSTRAINT uq_owners_clinic_id_id
+    UNIQUE (clinic_id, id);
+
+-- Source file: 003_add_pet_owners.sql
+-- Purpose: ペットと飼い主の多対多を pet_owners で表現し、clinic 相関の複合 FK と RLS を適用する。
+-- Source commit: b4933b50b
+-- Source SHA-256: ca059c6bcc625e9e7b0f9001292653774e5c265eec4b528a0fcf57ce91a9357a
+CREATE TABLE pet_owners (
+    id           BIGSERIAL PRIMARY KEY,
+    clinic_id    BIGINT NOT NULL REFERENCES clinics(id),
+    pet_id       BIGINT NOT NULL,
+    owner_id     BIGINT NOT NULL,
+    relationship TEXT NOT NULL DEFAULT '',
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (pet_id, owner_id),
+    FOREIGN KEY (clinic_id, pet_id) REFERENCES pets (clinic_id, id),
+    FOREIGN KEY (clinic_id, owner_id) REFERENCES owners (clinic_id, id)
+);
+
+CREATE INDEX idx_pet_owners_clinic_pet ON pet_owners (clinic_id, pet_id);
+CREATE INDEX idx_pet_owners_clinic_owner ON pet_owners (clinic_id, owner_id);
+
+SELECT app_private.apply_rls_policy(
+    'pet_owners',
+    'tenant_clinic_id_isolation',
+    'app_private.has_clinic_access(clinic_id)',
+    'app_private.has_clinic_access(clinic_id)'
+);
+
+-- Source file: 004_add_exam_result_qualitative_bounds.sql
+-- Purpose: 定性判定の境界値スナップショットを exam_results へ保持する（#249 U3）。
+-- Source commit: cb3b1c448
+-- Source SHA-256: 6ce59f1051132353a377bed341a6d78f6b0562fcb705ad8949cc99b4a2066997
+ALTER TABLE exam_results
+    ADD COLUMN qualitative_min text,
+    ADD COLUMN qualitative_max text;
+
+-- =============================================================================
+-- 9. 増分マイグレーション統合アーカイブ (旧 002〜007 / 2026-07-29)
+-- =============================================================================
+-- 以下は独立ファイルとして管理されていた旧 002〜007 の原文を番号順に追記したもの。
+-- 各ブロックの元コミットと SHA-256 は統合時の出典確認用に記録する。
+-- 様式はセクション 8（2026-07-27 統合アーカイブ）に倣う。CREATE TABLE への畳み込みは行わず、
+-- 増分適用時と同じ ALTER / CREATE INDEX / 関数・トリガー定義を原文のまま保持する。
+
+-- Source file: 002_add_pets_version.sql
+-- Purpose: pets.version 楽観ロック用カラムを追加する。
+-- Source commit: 38e29b2ab
+-- Source SHA-256: 940914030266fc5fe80db51dba2478c197167478a39fdd79cd5f85959621fcd2
+ALTER TABLE pets
+    ADD COLUMN version INTEGER NOT NULL DEFAULT 1;
+
+-- Source file: 003_add_exam_results_exam_type_field_id_index.sql
+-- Purpose: exam_results.exam_type_field_id 参照用の非一意 index。
+-- Source commit: 09426bdec
+-- Source SHA-256: de9ce47f9313219cf6b86aeea2e27a4b505aded77ae338efcce20b181ab41d23
+CREATE INDEX idx_exam_results_exam_type_field_id ON exam_results (exam_type_field_id);
+
+-- Source file: 004_add_inventory_quantity_check.sql
+-- Purpose: inventory_items.quantity を非負に制約する CHECK（BUG-466）。
+-- Source commit: 699c49e4a
+-- Source SHA-256: e82838cd8d3d3436ba0d9d78b0ccca308eda875435b25cb8d218a9d274cfdf51
+-- BUG-466: inventory_items.quantity を非負に制約し、負数在庫の永続化を DB 層でも拒否する。
+ALTER TABLE inventory_items
+  ADD CONSTRAINT chk_inventory_items_quantity_non_negative CHECK (quantity >= 0);
+
+-- Source file: 005_payment_clinic_id_and_clinic_axis_composite_fks.sql
+-- Purpose: payments.clinic_id と clinic 軸複合 FK を harden する（TASK-445 / BUG-454）。
+-- Source commit: c5ddacb62
+-- Source SHA-256: 755f3efa1d06d412488b8e4d0bfb250896b3062e3b4badf252887ed55a0c5c3a
+-- TASK-445: payments.clinic_id + clinic-axis composite FK hardening
+-- BUG-454: pets(clinic_id, owner_id) → owners(clinic_id, id)
+--
+-- Scope:
+--   1. payments.clinic_id ADD + backfill from billings + NOT NULL + FK clinics
+--   2. composite FK payments(billing_id, clinic_id) → billings(id, clinic_id)
+--   3. composite FK payments(payment_method_id, clinic_id) → payment_methods(id, clinic_id)
+--   4. BUG-454: pets(clinic_id, owner_id) → owners(clinic_id, id)
+--   5. medical_records UNIQUE(id, clinic_id) + clinic-axis FKs to pets/owners
+--   6. vaccinations clinic-axis FKs to pets / medical_records
+--   7. billings clinic-axis FKs to pets / owners (nullable components: PG skips FK when any is NULL)
+--
+-- New constraints use RESTRICT (or default). Do not introduce delete cascade here.
+
+-- =============================================================================
+-- 1–3. payments.clinic_id + composite FKs
+-- =============================================================================
+
+ALTER TABLE payments
+    ADD COLUMN clinic_id bigint;
+
+-- Backfill from the owning billing row (1:1 on billing_id).
+UPDATE payments AS payment
+SET clinic_id = billing.clinic_id
+FROM billings AS billing
+WHERE billing.id = payment.billing_id
+  AND payment.clinic_id IS NULL;
+
+-- Adding NOT NULL / composite FKs validates all existing rows and fails if any
+-- payment lacks a matching billing.clinic_id, or if payment_method_id (when set)
+-- belongs to another clinic. Before applying this migration, use the following
+-- queries to identify conflicting rows:
+--
+-- SELECT
+--     payment.id,
+--     payment.billing_id,
+--     payment.clinic_id AS payment_clinic_id,
+--     billing.clinic_id AS billing_clinic_id
+-- FROM payments AS payment
+-- LEFT JOIN billings AS billing
+--     ON billing.id = payment.billing_id
+-- WHERE payment.clinic_id IS NULL
+--    OR billing.id IS NULL
+--    OR billing.clinic_id IS DISTINCT FROM payment.clinic_id;
+--
+-- SELECT
+--     payment.id,
+--     payment.clinic_id,
+--     payment.payment_method_id,
+--     payment_method.clinic_id AS payment_method_clinic_id
+-- FROM payments AS payment
+-- LEFT JOIN payment_methods AS payment_method
+--     ON payment_method.id = payment.payment_method_id
+-- WHERE payment.payment_method_id IS NOT NULL
+--   AND (
+--       payment_method.id IS NULL
+--       OR payment_method.clinic_id IS DISTINCT FROM payment.clinic_id
+--   );
+
+ALTER TABLE payments
+    ALTER COLUMN clinic_id SET NOT NULL;
+
+ALTER TABLE payments
+    ADD CONSTRAINT fk_payments_clinic_id
+    FOREIGN KEY (clinic_id)
+    REFERENCES clinics (id)
+    ON DELETE RESTRICT;
+
+-- Parent UNIQUE already exists: uq_billings_id_clinic UNIQUE (id, clinic_id)
+ALTER TABLE payments
+    ADD CONSTRAINT fk_payments_billing_clinic
+    FOREIGN KEY (billing_id, clinic_id)
+    REFERENCES billings (id, clinic_id)
+    ON DELETE RESTRICT;
+
+-- Parent UNIQUE already exists: uq_payment_methods_id_clinic UNIQUE (id, clinic_id)
+-- payment_method_id is nullable; PG skips the FK check when any component is NULL.
+ALTER TABLE payments
+    ADD CONSTRAINT fk_payments_payment_method_clinic
+    FOREIGN KEY (payment_method_id, clinic_id)
+    REFERENCES payment_methods (id, clinic_id)
+    ON DELETE RESTRICT;
+
+CREATE INDEX idx_payments_clinic_id ON payments (clinic_id);
+
+-- =============================================================================
+-- 4. BUG-454: pets owner must belong to the same clinic
+-- =============================================================================
+
+-- Parent UNIQUE already exists: uq_owners_clinic_id_id UNIQUE (clinic_id, id)
+-- Before applying, identify cross-clinic pet.owner_id rows:
+--
+-- SELECT
+--     pet.id,
+--     pet.clinic_id,
+--     pet.owner_id,
+--     owner.clinic_id AS owner_clinic_id
+-- FROM pets AS pet
+-- LEFT JOIN owners AS owner
+--     ON owner.id = pet.owner_id
+-- WHERE owner.id IS NULL
+--    OR owner.clinic_id IS DISTINCT FROM pet.clinic_id;
+
+ALTER TABLE pets
+    ADD CONSTRAINT fk_pets_clinic_owner
+    FOREIGN KEY (clinic_id, owner_id)
+    REFERENCES owners (clinic_id, id)
+    ON DELETE RESTRICT;
+
+-- =============================================================================
+-- 5. medical_records: parent UNIQUE + clinic-axis FKs to pets/owners
+-- =============================================================================
+
+ALTER TABLE medical_records
+    ADD CONSTRAINT uq_medical_records_id_clinic UNIQUE (id, clinic_id);
+
+-- Parent UNIQUEs: uq_pets_clinic_id_id (clinic_id, id), uq_owners_clinic_id_id (clinic_id, id)
+-- pet_id / owner_id are nullable; PG skips FK when any component is NULL.
+-- Before applying, identify conflicting rows:
+--
+-- SELECT
+--     medical_record.id,
+--     medical_record.clinic_id,
+--     medical_record.pet_id,
+--     pet.clinic_id AS pet_clinic_id
+-- FROM medical_records AS medical_record
+-- LEFT JOIN pets AS pet
+--     ON pet.id = medical_record.pet_id
+-- WHERE medical_record.pet_id IS NOT NULL
+--   AND (
+--       pet.id IS NULL
+--       OR pet.clinic_id IS DISTINCT FROM medical_record.clinic_id
+--   );
+--
+-- SELECT
+--     medical_record.id,
+--     medical_record.clinic_id,
+--     medical_record.owner_id,
+--     owner.clinic_id AS owner_clinic_id
+-- FROM medical_records AS medical_record
+-- LEFT JOIN owners AS owner
+--     ON owner.id = medical_record.owner_id
+-- WHERE medical_record.owner_id IS NOT NULL
+--   AND (
+--       owner.id IS NULL
+--       OR owner.clinic_id IS DISTINCT FROM medical_record.clinic_id
+--   );
+
+ALTER TABLE medical_records
+    ADD CONSTRAINT fk_medical_records_clinic_pet
+    FOREIGN KEY (clinic_id, pet_id)
+    REFERENCES pets (clinic_id, id)
+    ON DELETE RESTRICT;
+
+ALTER TABLE medical_records
+    ADD CONSTRAINT fk_medical_records_clinic_owner
+    FOREIGN KEY (clinic_id, owner_id)
+    REFERENCES owners (clinic_id, id)
+    ON DELETE RESTRICT;
+
+-- =============================================================================
+-- 6. vaccinations: clinic-axis FKs to pets / medical_records
+-- =============================================================================
+
+-- Parent UNIQUEs: uq_pets_clinic_id_id (clinic_id, id),
+--                 uq_medical_records_id_clinic (id, clinic_id) added above.
+-- pet_id / medical_record_id are nullable; PG skips FK when any component is NULL.
+-- Before applying, identify conflicting rows:
+--
+-- SELECT
+--     vaccination.id,
+--     vaccination.clinic_id,
+--     vaccination.pet_id,
+--     pet.clinic_id AS pet_clinic_id
+-- FROM vaccinations AS vaccination
+-- LEFT JOIN pets AS pet
+--     ON pet.id = vaccination.pet_id
+-- WHERE vaccination.pet_id IS NOT NULL
+--   AND (
+--       pet.id IS NULL
+--       OR pet.clinic_id IS DISTINCT FROM vaccination.clinic_id
+--   );
+--
+-- SELECT
+--     vaccination.id,
+--     vaccination.clinic_id,
+--     vaccination.medical_record_id,
+--     medical_record.clinic_id AS medical_record_clinic_id
+-- FROM vaccinations AS vaccination
+-- LEFT JOIN medical_records AS medical_record
+--     ON medical_record.id = vaccination.medical_record_id
+-- WHERE vaccination.medical_record_id IS NOT NULL
+--   AND (
+--       medical_record.id IS NULL
+--       OR medical_record.clinic_id IS DISTINCT FROM vaccination.clinic_id
+--   );
+
+ALTER TABLE vaccinations
+    ADD CONSTRAINT fk_vaccinations_clinic_pet
+    FOREIGN KEY (clinic_id, pet_id)
+    REFERENCES pets (clinic_id, id)
+    ON DELETE RESTRICT;
+
+ALTER TABLE vaccinations
+    ADD CONSTRAINT fk_vaccinations_medical_record_clinic
+    FOREIGN KEY (medical_record_id, clinic_id)
+    REFERENCES medical_records (id, clinic_id)
+    ON DELETE RESTRICT;
+
+-- =============================================================================
+-- 7. billings: clinic-axis FKs to pets / owners
+-- =============================================================================
+
+-- Parent UNIQUEs: uq_pets_clinic_id_id (clinic_id, id), uq_owners_clinic_id_id (clinic_id, id)
+-- pet_id / owner_id are nullable; PG skips FK when any component is NULL.
+-- Before applying, identify conflicting rows:
+--
+-- SELECT
+--     billing.id,
+--     billing.clinic_id,
+--     billing.pet_id,
+--     pet.clinic_id AS pet_clinic_id
+-- FROM billings AS billing
+-- LEFT JOIN pets AS pet
+--     ON pet.id = billing.pet_id
+-- WHERE billing.pet_id IS NOT NULL
+--   AND (
+--       pet.id IS NULL
+--       OR pet.clinic_id IS DISTINCT FROM billing.clinic_id
+--   );
+--
+-- SELECT
+--     billing.id,
+--     billing.clinic_id,
+--     billing.owner_id,
+--     owner.clinic_id AS owner_clinic_id
+-- FROM billings AS billing
+-- LEFT JOIN owners AS owner
+--     ON owner.id = billing.owner_id
+-- WHERE billing.owner_id IS NOT NULL
+--   AND (
+--       owner.id IS NULL
+--       OR owner.clinic_id IS DISTINCT FROM billing.clinic_id
+--   );
+
+ALTER TABLE billings
+    ADD CONSTRAINT fk_billings_clinic_pet
+    FOREIGN KEY (clinic_id, pet_id)
+    REFERENCES pets (clinic_id, id)
+    ON DELETE RESTRICT;
+
+ALTER TABLE billings
+    ADD CONSTRAINT fk_billings_clinic_owner
+    FOREIGN KEY (clinic_id, owner_id)
+    REFERENCES owners (clinic_id, id)
+    ON DELETE RESTRICT;
+
+-- Source file: 006_payment_method_system_key_match.sql
+-- Purpose: payments / payment_splits の method ⇔ payment_methods.system_key 一致を DB 境界で強制する（TASK-ADR003）。
+-- Source commit: fd29b27fe
+-- Source SHA-256: cecc85e1483d91227a6408a6904e17d521f2ab1a30d5778d9563f778c1646f43
+-- TASK-ADR003: payments / payment_splits の method ⇔ payment_methods.system_key 一致を DB 境界で fail-closed にする。
+--
+-- Scope:
+--   1. app_private.enforce_payment_method_system_key_match() を追加
+--   2. payment_splits / payments に BEFORE INSERT OR UPDATE トリガーを付与
+--
+-- Rules:
+--   - payment_method_id IS NULL の行はレガシー互換として許可（MATCH SIMPLE 相当）
+--   - payment_method_id が非 NULL のとき、payment_methods に
+--       id = payment_method_id AND system_key = method::text AND clinic_id = NEW.clinic_id
+--     の行が存在することを要求する
+--   - 削除時の連鎖削除制約は導入しない（RESTRICT / 既定のみ）
+--
+-- 前提: 005 により payments.clinic_id が存在する。
+-- 既存の不整合行を洗い出す場合（適用前の任意確認）:
+--
+-- SELECT p.id, p.clinic_id, p.method, p.payment_method_id, pm.system_key, pm.clinic_id AS pm_clinic_id
+-- FROM payments p
+-- LEFT JOIN payment_methods pm ON pm.id = p.payment_method_id
+-- WHERE p.payment_method_id IS NOT NULL
+--   AND (
+--     pm.id IS NULL
+--     OR pm.system_key IS DISTINCT FROM p.method::text
+--     OR pm.clinic_id IS DISTINCT FROM p.clinic_id
+--   );
+--
+-- SELECT s.id, s.clinic_id, s.method, s.payment_method_id, pm.system_key, pm.clinic_id AS pm_clinic_id
+-- FROM payment_splits s
+-- LEFT JOIN payment_methods pm ON pm.id = s.payment_method_id
+-- WHERE s.payment_method_id IS NOT NULL
+--   AND (
+--     pm.id IS NULL
+--     OR pm.system_key IS DISTINCT FROM s.method::text
+--     OR pm.clinic_id IS DISTINCT FROM s.clinic_id
+--   );
+
+CREATE SCHEMA IF NOT EXISTS app_private;
+
+CREATE OR REPLACE FUNCTION app_private.enforce_payment_method_system_key_match()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    -- レガシー行: payment_method_id 未設定は method ENUM のみで運用する（MATCH SIMPLE 相当）。
+    IF NEW.payment_method_id IS NULL THEN
+        RETURN NEW;
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1
+        FROM payment_methods AS pm
+        WHERE pm.id = NEW.payment_method_id
+          AND pm.system_key IS NOT DISTINCT FROM NEW.method::text
+          AND pm.clinic_id = NEW.clinic_id
+    ) THEN
+        RAISE EXCEPTION
+            '支払方法の不整合: payment_method_id=% の system_key が method=% と一致しません (clinic_id=%)',
+            NEW.payment_method_id,
+            NEW.method,
+            NEW.clinic_id
+            USING ERRCODE = '23514';
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+
+COMMENT ON FUNCTION app_private.enforce_payment_method_system_key_match() IS
+    'TASK-ADR003: payments/payment_splits の method と payment_methods.system_key の一致を fail-closed で強制する';
+
+DROP TRIGGER IF EXISTS trg_payment_splits_method_system_key_match ON payment_splits;
+CREATE TRIGGER trg_payment_splits_method_system_key_match
+    BEFORE INSERT OR UPDATE ON payment_splits
+    FOR EACH ROW
+    EXECUTE FUNCTION app_private.enforce_payment_method_system_key_match();
+
+DROP TRIGGER IF EXISTS trg_payments_method_system_key_match ON payments;
+CREATE TRIGGER trg_payments_method_system_key_match
+    BEFORE INSERT OR UPDATE ON payments
+    FOR EACH ROW
+    EXECUTE FUNCTION app_private.enforce_payment_method_system_key_match();
+
+GRANT USAGE ON SCHEMA app_private TO PUBLIC;
+GRANT EXECUTE ON FUNCTION app_private.enforce_payment_method_system_key_match() TO PUBLIC;
+
+-- Source file: 007_owners_clinic_phone_unique.sql
+-- Purpose: owners の clinic 内非空 phone 部分 unique index（POC-06 / U-X05-OWNER-PHONE）。
+-- Source commit: ccfaaa311
+-- Source SHA-256: cd73b506a4513abfd54836e362f30a8cba9766991fdabbcc1692b595634b0ec4
+-- POC-06 / U-X05-OWNER-PHONE: feed-owner phone uniqueness at the DB boundary.
+--
+-- Mirrors uk_owners_clinic_email (partial unique on clinic_id + contact field)
+-- so concurrent Create/Update cannot insert two active owners with the same
+-- non-empty phone inside one clinic. Application ensureOwnerPhoneUnique remains
+-- for friendly messages; this index is the fail-closed source of truth.
+--
+-- Empty phone ('') is excluded so legacy rows without phone can coexist.
+-- Soft-deleted rows are excluded (deleted_at IS NULL).
+
+CREATE UNIQUE INDEX IF NOT EXISTS uk_owners_clinic_phone
+    ON owners (clinic_id, phone)
+    WHERE deleted_at IS NULL AND phone <> '';
+
+-- =============================================================================
+-- 10. 増分マイグレーション統合アーカイブ (旧 002〜006 / 2026-07-31)
+-- =============================================================================
+-- 以下は独立ファイルとして管理されていた旧 002〜006 の原文を番号順に追記したもの。
+-- 各ブロックの元コミットと SHA-256 は統合時の出典確認用に記録する。
+-- 様式はセクション 9（2026-07-29 統合アーカイブ）に倣う。CREATE TABLE への畳み込みは行わず、
+-- 増分適用時と同じ ALTER / CREATE INDEX / 関数・トリガー / CREATE TABLE 定義を原文のまま保持する。
+
+-- Source file: 002_lstep_delivery_trigger_log_daily_unique.sql
+-- Purpose: LSA-15: lstep_delivery_trigger_log の clinic/owner/type/JST-day 部分 unique index。
+-- Source commit: aeb39c07487b22da74a2eb9b1ca6c673ac9b99f8
+-- Source SHA-256: 3874c608ea06935e187787fcabf33b79f3526640614c102b37d95ae87122a2ae
+-- LSA-15 / LANE-BE ④: day-grain uniqueness for delivery trigger double-fire defense.
+-- Complements Go CreateIfAbsentToday (advisory lock). Expression uses Asia/Tokyo date
+-- to match application "today" boundaries used by ExistsTodayByOwnerAndType.
+
+CREATE UNIQUE INDEX IF NOT EXISTS uk_lstep_delivery_trigger_log_clinic_owner_type_day
+    ON lstep_delivery_trigger_log (
+        clinic_id,
+        owner_id,
+        trigger_type,
+        ((scheduled_at AT TIME ZONE 'Asia/Tokyo')::date)
+    );
+
+COMMENT ON INDEX uk_lstep_delivery_trigger_log_clinic_owner_type_day IS
+    'LSA-15: at most one trigger log per clinic/owner/type/JST day';
+
+-- Source file: 003_closing_special_periods_exclude_overlap.sql
+-- Purpose: POC-05: closing_special_periods の clinic+daterange EXCLUDE 制約。
+-- Source commit: aeb39c07487b22da74a2eb9b1ca6c673ac9b99f8
+-- Source SHA-256: d0881891184a220559f4778d2f13b2032bce894d143cf4cdcc269ccc31a6d405
+-- POC-05 / LANE-BE ④: DB-level non-overlap for closing_special_periods.
+-- Complements Go CreateCheckingOverlap/UpdateCheckingOverlap (clinic advisory lock).
+-- btree_gist enables equality on clinic_id together with daterange overlap.
+
+CREATE EXTENSION IF NOT EXISTS btree_gist;
+
+ALTER TABLE closing_special_periods
+    ADD CONSTRAINT excl_closing_special_periods_clinic_daterange
+    EXCLUDE USING gist (
+        clinic_id WITH =,
+        daterange(start_date, end_date, '[]') WITH &&
+    );
+
+COMMENT ON CONSTRAINT excl_closing_special_periods_clinic_daterange ON closing_special_periods IS
+    'POC-05: no overlapping special periods within the same clinic';
+
+-- Source file: 004_add_identity_links.sql
+-- Purpose: #239 Phase 1: 医院横断 owner/pet identity link 4 テーブル + 明示 RLS。
+-- Source commit: fb11108c8a9faec5cf8af07f4d1bc0f3f95ab60f
+-- Source SHA-256: 17c0028a0c294ab278b6e8b9512ddbfd5f5e2977229a3280a4e816fc41ecf829
+-- #239 Phase 1: owner/pet identity link tables (manual link/unlink only).
+-- Parents already have uq_owners_clinic_id_id / uq_pets_clinic_id_id in 001_init.
+-- RLS is defense-in-depth; application runtime scope is the first boundary.
+-- created_clinic_id is the group insert RLS anchor (immutable after insert).
+
+-- ---------------------------------------------------------------------------
+-- Owner identity groups
+-- ---------------------------------------------------------------------------
+CREATE TABLE owner_identity_groups (
+    id                BIGSERIAL PRIMARY KEY,
+    created_clinic_id BIGINT NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    version           BIGINT NOT NULL DEFAULT 1 CHECK (version >= 1),
+    created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deleted_at        TIMESTAMPTZ,
+    UNIQUE (created_clinic_id, id)
+);
+
+CREATE TABLE owner_identity_group_members (
+    id                      BIGSERIAL PRIMARY KEY,
+    group_created_clinic_id BIGINT NOT NULL,
+    group_id                BIGINT NOT NULL,
+    clinic_id               BIGINT NOT NULL,
+    owner_id                BIGINT NOT NULL,
+    created_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deleted_at              TIMESTAMPTZ,
+    FOREIGN KEY (group_created_clinic_id, group_id)
+        REFERENCES owner_identity_groups(created_clinic_id, id) ON DELETE RESTRICT,
+    FOREIGN KEY (clinic_id, owner_id)
+        REFERENCES owners(clinic_id, id) ON DELETE RESTRICT
+);
+
+CREATE UNIQUE INDEX uq_owner_identity_active_member
+    ON owner_identity_group_members(clinic_id, owner_id)
+    WHERE deleted_at IS NULL;
+
+CREATE UNIQUE INDEX uq_owner_identity_active_group_member
+    ON owner_identity_group_members(group_id, clinic_id, owner_id)
+    WHERE deleted_at IS NULL;
+
+CREATE INDEX idx_owner_identity_group_members_group
+    ON owner_identity_group_members(group_id)
+    WHERE deleted_at IS NULL;
+
+-- ---------------------------------------------------------------------------
+-- Pet identity groups (must hang under an owner identity group)
+-- ---------------------------------------------------------------------------
+CREATE TABLE pet_identity_groups (
+    id                            BIGSERIAL PRIMARY KEY,
+    created_clinic_id             BIGINT NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    owner_group_created_clinic_id BIGINT NOT NULL,
+    owner_group_id                BIGINT NOT NULL,
+    version                       BIGINT NOT NULL DEFAULT 1 CHECK (version >= 1),
+    created_at                    TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at                    TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deleted_at                    TIMESTAMPTZ,
+    UNIQUE (created_clinic_id, id),
+    FOREIGN KEY (owner_group_created_clinic_id, owner_group_id)
+        REFERENCES owner_identity_groups(created_clinic_id, id) ON DELETE RESTRICT
+);
+
+CREATE TABLE pet_identity_group_members (
+    id                      BIGSERIAL PRIMARY KEY,
+    group_created_clinic_id BIGINT NOT NULL,
+    group_id                BIGINT NOT NULL,
+    clinic_id               BIGINT NOT NULL,
+    pet_id                  BIGINT NOT NULL,
+    created_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deleted_at              TIMESTAMPTZ,
+    FOREIGN KEY (group_created_clinic_id, group_id)
+        REFERENCES pet_identity_groups(created_clinic_id, id) ON DELETE RESTRICT,
+    FOREIGN KEY (clinic_id, pet_id)
+        REFERENCES pets(clinic_id, id) ON DELETE RESTRICT
+);
+
+CREATE UNIQUE INDEX uq_pet_identity_active_member
+    ON pet_identity_group_members(clinic_id, pet_id)
+    WHERE deleted_at IS NULL;
+
+CREATE UNIQUE INDEX uq_pet_identity_active_group_member
+    ON pet_identity_group_members(group_id, clinic_id, pet_id)
+    WHERE deleted_at IS NULL;
+
+CREATE INDEX idx_pet_identity_group_members_group
+    ON pet_identity_group_members(group_id)
+    WHERE deleted_at IS NULL;
+
+-- ---------------------------------------------------------------------------
+-- Immutable created_clinic_id (groups only)
+-- ---------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION app_private.prevent_identity_group_created_clinic_id_update()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    IF NEW.created_clinic_id IS DISTINCT FROM OLD.created_clinic_id THEN
+        RAISE EXCEPTION 'created_clinic_id is immutable'
+            USING ERRCODE = 'check_violation';
+    END IF;
+    RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER trg_owner_identity_groups_created_clinic_immutable
+    BEFORE UPDATE ON owner_identity_groups
+    FOR EACH ROW
+    EXECUTE FUNCTION app_private.prevent_identity_group_created_clinic_id_update();
+
+CREATE TRIGGER trg_pet_identity_groups_created_clinic_immutable
+    BEFORE UPDATE ON pet_identity_groups
+    FOR EACH ROW
+    EXECUTE FUNCTION app_private.prevent_identity_group_created_clinic_id_update();
+
+-- ---------------------------------------------------------------------------
+-- RLS (ENABLE only; FORCE remains out of scope — app scope is first boundary)
+-- ---------------------------------------------------------------------------
+SELECT app_private.apply_rls_policy(
+    'owner_identity_groups',
+    'tenant_owner_identity_groups_isolation',
+    'app_private.has_clinic_access(created_clinic_id)',
+    'app_private.has_clinic_access(created_clinic_id)'
+);
+
+SELECT app_private.apply_rls_policy(
+    'owner_identity_group_members',
+    'tenant_owner_identity_group_members_isolation',
+    'app_private.has_clinic_access(clinic_id)',
+    'app_private.has_clinic_access(clinic_id)'
+);
+
+SELECT app_private.apply_rls_policy(
+    'pet_identity_groups',
+    'tenant_pet_identity_groups_isolation',
+    'app_private.has_clinic_access(created_clinic_id)',
+    'app_private.has_clinic_access(created_clinic_id)'
+);
+
+SELECT app_private.apply_rls_policy(
+    'pet_identity_group_members',
+    'tenant_pet_identity_group_members_isolation',
+    'app_private.has_clinic_access(clinic_id)',
+    'app_private.has_clinic_access(clinic_id)'
+);
+
+COMMENT ON TABLE owner_identity_groups IS
+    '#239 owner identity link group; created_clinic_id is immutable RLS anchor; last-member unlink soft-deletes; no revive';
+COMMENT ON TABLE owner_identity_group_members IS
+    '#239 owner identity members; active uniqueness per (clinic_id, owner_id); soft-delete unlink';
+COMMENT ON TABLE pet_identity_groups IS
+    '#239 pet identity link group under owner identity group; created_clinic_id immutable';
+COMMENT ON TABLE pet_identity_group_members IS
+    '#239 pet identity members; active uniqueness per (clinic_id, pet_id); soft-delete unlink';
+
+-- Source file: 005_line_webhook_bot_user_id.sql
+-- Purpose: SEC-CS-F05-R1: LINE webhook destination bot user id ルーティングキー。
+-- Source commit: 559b6560d0ea22f9865b07819f4eb63301009b38
+-- Source SHA-256: 8c665c3b52048ffc1e5b8752ffc614ff215685221e9b9ca1643596d2b42876a7
+-- SEC-CS-F05-R1: LINE webhook signature routing key.
+-- destination in webhook body is the LINE Messaging API bot user ID.
+-- Lookup is O(1) via this column; empty means not yet provisioned (excluded from unique index).
+
+ALTER TABLE line_reservation_settings
+    ADD COLUMN line_bot_user_id text NOT NULL DEFAULT '';
+
+-- Only provisioned bot IDs must be unique. Unprovisioned rows share ''.
+CREATE UNIQUE INDEX uq_line_reservation_settings_line_bot_user_id
+    ON line_reservation_settings (line_bot_user_id)
+    WHERE line_bot_user_id <> '';
+
+COMMENT ON COLUMN line_reservation_settings.line_bot_user_id IS
+    'LINE Messaging API bot user ID (webhook destination). Used for fixed-work signature routing (SEC-CS-F05-R1). Empty until provisioned.';
+
+-- Source file: 006_medical_record_image_upload_quota.sql
+-- Purpose: SEC-CS-F08-R1: medical_record_image_upload_quota 画像 upload quota lease テーブル。
+-- Source commit: 7e5fa02d6de6dcde608c2ea0eca906ab614c0db4
+-- Source SHA-256: 4501ebac04d3c34a262e3889495de2f69c2cd8737ae125389a27a27ffea4eac1
+-- SEC-CS-F08-R1: authoritative medical-record image upload quota leases.
+-- Shared across processes/replicas for concurrency, rate, and byte-budget gates.
+-- Agents must not auto-apply; run `make migrate` after pull when this is present.
+
+CREATE TABLE IF NOT EXISTS medical_record_image_upload_quota (
+  id BIGSERIAL PRIMARY KEY,
+  clinic_id BIGINT NOT NULL,
+  staff_id BIGINT NOT NULL,
+  declared_bytes BIGINT NOT NULL CHECK (declared_bytes >= 0),
+  acquired_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  released_at TIMESTAMPTZ NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_mri_upload_quota_clinic_acquired
+  ON medical_record_image_upload_quota (clinic_id, acquired_at);
+
+CREATE INDEX IF NOT EXISTS idx_mri_upload_quota_staff_acquired
+  ON medical_record_image_upload_quota (clinic_id, staff_id, acquired_at);
+
+CREATE INDEX IF NOT EXISTS idx_mri_upload_quota_inflight
+  ON medical_record_image_upload_quota (clinic_id, staff_id)
+  WHERE released_at IS NULL;
+
+-- =============================================================================
+-- 11. 増分マイグレーション統合アーカイブ (旧 002〜008 / 2026-08-04)
+-- =============================================================================
+-- 以下は独立ファイルとして管理されていた旧 002〜008 の原文を番号順に追記したもの。
+-- 各ブロックの元コミットと SHA-256 は統合時の出典確認用に記録する。
+-- 様式はセクション 10（2026-07-31 統合アーカイブ）に倣う。CREATE TABLE への畳み込みは行わず、
+-- 増分適用時と同じ ALTER / CREATE INDEX / 関数・トリガー / CREATE TABLE 定義を原文のまま保持する。
+
+-- Source file: 002_estimate_successor_and_numbering.sql
+-- Purpose: TASK-012 FINAL B: 確定見積の後継ドラフト（supersedes）と見積番号採番の前提カラム。
+-- Source commit: b65cf69ef56785c473ddd233624292a3c338401e
+-- Source SHA-256: d93217de4b6eb5b1c264ce66b187937576852ab7b3da9cb9fb120c11e0b056c4
+-- 002_estimate_successor_and_numbering.sql
+-- TASK-012 FINAL B: 確定見積の後継ドラフト（supersedes）と見積番号採番の前提カラム。
+-- 適用: USER が make migrate を手動実行すること（エージェントは auto-apply しない）。
+-- CASCADE DELETE 禁止。001_init.sql は編集しない。
+
+ALTER TABLE estimates
+  ADD COLUMN IF NOT EXISTS supersedes_estimate_id BIGINT NULL
+  REFERENCES estimates(id);
+
+CREATE INDEX IF NOT EXISTS idx_estimates_clinic_supersedes
+  ON estimates(clinic_id, supersedes_estimate_id)
+  WHERE supersedes_estimate_id IS NOT NULL;
+
+COMMENT ON COLUMN estimates.supersedes_estimate_id IS
+  'Successor draft points to the locked (approved/rejected) estimate it corrects. Original row is never unlocked.';
+
+-- Source file: 003_cash_register_close_append_only.sql
+-- Purpose: W-013 FINAL B: レジ締め append-only 強化 + 締め後訂正（adjustment）テーブル。
+-- Source commit: b65cf69ef56785c473ddd233624292a3c338401e
+-- Source SHA-256: f07de224ba2f1987c9962252fb942dbd7a2d10ae5675f57599250641ab017f48
+-- 003_cash_register_close_append_only.sql
+-- W-013 FINAL B: レジ締め append-only 強化 + 締め後訂正（adjustment）テーブル。
+-- 適用: USER が make migrate を手動実行すること（エージェントは auto-apply しない）。
+-- CASCADE DELETE 禁止。001_init.sql は編集しない。
+--
+-- 方針:
+--   1. cash_register_closes の soft-delete 再オープン経路を塞ぐ（partial UNIQUE → 完全 UNIQUE）
+--   2. soft-deleted 行は active 行と衝突しなければ revive、衝突すれば migration を fail-closed
+--   3. deleted_at 列は残すが app は soft-delete しない（UPDATE/DELETE は immutability trigger で拒否）
+--   4. 締め後の会計訂正は cash_register_close_adjustments への append-only 追記で表現する
+
+-- ---------------------------------------------------------------------------
+-- 1. soft-deleted 行の整理（完全 UNIQUE 化の前提）
+-- ---------------------------------------------------------------------------
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1
+        FROM cash_register_closes d
+        WHERE d.deleted_at IS NOT NULL
+          AND EXISTS (
+              SELECT 1
+              FROM cash_register_closes a
+              WHERE a.deleted_at IS NULL
+                AND a.clinic_id = d.clinic_id
+                AND a.close_date = d.close_date
+                AND a.period = d.period
+          )
+    ) THEN
+        RAISE EXCEPTION
+            '003_cash_register_close_append_only: soft-deleted cash_register_closes conflict with active rows for same (clinic_id, close_date, period); resolve manually before migrate';
+    END IF;
+
+    UPDATE cash_register_closes
+    SET deleted_at = NULL
+    WHERE deleted_at IS NOT NULL;
+END $$;
+
+-- ---------------------------------------------------------------------------
+-- 2. partial UNIQUE → 完全 UNIQUE（soft-delete 再オープン不可）
+-- ---------------------------------------------------------------------------
+DROP INDEX IF EXISTS uq_cash_register_closes_date_period;
+
+CREATE UNIQUE INDEX uq_cash_register_closes_date_period
+    ON cash_register_closes (clinic_id, close_date, period);
+
+COMMENT ON TABLE cash_register_closes IS
+    'レジ締めレコード（FEAT-368）。append-only。更新・削除・soft-delete 再開は不可。締め後訂正は cash_register_close_adjustments へ追記する（W-013）。';
+
+-- ---------------------------------------------------------------------------
+-- 3. cash_register_close_adjustments（締め後訂正の append-only 台帳）
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS cash_register_close_adjustments (
+    id                   BIGSERIAL    PRIMARY KEY,
+    clinic_id            BIGINT       NOT NULL REFERENCES clinics(id),
+    close_id             BIGINT       NOT NULL REFERENCES cash_register_closes(id),
+    billing_id           BIGINT       NOT NULL,
+    accounting_delta     BIGINT       NOT NULL DEFAULT 0,
+    cash_movement_amount BIGINT       NOT NULL DEFAULT 0,
+    reason               TEXT         NOT NULL,
+    actor_id             BIGINT,
+    executed_at          TIMESTAMPTZ  NOT NULL DEFAULT now(),
+    created_at           TIMESTAMPTZ  NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_cash_register_close_adjustments_close
+    ON cash_register_close_adjustments (clinic_id, close_id);
+
+CREATE INDEX IF NOT EXISTS idx_cash_register_close_adjustments_executed
+    ON cash_register_close_adjustments (clinic_id, executed_at);
+
+COMMENT ON TABLE cash_register_close_adjustments IS
+    'レジ締め後の会計訂正台帳（W-013 append-only）。close 自体の reverse/取消は productize しない。';
+COMMENT ON COLUMN cash_register_close_adjustments.accounting_delta IS
+    '会計合計の増減（円）。取得できない場合は 0 でも reason は必須。';
+COMMENT ON COLUMN cash_register_close_adjustments.cash_movement_amount IS
+    '現金移動額（円）。会計のみの訂正では 0。';
+
+-- ---------------------------------------------------------------------------
+-- 4. immutability triggers（UPDATE/DELETE を DB 層で拒否）
+-- ---------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION app_private.prevent_cash_register_close_mutation()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    RAISE EXCEPTION 'cash_register_closes is append-only; UPDATE/DELETE are not allowed'
+        USING ERRCODE = 'check_violation';
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_cash_register_closes_immutable ON cash_register_closes;
+CREATE TRIGGER trg_cash_register_closes_immutable
+    BEFORE UPDATE OR DELETE ON cash_register_closes
+    FOR EACH ROW
+    EXECUTE FUNCTION app_private.prevent_cash_register_close_mutation();
+
+CREATE OR REPLACE FUNCTION app_private.prevent_cash_register_close_adjustment_mutation()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    RAISE EXCEPTION 'cash_register_close_adjustments is append-only; UPDATE/DELETE are not allowed'
+        USING ERRCODE = 'check_violation';
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_cash_register_close_adjustments_immutable ON cash_register_close_adjustments;
+CREATE TRIGGER trg_cash_register_close_adjustments_immutable
+    BEFORE UPDATE OR DELETE ON cash_register_close_adjustments
+    FOR EACH ROW
+    EXECUTE FUNCTION app_private.prevent_cash_register_close_adjustment_mutation();
+
+-- Source file: 004_examination_revisions.sql
+-- Purpose: TASK-027 Slice A: append-only examination revision foundation and first-confirm pointer CAS.
+-- Source commit: 046615f4bc923869f189c4e104e27d0539d8c88d
+-- Source SHA-256: 935466024cd36d98e0bf991b14080930712a0602a8f5b9afeb4199c7ec6f8037
+-- 004_examination_revisions.sql
+-- TASK-027 Slice A: append-only examination revision foundation and first-confirm pointer CAS.
+-- Apply only through the USER-operated migration workflow. This file is additive; 001-003 remain unchanged.
+
+ALTER TABLE exams
+    ADD COLUMN current_revision_version BIGINT NULL
+        CHECK (current_revision_version >= 1),
+    ADD CONSTRAINT uq_exams_clinic_id_id
+        UNIQUE (clinic_id, id);
+
+CREATE TABLE examination_revisions (
+    id                      BIGSERIAL   PRIMARY KEY,
+    clinic_id               BIGINT      NOT NULL,
+    examination_id          BIGINT      NOT NULL,
+    version                 BIGINT      NOT NULL CHECK (version >= 1),
+    kind                    TEXT        NOT NULL CHECK (kind IN ('working', 'official')),
+    status                  exam_status NOT NULL,
+    medical_record_id       BIGINT,
+    pet_id                  BIGINT,
+    medical_record_owner_id BIGINT,
+    pet_owner_id            BIGINT,
+    animal_species_id       BIGINT,
+    exam_type_id            BIGINT      NOT NULL,
+    doctor_id               BIGINT,
+    job_id                  UUID,
+    actor_id                BIGINT      NOT NULL,
+    date                    DATE        NOT NULL,
+    result_summary          TEXT        NOT NULL DEFAULT '',
+    machine                 TEXT        NOT NULL DEFAULT '',
+    display_snapshot        JSONB       NOT NULL,
+    schema_version          SMALLINT    NOT NULL DEFAULT 1,
+    change_reason           TEXT        NULL,
+    created_at              TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uq_examination_revisions_clinic_exam_version
+        UNIQUE (clinic_id, examination_id, version),
+    CONSTRAINT ck_examination_revisions_schema_version
+        CHECK (schema_version = 1),
+    CONSTRAINT ck_examination_revisions_change_reason
+        CHECK (change_reason IS NULL OR btrim(change_reason) <> ''),
+    CONSTRAINT ck_examination_revisions_kind_status
+        CHECK (
+            (kind = 'official' AND status = 'confirmed') OR
+            (kind = 'working' AND status IN ('pending', 'in_progress', 'result_entered', 'completed'))
+        ),
+    CONSTRAINT ck_examination_revisions_display_snapshot
+        CHECK (
+            jsonb_typeof(display_snapshot) = 'object' AND
+            COALESCE(jsonb_typeof(display_snapshot -> 'medical_record_no'), '') = 'string' AND
+            COALESCE(jsonb_typeof(display_snapshot -> 'pet_name'), '') = 'string' AND
+            COALESCE(jsonb_typeof(display_snapshot -> 'medical_record_owner_name'), '') = 'string' AND
+            COALESCE(jsonb_typeof(display_snapshot -> 'pet_owner_name'), '') = 'string' AND
+            COALESCE(jsonb_typeof(display_snapshot -> 'species_name'), '') = 'string' AND
+            COALESCE(jsonb_typeof(display_snapshot -> 'exam_type_name'), '') = 'string' AND
+            COALESCE(jsonb_typeof(display_snapshot -> 'doctor_name'), '') = 'string'
+        )
+);
+
+CREATE TABLE examination_revision_items (
+    id                   BIGSERIAL          PRIMARY KEY,
+    clinic_id            BIGINT             NOT NULL,
+    examination_id       BIGINT             NOT NULL,
+    version              BIGINT             NOT NULL CHECK (version >= 1),
+    exam_type_field_id   BIGINT,
+    name                 TEXT               NOT NULL DEFAULT '',
+    inspection_value     TEXT               NOT NULL DEFAULT '',
+    normal_value         TEXT               NOT NULL DEFAULT '',
+    result               TEXT               NOT NULL DEFAULT '',
+    unit                 TEXT               NOT NULL DEFAULT '',
+    reference_value      TEXT               NOT NULL DEFAULT '',
+    ref_min              DECIMAL(10,4),
+    ref_max              DECIMAL(10,4),
+    qualitative_min      TEXT,
+    qualitative_max      TEXT,
+    is_assessed          BOOLEAN            NOT NULL,
+    is_abnormal          BOOLEAN            NOT NULL,
+    status               exam_result_status NOT NULL,
+    sort_order           INTEGER            NOT NULL DEFAULT 0,
+    created_at           TIMESTAMPTZ        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT ck_examination_revision_items_reference_range
+        CHECK (ref_min IS NULL OR ref_max IS NULL OR ref_min <= ref_max)
+);
+
+ALTER TABLE examination_revisions
+    ADD CONSTRAINT fk_examination_revisions_exam
+        FOREIGN KEY (clinic_id, examination_id)
+        REFERENCES exams (clinic_id, id)
+        ON DELETE RESTRICT NOT DEFERRABLE;
+
+ALTER TABLE examination_revision_items
+    ADD CONSTRAINT fk_examination_revision_items_revision
+        FOREIGN KEY (clinic_id, examination_id, version)
+        REFERENCES examination_revisions (clinic_id, examination_id, version)
+        ON DELETE RESTRICT NOT DEFERRABLE;
+
+ALTER TABLE exams
+    ADD CONSTRAINT fk_exams_current_revision
+        FOREIGN KEY (clinic_id, id, current_revision_version)
+        REFERENCES examination_revisions (clinic_id, examination_id, version)
+        ON DELETE RESTRICT NOT DEFERRABLE;
+
+CREATE INDEX idx_examination_revisions_latest_kind
+    ON examination_revisions (clinic_id, examination_id, kind, version DESC);
+
+CREATE INDEX idx_examination_revision_items_revision_sort
+    ON examination_revision_items (clinic_id, examination_id, version, sort_order, id);
+
+CREATE INDEX idx_exams_current_revision_pointer
+    ON exams (clinic_id, id, current_revision_version);
+
+CREATE OR REPLACE FUNCTION app_private.prevent_examination_revision_mutation()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    RAISE EXCEPTION 'examination_revisions is append-only; UPDATE/DELETE are not allowed'
+        USING ERRCODE = 'check_violation';
+END;
+$$;
+
+CREATE TRIGGER trg_examination_revisions_immutable
+    BEFORE UPDATE OR DELETE ON examination_revisions
+    FOR EACH ROW
+    EXECUTE FUNCTION app_private.prevent_examination_revision_mutation();
+
+CREATE OR REPLACE FUNCTION app_private.prevent_examination_revision_item_mutation()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    RAISE EXCEPTION 'examination_revision_items is append-only; UPDATE/DELETE are not allowed'
+        USING ERRCODE = 'check_violation';
+END;
+$$;
+
+CREATE TRIGGER trg_examination_revision_items_immutable
+    BEFORE UPDATE OR DELETE ON examination_revision_items
+    FOR EACH ROW
+    EXECUTE FUNCTION app_private.prevent_examination_revision_item_mutation();
+
+CREATE OR REPLACE FUNCTION app_private.enforce_examination_revision_item_insert_version()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    selected_version BIGINT;
+BEGIN
+    SELECT current_revision_version
+    INTO selected_version
+    FROM exams
+    WHERE clinic_id = NEW.clinic_id
+      AND id = NEW.examination_id
+    FOR UPDATE;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION
+            'examination revision item has no matching examination: clinic_id=%, examination_id=%',
+            NEW.clinic_id,
+            NEW.examination_id
+            USING ERRCODE = 'check_violation';
+    END IF;
+
+    IF NEW.version <> COALESCE(selected_version, 0) + 1 THEN
+        RAISE EXCEPTION
+            'examination revision item version must be the next unselected version: selected=%, attempted=%',
+            selected_version,
+            NEW.version
+            USING ERRCODE = 'check_violation';
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER trg_examination_revision_items_insert_version
+    BEFORE INSERT ON examination_revision_items
+    FOR EACH ROW
+    EXECUTE FUNCTION app_private.enforce_examination_revision_item_insert_version();
+
+SELECT app_private.apply_rls_policy(
+    'examination_revisions',
+    'tenant_examination_revisions_isolation',
+    'app_private.has_clinic_access(clinic_id)',
+    'app_private.has_clinic_access(clinic_id)'
+);
+
+SELECT app_private.apply_rls_policy(
+    'examination_revision_items',
+    'tenant_examination_revision_items_isolation',
+    'app_private.has_clinic_access(clinic_id)',
+    'app_private.has_clinic_access(clinic_id)'
+);
+
+-- Source file: 005_accounting_completion_idempotency.sql
+-- Purpose: BUG-018: atomic accounting completion idempotency keys on billings.
+-- Source commit: 75f8912fc2a8d3b2fb5c0290a766bb0f5fc12ac5
+-- Source SHA-256: 777e3694ecace1dbb5ae8683cabeaa3b2a2dc888dfa1e464fe5b9e69085d181a
+-- 005_accounting_completion_idempotency.sql
+-- BUG-018: atomic accounting completion idempotency keys on billings.
+-- 適用: USER が make migrate を手動実行すること（エージェントは auto-apply しない）。
+-- CASCADE DELETE 禁止。既存 migration (001-004) は編集しない。
+--
+-- 方針:
+--   1. completion_request_id / completion_request_hash を billings に追加
+--   2. clinic-first UNIQUE で同一キーの再利用を拒否（soft-delete 後も再利用不可）
+--   3. 部分 UNIQUE にしない（deleted_at を WHERE から外し、論理削除後の key 再利用を塞ぐ）
+
+ALTER TABLE billings
+    ADD COLUMN IF NOT EXISTS completion_request_id   UUID,
+    ADD COLUMN IF NOT EXISTS completion_request_hash TEXT;
+
+-- clinic-first composite unique（prompt 契約: UNIQUE(clinic_id, completion_request_id)）
+-- NULL completion_request_id は PostgreSQL の UNIQUE で複数許可（legacy create 経路）
+CREATE UNIQUE INDEX IF NOT EXISTS uq_billings_clinic_completion_request_id
+    ON billings (clinic_id, completion_request_id);
+
+COMMENT ON COLUMN billings.completion_request_id IS
+    'BUG-018: POST /accountings/complete の Idempotency-Key（UUID）。soft-delete 後も再利用不可。';
+COMMENT ON COLUMN billings.completion_request_hash IS
+    'BUG-018: complete request の正規化 digest（hex）。同一 key で異 digest は 409。';
+
+-- Source file: 006_checkup_package_import.sql
+-- Purpose: TASK-374 / #211 / DEC-59: versioned clinic-scoped checkup package import.
+-- Source commit: a27ea399d787f4e22af8fffacc0bfd4770129b74
+-- Source SHA-256: 9a7f4b4ec66f7a97f59d06c437bcc0fc3086c6928f403c81d8b1894fcc15cbf1
+-- 006_checkup_package_import.sql
+-- TASK-374 / #211 / DEC-59: versioned clinic-scoped checkup package import
+-- Additive only. Do not edit applied migrations. Agent does not apply this file.
+-- No BEGIN/COMMIT here: cmd/migrate wraps each file in its own transaction, so a
+-- COMMIT in the file ends that transaction early and the runner's commit then fails
+-- with "unexpected transaction status idle". Every statement stays re-run safe.
+
+-- 1) Import stable keys on checkup_types
+ALTER TABLE checkup_types
+    ADD COLUMN IF NOT EXISTS import_namespace text,
+    ADD COLUMN IF NOT EXISTS import_key text;
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_checkup_types_clinic_import_key
+    ON checkup_types (clinic_id, import_namespace, import_key)
+    WHERE import_namespace IS NOT NULL
+      AND import_key IS NOT NULL
+      AND deleted_at IS NULL;
+
+CREATE INDEX IF NOT EXISTS idx_checkup_types_clinic_import_namespace
+    ON checkup_types (clinic_id, import_namespace)
+    WHERE import_namespace IS NOT NULL
+      AND deleted_at IS NULL;
+
+-- 2) Import stable keys on checkup_type_fields
+ALTER TABLE checkup_type_fields
+    ADD COLUMN IF NOT EXISTS import_namespace text,
+    ADD COLUMN IF NOT EXISTS import_key text;
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_checkup_type_fields_clinic_import_key
+    ON checkup_type_fields (clinic_id, import_namespace, import_key)
+    WHERE import_namespace IS NOT NULL
+      AND import_key IS NOT NULL
+      AND deleted_at IS NULL;
+
+CREATE INDEX IF NOT EXISTS idx_checkup_type_fields_clinic_import_namespace
+    ON checkup_type_fields (clinic_id, import_namespace)
+    WHERE import_namespace IS NOT NULL
+      AND deleted_at IS NULL;
+
+-- 3) Replace single-column parent FK with clinic-composite FK
+-- Drop legacy parent_id FK if present (name from 001_init).
+DO $$
+DECLARE
+    fk_name text;
+BEGIN
+    SELECT con.conname INTO fk_name
+    FROM pg_constraint con
+    JOIN pg_class rel ON rel.oid = con.conrelid
+    JOIN pg_namespace nsp ON nsp.oid = rel.relnamespace
+    WHERE nsp.nspname = 'public'
+      AND rel.relname = 'checkup_types'
+      AND con.contype = 'f'
+      AND pg_get_constraintdef(con.oid) ILIKE '%parent_id%'
+      AND pg_get_constraintdef(con.oid) NOT ILIKE '%clinic_id%';
+    IF fk_name IS NOT NULL THEN
+        EXECUTE format('ALTER TABLE checkup_types DROP CONSTRAINT %I', fk_name);
+    END IF;
+END $$;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint con
+        JOIN pg_class rel ON rel.oid = con.conrelid
+        JOIN pg_namespace nsp ON nsp.oid = rel.relnamespace
+        WHERE nsp.nspname = 'public'
+          AND rel.relname = 'checkup_types'
+          AND con.conname = 'fk_checkup_types_parent_clinic'
+    ) THEN
+        ALTER TABLE checkup_types
+            ADD CONSTRAINT fk_checkup_types_parent_clinic
+            FOREIGN KEY (parent_id, clinic_id)
+            REFERENCES checkup_types (id, clinic_id)
+            ON DELETE SET NULL (parent_id);
+    END IF;
+END $$;
+
+DROP INDEX IF EXISTS idx_checkup_types_parent_id;
+CREATE INDEX IF NOT EXISTS idx_checkup_types_clinic_parent
+    ON checkup_types (clinic_id, parent_id)
+    WHERE parent_id IS NOT NULL;
+
+-- 4) Clinic-scoped import provenance / receipt (internal sink)
+CREATE TABLE IF NOT EXISTS checkup_package_import_receipts (
+    id              bigserial PRIMARY KEY,
+    clinic_id       bigint NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    namespace       text NOT NULL,
+    version         text NOT NULL,
+    content_digest  text NOT NULL,
+    status          text NOT NULL CHECK (status IN ('applied', 'noop', 'conflict', 'failed')),
+    actor_id        bigint NOT NULL REFERENCES staffs(id) ON DELETE RESTRICT,
+    types_created   integer NOT NULL DEFAULT 0 CHECK (types_created >= 0),
+    fields_created  integer NOT NULL DEFAULT 0 CHECK (fields_created >= 0),
+    resource_mapping jsonb NOT NULL DEFAULT '{}'::jsonb,
+    clinical_approval_ref text NOT NULL DEFAULT '',
+    created_at      timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uq_checkup_package_import_receipts_clinic_ns_ver
+        UNIQUE (clinic_id, namespace, version)
+);
+
+CREATE INDEX IF NOT EXISTS idx_checkup_package_import_receipts_clinic_created
+    ON checkup_package_import_receipts (clinic_id, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_checkup_package_import_receipts_clinic_digest
+    ON checkup_package_import_receipts (clinic_id, content_digest);
+
+SELECT app_private.apply_rls_policy(
+    'checkup_package_import_receipts',
+    'tenant_checkup_package_import_receipts_isolation',
+    'app_private.has_clinic_access(clinic_id)',
+    'app_private.has_clinic_access(clinic_id)'
+);
+
+-- Source file: 007_lab_import_job_status_reverted.sql
+-- Purpose: TASK-032: lab import job 状態機械に terminal compensation 値 'reverted' を追加する。
+-- Source commit: 0d54efa7e37d61ccef21b805794b9de0940bdc2d
+-- Source SHA-256: eabec224ea5d18630f037676ca25ac11b243ef24276bb092fa76fc12014f72ee
+-- 007_lab_import_job_status_reverted.sql
+-- TASK-032: lab import job 状態機械に terminal compensation 値 'reverted' を追加する。
+-- 適用: USER が make migrate を手動実行すること（エージェントは auto-apply しない）。
+-- CASCADE DELETE 禁止。既適用 migration / seed は編集しない。
+--
+-- PostgreSQL 制約: 同一 transaction 内で ADD VALUE した新 enum 値は参照できない。
+-- 本ファイルは ADD VALUE のみ。新値を使う DDL・DML は 008 以降に分離する。
+-- ファイル内に BEGIN;/COMMIT; を書かない（cmd/migrate が各ファイルを自前 tx で包む）。
+
+ALTER TYPE lab_import_job_status ADD VALUE IF NOT EXISTS 'reverted';
+
+-- Source file: 008_lab_import_revert_compensation.sql
+-- Purpose: TASK-032: lab import compensating revert の複合 FK・receipt・retraction・RLS。
+-- Source commit: 0d54efa7e37d61ccef21b805794b9de0940bdc2d
+-- Source SHA-256: 851e9571f2a224a220009ba748e3a985d9f5079de75047f713a1b6fdf508d243
+-- 008_lab_import_revert_compensation.sql
+-- TASK-032: lab import compensating revert の複合 FK・receipt・retraction・RLS。
+-- 適用: USER が make migrate を手動実行すること（エージェントは auto-apply しない）。
+-- CASCADE DELETE 禁止。既適用 migration / seed は編集しない。
+-- ファイル内に BEGIN;/COMMIT; を書かない（cmd/migrate が各ファイルを自前 tx で包む）。
+--
+-- 前提: 007 が 'reverted' enum 値を別 transaction で追加済みであること。
+-- FK-supporting index は soft-deleted child 行を除外しない（RI は物理行を対象にする）。
+
+-- ---------------------------------------------------------------------------
+-- 0. fail-closed preflight（複合 FK 追加前）
+-- ---------------------------------------------------------------------------
+DO $$
+BEGIN
+    -- orphan exams.job_id
+    IF EXISTS (
+        SELECT 1
+        FROM exams e
+        WHERE e.job_id IS NOT NULL
+          AND NOT EXISTS (
+              SELECT 1 FROM lab_import_jobs j WHERE j.id = e.job_id
+          )
+    ) THEN
+        RAISE EXCEPTION
+            '008_lab_import_revert_compensation: exams.job_id orphan rows exist; resolve before migrate';
+    END IF;
+
+    -- clinic mismatch exams ↔ jobs
+    IF EXISTS (
+        SELECT 1
+        FROM exams e
+        JOIN lab_import_jobs j ON j.id = e.job_id
+        WHERE e.job_id IS NOT NULL
+          AND e.clinic_id <> j.clinic_id
+    ) THEN
+        RAISE EXCEPTION
+            '008_lab_import_revert_compensation: exams.job_id clinic mismatch with lab_import_jobs; resolve before migrate';
+    END IF;
+
+    -- orphan events.job_id
+    IF EXISTS (
+        SELECT 1
+        FROM lab_import_events e
+        WHERE NOT EXISTS (
+            SELECT 1 FROM lab_import_jobs j WHERE j.id = e.job_id
+        )
+    ) THEN
+        RAISE EXCEPTION
+            '008_lab_import_revert_compensation: lab_import_events.job_id orphan rows exist; resolve before migrate';
+    END IF;
+
+    -- clinic mismatch events ↔ jobs
+    IF EXISTS (
+        SELECT 1
+        FROM lab_import_events e
+        JOIN lab_import_jobs j ON j.id = e.job_id
+        WHERE e.clinic_id <> j.clinic_id
+    ) THEN
+        RAISE EXCEPTION
+            '008_lab_import_revert_compensation: lab_import_events.job_id clinic mismatch; resolve before migrate';
+    END IF;
+END $$;
+
+-- ---------------------------------------------------------------------------
+-- 1. candidate keys for composite FKs
+-- ---------------------------------------------------------------------------
+-- jobs UNIQUE(clinic_id, id) — composite job FK の参照側
+CREATE UNIQUE INDEX IF NOT EXISTS uq_lab_import_jobs_clinic_id
+    ON lab_import_jobs (clinic_id, id);
+
+-- exams UNIQUE(clinic_id, id, job_id) — exam+job 複合 FK の参照側
+-- job_id が NULL の手作成 exam は PostgreSQL UNIQUE で複数許可（NULL は distinct）
+CREATE UNIQUE INDEX IF NOT EXISTS uq_exams_clinic_id_job_id
+    ON exams (clinic_id, id, job_id);
+
+-- ---------------------------------------------------------------------------
+-- 2. Replace exams.job_id single-col SET NULL FK with composite RESTRICT
+-- ---------------------------------------------------------------------------
+ALTER TABLE exams
+    DROP CONSTRAINT IF EXISTS exams_job_id_fkey;
+
+-- FK-X1 supporting index: soft-deleted linked exams を含む（deleted_at 述語なし）
+DROP INDEX IF EXISTS idx_exams_clinic_job;
+CREATE INDEX idx_exams_clinic_job_fk
+    ON exams (clinic_id, job_id)
+    WHERE job_id IS NOT NULL;
+
+-- query/active 用（FK 検査用ではない）
+CREATE INDEX IF NOT EXISTS idx_exams_clinic_job_active
+    ON exams (clinic_id, job_id, id)
+    WHERE deleted_at IS NULL AND job_id IS NOT NULL;
+
+ALTER TABLE exams
+    ADD CONSTRAINT fk_exams_clinic_job
+    FOREIGN KEY (clinic_id, job_id)
+    REFERENCES lab_import_jobs (clinic_id, id)
+    ON DELETE RESTRICT;
+
+COMMENT ON COLUMN exams.job_id IS
+    'lab_import_jobs.id FK — NULL for hand-created exams. Composite (clinic_id, job_id) ON DELETE RESTRICT (TASK-032).';
+
+-- ---------------------------------------------------------------------------
+-- 3. events composite FK (FK-E1) + supporting index
+-- ---------------------------------------------------------------------------
+ALTER TABLE lab_import_events
+    DROP CONSTRAINT IF EXISTS lab_import_events_job_id_fkey;
+
+-- FK-E1 supporting: non-partial (events are append-only, no deleted_at)
+CREATE INDEX IF NOT EXISTS idx_lab_import_events_clinic_job_created
+    ON lab_import_events (clinic_id, job_id, created_at, id);
+
+ALTER TABLE lab_import_events
+    ADD CONSTRAINT fk_lab_import_events_clinic_job
+    FOREIGN KEY (clinic_id, job_id)
+    REFERENCES lab_import_jobs (clinic_id, id)
+    ON DELETE RESTRICT;
+
+-- ---------------------------------------------------------------------------
+-- 4. lab_import_exam_retractions
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS lab_import_exam_retractions (
+    id              BIGSERIAL    PRIMARY KEY,
+    clinic_id       BIGINT       NOT NULL,
+    job_id          UUID         NOT NULL,
+    exam_id         BIGINT       NOT NULL,
+    actor_id        BIGINT,
+    reason          TEXT         NOT NULL,
+    parent_snapshot JSONB        NOT NULL,
+    created_at      TIMESTAMPTZ  NOT NULL DEFAULT now(),
+    CONSTRAINT uq_lab_import_exam_retractions_clinic_id_job_exam
+        UNIQUE (clinic_id, id, job_id, exam_id)
+);
+
+-- FK-R1 supporting: leading (clinic_id, job_id)
+CREATE INDEX idx_lab_import_exam_retractions_clinic_job
+    ON lab_import_exam_retractions (clinic_id, job_id, exam_id, id);
+
+-- FK-R2 supporting: FK column order (clinic_id, exam_id, job_id)
+CREATE INDEX idx_lab_import_exam_retractions_clinic_exam_job
+    ON lab_import_exam_retractions (clinic_id, exam_id, job_id);
+
+ALTER TABLE lab_import_exam_retractions
+    ADD CONSTRAINT fk_lab_import_exam_retractions_clinic_job
+    FOREIGN KEY (clinic_id, job_id)
+    REFERENCES lab_import_jobs (clinic_id, id)
+    ON DELETE RESTRICT;
+
+ALTER TABLE lab_import_exam_retractions
+    ADD CONSTRAINT fk_lab_import_exam_retractions_clinic_exam_job
+    FOREIGN KEY (clinic_id, exam_id, job_id)
+    REFERENCES exams (clinic_id, id, job_id)
+    ON DELETE RESTRICT;
+
+COMMENT ON TABLE lab_import_exam_retractions IS
+    'TASK-032: immutable parent snapshot when a lab-import exam is soft-deleted by compensating revert. Append-only.';
+
+-- ---------------------------------------------------------------------------
+-- 5. lab_import_exam_retraction_items
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS lab_import_exam_retraction_items (
+    id              BIGSERIAL    PRIMARY KEY,
+    clinic_id       BIGINT       NOT NULL,
+    retraction_id   BIGINT       NOT NULL,
+    job_id          UUID         NOT NULL,
+    exam_id         BIGINT       NOT NULL,
+    item_snapshot   JSONB        NOT NULL,
+    sort_order      INT          NOT NULL DEFAULT 0,
+    created_at      TIMESTAMPTZ  NOT NULL DEFAULT now()
+);
+
+-- FK-RI1 supporting: full composite FK columns
+CREATE INDEX idx_lab_import_exam_retraction_items_fk
+    ON lab_import_exam_retraction_items (clinic_id, retraction_id, job_id, exam_id);
+
+CREATE INDEX idx_lab_import_exam_retraction_items_list
+    ON lab_import_exam_retraction_items (clinic_id, retraction_id, id);
+
+ALTER TABLE lab_import_exam_retraction_items
+    ADD CONSTRAINT fk_lab_import_exam_retraction_items_parent
+    FOREIGN KEY (clinic_id, retraction_id, job_id, exam_id)
+    REFERENCES lab_import_exam_retractions (clinic_id, id, job_id, exam_id)
+    ON DELETE RESTRICT;
+
+COMMENT ON TABLE lab_import_exam_retraction_items IS
+    'TASK-032: immutable item snapshots for a lab-import exam retraction. Append-only. Child results are not hard-deleted.';
+
+-- ---------------------------------------------------------------------------
+-- 6. lab_import_usage_receipts (append-only downstream use ledger)
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS lab_import_usage_receipts (
+    id              BIGSERIAL    PRIMARY KEY,
+    clinic_id       BIGINT       NOT NULL,
+    job_id          UUID         NOT NULL,
+    exam_id         BIGINT       NOT NULL,
+    use_kind        TEXT         NOT NULL,
+    actor_id        BIGINT,
+    created_at      TIMESTAMPTZ  NOT NULL DEFAULT now()
+);
+
+-- FK-U1 supporting: leading (clinic_id, job_id)
+CREATE INDEX idx_lab_import_usage_receipts_clinic_job
+    ON lab_import_usage_receipts (clinic_id, job_id, exam_id, created_at, id);
+
+-- FK-U2 supporting: FK column order (clinic_id, exam_id, job_id)
+CREATE INDEX idx_lab_import_usage_receipts_clinic_exam_job
+    ON lab_import_usage_receipts (clinic_id, exam_id, job_id);
+
+ALTER TABLE lab_import_usage_receipts
+    ADD CONSTRAINT fk_lab_import_usage_receipts_clinic_job
+    FOREIGN KEY (clinic_id, job_id)
+    REFERENCES lab_import_jobs (clinic_id, id)
+    ON DELETE RESTRICT;
+
+ALTER TABLE lab_import_usage_receipts
+    ADD CONSTRAINT fk_lab_import_usage_receipts_clinic_exam_job
+    FOREIGN KEY (clinic_id, exam_id, job_id)
+    REFERENCES exams (clinic_id, id, job_id)
+    ON DELETE RESTRICT;
+
+COMMENT ON TABLE lab_import_usage_receipts IS
+    'TASK-032: append-only clinical downstream-use receipts for import-linked exams. Sink is separate from audit_logs.';
+
+-- ---------------------------------------------------------------------------
+-- 7. lab_import_revert_receipts (idempotency)
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS lab_import_revert_receipts (
+    id                   BIGSERIAL    PRIMARY KEY,
+    clinic_id            BIGINT       NOT NULL,
+    job_id               UUID         NOT NULL,
+    idempotency_key      UUID         NOT NULL,
+    request_hash         TEXT         NOT NULL,
+    reason               TEXT         NOT NULL,
+    actor_id             BIGINT,
+    result_status        TEXT         NOT NULL,
+    retracted_exam_ids   JSONB        NOT NULL DEFAULT '[]'::jsonb,
+    created_at           TIMESTAMPTZ  NOT NULL DEFAULT now(),
+    CONSTRAINT uq_lab_import_revert_receipts_clinic_idempotency
+        UNIQUE (clinic_id, idempotency_key)
+);
+
+-- FK-V1 supporting
+CREATE INDEX idx_lab_import_revert_receipts_clinic_job
+    ON lab_import_revert_receipts (clinic_id, job_id, created_at, id);
+
+ALTER TABLE lab_import_revert_receipts
+    ADD CONSTRAINT fk_lab_import_revert_receipts_clinic_job
+    FOREIGN KEY (clinic_id, job_id)
+    REFERENCES lab_import_jobs (clinic_id, id)
+    ON DELETE RESTRICT;
+
+COMMENT ON TABLE lab_import_revert_receipts IS
+    'TASK-032: append-only idempotent receipts for POST /lab-imports/:id/revert. UNIQUE(clinic_id, idempotency_key).';
+
+-- ---------------------------------------------------------------------------
+-- 8. append-only rejection triggers
+-- ---------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION app_private.prevent_lab_import_retraction_mutation()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    RAISE EXCEPTION 'lab_import_exam_retractions is append-only; UPDATE/DELETE are not allowed'
+        USING ERRCODE = 'check_violation';
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_lab_import_exam_retractions_immutable ON lab_import_exam_retractions;
+CREATE TRIGGER trg_lab_import_exam_retractions_immutable
+    BEFORE UPDATE OR DELETE ON lab_import_exam_retractions
+    FOR EACH ROW
+    EXECUTE FUNCTION app_private.prevent_lab_import_retraction_mutation();
+
+CREATE OR REPLACE FUNCTION app_private.prevent_lab_import_retraction_item_mutation()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    RAISE EXCEPTION 'lab_import_exam_retraction_items is append-only; UPDATE/DELETE are not allowed'
+        USING ERRCODE = 'check_violation';
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_lab_import_exam_retraction_items_immutable ON lab_import_exam_retraction_items;
+CREATE TRIGGER trg_lab_import_exam_retraction_items_immutable
+    BEFORE UPDATE OR DELETE ON lab_import_exam_retraction_items
+    FOR EACH ROW
+    EXECUTE FUNCTION app_private.prevent_lab_import_retraction_item_mutation();
+
+CREATE OR REPLACE FUNCTION app_private.prevent_lab_import_usage_receipt_mutation()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    RAISE EXCEPTION 'lab_import_usage_receipts is append-only; UPDATE/DELETE are not allowed'
+        USING ERRCODE = 'check_violation';
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_lab_import_usage_receipts_immutable ON lab_import_usage_receipts;
+CREATE TRIGGER trg_lab_import_usage_receipts_immutable
+    BEFORE UPDATE OR DELETE ON lab_import_usage_receipts
+    FOR EACH ROW
+    EXECUTE FUNCTION app_private.prevent_lab_import_usage_receipt_mutation();
+
+CREATE OR REPLACE FUNCTION app_private.prevent_lab_import_revert_receipt_mutation()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    RAISE EXCEPTION 'lab_import_revert_receipts is append-only; UPDATE/DELETE are not allowed'
+        USING ERRCODE = 'check_violation';
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_lab_import_revert_receipts_immutable ON lab_import_revert_receipts;
+CREATE TRIGGER trg_lab_import_revert_receipts_immutable
+    BEFORE UPDATE OR DELETE ON lab_import_revert_receipts
+    FOR EACH ROW
+    EXECUTE FUNCTION app_private.prevent_lab_import_revert_receipt_mutation();
+
+-- ---------------------------------------------------------------------------
+-- 9. RLS (ENABLE + clinic predicate; FORCE deferred per project posture)
+-- ---------------------------------------------------------------------------
+SELECT app_private.apply_rls_policy(
+    'lab_import_jobs'::regclass,
+    'tenant_clinic_id_isolation',
+    'app_private.has_clinic_access(clinic_id)',
+    'app_private.has_clinic_access(clinic_id)'
+);
+
+SELECT app_private.apply_rls_policy(
+    'lab_import_events'::regclass,
+    'tenant_clinic_id_isolation',
+    'app_private.has_clinic_access(clinic_id)',
+    'app_private.has_clinic_access(clinic_id)'
+);
+
+SELECT app_private.apply_rls_policy(
+    'lab_import_exam_retractions'::regclass,
+    'tenant_clinic_id_isolation',
+    'app_private.has_clinic_access(clinic_id)',
+    'app_private.has_clinic_access(clinic_id)'
+);
+
+SELECT app_private.apply_rls_policy(
+    'lab_import_exam_retraction_items'::regclass,
+    'tenant_clinic_id_isolation',
+    'app_private.has_clinic_access(clinic_id)',
+    'app_private.has_clinic_access(clinic_id)'
+);
+
+SELECT app_private.apply_rls_policy(
+    'lab_import_usage_receipts'::regclass,
+    'tenant_clinic_id_isolation',
+    'app_private.has_clinic_access(clinic_id)',
+    'app_private.has_clinic_access(clinic_id)'
+);
+
+SELECT app_private.apply_rls_policy(
+    'lab_import_revert_receipts'::regclass,
+    'tenant_clinic_id_isolation',
+    'app_private.has_clinic_access(clinic_id)',
+    'app_private.has_clinic_access(clinic_id)'
+);
+
+-- =============================================================================
+-- Section 12: post-integration tenant-boundary hardening
+-- =============================================================================
+-- cash_register_close_adjustments was introduced after the section-6 automatic
+-- RLS loop. Preserve the archived source blocks above byte-for-byte and apply the
+-- missing clinic-correlated FKs and explicit RLS policy here.
+
+ALTER TABLE cash_register_closes
+    ADD CONSTRAINT uq_cash_register_closes_id_clinic
+        UNIQUE (id, clinic_id);
+
+ALTER TABLE staffs
+    ADD CONSTRAINT uq_staffs_id_clinic
+        UNIQUE (id, clinic_id);
+
+ALTER TABLE cash_register_close_adjustments
+    DROP CONSTRAINT IF EXISTS cash_register_close_adjustments_close_id_fkey,
+    ADD CONSTRAINT fk_cash_register_close_adjustments_close_clinic
+        FOREIGN KEY (close_id, clinic_id)
+        REFERENCES cash_register_closes (id, clinic_id)
+        ON DELETE RESTRICT,
+    ADD CONSTRAINT fk_cash_register_close_adjustments_billing_clinic
+        FOREIGN KEY (billing_id, clinic_id)
+        REFERENCES billings (id, clinic_id)
+        ON DELETE RESTRICT,
+    ADD CONSTRAINT fk_cash_register_close_adjustments_actor_clinic
+        FOREIGN KEY (actor_id, clinic_id)
+        REFERENCES staffs (id, clinic_id)
+        ON DELETE RESTRICT;
+
+SELECT app_private.apply_rls_policy(
+    'cash_register_close_adjustments',
+    'tenant_cash_register_close_adjustments_isolation',
+    'app_private.has_clinic_access(clinic_id)',
+    'app_private.has_clinic_access(clinic_id)'
+);

@@ -57,15 +57,22 @@ export function useInventoryForm(id?: string) {
       const lastRestockedStr = formData.get("lastRestocked") as string;
       const resolvedCategory = category || "medicine";
 
-      // Validate: minStockLevel must be <= quantity
-      const quantity = quantityStr ? Number(quantityStr) : 0;
-      const minStockLevel = minStockLevelStr ? Number(minStockLevelStr) : 0;
+      const quantity = Number(quantityStr);
+      const minStockLevel = Number(minStockLevelStr);
+      const fieldErrors = {
+        ...(quantityStr.trim() === "" || !Number.isInteger(quantity) || quantity < 0
+          ? { quantity: "現在庫数は0以上の整数で入力してください" }
+          : {}),
+        ...(minStockLevelStr.trim() === "" || !Number.isInteger(minStockLevel) || minStockLevel < 0
+          ? { minStockLevel: "最低在庫数は0以上の整数で入力してください" }
+          : {}),
+      };
 
-      if (minStockLevel > quantity) {
+      if (Object.keys(fieldErrors).length > 0) {
         return {
           success: false,
           timestamp: Date.now(),
-          fieldErrors: { minStockLevel: "最低在庫数は現在庫数以下で設定してください" },
+          fieldErrors,
         };
       }
 
@@ -74,11 +81,9 @@ export function useInventoryForm(id?: string) {
           const req: UpdateInventoryItemRequest = {
             name: formData.get("name") as string,
             category: resolvedCategory,
-            quantity: quantityStr ? Number(quantityStr) : undefined,
+            quantity,
             unit: formData.get("unit") as string,
-            min_stock_level: minStockLevelStr
-              ? Number(minStockLevelStr)
-              : undefined,
+            min_stock_level: minStockLevel,
             location: (formData.get("location") as string) || undefined,
             expiry_date: expiryDateStr || undefined,
             supplier: (formData.get("supplier") as string) || undefined,
@@ -90,11 +95,9 @@ export function useInventoryForm(id?: string) {
           const req: CreateInventoryItemRequest = {
             name: formData.get("name") as string,
             category: resolvedCategory,
-            quantity: quantityStr ? Number(quantityStr) : 0,
+            quantity,
             unit: formData.get("unit") as string,
-            min_stock_level: minStockLevelStr
-              ? Number(minStockLevelStr)
-              : 0,
+            min_stock_level: minStockLevel,
             location: (formData.get("location") as string) || undefined,
             expiry_date: expiryDateStr || undefined,
             supplier: (formData.get("supplier") as string) || undefined,

@@ -36,10 +36,10 @@ Notion 風のミニマルなデザインを採用。
 
 ### 3.1 認証方式
 - **方式**: dual-token (Access/Refresh Token) 方式。
-- **セッション維持**: `httpOnly`, `Secure` Cookie により XSS 攻撃からトークンを防護。`SameSite` は開発環境で `Lax`、本番（release モード）ではクロスサイト構成対応のため `None` を使用しています（`auth_session.go`）。
+- **セッション維持**: `httpOnly`, `Secure` Cookie により XSS 攻撃からトークンを防護。`SameSite` は開発環境で `Lax`、本番（release モード）ではクロスサイト構成対応のため `None` を使用しています（`backend/internal/auth/http_types.go`）。
 
 ### 3.2 パスワードポリシー
-- **構成**: 最小 8 文字、英字 1 文字以上・数字 1 文字以上の混在が必須（`validators_auth.go`）。
+- **構成**: 最小 8 文字、英字 1 文字以上・数字 1 文字以上の混在が必須（`backend/internal/auth/http_password.go`）。
 - **ハッシュ化**: `bcrypt` (cost=12) による不可逆な暗号化保存。
 
 ### API連携

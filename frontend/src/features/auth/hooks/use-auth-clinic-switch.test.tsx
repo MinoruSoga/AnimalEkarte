@@ -11,6 +11,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, act, waitFor } from "@testing-library/react";
 import { Suspense } from "react";
+import { MemoryRouter } from "react-router";
 import { toast } from "sonner";
 
 const STORAGE_KEY = "auth_current_clinic:v1";
@@ -99,12 +100,14 @@ function LogoutTrigger() {
 }
 
 async function renderWithAuth(children: React.ReactNode) {
-  // await act(...) flushes the module-level initialAuthPromise before waitFor polls
+  // await act(...) flushes the cached initial session promise before waitFor polls
   await act(async () => {
     render(
-      <Suspense fallback={<div data-testid="loading">loading</div>}>
-        <AuthProvider>{children}</AuthProvider>
-      </Suspense>,
+      <MemoryRouter>
+        <Suspense fallback={<div data-testid="loading">loading</div>}>
+          <AuthProvider>{children}</AuthProvider>
+        </Suspense>
+      </MemoryRouter>,
     );
   });
   await waitFor(() =>

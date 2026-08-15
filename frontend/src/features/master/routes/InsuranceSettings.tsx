@@ -18,6 +18,7 @@ import type { Insurance, CreateInsuranceRequest, UpdateInsuranceRequest } from "
 import {
   buildInsuranceCreateRequest,
   buildInsuranceUpdateRequest,
+  validateInsuranceForm,
 } from "./insurance-settings-model";
 import { ResourceMasterInsurance } from "@/types/generated/models";
 
@@ -30,17 +31,24 @@ const COLUMNS = [
 ];
 
 export function InsuranceSettings() {
-  usePermission(ResourceMasterInsurance);
+  const { canCreate, canEdit, canDelete } = usePermission(ResourceMasterInsurance);
   const { data } = useGetAllInsurances();
   const createMutation = useCreateInsurance();
   const updateMutation = useUpdateInsurance();
   const deleteMutation = useDeleteInsurance();
   const dirty = useSidePeekDirty();
-  const crud = useMasterCRUD<Insurance>({ data, deleteMutation, entityLabel: "保険", dirtyGuard: dirty });
+  const crud = useMasterCRUD<Insurance>({
+    data,
+    deleteMutation,
+    entityLabel: "保険",
+    dirtyGuard: dirty,
+    permissions: { canDelete },
+  });
   const handleDirtyChange = useCallback((d: boolean) => { if (d) dirty.markDirty(); else dirty.markClean(); }, [dirty]);
   const { handleSave } = useMasterSave<Insurance, InsuranceFormData, CreateInsuranceRequest, UpdateInsuranceRequest>({
     crud, createMutation, updateMutation,
-    validate: (d) => (!d.name.trim() ? "名称は必須です" : null),
+    permissions: { canCreate, canEdit },
+    validate: validateInsuranceForm,
     toCreateRequest: buildInsuranceCreateRequest,
     toUpdateRequest: buildInsuranceUpdateRequest,
   });
@@ -51,12 +59,19 @@ export function InsuranceSettings() {
       crud={crud} handleSave={handleSave} columns={COLUMNS}
       filterProperties={[MASTER_STATUS_FILTER]}
       renderRow={(item, onEdit, canEdit) => (
-        <DataTableRow key={item.id} onClick={canEdit ? () => onEdit(item) : undefined}>
-          <TableCell className={`font-medium text-base ${C.text}`}>{item.name}</TableCell>
-          <TableCell className={`text-base text-center ${C.text}`}>{item.coverageRate > 0 ? `${item.coverageRate}%` : "-"}</TableCell>
-          <TableCell className={`text-base ${C.text70}`}>{item.contactPhone || "-"}</TableCell>
+        <DataTableRow key={item.id}>
+          <TableCell className={`font-medium ${C.text}`}>{item.name}</TableCell>
+          <TableCell className={`text-center ${C.text}`}>{item.coverageRate > 0 ? `${item.coverageRate}%` : "-"}</TableCell>
+          <TableCell className={C.text70}>{item.contactPhone || "-"}</TableCell>
           <TableCell className="text-center"><StatusPill isActive={item.isActive} /></TableCell>
-          <TableCell className="p-0 text-right">{canEdit ? <RowActionButton onClick={() => onEdit(item)} /> : null}</TableCell>
+          <TableCell className="text-right">
+            {canEdit ? (
+              <RowActionButton
+                onClick={() => onEdit(item)}
+                aria-label={`保険「${item.name}」(ID: ${item.id}) を編集`}
+              />
+            ) : null}
+          </TableCell>
         </DataTableRow>
       )}
       renderSidePanel={(props) => <InsuranceSidePanel key={props.item?.id ?? "new"} {...props} onDirtyChange={handleDirtyChange} />}

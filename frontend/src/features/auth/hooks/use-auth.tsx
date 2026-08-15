@@ -1,10 +1,16 @@
-import { useState, useCallback, useMemo, use, useEffect } from "react";
+import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import type { ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useLocation } from "react-router";
 import { toast } from "sonner";
 import type { AuthContextValue, AuthUser, Resource, ResourceAction } from "@/types/auth";
-import { AuthContext } from "@/contexts/auth-context";
-import { CURRENT_CLINIC_STORAGE_KEY, getStoredClinicId } from "@/lib/current-clinic";
+import { AuthContext } from "@/hooks/auth-context";
+import { isPasswordRecoveryPublicPath } from "@/lib/auth-route-policy";
+import {
+  CURRENT_CLINIC_STORAGE_KEY,
+  getStoredClinicId,
+  setStoredClinicId,
+} from "@/lib/current-clinic";
 import { login as loginApi } from "../api/login";
 import { logout as logoutApi } from "../api/logout";
 import { refreshToken } from "../api/refresh-token";
@@ -16,15 +22,11 @@ export { useAuth } from "@/hooks/use-auth";
 /* セッション情報は httpOnly Cookie で管理するため localStorage への保存は不要。
  * 選択中のクリニック ID のみ localStorage に残す（権限情報ではないためリスク低） */
 function saveClinicToStorage(clinicId: string): boolean {
-  try {
-    localStorage.setItem(CURRENT_CLINIC_STORAGE_KEY, clinicId);
-    return true;
-  } catch (error) {
-    if (import.meta.env.DEV) {
-      console.warn("[auth] failed to save clinic to localStorage", error);
-    }
-    return false;
+  const ok = setStoredClinicId(clinicId);
+  if (!ok && import.meta.env.DEV) {
+    console.warn("[auth] failed to save clinic to localStorage");
   }
+  return ok;
 }
 
 function removeClinicFromStorage(): void {
@@ -37,29 +39,70 @@ function removeClinicFromStorage(): void {
   }
 }
 
-/**
- * Initial session restoration promise.
- * Module-level で一度だけ作成する（アプリ起動時に 1 回だけ /v1/me を呼ぶ）。
- * ログイン後は AuthContext の login() が setUser() を直接呼ぶため
- * フルリロードは不要。
- */
-const initialAuthPromise = refreshToken().catch(() => null);
-
 interface AuthProviderProps {
   children: ReactNode;
 }
 
 export function AuthProvider({ children }: AuthProviderProps) {
-  // React 19 use() でセッション復元が完了するまでサスペンドする
-  const initialResult = use(initialAuthPromise);
+  const { pathname } = useLocation();
+  const passwordRecovery = isPasswordRecoveryPublicPath(pathname);
+  // BUG-031: restore on `/login` (and all protected routes) so an existing
+  // cookie session hydrates and LoginForm can redirect. Password-recovery
+  // public routes still skip restore to avoid noisy 401s on cold entry.
+  const restoreSession = !passwordRecovery;
+  const sessionKey = passwordRecovery ? "password-recovery" : "session";
 
-  const [user, setUser] = useState<AuthUser | null>(initialResult?.user ?? null);
-  const [currentClinicId, setCurrentClinicId] = useState<string | null>(() => {
-    if (!initialResult) return null;
-    const storedClinic = getStoredClinicId();
-    const validClinic = initialResult.user.clinics.some((c) => c.clinicId === storedClinic);
-    return validClinic ? storedClinic : initialResult.user.mainClinicId;
-  });
+  return (
+    <AuthProviderSession
+      key={sessionKey}
+      restoreSession={restoreSession}
+    >
+      {children}
+    </AuthProviderSession>
+  );
+}
+
+interface AuthProviderSessionProps extends AuthProviderProps {
+  restoreSession: boolean;
+}
+
+function AuthProviderSession({ children, restoreSession }: AuthProviderSessionProps) {
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [currentClinicId, setCurrentClinicId] = useState<string | null>(null);
+  const [isInitialized, setIsInitialized] = useState(!restoreSession);
+  const initialAuthPromiseRef = useRef<ReturnType<typeof refreshToken> | null>(null);
+
+  // recovery/session 境界をまたぐと key により remount され、最新の Cookie 状態を
+  // 取得する。同一 mount では StrictMode の effect 再実行時も 1 回だけ呼び出す。
+  useEffect(() => {
+    if (!restoreSession) return;
+
+    let active = true;
+    initialAuthPromiseRef.current ??= refreshToken().catch(() => null);
+
+    void initialAuthPromiseRef.current.then((result) => {
+      if (!active) return;
+
+      if (result) {
+        const storedClinic = getStoredClinicId();
+        const validClinic = result.user.clinics.some(
+          (clinic) => clinic.clinicId === storedClinic,
+        );
+        setUser(result.user);
+        setCurrentClinicId(
+          validClinic ? storedClinic : result.user.mainClinicId,
+        );
+      } else {
+        setUser(null);
+        setCurrentClinicId(null);
+      }
+      setIsInitialized(true);
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [restoreSession]);
 
   // /me の定期ポーリング結果でユーザー情報（権限含む）を同期
   // 認証済みかつローディング完了後のみポーリングを有効化
@@ -158,7 +201,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       user,
       currentClinicId,
       isAuthenticated: user !== null,
-      isLoading: false, // In React 19 use() pattern, if we are here, we are not loading.
+      isLoading: !isInitialized,
       login,
       logout,
       switchClinic,
@@ -168,6 +211,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     [
       user,
       currentClinicId,
+      isInitialized,
       login,
       logout,
       switchClinic,
@@ -175,6 +219,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
       refreshPermissions,
     ],
   );
+
+  // セッション復元中は子を描画せず、復元前の一瞬だけ匿名 UI が見えることを防ぐ。
+  if (!isInitialized) return null;
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

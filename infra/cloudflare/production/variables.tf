@@ -26,31 +26,8 @@ variable "r2_bucket_name" {
   default     = "animalekarte-prod-images"
 }
 
-# Hyperdrive 接続先(PlanetScale Postgres animalekarte-prod / main ブランチ)。
-# 値は tfvars に書かず環境変数(TF_VAR_pscale_prod_db_host 等)または `pscale role` で
-# 都度発行したクレデンシャルを都度供給する運用とする(STGと同じガード。docs/infra/deploy/
-# PRODUCTION_CF_SETUP.md 参照)。未供給(空文字)のまま plan/apply すると origin の password等が
-# クリアされる差分が出るため、Hyperdrive を touch する回だけ資格情報を供給すること。
-variable "pscale_prod_db_host" {
-  description = "PlanetScale Postgres(animalekarte-prod/main) の接続ホスト"
-  type        = string
-  sensitive   = true
-  default     = ""
-}
-
-variable "pscale_prod_db_user" {
-  description = "PlanetScale Postgres の接続ユーザー"
-  type        = string
-  sensitive   = true
-  default     = ""
-}
-
-variable "pscale_prod_db_password" {
-  description = "PlanetScale Postgres の接続パスワード"
-  type        = string
-  sensitive   = true
-  default     = ""
-}
+# SEC-CS2-F03: pscale_prod_db_* variables removed with Hyperdrive. App DB credentials
+# are Worker secrets (DB_HOST/DB_USER/DB_PASSWORD), not Terraform inputs.
 
 # 【notifications.tf 参照】production 専用の通知ポリシーは意図的に作成しない
 # (STGのゾーンレベル5xxアラートが同一ゾーンをカバーするため、追加すると二重通知になる)。

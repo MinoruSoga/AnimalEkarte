@@ -1,0 +1,1 @@
+export const CHECKUP_SYNC_OWNER_LIMIT = 100;

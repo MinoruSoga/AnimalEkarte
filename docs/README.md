@@ -16,7 +16,8 @@ docs/
 ├── architecture/           … 説明系: システムがどう作られているか
 ├── spec/                   … 仕様系: システムが何をするか（業務・画面・UI）
 ├── ops/                    … 運用系: デプロイ・CI・テスト・インフラ
-└── delivery/               … 納品系: クライアント納品物（Go-live・操作マニュアル）
+├── delivery/               … 納品系: クライアント納品物（Go-live・操作マニュアル）
+└── work/                   … 進行中の作業台帳・採択済み決裁・任意ブラウザ結果
 ```
 
 | カテゴリ | 索引 | 概要 |
@@ -26,15 +27,17 @@ docs/
 | **仕様系** | [spec/README.md](spec/README.md) | 機能要件・全画面仕様・会計/顧客分析/予約フロー・デザイン規約・LINE 連携 |
 | **運用系** | [ops/README.md](ops/README.md) | デプロイ・ランブック・テスト・CI/カバレッジポリシー・インフラ構成 |
 | **納品系** | [delivery/README.md](delivery/README.md) | 納品パッケージ・Go-live 手順・現場向け操作マニュアル |
-
+| **作業台帳** | [work/README.md](work/README.md) | 補助メモ・採択済み決裁（正本は root `todo.md` / `todo-po.md`） |
 > **フォルダ規律**: docs/ 直下に新カテゴリを追加する場合は本表と CI ゲート（`scripts/check-docs-symbol-drift.sh` の TOP_ALLOWLIST）を同コミットで更新すること。allowlist 外のフォルダは CI が拒否する。
 
 ## 横断事項
 
 - **API contract**: 正本は [`backend/docs/api.yaml`](../backend/docs/api.yaml)（Swagger UI 表示は `docker compose -f docker-compose.swagger.yml up`）。
 - **docs ドリフトゲート**: `scripts/check-docs-symbol-drift.sh`（CI の docs-symbol-drift ジョブ）が、spec/screens/ 系ドキュメントの言及シンボル実在と宣言数値（テーブル数・リソース数等）の実装一致を機械検査する。
-- **タスク台帳**: 個別タスクはリポジトリ直下の [`todo.md`](../todo.md) に一元化（旧 `docs/tasks/` は廃止）。過去の完了記録・監査アーカイブは git 履歴を参照（旧 `docs/archive/` は削除済み）。
+- **タスク台帳（正本）**: root [`todo.md`](../todo.md)（技術・バグ・アーキ・着手可能な実行 §8）· [`todo-po.md`](../todo-po.md)（PO 確認待ちだけ）。旧 `q&a.html` は削除済。`STATUS.md` / `PO-todo.md` は削除済。`bug.md` はポインタのみ（バグ Open は `todo.md`）。
+- **作業補助**: [`work/README.md`](work/README.md)（採択済み Fable 方針・ledger。レポート置き場ではない）。
+- 旧長文 STATUS は `docs/work/archives/` と git 履歴。
 
 ---
 
-**最新更新**: 2026-07-16 | **ステータス**: All Sync with Implementation (108 Tables / 34 Resources)
+**最新更新**: 2026-08-13 | **ステータス**: 作業 SoT を `todo.md` + `todo-po.md` の 2 本に統合

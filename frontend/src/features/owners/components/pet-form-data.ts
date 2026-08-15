@@ -7,6 +7,8 @@ import {
 export function createPetFormData(petData?: PetFormData): PetFormData {
   return {
     id: petData?.id || "",
+    // BUG-022: pending フラグをモーダル formData に保持し、API 依存 UI を抑止する
+    isPending: petData?.isPending,
     petNumber: petData?.petNumber || "",
     petName: petData?.petName || "",
     petNameKana: petData?.petNameKana || "",
@@ -22,13 +24,15 @@ export function createPetFormData(petData?: PetFormData): PetFormData {
     neuteredDate: petData?.neuteredDate || "",
     acquisitionType: (petData?.acquisitionType || "購入") as typeof ACQUISITION_TYPE_VALUES[number],
     dangerLevel: (petData?.dangerLevel || "低") as typeof DANGER_LEVEL_VALUES[number],
+    dangerReason: petData?.dangerReason || "",
     food: petData?.food || "",
     environment: petData?.environment || "",
-    status: petData?.status || "生存",
+    status: petData ? (petData.status || "不明") : "生存",
     remarks: petData?.remarks || "",
     insuranceId: petData?.insuranceId || "",
     insuranceName: petData?.insuranceName,
     insuranceDetails: petData?.insuranceDetails,
     deceasedAt: petData?.deceasedAt,
+    deceasedReason: petData?.deceasedReason,
   };
 }

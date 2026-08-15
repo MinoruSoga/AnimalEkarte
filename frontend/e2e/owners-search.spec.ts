@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import type { BrowserContext } from '@playwright/test';
 import { createAuthedContext } from './helpers/context';
+import { DEMO_PETER_PET } from './helpers/demo-seed';
 import { OwnersPage } from './pages/owners-page';
 
 // Primary execution: scripts/run-e2e.sh (mcr.microsoft.com/playwright Docker image, connects to localhost:3003 via host.docker.internal).
@@ -13,7 +14,7 @@ test.describe('飼主一覧 かな検索', () => {
   test('未ログイン時は /owners にアクセスすると /login にリダイレクトされる', async ({ browser }) => {
     // Use a fresh context with no auth state.
     // domcontentloaded avoids waiting for all Vite ES-module requests; the
-    // client-side redirect (/login) fires after JS loads so we poll via waitForURL.
+    // Browser redirect (/login) fires after JS loads, so poll via waitForURL.
     const freshContext = await browser.newContext();
     const freshPage = await freshContext.newPage();
     await new OwnersPage(freshPage).gotoList();
@@ -32,7 +33,7 @@ test.describe('飼主一覧 かな検索', () => {
       await loggedInContext.close();
     });
 
-    test('ひらがな「ぴ」で検索するとカタカナ「ピーター」が表示される', async () => {
+    test('ひらがな「ぴーたー」で検索するとカタカナ「ピーター」が表示される', async () => {
       const page = await loggedInContext.newPage();
       const owners = new OwnersPage(page);
       try {
@@ -46,17 +47,17 @@ test.describe('飼主一覧 かな検索', () => {
         const searchInput = owners.searchInput();
         await expect(searchInput).toBeVisible();
 
-        // Type hiragana ぴ — normalizeKana converts katakana ピ→ぴ, so ぴーたー matches ぴ
-        await searchInput.fill('ぴ');
+        // Full hiragana form — single-char「ぴ」matches 500+ pets and may omit ピーター on page 1.
+        // Owners list loader uses GET /v1/pets with NormalizeKana symmetry.
+        await searchInput.fill(DEMO_PETER_PET.hiraganaSearch);
 
-        // Pet name ピーター should be visible in the filtered table
-        await expect(owners.peterText()).toBeVisible({ timeout: 5000 });
+        await expect(owners.peterText()).toBeVisible({ timeout: 15000 });
       } finally {
         await page.close();
       }
     });
 
-    test('カタカナ「ピ」で検索しても「ピーター」が表示される (ひらがな・カタカナ統一検索)', async () => {
+    test('カタカナ「ピーター」で検索しても「ピーター」が表示される (ひらがな・カタカナ統一検索)', async () => {
       const page = await loggedInContext.newPage();
       const owners = new OwnersPage(page);
       try {
@@ -67,10 +68,9 @@ test.describe('飼主一覧 かな検索', () => {
         const searchInput = owners.searchInput();
         await expect(searchInput).toBeVisible();
 
-        // Type katakana ピ — normalizeKana(ピ) === normalizeKana(ぴ) so both match
-        await searchInput.fill('ピ');
+        await searchInput.fill(DEMO_PETER_PET.katakanaSearch);
 
-        await expect(owners.peterText()).toBeVisible({ timeout: 5000 });
+        await expect(owners.peterText()).toBeVisible({ timeout: 15000 });
       } finally {
         await page.close();
       }

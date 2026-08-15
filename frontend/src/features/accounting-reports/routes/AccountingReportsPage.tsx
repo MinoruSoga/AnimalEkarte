@@ -7,7 +7,7 @@ import { paths } from "@/config/paths";
 import { handleApiError } from "@/lib/handle-api-error";
 import { usePermission } from "@/hooks/use-permission";
 import { useCurrentClinicName } from "@/hooks/use-current-clinic-name";
-import { useClinicTaxRates, formatTaxRatePercent } from "@/hooks/use-clinic-tax-rates";
+import { useClinicTaxRates } from "@/hooks/use-clinic-tax-rates";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import {
   ResourceAccountingReports,
@@ -19,8 +19,8 @@ import { exportMonthlyCSV } from "../api/export-monthly-csv";
 import { MonthlySummaryCards } from "../components/MonthlySummaryCards";
 import { DailyBreakdownTable } from "../components/DailyBreakdownTable";
 import { MonthlyReportPrintArea } from "../components/MonthlyReportPrintArea";
+import { CategoryPaymentMatrixTable } from "../components/CategoryPaymentMatrixTable";
 import { formatJSTWallDate, toJSTWallDate } from "@/lib/jst-date";
-import { formatCurrency } from "@/utils/format/number";
 
 type ReportMode = "month" | "period";
 
@@ -108,13 +108,13 @@ export function AccountingReportsPage() {
       icon={<BarChart3 className={`${ICON.page} ${C.text}`} />}
       maxWidth={LAYOUT.pageContentMaxWidth.full}
       headerAction={
-        <div className="flex items-center gap-2 print:hidden" data-testid="report-actions">
+        <div className="flex flex-wrap items-center gap-2 print:hidden" data-testid="report-actions">
           {data ? (
             <button
               type="button"
               onClick={() => window.print()}
               data-testid="monthly-report-print-button"
-              className={`flex items-center gap-2 px-4 h-10 text-base rounded-[4px] ${C.bgWhite} border ${C.borderMedium} ${C.text} ${C.hoverBgLight} transition-colors`}
+              className={`flex min-h-11 items-center gap-2 px-4 text-base rounded-xs ${C.bgWhite} border ${C.borderMedium} ${C.text} ${C.hoverBgLight} transition-colors`}
             >
               <Printer className="size-4" />
               印刷 / PDF出力
@@ -124,7 +124,7 @@ export function AccountingReportsPage() {
             type="button"
             onClick={handleExport}
             disabled={isExporting}
-            className={`flex items-center gap-2 px-4 h-10 text-base rounded-[4px] ${C.bgWhite} border ${C.borderMedium} ${C.text} ${C.hoverBgLight} transition-colors disabled:opacity-50`}
+            className={`flex min-h-11 items-center gap-2 px-4 text-base rounded-xs ${C.bgWhite} border ${C.borderMedium} ${C.text} ${C.hoverBgLight} transition-colors disabled:opacity-50`}
           >
             <Download className="size-4" />
             {isExporting ? "エクスポート中..." : "CSV出力"}
@@ -143,7 +143,7 @@ export function AccountingReportsPage() {
               id="report_mode"
               value={reportMode}
               onChange={handleModeChange}
-              className={`h-10 text-base ${C.bgWhite} border ${C.borderMedium} ${C.text} rounded-[4px] px-3`}
+              className={`min-h-11 text-base ${C.bgWhite} border ${C.borderMedium} ${C.text} rounded-xs px-3`}
             >
               <option value="month">月次</option>
               <option value="period">期間指定</option>
@@ -159,7 +159,7 @@ export function AccountingReportsPage() {
                   id="report_year"
                   value={year}
                   onChange={handleYearChange}
-                  className={`h-10 text-base ${C.bgWhite} border ${C.borderMedium} ${C.text} rounded-[4px] px-3`}
+                  className={`min-h-11 text-base ${C.bgWhite} border ${C.borderMedium} ${C.text} rounded-xs px-3`}
                 >
                   {yearOptions.map((y) => (
                     <option key={y} value={y}>
@@ -176,7 +176,7 @@ export function AccountingReportsPage() {
                   id="report_month"
                   value={month}
                   onChange={handleMonthChange}
-                  className={`h-10 text-base ${C.bgWhite} border ${C.borderMedium} ${C.text} rounded-[4px] px-3`}
+                  className={`min-h-11 text-base ${C.bgWhite} border ${C.borderMedium} ${C.text} rounded-xs px-3`}
                 >
                   {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
                     <option key={m} value={m}>
@@ -197,7 +197,7 @@ export function AccountingReportsPage() {
                   type="date"
                   value={startDate}
                   onChange={handleStartDateChange}
-                  className={`h-10 text-base ${C.bgWhite} border ${C.borderMedium} ${C.text} rounded-[4px] px-3`}
+                  className={`min-h-11 text-base ${C.bgWhite} border ${C.borderMedium} ${C.text} rounded-xs px-3`}
                 />
               </div>
               <div>
@@ -209,7 +209,7 @@ export function AccountingReportsPage() {
                   type="date"
                   value={endDate}
                   onChange={handleEndDateChange}
-                  className={`h-10 text-base ${C.bgWhite} border ${C.borderMedium} ${C.text} rounded-[4px] px-3`}
+                  className={`min-h-11 text-base ${C.bgWhite} border ${C.borderMedium} ${C.text} rounded-xs px-3`}
                 />
               </div>
             </>
@@ -234,80 +234,47 @@ export function AccountingReportsPage() {
               dailyDetails={data.dailyDetails}
               standardTaxRate={standardTaxRate}
               reducedTaxRate={reducedTaxRate}
+              categoryPaymentMatrix={data.categoryPaymentMatrix}
             />
 
-            {/* 支払方法別集計 */}
-            {Object.keys(data.summary.byPaymentMethod).length > 0 ? (
-              <section className={`${C.bgWhite} rounded-lg border ${C.borderLight} p-6`}>
-                <h2 className={`text-base font-semibold ${C.text} mb-4`}>支払方法別集計</h2>
-                <div className="flex flex-wrap gap-4">
-                  {Object.entries(data.summary.byPaymentMethod).map(([method, amount]) => (
-                    <div key={method} className={`flex flex-col gap-0.5`}>
-                      <span className={`text-base ${C.text60}`}>{method}</span>
-                      <span className={`text-base font-semibold ${C.text}`}>
-                        {formatCurrency(amount)}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            ) : null}
-
-            {/* 消費税内訳 */}
+            {/* ゾーン2: 日次明細（periodLabel を唯一のスケール強調見出しに） */}
             <section className={`${C.bgWhite} rounded-lg border ${C.borderLight} p-6`}>
-              <div className="flex items-center justify-between gap-3 mb-4">
-                <h2 className={`text-base font-semibold ${C.text}`}>消費税内訳</h2>
-                {/* #179 ②: 税率設定（病院マスタ）への導線。権限保持時のみ表示し印刷面からは除外 */}
-                {canViewClinicSettings ? (
-                  <Link
-                    to={paths.settings.clinic.getHref()}
-                    className={`flex items-center gap-1 text-sm ${C.text60} ${C.hoverText} underline-offset-2 hover:underline print:hidden`}
-                  >
-                    <Settings className="size-3.5" />
-                    税率設定を変更
-                  </Link>
-                ) : null}
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className={`text-base ${C.text60} mb-1`}>
-                    標準税率 ({formatTaxRatePercent(standardTaxRate)})
-                  </p>
-                  <p className={`text-base ${C.text}`}>
-                    課税額: ¥{data.summary.taxBreakdown.standard.taxableAmount.toLocaleString()}
-                  </p>
-                  <p className={`text-base ${C.text}`}>
-                    税額: ¥{data.summary.taxBreakdown.standard.taxAmount.toLocaleString()}
-                  </p>
-                </div>
-                <div>
-                  <p className={`text-base ${C.text60} mb-1`}>
-                    軽減税率 ({formatTaxRatePercent(reducedTaxRate)})
-                  </p>
-                  <p className={`text-base ${C.text}`}>
-                    課税額: ¥{data.summary.taxBreakdown.reduced.taxableAmount.toLocaleString()}
-                  </p>
-                  <p className={`text-base ${C.text}`}>
-                    税額: ¥{data.summary.taxBreakdown.reduced.taxAmount.toLocaleString()}
-                  </p>
-                </div>
-              </div>
-            </section>
-
-            {/* 日次明細 */}
-            <section className={`${C.bgWhite} rounded-lg border ${C.borderLight} p-6`}>
-              <h2 className={`text-base font-semibold ${C.text} mb-4`}>日次明細</h2>
+              <h2 className={`text-xl font-semibold ${C.text} mb-4`}>
+                {periodLabel ? `${periodLabel} の日次明細` : "日次明細"}
+              </h2>
               <DailyBreakdownTable
                 details={data.dailyDetails}
                 onDrillDown={canViewCloses ? handleDrillDown : undefined}
               />
             </section>
 
-            {/* #179 ④-b: 集計数字カードはページ下部に配置する */}
+            {/* #247: 部門×支払方法統合表（画面・印刷同一データ） */}
+            {data.categoryPaymentMatrix ? (
+              <section
+                className={`${C.bgWhite} rounded-lg border ${C.borderLight} p-6`}
+                data-testid="category-payment-matrix"
+              >
+                <h2 className={`text-xl font-semibold ${C.text} mb-4`}>部門×支払方法</h2>
+                <CategoryPaymentMatrixTable matrix={data.categoryPaymentMatrix} />
+              </section>
+            ) : null}
+
+            {/* ゾーン3: #179 ④-b KPI/内訳は日次明細より下。#179 ② 税率設定導線もここに集約 */}
             <MonthlySummaryCards
               summary={data.summary}
               standardTaxRate={standardTaxRate}
               reducedTaxRate={reducedTaxRate}
+              taxSettingsLink={
+                canViewClinicSettings ? (
+                  <Link
+                    to={paths.settings.clinic.getHref()}
+                    className={`inline-flex min-h-11 items-center gap-1 text-sm ${C.text60} ${C.hoverText} underline-offset-2 hover:underline`}
+                  >
+                    <Settings className="size-3.5" />
+                    税率設定を変更
+                  </Link>
+                ) : undefined
+              }
             />
           </>
         )}

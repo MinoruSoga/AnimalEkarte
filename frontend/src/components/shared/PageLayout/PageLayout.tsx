@@ -23,7 +23,7 @@ interface PageLayoutProps {
 export const PageLayout = memo(function PageLayout({
   children,
   title,
-  description: _description,
+  description,
   onBack,
   icon,
   headerAction,
@@ -42,17 +42,18 @@ export const PageLayout = memo(function PageLayout({
 
   return (
     <div
-      className={`flex flex-col h-full ${STYLE.page} ${className || ""}`}
+      className={`flex min-w-0 flex-col h-full ${STYLE.page} ${className || ""}`}
     >
       <FormHeader
         title={title}
+        description={description}
         onBack={onBack}
         icon={icon}
         action={actionContent}
       />
-      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto w-full flex flex-col">
+      <div ref={scrollContainerRef} className="flex-1 min-w-0 overflow-y-auto w-full flex flex-col">
         <div
-          className={`${maxWidth} ${align === "center" ? "mx-auto" : ""} w-full px-3 py-5 flex-1 flex flex-col`}
+          className={`${maxWidth} ${align === "center" ? "mx-auto" : ""} min-w-0 w-full px-3 py-6 flex-1 flex flex-col`}
         >
           {children}
         </div>

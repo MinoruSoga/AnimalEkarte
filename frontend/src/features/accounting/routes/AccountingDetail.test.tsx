@@ -5,9 +5,18 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter, Routes, Route } from "react-router";
 import { http, HttpResponse } from "msw";
 import { server } from "@/testing/mocks/node";
-import { AuthContext } from "@/contexts/auth-context";
+import { AuthContext } from "@/hooks/auth-context";
 import { AccountingDetail } from "./AccountingDetail";
 import type { ResourceAction } from "@/types/auth";
+import { ResourceCashRegisterClose } from "@/types/generated/models";
+
+const { handleApiErrorMock } = vi.hoisted(() => ({
+  handleApiErrorMock: vi.fn(),
+}));
+
+vi.mock("@/lib/handle-api-error", () => ({
+  handleApiError: handleApiErrorMock,
+}));
 
 const CLINIC_ID = "clinic-test-1";
 const ACCOUNTING_ID = "123";
@@ -82,16 +91,22 @@ function setupHandlers() {
     ),
     http.get("/api/v1/masters/merchandise-items", () =>
       HttpResponse.json([])
-    )
+    ),
+    http.get("/api/v1/cash-register/closes", () =>
+      HttpResponse.json({ data: [], total: 0 })
+    ),
   );
 }
 
 // id あり: /accounting/:id ルートで描画
-async function renderWithIdAndWait(canEdit = true) {
+async function renderWithIdAndWait(
+  canEdit = true,
+  hasPermission = makeHasPermission(canEdit),
+) {
   setupHandlers();
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
-    <AuthContext.Provider value={makeAuthCtx(canEdit)}>
+    <AuthContext.Provider value={{ ...makeAuthCtx(canEdit), hasPermission }}>
       <QueryClientProvider client={qc}>
         <MemoryRouter initialEntries={[`/accounting/${ACCOUNTING_ID}`]}>
           <Routes>
@@ -109,7 +124,10 @@ async function renderWithIdAndWait(canEdit = true) {
 // 新規作成モード: id なし (/accounting/new はパラメータなし)
 async function renderNewModeAndWait(canEdit = false) {
   server.use(
-    http.get("/api/v1/masters/merchandise-items", () => HttpResponse.json([]))
+    http.get("/api/v1/masters/merchandise-items", () => HttpResponse.json([])),
+    http.get("/api/v1/cash-register/closes", () =>
+      HttpResponse.json({ data: [], total: 0 })
+    ),
   );
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
@@ -129,6 +147,7 @@ async function renderNewModeAndWait(canEdit = false) {
 }
 
 beforeEach(() => {
+  handleApiErrorMock.mockReset();
   localStorage.setItem("auth_current_clinic:v1", CLINIC_ID);
 });
 
@@ -231,6 +250,9 @@ function setupWaitingHandlers() {
     http.get("/api/v1/masters/merchandise-items", () =>
       HttpResponse.json([])
     ),
+    http.get("/api/v1/cash-register/closes", () =>
+      HttpResponse.json({ data: [], total: 0 })
+    ),
     // Payment API handlers for Dialog test
     http.post(`/api/v1/accountings/${WAITING_ID}/payments`, () =>
       HttpResponse.json({ id: 999, ...waitingAccounting.payments?.[0] })
@@ -238,8 +260,10 @@ function setupWaitingHandlers() {
   );
 }
 
-async function renderWaitingAndWait() {
-  setupWaitingHandlers();
+async function renderWaitingAndWait(useDefaultHandlers = true) {
+  if (useDefaultHandlers) {
+    setupWaitingHandlers();
+  }
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
     <AuthContext.Provider value={makeAuthCtx(true)}>
@@ -278,6 +302,28 @@ describe("AccountingDetail — B: 閲覧専用バナー (ReadOnly banner)", () =
   it("新規作成モード (id なし) + canEdit=false → バナーが表示されない", async () => {
     await renderNewModeAndWait(false);
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  });
+
+  it("レジ締め状態を閲覧できない編集者はGETを送らずfail-closedで閲覧専用になる", async () => {
+    let closeGetCount = 0;
+    server.use(
+      http.get("/api/v1/cash-register/closes", () => {
+        closeGetCount += 1;
+        return HttpResponse.json({ data: [], total: 0 });
+      }),
+    );
+    const hasPermission = (resource: string, action: ResourceAction): boolean => {
+      if (resource === ResourceCashRegisterClose && action === "view") return false;
+      return true;
+    };
+
+    await renderWithIdAndWait(true, hasPermission);
+
+    expect(
+      screen.getByText(/レジ締め状態を確認する権限がないため変更できません/),
+    ).toBeInTheDocument();
+    expect(document.querySelector("fieldset")).toBeDisabled();
+    expect(closeGetCount).toBe(0);
   });
 });
 
@@ -394,6 +440,9 @@ describe("AccountingDetail — C: 混在支払い UI / payment_splits", () => {
       http.get("/api/v1/masters/merchandise-items", () =>
         HttpResponse.json([])
       ),
+      http.get("/api/v1/cash-register/closes", () =>
+        HttpResponse.json({ data: [], total: 0 })
+      ),
       http.delete("/api/v1/billing-items/1", () => {
         deleteCalled = true;
         currentItems = [];
@@ -423,5 +472,214 @@ describe("AccountingDetail — C: 混在支払い UI / payment_splits", () => {
       expect(deleteCalled).toBe(true);
       expect(screen.queryByText("テスト商品")).not.toBeInTheDocument();
     });
+  });
+
+  it("商品マスタ由来の明細作成で merchandise_item_id を送る", async () => {
+    let capturedBody: unknown;
+    let currentItems = waitingAccounting.items;
+    server.use(
+      http.get(`/api/v1/accountings/${WAITING_ID}`, () =>
+        HttpResponse.json({ ...waitingAccounting, items: currentItems })
+      ),
+      http.get(`/api/v1/accountings/${WAITING_ID}/refunds`, () =>
+        HttpResponse.json([])
+      ),
+      http.get("/api/v1/masters/merchandise-items", () =>
+        HttpResponse.json([
+          { id: 77, name: "療法食", category: "goods", unit_price: 1200, tax_rate: 0.1, is_active: true },
+        ])
+      ),
+      http.get("/api/v1/cash-register/closes", () =>
+        HttpResponse.json({ data: [], total: 0 })
+      ),
+      http.post("/api/v1/billing-items", async ({ request }) => {
+        capturedBody = await request.json();
+        const createdItem = {
+          id: 2,
+          billing_id: Number(WAITING_ID),
+          name: "療法食",
+          category: "goods",
+          unit_price: 1200,
+          quantity: 1,
+          tax_type: "excluded",
+          tax_rate: 0.1,
+          tax_amount: 120,
+          subtotal: 1200,
+          discount_rate: 0,
+          discount_amount: 0,
+          is_insurance_applicable: false,
+          source: "manual",
+          merchandise_item_id: 77,
+        };
+        currentItems = [...currentItems, createdItem];
+        return HttpResponse.json(createdItem);
+      }),
+    );
+
+    await renderWaitingAndWait(false);
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "物販・その他追加" }));
+    await user.click(await screen.findByRole("button", { name: "追加: 療法食 (ID 77)" }));
+
+    await waitFor(() => {
+      expect(capturedBody).toMatchObject({ merchandise_item_id: 77 });
+    });
+  });
+
+  it("明細作成失敗時に楽観追加を戻してエラーを通知する", async () => {
+    let rejectRequest: (() => void) | undefined;
+    server.use(
+      http.get(`/api/v1/accountings/${WAITING_ID}`, () =>
+        HttpResponse.json(waitingAccounting)
+      ),
+      http.get(`/api/v1/accountings/${WAITING_ID}/refunds`, () =>
+        HttpResponse.json([])
+      ),
+      http.get("/api/v1/masters/merchandise-items", () =>
+        HttpResponse.json([
+          { id: 77, name: "療法食", category: "goods", unit_price: 1200, tax_rate: 0.1, is_active: true },
+        ])
+      ),
+      http.get("/api/v1/cash-register/closes", () =>
+        HttpResponse.json({ data: [], total: 0 })
+      ),
+      http.post("/api/v1/billing-items", () =>
+        new Promise((resolve) => {
+          rejectRequest = () => resolve(HttpResponse.json({ message: "inactive item" }, { status: 409 }));
+        })
+      ),
+    );
+
+    await renderWaitingAndWait(false);
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "物販・その他追加" }));
+    await user.click(await screen.findByRole("button", { name: "追加: 療法食 (ID 77)" }));
+
+    expect(await screen.findByText("療法食")).toBeInTheDocument();
+    await waitFor(() => expect(rejectRequest).toBeDefined());
+    rejectRequest?.();
+
+    await waitFor(() => {
+      expect(screen.queryByText("療法食")).not.toBeInTheDocument();
+      expect(screen.getByText("テスト商品")).toBeInTheDocument();
+      expect(handleApiErrorMock).toHaveBeenCalledWith(expect.anything(), "明細の追加");
+    });
+  });
+});
+
+// ─────────────────────────────────────────────────────────────
+// BUG-001: 死亡ペットの /accounting/new?petId= 直打ちガード
+// ─────────────────────────────────────────────────────────────
+
+const DECEASED_PET_ID = "1000003";
+const LIVING_PET_ID = "1000019";
+
+function makePetResponse(overrides: {
+  id: number;
+  status: "alive" | "deceased";
+  name?: string;
+}) {
+  return {
+    id: overrides.id,
+    version: 1,
+    clinic_id: 1,
+    owner_id: 10,
+    animal_species_id: 1,
+    pet_number: String(overrides.id),
+    name: overrides.name ?? "テストペット",
+    pet_name_kana: "",
+    gender: "unknown",
+    status: overrides.status,
+    breed: "",
+    color: "",
+    danger_level: "none",
+    food: "",
+    environment: "",
+    phone: "",
+    remarks: "",
+    created_at: "2026-01-01T00:00:00Z",
+    updated_at: "2026-01-01T00:00:00Z",
+    deceased_at: overrides.status === "deceased" ? "2026-07-01T00:00:00+09:00" : undefined,
+    owner: {
+      id: 10,
+      owner_number: 10,
+      name: "テスト飼い主",
+      name_kana: "",
+      phone: "",
+      is_dangerous: false,
+    },
+    animal_species: { id: 1, name: "犬", sort_order: 1 },
+  };
+}
+
+async function renderNewWithPetIdAndWait(petId: string) {
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  render(
+    <AuthContext.Provider value={makeAuthCtx(true)}>
+      <QueryClientProvider client={qc}>
+        <MemoryRouter initialEntries={[`/accounting/new?petId=${petId}`]}>
+          <Routes>
+            <Route path="/accounting/new" element={<AccountingDetail />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>
+    </AuthContext.Provider>,
+  );
+  await waitFor(() => {
+    expect(screen.getByRole("heading", { name: "会計精算" })).toBeInTheDocument();
+  });
+}
+
+describe("AccountingDetail — BUG-001: 死亡ペット新規会計ガード", () => {
+  it("deceased petId 直打ち → 拒否メッセージ + fieldset disabled + 確定ボタンなし", async () => {
+    server.use(
+      http.get(`/api/v1/pets/${DECEASED_PET_ID}`, () =>
+        HttpResponse.json(makePetResponse({ id: Number(DECEASED_PET_ID), status: "deceased", name: "クロ" })),
+      ),
+      http.get("/api/v1/masters/merchandise-items", () => HttpResponse.json([])),
+      http.get("/api/v1/cash-register/closes", () => HttpResponse.json({ data: [], total: 0 })),
+      http.get("/api/v1/billing-items/unbilled-details", () =>
+        HttpResponse.json({ items: [], warnings: [] }),
+      ),
+      http.get("/api/v1/billing-items/ungrouped-same-day", () =>
+        HttpResponse.json({ has_ungrouped: false, medical_record_count: 0, trimming_count: 0 }),
+      ),
+      http.get("/api/v1/accountings/unpaid-balance", () =>
+        HttpResponse.json({ unpaid_count: 0, unpaid_total: 0 }),
+      ),
+    );
+
+    await renderNewWithPetIdAndWait(DECEASED_PET_ID);
+
+    expect(await screen.findByText("死亡したペットは会計を作成できません")).toBeInTheDocument();
+    expect(document.querySelector("fieldset")).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "会計を確定する" })).not.toBeInTheDocument();
+  });
+
+  it("生存 petId 直打ち → 拒否メッセージなし + 確定ボタンが有効", async () => {
+    server.use(
+      http.get(`/api/v1/pets/${LIVING_PET_ID}`, () =>
+        HttpResponse.json(makePetResponse({ id: Number(LIVING_PET_ID), status: "alive", name: "ラッキー" })),
+      ),
+      http.get("/api/v1/masters/merchandise-items", () => HttpResponse.json([])),
+      http.get("/api/v1/cash-register/closes", () => HttpResponse.json({ data: [], total: 0 })),
+      http.get("/api/v1/billing-items/unbilled-details", () =>
+        HttpResponse.json({ items: [], warnings: [] }),
+      ),
+      http.get("/api/v1/billing-items/ungrouped-same-day", () =>
+        HttpResponse.json({ has_ungrouped: false, medical_record_count: 0, trimming_count: 0 }),
+      ),
+      http.get("/api/v1/accountings/unpaid-balance", () =>
+        HttpResponse.json({ unpaid_count: 0, unpaid_total: 0 }),
+      ),
+    );
+
+    await renderNewWithPetIdAndWait(LIVING_PET_ID);
+
+    await waitFor(() => {
+      expect(screen.queryByText("死亡したペットは会計を作成できません")).not.toBeInTheDocument();
+      expect(document.querySelector("fieldset")).not.toBeDisabled();
+    });
+    expect(screen.getByRole("button", { name: "会計を確定する" })).toBeEnabled();
   });
 });

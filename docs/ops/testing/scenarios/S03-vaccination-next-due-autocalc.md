@@ -15,18 +15,19 @@
 
 | # | 操作 | 期待結果 |
 |:--|:--|:--|
-| 1 | 予防接種一覧から新規登録 → ペット選択 → 接種フォームを開く | 実施日のデフォルトが当日である（[15 §1.1](../../../spec/screens/15-vaccinations-form.md)） |
-| 2 | 犬用ワクチンをマスタから選択し、ロット番号を 1 件入力する | 選択・入力が反映される。ロット番号は最大 4 つまで並行登録可能（[15 §1.2](../../../spec/screens/15-vaccinations-form.md)） |
-| 3 | 次回予定で標準間隔「3週後」を選択する | 次回予定日が実施日 + 3 週で自動計算されて表示される（[15 §1.3](../../../spec/screens/15-vaccinations-form.md)「自動算出」） |
-| 4 | 標準間隔を「1年後」に切り替える | 次回予定日が実施日 + 1 年で再計算される（[15 §1.3](../../../spec/screens/15-vaccinations-form.md)） |
-| 5 | カレンダーから任意の日付を直接指定して手動上書きする | 臨床判断による手動調整が可能で、指定した日付が保持される（[15 §1.3](../../../spec/screens/15-vaccinations-form.md)「手動調整」） |
+| 1 | 予防接種一覧から新規登録 → ペット選択 → 接種フォームを開く | 実施日のデフォルトが当日である（[15 §1.1](../../../spec/screens/15-vaccinations-form.md)）。クエリ `petId`（camelCase）でペットが引き継がれる場合あり |
+| 2 | 犬用ワクチンをマスタから選択し、ロット番号を 1 件入力する | 選択・入力が反映される。ロット入力欄は lot1〜lot4 の最大 4 つ（[15 §1.2](../../../spec/screens/15-vaccinations-form.md)）。ワクチン選択肢は `useGetAllVaccinesMaster` の active 行（種フィルタなし — 犬/猫製品が混在しうる） |
+| 3 | 次回予定で標準間隔「3週後」（value=`3weeks`）を選択する | 次回予定日が実施日 + 3 週で自動計算されて表示される（`calculateNextDate` — [15 §1.3](../../../spec/screens/15-vaccinations-form.md)「自動算出」） |
+| 4 | 標準間隔を「1年後」（value=`1year`）に切り替える | 次回予定日が実施日 + 1 年で再計算される（[15 §1.3](../../../spec/screens/15-vaccinations-form.md)）。フォーム既定の nextScheduleType も `1year` |
+| 5 | 「以外（手動）」（value=`custom`）を選び、カレンダーから任意の日付を直接指定する | 臨床判断による手動調整が可能で、指定した日付が保持される（[15 §1.3](../../../spec/screens/15-vaccinations-form.md)「手動調整」） |
 | 6 | 保存して予防接種一覧に戻る | 一覧の「次回予定」列に登録した次回予定日が表示され、自動計算結果を画面上でいつでも確認できる（[14 §1.2/§2](../../../spec/screens/14-vaccinations-list.md)） |
-| 7 | 同じペットにフィラリア予防を新規登録する | フィラリア等の予防も同じ予防接種機能で管理される（[14 概要](../../../spec/screens/14-vaccinations-list.md)「フィラリア・ノミダニ予防等」）。【要実測】フィラリア選択時の次回予定の自動算出候補（ワクチンと同じ 3週/4週/1年か、別の間隔か） |
+| 7 | 同じペットにフィラリア予防を新規登録する | フィラリア等の予防も同じ予防接種機能で管理される（[14 概要](../../../spec/screens/14-vaccinations-list.md)「フィラリア・ノミダニ予防等」）。**runtime PASS（2026-08-01 browser）**: フィラリア薬選択後も次回予定候補は **3週後 / 4週後 / 1年後 / 以外（手動）**（ワクチンと同一セット・既定 1年後）。保存は未実施 |
 
 ## 確認観点
 
-- 接種間隔の計算ロジックはフロントの `calculateNextDate`（`use-vaccination-form` フック内 — [15 §3.1](../../../spec/screens/15-vaccinations-form.md)）。
-- **#125 回帰確認**: 混合ワクチンの接種記録がフィラリア予防のマスタを誤参照しないこと（保存後の記録のワクチン名称が選択どおりであること）。seed 003_demo の既存データは修正済み（`backend/migrations/seeds/003_demo/vaccinations.csv`）。Lステップのフィラリアリマインドが混合ワクチン接種に対して発火しないこと。
+- 接種間隔の計算ロジックはフロントの `calculateNextDate`（`frontend/src/features/vaccinations/hooks/use-vaccination-form.ts` — [15 §3.1](../../../spec/screens/15-vaccinations-form.md)）。選択肢 UI は `VaccinationFormPanels` の `3weeks` / `4weeks` / `1year` / `custom`。
+- **#125 / BUG-401 回帰**: ワクチンマスタを実クエリし、保存後の記録のワクチン名称が選択どおりであること（ハードコード id 表は廃止）。seed 003_demo は修正済み（`backend/migrations/seeds/003_demo/vaccinations.csv`）。Lステップのフィラリアリマインドが混合ワクチン接種に対して発火しないこと。
+- 種によるマスタ絞り込みは未実装（BUG-408 残置）— 犬/猫製品が combobox に混在しうるのは現状仕様。
 - 接種期限接近の飼主通知は LINE 配信トリガー `vaccine_deadline_60d` / `vaccine_deadline_30d` が担う（[14 §2](../../../spec/screens/14-vaccinations-list.md)。受付画面での自動アラート表示はない）。
 - 登録・更新が `audit_logs` に記録されること（[specification.md §2.1](../../../spec/specification.md)）— DB 参照は USER 実施。
 - カルテ詳細の「予防接種」タブでも接種履歴の記録と次回予定日の自動算出が提供される（[06-medical-records-form.md §1 タブ4](../../../spec/screens/06-medical-records-form.md)）— 本シナリオは単独フォーム経路を正とし、カルテ経由は参照のみ確認。
@@ -35,6 +36,16 @@
 
 | # | 操作 | 期待結果 |
 |:--|:--|:--|
-| A1 | 実施日に未来日を指定しようとする | 未来日は選択不可（[15 §1.1](../../../spec/screens/15-vaccinations-form.md)） |
-| A2 | 猫のペットで犬専用ワクチンを選択しようとする | 【要実測】対象種によるマスタ選択肢の絞り込み有無。仕様文書に明記なし |
-| A3 | ロット番号を 5 つ目まで追加しようとする | 4 つを超えて登録できない（ロット番号は最大 4 つまで — [15 §1.2](../../../spec/screens/15-vaccinations-form.md)） |
+| A1 | 実施日に未来日を指定しようとする | DatePicker で未来日は選択不可（`disabledDays: { after: 当日 JST }`）。保存時バリデーションでも未来日は fieldError（BUG-024） |
+| A2 | 猫のペットで犬専用ワクチンを選択しようとする | 種フィルタなしのため選択肢に犬製品が出うる（現状仕様）。BE が拒否するかは【要実測】。**runtime 2026-08-01 partial**: 犬経路で混在確認済み・猫経路は未証明 |
+| A3 | ロット番号を 5 つ目まで追加しようとする | 入力欄が lot1〜lot4 の 4 つのみで 5 つ目を追加する UI はない（[15 §1.2](../../../spec/screens/15-vaccinations-form.md)） |
+
+---
+
+## 実装突合
+
+- 突合日: 2026-08-07
+- HEAD: `844e43f69`
+- 変更サマリ:
+  - 次回予定 value（`3weeks`/`1year`/`custom`）と既定 `1year`、ロット lot1–4 を実装に合わせて明記
+  - マスタ種フィルタなし（BUG-408）・`petId` クエリ・未来日 `disabledDays` を追記

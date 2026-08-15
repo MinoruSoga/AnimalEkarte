@@ -36,7 +36,7 @@ export function DynamicCheckupFields({ fields, values, onChange }: DynamicChecku
   if (fields.length === 0) return null;
 
   return (
-    <div className="space-y-5" data-testid="dynamic-checkup-fields">
+    <div className="space-y-6" data-testid="dynamic-checkup-fields">
       {fields.map((field) => {
         const value = values[field.id] ?? {};
         const labelId = `checkup-field-${field.id}`;

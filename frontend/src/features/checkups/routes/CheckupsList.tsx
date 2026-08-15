@@ -1,5 +1,5 @@
 // React/Framework
-import { C, ICON } from "@/lib/design-tokens";
+import { C, ICON, LAYOUT } from "@/lib/design-tokens";
 import { useCallback, useDeferredValue, useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { normalizeKana } from "@/lib/normalize-kana";
@@ -14,6 +14,7 @@ import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { PropertyFilter } from "@/components/shared/PropertyFilter/PropertyFilter";
 import { DataTable, DESIGN_TABLE_HEADER_ROW, DESIGN_TABLE_HEADER_CELL } from "@/components/shared/DataTable/DataTable";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
+import { DataTableRowLink } from "@/components/shared/DataTable/DataTableRowLink";
 import { SortableHeader } from "@/components/shared/SortableHeader/SortableHeader";
 import { FilteringIndicator } from "@/components/shared/FilteringIndicator/FilteringIndicator";
 import { Pagination } from "@/components/shared/Pagination/Pagination";
@@ -22,14 +23,14 @@ import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
 import { useSortableData } from "@/hooks/use-sortable-data";
 import { usePermission } from "@/hooks/use-permission";
-import { formatDate } from "@/utils/format/date";
+import { formatDate } from "@/lib/format/date";
 import { paths } from "@/config/paths";
 import { useGetCheckups } from "../api/get-checkups";
 import { todayISODate, addDaysISO } from "@/lib/iso-date";
 
 // Types
 import type { FilterProperty, ActiveFilter, SortProperty } from "@/components/shared/PropertyFilter/types";
-import { ResourceCheckups } from "@/types/generated/models";
+import { ResourceCheckups, ResourceMedicalRecords } from "@/types/generated/models";
 
 // rendering-hoist-jsx: 静的定数をモジュールスコープに
 const FILTER_PROPERTIES: FilterProperty[] = [
@@ -64,7 +65,8 @@ const CHECKUPS_SORT_PROPERTIES: SortProperty[] = [
 
 export function CheckupsList() {
   const navigate = useNavigate();
-  const { canCreate, canEdit } = usePermission(ResourceCheckups);
+  const { canView, canCreate, canEdit } = usePermission(ResourceMedicalRecords);
+  const canCreateCheckup = canCreate && canEdit;
   const [searchParams, setSearchParams] = useSearchParams();
   const [searchTerm, setSearchTerm] = useState("");
   const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
@@ -210,6 +212,7 @@ export function CheckupsList() {
             onToggle={() => toggleSort("checkupTypeName")}
           />
         ),
+        className: "hidden md:table-cell",
       },
       {
         header: (
@@ -219,10 +222,11 @@ export function CheckupsList() {
             onToggle={() => toggleSort("nextDate")}
           />
         ),
-        className: "w-[120px] hidden lg:table-cell",
+        // Clinical deadline cue: keep reachable via md+; full hide only under md (BUG-458).
+        className: "w-[120px] hidden md:table-cell",
       },
       { header: "結果・所見", className: "hidden lg:table-cell" },
-      { header: "担当医", className: "w-[100px]" },
+      { header: "担当医", className: "w-[100px] hidden md:table-cell" },
       { header: "操作", className: "w-[80px]", align: "right" as const },
     ],
     [directionFor, toggleSort],
@@ -244,10 +248,10 @@ export function CheckupsList() {
       title="定期健診"
       resource={ResourceCheckups}
       icon={<ClipboardCheck className={`${ICON.page} ${C.text}`} />}
-      maxWidth="max-w-full"
+      maxWidth={LAYOUT.pageContentMaxWidth.full}
       headerAction={
-        canCreate ? (
-          <PrimaryButton colorVariant="brand" onClick={handleCreate}>
+        canCreateCheckup ? (
+          <PrimaryButton colorVariant="primary" onClick={handleCreate}>
             <Plus className={`mr-1.5 ${ICON.action}`} />
             新規登録
           </PrimaryButton>
@@ -276,25 +280,39 @@ export function CheckupsList() {
             data={sortedData}
             emptyMessage="定期健診の記録がありません"
             renderRow={(c) => (
-              <DataTableRow key={c.id} onClick={canEdit ? () => handleEdit(c.medicalRecordId) : undefined}>
-                <TableCell className={`font-mono text-base ${C.text} py-2`}>
+              <DataTableRow key={c.id}>
+                <TableCell className={`font-mono ${C.text}`}>
                   {c.date ? formatDate(c.date) : "-"}
                 </TableCell>
-                <TableCell className={`text-base ${C.text} py-2`}>{c.ownerName || "-"}</TableCell>
-                <TableCell className={`text-base ${C.text} py-2`}>{c.petName || "-"}</TableCell>
-                <TableCell className={`text-base ${C.text} py-2`}>{c.checkupTypeName || "-"}</TableCell>
-                <TableCell className={`font-mono text-base ${C.text} py-2 hidden lg:table-cell`}>
+                <TableCell className={C.text}>{c.ownerName || "-"}</TableCell>
+                <TableCell className={C.text}>
+                  {canView && c.medicalRecordId ? (
+                    <DataTableRowLink
+                      to={paths.medicalRecords.detail.getHref(c.medicalRecordId)}
+                      aria-label={`カルテ詳細: ${c.petName || "-"} ${c.date || "-"} 健診ID ${c.id}`}
+                    >
+                      {c.petName || "-"}
+                    </DataTableRowLink>
+                  ) : (c.petName || "-")}
+                </TableCell>
+                <TableCell className={`${C.text} hidden md:table-cell`}>{c.checkupTypeName || "-"}</TableCell>
+                <TableCell className={`font-mono ${C.text} hidden md:table-cell`}>
                   <div className="flex items-center gap-1.5">
                     {c.nextDate ? formatDate(c.nextDate) : "-"}
                     <CheckupAlertBadge nextDate={c.nextDate} />
                   </div>
                 </TableCell>
-                <TableCell className={`text-base ${C.text} py-2 max-w-xs truncate hidden lg:table-cell`}>
+                <TableCell className={`${C.text} max-w-xs truncate hidden lg:table-cell`}>
                   {c.result || "-"}
                 </TableCell>
-                <TableCell className={`text-base ${C.text} py-2`}>{c.doctorName || "-"}</TableCell>
-                <TableCell className="text-right py-2">
-                  {canEdit ? <RowActionButton onClick={() => handleEdit(c.medicalRecordId)} /> : null}
+                <TableCell className={`${C.text} hidden md:table-cell`}>{c.doctorName || "-"}</TableCell>
+                <TableCell className="text-right">
+                  {canView && canEdit ? (
+                    <RowActionButton
+                      onClick={() => handleEdit(c.medicalRecordId)}
+                      aria-label={`健診操作: ${c.petName || "-"} ${c.date || "-"} ID ${c.id}`}
+                    />
+                  ) : null}
                 </TableCell>
               </DataTableRow>
             )}

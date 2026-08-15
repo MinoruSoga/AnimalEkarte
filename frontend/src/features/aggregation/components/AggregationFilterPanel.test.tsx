@@ -52,6 +52,25 @@ describe('AggregationFilterPanel', () => {
     expect(screen.getByText('売上総額')).toBeInTheDocument();
   });
 
+  it('売上フィルターの入力とcheckbox hit areaを44px以上に保つ', () => {
+    render(
+      <AggregationFilterPanel
+        params={{ page: 1, per_page: 50, year: 2026, min_amount: 100, max_amount: 200 }}
+        onParamsChange={mockOnParamsChange}
+        activeTab="revenue"
+      />
+    );
+
+    for (const input of [
+      screen.getByPlaceholderText('年度'),
+      screen.getByPlaceholderText('下限'),
+      screen.getByPlaceholderText('上限'),
+    ]) {
+      expect(input).toHaveClass('h-11');
+    }
+    expect(screen.getByRole('checkbox', { name: '0円を含む' })).toHaveClass('size-11');
+  });
+
   it('should render visit-specific filters', () => {
     const params: AggregationParams = {
       page: 1,

@@ -13,6 +13,7 @@ import {
   slotTimeToSelectValue,
   TIME_OPTIONS,
 } from "./reservation-time-utils";
+import { filterStaffCandidatesByCapability } from "./filter-staff-candidates";
 import { ReservationDateTimeFields } from "./ReservationDateTimeFields";
 import { ReservationTypeAndStaffFields } from "./ReservationTypeAndStaffFields";
 import { ReservationNotesField } from "./ReservationNotesField";
@@ -101,15 +102,12 @@ export const ReservationFormFields = memo(function ReservationFormFields({
       const onDutyIdSet = new Set(onDutyStaffs.map((s) => String(s.id)));
       options = options.filter((s) => onDutyIdSet.has(String(s.id)));
     }
-    if (selectedReservationTypeId !== null && reservationStaffMap !== undefined) {
-      options = options.filter((s) => {
-        const reservationStaff = reservationStaffMap.get(String(s.id));
-        if (reservationStaff === undefined) return true;
-        return !reservationStaff.excluded_courses.some(
-          (course) => String(course.id) === selectedReservationTypeId,
-        );
-      });
-    }
+    // TASK-021 Stage B: affirmative capabilities; missing/pending metadata fail-closed
+    options = filterStaffCandidatesByCapability(
+      options,
+      selectedReservationTypeId,
+      reservationStaffMap,
+    );
     return options;
   }, [selectedDateStr, onDutyStaffs, activeStaff, selectedReservationTypeId, reservationStaffMap]);
 

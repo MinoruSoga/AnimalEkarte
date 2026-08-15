@@ -42,8 +42,12 @@
 ```bash
 # 環境変数のセット（playwright.config.ts が参照する変数名。未設定時は http://localhost:3003 が既定）
 export PLAYWRIGHT_TEST_BASE_URL=http://localhost:3003
+
+# SEC-CS2-F01: 認証情報は env 注入のみ（リポジトリ内フォールバック禁止）
+export E2E_LOGIN_EMAIL='<local-demo-admin-email>'
+export E2E_LOGIN_PASSWORD='<local-demo-admin-password>'
 ```
-ログイン認証情報は環境変数ではなく `frontend/e2e/helpers/auth.ts` の `loginAsDemoAdmin` にハードコードされたデモ管理者（`admin@noavet.jp` / `password`）を使用する。認証状態のキャッシュ先パスのみ `E2E_AUTH_STATE_PATH`（既定 `/tmp/animal-ekarte-demo-admin-storage-state.json`）で上書き可能。
+ログイン認証情報は `E2E_LOGIN_EMAIL` / `E2E_LOGIN_PASSWORD` を必須とする（`frontend/e2e/helpers/auth.ts` の `loginAsDemoAdmin` および有効ログイン系 spec）。リポジトリ既知のパスワードをソースに埋め込まない。認証状態のキャッシュ先パスは `E2E_AUTH_STATE_PATH`（既定 `/tmp/animal-ekarte-demo-admin-storage-state.json`）で上書き可能。
 
 ### 3.2 実行
 frontend コンテナは Alpine ベースで Playwright の Chromium を起動できないため、公式 Playwright Docker イメージを使う `frontend/scripts/run-e2e.sh` で実行する（CI の `.github/workflows/e2e.yml` も同スクリプトを使用）。

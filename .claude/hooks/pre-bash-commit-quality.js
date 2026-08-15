@@ -17,7 +17,7 @@
  */
 'use strict';
 
-const { execSync, execFileSync } = require('child_process');
+const { execFileSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
@@ -45,15 +45,36 @@ process.stdin.on('end', () => {
     const issues = [];
     const projectDir = process.env.CLAUDE_PROJECT_DIR || process.cwd();
 
+    // Scan the repo the commit actually targets: `git -C <dir>` / `cd <dir> && git commit`
+    // aimed at another repo must not be judged by this project's staged files — and must
+    // still be secret-scanned against its own staged files.
+    let scanDir = projectDir;
+    const dirMatch =
+      command.match(/\bgit\s+-C\s+(?:"([^"]+)"|'([^']+)'|([^\s;&|]+))/) ||
+      command.match(/(?:^|&&|;)\s*cd\s+(?:"([^"]+)"|'([^']+)'|([^\s;&|]+))/);
+    if (dirMatch) {
+      const rawDir = dirMatch[1] || dirMatch[2] || dirMatch[3] || '';
+      const expanded = rawDir.replace(/^~(?=$|\/)/, process.env.HOME || '~');
+      if (expanded && fs.existsSync(expanded)) {
+        scanDir = path.resolve(expanded);
+      }
+    }
+    const isProjectRepo = scanDir === path.resolve(projectDir);
+
     // --- 1. Check staged files for console.log / debugger ---
+    // argv + NUL delimiters: never shell-interpolate staged paths (SEC-CS-F02)
     let stagedFiles = [];
     try {
-      const output = execSync('git diff --cached --name-only --diff-filter=ACM', {
-        cwd: projectDir,
-        encoding: 'utf8',
-        timeout: 10000,
-      }).trim();
-      stagedFiles = output ? output.split('\n') : [];
+      const output = execFileSync(
+        'git',
+        ['diff', '--cached', '--name-only', '-z', '--diff-filter=ACM'],
+        {
+          cwd: scanDir,
+          encoding: 'utf8',
+          timeout: 10000,
+        },
+      );
+      stagedFiles = output ? output.split('\0').filter(Boolean) : [];
     } catch {
       // No staged files or git error — skip
     }
@@ -63,8 +84,8 @@ process.stdin.on('end', () => {
     for (const file of jsFiles) {
       let content;
       try {
-        content = execSync(`git show ":${file}"`, {
-          cwd: projectDir,
+        content = execFileSync('git', ['show', ':' + file], {
+          cwd: scanDir,
           encoding: 'utf8',
           timeout: 5000,
         });
@@ -109,8 +130,8 @@ process.stdin.on('end', () => {
 
       let content;
       try {
-        content = execSync(`git show ":${file}"`, {
-          cwd: projectDir,
+        content = execFileSync('git', ['show', ':' + file], {
+          cwd: scanDir,
           encoding: 'utf8',
           timeout: 5000,
         });
@@ -139,9 +160,14 @@ process.stdin.on('end', () => {
     }
 
     // --- 4. Mirror sync (regenerate .agents/ and .codex/agents+commands) ---
-    if (process.env.SYNC_MIRRORS_DISABLED !== '1') {
+    if (isProjectRepo && process.env.SYNC_MIRRORS_DISABLED !== '1') {
       const mirrorTriggerFiles = stagedFiles.filter(
-        f => f.startsWith('.claude/skills/') || f.startsWith('.claude/commands/') || f.startsWith('.claude/agents/') || f.startsWith('.claude/rules/')
+        f => f.startsWith('.claude/skills/')
+          || f.startsWith('.claude/commands/')
+          || f.startsWith('.claude/agents/')
+          || f.startsWith('.claude/rules/')
+          || f.startsWith('.claude/scripts/sync-codex-mirror')
+          || f === '.claude/scripts/test_sync_codex_mirror.py'
       );
       if (mirrorTriggerFiles.length > 0) {
         const logPath = path.join(projectDir, '.claude', 'logs', 'sync-mirrors.log');

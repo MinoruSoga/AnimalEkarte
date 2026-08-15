@@ -1,30 +1,26 @@
 import { test, expect } from '@playwright/test';
 import type { BrowserContext } from '@playwright/test';
 import { createAuthedContext } from './helpers/context';
+import {
+  OUTSIDE_FIRST_PAGE_PET,
+  readRuntimePetReferences,
+} from './helpers/pet-search-regression';
 import { ReservationFormPage } from './pages/reservation-form-page';
 
-// E2E for PatientSelectionTable kana-normalised search inside ReservationFormModal.
-//
-// Seed data (003_seed_demo.sql, /v1/pets page 1, limit=20):
-//   pet id=4  name='タロウ'      name_kana='たろう'   owner_id=3 (鈴木 一郎)
-//   pet id=5  name='ジロウ'      name_kana='じろう'   owner_id=3 (鈴木 一郎)
-//   pet id=1  name='Iris(イリス)' name_kana='いりす'  owner_id=1 (林 文明)
-//
-// NOTE: /v1/pets returns the first 20 pets (paginated). pet id=80 (ピーター)
-// is beyond page 1 and is intentionally excluded from these tests.
-//
-// Issue #161: カナ混同検索を未対応画面へ適用
-// Surface: PatientSelectionTable (petName field) inside 新規予約作成 modal.
+// PatientSelectionTable delegates its unified `#search` field to GET /v1/pets.
+// Runtime pet 1003298 (SPANKY) is intentionally outside the unfiltered first
+// page. Its pet-name search term is unchanged by kana normalization, so
+// finding the exact pet pair proves this is server-side search rather than
+// filtering the 20 rows already loaded in the browser.
 //
 // Execution: ./scripts/run-e2e.sh e2e/reservation-patient-search.spec.ts
 //
 // Design: open reservation modal via /reservations → "新規予約登録" button.
 // PatientSelectionTable renders by default (ownerMode=existing).
 // All locators are scoped to the dialog to avoid calendar-DOM collision.
-// Search triggers only after "検索" button click (hasSearched state gate).
-// Results are filtered client-side via normalizedIncludes (katakana→hiragana).
+// Input is debounced and searches automatically; there is no manual search button.
 
-test.describe('予約新規作成 患者選択 かな混同検索', () => {
+test.describe('予約新規作成 患者選択 サーバー検索', () => {
   let context: BrowserContext;
 
   test.beforeAll(async ({ browser }) => {
@@ -53,45 +49,59 @@ test.describe('予約新規作成 患者選択 かな混同検索', () => {
     return { page, reservation };
   }
 
-  test('ひらがな「たろう」でペット名検索するとカタカナ「タロウ」が表示される', async () => {
+  test('先頭20件にいない患者1003298を自動検索しPatientSelectionTableで選択できる', async () => {
     const { page, reservation } = await openPatientSelectionTable(context);
     try {
-      // petName field — scoped to dialog to avoid any page-level ambiguity
-      await reservation.petNameInput().fill('たろう');
+      const firstPageResponse = await page.request.get('/api/v1/pets?page=1&limit=20', {
+        headers: {
+          Accept: 'application/json',
+          'X-Requested-With': 'XMLHttpRequest',
+        },
+      });
+      expect(firstPageResponse.status()).toBe(200);
+      const firstPagePayload: unknown = await firstPageResponse.json();
+      const firstPagePets = readRuntimePetReferences(firstPagePayload);
+      expect(firstPagePets).toHaveLength(20);
+      expect(firstPagePets).not.toContainEqual(OUTSIDE_FIRST_PAGE_PET);
 
-      // Trigger search via Enter key (onKeyDown handler in PatientSelectionTable)
-      await reservation.petNameInput().press('Enter');
+      const searchResponsePromise = page.waitForResponse((response) => {
+        const url = new URL(response.url());
+        return (
+          response.request().method() === 'GET' &&
+          url.pathname.endsWith('/api/v1/pets') &&
+          url.searchParams.get('page') === '1' &&
+          url.searchParams.get('limit') === '20' &&
+          url.searchParams.get('search') === OUTSIDE_FIRST_PAGE_PET.name &&
+          !url.searchParams.has('include_deceased')
+        );
+      });
 
-      // normalizedIncludes('タロウ', 'たろう') → normalizeKana('タロウ')='たろう' includes 'たろう' → true
-      await expect(reservation.resultText('タロウ')).toBeVisible({ timeout: 15000 });
-    } finally {
-      await page.close();
-    }
-  });
+      await reservation.patientSearchInput().fill(OUTSIDE_FIRST_PAGE_PET.name);
 
-  test('カタカナ「タロウ」でペット名検索しても「タロウ」が表示される (かな統一検索)', async () => {
-    const { page, reservation } = await openPatientSelectionTable(context);
-    try {
-      await reservation.petNameInput().fill('タロウ');
+      const searchResponse = await searchResponsePromise;
+      expect(searchResponse.status()).toBe(200);
+      const searchPayload: unknown = await searchResponse.json();
+      expect(readRuntimePetReferences(searchPayload)).toContainEqual(
+        OUTSIDE_FIRST_PAGE_PET,
+      );
 
-      await reservation.dialogSearchButton().click();
+      await expect(
+        reservation.patientRow(OUTSIDE_FIRST_PAGE_PET.name),
+      ).toBeVisible();
+      const selectButton = reservation.selectPatientButton(
+        OUTSIDE_FIRST_PAGE_PET.id,
+        OUTSIDE_FIRST_PAGE_PET.name,
+      );
+      await expect(selectButton).toBeVisible();
+      await expect(selectButton).toBeEnabled();
 
-      // normalizedIncludes('タロウ', 'タロウ') → same after normalization → true
-      await expect(reservation.resultText('タロウ')).toBeVisible({ timeout: 15000 });
-    } finally {
-      await page.close();
-    }
-  });
-
-  test('ひらがな「いりす」でペット名検索するとカタカナ混在「Iris(イリス)」が表示される', async () => {
-    const { page, reservation } = await openPatientSelectionTable(context);
-    try {
-      await reservation.petNameInput().fill('いりす');
-
-      await reservation.dialogSearchButton().click();
-
-      // normalizedIncludes('Iris(イリス)', 'いりす') → 'iris(いりす)' includes 'いりす' → true
-      await expect(reservation.resultText('Iris(イリス)')).toBeVisible({ timeout: 15000 });
+      await selectButton.click();
+      await expect(
+        reservation.selectedPatientButton(
+          OUTSIDE_FIRST_PAGE_PET.id,
+          OUTSIDE_FIRST_PAGE_PET.name,
+        ),
+      ).toBeVisible();
     } finally {
       await page.close();
     }

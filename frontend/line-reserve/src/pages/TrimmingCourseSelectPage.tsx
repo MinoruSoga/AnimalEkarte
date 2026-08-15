@@ -4,7 +4,7 @@ import { ProgressDots } from '../components/ProgressDots';
 import { ListItem } from '../components/ListItem';
 import { BackButton } from '../components/BackButton';
 import { useFetchState } from '@/shared-liff/use-fetch-state';
-import { formatCurrency } from '@/utils/format/number';
+import { formatCurrency } from '@/lib/format/number';
 import { getStepProgress } from '../lib/step-progress';
 
 interface TrimmingCourseSelectPageProps {

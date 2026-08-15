@@ -6,6 +6,7 @@ import { paths } from "@/config/paths";
 import {
   ResourceClosingSettings,
   ResourceHospitalSettings,
+  ResourceLstepAnalytics,
   ResourceMasterAnimalSpecies,
   ResourceMasterHospitalization,
   ResourceMasterInsurance,
@@ -303,7 +304,7 @@ export const settingsRoute: RouteObject = {
     // FE-007: Lステップタグ管理
     {
       path: "lstep/tags",
-      element: <RequirePermission resource={ResourceHospitalSettings}><Outlet /></RequirePermission>,
+      element: <RequirePermission resource={ResourceLstepAnalytics}><Outlet /></RequirePermission>,
       children: [{
         index: true,
         lazy: async () => {

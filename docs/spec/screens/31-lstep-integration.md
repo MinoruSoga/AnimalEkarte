@@ -7,9 +7,11 @@
   - タグ管理: `/settings/lstep/tags`
   - 健診対象者抽出: `/lstep/checkup-sync`
   - 分析レポート: `/lstep/analytics`
-- **アクセス権限**: 
-  - 連携設定・タグ管理・健診対象者抽出: 外部連携管理権限が必要（`ResourceHospitalSettings`）
-  - 分析レポート: 外部連携管理権限（`ResourceHospitalSettings`）に加え、Lステップ分析閲覧権限（`ResourceLstepAnalytics`）が必要
+- **アクセス権限**（FE）:
+  - 連携設定 `/settings/integrations/lstep`: `ResourceHospitalSettings`
+  - タグ管理 `/settings/lstep/tags`: **`ResourceLstepAnalytics`**
+  - 健診同期 `/lstep/checkup-sync`: 親 `/lstep` の `ResourceHospitalSettings`
+  - 分析 `/lstep/analytics`: 親 `ResourceHospitalSettings` **かつ** ネスト `ResourceLstepAnalytics`
 
 ---
 
@@ -23,6 +25,14 @@
 医院の運営方針に合わせ、以下の判定基準をカスタマイズ可能です。
 - **CPM バージョン**: V1（金額＋回数）または V2（回数重視）を選択。
 - **ステージ境界値**: 「コア」「ノア」等と判定するための累計売上額や来院回数の閾値。
+
+### 1.3 飼主LINEアカウント連携
+
+- スタッフが飼主単位の24時間link tokenを発行する。raw tokenは発行responseで一度だけ返し、DBにはunpadded base64url SHA-256 digestだけを保存する。
+- LIFF公開endpointは16KiB以下の単一strict JSON objectだけを受け付け、`link_token`と`line_id_token`以外のfield（再紐付けを強制する`force`等）を拒否する。
+- LINE ID token検証はrequest context、5秒timeout、64KiB response上限で行い、upstream response本文をclient errorへ転記しない。
+- link token、対象clinic、飼主をtransaction内でlockし、既存LINE IDがある飼主への上書きを拒否する。飼主更新、tokenの単回CAS消費、成功監査は同一transactionでcommitし、いずれかが失敗した場合は全てrollbackする。
+- 旧versionが発行済みの64桁hex raw tokenだけは期限内互換のため限定検索する。新規tokenを平文保存するfallbackは持たない。
 
 ---
 
@@ -42,9 +52,20 @@
 
 ## 3. 技術仕様
 
-### 3.1 同期エンジン
-- **リアルタイム同期**: 会計完了、ペット登録、死亡記録などのイベントをトリガーに即座にタグを更新。ただし Lステップ側へのタグ書き込み API 呼び出し（AddTag / RemoveTag / AddTagBulk）はポリシーにより一時停止中で、内部タグキャッシュのみ更新される。
-- **バッチ同期**: 休眠判定を深夜バッチ（毎日 02:00 JST）で実行。LTV 上位 20% の再計算はバッチエントリポイント実装済みだが cron 未配線。
+### 3.1 同期エンジンと失敗契約
+経路ごとに失敗契約を混同しない（詳細: [line/architecture.md](../line/architecture.md) §4、[line/lstep-integration.md](../line/lstep-integration.md) §5）。
+
+| 経路 | 契約 | 画面・運用への影響 |
+|:---|:---|:---|
+| 会計完了・ペット登録・死亡記録などイベント直後のタグ更新 | **request-local nonfatal secondary notification** | 本処理（会計等）は成功のまま。タグ同期失敗はログのみで本処理を反転させない。**配信トリガーログには書かない** |
+| 1 飼主分のタグ同期本体（画面操作やバッチ内 1 owner） | **single-owner propagation** | 望ましいタグ Add/Remove 失敗は error 伝播。呼び出し元が失敗を観測・計上する |
+| 定時バッチ（dormant / no_show / delivery / LTV 等 multi-resource） | **scheduled multi-resource best effort** | 1 件失敗後も続行。`BatchRunResult` と `processed_count`/`error_count` 監査による **durable 部分結果計上**が必須。必須 dependency 欠落は fail-closed |
+
+- **Deploy gate（`LSTEP_WRITE_API_ENABLED`）**: Write 系（AddTag / RemoveTag / AddTagBulk / SetProperty）は exact `"true"` のときだけ HTTP を送る。未設定・空・`"false"`・未知値は無効。無効時は **`ErrWriteDisabled` を返し HTTP を送らない（`nil` 成功にしない）**。内部タグキャッシュ・判定・監査のアプリ内更新は経路により継続し得るが、Lステップ側実タグは変わらない。enable / stop / rollback の手順正本は [`LSTEP_WRITE_API_PAUSE.md`](../../ops/deploy/LSTEP_WRITE_API_PAUSE.md)（本 spec に手順・環境実値を複製しない）。
+- **Clinic gate（`is_sync_enabled` / API キー）**: `is_sync_enabled=false` または API キー未設定の clinic は `buildClient` がクライアントを構築せず `nil, nil` を返す（意図的スキップ）。deploy gate の `ErrWriteDisabled` とは**別契約**である。
+- **バッチ同期（scheduler/cron）**: Cloudflare scheduled event の式と job 対応は code/config へ配線済み（毎日 02:00 JST に `dormant`、10:00 JST に `no_show`→`delivery`、15:00/20:00 JST に `no_show`。durable coordinator、重複防止、pause/resume、missing-slot catch-up、失敗通知を含む）。**配線済みであることと、対象環境（STG/production）での自然発火・実送信・運用 rehearsal が完了していることは別事実である。** 後者は release gate として未実測（[Scheduler Operations](../../ops/deploy/runbooks/SCHEDULER_OPERATIONS.md)）。
+- **配信トリガー候補の読み取り**: clinic スコープ bulk-read を必須とし、owner ループ内の N+1 読み（owner / 当日 claim / 抑制 / tag-cache）を置かない。opt-out・suppression・daily-claim 意味論と bounded memory は維持する。
+- **流量**: Messaging API / Lステップ API のレート制限は固定のクライアント方針と監視で扱う。バッチとリアルタイムを動的に切り替える rate adjustment は持たない。
 
 ### API連携
 | メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |
@@ -70,6 +91,8 @@
 | GET | `/api/v1/lstep-tag-config/send-purpose-tag-prefixes` | 送信目的別タグプレフィックス一覧取得 | `hospital-settings` | `view` |
 | POST | `/api/v1/lstep-tag-config/send-purpose-tag-prefixes` | 送信目的別タグプレフィックス追加 | `hospital-settings` | `create` |
 | DELETE | `/api/v1/lstep-tag-config/send-purpose-tag-prefixes/:id` | 送信目的別タグプレフィックス削除 | `hospital-settings` | `delete` |
+| POST | `/api/v1/owners/:id/line/link-token` | 飼主LINE連携用の単回token発行 | `owners` | `edit` |
+| POST | `/api/liff/:clinicId/link` | LIFFでLINE ID tokenを検証し飼主へ原子的に紐付け | 公開token検証 | — |
 | GET | `/api/v1/clinics/:clinic_id/lstep/analytics/delivery-stats` | 月次配信統計の取得 | `lstep-analytics` | `view` |
 | GET | `/api/v1/clinics/:clinic_id/lstep/analytics/visit-conversion` | 来院転換データの集計 | `lstep-analytics` | `view` |
 | GET | `/api/v1/clinics/:clinic_id/lstep/csv-imports` | 友だち属性 CSV インポート履歴の取得 | `lstep-csv-import` | `view` |

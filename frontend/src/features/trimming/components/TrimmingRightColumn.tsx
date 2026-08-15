@@ -52,7 +52,7 @@ export const TrimmingRightColumn = memo(function TrimmingRightColumn({
   );
 
   return (
-    <div className={`${C.bgWhite} rounded-lg shadow-sm border ${C.borderMedium} p-3 space-y-4`}>
+    <div className={`${C.bgWhite} rounded-lg border ${C.borderMedium} p-3 space-y-4`}>
       <div>
         <Label className={`text-sm ${C.text60} mb-2 block`}>施術履歴</Label>
         <HistoryFilterPanel

@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|bash|Shell|shell|run_terminal_command",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/pre-bash-block-dangerous.js",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}

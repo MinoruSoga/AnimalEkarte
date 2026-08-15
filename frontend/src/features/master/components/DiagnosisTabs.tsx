@@ -34,6 +34,7 @@ export function DiagnosisTypeTab({ onEditTargetChange, canEdit }: DiagnosisTypeT
     useSortableList({
       items: rawCategories ?? [],
       onReorder: (newIds) => {
+        if (!canEdit) return;
         reorderMutation.mutate({ ids: newIds.map(Number) });
       },
     });
@@ -91,6 +92,7 @@ export function DiagnosisNameTab({ onEditTargetChange, canEdit }: DiagnosisNameT
     useSortableList({
       items: rawNames ?? [],
       onReorder: (newIds) => {
+        if (!canEdit) return;
         reorderMutation.mutate({ ids: newIds.map(Number) });
       },
     });

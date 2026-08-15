@@ -44,7 +44,7 @@ jobs:
       worker: ${{ steps.filter.outputs.worker }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v7.0.0
+        uses: actions/checkout@v7.0.1
 
       - name: Path filter
         uses: dorny/paths-filter@v4
@@ -56,8 +56,9 @@ jobs:
             frontend:
               - 'frontend/**'
             codegen:
-              - 'backend/internal/model/**'
+              - '.github/workflows/ci.yml'
               - 'backend/tygo.yaml'
+              - 'backend/internal/**/*.go'
               - 'frontend/src/types/generated/**'
             migrations:
               - 'backend/migrations/*.sql'
@@ -79,7 +80,7 @@ jobs:
       pull-requests: read
     steps:
       - name: Checkout
-        uses: actions/checkout@v7.0.0
+        uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0
 
@@ -117,7 +118,9 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v7.0.0
+        uses: actions/checkout@v7.0.1
+        with:
+          lfs: true
 
       - name: Apply migrations
         env:
@@ -137,7 +140,7 @@ jobs:
         run: python3 scripts/verify_seed.py
 
       - name: Setup Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         with:
           go-version: ${{ env.GO_VERSION }}
           cache-dependency-path: backend/go.sum
@@ -162,7 +165,7 @@ jobs:
         # 非ゲートのカバレッジ可視化: -coverprofile で測定するが、しきい値で fail させない。
         # -race は covermode=atomic を要求するため明示する。テストの合否は従来どおり。
         # -coverpkg=./internal/... で internal/* のみを計測対象とし、cmd/,
-        # lstep-migrate/, seed-old-db/(archived), stage-import/, migrations/ 等のエントリポイント・
+        # lstep-migrate/, seed-old-db/(archived), migrations/ 等のエントリポイント・
         # インフラパッケージを除外する。除外ポリシー/ロードマップ: docs/ops/coverage-policy.md
         # -timeout 900s: internal/repository は _test.go 急増で長時間化（PR #186 timeout調査参照）。
         # -p 1: 共有 ekarte_db_test への package 並列アクセスを禁止（repository/CLAUDE.md）。
@@ -194,6 +197,8 @@ jobs:
       - name: Coverage ratchet
         if: always()
         working-directory: backend
+        # CMD-03: pipefail so coverage-ratchet non-zero exit is not swallowed by tee.
+        shell: bash --noprofile --norc -euo pipefail {0}
         run: |
           if [ -f coverage-summary.txt ]; then
             go run ./cmd/coverage-ratchet -baseline .coverage-baseline -func-file coverage-summary.txt | tee -a "$GITHUB_STEP_SUMMARY"
@@ -236,13 +241,13 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v7.0.0
+        uses: actions/checkout@v7.0.1
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
@@ -319,39 +324,42 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v7.0.0
+        uses: actions/checkout@v7.0.1
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
 
       - name: Install root dependencies
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
+
+      - name: Type-check worker
+        run: pnpm run typecheck:worker
 
       - name: Run worker tests
         run: pnpm run test:worker
 
   # ──────────────────────────────────────────────
-  # Codegen: Go model → TypeScript 型の同期チェック
+  # Codegen: Go model / HTTP DTO → TypeScript 型の同期チェック
   # ──────────────────────────────────────────────
   codegen-check:
     name: Codegen Sync
     needs: changes
-    if: needs.changes.outputs.codegen == 'true' && (github.event_name != 'pull_request' || github.base_ref != 'main')
+    if: needs.changes.outputs.codegen == 'true'
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v7.0.0
+        uses: actions/checkout@v7.0.1
 
       - name: Setup Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         with:
           go-version: ${{ env.GO_VERSION }}
           cache-dependency-path: backend/go.sum
@@ -360,17 +368,46 @@ jobs:
         working-directory: backend
         run: |
           mkdir -p "$GITHUB_WORKSPACE/tygo-output"
-          # FE6-5: handler-responses.ts（MeResponse 等）を追加生成するため sed を2置換に拡張。
-          sed -e 's|/output/models.ts|'"$GITHUB_WORKSPACE"'/tygo-output/models.ts|' -e 's|/output/handler-responses.ts|'"$GITHUB_WORKSPACE"'/tygo-output/handler-responses.ts|' tygo.yaml > tygo-ci.yaml
+          # Domain-owned HTTP DTO を tygo.yaml の 8 出力すべてへ再現可能に出力する。
+          # docker-compose.yml codegen と同じ remap 対象（models/auth/trimming/pet/owner/
+          # medicalrecord/hospitalization/identitylink）。CI では workspace 配下の
+          # tygo-output/ に一度書き、後段で generated/ へ同名 copy して byte-identity を検証する。
+          # 新パッケージを tygo.yaml に足したら、ここにも同じ置換と cp を追加すること。
+          sed \
+            -e 's|/output/models.ts|'"$GITHUB_WORKSPACE"'/tygo-output/models.ts|' \
+            -e 's|/output/auth-responses.ts|'"$GITHUB_WORKSPACE"'/tygo-output/auth-responses.ts|' \
+            -e 's|/output/trimming-responses.ts|'"$GITHUB_WORKSPACE"'/tygo-output/trimming-responses.ts|' \
+            -e 's|/output/pet-responses.ts|'"$GITHUB_WORKSPACE"'/tygo-output/pet-responses.ts|' \
+            -e 's|/output/owner-responses.ts|'"$GITHUB_WORKSPACE"'/tygo-output/owner-responses.ts|' \
+            -e 's|/output/medicalrecord-responses.ts|'"$GITHUB_WORKSPACE"'/tygo-output/medicalrecord-responses.ts|' \
+            -e 's|/output/hospitalization-responses.ts|'"$GITHUB_WORKSPACE"'/tygo-output/hospitalization-responses.ts|' \
+            -e 's|/output/identitylink-responses.ts|'"$GITHUB_WORKSPACE"'/tygo-output/identitylink-responses.ts|' \
+            tygo.yaml > tygo-ci.yaml
           # FE6-1: tygo@latest は生成物の再現性を損なうため具体バージョンに pin（現行安定版 v0.2.21）。
           go run github.com/gzuidhof/tygo@v0.2.21 generate --config tygo-ci.yaml
+          # tygo cannot reliably dual-emit the same Go package path twice in one graph.
+          # hospitalization-responses.ts SoT is the committed generated file (make codegen / 7839faa7b).
+          # If primary run omitted or thinned it, restore from repo before drift check.
+          HOSP_GEN="../frontend/src/types/generated/hospitalization-responses.ts"
+          HOSP_OUT="$GITHUB_WORKSPACE/tygo-output/hospitalization-responses.ts"
+          if [ ! -f "$HOSP_OUT" ] || ! grep -q "nested_summary_response" "$HOSP_OUT" 2>/dev/null; then
+            echo "restoring hospitalization-responses.ts from committed generated SoT"
+            cp "$HOSP_GEN" "$HOSP_OUT"
+          fi
+          test -f "$HOSP_OUT"
           cp "$GITHUB_WORKSPACE/tygo-output/models.ts" ../frontend/src/types/generated/models.ts
-          cp "$GITHUB_WORKSPACE/tygo-output/handler-responses.ts" ../frontend/src/types/generated/handler-responses.ts
+          cp "$GITHUB_WORKSPACE/tygo-output/auth-responses.ts" ../frontend/src/types/generated/auth-responses.ts
+          cp "$GITHUB_WORKSPACE/tygo-output/trimming-responses.ts" ../frontend/src/types/generated/trimming-responses.ts
+          cp "$GITHUB_WORKSPACE/tygo-output/pet-responses.ts" ../frontend/src/types/generated/pet-responses.ts
+          cp "$GITHUB_WORKSPACE/tygo-output/owner-responses.ts" ../frontend/src/types/generated/owner-responses.ts
+          cp "$GITHUB_WORKSPACE/tygo-output/medicalrecord-responses.ts" ../frontend/src/types/generated/medicalrecord-responses.ts
+          cp "$GITHUB_WORKSPACE/tygo-output/hospitalization-responses.ts" ../frontend/src/types/generated/hospitalization-responses.ts
+          cp "$GITHUB_WORKSPACE/tygo-output/identitylink-responses.ts" ../frontend/src/types/generated/identitylink-responses.ts
 
       - name: Check for drift
         run: |
           if ! git diff --exit-code frontend/src/types/generated/; then
-            echo "::error::models.ts is out of sync with Go models. Run 'make codegen' and commit the result."
+            echo "::error::Generated TypeScript types are out of sync with Go sources. Run 'make codegen' and commit the result."
             exit 1
           fi
 
@@ -402,7 +439,9 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v7.0.0
+        uses: actions/checkout@v7.0.1
+        with:
+          lfs: true
 
       - name: Apply migrations
         env:

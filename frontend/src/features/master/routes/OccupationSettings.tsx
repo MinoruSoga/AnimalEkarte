@@ -31,20 +31,27 @@ const COLUMNS = [
 
 // ─── Page ───
 export function OccupationSettings() {
-  usePermission(ResourceMasterStaff);
+  const { canCreate, canEdit, canDelete } = usePermission(ResourceMasterStaff);
   const { data } = useGetAllOccupations();
   const createMutation = useCreateOccupation();
   const updateMutation = useUpdateOccupation();
   const deleteMutation = useDeleteOccupation();
 
   const dirty = useSidePeekDirty();
-  const crud = useMasterCRUD<Occupation>({ data, deleteMutation, entityLabel: "職種", dirtyGuard: dirty });
+  const crud = useMasterCRUD<Occupation>({
+    data,
+    deleteMutation,
+    entityLabel: "職種",
+    dirtyGuard: dirty,
+    permissions: { canDelete },
+  });
   const handleDirtyChange = useCallback((d: boolean) => { if (d) dirty.markDirty(); else dirty.markClean(); }, [dirty]);
 
   const { handleSave } = useMasterSave<Occupation, OccupationFormData, CreateOccupationRequest, UpdateOccupationRequest>({
     crud,
     createMutation,
     updateMutation,
+    permissions: { canCreate, canEdit },
     validate: (d) => (!d.name.trim() ? "名称は必須です" : null),
     toCreateRequest: buildOccupationCreateRequest,
     toUpdateRequest: buildOccupationUpdateRequest,
@@ -63,11 +70,18 @@ export function OccupationSettings() {
       columns={COLUMNS}
       filterProperties={[MASTER_STATUS_FILTER]}
       renderRow={(item, onEdit, canEdit) => (
-        <DataTableRow key={item.id} onClick={canEdit ? () => onEdit(item) : undefined}>
-          <TableCell className={`font-medium text-base ${C.text}`}>{item.name}</TableCell>
-          <TableCell className={`text-base ${C.text}`}>{item.description || "-"}</TableCell>
+        <DataTableRow key={item.id}>
+          <TableCell className={`font-medium ${C.text}`}>{item.name}</TableCell>
+          <TableCell className={C.text}>{item.description || "-"}</TableCell>
           <TableCell className="text-center"><StatusPill isActive={item.isActive} /></TableCell>
-          <TableCell className="p-0 text-right">{canEdit ? <RowActionButton onClick={() => onEdit(item)} /> : null}</TableCell>
+          <TableCell className="text-right">
+            {canEdit ? (
+              <RowActionButton
+                onClick={() => onEdit(item)}
+                aria-label={`職種「${item.name}」(ID: ${item.id}) を編集`}
+              />
+            ) : null}
+          </TableCell>
         </DataTableRow>
       )}
       renderSidePanel={(props) => <OccupationSidePanel key={props.item?.id ?? "new"} {...props} onDirtyChange={handleDirtyChange} />}

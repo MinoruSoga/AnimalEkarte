@@ -6,8 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// TestEstimateItem_CalculateTaxAmount mirrors BillingItem's tax calc but without a
-// discount field: tax base is simply unit_price * quantity.
+// TestEstimateItem_CalculateTaxAmount pins #85 discount-then-tax (aligned with BillingItem / MDL-01).
 func TestEstimateItem_CalculateTaxAmount(t *testing.T) {
 	tests := []struct {
 		name string
@@ -16,22 +15,32 @@ func TestEstimateItem_CalculateTaxAmount(t *testing.T) {
 	}{
 		{
 			name: "excluded tax: subtotal * rate",
-			item: EstimateItem{UnitPrice: 1000, Quantity: 2, TaxType: TaxTypeExcluded, TaxRate: 0.10},
+			item: EstimateItem{UnitPrice: 1000, Quantity: 2, DiscountAmount: 0, TaxType: TaxTypeExcluded, TaxRate: 0.10},
 			want: 200,
 		},
 		{
+			name: "excluded tax: discount reduces taxable base",
+			item: EstimateItem{UnitPrice: 1000, Quantity: 2, DiscountAmount: 500, TaxType: TaxTypeExcluded, TaxRate: 0.10},
+			want: 150,
+		},
+		{
 			name: "included tax: subtotal * rate / (1+rate)",
-			item: EstimateItem{UnitPrice: 1100, Quantity: 1, TaxType: TaxTypeIncluded, TaxRate: 0.10},
+			item: EstimateItem{UnitPrice: 1100, Quantity: 1, DiscountAmount: 0, TaxType: TaxTypeIncluded, TaxRate: 0.10},
 			want: 100,
 		},
 		{
 			name: "exempt tax always zero",
-			item: EstimateItem{UnitPrice: 1000, Quantity: 3, TaxType: TaxTypeExempt, TaxRate: 0.10},
+			item: EstimateItem{UnitPrice: 1000, Quantity: 3, DiscountAmount: 0, TaxType: TaxTypeExempt, TaxRate: 0.10},
+			want: 0,
+		},
+		{
+			name: "discount exceeding subtotal floors taxable base at zero",
+			item: EstimateItem{UnitPrice: 100, Quantity: 1, DiscountAmount: 500, TaxType: TaxTypeExcluded, TaxRate: 0.10},
 			want: 0,
 		},
 		{
 			name: "unknown tax type defaults to zero",
-			item: EstimateItem{UnitPrice: 1000, Quantity: 1, TaxType: TaxType("unknown"), TaxRate: 0.10},
+			item: EstimateItem{UnitPrice: 1000, Quantity: 1, DiscountAmount: 0, TaxType: TaxType("unknown"), TaxRate: 0.10},
 			want: 0,
 		},
 	}

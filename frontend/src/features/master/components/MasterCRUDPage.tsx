@@ -23,7 +23,7 @@ interface Column {
 interface SidePanelRenderProps<T, TForm = Record<string, unknown>> {
   item: T | null;
   onClose: () => void;
-  onSave: (data: TForm) => void;
+  onSave: (data: TForm) => Promise<boolean> | boolean | void;
   onDeleteRequest: ((item: T) => void) | undefined;
   /** BUG-158: true の場合、保存・削除ボタンを非表示にする */
   readOnly?: boolean;
@@ -46,7 +46,7 @@ interface MasterCRUDPageProps<T extends MasterEntity, TForm = Record<string, unk
   /** CRUD state from useMasterCRUD */
   crud: UseMasterCRUDReturn<T>;
   /** Save handler from useMasterSave */
-  handleSave: (data: TForm) => void;
+  handleSave: (data: TForm) => Promise<boolean> | boolean | void;
 
   /** Table columns */
   columns: Column[];
@@ -94,9 +94,9 @@ export const MasterCRUDPage = memo(function MasterCRUDPage<T extends MasterEntit
   sortProperties,
   resource,
 }: MasterCRUDPageProps<T, TForm>) {
-  // BUG-158: edit/delete 権限で保存・削除ボタンの表示を制御
+  // BUG-158: action-specific 権限で保存・削除ボタンの表示を制御
   // FE6-2: resource は任意。フック呼び出し順序維持のための sentinel（"" は未定義扱い）。
-  const { canEdit, canDelete } = usePermission((resource ?? "") as Resource);
+  const { canCreate, canEdit, canDelete } = usePermission((resource ?? "") as Resource);
 
   const deleteName = crud.pendingDelete
     ? String((crud.pendingDelete as Record<string, unknown>)[deleteNameField] ?? "")
@@ -125,7 +125,7 @@ export const MasterCRUDPage = memo(function MasterCRUDPage<T extends MasterEntit
               onClose: crud.handleClose,
               onSave: handleSave,
               onDeleteRequest: canDelete ? crud.setPendingDelete : undefined,
-              readOnly: !canEdit,
+              readOnly: crud.editTarget === "new" ? canCreate !== true : canEdit !== true,
             })
           : null
       }

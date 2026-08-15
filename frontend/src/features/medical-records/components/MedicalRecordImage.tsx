@@ -17,12 +17,15 @@ interface MedicalRecordImageProps {
   medicalRecordId?: string;
   /** P2-15: 拠点横断で開いたカルテの子リソース操作用。レコード自身の clinicId */
   recordClinicId?: string;
+  /** SEC-CS-F14: 死亡ペットでは画像アップロードを UI から無効化する */
+  isPetDeceased?: boolean;
 }
 
 export const MedicalRecordImage = memo(function MedicalRecordImage({
   isNewRecord = false,
   medicalRecordId,
   recordClinicId,
+  isPetDeceased = false,
 }: MedicalRecordImageProps) {
   const { canCreate, canDelete } = usePermission("medical-records");
   const [searchTerm, setSearchTerm] = useState("");
@@ -49,12 +52,14 @@ export const MedicalRecordImage = memo(function MedicalRecordImage({
     [apiImageGroups, deferredSearch],
   );
 
+  const canUpload = canCreate && !isPetDeceased;
+
   const handleFilesSelected = useCallback(
     (files: File[]) => {
-      if (!canCreate || !resolvedId) return;
+      if (!canUpload || !resolvedId) return;
       uploadMutation.mutate(files);
     },
-    [canCreate, resolvedId, uploadMutation],
+    [canUpload, resolvedId, uploadMutation],
   );
 
   const { mutate: deleteImageFn } = deleteMutation;
@@ -83,7 +88,7 @@ export const MedicalRecordImage = memo(function MedicalRecordImage({
         onSortOrderChange={setSortOrder}
         isUploading={uploadMutation.isPending}
         onFilesSelected={handleFilesSelected}
-        canUpload={canCreate}
+        canUpload={canUpload}
       />
 
       {/* Results Title */}

@@ -2,54 +2,144 @@ package main
 
 import (
 	"context"
-	"log/slog"
-	"runtime/debug"
+	"crypto/subtle"
+	"errors"
+	"fmt"
+	"net/http"
 	"time"
 
-	"github.com/animal-ekarte/backend/internal/logger"
+	"github.com/gin-gonic/gin"
+
+	"github.com/animal-ekarte/backend/internal/lstep"
+	"github.com/animal-ekarte/backend/internal/scheduler"
 )
 
-// runScheduled は nextFire が返す時刻まで待機して task を実行するループを ctx がキャンセルされるまで繰り返す。
-// task のエラーはログに残すのみでループは継続する（LSTEP-BE-004/014, FEAT-383 バッチの既存挙動を維持）。
-// task が panic しても per-iteration recover により回復し、ループは次回発火時刻まで継続する。
-func runScheduled(ctx context.Context, name string, nextFire func(now time.Time) time.Time, task func(context.Context) error) {
-	for {
-		now := time.Now()
-		next := nextFire(now)
-		timer := time.NewTimer(next.Sub(now))
-		select {
-		case <-ctx.Done():
-			timer.Stop()
+// schedulerInternalTokenHeader is the application-level privilege header for
+// all-clinic scheduled batch routes (DEC-36 / CMD-02).
+const schedulerInternalTokenHeader = "X-Scheduler-Token"
+
+var errScheduledBatchUnavailable = errors.New("scheduled batch service is unavailable")
+
+type scheduledBatchService interface {
+	RunNoShowCheckAllClinicsAt(
+		ctx context.Context,
+		scheduledAt time.Time,
+		runID string,
+	) lstep.BatchRunResult
+	RunDeliveryTriggerBatchAllClinicsAt(
+		ctx context.Context,
+		scheduledAt time.Time,
+		runID string,
+	) lstep.BatchRunResult
+	RunDormantDetectionAllClinicsAt(
+		ctx context.Context,
+		scheduledAt time.Time,
+		runID string,
+	) lstep.BatchRunResult
+}
+
+type lstepScheduledJobExecutor struct {
+	batch scheduledBatchService
+}
+
+func newLstepScheduledJobExecutor(batch scheduledBatchService) *lstepScheduledJobExecutor {
+	return &lstepScheduledJobExecutor{batch: batch}
+}
+
+func registerScheduledJobRoutes(routes gin.IRoutes, batch scheduledBatchService, internalToken string) {
+	// Always register the contract path; middleware fails closed when the shared
+	// secret is unset or the header does not match (DEC-36 / CMD-02).
+	var protected gin.IRoutes
+	switch r := routes.(type) {
+	case *gin.Engine:
+		protected = r.Group("", requireSchedulerInternalToken(internalToken))
+	case *gin.RouterGroup:
+		protected = r.Group("", requireSchedulerInternalToken(internalToken))
+	default:
+		// Production always passes *gin.Engine; refuse unknown IRoutes shapes.
+		return
+	}
+	scheduler.NewHandler(newLstepScheduledJobExecutor(batch)).RegisterRoutes(protected)
+}
+
+func requireSchedulerInternalToken(expected string) gin.HandlerFunc {
+	expectedBytes := []byte(expected)
+	return func(c *gin.Context) {
+		// Empty expected never authenticates (including empty provided header).
+		if len(expectedBytes) == 0 {
+			c.AbortWithStatus(http.StatusUnauthorized)
 			return
-		case <-timer.C:
-			runScheduledIteration(ctx, name, task)
 		}
-	}
-}
-
-// runScheduledIteration は task を1回だけ実行し、panic を回復してループの継続を保証する。
-func runScheduledIteration(ctx context.Context, name string, task func(context.Context) error) {
-	defer func() {
-		if r := recover(); r != nil {
-			logger.Error(name+" panicked", slog.Any("panic", r), slog.String("stack", string(debug.Stack())))
+		provided := []byte(c.GetHeader(schedulerInternalTokenHeader))
+		if len(provided) != len(expectedBytes) ||
+			subtle.ConstantTimeCompare(provided, expectedBytes) != 1 {
+			c.AbortWithStatus(http.StatusUnauthorized)
+			return
 		}
-	}()
-	if err := task(ctx); err != nil {
-		logger.Error(name+" failed", slog.String("error", err.Error()))
+		c.Next()
 	}
 }
 
-// hourlyTick は次の時刻の0分を返す（毎時0分起動のバッチ用）。
-func hourlyTick(now time.Time) time.Time {
-	return now.Truncate(time.Hour).Add(time.Hour)
+func (e *lstepScheduledJobExecutor) Execute(
+	ctx context.Context,
+	execution scheduler.Execution,
+) (scheduler.Result, error) {
+	if e == nil || e.batch == nil {
+		return scheduler.Result{}, errScheduledBatchUnavailable
+	}
+
+	// FenceToken protects durable-ledger finalization in the Worker coordinator.
+	// It is intentionally not presented as an application-side revocation fence;
+	// Go work instead obeys ctx and retains each domain's CAS/idempotency checks.
+	var result lstep.BatchRunResult
+	switch execution.Job {
+	case scheduler.JobNoShow:
+		result = e.batch.RunNoShowCheckAllClinicsAt(
+			ctx,
+			execution.ScheduledAt,
+			execution.RunID,
+		)
+	case scheduler.JobDelivery:
+		result = e.batch.RunDeliveryTriggerBatchAllClinicsAt(
+			ctx,
+			execution.ScheduledAt,
+			execution.RunID,
+		)
+	case scheduler.JobDormant:
+		result = e.batch.RunDormantDetectionAllClinicsAt(
+			ctx,
+			execution.ScheduledAt,
+			execution.RunID,
+		)
+	default:
+		return scheduler.Result{}, fmt.Errorf(
+			"unsupported scheduled job %q",
+			execution.Job,
+		)
+	}
+
+	if err := result.Validate(); err != nil {
+		return scheduler.Result{}, fmt.Errorf("invalid batch result: %w", err)
+	}
+	response := scheduler.Result{
+		Outcome:   scheduledOutcome(result),
+		Processed: result.Processed,
+		Succeeded: result.Succeeded,
+		Failed:    result.Failed,
+	}
+	if err := response.Validate(); err != nil {
+		return scheduler.Result{}, fmt.Errorf("invalid scheduled result: %w", err)
+	}
+	return response, nil
 }
 
-// dailyAt2AM は次の 02:00（now と同一ロケーション）を返す。
-// now が当日02:00以降であれば翌日02:00を返す。
-func dailyAt2AM(now time.Time) time.Time {
-	next := time.Date(now.Year(), now.Month(), now.Day(), 2, 0, 0, 0, now.Location())
-	if !next.After(now) {
-		next = next.Add(24 * time.Hour)
+func scheduledOutcome(result lstep.BatchRunResult) scheduler.Outcome {
+	switch {
+	case result.Failed == 0:
+		return scheduler.OutcomeSuccess
+	case result.Succeeded == 0:
+		return scheduler.OutcomeFailed
+	default:
+		return scheduler.OutcomePartial
 	}
-	return next
 }

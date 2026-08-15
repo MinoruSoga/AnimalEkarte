@@ -14,6 +14,15 @@ import type {
 } from "@/types/generated/models";
 export type { AccountingStatus, PaymentMethod, ItemCategory };
 
+export interface AddAccountingItemInput {
+  name: string;
+  price: string;
+  category: string;
+  otherReason?: string;
+  taxRate?: number;
+  merchandiseItemId?: string;
+}
+
 /** @see {@link import("@/types/generated/models").BillingItem} */
 export interface AccountingItem {
   id: string;
@@ -30,7 +39,12 @@ export interface AccountingItem {
   subtotal: number;  // (unit_price × quantity − 割引額)（税抜・割引後 #85）
   isInsuranceApplicable: boolean;
   source: "medical_record" | "manual" | "hospitalization" | "trimming";
+  otherReason?: string;
+  merchandiseItemId?: string;
+  vaccinationId?: string;
   treatmentId?: string;
+  /** treatment 由来の親カルテ（未請求候補などで付与） */
+  medicalRecordId?: string;
   appointmentId?: string;
   trimmingCourseId?: string;
   trimmingOptionId?: string;
@@ -80,5 +94,7 @@ export interface Accounting {
   payment?: PaymentInfo;
   paymentSplits?: PaymentSplitInfo[];
   totalRefundedAmount: number; // 返金合計（0の場合はバッジ非表示）
+  /** BUG-007: 未収残高（waiting 全額 or クレジット訂正後の patient_due−支払額） */
+  outstandingAmount?: number;
   memo?: string;
 }

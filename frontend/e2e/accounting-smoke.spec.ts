@@ -1,12 +1,14 @@
 import { test, expect } from '@playwright/test';
 import type { BrowserContext } from '@playwright/test';
 import { createAuthedContext } from './helpers/context';
+import { DEMO_ACCOUNTING_KANA_PET, DEMO_ACCOUNTING_OFFPAGE_PET } from './helpers/demo-seed';
 import { AccountingPage } from './pages/accounting-page';
 
 // Seed prerequisites:
-//   - admin@noavet.jp (is_system_admin=true) has full accounting permission
-//   - owner 1 (林 文明) has completed billings for pet 1 (Iris(イリス), name_kana=いりす)
-//   - /v1/accountings returns these records with no date filter set
+//   - E2E_LOGIN_* account has accounting view permission
+//   - List text search is server-side (?search=) with kana symmetry
+//   - DEMO_ACCOUNTING_OFFPAGE_PET is not on page 1 without search
+//   - Iris has no billing rows in 003_demo
 //
 // Design: fresh page per test within shared context to avoid Chromium
 // state accumulation across many navigations.
@@ -37,15 +39,18 @@ test.describe('会計 smoke E2E', () => {
     }
   });
 
-  test('会計一覧: ひらがな「いりす」でカタカナ「Iris(イリス)」が表示される (かな非区別検索)', async () => {
+  test('会計一覧: ひらがな検索でページ外のカタカナペット名がヒットする (サーバサイド・かな非区別)', async () => {
     const page = await context.newPage();
     const accounting = new AccountingPage(page);
     try {
       await accounting.gotoList();
       await expect(accounting.listTab()).toBeVisible({ timeout: 30000 });
 
-      // Search input is hidden behind a toggle — click the search button first.
-      // The button renders once AccountingListTable mounts (after API resolves).
+      // Off-page pet must not be visible before search (proves not client-only page filter)
+      await expect(
+        page.locator('tbody').getByText(DEMO_ACCOUNTING_OFFPAGE_PET.displayName, { exact: true }),
+      ).toHaveCount(0);
+
       const searchToggle = accounting.searchToggle();
       await expect(searchToggle).toBeVisible({ timeout: 15000 });
       await searchToggle.click();
@@ -53,18 +58,17 @@ test.describe('会計 smoke E2E', () => {
       const searchInput = accounting.searchInput();
       await expect(searchInput).toBeVisible({ timeout: 5000 });
 
-      // normalizeKana('Iris(イリス)') → 'iris(いりす)'; includes('いりす') → true
-      // .first() because seed may contain multiple Iris billing rows
-      await searchInput.fill('いりす');
-      await expect(accounting.irisCell()).toBeVisible({
-        timeout: 5000,
-      });
+      // べるす → ベルス (server NormalizeKana + translate)
+      await searchInput.fill(DEMO_ACCOUNTING_OFFPAGE_PET.hiraganaSearch);
+      await expect(
+        page.locator('tbody').getByText(DEMO_ACCOUNTING_OFFPAGE_PET.displayName, { exact: true }).first(),
+      ).toBeVisible({ timeout: 15000 });
     } finally {
       await page.close();
     }
   });
 
-  test('会計一覧: カタカナ「イリス」でも「Iris(イリス)」が表示される (ひらがな・カタカナ統一検索)', async () => {
+  test('会計一覧: カタカナ検索でも同一ペット名が表示される (ひらがな・カタカナ統一検索)', async () => {
     const page = await context.newPage();
     const accounting = new AccountingPage(page);
     try {
@@ -78,12 +82,24 @@ test.describe('会計 smoke E2E', () => {
       const searchInput = accounting.searchInput();
       await expect(searchInput).toBeVisible({ timeout: 5000 });
 
-      // normalizeKana('イリス') → 'いりす', same match as hiragana above
-      // .first() because seed may contain multiple Iris billing rows
-      await searchInput.fill('イリス');
-      await expect(accounting.irisCell()).toBeVisible({
-        timeout: 5000,
-      });
+      await searchInput.fill(DEMO_ACCOUNTING_OFFPAGE_PET.katakanaSearch);
+      await expect(
+        page.locator('tbody').getByText(DEMO_ACCOUNTING_OFFPAGE_PET.displayName, { exact: true }).first(),
+      ).toBeVisible({ timeout: 15000 });
+    } finally {
+      await page.close();
+    }
+  });
+
+  test('会計一覧: ページ1のペットもサーバ検索でヒットする', async () => {
+    const page = await context.newPage();
+    const accounting = new AccountingPage(page);
+    try {
+      await accounting.gotoList();
+      await expect(accounting.listTab()).toBeVisible({ timeout: 30000 });
+      await accounting.searchToggle().click();
+      await accounting.searchInput().fill(DEMO_ACCOUNTING_KANA_PET.hiraganaSearch);
+      await expect(accounting.kanaPetCell()).toBeVisible({ timeout: 15000 });
     } finally {
       await page.close();
     }

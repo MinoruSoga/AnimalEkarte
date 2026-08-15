@@ -1,5 +1,14 @@
-import { useState, lazy, Suspense, useCallback, useEffect } from "react";
+import {
+  useState,
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+} from "react";
 import { useNavigate, useParams, useLoaderData } from "react-router";
+import { useQueryClient } from "@tanstack/react-query";
 import { User, Receipt } from "lucide-react";
 import { toast } from "sonner";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
@@ -10,13 +19,15 @@ import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { useTitle } from "@/hooks/use-title";
 import { usePostalCodeLookup } from "../hooks/use-postal-code-lookup";
 import { useAuth } from "@/hooks/use-auth";
-import { C, ICON } from "@/lib/design-tokens";
+import { C, ICON, LAYOUT } from "@/lib/design-tokens";
 import { handleApiError } from "@/lib/handle-api-error";
+import { setStoredClinicId } from "@/lib/current-clinic";
 import { paths } from "@/config/paths";
 import { usePermission } from "@/hooks/use-permission";
 import { OwnerInfoSection } from "../components/OwnerInfoSection";
 import { OwnerPetsSection } from "../components/OwnerPetsSection";
 import { useOwnerForm } from "../hooks/use-owner-form";
+import { resolvePostCreateOwnerNavigation } from "../lib/post-create-owner-navigation";
 import type { PetMutations } from "@/types/pet";
 import type { OwnerData, MembershipTypeLabel } from "../types";
 import type { OwnerLoaderData } from "../loaders";
@@ -34,8 +45,19 @@ const OWNER_FIELD_ID_MAP: Record<string, string> = {
   phone: "phone",
   email: "email",
   discountRate: "discountRate",
+  postalCode: "postalCode",
+  homePostalCode: "homePostalCode",
 };
-const OWNER_PRIORITY_FIELDS = ["ownerName", "ownerNameKana", "phone", "email", "discountRate"] as const;
+// BUG-023: 形式/範囲エラーも優先フォーカス対象に含める
+const OWNER_PRIORITY_FIELDS = [
+  "ownerName",
+  "ownerNameKana",
+  "phone",
+  "email",
+  "postalCode",
+  "homePostalCode",
+  "discountRate",
+] as const;
 
 interface OwnerFormProps {
   petMutations?: PetMutations;
@@ -45,8 +67,13 @@ interface OwnerFormProps {
 
 export function OwnerForm({ petMutations, lineSection, accountingSection }: OwnerFormProps = {}) {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { id: ownerId } = useParams();
   const { canEdit, canCreate, canDelete } = usePermission("owners");
+  const canEditRef = useRef(canEdit);
+  useLayoutEffect(() => {
+    canEditRef.current = canEdit;
+  }, [canEdit]);
   // #84: 登録先医院の選択肢（所属医院のみ）と現在の医院。複数所属時のみセレクト表示
   const { user, currentClinicId } = useAuth();
   // BUG-372: 割引権限（値引率フィールド制御用）
@@ -80,11 +107,20 @@ export function OwnerForm({ petMutations, lineSection, accountingSection }: Owne
     handleEditPet,
     handleDeletePet,
     handleSavePet,
+    handlePetLifecycleChange,
     formAction,
     formState,
     fieldErrors,
     clearFieldError,
-  } = useOwnerForm(ownerId, initialOwner, petMutations);
+  } = useOwnerForm(ownerId, initialOwner, petMutations, {
+    canCreate,
+    canEdit,
+    canDelete,
+  });
+  const editingPetRef = useRef(editingPet);
+  useLayoutEffect(() => {
+    editingPetRef.current = editingPet;
+  }, [editingPet]);
 
   const canSubmit = isEdit ? canEdit : canCreate;
 
@@ -92,16 +128,49 @@ export function OwnerForm({ petMutations, lineSection, accountingSection }: Owne
 
   // React 19 Action の成功を検知して遷移
   // BUG-065: 新規登録後は詳細ページへリダイレクト
+  // BUG-010: 登録先医院 ≠ グローバル選択なら clinic を切替えて hard navigate（X-Clinic-ID 整合）
   useEffect(() => {
     if (formState.success) {
       markClean();
       if (!isEdit && formState.data) {
-        navigate(paths.owners.detail.getHref(formState.data as string));
+        const payload = formState.data as { id: string; clinicId?: string } | string;
+        const createdOwnerId = typeof payload === "string" ? payload : payload.id;
+        const targetClinicId =
+          typeof payload === "string"
+            ? ownerData.clinicId
+            : (payload.clinicId ?? ownerData.clinicId);
+        const plan = resolvePostCreateOwnerNavigation({
+          ownerId: createdOwnerId,
+          targetClinicId,
+          currentClinicId,
+        });
+        if (plan.mode === "hard") {
+          if (!setStoredClinicId(plan.clinicId)) {
+            toast.error("クリニックの切替に失敗しました。登録は完了しています。医院を切り替えてから詳細を開いてください。");
+            navigate(paths.owners.getHref());
+            return;
+          }
+          // switchClinic と同様: 旧 clinic キャッシュを捨ててから新 X-Clinic-ID で詳細をロード
+          queryClient.clear();
+          window.location.assign(plan.href);
+          return;
+        }
+        navigate(plan.href);
       } else if (isEdit) {
         navigate(paths.owners.getHref());
       }
     }
-  }, [formState.success, formState.data, formState.timestamp, navigate, markClean, isEdit]);
+  }, [
+    formState.success,
+    formState.data,
+    formState.timestamp,
+    navigate,
+    markClean,
+    isEdit,
+    ownerData.clinicId,
+    currentClinicId,
+    queryClient,
+  ]);
 
   // BUG-084: バリデーションエラー後に最初のエラーフィールドへフォーカスを移動する
   // フォームのアクセシビリティ改善（WCAG 2.4.3 Focus Order / 3.3.1 Error Identification）
@@ -124,15 +193,24 @@ export function OwnerForm({ petMutations, lineSection, accountingSection }: Owne
   // BUG-373: 飼主変更 — discount_rate/membership_type が異なる時のみ確認モーダル
   const handlePetChangeOwner = useCallback(
     (newOwner: { id: string; name: string; discountRate: number; membershipType: string }) => {
-      if (!editingPet?.id || !petMutations) return;
+      const currentEditingPet = editingPetRef.current;
+      if (
+        canEditRef.current !== true ||
+        !currentEditingPet?.id ||
+        currentEditingPet.status === "死亡" ||
+        !petMutations
+      ) {
+        return;
+      }
       const needsConfirm =
         (ownerData.discountRate ?? 0) !== newOwner.discountRate ||
         ownerData.membershipType !== newOwner.membershipType;
       if (needsConfirm) {
         setPendingOwnerChange({ id: newOwner.id, name: newOwner.name });
       } else {
+        if (canEditRef.current !== true) return;
         petMutations.updatePetMutate(
-          { id: editingPet.id, req: { owner_id: Number(newOwner.id) } },
+          { id: currentEditingPet.id, req: { owner_id: Number(newOwner.id) } },
           {
             onSuccess: () => {
               toast.success(`飼主を ${newOwner.name} に変更しました`);
@@ -145,14 +223,24 @@ export function OwnerForm({ petMutations, lineSection, accountingSection }: Owne
         );
       }
     },
-    [editingPet, petMutations, ownerData.discountRate, ownerData.membershipType, setPetModalOpen],
+    [petMutations, ownerData.discountRate, ownerData.membershipType, setPetModalOpen],
   );
 
   const handleConfirmOwnerChange = useCallback(() => {
-    if (!pendingOwnerChange || !editingPet?.id || !petMutations) return;
+    const currentEditingPet = editingPetRef.current;
+    if (
+      canEditRef.current !== true ||
+      !pendingOwnerChange ||
+      !currentEditingPet?.id ||
+      currentEditingPet.status === "死亡" ||
+      !petMutations
+    ) {
+      return;
+    }
     const newOwner = pendingOwnerChange;
+    if (canEditRef.current !== true) return;
     petMutations.updatePetMutate(
-      { id: editingPet.id, req: { owner_id: Number(newOwner.id) } },
+      { id: currentEditingPet.id, req: { owner_id: Number(newOwner.id) } },
       {
         onSuccess: () => {
           toast.success(`飼主を ${newOwner.name} に変更しました`);
@@ -165,7 +253,7 @@ export function OwnerForm({ petMutations, lineSection, accountingSection }: Owne
         },
       },
     );
-  }, [pendingOwnerChange, editingPet, petMutations, setPetModalOpen]);
+  }, [pendingOwnerChange, petMutations, setPetModalOpen]);
 
   // rerender-functional-setstate: setOwnerData・markDirty は両方安定した参照なので
   // useCallback で handleInputChange を安定化できる → MembershipTypeButtons memo の前提条件
@@ -204,16 +292,18 @@ export function OwnerForm({ petMutations, lineSection, accountingSection }: Owne
     [ownerData, lookup, handleInputChange],
   );
 
+  // BUG-023: HTML5 の type=email / type=number max が formAction 前に静かにブロックするため noValidate。
+  // 表示は useOwnerForm の fieldErrors に一本化。
   return (
-    <form action={formAction}>
+    <form action={formAction} noValidate className="h-full">
       <PageLayout
         title={isEdit ? "飼主・ペット　編集" : "飼主・ペット　登録"}
         onBack={handleBack}
         resource={ResourceOwners}
-        maxWidth="max-w-[1400px]"
+        maxWidth={LAYOUT.pageContentMaxWidth.full}
         headerAction={
           canSubmit ? (
-            <SubmitButton size="sm" colorVariant="brand">
+            <SubmitButton size="sm" colorVariant="primary">
               {isEdit ? "更新" : "登録"}
             </SubmitButton>
           ) : null
@@ -284,6 +374,7 @@ export function OwnerForm({ petMutations, lineSection, accountingSection }: Owne
             petData={editingPet ?? undefined}
             onSave={handleSavePet}
             onChangeOwner={handlePetChangeOwner}
+            onPetLifecycleChange={handlePetLifecycleChange}
           />
         </Suspense>
 

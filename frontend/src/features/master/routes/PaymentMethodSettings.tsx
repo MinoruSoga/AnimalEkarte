@@ -27,6 +27,7 @@ import type {
 import {
   buildPaymentMethodCreateRequest,
   buildPaymentMethodUpdateRequest,
+  validatePaymentMethodForm,
 } from "./payment-method-settings-model";
 import { ResourcePaymentMethod } from "@/types/generated/models";
 
@@ -39,16 +40,24 @@ const COLUMNS = [
 
 // ─── Page ───
 export function PaymentMethodSettings() {
-  usePermission(ResourcePaymentMethod);
+  const { canCreate, canEdit, canDelete } = usePermission(ResourcePaymentMethod);
   const { data } = useGetPaymentMethods();
   const createMutation = useCreatePaymentMethod();
   const updateMutation = useUpdatePaymentMethod();
   const deleteMutation = useDeletePaymentMethod();
 
   const dirty = useSidePeekDirty();
-  const crud = useMasterCRUD<PaymentMethod>({ data, deleteMutation, entityLabel: "支払方法", dirtyGuard: dirty });
+  const crud = useMasterCRUD<PaymentMethod>({
+    data,
+    deleteMutation,
+    entityLabel: "支払方法",
+    dirtyGuard: dirty,
+    permissions: { canDelete },
+  });
   const handleDirtyChange = useCallback((d: boolean) => { if (d) dirty.markDirty(); else dirty.markClean(); }, [dirty]);
 
+  const editingId =
+    crud.editTarget !== null && crud.editTarget !== "new" ? crud.editTarget.id : null;
   const { handleSave } = useMasterSave<
     PaymentMethod,
     PaymentMethodFormData,
@@ -58,7 +67,12 @@ export function PaymentMethodSettings() {
     crud,
     createMutation,
     updateMutation,
-    validate: (d) => (!d.name.trim() ? "名称は必須です" : null),
+    permissions: { canCreate, canEdit },
+    validate: (d) =>
+      validatePaymentMethodForm(d, {
+        existing: data,
+        editingId,
+      }),
     toCreateRequest: buildPaymentMethodCreateRequest,
     toUpdateRequest: buildPaymentMethodUpdateRequest,
   });
@@ -76,10 +90,17 @@ export function PaymentMethodSettings() {
       columns={COLUMNS}
       filterProperties={[MASTER_STATUS_FILTER]}
       renderRow={(item, onEdit, canEdit) => (
-        <DataTableRow key={item.id} onClick={canEdit ? () => onEdit(item) : undefined}>
-          <TableCell className={`font-medium text-base ${C.text}`}>{item.name}</TableCell>
+        <DataTableRow key={item.id}>
+          <TableCell className={`font-medium ${C.text}`}>{item.name}</TableCell>
           <TableCell className="text-center"><StatusPill isActive={item.isActive} /></TableCell>
-          <TableCell className="p-0 text-right">{canEdit ? <RowActionButton onClick={() => onEdit(item)} /> : null}</TableCell>
+          <TableCell className="text-right">
+            {canEdit ? (
+              <RowActionButton
+                onClick={() => onEdit(item)}
+                aria-label={`支払方法「${item.name}」(ID: ${item.id}) を編集`}
+              />
+            ) : null}
+          </TableCell>
         </DataTableRow>
       )}
       renderSidePanel={(props) => (

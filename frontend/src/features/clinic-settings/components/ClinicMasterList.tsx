@@ -8,7 +8,7 @@ import { PropertyFilter } from "@/components/shared/PropertyFilter/PropertyFilte
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { RowActionButton } from "@/components/shared/RowActionButton";
-import { C, ICON } from "@/lib/design-tokens";
+import { C, ICON, LAYOUT } from "@/lib/design-tokens";
 import { ResourceHospitalSettings } from "@/types/generated/models";
 import type { Clinic } from "../api/clinics";
 
@@ -52,13 +52,13 @@ export function ClinicMasterList({
       onBack={onBack}
       headerAction={
         canCreate ? (
-          <PrimaryButton colorVariant="brand" onClick={onCreate}>
+          <PrimaryButton colorVariant="primary" onClick={onCreate}>
             <Plus className={`mr-1.5 ${ICON.action}`} />
             新規登録
           </PrimaryButton>
         ) : null
       }
-      maxWidth="max-w-full"
+      maxWidth={LAYOUT.pageContentMaxWidth.full}
     >
       <div className="flex flex-col gap-4">
         {topSection}
@@ -79,17 +79,17 @@ export function ClinicMasterList({
           data={items}
           emptyMessage="医院が登録されていません"
           renderRow={(item) => (
-            <DataTableRow key={item.id} onClick={canEdit ? () => onEdit(item) : undefined}>
-              <TableCell className={`font-medium text-sm ${C.text} py-2.5`}>
+            <DataTableRow key={item.id}>
+              <TableCell className={`font-medium text-sm ${C.text}`}>
                 {item.name}
               </TableCell>
-              <TableCell className={`font-mono text-sm ${C.text80} py-2.5`}>
+              <TableCell className={`font-mono text-sm ${C.text80}`}>
                 {item.phoneNumber || "-"}
               </TableCell>
-              <TableCell className={`text-sm ${C.text80} py-2.5`}>
+              <TableCell className={`text-sm ${C.text80}`}>
                 {item.email || "-"}
               </TableCell>
-              <TableCell className="text-right py-2.5">
+              <TableCell className="text-right">
                 <span className="inline-flex items-center gap-1.5">
                   <span className={`size-[7px] rounded-full ${item.isActive ? C.bgBrandDot : C.bgPrimary10}`} />
                   <span className={`text-sm ${item.isActive ? C.text65 : C.text35}`}>
@@ -97,8 +97,13 @@ export function ClinicMasterList({
                   </span>
                 </span>
               </TableCell>
-              <TableCell className="p-0 text-right">
-                {canEdit ? <RowActionButton onClick={() => onEdit(item)} /> : null}
+              <TableCell className="text-right">
+                {canEdit ? (
+                  <RowActionButton
+                    onClick={() => onEdit(item)}
+                    aria-label={`医院「${item.name}」(ID: ${item.id}) を編集`}
+                  />
+                ) : null}
               </TableCell>
             </DataTableRow>
           )}
@@ -107,7 +112,7 @@ export function ClinicMasterList({
           <button
             type="button"
             onClick={onCreate}
-            className={`flex items-center gap-1.5 w-full px-3 py-2 text-sm ${C.text40} ${C.hoverText60} ${C.hoverBgLight} transition-colors rounded`}
+            className={`flex min-h-11 items-center gap-1.5 w-full px-3 py-2 text-sm ${C.text40} ${C.hoverText60} ${C.hoverBgLight} transition-colors rounded`}
           >
             <Plus className={ICON.xs} />
             新しい医院を追加...

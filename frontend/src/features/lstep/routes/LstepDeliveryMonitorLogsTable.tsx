@@ -27,7 +27,7 @@ export function DeliveryLogsTable({
   onNextPage,
 }: DeliveryLogsTableProps) {
   return (
-    <div className={`bg-white border ${C.borderLight} rounded-[4px] flex flex-col flex-1 min-h-0`}>
+    <div className={`${C.bgWhite} border ${C.borderLight} rounded-xs flex flex-col flex-1 min-h-0`}>
       <div className={`${STYLE.tableContainer} flex-1 overflow-auto`}>
         <table className="w-full text-sm border-collapse">
           <thead>

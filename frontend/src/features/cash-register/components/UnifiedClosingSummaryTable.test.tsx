@@ -81,4 +81,31 @@ describe("UnifiedClosingSummaryTable (#153 統合テーブル)", () => {
     );
     expect(screen.getByText("対象期間の会計データがありません")).toBeInTheDocument();
   });
+
+  it("DEC-40: 未分類・要確認は独立件数を表示し、旧 snapshot は記録なし", () => {
+    const { rerender } = render(
+      <UnifiedClosingSummaryTable
+        categories={{ other: { 現金: 1000 } }}
+        paymentMethods={PAYMENT_METHODS}
+        billingDetails={[detail({ billingId: 1, category: "other" }), detail({ billingId: 1, category: "other" })]}
+        unclassifiedOtherCount={1}
+      />,
+    );
+    const otherRow = screen.getByText("未分類・要確認").closest("tr")!;
+    // billingDetails は 2 行でも独立件数 1
+    expect(within(otherRow).getByText("1件")).toBeInTheDocument();
+    expect(screen.queryByText("その他")).not.toBeInTheDocument();
+
+    rerender(
+      <UnifiedClosingSummaryTable
+        categories={{ other: { 現金: 1000 } }}
+        paymentMethods={PAYMENT_METHODS}
+        billingDetails={[]}
+        unclassifiedOtherCount={null}
+      />,
+    );
+    const unrecordedRow = screen.getByText("未分類・要確認").closest("tr")!;
+    expect(within(unrecordedRow).getByText("記録なし")).toBeInTheDocument();
+  });
 });
+

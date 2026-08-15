@@ -1,9 +1,0 @@
-# Terraform
-.terraform/
-*.tfstate
-*.tfstate.backup
-.terraform.lock.hcl
-
-# Environment
-*.tfvars
-!terraform.tfvars.example

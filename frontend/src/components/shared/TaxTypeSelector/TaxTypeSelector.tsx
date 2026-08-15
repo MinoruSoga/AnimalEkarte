@@ -16,12 +16,16 @@ interface TaxTypeSelectorProps {
   value: TaxType;
   onChange: (value: TaxType) => void;
   disabled?: boolean;
+  ariaLabel?: string;
+  className?: string;
 }
 
 export const TaxTypeSelector = memo(function TaxTypeSelector({
   value,
   onChange,
   disabled,
+  ariaLabel,
+  className,
 }: TaxTypeSelectorProps) {
   return (
     <Select
@@ -29,7 +33,10 @@ export const TaxTypeSelector = memo(function TaxTypeSelector({
       onValueChange={(v) => onChange(v as TaxType)}
       disabled={disabled}
     >
-      <SelectTrigger className={STYLE.selectCompact}>
+      <SelectTrigger
+        aria-label={ariaLabel}
+        className={`${STYLE.selectCompact} ${className ?? ""}`.trimEnd()}
+      >
         <SelectValue placeholder="選択" />
       </SelectTrigger>
       <SelectContent>{TAX_TYPE_SELECT_ITEMS}</SelectContent>

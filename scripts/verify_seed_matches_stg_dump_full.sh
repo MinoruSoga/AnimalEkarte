@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 # scripts/verify_seed_matches_stg_dump_full.sh
 #
-# 機械的証明: seed(001_init.sql + 002/003/004 CSV バンドル) が STG dump と全テーブルで
+# 機械的証明: seed(全 DDL migration + 002/003/004 CSV バンドル) が STG dump と全テーブルで
 # 一致することを確認する。
 #
-# DB-A: 001_init.sql (DDL) を適用 → seeds/{002_master,003_demo,004_staging}/*.csv を
+# DB-A: migrations/*.sql (DDL) を昇順適用 → seeds/{002_master,003_demo,004_staging}/*.csv を
 #       manifest.json のテーブル順・固定バンドル順 (002→003→004) で \copy ロード
 #       （2026-07 の stub SQL 削除後は 002-004 に .sql ファイルが存在しないため、
 #       cmd/migrate と同じ CSV ロード経路をこのスクリプト内で再現する）
-# DB-B: 001_init.sql のスキーマ + dump の INSERT 文のみ適用
+# DB-B: migrations/*.sql のスキーマ + dump の INSERT 文のみ適用
 #       (session_replication_role='replica' で FK 順序を無視, schema_migrations はスキップ)
 #
 # 比較対象外カラム (一致不可能 — 除外理由を明記):
@@ -43,7 +43,9 @@ if [[ -z "$DUMP_FILE" ]]; then
 fi
 MIGRATION_DIR="$REPO_ROOT/backend/migrations"
 CONTAINER="ekarte_verify_$$"
-PORT="${VERIFY_PORT:-15432}"
+# Ephemeral credential per run — never hardcode. Host port is intentionally not
+# published; all access is via `docker exec` (no 0.0.0.0 bind, no loopback publish).
+POSTGRES_PASSWORD="$(openssl rand -hex 16)"
 DB_A="ekarte_a"
 DB_B="ekarte_b"
 
@@ -108,15 +110,15 @@ fi
 
 SEEDS_DIR="$MIGRATION_DIR/seeds"
 BUNDLE_ORDER=(002_master 003_demo 004_staging)
+DDL_FILES=("$MIGRATION_DIR"/*.sql)
 
 # ---------------------------------------------------------------------------
 # 1. Start container
 # ---------------------------------------------------------------------------
-echo "[1/5] Starting postgres:18-alpine container (name=$CONTAINER, port=$PORT)..."
+echo "[1/5] Starting postgres:18-alpine container (name=$CONTAINER, no host port publish)..."
 docker run -d --name "$CONTAINER" \
-  -e POSTGRES_PASSWORD=verify \
+  -e "POSTGRES_PASSWORD=${POSTGRES_PASSWORD}" \
   -e POSTGRES_USER=postgres \
-  -p "${PORT}:5432" \
   postgres:18-alpine > /dev/null
 
 for _ in $(seq 1 30); do
@@ -137,16 +139,19 @@ $PSQL_Q postgres -c "CREATE DATABASE ${DB_A};"
 $PSQL_Q postgres -c "CREATE DATABASE ${DB_B};"
 
 # ---------------------------------------------------------------------------
-# 3. DB-A: 001_init.sql (DDL) + seed バンドル (002_master→003_demo→004_staging) CSVロード
+# 3. DB-A: 全DDL + seed バンドル (002_master→003_demo→004_staging) CSVロード
 #    2026-07 の stub SQL 削除後は 002-004 に .sql が無いため、cmd/migrate の
 #    applyCSVBundle と同じ「manifest.json のテーブル順で \copy」をここで再現する。
 #    \copy はテーブル名を manifest.json の値からそのまま使う（外部入力ではなく
 #    リポジトリにコミット済みの自分自身の manifest のみを読む）。
 # ---------------------------------------------------------------------------
-echo "[3/5] DB-A: applying 001_init.sql + seed bundles..."
-printf "      %-32s" "001_init.sql"
-$PSQL_Q "$DB_A" < "$MIGRATION_DIR/001_init.sql"
-echo "OK"
+echo "[3/5] DB-A: applying DDL migrations + seed bundles..."
+for ddl in "${DDL_FILES[@]}"; do
+  ddl_name="$(basename "$ddl")"
+  printf "      %-48s" "$ddl_name"
+  $PSQL_Q "$DB_A" < "$ddl"
+  echo "OK"
+done
 
 for bundle in "${BUNDLE_ORDER[@]}"; do
   manifest="$SEEDS_DIR/$bundle/manifest.json"
@@ -165,12 +170,14 @@ for bundle in "${BUNDLE_ORDER[@]}"; do
 done
 
 # ---------------------------------------------------------------------------
-# 4. DB-B: 001 schema + dump INSERTs
+# 4. DB-B: current DDL schema + dump INSERTs
 # ---------------------------------------------------------------------------
-echo "[4/5] DB-B: applying 001 schema + dump INSERTs..."
+echo "[4/5] DB-B: applying current DDL schema + dump INSERTs..."
 
-$PSQL_Q "$DB_B" < "$MIGRATION_DIR/001_init.sql"
-echo "      001_init.sql schema applied."
+for ddl in "${DDL_FILES[@]}"; do
+  $PSQL_Q "$DB_B" < "$ddl"
+  echo "      $(basename "$ddl") schema applied."
+done
 
 {
   echo "SET session_replication_role = 'replica';"
