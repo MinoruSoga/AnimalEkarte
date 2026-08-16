@@ -358,13 +358,17 @@ func isAlreadyApplied(db *sql.DB, filename, checksum string) (bool, error) {
 
 	// 適用済みだが checksum が異なる → 改変されている
 	if storedChecksum != checksum {
+		fmt.Fprintf(os.Stderr, "checksum_mismatch_seen file=%s applied=%s current=%s\n", filename, storedChecksum, checksum)
 		repaired, repairErr := tryRepairKnownChecksumDrift(db, filename, storedChecksum, checksum)
 		if repairErr != nil {
+			fmt.Fprintf(os.Stderr, "checksum_repair_err file=%s err=%v\n", filename, repairErr)
 			return true, repairErr
 		}
 		if repaired {
+			fmt.Fprintf(os.Stderr, "checksum_repair_ok file=%s\n", filename)
 			return true, nil
 		}
+		fmt.Fprintf(os.Stderr, "checksum_repair_not_applicable file=%s\n", filename)
 		return true, fmt.Errorf(
 			"checksum mismatch for %s: applied=%s, current=%s — migration file was modified after execution",
 			filename, storedChecksum, checksum,
