@@ -56,47 +56,35 @@ jobs:
         working-directory: frontend
         run: |
           set -euo pipefail
-          pnpm exec vercel pull --yes --environment=${{ github.ref == 'refs/heads/production' && 'production' || 'preview' }} --token=${{ secrets.VERCEL_TOKEN }}
-          # Dashboard の Output Directory 食い違いで dist を見失う事例への防衛
-          node <<'NODE'
-          const fs = require('fs');
-          const path = '.vercel/project.json';
-          if (!fs.existsSync(path)) {
-            console.log('no .vercel/project.json');
-            process.exit(0);
-          }
-          const j = JSON.parse(fs.readFileSync(path, 'utf8'));
-          j.projectSettings = j.projectSettings || {};
-          j.projectSettings.outputDirectory = 'dist';
-          j.projectSettings.framework = j.projectSettings.framework || 'vite';
-          if (j.projectSettings.rootDirectory === '.' || j.projectSettings.rootDirectory === '') {
-            // CI は working-directory=frontend 前提。空/ルートは触らないがログに出す
-            console.log('rootDirectory=', j.projectSettings.rootDirectory);
-          }
-          fs.writeFileSync(path, JSON.stringify(j, null, 2));
-          console.log('forced outputDirectory=dist');
-          NODE
+          ENV=preview
+          if [ "${{ github.ref }}" = "refs/heads/production" ] || [ "${{ github.event.inputs.environment }}" = "production" ]; then
+            ENV=production
+          fi
+          pnpm exec vercel pull --yes --environment="$ENV" --token="${{ secrets.VERCEL_TOKEN }}"
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
-      - name: Build Project Artifacts
+      # vercel build --prebuilt は Project Settings の Output Directory と噛み合わず
+      # 「dist があるのに No Output Directory named dist」になる事例あり。
+      # Vite で dist を確定し、静的ディレクトリをそのまま deploy する。
+      - name: Build (Vite)
         working-directory: frontend
         run: |
           set -euo pipefail
-          # Project Settings の Output Directory 食い違いを避けるため、先に Vite で dist を確定させる
           pnpm build
           test -d dist
           test -f dist/index.html
-          ls -la dist | head
-          pnpm exec vercel build ${{ github.ref == 'refs/heads/production' && '--prod' || '' }} --token=${{ secrets.VERCEL_TOKEN }}
-        env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
       - name: Deploy to Vercel
         working-directory: frontend
-        run: pnpm exec vercel deploy --prebuilt ${{ github.ref == 'refs/heads/production' && '--prod' || '' }} --token=${{ secrets.VERCEL_TOKEN }}
+        run: |
+          set -euo pipefail
+          EXTRA=()
+          if [ "${{ github.ref }}" = "refs/heads/production" ] || [ "${{ github.event.inputs.environment }}" = "production" ]; then
+            EXTRA+=(--prod)
+          fi
+          pnpm exec vercel deploy dist --yes "${EXTRA[@]}" --token="${{ secrets.VERCEL_TOKEN }}"
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
