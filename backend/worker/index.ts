@@ -244,6 +244,84 @@ export class AnimalEkarteApiContainer extends Container<Env> {
       ),
     );
   }
+
+  /**
+   * API バイナリが数秒以内に exit するか確認する（値は出さずログ文字列のみ）。
+   * sleep コンテナ上で /app/api を短時間 exec する。
+   */
+  async diagnoseApiBoot(): Promise<{ ok: boolean; detail: string }> {
+    const rawContainer = this.ctx.container;
+    if (!rawContainer) {
+      return { ok: false, detail: "container unavailable" };
+    }
+    try {
+      await this.start({ entrypoint: ["sleep", "infinity"] });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      return { ok: false, detail: `start_failed: ${message.slice(0, 300)}` };
+    }
+
+    const env: Record<string, string> = {};
+    for (const [key, value] of Object.entries(this.envVars)) {
+      if (typeof value === "string") {
+        env[key] = value;
+      }
+    }
+    // 長さだけ（値なし）
+    const lens = [
+      `JWT_len=${(env.JWT_SECRET || "").length}`,
+      `DB_HOST_len=${(env.DB_HOST || "").length}`,
+      `DB_USER_len=${(env.DB_USER || "").length}`,
+      `DB_PASS_len=${(env.DB_PASSWORD || "").length}`,
+      `INTEG_len=${(env.INTEGRATION_ENCRYPTION_KEY || "").length}`,
+      `AWS_KEY_len=${(env.AWS_ACCESS_KEY_ID || "").length}`,
+      `AWS_SEC_len=${(env.AWS_SECRET_ACCESS_KEY || "").length}`,
+      `SMTP_HOST_len=${(env.SMTP_HOST || "").length}`,
+      `SMTP_USER_len=${(env.SMTP_USER || "").length}`,
+      `SMTP_PASS_len=${(env.SMTP_PASS || "").length}`,
+      `SCHED_INT_len=${(env.SCHEDULER_INTERNAL_TOKEN || "").length}`,
+      `GIN_MODE=${env.GIN_MODE || ""}`,
+      `STORAGE=${env.STORAGE_TYPE || ""}`,
+    ].join(" ");
+
+    try {
+      const proc = await rawContainer.exec(["/app/api"], {
+        env,
+        stdout: "pipe",
+        stderr: "pipe",
+      });
+      const outputOrTimeout = await Promise.race([
+        proc.output().then((output) => ({ kind: "exit" as const, output })),
+        new Promise<{ kind: "running" }>((resolve) => {
+          setTimeout(() => resolve({ kind: "running" }), 5000);
+        }),
+      ]);
+      if (outputOrTimeout.kind === "running") {
+        try {
+          proc.kill();
+        } catch {
+          // ignore
+        }
+        return { ok: true, detail: `api_still_running_after_5s ${lens}` };
+      }
+      const decoder = new TextDecoder();
+      const stdout = decoder.decode(outputOrTimeout.output.stdout).slice(0, 800);
+      const stderr = decoder.decode(outputOrTimeout.output.stderr).slice(0, 800);
+      return {
+        ok: false,
+        detail: `api_exited code=${outputOrTimeout.output.exitCode} ${lens} stdout=${stdout} stderr=${stderr}`,
+      };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      return { ok: false, detail: `api_exec_failed: ${message.slice(0, 400)} ${lens}` };
+    } finally {
+      try {
+        await this.stop();
+      } catch {
+        // ignore
+      }
+    }
+  }
 }
 
 export default {
@@ -380,7 +458,26 @@ async function handleMigrateRequest(request: Request, env: Env): Promise<Respons
   const container = getContainer(env.API_CONTAINER);
   try {
     const result = await container.runMigrate();
-    return toMigrateResponse(result);
+    // migrate 成功後も API が起動できないケースを切り分ける（secret 値は出さない）
+    let apiDiag: { ok: boolean; detail: string } | undefined;
+    try {
+      apiDiag = await container.diagnoseApiBoot();
+    } catch (diagErr) {
+      const message = diagErr instanceof Error ? diagErr.message : String(diagErr);
+      apiDiag = { ok: false, detail: `diag_threw: ${message.slice(0, 400)}` };
+    }
+    const response = toMigrateResponse(result);
+    if (result.exitCode === 0) {
+      const body = {
+        ...result,
+        api_boot: apiDiag,
+      };
+      return new Response(JSON.stringify(body), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    return response;
   } catch (err) {
     const message = err instanceof Error ? err.message : "unknown";
     // 秘密値は含めない前提の例外メッセージのみ返す
