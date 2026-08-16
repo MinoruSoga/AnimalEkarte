@@ -65,26 +65,26 @@ jobs:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
-      # vercel build --prebuilt は Project Settings の Output Directory と噛み合わず
-      # 「dist があるのに No Output Directory named dist」になる事例あり。
-      # Vite で dist を確定し、静的ディレクトリをそのまま deploy する。
-      - name: Build (Vite)
+      # Dashboard が Output Directory=frontend を指していると
+      # `vercel deploy dist` → dist/frontend を要求して落ちる。
+      # Vite 成果物は dist/ なので、要求パスに合わせてステージしてから upload する。
+      - name: Build and Deploy
         working-directory: frontend
         run: |
           set -euo pipefail
           pnpm build
-          test -d dist
           test -f dist/index.html
 
-      - name: Deploy to Vercel
-        working-directory: frontend
-        run: |
-          set -euo pipefail
+          STAGE=$(mktemp -d)
+          mkdir -p "$STAGE/frontend"
+          cp -a dist/. "$STAGE/frontend/"
+          test -f "$STAGE/frontend/index.html"
+
           EXTRA=()
           if [ "${{ github.ref }}" = "refs/heads/production" ] || [ "${{ github.event.inputs.environment }}" = "production" ]; then
             EXTRA+=(--prod)
           fi
-          pnpm exec vercel deploy dist --yes "${EXTRA[@]}" --token="${{ secrets.VERCEL_TOKEN }}"
+          pnpm exec vercel deploy "$STAGE" --yes "${EXTRA[@]}" --token="${{ secrets.VERCEL_TOKEN }}"
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
