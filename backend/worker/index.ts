@@ -43,37 +43,6 @@ export class AnimalEkarteApiContainer extends Container<Env> {
   // (docs/ops/infra/_archive/migration-cloudflare.md の想定コスト・「通常操作 10 分間程度」の負荷スモーク方針に合わせる)。
   sleepAfter = "10m";
 
-  // migrate 診断で entrypoint を sleep に差し替えたあとも、
-  // 通常リクエストでは必ず API バイナリを起動する。
-  override async containerFetch(
-    requestOrUrl: Request | string | URL,
-    portOrInit?: number | RequestInit,
-    portParam?: number,
-  ): Promise<Response> {
-    try {
-      // sleep infinity のまま running=true だと start がスキップされ 8080 待ちで落ちる
-      try {
-        await this.stop();
-      } catch {
-        // already stopped
-      }
-      await this.startAndWaitForPorts({
-        ports: this.defaultPort,
-        startOptions: {
-          entrypoint: ["/app/api"],
-          enableInternet: true,
-        },
-        cancellationOptions: {
-          portReadyTimeoutMS: 90_000,
-        },
-      });
-    } catch (e) {
-      const message = e instanceof Error ? e.message : String(e);
-      return new Response(`Failed to start container: ${message}`, { status: 500 });
-    }
-    return super.containerFetch(requestOrUrl, portOrInit as never, portParam);
-  }
-
   // Container 起動時に注入する環境変数。Go 側の config.Load()/main.go が読む
   // os.Getenv キーと1:1で対応させる(対応表は wrangler.jsonc のコメント参照)。
   // 値そのものはここに書かず、必ず Worker の vars/secrets(env.*)経由で渡す。
@@ -145,26 +114,17 @@ export class AnimalEkarteApiContainer extends Container<Env> {
   // DB_RESET は渡す env に含めていないため、Go側 os.Getenv("DB_RESET") は常に空文字 = false
   // (このexecでも上書きしない。破壊的操作は本エンドポイントでは不可能)。
   async runMigrate(): Promise<MigrateExecResult> {
+    await this.startAndWaitForPorts(this.defaultPort);
+
     const rawContainer = this.ctx.container;
     if (!rawContainer) {
       throw new Error("container is not available on DurableObjectState");
     }
 
-    // API 本体が起動失敗していても migrate を走らせるため、
-    // まず sleep でコンテナを上げてから exec する（port wait しない）。
-    try {
-      await this.start({
-        entrypoint: ["sleep", "infinity"],
-      });
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      return {
-        exitCode: -1,
-        stdout: "",
-        stderr: `container_start_failed: ${message}`,
-      };
-    }
-
+    // 実測判明(試行10): 低レベル exec() は起動時 envVars を継承しない(docker exec と異なり
+    // 新規プロセスは素の環境で起動される)。migrate バイナリが読む DB_* のみを明示的に渡す
+    // (code-reviewer指摘 LOW — this.envVars 全体ではなく最小権限の subset に絞る。
+    // JWT_SECRET/SMTP等の非DB値をmigrateプロセスに渡す必要はない)。
     const migrateEnv: Record<string, string> = {
       DB_HOST: this.envVars.DB_HOST,
       DB_PORT: this.envVars.DB_PORT,
@@ -175,55 +135,31 @@ export class AnimalEkarteApiContainer extends Container<Env> {
       DB_SSL_ROOT_CERT: this.envVars.DB_SSL_ROOT_CERT,
     };
 
-    // 診断用: secret 値は出さず、有無と長さだけ
-    const diag = [
-      `DB_HOST_set=${Boolean(migrateEnv.DB_HOST)}`,
-      `DB_HOST_len=${(migrateEnv.DB_HOST || "").length}`,
-      `DB_USER_set=${Boolean(migrateEnv.DB_USER)}`,
-      `DB_USER_len=${(migrateEnv.DB_USER || "").length}`,
-      `DB_PASSWORD_set=${Boolean(migrateEnv.DB_PASSWORD)}`,
-      `DB_PASSWORD_len=${(migrateEnv.DB_PASSWORD || "").length}`,
-      `DB_NAME=${migrateEnv.DB_NAME || ""}`,
-      `DB_PORT=${migrateEnv.DB_PORT || ""}`,
-      `DB_SSL_MODE=${migrateEnv.DB_SSL_MODE || ""}`,
-    ].join(" ");
+    const proc = await rawContainer.exec(["/app/migrate"], {
+      env: migrateEnv,
+      stdout: "pipe",
+      stderr: "pipe",
+    });
 
+    const timeoutMs = AnimalEkarteApiContainer.MIGRATE_TIMEOUT_MS;
+    const timeout = new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error(`migrate exec timed out after ${timeoutMs}ms`)), timeoutMs);
+    });
+
+    let output;
     try {
-      const proc = await rawContainer.exec(["/app/migrate"], {
-        env: migrateEnv,
-        stdout: "pipe",
-        stderr: "pipe",
-      });
-
-      const timeoutMs = AnimalEkarteApiContainer.MIGRATE_TIMEOUT_MS;
-      const timeout = new Promise<never>((_, reject) => {
-        setTimeout(
-          () => reject(new Error(`migrate exec timed out after ${timeoutMs}ms`)),
-          timeoutMs,
-        );
-      });
-
-      let output;
-      try {
-        output = await Promise.race([proc.output(), timeout]);
-      } catch (err) {
-        proc.kill();
-        throw err;
-      }
-
-      const decoder = new TextDecoder();
-      return {
-        exitCode: output.exitCode,
-        stdout: decoder.decode(output.stdout),
-        stderr: `${diag}\n${decoder.decode(output.stderr)}`,
-      };
-    } finally {
-      try {
-        await this.stop();
-      } catch {
-        // ignore stop errors after migrate
-      }
+      output = await Promise.race([proc.output(), timeout]);
+    } catch (err) {
+      proc.kill();
+      throw err;
     }
+
+    const decoder = new TextDecoder();
+    return {
+      exitCode: output.exitCode,
+      stdout: decoder.decode(output.stdout),
+      stderr: decoder.decode(output.stderr),
+    };
   }
 
   // BE9-3: Cron 専用の named DO からのみ呼ばれる RPC。
@@ -274,84 +210,6 @@ export class AnimalEkarteApiContainer extends Container<Env> {
         this.envVars.SCHEDULER_INTERNAL_TOKEN,
       ),
     );
-  }
-
-  /**
-   * API バイナリが数秒以内に exit するか確認する（値は出さずログ文字列のみ）。
-   * sleep コンテナ上で /app/api を短時間 exec する。
-   */
-  async diagnoseApiBoot(): Promise<{ ok: boolean; detail: string }> {
-    const rawContainer = this.ctx.container;
-    if (!rawContainer) {
-      return { ok: false, detail: "container unavailable" };
-    }
-    try {
-      await this.start({ entrypoint: ["sleep", "infinity"] });
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      return { ok: false, detail: `start_failed: ${message.slice(0, 300)}` };
-    }
-
-    const env: Record<string, string> = {};
-    for (const [key, value] of Object.entries(this.envVars)) {
-      if (typeof value === "string") {
-        env[key] = value;
-      }
-    }
-    // 長さだけ（値なし）
-    const lens = [
-      `JWT_len=${(env.JWT_SECRET || "").length}`,
-      `DB_HOST_len=${(env.DB_HOST || "").length}`,
-      `DB_USER_len=${(env.DB_USER || "").length}`,
-      `DB_PASS_len=${(env.DB_PASSWORD || "").length}`,
-      `INTEG_len=${(env.INTEGRATION_ENCRYPTION_KEY || "").length}`,
-      `AWS_KEY_len=${(env.AWS_ACCESS_KEY_ID || "").length}`,
-      `AWS_SEC_len=${(env.AWS_SECRET_ACCESS_KEY || "").length}`,
-      `SMTP_HOST_len=${(env.SMTP_HOST || "").length}`,
-      `SMTP_USER_len=${(env.SMTP_USER || "").length}`,
-      `SMTP_PASS_len=${(env.SMTP_PASS || "").length}`,
-      `SCHED_INT_len=${(env.SCHEDULER_INTERNAL_TOKEN || "").length}`,
-      `GIN_MODE=${env.GIN_MODE || ""}`,
-      `STORAGE=${env.STORAGE_TYPE || ""}`,
-    ].join(" ");
-
-    try {
-      const proc = await rawContainer.exec(["/app/api"], {
-        env,
-        stdout: "pipe",
-        stderr: "pipe",
-      });
-      const outputOrTimeout = await Promise.race([
-        proc.output().then((output) => ({ kind: "exit" as const, output })),
-        new Promise<{ kind: "running" }>((resolve) => {
-          setTimeout(() => resolve({ kind: "running" }), 5000);
-        }),
-      ]);
-      if (outputOrTimeout.kind === "running") {
-        try {
-          proc.kill();
-        } catch {
-          // ignore
-        }
-        return { ok: true, detail: `api_still_running_after_5s ${lens}` };
-      }
-      const decoder = new TextDecoder();
-      const stdout = decoder.decode(outputOrTimeout.output.stdout).slice(0, 800);
-      const stderr = decoder.decode(outputOrTimeout.output.stderr).slice(0, 800);
-      return {
-        ok: false,
-        detail: `api_exited code=${outputOrTimeout.output.exitCode} ${lens} stdout=${stdout} stderr=${stderr}`,
-      };
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      return { ok: false, detail: `api_exec_failed: ${message.slice(0, 400)} ${lens}` };
-    } finally {
-      try {
-        await this.stop();
-      } catch {
-        // ignore
-      }
-    }
   }
 }
 
@@ -489,29 +347,15 @@ async function handleMigrateRequest(request: Request, env: Env): Promise<Respons
   const container = getContainer(env.API_CONTAINER);
   try {
     const result = await container.runMigrate();
-    // migrate 後は sleep entrypoint を必ず止めておく（通常リクエストは containerFetch が /app/api を起動）
-    try {
-      await container.stop();
-    } catch {
-      // ignore
-    }
     return toMigrateResponse(result);
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "unknown";
+  } catch {
     console.error("migrate exec failed", {
       event: "migrate_exec_failed",
       failure_code: "migrate_exec_failed",
-      message,
     });
-    return new Response(
-      JSON.stringify({
-        error: "migrate_exec_failed",
-        message: message.slice(0, 500),
-      }),
-      {
-        status: 500,
-        headers: { "Content-Type": "application/json" },
-      },
-    );
+    return new Response(JSON.stringify({ error: "migrate_exec_failed" }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 }

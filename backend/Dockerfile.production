@@ -64,4 +64,6 @@ EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
     CMD curl -f http://localhost:8080/health || exit 1
 
-CMD ["./api"]
+# STG/CF: 起動時に migrate（済ならスキップ）してから API をフォアグラウンド起動。
+# Container の entrypoint 差し替えなしで /app/api が 8080 を listen する状態を保証する。
+CMD ["/bin/sh", "-c", "/app/migrate && exec /app/api"]
