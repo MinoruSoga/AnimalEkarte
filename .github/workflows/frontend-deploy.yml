@@ -52,9 +52,6 @@ jobs:
         working-directory: frontend
         run: pnpm install --frozen-lockfile
 
-      # Dashboard Root Directory = frontend 前提。
-      # cwd を monorepo root に固定し、成果物は frontend/.vercel/output に置く
-      # （cwd=frontend だと frontend/frontend を探して落ちる）。
       - name: Pull, build, prebuilt deploy
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
@@ -68,31 +65,29 @@ jobs:
           fi
 
           pnpm --dir frontend exec vercel pull --yes --environment="$ENV" --token="$VERCEL_TOKEN"
-          # link metadata を repo root にも置き、root から --prebuilt する
           mkdir -p .vercel
           cp -a frontend/.vercel/project.json .vercel/project.json
-          if [ -f frontend/.vercel/README.txt ]; then cp -a frontend/.vercel/README.txt .vercel/; fi
 
+          # --prebuilt は cwd 直下の .vercel/output を見る。
+          # Dashboard の rootDirectory=frontend は prebuilt 時に frontend/frontend を誘発するため外す。
           node <<'NODE'
           const fs = require('fs');
-          for (const path of ['.vercel/project.json', 'frontend/.vercel/project.json']) {
-            if (!fs.existsSync(path)) continue;
-            const j = JSON.parse(fs.readFileSync(path, 'utf8'));
-            j.projectSettings = j.projectSettings || {};
-            j.projectSettings.rootDirectory = 'frontend';
-            j.projectSettings.outputDirectory = 'dist';
-            fs.writeFileSync(path, JSON.stringify(j, null, 2));
-            console.log('patched', path);
-          }
+          const path = '.vercel/project.json';
+          const j = JSON.parse(fs.readFileSync(path, 'utf8'));
+          j.projectSettings = j.projectSettings || {};
+          delete j.projectSettings.rootDirectory;
+          j.projectSettings.outputDirectory = 'dist';
+          fs.writeFileSync(path, JSON.stringify(j, null, 2));
+          console.log('projectSettings', JSON.stringify(j.projectSettings));
           NODE
 
           pnpm --dir frontend build
           test -f frontend/dist/index.html
 
-          rm -rf frontend/.vercel/output
-          mkdir -p frontend/.vercel/output/static
-          cp -a frontend/dist/. frontend/.vercel/output/static/
-          cat > frontend/.vercel/output/config.json <<'EOF'
+          rm -rf .vercel/output
+          mkdir -p .vercel/output/static
+          cp -a frontend/dist/. .vercel/output/static/
+          cat > .vercel/output/config.json <<'EOF'
           {
             "version": 3,
             "routes": [
@@ -102,11 +97,11 @@ jobs:
             ]
           }
           EOF
-          test -f frontend/.vercel/output/static/index.html
+          test -f .vercel/output/static/index.html
+          test -f .vercel/output/config.json
 
           EXTRA=()
           if [ "$ENV" = "production" ]; then
             EXTRA+=(--prod)
           fi
-          # IMPORTANT: monorepo root cwd（Root Directory=frontend の二重付与を防ぐ）
           ./frontend/node_modules/.bin/vercel deploy --prebuilt --yes "${EXTRA[@]}" --token="$VERCEL_TOKEN"
