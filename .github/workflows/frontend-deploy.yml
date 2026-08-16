@@ -65,26 +65,36 @@ jobs:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
-      # Dashboard が Output Directory=frontend を指していると
-      # `vercel deploy dist` → dist/frontend を要求して落ちる。
-      # Vite 成果物は dist/ なので、要求パスに合わせてステージしてから upload する。
-      - name: Build and Deploy
+      # Dashboard の Output Directory / buildCommand と衝突しないよう、
+      # Vite 成果物を Build Output API (.vercel/output) に載せ --prebuilt する。
+      - name: Build and Deploy (prebuilt static)
         working-directory: frontend
         run: |
           set -euo pipefail
           pnpm build
           test -f dist/index.html
 
-          STAGE=$(mktemp -d)
-          mkdir -p "$STAGE/frontend"
-          cp -a dist/. "$STAGE/frontend/"
-          test -f "$STAGE/frontend/index.html"
+          rm -rf .vercel/output
+          mkdir -p .vercel/output/static
+          cp -a dist/. .vercel/output/static/
+          cat > .vercel/output/config.json <<'EOF'
+          {
+            "version": 3,
+            "routes": [
+              { "handle": "filesystem" },
+              { "src": "/line-reserve/(.*)", "dest": "/line-reserve/index.html" },
+              { "src": "/(.*)", "dest": "/index.html" }
+            ]
+          }
+          EOF
+          test -f .vercel/output/static/index.html
+          test -f .vercel/output/config.json
 
           EXTRA=()
           if [ "${{ github.ref }}" = "refs/heads/production" ] || [ "${{ github.event.inputs.environment }}" = "production" ]; then
             EXTRA+=(--prod)
           fi
-          pnpm exec vercel deploy "$STAGE" --yes "${EXTRA[@]}" --token="${{ secrets.VERCEL_TOKEN }}"
+          pnpm exec vercel deploy --prebuilt --yes "${EXTRA[@]}" --token="${{ secrets.VERCEL_TOKEN }}"
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
