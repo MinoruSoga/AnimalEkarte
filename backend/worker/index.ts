@@ -114,17 +114,26 @@ export class AnimalEkarteApiContainer extends Container<Env> {
   // DB_RESET は渡す env に含めていないため、Go側 os.Getenv("DB_RESET") は常に空文字 = false
   // (このexecでも上書きしない。破壊的操作は本エンドポイントでは不可能)。
   async runMigrate(): Promise<MigrateExecResult> {
-    await this.startAndWaitForPorts(this.defaultPort);
-
     const rawContainer = this.ctx.container;
     if (!rawContainer) {
       throw new Error("container is not available on DurableObjectState");
     }
 
-    // 実測判明(試行10): 低レベル exec() は起動時 envVars を継承しない(docker exec と異なり
-    // 新規プロセスは素の環境で起動される)。migrate バイナリが読む DB_* のみを明示的に渡す
-    // (code-reviewer指摘 LOW — this.envVars 全体ではなく最小権限の subset に絞る。
-    // JWT_SECRET/SMTP等の非DB値をmigrateプロセスに渡す必要はない)。
+    // API 本体が起動失敗していても migrate を走らせるため、
+    // まず sleep でコンテナを上げてから exec する（port wait しない）。
+    try {
+      await this.start({
+        entrypoint: ["sleep", "infinity"],
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      return {
+        exitCode: -1,
+        stdout: "",
+        stderr: `container_start_failed: ${message}`,
+      };
+    }
+
     const migrateEnv: Record<string, string> = {
       DB_HOST: this.envVars.DB_HOST,
       DB_PORT: this.envVars.DB_PORT,
@@ -135,31 +144,55 @@ export class AnimalEkarteApiContainer extends Container<Env> {
       DB_SSL_ROOT_CERT: this.envVars.DB_SSL_ROOT_CERT,
     };
 
-    const proc = await rawContainer.exec(["/app/migrate"], {
-      env: migrateEnv,
-      stdout: "pipe",
-      stderr: "pipe",
-    });
+    // 診断用: secret 値は出さず、有無と長さだけ
+    const diag = [
+      `DB_HOST_set=${Boolean(migrateEnv.DB_HOST)}`,
+      `DB_HOST_len=${(migrateEnv.DB_HOST || "").length}`,
+      `DB_USER_set=${Boolean(migrateEnv.DB_USER)}`,
+      `DB_USER_len=${(migrateEnv.DB_USER || "").length}`,
+      `DB_PASSWORD_set=${Boolean(migrateEnv.DB_PASSWORD)}`,
+      `DB_PASSWORD_len=${(migrateEnv.DB_PASSWORD || "").length}`,
+      `DB_NAME=${migrateEnv.DB_NAME || ""}`,
+      `DB_PORT=${migrateEnv.DB_PORT || ""}`,
+      `DB_SSL_MODE=${migrateEnv.DB_SSL_MODE || ""}`,
+    ].join(" ");
 
-    const timeoutMs = AnimalEkarteApiContainer.MIGRATE_TIMEOUT_MS;
-    const timeout = new Promise<never>((_, reject) => {
-      setTimeout(() => reject(new Error(`migrate exec timed out after ${timeoutMs}ms`)), timeoutMs);
-    });
-
-    let output;
     try {
-      output = await Promise.race([proc.output(), timeout]);
-    } catch (err) {
-      proc.kill();
-      throw err;
-    }
+      const proc = await rawContainer.exec(["/app/migrate"], {
+        env: migrateEnv,
+        stdout: "pipe",
+        stderr: "pipe",
+      });
 
-    const decoder = new TextDecoder();
-    return {
-      exitCode: output.exitCode,
-      stdout: decoder.decode(output.stdout),
-      stderr: decoder.decode(output.stderr),
-    };
+      const timeoutMs = AnimalEkarteApiContainer.MIGRATE_TIMEOUT_MS;
+      const timeout = new Promise<never>((_, reject) => {
+        setTimeout(
+          () => reject(new Error(`migrate exec timed out after ${timeoutMs}ms`)),
+          timeoutMs,
+        );
+      });
+
+      let output;
+      try {
+        output = await Promise.race([proc.output(), timeout]);
+      } catch (err) {
+        proc.kill();
+        throw err;
+      }
+
+      const decoder = new TextDecoder();
+      return {
+        exitCode: output.exitCode,
+        stdout: decoder.decode(output.stdout),
+        stderr: `${diag}\n${decoder.decode(output.stderr)}`,
+      };
+    } finally {
+      try {
+        await this.stop();
+      } catch {
+        // ignore stop errors after migrate
+      }
+    }
   }
 
   // BE9-3: Cron 専用の named DO からのみ呼ばれる RPC。
@@ -348,14 +381,23 @@ async function handleMigrateRequest(request: Request, env: Env): Promise<Respons
   try {
     const result = await container.runMigrate();
     return toMigrateResponse(result);
-  } catch {
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "unknown";
+    // 秘密値は含めない前提の例外メッセージのみ返す
     console.error("migrate exec failed", {
       event: "migrate_exec_failed",
       failure_code: "migrate_exec_failed",
+      message,
     });
-    return new Response(JSON.stringify({ error: "migrate_exec_failed" }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({
+        error: "migrate_exec_failed",
+        message: message.slice(0, 500),
+      }),
+      {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      },
+    );
   }
 }
