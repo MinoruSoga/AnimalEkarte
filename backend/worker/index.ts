@@ -466,18 +466,31 @@ async function handleMigrateRequest(request: Request, env: Env): Promise<Respons
       const message = diagErr instanceof Error ? diagErr.message : String(diagErr);
       apiDiag = { ok: false, detail: `diag_threw: ${message.slice(0, 400)}` };
     }
-    const response = toMigrateResponse(result);
+
+    // 診断で stop したあとも、通常の ./api 経路でウォームしておく
+    if (result.exitCode === 0 && apiDiag?.ok) {
+      try {
+        await container.startAndWaitForPorts();
+      } catch (warmErr) {
+        const message = warmErr instanceof Error ? warmErr.message : String(warmErr);
+        apiDiag = {
+          ok: false,
+          detail: `${apiDiag.detail} | warm_failed: ${message.slice(0, 300)}`,
+        };
+      }
+    }
+
     if (result.exitCode === 0) {
       const body = {
         ...result,
         api_boot: apiDiag,
       };
       return new Response(JSON.stringify(body), {
-        status: 200,
+        status: apiDiag?.ok ? 200 : 500,
         headers: { "Content-Type": "application/json" },
       });
     }
-    return response;
+    return toMigrateResponse(result);
   } catch (err) {
     const message = err instanceof Error ? err.message : "unknown";
     // 秘密値は含めない前提の例外メッセージのみ返す
