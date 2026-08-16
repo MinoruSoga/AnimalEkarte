@@ -358,12 +358,61 @@ func isAlreadyApplied(db *sql.DB, filename, checksum string) (bool, error) {
 
 	// 適用済みだが checksum が異なる → 改変されている
 	if storedChecksum != checksum {
+		repaired, repairErr := tryRepairKnownChecksumDrift(db, filename, storedChecksum, checksum)
+		if repairErr != nil {
+			return true, repairErr
+		}
+		if repaired {
+			return true, nil
+		}
 		return true, fmt.Errorf(
 			"checksum mismatch for %s: applied=%s, current=%s — migration file was modified after execution",
 			filename, storedChecksum, checksum,
 		)
 	}
 
+	return true, nil
+}
+
+// knownChecksumRepairs maps filename → appliedChecksum → currentChecksum for
+// STG-safe drifts already reviewed (additive DDL only; never destructive).
+// Companion side-effects for a pair live in tryRepairKnownChecksumDrift.
+var knownChecksumRepairs = map[string]map[string]string{
+	// 2026-08: lab_import_job_status gained 'reverted' (CREATE TYPE + ADD VALUE IF NOT EXISTS).
+	"001_init.sql": {
+		"28e954b32fd606a122e0cb29815ea277f8a96cb0966208f39e6fe69dd8cb9c4e": "287bfce66c810503c43c8a5c1d4cf414f561af2555314eb4119be74253ce77ce",
+	},
+}
+
+func tryRepairKnownChecksumDrift(db *sql.DB, filename, applied, current string) (bool, error) {
+	wantByApplied, ok := knownChecksumRepairs[filename]
+	if !ok {
+		return false, nil
+	}
+	want, ok := wantByApplied[applied]
+	if !ok || want != current {
+		return false, nil
+	}
+
+	// Ensure additive enum value exists before accepting the new checksum.
+	// ADD VALUE IF NOT EXISTS cannot always run inside an explicit transaction.
+	if filename == "001_init.sql" {
+		if _, err := db.Exec(`ALTER TYPE lab_import_job_status ADD VALUE IF NOT EXISTS 'reverted'`); err != nil {
+			return false, fmt.Errorf("checksum repair companion SQL failed for %s: %w", filename, err)
+		}
+	}
+
+	res, err := db.Exec(
+		`UPDATE schema_migrations SET checksum = $1 WHERE filename = $2 AND checksum = $3`,
+		current, filename, applied,
+	)
+	if err != nil {
+		return false, fmt.Errorf("checksum repair update failed for %s: %w", filename, err)
+	}
+	n, _ := res.RowsAffected()
+	if n != 1 {
+		return false, fmt.Errorf("checksum repair updated %d rows for %s (want 1)", n, filename)
+	}
 	return true, nil
 }
 
