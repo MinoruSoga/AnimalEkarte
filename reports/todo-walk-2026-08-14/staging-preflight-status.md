@@ -1,62 +1,26 @@
-# staging preflight status（2026-08-14 · agent 着手継続）
+# staging preflight status（2026-08-15 · #299 MERGED）
 
 ## 状態サマリ
 
 | 項目 | 結果 |
 |------|------|
-| left-right | **4 / 1346** |
-| staging-only disposition | **KEEP×4**（完了 · §4.1） |
-| Draft PR | **#299** https://github.com/MinoruSoga/AnimalEkarte/pull/299 （**draft · 未 merge**） |
-| merge | **未** |
+| PR #299 | **MERGED** https://github.com/MinoruSoga/AnimalEkarte/pull/299 |
+| merge commit | `85bb651ee744acf98b1c4239a3497b08737e32ba` |
+| mergedAt | 2026-08-15T07:54:24Z |
+| method | **merge-commit**（squash なし） |
+| main tip at merge | `1836378d0` |
+| CI at merge | green |
+| USER 残セル | 推奨案採用 · `PR299-MERGE-GATE-SIGNED-2026-08-15.md` |
+| backup pre-merge | **N**（NOT_TAKEN · rollback=CF last-known-good · owner=USER） |
+| STG reset | **禁止継続** |
 
-## Required CI（この PR で期待）
+## 残（merge 後）
 
-| Workflow | 用途 |
-|----------|------|
-| `CI` (ci.yml) | 必須 green |
-| `Security Scan` | 必須 green |
-| `Backend Deploy` | staging 向け · 失敗時 merge しない（過去 staging push で failure 例あり 2026-07-17） |
-| `Frontend Deploy (Vercel)` | staging 向け |
-| `stg-smoke` | あれば必須 |
-| Performance Tests | schedule 失敗があっても本 PR の merge gate にしない（別監視） |
-
-main tip 直近: CI **success** on docs drain（2026-08-13）。
-
-## Migration
-
-| 項目 | 結果 |
-|------|------|
-| `*.sql` name-only diff staging...main | **`backend/migrations/001_init.sql`**（1 path） |
-| seeds 等を含む migrations/ 配下 | 多数（以前 92 paths 集計） |
-| checksum / PlanetScale ownership | **未（STG 運用が記入）** |
-| agent migrate | **しない** |
-
-## Backup / rollback（文書ポインタ · owner は人）
-
-| 項目 | 正本 |
-|------|------|
-| CI/CD · rollback 方針 | [`docs/ops/deploy/CI-CD-PIPELINE.md`](../../docs/ops/deploy/CI-CD-PIPELINE.md) — last known good CF 再デプロイ |
-| local fresh のみ | [`LOCAL_DB_RESET.md`](../../docs/ops/deploy/LOCAL_DB_RESET.md) |
-| PROD runbook | [`docs/ops/infra/production/runbook.md`](../../docs/ops/infra/production/runbook.md) |
-| STG seed | [`STG_PLANETSCALE_SEED_RUNBOOK.md`](../../docs/ops/deploy/STG_PLANETSCALE_SEED_RUNBOOK.md) |
-| rollback owner role | `[ ]` **人が記入** |
-| backup 実施証跡 opaque ref | `[ ]` **人が記入** |
-
-## §E-7 チェック
-
-- [x] remote refs
-- [x] 4/1346
-- [x] staging-only KEEP
-- [x] reset 禁止 · merge-commit 方針
-- [x] migration 差分把握（sql 1 + seeds）
-- [x] draft PR #299
-- [x] required CI 一覧を定義
-- [x] rollback 文書ポインタ
-- [ ] checksum / ownership（人）
-- [ ] backup 実施 + owner role（人）
-- [ ] PR CI 全 green（人・CI）
-- [ ] draft 解除 + merge commit（人）
+- [ ] Deploy / stg-smoke 確認
+- [ ] `schema_migrations` read-only 検証（RUNBOOK）
+- [ ] Linear BRT-55 に post-verify 結果
+- [ ] BRT-68 H1/H2 は STG health 後
 
 ```
-staging_preflight=PARTIAL draft_pr=299 disposition=KEEP_ALL_4 ci_matrix=DEFINED merge=NOT_DONE opaque_ref=reports/todo-walk-2026-08-14/staging-preflight-status.md
+staging_preflight=MERGED pr=299 merge=85bb651ee tip=1836378d0 post_verify=PENDING
 ```
