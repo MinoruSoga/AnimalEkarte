@@ -53,7 +53,13 @@ export class AnimalEkarteApiContainer extends Container<Env> {
     try {
       await this.startAndWaitForPorts({
         ports: this.defaultPort,
-        startOptions: { entrypoint: ["./api"] },
+        startOptions: {
+          entrypoint: ["/app/api"],
+          enableInternet: true,
+        },
+        cancellationOptions: {
+          portReadyTimeoutMS: 90_000,
+        },
       });
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
@@ -489,7 +495,16 @@ async function handleMigrateRequest(request: Request, env: Env): Promise<Respons
     // 診断で stop したあとも、通常の ./api 経路でウォームしておく
     if (result.exitCode === 0 && apiDiag?.ok) {
       try {
-        await container.startAndWaitForPorts();
+        await container.startAndWaitForPorts({
+          ports: 8080,
+          startOptions: {
+            entrypoint: ["/app/api"],
+            enableInternet: true,
+          },
+          cancellationOptions: {
+            portReadyTimeoutMS: 90_000,
+          },
+        });
       } catch (warmErr) {
         const message = warmErr instanceof Error ? warmErr.message : String(warmErr);
         apiDiag = {
