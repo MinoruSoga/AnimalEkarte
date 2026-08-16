@@ -43,6 +43,25 @@ export class AnimalEkarteApiContainer extends Container<Env> {
   // (docs/ops/infra/_archive/migration-cloudflare.md の想定コスト・「通常操作 10 分間程度」の負荷スモーク方針に合わせる)。
   sleepAfter = "10m";
 
+  // migrate 診断で entrypoint を sleep に差し替えたあとも、
+  // 通常リクエストでは必ず API バイナリを起動する。
+  override async containerFetch(
+    requestOrUrl: Request | string | URL,
+    portOrInit?: number | RequestInit,
+    portParam?: number,
+  ): Promise<Response> {
+    try {
+      await this.startAndWaitForPorts({
+        ports: this.defaultPort,
+        startOptions: { entrypoint: ["./api"] },
+      });
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      return new Response(`Failed to start container: ${message}`, { status: 500 });
+    }
+    return super.containerFetch(requestOrUrl, portOrInit as never, portParam);
+  }
+
   // Container 起動時に注入する環境変数。Go 側の config.Load()/main.go が読む
   // os.Getenv キーと1:1で対応させる(対応表は wrangler.jsonc のコメント参照)。
   // 値そのものはここに書かず、必ず Worker の vars/secrets(env.*)経由で渡す。
