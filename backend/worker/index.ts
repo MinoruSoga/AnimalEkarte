@@ -51,6 +51,12 @@ export class AnimalEkarteApiContainer extends Container<Env> {
     portParam?: number,
   ): Promise<Response> {
     try {
+      // sleep infinity のまま running=true だと start がスキップされ 8080 待ちで落ちる
+      try {
+        await this.stop();
+      } catch {
+        // already stopped
+      }
       await this.startAndWaitForPorts({
         ports: this.defaultPort,
         startOptions: {
@@ -495,6 +501,11 @@ async function handleMigrateRequest(request: Request, env: Env): Promise<Respons
     // 診断で stop したあとも、通常の ./api 経路でウォームしておく
     if (result.exitCode === 0 && apiDiag?.ok) {
       try {
+        try {
+          await container.stop();
+        } catch {
+          // ignore
+        }
         await container.startAndWaitForPorts({
           ports: 8080,
           startOptions: {
