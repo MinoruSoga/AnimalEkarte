@@ -61,7 +61,14 @@ jobs:
 
       - name: Build Project Artifacts
         working-directory: frontend
-        run: pnpm exec vercel build ${{ github.ref == 'refs/heads/production' && '--prod' || '' }} --token=${{ secrets.VERCEL_TOKEN }}
+        run: |
+          set -euo pipefail
+          # Project Settings の Output Directory 食い違いを避けるため、先に Vite で dist を確定させる
+          pnpm build
+          test -d dist
+          test -f dist/index.html
+          ls -la dist | head
+          pnpm exec vercel build ${{ github.ref == 'refs/heads/production' && '--prod' || '' }} --token=${{ secrets.VERCEL_TOKEN }}
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}

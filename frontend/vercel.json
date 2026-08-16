@@ -1,7 +1,8 @@
 {
+  "framework": "vite",
+  "installCommand": "pnpm install --frozen-lockfile",
   "buildCommand": "pnpm build",
   "outputDirectory": "dist",
-  "framework": null,
   "rewrites": [
     { "source": "/api/:path*", "destination": "https://api.stg.noah-karte.com/api/:path*" },
     { "source": "/line-reserve/:path*", "destination": "/line-reserve/index.html" },
