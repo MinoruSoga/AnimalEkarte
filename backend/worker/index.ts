@@ -489,56 +489,15 @@ async function handleMigrateRequest(request: Request, env: Env): Promise<Respons
   const container = getContainer(env.API_CONTAINER);
   try {
     const result = await container.runMigrate();
-    // migrate 成功後も API が起動できないケースを切り分ける（secret 値は出さない）
-    let apiDiag: { ok: boolean; detail: string } | undefined;
+    // migrate 後は sleep entrypoint を必ず止めておく（通常リクエストは containerFetch が /app/api を起動）
     try {
-      apiDiag = await container.diagnoseApiBoot();
-    } catch (diagErr) {
-      const message = diagErr instanceof Error ? diagErr.message : String(diagErr);
-      apiDiag = { ok: false, detail: `diag_threw: ${message.slice(0, 400)}` };
-    }
-
-    // 診断で stop したあとも、通常の ./api 経路でウォームしておく
-    if (result.exitCode === 0 && apiDiag?.ok) {
-      try {
-        try {
-          await container.stop();
-        } catch {
-          // ignore
-        }
-        await container.startAndWaitForPorts({
-          ports: 8080,
-          startOptions: {
-            entrypoint: ["/app/api"],
-            enableInternet: true,
-          },
-          cancellationOptions: {
-            portReadyTimeoutMS: 90_000,
-          },
-        });
-      } catch (warmErr) {
-        const message = warmErr instanceof Error ? warmErr.message : String(warmErr);
-        apiDiag = {
-          ok: false,
-          detail: `${apiDiag.detail} | warm_failed: ${message.slice(0, 300)}`,
-        };
-      }
-    }
-
-    if (result.exitCode === 0) {
-      const body = {
-        ...result,
-        api_boot: apiDiag,
-      };
-      return new Response(JSON.stringify(body), {
-        status: apiDiag?.ok ? 200 : 500,
-        headers: { "Content-Type": "application/json" },
-      });
+      await container.stop();
+    } catch {
+      // ignore
     }
     return toMigrateResponse(result);
   } catch (err) {
     const message = err instanceof Error ? err.message : "unknown";
-    // 秘密値は含めない前提の例外メッセージのみ返す
     console.error("migrate exec failed", {
       event: "migrate_exec_failed",
       failure_code: "migrate_exec_failed",
