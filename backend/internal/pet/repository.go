@@ -114,6 +114,7 @@ func (r *repository) FindAll(ctx context.Context, clinicIDs []uint64, filters Pe
 		// （owners 側も同一 clinicIDs で二重にスコープし、クロステナント JOIN 汚染を防ぐ）。
 		// BUG-454: owners.clinic_id = pets.clinic_id 相関で、認可集合に両院が含まれても
 		// 破損した pet(A)->owner(B) FK を search/order の JOIN 経由で復元しない。
+		// Select("pets.*") は Find 側のみ（Count に付けると COUNT("pets".*) で 42703）。
 		q := r.db.WithContext(ctx).Model(&model.Pet{}).
 			Where("pets.clinic_id IN ?", clinicIDs).
 			Where("pets.deleted_at IS NULL").
@@ -177,7 +178,9 @@ func (r *repository) FindAll(ctx context.Context, clinicIDs []uint64, filters Pe
 	if err := buildBase().Count(&total).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "pet", "")
 	}
+	// BRT-70: JOIN 時の owners 列混入 scan を避けるため Find だけ pets.* を明示する。
 	if err := buildBase().
+		Select("pets.*").
 		Preload("Owner", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).
 		Preload("AnimalSpecies").
 		Preload("Insurance", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).
@@ -210,8 +213,10 @@ func (r *repository) FindOwnerReportPets(ctx context.Context, clinicIDs []uint64
 	}
 
 	pets := make([]model.Pet, 0)
+	// BRT-70: JOIN 併用時は pets.* を明示（owners 列の混入 scan を避ける）
 	if err := r.db.WithContext(ctx).
 		Model(&model.Pet{}).
+		Select("pets.*").
 		Joins("INNER JOIN owners ON owners.id = pets.owner_id AND owners.clinic_id = pets.clinic_id AND owners.deleted_at IS NULL").
 		Where("pets.owner_id = ? AND pets.clinic_id = ? AND pets.deleted_at IS NULL", ownerID, owner.ClinicID).
 		Preload("AnimalSpecies").
