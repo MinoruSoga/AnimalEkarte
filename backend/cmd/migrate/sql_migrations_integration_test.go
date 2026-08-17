@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"sort"
 	"strings"
 	"testing"
@@ -63,15 +64,16 @@ func TestRunSQLMigrationsAgainstDisposablePostgres(t *testing.T) {
 SELECT count(*)
 FROM schema_migrations
 WHERE filename IN (
-  '001_init.sql'
+  '001_init.sql',
+  '002_ensure_pet_owners.sql'
 )`).Scan(&applied); err != nil {
 		t.Fatal(err)
 	}
-	if applied != 1 {
-		t.Fatalf("applied DDL migrations = %d, want 1", applied)
+	if applied != 2 {
+		t.Fatalf("applied DDL migrations = %d, want 2", applied)
 	}
 
-	// Consolidated topology: exactly one top-level DDL key must be recorded.
+	// Topology: 001 init + append-only ensure migrations.
 	var ddlKeys []string
 	rows, err := db.Query(`
 SELECT filename
@@ -92,8 +94,8 @@ ORDER BY filename`)
 	if err := rows.Err(); err != nil {
 		t.Fatal(err)
 	}
-	if len(ddlKeys) != 1 || ddlKeys[0] != "001_init.sql" {
-		t.Fatalf("DDL schema_migrations keys = %v, want exactly [001_init.sql]", ddlKeys)
+	if len(ddlKeys) != 2 || ddlKeys[0] != "001_init.sql" || ddlKeys[1] != "002_ensure_pet_owners.sql" {
+		t.Fatalf("DDL schema_migrations keys = %v, want [001_init.sql 002_ensure_pet_owners.sql]", ddlKeys)
 	}
 
 	// Rerun is a no-op: second apply must leave history and succeed.
@@ -107,18 +109,26 @@ FROM schema_migrations
 WHERE filename NOT LIKE 'seeds/%'`).Scan(&appliedAfterRerun); err != nil {
 		t.Fatal(err)
 	}
-	if appliedAfterRerun != 1 {
-		t.Fatalf("after rerun DDL keys = %d, want 1", appliedAfterRerun)
+	if appliedAfterRerun != 2 {
+		t.Fatalf("after rerun DDL keys = %d, want 2", appliedAfterRerun)
 	}
 }
 
-// TestTopLevelDDLMigrationInventoryIsSingleInit asserts the post-consolidation
-// disk topology: only 001_init.sql remains under migrations/ (maxdepth 1).
-// Six-file baselines fail this assertion (RED); the consolidated tree is GREEN.
-func TestTopLevelDDLMigrationInventoryIsSingleInit(t *testing.T) {
-	entries, err := os.ReadDir(migrationsDir)
+// TestTopLevelDDLMigrationInventoryIncludesInitAndEnsure asserts the post-consolidation
+// disk topology: 001_init.sql plus append-only ensure migrations under migrations/ (maxdepth 1).
+func TestTopLevelDDLMigrationInventoryIncludesInitAndEnsure(t *testing.T) {
+	dir := migrationsDir
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		// CI / host: resolve relative to this test file (backend/cmd/migrate → backend/migrations).
+		_, thisFile, _, ok := runtime.Caller(0)
+		if !ok {
+			t.Fatal("runtime.Caller failed")
+		}
+		dir = filepath.Join(filepath.Dir(thisFile), "..", "..", "migrations")
+	}
+	entries, err := os.ReadDir(dir)
 	if err != nil {
-		t.Fatalf("read migrations dir %s: %v", migrationsDir, err)
+		t.Fatalf("read migrations dir %s: %v", dir, err)
 	}
 	var sqlFiles []string
 	for _, e := range entries {
@@ -131,12 +141,17 @@ func TestTopLevelDDLMigrationInventoryIsSingleInit(t *testing.T) {
 		}
 	}
 	sort.Strings(sqlFiles)
-	if len(sqlFiles) != 1 || sqlFiles[0] != "001_init.sql" {
-		t.Fatalf("top-level DDL files = %v, want exactly [001_init.sql]", sqlFiles)
+	want := []string{"001_init.sql", "002_ensure_pet_owners.sql"}
+	if len(sqlFiles) != len(want) {
+		t.Fatalf("top-level DDL files = %v, want %v", sqlFiles, want)
 	}
-	// Absolute path check keeps the fixed /app/migrations contract honest.
-	if filepath.Base(migrationsDir) != "migrations" {
-		t.Fatalf("migrationsDir base = %q, want migrations", filepath.Base(migrationsDir))
+	for i := range want {
+		if sqlFiles[i] != want[i] {
+			t.Fatalf("top-level DDL files = %v, want %v", sqlFiles, want)
+		}
+	}
+	if filepath.Base(dir) != "migrations" {
+		t.Fatalf("migrationsDir base = %q, want migrations", filepath.Base(dir))
 	}
 }
 

@@ -93,6 +93,10 @@ export interface Billing {
    */
   total_refunded_amount: number /* int64 */;
   /**
+   * OutstandingAmount は未収残高（円）。waiting 全額 or クレジット訂正後の patient_due−支払額（BUG-007）。
+   */
+  outstanding_amount: number /* int64 */;
+  /**
    * Relations
    */
   owner?: Owner;
@@ -119,6 +123,10 @@ export interface BillingItem {
   other_reason?: string;
   merchandise_item_id?: number /* uint64 */;
   treatment_id?: number /* uint64 */;
+  /**
+   * MedicalRecordID は DB 列ではない。未請求候補（treatment 由来）など API 応答用の仮想フィールド。
+   */
+  medical_record_id?: number /* uint64 */;
   vaccination_id?: number /* uint64 */;
   appointment_id?: number /* uint64 */;
   trimming_course_id?: number /* uint64 */;
@@ -294,6 +302,10 @@ export const AuditActionLabImportCommitSucceeded = "lab_import.commit.succeeded"
 export const AuditActionLabImportCommitFailed = "lab_import.commit.failed";
 export const AuditActionLabImportSourceBlocked = "lab_import.source.blocked";
 /**
+ * AuditActionLabImportRevertSucceeded records compensating revert (TASK-032). Distinct from commit.
+ */
+export const AuditActionLabImportRevertSucceeded = "lab_import.revert.succeeded";
+/**
  * #211 健診結果値の置換（既存削除を伴う PUT）監査アクション
  */
 export const AuditActionCheckupFieldResultReplace = "checkup_field_result.replace";
@@ -344,7 +356,7 @@ export const AuditActionStaffProvisionReceipt = "staff.provision.receipt";
 /**
  * 監査アクション定数
  */
-export type AuditAct = typeof AuditActorTypeStaff | typeof AuditActorTypeSystem | typeof AuditActionPermissionGroupCreate | typeof AuditActionPermissionGroupUpdate | typeof AuditActionPermissionGroupDelete | typeof AuditActionPermissionRulesUpdate | typeof AuditActionStaffPermissionGroupsReplace | typeof AuditActionAuthLoginSuccess | typeof AuditActionAuthLoginFailure | typeof AuditActionAuthLogout | typeof AuditActionAuthPasswordChange | typeof AuditActionAuthPasswordReset | typeof AuditActionAuthPasswordAdminReplace | typeof AuditActionLstepSettingsSave | typeof AuditActionLstepTagSync | typeof AuditActionLstepTagSyncBulk | typeof AuditActionLineNotificationSend | typeof AuditActionOwnerLineUserIDUpdate | typeof AuditActionOwnerLineUserIDUnlink | typeof AuditActionReservationNoShow | typeof AuditActionManualArticleUpsert | typeof AuditActionManualArticleDelete | typeof AuditActionTrimmingCreate | typeof AuditActionTrimmingUpdate | typeof AuditActionTrimmingDelete | typeof AuditActionBillingCancel | typeof AuditActionBillingPostCloseEdit | typeof AuditActionBillingRefundCreate | typeof AuditActionBillingCreditCorrection | typeof AuditActionBillingVaccinationClaimRelease | typeof AuditActionMedicineDoseParamUpsert | typeof AuditActionMedicineDoseParamDelete | typeof AuditActionMedicinePerWeightEnable | typeof AuditActionTreatmentDoseDeviation | typeof AuditActionLabImportPreviewRequested | typeof AuditActionLabImportCommitRequested | typeof AuditActionLabImportCommitSucceeded | typeof AuditActionLabImportCommitFailed | typeof AuditActionLabImportSourceBlocked | typeof AuditActionCheckupFieldResultReplace | typeof AuditActionCheckupPackageImportApply | typeof AuditActionExamResultReplace | typeof AuditActionExaminationCreate | typeof AuditActionExaminationUpdate | typeof AuditActionExaminationConfirm | typeof AuditActionExaminationUnconfirm | typeof AuditActionExaminationDelete | typeof AuditActionClinicalPlanUpdate | typeof AuditActionClinicalPlanDelete | typeof AuditActionPetOwnerReplace | typeof AuditActionHospitalizationDischargeWithBilling | typeof AuditActionOwnerIdentityLinkCreate | typeof AuditActionOwnerIdentityLinkAdd | typeof AuditActionOwnerIdentityLinkUnlink | typeof AuditActionPetIdentityLinkCreate | typeof AuditActionPetIdentityLinkAdd | typeof AuditActionPetIdentityLinkUnlink | typeof AuditActionStaffProvisionCreate | typeof AuditActionStaffProvisionReceipt;
+export type AuditAct = typeof AuditActorTypeStaff | typeof AuditActorTypeSystem | typeof AuditActionPermissionGroupCreate | typeof AuditActionPermissionGroupUpdate | typeof AuditActionPermissionGroupDelete | typeof AuditActionPermissionRulesUpdate | typeof AuditActionStaffPermissionGroupsReplace | typeof AuditActionAuthLoginSuccess | typeof AuditActionAuthLoginFailure | typeof AuditActionAuthLogout | typeof AuditActionAuthPasswordChange | typeof AuditActionAuthPasswordReset | typeof AuditActionAuthPasswordAdminReplace | typeof AuditActionLstepSettingsSave | typeof AuditActionLstepTagSync | typeof AuditActionLstepTagSyncBulk | typeof AuditActionLineNotificationSend | typeof AuditActionOwnerLineUserIDUpdate | typeof AuditActionOwnerLineUserIDUnlink | typeof AuditActionReservationNoShow | typeof AuditActionManualArticleUpsert | typeof AuditActionManualArticleDelete | typeof AuditActionTrimmingCreate | typeof AuditActionTrimmingUpdate | typeof AuditActionTrimmingDelete | typeof AuditActionBillingCancel | typeof AuditActionBillingPostCloseEdit | typeof AuditActionBillingRefundCreate | typeof AuditActionBillingCreditCorrection | typeof AuditActionBillingVaccinationClaimRelease | typeof AuditActionMedicineDoseParamUpsert | typeof AuditActionMedicineDoseParamDelete | typeof AuditActionMedicinePerWeightEnable | typeof AuditActionTreatmentDoseDeviation | typeof AuditActionLabImportPreviewRequested | typeof AuditActionLabImportCommitRequested | typeof AuditActionLabImportCommitSucceeded | typeof AuditActionLabImportCommitFailed | typeof AuditActionLabImportSourceBlocked | typeof AuditActionLabImportRevertSucceeded | typeof AuditActionCheckupFieldResultReplace | typeof AuditActionCheckupPackageImportApply | typeof AuditActionExamResultReplace | typeof AuditActionExaminationCreate | typeof AuditActionExaminationUpdate | typeof AuditActionExaminationConfirm | typeof AuditActionExaminationUnconfirm | typeof AuditActionExaminationDelete | typeof AuditActionClinicalPlanUpdate | typeof AuditActionClinicalPlanDelete | typeof AuditActionPetOwnerReplace | typeof AuditActionHospitalizationDischargeWithBilling | typeof AuditActionOwnerIdentityLinkCreate | typeof AuditActionOwnerIdentityLinkAdd | typeof AuditActionOwnerIdentityLinkUnlink | typeof AuditActionPetIdentityLinkCreate | typeof AuditActionPetIdentityLinkAdd | typeof AuditActionPetIdentityLinkUnlink | typeof AuditActionStaffProvisionCreate | typeof AuditActionStaffProvisionReceipt;
 export const AuditResourceAccount = "account";
 export const AuditResourceStaff = "staff";
 export const AuditResourceLabImport = "lab_import";

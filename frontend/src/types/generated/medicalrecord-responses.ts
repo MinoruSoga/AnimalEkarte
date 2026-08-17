@@ -34,10 +34,13 @@ export interface MedicalRecordResponse {
 }
 /**
  * InquirySummaryResponse is the inquiry embed on medical-record list/detail wire.
+ * Notes carries 問診タブ「治療方針」(inquiry.notes). Omitting it forced FE reload to DEFAULT
+ * "# 治療方針" after save/finalize (BUG-034) even though notes persisted in DB.
  */
 export interface InquirySummaryResponse {
   id: number /* uint64 */;
   chief_complaint: string;
+  notes: string;
 }
 
 //////////

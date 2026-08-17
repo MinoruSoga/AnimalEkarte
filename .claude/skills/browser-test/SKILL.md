@@ -8,13 +8,17 @@ description: Chrome DevTools MCPを使ったブラウザ機能テスト。docs/o
 ## 使い方
 
 ```
-/browser-test <ガイド章番号 or ドメイン名>
+/browser-test <ガイド章番号 or ドメイン名 or scenarios ID>
 例:
-  /browser-test 2.1          # 2.1 外来フロー（予約〜受付〜診察）
-  /browser-test accounting   # 2.2 会計・経営管理
-  /browser-test crm          # 2.3 CRM・Lステップ連携
-  /browser-test 3            # 3. 品質ガード・セキュリティ
+  /browser-test 2.1          # SECTION_14 2.1 外来
+  /browser-test accounting   # 2.2 会計
+  /browser-test V03          # scenarios V03（項目単位 F 含む）
+  /browser-test S01          # scenarios S01
 ```
+
+**受入正本**: `docs/ops/testing/scenarios/` · アーキテクチャ: `docs/ops/testing/TEST_ARCHITECTURE.md`  
+フォーム V は `FIELD-LEVEL-PROTOCOL.md` を全 fieldKey に適用。環境: `UAT-ENV-SETUP.md`。  
+FAIL 起票先: root `todo.md` 受入バグ節（旧 STATUS.md 記述は廃止）。
 
 ---
 
@@ -22,11 +26,9 @@ description: Chrome DevTools MCPを使ったブラウザ機能テスト。docs/o
 
 このスキルが呼ばれたら、**以下の手順を必ず守れ**：
 
-1. `docs/ops/testing/SECTION_14_MANUAL_TEST_GUIDE.md`（正本）から該当ドメインのシナリオ（番号付き手順）を読み込む
+1. 対象が SECTION_14 なら同ガイド、**scenarios ID（Sxx/Vxx）なら `docs/ops/testing/scenarios/`** から手順を読む。V シリーズは `FIELD-LEVEL-PROTOCOL.md` + `FORM-FIELD-INVENTORY.md` も読む
 2. **`Agent` ツールを `model: "haiku"` で起動**し、ブラウザテストを委譲する
-3. Haiku Agent の結果を受け取り、テスト結果レポートとして出力する（ガイドに項目表・結果列は存在しないため、ガイド自体は更新しない）
-
-> 旧 FULL_DOMAIN_SCENARIO_TEST_GUIDE.md は廃止済み。手動シナリオは SECTION_14_MANUAL_TEST_GUIDE.md、E2Eは E2E_TESTING_GUIDE.md を参照
+3. Haiku Agent の結果を受け取り、テスト結果レポートとして出力する（シナリオ md / SECTION_14 本体は編集しない）
 
 メインセッション（Sonnet）は直接 Chrome DevTools MCP ツールを呼ばないこと。
 すべてのブラウザ操作は Haiku Agent に委譲する。
@@ -43,18 +45,14 @@ Chrome DevTools MCP を使って指定されたテスト項目を実行し、結
 
 ## テスト環境
 - URL: http://localhost:3003
-- テストアカウント: 下記（正本: docs/ops/testing/SECTION_14_MANUAL_TEST_GUIDE.md 4章）
-  | 役割 | ログイン ID | 用途 |
-  |------|------------|------|
-  | 管理者 | admin@example.com | マスタ設定、権限、会計レポート |
-  | 獣医師 | doctor@example.com | カルテ、検査、処方の臨床フロー |
-  | 受付/看護 | staff@example.com | 受付、会計、入院ケアの日常業務 |
-- パスワード: password
-- ブラウザ: Chrome（Chrome DevTools MCP 経由）
+- 認証: 環境変数 E2E_LOGIN_EMAIL / E2E_LOGIN_PASSWORD（値をレポートに書かない）
+- ロール: 管理者 / 獣医師 / 受付 は seed の役割名で指定（SECTION_14 §4・UAT-ENV-SETUP）
+- ブラウザ: Chrome（Chrome DevTools MCP · remote debugging :9222）
+- フォーム項目単位: FIELD-LEVEL-PROTOCOL F0–F6 を inventory 全 fieldKey に適用
 
 ## テスト対象
 {SECTION_TITLE}
-{SCENARIO_STEPS}  ← ガイドの該当ドメインの番号付き手順シナリオを転記
+{SCENARIO_STEPS}  ← scenarios または SECTION_14 の番号付き手順を転記
 
 ## 実行手順
 
@@ -115,23 +113,25 @@ Chrome DevTools MCP を使って指定されたテスト項目を実行し、結
 Haiku Agent の結果を受け取った後：
 
 1. **テスト結果レポートを出力**する
-   - 結果はガイド（`docs/ops/testing/SECTION_14_MANUAL_TEST_GUIDE.md`）の更新ではなく、テスト結果レポートとして出力する（ガイドに項目表・結果列は存在しない。ガイド冒頭の日付表記は「最新更新」であり、テスト結果では書き換えない）
-   - NG 項目はリポジトリ直下 `STATUS.md`（受入テストバグ台帳）の末尾へ `## BUG-XXX:` 節として起票（ローカル連番 最大+1。症状・再現手順・調査の起点を記載）。バグではない改善事項は `STATUS.md` の `## 個別タスク詳細` へ `### TASK-XXX:` 節として起票（旧 `3-session-agent.html#ledger` は 2026-07-31 廃止）
+   - 結果は scenarios / SECTION_14 本体ではなく `reports/uat-YYYY-MM-DD/` またはセッション報告
+   - NG 項目は root `todo.md` 受入バグ節へ `### BUG-XXX`（ローカル連番 最大+1）。環境・決裁は `todo-po.md`
 
 2. **サマリを表示**する
    ```
-   ## テスト完了: {ガイド章} - {ドメイン名}
+   ## テスト完了: {対象}
    - OK: X件 / NG: Y件 / Partial: Z件
    - 新規バグ: BUG-XXX（あれば）
    ```
 
 ---
 
-## ドメイン対応表（正本: docs/ops/testing/SECTION_14_MANUAL_TEST_GUIDE.md の章構成）
+## ドメイン対応表
 
-| 引数 | ガイド章 | 内容 | 主なパス |
-|------|---------|------|---------|
-| 2.1, outpatient | 2.1 外来フロー（予約〜受付〜診察） | 予約作成・当日受付・カルテ入力・次回来院設定 | /reservations, / |
-| 2.2, accounting | 2.2 会計・経営管理 | 会計精算・レジ締め・月次レポート | /accounting/close, /accounting/reports |
-| 2.3, crm | 2.3 CRM・Lステップ連携 | タグ管理・対象者抽出・個別送信 | /settings/lstep/tags, /lstep/checkup-sync |
-| 3, security | 3. 品質ガード・セキュリティ | RBAC 権限ガード・削除保護(FK)・離脱防止 | 各画面横断 |
+| 引数 | 正本 | 内容 |
+|------|------|------|
+| 2.1, outpatient | SECTION_14 §2.1 | 外来フロー |
+| 2.2, accounting | SECTION_14 §2.2 | 会計・経営 |
+| 2.3, crm | SECTION_14 §2.3 | CRM・Lステップ |
+| 3, security | SECTION_14 §3 | 品質ガード |
+| S01–S13 | scenarios/S*.md | 業務受入 |
+| V01–V05 | scenarios/V*.md + FIELD-LEVEL-PROTOCOL | フォーム項目単位受入 |

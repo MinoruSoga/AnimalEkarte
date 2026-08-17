@@ -3,7 +3,8 @@
 > **フォーム数**: 30（README V04 セルと一致）
 
 > **目的**: `/settings` 配下のマスタ・設定系フォーム（マスタ SidePanel 群・締め時間・シフトパターン・Lステップ連携・LINE 予約ページ設定）について、入力検証（必須・形式・境界）・更新の永続化・DB 整合（FK 選択肢・一意制約）が実機ブラウザ経由で正しく機能することを納品前に証明する。
-> **所要目安**: 120分 / **深度**: フォーム検証（V 系固有の深度 — S 系テンプレの薄い/深い二値の拡張）
+> **所要目安**: 150分 / **深度**: フォーム検証 + **項目単位 F プロトコル**
+> **項目単位**: [FIELD-LEVEL-PROTOCOL.md](FIELD-LEVEL-PROTOCOL.md) + [FORM-FIELD-INVENTORY.md](FORM-FIELD-INVENTORY.md) §V04。差分表の各行で **必須 F1 + 全表示項目 F4**（同型は型代表で F2/F3 可、F1/F4 は省略不可）。実行時に SidePanel 上の入力を全列挙し inventory に欠けがあれば追記する。
 > **仕様正本**: [screens/settings/ 配下各文書](../../../spec/screens/settings/README.md)（差分表・各セクションに個別文書を明記）・[screens/31-lstep-integration.md](../../../spec/screens/31-lstep-integration.md)
 
 ## 前提条件
@@ -15,7 +16,7 @@
 
 ## 共通チェック手順
 
-各セクション・差分表の行で (C1)(C2)(C3) を参照する。フィールド・境界値・一意制約は各所の指定に従う。
+各セクション・差分表の行で (C1)(C2)(C3) を参照する。加えて **F プロトコルを各フォームの全入力項目に適用**する。フィールド・境界値・一意制約は各所および [FORM-FIELD-INVENTORY.md](FORM-FIELD-INVENTORY.md) の指定に従う。
 
 **C1 入力チェック**
 
@@ -206,7 +207,7 @@
 - 既存の機械テストとの分担: 共通フック単体（use-master-save / use-master-crud）、E2E settings-crud.spec.ts（動物種 CRUD+検索・薬剤新規保存・診断病名パネル表示）、master-crud.spec.ts（主訴ナビ・診療項目の親子階層と 5 タブ — arm64 では skip）、settings-smoke.spec.ts（全設定ページの表示）、component test（予約区分パネル・予約可能枠 3 本・締め 3 セクション・Lステップ 4 セクション・ケージ・薬剤 model 2 本）、BE validators_test.go（RequiredName/TaxType/NonNegativePrice/CageType/CageSize/CoverageRate）+ dose / availability / staff capability 各 validator テストが単体レベルを網羅済み。**本シナリオはブラウザ → API → DB を通した受け入れ時の実機フォーム検証**であり、特に機械テスト未カバーの「一意制約違反時のエラー表示」「更新の永続化」「FK 選択肢のマスタ由来」を対象とする。
 - 重複登録は FE 事前チェックなしで BE の UNIQUE 違反頼み — 全マスタ共通で「無音失敗・白画面にならない」ことが最重点の確認事項。
 - animal_species と Lステップタグ 3 テーブルは clinic 無関係のグローバル一意 — 変更が他クリニックにも見える点に注意（それ以外の clinic_id 隔離検証はスコープ外 — BE isolation テスト正本）。
-- NG 項目は [`STATUS.md` §3 受入バグ（正本）](../../../../STATUS.md) へ `## BUG-XXX:` 節として起票する（ローカル連番 最大+1・[README.md](README.md) のルールに従う）。
+- NG 項目は [`todo.md` 受入バグ](../../../../todo.md) へ `### BUG-XXX` 節として起票する（ローカル連番 最大+1・[README.md](README.md) のルールに従う）。
 
 ## 実装突合
 - 突合日: 2026-08-07

@@ -44,10 +44,16 @@
 
 ## 4. 検証環境とアカウント
 
-| 役割 | ログイン ID | 用途 |
+- 環境準備の正本: [UAT-ENV-SETUP.md](UAT-ENV-SETUP.md)。認証は **`E2E_LOGIN_EMAIL` / `E2E_LOGIN_PASSWORD`**（`.env.local`）。パスワードを本書に書かない。
+- 納品前のフル受入・フォーム項目単位は [scenarios/](scenarios/README.md) が正本（本ガイドはドメイン重点の L5 補完）。
+
+| 役割 | 指定方法 | 用途 |
 |:---|:---|:---|
-| **管理者** | `admin@example.com` | マスタ設定、権限、会計レポートの検証。 |
-| **獣医師** | `vet@example.com` | カルテ、検査、処方の臨床フロー検証。 |
-| **受付/看護** | `reception@example.com` / `nurse@example.com` | 受付、会計、入院ケアの日常業務検証。 |
+| **管理者** | admin ロール（通常は `E2E_LOGIN_*`） | マスタ設定、権限、会計レポート |
+| **獣医師** | doctor / vet ロールの seed アカウント | カルテ、検査、処方 |
+| **受付/看護** | staff / reception / nurse ロール | 受付、会計、入院ケア |
+
+メールアドレスの具体値は seed 依存のため固定しない。local の既定ログインは env を正とする。
 
 ---
+

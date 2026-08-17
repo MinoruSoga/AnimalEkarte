@@ -435,13 +435,38 @@ func setupSharedTestSchema(db *gorm.DB) error {
 		}
 	}
 
+	// Shared bootstrap for packages that query beyond the original 4 billing tables
+	// without calling EnsureAutoMigrated first (e.g. unbilled vaccinations on CreateItem).
 	coreModels := []any{
+		&model.Company{},
+		&model.Clinic{},
+		&model.Account{},
+		&model.Staff{},
 		&model.Owner{},
+		&model.AnimalSpecies{},
+		&model.Pet{},
 		&model.MedicalRecord{},
 		&model.Billing{},
 		&model.Payment{},
+		&model.PaymentMethodMaster{},
 		&model.BillingRefund{},
+		&model.BillingItem{},
 		&model.Treatment{},
+		&model.PaymentSplit{},
+		&model.Estimate{},
+		&model.EstimateItem{},
+		&model.MerchandiseItem{},
+		&model.CashRegisterClose{},
+		&model.Examination{},
+		&model.ExamResult{},
+		&model.Inquiry{},
+		&model.VitalRecord{},
+		&model.TreatmentPlan{},
+		&model.Vaccine{},
+		&model.Vaccination{},
+		&model.PasswordResetToken{},
+		&model.PermissionGroup{},
+		&model.PermissionGroupRule{},
 	}
 	if err := db.AutoMigrate(coreModels...); err != nil {
 		return fmt.Errorf("failed to migrate test db: %w", err)

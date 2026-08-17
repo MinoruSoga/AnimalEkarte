@@ -134,6 +134,11 @@ func (r *createHospitalizationRequest) toServiceInput() (*CreateHospitalizationI
 		return nil, err
 	}
 
+	// BUG-037: new hospitalization must assign a cage (DB column remains nullable for legacy rows).
+	if r.CageID == nil || *r.CageID == 0 {
+		return nil, apperrors.WrapInvalidInput("cage_id is required")
+	}
+
 	plans := make([]CreateTreatmentPlanInput, 0, len(r.TreatmentPlans))
 	for i := range r.TreatmentPlans {
 		plan := r.TreatmentPlans[i].toServiceInput()

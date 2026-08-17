@@ -194,6 +194,31 @@ if [[ -d "$ROOT/backend/migrations" ]]; then
     "$ROOT/docs/architecture/erd.md" "$ROOT/docs/spec/specification.md"
   check_number "テーブル数" "$tables" '[0-9]+ テーブル' \
     "$ROOT/docs/spec/specification.md"
+
+  # ERD §1.1 のドメイン在庫は old_db の移行レポート生成が読む正本でもある。
+  # 上段の「全nテーブル」宣言だけが追随し、個別テーブル名が欠落するドリフトを
+  # 生成前に検出するため、migration の物理テーブル集合と完全一致させる。
+  migration_tables="$TMP/migration_tables.txt"
+  erd_tables="$TMP/erd_tables.txt"
+  {
+    find "$ROOT/backend/migrations" -maxdepth 1 -name '*.sql' -type f -print0 2>/dev/null \
+      | xargs -0 grep -h '^CREATE TABLE' 2>/dev/null || true
+  } | sed -E 's/^CREATE TABLE( IF NOT EXISTS)? ([a-zA-Z_][a-zA-Z0-9_]*).*/\2/' \
+    | sort -u > "$migration_tables"
+  awk '
+    /^### 1\.1 / { in_domain_inventory = 1; next }
+    /^## 2\./ { in_domain_inventory = 0 }
+    in_domain_inventory && /^\|[[:space:]]*\*\*/ { print }
+  ' "$ROOT/docs/architecture/erd.md" \
+    | grep -oE '`[a-z][a-z0-9_]*`' \
+    | tr -d '`' \
+    | sort -u > "$erd_tables" || true
+
+  missing_from_erd="$(comm -23 "$migration_tables" "$erd_tables" | paste -sd, -)"
+  missing_from_migration="$(comm -13 "$migration_tables" "$erd_tables" | paste -sd, -)"
+  if [[ -n "$missing_from_erd" || -n "$missing_from_migration" ]]; then
+    fail "ERD §1.1 テーブル在庫が migration と不一致（ERD欠落=${missing_from_erd:-なし}; migration欠落=${missing_from_migration:-なし}）"
+  fi
 fi
 
 # 3b. 権限リソース数（正 = permission.go の Resource 定数）

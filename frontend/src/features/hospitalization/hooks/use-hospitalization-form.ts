@@ -111,8 +111,19 @@ export function useHospitalizationForm(id?: string, canSubmit = false) {
           timestamp: Date.now(),
         };
       }
+
+      // BUG-037: cage is required on create/update; care plan stays on detail screen (product SoT).
+      const latestFormData = formDataRef.current;
+      const cageId = latestFormData.cageId?.trim() ?? "";
+      if (!cageId) {
+        return {
+          success: false,
+          fieldErrors: { cage_id: "ケージ・個室を選択してください" },
+          timestamp: Date.now(),
+        };
+      }
+
       try {
-        const latestFormData = formDataRef.current;
         if (isEdit && id) {
           if (entityReadRef.current.status !== "found") {
             return { success: false, timestamp: Date.now() };

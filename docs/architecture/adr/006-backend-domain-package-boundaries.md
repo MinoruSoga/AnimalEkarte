@@ -21,7 +21,7 @@ BE-refactor.md の BE9-2A（本ADRの起票元タスク）は、当時の全761 
 
 2026-07-24のfollow-up hardeningでは、LINE webhookの全setting-secret readを受信前identity解決だけの限定例外とし、一意に署名一致したclinicへowner lookup/updateをscopeした。duplicate secretによる曖昧系はfail closed、owner未登録のtyped NotFoundだけをno-op、真のlookup/update errorはnon-2xx retryへ伝播する。follow/unfollow更新は`clinic_id + owner id + expected line_user_id`とLINE event timestampを使うCASとし、stale・duplicate・out-of-order・再連携前IDは`RowsAffected == 0`の安全なno-op、同時刻はunfollow優先とする。公開LIFF account linkはowner PIIを返さない`204 No Content`とし、LINE ID token検証はredirectを追従しない。billing confirmation/returnは認証済みstaffをactorとし、`Content-Type: application/json`（charset parameter可）以外を415、bodyを8 KiBのexact-key/string strict single-object JSON、trim後non-blankの`return_reason` 500文字、`memo` 1,000文字として境界で強制する。scheduler opsはCloudflare Access JWKSをWorker isolate内で10分cacheし、同時取得を集約、unknown `kid`/upstream failure後のrefreshを60秒cooldownしてfail closedにする。
 
-本ADRのimplemented判定はcode/package境界についての判定であり、release readyを意味しない。fresh DB migration実適用・checksum/rollback確認、remote CI/full coverage artifact、production deploy/configuration、scheduler/observability/alert/recovery rehearsalは[`q&a.html` OPS-13〜17](../../../q&a.html#ops)のrelease gateとして未実施である。
+本ADRのimplemented判定はcode/package境界についての判定であり、release readyを意味しない。fresh DB migration実適用・checksum/rollback確認、remote CI/full coverage artifact、production deploy/configuration、scheduler/observability/alert/recovery rehearsalは[`todo.md` OPS-13〜17](../../../todo.md#ops)のrelease gateとして未実施である。
 
 ## Decision
 
@@ -152,7 +152,7 @@ master-FK-write lint（実装fileは`backend/internal/lintscan/master_fk_write_i
 
 ## 論点の解決記録（起票時の着手前ゲート）
 
-BE9-2B完了時点では後続phaseの着手前ゲートとして残していたが、2026-07-21までに以下6項目はすべて裁定、検証または是正済みである。起票時の根拠と実装条件を履歴として残し、新しい未解決事項は[`STATUS.md` の残タスク台帳（正本）](../../../STATUS.md)（`## 個別タスク詳細` へ `### TASK-XXX:` 節で追記）または[`q&a.html`](../../../q&a.html)（決裁・USER操作）へ登録する。
+BE9-2B完了時点では後続phaseの着手前ゲートとして残していたが、2026-07-21までに以下6項目はすべて裁定、検証または是正済みである。起票時の根拠と実装条件を履歴として残し、新しい未解決事項は[`todo.md`](../../../todo.md) / [`todo-po.md`](../../../todo-po.md) へ登録する。
 
 > **2026-07-20 委任裁定／2026-07-22状態同期**: ユーザー（MinoruSoga）がPO判断をAIへ委任したため、アーキテクチャ判断である論点#1〜#4を裁定した。論点#6は当時Openの技術的是正ゲートとして残したが、2026-07-21のbilling Phase 0で是正済み。臨床安全に関わる判断（#201等）は本委任の対象外であり、このADRでは裁定していない。
 

@@ -34,9 +34,12 @@ type MedicalRecordResponse struct {
 }
 
 // InquirySummaryResponse is the inquiry embed on medical-record list/detail wire.
+// Notes carries 問診タブ「治療方針」(inquiry.notes). Omitting it forced FE reload to DEFAULT
+// "# 治療方針" after save/finalize (BUG-034) even though notes persisted in DB.
 type InquirySummaryResponse struct {
 	ID             uint64 `json:"id"`
 	ChiefComplaint string `json:"chief_complaint"`
+	Notes          string `json:"notes"`
 }
 
 func toMedicalRecordResponseWithVisitCount(r *model.MedicalRecord, visitCount int64) MedicalRecordResponse {
@@ -70,6 +73,7 @@ func toMedicalRecordResponseWithVisitCount(r *model.MedicalRecord, visitCount in
 		resp.Inquiry = &InquirySummaryResponse{
 			ID:             r.Inquiry.ID,
 			ChiefComplaint: r.Inquiry.ChiefComplaint,
+			Notes:          r.Inquiry.Notes,
 		}
 	}
 	return resp

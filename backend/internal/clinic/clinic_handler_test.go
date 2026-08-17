@@ -29,10 +29,10 @@ import (
 //    Test Cases (10 scenarios):
 //    ✓ Returns 200 OK with empty list when no clinics exist
 //    ✓ Default (no scope param): Returns clinics where staff is assigned (staff_clinic_assignments)
-//    ✓ scope=all: Returns ALL system clinics (system_admin only)
+//    ✓ scope=all: Returns ALL system clinics (hospital-settings.view; system_admin 不要)
 //    ✓ Returns 401 when staff_id missing from context (default behavior)
 //    ✓ scope=all with system_admin: returns full clinic list
-//    ✓ scope=all with non-admin: returns 403 Forbidden without calling services
+//    ✓ scope=all with non-admin (permission already enforced by middleware): returns full clinic list
 //    ✓ Default list respects staff_clinic_assignments (staff sees only assigned clinics)
 //    ✓ Response includes all clinic fields after list response mapping
 //    ✓ Returns 500 on database error
@@ -102,8 +102,8 @@ import (
 // SECURITY & MULTITENANCY:
 //    ✓ CRITICAL: Clinics are SYSTEM-WIDE (NOT clinic-scoped in request context)
 //    ✓ system_admin flag controls access (is_system_admin extraction required)
-//    ✓ system_admin is required for create/delete and scope=all listing
-//    ✓ RBAC via ResourceHospitalSettings permission remains in place for update
+//    ✓ system_admin is required for create/delete (scope=all listing is permission-based)
+//    ✓ RBAC via ResourceHospitalSettings permission remains in place for list(scope=all)/update
 //    ✓ staff_clinic_assignments controls which clinics staff can view (default scope)
 //    ✓ Non-admin staff can only access/modify their own clinic
 //    ✓ Soft delete prevents accidental data loss
@@ -140,9 +140,9 @@ import (
 //    - CRITICAL DIFFERENCE: Clinics are SYSTEM-WIDE (NOT clinic-scoped in request context)
 //    - Clinic access controlled by is_system_admin flag (not clinic_id context)
 //    - Non-admin staff view/access controlled via staff_clinic_assignments join
-//    - ListClinics with scope=all requires system_admin (NOT permission-based)
-//    - CreateClinic requires system_admin (NOT permission-based)
-//    - DeleteClinic requires system_admin (NOT permission-based)
+//    - ListClinics with scope=all requires ResourceHospitalSettings view (route middleware)
+//    - CreateClinic requires system_admin (NOT permission-based alone)
+//    - DeleteClinic requires system_admin (NOT permission-based alone)
 //    - UpdateClinic requires ResourceHospitalSettings edit permission (admin can do any clinic)
 //    - Non-admin staff can only update their own clinic (clinic_id == requested id)
 //    - Tax rates: standard and reduced for billing calculations
@@ -158,7 +158,7 @@ import (
 //    - Verify non-admin clinic_id scoping (can only access own clinic)
 //    - Verify staff_clinic_assignments for default ListClinics scope
 //    - Test scope=all with system_admin
-//    - Test scope=all with non-admin (403 Forbidden without service calls)
+//    - Test scope=all with non-admin (200; middleware owns hospital-settings.view)
 //    - Test CreateClinic system_admin requirement (403 if not admin)
 //    - Test DeleteClinic system_admin requirement
 //    - Test PATCH semantics (unspecified fields unchanged)
@@ -336,18 +336,40 @@ func TestListClinics_ScopeAll_SystemAdmin_ReturnsAllClinics(t *testing.T) {
 	assert.Contains(t, w.Body.String(), "ノア動物病院 大阪")
 }
 
-func TestListClinics_ScopeAll_NonAdmin_Returns403WithoutServiceCalls(t *testing.T) {
+func TestListClinics_ScopeAll_NonAdmin_ReturnsAllClinics(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	permissionServiceCalled := false
-	permSvc := &mockEffectivePermissionService{
-		getEffectivePermissionsFn: func(_ context.Context, _, _ uint64) ([]model.PermissionGroupRule, error) {
-			permissionServiceCalled = true
-			return []model.PermissionGroupRule{
-				{Resource: string(model.ResourceHospitalSettings), CanView: true},
+	// scope=all の認可はルート middleware（hospital-settings.view）。handler は system_admin を要求しない。
+	clinicServiceCalled := false
+	clinicSvc := &mockClinicService{
+		listClinicsFn: func(_ context.Context) ([]model.Clinic, error) {
+			clinicServiceCalled = true
+			return []model.Clinic{
+				{ID: 1, Name: "ノア動物病院 本院"},
+				{ID: 2, Name: "ノア動物病院 東京"},
 			}, nil
 		},
 	}
+	h := newHandlerWithClinicAndPermSvc(clinicSvc, &mockEffectivePermissionService{})
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodGet, "/clinics?scope=all", http.NoBody)
+	setNonSystemAdmin(c)
+	setClinicID(c)
+
+	h.ListClinics(c)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.True(t, clinicServiceCalled)
+	assert.Contains(t, w.Body.String(), "ノア動物病院 本院")
+	assert.Contains(t, w.Body.String(), "ノア動物病院 東京")
+}
+
+func TestListClinics_ScopeAll_WithoutSystemAdminFlag_StillLists(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	// is_system_admin コンテキスト欠落でも scope=all は一覧可能（認可は middleware 側）。
 	clinicServiceCalled := false
 	clinicSvc := &mockClinicService{
 		listClinicsFn: func(_ context.Context) ([]model.Clinic, error) {
@@ -355,38 +377,7 @@ func TestListClinics_ScopeAll_NonAdmin_Returns403WithoutServiceCalls(t *testing.
 			return []model.Clinic{{ID: 1, Name: "ノア動物病院 本院"}}, nil
 		},
 	}
-	h := newHandlerWithClinicAndPermSvc(clinicSvc, permSvc)
-
-	w := httptest.NewRecorder()
-	c, _ := gin.CreateTestContext(w)
-	c.Request = httptest.NewRequest(http.MethodGet, "/clinics?scope=all", http.NoBody)
-	setNonSystemAdmin(c)
-
-	h.ListClinics(c)
-
-	assert.Equal(t, http.StatusForbidden, w.Code)
-	assert.False(t, permissionServiceCalled)
-	assert.False(t, clinicServiceCalled)
-}
-
-func TestListClinics_ScopeAll_MissingAdminContext_Returns401WithoutServiceCalls(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-
-	permissionServiceCalled := false
-	permSvc := &mockEffectivePermissionService{
-		getEffectivePermissionsFn: func(_ context.Context, _, _ uint64) ([]model.PermissionGroupRule, error) {
-			permissionServiceCalled = true
-			return nil, nil
-		},
-	}
-	clinicServiceCalled := false
-	clinicSvc := &mockClinicService{
-		listClinicsFn: func(_ context.Context) ([]model.Clinic, error) {
-			clinicServiceCalled = true
-			return nil, nil
-		},
-	}
-	h := newHandlerWithClinicAndPermSvc(clinicSvc, permSvc)
+	h := newHandlerWithClinicAndPermSvc(clinicSvc, &mockEffectivePermissionService{})
 
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
@@ -394,10 +385,9 @@ func TestListClinics_ScopeAll_MissingAdminContext_Returns401WithoutServiceCalls(
 
 	h.ListClinics(c)
 
-	assert.Equal(t, http.StatusUnauthorized, w.Code)
-	assert.JSONEq(t, `{"error":"missing user context"}`, w.Body.String())
-	assert.False(t, permissionServiceCalled)
-	assert.False(t, clinicServiceCalled)
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.True(t, clinicServiceCalled)
+	assert.Contains(t, w.Body.String(), "ノア動物病院 本院")
 }
 
 // ---- GetClinic ----

@@ -12,6 +12,17 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
+func sampleShiftTemplate(id uint64, name string) *model.ShiftTemplate {
+	start, end := "09:00:00", "13:00:00"
+	return &model.ShiftTemplate{
+		ID:        id,
+		Name:      name,
+		ShiftType: model.ShiftTypeMorning,
+		StartTime: &start,
+		EndTime:   &end,
+	}
+}
+
 func TestShiftTemplateService_Update(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -26,7 +37,7 @@ func TestShiftTemplateService_Update(t *testing.T) {
 			input: &UpdateShiftTemplateInput{},
 			setupFn: func(repo *mockShiftTemplateRepository) {
 				repo.findByIDFn = func(_ context.Context, _, id uint64) (*model.ShiftTemplate, error) {
-					return &model.ShiftTemplate{ID: id, Name: "早番"}, nil
+					return sampleShiftTemplate(id, "早番"), nil
 				}
 			},
 			wantErr: false,
@@ -40,7 +51,7 @@ func TestShiftTemplateService_Update(t *testing.T) {
 			setupFn: func(repo *mockShiftTemplateRepository) {
 				repo.updateFn = func(_ context.Context, clinicID, id uint64, fields map[string]any) (*model.ShiftTemplate, error) {
 					assert.Equal(t, "新しい早番", fields["name"])
-					return &model.ShiftTemplate{ID: id, Name: "新しい早番"}, nil
+					return sampleShiftTemplate(id, "新しい早番"), nil
 				}
 			},
 			wantErr: false,
@@ -73,7 +84,7 @@ func TestShiftTemplateService_Update(t *testing.T) {
 			name: "正常: Breaks のみ更新 → repo.UpdateBreaks + FindByID が呼ばれる",
 			id:   1,
 			input: &UpdateShiftTemplateInput{
-				Breaks: &[]ShiftBreakTemplateInput{{BreakStart: "12:00", BreakEnd: "13:00"}},
+				Breaks: &[]ShiftBreakTemplateInput{{BreakStart: "12:00", BreakEnd: "13:00:00"}},
 			},
 			setupFn: func(repo *mockShiftTemplateRepository) {
 				repo.updateBreaksFn = func(_ context.Context, templateID uint64, breaks []model.ShiftTemplateBreak) error {
@@ -82,7 +93,7 @@ func TestShiftTemplateService_Update(t *testing.T) {
 					return nil
 				}
 				repo.findByIDFn = func(_ context.Context, _, id uint64) (*model.ShiftTemplate, error) {
-					return &model.ShiftTemplate{ID: id, Name: "早番"}, nil
+					return sampleShiftTemplate(id, "早番"), nil
 				}
 			},
 			wantErr: false,
@@ -91,7 +102,7 @@ func TestShiftTemplateService_Update(t *testing.T) {
 			name: "エラー: repo.UpdateBreaks がエラー → error を返す",
 			id:   1,
 			input: &UpdateShiftTemplateInput{
-				Breaks: &[]ShiftBreakTemplateInput{{BreakStart: "12:00", BreakEnd: "13:00"}},
+				Breaks: &[]ShiftBreakTemplateInput{{BreakStart: "12:00", BreakEnd: "13:00:00"}},
 			},
 			setupFn: func(repo *mockShiftTemplateRepository) {
 				repo.updateBreaksFn = func(_ context.Context, _ uint64, _ []model.ShiftTemplateBreak) error {
@@ -104,7 +115,7 @@ func TestShiftTemplateService_Update(t *testing.T) {
 			name: "エラー: Breaks更新後の FindByID がエラー → error を返す",
 			id:   1,
 			input: &UpdateShiftTemplateInput{
-				Breaks: &[]ShiftBreakTemplateInput{{BreakStart: "12:00", BreakEnd: "13:00"}},
+				Breaks: &[]ShiftBreakTemplateInput{{BreakStart: "12:00", BreakEnd: "13:00:00"}},
 			},
 			setupFn: func(repo *mockShiftTemplateRepository) {
 				callCount := 0
@@ -112,7 +123,7 @@ func TestShiftTemplateService_Update(t *testing.T) {
 					callCount++
 					if callCount == 1 {
 						// 存在チェック用の初回呼び出しは成功させる
-						return &model.ShiftTemplate{ID: id}, nil
+						return sampleShiftTemplate(id, "早番"), nil
 					}
 					return nil, errors.New("reload failed")
 				}
@@ -124,19 +135,19 @@ func TestShiftTemplateService_Update(t *testing.T) {
 			id:   1,
 			input: &UpdateShiftTemplateInput{
 				Name:   strPtr("複合更新"),
-				Breaks: &[]ShiftBreakTemplateInput{{BreakStart: "12:00", BreakEnd: "13:00"}},
+				Breaks: &[]ShiftBreakTemplateInput{{BreakStart: "12:00", BreakEnd: "13:00:00"}},
 			},
 			setupFn: func(repo *mockShiftTemplateRepository) {
 				repo.updateFn = func(_ context.Context, _, id uint64, fields map[string]any) (*model.ShiftTemplate, error) {
 					assert.Equal(t, "複合更新", fields["name"])
-					return &model.ShiftTemplate{ID: id, Name: "複合更新"}, nil
+					return sampleShiftTemplate(id, "複合更新"), nil
 				}
 				repo.updateBreaksFn = func(_ context.Context, _ uint64, breaks []model.ShiftTemplateBreak) error {
 					assert.Len(t, breaks, 1)
 					return nil
 				}
 				repo.findByIDFn = func(_ context.Context, _, id uint64) (*model.ShiftTemplate, error) {
-					return &model.ShiftTemplate{ID: id, Name: "複合更新"}, nil
+					return sampleShiftTemplate(id, "複合更新"), nil
 				}
 			},
 			wantErr: false,
@@ -216,7 +227,7 @@ func TestShiftTemplateService_Delete(t *testing.T) {
 					if tt.findByIDErr != nil {
 						return nil, tt.findByIDErr
 					}
-					return &model.ShiftTemplate{ID: id}, nil
+					return sampleShiftTemplate(id, "早番"), nil
 				},
 				countUsageByTemplateID: func(_ context.Context, _, _ uint64) (int64, error) {
 					return tt.countUsageResult, tt.countUsageErr
@@ -334,7 +345,7 @@ func TestShiftTemplateService_Update_RollsBackParentWhenBreakReplacementFails(t 
 		},
 	}
 	svc := NewShiftTemplateService(repo)
-	breaks := []ShiftBreakTemplateInput{{BreakStart: "12:00", BreakEnd: "13:00"}}
+	breaks := []ShiftBreakTemplateInput{{BreakStart: "12:00", BreakEnd: "13:00:00"}}
 
 	updated, err := svc.Update(context.Background(), 10, 1, &UpdateShiftTemplateInput{
 		Name:   &name,

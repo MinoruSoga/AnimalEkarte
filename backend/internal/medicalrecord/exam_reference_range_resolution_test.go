@@ -63,7 +63,7 @@ func newReferenceRangeResolverService(
 				ClinicID:   1,
 				PetID:      &petID,
 				ExamTypeID: 99,
-				Status:     model.ExaminationStatusCompleted,
+				Status:     model.ExaminationStatusPending,
 			}, nil
 		},
 		replaceItemsByExamIDFn: func(
@@ -371,7 +371,7 @@ func TestExaminationService_ReplaceItemsRequiresPetForMappedFields(t *testing.T)
 				ID:         examID,
 				ClinicID:   1,
 				ExamTypeID: 99,
-				Status:     model.ExaminationStatusCompleted,
+				Status:     model.ExaminationStatusPending,
 			}, nil
 		},
 		replaceItemsByExamIDFn: func(
@@ -691,7 +691,7 @@ func TestExaminationService_ReferenceRangeSnapshotDoesNotChangeWhenMasterChanges
 		ExamTypeID: examType.ID,
 		PetID:      &pet.ID,
 		Date:       time.Date(2026, time.July, 27, 0, 0, 0, 0, time.UTC),
-		Status:     model.ExaminationStatusCompleted,
+		Status:     model.ExaminationStatusPending,
 	})
 	originalMin, originalMax := 1.0, 10.0
 	const wantSnapshotMin, wantSnapshotMax = 1.0, 10.0
@@ -743,7 +743,7 @@ func TestExaminationService_QualitativeReferenceRangeSnapshotDoesNotChangeWhenMa
 		ExamTypeID: examType.ID,
 		PetID:      &pet.ID,
 		Date:       time.Date(2026, time.July, 27, 0, 0, 0, 0, time.UTC),
-		Status:     model.ExaminationStatusCompleted,
+		Status:     model.ExaminationStatusPending,
 	})
 	originalMin, originalMax := "(-)", "(+)"
 	const wantSnapshotMin, wantSnapshotMax = "(-)", "(+)"

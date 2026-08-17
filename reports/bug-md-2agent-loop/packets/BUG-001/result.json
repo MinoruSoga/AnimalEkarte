@@ -1,0 +1,16 @@
+{
+  "status": "COMPLETE",
+  "summary": "BUG-001 product fix already on main (d7bf32f22). claim/BUG-001 held; worktree fix/BUG-001 @ 8325ee588 with pet_number_partial_ILIKE AC subtest. Agent2 re-ran scoped BE/FE tests PASS (exit 0). STATUS/packet left IMPLEMENTED_UNVERIFIED. Did not mark VERIFIED_FIXED. Browser S01 UNREPORTED.",
+  "files_changed": [
+    "backend/internal/pet/repository_test.go",
+    "STATUS.md",
+    "reports/bug-md-2agent-loop/packets/BUG-001/bug_section.md",
+    "reports/bug-md-2agent-loop/packets/BUG-001/result.json"
+  ],
+  "test_commands": [
+    "docker compose exec -T backend go test -p 1 ./internal/pet -run 'TestPetRepository_FindAll_Search|TestPetRepository_FindAll_Kana' -count=1 -v",
+    "docker compose exec -T frontend npx vitest run src/features/owners/loaders.test.ts src/features/owners/routes/OwnersList.test.tsx src/features/owners/components/OwnersListTable.report.test.tsx"
+  ],
+  "test_exit": 0,
+  "notes": "claim/BUG-001 held (user-only release). worktree=/Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte-BUG-001 branch=fix/BUG-001@8325ee588. handoff=/Users/minoru/Vaults/CorpVault/55_Handoff/BRT-8_BUG-001_engineer.md. No migrate/seed/force-push. Foreign billing WIP on main untouched. Product SQL change is pre-existing d7bf32f22; this unit delta is test+status evidence."
+}

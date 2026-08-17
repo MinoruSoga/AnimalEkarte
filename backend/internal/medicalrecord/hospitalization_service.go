@@ -264,13 +264,28 @@ func (s *hospitalizationService) GetByID(ctx context.Context, clinicID, id uint6
 	return result, nil
 }
 
+// defaultHospitalizationStatus picks Create default when client omits status (BUG-031).
+// Clinic calendar day uses time.Local (compose TZ=Asia/Tokyo). start_date on/before today → admitted;
+// future start_date → reserved. Explicit client status is never overridden.
+func defaultHospitalizationStatus(startDate, now time.Time) model.HospitalizationStatus {
+	loc := time.Local
+	start := startDate.In(loc)
+	startDay := time.Date(start.Year(), start.Month(), start.Day(), 0, 0, 0, 0, loc)
+	n := now.In(loc)
+	today := time.Date(n.Year(), n.Month(), n.Day(), 0, 0, 0, 0, loc)
+	if !startDay.After(today) {
+		return model.HospitalizationStatusAdmitted
+	}
+	return model.HospitalizationStatusReserved
+}
+
 func (s *hospitalizationService) Create(ctx context.Context, clinicID uint64, input *CreateHospitalizationInput) (*model.Hospitalization, error) {
 	if input == nil {
 		return nil, apperrors.WrapInvalidInput("input must not be nil")
 	}
 	status := input.Status
 	if status == "" {
-		status = model.HospitalizationStatusReserved
+		status = defaultHospitalizationStatus(input.StartDate, time.Now())
 	}
 	// is_insurance == false の場合は保険情報を NULL にする
 	var insuranceCompanyName *string
@@ -283,6 +298,10 @@ func (s *hospitalizationService) Create(ctx context.Context, clinicID uint64, in
 	// MRB-06: service-layer date order (request binding already checks when both present).
 	if err := validateHospitalizationDateRange(input.StartDate, input.EndDate); err != nil {
 		return nil, err
+	}
+	// BUG-037: fail-closed — create without cage must not persist (UAT: cage_id=NULL).
+	if input.CageID == nil || *input.CageID == 0 {
+		return nil, apperrors.WrapInvalidInput("cage_id is required")
 	}
 	hospitalization := &model.Hospitalization{
 		ClinicID:             clinicID,
@@ -332,6 +351,11 @@ func (s *hospitalizationService) Create(ctx context.Context, clinicID uint64, in
 			if s.treatmentPlanRepo == nil {
 				return apperrors.WrapInternalServerError("hospitalization treatment plan repository is required for nested create")
 			}
+			// BUG-032: registration-time treatment rows must surface on detail CarePlan tab
+			// (GET .../care-plan-items). carePlanItemService.Create opens its own TX and cannot join.
+			if s.carePlanItemRepo == nil {
+				return apperrors.WrapInternalServerError("hospitalization care plan item repository is required for nested create")
+			}
 			hospID := hospitalization.ID
 			for i := range input.TreatmentPlans {
 				planInput := &input.TreatmentPlans[i]
@@ -358,6 +382,21 @@ func (s *hospitalizationService) Create(ctx context.Context, clinicID uint64, in
 				if err := s.treatmentPlanRepo.Create(txCtx, plan); err != nil {
 					slog.ErrorContext(txCtx, "failed to create nested treatment plan", "error", err, "index", i)
 					return apperrors.Wrap(err, "failed to create nested treatment plan")
+				}
+				// Seed instruction care-plan rows from the same registration snapshot (BUG-032).
+				// type=instruction needs no master FK (chk_care_plan_item_ref). unit_price stays 0 so
+				// discharge billing is not auto-charged from estimate-only treatment lines.
+				careItem := &model.CarePlanItem{
+					HospitalizationID: hospID,
+					Type:              model.CarePlanTypeInstruction,
+					Name:              planInput.TreatmentContent,
+					Notes:             planInput.Memo,
+					Status:            model.CarePlanStatusActive,
+					SortOrder:         planInput.SortOrder,
+				}
+				if err := s.carePlanItemRepo.Create(txCtx, careItem); err != nil {
+					slog.ErrorContext(txCtx, "failed to create nested care plan item from treatment plan", "error", err, "index", i)
+					return apperrors.Wrap(err, "failed to create nested care plan item")
 				}
 			}
 		}

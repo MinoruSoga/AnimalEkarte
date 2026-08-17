@@ -1,0 +1,562 @@
+[
+  {
+    "id": "ENV",
+    "step": "login",
+    "status": "PASS",
+    "note": "http://localhost:3003/",
+    "at": "2026-08-14T03:00:21.092Z"
+  },
+  {
+    "id": "settings-hub",
+    "step": "open",
+    "status": "PASS",
+    "note": "/settings",
+    "at": "2026-08-14T03:00:21.704Z"
+  },
+  {
+    "id": "cage",
+    "step": "open",
+    "status": "PASS",
+    "note": "/settings/cage",
+    "at": "2026-08-14T03:00:22.314Z"
+  },
+  {
+    "id": "cage",
+    "step": "C1-1",
+    "status": "PASS",
+    "note": "empty blocked",
+    "at": "2026-08-14T03:00:24.137Z"
+  },
+  {
+    "id": "cage",
+    "step": "create",
+    "status": "PASS",
+    "note": "201 vis=true",
+    "at": "2026-08-14T03:00:28.049Z"
+  },
+  {
+    "id": "cage",
+    "step": "C2-reload",
+    "status": "PASS",
+    "note": "SB_76419708_cage",
+    "at": "2026-08-14T03:00:28.049Z"
+  },
+  {
+    "id": "cage",
+    "step": "C2-reopen",
+    "status": "PASS",
+    "note": "SB_76419708_cage",
+    "at": "2026-08-14T03:00:28.628Z"
+  },
+  {
+    "id": "cage",
+    "step": "C3-2",
+    "status": "PASS",
+    "note": "409",
+    "at": "2026-08-14T03:00:31.037Z"
+  },
+  {
+    "id": "trimming-course",
+    "step": "open",
+    "status": "PASS",
+    "note": "/settings/trimming?tab=course",
+    "at": "2026-08-14T03:00:35.376Z"
+  },
+  {
+    "id": "trimming-course",
+    "step": "C1-1",
+    "status": "PASS",
+    "note": "empty blocked",
+    "at": "2026-08-14T03:00:37.187Z"
+  },
+  {
+    "id": "trimming-course",
+    "step": "create",
+    "status": "PASS",
+    "note": "201 vis=true",
+    "at": "2026-08-14T03:00:40.940Z"
+  },
+  {
+    "id": "trimming-course",
+    "step": "C2-reload",
+    "status": "PASS",
+    "note": "SB_76419708_trimming-course",
+    "at": "2026-08-14T03:00:40.940Z"
+  },
+  {
+    "id": "trimming-course",
+    "step": "C2-reopen",
+    "status": "PASS",
+    "note": "SB_76419708_trimming-course",
+    "at": "2026-08-14T03:00:41.519Z"
+  },
+  {
+    "id": "trimming-course",
+    "step": "C3-2",
+    "status": "PASS",
+    "note": "409",
+    "at": "2026-08-14T03:00:43.867Z"
+  },
+  {
+    "id": "trimming-option",
+    "step": "open",
+    "status": "PASS",
+    "note": "/settings/trimming?tab=option",
+    "at": "2026-08-14T03:00:48.228Z"
+  },
+  {
+    "id": "trimming-option",
+    "step": "C1-1",
+    "status": "PASS",
+    "note": "empty blocked",
+    "at": "2026-08-14T03:00:50.018Z"
+  },
+  {
+    "id": "trimming-option",
+    "step": "create",
+    "status": "PASS",
+    "note": "201 vis=true",
+    "at": "2026-08-14T03:00:53.544Z"
+  },
+  {
+    "id": "trimming-option",
+    "step": "C2-reload",
+    "status": "PASS",
+    "note": "SB_76419708_trimming-option",
+    "at": "2026-08-14T03:00:53.544Z"
+  },
+  {
+    "id": "trimming-option",
+    "step": "C2-reopen",
+    "status": "PASS",
+    "note": "SB_76419708_trimming-option",
+    "at": "2026-08-14T03:00:54.093Z"
+  },
+  {
+    "id": "trimming-option",
+    "step": "C3-2",
+    "status": "PASS",
+    "note": "409",
+    "at": "2026-08-14T03:00:56.249Z"
+  },
+  {
+    "id": "trimming-course-type",
+    "step": "open",
+    "status": "PASS",
+    "note": "/settings/trimming-course-type",
+    "at": "2026-08-14T03:01:00.579Z"
+  },
+  {
+    "id": "trimming-course-type",
+    "step": "C1-1",
+    "status": "PASS",
+    "note": "empty blocked",
+    "at": "2026-08-14T03:01:02.353Z"
+  },
+  {
+    "id": "trimming-course-type",
+    "step": "create",
+    "status": "PASS",
+    "note": "201 vis=true",
+    "at": "2026-08-14T03:01:05.858Z"
+  },
+  {
+    "id": "trimming-course-type",
+    "step": "C2-reload",
+    "status": "PASS",
+    "note": "SB_76419708_trimming-course-type",
+    "at": "2026-08-14T03:01:05.858Z"
+  },
+  {
+    "id": "trimming-course-type",
+    "step": "C2-reopen",
+    "status": "PASS",
+    "note": "SB_76419708_trimming-course-type",
+    "at": "2026-08-14T03:01:06.408Z"
+  },
+  {
+    "id": "trimming-course-type",
+    "step": "C3-2",
+    "status": "PASS",
+    "note": "409",
+    "at": "2026-08-14T03:01:08.545Z"
+  },
+  {
+    "id": "permission-groups",
+    "step": "open",
+    "status": "PASS",
+    "note": "/settings/permission-groups",
+    "at": "2026-08-14T03:01:12.862Z"
+  },
+  {
+    "id": "permission-groups",
+    "step": "C1-1",
+    "status": "PASS",
+    "note": "empty blocked",
+    "at": "2026-08-14T03:01:14.778Z"
+  },
+  {
+    "id": "permission-groups",
+    "step": "create",
+    "status": "PASS",
+    "note": "201 vis=true",
+    "at": "2026-08-14T03:01:18.458Z"
+  },
+  {
+    "id": "permission-groups",
+    "step": "C2-reload",
+    "status": "PASS",
+    "note": "SB_76419708_permission-groups",
+    "at": "2026-08-14T03:01:18.458Z"
+  },
+  {
+    "id": "permission-groups",
+    "step": "C2-reopen",
+    "status": "PASS",
+    "note": "SB_76419708_permission-groups",
+    "at": "2026-08-14T03:01:19.161Z"
+  },
+  {
+    "id": "permission-groups",
+    "step": "C3-2",
+    "status": "PASS",
+    "note": "409",
+    "at": "2026-08-14T03:01:21.430Z"
+  },
+  {
+    "id": "occupations",
+    "step": "open",
+    "status": "PASS",
+    "note": "/settings/occupations",
+    "at": "2026-08-14T03:01:22.442Z"
+  },
+  {
+    "id": "occupations",
+    "step": "C1-1",
+    "status": "PASS",
+    "note": "empty blocked",
+    "at": "2026-08-14T03:01:24.219Z"
+  },
+  {
+    "id": "occupations",
+    "step": "create",
+    "status": "PASS",
+    "note": "201 vis=true",
+    "at": "2026-08-14T03:01:27.724Z"
+  },
+  {
+    "id": "occupations",
+    "step": "C2-reload",
+    "status": "PASS",
+    "note": "SB_76419708_occupations",
+    "at": "2026-08-14T03:01:27.724Z"
+  },
+  {
+    "id": "occupations",
+    "step": "C2-reopen",
+    "status": "PASS",
+    "note": "SB_76419708_occupations",
+    "at": "2026-08-14T03:01:28.278Z"
+  },
+  {
+    "id": "occupations",
+    "step": "C3-2",
+    "status": "PASS",
+    "note": "409",
+    "at": "2026-08-14T03:01:30.403Z"
+  },
+  {
+    "id": "insurance",
+    "step": "open",
+    "status": "PASS",
+    "note": "/settings/insurance",
+    "at": "2026-08-14T03:01:34.726Z"
+  },
+  {
+    "id": "insurance",
+    "step": "C1-1",
+    "status": "PASS",
+    "note": "empty blocked",
+    "at": "2026-08-14T03:01:36.503Z"
+  },
+  {
+    "id": "insurance",
+    "step": "create",
+    "status": "PASS",
+    "note": "201 vis=true",
+    "at": "2026-08-14T03:01:40.025Z"
+  },
+  {
+    "id": "insurance",
+    "step": "C2-reload",
+    "status": "PASS",
+    "note": "SB_76419708_insurance",
+    "at": "2026-08-14T03:01:40.025Z"
+  },
+  {
+    "id": "insurance",
+    "step": "C2-reopen",
+    "status": "PASS",
+    "note": "SB_76419708_insurance",
+    "at": "2026-08-14T03:01:40.576Z"
+  },
+  {
+    "id": "insurance",
+    "step": "C3-2",
+    "status": "PASS",
+    "note": "409",
+    "at": "2026-08-14T03:01:42.714Z"
+  },
+  {
+    "id": "merchandise",
+    "step": "open",
+    "status": "PASS",
+    "note": "/settings/merchandise-items",
+    "at": "2026-08-14T03:01:47.251Z"
+  },
+  {
+    "id": "merchandise",
+    "step": "C1-1",
+    "status": "PASS",
+    "note": "empty blocked",
+    "at": "2026-08-14T03:01:49.428Z"
+  },
+  {
+    "id": "merchandise",
+    "step": "create",
+    "status": "PASS",
+    "note": "201 vis=true",
+    "at": "2026-08-14T03:01:54.438Z"
+  },
+  {
+    "id": "merchandise",
+    "step": "C2-reload",
+    "status": "PASS",
+    "note": "SB_76419708_merchandise",
+    "at": "2026-08-14T03:01:54.438Z"
+  },
+  {
+    "id": "merchandise",
+    "step": "C2-reopen",
+    "status": "PASS",
+    "note": "SB_76419708_merchandise",
+    "at": "2026-08-14T03:01:55.027Z"
+  },
+  {
+    "id": "merchandise",
+    "step": "C3-2",
+    "status": "PASS",
+    "note": "409",
+    "at": "2026-08-14T03:01:57.329Z"
+  },
+  {
+    "id": "payment-methods",
+    "step": "open",
+    "status": "PASS",
+    "note": "/settings/payment-methods",
+    "at": "2026-08-14T03:02:01.660Z"
+  },
+  {
+    "id": "payment-methods",
+    "step": "C1-1",
+    "status": "PASS",
+    "note": "empty blocked",
+    "at": "2026-08-14T03:02:03.446Z"
+  },
+  {
+    "id": "payment-methods",
+    "step": "create",
+    "status": "PASS",
+    "note": "201 vis=true",
+    "at": "2026-08-14T03:02:06.960Z"
+  },
+  {
+    "id": "payment-methods",
+    "step": "C2-reload",
+    "status": "PASS",
+    "note": "SB_76419708_payment-methods",
+    "at": "2026-08-14T03:02:06.960Z"
+  },
+  {
+    "id": "payment-methods",
+    "step": "C2-reopen",
+    "status": "PASS",
+    "note": "SB_76419708_payment-methods",
+    "at": "2026-08-14T03:02:07.514Z"
+  },
+  {
+    "id": "payment-methods",
+    "step": "C3-2",
+    "status": "PARTIAL",
+    "note": "noresp",
+    "at": "2026-08-14T03:02:20.512Z"
+  },
+  {
+    "id": "campaigns",
+    "step": "open",
+    "status": "PASS",
+    "note": "/settings/campaigns",
+    "at": "2026-08-14T03:02:21.483Z"
+  },
+  {
+    "id": "campaigns",
+    "step": "C1-1",
+    "status": "PASS",
+    "note": "empty blocked",
+    "at": "2026-08-14T03:02:23.386Z"
+  },
+  {
+    "id": "campaigns",
+    "step": "create",
+    "status": "PASS",
+    "note": "201 vis=true",
+    "at": "2026-08-14T03:02:27.710Z"
+  },
+  {
+    "id": "campaigns",
+    "step": "C2-reload",
+    "status": "PASS",
+    "note": "SB_76419708_campaigns",
+    "at": "2026-08-14T03:02:27.710Z"
+  },
+  {
+    "id": "campaigns",
+    "step": "C2-reopen",
+    "status": "PASS",
+    "note": "SB_76419708_campaigns",
+    "at": "2026-08-14T03:02:28.287Z"
+  },
+  {
+    "id": "campaigns",
+    "step": "C3-2",
+    "status": "SKIP",
+    "note": "no unique",
+    "at": "2026-08-14T03:02:28.625Z"
+  },
+  {
+    "id": "shift-templates",
+    "step": "open",
+    "status": "PASS",
+    "note": "/settings/shift-templates",
+    "at": "2026-08-14T03:02:29.245Z"
+  },
+  {
+    "id": "shift-templates",
+    "step": "C1-1",
+    "status": "PASS",
+    "note": "save disabled empty",
+    "at": "2026-08-14T03:02:29.925Z"
+  },
+  {
+    "id": "shift-templates",
+    "step": "create",
+    "status": "PASS",
+    "note": "201 vis=true",
+    "at": "2026-08-14T03:02:31.968Z"
+  },
+  {
+    "id": "shift-templates",
+    "step": "C2-reload",
+    "status": "PASS",
+    "note": "SB_76419708_shift-templates",
+    "at": "2026-08-14T03:02:31.968Z"
+  },
+  {
+    "id": "shift-templates",
+    "step": "C2-reopen",
+    "status": "PASS",
+    "note": "SB_76419708_shift-templates",
+    "at": "2026-08-14T03:02:32.547Z"
+  },
+  {
+    "id": "shift-templates",
+    "step": "field-memo",
+    "status": "PASS",
+    "note": "SBメモ",
+    "at": "2026-08-14T03:02:32.549Z"
+  },
+  {
+    "id": "shift-templates",
+    "step": "C3-2",
+    "status": "PASS",
+    "note": "409",
+    "at": "2026-08-14T03:02:34.983Z"
+  },
+  {
+    "id": "staff",
+    "step": "open",
+    "status": "PASS",
+    "note": "",
+    "at": "2026-08-14T03:02:39.311Z"
+  },
+  {
+    "id": "staff",
+    "step": "new_btn",
+    "status": "PASS",
+    "note": "n=2",
+    "at": "2026-08-14T03:02:39.316Z"
+  },
+  {
+    "id": "staff",
+    "step": "field_list",
+    "status": "PASS",
+    "note": "[{\"tag\":\"INPUT\",\"type\":\"text\",\"aria\":\"無題\",\"ph\":\"無題\",\"id\":\"master-title\"},{\"tag\":\"BUTTON\",\"type\":\"button\",\"aria\":null,\"ph\":null,\"id\":\"\"},{\"tag\":\"SELECT\",\"type\":null,\"aria\":null,\"ph\":null,\"id\":\"\"},{\"tag\":\"INPUT\",\"type\":\"text\",\"aria\":\"資格番号\",\"ph\":\"空\",\"id\":\"\"},{\"tag\":\"INPUT\",\"type\":\"e",
+    "at": "2026-08-14T03:02:39.917Z"
+  },
+  {
+    "id": "staff",
+    "step": "C1-1",
+    "status": "PASS",
+    "note": "八王子病院 診療業務 当日の受付 飼主・ペット 予約管理 カルテ 検査管理 トリミング 予防接種 定",
+    "at": "2026-08-14T03:02:40.552Z"
+  },
+  {
+    "id": "staff",
+    "step": "fill-title",
+    "status": "PASS",
+    "note": "draft name",
+    "at": "2026-08-14T03:02:40.601Z"
+  },
+  {
+    "id": "closing-time",
+    "step": "open",
+    "status": "PASS",
+    "note": "八王子病院 診療業務 当日の受付 飼主・ペット 予約管理 カルテ 検査管理 トリミング 予防接種 定",
+    "at": "2026-08-14T03:02:41.569Z"
+  },
+  {
+    "id": "closing-time",
+    "step": "time_fields",
+    "status": "PASS",
+    "note": "n=3",
+    "at": "2026-08-14T03:02:41.571Z"
+  },
+  {
+    "id": "closing-time",
+    "step": "save",
+    "status": "PASS",
+    "note": "200",
+    "at": "2026-08-14T03:02:41.618Z"
+  },
+  {
+    "id": "closing-time",
+    "step": "holiday-C1",
+    "status": "PARTIAL",
+    "note": "clicked empty",
+    "at": "2026-08-14T03:02:42.532Z"
+  },
+  {
+    "id": "insurance-bound",
+    "step": "C1-3-101",
+    "status": "PASS",
+    "note": "stay",
+    "at": "2026-08-14T03:02:51.841Z"
+  },
+  {
+    "id": "payment-system",
+    "step": "no-delete",
+    "status": "PASS",
+    "note": "",
+    "at": "2026-08-14T03:03:28.100Z"
+  }
+]

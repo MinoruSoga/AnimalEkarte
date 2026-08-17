@@ -1,8 +1,10 @@
 package main
 
 import (
+	"encoding/csv"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -104,15 +106,37 @@ func TestSeedBundlesForCurrentEnv_ReadsAPP_ENV(t *testing.T) {
 func TestDemoBundleHasActiveSystemAdminDocumentsIntentionalDemoOnly(t *testing.T) {
 	t.Parallel()
 
-	// Resolve seeds relative to this package: backend/cmd/migrate → backend/migrations/seeds
-	accountsPath := filepath.Join("..", "..", "migrations", "seeds", "003_demo", "accounts.csv")
-	raw, err := os.ReadFile(accountsPath)
+	raw, err := readDemoAccountsCSV()
 	if err != nil {
 		t.Fatalf("read demo accounts.csv: %v", err)
 	}
-	// Header contract: id,email,password_hash,is_active,is_system_admin,...
-	// ",t,t," matches "...hash,t,t,timestamp..." without decoding credentials.
-	if !strings.Contains(string(raw), ",t,t,") {
+	// Parse CSV properly (avoid brittle ",t,t," substring on hash lines).
+	r := csv.NewReader(strings.NewReader(string(raw)))
+	rows, err := r.ReadAll()
+	if err != nil || len(rows) < 2 {
+		t.Fatalf("parse demo accounts.csv: rows=%d err=%v", len(rows), err)
+	}
+	header := rows[0]
+	col := map[string]int{}
+	for i, h := range header {
+		col[strings.TrimSpace(h)] = i
+	}
+	ia, okA := col["is_active"]
+	isa, okS := col["is_system_admin"]
+	if !okA || !okS {
+		t.Fatalf("demo accounts.csv missing is_active/is_system_admin columns: %v", header)
+	}
+	found := false
+	for _, row := range rows[1:] {
+		if len(row) <= ia || len(row) <= isa {
+			continue
+		}
+		if row[ia] == "t" && row[isa] == "t" {
+			found = true
+			break
+		}
+	}
+	if !found {
 		t.Fatal("003_demo accounts.csv is expected to contain at least one active system admin (is_active=t, is_system_admin=t); demo-only intentional")
 	}
 
@@ -122,6 +146,40 @@ func TestDemoBundleHasActiveSystemAdminDocumentsIntentionalDemoOnly(t *testing.T
 			t.Fatalf("%s seed plan must not load 003_demo despite demo CSV containing system admins", env)
 		}
 	}
+}
+
+func readDemoAccountsCSV() ([]byte, error) {
+	candidates := []string{}
+	if _, thisFile, _, ok := runtime.Caller(0); ok {
+		candidates = append(candidates,
+			filepath.Join(filepath.Dir(thisFile), "..", "..", "migrations", "seeds", "003_demo", "accounts.csv"),
+		)
+	}
+	if wd, err := os.Getwd(); err == nil {
+		candidates = append(candidates,
+			filepath.Join(wd, "migrations", "seeds", "003_demo", "accounts.csv"),
+			filepath.Join(wd, "backend", "migrations", "seeds", "003_demo", "accounts.csv"),
+			filepath.Join(wd, "..", "migrations", "seeds", "003_demo", "accounts.csv"),
+			filepath.Join(wd, "..", "..", "migrations", "seeds", "003_demo", "accounts.csv"),
+		)
+	}
+	if ws := os.Getenv("GITHUB_WORKSPACE"); ws != "" {
+		candidates = append(candidates,
+			filepath.Join(ws, "backend", "migrations", "seeds", "003_demo", "accounts.csv"),
+		)
+	}
+	var last error
+	for _, p := range candidates {
+		raw, err := os.ReadFile(p)
+		if err == nil {
+			return raw, nil
+		}
+		last = err
+	}
+	if last == nil {
+		last = os.ErrNotExist
+	}
+	return nil, last
 }
 
 func TestBundleOrderForEnv_MatchesSeedBundlesForEnv(t *testing.T) {

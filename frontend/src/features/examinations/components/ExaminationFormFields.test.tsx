@@ -178,4 +178,60 @@ describe("ExaminationFormFields", () => {
     expect(screen.queryByRole("button", { name: "保存" })).not.toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: "ステータス" })).toBeDisabled();
   });
+
+  it("BUG-033: 完了シールでは結果ロック文言・保存/削除非表示、ステータスは変更可", () => {
+    render(
+      <MemoryRouter>
+        <ExaminationFormFields
+          formData={{ date: "2026-07-21T00:00:00+09:00", status: "完了" }}
+          examTypes={[]}
+          staffList={[]}
+          masterLoading={false}
+          isEdit
+          isDeleting={false}
+          isConfirmed={false}
+          isCompletedLocked
+          canEdit
+          canCreate
+          canDelete
+          onSetFormData={vi.fn()}
+          onBack={vi.fn()}
+          onDeleteClick={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(
+      screen.getByText(/完了済みのため結果の編集・削除はできません/),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "保存" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "削除" })).not.toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "ステータス" })).not.toBeDisabled();
+  });
+
+  it("BUG-033: 完了シールでステータスを確定に変えると保存buttonが再表示される", () => {
+    render(
+      <MemoryRouter>
+        <ExaminationFormFields
+          formData={{ date: "2026-07-21T00:00:00+09:00", status: "確定" }}
+          examTypes={[]}
+          staffList={[]}
+          masterLoading={false}
+          isEdit
+          isDeleting={false}
+          isConfirmed={false}
+          isCompletedLocked
+          canEdit
+          canCreate
+          canDelete
+          onSetFormData={vi.fn()}
+          onBack={vi.fn()}
+          onDeleteClick={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole("button", { name: "保存" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "削除" })).not.toBeInTheDocument();
+  });
 });

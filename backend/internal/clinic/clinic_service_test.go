@@ -567,7 +567,7 @@ var demoPermissionSeedGroupProfiles = map[uint64]string{
 // buildDefaultPermissionGroupRules と一致することを検証する。examination-unconfirm は
 // 新規クリニックでも default-deny で、既存 demo seed へ自動付与しない。
 func TestDemoSeedGroupRules_Parity(t *testing.T) {
-	require.Len(t, model.AllResources, 36)
+	require.Len(t, model.AllResources, 37)
 	require.Len(t, demoPermissionSeedGroupProfiles, 9, "demo seed は 9 権限グループを持つ契約")
 	seedResources := make([]model.Resource, 0, len(model.AllResources)-1)
 	for _, resource := range model.AllResources {

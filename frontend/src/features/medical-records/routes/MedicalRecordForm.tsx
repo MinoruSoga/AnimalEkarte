@@ -50,6 +50,7 @@ import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { useTitle } from "@/hooks/use-title";
 import { ResourceMedicalRecords } from "@/types/generated/models";
+import { isMedicalRecordFinalizedStatus } from "../lib/medical-record-lock";
 
 export const MedicalRecordForm = memo(function MedicalRecordForm() {
   const { id: recordId } = useParams();
@@ -164,6 +165,10 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
 
   // addenda セクション用: キャッシュ共有のため追加ネットワーク要求なし
   const { data: currentRecord } = useGetMedicalRecord(recordId ?? "");
+  // BUG-035 residual: hook の isFinalized と detail キャッシュを OR で単一ロック判定にする
+  // （banner/addenda が 確定済 なのに保存が残る dual-source を塞ぐ）
+  const recordFinalized =
+    isFinalized || isMedicalRecordFinalizedStatus(currentRecord?.status);
   // P2-15: 拠点横断で開いたカルテ（record.clinicId）の子リソースは、グローバル選択クリニックではなく
   // レコード自身の clinicId を X-Clinic-ID として送る必要がある。currentRecord 解決前は undefined —
   // クエリキーに clinicId を含めているため解決後に自動で正しいクリニックへ再フェッチされる。
@@ -343,6 +348,23 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
     return null;
   }
 
+  // BUG-002: 死亡ペットへの /medical-records/new?petId=… 直叩きは編集フォームを出さない。
+  // mutation 拒否だけでは UAT で【死亡】バナー付きフルフォームが残るため、UI を hard stop する。
+  // BE medicalRecordDeceasedPetMessage と同文言。
+  if (isNewRecord && selectedPet.status === "死亡") {
+    return (
+      <PageLayout
+        title="カルテ入力"
+        onBack={handleBack}
+        icon={<HeartPulse className={`${ICON.page} ${C.text}`} />}
+        resource={ResourceMedicalRecords}
+        maxWidth={LAYOUT.pageContentMaxWidth.full}
+      >
+        <ErrorFallback message="死亡したペットは新規カルテを作成できません" />
+      </PageLayout>
+    );
+  }
+
   return (
     <form action={formAction} className={LAYOUT.fullHeight}>
     <PageLayout
@@ -386,13 +408,16 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
         onNextVisitDateValidChange={handleNextVisitDateValidChange}
         hasLineIntegration={hasLineIntegration}
       />
-      {/* SPEC-GAP (GAP-1): 確定済みカルテと非編集権限のカルテは編集不可 UI。BE は主要な子リソース
-          (治療/検査/バイタル/処方/健診/画像) を 409 で拒否するが、UI が押せて
-          エラーになるのは不可のため、タブ内の全編集導線をここで一括無効化する。
-          個別コンポーネントへ disabled を都度配線すると新規フィールド追加時に
-          ガード漏れが起きやすいため、fieldset の cascade を単一の強制点にする。 */}
-      <fieldset disabled={isFinalized || !canSubmit} className="contents border-0 m-0 p-0">
-        {isFinalized ? (
+      {/* SPEC-GAP (GAP-1) / BUG-035: 確定済み・非編集権限のカルテは編集不可 UI。
+          display:contents の fieldset はブラウザで disabled が子孫へ伝播しないため使わない。
+          BE は更新を 409 で拒否するが、UI が押せてエラーになるのは不可。
+          加えて問診臨床欄は isFinalized prop で content attribute を明示する（UAT residual）。 */}
+      <fieldset
+        disabled={recordFinalized || !canSubmit}
+        className="border-0 p-0 m-0 min-w-0"
+        data-testid="medical-record-edit-lock"
+      >
+        {recordFinalized ? (
           <div className={`mx-4 mt-3 rounded border ${C.borderMedium} ${C.bgPage} px-3 py-2 text-sm ${C.text60}`}>
             このカルテは確定済みのため編集できません。修正が必要な場合は下部の訂正追記（addendum）をご利用ください。
           </div>
@@ -450,13 +475,13 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
 
       <MedicalRecordFloatingActions
         activeTab={activeTab}
-        canDelete={!!canDelete && !isFinalized}
+        canDelete={!!canDelete && !recordFinalized}
         canEdit={canEdit}
         canSubmit={canSubmit}
         isNewRecord={isNewRecord}
         isCreating={isCreating}
         isSaving={isSaving}
-        isFinalized={isFinalized}
+        isFinalized={recordFinalized}
         onDeleteClick={() => setIsDeleteConfirmOpen(true)}
         onVitalsClick={() => setIsVitalsOpen(true)}
         onPrintClick={handlePrintClick}

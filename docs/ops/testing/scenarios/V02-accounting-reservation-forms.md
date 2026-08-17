@@ -1,19 +1,21 @@
-# V02: 会計・予約・受付系フォーム検証（入力・更新・DB整合）
+# V02: 会計・予約・受付・在庫系フォーム検証（入力・更新・DB整合）
 
-> **目的**: 会計精算・明細追加・クレジット訂正・返金・レジ締め・見積・予約・受付・シフト・休診日の各入力フォームについて、入力検証（必須・形式・境界）・更新の永続化・DB 整合（FK 選択肢・一意制約）が実機ブラウザ経由で正しく機能することを納品前に証明する。
-> **所要目安**: 90分 / **深度**: フォーム検証
-> **仕様正本**: [screens/11-accounting-detail.md](../../../spec/screens/11-accounting-detail.md)・[screens/29-closing-aggregation.md](../../../spec/screens/29-closing-aggregation.md)・[screens/23-estimate-form.md](../../../spec/screens/23-estimate-form.md)・[screens/02-reservations.md](../../../spec/screens/02-reservations.md)・[screens/01-reception.md](../../../spec/screens/01-reception.md)・[screens/24-shift-calendar.md](../../../spec/screens/24-shift-calendar.md)
+> **目的**: 会計精算・明細追加・クレジット訂正・返金・レジ締め・見積・予約・受付・シフト・休診日・**在庫**の各入力フォームについて、入力検証（必須・形式・境界）・更新の永続化・DB 整合（FK 選択肢・一意制約）が実機ブラウザ経由で正しく機能することを納品前に証明する。
+> **所要目安**: 110分 / **深度**: フォーム検証 + **項目単位 F プロトコル**
+> **フォーム数**: 12（README V02 と一致）
+> **項目単位**: [FIELD-LEVEL-PROTOCOL.md](FIELD-LEVEL-PROTOCOL.md) + [FORM-FIELD-INVENTORY.md](FORM-FIELD-INVENTORY.md) §V02。C1 は入口に過ぎず、**inventory の全 fieldKey に F0–F6 を適用**して完了とする。
+> **仕様正本**: [screens/11-accounting-detail.md](../../../spec/screens/11-accounting-detail.md)・[screens/29-closing-aggregation.md](../../../spec/screens/29-closing-aggregation.md)・[screens/23-estimate-form.md](../../../spec/screens/23-estimate-form.md)・[screens/02-reservations.md](../../../spec/screens/02-reservations.md)・[screens/01-reception.md](../../../spec/screens/01-reception.md)・[screens/24-shift-calendar.md](../../../spec/screens/24-shift-calendar.md)・在庫は `frontend/src/features/inventory`
 
 ## 前提条件
 
-- 環境: ローカル（seed 003_demo）。ログイン: admin ロール（accounting / accounting-post-close-edit / estimates / reservations / shifts の各権限を含む）。
+- 環境: ローカル（seed 003_demo）。ログイン: admin ロール（accounting / accounting-post-close-edit / estimates / reservations / shifts / **inventory** の各権限を含む）。
 - 本シナリオで作成するデータは名前・メモに「V02」を含め、終了時に削除またはキャンセルする。レジ締め（§5）のみ取り消し不可のため、締めが未実施の日・区分を対象にする。
-- スコープ外: クロステナント隔離（BE isolation テストが正本）。会計訂正・未収金の業務フローは [S08](S08-accounting-corrections.md)、締め時間帯境界（AM/PM/EMG・越日）は [S09](S09-closing-time-boundaries.md)、見積ステータス遷移の全パターンは [S07](S07-estimate-status-control.md) が正本 — 本シナリオはフォーム検証観点（C1〜C3）に限定する。
+- スコープ外: クロステナント隔離（BE isolation テストが正本）。会計訂正・未収金の業務フローは [S08](S08-accounting-corrections.md)、締め時間帯境界（AM/PM/EMG・越日）は [S09](S09-closing-time-boundaries.md)、見積ステータス遷移の全パターンは [S07](S07-estimate-status-control.md) が正本 — 本シナリオはフォーム検証観点（C1〜C3 + 項目単位 F）に限定する。
 - `/settings` 配下のマスタフォーム（予約区分・シフトテンプレート等の設定画面）は V04 の対象。本シナリオではそれらを FK 選択肢の供給元（C3-1）としてのみ操作する。
 
 ## 共通チェック手順
 
-各フォームのセクションで (C1)(C2)(C3) を参照する。フィールド・境界値・一意制約は各セクションの指定に従う。
+各フォームのセクションで (C1)(C2)(C3) を参照する。加えて **[FIELD-LEVEL-PROTOCOL.md](FIELD-LEVEL-PROTOCOL.md) の F0–F6 を inventory 全項目に適用**する。フィールド・境界値・一意制約は各セクションおよび inventory の指定に従う。
 
 **C1 入力チェック**
 
@@ -188,17 +190,35 @@
 | 3 | (C3-2) 設定済みの日に再度休診日を設定しようとする | 【要実測】**DEFER**（設定→再設定のフル操作未実施。/shifts に定休日コントロール存在のみ smoke）。source-supported: UPSERT |
 | 4 | 後片付け: 休診日を解除 | カレンダーから休診日表示が消え、§7 の該当日が再び選択可能になる |
 
+## 12. 在庫登録・編集フォーム (inventory-form) — 項目単位必須
+
+- ルート: `/inventory/new`（新規）・`/inventory/:id`（編集）。実装: `InventoryForm` / `InventoryFormSections` / `use-inventory-form.ts`。
+- **項目棚卸し正本**: [FORM-FIELD-INVENTORY.md](FORM-FIELD-INVENTORY.md) § inventory-form。以下は C1〜C3 入口。**全 fieldKey に F プロトコルを適用**する。
+
+| # | 操作 | 期待結果 |
+|:--|:--|:--|
+| 1 | (C1-1 / F1) 品名を空のまま保存。現在庫数・最低在庫数を空のまま保存 | それぞれエラーが表示され保存されない（`quantity` / `minStockLevel` は 0 以上の整数必須） |
+| 2 | (C1-2 / F2–F3) 現在庫数に `-1` / `1.5`、最低在庫数に `-1` を入れて保存 | 拒否される（整数かつ ≥0）。`0` は受理 |
+| 3 | (F4) 新規「V02在庫」: 品名・カテゴリ（medicine/consumable/food/other を順に代表 1+残り F0）・単位・数量・最低在庫・保管場所・使用期限・仕入先・最終入庫日を入力して保存 → 一覧 → 再読込 → 再オープン | C2-1〜C2-3 どおり全入力項目が永続・初期表示される |
+| 4 | (F5) 任意項目（単位・保管場所・使用期限・仕入先・最終入庫日）を空にして保存 → 再オープン | 空/未設定が永続する（クリア可な契約） |
+| 5 | (C2) 既存「V02在庫」の数量のみ変更して保存 → 再オープン | 他フィールドが消えずに保持される（部分更新） |
+| 6 | (C3-3) `/inventory/<存在しない ID>` を直叩き | 404/エラー画面（白画面・無限ロードにならない） |
+| 7 | 後片付け: 「V02在庫」を削除または一覧から除外 | 受入データが残らない |
+
+- カテゴリ enum 外は UI 上選択不能（BE 拒否は unit test 正本）。一意制約（同名在庫）が UI から再現できる場合のみ C3-2 を追加実施。
+
 ## 確認観点
 
-- 既存の機械テストとの分担: FE component test（`PaymentCard`・`CreditCorrectionDialog`・`RefundSection`・`EstimateForm`・`ReservationFormModal`・受付 hooks/`ReceptionDialogActionButtons`・`ShiftCalendar`）と BE validator/service test（validatePaymentSplits・billing_item・refund・cash_register・estimate・appointment/checkSlotConflict・shift_entry の各 service test）が単体レベルの検証を網羅済み。**本シナリオはブラウザ → API → DB を通した受け入れ時の実機フォーム検証**である。
-- テスト空白地帯: `CashRegisterClosePage`・`ShiftFormDialog`・`ClinicHolidayModal` は component test が存在せず、E2E も全対象フォームで表示確認どまり（保存実行なし）— §5・§10・§11 は本シナリオが唯一の保存実行検証。`ItemListCard` には component test がある。
+- 既存の機械テストとの分担: FE component test（`PaymentCard`・`CreditCorrectionDialog`・`RefundSection`・`EstimateForm`・`ReservationFormModal`・受付 hooks/`ReceptionDialogActionButtons`・`ShiftCalendar`・inventory form hooks）と BE validator/service test（validatePaymentSplits・billing_item・refund・cash_register・estimate・appointment/checkSlotConflict・shift_entry の各 service test）が単体レベルの検証を網羅済み。**本シナリオはブラウザ → API → DB を通した受け入れ時の実機フォーム検証**である。
+- テスト空白地帯: `CashRegisterClosePage`・`ShiftFormDialog`・`ClinicHolidayModal` は component test が存在せず、E2E も全対象フォームで表示確認どまり（保存実行なし）— §5・§10・§11 は本シナリオが唯一の保存実行検証。`ItemListCard` には component test がある。在庫は unit/hook test があるが **E2E 保存通しは本 §12 + 項目単位 F が受入正本**。
 - 監査 fail-closed（クレジット訂正・返金は監査ログと同一トランザクション、監査失敗で操作ごとロールバック #211）は BE テスト正本 — 画面側では検証しない。
-- クロステナント隔離はスコープ外（BE isolation テスト正本）。NG 項目は [`STATUS.md` §3 受入バグ（正本）](../../../../STATUS.md) へ `## BUG-XXX:` 節として起票する（ローカル連番 最大+1・[README.md](README.md) のルールに従う）。
+- クロステナント隔離はスコープ外（BE isolation テスト正本）。NG 項目は [`todo.md` 受入バグ](../../../../todo.md) へ `### BUG-XXX` 節として起票する（ローカル連番 最大+1・[README.md](README.md) のルールに従う）。
 
 ## 実装突合
-- 突合日: 2026-08-07
-- HEAD: 844e43f69
+- 突合日: 2026-08-14
 - 変更:
+  - §12 inventory-form を追加（旧 84 フォーム棚卸しから欠落していた永続フォーム）
+  - 項目単位 F プロトコル・FORM-FIELD-INVENTORY を必須完了条件に追加
   - §1 支払 split: 金額下限（1 円以上）に加え method 重複禁止を手順として明示（`validatePaymentSplits` / `accounting_service_builders.go`）
-  - 会計・見積・レジ締め・予約/受付・シフトのルートを `paths.ts`（`/accounting`・`/accounting/close`・`/estimates`・`/shifts`・`/` 受付）と一致確認
+  - 会計・見積・レジ締め・予約/受付・シフト・在庫のルートを `paths.ts` と一致確認
   - 支払方法マスタ側の `(clinic_id, name)` 一意・system_key ポリシーは V04 正本のまま相互参照のみ

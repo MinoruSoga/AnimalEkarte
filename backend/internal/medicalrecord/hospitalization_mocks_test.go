@@ -87,3 +87,10 @@ func rejectCageRepo(ownedID uint64) cageFinder {
 		return &model.Cage{ID: id}, nil
 	}}
 }
+
+// acceptAnyCageRepo returns a cage finder that accepts any non-zero id (BUG-037 create fixtures).
+func acceptAnyCageRepo() cageFinder {
+	return &mockCageRepository{findByIDFn: func(_ context.Context, _, id uint64) (*model.Cage, error) {
+		return &model.Cage{ID: id}, nil
+	}}
+}

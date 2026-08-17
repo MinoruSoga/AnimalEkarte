@@ -16,7 +16,11 @@ import (
 func TestShiftEntryService_Update(t *testing.T) {
 	newShiftType := string(model.ShiftTypeAfternoon)
 	newStartTime := "15:00"
+	newEndTime := "19:00"
 	newNote := "Updated note"
+	// BUG-036: Full 勤務の既存行は start/end を持つ前提で検証する
+	existingStart := "09:00:00"
+	existingEnd := "18:00:00"
 
 	tests := []struct {
 		name            string
@@ -34,6 +38,7 @@ func TestShiftEntryService_Update(t *testing.T) {
 			input: &UpdateShiftEntryInput{
 				ShiftType: &newShiftType,
 				StartTime: &newStartTime,
+				EndTime:   &newEndTime,
 				Notes:     &newNote,
 			},
 			repoUpdateErr: nil,
@@ -73,6 +78,8 @@ func TestShiftEntryService_Update(t *testing.T) {
 				ID:        1,
 				ClinicID:  1,
 				ShiftType: model.ShiftTypeFull,
+				StartTime: &existingStart,
+				EndTime:   &existingEnd,
 			}
 			callCount := 0
 			repo := &mockShiftEntryRepository{
@@ -324,18 +331,28 @@ func TestValidateShiftTimes(t *testing.T) {
 			wantErr:   false,
 		},
 		{
-			name:      "nil start time is skipped",
+			// BUG-036: 勤務種別では start/end 必須（nil は拒否）
+			name:      "nil start time is required for working shift",
 			shiftType: model.ShiftTypeFull,
 			start:     nil,
 			end:       &late,
-			wantErr:   false,
+			wantErr:   true,
 		},
 		{
-			name:      "nil end time is skipped",
+			// BUG-036: 勤務種別では start/end 必須（nil は拒否）
+			name:      "nil end time is required for working shift",
 			shiftType: model.ShiftTypeFull,
 			start:     &early,
 			end:       nil,
-			wantErr:   false,
+			wantErr:   true,
+		},
+		{
+			// BUG-036: 両方 nil も拒否
+			name:      "both nil times are required for working shift",
+			shiftType: model.ShiftTypeFull,
+			start:     nil,
+			end:       nil,
+			wantErr:   true,
 		},
 		{
 			name:      "valid start before end",
@@ -505,6 +522,9 @@ func TestShiftEntryService_Update_AdditionalBranches(t *testing.T) {
 	newEndTime := "19:00:00" // end < start を意図的に指定
 	newNote := "note"
 	invalidShiftType := "bogus"
+	// BUG-036: 勤務種別の既存行は有効な start/end を持つ
+	existingStart := "09:00:00"
+	existingEnd := "18:00:00"
 
 	t.Run("returns error when FindByID fails before update", func(t *testing.T) {
 		repo := &mockShiftEntryRepository{
@@ -524,7 +544,10 @@ func TestShiftEntryService_Update_AdditionalBranches(t *testing.T) {
 	t.Run("returns invalid input for unknown shift type", func(t *testing.T) {
 		repo := &mockShiftEntryRepository{
 			findByIDFn: func(_ context.Context, _, _ uint64) (*model.ShiftEntry, error) {
-				return &model.ShiftEntry{ID: 1, ShiftType: model.ShiftTypeFull}, nil
+				return &model.ShiftEntry{
+					ID: 1, ShiftType: model.ShiftTypeFull,
+					StartTime: &existingStart, EndTime: &existingEnd,
+				}, nil
 			},
 		}
 		svc := newTestShiftEntryService(repo)
@@ -539,7 +562,10 @@ func TestShiftEntryService_Update_AdditionalBranches(t *testing.T) {
 	t.Run("returns error when effective times are invalid", func(t *testing.T) {
 		repo := &mockShiftEntryRepository{
 			findByIDFn: func(_ context.Context, _, _ uint64) (*model.ShiftEntry, error) {
-				return &model.ShiftEntry{ID: 1, ShiftType: model.ShiftTypeFull}, nil
+				return &model.ShiftEntry{
+					ID: 1, ShiftType: model.ShiftTypeFull,
+					StartTime: &existingStart, EndTime: &existingEnd,
+				}, nil
 			},
 		}
 		svc := newTestShiftEntryService(repo)
@@ -560,7 +586,10 @@ func TestShiftEntryService_Update_AdditionalBranches(t *testing.T) {
 		repo := &mockShiftEntryRepository{
 			findByIDFn: func(_ context.Context, _, id uint64) (*model.ShiftEntry, error) {
 				callCount++
-				return &model.ShiftEntry{ID: id, ShiftType: model.ShiftTypeFull}, nil
+				return &model.ShiftEntry{
+					ID: id, ShiftType: model.ShiftTypeFull,
+					StartTime: &existingStart, EndTime: &existingEnd,
+				}, nil
 			},
 			updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
 				return nil
@@ -651,7 +680,10 @@ func TestShiftEntryService_Update_AdditionalBranches(t *testing.T) {
 	t.Run("returns error when saving breaks fails", func(t *testing.T) {
 		repo := &mockShiftEntryRepository{
 			findByIDFn: func(_ context.Context, _, id uint64) (*model.ShiftEntry, error) {
-				return &model.ShiftEntry{ID: id, ShiftType: model.ShiftTypeFull}, nil
+				return &model.ShiftEntry{
+					ID: id, ShiftType: model.ShiftTypeFull,
+					StartTime: &existingStart, EndTime: &existingEnd,
+				}, nil
 			},
 			updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
 				return nil
@@ -678,7 +710,10 @@ func TestShiftEntryService_Update_AdditionalBranches(t *testing.T) {
 			findByIDFn: func(_ context.Context, _, id uint64) (*model.ShiftEntry, error) {
 				callCount++
 				if callCount == 1 {
-					return &model.ShiftEntry{ID: id, ShiftType: model.ShiftTypeFull}, nil
+					return &model.ShiftEntry{
+						ID: id, ShiftType: model.ShiftTypeFull,
+						StartTime: &existingStart, EndTime: &existingEnd,
+					}, nil
 				}
 				return nil, errors.New("not found")
 			},

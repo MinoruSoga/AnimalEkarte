@@ -1,0 +1,25 @@
+## BUG-001 Agent2 結果: COMPLETE
+
+### 事実
+- `claim/BUG-001` 既存保持（再取得せず。解放は USER のみ）
+- product fix は main 祖先 `d7bf32f22`（`FindAll` 空白除去氏名 / 飼主No=`owners.id` text / `pet_number` ILIKE / 空白 fail-closed / clinic JOIN）
+- worktree: `/Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte-BUG-001` · `fix/BUG-001` @ `8325ee588`
+- unit 差分: `pet_number_partial_ILIKE` + STATUS 証跡（SQL 追加変更なし）
+- scoped 再検証 exit 0:
+  - BE: `TestPetRepository_FindAll_Search|Kana` PASS（0.359s、partial ILIKE 含む）
+  - FE: owners 3 files / 32 tests PASS
+- 対応状況: **IMPLEMENTED_UNVERIFIED**（VERIFIED_FIXED にしていない）
+- S01 ブラウザ原文再検証: **UNREPORTED**
+- handoff: `/Users/minoru/Vaults/CorpVault/55_Handoff/BRT-8_BUG-001_engineer.md`
+- result: `.../packets/BUG-001/result.json` status=COMPLETE
+
+### 推論
+- AC §4 は synthetic fixture で満たす。本番相当 S01（伊藤 宏美等）は人間/E2E 待ち
+- compose は main bind-mount のため、test 補強行は main WT にも同内容あり（billing WIP は未操作）
+
+### 次担当
+dev-reviewer → Needs Human（S01 / claim 解放 `git branch -D claim/BUG-001`）
+
+---STDERR---
+
+---RC 0---

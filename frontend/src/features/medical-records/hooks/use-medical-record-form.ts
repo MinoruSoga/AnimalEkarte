@@ -37,6 +37,7 @@ import {
 } from "@/lib/entity-read-result";
 import type { MedicalRecord } from "../api/transforms";
 import type { Pet } from "@/types";
+import { isMedicalRecordFinalizedStatus } from "../lib/medical-record-lock";
 
 export function selectCohabitingPets(pets: Pet[], selectedPet: Pet): Pet[] {
   return pets.filter((pet) =>
@@ -118,7 +119,7 @@ export function useMedicalRecordForm(recordId?: string) {
   const isReadError = !isNewRecord && entityRead.status === "error";
   const retryRead =
     entityRead.status === "error" ? entityRead.retry : undefined;
-  const isFinalized = existingRecord?.status === "確定済";
+  const isFinalized = isMedicalRecordFinalizedStatus(existingRecord?.status);
 
   useApplyMedicalRecord({
     existingRecord,

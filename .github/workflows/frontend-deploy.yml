@@ -52,23 +52,56 @@ jobs:
         working-directory: frontend
         run: pnpm install --frozen-lockfile
 
-      - name: Pull Vercel Environment Information
-        working-directory: frontend
-        run: pnpm exec vercel pull --yes --environment=${{ github.ref == 'refs/heads/production' && 'production' || 'preview' }} --token=${{ secrets.VERCEL_TOKEN }}
+      - name: Pull, build, prebuilt deploy
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          set -euo pipefail
+          ENV=preview
+          if [ "${{ github.ref }}" = "refs/heads/production" ] || [ "${{ github.event.inputs.environment }}" = "production" ]; then
+            ENV=production
+          fi
 
-      - name: Build Project Artifacts
-        working-directory: frontend
-        run: pnpm exec vercel build ${{ github.ref == 'refs/heads/production' && '--prod' || '' }} --token=${{ secrets.VERCEL_TOKEN }}
-        env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          pnpm --dir frontend exec vercel pull --yes --environment="$ENV" --token="$VERCEL_TOKEN"
+          mkdir -p .vercel
+          cp -a frontend/.vercel/project.json .vercel/project.json
 
-      - name: Deploy to Vercel
-        working-directory: frontend
-        run: pnpm exec vercel deploy --prebuilt ${{ github.ref == 'refs/heads/production' && '--prod' || '' }} --token=${{ secrets.VERCEL_TOKEN }}
-        env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          # --prebuilt は cwd 直下の .vercel/output を見る。
+          # Dashboard の rootDirectory=frontend は prebuilt 時に frontend/frontend を誘発するため外す。
+          node <<'NODE'
+          const fs = require('fs');
+          const path = '.vercel/project.json';
+          const j = JSON.parse(fs.readFileSync(path, 'utf8'));
+          j.projectSettings = j.projectSettings || {};
+          delete j.projectSettings.rootDirectory;
+          j.projectSettings.outputDirectory = 'dist';
+          fs.writeFileSync(path, JSON.stringify(j, null, 2));
+          console.log('projectSettings', JSON.stringify(j.projectSettings));
+          NODE
+
+          pnpm --dir frontend build
+          test -f frontend/dist/index.html
+
+          rm -rf .vercel/output
+          mkdir -p .vercel/output/static
+          cp -a frontend/dist/. .vercel/output/static/
+          cat > .vercel/output/config.json <<'EOF'
+          {
+            "version": 3,
+            "routes": [
+              { "handle": "filesystem" },
+              { "src": "/line-reserve/(.*)", "dest": "/line-reserve/index.html" },
+              { "src": "/(.*)", "dest": "/index.html" }
+            ]
+          }
+          EOF
+          test -f .vercel/output/static/index.html
+          test -f .vercel/output/config.json
+
+          EXTRA=()
+          if [ "$ENV" = "production" ]; then
+            EXTRA+=(--prod)
+          fi
+          ./frontend/node_modules/.bin/vercel deploy --prebuilt --yes "${EXTRA[@]}" --token="$VERCEL_TOKEN"

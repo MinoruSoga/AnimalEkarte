@@ -16,6 +16,8 @@ interface MedicalRecordInterviewProps {
   setTreatmentPolicy: (value: string) => void;
   historyItems?: InterviewHistoryItem[];
   setHistoryItems?: (items: InterviewHistoryItem[]) => void;
+  /** BUG-035 residual: 問診臨床欄を content attribute で固定 */
+  isFinalized?: boolean;
 }
 
 // rendering-hoist-jsx: テンプレート一覧は静的なのでモジュール定数に巻き上げ
@@ -61,6 +63,7 @@ export const MedicalRecordInterview = memo(function MedicalRecordInterview({
   treatmentPolicy,
   setTreatmentPolicy,
   historyItems,
+  isFinalized = false,
 }: MedicalRecordInterviewProps) {
   const handleInsertTemplate = useCallback((text: string) => {
     setChiefComplaint(text);
@@ -80,6 +83,7 @@ export const MedicalRecordInterview = memo(function MedicalRecordInterview({
         setChiefComplaintTypeId={setChiefComplaintTypeId}
         templates={INTERVIEW_TEMPLATES}
         onInsertTemplate={handleInsertTemplate}
+        isFinalized={isFinalized}
       />
 
       {/* Middle Column: 治療方針 (Treatment Policy) */}
@@ -87,6 +91,7 @@ export const MedicalRecordInterview = memo(function MedicalRecordInterview({
         className="col-span-1 lg:col-span-4 h-full"
         treatmentPolicy={treatmentPolicy}
         setTreatmentPolicy={setTreatmentPolicy}
+        isFinalized={isFinalized}
       />
 
       {/* Right Column: カルテ履歴 (Medical History) */}

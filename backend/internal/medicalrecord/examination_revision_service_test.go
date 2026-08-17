@@ -1003,10 +1003,21 @@ func TestExaminationRevision_ConfirmFailureRollsBackRevisionAuditAndCAS(t *testi
 
 func readExaminationRevisionMigration(t *testing.T) string {
 	t.Helper()
-	migrationPath := filepath.Join("..", "..", "migrations", "004_examination_revisions.sql")
-	ddlBytes, err := os.ReadFile(migrationPath)
-	require.NoError(t, err, "Slice A requires the additive 004 examination revision migration")
-	return string(ddlBytes)
+	// 004_examination_revisions.sql was folded into 001_init.sql; extract that section.
+	initPath := filepath.Join("..", "..", "migrations", "001_init.sql")
+	raw, err := os.ReadFile(initPath)
+	require.NoError(t, err, "001_init.sql must contain examination revision DDL")
+	text := string(raw)
+	const startMarker = "-- Source file: 004_examination_revisions.sql"
+	start := strings.Index(text, startMarker)
+	require.GreaterOrEqual(t, start, 0, "004 examination revision section missing from 001_init.sql")
+	rest := text[start:]
+	// Next consolidated source marker after this block (if any).
+	next := strings.Index(rest[len(startMarker):], "\n-- Source file: ")
+	if next >= 0 {
+		rest = rest[:len(startMarker)+next]
+	}
+	return rest
 }
 
 func withExaminationRevisionMigrationSchema(t *testing.T, fn func(*gorm.DB)) {

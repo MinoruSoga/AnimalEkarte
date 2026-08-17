@@ -308,7 +308,7 @@ func TestHospitalizationService_Create_ValidatesDoctorInWriteTransaction(t *test
 			findByIDFn: func(_ context.Context, _, id uint64) (*model.Pet, error) {
 				return &model.Pet{ID: id}, nil
 			},
-		}, nil, nil, nil, nil, tx)
+		}, acceptAnyCageRepo(), nil, nil, nil, tx)
 	}
 
 	t.Run("rejects doctor outside clinic without persisting", func(t *testing.T) {
@@ -318,6 +318,7 @@ func TestHospitalizationService_Create_ValidatesDoctorInWriteTransaction(t *test
 		doctorID := foreignDoctorID
 
 		got, err := svc.Create(context.Background(), clinicID, &CreateHospitalizationInput{
+			CageID:              func() *uint64 { v := uint64(10); return &v }(),
 			OwnerID: 2, PetID: 5, DoctorID: &doctorID,
 		})
 
@@ -334,6 +335,7 @@ func TestHospitalizationService_Create_ValidatesDoctorInWriteTransaction(t *test
 		doctorID := ownedDoctorID
 
 		got, err := svc.Create(context.Background(), clinicID, &CreateHospitalizationInput{
+			CageID:              func() *uint64 { v := uint64(10); return &v }(),
 			OwnerID: 2, PetID: 5, DoctorID: &doctorID,
 		})
 

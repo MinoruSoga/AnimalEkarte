@@ -1,0 +1,16 @@
+[
+  {
+    "id": "V04-master-inquiry-templates-F4",
+    "title": "/settings/inquiry-templates 新規保存失敗",
+    "evidence": "UAT_89605651_master-inquiry-templates",
+    "resolution": "NOT_PRODUCT_BUG — harness incomplete required fields; recheck PASS 201",
+    "status": "dismissed"
+  },
+  {
+    "id": "V04-master-campaign-F4",
+    "title": "/settings/campaigns 新規保存失敗",
+    "evidence": "UAT_89605651_master-campaign",
+    "resolution": "NOT_PRODUCT_BUG — harness incomplete required fields; recheck PASS 201",
+    "status": "dismissed"
+  }
+]

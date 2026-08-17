@@ -12,15 +12,14 @@ import (
 )
 
 // ListClinics godoc
-// scope=all: 全クリニック一覧を返す（system_admin のみ）
+// scope=all: 全クリニック一覧を返す（ルートの hospital-settings.view で認可。system_admin 不要）
 // scope なし: staff_clinic_assignments に紐づくクリニック一覧を返す
 func (h *Handler) ListClinics(c *gin.Context) {
 	query := NewListClinicQuery(c.Request.URL.Query())
 
 	if query.Scope == "all" {
-		if !requireSystemAdmin(c) {
-			return
-		}
+		// hospital-settings 画面の医院マスタは割当外拠点も含む全件が必要（docs/spec/screens/19-clinic-settings.md）。
+		// 認可は RegisterClinicRoutes の requirePermission(view) に委ねる。
 		clinics, err := h.clinicSvc.ListClinics(c.Request.Context())
 		if err != nil {
 			httpapi.RespondError(c, err)

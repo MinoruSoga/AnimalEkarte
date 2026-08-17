@@ -348,8 +348,13 @@ func (s *examinationService) Update(ctx context.Context, clinicID, id uint64, in
 			slog.ErrorContext(txCtx, "failed to lock examination", "error", err)
 			return apperrors.Wrap(err, "failed to lock examination")
 		}
-		if locked.Status == model.ExaminationStatusConfirmed {
-			return apperrors.WrapConflict("確定済みの検査は編集できません")
+		if examinationFullyLocked(locked) {
+			return errExaminationFullyLocked()
+		}
+		// BUG-033: first-pass completed seal rejects result mutation; parent fields
+		// (including status → confirmed) remain allowed so confirmation can finish.
+		if examinationResultsLocked(locked) && input.Items != nil {
+			return errExaminationResultsLocked(locked)
 		}
 		before := *locked
 		revisioned := locked.CurrentRevisionVersion != nil
@@ -510,8 +515,8 @@ func (s *examinationService) Delete(ctx context.Context, clinicID, id uint64, ac
 		if err != nil {
 			return apperrors.Wrap(err, "failed to lock examination")
 		}
-		if locked.Status == model.ExaminationStatusConfirmed {
-			return apperrors.WrapConflict("確定済みの検査は削除できません")
+		if examinationFullyLocked(locked) || examinationResultsLocked(locked) {
+			return errExaminationDeleteLocked(locked)
 		}
 		if locked.CurrentRevisionVersion != nil {
 			return apperrors.WrapConflict("確定履歴のある検査は削除できません")

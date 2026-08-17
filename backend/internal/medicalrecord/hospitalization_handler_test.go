@@ -279,6 +279,7 @@ func TestCreateHospitalization(t *testing.T) {
 			"start_date":           "2026-05-28T00:00:00Z",
 			"end_date":             "2026-05-30T00:00:00Z",
 			"status":               "admitted",
+			"cage_id":              10,
 		}
 	}
 
@@ -338,6 +339,20 @@ func TestCreateHospitalization(t *testing.T) {
 		{
 			name:       "returns 400 for malformed JSON",
 			body:       "not-json",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockHospitalizationService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name: "returns 400 when cage_id is missing (BUG-037)",
+			body: map[string]any{
+				"owner_id":             1,
+				"pet_id":               2,
+				"hospitalization_type": "hospitalization",
+				"start_date":           "2026-05-28T00:00:00Z",
+				"end_date":             "2026-05-30T00:00:00Z",
+				"status":               "admitted",
+			},
 			setupCtx:   func(c *gin.Context) { setClinicID(c) },
 			svc:        &mockHospitalizationService{},
 			wantStatus: http.StatusBadRequest,
@@ -428,6 +443,7 @@ func TestCreateHospitalization_NestedDiscountForbidden(t *testing.T) {
 		"hospitalization_type": "hospitalization",
 		"start_date":           "2026-05-28T00:00:00Z",
 		"end_date":             "2026-05-30T00:00:00Z",
+		"cage_id":              10,
 		"treatment_plans": []map[string]any{
 			{
 				"treatment_content": "adm",

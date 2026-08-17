@@ -1,0 +1,1171 @@
+[
+  {
+    "id": "ENV",
+    "step": "login",
+    "status": "PASS",
+    "note": "http://localhost:3003/",
+    "at": "2026-08-14T02:53:24.847Z"
+  },
+  {
+    "id": "settings-hub",
+    "step": "open",
+    "status": "PASS",
+    "note": "/settings",
+    "at": "2026-08-14T02:53:25.454Z"
+  },
+  {
+    "id": "clinic",
+    "step": "open",
+    "status": "PASS",
+    "note": "八王子病院 診療業務 当日の受付 飼主・ペット 予約管理 カルテ 検査管理 トリミング 予防接種 定",
+    "at": "2026-08-14T02:49:52.677Z"
+  },
+  {
+    "id": "clinic",
+    "step": "fields_present",
+    "status": "PASS",
+    "note": "controls=22",
+    "at": "2026-08-14T02:49:52.679Z"
+  },
+  {
+    "id": "clinic",
+    "step": "invoice-save",
+    "status": "PASS",
+    "note": "200",
+    "at": "2026-08-14T02:49:52.731Z"
+  },
+  {
+    "id": "animal-species",
+    "step": "open",
+    "status": "PASS",
+    "note": "/settings/animal-species",
+    "at": "2026-08-14T02:49:53.372Z"
+  },
+  {
+    "id": "animal-species",
+    "step": "C1-1",
+    "status": "PASS",
+    "note": "empty blocked",
+    "at": "2026-08-14T02:49:55.153Z"
+  },
+  {
+    "id": "animal-species",
+    "step": "create",
+    "status": "PASS",
+    "note": "201 vis=true",
+    "at": "2026-08-14T02:49:58.697Z"
+  },
+  {
+    "id": "animal-species",
+    "step": "C2-reload",
+    "status": "PASS",
+    "note": "SB_75790061_animal-species",
+    "at": "2026-08-14T02:49:58.697Z"
+  },
+  {
+    "id": "animal-species",
+    "step": "C2-reopen",
+    "status": "PASS",
+    "note": "SB_75790061_animal-species",
+    "at": "2026-08-14T02:49:59.247Z"
+  },
+  {
+    "id": "animal-species",
+    "step": "C3-2",
+    "status": "PASS",
+    "note": "409",
+    "at": "2026-08-14T02:50:01.368Z"
+  },
+  {
+    "id": "treatment-consultation",
+    "step": "open",
+    "status": "PASS",
+    "note": "/settings/treatment-items?tab=consultation",
+    "at": "2026-08-14T02:50:05.676Z"
+  },
+  {
+    "id": "treatment-consultation",
+    "step": "C1-1",
+    "status": "PASS",
+    "note": "empty blocked",
+    "at": "2026-08-14T02:50:07.486Z"
+  },
+  {
+    "id": "treatment-consultation",
+    "step": "create",
+    "status": "PASS",
+    "note": "201 vis=true",
+    "at": "2026-08-14T02:50:11.051Z"
+  },
+  {
+    "id": "treatment-consultation",
+    "step": "C2-reload",
+    "status": "PASS",
+    "note": "SB_75790061_treatment-consultation",
+    "at": "2026-08-14T02:50:11.051Z"
+  },
+  {
+    "id": "treatment-consultation",
+    "step": "C2-reopen",
+    "status": "PASS",
+    "note": "SB_75790061_treatment-consultation",
+    "at": "2026-08-14T02:50:11.631Z"
+  },
+  {
+    "id": "treatment-consultation",
+    "step": "C3-2",
+    "status": "PASS",
+    "note": "409",
+    "at": "2026-08-14T02:50:13.814Z"
+  },
+  {
+    "id": "treatment-examination",
+    "step": "open",
+    "status": "PASS",
+    "note": "/settings/treatment-items?tab=examination",
+    "at": "2026-08-14T02:50:18.158Z"
+  },
+  {
+    "id": "treatment-examination",
+    "step": "C1-1",
+    "status": "PASS",
+    "note": "empty blocked",
+    "at": "2026-08-14T02:50:19.968Z"
+  },
+  {
+    "id": "treatment-examination",
+    "step": "create",
+    "status": "PASS",
+    "note": "201 vis=true",
+    "at": "2026-08-14T02:50:23.523Z"
+  },
+  {
+    "id": "treatment-examination",
+    "step": "C2-reload",
+    "status": "PASS",
+    "note": "SB_75790061_treatment-examination",
+    "at": "2026-08-14T02:50:23.523Z"
+  },
+  {
+    "id": "treatment-examination",
+    "step": "C2-reopen",
+    "status": "PASS",
+    "note": "SB_75790061_treatment-examination",
+    "at": "2026-08-14T02:50:24.105Z"
+  },
+  {
+    "id": "treatment-examination",
+    "step": "C3-2",
+    "status": "PASS",
+    "note": "409",
+    "at": "2026-08-14T02:50:26.280Z"
+  },
+  {
+    "id": "treatment-procedure",
+    "step": "open",
+    "status": "PASS",
+    "note": "/settings/treatment-items?tab=procedure",
+    "at": "2026-08-14T02:50:36.297Z"
+  },
+  {
+    "id": "treatment-procedure",
+    "step": "C1-1",
+    "status": "PASS",
+    "note": "empty blocked",
+    "at": "2026-08-14T02:50:40.837Z"
+  },
+  {
+    "id": "treatment-procedure",
+    "step": "create",
+    "status": "PASS",
+    "note": "201 vis=true",
+    "at": "2026-08-14T02:50:58.647Z"
+  },
+  {
+    "id": "treatment-procedure",
+    "step": "C2-reload",
+    "status": "PASS",
+    "note": "SB_75790061_treatment-procedure",
+    "at": "2026-08-14T02:50:58.647Z"
+  },
+  {
+    "id": "treatment-procedure",
+    "step": "C2-reopen",
+    "status": "PASS",
+    "note": "SB_75790061_treatment-procedure",
+    "at": "2026-08-14T02:50:59.359Z"
+  },
+  {
+    "id": "treatment-procedure",
+    "step": "C3-2",
+    "status": "PASS",
+    "note": "409",
+    "at": "2026-08-14T02:51:01.789Z"
+  },
+  {
+    "id": "treatment-vaccine",
+    "step": "open",
+    "status": "PASS",
+    "note": "/settings/treatment-items?tab=vaccine",
+    "at": "2026-08-14T02:51:06.176Z"
+  },
+  {
+    "id": "treatment-vaccine",
+    "step": "C1-1",
+    "status": "PASS",
+    "note": "empty blocked",
+    "at": "2026-08-14T02:51:08.012Z"
+  },
+  {
+    "id": "treatment-vaccine",
+    "step": "create",
+    "status": "PASS",
+    "note": "201 vis=true",
+    "at": "2026-08-14T02:51:11.820Z"
+  },
+  {
+    "id": "treatment-vaccine",
+    "step": "C2-reload",
+    "status": "PASS",
+    "note": "SB_75790061_treatment-vaccine",
+    "at": "2026-08-14T02:51:11.820Z"
+  },
+  {
+    "id": "treatment-vaccine",
+    "step": "C2-reopen",
+    "status": "PASS",
+    "note": "SB_75790061_treatment-vaccine",
+    "at": "2026-08-14T02:51:12.404Z"
+  },
+  {
+    "id": "treatment-vaccine",
+    "step": "C3-2",
+    "status": "PASS",
+    "note": "409",
+    "at": "2026-08-14T02:51:14.605Z"
+  },
+  {
+    "id": "treatment-checkup",
+    "step": "open",
+    "status": "PASS",
+    "note": "/settings/treatment-items?tab=checkup",
+    "at": "2026-08-14T02:51:18.935Z"
+  },
+  {
+    "id": "treatment-checkup",
+    "step": "C1-1",
+    "status": "PASS",
+    "note": "empty blocked",
+    "at": "2026-08-14T02:51:20.735Z"
+  },
+  {
+    "id": "treatment-checkup",
+    "step": "create",
+    "status": "PASS",
+    "note": "201 vis=true",
+    "at": "2026-08-14T02:51:24.333Z"
+  },
+  {
+    "id": "treatment-checkup",
+    "step": "C2-reload",
+    "status": "PASS",
+    "note": "SB_75790061_treatment-checkup",
+    "at": "2026-08-14T02:51:24.333Z"
+  },
+  {
+    "id": "treatment-checkup",
+    "step": "C2-reopen",
+    "status": "PASS",
+    "note": "SB_75790061_treatment-checkup",
+    "at": "2026-08-14T02:51:24.914Z"
+  },
+  {
+    "id": "treatment-checkup",
+    "step": "C3-2",
+    "status": "PASS",
+    "note": "409",
+    "at": "2026-08-14T02:51:27.088Z"
+  },
+  {
+    "id": "diagnosis-type",
+    "step": "open",
+    "status": "PASS",
+    "note": "/settings/diagnosis?tab=diagnosis_type",
+    "at": "2026-08-14T02:51:31.417Z"
+  },
+  {
+    "id": "diagnosis-type",
+    "step": "C1-1",
+    "status": "PASS",
+    "note": "empty blocked",
+    "at": "2026-08-14T02:51:33.200Z"
+  },
+  {
+    "id": "diagnosis-type",
+    "step": "create",
+    "status": "PASS",
+    "note": "201 vis=true",
+    "at": "2026-08-14T02:51:36.801Z"
+  },
+  {
+    "id": "diagnosis-type",
+    "step": "C2-reload",
+    "status": "PASS",
+    "note": "SB_75790061_diagnosis-type",
+    "at": "2026-08-14T02:51:36.801Z"
+  },
+  {
+    "id": "diagnosis-type",
+    "step": "C2-reopen",
+    "status": "PASS",
+    "note": "SB_75790061_diagnosis-type",
+    "at": "2026-08-14T02:51:37.351Z"
+  },
+  {
+    "id": "diagnosis-type",
+    "step": "C3-2",
+    "status": "PASS",
+    "note": "409",
+    "at": "2026-08-14T02:51:39.504Z"
+  },
+  {
+    "id": "diagnosis-name",
+    "step": "open",
+    "status": "PASS",
+    "note": "/settings/diagnosis?tab=diagnosis_name",
+    "at": "2026-08-14T02:51:43.821Z"
+  },
+  {
+    "id": "diagnosis-name",
+    "step": "C1-1",
+    "status": "PASS",
+    "note": "empty blocked",
+    "at": "2026-08-14T02:51:45.644Z"
+  },
+  {
+    "id": "diagnosis-name",
+    "step": "create",
+    "status": "PASS",
+    "note": "201 vis=true",
+    "at": "2026-08-14T02:51:49.395Z"
+  },
+  {
+    "id": "diagnosis-name",
+    "step": "C2-reload",
+    "status": "PASS",
+    "note": "SB_75790061_diagnosis-name",
+    "at": "2026-08-14T02:51:49.395Z"
+  },
+  {
+    "id": "diagnosis-name",
+    "step": "C2-reopen",
+    "status": "PASS",
+    "note": "SB_75790061_diagnosis-name",
+    "at": "2026-08-14T02:51:49.969Z"
+  },
+  {
+    "id": "diagnosis-name",
+    "step": "C3-2",
+    "status": "SKIP",
+    "note": "no unique",
+    "at": "2026-08-14T02:51:50.302Z"
+  },
+  {
+    "id": "inquiry-templates",
+    "step": "open",
+    "status": "PASS",
+    "note": "/settings/inquiry-templates",
+    "at": "2026-08-14T02:51:50.910Z"
+  },
+  {
+    "id": "inquiry-templates",
+    "step": "C1-1",
+    "status": "PASS",
+    "note": "empty blocked",
+    "at": "2026-08-14T02:51:52.690Z"
+  },
+  {
+    "id": "inquiry-templates",
+    "step": "create",
+    "status": "PASS",
+    "note": "201 vis=true",
+    "at": "2026-08-14T02:51:56.256Z"
+  },
+  {
+    "id": "inquiry-templates",
+    "step": "C2-reload",
+    "status": "PASS",
+    "note": "SB_75790061_inquiry-templates",
+    "at": "2026-08-14T02:51:56.256Z"
+  },
+  {
+    "id": "inquiry-templates",
+    "step": "C2-reopen",
+    "status": "PASS",
+    "note": "SB_75790061_inquiry-templates",
+    "at": "2026-08-14T02:51:56.804Z"
+  },
+  {
+    "id": "inquiry-templates",
+    "step": "C3-2",
+    "status": "SKIP",
+    "note": "no unique",
+    "at": "2026-08-14T02:51:57.131Z"
+  },
+  {
+    "id": "chief-complaint",
+    "step": "open",
+    "status": "PASS",
+    "note": "/settings/interview/chief-complaint",
+    "at": "2026-08-14T02:51:57.747Z"
+  },
+  {
+    "id": "chief-complaint",
+    "step": "C1-1",
+    "status": "PASS",
+    "note": "empty blocked",
+    "at": "2026-08-14T02:51:59.528Z"
+  },
+  {
+    "id": "chief-complaint",
+    "step": "create",
+    "status": "PASS",
+    "note": "201 vis=true",
+    "at": "2026-08-14T02:52:03.040Z"
+  },
+  {
+    "id": "chief-complaint",
+    "step": "C2-reload",
+    "status": "PASS",
+    "note": "SB_75790061_chief-complaint",
+    "at": "2026-08-14T02:52:03.040Z"
+  },
+  {
+    "id": "chief-complaint",
+    "step": "C2-reopen",
+    "status": "PASS",
+    "note": "SB_75790061_chief-complaint",
+    "at": "2026-08-14T02:52:03.592Z"
+  },
+  {
+    "id": "chief-complaint",
+    "step": "C3-2",
+    "status": "PASS",
+    "note": "409",
+    "at": "2026-08-14T02:52:05.726Z"
+  },
+  {
+    "id": "interview-templates",
+    "step": "open",
+    "status": "PASS",
+    "note": "/settings/interview/templates",
+    "at": "2026-08-14T02:52:10.043Z"
+  },
+  {
+    "id": "interview-templates",
+    "step": "C1-1",
+    "status": "PASS",
+    "note": "empty blocked",
+    "at": "2026-08-14T02:52:11.842Z"
+  },
+  {
+    "id": "interview-templates",
+    "step": "create",
+    "status": "PASS",
+    "note": "201 vis=true",
+    "at": "2026-08-14T02:52:15.424Z"
+  },
+  {
+    "id": "interview-templates",
+    "step": "C2-reload",
+    "status": "PASS",
+    "note": "SB_75790061_interview-templates",
+    "at": "2026-08-14T02:52:15.424Z"
+  },
+  {
+    "id": "interview-templates",
+    "step": "C2-reopen",
+    "status": "PASS",
+    "note": "SB_75790061_interview-templates",
+    "at": "2026-08-14T02:52:15.974Z"
+  },
+  {
+    "id": "interview-templates",
+    "step": "C3-2",
+    "status": "SKIP",
+    "note": "no unique",
+    "at": "2026-08-14T02:52:16.297Z"
+  },
+  {
+    "id": "medicine",
+    "step": "open",
+    "status": "PASS",
+    "note": "/settings/medicine",
+    "at": "2026-08-14T02:52:16.911Z"
+  },
+  {
+    "id": "medicine",
+    "step": "C1-1",
+    "status": "PASS",
+    "note": "empty blocked",
+    "at": "2026-08-14T02:52:18.760Z"
+  },
+  {
+    "id": "medicine",
+    "step": "create",
+    "status": "PASS",
+    "note": "201 vis=true",
+    "at": "2026-08-14T02:52:22.545Z"
+  },
+  {
+    "id": "medicine",
+    "step": "C2-reload",
+    "status": "PASS",
+    "note": "SB_75790061_medicine",
+    "at": "2026-08-14T02:52:22.545Z"
+  },
+  {
+    "id": "medicine",
+    "step": "C2-reopen",
+    "status": "PASS",
+    "note": "SB_75790061_medicine",
+    "at": "2026-08-14T02:52:23.159Z"
+  },
+  {
+    "id": "medicine",
+    "step": "C3-2",
+    "status": "PASS",
+    "note": "409",
+    "at": "2026-08-14T02:52:25.413Z"
+  },
+  {
+    "id": "reservation-type",
+    "step": "open",
+    "status": "PASS",
+    "note": "/settings/reservation-type",
+    "at": "2026-08-14T02:52:26.425Z"
+  },
+  {
+    "id": "reservation-type",
+    "step": "C1-1",
+    "status": "PASS",
+    "note": "empty blocked",
+    "at": "2026-08-14T02:52:28.265Z"
+  },
+  {
+    "id": "reservation-type",
+    "step": "create",
+    "status": "PASS",
+    "note": "201 vis=true",
+    "at": "2026-08-14T02:52:32.121Z"
+  },
+  {
+    "id": "reservation-type",
+    "step": "C2-reload",
+    "status": "PASS",
+    "note": "SB_75790061_reservation-type",
+    "at": "2026-08-14T02:52:32.121Z"
+  },
+  {
+    "id": "reservation-type",
+    "step": "C2-reopen",
+    "status": "PASS",
+    "note": "SB_75790061_reservation-type",
+    "at": "2026-08-14T02:52:32.881Z"
+  },
+  {
+    "id": "reservation-type",
+    "step": "C3-2",
+    "status": "PASS",
+    "note": "409",
+    "at": "2026-08-14T02:52:35.265Z"
+  },
+  {
+    "id": "hospitalization-plan",
+    "step": "open",
+    "status": "PASS",
+    "note": "/settings/hospitalization",
+    "at": "2026-08-14T02:53:11.207Z"
+  },
+  {
+    "id": "hospitalization-plan",
+    "step": "C1-1",
+    "status": "PASS",
+    "note": "empty blocked",
+    "at": "2026-08-14T02:53:13.035Z"
+  },
+  {
+    "id": "hospitalization-plan",
+    "step": "create",
+    "status": "PASS",
+    "note": "201 vis=true",
+    "at": "2026-08-14T02:53:16.678Z"
+  },
+  {
+    "id": "hospitalization-plan",
+    "step": "C2-reload",
+    "status": "PASS",
+    "note": "SB_75790061_hospitalization-plan",
+    "at": "2026-08-14T02:53:16.678Z"
+  },
+  {
+    "id": "hospitalization-plan",
+    "step": "C2-reopen",
+    "status": "PASS",
+    "note": "SB_75790061_hospitalization-plan",
+    "at": "2026-08-14T02:53:17.266Z"
+  },
+  {
+    "id": "hospitalization-plan",
+    "step": "C3-2",
+    "status": "PASS",
+    "note": "409",
+    "at": "2026-08-14T02:53:19.562Z"
+  },
+  {
+    "id": "cage",
+    "step": "open",
+    "status": "PASS",
+    "note": "/settings/cage",
+    "at": "2026-08-14T02:53:26.050Z"
+  },
+  {
+    "id": "cage",
+    "step": "C1-1",
+    "status": "PASS",
+    "note": "empty blocked",
+    "at": "2026-08-14T02:53:27.873Z"
+  },
+  {
+    "id": "cage",
+    "step": "create",
+    "status": "PASS",
+    "note": "201 vis=true",
+    "at": "2026-08-14T02:53:31.758Z"
+  },
+  {
+    "id": "cage",
+    "step": "C2-reload",
+    "status": "PASS",
+    "note": "SB_76003499_cage",
+    "at": "2026-08-14T02:53:31.758Z"
+  },
+  {
+    "id": "cage",
+    "step": "C2-reopen",
+    "status": "PASS",
+    "note": "SB_76003499_cage",
+    "at": "2026-08-14T02:53:32.325Z"
+  },
+  {
+    "id": "cage",
+    "step": "C3-2",
+    "status": "PASS",
+    "note": "409",
+    "at": "2026-08-14T02:53:34.712Z"
+  },
+  {
+    "id": "trimming-course",
+    "step": "open",
+    "status": "PASS",
+    "note": "/settings/trimming?tab=course",
+    "at": "2026-08-14T02:53:39.015Z"
+  },
+  {
+    "id": "trimming-course",
+    "step": "C1-1",
+    "status": "PASS",
+    "note": "empty blocked",
+    "at": "2026-08-14T02:53:40.814Z"
+  },
+  {
+    "id": "trimming-course",
+    "step": "create",
+    "status": "PASS",
+    "note": "201 vis=true",
+    "at": "2026-08-14T02:53:44.531Z"
+  },
+  {
+    "id": "trimming-course",
+    "step": "C2-reload",
+    "status": "PASS",
+    "note": "SB_76003499_trimming-course",
+    "at": "2026-08-14T02:53:44.531Z"
+  },
+  {
+    "id": "trimming-course",
+    "step": "C2-reopen",
+    "status": "PASS",
+    "note": "SB_76003499_trimming-course",
+    "at": "2026-08-14T02:53:45.092Z"
+  },
+  {
+    "id": "trimming-course",
+    "step": "C3-2",
+    "status": "PASS",
+    "note": "409",
+    "at": "2026-08-14T02:53:47.418Z"
+  },
+  {
+    "id": "trimming-option",
+    "step": "open",
+    "status": "PASS",
+    "note": "/settings/trimming?tab=option",
+    "at": "2026-08-14T02:53:51.722Z"
+  },
+  {
+    "id": "trimming-option",
+    "step": "C1-1",
+    "status": "PASS",
+    "note": "empty blocked",
+    "at": "2026-08-14T02:53:53.500Z"
+  },
+  {
+    "id": "trimming-option",
+    "step": "create",
+    "status": "PASS",
+    "note": "201 vis=true",
+    "at": "2026-08-14T02:53:57.031Z"
+  },
+  {
+    "id": "trimming-option",
+    "step": "C2-reload",
+    "status": "PASS",
+    "note": "SB_76003499_trimming-option",
+    "at": "2026-08-14T02:53:57.031Z"
+  },
+  {
+    "id": "trimming-option",
+    "step": "C2-reopen",
+    "status": "PASS",
+    "note": "SB_76003499_trimming-option",
+    "at": "2026-08-14T02:53:57.580Z"
+  },
+  {
+    "id": "trimming-option",
+    "step": "C3-2",
+    "status": "PASS",
+    "note": "409",
+    "at": "2026-08-14T02:53:59.714Z"
+  },
+  {
+    "id": "trimming-course-type",
+    "step": "open",
+    "status": "PASS",
+    "note": "/settings/trimming-course-type",
+    "at": "2026-08-14T02:54:04.057Z"
+  },
+  {
+    "id": "trimming-course-type",
+    "step": "C1-1",
+    "status": "PASS",
+    "note": "empty blocked",
+    "at": "2026-08-14T02:54:05.826Z"
+  },
+  {
+    "id": "trimming-course-type",
+    "step": "create",
+    "status": "PASS",
+    "note": "201 vis=true",
+    "at": "2026-08-14T02:54:09.319Z"
+  },
+  {
+    "id": "trimming-course-type",
+    "step": "C2-reload",
+    "status": "PASS",
+    "note": "SB_76003499_trimming-course-type",
+    "at": "2026-08-14T02:54:09.319Z"
+  },
+  {
+    "id": "trimming-course-type",
+    "step": "C2-reopen",
+    "status": "PASS",
+    "note": "SB_76003499_trimming-course-type",
+    "at": "2026-08-14T02:54:09.862Z"
+  },
+  {
+    "id": "trimming-course-type",
+    "step": "C3-2",
+    "status": "PASS",
+    "note": "409",
+    "at": "2026-08-14T02:54:11.987Z"
+  },
+  {
+    "id": "permission-groups",
+    "step": "open",
+    "status": "PASS",
+    "note": "/settings/permission-groups",
+    "at": "2026-08-14T02:54:16.307Z"
+  },
+  {
+    "id": "permission-groups",
+    "step": "C1-1",
+    "status": "PASS",
+    "note": "empty blocked",
+    "at": "2026-08-14T02:54:18.242Z"
+  },
+  {
+    "id": "permission-groups",
+    "step": "create",
+    "status": "PASS",
+    "note": "201 vis=true",
+    "at": "2026-08-14T02:54:21.896Z"
+  },
+  {
+    "id": "permission-groups",
+    "step": "C2-reload",
+    "status": "PASS",
+    "note": "SB_76003499_permission-groups",
+    "at": "2026-08-14T02:54:21.896Z"
+  },
+  {
+    "id": "permission-groups",
+    "step": "C2-reopen",
+    "status": "PASS",
+    "note": "SB_76003499_permission-groups",
+    "at": "2026-08-14T02:54:22.593Z"
+  },
+  {
+    "id": "permission-groups",
+    "step": "C3-2",
+    "status": "PASS",
+    "note": "409",
+    "at": "2026-08-14T02:54:24.879Z"
+  },
+  {
+    "id": "occupations",
+    "step": "open",
+    "status": "PASS",
+    "note": "/settings/occupations",
+    "at": "2026-08-14T02:54:25.887Z"
+  },
+  {
+    "id": "occupations",
+    "step": "C1-1",
+    "status": "PASS",
+    "note": "empty blocked",
+    "at": "2026-08-14T02:54:27.659Z"
+  },
+  {
+    "id": "occupations",
+    "step": "create",
+    "status": "PASS",
+    "note": "201 vis=true",
+    "at": "2026-08-14T02:54:31.153Z"
+  },
+  {
+    "id": "occupations",
+    "step": "C2-reload",
+    "status": "PASS",
+    "note": "SB_76003499_occupations",
+    "at": "2026-08-14T02:54:31.153Z"
+  },
+  {
+    "id": "occupations",
+    "step": "C2-reopen",
+    "status": "PASS",
+    "note": "SB_76003499_occupations",
+    "at": "2026-08-14T02:54:31.701Z"
+  },
+  {
+    "id": "occupations",
+    "step": "C3-2",
+    "status": "PASS",
+    "note": "409",
+    "at": "2026-08-14T02:54:33.835Z"
+  },
+  {
+    "id": "insurance",
+    "step": "open",
+    "status": "PASS",
+    "note": "/settings/insurance",
+    "at": "2026-08-14T02:54:38.148Z"
+  },
+  {
+    "id": "insurance",
+    "step": "C1-1",
+    "status": "PASS",
+    "note": "empty blocked",
+    "at": "2026-08-14T02:54:39.935Z"
+  },
+  {
+    "id": "insurance",
+    "step": "create",
+    "status": "PASS",
+    "note": "201 vis=true",
+    "at": "2026-08-14T02:54:43.440Z"
+  },
+  {
+    "id": "insurance",
+    "step": "C2-reload",
+    "status": "PASS",
+    "note": "SB_76003499_insurance",
+    "at": "2026-08-14T02:54:43.440Z"
+  },
+  {
+    "id": "insurance",
+    "step": "C2-reopen",
+    "status": "PASS",
+    "note": "SB_76003499_insurance",
+    "at": "2026-08-14T02:54:43.992Z"
+  },
+  {
+    "id": "insurance",
+    "step": "C3-2",
+    "status": "PASS",
+    "note": "409",
+    "at": "2026-08-14T02:54:46.122Z"
+  },
+  {
+    "id": "merchandise",
+    "step": "open",
+    "status": "PASS",
+    "note": "/settings/merchandise-items",
+    "at": "2026-08-14T02:54:50.637Z"
+  },
+  {
+    "id": "merchandise",
+    "step": "C1-1",
+    "status": "PASS",
+    "note": "empty blocked",
+    "at": "2026-08-14T02:54:52.836Z"
+  },
+  {
+    "id": "merchandise",
+    "step": "create",
+    "status": "PASS",
+    "note": "201 vis=true",
+    "at": "2026-08-14T02:54:57.881Z"
+  },
+  {
+    "id": "merchandise",
+    "step": "C2-reload",
+    "status": "PASS",
+    "note": "SB_76003499_merchandise",
+    "at": "2026-08-14T02:54:57.881Z"
+  },
+  {
+    "id": "merchandise",
+    "step": "C2-reopen",
+    "status": "PASS",
+    "note": "SB_76003499_merchandise",
+    "at": "2026-08-14T02:54:58.465Z"
+  },
+  {
+    "id": "merchandise",
+    "step": "C3-2",
+    "status": "PASS",
+    "note": "409",
+    "at": "2026-08-14T02:55:00.762Z"
+  },
+  {
+    "id": "payment-methods",
+    "step": "open",
+    "status": "PASS",
+    "note": "/settings/payment-methods",
+    "at": "2026-08-14T02:55:05.083Z"
+  },
+  {
+    "id": "payment-methods",
+    "step": "C1-1",
+    "status": "PASS",
+    "note": "empty blocked",
+    "at": "2026-08-14T02:55:06.859Z"
+  },
+  {
+    "id": "payment-methods",
+    "step": "create",
+    "status": "PASS",
+    "note": "201 vis=true",
+    "at": "2026-08-14T02:55:10.363Z"
+  },
+  {
+    "id": "payment-methods",
+    "step": "C2-reload",
+    "status": "PASS",
+    "note": "SB_76003499_payment-methods",
+    "at": "2026-08-14T02:55:10.364Z"
+  },
+  {
+    "id": "payment-methods",
+    "step": "C2-reopen",
+    "status": "PASS",
+    "note": "SB_76003499_payment-methods",
+    "at": "2026-08-14T02:55:10.917Z"
+  },
+  {
+    "id": "payment-methods",
+    "step": "C3-2",
+    "status": "PARTIAL",
+    "note": "noresp",
+    "at": "2026-08-14T02:55:23.917Z"
+  },
+  {
+    "id": "campaigns",
+    "step": "open",
+    "status": "PASS",
+    "note": "/settings/campaigns",
+    "at": "2026-08-14T02:55:24.860Z"
+  },
+  {
+    "id": "campaigns",
+    "step": "C1-1",
+    "status": "PASS",
+    "note": "empty blocked",
+    "at": "2026-08-14T02:55:26.747Z"
+  },
+  {
+    "id": "campaigns",
+    "step": "create",
+    "status": "PASS",
+    "note": "201 vis=true",
+    "at": "2026-08-14T02:55:31.061Z"
+  },
+  {
+    "id": "campaigns",
+    "step": "C2-reload",
+    "status": "PASS",
+    "note": "SB_76003499_campaigns",
+    "at": "2026-08-14T02:55:31.061Z"
+  },
+  {
+    "id": "campaigns",
+    "step": "C2-reopen",
+    "status": "PASS",
+    "note": "SB_76003499_campaigns",
+    "at": "2026-08-14T02:55:31.633Z"
+  },
+  {
+    "id": "campaigns",
+    "step": "C3-2",
+    "status": "SKIP",
+    "note": "no unique",
+    "at": "2026-08-14T02:55:31.965Z"
+  },
+  {
+    "id": "shift-templates",
+    "step": "open",
+    "status": "PASS",
+    "note": "/settings/shift-templates",
+    "at": "2026-08-14T02:55:32.600Z"
+  },
+  {
+    "id": "shift-templates",
+    "step": "C1-1",
+    "status": "PASS",
+    "note": "save disabled empty",
+    "at": "2026-08-14T02:55:33.284Z"
+  },
+  {
+    "id": "shift-templates",
+    "step": "create",
+    "status": "PASS",
+    "note": "201 vis=true",
+    "at": "2026-08-14T02:55:35.319Z"
+  },
+  {
+    "id": "shift-templates",
+    "step": "C2-reload",
+    "status": "PASS",
+    "note": "SB_76003499_shift-templates",
+    "at": "2026-08-14T02:55:35.319Z"
+  },
+  {
+    "id": "shift-templates",
+    "step": "C2-reopen",
+    "status": "PASS",
+    "note": "SB_76003499_shift-templates",
+    "at": "2026-08-14T02:55:35.891Z"
+  },
+  {
+    "id": "shift-templates",
+    "step": "field-memo",
+    "status": "PASS",
+    "note": "SBメモ",
+    "at": "2026-08-14T02:55:35.894Z"
+  },
+  {
+    "id": "shift-templates",
+    "step": "C3-2",
+    "status": "PASS",
+    "note": "409",
+    "at": "2026-08-14T02:55:38.333Z"
+  },
+  {
+    "id": "staff",
+    "step": "open",
+    "status": "PASS",
+    "note": "",
+    "at": "2026-08-14T02:55:42.663Z"
+  },
+  {
+    "id": "staff",
+    "step": "new_btn",
+    "status": "PASS",
+    "note": "n=2",
+    "at": "2026-08-14T02:55:42.668Z"
+  },
+  {
+    "id": "staff",
+    "step": "field_list",
+    "status": "PASS",
+    "note": "[{\"tag\":\"INPUT\",\"type\":\"text\",\"aria\":\"無題\",\"ph\":\"無題\",\"id\":\"master-title\"},{\"tag\":\"BUTTON\",\"type\":\"button\",\"aria\":null,\"ph\":null,\"id\":\"\"},{\"tag\":\"SELECT\",\"type\":null,\"aria\":null,\"ph\":null,\"id\":\"\"},{\"tag\":\"INPUT\",\"type\":\"text\",\"aria\":\"資格番号\",\"ph\":\"空\",\"id\":\"\"},{\"tag\":\"INPUT\",\"type\":\"e",
+    "at": "2026-08-14T02:55:43.256Z"
+  },
+  {
+    "id": "staff",
+    "step": "C1-1",
+    "status": "PASS",
+    "note": "八王子病院 診療業務 当日の受付 飼主・ペット 予約管理 カルテ 検査管理 トリミング 予防接種 定",
+    "at": "2026-08-14T02:55:43.883Z"
+  },
+  {
+    "id": "staff",
+    "step": "fill-title",
+    "status": "PASS",
+    "note": "draft name",
+    "at": "2026-08-14T02:55:43.931Z"
+  },
+  {
+    "id": "closing-time",
+    "step": "open",
+    "status": "PASS",
+    "note": "八王子病院 診療業務 当日の受付 飼主・ペット 予約管理 カルテ 検査管理 トリミング 予防接種 定",
+    "at": "2026-08-14T02:55:44.889Z"
+  },
+  {
+    "id": "closing-time",
+    "step": "time_fields",
+    "status": "PASS",
+    "note": "n=3",
+    "at": "2026-08-14T02:55:44.891Z"
+  },
+  {
+    "id": "closing-time",
+    "step": "save",
+    "status": "PASS",
+    "note": "200",
+    "at": "2026-08-14T02:55:44.932Z"
+  },
+  {
+    "id": "closing-time",
+    "step": "holiday-C1",
+    "status": "PARTIAL",
+    "note": "clicked empty",
+    "at": "2026-08-14T02:55:45.847Z"
+  },
+  {
+    "id": "insurance-bound",
+    "step": "C1-3-101",
+    "status": "PASS",
+    "note": "stay",
+    "at": "2026-08-14T02:55:55.152Z"
+  },
+  {
+    "id": "payment-system",
+    "step": "no-delete",
+    "status": "PASS",
+    "note": "",
+    "at": "2026-08-14T02:56:31.410Z"
+  }
+]

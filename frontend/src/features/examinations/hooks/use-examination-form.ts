@@ -40,6 +40,11 @@ import type { ExamItemRow } from "../components/ExamItemsTable";
 import type { ActionState } from "@/types/form";
 import { INITIAL_ACTION_STATE } from "@/types/form";
 import { EXAM_STATUS_EN_TO_JA } from "@/lib/transforms/examination";
+import {
+  isPersistedCompletedSeal,
+  isPersistedConfirmedStatus,
+  isPersistedResultsLocked,
+} from "../lib/examination-lock";
 
 /** EXAM_STATUS_EN_TO_JA（正本）の逆写像を導出する（FE5-10）。両写像は完全対称であることを確認済み。 */
 const EXAM_STATUS_JA_TO_EN = Object.fromEntries(
@@ -167,17 +172,27 @@ export function useExaminationForm(
     [],
   );
 
-  // サーバ保存済み確定フラグ（useActionState 内の stale closure を避ける）
+  // サーバ保存済み結果ロック（useActionState 内の stale closure を避ける）
+  const isPersistedResultsLockedRef = useRef(false);
   const isPersistedConfirmedRef = useRef(false);
   useLayoutEffect(() => {
-    isPersistedConfirmedRef.current = isEdit && existingExam?.status === "確定";
-  }, [isEdit, existingExam?.status]);
+    const status = existingExam?.status;
+    const rev = existingExam?.currentRevisionVersion;
+    isPersistedConfirmedRef.current =
+      isEdit && isPersistedConfirmedStatus(status);
+    isPersistedResultsLockedRef.current =
+      isEdit && isPersistedResultsLocked(status, rev);
+  }, [
+    isEdit,
+    existingExam?.status,
+    existingExam?.currentRevisionVersion,
+  ]);
 
   const isPatientChangeLocked =
     !isEdit ||
     !canEdit ||
     !existingExam ||
-    existingExam.status === "確定" ||
+    isPersistedConfirmedStatus(existingExam.status) ||
     existingExam.currentRevisionVersion !== undefined;
   const isPatientChangeLockedRef = useRef(isPatientChangeLocked);
   const existingPetIdRef = useRef(existingExam?.petId);
@@ -483,6 +498,7 @@ export function useExaminationForm(
     ): Promise<ActionState> => {
       const current = formDataWithPetRef.current;
       const isPersistedConfirmed = isPersistedConfirmedRef.current;
+      const resultsLocked = isPersistedResultsLockedRef.current;
       // フロントエンド・バリデーション
       const errors: Record<string, string> = {};
       if (!current.testTypeId) errors.testTypeId = "検査種別を選択してください";
@@ -492,7 +508,7 @@ export function useExaminationForm(
       if (
         isEdit &&
         (!isCurrentEditTarget ||
-          (!isPersistedConfirmed && !areCurrentItemsReady))
+          (!resultsLocked && !areCurrentItemsReady))
       ) {
         errors.examItems = "検査項目の読み込み完了後に保存してください";
       }
@@ -511,7 +527,7 @@ export function useExaminationForm(
       }
 
       try {
-        // サーバ保存済みの確定のみ items を省略する（BE は confirmed への item 更新を 409）。
+        // サーバ保存済みの結果ロック中は items を省略（BE は confirmed / 初回 completed への item 更新を 409）。
         // ドラフトでステータス「確定」を選んだだけの遷移保存では items を送る（A-S02-01）。
         const items = rowsToRequest(formItemsRef.current);
 
@@ -553,9 +569,13 @@ export function useExaminationForm(
                 ? current.date
                 : jstDateStartISOString(current.date)
               : undefined,
-            ...(!isPersistedConfirmed ? { items } : {}),
+            ...(!resultsLocked ? { items } : {}),
             ...(canApplyPatientChange ? { pet_id: changedPetID } : {}),
           };
+          // 確定済みは親フィールド更新も拒否。完了シールは status 遷移保存を許可。
+          if (isPersistedConfirmed) {
+            return { success: false, timestamp: Date.now() };
+          }
           if (!isMutationAllowed("canEdit")) {
             return { success: false, timestamp: Date.now() };
           }
@@ -627,6 +647,7 @@ export function useExaminationForm(
     (onSuccess?: () => void) => {
       if (!isEdit || !id) return;
       if (!isMutationAllowed("canDelete")) return;
+      if (isPersistedResultsLockedRef.current) return;
       if (isPetExplicitlyDeceased()) return;
       startDeleteTransition(() => {
         deleteMutation.mutate(id, {
@@ -650,8 +671,21 @@ export function useExaminationForm(
   const isSaving = isPending;
   const isDeleting = deleteMutation.isPending || isDeleteTransitionPending;
   const isUnconfirming = unconfirmMutation.isPending;
-  // UI ロックはサーバ保存済み確定のみ（ドラフトで「確定」を選んだだけではロックしない — A-S02-01）
-  const isPersistedConfirmed = isEdit && existingExam?.status === "確定";
+  // UI ロックはサーバ保存済みステータスのみ（ドラフトで「確定」を選んだだけではロックしない — A-S02-01）
+  const isPersistedConfirmed =
+    isEdit && isPersistedConfirmedStatus(existingExam?.status);
+  const isPersistedCompletedLocked =
+    isEdit &&
+    isPersistedCompletedSeal(
+      existingExam?.status,
+      existingExam?.currentRevisionVersion,
+    );
+  const isPersistedResultsLockedFlag =
+    isEdit &&
+    isPersistedResultsLocked(
+      existingExam?.status,
+      existingExam?.currentRevisionVersion,
+    );
 
   // Sync ActionState field errors into display map so field-local clear can omit keys.
   useEffect(() => {
@@ -678,6 +712,8 @@ export function useExaminationForm(
     handleUnconfirm,
     isUnconfirming,
     isPersistedConfirmed,
+    isPersistedCompletedLocked,
+    isPersistedResultsLocked: isPersistedResultsLockedFlag,
     isPatientChangeLocked,
     // 検査項目テーブル
     formItems: visibleFormItems,

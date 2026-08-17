@@ -1,29 +1,26 @@
 # 作業台帳（docs/work）
 
-進行中の **作業・採択済み決裁** のみ。レポート置き場ではない。
+## 入口
 
-## 入口マップ
+| 文書 | 役割 |
+|------|------|
+| **Linear** hub [BRT-4](https://linear.app/baritechllc/issue/BRT-4) | **実行 SoT**（状態・担当・ゲート） |
+| [`../../todo.md`](../../todo.md) · [`../../todo-po.md`](../../todo-po.md) | **ポインタのみ**（本文は Linear へ移行済み） |
+| [`../../reports/todo-walk-2026-08-14/todo-docs-linear-map.md`](../../reports/todo-walk-2026-08-14/todo-docs-linear-map.md) | docs Open → Linear マップ |
+| [`../../reports/todo-walk-2026-08-14/github-linear-map.md`](../../reports/todo-walk-2026-08-14/github-linear-map.md) | GH Open → Linear マップ |
 
-| 文書 | 場所 | 役割 |
-|------|------|------|
-| **STATUS.md** | root | **全体 SoT** |
-| **PO-todo.md** | root | **USER 実行リスト** |
-| **q&a.html** | root | DEC / 記入フォーム |
-| **phase2.html** | root | 次期送り |
-| 採択済み決裁 | [decisions/](./decisions/README.md) | PO 採択方針（例: [Fable](./decisions/fable-po-recommendation.md)） |
+| 補助 | 役割 |
+|------|------|
+| [decisions/](./decisions/README.md) | 採択済み方針 |
+| [residual-closeout-ledger.md](./residual-closeout-ledger.md) | opaque_ref 縦ログ |
+| [archives/](./archives/) | 旧 STATUS 全文など |
+| `phase2.html` | 今期外 |
+
+**削除統合済:** `STATUS.md` · `PO-todo.md` · 旧フル `todo.md`/`todo-po.md` 本文（git 履歴）  
+**正本:** Linear · マップ reports · ポインタ root `todo*.md`
 
 ## 置かないもの
 
-- dated 調査・完了レポート（旧 `reports/`）→ git 履歴
-- ブラウザ結果専用レポート → 不要。実施時は `docs/ops/testing/scenarios/` を正とする
-
-## root に残すもの
-
-| root | 理由 |
-|------|------|
-| `STATUS.md` · `PO-todo.md` | 第一入口 |
-| `q&a.html` · `phase2.html` | 決裁 UI |
-| `todo.md` | **アーキテクチャ改善バックログ**（UAT/ops residual ではない） |
-| `README` / `CLAUDE` / `AGENTS` / `SECURITY` / `DESIGN` | ツール定位置 |
-
-**削除済み互換スタブ (2026-08-09):** `bug.md` · `BE-pending.md` · `3-session-agent.html`（内容は `STATUS.md` / `phase2.html` に統合済み · 旧リンクは git 履歴）
+- シナリオ md への実行結果書き込み
+- 秘密 · 臨床数値の発明
+- root への作業台帳フル再構築（Linear を増やす）
