@@ -23,6 +23,23 @@ jobs:
           psql "host=$DB_HOST port=$DB_PORT dbname=$DB_NAME user=$STG_DB_USER sslmode=require" -v ON_ERROR_STOP=1 <<'SQL'
           SELECT current_user, to_regclass('public.pet_owners') AS before_regclass;
 
+          -- Parent UNIQUEs required by composite FKs (may be missing when 001 was partial).
+          DO $$
+          BEGIN
+            IF NOT EXISTS (
+              SELECT 1 FROM pg_constraint WHERE conname = 'uq_pets_clinic_id_id'
+            ) THEN
+              ALTER TABLE pets
+                ADD CONSTRAINT uq_pets_clinic_id_id UNIQUE (clinic_id, id);
+            END IF;
+            IF NOT EXISTS (
+              SELECT 1 FROM pg_constraint WHERE conname = 'uq_owners_clinic_id_id'
+            ) THEN
+              ALTER TABLE owners
+                ADD CONSTRAINT uq_owners_clinic_id_id UNIQUE (clinic_id, id);
+            END IF;
+          END $$;
+
           CREATE TABLE IF NOT EXISTS pet_owners (
               id           BIGSERIAL PRIMARY KEY,
               clinic_id    BIGINT NOT NULL REFERENCES clinics(id),
