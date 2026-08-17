@@ -1,0 +1,32 @@
+# ephemeral STG SQL probe for BRT-71 — delete after use
+name: STG SQL Probe (BRT-71)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Probe pet_owners
+        env:
+          STG_DB_USER: ${{ secrets.STG_DB_USER }}
+          STG_DB_PASSWORD: ${{ secrets.STG_DB_PASSWORD }}
+          # Host/name from wrangler public vars — non-secret topology
+          DB_HOST: ap-northeast-2.pg.psdb.cloud
+          DB_NAME: postgres
+          DB_PORT: "5432"
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client
+          export PGPASSWORD="$STG_DB_PASSWORD"
+          psql "host=$DB_HOST port=$DB_PORT dbname=$DB_NAME user=$STG_DB_USER sslmode=require" -v ON_ERROR_STOP=1 <<'SQL'
+          SELECT current_user, current_database();
+          SELECT to_regclass('public.pet_owners') AS pet_owners_regclass;
+          SELECT COUNT(*) AS pet_owners_count FROM pet_owners;
+          SELECT column_name, data_type
+          FROM information_schema.columns
+          WHERE table_schema='public' AND table_name='pet_owners'
+          ORDER BY ordinal_position;
+          SQL
