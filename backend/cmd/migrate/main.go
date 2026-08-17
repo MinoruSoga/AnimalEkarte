@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -466,6 +467,8 @@ func runSQLMigrations(db *sql.DB, logger *slog.Logger) error {
 		logger.Warn("No migration files found")
 		return nil
 	}
+	sort.Strings(migrationFiles)
+	logger.Info("DDL migration files discovered", slog.Any("files", migrationFiles))
 
 	applied := 0
 	skipped := 0

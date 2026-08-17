@@ -1,0 +1,51 @@
+# ephemeral STG DDL apply for BRT-71 — create pet_owners if missing
+name: STG Ensure pet_owners (BRT-71)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  ensure:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ensure pet_owners table
+        env:
+          STG_DB_USER: ${{ secrets.STG_DB_USER }}
+          STG_DB_PASSWORD: ${{ secrets.STG_DB_PASSWORD }}
+          DB_HOST: ap-northeast-2.pg.psdb.cloud
+          DB_NAME: postgres
+          DB_PORT: "5432"
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client
+          export PGPASSWORD="$STG_DB_PASSWORD"
+          psql "host=$DB_HOST port=$DB_PORT dbname=$DB_NAME user=$STG_DB_USER sslmode=require" -v ON_ERROR_STOP=1 <<'SQL'
+          SELECT current_user, to_regclass('public.pet_owners') AS before_regclass;
+
+          CREATE TABLE IF NOT EXISTS pet_owners (
+              id           BIGSERIAL PRIMARY KEY,
+              clinic_id    BIGINT NOT NULL REFERENCES clinics(id),
+              pet_id       BIGINT NOT NULL,
+              owner_id     BIGINT NOT NULL,
+              relationship TEXT NOT NULL DEFAULT '',
+              created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+              updated_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+              UNIQUE (pet_id, owner_id),
+              FOREIGN KEY (clinic_id, pet_id) REFERENCES pets (clinic_id, id),
+              FOREIGN KEY (clinic_id, owner_id) REFERENCES owners (clinic_id, id)
+          );
+
+          CREATE INDEX IF NOT EXISTS idx_pet_owners_clinic_pet ON pet_owners (clinic_id, pet_id);
+          CREATE INDEX IF NOT EXISTS idx_pet_owners_clinic_owner ON pet_owners (clinic_id, owner_id);
+
+          SELECT app_private.apply_rls_policy(
+              'pet_owners',
+              'tenant_clinic_id_isolation',
+              'app_private.has_clinic_access(clinic_id)',
+              'app_private.has_clinic_access(clinic_id)'
+          );
+
+          SELECT to_regclass('public.pet_owners') AS after_regclass;
+          SELECT COUNT(*) AS pet_owners_count FROM pet_owners;
+          SQL

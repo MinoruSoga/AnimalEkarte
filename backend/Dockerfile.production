@@ -50,6 +50,10 @@ COPY --from=builder /app/migrate .
 
 # Copy migration files
 COPY migrations/ ./migrations/
+# Fail the image build if append-only ensure SQL is missing (BRT-71).
+RUN test -f ./migrations/001_init.sql \
+  && test -f ./migrations/002_ensure_pet_owners.sql \
+  && ls -la ./migrations/*.sql
 
 # Non-root user for security
 RUN addgroup -g 1000 appuser && \
