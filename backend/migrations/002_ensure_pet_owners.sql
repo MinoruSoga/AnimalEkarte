@@ -1,6 +1,22 @@
 -- BRT-71: STG で pet_owners が欠落し shared-pets / sub-owners が 500 になっていた。
--- 001_init に定義はあるが、checksum repair 等で DDL 未適用の DB があり得るため
--- append-only で IF NOT EXISTS の安全ネットを置く（破壊的操作なし）。
+-- 001_init に定義はあるが、部分適用 DB では parent UNIQUE / テーブル自体が無い場合がある。
+-- append-only の安全ネット（破壊的操作なし）。
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'uq_pets_clinic_id_id'
+  ) THEN
+    ALTER TABLE pets
+      ADD CONSTRAINT uq_pets_clinic_id_id UNIQUE (clinic_id, id);
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'uq_owners_clinic_id_id'
+  ) THEN
+    ALTER TABLE owners
+      ADD CONSTRAINT uq_owners_clinic_id_id UNIQUE (clinic_id, id);
+  END IF;
+END $$;
 
 CREATE TABLE IF NOT EXISTS pet_owners (
     id           BIGSERIAL PRIMARY KEY,
