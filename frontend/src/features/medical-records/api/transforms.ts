@@ -20,6 +20,13 @@ const STATUS_MAP_TO_BACKEND: Record<MedicalRecordStatus, string> = {
 export const toBackendMedicalRecordStatus = (label: string): string | undefined =>
   STATUS_MAP_TO_BACKEND[label as MedicalRecordStatus];
 
+function toVisitTypeLabel(visitType?: string | null): string | undefined {
+  if (!visitType) return undefined;
+  if (visitType === "first" || visitType === "初診") return "初診";
+  if (visitType === "revisit" || visitType === "再診") return "再診";
+  return visitType;
+}
+
 /**
  * MedicalRecordResponse wire → UI.
  * clinical_plan / visit_type は detail wire に無い（clinical-plan API / form 別経路）。
@@ -38,11 +45,9 @@ export const transformMedicalRecord = (record: BackendMedicalRecord) => {
     petIsDeceased: record.pet?.status === PetStatusDeceased,
     species: record.pet?.animal_species?.name ?? "",
     chiefComplaint: record.inquiry?.chief_complaint ?? "",
-    // InquirySummary wire に chief_complaint_type_id は無い
-    chiefComplaintTypeId: null as number | null,
+    chiefComplaintTypeId: record.inquiry?.chief_complaint_type_id ?? null,
     doctor: record.doctor?.name ?? String(record.doctor_id ?? ""),
-    // visit_type は medical-record detail wire に無い（form / 別経路）
-    visitType: undefined as string | undefined,
+    visitType: toVisitTypeLabel(record.visit_type),
     nextVisitRecommendedDate: record.next_visit_recommended_date ?? "",
     subjective: undefined as string | undefined,
     objective: undefined as string | undefined,

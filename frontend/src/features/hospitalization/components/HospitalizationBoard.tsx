@@ -96,17 +96,14 @@ const CageCard = memo(function CageCard({ cage, occupant, onNavigateToForm, canC
                       </Badge>
                   ) : null}
                 </CardHeader>
-                <CardContent className={`${H_STYLES.padding.card} flex-1 flex flex-col justify-center items-center text-center`}>
+                <CardContent className={`${H_STYLES.padding.card} flex-1 flex flex-col justify-center items-start text-left`}>
                   {occupant ? (
                     <>
-                      <div className={`font-bold ${C.text} ${H_STYLES.text.lg} truncate w-full`} title={occupant.petName}>
-                          {occupant.petName}
-                      </div>
-                      <div className={`${H_STYLES.text.sm} ${C.text60} truncate w-full mb-2`}>
+                      <div className={`font-bold ${C.text} ${H_STYLES.text.sm} truncate w-full`} title={occupant.ownerName}>
                           {occupant.ownerName}
                       </div>
-                      <div className={`${H_STYLES.text.xs} ${C.text40} font-mono`}>
-                         {occupant.species}
+                      <div className={`${H_STYLES.text.sm} ${C.text} truncate w-full mb-2`}>
+                          {[occupant.species, occupant.petName].filter(Boolean).join(" ")}
                       </div>
                       {isDeceased ? (
                         <span className={`text-xs ${C.text40} font-medium`}>死亡</span>

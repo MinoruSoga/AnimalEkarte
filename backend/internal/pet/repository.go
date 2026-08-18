@@ -126,7 +126,9 @@ func (r *repository) FindAll(ctx context.Context, clinicIDs []uint64, filters Pe
 			q = q.Where("pets.animal_species_id = ?", *filters.AnimalSpeciesID)
 		}
 		if !filters.IncludeDeceased {
-			q = q.Where("pets.deceased_at IS NULL")
+			// deceased_at と status の両方で除外する。seed/旧データは status=deceased でも
+			// deceased_at が NULL のことがあり、列片方だけ見ると死亡個体が検索に混入する（BUG-001）。
+			q = q.Where("pets.deceased_at IS NULL AND pets.status <> ?", model.PetStatusDeceased)
 		}
 		if filters.Search != "" {
 			// 空白のみは fail-closed で 0 件（空フィルタ扱いで全件返さない）。

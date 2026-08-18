@@ -31,6 +31,7 @@ export interface MedicalRecordResponse {
   pet?: PetSummaryResponse;
   doctor?: StaffSummaryResponse;
   inquiry?: InquirySummaryResponse;
+  visit_type?: string;
 }
 /**
  * InquirySummaryResponse is the inquiry embed on medical-record list/detail wire.
@@ -41,6 +42,7 @@ export interface InquirySummaryResponse {
   id: number /* uint64 */;
   chief_complaint: string;
   notes: string;
+  chief_complaint_type_id?: number /* uint64 */;
 }
 
 //////////

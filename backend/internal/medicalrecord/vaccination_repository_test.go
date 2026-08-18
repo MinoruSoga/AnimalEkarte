@@ -149,7 +149,7 @@ func TestVaccinationRepository_FindAll(t *testing.T) {
 	makeVaccinationOnDate(clinicB, petB.ID, vaccineB.ID, mid)
 
 	t.Run("クリニックで隔離され全件返る", func(t *testing.T) {
-		got, total, err := repo.FindAll(ctx, clinicA, nil, nil, nil, nil, 1, 100)
+		got, total, err := repo.FindAll(ctx, clinicA, nil, nil, nil, nil, "", 1, 100)
 		require.NoError(t, err)
 		assert.Equal(t, int64(3), total)
 		assert.Len(t, got, 3)
@@ -160,7 +160,7 @@ func TestVaccinationRepository_FindAll(t *testing.T) {
 
 	t.Run("petIDで絞り込める", func(t *testing.T) {
 		pid := petA1.ID
-		got, total, err := repo.FindAll(ctx, clinicA, &pid, nil, nil, nil, 1, 100)
+		got, total, err := repo.FindAll(ctx, clinicA, &pid, nil, nil, nil, "", 1, 100)
 		require.NoError(t, err)
 		assert.Equal(t, int64(2), total)
 		for _, v := range got {
@@ -170,7 +170,7 @@ func TestVaccinationRepository_FindAll(t *testing.T) {
 
 	t.Run("ownerIDでJOIN絞り込める", func(t *testing.T) {
 		oid := ownerA2.ID
-		got, total, err := repo.FindAll(ctx, clinicA, nil, &oid, nil, nil, 1, 100)
+		got, total, err := repo.FindAll(ctx, clinicA, nil, &oid, nil, nil, "", 1, 100)
 		require.NoError(t, err)
 		assert.Equal(t, int64(1), total)
 		require.Len(t, got, 1)
@@ -180,14 +180,14 @@ func TestVaccinationRepository_FindAll(t *testing.T) {
 	t.Run("startDate/endDateで期間絞り込める", func(t *testing.T) {
 		start := "2026-02-01"
 		end := "2026-04-01"
-		got, total, err := repo.FindAll(ctx, clinicA, nil, nil, &start, &end, 1, 100)
+		got, total, err := repo.FindAll(ctx, clinicA, nil, nil, &start, &end, "", 1, 100)
 		require.NoError(t, err)
 		assert.Equal(t, int64(1), total, "midのみが期間内")
 		require.Len(t, got, 1)
 	})
 
 	t.Run("ページネーションはtotalを保ちつつ件数を制限する", func(t *testing.T) {
-		got, total, err := repo.FindAll(ctx, clinicA, nil, nil, nil, nil, 1, 1)
+		got, total, err := repo.FindAll(ctx, clinicA, nil, nil, nil, nil, "", 1, 1)
 		require.NoError(t, err)
 		assert.Equal(t, int64(3), total)
 		assert.Len(t, got, 1)

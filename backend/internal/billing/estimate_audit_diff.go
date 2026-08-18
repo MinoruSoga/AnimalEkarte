@@ -26,6 +26,7 @@ func extractEstimateImportantFields(e *model.Estimate) map[string]any {
 		"comment":           e.Comment,
 		"notes":             e.Notes,
 		"owner_id":          e.OwnerID,
+		"pet_id":            e.PetID,
 		"medical_record_id": e.MedicalRecordID,
 	}
 }
@@ -51,6 +52,7 @@ func diffEstimateImportantFields(oldEst, newEst *model.Estimate) (oldDiff, newDi
 		{key: "comment", oldVal: oldEst.Comment, newVal: newEst.Comment, equal: oldEst.Comment == newEst.Comment},
 		{key: "notes", oldVal: oldEst.Notes, newVal: newEst.Notes, equal: oldEst.Notes == newEst.Notes},
 		{key: "owner_id", oldVal: oldEst.OwnerID, newVal: newEst.OwnerID, equal: ptrUint64Equal(oldEst.OwnerID, newEst.OwnerID)},
+		{key: "pet_id", oldVal: oldEst.PetID, newVal: newEst.PetID, equal: ptrUint64Equal(oldEst.PetID, newEst.PetID)},
 		{key: "medical_record_id", oldVal: oldEst.MedicalRecordID, newVal: newEst.MedicalRecordID, equal: ptrUint64Equal(oldEst.MedicalRecordID, newEst.MedicalRecordID)},
 	}
 

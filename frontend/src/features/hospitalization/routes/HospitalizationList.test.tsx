@@ -213,8 +213,8 @@ describe("HospitalizationList — BUG-009 status tab → server filter", () => {
     const user = userEvent.setup();
     render(<HospitalizationList />, { wrapper: createWrapper() });
 
-    // board: cage に紐づく petName
-    expect(await screen.findByText("ボード兼リスト")).toBeInTheDocument();
+    // board: cage に紐づく 種 + petName
+    expect(await screen.findByText("犬 ボード兼リスト")).toBeInTheDocument();
 
     await user.click(screen.getByRole("radio", { name: "List View" }));
     expect(await screen.findByText("ボード兼リスト")).toBeInTheDocument();

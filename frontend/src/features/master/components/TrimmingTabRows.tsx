@@ -7,6 +7,7 @@ import { formatCurrency } from "@/lib/format/number";
 
 import {
   TARGET_SIZE_LABELS,
+  resolveTrimmingActiveFlag,
   type TrimmingCourse,
   type TrimmingOption,
 } from "../api/trimming";
@@ -35,7 +36,7 @@ export function TrimmingCourseRow({
       </TableCell>
       <TrimmingPriceCell price={item.price} />
       <TableCell className="text-center">
-        <StatusPill isActive={item.isActive} />
+        <StatusPill isActive={resolveTrimmingActiveFlag(item)} />
       </TableCell>
       <TableCell className="text-right">
         {canEdit ? (
@@ -73,7 +74,7 @@ export function TrimmingOptionRow({
       </TableCell>
       <TrimmingPriceCell price={item.price} />
       <TableCell className="text-center">
-        <StatusPill isActive={item.isActive} />
+        <StatusPill isActive={resolveTrimmingActiveFlag(item)} />
       </TableCell>
       <TableCell className="text-right">
         {canEdit ? (

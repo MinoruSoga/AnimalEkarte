@@ -25,3 +25,18 @@ func toOwnerSummary(o *model.Owner) *ownerSummaryResponse {
 		OwnerName: o.Name,
 	}
 }
+
+type petSummaryResponse struct {
+	ID   uint64 `json:"id"`
+	Name string `json:"name"`
+}
+
+func toPetSummary(p *model.Pet) *petSummaryResponse {
+	if p == nil {
+		return nil
+	}
+	return &petSummaryResponse{
+		ID:   p.ID,
+		Name: p.Name,
+	}
+}

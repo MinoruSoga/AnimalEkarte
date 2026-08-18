@@ -30,6 +30,18 @@ export const INITIAL_DOSE_PARAM_FORM: DoseParamFormData = {
   notes: "",
 };
 
+export function isDoseParamFormEmpty(form: DoseParamFormData): boolean {
+  return (
+    form.dosePerKg.trim() === "" &&
+    form.minMgPerKg.trim() === "" &&
+    form.maxMgPerKg.trim() === "" &&
+    form.absoluteMaxDose.trim() === "" &&
+    form.roundingStep.trim() === "" &&
+    form.roundingMode === "" &&
+    form.notes.trim() === ""
+  );
+}
+
 export function doseParamToFormData(param: MedicineDoseParam | undefined): DoseParamFormData {
   if (!param) return INITIAL_DOSE_PARAM_FORM;
   return {

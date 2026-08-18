@@ -127,8 +127,9 @@ export function VaccinationList() {
     return {
       startDate: dateFilter?.from,
       endDate: dateFilter?.to,
+      search: deferredSearchTerm || undefined,
     };
-  }, [activeFilters]);
+  }, [activeFilters, deferredSearchTerm]);
 
   const { data: filteredRecords, allVaccinations, isLoading, error } = useFilterVaccinations(deferredSearchTerm, filters, activeFilters);
   const pendingDeletePetId = allVaccinations.find(

@@ -121,12 +121,14 @@ axios.interceptors.response.use(
       error.response?.status !== 401 ||
       originalRequest === undefined ||
       originalRequest._retry === true ||
-      originalRequest.url?.includes("/auth/refresh") === true
+      originalRequest.url?.includes("/auth/refresh") === true ||
+      originalRequest.url?.includes("/users/me/password") === true
     ) {
-      // 401 で上記条件に当てはまらない場合（リフレッシュ不可）はログインへ
+      // パスワード変更の 401 は「現在のパスワード誤り」でありセッション切れではない（BUG-026）
       if (
         error.response?.status === 401 &&
-        window.location.pathname !== "/login"
+        window.location.pathname !== "/login" &&
+        originalRequest?.url?.includes("/users/me/password") !== true
       ) {
         const safePath =
           parseInternalPath(`${window.location.pathname}${window.location.search}`) ??

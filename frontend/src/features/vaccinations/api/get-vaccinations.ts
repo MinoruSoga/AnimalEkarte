@@ -14,6 +14,7 @@ export interface VaccinationFilters {
   petId?: string;
   page?: number;
   limit?: number;
+  search?: string;
 }
 
 const getVaccinations = async (
@@ -27,6 +28,7 @@ const getVaccinations = async (
   if (filters?.startDate) params.start_date = filters.startDate;
   if (filters?.endDate) params.end_date = filters.endDate;
   if (filters?.petId) params.pet_id = filters.petId;
+  if (filters?.search) params.search = filters.search;
 
   const { data } = await axios.get<{ data: BackendVaccination[] }>(
     "/v1/vaccinations",

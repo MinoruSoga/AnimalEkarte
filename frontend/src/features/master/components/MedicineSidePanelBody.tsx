@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import Pill from "lucide-react/dist/esm/icons/pill";
 
 import { MasterSidePanel } from "@/components/shared/SidePeek";
@@ -6,7 +6,7 @@ import { LAYOUT } from "@/lib/design-tokens";
 import type { Medicine } from "@/types";
 import { MedicineCalculationTypePerWeight } from "@/types/generated/models";
 
-import { MedicineDoseParamsEditor } from "./MedicineDoseParamsEditor";
+import { MedicineDoseParamsEditor, type MedicineDoseParamsEditorHandle } from "./MedicineDoseParamsEditor";
 import { medicineToFormData, type MedicineFormData } from "./medicine-side-panel-model";
 import {
   MedicineBasicFlagsSection,
@@ -46,6 +46,7 @@ export const MedicineSidePanelBody = memo(function MedicineSidePanelBody({
   );
   const [nameError, setNameError] = useState("");
   const [isDirty, setIsDirty] = useState(false);
+  const doseParamsRef = useRef<MedicineDoseParamsEditorHandle>(null);
 
   useEffect(() => {
     onDirtyChange?.(isDirty);
@@ -56,15 +57,23 @@ export const MedicineSidePanelBody = memo(function MedicineSidePanelBody({
     setIsDirty(true);
   }, []);
 
-  const handleAction = useCallback(() => {
+  const handleAction = useCallback(async () => {
     if (!formData.name.trim()) {
       setNameError("名称を入力してください");
       return;
     }
     setNameError("");
-    onSave(formData);
+    if (selectedMedicine) {
+      const doseOk = (await doseParamsRef.current?.saveFilled()) ?? true;
+      if (!doseOk) return;
+      onSave(formData);
+    } else {
+      const drafts = await doseParamsRef.current?.collectFilled();
+      if (drafts === false) return;
+      onSave({ ...formData, doseParamDrafts: drafts ?? [] });
+    }
     setIsDirty(false);
-  }, [formData, onSave]);
+  }, [formData, onSave, selectedMedicine]);
 
   const handleTitleChange = useCallback((value: string) => {
     setFormDataDirty((prev) => ({ ...prev, name: value }));
@@ -77,7 +86,7 @@ export const MedicineSidePanelBody = memo(function MedicineSidePanelBody({
       title={formData.name}
       onTitleChange={handleTitleChange}
       onClose={onCloseEdit}
-      action={handleAction}
+      onSave={handleAction}
       onDelete={selectedMedicine && canDelete ? onDeleteRequest : undefined}
       icon={<Pill className={LAYOUT.pageIcon.innerIcon} />}
       titlePlaceholder="薬品名"
@@ -108,8 +117,8 @@ export const MedicineSidePanelBody = memo(function MedicineSidePanelBody({
         formData={formData}
         setFormDataDirty={setFormDataDirty}
       />
-      {selectedMedicine && formData.calculationType === MedicineCalculationTypePerWeight ? (
-        <MedicineDoseParamsEditor medicineId={selectedMedicine.id} />
+      {formData.calculationType === MedicineCalculationTypePerWeight ? (
+        <MedicineDoseParamsEditor medicineId={selectedMedicine?.id ?? ""} ref={doseParamsRef} />
       ) : null}
     </MasterSidePanel>
   );

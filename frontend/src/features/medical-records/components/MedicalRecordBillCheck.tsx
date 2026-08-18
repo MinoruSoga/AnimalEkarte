@@ -45,6 +45,10 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({ isN
   const { mutateAsync: confirmBillingAsync } = confirmMutation;
   const handleConfirm = useCallback(() => {
     if (!canEdit) return;
+    if (treatments.length === 0) {
+      toast.error("会計確認する明細がありません。診察処置を追加してください。");
+      return;
+    }
     startConfirmTransition(async () => {
       try {
         await confirmBillingAsync({
@@ -55,7 +59,7 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({ isN
         handleApiError(error, "会計確認");
       }
     });
-  }, [canEdit, confirmBillingAsync]);
+  }, [canEdit, confirmBillingAsync, treatments.length]);
 
   const { mutate: returnBillingFn } = returnMutation;
   const handleReturn = useCallback(() => {
@@ -211,7 +215,7 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({ isN
             <Button
               type="button"
               size="sm"
-              disabled={isConfirmPending || items.length === 0}
+              disabled={isConfirmPending}
               onClick={handleConfirm}
               className={`${C.bgBrand} ${C.hoverBgBrand} ${C.hoverTextOnBrand} ${C.textOnBrand} rounded-full border-transparent min-w-[120px] h-10 text-sm gap-2 transition-colors`}
             >

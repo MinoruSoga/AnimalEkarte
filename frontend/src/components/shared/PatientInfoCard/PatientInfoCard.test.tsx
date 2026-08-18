@@ -29,18 +29,18 @@ describe("PatientInfoCard petDetails (BUG-006)", () => {
   it("未指定時は固定の「9才5ヶ月 / メス / 避妊済」を出さず不明を表示する", () => {
     render(<PatientInfoCard {...baseProps} />);
     expect(screen.getByText("不明")).toBeInTheDocument();
-    expect(screen.queryByText("9才5ヶ月 / メス / 避妊済")).not.toBeInTheDocument();
+    expect(screen.queryByText("9歳5ヶ月 / メス / 避妊済")).not.toBeInTheDocument();
   });
 
   it("渡した petDetails をそのまま表示する", () => {
     render(
       <PatientInfoCard
         {...baseProps}
-        petDetails="13才7ヶ月 / 雄 / 不明"
+        petDetails="13歳7ヶ月 / 雄 / 不明"
       />,
     );
-    expect(screen.getByText("13才7ヶ月 / 雄 / 不明")).toBeInTheDocument();
-    expect(screen.queryByText("9才5ヶ月 / メス / 避妊済")).not.toBeInTheDocument();
+    expect(screen.getByText("13歳7ヶ月 / 雄 / 不明")).toBeInTheDocument();
+    expect(screen.queryByText("9歳5ヶ月 / メス / 避妊済")).not.toBeInTheDocument();
   });
 });
 
@@ -68,7 +68,7 @@ describe("PatientInfoCard next visit alert", () => {
   it("次回予定日を渡さない画面では仮の日付や期限アラートを表示しない", () => {
     render(<PatientInfoCard {...baseProps} />);
 
-    expect(screen.getByText("次回 -")).toBeInTheDocument();
+    expect(screen.queryByText("次回 -")).not.toBeInTheDocument();
     expect(screen.queryByText("次回 2025/10/10")).not.toBeInTheDocument();
     expect(screen.queryByText("期限切れ")).not.toBeInTheDocument();
     expect(screen.queryByText("期限間近")).not.toBeInTheDocument();

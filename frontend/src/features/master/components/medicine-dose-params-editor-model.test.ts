@@ -7,6 +7,7 @@ import {
   doseParamToFormData,
   findDoseParamBySpecies,
   INITIAL_DOSE_PARAM_FORM,
+  isDoseParamFormEmpty,
   validateDoseParamForm,
   type DoseParamFormData,
 } from "./medicine-dose-params-editor-model";
@@ -158,5 +159,15 @@ describe("findDoseParamBySpecies", () => {
 
   it("returns undefined when params is undefined", () => {
     expect(findDoseParamBySpecies(undefined, "dog")).toBeUndefined();
+  });
+});
+
+describe("isDoseParamFormEmpty", () => {
+  it("treats the initial form as empty", () => {
+    expect(isDoseParamFormEmpty(INITIAL_DOSE_PARAM_FORM)).toBe(true);
+  });
+
+  it("treats a filled dose as not empty", () => {
+    expect(isDoseParamFormEmpty(makeForm())).toBe(false);
   });
 });

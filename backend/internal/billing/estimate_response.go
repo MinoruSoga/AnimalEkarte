@@ -33,6 +33,8 @@ type estimateResponse struct {
 	Title                string                 `json:"title"`
 	OwnerID              *uint64                `json:"owner_id,omitempty"`
 	Owner                *ownerSummaryResponse  `json:"owner,omitempty"`
+	PetID                *uint64                `json:"pet_id,omitempty"`
+	Pet                  *petSummaryResponse    `json:"pet,omitempty"`
 	Status               string                 `json:"status"`
 	Subtotal             int64                  `json:"subtotal"`
 	TaxTotal             int64                  `json:"tax_total"`
@@ -85,6 +87,8 @@ func toEstimateResponse(e *model.Estimate) estimateResponse {
 		Title:                e.Title,
 		OwnerID:              e.OwnerID,
 		Owner:                toOwnerSummary(e.Owner),
+		PetID:                e.PetID,
+		Pet:                  toPetSummary(e.Pet),
 		Status:               string(e.Status),
 		Subtotal:             e.Subtotal,
 		TaxTotal:             e.TaxTotal,

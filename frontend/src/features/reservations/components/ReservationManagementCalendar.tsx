@@ -56,6 +56,7 @@ interface ReservationManagementCalendarProps {
   onMonthDateClick: (date: Date) => void;
   onTimeSlotClick: (date: Date) => void;
   onAppointmentUpdate: (reservation: Reservation, newStart: Date, newEnd: Date) => void;
+  holidayDates?: ReadonlySet<string>;
 }
 
 export function ReservationManagementCalendar({
@@ -80,6 +81,7 @@ export function ReservationManagementCalendar({
   onMonthDateClick,
   onTimeSlotClick,
   onAppointmentUpdate,
+  holidayDates,
 }: ReservationManagementCalendarProps) {
   const doctorFilterOptions = useMemo<SearchableSelectOption[]>(
     () => [
@@ -171,13 +173,21 @@ export function ReservationManagementCalendar({
               onAppointmentClick={onAppointmentClick}
               onDateClick={onMonthDateClick}
               dynamicColorMap={dynamicColorMap}
+              holidayDates={holidayDates}
             />
           ) : (
             <WeekView
               currentDate={currentDate}
               appointments={appointments}
               onAppointmentClick={onAppointmentClick}
-              onTimeSlotClick={canCreate ? onTimeSlotClick : undefined}
+              onTimeSlotClick={
+                canCreate
+                  ? (date) => {
+                      if (holidayDates?.has(format(date, "yyyy-MM-dd"))) return;
+                      onTimeSlotClick(date);
+                    }
+                  : undefined
+              }
               onAppointmentUpdate={onAppointmentUpdate}
               dynamicColorMap={dynamicColorMap}
               days={days}

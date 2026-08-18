@@ -69,7 +69,7 @@ func (h *CageHandler) CreateCage(c *gin.Context) {
 
 	cage, err := h.service.Create(c.Request.Context(), clinicID, req.toServiceInput())
 	if err != nil {
-		httpapi.RespondError(c, err)
+		httpapi.RespondErrorPreferringConflictCode(c, err)
 		return
 	}
 	c.Header("Location", fmt.Sprintf("/v1/masters/cages/%d", cage.ID))
@@ -94,7 +94,7 @@ func (h *CageHandler) UpdateCage(c *gin.Context) {
 
 	cage, err := h.service.Update(c.Request.Context(), clinicID, id, req.toServiceInput())
 	if err != nil {
-		httpapi.RespondError(c, err)
+		httpapi.RespondErrorPreferringConflictCode(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, toCageResponse(cage))

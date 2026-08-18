@@ -47,16 +47,16 @@ describe('getMedicalRecordStatusColor', () => {
 });
 
 describe('getHospitalizationStatusColor', () => {
-  it('returns blue for 入院中', () => {
-    expect(getHospitalizationStatusColor('入院中')).toContain(HEX.blue);
+  it('returns purple for 入院中', () => {
+    expect(getHospitalizationStatusColor('入院中')).toContain(HEX.purple);
   });
 
-  it('returns gray for 退院済', () => {
-    expect(getHospitalizationStatusColor('退院済')).toContain(HEX.gray);
+  it('returns green for 退院済', () => {
+    expect(getHospitalizationStatusColor('退院済')).toContain(HEX.green);
   });
 
-  it('returns green for 予約', () => {
-    expect(getHospitalizationStatusColor('予約')).toContain(HEX.green);
+  it('returns gray for 予約', () => {
+    expect(getHospitalizationStatusColor('予約')).toContain(HEX.gray);
   });
 });
 

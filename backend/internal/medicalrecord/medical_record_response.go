@@ -31,15 +31,17 @@ type MedicalRecordResponse struct {
 	Pet                      *PetSummaryResponse     `json:"pet,omitempty"`
 	Doctor                   *StaffSummaryResponse   `json:"doctor,omitempty"`
 	Inquiry                  *InquirySummaryResponse `json:"inquiry,omitempty"`
+	VisitType                *string                 `json:"visit_type,omitempty"`
 }
 
 // InquirySummaryResponse is the inquiry embed on medical-record list/detail wire.
 // Notes carries 問診タブ「治療方針」(inquiry.notes). Omitting it forced FE reload to DEFAULT
 // "# 治療方針" after save/finalize (BUG-034) even though notes persisted in DB.
 type InquirySummaryResponse struct {
-	ID             uint64 `json:"id"`
-	ChiefComplaint string `json:"chief_complaint"`
-	Notes          string `json:"notes"`
+	ID                   uint64  `json:"id"`
+	ChiefComplaint       string  `json:"chief_complaint"`
+	Notes                string  `json:"notes"`
+	ChiefComplaintTypeID *uint64 `json:"chief_complaint_type_id,omitempty"`
 }
 
 func toMedicalRecordResponseWithVisitCount(r *model.MedicalRecord, visitCount int64) MedicalRecordResponse {
@@ -69,11 +71,16 @@ func toMedicalRecordResponseWithVisitCount(r *model.MedicalRecord, visitCount in
 	if r.Billing != nil {
 		resp.AccountingID = &r.Billing.ID
 	}
+	if r.VisitType != nil {
+		visitType := string(*r.VisitType)
+		resp.VisitType = &visitType
+	}
 	if r.Inquiry != nil {
 		resp.Inquiry = &InquirySummaryResponse{
-			ID:             r.Inquiry.ID,
-			ChiefComplaint: r.Inquiry.ChiefComplaint,
-			Notes:          r.Inquiry.Notes,
+			ID:                   r.Inquiry.ID,
+			ChiefComplaint:       r.Inquiry.ChiefComplaint,
+			Notes:                r.Inquiry.Notes,
+			ChiefComplaintTypeID: r.Inquiry.ChiefComplaintTypeID,
 		}
 	}
 	return resp

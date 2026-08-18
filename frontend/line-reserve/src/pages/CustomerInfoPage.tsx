@@ -110,7 +110,11 @@ export function CustomerInfoPage({
   const validate = useCallback((): boolean => {
     const newErrors: Record<string, string> = {};
     if (!name.trim()) newErrors.name = 'お名前を入力してください';
-    if (!phone.trim()) newErrors.phone = '電話番号を入力してください';
+    if (!phone.trim()) {
+      newErrors.phone = '電話番号を入力してください';
+    } else if (!/^0\d{1,4}-?\d{1,4}-?\d{4}$/.test(phone.trim())) {
+      newErrors.phone = '電話番号の形式が正しくありません（例：090-1234-5678）';
+    }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   }, [name, phone]);

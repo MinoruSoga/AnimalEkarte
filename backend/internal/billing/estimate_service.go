@@ -19,6 +19,7 @@ type CreateEstimateInput struct {
 	MedicalRecordID *uint64
 	Title           string
 	OwnerID         *uint64
+	PetID           *uint64
 	Status          model.EstimateStatus
 	Subtotal        int64
 	TaxTotal        int64
@@ -197,7 +198,7 @@ func (s *estimateService) logEstimateChangeBestEffort(
 func (s *estimateService) validateEstimateRelatedFKs(
 	ctx context.Context,
 	clinicID uint64,
-	medicalRecordID, ownerID *uint64,
+	medicalRecordID, ownerID, petID *uint64,
 ) error {
 	var mr *model.MedicalRecord
 	if medicalRecordID != nil {
@@ -211,17 +212,20 @@ func (s *estimateService) validateEstimateRelatedFKs(
 		mr = record
 	}
 
-	if ownerID != nil {
+	if ownerID != nil || petID != nil {
 		if s.reservationRepo == nil {
+			if petID != nil {
+				return apperrors.WrapNotFound("pet", fmt.Sprintf("%d", *petID))
+			}
 			return apperrors.WrapNotFound("owner", fmt.Sprintf("%d", *ownerID))
 		}
-		if err := reservation.ValidateReservationOwnerPetLinksWithRepo(ctx, s.reservationRepo, clinicID, ownerID, nil); err != nil {
+		if err := reservation.ValidateReservationOwnerPetLinksWithRepo(ctx, s.reservationRepo, clinicID, ownerID, petID); err != nil {
 			return err
 		}
 	}
 
 	if mr != nil {
-		if err := AssertBillingLinksMatchMedicalRecord(mr, ownerID, nil); err != nil {
+		if err := AssertBillingLinksMatchMedicalRecord(mr, ownerID, petID); err != nil {
 			return err
 		}
 	}
@@ -290,6 +294,7 @@ func (s *estimateService) Create(ctx context.Context, clinicID uint64, input *Cr
 		MedicalRecordID: input.MedicalRecordID,
 		Title:           input.Title,
 		OwnerID:         input.OwnerID,
+		PetID:           input.PetID,
 		Subtotal:        input.Subtotal,
 		TaxTotal:        input.TaxTotal,
 		TotalAmount:     input.TotalAmount,
@@ -318,7 +323,7 @@ func (s *estimateService) Create(ctx context.Context, clinicID uint64, input *Cr
 				return err
 			}
 		}
-		if err := s.validateEstimateRelatedFKs(txCtx, clinicID, input.MedicalRecordID, input.OwnerID); err != nil {
+		if err := s.validateEstimateRelatedFKs(txCtx, clinicID, input.MedicalRecordID, input.OwnerID, input.PetID); err != nil {
 			return err
 		}
 		if err := s.verifyCreatedByClinicMembership(txCtx, clinicID, *input.CreatedBy); err != nil {

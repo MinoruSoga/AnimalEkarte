@@ -1,5 +1,5 @@
 // React/Framework
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import { useNavigate } from "react-router";
 
 // External
@@ -8,7 +8,8 @@ import { ClipboardCheck } from "lucide-react";
 // Internal
 import { C, ICON, LAYOUT } from "@/lib/design-tokens";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
-import { PatientInfoCard } from "@/components/shared/PatientInfoCard";
+import { PatientInfoCard, formatPatientPetDetails } from "@/components/shared/PatientInfoCard";
+import { PastRecordHistoryPanel } from "@/components/shared/PastRecordHistoryPanel";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { DatePicker } from "@/components/shared/DatePicker/DatePicker";
 import { FormFieldError } from "@/components/shared/FormFieldError/FormFieldError";
@@ -26,6 +27,7 @@ import { ResourceMedicalRecords } from "@/types/generated/models";
 // Relative
 import { useCheckupForm } from "../hooks/use-checkup-form";
 import { DynamicCheckupFields } from "../components/DynamicCheckupFields";
+import { useGetCheckups } from "../api/get-checkups";
 
 export function CheckupForm() {
   const navigate = useNavigate();
@@ -51,6 +53,22 @@ export function CheckupForm() {
 
   const { data: checkupTypes = [] } = useGetAllCheckupTypes();
   const { data: staffs = [] } = useGetStaffs();
+  const { data: checkupsResult, isLoading: isHistoryLoading } = useGetCheckups({
+    page: 1,
+    limit: 100,
+  });
+  const doctorName = staffs.find((staff) => staff.id === form.doctorId)?.name ?? "";
+  const historyItems = useMemo(() => {
+    if (!pet?.id) return [];
+    return (checkupsResult?.data ?? [])
+      .filter((record) => String(record.petId) === String(pet.id))
+      .map((record) => ({
+        id: String(record.id),
+        date: record.date,
+        title: record.checkupTypeName || "健診",
+        subtitle: [record.doctorName, record.result].filter(Boolean).join(" / ") || undefined,
+      }));
+  }, [checkupsResult?.data, pet?.id]);
 
   const handleBack = useCallback(() => {
     navigate(paths.checkups.getHref());
@@ -70,7 +88,7 @@ export function CheckupForm() {
         resource={ResourceMedicalRecords}
         icon={<ClipboardCheck className={`${ICON.page} ${C.text}`} />}
         onBack={handleBack}
-        maxWidth={LAYOUT.pageContentMaxWidth.formNarrow}
+        maxWidth={LAYOUT.pageContentMaxWidth.form}
         headerAction={
           <SubmitButton
             className="px-6 h-10 text-sm"
@@ -86,14 +104,24 @@ export function CheckupForm() {
             petName={pet.name}
             petNumber={pet.petNumber ?? ""}
             weight={pet.weight ?? ""}
+            petDetails={formatPatientPetDetails({
+              birthDate: pet.birthDate,
+              gender: pet.gender,
+              neuteredDate: pet.neuteredDate,
+            })}
+            insuranceName={pet.insuranceName}
+            insuranceDetails={pet.insuranceDetails}
+            staffName={doctorName}
+            status={pet.status === "死亡" ? "deceased" : "alive"}
           />
         ) : null}
 
+        <div className="mt-4 grid grid-cols-1 gap-6 lg:grid-cols-5">
         <fieldset
           aria-label="定期健診入力"
           disabled={!canSubmit}
-          className={`${C.bgWhite} p-6 rounded-lg border ${C.borderLight} space-y-6 mt-4 min-w-0`}
-        >
+          className={`lg:col-span-3 ${C.bgWhite} p-6 rounded-lg border ${C.borderLight} space-y-6 min-w-0`}
+        )
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* 実施日 */}
             <div className="space-y-2">
@@ -129,7 +157,7 @@ export function CheckupForm() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* 次回予定日 */}
             <div className="space-y-2">
-              <Label htmlFor="checkup-next-date">次回予定日</Label>
+              <Label htmlFor="checkup-next-date">次回の予定</Label>
               <DatePicker
                 id="checkup-next-date"
                 value={form.nextDate}
@@ -177,6 +205,13 @@ export function CheckupForm() {
             />
           </div>
         </fieldset>
+        <PastRecordHistoryPanel
+          title="過去の健診履歴"
+          searchPlaceholder="健診種別・所見で検索..."
+          items={historyItems}
+          isLoading={isHistoryLoading}
+        />
+        </div>
       </PageLayout>
     </form>
   );

@@ -133,12 +133,17 @@ describe("transformMedicalRecord", () => {
     expect(result.chiefComplaint).toBe("元気がない");
   });
 
-  it("InquirySummary wire に chief_complaint_type_id が無いため chiefComplaintTypeId は null", () => {
+  it("InquirySummary の chief_complaint_type_id を chiefComplaintTypeId にマップする（BUG-013）", () => {
     const result = transformMedicalRecord({
       ...minimal,
-      inquiry: { id: 1, chief_complaint: "" },
+      inquiry: { id: 1, chief_complaint: "", chief_complaint_type_id: 5 },
     });
-    expect(result.chiefComplaintTypeId).toBeNull();
+    expect(result.chiefComplaintTypeId).toBe(5);
+  });
+
+  it("visit_type first/revisit を日本語ラベルにマップする（BUG-012）", () => {
+    expect(transformMedicalRecord({ ...minimal, visit_type: "first" }).visitType).toBe("初診");
+    expect(transformMedicalRecord({ ...minimal, visit_type: "revisit" }).visitType).toBe("再診");
   });
 
   it("wire に clinical_plan が無いため diagnosis*Id は null（clinical-plan API が正本）", () => {

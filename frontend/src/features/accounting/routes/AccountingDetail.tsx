@@ -200,6 +200,7 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
               isCancelling={isCancelling}
               onPrint={handlePrint}
               onCancelClick={() => setCancelConfirmOpen(true)}
+              onDismiss={() => navigate(paths.accounting.getHref())}
             />
           }
         >

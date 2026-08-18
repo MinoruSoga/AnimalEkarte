@@ -219,7 +219,7 @@ export function CashRegisterHistoryPage() {
                             aria-label={`締め詳細: ${close.closeDate} ${PERIOD_LABELS[close.period]} (ID ${close.id})`}
                             onClick={() => setSelectedClose(close)}
                           >
-                            {close.closeDate}
+                            {close.closeDate.slice(0, 10)}
                           </DataTableRowButton>
                         </TableCell>
                         <TableCell className={C.text}>
@@ -279,7 +279,7 @@ export function CashRegisterHistoryPage() {
               <>
                 <DialogHeader>
                   <DialogTitle>
-                    {selectedClose.closeDate} {PERIOD_LABELS[selectedClose.period]} の締め詳細
+                    {selectedClose.closeDate.slice(0, 10)} {PERIOD_LABELS[selectedClose.period]} の締め詳細
                   </DialogTitle>
                   <DialogDescription>
                     この締めレコードの集計内訳と差額を表示しています。

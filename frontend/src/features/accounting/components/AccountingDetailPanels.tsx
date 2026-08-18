@@ -19,6 +19,7 @@ interface AccountingHeaderActionsProps {
   isCancelling: boolean;
   onPrint: () => void;
   onCancelClick: () => void;
+  onDismiss?: () => void;
 }
 
 export function AccountingHeaderActions({
@@ -27,8 +28,15 @@ export function AccountingHeaderActions({
   isCancelling,
   onPrint,
   onCancelClick,
+  onDismiss,
 }: AccountingHeaderActionsProps) {
-  if (status !== "completed") return undefined;
+  if (status !== "completed") {
+    return onDismiss ? (
+      <Button type="button" variant="outline" size="sm" onClick={onDismiss}>
+        キャンセル
+      </Button>
+    ) : undefined;
+  }
 
   return (
     <div className="flex gap-2">

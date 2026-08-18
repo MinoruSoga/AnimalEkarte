@@ -103,6 +103,7 @@ export const availableTimeSchema = z.object({
 export const reservationSchema = z.object({
   id: z.number(),
   course_name: z.string(),
+  pet_name: z.string().optional().default(''),
   staff_name: z.string().optional().default(''),
   date: z.string(),
   start_time: z.string(),

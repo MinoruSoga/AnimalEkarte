@@ -71,6 +71,7 @@ func (r *estimateRepository) FindAll(ctx context.Context, clinicID uint64, owner
 	}
 	// AUD-005: Owner Preload clinic-scoped (callers: List/Create refetch FindByID).
 	if err := q.Preload("Owner", "clinic_id = ? AND deleted_at IS NULL", clinicID).
+		Preload("Pet", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Preload("Items", "deleted_at IS NULL").
 		Scopes(persistence.Paginate(page, limit)).Order("created_at DESC").Find(&estimates).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "estimate", "")
@@ -85,6 +86,7 @@ func (r *estimateRepository) FindByID(ctx context.Context, clinicID, id uint64) 
 	var estimate model.Estimate
 	err := persistence.DBOrTx(ctx, r.db).
 		Preload("Owner", "clinic_id = ? AND deleted_at IS NULL", clinicID).
+		Preload("Pet", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Preload("Items", "deleted_at IS NULL").
 		Preload("CreatedStaff", "deleted_at IS NULL").
 		Scopes(persistence.ClinicScope(clinicID)).Where("id = ?", id).First(&estimate).Error

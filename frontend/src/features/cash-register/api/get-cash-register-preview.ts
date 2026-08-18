@@ -132,9 +132,10 @@ export const useGetCashRegisterPreview = (
   date: string,
   period: CashRegisterPeriod,
   enabled: boolean,
+  refreshNonce = 0,
 ) =>
   useQuery({
-    queryKey: queryKeys.cashRegister.preview.byDatePeriod(date, period),
+    queryKey: [...queryKeys.cashRegister.preview.byDatePeriod(date, period), refreshNonce],
     queryFn: () => getCashRegisterPreview(date, period),
     enabled: enabled && !!date,
     staleTime: QUERY_STALE_TIMES.REALTIME,

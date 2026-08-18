@@ -1,7 +1,8 @@
-import type {
-  TargetSize,
-  TrimmingCourse,
-  TrimmingOption,
+import {
+  resolveTrimmingActiveFlag,
+  type TargetSize,
+  type TrimmingCourse,
+  type TrimmingOption,
 } from "../api/trimming";
 
 export const TARGET_SIZE_EMPTY_VALUE = "__none__";
@@ -34,7 +35,7 @@ export function trimmingCourseToFormData(item: TrimmingCourse | null): CourseFor
     courseTypeId: item?.courseTypeId ?? "",
     duration: item?.duration != null ? String(item.duration) : "",
     description: item?.description ?? "",
-    isActive: item?.isActive ?? true,
+    isActive: item ? resolveTrimmingActiveFlag(item) : true,
   };
 }
 
@@ -45,6 +46,6 @@ export function trimmingOptionToFormData(item: TrimmingOption | null): OptionFor
     duration: item?.duration != null ? String(item.duration) : "",
     combinable: item?.combinable ?? true,
     description: item?.description ?? "",
-    isActive: item?.isActive ?? true,
+    isActive: item ? resolveTrimmingActiveFlag(item) : true,
   };
 }

@@ -19,10 +19,11 @@ import (
 	"github.com/animal-ekarte/backend/internal/config"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/persistence"
+	"github.com/animal-ekarte/backend/internal/textsearch"
 )
 
 type VaccinationRepository interface {
-	FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.Vaccination, int64, error)
+	FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, search string, page, limit int) ([]model.Vaccination, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Vaccination, error)
 	LockByIDForUpdate(ctx context.Context, clinicID, id uint64) (*model.Vaccination, error)
 	// FindByOwner は飼い主の生存ワクチン記録（ペット経由）を全件返す（ISSUE-004 タグ再同期用）。
@@ -43,26 +44,48 @@ func NewVaccinationRepository(db *gorm.DB) VaccinationRepository {
 	return &vaccinationRepository{db: db}
 }
 
-func (r *vaccinationRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.Vaccination, int64, error) {
+func (r *vaccinationRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, search string, page, limit int) ([]model.Vaccination, int64, error) {
 	buildBase := func() *gorm.DB {
 		q := persistence.DBOrTx(ctx, r.db).Model(&model.Vaccination{}).
 			Where("vaccinations.clinic_id = ?", clinicID).
 			Scopes(vaccinationPatientRelationsScope(clinicID))
-		if petID != nil || ownerID != nil {
+		hasSearch := search != ""
+		if petID != nil || ownerID != nil || hasSearch {
 			q = q.Joins("JOIN pets ON pets.id = vaccinations.pet_id AND pets.clinic_id = vaccinations.clinic_id AND pets.deleted_at IS NULL")
 		}
 		if petID != nil {
 			q = q.Where("vaccinations.pet_id = ?", *petID)
 		}
+		if ownerID != nil || hasSearch {
+			q = q.Joins("JOIN owners ON owners.id = pets.owner_id AND owners.clinic_id = vaccinations.clinic_id AND owners.deleted_at IS NULL")
+		}
 		if ownerID != nil {
-			q = q.Joins("JOIN owners ON owners.id = pets.owner_id AND owners.clinic_id = vaccinations.clinic_id AND owners.deleted_at IS NULL").
-				Where("owners.id = ?", *ownerID)
+			q = q.Where("owners.id = ?", *ownerID)
 		}
 		if startDate != nil {
 			q = q.Where("vaccinations.date >= ?", *startDate)
 		}
 		if endDate != nil {
 			q = q.Where("vaccinations.date <= ?", *endDate)
+		}
+		if hasSearch {
+			q = q.Joins("LEFT JOIN vaccines ON vaccines.id = vaccinations.vaccine_id AND vaccines.clinic_id = vaccinations.clinic_id AND vaccines.deleted_at IS NULL")
+			rawPattern := "%" + textsearch.EscapeLike(search) + "%"
+			normalizedPattern := "%" + textsearch.EscapeLike(textsearch.NormalizeKana(search)) + "%"
+			q = q.Where(
+				`(pets.name ILIKE ? ESCAPE '\'`+
+					` OR translate(pets.name, ?, ?) ILIKE ? ESCAPE '\'`+
+					` OR owners.name ILIKE ? ESCAPE '\'`+
+					` OR translate(owners.name, ?, ?) ILIKE ? ESCAPE '\'`+
+					` OR vaccines.name ILIKE ? ESCAPE '\'`+
+					` OR translate(vaccines.name, ?, ?) ILIKE ? ESCAPE '\')`,
+				rawPattern,
+				textsearch.KanaSourceChars, textsearch.KanaTargetChars, normalizedPattern,
+				rawPattern,
+				textsearch.KanaSourceChars, textsearch.KanaTargetChars, normalizedPattern,
+				rawPattern,
+				textsearch.KanaSourceChars, textsearch.KanaTargetChars, normalizedPattern,
+			)
 		}
 		return q
 	}

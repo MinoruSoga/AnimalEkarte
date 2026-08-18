@@ -11,6 +11,7 @@ import { paths } from "@/config/paths";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
 import { ACCOUNTING_STATUS_LABELS } from "@/constants/accounting-status";
 import { formatCurrency } from "@/lib/format/number";
+import { formatDate } from "@/lib/format/date";
 import type { Accounting } from "../api/transforms";
 
 export type AccountingHistorySortField = "date" | "amount" | "status";
@@ -182,7 +183,7 @@ const AccountingHistoryRow = memo(function AccountingHistoryRow({
       className={`transition-colors ${C.borderDivider} ${C.hoverBgPage} h-12`}
     >
       <TableCell className={STYLE.tableCell}>
-        {accounting.scheduledDate || "-"}
+        {formatDate(accounting.scheduledDate)}
       </TableCell>
       <TableCell className={STYLE.tableCell}>{accounting.id}</TableCell>
       <TableCell className={STYLE.tableCell}>{accounting.petName || "-"}</TableCell>

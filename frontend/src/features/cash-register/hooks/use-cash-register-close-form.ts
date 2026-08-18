@@ -8,6 +8,7 @@ export function useCashRegisterCloseForm() {
   const [date, setDate] = useState<string>(today);
   const [period, setPeriod] = useState<CashRegisterPeriod>("am");
   const [previewEnabled, setPreviewEnabled] = useState(false);
+  const [previewNonce, setPreviewNonce] = useState(0);
 
   const handleDateChange = useCallback((value: string) => {
     setDate(value);
@@ -20,13 +21,16 @@ export function useCashRegisterCloseForm() {
   }, []);
 
   const enablePreview = useCallback(() => {
-    if (date) setPreviewEnabled(true);
+    if (!date) return;
+    setPreviewEnabled(true);
+    setPreviewNonce((n) => n + 1);
   }, [date]);
 
   return {
     date,
     period,
     previewEnabled,
+    previewNonce,
     handleDateChange,
     handlePeriodChange,
     enablePreview,

@@ -4,10 +4,12 @@ import { toast } from "sonner";
 
 import {
   CONFLICT_CODE_ANIMAL_SPECIES_NAME,
+  CONFLICT_CODE_CAGE_NAME,
   CONFLICT_CODE_LSTEP_AUTO_MANAGED_PREFIX,
   CONFLICT_CODE_PERMISSION_GROUP_NAME,
   CONFLICT_CODE_SHIFT_TEMPLATE_NAME,
   handleApiError,
+  localizeAlreadyExistsMessage,
   localizeConflictMessage,
 } from "./handle-api-error";
 
@@ -181,7 +183,35 @@ describe("handleApiError 409 localization", () => {
       }),
       "保存",
     );
-    expect(toast.error).toHaveBeenCalledWith("resource already exists");
+    expect(toast.error).toHaveBeenCalledWith("既に登録されています");
+  });
+
+  it("localizes English already-exists messages without a domain code (BUG-022)", () => {
+    handleApiError(
+      axiosError(409, {
+        error: "cage '' already exists",
+      }),
+      "保存",
+    );
+    expect(toast.error).toHaveBeenCalledWith("ケージは既に使用されています");
+    expect(localizeAlreadyExistsMessage("occupation '' already exists")).toBe(
+      "職種は既に使用されています",
+    );
+    expect(localizeAlreadyExistsMessage("cage 'ICU-1' already exists")).toBe(
+      "ケージ『ICU-1』は既に使用されています",
+    );
+  });
+
+  it("shows Japanese message for cage name conflict code", () => {
+    handleApiError(
+      axiosError(409, {
+        error: "resource already exists",
+        code: CONFLICT_CODE_CAGE_NAME,
+        params: { name: "ICU-1" },
+      }),
+      "保存",
+    );
+    expect(toast.error).toHaveBeenCalledWith("ケージ『ICU-1』は既に使用されています");
   });
 
   it("falls back to generic 409 message when code and serverMessage missing", () => {

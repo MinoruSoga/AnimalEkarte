@@ -88,6 +88,7 @@ export interface AvailableTime {
 export interface Reservation {
   id: number;
   course_name: string;
+  pet_name?: string;
   staff_name: string; // 指名なし予約は backend が省略するため schemas.ts 側で '' デフォルト
   date: string;       // "YYYY-MM-DD"
   start_time: string; // "HH:MM"

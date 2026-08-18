@@ -24,7 +24,7 @@ type mockVaccinationRepository struct {
 	deleteFn       func(ctx context.Context, clinicID, id uint64) error
 }
 
-func (m *mockVaccinationRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.Vaccination, int64, error) {
+func (m *mockVaccinationRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, search string, page, limit int) ([]model.Vaccination, int64, error) {
 	return m.findAllFn(ctx, clinicID, petID, ownerID, startDate, endDate, page, limit)
 }
 
@@ -290,7 +290,7 @@ func TestVaccinationService_List(t *testing.T) {
 			}
 			svc := newTestVaccinationService(repo, okVaccineRepo(), nil)
 
-			vaccinations, total, err := svc.List(context.Background(), tt.clinicID, tt.petID, tt.ownerID, nil, nil, tt.page, tt.limit)
+			vaccinations, total, err := svc.List(context.Background(), tt.clinicID, tt.petID, tt.ownerID, nil, nil, "", tt.page, tt.limit)
 
 			if tt.wantErr {
 				assert.Error(t, err)

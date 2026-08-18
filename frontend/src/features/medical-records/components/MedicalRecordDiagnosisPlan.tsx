@@ -10,6 +10,7 @@ import { TreatmentTable, TreatmentItem } from "./TreatmentTable";
 import { DiagnosisHeader } from "./DiagnosisHeader";
 import { ClinicalPlanSection } from "./ClinicalPlanSection/ClinicalPlanSection";
 import { TreatmentDetailedSummary } from "./TreatmentDetailedSummary";
+import { useGetClinicalPlan } from "../api/clinical-plan";
 import { useGetTreatments, useCreateTreatment, useUpdateTreatment, useDeleteTreatment } from "../api/treatments";
 import type { TreatmentItemType, UpdateTreatmentInput } from "../types";
 import { usePermission } from "@/hooks/use-permission";
@@ -69,6 +70,7 @@ export const MedicalRecordDiagnosisPlan = memo(function MedicalRecordDiagnosisPl
 
   // ── API ──
   const { data: treatments = [] } = useGetTreatments(medicalRecordId ?? "", recordClinicId);
+  const { data: clinicalPlan } = useGetClinicalPlan(medicalRecordId ?? "", recordClinicId);
   const createMutation = useCreateTreatment(medicalRecordId ?? "", recordClinicId);
   const { mutate: createTreatmentFn } = createMutation;
   const { mutate: updateTreatmentFn } = useUpdateTreatment(medicalRecordId ?? "", recordClinicId);
@@ -173,6 +175,10 @@ export const MedicalRecordDiagnosisPlan = memo(function MedicalRecordDiagnosisPl
         diagnosis2NameId={diagnosis2NameId}
         setDiagnosis2NameId={setDiagnosis2NameId}
         diagnosis1NameIdError={diagnosis1NameIdError}
+        selectedDiagnosisType={clinicalPlan?.diagnosis_type}
+        selectedDiagnosisName={clinicalPlan?.diagnosis_name}
+        selectedDiagnosis2Type={clinicalPlan?.diagnosis_2_type}
+        selectedDiagnosis2Name={clinicalPlan?.diagnosis_2_name}
       />
 
       {!isNewRecord && medicalRecordId ? (

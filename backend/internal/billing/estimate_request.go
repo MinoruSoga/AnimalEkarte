@@ -48,6 +48,7 @@ type createEstimateRequest struct {
 	MedicalRecordID *uint64    `json:"medical_record_id"`
 	Title           string     `json:"title" binding:"required,min=1,max=255"`
 	OwnerID         *uint64    `json:"owner_id"`
+	PetID           *uint64    `json:"pet_id"`
 	Status          string     `json:"status"  binding:"omitempty,oneof=draft sent"`
 	Subtotal        int64      `json:"subtotal"      binding:"min=0"`
 	TaxTotal        int64      `json:"tax_total"     binding:"min=0"`
@@ -65,6 +66,7 @@ func (r *createEstimateRequest) toServiceInput(staffID uint64) *CreateEstimateIn
 		MedicalRecordID: r.MedicalRecordID,
 		Title:           r.Title,
 		OwnerID:         r.OwnerID,
+		PetID:           r.PetID,
 		Subtotal:        r.Subtotal,
 		TaxTotal:        r.TaxTotal,
 		TotalAmount:     r.TotalAmount,

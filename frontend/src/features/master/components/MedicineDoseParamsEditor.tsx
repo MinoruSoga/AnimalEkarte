@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useImperativeHandle, useRef, useState, type Ref } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -24,6 +24,7 @@ import {
   buildUpsertDoseParamRequest,
   doseParamToFormData,
   findDoseParamBySpecies,
+  isDoseParamFormEmpty,
   validateDoseParamForm,
   type DoseParamFormData,
 } from "./medicine-dose-params-editor-model";
@@ -34,16 +35,52 @@ const SPECIES_LABEL: Record<MedicineDoseSpecies, string> = {
   [MedicineDoseSpeciesCat]: "猫",
 };
 
+export type MedicineDoseParamDraft = {
+  species: MedicineDoseSpecies;
+  input: ReturnType<typeof buildUpsertDoseParamRequest>;
+};
+
+export type MedicineDoseParamsEditorHandle = {
+  saveFilled: () => Promise<boolean>;
+  collectFilled: () => Promise<MedicineDoseParamDraft[] | false>;
+};
+
 interface MedicineDoseParamsEditorProps {
   medicineId: string;
+  ref?: Ref<MedicineDoseParamsEditorHandle>;
 }
 
+type DoseParamPanelHandle = {
+  saveFilled: () => Promise<boolean>;
+  collectFilled: () => Promise<MedicineDoseParamDraft | null | false>;
+};
+
 /**
- * #201 種別（犬・猫）投与量パラメータ編集。製品軸(calculation_type)とは別 API で保存する
- * （per_weight 有効化は権限 + 監査対象のため、既存 medicine 保存とは分離する設計判断）。
+ * #201 種別（犬・猫）投与量パラメータ編集。製品軸(calculation_type)とは別 API で保存する。
+ * 親パネルの「更新」からも saveFilled で upsert する（BUG-014）。
  */
-export function MedicineDoseParamsEditor({ medicineId }: MedicineDoseParamsEditorProps) {
+export function MedicineDoseParamsEditor({ medicineId, ref }: MedicineDoseParamsEditorProps) {
   const { data: doseParams = [], isLoading } = useGetMedicineDoseParams(medicineId);
+  const dogRef = useRef<DoseParamPanelHandle>(null);
+  const catRef = useRef<DoseParamPanelHandle>(null);
+
+  useImperativeHandle(ref, () => ({
+    saveFilled: async () => {
+      const dogOk = (await dogRef.current?.saveFilled()) ?? true;
+      const catOk = (await catRef.current?.saveFilled()) ?? true;
+      return dogOk && catOk;
+    },
+    collectFilled: async () => {
+      const drafts: MedicineDoseParamDraft[] = [];
+      const dog = await dogRef.current?.collectFilled();
+      if (dog === false) return false;
+      if (dog) drafts.push(dog);
+      const cat = await catRef.current?.collectFilled();
+      if (cat === false) return false;
+      if (cat) drafts.push(cat);
+      return drafts;
+    },
+  }));
 
   return (
     <>
@@ -66,12 +103,14 @@ export function MedicineDoseParamsEditor({ medicineId }: MedicineDoseParamsEdito
               medicineId={medicineId}
               species={MedicineDoseSpeciesDog}
               existingParam={findDoseParamBySpecies(doseParams, MedicineDoseSpeciesDog)}
+              ref={dogRef}
             />
             <SpeciesDoseParamPanel
               key={`cat-${findDoseParamBySpecies(doseParams, MedicineDoseSpeciesCat)?.id ?? "new"}`}
               medicineId={medicineId}
               species={MedicineDoseSpeciesCat}
               existingParam={findDoseParamBySpecies(doseParams, MedicineDoseSpeciesCat)}
+              ref={catRef}
             />
           </>
         )}
@@ -84,19 +123,42 @@ interface SpeciesDoseParamPanelProps {
   medicineId: string;
   species: MedicineDoseSpecies;
   existingParam: MedicineDoseParam | undefined;
+  ref?: Ref<DoseParamPanelHandle>;
 }
 
-function SpeciesDoseParamPanel({ medicineId, species, existingParam }: SpeciesDoseParamPanelProps) {
+function SpeciesDoseParamPanel({ medicineId, species, existingParam, ref }: SpeciesDoseParamPanelProps) {
   const [formData, setFormData] = useState<DoseParamFormData>(() => doseParamToFormData(existingParam));
   const [clientErrors, setClientErrors] = useState<string[]>([]);
   const upsertMutation = useUpsertMedicineDoseParam(medicineId);
   const deleteMutation = useDeleteMedicineDoseParam(medicineId);
 
-  const handleSave = () => {
+  const collectFilled = useCallback(async (): Promise<MedicineDoseParamDraft | null | false> => {
+    if (isDoseParamFormEmpty(formData) && !existingParam) {
+      return null;
+    }
     const validation = validateDoseParamForm(formData);
     setClientErrors(validation.errors);
-    if (!validation.isValid) return;
-    upsertMutation.mutate({ species, input: buildUpsertDoseParamRequest(formData) });
+    if (!validation.isValid) return false;
+    return { species, input: buildUpsertDoseParamRequest(formData) };
+  }, [existingParam, formData, species]);
+
+  const saveFilled = useCallback(async (): Promise<boolean> => {
+    const draft = await collectFilled();
+    if (draft === false) return false;
+    if (draft == null) return true;
+    if (!medicineId) return true;
+    try {
+      await upsertMutation.mutateAsync({ species: draft.species, input: draft.input });
+      return true;
+    } catch {
+      return false;
+    }
+  }, [collectFilled, medicineId, upsertMutation]);
+
+  useImperativeHandle(ref, () => ({ saveFilled, collectFilled }), [saveFilled, collectFilled]);
+
+  const handleSave = () => {
+    void saveFilled();
   };
 
   const handleDelete = () => {
@@ -245,11 +307,13 @@ function SpeciesDoseParamPanel({ medicineId, species, existingParam }: SpeciesDo
         </ul>
       ) : null}
 
-      <div className="flex justify-end px-1 pt-2">
-        <Button size="sm" variant="outline" onClick={handleSave} disabled={upsertMutation.isPending}>
-          {existingParam ? "更新" : "保存"}
-        </Button>
-      </div>
+      {medicineId ? (
+        <div className="flex justify-end px-1 pt-2">
+          <Button size="sm" variant="outline" onClick={handleSave} disabled={upsertMutation.isPending}>
+            {existingParam ? "更新" : "保存"}
+          </Button>
+        </div>
+      ) : null}
     </div>
   );
 }

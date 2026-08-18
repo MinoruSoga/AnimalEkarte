@@ -340,7 +340,7 @@ func buildLTVHaving(params *FindOwnerLTVParams, amountExpr string, amountExprArg
 
 // shouldExcludeZeroAnnualAmount は include_zero=false 時に annual_amount=0 を落とすかを決める（BUG-012）。
 // include_zero は AGG-BE-001 売上ランキング向け。来院回数・最終来院軸では 0 円除外を適用しない
-//（UI の「0円を含む」は売上タブのみ。来院あり・会計 0 の飼主が常に消えるのを防ぐ）。
+// （UI の「0円を含む」は売上タブのみ。来院あり・会計 0 の飼主が常に消えるのを防ぐ）。
 func shouldExcludeZeroAnnualAmount(params *FindOwnerLTVParams) bool {
 	if params.IncludeZero {
 		return false
@@ -392,9 +392,21 @@ func filterLTVRows(rows []OwnerLTVRow, params *FindOwnerLTVParams) []OwnerLTVRow
 		if !params.IncludeNoVisit && row.LastVisitBucket != nil && *row.LastVisitBucket == ltvBucketNoVisit {
 			continue
 		}
-		// last_visit_bucket フィルタ（AGG-BE-003）
-		if params.LastVisitBucket != "" && (row.LastVisitBucket == nil || *row.LastVisitBucket != params.LastVisitBucket) {
-			continue
+		// last_visit_bucket フィルタ（AGG-BE-003 / BUG-008）
+		// 区分（over_3m 等）選択時に「来院なしを含む」が ON なら、その区分 OR no_visit を残す。
+		if params.LastVisitBucket != "" && params.LastVisitBucket != ltvBucketNoVisit {
+			if row.LastVisitBucket == nil {
+				continue
+			}
+			matchesBucket := *row.LastVisitBucket == params.LastVisitBucket
+			matchesNoVisit := params.IncludeNoVisit && *row.LastVisitBucket == ltvBucketNoVisit
+			if !matchesBucket && !matchesNoVisit {
+				continue
+			}
+		} else if params.LastVisitBucket != "" {
+			if row.LastVisitBucket == nil || *row.LastVisitBucket != params.LastVisitBucket {
+				continue
+			}
 		}
 		filtered = append(filtered, *row)
 	}

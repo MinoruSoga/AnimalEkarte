@@ -18,9 +18,9 @@ export const getMedicalRecordStatusColor = (status: MedicalRecord["status"]) => 
 
 export const getHospitalizationStatusColor = (status: Hospitalization["status"]) => {
   switch (status) {
-    case "入院中": return BADGE.blue;
-    case "退院済": return BADGE.gray;
-    case "予約":   return BADGE.green;
+    case "入院中": return BADGE.purple;
+    case "退院済": return BADGE.green;
+    case "予約":   return BADGE.gray;
     case "一時帰宅": return BADGE.yellow;
     default: return "";
   }

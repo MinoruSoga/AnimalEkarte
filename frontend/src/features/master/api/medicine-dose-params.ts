@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
+import { toast } from "sonner";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import { queryKeys } from "@/lib/query-keys";
 import type {
@@ -42,7 +43,7 @@ export const useGetMedicineDoseParams = (medicineId: string) => {
   });
 };
 
-const upsertMedicineDoseParam = async (
+export const upsertMedicineDoseParam = async (
   medicineId: string,
   species: MedicineDoseSpecies,
   input: UpsertMedicineDoseParamRequest
@@ -66,6 +67,7 @@ export const useUpsertMedicineDoseParam = (medicineId: string) => {
     }) => upsertMedicineDoseParam(medicineId, species, input),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.masters.medicineDoseParams(medicineId) });
+      toast.success("投与量パラメータを保存しました");
     },
     onError: (error) => handleApiError(error, "投与量パラメータの保存"),
   });

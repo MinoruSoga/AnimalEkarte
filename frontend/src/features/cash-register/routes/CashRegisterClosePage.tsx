@@ -1,9 +1,12 @@
 import { useActionState, useState, useCallback } from "react";
+import { useNavigate } from "react-router";
 import { Calculator, Printer } from "lucide-react";
 import { toast } from "sonner";
 import { C, ICON, LAYOUT, STYLE } from "@/lib/design-tokens";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
+import { Button } from "@/components/ui/button";
+import { paths } from "@/config/paths";
 import { handleApiError } from "@/lib/handle-api-error";
 import { useCurrentClinicName } from "@/hooks/use-current-clinic-name";
 import {
@@ -28,7 +31,8 @@ import { ResourceCashRegisterClose } from "@/types/generated/models";
 import { formatCurrency } from "@/lib/format/number";
 
 export function CashRegisterClosePage() {
-  const { date, period, previewEnabled, handleDateChange, handlePeriodChange, enablePreview } =
+  const navigate = useNavigate();
+  const { date, period, previewEnabled, previewNonce, handleDateChange, handlePeriodChange, enablePreview } =
     useCashRegisterCloseForm();
   const clinicName = useCurrentClinicName();
   const [actualCash, setActualCash] = useState<string>("");
@@ -39,6 +43,7 @@ export function CashRegisterClosePage() {
     date,
     period,
     previewEnabled,
+    previewNonce,
   );
   const createMutation = useCreateCashRegisterClose();
 
@@ -84,6 +89,11 @@ export function CashRegisterClosePage() {
       resource={ResourceCashRegisterClose}
       icon={<Calculator className={`${ICON.page} ${C.text}`} />}
       maxWidth={LAYOUT.pageContentMaxWidth.full}
+      headerAction={
+        <Button type="button" variant="outline" onClick={() => navigate(paths.accounting.closeHistory.getHref())}>
+          キャンセル
+        </Button>
+      }
     >
       <div className="space-y-6">
         {/* 対象日・区分選択 */}
@@ -279,7 +289,14 @@ export function CashRegisterClosePage() {
                         placeholder="特記事項があれば入力"
                       />
                     </div>
-                    <div className="flex justify-end">
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => navigate(paths.accounting.closeHistory.getHref())}
+                      >
+                        キャンセル
+                      </Button>
                       <SubmitButton colorVariant="primary" loadingText="締め中...">締める</SubmitButton>
                     </div>
                   </form>

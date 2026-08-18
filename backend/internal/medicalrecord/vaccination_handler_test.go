@@ -28,7 +28,7 @@ type mockVaccinationService struct {
 	deleteFn  func(ctx context.Context, clinicID, id uint64) error
 }
 
-func (m *mockVaccinationService) List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.Vaccination, int64, error) {
+func (m *mockVaccinationService) List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, search string, page, limit int) ([]model.Vaccination, int64, error) {
 	return m.listFn(ctx, clinicID, petID, ownerID, startDate, endDate, page, limit)
 }
 

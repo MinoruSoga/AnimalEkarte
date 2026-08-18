@@ -18,10 +18,10 @@ function transformClinicalPlan(item: {
   treatment_policy: string;
   created_at: string;
   updated_at: string;
-  diagnosis_type?: { id: string; name: string } | null;
-  diagnosis_name?: { id: string; name: string } | null;
-  diagnosis_2_type?: { id: string; name: string } | null;
-  diagnosis_2_name?: { id: string; name: string } | null;
+  diagnosis_type?: { id: string | number; name: string } | null;
+  diagnosis_name?: { id: string | number; name: string } | null;
+  diagnosis_2_type?: { id: string | number; name: string } | null;
+  diagnosis_2_name?: { id: string | number; name: string } | null;
   version: number;
 }) {
   return {

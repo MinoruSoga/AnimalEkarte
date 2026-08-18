@@ -28,6 +28,8 @@ export function transformEstimate(data: BackendEstimate) {
     title: data.title ?? '',
     ownerId: data.owner_id != null ? String(data.owner_id) : null,
     ownerName: data.owner?.name ?? undefined,
+    petId: data.pet_id != null ? String(data.pet_id) : null,
+    petName: data.pet?.name ?? undefined,
     status: (data.status ?? 'draft') as EstimateStatus,
     subtotal: data.subtotal ?? 0,
     taxTotal: data.tax_total ?? 0,

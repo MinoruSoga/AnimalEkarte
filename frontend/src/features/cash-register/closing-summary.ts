@@ -67,6 +67,10 @@ export function buildUnifiedClosingRows(
     if (isOther && unclassifiedOtherCount !== undefined) {
       // null → 記録なし / number → 独立集計値
       count = unclassifiedOtherCount;
+      // サーバ件数が 0 でも金額がある場合は明細から件数を復元する（BUG-006）
+      if (count === 0 && rowTotal > 0) {
+        count = billingDetails.filter((d) => group.keys.includes(d.category)).length;
+      }
     } else if (categoryCounts) {
       // #247: 会計 distinct をカテゴリキー合算（同一会計が複数 key を持つ場合は OR 近似として合算。
       // DISPLAY_CATEGORIES の key は排他グループなので二重計上しない）

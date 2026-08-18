@@ -1,6 +1,12 @@
 import type { Medicine } from "@/types";
-import type { MedicineCalculationType, TaxType } from "@/types/generated/models";
+import type { MedicineCalculationType, MedicineDoseSpecies, TaxType } from "@/types/generated/models";
 import { MedicineCalculationTypeNone } from "@/types/generated/models";
+import type { UpsertMedicineDoseParamRequest } from "../api/medicine-dose-params";
+
+export type DoseParamDraft = {
+  species: MedicineDoseSpecies;
+  input: UpsertMedicineDoseParamRequest;
+};
 
 export interface MedicineFormData {
   name: string;
@@ -19,6 +25,7 @@ export interface MedicineFormData {
   strength: string;
   frequencyPerDay: string;
   defaultDurationDays: string;
+  doseParamDrafts?: DoseParamDraft[];
 }
 
 const INITIAL_FORM: MedicineFormData = {

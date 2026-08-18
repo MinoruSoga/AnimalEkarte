@@ -7,6 +7,7 @@ import { usePermission } from "@/hooks/use-permission";
 import { useModalState } from "@/hooks/use-modal-state";
 import { usePagination } from "@/hooks/use-pagination";
 import { formatCurrency } from "@/lib/format/number";
+import { formatDate } from "@/lib/format/date";
 import { Plus, FileText, Trash2, ExternalLink, CircleDot, Calendar } from "lucide-react";
 import { TableCell } from "@/components/ui/table";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
@@ -208,9 +209,14 @@ export function EstimateList() {
           </DataTableRowLink>
         </TableCell>
         <TableCell className={`${C.text} font-medium`}>{estimate.title}</TableCell>
-        <TableCell className={C.text}>{estimate.ownerName ?? "-"}</TableCell>
+        <TableCell className={C.text}>
+          {estimate.ownerName ?? "-"}
+          {estimate.petName ? (
+            <span className={`block text-xs ${C.text50}`}>{estimate.petName}</span>
+          ) : null}
+        </TableCell>
         <TableCell className={C.text60}>
-          {estimate.validUntil ? estimate.validUntil.slice(0, 10) : "-"}
+          {formatDate(estimate.validUntil)}
         </TableCell>
         <TableCell className={`text-right font-mono font-medium ${C.text}`}>
           {formatCurrency(estimate.totalAmount)}

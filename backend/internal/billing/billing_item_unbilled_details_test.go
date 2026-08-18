@@ -174,7 +174,7 @@ func TestBillingItemService_UnbilledDetails_SourceMatrix(t *testing.T) {
 	})
 }
 
-func TestBillingItemService_CreateItem_BlocksWhenUnbilledWarning(t *testing.T) {
+func TestBillingItemService_CreateItem_AllowsWhenUnbilledWarning(t *testing.T) {
 	createCalled := false
 	repo := &matrixVaccinationRepo{
 		mockBillingItemRepository: &mockBillingItemRepository{
@@ -209,10 +209,9 @@ func TestBillingItemService_CreateItem_BlocksWhenUnbilledWarning(t *testing.T) {
 		UnitPrice: 15000,
 		Quantity:  1,
 	})
-	require.Error(t, err)
-	assert.True(t, apperrors.IsConflict(err), "expected conflict: %v", err)
-	assert.Nil(t, item)
-	assert.False(t, createCalled, "must not partially commit billing_item")
+	require.NoError(t, err)
+	require.NotNil(t, item)
+	assert.True(t, createCalled, "明細追加は未請求予防接種 warning で止めない（確定時のみ拒否）")
 }
 
 func TestAccountingService_Create_BlocksWhenUnbilledWarning(t *testing.T) {

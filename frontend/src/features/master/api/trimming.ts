@@ -64,13 +64,24 @@ export type UpdateTrimmingOptionRequest = Partial<TrimmingOptionBase>;
 // Transform functions
 // ─────────────────────────────────────────────────
 
+/** キャッシュ汚染時の MasterItem.status も吸収して有効/無効を判定する */
+export function resolveTrimmingActiveFlag(item: {
+  is_active?: boolean;
+  isActive?: boolean;
+  status?: string;
+}): boolean {
+  if (typeof item.is_active === "boolean") return item.is_active;
+  if (typeof item.isActive === "boolean") return item.isActive;
+  return item.status === "active";
+}
+
 function transformTrimmingCourse(data: ModelTrimmingCourse) {
   return {
     id: String(data.id ?? 0),
     clinicId: String(data.clinic_id ?? 0),
     name: data.name,
     price: data.price ?? null,
-    isActive: data.is_active,
+    isActive: resolveTrimmingActiveFlag(data),
     description: data.description,
     targetSize: (data.target_size as TargetSize) ?? null,
     courseTypeId: data.course_type_id != null ? String(data.course_type_id) : null,
@@ -89,7 +100,7 @@ function transformTrimmingOption(data: ModelTrimmingOption) {
     clinicId: String(data.clinic_id ?? 0),
     name: data.name,
     price: data.price ?? null,
-    isActive: data.is_active,
+    isActive: resolveTrimmingActiveFlag(data),
     description: data.description,
     duration: data.duration ?? null,
     combinable: data.is_combinable,
@@ -184,7 +195,7 @@ async function deleteTrimmingOption(id: string): Promise<void> {
 
 export function useGetTrimmingCourses() {
   return useQuery({
-    queryKey: queryKeys.masters.category("trimmingCourse"),
+    queryKey: queryKeys.masters.trimmingCoursesFull(),
     queryFn: listTrimmingCourses,
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,

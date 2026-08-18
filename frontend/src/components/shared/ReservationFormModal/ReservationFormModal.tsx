@@ -280,6 +280,7 @@ export const ReservationFormModal = memo(function ReservationFormModal({
                 const next = { ...prev };
                 if (data.start) delete next.date;
                 if (data.type) delete next.type;
+                if (data.start && data.end && data.end > data.start) delete next.time;
                 return next;
               });
             }}

@@ -1,4 +1,4 @@
-import { useActionState, useCallback, useDeferredValue, useEffect, useMemo, useState, useTransition } from "react";
+import { useActionState, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
 
@@ -46,6 +46,11 @@ export function ClinicMasterSettings() {
   const [pendingDelete, setPendingDelete] = useState<Clinic | null>(null);
   const [isDeletePending, startDeleteTransition] = useTransition();
   const deferredSearch = useDeferredValue(searchTerm);
+  // BUG-018/019: useActionState は stale な formData/selectedItem を掴む。入力に name が無く FormData も空。
+  const formDataRef = useRef(formData);
+  const selectedItemRef = useRef(selectedItem);
+  formDataRef.current = formData;
+  selectedItemRef.current = selectedItem;
 
   const { data: rawClinics, isPending, isError } = useGetClinics();
   const createMutation = useCreateClinic();
@@ -54,13 +59,14 @@ export function ClinicMasterSettings() {
 
   const [formState, formAction] = useActionState(
     async (_prevState: FormState, _formData: FormData): Promise<FormState> => {
-      const fd = formData;
+      const fd = formDataRef.current;
+      const selected = selectedItemRef.current;
       if (!fd.name) {
         return { success: false, timestamp: Date.now(), nameError: "院名は必須です" };
       }
 
       try {
-        if (selectedItem?.id) {
+        if (selected?.id) {
           const req: UpdateClinicRequest = {
             name: fd.name,
             postal_code: fd.postal_code || undefined,
@@ -85,7 +91,7 @@ export function ClinicMasterSettings() {
             accounting_document_show_payment_summary: fd.accounting_document_show_payment_summary,
             accounting_document_section_order: fd.accounting_document_section_order,
           };
-          await updateMutation.mutateAsync({ id: selectedItem.id, req });
+          await updateMutation.mutateAsync({ id: selected.id, req });
           toast.success("更新しました");
         } else {
           const req: CreateClinicRequest = {

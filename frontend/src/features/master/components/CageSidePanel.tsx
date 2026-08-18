@@ -89,7 +89,7 @@ export const CageSidePanel = memo(function CageSidePanel({
       title={formData.name}
       onTitleChange={handleTitleChange}
       onClose={handleClose}
-      action={readOnly ? undefined : handleAction}
+      onSave={readOnly ? undefined : handleAction}
       onDelete={item !== null && onDeleteRequest ? () => onDeleteRequest(item) : undefined}
       icon={<Building2 className={LAYOUT.pageIcon.innerIcon} />}
       isDirty={isDirty}

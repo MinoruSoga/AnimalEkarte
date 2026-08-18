@@ -5,8 +5,7 @@ import { useNavigate } from "react-router";
 // External
 import { DndContext, PointerSensor, useSensor, useSensors, pointerWithin } from "@dnd-kit/core";
 import Filter from "lucide-react/dist/esm/icons/filter";
-import { format } from "date-fns";
-import { ja } from "date-fns/locale";
+import { formatDateWithWeekday } from "@/lib/format/date";
 
 // Internal
 import { paths } from "@/config/paths";
@@ -99,7 +98,7 @@ export function Reception() {
     // filteredColumns を渡すと「本日受付」件数がフィルタ操作で変動してしまう。
     const telemetry = useReceptionTelemetry(columns);
 
-    const todayLabel = format(toJSTWallDate(new Date()), "yyyy年M月d日 (E)", { locale: ja });
+    const todayLabel = formatDateWithWeekday(toJSTWallDate(new Date()));
 
     const handleRecordOpen = useCallback((appointment: ReceptionAppointment, columnTitle: string) => {
         if (columnTitle === "受付済" && canEditReservation === true) {

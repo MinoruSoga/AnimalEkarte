@@ -62,6 +62,15 @@ describe("HospitalizationListView row navigation accessibility", () => {
     expect(onNavigate).not.toHaveBeenCalled();
   });
 
+  it("主訴と担当医をリスト列に表示する", () => {
+    renderList(makeHospitalization({ ownerRequest: "食欲不振", doctorName: "山田医師" }));
+
+    expect(screen.getByText("主訴")).toBeInTheDocument();
+    expect(screen.getByText("担当医")).toBeInTheDocument();
+    expect(screen.getByText("食欲不振")).toBeInTheDocument();
+    expect(screen.getByText("山田医師")).toBeInTheDocument();
+  });
+
   it("死亡ペット行はdetail linkと編集操作を表示しない", () => {
     const { onNavigate } = renderList(makeHospitalization({ petIsDeceased: true }), true);
 

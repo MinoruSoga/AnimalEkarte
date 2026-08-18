@@ -6,8 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { SearchableSelect } from "@/components/ui/searchable-select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DatePicker } from "@/components/shared/DatePicker";
 import { FormFieldError } from "@/components/shared/FormFieldError";
 import { MasterLink } from "@/components/shared/MasterLink";
@@ -157,77 +157,24 @@ export const VaccinationForm = memo(function VaccinationForm({
         </div>
       </div>
 
-      {/* Next Schedule Type */}
       <div className="flex flex-col gap-1.5">
-        <Label className={`text-sm font-medium ${C.text60}`}>
-          次回予防接種予定設定
+        <Label htmlFor="mr-vaccination-next-schedule" className={`text-sm font-medium ${C.text60}`}>
+          次回の予定
         </Label>
-        <RadioGroup
-          value={nextScheduleType}
-          onValueChange={setNextScheduleType}
-          className="flex flex-row gap-6 pt-2"
-        >
-          <div className="flex items-center space-x-2">
-            <RadioGroupItem
-              value="3weeks"
-              id="r1"
-              className={`${C.borderMedium} ${C.text}`}
-            />
-            <Label
-              htmlFor="r1"
-              className={`font-normal ${C.text} text-sm cursor-pointer`}
-            >
-              3週間後
-            </Label>
-          </div>
-          <div className="flex items-center space-x-2">
-            <RadioGroupItem
-              value="4weeks"
-              id="r2"
-              className={`${C.borderMedium} ${C.text}`}
-            />
-            <Label
-              htmlFor="r2"
-              className={`font-normal ${C.text} text-sm cursor-pointer`}
-            >
-              4週間後
-            </Label>
-          </div>
-          <div className="flex items-center space-x-2">
-            <RadioGroupItem
-              value="1year"
-              id="r3"
-              className={`${C.borderMedium} ${C.text}`}
-            />
-            <Label
-              htmlFor="r3"
-              className={`font-normal ${C.text} text-sm cursor-pointer`}
-            >
-              1年後
-            </Label>
-          </div>
-          <div className="flex items-center space-x-2">
-            <RadioGroupItem
-              value="other"
-              id="r4"
-              className={`${C.borderMedium} ${C.text}`}
-            />
-            <Label
-              htmlFor="r4"
-              className={`font-normal ${C.text} text-sm cursor-pointer`}
-            >
-              以外
-            </Label>
-          </div>
-        </RadioGroup>
-      </div>
-
-      {/* Next Date */}
-      <div className="flex flex-col gap-1.5">
-        <Label className={`text-sm font-medium ${C.text60}`}>
-          次回予定日
-        </Label>
-        <DatePicker value={nextDate} onChange={setNextDate} />
+        <div className="flex flex-wrap items-center gap-3">
+          <Select value={nextScheduleType} onValueChange={setNextScheduleType}>
+            <SelectTrigger id="mr-vaccination-next-schedule" className="w-[130px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="3weeks">3週後</SelectItem>
+              <SelectItem value="4weeks">4週後</SelectItem>
+              <SelectItem value="1year">1年後</SelectItem>
+              <SelectItem value="other">以外（手動）</SelectItem>
+            </SelectContent>
+          </Select>
+          <DatePicker value={nextDate} onChange={setNextDate} className="min-w-[160px] flex-1" />
+        </div>
       </div>
 
       {/* Remarks */}

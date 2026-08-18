@@ -181,6 +181,9 @@ export function CreditCorrectionDialog({ accounting, isPostClose = false }: Cred
             />
           </div>
           <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+              キャンセル
+            </Button>
             <SubmitButton>訂正を保存</SubmitButton>
           </DialogFooter>
         </form>

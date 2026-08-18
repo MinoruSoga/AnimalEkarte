@@ -22,12 +22,7 @@ interface ChangePasswordInput {
 }
 
 const changeMyPassword = async (input: ChangePasswordInput): Promise<void> => {
-  try {
-    await axios.put("/v1/users/me/password", input);
-  } catch (error) {
-    handleApiError(error, "パスワード変更");
-    throw error;
-  }
+  await axios.put("/v1/users/me/password", input);
 };
 
 interface ChangePasswordDialogProps {
@@ -129,8 +124,11 @@ export const ChangePasswordDialog = memo(function ChangePasswordDialog({
         onOpenChange(false);
         onSuccess?.();
         return { success: true };
-      } catch {
-        // handleApiError already called inside changeMyPassword
+      } catch (error) {
+        if (axios.isAxiosError(error) && error.response?.status === 401) {
+          return { error: "現在のパスワードが正しくありません" };
+        }
+        handleApiError(error, "パスワード変更");
         return { error: "パスワードの変更に失敗しました" };
       }
     },
@@ -146,7 +144,7 @@ export const ChangePasswordDialog = memo(function ChangePasswordDialog({
             現在のパスワードと新しいパスワードを入力してください。
           </DialogDescription>
         </DialogHeader>
-        <form action={formAction} className="flex flex-col gap-4 py-2">
+        <form action={formAction} noValidate className="flex flex-col gap-4 py-2">
           <PasswordField
             id="current_password"
             label="現在のパスワード"

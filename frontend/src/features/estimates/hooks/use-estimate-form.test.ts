@@ -207,6 +207,24 @@ describe("useEstimateForm", () => {
       );
     });
 
+    it("initialPetId あり → create payload に pet_id を載せる（BUG-009）", async () => {
+      const { result } = renderHook(() =>
+        useEstimateForm({ mode: "create", initialPetId: "8", initialOwnerId: "5" })
+      );
+
+      act(() => {
+        result.current.handleChange("title", "ペット紐付き見積");
+      });
+
+      await act(async () => {
+        await result.current.formAction(new FormData());
+      });
+
+      expect(mockCreateMutateAsync).toHaveBeenCalledWith(
+        expect.objectContaining({ pet_id: 8, owner_id: 5 })
+      );
+    });
+
     it("成功時 → toast.success が呼ばれる", async () => {
       const { result } = renderHook(() => useEstimateForm({ mode: "create" }));
 

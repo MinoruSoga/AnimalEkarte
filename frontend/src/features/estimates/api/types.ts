@@ -5,7 +5,10 @@
 import type { Estimate, EstimateItem } from "@/types/generated/models";
 
 // ── Backend response aliases ──
-export type BackendEstimate = Estimate;
+export type BackendEstimate = Estimate & {
+  pet_id?: number;
+  pet?: { id: number; name?: string };
+};
 export type BackendEstimateItem = EstimateItem;
 export interface EstimateListResponse {
   data: BackendEstimate[];
@@ -21,6 +24,7 @@ export interface EstimateListResponse {
 export interface CreateEstimateRequest {
   title: string;
   owner_id?: number | null;
+  pet_id?: number | null;
   medical_record_id?: number | null;
   status?: string;
   subtotal?: number;

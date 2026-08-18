@@ -405,15 +405,8 @@ func (s *billingItemService) CreateItem(ctx context.Context, input *CreateBillin
 	if err := s.validateBillingItemOwnership(ctx, input); err != nil {
 		return nil, err
 	}
-	// BUG-013: blocking unbilled warning がある pet への明細書き込みは全書込拒否（underbilling 防止）。
-	// FindByID 失敗は fail-closed（guard をスキップしない）。
-	if billing, err := s.billingRepo.FindByID(ctx, input.ClinicID, input.BillingID); err != nil {
-		return nil, apperrors.Wrap(err, "failed to load billing for unbilled write guard")
-	} else if billing != nil && billing.PetID != nil {
-		if err := s.AssertNoBlockingUnbilled(ctx, input.ClinicID, *billing.PetID); err != nil {
-			return nil, err
-		}
-	}
+	// 未請求予防接種の blocking warning は会計確定と会計作成だけを止める（BUG-015）。
+	// 明細追加に流用すると物販・その他が常時 409 になり会計業務が停止する。
 
 	var item *model.BillingItem
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {

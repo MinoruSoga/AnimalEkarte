@@ -214,7 +214,7 @@ export function CheckupAddRow({
           value={addForm.date}
           onChange={(value) => onChange("date", value)}
           placeholder="日付"
-          className="h-8 w-32"
+          className="h-8 min-w-[10rem] w-40"
         />
         <FormFieldError message={errors.date} />
       </div>
@@ -231,7 +231,7 @@ export function CheckupAddRow({
         value={addForm.next_date}
         onChange={(value) => onChange("next_date", value)}
         placeholder="次回日"
-        className="h-8 w-32"
+        className="h-8 min-w-[10rem] w-40"
       />
       <StaffSelect
         value={addForm.doctor_id}

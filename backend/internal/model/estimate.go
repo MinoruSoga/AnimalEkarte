@@ -25,6 +25,7 @@ type Estimate struct {
 	MedicalRecordID      *uint64        `                                                      json:"medical_record_id,omitempty"`
 	Title                string         `gorm:"default:''"                                     json:"title"`
 	OwnerID              *uint64        `                                                      json:"owner_id,omitempty"`
+	PetID                *uint64        `                                                      json:"pet_id,omitempty"`
 	Status               EstimateStatus `gorm:"type:estimate_status;default:'draft'"           json:"status"`
 	Subtotal             int64          `gorm:"default:0"                                      json:"subtotal"`
 	TaxTotal             int64          `gorm:"default:0"                                      json:"tax_total"`
@@ -43,6 +44,7 @@ type Estimate struct {
 	// Relations
 	MedicalRecord *MedicalRecord `gorm:"foreignKey:MedicalRecordID" json:"medical_record,omitempty"`
 	Owner         *Owner         `gorm:"foreignKey:OwnerID"         json:"owner,omitempty"`
+	Pet           *Pet           `gorm:"foreignKey:PetID"           json:"pet,omitempty"`
 	CreatedStaff  *Staff         `gorm:"foreignKey:CreatedBy"       json:"created_staff,omitempty"`
 	Items         []EstimateItem `gorm:"foreignKey:EstimateID"      json:"items,omitempty"`
 }

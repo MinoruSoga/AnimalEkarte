@@ -1,5 +1,6 @@
 import { ICON, C } from "@/lib/design-tokens";
 import { todayJSTISO } from "@/lib/jst-date";
+import { formatDate } from "@/lib/format/date";
 import { paths } from "@/config/paths";
 import { LoadingFallback } from "@/components/shared/DataStates";
 import { useNavigate, useParams } from 'react-router';
@@ -175,11 +176,17 @@ export function EstimateDetail() {
                 <dd className={C.text}>{estimate.ownerName}</dd>
               </div>
             ) : null}
+            {estimate.petName ? (
+              <div>
+                <dt className={`${C.text50} mb-0.5`}>ペット名</dt>
+                <dd className={C.text}>{estimate.petName}</dd>
+              </div>
+            ) : null}
             {estimate.validUntil ? (
               <div>
                 <dt className={`${C.text50} mb-0.5`}>有効期限</dt>
                 <dd className={`flex flex-wrap items-center gap-2 ${C.text}`}>
-                  <span>{estimate.validUntil.slice(0, 10)}</span>
+                  <span>{formatDate(estimate.validUntil)}</span>
                   {isExpired ? (
                     <span
                       role="status"
@@ -195,11 +202,11 @@ export function EstimateDetail() {
             ) : null}
             <div>
               <dt className={`${C.text50} mb-0.5`}>作成日</dt>
-              <dd className={C.text}>{estimate.createdAt.slice(0, 10)}</dd>
+              <dd className={C.text}>{formatDate(estimate.createdAt)}</dd>
             </div>
             <div>
               <dt className={`${C.text50} mb-0.5`}>更新日</dt>
-              <dd className={C.text}>{estimate.updatedAt.slice(0, 10)}</dd>
+              <dd className={C.text}>{formatDate(estimate.updatedAt)}</dd>
             </div>
           </div>
 

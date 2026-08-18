@@ -118,14 +118,14 @@ describe("HospitalizationBoard empty cage actions", () => {
     expect(dndHarness.useDraggable).toHaveBeenCalledWith(
       expect.objectContaining({ id: occupied.id, disabled: true }),
     );
-    expect(screen.getByText("ポチ").closest("[data-slot='card']")).not.toHaveAttribute(
+    expect(screen.getByText("犬 ポチ").closest("[data-slot='card']")).not.toHaveAttribute(
       "data-drag-listener",
     );
-    expect(screen.getByText("ポチ").closest("[data-slot='card']")).not.toHaveAttribute(
+    expect(screen.getByText("犬 ポチ").closest("[data-slot='card']")).not.toHaveAttribute(
       "data-drag-attributes",
     );
     expect(
-      screen.getByText("ポチ").closest("[data-slot='card']")?.querySelector(".lucide-grip-vertical"),
+      screen.getByText("犬 ポチ").closest("[data-slot='card']")?.querySelector(".lucide-grip-vertical"),
     ).not.toBeInTheDocument();
 
     act(() => {
@@ -155,11 +155,11 @@ describe("HospitalizationBoard empty cage actions", () => {
     expect(dndHarness.useDraggable).toHaveBeenCalledWith(
       expect.objectContaining({ id: occupied.id, disabled: false }),
     );
-    expect(screen.getByText("ポチ").closest("[data-slot='card']")).toHaveAttribute(
+    expect(screen.getByText("犬 ポチ").closest("[data-slot='card']")).toHaveAttribute(
       "data-drag-listener",
       "enabled",
     );
-    expect(screen.getByText("ポチ").closest("[data-slot='card']")).toHaveAttribute(
+    expect(screen.getByText("犬 ポチ").closest("[data-slot='card']")).toHaveAttribute(
       "data-drag-attributes",
       "enabled",
     );

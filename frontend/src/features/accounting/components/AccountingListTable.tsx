@@ -22,6 +22,7 @@ import { C, ICON } from "@/lib/design-tokens";
 import { PAYMENT_METHOD_LABELS } from "@/constants/payment-method";
 import { ACCOUNTING_STATUS_LABELS } from "@/constants/accounting-status";
 import { formatCurrency } from "@/lib/format/number";
+import { formatDate } from "@/lib/format/date";
 import { getAccountingStatusColor } from "@/lib/status-helpers";
 import type { Accounting as AccountingType } from "../types";
 import { calculateAccountingTotal } from "./accounting-list-table-model";
@@ -247,7 +248,7 @@ function AccountingListRow({
           to={paths.accounting.detail.getHref(accounting.id)}
           aria-label={`会計「${accounting.scheduledDate} ${accounting.ownerName} / ${accounting.petName}」(ID: ${accounting.id}) の詳細を開く`}
         >
-          {accounting.scheduledDate}
+          {formatDate(accounting.scheduledDate)}
         </DataTableRowLink>
       </TableCell>
       <TableCell className={C.text}>{accounting.ownerName}</TableCell>

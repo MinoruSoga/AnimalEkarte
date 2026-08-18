@@ -2,6 +2,7 @@ package medicalrecord
 
 import (
 	"net/url"
+	"strings"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -12,6 +13,7 @@ type listVaccinationQuery struct {
 	OwnerID   string
 	StartDate string
 	EndDate   string
+	Search    string
 }
 
 func newListVaccinationQuery(values url.Values) listVaccinationQuery {
@@ -20,6 +22,7 @@ func newListVaccinationQuery(values url.Values) listVaccinationQuery {
 		OwnerID:   values.Get("owner_id"),
 		StartDate: values.Get("start_date"),
 		EndDate:   values.Get("end_date"),
+		Search:    values.Get("search"),
 	}
 }
 
@@ -28,6 +31,7 @@ type listVaccinationFilters struct {
 	OwnerID   *uint64
 	StartDate *string
 	EndDate   *string
+	Search    string
 }
 
 func (q listVaccinationQuery) toServiceFilters() (listVaccinationFilters, error) {
@@ -52,6 +56,7 @@ func (q listVaccinationQuery) toServiceFilters() (listVaccinationFilters, error)
 		OwnerID:   ownerID,
 		StartDate: startDate,
 		EndDate:   endDate,
+		Search:    strings.TrimSpace(q.Search),
 	}, nil
 }
 

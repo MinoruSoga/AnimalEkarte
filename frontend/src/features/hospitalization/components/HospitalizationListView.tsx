@@ -22,6 +22,8 @@ const COLUMNS = [
   { header: "ペット名" },
   { header: "種", className: "w-[80px] hidden lg:table-cell" },
   { header: "タイプ", className: "w-[100px]" },
+  { header: "主訴", className: "hidden md:table-cell" },
+  { header: "担当医", className: "w-[120px] hidden md:table-cell" },
   { header: "入院開始日", className: "w-[120px]" },
   { header: "退院予定日", className: "w-[120px] hidden lg:table-cell" },
   { header: "ステータス", className: "w-[100px]" },
@@ -65,6 +67,12 @@ export const HospitalizationListView = memo(function HospitalizationListView({ h
             <StatusBadge colorClass={getHospitalizationTypeColor(h.hospitalizationType)}>
               {h.hospitalizationType}
             </StatusBadge>
+          </TableCell>
+          <TableCell className={`${STYLE.tableCell} hidden md:table-cell max-w-[200px] truncate`} title={h.ownerRequest}>
+            {h.ownerRequest ?? "-"}
+          </TableCell>
+          <TableCell className={`${STYLE.tableCell} hidden md:table-cell`}>
+            {h.doctorName ?? "-"}
           </TableCell>
           <TableCell className={`${STYLE.tableCellMono}`}>{formatDate(h.startDate)}</TableCell>
           <TableCell className={`${STYLE.tableCellMono} hidden lg:table-cell`}>{formatDate(h.endDate)}</TableCell>

@@ -1,4 +1,4 @@
-import { useState, useCallback, useActionState } from 'react';
+import { useState, useCallback, useActionState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router';
 import { toast } from "sonner";
 import { paths } from "@/config/paths";
@@ -17,6 +17,7 @@ interface EstimateFormState {
   title: string;
   status: EstimateStatus;
   ownerId: string;
+  petId: string;
   medicalRecordId: string;
   subtotal: number;
   taxTotal: number;
@@ -33,6 +34,7 @@ function buildInitialState(estimate?: Estimate): EstimateFormState {
     title: estimate?.title ?? '',
     status: estimate?.status ?? 'draft',
     ownerId: estimate?.ownerId ?? '',
+    petId: estimate?.petId ?? '',
     medicalRecordId: estimate?.medicalRecordId ?? '',
     subtotal: estimate?.subtotal ?? 0,
     taxTotal: estimate?.taxTotal ?? 0,
@@ -59,6 +61,9 @@ export interface UseEstimateFormArgs {
   mode: "create" | "edit";
   /** Present only when the edit entity was successfully loaded. */
   estimate?: Estimate;
+  /** `/estimates/new?petId=` から解決した飼主・ペット（BUG-009）。 */
+  initialOwnerId?: string;
+  initialPetId?: string;
 }
 
 export function useEstimateForm(args: UseEstimateFormArgs = { mode: "create" }) {
@@ -68,6 +73,20 @@ export function useEstimateForm(args: UseEstimateFormArgs = { mode: "create" }) 
   const estimate = args.estimate;
 
   const [form, setForm] = useState<EstimateFormState>(() => buildInitialState(estimate));
+  const formRef = useRef(form);
+  formRef.current = form;
+
+  useEffect(() => {
+    if (isEdit) return;
+    const ownerId = args.initialOwnerId;
+    const petId = args.initialPetId;
+    if (!ownerId && !petId) return;
+    setForm((prev) => ({
+      ...prev,
+      ownerId: prev.ownerId || ownerId || "",
+      petId: prev.petId || petId || "",
+    }));
+  }, [args.initialOwnerId, args.initialPetId, isEdit]);
 
   // Sync with estimate data if it loads later — previous-value pattern
   const [prevEstimateId, setPrevEstimateId] = useState(estimate?.id);
@@ -83,7 +102,8 @@ export function useEstimateForm(args: UseEstimateFormArgs = { mode: "create" }) 
 
   const [formState, formAction, isPending] = useActionState(
     async (_prevState: FormState, _formData: FormData): Promise<FormState> => {
-      if (!form.title.trim()) {
+      const current = formRef.current;
+      if (!current.title.trim()) {
         return { success: false, fieldErrors: { title: "タイトルを入力してください" }, timestamp: Date.now() };
       }
 
@@ -98,21 +118,21 @@ export function useEstimateForm(args: UseEstimateFormArgs = { mode: "create" }) 
             return { success: false, timestamp: Date.now() };
           }
           const req: UpdateEstimateRequest = {
-            title: form.title,
-            status: form.status,
-            subtotal: form.subtotal,
-            tax_total: form.taxTotal,
-            total_amount: form.totalAmount,
-            insurance_amount: form.insuranceAmount,
-            discount_amount: form.discountAmount,
-            valid_until: form.validUntil || null,
-            comment: form.comment,
-            notes: form.notes,
+            title: current.title,
+            status: current.status,
+            subtotal: current.subtotal,
+            tax_total: current.taxTotal,
+            total_amount: current.totalAmount,
+            insurance_amount: current.insuranceAmount,
+            discount_amount: current.discountAmount,
+            valid_until: current.validUntil || null,
+            comment: current.comment,
+            notes: current.notes,
           };
           await updateEstimate({ id: estimate.id, data: req });
           toast.success("見積書を更新しました");
         } else {
-          if (!CREATE_ALLOWED_STATUSES.includes(form.status)) {
+          if (!CREATE_ALLOWED_STATUSES.includes(current.status)) {
             return {
               success: false,
               fieldErrors: { status: "作成時は下書きまたは送付済みのみ選択できます" },
@@ -120,18 +140,19 @@ export function useEstimateForm(args: UseEstimateFormArgs = { mode: "create" }) 
             };
           }
           const req: CreateEstimateRequest = {
-            title: form.title,
-            status: form.status,
-            owner_id: form.ownerId ? Number(form.ownerId) : null,
-            medical_record_id: form.medicalRecordId ? Number(form.medicalRecordId) : null,
-            subtotal: form.subtotal,
-            tax_total: form.taxTotal,
-            total_amount: form.totalAmount,
-            insurance_amount: form.insuranceAmount,
-            discount_amount: form.discountAmount,
-            valid_until: form.validUntil || null,
-            comment: form.comment,
-            notes: form.notes,
+            title: current.title,
+            status: current.status,
+            owner_id: current.ownerId ? Number(current.ownerId) : null,
+            pet_id: current.petId ? Number(current.petId) : null,
+            medical_record_id: current.medicalRecordId ? Number(current.medicalRecordId) : null,
+            subtotal: current.subtotal,
+            tax_total: current.taxTotal,
+            total_amount: current.totalAmount,
+            insurance_amount: current.insuranceAmount,
+            discount_amount: current.discountAmount,
+            valid_until: current.validUntil || null,
+            comment: current.comment,
+            notes: current.notes,
           };
           await createEstimate(req);
           toast.success("見積書を作成しました");

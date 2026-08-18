@@ -6,7 +6,8 @@ import {
   resolveEntityReadResult,
 } from "@/lib/entity-read-result";
 import { memo, useCallback, useEffect, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router';
+import { useParams, useNavigate, useSearchParams } from 'react-router';
+import { useGetPet } from '@/hooks/use-pet';
 import { toast } from "sonner";
 import { FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -295,9 +296,14 @@ function EstimateFormContent({ id }: { id?: string }) {
   });
   const foundEstimate = entityRead.status === "found" ? entityRead.data : undefined;
 
+  const [searchParams] = useSearchParams();
+  const petIdFromQuery = searchParams.get("petId") ?? "";
+  const { data: petFromQuery } = useGetPet(petIdFromQuery);
   const { form, handleChange, formAction, formState, handleCancel, isPending } = useEstimateForm({
     mode: isEdit ? "edit" : "create",
     estimate: foundEstimate,
+    initialOwnerId: petFromQuery?.ownerId,
+    initialPetId: petFromQuery?.id,
   });
 
   const { canEdit, canCreate } = usePermission("estimates");

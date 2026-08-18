@@ -44,12 +44,13 @@ export function Calendar({ availableDates, selectedDate, onSelect, bookingWindow
       no_slots:  '満席',
     };
     for (const d of availableDates) {
-      if (!d.available && d.reason) {
+      // 同一日に available:true と staff_off が混在しても、選択可能な日には理由を載せない
+      if (!d.available && d.reason && !availableSet.has(d.date)) {
         map.set(d.date, REASON_LABELS[d.reason] ?? '予約不可');
       }
     }
     return map;
-  }, [availableDates]);
+  }, [availableDates, availableSet]);
 
   const daysInMonth = useMemo(() => {
     return new Date(Date.UTC(viewYear, viewMonth + 1, 0)).getUTCDate();
@@ -162,7 +163,7 @@ export function Calendar({ availableDates, selectedDate, onSelect, bookingWindow
           const isBeyondWindow = cellDate > maxDate;
           const isDisabled = !isAvailable || isPast || isBeyondWindow;
 
-          const reasonLabel = reasonMap.get(dateStr);
+          const reasonLabel = isDisabled ? reasonMap.get(dateStr) : undefined;
           const ariaLabel = `${viewYear}年${viewMonth + 1}月${cell.day}日${reasonLabel ? `（${reasonLabel}）` : isDisabled ? '（予約不可）' : ''}`;
 
           return (

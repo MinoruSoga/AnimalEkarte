@@ -124,8 +124,12 @@ export function MyReservationsPage({
                 >
                   <div className="flex items-start justify-between mb-2">
                     <div>
-                      <p className="font-semibold text-noah-text">{reservation.course_name}</p>
-                      <p className="text-sm text-noah-text-sub">{reservation.staff_name}</p>
+                      <p className="font-semibold text-noah-text">
+                        {reservation.pet_name || reservation.course_name}
+                      </p>
+                      <p className="text-sm text-noah-text-sub">
+                        {[reservation.course_name, reservation.staff_name].filter(Boolean).join(' / ')}
+                      </p>
                     </div>
                     <span
                       className={`text-xs px-2 py-1 rounded-full font-medium ${

@@ -82,6 +82,7 @@ func (s *estimateService) CreateSuccessor(
 			MedicalRecordID:      original.MedicalRecordID,
 			Title:                title,
 			OwnerID:              original.OwnerID,
+			PetID:                original.PetID,
 			Status:               model.EstimateStatusDraft,
 			Subtotal:             original.Subtotal,
 			TaxTotal:             original.TaxTotal,

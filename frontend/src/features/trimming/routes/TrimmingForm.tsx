@@ -8,7 +8,7 @@ import { Scissors, Trash2 } from "lucide-react";
 
 // Internal
 import { Button } from "@/components/ui/button";
-import { PatientInfoCard } from "@/components/shared/PatientInfoCard";
+import { PatientInfoCard, formatPatientPetDetails } from "@/components/shared/PatientInfoCard";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { FormFieldError } from "@/components/shared/FormFieldError/FormFieldError";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
@@ -262,10 +262,17 @@ export function TrimmingForm() {
             petNumber={selectedPet.petNumber || ""}
             weight={selectedPet.weight || ""}
             staffName={formData.staffName}
+            staffLabel="担当医"
             staffButtonId="staffId"
             reservationType="トリミング"
-            nextVisitDate="-"
-            nextVisitContent="-"
+            petDetails={formatPatientPetDetails({
+              birthDate: selectedPet.birthDate,
+              gender: selectedPet.gender,
+              neuteredDate: selectedPet.neuteredDate,
+            })}
+            insuranceName={selectedPet.insuranceName}
+            insuranceDetails={selectedPet.insuranceDetails}
+            status={selectedPet.status === "死亡" ? "deceased" : "alive"}
             onStaffClick={handleOpenStaffModal}
           />
           {/* BUG-027: inline staff validation error */}

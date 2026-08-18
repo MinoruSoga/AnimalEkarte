@@ -28,6 +28,8 @@ interface MonthViewProps {
   /** BUG-076: 日付セルクリックで週表示に遷移するコールバック */
   onDateClick?: (date: Date) => void;
   dynamicColorMap?: Map<string, ReservationTypeColor>;
+  /** BUG-343: 休診日 (YYYY-MM-DD) */
+  holidayDates?: ReadonlySet<string>;
 }
 
 const HEADER_ROW = (
@@ -45,7 +47,7 @@ const HEADER_ROW = (
   </div>
 );
 
-export const MonthView = memo(function MonthView({ currentDate, appointments, onAppointmentClick, onDateClick, dynamicColorMap }: MonthViewProps) {
+export const MonthView = memo(function MonthView({ currentDate, appointments, onAppointmentClick, onDateClick, dynamicColorMap, holidayDates }: MonthViewProps) {
 
   const rows = useMemo(() => {
     const today = toJSTWallDate(new Date());
@@ -65,6 +67,8 @@ export const MonthView = memo(function MonthView({ currentDate, appointments, on
         const cloneDay = day;
 
         const dayAppointments = appointments.filter(app => isSameDay(app.start, cloneDay));
+        const dateKey = format(cloneDay, "yyyy-MM-dd");
+        const isHoliday = holidayDates?.has(dateKey) ?? false;
 
         days.push(
           <div
@@ -72,7 +76,9 @@ export const MonthView = memo(function MonthView({ currentDate, appointments, on
             className={`h-full min-h-[140px] ${C.bgWhite} border-b border-r ${C.borderLight} p-2 transition-colors ${C.hoverBgPage} cursor-pointer flex flex-col
               ${!isSameMonth(day, monthStart) ? `${C.bgPage30} ${C.text30}` : C.text}
               ${isSameDay(day, today) ? C.bgBrand8 : ""}
+              ${isHoliday ? `${C.bgPage} opacity-70` : ""}
             `}
+            title={isHoliday ? "休診日" : undefined}
           >
             <div className="flex justify-between items-start mb-2">
                 <button
@@ -82,10 +88,13 @@ export const MonthView = memo(function MonthView({ currentDate, appointments, on
                     e.stopPropagation();
                     onDateClick?.(cloneDay);
                   }}
-                  aria-label={`${format(cloneDay, "M月d日")}の週表示へ`}
+                  aria-label={`${format(cloneDay, "M月d日")}の週表示へ${isHoliday ? "（休診日）" : ""}`}
                 >
                   {formattedDate}
                 </button>
+                {isHoliday ? (
+                  <span className={`text-2xs font-medium ${C.danger}`}>休診</span>
+                ) : null}
             </div>
             <div className="space-y-1.5 flex-1 overflow-hidden">
                 {dayAppointments.slice(0, 4).map(app => {
@@ -134,7 +143,7 @@ export const MonthView = memo(function MonthView({ currentDate, appointments, on
     }
 
     return result;
-  }, [currentDate, appointments, dynamicColorMap, onAppointmentClick, onDateClick]);
+  }, [currentDate, appointments, dynamicColorMap, onAppointmentClick, onDateClick, holidayDates]);
 
   return (
     <div className={`flex flex-col h-full border-l border-t ${C.borderMedium} rounded-lg overflow-hidden ${C.bgWhite}`}>

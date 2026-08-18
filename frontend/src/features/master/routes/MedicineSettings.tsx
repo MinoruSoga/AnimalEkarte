@@ -37,6 +37,7 @@ import {
 
 // Internal – feature API (direct import, no barrel)
 import { useGetAllMedicines, useCreateMedicine, useUpdateMedicine, useDeleteMedicine, useReorderMedicines } from "../api/medicines";
+import { upsertMedicineDoseParam } from "../api/medicine-dose-params";
 import type { CreateMedicineRequest, UpdateMedicineRequest } from "@/types/medicine";
 import { ResourceMasterMedical } from "@/types/generated/models";
 import { usePermission } from "@/hooks/use-permission";
@@ -145,6 +146,12 @@ export function MedicineSettings() {
     validate: (data) => data.name.trim() ? null : "名称を入力してください",
     toCreateRequest: (data) => buildMedicineCreateRequest(data, isCategory),
     toUpdateRequest: (data) => buildMedicineUpdateRequest({ data, isCategory, selectedMedicine }),
+    onSuccess: async (saved, formData) => {
+      const drafts = formData.doseParamDrafts ?? [];
+      for (const draft of drafts) {
+        await upsertMedicineDoseParam(saved.id, draft.species, draft.input);
+      }
+    },
   });
 
   // handleSave delegates to hook

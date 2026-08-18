@@ -64,6 +64,12 @@ export const queryKeys = {
      * invalidate は ["masters","staffs"] prefix で両方を無効化できる。
      */
     staffSelectorList: () => ["masters", "staffs", "selector-list"] as const,
+    /**
+     * トリミングコース CRUD のフル shape（isActive 等）。
+     * useMasterItems("trimmingCourse") の MasterItem[] とは別キー（cache poison 防止）。
+     * invalidate は ["masters","trimmingCourse"] prefix で両方を無効化できる。
+     */
+    trimmingCoursesFull: () => ["masters", "trimmingCourse", "full"] as const,
     animalSpecies: {
       /** features/master/api/animal-species.ts の CRUD 用ベースキー */
       all: () => ["masters", "animal-species"] as const,

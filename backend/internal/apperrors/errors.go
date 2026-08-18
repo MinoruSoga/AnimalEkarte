@@ -35,6 +35,12 @@ const (
 	// CodeLstepAutoManagedPrefixConflict is returned when an auto-managed L-step
 	// prefix collides (constraint lstep_auto_managed_prefixes_prefix_key). BUG-026.
 	CodeLstepAutoManagedPrefixConflict = "lstep_auto_managed_prefix_conflict"
+	// CodeCageNameConflict is returned when a clinic-scoped cage name collides
+	// (constraint idx_cages_clinic_name). BUG-022.
+	CodeCageNameConflict = "cage_name_conflict"
+	// CodeOccupationNameConflict is returned when a clinic-scoped occupation name
+	// collides (constraint idx_occupations_clinic_name). BUG-022.
+	CodeOccupationNameConflict = "occupation_name_conflict"
 )
 
 // Measured PostgreSQL unique constraint names used for fail-closed mapping.
@@ -50,6 +56,10 @@ const (
 	ConstraintShiftTemplateName = "uk_shift_templates_clinic_name"
 	// ConstraintLstepAutoManagedPrefix is UNIQUE (prefix) on lstep_auto_managed_prefixes.
 	ConstraintLstepAutoManagedPrefix = "lstep_auto_managed_prefixes_prefix_key"
+	// ConstraintCageName is UNIQUE (clinic_id, name) WHERE deleted_at IS NULL.
+	ConstraintCageName = "idx_cages_clinic_name"
+	// ConstraintOccupationName is UNIQUE (clinic_id, name) WHERE deleted_at IS NULL.
+	ConstraintOccupationName = "idx_occupations_clinic_name"
 )
 
 // AppError はアプリケーション固有のエラー
@@ -213,7 +223,9 @@ func RespondWithConflictCode(err error) bool {
 	case CodePermissionGroupNameConflict,
 		CodeAnimalSpeciesNameConflict,
 		CodeShiftTemplateNameConflict,
-		CodeLstepAutoManagedPrefixConflict:
+		CodeLstepAutoManagedPrefixConflict,
+		CodeCageNameConflict,
+		CodeOccupationNameConflict:
 		return true
 	default:
 		return len(appErr.Params) > 0

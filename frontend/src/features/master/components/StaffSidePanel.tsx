@@ -126,7 +126,7 @@ export const StaffSidePanel = memo(function StaffSidePanel({
       title={formData.name}
       onTitleChange={handleTitleChange}
       onClose={handleClose}
-      action={handleSave}
+      onSave={handleSave}
       onDelete={item !== null && onDeleteRequest ? () => onDeleteRequest(item) : undefined}
       icon={<UserRound className={LAYOUT.pageIcon.innerIcon} />}
       isDirty={isDirty}

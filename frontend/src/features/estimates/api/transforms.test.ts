@@ -84,6 +84,14 @@ describe("transformEstimate", () => {
     expect(transformEstimate({ ...minimal, owner_id: undefined }).ownerId).toBeNull();
   });
 
+  it("pet_id を string に変換して petId にマップする", () => {
+    expect(transformEstimate({ ...minimal, pet_id: 8 }).petId).toBe("8");
+  });
+
+  it("pet.name を petName にマップする", () => {
+    expect(transformEstimate({ ...minimal, pet: { id: 8, name: "ポチ" } }).petName).toBe("ポチ");
+  });
+
   it("medical_record_id を string に変換して medicalRecordId にマップする", () => {
     expect(transformEstimate({ ...minimal, medical_record_id: 7 }).medicalRecordId).toBe("7");
   });

@@ -11,7 +11,7 @@ export function MedicalRecordPetSelection() {
     usePetSelectionPage({ selectPath: paths.medicalRecords.new.getHref(), backPath: paths.medicalRecords.getHref() });
 
   return (
-    <PageLayout title="カルテ作成 - ペット選択" onBack={handleBack} resource={ResourceMedicalRecords} maxWidth={LAYOUT.pageContentMaxWidth.full}>
+    <PageLayout title="カルテ登録 - ペット選択" onBack={handleBack} resource={ResourceMedicalRecords} maxWidth={LAYOUT.pageContentMaxWidth.full}>
       <PetSelectionSearchForm searchParams={searchParams} setSearchParams={setSearchParams} onClear={handleClear} />
       <PetSelectionResultsTable pets={petPage} onSelect={handleSelect} isError={Boolean(error)} isLoading={isLoading} />
     </PageLayout>

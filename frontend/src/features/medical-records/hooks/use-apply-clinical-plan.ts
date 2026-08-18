@@ -13,18 +13,27 @@ interface UseApplyClinicalPlanArgs {
   setDiagnosis2NameId: (id: number | null) => void;
 }
 
-function toOptionalNumber(value: string | null | undefined): number | null {
+function toOptionalNumber(value: unknown): number | null {
   if (value == null || value === "") return null;
-  const n = Number(value);
+  if (typeof value === "object" && "id" in value) {
+    return toOptionalNumber((value as { id: unknown }).id);
+  }
+  const n = typeof value === "number" ? value : Number(value);
   return Number.isFinite(n) ? n : null;
 }
 
+function readDiagnosisIds(clinicalPlan: ClinicalPlan) {
+  return {
+    type1: toOptionalNumber(clinicalPlan.diagnosis_type_id) ?? toOptionalNumber(clinicalPlan.diagnosis_type),
+    name1: toOptionalNumber(clinicalPlan.diagnosis_name_id) ?? toOptionalNumber(clinicalPlan.diagnosis_name),
+    type2: toOptionalNumber(clinicalPlan.diagnosis_2_type_id) ?? toOptionalNumber(clinicalPlan.diagnosis_2_type),
+    name2: toOptionalNumber(clinicalPlan.diagnosis_2_name_id) ?? toOptionalNumber(clinicalPlan.diagnosis_2_name),
+  };
+}
+
 /**
- * BUG-010: clinical-plan GET が 3欄 + 診断マスタの正本。
- * medical-record detail wire には clinical_plan が載らないため、専用 GET から hydrate する。
- *
- * レコードごとに初回だけ form へ流し込む。保存後の invalidate/refetch では text を再適用しない
- * （version は React Query cache / setQueryData が正本。dirty 入力の上書きを防ぐ）。
+ * BUG-010 / BUG-013: clinical-plan GET が 3欄 + 診断マスタの正本。
+ * 初回 GET で診断 ID が空なら、後続 GET で ID が入ったとき診断だけ再適用する。
  */
 export function useApplyClinicalPlan({
   clinicalPlan,
@@ -37,22 +46,34 @@ export function useApplyClinicalPlan({
   setDiagnosis2NameId,
 }: UseApplyClinicalPlanArgs) {
   const hydratedRecordIdRef = useRef<string | null>(null);
+  const diagnosisHydratedRef = useRef(false);
 
   useEffect(() => {
     if (!clinicalPlan) return;
     const recordKey = clinicalPlan.medical_record_id;
     if (!recordKey) return;
-    // 同一 medical_record では初回 hydrate のみ。保存後の再 GET で入力中フィールドを潰さない。
-    if (hydratedRecordIdRef.current === recordKey) return;
-    hydratedRecordIdRef.current = recordKey;
 
-    setPhysicalExam(clinicalPlan.physical_exam ?? "");
-    setPlan(clinicalPlan.treatment_policy ?? "");
-    setAssessment(clinicalPlan.diagnosis_details ?? "");
-    setDiagnosis1CategoryId(toOptionalNumber(clinicalPlan.diagnosis_type_id));
-    setDiagnosis1NameId(toOptionalNumber(clinicalPlan.diagnosis_name_id));
-    setDiagnosis2CategoryId(toOptionalNumber(clinicalPlan.diagnosis_2_type_id));
-    setDiagnosis2NameId(toOptionalNumber(clinicalPlan.diagnosis_2_name_id));
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- recordKey 単位の one-shot hydrate
+    const ids = readDiagnosisIds(clinicalPlan);
+    const hasDiagnosis = ids.type1 != null || ids.name1 != null || ids.type2 != null || ids.name2 != null;
+    const isFirst = hydratedRecordIdRef.current !== recordKey;
+
+    if (isFirst) {
+      hydratedRecordIdRef.current = recordKey;
+      diagnosisHydratedRef.current = false;
+      setPhysicalExam(clinicalPlan.physical_exam ?? "");
+      setPlan(clinicalPlan.treatment_policy ?? "");
+      setAssessment(clinicalPlan.diagnosis_details ?? "");
+    }
+
+    if (isFirst || !diagnosisHydratedRef.current) {
+      setDiagnosis1CategoryId(ids.type1);
+      setDiagnosis1NameId(ids.name1);
+      setDiagnosis2CategoryId(ids.type2);
+      setDiagnosis2NameId(ids.name2);
+      if (hasDiagnosis) {
+        diagnosisHydratedRef.current = true;
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- recordKey 単位の hydrate
   }, [clinicalPlan]);
 }

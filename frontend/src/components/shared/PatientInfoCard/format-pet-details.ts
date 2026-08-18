@@ -39,7 +39,7 @@ function formatAgePart(birthDate: string | null | undefined, now: Date): string 
 
   const { years, months } = calcAgePartsAt(dateOnly, now);
   if (years < 0) return UNKNOWN;
-  return `${years}才${months}ヶ月`;
+  return `${years}歳${months}ヶ月`;
 }
 
 function formatGenderPart(gender: string | null | undefined): string {

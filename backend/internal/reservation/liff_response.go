@@ -3,6 +3,7 @@ package reservation
 import (
 	"encoding/json"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/httpapi"
@@ -130,6 +131,7 @@ type liffReservationResponse struct {
 	StartTime  string    `json:"start_time"` // "HH:MM"
 	EndTime    string    `json:"end_time"`   // "HH:MM"
 	CourseName string    `json:"course_name"`
+	PetName    string    `json:"pet_name,omitempty"`
 	StaffName  string    `json:"staff_name,omitempty"`
 	Status     string    `json:"status"`
 	Notes      string    `json:"notes,omitempty"`
@@ -206,6 +208,7 @@ func toLiffReservationResponse(r *model.Reservation) liffReservationResponse {
 			}
 		}
 	}
+	res.PetName = firstCustomerFieldPetName(r.CustomerFields)
 	if r.Doctor != nil {
 		res.StaffName = r.Doctor.ReservationDisplayName
 		if res.StaffName == "" {
@@ -213,6 +216,26 @@ func toLiffReservationResponse(r *model.Reservation) liffReservationResponse {
 		}
 	}
 	return res
+}
+
+func firstCustomerFieldPetName(raw json.RawMessage) string {
+	if len(raw) == 0 {
+		return ""
+	}
+	var fields struct {
+		Pets []struct {
+			Name string `json:"name"`
+		} `json:"pets"`
+	}
+	if err := json.Unmarshal(raw, &fields); err != nil {
+		return ""
+	}
+	for _, pet := range fields.Pets {
+		if name := strings.TrimSpace(pet.Name); name != "" {
+			return name
+		}
+	}
+	return ""
 }
 
 // liffReservationCreatedResponse はLIFF予約作成（201）専用レスポンス。

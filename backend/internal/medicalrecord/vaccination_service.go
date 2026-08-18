@@ -88,7 +88,7 @@ func buildVaccinationUpdate(input *UpdateVaccinationInput) map[string]any {
 }
 
 type VaccinationService interface {
-	List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.Vaccination, int64, error)
+	List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, search string, page, limit int) ([]model.Vaccination, int64, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.Vaccination, error)
 	Create(ctx context.Context, clinicID uint64, input *CreateVaccinationInput) (*model.Vaccination, error)
 	Update(ctx context.Context, clinicID, id uint64, input *UpdateVaccinationInput) (*model.Vaccination, error)
@@ -118,8 +118,8 @@ func NewVaccinationService(
 	}
 }
 
-func (s *vaccinationService) List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.Vaccination, int64, error) {
-	items, total, err := s.repo.FindAll(ctx, clinicID, petID, ownerID, startDate, endDate, page, limit)
+func (s *vaccinationService) List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, search string, page, limit int) ([]model.Vaccination, int64, error) {
+	items, total, err := s.repo.FindAll(ctx, clinicID, petID, ownerID, startDate, endDate, search, page, limit)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list vaccinations", "error", err)
 		return nil, 0, apperrors.Wrap(err, "failed to list vaccinations")

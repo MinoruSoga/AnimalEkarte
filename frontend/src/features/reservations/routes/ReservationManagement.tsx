@@ -2,7 +2,7 @@ import { ICON, C } from "@/lib/design-tokens";
 import { useState, useMemo, useCallback, Suspense, lazy } from "react";
 import { useSearchParams } from "react-router";
 import { useClinicScope } from "@/hooks/use-clinic-scope";
-import { addMonths, subMonths, addWeeks, subWeeks } from "date-fns";
+import { addMonths, format, subMonths, addWeeks, subWeeks } from "date-fns";
 
 import { CalendarIcon, Plus } from "lucide-react";
 import { FormHeader } from "@/components/shared/Form/FormHeader";
@@ -25,6 +25,7 @@ const ReservationFormModal = lazy(() =>
     default: m.ReservationFormModal,
   })),
 );
+import { useGetClinicHolidays } from "@/hooks/use-clinic-holidays";
 import { useReservationManagement } from "../hooks/use-reservation-management";
 import { useReservationTypeColorMap } from "@/hooks/use-reservation-type-color-map";
 import { usePermission } from "@/hooks/use-permission";
@@ -73,6 +74,12 @@ export function ReservationManagement({ createMutations }: ReservationManagement
   const { selectedClinicIds, isMultiClinic } = useClinicScope();
 
   const { activeEntries, colorMap: dynamicColorMap } = useReservationTypeColorMap();
+  const yearMonth = format(currentDate, "yyyy-MM");
+  const { data: clinicHolidays = [] } = useGetClinicHolidays(yearMonth);
+  const holidayDates = useMemo(
+    () => new Set(clinicHolidays.map((holiday) => holiday.date)),
+    [clinicHolidays],
+  );
 
   const {
     appointments,
@@ -210,6 +217,7 @@ export function ReservationManagement({ createMutations }: ReservationManagement
         onMonthDateClick={handleMonthDateClick}
         onTimeSlotClick={handleTimeSlotClick}
         onAppointmentUpdate={handleReservationUpdate}
+        holidayDates={holidayDates}
       />
 
       <Suspense fallback={null}>

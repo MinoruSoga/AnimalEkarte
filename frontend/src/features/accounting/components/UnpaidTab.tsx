@@ -11,6 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { C, STYLE } from "@/lib/design-tokens";
 import { paths } from "@/config/paths";
 import { formatCurrency } from "@/lib/format/number";
+import { formatDate } from "@/lib/format/date";
 import { daysSince, currentJSTYearMonth } from "@/lib/jst-date";
 
 import {
@@ -278,7 +279,7 @@ export function UnpaidTab() {
                         </DataTableRowLink>
                       </TableCell>
                       <TableCell>{b.petName}</TableCell>
-                      <TableCell>{b.scheduledDate || "-"}</TableCell>
+                      <TableCell>{formatDate(b.scheduledDate)}</TableCell>
                       <TableCell className="text-right font-mono">
                         {formatCurrency(unpaidAmount)}
                       </TableCell>

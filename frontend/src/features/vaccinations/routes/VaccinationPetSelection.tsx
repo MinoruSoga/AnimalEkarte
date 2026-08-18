@@ -11,7 +11,7 @@ export function VaccinationPetSelection() {
     usePetSelectionPage({ selectPath: paths.vaccinations.new.getHref(), backPath: paths.vaccinations.getHref() });
 
   return (
-    <PageLayout title="ワクチン接種 - ペット選択" onBack={handleBack} resource={ResourceVaccinations} maxWidth={LAYOUT.pageContentMaxWidth.full}>
+    <PageLayout title="予防接種登録 - ペット選択" onBack={handleBack} resource={ResourceVaccinations} maxWidth={LAYOUT.pageContentMaxWidth.full}>
       <PetSelectionSearchForm searchParams={searchParams} setSearchParams={setSearchParams} onClear={handleClear} />
       <PetSelectionResultsTable pets={petPage} onSelect={handleSelect} isError={Boolean(error)} isLoading={isLoading} />
     </PageLayout>

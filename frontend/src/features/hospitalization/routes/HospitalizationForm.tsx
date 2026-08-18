@@ -1,5 +1,5 @@
 // React/Framework
-import { useEffect, useState, useCallback, useLayoutEffect, useRef, useTransition } from "react";
+import { useEffect, useState, useCallback, useLayoutEffect, useMemo, useRef, useTransition } from "react";
 import { useNavigate, useParams, useLocation, useSearchParams } from "react-router";
 
 // External
@@ -9,14 +9,15 @@ import { handleApiError } from "@/lib/handle-api-error";
 // Internal
 import { Button } from "@/components/ui/button";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
-import { PatientInfoCard } from "@/components/shared/PatientInfoCard";
+import { PatientInfoCard, formatPatientPetDetails } from "@/components/shared/PatientInfoCard";
+import { PastRecordHistoryPanel } from "@/components/shared/PastRecordHistoryPanel";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
-import { useAuth } from "@/hooks/use-auth";
 import { usePermission } from "@/hooks/use-permission";
 
 // Relative
 import { useHospitalizationForm } from "../hooks/use-hospitalization-form";
+import { useGetHospitalizations } from "../api/get-hospitalizations";
 import { useDeleteHospitalization } from "../api/delete-hospitalization";
 import { paths } from "@/config/paths";
 import { useMasterItems } from "@/hooks/use-master-items";
@@ -41,7 +42,6 @@ export function HospitalizationForm() {
   
   const { data: cageItems } = useMasterItems("cage");
 
-  const { user } = useAuth();
   const { canEdit, canCreate, canDelete } = usePermission("hospitalization");
   const canSubmit = hospitalizationId ? canEdit : canCreate;
   const canDeleteRef = useRef(canDelete);
@@ -105,6 +105,23 @@ export function HospitalizationForm() {
     petIsDeceasedRef.current = petIsDeceased;
   }, [canDelete, petIsDeceased]);
   const totals = calculateTotals();
+  const historyPetId = selectedPet?.id ?? petId ?? "";
+  const { data: hospitalizationsResult, isLoading: isHistoryLoading } = useGetHospitalizations({
+    page: 1,
+    limit: 100,
+    statusFilter: "all",
+  });
+  const historyItems = useMemo(() => {
+    if (!historyPetId) return [];
+    return (hospitalizationsResult?.data ?? [])
+      .filter((record) => record.petId === String(historyPetId))
+      .map((record) => ({
+        id: record.id,
+        date: record.startDate,
+        title: `${record.hospitalizationType}（${record.status}）`,
+        subtitle: record.doctorName || record.memo,
+      }));
+  }, [historyPetId, hospitalizationsResult?.data]);
 
   const handleBack = useCallback(() => {
     if (locationFrom) {
@@ -175,6 +192,20 @@ export function HospitalizationForm() {
       </PageLayout>
     );
   }
+  if (!isEdit && petIsDeceased) {
+    return (
+      <PageLayout
+        title="入院登録"
+        onBack={handleBack}
+        icon={<FileText className={`${ICON.page} ${C.text}`} />}
+        resource={ResourceHospitalization}
+        maxWidth={LAYOUT.pageContentMaxWidth.form}
+      >
+        <ErrorFallback message="死亡したペットは入院登録できません" />
+      </PageLayout>
+    );
+  }
+
   if (isEdit && isReadError) {
     return (
       <PageLayout
@@ -235,7 +266,7 @@ export function HospitalizationForm() {
               <SubmitButton
               className="h-10 text-sm px-4"
               >
-              {hospitalizationId ? "更新" : "登録"}
+              {hospitalizationId ? "更新" : "保存"}
               </SubmitButton>
             ) : null}
         </div>
@@ -247,16 +278,19 @@ export function HospitalizationForm() {
         {selectedPet ? (
             <PatientInfoCard
               ownerName={selectedPet.ownerName}
-              petName={`${selectedPet.name}${selectedPet.species ? `(${selectedPet.species})` : ""}`}
+              petName={selectedPet.name}
               petNumber={selectedPet.petNumber || selectedPet.id}
               weight={selectedPet.weight || "-"}
-              staffName={user?.displayName ?? ""}
+              staffName=""
               reservationType={formData.hospitalizationType}
-              petDetails={`${selectedPet.birthDate ? `${selectedPet.birthDate}生` : ""} / ${selectedPet.species}`}
-              insuranceName={selectedPet.insuranceName || "保険情報未登録"}
-              insuranceDetails={selectedPet.insuranceDetails || "-"}
-              nextVisitDate="-"
-              nextVisitContent="-"
+              petDetails={formatPatientPetDetails({
+                birthDate: selectedPet.birthDate,
+                gender: selectedPet.gender,
+                neuteredDate: selectedPet.neuteredDate,
+              })}
+              insuranceName={selectedPet.insuranceName}
+              insuranceDetails={selectedPet.insuranceDetails}
+              status={selectedPet.status === "死亡" ? "deceased" : "alive"}
             />
         ) : null}
         <FormFieldError message={formState.fieldErrors?.pet} />
@@ -320,6 +354,14 @@ export function HospitalizationForm() {
           一括割引（%／円）はこの画面では利用できません。表示金額は治療プラン明細に基づく概算です。
         </p>
         <HospitalizationCostSummary totals={totals} />
+        <div className="mt-4">
+          <PastRecordHistoryPanel
+            title="過去の入院履歴"
+            searchPlaceholder="種別・ステータスで検索..."
+            items={historyItems}
+            isLoading={isHistoryLoading}
+          />
+        </div>
         </fieldset>
     </PageLayout>
     </form>

@@ -14,9 +14,9 @@ export { LstepStatusBadge, type LstepStatus } from "./CheckupsTabBadges";
 const TABLE_HEADER = (
   <thead>
     <tr className={`border-b ${C.borderLight} ${C.bgPage} h-11`}>
-      <TableHead className="w-32">日付</TableHead>
+      <TableHead className="min-w-[10rem] w-40">日付</TableHead>
       <TableHead className="w-40">健診種別</TableHead>
-      <TableHead className="w-32">次回予定日</TableHead>
+      <TableHead className="min-w-[10rem] w-40">次回の予定</TableHead>
       <TableHead className="w-32">担当医</TableHead>
       <TableHead>結果</TableHead>
       <TableHead className="w-24 text-right">操作</TableHead>

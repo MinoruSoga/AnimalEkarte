@@ -46,6 +46,7 @@ func (h *VaccinationHandler) ListVaccinations(c *gin.Context) {
 		filters.OwnerID,
 		filters.StartDate,
 		filters.EndDate,
+		filters.Search,
 		page,
 		limit,
 	)
