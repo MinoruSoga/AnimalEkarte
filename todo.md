@@ -23,3 +23,14 @@
 | #299 / PO-008 / presence / H1–H7 / P1 / M1–M5 / OPS-13 | BRT-55〜67 |
 
 **agent 製品 unit: 新規に増やさない（NONE 維持の方針は Linear 説明に記載）。**
+
+## 城東 検査機器連携（2026-08-18 疎通後）
+
+old_db の現場・仕様は `../old_db/todo.md` の **JOU-LAB-0** と `../old_db/docs/lab-go/go-impl/`。こちらは AnimalEkarte 実装だけ書く。
+
+- [ ] **AE-LAB-1** 3電文を `LabInboundBatch` にデコードする（`fuji_nx600` / `fuji_au10v` / `arkray_pu4010`）。ペット紐付けしない。仕様: `../old_db/docs/lab-go/go-impl/device-serial-adapter.md`。キャプチャ: `../old_db/docs/lab-go/hospital-field-pack/captures/2026-08-18-jouto/`。
+- [ ] **AE-LAB-2** 検査機器マスタ。`../old_db/docs/lab-go/go-impl/device-item-master.csv` の25行を初期投入。`exam_type_field_id` は医院が設定。未知コードは `needs_review`。
+- [ ] **AE-LAB-3** 未紐付け受信ジョブをスタッフがペットに付けてから persist する。
+- [ ] **AE-LAB-4** 3種の `source_type` を、マスタ参照かつペット選択後だけ commit 可能にする。`drwan` は開けない。
+
+順: 1 → 2 → 3 → 4。IDEXX は old_db の **JOU-LAB-X**。
