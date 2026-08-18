@@ -4,6 +4,7 @@ import { Calculator, Printer } from "lucide-react";
 import { toast } from "sonner";
 import { C, ICON, LAYOUT, STYLE } from "@/lib/design-tokens";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
+import { FormHeaderActions } from "@/components/shared/Form/FormHeaderActions";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { Button } from "@/components/ui/button";
 import { paths } from "@/config/paths";
@@ -90,9 +91,12 @@ export function CashRegisterClosePage() {
       icon={<Calculator className={`${ICON.page} ${C.text}`} />}
       maxWidth={LAYOUT.pageContentMaxWidth.full}
       headerAction={
-        <Button type="button" variant="outline" onClick={() => navigate(paths.accounting.closeHistory.getHref())}>
-          キャンセル
-        </Button>
+        <FormHeaderActions
+          onCancel={() => navigate(paths.accounting.closeHistory.getHref())}
+          submitLabel="締める"
+          submitFormId="cash-register-close-form"
+          submitDisabled={actualCash === ""}
+        />
       }
     >
       <div className="space-y-6">
@@ -252,7 +256,7 @@ export function CashRegisterClosePage() {
                 {/* 締めフォーム */}
                 <section className={`${C.bgWhite} rounded-lg border ${C.borderLight} p-6`}>
                   <h2 className={`text-base font-semibold ${C.text} mb-4`}>レジ締め実行</h2>
-                  <form action={formAction} className="space-y-4">
+                  <form id="cash-register-close-form" action={formAction} className="space-y-4">
                     <input type="hidden" name="close_date" value={date} />
                     <input type="hidden" name="period" value={period} />
                     <div className="max-w-sm">

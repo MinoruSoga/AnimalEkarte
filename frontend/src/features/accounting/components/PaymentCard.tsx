@@ -13,6 +13,7 @@ import { formatCurrency } from "@/lib/format/number";
 
 import type { PaymentMethod } from "../types";
 import { PAYMENT_METHOD_LABELS } from "@/constants/payment-method";
+import { isPaymentSubmitDisabled } from "./accounting-detail-model";
 
 export interface PaymentSplitDraft {
   method: PaymentMethod;
@@ -49,14 +50,7 @@ export const PaymentCard = memo(function PaymentCard({
   const splitTotal = paymentSplits.reduce((sum, s) => sum + parseInt(s.amount || "0", 10), 0);
   const remaining = billingAmount - splitTotal;
 
-  const isDisabled = remaining !== 0 || paymentSplits.some((s) => {
-    if (!s.amount || parseInt(s.amount, 10) <= 0) return true;
-    if (s.method === "cash") {
-      const received = parseInt(s.receivedAmount || "0", 10);
-      return received < parseInt(s.amount, 10);
-    }
-    return false;
-  });
+  const isDisabled = isPaymentSubmitDisabled(billingAmount, paymentSplits);
 
   const handleMethodChange = useCallback((idx: number, method: PaymentMethod) => {
     onSplitsChange(paymentSplits.map((s, i) => i === idx ? { ...s, method } : s));

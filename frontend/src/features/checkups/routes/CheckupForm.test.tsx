@@ -23,6 +23,10 @@ vi.mock("@/hooks/use-staffs", () => ({
   useGetStaffs: () => ({ data: [{ id: "10", name: "獣医師A", isActive: true }] }),
 }));
 
+vi.mock("../api/get-checkups", () => ({
+  useGetCheckups: () => ({ data: { data: [], total: 0, page: 1, limit: 100 }, isLoading: false }),
+}));
+
 function renderForm() {
   return render(
     <MemoryRouter>
@@ -48,6 +52,7 @@ beforeEach(() => {
     form: {
       checkupTypeId: "",
       date: "",
+      nextScheduleType: "1year",
       nextDate: "",
       doctorId: "",
       result: "",
@@ -61,6 +66,7 @@ beforeEach(() => {
     setFieldValue: vi.fn(),
     setCheckupTypeId: vi.fn(),
     setDate: vi.fn(),
+    setNextScheduleType: vi.fn(),
     setNextDate: vi.fn(),
     setDoctorId: vi.fn(),
     setResult: vi.fn(),
@@ -87,7 +93,8 @@ describe("CheckupForm permissions", () => {
     expect(screen.getByRole("group", { name: "定期健診入力" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "保存" })).toBeDisabled();
     expect(screen.getByRole("textbox", { name: "結果・所見" })).toBeDisabled();
-    for (const combobox of screen.getAllByRole("combobox")) {
+    const inputGroup = screen.getByRole("group", { name: "定期健診入力" });
+    for (const combobox of inputGroup.querySelectorAll('[role="combobox"]')) {
       expect(combobox).toBeDisabled();
     }
 

@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { FormFieldError } from "@/components/shared/FormFieldError/FormFieldError";
 import { MasterLink } from "@/components/shared/MasterLink";
+import { NextScheduleField, calculateNextDate } from "@/components/shared/NextScheduleField";
 import { MasterSelectTrigger } from "@/components/shared/MasterSelectModal/MasterSelectTrigger";
 import { C, ICON } from "@/lib/design-tokens";
 import { formatCurrency } from "@/lib/format/number";
@@ -77,6 +78,19 @@ export const TrimmingLeftColumn = memo(function TrimmingLeftColumn({
         />
         <FormFieldError message={courseError} />
       </div>
+
+      <NextScheduleField
+        typeId="trimming-next-schedule"
+        dateId="trimming-next-date"
+        scheduleType={formData.nextScheduleType}
+        nextDate={formData.nextDate}
+        onScheduleTypeChange={(value) => {
+          const baseDate = formData.startTime.slice(0, 10);
+          const calculated = calculateNextDate(baseDate, value);
+          onFormChange({ nextScheduleType: value, ...(calculated ? { nextDate: calculated } : {}) });
+        }}
+        onNextDateChange={(value) => onFormChange({ nextDate: value, nextScheduleType: "other" })}
+      />
 
       <div>
         <Label htmlFor="trimming-style-request" className={`text-sm ${C.text60} mb-2 block`}>

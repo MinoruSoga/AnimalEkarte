@@ -30,6 +30,7 @@ import {
   ResourceCashRegisterClose,
 } from "@/types/generated/models";
 import { useGetCashRegisterCloses } from "@/hooks/use-cash-register-closes";
+import { isPaymentSubmitDisabled } from "../components/accounting-detail-model";
 
 const CreditCorrectionDialog = lazy(() =>
   import("../components/CreditCorrectionDialog").then((m) => ({ default: m.CreditCorrectionDialog })),
@@ -201,6 +202,8 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
               onPrint={handlePrint}
               onCancelClick={() => setCancelConfirmOpen(true)}
               onDismiss={() => navigate(paths.accounting.getHref())}
+              submitLabel={canSubmit ? (accounting.status === "completed" ? "修正を保存する" : "会計を確定する") : undefined}
+              submitDisabled={isPaymentSubmitDisabled(calculation.total, paymentSplits)}
             />
           }
         >

@@ -8,7 +8,8 @@ import { handleApiError } from "@/lib/handle-api-error";
 
 // Internal
 import { Button } from "@/components/ui/button";
-import { SubmitButton } from "@/components/shared/Form/SubmitButton";
+import { FormHeaderActions } from "@/components/shared/Form/FormHeaderActions";
+import { formatDate } from "@/lib/format/date";
 import { PatientInfoCard, formatPatientPetDetails } from "@/components/shared/PatientInfoCard";
 import { PastRecordHistoryPanel } from "@/components/shared/PastRecordHistoryPanel";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
@@ -237,39 +238,36 @@ export function HospitalizationForm() {
       resource={ResourceHospitalization}
       maxWidth={LAYOUT.pageContentMaxWidth.form}
       headerAction={
-        <div className="flex gap-2">
-            {hospitalizationId ? (
-                <>
-                  <Button
-                    variant="outline"
-                    type="button"
-                    className={`gap-2 h-10 text-sm px-4 ${C.text}`}
-                    onClick={() => navigate(paths.hospitalization.detail.getHref(String(hospitalizationId)))}
-                  >
-                    <FileText className={ICON.action} />
-                    デイリーカルテ
-                  </Button>
-                  {canShowDelete ? (
-                    <Button
-                      variant="ghost"
-                      type="button"
-                      className={`${STYLE.btnDangerGhost} h-10 text-sm px-4`}
-                      onClick={() => setIsDeleteConfirmOpen(true)}
-                    >
-                      <Trash2 className={`mr-1.5 ${ICON.action}`} />
-                      削除
-                    </Button>
-                  ) : null}
-                </>
-            ) : null}
-            {canSubmit ? (
-              <SubmitButton
-              className="h-10 text-sm px-4"
-              >
-              {hospitalizationId ? "更新" : "保存"}
-              </SubmitButton>
-            ) : null}
-        </div>
+        <FormHeaderActions
+          onCancel={handleBack}
+          submitLabel={canSubmit ? (hospitalizationId ? "更新" : "保存") : undefined}
+          extra={
+            <>
+              {hospitalizationId ? (
+                <Button
+                  variant="outline"
+                  type="button"
+                  className={`gap-2 h-10 text-sm px-4 ${C.text}`}
+                  onClick={() => navigate(paths.hospitalization.detail.getHref(String(hospitalizationId)))}
+                >
+                  <FileText className={ICON.action} />
+                  デイリーカルテ
+                </Button>
+              ) : null}
+              {hospitalizationId && canShowDelete ? (
+                <Button
+                  variant="ghost"
+                  type="button"
+                  className={`${STYLE.btnDangerGhost} h-10 text-sm px-4`}
+                  onClick={() => setIsDeleteConfirmOpen(true)}
+                >
+                  <Trash2 className={`mr-1.5 ${ICON.action}`} />
+                  削除
+                </Button>
+              ) : null}
+            </>
+          }
+        />
       }
     >
         <NavigationBlocker when={isDirty} />
@@ -291,13 +289,14 @@ export function HospitalizationForm() {
               insuranceName={selectedPet.insuranceName}
               insuranceDetails={selectedPet.insuranceDetails}
               status={selectedPet.status === "死亡" ? "deceased" : "alive"}
+              nextVisitDate={formData.nextVisit ? formatDate(formData.nextVisit) : formData.endDate ? formatDate(formData.endDate) : undefined}
+              nextVisitContent={formData.nextVisit ? "次回来院" : formData.endDate ? "退院予定" : undefined}
             />
         ) : null}
         <FormFieldError message={formState.fieldErrors?.pet} />
 
-        {/* Main Form Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-3">
-          {/* Left Column - Basic Info */}
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-5 mb-3">
+          <div className="space-y-3 lg:col-span-3">
           <HospitalizationBasicInfo
             formData={formData}
             onChange={handleFormChange}
@@ -324,7 +323,6 @@ export function HospitalizationForm() {
             onChange={(val) => handleFormChange({ staffNotes: val })}
             placeholder="連絡事項を入力..."
           />
-        </div>
 
         {/* 治療プラン: create 時のみ入力可（登録時スナップショット）。edit は参照のみ。ケアプランは入院詳細。 */}
         {isEdit ? (
@@ -354,7 +352,7 @@ export function HospitalizationForm() {
           一括割引（%／円）はこの画面では利用できません。表示金額は治療プラン明細に基づく概算です。
         </p>
         <HospitalizationCostSummary totals={totals} />
-        <div className="mt-4">
+          </div>
           <PastRecordHistoryPanel
             title="過去の入院履歴"
             searchPlaceholder="種別・ステータスで検索..."

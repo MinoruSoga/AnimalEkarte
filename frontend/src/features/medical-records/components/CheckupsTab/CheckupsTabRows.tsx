@@ -6,7 +6,9 @@ import { TableCell } from "@/components/ui/table";
 import { DeleteIconButton } from "@/components/shared/DeleteIconButton/DeleteIconButton";
 import { FormFieldError } from "@/components/shared/FormFieldError/FormFieldError";
 import { DatePicker } from "@/components/shared/DatePicker/DatePicker";
+import { NextScheduleField, calculateNextDate } from "@/components/shared/NextScheduleField";
 import { CheckupAlertBadge } from "@/components/shared/CheckupAlertBadge/CheckupAlertBadge";
+import { Label } from "@/components/ui/label";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
 import type { StaffItem } from "@/hooks/use-staffs";
 import type { CheckupTypeItem } from "@/hooks/use-treatment-master";
@@ -208,66 +210,92 @@ export function CheckupAddRow({
   onCancel,
 }: CheckupAddRowProps) {
   return (
-    <div className={`flex flex-wrap items-start gap-2 px-3 py-2 border-t ${C.borderLight} ${C.bgPage30}`}>
-      <div className="flex flex-col">
-        <DatePicker
-          value={addForm.date}
-          onChange={(value) => onChange("date", value)}
-          placeholder="日付"
-          className="h-8 min-w-[10rem] w-40"
-        />
-        <FormFieldError message={errors.date} />
+    <div className={`${C.bgWhite} border-t ${C.borderLight} p-6 space-y-6`}>
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+        <div className="space-y-2">
+          <Label htmlFor="checkup-tab-date">実施日</Label>
+          <DatePicker
+            id="checkup-tab-date"
+            value={addForm.date}
+            onChange={(value) => {
+              onChange("date", value);
+              const calculated = calculateNextDate(value, addForm.next_schedule_type);
+              if (calculated) onChange("next_date", calculated);
+            }}
+            placeholder="日付"
+            className="w-full min-w-[10rem]"
+          />
+          <FormFieldError message={errors.date} />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="checkup-tab-type">健診種別</Label>
+          <CheckupTypeSelect
+            value={addForm.checkup_type_id}
+            checkupTypes={checkupTypes}
+            emptyLabel="選択"
+            onChange={(value) => onChange("checkup_type_id", value)}
+          />
+          <FormFieldError message={errors.checkup_type_id} />
+        </div>
       </div>
-      <div className="flex flex-col">
-        <CheckupTypeSelect
-          value={addForm.checkup_type_id}
-          checkupTypes={checkupTypes}
-          emptyLabel="選択"
-          onChange={(value) => onChange("checkup_type_id", value)}
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+        <NextScheduleField
+          typeId="checkup-tab-next-schedule"
+          dateId="checkup-tab-next-date"
+          scheduleType={addForm.next_schedule_type}
+          nextDate={addForm.next_date}
+          onScheduleTypeChange={(value) => {
+            onChange("next_schedule_type", value);
+            const calculated = calculateNextDate(addForm.date, value);
+            if (calculated) onChange("next_date", calculated);
+          }}
+          onNextDateChange={(value) => onChange("next_date", value)}
         />
-        <FormFieldError message={errors.checkup_type_id} />
+        <div className="space-y-2">
+          <Label htmlFor="checkup-tab-doctor">担当医</Label>
+          <StaffSelect
+            value={addForm.doctor_id}
+            staffs={staffs}
+            emptyLabel="担当医"
+            onChange={(value) => onChange("doctor_id", value)}
+          />
+        </div>
       </div>
-      <DatePicker
-        value={addForm.next_date}
-        onChange={(value) => onChange("next_date", value)}
-        placeholder="次回日"
-        className="h-8 min-w-[10rem] w-40"
-      />
-      <StaffSelect
-        value={addForm.doctor_id}
-        staffs={staffs}
-        emptyLabel="担当医"
-        onChange={(value) => onChange("doctor_id", value)}
-      />
-      <input
-        autoFocus
-        type="text"
-        placeholder="結果を入力..."
-        value={addForm.result}
-        onChange={(e) => onChange("result", e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") onSubmit();
-          if (e.key === "Escape") onCancel();
-        }}
-        aria-label="結果"
-        className={`flex-1 min-w-[160px] h-8 text-sm border ${C.borderMedium} rounded-xxs px-2 ${C.bgWhite} ${C.text} outline-none ${C.focusBorderAccent}`}
-      />
-      <Button
-        size="sm"
-        className={`${C.bgBrand} ${C.hoverBgBrand} ${C.hoverTextOnBrand} ${C.textOnBrand} rounded-full border-transparent transition-colors h-8 text-xs px-3`}
-        onClick={onSubmit}
-        disabled={isPending || !addForm.date || !addForm.checkup_type_id}
-      >
-        追加
-      </Button>
-      <Button
-        size="sm"
-        variant="outline"
-        className={`h-8 text-xs px-3 ${C.borderMedium}`}
-        onClick={onCancel}
-      >
-        キャンセル
-      </Button>
+      <div className="space-y-2">
+        <Label htmlFor="checkup-tab-result">結果・所見</Label>
+        <input
+          id="checkup-tab-result"
+          autoFocus
+          type="text"
+          placeholder="結果を入力..."
+          value={addForm.result}
+          onChange={(e) => onChange("result", e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") onSubmit();
+            if (e.key === "Escape") onCancel();
+          }}
+          aria-label="結果"
+          className={`h-10 w-full text-sm border ${C.borderMedium} rounded-xxs px-2 ${C.bgWhite} ${C.text} outline-none ${C.focusBorderAccent}`}
+        />
+      </div>
+      <div className="flex justify-end gap-2">
+        <Button
+          size="sm"
+          variant="outline"
+          className={`h-10 text-sm px-3 ${C.borderMedium}`}
+          onClick={onCancel}
+        >
+          キャンセル
+        </Button>
+        <Button
+          size="sm"
+          className={`${C.bgBrand} ${C.hoverBgBrand} ${C.hoverTextOnBrand} ${C.textOnBrand} rounded-full border-transparent transition-colors h-10 text-sm px-4`}
+          onClick={onSubmit}
+          disabled={isPending || !addForm.date || !addForm.checkup_type_id}
+        >
+          追加
+        </Button>
+      </div>
     </div>
   );
 }

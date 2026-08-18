@@ -17,11 +17,13 @@ import {
 } from "../api/create-checkup-medical-record";
 import { useGetCheckupTypeFields } from "../api/get-checkup-type-fields";
 import { replaceCheckupFieldResults } from "../api/replace-checkup-field-results";
+import { calculateNextDate, resolveScheduleTypeAfterManualDate } from "@/components/shared/NextScheduleField";
 import { buildCheckupResultsPayload, type CheckupFieldValue } from "../components/DynamicCheckupFields";
 
 interface CheckupFormState {
   checkupTypeId: string;
   date: string;
+  nextScheduleType: string;
   nextDate: string;
   doctorId: string;
   result: string;
@@ -45,6 +47,7 @@ const DENIED_MUTATION_PERMISSIONS: Readonly<CheckupMutationPermissions> = {
 const DEFAULT_FORM: CheckupFormState = {
   checkupTypeId: "",
   date: "",
+  nextScheduleType: "1year",
   nextDate: "",
   doctorId: "",
   result: "",
@@ -198,8 +201,31 @@ export function useCheckupForm(
       },
       [setField],
     ),
-    setDate: useCallback((v: string) => setField("date", v), [setField]),
-    setNextDate: useCallback((v: string) => setField("nextDate", v), [setField]),
+    setDate: useCallback((v: string) => {
+      setLocalOverrides((prev) => {
+        const scheduleType = prev.nextScheduleType ?? DEFAULT_FORM.nextScheduleType;
+        const calculated = calculateNextDate(v, scheduleType);
+        return { ...prev, date: v, ...(calculated ? { nextDate: calculated } : {}) };
+      });
+    }, []),
+    setNextScheduleType: useCallback((v: string) => {
+      setLocalOverrides((prev) => {
+        const currentDate = prev.date ?? DEFAULT_FORM.date;
+        const calculated = calculateNextDate(currentDate, v);
+        return { ...prev, nextScheduleType: v, ...(calculated ? { nextDate: calculated } : {}) };
+      });
+    }, []),
+    setNextDate: useCallback((v: string) => {
+      setLocalOverrides((prev) => {
+        const currentDate = prev.date ?? DEFAULT_FORM.date;
+        const currentType = prev.nextScheduleType ?? DEFAULT_FORM.nextScheduleType;
+        return {
+          ...prev,
+          nextDate: v,
+          nextScheduleType: resolveScheduleTypeAfterManualDate(currentDate, currentType, v),
+        };
+      });
+    }, []),
     setDoctorId: useCallback((v: string) => setField("doctorId", v), [setField]),
     setResult: useCallback((v: string) => setField("result", v), [setField]),
   };

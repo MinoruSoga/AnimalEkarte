@@ -23,6 +23,8 @@ const baseFormData: TrimmingFormData = {
   staffId: "",
   staffName: "",
   initialStatus: "in_consultation",
+  nextScheduleType: "4weeks",
+  nextDate: "",
 };
 
 describe("TrimmingLeftColumn", () => {

@@ -11,6 +11,8 @@ import { Button } from "@/components/ui/button";
 import { PatientInfoCard, formatPatientPetDetails } from "@/components/shared/PatientInfoCard";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { FormFieldError } from "@/components/shared/FormFieldError/FormFieldError";
+import { FormHeaderActions } from "@/components/shared/Form/FormHeaderActions";
+import { formatDate } from "@/lib/format/date";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
 import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
 import { useMasterItems } from "@/hooks/use-master-items";
@@ -220,9 +222,12 @@ export function TrimmingForm() {
       resource={ResourceTrimming}
       maxWidth={LAYOUT.pageContentMaxWidth.form}
       headerAction={
-        <div className="flex gap-2">
-          {/* rendering-conditional-render: && → ? ... : null */}
-          {mode === "edit" && canDelete ? (
+        <FormHeaderActions
+          onCancel={handleBack}
+          submitLabel={canSubmit ? (isSaving ? "保存中..." : "保存") : undefined}
+          submitDisabled={isSaving}
+          submitFormId={TRIMMING_FORM_ID}
+          extra={mode === "edit" && canDelete ? (
             <Button
               type="button"
               onClick={() => setDeleteConfirmOpen(true)}
@@ -234,17 +239,7 @@ export function TrimmingForm() {
               削除
             </Button>
           ) : null}
-          {canSubmit ? (
-            <Button
-              type="submit"
-              form={TRIMMING_FORM_ID}
-              className={`${C.bgBrand} ${C.hoverBgBrand} ${C.hoverTextOnBrand} ${C.textOnBrand} px-4 text-base rounded-full transition-colors shadow-none border-transparent h-10`}
-              disabled={isSaving}
-            >
-              {isSaving ? "保存中..." : "保存"}
-            </Button>
-          ) : null}
-        </div>
+        />
       }
     >
       {/* NavigationBlocker: isSaving 中はブロック無効化 */}
@@ -273,6 +268,7 @@ export function TrimmingForm() {
             insuranceName={selectedPet.insuranceName}
             insuranceDetails={selectedPet.insuranceDetails}
             status={selectedPet.status === "死亡" ? "deceased" : "alive"}
+            nextVisitDate={formData.nextDate ? formatDate(formData.nextDate) : undefined}
             onStaffClick={handleOpenStaffModal}
           />
           {/* BUG-027: inline staff validation error */}
@@ -283,9 +279,8 @@ export function TrimmingForm() {
             <FormFieldError message={fieldErrors.reservationTypeId} />
           ) : null}
 
-          {/* Main Content - 3 column layout */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {/* rerender-memo: 各カラムを独立したmemo化コンポーネントに分離 */}
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
+            <div className="space-y-6 lg:col-span-3">
             <TrimmingLeftColumn
               formData={formData}
               courses={courses}
@@ -305,6 +300,7 @@ export function TrimmingForm() {
               onCompletedImageChange={handleCompletedImageChange}
               onRemoveCompletedImage={removeCompletedImage}
             />
+            </div>
             <TrimmingRightColumn
               sortedHistory={sortedHistory}
               isHistoryLoading={isHistoryLoading}

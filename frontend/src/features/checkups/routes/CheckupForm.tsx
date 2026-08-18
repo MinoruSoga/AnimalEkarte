@@ -10,7 +10,8 @@ import { C, ICON, LAYOUT } from "@/lib/design-tokens";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { PatientInfoCard, formatPatientPetDetails } from "@/components/shared/PatientInfoCard";
 import { PastRecordHistoryPanel } from "@/components/shared/PastRecordHistoryPanel";
-import { SubmitButton } from "@/components/shared/Form/SubmitButton";
+import { FormHeaderActions } from "@/components/shared/Form/FormHeaderActions";
+import { NextScheduleField } from "@/components/shared/NextScheduleField";
 import { DatePicker } from "@/components/shared/DatePicker/DatePicker";
 import { FormFieldError } from "@/components/shared/FormFieldError/FormFieldError";
 import { LoadingFallback } from "@/components/shared/DataStates";
@@ -19,6 +20,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { paths } from "@/config/paths";
 import { toJSTWallDate } from "@/lib/jst-date";
+import { formatDate } from "@/lib/format/date";
 import { useGetAllCheckupTypes } from "@/hooks/use-treatment-master";
 import { useGetStaffs } from "@/hooks/use-staffs";
 import { usePermission } from "@/hooks/use-permission";
@@ -46,6 +48,7 @@ export function CheckupForm() {
     setFieldValue,
     setCheckupTypeId,
     setDate,
+    setNextScheduleType,
     setNextDate,
     setDoctorId,
     setResult,
@@ -90,12 +93,11 @@ export function CheckupForm() {
         onBack={handleBack}
         maxWidth={LAYOUT.pageContentMaxWidth.form}
         headerAction={
-          <SubmitButton
-            className="px-6 h-10 text-sm"
-            disabled={isPending || !canSubmit}
-          >
-            {isPending ? "保存中..." : "保存"}
-          </SubmitButton>
+          <FormHeaderActions
+            onCancel={handleBack}
+            submitLabel={isPending ? "保存中..." : "保存"}
+            submitDisabled={isPending || !canSubmit}
+          />
         }
       >
         {pet ? (
@@ -112,6 +114,7 @@ export function CheckupForm() {
             insuranceName={pet.insuranceName}
             insuranceDetails={pet.insuranceDetails}
             staffName={doctorName}
+            nextVisitDate={form.nextDate ? formatDate(form.nextDate) : undefined}
             status={pet.status === "死亡" ? "deceased" : "alive"}
           />
         ) : null}
@@ -121,7 +124,7 @@ export function CheckupForm() {
           aria-label="定期健診入力"
           disabled={!canSubmit}
           className={`lg:col-span-3 ${C.bgWhite} p-6 rounded-lg border ${C.borderLight} space-y-6 min-w-0`}
-        )
+        >
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* 実施日 */}
             <div className="space-y-2">
@@ -155,15 +158,14 @@ export function CheckupForm() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* 次回予定日 */}
-            <div className="space-y-2">
-              <Label htmlFor="checkup-next-date">次回の予定</Label>
-              <DatePicker
-                id="checkup-next-date"
-                value={form.nextDate}
-                onChange={setNextDate}
-              />
-            </div>
+            <NextScheduleField
+              typeId="checkup-next-schedule"
+              dateId="checkup-next-date"
+              scheduleType={form.nextScheduleType}
+              nextDate={form.nextDate}
+              onScheduleTypeChange={setNextScheduleType}
+              onNextDateChange={setNextDate}
+            />
 
             {/* 担当医 */}
             <div className="space-y-2">

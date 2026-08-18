@@ -2,6 +2,7 @@ import { HistoryFilterPanel } from "@/components/shared/HistoryFilterPanel";
 import { MasterLink } from "@/components/shared/MasterLink";
 import { FormFieldError } from "@/components/shared/FormFieldError/FormFieldError";
 import { DatePicker } from "@/components/shared/DatePicker/DatePicker";
+import { NextScheduleField } from "@/components/shared/NextScheduleField";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -11,17 +12,6 @@ import { toJSTWallDate } from "@/lib/jst-date";
 import type { SortOrder } from "@/types";
 import type { VaccinationRecord } from "../api/transforms";
 import { VaccinationCard } from "./VaccinationCard";
-
-// BUG-005: API/DB enum は "other"（model.NextScheduleTypeOther）。旧 "custom" は無効値で
-// 保存失敗 or セレクタ非表示になり、手動相当 type を選べない/再表示できない。
-const NEXT_SCHEDULE_ITEMS = (
-  <>
-    <SelectItem value="3weeks">3週後</SelectItem>
-    <SelectItem value="4weeks">4週後</SelectItem>
-    <SelectItem value="1year">1年後</SelectItem>
-    <SelectItem value="other">以外（手動）</SelectItem>
-  </>
-);
 
 interface VaccineOption {
   value: string;
@@ -162,34 +152,22 @@ export function VaccinationFieldsPanel({
           </div>
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="vaccination-next-schedule">次回の予定</Label>
-          <div className="flex gap-3 items-center flex-wrap">
-            <Select
-              value={nextScheduleType}
-              onValueChange={(value) => {
-                onMarkDirty();
-                onNextScheduleTypeChange(value);
-              }}
-            >
-              <SelectTrigger id="vaccination-next-schedule" className="w-[130px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>{NEXT_SCHEDULE_ITEMS}</SelectContent>
-            </Select>
-            <Label htmlFor="vaccination-next-date" className="sr-only">次回接種予定日</Label>
-            <DatePicker
-              id="vaccination-next-date"
-              value={nextDate}
-              onChange={(value) => {
-                onMarkDirty();
-                onNextDateChange(value);
-              }}
-              className="flex-1 min-w-[160px]"
-            />
-          </div>
-          <FormFieldError message={fieldErrors.nextDate} />
-        </div>
+        <NextScheduleField
+          typeId="vaccination-next-schedule"
+          dateId="vaccination-next-date"
+          scheduleType={nextScheduleType}
+          nextDate={nextDate}
+          dateAriaLabel="次回接種予定日"
+          error={fieldErrors.nextDate}
+          onScheduleTypeChange={(value) => {
+            onMarkDirty();
+            onNextScheduleTypeChange(value);
+          }}
+          onNextDateChange={(value) => {
+            onMarkDirty();
+            onNextDateChange(value);
+          }}
+        />
 
         <div className="space-y-2">
           <Label htmlFor="vaccination-remarks">備考</Label>

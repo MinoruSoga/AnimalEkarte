@@ -1,5 +1,6 @@
 import { AlertTriangle, EyeOff, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { FormHeaderActions } from "@/components/shared/Form/FormHeaderActions";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { C, ICON, Z_CLASS } from "@/lib/design-tokens";
@@ -20,6 +21,8 @@ interface AccountingHeaderActionsProps {
   onPrint: () => void;
   onCancelClick: () => void;
   onDismiss?: () => void;
+  submitLabel?: string;
+  submitDisabled?: boolean;
 }
 
 export function AccountingHeaderActions({
@@ -29,12 +32,16 @@ export function AccountingHeaderActions({
   onPrint,
   onCancelClick,
   onDismiss,
+  submitLabel,
+  submitDisabled,
 }: AccountingHeaderActionsProps) {
   if (status !== "completed") {
     return onDismiss ? (
-      <Button type="button" variant="outline" size="sm" onClick={onDismiss}>
-        キャンセル
-      </Button>
+      <FormHeaderActions
+        onCancel={onDismiss}
+        submitLabel={submitLabel}
+        submitDisabled={submitDisabled}
+      />
     ) : undefined;
   }
 

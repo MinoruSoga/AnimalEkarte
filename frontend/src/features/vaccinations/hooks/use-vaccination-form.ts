@@ -1,8 +1,8 @@
 import { useState, useEffect, useLayoutEffect, useCallback, useMemo, useActionState, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router";
-import { addWeeks, addYears, format } from "date-fns";
 import { toast } from "sonner";
 import { handleApiError } from "@/lib/handle-api-error";
+import { calculateNextDate as calculateSharedNextDate, resolveScheduleTypeAfterManualDate } from "@/components/shared/NextScheduleField";
 import { jstDateStartISOString, todayJSTISO } from "@/lib/jst-date";
 import { paths } from "@/config/paths";
 import { usePetSelection } from "@/hooks/use-pet-selection";
@@ -82,21 +82,8 @@ const DEFAULT_FORM: VaccinationFormState = {
   remarks: "",
 };
 
-// BUG-026: calculate next date based on vaccination date and schedule type
 export function calculateNextDate(vaccinationDate: string, scheduleType: string): string {
-  if (!vaccinationDate || scheduleType === "other") return "";
-  const date = new Date(vaccinationDate + "T00:00:00");
-  if (isNaN(date.getTime())) return "";
-  switch (scheduleType) {
-    case "3weeks":
-      return format(addWeeks(date, 3), "yyyy-MM-dd");
-    case "4weeks":
-      return format(addWeeks(date, 4), "yyyy-MM-dd");
-    case "1year":
-      return format(addYears(date, 1), "yyyy-MM-dd");
-    default:
-      return "";
-  }
+  return calculateSharedNextDate(vaccinationDate, scheduleType);
 }
 
 export function useVaccinationForm(
@@ -404,13 +391,11 @@ export function useVaccinationForm(
       const vaccinationDate = prev.date ?? base.date;
       const currentType =
         prev.nextScheduleType ?? base.nextScheduleType ?? DEFAULT_NEXT_SCHEDULE_TYPE;
-      if (currentType !== "other" && vaccinationDate && v) {
-        const calculated = calculateNextDate(vaccinationDate, currentType);
-        if (calculated && calculated === v) {
-          return { ...prev, nextDate: v };
-        }
-      }
-      return { ...prev, nextDate: v, nextScheduleType: "other" };
+      return {
+        ...prev,
+        nextDate: v,
+        nextScheduleType: resolveScheduleTypeAfterManualDate(vaccinationDate, currentType, v),
+      };
     });
   }, []);
   const setRemarks = useCallback((v: string) => setField("remarks", v), [setField]);

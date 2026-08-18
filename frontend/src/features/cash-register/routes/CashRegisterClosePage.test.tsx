@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import { MemoryRouter } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CashRegisterClosePage } from "./CashRegisterClosePage";
 import type { ClosePreviewResult } from "../api/get-cash-register-preview";
@@ -50,7 +51,11 @@ describe("CashRegisterClosePage", () => {
   });
 
   it("プレビュー Primary CTA は DESIGN.md の pill 形状を使う", () => {
-    render(<CashRegisterClosePage />);
+    render(
+      <MemoryRouter>
+        <CashRegisterClosePage />
+      </MemoryRouter>,
+    );
 
     const previewButton = screen.getByRole("button", { name: "プレビュー" });
     expect(previewButton).toHaveClass("rounded-full");
@@ -77,7 +82,11 @@ describe("CashRegisterClosePage", () => {
       billingDetails: [],
     };
 
-    render(<CashRegisterClosePage />);
+    render(
+      <MemoryRouter>
+        <CashRegisterClosePage />
+      </MemoryRouter>,
+    );
 
     expect(screen.getByTestId("close-print-button")).toHaveClass("min-h-11");
   });

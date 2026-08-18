@@ -42,7 +42,7 @@ describe("VaccinationForm responsive layout", () => {
     const lotGrid = screen.getByText("LOT1").closest('[class*="grid-cols"]');
     const formColumn = container.firstElementChild;
 
-    expect(formColumn).toHaveClass("col-span-1", "lg:col-span-6");
+    expect(formColumn).toHaveClass("col-span-1", "lg:col-span-3");
     expect(formColumn).not.toHaveClass("col-span-6");
 
     for (const grid of [basicInfoGrid, lotGrid]) {

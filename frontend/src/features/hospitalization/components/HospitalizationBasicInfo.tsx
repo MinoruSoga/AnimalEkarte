@@ -13,6 +13,7 @@ import { DatePicker } from "@/components/shared/DatePicker/DatePicker";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { FormFieldError } from "@/components/shared/FormFieldError";
+import { NextScheduleField, calculateNextDate } from "@/components/shared/NextScheduleField";
 
 // Relative
 import { H_STYLES } from "../styles";
@@ -173,6 +174,18 @@ export const HospitalizationBasicInfo = memo(function HospitalizationBasicInfo({
           </div>
         ) : null}
       </div>
+
+      <NextScheduleField
+        typeId="hospitalization-next-schedule"
+        dateId="hospitalization-next-date"
+        scheduleType={formData.nextVisit ? "other" : "4weeks"}
+        nextDate={formData.nextVisit}
+        onScheduleTypeChange={(value) => {
+          const calculated = calculateNextDate(formData.displayDate, value);
+          onChange({ nextVisit: calculated || formData.nextVisit });
+        }}
+        onNextDateChange={(value) => onChange({ nextVisit: value })}
+      />
 
       {/* メモ */}
       <div>

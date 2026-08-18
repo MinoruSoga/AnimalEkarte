@@ -366,9 +366,11 @@ describe("AccountingDetail — C: 混在支払い UI / payment_splits", () => {
 
   it("デフォルト状態（未入力）→ 「会計を確定する」ボタンが disabled", async () => {
     await renderWaitingAndWait();
-    expect(
-      screen.getByRole("button", { name: /会計を確定する/ })
-    ).toBeDisabled();
+    const submitButtons = screen.getAllByRole("button", { name: /会計を確定する/ });
+    expect(submitButtons.length).toBeGreaterThanOrEqual(1);
+    for (const button of submitButtons) {
+      expect(button).toBeDisabled();
+    }
   });
 
   it.skip("amount=1100 / received=1100 入力後 submit → payment_splits を含む payload が送信される", async () => {
@@ -680,6 +682,8 @@ describe("AccountingDetail — BUG-001: 死亡ペット新規会計ガード", (
       expect(screen.queryByText("死亡したペットは会計を作成できません")).not.toBeInTheDocument();
       expect(document.querySelector("fieldset")).not.toBeDisabled();
     });
-    expect(screen.getByRole("button", { name: "会計を確定する" })).toBeEnabled();
+    const submitButtons = screen.getAllByRole("button", { name: "会計を確定する" });
+    expect(submitButtons.length).toBeGreaterThanOrEqual(1);
+    expect(submitButtons.some((button) => !button.hasAttribute("disabled"))).toBe(true);
   });
 });

@@ -42,6 +42,8 @@ const defaultFormData: TrimmingFormData = {
   staffId: "",
   staffName: "",
   initialStatus: "in_consultation",
+  nextScheduleType: "4weeks",
+  nextDate: "",
 };
 
 export function useTrimmingForm(id?: string) {

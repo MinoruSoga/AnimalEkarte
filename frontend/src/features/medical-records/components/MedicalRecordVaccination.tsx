@@ -10,6 +10,9 @@ import { C, PALETTE } from "@/lib/design-tokens";
 // Relative
 import { useGetPetVaccinations } from "../api/get-pet-vaccinations";
 import type { PetVaccinationHistoryItem } from "../api/get-pet-vaccinations";
+import { EmptyState } from "@/components/shared/DataStates";
+import { calculateNextDate, resolveScheduleTypeAfterManualDate } from "@/components/shared/NextScheduleField";
+import { Button } from "@/components/ui/button";
 import { VaccinationForm } from "./VaccinationForm";
 import { VaccinationHistory } from "./VaccinationHistory";
 
@@ -59,6 +62,7 @@ export const MedicalRecordVaccination = memo(function MedicalRecordVaccination({
   const [nextScheduleType, setNextScheduleType] = useState("4weeks");
   const [nextDate, setNextDate] = useState("");
   const [remarks, setRemarks] = useState("");
+  const [isAdding, setIsAdding] = useState(false);
   // BUG-015: 未選択のまま追加すると early return で無音失敗していた → 明示 fieldErrors
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
@@ -97,12 +101,25 @@ export const MedicalRecordVaccination = memo(function MedicalRecordVaccination({
 
   const handleDateChange = useCallback((value: string) => {
     setDate(value);
+    const calculated = calculateNextDate(value, nextScheduleType);
+    if (calculated) setNextDate(calculated);
     setFieldErrors((prev) => {
       if (!prev.date) return prev;
       const { date: _removed, ...rest } = prev;
       return rest;
     });
-  }, []);
+  }, [nextScheduleType]);
+
+  const handleNextScheduleTypeChange = useCallback((value: string) => {
+    setNextScheduleType(value);
+    const calculated = calculateNextDate(date, value);
+    if (calculated) setNextDate(calculated);
+  }, [date]);
+
+  const handleNextDateChange = useCallback((value: string) => {
+    setNextDate(value);
+    setNextScheduleType(resolveScheduleTypeAfterManualDate(date, nextScheduleType, value));
+  }, [date, nextScheduleType]);
 
   const handleSave = useCallback(() => {
     // 独立フォーム (use-vaccination-form) と同じ必須文言。未選択は API を叩かない。
@@ -147,6 +164,7 @@ export const MedicalRecordVaccination = memo(function MedicalRecordVaccination({
         setNextDate("");
         setRemarks("");
         setFieldErrors({});
+        setIsAdding(false);
       } catch (err) {
         handleApiError(err, "予防接種の登録");
       }
@@ -160,36 +178,47 @@ export const MedicalRecordVaccination = memo(function MedicalRecordVaccination({
           <LstepStatusBadge status={lstepStatus} />
         </div>
       ) : null}
-    <div className="grid grid-cols-1 gap-4 h-[calc(100vh-220px)] min-h-[500px] overflow-y-auto pb-20 pr-1 lg:grid-cols-12">
-      {/* Left Column: Form */}
-      <VaccinationForm
-        vaccineOptions={vaccineOptions}
-        vaccineName={vaccineName}
-        setVaccineName={handleVaccineNameChange}
-        date={date}
-        setDate={handleDateChange}
-        supplemental={supplemental}
-        setSupplemental={setSupplemental}
-        lot1={lot1}
-        setLot1={setLot1}
-        lot2={lot2}
-        setLot2={setLot2}
-        lot3={lot3}
-        setLot3={setLot3}
-        lot4={lot4}
-        setLot4={setLot4}
-        nextScheduleType={nextScheduleType}
-        setNextScheduleType={setNextScheduleType}
-        nextDate={nextDate}
-        setNextDate={setNextDate}
-        remarks={remarks}
-        setRemarks={setRemarks}
-        fieldErrors={fieldErrors}
-        onSave={handleSave}
-        isSaving={isSaving}
-      />
+    <div className="grid grid-cols-1 gap-4 h-[calc(100vh-220px)] min-h-[500px] overflow-y-auto pb-20 pr-1 lg:grid-cols-5">
+      {isAdding ? (
+        <VaccinationForm
+          vaccineOptions={vaccineOptions}
+          vaccineName={vaccineName}
+          setVaccineName={handleVaccineNameChange}
+          date={date}
+          setDate={handleDateChange}
+          supplemental={supplemental}
+          setSupplemental={setSupplemental}
+          lot1={lot1}
+          setLot1={setLot1}
+          lot2={lot2}
+          setLot2={setLot2}
+          lot3={lot3}
+          setLot3={setLot3}
+          lot4={lot4}
+          setLot4={setLot4}
+          nextScheduleType={nextScheduleType}
+          setNextScheduleType={handleNextScheduleTypeChange}
+          nextDate={nextDate}
+          setNextDate={handleNextDateChange}
+          remarks={remarks}
+          setRemarks={setRemarks}
+          fieldErrors={fieldErrors}
+          onSave={handleSave}
+          isSaving={isSaving}
+        />
+      ) : (
+        <EmptyState
+          className="lg:col-span-3"
+          message="接種記録がありません。下の「記録を追加」ボタンから追加してください。"
+        >
+          {petId ? (
+            <Button type="button" variant="outline" size="sm" onClick={() => setIsAdding(true)}>
+              記録を追加
+            </Button>
+          ) : null}
+        </EmptyState>
+      )}
 
-      {/* Right Column: History */}
       <VaccinationHistory
         historyItems={historyItems}
         isLoading={isLoading}

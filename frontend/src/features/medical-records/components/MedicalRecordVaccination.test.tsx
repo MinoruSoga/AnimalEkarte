@@ -62,12 +62,17 @@ beforeEach(() => {
   mockCreateVaccination.mockResolvedValue({});
 });
 
+function openAddForm() {
+  fireEvent.click(screen.getByRole("button", { name: "記録を追加" }));
+}
+
 describe("MedicalRecordVaccination responsive layout", () => {
-  it("mobileではform/historyを縦積みし、lg以上で既存の12列gridに戻る", () => {
+  it("mobileではform/historyを縦積みし、lg以上で5列gridに戻る", () => {
     render(<MedicalRecordVaccination petId="1" />);
 
+    openAddForm();
     const layout = screen.getByTestId("vaccination-form").parentElement;
-    expect(layout).toHaveClass("grid-cols-1", "lg:grid-cols-12");
+    expect(layout).toHaveClass("grid-cols-1", "lg:grid-cols-5");
     expect(layout).not.toHaveClass("grid-cols-12");
     expect(screen.getByTestId("vaccination-history").parentElement).toBe(layout);
   });
@@ -76,6 +81,7 @@ describe("MedicalRecordVaccination responsive layout", () => {
 describe("MedicalRecordVaccination vaccination payload", () => {
   it("embedded 保存 payload に supplemental と next_schedule_type を含める（サイレント消失防止）", async () => {
     render(<MedicalRecordVaccination petId="1" />);
+    openAddForm();
 
     fireEvent.change(screen.getByLabelText("ワクチンID"), { target: { value: "7" } });
     fireEvent.change(screen.getByLabelText("接種日"), { target: { value: "2026-07-20" } });
@@ -97,6 +103,7 @@ describe("MedicalRecordVaccination vaccination payload", () => {
 describe("MedicalRecordVaccination BUG-015 required validation", () => {
   it("ワクチン未選択のまま追加すると明示エラーを出し API を呼ばない", async () => {
     render(<MedicalRecordVaccination petId="1" />);
+    openAddForm();
 
     fireEvent.change(screen.getByLabelText("接種日"), { target: { value: "2026-07-20" } });
     fireEvent.click(screen.getByRole("button", { name: "保存" }));
@@ -109,6 +116,7 @@ describe("MedicalRecordVaccination BUG-015 required validation", () => {
 
   it("接種日未入力のまま追加すると明示エラーを出し API を呼ばない", async () => {
     render(<MedicalRecordVaccination petId="1" />);
+    openAddForm();
 
     fireEvent.change(screen.getByLabelText("ワクチンID"), { target: { value: "7" } });
     fireEvent.click(screen.getByRole("button", { name: "保存" }));
@@ -119,6 +127,7 @@ describe("MedicalRecordVaccination BUG-015 required validation", () => {
 
   it("ワクチンと接種日を選択すると create が呼ばれ成功する", async () => {
     render(<MedicalRecordVaccination petId="1" />);
+    openAddForm();
 
     fireEvent.change(screen.getByLabelText("ワクチンID"), { target: { value: "7" } });
     fireEvent.change(screen.getByLabelText("接種日"), { target: { value: "2026-07-20" } });

@@ -122,4 +122,6 @@ export interface TrimmingFormData {
   staffName: string;
   /** #233: カルテ画面から直接新規作成する場合のみ選択可能な登録時ステータス。デフォルトは in_consultation。 */
   initialStatus: "in_consultation" | "pending";
+  nextScheduleType: string;
+  nextDate: string;
 }

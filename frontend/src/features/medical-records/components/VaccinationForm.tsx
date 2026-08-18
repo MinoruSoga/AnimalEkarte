@@ -7,10 +7,10 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { SearchableSelect } from "@/components/ui/searchable-select";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DatePicker } from "@/components/shared/DatePicker";
 import { FormFieldError } from "@/components/shared/FormFieldError";
 import { MasterLink } from "@/components/shared/MasterLink";
+import { NextScheduleField } from "@/components/shared/NextScheduleField";
 import { C } from "@/lib/design-tokens";
 
 interface VaccineOption {
@@ -73,7 +73,7 @@ export const VaccinationForm = memo(function VaccinationForm({
   isSaving,
 }: VaccinationFormProps) {
   return (
-    <div className="col-span-1 flex flex-col gap-4 lg:col-span-6">
+    <div className="col-span-1 flex flex-col gap-4 lg:col-span-3">
       {/* Row 1: Name and Date */}
       <div className="grid w-full grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="flex flex-col gap-1.5">
@@ -157,25 +157,15 @@ export const VaccinationForm = memo(function VaccinationForm({
         </div>
       </div>
 
-      <div className="flex flex-col gap-1.5">
-        <Label htmlFor="mr-vaccination-next-schedule" className={`text-sm font-medium ${C.text60}`}>
-          次回の予定
-        </Label>
-        <div className="flex flex-wrap items-center gap-3">
-          <Select value={nextScheduleType} onValueChange={setNextScheduleType}>
-            <SelectTrigger id="mr-vaccination-next-schedule" className="w-[130px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="3weeks">3週後</SelectItem>
-              <SelectItem value="4weeks">4週後</SelectItem>
-              <SelectItem value="1year">1年後</SelectItem>
-              <SelectItem value="other">以外（手動）</SelectItem>
-            </SelectContent>
-          </Select>
-          <DatePicker value={nextDate} onChange={setNextDate} className="min-w-[160px] flex-1" />
-        </div>
-      </div>
+      <NextScheduleField
+        typeId="mr-vaccination-next-schedule"
+        dateId="mr-vaccination-next-date"
+        scheduleType={nextScheduleType}
+        nextDate={nextDate}
+        onScheduleTypeChange={setNextScheduleType}
+        onNextDateChange={setNextDate}
+        dateAriaLabel="次回接種予定日"
+      />
 
       {/* Remarks */}
       <div className="flex flex-col gap-1.5 flex-1 min-h-0">

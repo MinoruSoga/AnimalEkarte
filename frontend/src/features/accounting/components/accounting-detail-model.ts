@@ -34,6 +34,21 @@ export function getCorrectableCardPayments(accounting: Accounting | null): Corre
   return [];
 }
 
+export function isPaymentSubmitDisabled(
+  billingAmount: number,
+  paymentSplits: PaymentSplitDraft[],
+): boolean {
+  const splitTotal = paymentSplits.reduce((sum, s) => sum + parseInt(s.amount || "0", 10), 0);
+  if (billingAmount - splitTotal !== 0) return true;
+  return paymentSplits.some((s) => {
+    if (!s.amount || parseInt(s.amount, 10) <= 0) return true;
+    if (s.method === "cash") {
+      return parseInt(s.receivedAmount || "0", 10) < parseInt(s.amount, 10);
+    }
+    return false;
+  });
+}
+
 export interface AccountingFormState {
   success: boolean;
   timestamp: number;

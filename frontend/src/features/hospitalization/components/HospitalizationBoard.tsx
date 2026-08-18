@@ -1,5 +1,6 @@
 // React/Framework
 import { C, ICON } from "@/lib/design-tokens";
+import { formatDate } from "@/lib/format/date";
 import { memo, useCallback, useMemo } from "react";
 
 // External
@@ -99,14 +100,32 @@ const CageCard = memo(function CageCard({ cage, occupant, onNavigateToForm, canC
                 <CardContent className={`${H_STYLES.padding.card} flex-1 flex flex-col justify-center items-start text-left`}>
                   {occupant ? (
                     <>
+                      {occupant.startDate ? (
+                        <div className={`text-xs font-mono ${C.text60} w-full`}>
+                          {formatDate(occupant.startDate)}
+                        </div>
+                      ) : null}
                       <div className={`font-bold ${C.text} ${H_STYLES.text.sm} truncate w-full`} title={occupant.ownerName}>
                           {occupant.ownerName}
                       </div>
-                      <div className={`${H_STYLES.text.sm} ${C.text} truncate w-full mb-2`}>
+                      <div className={`${H_STYLES.text.sm} ${C.text} truncate w-full`}>
                           {[occupant.species, occupant.petName].filter(Boolean).join(" ")}
                       </div>
                       {isDeceased ? (
                         <span className={`text-xs ${C.text40} font-medium`}>死亡</span>
+                      ) : null}
+                      {canOpenCard ? (
+                        <button
+                          type="button"
+                          aria-label={`${occupant.petName}の詳細`}
+                          className={`mt-2 flex min-h-11 items-center justify-center gap-1 text-2xs ${C.textBrand} ${C.bgBrandLight30} border ${C.borderBrandLight} rounded px-1.5 ${C.hoverBgBrandLight60} transition-colors`}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            onNavigateToForm(occupant.id);
+                          }}
+                        >
+                          詳細
+                        </button>
                       ) : null}
                     </>
                   ) : (
