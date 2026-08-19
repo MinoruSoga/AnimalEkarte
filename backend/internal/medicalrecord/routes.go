@@ -54,9 +54,9 @@ type Handler struct {
 	treatmentPlan         *TreatmentPlanHandler
 	medicalRecord         *MedicalRecordHandler
 	medicalRecordAddendum *MedicalRecordAddendumHandler
-	examination             *ExaminationHandler
-	checkupPackageImport    *CheckupPackageImportHandler
-	requirePermission       PermissionMiddleware
+	examination           *ExaminationHandler
+	checkupPackageImport  *CheckupPackageImportHandler
+	requirePermission     PermissionMiddleware
 }
 
 // NewHandler initializes a Handler.
@@ -381,6 +381,23 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	checkupPackageImports.POST("/preview", perm(model.ResourceCheckupPackageImport, "create"), h.checkupPackageImport.PreviewCheckupPackageImport)
 	checkupPackageImports.POST("", perm(model.ResourceCheckupPackageImport, "create"), h.checkupPackageImport.ApplyCheckupPackageImport)
 
+	// BRT-96: device item master (setup only; not on the daily send path).
+	// source_type is varchar allowlist, not lab_import_source_type enum (F9).
+	labDeviceMasters := rg.Group("/lab-device-item-masters")
+	labDeviceMasters.GET("", perm(model.ResourceLabImport, "view"), h.labImport.ListLabDeviceItemMasters)
+	labDeviceMasters.POST("/ensure", perm(model.ResourceLabImport, "edit"), h.labImport.EnsureLabDeviceItemMasters)
+	labDeviceMasters.PATCH("/:id", perm(model.ResourceLabImport, "edit"), h.labImport.UpdateLabDeviceItemMaster)
+
+	// BRT-97: receive board / wait / frames. exam persist is BRT-98.
+	labDevice := rg.Group("/lab-device")
+	labDevice.POST("/frames", perm(model.ResourceLabImport, "create"), h.labImport.ReceiveLabDeviceFrames)
+	labDevice.PUT("/wait", perm(model.ResourceLabImport, "create"), h.labImport.PutLabDeviceWait)
+	labDevice.DELETE("/wait", perm(model.ResourceLabImport, "create"), h.labImport.DeleteLabDeviceWait)
+	labDevice.GET("/board", perm(model.ResourceLabImport, "create"), h.labImport.GetLabDeviceBoard)
+	labDevice.GET("/unlinked", perm(model.ResourceLabImport, "view"), h.labImport.GetLabDeviceUnlinked)
+	labDevice.GET("/station", perm(model.ResourceLabImport, "view"), h.labImport.GetLabDeviceStation)
+	labDevice.PUT("/station", perm(model.ResourceLabImport, "edit"), h.labImport.PutLabDeviceStation)
+
 	// Lab import saga (BE9-2D sub-batch③: moved from internal/handler lab_import_handler.go
 	// RegisterLabImportRoutes). All routes guard ResourceLabImport (preview/commit=create,
 	// job/events reads=view) — P5 parity.
@@ -391,6 +408,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	labImports.GET("/:job_id/events", perm(model.ResourceLabImport, "view"), h.labImport.ListLabImportEvents)
 	// TASK-032: compensating revert is a dedicated endpoint under lab-import:edit (not examination unconfirm).
 	labImports.POST("/:job_id/revert", perm(model.ResourceLabImport, "edit"), h.labImport.RevertLabImport)
+	labImports.POST("/:job_id/attach", perm(model.ResourceLabImport, "edit"), h.labImport.AttachLabDeviceJob)
+	labImports.POST("/:job_id/detach", perm(model.ResourceLabImport, "edit"), h.labImport.DetachLabDeviceJob)
 
 	// Lab report read-only queries (BE9-2D sub-batch③: moved from lab_report_handler.go
 	// RegisterLabReportRoutes). Both reads guard ResourceLabImport "view" — NOT a separate

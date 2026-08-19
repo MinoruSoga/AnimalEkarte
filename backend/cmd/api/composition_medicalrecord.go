@@ -93,7 +93,9 @@ func (c medicalRecordComposition) newHandler(
 		medicalrecord.NewPrescriptionHandler(s.preventive.prescriptions),
 		medicalrecord.NewInquiryHandler(s.preventive.inquiries),
 		medicalrecord.NewInquiryTemplateHandler(s.reference.inquiryTemplates),
-		medicalrecord.NewLabImportHandler(s.lab.resultImport, s.lab.jobs, s.lab.audit, s.lab.revert),
+		medicalrecord.NewLabImportHandler(s.lab.resultImport, s.lab.jobs, s.lab.audit, s.lab.revert).
+			WithDeviceMasters(s.lab.deviceMasters).
+			WithDeviceReceive(s.lab.deviceReceive),
 		medicalrecord.NewLabReportHandler(s.lab.reports),
 		medicalrecord.NewVitalHandler(s.clinical.vitals, s.core.medicalRecords),
 		medicalrecord.NewClinicalPlanHandler(s.clinical.plans),

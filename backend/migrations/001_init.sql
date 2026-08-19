@@ -3215,9 +3215,10 @@ SELECT app_private.apply_rls_policy(
 --   failed → received
 --
 -- Source types (lab_import_source_type):
---   fixture  : テスト・開発用フィクスチャ入力 (Phase 0 で使用可能)
---   drwan    : Dr.Wan MDB アダプタ (Phase BLOCKED — MDB スキーマ未確認)
---   manual   : 手動 CSV/JSON アップロード (Phase 2+ 予定)
+--   fixture        : テスト・開発用フィクスチャ入力 (Phase 0 で使用可能)
+--   drwan          : Dr.Wan MDB アダプタ (製品経路では開けない)
+--   manual         : 手動 CSV/JSON アップロード (Phase 2+ 予定)
+--   fuji_nx600 / fuji_au10v / arkray_pu4010 : 城東3台（ADR-007。fresh 001 に含む）
 
 -- ------------------------------------
 -- ENUM types
@@ -3236,7 +3237,10 @@ CREATE TYPE lab_import_job_status AS ENUM (
 CREATE TYPE lab_import_source_type AS ENUM (
     'fixture',
     'drwan',
-    'manual'
+    'manual',
+    'fuji_nx600',
+    'fuji_au10v',
+    'arkray_pu4010'
 );
 
 -- ------------------------------------
@@ -5572,6 +5576,187 @@ ALTER TABLE cash_register_close_adjustments
 SELECT app_private.apply_rls_policy(
     'cash_register_close_adjustments',
     'tenant_cash_register_close_adjustments_isolation',
+    'app_private.has_clinic_access(clinic_id)',
+    'app_private.has_clinic_access(clinic_id)'
+);
+
+-- =============================================================================
+-- 13. 増分マイグレーション統合 (003 / 004 / 005 / 006 / 2026-08-19)
+-- =============================================================================
+-- 本番運用前の DB リセット前提で独立ファイルを 001 へ畳み込む。
+-- 005 の ADD VALUE は CREATE TYPE へ取り込んだためここでは繰り返さない。
+-- Source SHA-256:
+--   003_add_estimates_pet_id.sql          94795f5b76fef336e18fed758527ececd126c23df44ade31f386c227595d9604
+--   004_lab_device_item_masters.sql       5db554b103c787d20fc9181fcbff593a72468003400517d7ddb0133201586abf
+--   005_lab_import_source_type_device.sql 82c2bb2cf268fa42f47a00a07c520c6fdc56c32d4ed25b3522ef0ee5667e0145
+--   006_lab_device_receive.sql            1254627bf033fa57602b14d2958f4e7ce185894fb13c4cec196d8f892fc66349
+
+-- Source file: 003_add_estimates_pet_id.sql
+-- Purpose: BUG-009 見積 pet_id。CREATE TABLE 途中へ畳み込むと seed COPY の列順が崩れる。
+-- estimates.csv は supersedes_estimate_id の後ろに pet_id がある（SELECT * 順）。
+ALTER TABLE estimates
+  ADD COLUMN IF NOT EXISTS pet_id bigint REFERENCES pets(id) ON DELETE SET NULL;
+
+CREATE INDEX IF NOT EXISTS idx_estimates_clinic_pet
+  ON estimates (clinic_id, pet_id)
+  WHERE pet_id IS NOT NULL AND deleted_at IS NULL;
+
+COMMENT ON COLUMN estimates.pet_id IS
+    'BUG-009: /estimates/new?petId= の永続紐付け。clinic 所有は service で検証する';
+
+-- Source file: 004_lab_device_item_masters.sql
+CREATE TABLE lab_device_item_masters (
+    id                  bigserial       PRIMARY KEY,
+    clinic_id           bigint          NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    source_type         varchar(32)     NOT NULL,
+    device_item_code    varchar(64)     NOT NULL,
+    display_name        varchar(100)    NOT NULL,
+    unit                varchar(32)     NOT NULL DEFAULT '',
+    value_shape         varchar(32)     NOT NULL,
+    exam_type_field_id  bigint,
+    sort_order          integer         NOT NULL DEFAULT 0,
+    is_active           boolean         NOT NULL DEFAULT true,
+    created_at          timestamptz     NOT NULL DEFAULT now(),
+    updated_at          timestamptz     NOT NULL DEFAULT now(),
+    CONSTRAINT chk_lab_device_item_masters_source_type
+        CHECK (source_type IN ('fuji_nx600', 'fuji_au10v', 'arkray_pu4010')),
+    CONSTRAINT chk_lab_device_item_masters_value_shape
+        CHECK (value_shape IN ('numeric', 'inequality', 'qual_and_num', 'dash', 'text')),
+    CONSTRAINT uq_lab_device_item_masters_clinic_source_code
+        UNIQUE (clinic_id, source_type, device_item_code)
+);
+
+ALTER TABLE lab_device_item_masters
+    ADD CONSTRAINT fk_lab_device_item_masters_field_clinic
+    FOREIGN KEY (exam_type_field_id, clinic_id)
+    REFERENCES exam_type_fields (id, clinic_id)
+    ON DELETE RESTRICT;
+
+CREATE INDEX idx_lab_device_item_masters_clinic_source
+    ON lab_device_item_masters (clinic_id, source_type, sort_order);
+
+COMMENT ON TABLE lab_device_item_masters IS
+    '検査機器コード→検査項目フィールド。初期25行は埋め込みカタログ。CSVアップロードは製品経路にしない';
+COMMENT ON COLUMN lab_device_item_masters.device_item_code IS
+    '電文コードそのもの。Na-P の -P を削らない';
+COMMENT ON COLUMN lab_device_item_masters.exam_type_field_id IS
+    '未設定なら persist しない（needs_review）';
+
+-- Source file: 006_lab_device_receive.sql
+ALTER TABLE lab_import_jobs
+    ADD COLUMN IF NOT EXISTS pet_id bigint,
+    ADD COLUMN IF NOT EXISTS measured_at timestamptz,
+    ADD COLUMN IF NOT EXISTS received_at timestamptz,
+    ADD COLUMN IF NOT EXISTS device_hint varchar(32) NOT NULL DEFAULT '',
+    ADD COLUMN IF NOT EXISTS specimen_id_raw varchar(64) NOT NULL DEFAULT '',
+    ADD COLUMN IF NOT EXISTS unmapped_item_count int NOT NULL DEFAULT 0;
+
+ALTER TABLE lab_import_jobs
+    ADD CONSTRAINT fk_lab_import_jobs_pet_clinic
+    FOREIGN KEY (clinic_id, pet_id)
+    REFERENCES pets (clinic_id, id)
+    ON DELETE RESTRICT;
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_lab_import_jobs_clinic_source_fingerprint
+    ON lab_import_jobs (clinic_id, source_type, source_fingerprint)
+    WHERE source_fingerprint <> '';
+
+CREATE INDEX IF NOT EXISTS idx_lab_import_jobs_clinic_unlinked
+    ON lab_import_jobs (clinic_id, received_at DESC)
+    WHERE pet_id IS NULL
+      AND source_type IN ('fuji_nx600', 'fuji_au10v', 'arkray_pu4010');
+
+COMMENT ON COLUMN lab_import_jobs.pet_id IS 'device 行のみ。未紐付けは NULL。検体IDでは埋めない';
+COMMENT ON COLUMN lab_import_jobs.measured_at IS '電文日時。検査日の正';
+COMMENT ON COLUMN lab_import_jobs.received_at IS 'デコード成功時刻。検査日にしない';
+COMMENT ON COLUMN lab_import_jobs.specimen_id_raw IS '表示専用。紐付けキーにしない。ログに出さない';
+
+CREATE TABLE lab_import_job_items (
+    id                  bigserial       PRIMARY KEY,
+    clinic_id           bigint          NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    job_id              uuid            NOT NULL,
+    device_item_code    varchar(64)     NOT NULL,
+    value_raw           varchar(64)     NOT NULL DEFAULT '',
+    unit                varchar(32)     NOT NULL DEFAULT '',
+    flag                varchar(32)     NOT NULL DEFAULT '',
+    exam_type_field_id  bigint,
+    needs_review        boolean         NOT NULL DEFAULT false,
+    sort_order          integer         NOT NULL DEFAULT 0,
+    created_at          timestamptz     NOT NULL DEFAULT now(),
+    CONSTRAINT fk_lab_import_job_items_job_clinic
+        FOREIGN KEY (clinic_id, job_id)
+        REFERENCES lab_import_jobs (clinic_id, id)
+        ON DELETE RESTRICT,
+    CONSTRAINT fk_lab_import_job_items_field_clinic
+        FOREIGN KEY (exam_type_field_id, clinic_id)
+        REFERENCES exam_type_fields (id, clinic_id)
+        ON DELETE RESTRICT
+);
+
+CREATE INDEX idx_lab_import_job_items_clinic_job
+    ON lab_import_job_items (clinic_id, job_id, sort_order);
+
+COMMENT ON TABLE lab_import_job_items IS '1受信フレームの項目。生バイトは持たない';
+COMMENT ON COLUMN lab_import_job_items.device_item_code IS '電文コードそのもの。Na-P の -P を削らない';
+
+CREATE TABLE lab_device_waits (
+    id          bigserial       PRIMARY KEY,
+    clinic_id   bigint          NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    pet_id      bigint          NOT NULL,
+    staff_id    bigint          NOT NULL,
+    expires_at  timestamptz     NOT NULL,
+    cleared_at  timestamptz,
+    created_at  timestamptz     NOT NULL DEFAULT now(),
+    updated_at  timestamptz     NOT NULL DEFAULT now(),
+    CONSTRAINT fk_lab_device_waits_pet_clinic
+        FOREIGN KEY (clinic_id, pet_id)
+        REFERENCES pets (clinic_id, id)
+        ON DELETE RESTRICT
+);
+
+CREATE UNIQUE INDEX uq_lab_device_waits_clinic_active
+    ON lab_device_waits (clinic_id)
+    WHERE cleared_at IS NULL;
+
+CREATE INDEX idx_lab_device_waits_clinic_expires
+    ON lab_device_waits (clinic_id, expires_at);
+
+COMMENT ON TABLE lab_device_waits IS '医院あたり有効待機は1件。期限切れは未紐付けへ落とす';
+
+CREATE TABLE lab_device_station_settings (
+    clinic_id           bigint          PRIMARY KEY REFERENCES clinics(id) ON DELETE RESTRICT,
+    wait_ttl_seconds    integer         NOT NULL DEFAULT 1800,
+    slots_json          jsonb           NOT NULL DEFAULT '[]'::jsonb,
+    created_at          timestamptz     NOT NULL DEFAULT now(),
+    updated_at          timestamptz     NOT NULL DEFAULT now(),
+    CONSTRAINT chk_lab_device_station_settings_ttl
+        CHECK (wait_ttl_seconds >= 60 AND wait_ttl_seconds <= 86400)
+);
+
+COMMENT ON TABLE lab_device_station_settings IS '待機TTLと論理スロット。clinic_settings には載せない';
+COMMENT ON COLUMN lab_device_station_settings.wait_ttl_seconds IS '製品KPIにしない。数値チューニングUIは作らない';
+
+SELECT app_private.apply_rls_policy(
+    'lab_device_item_masters'::regclass,
+    'tenant_clinic_id_isolation',
+    'app_private.has_clinic_access(clinic_id)',
+    'app_private.has_clinic_access(clinic_id)'
+);
+SELECT app_private.apply_rls_policy(
+    'lab_import_job_items'::regclass,
+    'tenant_clinic_id_isolation',
+    'app_private.has_clinic_access(clinic_id)',
+    'app_private.has_clinic_access(clinic_id)'
+);
+SELECT app_private.apply_rls_policy(
+    'lab_device_waits'::regclass,
+    'tenant_clinic_id_isolation',
+    'app_private.has_clinic_access(clinic_id)',
+    'app_private.has_clinic_access(clinic_id)'
+);
+SELECT app_private.apply_rls_policy(
+    'lab_device_station_settings'::regclass,
+    'tenant_clinic_id_isolation',
     'app_private.has_clinic_access(clinic_id)',
     'app_private.has_clinic_access(clinic_id)'
 );

@@ -115,3 +115,4 @@ BE9の構造移行後、production実装は`internal/<domain>`へ収束した。
 | Authentication/authorization | [auth.md](auth.md) |
 | Database schema | [erd.md](erd.md) and migrations |
 | Architecture decisions | [adr/](adr/README.md) |
+| 城東検査機器 受信/commit | [ADR-007](adr/007-lab-device-receive-and-commit.md) |

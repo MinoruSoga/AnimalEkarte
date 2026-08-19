@@ -83,6 +83,7 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		"DELETE /api/v1/hospitalizations/:id DeleteHospitalization\n" +
 		"DELETE /api/v1/hospitalizations/:id/care-plan-items/:itemId DeleteCarePlanItem\n" +
 		"DELETE /api/v1/hospitalizations/:id/treatment-plans/:planId DeleteTreatmentPlanInHospitalization\n" +
+		"DELETE /api/v1/lab-device/wait DeleteLabDeviceWait\n" +
 		"DELETE /api/v1/masters/cages/:id DeleteCage\n" +
 		"DELETE /api/v1/masters/checkup-types/:id DeleteCheckupType\n" +
 		"DELETE /api/v1/masters/chief-complaint-types/:id DeleteChiefComplaint\n" +
@@ -118,6 +119,10 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		"GET /api/v1/hospitalizations/:id/daily-records ListDailyRecords\n" +
 		"GET /api/v1/hospitalizations/:id/daily-records/:date GetDailyRecord\n" +
 		"GET /api/v1/hospitalizations/:id/treatment-plans ListTreatmentPlansByHospitalization\n" +
+		"GET /api/v1/lab-device-item-masters ListLabDeviceItemMasters\n" +
+		"GET /api/v1/lab-device/board GetLabDeviceBoard\n" +
+		"GET /api/v1/lab-device/station GetLabDeviceStation\n" +
+		"GET /api/v1/lab-device/unlinked GetLabDeviceUnlinked\n" +
 		"GET /api/v1/lab-imports/:job_id GetLabImportJob\n" +
 		"GET /api/v1/lab-imports/:job_id/events ListLabImportEvents\n" +
 		"GET /api/v1/lab-reports/exams/:exam_id GetLabExamReport\n" +
@@ -167,6 +172,7 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		"PATCH /api/v1/hospitalizations/:id UpdateHospitalization\n" +
 		"PATCH /api/v1/hospitalizations/:id/care-plan-items/:itemId UpdateCarePlanItem\n" +
 		"PATCH /api/v1/hospitalizations/:id/treatment-plans/:planId UpdateTreatmentPlanInHospitalization\n" +
+		"PATCH /api/v1/lab-device-item-masters/:id UpdateLabDeviceItemMaster\n" +
 		"PATCH /api/v1/masters/cages/:id UpdateCage\n" +
 		"PATCH /api/v1/masters/cages/reorder ReorderCages\n" +
 		"PATCH /api/v1/masters/checkup-types/:id UpdateCheckupType\n" +
@@ -215,7 +221,11 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		"POST /api/v1/hospitalizations/:id/daily-records/:date/vitals AddVitalRecord\n" +
 		"POST /api/v1/hospitalizations/:id/discharge-with-billing DischargeWithBilling\n" +
 		"POST /api/v1/hospitalizations/:id/treatment-plans CreateTreatmentPlanForHospitalization\n" +
+		"POST /api/v1/lab-device-item-masters/ensure EnsureLabDeviceItemMasters\n" +
+		"POST /api/v1/lab-device/frames ReceiveLabDeviceFrames\n" +
 		"POST /api/v1/lab-imports CommitLabImport\n" +
+		"POST /api/v1/lab-imports/:job_id/attach AttachLabDeviceJob\n" +
+		"POST /api/v1/lab-imports/:job_id/detach DetachLabDeviceJob\n" +
 		"POST /api/v1/lab-imports/:job_id/revert RevertLabImport\n" +
 		"POST /api/v1/lab-imports/preview PreviewLabImport\n" +
 		"POST /api/v1/masters/cages CreateCage\n" +
@@ -242,6 +252,8 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		"POST /api/v1/medical-records/:id/vitals CreateVital\n" +
 		"POST /api/v1/vaccinations CreateVaccination\n" +
 		"PUT /api/v1/examinations/:id/items ReplaceExaminationItems\n" +
+		"PUT /api/v1/lab-device/station PutLabDeviceStation\n" +
+		"PUT /api/v1/lab-device/wait PutLabDeviceWait\n" +
 		"PUT /api/v1/masters/examination-types/:id/fields/:fieldId/reference-ranges ReplaceExaminationTypeFieldReferenceRanges\n" +
 		"PUT /api/v1/masters/medicines/:id/dose-params/:species UpsertMedicineDoseParam\n" +
 		"PUT /api/v1/medical-records/:id/checkups/:checkupId/field-results ReplaceCheckupFieldResults\n" +

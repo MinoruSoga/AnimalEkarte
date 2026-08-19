@@ -36,6 +36,9 @@ type RevertLabImportInput struct {
 // LabImportRevertService owns the persisted → reverted terminal compensation state machine.
 type LabImportRevertService interface {
 	Revert(ctx context.Context, input RevertLabImportInput) (*model.LabImportRevertResponse, error)
+	// DetachDeviceJob retracts persisted device exams and returns the job to received.
+	// It does not write reverted. Confirmed / usage receipts / finalized charts are 409.
+	DetachDeviceJob(ctx context.Context, clinicID uint64, jobID uuid.UUID) error
 }
 
 type labImportRevertService struct {
@@ -229,6 +232,67 @@ func (s *labImportRevertService) Revert(ctx context.Context, input RevertLabImpo
 		return nil, err
 	}
 	return response, nil
+}
+
+func (s *labImportRevertService) DetachDeviceJob(ctx context.Context, clinicID uint64, jobID uuid.UUID) error {
+	if clinicID == 0 || jobID == uuid.Nil {
+		return apperrors.WrapInvalidInput("job_id is required")
+	}
+	run := func(txCtx context.Context) error {
+		job, err := s.jobs.LockByIDForUpdate(txCtx, clinicID, jobID)
+		if err != nil {
+			return err
+		}
+		if !isLabDeviceSourceType(string(job.SourceType)) {
+			return apperrors.WrapInvalidInput("job is not a lab device source")
+		}
+		if job.Status != model.LabImportJobStatusPersisted {
+			return nil
+		}
+		hasTracking, err := s.events.HasEventType(txCtx, clinicID, jobID, model.LabImportEventTypeUsageTrackingStarted)
+		if err != nil {
+			return err
+		}
+		if !hasTracking {
+			return apperrors.WrapConflict("usage_unknown: lab import job has no usage_tracking_started marker; revert is refused")
+		}
+		exams, err := s.lockLinkedExamsByJob(txCtx, clinicID, jobID)
+		if err != nil {
+			return err
+		}
+		receipts, err := s.usage.LockByJobForUpdate(txCtx, clinicID, jobID)
+		if err != nil {
+			return err
+		}
+		if err := s.assertRevertSafe(txCtx, clinicID, jobID, exams, receipts); err != nil {
+			return err
+		}
+		input := RevertLabImportInput{ClinicID: clinicID, JobID: jobID}
+		for _, exam := range exams {
+			if err := s.retractExam(txCtx, input, "検査受信の取り消し", exam); err != nil {
+				return err
+			}
+		}
+		affected, err := s.jobs.CompareAndSetStatus(
+			txCtx, clinicID, jobID,
+			model.LabImportJobStatusPersisted, model.LabImportJobStatusReceived, nil,
+		)
+		if err != nil {
+			return err
+		}
+		if affected != 1 {
+			return apperrors.WrapConflict("lab import job status changed concurrently; revert refused")
+		}
+		job.Status = model.LabImportJobStatusReceived
+		job.PetID = nil
+		job.FinishedAt = nil
+		job.PersistedCount = 0
+		return s.jobs.Update(txCtx, job)
+	}
+	if persistence.TxFromContext(ctx) != nil {
+		return run(ctx)
+	}
+	return s.tx.WithTx(ctx, run)
 }
 
 func (s *labImportRevertService) lockLinkedExamsByJob(

@@ -51,6 +51,7 @@
 | `Hospitalization`, daily/care/treatment plan rows, `Cage`, plans | hospitalization tables | `medicalrecord` | Discharge+billing orchestrates billing in same tx — see orchestration catalog |
 | `Inquiry`, `InquiryTemplate`, diagnosis masters, chief complaint | inquiry / diagnosis tables | `medicalrecord` | |
 | `LabImport*`, `LabExamReport*` | lab import/report tables | `medicalrecord` | Saga-style import; still medicalrecord owner |
+| `LabDeviceWait`, `LabDeviceItemMaster`, `LabDeviceStationSettings`, `LabImportJobItem` | `lab_device_waits`, `lab_device_item_masters`, `lab_device_station_settings`, `lab_import_job_items` | `medicalrecord` | ADR-007。device 受信は `job_id`+`pet_id`。fixture Commit に載せない |
 | `Billing`, `BillingItem`, `Payment`, `PaymentSplit` | `billings`, … | `billing` | |
 | `Estimate`, `EstimateItem` | `estimates`, … | `billing` | |
 | `BillingConfirmation`, `BillingRefund` | confirmation / refund tables | `billing` | |

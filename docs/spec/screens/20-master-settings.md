@@ -15,7 +15,7 @@
 | セクション名 | 管理対象（リンク） |
 |:---|:---|
 | **基本設定** | [医院情報](./19-clinic-settings.md)、[動物種類マスタ](./settings/master-animal-species.md) |
-| **カルテ** | [診療項目](./settings/master-treatment.md)（[検査項目定義](./settings/master-examinations.md)は診療項目のタブ内で管理）、[診断マスタ](./settings/master-diagnosis.md)、[問診テンプレート](./settings/master-interview.md)、[主訴種別](./settings/master-chief-complaint.md)、[薬剤マスタ](./settings/master-medicine.md) |
+| **カルテ** | [診療項目](./settings/master-treatment.md)（[検査項目定義](./settings/master-examinations.md)は診療項目のタブ内で管理）、[診断マスタ](./settings/master-diagnosis.md)、[問診テンプレート](./settings/master-interview.md)、[主訴種別](./settings/master-chief-complaint.md)、[薬剤マスタ](./settings/master-medicine.md)、検査機器マスタ（`/settings/lab-device-item-masters`。`LabDeviceItemMasterSettings`。日常の送信画面には出さない） |
 | **予約管理マスタ** | [予約区分マスタ](./settings/master-reservation-type.md) |
 | **入院・ケージ管理** | [入院プラン](./settings/master-hospitalization-plan.md)、[ケージマスタ](./settings/master-cage.md) |
 | **トリミング関連** | [トリミングマスタ](./settings/master-trimming.md)、[トリミングコース種別](./settings/master-trimming-course-type.md) |

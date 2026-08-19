@@ -18,10 +18,12 @@ import (
 // audit is nil-safe: a nil LabAuditLogger disables the best-effort audit trail without changing
 // the import flow. revert may be nil only in legacy tests that do not exercise compensating revert.
 type LabImportHandler struct {
-	resultImport LabResultImportService
-	job          LabImportJobService
-	audit        LabAuditLogger
-	revert       LabImportRevertService
+	resultImport  LabResultImportService
+	job           LabImportJobService
+	audit         LabAuditLogger
+	revert        LabImportRevertService
+	deviceMasters LabDeviceItemMasterService
+	deviceReceive LabDeviceReceiveService
 }
 
 // NewLabImportHandler initializes a LabImportHandler. audit may be nil (audit trail disabled).

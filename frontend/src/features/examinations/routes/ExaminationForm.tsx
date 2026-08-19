@@ -37,6 +37,7 @@ import { useGetExaminationPrintSnapshot } from "../api/get-examination-print-sna
 import { buildExaminationPrintModel } from "../lib/examination-print-model";
 import { useMasterItems } from "@/hooks/use-master-items";
 import { useGetStaffs } from "@/features/master";
+import { LabDeviceUnlinkedBanner } from "@/features/lab-device";
 import { paths } from "@/config/paths";
 import { usePermission } from "@/hooks/use-permission";
 import {
@@ -380,6 +381,7 @@ function ExaminationFormContent({ id }: { id: string | undefined }) {
             nextVisitContent="-"
           />
         ) : null}
+        {selectedPet ? <LabDeviceUnlinkedBanner petId={selectedPet.id} /> : null}
 
         {isEdit && !isPatientChangeLocked ? (
           <div className="flex justify-end">

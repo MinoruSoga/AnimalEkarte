@@ -98,6 +98,7 @@ const PROTECTED_ROUTES: RouteTemplate[] = [
   { label: "検査ペット選択", path: "/examinations/select-pet" },
   { label: "検査登録", path: "/examinations/new", fixture: "pet" },
   { label: "検査編集", path: "/examinations/:id", fixture: "examination" },
+  { label: "検査受信", path: "/lab-device" },
   { label: "ワクチン一覧", path: "/vaccinations" },
   { label: "ワクチン ペット選択", path: "/vaccinations/select-pet" },
   { label: "ワクチン登録", path: "/vaccinations/new", fixture: "pet" },
@@ -151,6 +152,7 @@ const PROTECTED_ROUTES: RouteTemplate[] = [
   { label: "締め時間設定", path: "/settings/closing-time" },
   { label: "支払方法マスタ", path: "/settings/payment-methods" },
   { label: "割引キャンペーン", path: "/settings/campaigns" },
+  { label: "検査機器マスタ", path: "/settings/lab-device-item-masters" },
   { label: "Lステップ連携設定", path: "/settings/integrations/lstep" },
   { label: "Lステップタグ管理", path: "/settings/lstep/tags" },
   { label: "同一飼主・ペット連携", path: "/identity-links" },
@@ -444,10 +446,10 @@ async function auditRoute(
   }
 }
 
-test("route matrix inventory is exactly 84 product pages", () => {
+test("route matrix inventory is exactly 86 product pages", () => {
   expect(PUBLIC_ROUTES).toHaveLength(3);
-  expect(PROTECTED_ROUTES).toHaveLength(81);
-  expect([...PUBLIC_ROUTES, ...PROTECTED_ROUTES]).toHaveLength(84);
+  expect(PROTECTED_ROUTES).toHaveLength(82);
+  expect([...PUBLIC_ROUTES, ...PROTECTED_ROUTES]).toHaveLength(86);
   expect(PROTECTED_ROUTES.filter((route) => route.syntheticClinical)).toHaveLength(5);
 });
 

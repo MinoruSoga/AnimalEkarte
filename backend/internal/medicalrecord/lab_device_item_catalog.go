@@ -1,0 +1,72 @@
+package medicalrecord
+
+import "github.com/animal-ekarte/backend/internal/model"
+
+// labDeviceItemCatalogRow is the embedded 城東観測カタログ (25 rows).
+// DisplayName is the screen default from device-item-master.md candidates.
+// The CSV legacy_name_candidate column is not stored.
+type labDeviceItemCatalogRow struct {
+	SourceType     model.LabImportSourceType
+	DeviceItemCode string
+	DisplayName    string
+	Unit           string
+	ValueShape     string
+	SortOrder      int
+}
+
+// LabDeviceItemCatalogCount is the accepted 城東 seed size (NX600 16 + AU10V 1 + 尿 8).
+const LabDeviceItemCatalogCount = 25
+
+func isLabDeviceSourceType(sourceType string) bool {
+	switch model.LabImportSourceType(sourceType) {
+	case model.LabImportSourceTypeFujiNX600,
+		model.LabImportSourceTypeFujiAU10V,
+		model.LabImportSourceTypeArkrayPU4010:
+		return true
+	default:
+		return false
+	}
+}
+
+func isLabDeviceValueShape(shape string) bool {
+	switch shape {
+	case model.LabDeviceValueShapeNumeric,
+		model.LabDeviceValueShapeInequality,
+		model.LabDeviceValueShapeQualAndNum,
+		model.LabDeviceValueShapeDash,
+		model.LabDeviceValueShapeText:
+		return true
+	default:
+		return false
+	}
+}
+
+func labDeviceItemCatalog() []labDeviceItemCatalogRow {
+	return []labDeviceItemCatalogRow{
+		{model.LabImportSourceTypeFujiNX600, "Na-P", "Na", "mEq/l", model.LabDeviceValueShapeNumeric, 10},
+		{model.LabImportSourceTypeFujiNX600, "K-P", "K", "mEq/l", model.LabDeviceValueShapeNumeric, 20},
+		{model.LabImportSourceTypeFujiNX600, "Cl-P", "Cl", "mEq/l", model.LabDeviceValueShapeNumeric, 30},
+		{model.LabImportSourceTypeFujiNX600, "LIP-P", "LIP-P", "U/l", model.LabDeviceValueShapeNumeric, 40},
+		{model.LabImportSourceTypeFujiNX600, "TP-P", "TP", "g/dl", model.LabDeviceValueShapeNumeric, 50},
+		{model.LabImportSourceTypeFujiNX600, "ALB-P", "ALB", "g/dl", model.LabDeviceValueShapeNumeric, 60},
+		{model.LabImportSourceTypeFujiNX600, "ALPi-P", "ALP", "U/l", model.LabDeviceValueShapeNumeric, 70},
+		{model.LabImportSourceTypeFujiNX600, "GLU-P", "Glu", "mg/dl", model.LabDeviceValueShapeNumeric, 80},
+		{model.LabImportSourceTypeFujiNX600, "TBIL-P", "TBIL", "mg/dl", model.LabDeviceValueShapeNumeric, 90},
+		{model.LabImportSourceTypeFujiNX600, "IP-P", "IP", "mg/dl", model.LabDeviceValueShapeNumeric, 100},
+		{model.LabImportSourceTypeFujiNX600, "TCHO-P", "CHOL", "mg/dl", model.LabDeviceValueShapeNumeric, 110},
+		{model.LabImportSourceTypeFujiNX600, "GGT-P", "GGT", "U/l", model.LabDeviceValueShapeNumeric, 120},
+		{model.LabImportSourceTypeFujiNX600, "GPT-P", "GPT", "U/l", model.LabDeviceValueShapeNumeric, 130},
+		{model.LabImportSourceTypeFujiNX600, "Ca-P", "Ca", "mg/dl", model.LabDeviceValueShapeNumeric, 140},
+		{model.LabImportSourceTypeFujiNX600, "CRE-P", "Cre", "mg/dl", model.LabDeviceValueShapeNumeric, 150},
+		{model.LabImportSourceTypeFujiNX600, "BUN-P", "BUN", "mg/dl", model.LabDeviceValueShapeNumeric, 160},
+		{model.LabImportSourceTypeFujiAU10V, "vf-SAA", "vf-SAA", "ug/mL", model.LabDeviceValueShapeInequality, 10},
+		{model.LabImportSourceTypeArkrayPU4010, "GLU", "尿糖", "mg/dL", model.LabDeviceValueShapeDash, 10},
+		{model.LabImportSourceTypeArkrayPU4010, "PRO", "尿蛋白", "mg/dL", model.LabDeviceValueShapeQualAndNum, 20},
+		{model.LabImportSourceTypeArkrayPU4010, "BIL", "ビリルビン", "mg/dL", model.LabDeviceValueShapeDash, 30},
+		{model.LabImportSourceTypeArkrayPU4010, "URO", "ウロビリノーゲン", "mg/dL", model.LabDeviceValueShapeText, 40},
+		{model.LabImportSourceTypeArkrayPU4010, "PH", "pH", "", model.LabDeviceValueShapeNumeric, 50},
+		{model.LabImportSourceTypeArkrayPU4010, "BLD", "潜血", "mg/dL", model.LabDeviceValueShapeQualAndNum, 60},
+		{model.LabImportSourceTypeArkrayPU4010, "KET", "尿ケトン", "mg/dL", model.LabDeviceValueShapeDash, 70},
+		{model.LabImportSourceTypeArkrayPU4010, "NIT", "NIT", "mg/dL", model.LabDeviceValueShapeDash, 80},
+	}
+}

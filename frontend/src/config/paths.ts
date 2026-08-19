@@ -110,6 +110,11 @@ export const paths = {
     },
   },
 
+  labDevice: {
+    path: "/lab-device",
+    getHref: () => "/lab-device",
+  },
+
   examinations: {
     path: "/examinations",
     getHref: () => "/examinations",
@@ -384,6 +389,10 @@ export const paths = {
     paymentMethods: {
       path: "/settings/payment-methods",
       getHref: () => "/settings/payment-methods",
+    },
+    labDeviceItemMasters: {
+      path: "/settings/lab-device-item-masters",
+      getHref: () => "/settings/lab-device-item-masters",
     },
   },
 } as const;

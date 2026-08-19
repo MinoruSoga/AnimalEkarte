@@ -159,6 +159,11 @@ export const queryKeys = {
     /** features/medical-records 側からの参照。["pet",...]ではなく["examinations","pet",petId] */
     byPet: (petId: string) => ["examinations", "pet", petId] as const,
   },
+  labDevice: {
+    board: () => ["lab-device", "board"] as const,
+    unlinked: () => ["lab-device", "unlinked"] as const,
+    station: () => ["lab-device", "station"] as const,
+  },
   vaccinations: {
     all: () => ["vaccinations"] as const,
     list: <F>(filters: F) => ["vaccinations", filters] as const,

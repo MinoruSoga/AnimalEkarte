@@ -1,10 +1,11 @@
 # 検査機器連携 — 医院疎通と実装入口
 
-**現場手順:**  
+**2026-08-19 方針:** ファイルアップロードしない。検査用 Mac の新カルテ待機ページが有線シリアルを読む。UI は1画面（待機 + 未紐付け欄）。正本は `todo.md` の城東節と Linear BRT-94〜100、仕様は `old_db/docs/lab-go/go-impl/device-serial-adapter.md`。
+
+**現場手順（08-18 疎通当日）:**  
 `/Users/minoru/Dev/Case/AnimalHospital/old_db/docs/lab-go/hospital-field-pack/00-明日の現場手順.md`
 
-今日の医院作業は **機器 ↔ 持っていく Mac の取得・閲覧**。  
-このリポジトリのアダプタ本直しは、受信ファイルが残ってから。
+08-18 の医院作業は **機器 ↔ 持っていく Mac の取得・閲覧** だった。実装の正本は上記 08-19 方針。
 
 ---
 
@@ -17,7 +18,7 @@
 ```
 現行: 機器 --COM--> Windows 7 --> Drワン --> 現行カルテ
 今日: 機器 --空き USB/LAN または移した線--> 持っていく Mac（ファイル閲覧）
-あと: 同じ口を検査機器用 Mac が読み、lab-imports が保持する
+あと: 同じ口を検査機器用 Mac の `/lab-device` が読み、lab-imports が保持する
 ```
 
 コードの `source_type=drwan` は仮名。Drワン製品を組み込む計画ではない。
@@ -36,8 +37,11 @@
 
 ## 画面と API
 
-- 検査取込 UI は無い。保持確認は commit 後の `/examinations`
-- `fixture` だけ commit 可。`drwan` は preview 200 + `blocked_reasons`、commit 400
+- 日常経路は `/lab-device`（`LabDeviceBoard`）。権限は `lab-import`。確認ダイアログは無い。
+- 医院セットアップで口→機器プロファイルを1回許可する。TTL の数値 UI は無い。
+- 診察端末の検査画面は未紐付けバナーから1クリックで `attach` する。値は編集しない。
+- 保持確認は `/examinations`（城東3種はペット確定後の persist。fixture は commit）
+- `fixture` だけ commit 可。`drwan` は preview 200 + `blocked_reasons`、commit 400。`GetJob` は `drwan` を 400
 - preview は今日の医院合格条件ではない
 
 入口: `backend/internal/model/lab_import.go`、`lab_import_service.go`、`lab_import_handler.go`

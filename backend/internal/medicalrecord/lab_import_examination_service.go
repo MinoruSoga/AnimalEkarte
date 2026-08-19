@@ -10,6 +10,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 // LabExamPersistInput は lab import バッチ 1 行分の変換済み入力。
@@ -37,6 +38,7 @@ type LabExamItemInput struct {
 	ReferenceValue  string
 	RefMin          *float64
 	RefMax          *float64
+	ExamTypeFieldID *uint64
 	SortOrder       int
 }
 
@@ -81,6 +83,7 @@ func buildExamResults(examID uint64, items []LabExamItemInput) []model.ExamResul
 		status, isAbnormal := computeExamResultStatus(item.InspectionValue, item.RefMin, item.RefMax)
 		out = append(out, model.ExamResult{
 			ExamID:          examID,
+			ExamTypeItemID:  item.ExamTypeFieldID,
 			Name:            item.Name,
 			InspectionValue: item.InspectionValue,
 			Unit:            item.Unit,
@@ -96,6 +99,7 @@ func buildExamResults(examID uint64, items []LabExamItemInput) []model.ExamResul
 }
 
 type LabImportExaminationService interface {
+	PersistExam(ctx context.Context, input LabExamPersistInput) (*LabExamPersistResult, error)
 	// PersistBatch は複数 exam を順次永続化し全行の結果を返す。
 	// 個別行のエラーは LabExamPersistResult.RowError に記録する。
 	// バッチ全体のエラー（context キャンセル等）は関数エラーとして返す。
@@ -241,10 +245,10 @@ func (s *labImportExaminationService) persistExam(ctx context.Context, input Lab
 
 	// exam 本体と exam_results は 1 つの検査結果 business graph なので同一 transaction で原子的に書く
 	// （BE-refactor.md MRC-05 / X-06）。Replace 失敗時は rollback により孤児 exam を残さない。
+	// 既に ambient tx がある（device receive/attach）ときは内側で新規 Transaction を開かない。
 	var duplicateOnCreate bool
-	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+	write := func(txCtx context.Context) error {
 		if err := s.examRepo.Create(txCtx, exam); err != nil {
-			// DB unique 制約違反（TOCTOU 安全ネット）: 重複として扱う
 			if apperrors.IsAlreadyExists(err) {
 				duplicateOnCreate = true
 				return nil
@@ -270,8 +274,15 @@ func (s *labImportExaminationService) persistExam(ctx context.Context, input Lab
 			}
 		}
 		return nil
-	}); err != nil {
-		return nil, err
+	}
+	var writeErr error
+	if persistence.TxFromContext(ctx) != nil {
+		writeErr = write(ctx)
+	} else {
+		writeErr = s.transactor.WithTx(ctx, write)
+	}
+	if writeErr != nil {
+		return nil, writeErr
 	}
 	if duplicateOnCreate {
 		slog.InfoContext(ctx, "lab import exam skipped (db duplicate on create)",
@@ -298,6 +309,10 @@ func (s *labImportExaminationService) persistExam(ctx context.Context, input Lab
 		Duplicate: false,
 		JobID:     input.JobID,
 	}, nil
+}
+
+func (s *labImportExaminationService) PersistExam(ctx context.Context, input LabExamPersistInput) (*LabExamPersistResult, error) {
+	return s.persistExam(ctx, input)
 }
 
 // PersistBatch は全行を処理し、個別行エラーを LabExamPersistResult.RowError に記録する。

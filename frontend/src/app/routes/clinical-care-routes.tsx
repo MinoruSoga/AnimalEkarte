@@ -6,6 +6,7 @@ import {
   ResourceCheckups,
   ResourceExaminations,
   ResourceHospitalization,
+  ResourceLabImport,
   ResourceMedicalRecords,
   ResourceTrimming,
   ResourceVaccinations,
@@ -193,6 +194,25 @@ export const clinicalCareRoutes: RouteObject[] = [
             lazy: async () => {
               const { TrimmingForm } = await import("@/features/trimming");
               return { Component: TrimmingForm };
+            },
+          },
+        ],
+      },
+
+      {
+        path: "/lab-device",
+        element: (
+          <RequirePermission resource={ResourceLabImport} action="create">
+            <Outlet />
+          </RequirePermission>
+        ),
+        errorElement: <RouteErrorBoundary />,
+        children: [
+          {
+            index: true,
+            lazy: async () => {
+              const { LabDeviceBoard } = await import("@/features/lab-device");
+              return { Component: LabDeviceBoard };
             },
           },
         ],

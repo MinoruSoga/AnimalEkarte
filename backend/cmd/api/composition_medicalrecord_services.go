@@ -124,12 +124,14 @@ func newMedicalRecordPreventiveServices(
 }
 
 type medicalRecordLabServices struct {
-	resultImport medicalrecord.LabResultImportService
-	jobs         medicalrecord.LabImportJobService
-	audit        medicalrecord.LabAuditLogger
-	reports      medicalrecord.LabReportQueryService
-	revert       medicalrecord.LabImportRevertService
-	usageTracker medicalrecord.LabImportUsageTracker
+	resultImport  medicalrecord.LabResultImportService
+	jobs          medicalrecord.LabImportJobService
+	audit         medicalrecord.LabAuditLogger
+	reports       medicalrecord.LabReportQueryService
+	revert        medicalrecord.LabImportRevertService
+	usageTracker  medicalrecord.LabImportUsageTracker
+	deviceMasters medicalrecord.LabDeviceItemMasterService
+	deviceReceive medicalrecord.LabDeviceReceiveService
 }
 
 func newMedicalRecordLabServices(
@@ -144,17 +146,45 @@ func newMedicalRecordLabServices(
 		r.labImportUsageReceipts,
 	)
 	audit := medicalrecord.NewLabAuditLogger(medicalRecordAuditBridge{logger: d.Audit})
+	deviceMasters := medicalrecord.NewLabDeviceItemMasterService(r.labDeviceItemMasters)
+	examSvc := medicalrecord.NewLabImportExaminationService(
+		r.examinations,
+		r.labDuplicateChecker,
+		r.examinationTypes,
+		d.Pets,
+		r.medicalRecords,
+		d.Transactor,
+	)
+	revert := medicalrecord.NewLabImportRevertService(
+		d.DB,
+		d.Transactor,
+		r.labImportJobs,
+		r.labImportEvents,
+		r.examinations,
+		r.labImportUsageReceipts,
+		r.labImportRevertReceipts,
+		r.labImportRetractions,
+		audit,
+	)
 	return medicalRecordLabServices{
+		deviceMasters: deviceMasters,
+		deviceReceive: medicalrecord.NewLabDeviceReceiveService(
+			r.labDeviceReceive,
+			deviceMasters,
+			d.Pets,
+			d.Transactor,
+			medicalrecord.NewLabDeviceExamPersister(
+				r.labDeviceReceive,
+				deviceMasters,
+				examSvc,
+				jobs,
+				r.labImportEvents,
+				revert,
+			),
+		),
 		resultImport: medicalrecord.NewLabResultImportServiceWithTx(
 			jobs,
-			medicalrecord.NewLabImportExaminationService(
-				r.examinations,
-				r.labDuplicateChecker,
-				r.examinationTypes,
-				d.Pets,
-				r.medicalRecords,
-				d.Transactor,
-			),
+			examSvc,
 			r.labImportEvents,
 			d.Transactor,
 		),
@@ -162,17 +192,7 @@ func newMedicalRecordLabServices(
 		audit:        audit,
 		reports:      medicalrecord.NewLabReportQueryService(r.examinations, usageTracker),
 		usageTracker: usageTracker,
-		revert: medicalrecord.NewLabImportRevertService(
-			d.DB,
-			d.Transactor,
-			r.labImportJobs,
-			r.labImportEvents,
-			r.examinations,
-			r.labImportUsageReceipts,
-			r.labImportRevertReceipts,
-			r.labImportRetractions,
-			audit,
-		),
+		revert:       revert,
 	}
 }
 

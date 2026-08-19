@@ -16,6 +16,17 @@ describe("master-settings-index-model campaigns entry (V04-A01)", () => {
     expect(getResourceForCardKey("campaigns")).toBe("accounting");
   });
 
+  it("検査機器マスタカードがカルテ節にあり lab-import を要求する", () => {
+    expect(GROUP_CARD_CONFIG.labDeviceItemMasters).toMatchObject({
+      label: "検査機器マスタ",
+      path: "/settings/lab-device-item-masters",
+      resource: "lab-import",
+    });
+    expect(getResourceForCardKey("labDeviceItemMasters")).toBe("lab-import");
+    const chart = MASTER_SECTIONS.find((s) => s.title === "カルテ");
+    expect(chart?.keys).toEqual(expect.arrayContaining(["labDeviceItemMasters"]));
+  });
+
   it("会計・商品セクションに paymentMethods と同列で campaigns が並ぶ", () => {
     const accounting = MASTER_SECTIONS.find((s) => s.title === "会計・商品");
     expect(accounting).toBeDefined();

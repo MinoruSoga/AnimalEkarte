@@ -19,6 +19,7 @@ import {
   ResourcePaymentMethod,
   ResourceShifts,
   ResourceAccounting,
+  ResourceLabImport,
 } from "@/types/generated/models";
 
 export const settingsRoute: RouteObject = {
@@ -298,6 +299,17 @@ export const settingsRoute: RouteObject = {
         lazy: async () => {
           const { LstepSettingsPage } = await import("@/features/settings");
           return { Component: LstepSettingsPage };
+        },
+      }],
+    },
+    {
+      path: "lab-device-item-masters",
+      element: <RequirePermission resource={ResourceLabImport}><Outlet /></RequirePermission>,
+      children: [{
+        index: true,
+        lazy: async () => {
+          const { LabDeviceItemMasterSettings } = await import("@/features/master");
+          return { Component: LabDeviceItemMasterSettings };
         },
       }],
     },

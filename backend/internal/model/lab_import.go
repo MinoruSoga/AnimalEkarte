@@ -31,6 +31,10 @@ const (
 	LabImportSourceTypeFixture LabImportSourceType = "fixture"
 	LabImportSourceTypeDrWan   LabImportSourceType = "drwan"
 	LabImportSourceTypeManual  LabImportSourceType = "manual"
+	// Device source types are Go constants only until a later migration ADDs the enum values (ADR-007 / F9).
+	LabImportSourceTypeFujiNX600    LabImportSourceType = "fuji_nx600"
+	LabImportSourceTypeFujiAU10V    LabImportSourceType = "fuji_au10v"
+	LabImportSourceTypeArkrayPU4010 LabImportSourceType = "arkray_pu4010"
 )
 
 // LabImportJob は外部検査結果のインポートジョブ。
@@ -51,6 +55,12 @@ type LabImportJob struct {
 	ErrorMessage      *string             `                                                       json:"error_message,omitempty"`
 	StartedAt         *time.Time          `                                                       json:"started_at,omitempty"`
 	FinishedAt        *time.Time          `                                                       json:"finished_at,omitempty"`
+	PetID             *uint64             `                                                       json:"pet_id,omitempty"`
+	MeasuredAt        *time.Time          `                                                       json:"measured_at,omitempty"`
+	ReceivedAt        *time.Time          `                                                       json:"received_at,omitempty"`
+	DeviceHint        string              `gorm:"not null;default:''"                             json:"device_hint"`
+	SpecimenIDRaw     string              `gorm:"not null;default:''"                             json:"specimen_id_raw"`
+	UnmappedItemCount int                 `gorm:"not null;default:0"                              json:"unmapped_item_count"`
 	CreatedAt         time.Time           `gorm:"autoCreateTime"                                  json:"created_at"`
 	UpdatedAt         time.Time           `gorm:"autoUpdateTime"                                  json:"updated_at"`
 }

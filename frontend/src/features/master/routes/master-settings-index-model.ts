@@ -9,6 +9,7 @@ import {
   Scissors,
   Stethoscope,
   Tag,
+  FlaskConical,
 } from "lucide-react";
 import { CATEGORY_CONFIG } from "../constants/category-config";
 import type { MasterSettingsCategory } from "../constants/category-config";
@@ -21,6 +22,7 @@ import {
   ResourceMasterTrimming,
   ResourcePaymentMethod,
   ResourceShifts,
+  ResourceLabImport,
 } from "@/types/generated/models";
 
 export type GroupKey =
@@ -33,7 +35,8 @@ export type GroupKey =
   | "shift_template"
   | "paymentMethods"
   | "campaigns"
-  | "closingTime";
+  | "closingTime"
+  | "labDeviceItemMasters";
 
 export type MasterCardKey = MasterSettingsCategory | GroupKey;
 
@@ -134,13 +137,21 @@ export const GROUP_CARD_CONFIG: Record<GroupKey, GroupCardConfig> = {
     resource: ResourceClosingSettings,
     countCategories: [],
   },
+  labDeviceItemMasters: {
+    label: "検査機器マスタ",
+    description: "NX600 / AU10V / 尿の項目を検査項目へ載せる設定です。日常の送信画面には出しません",
+    IconComponent: FlaskConical,
+    path: "/settings/lab-device-item-masters",
+    resource: ResourceLabImport,
+    countCategories: [],
+  },
 };
 
 export const MASTER_SECTIONS: SectionDef[] = [
   { title: "基本設定", keys: ["clinic", "animal_species"] },
   {
     title: "カルテ",
-    keys: ["treatmentItems", "diagnosisGroup", "inquiry_template", "chief_complaint", "medicine"],
+    keys: ["treatmentItems", "diagnosisGroup", "inquiry_template", "chief_complaint", "medicine", "labDeviceItemMasters"],
   },
   { title: "予約管理マスタ", keys: ["reservationType"] },
   { title: "入院・ケージ管理", keys: ["hospitalization", "cage"] },

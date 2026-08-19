@@ -129,6 +129,23 @@ func TestLabImportJobService_PreviewBatch_DrWan(t *testing.T) {
 	}
 }
 
+func TestLabImportJobService_PreviewBatch_DeviceSourcesBlocked(t *testing.T) {
+	svc := &labImportJobService{}
+	for _, source := range []model.LabImportSourceType{
+		model.LabImportSourceTypeFujiNX600,
+		model.LabImportSourceTypeFujiAU10V,
+		model.LabImportSourceTypeArkrayPU4010,
+	} {
+		resp, err := svc.PreviewBatch(context.Background(), 1, model.LabInboundBatch{SourceType: source, ReceivedAt: time.Now()})
+		if err != nil {
+			t.Fatalf("%s: %v", source, err)
+		}
+		if len(resp.BlockedReasons) == 0 {
+			t.Errorf("%s must be blocked on preview/commit", source)
+		}
+	}
+}
+
 // TestLabImportJobService_PreviewBatch_MissingExamCode は exam_code 空行が mapping_warnings に現れることを確認する。
 func TestLabImportJobService_PreviewBatch_MissingExamCode(t *testing.T) {
 	svc := &labImportJobService{jobRepo: nil, eventRepo: nil}
@@ -623,6 +640,23 @@ func TestLabImportJobService_GetJob(t *testing.T) {
 		}
 		if !apperrors.IsNotFound(err) {
 			t.Errorf("expected NotFound error, got: %v", err)
+		}
+	})
+
+	t.Run("refuses to open drwan", func(t *testing.T) {
+		drwan := &model.LabImportJob{
+			ID:         uuid.New(),
+			ClinicID:   3,
+			SourceType: model.LabImportSourceTypeDrWan,
+			Status:     model.LabImportJobStatusReceived,
+		}
+		jobRepo.jobs[drwan.ID] = drwan
+		_, err := svc.GetJob(context.Background(), 3, drwan.ID)
+		if err == nil {
+			t.Fatal("expected error opening drwan job")
+		}
+		if !apperrors.IsInvalidInput(err) {
+			t.Errorf("expected InvalidInput, got %v", err)
 		}
 	})
 
