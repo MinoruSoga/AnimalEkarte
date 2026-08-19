@@ -115,6 +115,11 @@ export const paths = {
     getHref: () => "/lab-device",
   },
 
+  identityLinks: {
+    path: "/identity-links",
+    getHref: () => "/identity-links",
+  },
+
   examinations: {
     path: "/examinations",
     getHref: () => "/examinations",
@@ -294,6 +299,10 @@ export const paths = {
       path: "/settings/trimming",
       getHref: () => "/settings/trimming",
     },
+    trimmingCourseType: {
+      path: "/settings/trimming-course-type",
+      getHref: () => "/settings/trimming-course-type",
+    },
     medicine: {
       path: "/settings/medicine",
       getHref: () => "/settings/medicine",
@@ -389,6 +398,10 @@ export const paths = {
     paymentMethods: {
       path: "/settings/payment-methods",
       getHref: () => "/settings/payment-methods",
+    },
+    campaigns: {
+      path: "/settings/campaigns",
+      getHref: () => "/settings/campaigns",
     },
     labDeviceItemMasters: {
       path: "/settings/lab-device-item-masters",

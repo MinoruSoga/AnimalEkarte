@@ -9,7 +9,7 @@ vi.mock("@/hooks/use-auth", () => ({
 }));
 
 describe("ClinicMasterList touch targets", () => {
-  it("新しい医院を追加buttonを44px以上に保つ", () => {
+  it("新規登録buttonを44px以上に保つ", () => {
     render(
       <MemoryRouter>
         <ClinicMasterList
@@ -18,6 +18,8 @@ describe("ClinicMasterList touch targets", () => {
           items={[]}
           searchTerm=""
           onSearchChange={vi.fn()}
+          activeFilters={[]}
+          onFilterChange={vi.fn()}
           onBack={vi.fn()}
           onCreate={vi.fn()}
           onEdit={vi.fn()}
@@ -25,6 +27,6 @@ describe("ClinicMasterList touch targets", () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByRole("button", { name: "新しい医院を追加..." })).toHaveClass("min-h-11");
+    expect(screen.getByRole("button", { name: "新規登録" })).toHaveClass("h-11");
   });
 });

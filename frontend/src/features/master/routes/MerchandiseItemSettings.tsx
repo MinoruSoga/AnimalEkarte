@@ -79,7 +79,7 @@ export function MerchandiseItemSettings() {
 
   return (
     <MasterCRUDPage
-      title="物販・その他マスタ"
+      title="商品マスタ"
       icon={<ShoppingBag className={`${ICON.page} ${C.text}`} />}
       resource={ResourceMasterMerchandise}
       entityLabel="品目"
@@ -101,10 +101,8 @@ export function MerchandiseItemSettings() {
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
         onDragCancel={handleDragCancel}
-        canCreate={canCreate}
         canEdit={canEdit}
         onEdit={crud.handleEdit}
-        onNew={crud.handleNew}
       />
     </MasterCRUDPage>
   );

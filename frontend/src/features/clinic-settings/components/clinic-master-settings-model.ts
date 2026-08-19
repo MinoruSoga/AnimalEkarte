@@ -1,5 +1,10 @@
-import type { Clinic } from "../api/clinics";
+import { CircleDot } from "lucide-react";
+
+import type { ActiveFilter, FilterProperty } from "@/components/shared/PropertyFilter/types";
 import { DEFAULT_STANDARD_TAX_RATE, DEFAULT_REDUCED_TAX_RATE } from "@/constants/tax";
+import { normalizedIncludes } from "@/lib/normalize-kana";
+
+import type { Clinic } from "../api/clinics";
 
 export interface ClinicFormData {
   name: string;
@@ -74,4 +79,46 @@ export function clinicToFormData(item: Clinic): ClinicFormData {
     accounting_document_show_payment_summary: item.accountingDocumentShowPaymentSummary,
     accounting_document_section_order: item.accountingDocumentSectionOrder,
   };
+}
+
+export const CLINIC_STATUS_FILTER: FilterProperty = {
+  key: "status",
+  label: "ステータス",
+  type: "select",
+  icon: CircleDot,
+  options: [
+    { value: "active", label: "有効" },
+    { value: "inactive", label: "無効" },
+  ],
+};
+
+export function filterClinics(
+  clinics: Clinic[],
+  searchTerm: string,
+  filters: ActiveFilter[],
+): Clinic[] {
+  const term = searchTerm.trim();
+  return clinics.filter((clinic) => {
+    if (
+      term
+      && !normalizedIncludes(clinic.name, term)
+      && !normalizedIncludes(clinic.phoneNumber, term)
+      && !normalizedIncludes(clinic.email, term)
+    ) {
+      return false;
+    }
+    for (const filter of filters) {
+      if (filter.key !== "status" || typeof filter.value !== "string") {
+        continue;
+      }
+      const wantActive = filter.value === "active";
+      if (filter.condition === "is" && clinic.isActive !== wantActive) {
+        return false;
+      }
+      if (filter.condition === "is_not" && clinic.isActive === wantActive) {
+        return false;
+      }
+    }
+    return true;
+  });
 }

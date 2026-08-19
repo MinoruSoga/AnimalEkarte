@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
 import { TableCell } from "@/components/ui/table";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
+import { DataTableRowButton } from "@/components/shared/DataTable/DataTableRowButton";
 import { RowActionButton } from "@/components/shared/RowActionButton";
 import { StatusPill } from "@/components/shared/StatusPill/StatusPill";
 import { C, LAYOUT, ICON, PALETTE } from "@/lib/design-tokens";
@@ -198,7 +199,14 @@ export function StaffSettings() {
         const extraCount = groups.length - visibleGroups.length;
         return (
           <DataTableRow key={item.id}>
-            <TableCell className={`font-medium ${C.text}`}>{item.name}</TableCell>
+            <TableCell className={`font-medium ${C.text}`}>
+              <DataTableRowButton
+                aria-label={`詳細: スタッフ ${item.name} (ID ${item.id})`}
+                onClick={() => onEdit(item)}
+              >
+                {item.name}
+              </DataTableRowButton>
+            </TableCell>
             <TableCell className={C.text}>{item.occupationName ?? "—"}</TableCell>
             <TableCell>
               <div className="flex flex-wrap items-center gap-1">

@@ -1,9 +1,8 @@
 import { Fragment, type ComponentProps } from "react";
 import { DndContext, DragOverlay, closestCenter, type DragStartEvent, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
-import Plus from "lucide-react/dist/esm/icons/plus";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ICON, STYLE } from "@/lib/design-tokens";
+import { STYLE } from "@/lib/design-tokens";
 import type { Medicine } from "@/types";
 import { MedicineCategoryHeaderRow, MedicineRowOverlay, SortableMedicineRow } from "./MedicineTableRows";
 
@@ -140,16 +139,6 @@ export function MedicineTable({
         </DndContext>
       </div>
 
-      {canCreate ? (
-        <button
-          type="button"
-          onClick={() => onCreate()}
-          className={STYLE.inlineAddBtn}
-        >
-          <Plus className={ICON.xs} />
-          新しい薬剤を追加...
-        </button>
-      ) : null}
     </div>
   );
 }

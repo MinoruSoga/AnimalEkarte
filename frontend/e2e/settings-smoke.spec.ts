@@ -27,15 +27,15 @@ type SettingsPage = {
 
 const SETTINGS_PAGES: SettingsPage[] = [
   { path: '/settings/staff', heading: 'スタッフマスタ' },
-  { path: '/settings/diagnosis', heading: '診断病名マスタ' },
+  { path: '/settings/diagnosis', heading: '診断マスタ' },
   { path: '/settings/animal-species', heading: '動物種類マスタ' },
   { path: '/settings/trimming', heading: 'トリミングマスタ' },
-  { path: '/settings/trimming-course-type', heading: 'トリミングコース種別マスタ' },
+  { path: '/settings/trimming-course-type', heading: 'コース種別マスタ' },
   { path: '/settings/medicine', heading: '薬剤マスタ' },
   { path: '/settings/reservation-type', heading: '予約区分マスタ' },
   { path: '/settings/hospitalization', heading: '入院マスタ' },
   { path: '/settings/cage', heading: 'ケージマスタ' },
-  { path: '/settings/merchandise-items', heading: '物販・その他マスタ' },
+  { path: '/settings/merchandise-items', heading: '商品マスタ' },
   { path: '/settings/insurance', heading: '保険マスタ' },
   { path: '/settings/occupations', heading: '職種マスタ' },
   { path: '/settings/permission-groups', heading: '権限グループマスタ' },

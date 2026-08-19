@@ -4,19 +4,23 @@ import type { ReactNode } from "react";
 import { TableCell } from "@/components/ui/table";
 import { DataTable, DESIGN_TABLE_HEADER_ROW, DESIGN_TABLE_HEADER_CELL } from "@/components/shared/DataTable/DataTable";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
+import { DataTableRowButton } from "@/components/shared/DataTable/DataTableRowButton";
 import { PropertyFilter } from "@/components/shared/PropertyFilter/PropertyFilter";
+import type { ActiveFilter } from "@/components/shared/PropertyFilter/types";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { RowActionButton } from "@/components/shared/RowActionButton";
+import { StatusPill } from "@/components/shared/StatusPill/StatusPill";
 import { C, ICON, LAYOUT } from "@/lib/design-tokens";
 import { ResourceHospitalSettings } from "@/types/generated/models";
 import type { Clinic } from "../api/clinics";
+import { CLINIC_STATUS_FILTER } from "./clinic-master-settings-model";
 
 const COLUMNS = [
   { header: "院名" },
   { header: "電話番号", className: "w-[150px]" },
   { header: "メール" },
-  { header: "ステータス", className: "w-[100px]", align: "right" as const },
+  { header: "ステータス", className: "w-[100px]", align: "center" as const },
   { header: "操作", className: "w-[80px]", align: "right" as const },
 ];
 
@@ -26,6 +30,9 @@ interface ClinicMasterListProps {
   items: Clinic[];
   searchTerm: string;
   onSearchChange: (term: string) => void;
+  activeFilters: ActiveFilter[];
+  onFilterChange: (filters: ActiveFilter[]) => void;
+  emptyMessage?: string;
   onBack: () => void;
   onCreate: () => void;
   onEdit: (item: Clinic) => void;
@@ -39,6 +46,9 @@ export function ClinicMasterList({
   items,
   searchTerm,
   onSearchChange,
+  activeFilters,
+  onFilterChange,
+  emptyMessage = "医院が登録されていません",
   onBack,
   onCreate,
   onEdit,
@@ -63,9 +73,9 @@ export function ClinicMasterList({
       <div className="flex flex-col gap-4">
         {topSection}
         <PropertyFilter
-          properties={[]}
-          activeFilters={[]}
-          onFilterChange={() => {}}
+          properties={[CLINIC_STATUS_FILTER]}
+          activeFilters={activeFilters}
+          onFilterChange={onFilterChange}
           searchTerm={searchTerm}
           onSearchChange={onSearchChange}
           searchPlaceholder="院名、電話番号、メールで検索..."
@@ -77,11 +87,16 @@ export function ClinicMasterList({
           headerCellClassName={DESIGN_TABLE_HEADER_CELL}
           columns={COLUMNS}
           data={items}
-          emptyMessage="医院が登録されていません"
+          emptyMessage={emptyMessage}
           renderRow={(item) => (
             <DataTableRow key={item.id}>
               <TableCell className={`font-medium text-sm ${C.text}`}>
-                {item.name}
+                <DataTableRowButton
+                  aria-label={`詳細: 医院 ${item.name} (ID ${item.id})`}
+                  onClick={() => onEdit(item)}
+                >
+                  {item.name}
+                </DataTableRowButton>
               </TableCell>
               <TableCell className={`font-mono text-sm ${C.text80}`}>
                 {item.phoneNumber || "-"}
@@ -89,13 +104,8 @@ export function ClinicMasterList({
               <TableCell className={`text-sm ${C.text80}`}>
                 {item.email || "-"}
               </TableCell>
-              <TableCell className="text-right">
-                <span className="inline-flex items-center gap-1.5">
-                  <span className={`size-[7px] rounded-full ${item.isActive ? C.bgBrandDot : C.bgPrimary10}`} />
-                  <span className={`text-sm ${item.isActive ? C.text65 : C.text35}`}>
-                    {item.isActive ? "有効" : "無効"}
-                  </span>
-                </span>
+              <TableCell className="text-center">
+                <StatusPill isActive={item.isActive} />
               </TableCell>
               <TableCell className="text-right">
                 {canEdit ? (
@@ -108,16 +118,6 @@ export function ClinicMasterList({
             </DataTableRow>
           )}
         />
-        {canCreate ? (
-          <button
-            type="button"
-            onClick={onCreate}
-            className={`flex min-h-11 items-center gap-1.5 w-full px-3 py-2 text-sm ${C.text40} ${C.hoverText60} ${C.hoverBgLight} transition-colors rounded`}
-          >
-            <Plus className={ICON.xs} />
-            新しい医院を追加...
-          </button>
-        ) : null}
       </div>
     </PageLayout>
   );

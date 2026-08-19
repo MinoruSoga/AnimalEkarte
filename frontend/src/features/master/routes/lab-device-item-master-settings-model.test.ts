@@ -6,12 +6,17 @@ import {
   LAB_DEVICE_UNMAPPED_FIELD,
   buildExamFieldOptions,
   buildLabDeviceItemMasterUpdateRequest,
+  collectDirtyLabDeviceUpdates,
   examFieldOptionsForItem,
   examFieldSelectValue,
+  filterLabDeviceRows,
   groupLabDeviceItemMasters,
+  itemToLabDeviceDraft,
+  itemsForLabDevice,
   labDeviceSourceLabel,
   labDeviceValueShapeLabel,
   parseExamFieldSelectValue,
+  toLabDeviceRows,
   validateLabDeviceItemMasterDraft,
 } from "./lab-device-item-master-settings-model";
 
@@ -128,5 +133,70 @@ describe("lab-device-item-master-settings-model", () => {
       "arkray_pu4010",
     ]);
     expect(groups[0]?.label).toBe("NX600");
+  });
+
+  it("一覧は項目が空でも3機器を出し、未設定数と有効を集計する", () => {
+    const rows = toLabDeviceRows([
+      item({ id: "1", sourceType: "fuji_nx600", examTypeFieldId: null, isActive: true }),
+      item({ id: "2", sourceType: "fuji_nx600", examTypeFieldId: "21", isActive: false }),
+    ]);
+    expect(rows.map((row) => row.sourceType)).toEqual([
+      "fuji_nx600",
+      "fuji_au10v",
+      "arkray_pu4010",
+    ]);
+    expect(rows[0]).toMatchObject({
+      name: "NX600",
+      itemCount: 2,
+      unmappedCount: 1,
+      isActive: true,
+    });
+    expect(rows[1]).toMatchObject({ name: "AU10V", itemCount: 0, unmappedCount: 0, isActive: true });
+    expect(rows[2]).toMatchObject({ name: "尿（PU-4010）", itemCount: 0, isActive: true });
+  });
+
+  it("未知の機器は末尾に出し、検索とステータスで絞り込む", () => {
+    const rows = toLabDeviceRows([
+      item({ id: "9", sourceType: "other_device", isActive: false }),
+    ]);
+    expect(rows.map((row) => row.sourceType)).toEqual([
+      "fuji_nx600",
+      "fuji_au10v",
+      "arkray_pu4010",
+      "other_device",
+    ]);
+    expect(filterLabDeviceRows(rows, "尿", []).map((row) => row.sourceType)).toEqual(["arkray_pu4010"]);
+    expect(
+      filterLabDeviceRows(rows, "", [{ key: "status", condition: "is", value: "inactive", displayValue: "無効" }]).map(
+        (row) => row.sourceType,
+      ),
+    ).toEqual(["other_device"]);
+  });
+
+  it("機器の項目は sort_order で並べ、変更分だけ PATCH する", () => {
+    const items = [
+      item({ id: "2", deviceItemCode: "K-P", displayName: "K", sortOrder: 20 }),
+      item({ id: "1", deviceItemCode: "Na-P", displayName: "Na", sortOrder: 10, examTypeFieldId: null }),
+    ];
+    expect(itemsForLabDevice(items, "fuji_nx600").map((row) => row.id)).toEqual(["1", "2"]);
+    const drafts = items.map(itemToLabDeviceDraft);
+    drafts[0] = { ...drafts[0]!, displayName: " カリウム " };
+    expect(collectDirtyLabDeviceUpdates(items, drafts)).toEqual({
+      error: null,
+      updates: [
+        {
+          id: "2",
+          req: {
+            display_name: "カリウム",
+            unit: "mEq/l",
+            exam_type_field_id: null,
+            is_active: true,
+          },
+        },
+      ],
+    });
+    expect(
+      collectDirtyLabDeviceUpdates(items, [{ ...itemToLabDeviceDraft(items[0]!), displayName: "  " }]).error,
+    ).toBe("K-P: 表示名は必須です");
   });
 });

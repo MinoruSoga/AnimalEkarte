@@ -58,7 +58,6 @@ export function CageSettings() {
     permissions: { canCreate, canEdit },
   });
 
-  // CageSettings uses custom table (not DataTable) for DnD + DragOverlay + bottom "add" button
   return (
     <MasterCRUDPage title="ケージマスタ" icon={<Building2 className={`${ICON.page} ${C.text}`} />} resource={ResourceMasterHospitalization}
       entityLabel="ケージ" searchPlaceholder="ケージ名で検索..." emptyMessage="ケージが登録されていません"
@@ -74,10 +73,8 @@ export function CageSettings() {
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
         onDragCancel={handleDragCancel}
-        canCreate={canCreate}
         canEdit={canEdit}
         onEdit={crud.handleEdit}
-        onNew={crud.handleNew}
       />
     </MasterCRUDPage>
   );

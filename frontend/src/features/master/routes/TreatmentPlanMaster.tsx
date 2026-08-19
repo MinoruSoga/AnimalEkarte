@@ -314,7 +314,7 @@ export function TreatmentPlanMaster() {
 
   return (
     <MasterTabPage
-      title="治療プランマスタ"
+      title="診療項目マスタ"
       icon={<Stethoscope className={`${ICON.page} ${C.text}`} />}
       resource={activeResource}
       onNew={handleNew}

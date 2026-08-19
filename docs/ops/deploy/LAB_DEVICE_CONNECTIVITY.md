@@ -38,7 +38,7 @@
 ## 画面と API
 
 - 日常経路は `/lab-device`（`LabDeviceBoard`）。権限は `lab-import`。確認ダイアログは無い。
-- 医院セットアップで口→機器プロファイルを1回許可する。TTL の数値 UI は無い。
+- 医院セットアップで口→機器プロファイルを1回許可する。以後は `/lab-device` を開いたまま自動再オープンする。［読む］は無い。TTL の数値 UI は無い。
 - 診察端末の検査画面は未紐付けバナーから1クリックで `attach` する。値は編集しない。
 - 保持確認は `/examinations`（城東3種はペット確定後の persist。fixture は commit）
 - `fixture` だけ commit 可。`drwan` は preview 200 + `blocked_reasons`、commit 400。`GetJob` は `drwan` を 400

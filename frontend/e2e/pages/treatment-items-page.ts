@@ -14,7 +14,7 @@ export class TreatmentItemsPage extends BasePage {
   }
 
   planMasterHeading(): Locator {
-    return this.heading('治療プランマスタ');
+    return this.heading('診療項目マスタ');
   }
 
   tab(name: string): Locator {

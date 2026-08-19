@@ -1,6 +1,5 @@
 import { memo, useCallback, useEffect, useState } from "react";
 import Calendar from "lucide-react/dist/esm/icons/calendar";
-import Plus from "lucide-react/dist/esm/icons/plus";
 import Trash2 from "lucide-react/dist/esm/icons/trash-2";
 import X from "lucide-react/dist/esm/icons/x";
 import { toast } from "sonner";
@@ -71,29 +70,6 @@ export const ShiftTemplateRow = memo(function ShiftTemplateRow({
     </SortableDataTableRow>
   );
 });
-
-interface ShiftTemplateToolbarProps {
-  count: number;
-  onCreate?: () => void;
-}
-
-export function ShiftTemplateToolbar({ count, onCreate }: ShiftTemplateToolbarProps) {
-  return (
-    <div className="flex items-center justify-between mb-4">
-      <span className={`text-sm ${C.text50}`}>{count} 件</span>
-      {onCreate !== undefined ? (
-        <button
-          type="button"
-          onClick={onCreate}
-          className={`inline-flex min-h-11 min-w-11 items-center gap-1 text-sm font-medium ${C.textBrand} ${C.hoverTextBrand} cursor-pointer transition-colors`}
-        >
-          <Plus className="size-4" />
-          新規登録
-        </button>
-      ) : null}
-    </div>
-  );
-}
 
 interface ShiftTemplateSidePanelProps {
   item: ShiftTemplate | null;

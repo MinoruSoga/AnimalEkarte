@@ -1,14 +1,12 @@
 import { type ComponentProps, useMemo } from "react";
 import { DndContext, DragOverlay, closestCenter } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
-import { Plus } from "lucide-react";
-
 import { RowActionButton } from "@/components/shared/RowActionButton";
 import { StatusPill } from "@/components/shared/StatusPill/StatusPill";
 import { DataTableRowButton } from "@/components/shared/DataTable/DataTableRowButton";
 import { SortableDataTableRow } from "@/components/shared/DataTable/SortableDataTableRow";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { C, ICON, STYLE } from "@/lib/design-tokens";
+import { C, STYLE } from "@/lib/design-tokens";
 import { formatCurrency } from "@/lib/format/number";
 
 import type { FrontendMerchandiseItem } from "../api/merchandise-items";
@@ -35,10 +33,8 @@ interface MerchandiseSortableTableProps {
   onDragStart: NonNullable<ComponentProps<typeof DndContext>["onDragStart"]>;
   onDragEnd: NonNullable<ComponentProps<typeof DndContext>["onDragEnd"]>;
   onDragCancel: NonNullable<ComponentProps<typeof DndContext>["onDragCancel"]>;
-  canCreate: boolean;
   canEdit: boolean;
   onEdit: (item: FrontendMerchandiseItem) => void;
-  onNew: () => void;
 }
 
 export function MerchandiseSortableTable({
@@ -48,10 +44,8 @@ export function MerchandiseSortableTable({
   onDragStart,
   onDragEnd,
   onDragCancel,
-  canCreate,
   canEdit,
   onEdit,
-  onNew,
 }: MerchandiseSortableTableProps) {
   const activeItem = useMemo(
     () => items.find((item) => item.id === activeId) ?? null,
@@ -132,12 +126,6 @@ export function MerchandiseSortableTable({
           </DragOverlay>
         </DndContext>
       </div>
-      {canCreate ? (
-        <button type="button" onClick={onNew} className={STYLE.inlineAddBtn}>
-          <Plus className={ICON.xs} />
-          新しい品目を追加...
-        </button>
-      ) : null}
     </div>
   );
 }

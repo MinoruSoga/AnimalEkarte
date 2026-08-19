@@ -4,6 +4,7 @@ import { usePermission } from "@/hooks/use-permission";
 import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
 import { TableCell } from "@/components/ui/table";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
+import { DataTableRowButton } from "@/components/shared/DataTable/DataTableRowButton";
 import { RowActionButton } from "@/components/shared/RowActionButton";
 import { StatusPill } from "@/components/shared/StatusPill/StatusPill";
 import { C, ICON } from "@/lib/design-tokens";
@@ -58,7 +59,14 @@ export function HospitalizationSettings() {
       filterProperties={[MASTER_STATUS_FILTER]}
       renderRow={(item, onEdit, canEdit) => (
         <DataTableRow key={item.id}>
-          <TableCell className={`font-medium ${C.text}`}>{item.name}</TableCell>
+          <TableCell className={`font-medium ${C.text}`}>
+            <DataTableRowButton
+              aria-label={`詳細: 入院プラン ${item.name} (ID ${item.id})`}
+              onClick={() => onEdit(item)}
+            >
+              {item.name}
+            </DataTableRowButton>
+          </TableCell>
           <TableCell className={C.text70}>{item.bodySize ? (BODY_SIZE_LABELS[item.bodySize] ?? item.bodySize) : "-"}</TableCell>
           <TableCell className={C.text70}>{item.billingUnit ? (BILLING_UNIT_LABELS[item.billingUnit] ?? item.billingUnit) : "-"}</TableCell>
           <TableCell className={`text-right font-mono ${C.text}`}>{formatCurrencyOrDash(item.price)}</TableCell>

@@ -1,5 +1,6 @@
 import { TableCell } from "@/components/ui/table";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
+import { DataTableRowButton } from "@/components/shared/DataTable/DataTableRowButton";
 import { RowActionButton } from "@/components/shared/RowActionButton";
 import { StatusPill } from "@/components/shared/StatusPill/StatusPill";
 import { C } from "@/lib/design-tokens";
@@ -26,7 +27,12 @@ export function TrimmingCourseRow({
   return (
     <DataTableRow key={item.id}>
       <TableCell className={`font-medium ${C.text}`}>
-        {item.name}
+        <DataTableRowButton
+          aria-label={`詳細: トリミングコース ${item.name} (ID ${item.id})`}
+          onClick={() => onEdit(item)}
+        >
+          {item.name}
+        </DataTableRowButton>
       </TableCell>
       <TableCell className={C.text70}>
         {item.targetSize ? TARGET_SIZE_LABELS[item.targetSize] : "-"}
@@ -64,7 +70,12 @@ export function TrimmingOptionRow({
   return (
     <DataTableRow key={item.id}>
       <TableCell className={`font-medium ${C.text}`}>
-        {item.name}
+        <DataTableRowButton
+          aria-label={`詳細: トリミングオプション ${item.name} (ID ${item.id})`}
+          onClick={() => onEdit(item)}
+        >
+          {item.name}
+        </DataTableRowButton>
       </TableCell>
       <TableCell className={C.text70}>
         {formatTrimmingDuration(item.duration)}

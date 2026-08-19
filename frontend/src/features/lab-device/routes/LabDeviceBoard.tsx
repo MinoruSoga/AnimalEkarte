@@ -2,7 +2,6 @@ import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
-import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useGetPets } from "@/hooks/use-pet";
@@ -20,12 +19,15 @@ import {
   useReceiveLabDeviceFrames,
   type LabDeviceJobCard,
 } from "../api/lab-device";
+import { useLabDeviceListen } from "../hooks/use-lab-device-listen";
 import {
   isWebSerialSupported,
+  labDeviceBoardLinkLabel,
   labDeviceCardTitle,
   labDeviceHasUnmapped,
+  labDeviceSlotListenLabel,
 } from "../lib/lab-device-board-model";
-import { bytesToBase64, readLabDeviceSlot, requestLabDevicePort } from "../lib/lab-device-serial";
+import { bytesToBase64, requestLabDevicePort } from "../lib/lab-device-serial";
 
 function JobCardView({
   card,
@@ -85,17 +87,12 @@ export function LabDeviceBoard() {
   const detach = useDetachLabDeviceJob();
   const [search, setSearch] = useState("");
   const [lastReceive, setLastReceive] = useState("未受信");
+  const [listenEpoch, setListenEpoch] = useState(0);
   const { data: pets = [] } = useGetPets(undefined, { search, limit: 8 }, { enabled: search.length > 0 });
   const slots = useMemo(() => parseLabDeviceSlots(board?.station.slotsJson ?? "[]"), [board?.station.slotsJson]);
   const serialOk = isWebSerialSupported();
-
-  const listen = useCallback(async (hint: string, slotKey: string, baud: number) => {
+  const onFrame = useCallback(async (hint: string, bytes: Uint8Array) => {
     try {
-      const bytes = await readLabDeviceSlot(slotKey, baud);
-      if (!bytes || bytes.length === 0) {
-        toast.error("受信できませんでした。口の許可を確認してください。");
-        return;
-      }
       const results = await receive.mutateAsync({ payloadBase64: bytesToBase64(bytes), deviceHint: hint });
       const first = results[0];
       setLastReceive(first?.duplicate ? "再送（取込済み）" : "受信");
@@ -103,6 +100,13 @@ export function LabDeviceBoard() {
       toast.error("電文を読めませんでした");
     }
   }, [receive]);
+  const listenStates = useLabDeviceListen({
+    slots,
+    enabled: serialOk && canCreate,
+    listenEpoch,
+    onFrame,
+  });
+  const linkLabel = labDeviceBoardLinkLabel(Object.values(listenStates));
 
   return (
     <PageLayout
@@ -116,7 +120,7 @@ export function LabDeviceBoard() {
           {board?.wait ? (
             <div className="space-y-3">
               <p className="text-heading-1 font-bold">{board.wait.petName}</p>
-              <p className={`text-sm ${C.textInkMuted}`}>待機中 · 最終受信 {lastReceive}</p>
+              <p className={`text-sm ${C.textInkMuted}`}>待機中 · 接続 {serialOk ? linkLabel : "非対応"} · 最終受信 {lastReceive}</p>
               {canCreate ? (
                 <Button type="button" variant="outline" onClick={() => void clearWait.mutateAsync()}>
                   待機を解除
@@ -126,7 +130,7 @@ export function LabDeviceBoard() {
           ) : (
             <div className="space-y-3">
               <p className="text-heading-1 font-semibold">受信中</p>
-              <p className={`text-sm ${C.textInkMuted}`}>ペット未選択 · 最終受信 {lastReceive}</p>
+              <p className={`text-sm ${C.textInkMuted}`}>ペット未選択 · 接続 {serialOk ? linkLabel : "非対応"} · 最終受信 {lastReceive}</p>
               <Input
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
@@ -178,30 +182,35 @@ export function LabDeviceBoard() {
         </section>
 
         <section className="space-y-2">
-          <h2 className="text-xl font-semibold">口</h2>
+          <h2 className="text-xl font-semibold">医院セットアップ</h2>
+          <p className={`text-sm ${C.textInkMuted}`}>口の許可は初回だけ。以後はこのページを開いたまま受信します。</p>
           {!serialOk ? (
             <p className={C.textInkMuted}>このブラウザは有線シリアルに対応していません。掲示板と後付けは使えます。</p>
           ) : null}
-          <div className="flex flex-wrap gap-2">
+          <ul className="space-y-2">
             {slots.map((slot) => (
-              <div key={slot.key} className="flex gap-2">
+              <li key={slot.key} className="flex flex-wrap items-center gap-2">
+                <span className="font-medium">{slot.deviceHint}</span>
+                <span className={`text-sm ${C.textInkMuted}`}>
+                  {labDeviceSlotListenLabel(listenStates[slot.key] ?? "needs_permission")}
+                </span>
                 {serialOk ? (
-                  <PrimaryButton type="button" onClick={() => void requestLabDevicePort(slot.key)}>
-                    {slot.deviceHint} を許可
-                  </PrimaryButton>
-                ) : null}
-                {serialOk && canCreate ? (
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => void listen(slot.deviceHint, slot.key, slot.baud)}
+                    size="sm"
+                    onClick={() => {
+                      void requestLabDevicePort(slot.key).then(() => {
+                        setListenEpoch((current) => current + 1);
+                      });
+                    }}
                   >
-                    {slot.deviceHint} を読む
+                    {slot.deviceHint} を許可
                   </Button>
                 ) : null}
-              </div>
+              </li>
             ))}
-          </div>
+          </ul>
         </section>
       </div>
     </PageLayout>

@@ -1,3 +1,6 @@
+import type { ActiveFilter } from "@/components/shared/PropertyFilter/types";
+import { normalizedIncludes } from "@/lib/normalize-kana";
+
 import type {
   LabDeviceItemMaster,
   UpdateLabDeviceItemMasterRequest,
@@ -35,6 +38,22 @@ export type LabDeviceItemMasterGroup = {
   sourceType: string;
   label: string;
   items: LabDeviceItemMaster[];
+};
+
+export type LabDeviceRow = {
+  id: string;
+  sourceType: string;
+  name: string;
+  itemCount: number;
+  unmappedCount: number;
+  isActive: boolean;
+};
+
+export type LabDeviceItemDraft = {
+  id: string;
+  displayName: string;
+  examTypeFieldId: string | null;
+  isActive: boolean;
 };
 
 export function labDeviceSourceLabel(sourceType: string): string {
@@ -132,4 +151,107 @@ export function groupLabDeviceItemMasters(
       items: groups.get(sourceType) ?? [],
     }));
   return [...known, ...extras];
+}
+
+function toLabDeviceRow(sourceType: string, list: LabDeviceItemMaster[]): LabDeviceRow {
+  return {
+    id: sourceType,
+    sourceType,
+    name: labDeviceSourceLabel(sourceType),
+    itemCount: list.length,
+    unmappedCount: list.filter((item) => item.examTypeFieldId === null).length,
+    isActive: list.length === 0 || list.some((item) => item.isActive),
+  };
+}
+
+export function toLabDeviceRows(items: LabDeviceItemMaster[] | undefined): LabDeviceRow[] {
+  const grouped = new Map(groupLabDeviceItemMasters(items).map((group) => [group.sourceType, group.items]));
+  const known = LAB_DEVICE_SOURCE_ORDER.map((sourceType) => toLabDeviceRow(sourceType, grouped.get(sourceType) ?? []));
+  const extras = [...grouped.keys()]
+    .filter((sourceType) => !LAB_DEVICE_SOURCE_ORDER.includes(sourceType as (typeof LAB_DEVICE_SOURCE_ORDER)[number]))
+    .sort()
+    .map((sourceType) => toLabDeviceRow(sourceType, grouped.get(sourceType) ?? []));
+  return [...known, ...extras];
+}
+
+export function itemsForLabDevice(
+  items: LabDeviceItemMaster[] | undefined,
+  sourceType: string,
+): LabDeviceItemMaster[] {
+  return (items ?? [])
+    .filter((item) => item.sourceType === sourceType)
+    .slice()
+    .sort((left, right) => left.sortOrder - right.sortOrder || left.deviceItemCode.localeCompare(right.deviceItemCode));
+}
+
+export function filterLabDeviceRows(
+  rows: LabDeviceRow[],
+  searchTerm: string,
+  filters: ActiveFilter[],
+): LabDeviceRow[] {
+  const term = searchTerm.trim();
+  return rows.filter((row) => {
+    if (term && !normalizedIncludes(row.name, term) && !normalizedIncludes(row.sourceType, term)) {
+      return false;
+    }
+    for (const filter of filters) {
+      if (filter.key !== "status" || typeof filter.value !== "string") {
+        continue;
+      }
+      const wantActive = filter.value === "active";
+      if (filter.condition === "is" && row.isActive !== wantActive) {
+        return false;
+      }
+      if (filter.condition === "is_not" && row.isActive === wantActive) {
+        return false;
+      }
+    }
+    return true;
+  });
+}
+
+export function itemToLabDeviceDraft(item: LabDeviceItemMaster): LabDeviceItemDraft {
+  return {
+    id: item.id,
+    displayName: item.displayName,
+    examTypeFieldId: item.examTypeFieldId,
+    isActive: item.isActive,
+  };
+}
+
+export function isLabDeviceItemDraftDirty(item: LabDeviceItemMaster, draft: LabDeviceItemDraft): boolean {
+  return item.displayName !== draft.displayName.trim()
+    || item.examTypeFieldId !== draft.examTypeFieldId
+    || item.isActive !== draft.isActive;
+}
+
+export function collectDirtyLabDeviceUpdates(
+  items: LabDeviceItemMaster[],
+  drafts: LabDeviceItemDraft[],
+): { error: string | null; updates: { id: string; req: UpdateLabDeviceItemMasterRequest }[] } {
+  const byId = new Map(items.map((item) => [item.id, item]));
+  const updates: { id: string; req: UpdateLabDeviceItemMasterRequest }[] = [];
+  for (const draft of drafts) {
+    const item = byId.get(draft.id);
+    if (item === undefined) {
+      continue;
+    }
+    const error = validateLabDeviceItemMasterDraft(draft);
+    if (error !== null) {
+      return { error: `${item.deviceItemCode}: ${error}`, updates: [] };
+    }
+    if (!isLabDeviceItemDraftDirty(item, draft)) {
+      continue;
+    }
+    updates.push({
+      id: draft.id,
+      req: buildLabDeviceItemMasterUpdateRequest({
+        displayName: draft.displayName,
+        unit: item.unit,
+        examTypeFieldId: draft.examTypeFieldId,
+        isActive: draft.isActive,
+      }),
+    });
+  }
+  return { error: null, updates };
 }

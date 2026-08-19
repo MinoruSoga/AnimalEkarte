@@ -114,7 +114,7 @@ export function DiagnosisSettings() {
 
   return (
     <MasterTabPage
-      title="診断病名マスタ"
+      title="診断マスタ"
       icon={<ClipboardList className={`${ICON.page} ${C.text}`} />}
       resource={ResourceMasterMedical}
       onNew={handleNew}

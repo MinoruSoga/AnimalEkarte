@@ -118,12 +118,12 @@ test.describe('設定マスタ CRUD E2E', () => {
     }
   });
 
-  test('診断病名マスタ: 新規登録パネルが開く', async () => {
+  test('診断マスタ: 新規登録パネルが開く', async () => {
     const page = await context.newPage();
     const settings = new SettingsMasterPage(page);
     try {
       await settings.open('/settings/diagnosis');
-      await expect(settings.heading('診断病名マスタ')).toBeVisible();
+      await expect(settings.heading('診断マスタ')).toBeVisible();
 
       // 「新規登録」ボタンをクリック → パネルが開く
       await settings.newButton().click();

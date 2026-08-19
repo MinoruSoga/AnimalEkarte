@@ -111,7 +111,7 @@ describe("CageSettings (useMasterCRUD / useMasterSave 統合テスト)", () => {
 
     expect(await screen.findByText("1番ケージ")).toBeInTheDocument();
 
-    await user.click(await screen.findByText("新しいケージを追加..."));
+    await user.click(await screen.findByRole("button", { name: "新規登録" }));
 
     const titleInput = await screen.findByPlaceholderText("無題");
     await user.type(titleInput, "2番ケージ");
@@ -231,7 +231,7 @@ describe("CageSettings (useMasterCRUD / useMasterSave 統合テスト)", () => {
     const user = userEvent.setup();
     renderPage();
 
-    await user.click(await screen.findByText("新しいケージを追加..."));
+    await user.click(await screen.findByRole("button", { name: "新規登録" }));
     await screen.findByPlaceholderText("無題");
     await user.click(screen.getByRole("button", { name: "保存" }));
 

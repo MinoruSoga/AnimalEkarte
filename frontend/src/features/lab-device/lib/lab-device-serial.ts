@@ -1,4 +1,46 @@
-import { isWebSerialSupported, labDevicePortStorageKey } from "./lab-device-board-model";
+import {
+  isWebSerialSupported,
+  labDeviceListenState,
+  labDevicePortStorageKey,
+  type LabDeviceListenState,
+} from "./lab-device-board-model";
+
+export const LAB_DEVICE_IDLE_TICKS = 8;
+export const LAB_DEVICE_IDLE_MS = 250;
+export const LAB_DEVICE_REOPEN_MS = 2000;
+
+export class LabDeviceIdleFrameBuffer {
+  private chunks: Uint8Array[] = [];
+  private idleTicks = 0;
+
+  push(bytes: Uint8Array): void {
+    if (bytes.length === 0) {
+      return;
+    }
+    this.chunks.push(bytes);
+    this.idleTicks = 0;
+  }
+
+  tickIdle(maxIdle = LAB_DEVICE_IDLE_TICKS): Uint8Array | null {
+    if (this.chunks.length === 0) {
+      return null;
+    }
+    this.idleTicks += 1;
+    if (this.idleTicks < maxIdle) {
+      return null;
+    }
+    const total = this.chunks.reduce((sum, chunk) => sum + chunk.length, 0);
+    const out = new Uint8Array(total);
+    let offset = 0;
+    for (const chunk of this.chunks) {
+      out.set(chunk, offset);
+      offset += chunk.length;
+    }
+    this.chunks = [];
+    this.idleTicks = 0;
+    return out;
+  }
+}
 
 export interface LabDeviceSerialPortInfo {
   usbVendorId?: number;
@@ -56,63 +98,120 @@ function portsMatch(port: LabDeviceSerialPort, stored: LabDeviceSerialPortInfo):
     && port.getInfo().usbProductId === stored.usbProductId;
 }
 
-async function readIdleFrame(port: LabDeviceSerialPort, baudRate: number): Promise<Uint8Array> {
-  await port.open({ baudRate });
+async function sleep(ms: number, isStopped: () => boolean): Promise<void> {
+  const started = Date.now();
+  while (!isStopped() && Date.now() - started < ms) {
+    await new Promise((resolve) => {
+      window.setTimeout(resolve, Math.min(250, ms));
+    });
+  }
+}
+
+async function readOpenLoop(
+  port: LabDeviceSerialPort,
+  isStopped: () => boolean,
+  onFrame: (bytes: Uint8Array) => Promise<void>,
+): Promise<void> {
   const reader = port.readable?.getReader();
   if (!reader) {
-    await port.close();
     throw new Error("serial port is not readable");
   }
-  const chunks: Uint8Array[] = [];
-  let idle = 0;
+  const buffer = new LabDeviceIdleFrameBuffer();
   try {
-    while (idle < 8) {
+    while (!isStopped()) {
       const next = reader.read();
       const timeout = new Promise<{ done: true; value: undefined }>((resolve) => {
-        window.setTimeout(() => resolve({ done: true, value: undefined }), 250);
+        window.setTimeout(() => resolve({ done: true, value: undefined }), LAB_DEVICE_IDLE_MS);
       });
-      const { value, done } = await Promise.race([next, timeout]);
+      const { value } = await Promise.race([next, timeout]);
       if (value && value.length > 0) {
-        chunks.push(value);
-        idle = 0;
+        buffer.push(value);
         continue;
       }
-      if (chunks.length > 0) {
-        idle += 1;
-      }
-      if (done && chunks.length > 0) {
-        break;
+      const frame = buffer.tickIdle();
+      if (frame && frame.length > 0) {
+        await onFrame(frame);
       }
     }
   } finally {
-    reader.releaseLock();
-    await port.close();
+    try {
+      reader.releaseLock();
+    } catch {
+      // already released by cancel
+    }
   }
-  const total = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
-  const out = new Uint8Array(total);
-  let offset = 0;
-  for (const chunk of chunks) {
-    out.set(chunk, offset);
-    offset += chunk.length;
-  }
-  return out;
 }
 
-export async function readLabDeviceSlot(
-  slotKey: string,
-  baudRate: number,
-): Promise<Uint8Array | null> {
-  const serial = serialApi();
-  const stored = readStoredPortInfo(slotKey);
-  if (!serial || !stored) {
-    return null;
-  }
-  const ports = await serial.getPorts();
-  const port = ports.find((candidate) => portsMatch(candidate, stored));
-  if (!port) {
-    return null;
-  }
-  return readIdleFrame(port, baudRate);
+export function startLabDeviceSlotListen(input: {
+  slotKey: string;
+  baudRate: number;
+  isStopped: () => boolean;
+  onState: (state: LabDeviceListenState) => void;
+  onFrame: (bytes: Uint8Array) => Promise<void>;
+}): () => void {
+  let stopped = false;
+  let port: LabDeviceSerialPort | undefined;
+
+  const isStopped = () => stopped || input.isStopped();
+  const stop = () => {
+    stopped = true;
+    void (async () => {
+      try {
+        await port?.close();
+      } catch {
+        // already closed
+      }
+    })();
+  };
+
+  void (async () => {
+    while (!isStopped()) {
+      const serial = serialApi();
+      const stored = readStoredPortInfo(input.slotKey);
+      const nextState = labDeviceListenState({
+        serialSupported: serial !== null,
+        hasStoredPort: stored !== null,
+        connected: false,
+      });
+      if (nextState !== "disconnected") {
+        input.onState(nextState);
+        await sleep(LAB_DEVICE_REOPEN_MS, isStopped);
+        continue;
+      }
+      if (!serial || !stored) {
+        input.onState("disconnected");
+        await sleep(LAB_DEVICE_REOPEN_MS, isStopped);
+        continue;
+      }
+      const ports = await serial.getPorts();
+      const matched = ports.find((candidate) => portsMatch(candidate, stored));
+      if (!matched) {
+        input.onState("disconnected");
+        await sleep(LAB_DEVICE_REOPEN_MS, isStopped);
+        continue;
+      }
+      port = matched;
+      try {
+        await matched.open({ baudRate: input.baudRate });
+        input.onState("listening");
+        await readOpenLoop(matched, isStopped, input.onFrame);
+      } catch {
+        input.onState("disconnected");
+      } finally {
+        try {
+          await matched.close();
+        } catch {
+          // already closed
+        }
+        port = undefined;
+      }
+      if (!isStopped()) {
+        await sleep(LAB_DEVICE_REOPEN_MS, isStopped);
+      }
+    }
+  })();
+
+  return stop;
 }
 
 export function bytesToBase64(bytes: Uint8Array): string {

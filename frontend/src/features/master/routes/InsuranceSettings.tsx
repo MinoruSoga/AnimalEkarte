@@ -4,6 +4,7 @@ import { usePermission } from "@/hooks/use-permission";
 import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
 import { TableCell } from "@/components/ui/table";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
+import { DataTableRowButton } from "@/components/shared/DataTable/DataTableRowButton";
 import { RowActionButton } from "@/components/shared/RowActionButton";
 import { StatusPill } from "@/components/shared/StatusPill/StatusPill";
 import { C, ICON } from "@/lib/design-tokens";
@@ -60,7 +61,14 @@ export function InsuranceSettings() {
       filterProperties={[MASTER_STATUS_FILTER]}
       renderRow={(item, onEdit, canEdit) => (
         <DataTableRow key={item.id}>
-          <TableCell className={`font-medium ${C.text}`}>{item.name}</TableCell>
+          <TableCell className={`font-medium ${C.text}`}>
+            <DataTableRowButton
+              aria-label={`詳細: 保険 ${item.name} (ID ${item.id})`}
+              onClick={() => onEdit(item)}
+            >
+              {item.name}
+            </DataTableRowButton>
+          </TableCell>
           <TableCell className={`text-center ${C.text}`}>{item.coverageRate > 0 ? `${item.coverageRate}%` : "-"}</TableCell>
           <TableCell className={C.text70}>{item.contactPhone || "-"}</TableCell>
           <TableCell className="text-center"><StatusPill isActive={item.isActive} /></TableCell>

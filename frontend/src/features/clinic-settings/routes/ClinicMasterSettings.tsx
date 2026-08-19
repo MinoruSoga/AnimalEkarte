@@ -2,12 +2,11 @@ import { useActionState, useCallback, useDeferredValue, useEffect, useMemo, useR
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
 
-import { ErrorFallback, LoadingFallback } from "@/components/shared/DataStates";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker/NavigationBlocker";
+import type { ActiveFilter } from "@/components/shared/PropertyFilter/types";
 import { paths } from "@/config/paths";
 import { usePermission } from "@/hooks/use-permission";
 import { handleApiError } from "@/lib/handle-api-error";
-import { normalizeKana } from "@/lib/normalize-kana";
 import { ResourceHospitalSettings } from "@/types/generated/models";
 import {
   ClinicDeleteDialog,
@@ -18,6 +17,7 @@ import { CompanyInvoiceSection } from "../components/CompanyInvoiceSection";
 import {
   DEFAULT_CLINIC_FORM_DATA,
   clinicToFormData,
+  filterClinics,
   type ClinicFormData,
 } from "../components/clinic-master-settings-model";
 import {
@@ -42,6 +42,7 @@ export function ClinicMasterSettings() {
   const [isEditing, setIsEditing] = useState(false);
   const [selectedItem, setSelectedItem] = useState<Clinic | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
   const [formData, setFormData] = useState<ClinicFormData>(DEFAULT_CLINIC_FORM_DATA);
   const [pendingDelete, setPendingDelete] = useState<Clinic | null>(null);
   const [isDeletePending, startDeleteTransition] = useTransition();
@@ -126,17 +127,10 @@ export function ClinicMasterSettings() {
     }
   }, [formState.success, formState.timestamp]);
 
-  const filteredItems = useMemo(() => {
-    const clinics = rawClinics ?? [];
-    if (!deferredSearch) return clinics;
-    const lower = normalizeKana(deferredSearch).toLowerCase();
-    return clinics.filter(
-      (clinic) =>
-        normalizeKana(clinic.name).toLowerCase().includes(lower) ||
-        clinic.phoneNumber.toLowerCase().includes(lower) ||
-        clinic.email.toLowerCase().includes(lower),
-    );
-  }, [rawClinics, deferredSearch]);
+  const filteredItems = useMemo(
+    () => filterClinics(rawClinics ?? [], deferredSearch, activeFilters),
+    [rawClinics, deferredSearch, activeFilters],
+  );
 
   const handleEdit = useCallback((item: Clinic) => {
     setSelectedItem(item);
@@ -174,21 +168,11 @@ export function ClinicMasterSettings() {
     });
   }, [pendingDeleteId, deleteClinicMasterFn]);
 
-  if (isError) {
-    return (
-      <div className="flex h-full items-center justify-center p-6">
-        <ErrorFallback message="医院一覧の取得に失敗しました" />
-      </div>
-    );
-  }
-
-  if (isPending) {
-    return (
-      <div className="flex h-full items-center justify-center p-6">
-        <LoadingFallback />
-      </div>
-    );
-  }
+  const emptyMessage = isError
+    ? "医院一覧の取得に失敗しました"
+    : isPending
+      ? "読み込み中..."
+      : "医院が登録されていません";
 
   return (
     <>
@@ -199,9 +183,12 @@ export function ClinicMasterSettings() {
             canCreate={canCreate}
             canEdit={canEdit}
             topSection={<CompanyInvoiceSection canEdit={canEdit} />}
-            items={filteredItems}
+            items={isPending || isError ? [] : filteredItems}
             searchTerm={searchTerm}
             onSearchChange={setSearchTerm}
+            activeFilters={activeFilters}
+            onFilterChange={setActiveFilters}
+            emptyMessage={emptyMessage}
             onBack={() => navigate(paths.settings.getHref())}
             onCreate={handleCreate}
             onEdit={handleEdit}

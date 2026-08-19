@@ -2,15 +2,19 @@ import { useCallback, useMemo, useState } from "react";
 import { DndContext, closestCenter } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import Calendar from "lucide-react/dist/esm/icons/calendar";
+import Plus from "lucide-react/dist/esm/icons/plus";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
 
 import { DataTable, DESIGN_TABLE_HEADER_ROW, DESIGN_TABLE_HEADER_CELL } from "@/components/shared/DataTable/DataTable";
+import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
+import { PropertyFilter } from "@/components/shared/PropertyFilter/PropertyFilter";
+import type { ActiveFilter } from "@/components/shared/PropertyFilter/types";
 import { usePermission } from "@/hooks/use-permission";
 import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
 import { useSortableList } from "@/hooks/use-sortable-list";
-import { C, LAYOUT } from "@/lib/design-tokens";
+import { C, ICON, LAYOUT } from "@/lib/design-tokens";
 import { paths } from "@/config/paths";
 import { ResourceShifts, ShiftTypeOff, ShiftTypePaidLeave } from "@/types/generated/models";
 import { useCreateShiftTemplate } from "../api/create-shift-template";
@@ -22,16 +26,15 @@ import {
   ShiftTemplateDeleteDialog,
   ShiftTemplateRow,
   ShiftTemplateSidePanel,
-  ShiftTemplateToolbar,
 } from "../components/ShiftTemplateSettingsParts";
 import type { TemplateFormData } from "../components/shift-template-form-model";
-import { SHIFT_TEMPLATE_COLUMNS } from "../components/shift-template-table-model";
+import { SHIFT_STATUS_FILTER, SHIFT_TEMPLATE_COLUMNS, filterShiftTemplates } from "../components/shift-template-table-model";
 import type { ShiftTemplate } from "../types";
 
 export function ShiftTemplateSettings() {
   const navigate = useNavigate();
   const { canCreate, canEdit, canDelete } = usePermission(ResourceShifts);
-  const { data: templates = [], isLoading } = useGetShiftTemplates();
+  const { data: templates = [] } = useGetShiftTemplates();
   const createMutation = useCreateShiftTemplate();
   const updateMutation = useUpdateShiftTemplate();
   const deleteMutation = useDeleteShiftTemplate();
@@ -40,6 +43,8 @@ export function ShiftTemplateSettings() {
   const [selectedItem, setSelectedItem] = useState<ShiftTemplate | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<ShiftTemplate | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
 
   const dirty = useSidePeekDirty();
   const handleDirtyChange = useCallback(
@@ -57,6 +62,11 @@ export function ShiftTemplateSettings() {
       reorderMutation.mutate(newIds.map(Number));
     },
   });
+
+  const filteredItems = useMemo(
+    () => filterShiftTemplates(orderedItems, searchTerm, activeFilters),
+    [orderedItems, searchTerm, activeFilters],
+  );
 
   const handleCreate = useCallback(() => {
     if (!canCreate) return;
@@ -149,58 +159,61 @@ export function ShiftTemplateSettings() {
   const isSaving = createMutation.isPending || updateMutation.isPending;
   const isPanelReadOnly = selectedItem !== null ? !canEdit : !canCreate;
 
-  const emptyContent = useMemo(
-    () =>
-      !isLoading && orderedItems.length === 0 ? (
-        <div className={`flex items-center justify-center py-12 text-sm ${C.text40}`}>
-          テンプレートがありません
-        </div>
-      ) : null,
-    [isLoading, orderedItems.length],
-  );
-
   return (
     <div className="flex h-full overflow-hidden">
       <div className="flex-1 min-w-0 overflow-auto">
         <PageLayout
           title="シフトテンプレートマスタ"
-          icon={<Calendar className="size-5" />}
+          icon={<Calendar className={`${ICON.page} ${C.text}`} />}
           resource={ResourceShifts}
           onBack={() => navigate(paths.settings.getHref())}
           maxWidth={LAYOUT.pageContentMaxWidth.full}
+          headerAction={
+            canCreate ? (
+              <PrimaryButton onClick={handleCreate}>
+                <Plus className={`mr-1.5 ${ICON.action}`} />
+                新規登録
+              </PrimaryButton>
+            ) : null
+          }
         >
-          <ShiftTemplateToolbar
-            count={orderedItems.length}
-            onCreate={canCreate ? handleCreate : undefined}
-          />
-
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragEnd={handleDragEnd}
-          >
-            <SortableContext
-              items={orderedItems.map((i) => i.id)}
-              strategy={verticalListSortingStrategy}
+          <div className="flex flex-col gap-4">
+            <PropertyFilter
+              properties={[SHIFT_STATUS_FILTER]}
+              activeFilters={activeFilters}
+              onFilterChange={setActiveFilters}
+              searchTerm={searchTerm}
+              onSearchChange={setSearchTerm}
+              searchPlaceholder="テンプレート名で検索..."
+              count={filteredItems.length}
+            />
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
             >
-              <DataTable
-                headerRowClassName={DESIGN_TABLE_HEADER_ROW}
-                headerCellClassName={DESIGN_TABLE_HEADER_CELL}
-                columns={SHIFT_TEMPLATE_COLUMNS}
-                data={orderedItems}
-                renderRow={(item) => (
-                  <ShiftTemplateRow
-                    key={item.id}
-                    item={item}
-                    canEdit={canEdit}
-                    onEdit={() => handleEdit(item)}
-                  />
-                )}
-              />
-            </SortableContext>
-          </DndContext>
-
-          {emptyContent}
+              <SortableContext
+                items={filteredItems.map((item) => item.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                <DataTable
+                  headerRowClassName={DESIGN_TABLE_HEADER_ROW}
+                  headerCellClassName={DESIGN_TABLE_HEADER_CELL}
+                  columns={SHIFT_TEMPLATE_COLUMNS}
+                  data={filteredItems}
+                  emptyMessage="テンプレートがありません"
+                  renderRow={(item) => (
+                    <ShiftTemplateRow
+                      key={item.id}
+                      item={item}
+                      canEdit={canEdit}
+                      onEdit={() => handleEdit(item)}
+                    />
+                  )}
+                />
+              </SortableContext>
+            </DndContext>
+          </div>
         </PageLayout>
       </div>
 

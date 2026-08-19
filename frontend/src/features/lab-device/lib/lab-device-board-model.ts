@@ -33,3 +33,36 @@ export function findSlotByHint(slots: LabDeviceSlot[], hint: string): LabDeviceS
   const normalized = hint.trim().toLowerCase();
   return slots.find((slot) => slot.deviceHint.toLowerCase() === normalized || slot.key === normalized);
 }
+
+export type LabDeviceListenState = "unsupported" | "needs_permission" | "listening" | "disconnected";
+
+export function labDeviceListenState(input: {
+  serialSupported: boolean;
+  hasStoredPort: boolean;
+  connected: boolean;
+}): LabDeviceListenState {
+  if (!input.serialSupported) {
+    return "unsupported";
+  }
+  if (!input.hasStoredPort) {
+    return "needs_permission";
+  }
+  return input.connected ? "listening" : "disconnected";
+}
+
+export function labDeviceBoardLinkLabel(states: readonly LabDeviceListenState[]): "受信中" | "切断" {
+  return states.includes("listening") ? "受信中" : "切断";
+}
+
+export function labDeviceSlotListenLabel(state: LabDeviceListenState): string {
+  switch (state) {
+    case "listening":
+      return "受信中";
+    case "needs_permission":
+      return "未許可";
+    case "unsupported":
+      return "非対応";
+    case "disconnected":
+      return "切断";
+  }
+}
