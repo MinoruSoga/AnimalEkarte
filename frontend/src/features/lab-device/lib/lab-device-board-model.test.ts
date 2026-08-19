@@ -1,11 +1,18 @@
 import { describe, expect, it } from "vitest";
 
-import type { LabDeviceJobCard } from "../api/lab-device";
+import type { LabDeviceJobCard, LabDeviceSlot, LabDeviceTodayVisit } from "../api/lab-device";
 import {
+  groupLabDeviceCardsByDay,
   labDeviceBoardLinkLabel,
   labDeviceCardTitle,
   labDeviceHasUnmapped,
+  labDeviceLatestCardForSlot,
   labDeviceListenState,
+  labDeviceListenTone,
+  labDeviceLiveReceiveLabel,
+  labDeviceReceivedCards,
+  labDeviceReceivedDayLabel,
+  labDeviceSelectableTodayVisits,
   labDeviceSlotListenLabel,
   labDeviceSourceLabel,
   labDeviceUnmappedMasterHref,
@@ -70,5 +77,54 @@ describe("lab-device-board-model", () => {
     expect(labDeviceBoardLinkLabel(["needs_permission", "listening"])).toBe("受信中");
     expect(labDeviceSlotListenLabel("needs_permission")).toBe("未許可");
     expect(labDeviceSlotListenLabel("listening")).toBe("受信中");
+  });
+
+  it("groups received cards by JST day, newest first", () => {
+    const grouped = groupLabDeviceCardsByDay([
+      card({ jobId: "old", receivedAt: "2026-08-17T23:30:00+09:00" }),
+      card({ jobId: "today-1", receivedAt: "2026-08-19T08:00:00+09:00" }),
+      card({ jobId: "today-2", measuredAt: "2026-08-19T11:00:00+09:00" }),
+    ]);
+    expect(grouped.map((row) => row.day)).toEqual(["2026-08-19", "2026-08-17"]);
+    expect(grouped[0]?.cards.map((item) => item.jobId)).toEqual(["today-1", "today-2"]);
+    expect(labDeviceReceivedDayLabel("2026-08-19", "2026-08-19")).toBe("2026-08-19（今日）");
+    expect(labDeviceReceivedDayLabel("2026-08-17", "2026-08-19")).toBe("2026-08-17");
+  });
+
+  it("prefers the board received list and drops deceased or pet-less visits", () => {
+    const received = [card({ jobId: "r1" })];
+    expect(labDeviceReceivedCards({
+      received,
+      unlinked: [card({ jobId: "u1" })],
+      saved: [card({ jobId: "s1" })],
+    })).toEqual(received);
+    expect(labDeviceReceivedCards({
+      received: [],
+      unlinked: [card({ jobId: "u1" })],
+      saved: [card({ jobId: "s1" }), card({ jobId: "u1" })],
+    }).map((item) => item.jobId)).toEqual(["u1", "s1"]);
+
+    const visits: LabDeviceTodayVisit[] = [
+      { recordId: 1, petId: 11, petName: "タロウ", ownerName: "山田", species: "犬", doctorName: "佐藤", visitType: "再診" },
+      { recordId: 2, petId: 12, petName: "亡", ownerName: "鈴木", species: "猫", doctorName: "佐藤", visitType: "初診", petIsDeceased: true },
+      { recordId: 3, petId: 0, petName: "", ownerName: "田中", species: "", doctorName: "", visitType: "" },
+    ];
+    expect(labDeviceSelectableTodayVisits(visits).map((visit) => visit.petId)).toEqual([11]);
+  });
+
+  it("picks the newest received card and live label for each device slot", () => {
+    const slot: LabDeviceSlot = { key: "au10v", sourceType: "fuji_au10v", deviceHint: "AU10V", baud: 9600 };
+    const latest = labDeviceLatestCardForSlot(slot, [
+      card({ jobId: "nx", sourceType: "fuji_nx600", deviceHint: "NX600" }),
+      card({ jobId: "au", sourceType: "fuji_au10v", deviceHint: "AU10V", petName: "タロウ" }),
+    ]);
+    expect(latest?.jobId).toBe("au");
+    expect(labDeviceLiveReceiveLabel({ liveLabel: "受信", latestCard: latest })).toBe("受信");
+    expect(labDeviceLiveReceiveLabel({ latestCard: latest })).toBe("タロウ");
+    expect(labDeviceLiveReceiveLabel({})).toBe("未受信");
+    expect(labDeviceListenTone("listening")).toBe("live");
+    expect(labDeviceListenTone("disconnected")).toBe("idle");
+    expect(labDeviceListenTone("needs_permission")).toBe("blocked");
+    expect(labDeviceListenTone("unsupported")).toBe("unsupported");
   });
 });

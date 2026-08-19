@@ -181,6 +181,7 @@ func newMedicalRecordLabServices(
 				r.labImportEvents,
 				revert,
 			),
+			medicalrecord.NewLabDeviceTodayVisitFinder(r.medicalRecords),
 		),
 		resultImport: medicalrecord.NewLabResultImportServiceWithTx(
 			jobs,

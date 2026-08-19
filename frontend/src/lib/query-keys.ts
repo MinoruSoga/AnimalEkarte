@@ -158,6 +158,7 @@ export const queryKeys = {
     typeFields: (examTypeId: string) => ["exam-type-fields", examTypeId] as const,
     /** features/medical-records 側からの参照。["pet",...]ではなく["examinations","pet",petId] */
     byPet: (petId: string) => ["examinations", "pet", petId] as const,
+    byRecord: (medicalRecordId: string) => ["examinations", "record", medicalRecordId] as const,
   },
   labDevice: {
     board: () => ["lab-device", "board"] as const,

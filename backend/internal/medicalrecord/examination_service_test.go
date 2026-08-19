@@ -16,7 +16,7 @@ import (
 
 // mockExaminationRepository は ExaminationRepository のテスト用モック実装
 type mockExaminationRepository struct {
-	findAllFn                func(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Examination, int64, error)
+	findAllFn                func(ctx context.Context, clinicID uint64, petID, ownerID, medicalRecordID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Examination, int64, error)
 	findByIDFn               func(ctx context.Context, clinicID, id uint64) (*model.Examination, error)
 	lockByIDForUpdateFn      func(ctx context.Context, clinicID, id uint64) (*model.Examination, error)
 	createFn                 func(ctx context.Context, exam *model.Examination) error
@@ -31,8 +31,8 @@ type mockExaminationRepository struct {
 	findPrintSnapshotFn      func(ctx context.Context, clinicID, examinationID uint64, version *uint64) (*ExaminationPrintSnapshot, error)
 }
 
-func (m *mockExaminationRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Examination, int64, error) {
-	return m.findAllFn(ctx, clinicID, petID, ownerID, status, startDate, endDate, page, limit)
+func (m *mockExaminationRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID, medicalRecordID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Examination, int64, error) {
+	return m.findAllFn(ctx, clinicID, petID, ownerID, medicalRecordID, status, startDate, endDate, page, limit)
 }
 
 func (m *mockExaminationRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Examination, error) {
@@ -263,13 +263,13 @@ func TestExaminationService_List(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockExaminationRepository{
-				findAllFn: func(_ context.Context, _ uint64, _ *uint64, _ *uint64, _, _, _ *string, _, _ int) ([]model.Examination, int64, error) {
+				findAllFn: func(_ context.Context, _ uint64, _ *uint64, _ *uint64, _ *uint64, _, _, _ *string, _, _ int) ([]model.Examination, int64, error) {
 					return tt.repoItems, tt.repoTotal, tt.repoErr
 				},
 			}
 			svc := NewExaminationService(repo, &mockMedicalRecordRepository{}, okExamTypeRepo(), nil, nil)
 
-			items, total, err := svc.List(context.Background(), tt.clinicID, tt.petID, tt.ownerID, tt.status, nil, nil, tt.page, tt.limit)
+			items, total, err := svc.List(context.Background(), tt.clinicID, tt.petID, tt.ownerID, nil, tt.status, nil, nil, tt.page, tt.limit)
 
 			if tt.wantErr {
 				assert.Error(t, err)

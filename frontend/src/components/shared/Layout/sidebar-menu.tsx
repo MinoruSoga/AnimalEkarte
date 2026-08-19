@@ -154,6 +154,7 @@ export const sidebarMenuSections: SidebarMenuSection[] = [
               { icon: <ClipboardCheck className={ICON.toolbar} />, label: "問診設定", path: paths.settings.inquiryTemplates.getHref(), resource: ResourceMasterMedical },
               { icon: <MessageSquareText className={ICON.toolbar} />, label: "主訴カテゴリ", path: paths.settings.interview.chiefComplaint.getHref(), resource: ResourceMasterMedical },
               { icon: <Pill className={ICON.toolbar} />, label: "薬剤マスタ", path: paths.settings.medicine.getHref(), resource: ResourceMasterMedical },
+              { icon: <TestTube className={ICON.toolbar} />, label: "検査マスタ", path: paths.settings.examination.getHref(), resource: ResourceMasterMedical },
               { icon: <FlaskConical className={ICON.toolbar} />, label: "検査機器マスタ", path: paths.settings.labDeviceItemMasters.getHref(), resource: ResourceLabImport },
             ],
           },

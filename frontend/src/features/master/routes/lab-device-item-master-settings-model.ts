@@ -1,10 +1,18 @@
 import type {
+  CreateLabDeviceRequest,
+  LabDevice,
+  UpdateLabDeviceRequest,
+} from "../api/lab-devices";
+import type {
   LabDeviceItemMaster,
   UpdateLabDeviceItemMasterRequest,
 } from "../api/lab-device-item-masters";
 import type { ExaminationTypeMaster } from "../api/exam-types-master";
 
 export const LAB_DEVICE_UNMAPPED_FIELD = "__unmapped__";
+export const LAB_DEVICE_EXAM_SELECT_UNSET = "__unset__";
+export const LAB_DEVICE_EXAM_UNSET = "未設定";
+export const LAB_DEVICE_EXAM_MIXED = "複数の検査";
 
 export const LAB_DEVICE_SOURCE_ORDER = [
   "fuji_nx600",
@@ -41,9 +49,129 @@ export type LabDeviceRow = {
   id: string;
   sourceType: string;
   name: string;
+  examTypeId: string | null;
+  examLabel: string;
+  isActive: boolean;
+  sortOrder: number;
   itemCount: number;
   unmappedCount: number;
 };
+
+export type LabDeviceFormData = {
+  name: string;
+  sourceType: string;
+  examTypeId: string | null;
+  isActive: boolean;
+  sortOrder: number;
+};
+
+type ExamTypeByFieldId = Map<string, { id: string; name: string }>;
+
+function examTypeByFieldId(
+  examTypes: ExaminationTypeMaster[] | undefined,
+): ExamTypeByFieldId {
+  const byField = new Map<string, { id: string; name: string }>();
+  for (const examType of examTypes ?? []) {
+    for (const field of examType.items ?? []) {
+      byField.set(field.id, { id: examType.id, name: examType.name });
+    }
+  }
+  return byField;
+}
+
+function uniqueExamTypesForFields(
+  fieldIds: Array<string | null | undefined>,
+  examTypes: ExaminationTypeMaster[] | undefined,
+): Array<{ id: string; name: string }> {
+  const byField = examTypeByFieldId(examTypes);
+  const seen = new Set<string>();
+  const unique: Array<{ id: string; name: string }> = [];
+  for (const fieldId of fieldIds) {
+    if (fieldId == null) {
+      continue;
+    }
+    const examType = byField.get(fieldId);
+    if (examType === undefined || seen.has(examType.id)) {
+      continue;
+    }
+    seen.add(examType.id);
+    unique.push(examType);
+  }
+  return unique;
+}
+
+export function labDeviceExamLabel(
+  items: Array<{ examTypeFieldId: string | null }>,
+  examTypes: ExaminationTypeMaster[] | undefined,
+): string {
+  const unique = uniqueExamTypesForFields(
+    items.map((item) => item.examTypeFieldId),
+    examTypes,
+  );
+  if (unique.length === 0) {
+    return LAB_DEVICE_EXAM_UNSET;
+  }
+  if (unique.length === 1) {
+    return unique[0]!.name;
+  }
+  return LAB_DEVICE_EXAM_MIXED;
+}
+
+export function labDeviceExamTypeId(
+  items: Array<{ examTypeFieldId: string | null }>,
+  examTypes: ExaminationTypeMaster[] | undefined,
+): string | null {
+  const unique = uniqueExamTypesForFields(
+    items.map((item) => item.examTypeFieldId),
+    examTypes,
+  );
+  return unique.length === 1 ? unique[0]!.id : null;
+}
+
+export function labDeviceFieldName(
+  examTypeFieldId: string | null,
+  examTypes: ExaminationTypeMaster[] | undefined,
+): string {
+  if (examTypeFieldId === null) {
+    return "";
+  }
+  for (const examType of examTypes ?? []) {
+    const field = (examType.items ?? []).find((candidate) => candidate.id === examTypeFieldId);
+    if (field !== undefined) {
+      return field.name;
+    }
+  }
+  return "";
+}
+
+export function examFieldOptionsForExamType(
+  examTypes: ExaminationTypeMaster[] | undefined,
+  examTypeId: string | null,
+): LabDeviceExamFieldOption[] {
+  if (examTypeId === null) {
+    return [];
+  }
+  const examType = (examTypes ?? []).find((candidate) => candidate.id === examTypeId);
+  return (examType?.items ?? []).map((field) => ({
+    id: field.id,
+    label: field.name,
+  }));
+}
+
+export function restrictDraftsToExamType(
+  drafts: LabDeviceItemDraft[],
+  examTypeId: string | null,
+  examTypes: ExaminationTypeMaster[] | undefined,
+): LabDeviceItemDraft[] {
+  const allowed = new Set(examFieldOptionsForExamType(examTypes, examTypeId).map((option) => option.id));
+  return drafts.map((draft) => ({
+    ...draft,
+    examTypeFieldId:
+      draft.examTypeFieldId !== null && allowed.has(draft.examTypeFieldId)
+        ? draft.examTypeFieldId
+        : null,
+  }));
+}
 
 export type LabDeviceItemDraft = {
   id: string;
@@ -89,11 +217,11 @@ export function examFieldOptionsForItem(
 }
 
 export function examFieldSelectValue(examTypeFieldId: string | null): string {
-  return examTypeFieldId ?? LAB_DEVICE_UNMAPPED_FIELD;
+  return examTypeFieldId ?? "";
 }
 
 export function parseExamFieldSelectValue(value: string): string | null {
-  return value === LAB_DEVICE_UNMAPPED_FIELD ? null : value;
+  return value === "" || value === LAB_DEVICE_UNMAPPED_FIELD ? null : value;
 }
 
 export function validateLabDeviceItemMasterDraft(input: {
@@ -102,7 +230,7 @@ export function validateLabDeviceItemMasterDraft(input: {
   if (input.examTypeFieldId !== null) {
     const id = Number(input.examTypeFieldId);
     if (!Number.isInteger(id) || id <= 0) {
-      return "載せる先が不正です";
+      return "検査項目が不正です";
     }
   }
   return null;
@@ -147,24 +275,147 @@ export function groupLabDeviceItemMasters(
   return [...known, ...extras];
 }
 
-function toLabDeviceRow(sourceType: string, list: LabDeviceItemMaster[]): LabDeviceRow {
+export function examTypeName(
+  examTypeId: string | null,
+  examTypes: ExaminationTypeMaster[] | undefined,
+): string | null {
+  if (examTypeId === null) {
+    return null;
+  }
+  return (examTypes ?? []).find((examType) => examType.id === examTypeId)?.name ?? null;
+}
+
+export function examTypeSelectOptions(
+  examTypes: ExaminationTypeMaster[] | undefined,
+): Array<{ value: string; label: string }> {
+  const named = (examTypes ?? [])
+    .slice()
+    .sort((left, right) => left.sortOrder - right.sortOrder || left.name.localeCompare(right.name))
+    .map((examType) => ({ value: examType.id, label: examType.name }));
+  return [{ value: LAB_DEVICE_EXAM_SELECT_UNSET, label: LAB_DEVICE_EXAM_UNSET }, ...named];
+}
+
+export function examTypeSelectValue(examTypeId: string | null): string {
+  return examTypeId ?? LAB_DEVICE_EXAM_SELECT_UNSET;
+}
+
+export function parseExamTypeSelectValue(value: string): string | null {
+  return value === "" || value === LAB_DEVICE_EXAM_SELECT_UNSET ? null : value;
+}
+
+export function defaultLabDeviceSortOrder(sourceType: string): number {
+  const index = LAB_DEVICE_SOURCE_ORDER.indexOf(sourceType as (typeof LAB_DEVICE_SOURCE_ORDER)[number]);
+  return index === -1 ? 100 : (index + 1) * 10;
+}
+
+export function availableLabDeviceSourceTypes(devices: LabDevice[] | undefined): string[] {
+  const used = new Set((devices ?? []).map((device) => device.sourceType));
+  return LAB_DEVICE_SOURCE_ORDER.filter((sourceType) => !used.has(sourceType));
+}
+
+export function labDeviceToFormData(
+  device: LabDevice | LabDeviceRow | null,
+  unusedSourceTypes: string[],
+): LabDeviceFormData {
+  if (device !== null) {
+    return {
+      name: device.name,
+      sourceType: device.sourceType,
+      examTypeId: device.examTypeId,
+      isActive: device.isActive,
+      sortOrder: device.sortOrder,
+    };
+  }
+  const sourceType = unusedSourceTypes[0] ?? "";
   return {
-    id: sourceType,
+    name: sourceType === "" ? "" : labDeviceSourceLabel(sourceType),
     sourceType,
-    name: labDeviceSourceLabel(sourceType),
-    itemCount: list.length,
-    unmappedCount: list.filter((item) => item.examTypeFieldId === null).length,
+    examTypeId: null,
+    isActive: true,
+    sortOrder: defaultLabDeviceSortOrder(sourceType),
   };
 }
 
-export function toLabDeviceRows(items: LabDeviceItemMaster[] | undefined): LabDeviceRow[] {
-  const grouped = new Map(groupLabDeviceItemMasters(items).map((group) => [group.sourceType, group.items]));
-  const known = LAB_DEVICE_SOURCE_ORDER.map((sourceType) => toLabDeviceRow(sourceType, grouped.get(sourceType) ?? []));
-  const extras = [...grouped.keys()]
-    .filter((sourceType) => !LAB_DEVICE_SOURCE_ORDER.includes(sourceType as (typeof LAB_DEVICE_SOURCE_ORDER)[number]))
-    .sort()
-    .map((sourceType) => toLabDeviceRow(sourceType, grouped.get(sourceType) ?? []));
-  return [...known, ...extras];
+export function validateLabDeviceDraft(input: {
+  name: string;
+  sourceType: string;
+  examTypeId: string | null;
+  requireSourceType: boolean;
+}): string | null {
+  if (input.name.trim() === "") {
+    return "機器名は必須です";
+  }
+  if (input.name.trim().length > 100) {
+    return "機器名が長すぎます";
+  }
+  if (input.requireSourceType && !LAB_DEVICE_SOURCE_ORDER.includes(input.sourceType as (typeof LAB_DEVICE_SOURCE_ORDER)[number])) {
+    return "プロトコルを選んでください";
+  }
+  if (input.examTypeId !== null) {
+    const id = Number(input.examTypeId);
+    if (!Number.isInteger(id) || id <= 0) {
+      return "検査が不正です";
+    }
+  }
+  return null;
+}
+
+export function buildLabDeviceCreateRequest(input: LabDeviceFormData): CreateLabDeviceRequest {
+  return {
+    name: input.name.trim(),
+    source_type: input.sourceType,
+    exam_type_id: input.examTypeId === null ? null : Number(input.examTypeId),
+    is_active: input.isActive,
+    sort_order: input.sortOrder,
+  };
+}
+
+export function buildLabDeviceUpdateRequest(input: LabDeviceFormData): UpdateLabDeviceRequest {
+  return {
+    name: input.name.trim(),
+    exam_type_id: input.examTypeId === null ? null : Number(input.examTypeId),
+    is_active: input.isActive,
+    sort_order: input.sortOrder,
+  };
+}
+
+function deviceExamLabel(
+  device: LabDevice,
+  list: LabDeviceItemMaster[],
+  examTypes: ExaminationTypeMaster[] | undefined,
+): string {
+  const bound = examTypeName(device.examTypeId, examTypes);
+  if (bound !== null) {
+    return bound;
+  }
+  if (device.examTypeId !== null) {
+    return LAB_DEVICE_EXAM_UNSET;
+  }
+  return labDeviceExamLabel(list, examTypes);
+}
+
+export function toLabDeviceRows(
+  devices: LabDevice[] | undefined,
+  items: LabDeviceItemMaster[] | undefined,
+  examTypes?: ExaminationTypeMaster[],
+): LabDeviceRow[] {
+  return (devices ?? [])
+    .slice()
+    .sort((left, right) => left.sortOrder - right.sortOrder || Number(left.id) - Number(right.id))
+    .map((device) => {
+      const list = itemsForLabDevice(items, device.sourceType);
+      return {
+        id: device.id,
+        sourceType: device.sourceType,
+        name: device.name,
+        examTypeId: device.examTypeId,
+        examLabel: deviceExamLabel(device, list, examTypes),
+        isActive: device.isActive,
+        sortOrder: device.sortOrder,
+        itemCount: list.length,
+        unmappedCount: list.filter((item) => item.examTypeFieldId === null).length,
+      };
+    });
 }
 
 export function itemsForLabDevice(

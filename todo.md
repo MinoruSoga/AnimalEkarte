@@ -31,10 +31,10 @@ old_db の現場・仕様は `../old_db/todo.md` の **JOU-LAB-0** と `../old_d
 
 方針（2026-08-19 USER + Fable UX YES-WITH-FIXES）: **ファイルアップロードしない。** 検査用 Mac の待機ページが有線シリアルを読む（掲示板。開きっぱなし）。常駐アプリは置かない。UI は **1画面**（ペット先待機は最適化、未紐付け欄は一級）。保存は即 persist + インライン取り消す。確認ダイアログ禁止。公式リカバリは機器の送信再押下（指紋 duplicate）。所見: `../old_db/docs/lab-go/go-impl/REVIEW-FABLE-2026-08-19-AE-LAB-UX.md`。
 
-- [x] **AE-LAB-0** [BRT-100](https://linear.app/baritechllc/issue/BRT-100) 設計: [ADR-007](docs/architecture/adr/007-lab-device-receive-and-commit.md)。コード済み（ADR Accepted）。Done は人間ゲート。
-- [x] **AE-LAB-1** [BRT-95](https://linear.app/baritechllc/issue/BRT-95) `DecodeLabDeviceFrames` + 合成バイトテスト。DB/enum は未使用。コード済み。Done は人間ゲート。
-- [x] **AE-LAB-2** [BRT-96](https://linear.app/baritechllc/issue/BRT-96) 検査機器マスタ。未対応チップから該当行へ。日常経路にマスタを出さない。コード済み。Done は人間ゲート。DDL は `001_init.sql` セクション13。既存 DB は `make reset`。
-- [x] **AE-LAB-3** [BRT-97](https://linear.app/baritechllc/issue/BRT-97) 1画面: 待機（大表示）+ 未紐付け欄 + 保存カード［取り消す］。診察端末の検査画面から1クリックで後付け。コード済み。Done は人間ゲート。DDL は `001_init.sql` セクション13。既存 DB は `make reset`。
-- [x] **AE-LAB-4** [BRT-98](https://linear.app/baritechllc/issue/BRT-98) 3種をマスタ参照かつペット確定後だけ exam persist。`drwan` は開けない。コード済み。Done は人間ゲート。DDL は `001_init.sql` セクション13。既存 DB は `make reset`。
+- [x] **AE-LAB-0** [BRT-100](https://linear.app/baritechllc/issue/BRT-100) 設計: [ADR-007](docs/architecture/adr/007-lab-device-receive-and-commit.md)。コード済み（ADR Accepted）。Linear Done（2026-08-19）。
+- [x] **AE-LAB-1** [BRT-95](https://linear.app/baritechllc/issue/BRT-95) `DecodeLabDeviceFrames` + 合成バイトテスト。DB/enum は未使用。コード済み。Linear Done（2026-08-19）。
+- [x] **AE-LAB-2** [BRT-96](https://linear.app/baritechllc/issue/BRT-96) 検査機器マスタ。未対応チップから該当行へ。日常経路にマスタを出さない。コード済み。Linear Done（2026-08-19）。DDL は `001_init.sql` セクション13。既存 DB は `make reset`。
+- [x] **AE-LAB-3** [BRT-97](https://linear.app/baritechllc/issue/BRT-97) 1画面: 待機（大表示）+ 未紐付け欄 + 保存カード［取り消す］。診察端末の検査画面から1クリックで後付け。コード済み。Linear Done（2026-08-19）。DDL は `001_init.sql` セクション13。既存 DB は `make reset`。
+- [x] **AE-LAB-4** [BRT-98](https://linear.app/baritechllc/issue/BRT-98) 3種をマスタ参照かつペット確定後だけ exam persist。`drwan` は開けない。コード済み。Linear Done（2026-08-19）。DDL は `001_init.sql` セクション13。既存 DB は `make reset`。
 
 順: **0 → 1 → 2 → 3 → 4**。0 なしに 1 のコードを始めない。IDEXX は old_db の **JOU-LAB-X**。

@@ -3,6 +3,7 @@
 ## 概要
 - **画面の目的**: 血液検査や生化学検査等、検査プラン（`exam_types`）の名称・価格の定義、および測定項目（`exam_type_fields`）と基準値の管理。
 - **URLパターン**: `/settings/treatment-items?tab=examination`
+- **導線**: サイドバー「マスタ設定」→「カルテ関連」→「検査マスタ」。新規画面は作らず、診療項目の検査タブへ直リンクする。
 - **アクセス権限**: 診療マスタ管理権限が必要（`ResourceMasterMedical`）
 - **注意**: 検査プラン本体は [master-treatment.md](./master-treatment.md) と同一の `TreatmentPlanMaster` / サイドパネル UI を共有する。測定項目・単位・基準値はサイドパネル内の **`ExamTypeFieldsEditor`** で編集する（「管理 UI が存在しない」は誤り）。
 

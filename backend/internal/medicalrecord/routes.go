@@ -388,6 +388,11 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	labDeviceMasters.POST("/ensure", perm(model.ResourceLabImport, "edit"), h.labImport.EnsureLabDeviceItemMasters)
 	labDeviceMasters.PATCH("/:id", perm(model.ResourceLabImport, "edit"), h.labImport.UpdateLabDeviceItemMaster)
 
+	labDevices := rg.Group("/lab-devices")
+	labDevices.GET("", perm(model.ResourceLabImport, "view"), h.labImport.ListLabDevices)
+	labDevices.POST("", perm(model.ResourceLabImport, "create"), h.labImport.CreateLabDevice)
+	labDevices.PATCH("/:id", perm(model.ResourceLabImport, "edit"), h.labImport.UpdateLabDevice)
+
 	// BRT-97: receive board / wait / frames. exam persist is BRT-98.
 	labDevice := rg.Group("/lab-device")
 	labDevice.POST("/frames", perm(model.ResourceLabImport, "create"), h.labImport.ReceiveLabDeviceFrames)

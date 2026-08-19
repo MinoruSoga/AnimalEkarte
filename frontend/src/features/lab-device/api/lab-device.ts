@@ -40,10 +40,23 @@ export interface LabDeviceStation {
   slotsJson: string;
 }
 
+export interface LabDeviceTodayVisit {
+  recordId: number;
+  petId: number;
+  petName: string;
+  ownerName: string;
+  species: string;
+  doctorName: string;
+  visitType: string;
+  petIsDeceased?: boolean;
+}
+
 export interface LabDeviceBoard {
   wait: LabDeviceWait | null;
   unlinked: LabDeviceJobCard[];
   saved: LabDeviceJobCard[];
+  received: LabDeviceJobCard[];
+  todayVisits: LabDeviceTodayVisit[];
   station: LabDeviceStation;
 }
 
@@ -91,10 +104,23 @@ interface LabDeviceStationResponse {
   slots_json: string;
 }
 
+interface LabDeviceTodayVisitResponse {
+  record_id: number;
+  pet_id: number;
+  pet_name: string;
+  owner_name: string;
+  species: string;
+  doctor_name: string;
+  visit_type: string;
+  pet_is_deceased?: boolean;
+}
+
 interface LabDeviceBoardResponse {
   wait: LabDeviceWaitResponse | null;
   unlinked: LabDeviceJobCardResponse[];
   saved: LabDeviceJobCardResponse[];
+  received: LabDeviceJobCardResponse[];
+  today_visits: LabDeviceTodayVisitResponse[];
   station: LabDeviceStationResponse;
 }
 
@@ -147,6 +173,19 @@ function toStation(station: LabDeviceStationResponse): LabDeviceStation {
   };
 }
 
+function toTodayVisit(visit: LabDeviceTodayVisitResponse): LabDeviceTodayVisit {
+  return {
+    recordId: visit.record_id,
+    petId: visit.pet_id,
+    petName: visit.pet_name,
+    ownerName: visit.owner_name,
+    species: visit.species,
+    doctorName: visit.doctor_name,
+    visitType: visit.visit_type,
+    petIsDeceased: visit.pet_is_deceased,
+  };
+}
+
 export function parseLabDeviceSlots(slotsJson: string): LabDeviceSlot[] {
   try {
     const raw = JSON.parse(slotsJson) as Array<Record<string, unknown>>;
@@ -167,6 +206,8 @@ async function fetchBoard(): Promise<LabDeviceBoard> {
     wait: data.wait ? toWait(data.wait) : null,
     unlinked: (data.unlinked ?? []).map(toCard),
     saved: (data.saved ?? []).map(toCard),
+    received: (data.received ?? []).map(toCard),
+    todayVisits: (data.today_visits ?? []).map(toTodayVisit),
     station: toStation(data.station),
   };
 }

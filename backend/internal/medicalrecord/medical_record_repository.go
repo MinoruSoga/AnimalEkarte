@@ -166,7 +166,7 @@ func (r *medicalRecordRepository) FindAll(ctx context.Context, clinicIDs []uint6
 		q := r.db.WithContext(ctx).
 			Model(&model.MedicalRecord{}).
 			Where("medical_records.clinic_id IN ?", clinicIDs).
-			Scopes(medicalRecordListRelationsScope())
+			Scopes(medicalRecordDetailRelationsScope())
 		if needsPetJoin {
 			q = q.Joins("LEFT JOIN pets ON pets.id = medical_records.pet_id AND pets.clinic_id = medical_records.clinic_id AND pets.deleted_at IS NULL")
 		}
@@ -290,11 +290,48 @@ func (r *medicalRecordRepository) FindAll(ctx context.Context, clinicIDs []uint6
 	return records, total, nil
 }
 
-// medicalRecordListRelationsScope excludes parent rows whose clinic-owned relations point
-// outside the parent clinic. Soft-deleted same-clinic relations and historical staff
-// assignments remain valid evidence so that a retirement or deletion does not hide the
-// medical-record history; current relation visibility remains a Preload concern.
-func medicalRecordListRelationsScope() func(*gorm.DB) *gorm.DB {
+// medicalRecordDetailRelationsScope is used by FindByID and FindAll. Owner/pet must belong to
+// the parent clinic. Staff FKs may be same-clinic staffs without an assignment
+// row (imported seed) or assigned to the parent clinic while their primary
+// clinic differs. A staff FK that belongs to another clinic and has no parent
+// assignment still fail-closes. Same-clinic unassigned staff records appear in
+// カルテ一覧 (imported seed).
+func medicalRecordDetailRelationsScope() func(*gorm.DB) *gorm.DB {
+	return func(db *gorm.DB) *gorm.DB {
+		return db.Scopes(medicalRecordOwnerPetRelationsScope()).Where(`
+			(
+				medical_records.doctor_id IS NULL OR EXISTS (
+					SELECT 1
+					FROM staffs scoped_doctor
+					WHERE scoped_doctor.id = medical_records.doctor_id
+					  AND scoped_doctor.clinic_id = medical_records.clinic_id
+				) OR EXISTS (
+					SELECT 1
+					FROM staff_clinic_assignments scoped_doctor_assignment
+					WHERE scoped_doctor_assignment.staff_id = medical_records.doctor_id
+					  AND scoped_doctor_assignment.clinic_id = medical_records.clinic_id
+				)
+			)
+			AND (
+				medical_records.entered_by IS NULL OR EXISTS (
+					SELECT 1
+					FROM staffs scoped_entered_by
+					WHERE scoped_entered_by.id = medical_records.entered_by
+					  AND scoped_entered_by.clinic_id = medical_records.clinic_id
+				) OR EXISTS (
+					SELECT 1
+					FROM staff_clinic_assignments scoped_entered_by_assignment
+					WHERE scoped_entered_by_assignment.staff_id = medical_records.entered_by
+					  AND scoped_entered_by_assignment.clinic_id = medical_records.clinic_id
+				)
+			)
+		`)
+	}
+}
+
+// medicalRecordOwnerPetRelationsScope keeps a parent only when owner/pet FKs
+// resolve inside the parent clinic.
+func medicalRecordOwnerPetRelationsScope() func(*gorm.DB) *gorm.DB {
 	return func(db *gorm.DB) *gorm.DB {
 		return db.Where(`
 			(
@@ -314,26 +351,6 @@ func medicalRecordListRelationsScope() func(*gorm.DB) *gorm.DB {
 					 AND scoped_pet_owner.clinic_id = scoped_pet.clinic_id
 					WHERE scoped_pet.id = medical_records.pet_id
 					  AND scoped_pet.clinic_id = medical_records.clinic_id
-				)
-			)
-			AND (
-				medical_records.doctor_id IS NULL OR EXISTS (
-					SELECT 1
-					FROM staff_clinic_assignments scoped_doctor_assignment
-					JOIN staffs scoped_doctor
-					  ON scoped_doctor.id = scoped_doctor_assignment.staff_id
-					WHERE scoped_doctor_assignment.staff_id = medical_records.doctor_id
-					  AND scoped_doctor_assignment.clinic_id = medical_records.clinic_id
-				)
-			)
-			AND (
-				medical_records.entered_by IS NULL OR EXISTS (
-					SELECT 1
-					FROM staff_clinic_assignments scoped_entered_by_assignment
-					JOIN staffs scoped_entered_by
-					  ON scoped_entered_by.id = scoped_entered_by_assignment.staff_id
-					WHERE scoped_entered_by_assignment.staff_id = medical_records.entered_by
-					  AND scoped_entered_by_assignment.clinic_id = medical_records.clinic_id
 				)
 			)
 		`)
@@ -448,7 +465,7 @@ func (r *medicalRecordRepository) findMedicalRecordByID(ctx context.Context, cli
 		Preload("Pet", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).
 		Preload("Pet.AnimalSpecies").
 		Preload("Inquiry").
-		Scopes(scope, medicalRecordListRelationsScope()).
+		Scopes(scope, medicalRecordDetailRelationsScope()).
 		Where("id = ?", id).
 		First(&record).Error
 	if err != nil {

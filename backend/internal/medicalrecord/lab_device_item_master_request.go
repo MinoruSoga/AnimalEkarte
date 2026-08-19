@@ -116,11 +116,82 @@ type labDeviceReceiveResponse struct {
 	Results []labDeviceFrameResultResponse `json:"results"`
 }
 
+type labDeviceTodayVisitResponse struct {
+	RecordID      uint64 `json:"record_id"`
+	PetID         uint64 `json:"pet_id"`
+	PetName       string `json:"pet_name"`
+	OwnerName     string `json:"owner_name"`
+	Species       string `json:"species"`
+	DoctorName    string `json:"doctor_name"`
+	VisitType     string `json:"visit_type"`
+	PetIsDeceased bool   `json:"pet_is_deceased,omitempty"`
+}
+
 type labDeviceBoardResponse struct {
-	Wait     *labDeviceWaitResponse     `json:"wait"`
-	Unlinked []labDeviceJobCardResponse `json:"unlinked"`
-	Saved    []labDeviceJobCardResponse `json:"saved"`
-	Station  labDeviceStationResponse   `json:"station"`
+	Wait        *labDeviceWaitResponse        `json:"wait"`
+	Unlinked    []labDeviceJobCardResponse    `json:"unlinked"`
+	Saved       []labDeviceJobCardResponse    `json:"saved"`
+	Received    []labDeviceJobCardResponse    `json:"received"`
+	TodayVisits []labDeviceTodayVisitResponse `json:"today_visits"`
+	Station     labDeviceStationResponse      `json:"station"`
+}
+
+type createLabDeviceRequest struct {
+	Name       string  `json:"name" binding:"required"`
+	SourceType string  `json:"source_type" binding:"required"`
+	ExamTypeID *uint64 `json:"exam_type_id"`
+	IsActive   *bool   `json:"is_active"`
+	SortOrder  int     `json:"sort_order"`
+}
+
+func (r createLabDeviceRequest) toServiceInput() CreateLabDeviceInput {
+	active := true
+	if r.IsActive != nil {
+		active = *r.IsActive
+	}
+	return CreateLabDeviceInput{
+		Name:       r.Name,
+		SourceType: r.SourceType,
+		ExamTypeID: r.ExamTypeID,
+		IsActive:   active,
+		SortOrder:  r.SortOrder,
+	}
+}
+
+type updateLabDeviceRequest struct {
+	Name       string  `json:"name" binding:"required"`
+	ExamTypeID *uint64 `json:"exam_type_id"`
+	IsActive   bool    `json:"is_active"`
+	SortOrder  int     `json:"sort_order"`
+}
+
+func (r updateLabDeviceRequest) toServiceInput() UpdateLabDeviceInput {
+	return UpdateLabDeviceInput{
+		Name:       r.Name,
+		ExamTypeID: r.ExamTypeID,
+		IsActive:   r.IsActive,
+		SortOrder:  r.SortOrder,
+	}
+}
+
+type labDeviceResponse struct {
+	ID         uint64  `json:"id"`
+	SourceType string  `json:"source_type"`
+	Name       string  `json:"name"`
+	ExamTypeID *uint64 `json:"exam_type_id"`
+	IsActive   bool    `json:"is_active"`
+	SortOrder  int     `json:"sort_order"`
+}
+
+func toLabDeviceResponse(device *model.LabDevice) labDeviceResponse {
+	return labDeviceResponse{
+		ID:         device.ID,
+		SourceType: device.SourceType,
+		Name:       device.Name,
+		ExamTypeID: device.ExamTypeID,
+		IsActive:   device.IsActive,
+		SortOrder:  device.SortOrder,
+	}
 }
 
 func decodeLabDevicePayloadBase64(encoded string) ([]byte, error) {
@@ -198,11 +269,30 @@ func toLabDeviceBoardResponse(board *LabDeviceBoard) labDeviceBoardResponse {
 		wait = &mapped
 	}
 	return labDeviceBoardResponse{
-		Wait:     wait,
-		Unlinked: mapLabDeviceJobCards(board.Unlinked),
-		Saved:    mapLabDeviceJobCards(board.Saved),
-		Station:  toLabDeviceStationResponse(&board.Station),
+		Wait:        wait,
+		Unlinked:    mapLabDeviceJobCards(board.Unlinked),
+		Saved:       mapLabDeviceJobCards(board.Saved),
+		Received:    mapLabDeviceJobCards(board.Received),
+		TodayVisits: mapLabDeviceTodayVisits(board.TodayVisits),
+		Station:     toLabDeviceStationResponse(&board.Station),
 	}
+}
+
+func mapLabDeviceTodayVisits(visits []LabDeviceTodayVisit) []labDeviceTodayVisitResponse {
+	out := make([]labDeviceTodayVisitResponse, 0, len(visits))
+	for i := range visits {
+		out = append(out, labDeviceTodayVisitResponse{
+			RecordID:      visits[i].RecordID,
+			PetID:         visits[i].PetID,
+			PetName:       visits[i].PetName,
+			OwnerName:     visits[i].OwnerName,
+			Species:       visits[i].Species,
+			DoctorName:    visits[i].DoctorName,
+			VisitType:     visits[i].VisitType,
+			PetIsDeceased: visits[i].PetIsDeceased,
+		})
+	}
+	return out
 }
 
 func mapLabDeviceJobCards(cards []LabDeviceJobCard) []labDeviceJobCardResponse {

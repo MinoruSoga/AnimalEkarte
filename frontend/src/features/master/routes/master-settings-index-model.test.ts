@@ -16,6 +16,20 @@ describe("master-settings-index-model campaigns entry (V04-A01)", () => {
     expect(getResourceForCardKey("campaigns")).toBe("accounting");
   });
 
+  it("検査マスタカードがカルテ節にあり診療項目の検査タブへ行く", () => {
+    expect(GROUP_CARD_CONFIG.examinationItems).toMatchObject({
+      label: "検査マスタ",
+      path: "/settings/treatment-items?tab=examination",
+      resource: "master-medical",
+    });
+    expect(getResourceForCardKey("examinationItems")).toBe("master-medical");
+    const chart = MASTER_SECTIONS.find((s) => s.title === "カルテ");
+    expect(chart?.keys).toEqual(expect.arrayContaining(["examinationItems", "labDeviceItemMasters"]));
+    expect(chart!.keys.indexOf("examinationItems")).toBeLessThan(
+      chart!.keys.indexOf("labDeviceItemMasters"),
+    );
+  });
+
   it("検査機器マスタカードがカルテ節にあり lab-import を要求する", () => {
     expect(GROUP_CARD_CONFIG.labDeviceItemMasters).toMatchObject({
       label: "検査機器マスタ",

@@ -39,7 +39,8 @@ import type {
 } from "@/components/shared/PropertyFilter/types";
 import { CONDITIONS_NO_EMPTY, CONDITIONS_WITH_EMPTY } from "@/components/shared/PropertyFilter/types";
 import type { ExaminationRecord } from "../api/transforms";
-import { ResourceExaminations } from "@/types/generated/models";
+import { ResourceExaminations, ResourceMedicalRecords } from "@/types/generated/models";
+import { examinationListDetailHref } from "./examinations-list-model";
 
 // rendering-hoist-jsx: 静的フィルタプロパティ（検査種別は動的オプションのためコンポーネント内で構築）
 const STATIC_FILTER_PROPERTIES: FilterProperty[] = [
@@ -89,7 +90,8 @@ const CLIENT_ONLY_FILTER_KEYS = ["status", "testType", "doctor"];
 export function ExaminationsList() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { canCreate, canEdit } = usePermission("examinations");
+  const { canCreate, canEdit } = usePermission(ResourceExaminations);
+  const { canView: canViewMedicalRecords } = usePermission(ResourceMedicalRecords);
   const [searchTerm, setSearchTerm] = useState("");
   const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
   const deferredSearch = useDeferredValue(searchTerm);
@@ -203,9 +205,14 @@ export function ExaminationsList() {
     navigate(paths.examinations.selectPet.getHref());
   }, [navigate]);
 
-  const handleEdit = useCallback((id: string) => {
-    navigate(paths.examinations.detail.getHref(id));
-  }, [navigate]);
+  const handleEdit = useCallback((record: ExaminationRecord) => {
+    navigate(
+      examinationListDetailHref({
+        id: record.id,
+        medicalRecordId: canViewMedicalRecords ? record.medicalRecordId : undefined,
+      }),
+    );
+  }, [canViewMedicalRecords, navigate]);
 
   // rerender-memo: renderRow を useCallback でメモ化（DataTable への参照を安定化）
   const renderRow = useCallback((r: ExaminationRecord) => (
@@ -214,8 +221,15 @@ export function ExaminationsList() {
       <TableCell className={STYLE.tableCell}>{r.ownerName}</TableCell>
       <TableCell className={STYLE.tableCell}>
         <DataTableRowLink
-          to={paths.examinations.detail.getHref(r.id)}
-          aria-label={`検査詳細: ${r.petName} ${r.date} ID ${r.id}`}
+          to={examinationListDetailHref({
+            id: r.id,
+            medicalRecordId: canViewMedicalRecords ? r.medicalRecordId : undefined,
+          })}
+          aria-label={
+            canViewMedicalRecords && r.medicalRecordId
+              ? `カルテ検査: ${r.petName} ${r.date} ID ${r.id}`
+              : `検査詳細: ${r.petName} ${r.date} ID ${r.id}`
+          }
         >
           {r.petName}
         </DataTableRowLink>
@@ -233,13 +247,13 @@ export function ExaminationsList() {
       <TableCell className="text-right">
         {canEdit ? (
           <RowActionButton
-            onClick={() => handleEdit(r.id)}
+            onClick={() => handleEdit(r)}
             aria-label={`検査操作: ${r.petName} ${r.date} ID ${r.id}`}
           />
         ) : null}
       </TableCell>
     </DataTableRow>
-  ), [handleEdit, canEdit]);
+  ), [canEdit, canViewMedicalRecords, handleEdit]);
 
   const columns = useMemo(() => [
     {

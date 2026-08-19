@@ -25,6 +25,7 @@ type LabDeviceReceiveRepository interface {
 	ListJobItems(ctx context.Context, clinicID uint64, jobIDs []uuid.UUID) (map[uuid.UUID][]model.LabImportJobItem, error)
 	ListUnlinkedJobs(ctx context.Context, clinicID uint64, limit int) ([]model.LabImportJob, error)
 	ListSavedJobs(ctx context.Context, clinicID uint64, limit int) ([]model.LabImportJob, error)
+	ListReceivedJobs(ctx context.Context, clinicID uint64, since time.Time, limit int) ([]model.LabImportJob, error)
 	FindActiveWait(ctx context.Context, clinicID uint64) (*model.LabDeviceWait, error)
 	LockActiveWait(ctx context.Context, clinicID uint64) (*model.LabDeviceWait, error)
 	InsertWait(ctx context.Context, wait *model.LabDeviceWait) error
@@ -176,6 +177,26 @@ func (r *labDeviceReceiveRepository) ListSavedJobs(
 	limit int,
 ) ([]model.LabImportJob, error) {
 	return r.listDeviceJobs(ctx, clinicID, limit, false)
+}
+
+func (r *labDeviceReceiveRepository) ListReceivedJobs(
+	ctx context.Context,
+	clinicID uint64,
+	since time.Time,
+	limit int,
+) ([]model.LabImportJob, error) {
+	rows := make([]model.LabImportJob, 0)
+	err := r.q(ctx).
+		Scopes(persistence.ClinicScope(clinicID)).
+		Where("source_type IN ?", labDeviceSourceTypes()).
+		Where("COALESCE(received_at, created_at) >= ?", since).
+		Order("COALESCE(received_at, created_at) DESC").
+		Limit(limit).
+		Find(&rows).Error
+	if err != nil {
+		return nil, apperrors.Wrap(err, "list received lab device jobs")
+	}
+	return rows, nil
 }
 
 func (r *labDeviceReceiveRepository) listDeviceJobs(

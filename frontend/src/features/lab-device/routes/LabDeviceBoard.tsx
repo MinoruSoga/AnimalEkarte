@@ -3,11 +3,10 @@ import { Link } from "react-router";
 import { toast } from "sonner";
 
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { useGetPets } from "@/hooks/use-pet";
 import { usePermission } from "@/hooks/use-permission";
 import { C, LAYOUT } from "@/lib/design-tokens";
+import { formatJSTTime, todayJSTISO } from "@/lib/jst-date";
 import { ResourceLabImport } from "@/types/generated/models";
 
 import {
@@ -19,15 +18,26 @@ import {
   usePutLabDeviceWait,
   useReceiveLabDeviceFrames,
   type LabDeviceJobCard,
+  type LabDeviceSlot,
+  type LabDeviceTodayVisit,
 } from "../api/lab-device";
 import { useLabDeviceListen } from "../hooks/use-lab-device-listen";
 import {
+  findSlotByHint,
+  groupLabDeviceCardsByDay,
   isWebSerialSupported,
   labDeviceBoardLinkLabel,
   labDeviceCardTitle,
   labDeviceHasUnmapped,
+  labDeviceLatestCardForSlot,
+  labDeviceListenTone,
+  labDeviceLiveReceiveLabel,
+  labDeviceReceivedCards,
+  labDeviceReceivedDayLabel,
+  labDeviceSelectableTodayVisits,
   labDeviceSlotListenLabel,
   labDeviceUnmappedMasterHref,
+  type LabDeviceListenState,
 } from "../lib/lab-device-board-model";
 import { bytesToBase64, requestLabDevicePort } from "../lib/lab-device-serial";
 
@@ -50,6 +60,9 @@ function JobCardView({
         <h3 className="text-heading-3 font-semibold">{labDeviceCardTitle(card)}</h3>
         <p className={`text-sm ${C.textInkMuted}`}>
           {card.petName || "未紐付け"}
+          {card.receivedAt || card.measuredAt
+            ? ` · ${formatJSTTime(card.measuredAt || card.receivedAt || "")}`
+            : ""}
           {duplicate ? " · 再送（取込済み）" : ""}
         </p>
       </div>
@@ -93,6 +106,90 @@ function JobCardView({
   );
 }
 
+function TodayVisitCard({
+  visit,
+  selected,
+  disabled,
+  onSelect,
+}: {
+  visit: LabDeviceTodayVisit;
+  selected: boolean;
+  disabled: boolean;
+  onSelect: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={selected}
+      disabled={disabled}
+      onClick={onSelect}
+      className={`min-h-11 w-full rounded-lg border p-4 text-left space-y-1 ${
+        selected ? `${C.borderActionPrimary} ${C.bgActionPrimaryLight}` : `${C.borderLight} ${C.bgWhite}`
+      }`}
+    >
+      <p className="text-heading-3 font-semibold">{visit.petName}</p>
+      <p className={`text-sm ${C.textInkMuted}`}>
+        {visit.ownerName}
+        {visit.species ? ` · ${visit.species}` : ""}
+        {visit.visitType ? ` · ${visit.visitType}` : ""}
+      </p>
+      {visit.doctorName ? (
+        <p className={`text-sm ${C.textInkMuted}`}>{visit.doctorName}</p>
+      ) : null}
+      {selected ? <p className="text-sm font-medium">待機中</p> : null}
+    </button>
+  );
+}
+
+function deviceStatusClass(state: LabDeviceListenState): string {
+  switch (labDeviceListenTone(state)) {
+    case "live":
+      return `${C.borderStatusGreen} ${C.bgStatusGreen} ${C.textStatusGreen}`;
+    case "idle":
+      return `${C.borderLight} ${C.bgStatusAmber} ${C.textStatusAmber}`;
+    case "blocked":
+      return `${C.borderWarning20} ${C.bgWarning50} ${C.textWarning}`;
+    case "unsupported":
+      return `${C.borderLight} ${C.bgWhite}`;
+  }
+}
+
+function DeviceStatusCard({
+  slot,
+  state,
+  receiveLabel,
+  receiveTime,
+  latestCard,
+}: {
+  slot: LabDeviceSlot;
+  state: LabDeviceListenState;
+  receiveLabel: string;
+  receiveTime?: string;
+  latestCard?: LabDeviceJobCard;
+}) {
+  return (
+    <section
+      aria-live="polite"
+      className={`rounded-lg border p-4 space-y-2 ${deviceStatusClass(state)}`}
+    >
+      <div className="flex items-baseline justify-between gap-3">
+        <h3 className="text-heading-3 font-semibold">{slot.deviceHint}</h3>
+        <p className="text-sm font-medium">{labDeviceSlotListenLabel(state)}</p>
+      </div>
+      <p className={`text-sm ${C.textInkMuted}`}>
+        最終受信 {receiveTime ? `${receiveTime} · ${receiveLabel}` : receiveLabel}
+        {latestCard?.petName ? ` · ${latestCard.petName}` : ""}
+      </p>
+      {latestCard ? (
+        <p className={`text-sm ${C.textInkMuted}`}>
+          {latestCard.itemCount}項目
+          {latestCard.unmappedItemCount > 0 ? " · 未対応あり" : ""}
+        </p>
+      ) : null}
+    </section>
+  );
+}
+
 export function LabDeviceBoard() {
   const { canCreate, canEdit } = usePermission(ResourceLabImport);
   const { data: board, isLoading } = useGetLabDeviceBoard(canCreate);
@@ -101,21 +198,45 @@ export function LabDeviceBoard() {
   const receive = useReceiveLabDeviceFrames();
   const attach = useAttachLabDeviceJob();
   const detach = useDetachLabDeviceJob();
-  const [search, setSearch] = useState("");
-  const [lastReceive, setLastReceive] = useState("未受信");
+  const [lastReceives, setLastReceives] = useState<Record<string, { label: string; at: string }>>({});
   const [listenEpoch, setListenEpoch] = useState(0);
-  const { data: pets = [] } = useGetPets(undefined, { search, limit: 8 }, { enabled: search.length > 0 });
+  const todayVisits = useMemo(
+    () => labDeviceSelectableTodayVisits(board?.todayVisits ?? []),
+    [board?.todayVisits],
+  );
+  const receivedCards = useMemo(
+    () => labDeviceReceivedCards({
+      received: board?.received ?? [],
+      unlinked: board?.unlinked ?? [],
+      saved: board?.saved ?? [],
+    }),
+    [board?.received, board?.saved, board?.unlinked],
+  );
+  const receivedGroups = useMemo(
+    () => groupLabDeviceCardsByDay(receivedCards),
+    [receivedCards],
+  );
+  const today = todayJSTISO();
   const slots = useMemo(() => parseLabDeviceSlots(board?.station.slotsJson ?? "[]"), [board?.station.slotsJson]);
   const serialOk = isWebSerialSupported();
   const onFrame = useCallback(async (hint: string, bytes: Uint8Array) => {
+    const slot = findSlotByHint(slots, hint);
     try {
       const results = await receive.mutateAsync({ payloadBase64: bytesToBase64(bytes), deviceHint: hint });
       const first = results[0];
-      setLastReceive(first?.duplicate ? "再送（取込済み）" : "受信");
+      if (slot) {
+        setLastReceives((current) => ({
+          ...current,
+          [slot.key]: {
+            label: first?.duplicate ? "再送（取込済み）" : "受信",
+            at: new Date().toISOString(),
+          },
+        }));
+      }
     } catch {
       toast.error("電文を読めませんでした");
     }
-  }, [receive]);
+  }, [receive, slots]);
   const listenStates = useLabDeviceListen({
     slots,
     enabled: serialOk && canCreate,
@@ -136,7 +257,7 @@ export function LabDeviceBoard() {
           {board?.wait ? (
             <div className="space-y-3">
               <p className="text-heading-1 font-bold">{board.wait.petName}</p>
-              <p className={`text-sm ${C.textInkMuted}`}>待機中 · 接続 {serialOk ? linkLabel : "非対応"} · 最終受信 {lastReceive}</p>
+              <p className={`text-sm ${C.textInkMuted}`}>待機中 · 接続 {serialOk ? linkLabel : "非対応"}</p>
               {canCreate ? (
                 <Button type="button" variant="outline" onClick={() => void clearWait.mutateAsync()}>
                   待機を解除
@@ -146,33 +267,61 @@ export function LabDeviceBoard() {
           ) : (
             <div className="space-y-3">
               <p className="text-heading-1 font-semibold">受信中</p>
-              <p className={`text-sm ${C.textInkMuted}`}>ペット未選択 · 接続 {serialOk ? linkLabel : "非対応"} · 最終受信 {lastReceive}</p>
-              <Input
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder="ペット名で検索"
-                aria-label="待機するペットを検索"
-              />
-              <ul className="space-y-1">
-                {pets.map((pet) => (
-                  <li key={pet.id}>
-                    <button
-                      type="button"
-                      className={`text-left w-full rounded px-2 py-1 ${C.bgActive}`}
-                      onClick={() => void putWait.mutateAsync(Number(pet.id))}
-                    >
-                      {pet.name}
-                    </button>
+              <p className={`text-sm ${C.textInkMuted}`}>ペット未選択 · 接続 {serialOk ? linkLabel : "非対応"}</p>
+            </div>
+          )}
+          <div className="space-y-2">
+            <h2 className="text-xl font-semibold">検査機器</h2>
+            <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {slots.map((slot) => {
+                const state = listenStates[slot.key] ?? (serialOk ? "needs_permission" : "unsupported");
+                const latestCard = labDeviceLatestCardForSlot(slot, receivedCards);
+                const live = lastReceives[slot.key];
+                return (
+                  <li key={slot.key}>
+                    <DeviceStatusCard
+                      slot={slot}
+                      state={state}
+                      receiveLabel={labDeviceLiveReceiveLabel({
+                        liveLabel: live?.label,
+                        latestCard,
+                      })}
+                      receiveTime={live?.at
+                        ? formatJSTTime(live.at)
+                        : latestCard?.measuredAt || latestCard?.receivedAt
+                          ? formatJSTTime(latestCard.measuredAt || latestCard.receivedAt || "")
+                          : undefined}
+                      latestCard={latestCard}
+                    />
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+          <div className="space-y-2">
+            <h2 className="text-xl font-semibold">本日診療中のカルテ</h2>
+            {isLoading ? <p>読み込み中</p> : null}
+            {todayVisits.length === 0 && !isLoading ? (
+              <p className={C.textInkMuted}>本日診療中のカルテはありません</p>
+            ) : (
+              <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {todayVisits.map((visit) => (
+                  <li key={visit.recordId}>
+                    <TodayVisitCard
+                      visit={visit}
+                      selected={board?.wait?.petId === visit.petId}
+                      disabled={!canCreate}
+                      onSelect={() => void putWait.mutateAsync(visit.petId)}
+                    />
                   </li>
                 ))}
               </ul>
-            </div>
-          )}
+            )}
+          </div>
         </section>
 
         <section className="space-y-2">
           <h2 className="text-xl font-semibold">未紐付け</h2>
-          {isLoading ? <p>読み込み中</p> : null}
           {(board?.unlinked ?? []).length === 0 ? (
             <p className={C.textInkMuted}>未紐付けの受信はありません</p>
           ) : (board?.unlinked ?? []).map((card) => (
@@ -185,15 +334,27 @@ export function LabDeviceBoard() {
           ))}
         </section>
 
-        <section className="space-y-2">
-          <h2 className="text-xl font-semibold">保存</h2>
-          {(board?.saved ?? []).map((card) => (
-            <JobCardView
-              key={card.jobId}
-              card={card}
-              canEdit={canEdit}
-              onDetach={() => void detach.mutateAsync(card.jobId)}
-            />
+        <section className="space-y-4">
+          <h2 className="text-xl font-semibold">受信一覧</h2>
+          {receivedGroups.length === 0 ? (
+            <p className={C.textInkMuted}>受信した検査はありません</p>
+          ) : receivedGroups.map((group) => (
+            <div key={group.day} className="space-y-2">
+              <h3 className="text-heading-3 font-semibold">
+                {labDeviceReceivedDayLabel(group.day, today)}
+              </h3>
+              {group.cards.map((card) => (
+                <JobCardView
+                  key={card.jobId}
+                  card={card}
+                  canEdit={canEdit}
+                  onDetach={card.petId ? () => void detach.mutateAsync(card.jobId) : undefined}
+                  onAttach={!card.petId && board?.wait
+                    ? () => void attach.mutateAsync({ jobId: card.jobId, petId: board.wait!.petId })
+                    : undefined}
+                />
+              ))}
+            </div>
           ))}
         </section>
 
@@ -207,9 +368,6 @@ export function LabDeviceBoard() {
             {slots.map((slot) => (
               <li key={slot.key} className="flex flex-wrap items-center gap-2">
                 <span className="font-medium">{slot.deviceHint}</span>
-                <span className={`text-sm ${C.textInkMuted}`}>
-                  {labDeviceSlotListenLabel(listenStates[slot.key] ?? "needs_permission")}
-                </span>
                 {serialOk ? (
                   <Button
                     type="button"

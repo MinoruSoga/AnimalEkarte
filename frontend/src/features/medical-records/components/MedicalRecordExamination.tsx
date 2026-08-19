@@ -1,5 +1,6 @@
 // React/Framework
 import { memo, useDeferredValue, useMemo, useState, useCallback, Suspense } from "react";
+import { useSearchParams } from "react-router";
 
 // Internal
 import { normalizedIncludes } from "@/lib/normalize-kana";
@@ -9,6 +10,11 @@ import { useGetRecordExaminations } from "../api/get-record-examinations";
 import { ExaminationFilter } from "./ExaminationFilter";
 import { ExaminationGroup } from "./ExaminationGroup";
 import { ExaminationImportDialog } from "./MedicalRecordLazyModals";
+import {
+  MEDICAL_RECORD_EXAM_ID_PARAM,
+  isTargetExamGroup,
+  orderExamGroupsForTarget,
+} from "./medical-record-examination-model";
 import { C } from "@/lib/design-tokens";
 import { HISTORY_FETCH_LIMIT } from "@/config/fetch-limits";
 
@@ -28,9 +34,12 @@ export const MedicalRecordExamination = memo(function MedicalRecordExamination({
   const [dateStart, setDateStart] = useState("");
   const [dateEnd, setDateEnd] = useState("");
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
+  const [searchParams] = useSearchParams();
+  const examId = searchParams.get(MEDICAL_RECORD_EXAM_ID_PARAM);
 
   const { data: examinationResult, isLoading, refetch } = useGetRecordExaminations(
     isNewRecord ? undefined : petId,
+    isNewRecord ? undefined : medicalRecordId,
   );
   const apiExamGroups = useMemo(
     () => examinationResult?.items ?? [],
@@ -38,15 +47,14 @@ export const MedicalRecordExamination = memo(function MedicalRecordExamination({
   );
   const isTruncated = examinationResult?.isTruncated ?? false;
 
-  const examGroups = useMemo(
-    () =>
-      apiExamGroups.filter((g) =>
-        deferredSearch
-          ? g.items.some((item) => normalizedIncludes(item.name, deferredSearch))
-          : true,
-      ),
-    [apiExamGroups, deferredSearch],
-  );
+  const examGroups = useMemo(() => {
+    const filtered = apiExamGroups.filter((g) =>
+      deferredSearch
+        ? g.items.some((item) => normalizedIncludes(item.name, deferredSearch))
+        : true,
+    );
+    return orderExamGroupsForTarget(filtered, examId);
+  }, [apiExamGroups, deferredSearch, examId]);
 
   const handleImportClick = useCallback(() => {
     setIsImportDialogOpen(true);
@@ -97,7 +105,12 @@ export const MedicalRecordExamination = memo(function MedicalRecordExamination({
       <div className="flex flex-col gap-4 pl-1">
         {!isLoading
           ? examGroups.map((group) => (
-              <ExaminationGroup key={group.id} group={group} petId={petId} />
+              <ExaminationGroup
+                key={group.id}
+                group={group}
+                petId={petId}
+                highlighted={isTargetExamGroup(group.id, examId)}
+              />
             ))
           : null}
       </div>

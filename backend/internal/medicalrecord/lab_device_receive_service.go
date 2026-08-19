@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/config"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -17,6 +18,7 @@ type labDeviceReceiveService struct {
 	pets      LabDevicePetFinder
 	tx        Transactor
 	persister LabDeviceExamPersister
+	visits    LabDeviceTodayVisitFinder
 	now       func() time.Time
 }
 
@@ -27,6 +29,7 @@ func NewLabDeviceReceiveService(
 	pets LabDevicePetFinder,
 	tx Transactor,
 	persister LabDeviceExamPersister,
+	visits LabDeviceTodayVisitFinder,
 ) LabDeviceReceiveService {
 	return &labDeviceReceiveService{
 		repo:      repo,
@@ -34,6 +37,7 @@ func NewLabDeviceReceiveService(
 		pets:      pets,
 		tx:        tx,
 		persister: persister,
+		visits:    visits,
 		now:       time.Now,
 	}
 }
@@ -280,12 +284,42 @@ func (s *labDeviceReceiveService) Board(ctx context.Context, clinicID uint64) (*
 	if err != nil {
 		return nil, err
 	}
+	since := s.now().In(config.JST).AddDate(0, 0, -labDeviceReceivedLookbackDays)
+	receivedJobs, err := s.repo.ListReceivedJobs(ctx, clinicID, since, labDeviceReceivedLimit)
+	if err != nil {
+		return nil, err
+	}
+	received, err := s.cardsForJobs(ctx, clinicID, receivedJobs)
+	if err != nil {
+		return nil, err
+	}
+	todayVisits, err := s.todayVisits(ctx, clinicID)
+	if err != nil {
+		return nil, err
+	}
 	return &LabDeviceBoard{
-		Wait:     wait,
-		Unlinked: unlinked,
-		Saved:    saved,
-		Station:  *station,
+		Wait:        wait,
+		Unlinked:    unlinked,
+		Saved:       saved,
+		Received:    received,
+		TodayVisits: todayVisits,
+		Station:     *station,
 	}, nil
+}
+
+func (s *labDeviceReceiveService) todayVisits(ctx context.Context, clinicID uint64) ([]LabDeviceTodayVisit, error) {
+	if s.visits == nil {
+		return []LabDeviceTodayVisit{}, nil
+	}
+	date := s.now().In(config.JST).Format(time.DateOnly)
+	visits, err := s.visits.ListTodayDraft(ctx, clinicID, date)
+	if err != nil {
+		return nil, err
+	}
+	if visits == nil {
+		return []LabDeviceTodayVisit{}, nil
+	}
+	return visits, nil
 }
 
 func (s *labDeviceReceiveService) Unlinked(ctx context.Context, clinicID uint64) ([]LabDeviceJobCard, error) {

@@ -1,19 +1,19 @@
 # データベース設計書 (Entity Relationship Diagram)
 
-> **目的**: 全127テーブルのデータベース設計(ER図)を定義し、テーブル数等の統計値の正本とする。
+> **目的**: 全128テーブルのデータベース設計(ER図)を定義し、テーブル数等の統計値の正本とする。
 > **読者**: 全開発者。
 > **タイミング**: スキーマ変更・DB設計判断時。
 
-<!-- ERD:TABLE_COUNT=127 -->
+<!-- ERD:TABLE_COUNT=128 -->
 
 > **Animal Ekarte**: 高精度・高整合な動物病院データモデル
-> **バージョン**: v31.38 | **最新更新**: 2026-08-19 | **状態**: Production Ready (127 Tables Verified)
+> **バージョン**: v31.39 | **最新更新**: 2026-08-19 | **状態**: Production Ready (128 Tables Verified)
 
 ---
 
-## 1. データモデルの全体像 (全 127 テーブル)
+## 1. データモデルの全体像 (全 128 テーブル)
 
-本システムは、臨床・経営・外部連携を支える 127 のテーブルが高度に正規化され、臨床的整合性を維持するリレーショナルモデルを採用しています。
+本システムは、臨床・経営・外部連携を支える 128 のテーブルが高度に正規化され、臨床的整合性を維持するリレーショナルモデルを採用しています。
 
 ### 1.1 主要ドメイン別構成
 
@@ -22,7 +22,7 @@
 | **システム基盤 (13)** | `accounts`, `clinics`, `clinic_settings`, `clinic_holidays`, `closing_special_periods`, `staffs`, `permission_groups`, `permission_group_rules`, `audit_logs`, `companies`, `password_reset_tokens`, `token_blacklist`, `occupations` |
 | **入院・稼働 (11)** | `hospitalizations`, `daily_records`, `care_plan_items`, `care_logs`, `cages`, `hospitalization_plans`, `staff_notes`, `staff_clinic_assignments`, `staff_permission_groups`, `staff_reservation_exclusions`, `staff_reservation_capabilities` |
 | **臨床・診察 (24)** | `owners`, `pets`, `pet_owners`, `pet_chronic_conditions`, `animal_species`, `chief_complaint_types`, `medical_records`, `medical_record_addenda`, `medical_record_images`, `medical_record_image_upload_quota`, `clinical_plans`, `treatment_plans`, `treatments`, `prescriptions`, `procedures`, `vital_records`, `inquiries`, `consultations`, `diagnosis_names`, `diagnosis_types`, `inquiry_templates`, `medicines`, `medicine_dose_params`, `vaccines` |
-| **検査・予防 (24)** | `exams`, `exam_results`, `exam_types`, `exam_type_fields`, `exam_reference_ranges`, `examination_revisions`, `examination_revision_items`, `vaccinations`, `checkups`, `checkup_types`, `checkup_type_fields`, `checkup_field_results`, `checkup_package_import_receipts`, `shared_files`, `lab_import_jobs`, `lab_import_events`, `lab_import_exam_retractions`, `lab_import_exam_retraction_items`, `lab_import_usage_receipts`, `lab_import_revert_receipts`, `lab_device_item_masters`, `lab_import_job_items`, `lab_device_waits`, `lab_device_station_settings` |
+| **検査・予防 (25)** | `exams`, `exam_results`, `exam_types`, `exam_type_fields`, `exam_reference_ranges`, `examination_revisions`, `examination_revision_items`, `vaccinations`, `checkups`, `checkup_types`, `checkup_type_fields`, `checkup_field_results`, `checkup_package_import_receipts`, `shared_files`, `lab_import_jobs`, `lab_import_events`, `lab_import_exam_retractions`, `lab_import_exam_retraction_items`, `lab_import_usage_receipts`, `lab_import_revert_receipts`, `lab_devices`, `lab_device_item_masters`, `lab_import_job_items`, `lab_device_waits`, `lab_device_station_settings` |
 | **予約・シフト (12)** | `appointments`, `reservation_types`, `reservation_type_groups`, `reservation_type_occupations`, `reservation_type_available_slots`, `reservation_type_unavailable_times`, `appointment_trimming_details`, `appointment_trimming_options`, `shift_entries`, `shift_entry_breaks`, `shift_templates`, `shift_template_breaks` |
 | **会計・経営 (16)** | `billings`, `billing_items`, `payments`, `payment_splits`, `billing_refunds`, `billing_confirmations`, `cash_register_closes`, `cash_register_close_adjustments`, `payment_methods`, `merchandise_items`, `estimate_items`, `estimates`, `insurances`, `campaigns`, `campaign_target_categories`, `campaign_target_items` |
 | **トリミング (3)** | `trimming_course_types`, `trimming_courses`, `trimming_options` |
@@ -95,6 +95,8 @@ erDiagram
     lab_import_jobs ||--o{ lab_import_usage_receipts : "(clinic_id, job_id)"
     exams ||--o{ lab_import_usage_receipts : "(clinic_id, exam_id, job_id)"
     lab_import_jobs ||--o{ lab_import_revert_receipts : "(clinic_id, job_id)"
+    clinics ||--o{ lab_devices : "clinic_id"
+    exam_types ||--o{ lab_devices : "(exam_type_id, clinic_id)"
     clinics ||--o{ lab_device_item_masters : "clinic_id"
     exam_type_fields ||--o{ lab_device_item_masters : "(exam_type_field_id, clinic_id)"
     lab_import_jobs ||--o{ lab_import_job_items : "(job_id, clinic_id)"
@@ -164,13 +166,15 @@ erDiagram
 > **2026-08-19 BRT-97**: `005_lab_import_source_type_device.sql` は enum ADD VALUE のみ（使用しない）。`006_lab_device_receive.sql` が `lab_import_job_items` / `lab_device_waits` / `lab_device_station_settings` を追加し、`lab_import_jobs` に受信列を足す。物理テーブル総数は **127**。
 >
 > **2026-08-19 統合第7回**: 未適用 incremental `003_add_estimates_pet_id` / `004_lab_device_item_masters` / `005_lab_import_source_type_device` / `006_lab_device_receive` を `001_init.sql` セクション13へ畳み込み、独立ファイルを削除した。enum 3値は `CREATE TYPE` へ取り込み。物理テーブル総数は **127** のまま。001 checksum が変わるため適用経路は USER 手動の `make reset`（`docs/ops/deploy/LOCAL_DB_RESET.md`）。`002_ensure_pet_owners.sql` は部分適用安全ネットとして残す。
+>
+> **2026-08-19**: incremental `004_lab_devices.sql` が `lab_devices` を追加（機器名と検査種別の医院マスタ。`source_type` は電文プロトコル）。物理テーブル総数は **128**。適用は USER 手動の `make migrate`。
 
 | 項目 | 結果 | 判定 |
 |:---|:---|:---|
 | `001_init.sql` の `CREATE TABLE` 数 | 123（セクション11統合後。直下 DDL は 001 のみ） | 2026-07-04統合済みの5テーブルに加え、2026-07-27統合の旧005由来 `exam_reference_ranges` と旧003由来 `pet_owners`、2026-07-31統合の identity links 4 と upload quota 1、2026-08-04統合の close adjustments / examination revisions / checkup package receipts / lab import compensation を含む |
 | 旧増分マイグレーションが追加していたテーブル | 6: `lab_import_jobs` / `lab_import_events` (旧`005`)、`medicine_dose_params` (旧`009`)、`checkup_type_fields` / `checkup_field_results` (旧`010`)、`exam_reference_ranges`（2026-07-27統合の旧`005`） | 現在は全て `001_init.sql` に直接定義（旧ファイルは削除済み） |
-| 全マイグレーション（`backend/migrations/*.sql` 行頭 `CREATE TABLE` 合算）の物理テーブル総数 | 127 | 在庫は `001_init.sql`（127。城東4表をセクション13へ統合）。`002` の `pet_owners` は 001 と重複。ERD の全体数と一致 |
-| ERD ドメイン表の物理テーブル数 | 127 | migrations と一致 |
+| 全マイグレーション（`backend/migrations/*.sql` 行頭 `CREATE TABLE` 合算）の物理テーブル総数 | 128 | 在庫は `001_init.sql`（127。城東4表をセクション13へ統合）+ incremental `004_lab_devices`。`002` の `pet_owners` は 001 と重複。ERD の全体数と一致 |
+| ERD ドメイン表の物理テーブル数 | 128 | migrations と一致 |
 | ERD へ追加した不足テーブル | 11: 従来6（`token_blacklist`, `reservation_type_available_slots`, `trimming_course_types`, `campaigns`, `campaign_target_categories`, `campaign_target_items`）+ identity 4 + `medical_record_image_upload_quota` | migration に存在し、用途コメントまたはドメイン上の継続理由があるため追加 |
 | migrations にあり ERD にないテーブル | 0 | 整合済み |
 | ERD にあり migrations にないテーブル | 0 | 整合済み |

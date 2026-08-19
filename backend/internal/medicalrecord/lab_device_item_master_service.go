@@ -34,12 +34,30 @@ type UpdateLabDeviceItemMasterInput struct {
 	IsActive        bool
 }
 
+type CreateLabDeviceInput struct {
+	Name       string
+	SourceType string
+	ExamTypeID *uint64
+	IsActive   bool
+	SortOrder  int
+}
+
+type UpdateLabDeviceInput struct {
+	Name       string
+	ExamTypeID *uint64
+	IsActive   bool
+	SortOrder  int
+}
+
 // LabDeviceItemMasterService is the write-owner API for device item masters.
 type LabDeviceItemMasterService interface {
 	List(ctx context.Context, clinicID uint64, sourceType string) ([]model.LabDeviceItemMaster, error)
 	EnsureDefaults(ctx context.Context, clinicID uint64) (inserted int64, items []model.LabDeviceItemMaster, err error)
 	Update(ctx context.Context, clinicID, id uint64, input UpdateLabDeviceItemMasterInput) (*model.LabDeviceItemMaster, error)
 	ResolveItems(ctx context.Context, clinicID uint64, sourceType string, codes []string) (*LabDeviceMasterResolution, error)
+	ListDevices(ctx context.Context, clinicID uint64) ([]model.LabDevice, error)
+	CreateDevice(ctx context.Context, clinicID uint64, input CreateLabDeviceInput) (*model.LabDevice, error)
+	UpdateDevice(ctx context.Context, clinicID, id uint64, input UpdateLabDeviceInput) (*model.LabDevice, error)
 }
 
 type labDeviceItemMasterService struct {
@@ -101,11 +119,108 @@ func (s *labDeviceItemMasterService) EnsureDefaults(ctx context.Context, clinicI
 	if err != nil {
 		return 0, nil, err
 	}
+	defaults := labDeviceDefaults()
+	devices := make([]model.LabDevice, 0, len(defaults))
+	for _, device := range defaults {
+		devices = append(devices, model.LabDevice{
+			ClinicID:   clinicID,
+			SourceType: string(device.SourceType),
+			Name:       device.Name,
+			IsActive:   true,
+			SortOrder:  device.SortOrder,
+		})
+	}
+	if _, err := s.repo.EnsureDevices(ctx, devices); err != nil {
+		return 0, nil, err
+	}
 	items, err := s.repo.List(ctx, clinicID, "")
 	if err != nil {
 		return 0, nil, err
 	}
 	return inserted, items, nil
+}
+
+func (s *labDeviceItemMasterService) ListDevices(ctx context.Context, clinicID uint64) ([]model.LabDevice, error) {
+	return s.repo.ListDevices(ctx, clinicID)
+}
+
+func (s *labDeviceItemMasterService) CreateDevice(
+	ctx context.Context,
+	clinicID uint64,
+	input CreateLabDeviceInput,
+) (*model.LabDevice, error) {
+	name, sourceType, examTypeID, err := normalizeLabDeviceWrite(input.Name, input.SourceType, input.ExamTypeID)
+	if err != nil {
+		return nil, err
+	}
+	if !isLabDeviceSourceType(sourceType) {
+		return nil, apperrors.WrapInvalidInput("unknown lab device source_type")
+	}
+	if err := s.validateExamType(ctx, clinicID, examTypeID); err != nil {
+		return nil, err
+	}
+	row := &model.LabDevice{
+		ClinicID:   clinicID,
+		SourceType: sourceType,
+		Name:       name,
+		ExamTypeID: examTypeID,
+		IsActive:   input.IsActive,
+		SortOrder:  input.SortOrder,
+	}
+	if err := s.repo.CreateDevice(ctx, row); err != nil {
+		return nil, err
+	}
+	return row, nil
+}
+
+func (s *labDeviceItemMasterService) UpdateDevice(
+	ctx context.Context,
+	clinicID, id uint64,
+	input UpdateLabDeviceInput,
+) (*model.LabDevice, error) {
+	name, _, examTypeID, err := normalizeLabDeviceWrite(input.Name, "", input.ExamTypeID)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.validateExamType(ctx, clinicID, examTypeID); err != nil {
+		return nil, err
+	}
+	return s.repo.UpdateDevice(ctx, clinicID, id, map[string]any{
+		"name":         name,
+		"exam_type_id": examTypeID,
+		"is_active":    input.IsActive,
+		"sort_order":   input.SortOrder,
+	})
+}
+
+func (s *labDeviceItemMasterService) validateExamType(ctx context.Context, clinicID uint64, examTypeID *uint64) error {
+	if examTypeID == nil {
+		return nil
+	}
+	if *examTypeID == 0 {
+		return apperrors.WrapInvalidInput("exam_type_id is invalid")
+	}
+	if _, err := s.repo.FindExamType(ctx, clinicID, *examTypeID); err != nil {
+		if apperrors.IsNotFound(err) {
+			return apperrors.WrapInvalidInput("exam_type_id is not in this clinic")
+		}
+		return err
+	}
+	return nil
+}
+
+func normalizeLabDeviceWrite(name, sourceType string, examTypeID *uint64) (string, string, *uint64, error) {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return "", "", nil, apperrors.WrapInvalidInput("name is required")
+	}
+	if len(name) > 100 {
+		return "", "", nil, apperrors.WrapInvalidInput("name is too long")
+	}
+	if sourceType != "" && !isLabDeviceSourceType(sourceType) {
+		return "", "", nil, apperrors.WrapInvalidInput("unknown lab device source_type")
+	}
+	return name, sourceType, examTypeID, nil
 }
 
 func (s *labDeviceItemMasterService) Update(

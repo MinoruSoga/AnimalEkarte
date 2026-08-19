@@ -26,6 +26,7 @@ interface MasterSidePanelProps {
   isDirty?: boolean;
   /** BUG-158: true の場合、保存・削除ボタンを非表示にし、閲覧モードで表示 */
   readOnly?: boolean;
+  className?: string;
   children: ReactNode;
 }
 
@@ -44,6 +45,7 @@ export const MasterSidePanel = memo(function MasterSidePanel({
   titleMaxLength,
   isDirty = false,
   readOnly = false,
+  className,
   children,
 }: MasterSidePanelProps) {
   // --- Focus Management (Accessibility) ---
@@ -101,7 +103,7 @@ export const MasterSidePanel = memo(function MasterSidePanel({
   );
 
   return (
-    <SidePeekPanel onKeyDown={handleKeyDown}>
+    <SidePeekPanel className={className} onKeyDown={handleKeyDown}>
       <NavigationBlocker
         when={isDirty}
         title="変更が保存されていません"

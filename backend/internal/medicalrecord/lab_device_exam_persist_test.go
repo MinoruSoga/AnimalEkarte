@@ -85,6 +85,7 @@ func setupLabDevicePersistTest(t *testing.T) (*gorm.DB, LabDeviceReceiveService,
 			NewLabImportEventRepository(db),
 			revert,
 		),
+		nil,
 	)
 	return db, svc, pet.ID
 }

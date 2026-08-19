@@ -21,7 +21,7 @@ section: 診療業務
 | 一覧 | `/examinations` |
 | ペット選択 | `/examinations/select-pet` |
 | 新規 | `/examinations/new` |
-| 詳細・結果入力 | `/examinations/:id` |
+| 詳細・結果入力 | カルテに紐づく検査は `/medical-records/:id?tab=検査&examId=:id`。未紐付けのみ `/examinations/:id` |
 
 ## 画面イメージ
 
@@ -92,9 +92,9 @@ section: 診療業務
 
 ## 検査項目マスタ
 
-正常範囲・単位などの定義はマスタ設定の診療項目から行います。
+正常範囲・単位などの定義は検査マスタから行います。
 
-- サイドバー「**マスタ設定**」→「**診療項目**」
+- サイドバー「**マスタ設定**」→「**カルテ関連**」→「**検査マスタ**」
 - URL の目安: `/settings/treatment-items?tab=examination`
 
 ---

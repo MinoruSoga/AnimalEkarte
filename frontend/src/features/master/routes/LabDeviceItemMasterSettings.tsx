@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
-import { FlaskConical } from "lucide-react";
+import { FlaskConical, Plus } from "lucide-react";
 import { toast } from "sonner";
 
 import {
@@ -22,23 +22,31 @@ import { ResourceLabImport } from "@/types/generated/models";
 
 import { useGetAllExaminationTypes } from "../api/exam-types-master";
 import {
+  useCreateLabDevice,
+  useGetLabDevices,
+  useUpdateLabDevice,
+} from "../api/lab-devices";
+import {
   useEnsureLabDeviceItemMasters,
   useGetLabDeviceItemMasters,
-  useUpdateLabDeviceItemMaster,
 } from "../api/lab-device-item-masters";
 import { LabDeviceItemMasterSidePanel } from "../components/LabDeviceItemMasterSidePanel";
 import { MASTER_TABLE_COL } from "../constants/styles";
 import {
-  collectDirtyLabDeviceUpdates,
+  availableLabDeviceSourceTypes,
+  buildLabDeviceCreateRequest,
+  buildLabDeviceUpdateRequest,
   itemsForLabDevice,
   parseLabDeviceSourceQuery,
   toLabDeviceRows,
-  type LabDeviceItemDraft,
+  validateLabDeviceDraft,
+  type LabDeviceFormData,
   type LabDeviceRow,
 } from "./lab-device-item-master-settings-model";
 
 const COLUMNS = [
   { header: "機器", className: "flex-1" },
+  { header: "検査", className: "flex-1" },
   { header: "項目数", className: MASTER_TABLE_COL.w100, align: "center" as const },
   { header: "未設定", className: MASTER_TABLE_COL.w100, align: "center" as const },
   { header: "操作", className: MASTER_TABLE_COL.w80, align: "right" as const },
@@ -47,28 +55,77 @@ const COLUMNS = [
 export function LabDeviceItemMasterSettings() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { canEdit } = usePermission(ResourceLabImport);
+  const { canCreate, canEdit } = usePermission(ResourceLabImport);
+  const { data: devices = [] } = useGetLabDevices();
   const { data: items = [] } = useGetLabDeviceItemMasters();
   const { data: examTypes = [] } = useGetAllExaminationTypes();
-  const updateMutation = useUpdateLabDeviceItemMaster();
   const ensureMutation = useEnsureLabDeviceItemMasters();
+  const createMutation = useCreateLabDevice();
+  const updateMutation = useUpdateLabDevice();
   const dirty = useSidePeekDirty();
   const sourceFromQuery = parseLabDeviceSourceQuery(searchParams.get("source"));
   const fromBoard = searchParams.get("from") === "board";
-  const [selectedSource, setSelectedSource] = useState<string | null>(sourceFromQuery);
+  const [selectedId, setSelectedId] = useState<string | "new" | null>(null);
 
-  const rows = useMemo(() => toLabDeviceRows(items), [items]);
-  const selectedRow = rows.find((row) => row.sourceType === selectedSource) ?? null;
-  const selectedItems = useMemo(
-    () => (selectedSource === null ? [] : itemsForLabDevice(items, selectedSource)),
-    [items, selectedSource],
+  const rows = useMemo(
+    () => toLabDeviceRows(devices, items, examTypes),
+    [devices, examTypes, items],
   );
+  const unusedSourceTypes = useMemo(
+    () => availableLabDeviceSourceTypes(devices),
+    [devices],
+  );
+  const selectedRow = selectedId === null || selectedId === "new"
+    ? null
+    : rows.find((row) => row.id === selectedId) ?? null;
+  const isCreating = selectedId === "new";
+  const selectedItems = useMemo(
+    () => (selectedRow === null ? [] : itemsForLabDevice(items, selectedRow.sourceType)),
+    [items, selectedRow],
+  );
+  const showPanel = isCreating || selectedRow !== null;
+  const readOnly = isCreating ? canCreate !== true : canEdit !== true;
 
   useEffect(() => {
-    if (sourceFromQuery !== null) {
-      setSelectedSource(sourceFromQuery);
+    if (sourceFromQuery === null) {
+      return;
     }
-  }, [sourceFromQuery]);
+    const match = rows.find((row) => row.sourceType === sourceFromQuery);
+    if (match !== undefined) {
+      setSelectedId(match.id);
+    }
+  }, [rows, sourceFromQuery]);
+
+  const handleClose = useCallback(() => {
+    if (!dirty.confirmDiscard()) {
+      return;
+    }
+    setSelectedId(null);
+    if (searchParams.has("source")) {
+      const next = new URLSearchParams(searchParams);
+      next.delete("source");
+      setSearchParams(next, { replace: true });
+    }
+    dirty.markClean();
+  }, [dirty, searchParams, setSearchParams]);
+
+  const handleEdit = useCallback((row: LabDeviceRow) => {
+    if (!dirty.confirmDiscard()) {
+      return;
+    }
+    setSelectedId(row.id);
+  }, [dirty]);
+
+  const handleNew = useCallback(() => {
+    if (!dirty.confirmDiscard()) {
+      return;
+    }
+    if (unusedSourceTypes.length === 0) {
+      toast.error("対応プロトコルはすべて登録済みです");
+      return;
+    }
+    setSelectedId("new");
+  }, [dirty, unusedSourceTypes.length]);
 
   const handleDirtyChange = useCallback((nextDirty: boolean) => {
     if (nextDirty) {
@@ -78,50 +135,40 @@ export function LabDeviceItemMasterSettings() {
     dirty.markClean();
   }, [dirty]);
 
-  const handleClose = useCallback(() => {
-    if (!dirty.confirmDiscard()) {
-      return;
-    }
-    setSelectedSource(null);
-    if (searchParams.has("source")) {
-      const next = new URLSearchParams(searchParams);
-      next.delete("source");
-      setSearchParams(next, { replace: true });
-    }
-  }, [dirty, searchParams, setSearchParams]);
-
-  const handleEdit = useCallback((row: LabDeviceRow) => {
-    if (!dirty.confirmDiscard()) {
-      return;
-    }
-    setSelectedSource(row.sourceType);
-  }, [dirty]);
-
-  const handleSave = useCallback(async (drafts: LabDeviceItemDraft[]) => {
-    if (selectedSource === null) {
-      return false;
-    }
-    const { error, updates } = collectDirtyLabDeviceUpdates(
-      itemsForLabDevice(items, selectedSource),
-      drafts,
-    );
+  const handleSave = useCallback(async (form: LabDeviceFormData) => {
+    const error = validateLabDeviceDraft({
+      name: form.name,
+      sourceType: form.sourceType,
+      examTypeId: form.examTypeId,
+      requireSourceType: isCreating,
+    });
     if (error !== null) {
       toast.error(error);
-      return false;
+      return;
     }
     try {
-      for (const update of updates) {
-        await updateMutation.mutateAsync(update);
+      if (isCreating) {
+        if (canCreate !== true) {
+          return;
+        }
+        await createMutation.mutateAsync(buildLabDeviceCreateRequest(form));
+        toast.success("登録しました");
+      } else if (selectedRow !== null) {
+        if (canEdit !== true) {
+          return;
+        }
+        await updateMutation.mutateAsync({
+          id: selectedRow.id,
+          req: buildLabDeviceUpdateRequest(form),
+        });
+        toast.success("更新しました");
       }
-      if (updates.length > 0) {
-        toast.success("保存しました");
-      }
-      dirty.markClean();
-      return true;
     } catch {
-      return false;
+      return;
     }
-  }, [dirty, items, selectedSource, updateMutation]);
+    dirty.markClean();
+    setSelectedId(null);
+  }, [canCreate, canEdit, createMutation, dirty, isCreating, selectedRow, updateMutation]);
 
   return (
     <div className="flex h-full">
@@ -133,24 +180,32 @@ export function LabDeviceItemMasterSettings() {
           onBack={() => navigate(paths.settings.getHref())}
           maxWidth={LAYOUT.pageContentMaxWidth.full}
           headerAction={
-            canEdit ? (
-              <PrimaryButton
-                onClick={() => {
-                  ensureMutation.mutate(undefined, {
-                    onSuccess: (result) => {
-                      toast.success(
-                        result.insertedCount > 0
-                          ? `既定項目を ${result.insertedCount} 件用意しました`
-                          : "既定項目は揃っています",
-                      );
-                    },
-                  });
-                }}
-                disabled={ensureMutation.isPending}
-              >
-                既定項目を用意
-              </PrimaryButton>
-            ) : null
+            <div className="flex items-center gap-2">
+              {canEdit ? (
+                <PrimaryButton
+                  onClick={() => {
+                    ensureMutation.mutate(undefined, {
+                      onSuccess: (result) => {
+                        toast.success(
+                          result.insertedCount > 0
+                            ? `既定項目を ${result.insertedCount} 件用意しました`
+                            : "既定項目は揃っています",
+                        );
+                      },
+                    });
+                  }}
+                  disabled={ensureMutation.isPending}
+                >
+                  既定項目を用意
+                </PrimaryButton>
+              ) : null}
+              {canCreate ? (
+                <PrimaryButton onClick={handleNew}>
+                  <Plus className={`mr-1.5 ${ICON.action}`} />
+                  新規登録
+                </PrimaryButton>
+              ) : null}
+            </div>
           }
         >
           <div className="flex flex-col gap-4">
@@ -164,7 +219,7 @@ export function LabDeviceItemMasterSettings() {
               headerCellClassName={DESIGN_TABLE_HEADER_CELL}
               columns={COLUMNS}
               data={rows}
-              emptyMessage="機器がありません"
+              emptyMessage="機器がありません。新規登録するか、既定項目を用意してください"
               renderRow={(row) => (
                 <DataTableRow key={row.id}>
                   <TableCell className={`font-medium ${C.text}`}>
@@ -175,16 +230,13 @@ export function LabDeviceItemMasterSettings() {
                       {row.name}
                     </DataTableRowButton>
                   </TableCell>
+                  <TableCell className={C.text}>{row.examLabel}</TableCell>
                   <TableCell className={`text-center ${C.text}`}>{row.itemCount}</TableCell>
                   <TableCell className={`text-center ${C.text}`}>{row.unmappedCount}</TableCell>
                   <TableCell className="text-right">
                     <RowActionButton
                       onClick={() => handleEdit(row)}
-                      aria-label={
-                        canEdit
-                          ? `検査機器「${row.name}」を編集`
-                          : `検査機器「${row.name}」の詳細`
-                      }
+                      aria-label={`検査機器「${row.name}」の詳細`}
                     />
                   </TableCell>
                 </DataTableRow>
@@ -193,16 +245,19 @@ export function LabDeviceItemMasterSettings() {
           </div>
         </PageLayout>
       </div>
-      {selectedRow !== null ? (
+      {showPanel ? (
         <LabDeviceItemMasterSidePanel
-          key={selectedRow.sourceType}
+          key={selectedId ?? "closed"}
           device={selectedRow}
           items={selectedItems}
           examTypes={examTypes}
+          unusedSourceTypes={unusedSourceTypes}
+          readOnly={readOnly}
+          isPending={createMutation.isPending || updateMutation.isPending}
           onClose={handleClose}
-          onSave={handleSave}
-          readOnly={!canEdit}
-          isPending={updateMutation.isPending}
+          onSave={(form) => {
+            void handleSave(form);
+          }}
           onDirtyChange={handleDirtyChange}
         />
       ) : null}

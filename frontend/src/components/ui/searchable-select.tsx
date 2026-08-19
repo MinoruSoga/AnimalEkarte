@@ -109,7 +109,7 @@ export function SearchableSelect({
         onSelect={() => handleSelect(opt.value)}
         className={cn("cursor-pointer", indentClassName)}
       >
-        <span className={cn("flex-1 text-sm", C.text)}>{opt.label}</span>
+        <span className={cn("flex-1 whitespace-nowrap text-sm", C.text)}>{opt.label}</span>
         {isSelected ? <Check className={cn("size-4", C.text)} /> : null}
       </CommandItem>
     );
@@ -136,14 +136,17 @@ export function SearchableSelect({
           className,
         )}
       >
-        <span className={cn("line-clamp-1 text-left", selectedLabel ? C.text : C.text40)}>
+        <span className={cn("min-w-0 flex-1 truncate whitespace-nowrap text-left", selectedLabel ? C.text : C.text40)}>
           {selectedLabel || placeholder}
         </span>
         <ChevronDown className={cn("size-4 shrink-0 opacity-50", C.text)} />
       </PopoverTrigger>
       <PopoverContent
         align="start"
-        className={cn(`${Z_CLASS.overlay} w-[var(--radix-popover-trigger-width)] p-0`, contentClassName)}
+        className={cn(
+          `${Z_CLASS.overlay} w-max min-w-[var(--radix-popover-trigger-width)] max-w-[min(40rem,90vw)] p-0`,
+          contentClassName,
+        )}
       >
         <Command
           filter={(_value, search, keywords) => {

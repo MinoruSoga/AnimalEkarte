@@ -126,7 +126,7 @@ docker compose exec frontend pnpm design-audit
 | 設定/マスタ | 支払方法マスタ | /settings/payment-methods | PaymentMethodSettings | ✅ | MasterCRUDPage経由 |
 | 設定/マスタ | 割引キャンペーンマスタ | /settings/campaigns | CampaignSettings | ✅ | MasterCRUDPage経由 |
 | 設定/マスタ | 検査機器マスタ | /settings/lab-device-item-masters | LabDeviceItemMasterSettings | ✅ | 日常送信経路に出さない |
-| 臨床 | 検査受信 | /lab-device | LabDeviceBoard | ✅ | 1画面掲示板。確認ダイアログなし |
+| 臨床 | 検査受信 | /lab-device | LabDeviceBoard | ✅ | 1画面掲示板。本日診療中カルテカード＋日別受信一覧。確認ダイアログなし |
 | 設定/マスタ | Lステップ連携設定 | /settings/integrations/lstep | LstepSettingsPage | ✅ | |
 | 設定/マスタ | Lステップタグ管理 | /settings/lstep/tags | LstepTagManagementPage | ✅ | |
 

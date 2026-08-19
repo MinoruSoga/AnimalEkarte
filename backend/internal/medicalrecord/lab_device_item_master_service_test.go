@@ -42,9 +42,10 @@ func setupLabDeviceItemMasterTestDB(t *testing.T) *gorm.DB {
 		&model.ExaminationType{},
 		&model.ExamTypeField{},
 		&model.LabDeviceItemMaster{},
+		&model.LabDevice{},
 	))
 	require.NoError(t, db.Exec(`ALTER TABLE lab_device_item_masters DROP COLUMN IF EXISTS display_name`).Error)
-	db.Exec("TRUNCATE TABLE lab_device_item_masters, exam_type_fields, exam_types CASCADE")
+	db.Exec("TRUNCATE TABLE lab_devices, lab_device_item_masters, exam_type_fields, exam_types CASCADE")
 	return db
 }
 
@@ -100,6 +101,15 @@ func TestLabDeviceItemMasterService_EnsureDefaultsAndIsolation(t *testing.T) {
 	})
 	require.Error(t, err)
 	assert.True(t, apperrors.IsNotFound(err))
+
+	devicesA, err := svc.ListDevices(ctx, clinicA)
+	require.NoError(t, err)
+	require.Len(t, devicesA, 3)
+	assert.Equal(t, "NX600", devicesA[0].Name)
+	assert.Equal(t, string(model.LabImportSourceTypeFujiNX600), devicesA[0].SourceType)
+	devicesB, err := svc.ListDevices(ctx, clinicB)
+	require.NoError(t, err)
+	assert.Empty(t, devicesB)
 }
 
 func TestLabDeviceItemMasterService_UpdateAndResolve(t *testing.T) {
@@ -165,4 +175,66 @@ func TestLabDeviceItemMasterService_UpdateAndResolve(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, res2.Mapped)
 	assert.Equal(t, []string{"BUN-P"}, res2.UnmappedCodes)
+}
+
+func TestLabDeviceService_CreateUpdateAndIsolation(t *testing.T) {
+	db := setupLabDeviceItemMasterTestDB(t)
+	svc := NewLabDeviceItemMasterService(NewLabDeviceItemMasterRepository(db))
+	ctx := context.Background()
+	const clinicA, clinicB = uint64(1), uint64(2)
+
+	examA := &model.ExaminationType{ClinicID: clinicA, Name: "血液化学"}
+	require.NoError(t, db.Create(examA).Error)
+	examB := &model.ExaminationType{ClinicID: clinicB, Name: "血液B"}
+	require.NoError(t, db.Create(examB).Error)
+
+	_, err := svc.CreateDevice(ctx, clinicA, CreateLabDeviceInput{
+		Name: "NX", SourceType: "unknown", IsActive: true,
+	})
+	require.Error(t, err)
+	assert.True(t, apperrors.IsInvalidInput(err))
+
+	_, err = svc.CreateDevice(ctx, clinicA, CreateLabDeviceInput{
+		Name: "NX600", SourceType: string(model.LabImportSourceTypeFujiNX600), ExamTypeID: &examB.ID, IsActive: true,
+	})
+	require.Error(t, err)
+	assert.True(t, apperrors.IsInvalidInput(err))
+
+	created, err := svc.CreateDevice(ctx, clinicA, CreateLabDeviceInput{
+		Name: "NX600", SourceType: string(model.LabImportSourceTypeFujiNX600), ExamTypeID: &examA.ID, IsActive: true, SortOrder: 10,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, created.ExamTypeID)
+	assert.Equal(t, examA.ID, *created.ExamTypeID)
+
+	_, err = svc.CreateDevice(ctx, clinicA, CreateLabDeviceInput{
+		Name: "別名前", SourceType: string(model.LabImportSourceTypeFujiNX600), IsActive: true,
+	})
+	require.Error(t, err)
+	assert.True(t, apperrors.IsAlreadyExists(err))
+
+	_, err = svc.CreateDevice(ctx, clinicA, CreateLabDeviceInput{
+		Name: "NX600", SourceType: string(model.LabImportSourceTypeFujiAU10V), IsActive: true,
+	})
+	require.Error(t, err)
+	assert.True(t, apperrors.IsAlreadyExists(err))
+
+	updated, err := svc.UpdateDevice(ctx, clinicA, created.ID, UpdateLabDeviceInput{
+		Name: "院内NX", ExamTypeID: &examA.ID, IsActive: false, SortOrder: 15,
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "院内NX", updated.Name)
+	assert.False(t, updated.IsActive)
+
+	_, err = svc.UpdateDevice(ctx, clinicB, created.ID, UpdateLabDeviceInput{
+		Name: "他院", IsActive: true,
+	})
+	require.Error(t, err)
+	assert.True(t, apperrors.IsNotFound(err))
+
+	cleared, err := svc.UpdateDevice(ctx, clinicA, created.ID, UpdateLabDeviceInput{
+		Name: "院内NX", ExamTypeID: nil, IsActive: true, SortOrder: 15,
+	})
+	require.NoError(t, err)
+	assert.Nil(t, cleared.ExamTypeID)
 }

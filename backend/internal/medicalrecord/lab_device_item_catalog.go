@@ -16,6 +16,20 @@ type labDeviceItemCatalogRow struct {
 // LabDeviceItemCatalogCount is the accepted 城東 seed size (NX600 16 + AU10V 1 + 尿 8).
 const LabDeviceItemCatalogCount = 25
 
+type labDeviceDefault struct {
+	SourceType model.LabImportSourceType
+	Name       string
+	SortOrder  int
+}
+
+func labDeviceDefaults() []labDeviceDefault {
+	return []labDeviceDefault{
+		{model.LabImportSourceTypeFujiNX600, "NX600", 10},
+		{model.LabImportSourceTypeFujiAU10V, "AU10V", 20},
+		{model.LabImportSourceTypeArkrayPU4010, "尿（PU-4010）", 30},
+	}
+}
+
 func isLabDeviceSourceType(sourceType string) bool {
 	switch model.LabImportSourceType(sourceType) {
 	case model.LabImportSourceTypeFujiNX600,

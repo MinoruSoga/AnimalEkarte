@@ -15,12 +15,20 @@ const (
 	labDeviceMaxWaitTTLSeconds     = 86400
 	labDeviceUnlinkedLimit         = 20
 	labDeviceSavedLimit            = 10
+	labDeviceReceivedLimit         = 200
+	labDeviceReceivedLookbackDays  = 7
+	labDeviceTodayVisitLimit       = 100
 	labDeviceDefaultSlotsJSON      = `[{"key":"nx600","source_type":"fuji_nx600","device_hint":"NX600","baud":9600},{"key":"au10v","source_type":"fuji_au10v","device_hint":"AU10V","baud":9600},{"key":"pu4010","source_type":"arkray_pu4010","device_hint":"PU-4010","baud":9600}]`
 )
 
 // LabDevicePetFinder is the clinic-scoped pet read used to validate request pet_id.
 type LabDevicePetFinder interface {
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Pet, error)
+}
+
+// LabDeviceTodayVisitFinder lists today's in-progress charts for the wait board.
+type LabDeviceTodayVisitFinder interface {
+	ListTodayDraft(ctx context.Context, clinicID uint64, date string) ([]LabDeviceTodayVisit, error)
 }
 
 // LabDeviceExamPersister writes exams on attach and retracts them on detach.
@@ -55,10 +63,24 @@ type LabDeviceFrameResult struct {
 
 // LabDeviceBoard is the single receive page payload.
 type LabDeviceBoard struct {
-	Wait     *LabDeviceWaitView
-	Unlinked []LabDeviceJobCard
-	Saved    []LabDeviceJobCard
-	Station  LabDeviceStationView
+	Wait        *LabDeviceWaitView
+	Unlinked    []LabDeviceJobCard
+	Saved       []LabDeviceJobCard
+	Received    []LabDeviceJobCard
+	TodayVisits []LabDeviceTodayVisit
+	Station     LabDeviceStationView
+}
+
+// LabDeviceTodayVisit is one selectable in-progress chart on the wait board.
+type LabDeviceTodayVisit struct {
+	RecordID      uint64
+	PetID         uint64
+	PetName       string
+	OwnerName     string
+	Species       string
+	DoctorName    string
+	VisitType     string
+	PetIsDeceased bool
 }
 
 // LabDeviceWaitView is the active wait shown at page-max size.

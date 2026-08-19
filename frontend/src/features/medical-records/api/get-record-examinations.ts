@@ -37,11 +37,21 @@ function transformExamGroup(exam: Examination): ExamGroup {
   };
 }
 
-const getRecordExaminations = async (
-  petId: string,
-): Promise<RecordExaminationsResult> => {
+const getRecordExaminations = async (input: {
+  petId?: string;
+  medicalRecordId?: string;
+}): Promise<RecordExaminationsResult> => {
+  const params: Record<string, string | number | boolean> = {
+    limit: HISTORY_FETCH_LIMIT,
+    include_items: true,
+  };
+  if (input.medicalRecordId) {
+    params.medical_record_id = Number(input.medicalRecordId);
+  } else if (input.petId) {
+    params.pet_id = Number(input.petId);
+  }
   const { data } = await axios.get<{ data: Examination[]; total?: number }>("/v1/examinations", {
-    params: { pet_id: Number(petId), limit: HISTORY_FETCH_LIMIT, include_items: true },
+    params,
   });
   const rows = data.data ?? [];
   return {
@@ -50,11 +60,13 @@ const getRecordExaminations = async (
   };
 };
 
-export const useGetRecordExaminations = (petId?: string) => {
+export const useGetRecordExaminations = (petId?: string, medicalRecordId?: string) => {
   return useQuery({
-    queryKey: queryKeys.examinations.byPet(petId!),
-    queryFn: () => getRecordExaminations(petId!),
-    enabled: !!petId,
+    queryKey: medicalRecordId
+      ? queryKeys.examinations.byRecord(medicalRecordId)
+      : queryKeys.examinations.byPet(petId!),
+    queryFn: () => getRecordExaminations({ petId, medicalRecordId }),
+    enabled: Boolean(medicalRecordId || petId),
     staleTime: QUERY_STALE_TIMES.MEDIUM,
     gcTime: QUERY_GC_TIMES.STANDARD,
   });

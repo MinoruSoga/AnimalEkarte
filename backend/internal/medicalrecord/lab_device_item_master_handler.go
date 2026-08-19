@@ -108,6 +108,80 @@ func (h *LabImportHandler) UpdateLabDeviceItemMaster(c *gin.Context) {
 	c.JSON(http.StatusOK, toLabDeviceItemMasterResponse(item))
 }
 
+// ListLabDevices godoc
+// GET /api/v1/lab-devices
+func (h *LabImportHandler) ListLabDevices(c *gin.Context) {
+	clinicID, ok := httpapi.ExtractClinicID(c)
+	if !ok {
+		return
+	}
+	svc, ok := h.deviceMasterService()
+	if !ok {
+		httpapi.RespondError(c, apperrors.WrapInternalServerError("lab device item master service is not configured"))
+		return
+	}
+	devices, err := svc.ListDevices(c.Request.Context(), clinicID)
+	if err != nil {
+		httpapi.RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, httpapi.MapSlice(devices, toLabDeviceResponse))
+}
+
+// CreateLabDevice godoc
+// POST /api/v1/lab-devices
+func (h *LabImportHandler) CreateLabDevice(c *gin.Context) {
+	clinicID, ok := httpapi.ExtractClinicID(c)
+	if !ok {
+		return
+	}
+	svc, ok := h.deviceMasterService()
+	if !ok {
+		httpapi.RespondError(c, apperrors.WrapInternalServerError("lab device item master service is not configured"))
+		return
+	}
+	var req createLabDeviceRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		httpapi.RespondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
+		return
+	}
+	device, err := svc.CreateDevice(c.Request.Context(), clinicID, req.toServiceInput())
+	if err != nil {
+		httpapi.RespondErrorPreferringConflictCode(c, err)
+		return
+	}
+	c.JSON(http.StatusCreated, toLabDeviceResponse(device))
+}
+
+// UpdateLabDevice godoc
+// PATCH /api/v1/lab-devices/:id
+func (h *LabImportHandler) UpdateLabDevice(c *gin.Context) {
+	clinicID, ok := httpapi.ExtractClinicID(c)
+	if !ok {
+		return
+	}
+	id, ok := httpapi.ParseIDParam(c, "id")
+	if !ok {
+		return
+	}
+	svc, ok := h.deviceMasterService()
+	if !ok {
+		httpapi.RespondError(c, apperrors.WrapInternalServerError("lab device item master service is not configured"))
+		return
+	}
+	var req updateLabDeviceRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		httpapi.RespondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
+		return
+	}
+	device, err := svc.UpdateDevice(c.Request.Context(), clinicID, id, req.toServiceInput())
+	if err != nil {
+		httpapi.RespondErrorPreferringConflictCode(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, toLabDeviceResponse(device))
+}
+
 // ReceiveLabDeviceFrames godoc
 // POST /api/v1/lab-device/frames
 func (h *LabImportHandler) ReceiveLabDeviceFrames(c *gin.Context) {

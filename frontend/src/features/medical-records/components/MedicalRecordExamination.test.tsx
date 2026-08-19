@@ -56,6 +56,7 @@ const EXAM_GROUPS: ExamGroup[] = [
 ];
 
 beforeEach(() => {
+  Element.prototype.scrollIntoView = vi.fn();
   vi.mocked(useGetRecordExaminations).mockReturnValue({
     data: { items: EXAM_GROUPS, isTruncated: false },
     isLoading: false,
@@ -124,6 +125,20 @@ describe("MedicalRecordExamination — カナ混同検索", () => {
       expect(screen.getByText("ビリルビン")).toBeInTheDocument();
       expect(screen.queryByText("グルコース")).not.toBeInTheDocument();
     });
+  });
+
+  it("examId があるとき対象検査を先頭にして強調する", () => {
+    render(
+      <MemoryRouter initialEntries={["/?examId=2"]}>
+        <MedicalRecordExamination petId="1" medicalRecordId="9" />
+      </MemoryRouter>,
+    );
+
+    expect(useGetRecordExaminations).toHaveBeenCalledWith("1", "9");
+    const groups = document.querySelectorAll("[id^='exam-group-']");
+    expect(groups[0]).toHaveAttribute("id", "exam-group-2");
+    expect(groups[0]).toHaveAttribute("aria-current", "true");
+    expect(groups[1]).toHaveAttribute("id", "exam-group-1");
   });
 
   it("各検査グループへ対象petIdを渡して時系列導線を構成する", () => {

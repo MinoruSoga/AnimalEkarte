@@ -16,9 +16,12 @@ import (
 )
 
 type mockLabDeviceItemMasterService struct {
-	listFn   func(ctx context.Context, clinicID uint64, sourceType string) ([]model.LabDeviceItemMaster, error)
-	ensureFn func(ctx context.Context, clinicID uint64) (int64, []model.LabDeviceItemMaster, error)
-	updateFn func(ctx context.Context, clinicID, id uint64, input UpdateLabDeviceItemMasterInput) (*model.LabDeviceItemMaster, error)
+	listFn         func(ctx context.Context, clinicID uint64, sourceType string) ([]model.LabDeviceItemMaster, error)
+	ensureFn       func(ctx context.Context, clinicID uint64) (int64, []model.LabDeviceItemMaster, error)
+	updateFn       func(ctx context.Context, clinicID, id uint64, input UpdateLabDeviceItemMasterInput) (*model.LabDeviceItemMaster, error)
+	listDevicesFn  func(ctx context.Context, clinicID uint64) ([]model.LabDevice, error)
+	createDeviceFn func(ctx context.Context, clinicID uint64, input CreateLabDeviceInput) (*model.LabDevice, error)
+	updateDeviceFn func(ctx context.Context, clinicID, id uint64, input UpdateLabDeviceInput) (*model.LabDevice, error)
 }
 
 func (m *mockLabDeviceItemMasterService) List(ctx context.Context, clinicID uint64, sourceType string) ([]model.LabDeviceItemMaster, error) {
@@ -35,6 +38,27 @@ func (m *mockLabDeviceItemMasterService) Update(ctx context.Context, clinicID, i
 
 func (m *mockLabDeviceItemMasterService) ResolveItems(context.Context, uint64, string, []string) (*LabDeviceMasterResolution, error) {
 	return nil, apperrors.WrapInvalidInput("not used")
+}
+
+func (m *mockLabDeviceItemMasterService) ListDevices(ctx context.Context, clinicID uint64) ([]model.LabDevice, error) {
+	if m.listDevicesFn == nil {
+		return nil, apperrors.WrapInvalidInput("not used")
+	}
+	return m.listDevicesFn(ctx, clinicID)
+}
+
+func (m *mockLabDeviceItemMasterService) CreateDevice(ctx context.Context, clinicID uint64, input CreateLabDeviceInput) (*model.LabDevice, error) {
+	if m.createDeviceFn == nil {
+		return nil, apperrors.WrapInvalidInput("not used")
+	}
+	return m.createDeviceFn(ctx, clinicID, input)
+}
+
+func (m *mockLabDeviceItemMasterService) UpdateDevice(ctx context.Context, clinicID, id uint64, input UpdateLabDeviceInput) (*model.LabDevice, error) {
+	if m.updateDeviceFn == nil {
+		return nil, apperrors.WrapInvalidInput("not used")
+	}
+	return m.updateDeviceFn(ctx, clinicID, id, input)
 }
 
 func newDeviceMasterHandler(svc LabDeviceItemMasterService) *LabImportHandler {
@@ -115,4 +139,89 @@ func TestUpdateLabDeviceItemMaster_InvalidField(t *testing.T) {
 	setClinicID(c)
 	h.UpdateLabDeviceItemMaster(c)
 	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestListLabDevices_OK(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	examTypeID := uint64(10)
+	h := newDeviceMasterHandler(&mockLabDeviceItemMasterService{
+		listDevicesFn: func(_ context.Context, clinicID uint64) ([]model.LabDevice, error) {
+			assert.Equal(t, uint64(1), clinicID)
+			return []model.LabDevice{{
+				ID: 3, ClinicID: 1, SourceType: "fuji_nx600", Name: "NX600",
+				ExamTypeID: &examTypeID, IsActive: true, SortOrder: 10,
+			}}, nil
+		},
+	})
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodGet, "/api/v1/lab-devices", http.NoBody)
+	setClinicID(c)
+	h.ListLabDevices(c)
+	require.Equal(t, http.StatusOK, w.Code)
+	var body []labDeviceResponse
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &body))
+	require.Len(t, body, 1)
+	assert.Equal(t, "NX600", body[0].Name)
+	assert.Equal(t, "fuji_nx600", body[0].SourceType)
+	require.NotNil(t, body[0].ExamTypeID)
+	assert.Equal(t, uint64(10), *body[0].ExamTypeID)
+}
+
+func TestCreateLabDevice_OK(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	h := newDeviceMasterHandler(&mockLabDeviceItemMasterService{
+		createDeviceFn: func(_ context.Context, clinicID uint64, input CreateLabDeviceInput) (*model.LabDevice, error) {
+			assert.Equal(t, uint64(1), clinicID)
+			assert.Equal(t, "院内NX", input.Name)
+			assert.Equal(t, "fuji_nx600", input.SourceType)
+			return &model.LabDevice{
+				ID: 8, ClinicID: clinicID, Name: input.Name, SourceType: input.SourceType, IsActive: true,
+			}, nil
+		},
+	})
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodPost, "/api/v1/lab-devices",
+		jsonBody(map[string]any{"name": "院内NX", "source_type": "fuji_nx600", "is_active": true}))
+	c.Request.Header.Set("Content-Type", "application/json")
+	setClinicID(c)
+	h.CreateLabDevice(c)
+	require.Equal(t, http.StatusCreated, w.Code)
+	var body labDeviceResponse
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &body))
+	assert.Equal(t, uint64(8), body.ID)
+	assert.Equal(t, "院内NX", body.Name)
+}
+
+func TestUpdateLabDevice_OK(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	examTypeID := uint64(21)
+	h := newDeviceMasterHandler(&mockLabDeviceItemMasterService{
+		updateDeviceFn: func(_ context.Context, clinicID, id uint64, input UpdateLabDeviceInput) (*model.LabDevice, error) {
+			assert.Equal(t, uint64(1), clinicID)
+			assert.Equal(t, uint64(8), id)
+			assert.Equal(t, "院内NX", input.Name)
+			require.NotNil(t, input.ExamTypeID)
+			assert.Equal(t, uint64(21), *input.ExamTypeID)
+			return &model.LabDevice{
+				ID: id, ClinicID: clinicID, Name: input.Name, SourceType: "fuji_nx600",
+				ExamTypeID: input.ExamTypeID, IsActive: input.IsActive,
+			}, nil
+		},
+	})
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodPatch, "/api/v1/lab-devices/8",
+		jsonBody(map[string]any{"name": "院内NX", "exam_type_id": 21, "is_active": true, "sort_order": 10}))
+	c.Request.Header.Set("Content-Type", "application/json")
+	c.Params = gin.Params{{Key: "id", Value: "8"}}
+	setClinicID(c)
+	h.UpdateLabDevice(c)
+	require.Equal(t, http.StatusOK, w.Code)
+	var body labDeviceResponse
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &body))
+	assert.Equal(t, "院内NX", body.Name)
+	require.NotNil(t, body.ExamTypeID)
+	assert.Equal(t, examTypeID, *body.ExamTypeID)
 }

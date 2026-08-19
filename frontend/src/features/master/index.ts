@@ -30,3 +30,8 @@ export {
   useEnsureLabDeviceItemMasters,
   useUpdateLabDeviceItemMaster,
 } from "./api/lab-device-item-masters";
+export {
+  useGetLabDevices,
+  useCreateLabDevice,
+  useUpdateLabDevice,
+} from "./api/lab-devices";

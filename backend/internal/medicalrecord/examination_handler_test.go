@@ -120,7 +120,7 @@ func TestListExaminations(t *testing.T) {
 			query:    "",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockExaminationService{
-				listFn: func(_ context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Examination, int64, error) {
+				listFn: func(_ context.Context, clinicID uint64, petID, ownerID, medicalRecordID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Examination, int64, error) {
 					assert.Equal(t, uint64(1), clinicID)
 					assert.Equal(t, 1, page)
 					assert.Equal(t, 20, limit)
@@ -135,7 +135,7 @@ func TestListExaminations(t *testing.T) {
 			query:    "pet_id=5&status=completed&start_date=2026-05-01&end_date=2026-05-31&page=2&limit=10",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockExaminationService{
-				listFn: func(_ context.Context, _ uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Examination, int64, error) {
+				listFn: func(_ context.Context, _ uint64, petID, ownerID, medicalRecordID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Examination, int64, error) {
 					assert.NotNil(t, petID)
 					assert.Equal(t, uint64(5), *petID)
 					assert.NotNil(t, status)
@@ -174,11 +174,33 @@ func TestListExaminations(t *testing.T) {
 			wantStatus: http.StatusBadRequest,
 		},
 		{
+			name:  "applies medical_record_id filter",
+			query: "medical_record_id=9",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockExaminationService{
+				listFn: func(_ context.Context, _ uint64, _, _, medicalRecordID *uint64, _, _, _ *string, _, _ int) ([]model.Examination, int64, error) {
+					if medicalRecordID == nil || *medicalRecordID != 9 {
+						return nil, 0, fmt.Errorf("expected medicalRecordID=9")
+					}
+					return []model.Examination{}, 0, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+			wantBody:   `"total":0`,
+		},
+		{
+			name:       "returns 400 when medical_record_id filter is invalid",
+			query:      "medical_record_id=abc",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockExaminationService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
 			name:     "returns 500 on service error",
 			query:    "",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockExaminationService{
-				listFn: func(_ context.Context, _ uint64, _, _ *uint64, _, _, _ *string, _, _ int) ([]model.Examination, int64, error) {
+				listFn: func(_ context.Context, _ uint64, _, _, _ *uint64, _, _, _ *string, _, _ int) ([]model.Examination, int64, error) {
 					return nil, 0, fmt.Errorf("db failure")
 				},
 			},

@@ -1,6 +1,6 @@
 // React/Framework
 import { C, ICON, STYLE } from "@/lib/design-tokens";
-import { memo } from "react";
+import { memo, useEffect, useRef } from "react";
 import { Link, useLocation } from "react-router";
 
 // External
@@ -15,13 +15,21 @@ import type { ExamGroup } from "../api/get-record-examinations";
 interface ExaminationGroupProps {
   group: ExamGroup;
   petId?: string;
+  highlighted?: boolean;
 }
 
 export const ExaminationGroup = memo(function ExaminationGroup({
   group,
   petId,
+  highlighted = false,
 }: ExaminationGroupProps) {
   const location = useLocation();
+  const highlightRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!highlighted) return;
+    highlightRef.current?.scrollIntoView({ block: "start" });
+  }, [highlighted]);
   const historyLocation = `${location.pathname}${location.search}`;
   const pivotHref = petId
     ? `${paths.examinations.detail.getHref(group.id)}?${new URLSearchParams({
@@ -31,7 +39,12 @@ export const ExaminationGroup = memo(function ExaminationGroup({
     : undefined;
 
   return (
-    <div className="flex flex-col gap-2">
+    <div
+      ref={highlightRef}
+      id={`exam-group-${group.id}`}
+      aria-current={highlighted ? "true" : undefined}
+      className={`flex flex-col gap-2${highlighted ? ` rounded-lg p-2 -mx-2 ring-2 ${C.ringMedicalBlue} ${C.bgBrand5}` : ""}`}
+    >
       <div className={`flex items-center justify-between w-full border-b ${C.borderPrimary20} pb-2`}>
         <div className="flex items-center gap-4">
           <h3 className={`text-base font-bold ${C.text} font-mono`}>

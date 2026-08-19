@@ -37,7 +37,7 @@
 
 ## 画面と API
 
-- 日常経路は `/lab-device`（`LabDeviceBoard`）。権限は `lab-import`。確認ダイアログは無い。
+- 日常経路は `/lab-device`（`LabDeviceBoard`）。権限は `lab-import`。確認ダイアログは無い。ペット検索はせず、本日診療中のカルテカードを選ぶ。受信結果は日別に一覧する。
 - 医院セットアップで口→機器プロファイルを1回許可する。以後は `/lab-device` を開いたまま自動再オープンする。［読む］は無い。TTL の数値 UI は無い。
 - 診察端末の検査画面は未紐付けバナーから1クリックで `attach` する。値は編集しない。
 - 保持確認は `/examinations`（城東3種はペット確定後の persist。fixture は commit）

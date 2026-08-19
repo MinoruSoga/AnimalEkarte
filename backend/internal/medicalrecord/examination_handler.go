@@ -47,6 +47,7 @@ func (h *ExaminationHandler) ListExaminations(c *gin.Context) {
 		clinicID,
 		filters.PetID,
 		filters.OwnerID,
+		filters.MedicalRecordID,
 		filters.Status,
 		filters.StartDate,
 		filters.EndDate,

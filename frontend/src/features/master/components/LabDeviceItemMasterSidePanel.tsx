@@ -1,75 +1,96 @@
-import { memo, useCallback, useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useState } from "react";
 import { FlaskConical } from "lucide-react";
 
-import { NavigationBlocker } from "@/components/shared/NavigationBlocker/NavigationBlocker";
-import { PropertyRow } from "@/components/shared/SidePeek";
-import { SidePeekBody } from "@/components/shared/SidePeek/SidePeekBody";
-import { SidePeekFooter } from "@/components/shared/SidePeek/SidePeekFooter";
-import { SidePeekPanel } from "@/components/shared/SidePeek/SidePeekPanel";
-import { SidePeekToolbar } from "@/components/shared/SidePeek/SidePeekToolbar";
-import { StatusPill } from "@/components/shared/StatusPill/StatusPill";
+import { MasterSidePanel, PropertyRow, StatusToggleButton } from "@/components/shared/SidePeek";
 import { SearchableSelect } from "@/components/ui/searchable-select";
-import { C, LAYOUT, STYLE } from "@/lib/design-tokens";
+import { C, LAYOUT } from "@/lib/design-tokens";
 
 import type { LabDeviceItemMaster } from "../api/lab-device-item-masters";
 import type { ExaminationTypeMaster } from "../api/exam-types-master";
 import {
-  LAB_DEVICE_UNMAPPED_FIELD,
-  buildExamFieldOptions,
-  examFieldOptionsForItem,
-  examFieldSelectValue,
-  itemToLabDeviceDraft,
+  examTypeSelectOptions,
+  examTypeSelectValue,
+  labDeviceFieldName,
+  labDeviceSourceLabel,
+  labDeviceToFormData,
   labDeviceValueShapeLabel,
-  parseExamFieldSelectValue,
-  type LabDeviceItemDraft,
+  parseExamTypeSelectValue,
+  type LabDeviceFormData,
   type LabDeviceRow,
 } from "../routes/lab-device-item-master-settings-model";
 
 interface LabDeviceItemMasterSidePanelProps {
-  device: LabDeviceRow;
+  device: LabDeviceRow | null;
   items: LabDeviceItemMaster[];
   examTypes: ExaminationTypeMaster[];
-  onClose: () => void;
-  onSave: (drafts: LabDeviceItemDraft[]) => Promise<boolean> | boolean | void;
+  unusedSourceTypes: string[];
   readOnly?: boolean;
   isPending?: boolean;
+  onClose: () => void;
+  onSave: (data: LabDeviceFormData) => void;
   onDirtyChange?: (dirty: boolean) => void;
 }
+
+const EXAM_SELECT_CONTENT = "min-w-[28rem] w-max max-w-[min(40rem,90vw)]";
 
 export const LabDeviceItemMasterSidePanel = memo(function LabDeviceItemMasterSidePanel({
   device,
   items,
   examTypes,
-  onClose,
-  onSave,
+  unusedSourceTypes,
   readOnly,
   isPending,
+  onClose,
+  onSave,
   onDirtyChange,
 }: LabDeviceItemMasterSidePanelProps) {
-  const [drafts, setDrafts] = useState<LabDeviceItemDraft[]>(() => items.map(itemToLabDeviceDraft));
+  const isNew = device === null;
+  const [formData, setFormData] = useState<LabDeviceFormData>(() =>
+    labDeviceToFormData(device, unusedSourceTypes),
+  );
   const [isDirty, setIsDirty] = useState(false);
-  const fieldOptions = useMemo(() => buildExamFieldOptions(examTypes), [examTypes]);
-
-  useEffect(() => {
-    setDrafts(items.map(itemToLabDeviceDraft));
-    setIsDirty(false);
-  }, [items]);
+  const [nameError, setNameError] = useState("");
 
   useEffect(() => {
     onDirtyChange?.(isDirty);
   }, [isDirty, onDirtyChange]);
 
-  const patchDraft = useCallback((id: string, patch: Partial<LabDeviceItemDraft>) => {
-    setDrafts((prev) => prev.map((draft) => (draft.id === id ? { ...draft, ...patch } : draft)));
+  const setFormDataDirty = useCallback<typeof setFormData>((updater) => {
+    setFormData(updater);
     setIsDirty(true);
   }, []);
 
-  const handleSave = useCallback(async () => {
-    const result = await onSave(drafts);
-    if (result !== false) {
-      setIsDirty(false);
+  const handleTitleChange = useCallback((value: string) => {
+    setFormDataDirty((prev) => ({ ...prev, name: value }));
+    if (value.trim()) setNameError("");
+  }, [setFormDataDirty]);
+
+  const handleSourceTypeChange = useCallback((value: string) => {
+    setFormDataDirty((prev) => {
+      const previousDefault = prev.sourceType === "" ? "" : labDeviceSourceLabel(prev.sourceType);
+      const nextDefault = labDeviceSourceLabel(value);
+      const name = prev.name.trim() === "" || prev.name === previousDefault ? nextDefault : prev.name;
+      return { ...prev, sourceType: value, name };
+    });
+  }, [setFormDataDirty]);
+
+  const handleExamTypeChange = useCallback((value: string) => {
+    setFormDataDirty((prev) => ({ ...prev, examTypeId: parseExamTypeSelectValue(value) }));
+  }, [setFormDataDirty]);
+
+  const handleToggleActive = useCallback(() => {
+    setFormDataDirty((prev) => ({ ...prev, isActive: !prev.isActive }));
+  }, [setFormDataDirty]);
+
+  const handleAction = useCallback(() => {
+    if (!formData.name.trim()) {
+      setNameError("機器名を入力してください");
+      return;
     }
-  }, [drafts, onSave]);
+    setNameError("");
+    onSave(formData);
+    setIsDirty(false);
+  }, [formData, onSave]);
 
   const handleClose = useCallback(() => {
     setIsDirty(false);
@@ -77,127 +98,89 @@ export const LabDeviceItemMasterSidePanel = memo(function LabDeviceItemMasterSid
   }, [onClose]);
 
   return (
-    <SidePeekPanel>
-      <NavigationBlocker
-        when={isDirty}
-        title="変更が保存されていません"
-        description="変更が保存されていません。ページを離れますか？"
-      />
-      <SidePeekToolbar isNew={false} onClose={handleClose} readOnly={readOnly} />
-      <SidePeekBody>
-        <div className="pt-4 pb-2">
-          <div className={STYLE.pageIcon}>
-            <FlaskConical className={LAYOUT.pageIcon.innerIcon} />
-          </div>
-        </div>
-        <h2
-          className={`pb-1 mb-4 ${C.text}`}
-          style={{
-            fontSize: LAYOUT.pageTitle.fontSize,
-            fontWeight: LAYOUT.pageTitle.fontWeight,
-            lineHeight: LAYOUT.pageTitle.lineHeight,
-            letterSpacing: LAYOUT.pageTitle.letterSpacing,
-          }}
-        >
-          {device.name}
-        </h2>
-        <div className={`${STYLE.sectionDivider} mb-1`} />
-        <div className="py-1">
-          {drafts.length === 0 ? (
-            <p className={`text-sm ${C.text40}`}>
-              まだ項目がありません。一覧の「既定項目を用意」で投入します
-            </p>
-          ) : (
-            drafts.map((draft) => {
-              const item = items.find((candidate) => candidate.id === draft.id);
-              if (item === undefined) {
-                return null;
-              }
-              return (
-                <LabDeviceItemDraftFields
-                  key={draft.id}
-                  item={item}
-                  draft={draft}
-                  fieldOptions={fieldOptions}
-                  readOnly={readOnly === true}
-                  onPatch={patchDraft}
-                />
-              );
-            })
-          )}
-        </div>
-      </SidePeekBody>
-      <SidePeekFooter
-        onCancel={handleClose}
-        onSave={readOnly ? undefined : handleSave}
-        isPending={isPending}
-        readOnly={readOnly}
-      />
-    </SidePeekPanel>
+    <MasterSidePanel
+      isNew={isNew}
+      title={formData.name}
+      onTitleChange={handleTitleChange}
+      onClose={handleClose}
+      onSave={readOnly ? undefined : handleAction}
+      icon={<FlaskConical className={LAYOUT.pageIcon.innerIcon} />}
+      isDirty={isDirty}
+      isPending={isPending}
+      titleError={nameError}
+      titlePlaceholder="機器名"
+      titleMaxLength={100}
+      readOnly={readOnly}
+      className="min-w-160"
+    >
+      <StatusToggleButton isActive={formData.isActive} onToggle={handleToggleActive} />
+      {isNew ? (
+        <PropertyRow label="プロトコル">
+          <SearchableSelect
+            value={formData.sourceType}
+            onValueChange={handleSourceTypeChange}
+            options={unusedSourceTypes.map((sourceType) => ({
+              value: sourceType,
+              label: labDeviceSourceLabel(sourceType),
+            }))}
+            placeholder="プロトコルを選ぶ"
+            searchPlaceholder="プロトコルを検索"
+            ariaLabel="プロトコル"
+            disabled={readOnly}
+            className="min-w-0 w-full"
+            contentClassName={EXAM_SELECT_CONTENT}
+          />
+        </PropertyRow>
+      ) : (
+        <PropertyRow label="プロトコル">
+          <span className={`text-sm whitespace-nowrap ${C.text}`}>
+            {labDeviceSourceLabel(formData.sourceType)}
+          </span>
+        </PropertyRow>
+      )}
+      <PropertyRow label="検査">
+        <SearchableSelect
+          value={examTypeSelectValue(formData.examTypeId)}
+          onValueChange={handleExamTypeChange}
+          options={examTypeSelectOptions(examTypes)}
+          placeholder="検査を選ぶ"
+          searchPlaceholder="検査名で検索"
+          ariaLabel="検査"
+          disabled={readOnly}
+          className="min-w-0 w-full"
+          contentClassName={EXAM_SELECT_CONTENT}
+        />
+      </PropertyRow>
+      <div className="py-1">
+        {items.length === 0 ? (
+          <p className={`text-sm ${C.text40}`}>
+            まだ項目がありません。一覧の「既定項目を用意」で投入します
+          </p>
+        ) : (
+          items.map((item) => {
+            const fieldName = labDeviceFieldName(item.examTypeFieldId, examTypes);
+            return (
+              <section
+                key={item.id}
+                className={`py-3 border-b ${C.borderLight} last:border-b-0`}
+              >
+                <div className="flex items-baseline justify-between gap-3 px-2">
+                  <span className={`text-sm font-medium whitespace-nowrap ${C.text}`}>
+                    {item.deviceItemCode}
+                  </span>
+                  {fieldName === "" ? null : (
+                    <span className={`text-sm whitespace-nowrap ${C.text}`}>{fieldName}</span>
+                  )}
+                  <span className={`text-sm whitespace-nowrap ${C.text55}`}>
+                    {labDeviceValueShapeLabel(item.valueShape)}
+                    {item.unit ? ` · ${item.unit}` : ""}
+                  </span>
+                </div>
+              </section>
+            );
+          })
+        )}
+      </div>
+    </MasterSidePanel>
   );
 });
-
-function LabDeviceItemDraftFields({
-  item,
-  draft,
-  fieldOptions,
-  readOnly,
-  onPatch,
-}: {
-  item: LabDeviceItemMaster;
-  draft: LabDeviceItemDraft;
-  fieldOptions: ReturnType<typeof buildExamFieldOptions>;
-  readOnly: boolean;
-  onPatch: (id: string, patch: Partial<LabDeviceItemDraft>) => void;
-}) {
-  const selectOptions = [
-    { value: LAB_DEVICE_UNMAPPED_FIELD, label: "未設定" },
-    ...examFieldOptionsForItem(fieldOptions, draft.examTypeFieldId).map((option) => ({
-      value: option.id,
-      label: option.label,
-    })),
-  ];
-  const selectedLabel = draft.examTypeFieldId === null
-    ? "未設定"
-    : (selectOptions.find((option) => option.value === draft.examTypeFieldId)?.label ?? draft.examTypeFieldId);
-
-  return (
-    <section className={`py-3 border-b ${C.borderLight} last:border-b-0`}>
-      <div className="flex items-baseline justify-between gap-3 px-2 mb-1">
-        <span className={`text-sm font-medium ${C.text}`}>{item.deviceItemCode}</span>
-        <span className={`text-sm ${C.text55}`}>
-          {labDeviceValueShapeLabel(item.valueShape)}
-          {item.unit ? ` · ${item.unit}` : ""}
-        </span>
-      </div>
-      <PropertyRow label="載せる先">
-        {readOnly ? (
-          <span className={`text-sm ${C.text}`}>{selectedLabel}</span>
-        ) : (
-          <SearchableSelect
-            value={examFieldSelectValue(draft.examTypeFieldId)}
-            onValueChange={(value) => onPatch(draft.id, { examTypeFieldId: parseExamFieldSelectValue(value) })}
-            options={selectOptions}
-            searchPlaceholder="載せる先を検索..."
-            className={STYLE.selectCompact}
-            ariaLabel={`${item.deviceItemCode}の載せる先`}
-          />
-        )}
-      </PropertyRow>
-      <PropertyRow label="ステータス">
-        {readOnly ? (
-          <StatusPill isActive={draft.isActive} />
-        ) : (
-          <button
-            type="button"
-            onClick={() => onPatch(draft.id, { isActive: !draft.isActive })}
-            aria-label={`${item.deviceItemCode}の有効を切り替え`}
-            className={`inline-flex items-center rounded-xxs ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
-          >
-            <StatusPill isActive={draft.isActive} />
-          </button>
-        )}
-      </PropertyRow>
-    </section>
-  );
-}

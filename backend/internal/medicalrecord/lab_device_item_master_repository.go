@@ -21,6 +21,12 @@ type LabDeviceItemMasterRepository interface {
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.LabDeviceItemMaster, error)
 	FindExamTypeField(ctx context.Context, clinicID, fieldID uint64) (*model.ExamTypeField, error)
 	FindExamTypeFields(ctx context.Context, clinicID uint64, fieldIDs []uint64) (map[uint64]model.ExamTypeField, error)
+	FindExamType(ctx context.Context, clinicID, examTypeID uint64) (*model.ExaminationType, error)
+	ListDevices(ctx context.Context, clinicID uint64) ([]model.LabDevice, error)
+	FindDeviceByID(ctx context.Context, clinicID, id uint64) (*model.LabDevice, error)
+	CreateDevice(ctx context.Context, row *model.LabDevice) error
+	UpdateDevice(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.LabDevice, error)
+	EnsureDevices(ctx context.Context, rows []model.LabDevice) (int64, error)
 }
 
 type labDeviceItemMasterRepository struct{ db *gorm.DB }
@@ -160,4 +166,87 @@ func (r *labDeviceItemMasterRepository) FindExamTypeFields(
 		out[fields[i].ID] = fields[i]
 	}
 	return out, nil
+}
+
+func (r *labDeviceItemMasterRepository) FindExamType(
+	ctx context.Context,
+	clinicID, examTypeID uint64,
+) (*model.ExaminationType, error) {
+	var row model.ExaminationType
+	err := persistence.DBOrTx(ctx, r.db).
+		Scopes(persistence.ClinicScope(clinicID)).
+		Where("id = ?", examTypeID).
+		First(&row).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "exam_type", fmt.Sprintf("%d", examTypeID))
+	}
+	return &row, nil
+}
+
+func (r *labDeviceItemMasterRepository) ListDevices(ctx context.Context, clinicID uint64) ([]model.LabDevice, error) {
+	rows := make([]model.LabDevice, 0)
+	err := persistence.DBOrTx(ctx, r.db).Model(&model.LabDevice{}).
+		Scopes(persistence.ClinicScope(clinicID)).
+		Order("sort_order ASC, id ASC").
+		Limit(persistence.MaxMasterListRows).
+		Find(&rows).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "lab_device", "")
+	}
+	return rows, nil
+}
+
+func (r *labDeviceItemMasterRepository) FindDeviceByID(ctx context.Context, clinicID, id uint64) (*model.LabDevice, error) {
+	var row model.LabDevice
+	err := persistence.DBOrTx(ctx, r.db).
+		Scopes(persistence.ClinicScope(clinicID)).
+		Where("id = ?", id).
+		First(&row).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "lab_device", fmt.Sprintf("%d", id))
+	}
+	return &row, nil
+}
+
+func (r *labDeviceItemMasterRepository) CreateDevice(ctx context.Context, row *model.LabDevice) error {
+	if err := persistence.DBOrTx(ctx, r.db).Create(row).Error; err != nil {
+		return apperrors.FromGORM(err, "lab_device", "")
+	}
+	return nil
+}
+
+func (r *labDeviceItemMasterRepository) UpdateDevice(
+	ctx context.Context,
+	clinicID, id uint64,
+	fields map[string]any,
+) (*model.LabDevice, error) {
+	if err := persistence.UpdateScopedByID(
+		ctx,
+		persistence.DBOrTx(ctx, r.db),
+		&model.LabDevice{},
+		"lab_device",
+		clinicID,
+		id,
+		fields,
+	); err != nil {
+		return nil, err
+	}
+	return r.FindDeviceByID(ctx, clinicID, id)
+}
+
+func (r *labDeviceItemMasterRepository) EnsureDevices(ctx context.Context, rows []model.LabDevice) (int64, error) {
+	if len(rows) == 0 {
+		return 0, nil
+	}
+	result := persistence.DBOrTx(ctx, r.db).Clauses(clause.OnConflict{
+		Columns: []clause.Column{
+			{Name: "clinic_id"},
+			{Name: "source_type"},
+		},
+		DoNothing: true,
+	}).Create(&rows)
+	if result.Error != nil {
+		return 0, apperrors.FromGORM(result.Error, "lab_device", "")
+	}
+	return result.RowsAffected, nil
 }

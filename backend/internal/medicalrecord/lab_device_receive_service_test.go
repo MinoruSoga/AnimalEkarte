@@ -37,6 +37,7 @@ func setupLabDeviceReceiveTest(t *testing.T) (*gorm.DB, LabDeviceReceiveService,
 		&model.LabDeviceWait{},
 		&model.LabDeviceStationSettings{},
 		&model.LabDeviceItemMaster{},
+		&model.LabDevice{},
 	))
 	require.NoError(t, db.Exec(`ALTER TABLE lab_device_item_masters DROP COLUMN IF EXISTS display_name`).Error)
 	for _, value := range []string{"fuji_nx600", "fuji_au10v", "arkray_pu4010"} {
@@ -74,6 +75,10 @@ CREATE UNIQUE INDEX IF NOT EXISTS testdb_uq_lab_device_waits_clinic_active
 		`DELETE FROM lab_device_item_masters WHERE clinic_id IN ?`,
 		[]uint64{clinicA, clinicB},
 	).Error)
+	require.NoError(t, db.Exec(
+		`DELETE FROM lab_devices WHERE clinic_id IN ?`,
+		[]uint64{clinicA, clinicB},
+	).Error)
 
 	alive := &model.Pet{ID: 11, ClinicID: clinicA, Name: "タロウ", Status: model.PetStatusAlive}
 	dead := &model.Pet{ID: 12, ClinicID: clinicA, Name: "亡", Status: model.PetStatusDeceased}
@@ -86,6 +91,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS testdb_uq_lab_device_waits_clinic_active
 		NewLabDeviceItemMasterService(NewLabDeviceItemMasterRepository(db)),
 		finder,
 		persistence.NewTransactor(db),
+		nil,
 		nil,
 	)
 	return db, svc, finder
@@ -124,7 +130,9 @@ func TestLabDeviceReceiveService_WaitLinksThenDuplicate(t *testing.T) {
 	require.NotNil(t, board.Wait)
 	assert.Equal(t, "タロウ", board.Wait.PetName)
 	require.Len(t, board.Saved, 1)
+	require.Len(t, board.Received, 1)
 	assert.Empty(t, board.Unlinked)
+	assert.Empty(t, board.TodayVisits)
 	assert.Equal(t, labDeviceDefaultWaitTTLSeconds, board.Station.WaitTTLSeconds)
 	assert.Contains(t, board.Station.SlotsJSON, "fuji_nx600")
 
@@ -251,4 +259,42 @@ func TestLabDeviceReceiveService_ReplaceWaitKeepsOneActive(t *testing.T) {
 		Where("clinic_id = ? AND cleared_at IS NULL", clinicA).
 		Count(&active).Error)
 	assert.Equal(t, int64(1), active)
+}
+
+type stubLabDeviceTodayVisitFinder struct {
+	visits []LabDeviceTodayVisit
+}
+
+func (s stubLabDeviceTodayVisitFinder) ListTodayDraft(
+	_ context.Context,
+	_ uint64,
+	_ string,
+) ([]LabDeviceTodayVisit, error) {
+	return s.visits, nil
+}
+
+func TestLabDeviceReceiveService_BoardIncludesTodayVisits(t *testing.T) {
+	db, _, finder := setupLabDeviceReceiveTest(t)
+	ctx := context.Background()
+	const clinicA = uint64(9701)
+	svc := NewLabDeviceReceiveService(
+		NewLabDeviceReceiveRepository(db),
+		NewLabDeviceItemMasterService(NewLabDeviceItemMasterRepository(db)),
+		finder,
+		persistence.NewTransactor(db),
+		nil,
+		stubLabDeviceTodayVisitFinder{visits: []LabDeviceTodayVisit{{
+			RecordID:  91,
+			PetID:     11,
+			PetName:   "タロウ",
+			OwnerName: "山田",
+			Species:   "犬",
+			VisitType: "再診",
+		}}},
+	)
+	board, err := svc.Board(ctx, clinicA)
+	require.NoError(t, err)
+	require.Len(t, board.TodayVisits, 1)
+	assert.Equal(t, uint64(11), board.TodayVisits[0].PetID)
+	assert.Equal(t, "タロウ", board.TodayVisits[0].PetName)
 }

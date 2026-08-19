@@ -90,6 +90,7 @@ export const useEnsureLabDeviceItemMasters = () => {
     mutationFn: ensureLabDeviceItemMasters,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey });
+      queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("lab-devices") });
     },
     onError: (error) => handleApiError(error, "既定項目の投入"),
   });

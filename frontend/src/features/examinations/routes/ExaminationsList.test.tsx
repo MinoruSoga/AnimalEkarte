@@ -37,8 +37,8 @@ const examination: ExaminationRecord = {
 };
 
 function LocationProbe() {
-  const { pathname } = useLocation();
-  return <output data-testid="location">{pathname}</output>;
+  const { pathname, search } = useLocation();
+  return <output data-testid="location">{`${pathname}${search}`}</output>;
 }
 
 function renderPage() {
@@ -67,7 +67,11 @@ describe("ExaminationsList row navigation accessibility", () => {
     renderPage();
 
     const detailLink = screen.getByRole("link", { name: /ポチ/ });
-    expect(detailLink).toHaveAttribute("href", "/examinations/exam-1");
+    expect(detailLink).toHaveAttribute(
+      "href",
+      "/medical-records/mr-1?tab=%E6%A4%9C%E6%9F%BB&examId=exam-1",
+    );
+    expect(detailLink).toHaveAccessibleName(/カルテ検査/);
     expect(detailLink).toHaveAccessibleName(/ポチ/);
     expect(detailLink).toHaveAccessibleName(/2026-07-13/);
     expect(detailLink).toHaveAccessibleName(/exam-1/);
@@ -86,5 +90,33 @@ describe("ExaminationsList row navigation accessibility", () => {
     renderPage();
 
     expect(screen.getByRole("button", { name: /exam-1/ })).toBeInTheDocument();
+  });
+
+  it("未紐付けの検査は検査詳細画面へリンクする", () => {
+    mockUseFilterExaminationRecords.mockReturnValue({
+      data: [{ ...examination, medicalRecordId: undefined }],
+      allExaminations: [{ ...examination, medicalRecordId: undefined }],
+      isLoading: false,
+      error: null,
+      total: 1,
+      page: 1,
+      limit: 20,
+    });
+    renderPage();
+
+    expect(screen.getByRole("link", { name: /ポチ/ })).toHaveAttribute(
+      "href",
+      "/examinations/exam-1",
+    );
+  });
+
+  it("操作ボタンはカルテの検査タブへ遷移する", () => {
+    renderPage();
+
+    fireEvent.click(screen.getByRole("button", { name: /exam-1/ }));
+
+    expect(screen.getByTestId("location")).toHaveTextContent(
+      "/medical-records/mr-1?tab=%E6%A4%9C%E6%9F%BB&examId=exam-1",
+    );
   });
 });

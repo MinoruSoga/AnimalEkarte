@@ -24,6 +24,14 @@ function findNested(parentLabel: string, childLabel: string) {
   return child!;
 }
 
+describe("検査マスタ sidebar nav", () => {
+  it("マスタ設定のカルテ関連に検査種別タブを出す", () => {
+    const exam = findNested("カルテ関連", "検査マスタ");
+    expect(exam.path).toBe(paths.settings.examination.getHref());
+    expect(exam.resource).toBe("master-medical");
+  });
+});
+
 describe("検査機器マスタ sidebar nav", () => {
   it("マスタ設定のカルテ関連に lab-import 付きで出す", () => {
     const labDevice = findNested("カルテ関連", "検査機器マスタ");

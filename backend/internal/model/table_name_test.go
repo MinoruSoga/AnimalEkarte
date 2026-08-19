@@ -20,6 +20,7 @@ func TestTableNames(t *testing.T) {
 		{"ClinicIntegration", ClinicIntegration{}, "clinic_integrations"},
 		{"LabImportJob", LabImportJob{}, "lab_import_jobs"},
 		{"LabImportEvent", LabImportEvent{}, "lab_import_events"},
+		{"LabDevice", LabDevice{}, "lab_devices"},
 		{"LabDeviceItemMaster", LabDeviceItemMaster{}, "lab_device_item_masters"},
 		{"LabImportJobItem", LabImportJobItem{}, "lab_import_job_items"},
 		{"LabDeviceWait", LabDeviceWait{}, "lab_device_waits"},
