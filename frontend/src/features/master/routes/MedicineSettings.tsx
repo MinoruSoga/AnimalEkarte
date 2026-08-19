@@ -33,6 +33,7 @@ import {
   buildMedicineUpdateRequest,
   getCategoryMedicines,
   isCategoryMedicine,
+  validateMedicineForm,
 } from "./medicine-settings-model";
 
 // Internal – feature API (direct import, no barrel)
@@ -143,7 +144,7 @@ export function MedicineSettings() {
     createMutation,
     updateMutation,
     permissions: { canCreate, canEdit },
-    validate: (data) => data.name.trim() ? null : "名称を入力してください",
+    validate: (data) => validateMedicineForm(data, isCategory),
     toCreateRequest: (data) => buildMedicineCreateRequest(data, isCategory),
     toUpdateRequest: (data) => buildMedicineUpdateRequest({ data, isCategory, selectedMedicine }),
     onSuccess: async (saved, formData) => {
@@ -156,7 +157,7 @@ export function MedicineSettings() {
 
   // handleSave delegates to hook
   const handleSave = useCallback((formData: MedicineFormData) => {
-    medicineSave.handleSave(formData);
+    return medicineSave.handleSave(formData);
   }, [medicineSave]);
 
   const handleDeleteRequest = useCallback(() => {

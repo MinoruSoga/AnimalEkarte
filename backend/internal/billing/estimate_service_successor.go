@@ -99,6 +99,11 @@ func (s *estimateService) CreateSuccessor(
 			slog.ErrorContext(txCtx, "failed to create successor estimate", "error", err)
 			return apperrors.Wrap(err, "failed to create successor estimate")
 		}
+		if len(original.Items) > 0 {
+			if err := s.repo.ReplaceItems(txCtx, clinicID, successor.ID, cloneEstimateItemsForSuccessor(successor.ID, original.Items)); err != nil {
+				return apperrors.Wrap(err, "failed to copy successor estimate items")
+			}
+		}
 
 		// fail-closed: 監査失敗 → 後継 INSERT ごとロールバック。原行は未変更のまま。
 		if err := s.auditTx.LogEntryTx(txCtx, &AuditEntry{
@@ -118,21 +123,23 @@ func (s *estimateService) CreateSuccessor(
 			slog.ErrorContext(txCtx, "audit log failed for estimate supersede", "error", err, "successor_id", successor.ID)
 			return apperrors.Wrap(err, "failed to write estimate supersede audit log")
 		}
+		got, err := s.repo.FindByID(txCtx, clinicID, successor.ID)
+		if err != nil {
+			slog.ErrorContext(txCtx, "failed to get successor estimate after create", "error", err)
+			return apperrors.Wrap(err, "failed to get successor estimate after create")
+		}
+		successor = got
 		return nil
 	}); err != nil {
 		return nil, err
+	}
+	if successor == nil {
+		return nil, apperrors.WrapInternalServerError("estimate successor create returned empty record")
 	}
 
 	slog.InfoContext(ctx, "estimate successor created",
 		slog.Uint64("original_id", original.ID),
 		slog.Uint64("successor_id", successor.ID),
 		slog.Uint64("clinic_id", clinicID))
-
-	created, err := s.repo.FindByID(ctx, clinicID, successor.ID)
-	if err != nil {
-		// commit 済み成功を後段 read error で失敗応答へ反転させない: 最低限の successor を返す。
-		slog.ErrorContext(ctx, "failed to get successor estimate after create", "error", err)
-		return successor, nil
-	}
-	return created, nil
+	return successor, nil
 }

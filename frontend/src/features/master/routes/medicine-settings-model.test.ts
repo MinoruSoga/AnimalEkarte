@@ -9,7 +9,19 @@ import {
   buildMedicineUpdateRequest,
   groupFilteredMedicines,
   resolveMedicineDrag,
+  validateMedicineForm,
 } from "./medicine-settings-model";
+
+function makeCategory(overrides: Partial<Medicine> = {}): Medicine {
+  return makeMedicine({
+    id: "10",
+    name: "抗生剤",
+    price: 0,
+    dosageForm: undefined,
+    medicineUnit: undefined,
+    ...overrides,
+  });
+}
 
 function makeMedicine(overrides: Partial<Medicine> = {}): Medicine {
   return {
@@ -55,7 +67,7 @@ function makeFormData(overrides: Partial<MedicineFormData> = {}): MedicineFormDa
 
 describe("groupFilteredMedicines", () => {
   it("groups items under their parent category header", () => {
-    const category = makeMedicine({ id: "10", name: "抗生剤", price: 0 });
+    const category = makeCategory();
     const child = makeMedicine({ id: "11", name: "アモキシシリン", parentId: "10" });
     const medicinesById = new Map([
       [category.id, category],
@@ -75,7 +87,7 @@ describe("groupFilteredMedicines", () => {
   });
 
   it("creates an empty group entry for a category with no children yet", () => {
-    const category = makeMedicine({ id: "10", name: "抗生剤", price: 0 });
+    const category = makeCategory();
     const medicinesById = new Map([[category.id, category]]);
 
     const result = groupFilteredMedicines({
@@ -86,6 +98,21 @@ describe("groupFilteredMedicines", () => {
     });
 
     expect(result.groupedMedicines.get("10")).toEqual({ header: category, items: [] });
+  });
+
+  it("treats a parentless medicine with dosage form as ungrouped even when price is 0 (BUG-006)", () => {
+    const medicine = makeMedicine({ id: "21", price: 0, parentId: undefined });
+    const medicinesById = new Map([[medicine.id, medicine]]);
+
+    const result = groupFilteredMedicines({
+      orderedMedicines: [medicine],
+      activeFilters: [],
+      searchTerm: "",
+      medicinesById,
+    });
+
+    expect(result.groupedMedicines.size).toBe(0);
+    expect(result.ungroupedMedicines).toEqual([medicine]);
   });
 
   it("treats a priced, parentless medicine as ungrouped", () => {
@@ -297,6 +324,18 @@ describe("resolveMedicineDrag", () => {
       overParentId: null,
       updateRequest: { clear_parent_id: true },
     });
+  });
+});
+
+describe("validateMedicineForm (BUG-006)", () => {
+  it("rejects an uncategorized medicine with no price and no dosage form", () => {
+    expect(validateMedicineForm(makeFormData({ parentId: "", price: 0, dosageForm: "" }), false)).toBe(
+      "薬剤として登録する場合は親カテゴリ、単価、または剤形のいずれかを入力してください",
+    );
+  });
+
+  it("accepts an uncategorized medicine when dosage form is set", () => {
+    expect(validateMedicineForm(makeFormData({ parentId: "", price: 0, dosageForm: "tablet" }), false)).toBeNull();
   });
 });
 

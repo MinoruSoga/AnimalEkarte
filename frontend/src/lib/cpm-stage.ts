@@ -13,6 +13,9 @@ export type CPMStage =
   | "cpm_noah"
   | "cpm_dormant";
 
+/** 集計ダッシュボード用。6区分に入らない飼主をチップで辿れるようにする (BUG-003)。 */
+export type AggregationCPMStage = CPMStage | "cpm_unclassified";
+
 export interface CPMStageOption {
   value: CPMStage;
   label: string;
@@ -37,6 +40,22 @@ export const CPM_STAGE_SHORT_LABELS: Record<CPMStage, string> = {
   cpm_noah: "Noah",
   cpm_dormant: "Dormant",
 };
+
+export const AGGREGATION_CPM_STAGE_OPTIONS: readonly {
+  value: AggregationCPMStage;
+  label: string;
+}[] = [
+  ...CPM_STAGE_OPTIONS,
+  { value: "cpm_unclassified", label: "Unclassified（未分類）" },
+] as const;
+
+export const AGGREGATION_CPM_STAGE_SHORT_LABELS: Record<AggregationCPMStage, string> = {
+  ...CPM_STAGE_SHORT_LABELS,
+  cpm_unclassified: "Unclassified",
+};
+
+export const AGGREGATION_CPM_STAGES: readonly AggregationCPMStage[] =
+  AGGREGATION_CPM_STAGE_OPTIONS.map((o) => o.value);
 
 // CPMStage 値域の配列（反復・網羅処理用）。OPTIONS から導出して定義の二重化を防ぐ。
 export const CPM_STAGES: readonly CPMStage[] = CPM_STAGE_OPTIONS.map((o) => o.value);

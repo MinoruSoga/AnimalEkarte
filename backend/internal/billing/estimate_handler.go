@@ -9,7 +9,12 @@ import (
 	"github.com/animal-ekarte/backend/internal/httpapi"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/model"
 )
+
+func estimateItemDiscountKey(name string, sortOrder int) string {
+	return fmt.Sprintf("%s\x1f%d", name, sortOrder)
+}
 
 // EstimateHandler は EstimateService の HTTP handler。
 type EstimateHandler struct {
@@ -90,6 +95,16 @@ func (h *EstimateHandler) CreateEstimate(c *gin.Context) {
 		httpapi.RespondError(c, err)
 		return
 	}
+	for _, item := range req.Items {
+		if err := httpapi.RequireDiscountCreateInt(c, h.hasPermission, item.DiscountAmount); err != nil {
+			httpapi.RespondError(c, err)
+			return
+		}
+		if err := httpapi.RequireDiscountCreateFloat(c, h.hasPermission, item.DiscountRate); err != nil {
+			httpapi.RespondError(c, err)
+			return
+		}
+	}
 
 	ctx := c.Request.Context()
 	estimate, err := h.svc.Create(ctx, clinicID, req.toServiceInput(staffID))
@@ -124,15 +139,46 @@ func (h *EstimateHandler) UpdateEstimate(c *gin.Context) {
 	}
 
 	// BUG-372: discount_amount を変更する場合は既存値と比較し権限チェック
-	if req.DiscountAmount != nil {
+	if req.DiscountAmount != nil || req.Items != nil {
 		existing, err := h.svc.GetByID(c.Request.Context(), clinicID, id)
 		if err != nil {
 			httpapi.RespondError(c, err)
 			return
 		}
-		if err := httpapi.RequireDiscountEditInt(c, h.hasPermission, req.DiscountAmount, existing.DiscountAmount); err != nil {
-			httpapi.RespondError(c, err)
-			return
+		if req.DiscountAmount != nil {
+			if err := httpapi.RequireDiscountEditInt(c, h.hasPermission, req.DiscountAmount, existing.DiscountAmount); err != nil {
+				httpapi.RespondError(c, err)
+				return
+			}
+		}
+		if req.Items != nil {
+			existingByKey := make(map[string]model.EstimateItem, len(existing.Items))
+			for _, it := range existing.Items {
+				existingByKey[estimateItemDiscountKey(it.Name, it.SortOrder)] = it
+			}
+			for _, item := range *req.Items {
+				amt := item.DiscountAmount
+				rate := item.DiscountRate
+				if old, ok := existingByKey[estimateItemDiscountKey(item.Name, item.SortOrder)]; ok {
+					if err := httpapi.RequireDiscountEditInt(c, h.hasPermission, &amt, old.DiscountAmount); err != nil {
+						httpapi.RespondError(c, err)
+						return
+					}
+					if err := httpapi.RequireDiscountEditFloat(c, h.hasPermission, &rate, old.DiscountRate); err != nil {
+						httpapi.RespondError(c, err)
+						return
+					}
+					continue
+				}
+				if err := httpapi.RequireDiscountCreateInt(c, h.hasPermission, amt); err != nil {
+					httpapi.RespondError(c, err)
+					return
+				}
+				if err := httpapi.RequireDiscountCreateFloat(c, h.hasPermission, rate); err != nil {
+					httpapi.RespondError(c, err)
+					return
+				}
+			}
 		}
 	}
 

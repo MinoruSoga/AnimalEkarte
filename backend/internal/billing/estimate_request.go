@@ -57,7 +57,36 @@ type createEstimateRequest struct {
 	DiscountAmount  int64      `json:"discount_amount"`
 	ValidUntil      *time.Time `json:"valid_until"`
 	Comment         string     `json:"comment"`
-	Notes           string     `json:"notes"`
+	Notes           string                    `json:"notes"`
+	Items           []createEstimateItemRequest `json:"items" binding:"omitempty,dive"`
+}
+
+type createEstimateItemRequest struct {
+	Name                  string  `json:"name" binding:"required,min=1,max=255"`
+	Category              string  `json:"category"`
+	UnitPrice             int64   `json:"unit_price" binding:"min=0"`
+	Quantity              float64 `json:"quantity"`
+	DiscountRate          float64 `json:"discount_rate"`
+	DiscountAmount        int64   `json:"discount_amount"`
+	IsInsuranceApplicable bool    `json:"is_insurance_applicable"`
+	SortOrder             int     `json:"sort_order"`
+}
+
+func estimateItemInputsFromRequest(items []createEstimateItemRequest) []EstimateItemInput {
+	out := make([]EstimateItemInput, 0, len(items))
+	for _, item := range items {
+		out = append(out, EstimateItemInput{
+			Name:                  item.Name,
+			Category:              model.ItemCategory(item.Category),
+			UnitPrice:             item.UnitPrice,
+			Quantity:              item.Quantity,
+			DiscountRate:          item.DiscountRate,
+			DiscountAmount:        item.DiscountAmount,
+			IsInsuranceApplicable: item.IsInsuranceApplicable,
+			SortOrder:             item.SortOrder,
+		})
+	}
+	return out
 }
 
 // toServiceInput は認証済み staffID を created_by に設定する（body の created_by は受け取らない・AUD-005）。
@@ -76,6 +105,7 @@ func (r *createEstimateRequest) toServiceInput(staffID uint64) *CreateEstimateIn
 		Comment:         r.Comment,
 		Notes:           r.Notes,
 		CreatedBy:       &staffID,
+		Items:           estimateItemInputsFromRequest(r.Items),
 	}
 	if r.Status != "" {
 		input.Status = model.EstimateStatus(r.Status)
@@ -95,7 +125,8 @@ type updateEstimateRequest struct {
 	ValidUntil      *time.Time `json:"valid_until"`
 	ClearValidUntil bool       `json:"clear_valid_until"`
 	Comment         *string    `json:"comment"`
-	Notes           *string    `json:"notes"`
+	Notes           *string                   `json:"notes"`
+	Items           *[]createEstimateItemRequest `json:"items" binding:"omitempty,dive"`
 }
 
 func (r *updateEstimateRequest) toServiceInput(actorID uint64) *UpdateEstimateInput {
@@ -111,6 +142,10 @@ func (r *updateEstimateRequest) toServiceInput(actorID uint64) *UpdateEstimateIn
 		Comment:         r.Comment,
 		Notes:           r.Notes,
 		ActorID:         &actorID,
+	}
+	if r.Items != nil {
+		items := estimateItemInputsFromRequest(*r.Items)
+		input.Items = &items
 	}
 	if r.Status != nil {
 		status := model.EstimateStatus(*r.Status)

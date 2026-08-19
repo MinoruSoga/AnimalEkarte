@@ -1,8 +1,14 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { AxiosError } from "axios";
 
+import { axios } from "@/lib/axios";
 import { ChangePasswordDialog } from "./ChangePasswordDialog";
+
+vi.mock("@/lib/axios", () => ({
+  axios: { put: vi.fn() },
+}));
 
 /**
  * 表示/非表示トグルの仕様確認用テスト。
@@ -97,6 +103,30 @@ describe("ChangePasswordDialog — password visibility toggle", () => {
    * description のテキストが描画され、かつ dialog ロールに
    * accessible description として紐付いていることを検証する。
    */
+  it("401 でも axios.isAxiosError でクラッシュせず現在パスワード誤りを表示する (BUG-016)", async () => {
+    const user = userEvent.setup();
+    vi.mocked(axios.put).mockRejectedValueOnce(
+      new AxiosError("unauthorized", "ERR_BAD_REQUEST", undefined, undefined, {
+        status: 401,
+        statusText: "Unauthorized",
+        data: { error: "invalid current password" },
+        headers: {},
+        config: { headers: {} },
+      } as never),
+    );
+    renderDialog();
+
+    await user.type(screen.getByPlaceholderText("現在のパスワードを入力"), "wrong-pass");
+    await user.type(screen.getByPlaceholderText("新しいパスワードを入力"), "newpassword1");
+    await user.type(screen.getByPlaceholderText("もう一度入力"), "newpassword1");
+    await user.click(screen.getByRole("button", { name: "変更する" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "現在のパスワードが正しくありません",
+    );
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+  });
+
   it("DialogDescription がダイアログに紐付いている (a11y)", () => {
     renderDialog();
 

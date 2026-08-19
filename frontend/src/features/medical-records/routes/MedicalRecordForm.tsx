@@ -197,7 +197,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
     handlePrintClick,
   } = useMedicalRecordFormModals();
   // 一度マウントしたタブを記録してhide/show方式で管理
-  const [mountedTabs, setMountedTabs] = useState<Set<string>>(() => new Set(["問診"]));
+  const [mountedTabs, setMountedTabs] = useState<Set<string>>(() => new Set(["問診", activeTab]));
   const [isTabPending, startTabTransition] = useTransition();
 
   const { mutate: deleteRecord, isPending: isDeleting } = useDeleteMedicalRecord(recordClinicId);

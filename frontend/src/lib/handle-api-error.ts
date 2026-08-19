@@ -83,6 +83,8 @@ const ALREADY_EXISTS_RESOURCE_JA: Record<string, string> = {
   merchandise: "物販",
   merchandise_item: "物販",
   campaign: "キャンペーン",
+  lstep_condition_tag_mapping: "慢性疾患コード",
+  clinic_holiday: "休診日",
 };
 
 /** マスタ重複の英語メッセージ（cage '' already exists 等）を日本語へ落とす（BUG-022）。 */

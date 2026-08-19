@@ -29,6 +29,7 @@ export interface CreateHospitalizationRequest {
   owner_request?: string;
   staff_notes?: string;
   memo?: string;
+  doctor_id?: string;
   is_insurance?: boolean;
   insurance_company_name?: string | null;
   insurance_number?: string | null;
@@ -44,6 +45,7 @@ export interface UpdateHospitalizationRequest {
   owner_request?: string;
   staff_notes?: string;
   memo?: string;
+  doctor_id?: string;
   is_insurance?: boolean;
   insurance_company_name?: string | null;
   insurance_number?: string | null;

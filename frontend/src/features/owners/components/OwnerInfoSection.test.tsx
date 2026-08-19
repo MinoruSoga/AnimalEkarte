@@ -109,7 +109,7 @@ describe("OwnerInfoSection", () => {
     expect(status).toHaveTextContent("サイグラム: 8（A8）★慎重派");
     expect(status).not.toHaveTextContent("1962");
     expect(status.parentElement).toBe(birthDateInput.parentElement?.parentElement);
-    expect(status.parentElement).toHaveClass("flex", "flex-wrap", "items-center", "gap-2");
+    expect(status.parentElement).toHaveClass("flex", "flex-col", "gap-1.5");
   });
 
   it("飼主生年月日を変更するとサイグラム表示も更新する", async () => {

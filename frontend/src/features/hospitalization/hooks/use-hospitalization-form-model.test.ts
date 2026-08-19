@@ -142,6 +142,8 @@ describe("hospitalization form model", () => {
     expect(initial.hospitalizationType).toBe("入院");
     expect(initial.endDate).not.toBe("");
     expect(initial.isInsurance).toBe(false);
+    expect(initial.doctorId).toBe("");
+    expect(initial.ownerRequest).toBe("");
   });
 
   it("編集payloadへ保険・ケージ・臨床メモを欠落なく写す", () => {
@@ -154,6 +156,29 @@ describe("hospitalization form model", () => {
       is_insurance: true,
       insurance_company_name: "合成監査保険",
       insurance_number: "SYN-INS-1",
+    });
+  });
+
+  it("担当医は doctor_id として create/update に載せる（BUG-001）", () => {
+    expect(buildUpdateHospitalizationRequest(formData)).not.toHaveProperty("doctor_id");
+
+    const withDoctor = { ...formData, doctorId: "12", doctorName: "山田医師" };
+    expect(buildUpdateHospitalizationRequest(withDoctor).doctor_id).toBe("12");
+
+    const pet = buildSelectedPetFromHospitalization(hospitalizationWithPet);
+    expect(pet).not.toBeNull();
+    if (!pet) return;
+    expect(buildCreateHospitalizationRequest(withDoctor, pet).doctor_id).toBe("12");
+  });
+
+  it("既存recordの doctor nest を担当医表示へ復元する", () => {
+    expect(buildHospitalizationFormDataFromRecord(formData, {
+      ...hospitalization,
+      doctor_id: 12,
+      doctor: { id: 12, name: "山田医師" },
+    })).toMatchObject({
+      doctorId: "12",
+      doctorName: "山田医師",
     });
   });
 

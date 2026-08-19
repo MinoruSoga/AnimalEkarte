@@ -25,7 +25,17 @@ export type MedicineDragResolution =
     };
 
 export function isCategoryMedicine(medicine: Medicine | null): boolean {
-  return medicine !== null && !medicine.parentId && medicine.price === 0;
+  return medicine !== null && isMedicineCategoryNode(medicine);
+}
+
+/** 親なし・単価0でも剤形/単位があれば薬剤。カテゴリ見出しと未分類薬剤を区別する (BUG-006)。 */
+export function isMedicineCategoryNode(medicine: {
+  parentId?: string;
+  price: number;
+  dosageForm?: string;
+  medicineUnit?: string;
+}): boolean {
+  return !medicine.parentId && medicine.price === 0 && !medicine.dosageForm && !medicine.medicineUnit;
 }
 
 export function applyMedicineCategoryOverrides(
@@ -41,7 +51,7 @@ export function applyMedicineCategoryOverrides(
 }
 
 export function getCategoryMedicines(medicines: Medicine[]) {
-  return medicines.filter((medicine) => !medicine.parentId && medicine.price === 0);
+  return medicines.filter((medicine) => isMedicineCategoryNode(medicine));
 }
 
 export function groupFilteredMedicines({
@@ -86,7 +96,7 @@ export function groupFilteredMedicines({
           ungroupedMedicines.push(medicine);
         }
       }
-    } else if (medicine.price === 0) {
+    } else if (isMedicineCategoryNode(medicine)) {
       if (!groupedMedicines.has(medicine.id)) {
         groupedMedicines.set(medicine.id, { header: medicine, items: [] });
       }
@@ -143,6 +153,21 @@ function buildCalculationFields(data: MedicineFormData) {
       ? { default_duration_days: parseOptionalNumber(data.defaultDurationDays) }
       : {}),
   };
+}
+
+export function validateMedicineForm(data: MedicineFormData, isCategory: boolean): string | null {
+  if (!data.name.trim()) {
+    return "名称を入力してください";
+  }
+  if (
+    !isCategory &&
+    !data.parentId &&
+    !(Number(data.price) > 0) &&
+    !data.dosageForm
+  ) {
+    return "薬剤として登録する場合は親カテゴリ、単価、または剤形のいずれかを入力してください";
+  }
+  return null;
 }
 
 export function buildMedicineCreateRequest(

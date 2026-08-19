@@ -30,6 +30,19 @@ type CreateEstimateInput struct {
 	Comment         string
 	Notes           string
 	CreatedBy       *uint64
+	Items           []EstimateItemInput
+}
+
+// EstimateItemInput は見積明細の作成/置換入力。
+type EstimateItemInput struct {
+	Name                  string
+	Category              model.ItemCategory
+	UnitPrice             int64
+	Quantity              float64
+	DiscountRate          float64
+	DiscountAmount        int64
+	IsInsuranceApplicable bool
+	SortOrder             int
 }
 
 // CreateSuccessorInput は確定見積の後継ドラフト作成入力（TASK-012 FINAL B）。
@@ -56,6 +69,7 @@ type UpdateEstimateInput struct {
 	Comment         *string
 	Notes           *string
 	ActorID         *uint64 // 監査ログ用（永続化しない）。handler extractStaffID から渡す。
+	Items           *[]EstimateItemInput
 }
 
 func buildEstimateUpdate(input *UpdateEstimateInput) map[string]any {
@@ -93,6 +107,62 @@ func buildEstimateUpdate(input *UpdateEstimateInput) map[string]any {
 		fields["notes"] = *input.Notes
 	}
 	return fields
+}
+
+func estimateItemsFromInput(estimateID uint64, inputs []EstimateItemInput) []model.EstimateItem {
+	items := make([]model.EstimateItem, 0, len(inputs))
+	for i, in := range inputs {
+		category := in.Category
+		if category == "" {
+			category = model.ItemCategoryOther
+		}
+		quantity := in.Quantity
+		if quantity <= 0 {
+			quantity = 1
+		}
+		sortOrder := in.SortOrder
+		if sortOrder == 0 {
+			sortOrder = i
+		}
+		items = append(items, model.EstimateItem{
+			EstimateID:            estimateID,
+			Name:                  in.Name,
+			Category:              category,
+			UnitPrice:             in.UnitPrice,
+			Quantity:              quantity,
+			TaxType:               model.TaxTypeExcluded,
+			TaxRate:               0.10,
+			DiscountRate:          in.DiscountRate,
+			DiscountAmount:        in.DiscountAmount,
+			IsInsuranceApplicable: in.IsInsuranceApplicable,
+			SortOrder:             sortOrder,
+		})
+	}
+	return items
+}
+
+func cloneEstimateItemsForSuccessor(estimateID uint64, items []model.EstimateItem) []model.EstimateItem {
+	out := make([]model.EstimateItem, 0, len(items))
+	for _, it := range items {
+		out = append(out, model.EstimateItem{
+			EstimateID:            estimateID,
+			Name:                  it.Name,
+			Category:              it.Category,
+			UnitPrice:             it.UnitPrice,
+			Quantity:              it.Quantity,
+			TaxType:               it.TaxType,
+			TaxRate:               it.TaxRate,
+			DiscountRate:          it.DiscountRate,
+			DiscountAmount:        it.DiscountAmount,
+			IsInsuranceApplicable: it.IsInsuranceApplicable,
+			ConsultationID:        it.ConsultationID,
+			ProcedureID:           it.ProcedureID,
+			MedicineID:            it.MedicineID,
+			MerchandiseItemID:     it.MerchandiseItemID,
+			SortOrder:             it.SortOrder,
+		})
+	}
+	return out
 }
 
 func isEstimateLocked(status model.EstimateStatus) bool {
@@ -314,6 +384,7 @@ func (s *estimateService) Create(ctx context.Context, clinicID uint64, input *Cr
 		return nil, apperrors.WrapConflict("承認済みまたは却下済みの見積書は作成できません")
 	}
 
+	var created *model.Estimate
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
 		// SD-2 + BE-refactor.md X-11: 親カルテが確定済みの場合は見積書追加を拒否。見積は
 		// medical_record_id 任意（カルテに紐付かない独立見積も許容）のため、指定時のみガードする。
@@ -340,19 +411,29 @@ func (s *estimateService) Create(ctx context.Context, clinicID uint64, input *Cr
 			slog.ErrorContext(txCtx, "failed to create estimate", "error", err)
 			return apperrors.Wrap(err, "failed to create estimate")
 		}
+		if len(input.Items) > 0 {
+			if err := s.repo.ReplaceItems(txCtx, clinicID, estimate.ID, estimateItemsFromInput(estimate.ID, input.Items)); err != nil {
+				return apperrors.Wrap(err, "failed to save estimate items")
+			}
+		}
+		// 再取得は commit 前。失敗したら INSERT ごと rollback し、成功を失敗応答へ反転させない。
+		got, err := s.repo.FindByID(txCtx, clinicID, estimate.ID)
+		if err != nil {
+			slog.ErrorContext(txCtx, "failed to get estimate after create", "error", err)
+			return apperrors.Wrap(err, "failed to get estimate after create")
+		}
+		created = got
 		return nil
 	}); err != nil {
 		return nil, err
 	}
+	if created == nil {
+		return nil, apperrors.WrapInternalServerError("estimate create returned empty record")
+	}
 
 	slog.InfoContext(ctx, "estimate created",
-		slog.Uint64("estimate_id", estimate.ID),
+		slog.Uint64("estimate_id", created.ID),
 		slog.Uint64("clinic_id", clinicID))
-	created, err := s.repo.FindByID(ctx, clinicID, estimate.ID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to get estimate after create", "error", err)
-		return nil, apperrors.Wrap(err, "failed to get estimate after create")
-	}
 
 	// 監査ログ: create（best-effort）。actor は CreatedBy。
 	s.logEstimateChangeBestEffort(ctx, clinicID, input.CreatedBy, "create", created.ID, nil, extractEstimateImportantFields(created))
@@ -384,7 +465,7 @@ func (s *estimateService) Update(ctx context.Context, clinicID, id uint64, input
 		return nil, apperrors.WrapInvalidInput("discount_amount must be 0 or greater")
 	}
 	fields := buildEstimateUpdate(input)
-	if len(fields) == 0 {
+	if len(fields) == 0 && input.Items == nil {
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
 	isBecomingApproved := input.Status != nil && *input.Status == model.EstimateStatusApproved &&
@@ -409,6 +490,15 @@ func (s *estimateService) Update(ctx context.Context, clinicID, id uint64, input
 				slog.ErrorContext(txCtx, "failed to update estimate", "error", err)
 			}
 			return apperrors.Wrap(err, "failed to update estimate")
+		}
+		if input.Items != nil {
+			if err := s.repo.ReplaceItems(txCtx, clinicID, id, estimateItemsFromInput(id, *input.Items)); err != nil {
+				return apperrors.Wrap(err, "failed to save estimate items")
+			}
+			got, err = s.repo.FindByID(txCtx, clinicID, id)
+			if err != nil {
+				return apperrors.Wrap(err, "failed to reload estimate after item replace")
+			}
 		}
 		updated = got
 		return nil

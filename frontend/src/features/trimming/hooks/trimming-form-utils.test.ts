@@ -1,8 +1,19 @@
 import { describe, it, expect } from "vitest";
 import {
+  defaultRecordShortcutTimes,
   filterActiveOrSelectedMasterItems,
   findDefaultTrimmingReservationTypeId,
 } from "./trimming-form-utils";
+
+describe("defaultRecordShortcutTimes", () => {
+  it("uses unique JST clock time instead of a fixed 10:00 slot", () => {
+    const now = new Date("2026-06-01T01:23:45.678Z");
+    expect(defaultRecordShortcutTimes("2026-06-01", now)).toEqual({
+      start: "2026-06-01T10:23:45.678+09:00",
+      end: "2026-06-01T11:53:45.678+09:00",
+    });
+  });
+});
 
 describe("findDefaultTrimmingReservationTypeId", () => {
   it("最小sort_orderの公開トリミング種別を返し、入力順を変更しない", () => {

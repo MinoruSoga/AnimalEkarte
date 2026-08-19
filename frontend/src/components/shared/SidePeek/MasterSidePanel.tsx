@@ -108,7 +108,7 @@ export const MasterSidePanel = memo(function MasterSidePanel({
         description="変更が保存されていません。ページを離れますか？"
       />
       {action ? (
-        <form action={action} className="flex-1 flex flex-col min-h-0">
+        <form action={action} noValidate className="flex-1 flex flex-col min-h-0">
           {content}
         </form>
       ) : (

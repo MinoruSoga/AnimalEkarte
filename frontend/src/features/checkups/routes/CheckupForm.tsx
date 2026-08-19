@@ -107,6 +107,7 @@ export function CheckupForm() {
             petNumber={pet.petNumber ?? ""}
             weight={pet.weight ?? ""}
             petDetails={formatPatientPetDetails({
+              species: pet.species,
               birthDate: pet.birthDate,
               gender: pet.gender,
               neuteredDate: pet.neuteredDate,

@@ -11,6 +11,7 @@ const counts: CPMStageCounts = {
   cpm_spot: 3,
   cpm_noah: 1,
   cpm_dormant: 20,
+  cpm_unclassified: 1,
 };
 
 describe('CPMStageSummary (ISSUE-180)', () => {
@@ -18,7 +19,7 @@ describe('CPMStageSummary (ISSUE-180)', () => {
     render(
       <CPMStageSummary
         counts={counts}
-        total={83}
+        total={84}
         isLoading={false}
         isError={false}
         onSelect={() => {}}
@@ -30,7 +31,8 @@ describe('CPMStageSummary (ISSUE-180)', () => {
     expect(screen.getByText('Noah')).toBeInTheDocument();
     expect(screen.getByText('Dormant')).toBeInTheDocument();
     expect(screen.getByText('すべて')).toBeInTheDocument();
-    expect(screen.getByText('83')).toBeInTheDocument();
+    expect(screen.getByText('84')).toBeInTheDocument();
+    expect(screen.getByText('Unclassified')).toBeInTheDocument();
     screen.getAllByRole('button').forEach((button) => {
       expect(button).toHaveClass('min-h-11', 'min-w-11');
     });
@@ -42,7 +44,7 @@ describe('CPMStageSummary (ISSUE-180)', () => {
     render(
       <CPMStageSummary
         counts={counts}
-        total={83}
+        total={84}
         isLoading={false}
         isError={false}
         onSelect={onSelect}
@@ -59,7 +61,7 @@ describe('CPMStageSummary (ISSUE-180)', () => {
     render(
       <CPMStageSummary
         counts={counts}
-        total={83}
+        total={84}
         isLoading={false}
         isError={false}
         selected="cpm_core"
@@ -75,7 +77,7 @@ describe('CPMStageSummary (ISSUE-180)', () => {
     render(
       <CPMStageSummary
         counts={counts}
-        total={83}
+        total={84}
         isLoading={false}
         isError={false}
         selected="cpm_core"
@@ -97,7 +99,7 @@ describe('CPMStageSummary (ISSUE-180)', () => {
     const { rerender } = render(
       <CPMStageSummary
         counts={counts}
-        total={83}
+        total={84}
         isLoading={true}
         isError={false}
         onSelect={() => {}}
@@ -108,7 +110,7 @@ describe('CPMStageSummary (ISSUE-180)', () => {
     rerender(
       <CPMStageSummary
         counts={counts}
-        total={83}
+        total={84}
         isLoading={false}
         isError={true}
         onSelect={() => {}}

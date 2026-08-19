@@ -46,6 +46,15 @@ describe("formatPatientPetDetails (BUG-006)", () => {
     ).toBe("6歳6ヶ月 / 雌 / 避妊済");
   });
 
+  it("種別がある独立登録画面では先頭に動物種を出す (BUG-011)", () => {
+    expect(
+      formatPatientPetDetails(
+        { species: "犬", birthDate: "2020-01-01", gender: "雄", neuteredDate: undefined },
+        asOf,
+      ),
+    ).toBe("犬 / 6歳6ヶ月 / 雄 / 不明");
+  });
+
   it("属性欠損は推測せず不明とし、固定値にフォールバックしない", () => {
     expect(formatPatientPetDetails({}, asOf)).toBe("不明 / 不明 / 不明");
     expect(

@@ -15,8 +15,12 @@ vi.mock("@/hooks/use-vaccinations", () => ({
   useCreateVaccination: () => ({ mutateAsync: mockCreateVaccination }),
 }));
 
+const { mockHistoryItems } = vi.hoisted(() => ({
+  mockHistoryItems: { current: [] as Array<{ id: number; name: string; date: string }> },
+}));
+
 vi.mock("../api/get-pet-vaccinations", () => ({
-  useGetPetVaccinations: () => ({ data: [], isLoading: false }),
+  useGetPetVaccinations: () => ({ data: mockHistoryItems.current, isLoading: false }),
 }));
 
 vi.mock("./VaccinationForm", () => ({
@@ -60,11 +64,24 @@ vi.mock("./VaccinationHistory", () => ({
 beforeEach(() => {
   mockCreateVaccination.mockReset();
   mockCreateVaccination.mockResolvedValue({});
+  mockHistoryItems.current = [];
 });
 
 function openAddForm() {
   fireEvent.click(screen.getByRole("button", { name: "記録を追加" }));
 }
+
+describe("MedicalRecordVaccination left list (BUG-007)", () => {
+  it("接種記録があるときは空状態ではなく一覧を表示する", () => {
+    mockHistoryItems.current = [
+      { id: 11, name: "混合ワクチン", date: "26/8/1" },
+    ];
+    render(<MedicalRecordVaccination petId="1" />);
+    expect(screen.getByText("混合ワクチン")).toBeInTheDocument();
+    expect(screen.queryByText(/接種記録がありません/)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "記録を追加" })).toBeInTheDocument();
+  });
+});
 
 describe("MedicalRecordVaccination responsive layout", () => {
   it("mobileではform/historyを縦積みし、lg以上で5列gridに戻る", () => {

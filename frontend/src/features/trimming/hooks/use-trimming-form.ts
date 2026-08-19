@@ -19,6 +19,7 @@ import {
   buildCreateTrimmingRequest,
   buildUpdateTrimmingRequest,
   findDefaultTrimmingReservationTypeId,
+  defaultRecordShortcutTimes,
   formatJSTDate,
   normalizeVisitDate,
 } from "./trimming-form-utils";
@@ -203,8 +204,9 @@ export function useTrimmingForm(id?: string) {
           const resolvedReservationTypeId = validation.reservationTypeId;
           // 日時: フォームから選択していない場合は指定日（未指定なら当日）10:00〜11:30
           const fallbackDate = visitDateFromState ?? formatJSTDate(new Date());
-          const startDate = formData.startTime || (hasExistingAppointment ? undefined : `${fallbackDate}T10:00:00+09:00`);
-          const endDate = formData.endTime || (hasExistingAppointment ? undefined : `${fallbackDate}T11:30:00+09:00`);
+          const fallbackTimes = defaultRecordShortcutTimes(fallbackDate);
+          const startDate = formData.startTime || (hasExistingAppointment ? undefined : fallbackTimes.start);
+          const endDate = formData.endTime || (hasExistingAppointment ? undefined : fallbackTimes.end);
           const req = buildCreateTrimmingRequest(
             formData,
             Number(pet.id),

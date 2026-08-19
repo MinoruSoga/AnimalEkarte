@@ -89,13 +89,14 @@ export function useMedicalRecordQuickPatchActions({
             version: existingRecordVersion,
           } as UpdateMedicalRecordRequest,
         });
+        await queryClient.invalidateQueries({ queryKey: queryKeys.medicalRecords.detail(recordId) });
         toast.success(`来院種別を ${newVisitType} に変更しました`);
       } catch (error) {
         setVisitType(prevVisitType); // H-1: rollback on PATCH failure
         handleApiError(error, "来院種別変更");
       }
     });
-  }, [visitType, setVisitType, recordId, existingRecordVersion, updateMutation, startSaveTransition, isMutationAllowed]);
+  }, [visitType, setVisitType, recordId, existingRecordVersion, updateMutation, queryClient, startSaveTransition, isMutationAllowed]);
 
   // 次回予定変更ハンドラ（ヘッダー NextVisitButton 用・即時PATCH）
   // existingRecordVersion のみ参照するため object 全体を dep に含めない (OCC versioning)

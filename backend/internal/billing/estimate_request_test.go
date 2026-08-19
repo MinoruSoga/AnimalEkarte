@@ -122,6 +122,26 @@ func TestCreateEstimateRequest_ToServiceInput(t *testing.T) {
 	if input.CreatedBy == nil || *input.CreatedBy != staffID {
 		t.Errorf("CreatedBy = %v, want %d", input.CreatedBy, staffID)
 	}
+	if len(input.Items) != 0 {
+		t.Errorf("Items = %d, want 0", len(input.Items))
+	}
+}
+
+func TestCreateEstimateRequest_ToServiceInput_Items(t *testing.T) {
+	req := createEstimateRequest{
+		Title: "Estimate",
+		Items: []createEstimateItemRequest{{
+			Name:                  "診察料",
+			Category:              "other",
+			UnitPrice:             1000,
+			Quantity:              1,
+			IsInsuranceApplicable: true,
+		}},
+	}
+	input := req.toServiceInput(1)
+	if len(input.Items) != 1 || input.Items[0].Name != "診察料" || input.Items[0].UnitPrice != 1000 {
+		t.Fatalf("Items = %+v", input.Items)
+	}
 }
 
 func TestCreateEstimateRequest_ToServiceInput_EmptyStatus(t *testing.T) {

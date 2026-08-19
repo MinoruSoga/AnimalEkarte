@@ -93,8 +93,9 @@ export const TreatmentSearchDialog = memo(function TreatmentSearchDialog({
     });
 
     medicines.forEach((m) => {
-      // カテゴリ見出し行（parentId なし・price=0）は選択対象から除外する。
-      const isCategoryPlaceholder = !m.parentId && m.price === 0;
+      // カテゴリ見出し行のみ除外。未分類でも剤形/単位/単価があれば薬剤として出す (BUG-006)。
+      const isCategoryPlaceholder =
+        !m.parentId && m.price === 0 && !m.dosageForm && !m.medicineUnit;
       if (m.isActive && !isCategoryPlaceholder) {
         items.push({ id: m.id, name: m.name, unitPrice: m.price, category: "薬剤", medicineId: m.id });
       }

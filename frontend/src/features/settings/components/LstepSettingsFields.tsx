@@ -160,7 +160,7 @@ export function LstepConnectionFields({ settings }: LstepConnectionFieldsProps) 
         name="lstep_base_url"
         label="LステップベースURL"
         defaultValue={settings?.lstep_base_url ?? ""}
-        placeholder="例: https://app.lstep.jp"
+        placeholder="例: https://api.lstep.jp"
       />
     </>
   );

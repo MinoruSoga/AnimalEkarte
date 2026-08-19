@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { requireStoredClinicId } from "@/lib/current-clinic";
-import type { CPMStage } from "@/lib/cpm-stage";
+import type { AggregationCPMStage } from "@/lib/cpm-stage";
 import { queryKeys } from "@/lib/query-keys";
 import { QUERY_STALE_TIMES } from "@/lib/react-query";
 
@@ -57,7 +57,7 @@ export interface AggregationOwner {
   total_amount?: number;
   total_fee?: number;
   // CPM セグメント（ISSUE-180）。BE が各飼主の CPM V1 判定結果を返す（`cpm_stage,omitempty`）。
-  cpm_stage?: CPMStage;
+  cpm_stage?: AggregationCPMStage;
 }
 
 export interface AggregationParams {
@@ -82,7 +82,7 @@ export interface AggregationParams {
   last_visit_bucket?: string;
   include_no_visit?: boolean;
   // CPM セグメント絞り込み（ISSUE-180）。BE は "cpm_xxx" / "xxx" 双方を受理する。
-  cpm_stage?: CPMStage;
+  cpm_stage?: AggregationCPMStage;
 }
 
 export interface AggregationResponse {

@@ -9,6 +9,7 @@ import { useGetAccountingDetail } from "../api/get-accounting";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { paths } from "@/config/paths";
 import { C } from "@/lib/design-tokens";
+import { todayJSTISO } from "@/lib/jst-date";
 import {
   AccountingDetailColumns,
   AccountingDocumentPreviewDialog,
@@ -30,7 +31,7 @@ import {
   ResourceCashRegisterClose,
 } from "@/types/generated/models";
 import { useGetCashRegisterCloses } from "@/hooks/use-cash-register-closes";
-import { isPaymentSubmitDisabled } from "../components/accounting-detail-model";
+import { isPaymentSubmitDisabled, isPostCloseSubmitBlocked } from "../components/accounting-detail-model";
 
 const CreditCorrectionDialog = lazy(() =>
   import("../components/CreditCorrectionDialog").then((m) => ({ default: m.CreditCorrectionDialog })),
@@ -130,7 +131,9 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
     hasAccountingMutationPermission && canViewCashRegisterClose && !blocksNewAccountingSubmit;
 
   // #115: billing の scheduled_date が締め済みか確認
-  const scheduledDateStr = accounting?.scheduledDate ? accounting.scheduledDate.slice(0, 10) : null;
+  const scheduledDateStr = accounting?.scheduledDate
+    ? accounting.scheduledDate.slice(0, 10)
+    : todayJSTISO();
   // #115: scheduled_date が締め済みか、その 1 日分（AM/PM/EMG）を BE 契約（start_date/end_date）で問い合わせる
   const { data: closesData } = useGetCashRegisterCloses(
     scheduledDateStr ? { start_date: scheduledDateStr, end_date: scheduledDateStr } : undefined,
@@ -203,7 +206,14 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
               onCancelClick={() => setCancelConfirmOpen(true)}
               onDismiss={() => navigate(paths.accounting.getHref())}
               submitLabel={canSubmit ? (accounting.status === "completed" ? "修正を保存する" : "会計を確定する") : undefined}
-              submitDisabled={isPaymentSubmitDisabled(calculation.total, paymentSplits)}
+              submitDisabled={
+                isPaymentSubmitDisabled(calculation.total, paymentSplits)
+                || isPostCloseSubmitBlocked({
+                  isScheduledDateClosed,
+                  canPostCloseEdit: Boolean(canPostCloseEdit),
+                  postCloseReason,
+                })
+              }
             />
           }
         >
@@ -261,7 +271,12 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
             </div>
           ) : null}
 
-          {/* #115 / BUG-009: 締め後または確定済み会計の明細修正理由（権限あり時） */}
+          {isScheduledDateClosed && canSubmit && !canPostCloseEdit ? (
+            <div className={`px-4 pb-4 text-sm font-semibold ${C.danger}`} role="status">
+              レジ締め済み期間の会計確定には締め後編集権限（accounting-post-close-edit）が必要です。
+            </div>
+          ) : null}
+          {/* #115 / BUG-009 / BUG-004: 締め後または確定済み会計の明細修正理由（権限あり時） */}
           {(isScheduledDateClosed || accounting.status === "completed") && canSubmit && canPostCloseEdit ? (
             <div className="px-4 pb-4">
               <label htmlFor="postCloseReason" className={`block text-sm font-semibold ${C.danger} mb-1`}>

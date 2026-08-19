@@ -121,6 +121,9 @@ func (s *lstepTagConfigService) CreateConditionTagMapping(ctx context.Context, i
 	}
 	if err := s.repo.CreateConditionTagMapping(ctx, m); err != nil {
 		slog.ErrorContext(ctx, "failed to create condition tag mapping", "condition_code", input.ConditionCode, "error", err)
+		if apperrors.IsAlreadyExists(err) {
+			return nil, apperrors.WrapAlreadyExists("lstep_condition_tag_mapping", input.ConditionCode)
+		}
 		return nil, apperrors.Wrap(err, "failed to create condition tag mapping")
 	}
 	return m, nil

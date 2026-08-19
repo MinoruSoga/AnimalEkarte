@@ -160,6 +160,18 @@ export const MedicalRecordEstimate = memo(function MedicalRecordEstimate({
       comment,
       notes: remarks,
       medical_record_id: Number(medicalRecordId),
+      items: items
+        .filter((item) => item.content.trim())
+        .map((item, index) => ({
+          name: item.content,
+          category: "other",
+          unit_price: Number(item.unitPrice) || 0,
+          quantity: Number(item.quantity) || 1,
+          discount_rate: Number(item.discountRate) || 0,
+          discount_amount: Number(item.discountAmount) || 0,
+          is_insurance_applicable: Boolean(item.is_insurance),
+          sort_order: index,
+        })),
     };
 
     try {

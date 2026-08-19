@@ -31,6 +31,14 @@ vi.mock("@/hooks/use-master-items", () => ({
   useMasterItems: () => ({ data: [] }),
 }));
 
+vi.mock("@/hooks/use-staffs", () => ({
+  useGetStaffs: () => ({ data: [] }),
+}));
+
+vi.mock("@/components/shared/MasterSelectModal", () => ({
+  MasterSelectModal: () => null,
+}));
+
 vi.mock("@/hooks/use-unsaved-changes", () => ({
   useUnsavedChanges: () => ({ isDirty: false, markDirty: vi.fn(), markClean: vi.fn() }),
 }));
@@ -41,6 +49,14 @@ vi.mock("../hooks/use-hospitalization-form", () => ({
 
 vi.mock("../api/delete-hospitalization", () => ({
   useDeleteHospitalization: () => ({ mutate: mocks.deleteHospitalization }),
+}));
+
+vi.mock("../api/get-hospitalizations", () => ({
+  useGetHospitalizations: () => ({ data: { data: [] }, isLoading: false }),
+}));
+
+vi.mock("@/components/shared/PastRecordHistoryPanel", () => ({
+  PastRecordHistoryPanel: () => null,
 }));
 
 vi.mock("@/components/shared/PageLayout/PageLayout", () => ({

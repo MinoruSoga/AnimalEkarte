@@ -114,20 +114,20 @@ export function OwnerAddressFields({
 
       <div className="space-y-1.5">
         <Label htmlFor="birthDate" className={`text-sm ${C.text60}`}>飼主生年月日</Label>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-col gap-1.5">
           <DatePicker
             id="birthDate"
             value={ownerData.birthDate}
             onChange={(value) => onChange("birthDate", value)}
             placeholder="生年月日を選択…"
             disabledDays={{ after: toJSTWallDate(new Date()) }}
-            className="min-w-0 flex-1"
+            className="w-full min-w-[12rem]"
           />
           <span
             role="status"
             aria-live="polite"
             aria-atomic="true"
-            className={`shrink-0 text-sm ${C.text60}`}
+            className={`text-sm ${C.text60}`}
           >
             {saigram ? (
               <>

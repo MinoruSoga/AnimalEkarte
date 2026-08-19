@@ -160,6 +160,41 @@ describe("UnpaidTab — 月次繰越モード", () => {
   });
 });
 
+describe("UnpaidTab — 飼主単位の既定期間 (BUG-002)", () => {
+  it("開始日・終了日が空でも当月を使って API を呼ぶ", async () => {
+    let requested: URL | null = null;
+    server.use(
+      http.get("/api/v1/accountings/unpaid", ({ request }) => {
+        requested = new URL(request.url);
+        return HttpResponse.json({
+          data: [
+            {
+              owner_id: 31,
+              owner_name: "山田花子",
+              count: 1,
+              total_amount: 1680,
+              oldest_scheduled: "2026-08-01",
+              latest_scheduled: "2026-08-10",
+            },
+          ],
+          total: 1,
+          page: 1,
+          limit: 20,
+          summary: { total_amount: 1680, billing_count: 1, owner_count: 1 },
+        });
+      }),
+    );
+
+    renderTab("group_by=owner");
+
+    expect(await screen.findByText("山田花子")).toBeInTheDocument();
+    expect(requested).not.toBeNull();
+    expect(requested?.searchParams.get("start_date")).toMatch(/^\d{4}-\d{2}-01$/);
+    expect(requested?.searchParams.get("end_date")).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(screen.queryByText("未納者はいません")).not.toBeInTheDocument();
+  });
+});
+
 describe("UnpaidTab — 明細遷移", () => {
   beforeEach(() => {
     server.use(

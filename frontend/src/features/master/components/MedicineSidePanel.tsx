@@ -17,7 +17,7 @@ interface MedicineSidePanelProps {
   categoryMedicines: Medicine[];
   panelDuration: number;
   onCloseEdit: () => void;
-  onSave: (data: MedicineFormData) => void;
+  onSave: (data: MedicineFormData) => Promise<boolean> | boolean;
   onDeleteRequest: () => void;
   readOnly?: boolean;
   canDelete?: boolean;

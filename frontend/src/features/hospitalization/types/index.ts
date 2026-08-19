@@ -14,6 +14,8 @@ export interface HospitalizationFormData {
     memo: string;
     ownerRequest: string;
     staffNotes: string;
+    doctorId: string;
+    doctorName: string;
     cageId: string;
     isInsurance: boolean;
     insuranceCompanyName: string;

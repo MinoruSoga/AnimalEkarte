@@ -53,6 +53,15 @@ describe("validateDoseParamForm", () => {
     expect(result.errors).toContain("下限は上限以下にしてください");
   });
 
+  it("accepts min == max (BUG-013)", () => {
+    const result = validateDoseParamForm(makeForm({
+      dosePerKg: "10",
+      minMgPerKg: "10",
+      maxMgPerKg: "10",
+    }));
+    expect(result.isValid).toBe(true);
+  });
+
   it("rejects dose_per_kg below min", () => {
     const result = validateDoseParamForm(makeForm({ dosePerKg: "5", minMgPerKg: "10", maxMgPerKg: "20" }));
     expect(result.errors).toContain("投与量は下限以上にしてください");

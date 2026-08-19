@@ -128,6 +128,15 @@ func TestClinicHolidayService_Set(t *testing.T) {
 			},
 			wantErr: true,
 		},
+		{
+			name:   "remaps unique violation to clinic_holiday date",
+			date:   date,
+			reason: "重複",
+			upsertFn: func(_ context.Context, _ uint64, _ *model.ClinicHoliday) (*model.ClinicHoliday, error) {
+				return nil, apperrors.WrapAlreadyExists("clinic_holiday", "")
+			},
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -140,6 +149,10 @@ func TestClinicHolidayService_Set(t *testing.T) {
 			if tt.wantErr {
 				assert.Error(t, err)
 				assert.Nil(t, result)
+				if tt.name == "remaps unique violation to clinic_holiday date" {
+					assert.True(t, apperrors.IsAlreadyExists(err))
+					assert.Contains(t, err.Error(), "2026-04-01")
+				}
 			} else {
 				assert.NoError(t, err)
 				assert.NotNil(t, result)

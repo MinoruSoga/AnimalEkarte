@@ -1,4 +1,5 @@
 import { memo, useCallback, useState } from "react";
+import { useSearchParams } from "react-router";
 import { toast } from "sonner";
 
 import { C } from "@/lib/design-tokens";
@@ -42,7 +43,10 @@ export const CheckupsTab = memo(function CheckupsTab({
   const updateMutation = useUpdateCheckup(medicalRecordId);
   const deleteMutation = useDeleteCheckup(medicalRecordId);
 
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const [searchParams] = useSearchParams();
+  const [editingId, setEditingId] = useState<string | null>(
+    () => searchParams.get("checkupId"),
+  );
   const [isAdding, setIsAdding] = useState(false);
   const [addForm, setAddForm] = useState<AddCheckupFormState>(() => makeDefaultCheckupAddForm());
   const [addFormErrors, setAddFormErrors] = useState<Record<string, string>>({});

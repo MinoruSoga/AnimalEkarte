@@ -215,6 +215,12 @@ describe("useMedicalRecordForm", () => {
       expect(result.current.activeTab).toBe("問診");
     });
 
+    it("?tab=定期健診 なら activeTab を定期健診にする (BUG-022)", () => {
+      mockSearchParams = new URLSearchParams({ tab: "定期健診" });
+      const { result } = renderHook(() => useMedicalRecordForm("10"));
+      expect(result.current.activeTab).toBe("定期健診");
+    });
+
     it("visitType の初期値は '再診'", () => {
       const { result } = renderHook(() => useMedicalRecordForm("10"));
       expect(result.current.visitType).toBe("再診");

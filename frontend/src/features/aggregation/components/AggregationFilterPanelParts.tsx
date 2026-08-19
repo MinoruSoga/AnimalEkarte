@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { DateRangeInputs } from "@/components/shared/DateRangeInputs";
 import { C, STYLE } from "@/lib/design-tokens";
 
-import { CPM_STAGE_OPTIONS, type CPMStage } from "@/lib/cpm-stage";
+import { AGGREGATION_CPM_STAGE_OPTIONS, type AggregationCPMStage } from "@/lib/cpm-stage";
 
 import type {
   AggregationParams,
@@ -263,7 +263,7 @@ export function CPMStageFilter({
         value={params.cpm_stage ?? "all"}
         onValueChange={(value) =>
           onParamsChange({
-            cpm_stage: value === "all" ? undefined : (value as CPMStage),
+            cpm_stage: value === "all" ? undefined : (value as AggregationCPMStage),
             page: 1,
           })
         }
@@ -273,7 +273,7 @@ export function CPMStageFilter({
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="all">すべて</SelectItem>
-          {CPM_STAGE_OPTIONS.map((opt) => (
+          {AGGREGATION_CPM_STAGE_OPTIONS.map((opt) => (
             <SelectItem key={opt.value} value={opt.value}>
               {opt.label}
             </SelectItem>

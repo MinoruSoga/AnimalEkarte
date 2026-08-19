@@ -43,6 +43,9 @@ func (s *clinicHolidayService) Set(ctx context.Context, clinicID uint64, date ti
 	result, err := s.repo.Save(ctx, clinicID, holiday)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to set clinic holiday", "error", err, "clinic_id", clinicID)
+		if apperrors.IsAlreadyExists(err) {
+			return nil, apperrors.WrapAlreadyExists("clinic_holiday", date.Format("2006-01-02"))
+		}
 		return nil, apperrors.Wrap(err, "failed to set clinic holiday")
 	}
 	slog.InfoContext(ctx, "clinic holiday set",

@@ -260,6 +260,7 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"billing/estimate_repository.go|estimateRepository.UpdateIfNotLocked":      {},
 	"billing/estimate_repository.go|estimateRepository.DeleteIfNotLocked":      {},
 	"billing/estimate_repository.go|estimateRepository.CountItemsByEstimateID": {},
+	"billing/estimate_repository.go|estimateRepository.ReplaceItems":           {},
 	// Runtime: TestEstimateRepository_AllocateNextEstimateNo_SeesUncommittedInsertAndRollsBack
 	// + TestEstimateRepository_AllocateNextEstimateNo_AdvisoryLockBlocksConcurrentSession
 	"billing/estimate_repository.go|estimateRepository.AllocateNextEstimateNo": {},

@@ -22,6 +22,8 @@ import { useGetHospitalizations } from "../api/get-hospitalizations";
 import { useDeleteHospitalization } from "../api/delete-hospitalization";
 import { paths } from "@/config/paths";
 import { useMasterItems } from "@/hooks/use-master-items";
+import { useGetStaffs } from "@/hooks/use-staffs";
+import { MasterSelectModal } from "@/components/shared/MasterSelectModal";
 import { HospitalizationBasicInfo } from "../components/HospitalizationBasicInfo";
 import { HospitalizationNoteCard } from "../components/HospitalizationNoteCard";
 import { HospitalizationTreatmentTable } from "../components/HospitalizationTreatmentTable";
@@ -33,6 +35,7 @@ import { FormFieldError } from "@/components/shared/FormFieldError";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { C, STYLE, ICON, LAYOUT } from "@/lib/design-tokens";
 import { ResourceHospitalization } from "@/types/generated/models";
+import type { MasterItem } from "@/types";
 
 export function HospitalizationForm() {
   const navigate = useNavigate();
@@ -42,6 +45,8 @@ export function HospitalizationForm() {
   const petId = searchParams.get("petId");
   
   const { data: cageItems } = useMasterItems("cage");
+  const { data: staffs = [] } = useGetStaffs();
+  const [staffModalOpen, setStaffModalOpen] = useState(false);
 
   const { canEdit, canCreate, canDelete } = usePermission("hospitalization");
   const canSubmit = hospitalizationId ? canEdit : canCreate;
@@ -152,6 +157,17 @@ export function HospitalizationForm() {
     markDirty();
     handleFormDataChangeRaw(updates);
   }, [markDirty, handleFormDataChangeRaw]);
+
+  const doctorStaffItems = useMemo(
+    () => staffs.filter((s) =>
+      (s.isActive && s.staffType === "doctor") || s.id === formData.doctorId
+    ),
+    [staffs, formData.doctorId],
+  );
+  const handleOpenStaffModal = useCallback(() => setStaffModalOpen(true), []);
+  const handleSelectDoctor = useCallback((item: MasterItem) => {
+    handleFormChange({ doctorId: String(item.id), doctorName: item.name });
+  }, [handleFormChange]);
 
   // Parent delete is blocked when child treatment plans exist (BE Conflict + UI guard).
   const hasChildTreatmentPlans = isEdit && treatmentPlans.length > 0;
@@ -279,9 +295,12 @@ export function HospitalizationForm() {
               petName={selectedPet.name}
               petNumber={selectedPet.petNumber || selectedPet.id}
               weight={selectedPet.weight || "-"}
-              staffName=""
+              staffName={formData.doctorName || "未設定"}
+              staffLabel="担当医"
+              staffButtonId="doctor_id"
               reservationType={formData.hospitalizationType}
               petDetails={formatPatientPetDetails({
+                species: selectedPet.species,
                 birthDate: selectedPet.birthDate,
                 gender: selectedPet.gender,
                 neuteredDate: selectedPet.neuteredDate,
@@ -291,6 +310,7 @@ export function HospitalizationForm() {
               status={selectedPet.status === "死亡" ? "deceased" : "alive"}
               nextVisitDate={formData.nextVisit ? formatDate(formData.nextVisit) : formData.endDate ? formatDate(formData.endDate) : undefined}
               nextVisitContent={formData.nextVisit ? "次回来院" : formData.endDate ? "退院予定" : undefined}
+              onStaffClick={canSubmit ? handleOpenStaffModal : undefined}
             />
         ) : null}
         <FormFieldError message={formState.fieldErrors?.pet} />
@@ -304,14 +324,14 @@ export function HospitalizationForm() {
             fieldErrors={{ cage_id: formState.fieldErrors?.cage_id }}
           />
 
-          {/* Middle Column - 飼主からのリクエスト */}
+          {/* 一覧の主訴列と同じ owner_request を入力する（新規列は作らない） */}
           <HospitalizationNoteCard 
             id="owner_request"
-            title="飼主からのリクエスト"
+            title="主訴"
             icon={MessageSquare}
             value={formData.ownerRequest}
             onChange={(val) => handleFormChange({ ownerRequest: val })}
-            placeholder="リクエストを入力..."
+            placeholder="主訴を入力..."
           />
 
           {/* Right Column - スタッフへの連絡事項 */}
@@ -373,6 +393,16 @@ export function HospitalizationForm() {
         onConfirm={handleDelete}
         isPending={isDeletePending}
       />
+    <MasterSelectModal
+      open={staffModalOpen}
+      onOpenChange={setStaffModalOpen}
+      title="担当医を選択"
+      items={doctorStaffItems}
+      selectedValue={formData.doctorId}
+      matchBy="id"
+      searchPlaceholder="担当医を検索..."
+      onSelect={handleSelectDoctor}
+    />
     </>
   );
 }

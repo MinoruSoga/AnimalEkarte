@@ -8,7 +8,7 @@ import {
   PropertyRow,
   StatusToggleButton,
 } from "@/components/shared/SidePeek";
-import { LAYOUT } from "@/lib/design-tokens";
+import { C, LAYOUT } from "@/lib/design-tokens";
 import { handleApiError } from "@/lib/handle-api-error";
 
 import type { Insurance } from "../api/insurances";
@@ -119,7 +119,6 @@ export const InsuranceSidePanel = memo(function InsuranceSidePanel({
         <input
           type="number"
           min={0}
-          max={100}
           step={1}
           aria-label="補償率(%)"
           aria-invalid={coverageError ? true : undefined}
@@ -129,7 +128,7 @@ export const InsuranceSidePanel = memo(function InsuranceSidePanel({
           placeholder="0"
         />
         {coverageError ? (
-          <p className="mt-1 text-sm text-red-600" role="alert">
+          <p className={`mt-1 text-sm ${C.danger}`} role="alert">
             {coverageError}
           </p>
         ) : null}

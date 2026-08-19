@@ -262,6 +262,40 @@ func TestAccountingService_CompleteAccounting_PostCloseReasonMissing_NoWrites(t 
 	assert.Equal(t, 0, items.calls)
 }
 
+func TestAccountingService_CompleteAccounting_PostCloseReasonBeforeFK(t *testing.T) {
+	key := uuid.NewString()
+	createCalled := false
+	repo := &mockAccountingRepository{
+		findByCompletionRequestIDFn: func(_ context.Context, _ uint64, _ string) (*model.Billing, error) {
+			return nil, nil
+		},
+		createFn: func(_ context.Context, _ uint64, _ *model.Billing) error {
+			createCalled = true
+			return nil
+		},
+	}
+	closeRepo := &mockCashRegisterCloseRepository{
+		hasCloseOnDateFn: func(_ context.Context, _ uint64, _ time.Time) (bool, error) {
+			return true, nil
+		},
+	}
+	svc := newCompleteTestService(repo, &mockAuditService{}, &mockCompleteItemWriter{}, &mockCompleteTotalsWriter{},
+		WithCashRegisterCloseRepository(closeRepo),
+	)
+	input := validCompleteInput(key)
+	treatmentID := uint64(99)
+	input.Items[0].TreatmentID = &treatmentID
+	input.PostCloseReason = nil
+
+	result, err := svc.Complete(context.Background(), input)
+	require.Error(t, err)
+	assert.True(t, apperrors.IsInvalidInput(err), "got %v", err)
+	assert.Contains(t, err.Error(), "post_close_reason")
+	assert.NotContains(t, err.Error(), "参照先の組み合わせ")
+	assert.Nil(t, result)
+	assert.False(t, createCalled)
+}
+
 func TestAccountingService_CompleteAccounting_NthItemFailure_FullRollback(t *testing.T) {
 	key := uuid.NewString()
 	createCalled := false

@@ -5,6 +5,17 @@ import { handleApiError } from "@/lib/handle-api-error";
 import { queryKeys } from "@/lib/query-keys";
 import type { Estimate } from "@/types/generated/models";
 
+export interface SaveEstimateItemPayload {
+  name: string;
+  category?: string;
+  unit_price: number;
+  quantity: number;
+  discount_rate: number;
+  discount_amount: number;
+  is_insurance_applicable: boolean;
+  sort_order: number;
+}
+
 export interface SaveEstimatePayload {
   title: string;
   subtotal: number;
@@ -14,6 +25,7 @@ export interface SaveEstimatePayload {
   comment: string;
   notes: string;
   medical_record_id?: number;
+  items?: SaveEstimateItemPayload[];
 }
 
 export interface UpdateEstimateRecordVariables {

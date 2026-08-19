@@ -266,10 +266,14 @@ describe("useTrimmingForm", () => {
         course_id: 4,
         status: "in_consultation",
         reservation_route: "record_shortcut",
-        start_time: "2026-06-01T10:00:00+09:00",
-        end_time: "2026-06-01T11:30:00+09:00",
       }),
     );
+    const payload = mockCreateMutateAsync.mock.calls[0]?.[0] as {
+      start_time: string;
+      end_time: string;
+    };
+    expect(payload.start_time).toMatch(/^2026-06-01T\d{2}:\d{2}:\d{2}\.\d{3}\+09:00$/);
+    expect(payload.end_time).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}\+09:00$/);
   });
 
   it("一覧新規作成では同日同ペットの未完了 trimming appointment に詳細を作成する", async () => {

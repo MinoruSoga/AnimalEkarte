@@ -2,6 +2,7 @@
 import { memo, useActionState, useState } from "react";
 
 // External
+import { isAxiosError } from "axios";
 import Eye from "lucide-react/dist/esm/icons/eye";
 import EyeOff from "lucide-react/dist/esm/icons/eye-off";
 import { toast } from "sonner";
@@ -125,8 +126,20 @@ export const ChangePasswordDialog = memo(function ChangePasswordDialog({
         onSuccess?.();
         return { success: true };
       } catch (error) {
-        if (axios.isAxiosError(error) && error.response?.status === 401) {
-          return { error: "現在のパスワードが正しくありません" };
+        // Axios.create() instance has no isAxiosError static (BUG-016).
+        if (isAxiosError(error)) {
+          const status = error.response?.status;
+          const data = error.response?.data;
+          const serverMessage =
+            data && typeof data === "object" && "error" in data && typeof data.error === "string"
+              ? data.error
+              : undefined;
+          if (status === 401) {
+            return { error: "現在のパスワードが正しくありません" };
+          }
+          if (status === 400) {
+            return { error: serverMessage ?? "パスワードの変更に失敗しました" };
+          }
         }
         handleApiError(error, "パスワード変更");
         return { error: "パスワードの変更に失敗しました" };

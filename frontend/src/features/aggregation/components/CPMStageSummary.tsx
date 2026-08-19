@@ -1,8 +1,8 @@
 import { C } from "@/lib/design-tokens";
 import {
-  CPM_STAGE_OPTIONS,
-  CPM_STAGE_SHORT_LABELS,
-  type CPMStage,
+  AGGREGATION_CPM_STAGE_OPTIONS,
+  AGGREGATION_CPM_STAGE_SHORT_LABELS,
+  type AggregationCPMStage,
 } from "@/lib/cpm-stage";
 
 import type { CPMStageCounts } from "../api/get-cpm-stage-counts";
@@ -12,8 +12,8 @@ interface CPMStageSummaryProps {
   total: number;
   isLoading: boolean;
   isError: boolean;
-  selected?: CPMStage;
-  onSelect: (stage: CPMStage | undefined) => void;
+  selected?: AggregationCPMStage;
+  onSelect: (stage: AggregationCPMStage | undefined) => void;
 }
 
 // 人数表示: エラーは "—"、読み込み中は "…"（"読み込み中..." 文言はテーブルの空状態と
@@ -61,7 +61,7 @@ export function CPMStageSummary({
         </span>
       </button>
 
-      {CPM_STAGE_OPTIONS.map((opt) => {
+      {AGGREGATION_CPM_STAGE_OPTIONS.map((opt) => {
         const isActive = selected === opt.value;
         return (
           <button
@@ -72,7 +72,7 @@ export function CPMStageSummary({
             className={chipClass(isActive)}
             title={opt.label}
           >
-            {CPM_STAGE_SHORT_LABELS[opt.value]}
+            {AGGREGATION_CPM_STAGE_SHORT_LABELS[opt.value]}
             <span className="font-mono">
               {countLabel(counts[opt.value], isLoading, isError)}
             </span>

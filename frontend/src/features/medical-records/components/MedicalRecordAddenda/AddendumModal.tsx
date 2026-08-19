@@ -20,7 +20,9 @@ interface FormState {
 
 export function AddendumModal({ open, onOpenChange, medicalRecordId }: AddendumModalProps) {
   const { mutateAsync } = useCreateMedicalRecordAddendum(medicalRecordId);
-  const [reasonLength, setReasonLength] = useState(0);
+  const [afterText, setAfterText] = useState("");
+  const [reason, setReason] = useState("");
+  const reasonLength = reason.length;
 
   const [state, formAction] = useActionState(
     async (_prev: FormState, formData: FormData): Promise<FormState> => {
@@ -82,6 +84,8 @@ export function AddendumModal({ open, onOpenChange, medicalRecordId }: AddendumM
               name="after_text"
               aria-required="true"
               rows={5}
+              value={afterText}
+              onChange={(e) => setAfterText(e.target.value)}
               className={`w-full border ${C.borderMedium} rounded-xs px-3 py-2 text-base ${C.text} resize-y focus:outline-none focus:ring-1 ${C.focusRingBrand}`}
             />
           </div>
@@ -99,7 +103,8 @@ export function AddendumModal({ open, onOpenChange, medicalRecordId }: AddendumM
               name="reason"
               aria-required="true"
               rows={3}
-              onChange={(e) => setReasonLength(e.target.value.length)}
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
               className={`w-full border ${C.borderMedium} rounded-xs px-3 py-2 text-base ${C.text} resize-y focus:outline-none focus:ring-1 ${C.focusRingBrand}`}
             />
             <p

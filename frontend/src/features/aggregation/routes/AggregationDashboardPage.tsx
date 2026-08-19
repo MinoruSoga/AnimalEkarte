@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { UnifiedTabs } from "@/components/shared/UnifiedTabs";
 import { C, ICON, STYLE, LAYOUT } from "@/lib/design-tokens";
 import { todayJSTISO } from "@/lib/jst-date";
-import type { CPMStage } from "@/lib/cpm-stage";
+import type { AggregationCPMStage } from "@/lib/cpm-stage";
 import { useGetOwnerAggregations, type AggregationParams } from "../api/get-aggregations";
 import { useGetCPMStageCounts } from "../api/get-cpm-stage-counts";
 import { AggregationFilterPanel } from "../components/AggregationFilterPanel";
@@ -140,7 +140,7 @@ export function AggregationDashboardPage() {
   }, []);
 
   const handleCpmStageSelect = useCallback(
-    (stage: CPMStage | undefined) => {
+    (stage: AggregationCPMStage | undefined) => {
       handleParamsChange({ cpm_stage: stage });
     },
     [handleParamsChange]

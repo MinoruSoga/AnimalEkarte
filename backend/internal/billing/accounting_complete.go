@@ -361,6 +361,18 @@ func (s *accountingService) Complete(ctx context.Context, input *CompleteAccount
 			return nil
 		}
 
+		// BUG-004: 締め後理由は FK 解決より先。締め済みなのに参照組み合わせエラーだけ出ると確定導線が消える。
+		postClose, err := s.resolvePostCloseInTx(txCtx, input.ClinicID, input.ScheduledDate, input.IsPostClose)
+		if err != nil {
+			return err
+		}
+		if postClose {
+			if input.PostCloseReason == nil || strings.TrimSpace(*input.PostCloseReason) == "" {
+				return apperrors.WrapInvalidInput("レジ締め済み期間の会計編集には post_close_reason の入力が必要です")
+			}
+			input.IsPostClose = true
+		}
+
 		// BUG-011: treatment 付き明細があるとき billing.medical_record_id が必須。
 		// FE が未送信でも treatment から一意に解決する（明示値は優先・不一致は拒否）。
 		medicalRecordID, err := resolveCompleteMedicalRecordID(txCtx, input.ClinicID, input.MedicalRecordID, input.Items)
@@ -385,18 +397,6 @@ func (s *accountingService) Complete(ctx context.Context, input *CompleteAccount
 		// BUG-001: 死亡ペットへの complete 確定を同一 tx 内で拒否（URL 直叩き経路の物理ブロック）。
 		if err := s.assertAccountingPetNotDeceased(txCtx, input.ClinicID, input.PetID); err != nil {
 			return err
-		}
-
-		// Close 境界の write-time 再評価。
-		postClose, err := s.resolvePostCloseInTx(txCtx, input.ClinicID, input.ScheduledDate, input.IsPostClose)
-		if err != nil {
-			return err
-		}
-		if postClose {
-			if input.PostCloseReason == nil || strings.TrimSpace(*input.PostCloseReason) == "" {
-				return apperrors.WrapInvalidInput("レジ締め済み期間の会計編集には post_close_reason の入力が必要です")
-			}
-			input.IsPostClose = true
 		}
 
 		reqID := input.IdempotencyKey

@@ -325,7 +325,10 @@ describe("CheckupsList — row navigation accessibility", () => {
     render(<CheckupsList />, { wrapper: createWrapper() });
 
     const detailLink = screen.getByRole("link", { name: /ポチ/ });
-    expect(detailLink).toHaveAttribute("href", "/medical-records/mr-1");
+    expect(detailLink).toHaveAttribute(
+      "href",
+      "/medical-records/mr-1?tab=%E5%AE%9A%E6%9C%9F%E5%81%A5%E8%A8%BA&checkupId=chk-1",
+    );
     expect(detailLink).toHaveAccessibleName(/ポチ/);
     expect(detailLink).toHaveAccessibleName(/2026-07-13/);
     expect(detailLink).toHaveAccessibleName(/chk-1/);
@@ -338,6 +341,15 @@ describe("CheckupsList — row navigation accessibility", () => {
     fireEvent.click(screen.getByText("山田 太郎"));
 
     expect(screen.getByTestId("location")).toHaveTextContent(/^\/checkups$/);
+  });
+
+  it("編集ボタンは定期健診タブ付きカルテへ遷移する (BUG-022)", async () => {
+    const user = userEvent.setup();
+    render(<CheckupsList />, { wrapper: createWrapper() });
+    await user.click(screen.getByRole("button", { name: /健診操作/ }));
+    expect(screen.getByTestId("location")).toHaveTextContent(
+      /\/medical-records\/mr-1\?tab=.*checkupId=chk-1/,
+    );
   });
 });
 

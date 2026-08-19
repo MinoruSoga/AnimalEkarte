@@ -80,6 +80,7 @@ export const MedicalRecordVaccination = memo(function MedicalRecordVaccination({
   );
 
   const handleDuplicate = useCallback((item: PetVaccinationHistoryItem) => {
+    setIsAdding(true);
     setVaccineName(String(item.vaccineId));
     setDate(""); // 実施日は新しく入力させる
     setLot1(item.lot1);
@@ -165,8 +166,8 @@ export const MedicalRecordVaccination = memo(function MedicalRecordVaccination({
         setRemarks("");
         setFieldErrors({});
         setIsAdding(false);
-      } catch (err) {
-        handleApiError(err, "予防接種の登録");
+      } catch {
+        // useCreateVaccination onError が handleApiError 済み
       }
     });
   }, [petId, vaccineName, date, supplemental, lot1, lot2, lot3, lot4, nextScheduleType, nextDate, remarks, createVaccination]);
@@ -206,6 +207,22 @@ export const MedicalRecordVaccination = memo(function MedicalRecordVaccination({
           onSave={handleSave}
           isSaving={isSaving}
         />
+      ) : historyItems.length > 0 ? (
+        <div className="lg:col-span-3 flex flex-col gap-3">
+          <ul className={`divide-y ${C.borderLight} ${C.bgWhite} rounded-lg border ${C.borderMedium}`}>
+            {historyItems.map((item) => (
+              <li key={item.id} className="px-3 py-2 text-sm">
+                <div className={`font-medium ${C.text}`}>{item.name}</div>
+                <div className={C.text60}>接種日 {item.date}</div>
+              </li>
+            ))}
+          </ul>
+          {petId ? (
+            <Button type="button" variant="outline" size="sm" onClick={() => setIsAdding(true)}>
+              記録を追加
+            </Button>
+          ) : null}
+        </div>
       ) : (
         <EmptyState
           className="lg:col-span-3"

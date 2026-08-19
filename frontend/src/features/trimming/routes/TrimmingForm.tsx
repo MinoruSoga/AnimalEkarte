@@ -261,6 +261,7 @@ export function TrimmingForm() {
             staffButtonId="staffId"
             reservationType="トリミング"
             petDetails={formatPatientPetDetails({
+              species: selectedPet.species,
               birthDate: selectedPet.birthDate,
               gender: selectedPet.gender,
               neuteredDate: selectedPet.neuteredDate,

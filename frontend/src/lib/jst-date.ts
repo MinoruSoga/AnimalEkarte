@@ -125,3 +125,14 @@ export function currentJSTYearMonth(): string {
   const m = padDatePart(jst.getUTCMonth() + 1);
   return `${y}-${m}`;
 }
+
+/** JST 当月の開始日・終了日 (YYYY-MM-DD)。未納一覧などの期間デフォルト用。 */
+export function currentJSTMonthDateRange(): { start: string; end: string } {
+  const ym = currentJSTYearMonth();
+  const [year, month] = ym.split("-").map(Number);
+  const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  return {
+    start: `${ym}-01`,
+    end: `${ym}-${padDatePart(lastDay)}`,
+  };
+}

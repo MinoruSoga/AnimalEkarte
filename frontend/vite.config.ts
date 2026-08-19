@@ -43,7 +43,20 @@ function liffDevPlugin(): Plugin {
     name: 'liff-dev',
     configureServer(server) {
       server.middlewares.use((req, _res, next) => {
-        if (req.url?.startsWith('/liff') && !req.url.includes('.')) {
+        if (!req.url?.startsWith('/liff')) {
+          next();
+          return;
+        }
+
+        // line-reserve と同じく /liff/{clinicId}/src/main.tsx が 503 になる (BUG-017 / S12)。
+        const nestedAssetMatch = req.url.match(/^\/liff\/[^/]+\/(src\/.+)$/);
+        if (nestedAssetMatch) {
+          req.url = `/liff/${nestedAssetMatch[1]}`;
+          next();
+          return;
+        }
+
+        if (!req.url.includes('.')) {
           req.url = '/liff/index.html';
         }
         next();

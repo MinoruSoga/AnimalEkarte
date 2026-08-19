@@ -34,6 +34,17 @@ export function getCorrectableCardPayments(accounting: Accounting | null): Corre
   return [];
 }
 
+/** 締め済み日の新規/既存確定は理由入力か権限が無いと物理ブロックする（BUG-004）。 */
+export function isPostCloseSubmitBlocked(args: {
+  isScheduledDateClosed: boolean;
+  canPostCloseEdit: boolean;
+  postCloseReason: string;
+}): boolean {
+  if (!args.isScheduledDateClosed) return false;
+  if (!args.canPostCloseEdit) return true;
+  return args.postCloseReason.trim() === "";
+}
+
 export function isPaymentSubmitDisabled(
   billingAmount: number,
   paymentSplits: PaymentSplitDraft[],

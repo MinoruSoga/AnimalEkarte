@@ -18,6 +18,7 @@ const SEGMENT_TOTALS: Record<string, number> = {
   cpm_spot: 3,
   cpm_noah: 1,
   cpm_dormant: 20,
+  cpm_unclassified: 1,
 };
 
 describe('useGetCPMStageCounts (ISSUE-180)', () => {
@@ -69,7 +70,8 @@ describe('useGetCPMStageCounts (ISSUE-180)', () => {
     expect(result.current.counts.cpm_noah).toBe(1);
     expect(result.current.counts.cpm_encounter).toBe(5);
     expect(result.current.counts.cpm_dormant).toBe(20);
-    expect(result.current.total).toBe(83);
+    expect(result.current.counts.cpm_unclassified).toBe(1);
+    expect(result.current.total).toBe(84);
   });
 
   it('returns 0 for an empty segment without breaking', async () => {

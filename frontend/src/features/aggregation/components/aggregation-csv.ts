@@ -1,4 +1,4 @@
-import { CPM_STAGE_SHORT_LABELS } from "@/lib/cpm-stage";
+import { AGGREGATION_CPM_STAGE_SHORT_LABELS } from "@/lib/cpm-stage";
 
 import type { AggregationOwner } from "../api/get-aggregations";
 import type { AggregationTab } from "./aggregation-filter-panel-model";
@@ -42,7 +42,7 @@ const CSV_COMMON_COLUMNS: CsvColumnDef[] = [
   // 画面の一覧列 (AggregationOwnerTableColumns) と表示を揃える。
   {
     header: "cpm_stage",
-    getValue: (o) => (o.cpm_stage ? CPM_STAGE_SHORT_LABELS[o.cpm_stage] : ""),
+    getValue: (o) => (o.cpm_stage ? AGGREGATION_CPM_STAGE_SHORT_LABELS[o.cpm_stage] : ""),
   },
 ];
 

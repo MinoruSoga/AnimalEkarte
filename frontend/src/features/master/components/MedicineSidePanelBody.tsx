@@ -1,5 +1,6 @@
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 import Pill from "lucide-react/dist/esm/icons/pill";
+import { toast } from "sonner";
 
 import { MasterSidePanel } from "@/components/shared/SidePeek";
 import { LAYOUT } from "@/lib/design-tokens";
@@ -22,7 +23,7 @@ interface MedicineSidePanelBodyProps {
   defaultParentId?: string;
   categoryMedicines: Medicine[];
   onCloseEdit: () => void;
-  onSave: (data: MedicineFormData) => void;
+  onSave: (data: MedicineFormData) => Promise<boolean> | boolean;
   onDeleteRequest: () => void;
   readOnly?: boolean;
   canDelete?: boolean;
@@ -63,16 +64,25 @@ export const MedicineSidePanelBody = memo(function MedicineSidePanelBody({
       return;
     }
     setNameError("");
+    let saved = false;
     if (selectedMedicine) {
       const doseOk = (await doseParamsRef.current?.saveFilled()) ?? true;
-      if (!doseOk) return;
-      onSave(formData);
+      if (!doseOk) {
+        toast.error("投与量パラメータの入力内容を確認してください");
+        return;
+      }
+      saved = Boolean(await onSave(formData));
     } else {
       const drafts = await doseParamsRef.current?.collectFilled();
-      if (drafts === false) return;
-      onSave({ ...formData, doseParamDrafts: drafts ?? [] });
+      if (drafts === false) {
+        toast.error("投与量パラメータの入力内容を確認してください");
+        return;
+      }
+      saved = Boolean(await onSave({ ...formData, doseParamDrafts: drafts ?? [] }));
     }
-    setIsDirty(false);
+    if (saved) {
+      setIsDirty(false);
+    }
   }, [formData, onSave, selectedMedicine]);
 
   const handleTitleChange = useCallback((value: string) => {

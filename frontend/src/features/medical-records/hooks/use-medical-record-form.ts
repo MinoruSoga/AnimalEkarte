@@ -22,6 +22,7 @@ import { useMedicalRecordAutoCreate } from "./use-medical-record-auto-create";
 import { useMedicalRecordDiagnosisState } from "./use-medical-record-diagnosis-state";
 import { useMedicalRecordSaveAction } from "./use-medical-record-save-action";
 import { useMedicalRecordQuickPatchActions } from "./use-medical-record-quick-patch-actions";
+import { initialMedicalRecordTab } from "../routes/medical-record-form-model";
 import {
   DEFAULT_CHIEF_COMPLAINT,
   DEFAULT_TREATMENT_POLICY,
@@ -55,7 +56,9 @@ export function useMedicalRecordForm(recordId?: string) {
   const isNewRecord = !recordId;
   const { canCreate, canEdit } = usePermission("medical-records");
 
-  const [activeTab, setActiveTab] = useState("問診");
+  const [activeTab, setActiveTab] = useState(() =>
+    initialMedicalRecordTab(searchParams.get("tab")),
+  );
   const [visitType, setVisitType] = useState("再診");
   const [isCreating, startCreateTransition] = useTransition();
   const { manualErrors, setManualErrors } = useMedicalRecordManualErrors({ setActiveTab });

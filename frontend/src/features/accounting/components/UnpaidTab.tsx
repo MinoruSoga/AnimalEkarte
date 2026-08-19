@@ -12,7 +12,7 @@ import { C, STYLE } from "@/lib/design-tokens";
 import { paths } from "@/config/paths";
 import { formatCurrency } from "@/lib/format/number";
 import { formatDate } from "@/lib/format/date";
-import { daysSince, currentJSTYearMonth } from "@/lib/jst-date";
+import { daysSince, currentJSTYearMonth, currentJSTMonthDateRange } from "@/lib/jst-date";
 
 import {
   useGetUnpaidByOwner,
@@ -29,9 +29,10 @@ export function UnpaidTab() {
   const rawGroupBy = searchParams.get("group_by");
   const groupBy: GroupBy = rawGroupBy === "billing" ? "billing" : rawGroupBy === "monthly" ? "monthly" : "owner";
 
-  // #120: start_date/end_date 必須 — 両方揃うまでクエリは発火しない
-  const startDate = searchParams.get("start_date") ?? "";
-  const endDate = searchParams.get("end_date") ?? "";
+  // 未指定時は当月を既定にする。空のまま API を発火しないと「未納者はいません」と誤表示する (BUG-002)。
+  const monthRange = currentJSTMonthDateRange();
+  const startDate = searchParams.get("start_date") ?? monthRange.start;
+  const endDate = searchParams.get("end_date") ?? monthRange.end;
 
   // #114: month param (YYYY-MM), default は JST 当月
   const monthParam = searchParams.get("month") ?? currentJSTYearMonth();

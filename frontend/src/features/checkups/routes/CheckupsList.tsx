@@ -236,8 +236,9 @@ export function CheckupsList() {
     navigate(paths.checkups.selectPet.getHref());
   }, [navigate]);
 
-  const handleEdit = useCallback((medicalRecordId: string) => {
-    navigate(paths.medicalRecords.detail.getHref(medicalRecordId));
+  const handleEdit = useCallback((medicalRecordId: string, checkupId: string) => {
+    const params = new URLSearchParams({ tab: "定期健診", checkupId });
+    navigate(`${paths.medicalRecords.detail.getHref(medicalRecordId)}?${params.toString()}`);
   }, [navigate]);
 
   if (isLoading) return <LoadingFallback />;
@@ -288,7 +289,7 @@ export function CheckupsList() {
                 <TableCell className={C.text}>
                   {canView && c.medicalRecordId ? (
                     <DataTableRowLink
-                      to={paths.medicalRecords.detail.getHref(c.medicalRecordId)}
+                      to={`${paths.medicalRecords.detail.getHref(c.medicalRecordId)}?tab=${encodeURIComponent("定期健診")}&checkupId=${encodeURIComponent(c.id)}`}
                       aria-label={`カルテ詳細: ${c.petName || "-"} ${c.date || "-"} 健診ID ${c.id}`}
                     >
                       {c.petName || "-"}
@@ -309,7 +310,7 @@ export function CheckupsList() {
                 <TableCell className="text-right">
                   {canView && canEdit ? (
                     <RowActionButton
-                      onClick={() => handleEdit(c.medicalRecordId)}
+                      onClick={() => handleEdit(c.medicalRecordId, c.id)}
                       aria-label={`健診操作: ${c.petName || "-"} ${c.date || "-"} ID ${c.id}`}
                     />
                   ) : null}

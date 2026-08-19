@@ -243,6 +243,7 @@ export const VaccinationForm = memo(function VaccinationForm() {
             weight={selectedPet.weight ?? ""}
             // BUG-006: 対象ペットの年齢・性別・去勢避妊を渡し、固定デフォルトを使わない
             petDetails={formatPatientPetDetails({
+              species: selectedPet.species,
               birthDate: selectedPet.birthDate,
               gender: selectedPet.gender,
               neuteredDate: selectedPet.neuteredDate,

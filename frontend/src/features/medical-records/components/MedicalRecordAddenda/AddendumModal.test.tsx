@@ -49,6 +49,7 @@ describe("AddendumModal", () => {
       expect(screen.getByRole("alert")).toBeInTheDocument();
       expect(screen.getByText("修正理由は必須です")).toBeInTheDocument();
     });
+    expect(screen.getByLabelText(/修正内容/)).toHaveValue("内容あり");
   });
 
   it("reason 501 文字でバリデーションエラーを表示する", async () => {

@@ -200,6 +200,9 @@ describe("handleApiError 409 localization", () => {
     expect(localizeAlreadyExistsMessage("cage 'ICU-1' already exists")).toBe(
       "ケージ『ICU-1』は既に使用されています",
     );
+    expect(localizeAlreadyExistsMessage("lstep_condition_tag_mapping 'ckd' already exists")).toBe(
+      "慢性疾患コード『ckd』は既に使用されています",
+    );
   });
 
   it("shows Japanese message for cage name conflict code", () => {

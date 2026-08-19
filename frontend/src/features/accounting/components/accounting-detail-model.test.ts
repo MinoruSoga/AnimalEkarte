@@ -4,9 +4,44 @@ import {
   buildPaymentSplitRequests,
   createInitialPaymentSplits,
   getCorrectableCardPayments,
+  isPostCloseSubmitBlocked,
 } from "./accounting-detail-model";
 import type { PaymentSplitDraft } from "./PaymentCard";
 import type { Accounting } from "../types";
+
+describe("isPostCloseSubmitBlocked (BUG-004)", () => {
+  it("未締めなら理由なしでもブロックしない", () => {
+    expect(isPostCloseSubmitBlocked({
+      isScheduledDateClosed: false,
+      canPostCloseEdit: true,
+      postCloseReason: "",
+    })).toBe(false);
+  });
+
+  it("締め済みで権限なしは確定をブロックする", () => {
+    expect(isPostCloseSubmitBlocked({
+      isScheduledDateClosed: true,
+      canPostCloseEdit: false,
+      postCloseReason: "理由あり",
+    })).toBe(true);
+  });
+
+  it("締め済みで権限ありでも理由が空ならブロックする", () => {
+    expect(isPostCloseSubmitBlocked({
+      isScheduledDateClosed: true,
+      canPostCloseEdit: true,
+      postCloseReason: "  ",
+    })).toBe(true);
+  });
+
+  it("締め済み・権限あり・理由ありは通す", () => {
+    expect(isPostCloseSubmitBlocked({
+      isScheduledDateClosed: true,
+      canPostCloseEdit: true,
+      postCloseReason: "当日締め後の追加精算",
+    })).toBe(false);
+  });
+});
 
 describe("buildPaymentSplitRequests (#188 お釣り上書き payload 契約)", () => {
   it("現金・上書きなし: change を received-amount から派生し change_override=false", () => {
