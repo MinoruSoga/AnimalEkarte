@@ -17,7 +17,6 @@ type LabDeviceResolvedItem struct {
 	ValueShape      string
 	Unit            string
 	FieldName       string
-	DisplayName     string
 	ExamTypeFieldID uint64
 	ExamTypeID      uint64
 }
@@ -30,7 +29,6 @@ type LabDeviceMasterResolution struct {
 
 // UpdateLabDeviceItemMasterInput is the editable subset. Codes are not changed.
 type UpdateLabDeviceItemMasterInput struct {
-	DisplayName     string
 	Unit            string
 	ExamTypeFieldID *uint64
 	IsActive        bool
@@ -93,7 +91,6 @@ func (s *labDeviceItemMasterService) EnsureDefaults(ctx context.Context, clinicI
 			ClinicID:       clinicID,
 			SourceType:     string(item.SourceType),
 			DeviceItemCode: item.DeviceItemCode,
-			DisplayName:    item.DisplayName,
 			Unit:           item.Unit,
 			ValueShape:     item.ValueShape,
 			SortOrder:      item.SortOrder,
@@ -116,13 +113,6 @@ func (s *labDeviceItemMasterService) Update(
 	clinicID, id uint64,
 	input UpdateLabDeviceItemMasterInput,
 ) (*model.LabDeviceItemMaster, error) {
-	displayName := strings.TrimSpace(input.DisplayName)
-	if displayName == "" {
-		return nil, apperrors.WrapInvalidInput("display_name is required")
-	}
-	if len(displayName) > 100 {
-		return nil, apperrors.WrapInvalidInput("display_name is too long")
-	}
 	unit := strings.TrimSpace(input.Unit)
 	if len(unit) > 32 {
 		return nil, apperrors.WrapInvalidInput("unit is too long")
@@ -139,7 +129,6 @@ func (s *labDeviceItemMasterService) Update(
 		}
 	}
 	fields := map[string]any{
-		"display_name":       displayName,
 		"unit":               unit,
 		"is_active":          input.IsActive,
 		"exam_type_field_id": input.ExamTypeFieldID,
@@ -195,7 +184,6 @@ func (s *labDeviceItemMasterService) ResolveItems(
 			ValueShape:      row.ValueShape,
 			Unit:            row.Unit,
 			FieldName:       field.Name,
-			DisplayName:     row.DisplayName,
 			ExamTypeFieldID: field.ID,
 			ExamTypeID:      field.ExamTypeID,
 		})

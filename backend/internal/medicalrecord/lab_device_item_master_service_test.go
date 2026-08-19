@@ -43,6 +43,7 @@ func setupLabDeviceItemMasterTestDB(t *testing.T) *gorm.DB {
 		&model.ExamTypeField{},
 		&model.LabDeviceItemMaster{},
 	))
+	require.NoError(t, db.Exec(`ALTER TABLE lab_device_item_masters DROP COLUMN IF EXISTS display_name`).Error)
 	db.Exec("TRUNCATE TABLE lab_device_item_masters, exam_type_fields, exam_types CASCADE")
 	return db
 }
@@ -66,13 +67,16 @@ func TestLabDeviceItemMasterService_EnsureDefaultsAndIsolation(t *testing.T) {
 		}
 	}
 	require.NotNil(t, bun)
-	assert.Equal(t, "BUN", bun.DisplayName)
 	assert.Nil(t, bun.ExamTypeFieldID)
 
+	examA := &model.ExaminationType{ClinicID: clinicA, Name: "血液A"}
+	require.NoError(t, db.Create(examA).Error)
+	fieldA := &model.ExamTypeField{ClinicID: clinicA, ExamTypeID: examA.ID, Name: "BUN"}
+	require.NoError(t, db.Create(fieldA).Error)
 	_, err = svc.Update(ctx, clinicA, bun.ID, UpdateLabDeviceItemMasterInput{
-		DisplayName: "院内BUN",
-		Unit:        bun.Unit,
-		IsActive:    true,
+		Unit:            bun.Unit,
+		ExamTypeFieldID: &fieldA.ID,
+		IsActive:        true,
 	})
 	require.NoError(t, err)
 
@@ -82,7 +86,8 @@ func TestLabDeviceItemMasterService_EnsureDefaultsAndIsolation(t *testing.T) {
 	require.Len(t, items2, LabDeviceItemCatalogCount)
 	for _, item := range items2 {
 		if item.DeviceItemCode == "BUN-P" {
-			assert.Equal(t, "院内BUN", item.DisplayName, "ensure must not overwrite hospital display_name")
+			require.NotNil(t, item.ExamTypeFieldID)
+			assert.Equal(t, fieldA.ID, *item.ExamTypeFieldID, "ensure must not overwrite hospital exam_type_field_id")
 		}
 	}
 
@@ -91,8 +96,7 @@ func TestLabDeviceItemMasterService_EnsureDefaultsAndIsolation(t *testing.T) {
 	assert.Empty(t, other)
 
 	_, err = svc.Update(ctx, clinicB, bun.ID, UpdateLabDeviceItemMasterInput{
-		DisplayName: "stolen",
-		IsActive:    true,
+		IsActive: true,
 	})
 	require.Error(t, err)
 	assert.True(t, apperrors.IsNotFound(err))
@@ -125,7 +129,6 @@ func TestLabDeviceItemMasterService_UpdateAndResolve(t *testing.T) {
 	require.NoError(t, db.Create(fieldB).Error)
 
 	_, err = svc.Update(ctx, clinicA, bun.ID, UpdateLabDeviceItemMasterInput{
-		DisplayName:     "BUN",
 		Unit:            bun.Unit,
 		ExamTypeFieldID: &fieldB.ID,
 		IsActive:        true,
@@ -134,7 +137,6 @@ func TestLabDeviceItemMasterService_UpdateAndResolve(t *testing.T) {
 	assert.True(t, apperrors.IsInvalidInput(err))
 
 	updated, err := svc.Update(ctx, clinicA, bun.ID, UpdateLabDeviceItemMasterInput{
-		DisplayName:     "BUN",
 		Unit:            bun.Unit,
 		ExamTypeFieldID: &fieldA.ID,
 		IsActive:        true,
@@ -152,7 +154,6 @@ func TestLabDeviceItemMasterService_UpdateAndResolve(t *testing.T) {
 	require.NoError(t, AssertSingleExamType(res.Mapped))
 
 	cleared, err := svc.Update(ctx, clinicA, bun.ID, UpdateLabDeviceItemMasterInput{
-		DisplayName:     "BUN",
 		Unit:            bun.Unit,
 		ExamTypeFieldID: nil,
 		IsActive:        true,

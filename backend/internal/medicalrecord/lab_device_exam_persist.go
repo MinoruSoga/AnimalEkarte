@@ -125,9 +125,6 @@ func (s *labDeviceExamPersister) PersistLinkedJob(
 		}
 		name := mapped.FieldName
 		if name == "" {
-			name = mapped.DisplayName
-		}
-		if name == "" {
 			name = items[i].DeviceItemCode
 		}
 		unit := items[i].Unit

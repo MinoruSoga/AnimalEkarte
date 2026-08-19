@@ -38,6 +38,7 @@ func setupLabDeviceReceiveTest(t *testing.T) (*gorm.DB, LabDeviceReceiveService,
 		&model.LabDeviceStationSettings{},
 		&model.LabDeviceItemMaster{},
 	))
+	require.NoError(t, db.Exec(`ALTER TABLE lab_device_item_masters DROP COLUMN IF EXISTS display_name`).Error)
 	for _, value := range []string{"fuji_nx600", "fuji_au10v", "arkray_pu4010"} {
 		require.NoError(t, db.Exec(`ALTER TYPE lab_import_source_type ADD VALUE IF NOT EXISTS '`+value+`'`).Error)
 	}

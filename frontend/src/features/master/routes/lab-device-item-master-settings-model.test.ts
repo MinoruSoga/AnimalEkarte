@@ -9,13 +9,13 @@ import {
   collectDirtyLabDeviceUpdates,
   examFieldOptionsForItem,
   examFieldSelectValue,
-  filterLabDeviceRows,
   groupLabDeviceItemMasters,
   itemToLabDeviceDraft,
   itemsForLabDevice,
   labDeviceSourceLabel,
   labDeviceValueShapeLabel,
   parseExamFieldSelectValue,
+  parseLabDeviceSourceQuery,
   toLabDeviceRows,
   validateLabDeviceItemMasterDraft,
 } from "./lab-device-item-master-settings-model";
@@ -25,7 +25,6 @@ function item(overrides: Partial<LabDeviceItemMaster> = {}): LabDeviceItemMaster
     id: "1",
     sourceType: "fuji_nx600",
     deviceItemCode: "Na-P",
-    displayName: "Na",
     unit: "mEq/l",
     valueShape: "numeric",
     examTypeFieldId: null,
@@ -40,6 +39,12 @@ describe("lab-device-item-master-settings-model", () => {
     expect(labDeviceSourceLabel("fuji_nx600")).toBe("NX600");
     expect(labDeviceSourceLabel("unknown")).toBe("unknown");
     expect(labDeviceValueShapeLabel("qual_and_num")).toBe("定性+数値");
+  });
+
+  it("受信画面の source クエリで該当機器を開く", () => {
+    expect(parseLabDeviceSourceQuery("fuji_nx600")).toBe("fuji_nx600");
+    expect(parseLabDeviceSourceQuery("  ")).toBeNull();
+    expect(parseLabDeviceSourceQuery(null)).toBeNull();
   });
 
   it("検査種別フィールドを「種別 / 項目」の選択肢にする", () => {
@@ -87,33 +92,28 @@ describe("lab-device-item-master-settings-model", () => {
     expect(parseExamFieldSelectValue("21")).toBe("21");
   });
 
-  it("表示名空と不正な載せる先を拒否する", () => {
-    expect(validateLabDeviceItemMasterDraft({ displayName: "  ", examTypeFieldId: null })).toBe(
-      "表示名は必須です",
-    );
-    expect(validateLabDeviceItemMasterDraft({ displayName: "Na", examTypeFieldId: "abc" })).toBe(
+  it("不正な載せる先を拒否する", () => {
+    expect(validateLabDeviceItemMasterDraft({ examTypeFieldId: "abc" })).toBe(
       "載せる先が不正です",
     );
-    expect(validateLabDeviceItemMasterDraft({ displayName: "Na", examTypeFieldId: "21" })).toBeNull();
+    expect(validateLabDeviceItemMasterDraft({ examTypeFieldId: null })).toBeNull();
+    expect(validateLabDeviceItemMasterDraft({ examTypeFieldId: "21" })).toBeNull();
   });
 
-  it("更新リクエストはコードを送らず display_name / field / is_active だけを送る", () => {
+  it("更新リクエストはコードを送らず field / is_active だけを送る", () => {
     expect(
       buildLabDeviceItemMasterUpdateRequest({
-        displayName: " 尿糖 ",
         unit: "mg/dL",
         examTypeFieldId: "21",
         isActive: false,
       }),
     ).toEqual({
-      display_name: "尿糖",
       unit: "mg/dL",
       exam_type_field_id: 21,
       is_active: false,
     });
     expect(
       buildLabDeviceItemMasterUpdateRequest({
-        displayName: "Na",
         unit: "mEq/l",
         examTypeFieldId: null,
         isActive: true,
@@ -123,9 +123,9 @@ describe("lab-device-item-master-settings-model", () => {
 
   it("NX600 → AU10V → 尿の順でグループ化する", () => {
     const groups = groupLabDeviceItemMasters([
-      item({ id: "3", sourceType: "arkray_pu4010", deviceItemCode: "GLU", displayName: "尿糖" }),
-      item({ id: "2", sourceType: "fuji_au10v", deviceItemCode: "vf-SAA", displayName: "vf-SAA" }),
-      item({ id: "1", sourceType: "fuji_nx600", deviceItemCode: "Na-P", displayName: "Na" }),
+      item({ id: "3", sourceType: "arkray_pu4010", deviceItemCode: "GLU" }),
+      item({ id: "2", sourceType: "fuji_au10v", deviceItemCode: "vf-SAA" }),
+      item({ id: "1", sourceType: "fuji_nx600", deviceItemCode: "Na-P" }),
     ]);
     expect(groups.map((group) => group.sourceType)).toEqual([
       "fuji_nx600",
@@ -135,7 +135,7 @@ describe("lab-device-item-master-settings-model", () => {
     expect(groups[0]?.label).toBe("NX600");
   });
 
-  it("一覧は項目が空でも3機器を出し、未設定数と有効を集計する", () => {
+  it("一覧は項目が空でも3機器を出し、未設定数を集計する", () => {
     const rows = toLabDeviceRows([
       item({ id: "1", sourceType: "fuji_nx600", examTypeFieldId: null, isActive: true }),
       item({ id: "2", sourceType: "fuji_nx600", examTypeFieldId: "21", isActive: false }),
@@ -149,13 +149,12 @@ describe("lab-device-item-master-settings-model", () => {
       name: "NX600",
       itemCount: 2,
       unmappedCount: 1,
-      isActive: true,
     });
-    expect(rows[1]).toMatchObject({ name: "AU10V", itemCount: 0, unmappedCount: 0, isActive: true });
-    expect(rows[2]).toMatchObject({ name: "尿（PU-4010）", itemCount: 0, isActive: true });
+    expect(rows[1]).toMatchObject({ name: "AU10V", itemCount: 0, unmappedCount: 0 });
+    expect(rows[2]).toMatchObject({ name: "尿（PU-4010）", itemCount: 0 });
   });
 
-  it("未知の機器は末尾に出し、検索とステータスで絞り込む", () => {
+  it("未知の機器は末尾に出す", () => {
     const rows = toLabDeviceRows([
       item({ id: "9", sourceType: "other_device", isActive: false }),
     ]);
@@ -165,38 +164,31 @@ describe("lab-device-item-master-settings-model", () => {
       "arkray_pu4010",
       "other_device",
     ]);
-    expect(filterLabDeviceRows(rows, "尿", []).map((row) => row.sourceType)).toEqual(["arkray_pu4010"]);
-    expect(
-      filterLabDeviceRows(rows, "", [{ key: "status", condition: "is", value: "inactive", displayValue: "無効" }]).map(
-        (row) => row.sourceType,
-      ),
-    ).toEqual(["other_device"]);
   });
 
   it("機器の項目は sort_order で並べ、変更分だけ PATCH する", () => {
     const items = [
-      item({ id: "2", deviceItemCode: "K-P", displayName: "K", sortOrder: 20 }),
-      item({ id: "1", deviceItemCode: "Na-P", displayName: "Na", sortOrder: 10, examTypeFieldId: null }),
+      item({ id: "2", deviceItemCode: "K-P", sortOrder: 20 }),
+      item({ id: "1", deviceItemCode: "Na-P", sortOrder: 10, examTypeFieldId: null }),
     ];
     expect(itemsForLabDevice(items, "fuji_nx600").map((row) => row.id)).toEqual(["1", "2"]);
     const drafts = items.map(itemToLabDeviceDraft);
-    drafts[0] = { ...drafts[0]!, displayName: " カリウム " };
+    drafts[0] = { ...drafts[0]!, examTypeFieldId: "21" };
     expect(collectDirtyLabDeviceUpdates(items, drafts)).toEqual({
       error: null,
       updates: [
         {
           id: "2",
           req: {
-            display_name: "カリウム",
             unit: "mEq/l",
-            exam_type_field_id: null,
+            exam_type_field_id: 21,
             is_active: true,
           },
         },
       ],
     });
     expect(
-      collectDirtyLabDeviceUpdates(items, [{ ...itemToLabDeviceDraft(items[0]!), displayName: "  " }]).error,
-    ).toBe("K-P: 表示名は必須です");
+      collectDirtyLabDeviceUpdates(items, [{ ...itemToLabDeviceDraft(items[0]!), examTypeFieldId: "x" }]).error,
+    ).toBe("K-P: 載せる先が不正です");
   });
 });

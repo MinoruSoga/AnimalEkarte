@@ -9,7 +9,6 @@ export type LabDeviceItemMasterResponse = {
   id: number;
   source_type: string;
   device_item_code: string;
-  display_name: string;
   unit: string;
   value_shape: string;
   exam_type_field_id?: number | null;
@@ -23,7 +22,6 @@ export type LabDeviceItemMasterEnsureApiResponse = {
 };
 
 export type UpdateLabDeviceItemMasterRequest = {
-  display_name: string;
   unit: string;
   exam_type_field_id: number | null;
   is_active: boolean;
@@ -34,7 +32,6 @@ function transformLabDeviceItemMaster(data: LabDeviceItemMasterResponse) {
     id: String(data.id),
     sourceType: data.source_type,
     deviceItemCode: data.device_item_code,
-    displayName: data.display_name,
     unit: data.unit,
     valueShape: data.value_shape,
     examTypeFieldId:

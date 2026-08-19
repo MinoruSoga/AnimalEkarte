@@ -11,7 +11,6 @@ import (
 )
 
 type updateLabDeviceItemMasterRequest struct {
-	DisplayName     string  `json:"display_name" binding:"required"`
 	Unit            string  `json:"unit"`
 	ExamTypeFieldID *uint64 `json:"exam_type_field_id"`
 	IsActive        bool    `json:"is_active"`
@@ -19,7 +18,6 @@ type updateLabDeviceItemMasterRequest struct {
 
 func (r updateLabDeviceItemMasterRequest) toServiceInput() UpdateLabDeviceItemMasterInput {
 	return UpdateLabDeviceItemMasterInput{
-		DisplayName:     r.DisplayName,
 		Unit:            r.Unit,
 		ExamTypeFieldID: r.ExamTypeFieldID,
 		IsActive:        r.IsActive,
@@ -30,7 +28,6 @@ type labDeviceItemMasterResponse struct {
 	ID              uint64  `json:"id"`
 	SourceType      string  `json:"source_type"`
 	DeviceItemCode  string  `json:"device_item_code"`
-	DisplayName     string  `json:"display_name"`
 	Unit            string  `json:"unit"`
 	ValueShape      string  `json:"value_shape"`
 	ExamTypeFieldID *uint64 `json:"exam_type_field_id"`
@@ -48,7 +45,6 @@ func toLabDeviceItemMasterResponse(item *model.LabDeviceItemMaster) labDeviceIte
 		ID:              item.ID,
 		SourceType:      item.SourceType,
 		DeviceItemCode:  item.DeviceItemCode,
-		DisplayName:     item.DisplayName,
 		Unit:            item.Unit,
 		ValueShape:      item.ValueShape,
 		ExamTypeFieldID: item.ExamTypeFieldID,

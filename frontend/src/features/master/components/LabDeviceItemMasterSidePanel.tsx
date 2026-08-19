@@ -2,19 +2,13 @@ import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { FlaskConical } from "lucide-react";
 
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker/NavigationBlocker";
-import { PropertyInput, PropertyRow } from "@/components/shared/SidePeek";
+import { PropertyRow } from "@/components/shared/SidePeek";
 import { SidePeekBody } from "@/components/shared/SidePeek/SidePeekBody";
 import { SidePeekFooter } from "@/components/shared/SidePeek/SidePeekFooter";
 import { SidePeekPanel } from "@/components/shared/SidePeek/SidePeekPanel";
 import { SidePeekToolbar } from "@/components/shared/SidePeek/SidePeekToolbar";
 import { StatusPill } from "@/components/shared/StatusPill/StatusPill";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { C, LAYOUT, STYLE } from "@/lib/design-tokens";
 
 import type { LabDeviceItemMaster } from "../api/lab-device-item-masters";
@@ -156,6 +150,17 @@ function LabDeviceItemDraftFields({
   readOnly: boolean;
   onPatch: (id: string, patch: Partial<LabDeviceItemDraft>) => void;
 }) {
+  const selectOptions = [
+    { value: LAB_DEVICE_UNMAPPED_FIELD, label: "未設定" },
+    ...examFieldOptionsForItem(fieldOptions, draft.examTypeFieldId).map((option) => ({
+      value: option.id,
+      label: option.label,
+    })),
+  ];
+  const selectedLabel = draft.examTypeFieldId === null
+    ? "未設定"
+    : (selectOptions.find((option) => option.value === draft.examTypeFieldId)?.label ?? draft.examTypeFieldId);
+
   return (
     <section className={`py-3 border-b ${C.borderLight} last:border-b-0`}>
       <div className="flex items-baseline justify-between gap-3 px-2 mb-1">
@@ -165,43 +170,18 @@ function LabDeviceItemDraftFields({
           {item.unit ? ` · ${item.unit}` : ""}
         </span>
       </div>
-      <PropertyRow label="表示名">
-        {readOnly ? (
-          <span className={`text-sm ${C.text}`}>{draft.displayName}</span>
-        ) : (
-          <PropertyInput
-            value={draft.displayName}
-            onChange={(value) => onPatch(draft.id, { displayName: value })}
-            ariaLabel={`${item.deviceItemCode}の表示名`}
-          />
-        )}
-      </PropertyRow>
       <PropertyRow label="載せる先">
         {readOnly ? (
-          <span className={`text-sm ${C.text}`}>
-            {draft.examTypeFieldId === null
-              ? "未設定"
-              : (examFieldOptionsForItem(fieldOptions, draft.examTypeFieldId).find(
-                  (option) => option.id === draft.examTypeFieldId,
-                )?.label ?? draft.examTypeFieldId)}
-          </span>
+          <span className={`text-sm ${C.text}`}>{selectedLabel}</span>
         ) : (
-          <Select
+          <SearchableSelect
             value={examFieldSelectValue(draft.examTypeFieldId)}
             onValueChange={(value) => onPatch(draft.id, { examTypeFieldId: parseExamFieldSelectValue(value) })}
-          >
-            <SelectTrigger className={STYLE.selectCompact} aria-label={`${item.deviceItemCode}の載せる先`}>
-              <SelectValue placeholder="未設定" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={LAB_DEVICE_UNMAPPED_FIELD}>未設定</SelectItem>
-              {examFieldOptionsForItem(fieldOptions, draft.examTypeFieldId).map((option) => (
-                <SelectItem key={option.id} value={option.id}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            options={selectOptions}
+            searchPlaceholder="載せる先を検索..."
+            className={STYLE.selectCompact}
+            ariaLabel={`${item.deviceItemCode}の載せる先`}
+          />
         )}
       </PropertyRow>
       <PropertyRow label="ステータス">

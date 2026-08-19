@@ -59,7 +59,7 @@ func TestListLabDeviceItemMasters_OK(t *testing.T) {
 			assert.Equal(t, "fuji_nx600", sourceType)
 			return []model.LabDeviceItemMaster{{
 				ID: 9, ClinicID: 1, SourceType: "fuji_nx600", DeviceItemCode: "Na-P",
-				DisplayName: "Na", ValueShape: model.LabDeviceValueShapeNumeric, IsActive: true,
+				ValueShape: model.LabDeviceValueShapeNumeric, IsActive: true,
 			}}, nil
 		},
 	})
@@ -74,6 +74,7 @@ func TestListLabDeviceItemMasters_OK(t *testing.T) {
 	require.Len(t, body, 1)
 	assert.Equal(t, "Na-P", body[0].DeviceItemCode)
 	assert.NotContains(t, w.Body.String(), "legacy")
+	assert.NotContains(t, w.Body.String(), "display_name")
 }
 
 func TestEnsureLabDeviceItemMasters_OK(t *testing.T) {
@@ -81,7 +82,7 @@ func TestEnsureLabDeviceItemMasters_OK(t *testing.T) {
 	h := newDeviceMasterHandler(&mockLabDeviceItemMasterService{
 		ensureFn: func(_ context.Context, clinicID uint64) (int64, []model.LabDeviceItemMaster, error) {
 			assert.Equal(t, uint64(1), clinicID)
-			return 25, []model.LabDeviceItemMaster{{ID: 1, DeviceItemCode: "Na-P", DisplayName: "Na"}}, nil
+			return 25, []model.LabDeviceItemMaster{{ID: 1, DeviceItemCode: "Na-P"}}, nil
 		},
 	})
 	w := httptest.NewRecorder()
@@ -108,7 +109,7 @@ func TestUpdateLabDeviceItemMaster_InvalidField(t *testing.T) {
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
 	c.Request = httptest.NewRequest(http.MethodPatch, "/api/v1/lab-device-item-masters/4",
-		jsonBody(map[string]any{"display_name": "BUN", "unit": "mg/dl", "is_active": true, "exam_type_field_id": 99}))
+		jsonBody(map[string]any{"unit": "mg/dl", "is_active": true, "exam_type_field_id": 99}))
 	c.Request.Header.Set("Content-Type", "application/json")
 	c.Params = gin.Params{{Key: "id", Value: "4"}}
 	setClinicID(c)

@@ -1,6 +1,3 @@
-import type { ActiveFilter } from "@/components/shared/PropertyFilter/types";
-import { normalizedIncludes } from "@/lib/normalize-kana";
-
 import type {
   LabDeviceItemMaster,
   UpdateLabDeviceItemMasterRequest,
@@ -46,12 +43,10 @@ export type LabDeviceRow = {
   name: string;
   itemCount: number;
   unmappedCount: number;
-  isActive: boolean;
 };
 
 export type LabDeviceItemDraft = {
   id: string;
-  displayName: string;
   examTypeFieldId: string | null;
   isActive: boolean;
 };
@@ -62,6 +57,11 @@ export function labDeviceSourceLabel(sourceType: string): string {
 
 export function labDeviceValueShapeLabel(valueShape: string): string {
   return LAB_DEVICE_VALUE_SHAPE_LABELS[valueShape] ?? valueShape;
+}
+
+export function parseLabDeviceSourceQuery(value: string | null): string | null {
+  const source = value?.trim() ?? "";
+  return source === "" ? null : source;
 }
 
 export function buildExamFieldOptions(
@@ -97,12 +97,8 @@ export function parseExamFieldSelectValue(value: string): string | null {
 }
 
 export function validateLabDeviceItemMasterDraft(input: {
-  displayName: string;
   examTypeFieldId: string | null;
 }): string | null {
-  if (!input.displayName.trim()) {
-    return "表示名は必須です";
-  }
   if (input.examTypeFieldId !== null) {
     const id = Number(input.examTypeFieldId);
     if (!Number.isInteger(id) || id <= 0) {
@@ -113,13 +109,11 @@ export function validateLabDeviceItemMasterDraft(input: {
 }
 
 export function buildLabDeviceItemMasterUpdateRequest(input: {
-  displayName: string;
   unit: string;
   examTypeFieldId: string | null;
   isActive: boolean;
 }): UpdateLabDeviceItemMasterRequest {
   return {
-    display_name: input.displayName.trim(),
     unit: input.unit,
     exam_type_field_id: input.examTypeFieldId === null ? null : Number(input.examTypeFieldId),
     is_active: input.isActive,
@@ -160,7 +154,6 @@ function toLabDeviceRow(sourceType: string, list: LabDeviceItemMaster[]): LabDev
     name: labDeviceSourceLabel(sourceType),
     itemCount: list.length,
     unmappedCount: list.filter((item) => item.examTypeFieldId === null).length,
-    isActive: list.length === 0 || list.some((item) => item.isActive),
   };
 }
 
@@ -184,44 +177,16 @@ export function itemsForLabDevice(
     .sort((left, right) => left.sortOrder - right.sortOrder || left.deviceItemCode.localeCompare(right.deviceItemCode));
 }
 
-export function filterLabDeviceRows(
-  rows: LabDeviceRow[],
-  searchTerm: string,
-  filters: ActiveFilter[],
-): LabDeviceRow[] {
-  const term = searchTerm.trim();
-  return rows.filter((row) => {
-    if (term && !normalizedIncludes(row.name, term) && !normalizedIncludes(row.sourceType, term)) {
-      return false;
-    }
-    for (const filter of filters) {
-      if (filter.key !== "status" || typeof filter.value !== "string") {
-        continue;
-      }
-      const wantActive = filter.value === "active";
-      if (filter.condition === "is" && row.isActive !== wantActive) {
-        return false;
-      }
-      if (filter.condition === "is_not" && row.isActive === wantActive) {
-        return false;
-      }
-    }
-    return true;
-  });
-}
-
 export function itemToLabDeviceDraft(item: LabDeviceItemMaster): LabDeviceItemDraft {
   return {
     id: item.id,
-    displayName: item.displayName,
     examTypeFieldId: item.examTypeFieldId,
     isActive: item.isActive,
   };
 }
 
 export function isLabDeviceItemDraftDirty(item: LabDeviceItemMaster, draft: LabDeviceItemDraft): boolean {
-  return item.displayName !== draft.displayName.trim()
-    || item.examTypeFieldId !== draft.examTypeFieldId
+  return item.examTypeFieldId !== draft.examTypeFieldId
     || item.isActive !== draft.isActive;
 }
 
@@ -246,7 +211,6 @@ export function collectDirtyLabDeviceUpdates(
     updates.push({
       id: draft.id,
       req: buildLabDeviceItemMasterUpdateRequest({
-        displayName: draft.displayName,
         unit: item.unit,
         examTypeFieldId: draft.examTypeFieldId,
         isActive: draft.isActive,

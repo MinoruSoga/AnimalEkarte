@@ -109,7 +109,6 @@ func seedMappedField(t *testing.T, db *gorm.DB, clinicID uint64, sourceType, cod
 	require.NoError(t, db.Where("clinic_id = ? AND source_type = ? AND device_item_code = ?", clinicID, sourceType, code).
 		First(&row).Error)
 	_, err = masters.Update(ctx, clinicID, row.ID, UpdateLabDeviceItemMasterInput{
-		DisplayName:     row.DisplayName,
 		Unit:            row.Unit,
 		ExamTypeFieldID: &field.ID,
 		IsActive:        true,

@@ -1,5 +1,5 @@
-import { useCallback, useMemo, useState } from "react";
-import { useNavigate } from "react-router";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router";
 import { FlaskConical } from "lucide-react";
 import { toast } from "sonner";
 
@@ -12,10 +12,7 @@ import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { DataTableRowButton } from "@/components/shared/DataTable/DataTableRowButton";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
-import { PropertyFilter } from "@/components/shared/PropertyFilter/PropertyFilter";
-import type { ActiveFilter } from "@/components/shared/PropertyFilter/types";
 import { RowActionButton } from "@/components/shared/RowActionButton";
-import { StatusPill } from "@/components/shared/StatusPill/StatusPill";
 import { TableCell } from "@/components/ui/table";
 import { paths } from "@/config/paths";
 import { usePermission } from "@/hooks/use-permission";
@@ -30,11 +27,11 @@ import {
   useUpdateLabDeviceItemMaster,
 } from "../api/lab-device-item-masters";
 import { LabDeviceItemMasterSidePanel } from "../components/LabDeviceItemMasterSidePanel";
-import { MASTER_STATUS_FILTER, MASTER_TABLE_COL } from "../constants/styles";
+import { MASTER_TABLE_COL } from "../constants/styles";
 import {
   collectDirtyLabDeviceUpdates,
-  filterLabDeviceRows,
   itemsForLabDevice,
+  parseLabDeviceSourceQuery,
   toLabDeviceRows,
   type LabDeviceItemDraft,
   type LabDeviceRow,
@@ -44,32 +41,34 @@ const COLUMNS = [
   { header: "機器", className: "flex-1" },
   { header: "項目数", className: MASTER_TABLE_COL.w100, align: "center" as const },
   { header: "未設定", className: MASTER_TABLE_COL.w100, align: "center" as const },
-  { header: "ステータス", className: MASTER_TABLE_COL.w100, align: "center" as const },
   { header: "操作", className: MASTER_TABLE_COL.w80, align: "right" as const },
 ];
 
 export function LabDeviceItemMasterSettings() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { canEdit } = usePermission(ResourceLabImport);
   const { data: items = [] } = useGetLabDeviceItemMasters();
   const { data: examTypes = [] } = useGetAllExaminationTypes();
   const updateMutation = useUpdateLabDeviceItemMaster();
   const ensureMutation = useEnsureLabDeviceItemMasters();
   const dirty = useSidePeekDirty();
-  const [searchTerm, setSearchTerm] = useState("");
-  const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
-  const [selectedSource, setSelectedSource] = useState<string | null>(null);
+  const sourceFromQuery = parseLabDeviceSourceQuery(searchParams.get("source"));
+  const fromBoard = searchParams.get("from") === "board";
+  const [selectedSource, setSelectedSource] = useState<string | null>(sourceFromQuery);
 
   const rows = useMemo(() => toLabDeviceRows(items), [items]);
-  const filteredRows = useMemo(
-    () => filterLabDeviceRows(rows, searchTerm, activeFilters),
-    [rows, searchTerm, activeFilters],
-  );
   const selectedRow = rows.find((row) => row.sourceType === selectedSource) ?? null;
   const selectedItems = useMemo(
     () => (selectedSource === null ? [] : itemsForLabDevice(items, selectedSource)),
     [items, selectedSource],
   );
+
+  useEffect(() => {
+    if (sourceFromQuery !== null) {
+      setSelectedSource(sourceFromQuery);
+    }
+  }, [sourceFromQuery]);
 
   const handleDirtyChange = useCallback((nextDirty: boolean) => {
     if (nextDirty) {
@@ -84,7 +83,12 @@ export function LabDeviceItemMasterSettings() {
       return;
     }
     setSelectedSource(null);
-  }, [dirty]);
+    if (searchParams.has("source")) {
+      const next = new URLSearchParams(searchParams);
+      next.delete("source");
+      setSearchParams(next, { replace: true });
+    }
+  }, [dirty, searchParams, setSearchParams]);
 
   const handleEdit = useCallback((row: LabDeviceRow) => {
     if (!dirty.confirmDiscard()) {
@@ -150,21 +154,17 @@ export function LabDeviceItemMasterSettings() {
           }
         >
           <div className="flex flex-col gap-4">
-            <PropertyFilter
-              properties={[MASTER_STATUS_FILTER]}
-              activeFilters={activeFilters}
-              onFilterChange={setActiveFilters}
-              searchTerm={searchTerm}
-              onSearchChange={setSearchTerm}
-              searchPlaceholder="機器名で検索..."
-              count={filteredRows.length}
-            />
+            {fromBoard ? (
+              <Link to={paths.labDevice.getHref()} className={`text-sm underline ${C.text}`}>
+                検査受信へ戻る
+              </Link>
+            ) : null}
             <DataTable
               headerRowClassName={DESIGN_TABLE_HEADER_ROW}
               headerCellClassName={DESIGN_TABLE_HEADER_CELL}
               columns={COLUMNS}
-              data={filteredRows}
-              emptyMessage="該当する機器がありません"
+              data={rows}
+              emptyMessage="機器がありません"
               renderRow={(row) => (
                 <DataTableRow key={row.id}>
                   <TableCell className={`font-medium ${C.text}`}>
@@ -177,9 +177,6 @@ export function LabDeviceItemMasterSettings() {
                   </TableCell>
                   <TableCell className={`text-center ${C.text}`}>{row.itemCount}</TableCell>
                   <TableCell className={`text-center ${C.text}`}>{row.unmappedCount}</TableCell>
-                  <TableCell className="text-center">
-                    <StatusPill isActive={row.isActive} />
-                  </TableCell>
                   <TableCell className="text-right">
                     <RowActionButton
                       onClick={() => handleEdit(row)}

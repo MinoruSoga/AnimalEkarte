@@ -21,6 +21,11 @@ export function labDeviceHasUnmapped(card: LabDeviceJobCard): boolean {
   return card.unmappedItemCount > 0 || card.items.some((item) => item.needsReview);
 }
 
+export function labDeviceUnmappedMasterHref(sourceType: string): string {
+  const params = new URLSearchParams({ source: sourceType, from: "board" });
+  return `/settings/lab-device-item-masters?${params.toString()}`;
+}
+
 export function labDevicePortStorageKey(slotKey: string): string {
   return `lab-device-port:${slotKey}`;
 }

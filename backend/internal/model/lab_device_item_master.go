@@ -18,7 +18,6 @@ type LabDeviceItemMaster struct {
 	ClinicID        uint64    `gorm:"not null;uniqueIndex:uq_lab_device_item_masters_clinic_source_code" json:"clinic_id"`
 	SourceType      string    `gorm:"type:varchar(32);not null;uniqueIndex:uq_lab_device_item_masters_clinic_source_code" json:"source_type"`
 	DeviceItemCode  string    `gorm:"type:varchar(64);not null;uniqueIndex:uq_lab_device_item_masters_clinic_source_code" json:"device_item_code"`
-	DisplayName     string    `gorm:"type:varchar(100);not null" json:"display_name"`
 	Unit            string    `gorm:"type:varchar(32);not null;default:''" json:"unit"`
 	ValueShape      string    `gorm:"type:varchar(32);not null" json:"value_shape"`
 	ExamTypeFieldID *uint64   `gorm:"column:exam_type_field_id" json:"exam_type_field_id,omitempty"`

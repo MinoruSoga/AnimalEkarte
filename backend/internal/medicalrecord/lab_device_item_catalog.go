@@ -3,8 +3,7 @@ package medicalrecord
 import "github.com/animal-ekarte/backend/internal/model"
 
 // labDeviceItemCatalogRow is the embedded 城東観測カタログ (25 rows).
-// DisplayName is the screen default from device-item-master.md candidates.
-// The CSV legacy_name_candidate column is not stored.
+// DisplayName is a seed hint only. It is not written to the database.
 type labDeviceItemCatalogRow struct {
 	SourceType     model.LabImportSourceType
 	DeviceItemCode string

@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
+import { Link } from "react-router";
 import { toast } from "sonner";
 
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
@@ -26,6 +27,7 @@ import {
   labDeviceCardTitle,
   labDeviceHasUnmapped,
   labDeviceSlotListenLabel,
+  labDeviceUnmappedMasterHref,
 } from "../lib/lab-device-board-model";
 import { bytesToBase64, requestLabDevicePort } from "../lib/lab-device-serial";
 
@@ -58,12 +60,26 @@ function JobCardView({
             {" "}
             {item.valueRaw}
             {item.unit ? ` ${item.unit}` : ""}
-            {item.needsReview ? " · 未対応" : ""}
+            {item.needsReview ? (
+              <>
+                {" · "}
+                <Link
+                  to={labDeviceUnmappedMasterHref(card.sourceType)}
+                  className="underline"
+                >
+                  未対応
+                </Link>
+              </>
+            ) : null}
           </li>
         ))}
       </ul>
       {labDeviceHasUnmapped(card) ? (
-        <p className={`text-sm ${C.textRed700}`}>未対応項目があります。マスタの該当行を直してから付け直してください。</p>
+        <p className={`text-sm ${C.textRed700}`}>
+          <Link to={labDeviceUnmappedMasterHref(card.sourceType)} className="underline">
+            未対応項目があります。該当機器のマスタを直してください
+          </Link>
+        </p>
       ) : null}
       <div className="flex gap-2">
         {onDetach && canEdit ? (

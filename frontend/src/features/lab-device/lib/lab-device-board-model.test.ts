@@ -8,6 +8,7 @@ import {
   labDeviceListenState,
   labDeviceSlotListenLabel,
   labDeviceSourceLabel,
+  labDeviceUnmappedMasterHref,
 } from "./lab-device-board-model";
 
 const card = (patch: Partial<LabDeviceJobCard> = {}): LabDeviceJobCard => ({
@@ -28,6 +29,12 @@ describe("lab-device-board-model", () => {
     expect(labDeviceSourceLabel("fuji_au10v")).toBe("AU10V");
     expect(labDeviceSourceLabel("arkray_pu4010")).toBe("PU-4010");
     expect(labDeviceCardTitle(card({ deviceHint: "" }))).toBe("AU10V");
+  });
+
+  it("opens the matching device side panel from an unmapped chip", () => {
+    expect(labDeviceUnmappedMasterHref("fuji_nx600")).toBe(
+      "/settings/lab-device-item-masters?source=fuji_nx600&from=board",
+    );
   });
 
   it("flags unmapped or needs-review cards", () => {
