@@ -21,7 +21,7 @@
 | 3 | 親 owner group を前提に、両医院の対象ペットを選び「ペットをリンク」 | pet group 作成成功。actor が親 owner の全医院をカバーしていない場合は Forbidden でゼロ書き込み |
 | 4 | 選択ペットの「連携履歴」を押す | `include_linked` で相関ペットの治療履歴（または「（履歴なし）」）が表示される。他 clinic の非リンクペットは出ない |
 | 5 | 意図的に誤ったペット組み合わせで link した場合、メンバー unlink | soft-delete。最終メンバー unlink 時は group soft-delete。audit に unlink（IDs のみ） |
-| 6 | 正しいペット組み合わせで relink | 新規 pet group 作成または既存への add。idempotent retry は二重作成しない |
+| 6 | 正しいペット組み合わせで relink | Phase 1 UI は `POST /pet-groups` のみ。最終メンバー unlink 後は group が soft-delete されるので relink は **新規 group**。既存へ add するボタンは無い |
 | 7 | view のみ権限の別アカウントで同 URL を開く | 閲覧可・link/unlink ボタン非表示。mutation API 直叩きは 403 |
 | 8 | 親 owner group anchor 医院に所属しないアカウントで CreatePetGroup を試す | 403 Forbidden。DB に pet group / members / audit が増えないこと |
 

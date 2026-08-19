@@ -21,15 +21,17 @@
 | 3 | 別の項目に基準値下限未満の値を入力して保存・再読込 | **LOW** バッジとして **status-blue**（`C.textStatusBlue` / `C.bgStatusBlueLight`）でハイライト。仕様 13 の teal 表記とは実装トークンが異なる |
 | 4 | 基準値ちょうど（Min または Max と同値）を入力して保存・再読込 | **正常扱い**（`computeExamResultStatus` / `assessExamResult` は inclusive range: `v < min` → low、`v > max` → high） |
 | 5 | 基準値範囲内の値を入力して保存・再読込 | ハイライトなし（normal・通常表示） |
-| 6 | 検査記録のステータスドロップダウンから「確定」を**選択して保存**する（独立確定ボタンは無い）。保存成功後に一覧へ戻り、当該検査を再度開く | **ドラフトで「確定」を選んだだけではロックしない**（保存 UI は残る — A-S02-01）。**サーバに confirmed が保存された後**、再オープン時にステータス/項目が無効化され保存ボタンが消える（[13 §2.1](../../../spec/screens/13-examinations-form.md)） |
-| 7 | 確定済み（サーバ status=確定 / `confirmed`）の検査を開き、測定値の変更・保存を試行する | 編集がロックされ変更を保存できない。FE の persisted lock ＋ BE の confirmed 拒否の二重ガード。※専用権限 `examination_unconfirm` がある場合のみ「確定解除」UI（`ExaminationUnconfirmDialog`）が出る — 本手順では通常 edit のみでロックを確認 |
+| 6 | 検査を「完了」にして保存し、再オープンする | `completed` かつ revision 無しは結果・削除を封印する（完了シール）。保存ボタンは消える。ステータスを「確定」に変えると保存 UI が一時的に戻る |
+| 6b | ステータスドロップダウンから「確定」を**選択して保存**する（独立確定ボタンは無い）。一覧へ戻り再度開く | **ドラフトで「確定」を選んだだけではロックしない**。**サーバに confirmed が保存された後**、再オープン時にステータス/項目が無効化され保存ボタンが消える（[13 §2.1](../../../spec/screens/13-examinations-form.md)） |
+| 7 | 確定済み（サーバ status=確定 / `confirmed`）の検査を開き、測定値の変更・保存を試行する | 編集がロックされ変更を保存できない。FE の persisted lock ＋ BE の confirmed 拒否の二重ガード。確定解除 UI は `examination-unconfirm:edit` があるときだけ（`ExaminationUnconfirmDialog`）。通常 edit では出ない |
+| 7b | `examination-unconfirm:edit` 付きアカウントで確定解除（理由 1〜500 字）→ 印刷 | `POST /examinations/:id/unconfirm` が成功し再編集できる。印刷は `GET /examinations/:id/print-snapshot`（confirmed は official、それ以外は draft 透かし） |
 | 8 | seed 003_demo の「閲覧専用」権限グループを割り当てたスタッフでログインし、確定操作・結果入力を試行する | examinations の view は許可されるためフォーム・ステータス・結果項目は表示されるが、フォーム全体が無効化され保存ボタンは表示されない（[13 概要](../../../spec/screens/13-examinations-form.md)）。【要実測】実ブラウザで値を変更・保存できないこと。**runtime 2026-08-01 BLOCKED**: 第2アカウント（閲覧専用）未用意 |
 
 ## 確認観点
 
 - 異常値判定はバックエンド（`backend/internal/medicalrecord/examination_service.go` の `computeExamResultStatus` → `assessExamResult`）に集約。フロント（`ExamItemsTable`）は `status` / `isAssessed` / `isAbnormal` の表示専任（再計算しない）。
 - 基準値未設定・未評価時は **未判定** バッジ（sr-only「基準値未設定のため判定していない」）。HIGH/LOW は `isAssessed` かつ status high/low のときのみ。
-- 確定ロックはフロントの persisted confirmed ロック + バックエンド拒否の二重ガード。確定解除は別リソース権限（通常 edit では不可）。
+- ロックは二段: `confirmed` は全ロック。`completed` かつ `current_revision_version == nil` は結果・削除シール。確定解除は `examination-unconfirm`（ハイフン）。通常 edit では不可。
 - カルテ詳細の「検査」タブと検査一覧の結果がリアルタイムに同期すること（[12 §2](../../../spec/screens/12-examinations-list.md)）。
 - 検査一覧の進捗フィルタ（依頼中/検査中/結果入力済み/完了/確定）の全 5 ステータスで、現在取得済みのページ内から対象検査が正しく抽出できること（BE enum: pending/in_progress/result_entered/completed/confirmed。フィルタはクライアント側適用 — [12 §1.1](../../../spec/screens/12-examinations-list.md)）。
 - **observed FAIL / DEFER（2026-08-01 browser）**: 検査詳細で基準値文字列（例 WBC「55～195」）は表示されるが判定は常に『未判定』— 異常値入力でも HIGH/LOW 未発火。犬猫切替の基準値次元は未証明（【要実測】残）。実装上はマスタ基準値が解決されないと `is_assessed=false` になる。

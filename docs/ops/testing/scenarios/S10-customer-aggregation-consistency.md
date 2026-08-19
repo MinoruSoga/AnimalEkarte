@@ -36,11 +36,12 @@
 ## 確認観点
 
 - **LTV と来院回数の対象分離**: LTV は医院・飼主が一致する完了（completed）会計を `billings` から集計し、`medical_record_id` のない手動会計も含む（`ltv_repository.go` の ba サブクエリ）。期間判定は `COALESCE(bmr.date, b.scheduled_date)`。payments 集計は **billings.clinic_id で scope**（BUG-012）。来院回数・最終来院日は論理削除されていない `medical_records` の診療日だけを数え、手動会計では増えない。見積（estimates）は売上に算入されない。
-- **タイムアウト境界（BUG-012）**: BE `ListOwnerAggregation` は `aggregationQueryTimeout = 20s`（`backend/internal/lstep/aggregation_service.go`）。FE axios は一覧・CPM 人数とも `timeout: 25_000`（`get-aggregations.ts` / `get-cpm-stage-counts.ts`）。無限 loading は不具合、タイムアウト後のエラー表示は正常。
+- **タイムアウト境界（BUG-012）**: BE `ListOwnerAggregation` は `aggregationQueryTimeout = 20s`。FE axios は一覧・CPM 人数とも `timeout: 25_000`。無限 loading は不具合、タイムアウト後のエラー表示は正常。
+- **CPM チップ**: 画面は V1 の 6 区分 + `cpm_unclassified` の **7 並列**（`AGGREGATION_CPM_STAGES`）。医院設定が V2 でもこの一覧は切り替わらない。「すべて」= 7 区分の合計。
 - **最終来院区分の境界**: 90/180/365 日は `ltv_repository.go` の SQL 固定値。区分は within_3m / over_3m / over_6m / over_1y / no_visit（「3ヶ月未満／3ヶ月以上／6ヶ月以上／1年以上／来院なし」）。
-- **並行ロード**: CPM チップ（6 並列 total クエリ）と一覧テーブルは別クエリで非同期取得される。片方が先に表示される瞬間があっても不具合ではない。
+- **並行ロード**: CPM チップ（**7 並列** total クエリ = 6 区分 + `cpm_unclassified`）と一覧テーブルは別クエリで非同期取得される。片方が先に表示される瞬間があっても不具合ではない。
 - **CPM「Dormant」チップとの区別**: CPM 休眠は `cpm_v1_dormant_days`（既定 240 日）の別軸。#8 の「1年以上」（365 日固定）と件数不一致は不具合ではない。
-- **CPM チップの固定**: チップは CPM V1 の 6 区分に固定で、医院設定の CPM バージョンが V2 でも切り替わらない（仕様正本 36 §1.2）。
+- **CPM チップの固定**: 画面チップは V1 の 6 区分 + Unclassified。医院設定の CPM バージョンが V2 でもこの一覧は切り替わらない（仕様正本 36 §1.2）。
 - **来院なしの扱い**: 最終来院タブの「来院なしを含む」と `no_visit` は「1年以上」とは別分類。#8 の絞り込みで混入しないこと。
 - **clinic_id 隔離**: 集計 API は `GET /api/v1/clinics/:clinic_id/owners/aggregations`（lstep ドメイン）。クリニック切替で他院の飼主が混入しないこと。
 

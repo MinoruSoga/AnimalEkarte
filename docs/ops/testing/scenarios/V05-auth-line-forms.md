@@ -79,7 +79,7 @@
 
 | # | 操作 | 期待結果 |
 |:--|:--|:--|
-| 1 | clinicId または linkToken を欠いた URL で起動 | 無効 URL 表示となり、連携は実行されない |
+| 1 | clinicId または linkToken を欠いた URL で起動 | 無効 URL 表示となり、連携は実行されない。`/liff/{clinicId}/` は Vite rewrite 必須。無いと `/liff/{clinicId}/src/main.tsx` が 503 で白紙（BUG-017） |
 | 2 | 有効な連携 URL で起動 | 連携成功表示。飼い主に LINE が紐づく（Identity Mapping — [line/architecture.md §2](../../../spec/line/architecture.md)）。院内 `/owners/:id` の LINE 連携セクション（V05-11）にも反映される |
 | 3 | 連携済みの状態で再度同じ連携を実行 | 409「すでに連携済み」の専用表示となり、二重紐付けされない（C3(b) 相当） |
 | 4 | 無効・期限切れの linkToken で起動 | 400 系のトークン無効/期限切れ表示となり、連携されない |
@@ -93,7 +93,7 @@
 | 1 | コース選択肢を確認。院内の予約区分マスタで新規区分を公開 → 再表示 | マスタで公開設定された区分のみ表示され、追加分が反映される（[reservation-spec.md §2](../../../spec/line/reservation-spec.md)・C3(a)） |
 | 2 | 【代表・無効化マスタ】予約作成後にそのコース区分を無効化 → 飼い主側と院内を再確認 | **一覧は inactive を除外**（GetCourses が !IsActive を skip）。確定 POST も inactive 拒否。既存予約表示は継続 |
 | 3 | お名前・電話番号をスペースのみにして次へ | エラーが表示され進めない（FE: trim 後の非空必須） |
-| 4 | 電話番号に数字以外（`abc`）を入力して進める | **形式拒否なし（2026-08-01 コード実測）**。FE `CustomerInfoPage.tsx` は `phone.trim()` 非空のみ。BE `liff_validation.go` は customer_fields 各 string ≤500 のみで phone 形式検証なし。`type=tel` に pattern なし。数字以外でも FE 次へ・BE 受理し得る（院内保存値の目視は LIFF 確定パス依存） |
+| 4 | 電話番号に数字以外（`abc`）を入力して進める | FE `CustomerInfoPage.validate` が `^0\d{1,4}-?\d{1,4}-?\d{4}$` で拒否し「電話番号の形式が正しくありません」。次へ進めない |
 | 5 | 新規ペット追加でペット名を空のまま追加 | エラーが表示され追加できない（名前非空必須）。既存紐付けペットが 1 頭なら自動選択される（`CustomerInfoPage.tsx`）。既存ペット選択肢は飼い主の実データ由来（C3(a)） |
 | 6 | ご要望メモに 1001 文字を入力して確定（境界: 1000 文字は成功） | 拒否され保存されない（BE: request_text ≤1000 文字 — `backend/internal/reservation/liff_validation.go`） |
 | 7 | 正常フローで確定 | 完了表示。院内 `/reservations` に source=line で自動反映（[reservation-spec.md §1](../../../spec/line/reservation-spec.md)・C2 相当）。マイ予約一覧にも表示される。LINE 完了通知の実配信はローカルでは観測対象外（同 §5） |
@@ -161,7 +161,7 @@ clinic 単位 1 レコードの PATCH（C3(b) は UI 上到達不能）。フィ
 
 | # | 操作 | 期待結果 |
 |:--|:--|:--|
-| 1 | 閾値数値・LIFF ID・ベース URL を変更して C2 一式 | 永続し、再オープンで保存値が初期表示される |
+| 1 | 閾値数値・LIFF ID・ベース URL を変更して C2 一式 | 永続し、再オープンで保存値が初期表示される。プレースホルダーは `https://api.lstep.jp`。`https://app.lstep.jp` は 400 |
 | 2 | CPM バージョンを切り替えて保存 | V1/V2 の選択式（[31-lstep-integration.md §1.2](../../../spec/screens/31-lstep-integration.md)）。保存後に自動管理タグ体系が選択バージョンに対応する（同 §2.1） |
 | 3 | 閾値へ 0 または負値を入力して保存 | FE `NumberInputField` は `min={1}`（ブラウザ制約で invalid になり得る）。すり抜け時も `setPositiveInteger`（>=1 のみ payload）により **送信されず既存値維持**（V04 §8 と同契約）。読み出し側 0 以下デフォルト補完は FE 通過後の防御層 |
 | 4 | シークレット 3 種を保存 → 再度開き空欄のまま別項目のみ変更して保存 | シークレットは「空欄=変更なし」として維持され、上書き消去されない（`setTrimmedString(..., skipEmpty=true)`）。`liff_id` のみ空文字でクリア可（V04 §8 手順 2） |
@@ -175,7 +175,7 @@ clinic 単位 1 レコードの PATCH（C3(b) は UI 上到達不能）。フィ
 |:--|:--|:--|:--|:--|:--|
 | V05-13 | 配信優先順位（`lstep-trigger-priority`） | `/settings/integrations/lstep` 内セクション | 各トリガーの優先順位（1 以上） | 同値可（同一優先階層） | 0 を入力 → 「優先順位は1以上を指定してください」で保存されない（C1 — `TriggerPrioritySection.tsx`）。変更時のみ保存ボタン活性。同値は許可（UI 文言「同値は同一優先階層として扱われます。」・seed も ノミダニ/フィラリア=4・ワクチン30/60=8 等を保持 — 2026-07-31 実測） |
 | V05-14 | タグコードマッピング（`lstep-tag-code-mappings`） | 同上 | tagName 単位の entries（全量置換 PUT） | tagName 単位で置換 | 編集 → 保存 → 再読込で永続（C2）。**形式違反は BE 400（2026-08-01 実測）**: codes=[] → `codes must contain at least one entry`; codes=[''] → `codes must not contain empty values`; code_type=invalid_type → `invalid code_type: invalid_type`。空 entries PUT は 200（全削除・batch3 と同契約） |
-| V05-15 | タグ設定（`lstep-tag-config`） | 同上（追加フォーム 2 種） | フォーム1: プレフィックス+カテゴリ / フォーム2: 疾患コード+タグ名 | プレフィックス重複 409 | 片方空で追加 → 「プレフィックスとカテゴリは必須です」「疾患コードとタグ名は必須です」（C1 — `LstepTagConfigSection.tsx`）。追加 → 再読込永続 → 行削除（C2）。同一プレフィックス再追加は POST 409（2026-07-31 実測）。**同一疾患コードも 409（2026-08-01 実測）**: 新規 POST 201 後、同一 `condition_code` 再 POST → **409** `lstep_condition_tag_mapping '' already exists`（DDL UNIQUE）。seed コード再追加も同様 409。テスト行は DELETE 204 で後始末 |
+| V05-15 | タグ設定（`lstep-tag-config`） | 同上（追加フォーム 2 種） | フォーム1: プレフィックス+カテゴリ / フォーム2: 疾患コード+タグ名 | プレフィックス重複 409 | 片方空で追加 → 「プレフィックスとカテゴリは必須です」「疾患コードとタグ名は必須です」（C1 — `LstepTagConfigSection.tsx`）。追加 → 再読込永続 → 行削除（C2）。同一プレフィックス再追加は POST 409（2026-07-31 実測）。**同一疾患コードも 409**: 新規 POST 201 後、同一 `condition_code` 再 POST → **409** 日本語「慢性疾患コード『{code}』は既に使用されています」（`localizeAlreadyExistsMessage`。空 `''` は旧観測）。seed コード再追加も同様 409。テスト行は DELETE 204 で後始末 |
 | V05-16 | 友だち属性 CSV 取込（`lstep-csv-import`） | `/lstep/analytics` 内セクション | CSV ファイル | — | 未選択・空ファイルで実行 → 「CSVファイルを選択してください」（C1 — `LstepCsvImportSection.tsx`）。取込後に履歴一覧へステータス行が追加される（C2 相当）。**列不正は 400（2026-08-01 実測）**: `POST .../lstep/csv-imports/friend-attributes` に `foo,bar` ヘッダのみ → **400** `required column not found: line_user_id (expected one of: LINE ID, line_user_id, userId)`（`lstep_csv_helpers.go`） |
 | V05-17 | タグ一括解除（`lstep-bulk-tag-remove`） | `/settings/lstep/tags` の対象者ドロワーから起動 | 対象タグ + 対象飼い主（起動元で確定・ダイアログ内入力なし） | — | 「この操作は取り消せません」の確認ダイアログ経由でのみ実行可。進捗バー付き逐次実行・実行中キャンセル不可（`BulkTagRemoveDialog.tsx`）。**解除後の観測点（2026-08-01 実測）**: 手動タグ `優良顧客` で `DELETE /owners/:id/lstep/tags/:tag` が **204** でも、直後の `GET tag-summary` の `owner_count` と `GET .../lstep/owners?tag=` 件数は変化しない場合がある（Write API 停止/同期オフ時は外部タグ・キャッシュ非更新）。FE は `invalidateQueries(lstepTagSummary)` + toast「…名から解除しました」— 一覧再取得後も件数が同じなら「UI 上は成功だが件数不変」を記録。LSTEP 実タグは観測対象外 |
 

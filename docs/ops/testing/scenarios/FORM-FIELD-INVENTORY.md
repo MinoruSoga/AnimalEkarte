@@ -227,7 +227,7 @@
 |:--|:--|:--|:--|:--|:--|
 | name | 品名 | R | text | 非空 | F0 F1 F4 |
 | category | カテゴリ | R | enum | medicine/consumable/food/other | F0 F1 F4 |
-| unit | 単位 | O | text | | F0 F4 F5 |
+| unit | 単位 | R | text | 非空（HTML required + BE required） | F0 F1 F4 |
 | quantity | 現在庫数 | R | int | ≥0 | F1 F3 F4 |
 | minStockLevel | 最低在庫数 | R | int | ≥0 | F1 F3 F4 |
 | location | 保管場所 | O | text | | F4 F5 |
