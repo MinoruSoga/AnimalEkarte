@@ -3,8 +3,8 @@
 ## 概要
 - **画面の目的**: 検査オーダーの作成、および臨床検査値（数値・判定）の精緻な記録。
 - **URLパターン**: 
-  - 新規作成: `/examinations/new?petId=xxx`
-  - 編集: `/examinations/:id`
+  - 検査管理からの新規: `/medical-records/new?petId=xxx&tab=検査`（当日カルテの検査タブ）
+  - 未紐付け・検歴: `/examinations/:id`
 - **アクセス権限**: `examinations` リソースの `view` 権限（ルートを `RequirePermission` でガード。新規作成ルート `/examinations/new` は `create` アクション必須）。操作ボタンの出し分けは `usePermission` で制御。
 
 ---

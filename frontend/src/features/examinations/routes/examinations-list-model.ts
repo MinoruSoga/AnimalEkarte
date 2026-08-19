@@ -16,3 +16,11 @@ export function examinationListDetailHref(input: {
   }
   return paths.examinations.detail.getHref(input.id);
 }
+
+export function examinationCreateHref(petId: string): string {
+  const params = new URLSearchParams({
+    petId,
+    tab: EXAMINATION_LIST_CHART_TAB,
+  });
+  return `${paths.medicalRecords.new.getHref()}?${params.toString()}`;
+}

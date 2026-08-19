@@ -43,7 +43,7 @@ export const ExaminationGroup = memo(function ExaminationGroup({
       ref={highlightRef}
       id={`exam-group-${group.id}`}
       aria-current={highlighted ? "true" : undefined}
-      className={`flex flex-col gap-2${highlighted ? ` rounded-lg p-2 -mx-2 ring-2 ${C.ringMedicalBlue} ${C.bgBrand5}` : ""}`}
+      className="flex flex-col gap-2"
     >
       <div className={`flex items-center justify-between w-full border-b ${C.borderPrimary20} pb-2`}>
         <div className="flex items-center gap-4">

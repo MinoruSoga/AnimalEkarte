@@ -46,10 +46,16 @@ func (r *examinationRepository) FindAll(ctx context.Context, clinicID uint64, pe
 		q := persistence.DBOrTx(ctx, r.db).Model(&model.Examination{}).
 			Where("exams.clinic_id = ?", clinicID).
 			Scopes(examinationPatientRelationsScope(clinicID))
-		if petID != nil {
+		switch {
+		case petID != nil && medicalRecordID != nil:
+			// カルテ検査タブの契約: そのカルテへ取り込んだ検査に加え、同じペットの
+			// 未取り込み検査（機器受信 attach 直後は medical_record_id IS NULL）も返す。
+			// record 単独条件にすると機器由来の結果が診察中に見えなくなる。
+			q = q.Where("exams.pet_id = ?", *petID).
+				Where("(exams.medical_record_id = ? OR exams.medical_record_id IS NULL)", *medicalRecordID)
+		case petID != nil:
 			q = q.Where("exams.pet_id = ?", *petID)
-		}
-		if medicalRecordID != nil {
+		case medicalRecordID != nil:
 			q = q.Where("exams.medical_record_id = ?", *medicalRecordID)
 		}
 		if ownerID != nil {

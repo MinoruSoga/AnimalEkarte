@@ -65,6 +65,13 @@ interface UseMedicalRecordAutoCreateParams {
   visitType: string;
   createRecommendationReason: RecommendationReason | null;
   navigate: NavigateFunction;
+  tab?: string | null;
+}
+
+export function medicalRecordAfterCreateHref(recordId: string, tab?: string | null): string {
+  const path = paths.medicalRecords.detail.getHref(recordId);
+  if (!tab) return path;
+  return `${path}?${new URLSearchParams({ tab }).toString()}`;
 }
 
 export type MedicalRecordAutoCreateFailurePhase = "appointment" | "medical-record";
@@ -89,6 +96,7 @@ export function useMedicalRecordAutoCreate({
   visitType,
   createRecommendationReason,
   navigate,
+  tab,
 }: UseMedicalRecordAutoCreateParams) {
   const canCreateRef = useRef(canCreate);
   const selectedPetStatusRef = useRef(selectedPet?.status);
@@ -159,7 +167,7 @@ export function useMedicalRecordAutoCreate({
           recommendation_reason: createRecommendationReason ?? "",
         });
         setFailure(null);
-        navigate(paths.medicalRecords.detail.getHref(record.id), { replace: true });
+        navigate(medicalRecordAfterCreateHref(record.id, tab), { replace: true });
       } catch (error) {
         setFailure(
           appointmentId
@@ -185,6 +193,7 @@ export function useMedicalRecordAutoCreate({
     startCreateTransition,
     visitDateFromState,
     visitType,
+    tab,
   ]);
 
   useEffect(() => {

@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
+import Axios from "axios";
 import { Link } from "react-router";
 import { toast } from "sonner";
 
@@ -32,6 +33,7 @@ import {
   labDeviceLatestCardForSlot,
   labDeviceListenTone,
   labDeviceLiveReceiveLabel,
+  labDeviceReceiveFailure,
   labDeviceReceivedCards,
   labDeviceReceivedDayLabel,
   labDeviceSelectableTodayVisits,
@@ -233,8 +235,16 @@ export function LabDeviceBoard() {
           },
         }));
       }
-    } catch {
-      toast.error("電文を読めませんでした");
+    } catch (error) {
+      const status = Axios.isAxiosError(error) ? error.response?.status : undefined;
+      const failure = labDeviceReceiveFailure(status);
+      if (slot) {
+        setLastReceives((current) => ({
+          ...current,
+          [slot.key]: { label: failure.label, at: new Date().toISOString() },
+        }));
+      }
+      toast.error(failure.message);
     }
   }, [receive, slots]);
   const listenStates = useLabDeviceListen({
@@ -253,6 +263,11 @@ export function LabDeviceBoard() {
       align="left"
     >
       <div className="space-y-6">
+        {!canCreate ? (
+          <p className={`text-sm ${C.textWarning}`}>
+            受信権限（lab-import の作成）が無いため、このページでは受信できません。権限グループ設定で付与してください
+          </p>
+        ) : null}
         <section className="space-y-3">
           {board?.wait ? (
             <div className="space-y-3">
@@ -360,9 +375,9 @@ export function LabDeviceBoard() {
 
         <section className="space-y-2">
           <h2 className="text-xl font-semibold">医院セットアップ</h2>
-          <p className={`text-sm ${C.textInkMuted}`}>口の許可は初回だけ。以後はこのページを開いたまま受信します。</p>
+          <p className={`text-sm ${C.textInkMuted}`}>パソコンと検査機器をつなぐ許可は、最初の1回だけ必要です。許可のあとは、この画面を開いたまま検査結果を受け取ります。</p>
           {!serialOk ? (
-            <p className={C.textInkMuted}>このブラウザは有線シリアルに対応していません。掲示板と後付けは使えます。</p>
+            <p className={C.textInkMuted}>このブラウザでは検査機器を直接つなぐことができません。掲示板と後からの紐付けは使えます。</p>
           ) : null}
           <ul className="space-y-2">
             {slots.map((slot) => (
@@ -379,7 +394,7 @@ export function LabDeviceBoard() {
                       });
                     }}
                   >
-                    {slot.deviceHint} を許可
+                    {slot.deviceHint} の接続を許可
                   </Button>
                 ) : null}
               </li>

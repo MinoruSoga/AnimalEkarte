@@ -47,9 +47,11 @@ export interface LabDeviceSerialPortInfo {
   usbProductId?: number;
 }
 
+export type LabDeviceSerialParity = "none" | "even" | "odd";
+
 interface LabDeviceSerialPort {
   readable: ReadableStream<Uint8Array> | null;
-  open: (options: { baudRate: number }) => Promise<void>;
+  open: (options: { baudRate: number; parity?: LabDeviceSerialParity }) => Promise<void>;
   close: () => Promise<void>;
   getInfo: () => LabDeviceSerialPortInfo;
 }
@@ -145,6 +147,7 @@ async function readOpenLoop(
 export function startLabDeviceSlotListen(input: {
   slotKey: string;
   baudRate: number;
+  parity?: LabDeviceSerialParity;
   isStopped: () => boolean;
   onState: (state: LabDeviceListenState) => void;
   onFrame: (bytes: Uint8Array) => Promise<void>;
@@ -192,7 +195,11 @@ export function startLabDeviceSlotListen(input: {
       }
       port = matched;
       try {
-        await matched.open({ baudRate: input.baudRate });
+        await matched.open(
+          input.parity !== undefined
+            ? { baudRate: input.baudRate, parity: input.parity }
+            : { baudRate: input.baudRate },
+        );
         input.onState("listening");
         await readOpenLoop(matched, isStopped, input.onFrame);
       } catch {

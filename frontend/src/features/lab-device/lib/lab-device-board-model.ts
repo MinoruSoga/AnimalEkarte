@@ -137,6 +137,24 @@ export function labDeviceLatestCardForSlot(
   return cards.find((card) => labDeviceSlotMatchesCard(slot, card));
 }
 
+// 受信 POST の失敗を「機器の電文が悪い」以外も区別して掲示する。
+// 送信の瞬間スタッフの目は機器側にあるため、トーストだけでなく機器カードに残す。
+export function labDeviceReceiveFailure(status?: number): { label: string; message: string } {
+  if (status === 401) {
+    return {
+      label: "失敗（要ログイン）",
+      message: "セッションが切れています。再ログイン後、機器の送信をもう一度押してください",
+    };
+  }
+  if (status === 400) {
+    return { label: "失敗（電文不正）", message: "電文を読めませんでした" };
+  }
+  return {
+    label: "失敗（通信エラー）",
+    message: "保存できませんでした。機器の送信をもう一度押してください",
+  };
+}
+
 export function labDeviceLiveReceiveLabel(input: {
   liveLabel?: string;
   latestCard?: LabDeviceJobCard;

@@ -158,19 +158,21 @@ func (r createLabDeviceRequest) toServiceInput() CreateLabDeviceInput {
 	}
 }
 
+// is_active / sort_order はポインタ + required。非ポインタだと省略が
+// ゼロ値（無効化・並び順 0）として黙って書き込まれる。
 type updateLabDeviceRequest struct {
 	Name       string  `json:"name" binding:"required"`
 	ExamTypeID *uint64 `json:"exam_type_id"`
-	IsActive   bool    `json:"is_active"`
-	SortOrder  int     `json:"sort_order"`
+	IsActive   *bool   `json:"is_active" binding:"required"`
+	SortOrder  *int    `json:"sort_order" binding:"required"`
 }
 
 func (r updateLabDeviceRequest) toServiceInput() UpdateLabDeviceInput {
 	return UpdateLabDeviceInput{
 		Name:       r.Name,
 		ExamTypeID: r.ExamTypeID,
-		IsActive:   r.IsActive,
-		SortOrder:  r.SortOrder,
+		IsActive:   *r.IsActive,
+		SortOrder:  *r.SortOrder,
 	}
 }
 

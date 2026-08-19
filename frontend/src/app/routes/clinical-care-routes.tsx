@@ -247,24 +247,6 @@ export const clinicalCareRoutes: RouteObject[] = [
             }],
           },
           {
-            // BUG-020: create 権限ガード
-            path: "new",
-            element: (
-              <RequirePermission resource={ResourceExaminations} action="create">
-                <Outlet />
-              </RequirePermission>
-            ),
-            children: [
-              {
-                index: true,
-                lazy: async () => {
-                  const { ExaminationForm } = await import("@/features/examinations");
-                  return { Component: ExaminationForm };
-                },
-              },
-            ],
-          },
-          {
             path: ":id",
             lazy: async () => {
               const { ExaminationForm } = await import("@/features/examinations");

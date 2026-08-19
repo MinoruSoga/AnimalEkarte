@@ -303,6 +303,7 @@ export function useMedicalRecordForm(recordId?: string) {
     visitType,
     createRecommendationReason,
     navigate,
+    tab: searchParams.get("tab"),
   });
 
   const shouldRedirectToSelectPet = isNewRecord && !petId;

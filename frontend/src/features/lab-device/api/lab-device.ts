@@ -60,11 +60,14 @@ export interface LabDeviceBoard {
   station: LabDeviceStation;
 }
 
+export type LabDeviceSlotParity = "none" | "even" | "odd";
+
 export interface LabDeviceSlot {
   key: string;
   sourceType: string;
   deviceHint: string;
   baud: number;
+  parity?: LabDeviceSlotParity;
 }
 
 interface LabDeviceJobItemResponse {
@@ -186,6 +189,10 @@ function toTodayVisit(visit: LabDeviceTodayVisitResponse): LabDeviceTodayVisit {
   };
 }
 
+function parseLabDeviceSlotParity(value: unknown): LabDeviceSlotParity | undefined {
+  return value === "none" || value === "even" || value === "odd" ? value : undefined;
+}
+
 export function parseLabDeviceSlots(slotsJson: string): LabDeviceSlot[] {
   try {
     const raw = JSON.parse(slotsJson) as Array<Record<string, unknown>>;
@@ -194,6 +201,7 @@ export function parseLabDeviceSlots(slotsJson: string): LabDeviceSlot[] {
       sourceType: String(slot.source_type ?? ""),
       deviceHint: String(slot.device_hint ?? ""),
       baud: typeof slot.baud === "number" ? slot.baud : 9600,
+      parity: parseLabDeviceSlotParity(slot.parity),
     }));
   } catch {
     return [];

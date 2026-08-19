@@ -216,6 +216,64 @@ export function examFieldOptionsForItem(
   return [...options, { id: examTypeFieldId, label: `欠落フィールド (${examTypeFieldId})` }];
 }
 
+// 機器の「検査」が選ばれていればその検査の項目だけ、未選択なら全検査の項目を出す。
+// 現在値が候補に無い（検査変更や field 削除の後）行は欠落フィールドとして残し、黙って消さない。
+export function labDeviceItemSelectOptions(
+  examTypes: ExaminationTypeMaster[] | undefined,
+  examTypeId: string | null,
+  currentFieldId: string | null,
+): Array<{ value: string; label: string }> {
+  const base = examTypeId === null
+    ? buildExamFieldOptions(examTypes)
+    : examFieldOptionsForExamType(examTypes, examTypeId);
+  const withCurrent = examFieldOptionsForItem(base, currentFieldId);
+  return [
+    { value: LAB_DEVICE_UNMAPPED_FIELD, label: LAB_DEVICE_EXAM_UNSET },
+    ...withCurrent.map((option) => ({ value: option.id, label: option.label })),
+  ];
+}
+
+export function countDraftsUnmappedByExamChange(
+  drafts: LabDeviceItemDraft[],
+  nextExamTypeId: string | null,
+  examTypes: ExaminationTypeMaster[] | undefined,
+): number {
+  if (nextExamTypeId === null) {
+    return 0;
+  }
+  const restricted = restrictDraftsToExamType(drafts, nextExamTypeId, examTypes);
+  let count = 0;
+  for (let i = 0; i < drafts.length; i += 1) {
+    if (drafts[i]!.examTypeFieldId !== null && restricted[i]!.examTypeFieldId === null) {
+      count += 1;
+    }
+  }
+  return count;
+}
+
+export function labDeviceFieldUnit(
+  examTypeFieldId: string | null,
+  examTypes: ExaminationTypeMaster[] | undefined,
+): string {
+  if (examTypeFieldId === null) {
+    return "";
+  }
+  for (const examType of examTypes ?? []) {
+    const field = (examType.items ?? []).find((candidate) => candidate.id === examTypeFieldId);
+    if (field !== undefined) {
+      return field.unit;
+    }
+  }
+  return "";
+}
+
+// 単位が両方入っていて食い違う場合だけ true（大文字小文字と空白の揺れは不一致にしない）
+export function labDeviceUnitMismatch(deviceUnit: string, fieldUnit: string): boolean {
+  const left = deviceUnit.trim().toLowerCase();
+  const right = fieldUnit.trim().toLowerCase();
+  return left !== "" && right !== "" && left !== right;
+}
+
 export function examFieldSelectValue(examTypeFieldId: string | null): string {
   return examTypeFieldId ?? "";
 }
@@ -379,19 +437,18 @@ export function buildLabDeviceUpdateRequest(input: LabDeviceFormData): UpdateLab
   };
 }
 
+// 一覧の「検査」列は persist の実挙動（項目対応から導出）を正とする。
+// 項目が未対応のときだけ機器に設定した検査名を意図として見せる。
 function deviceExamLabel(
   device: LabDevice,
   list: LabDeviceItemMaster[],
   examTypes: ExaminationTypeMaster[] | undefined,
 ): string {
-  const bound = examTypeName(device.examTypeId, examTypes);
-  if (bound !== null) {
-    return bound;
+  const derived = labDeviceExamLabel(list, examTypes);
+  if (derived !== LAB_DEVICE_EXAM_UNSET) {
+    return derived;
   }
-  if (device.examTypeId !== null) {
-    return LAB_DEVICE_EXAM_UNSET;
-  }
-  return labDeviceExamLabel(list, examTypes);
+  return examTypeName(device.examTypeId, examTypes) ?? LAB_DEVICE_EXAM_UNSET;
 }
 
 export function toLabDeviceRows(

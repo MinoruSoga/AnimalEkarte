@@ -27,7 +27,7 @@
     - メイン保存の成否とは独立して、各タブ内の操作（追加・編集・削除）が発生した時点で即座に個別 API へ送信されます（メイン保存完了を待つゲート処理ではありません）。
     - **治療 (Tab 3)**: 項目の追加・更新・削除はそれぞれ `POST`/`PATCH`/`DELETE /v1/medical-records/:id/treatments(/:treatmentId)`。ドラッグ&ドロップでの並び替えのみ `PUT /v1/medical-records/:id/treatments` で一括更新。
     - **バイタル**: タブではなく `VitalsModal`（モーダルダイアログ）から `POST /v1/medical-records/:id/vitals` で記録。
-    - **検査 (Tab 6)**: 新規検査は `/examinations/new` 画面で作成し、カルテの検査タブでは既存の検査記録を「取り込み」ダイアログ経由で `PATCH`（`medical_record_id` を設定）し紐付けます。
+    - **検査 (Tab 6)**: 検査管理の新規登録は当日カルテの検査タブを開く。タブ上の「検査取り込み」は既存検査を `PATCH`（`medical_record_id`）で紐付ける。独立の `/examinations/new` は未紐付け・検歴用に残す。
 
 ---
 

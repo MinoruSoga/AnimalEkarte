@@ -11,10 +11,6 @@ export class ExaminationsPage extends BasePage {
     return this.open('/examinations/select-pet');
   }
 
-  gotoNew(query = ''): ReturnType<Page['goto']> {
-    return this.open(`/examinations/new${query}`);
-  }
-
   /** List heading, exact-string variant: `{ name: '検査管理', level: 1 }`. */
   listHeading(): Locator {
     return this.heading('検査管理', 1);
@@ -27,10 +23,6 @@ export class ExaminationsPage extends BasePage {
 
   selectPetHeading(): Locator {
     return this.heading('検査登録 - ペット選択');
-  }
-
-  newFormHeading(): Locator {
-    return this.heading('新規検査登録');
   }
 
   detailHeading(): Locator {

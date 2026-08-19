@@ -29,6 +29,7 @@ import {
 import {
   useEnsureLabDeviceItemMasters,
   useGetLabDeviceItemMasters,
+  useUpdateLabDeviceItemMaster,
 } from "../api/lab-device-item-masters";
 import { LabDeviceItemMasterSidePanel } from "../components/LabDeviceItemMasterSidePanel";
 import { MASTER_TABLE_COL } from "../constants/styles";
@@ -36,11 +37,14 @@ import {
   availableLabDeviceSourceTypes,
   buildLabDeviceCreateRequest,
   buildLabDeviceUpdateRequest,
+  collectDirtyLabDeviceUpdates,
   itemsForLabDevice,
+  labDeviceSourceLabel,
   parseLabDeviceSourceQuery,
   toLabDeviceRows,
   validateLabDeviceDraft,
   type LabDeviceFormData,
+  type LabDeviceItemDraft,
   type LabDeviceRow,
 } from "./lab-device-item-master-settings-model";
 
@@ -56,12 +60,13 @@ export function LabDeviceItemMasterSettings() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { canCreate, canEdit } = usePermission(ResourceLabImport);
-  const { data: devices = [] } = useGetLabDevices();
+  const { data: devices = [], isFetched: devicesFetched } = useGetLabDevices();
   const { data: items = [] } = useGetLabDeviceItemMasters();
   const { data: examTypes = [] } = useGetAllExaminationTypes();
   const ensureMutation = useEnsureLabDeviceItemMasters();
   const createMutation = useCreateLabDevice();
   const updateMutation = useUpdateLabDevice();
+  const updateItemMutation = useUpdateLabDeviceItemMaster();
   const dirty = useSidePeekDirty();
   const sourceFromQuery = parseLabDeviceSourceQuery(searchParams.get("source"));
   const fromBoard = searchParams.get("from") === "board";
@@ -96,18 +101,22 @@ export function LabDeviceItemMasterSettings() {
     }
   }, [rows, sourceFromQuery]);
 
-  const handleClose = useCallback(() => {
-    if (!dirty.confirmDiscard()) {
-      return;
-    }
-    setSelectedId(null);
+  const clearSourceParam = useCallback(() => {
     if (searchParams.has("source")) {
       const next = new URLSearchParams(searchParams);
       next.delete("source");
       setSearchParams(next, { replace: true });
     }
+  }, [searchParams, setSearchParams]);
+
+  const handleClose = useCallback(() => {
+    if (!dirty.confirmDiscard()) {
+      return;
+    }
+    setSelectedId(null);
+    clearSourceParam();
     dirty.markClean();
-  }, [dirty, searchParams, setSearchParams]);
+  }, [clearSourceParam, dirty]);
 
   const handleEdit = useCallback((row: LabDeviceRow) => {
     if (!dirty.confirmDiscard()) {
@@ -135,7 +144,7 @@ export function LabDeviceItemMasterSettings() {
     dirty.markClean();
   }, [dirty]);
 
-  const handleSave = useCallback(async (form: LabDeviceFormData) => {
+  const handleSave = useCallback(async (form: LabDeviceFormData, drafts: LabDeviceItemDraft[]) => {
     const error = validateLabDeviceDraft({
       name: form.name,
       sourceType: form.sourceType,
@@ -157,10 +166,18 @@ export function LabDeviceItemMasterSettings() {
         if (canEdit !== true) {
           return;
         }
+        const itemChanges = collectDirtyLabDeviceUpdates(selectedItems, drafts);
+        if (itemChanges.error !== null) {
+          toast.error(itemChanges.error);
+          return;
+        }
         await updateMutation.mutateAsync({
           id: selectedRow.id,
           req: buildLabDeviceUpdateRequest(form),
         });
+        for (const update of itemChanges.updates) {
+          await updateItemMutation.mutateAsync(update);
+        }
         toast.success("更新しました");
       }
     } catch {
@@ -168,7 +185,19 @@ export function LabDeviceItemMasterSettings() {
     }
     dirty.markClean();
     setSelectedId(null);
-  }, [canCreate, canEdit, createMutation, dirty, isCreating, selectedRow, updateMutation]);
+    clearSourceParam();
+  }, [
+    canCreate,
+    canEdit,
+    clearSourceParam,
+    createMutation,
+    dirty,
+    isCreating,
+    selectedItems,
+    selectedRow,
+    updateItemMutation,
+    updateMutation,
+  ]);
 
   return (
     <div className="flex h-full">
@@ -214,6 +243,13 @@ export function LabDeviceItemMasterSettings() {
                 検査受信へ戻る
               </Link>
             ) : null}
+            {sourceFromQuery !== null
+              && devicesFetched
+              && !rows.some((row) => row.sourceType === sourceFromQuery) ? (
+                <p className={`text-sm ${C.textWarning}`}>
+                  {labDeviceSourceLabel(sourceFromQuery)} はまだ登録されていません。「既定項目を用意」で投入してください
+                </p>
+              ) : null}
             <DataTable
               headerRowClassName={DESIGN_TABLE_HEADER_ROW}
               headerCellClassName={DESIGN_TABLE_HEADER_CELL}
@@ -253,10 +289,10 @@ export function LabDeviceItemMasterSettings() {
           examTypes={examTypes}
           unusedSourceTypes={unusedSourceTypes}
           readOnly={readOnly}
-          isPending={createMutation.isPending || updateMutation.isPending}
+          isPending={createMutation.isPending || updateMutation.isPending || updateItemMutation.isPending}
           onClose={handleClose}
-          onSave={(form) => {
-            void handleSave(form);
+          onSave={(form, drafts) => {
+            void handleSave(form, drafts);
           }}
           onDirtyChange={handleDirtyChange}
         />

@@ -48,21 +48,6 @@ test.describe('検査管理 フロー E2E', () => {
     }
   });
 
-  test(`/examinations/new?petId=${DEMO_IRIS_PET.id} — 検査登録フォームが表示される`, async () => {
-    const page = await context.newPage();
-    const examinations = new ExaminationsPage(page);
-    try {
-      await examinations.gotoNew(`?petId=${DEMO_IRIS_PET.id}`);
-      await expect(examinations.newFormHeading()).toBeVisible({
-        timeout: 15000,
-      });
-      await expect(examinations.irisText()).toBeVisible({ timeout: 10000 });
-      await expect(examinations.saveButton()).toBeVisible({ timeout: 10000 });
-    } finally {
-      await page.close();
-    }
-  });
-
   test('/examinations/:id — 検査詳細フォームが表示される', async () => {
     const page = await context.newPage();
     const examinations = new ExaminationsPage(page);

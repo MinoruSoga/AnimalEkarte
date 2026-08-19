@@ -18,7 +18,9 @@ const (
 	labDeviceReceivedLimit         = 200
 	labDeviceReceivedLookbackDays  = 7
 	labDeviceTodayVisitLimit       = 100
-	labDeviceDefaultSlotsJSON      = `[{"key":"nx600","source_type":"fuji_nx600","device_hint":"NX600","baud":9600},{"key":"au10v","source_type":"fuji_au10v","device_hint":"AU10V","baud":9600},{"key":"pu4010","source_type":"arkray_pu4010","device_hint":"PU-4010","baud":9600}]`
+	// PU-4010 は 2400 8E1（device-serial-adapter.md §尿: 9600 では文字にならない）。
+	// 富士2機は城東実測どおり 9600 8N1。
+	labDeviceDefaultSlotsJSON = `[{"key":"nx600","source_type":"fuji_nx600","device_hint":"NX600","baud":9600},{"key":"au10v","source_type":"fuji_au10v","device_hint":"AU10V","baud":9600},{"key":"pu4010","source_type":"arkray_pu4010","device_hint":"PU-4010","baud":2400,"parity":"even"}]`
 )
 
 // LabDevicePetFinder is the clinic-scoped pet read used to validate request pet_id.

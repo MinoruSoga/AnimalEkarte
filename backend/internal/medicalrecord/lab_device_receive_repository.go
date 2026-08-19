@@ -329,6 +329,13 @@ func validLabDeviceSlotsJSON(raw string) error {
 		if !isLabDeviceSourceType(source) {
 			return apperrors.WrapInvalidInput("slots_json source_type is invalid")
 		}
+		if parity, ok := slot["parity"].(string); ok {
+			switch parity {
+			case "", "none", "even", "odd":
+			default:
+				return apperrors.WrapInvalidInput("slots_json parity is invalid")
+			}
+		}
 	}
 	return nil
 }

@@ -20,7 +20,7 @@ section: 診療業務
 |------|-----|
 | 一覧 | `/examinations` |
 | ペット選択 | `/examinations/select-pet` |
-| 新規 | `/examinations/new` |
+| 新規 | ペット選択後、当日カルテの検査タブ (`/medical-records/new?petId=:id&tab=検査`) |
 | 詳細・結果入力 | カルテに紐づく検査は `/medical-records/:id?tab=検査&examId=:id`。未紐付けのみ `/examinations/:id` |
 
 ## 画面イメージ

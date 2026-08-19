@@ -96,7 +96,6 @@ const PROTECTED_ROUTES: RouteTemplate[] = [
   },
   { label: "検査一覧", path: "/examinations" },
   { label: "検査ペット選択", path: "/examinations/select-pet" },
-  { label: "検査登録", path: "/examinations/new", fixture: "pet" },
   { label: "検査編集", path: "/examinations/:id", fixture: "examination" },
   { label: "検査受信", path: "/lab-device" },
   { label: "ワクチン一覧", path: "/vaccinations" },

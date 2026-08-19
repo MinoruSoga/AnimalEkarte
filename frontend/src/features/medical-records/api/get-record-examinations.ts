@@ -45,9 +45,12 @@ const getRecordExaminations = async (input: {
     limit: HISTORY_FETCH_LIMIT,
     include_items: true,
   };
+  // 両方渡すと BE は「そのカルテの検査 + 同じペットの未取り込み検査」を返す。
+  // record 単独では機器受信（attach 直後・medical_record_id NULL）が消える。
   if (input.medicalRecordId) {
     params.medical_record_id = Number(input.medicalRecordId);
-  } else if (input.petId) {
+  }
+  if (input.petId) {
     params.pet_id = Number(input.petId);
   }
   const { data } = await axios.get<{ data: Examination[]; total?: number }>("/v1/examinations", {

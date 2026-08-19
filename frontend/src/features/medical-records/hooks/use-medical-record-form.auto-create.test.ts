@@ -462,6 +462,32 @@ describe("useMedicalRecordForm", () => {
       });
     });
 
+    it("?tab= があるとき作成後の detail でもタブを残す", async () => {
+      mockSearchParams = new URLSearchParams({ petId: "5", tab: "検査" });
+      vi.mocked(useGetPet).mockReturnValue({
+        data: mockPet,
+        isLoading: false,
+        isError: false,
+      });
+
+      const mockMutateAsync = vi.fn().mockResolvedValue({ id: "new-record-1" });
+      vi.mocked(useCreateMedicalRecord).mockReturnValue({
+        mutateAsync: mockMutateAsync,
+        isPending: false,
+      } as ReturnType<typeof useCreateMedicalRecord>);
+
+      await act(async () => {
+        renderHook(() => useMedicalRecordForm());
+      });
+
+      await waitFor(() => {
+        expect(mockNavigate).toHaveBeenCalledWith(
+          "/medical-records/new-record-1?tab=%E6%A4%9C%E6%9F%BB",
+          expect.objectContaining({ replace: true }),
+        );
+      });
+    });
+
     it("isNewRecord だが selectedPet なし → createMutation 呼ばれない", async () => {
       mockSearchParams = new URLSearchParams({ petId: "5" });
       vi.mocked(useGetPet).mockReturnValue({

@@ -19,7 +19,7 @@ export function useLabDeviceListen(input: {
   const onFrameRef = useRef(input.onFrame);
   onFrameRef.current = input.onFrame;
   const slotSignature = useMemo(
-    () => input.slots.map((slot) => `${slot.key}:${slot.baud}:${slot.deviceHint}`).join("|"),
+    () => input.slots.map((slot) => `${slot.key}:${slot.baud}:${slot.parity ?? ""}:${slot.deviceHint}`).join("|"),
     [input.slots],
   );
 
@@ -41,6 +41,7 @@ export function useLabDeviceListen(input: {
     const stops = input.slots.map((slot) => startLabDeviceSlotListen({
       slotKey: slot.key,
       baudRate: slot.baud,
+      parity: slot.parity,
       isStopped: () => stopped,
       onState: (state) => {
         if (!stopped) {

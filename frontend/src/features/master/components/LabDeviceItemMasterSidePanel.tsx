@@ -8,14 +8,22 @@ import { C, LAYOUT } from "@/lib/design-tokens";
 import type { LabDeviceItemMaster } from "../api/lab-device-item-masters";
 import type { ExaminationTypeMaster } from "../api/exam-types-master";
 import {
+  LAB_DEVICE_UNMAPPED_FIELD,
+  countDraftsUnmappedByExamChange,
   examTypeSelectOptions,
   examTypeSelectValue,
-  labDeviceFieldName,
+  itemToLabDeviceDraft,
+  labDeviceFieldUnit,
+  labDeviceItemSelectOptions,
   labDeviceSourceLabel,
   labDeviceToFormData,
+  labDeviceUnitMismatch,
   labDeviceValueShapeLabel,
+  parseExamFieldSelectValue,
   parseExamTypeSelectValue,
+  restrictDraftsToExamType,
   type LabDeviceFormData,
+  type LabDeviceItemDraft,
   type LabDeviceRow,
 } from "../routes/lab-device-item-master-settings-model";
 
@@ -27,7 +35,7 @@ interface LabDeviceItemMasterSidePanelProps {
   readOnly?: boolean;
   isPending?: boolean;
   onClose: () => void;
-  onSave: (data: LabDeviceFormData) => void;
+  onSave: (data: LabDeviceFormData, drafts: LabDeviceItemDraft[]) => void;
   onDirtyChange?: (dirty: boolean) => void;
 }
 
@@ -48,12 +56,19 @@ export const LabDeviceItemMasterSidePanel = memo(function LabDeviceItemMasterSid
   const [formData, setFormData] = useState<LabDeviceFormData>(() =>
     labDeviceToFormData(device, unusedSourceTypes),
   );
+  const [drafts, setDrafts] = useState<LabDeviceItemDraft[]>(() => items.map(itemToLabDeviceDraft));
   const [isDirty, setIsDirty] = useState(false);
   const [nameError, setNameError] = useState("");
+  const [unmapNotice, setUnmapNotice] = useState("");
 
   useEffect(() => {
     onDirtyChange?.(isDirty);
   }, [isDirty, onDirtyChange]);
+
+  useEffect(() => {
+    setDrafts((prev) => (isDirty ? prev : items.map(itemToLabDeviceDraft)));
+    // 編集中（dirty）の background refetch で入力を潰さない
+  }, [isDirty, items]);
 
   const setFormDataDirty = useCallback<typeof setFormData>((updater) => {
     setFormData(updater);
@@ -75,8 +90,25 @@ export const LabDeviceItemMasterSidePanel = memo(function LabDeviceItemMasterSid
   }, [setFormDataDirty]);
 
   const handleExamTypeChange = useCallback((value: string) => {
-    setFormDataDirty((prev) => ({ ...prev, examTypeId: parseExamTypeSelectValue(value) }));
-  }, [setFormDataDirty]);
+    const nextExamTypeId = parseExamTypeSelectValue(value);
+    const unmapped = countDraftsUnmappedByExamChange(drafts, nextExamTypeId, examTypes);
+    setUnmapNotice(
+      unmapped > 0 ? `検査の変更で ${unmapped} 件の項目対応が外れます。保存で確定します` : "",
+    );
+    if (nextExamTypeId !== null) {
+      setDrafts((prev) => restrictDraftsToExamType(prev, nextExamTypeId, examTypes));
+    }
+    setFormDataDirty((prev) => ({ ...prev, examTypeId: nextExamTypeId }));
+  }, [drafts, examTypes, setFormDataDirty]);
+
+  const handleItemFieldChange = useCallback((draftId: string, value: string) => {
+    const fieldId = parseExamFieldSelectValue(value);
+    setDrafts((prev) => prev.map((draft) => (
+      draft.id === draftId ? { ...draft, examTypeFieldId: fieldId } : draft
+    )));
+    setUnmapNotice("");
+    setIsDirty(true);
+  }, []);
 
   const handleToggleActive = useCallback(() => {
     setFormDataDirty((prev) => ({ ...prev, isActive: !prev.isActive }));
@@ -88,9 +120,10 @@ export const LabDeviceItemMasterSidePanel = memo(function LabDeviceItemMasterSid
       return;
     }
     setNameError("");
-    onSave(formData);
-    setIsDirty(false);
-  }, [formData, onSave]);
+    // dirty 解除は保存成功側（ページの useSidePeekDirty / パネル unmount）に任せる。
+    // ここで消すと保存失敗時に NavigationBlocker が外れ、編集が黙って失われる。
+    onSave(formData, drafts);
+  }, [drafts, formData, onSave]);
 
   const handleClose = useCallback(() => {
     setIsDirty(false);
@@ -151,6 +184,9 @@ export const LabDeviceItemMasterSidePanel = memo(function LabDeviceItemMasterSid
           contentClassName={EXAM_SELECT_CONTENT}
         />
       </PropertyRow>
+      {unmapNotice === "" ? null : (
+        <p className={`text-sm ${C.textWarning}`}>{unmapNotice}</p>
+      )}
       <div className="py-1">
         {items.length === 0 ? (
           <p className={`text-sm ${C.text40}`}>
@@ -158,24 +194,40 @@ export const LabDeviceItemMasterSidePanel = memo(function LabDeviceItemMasterSid
           </p>
         ) : (
           items.map((item) => {
-            const fieldName = labDeviceFieldName(item.examTypeFieldId, examTypes);
+            const draft = drafts.find((candidate) => candidate.id === item.id);
+            const fieldId = draft?.examTypeFieldId ?? null;
+            const fieldUnit = labDeviceFieldUnit(fieldId, examTypes);
+            const unitMismatch = labDeviceUnitMismatch(item.unit, fieldUnit);
             return (
               <section
                 key={item.id}
                 className={`py-3 border-b ${C.borderLight} last:border-b-0`}
               >
-                <div className="flex items-baseline justify-between gap-3 px-2">
+                <div className="flex items-center justify-between gap-3 px-2">
                   <span className={`text-sm font-medium whitespace-nowrap ${C.text}`}>
                     {item.deviceItemCode}
                   </span>
-                  {fieldName === "" ? null : (
-                    <span className={`text-sm whitespace-nowrap ${C.text}`}>{fieldName}</span>
-                  )}
+                  <SearchableSelect
+                    value={fieldId ?? LAB_DEVICE_UNMAPPED_FIELD}
+                    onValueChange={(value) => handleItemFieldChange(item.id, value)}
+                    options={labDeviceItemSelectOptions(examTypes, formData.examTypeId, fieldId)}
+                    placeholder="検査項目を選ぶ"
+                    searchPlaceholder="項目名で検索"
+                    ariaLabel={`${item.deviceItemCode} の検査項目`}
+                    disabled={readOnly}
+                    className="min-w-0 flex-1"
+                    contentClassName={EXAM_SELECT_CONTENT}
+                  />
                   <span className={`text-sm whitespace-nowrap ${C.text55}`}>
                     {labDeviceValueShapeLabel(item.valueShape)}
                     {item.unit ? ` · ${item.unit}` : ""}
                   </span>
                 </div>
+                {unitMismatch ? (
+                  <p className={`px-2 pt-1 text-sm ${C.textWarning}`}>
+                    単位不一致: 電文 {item.unit} / 検査項目 {fieldUnit}
+                  </p>
+                ) : null}
               </section>
             );
           })
