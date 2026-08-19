@@ -23,7 +23,7 @@
 | 6 | 計算サマリを確認する | 税込合計 = コース価格 + オプション価格 + 処置明細合計（税込）と一致する（[11 §1.1/§3.1](../../../spec/screens/11-accounting-detail.md): 集中計算エンジン `calculateBillingTotals`） |
 | 7 | 支払方法を選択して精算を完了する | ステータスが「精算済」になり、会計一覧に精算済・支払方法付きで表示される（`POST /accountings/complete`）。blocking unbilled warning がある pet は確定 disabled / BE Conflict（BUG-013） |
 | 8 | 再度 `/accounting/new` を同じペットで開く | 未請求明細が空で、精算済みの処置・コース・オプションは再表示されない（[flow §10 補足](../../../spec/reservation-to-record-flow.md): `billing_items.treatment_id` / `trimming_course_id` / `trimming_option_id` 紐付けで再表示を防止）— 双方のカルテが請求済みであることの証明 |
-| 9 | 受付カンバンとトリミング一覧を確認する | 会計完了により同日同一飼主・ペットの「会計待ち」appointment がまとめて「会計済」へ進む（[flow §10 補足](../../../spec/reservation-to-record-flow.md)）。【要実測】トリミング一覧のステータスバッジが「完了」になること（一覧バッジと appointment status の対応は仕様に明記なし）。**runtime 2026-08-01**: 一覧に『完了』バッジは観測（履歴）。会計完了→バッジ更新の end-to-end は DEFER |
+| 9 | 受付カンバンとトリミング一覧を確認する | 会計完了により同日同一飼主・ペットの「会計待ち」appointment がまとめて「会計済」へ進む。本手順の合格条件はカンバン「会計済」。一覧フィルタの「完了」は行 `status` ラベル（予約/進行中/完了） |
 
 ## 確認観点
 
@@ -39,8 +39,8 @@
 | # | 操作 | 期待結果 |
 |:--|:--|:--|
 | A1 | トリミングのみ「会計待ち」（診察カルテは会計確認前）の状態で会計を作成し精算する。その後、診察側の会計確認を確定して再度会計を作成する | 1 回目はトリミング明細のみで単独精算でき、2 回目は処置明細のみが未請求として現れる — 診察だけ先・トリミングだけ後の分割会計が引き続き可能（[flow §5.2-G-6](../../../spec/reservation-to-record-flow.md): 分割会計を許可） |
-| A2 | 同じ飼主の別ペットに同日の未請求明細（処置またはトリミング）を作った上で、対象ペットの会計新規作成を開く | 別ペットの明細は混入しない（統合対象は「同日同一飼主・ペット」単位 — [flow §10-6](../../../spec/reservation-to-record-flow.md)。未請求明細 API が pet_id 単位のため）。【要実測】仕様文書に明記された否定条件ではないため初回実行で確認し期待結果へ昇格する。**runtime 2026-08-01 BLOCKED**: 同日 multi-pet 未請求 fixture 未作成 |
-| A3 | 手順 5 の統合された会計から一方の明細だけを残して精算する | 【要実測】会計詳細画面での明細削除による分割精算の UI 経路と、削除した明細が未請求へ戻ること（[flow §5.2-G-6](../../../spec/reservation-to-record-flow.md) は分割会計を許可するが UI 導線は仕様に明記なし）。**runtime 2026-08-01 BLOCKED**: 統合 multi-detail 会計 fixture 未作成 |
+| A2 | 同じ飼主の別ペットに同日の未請求明細（処置またはトリミング）を作った上で、対象ペットの会計新規作成を開く | 別ペットの明細は混入しない。未請求 API は `pet_id` 単位（`GetUnbilledItemDetails`）。同日 multi-pet fixture が無い環境は手順スキップ（期待はソース確定） |
+| A3 | 手順 5 の統合会計（未精算）から一方の明細を削除して精算する | 明細削除は `DeleteItem`（soft-delete）。未請求クエリは `deleted_at IS NULL` のため削除行は再候補になる。精算済み会計からの削除は `rejectIfBillingFinalized` で拒否。統合 fixture が無い環境は手順スキップ |
 
 ## 実装突合
 - 突合日: 2026-08-07

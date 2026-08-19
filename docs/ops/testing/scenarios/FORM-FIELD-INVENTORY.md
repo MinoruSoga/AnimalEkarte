@@ -3,7 +3,7 @@
 > **目的**: 受入 V シリーズがカバーする全永続化フォームと、**項目単位 F プロトコル**の対象一覧を定義する。  
 > **使い方**: 左の項目を 1 行ずつ [FIELD-LEVEL-PROTOCOL.md](FIELD-LEVEL-PROTOCOL.md) で実施。手順の補足は V01〜V05。  
 > **更新規則**: 画面に入力項目を追加したら、本表と該当 V を同 PR で更新する。  
-> **最新更新**: 2026-08-14  
+> **最新更新**: 2026-08-19  
 > **合計**: **85 フォーム**（旧 84 + inventory-form）
 
 凡例: **R**=必須 / **O**=任意 / **C**=条件付き必須 / **S**=システム（入力不可→F は N/A）
@@ -17,9 +17,9 @@
 | fieldKey | ラベル概要 | R/O | 型 | 制約・特記 | F 重点 |
 |:--|:--|:--|:--|:--|:--|
 | pet_id | 対象ペット | R | id | new は query。無しは select-pet | F0 |
-| attending_vet | 担当医 | O | select | 即時保存の要実測あり | F0 F4 |
-| visit_type | 来院種別 | O | select/enum | 同上 | F0 F4 |
-| soap_s | SOAP-S | O | text | 空保存可の要実測 | F0 F4 F5 |
+| attending_vet | 担当医 | O | select | 保存ボタンなし即時 PATCH | F0 F4 |
+| visit_type | 来院種別 | O | select/enum | 即時 PATCH + 詳細キャッシュ invalidate | F0 F4 |
+| soap_s | SOAP-S | O | text | 空保存可 | F0 F4 F5 |
 | soap_o | SOAP-O | O | text | | F0 F4 F5 |
 | soap_a | SOAP-A | O | text | | F0 F4 F5 |
 | soap_p | SOAP-P | O | text | | F0 F4 F5 |
@@ -37,14 +37,14 @@
 | item_id | 項目（処置/薬剤） | R | select FK | | F0 F1 F4 |
 | quantity | 数量 | R | number | >0。薬量 hard gate | F1 F3 F4 |
 | unit_price | 単価 | O | money | ≥0 | F3 F4 |
-| dose_override_reason | 上限超過理由 | C | text | 絶対上限時ブロック | F1 F6 |
+| dose_deviation_reason | 用量逸脱理由 | C | text | 下限/推奨乖離時必須。絶対上限は理由不可・保存ブロック | F1 F6 |
 
 ### medical-record-vitals — VitalsModal — [V01 §3](V01-clinical-forms.md)
 
 | fieldKey | ラベル概要 | R/O | 型 | 制約・特記 | F 重点 |
 |:--|:--|:--|:--|:--|:--|
-| recorded_at | 記録日時 | R | datetime | 未来日は要実測 | F1 F2 F4 |
-| temperature | 体温 | O | number | 範囲ガード要実測 | F3 F4 F5 |
+| recorded_at | 記録日時 | R | datetime | 未来日時は FE 拒否 | F1 F2 F4 |
+| temperature | 体温 | O | number | FE 30〜45℃（45.0 受理・45.1 拒否） | F3 F4 F5 |
 | weight_kg | 体重 | O | number | kg/g 切替 | F3 F4 |
 | heart_rate / respiratory_rate / etc. | その他バイタル | O | number | 実装にある計測値すべて | F0 F4 F5 |
 
@@ -107,31 +107,35 @@
 | fieldKey | R/O | 型 | F 重点 |
 |:--|:--|:--|:--|
 | pet_id | R | id | F0 F1 |
-| admitted_at | R | datetime | F1 F4 |
-| planned_discharge_at | O | datetime | F4 F5 |
-| cage_id | O | select FK | F4 C3-1 |
-| plan_id | O | select FK | F4 C3-1 |
-| note | O | text | F4 F5 |
+| hospitalization_type | R | enum | 既定「入院」 F0 F4 |
+| start_date | R | date | 既定当日 F1 F4 |
+| end_date | O | date | F4 F5 |
+| cage_id | R | select FK | BUG-037 F1 F4 C3-1 |
+| owner_request | O | text | 一覧主訴列 F4 F5 |
+| doctor_id | O | select | F4 |
+| memo / staff_notes | O | text | F4 F5 |
+| is_insurance / insurance_* | C | | ON 時会社名・番号 F4 |
+| treatment_plans | O | rows | 新規のみ。登録後は読取専用 F4 |
 
 ### hospitalization-care-plan / daily-vitals / daily-care-logs / daily-staff-notes — [V01 §11](V01-clinical-forms.md)
 
 | formId | 必須 fieldKey | その他 | F 重点 |
 |:--|:--|:--|:--|
 | hospitalization-care-plan | name | type, timing | 各 F1/F4 |
-| hospitalization-daily-vitals | date + 計測1+ | | F1 F4 |
-| hospitalization-daily-care-logs | date, content | | F1 F4 |
-| hospitalization-daily-staff-notes | date, content | | F1 F4 |
+| hospitalization-daily-vitals | time | 計測値は任意（カルテバイタルの 30〜45 制約なし） | F1 F4 |
+| hospitalization-daily-care-logs | time, type | value/notes 任意 | F1 F4 |
+| hospitalization-daily-staff-notes | time, content | | F1 F4 |
 
 ### trimming-form — [V01 §12](V01-clinical-forms.md)
 
 | fieldKey | R/O | F 重点 |
 |:--|:--|:--|
 | pet_id | R | F1 |
-| course_id | R/O | F0 F4 C3-1・無効マスタ #228 |
+| staff_id | R | F1 F4 |
+| course_id | R | F1 F4 C3-1・無効マスタ #228 |
 | option_ids | O | multi F4 |
-| staff_id | O | F4 |
-| scheduled_at | R | F1 F4 |
-| note | O | F4 F5 |
+| record_shortcut times | R | 一意な JST 現在時刻（固定 10:00 ではない） F1 F4 |
+| note / style / weight / images | O | F4 F5 |
 
 ---
 

@@ -21,7 +21,7 @@
 | 4 | 新規会計: 会計新規作成のペット選択画面で対象ペットを検索 | 手順 3 と同様に「選択不可」で無効化される（同上。会計もペット選択共通画面を使用） |
 | 5 | 新規入院: 入院新規登録のペット選択画面で対象ペットを検索 | 「選択不可」で無効化され、死亡済みペットへの新規登録が物理的にブロックされる（[09-hospitalization-form.md](../../../spec/screens/09-hospitalization-form.md)） |
 | 5b | 新規検査・新規トリミングの共通ペット選択でも対象ペットを検索 | 同じ「選択不可」。API 直の create も `ValidatePetNotDeceased` で拒否する |
-| 6 | Lステップ配信対象: 対象ペットの飼主に紐づくリマインド予定を配信監視で確認 | 死亡と同時に関連リマインドが破棄され、配信対象から外れる（[lstep-integration.md §4](../../../spec/line/lstep-integration.md)）。【要実測】ローカルでの観測方法（死亡は配信直前チェックではなくライフサイクル処理のため、`excluded` 行として現れない — [34-lstep-delivery-monitor.md](../../../spec/screens/34-lstep-delivery-monitor.md)）。**runtime 2026-08-01**: `/lstep/delivery-monitor` に除外カウンタはあるが、死亡→除外行の end-to-end は未実施（DEFER） |
+| 6 | Lステップ配信対象: 対象ペットの飼主に紐づくリマインド予定を配信監視で確認 | `HandlePetDeath` が関連リマインドを破棄する（配信直前チェックではない）。監視画面の `excluded` 行には出ない。死亡→除外カウンタの end-to-end はローカル未実施のため本手順の合格条件はライフサイクル処理のソース確認 |
 | 7 | 死亡解除: 同じ編集導線で死亡記録を解除（生存へ戻す） | `DELETE …/pets/:id/death` が成功する。手順 2〜5 の各導線で対象ペットが再び選択可能になる。write ガードの根拠は `deceased_at IS NOT NULL`（表示ラベルの「死亡」ではない） |
 
 ## 確認観点

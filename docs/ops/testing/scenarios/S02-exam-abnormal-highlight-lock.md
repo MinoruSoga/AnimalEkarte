@@ -25,7 +25,7 @@
 | 6b | ステータスドロップダウンから「確定」を**選択して保存**する（独立確定ボタンは無い）。一覧へ戻り再度開く | **ドラフトで「確定」を選んだだけではロックしない**。**サーバに confirmed が保存された後**、再オープン時にステータス/項目が無効化され保存ボタンが消える（[13 §2.1](../../../spec/screens/13-examinations-form.md)） |
 | 7 | 確定済み（サーバ status=確定 / `confirmed`）の検査を開き、測定値の変更・保存を試行する | 編集がロックされ変更を保存できない。FE の persisted lock ＋ BE の confirmed 拒否の二重ガード。確定解除 UI は `examination-unconfirm:edit` があるときだけ（`ExaminationUnconfirmDialog`）。通常 edit では出ない |
 | 7b | `examination-unconfirm:edit` 付きアカウントで確定解除（理由 1〜500 字）→ 印刷 | `POST /examinations/:id/unconfirm` が成功し再編集できる。印刷は `GET /examinations/:id/print-snapshot`（confirmed は official、それ以外は draft 透かし） |
-| 8 | seed 003_demo の「閲覧専用」権限グループを割り当てたスタッフでログインし、確定操作・結果入力を試行する | examinations の view は許可されるためフォーム・ステータス・結果項目は表示されるが、フォーム全体が無効化され保存ボタンは表示されない（[13 概要](../../../spec/screens/13-examinations-form.md)）。【要実測】実ブラウザで値を変更・保存できないこと。**runtime 2026-08-01 BLOCKED**: 第2アカウント（閲覧専用）未用意 |
+| 8 | seed 003_demo の「閲覧専用」権限グループを割り当てたスタッフでログインし、確定操作・結果入力を試行する | examinations の view は許可されるためフォームは見えるが、fieldset 無効・保存ボタンなし。第2アカウントが無い環境は手順スキップ（期待はソース確定） |
 
 ## 確認観点
 
@@ -34,14 +34,14 @@
 - ロックは二段: `confirmed` は全ロック。`completed` かつ `current_revision_version == nil` は結果・削除シール。確定解除は `examination-unconfirm`（ハイフン）。通常 edit では不可。
 - カルテ詳細の「検査」タブと検査一覧の結果がリアルタイムに同期すること（[12 §2](../../../spec/screens/12-examinations-list.md)）。
 - 検査一覧の進捗フィルタ（依頼中/検査中/結果入力済み/完了/確定）の全 5 ステータスで、現在取得済みのページ内から対象検査が正しく抽出できること（BE enum: pending/in_progress/result_entered/completed/confirmed。フィルタはクライアント側適用 — [12 §1.1](../../../spec/screens/12-examinations-list.md)）。
-- **observed FAIL / DEFER（2026-08-01 browser）**: 検査詳細で基準値文字列（例 WBC「55～195」）は表示されるが判定は常に『未判定』— 異常値入力でも HIGH/LOW 未発火。犬猫切替の基準値次元は未証明（【要実測】残）。実装上はマスタ基準値が解決されないと `is_assessed=false` になる。
+- **『未判定』の条件**: seed の依頼中検査は free-text `normal_value` のみで `exam_type_field_id` が無いため、範囲文字列が出ても `is_assessed=false`（HIGH/LOW 未発火）。手順 2〜3 は field_id 付き種別で実施する。field_id 経路の API 判定は 2026-08-07 に high/low/normal を確認済み。犬猫切替の基準値次元のブラウザ確認は別途。
 
 ## 異常系
 
 | # | 操作 | 期待結果 |
 |:--|:--|:--|
 | A1 | 確定済み検査に対する項目一括更新 API（PUT items）を直接送信する（USER が API クライアントで実施・任意） | バックエンドが拒否する（例: 「確定済みの検査は編集できません」— [13 §2.1](../../../spec/screens/13-examinations-form.md)） |
-| A2 | 検査オーダーを取り消す（一覧から削除） | 論理削除され一覧から消える（[12 API連携](../../../spec/screens/12-examinations-list.md)）。【要実測】確定済み検査の削除可否（BE: 「確定済みの検査は削除できません」/ 確定履歴ありも拒否）。**runtime 2026-08-01 BLOCKED**: 一覧サンプルは依頼中のみ（確定済なし）。依頼中に削除ボタンは存在 |
+| A2 | 検査オーダーを取り消す（一覧から削除） | 依頼中は論理削除され一覧から消える。確定済み（および完了シール）は BE「確定済みの検査は削除できません」/ 完了済みは「完了済みの検査は削除できません」 |
 
 ---
 
