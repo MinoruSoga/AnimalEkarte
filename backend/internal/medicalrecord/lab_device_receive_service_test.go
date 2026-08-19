@@ -3,6 +3,7 @@ package medicalrecord
 import (
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -135,6 +136,19 @@ func TestLabDeviceReceiveService_WaitLinksThenDuplicate(t *testing.T) {
 	assert.Empty(t, board.TodayVisits)
 	assert.Equal(t, labDeviceDefaultWaitTTLSeconds, board.Station.WaitTTLSeconds)
 	assert.Contains(t, board.Station.SlotsJSON, "fuji_nx600")
+	// PU-4010 は 2400 8E1（9600 では文字にならない）— 既定スロットの回帰ガード。
+	// slots_json は jsonb 正規化で書式が変わるため構造で比較する。
+	var slots []map[string]any
+	require.NoError(t, json.Unmarshal([]byte(board.Station.SlotsJSON), &slots))
+	var pu4010 map[string]any
+	for _, slot := range slots {
+		if slot["key"] == "pu4010" {
+			pu4010 = slot
+		}
+	}
+	require.NotNil(t, pu4010)
+	assert.EqualValues(t, 2400, pu4010["baud"])
+	assert.Equal(t, "even", pu4010["parity"])
 
 	var jobCount int64
 	require.NoError(t, db.Model(&model.LabImportJob{}).Where("clinic_id = ?", clinicA).Count(&jobCount).Error)
@@ -297,4 +311,17 @@ func TestLabDeviceReceiveService_BoardIncludesTodayVisits(t *testing.T) {
 	require.Len(t, board.TodayVisits, 1)
 	assert.Equal(t, uint64(11), board.TodayVisits[0].PetID)
 	assert.Equal(t, "タロウ", board.TodayVisits[0].PetName)
+}
+
+func TestValidLabDeviceSlotsJSONParity(t *testing.T) {
+	valid := `[{"key":"pu4010","source_type":"arkray_pu4010","device_hint":"PU-4010","baud":2400,"parity":"even"}]`
+	require.NoError(t, validLabDeviceSlotsJSON(valid))
+
+	noParity := `[{"key":"nx600","source_type":"fuji_nx600","device_hint":"NX600","baud":9600}]`
+	require.NoError(t, validLabDeviceSlotsJSON(noParity))
+
+	bad := `[{"key":"pu4010","source_type":"arkray_pu4010","device_hint":"PU-4010","baud":2400,"parity":"mark"}]`
+	err := validLabDeviceSlotsJSON(bad)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "parity")
 }

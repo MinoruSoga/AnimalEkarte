@@ -168,6 +168,8 @@ erDiagram
 > **2026-08-19 統合第7回**: 未適用 incremental `003_add_estimates_pet_id` / `004_lab_device_item_masters` / `005_lab_import_source_type_device` / `006_lab_device_receive` を `001_init.sql` セクション13へ畳み込み、独立ファイルを削除した。enum 3値は `CREATE TYPE` へ取り込み。物理テーブル総数は **127** のまま。001 checksum が変わるため適用経路は USER 手動の `make reset`（`docs/ops/deploy/LOCAL_DB_RESET.md`）。`002_ensure_pet_owners.sql` は部分適用安全ネットとして残す。
 >
 > **2026-08-19**: incremental `004_lab_devices.sql` が `lab_devices` を追加（機器名と検査種別の医院マスタ。`source_type` は電文プロトコル）。物理テーブル総数は **128**。適用は USER 手動の `make migrate`。
+>
+> **2026-08-19**: incremental `005_fix_lab_device_station_slots.sql` は保存済み station 既定 slots の PU-4010 を 2400 / parity even へ直すデータ修正のみ（DDL なし。電文正本: 尿は 2400 8E1）。物理テーブル総数は **128** のまま。適用は USER 手動の `make migrate`。
 
 | 項目 | 結果 | 判定 |
 |:---|:---|:---|

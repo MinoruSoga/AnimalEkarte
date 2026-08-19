@@ -38,3 +38,9 @@ old_db の現場・仕様は `../old_db/todo.md` の **JOU-LAB-0** と `../old_d
 - [x] **AE-LAB-4** [BRT-98](https://linear.app/baritechllc/issue/BRT-98) 3種をマスタ参照かつペット確定後だけ exam persist。`drwan` は開けない。コード済み。Linear Done（2026-08-19）。DDL は `001_init.sql` セクション13。既存 DB は `make reset`。
 
 順: **0 → 1 → 2 → 3 → 4**。0 なしに 1 のコードを始めない。IDEXX は old_db の **JOU-LAB-X**。
+
+残タスク（2026-08-19 Fable レビュー由来。導入前判断・改善）:
+
+- [x] **AE-LAB-5** 導入ブロッカー是正（2026-08-19 Fable 実装）: PU-4010 既定スロット 2400/parity even（`005_fix_lab_device_station_slots.sql` — 適用は USER 手動 `make migrate`、demo seed 変更で既存ローカル DB は 003_demo checksum mismatch → `make reset`）／権限シード lab-import に create/edit 付与／項目対応付け UI 復活（機器の検査で select を絞る）／カルテ検査タブは「カルテの検査+同ペット未取り込み」契約／`/lab-devices` OpenAPI 追記。
+- [ ] **AE-LAB-6**（PO 判断・MinoruSoga）検査と会計の断絶: exams→billing 経路ゼロ・`exam_types.price` 消費者ゼロ・未請求検出も exams 対象外。会計確定時の「同日同ペット exams あり&検査系請求行なし」例外表示ゲートを作るか、価格欄ごと消すかを裁定する。
+- [ ] **AE-LAB-7**（MED 改善・任意）受信 tx と persist の分離（persist 失敗でも job を未紐付けで残す）／機器時計ズレ（received_at と measured_at の乖離 >24h）警告チップ／検査画面バナー attach 直後のその場「取り消す」。

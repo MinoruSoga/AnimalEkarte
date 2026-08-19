@@ -14,6 +14,7 @@ import {
   buildLabDeviceItemMasterUpdateRequest,
   buildLabDeviceUpdateRequest,
   collectDirtyLabDeviceUpdates,
+  countDraftsUnmappedByExamChange,
   examFieldOptionsForExamType,
   examFieldOptionsForItem,
   examFieldSelectValue,
@@ -25,7 +26,10 @@ import {
   labDeviceExamLabel,
   labDeviceExamTypeId,
   labDeviceFieldName,
+  labDeviceFieldUnit,
+  labDeviceItemSelectOptions,
   labDeviceSourceLabel,
+  labDeviceUnitMismatch,
   labDeviceToFormData,
   labDeviceValueShapeLabel,
   parseExamFieldSelectValue,
@@ -404,5 +408,147 @@ describe("lab-device-item-master-settings-model", () => {
     expect(
       collectDirtyLabDeviceUpdates(items, [{ ...itemToLabDeviceDraft(items[0]!), examTypeFieldId: "x" }]).error,
     ).toBe("K-P: 検査項目が不正です");
+  });
+
+  it("一覧の検査ラベルは項目対応（実挙動）を機器設定より優先する", () => {
+    const examTypes: ExaminationTypeMaster[] = [
+      {
+        id: "10",
+        name: "血液化学",
+        price: 0,
+        isActive: true,
+        description: "",
+        sortOrder: 1,
+        isNonInsurance: false,
+        createdAt: "",
+        updatedAt: "",
+        items: [
+          { id: "21", examTypeId: "10", name: "Na", inspectionValue: "", normalValue: "", unit: "mEq/l", sortOrder: 1, createdAt: "", updatedAt: "", referenceRanges: [] },
+        ],
+      },
+      {
+        id: "11",
+        name: "尿検査",
+        price: 0,
+        isActive: true,
+        description: "",
+        sortOrder: 2,
+        isNonInsurance: false,
+        createdAt: "",
+        updatedAt: "",
+        items: [
+          { id: "31", examTypeId: "11", name: "尿糖", inspectionValue: "", normalValue: "", unit: "mg/dL", sortOrder: 1, createdAt: "", updatedAt: "", referenceRanges: [] },
+        ],
+      },
+    ];
+    // 機器には尿検査(11)が設定されているが、項目は血液化学(10)の field に張られている
+    const rows = toLabDeviceRows(
+      [device({ id: "1", examTypeId: "11" })],
+      [item({ id: "1", examTypeFieldId: "21" })],
+      examTypes,
+    );
+    expect(rows[0]!.examLabel).toBe("血液化学");
+  });
+
+  it("項目 select は機器の検査で絞り、欠落フィールドと未設定を落とさない", () => {
+    const examTypes: ExaminationTypeMaster[] = [
+      {
+        id: "10",
+        name: "血液化学",
+        price: 0,
+        isActive: true,
+        description: "",
+        sortOrder: 1,
+        isNonInsurance: false,
+        createdAt: "",
+        updatedAt: "",
+        items: [
+          { id: "21", examTypeId: "10", name: "Na", inspectionValue: "", normalValue: "", unit: "mEq/l", sortOrder: 1, createdAt: "", updatedAt: "", referenceRanges: [] },
+          { id: "22", examTypeId: "10", name: "K", inspectionValue: "", normalValue: "", unit: "mEq/l", sortOrder: 2, createdAt: "", updatedAt: "", referenceRanges: [] },
+        ],
+      },
+    ];
+    expect(labDeviceItemSelectOptions(examTypes, "10", null)).toEqual([
+      { value: LAB_DEVICE_UNMAPPED_FIELD, label: LAB_DEVICE_EXAM_UNSET },
+      { value: "21", label: "Na" },
+      { value: "22", label: "K" },
+    ]);
+    // 絞り込み外の現在値は欠落フィールドとして残す
+    expect(labDeviceItemSelectOptions(examTypes, "10", "99").map((option) => option.value)).toEqual([
+      LAB_DEVICE_UNMAPPED_FIELD,
+      "21",
+      "22",
+      "99",
+    ]);
+    // 機器の検査が未設定なら全検査の「種別 / 項目」から選べる
+    expect(labDeviceItemSelectOptions(examTypes, null, null)[1]).toEqual({
+      value: "21",
+      label: "血液化学 / Na",
+    });
+  });
+
+  it("検査変更で外れる項目対応の件数を数える", () => {
+    const examTypes: ExaminationTypeMaster[] = [
+      {
+        id: "10",
+        name: "血液化学",
+        price: 0,
+        isActive: true,
+        description: "",
+        sortOrder: 1,
+        isNonInsurance: false,
+        createdAt: "",
+        updatedAt: "",
+        items: [
+          { id: "21", examTypeId: "10", name: "Na", inspectionValue: "", normalValue: "", unit: "mEq/l", sortOrder: 1, createdAt: "", updatedAt: "", referenceRanges: [] },
+        ],
+      },
+      {
+        id: "11",
+        name: "尿検査",
+        price: 0,
+        isActive: true,
+        description: "",
+        sortOrder: 2,
+        isNonInsurance: false,
+        createdAt: "",
+        updatedAt: "",
+        items: [
+          { id: "31", examTypeId: "11", name: "尿糖", inspectionValue: "", normalValue: "", unit: "mg/dL", sortOrder: 1, createdAt: "", updatedAt: "", referenceRanges: [] },
+        ],
+      },
+    ];
+    const drafts = [
+      { id: "1", examTypeFieldId: "21", isActive: true },
+      { id: "2", examTypeFieldId: null, isActive: true },
+    ];
+    expect(countDraftsUnmappedByExamChange(drafts, "11", examTypes)).toBe(1);
+    expect(countDraftsUnmappedByExamChange(drafts, "10", examTypes)).toBe(0);
+    expect(countDraftsUnmappedByExamChange(drafts, null, examTypes)).toBe(0);
+  });
+
+  it("単位不一致は両方に値があって食い違うときだけ警告する", () => {
+    expect(labDeviceUnitMismatch("mg/dL", "mmol/L")).toBe(true);
+    expect(labDeviceUnitMismatch("mg/dL", "mg/dl")).toBe(false);
+    expect(labDeviceUnitMismatch("", "mmol/L")).toBe(false);
+    expect(labDeviceUnitMismatch("mg/dL", "")).toBe(false);
+    const examTypes: ExaminationTypeMaster[] = [
+      {
+        id: "10",
+        name: "血液化学",
+        price: 0,
+        isActive: true,
+        description: "",
+        sortOrder: 1,
+        isNonInsurance: false,
+        createdAt: "",
+        updatedAt: "",
+        items: [
+          { id: "21", examTypeId: "10", name: "Na", inspectionValue: "", normalValue: "", unit: "mmol/L", sortOrder: 1, createdAt: "", updatedAt: "", referenceRanges: [] },
+        ],
+      },
+    ];
+    expect(labDeviceFieldUnit("21", examTypes)).toBe("mmol/L");
+    expect(labDeviceFieldUnit(null, examTypes)).toBe("");
   });
 });

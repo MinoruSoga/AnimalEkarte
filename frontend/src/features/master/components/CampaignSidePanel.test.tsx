@@ -7,6 +7,12 @@ import { CampaignSidePanel } from "./CampaignSidePanel";
 vi.mock("@/components/shared/SidePeek", () => ({
   MasterSidePanel: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   StatusToggleButton: () => null,
+  PropertyRow: ({ label, children }: { label?: ReactNode; children: ReactNode }) => (
+    <div>
+      {label}
+      {children}
+    </div>
+  ),
 }));
 
 vi.mock("../api/merchandise-items", () => ({
@@ -14,7 +20,9 @@ vi.mock("../api/merchandise-items", () => ({
 }));
 
 describe("CampaignSidePanel", () => {
-  it("mobileではフォームの複数列を単一列にし、sm以上で既存の2列へ戻す", () => {
+  // e93ac185b で responsive grid から PropertyRow 行構成へ移行済み。
+  // 行入力の存在と、対象カテゴリの単一列 grid を現行仕様として固定する。
+  it("PropertyRow 行構成で開始日・割引種別・対象カテゴリを描画する", () => {
     render(
       <CampaignSidePanel
         item={null}
@@ -23,12 +31,11 @@ describe("CampaignSidePanel", () => {
       />,
     );
 
-    const periodGrid = screen.getByText("開始日").closest(".grid");
-    const discountGrid = screen.getByText("割引種別").closest(".grid");
-    const categoryGrid = screen.getByText("フード").closest(".grid");
+    expect(screen.getByLabelText("開始日")).toBeInTheDocument();
+    expect(screen.getByLabelText("終了日")).toBeInTheDocument();
+    expect(screen.getByLabelText("割引種別")).toBeInTheDocument();
 
-    for (const grid of [periodGrid, discountGrid, categoryGrid]) {
-      expect(grid).toHaveClass("w-full", "grid-cols-1", "sm:grid-cols-2");
-    }
+    const categoryGrid = screen.getByText("フード").closest(".grid");
+    expect(categoryGrid).toHaveClass("w-full", "grid-cols-1");
   });
 });

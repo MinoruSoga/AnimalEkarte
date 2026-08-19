@@ -7894,8 +7894,6 @@ components:
           enum: [fuji_nx600, fuji_au10v, arkray_pu4010]
         device_item_code:
           type: string
-        display_name:
-          type: string
         unit:
           type: string
         value_shape:
@@ -7911,10 +7909,8 @@ components:
           type: boolean
     UpdateLabDeviceItemMasterRequest:
       type: object
-      required: [display_name, is_active]
+      required: [is_active]
       properties:
-        display_name:
-          type: string
         unit:
           type: string
         exam_type_field_id:
@@ -7933,6 +7929,56 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/LabDeviceItemMaster'
+    LabDevice:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        source_type:
+          type: string
+          enum: [fuji_nx600, fuji_au10v, arkray_pu4010]
+        name:
+          type: string
+        exam_type_id:
+          type: integer
+          format: int64
+          nullable: true
+        is_active:
+          type: boolean
+        sort_order:
+          type: integer
+    CreateLabDeviceRequest:
+      type: object
+      required: [name, source_type]
+      properties:
+        name:
+          type: string
+        source_type:
+          type: string
+          enum: [fuji_nx600, fuji_au10v, arkray_pu4010]
+        exam_type_id:
+          type: integer
+          format: int64
+          nullable: true
+        is_active:
+          type: boolean
+        sort_order:
+          type: integer
+    UpdateLabDeviceRequest:
+      type: object
+      required: [name, is_active, sort_order]
+      properties:
+        name:
+          type: string
+        exam_type_id:
+          type: integer
+          format: int64
+          nullable: true
+        is_active:
+          type: boolean
+        sort_order:
+          type: integer
     LabDeviceJobItem:
       type: object
       properties:
@@ -23150,8 +23196,8 @@ paths:
   /lab-device-item-masters/ensure:
     post:
       operationId: ensureLabDeviceItemMasters
-      summary: 観測カタログ25行を医院へ冪等投入
-      description: ResourceLabImport edit。既存行の display_name / exam_type_field_id は上書きしない。未知コードは追加しない。
+      summary: 観測カタログ25行と既定機器3行を医院へ冪等投入
+      description: ResourceLabImport edit。既存行の exam_type_field_id は上書きしない。未知コードは追加しない。lab_devices の既定3行も無ければ作る。
       tags: [LabImports]
       responses:
         '200':
@@ -23167,8 +23213,8 @@ paths:
   /lab-device-item-masters/{id}:
     patch:
       operationId: updateLabDeviceItemMaster
-      summary: 表示名・載せる先・有効を更新
-      description: ResourceLabImport edit。source_type と device_item_code は変更しない。
+      summary: 載せる先（検査項目）・単位・有効を更新
+      description: ResourceLabImport edit。source_type と device_item_code は変更しない。表示名は exam_type_fields.name を正とする。
       tags: [LabImports]
       parameters:
         - name: id
@@ -23196,6 +23242,87 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /lab-devices:
+    get:
+      operationId: listLabDevices
+      summary: 検査機器一覧
+      description: ResourceLabImport view。機器名と載せる検査種別の医院マスタ（lab_devices）。
+      tags: [LabImports]
+      responses:
+        '200':
+          description: 機器行
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LabDevice'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      operationId: createLabDevice
+      summary: 検査機器を登録
+      description: ResourceLabImport create。source_type は clinic 内で一意（対応プロトコルは3種）。
+      tags: [LabImports]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateLabDeviceRequest'
+      responses:
+        '201':
+          description: 作成した機器行
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LabDevice'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /lab-devices/{id}:
+    patch:
+      operationId: updateLabDevice
+      summary: 機器名・検査種別・有効・並び順を更新
+      description: ResourceLabImport edit。source_type は変更しない。is_active / sort_order は必須（省略をゼロ値として書かない）。
+      tags: [LabImports]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateLabDeviceRequest'
+      responses:
+        '200':
+          description: 更新後の機器行
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LabDevice'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '500':
           $ref: '#/components/responses/InternalError'
   /lab-device/frames:

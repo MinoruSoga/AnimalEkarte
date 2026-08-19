@@ -5,6 +5,12 @@ import { CheckupsTab } from "./CheckupsTab";
 
 // ── mock ──────────────────────────────────────────────────────────────────
 
+// CheckupsTab は deep link 用に useSearchParams を読む。Router 無しで render できるよう差し替える。
+vi.mock("react-router", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("react-router")>()),
+  useSearchParams: () => [new URLSearchParams(), vi.fn()],
+}));
+
 vi.mock("@/hooks/use-permission", () => ({
   usePermission: vi.fn(() => ({ canCreate: true, canEdit: true, canDelete: true })),
 }));

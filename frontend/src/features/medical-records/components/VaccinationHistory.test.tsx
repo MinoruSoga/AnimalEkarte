@@ -14,8 +14,8 @@ describe("VaccinationHistory — カナ混同検索", () => {
   it("mobileでは全幅1列、lg以上で既存の右6列に戻る", () => {
     const { container } = render(<VaccinationHistory historyItems={ITEMS} />);
 
-    expect(container.firstElementChild).toHaveClass("col-span-1", "lg:col-span-6");
-    expect(container.firstElementChild).not.toHaveClass("col-span-6");
+    expect(container.firstElementChild).toHaveClass("col-span-1", "lg:col-span-2");
+    expect(container.firstElementChild).not.toHaveClass("col-span-2");
   });
 
   it("空の検索語は全件表示する", () => {

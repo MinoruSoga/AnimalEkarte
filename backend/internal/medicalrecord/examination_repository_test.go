@@ -167,6 +167,28 @@ func TestExaminationRepository_FindAll_ClinicIsolationAndFilters(t *testing.T) {
 		assert.EqualValues(t, 1, total)
 		require.Len(t, got, 1)
 		assert.Equal(t, linkedExam.ID, got[0].ID)
+
+		// カルテ検査タブの契約: pet + record 併用時は「そのカルテの検査 +
+		// 同じペットの未取り込み検査」。別カルテへ取り込んだ検査は含めない。
+		otherRecord := makeHistoryMedicalRecord(t, db, clinicA, petA1.ID, "MR-EXAM-FILTER-2", jun10)
+		otherLinked := makeExaminationRec(t, db, &model.Examination{
+			ClinicID:        clinicA,
+			ExamTypeID:      etA.ID,
+			PetID:           &petA1.ID,
+			MedicalRecordID: &otherRecord.ID,
+			Date:            jun10,
+			Status:          model.ExaminationStatusPending,
+		})
+		merged, mergedTotal, err := repo.FindAll(ctx, clinicA, &petA1.ID, nil, &record.ID, nil, nil, nil, 1, 10)
+		require.NoError(t, err)
+		assert.EqualValues(t, 2, mergedTotal)
+		mergedIDs := make([]uint64, 0, len(merged))
+		for _, e := range merged {
+			mergedIDs = append(mergedIDs, e.ID)
+		}
+		assert.ElementsMatch(t, []uint64{linkedExam.ID, examA1.ID}, mergedIDs,
+			"record 取り込み済み + 未取り込み（機器由来）を返し、別カルテの検査は返さない")
+		assert.NotContains(t, mergedIDs, otherLinked.ID)
 	})
 }
 

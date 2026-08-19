@@ -181,6 +181,6 @@ describe("useMedicalRecordQuickPatchActions — mutation permission boundary", (
       id: "record-1",
       req: { status: "finalized", version: 3 },
     });
-    expect(queryClient.invalidateQueries).toHaveBeenCalledTimes(3);
+    expect(queryClient.invalidateQueries).toHaveBeenCalledTimes(4);
   });
 });

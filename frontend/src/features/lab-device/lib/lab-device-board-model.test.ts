@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import type { LabDeviceJobCard, LabDeviceSlot, LabDeviceTodayVisit } from "../api/lab-device";
+import {
+  parseLabDeviceSlots,
+  type LabDeviceJobCard,
+  type LabDeviceSlot,
+  type LabDeviceTodayVisit,
+} from "../api/lab-device";
 import {
   groupLabDeviceCardsByDay,
   labDeviceBoardLinkLabel,
@@ -10,6 +15,7 @@ import {
   labDeviceListenState,
   labDeviceListenTone,
   labDeviceLiveReceiveLabel,
+  labDeviceReceiveFailure,
   labDeviceReceivedCards,
   labDeviceReceivedDayLabel,
   labDeviceSelectableTodayVisits,
@@ -126,5 +132,27 @@ describe("lab-device-board-model", () => {
     expect(labDeviceListenTone("disconnected")).toBe("idle");
     expect(labDeviceListenTone("needs_permission")).toBe("blocked");
     expect(labDeviceListenTone("unsupported")).toBe("unsupported");
+  });
+
+  it("スロット JSON の baud と parity を読み、不正な parity は落とす", () => {
+    const slots = parseLabDeviceSlots(
+      '[{"key":"pu4010","source_type":"arkray_pu4010","device_hint":"PU-4010","baud":2400,"parity":"even"},'
+      + '{"key":"nx600","source_type":"fuji_nx600","device_hint":"NX600","baud":9600},'
+      + '{"key":"x","source_type":"fuji_au10v","device_hint":"AU10V","baud":9600,"parity":"bogus"}]',
+    );
+    expect(slots[0]).toMatchObject({ key: "pu4010", baud: 2400, parity: "even" });
+    expect(slots[1]!.parity).toBeUndefined();
+    expect(slots[2]!.parity).toBeUndefined();
+  });
+
+  it("受信失敗を要因別のラベルと案内に分ける", () => {
+    expect(labDeviceReceiveFailure(401).label).toBe("失敗（要ログイン）");
+    expect(labDeviceReceiveFailure(401).message).toContain("再ログイン");
+    expect(labDeviceReceiveFailure(400)).toEqual({
+      label: "失敗（電文不正）",
+      message: "電文を読めませんでした",
+    });
+    expect(labDeviceReceiveFailure(500).label).toBe("失敗（通信エラー）");
+    expect(labDeviceReceiveFailure(undefined).label).toBe("失敗（通信エラー）");
   });
 });
