@@ -30,7 +30,7 @@
 
 ### 2.1 精算済みデータの保護と修正
 - **修正確認モーダル**: すでに「精算済」となった会計を修正・再保存しようとする際、「精算済みの会計を修正します」という確認ダイアログを強制表示。
-- **レジ締め済み期間の編集**: 対象日がレジ締め確定済みの場合、修正理由の入力（必須）を求める。
+- **レジ締め済み期間の編集**: 対象日（新規は JST 当日）がレジ締め確定済みの場合、修正理由（`post_close_reason`）を必須とする。理由が空、または `accounting-post-close-edit:edit` が無いときは確定ボタンを物理ブロックする。BE の `POST /accountings/complete` も FK 解決より先に理由を検証する。
 - **会計キャンセル**: 誤請求等の場合、論理削除 (`status=cancelled`) を行うことで、監査証跡を残しつつ請求を無効化。
 
 ### 2.2 インボイス制度への対応
@@ -55,8 +55,9 @@
 | メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |
 |:---|:---|:---|:---|:---|
 | GET | `/api/v1/accountings/:id` | 会計詳細および関連明細の取得 | `accounting` | `view` |
-| POST | `/api/v1/accountings` | 新規会計レコードの作成 | `accounting` | `create` |
-| PATCH | `/api/v1/accountings/:id` | 決済情報の確定、または精算済データの修正 | `accounting` | `edit` |
+| POST | `/api/v1/accountings/complete` | 新規会計の原子確定（明細・支払・監査。`Idempotency-Key` 必須） | `accounting` | `create` |
+| POST | `/api/v1/accountings` | レガシー新規作成（本画面の確定経路では使わない） | `accounting` | `create` |
+| PATCH | `/api/v1/accountings/:id` | 既存会計の決済確定、または精算済データの修正 | `accounting` | `edit` |
 | POST | `/api/v1/accountings/:id/refunds` | 理由を伴う部分返金の記録 | `accounting` | `create` |
 | POST | `/api/v1/accountings/:id/credit-correction` | 確定済みカード金額の確定後訂正 | `accounting-post-close-edit` | `edit` |
 | POST | `/api/v1/accountings/:id/cancel` | 会計のキャンセル（論理削除） | `accounting-cancel` | `edit` |

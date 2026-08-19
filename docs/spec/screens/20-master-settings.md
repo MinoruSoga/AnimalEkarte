@@ -19,11 +19,11 @@
 | **予約管理マスタ** | [予約区分マスタ](./settings/master-reservation-type.md) |
 | **入院・ケージ管理** | [入院プラン](./settings/master-hospitalization-plan.md)、[ケージマスタ](./settings/master-cage.md) |
 | **トリミング関連** | [トリミングマスタ](./settings/master-trimming.md)、[トリミングコース種別](./settings/master-trimming-course-type.md) |
-| **会計・商品** | [商品マスタ](./settings/master-merchandise.md)、[保険マスタ](./settings/master-insurance.md)、[支払方法](./settings/payment-methods.md)、[締め時間設定](./settings/closing-time-settings.md) |
+| **会計・商品** | [商品マスタ](./settings/master-merchandise.md)、[保険マスタ](./settings/master-insurance.md)、[支払方法](./settings/payment-methods.md)、[割引キャンペーン](./settings/master-campaigns.md)、[締め時間設定](./settings/closing-time-settings.md) |
 | **スタッフ・権限** | [スタッフ管理](./settings/master-staff.md)、[職種マスタ](./settings/master-occupation.md)、[権限グループ設定](./settings/master-permission-group.md) |
 | **シフト管理** | [シフトパターン](./settings/master-shift-template.md) |
 
-> 補足: [割引キャンペーン](./settings/master-campaigns.md)（`/settings/campaigns`）はルートは存在するがこのポータルのカードには含まれない。[LINE予約設定](./28-line-reservation.md)（`/line-reservation`）と [Lステップ連携設定](./31-lstep-integration.md) はサイドバーの別セクションから遷移する。
+> 補足: [LINE予約設定](./28-line-reservation.md)（`/line-reservation`）と [Lステップ連携設定](./31-lstep-integration.md) はサイドバーの別セクションから遷移する。
 
 ---
 

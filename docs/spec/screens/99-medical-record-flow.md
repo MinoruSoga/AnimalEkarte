@@ -8,7 +8,7 @@
 ## 1. 登録と ID 確定のプロセス
 
 ### 1.1 自動作成 (Auto Create)
-新規作成画面 (`/medical-records/new?petId=xxx`) に遷移すると、ページ表示と同時に `useMedicalRecordAutoCreate` がカルテを自動作成します（`POST /v1/medical-records`、`status: "draft"`）。予約起点でない場合は、同日の未完了な一般診療予約を再利用し、なければ一般診療予約を自動作成してからカルテを作成します。
+新規作成画面 (`/medical-records/new?petId=xxx`) に遷移すると、ページ表示と同時に `useMedicalRecordAutoCreate` がカルテを自動作成します（`POST /v1/medical-records`、`status: "draft"`）。当日業務の既定経路は必ず `appointment_id` を解決する（同日の未完了な一般診療予約を再利用し、なければ一般診療予約を自動作成）。同一 appointment の未削除通常カルテは最大 1 件。不変条件の正本は [reservation-to-record-flow.md](../reservation-to-record-flow.md) §5.5 / [ADR-006](../../architecture/adr/006-backend-domain-package-boundaries.md)。会計レコードはこの自動作成では作らない。
 
 ### 1.2 ID の発番と URL 昇格
 自動作成がバックエンドで成功した時点で、サーバー側で `medical_records.id` が発番されます。
@@ -22,7 +22,7 @@
 
 1.  **メイン保存（アクティブタブ単位）**:
     - 「保存」ボタン（React 19 の `useActionState`）はアクティブタブの内容のみを保存します。問診タブは `PATCH /v1/medical-records/:id/inquiries`（主訴・主訴区分・治療方針）、診察/治療プランタブは `PATCH /v1/medical-records/:id/clinical-plan`（診断・治療方針）と `PATCH /v1/medical-records/:id`（次回来院推奨日）を送信します。
-    - 担当医、来院種別、診察日、次回予定は、ヘッダーでの変更と同時に個別 `PATCH /v1/medical-records/:id` で即時保存されます（保存ボタンを経由しません）。
+    - 担当医、来院種別、診察日、次回予定は、ヘッダーでの変更と同時に個別 `PATCH /v1/medical-records/:id` で即時保存されます（保存ボタンを経由しません）。来院種別の成功後は詳細キャッシュを invalidate する。appointment 紐付き通常カルテの `date` は予約開始の JST 日付に固定され、変更と `appointment_id` 再紐付けは BE Conflict。未紐付け（移行例外）のみ date PATCH が成功する。
 2.  **タブ別サブデータの即時保存**:
     - メイン保存の成否とは独立して、各タブ内の操作（追加・編集・削除）が発生した時点で即座に個別 API へ送信されます（メイン保存完了を待つゲート処理ではありません）。
     - **治療 (Tab 3)**: 項目の追加・更新・削除はそれぞれ `POST`/`PATCH`/`DELETE /v1/medical-records/:id/treatments(/:treatmentId)`。ドラッグ&ドロップでの並び替えのみ `PUT /v1/medical-records/:id/treatments` で一括更新。
@@ -37,7 +37,7 @@
 
 ### 3.1 作成中 (Draft)
 - スタッフによる自由な追記・修正が可能です。
-- 会計ステータスも「未精算」として、連動して更新されます。
+- 会計は別リソース。自動作成では billing を作らない。会計(医師確認)タブまたは会計画面から別経路で作成する。
 
 ### 3.2 確定済 (Finalized)
 - 臨床記録としての真正性を担保するため、**編集操作が物理的にロック**されます。

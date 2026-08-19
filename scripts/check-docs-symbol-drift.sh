@@ -185,7 +185,8 @@ if [[ -d "$ROOT/backend/migrations" ]]; then
     {
       find "$ROOT/backend/migrations" -maxdepth 1 -name '*.sql' -type f -print0 2>/dev/null \
         | xargs -0 grep -h '^CREATE TABLE' 2>/dev/null || true
-    } | wc -l | tr -d ' '
+    } | sed -E 's/^CREATE TABLE( IF NOT EXISTS)? ([a-zA-Z_][a-zA-Z0-9_]*).*/\2/' \
+      | sort -u | wc -l | tr -d ' '
   )"
   tables="${tables:-0}"
   # 総数の正本は ERD + specification（ゲートが強制する宣言面）。

@@ -11,6 +11,10 @@
 
 ## 1. 画面構成
 
+### 1.0 患者ヘッダー
+- **`PatientInfoCard`**: `formatPatientPetDetails` に `species` / 生年月日 / 性別 / 去勢避妊を渡す。動物種は先頭に実データを出す。欠損の年齢・性別・去勢避妊だけ「不明」（固定ダミーの「犬」は使わない）。
+- カルテ「予防接種」タブ（[06-medical-records-form.md](./06-medical-records-form.md)）は本画面とは別実装。タブ左ペインの一覧も同じ `GET /vaccinations?pet_id=` を使う。
+
 ### 1.1 接種基本情報
 - **接種日**: 必須入力（未入力はエラー）。未来日は選択不可。
 - **ワクチン**: 有効なワクチンマスタ（`useGetAllVaccinesMaster` の isActive）から選択（必須）。固定2択ハードコードではない。`MasterLink` でマスタへ遷移可。

@@ -64,7 +64,7 @@
 | 入院・宿泊プラン (master-hospitalization-plan) | /settings/hospitalization | name | (clinic_id,name) | 体格 bodySize・課金単位 billingUnit は空許容 — 未選択のまま保存できる |
 | ケージ (master-cage) | /settings/cage | ケージ名 | (clinic_id,name) | 種別 icu/dog/cat/general・サイズ small/medium/large は選択式（BE enum 検証あり — 不正値 400） |
 | 物販・商品 (master-merchandise-item) | /settings/merchandise-items | 品目名 | (clinic_id,name) **WHERE is_active=true** | 無効化すると同名を再登録できる（is_active 条件付き一意）。税率 8% の選択が永続する |
-| 保険 (master-insurance) | /settings/insurance | name | (clinic_id,name) | (C1-3) 補償率 0→受理、100→受理、101→拒否、-1→拒否（FE `insurance-settings-model.ts` BUG-026 / BE `ValidateCoverageRate`・`binding:"omitempty,min=0,max=100"` 同一境界 0〜100 整数） |
+| 保険 (master-insurance) | /settings/insurance | name | (clinic_id,name) | (C1-3) 補償率 0→受理、100→受理、101→拒否、-1→拒否。101 はインラインエラーを出し、HTML `max` による無音ブロックはしない（FE `insurance-settings-model.ts` / BE `ValidateCoverageRate`・`binding:"omitempty,min=0,max=100"` 同一境界 0〜100 整数） |
 | 職種 (master-occupation) | /settings/occupations | name | (clinic_id,name) | 追加した「V04職種」が §4 予約区分の職種セクション選択肢に反映される（C3-1） |
 | トリミングコース (master-trimming-course) | /settings/trimming?tab=course | name | (clinic_id,name) | (C3-1) 「V04種別」追加→コース種別選択肢に反映。**【代表・削除済みマスタ】**下記注記参照 |
 | トリミングオプション (master-trimming-option) | /settings/trimming?tab=option | name | (clinic_id,name) | 併用可 combinable トグル（既定 ON）を OFF にして保存→再オープンで保持 |

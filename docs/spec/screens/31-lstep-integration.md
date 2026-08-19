@@ -18,8 +18,9 @@
 ## 1. 連携設定 (Integration Settings)
 
 ### 1.1 API 設定
+同一ページ（`/settings/integrations/lstep`）に接続情報・同期トグル・CPM/予防閾値・Messaging 接続テスト・設定削除・トリガー優先度・タグコード対応・自動管理プレフィックスがある。配信監視は [34-lstep-delivery-monitor.md](./34-lstep-delivery-monitor.md)。
 - **Channel Access Token**: Messaging API 通信用の長期トークン。
-- **LステップベースURL**: Lステップ側 API の接続先ベースURL。
+- **LステップベースURL**: Lステップ側 API の接続先ベースURL。プレースホルダーは `https://api.lstep.jp`（許可ホスト）。`https://app.lstep.jp` は 400 で拒否されるため例示しない。
 
 ### 1.2 判定閾値設定 (CPM/LTV)
 医院の運営方針に合わせ、以下の判定基準をカスタマイズ可能です。
@@ -86,7 +87,7 @@
 | POST | `/api/v1/lstep-tag-config/auto-managed-prefixes` | 自動管理プレフィックス追加 | `hospital-settings` | `create` |
 | DELETE | `/api/v1/lstep-tag-config/auto-managed-prefixes/:id` | 自動管理プレフィックス削除 | `hospital-settings` | `delete` |
 | GET | `/api/v1/lstep-tag-config/condition-tag-mappings` | 条件別タグマッピング一覧取得 | `hospital-settings` | `view` |
-| POST | `/api/v1/lstep-tag-config/condition-tag-mappings` | 条件別タグマッピング追加 | `hospital-settings` | `create` |
+| POST | `/api/v1/lstep-tag-config/condition-tag-mappings` | 条件別タグマッピング追加。慢性疾患コード重複は `localizeAlreadyExistsMessage` がコード値を含む日本語にする（例: 「慢性疾患コード『ckd』は既に使用されています」） | `hospital-settings` | `create` |
 | DELETE | `/api/v1/lstep-tag-config/condition-tag-mappings/:id` | 条件別タグマッピング削除 | `hospital-settings` | `delete` |
 | GET | `/api/v1/lstep-tag-config/send-purpose-tag-prefixes` | 送信目的別タグプレフィックス一覧取得 | `hospital-settings` | `view` |
 | POST | `/api/v1/lstep-tag-config/send-purpose-tag-prefixes` | 送信目的別タグプレフィックス追加 | `hospital-settings` | `create` |

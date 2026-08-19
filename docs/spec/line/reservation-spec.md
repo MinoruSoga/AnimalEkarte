@@ -22,7 +22,7 @@
 
 ## 2. 飼い主側の予約フロー (LIFF App)
 
-実装正本は別エントリ `frontend/line-reserve` と画面仕様 [37-line-reserve-owner-flow.md](../screens/37-line-reserve-owner-flow.md)。概要のみ:
+実装正本は別エントリ `frontend/line-reserve` と画面仕様 [37-line-reserve-owner-flow.md](../screens/37-line-reserve-owner-flow.md)。ローカル dev の Vite rewrite と maintenance / mock 上書きも 37 を正本とする。概要のみ:
 
 1.  **お客様情報**: 氏名・電話（必須）、飼い主名（任意）、ペット選択/新規入力。
 2.  **コース選択**: 診察、ワクチン、トリミング等（マスタで公開設定されたもののみ）。`category=trimming` 時はトリミングコース → オプションへ分岐。

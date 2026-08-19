@@ -74,6 +74,9 @@ health-card API は LINE 顧客が飼い主未紐付けでも 200 を返し、ow
 
 ## 技術仕様
 
+### 開発サーバー（`frontend/vite.config.ts`）
+ローカル dev では `/liff/{clinicId}/src/*` を実ファイルへ rewrite する（`line-reserve` と同型）。rewrite が無いと `GET /liff/{clinicId}/src/main.tsx` が 503 になり画面が白紙になる。
+
 ### 使用コンポーネント
 - **`PetHealthPage`** / **`LiffLinkPage`** / **`LoadingPage`**: `frontend/liff/src/pages` の 3 画面。
 - **`ErrorBoundary`** / **`ErrorPage`** / **`Spinner`**: `frontend/src/shared-liff` の共有部品（line-reserve アプリと共用）。ルート全体を `ErrorBoundary` でラップ（`main.tsx`）。

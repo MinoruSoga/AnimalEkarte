@@ -4,7 +4,8 @@
 
 ## 概要
 - **画面の目的**: 飼主が LINE（LIFF）から診療・トリミングの予約作成、予約確認、キャンセルを完結させる。
-- **URLパターン**: `/line-reserve/{clinicId}`（pathname から医院 ID を解決。単一ページアプリで内部ステップを切替え、URL は遷移しない）
+- **URLパターン**: `/line-reserve/{clinicId}`（pathname から医院 ID を解決。単一ページアプリで内部ステップを切替え、URL は遷移しない）。ローカル dev は Vite rewrite 必須（`/line-reserve/{clinicId}/src/*` を実ファイルへ戻す。末尾スラッシュ付き clinic パス。BUG-402）。
+- **メンテナンス**: 本番/非モックで settings が stopped なら `MaintenancePage`。`VITE_LIFF_MOCK=true` では LIFF 初期化後に Top へ上書きされ得る（BUG-141）。
 - **アクセス権限**: 院内権限は不要。LINE IDトークン認証（`Authorization: Bearer` ヘッダ）を `LiffAuth` ミドルウェアが検証する。`/settings` のみ認証不要（トップ表示用・30回/分の IP レートリミット。`/my-reservations` も 30回/分）。
 
 ---

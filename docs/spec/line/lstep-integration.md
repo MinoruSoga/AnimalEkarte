@@ -35,6 +35,9 @@
 
 LTV 上位 20% は CPM ステージとは独立した `LTV_上位20` タグとして別途付与される。
 
+### 2.1a CPM V1（金額＋期間）と残余
+タグ同期の既定は医院設定の CPM バージョンに従う。V1 は Encounter / Growing / Core / Spot / Noah / Dormant の 6 区分。該当しない飼主は `cpm_unclassified`（配信対象外。`allCPMStages` に含めない）。顧客集計ダッシュボードの人数チップは 6 区分 + Unclassified の 7 つ（画面正本: [36-aggregation-dashboard.md](../screens/36-aggregation-dashboard.md)）。
+
 ### 2.2 休眠予備軍 (VISITタグ)
 最終来院日からの経過日数に応じ、以下のタグを自動付与・解除します。
 - `VISIT_120日超` / `VISIT_180日超` / `VISIT_220日超` / `VISIT_240日超`
