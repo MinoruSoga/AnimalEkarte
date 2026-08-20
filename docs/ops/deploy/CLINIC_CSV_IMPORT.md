@@ -159,3 +159,24 @@ docker compose exec backend go test ./cmd/migrate -count=1
 
 F8 の失敗側リハーサルは、通常 importer に fault injection を追加せず、専用の
 [F8 G4 synthetic failure rehearsal](F8_G4_FAILURE_REHEARSAL.md) を使用します。
+
+## rehearsal 前提（#250 / BRT-42 · 2026-08-20）
+
+**cutover 実行と架空 COMPLETE bundle は禁止。** 本節は手順の不足を埋めるだけ。
+
+| 前提 | 状態 | 根拠 |
+|---|---|---|
+| formal COMPLETE producer bundle 受領 | **未記入**（受領記録なし） | Linear BRT-42 / #250。KNJO source 未完全のため apply は本文どおり BLOCKED |
+| `payments.csv` / `payment_splits.csv` が正件数 | 現行 KNJO は header-only（本文） | 正件数になるまで preflight 拒否 |
+| F8 G4 synthetic failure rehearsal | 手順あり（専用 compose。本番 CSV 不可） | [F8_G4_FAILURE_REHEARSAL.md](F8_G4_FAILURE_REHEARSAL.md) |
+| 代表データ手動照合 | **未記入** | USER |
+| production cutover | **しない** | #253/#254/#255 gate 後の USER |
+
+COMPLETE 受領後の rehearsal 順（実行は USER。本セッションでは走らせない）:
+
+1. bundle を repo 外に置き、PHI を git / Issue に載せない
+2. `make csv-import-preflight`（write 0）
+3. 隔離 DB での F8 G4（本番 CSV を渡さない）
+4. 隔離 rehearsal apply（共有 STG/PROD は承認後のみ）
+5. `make csv-import-verify`（read-only）
+6. production cutover は gate 後の別作業

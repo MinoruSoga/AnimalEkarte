@@ -57,5 +57,21 @@
 | POST | `/api/v1/closing-settings/holidays` | 休診日の登録 | `closing-settings` | `create` |
 | DELETE | `/api/v1/closing-settings/holidays/:date` | 休診日の削除 | `closing-settings` | `delete` |
 
+## 全院投入手順（#252 / BRT-43）
+
+PO 裁定（2026-07-15、#252 本文）: 全院を城東同値で投入。**本セッションでは本番投入しない。** 値は Issue 本文の転記であり、新規発明ではない。
+
+| フィールド | #252 裁定値 | 画面 |
+|---|---|---|
+| `closing_am_start` | 09:00 | **編集不可**。確認のみ |
+| `closing_am_pm_boundary` | 12:00 | `/settings/closing-time` |
+| `closing_weekday_end` | 18:30 | 同上 |
+| `closing_sunday_end` | 18:30 | 同上（資料 2 に曜日区別なし） |
+| `closed_weekdays` | 変更しない | #252 対象外 |
+
+**seed との差（発明しない）:** S09 前提の seed 城東（clinic_id=2）は `closing_am_pm_boundary=13:30` / `closing_weekday_end=19:00`。裁定値（12:00 / 18:30）と一致しない。投入は USER が承認済み env で画面 PATCH する（`audit_logs` に残る）。
+
+投入順（USER）: 対象 env 確定 → 各院で境界・終了を裁定値へ → プレビューで AM/PM/EMG 目視 → `closing_am_start`≠09:00 のみ事前承認後 DB → 過去締め非再計算（#215）→ 非機密 receipt。結果は **未記入**。
+
 ---
 

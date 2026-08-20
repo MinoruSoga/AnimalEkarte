@@ -137,6 +137,23 @@ docker compose exec backend go run ./cmd/staff-provision apply \
 4. role → **明示** permission_group_ids マッピング  
 5. 実一覧・secret 配布・対象環境・authorized actor での apply
 
+### 不足入力チェックリスト（2026-08-20）
+
+値・氏名・email・パスワード・架空スタッフは書かない。未供給は **未記入**。本番 apply はしない。
+
+| ID | 不足入力 | なぜ必要か | 供給者 | 状態 |
+|---|---|---|---|---|
+| I-ROSTER | 実スタッフ一覧（氏名・所属院・役割） | #255 本文のブロッカー。manifest `staff[]` の源泉 | 先方 | **未記入**（受領記録なし） |
+| I-EMAIL | email 方針（個人必須 / 共有禁止は Q&A No.30） | manifest `email` を埋められるか | PO | **未記入** |
+| I-CLINIC | 院 → `clinic_id` 対応表 | `clinic_scope` / `main_clinic_id` | 運用 | **未記入** |
+| I-ROLE | 役割 → **明示** `permission_group_ids`（推論禁止） | 権限グループ割当 | PO | **未記入** |
+| I-LEAVE | 休職 / 退職 / 委託者を発行するか | `is_active` 方針 | PO | **未記入** |
+| I-ACTOR | 認可済み `actor_account_id` | preflight 認可 | USER | **未記入** |
+| I-ENV | 適用先（local / STG / PROD）と承認 | apply は USER。PROD は #253/#254 gate 後 | USER | **未記入** |
+| I-RECEIPT | 認可済み適用証跡（PII-free `batch_id` / digest / count） | #255 AC（発行・権限・audit） | USER apply 後 | **未記入** |
+
+**やらない:** 架空スタッフの invent、repo への実 roster コミット、本番 apply、PII を Issue / Linear に書く。
+
 ## 検証（開発）
 
 worktree を backend にマウントしたうえで:

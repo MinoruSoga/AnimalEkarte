@@ -11,8 +11,8 @@
 
 | ファイル | 対象 Issue | 所有 lane | 読者 | 内容 | repo 由来 | USER 残差 |
 |:---|:---|:---|:---|:---|:---|:---|
-| [DELIVERY_PACKAGE.md](DELIVERY_PACKAGE.md) | #258 | LANE-5（本 lane） | 先方管理者 | システム構成概要・管理者向け初期設定・運用手順 | STG SSOT 同期済み | **U1–U12**（契約・秘密・本番実測・窓口） |
-| [OPERATION_MANUAL.md](OPERATION_MANUAL.md) | #256 | LANE-5（本 lane） | 現場スタッフ | 画面操作への最短ナビゲーション（詳細はシステム内マニュアルが正本） | 主要 8 業務ナビ・Q&A No.25 訂正済み | **U13**（説明会日程）・#254 FAQ/スクショ |
+| [DELIVERY_PACKAGE.md](DELIVERY_PACKAGE.md) | #258 | LANE-5（本 lane） | 先方管理者 | システム構成概要・管理者向け初期設定・運用手順 | STG SSOT 同期済み。U 表は 2026-08-20 に repo 確定 / **未記入** を分離 | **U1–U12 契約記入は未記入**（名義・秘密・本番実測・窓口） |
+| [OPERATION_MANUAL.md](OPERATION_MANUAL.md) | #256 | LANE-5（本 lane） | 現場スタッフ | 画面操作への最短ナビゲーション（詳細はシステム内マニュアルが正本） | 主要 8 業務ナビ・Q&A No.25 訂正済み | **U13 = 未完**（日程・receipt・署名は未記入）・#254 FAQ/スクショ |
 | [GOLIVE_RUNBOOK.md](GOLIVE_RUNBOOK.md) | #257 | **LANE-2**（編集禁止・本 lane 対象外） | 切替実施者 | 本番切替の前提チェック・当日タイムライン・切り戻し基準 | STG 前提の一部 ✅ | 切替当日の確定待ち多数 |
 | [README.md](README.md) | — | LANE-5 | 納品担当 | 本索引 | — | — |
 
@@ -27,7 +27,7 @@
 | U7–U8 | 障害窓口・監視通知メール | DELIVERY_PACKAGE §3.2 / GOLIVE §5 |
 | U9–U11 | バックアップ実測・R2 方針・監査保持 | DELIVERY_PACKAGE §3.1 / §3.3 |
 | U12 | Production 構築完了証跡 | DELIVERY_PACKAGE §1.3 |
-| U13 | 操作説明会の日程・形式・参加者 | OPERATION_MANUAL §10 |
+| U13 | 操作説明会。**2026-08-20 棚卸し: 未完**（日程・receipt・署名は未記入） | OPERATION_MANUAL §10 |
 
 ## 運用ルール
 

@@ -6,7 +6,7 @@
 > **構築手順の正本**: [setup.md](setup.md)（未構築時はまずこちら）。
 > **デプロイ契約の正本**: [../../deploy/CI-CD-PIPELINE.md](../../deploy/CI-CD-PIPELINE.md) §0。
 >
-> 本番は **未構築**（2026-07-31）。本書は STG runbook をベースに、本番固有差分
+> 本番は **未構築**（2026-08-20 再確認）。本書は STG runbook をベースに、本番固有差分
 > （Required reviewers・通知・backup 検証・CF-only rollback）を先に固定する。
 > 実値（token・password・接続文字列・通知メール）は書かない。
 
@@ -14,17 +14,29 @@
 
 ## 0. 現状とゲート
 
-> 実測日: 2026-08-01（repo 内の workflow / docs のみ。runtime・GitHub UI・課金状態は未実測）。
+> 実測日: 2026-08-20（`gh api repos/MinoruSoga/AnimalEkarte/environments` + workflow 本文。runtime・課金・backup 実測は未実施）。agent は production 実デプロイ・secret 投入・reviewer 追加をしない。
 
 | 項目 | 状態 | 実測根拠 |
 |---|---|---|
-| PlanetScale prod DB / R2 / DNS / secrets | 未構築 | [setup.md](setup.md) §1〜§6 が事前構築手順として未完了チェックを前提。本 unit は対象環境を作成・検証していない |
-| GitHub Environment `production` + Required reviewers | 未作成 | setup.md §7 が UI 手順のまま。`.github/workflows/**` に `environment:` 指定は **0 件**（backend-deploy / frontend-deploy とも未設定） |
-| `backend-deploy.yml` production トリガー | **未適用** | 実ファイルは `on.push.branches: [staging]` のみ（production 無し）。setup.md §8 は **提案 diff** のまま未適用 |
-| `frontend-deploy.yml` production 経路 | **branch トリガーのみ存在** | `on.push.branches` に `staging` と `production` あり。GitHub Environment ゲートは **無い**（CI-CD-PIPELINE.md §0.2 と同旨） |
+| PlanetScale prod DB / R2 / DNS / secrets | 未構築 | [setup.md](setup.md) §1〜§6 が未完了前提。本 unit は対象環境を作成していない |
+| GitHub Environment 名 | **`Production`（先頭大文字）が存在**。`production`（小文字・ブランチ名一致）は **無い** | API: `Preview` / `Production` / `staging`。setup.md §8 提案の `environment: ${{ github.ref_name }}` はブランチ `production` を参照するため、このままでは既存 `Production` に届かない |
+| Required reviewers | **空**（protection_rules 0） | 同上 API。無承認 production deploy を止められない。USER が設定。agent は reviewer を追加しない |
+| `backend-deploy.yml` production トリガー / `environment:` ジョブゲート | **未適用** | `on.push.branches: [staging]` のみ。ジョブに GitHub Environment キー無し。setup.md §8 は提案 diff のまま。本セッションでは workflow を適用しない |
+| `frontend-deploy.yml` production 経路 | **branch トリガーあり・承認ゲート無し** | `on.push.branches` に `production`。`workflow_dispatch.inputs.environment` は Vercel 向け入力であり、GitHub Environment 承認ではない |
 | ECS / AWS 切り戻し先 | **存在しない** | 2026-07-20 廃止。`backend-deploy.yml` ヘッダも ECS 版削除済み。**再導入禁止** |
 | CI green on latest main | **BLOCKED**（docs 上の前提） | GitHub Actions billing/spending は USER 復旧のみ。agent は課金状態を実測・変更しない。候補 required check は §8 と [todo-po.md](../../../../todo-po.md) #253（詳細は git 履歴 / Issue #253） |
-| PROD backup / restore / rollback **実行スクリプト** | **repo に存在しない** | `scripts/` に backup/restore/rollback/deploy 名のスクリプト 0 本。`pg_restore` は `scripts/`・`Makefile` とも 0 ヒット。手順は §3.1 / §5.1 の **文書のみ** |
+| PROD backup / restore / rollback **実行スクリプト** | **repo に存在しない** | `scripts/` に backup/restore/rollback/deploy 名のスクリプト 0 本。`pg_restore` は `scripts/`・`Makefile` とも 0 ヒット。手順は §3.1 / §5.1 の **文書のみ**。rehearsal 証跡は **未記入** |
+
+### 0.1 USER 専権（本セッションでは触らない）
+
+| # | 作業 | なぜ USER か |
+|---|---|---|
+| 1 | Environment 名を契約どおり `production` にするか、workflow 参照名を既存 `Production` に合わせる | 設定変更 / 本番ゲート |
+| 2 | Required reviewers を 1 名以上入れる | 無承認 deploy 禁止の AC |
+| 3 | setup.md §8 の workflow 適用 | production 実デプロイ経路 |
+| 4 | Environment / wrangler secrets 投入 | secret |
+| 5 | backup/restore rehearsal と RTO 記録 | 本番/隔離環境の実操作 |
+| 6 | GitHub Actions billing 復旧 | 有料操作 |
 
 ---
 

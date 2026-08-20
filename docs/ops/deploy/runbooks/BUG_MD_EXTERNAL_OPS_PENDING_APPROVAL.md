@@ -43,7 +43,19 @@ curl -sS -o /dev/null -w '%{http_code}\n' https://api.stg.noah-karte.com/health
 # 旧値でのアクセスが拒否されること（各コンソール / wrangler の確認 UI）
 ```
 
-ローテーション完了後のみ: Issue #97 本文の実値マスク（`gh issue edit` — ユーザー実施）。
+### 1.1 不足チェック（#89/#97 / BRT-37 · 2026-08-20）
+
+**実ローテ・値の記載・git filter-repo は禁止。** 証跡は非機密 1 行のみ。
+
+| 系統 | 手順の所在 | 実行 | 非機密 receipt |
+|---|---|---|---|
+| 1 PlanetScale DB | 上表 + [staging/runbook.md](../../../infra/staging/runbook.md) | USER | **未記入** |
+| 2 Cloudflare API / Worker | 上表 + `wrangler secret put` | USER | **未記入** |
+| 3 LINE channel | 上表。値は UI から。seed に戻さない | USER | **未記入** |
+| 4 JWT / INTEGRATION_ENCRYPTION_KEY | 上表。新規乱数。値は書かない | USER | **未記入** |
+| #97 本文マスク | ローテ完了後のみ `gh issue edit` | USER | **未記入** |
+
+順: 新発行 → secret 投入 → 再デプロイ → `/health` → 旧 revoke → 旧値拒否確認。完了まで #89/#97 は close しない。
 
 GitHub Secrets（`CLOUDFLARE_API_TOKEN`, `MIGRATE_RUN_SECRET`, `STG_DEMO_EMAIL`, `STG_DEMO_PASSWORD`）
 の登録手順は [`infra/cloudflare/README.md`](../../../../infra/cloudflare/README.md) の「CI デプロイ」を正とする。

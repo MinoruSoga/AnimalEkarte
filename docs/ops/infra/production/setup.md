@@ -246,8 +246,11 @@ cd backend
 1. GitHub リポジトリ → Settings → Environments → **New environment** → 名前を厳密に
    `production` とする(§8のワークフローが `github.ref_name` = ブランチ名と一致させて
    参照するため、名前の一致が必須)。
+   **2026-08-20 実測:** 既存 Environment 名は `Production`（先頭大文字）。`production` は無い。
+   USER が (a) 名前を `production` に揃えるか (b) workflow 参照を `Production` に合わせるかを決める。
+   **agent は Environment を作らない・改名しない・reviewer を追加しない。**
 2. **Required reviewers** を設定し、production への実デプロイに人間承認を必須化する
-   (production-impacting action の承認ゲート)。
+   (production-impacting action の承認ゲート)。**2026-08-20: reviewers は空。**
 3. 以下を **Environment secrets**（Repository secretsではなく、この production 環境専用）
    として登録する。**名前はSTGのRepository secretsと同一名でよい**
    (GitHub Actionsは `environment:` を指定したジョブで同名secretがあれば環境側を優先し、

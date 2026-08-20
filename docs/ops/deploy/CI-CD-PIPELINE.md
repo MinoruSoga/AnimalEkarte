@@ -29,9 +29,9 @@
 |---|---|---|
 | STG backend auto-deploy | ✅ `backend-deploy.yml` が `staging` push で稼働 | 維持 |
 | STG frontend auto-deploy | ✅ `frontend-deploy.yml` が `staging` push で稼働 | 維持 |
-| Production backend workflow | ⚠ 未適用（`setup.md` §8 提案 diff） | Environment 作成後に workflow 適用 |
-| Production Environment + Required reviewers | ⚠ 未作成（`setup.md` §7） | USER が GitHub 設定 |
-| Production frontend | ⚠ `production` push で Vercel デプロイ可能だが Environment ゲート無し | Environment 保護を backend と揃える |
+| Production backend workflow | ⚠ 未適用（`setup.md` §8 提案 diff）。`environment:` ジョブキー無し | USER が §7 ゲート確定後に適用。**agent は適用しない** |
+| Production Environment + Required reviewers | ⚠ 名は `Production`（大文字）が存在。`production` は無い。**reviewers 空**（2026-08-20 `gh api`） | USER が名前一致と Required reviewers を設定。agent は reviewer 追加しない |
+| Production frontend | ⚠ `production` push で Vercel デプロイ可能だが GitHub Environment ゲート無し（`inputs.environment` は Vercel 入力） | Environment 保護を backend と揃える |
 | ECS workflow | ✅ repository に残存なし | 再導入禁止 |
 | CI green on latest main | ❌ billing/spending limit で job が即 failure | USER billing 復旧（§7） |
 

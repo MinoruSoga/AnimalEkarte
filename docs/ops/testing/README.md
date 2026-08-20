@@ -13,6 +13,7 @@
 | **[TEST_ARCHITECTURE.md](TEST_ARCHITECTURE.md)** | **テストアーキテクチャ（層 L0–L5・受入 L4・項目単位・記録）** | **受入・戦略確認の最初** |
 | [UAT-ENV-SETUP.md](UAT-ENV-SETUP.md) | 受入実行環境の準備・チェックスクリプト | scenarios 実行前 |
 | [scenarios/](scenarios/README.md) | 納品前受け入れ（S01–S13 + V01–V05 + 項目単位 F） | 納品前・大きなリリース前 |
+| [scenarios/UAT-254-CLOSE-CHECKLIST.md](scenarios/UAT-254-CLOSE-CHECKLIST.md) | #254 5 フロー × 既存シナリオの不足チェック。local PASS ≠ close | #254 / BRT-45 の close 判定前 |
 | [scenarios/FIELD-LEVEL-PROTOCOL.md](scenarios/FIELD-LEVEL-PROTOCOL.md) | フォーム**項目単位**チェック F0–F6 | V シリーズ実施時 |
 | [scenarios/FORM-FIELD-INVENTORY.md](scenarios/FORM-FIELD-INVENTORY.md) | 全フォーム×項目の棚卸し | 項目単位カバー確認 |
 | [INTEGRATION_TEST_PLAN.md](INTEGRATION_TEST_PLAN.md) | Unit/Integration/E2E・負荷試験 | 自動テスト方針 |

@@ -23,4 +23,5 @@
 ## AI エージェント向け注記
 
 - タスク台帳の実行 SoT は **Linear**（hub BRT-4。2026-08-14 移行）。root [`todo.md`](../../todo.md) · [`todo-po.md`](../../todo-po.md) は入口ポインタ。運用で発見した課題は Linear に起票する。旧 `q&a.html` / `STATUS.md` / `PO-todo.md` は削除済。
+- **#261 / BRT-51 承認の所在（代行しない・`q&a.html` は捏造しない）:** 判定の書き先は GitHub [#261](https://github.com/MinoruSoga/AnimalEkarte/issues/261) 本文（A/B/C）。`q&a.html` は repo に無い。B 薬量は [BRT-39](https://linear.app/baritechllc/issue/BRT-39)。C 健診 seed は [BRT-40](https://linear.app/baritechllc/issue/BRT-40)。検査 / #249 はスコープ外。
 - migration/seed に触れる作業は `migration-seed-safety` スキル、リリース前チェックは `stg-release-readiness` スキルを先に読むこと。

@@ -1,6 +1,6 @@
 # 納品ドキュメント — システム構成・管理者設定・運用手順
 
-> **対象 Issue**: #258 ／ **リポジトリ由来 slice 同期日**: 2026-07-31
+> **対象 Issue**: #258 ／ **リポジトリ由来 slice 同期日**: 2026-07-31 ／ **U 表棚卸し日**: 2026-08-20
 > **読者**: 先方の管理者（院長・システム担当者）
 > **目的**: 納品後に先方側で日常の運用・管理（スタッフ追加・権限変更・マスタ更新・障害時の一次対応）が自走できる状態にする。
 > **前提**: **Production（本番）は未構築**。現行で稼働しているのは Staging のみ。最終承認・本番値の確定は #253 および末尾の **USER 入力待ち（U1–U12）** 表に依存する（#258 は本 slice だけでは close しない）。**U13（操作説明会の日程・形式・参加者・実施 receipt）は #256 / [OPERATION_MANUAL.md](OPERATION_MANUAL.md) 所有であり、#258 close 条件に含めない**（DEC-62）。
@@ -216,20 +216,22 @@ flowchart TB
 
 本表は repo 由来の SSOT だけでは埋められない項目を集約する。**値・秘密・契約内容・本番証跡は発明しない。** **U1–U12** の供給後に #258 最終承認・本ドキュメント追記を行う。U13（操作説明会）は #256 / OPERATION_MANUAL の残差であり、**#258 close 条件ではない**。
 
-| ID | 項目 | 供給者（想定） | 必要入力 | 反映先 | 状態 |
-|---|---|---|---|---|---|
-| U1 | Cloudflare 契約名義・移管有無 | 先方 / 開発契約担当 | 契約名義、請求先、移管要否 | §1.2 | 空欄 |
-| U2 | PlanetScale 本番プラン・契約名義 | 先方 / 開発契約担当 | プラン名、バックアップ頻度・保持、契約名義 | §1.2 / §3.1 | 空欄 |
-| U3 | Vercel プラン・契約名義 | 先方 / 開発契約担当 | プラン、ドメインレジストラ権限 | §1.2 | 空欄 |
-| U4 | GitHub リポジトリ運用体制 | 先方 / 開発 | 組織・権限・Collaborator 方針 | §1.2 | 空欄 |
-| U5 | 本番 LINE チャネル情報 | 各医院 | チャネル ID 等（**秘密は secret 管理へ。本書に書かない**） | §2 Step 6 | 空欄 |
-| U6 | 本番 Lステップ API キー | 各医院 | API キー（**secret 管理へ。本書に書かない**） | §2 Step 6 | 空欄 |
-| U7 | 障害・サポート窓口 | 先方 × 開発 | 連絡手段・宛先・受付時間・一次対応者 | §3.2 / GOLIVE_RUNBOOK §5 | 空欄 |
-| U8 | 監視通知メール | 開発 / 先方 | 送信先メール（Cloudflare 側事前検証要） | §3.2 / `notifications.tf` | 空欄 |
-| U9 | 本番バックアップ方針の実測 | 開発（#253） | 頻度・保持・リストア手順・所要時間 | §3.1 | 空欄 |
-| U10 | R2 バックアップ/バージョニング | 開発 / 先方 | 方針の採否 | §3.1 | 空欄 |
-| U11 | 監査ログ保存期間の最終合意 | 先方 | 保持年数・廃棄方針 | §3.3 | 空欄 |
-| U12 | Production 構築完了証跡 | 開発（#253） | setup.md 実施結果・URL 疎通 | §1.3 / production/runbook | 空欄 |
+**記入ルール（2026-08-20 棚卸し）**: 「repo 確定」列はリポジトリ内の非機密事実だけを書く。「契約記入」列に名義・請求先・秘密・本番証跡が無い行は **未記入** のまま残す。推測で埋めない。
+
+| ID | 項目 | 供給者（想定） | 必要入力 | 反映先 | repo 確定（非機密） | 契約記入 |
+|---|---|---|---|---|---|---|
+| U1 | Cloudflare 契約名義・移管有無 | 先方 / 開発契約担当 | 契約名義、請求先、移管要否 | §1.2 | STG は Workers Paid を使用中（§1.2 / [architecture.md](../ops/infra/architecture.md)）。zone `noah-karte.com`。`api.stg` は ACM（`*.stg`） | **未記入**（名義・請求先・移管要否） |
+| U2 | PlanetScale 本番プラン・契約名義 | 先方 / 開発契約担当 | プラン名、バックアップ頻度・保持、契約名義 | §1.2 / §3.1 | STG DB 名 `animalekarte-stg`、リージョン東京。STG 作成スクリプト上の org 名は `noah-animalekarte`、cluster 初期値 `PS-10`（[`pscale-create-stg.sh`](../../infra/scripts/pscale-create-stg.sh)）。STG バックアップ受容条件は **12 時間毎・PITR なし**（§3.1）。本番 DB は未作成 | **未記入**（本番プラン名・契約名義・本番バックアップ保持） |
+| U3 | Vercel プラン・契約名義 | 先方 / 開発契約担当 | プラン、ドメインレジストラ権限 | §1.2 | フロントは Vercel。STG `https://stg.noah-karte.com`。apex `noah-karte.com` は本番予定（§1.3） | **未記入**（プラン名・契約名義・レジストラ権限） |
+| U4 | GitHub リポジトリ運用体制 | 先方 / 開発 | 組織・権限・Collaborator 方針 | §1.2 | リポジトリ `MinoruSoga/AnimalEkarte`。日常は `main`、STG は `staging` への PR。`production` 直 push 禁止（[CLAUDE.md](../../.claude/CLAUDE.md) / [CI-CD-PIPELINE.md](../ops/deploy/CI-CD-PIPELINE.md)） | **未記入**（組織移管・先方 Collaborator・権限方針） |
+| U5 | 本番 LINE チャネル情報 | 各医院 | チャネル ID 等（**秘密は secret 管理へ。本書に書かない**） | §2 Step 6 | 投入手順は §2 Step 6。値は本書に書かない | **未記入**（チャネル値は secret 管理へ） |
+| U6 | 本番 Lステップ API キー | 各医院 | API キー（**secret 管理へ。本書に書かない**） | §2 Step 6 | 投入手順は §2 Step 6。値は本書に書かない | **未記入**（API キーは secret 管理へ） |
+| U7 | 障害・サポート窓口 | 先方 × 開発 | 連絡手段・宛先・受付時間・一次対応者 | §3.2 / GOLIVE_RUNBOOK §5 | 連絡フロー骨格は §3.2。宛先は repo に無い | **未記入**（手段・宛先・受付時間・一次対応者） |
+| U8 | 監視通知メール | 開発 / 先方 | 送信先メール（Cloudflare 側事前検証要） | §3.2 / `notifications.tf` | `TF_VAR_notification_email` 未供給のため `notifications.tf` は genuine BLOCKED（[infra/cloudflare/README.md](../../infra/cloudflare/README.md)）。アドレスは tfvars に書かない | **未記入**（送信先メール） |
+| U9 | 本番バックアップ方針の実測 | 開発（#253） | 頻度・保持・リストア手順・所要時間 | §3.1 | Production 未構築。リストア実測なし | **未記入**（#253 後） |
+| U10 | R2 バックアップ/バージョニング | 開発 / 先方 | 方針の採否 | §3.1 | STG バケット名 `animalekarte-stg-images`（apac）。PROD 予定名 `animalekarte-prod-images`。IaC（[`r2.tf`](../../infra/cloudflare/r2.tf)）に versioning 設定なし | **未記入**（バックアップ/バージョニング方針の採否） |
+| U11 | 監査ログ保存期間の最終合意 | 先方 | 保持年数・廃棄方針 | §3.3 | 業務監査は DB の `audit_logs` に永続（§3.3 / specification §2.1）。期間ポリシーの合意記録は repo に無い | **未記入**（保持年数・廃棄方針） |
+| U12 | Production 構築完了証跡 | 開発（#253） | setup.md 実施結果・URL 疎通 | §1.3 / production/runbook | Production **未構築**。手順書は [production/setup.md](../ops/infra/production/setup.md) | **未記入**（実施結果・URL 疎通） |
 
 > **U13（操作説明会の日程・形式・参加者・実施 receipt）** は #256 所有。正本: [OPERATION_MANUAL.md §10](OPERATION_MANUAL.md) / §11。#258 の最終承認条件・本書の document completion input には含めない。
 
@@ -239,6 +241,7 @@ flowchart TB
 - §2 管理者設定 path（`/settings/clinic`・`/settings/staff`・`/settings/permission-groups`・`/settings/closing-time` 等）を実装 path と整合
 - §3 運用を STG runbook ベースで記述し、本番実測を U 行に分離
 - 本文中の各空欄に U# を併記し、秘密値・偽の本番証跡を入れない方針を維持
+- 2026-08-20: U1–U12 を「repo 確定（非機密）」と「契約記入 = 未記入」に分離。契約名義・秘密・本番証跡は未記入のまま
 
 ---
 
