@@ -19,7 +19,7 @@
 
 ### 2.1 臨床の安全 (Clinical Safety)
 - **ヒューマンエラーの排除**: 死亡ペットに対する誤操作の物理的ブロック、検査異常値の自動ハイライト、ワクチン次回予定の自動計算機能を標準装備。
-- **整合性と監査**: 臨床・会計・権限など業務上重要な変更は `audit_logs` に操作者・時刻付きで記録する（全 127 テーブルの自動全件監査ではない。経路ごとに明示実装し、締め後会計編集など clinical/financial integrity が要求する監査は同一 transaction で fail-closed）。臨床記録の真正性を担保する確定（Lock）フローを実装（カルテ画面の確定ボタン＋確認ダイアログによる明示操作、確定後は編集 UI を無効化。確定の解除は不可・訂正は追記のみ。詳細: [screens/06-medical-records-form.md §2.3](screens/06-medical-records-form.md)）。
+- **整合性と監査**: 臨床・会計・権限など業務上重要な変更は `audit_logs` に操作者・時刻付きで記録する（全 128 テーブルの自動全件監査ではない。経路ごとに明示実装し、締め後会計編集など clinical/financial integrity が要求する監査は同一 transaction で fail-closed）。臨床記録の真正性を担保する確定（Lock）フローを実装（カルテ画面の確定ボタン＋確認ダイアログによる明示操作、確定後は編集 UI を無効化。確定の解除は不可・訂正は追記のみ。詳細: [screens/06-medical-records-form.md §2.3](screens/06-medical-records-form.md)）。
 
 ### 2.2 高い操作性 (Notion-like UX)
 - **コンテキストの維持**: 画面遷移を最小限に抑える「サイドパネル編集」と、入力と同時に結果が変わる「リアクティブ検索」を採用。
@@ -50,7 +50,7 @@
 ## 4. 技術スタックと信頼性
 
 - **フロントエンド**: React 19 / Tailwind 4 / shadcn/ui による高速な SPA。
-- **バックエンド**: Go 1.25 / Gin / GORM による API（スキーマは **127 テーブル**。[ADR-006](../architecture/adr/006-backend-domain-package-boundaries.md) により domain/capability-first の modular monolith へ cutover 済み。production 実装は `internal/<domain>` および命名済み cross-cutting package に置き、旧 layer-first 集約（`internal/handler` / `internal/service` / `internal/repository`）は削除済み。ADR-006 の Implemented は code/package 境界の完了であり、release ready ではない）。
+- **バックエンド**: Go 1.25 / Gin / GORM による API（スキーマは **128 テーブル**。[ADR-006](../architecture/adr/006-backend-domain-package-boundaries.md) により domain/capability-first の modular monolith へ cutover 済み。production 実装は `internal/<domain>` および命名済み cross-cutting package に置き、旧 layer-first 集約（`internal/handler` / `internal/service` / `internal/repository`）は削除済み。ADR-006 の Implemented は code/package 境界の完了であり、release ready ではない）。
 - **認可・セキュリティ**: **37 種類のリソース**に対する RBAC 制御と、クリニック間の物理データ隔離。
 - **品質保証**: クリティカルな domain には unit / integration test と write-owner 等の静的 gate を置く。Playwright E2E は表示・主要導線の任意検証であり、全クリティカルパス網羅や全 handler 結合テスト完備を主張しない（方針: [docs/ops/ci-policy.md](../ops/ci-policy.md)、[docs/ops/testing/](../ops/testing/README.md)）。
 
