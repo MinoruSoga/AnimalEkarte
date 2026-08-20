@@ -12,9 +12,9 @@
 1. **正本は1つ**: 同じ検証を複数文書に重複定義しない。層ごとの正本表（§2）に従う。
 2. **受入は scenarios/**: 納品前・大きなリリース前の「業務が通る」証明は `scenarios/` が正本。
 3. **項目単位まで受入する**: フォーム受入（V シリーズ）はフォーム単位の C1〜C3 に加え、**各入力項目に F プロトコル**を適用する（[scenarios/FIELD-LEVEL-PROTOCOL.md](scenarios/FIELD-LEVEL-PROTOCOL.md)）。
-4. **結果を正本に書かない**: シナリオ md は手順の正本。実行結果は `reports/uat-YYYY-MM-DD/` と root `todo.md` 受入バグ節のみ。
+4. **結果を正本に書かない**: シナリオ md は手順の正本。実行結果は gitignore の `reports/uat-YYYY-MM-DD/`。FAIL は Linear。
 5. **自動化は回帰、受入はギャップ**: E2E は壊れやすい回帰の固定化。臨床安全・フォーム永続・LIFF 等のギャップは scenarios が担当。
-6. **最終合否は人**: 製品 FAIL の起票は AI/実行者、破壊操作・実 LINE・staging 決裁は `todo-po.md`。
+6. **最終合否は人**: 製品 FAIL の起票は Linear。破壊操作・実 LINE・staging 決裁は人間レーン（Linear Needs Human）。
 
 ---
 
@@ -122,8 +122,8 @@
 | 実行レポート | `reports/uat-YYYY-MM-DD/FINAL.md` | シナリオ別 PASS/PARTIAL/BLOCKED/FAIL 集計 |
 | 機械可読結果 | 同ディレクトリ `results.json` | ステップ単位 |
 | 証跡 | 同ディレクトリ `*.png` 等 | FAIL/PARTIAL の根拠 |
-| **製品欠陥** | root `todo.md` §2 受入バグ | `### BUG-xxx` のみ Open を残す |
-| 環境・仕様・決裁 | `todo-po.md` | 実 LINE・fixture・破壊 gate |
+| **製品欠陥** | Linear | Open Issue のみ |
+| 環境・仕様・決裁 | Linear Needs Human | 実 LINE・fixture・破壊 gate |
 | シナリオ md | **編集禁止（結果を書かない）** | 手順・期待の正本のみ |
 
 判定:

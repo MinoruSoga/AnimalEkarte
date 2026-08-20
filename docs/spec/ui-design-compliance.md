@@ -1,6 +1,6 @@
 # UI Design Compliance — 全ルートページ準拠監査
 
-> 正本。[DESIGN.md](../../DESIGN.md)（タイポ・形状・余白・エレベーション・寸法）と [docs/spec/design-system.md](design-system.md)（AE 製品色）への準拠を、本体85リーフルートとその実装コンポーネントに対して判定した結果。最終監査日 **2026-07-24**（§2 在庫は 2026-07-31 に `/identity-links` を追加し 85 リーフへ更新）。`frontend/docs/design-audit-pages.md` は本書に統合済みで更新終了。
+> 正本。[DESIGN.md](../../DESIGN.md)（タイポ・形状・余白・エレベーション・寸法）と [docs/spec/design-system.md](design-system.md)（AE 製品色）への準拠を、本体85リーフルートとその実装コンポーネントに対して判定した結果。最終監査日 **2026-07-24**（§2 在庫は 2026-07-31 に `/identity-links` を追加し 85 リーフへ更新）。
 
 ## 1. 準拠チェック定義
 

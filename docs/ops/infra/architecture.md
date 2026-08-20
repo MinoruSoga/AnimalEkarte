@@ -1,7 +1,7 @@
 # インフラ構成（現行・Cloudflare）
 
 > **目的**: 現行インフラの全体像。**読者**: 全開発者。**タイミング**: インフラに関わる変更・調査の最初。
-> AWS 時代の構成は git 履歴参照（2026-07-20 に全廃止・課金停止済み。2026-08-20 に記録も削除 — `git show e0260d32f^:docs/ops/infra/_archive/aws-legacy/` 配下）。
+> AWS 時代の構成は git 履歴参照（2026-07-20 に全廃止・課金停止済み。2026-08-20 に記録も削除 — `git show e0260d32f^:docs/ops/infra/_archive/aws-legacy/` 配下）。2026-07 の移行調査 HTML（旧 root `research-cloudflare.html`）は CorpVault `50_Projects/ノア動物病院電子カルテ/evidence/2026-08-20-root-docs/research-cloudflare.html`。
 
 ## 全体像
 
@@ -41,4 +41,4 @@ PlanetScale Postgres (ap-northeast/東京)         R2 (臨床画像 · S3互換)
 
 1. **Containers は Hyperdrive 不可**（公式 issue #97）→ DB 直結。プール×インスタンス数が PlanetScale 接続上限を超えないこと
 2. **ローリング更新は非同期** — デプロイ直後のリクエストは旧イメージに当たりうる。イメージ更新を伴う検証は 15 分静置（sleepAfter 超過）後に行う
-3. 障害記録・教訓の一次資料: [_archive/migration-cloudflare.md](_archive/migration-cloudflare.md) の P7-2 観測 #1/#2
+3. 障害記録・教訓: 2026-07-17 の接続スロット枯渇（プール低値で恒久対処済み）と、失効ロールが schema 所有者のまま残る問題（下記 staging runbook）

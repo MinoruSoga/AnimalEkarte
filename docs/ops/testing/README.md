@@ -27,4 +27,4 @@
 - 環境: `./docs/ops/testing/scripts/check-uat-env.sh` → [UAT-ENV-SETUP.md](UAT-ENV-SETUP.md)。
 - カバレッジ基準の正本は [../coverage-policy.md](../coverage-policy.md)（ratchet 方式）。
 - BE9 完了後の HTTP テストは各 `internal/<domain>` と `cmd/api`。
-- FAIL / 要対応は root [`todo.md`](../../../todo.md) 受入バグ節。シナリオ md に結果を書かない。証跡は `reports/uat-YYYY-MM-DD/`。
+- FAIL / 要対応は Linear。シナリオ md に結果を書かない。証跡は gitignore の `reports/uat-YYYY-MM-DD/`。

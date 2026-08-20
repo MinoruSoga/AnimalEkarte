@@ -99,7 +99,7 @@ local では BE/FE 双方の mock が必須。compose 既定:
 - backend: `LIFF_MOCK=true`
 - frontend: `VITE_LIFF_MOCK=true`
 
-STG/本番では mock 禁止。実 LINE は `todo-po.md` レーン。
+STG/本番では mock 禁止。実 LINE は Linear の人間レーン。
 
 ---
 
@@ -113,8 +113,8 @@ reports/uat-YYYY-MM-DD/
   *.png
 ```
 
-- FAIL → root `todo.md` §2 `### BUG-xxx`
-- 環境 BLOCKED → `todo-po.md` または FINAL の BLOCKED 表
+- FAIL → Linear
+- 環境 BLOCKED → Linear Needs Human または FINAL の BLOCKED 表
 - **scenarios/*.md に結果を書かない**
 
 ---

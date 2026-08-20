@@ -47,8 +47,7 @@
 | Backend API (PROD) | Cloudflare Workers + Containers | `wrangler deploy -c wrangler.production.jsonc` + migrate + `/health` | `production` push（**Environment 承認後**・workflow 適用後） | 同上（`setup.md` §8） |
 | Frontend (STG/PROD) | Vercel | Vercel CLI | `staging` / `production` への対象 path push | `.github/workflows/frontend-deploy.yml` |
 
-移行経緯は [`../infra/_archive/migration-cloudflare.md`](../infra/_archive/migration-cloudflare.md) を参照する。
-現在のインフラ構成と運用手順は [`../infra/README.md`](../infra/README.md) を正本とする。
+現在のインフラ構成と運用手順は [`../infra/README.md`](../infra/README.md) を正本とする。STG 移行の実施記録は git 履歴。
 
 ---
 

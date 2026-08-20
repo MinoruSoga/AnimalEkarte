@@ -22,8 +22,8 @@
 - **[lstep-integration.md](./lstep-integration.md)**: **【重要】** マーケティング戦略、CPM 判定ロジック、15 種の自動配信トリガー詳細。
 - **[cost-analysis.md](./cost-analysis.md)**: Messaging / Lステップ課金と配信ボリューム試算（docs-only）。
 
-### 原本・ソース
-- **[`01_曽我さん向け_カルテLステップ連携実装仕様書.md`](./01_曽我さん向け_カルテLステップ連携実装仕様書.md)**: クライアント受領の正本仕様書。
+### 原本
+- クライアント受領原本は CorpVault `evidence/2026-08-20-docs-cleanup/client/`。製品側の正本は [lstep-integration.md](./lstep-integration.md)。
 
 ---
 

@@ -1,7 +1,7 @@
 # インフラ再編計画（コード・ドキュメントの整理と STG/PROD 分離）
 
 > **起案**: 2026-07-20（責任者: PO）／**目的**: ① AWS 廃止後の死骸を除去 ② Cloudflare のコード/ドキュメントを STG・PROD で明確に分離 ③ IaC 運用のベストプラクティス（リモート state・ドリフト検知・トークン分割）を導入する。
-> **前提**: STG は Cloudflare へ完全移行済み・AWS STG は 2026-07-20 に destroy 済み（`docs/ops/infra/_archive/migration-cloudflare.md` Phase 8）。本番（#253）は未構築。
+> **前提**: STG は Cloudflare へ完全移行済み・AWS STG は 2026-07-20 に destroy 済み。本番（#253）は未構築。
 
 ## 0. 現状の問題（実測 2026-07-20）
 

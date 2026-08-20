@@ -4,7 +4,7 @@
 # frontend/.env.production は意図的に git track する（PO決定 2026-07-02 / Issue #91 / bug.md M-10）。
 # 根拠: VITE_* はビルド成果物に埋め込まれる公開値でありシークレットではない。
 # ルール: この env ファイルにシークレット（トークン・パスワード・鍵）を置くことは禁止。
-#        違反は CI シークレットスキャン（bug.md C-1-4 で導入予定）で検出する。
+#        違反は CI gitleaks で検出する。
 
 # Dependencies
 node_modules/
@@ -31,6 +31,9 @@ frontend/debug_*.png
 # Playwright MCP のブラウザQA成果物（console ログ・page snapshot yml）。
 # curated な証跡は tmp/ 配下（同じく ignore 済み）へ置く運用のため commit しない。
 .playwright-mcp/
+
+# Session UAT / agent run artifacts. Do not commit; git history has 2026-08-14 runs.
+reports/
 
 # Backend coverage artifacts (CI generates these; non-gating)
 backend/coverage.out
@@ -132,5 +135,7 @@ sensitive-local/
 # 監査レポート（秘密の抜粋を含みうるローカル作業ファイル。git外に保つ）
 improvement.html
 improvement_ai.html
+# Codex security CLI のローカル出力（再生成は `pnpm run codex-security:export`）
+codex-security-output/
 # Added by code-review-graph
 .code-review-graph/

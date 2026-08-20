@@ -24,7 +24,7 @@
 ## 4. ドリフト
 
 - **手動ダッシュボード操作は原則禁止**。やむを得ない場合は実施記録を残し `cf-terraforming import` で state に取り込む
-  （実害例: 手動作成の CloudFront が AWS destroy を 409 でブロックした — _archive/migration-cloudflare.md Phase 8）
+  （実害例: 手動作成の CloudFront が AWS destroy を 409 でブロックした）
 - 定期 `terraform plan` によるドリフト検知 CI を置く（docs/ops/infra/reorg-plan.md Phase D）
 
 ## 5. 変更フロー

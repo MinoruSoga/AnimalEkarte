@@ -171,7 +171,7 @@ flowchart TB
 
 | 項目 | 内容 | 根拠 / 状態 |
 |---|---|---|
-| DB 自動バックアップ | PlanetScale の自動バックアップ。STG 選定時の受容条件は **12 時間毎・PITR なし** | [migration-cloudflare.md 記録](../ops/infra/_archive/migration-cloudflare.md)（STG）。本番プランの頻度・保持・復旧テスト結果は **USER 入力待ち（U2 / U9）**（#253） |
+| DB 自動バックアップ | PlanetScale の自動バックアップ。STG 選定時の受容条件は **12 時間毎・PITR なし** | STG 現行。本番プランの頻度・保持・復旧テスト結果は **USER 入力待ち（U2 / U9）**（#253） |
 | 大規模変更前の手動スナップショット | データ移行等の前に取得。Go-live 当日の位置づけは [GOLIVE_RUNBOOK.md](GOLIVE_RUNBOOK.md) | 実施タイミングは運用判断 |
 | ファイル（R2） | 画像・帳票の実体は R2 | R2 側バックアップ/バージョニング方針は **USER 入力待ち（U10）** |
 | 復旧手順 | バックアップからのリストア手順と実測所要時間 | #253 の復旧テスト完了後に本節へ追記（**USER 入力待ち（U9）**） |
@@ -246,7 +246,7 @@ flowchart TB
 
 - ヘルスチェック（STG 実測）: `https://api.stg.noah-karte.com/health`（HTTP 200 / 正常応答）。本番 URL `https://api.noah-karte.com/health` は **Production 未構築**のため未供用（**U12**）。
 - 5xx 率の自動通知: Cloudflare 通知ポリシー（`infra/cloudflare/notifications.tf`）。送信先メールの供給・検証と apply は **USER 入力待ち（U8）**（#253）。
-- コスト監視: Cloudflare にはアカウント全体の支出アラート機構が無いため、使用量 API の定期確認で代替（[migration-cloudflare.md](../ops/infra/_archive/migration-cloudflare.md) 記録参照）。
+- コスト監視: Cloudflare にはアカウント全体の支出アラート機構が無いため、使用量 API の定期確認で代替。
 - 障害監視・通知体制の完成条件は #253 の受け入れ条件（プロセス死活・5xx 急増・DB 接続断の通知）を正本とする。
 
 ---
@@ -264,4 +264,3 @@ flowchart TB
 | [docs/ops/infra/architecture.md](../ops/infra/architecture.md) | 現行インフラ構成 SSOT | 開発側 |
 | [docs/ops/infra/production/setup.md](../ops/infra/production/setup.md) | 本番構築手順（#253・未実施） | 開発側 |
 | [docs/ops/testing/SECTION_14_MANUAL_TEST_GUIDE.md](../ops/testing/SECTION_14_MANUAL_TEST_GUIDE.md) | ブラウザ手動検証シナリオ | 開発側・QA |
-| [../ops/infra/_archive/migration-cloudflare.md](../ops/infra/_archive/migration-cloudflare.md) | Cloudflare 移行の凍結実施記録（現行手順として実行しない） | 開発側 |

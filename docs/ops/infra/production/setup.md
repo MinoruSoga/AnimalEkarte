@@ -5,8 +5,7 @@
 > **読者**: インフラ担当（実施者）。
 > **タイミング**: Go-live 当日（2026-08-03）より前の**事前構築**として行う（**切替当日の作業ではない**）。具体日は #253 の billing 有効化が済み次第 USER が確定する。
 > **前提**: PO決定（2026-07-15）「納品はCloudflare経路。本番もCF構成で新設」/ 追跡Issue **#253**。
-> 詳細背景は [`../_archive/migration-cloudflare.md`](../_archive/migration-cloudflare.md) 「現況サマリ」
-> 2026-07-15/16 ブロック参照。critical path 上、本手順は **STG Phase 7（NS切替）完了後**に
+> 現行構成は [`architecture.md`](../architecture.md)。critical path 上、本手順は **STG NS 切替完了後**に
 > 着手する前提（`noah-karte.com` ゾーンが Cloudflare 上で active であることが前提条件）。
 >
 > 本書が参照する新規ドラフトファイル:
@@ -21,7 +20,7 @@
 
 ## 0. 事前確認チェックリスト
 
-- [ ] `../_archive/migration-cloudflare.md` の STG Phase 7（NS切替）が完了している（`noah-karte.com` ゾーンが
+- [ ] STG の NS 切替が完了している（`noah-karte.com` ゾーンが
       Cloudflare 上で active。`dig noah-karte.com NS` で Cloudflare の NS が返ることを確認）
 - [ ] `production` ブランチが存在する（確認済み: `git branch -a` に `remotes/origin/production` あり）
 - [ ] `docs/ops/deploy/README.md` の「Production」行が指す `noah-karte.com` / `api.noah-karte.com` が
@@ -156,7 +155,7 @@ terraform output zone_id                 # noah-karte.com のゾーンID(STGと�
 
 ## 4. R2 S3互換トークン発行
 
-STGの実施記録（`../_archive/migration-cloudflare.md` 試行8, P2-3）と同じ手順を production バケット向けに行う。
+STG と同じ手順を production バケット向けに行う。
 
 ```bash
 # ACCOUNT_ID は backend/wrangler.jsonc に既に公開値として存在するもの(STGと同一アカウント)

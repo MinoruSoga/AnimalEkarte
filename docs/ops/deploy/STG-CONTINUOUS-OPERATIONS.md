@@ -90,7 +90,7 @@ Container stdout は Worker の request log と別の表示面になる場合が
 
 **期待結果**: 通常時は 0 件。
 
-**異常基準**: `audit_write_failed` が観測された場合、再開条件（[`phase2.html`](../../../phase2.html)「BE — 見送り・次期タスク」の PERF-AUDIT-TX P2 参照）に従い、月 1 件以上の継続観測があれば outbox 再起案の実測根拠として記録する。
+**異常基準**: `audit_write_failed` が観測された場合、再開条件（[`phase2-deferred.md`](../../work/phase2-deferred.md) の PERF-AUDIT-TX P2）に従い、月 1 件以上の継続観測があれば outbox 再起案の実測根拠として記録する。
 
 ---
 

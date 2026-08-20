@@ -1,4 +1,4 @@
-.PHONY: up down build logs logs-api logs-front ps db clean reset migrate seed csv-import-preflight csv-import csv-import-verify a4-csv-import-preflight a4-csv-import a4-csv-import-verify a4-rehearsal-contract-test a4-rehearsal-config-check a4-rehearsal-up a4-rehearsal-ps a4-rehearsal-runtime-report a4-rehearsal-down f8-g4-rehearsal-contract-test f8-g4-rehearsal-config-check f8-g4-rehearsal-run f8-g4-rehearsal-down restart-api restart-front build-prod lint lint-fix test test-cover lint-front test-front build-front e2e build-go mod-download mod-tidy help codegen codegen-check sync-modules schema-check setup-hooks ci check-reset-contract check-reset-contract-test shellcheck shellcheck-test codex-security-scan
+.PHONY: up down build logs logs-api logs-front ps db clean reset migrate seed docs-ui csv-import-preflight csv-import csv-import-verify a4-csv-import-preflight a4-csv-import a4-csv-import-verify a4-rehearsal-contract-test a4-rehearsal-config-check a4-rehearsal-up a4-rehearsal-ps a4-rehearsal-runtime-report a4-rehearsal-down f8-g4-rehearsal-contract-test f8-g4-rehearsal-config-check f8-g4-rehearsal-run f8-g4-rehearsal-down restart-api restart-front build-prod lint lint-fix test test-cover lint-front test-front build-front e2e build-go mod-download mod-tidy help codegen codegen-check sync-modules schema-check setup-hooks ci check-reset-contract check-reset-contract-test shellcheck shellcheck-test codex-security-scan
 
 # デフォルトターゲット
 .DEFAULT_GOAL := help
@@ -32,6 +32,10 @@ build:
 # 停止
 down:
 	$(DC) down
+
+# OpenAPI 閲覧（Swagger UI :8081 / Redoc :8082）。db/backend/frontend は起動しない。
+docs-ui:
+	$(DC) --profile docs up -d swagger-ui redoc
 
 # ログ表示（全体）
 logs:
@@ -129,7 +133,7 @@ seed:
 # .env.local. Reports contain aggregate counts and the six non-PHI seed IDs,
 # and are owner-only under sensitive-local/. The source volume is read-only and
 # no old_db network exists.
-CSV_IMPORT_DC = $(DC) -f docker-compose.yml -f docker-compose.csv-import.yml
+CSV_IMPORT_DC = $(DC) --profile csv-import
 export CSV_IMPORT_SOURCE_DIR CSV_MANIFEST_SHA256 CLINIC_CODE CLINIC_ORDINAL MIGRATION_RUN_ID
 export TARGET_CLINIC_ID FALLBACK_ANIMAL_SPECIES_ID FALLBACK_EXAM_TYPE_ID
 export TRIMMING_RESERVATION_TYPE_ID PAYMENT_METHOD_CASH_ID
@@ -179,7 +183,7 @@ A4_CSV_IMPORT_DC = COMPOSE_PROJECT_NAME="$${A4_COMPOSE_PROJECT}" docker compose 
 	--env-file "$${A4_ENV_FILE}" \
 	-p "$${A4_COMPOSE_PROJECT}" \
 	-f docker-compose.yml -f docker-compose.a4-rehearsal.yml \
-	-f docker-compose.csv-import.yml
+	--profile csv-import
 export A4_COMPOSE_PROJECT A4_RUN_ID A4_TARGET_RELEASE_COMMIT A4_ENV_FILE
 
 a4-rehearsal-contract-test:
@@ -380,6 +384,7 @@ help:
 	@echo "  up            コンテナ起動"
 	@echo "  build         コンテナ起動（ビルド付き）"
 	@echo "  down          コンテナ停止"
+	@echo "  docs-ui       Swagger UI (:8081) / Redoc (:8082) だけ起動"
 	@echo "  logs          全ログ表示"
 	@echo "  logs-api      APIログ表示"
 	@echo "  logs-front    フロントエンドログ表示"

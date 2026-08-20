@@ -4,7 +4,7 @@
 > [`docs/ops/infra/architecture.md`](../../docs/ops/infra/architecture.md)、運用規約は
 > [`docs/ops/infra/iac-guidelines.md`](../../docs/ops/infra/iac-guidelines.md)。
 > AWS 基盤は 2026-07-20 に廃止済みで、旧 `infra/terraform/` は存在しない。
-> 移行経緯は [`migration-cloudflare.md`](../../docs/ops/infra/_archive/migration-cloudflare.md) の凍結履歴を参照する。
+> 移行経緯は git 履歴。現行構成は [`docs/ops/infra/architecture.md`](../../docs/ops/infra/architecture.md)。
 
 ## 安全ルール（`infra/CLAUDE.md` / `docs/ops/infra/iac-guidelines.md`）
 
@@ -88,7 +88,7 @@ Container 非対応のため未使用であり、origin に DB 資格情報を�
 
 - 送信先メールアドレスは `TF_VAR_notification_email` で供給する（`terraform.tfvars` に書かない。値未供給時は `terraform plan` が変数未設定エラーで失敗する — 意図した genuine BLOCKED）。
 - Cloudflareの通知メール送信先はダッシュボードの Notification Settings で確認リンク経由の事前検証が必要な可能性がある（本リポジトリでは未検証。`terraform plan` はこの制約を検出できないため、`apply` 前に運用担当者が送信先アドレスの検証状態を確認すること）。
-- `http_alert_edge_error` はゾーン全体のエッジ観測5xx率に基づく代替指標であり、Worker/Containers専用のalert_typeはCloudflare通知APIに存在しない（判断経緯は [`migration-cloudflare.md`](../../docs/ops/infra/_archive/migration-cloudflare.md) P6-3参照）。
+- `http_alert_edge_error` はゾーン全体のエッジ観測5xx率に基づく代替指標であり、Worker/Containers専用のalert_typeはCloudflare通知APIに存在しない。
 
 ## CI デプロイ
 

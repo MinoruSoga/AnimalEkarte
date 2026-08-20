@@ -3,7 +3,7 @@
 > STG 版は [`../README.md`](../README.md)。安全ルール・認証手順・実行フローは同一のため
 > ここでは再掲しない(重複管理を避ける)。人間の実施手順の正本は
 > [`../../../docs/ops/infra/production/setup.md`](../../../docs/ops/infra/production/setup.md)。
-> 追跡Issue: #253。PO決定: ../../../docs/ops/infra/_archive/migration-cloudflare.md「現況サマリ」2026-07-15 ブロック参照。
+> 追跡Issue: #253。現行構成は [`docs/ops/infra/architecture.md`](../../../docs/ops/infra/architecture.md)。
 
 ## STGとの違い
 

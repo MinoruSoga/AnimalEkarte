@@ -25,7 +25,7 @@
 2. **受入は scenarios/**: 納品前の業務・フォーム項目単位の証明は L4（TEST_ARCHITECTURE）。E2E で代替しない。
 3. **項目単位まで**: V シリーズ完了条件は inventory 全 fieldKey への F プロトコル適用。
 4. **実データに近い検証**: seed `003_demo`（local）/ `004_staging`（STG）。
-5. **証跡の公開**: `reports/uat-YYYY-MM-DD/`。シナリオ md に結果を書かない。FAIL は root `todo.md` 受入バグ。
+5. **証跡**: ローカル `reports/uat-YYYY-MM-DD/`（gitignore。コミットしない）。シナリオ md に結果を書かない。FAIL は Linear。
 6. **秘密を書かない**: パスワード・トークンは env のみ。
 
 ---

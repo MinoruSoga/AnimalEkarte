@@ -61,7 +61,7 @@
 ## 実行と記録のルール
 
 - **環境**: [../UAT-ENV-SETUP.md](../UAT-ENV-SETUP.md)。ローカル（seed 003_demo）または STG（004_staging）。前提データは検索条件で指定（ID 直書き禁止）。
-- **実行記録はシナリオファイルに書かない**。FAIL は root [`todo.md`](../../../../todo.md) 受入バグ節。証跡は `reports/uat-YYYY-MM-DD/`（results は `formId.fieldKey.Fx` 推奨）。
+- **実行記録はシナリオファイルに書かない**。FAIL は Linear。証跡は gitignore の `reports/uat-YYYY-MM-DD/`（results は `formId.fieldKey.Fx` 推奨）。
 - **AI 実行**: browser-test + Chrome DevTools MCP、または Playwright MCP / 再現スクリプト。
 - **【要実測】**: 初回実測後、正しければ期待結果へ昇格。
 - **クレデンシャル禁止**: パスワード・トークンを本ディレクトリに書かない。アカウントはロール名。認証は `E2E_LOGIN_*`。

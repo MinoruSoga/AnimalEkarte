@@ -1,46 +1,17 @@
-# タスク台帳 — Linear へ移行済み
+# タスク台帳 — Linear が正本
 
 | 項目 | 値 |
 |------|-----|
-| **移行日** | 2026-08-14 |
 | **実行 SoT** | Linear Team **Baritech** · Project **ノア動物病院電子カルテ** · hub **[BRT-4](https://linear.app/baritechllc/issue/BRT-4)** |
-| **マップ（docs Open）** | [`reports/todo-walk-2026-08-14/todo-docs-linear-map.md`](reports/todo-walk-2026-08-14/todo-docs-linear-map.md) |
-| **マップ（GH Open）** | [`reports/todo-walk-2026-08-14/github-linear-map.md`](reports/todo-walk-2026-08-14/github-linear-map.md) |
-| **旧本文** | git 履歴（本ファイルのフル台帳版） |
+| **直下整理** | **[BRT-105](https://linear.app/baritechllc/issue/BRT-105)** |
+| **会社側ログ** | CorpVault `50_Projects/ノア動物病院電子カルテ/`（直下から移した時点レポートは `evidence/2026-08-20-root-docs/`） |
+| **旧本文** | git 履歴 |
 
 ## 使い方
 
 - 作業の状態・担当・次の一手 → **Linear Issue**
-- 製品バグの新規 → Linear に起票（必要なら GitHub も）。旧 §2 形式は使わない
-- 受入 UAT 証跡 → `reports/uat-*` · 人手 SESSION は `reports/uat-human-*`
+- 製品バグの新規 → Linear に起票
 - 開発規約 → [`.claude/CLAUDE.md`](.claude/CLAUDE.md) · [`AGENTS.md`](AGENTS.md)
+- 今期外の索引 → [`docs/work/phase2-deferred.md`](docs/work/phase2-deferred.md)
 
-## 代表チケット
-
-| 領域 | Linear |
-|------|--------|
-| GH Open 調査束 | BRT-37〜52 |
-| #299 / PO-008 / presence / H1–H7 / P1 / M1–M5 / OPS-13 | BRT-55〜67 |
-| 城東 検査機器連携 | [BRT-94](https://linear.app/baritechllc/issue/BRT-94) · 0=[BRT-100](https://linear.app/baritechllc/issue/BRT-100) · 1〜4 は BRT-95〜98 |
-
-**agent 製品 unit: 新規に増やさない（NONE 維持の方針は Linear 説明に記載）。**
-
-## 城東 検査機器連携（2026-08-18 疎通後）
-
-old_db の現場・仕様は `../old_db/todo.md` の **JOU-LAB-0** と `../old_db/docs/lab-go/go-impl/`。こちらは AnimalEkarte 実装だけ書く。
-
-方針（2026-08-19 USER + Fable UX YES-WITH-FIXES）: **ファイルアップロードしない。** 検査用 Mac の待機ページが有線シリアルを読む（掲示板。開きっぱなし）。常駐アプリは置かない。UI は **1画面**（ペット先待機は最適化、未紐付け欄は一級）。保存は即 persist + インライン取り消す。確認ダイアログ禁止。公式リカバリは機器の送信再押下（指紋 duplicate）。所見: `../old_db/docs/lab-go/go-impl/REVIEW-FABLE-2026-08-19-AE-LAB-UX.md`。
-
-- [x] **AE-LAB-0** [BRT-100](https://linear.app/baritechllc/issue/BRT-100) 設計: [ADR-007](docs/architecture/adr/007-lab-device-receive-and-commit.md)。コード済み（ADR Accepted）。Linear Done（2026-08-19）。
-- [x] **AE-LAB-1** [BRT-95](https://linear.app/baritechllc/issue/BRT-95) `DecodeLabDeviceFrames` + 合成バイトテスト。DB/enum は未使用。コード済み。Linear Done（2026-08-19）。
-- [x] **AE-LAB-2** [BRT-96](https://linear.app/baritechllc/issue/BRT-96) 検査機器マスタ。未対応チップから該当行へ。日常経路にマスタを出さない。コード済み。Linear Done（2026-08-19）。DDL は `001_init.sql` セクション13。既存 DB は `make reset`。
-- [x] **AE-LAB-3** [BRT-97](https://linear.app/baritechllc/issue/BRT-97) 1画面: 待機（大表示）+ 未紐付け欄 + 保存カード［取り消す］。診察端末の検査画面から1クリックで後付け。コード済み。Linear Done（2026-08-19）。DDL は `001_init.sql` セクション13。既存 DB は `make reset`。
-- [x] **AE-LAB-4** [BRT-98](https://linear.app/baritechllc/issue/BRT-98) 3種をマスタ参照かつペット確定後だけ exam persist。`drwan` は開けない。コード済み。Linear Done（2026-08-19）。DDL は `001_init.sql` セクション13。既存 DB は `make reset`。
-
-順: **0 → 1 → 2 → 3 → 4**。0 なしに 1 のコードを始めない。IDEXX は old_db の **JOU-LAB-X**。
-
-残タスク（2026-08-19 Fable レビュー由来。導入前判断・改善）:
-
-- [x] **AE-LAB-5** 導入ブロッカー是正（2026-08-19 Fable 実装）: PU-4010 既定スロット 2400/parity even（`005_fix_lab_device_station_slots.sql` — 適用は USER 手動 `make migrate`、demo seed 変更で既存ローカル DB は 003_demo checksum mismatch → `make reset`）／権限シード lab-import に create/edit 付与／項目対応付け UI 復活（機器の検査で select を絞る）／カルテ検査タブは「カルテの検査+同ペット未取り込み」契約／`/lab-devices` OpenAPI 追記。
-- [x] **AE-LAB-6**（2026-08-20 実装）検査を会計に載せる: 会計確認済みカルテの exams を未請求1件1行（`exam_types.price`、空価格は blocking warning）。会計確認画面に検査・接種を表示。新規接種はカルテ予防接種タブのみ。カルテなし接種は会計に出さない。
-- [x] **AE-LAB-7**（2026-08-20 実装）受信 persist 失敗でも job を未紐付けで残す／機器時計ズレ（>24h）警告／検査バナー attach 直後のその場「取り消す」。
+完了済みの検査機器連携メモは vault `evidence/2026-08-20-root-docs/todo-2026-08-20-lab-progress.md`。Linear 上の AE-LAB は BRT-94 / BRT-95〜98 / BRT-100。

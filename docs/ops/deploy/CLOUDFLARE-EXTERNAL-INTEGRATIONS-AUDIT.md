@@ -11,10 +11,10 @@
 ## 背景（AWS → Cloudflare の egress 差分）
 
 AWS STG は `fck-nat EC2 (t4g.nano) + Elastic IP ×1` により、Private Subnet（ECS Fargate タスク）
-からの outbound 通信を **単一の固定 IP** に安定化していた（`research-cloudflare.html` L165-167）。
+からの outbound 通信を **単一の固定 IP** に安定化していた（2026-07 調査 HTML。vault `evidence/2026-08-20-root-docs/research-cloudflare.html`）。
 
 Cloudflare Workers + Containers には EIP に相当する概念がない。Container の outbound は
-Cloudflare のエッジ網を経由するため、**送信元 IP は固定されない**（`research-cloudflare.html` L143, L539）。
+Cloudflare のエッジ網を経由するため、**送信元 IP は固定されない**（同調査）。
 これが影響するのは、送信先サービスが「IP allowlist」方式のアクセス制御を採用している場合のみ。
 本ドキュメントは LINE / Lステップ / SMTP / LIFF の各連携についてこの依存の有無を確認する。
 
@@ -89,7 +89,7 @@ backend/internal/infra/lstep/user.go:69:	// [DISABLED] HTTP call to POST /contac
 
 ## リスクレジスタへの反映（AC-P47-6）
 
-`../infra/_archive/migration-cloudflare.md` §9 のリスク登録簿「IP allowlist」行について、試行12の結論（LINE既定非依存・オプション機能のみ要確認、SMTP/LIFFはBLOCKED理由付き）を追記する。詳細は `../infra/_archive/migration-cloudflare.md` 試行12セクションを参照。
+IP allowlist: LINE 既定は非依存。オプション機能のみ要確認。SMTP/LIFF は BLOCKED（理由付き）。現行判定は本ファイルの棚卸し表。
 
 ---
 

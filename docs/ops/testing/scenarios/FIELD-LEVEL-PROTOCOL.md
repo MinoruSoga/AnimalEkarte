@@ -11,7 +11,7 @@
 
 1. 対象フォームの inventory 行に列挙された**すべての入力項目**に、適用可能な F チェックを実施する。
 2. 既存の **C1〜C3** はフォーム入口のまとめであり、**F を省略する理由にしない**。C1-1 が「必須の代表 1 欄」でも、他の必須欄は **F1** で個別に実施する。
-3. 結果はシナリオ md に書かない。`reports/uat-*/` の results に `formId.fieldKey.Fx` 単位で残す。
+3. 結果はシナリオ md に書かない。gitignore の `reports/uat-*/` results に `formId.fieldKey.Fx` 単位で残す。
 4. 仕様に期待がない項目は 【要実測】として観測し、正しければ inventory / V シナリオの期待へ昇格する。
 5. UI に存在しない・閲覧専用のみの項目は **N/A（理由: read-only / system）** とし、PASS に水増ししない。
 

@@ -3,7 +3,7 @@
 > **対象 Issue**: #257 ／ **状態**: ドラフト — **実行 HOLD**（全 prerequisite green かつ USER が新 window を記入するまで fail-closed）
 > **次回切替日（新 window）**: （確定待ち — 下記「新 window 記入欄」に USER が一箇所記入する。本 runbook は日付を発明しない）
 > **履歴（historical No-Go）**: 予定 window **2026-08-03** は期限超過・未実施。当該 window は **historical No-Go** であり、**実行可能な current window ではない**。延期履歴: 7/18 → 7/25 → 7/27 → 8/3（当初 PO 裁定 2026-07-15 は 7/18。8/3 は 2026-08-01 の USER 決定）。旧 timeline 表記 `2026-07-18` は失効済みの絶対日であり、当日手順として実行しない。
-> **経路**: Cloudflare 経路で納品（PO 決定 2026-07-15。移行履歴: [migration-cloudflare.md](../ops/infra/_archive/migration-cloudflare.md)）
+> **経路**: Cloudflare 経路で納品（PO 決定 2026-07-15。現行構成: [architecture.md](../ops/infra/architecture.md)。移行実施記録は git 履歴）
 > **原則**: 診療を止めない。問題発生時は事前合意した基準で業務を Access へ退避し、Cloudflare 正系統を復旧する。
 > **重要**: 旧 AWS ECS/RDS 経路は 2026-07-20 に廃止済みで、技術的な切り戻し先として利用できない。**旧 AWS 系を rollback 先として復活させない。**
 
@@ -26,13 +26,13 @@
 
 | # | 前提 | 対応 Issue / 正本 | 完了条件 | 状態 |
 |---|---|---|---|---|
-| 1 | STG Cloudflare 移行 Phase 7（NS 切替・並行稼働）完遂 | [現行構成](../ops/infra/architecture.md) ／ [凍結済み移行記録](../ops/infra/_archive/migration-cloudflare.md) P5-5〜P7 | staging デプロイ 2 回連続 green（P5-5）→ 画像移行（P2-4/5）→ データ投入（P3-6/7）→ NS 切替（P1-2）→ フルスモーク（P7-3） | ✅ 2026-07-17 完了 |
+| 1 | STG Cloudflare 移行 Phase 7（NS 切替・並行稼働）完遂 | [現行構成](../ops/infra/architecture.md) | staging デプロイ 2 回連続 green → 画像移行 → データ投入 → NS 切替 → フルスモーク | ✅ 2026-07-17 完了 |
 | 2 | credential / provider residual（secret manager 状態・実値は repo 外） | #89 ／ #97 ／ #98 ／ #99 | 非機密 evidence で residual 解消または明示的 HOLD 解除条件が揃っていること。**実 credential 値は本書に書かない** | （確定待ち） |
 | 3 | 本番 Cloudflare 環境・配信契約・CI/backup/restore/rollback | #253 ／ [production/setup.md](../ops/infra/production/setup.md) ／ [production/runbook.md](../ops/infra/production/runbook.md) ／ [CI-CD-PIPELINE.md](../ops/deploy/CI-CD-PIPELINE.md) §0 | (a) 本番 CF 基盤構築 (b) `production` Environment + **Required reviewers** (c) production workflow 適用 (d) STG は main→staging 自動・本番は無承認開始不可 (e) **CF-only** rollback 手順 (f) backup/restore rehearsal 記録 (g) latest main CI green | （確定待ち） docs surface 整備済 / **CI green は GitHub billing BLOCKED（USER）** / 実インフラ・Environment 未 |
 | 4 | Access データの本番投入・migration verification | #250 | リハーサル移行 PASS → 本番 DB へ最終移行 → 突合検証（件数・clinic_id 別件数・金額合計）PASS | （確定待ち: 最終移行は当日タイムライン内で実施） |
 | 5 | 全業務シナリオ通し確認済み（authenticated UAT） | #254 | 全シナリオ PASS、または FAIL 項目が「納品後対応合意済みリスト」に隔離済み | （確定待ち） |
 | 6 | スタッフアカウント発行・権限設定済み | #255 | 全スタッフに個人アカウント発行・所属院スコープ・役割別権限設定済み | （確定待ち: スタッフ一覧の先方提供がブロッカー） |
-| 7 | フロントエンド CSP の最終確認 | [migration-cloudflare.md](../ops/infra/_archive/migration-cloudflare.md) §9 リスク登録簿 | `frontend/index.html` の CSP `connect-src` に本番 API オリジンが含まれている | （確定待ち） |
+| 7 | フロントエンド CSP の最終確認 | [architecture.md](../ops/infra/architecture.md) | `frontend/index.html` の CSP `connect-src` に本番 API オリジンが含まれている | （確定待ち） |
 | 8 | 監視・通知の有効化 | #253 ／ [production/runbook.md](../ops/infra/production/runbook.md) §4 ／ `infra/cloudflare/notifications.tf` | ゾーン 5xx 通知が有効・送信先メール検証済み（PROD 専用ポリシーは二重通知のため追加しない） | （確定待ち: 通知先供給・アドレス事前検証） |
 | 9 | 切り戻し体制・authority / support / rollback owner の合意 | 本書 §4・冒頭「新 window 記入欄」 ／ [production/runbook.md](../ops/infra/production/runbook.md) §3 | 判断者・判断基準・連絡経路が先方と合意済み。**ECS 切り戻しは選択肢に含めない**（#99） | （確定待ち） |
 
@@ -132,7 +132,7 @@
 
 | 項目 | 内容 |
 |---|---|
-| 集中サポート期間 | **T+0 〜 T+N 日**（N 確定待ち; 目安 14 日 / 2 週間）— `../ops/infra/_archive/migration-cloudflare.md` Phase 7 の並行稼働・監視期間（1〜2 週間）と同期 |
+| 集中サポート期間 | **T+0 〜 T+N 日**（N 確定待ち; 目安 14 日 / 2 週間） |
 | 問い合わせ窓口 | （確定待ち: 連絡手段 — 電話 / LINE / メールの別と宛先） |
 | 一次対応者 | （確定待ち: 担当者名・対応時間帯）— 冒頭「新 window 記入欄」Support primary と同一 |
 | エスカレーション先 | （確定待ち: 担当者名） |
@@ -146,7 +146,6 @@
 ## 6. 関連ドキュメント
 
 - [現行インフラ構成](../ops/infra/architecture.md) — Cloudflare構成の正本
-- [migration-cloudflare.md](../ops/infra/_archive/migration-cloudflare.md) — 凍結済みの移行計画・実施記録
 - [infra/cloudflare/README.md](../../infra/cloudflare/README.md) — Cloudflare Terraform / CI デプロイ手順
 - [docs/ops/deploy/README.md](../ops/deploy/README.md) — 環境一覧・ロールバック判定フレームワーク
 - [docs/ops/deploy/CI-CD-PIPELINE.md](../ops/deploy/CI-CD-PIPELINE.md) — デプロイ契約・パイプライン（#253 §0）

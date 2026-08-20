@@ -1,3 +1,7 @@
+# F8 G4 synthetic failure rehearsal — dedicated stack, not an overlay.
+# Do not fold into docker-compose.yml (different image, volume, network, and
+# a fault-injecting runner). old_db F8 is FAILURE PRODUCER READY / NORMAL
+# EXECUTION BLOCKED until a formal bundle; keep until that run.
 name: ${F8_G4_COMPOSE_PROJECT:?set F8_G4_COMPOSE_PROJECT}
 
 services:
