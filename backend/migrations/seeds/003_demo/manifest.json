@@ -62,6 +62,14 @@
       "csvFile": "exam_reference_ranges.csv"
     },
     {
+      "table": "lab_devices",
+      "csvFile": "lab_devices.csv"
+    },
+    {
+      "table": "lab_device_item_masters",
+      "csvFile": "lab_device_item_masters.csv"
+    },
+    {
       "table": "vaccines",
       "csvFile": "vaccines.csv"
     },
