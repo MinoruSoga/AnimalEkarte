@@ -28,12 +28,12 @@ docs/
 | **運用系** | [ops/README.md](ops/README.md) | デプロイ・ランブック・テスト・CI/カバレッジポリシー・インフラ構成 |
 | **納品系** | [delivery/README.md](delivery/README.md) | 納品パッケージ・Go-live 手順・現場向け操作マニュアル |
 | **作業台帳** | [work/README.md](work/README.md) | 補助メモ・採択済み決裁（実行 SoT は Linear。root `todo*.md` は入口ポインタ） |
-> **フォルダ規律**: docs/ 直下に新カテゴリを追加する場合は本表と CI ゲート（`scripts/check-docs-symbol-drift.sh` の TOP_ALLOWLIST）を同コミットで更新すること。allowlist 外のフォルダは CI が拒否する。
+> **フォルダ規律**: docs/ 直下に新カテゴリを追加する場合は本表とローカル必須ゲート（`scripts/check-docs-symbol-drift.sh` の TOP_DIR_ALLOWLIST）を同コミットで更新すること。allowlist 外のフォルダは `make ci` が拒否する。
 
 ## 横断事項
 
 - **API contract**: 正本は [`backend/docs/api.yaml`](../backend/docs/api.yaml)（Swagger UI 表示は `docker compose -f docker-compose.swagger.yml up`）。
-- **docs ドリフトゲート**: `scripts/check-docs-symbol-drift.sh`（CI の docs-symbol-drift ジョブ）が、spec/screens/ 系ドキュメントの言及シンボル実在と宣言数値（テーブル数・リソース数等）の実装一致を機械検査する。
+- **docs ドリフトゲート**: `scripts/check-docs-symbol-drift.sh`（GitHub CI ではなく `make ci` のローカル必須ゲート。分担は [ops/ci-policy.md](ops/ci-policy.md)）が、spec/screens/ 系ドキュメントの言及シンボル実在と宣言数値（テーブル数・リソース数等）の実装一致を機械検査する。
 - **タスク台帳**: 実行 SoT は **Linear**（Team Baritech · Project ノア動物病院電子カルテ · hub BRT-4。2026-08-14 移行）。root [`todo.md`](../todo.md) · [`todo-po.md`](../todo-po.md) は **入口ポインタ**であり本文は持たない（旧本文は git 履歴）。Open 項目の Linear 対応表は `reports/todo-walk-2026-08-14/`。旧 `q&a.html` · `STATUS.md` · `PO-todo.md` は削除済。`bug.md` は受け入れテスト ラウンド4 のバグ報告・対応状況を保持する（新規起票は Linear）。
 - **作業補助**: [`work/README.md`](work/README.md)（採択済み方針・ledger。レポート置き場ではない）。
 - 旧長文 STATUS は `docs/work/archives/` と git 履歴。
