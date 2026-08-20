@@ -8,7 +8,9 @@ import {
 } from "../api/lab-device";
 import {
   groupLabDeviceCardsByDay,
+  isLabDeviceAttachPersisted,
   labDeviceBoardLinkLabel,
+  labDeviceCardNeedsReview,
   labDeviceCardTitle,
   labDeviceClockSkewLabel,
   labDeviceHasUnmapped,
@@ -163,5 +165,22 @@ describe("lab-device-board-model", () => {
     });
     expect(labDeviceReceiveFailure(500).label).toBe("失敗（通信エラー）");
     expect(labDeviceReceiveFailure(undefined).label).toBe("失敗（通信エラー）");
+  });
+
+  // P1: attach 後 persist 失敗判定
+  it("isLabDeviceAttachPersisted: status=persisted かつ petId あり のみ成功と判定する", () => {
+    expect(isLabDeviceAttachPersisted(card({ status: "persisted", petId: 1 }))).toBe(true);
+    expect(isLabDeviceAttachPersisted(card({ status: "persisted", petId: undefined }))).toBe(false);
+    expect(isLabDeviceAttachPersisted(card({ status: "linked", petId: 1 }))).toBe(false);
+    expect(isLabDeviceAttachPersisted(card({ status: "needs_review", petId: 1 }))).toBe(false);
+    expect(isLabDeviceAttachPersisted(card({ status: "received", petId: undefined }))).toBe(false);
+  });
+
+  // P2: needs_review カード判定
+  it("labDeviceCardNeedsReview: status=needs_review のみ true", () => {
+    expect(labDeviceCardNeedsReview(card({ status: "needs_review" }))).toBe(true);
+    expect(labDeviceCardNeedsReview(card({ status: "persisted" }))).toBe(false);
+    expect(labDeviceCardNeedsReview(card({ status: "received" }))).toBe(false);
+    expect(labDeviceCardNeedsReview(card({ status: "linked" }))).toBe(false);
   });
 });

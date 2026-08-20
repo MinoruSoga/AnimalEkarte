@@ -11,7 +11,12 @@ import {
   useGetLabDeviceUnlinked,
   type LabDeviceJobCard,
 } from "../api/lab-device";
-import { labDeviceCardTitle, labDeviceClockSkewLabel } from "../lib/lab-device-board-model";
+import {
+  isLabDeviceAttachPersisted,
+  labDeviceCardNeedsReview,
+  labDeviceCardTitle,
+  labDeviceClockSkewLabel,
+} from "../lib/lab-device-board-model";
 
 export function LabDeviceUnlinkedBanner({ petId }: { petId: string }) {
   const numericPetId = Number(petId);
@@ -20,10 +25,11 @@ export function LabDeviceUnlinkedBanner({ petId }: { petId: string }) {
   const attach = useAttachLabDeviceJob();
   const detach = useDetachLabDeviceJob();
   const [justAttached, setJustAttached] = useState<LabDeviceJobCard | null>(null);
+  const [attachError, setAttachError] = useState<string | null>(null);
 
   const visibleUnlinked = unlinked.filter((card) => card.jobId !== justAttached?.jobId);
 
-  if (!canView || (visibleUnlinked.length === 0 && justAttached == null)) {
+  if (!canView || (visibleUnlinked.length === 0 && justAttached == null && attachError == null)) {
     return null;
   }
 
@@ -52,11 +58,17 @@ export function LabDeviceUnlinkedBanner({ petId }: { petId: string }) {
             ) : null}
           </li>
         ) : null}
+        {attachError ? (
+          <li>
+            <span className={`text-sm ${C.textRed700}`}>{attachError}</span>
+          </li>
+        ) : null}
         {visibleUnlinked.map((card) => (
           <li key={card.jobId} className="flex items-center justify-between gap-3">
             <span className={C.textInkMuted}>
               {labDeviceCardTitle(card)}
               {card.unmappedItemCount > 0 ? " · 未対応あり" : ""}
+              {labDeviceCardNeedsReview(card) ? " · 検査種別が複数" : ""}
               {labDeviceClockSkewLabel(card) ? ` · ${labDeviceClockSkewLabel(card)}` : ""}
             </span>
             {canEdit ? (
@@ -65,8 +77,17 @@ export function LabDeviceUnlinkedBanner({ petId }: { petId: string }) {
                 size="sm"
                 variant="outline"
                 onClick={() => {
+                  setAttachError(null);
                   void attach.mutateAsync({ jobId: card.jobId, petId: numericPetId }).then((attached) => {
-                    setJustAttached(attached);
+                    if (isLabDeviceAttachPersisted(attached)) {
+                      setJustAttached(attached);
+                    } else {
+                      setAttachError(
+                        labDeviceCardNeedsReview(attached)
+                          ? "保存できませんでした（検査種別が複数）"
+                          : "保存できませんでした。未紐付けのままです",
+                      );
+                    }
                   });
                 }}
               >

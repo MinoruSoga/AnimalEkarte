@@ -186,3 +186,14 @@ export function labDeviceListenTone(state: LabDeviceListenState): LabDeviceListe
       return "unsupported";
   }
 }
+
+// P1: attach レスポンスが実際に persist 済みかどうか判定する。
+// status === "persisted" かつ petId あり の場合のみ成功。それ以外は persist 失敗とみなす。
+export function isLabDeviceAttachPersisted(card: LabDeviceJobCard): boolean {
+  return card.status === "persisted" && card.petId != null;
+}
+
+// P2: カードレベルで needs_review（検査種別が2種以上のため保存拒否）かどうか判定する。
+export function labDeviceCardNeedsReview(card: LabDeviceJobCard): boolean {
+  return card.status === "needs_review";
+}

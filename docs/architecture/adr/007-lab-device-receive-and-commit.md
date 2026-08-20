@@ -4,6 +4,7 @@
 **Date**: 2026-08-19
 **Deciders**: PO（MinoruSoga）
 **Relates to**: ADR-002（clinic_id）、ADR-006（`medicalrecord` write owner）、Linear [BRT-100](https://linear.app/baritechllc/issue/BRT-100) / [BRT-94](https://linear.app/baritechllc/issue/BRT-94)
+**接続・機器正本**: [`docs/ops/deploy/LAB_DEVICE_CONNECTIVITY.md`](../../ops/deploy/LAB_DEVICE_CONNECTIVITY.md)
 **電文正本**: `old_db/docs/lab-go/go-impl/device-serial-adapter.md`
 **体験正本**: `old_db/docs/lab-go/go-impl/REVIEW-FABLE-2026-08-19-AE-LAB-UX.md`
 
@@ -13,7 +14,7 @@
 
 城東3台（NX600 / AU10V / PU-4010）は検査用 Mac の待機ページが有線シリアルを読む。ファイルアップロード・常駐デーモン・`drwan` は製品経路にしない。
 
-Fable UX（YES-WITH-FIXES）: 日常はペット検索1回で16項目手打ちを消せる。ただし前の子の待機が残ったまま次送信が届く誤紐付けを、確認ダイアログなしで塞ぐまで医院に出さない。
+Fable UX（YES-WITH-FIXES）: 日常は本日診療中カルテを1回選んで16項目手打ちを消す（ペット検索はしない。正本は LAB_DEVICE_CONNECTIVITY）。ただし前の子の待機が残ったまま次送信が届く誤紐付けを、確認ダイアログなしで塞ぐまで医院に出さない。
 
 ### 実践ゲート
 
@@ -22,8 +23,8 @@ Fable UX（YES-WITH-FIXES）: 日常はペット検索1回で16項目手打ち�
 | 責任者 | MinoruSoga |
 | 業務目的 | NX600 16項目の手打ち転記（40操作超+転記ミス）を消す |
 | 削除する工程 | 手打ち、ファイル作成/選択、確認ダイアログ、待機と未紐付けの往復、日常のポート選択 |
-| 残す操作 | ペット検索1回。送信は機器側（従来どおり） |
-| メトリクス | 追加操作はペット検索1回。Undo / 待機解除 / 後付けは各1操作 |
+| 残す操作 | 本日診療中カルテ選択1回。送信は機器側（従来どおり） |
+| メトリクス | 追加操作は本日診療中カルテ選択1回。Undo / 待機解除 / 後付けは各1操作 |
 | やらない | アップロード、取込値エディタ、遠隔待機起動、検体ID自動紐付け、未紐付け検索、常駐アプリ（試用で再送が週に何度も要ると観測されるまで） |
 
 ## Decision

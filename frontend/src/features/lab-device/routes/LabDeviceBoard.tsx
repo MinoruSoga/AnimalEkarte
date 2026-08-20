@@ -26,8 +26,10 @@ import { useLabDeviceListen } from "../hooks/use-lab-device-listen";
 import {
   findSlotByHint,
   groupLabDeviceCardsByDay,
+  isLabDeviceAttachPersisted,
   isWebSerialSupported,
   labDeviceBoardLinkLabel,
+  labDeviceCardNeedsReview,
   labDeviceCardTitle,
   labDeviceClockSkewLabel,
   labDeviceHasUnmapped,
@@ -93,6 +95,11 @@ function JobCardView({
           </li>
         ))}
       </ul>
+      {labDeviceCardNeedsReview(card) ? (
+        <p className={`text-sm ${C.textRed700}`}>
+          保存できませんでした（検査種別が複数）
+        </p>
+      ) : null}
       {labDeviceHasUnmapped(card) ? (
         <p className={`text-sm ${C.textRed700}`}>
           <Link to={labDeviceUnmappedMasterHref(card.sourceType)} className="underline">
@@ -348,7 +355,17 @@ export function LabDeviceBoard() {
               key={card.jobId}
               card={card}
               canEdit={canEdit}
-              onAttach={board?.wait ? () => void attach.mutateAsync({ jobId: card.jobId, petId: board.wait!.petId }) : undefined}
+              onAttach={board?.wait ? () => {
+                void attach.mutateAsync({ jobId: card.jobId, petId: board.wait!.petId }).then((attached) => {
+                  if (!isLabDeviceAttachPersisted(attached)) {
+                    toast.error(
+                      labDeviceCardNeedsReview(attached)
+                        ? "保存できませんでした（検査種別が複数）"
+                        : "保存できませんでした。未紐付けのままです",
+                    );
+                  }
+                });
+              } : undefined}
             />
           ))}
         </section>
@@ -368,9 +385,17 @@ export function LabDeviceBoard() {
                   card={card}
                   canEdit={canEdit}
                   onDetach={card.petId ? () => void detach.mutateAsync(card.jobId) : undefined}
-                  onAttach={!card.petId && board?.wait
-                    ? () => void attach.mutateAsync({ jobId: card.jobId, petId: board.wait!.petId })
-                    : undefined}
+                  onAttach={!card.petId && board?.wait ? () => {
+                    void attach.mutateAsync({ jobId: card.jobId, petId: board.wait!.petId }).then((attached) => {
+                      if (!isLabDeviceAttachPersisted(attached)) {
+                        toast.error(
+                          labDeviceCardNeedsReview(attached)
+                            ? "保存できませんでした（検査種別が複数）"
+                            : "保存できませんでした。未紐付けのままです",
+                        );
+                      }
+                    });
+                  } : undefined}
                 />
               ))}
             </div>
