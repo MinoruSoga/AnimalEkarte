@@ -309,11 +309,17 @@ describe("lab-device-item-master-settings-model", () => {
   });
 
   it("未使用プロトコルと機器フォームの保存リクエストを組み立てる", () => {
-    expect(availableLabDeviceSourceTypes([device()])).toEqual(["fuji_au10v", "arkray_pu4010"]);
+    expect(availableLabDeviceSourceTypes([device()])).toEqual(["fuji_au10v", "arkray_pu4010", "idexx_vetlab"]);
     expect(availableLabDeviceSourceTypes([
       device(),
       device({ id: "2", sourceType: "fuji_au10v" }),
       device({ id: "3", sourceType: "arkray_pu4010" }),
+    ])).toEqual(["idexx_vetlab"]);
+    expect(availableLabDeviceSourceTypes([
+      device(),
+      device({ id: "2", sourceType: "fuji_au10v" }),
+      device({ id: "3", sourceType: "arkray_pu4010" }),
+      device({ id: "4", sourceType: "idexx_vetlab" }),
     ])).toEqual([]);
     expect(labDeviceToFormData(null, ["fuji_au10v"])).toEqual({
       name: "AU10V",

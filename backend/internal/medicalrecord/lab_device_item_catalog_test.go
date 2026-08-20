@@ -16,7 +16,7 @@ func TestLabDeviceItemCatalog_JoutoObservedRows(t *testing.T) {
 	require.Len(t, rows, LabDeviceItemCatalogCount)
 
 	seen := make(map[string]struct{}, len(rows))
-	nx, au, urine := 0, 0, 0
+	nx, au, urine, idexx := 0, 0, 0, 0
 	for _, row := range rows {
 		key := string(row.SourceType) + "\x00" + row.DeviceItemCode
 		_, dup := seen[key]
@@ -36,11 +36,14 @@ func TestLabDeviceItemCatalog_JoutoObservedRows(t *testing.T) {
 			assert.Equal(t, "vf-SAA", row.DeviceItemCode)
 		case model.LabImportSourceTypeArkrayPU4010:
 			urine++
+		case model.LabImportSourceTypeIDEXXVetLab:
+			idexx++
 		}
 	}
 	assert.Equal(t, 16, nx)
 	assert.Equal(t, 1, au)
 	assert.Equal(t, 8, urine)
+	assert.Equal(t, 11, idexx)
 }
 
 func TestLabDeviceItemCatalogRow_NoLegacyColumn(t *testing.T) {

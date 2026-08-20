@@ -228,6 +228,18 @@ func TestDecodeLabDeviceFrames_UnknownCodeWarning(t *testing.T) {
 	}
 }
 
+// TestDecodeLabDeviceFrames_IDEXXHintRoutes verifies that "idexx_vetlab" hint reaches the IDEXX decoder.
+func TestDecodeLabDeviceFrames_IDEXXHintRoutes(t *testing.T) {
+	t.Parallel()
+	frames, err := DecodeLabDeviceFrames(synthIDEXXLongFrame(), "idexx_vetlab")
+	if err != nil {
+		t.Fatalf("idexx_vetlab hint: %v", err)
+	}
+	if len(frames) == 0 {
+		t.Fatal("no frames returned")
+	}
+}
+
 func TestDecodeLabDeviceFrames_NonNormalStatus(t *testing.T) {
 	t.Parallel()
 	item := fujiEqualsSlot("Na-P", "1", "mEq/l", "")

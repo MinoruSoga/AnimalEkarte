@@ -18,12 +18,14 @@ export const LAB_DEVICE_SOURCE_ORDER = [
   "fuji_nx600",
   "fuji_au10v",
   "arkray_pu4010",
+  "idexx_vetlab",
 ] as const;
 
 const LAB_DEVICE_SOURCE_LABELS: Record<string, string> = {
   fuji_nx600: "NX600",
   fuji_au10v: "AU10V",
   arkray_pu4010: "尿（PU-4010）",
+  idexx_vetlab: "IDEXX VetLab",
 };
 
 const LAB_DEVICE_VALUE_SHAPE_LABELS: Record<string, string> = {

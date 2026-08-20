@@ -3219,6 +3219,7 @@ SELECT app_private.apply_rls_policy(
 --   drwan          : Dr.Wan MDB アダプタ (製品経路では開けない)
 --   manual         : 手動 CSV/JSON アップロード (Phase 2+ 予定)
 --   fuji_nx600 / fuji_au10v / arkray_pu4010 : 城東3台（ADR-007。fresh 001 に含む）
+--   idexx_vetlab                             : IDEXX VetLab Station PIMS シリアル（COM5 / JOU-LAB-X）
 
 -- ------------------------------------
 -- ENUM types
@@ -3240,7 +3241,8 @@ CREATE TYPE lab_import_source_type AS ENUM (
     'manual',
     'fuji_nx600',
     'fuji_au10v',
-    'arkray_pu4010'
+    'arkray_pu4010',
+    'idexx_vetlab'
 );
 
 -- ------------------------------------
@@ -5618,7 +5620,7 @@ CREATE TABLE lab_device_item_masters (
     created_at          timestamptz     NOT NULL DEFAULT now(),
     updated_at          timestamptz     NOT NULL DEFAULT now(),
     CONSTRAINT chk_lab_device_item_masters_source_type
-        CHECK (source_type IN ('fuji_nx600', 'fuji_au10v', 'arkray_pu4010')),
+        CHECK (source_type IN ('fuji_nx600', 'fuji_au10v', 'arkray_pu4010', 'idexx_vetlab')),
     CONSTRAINT chk_lab_device_item_masters_value_shape
         CHECK (value_shape IN ('numeric', 'inequality', 'qual_and_num', 'dash', 'text')),
     CONSTRAINT uq_lab_device_item_masters_clinic_source_code
@@ -5663,7 +5665,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_lab_import_jobs_clinic_source_fingerprint
 CREATE INDEX IF NOT EXISTS idx_lab_import_jobs_clinic_unlinked
     ON lab_import_jobs (clinic_id, received_at DESC)
     WHERE pet_id IS NULL
-      AND source_type IN ('fuji_nx600', 'fuji_au10v', 'arkray_pu4010');
+      AND source_type IN ('fuji_nx600', 'fuji_au10v', 'arkray_pu4010', 'idexx_vetlab');
 
 COMMENT ON COLUMN lab_import_jobs.pet_id IS 'device 行のみ。未紐付けは NULL。検体IDでは埋めない';
 COMMENT ON COLUMN lab_import_jobs.measured_at IS '電文日時。検査日の正';
@@ -5788,7 +5790,7 @@ CREATE TABLE lab_devices (
     created_at    timestamptz   NOT NULL DEFAULT now(),
     updated_at    timestamptz   NOT NULL DEFAULT now(),
     CONSTRAINT chk_lab_devices_source_type
-        CHECK (source_type IN ('fuji_nx600', 'fuji_au10v', 'arkray_pu4010')),
+        CHECK (source_type IN ('fuji_nx600', 'fuji_au10v', 'arkray_pu4010', 'idexx_vetlab')),
     CONSTRAINT uq_lab_devices_clinic_source
         UNIQUE (clinic_id, source_type),
     CONSTRAINT uq_lab_devices_clinic_name

@@ -26,13 +26,23 @@ var knownUrineCodes = map[string]struct{}{
 	"GLU": {}, "PRO": {}, "BIL": {}, "URO": {}, "PH": {}, "BLD": {}, "KET": {}, "NIT": {},
 }
 
+// knownIDEXXCodes lists labels observed in IDEXX VetLab Station long frames (LAB_DEVICE_CONNECTIVITY.md §IDEXX).
+var knownIDEXXCodes = map[string]struct{}{
+	"WBC": {}, "RBC": {}, "HCT": {}, "HGB": {}, "PLT": {},
+	"NEU": {}, "LYM": {}, "MONO": {}, "EOS": {}, "BASO": {}, "RETIC": {},
+}
+
 // DecodeLabDeviceFrames turns serial bytes into measurements.
-// hint may be empty (auto), NX600 / fuji_nx600, AU10V / fuji_au10v, or PU-4010 / arkray_pu4010.
+// hint may be empty (auto), NX600 / fuji_nx600, AU10V / fuji_au10v,
+// PU-4010 / arkray_pu4010, or VetLab / idexx_vetlab.
 func DecodeLabDeviceFrames(payload []byte, hint string) ([]LabDeviceFrame, error) {
 	if len(payload) == 0 || len(payload) > labDeviceMaxPayloadBytes {
 		return nil, ErrInvalidLabDevicePayload
 	}
 	kind := normalizeLabDeviceHint(hint)
+	if kind == "idexx_vetlab" {
+		return decodeIDEXXFrames(payload)
+	}
 	stripped := stripLabDeviceBit7(payload)
 	if kind == "urine" || (kind == "" && bytes.Contains(stripped, []byte("VPU-4010"))) {
 		frame, err := decodeUrineMeasurement(stripped)
@@ -54,6 +64,8 @@ func normalizeLabDeviceHint(hint string) string {
 		return "au10v"
 	case "pu-4010", "pu4010", "arkray_pu4010":
 		return "urine"
+	case "vetlab", "idexx_vetlab":
+		return "idexx_vetlab"
 	default:
 		return strings.ToLower(strings.TrimSpace(hint))
 	}

@@ -35,6 +35,9 @@ const (
 	LabImportSourceTypeFujiNX600    LabImportSourceType = "fuji_nx600"
 	LabImportSourceTypeFujiAU10V    LabImportSourceType = "fuji_au10v"
 	LabImportSourceTypeArkrayPU4010 LabImportSourceType = "arkray_pu4010"
+	// LabImportSourceTypeIDEXXVetLab is the IDEXX VetLab Station PIMS serial path (COM5 / JOU-LAB-X).
+	// 9600 8N1. Short frames (<= idexxShortFrameBodyMaxBytes) are discarded.
+	LabImportSourceTypeIDEXXVetLab LabImportSourceType = "idexx_vetlab"
 )
 
 // LabImportJob は外部検査結果のインポートジョブ。

@@ -310,6 +310,7 @@ func labDeviceSourceTypes() []string {
 		string(model.LabImportSourceTypeFujiNX600),
 		string(model.LabImportSourceTypeFujiAU10V),
 		string(model.LabImportSourceTypeArkrayPU4010),
+		string(model.LabImportSourceTypeIDEXXVetLab),
 	}
 }
 

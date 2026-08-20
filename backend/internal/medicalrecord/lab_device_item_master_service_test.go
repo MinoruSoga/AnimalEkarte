@@ -104,9 +104,11 @@ func TestLabDeviceItemMasterService_EnsureDefaultsAndIsolation(t *testing.T) {
 
 	devicesA, err := svc.ListDevices(ctx, clinicA)
 	require.NoError(t, err)
-	require.Len(t, devicesA, 3)
+	require.Len(t, devicesA, len(labDeviceDefaults()))
 	assert.Equal(t, "NX600", devicesA[0].Name)
 	assert.Equal(t, string(model.LabImportSourceTypeFujiNX600), devicesA[0].SourceType)
+	assert.Equal(t, "IDEXX VetLab", devicesA[3].Name)
+	assert.Equal(t, string(model.LabImportSourceTypeIDEXXVetLab), devicesA[3].SourceType)
 	devicesB, err := svc.ListDevices(ctx, clinicB)
 	require.NoError(t, err)
 	assert.Empty(t, devicesB)

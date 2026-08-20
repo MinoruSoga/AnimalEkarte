@@ -10,6 +10,8 @@ export function labDeviceSourceLabel(sourceType: string): string {
       return "AU10V";
     case "arkray_pu4010":
       return "PU-4010";
+    case "idexx_vetlab":
+      return "IDEXX VetLab";
     default:
       return sourceType;
   }
