@@ -9,11 +9,6 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-if [[ "${SKIP_OLD_DB_HANDOFF_IMPORT:-0}" == "1" ]]; then
-  echo "INFO  SKIP_OLD_DB_HANDOFF_IMPORT=1 — skip old_db handoff import"
-  exit 0
-fi
-
 HANDOFF_ROOT="$ROOT/backend/migrations/seeds/_old_db_handoff"
 if [[ ! -d "$HANDOFF_ROOT" ]]; then
   echo "INFO  no old_db handoff root; skip import"

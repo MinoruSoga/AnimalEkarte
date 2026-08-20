@@ -422,7 +422,6 @@ help:
 	@echo "  seed              シーダーのみ適用（差分のみ・べき等。old_db 21表は対象外）"
 	@echo "  old-db-handoff-stage  old_db 21表CSVを seeds/_old_db_handoff/<clinic>/<run>/ へ隔離配置"
 	@echo "  old-db-handoff-check  医院別handoffの存在と git-ignore を確認"
-	@echo "  SKIP_OLD_DB_HANDOFF_IMPORT=1 make reset  城東など staged handoff の自動importを一時スキップ"
 	@echo ""
 	@echo "旧DB移行（正式経路: 21表CSV + manifest -> 本テーブル）:"
 	@echo "  csv-import-preflight      source/seed/schema/空band検査（read-only）"

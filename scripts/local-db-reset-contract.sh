@@ -474,11 +474,7 @@ main() {
 
   # Local-only: if hospital CSV bundles are staged under
   # backend/migrations/seeds/_old_db_handoff/<clinic>/<run>/, import them now.
-  # Skip with SKIP_OLD_DB_HANDOFF_IMPORT=1 when reset must stay fast (e.g. device
-  # connectivity tests). Re-enable by unsetting the var.
-  if [[ "${SKIP_OLD_DB_HANDOFF_IMPORT:-0}" == "1" ]]; then
-    info "SKIP_OLD_DB_HANDOFF_IMPORT=1 — skipping staged old_db handoff import"
-  elif [[ -x "$SCRIPT_DIR/import-old-db-handoffs-on-reset.sh" ]]; then
+  if [[ -x "$SCRIPT_DIR/import-old-db-handoffs-on-reset.sh" ]]; then
     info "importing staged old_db handoffs (local rehearsal allowed)..."
     bash "$SCRIPT_DIR/import-old-db-handoffs-on-reset.sh" \
       || die "old_db handoff import failed after reset"

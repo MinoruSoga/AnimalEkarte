@@ -78,12 +78,6 @@ make old-db-handoff-check
 `backend/migrations/seeds/_old_db_handoff/<clinic>/<run>/` に bundle があれば、
 ローカル `make reset` の postflight 後に **自動 import** します。
 
-一時スキップ（検査機器疎通など reset を早くしたいとき）:
-
-```sh
-SKIP_OLD_DB_HANDOFF_IMPORT=1 make reset
-```
-
 - `REHEARSAL_ONLY` / `UNVERIFIED` もローカル限定で許可（`--allow-local-rehearsal`）
 - `APP_ENV` が development/local/dev/test 以外ではスキップ
 - 正式 F6 ゲートは変更せず、共有 STG/本番では使わない
