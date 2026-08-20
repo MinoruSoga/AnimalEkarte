@@ -1,4 +1,4 @@
-.PHONY: up down build logs logs-api logs-front ps db clean reset migrate seed docs-ui csv-import-preflight csv-import csv-import-verify a4-csv-import-preflight a4-csv-import a4-csv-import-verify a4-rehearsal-contract-test a4-rehearsal-config-check a4-rehearsal-up a4-rehearsal-ps a4-rehearsal-runtime-report a4-rehearsal-down f8-g4-rehearsal-contract-test f8-g4-rehearsal-config-check f8-g4-rehearsal-run f8-g4-rehearsal-down restart-api restart-front build-prod lint lint-fix test test-cover lint-front test-front build-front e2e build-go mod-download mod-tidy help codegen codegen-check sync-modules schema-check setup-hooks ci check-reset-contract check-reset-contract-test shellcheck shellcheck-test codex-security-scan
+.PHONY: up down build logs logs-api logs-front ps db clean reset migrate seed docs-ui old-db-handoff-stage old-db-handoff-check csv-import-preflight csv-import csv-import-verify a4-csv-import-preflight a4-csv-import a4-csv-import-verify a4-rehearsal-contract-test a4-rehearsal-config-check a4-rehearsal-up a4-rehearsal-ps a4-rehearsal-runtime-report a4-rehearsal-down f8-g4-rehearsal-contract-test f8-g4-rehearsal-config-check f8-g4-rehearsal-run f8-g4-rehearsal-down restart-api restart-front build-prod lint lint-fix test test-cover lint-front test-front build-front e2e build-go mod-download mod-tidy help codegen codegen-check sync-modules schema-check setup-hooks ci check-reset-contract check-reset-contract-test shellcheck shellcheck-test codex-security-scan
 
 # デフォルトターゲット
 .DEFAULT_GOAL := help
@@ -116,9 +116,33 @@ migrate:
 	@echo "✓ Migrations applied"
 
 # シーダー適用（migrate と同一処理。SQL seed も migration ファイルとして一括適用）
+# NOTE: old_db 21表 CSV（PHI）はここには載せない。医院別隔離は old-db-handoff-* を使う。
 seed:
 	$(DC) run --rm --entrypoint go backend run ./cmd/migrate
 	@echo "✓ Seed data applied"
+
+# ============================================================================
+# old_db 21表 CSV の医院別ローカル隔離（_old_db_handoff）
+# ============================================================================
+# Copies a producer bundle into:
+#   backend/migrations/seeds/_old_db_handoff/<CLINIC_CODE>/<MIGRATION_RUN_ID>/
+# Requires CLINIC_CODE, MIGRATION_RUN_ID, and CSV_IMPORT_SOURCE_DIR (absolute).
+# Does NOT feed cmd/migrate / make seed. Formal import still needs
+# TRUSTED_CANDIDATE + make csv-import-*.
+old-db-handoff-stage:
+	@test -n "$${CLINIC_CODE}" || (echo "CLINIC_CODE is required" >&2; exit 1)
+	@test -n "$${MIGRATION_RUN_ID}" || (echo "MIGRATION_RUN_ID is required" >&2; exit 1)
+	@test -n "$${CSV_IMPORT_SOURCE_DIR}" || (echo "CSV_IMPORT_SOURCE_DIR is required" >&2; exit 1)
+	@./scripts/stage-old-db-handoff.sh
+
+old-db-handoff-check:
+	@test -n "$${CLINIC_CODE}" || (echo "CLINIC_CODE is required" >&2; exit 1)
+	@test -n "$${MIGRATION_RUN_ID}" || (echo "MIGRATION_RUN_ID is required" >&2; exit 1)
+	@git check-ignore -q --no-index backend/migrations/seeds/_old_db_handoff/ \
+		|| (echo "backend/migrations/seeds/_old_db_handoff/ is not git-ignored" >&2; exit 1)
+	@test -f "backend/migrations/seeds/_old_db_handoff/$${CLINIC_CODE}/$${MIGRATION_RUN_ID}/manifest.json" \
+		|| (echo "missing staged manifest for $${CLINIC_CODE}/$${MIGRATION_RUN_ID}" >&2; exit 1)
+	@echo "old-db-handoff-check: PASS ($${CLINIC_CODE}/$${MIGRATION_RUN_ID} present and ignored)"
 
 # ============================================================================
 # F6 CSV import: old_db's immutable 21-table CSV hand-off -> AnimalEkarte
@@ -138,6 +162,7 @@ export CSV_IMPORT_SOURCE_DIR CSV_MANIFEST_SHA256 CLINIC_CODE CLINIC_ORDINAL MIGR
 export TARGET_CLINIC_ID FALLBACK_ANIMAL_SPECIES_ID FALLBACK_EXAM_TYPE_ID
 export TRIMMING_RESERVATION_TYPE_ID PAYMENT_METHOD_CASH_ID
 export PAYMENT_METHOD_CREDIT_CARD_ID TARGET_DB_NAME
+# Optional: CSV_IMPORT_EXTRA_ARGS='--allow-local-rehearsal' (local reset only)
 CSV_IMPORT_COMMON_ARGS = \
 	--source-dir /migration-input \
 	--expected-manifest-sha256 "$${CSV_MANIFEST_SHA256}" \
@@ -149,7 +174,8 @@ CSV_IMPORT_COMMON_ARGS = \
 	--fallback-exam-type-id "$${FALLBACK_EXAM_TYPE_ID}" \
 	--trimming-reservation-type-id "$${TRIMMING_RESERVATION_TYPE_ID}" \
 	--cash-payment-method-id "$${PAYMENT_METHOD_CASH_ID}" \
-	--credit-card-payment-method-id "$${PAYMENT_METHOD_CREDIT_CARD_ID}"
+	--credit-card-payment-method-id "$${PAYMENT_METHOD_CREDIT_CARD_ID}" \
+	$${CSV_IMPORT_EXTRA_ARGS}
 
 csv-import-preflight:
 	@install -d -m 700 sensitive-local/csv-import-reports
@@ -393,7 +419,10 @@ help:
 	@echo "  clean         キャッシュクリア＆再ビルド"
 	@echo "  reset         local DB 再構築（snapshot→ekarte-postgres-data のみ削除→postflight。USER のみ）"
 	@echo "  migrate       差分マイグレーションのみ適用（DBは落とさない）"
-	@echo "  seed              シーダーのみ適用（差分のみ・べき等）"
+	@echo "  seed              シーダーのみ適用（差分のみ・べき等。old_db 21表は対象外）"
+	@echo "  old-db-handoff-stage  old_db 21表CSVを seeds/_old_db_handoff/<clinic>/<run>/ へ隔離配置"
+	@echo "  old-db-handoff-check  医院別handoffの存在と git-ignore を確認"
+	@echo "  SKIP_OLD_DB_HANDOFF_IMPORT=1 make reset  城東など staged handoff の自動importを一時スキップ"
 	@echo ""
 	@echo "旧DB移行（正式経路: 21表CSV + manifest -> 本テーブル）:"
 	@echo "  csv-import-preflight      source/seed/schema/空band検査（read-only）"

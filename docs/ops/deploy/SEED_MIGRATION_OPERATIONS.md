@@ -49,7 +49,7 @@ docker compose exec backend go run ./cmd/seed-export
 | 入力・目的 | 正規経路 | 結果 |
 |---|---|---|
 | `PASS` / `TRUSTED_CANDIDATE` の正式21表bundle | [CLINIC_CSV_IMPORT.md](./CLINIC_CSV_IMPORT.md) の `make csv-import-*` | 対象DBへ投入する。seedファイルは生成しない |
-| `REHEARSAL_ONLY` / `PARTIAL` の暫定21表bundle | `backend/migrations/seeds/_old_db_handoff/<clinic>/<run>/` | このworktreeだけのローカル保管。`cmd/migrate` からは読まれない |
+| `REHEARSAL_ONLY` / `PARTIAL` の暫定21表bundle | `backend/migrations/seeds/_old_db_handoff/<clinic>/<run>/`（`make old-db-handoff-stage`） | このworktreeだけのローカル保管。`cmd/migrate` / `make seed` からは読まれない。手順は [OLD_DB_HANDOFF_LOCAL.md](./OLD_DB_HANDOFF_LOCAL.md) |
 | 実行可能な `003_demo` seed | **未実装 / BLOCKED** | 現行 `cmd/seed-export` は21表handoffを入力できない。専用adapter実装・検証後に使い捨てDBから全bundleを再生成する |
 
 `_old_db_handoff/` はPHIを含み得るため、コピー前にcheckout固有の
