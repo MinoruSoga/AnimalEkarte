@@ -1,7 +1,8 @@
-import { Outlet, type RouteObject } from "react-router";
+import { Navigate, Outlet, type RouteObject } from "react-router";
 
 import { RouteErrorBoundary } from "@/components/errors/RouteErrorBoundary";
 import { RequirePermission } from "@/components/shared/RequirePermission";
+import { paths } from "@/config/paths";
 import {
   ResourceCheckups,
   ResourceExaminations,
@@ -285,22 +286,8 @@ export const clinicalCareRoutes: RouteObject[] = [
             }],
           },
           {
-            // BUG-020: create 権限ガード
             path: "new",
-            element: (
-              <RequirePermission resource={ResourceVaccinations} action="create">
-                <Outlet />
-              </RequirePermission>
-            ),
-            children: [
-              {
-                index: true,
-                lazy: async () => {
-                  const { VaccinationForm } = await import("@/features/vaccinations");
-                  return { Component: VaccinationForm };
-                },
-              },
-            ],
+            element: <Navigate to={paths.vaccinations.selectPet.getHref()} replace />,
           },
           {
             path: ":id",

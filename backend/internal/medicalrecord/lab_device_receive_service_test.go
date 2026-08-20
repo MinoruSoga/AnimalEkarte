@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
@@ -324,4 +326,45 @@ func TestValidLabDeviceSlotsJSONParity(t *testing.T) {
 	err := validLabDeviceSlotsJSON(bad)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "parity")
+}
+
+type failLabDevicePersister struct{}
+
+func (failLabDevicePersister) PersistLinkedJob(context.Context, uint64, uuid.UUID, uint64) error {
+	return apperrors.WrapInternalServerError("persist failed")
+}
+
+func (failLabDevicePersister) RetractLinkedJob(context.Context, uint64, uuid.UUID) error {
+	return nil
+}
+
+func TestLabDeviceReceiveService_PersistFailureLeavesUnlinked(t *testing.T) {
+	db, _, finder := setupLabDeviceReceiveTest(t)
+	const clinicA = uint64(9701)
+	svc := NewLabDeviceReceiveService(
+		NewLabDeviceReceiveRepository(db),
+		NewLabDeviceItemMasterService(NewLabDeviceItemMasterRepository(db)),
+		finder,
+		persistence.NewTransactor(db),
+		failLabDevicePersister{},
+		nil,
+	)
+	ctx := context.Background()
+	_, err := svc.PutWait(ctx, clinicA, 7, 11)
+	require.NoError(t, err)
+	got, err := svc.ReceiveFrames(ctx, clinicA, synthFujiAU10V(), "AU10V")
+	require.NoError(t, err)
+	require.Len(t, got.Results, 1)
+	assert.Nil(t, got.Results[0].Job.PetID)
+	unlinked, err := svc.Unlinked(ctx, clinicA)
+	require.NoError(t, err)
+	require.NotEmpty(t, unlinked)
+}
+
+func TestLabDeviceHasClockSkew(t *testing.T) {
+	now := time.Date(2026, 8, 20, 12, 0, 0, 0, time.UTC)
+	later := now.Add(25 * time.Hour)
+	assert.False(t, labDeviceHasClockSkew(nil, &now))
+	assert.False(t, labDeviceHasClockSkew(&now, &now))
+	assert.True(t, labDeviceHasClockSkew(&now, &later))
 }

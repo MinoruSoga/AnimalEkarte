@@ -104,6 +104,7 @@ type labDeviceJobCardResponse struct {
 	SpecimenIDRaw     string                     `json:"specimen_id_raw"`
 	ItemCount         int                        `json:"item_count"`
 	UnmappedItemCount int                        `json:"unmapped_item_count"`
+	ClockSkew         bool                       `json:"clock_skew"`
 	Items             []labDeviceJobItemResponse `json:"items"`
 }
 
@@ -248,6 +249,7 @@ func toLabDeviceJobCardResponse(card *LabDeviceJobCard) labDeviceJobCardResponse
 		SpecimenIDRaw:     card.SpecimenIDRaw,
 		ItemCount:         card.ItemCount,
 		UnmappedItemCount: card.UnmappedItemCount,
+		ClockSkew:         card.ClockSkew,
 		Items:             items,
 	}
 }

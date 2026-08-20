@@ -10,6 +10,7 @@ import {
   groupLabDeviceCardsByDay,
   labDeviceBoardLinkLabel,
   labDeviceCardTitle,
+  labDeviceClockSkewLabel,
   labDeviceHasUnmapped,
   labDeviceLatestCardForSlot,
   labDeviceListenState,
@@ -32,6 +33,7 @@ const card = (patch: Partial<LabDeviceJobCard> = {}): LabDeviceJobCard => ({
   specimenIdRaw: "TEST1",
   itemCount: 1,
   unmappedItemCount: 0,
+  clockSkew: false,
   items: [],
   ...patch,
 });
@@ -47,6 +49,13 @@ describe("lab-device-board-model", () => {
   it("opens the matching device side panel from an unmapped chip", () => {
     expect(labDeviceUnmappedMasterHref("fuji_nx600")).toBe(
       "/settings/lab-device-item-masters?source=fuji_nx600&from=board",
+    );
+  });
+
+  it("warns when device clock skew exceeds 24 hours", () => {
+    expect(labDeviceClockSkewLabel(card())).toBeNull();
+    expect(labDeviceClockSkewLabel(card({ clockSkew: true }))).toBe(
+      "機器時計がずれています（24時間超）",
     );
   });
 

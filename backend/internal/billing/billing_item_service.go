@@ -47,6 +47,7 @@ type CreateBillingItemInput struct {
 	CreatedBy             *uint64
 	TreatmentID           *uint64
 	VaccinationID         *uint64
+	ExamID                *uint64
 	AppointmentID         *uint64
 	TrimmingCourseID      *uint64
 	TrimmingOptionID      *uint64
@@ -460,6 +461,7 @@ func (s *billingItemService) createItemInAmbientTx(ctx context.Context, input *C
 		MerchandiseItemID:     input.MerchandiseItemID,
 		TreatmentID:           input.TreatmentID,
 		VaccinationID:         input.VaccinationID,
+		ExamID:                input.ExamID,
 		AppointmentID:         input.AppointmentID,
 		TrimmingCourseID:      input.TrimmingCourseID,
 		TrimmingOptionID:      input.TrimmingOptionID,
@@ -492,12 +494,19 @@ func (s *billingItemService) createItemInAmbientTx(ctx context.Context, input *C
 	if input.MerchandiseItemID != nil {
 		item.Category = category
 	}
+	if input.ExamID != nil && input.VaccinationID != nil {
+		return nil, invalidBillingItemReferenceCombination()
+	}
+	if err := applyExamBillingProvenance(ctx, s.repo, input, item); err != nil {
+		return nil, err
+	}
 	if input.VaccinationID != nil {
 		if input.MerchandiseItemID != nil ||
 			input.TreatmentID != nil ||
 			input.AppointmentID != nil ||
 			input.TrimmingCourseID != nil ||
-			input.TrimmingOptionID != nil {
+			input.TrimmingOptionID != nil ||
+			input.ExamID != nil {
 			return nil, invalidBillingItemReferenceCombination()
 		}
 		_, err := s.repo.ValidateVaccinationCreateReference(
@@ -526,7 +535,7 @@ func (s *billingItemService) createItemInAmbientTx(ctx context.Context, input *C
 	}
 
 	// #81 段階2b: 明示的な割引指定が無ければキャンペーン/飼主割引を自動適用(best-effort)。
-	if item.DiscountAmount == 0 && input.VaccinationID == nil {
+	if item.DiscountAmount == 0 && input.VaccinationID == nil && input.ExamID == nil {
 		item.DiscountAmount = s.resolveAutoDiscount(
 			ctx,
 			input,

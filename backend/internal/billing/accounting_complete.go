@@ -35,6 +35,7 @@ type CompleteAccountingItemInput struct {
 	MerchandiseItemID     *uint64
 	TreatmentID           *uint64
 	VaccinationID         *uint64
+	ExamID                *uint64
 	AppointmentID         *uint64
 	TrimmingCourseID      *uint64
 	TrimmingOptionID      *uint64
@@ -128,6 +129,7 @@ func ComputeCompleteAccountingDigest(input *CompleteAccountingInput) (string, er
 		MerchandiseItemID     uint64  `json:"merchandise_item_id"`
 		TreatmentID           uint64  `json:"treatment_id"`
 		VaccinationID         uint64  `json:"vaccination_id"`
+		ExamID                uint64  `json:"exam_id"`
 		AppointmentID         uint64  `json:"appointment_id"`
 		TrimmingCourseID      uint64  `json:"trimming_course_id"`
 		TrimmingOptionID      uint64  `json:"trimming_option_id"`
@@ -215,6 +217,9 @@ func ComputeCompleteAccountingDigest(input *CompleteAccountingInput) (string, er
 		}
 		if it.VaccinationID != nil {
 			di.VaccinationID = *it.VaccinationID
+		}
+		if it.ExamID != nil {
+			di.ExamID = *it.ExamID
 		}
 		if it.AppointmentID != nil {
 			di.AppointmentID = *it.AppointmentID
@@ -457,6 +462,7 @@ func (s *accountingService) Complete(ctx context.Context, input *CompleteAccount
 				MerchandiseItemID:     it.MerchandiseItemID,
 				TreatmentID:           it.TreatmentID,
 				VaccinationID:         it.VaccinationID,
+				ExamID:                it.ExamID,
 				AppointmentID:         it.AppointmentID,
 				TrimmingCourseID:      it.TrimmingCourseID,
 				TrimmingOptionID:      it.TrimmingOptionID,

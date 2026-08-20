@@ -23,6 +23,10 @@ export function labDeviceHasUnmapped(card: LabDeviceJobCard): boolean {
   return card.unmappedItemCount > 0 || card.items.some((item) => item.needsReview);
 }
 
+export function labDeviceClockSkewLabel(card: LabDeviceJobCard): string | null {
+  return card.clockSkew ? "機器時計がずれています（24時間超）" : null;
+}
+
 export function labDeviceUnmappedMasterHref(sourceType: string): string {
   const params = new URLSearchParams({ source: sourceType, from: "board" });
   return `/settings/lab-device-item-masters?${params.toString()}`;

@@ -79,6 +79,8 @@ func (s *labDeviceReceiveService) receiveOne(
 	frame LabDeviceFrame,
 ) (*LabDeviceFrameResult, error) {
 	var result LabDeviceFrameResult
+	var persistPetID *uint64
+	var persistJobID uuid.UUID
 	err := s.withTx(ctx, func(txCtx context.Context) error {
 		existing, findErr := s.repo.FindJobByFingerprint(txCtx, clinicID, string(frame.SourceType), frame.SourceFingerprint)
 		if findErr != nil {
@@ -168,15 +170,9 @@ func (s *labDeviceReceiveService) receiveOne(
 			}
 			return createErr
 		}
-		if petID != nil && s.persister != nil {
-			if persistErr := s.persister.PersistLinkedJob(txCtx, clinicID, job.ID, *petID); persistErr != nil {
-				return persistErr
-			}
-			reloaded, reloadErr := s.repo.FindJobByID(txCtx, clinicID, job.ID)
-			if reloadErr != nil {
-				return reloadErr
-			}
-			job = reloaded
+		if petID != nil {
+			persistPetID = petID
+			persistJobID = job.ID
 		}
 		card, cardErr := s.cardForJob(txCtx, clinicID, job)
 		if cardErr != nil {
@@ -188,7 +184,33 @@ func (s *labDeviceReceiveService) receiveOne(
 	if err != nil {
 		return nil, err
 	}
+	if persistPetID != nil && s.persister != nil {
+		result.Job = *s.persistLinkedOrUnlink(ctx, clinicID, persistJobID, *persistPetID)
+	}
 	return &result, nil
+}
+
+func (s *labDeviceReceiveService) persistLinkedOrUnlink(
+	ctx context.Context,
+	clinicID uint64,
+	jobID uuid.UUID,
+	petID uint64,
+) *LabDeviceJobCard {
+	if persistErr := s.persister.PersistLinkedJob(ctx, clinicID, jobID, petID); persistErr != nil {
+		_ = s.withTx(ctx, func(txCtx context.Context) error {
+			_, err := s.repo.UpdateJobPetID(txCtx, clinicID, jobID, nil)
+			return err
+		})
+	}
+	job, err := s.repo.FindJobByID(ctx, clinicID, jobID)
+	if err != nil {
+		return &LabDeviceJobCard{JobID: jobID}
+	}
+	card, err := s.cardForJob(ctx, clinicID, job)
+	if err != nil {
+		return &LabDeviceJobCard{JobID: jobID}
+	}
+	return card
 }
 
 func (s *labDeviceReceiveService) consumeWaitPet(ctx context.Context, clinicID uint64) (*uint64, error) {
@@ -353,16 +375,6 @@ func (s *labDeviceReceiveService) Attach(
 		if updErr != nil {
 			return updErr
 		}
-		if s.persister != nil {
-			if persistErr := s.persister.PersistLinkedJob(txCtx, clinicID, jobID, pet.ID); persistErr != nil {
-				return persistErr
-			}
-			reloaded, reloadErr := s.repo.FindJobByID(txCtx, clinicID, jobID)
-			if reloadErr != nil {
-				return reloadErr
-			}
-			updated = reloaded
-		}
 		built, cardErr := s.cardForJob(txCtx, clinicID, updated)
 		if cardErr != nil {
 			return cardErr
@@ -370,6 +382,10 @@ func (s *labDeviceReceiveService) Attach(
 		card = built
 		return nil
 	})
+	if err == nil && s.persister != nil {
+		card = s.persistLinkedOrUnlink(ctx, clinicID, jobID, pet.ID)
+		return card, nil
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -590,6 +606,18 @@ func jobToCard(job *model.LabImportJob, items []model.LabImportJobItem) LabDevic
 		SpecimenIDRaw:     job.SpecimenIDRaw,
 		ItemCount:         job.RowCount,
 		UnmappedItemCount: job.UnmappedItemCount,
+		ClockSkew:         labDeviceHasClockSkew(job.MeasuredAt, job.ReceivedAt),
 		Items:             views,
 	}
+}
+
+func labDeviceHasClockSkew(measured, received *time.Time) bool {
+	if measured == nil || received == nil {
+		return false
+	}
+	delta := received.Sub(*measured)
+	if delta < 0 {
+		delta = -delta
+	}
+	return delta > 24*time.Hour
 }

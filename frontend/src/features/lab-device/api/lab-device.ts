@@ -25,6 +25,7 @@ export interface LabDeviceJobCard {
   specimenIdRaw: string;
   itemCount: number;
   unmappedItemCount: number;
+  clockSkew: boolean;
   items: LabDeviceJobItem[];
 }
 
@@ -92,6 +93,7 @@ interface LabDeviceJobCardResponse {
   specimen_id_raw: string;
   item_count: number;
   unmapped_item_count: number;
+  clock_skew?: boolean;
   items: LabDeviceJobItemResponse[];
 }
 
@@ -156,6 +158,7 @@ function toCard(card: LabDeviceJobCardResponse): LabDeviceJobCard {
     specimenIdRaw: card.specimen_id_raw,
     itemCount: card.item_count,
     unmappedItemCount: card.unmapped_item_count,
+    clockSkew: Boolean(card.clock_skew),
     items: (card.items ?? []).map(toItem),
   };
 }
@@ -293,7 +296,10 @@ export function useAttachLabDeviceJob() {
       );
       return toCard(data);
     },
-    onSuccess: () => invalidateBoard(queryClient),
+    onSuccess: () => {
+      invalidateBoard(queryClient);
+      void queryClient.invalidateQueries({ queryKey: queryKeys.examinations.all() });
+    },
   });
 }
 
@@ -304,6 +310,9 @@ export function useDetachLabDeviceJob() {
       const { data } = await axios.post<LabDeviceJobCardResponse>(`/v1/lab-imports/${jobId}/detach`);
       return toCard(data);
     },
-    onSuccess: () => invalidateBoard(queryClient),
+    onSuccess: () => {
+      invalidateBoard(queryClient);
+      void queryClient.invalidateQueries({ queryKey: queryKeys.examinations.all() });
+    },
   });
 }

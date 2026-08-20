@@ -1,11 +1,11 @@
 # 予防接種入力/編集 仕様書 (Vaccination Form)
 
 ## 概要
-- **画面の目的**: ワクチン接種等の詳細記録（ロット番号）の作成、および次回予定日の管理。
+- **画面の目的**: ワクチン接種等の詳細記録（ロット番号）の編集、および次回予定日の管理。
 - **URLパターン**: 
-  - 新規作成: `/vaccinations/new?petId=xxx`
+  - 新規作成: カルテ「予防接種」タブから行う（`/vaccinations/new` は `/vaccinations/select-pet` へリダイレクト）
   - 編集: `/vaccinations/:id`
-- **アクセス権限**: 親 `/vaccinations` は `ResourceVaccinations` **`view`**。`/new` は **`create`**。`:id` は親 view 継承、保存/削除は `usePermission`
+- **アクセス権限**: 親 `/vaccinations` は `ResourceVaccinations` **`view`**。`:id` は親 view 継承、保存/削除は `usePermission`
 
 ---
 

@@ -29,6 +29,7 @@ export function transformAccountingItem(item: BackendAccountingItem) {
     otherReason: item.other_reason,
     merchandiseItemId: item.merchandise_item_id ? String(item.merchandise_item_id) : undefined,
     vaccinationId: item.vaccination_id ? String(item.vaccination_id) : undefined,
+    examId: item.exam_id ? String(item.exam_id) : undefined,
     treatmentId: item.treatment_id ? String(item.treatment_id) : undefined,
     medicalRecordId: item.medical_record_id ? String(item.medical_record_id) : undefined,
     appointmentId: item.appointment_id ? String(item.appointment_id) : undefined,

@@ -29,6 +29,7 @@ import {
   isWebSerialSupported,
   labDeviceBoardLinkLabel,
   labDeviceCardTitle,
+  labDeviceClockSkewLabel,
   labDeviceHasUnmapped,
   labDeviceLatestCardForSlot,
   labDeviceListenTone,
@@ -68,6 +69,9 @@ function JobCardView({
           {duplicate ? " · 再送（取込済み）" : ""}
         </p>
       </div>
+      {labDeviceClockSkewLabel(card) ? (
+        <p className={`text-sm ${C.textWarning}`}>{labDeviceClockSkewLabel(card)}</p>
+      ) : null}
       <ul className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
         {card.items.map((item) => (
           <li key={`${card.jobId}-${item.sortOrder}-${item.deviceItemCode}`}>

@@ -66,6 +66,20 @@ describe("createAccountingItems", () => {
     );
   });
 
+  it("検査由来の明細では exam_id を数値で送る", async () => {
+    const createItem = vi.fn().mockResolvedValue({});
+
+    await createAccountingItemsSequentially(
+      42,
+      [{ ...ITEMS[1], examId: "55" }],
+      createItem,
+    );
+
+    expect(createItem).toHaveBeenCalledWith(
+      expect.objectContaining({ exam_id: 55 }),
+    );
+  });
+
   it("手入力otherの理由を other_reason として送る", async () => {
     const createItem = vi.fn().mockResolvedValue({});
 

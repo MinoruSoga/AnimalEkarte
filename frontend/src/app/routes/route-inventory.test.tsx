@@ -17,6 +17,7 @@ const EXPECTED_REDIRECT_PATHS = [
   "/settings/trimming-course",
   "/settings/trimming-option",
   "/settings/vaccine",
+  "/vaccinations/new",
 ];
 
 interface LeafRoute {
@@ -43,7 +44,7 @@ function flattenLeafRoutes(routes: RouteObject[], parentPath = ""): LeafRoute[] 
 }
 
 describe("main app route inventory", () => {
-  it("84 product pages, 12 redirects, wildcard 1を重複なく維持する", () => {
+  it("84 product pages, 13 redirects, wildcard 1を重複なく維持する", () => {
     const leaves = flattenLeafRoutes(appRoutes);
     const wildcard = leaves.filter((route) => route.path === "*");
     const redirects = leaves.filter((route) => route.isRedirect).map((route) => route.path).toSorted();

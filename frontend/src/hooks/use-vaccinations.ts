@@ -42,6 +42,7 @@ function transformVaccination(data: Vaccination): VaccinationRecord {
   return {
     id: String(data.id ?? 0),
     petId: data.pet_id ? String(data.pet_id) : undefined,
+    medicalRecordId: data.medical_record_id != null ? String(data.medical_record_id) : undefined,
     ownerName: data.pet?.owner?.name ?? "",
     petName: data.pet?.name ?? "",
     vaccineId: String(data.vaccine_id ?? 0),

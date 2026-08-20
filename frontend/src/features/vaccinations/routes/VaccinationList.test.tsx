@@ -73,8 +73,8 @@ const vaccination: VaccinationRecord = {
 };
 
 function LocationProbe() {
-  const { pathname } = useLocation();
-  return <output data-testid="location">{pathname}</output>;
+  const { pathname, search } = useLocation();
+  return <output data-testid="location">{`${pathname}${search}`}</output>;
 }
 
 function DeleteRevocationHarness({ confirmAfterRender }: { confirmAfterRender: boolean }) {
@@ -164,6 +164,24 @@ describe("VaccinationList mutation permission boundary", () => {
 
     expect(screen.queryByRole("menuitem", { name: "編集" })).not.toBeInTheDocument();
     expect(screen.getByTestId("location")).toHaveTextContent(/^\/vaccinations$/);
+  });
+
+  it("カルテ紐付け済みの行はカルテ予防接種タブへ遷移する", async () => {
+    mockUseFilterVaccinations.mockReturnValue({
+      data: [{ ...vaccination, medicalRecordId: "mr-1" }],
+      allVaccinations: [{ ...vaccination, medicalRecordId: "mr-1" }],
+      isLoading: false,
+      error: null,
+    });
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.click(screen.getByRole("button", { name: /vac-1/ }));
+    await user.click(screen.getByRole("menuitem", { name: "編集" }));
+
+    expect(screen.getByTestId("location")).toHaveTextContent(
+      "/medical-records/mr-1?tab=%E4%BA%88%E9%98%B2%E6%8E%A5%E7%A8%AE&vaccinationId=vac-1",
+    );
   });
 
   it("編集対象が生存petなら従来どおりdetailへ遷移する", async () => {

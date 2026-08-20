@@ -31,6 +31,8 @@ const makeGroup = (overrides: Partial<ExamGroup> = {}): ExamGroup => ({
   id: 100,
   date: "2026-04-29 10:00",
   machine: "DRI-CHEM",
+  name: "血液検査",
+  price: 4200,
   items: [makeItem()],
   ...overrides,
 });

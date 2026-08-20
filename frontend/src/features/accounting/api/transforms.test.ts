@@ -82,6 +82,7 @@ describe("transformToAccounting", () => {
       items: [{
         ...item,
         vaccination_id: 5,
+        exam_id: 8,
         treatment_id: 10,
         medical_record_id: 77,
         appointment_id: 20,
@@ -90,6 +91,7 @@ describe("transformToAccounting", () => {
       }],
     });
     expect(result.items[0].vaccinationId).toBe("5");
+    expect(result.items[0].examId).toBe("8");
     expect(result.items[0].treatmentId).toBe("10");
     expect(result.items[0].medicalRecordId).toBe("77");
     expect(result.items[0].appointmentId).toBe("20");

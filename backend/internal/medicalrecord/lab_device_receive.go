@@ -112,6 +112,7 @@ type LabDeviceJobCard struct {
 	SpecimenIDRaw     string
 	ItemCount         int
 	UnmappedItemCount int
+	ClockSkew         bool
 	Items             []LabDeviceJobItemView
 }
 

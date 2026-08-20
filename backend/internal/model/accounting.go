@@ -118,33 +118,34 @@ type Billing struct {
 func (Billing) TableName() string { return "billings" }
 
 type BillingItem struct {
-	ID                    uint64         `gorm:"primaryKey;autoIncrement"                       json:"id"`
-	BillingID             uint64         `gorm:"not null"                                       json:"billing_id"`
-	ClinicID              *uint64        `                                                      json:"-"`
-	Category              ItemCategory   `gorm:"type:item_category;not null"                    json:"category"`
-	Name                  string         `gorm:"not null;default:''"                            json:"name"`
-	UnitPrice             int64          `gorm:"not null;default:0"                             json:"unit_price"`
-	Quantity              float64        `gorm:"type:numeric(10,1);not null;default:1"          json:"quantity"`
-	DiscountRate          float64        `gorm:"type:numeric(5,2);not null;default:0"           json:"discount_rate"`
-	DiscountAmount        int64          `gorm:"not null;default:0"                             json:"discount_amount"`
-	TaxType               TaxType        `gorm:"type:tax_type;not null;default:'excluded'"      json:"tax_type"`
-	TaxRate               float64        `gorm:"type:numeric(3,2);default:0.10"                 json:"tax_rate"`
-	IsInsuranceApplicable bool           `gorm:"default:false"                                  json:"is_insurance_applicable"`
-	Source                ItemSource     `gorm:"type:item_source;default:'manual'"              json:"source"`
-	OtherReason           *string        `                                                      json:"other_reason,omitempty"`
-	CreatedBy             *uint64        `                                                      json:"-"`
-	MerchandiseItemID     *uint64        `                                                      json:"merchandise_item_id,omitempty"`
-	TreatmentID           *uint64        `                                                      json:"treatment_id,omitempty"`
+	ID                    uint64       `gorm:"primaryKey;autoIncrement"                       json:"id"`
+	BillingID             uint64       `gorm:"not null"                                       json:"billing_id"`
+	ClinicID              *uint64      `                                                      json:"-"`
+	Category              ItemCategory `gorm:"type:item_category;not null"                    json:"category"`
+	Name                  string       `gorm:"not null;default:''"                            json:"name"`
+	UnitPrice             int64        `gorm:"not null;default:0"                             json:"unit_price"`
+	Quantity              float64      `gorm:"type:numeric(10,1);not null;default:1"          json:"quantity"`
+	DiscountRate          float64      `gorm:"type:numeric(5,2);not null;default:0"           json:"discount_rate"`
+	DiscountAmount        int64        `gorm:"not null;default:0"                             json:"discount_amount"`
+	TaxType               TaxType      `gorm:"type:tax_type;not null;default:'excluded'"      json:"tax_type"`
+	TaxRate               float64      `gorm:"type:numeric(3,2);default:0.10"                 json:"tax_rate"`
+	IsInsuranceApplicable bool         `gorm:"default:false"                                  json:"is_insurance_applicable"`
+	Source                ItemSource   `gorm:"type:item_source;default:'manual'"              json:"source"`
+	OtherReason           *string      `                                                      json:"other_reason,omitempty"`
+	CreatedBy             *uint64      `                                                      json:"-"`
+	MerchandiseItemID     *uint64      `                                                      json:"merchandise_item_id,omitempty"`
+	TreatmentID           *uint64      `                                                      json:"treatment_id,omitempty"`
 	// MedicalRecordID は DB 列ではない。未請求候補（treatment 由来）など API 応答用の仮想フィールド。
-	MedicalRecordID       *uint64        `gorm:"-"                                              json:"medical_record_id,omitempty"`
-	VaccinationID         *uint64        `                                                      json:"vaccination_id,omitempty"`
-	AppointmentID         *uint64        `                                                      json:"appointment_id,omitempty"`
-	TrimmingCourseID      *uint64        `                                                      json:"trimming_course_id,omitempty"`
-	TrimmingOptionID      *uint64        `                                                      json:"trimming_option_id,omitempty"`
-	SortOrder             int            `gorm:"type:integer;default:0"                         json:"sort_order"`
-	CreatedAt             time.Time      `gorm:"autoCreateTime"                                 json:"created_at"`
-	UpdatedAt             time.Time      `gorm:"autoUpdateTime"                                 json:"updated_at"`
-	DeletedAt             gorm.DeletedAt `                                                      json:"-"`
+	MedicalRecordID  *uint64        `gorm:"-"                                              json:"medical_record_id,omitempty"`
+	VaccinationID    *uint64        `                                                      json:"vaccination_id,omitempty"`
+	ExamID           *uint64        `                                                      json:"exam_id,omitempty"`
+	AppointmentID    *uint64        `                                                      json:"appointment_id,omitempty"`
+	TrimmingCourseID *uint64        `                                                      json:"trimming_course_id,omitempty"`
+	TrimmingOptionID *uint64        `                                                      json:"trimming_option_id,omitempty"`
+	SortOrder        int            `gorm:"type:integer;default:0"                         json:"sort_order"`
+	CreatedAt        time.Time      `gorm:"autoCreateTime"                                 json:"created_at"`
+	UpdatedAt        time.Time      `gorm:"autoUpdateTime"                                 json:"updated_at"`
+	DeletedAt        gorm.DeletedAt `                                                      json:"-"`
 }
 
 func (BillingItem) TableName() string { return "billing_items" }

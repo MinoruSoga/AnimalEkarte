@@ -7,7 +7,7 @@
 <!-- ERD:TABLE_COUNT=128 -->
 
 > **Animal Ekarte**: 高精度・高整合な動物病院データモデル
-> **バージョン**: v31.39 | **最新更新**: 2026-08-19 | **状態**: Production Ready (128 Tables Verified)
+> **バージョン**: v31.40 | **最新更新**: 2026-08-20 | **状態**: Production Ready (128 Tables Verified)
 
 ---
 
@@ -52,6 +52,7 @@ erDiagram
     trimming_options ||--o{ billing_items : "trimming_option_id"
     merchandise_items ||--o{ billing_items : "merchandise_item_id"
     vaccinations ||--o{ billing_items : "vaccination_id"
+    exams ||--o{ billing_items : "(exam_id, clinic_id)"
     billings ||--o{ payments : "billing_id"
     billings ||--o{ payment_splits : "billing_id"
 
@@ -114,7 +115,7 @@ erDiagram
 ### 3.1 物理設計 of 健診パッケージ複合FK保護
 - **主キー**: 全テーブルで `bigint` (auto_increment) または `uuid` を採用。
 - **日時管理**: アプリケーション、DB セッション、インフラ設定は `Asia/Tokyo` を標準とする。日時カラムは主に `timestamptz` を使い、API 入出力は JST オフセット付き ISO 8601 を基本とする。
-- **整合性制約**: アプリケーション層だけでなく、DB レベルで `FOREIGN KEY` 制約によりデータの孤立を防止。特に健診パッケージの結果レコード `checkup_field_results` では、越境防止のため `(checkup_type_field_id, clinic_id)` 複合FKにより親定義とクリニックIDの不一致を物理的に排除しています。同様に `checkup_type_fields.checkup_type_id` も、`checkup_types` の `UNIQUE (id, clinic_id)` を参照する `(checkup_type_id, clinic_id)` 複合FK（`fk_checkup_type_fields_type_clinic`・#211 A6）へ置換済みです（2026-07-17 に `001_init.sql` へ統合。既存 DB への反映は USER の `DB_RESET=true` 再適用時、詳細は §4.3）。同型の防御として、`pet_owners`（ペットと飼い主の多対多・旧003・2026-07-27統合）は `(clinic_id, pet_id)` → `pets (clinic_id, id)` と `(clinic_id, owner_id)` → `owners (clinic_id, id)` の複合FK対を持ち、両親テーブルに追加した `UNIQUE (clinic_id, id)`（旧002・`uq_pets_clinic_id_id` / `uq_owners_clinic_id_id`）を参照先とすることで、他院のペットと飼い主を跨いだ紐付けを物理的に排除しています。同様に、`billing_items` の接種 provenance（旧008・2026-07-27統合）では `(vaccination_id, clinic_id)` → `vaccinations (id, clinic_id)` と `(billing_id, clinic_id)` → `billings (id, clinic_id)` の複合FK対と lifetime 部分 unique index（`uq_billing_items_vaccination_lifetime`）により、他院接種の混入と同一接種の二重計上を物理的に排除しています。2026-07-29 統合（§9）では、会計・飼主・ペット境界の clinic 軸をさらに harden している: `payments.clinic_id` と `fk_payments_*` 複合 FK、`fk_pets_clinic_owner`、`uq_medical_records_id_clinic` および medical_records/vaccinations/billings の clinic 軸複合 FK、`app_private.enforce_payment_method_system_key_match`（method ⇔ `payment_methods.system_key`）、部分 unique index `uk_owners_clinic_phone`（非空 phone）、`chk_inventory_items_quantity_non_negative`、`pets.version`（楽観ロック）、`idx_exam_results_exam_type_field_id`。
+- **整合性制約**: アプリケーション層だけでなく、DB レベルで `FOREIGN KEY` 制約によりデータの孤立を防止。特に健診パッケージの結果レコード `checkup_field_results` では、越境防止のため `(checkup_type_field_id, clinic_id)` 複合FKにより親定義とクリニックIDの不一致を物理的に排除しています。同様に `checkup_type_fields.checkup_type_id` も、`checkup_types` の `UNIQUE (id, clinic_id)` を参照する `(checkup_type_id, clinic_id)` 複合FK（`fk_checkup_type_fields_type_clinic`・#211 A6）へ置換済みです（2026-07-17 に `001_init.sql` へ統合。既存 DB への反映は USER の `DB_RESET=true` 再適用時、詳細は §4.3）。同型の防御として、`pet_owners`（ペットと飼い主の多対多・旧003・2026-07-27統合）は `(clinic_id, pet_id)` → `pets (clinic_id, id)` と `(clinic_id, owner_id)` → `owners (clinic_id, id)` の複合FK対を持ち、両親テーブルに追加した `UNIQUE (clinic_id, id)`（旧002・`uq_pets_clinic_id_id` / `uq_owners_clinic_id_id`）を参照先とすることで、他院のペットと飼い主を跨いだ紐付けを物理的に排除しています。`billing_items` には 2 つの provenance 制御が存在：接種 provenance（旧008・2026-07-27統合）では `(vaccination_id, clinic_id)` → `vaccinations (id, clinic_id)` と `(billing_id, clinic_id)` → `billings (id, clinic_id)` の複合FK対と lifetime 部分 unique index（`uq_billing_items_vaccination_lifetime`）により、他院接種の混入と同一接種の二重計上を物理的に排除。検査 provenance（2026-08-20 統合・セクション14）では `billing_items.exam_id`（ライフタイム一意・1 exam = 1 会計行）を `exams (id, clinic_id)` へ `fk_billing_items_exam_clinic` 複合 FK（ON DELETE RESTRICT・医院間紐付け防止）と `uq_billing_items_exam_lifetime` で保証し、`exam_types.price` の空値をブロッキング警告（会計確認カルテのみ請求・該当医記の同日複数カルテから検査抽出）とします。2026-07-29 統合（§9）では、会計・飼主・ペット境界の clinic 軸をさらに harden している: `payments.clinic_id` と `fk_payments_*` 複合 FK、`fk_pets_clinic_owner`、`uq_medical_records_id_clinic` および medical_records/vaccinations/billings の clinic 軸複合 FK、`app_private.enforce_payment_method_system_key_match`（method ⇔ `payment_methods.system_key`）、部分 unique index `uk_owners_clinic_phone`（非空 phone）、`chk_inventory_items_quantity_non_negative`、`pets.version`（楽観ロック）、`idx_exam_results_exam_type_field_id`。
 
 ### 3.2 高度なマルチテナント隔離
 - **`clinic_id` の強制**: ビジネスロジックが関わる全テーブルに `clinic_id` カラムを配置。
@@ -128,7 +129,7 @@ erDiagram
 
 ## 4. スキーマ整合・不要候補判定ログ
 
-現行マイグレーション（直下 DDL 在庫は `ls backend/migrations/*.sql` を正とする。2026-08-04 統合第6回で旧 append-only `002`–`008` を `001_init.sql` セクション11へ統合済み。物理テーブル総数は直下 `*.sql` の行頭 `CREATE TABLE` 合算 = **123**（001 単体 = 123。内訳: セクション10統合後の 115 + close adjustments 1 + examination_revisions 2 + checkup_package_import_receipts 1 + lab import compensation 4）。`seeds/` は対象外）の定義と本 ERD の主要ドメイン別構成を静的照合し、2026-08-04 時点の現行構成を以下の通り整理しました。実 DB のデータ量・実行時 SQL・アクセスログは確認対象外です。
+現行マイグレーション（直下 DDL 在庫は `ls backend/migrations/*.sql` を正とする。2026-08-20 統合第8回で旧 `002`–`006` を `001_init.sql` セクション14へ統合済み。物理テーブル総数は直下 `*.sql` の行頭 `CREATE TABLE` 合算 = **128**（001 単体 = 128。内訳: セクション11統合後の 123 + 2026-08-20統合の billing_items exam provenance 列追加に伴う exams UNIQUE 複合 unique index 追加なし）。`seeds/` は対象外）の定義と本 ERD の主要ドメイン別構成を静的照合し、2026-08-20 時点の現行構成を以下の通り整理しました。実 DB のデータ量・実行時 SQL・アクセスログは確認対象外です。
 
 > [!NOTE]
 > **2026-07-04 追記**: 増分マイグレーション `005`〜`012` は同日中に `001_init.sql`（DDL）/ `003_seed_demo.sql`（歯科検診暫定 seed DML）へ再統合された（当時の独立ファイル名は削除）。ファイル構成が変わっただけで物理テーブル定義そのものは変化していないため、以下の判定結果・テーブル総数は本追記時点でも有効です。
@@ -170,10 +171,12 @@ erDiagram
 > **2026-08-19**: incremental `004_lab_devices.sql` が `lab_devices` を追加（機器名と検査種別の医院マスタ。`source_type` は電文プロトコル）。物理テーブル総数は **128**。適用は USER 手動の `make migrate`。
 >
 > **2026-08-19**: incremental `005_fix_lab_device_station_slots.sql` は保存済み station 既定 slots の PU-4010 を 2400 / parity even へ直すデータ修正のみ（DDL なし。電文正本: 尿は 2400 8E1）。物理テーブル総数は **128** のまま。適用は USER 手動の `make migrate`。
+>
+> **2026-08-20 統合第8回**: 残存 incremental `002_ensure_pet_owners.sql`（内容が 001_init と完全重複のためテキスト省略）/ `003_drop_lab_device_item_display_name.sql`（セクション13 CREATE TABLE から display_name を除去することで表現）/ `004_lab_devices.sql` / `005_fix_lab_device_station_slots.sql` / `006_billing_item_exam_provenance.sql` をセクション14へ統合し、直下 DDL を `001_init.sql` 単一ファイルへ戻した。`006_billing_item_exam_provenance.sql` は `billing_items.exam_id`（ライフタイム一意・検査 provenance）・`fk_billing_items_exam_clinic` 複合 FK・`uq_billing_items_exam_lifetime` 部分 unique index・`chk_billing_items_provenance_clinic_pair` CHECK（vaccination_id / exam_id のいずれか 1 つのみ、clinic_id ペア保証）を追加。新規テーブルはなく総数128は不変。001 checksum が変わるため適用経路は USER 手動の `make reset`。
 
 | 項目 | 結果 | 判定 |
 |:---|:---|:---|
-| `001_init.sql` の `CREATE TABLE` 数 | 123（セクション11統合後。直下 DDL は 001 のみ） | 2026-07-04統合済みの5テーブルに加え、2026-07-27統合の旧005由来 `exam_reference_ranges` と旧003由来 `pet_owners`、2026-07-31統合の identity links 4 と upload quota 1、2026-08-04統合の close adjustments / examination revisions / checkup package receipts / lab import compensation を含む |
+| `001_init.sql` の `CREATE TABLE` 数 | 128（セクション14統合後。直下 DDL は 001 のみ） | 2026-07-04統合済みの5テーブルに加え、2026-07-27統合の旧005由来 `exam_reference_ranges` と旧003由来 `pet_owners`、2026-07-31統合の identity links 4 と upload quota 1、2026-08-04統合の close adjustments / examination revisions / checkup package receipts / lab import compensation、2026-08-20統合の billing_items exam_id provenance・`exams` UNIQUE (id, clinic_id) を含む |
 | 旧増分マイグレーションが追加していたテーブル | 6: `lab_import_jobs` / `lab_import_events` (旧`005`)、`medicine_dose_params` (旧`009`)、`checkup_type_fields` / `checkup_field_results` (旧`010`)、`exam_reference_ranges`（2026-07-27統合の旧`005`） | 現在は全て `001_init.sql` に直接定義（旧ファイルは削除済み） |
 | 全マイグレーション（`backend/migrations/*.sql` 行頭 `CREATE TABLE` 合算）の物理テーブル総数 | 128 | 在庫は `001_init.sql`（127。城東4表をセクション13へ統合）+ incremental `004_lab_devices`。`002` の `pet_owners` は 001 と重複。ERD の全体数と一致 |
 | ERD ドメイン表の物理テーブル数 | 128 | migrations と一致 |
@@ -209,12 +212,12 @@ erDiagram
 >
 > **2026-07-27 追記**: 旧incremental 002〜009を`001_init.sql`末尾セクション8へ原文のまま番号順に統合し、独立ファイルを削除した。当時の直下DDLは001のみ。旧005の`exam_reference_ranges`追加により総数は109となった。
 
-現行マイグレーションは以下の構成です（`backend/migrations/`、2026-07-31 統合第5回時点。在庫の正は `ls backend/migrations/*.sql`）。
+現行マイグレーションは以下の構成です（`backend/migrations/`、2026-08-20 統合第8回時点。在庫の正は `ls backend/migrations/*.sql`）。
 
-- `001_init.sql`（fresh用統合スキーマ・**123**テーブル。§7に旧005–013相当、§8に2026-07-27統合の旧002–009原文と同日夕統合の旧002–004原文、§9に2026-07-29統合の旧002–007原文、§10に2026-07-31統合の旧002–006原文、§11に2026-08-04統合の旧002–008原文を番号順追記）
+- `001_init.sql`（fresh用統合スキーマ・**128**テーブル。§7に旧005–013相当、§8に2026-07-27統合の旧002–009原文と同日夕統合の旧002–004原文、§9に2026-07-29統合の旧002–007原文、§10に2026-07-31統合の旧002–006原文、§11に2026-08-04統合の旧002–008原文、§13に2026-08-19統合の旧003–006原文、§14に2026-08-20統合の旧002–006原文を番号順追記）
 - `seeds/002_master/`、`seeds/003_demo/`、`seeds/004_staging/`（各 `*.csv` + `manifest.json` のシードバンドル。SQL ファイルではない）
 
-物理テーブル総数 = **123**（ゲート 3a と `TestERDTableCount_MatchesSchema` は `001_init.sql` の distinct `CREATE TABLE` を正とする。直下 DDL 在庫は `ls backend/migrations/*.sql` で確認し、現行は 001 のみ）。
+物理テーブル総数 = **128**（ゲート 3a と `TestERDTableCount_MatchesSchema` は `001_init.sql` の distinct `CREATE TABLE` を正とする。直下 DDL 在庫は `ls backend/migrations/*.sql` で確認し、現行は 001 のみ）。
 
 2026-07-31統合分の論理的な記録（旧ファイル名は履歴識別子、現行所在は全て`001_init.sql`末尾セクション10）:
 
@@ -286,6 +289,15 @@ erDiagram
 
 - **受付ヘッダー テレメトリ用 checked_in_at 追加 (change-ui.md Phase 2 / 旧 005_add_appointment_checked_in_at.sql → 001_init.sql に統合)**
   - `appointments.checked_in_at` (timestamptz, NULL可) を定義済み。`updated_at` は autoUpdateTime のため予約編集全般でリセットされ待ち時間算出に流用できず、checked_in ステータス遷移時刻専用カラムとして新設したもの。
+
+以下は 2026-08-20 の統合第8回時点で `001_init.sql` セクション14へ畳み込まれた変更の論理的な記録です（参照用、当時の独立ファイルは存在しません）。
+
+- **検査会計 billing_items provenance (AE-LAB-6 / 旧 006_billing_item_exam_provenance.sql → 001_init.sql セクション14 に統合)**
+  - `billing_items.exam_id` (uuid NULL): 検査イベント由来の会計明細を識別する lifetime provenance。医院内で一意。
+  - `exams (id, clinic_id)` に対する `UNIQUE (id, clinic_id)` 複合ユニークと`fk_billing_items_exam_clinic` 複合 FK（`ON DELETE RESTRICT`）で医院間紐付けを防止。
+  - `uq_billing_items_exam_lifetime` 部分 unique index（`WHERE exam_id IS NOT NULL`）で同一検査の二重計上を物理的に排除。
+  - `chk_billing_items_provenance_clinic_pair` CHECK制約：`num_nonnulls(vaccination_id, exam_id) = 1` で接種・検査のいずれか1つのみかつ clinic_id ペア保証。
+  - 会計確認済みカルテのみ検査を請求行として抽出。`exam_types.price` 空値はブロッキング警告。カルテなし接種は会計表示対象外。新規接種はカルテ予防接種タブのみ受け付け。
 
 ### 4.1 継続理由を明示する対象
 

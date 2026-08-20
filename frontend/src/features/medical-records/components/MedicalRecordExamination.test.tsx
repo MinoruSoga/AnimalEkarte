@@ -20,6 +20,10 @@ vi.mock("./ExaminationImportDialog", () => ({
   ExaminationImportDialog: () => null,
 }));
 
+vi.mock("@/features/lab-device", () => ({
+  LabDeviceUnlinkedBanner: () => null,
+}));
+
 const makeItem = (overrides: Partial<ExamResult> = {}): ExamResult => ({
   id: "1",
   examTypeFieldId: 1,
@@ -42,6 +46,9 @@ const EXAM_GROUPS: ExamGroup[] = [
     id: 1,
     date: "2026-01-01 10:00",
     machine: "DRI-CHEM",
+    name: "血液検査",
+    price: 4200,
+    medicalRecordId: "9",
     items: [
       makeItem({ id: "1", name: "グルコース" }),
       makeItem({ id: "2", name: "クレアチニン" }),
@@ -51,6 +58,9 @@ const EXAM_GROUPS: ExamGroup[] = [
     id: 2,
     date: "2026-01-02 10:00",
     machine: "DRI-CHEM",
+    name: "血液検査",
+    price: 4200,
+    medicalRecordId: "9",
     items: [makeItem({ id: "3", name: "ビリルビン" })],
   },
 ];

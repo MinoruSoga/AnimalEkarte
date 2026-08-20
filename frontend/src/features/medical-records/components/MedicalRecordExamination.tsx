@@ -17,6 +17,7 @@ import {
 } from "./medical-record-examination-model";
 import { C } from "@/lib/design-tokens";
 import { HISTORY_FETCH_LIMIT } from "@/config/fetch-limits";
+import { LabDeviceUnlinkedBanner } from "@/features/lab-device";
 
 interface MedicalRecordExaminationProps {
   isNewRecord?: boolean;
@@ -66,6 +67,7 @@ export const MedicalRecordExamination = memo(function MedicalRecordExamination({
 
   return (
     <div className="h-[calc(100vh-220px)] min-h-[500px] flex flex-col gap-3 overflow-y-auto pb-20 pr-1">
+      {petId && !isNewRecord ? <LabDeviceUnlinkedBanner petId={petId} /> : null}
       {/* Search & Actions Header */}
       <ExaminationFilter
         searchTerm={deferredSearch}

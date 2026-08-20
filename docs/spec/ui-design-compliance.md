@@ -81,7 +81,7 @@ docker compose exec frontend pnpm design-audit
 | 検査 | 検査編集 | /examinations/:id | ExaminationForm | ✅ | |
 | ワクチン | ワクチン一覧 | /vaccinations | VaccinationList | ✅ | |
 | ワクチン | ワクチン接種 - ペット選択 | /vaccinations/select-pet | VaccinationPetSelection | ✅ | |
-| ワクチン | ワクチン登録(新規) | /vaccinations/new | VaccinationForm | ✅ | |
+| ワクチン | ワクチン登録(新規) | /vaccinations/new | Navigate → /vaccinations/select-pet | ✅ | /vaccinations/new は select-pet へリダイレクト。新規作成はカルテ予防接種タブから |
 | ワクチン | ワクチン編集 | /vaccinations/:id | VaccinationForm | ✅ | typed `BackendVaccination` とpet/vaccine/doctor fixtureでedit state・担当医帰属を4 viewport確認 |
 | 定期健診 | 定期健診一覧 | /checkups | CheckupsList | ✅ | |
 | 定期健診 | 定期健診登録 - ペット選択 | /checkups/select-pet | CheckupPetSelection | ✅ | |

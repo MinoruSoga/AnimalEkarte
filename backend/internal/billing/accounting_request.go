@@ -185,6 +185,7 @@ type completeAccountingItemRequest struct {
 	MerchandiseItemID     *uint64 `json:"merchandise_item_id"`
 	TreatmentID           *uint64 `json:"treatment_id"`
 	VaccinationID         *uint64 `json:"vaccination_id"`
+	ExamID                *uint64 `json:"exam_id"`
 	AppointmentID         *uint64 `json:"appointment_id"`
 	TrimmingCourseID      *uint64 `json:"trimming_course_id"`
 	TrimmingOptionID      *uint64 `json:"trimming_option_id"`
@@ -228,6 +229,7 @@ func (r *completeAccountingRequest) toServiceInput(clinicID, staffID uint64, ide
 			MerchandiseItemID:     it.MerchandiseItemID,
 			TreatmentID:           it.TreatmentID,
 			VaccinationID:         it.VaccinationID,
+			ExamID:                it.ExamID,
 			AppointmentID:         it.AppointmentID,
 			TrimmingCourseID:      it.TrimmingCourseID,
 			TrimmingOptionID:      it.TrimmingOptionID,

@@ -3923,7 +3923,7 @@ ALTER TABLE pets
 -- Source file: 008_add_billing_item_vaccination_provenance.sql
 -- Purpose: 会計明細へ予防接種 provenance と clinic 制約を追加する。
 -- Source commit: 65a0dd08d
--- Source SHA-256: daa676aed130da0ddefa30c4fd72e18b422dcc67ab919c7ea76dd0e40ac73d79
+-- Source SHA-256: 251ebb5b09edce09104c0b4da938175a088d57962efa9566bc222d3c13bc251f
 ALTER TABLE billing_items
     ADD COLUMN vaccination_id bigint,
     ADD COLUMN clinic_id bigint,
@@ -3960,7 +3960,7 @@ COMMENT ON COLUMN billing_items.vaccination_id IS
     '予防接種イベント由来の会計明細を識別するprovenance';
 
 COMMENT ON COLUMN billing_items.clinic_id IS
-    '予防接種provenanceがある明細だけに保持する内部tenant scope';
+    'vaccination または exam provenance がある明細だけに保持する内部tenant scope';
 
 -- Source file: 009_add_billing_items_other_reason.sql
 -- Purpose: other 分類の理由と会計明細の作成者を記録する。
@@ -5610,7 +5610,6 @@ CREATE TABLE lab_device_item_masters (
     clinic_id           bigint          NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
     source_type         varchar(32)     NOT NULL,
     device_item_code    varchar(64)     NOT NULL,
-    display_name        varchar(100)    NOT NULL,
     unit                varchar(32)     NOT NULL DEFAULT '',
     value_shape         varchar(32)     NOT NULL,
     exam_type_field_id  bigint,
@@ -5760,3 +5759,101 @@ SELECT app_private.apply_rls_policy(
     'app_private.has_clinic_access(clinic_id)',
     'app_private.has_clinic_access(clinic_id)'
 );
+
+-- =============================================================================
+-- 14. 増分マイグレーション統合 (002 / 003 / 004 / 005 / 006 / 2026-08-20)
+-- =============================================================================
+-- 本番運用前の DB リセット前提で独立ファイルを 001 へ畳み込む。
+-- 002_ensure_pet_owners.sql は 001_init の定義と完全重複のため内容省略。
+-- 003_drop_lab_device_item_display_name.sql の DROP COLUMN 効果は、
+--   セクション13 の lab_device_item_masters CREATE TABLE から display_name を
+--   除去することで表現したため、ここでは繰り返さない。
+-- Source SHA-256:
+--   002_ensure_pet_owners.sql                  4acb97f2ca2cf372097737a1e51cfe9f4ad332d31902c5327fd78b7ee1cc7488
+--   003_drop_lab_device_item_display_name.sql  562e372ba193374749cff2f54bc4b2de296144441ec71990203614cda3ccb98f
+--   004_lab_devices.sql                        c55f0e303b1761b9978f1d266ec3ba267f0a8bf0459722b94cdb7c998435fa35
+--   005_fix_lab_device_station_slots.sql       cb8ce199997361e843ffc9f065988f57f180fc1c2ba3c5956c8971d77b5ba229
+--   006_billing_item_exam_provenance.sql       e09a57f0a031c5fa11b323f6c10d5abda6b6d542c7a1e8646c2c47533d311d7f
+
+-- Source file: 004_lab_devices.sql
+-- Clinic-owned lab devices. Display names and exam binding are stored here.
+CREATE TABLE lab_devices (
+    id            bigserial     PRIMARY KEY,
+    clinic_id     bigint        NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    source_type   varchar(32)   NOT NULL,
+    name          varchar(100)  NOT NULL,
+    exam_type_id  bigint,
+    is_active     boolean       NOT NULL DEFAULT true,
+    sort_order    integer       NOT NULL DEFAULT 0,
+    created_at    timestamptz   NOT NULL DEFAULT now(),
+    updated_at    timestamptz   NOT NULL DEFAULT now(),
+    CONSTRAINT chk_lab_devices_source_type
+        CHECK (source_type IN ('fuji_nx600', 'fuji_au10v', 'arkray_pu4010')),
+    CONSTRAINT uq_lab_devices_clinic_source
+        UNIQUE (clinic_id, source_type),
+    CONSTRAINT uq_lab_devices_clinic_name
+        UNIQUE (clinic_id, name)
+);
+
+ALTER TABLE lab_devices
+    ADD CONSTRAINT uq_lab_devices_id_clinic UNIQUE (id, clinic_id);
+
+ALTER TABLE lab_devices
+    ADD CONSTRAINT fk_lab_devices_exam_type_clinic
+    FOREIGN KEY (exam_type_id, clinic_id)
+    REFERENCES exam_types (id, clinic_id)
+    ON DELETE RESTRICT;
+
+CREATE INDEX idx_lab_devices_clinic_sort
+    ON lab_devices (clinic_id, sort_order);
+
+COMMENT ON TABLE lab_devices IS
+    '検査機器マスタ。表示名と検査種別の対応。source_type は電文プロトコル';
+COMMENT ON COLUMN lab_devices.name IS
+    '医院が付ける機器名。フロント定数には置かない';
+COMMENT ON COLUMN lab_devices.exam_type_id IS
+    'この機器が載せる検査種別。未設定可';
+
+-- Source file: 005_fix_lab_device_station_slots.sql
+-- PU-4010 の既定スロットが 9600 のまま保存された station 行を 2400 8(E)1 へ直す。
+-- 電文正本 old_db/docs/lab-go/go-impl/device-serial-adapter.md: 尿は 2400 8E1。
+-- 新規 DB では lab_device_station_settings に行が無く、UPDATE は 0 行ヒット（no-op）。
+UPDATE lab_device_station_settings
+SET slots_json = '[{"key":"nx600","source_type":"fuji_nx600","device_hint":"NX600","baud":9600},{"key":"au10v","source_type":"fuji_au10v","device_hint":"AU10V","baud":9600},{"key":"pu4010","source_type":"arkray_pu4010","device_hint":"PU-4010","baud":2400,"parity":"even"}]'
+WHERE slots_json = '[{"key":"nx600","source_type":"fuji_nx600","device_hint":"NX600","baud":9600},{"key":"au10v","source_type":"fuji_au10v","device_hint":"AU10V","baud":9600},{"key":"pu4010","source_type":"arkray_pu4010","device_hint":"PU-4010","baud":9600}]';
+
+-- Source file: 006_billing_item_exam_provenance.sql
+-- 検査イベント由来の会計明細 provenance（接種 vaccination_id と同型）。
+-- clinic_id は vaccination または exam の provenance がある明細だけに置く。
+
+ALTER TABLE exams
+    ADD CONSTRAINT uq_exams_id_clinic UNIQUE (id, clinic_id);
+
+ALTER TABLE billing_items
+    DROP CONSTRAINT IF EXISTS chk_billing_items_vaccination_clinic_pair;
+
+ALTER TABLE billing_items
+    ADD COLUMN IF NOT EXISTS exam_id bigint;
+
+ALTER TABLE billing_items
+    ADD CONSTRAINT chk_billing_items_provenance_clinic_pair
+        CHECK (
+            (clinic_id IS NULL AND vaccination_id IS NULL AND exam_id IS NULL)
+            OR (
+                clinic_id IS NOT NULL
+                AND num_nonnulls(vaccination_id, exam_id) = 1
+            )
+        );
+
+ALTER TABLE billing_items
+    ADD CONSTRAINT fk_billing_items_exam_clinic
+        FOREIGN KEY (exam_id, clinic_id)
+        REFERENCES exams (id, clinic_id)
+        ON DELETE RESTRICT;
+
+CREATE UNIQUE INDEX uq_billing_items_exam_lifetime
+    ON billing_items(exam_id)
+    WHERE exam_id IS NOT NULL;
+
+COMMENT ON COLUMN billing_items.exam_id IS
+    '検査イベント由来の会計明細を識別するprovenance';

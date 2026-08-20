@@ -20,6 +20,7 @@ type LstepStatus = "synced" | "not-linked" | "opt-out";
 
 interface MedicalRecordVaccinationProps {
   petId?: string;
+  medicalRecordId?: string;
   lstepStatus?: LstepStatus;
 }
 
@@ -50,6 +51,7 @@ function LstepStatusBadge({ status }: { status: LstepStatus }) {
 
 export const MedicalRecordVaccination = memo(function MedicalRecordVaccination({
   petId,
+  medicalRecordId,
   lstepStatus,
 }: MedicalRecordVaccinationProps) {
   const [vaccineName, setVaccineName] = useState("");
@@ -136,12 +138,17 @@ export const MedicalRecordVaccination = memo(function MedicalRecordVaccination({
       return;
     }
     if (!petId) return;
+    if (!medicalRecordId) {
+      setFieldErrors({ date: "カルテを保存してから接種を追加してください" });
+      return;
+    }
 
     setFieldErrors({});
     startSaveTransition(async () => {
       try {
         await createVaccination({
           pet_id: Number(petId),
+          medical_record_id: Number(medicalRecordId),
           vaccine_id: Number(vaccineName),
           date,
           lot1: lot1 || undefined,
@@ -170,7 +177,7 @@ export const MedicalRecordVaccination = memo(function MedicalRecordVaccination({
         // useCreateVaccination onError が handleApiError 済み
       }
     });
-  }, [petId, vaccineName, date, supplemental, lot1, lot2, lot3, lot4, nextScheduleType, nextDate, remarks, createVaccination]);
+  }, [petId, medicalRecordId, vaccineName, date, supplemental, lot1, lot2, lot3, lot4, nextScheduleType, nextDate, remarks, createVaccination]);
 
   return (
     <>

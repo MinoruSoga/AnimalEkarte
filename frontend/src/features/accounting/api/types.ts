@@ -15,6 +15,7 @@ export type BackendAccounting = Billing & {
 // BillingItem のレスポンス型（BE handler が計算して返す追加フィールドを含む）
 export interface BackendAccountingItem extends BillingItem {
   vaccination_id?: number;
+  exam_id?: number;
   other_reason?: string;
   tax_amount?: number;
   subtotal?: number;
@@ -73,6 +74,7 @@ export interface CompleteAccountingItemRequest {
   other_reason?: string;
   merchandise_item_id?: number;
   vaccination_id?: number;
+  exam_id?: number;
   treatment_id?: number;
   appointment_id?: number;
   trimming_course_id?: number;

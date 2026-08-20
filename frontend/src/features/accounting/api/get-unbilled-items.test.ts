@@ -37,6 +37,7 @@ describe("getUnbilledItems", () => {
       data: [
         buildItem({ id: 41, treatment_id: 41 }),
         buildItem({ id: 41, vaccination_id: 41 }),
+        buildItem({ id: 41, exam_id: 41 }),
       ],
     });
 
@@ -45,6 +46,7 @@ describe("getUnbilledItems", () => {
     expect(result.map((item) => item.id)).toEqual([
       "treatment_41",
       "vaccination_41",
+      "exam_41",
     ]);
     expect(mockedGet).toHaveBeenCalledWith("/v1/billing-items/unbilled", {
       params: { pet_id: "7" },

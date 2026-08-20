@@ -26,6 +26,10 @@ describe("transformVaccination", () => {
     expect(transformVaccination({ ...minimal, pet_id: undefined }).petId).toBeUndefined();
   });
 
+  it("medical_record_id を string に変換して medicalRecordId にマップする", () => {
+    expect(transformVaccination({ ...minimal, medical_record_id: 44 }).medicalRecordId).toBe("44");
+  });
+
   it("vaccine_id を string に変換して vaccineId にマップする", () => {
     expect(transformVaccination({ ...minimal, vaccine_id: 3 }).vaccineId).toBe("3");
   });

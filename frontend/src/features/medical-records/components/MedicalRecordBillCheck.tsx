@@ -12,6 +12,15 @@ import { CheckCircle2, RotateCcw } from "lucide-react";
 import { C, ICON } from "@/lib/design-tokens";
 import type { TreatmentMasterItem } from "@/components/shared/TreatmentSearchDialog/TreatmentSearchDialog";
 import { calculateBillingTotals } from "@/lib/calculations";
+import { formatCurrency } from "@/lib/format/number";
+import { useGetRecordExaminations } from "../api/get-record-examinations";
+import { useGetPetVaccinations } from "../api/get-pet-vaccinations";
+import {
+  billCheckExtraLines,
+  billCheckPricedExtras,
+  isUnbillableMasterPrice,
+  type BillCheckExtraLine,
+} from "./medical-record-bill-check-model";
 
 const TreatmentSearchDialog = lazy(() =>
   import("@/components/shared/TreatmentSearchDialog/TreatmentSearchDialog").then((m) => ({
@@ -22,19 +31,51 @@ const TreatmentSearchDialog = lazy(() =>
 interface BillCheckProps {
   isNewRecord?: boolean;
   medicalRecordId?: string;
+  petId?: string;
   ownerDiscountRate?: number;
   /** P2-15: 拠点横断で開いたカルテの子リソース操作用。レコード自身の clinicId */
   recordClinicId?: string;
 }
 
-export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({ isNewRecord = false, medicalRecordId = "", ownerDiscountRate = 0, recordClinicId }: BillCheckProps) {
+function ExtraLinesList({ title, lines }: { title: string; lines: BillCheckExtraLine[] }) {
+  if (lines.length === 0) {
+    return null;
+  }
+  return (
+    <div className="mt-3">
+      <h3 className={`mb-1 text-xs font-bold ${C.text60}`}>{title}</h3>
+      <ul className={`divide-y ${C.borderLight} rounded-lg border ${C.borderLight} ${C.bgWhite}`}>
+        {lines.map((line) => (
+          <li key={line.id} className="flex items-center justify-between gap-3 px-3 py-2 text-sm">
+            <span className={C.text}>{line.name}</span>
+            <span className={isUnbillableMasterPrice(line.unitPrice) ? C.danger : C.text}>
+              {isUnbillableMasterPrice(line.unitPrice) ? "価格未設定" : formatCurrency(line.unitPrice)}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({
+  isNewRecord = false,
+  medicalRecordId = "",
+  petId,
+  ownerDiscountRate = 0,
+  recordClinicId,
+}: BillCheckProps) {
   const { canEdit, canDelete } = usePermission("medical-records");
   const [globalDiscountAmount, setGlobalDiscountAmount] = useState(0);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
 
-  // ── API ──
   const { data: treatments = [] } = useGetTreatments(medicalRecordId, recordClinicId);
   const { data: billingConfirmation } = useGetBillingConfirmation(medicalRecordId);
+  const { data: examinationResult } = useGetRecordExaminations(
+    isNewRecord ? undefined : petId,
+    isNewRecord ? undefined : medicalRecordId,
+  );
+  const { data: vaccinations = [] } = useGetPetVaccinations(isNewRecord ? undefined : petId);
   const createTreatmentMutation = useCreateTreatment(medicalRecordId, recordClinicId);
   const { mutate: updateTreatment } = useUpdateTreatment(medicalRecordId, recordClinicId);
   const confirmMutation = useCreateBillingConfirmation(medicalRecordId);
@@ -42,11 +83,47 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({ isN
 
   const [isConfirmPending, startConfirmTransition] = useTransition();
 
+  const examLines = useMemo(
+    () => billCheckExtraLines(
+      "exam",
+      (examinationResult?.items ?? []).map((exam) => ({
+        id: exam.id,
+        name: exam.name,
+        price: exam.price,
+        medicalRecordId: exam.medicalRecordId,
+      })),
+      medicalRecordId,
+    ),
+    [examinationResult?.items, medicalRecordId],
+  );
+  const vaccinationLines = useMemo(
+    () => billCheckExtraLines(
+      "vaccination",
+      vaccinations.map((item) => ({
+        id: item.id,
+        name: item.name,
+        price: item.price,
+        medicalRecordId: item.medicalRecordId,
+      })),
+      medicalRecordId,
+    ),
+    [vaccinations, medicalRecordId],
+  );
+  const extraLines = useMemo(
+    () => [...examLines, ...vaccinationLines],
+    [examLines, vaccinationLines],
+  );
+  const pricedExtras = useMemo(() => billCheckPricedExtras(extraLines), [extraLines]);
+
   const { mutateAsync: confirmBillingAsync } = confirmMutation;
   const handleConfirm = useCallback(() => {
     if (!canEdit) return;
-    if (treatments.length === 0) {
-      toast.error("会計確認する明細がありません。診察処置を追加してください。");
+    if (extraLines.some((line) => isUnbillableMasterPrice(line.unitPrice))) {
+      toast.error("価格が未設定の検査・接種があるため会計確認できません。マスタの価格を設定してください。");
+      return;
+    }
+    if (treatments.length === 0 && extraLines.length === 0) {
+      toast.error("会計確認する明細がありません。診察処置・検査・接種を追加してください。");
       return;
     }
     startConfirmTransition(async () => {
@@ -59,7 +136,7 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({ isN
         handleApiError(error, "会計確認");
       }
     });
-  }, [canEdit, confirmBillingAsync, treatments.length]);
+  }, [canEdit, confirmBillingAsync, extraLines, treatments.length]);
 
   const { mutate: returnBillingFn } = returnMutation;
   const handleReturn = useCallback(() => {
@@ -112,7 +189,6 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({ isN
     deleteTreatmentFn(String(id));
   }, [canDelete, deleteTreatmentFn]);
 
-  // rerender-dependencies: treatments 配列を deps から除外するため nextOrder を useMemo で事前計算
   const nextOrder = useMemo(
     () => treatments.reduce((maxOrder, treatment) => Math.max(maxOrder, treatment.sort_order), -1) + 1,
     [treatments],
@@ -136,13 +212,19 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({ isN
   }, [canEdit, nextOrder, createTreatmentMutation]);
 
   const { subtotal, tax, total } = useMemo(() => {
-    const result = calculateBillingTotals(items, ownerDiscountRate, globalDiscountAmount);
+    const extraItems = pricedExtras.map((line) => ({
+      unitPrice: line.unitPrice ?? 0,
+      quantity: 1,
+      taxType: "excluded" as const,
+      taxRate: 0.1,
+    }));
+    const result = calculateBillingTotals([...items, ...extraItems], ownerDiscountRate, globalDiscountAmount);
     return {
       subtotal: result.subtotal,
       tax: result.tax,
       total: result.total
     };
-  }, [items, ownerDiscountRate, globalDiscountAmount]);
+  }, [items, pricedExtras, ownerDiscountRate, globalDiscountAmount]);
 
   if (isNewRecord) {
     return (
@@ -183,6 +265,9 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({ isN
           </div>
         </div>
 
+        <ExtraLinesList title="検査" lines={examLines} />
+        <ExtraLinesList title="予防接種" lines={vaccinationLines} />
+
         <div className="mt-4">
           <TreatmentDetailedSummary
             subtotal={subtotal}
@@ -197,7 +282,6 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({ isN
         </div>
       </div>
 
-      {/* Action Button */}
       {canEdit ? (
         <div className="fixed bottom-6 right-6 z-50 flex gap-2">
           {isConfirmed ? (

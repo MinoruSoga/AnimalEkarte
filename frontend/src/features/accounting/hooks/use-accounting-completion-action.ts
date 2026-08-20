@@ -39,6 +39,7 @@ function toCompleteItems(
       : {}),
     merchandise_item_id: item.merchandiseItemId ? Number(item.merchandiseItemId) : undefined,
     vaccination_id: item.vaccinationId ? Number(item.vaccinationId) : undefined,
+    exam_id: item.examId ? Number(item.examId) : undefined,
     treatment_id: item.treatmentId ? Number(item.treatmentId) : undefined,
     appointment_id: item.appointmentId ? Number(item.appointmentId) : undefined,
     trimming_course_id: item.trimmingCourseId ? Number(item.trimmingCourseId) : undefined,

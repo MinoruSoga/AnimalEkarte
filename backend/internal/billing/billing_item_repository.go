@@ -22,11 +22,13 @@ type BillingItemRepository interface {
 	FindByBillingID(ctx context.Context, clinicID, billingID uint64) ([]model.BillingItem, error)
 	ValidateCreateReferences(ctx context.Context, clinicID, billingID uint64, merchandiseItemID, treatmentID, appointmentID, trimmingCourseID, trimmingOptionID *uint64) (model.ItemCategory, error)
 	ValidateVaccinationCreateReference(ctx context.Context, clinicID, billingID, vaccinationID uint64) (*vaccinationBillingValues, error)
+	ValidateExamCreateReference(ctx context.Context, clinicID, billingID, examID uint64) error
 	LockActiveStaffAssignment(ctx context.Context, clinicID, staffID uint64) error
 	// FindUnbilledVaccinationItemsByPetID は未請求 vaccination 候補を返す。
 	// unbillableCount は vaccine master 欠損/負価格などで除外した件数（BUG-013 warning 用）。
 	// 除外行は error にせず skip する（infra error のみ error）。
 	FindUnbilledVaccinationItemsByPetID(ctx context.Context, clinicID, petID uint64) (items []model.BillingItem, unbillableCount int, err error)
+	FindUnbilledExamItemsByPetID(ctx context.Context, clinicID, petID uint64) (items []model.BillingItem, unbillableCount int, err error)
 	Create(ctx context.Context, item *model.BillingItem) error
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
 	Delete(ctx context.Context, clinicID, id uint64) error
@@ -380,10 +382,20 @@ func (r *billingItemRepository) ValidateVaccinationCreateReference(
 			return nil, err
 		}
 	}
+	if vaccinationRef.MedicalRecordID == nil {
+		return nil, invalidBillingItemReferenceCombination()
+	}
 	if billingRef.MedicalRecordID != nil &&
-		vaccinationRef.MedicalRecordID != nil &&
 		*billingRef.MedicalRecordID != *vaccinationRef.MedicalRecordID {
 		return nil, invalidBillingItemReferenceCombination()
+	}
+	var confirmationStatus string
+	if err := tx.
+		Table("billing_confirmations").
+		Select("status").
+		Where("medical_record_id = ?", *vaccinationRef.MedicalRecordID).
+		Take(&confirmationStatus).Error; err != nil || confirmationStatus != string(model.ConfirmationStatusConfirmed) {
+		return nil, apperrors.WrapConflict("会計確認前の予防接種は請求できません")
 	}
 
 	var lockedVaccinationRef struct {
@@ -478,6 +490,7 @@ func (r *billingItemRepository) Delete(ctx context.Context, clinicID, id uint64)
 		Where("EXISTS (SELECT 1 FROM billings WHERE billings.id = billing_items.billing_id AND billings.clinic_id = ? AND billings.deleted_at IS NULL)", clinicID).
 		Updates(map[string]any{
 			"vaccination_id": nil,
+			"exam_id":        nil,
 			"clinic_id":      nil,
 			"deleted_at":     time.Now(),
 		})

@@ -48,6 +48,7 @@ type createBillingItemRequest struct {
 	OtherReason           *string `json:"other_reason"`
 	TreatmentID           *uint64 `json:"treatment_id"`
 	VaccinationID         *uint64 `json:"vaccination_id"`
+	ExamID                *uint64 `json:"exam_id"`
 	AppointmentID         *uint64 `json:"appointment_id"`
 	TrimmingCourseID      *uint64 `json:"trimming_course_id"`
 	TrimmingOptionID      *uint64 `json:"trimming_option_id"`
@@ -93,6 +94,7 @@ func (r *createBillingItemRequest) toServiceInput(clinicID uint64) *CreateBillin
 		OtherReason:           r.OtherReason,
 		TreatmentID:           r.TreatmentID,
 		VaccinationID:         r.VaccinationID,
+		ExamID:                r.ExamID,
 		AppointmentID:         r.AppointmentID,
 		TrimmingCourseID:      r.TrimmingCourseID,
 		TrimmingOptionID:      r.TrimmingOptionID,
@@ -144,6 +146,7 @@ type BillingItemResponse struct {
 	// MedicalRecordID は未請求候補など、treatment 由来の親カルテ（DB 列ではない仮想値）。
 	MedicalRecordID       *uint64   `json:"medical_record_id,omitempty"`
 	VaccinationID         *uint64   `json:"vaccination_id,omitempty"`
+	ExamID                *uint64   `json:"exam_id,omitempty"`
 	AppointmentID         *uint64   `json:"appointment_id,omitempty"`
 	TrimmingCourseID      *uint64   `json:"trimming_course_id,omitempty"`
 	TrimmingOptionID      *uint64   `json:"trimming_option_id,omitempty"`
@@ -175,6 +178,7 @@ func ToBillingItemResponse(item *model.BillingItem) BillingItemResponse {
 		TreatmentID:           item.TreatmentID,
 		MedicalRecordID:       item.MedicalRecordID,
 		VaccinationID:         item.VaccinationID,
+		ExamID:                item.ExamID,
 		AppointmentID:         item.AppointmentID,
 		TrimmingCourseID:      item.TrimmingCourseID,
 		TrimmingOptionID:      item.TrimmingOptionID,

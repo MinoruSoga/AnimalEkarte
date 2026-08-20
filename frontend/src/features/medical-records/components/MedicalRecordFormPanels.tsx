@@ -405,7 +405,17 @@ export function MedicalRecordTabsArea({
       {mountedTabs.has("予防接種") ? (
         <UnifiedTabsContent value="予防接種">
           <div className={`${LAYOUT.fullHeight} ${activeTab === "予防接種" ? "" : "hidden"}`}>
-            <MedicalRecordVaccination petId={selectedPet.id} lstepStatus={lstepStatus} />
+            {isNewRecord || !recordId ? (
+              <div className={`flex items-center justify-center h-48 text-sm ${C.text40}`}>
+                カルテを保存してから使用できます
+              </div>
+            ) : (
+              <MedicalRecordVaccination
+                petId={selectedPet.id}
+                medicalRecordId={recordId}
+                lstepStatus={lstepStatus}
+              />
+            )}
           </div>
         </UnifiedTabsContent>
       ) : null}
@@ -459,6 +469,7 @@ export function MedicalRecordTabsArea({
             <MedicalRecordBillCheck
               isNewRecord={isNewRecord}
               medicalRecordId={recordId}
+              petId={selectedPet.id}
               ownerDiscountRate={ownerDiscountRate}
               recordClinicId={recordClinicId}
             />

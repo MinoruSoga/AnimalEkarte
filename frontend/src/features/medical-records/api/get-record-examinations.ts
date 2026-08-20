@@ -20,6 +20,9 @@ export interface ExamGroup {
   id: number;
   date: string;
   machine: string;
+  name: string;
+  price: number | null;
+  medicalRecordId?: string;
   items: ExamResult[];
 }
 
@@ -33,6 +36,9 @@ function transformExamGroup(exam: Examination): ExamGroup {
     id: exam.id,
     date: exam.date ? exam.date.slice(0, 16).replace("T", " ") : "-",
     machine: exam.machine,
+    name: exam.exam_type?.name || exam.machine || "検査",
+    price: exam.exam_type?.price ?? null,
+    medicalRecordId: exam.medical_record_id != null ? String(exam.medical_record_id) : undefined,
     items: (exam.items ?? []).map(transformExamResult),
   };
 }

@@ -35,6 +35,8 @@ function transformToHistoryItem(v: Vaccination) {
   return {
     id: v.id,
     name: v.vaccine?.name ?? `ワクチン(ID:${v.vaccine_id})`,
+    medicalRecordId: v.medical_record_id != null ? String(v.medical_record_id) : undefined,
+    price: v.vaccine?.price ?? null,
     date: formatDate(v.date),
     next: formatDate(v.next_date),
     vaccineId: v.vaccine_id ?? 0,

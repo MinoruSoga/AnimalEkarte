@@ -45,6 +45,7 @@ import type {
 } from "@/components/shared/PropertyFilter/types";
 import { CONDITIONS_WITH_EMPTY } from "@/components/shared/PropertyFilter/types";
 import { ResourceVaccinations } from "@/types/generated/models";
+import { vaccinationListDetailHref } from "./vaccinations-list-model";
 
 // rendering-hoist-jsx: 静的フィルタプロパティ（担当医は動的オプションのためコンポーネント内で構築）
 const STATIC_FILTER_PROPERTIES: FilterProperty[] = [
@@ -69,7 +70,7 @@ interface VaccinationRowActionsProps {
   record: VaccinationRecord;
   canEdit: boolean;
   canDelete: boolean;
-  onEdit: (id: string) => void;
+  onEdit: (record: VaccinationRecord) => void;
   onDelete: (id: string) => void;
 }
 
@@ -85,7 +86,7 @@ function VaccinationRowActions({
     ...(canEdit && pet?.status === "生存" ? [{
       label: "編集",
       icon: Pencil,
-      onClick: () => onEdit(record.id),
+      onClick: () => onEdit(record),
     }] : []),
     ...(canDelete ? [{
       label: "削除",
@@ -187,8 +188,11 @@ export function VaccinationList() {
     navigate(paths.vaccinations.selectPet.getHref());
   }, [navigate]);
 
-  const handleEdit = useCallback((id: string) => {
-    navigate(paths.vaccinations.detail.getHref(id));
+  const handleEdit = useCallback((record: VaccinationRecord) => {
+    navigate(vaccinationListDetailHref({
+      id: record.id,
+      medicalRecordId: record.medicalRecordId,
+    }));
   }, [navigate]);
 
   const handleDeleteConfirm = useCallback(() => {
@@ -272,7 +276,7 @@ export function VaccinationList() {
         <TableCell className={C.text}>{r.ownerName}</TableCell>
         <TableCell className={C.text}>
           <DataTableRowLink
-            to={paths.vaccinations.detail.getHref(r.id)}
+            to={vaccinationListDetailHref({ id: r.id, medicalRecordId: r.medicalRecordId })}
             aria-label={`予防接種詳細: ${r.petName} ${r.date} ID ${r.id}`}
           >
             {r.petName}
