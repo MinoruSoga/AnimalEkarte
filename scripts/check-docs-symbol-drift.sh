@@ -67,7 +67,7 @@ TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
 # ── 0. docs/ 直下の構造 allowlist ─────────────────────────────
-# 2026-07-16 再編（architecture|spec|ops|delivery ＋ README/product-philosophy）を機械強制する。
+# 2026-07-16 再編（現行: architecture|spec|ops|delivery|work ＋ README/product-philosophy）を機械強制する。
 # 再編当日に旧 docs/infra/ へ新ファイルが置かれる違反が実際に発生したため、
 # シンボル・数値と同様にフォルダ規律もこのゲートで守る。
 # 新カテゴリを正式追加する場合は docs/README.md の構成表と本 allowlist を同コミットで更新すること。
@@ -78,7 +78,7 @@ for p in "$ROOT"/docs/*; do
   if [[ -d "$p" ]]; then
     ok=false
     for a in "${TOP_DIR_ALLOWLIST[@]}"; do [[ "$base" == "$a" ]] && ok=true && break; done
-    [[ "$ok" == true ]] || fail "docs/ 直下に allowlist 外のフォルダ \`docs/$base/\`（正: architecture|spec|ops|delivery。docs/README.md の規律参照）"
+    [[ "$ok" == true ]] || fail "docs/ 直下に allowlist 外のフォルダ \`docs/$base/\`（正: architecture|spec|ops|delivery|work。docs/README.md の規律参照）"
   elif [[ -f "$p" ]]; then
     ok=false
     for a in "${TOP_FILE_ALLOWLIST[@]}"; do [[ "$base" == "$a" ]] && ok=true && break; done
