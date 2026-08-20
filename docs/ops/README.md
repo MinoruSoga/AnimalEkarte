@@ -22,5 +22,5 @@
 
 ## AI エージェント向け注記
 
-- タスク台帳の正本は root [`todo.md`](../../todo.md)（技術・実行）· [`todo-po.md`](../../todo-po.md)（PO 確認待ち）。運用で発見した課題は技術・実行なら `todo.md`、PO 判断が要るなら `todo-po.md` へ。旧 `q&a.html` は削除済。`STATUS.md` / `PO-todo.md` は削除済。`bug.md` はポインタのみ。
+- タスク台帳の実行 SoT は **Linear**（hub BRT-4。2026-08-14 移行）。root [`todo.md`](../../todo.md) · [`todo-po.md`](../../todo-po.md) は入口ポインタ。運用で発見した課題は Linear に起票する。旧 `q&a.html` / `STATUS.md` / `PO-todo.md` は削除済。
 - migration/seed に触れる作業は `migration-seed-safety` スキル、リリース前チェックは `stg-release-readiness` スキルを先に読むこと。

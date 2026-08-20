@@ -342,7 +342,7 @@ Policy: Fable F-257 HOLD on new go-live window (not set in this unit). This line
 
 | Path | Disposition |
 |------|-------------|
-| `docs/ops/testing/scenarios/reports/2026-07-31-local-issue-254.md` | Exists; historical only; #254 complete?=NO — **not** auto-PASS |
+| `docs/ops/testing/scenarios/reports/2026-07-31-local-issue-254.md` | Deleted 2026-08-20 (`git show 1bd219ff9^:...`); historical only; #254 complete?=NO — **not** auto-PASS |
 
 ### Comment execution (2026-08-08) — USER approval received
 

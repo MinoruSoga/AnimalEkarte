@@ -16,6 +16,7 @@
 | [composition-root-conventions.md](composition-root-conventions.md) | `cmd/api` composition 規律・Application 横展開評価・route smoke（ARCH-A5） | composition / DI 配線・route 追加の設計・レビュー時 |
 | [exception-package-discipline.md](exception-package-discipline.md) | 例外 package 規律（csvimport cmd 限定・identitylink 隔離・bucket 禁止）（ARCH-A8） | 横断 package 追加・cutover ツール・identity 境界のレビュー時 |
 | [fe-feature-be-domain-map.md](fe-feature-be-domain-map.md) | FE `features/*` ↔ BE domain / RBAC resource 対応と共有昇格ルール（ARCH-A7） | 新規画面配置・FE 共有化・LIFF 境界の設計・レビュー時 |
+| [be9-2a-boundary-map.md](be9-2a-boundary-map.md) | BE9-2A domain boundary map・依存グラフ・分類 inventory の正本（ADR-006 の入力。`internal/lintscan` の allowlist lint が参照） | domain 分類・package 境界の根拠確認時 |
 | [arch-a4-trigger-ledger.md](arch-a4-trigger-ledger.md) | ARCH-A4 着手トリガー実測と landed スライス記録 | domain 内 file 分割を始める前の go/no-go |
 | [erd.md](erd.md) | データベース設計（全テーブル・リレーション。テーブル数の正本） | スキーマ調査・migration 作成前 |
 | [auth.md](auth.md) | RBAC 権限モデル・マルチテナント（clinic_id）隔離 | 認可・権限・テナント境界の実装前 |

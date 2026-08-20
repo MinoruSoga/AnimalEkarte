@@ -61,7 +61,7 @@ CF 経路（`POST /_internal/migrate` → `Container.exec(["/app/migrate"])`）�
 **直近コミットで変わった点**（`e273545d5d2604856ecee4639bcac5c201534f2c` feat(backend): CSV 取込アダプタを追加し、フル 003_demo はローカル専用とする）:
 
 - `backend/internal/csvimport/import.go` を新設。旧DB由来の owners/pets/medical_records/exams/exam_results/billings/billing_items の7テーブルを、**使い捨てローカルDB**に対してのみ投入するアダプタ（`import.go:17-45`）。`cmd/seed-export`（`main.go:104-116`）が `SEED_EXPORT_CSV_SOURCE` 環境変数経由でこれを呼び出し、投入結果を再び `COPY ... TO STDOUT` で CSV ダンプして `backend/migrations/seeds/003_demo/` を再生成する、という**ローカル専用**のパイプライン。STG/PlanetScale へ直接書き込む経路ではない。
-- `docs/ops/deploy/ANIMALEKARTE_CSV_IMPORT_COMPLETION.md:43,65-67`: GitHub の 100MB ファイルサイズ制限を回避するため、フルデモ（529MB、owners 10,370 / pets 15,654 / medical_records 425,544 / billings 392,105 / billing_items 1,542,422 / exam_results 1,322,503 行）は `old_db/sensitive-local/animalekarte-003-demo-full/` に**ローカルのみ**保持し、リポジトリの `003_demo` は小さいデモのまま維持する方針に確定した。
+- 旧 `docs/ops/deploy/ANIMALEKARTE_CSV_IMPORT_COMPLETION.md:43,65-67`（2026-08-20 削除。`git show 1bd219ff9^:docs/ops/deploy/ANIMALEKARTE_CSV_IMPORT_COMPLETION.md`）: GitHub の 100MB ファイルサイズ制限を回避するため、フルデモ（529MB、owners 10,370 / pets 15,654 / medical_records 425,544 / billings 392,105 / billing_items 1,542,422 / exam_results 1,322,503 行）は `old_db/sensitive-local/animalekarte-003-demo-full/` に**ローカルのみ**保持し、リポジトリの `003_demo` は小さいデモのまま維持する方針に確定した。
 
 **本セッションで確認した現在の実体**（2026-07-16 時点）:
 
@@ -81,7 +81,7 @@ CF 経路（`POST /_internal/migrate` → `Container.exec(["/app/migrate"])`）�
   | billing_items | 52 |
   | exam_results | 53 |
 
-- **ローカル作業ツリー**には `git update-index --skip-worktree` された状態で、フルデモ相当のオーバーレイ（owners 10,499 / pets 15,737 / medical_records 425,544 / billings 392,105、`003_demo` ディレクトリ合計 505MB、うち `billing_items.csv` 241MB・`exam_results.csv` 172MB）が既に上書きされている（`ANIMALEKARTE_CSV_IMPORT_COMPLETION.md` の「Remaining risks」で指示された「USER が sensitive-local からフルダンプを復元する」を、このマシン上で既に実施済みという状態）。**これは git addされず、コミットにも Docker イメージにも含まれない**（skip-worktree のため `git status` にも出ない）。billing_items.csv/exam_results.csv は単体で GitHub の 100MB 制限を超えるため、通常の git → Docker イメージ → migrate 経路には原理的に乗らない。
+- **ローカル作業ツリー**には `git update-index --skip-worktree` された状態で、フルデモ相当のオーバーレイ（owners 10,499 / pets 15,737 / medical_records 425,544 / billings 392,105、`003_demo` ディレクトリ合計 505MB、うち `billing_items.csv` 241MB・`exam_results.csv` 172MB）が既に上書きされている（旧 `ANIMALEKARTE_CSV_IMPORT_COMPLETION.md`（削除済み・git 履歴）の「Remaining risks」で指示された「USER が sensitive-local からフルダンプを復元する」を、このマシン上で既に実施済みという状態）。**これは git addされず、コミットにも Docker イメージにも含まれない**（skip-worktree のため `git status` にも出ない）。billing_items.csv/exam_results.csv は単体で GitHub の 100MB 制限を超えるため、通常の git → Docker イメージ → migrate 経路には原理的に乗らない。
 
 → 何もしなければ CF デプロイで STG に入るのは**小さいデモ**（上表）。フルデモが必要な場合は §5 Step E-b（pscale role 経由の直接投入）以外に経路がない。
 
@@ -347,7 +347,7 @@ EOSQL
 | 実データ忠実性 | デモデータのみ（本番同等ではない） | 当時は旧 DB の実データを反映できたが、現在は基盤廃止済み |
 | 実装コスト | ゼロ（既存 cmd/migrate をそのまま使う） | 退役済み経路の再構築が必要なため禁止 |
 | スキーマ整合性 | `cmd/migrate` が保証（同一 DDL から生成） | 旧スキーマとの差分検証が別途必要 |
-| PII/コンプライアンス | デモデータのみ、リスク低 | 本番同等データを STG に複製することになり、`ANIMALEKARTE_CSV_IMPORT_COMPLETION.md` で懸念された「PHI が STG に残る」問題を re-introduce しかねない |
+| PII/コンプライアンス | デモデータのみ、リスク低 | 本番同等データを STG に複製することになり、旧 `ANIMALEKARTE_CSV_IMPORT_COMPLETION.md`（削除済み・git 履歴）で懸念された「PHI が STG に残る」問題を re-introduce しかねない |
 | 運用方針との整合 | `STG-DEMO-DATA-LIFECYCLE.md` の「STG=デモデータ運用」方針に合致 | 方針からの逸脱（要 PO 判断） |
 
 **結論**: 旧 RDS ダンプ案は不採用の凍結履歴であり、現在は実行禁止。STG は現行 seed / snapshot 手順だけで復旧する。

@@ -40,6 +40,10 @@
 - **[医院 CSV カットオーバー投入 (CLINIC_CSV_IMPORT.md)](./CLINIC_CSV_IMPORT.md)**: old_db の21表CSVをmanifest digestに固定し、preflight/apply/verifyするF6手順。
 - **[A4 UI rehearsal isolated stack (A4_UI_REHEARSAL.md)](./A4_UI_REHEARSAL.md)**: 正式21表CSVの画面確認専用localhost-only disposable Compose環境とruntime証跡手順。
 - **[F8 G4 synthetic failure rehearsal (F8_G4_FAILURE_REHEARSAL.md)](./F8_G4_FAILURE_REHEARSAL.md)**: 固定synthetic FK違反でtransaction rollback・21表空band・seed preflightを証明する専用disposable runner。
+- **[ローカル DB リセット (LOCAL_DB_RESET.md)](./LOCAL_DB_RESET.md)**: ローカル開発 DB の再作成・migration 再適用・seed 復元手順。
+- **[スタッフアカウント払い出し (STAFF_ACCOUNT_PROVISIONING.md)](./STAFF_ACCOUNT_PROVISIONING.md)**: 医院スタッフの初期アカウント作成・権限グループ割当・引き渡し手順。
+- **[検査機器 有線疎通 (LAB_DEVICE_CONNECTIVITY.md)](./LAB_DEVICE_CONNECTIVITY.md)**: 院内検査機器をシリアル接続で新カルテへ取り込むための疎通・機器マスタ設定。
+- **[外部連携棚卸し (CLOUDFLARE-EXTERNAL-INTEGRATIONS-AUDIT.md)](./CLOUDFLARE-EXTERNAL-INTEGRATIONS-AUDIT.md)**: LINE / Lステップ / SMTP / LIFF の egress 依存棚卸しと、LINE webhook redelivery・error 統計の release pending 項目。
 - **[Delete / Soft Delete 設計パターン](../../architecture/delete-soft-delete-patterns.md)**: Hard Delete と Soft Delete の使い分け、FK 制約との関係、実装パターン、STG-001 教訓。
 
 > PR #49 Post-Merge Smoke Checklist（PR固有の使い切りチェックリスト）・CRUD スモーク自動化戦略
