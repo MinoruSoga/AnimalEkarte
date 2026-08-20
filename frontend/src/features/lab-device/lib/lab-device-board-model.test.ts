@@ -18,6 +18,7 @@ import {
   labDeviceListenState,
   labDeviceListenTone,
   labDeviceLiveReceiveLabel,
+  labDeviceNeedsReviewReason,
   labDeviceReceiveFailure,
   labDeviceReceivedCards,
   labDeviceReceivedDayLabel,
@@ -182,5 +183,22 @@ describe("lab-device-board-model", () => {
     expect(labDeviceCardNeedsReview(card({ status: "persisted" }))).toBe(false);
     expect(labDeviceCardNeedsReview(card({ status: "received" }))).toBe(false);
     expect(labDeviceCardNeedsReview(card({ status: "linked" }))).toBe(false);
+  });
+
+  // F-1 (T001 更新): needs_review 原因コードを日本語ラベルに変換する。
+  // "lab_device_multiple_exam_types" は複数種別の分割保存に変更したため新規ジョブでは設定されない。
+  // 旧ジョブ互換で汎用メッセージへ fallthrough する。
+  it("labDeviceNeedsReviewReason: needs_review は汎用メッセージ、非 needs_review で null", () => {
+    expect(labDeviceNeedsReviewReason(card({ status: "needs_review" }))).toBe(
+      "確認が必要です（保存できませんでした）",
+    );
+    expect(labDeviceNeedsReviewReason(card({ status: "needs_review", reviewReason: "lab_device_multiple_exam_types" }))).toBe(
+      "確認が必要です（保存できませんでした）",
+    );
+    expect(labDeviceNeedsReviewReason(card({ status: "needs_review", reviewReason: "other_code" }))).toBe(
+      "確認が必要です（保存できませんでした）",
+    );
+    expect(labDeviceNeedsReviewReason(card({ status: "persisted" }))).toBeNull();
+    expect(labDeviceNeedsReviewReason(card({ status: "received" }))).toBeNull();
   });
 });

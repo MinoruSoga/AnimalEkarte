@@ -199,3 +199,15 @@ export function isLabDeviceAttachPersisted(card: LabDeviceJobCard): boolean {
 export function labDeviceCardNeedsReview(card: LabDeviceJobCard): boolean {
   return card.status === "needs_review";
 }
+
+// F-1: needs_review の原因コードを日本語ラベルに変換する。
+// reviewReason が設定されていれば原因固有のメッセージ、未設定なら汎用メッセージを返す。
+// null は「needs_review でない」を意味する。
+// T001: "lab_device_multiple_exam_types" は複数種別の分割保存に変更したため新規ジョブでは設定されない。
+// 旧ジョブとの後方互換のため汎用メッセージへ fallthrough する。
+export function labDeviceNeedsReviewReason(card: LabDeviceJobCard): string | null {
+  if (card.status !== "needs_review") {
+    return null;
+  }
+  return "確認が必要です（保存できませんでした）";
+}

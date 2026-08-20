@@ -104,9 +104,8 @@ func (s *labDeviceExamPersister) PersistLinkedJob(
 		NeedsReviewCount: job.NeedsReviewCount,
 	}
 
-	if err := AssertSingleExamType(resolution.Mapped); err != nil {
-		return s.markNeedsReview(ctx, clinicID, jobID, job.Status, counts)
-	}
+	// T001: 複数 exam_type が混在する場合（VetLab 送信口など）も保存拒否しない。
+	// 種別ごとに 1 exam を作る。1種別なら従来どおり 1 件。
 	if len(resolution.Mapped) == 0 {
 		return nil
 	}
@@ -117,7 +116,9 @@ func (s *labDeviceExamPersister) PersistLinkedJob(
 		date = *job.MeasuredAt
 	}
 	date = time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, time.UTC)
-	persistItems := make([]LabExamItemInput, 0, len(items))
+
+	// マップ済み項目を exam_type_id ごとにグループ化する。
+	itemsByExamType := make(map[uint64][]LabExamItemInput, len(examTypeIDs))
 	for i := range items {
 		mapped, ok := mappedField[items[i].DeviceItemCode]
 		if !ok {
@@ -132,7 +133,7 @@ func (s *labDeviceExamPersister) PersistLinkedJob(
 			unit = mapped.Unit
 		}
 		fieldID := mapped.ExamTypeFieldID
-		persistItems = append(persistItems, LabExamItemInput{
+		itemsByExamType[mapped.ExamTypeID] = append(itemsByExamType[mapped.ExamTypeID], LabExamItemInput{
 			Name:            name,
 			InspectionValue: items[i].ValueRaw,
 			Unit:            unit,
@@ -143,27 +144,33 @@ func (s *labDeviceExamPersister) PersistLinkedJob(
 	if s.exams == nil {
 		return apperrors.WrapInternalServerError("lab device exam persister is not configured")
 	}
-	result, err := s.exams.PersistExam(ctx, LabExamPersistInput{
-		ClinicID:   clinicID,
-		PetID:      &petID,
-		ExamTypeID: examTypeIDs[0],
-		Date:       date,
-		Machine:    job.DeviceHint,
-		JobID:      jobID,
-		Items:      persistItems,
-	})
-	if err != nil {
-		return err
+	// exam_type_id ごとに 1 件 PersistExam する（挿入順を保つために UniqueMappedExamTypeIDs の順序を使う）。
+	totalPersisted := 0
+	totalDuplicate := 0
+	for _, examTypeID := range examTypeIDs {
+		result, persistErr := s.exams.PersistExam(ctx, LabExamPersistInput{
+			ClinicID:   clinicID,
+			PetID:      &petID,
+			ExamTypeID: examTypeID,
+			Date:       date,
+			Machine:    job.DeviceHint,
+			JobID:      jobID,
+			Items:      itemsByExamType[examTypeID],
+		})
+		if persistErr != nil {
+			return persistErr
+		}
+		if result != nil && result.RowError != nil {
+			return result.RowError
+		}
+		if result != nil && result.Duplicate {
+			totalDuplicate++
+		} else {
+			totalPersisted++
+		}
 	}
-	if result != nil && result.RowError != nil {
-		return result.RowError
-	}
-
-	counts.PersistedCount = 1
-	if result != nil && result.Duplicate {
-		counts.DuplicateCount = 1
-		counts.PersistedCount = 0
-	}
+	counts.PersistedCount = totalPersisted
+	counts.DuplicateCount = totalDuplicate
 	if err := s.advanceToPersisted(ctx, clinicID, jobID, job.Status, counts); err != nil {
 		return err
 	}

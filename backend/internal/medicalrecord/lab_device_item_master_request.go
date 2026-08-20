@@ -106,6 +106,8 @@ type labDeviceJobCardResponse struct {
 	UnmappedItemCount int                        `json:"unmapped_item_count"`
 	ClockSkew         bool                       `json:"clock_skew"`
 	Items             []labDeviceJobItemResponse `json:"items"`
+	// ReviewReason は needs_review の原因コード。非 nil のとき UI で理由を表示する（F-1）。
+	ReviewReason *string `json:"review_reason,omitempty"`
 }
 
 type labDeviceFrameResultResponse struct {
@@ -251,6 +253,7 @@ func toLabDeviceJobCardResponse(card *LabDeviceJobCard) labDeviceJobCardResponse
 		UnmappedItemCount: card.UnmappedItemCount,
 		ClockSkew:         card.ClockSkew,
 		Items:             items,
+		ReviewReason:      card.ReviewReason,
 	}
 }
 

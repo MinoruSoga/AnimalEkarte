@@ -608,6 +608,7 @@ func jobToCard(job *model.LabImportJob, items []model.LabImportJobItem) LabDevic
 		UnmappedItemCount: job.UnmappedItemCount,
 		ClockSkew:         labDeviceHasClockSkew(job.MeasuredAt, job.ReceivedAt),
 		Items:             views,
+		ReviewReason:      job.ErrorCode,
 	}
 }
 

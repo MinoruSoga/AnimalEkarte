@@ -27,6 +27,8 @@ export interface LabDeviceJobCard {
   unmappedItemCount: number;
   clockSkew: boolean;
   items: LabDeviceJobItem[];
+  /** needs_review の原因コード（例: "lab_device_multiple_exam_types"）。F-1 で追加。 */
+  reviewReason?: string;
 }
 
 export interface LabDeviceWait {
@@ -95,6 +97,7 @@ interface LabDeviceJobCardResponse {
   unmapped_item_count: number;
   clock_skew?: boolean;
   items: LabDeviceJobItemResponse[];
+  review_reason?: string;
 }
 
 interface LabDeviceWaitResponse {
@@ -160,6 +163,7 @@ function toCard(card: LabDeviceJobCardResponse): LabDeviceJobCard {
     unmappedItemCount: card.unmapped_item_count,
     clockSkew: Boolean(card.clock_skew),
     items: (card.items ?? []).map(toItem),
+    reviewReason: card.review_reason,
   };
 }
 

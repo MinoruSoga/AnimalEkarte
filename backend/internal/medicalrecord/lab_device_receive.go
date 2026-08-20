@@ -115,6 +115,9 @@ type LabDeviceJobCard struct {
 	UnmappedItemCount int
 	ClockSkew         bool
 	Items             []LabDeviceJobItemView
+	// ReviewReason は needs_review 遷移の原因コード（job.ErrorCode から転写 / F-1）。
+	// 空でないとき、ボード / バナーで理由テキストを表示できる。
+	ReviewReason *string
 }
 
 // LabDeviceJobItemView is one decoded line on a card.

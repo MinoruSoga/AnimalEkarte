@@ -157,13 +157,23 @@ device ［取り消す］は **detach**:
 
 確認ダイアログ禁止。
 
-### 7. マスタと 1測定=1 exam
+### 7. マスタと 1測定=1 exam（T001 追記: 複数種別は種別数だけ exam）
 
 `lab_device_item_masters`: `(clinic_id, source_type, device_item_code)` unique。`exam_type_field_id` は空で投入可。`legacy_name_candidate` は列にしない。
 
 未知コードはマスタへ自動追加しない。`needs_review`。
 
-persist 時、マスタ対応行の `exam_type_id` が2種以上なら **保存拒否**（ジョブは `needs_review`）。1測定=1 `exams` 行。対応できた行だけ `exam_results`。未対応はジョブ項目に残す。
+~~persist 時、マスタ対応行の `exam_type_id` が2種以上なら **保存拒否**（ジョブは `needs_review`）。~~
+
+**2026-08-20 追記（T001 / VetLab 複数 exam_type 対応）**: IDEXX VetLab は複数機器の結果を1電文で送る端末（送信口）であり、1受信フレームに複数の `exam_type` にまたがる項目が含まれる。
+
+- `device_item_code` → `exam_type_field` → `exam_type` で検査を決める（スタッフが機器を選ぶのではない）。
+- マップ済み項目の `exam_type_id` が N 種なら `exams` を N 行作成する（1種なら従来どおり1行）。これは1フレームの種別分割であり、機器グルーピング schema は作らない。
+- 保存拒否条件「`exam_type_id` 2種以上」は廃止。`AssertSingleExamType` の呼び出しを削除。
+- detach/undo は `job_id` 由来の exams をすべて取り消す（既存 `DetachDeviceJob` がすでに全件取り消しに対応済み）。
+- `lab_devices.exam_type_id` の複数化 schema は作らない。`LAB_DEVICE_CONNECTIVITY.md` は触らない。
+
+対応できた行だけ `exam_results`。未対応はジョブ項目に残す。
 
 日常の送信経路にマスタ画面を出さない。
 
