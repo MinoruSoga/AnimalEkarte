@@ -90,7 +90,7 @@ CF 経路（`POST /_internal/migrate` → `Container.exec(["/app/migrate"])`）�
 AWS ECS/RDS の `db_reset` workflow は基盤廃止時に削除済みで、復元・実行しない。
 現行 `backend-deploy.yml` に `db_reset` 入力はない。`make csv-import` は old_db（旧カルテ）由来データを
 **正式な CSV cutover 経路**として投入するためのコマンドであり、PlanetScale STG への手動 direct-import 代替ではない。
-当時の AWS 手順を調査する場合だけ [`../infra/_archive/aws-legacy/`](../infra/_archive/aws-legacy/) の凍結記録を参照する。
+当時の AWS 手順を調査する場合だけ git 履歴の凍結記録を参照する（2026-08-20 削除。`git show e0260d32f^:docs/ops/infra/_archive/aws-legacy/` 配下）。
 
 ### 2.5 PlanetScale への直接投入経路: `pscale role` + psql
 

@@ -30,6 +30,7 @@
 | `docs/ops/testing/BUG-011-regression-memo.md` | 同上 | `resolveCompleteMedicalRecordID` + `use-accounting-completion-action.ts` の BUG-011 注記 | `1bd219ff9` |
 | `docs/ops/testing/scenarios/reports/` 3 本 | 2026-07 時点の UAT snapshot | 証跡の置き場は root `reports/uat-YYYY-MM-DD/` | `1bd219ff9` |
 | `docs/work/hermes-scenarios-team-board.md` | 2026-08-07 に完了した実行ボード | 本 README の「置かないもの」規律どおり作らない | `1bd219ff9` |
+| `docs/ops/infra/_archive/aws-legacy/` 4 本 | 2026-07-20 廃止の AWS 基盤の凍結記録。USER 決裁で reorg-plan の凍結判断を上書き | git 履歴（`git show e0260d32f^:...`）· 現行正本は `infra/architecture.md` | `e0260d32f` |
 
 **再作成の条件**: 上記はいずれも時点記録である。同種の記録が必要になった場合も docs/ には置かず、root `reports/` か Linear に置く。
 

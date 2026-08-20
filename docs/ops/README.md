@@ -18,7 +18,7 @@
 | [coverage-policy.md](coverage-policy.md) | テストカバレッジ ratchet 方式の運用ポリシー | カバレッジゲート調整時 |
 | [backlog-spreadsheet.md](backlog-spreadsheet.md) | Q&A バックログスプレッドシートの運用ルール | クライアント Q&A シート操作前 |
 | [infra/architecture.md](infra/architecture.md) | インフラ構成図・ネットワーク・セキュリティ設計（`../architecture/overview.md` のレイヤード構造とは別物） | インフラ構成の調査・変更前 |
-| [infra/_archive/aws-legacy/](infra/_archive/aws-legacy/) | 2026-07-20 に廃止した AWS 基盤の凍結履歴（**実行禁止**） | 過去の判断・実施証跡を調査する時のみ |
+| ~~infra/_archive/aws-legacy/~~（git 履歴のみ） | 2026-07-20 廃止の AWS 基盤記録。2026-08-20 削除（`git show e0260d32f^:docs/ops/infra/_archive/aws-legacy/` で復元可・**実行禁止**） | 過去の判断・実施証跡を調査する時のみ |
 
 ## AI エージェント向け注記
 

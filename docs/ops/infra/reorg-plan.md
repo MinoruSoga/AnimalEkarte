@@ -64,6 +64,7 @@ docs/ops/infra/
 1. `infra/terraform/` `infra/terraform-bootstrap/` `infra/ecs/` を削除（AWS 環境は破棄済み・適用不能）
 2. `infra/scripts/` の AWS 専用スクリプト（`stg-db-tunnel.sh` 等）を削除・CF/pscale 系は残す
 3. AWS-era docs を `docs/ops/infra/_archive/aws-legacy/` へ移動（削除ではなく凍結 — 過去の意思決定記録の価値があるため）
+   > **決裁上書き（2026-08-20・USER）**: 凍結 4 本を削除（`e0260d32f`）。git 履歴で完全復元可能なため physical 保持は不要と判断。
 4. tfstate S3 バケット（`animalekarte-tfstate-698109622668`）+ DynamoDB ロックの撤去（**AWS リソース削除 = 要 PO 承認**。Phase A の最後に単独で）
 - **検証**: `grep -rn "infra/terraform\|infra/ecs" .github/ Makefile docs/` で参照残がないこと（死んだ参照を残さない）
 

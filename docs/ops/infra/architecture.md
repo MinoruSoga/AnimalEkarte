@@ -1,7 +1,7 @@
 # インフラ構成（現行・Cloudflare）
 
 > **目的**: 現行インフラの全体像。**読者**: 全開発者。**タイミング**: インフラに関わる変更・調査の最初。
-> AWS 時代の構成は [_archive/aws-legacy/](_archive/aws-legacy/) 参照（2026-07-20 に全廃止・課金停止済み）。
+> AWS 時代の構成は git 履歴参照（2026-07-20 に全廃止・課金停止済み。2026-08-20 に記録も削除 — `git show e0260d32f^:docs/ops/infra/_archive/aws-legacy/` 配下）。
 
 ## 全体像
 

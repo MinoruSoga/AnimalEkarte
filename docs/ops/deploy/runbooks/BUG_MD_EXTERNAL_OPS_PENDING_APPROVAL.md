@@ -6,7 +6,7 @@
 >
 > **AWS 退役境界**: AWS ECS/RDS は 2026-07-20 に廃止済みで、切り戻し先や
 > ホットスタンバイではない。旧 workflow・Terraform・SSM・ECS CLI 手順は実行しない。
-> 当時の証跡は [`../../infra/_archive/aws-legacy/`](../../infra/_archive/aws-legacy/) の凍結履歴だけを参照する。
+> 当時の証跡は git 履歴だけを参照する（2026-08-20 削除。`git show e0260d32f^:docs/ops/infra/_archive/aws-legacy/` 配下）。
 
 ---
 

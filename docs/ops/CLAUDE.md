@@ -8,7 +8,7 @@
 > [`infra/staging/runbook.md`](infra/staging/runbook.md) /
 > [`infra/production/runbook.md`](infra/production/runbook.md)。
 > AWS ECS/RDS は 2026-07-20 に廃止済みで、切り戻し先・ホットスタンバイとして使用できない。
-> AWS 時代の文書は [`infra/_archive/aws-legacy/`](infra/_archive/aws-legacy/) の凍結履歴であり、実行手順として使用しない。
+> AWS 時代の文書は git 履歴のみ（2026-08-20 削除。`git show e0260d32f^:docs/ops/infra/_archive/aws-legacy/` 配下）。実行手順として使用しない。
 
 ---
 
