@@ -175,22 +175,88 @@ func TestLabDeviceExamPersister_UnmappedDoesNotWriteExam(t *testing.T) {
 	assert.Equal(t, int64(0), count)
 }
 
-func TestLabDeviceExamPersister_MultipleExamTypesNeedsReview(t *testing.T) {
+// T001: 複数 exam_type が混在する場合、保存拒否せず種別ごとに exam を1件ずつ作る。
+func TestLabDeviceExamPersister_MultipleExamTypesPersistsBoth(t *testing.T) {
 	db, svc, petID := setupLabDevicePersistTest(t)
 	ctx := context.Background()
 	const clinicA = uint64(9701)
-	seedMappedField(t, db, clinicA, "fuji_nx600", "Na-P", "Na")
-	seedMappedField(t, db, clinicA, "fuji_nx600", "K-P", "K")
+	examTypeNaID := seedMappedField(t, db, clinicA, "fuji_nx600", "Na-P", "Na")
+	examTypeKID := seedMappedField(t, db, clinicA, "fuji_nx600", "K-P", "K")
 
 	_, err := svc.PutWait(ctx, clinicA, 7, petID)
 	require.NoError(t, err)
 	got, err := svc.ReceiveFrames(ctx, clinicA, synthFujiNX600(), "NX600")
 	require.NoError(t, err)
-	assert.Equal(t, model.LabImportJobStatusNeedsReview, got.Results[0].Job.Status)
+	// Na-P → ExamType-Na、K-P → ExamType-K の2種別 → 2 exam 作成・persisted
+	assert.Equal(t, model.LabImportJobStatusPersisted, got.Results[0].Job.Status)
 
-	var count int64
-	require.NoError(t, db.Model(&model.Examination{}).Where("clinic_id = ?", clinicA).Count(&count).Error)
-	assert.Equal(t, int64(0), count)
+	var exams []model.Examination
+	require.NoError(t, db.Where("clinic_id = ? AND job_id = ?", clinicA, got.Results[0].Job.JobID).
+		Order("exam_type_id ASC").Find(&exams).Error)
+	require.Len(t, exams, 2, "exam_type ごとに1件ずつ、計2件の exam が作られること")
+
+	examTypeIDs := []uint64{exams[0].ExamTypeID, exams[1].ExamTypeID}
+	assert.Contains(t, examTypeIDs, examTypeNaID)
+	assert.Contains(t, examTypeIDs, examTypeKID)
+	for _, exam := range exams {
+		assert.Equal(t, petID, *exam.PetID)
+	}
+
+	// detach でジョブ由来の exam がすべて取り消される。
+	detached, err := svc.Detach(ctx, clinicA, got.Results[0].Job.JobID)
+	require.NoError(t, err)
+	assert.Equal(t, model.LabImportJobStatusReceived, detached.Status)
+	assert.Nil(t, detached.PetID)
+
+	var remaining []model.Examination
+	require.NoError(t, db.Where("clinic_id = ? AND job_id = ?", clinicA, got.Results[0].Job.JobID).Find(&remaining).Error)
+	assert.Empty(t, remaining, "detach 後は exam が0件になること")
+}
+
+// T001: VetLab（idexx_vetlab）で2種別の項目が混在する場合、2 exam が作られ detach で両方消える。
+// synthIDEXXLongFrame の WBC と RBC をそれぞれ異なる exam_type にマッピングして確認する。
+func TestLabDeviceExamPersister_VetLabMultiExamPersistAndDetach(t *testing.T) {
+	db, svc, petID := setupLabDevicePersistTest(t)
+	ctx := context.Background()
+	const clinicA = uint64(9701)
+	// idexx_vetlab カタログの実在コードを2つの異なる exam_type に割り当てる。
+	examTypeCBCID := seedMappedField(t, db, clinicA, "idexx_vetlab", "WBC", "WBC")
+	examTypeHemaID := seedMappedField(t, db, clinicA, "idexx_vetlab", "RBC", "RBC")
+
+	_, err := svc.PutWait(ctx, clinicA, 7, petID)
+	require.NoError(t, err)
+	// synthIDEXXLongFrame は WBC と RBC を含む全 11 血球項目フレームを生成する。
+	got, err := svc.ReceiveFrames(ctx, clinicA, synthIDEXXLongFrame(), "VetLab")
+	require.NoError(t, err)
+	require.Len(t, got.Results, 1)
+	assert.Equal(t, model.LabImportJobStatusPersisted, got.Results[0].Job.Status)
+
+	var exams []model.Examination
+	require.NoError(t, db.Where("clinic_id = ? AND job_id = ?", clinicA, got.Results[0].Job.JobID).
+		Order("exam_type_id ASC").Find(&exams).Error)
+	require.Len(t, exams, 2, "VetLab 受信: WBC→ExamType-CBC, RBC→ExamType-Hema の2件")
+
+	gotIDs := []uint64{exams[0].ExamTypeID, exams[1].ExamTypeID}
+	assert.Contains(t, gotIDs, examTypeCBCID)
+	assert.Contains(t, gotIDs, examTypeHemaID)
+
+	// detach: ジョブ由来の 2 exam がすべて消える。
+	detached, err := svc.Detach(ctx, clinicA, got.Results[0].Job.JobID)
+	require.NoError(t, err)
+	assert.Equal(t, model.LabImportJobStatusReceived, detached.Status)
+	assert.Nil(t, detached.PetID)
+
+	var remaining []model.Examination
+	require.NoError(t, db.Where("clinic_id = ? AND job_id = ?", clinicA, got.Results[0].Job.JobID).Find(&remaining).Error)
+	assert.Empty(t, remaining)
+
+	// re-attach: 同じジョブを再び付けると 2 exam が再作成される。
+	linked, err := svc.Attach(ctx, clinicA, got.Results[0].Job.JobID, petID)
+	require.NoError(t, err)
+	assert.Equal(t, model.LabImportJobStatusPersisted, linked.Status)
+	var reattached []model.Examination
+	require.NoError(t, db.Where("clinic_id = ? AND job_id = ?", clinicA, got.Results[0].Job.JobID).Find(&reattached).Error)
+	assert.Len(t, reattached, 2)
 }
 
 func TestLabDeviceExamPersister_DetachBlockedAfterUsageReceipt(t *testing.T) {

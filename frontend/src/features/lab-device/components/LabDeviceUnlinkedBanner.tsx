@@ -16,6 +16,7 @@ import {
   labDeviceCardNeedsReview,
   labDeviceCardTitle,
   labDeviceClockSkewLabel,
+  labDeviceNeedsReviewReason,
 } from "../lib/lab-device-board-model";
 
 export function LabDeviceUnlinkedBanner({ petId }: { petId: string }) {
@@ -68,7 +69,7 @@ export function LabDeviceUnlinkedBanner({ petId }: { petId: string }) {
             <span className={C.textInkMuted}>
               {labDeviceCardTitle(card)}
               {card.unmappedItemCount > 0 ? " · 未対応あり" : ""}
-              {labDeviceCardNeedsReview(card) ? " · 検査種別が複数" : ""}
+              {labDeviceNeedsReviewReason(card) ? ` · ${labDeviceNeedsReviewReason(card)}` : ""}
               {labDeviceClockSkewLabel(card) ? ` · ${labDeviceClockSkewLabel(card)}` : ""}
             </span>
             {canEdit ? (
@@ -82,9 +83,10 @@ export function LabDeviceUnlinkedBanner({ petId }: { petId: string }) {
                     if (isLabDeviceAttachPersisted(attached)) {
                       setJustAttached(attached);
                     } else {
+                      const reviewMsg = labDeviceNeedsReviewReason(attached);
                       setAttachError(
-                        labDeviceCardNeedsReview(attached)
-                          ? "保存できませんでした（検査種別が複数）"
+                        reviewMsg
+                          ? `保存できませんでした（${reviewMsg}）`
                           : "保存できませんでした。未紐付けのままです",
                       );
                     }
