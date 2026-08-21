@@ -20,6 +20,7 @@ import {
   labDeviceLiveReceiveLabel,
   labDeviceNeedsReviewReason,
   labDeviceReceiveFailure,
+  requireLabDeviceReceiveResult,
   labDeviceReceivedCards,
   labDeviceReceivedDayLabel,
   labDeviceSelectableTodayVisits,
@@ -95,6 +96,7 @@ describe("lab-device-board-model", () => {
     expect(labDeviceBoardLinkLabel(["needs_permission", "listening"])).toBe("受信中");
     expect(labDeviceSlotListenLabel("needs_permission")).toBe("未許可");
     expect(labDeviceSlotListenLabel("listening")).toBe("受信中");
+    expect(labDeviceSlotListenLabel("monitoring")).toBe("自動監視中");
   });
 
   it("groups received cards by JST day, newest first", () => {
@@ -160,12 +162,20 @@ describe("lab-device-board-model", () => {
   it("受信失敗を要因別のラベルと案内に分ける", () => {
     expect(labDeviceReceiveFailure(401).label).toBe("失敗（要ログイン）");
     expect(labDeviceReceiveFailure(401).message).toContain("再ログイン");
+    expect(labDeviceReceiveFailure(401).message).toContain("再送しない");
     expect(labDeviceReceiveFailure(400)).toEqual({
       label: "失敗（電文不正）",
       message: "電文を読めませんでした",
     });
     expect(labDeviceReceiveFailure(500).label).toBe("失敗（通信エラー）");
+    expect(labDeviceReceiveFailure(500).message).toContain("自動再試行");
+    expect(labDeviceReceiveFailure(500).message).toContain("再送しない");
     expect(labDeviceReceiveFailure(undefined).label).toBe("失敗（通信エラー）");
+  });
+
+  it("空の受信成功レスポンスをACK可能な結果として扱わない", () => {
+    expect(() => requireLabDeviceReceiveResult([])).toThrow("empty lab device receive result");
+    expect(requireLabDeviceReceiveResult(["job-1"])).toBe("job-1");
   });
 
   // P1: attach 後 persist 失敗判定

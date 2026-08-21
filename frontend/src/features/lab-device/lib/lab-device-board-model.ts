@@ -47,7 +47,7 @@ export function findSlotByHint(slots: LabDeviceSlot[], hint: string): LabDeviceS
   return slots.find((slot) => slot.deviceHint.toLowerCase() === normalized || slot.key === normalized);
 }
 
-export type LabDeviceListenState = "unsupported" | "needs_permission" | "listening" | "disconnected";
+export type LabDeviceListenState = "unsupported" | "needs_permission" | "monitoring" | "listening" | "disconnected";
 
 export function labDeviceListenState(input: {
   serialSupported: boolean;
@@ -71,6 +71,8 @@ export function labDeviceSlotListenLabel(state: LabDeviceListenState): string {
   switch (state) {
     case "listening":
       return "受信中";
+    case "monitoring":
+      return "自動監視中";
     case "needs_permission":
       return "未許可";
     case "unsupported":
@@ -149,7 +151,7 @@ export function labDeviceReceiveFailure(status?: number): { label: string; messa
   if (status === 401) {
     return {
       label: "失敗（要ログイン）",
-      message: "セッションが切れています。再ログイン後、機器の送信をもう一度押してください",
+      message: "セッションが切れています。機器では再送しないで、再ログインしてください。結果は受信機から自動再試行します",
     };
   }
   if (status === 400) {
@@ -157,8 +159,16 @@ export function labDeviceReceiveFailure(status?: number): { label: string; messa
   }
   return {
     label: "失敗（通信エラー）",
-    message: "保存できませんでした。機器の送信をもう一度押してください",
+    message: "保存を自動再試行しています。機器では再送しないでください",
   };
+}
+
+export function requireLabDeviceReceiveResult<T>(results: readonly T[]): T {
+  const first = results[0];
+  if (first === undefined) {
+    throw new Error("empty lab device receive result");
+  }
+  return first;
 }
 
 export function labDeviceLiveReceiveLabel(input: {
@@ -180,6 +190,8 @@ export function labDeviceListenTone(state: LabDeviceListenState): LabDeviceListe
   switch (state) {
     case "listening":
       return "live";
+    case "monitoring":
+      return "idle";
     case "disconnected":
       return "idle";
     case "needs_permission":
