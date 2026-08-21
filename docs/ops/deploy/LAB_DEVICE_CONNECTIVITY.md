@@ -8,9 +8,11 @@
 シリアル枠: [`../../../../old_db/docs/lab-go/go-impl/device-serial-adapter.md`](../../../../old_db/docs/lab-go/go-impl/device-serial-adapter.md)  
 3台マスタ: [`../../../../old_db/docs/lab-go/go-impl/device-item-master.md`](../../../../old_db/docs/lab-go/go-impl/device-item-master.md)  
 現場手順: [`../../../../old_db/docs/lab-go/hospital-field-pack/00-明日の現場手順.md`](../../../../old_db/docs/lab-go/hospital-field-pack/00-明日の現場手順.md)  
-城東 Win7 Drワン解析（値なし）: [`../../../../old_db/城東医院_research/out/30_drwan_win7/30_report.md`](../../../../old_db/城東医院_research/out/30_drwan_win7/30_report.md)
+城東 Win7 Drワン解析（値なし）: [`../../../../old_db/clinics/jouto/research/out/30_drwan_win7/30_report.md`](../../../../old_db/clinics/jouto/research/out/30_drwan_win7/30_report.md)  
+IDEXX PIMS セッション: [`../../../../old_db/docs/lab-go/go-impl/idexx-pims-serial-session.md`](../../../../old_db/docs/lab-go/go-impl/idexx-pims-serial-session.md)  
+手元で機器相当: [`../../../../old_db/docs/lab-go/go-impl/lab-device-local-mock.md`](../../../../old_db/docs/lab-go/go-impl/lab-device-local-mock.md)
 
-IDEXX は **JOU-LAB-X**。3台のスロットに混ぜない。
+IDEXX は **JOU-LAB-X**。3台のスロットに混ぜない。受信専用では PIMS が切れる。
 
 ---
 
@@ -102,10 +104,11 @@ Win7 `mdcon*.cmd` と 2026-08-18/19 の Mac 受信で confirmed。COM4 は触ら
 
 - 9600 8N1。`cu.usbserial`
 - 枠は STX（`0x02`）… ETX（`0x03`）。CR/LF なし
-- 短フレーム（約 7 バイト、`02 31 30 … 03`）が繰り返す。測定ではない。捨てる
+- 短フレーム（`STX` `10` … `I` または `s` … `ETX`）が繰り返す。測定ではない。セッション維持用の問い合わせ。I は 21 バイトあり、長さだけでは捨てられない
 - 長フレーム（約 2 KB）に血球ラベルと単位（`WBC` `RBC` `HCT` `HGB` `PLT` `NEU` `LYM` `MONO` `EOS` `BASO` `RETIC`、単位 `K/uL` `g/dL` `fL` 等）
 - 同じ長フレームがストリーム開放まで繰り返す。指紋で 1 測定にする
 - 規格名はまだ付けない
+- Mac 受信専用および単独 ACK では PIMS オフラインのまま。Drワンは I→ACK+A+IM、s→ACK+A+SM。Source/Port のワイヤ値は未固定。組み立ては `lab_device_idexx_pims.go`（シリアルには繋がない）
 
 ### Drワン内部との関係（読まない）
 
@@ -118,10 +121,11 @@ Win7 の `Drimke.tbl` は機器ラベル → 内部コード（`IRBC`→910、`I
 
 | する | しない |
 | --- | --- |
-| 別 `source_type`（名前は実装時に決める） | 既定3スロットに IDEXX フレームを足す |
-| 短フレーム破棄 + 長フレーム 1 指紋 | ACK を打つ、本体へ ASTM を書く |
-| ラベル＋`value_raw`＋単位 | 910 などの内部コードを persist |
-| QC／ダミー電文でデコード | 患者検体、Drワン起動、COM4 |
+| 別 `source_type`（`idexx_vetlab`） | 既定3スロットに IDEXX フレームを足す |
+| 短 I/s は測定にしない。長フレームは 1 指紋 | 復元途中の IM/SM を本番 VetLab へ送る |
+| I に ACK+A+IM、s に ACK+A+SM（Source/Port 固定後） | 単独 ACK だけで常時接続したことにする |
+| ラベル＋`value_raw`＋単位 | 910 などの内部コードを persist。本体へ ASTM / `nc` |
+| 保存 raw または Drワン確立直後の再生でデコード | 患者検体を常時接続試験に使う |
 
 ---
 

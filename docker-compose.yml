@@ -12,7 +12,18 @@ services:
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
       POSTGRES_DB: ${DB_NAME}
-    command: ["postgres", "-c", "timezone=Asia/Tokyo"]
+    # max_locks_per_transaction: large old_db CSV apply (single Serializable tx,
+    # multi-million rows / many indexes) otherwise fails with "out of shared memory".
+    command:
+      [
+        "postgres",
+        "-c",
+        "timezone=Asia/Tokyo",
+        "-c",
+        "max_locks_per_transaction=512",
+        "-c",
+        "shared_buffers=256MB",
+      ]
     ports:
       - "5434:5432"
     volumes:
@@ -171,6 +182,9 @@ services:
       DB_PASSWORD: ${DB_PASSWORD}
       DB_NAME: ${DB_NAME}
       DB_SSL_MODE: ${DB_SSL_MODE:-disable}
+      # Local reset rehearsal import only (must stay empty for formal cutover).
+      APP_ENV: ${APP_ENV:-development}
+      CSV_IMPORT_ALLOW_LOCAL_REHEARSAL: ${CSV_IMPORT_ALLOW_LOCAL_REHEARSAL:-}
     entrypoint: ["go", "run", "./cmd/csv-import"]
     restart: "no"
 

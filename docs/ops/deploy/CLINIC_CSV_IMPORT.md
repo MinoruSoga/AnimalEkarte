@@ -52,7 +52,9 @@
 
 `REHEARSAL_ONLY` / `PARTIAL` bundleを
 `backend/migrations/seeds/_old_db_handoff/<clinic>/<run>/` に置くことは、
-ローカル保管にすぎません。正式preflightはこれを拒否し、`cmd/migrate` も読みません。
+ローカル保管にすぎません。正式preflightはこれを拒否し、`cmd/migrate` / `make seed` も読みません。
+医院別の配置コマンドは `make old-db-handoff-stage`（手順:
+[OLD_DB_HANDOFF_LOCAL.md](./OLD_DB_HANDOFF_LOCAL.md)）。
 21 CSVを `003_demo` へ直接コピーしてseedとして扱うことは禁止します。実行可能seedへの
 変換は現行コードでは未実装です。[SEED_MIGRATION_OPERATIONS.md](./SEED_MIGRATION_OPERATIONS.md)
 のBLOCKED境界に従い、21表専用adapterを実装・検証するまでは隔離保管に留めます。

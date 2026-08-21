@@ -213,12 +213,12 @@ const cutoverCompositeForeignKeyQuery = `SELECT EXISTS (
     AND array_length(c.conkey, 1) = cardinality($3::text[])
     AND array_length(c.confkey, 1) = cardinality($4::text[])
     AND (
-      SELECT array_agg(a.attname ORDER BY cols.ordinality)
+      SELECT array_agg(a.attname::text ORDER BY cols.ordinality)
       FROM unnest(c.conkey) WITH ORDINALITY AS cols(attnum, ordinality)
       JOIN pg_attribute a ON a.attrelid = child.oid AND a.attnum = cols.attnum
     ) = $3::text[]
     AND (
-      SELECT array_agg(a.attname ORDER BY cols.ordinality)
+      SELECT array_agg(a.attname::text ORDER BY cols.ordinality)
       FROM unnest(c.confkey) WITH ORDINALITY AS cols(attnum, ordinality)
       JOIN pg_attribute a ON a.attrelid = parent.oid AND a.attnum = cols.attnum
     ) = $4::text[]
@@ -253,8 +253,25 @@ func PreflightCutoverTarget(ctx context.Context, target cutoverQuerier, manifest
 // existing rows: a non-empty clinic band fails closed, making retries explicit
 // and preventing a cutover from silently replacing unrelated data.
 func ApplyCutover(ctx context.Context, pool *pgxpool.Pool, bundle CutoverBundle, seeds CutoverSeedIDs) (CutoverResult, error) {
+	return ApplyCutoverWithIsolation(ctx, pool, bundle, seeds, pgx.Serializable)
+}
+
+// ApplyCutoverWithIsolation is ApplyCutover with an explicit transaction
+// isolation level. Formal cutover keeps Serializable. Local rehearsal may use
+// RepeatableRead so multi-million-row COPYs do not exhaust SSI predicate locks
+// ("out of shared memory").
+func ApplyCutoverWithIsolation(
+	ctx context.Context,
+	pool *pgxpool.Pool,
+	bundle CutoverBundle,
+	seeds CutoverSeedIDs,
+	iso pgx.TxIsoLevel,
+) (CutoverResult, error) {
+	if iso == "" {
+		iso = pgx.Serializable
+	}
 	return applyCutoverWithBegin(ctx, func(ctx context.Context) (cutoverTransaction, error) {
-		tx, err := pool.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.Serializable})
+		tx, err := pool.BeginTx(ctx, pgx.TxOptions{IsoLevel: iso})
 		if err != nil {
 			return nil, err
 		}
@@ -417,9 +434,10 @@ func validateCutoverCompositeForeignKeys(ctx context.Context, q cutoverQuerier) 
 			foreignKey.childColumns,
 			foreignKey.parentColumns,
 		).Scan(&exists); err != nil {
-			return fmt.Errorf("inspect target composite foreign key for %s(%s)",
+			return fmt.Errorf("inspect target composite foreign key for %s(%s): %w",
 				foreignKey.childTable,
 				strings.Join(foreignKey.childColumns, ", "),
+				err,
 			)
 		}
 		if !exists {
@@ -763,7 +781,9 @@ func copyCutoverTable(ctx context.Context, tx cutoverTransaction, path string, s
 	for i, column := range spec.Columns {
 		columns[i] = pgx.Identifier{column}.Sanitize()
 	}
-	options := []string{"FORMAT csv", "HEADER true"}
+	// Empty CSV fields become SQL NULL, except ForceNotNullColumns which keep
+	// empty strings (required text columns with no default in some paths).
+	options := []string{"FORMAT csv", "HEADER true", "NULL ''"}
 	if len(spec.ForceNotNullColumns) > 0 {
 		forceNotNullColumns := make([]string, len(spec.ForceNotNullColumns))
 		for i, column := range spec.ForceNotNullColumns {
@@ -792,10 +812,23 @@ func copyCutoverTable(ctx context.Context, tx cutoverTransaction, path string, s
 
 func cutoverCopyResultError(table string, copyErr, transformErr error) error {
 	if copyErr != nil {
-		// PostgreSQL COPY errors may echo a source value. Do not propagate them
-		// because the CSV contains PHI. This branch intentionally takes priority
-		// over a pipe error caused while cancelling the transformer.
-		return fmt.Errorf("table %s: target database rejected the CSV COPY", table)
+		// PostgreSQL COPY errors may echo a source value in DETAIL. Propagate
+		// only SQLSTATE + primary message (no DETAIL/HINT) for operator debug.
+		type pgCoder interface{ SQLState() string }
+		msg := "target database rejected the CSV COPY"
+		var withMessage interface{ Error() string }
+		if errors.As(copyErr, &withMessage) {
+			primary := strings.Split(withMessage.Error(), " (SQLSTATE")[0]
+			primary = strings.Split(primary, "DETAIL:")[0]
+			primary = strings.TrimSpace(primary)
+			if primary != "" && !strings.Contains(primary, "\n") && len(primary) <= 200 {
+				msg = primary
+			}
+		}
+		if coder, ok := copyErr.(pgCoder); ok {
+			return fmt.Errorf("table %s: %s (SQLSTATE %s)", table, msg, coder.SQLState())
+		}
+		return fmt.Errorf("table %s: %s", table, msg)
 	}
 	if transformErr != nil {
 		return fmt.Errorf("table %s: source changed or transformation failed: %w", table, transformErr)

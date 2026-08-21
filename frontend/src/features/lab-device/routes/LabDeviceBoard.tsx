@@ -5,8 +5,10 @@ import { toast } from "sonner";
 
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/use-auth";
 import { usePermission } from "@/hooks/use-permission";
 import { C, LAYOUT } from "@/lib/design-tokens";
+import { handleApiError } from "@/lib/handle-api-error";
 import { formatJSTTime, todayJSTISO } from "@/lib/jst-date";
 import { ResourceLabImport } from "@/types/generated/models";
 
@@ -22,13 +24,10 @@ import {
   type LabDeviceSlot,
   type LabDeviceTodayVisit,
 } from "../api/lab-device";
-import { useLabDeviceListen } from "../hooks/use-lab-device-listen";
+import { useLabDeviceAgentListen } from "../hooks/use-lab-device-agent-listen";
 import {
-  findSlotByHint,
   groupLabDeviceCardsByDay,
   isLabDeviceAttachPersisted,
-  isWebSerialSupported,
-  labDeviceBoardLinkLabel,
   labDeviceCardNeedsReview,
   labDeviceCardTitle,
   labDeviceClockSkewLabel,
@@ -37,6 +36,7 @@ import {
   labDeviceListenTone,
   labDeviceLiveReceiveLabel,
   labDeviceReceiveFailure,
+  requireLabDeviceReceiveResult,
   labDeviceReceivedCards,
   labDeviceReceivedDayLabel,
   labDeviceSelectableTodayVisits,
@@ -44,7 +44,8 @@ import {
   labDeviceUnmappedMasterHref,
   type LabDeviceListenState,
 } from "../lib/lab-device-board-model";
-import { bytesToBase64, requestLabDevicePort } from "../lib/lab-device-serial";
+
+const LAB_DEVICE_AGENT_RECEIVE_TOAST_ID = "lab-device-agent-receive";
 
 function JobCardView({
   card,
@@ -204,6 +205,7 @@ function DeviceStatusCard({
 }
 
 export function LabDeviceBoard() {
+  const { currentClinicId } = useAuth();
   const { canCreate, canEdit } = usePermission(ResourceLabImport);
   const { data: board, isLoading } = useGetLabDeviceBoard(canCreate);
   const putWait = usePutLabDeviceWait();
@@ -211,8 +213,11 @@ export function LabDeviceBoard() {
   const receive = useReceiveLabDeviceFrames();
   const attach = useAttachLabDeviceJob();
   const detach = useDetachLabDeviceJob();
-  const [lastReceives, setLastReceives] = useState<Record<string, { label: string; at: string }>>({});
-  const [listenEpoch, setListenEpoch] = useState(0);
+  const [lastReceives, setLastReceives] = useState<Record<string, {
+    clinicId: string;
+    label: string;
+    at: string;
+  }>>({});
   const todayVisits = useMemo(
     () => labDeviceSelectableTodayVisits(board?.todayVisits ?? []),
     [board?.todayVisits],
@@ -231,17 +236,23 @@ export function LabDeviceBoard() {
   );
   const today = todayJSTISO();
   const slots = useMemo(() => parseLabDeviceSlots(board?.station.slotsJson ?? "[]"), [board?.station.slotsJson]);
-  const serialOk = isWebSerialSupported();
-  const onFrame = useCallback(async (hint: string, bytes: Uint8Array) => {
-    const slot = findSlotByHint(slots, hint);
+  const onFrame = useCallback(async (frame: { payloadBase64: string; deviceHint: "auto" }) => {
     try {
-      const results = await receive.mutateAsync({ payloadBase64: bytesToBase64(bytes), deviceHint: hint });
-      const first = results[0];
+      const results = await receive.mutateAsync(frame);
+      toast.dismiss(LAB_DEVICE_AGENT_RECEIVE_TOAST_ID);
+      const first = requireLabDeviceReceiveResult(results);
+      if (currentClinicId === null) {
+        throw new Error("clinic is not selected");
+      }
+      const slot = slots.find((candidate) => (
+        candidate.deviceHint === first.job.deviceHint || candidate.sourceType === first.job.sourceType
+      ));
       if (slot) {
         setLastReceives((current) => ({
           ...current,
           [slot.key]: {
-            label: first?.duplicate ? "再送（取込済み）" : "受信",
+            clinicId: currentClinicId,
+            label: first.duplicate ? "再送（取込済み）" : "受信",
             at: new Date().toISOString(),
           },
         }));
@@ -249,22 +260,25 @@ export function LabDeviceBoard() {
     } catch (error) {
       const status = Axios.isAxiosError(error) ? error.response?.status : undefined;
       const failure = labDeviceReceiveFailure(status);
-      if (slot) {
-        setLastReceives((current) => ({
-          ...current,
-          [slot.key]: { label: failure.label, at: new Date().toISOString() },
-        }));
+      if (status === 400) {
+        toast.dismiss(LAB_DEVICE_AGENT_RECEIVE_TOAST_ID);
+        handleApiError(error, "検査機器電文の受信");
+      } else {
+        toast.error(failure.message, { id: LAB_DEVICE_AGENT_RECEIVE_TOAST_ID });
       }
-      toast.error(failure.message);
+      throw Object.assign(new Error("lab device receive failed", { cause: error }), { status });
     }
-  }, [receive, slots]);
-  const listenStates = useLabDeviceListen({
-    slots,
-    enabled: serialOk && canCreate,
-    listenEpoch,
+  }, [currentClinicId, receive, slots]);
+  const agentStatus = useLabDeviceAgentListen({
+    enabled: canCreate && currentClinicId !== null,
+    clinicId: currentClinicId,
     onFrame,
   });
-  const linkLabel = labDeviceBoardLinkLabel(Object.values(listenStates));
+  const linkLabel = !agentStatus.connected
+    ? "切断"
+    : agentStatus.configuredPorts === 0 || agentStatus.openPorts < agentStatus.configuredPorts
+      ? "要確認"
+      : "監視中";
 
   return (
     <PageLayout
@@ -283,7 +297,7 @@ export function LabDeviceBoard() {
           {board?.wait ? (
             <div className="space-y-3">
               <p className="text-heading-1 font-bold">{board.wait.petName}</p>
-              <p className={`text-sm ${C.textInkMuted}`}>待機中 · 接続 {serialOk ? linkLabel : "非対応"}</p>
+              <p className={`text-sm ${C.textInkMuted}`}>待機中 · 接続 {linkLabel}</p>
               {canCreate ? (
                 <Button type="button" variant="outline" onClick={() => void clearWait.mutateAsync()}>
                   待機を解除
@@ -293,16 +307,23 @@ export function LabDeviceBoard() {
           ) : (
             <div className="space-y-3">
               <p className="text-heading-1 font-semibold">受信中</p>
-              <p className={`text-sm ${C.textInkMuted}`}>ペット未選択 · 接続 {serialOk ? linkLabel : "非対応"}</p>
+              <p className={`text-sm ${C.textInkMuted}`}>ペット未選択 · 接続 {linkLabel}</p>
             </div>
           )}
           <div className="space-y-2">
             <h2 className="text-xl font-semibold">検査機器</h2>
             <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {slots.map((slot) => {
-                const state = listenStates[slot.key] ?? (serialOk ? "needs_permission" : "unsupported");
+                const supported = slot.sourceType === "fuji_nx600" || slot.sourceType === "fuji_au10v";
                 const latestCard = labDeviceLatestCardForSlot(slot, receivedCards);
-                const live = lastReceives[slot.key];
+                const liveCandidate = lastReceives[slot.key];
+                const live = liveCandidate?.clinicId === currentClinicId ? liveCandidate : undefined;
+                const state: LabDeviceListenState = supported
+                  ? agentStatus.connected && agentStatus.openPorts > 0
+                    && agentStatus.openPorts === agentStatus.configuredPorts
+                    ? live ? "listening" : "monitoring"
+                    : "disconnected"
+                  : "unsupported";
                 return (
                   <li key={slot.key}>
                     <DeviceStatusCard
@@ -402,33 +423,38 @@ export function LabDeviceBoard() {
           ))}
         </section>
 
-        <section className="space-y-2">
-          <h2 className="text-xl font-semibold">医院セットアップ</h2>
-          <p className={`text-sm ${C.textInkMuted}`}>パソコンと検査機器をつなぐ許可は、最初の1回だけ必要です。許可のあとは、この画面を開いたまま検査結果を受け取ります。</p>
-          {!serialOk ? (
-            <p className={C.textInkMuted}>このブラウザでは検査機器を直接つなぐことができません。掲示板と後からの紐付けは使えます。</p>
+        <section className="space-y-2" aria-live="polite">
+          <h2 className="text-xl font-semibold">ローカル受信機</h2>
+          <p className={`text-sm ${C.textInkMuted}`}>
+            {agentStatus.connected
+              ? `稼働中 · ${agentStatus.openPorts}/${agentStatus.configuredPorts}ポート監視`
+              : "停止中 · Macのローカル受信機を起動してください"}
+          </p>
+          {agentStatus.degraded ? (
+            <p className={`text-sm ${C.textWarning}`}>
+              未処理 {agentStatus.pending}件 · 判定失敗 {agentStatus.rejected}件 · 受付超過 {agentStatus.overflow + agentStatus.inputOverflow}件
+            </p>
           ) : null}
-          <ul className="space-y-2">
-            {slots.map((slot) => (
-              <li key={slot.key} className="flex flex-wrap items-center gap-2">
-                <span className="font-medium">{slot.deviceHint}</span>
-                {serialOk ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      void requestLabDevicePort(slot.key).then(() => {
-                        setListenEpoch((current) => current + 1);
-                      });
-                    }}
-                  >
-                    {slot.deviceHint} の接続を許可
-                  </Button>
-                ) : null}
-              </li>
-            ))}
-          </ul>
+          {agentStatus.degraded && agentStatus.lastErrorCategory !== "none" ? (
+            <p className={`text-sm ${C.textWarning}`}>
+              {agentStatus.lastErrorCategory === "discovery_failed"
+                ? "USB接続の確認に失敗しました。Macのローカル受信機を再起動してください。"
+                : agentStatus.lastErrorCategory === "queue_write_failed"
+                  ? "受信結果を保持できません。追加送信を止めてサポート担当へ連絡してください。"
+                  : agentStatus.lastErrorCategory === "port_close_failed"
+                    ? "USBポートの終了に失敗しました。Macのローカル受信機を再起動してください。"
+                    : agentStatus.lastErrorCategory === "response_write_failed"
+                      ? "ローカル受信機との通信に失敗しました。画面を再読み込みしてください。"
+                      : "USBポートを開けません。接続とアクセス権を確認してください。"}
+            </p>
+          ) : null}
+          {agentStatus.connected && agentStatus.openPorts < agentStatus.configuredPorts
+            && agentStatus.lastErrorCategory === "none" ? (
+              <p className={`text-sm ${C.textWarning}`}>USB接続を確認してください。</p>
+            ) : null}
+          <p className={`text-sm ${C.textInkMuted}`}>
+            USBを選ぶ操作はありません。現在はNX600とAU10Vを自動判定します。PU-4010とIDEXXは通信条件確認後に対応します。
+          </p>
         </section>
       </div>
     </PageLayout>

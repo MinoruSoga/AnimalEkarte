@@ -36,6 +36,40 @@ func TestPreflightCutoverBundleAcceptsExactContract(t *testing.T) {
 	}
 }
 
+func TestPreflightCutoverBundleAcceptsLocalRehearsalBundle(t *testing.T) {
+	dir, manifestDigest := writeCutoverFixture(t, func(f *fixtureBundle) {
+		f.manifest.Status = "REHEARSAL_ONLY"
+		f.manifest.HandoffEligibility = "REHEARSAL_ONLY"
+		f.manifest.SourceCompletenessStatus = "UNVERIFIED"
+		f.manifest.SourceComplete = false
+		f.manifest.SourceProvenanceVerified = false
+		f.manifest.StageMappingSHA256 = strings.Repeat("a", 64)
+		empty := []string{}
+		f.manifest.IncompleteSourceTables = &empty
+		billingColumns := CutoverTableSpecs()[11].Columns
+		f.rows["billings"][0][columnIndex(billingColumns, "status")] = "pending"
+		f.rows["billings"][0][columnIndex(billingColumns, "completed_at")] = ""
+		f.rows["payments"] = nil
+		f.rows["payment_splits"] = nil
+		f.manifest.Tables[13].RowCount = 0
+		f.manifest.Tables[14].RowCount = 0
+	})
+
+	bundle, err := PreflightCutoverBundle(dir, ExpectedCutoverSource{
+		ManifestSHA256:      manifestDigest,
+		ClinicCode:          "hachioji",
+		ClinicOrdinal:       1,
+		RunID:               "run-1",
+		AllowLocalRehearsal: true,
+	})
+	if err != nil {
+		t.Fatalf("PreflightCutoverBundle(local rehearsal) error = %v", err)
+	}
+	if bundle.Manifest.Status != "REHEARSAL_ONLY" {
+		t.Fatalf("status = %q, want REHEARSAL_ONLY", bundle.Manifest.Status)
+	}
+}
+
 func TestPreflightCutoverBundleRejectsInvalidProducerProvenance(t *testing.T) {
 	tests := []struct {
 		name    string

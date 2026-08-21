@@ -37,6 +37,7 @@
 - **[本番 Cloudflare 基盤 事前構築手順 (../infra/production/setup.md)](./../infra/production/setup.md)**: 本番環境（noah-karte.com）を CF Workers + Containers + PlanetScale で新設する実施手順（#253・7/18 Go-live 前提構築）。
 - **[PlanetScale STG シード投入 Runbook (STG_PLANETSCALE_SEED_RUNBOOK.md)](./STG_PLANETSCALE_SEED_RUNBOOK.md)**: PlanetScale STG スキーマ初期化後の seed 復元・検証手順。
 - **[CSV seed運用 (SEED_MIGRATION_OPERATIONS.md)](./SEED_MIGRATION_OPERATIONS.md)**: `APP_ENV` 別のseed適用範囲、再生成手順、old_db 21表CSVとの境界。
+- **[old_db 医院別ローカル隔離 (OLD_DB_HANDOFF_LOCAL.md)](./OLD_DB_HANDOFF_LOCAL.md)**: 21表CSVを `seeds/_old_db_handoff/<clinic>/<run>/` へ置く手順（`make seed` 非対象）。
 - **[医院 CSV カットオーバー投入 (CLINIC_CSV_IMPORT.md)](./CLINIC_CSV_IMPORT.md)**: old_db の21表CSVをmanifest digestに固定し、preflight/apply/verifyするF6手順。
 - **[A4 UI rehearsal isolated stack (A4_UI_REHEARSAL.md)](./A4_UI_REHEARSAL.md)**: 正式21表CSVの画面確認専用localhost-only disposable Compose環境とruntime証跡手順。
 - **[F8 G4 synthetic failure rehearsal (F8_G4_FAILURE_REHEARSAL.md)](./F8_G4_FAILURE_REHEARSAL.md)**: 固定synthetic FK違反でtransaction rollback・21表空band・seed preflightを証明する専用disposable runner。

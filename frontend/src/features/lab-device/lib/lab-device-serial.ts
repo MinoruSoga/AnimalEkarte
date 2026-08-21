@@ -29,6 +29,13 @@ export class LabDeviceIdleFrameBuffer {
     if (this.idleTicks < maxIdle) {
       return null;
     }
+    return this.take();
+  }
+
+  take(): Uint8Array | null {
+    if (this.chunks.length === 0) {
+      return null;
+    }
     const total = this.chunks.reduce((sum, chunk) => sum + chunk.length, 0);
     const out = new Uint8Array(total);
     let offset = 0;
@@ -61,6 +68,11 @@ interface LabDeviceSerial {
   requestPort: () => Promise<LabDeviceSerialPort>;
 }
 
+export interface LabDeviceSerialReader {
+  read: () => Promise<ReadableStreamReadResult<Uint8Array>>;
+  cancel: () => Promise<void>;
+}
+
 function serialApi(): LabDeviceSerial | null {
   if (!isWebSerialSupported()) {
     return null;
@@ -69,7 +81,12 @@ function serialApi(): LabDeviceSerial | null {
 }
 
 export function readStoredPortInfo(slotKey: string): LabDeviceSerialPortInfo | null {
-  const raw = localStorage.getItem(labDevicePortStorageKey(slotKey));
+  let raw: string | null;
+  try {
+    raw = localStorage.getItem(labDevicePortStorageKey(slotKey));
+  } catch {
+    return null;
+  }
   if (!raw) {
     return null;
   }
@@ -109,32 +126,134 @@ async function sleep(ms: number, isStopped: () => boolean): Promise<void> {
   }
 }
 
+export async function readLabDeviceFrames(
+  reader: LabDeviceSerialReader,
+  signal: AbortSignal,
+  onFrame: (bytes: Uint8Array) => Promise<void>,
+): Promise<void> {
+  const buffer = new LabDeviceIdleFrameBuffer();
+  let delivery = Promise.resolve();
+  let deliveryError: unknown;
+  let readError: unknown;
+  let cancelPromise: Promise<void> | undefined;
+  let idleTimer: number | undefined;
+  const reading = new AbortController();
+  const cancelRead = (): Promise<void> => {
+    cancelPromise ??= reader.cancel();
+    return cancelPromise;
+  };
+  const abortReading = () => reading.abort();
+  if (signal.aborted) {
+    reading.abort();
+  } else {
+    signal.addEventListener("abort", abortReading, { once: true });
+  }
+  const deliverBuffered = () => {
+    const frame = buffer.take();
+    if (!frame || frame.length === 0) {
+      return;
+    }
+    delivery = delivery
+      .then(() => onFrame(frame))
+      .catch((error: unknown) => {
+        deliveryError = error;
+        reading.abort();
+      });
+  };
+  const scheduleFrame = () => {
+    if (idleTimer !== undefined) {
+      window.clearTimeout(idleTimer);
+    }
+    idleTimer = window.setTimeout(() => {
+      idleTimer = undefined;
+      deliverBuffered();
+    }, LAB_DEVICE_IDLE_MS * LAB_DEVICE_IDLE_TICKS);
+  };
+  try {
+    while (!reading.signal.aborted) {
+      const { done, value } = await readLabDeviceChunk(reader, reading.signal, cancelRead);
+      if (done) {
+        break;
+      }
+      if (value && value.length > 0) {
+        buffer.push(value);
+        scheduleFrame();
+      }
+    }
+  } catch (error: unknown) {
+    readError = error;
+  } finally {
+    if (idleTimer !== undefined) {
+      window.clearTimeout(idleTimer);
+    }
+    if (!reading.signal.aborted) {
+      deliverBuffered();
+    }
+    signal.removeEventListener("abort", abortReading);
+    await delivery;
+    if (cancelPromise !== undefined) {
+      try {
+        await cancelPromise;
+      } catch (error: unknown) {
+        readError ??= error;
+      }
+    }
+  }
+  if (deliveryError !== undefined) {
+    throw deliveryError;
+  }
+  if (readError !== undefined) {
+    throw readError;
+  }
+}
+
+function readLabDeviceChunk(
+  reader: LabDeviceSerialReader,
+  signal: AbortSignal,
+  cancelRead: () => Promise<void>,
+): Promise<ReadableStreamReadResult<Uint8Array>> {
+  if (signal.aborted) {
+    return cancelRead().then(() => ({ done: true, value: undefined }));
+  }
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const finish = (result: ReadableStreamReadResult<Uint8Array>) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      signal.removeEventListener("abort", onAbort);
+      resolve(result);
+    };
+    const fail = (error: unknown) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      signal.removeEventListener("abort", onAbort);
+      reject(error);
+    };
+    const onAbort = () => {
+      void cancelRead()
+        .then(() => finish({ done: true, value: undefined }))
+        .catch(fail);
+    };
+    signal.addEventListener("abort", onAbort, { once: true });
+    void reader.read().then(finish).catch(fail);
+  });
+}
+
 async function readOpenLoop(
   port: LabDeviceSerialPort,
-  isStopped: () => boolean,
+  signal: AbortSignal,
   onFrame: (bytes: Uint8Array) => Promise<void>,
 ): Promise<void> {
   const reader = port.readable?.getReader();
   if (!reader) {
     throw new Error("serial port is not readable");
   }
-  const buffer = new LabDeviceIdleFrameBuffer();
   try {
-    while (!isStopped()) {
-      const next = reader.read();
-      const timeout = new Promise<{ done: true; value: undefined }>((resolve) => {
-        window.setTimeout(() => resolve({ done: true, value: undefined }), LAB_DEVICE_IDLE_MS);
-      });
-      const { value } = await Promise.race([next, timeout]);
-      if (value && value.length > 0) {
-        buffer.push(value);
-        continue;
-      }
-      const frame = buffer.tickIdle();
-      if (frame && frame.length > 0) {
-        await onFrame(frame);
-      }
-    }
+    await readLabDeviceFrames(reader, signal, onFrame);
   } finally {
     try {
       reader.releaseLock();
@@ -153,18 +272,19 @@ export function startLabDeviceSlotListen(input: {
   onFrame: (bytes: Uint8Array) => Promise<void>;
 }): () => void {
   let stopped = false;
-  let port: LabDeviceSerialPort | undefined;
+  let activeRead: AbortController | undefined;
 
   const isStopped = () => stopped || input.isStopped();
+  const notifyState = (state: LabDeviceListenState) => {
+    try {
+      input.onState(state);
+    } catch {
+      // The React consumer may already be unavailable during teardown.
+    }
+  };
   const stop = () => {
     stopped = true;
-    void (async () => {
-      try {
-        await port?.close();
-      } catch {
-        // already closed
-      }
-    })();
+    activeRead?.abort();
   };
 
   void (async () => {
@@ -177,46 +297,53 @@ export function startLabDeviceSlotListen(input: {
         connected: false,
       });
       if (nextState !== "disconnected") {
-        input.onState(nextState);
+        notifyState(nextState);
         await sleep(LAB_DEVICE_REOPEN_MS, isStopped);
         continue;
       }
       if (!serial || !stored) {
-        input.onState("disconnected");
+        notifyState("disconnected");
         await sleep(LAB_DEVICE_REOPEN_MS, isStopped);
         continue;
       }
-      const ports = await serial.getPorts();
-      const matched = ports.find((candidate) => portsMatch(candidate, stored));
-      if (!matched) {
-        input.onState("disconnected");
-        await sleep(LAB_DEVICE_REOPEN_MS, isStopped);
-        continue;
-      }
-      port = matched;
+      let matched: LabDeviceSerialPort | undefined;
       try {
+        const ports = await serial.getPorts();
+        matched = ports.find((candidate) => portsMatch(candidate, stored));
+        if (!matched) {
+          notifyState("disconnected");
+          await sleep(LAB_DEVICE_REOPEN_MS, isStopped);
+          continue;
+        }
         await matched.open(
           input.parity !== undefined
             ? { baudRate: input.baudRate, parity: input.parity }
             : { baudRate: input.baudRate },
         );
-        input.onState("listening");
-        await readOpenLoop(matched, isStopped, input.onFrame);
+        activeRead = new AbortController();
+        if (isStopped()) {
+          activeRead.abort();
+        }
+        notifyState("listening");
+        await readOpenLoop(matched, activeRead.signal, input.onFrame);
       } catch {
-        input.onState("disconnected");
+        notifyState("disconnected");
       } finally {
+        activeRead?.abort();
+        activeRead = undefined;
         try {
-          await matched.close();
+          await matched?.close();
         } catch {
           // already closed
         }
-        port = undefined;
       }
       if (!isStopped()) {
         await sleep(LAB_DEVICE_REOPEN_MS, isStopped);
       }
     }
-  })();
+  })().catch(() => {
+    notifyState("disconnected");
+  });
 
   return stop;
 }

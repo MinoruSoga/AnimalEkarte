@@ -45,6 +45,10 @@ type ExpectedCutoverSource struct {
 	ClinicCode     string
 	ClinicOrdinal  int64
 	RunID          string
+	// AllowLocalRehearsal relaxes formal provenance for local disposable
+	// imports of REHEARSAL_ONLY / UNVERIFIED producer bundles (e.g. make reset).
+	// It must never be enabled for shared/staging/production cutover.
+	AllowLocalRehearsal bool
 }
 
 type CutoverIDBand struct {
@@ -355,10 +359,14 @@ func ensureJSONEOF(decoder *json.Decoder) error {
 }
 
 func validateCutoverManifest(manifest CutoverManifest, expected ExpectedCutoverSource) error {
-	if manifest.Status != "PASS" {
+	if expected.AllowLocalRehearsal {
+		if manifest.Status != "PASS" && manifest.Status != "REHEARSAL_ONLY" {
+			return fmt.Errorf("manifest status must be PASS or REHEARSAL_ONLY for local rehearsal import")
+		}
+	} else if manifest.Status != "PASS" {
 		return fmt.Errorf("manifest status must be PASS")
 	}
-	if err := validateCutoverProducerProvenance(manifest); err != nil {
+	if err := validateCutoverProducerProvenance(manifest, expected.AllowLocalRehearsal); err != nil {
 		return err
 	}
 	if manifest.SourceLayer != "animalekarte_stage" {
@@ -413,7 +421,9 @@ func validateCutoverManifest(manifest CutoverManifest, expected ExpectedCutoverS
 		if table.RowCount < 0 {
 			return fmt.Errorf("manifest row count must not be negative for table %s", spec.Name)
 		}
-		if (spec.Name == "payments" || spec.Name == "payment_splits") && table.RowCount == 0 {
+		if !expected.AllowLocalRehearsal &&
+			(spec.Name == "payments" || spec.Name == "payment_splits") &&
+			table.RowCount == 0 {
 			return fmt.Errorf("manifest table %s must contain formal rows", spec.Name)
 		}
 		if !validSHA256(table.SHA256) {
@@ -423,7 +433,10 @@ func validateCutoverManifest(manifest CutoverManifest, expected ExpectedCutoverS
 	return nil
 }
 
-func validateCutoverProducerProvenance(manifest CutoverManifest) error {
+func validateCutoverProducerProvenance(manifest CutoverManifest, allowLocalRehearsal bool) error {
+	if allowLocalRehearsal {
+		return validateLocalRehearsalProducerProvenance(manifest)
+	}
 	if manifest.ManifestSchemaVersion != cutoverManifestSchema ||
 		manifest.StageMappingSHA256 != cutoverStageMappingSHA256 ||
 		manifest.CSVContractSHA256 != cutoverCSVContractSHA256 {
@@ -451,6 +464,38 @@ func validateCutoverProducerProvenance(manifest CutoverManifest) error {
 	}
 	if !validEvidenceDigests(manifest.SourceEvidenceSHA256) {
 		return fmt.Errorf("manifest evidence digest set is invalid")
+	}
+	if !validOrderedLayerTimestamps(manifest.SourceSummaryGeneratedAt, manifest.GeneratedAt) {
+		return fmt.Errorf("manifest summary generation timestamps are invalid or out of order")
+	}
+	return nil
+}
+
+func validateLocalRehearsalProducerProvenance(manifest CutoverManifest) error {
+	if manifest.ManifestSchemaVersion != cutoverManifestSchema {
+		return fmt.Errorf("manifest schema version is invalid")
+	}
+	// CSV contract must still match; stage mapping may differ while old_db SQL
+	// is ahead of the frozen consumer digest during local rehearsal.
+	if manifest.CSVContractSHA256 != cutoverCSVContractSHA256 {
+		return fmt.Errorf("manifest CSV contract digest is invalid")
+	}
+	if manifest.HandoffEligibility != "TRUSTED_CANDIDATE" &&
+		manifest.HandoffEligibility != "REHEARSAL_ONLY" {
+		return fmt.Errorf("manifest handoff eligibility must be TRUSTED_CANDIDATE or REHEARSAL_ONLY")
+	}
+	switch manifest.SourceCompletenessStatus {
+	case "PASS", "PARTIAL", "UNVERIFIED":
+	default:
+		return fmt.Errorf("manifest source completeness status is unsupported for local rehearsal")
+	}
+	if !stageBuildIDPattern.MatchString(manifest.StageBuildID) {
+		return fmt.Errorf("manifest stage build ID is invalid")
+	}
+	if !validSHA256(manifest.SourceSummarySHA256.Raw) ||
+		!validSHA256(manifest.SourceSummarySHA256.Intermediate) ||
+		!validSHA256(manifest.SourceSummarySHA256.Stage) {
+		return fmt.Errorf("manifest summary digest set is invalid")
 	}
 	if !validOrderedLayerTimestamps(manifest.SourceSummaryGeneratedAt, manifest.GeneratedAt) {
 		return fmt.Errorf("manifest summary generation timestamps are invalid or out of order")

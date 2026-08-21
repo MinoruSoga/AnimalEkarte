@@ -472,6 +472,14 @@ main() {
   restart_and_wait
   postflight_checks
 
+  # Local-only: if hospital CSV bundles are staged under
+  # backend/migrations/seeds/_old_db_handoff/<clinic>/<run>/, import them now.
+  if [[ -x "$SCRIPT_DIR/import-old-db-handoffs-on-reset.sh" ]]; then
+    info "importing staged old_db handoffs (local rehearsal allowed)..."
+    bash "$SCRIPT_DIR/import-old-db-handoffs-on-reset.sh" \
+      || die "old_db handoff import failed after reset"
+  fi
+
   info "reset complete (snapshot=${snap_dir:-none})"
   echo "✓ Local DB reset complete — only ${EXPECTED_DB_VOLUME} was removed; caches kept; postflight OK"
 }
