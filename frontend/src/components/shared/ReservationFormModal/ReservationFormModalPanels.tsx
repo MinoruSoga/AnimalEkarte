@@ -344,6 +344,7 @@ interface ReservationModalFooterProps {
   selectedPetsCount: number;
   isEditMode: boolean;
   canSave: boolean;
+  isSubmitting?: boolean;
   onClose: () => void;
   onSave: () => void;
 }
@@ -353,6 +354,7 @@ export function ReservationModalFooter({
   selectedPetsCount,
   isEditMode,
   canSave,
+  isSubmitting = false,
   onClose,
   onSave,
 }: ReservationModalFooterProps) {
@@ -372,15 +374,16 @@ export function ReservationModalFooter({
         )}
       </div>
       <div className="flex gap-2">
-        <Button variant="outline" onClick={onClose} className="h-10 text-sm">
+        <Button variant="outline" onClick={onClose} className="h-10 text-sm" disabled={isSubmitting}>
           キャンセル
         </Button>
         {canSave ? (
           <Button
             onClick={onSave}
+            disabled={isSubmitting}
             className={`${C.bgBrand} ${C.textOnBrand} ${C.hoverBgBrand} ${C.hoverTextOnBrand} h-10 text-sm rounded-full min-w-[100px]`}
           >
-            {isEditMode ? "更新する" : "予約を確定"}
+            {isSubmitting ? "送信中..." : isEditMode ? "更新する" : "予約を確定"}
           </Button>
         ) : null}
       </div>

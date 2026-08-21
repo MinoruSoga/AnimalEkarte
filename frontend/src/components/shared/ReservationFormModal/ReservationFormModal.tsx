@@ -44,7 +44,12 @@ function isValidOwnerPhone(phone: string): boolean {
 interface ReservationFormModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (data: Partial<Reservation>, selectedPets: Pet[], newOwnerData?: NewOwnerFormData) => void;
+  /** Returns an inline error message to keep the modal open; null/void closes via parent on success. */
+  onSave: (
+    data: Partial<Reservation>,
+    selectedPets: Pet[],
+    newOwnerData?: NewOwnerFormData,
+  ) => void | string | null | Promise<void | string | null>;
   initialData: Partial<Reservation> | null;
   canCreate?: boolean;
   canEdit?: boolean;
@@ -61,6 +66,8 @@ export const ReservationFormModal = memo(function ReservationFormModal({
   const [pendingPetId, setPendingPetId] = useState<string | null>(null);
   const [mobilePanel, setMobilePanel] = useState<MobilePanel>("search");
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [calendarMonth, setCalendarMonth] = useState<string>(() => dateFnsFormat(new Date(), "yyyy-MM"));
   const [ownerMode, setOwnerMode] = useState<OwnerMode>("existing");
   const [newOwnerData, setNewOwnerData] = useState<NewOwnerFormData>(EMPTY_NEW_OWNER);
@@ -105,6 +112,8 @@ export const ReservationFormModal = memo(function ReservationFormModal({
   useLayoutEffect(() => {
     if (!isOpen) return;
     setValidationErrors({});
+    setSubmitError(null);
+    setIsSubmitting(false);
     setNewOwnerErrors({});
     setOwnerMode("existing");
     setNewOwnerData(EMPTY_NEW_OWNER);
@@ -162,9 +171,10 @@ export const ReservationFormModal = memo(function ReservationFormModal({
     }));
   }, [latestReservation]);
 
-  const handleSave = useCallback(() => {
+  const handleSave = useCallback(async () => {
     const errors: Record<string, string> = {};
     const noErrors: Record<string, string> = {};
+    setSubmitError(null);
 
     if (ownerMode === "new") {
       // 新規飼主モードのバリデーション
@@ -199,7 +209,15 @@ export const ReservationFormModal = memo(function ReservationFormModal({
       }
       setNewOwnerErrors(noErrors);
       setValidationErrors(noErrors);
-      onSave(formData, [], newOwnerData);
+      setIsSubmitting(true);
+      try {
+        const result = await onSave(formData, [], newOwnerData);
+        if (typeof result === "string" && result.trim()) {
+          setSubmitError(result);
+        }
+      } finally {
+        setIsSubmitting(false);
+      }
       return;
     }
 
@@ -234,7 +252,15 @@ export const ReservationFormModal = memo(function ReservationFormModal({
     }
 
     setValidationErrors(noErrors);
-    onSave(formData, selectedPets);
+    setIsSubmitting(true);
+    try {
+      const result = await onSave(formData, selectedPets);
+      if (typeof result === "string" && result.trim()) {
+        setSubmitError(result);
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
   }, [formData, selectedPets, onSave, isEditMode, ownerMode, newOwnerData]);
 
   return (
@@ -249,6 +275,15 @@ export const ReservationFormModal = memo(function ReservationFormModal({
           onMobilePanelChange={setMobilePanel}
           descriptionId={RESERVATION_FORM_DESCRIPTION_ID}
         />
+
+        {submitError ? (
+          <div
+            role="alert"
+            className="mx-4 mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800"
+          >
+            {submitError}
+          </div>
+        ) : null}
 
         <div className="flex flex-col lg:flex-row flex-1 overflow-hidden">
           <ReservationPatientPanel
@@ -276,6 +311,7 @@ export const ReservationFormModal = memo(function ReservationFormModal({
             onSelectedPetsChange={setSelectedPets}
             onFormChange={(data) => {
               setFormData(data);
+              setSubmitError(null);
               setValidationErrors((prev) => {
                 const next = { ...prev };
                 if (data.start) delete next.date;
@@ -300,6 +336,7 @@ export const ReservationFormModal = memo(function ReservationFormModal({
           selectedPetsCount={selectedPets.length}
           isEditMode={isEditMode}
           canSave={canSave}
+          isSubmitting={isSubmitting}
           onClose={onClose}
           onSave={handleSave}
         />

@@ -3,7 +3,7 @@ import type { Dispatch, RefObject, SetStateAction } from "react";
 import type { NavigateFunction } from "react-router";
 import { toast } from "sonner";
 
-import { handleApiError } from "@/lib/handle-api-error";
+import { handleApiError, extractApiErrorMessage } from "@/lib/handle-api-error";
 import { jstWallDateToISOString } from "@/lib/jst-date";
 import { getReservationStatusLabel } from "@/lib/status-helpers";
 import type { ReservationCreateMutations } from "@/types/reservation-create-mutations";
@@ -115,19 +115,17 @@ export function useReservationActions({
   }, [locationFrom, navigate]);
 
   const handleSave = useCallback(
-    async (data: ReservationFormData, selectedPets: Pet[], newOwnerData?: NewOwnerFormData) => {
-      if (!data.start || !data.end) return;
-      if (!newOwnerData && selectedPets.length === 0) return;
+    async (data: ReservationFormData, selectedPets: Pet[], newOwnerData?: NewOwnerFormData): Promise<string | null> => {
+      if (!data.start || !data.end) return null;
+      if (!newOwnerData && selectedPets.length === 0) return null;
 
       const currentEditing = editingAppointmentRef.current;
       const targetDoctor = data.doctor || currentEditing?.doctor || "";
       const hasOverlap = checkOverlap(data.start, data.end, targetDoctor, currentEditing?.id);
 
       if (hasOverlap) {
-        toast.error("指定された時間帯には既に予約が入っています", {
-          description: "時間帯または担当医を変更してください。",
-        });
-        return;
+        // FE precheck — keep modal open with inline message (same surface as API 409).
+        return "指定された時間帯には既に予約が入っています";
       }
 
       if (currentEditing?.id) {
@@ -144,16 +142,24 @@ export function useReservationActions({
             notes: data.notes,
           },
         };
-        startUpdateTransition(() => {
-          updateReservationFn(updatePayload, {
-            onSuccess: () => {
-              toast.success("予約を更新しました", { description: `担当医: ${targetDoctor}` });
-              handleCloseForm();
-              navigateBackIfNeeded();
-            },
+        return await new Promise<string | null>((resolve) => {
+          startUpdateTransition(() => {
+            updateReservationFn(updatePayload, {
+              onSuccess: () => {
+                toast.success("予約を更新しました", { description: `担当医: ${targetDoctor}` });
+                handleCloseForm();
+                navigateBackIfNeeded();
+                resolve(null);
+              },
+              onError: (error: unknown) => {
+                resolve(extractApiErrorMessage(error, "更新"));
+              },
+            });
           });
         });
-      } else if (newOwnerData) {
+      }
+
+      if (newOwnerData) {
         try {
           const owner = await createMutations.createOwnerFn({
             owner_name: newOwnerData.ownerName,
@@ -175,35 +181,43 @@ export function useReservationActions({
           });
           handleCloseForm();
           navigateBackIfNeeded();
+          return null;
         } catch (error) {
-          handleApiError(error, "作成");
+          return extractApiErrorMessage(error, "作成");
         }
-      } else {
-        try {
-          const results = await Promise.allSettled(
-            selectedPets.map((pet) => {
-              const createPayload = transformToCreateRequest(data, pet.id, pet.ownerId);
-              return createMutation.mutateAsync(createPayload);
-            }),
-          );
-          const succeeded = results.filter((r) => r.status === "fulfilled").length;
-          const failed = results.filter((r) => r.status === "rejected").length;
+      }
 
-          if (failed > 0) {
-            toast.error(`${failed}件の予約作成に失敗しました`, {
-              description: `${succeeded}件は成功しました。`,
-            });
-          }
+      try {
+        const results = await Promise.allSettled(
+          selectedPets.map((pet) => {
+            const createPayload = transformToCreateRequest(data, pet.id, pet.ownerId);
+            return createMutation.mutateAsync(createPayload);
+          }),
+        );
+        const succeeded = results.filter((r) => r.status === "fulfilled").length;
+        const rejected = results.filter((r): r is PromiseRejectedResult => r.status === "rejected");
+        const failed = rejected.length;
+
+        if (failed > 0) {
+          // Prefer the first BE reason (409 出勤ゼロ等). Do not bury it under a generic N-fail toast.
+          const reason = extractApiErrorMessage(rejected[0].reason, "作成");
+          // Keep modal open on any failure (partial or total).
           if (succeeded > 0) {
             toast.success(`${succeeded}件の予約を作成しました`, {
               description: `担当医: ${targetDoctor}`,
             });
-            handleCloseForm();
-            navigateBackIfNeeded();
           }
-        } catch (error) {
-          handleApiError(error, "作成");
+          return reason;
         }
+
+        toast.success(`${succeeded}件の予約を作成しました`, {
+          description: `担当医: ${targetDoctor}`,
+        });
+        handleCloseForm();
+        navigateBackIfNeeded();
+        return null;
+      } catch (error) {
+        return extractApiErrorMessage(error, "作成");
       }
     },
     [

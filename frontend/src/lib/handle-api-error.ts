@@ -107,6 +107,47 @@ export function localizeAlreadyExistsMessage(serverMessage?: string): string | n
 }
 
 /**
+ * Extract a user-facing Japanese message from an API/unknown error without toasting.
+ * Prefer BE `error` text for 409 business conflicts (reservation slot / no doctors).
+ */
+export function extractApiErrorMessage(err: unknown, context = "操作"): string {
+  if (axios.isAxiosError(err)) {
+    const status = err.response?.status;
+    const data = err.response?.data as ApiErrorBody | undefined;
+    const serverMessage = data?.error;
+
+    if (status === 400) {
+      return serverMessage ?? `${context}に失敗しました。入力内容を確認してください。`;
+    }
+    if (status === 401) {
+      return "セッションが切れました。再度ログインしてください。";
+    }
+    if (status === 403) {
+      return serverMessage ?? `${context}の権限がありません。`;
+    }
+    if (status === 404) {
+      return serverMessage ?? `${context}対象が見つかりません。`;
+    }
+    if (status === 409) {
+      return (
+        localizeConflictMessage(data?.code, data?.params) ??
+        localizeAlreadyExistsMessage(serverMessage) ??
+        serverMessage ??
+        "他のユーザーによって更新されています。一度リロードしてください。"
+      );
+    }
+    if (status !== undefined && status >= 500) {
+      return "サーバーエラーが発生しました。しばらく経ってから再度お試しください。";
+    }
+    return `${context}に失敗しました。ネットワーク接続を確認してください。`;
+  }
+  if (err instanceof Error && err.message.trim()) {
+    return err.message;
+  }
+  return `${context}中に予期しないエラーが発生しました。`;
+}
+
+/**
  * Centralized API error handler.
  * Extracts user-friendly messages from AxiosError and shows toast notifications.
  *
@@ -114,44 +155,8 @@ export function localizeAlreadyExistsMessage(serverMessage?: string): string | n
  * @param context - Japanese context string for the operation (e.g. "保存", "削除")
  */
 export function handleApiError(err: unknown, context: string): void {
-  if (axios.isAxiosError(err)) {
-    const status = err.response?.status;
-    const data = err.response?.data as ApiErrorBody | undefined;
-    // バックエンドの RespondError 規約に合わせて data.error を取得
-    const serverMessage = data?.error;
-
-    if (status === 400) {
-      toast.error(serverMessage ?? `${context}に失敗しました。入力内容を確認してください。`);
-    } else if (status === 401) {
-      // 401時は自動ログアウト・リダイレクトが行われるべきだが、ここでは通知のみ
-      toast.error("セッションが切れました。再度ログインしてください。");
-    } else if (status === 403) {
-      // BUG-377: UI ゲートが漏れたケースのサイレント失敗を防ぐため、
-      // 403 時は必ずサーバーメッセージまたは汎用メッセージをトースト表示する。
-      toast.error(serverMessage ?? `${context}の権限がありません。`);
-    } else if (status === 404) {
-      toast.error(serverMessage ?? `${context}対象が見つかりません。`);
-    } else if (status === 409) {
-      // Prefer stable domain code → JA localization over raw English serverMessage
-      // (BUG-023/027/026: internal id + empty string already-exists toasts).
-      const localized = localizeConflictMessage(data?.code, data?.params);
-      toast.error(
-        localized ??
-          localizeAlreadyExistsMessage(serverMessage) ??
-          serverMessage ??
-          "他のユーザーによって更新されています。一度リロードしてください。",
-      );
-    } else if (status !== undefined && status >= 500) {
-      toast.error(`サーバーエラーが発生しました。しばらく経ってから再度お試しください。`);
-    } else {
-      toast.error(`${context}に失敗しました。ネットワーク接続を確認してください。`);
-    }
-    return;
-  }
-
-  // Non-Axios errors (unexpected)
-  if (import.meta.env.DEV) {
+  toast.error(extractApiErrorMessage(err, context));
+  if (!axios.isAxiosError(err) && import.meta.env.DEV) {
     console.error("Non-Axios Error:", err);
   }
-  toast.error(`${context}中に予期しないエラーが発生しました。`);
 }
