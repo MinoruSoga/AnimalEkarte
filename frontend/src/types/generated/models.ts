@@ -128,6 +128,7 @@ export interface BillingItem {
    */
   medical_record_id?: number /* uint64 */;
   vaccination_id?: number /* uint64 */;
+  exam_id?: number /* uint64 */;
   appointment_id?: number /* uint64 */;
   trimming_course_id?: number /* uint64 */;
   trimming_option_id?: number /* uint64 */;
@@ -1209,6 +1210,7 @@ export interface Estimate {
   medical_record_id?: number /* uint64 */;
   title: string;
   owner_id?: number /* uint64 */;
+  pet_id?: number /* uint64 */;
   status: EstimateStatus;
   subtotal: number /* int64 */;
   tax_total: number /* int64 */;
@@ -1227,6 +1229,7 @@ export interface Estimate {
    */
   medical_record?: MedicalRecord;
   owner?: Owner;
+  pet?: Pet;
   created_staff?: Staff;
   items?: EstimateItem[];
 }
@@ -1825,6 +1828,98 @@ export interface InventoryItem {
 }
 
 //////////
+// source: lab_device.go
+
+/**
+ * LabDevice is a clinic-owned analyzer. Name and exam binding live here, not in frontend constants.
+ * Write owner: medicalrecord (ADR-007). source_type is the serial protocol, not the display name.
+ */
+export interface LabDevice {
+  id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  source_type: string;
+  name: string;
+  exam_type_id?: number /* uint64 */;
+  is_active: boolean;
+  sort_order: number /* int */;
+  created_at: string;
+  updated_at: string;
+}
+
+//////////
+// source: lab_device_item_master.go
+
+export const LabDeviceValueShapeNumeric = "numeric";
+export const LabDeviceValueShapeInequality = "inequality";
+export const LabDeviceValueShapeQualAndNum = "qual_and_num";
+export const LabDeviceValueShapeDash = "dash";
+export const LabDeviceValueShapeText = "text";
+/**
+ * LabDeviceValueShape は電文値の形。マスタ列。legacy_name_candidate は持たない。
+ */
+export type LabDeviceValueShape = typeof LabDeviceValueShapeNumeric | typeof LabDeviceValueShapeInequality | typeof LabDeviceValueShapeQualAndNum | typeof LabDeviceValueShapeDash | typeof LabDeviceValueShapeText;
+/**
+ * LabDeviceItemMaster maps a device item code to an optional exam_type_field.
+ * Write owner: medicalrecord (ADR-007). source_type is varchar, not the jobs enum.
+ */
+export interface LabDeviceItemMaster {
+  id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  source_type: string;
+  device_item_code: string;
+  unit: string;
+  value_shape: string;
+  exam_type_field_id?: number /* uint64 */;
+  sort_order: number /* int */;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+//////////
+// source: lab_device_receive.go
+
+/**
+ * LabImportJobItem is one decoded device line on a job. Write owner: medicalrecord.
+ */
+export interface LabImportJobItem {
+  id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  job_id: string;
+  device_item_code: string;
+  value_raw: string;
+  unit: string;
+  flag: string;
+  exam_type_field_id?: number /* uint64 */;
+  needs_review: boolean;
+  sort_order: number /* int */;
+  created_at: string;
+}
+/**
+ * LabDeviceWait is the single active wait per clinic. Write owner: medicalrecord.
+ */
+export interface LabDeviceWait {
+  id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  pet_id: number /* uint64 */;
+  staff_id: number /* uint64 */;
+  expires_at: string;
+  cleared_at?: string;
+  created_at: string;
+  updated_at: string;
+}
+/**
+ * LabDeviceStationSettings holds wait TTL and logical slots. Write owner: medicalrecord.
+ */
+export interface LabDeviceStationSettings {
+  clinic_id: number /* uint64 */;
+  wait_ttl_seconds: number /* int */;
+  slots_json: string;
+  created_at: string;
+  updated_at: string;
+}
+
+//////////
 // source: lab_import.go
 
 /**
@@ -1851,7 +1946,18 @@ export type LabImportJobStatus = typeof LabImportJobStatusReceived | typeof LabI
 export const LabImportSourceTypeFixture = "fixture";
 export const LabImportSourceTypeDrWan = "drwan";
 export const LabImportSourceTypeManual = "manual";
-export type LabImportSourceType = typeof LabImportSourceTypeFixture | typeof LabImportSourceTypeDrWan | typeof LabImportSourceTypeManual;
+/**
+ * Device source types are Go constants only until a later migration ADDs the enum values (ADR-007 / F9).
+ */
+export const LabImportSourceTypeFujiNX600 = "fuji_nx600";
+export const LabImportSourceTypeFujiAU10V = "fuji_au10v";
+export const LabImportSourceTypeArkrayPU4010 = "arkray_pu4010";
+/**
+ * LabImportSourceTypeIDEXXVetLab is the IDEXX VetLab Station PIMS serial path (COM5 / JOU-LAB-X).
+ * 9600 8N1. Short frames (<= idexxShortFrameBodyMaxBytes) are discarded.
+ */
+export const LabImportSourceTypeIDEXXVetLab = "idexx_vetlab";
+export type LabImportSourceType = typeof LabImportSourceTypeFixture | typeof LabImportSourceTypeDrWan | typeof LabImportSourceTypeManual | typeof LabImportSourceTypeFujiNX600 | typeof LabImportSourceTypeFujiAU10V | typeof LabImportSourceTypeArkrayPU4010 | typeof LabImportSourceTypeIDEXXVetLab;
 /**
  * LabImportJob は外部検査結果のインポートジョブ。
  * source_fingerprint には raw 接続文字列・認証情報を格納しない。
@@ -1872,6 +1978,12 @@ export interface LabImportJob {
   error_message?: string;
   started_at?: string;
   finished_at?: string;
+  pet_id?: number /* uint64 */;
+  measured_at?: string;
+  received_at?: string;
+  device_hint: string;
+  specimen_id_raw: string;
+  unmapped_item_count: number /* int */;
   created_at: string;
   updated_at: string;
 }
