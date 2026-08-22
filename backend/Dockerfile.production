@@ -50,9 +50,9 @@ COPY --from=builder /app/migrate .
 
 # Copy migration files
 COPY migrations/ ./migrations/
-# Fail the image build if append-only ensure SQL is missing (BRT-71).
+# Canonical schema must be in the image. pet_owners lives in 001_init.sql.
+# BRT-71 append-only 002 was withdrawn in 統合第8回 (duplicate of 001).
 RUN test -f ./migrations/001_init.sql \
-  && test -f ./migrations/002_ensure_pet_owners.sql \
   && ls -la ./migrations/*.sql
 
 # Non-root user for security
