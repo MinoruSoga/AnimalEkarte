@@ -13,6 +13,7 @@ import {
   CONFLICT_CODE_PROCEDURE_NAME,
   CONFLICT_CODE_SHIFT_TEMPLATE_NAME,
   CONFLICT_CODE_VACCINE_NAME,
+  extractApiErrorMessage,
   handleApiError,
   localizeAlreadyExistsMessage,
   localizeConflictMessage,
@@ -270,5 +271,54 @@ describe("handleApiError 409 localization", () => {
     expect(toast.error).toHaveBeenCalledWith(
       "他のユーザーによって更新されています。一度リロードしてください。",
     );
+  });
+
+  it("英語メッセージ＋未知コードの 409 で日本語フォールバックを返す", () => {
+    const message = extractApiErrorMessage(
+      axiosError(409, {
+        error: "pet owner is not in the specified owner identity group",
+        code: "owner_identity_group_mismatch",
+      }),
+      "リンク",
+    );
+    expect(message).toBe(
+      "他のユーザーによって更新されています。一度リロードしてください。",
+    );
+    expect(message).not.toMatch(/pet owner/i);
+    handleApiError(
+      axiosError(409, {
+        error: "pet owner is not in the specified owner identity group",
+        code: "owner_identity_group_mismatch",
+      }),
+      "リンク",
+    );
+    expect(toast.error).toHaveBeenCalledWith(
+      "他のユーザーによって更新されています。一度リロードしてください。",
+    );
+    expect(toast.error).not.toHaveBeenCalledWith(
+      expect.stringContaining("pet owner"),
+    );
+  });
+
+  it("passes through Japanese reservation-style 409 server messages", () => {
+    const reservationMessage =
+      "この時間帯はすでに予約が入っています";
+    expect(
+      extractApiErrorMessage(
+        axiosError(409, {
+          error: reservationMessage,
+          code: "reservation_slot_conflict",
+        }),
+        "予約",
+      ),
+    ).toBe(reservationMessage);
+    expect(
+      extractApiErrorMessage(
+        axiosError(409, {
+          error: "担当可能な医師がいません",
+        }),
+        "予約",
+      ),
+    ).toBe("担当可能な医師がいません");
   });
 });

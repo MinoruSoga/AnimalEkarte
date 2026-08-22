@@ -122,9 +122,18 @@ export function localizeAlreadyExistsMessage(serverMessage?: string): string | n
   return null;
 }
 
+/** True when BE `error` already contains user-facing Japanese (hiragana/katakana/kanji). */
+function isUserFacingJapanese(message: string | undefined): boolean {
+  if (!message) {
+    return false;
+  }
+  return /[\u3040-\u30ff\u3400-\u9fff]/.test(message);
+}
+
 /**
  * Extract a user-facing Japanese message from an API/unknown error without toasting.
- * Prefer BE `error` text for 409 business conflicts (reservation slot / no doctors).
+ * Prefer BE Japanese `error` text for 409 business conflicts (reservation slot / no doctors).
+ * Do not pass through English 409 messages; unknown-code English uses the reload fallback.
  */
 export function extractApiErrorMessage(err: unknown, context = "操作"): string {
   if (axios.isAxiosError(err)) {
@@ -148,7 +157,7 @@ export function extractApiErrorMessage(err: unknown, context = "操作"): string
       return (
         localizeConflictMessage(data?.code, data?.params) ??
         localizeAlreadyExistsMessage(serverMessage) ??
-        serverMessage ??
+        (isUserFacingJapanese(serverMessage) ? serverMessage : undefined) ??
         "他のユーザーによって更新されています。一度リロードしてください。"
       );
     }
