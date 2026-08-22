@@ -139,6 +139,22 @@ func isMutableClinicAssignment(clinicID uint64, isSystemAdmin bool, authorized m
 	return ok
 }
 
+func authorizeExistingClinicAssignments(input *SetClinicAssignmentsInput, assignments []model.StaffClinicAssignment) error {
+	if input.IsSystemAdmin {
+		return nil
+	}
+	authorized := make(map[uint64]struct{}, len(input.AuthorizedClinicIDs))
+	for _, clinicID := range input.AuthorizedClinicIDs {
+		authorized[clinicID] = struct{}{}
+	}
+	for i := range assignments {
+		if _, ok := authorized[assignments[i].ClinicID]; !ok {
+			return apperrors.WrapForbidden("cannot replace staff assignments outside authorized clinics")
+		}
+	}
+	return nil
+}
+
 func existingAssignmentClinicIDs(assignments []model.StaffClinicAssignment) map[uint64]struct{} {
 	set := make(map[uint64]struct{}, len(assignments))
 	for i := range assignments {
@@ -320,8 +336,10 @@ func (s *staffService) ensureRemovedClinicAssignmentsUnused(
 // clinic assignments while preserving the canonical lock order shared with
 // reservation writes: staff row, active assignment rows, then dependency
 // checks and mutation. Mutable scope is every clinic for a system admin and
-// AuthorizedClinicIDs otherwise. Assignments outside that scope are never
-// deleted. AUS-01: fail-closed audit of old/new clinic_ids when production
+// AuthorizedClinicIDs otherwise. Non-admin actors fail closed when any
+// existing assignment is outside AuthorizedClinicIDs. System-admin writes
+// still preserve assignments outside the requested delta (including inactive
+// clinics). AUS-01: fail-closed audit of old/new clinic_ids when production
 // audit is wired (permissionAudit + attachPermissionAssignmentAudit).
 func (s *staffService) SetClinicAssignments(ctx context.Context, input *SetClinicAssignmentsInput) error {
 	clinicIDs, err := validateAndDedupeClinicAssignments(input)
@@ -357,6 +375,10 @@ func (s *staffService) SetClinicAssignments(ctx context.Context, input *SetClini
 			if existingAssignments[i].StaffID != input.StaffID || existingAssignments[i].ClinicID == 0 {
 				return apperrors.WrapInternalServerError("clinic assignment lock returned an invalid record")
 			}
+		}
+
+		if err := authorizeExistingClinicAssignments(input, existingAssignments); err != nil {
+			return err
 		}
 
 		authorized := clinicIDSet(input.AuthorizedClinicIDs)

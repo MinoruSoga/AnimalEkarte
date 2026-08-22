@@ -320,10 +320,9 @@ func TestStaffService_SetClinicAssignments_RollsBackReplacementOnWriteError(t *t
 	assert.Equal(t, uint64(1), state.primaryClinicID)
 }
 
-func TestStaffService_SetClinicAssignments_PreservesExistingUnauthorizedAssignment(t *testing.T) {
-	t.Run("権限外は PUT で削除されない", func(t *testing.T) {
-		events := make([]string, 0, 4)
-		restored := make([]uint64, 0, 1)
+func TestStaffService_SetClinicAssignments_RejectsNonAdminWhenExistingAssignmentOutsideAuthorizedClinics(t *testing.T) {
+	t.Run("non-admin PUT fails closed when existing assignment is outside authorized clinics", func(t *testing.T) {
+		events := make([]string, 0, 2)
 		staffRepo := &mockStaffRepository{
 			lockForUpdateFn: func(ctx context.Context, id uint64) (*model.Staff, error) {
 				requireStaffSecurityTxContext(t, ctx)
@@ -331,11 +330,8 @@ func TestStaffService_SetClinicAssignments_PreservesExistingUnauthorizedAssignme
 				events = append(events, "lock-staff")
 				return &model.Staff{ID: id, ClinicID: 1}, nil
 			},
-			updatePrimaryFn: func(ctx context.Context, staffID, clinicID uint64) error {
-				requireStaffSecurityTxContext(t, ctx)
-				assert.Equal(t, uint64(10), staffID)
-				assert.Equal(t, uint64(1), clinicID)
-				events = append(events, "primary:1")
+			updatePrimaryFn: func(_ context.Context, _, _ uint64) error {
+				t.Fatal("primary must not mutate after unauthorized existing-assignment rejection")
 				return nil
 			},
 		}
@@ -350,21 +346,26 @@ func TestStaffService_SetClinicAssignments_PreservesExistingUnauthorizedAssignme
 				}, nil
 			},
 			deleteByStaffIDFn: func(_ context.Context, _ uint64) error {
-				t.Fatal("権限外は PUT で削除されない")
+				t.Fatal("delete must not run after unauthorized existing-assignment rejection")
 				return nil
 			},
-			restoreOrCreateFn: func(ctx context.Context, assignment *model.StaffClinicAssignment) error {
-				requireStaffSecurityTxContext(t, ctx)
-				assert.NotEqual(t, uint64(2), assignment.ClinicID, "権限外は PUT で削除されない")
-				restored = append(restored, assignment.ClinicID)
-				events = append(events, fmt.Sprintf("restore:%d", assignment.ClinicID))
+			deleteByClinicIDsFn: func(_ context.Context, _ uint64, _ []uint64) error {
+				t.Fatal("delete must not run after unauthorized existing-assignment rejection")
+				return nil
+			},
+			restoreOrCreateFn: func(_ context.Context, _ *model.StaffClinicAssignment) error {
+				t.Fatal("restore must not run after unauthorized existing-assignment rejection")
+				return nil
+			},
+			createFn: func(_ context.Context, _ *model.StaffClinicAssignment) error {
+				t.Fatal("create must not run after unauthorized existing-assignment rejection")
 				return nil
 			},
 		}
 		clinicRepo := &mockClinicLookupForStaffAssignments{
-			lockActiveByIDFn: func(_ context.Context, id uint64) (*model.Clinic, error) {
-				assert.NotEqual(t, uint64(2), id, "must not LockActiveByID an unauthorized existing assignment")
-				return &model.Clinic{ID: id, IsActive: true}, nil
+			lockActiveByIDFn: func(_ context.Context, _ uint64) (*model.Clinic, error) {
+				t.Fatal("clinic lookup must not run after unauthorized existing-assignment rejection")
+				return nil, nil
 			},
 		}
 		svc := NewStaffService(
@@ -387,9 +388,9 @@ func TestStaffService_SetClinicAssignments_PreservesExistingUnauthorizedAssignme
 			IsSystemAdmin:       false,
 		})
 
-		require.NoError(t, err)
-		assert.NotContains(t, restored, uint64(2))
-		assert.Equal(t, []string{"lock-staff", "lock-assignments", "restore:1", "primary:1"}, events)
+		require.Error(t, err)
+		assert.ErrorIs(t, err, apperrors.ErrForbidden)
+		assert.Equal(t, []string{"lock-staff", "lock-assignments"}, events)
 	})
 }
 
