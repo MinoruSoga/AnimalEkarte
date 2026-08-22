@@ -30,6 +30,21 @@
 ### 2.2 インボイス制度への対応
 税率設定に基づき、領収書上での税率別の売上集計・消費税額が自動的に算出されます。
 
+### 2.3 同一タブ内の名称一意（BUG-017）
+各タブは別テーブルで、医院内の項目名は `(clinic_id, name)` UNIQUE（`deleted_at IS NULL`）。同一タブ内の同名は拒否し、別タブへの同名は受理する。フロントは事前重複チェックをせず、バックエンドの UNIQUE 違反を 409 で返す。
+
+重複時の HTTP 409 はシフトテンプレートと同じ name-conflict 形とする。応答は安定 `code` と入力エコーの `params.name` を持ち、トーストはタブ種別ラベルだけでなく入力した実名を含む。種別ラベルだけの「診察は既に使用されています」は使わない（タブ名と誤認する）。
+
+| タブ | テーブル | 制約 | `code` | トースト例 |
+|:---|:---|:---|:---|:---|
+| 診察 | `consultations` | `idx_consultations_clinic_name` | `consultation_name_conflict` | 診察『V04診察』は既に使用されています |
+| 検査 | `exam_types` | `idx_exam_types_clinic_name` | `exam_type_name_conflict` | 検査『V04検査』は既に使用されています |
+| 処置 | `procedures` | `idx_procedures_clinic_name` | `procedure_name_conflict` | 処置『V04処置』は既に使用されています |
+| 予防接種 | `vaccines` | `idx_vaccines_clinic_name` | `vaccine_name_conflict` | 予防接種『V04予防接種』は既に使用されています |
+| 定期健診 | `checkup_types` | `idx_checkup_types_clinic_name` | `checkup_type_name_conflict` | 定期健診『V04定期健診』は既に使用されています |
+
+FE の対応は `handle-api-error.ts` の `localizeConflictMessage`。識別子が空の英語メッセージ（`consultation '' already exists`）は種別ラベル単独にせず「既に登録されています」に落とす。受け入れ確認は [V04 §2](../../../ops/testing/scenarios/V04-settings-master-forms.md) C3-2。
+
 ---
 
 ## 3. 技術仕様

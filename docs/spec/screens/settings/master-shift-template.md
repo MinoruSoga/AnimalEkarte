@@ -14,7 +14,7 @@
 - **並び替え**: ドラッグ操作により、シフト入力時のクイック選択肢の優先順位を管理可能。
 
 ### 1.2 詳細編集サイドパネル (`ShiftTemplateSidePanel`)
-- **テンプレート名**: スタッフが選択する際の識別名称。未入力の場合は保存ボタンが無効化される。
+- **テンプレート名**: スタッフが選択する際の識別名称。未入力の場合は保存ボタンが無効化される。医院内で一意（`uk_shift_templates_clinic_name`）。重複は 409 `shift_template_name_conflict` + `params.name` で、トーストは「シフトテンプレート名『早番』は既に使用されています」のように実名を含む（診療項目マスタと同じ形。正本の対比は [master-treatment.md §2.3](./master-treatment.md)）。
 - **ステータス**: 有効/無効の切り替え（`StatusPill`）。無効のテンプレートはシフト入力ダイアログの選択肢に表示されない。
 - **シフト種別**: 
     - `全日` / `午前` / `午後` / `休日` / `有休` のカテゴリ分け（`SHIFT_TYPE_LABELS`、`frontend/src/features/shifts/types/index.ts`）。

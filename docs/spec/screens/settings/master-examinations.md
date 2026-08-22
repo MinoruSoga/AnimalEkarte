@@ -33,6 +33,9 @@
 ### 2. 表示順
 プラン一覧の reorder API に加え、フィールド単位の reorder も `ExamTypeFieldsEditor` から実行できる。
 
+### 3. 名称一意
+検査プラン名は医院内で一意（`idx_exam_types_clinic_name`）。重複保存の 409 とトースト（`検査『…』は既に使用されています`）は診療項目マスタ共通仕様（[master-treatment.md §2.3](./master-treatment.md)）に従う。
+
 ---
 
 ## 技術仕様
