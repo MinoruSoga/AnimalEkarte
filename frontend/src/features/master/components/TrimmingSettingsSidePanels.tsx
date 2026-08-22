@@ -16,10 +16,10 @@ interface TrimmingSettingsSidePanelsProps {
   canDelete: boolean;
   canEdit: boolean;
   onCourseClose: () => void;
-  onCourseSave: (data: CourseFormData) => void;
+  onCourseSave: (data: CourseFormData) => Promise<boolean> | boolean;
   onCourseDeleteRequest: (item: TrimmingCourse) => void;
   onOptionClose: () => void;
-  onOptionSave: (data: OptionFormData) => void;
+  onOptionSave: (data: OptionFormData) => Promise<boolean> | boolean;
   onOptionDeleteRequest: (item: TrimmingOption) => void;
   onDirtyChange: (dirty: boolean) => void;
 }

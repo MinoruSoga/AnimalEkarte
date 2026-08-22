@@ -22,7 +22,7 @@ import {
 interface TrimmingCourseSidePanelProps {
   item: TrimmingCourse | null;
   onClose: () => void;
-  onSave: (data: CourseFormData) => void;
+  onSave: (data: CourseFormData) => Promise<boolean> | boolean;
   onDeleteRequest?: (item: TrimmingCourse) => void;
   readOnly?: boolean;
   onDirtyChange?: (dirty: boolean) => void;
@@ -51,15 +51,18 @@ export const TrimmingCourseSidePanel = memo(function TrimmingCourseSidePanel({
     setIsDirty(true);
   }, []);
 
-  const handleAction = useCallback(() => {
+  const handleAction = useCallback(async () => {
     if (!formData.name.trim()) {
       setNameError("名称を入力してください");
       return;
     }
     setNameError("");
-    onSave(formData);
-    setIsDirty(false);
-  }, [formData, onSave]);
+    const saved = await onSave(formData);
+    if (saved) {
+      setIsDirty(false);
+      onDirtyChange?.(false);
+    }
+  }, [formData, onSave, onDirtyChange]);
 
   const handleTitleChange = useCallback((value: string) => {
     setFormDataDirty((prev) => ({ ...prev, name: value }));

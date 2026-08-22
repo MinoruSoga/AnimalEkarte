@@ -51,7 +51,7 @@ export function TrimmingSettings() {
   const handleDirtyChange = useCallback((isDirty: boolean) => {
     if (isDirty) dirty.markDirty();
     else dirty.markClean();
-  }, [dirty]);
+  }, [dirty.markDirty, dirty.markClean]);
 
   const courseCrud = useMasterCRUD<TrimmingCourse>({
     data: undefined,
@@ -108,6 +108,18 @@ export function TrimmingSettings() {
     permissions: { canCreate, canEdit },
   });
 
+  const handleCourseSave = useCallback(async (data: CourseFormData) => {
+    const ok = await courseSave.handleSave(data);
+    if (ok) dirty.markClean();
+    return ok;
+  }, [courseSave.handleSave, dirty.markClean]);
+
+  const handleOptionSave = useCallback(async (data: OptionFormData) => {
+    const ok = await optionSave.handleSave(data);
+    if (ok) dirty.markClean();
+    return ok;
+  }, [optionSave.handleSave, dirty.markClean]);
+
   return (
     <MasterTabPage
       title="トリミングマスタ"
@@ -124,10 +136,10 @@ export function TrimmingSettings() {
           canDelete={canDelete}
           canEdit={canEdit}
           onCourseClose={courseCrud.handleClose}
-          onCourseSave={courseSave.handleSave}
+          onCourseSave={handleCourseSave}
           onCourseDeleteRequest={courseCrud.setPendingDelete}
           onOptionClose={optionCrud.handleClose}
-          onOptionSave={optionSave.handleSave}
+          onOptionSave={handleOptionSave}
           onOptionDeleteRequest={optionCrud.setPendingDelete}
           onDirtyChange={handleDirtyChange}
         />

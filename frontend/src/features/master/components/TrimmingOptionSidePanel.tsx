@@ -15,7 +15,7 @@ import {
 interface TrimmingOptionSidePanelProps {
   item: TrimmingOption | null;
   onClose: () => void;
-  onSave: (data: OptionFormData) => void;
+  onSave: (data: OptionFormData) => Promise<boolean> | boolean;
   onDeleteRequest?: (item: TrimmingOption) => void;
   readOnly?: boolean;
   onDirtyChange?: (dirty: boolean) => void;
@@ -42,15 +42,18 @@ export const TrimmingOptionSidePanel = memo(function TrimmingOptionSidePanel({
     setIsDirty(true);
   }, []);
 
-  const handleAction = useCallback(() => {
+  const handleAction = useCallback(async () => {
     if (!formData.name.trim()) {
       setNameError("名称を入力してください");
       return;
     }
     setNameError("");
-    onSave(formData);
-    setIsDirty(false);
-  }, [formData, onSave]);
+    const saved = await onSave(formData);
+    if (saved) {
+      setIsDirty(false);
+      onDirtyChange?.(false);
+    }
+  }, [formData, onSave, onDirtyChange]);
 
   const handleTitleChange = useCallback((value: string) => {
     setFormDataDirty((prev) => ({ ...prev, name: value }));
