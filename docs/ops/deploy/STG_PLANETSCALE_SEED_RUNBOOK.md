@@ -55,7 +55,7 @@ CF 経路（`POST /_internal/migrate` → `Container.exec(["/app/migrate"])`）�
 | バンドル | テーブル数（manifest） | 内容 | git 追跡状態 |
 |---|---:|---|---|
 | `002_master` | 5 | company, animal_species, lstep 系マスタ | 通常追跡（小容量、合計 <1KB） |
-| `003_demo` | 85 | owners/pets/medical_records/billings 等の業務デモデータ一式 | **`git ls-files -v` で全 86 ファイルに `S`（skip-worktree）フラグが立っている** |
+| `003_demo` | 85 | owners/pets/medical_records/billings 等の業務デモデータ一式 | 全 91 ファイルが通常追跡（`H`）。CSV は Git LFS。skip-worktree ではない |
 | `004_staging` | 1 | `appointment_trimming_details`（現状 0 行） | 通常追跡 |
 
 **直近コミットで変わった点**（`e273545d5d2604856ecee4639bcac5c201534f2c` feat(backend): CSV 取込アダプタを追加し、フル 003_demo はローカル専用とする）:
@@ -65,7 +65,7 @@ CF 経路（`POST /_internal/migrate` → `Container.exec(["/app/migrate"])`）�
 
 **本セッションで確認した現在の実体**（2026-07-16 時点）:
 
-- **git にコミットされている内容**（= Docker イメージに焼き込まれ、CF デプロイで実際に投入される内容）は小さいデモである。`git show HEAD:backend/migrations/seeds/003_demo/<table>.csv` で確認した主要テーブルの行数:
+- **git にコミットされている内容**は Git LFS 経由のフルデモである（`git show HEAD:backend/migrations/seeds/003_demo/exam_results.csv` は LFS ポインタ、size 174379631）。小さいデモではない。2026-07-16 時点で計測した主要テーブルの行数（下表は当時の小さいデモ。現行 HEAD の行数ではない）:
 
   | テーブル | 行数（コミット済み） |
   |---|---:|
@@ -81,9 +81,9 @@ CF 経路（`POST /_internal/migrate` → `Container.exec(["/app/migrate"])`）�
   | billing_items | 52 |
   | exam_results | 53 |
 
-- **ローカル作業ツリー**には `git update-index --skip-worktree` された状態で、フルデモ相当のオーバーレイ（owners 10,499 / pets 15,737 / medical_records 425,544 / billings 392,105、`003_demo` ディレクトリ合計 505MB、うち `billing_items.csv` 241MB・`exam_results.csv` 172MB）が既に上書きされている（旧 `ANIMALEKARTE_CSV_IMPORT_COMPLETION.md`（削除済み・git 履歴）の「Remaining risks」で指示された「USER が sensitive-local からフルダンプを復元する」を、このマシン上で既に実施済みという状態）。**これは git addされず、コミットにも Docker イメージにも含まれない**（skip-worktree のため `git status` にも出ない）。billing_items.csv/exam_results.csv は単体で GitHub の 100MB 制限を超えるため、通常の git → Docker イメージ → migrate 経路には原理的に乗らない。
+- **ローカル作業ツリー**は skip-worktree の隠しオーバーレイではない。`git ls-files -v backend/migrations/seeds/003_demo/` は全 91 ファイル `H`、`git status --porcelain backend/migrations/seeds/` は空で、作業ツリーは HEAD のコミット済みオブジェクトと一致する。HEAD 自体がフルデモ（`exam_results.csv` は Git LFS、size 174379631）であり、GitHub の 100MB 制限は LFS で扱っている。未コミットでも `git add` 対象外でもない。
 
-→ 何もしなければ CF デプロイで STG に入るのは**小さいデモ**（上表）。フルデモが必要な場合は §5 Step E-b（pscale role 経由の直接投入）以外に経路がない。
+→ HEAD（LFS smudge 後の作業ツリーも同じ）はフルデモである。committed の小さいデモを取り出す経路はない。
 
 ### 2.4 凍結履歴: 廃止した STG seed 投入経路
 
@@ -248,19 +248,17 @@ SELECT count(*) FROM appointment_trimming_details;
 
 ### Step E（オプション・人間の判断が必要）: pscale role + psql による直接投入
 
-投入対象データが「committed の小さいデモ」か「ローカルのみのフルデモ」かで手順も安全性もまったく異なる。**両者を混在させない**（後述）。
+投入対象を取り違えないこと。LFS 化（`2d58e64d2`）以降、HEAD の `003_demo` はフルデモである。E-a は staging 自動投入の再現（`002_master` のみ）。フルデモを STG に載せる判断は E-b（本書スコープ外）に残す。
 
 #### E-a. 緊急フォールバック — 自動投入（Step A）が失敗した場合の手動再現
 
 `POST /_internal/migrate` 自体が届かない・恒常的に失敗するなど、CF デプロイ経由の自動投入（§2.1）が使えない場合の最終手段。**スキーマが真に空（91テーブル全て 0 行）の場合にのみ**実施する。
 
-重要な注意点: このマシンの `backend/migrations/seeds/003_demo/` は §2.3 の通り `skip-worktree` でフルデモに上書きされている。作業ツリーから直接 `\copy` すると committed の小さいデモではなくフルデモが投入されてしまう。**必ず `git archive` で HEAD の内容だけを別ディレクトリへ抽出してから使う**。
+重要な注意点: HEAD および LFS smudge 後の作業ツリーは同じフルデモである。`git archive` は 2026-07-16 の小さいデモを得る手段ではない（小さいデモは HEAD に無い）。E-a は Step A の手動再現であり、staging の `cmd/migrate` は `BundleOrderForEnv("staging")` で `002_master` のみを載せる。作業ツリーから `003_demo` を `\copy` すると committed のフルデモが STG に入る。それは自動投入の再現ではない。
 
 ```bash
-# 1. git HEAD のシード内容だけをクリーンに抽出（作業ツリーの overlay を回避）
-WORKDIR=$(mktemp -d)
-git archive HEAD backend/migrations | tar -x -C "$WORKDIR"
-SEEDS="$WORKDIR/backend/migrations/seeds"
+# 1. staging 自動投入と同じく 002_master のみ（003_demo のフルデモは載せない）
+SEEDS="backend/migrations/seeds"
 
 # 2. 書き込み可能な検証用ロールを発行
 pscale role create animalekarte-stg main stg-seed-fallback \
@@ -270,20 +268,13 @@ pscale role create animalekarte-stg main stg-seed-fallback \
 export PGHOST="<host>"; export PGPORT="<port>"; export PGUSER="<user>"
 export PGPASSWORD="<password>"; export PGDATABASE="<database>"
 
-# 3. 002_master → 003_demo → 004_staging の順、各バンドルは manifest.json のテーブル順で投入
-#    （seedbundle.BundleOrder と csvbundle.go の COPY 順を手動再現。順序は
-#    backend/internal/seedbundle/manifest.go:23 と各 manifest.json 参照）
+# 3. 002_master のみ。manifest.json のテーブル順。
 psql -v seeds="$SEEDS" <<'EOSQL'
 \copy companies FROM :'seeds'/002_master/companies.csv WITH (FORMAT csv, HEADER true)
 \copy animal_species FROM :'seeds'/002_master/animal_species.csv WITH (FORMAT csv, HEADER true)
 \copy lstep_auto_managed_prefixes FROM :'seeds'/002_master/lstep_auto_managed_prefixes.csv WITH (FORMAT csv, HEADER true)
 \copy lstep_condition_tag_mappings FROM :'seeds'/002_master/lstep_condition_tag_mappings.csv WITH (FORMAT csv, HEADER true)
 \copy lstep_send_purpose_tag_prefixes FROM :'seeds'/002_master/lstep_send_purpose_tag_prefixes.csv WITH (FORMAT csv, HEADER true)
--- 003_demo は85テーブル。manifest.json のテーブル順で同様に \copy を続ける
--- （順序: clinics, clinic_integrations, occupations, accounts, staffs, owners, ... 全85件。
---   `python3 -c "import json;print('\n'.join(t['table'] for t in json.load(open('$SEEDS/003_demo/manifest.json'))['tables']))"`
---   でテーブル順一覧を出力し、同じテンプレートで \copy 文を生成すること）
-\copy appointment_trimming_details FROM :'seeds'/004_staging/appointment_trimming_details.csv WITH (FORMAT csv, HEADER true)
 EOSQL
 
 # 4. SERIAL シーケンスを cmd/migrate と同じロジックで一括前進（csvbundle.go:124-151 相当）
@@ -304,15 +295,12 @@ BEGIN
 END $$;
 EOSQL
 
-# 5. 必須の後処理: schema_migrations に seed バンドル数ぶんの行を記録する。これを省略すると、
-#    次に正常な migrate が動いた時に「未適用」と誤認して同じCSVを再COPYし、
-#    PK重複で失敗する。checksum は Step D に記載の値（committed content 由来。
-#    seeds編集後は再計算要）を使う。
+# 5. 必須の後処理: 投入したバンドルだけ schema_migrations に記録する。
+#    staging 自動投入は seeds/002_master のみ。003_demo/004_staging の旧 checksum を
+#    書かない（実データを載せていないキーを記録すると次回 migrate がスキップする）。
 psql <<'EOSQL'
 INSERT INTO schema_migrations (filename, checksum, executed_at) VALUES
-  ('seeds/002_master', '5a46c460e51bf617602c0812f100d077df36a3f5855a85d23ba84f63a2bf9945', now()),
-  ('seeds/003_demo', 'c3e86a7c78d6d1b654ecd2ce4657e77402e8fb3a4f896b5c0172df3416c095e5', now()),
-  ('seeds/004_staging', '3cb6a3292700248ef2c3835154c070b34218122de99196f054e4721aec4319d1', now())
+  ('seeds/002_master', '5a46c460e51bf617602c0812f100d077df36a3f5855a85d23ba84f63a2bf9945', now())
 ON CONFLICT (filename) DO NOTHING;
 EOSQL
 ```
@@ -321,19 +309,19 @@ EOSQL
 
 #### E-b. フルデモ投入（ローカルのみ・本書のスコープ外 — 着手前に別途判断すること）
 
-§2.3 の通り、フルデモ（505MB。`billing_items.csv` 241MB・`exam_results.csv` 172MB は単体で GitHub 100MB 制限を超過）は commit できないため、通常の git → Docker イメージ → migrate 経路には原理的に乗らない。
+§2.3 の通り、フルデモは Git LFS で HEAD にコミット済みである（skip-worktree の隠しオーバーレイではない。GitHub 100MB 制限は LFS が担う）。staging の `cmd/migrate` はなお `002_master` のみを自動投入する。フルデモを STG に載せるには migrate 経路を使わず、別判断が要る。
 
-これを STG に入れたい場合、**E-a と単純に組み合わせることはできない**。理由:
-- E-a で先に小さいデモ（85テーブル、主キーは1〜数百番台）を投入した状態にフルデモの7テーブル（owners/pets/medical_records/exams/exam_results/billings/billing_items）だけを上書きすると、フルデモ側にしか存在しない78テーブル分の関連行（小さいデモ側の owners/pets を参照）が dangling FK になり、データ整合性が壊れる。
-- したがって実施する場合は、スキーマを空の状態（§7 ロールバック後）から、**小さいデモを一切経由せず**、003_demo の85テーブル全てをローカル作業ツリー（フルデモで overlay 済み）から `\copy` する必要がある。
-- schema_migrations への記録は E-a と同じ「committed content の checksum」を使う（実際に投入したのはフルデモでも、記録する checksum は将来の migrate 実行が比較する対象＝committed content のものでなければ、次回 migrate がまた不一致/再投入を試みる）。
+これを STG に入れたい場合、**E-a（002_master のみ）と単純に組み合わせることはできない**。理由:
+- E-a のあとに `003_demo` フルデモの一部テーブルだけを上書きすると、参照先が欠けた dangling FK になり、データ整合性が壊れる。
+- 実施する場合はスキーマを空の状態（§7 ロールバック後）から、専用手順で扱う。
+- schema_migrations に書く checksum は実際に投入した内容と一致させないと、次回 migrate が不一致/再投入を試みる。
 
 本書はここまでの制約整理に留める。505MB・91テーブル規模の初回実行を無検証の手順書だけで進めるのはリスクが高く、実施する場合は本書とは別に、実施前提（実施理由・実施者・許容ダウンタイム）を明確にした専用の手順で扱うべきと判断した。
 
 **判断が必要な点**:
 - E-a と E-b のどちらも、通常の git 管理下のシード投入経路をバイパスする手動操作。**再現性なし**（§7 のロールバック後は自動では戻らない。次に必要になった時は同じ手順を再実行する）。
 - E-b を実施する場合、505MB を東京リージョンの PlanetScale へ psql `\copy` で送る所要時間は未実測（数十分規模を想定）。ネットワーク切断リスクを許容できるか、業務時間内に実施できるかは実施者の判断。
-- 実施要否そのものが判断事項: STG は「デモデータ運用」（§1）なので、小さいデモ（E-a 相当、通常は自動投入で足りる）で業務上十分なら E-b は不要というのが本書の既定スタンス。
+- 実施要否そのものが判断事項: STG は「デモデータ運用」（§1）なので、`002_master` の自動投入（または E-a）で業務上十分なら E-b は不要というのが本書の既定スタンス。
 
 ---
 
@@ -382,6 +370,6 @@ pscale role delete animalekarte-stg main <role-id> --org noah-animalekarte
 ## 8. 人間の判断が必要な分岐（まとめ）
 
 1. **§2.2 / §4**: `public` スキーマが実在するか。実在しなければ CF デプロイ前に手動で `CREATE SCHEMA public;` が必須（自動化されていない・migrate 側では検出できず単に失敗する）。
-2. **§5 Step E-b**: フルデモ（505MB、ローカルに `skip-worktree` で存在）を STG に投入するか。小さいデモ（自動投入 or E-a）で業務要件を満たすなら不要。投入する場合は本書がスコープ外とした専用手順を別途起こす必要があり、所要時間未実測・再現性なしの手動操作である点を許容できるか。
+2. **§5 Step E-b**: HEAD の LFS フルデモを STG に投入するか。staging 自動投入および E-a は `002_master` のみで、業務要件をそれで満たすなら不要。投入する場合は本書がスコープ外とした専用手順を別途起こす必要があり、所要時間未実測・再現性なしの手動操作である点を許容できるか。
 3. **§7 ロールバック**: 検証で問題が見つかった場合、再度スキーマごと作り直すか、部分修正で済ませるか（本書はスキーマごと作り直す手順のみ用意）。
 4. **§5 Step B**: `POST /_internal/migrate` が非ゼロ終了した場合、`checksum mismatch`（seed ファイル改変）なのか `public` スキーマ不在（§2.2）なのか、ログを見て切り分けるのは実施者の判断。
