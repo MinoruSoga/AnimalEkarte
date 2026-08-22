@@ -17,6 +17,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
 	. "github.com/animal-ekarte/backend/internal/staff"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 func setupStaffProvisioningDB(t *testing.T) *gorm.DB {
@@ -34,6 +35,9 @@ func setupStaffProvisioningDB(t *testing.T) *gorm.DB {
 		&model.StaffPermissionGroup{},
 		&model.AuditLog{},
 	))
+	// EnsureAutoMigrated registration of StaffPermissionGroup does not widen a
+	// pre-existing many2many join table; testdb ALTER is the source of truth.
+	testdb.EnsureStaffPermissionGroupsCreatedAt(t, db)
 	require.NoError(t, db.Exec(`
 		TRUNCATE TABLE
 			audit_logs,

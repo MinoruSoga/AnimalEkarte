@@ -54,8 +54,10 @@ func modelElemType(m any) reflect.Type {
 }
 
 // EnsureAutoMigrated は各モデル型についてプロセス全体で一度だけ db.AutoMigrate を実行する。
-// 既に migrate 済みの型はスキップし、GORM のスキーマ内省コストを削減する。
+// スキップするのは既に migrate 済みの型（プロセス内キャッシュ）であり、既存テーブルをスキップするわけではない。
 // DROP TABLE 後の再作成には使わないこと（キャッシュが再 CREATE を抑止する）。
+// many2many join table が既にある場合、GORM AutoMigrate は列追加で widen しないことがある
+// （staff_permission_groups.created_at は setupSharedTestSchema の ALTER で補う）。
 func EnsureAutoMigrated(db *gorm.DB, models ...any) error {
 	if len(models) == 0 {
 		return nil
@@ -192,6 +194,26 @@ func EnsureClinicSettingsTable(t *testing.T, db *gorm.DB) {
 			updated_at             timestamptz  NOT NULL DEFAULT now()
 		)
 	`).Error)
+}
+
+// EnsureStaffPermissionGroupsCreatedAt self-heals a stale ekarte_db_test where
+// staff_permission_groups was created as a bare many2many join (staff_id, group_id only).
+// model.StaffPermissionGroup.CreatedAt and 001_init.sql both require created_at.
+// GORM AutoMigrate does not always widen an existing join table that
+// PermissionGroup.Staffs many2many already provisioned without the extra column.
+func EnsureStaffPermissionGroupsCreatedAt(t *testing.T, db *gorm.DB) {
+	t.Helper()
+	require.NoError(t, ensureStaffPermissionGroupsCreatedAt(db))
+}
+
+func ensureStaffPermissionGroupsCreatedAt(db *gorm.DB) error {
+	if err := db.Exec(`
+		ALTER TABLE staff_permission_groups
+		ADD COLUMN IF NOT EXISTS created_at timestamptz NOT NULL DEFAULT now()
+	`).Error; err != nil {
+		return fmt.Errorf("failed to ensure staff_permission_groups.created_at: %w", err)
+	}
+	return nil
 }
 
 // MakeTestOwner はテスト用の Owner を作成して返す。
@@ -472,6 +494,12 @@ func setupSharedTestSchema(db *gorm.DB) error {
 		return fmt.Errorf("failed to migrate test db: %w", err)
 	}
 	MarkAutoMigrated(coreModels...)
+	// PermissionGroup.Staffs many2many creates a bare join table during the
+	// AutoMigrate above. Registering StaffPermissionGroup later does not
+	// reliably ADD created_at; ALTER is the source of truth for test DB.
+	if err := ensureStaffPermissionGroupsCreatedAt(db); err != nil {
+		return err
+	}
 	return nil
 }
 
