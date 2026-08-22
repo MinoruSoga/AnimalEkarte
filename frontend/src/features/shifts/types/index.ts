@@ -48,6 +48,10 @@ export const SHIFT_TYPE_LABELS: Record<ShiftType, string> = {
 export interface ShiftStaff {
   id: string;
   name: string;
+  /** occupations マスタ ID。未設定は null */
+  occupationId: string | null;
+  /** 職種表示名。未設定は null（UI では「未設定」） */
+  occupationName: string | null;
 }
 
 // ─── シフトテンプレート型 ────────────────────────────────────────────────

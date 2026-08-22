@@ -1,8 +1,12 @@
-import { lazy, Suspense, useState, useCallback } from "react";
+import { lazy, Suspense, useState, useCallback, useEffect } from "react";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { ResourceShifts } from "@/types/generated/models";
 import { useGetShifts } from "../api/get-shifts";
-import { useGetStaffsForShift } from "../api/get-staffs";
+import {
+  OCCUPATION_FILTER_ALL,
+  filterStaffsByOccupation,
+  useGetStaffsForShift,
+} from "../api/get-staffs";
 import { ShiftCalendar as ShiftCalendarGrid } from "../components/ShiftCalendar/ShiftCalendar";
 import { usePermission } from "@/hooks/use-permission";
 import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
@@ -38,8 +42,10 @@ export function ShiftCalendarPage() {
   const [yearMonth, setYearMonth] = useState<string>(getInitialYearMonth);
   const { canCreate, canEdit, canDelete } = usePermission("shifts");
   const [selectedStaffId, setSelectedStaffId] = useState<string>("all");
+  const [selectedOccupationId, setSelectedOccupationId] = useState<string>(OCCUPATION_FILTER_ALL);
   const [holidayModal, setHolidayModal] = useState<HolidayModalState>(CLOSED_HOLIDAY_MODAL);
 
+  // 表示フィルタのみ。職種フィルタ時も月次シフトは全員分取得（未表示行のデータを消さない）
   const shiftsQuery = useGetShifts({
     date: yearMonth,
     staff_id: selectedStaffId !== "all" ? selectedStaffId : undefined,
@@ -60,6 +66,10 @@ export function ShiftCalendarPage() {
     setSelectedStaffId(staffId);
   }, []);
 
+  const handleOccupationChange = useCallback((occupationId: string) => {
+    setSelectedOccupationId(occupationId);
+  }, []);
+
   const handleDateHeaderClick = useCallback((dateStr: string) => {
     setHolidayModal({ open: true, date: dateStr });
   }, []);
@@ -71,6 +81,17 @@ export function ShiftCalendarPage() {
   const shifts = shiftsQuery.data ?? [];
   const staffs = staffsQuery.data ?? [];
   const holidays = holidaysQuery.data ?? [];
+
+  // 職種変更で選中スタッフが候補外になったら「全スタッフ」へ戻す
+  useEffect(() => {
+    if (selectedStaffId === "all") return;
+    const stillVisible = filterStaffsByOccupation(staffs, selectedOccupationId).some(
+      (s) => s.id === selectedStaffId,
+    );
+    if (!stillVisible) {
+      setSelectedStaffId("all");
+    }
+  }, [selectedOccupationId, selectedStaffId, staffs]);
 
   // 定休日を date → ClinicHoliday のマップに変換（モーダルで existing 取得用）
   const holidayMap = new Map<string, ClinicHoliday>(holidays.map((h) => [h.date, h]));
@@ -100,12 +121,14 @@ export function ShiftCalendarPage() {
         staffs={staffs}
         holidays={holidays}
         selectedStaffId={selectedStaffId}
+        selectedOccupationId={selectedOccupationId}
         canCreate={canCreate}
         canEdit={canEdit}
         canDelete={canDelete}
         onPrevMonth={handlePrevMonth}
         onNextMonth={handleNextMonth}
         onStaffChange={handleStaffChange}
+        onOccupationChange={handleOccupationChange}
         onDateHeaderClick={canCreate ? handleDateHeaderClick : undefined}
       />
 

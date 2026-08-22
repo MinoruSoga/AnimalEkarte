@@ -3,8 +3,11 @@ import { render, screen } from "@testing-library/react";
 import { ShiftCalendar, type StaffItem } from "./ShiftCalendar";
 import type { Shift } from "../../types";
 import type { ClinicHoliday } from "../../api/clinic-holidays";
+import { OCCUPATION_FILTER_ALL, OCCUPATION_FILTER_UNSET } from "../../api/get-staffs";
 
-const STAFFS: StaffItem[] = [{ id: "s1", name: "スタッフA" }];
+const STAFFS: StaffItem[] = [
+  { id: "s1", name: "スタッフA", occupationId: "1", occupationName: "医師" },
+];
 
 function renderCalendar(yearMonth: string, overrides: Partial<React.ComponentProps<typeof ShiftCalendar>> = {}) {
   return render(
@@ -14,12 +17,14 @@ function renderCalendar(yearMonth: string, overrides: Partial<React.ComponentPro
       staffs={overrides.staffs ?? STAFFS}
       holidays={overrides.holidays ?? ([] as ClinicHoliday[])}
       selectedStaffId={overrides.selectedStaffId ?? "all"}
+      selectedOccupationId={overrides.selectedOccupationId ?? OCCUPATION_FILTER_ALL}
       canCreate={overrides.canCreate ?? true}
       canEdit={overrides.canEdit ?? true}
       canDelete={overrides.canDelete ?? true}
       onPrevMonth={overrides.onPrevMonth ?? vi.fn()}
       onNextMonth={overrides.onNextMonth ?? vi.fn()}
       onStaffChange={overrides.onStaffChange ?? vi.fn()}
+      onOccupationChange={overrides.onOccupationChange ?? vi.fn()}
       onDateHeaderClick={overrides.onDateHeaderClick ?? vi.fn()}
     />,
   );
@@ -88,6 +93,7 @@ describe("ShiftCalendar staffs 表示", () => {
     renderCalendar("2026-01");
 
     expect(screen.getByRole("combobox", { name: "スタッフ絞り込み" })).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "職種絞り込み" })).toBeInTheDocument();
   });
 
   it("staffs が空のとき空状態メッセージを表示する", () => {
@@ -97,14 +103,36 @@ describe("ShiftCalendar staffs 表示", () => {
 
   it("selectedStaffId 指定時は該当スタッフのみ表示する", () => {
     const staffs: StaffItem[] = [
-      { id: "s1", name: "スタッフA" },
-      { id: "s2", name: "スタッフB" },
+      { id: "s1", name: "スタッフA", occupationId: "1", occupationName: "医師" },
+      { id: "s2", name: "スタッフB", occupationId: "1", occupationName: "医師" },
     ];
     renderCalendar("2026-01", { staffs, selectedStaffId: "s2" });
 
-    // "スタッフB" は選択済みフィルタ(SearchableSelect のトリガー表示)と行ラベルの
-    // 2箇所に出現しうるため、行としての存在は getAllByText の件数で確認する。
     expect(screen.queryByText("スタッフA")).not.toBeInTheDocument();
     expect(screen.getAllByText("スタッフB").length).toBeGreaterThan(0);
+  });
+
+  it("職種フィルタで該当職種のスタッフ行だけ出す", () => {
+    const staffs: StaffItem[] = [
+      { id: "s1", name: "医師A", occupationId: "10", occupationName: "医師" },
+      { id: "s2", name: "看護B", occupationId: "20", occupationName: "看護師" },
+      { id: "s3", name: "未設定C", occupationId: null, occupationName: null },
+    ];
+    renderCalendar("2026-01", { staffs, selectedOccupationId: "10" });
+
+    expect(screen.getAllByText("医師A").length).toBeGreaterThan(0);
+    expect(screen.queryByText("看護B")).not.toBeInTheDocument();
+    expect(screen.queryByText("未設定C")).not.toBeInTheDocument();
+  });
+
+  it("職種未設定フィルタで occupation 無しのスタッフだけ出す", () => {
+    const staffs: StaffItem[] = [
+      { id: "s1", name: "医師A", occupationId: "10", occupationName: "医師" },
+      { id: "s3", name: "未設定C", occupationId: null, occupationName: null },
+    ];
+    renderCalendar("2026-01", { staffs, selectedOccupationId: OCCUPATION_FILTER_UNSET });
+
+    expect(screen.queryByText("医師A")).not.toBeInTheDocument();
+    expect(screen.getAllByText("未設定C").length).toBeGreaterThan(0);
   });
 });
