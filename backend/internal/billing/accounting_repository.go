@@ -69,8 +69,12 @@ func applyBillingPaymentMethodFilter(q *gorm.DB, method *string, op string) *gor
 }
 
 func applyBillingOwnerPetSearch(q *gorm.DB, search string) *gorm.DB {
-	rawPattern := "%" + textsearch.EscapeLike(search) + "%"
-	normalizedPattern := "%" + textsearch.EscapeLike(textsearch.NormalizeKana(search)) + "%"
+	qSearch := textsearch.NormalizeQuerySpaces(search)
+	if qSearch == "" {
+		return q.Where("1 = 0")
+	}
+	rawPattern := "%" + textsearch.EscapeLike(qSearch) + "%"
+	normalizedPattern := "%" + textsearch.EscapeLike(textsearch.NormalizeKana(qSearch)) + "%"
 	return q.Where(
 		`(
 			EXISTS (
@@ -80,6 +84,7 @@ func applyBillingOwnerPetSearch(q *gorm.DB, search string) *gorm.DB {
 				  AND o.deleted_at IS NULL
 				  AND (
 				    o.name ILIKE ? ESCAPE '\'
+				    OR translate(o.name, ?, ?) ILIKE ? ESCAPE '\'
 				    OR translate(o.name, ?, ?) ILIKE ? ESCAPE '\'
 				    OR translate(COALESCE(o.name_kana, ''), ?, ?) ILIKE ? ESCAPE '\'
 				  )
@@ -92,16 +97,19 @@ func applyBillingOwnerPetSearch(q *gorm.DB, search string) *gorm.DB {
 				  AND (
 				    p.name ILIKE ? ESCAPE '\'
 				    OR translate(p.name, ?, ?) ILIKE ? ESCAPE '\'
+				    OR translate(p.name, ?, ?) ILIKE ? ESCAPE '\'
 				    OR translate(COALESCE(p.name_kana, ''), ?, ?) ILIKE ? ESCAPE '\'
 				  )
 			)
 		)`,
 		rawPattern,
-		textsearch.KanaSourceChars, textsearch.KanaTargetChars, normalizedPattern,
-		textsearch.KanaSourceChars, textsearch.KanaTargetChars, normalizedPattern,
+		textsearch.SpaceSourceChars, textsearch.SpaceTargetChars, rawPattern,
+		textsearch.KanaAndSpaceSourceChars, textsearch.KanaAndSpaceTargetChars, normalizedPattern,
+		textsearch.KanaAndSpaceSourceChars, textsearch.KanaAndSpaceTargetChars, normalizedPattern,
 		rawPattern,
-		textsearch.KanaSourceChars, textsearch.KanaTargetChars, normalizedPattern,
-		textsearch.KanaSourceChars, textsearch.KanaTargetChars, normalizedPattern,
+		textsearch.SpaceSourceChars, textsearch.SpaceTargetChars, rawPattern,
+		textsearch.KanaAndSpaceSourceChars, textsearch.KanaAndSpaceTargetChars, normalizedPattern,
+		textsearch.KanaAndSpaceSourceChars, textsearch.KanaAndSpaceTargetChars, normalizedPattern,
 	)
 }
 
@@ -339,8 +347,8 @@ func (r *accountingRepository) findBillingsWithFilters(ctx context.Context, q *g
 	if filters.EndDate != nil {
 		q = q.Where("scheduled_date <= ?", *filters.EndDate)
 	}
-	if search := strings.TrimSpace(filters.Search); search != "" {
-		q = applyBillingOwnerPetSearch(q, search)
+	if filters.Search != "" {
+		q = applyBillingOwnerPetSearch(q, filters.Search)
 	}
 	q = applyBillingPaymentMethodFilter(q, filters.PaymentMethod, filters.PaymentMethodOp)
 	if err := q.Count(&total).Error; err != nil {

@@ -194,6 +194,45 @@ func TestVaccinationRepository_FindAll(t *testing.T) {
 	})
 }
 
+func TestVaccinationRepository_FindAll_OwnerNameIdeographicSpaceFourWay(t *testing.T) {
+	db := setupVaccinationRepoTestDB(t)
+	repo := NewVaccinationRepository(db)
+	ctx := context.Background()
+	const clinicA, clinicB = uint64(1), uint64(2)
+	ensureVaccinationTestClinics(t, db, clinicA, clinicB)
+
+	tests := []struct {
+		name       string
+		storedName string
+		query      string
+	}{
+		{name: "DB fullwidth × query fullwidth", storedName: "接種全角全角姓　接種全角全角名", query: "接種全角全角姓　接種全角全角名"},
+		{name: "DB fullwidth × query halfwidth", storedName: "接種全角半角姓　接種全角半角名", query: "接種全角半角姓 接種全角半角名"},
+		{name: "DB halfwidth × query fullwidth", storedName: "接種半角全角姓 接種半角全角名", query: "接種半角全角姓　接種半角全角名"},
+		{name: "DB halfwidth × query halfwidth", storedName: "接種半角半角姓 接種半角半角名", query: "接種半角半角姓 接種半角半角名"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			owner := makeTestOwner(t, db, clinicA, tt.storedName)
+			pet := makeVaccinationRepoTestPet(t, db, clinicA, owner.ID, "vaccination-space-pet-"+tt.name)
+			vaccine := makeVaccineMaster(t, db, clinicA, "vaccination-space-vaccine-"+tt.name)
+			rec := makeVaccinationRecord(t, db, clinicA, pet.ID, vaccine.ID)
+
+			foreignOwner := makeTestOwner(t, db, clinicB, tt.storedName)
+			foreignPet := makeVaccinationRepoTestPet(t, db, clinicB, foreignOwner.ID, "vaccination-space-foreign-pet-"+tt.name)
+			foreignVaccine := makeVaccineMaster(t, db, clinicB, "vaccination-space-foreign-vaccine-"+tt.name)
+			_ = makeVaccinationRecord(t, db, clinicB, foreignPet.ID, foreignVaccine.ID)
+
+			got, total, err := repo.FindAll(ctx, clinicA, nil, nil, nil, nil, tt.query, 1, 100)
+			require.NoError(t, err)
+			require.Equal(t, int64(1), total)
+			require.Len(t, got, 1)
+			require.Equal(t, rec.ID, got[0].ID)
+		})
+	}
+}
+
 func TestVaccinationRepository_FindByOwner(t *testing.T) {
 	db := setupVaccinationRepoTestDB(t)
 	repo := NewVaccinationRepository(db)

@@ -211,14 +211,23 @@ func (r *medicalRecordRepository) FindAll(ctx context.Context, clinicIDs []uint6
 		if filters.Search != "" {
 			// raw name の同一表記一致は既存の trgm index を利用できる形で残し、
 			// translate() 枝では検索語と name/name_kana をひらがなに揃えて表記差も吸収する。
-			rawPattern := "%" + textsearch.EscapeLike(filters.Search) + "%"
-			normalizedPattern := "%" + textsearch.EscapeLike(textsearch.NormalizeKana(filters.Search)) + "%"
+			// U+3000 は query 側 NormalizeQuerySpaces と column 側 translate(space / kana+space)
+			// で半角空白と相互に一致させる (BUG-001)。空白のみは fail-closed で 0 件。
+			qSearch := textsearch.NormalizeQuerySpaces(filters.Search)
+			if qSearch == "" {
+				q = q.Where("1 = 0")
+				return q
+			}
+			rawPattern := "%" + textsearch.EscapeLike(qSearch) + "%"
+			normalizedPattern := "%" + textsearch.EscapeLike(textsearch.NormalizeKana(qSearch)) + "%"
 			q = q.Where(
 				`(medical_records.record_no ILIKE ? ESCAPE '\'`+
 					` OR owners.name ILIKE ? ESCAPE '\'`+
 					` OR translate(owners.name, ?, ?) ILIKE ? ESCAPE '\'`+
+					` OR translate(owners.name, ?, ?) ILIKE ? ESCAPE '\'`+
 					` OR translate(owners.name_kana, ?, ?) ILIKE ? ESCAPE '\'`+
 					` OR pets.name ILIKE ? ESCAPE '\'`+
+					` OR translate(pets.name, ?, ?) ILIKE ? ESCAPE '\'`+
 					` OR translate(pets.name, ?, ?) ILIKE ? ESCAPE '\'`+
 					` OR translate(pets.name_kana, ?, ?) ILIKE ? ESCAPE '\'`+
 					` OR inquiries.chief_complaint ILIKE ? ESCAPE '\'`+
@@ -255,18 +264,20 @@ func (r *medicalRecordRepository) FindAll(ctx context.Context, clinicIDs []uint6
 					` AND translate(searched_inventory.name, ?, ?) ILIKE ? ESCAPE '\'))))`,
 				normalizedPattern,
 				rawPattern,
-				textsearch.KanaSourceChars, textsearch.KanaTargetChars, normalizedPattern,
-				textsearch.KanaSourceChars, textsearch.KanaTargetChars, normalizedPattern,
+				textsearch.SpaceSourceChars, textsearch.SpaceTargetChars, rawPattern,
+				textsearch.KanaAndSpaceSourceChars, textsearch.KanaAndSpaceTargetChars, normalizedPattern,
+				textsearch.KanaAndSpaceSourceChars, textsearch.KanaAndSpaceTargetChars, normalizedPattern,
 				rawPattern,
-				textsearch.KanaSourceChars, textsearch.KanaTargetChars, normalizedPattern,
-				textsearch.KanaSourceChars, textsearch.KanaTargetChars, normalizedPattern,
+				textsearch.SpaceSourceChars, textsearch.SpaceTargetChars, rawPattern,
+				textsearch.KanaAndSpaceSourceChars, textsearch.KanaAndSpaceTargetChars, normalizedPattern,
+				textsearch.KanaAndSpaceSourceChars, textsearch.KanaAndSpaceTargetChars, normalizedPattern,
 				normalizedPattern,
-				textsearch.KanaSourceChars, textsearch.KanaTargetChars, normalizedPattern,
-				textsearch.KanaSourceChars, textsearch.KanaTargetChars, normalizedPattern,
-				textsearch.KanaSourceChars, textsearch.KanaTargetChars, normalizedPattern,
-				textsearch.KanaSourceChars, textsearch.KanaTargetChars, normalizedPattern,
-				textsearch.KanaSourceChars, textsearch.KanaTargetChars, normalizedPattern,
-				textsearch.KanaSourceChars, textsearch.KanaTargetChars, normalizedPattern,
+				textsearch.KanaAndSpaceSourceChars, textsearch.KanaAndSpaceTargetChars, normalizedPattern,
+				textsearch.KanaAndSpaceSourceChars, textsearch.KanaAndSpaceTargetChars, normalizedPattern,
+				textsearch.KanaAndSpaceSourceChars, textsearch.KanaAndSpaceTargetChars, normalizedPattern,
+				textsearch.KanaAndSpaceSourceChars, textsearch.KanaAndSpaceTargetChars, normalizedPattern,
+				textsearch.KanaAndSpaceSourceChars, textsearch.KanaAndSpaceTargetChars, normalizedPattern,
+				textsearch.KanaAndSpaceSourceChars, textsearch.KanaAndSpaceTargetChars, normalizedPattern,
 			)
 		}
 		return q

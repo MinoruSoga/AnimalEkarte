@@ -69,22 +69,31 @@ func (r *vaccinationRepository) FindAll(ctx context.Context, clinicID uint64, pe
 			q = q.Where("vaccinations.date <= ?", *endDate)
 		}
 		if hasSearch {
+			qSearch := textsearch.NormalizeQuerySpaces(search)
+			if qSearch == "" {
+				q = q.Where("1 = 0")
+				return q
+			}
 			q = q.Joins("LEFT JOIN vaccines ON vaccines.id = vaccinations.vaccine_id AND vaccines.clinic_id = vaccinations.clinic_id AND vaccines.deleted_at IS NULL")
-			rawPattern := "%" + textsearch.EscapeLike(search) + "%"
-			normalizedPattern := "%" + textsearch.EscapeLike(textsearch.NormalizeKana(search)) + "%"
+			rawPattern := "%" + textsearch.EscapeLike(qSearch) + "%"
+			normalizedPattern := "%" + textsearch.EscapeLike(textsearch.NormalizeKana(qSearch)) + "%"
 			q = q.Where(
 				`(pets.name ILIKE ? ESCAPE '\'`+
 					` OR translate(pets.name, ?, ?) ILIKE ? ESCAPE '\'`+
+					` OR translate(pets.name, ?, ?) ILIKE ? ESCAPE '\'`+
 					` OR owners.name ILIKE ? ESCAPE '\'`+
+					` OR translate(owners.name, ?, ?) ILIKE ? ESCAPE '\'`+
 					` OR translate(owners.name, ?, ?) ILIKE ? ESCAPE '\'`+
 					` OR vaccines.name ILIKE ? ESCAPE '\'`+
 					` OR translate(vaccines.name, ?, ?) ILIKE ? ESCAPE '\')`,
 				rawPattern,
-				textsearch.KanaSourceChars, textsearch.KanaTargetChars, normalizedPattern,
+				textsearch.SpaceSourceChars, textsearch.SpaceTargetChars, rawPattern,
+				textsearch.KanaAndSpaceSourceChars, textsearch.KanaAndSpaceTargetChars, normalizedPattern,
 				rawPattern,
-				textsearch.KanaSourceChars, textsearch.KanaTargetChars, normalizedPattern,
+				textsearch.SpaceSourceChars, textsearch.SpaceTargetChars, rawPattern,
+				textsearch.KanaAndSpaceSourceChars, textsearch.KanaAndSpaceTargetChars, normalizedPattern,
 				rawPattern,
-				textsearch.KanaSourceChars, textsearch.KanaTargetChars, normalizedPattern,
+				textsearch.KanaAndSpaceSourceChars, textsearch.KanaAndSpaceTargetChars, normalizedPattern,
 			)
 		}
 		return q

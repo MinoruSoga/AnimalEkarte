@@ -98,12 +98,14 @@ func (r *repository) SearchOwners(ctx context.Context, clinicIDs []uint64, query
 	err := r.conn(ctx).
 		Scopes(persistence.ClinicScopeIn(clinicIDs)).
 		Where(
-			`(name ILIKE ? OR name_kana ILIKE ? OR phone ILIKE ?
-			  OR translate(name, ?, ?) ILIKE ?
-			  OR translate(name_kana, ?, ?) ILIKE ?)`,
-			rawPattern, rawPattern, rawPattern,
-			textsearch.KanaSourceChars, textsearch.KanaTargetChars, normalizedPattern,
-			textsearch.KanaSourceChars, textsearch.KanaTargetChars, normalizedPattern,
+			`(translate(name, ?, ?) ILIKE ? ESCAPE '\'
+			  OR name_kana ILIKE ? ESCAPE '\' OR phone ILIKE ? ESCAPE '\'
+			  OR translate(name, ?, ?) ILIKE ? ESCAPE '\'
+			  OR translate(name_kana, ?, ?) ILIKE ? ESCAPE '\')`,
+			textsearch.SpaceSourceChars, textsearch.SpaceTargetChars, rawPattern,
+			rawPattern, rawPattern,
+			textsearch.KanaAndSpaceSourceChars, textsearch.KanaAndSpaceTargetChars, normalizedPattern,
+			textsearch.KanaAndSpaceSourceChars, textsearch.KanaAndSpaceTargetChars, normalizedPattern,
 		).
 		Order("clinic_id ASC, id ASC").
 		Limit(limit).
@@ -133,12 +135,14 @@ func (r *repository) SearchPets(ctx context.Context, clinicIDs []uint64, query s
 	err := r.conn(ctx).
 		Scopes(persistence.ClinicScopeIn(clinicIDs)).
 		Where(
-			`(name ILIKE ? OR name_kana ILIKE ? OR pet_number ILIKE ?
-			  OR translate(name, ?, ?) ILIKE ?
-			  OR translate(name_kana, ?, ?) ILIKE ?)`,
-			rawPattern, rawPattern, rawPattern,
-			textsearch.KanaSourceChars, textsearch.KanaTargetChars, normalizedPattern,
-			textsearch.KanaSourceChars, textsearch.KanaTargetChars, normalizedPattern,
+			`(translate(name, ?, ?) ILIKE ? ESCAPE '\'
+			  OR name_kana ILIKE ? ESCAPE '\' OR pet_number ILIKE ? ESCAPE '\'
+			  OR translate(name, ?, ?) ILIKE ? ESCAPE '\'
+			  OR translate(name_kana, ?, ?) ILIKE ? ESCAPE '\')`,
+			textsearch.SpaceSourceChars, textsearch.SpaceTargetChars, rawPattern,
+			rawPattern, rawPattern,
+			textsearch.KanaAndSpaceSourceChars, textsearch.KanaAndSpaceTargetChars, normalizedPattern,
+			textsearch.KanaAndSpaceSourceChars, textsearch.KanaAndSpaceTargetChars, normalizedPattern,
 		).
 		Order("clinic_id ASC, id ASC").
 		Limit(limit).

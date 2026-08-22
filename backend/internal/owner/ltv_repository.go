@@ -96,14 +96,20 @@ func (r *ltvRepository) FindOwnerLTV(ctx context.Context, params *FindOwnerLTVPa
 	}
 
 	if params.Search != "" {
-		// translate() で DB 列のカタカナをひらがなに正規化し、NormalizeKana で検索語も統一する。
-		where += " AND translate(o.name, ?, ?) ILIKE ? ESCAPE '\\'"
-		whereArgs = append(
-			whereArgs,
-			textsearch.KanaSourceChars,
-			textsearch.KanaTargetChars,
-			"%"+textsearch.EscapeLike(textsearch.NormalizeKana(params.Search))+"%",
-		)
+		// translate() で DB 列のカタカナをひらがなに、U+3000 を ASCII 空白に正規化し、
+		// 検索語も NormalizeQuerySpaces + NormalizeKana で同じ表現に揃える (BUG-001)。
+		qSearch := textsearch.NormalizeQuerySpaces(params.Search)
+		if qSearch == "" {
+			where += " AND 1 = 0"
+		} else {
+			where += " AND translate(o.name, ?, ?) ILIKE ? ESCAPE '\\'"
+			whereArgs = append(
+				whereArgs,
+				textsearch.KanaAndSpaceSourceChars,
+				textsearch.KanaAndSpaceTargetChars,
+				"%"+textsearch.EscapeLike(textsearch.NormalizeKana(qSearch))+"%",
+			)
+		}
 	}
 
 	// 期間決定（AGG-BE-001/002/003）

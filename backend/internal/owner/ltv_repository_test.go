@@ -165,6 +165,41 @@ func TestFindOwnerLTV_SearchEscapesLikeWildcards(t *testing.T) {
 	assert.Equal(t, literalPercentOwner.ID, rows[0].OwnerID)
 }
 
+func TestFindOwnerLTV_SearchIdeographicSpaceFourWay(t *testing.T) {
+	db := setupLTVTestDB(t)
+	repo := newLTVTestRepository(t, db)
+	ctx := context.Background()
+	clinicID := uint64(1)
+
+	tests := []struct {
+		name       string
+		storedName string
+		query      string
+	}{
+		{name: "DB fullwidth × query fullwidth", storedName: "LTV全角全角姓　LTV全角全角名", query: "LTV全角全角姓　LTV全角全角名"},
+		{name: "DB fullwidth × query halfwidth", storedName: "LTV全角半角姓　LTV全角半角名", query: "LTV全角半角姓 LTV全角半角名"},
+		{name: "DB halfwidth × query fullwidth", storedName: "LTV半角全角姓 LTV半角全角名", query: "LTV半角全角姓　LTV半角全角名"},
+		{name: "DB halfwidth × query halfwidth", storedName: "LTV半角半角姓 LTV半角半角名", query: "LTV半角半角姓 LTV半角半角名"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			owner := &model.Owner{ClinicID: clinicID, Name: tt.storedName}
+			require.NoError(t, db.WithContext(ctx).Create(owner).Error)
+
+			rows, err := repo.FindOwnerLTV(ctx, &FindOwnerLTVParams{
+				ClinicID:       clinicID,
+				Search:         tt.query,
+				IncludeZero:    true,
+				IncludeNoVisit: true,
+			})
+			require.NoError(t, err)
+			require.Len(t, rows, 1)
+			assert.Equal(t, owner.ID, rows[0].OwnerID)
+		})
+	}
+}
+
 func TestFindOwnerLTV_SearchNormalizesKana(t *testing.T) {
 	db := setupLTVTestDB(t)
 	repo := newLTVTestRepository(t, db)

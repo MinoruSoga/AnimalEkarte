@@ -142,16 +142,19 @@ func (r *repository) FindAll(ctx context.Context, clinicIDs []uint64, filters Pe
 			// 空白除去形は「姓 名」入力の半角/全角/連続空白差を順序保持で吸収する（BUG-001）。
 			// 飼主No は独立カラムではなく owners.id の text 一致。pet_number は文字列列。
 			// いずれもユーザ入力を数値パースせずバインドする。
-			rawPattern := "%" + textsearch.EscapeLike(filters.Search) + "%"
-			normalizedPattern := "%" + textsearch.EscapeLike(textsearch.NormalizeKana(filters.Search)) + "%"
+			qSearch := textsearch.NormalizeQuerySpaces(filters.Search)
+			rawPattern := "%" + textsearch.EscapeLike(qSearch) + "%"
+			normalizedPattern := "%" + textsearch.EscapeLike(textsearch.NormalizeKana(qSearch)) + "%"
 			compactPattern := "%" + textsearch.EscapeLike(compactSearch) + "%"
 			compactNormalizedPattern := "%" + textsearch.EscapeLike(textsearch.NormalizeKana(compactSearch)) + "%"
 			trimmedSearch := strings.TrimSpace(filters.Search)
 			q = q.Where(
 				`(pets.name ILIKE ? ESCAPE '\'`+
 					` OR translate(pets.name, ?, ?) ILIKE ? ESCAPE '\'`+
+					` OR translate(pets.name, ?, ?) ILIKE ? ESCAPE '\'`+
 					` OR translate(pets.name_kana, ?, ?) ILIKE ? ESCAPE '\'`+
 					` OR owners.name ILIKE ? ESCAPE '\'`+
+					` OR translate(owners.name, ?, ?) ILIKE ? ESCAPE '\'`+
 					` OR translate(owners.name, ?, ?) ILIKE ? ESCAPE '\'`+
 					` OR translate(owners.name_kana, ?, ?) ILIKE ? ESCAPE '\'`+
 					` OR owners.phone ILIKE ? ESCAPE '\'`+
@@ -162,14 +165,16 @@ func (r *repository) FindAll(ctx context.Context, clinicIDs []uint64, filters Pe
 					` OR CAST(owners.id AS text) = ?`+
 					` OR pets.pet_number ILIKE ? ESCAPE '\')`,
 				rawPattern,
-				textsearch.KanaSourceChars, textsearch.KanaTargetChars, normalizedPattern,
-				textsearch.KanaSourceChars, textsearch.KanaTargetChars, normalizedPattern,
+				textsearch.SpaceSourceChars, textsearch.SpaceTargetChars, rawPattern,
+				textsearch.KanaAndSpaceSourceChars, textsearch.KanaAndSpaceTargetChars, normalizedPattern,
+				textsearch.KanaAndSpaceSourceChars, textsearch.KanaAndSpaceTargetChars, normalizedPattern,
 				rawPattern,
-				textsearch.KanaSourceChars, textsearch.KanaTargetChars, normalizedPattern,
-				textsearch.KanaSourceChars, textsearch.KanaTargetChars, normalizedPattern,
+				textsearch.SpaceSourceChars, textsearch.SpaceTargetChars, rawPattern,
+				textsearch.KanaAndSpaceSourceChars, textsearch.KanaAndSpaceTargetChars, normalizedPattern,
+				textsearch.KanaAndSpaceSourceChars, textsearch.KanaAndSpaceTargetChars, normalizedPattern,
 				normalizedPattern,
 				compactPattern,
-				textsearch.KanaSourceChars, textsearch.KanaTargetChars, compactNormalizedPattern,
+				textsearch.KanaAndSpaceSourceChars, textsearch.KanaAndSpaceTargetChars, compactNormalizedPattern,
 				trimmedSearch,
 				"%"+textsearch.EscapeLike(trimmedSearch)+"%",
 			)
