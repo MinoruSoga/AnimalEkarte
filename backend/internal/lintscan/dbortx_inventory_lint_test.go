@@ -145,17 +145,21 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"billing/billing_confirmation_repository.go|billingConfirmationRepository.LockActiveStaffAssignment": {},
 	"billing/billing_confirmation_repository.go|billingConfirmationRepository.Update":                    {},
 	// billing_item (R1-1)
-	"billing/billing_item_repository.go|billingItemRepository.Create":              {},
-	"billing/billing_item_repository.go|billingItemRepository.Delete":              {},
-	"billing/billing_item_repository.go|billingItemRepository.FindByBillingID":     {},
-	"billing/billing_item_repository.go|billingItemRepository.FindByID":            {},
-	"billing/billing_item_repository.go|billingItemRepository.Update":              {},
+	"billing/billing_item_repository.go|billingItemRepository.Create":          {},
+	"billing/billing_item_repository.go|billingItemRepository.Delete":          {},
+	"billing/billing_item_repository.go|billingItemRepository.FindByBillingID": {},
+	"billing/billing_item_repository.go|billingItemRepository.FindByID":        {},
+	"billing/billing_item_repository.go|billingItemRepository.Update":          {},
 	// UpdateBillingTotals is a thin wrapper; ambient-tx body is updateBillingTotals.
 	"billing/billing_item_repository.go|billingItemRepository.updateBillingTotals": {},
 	// Create validates every request-derived FK under shared locks in the same
 	// transaction. Runtime: billing_item_reference_repository_test.go.
 	"billing/billing_item_repository.go|billingItemRepository.ValidateCreateReferences":           {},
 	"billing/billing_item_repository.go|billingItemRepository.ValidateVaccinationCreateReference": {},
+	// AE-LAB exam billing FK validation. TxFromContext fail-closed + exam_types SHARE lock.
+	// Runtime: TestBillingItemRepository_ValidateExamCreateReference_FailClosedWithoutAmbientTx
+	// and TestBillingItemRepository_ValidateExamCreateReferenceLocksExamTypeInAmbientTransaction.
+	"billing/billing_item_exam.go|billingItemRepository.ValidateExamCreateReference": {},
 	// campaign
 	"billing/campaign_repository.go|campaignRepository.FindAllApplicableForItem": {}, // BE8-4 batch9: moved from campaign_repository.go
 	"billing/campaign_repository.go|campaignRepository.FindApplicableForItem":    {}, // BE8-4 batch9: moved from campaign_repository.go
@@ -172,6 +176,8 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"lstep/lstep_settings_repository.go|lstepSettingsRepository.FindByClinicAndService":   {},
 	"lstep/lstep_settings_repository.go|lstepSettingsRepository.Upsert":                   {},
 	"lstep/lstep_settings_repository.go|lstepSettingsRepository.DeleteByClinicAndService": {},
+	// Runtime: TestLstepSettingsRepository_DeleteByClinicServiceAndKey_RollsBackWhenAmbientTxFails
+	"lstep/lstep_settings_repository.go|lstepSettingsRepository.DeleteByClinicServiceAndKey": {},
 	// Runtime: TestLstepSettingsRepository_FindCredentialByClinicServiceKey_SeesUncommittedUpsert
 	"lstep/lstep_settings_repository.go|lstepSettingsRepository.FindCredentialByClinicServiceKey":    {},
 	"lstep/lstep_sync_settings_repository.go|lstepSyncSettingsRepository.FindByClinicID":             {},
@@ -293,23 +299,23 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 
 	// TASK-032: lab import job/event/receipt/retraction repos participate in ambient tx.
 	// Lock/CAS methods require ambient tx (no base DB fallback).
-	"medicalrecord/lab_import_repository.go|labImportJobRepository.Create":                       {},
-	"medicalrecord/lab_import_repository.go|labImportJobRepository.Update":                       {},
-	"medicalrecord/lab_import_repository.go|labImportJobRepository.FindByID":                     {},
-	"medicalrecord/lab_import_repository.go|labImportJobRepository.LockByIDForUpdate":            {},
-	"medicalrecord/lab_import_repository.go|labImportJobRepository.CompareAndSetStatus":          {},
-	"medicalrecord/lab_import_repository.go|labImportEventRepository.Create":                     {},
-	"medicalrecord/lab_import_repository.go|labImportEventRepository.FindByJob":                  {},
-	"medicalrecord/lab_import_repository.go|labImportEventRepository.HasEventType":               {},
-	"medicalrecord/lab_import_repository.go|labImportUsageReceiptRepository.Create":              {},
-	"medicalrecord/lab_import_repository.go|labImportUsageReceiptRepository.LockByJobForUpdate":  {},
-	"medicalrecord/lab_import_repository.go|labImportUsageReceiptRepository.CountByJob":          {},
+	"medicalrecord/lab_import_repository.go|labImportJobRepository.Create":                            {},
+	"medicalrecord/lab_import_repository.go|labImportJobRepository.Update":                            {},
+	"medicalrecord/lab_import_repository.go|labImportJobRepository.FindByID":                          {},
+	"medicalrecord/lab_import_repository.go|labImportJobRepository.LockByIDForUpdate":                 {},
+	"medicalrecord/lab_import_repository.go|labImportJobRepository.CompareAndSetStatus":               {},
+	"medicalrecord/lab_import_repository.go|labImportEventRepository.Create":                          {},
+	"medicalrecord/lab_import_repository.go|labImportEventRepository.FindByJob":                       {},
+	"medicalrecord/lab_import_repository.go|labImportEventRepository.HasEventType":                    {},
+	"medicalrecord/lab_import_repository.go|labImportUsageReceiptRepository.Create":                   {},
+	"medicalrecord/lab_import_repository.go|labImportUsageReceiptRepository.LockByJobForUpdate":       {},
+	"medicalrecord/lab_import_repository.go|labImportUsageReceiptRepository.CountByJob":               {},
 	"medicalrecord/lab_import_repository.go|labImportUsageReceiptRepository.CountManualMutationByJob": {},
 	"medicalrecord/lab_import_repository.go|labImportRevertReceiptRepository.FindByIdempotencyKey":    {},
 	"medicalrecord/lab_import_repository.go|labImportRevertReceiptRepository.LockByIdempotencyKey":    {},
 	"medicalrecord/lab_import_repository.go|labImportRevertReceiptRepository.Create":                  {},
 	"medicalrecord/lab_import_repository.go|labImportRetractionRepository.CreateWithItems":            {},
-	"medicalrecord/lab_import_repository.go|LabImportDuplicateCheckerDB.IsDuplicate":                 {},
+	"medicalrecord/lab_import_repository.go|LabImportDuplicateCheckerDB.IsDuplicate":                  {},
 	// TASK-032 revert service helpers that read under ambient tx.
 	"medicalrecord/lab_import_revert_service.go|labImportRevertService.lockLinkedExamsByJob": {},
 	"medicalrecord/lab_import_revert_service.go|labImportRevertService.assertRevertSafe":     {},
@@ -376,8 +382,12 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"medicalrecord/medical_record_repository.go|medicalRecordRepository.Create":                          {},
 	"medicalrecord/medical_record_repository.go|medicalRecordRepository.Delete":                          {}, // draft-only CAS soft delete must share finalization transactions
 	"medicalrecord/medical_record_repository.go|medicalRecordRepository.FindByAppointmentID":             {}, // appointment row-lock serialization proof in medicalrecord package
-	"medicalrecord/medical_record_repository.go|medicalRecordRepository.Update":                          {},
-	"medicalrecord/medical_record_repository.go|medicalRecordRepository.findMedicalRecordByID":           {},
+	// F-1: delete takes appointments FOR UPDATE before medical_records. Runtime:
+	// TestMedicalRecordService_DeleteWaitsOnAppointmentRowLockBeforeInConsultationCommit
+	// TestMedicalRecordRepository_LockLinkedAppointmentForUpdate_WaitsOnAppointmentRowLock
+	"medicalrecord/medical_record_repository.go|medicalRecordRepository.LockLinkedAppointmentForUpdate": {},
+	"medicalrecord/medical_record_repository.go|medicalRecordRepository.Update":                         {},
+	"medicalrecord/medical_record_repository.go|medicalRecordRepository.findMedicalRecordByID":          {},
 	// vaccination (BE9-2E-0: patient/master validation, readback, and writes must share the
 	// service-owned transaction. Runtime proofs live in vaccination_transaction_concurrency_test.go;
 	// clinic-scoped read/preload coverage lives in vaccination_clinic_isolation_test.go.)
@@ -761,6 +771,25 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 
 	// Runtime: TestExamReferenceRangeRepository_ResolveByFieldIDs_HoldsReferenceRangeShareLockUntilAmbientTransactionCommits.
 	"medicalrecord/exam_reference_range_repository.go|examinationRepository.ResolveByFieldIDs": {},
+
+	// AE-LAB lab_device master/device catalog. Writers roll back with ambient tx; readers
+	// see uncommitted writes. Runtime: lab_device_item_master_repository_tx_atomicity_test.go
+	"medicalrecord/lab_device_item_master_repository.go|labDeviceItemMasterRepository.FindByClinicSourceCodes": {},
+	"medicalrecord/lab_device_item_master_repository.go|labDeviceItemMasterRepository.FindExamTypeField":       {},
+	"medicalrecord/lab_device_item_master_repository.go|labDeviceItemMasterRepository.EnsureCatalog":           {},
+	"medicalrecord/lab_device_item_master_repository.go|labDeviceItemMasterRepository.Update":                  {},
+	"medicalrecord/lab_device_item_master_repository.go|labDeviceItemMasterRepository.FindDeviceByID":          {},
+	"medicalrecord/lab_device_item_master_repository.go|labDeviceItemMasterRepository.FindByID":                {},
+	"medicalrecord/lab_device_item_master_repository.go|labDeviceItemMasterRepository.ListDevices":             {},
+	"medicalrecord/lab_device_item_master_repository.go|labDeviceItemMasterRepository.UpdateDevice":            {},
+	"medicalrecord/lab_device_item_master_repository.go|labDeviceItemMasterRepository.EnsureDevices":           {},
+	"medicalrecord/lab_device_item_master_repository.go|labDeviceItemMasterRepository.CreateDevice":            {},
+	"medicalrecord/lab_device_item_master_repository.go|labDeviceItemMasterRepository.List":                    {},
+	"medicalrecord/lab_device_item_master_repository.go|labDeviceItemMasterRepository.FindExamType":            {},
+	"medicalrecord/lab_device_item_master_repository.go|labDeviceItemMasterRepository.FindExamTypeFields":      {},
+	// Private DBOrTx helper for receive jobs/waits/station. Runtime:
+	// TestLabDeviceReceiveRepository_CreateJobWithItems_RollsBackWhenAmbientTxFails
+	"medicalrecord/lab_device_receive_repository.go|labDeviceReceiveRepository.q": {},
 }
 
 type ambientTxParticipationShape uint8
@@ -843,6 +872,9 @@ var ambientTxParticipationExpectations = map[string]ambientTxParticipationExpect
 		shape: ambientTxRequired,
 	},
 	"billing/billing_item_repository.go|billingItemRepository.ValidateVaccinationCreateReference": {
+		shape: ambientTxRequired,
+	},
+	"billing/billing_item_exam.go|billingItemRepository.ValidateExamCreateReference": {
 		shape: ambientTxRequired,
 	},
 	"pet/owner_registration.go|writer.CreateForOwnerRegistration": {
