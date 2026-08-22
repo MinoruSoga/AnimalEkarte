@@ -317,4 +317,109 @@ describe("useInventoryForm", () => {
       expect(mockCreateMutateAsync).not.toHaveBeenCalled();
     });
   });
+
+  // ──────────────────────────
+  // BUG-009: 必須未入力・負値は JS fieldErrors で拒否する
+  // ──────────────────────────
+  describe("バリデーション: 必須未入力と負値 (BUG-009)", () => {
+    it("品名が空なら fieldErrors.name を返し mutation しない", async () => {
+      const { result } = renderHook(() => useInventoryForm());
+
+      await act(async () => {
+        await result.current.formAction(makeFormData({ name: "" }));
+      });
+
+      expect(result.current.formState.success).toBe(false);
+      expect(result.current.formState.fieldErrors?.name).toBe("品名を入力してください");
+      expect(mockCreateMutateAsync).not.toHaveBeenCalled();
+    });
+
+    it("品名が空白のみなら fieldErrors.name を返す", async () => {
+      const { result } = renderHook(() => useInventoryForm());
+
+      await act(async () => {
+        await result.current.formAction(makeFormData({ name: "   " }));
+      });
+
+      expect(result.current.formState.fieldErrors?.name).toBe("品名を入力してください");
+      expect(mockCreateMutateAsync).not.toHaveBeenCalled();
+    });
+
+    it("単位が空なら fieldErrors.unit を返し mutation しない", async () => {
+      const { result } = renderHook(() => useInventoryForm());
+
+      await act(async () => {
+        await result.current.formAction(makeFormData({ unit: "" }));
+      });
+
+      expect(result.current.formState.success).toBe(false);
+      expect(result.current.formState.fieldErrors?.unit).toBe("単位を入力してください");
+      expect(mockCreateMutateAsync).not.toHaveBeenCalled();
+    });
+
+    it("単位が空白のみなら fieldErrors.unit を返す", async () => {
+      const { result } = renderHook(() => useInventoryForm());
+
+      await act(async () => {
+        await result.current.formAction(makeFormData({ unit: "   " }));
+      });
+
+      expect(result.current.formState.fieldErrors?.unit).toBe("単位を入力してください");
+      expect(mockCreateMutateAsync).not.toHaveBeenCalled();
+    });
+
+    it("現在庫数が負値なら fieldErrors.quantity を返す", async () => {
+      const { result } = renderHook(() => useInventoryForm());
+
+      await act(async () => {
+        await result.current.formAction(makeFormData({ quantity: "-1" }));
+      });
+
+      expect(result.current.formState.success).toBe(false);
+      expect(result.current.formState.fieldErrors?.quantity).toBe(
+        "現在庫数は0以上の整数で入力してください",
+      );
+      expect(mockCreateMutateAsync).not.toHaveBeenCalled();
+    });
+
+    it("最低在庫数が負値なら fieldErrors.minStockLevel を返す", async () => {
+      const { result } = renderHook(() => useInventoryForm());
+
+      await act(async () => {
+        await result.current.formAction(makeFormData({ minStockLevel: "-1" }));
+      });
+
+      expect(result.current.formState.success).toBe(false);
+      expect(result.current.formState.fieldErrors?.minStockLevel).toBe(
+        "最低在庫数は0以上の整数で入力してください",
+      );
+      expect(mockCreateMutateAsync).not.toHaveBeenCalled();
+    });
+
+    it("現在庫数が空なら fieldErrors.quantity を返す", async () => {
+      const { result } = renderHook(() => useInventoryForm());
+
+      await act(async () => {
+        await result.current.formAction(makeFormData({ quantity: "" }));
+      });
+
+      expect(result.current.formState.fieldErrors?.quantity).toBe(
+        "現在庫数は0以上の整数で入力してください",
+      );
+      expect(mockCreateMutateAsync).not.toHaveBeenCalled();
+    });
+
+    it("最低在庫数が空なら fieldErrors.minStockLevel を返す", async () => {
+      const { result } = renderHook(() => useInventoryForm());
+
+      await act(async () => {
+        await result.current.formAction(makeFormData({ minStockLevel: "" }));
+      });
+
+      expect(result.current.formState.fieldErrors?.minStockLevel).toBe(
+        "最低在庫数は0以上の整数で入力してください",
+      );
+      expect(mockCreateMutateAsync).not.toHaveBeenCalled();
+    });
+  });
 });

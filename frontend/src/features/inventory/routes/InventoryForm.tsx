@@ -63,8 +63,8 @@ export function InventoryForm() {
   }, [navigate]);
 
   // rerender-functional-setstate: setCategory は stable setter なので useCallback 内 deps 不要
-  const handleCategoryChange = useCallback((value: string) => {
-    setCategory(value as InventoryItem["category"]);
+  const handleCategoryChange = useCallback((value: InventoryItem["category"]) => {
+    setCategory(value);
   }, [setCategory]);
 
   // rerender-functional-setstate: setExpiryDate は stable setter なので useCallback 内 deps 不要
@@ -117,7 +117,8 @@ export function InventoryForm() {
           閲覧専用 — 編集権限がないため変更できません
         </div>
       ) : null}
-      <form id={INVENTORY_FORM_ID} action={formAction} onChange={markDirty} className="space-y-6">
+      {/* BUG-009: HTML5 required/min が JS fieldErrors より先にインターセプトしないよう noValidate */}
+      <form id={INVENTORY_FORM_ID} action={formAction} noValidate onChange={markDirty} className="space-y-6">
         <fieldset disabled={!canSubmit} className="border-0 p-0 m-0 min-w-0">
         <BasicInfoSection
           defaultName={existingItem?.name}
@@ -126,6 +127,8 @@ export function InventoryForm() {
           existingCategory={existingItem?.category as InventoryItem["category"]}
           onCategoryChange={handleCategoryChange}
           onMarkDirty={markDirty}
+          nameError={formState.fieldErrors?.name}
+          unitError={formState.fieldErrors?.unit}
         />
 
         <StockInfoSection

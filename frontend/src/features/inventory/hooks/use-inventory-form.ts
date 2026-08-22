@@ -18,6 +18,11 @@ interface FormState {
   fieldErrors?: Record<string, string>;
 }
 
+function readFormString(formData: FormData, key: string): string {
+  const value = formData.get(key);
+  return typeof value === "string" ? value : "";
+}
+
 export function useInventoryForm(id?: string) {
   const isEdit = Boolean(id);
 
@@ -51,15 +56,21 @@ export function useInventoryForm(id?: string) {
 
   const [formState, formAction, isPending] = useActionState(
     async (_prevState: FormState, formData: FormData): Promise<FormState> => {
-      const quantityStr = formData.get("quantity") as string;
-      const minStockLevelStr = formData.get("minStockLevel") as string;
-      const expiryDateStr = formData.get("expiryDate") as string;
-      const lastRestockedStr = formData.get("lastRestocked") as string;
+      const name = readFormString(formData, "name").trim();
+      const unit = readFormString(formData, "unit").trim();
+      const quantityStr = readFormString(formData, "quantity");
+      const minStockLevelStr = readFormString(formData, "minStockLevel");
+      const expiryDateStr = readFormString(formData, "expiryDate");
+      const lastRestockedStr = readFormString(formData, "lastRestocked");
+      const location = readFormString(formData, "location") || undefined;
+      const supplier = readFormString(formData, "supplier") || undefined;
       const resolvedCategory = category || "medicine";
 
       const quantity = Number(quantityStr);
       const minStockLevel = Number(minStockLevelStr);
       const fieldErrors = {
+        ...(name === "" ? { name: "品名を入力してください" } : {}),
+        ...(unit === "" ? { unit: "単位を入力してください" } : {}),
         ...(quantityStr.trim() === "" || !Number.isInteger(quantity) || quantity < 0
           ? { quantity: "現在庫数は0以上の整数で入力してください" }
           : {}),
@@ -79,28 +90,28 @@ export function useInventoryForm(id?: string) {
       try {
         if (isEdit && id) {
           const req: UpdateInventoryItemRequest = {
-            name: formData.get("name") as string,
+            name,
             category: resolvedCategory,
             quantity,
-            unit: formData.get("unit") as string,
+            unit,
             min_stock_level: minStockLevel,
-            location: (formData.get("location") as string) || undefined,
+            location,
             expiry_date: expiryDateStr || undefined,
-            supplier: (formData.get("supplier") as string) || undefined,
+            supplier,
             last_restocked: lastRestockedStr || undefined,
           };
           await updateMutation.mutateAsync({ id, req });
           toast.success("在庫情報を更新しました");
         } else {
           const req: CreateInventoryItemRequest = {
-            name: formData.get("name") as string,
+            name,
             category: resolvedCategory,
             quantity,
-            unit: formData.get("unit") as string,
+            unit,
             min_stock_level: minStockLevel,
-            location: (formData.get("location") as string) || undefined,
+            location,
             expiry_date: expiryDateStr || undefined,
-            supplier: (formData.get("supplier") as string) || undefined,
+            supplier,
             last_restocked: lastRestockedStr || undefined,
           };
           await createMutation.mutateAsync(req);
