@@ -83,7 +83,7 @@ func (s *labDeviceReceiveService) receiveOne(
 	var persistJobID uuid.UUID
 	err := s.withTx(ctx, func(txCtx context.Context) error {
 		existing, findErr := s.repo.FindJobByFingerprint(txCtx, clinicID, string(frame.SourceType), frame.SourceFingerprint)
-		if findErr != nil {
+		if findErr != nil && !apperrors.IsNotFound(findErr) {
 			return findErr
 		}
 		if existing != nil {
@@ -154,9 +154,9 @@ func (s *labDeviceReceiveService) receiveOne(
 			items = append(items, row)
 		}
 		if createErr := s.repo.CreateJobWithItems(txCtx, job, items); createErr != nil {
-			if apperrors.IsConflict(createErr) {
+			if apperrors.IsConflict(createErr) || apperrors.IsAlreadyExists(createErr) {
 				dup, dupErr := s.repo.FindJobByFingerprint(txCtx, clinicID, string(frame.SourceType), frame.SourceFingerprint)
-				if dupErr != nil {
+				if dupErr != nil && !apperrors.IsNotFound(dupErr) {
 					return dupErr
 				}
 				if dup != nil {
@@ -215,6 +215,9 @@ func (s *labDeviceReceiveService) persistLinkedOrUnlink(
 
 func (s *labDeviceReceiveService) consumeWaitPet(ctx context.Context, clinicID uint64) (*uint64, error) {
 	wait, err := s.repo.LockActiveWait(ctx, clinicID)
+	if apperrors.IsNotFound(err) {
+		return nil, nil
+	}
 	if err != nil || wait == nil {
 		return nil, err
 	}
@@ -244,7 +247,7 @@ func (s *labDeviceReceiveService) PutWait(
 		}
 		now := s.now()
 		active, lockErr := s.repo.LockActiveWait(txCtx, clinicID)
-		if lockErr != nil {
+		if lockErr != nil && !apperrors.IsNotFound(lockErr) {
 			return lockErr
 		}
 		if active != nil {
@@ -278,6 +281,9 @@ func (s *labDeviceReceiveService) PutWait(
 func (s *labDeviceReceiveService) ClearWait(ctx context.Context, clinicID uint64) error {
 	return s.withTx(ctx, func(txCtx context.Context) error {
 		wait, err := s.repo.LockActiveWait(txCtx, clinicID)
+		if apperrors.IsNotFound(err) {
+			return nil
+		}
 		if err != nil || wait == nil {
 			return err
 		}
@@ -460,7 +466,7 @@ func (s *labDeviceReceiveService) PutStation(
 
 func (s *labDeviceReceiveService) ensureStation(ctx context.Context, clinicID uint64) (*LabDeviceStationView, error) {
 	row, err := s.repo.GetStation(ctx, clinicID)
-	if err != nil {
+	if err != nil && !apperrors.IsNotFound(err) {
 		return nil, err
 	}
 	if row == nil {
@@ -486,6 +492,9 @@ func (s *labDeviceReceiveService) ensureStation(ctx context.Context, clinicID ui
 
 func (s *labDeviceReceiveService) activeWaitView(ctx context.Context, clinicID uint64) (*LabDeviceWaitView, error) {
 	wait, err := s.repo.FindActiveWait(ctx, clinicID)
+	if apperrors.IsNotFound(err) {
+		return nil, nil
+	}
 	if err != nil || wait == nil {
 		return nil, err
 	}

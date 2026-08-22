@@ -51,7 +51,7 @@ func (r *labDeviceReceiveRepository) FindJobByFingerprint(
 	sourceType, fingerprint string,
 ) (*model.LabImportJob, error) {
 	if fingerprint == "" {
-		return nil, nil
+		return nil, apperrors.WrapNotFound("lab_import_job", fingerprint)
 	}
 	var job model.LabImportJob
 	err := r.q(ctx).
@@ -59,7 +59,7 @@ func (r *labDeviceReceiveRepository) FindJobByFingerprint(
 		Where("source_type = ? AND source_fingerprint = ?", sourceType, fingerprint).
 		Take(&job).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return nil, nil
+		return nil, apperrors.WrapNotFound("lab_import_job", fingerprint)
 	}
 	if err != nil {
 		return nil, apperrors.Wrap(err, "find lab device job by fingerprint")
@@ -93,10 +93,11 @@ func (r *labDeviceReceiveRepository) CreateJobWithItems(
 ) error {
 	db := r.q(ctx)
 	if err := db.Create(job).Error; err != nil {
-		if apperrors.IsConflict(apperrors.FromGORM(err, "lab_import_job", "")) {
+		mapped := apperrors.FromGORM(err, "lab_import_job", "")
+		if apperrors.IsAlreadyExists(mapped) {
 			return apperrors.WrapConflict("同じ検査フレームは既に取込済みです")
 		}
-		return apperrors.Wrap(err, "create lab device job")
+		return apperrors.Wrap(mapped, "create lab device job")
 	}
 	if len(items) == 0 {
 		return nil
@@ -232,7 +233,7 @@ func (r *labDeviceReceiveRepository) findActiveWait(
 	}
 	err := q.Take(&wait).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return nil, nil
+		return nil, apperrors.WrapNotFound("lab_device_wait", "")
 	}
 	if err != nil {
 		return nil, apperrors.Wrap(err, "find lab device wait")
@@ -284,7 +285,7 @@ func (r *labDeviceReceiveRepository) GetStation(
 	var row model.LabDeviceStationSettings
 	err := r.q(ctx).Where("clinic_id = ?", clinicID).Take(&row).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return nil, nil
+		return nil, apperrors.WrapNotFound("lab_device_station", "")
 	}
 	if err != nil {
 		return nil, apperrors.Wrap(err, "get lab device station")

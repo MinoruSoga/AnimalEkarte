@@ -160,17 +160,6 @@ func (s *labImportExaminationService) persistExam(ctx context.Context, input Lab
 		return nil, apperrors.WrapInvalidInput("date is required")
 	}
 
-	// クロステナント write 防止: 別 clinic の exam_type を紐付けると、その exam_type が持つ
-	// 異常値判定の基準値/単位（exam_type_fields）が検査記録に混入する（#124 同型）。所有権を検証する。
-	if _, err := s.examTypeRepo.FindByID(ctx, input.ClinicID, input.ExamTypeID); err != nil {
-		slog.ErrorContext(ctx, "failed to verify exam type ownership",
-			"error", err,
-			"exam_type_id", input.ExamTypeID,
-			"clinic_id", input.ClinicID,
-		)
-		return nil, apperrors.Wrap(err, "failed to verify exam type ownership")
-	}
-
 	// クロステナント write 防止 (P1-2, PR #186 review): 別 clinic の pet/medical_record を
 	// 紐付けると、他院の患者データが lab import 経由で漏洩・混入する。所有権を検証する。
 	if input.PetID != nil {
@@ -248,6 +237,23 @@ func (s *labImportExaminationService) persistExam(ctx context.Context, input Lab
 	// 既に ambient tx がある（device receive/attach）ときは内側で新規 Transaction を開かない。
 	var duplicateOnCreate bool
 	write := func(txCtx context.Context) error {
+		// ExamTypeID / nested ExamTypeFieldID は write と同じ transaction で最終検証し、
+		// FindByID の FOR SHARE を Create / ReplaceItems の commit まで保持する（#124 / replaceItemsTx と同型）。
+		examType, err := s.examTypeRepo.FindByID(txCtx, input.ClinicID, input.ExamTypeID)
+		if err != nil {
+			slog.ErrorContext(txCtx, "failed to verify exam type ownership",
+				"error", err,
+				"exam_type_id", input.ExamTypeID,
+				"clinic_id", input.ClinicID,
+			)
+			return apperrors.Wrap(err, "failed to verify exam type ownership")
+		}
+		if examType == nil {
+			return apperrors.WrapNotFound("exam_type", fmt.Sprintf("%d", input.ExamTypeID))
+		}
+		if err := requireOwnedExamTypeFields(examType, input.Items); err != nil {
+			return err
+		}
 		if err := s.examRepo.Create(txCtx, exam); err != nil {
 			if apperrors.IsAlreadyExists(err) {
 				duplicateOnCreate = true
@@ -337,6 +343,24 @@ func (s *labImportExaminationService) PersistBatch(ctx context.Context, inputs [
 		results = append(results, res)
 	}
 	return results, nil
+}
+
+func requireOwnedExamTypeFields(examType *model.ExaminationType, items []LabExamItemInput) error {
+	owned := make(map[uint64]struct{})
+	if examType != nil {
+		for i := range examType.Items {
+			owned[examType.Items[i].ID] = struct{}{}
+		}
+	}
+	for _, item := range items {
+		if item.ExamTypeFieldID == nil {
+			continue
+		}
+		if _, ok := owned[*item.ExamTypeFieldID]; !ok {
+			return apperrors.WrapInvalidInput("exam_type_field が当該検査種別に属していません（別クリニック/別種別の項目は紐付けできません）")
+		}
+	}
+	return nil
 }
 
 // computeExamResultStatus: ③で複製していたが⑦の examination_service 移動で原本に統合（計画通りの自己解消）。

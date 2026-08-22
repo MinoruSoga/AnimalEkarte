@@ -429,6 +429,19 @@ func rejectExamTypeRepo(ownedID uint64) ExamTypeRepository {
 	}}
 }
 
+func examTypeRepoWithOwnedFields(ownedID uint64, fieldIDs ...uint64) ExamTypeRepository {
+	items := make([]model.ExamTypeField, 0, len(fieldIDs))
+	for _, fieldID := range fieldIDs {
+		items = append(items, model.ExamTypeField{ID: fieldID, ExamTypeID: ownedID})
+	}
+	return &mockExamTypeRepository{findByIDFn: func(_ context.Context, _, id uint64) (*model.ExaminationType, error) {
+		if id != ownedID {
+			return nil, apperrors.WrapNotFound("exam_type", "foreign")
+		}
+		return &model.ExaminationType{ID: id, Items: items}, nil
+	}}
+}
+
 func okPetRepo() petFinder {
 	return &mockPetRepository{findByIDFn: func(_ context.Context, _, id uint64) (*model.Pet, error) {
 		return &model.Pet{ID: id}, nil
@@ -655,6 +668,122 @@ func TestLabResultImportService_Commit_RejectsCrossClinicExamType(t *testing.T) 
 	assert.Equal(t, 1, resp.FailedCount, "foreign exam_type_id row must be counted as failed, not persisted")
 	assert.Equal(t, 0, resp.PersistedCount)
 	assert.Empty(t, examRepo.exams, "no exam must be persisted for the foreign exam_type_id row")
+}
+
+func TestLabImportExaminationService_PersistExam_RejectsCrossClinicExamTypeField(t *testing.T) {
+	const clinicID = uint64(1)
+	const ownedExamTypeID = uint64(10)
+	const ownedFieldID = uint64(100)
+	const foreignFieldID = uint64(999)
+
+	newSvc := func(examRepo *stubExamRepo) *labImportExaminationService {
+		return NewLabImportExaminationService(
+			examRepo,
+			&stubDupChecker{},
+			examTypeRepoWithOwnedFields(ownedExamTypeID, ownedFieldID),
+			okPetRepo(),
+			okMedicalRecordRepo(),
+			passthroughTxForCrossTenant{},
+		).(*labImportExaminationService)
+	}
+
+	t.Run("rejects cross-clinic exam_type_field_id and does not persist", func(t *testing.T) {
+		examRepo := newStubExamRepo()
+		svc := newSvc(examRepo)
+		foreign := foreignFieldID
+		out, err := svc.persistExam(context.Background(), LabExamPersistInput{
+			ClinicID:   clinicID,
+			ExamTypeID: ownedExamTypeID,
+			Date:       time.Now(),
+			JobID:      uuid.New(),
+			Items:      []LabExamItemInput{{Name: "BUN", ExamTypeFieldID: &foreign}},
+		})
+		assert.Error(t, err)
+		assert.True(t, apperrors.IsInvalidInput(err))
+		assert.Nil(t, out)
+		assert.Empty(t, examRepo.exams, "lab import exam must NOT be persisted referencing another clinic's exam_type_field")
+	})
+
+	t.Run("accepts same-clinic exam_type_field_id (no false-reject)", func(t *testing.T) {
+		examRepo := newStubExamRepo()
+		svc := newSvc(examRepo)
+		owned := ownedFieldID
+		out, err := svc.persistExam(context.Background(), LabExamPersistInput{
+			ClinicID:   clinicID,
+			ExamTypeID: ownedExamTypeID,
+			Date:       time.Now(),
+			JobID:      uuid.New(),
+			Items:      []LabExamItemInput{{Name: "BUN", ExamTypeFieldID: &owned}},
+		})
+		assert.NoError(t, err)
+		assert.NotNil(t, out)
+		assert.Len(t, examRepo.exams, 1)
+	})
+}
+
+func TestLabImportExaminationService_PersistBatch_RejectsCrossClinicExamTypeField(t *testing.T) {
+	const clinicID = uint64(1)
+	const ownedExamTypeID = uint64(10)
+	const ownedFieldID = uint64(100)
+	const foreignFieldID = uint64(999)
+
+	examRepo := newStubExamRepo()
+	svc := NewLabImportExaminationService(
+		examRepo,
+		&stubDupChecker{},
+		examTypeRepoWithOwnedFields(ownedExamTypeID, ownedFieldID),
+		okPetRepo(),
+		okMedicalRecordRepo(),
+		passthroughTxForCrossTenant{},
+	)
+
+	owned := ownedFieldID
+	foreign := foreignFieldID
+	jobID := uuid.New()
+	inputs := []LabExamPersistInput{
+		{ClinicID: clinicID, ExamTypeID: ownedExamTypeID, Date: time.Now(), JobID: jobID, Items: []LabExamItemInput{{Name: "ALT", ExamTypeFieldID: &foreign}}},
+		{ClinicID: clinicID, ExamTypeID: ownedExamTypeID, Date: time.Now(), JobID: jobID, Items: []LabExamItemInput{{Name: "BUN", ExamTypeFieldID: &owned}}},
+	}
+
+	results, err := svc.PersistBatch(context.Background(), inputs)
+	assert.NoError(t, err)
+	assert.Len(t, results, 2)
+
+	assert.Error(t, results[0].RowError, "foreign exam_type_field_id row must be recorded as RowError")
+	assert.True(t, apperrors.IsInvalidInput(results[0].RowError))
+	assert.NoError(t, results[1].RowError, "same-clinic exam_type_field_id row must NOT be rejected")
+	assert.Len(t, examRepo.exams, 1, "only the same-clinic field row must be persisted")
+}
+
+func TestLabResultImportService_Commit_RejectsCrossClinicExamTypeField(t *testing.T) {
+	const clinicID = uint64(1)
+	const ownedExamTypeID = uint64(10)
+	const ownedFieldID = uint64(100)
+	const foreignFieldID = uint64(999)
+
+	jobSvc := newStubLabJobService()
+	examRepo := newStubExamRepo()
+	examSvc := NewLabImportExaminationService(
+		examRepo,
+		&stubDupChecker{},
+		examTypeRepoWithOwnedFields(ownedExamTypeID, ownedFieldID),
+		okPetRepo(),
+		okMedicalRecordRepo(),
+		passthroughTxForCrossTenant{},
+	)
+	svc := NewLabResultImportService(jobSvc, examSvc)
+
+	foreign := foreignFieldID
+	batch := syntheticFixtureBatch(1)
+	inputs := []LabExamPersistInput{
+		{ClinicID: clinicID, ExamTypeID: ownedExamTypeID, Date: time.Now(), Items: []LabExamItemInput{{Name: "BUN", ExamTypeFieldID: &foreign}}},
+	}
+
+	resp, err := svc.Commit(context.Background(), clinicID, batch, inputs)
+	assert.NoError(t, err, "Commit must not return a function-level error for a per-row rejection")
+	assert.Equal(t, 1, resp.FailedCount, "foreign exam_type_field_id row must be counted as failed, not persisted")
+	assert.Equal(t, 0, resp.PersistedCount)
+	assert.Empty(t, examRepo.exams, "no exam must be persisted for the foreign exam_type_field_id row")
 }
 
 // ── clinical_plan (HIGH): diagnosis_type_id / diagnosis_name_id (x2 slots) ──

@@ -240,3 +240,34 @@ func TestLabDeviceService_CreateUpdateAndIsolation(t *testing.T) {
 	require.NoError(t, err)
 	assert.Nil(t, cleared.ExamTypeID)
 }
+
+func TestLabDeviceItemMasterService_UpdateDevice_RejectsCrossClinicExamType(t *testing.T) {
+	db := setupLabDeviceItemMasterTestDB(t)
+	svc := NewLabDeviceItemMasterService(NewLabDeviceItemMasterRepository(db))
+	ctx := context.Background()
+	const clinicA, clinicB = uint64(1), uint64(2)
+
+	examA := &model.ExaminationType{ClinicID: clinicA, Name: "血液A"}
+	require.NoError(t, db.Create(examA).Error)
+	examB := &model.ExaminationType{ClinicID: clinicB, Name: "血液B"}
+	require.NoError(t, db.Create(examB).Error)
+
+	created, err := svc.CreateDevice(ctx, clinicA, CreateLabDeviceInput{
+		Name: "NX600", SourceType: string(model.LabImportSourceTypeFujiNX600), ExamTypeID: &examA.ID, IsActive: true, SortOrder: 10,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, created.ExamTypeID)
+	assert.Equal(t, examA.ID, *created.ExamTypeID)
+
+	_, err = svc.UpdateDevice(ctx, clinicA, created.ID, UpdateLabDeviceInput{
+		Name: created.Name, ExamTypeID: &examB.ID, IsActive: created.IsActive, SortOrder: created.SortOrder,
+	})
+	require.Error(t, err)
+	assert.True(t, apperrors.IsInvalidInput(err))
+
+	devices, err := svc.ListDevices(ctx, clinicA)
+	require.NoError(t, err)
+	require.Len(t, devices, 1)
+	require.NotNil(t, devices[0].ExamTypeID)
+	assert.Equal(t, examA.ID, *devices[0].ExamTypeID, "exam_type_id must stay clinic-owned after foreign update")
+}
