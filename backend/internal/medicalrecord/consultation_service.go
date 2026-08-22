@@ -147,6 +147,14 @@ func (s *consultationService) Create(ctx context.Context, clinicID uint64, input
 		TaxRate:       taxRate,
 	}
 	if err := s.repo.Create(ctx, consultation); err != nil {
+		if conflict := apperrors.AsNameUniqueConflict(
+			err,
+			input.Name,
+			apperrors.ConstraintConsultationName,
+			apperrors.CodeConsultationNameConflict,
+		); conflict != nil {
+			return nil, conflict
+		}
 		slog.ErrorContext(ctx, "failed to create consultation", "error", err, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to create consultation")
 	}
@@ -173,6 +181,18 @@ func (s *consultationService) Update(ctx context.Context, clinicID, id uint64, i
 	}
 	consultation, err := s.repo.Update(ctx, clinicID, id, fields)
 	if err != nil {
+		nameForConflict := ""
+		if input.Name != nil {
+			nameForConflict = *input.Name
+		}
+		if conflict := apperrors.AsNameUniqueConflict(
+			err,
+			nameForConflict,
+			apperrors.ConstraintConsultationName,
+			apperrors.CodeConsultationNameConflict,
+		); conflict != nil {
+			return nil, conflict
+		}
 		slog.ErrorContext(ctx, "failed to update consultation", "error", err, "id", id, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to update consultation")
 	}

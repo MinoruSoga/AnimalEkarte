@@ -136,6 +136,14 @@ func (s *vaccineService) Create(ctx context.Context, clinicID uint64, input *Cre
 		SortOrder:   input.SortOrder,
 	}
 	if err := s.repo.Create(ctx, vaccine); err != nil {
+		if conflict := apperrors.AsNameUniqueConflict(
+			err,
+			input.Name,
+			apperrors.ConstraintVaccineName,
+			apperrors.CodeVaccineNameConflict,
+		); conflict != nil {
+			return nil, conflict
+		}
 		slog.ErrorContext(ctx, "failed to create vaccine", "error", err, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to create vaccine")
 	}
@@ -170,6 +178,18 @@ func (s *vaccineService) Update(ctx context.Context, clinicID, id uint64, input 
 	}
 	vaccine, err := s.repo.Update(ctx, clinicID, id, fields)
 	if err != nil {
+		nameForConflict := ""
+		if input.Name != nil {
+			nameForConflict = *input.Name
+		}
+		if conflict := apperrors.AsNameUniqueConflict(
+			err,
+			nameForConflict,
+			apperrors.ConstraintVaccineName,
+			apperrors.CodeVaccineNameConflict,
+		); conflict != nil {
+			return nil, conflict
+		}
 		slog.ErrorContext(ctx, "failed to update vaccine", "error", err, "id", id, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to update vaccine")
 	}

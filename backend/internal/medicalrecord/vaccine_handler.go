@@ -68,7 +68,7 @@ func (h *VaccineHandler) CreateVaccine(c *gin.Context) {
 
 	vaccine, err := h.service.Create(c.Request.Context(), clinicID, req.toServiceInput())
 	if err != nil {
-		httpapi.RespondError(c, err)
+		httpapi.RespondErrorPreferringConflictCode(c, err)
 		return
 	}
 	c.Header("Location", fmt.Sprintf("/v1/masters/vaccines/%d", vaccine.ID))
@@ -93,7 +93,7 @@ func (h *VaccineHandler) UpdateVaccine(c *gin.Context) {
 
 	vaccine, err := h.service.Update(c.Request.Context(), clinicID, id, req.toServiceInput())
 	if err != nil {
-		httpapi.RespondError(c, err)
+		httpapi.RespondErrorPreferringConflictCode(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, toVaccineResponse(vaccine))

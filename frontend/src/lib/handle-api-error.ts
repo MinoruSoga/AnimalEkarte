@@ -12,6 +12,11 @@ export const CONFLICT_CODE_LSTEP_AUTO_MANAGED_PREFIX =
   "lstep_auto_managed_prefix_conflict" as const;
 export const CONFLICT_CODE_CAGE_NAME = "cage_name_conflict" as const;
 export const CONFLICT_CODE_OCCUPATION_NAME = "occupation_name_conflict" as const;
+export const CONFLICT_CODE_CONSULTATION_NAME = "consultation_name_conflict" as const;
+export const CONFLICT_CODE_EXAM_TYPE_NAME = "exam_type_name_conflict" as const;
+export const CONFLICT_CODE_PROCEDURE_NAME = "procedure_name_conflict" as const;
+export const CONFLICT_CODE_VACCINE_NAME = "vaccine_name_conflict" as const;
+export const CONFLICT_CODE_CHECKUP_TYPE_NAME = "checkup_type_name_conflict" as const;
 
 const KNOWN_CONFLICT_MESSAGES: Record<string, (name: string) => string> = {
   [CONFLICT_CODE_PERMISSION_GROUP_NAME]: (name) =>
@@ -26,6 +31,16 @@ const KNOWN_CONFLICT_MESSAGES: Record<string, (name: string) => string> = {
     `ケージ『${name}』は既に使用されています`,
   [CONFLICT_CODE_OCCUPATION_NAME]: (name) =>
     `職種『${name}』は既に使用されています`,
+  [CONFLICT_CODE_CONSULTATION_NAME]: (name) =>
+    `診察『${name}』は既に使用されています`,
+  [CONFLICT_CODE_EXAM_TYPE_NAME]: (name) =>
+    `検査『${name}』は既に使用されています`,
+  [CONFLICT_CODE_PROCEDURE_NAME]: (name) =>
+    `処置『${name}』は既に使用されています`,
+  [CONFLICT_CODE_VACCINE_NAME]: (name) =>
+    `予防接種『${name}』は既に使用されています`,
+  [CONFLICT_CODE_CHECKUP_TYPE_NAME]: (name) =>
+    `定期健診『${name}』は既に使用されています`,
 };
 
 interface ApiErrorBody {
@@ -98,7 +113,8 @@ export function localizeAlreadyExistsMessage(serverMessage?: string): string | n
     const name = match[2].trim();
     const ja = ALREADY_EXISTS_RESOURCE_JA[resource];
     if (ja && name) return `${ja}『${name}』は既に使用されています`;
-    if (ja) return `${ja}は既に使用されています`;
+    // BUG-017: empty identifier must not become a type-only sentence
+    // (consultation → 「診察は既に使用されています」 looks like the tab label).
   }
   if (/already exists/i.test(serverMessage)) {
     return "既に登録されています";

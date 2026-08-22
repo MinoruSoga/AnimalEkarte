@@ -67,7 +67,7 @@ func (h *CheckupTypeHandler) CreateCheckupType(c *gin.Context) {
 
 	checkupType, err := h.service.Create(c.Request.Context(), clinicID, req.toServiceInput())
 	if err != nil {
-		httpapi.RespondError(c, err)
+		httpapi.RespondErrorPreferringConflictCode(c, err)
 		return
 	}
 	c.Header("Location", fmt.Sprintf("/v1/masters/checkup-types/%d", checkupType.ID))
@@ -92,7 +92,7 @@ func (h *CheckupTypeHandler) UpdateCheckupType(c *gin.Context) {
 
 	checkupType, err := h.service.Update(c.Request.Context(), clinicID, id, req.toServiceInput())
 	if err != nil {
-		httpapi.RespondError(c, err)
+		httpapi.RespondErrorPreferringConflictCode(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, toCheckupTypeResponse(checkupType))

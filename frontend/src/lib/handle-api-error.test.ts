@@ -5,9 +5,14 @@ import { toast } from "sonner";
 import {
   CONFLICT_CODE_ANIMAL_SPECIES_NAME,
   CONFLICT_CODE_CAGE_NAME,
+  CONFLICT_CODE_CHECKUP_TYPE_NAME,
+  CONFLICT_CODE_CONSULTATION_NAME,
+  CONFLICT_CODE_EXAM_TYPE_NAME,
   CONFLICT_CODE_LSTEP_AUTO_MANAGED_PREFIX,
   CONFLICT_CODE_PERMISSION_GROUP_NAME,
+  CONFLICT_CODE_PROCEDURE_NAME,
   CONFLICT_CODE_SHIFT_TEMPLATE_NAME,
+  CONFLICT_CODE_VACCINE_NAME,
   handleApiError,
   localizeAlreadyExistsMessage,
   localizeConflictMessage,
@@ -62,6 +67,28 @@ describe("localizeConflictMessage", () => {
         name: "早番",
       }),
     ).toBe("シフトテンプレート名『早番』は既に使用されています");
+  });
+
+  it("maps consultation_name_conflict with the actual item name (BUG-017)", () => {
+    expect(
+      localizeConflictMessage(CONFLICT_CODE_CONSULTATION_NAME, {
+        name: "V04診察",
+      }),
+    ).toBe("診察『V04診察』は既に使用されています");
+    expect(
+      localizeConflictMessage(CONFLICT_CODE_EXAM_TYPE_NAME, { name: "V04検査" }),
+    ).toBe("検査『V04検査』は既に使用されています");
+    expect(
+      localizeConflictMessage(CONFLICT_CODE_PROCEDURE_NAME, { name: "V04処置" }),
+    ).toBe("処置『V04処置』は既に使用されています");
+    expect(
+      localizeConflictMessage(CONFLICT_CODE_VACCINE_NAME, { name: "V04予防接種" }),
+    ).toBe("予防接種『V04予防接種』は既に使用されています");
+    expect(
+      localizeConflictMessage(CONFLICT_CODE_CHECKUP_TYPE_NAME, {
+        name: "V04定期健診",
+      }),
+    ).toBe("定期健診『V04定期健診』は既に使用されています");
   });
 
   it("maps lstep_auto_managed_prefix_conflict with name (BUG-026)", () => {
@@ -193,9 +220,15 @@ describe("handleApiError 409 localization", () => {
       }),
       "保存",
     );
-    expect(toast.error).toHaveBeenCalledWith("ケージは既に使用されています");
+    expect(toast.error).toHaveBeenCalledWith("既に登録されています");
     expect(localizeAlreadyExistsMessage("occupation '' already exists")).toBe(
-      "職種は既に使用されています",
+      "既に登録されています",
+    );
+    expect(localizeAlreadyExistsMessage("consultation '' already exists")).toBe(
+      "既に登録されています",
+    );
+    expect(localizeAlreadyExistsMessage("consultation '' already exists")).not.toBe(
+      "診察は既に使用されています",
     );
     expect(localizeAlreadyExistsMessage("cage 'ICU-1' already exists")).toBe(
       "ケージ『ICU-1』は既に使用されています",
@@ -203,6 +236,21 @@ describe("handleApiError 409 localization", () => {
     expect(localizeAlreadyExistsMessage("lstep_condition_tag_mapping 'ckd' already exists")).toBe(
       "慢性疾患コード『ckd』は既に使用されています",
     );
+  });
+
+  it("shows the actual consultation name, not the tab label (BUG-017)", () => {
+    handleApiError(
+      axiosError(409, {
+        error: "consultation '' already exists",
+        code: CONFLICT_CODE_CONSULTATION_NAME,
+        params: { name: "V04診察" },
+      }),
+      "保存",
+    );
+    expect(toast.error).toHaveBeenCalledWith(
+      "診察『V04診察』は既に使用されています",
+    );
+    expect(toast.error).not.toHaveBeenCalledWith("診察は既に使用されています");
   });
 
   it("shows Japanese message for cage name conflict code", () => {

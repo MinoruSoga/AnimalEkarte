@@ -208,7 +208,7 @@ func (h *ExamTypeHandler) CreateExaminationType(c *gin.Context) {
 
 	examType, err := h.service.Create(c.Request.Context(), clinicID, req.toServiceInput())
 	if err != nil {
-		httpapi.RespondError(c, err)
+		httpapi.RespondErrorPreferringConflictCode(c, err)
 		return
 	}
 	c.Header("Location", fmt.Sprintf("/v1/masters/examination-types/%d", examType.ID))
@@ -233,7 +233,7 @@ func (h *ExamTypeHandler) UpdateExaminationType(c *gin.Context) {
 
 	exType, err := h.service.Update(c.Request.Context(), clinicID, id, req.toServiceInput())
 	if err != nil {
-		httpapi.RespondError(c, err)
+		httpapi.RespondErrorPreferringConflictCode(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, toExaminationTypeResponse(exType))

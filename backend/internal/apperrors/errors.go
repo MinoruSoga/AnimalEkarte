@@ -41,6 +41,21 @@ const (
 	// CodeOccupationNameConflict is returned when a clinic-scoped occupation name
 	// collides (constraint idx_occupations_clinic_name). BUG-022.
 	CodeOccupationNameConflict = "occupation_name_conflict"
+	// CodeConsultationNameConflict is returned when a clinic-scoped consultation
+	// name collides (constraint idx_consultations_clinic_name). BUG-017.
+	CodeConsultationNameConflict = "consultation_name_conflict"
+	// CodeExamTypeNameConflict is returned when a clinic-scoped exam type name
+	// collides (constraint idx_exam_types_clinic_name). BUG-017.
+	CodeExamTypeNameConflict = "exam_type_name_conflict"
+	// CodeProcedureNameConflict is returned when a clinic-scoped procedure name
+	// collides (constraint idx_procedures_clinic_name). BUG-017.
+	CodeProcedureNameConflict = "procedure_name_conflict"
+	// CodeVaccineNameConflict is returned when a clinic-scoped vaccine name
+	// collides (constraint idx_vaccines_clinic_name). BUG-017.
+	CodeVaccineNameConflict = "vaccine_name_conflict"
+	// CodeCheckupTypeNameConflict is returned when a clinic-scoped checkup type
+	// name collides (constraint idx_checkup_types_clinic_name). BUG-017.
+	CodeCheckupTypeNameConflict = "checkup_type_name_conflict"
 )
 
 // Measured PostgreSQL unique constraint names used for fail-closed mapping.
@@ -60,6 +75,16 @@ const (
 	ConstraintCageName = "idx_cages_clinic_name"
 	// ConstraintOccupationName is UNIQUE (clinic_id, name) WHERE deleted_at IS NULL.
 	ConstraintOccupationName = "idx_occupations_clinic_name"
+	// ConstraintConsultationName is UNIQUE (clinic_id, name) WHERE deleted_at IS NULL.
+	ConstraintConsultationName = "idx_consultations_clinic_name"
+	// ConstraintExamTypeName is UNIQUE (clinic_id, name) WHERE deleted_at IS NULL.
+	ConstraintExamTypeName = "idx_exam_types_clinic_name"
+	// ConstraintProcedureName is UNIQUE (clinic_id, name) WHERE deleted_at IS NULL.
+	ConstraintProcedureName = "idx_procedures_clinic_name"
+	// ConstraintVaccineName is UNIQUE (clinic_id, name) WHERE deleted_at IS NULL.
+	ConstraintVaccineName = "idx_vaccines_clinic_name"
+	// ConstraintCheckupTypeName is UNIQUE (clinic_id, name) WHERE deleted_at IS NULL.
+	ConstraintCheckupTypeName = "idx_checkup_types_clinic_name"
 )
 
 // AppError はアプリケーション固有のエラー
@@ -225,7 +250,12 @@ func RespondWithConflictCode(err error) bool {
 		CodeShiftTemplateNameConflict,
 		CodeLstepAutoManagedPrefixConflict,
 		CodeCageNameConflict,
-		CodeOccupationNameConflict:
+		CodeOccupationNameConflict,
+		CodeConsultationNameConflict,
+		CodeExamTypeNameConflict,
+		CodeProcedureNameConflict,
+		CodeVaccineNameConflict,
+		CodeCheckupTypeNameConflict:
 		return true
 	default:
 		return len(appErr.Params) > 0

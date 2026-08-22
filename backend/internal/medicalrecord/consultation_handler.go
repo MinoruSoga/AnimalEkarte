@@ -69,7 +69,7 @@ func (h *ConsultationHandler) CreateConsultation(c *gin.Context) {
 
 	consultation, err := h.service.Create(c.Request.Context(), clinicID, req.toServiceInput())
 	if err != nil {
-		httpapi.RespondError(c, err)
+		httpapi.RespondErrorPreferringConflictCode(c, err)
 		return
 	}
 	c.Header("Location", fmt.Sprintf("/v1/masters/consultations/%d", consultation.ID))
@@ -94,7 +94,7 @@ func (h *ConsultationHandler) UpdateConsultation(c *gin.Context) {
 
 	consultation, err := h.service.Update(c.Request.Context(), clinicID, id, req.toServiceInput())
 	if err != nil {
-		httpapi.RespondError(c, err)
+		httpapi.RespondErrorPreferringConflictCode(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, toConsultationResponse(consultation))

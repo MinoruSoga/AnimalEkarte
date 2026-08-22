@@ -70,7 +70,7 @@ func (h *ProcedureHandler) CreateProcedure(c *gin.Context) {
 
 	procedure, err := h.service.Create(c.Request.Context(), clinicID, req.toServiceInput())
 	if err != nil {
-		httpapi.RespondError(c, err)
+		httpapi.RespondErrorPreferringConflictCode(c, err)
 		return
 	}
 	c.Header("Location", fmt.Sprintf("/v1/masters/procedures/%d", procedure.ID))
@@ -95,7 +95,7 @@ func (h *ProcedureHandler) UpdateProcedure(c *gin.Context) {
 
 	procedure, err := h.service.Update(c.Request.Context(), clinicID, id, req.toServiceInput())
 	if err != nil {
-		httpapi.RespondError(c, err)
+		httpapi.RespondErrorPreferringConflictCode(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, toProcedureResponse(procedure))

@@ -81,6 +81,23 @@ func TestRespondErrorPreferringConflictCode_LstepAutoManagedPrefix(t *testing.T)
 	assert.NotContains(t, w.Body.String(), "lstep_auto_managed_prefixes_prefix_key")
 }
 
+func TestRespondErrorPreferringConflictCode_Consultation(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	c, w := newTestContext()
+
+	err := apperrors.WrapNameConflict(apperrors.CodeConsultationNameConflict, "V04診察")
+	RespondErrorPreferringConflictCode(c, err)
+
+	assert.Equal(t, http.StatusConflict, w.Code)
+	var body map[string]any
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &body))
+	assert.Equal(t, apperrors.CodeConsultationNameConflict, body["code"])
+	params := body["params"].(map[string]any)
+	assert.Equal(t, "V04診察", params["name"])
+	assert.NotContains(t, w.Body.String(), "idx_consultations")
+	assert.NotContains(t, w.Body.String(), "consultation '' already exists")
+}
+
 func TestRespondErrorPreferringConflictCode_FallsBackToRespondError(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	c, w := newTestContext()
