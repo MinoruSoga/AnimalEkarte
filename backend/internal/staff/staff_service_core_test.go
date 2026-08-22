@@ -216,6 +216,13 @@ func (m *coreMockStaffClinicAssignmentRepository) RestoreOrCreate(
 func (m *coreMockStaffClinicAssignmentRepository) Delete(_ context.Context, _ uint64) error {
 	return nil
 }
+func (m *coreMockStaffClinicAssignmentRepository) DeleteByStaffAndClinicIDs(
+	_ context.Context,
+	_ uint64,
+	_ []uint64,
+) error {
+	return nil
+}
 
 type coreMockReservationQueryRepository struct {
 	existsByStaffIDFn        func(ctx context.Context, clinicID, staffID uint64) (bool, error)
@@ -278,7 +285,6 @@ func (m *coreMockReservationQueryRepository) FindPetOwnerInClinic(_ context.Cont
 func (m *coreMockReservationQueryRepository) FindPetByIDInClinic(_ context.Context, _, petID uint64) (*model.Pet, error) {
 	return &model.Pet{ID: petID, Status: model.PetStatusAlive}, nil
 }
-
 
 func (m *coreMockReservationQueryRepository) AssertLineCustomerInClinic(_ context.Context, _, _ uint64) error {
 	return nil

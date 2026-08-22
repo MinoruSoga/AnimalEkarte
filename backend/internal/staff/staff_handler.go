@@ -216,6 +216,10 @@ func (h *Handler) GetStaffClinicAssignments(c *gin.Context) {
 		return
 	}
 
+	isSystemAdmin, ok := extractIsSystemAdmin(c)
+	if !ok {
+		return
+	}
 	authorizedClinicIDs, ok := httpapi.ExtractClinicIDs(c)
 	if !ok {
 		return
@@ -233,7 +237,7 @@ func (h *Handler) GetStaffClinicAssignments(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, staffClinicAssignmentsResponse{
-		ClinicIDs: visibleStaffClinicIDs(id, assignments, authorizedClinicIDs),
+		ClinicIDs: visibleStaffClinicIDs(id, assignments, authorizedClinicIDs, isSystemAdmin),
 	})
 }
 
@@ -241,23 +245,29 @@ func visibleStaffClinicIDs(
 	staffID uint64,
 	assignments []model.StaffClinicAssignment,
 	authorizedClinicIDs []uint64,
+	isSystemAdmin bool,
 ) []uint64 {
 	authorized := make(map[uint64]struct{}, len(authorizedClinicIDs))
-	for _, clinicID := range authorizedClinicIDs {
-		authorized[clinicID] = struct{}{}
+	if !isSystemAdmin {
+		for _, clinicID := range authorizedClinicIDs {
+			authorized[clinicID] = struct{}{}
+		}
 	}
 
 	visible := make([]uint64, 0, len(assignments))
 	seen := make(map[uint64]struct{}, len(assignments))
-	for _, assignment := range assignments {
+	for i := range assignments {
+		assignment := &assignments[i]
 		if assignment.StaffID != staffID || assignment.ClinicID == 0 || assignment.DeletedAt.Valid {
 			continue
 		}
 		if _, duplicate := seen[assignment.ClinicID]; duplicate {
 			continue
 		}
-		if _, allowed := authorized[assignment.ClinicID]; !allowed {
-			continue
+		if !isSystemAdmin {
+			if _, allowed := authorized[assignment.ClinicID]; !allowed {
+				continue
+			}
 		}
 		seen[assignment.ClinicID] = struct{}{}
 		visible = append(visible, assignment.ClinicID)

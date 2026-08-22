@@ -69,6 +69,17 @@ func (m *mockClinicMembershipRepo) Delete(ctx context.Context, staffID uint64) e
 	return nil
 }
 
+func (m *mockClinicMembershipRepo) DeleteByStaffAndClinicIDs(
+	ctx context.Context,
+	staffID uint64,
+	clinicIDs []uint64,
+) error {
+	if len(clinicIDs) == 0 {
+		return nil
+	}
+	return m.Delete(ctx, staffID)
+}
+
 var _ StaffClinicAssignmentRepository = (*mockClinicMembershipRepo)(nil)
 
 type mockClinicLookupForStaffAssignments struct {

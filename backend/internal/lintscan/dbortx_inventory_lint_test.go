@@ -565,6 +565,7 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"staff/staff_clinic_assignment_repository.go|staffClinicAssignmentRepository.CountByStaffAndClinic":      {},
 	"staff/staff_clinic_assignment_repository.go|staffClinicAssignmentRepository.Create":                     {},
 	"staff/staff_clinic_assignment_repository.go|staffClinicAssignmentRepository.Delete":                     {},
+	"staff/staff_clinic_assignment_repository.go|staffClinicAssignmentRepository.DeleteByStaffAndClinicIDs":  {},
 	"staff/staff_clinic_assignment_repository.go|staffClinicAssignmentRepository.FindByStaffAndClinic":       {},
 	"staff/staff_clinic_assignment_repository.go|staffClinicAssignmentRepository.FindByStaffID":              {},
 	"staff/staff_clinic_assignment_repository.go|staffClinicAssignmentRepository.LockActiveByStaff":          {},

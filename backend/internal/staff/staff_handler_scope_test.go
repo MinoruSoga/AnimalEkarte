@@ -133,7 +133,10 @@ func TestHandler_GetStaffClinicAssignmentsIntersectsSystemAdminActiveClinics(t *
 	require.Equal(t, http.StatusOK, recorder.Code)
 	var body staffClinicAssignmentsResponse
 	require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &body))
-	assert.Equal(t, []uint64{20}, body.ClinicIDs)
+	// BUG-010: system-admin claims are active clinics only. GET must still
+	// return assignments whose clinic is missing from claims (inactive),
+	// otherwise a later PUT of the GET list deletes those rows.
+	assert.Equal(t, []uint64{20, 30}, body.ClinicIDs)
 }
 
 func TestHandler_GetStaffClinicAssignmentsIntersectsNonAdminAuthorizedClinics(t *testing.T) {
@@ -177,6 +180,7 @@ func TestHandler_GetStaffClinicAssignmentsIntersectsNonAdminAuthorizedClinics(t 
 	var body staffClinicAssignmentsResponse
 	require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &body))
 	assert.Equal(t, []uint64{20, 40}, body.ClinicIDs)
+	assert.NotContains(t, body.ClinicIDs, uint64(30), "non-admin GET must hide clinic IDs outside authorizedClinicIDs")
 	assert.Equal(t, []model.StaffClinicAssignment{
 		{StaffID: 7, ClinicID: 40},
 		{StaffID: 7, ClinicID: 30},

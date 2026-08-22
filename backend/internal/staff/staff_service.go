@@ -73,8 +73,8 @@ type UpdateStaffInput struct {
 	CredentialAudit *CredentialMutationAudit
 }
 
-// SetClinicAssignmentsInput はスタッフのクリニック割当全置換と、実行者の認可済み
-// clinic scope をまとめた入力である。ClinicIDs と AuthorizedClinicIDs は変更しない。
+// SetClinicAssignmentsInput はスタッフのクリニック割当を実行者の mutable scope で
+// 差分更新するための入力である。ClinicIDs と AuthorizedClinicIDs は変更しない。
 type SetClinicAssignmentsInput struct {
 	StaffID             uint64
 	ClinicIDs           []uint64
@@ -122,9 +122,9 @@ type StaffCoreService interface {
 type StaffAccountService interface {
 	// FindByAccountID はアカウントIDに紐づくスタッフを返す。
 	FindByAccountID(ctx context.Context, accountID uint64) (*model.Staff, error)
-	// SetClinicAssignments はスタッフのクリニック割当をトランザクション内で差し替える。
-	// staff・既存割当を決定的な順序でロックし、解除対象 clinic の予約・シフト依存を
-	// 同じ transaction で拒否してから置換する。最初の1件は is_main=true となる。
+	// SetClinicAssignments はスタッフのクリニック割当をトランザクション内で
+	// 実行者の mutable scope に対する差分として更新する。staff・既存割当を決定的な
+	// 順序でロックし、解除対象 clinic の予約・シフト依存を同じ transaction で拒否する。
 	SetClinicAssignments(ctx context.Context, input *SetClinicAssignmentsInput) error
 	// VerifyClinicMembership はスタッフが指定クリニックに所属しているかを確認する。
 	// 所属していない場合は ErrNotFound を返す。

@@ -191,7 +191,6 @@ func (m *mockReservationForStaff) FindPetByIDInClinic(_ context.Context, _, petI
 	return &model.Pet{ID: petID, Status: model.PetStatusAlive}, nil
 }
 
-
 func (m *mockReservationForStaff) AssertLineCustomerInClinic(_ context.Context, _, _ uint64) error {
 	return nil
 }
@@ -327,10 +326,11 @@ func (m *mockAccountForStaff) Delete(_ context.Context, _ uint64) error { return
 
 // mockAssignmentForStaff は Staff テストで使用する StaffClinicAssignmentRepository のスタブ
 type mockAssignmentForStaff struct {
-	deleteByStaffIDFn func(ctx context.Context, staffID uint64) error
-	createFn          func(ctx context.Context, a *model.StaffClinicAssignment) error
-	lockActiveFn      func(ctx context.Context, staffID uint64) ([]model.StaffClinicAssignment, error)
-	restoreOrCreateFn func(ctx context.Context, a *model.StaffClinicAssignment) error
+	deleteByStaffIDFn   func(ctx context.Context, staffID uint64) error
+	deleteByClinicIDsFn func(ctx context.Context, staffID uint64, clinicIDs []uint64) error
+	createFn            func(ctx context.Context, a *model.StaffClinicAssignment) error
+	lockActiveFn        func(ctx context.Context, staffID uint64) ([]model.StaffClinicAssignment, error)
+	restoreOrCreateFn   func(ctx context.Context, a *model.StaffClinicAssignment) error
 }
 
 func (m *mockAssignmentForStaff) FindByStaffID(_ context.Context, _ uint64) ([]model.StaffClinicAssignment, error) {
@@ -376,6 +376,22 @@ func (m *mockAssignmentForStaff) RestoreOrCreate(ctx context.Context, a *model.S
 	return m.Create(ctx, a)
 }
 func (m *mockAssignmentForStaff) Delete(ctx context.Context, staffID uint64) error {
+	if m.deleteByStaffIDFn != nil {
+		return m.deleteByStaffIDFn(ctx, staffID)
+	}
+	return nil
+}
+func (m *mockAssignmentForStaff) DeleteByStaffAndClinicIDs(
+	ctx context.Context,
+	staffID uint64,
+	clinicIDs []uint64,
+) error {
+	if m.deleteByClinicIDsFn != nil {
+		return m.deleteByClinicIDsFn(ctx, staffID, clinicIDs)
+	}
+	if len(clinicIDs) == 0 {
+		return nil
+	}
 	if m.deleteByStaffIDFn != nil {
 		return m.deleteByStaffIDFn(ctx, staffID)
 	}
