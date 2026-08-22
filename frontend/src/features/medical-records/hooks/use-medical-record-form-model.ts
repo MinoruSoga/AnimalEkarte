@@ -29,8 +29,20 @@ export interface MedicalRecordReservationTypeGroup {
   types: MedicalRecordReservationType[];
 }
 
-export function toVisitTypeValue(visitTypeLabel: string): "first" | "revisit" {
-  return visitTypeLabel === "初診" || visitTypeLabel === "first" ? "first" : "revisit";
+export function isSupportedVisitTypeLabel(visitTypeLabel: string): boolean {
+  return (
+    visitTypeLabel === "初診" ||
+    visitTypeLabel === "first" ||
+    visitTypeLabel === "再診" ||
+    visitTypeLabel === "revisit"
+  );
+}
+
+/** Maps UI/API labels to the BE visit_type enum. Unknown labels must not become revisit. */
+export function toVisitTypeValue(visitTypeLabel: string): "first" | "revisit" | null {
+  if (visitTypeLabel === "初診" || visitTypeLabel === "first") return "first";
+  if (visitTypeLabel === "再診" || visitTypeLabel === "revisit") return "revisit";
+  return null;
 }
 
 function padDatePart(value: number): string {
@@ -82,7 +94,7 @@ export function findGeneralReservationType(
     .sort((a, b) => a.sort_order - b.sort_order);
 
   return generalTypes?.find((type) =>
-    toVisitTypeValue(visitType) === "revisit"
+    toVisitTypeValue(visitType) !== "first"
       ? type.name.includes("再診")
       : !type.name.includes("再診")
   ) ?? generalTypes?.[0];

@@ -28,6 +28,12 @@ func TestNormalizeKana(t *testing.T) {
 	}
 }
 
+func TestNormalizeQuerySpaces(t *testing.T) {
+	assert.Equal(t, "山田 花子", NormalizeQuerySpaces("山田　花子"))
+	assert.Equal(t, "山田 花子", NormalizeQuerySpaces("  山田   花子  "))
+	assert.Equal(t, "", NormalizeQuerySpaces("　　"))
+}
+
 func TestEscapeLike(t *testing.T) {
 	tests := []struct {
 		name  string

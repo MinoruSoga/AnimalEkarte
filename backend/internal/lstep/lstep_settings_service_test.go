@@ -53,6 +53,10 @@ func (m *mockLstepSettingsRepository) DeleteByClinicAndService(ctx context.Conte
 	return nil
 }
 
+func (m *mockLstepSettingsRepository) DeleteByClinicServiceAndKey(_ context.Context, _ uint64, _, _ string) error {
+	return nil
+}
+
 // ---- mock LstepSyncSettingsRepository ----
 
 type mockLstepSyncSettingsRepository struct {

@@ -15,6 +15,7 @@ import type { Examination } from "@/types/generated/models";
 export interface UpdateExaminationRequest {
   medical_record_id?: number | null;
   pet_id?: number | null;
+  doctor_id?: number | null;
   status?:
     "pending" | "in_progress" | "result_entered" | "completed" | "confirmed";
   result_summary?: string;

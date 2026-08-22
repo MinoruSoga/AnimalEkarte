@@ -1,4 +1,5 @@
-export const VISIT_TYPE_OPTIONS = ["初診", "再診", "緊急", "往診"] as const;
+/** 来院種別の正本は BE enum `first` / `revisit` のみ（docs/spec/reservation-to-record-flow.md）。 */
+export const VISIT_TYPE_OPTIONS = ["初診", "再診"] as const;
 
 /** DB enum "first" | "revisit" → Japanese label */
 export function fromVisitTypeValue(value: string | undefined): string {

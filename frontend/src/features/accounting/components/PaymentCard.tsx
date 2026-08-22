@@ -13,7 +13,7 @@ import { formatCurrency } from "@/lib/format/number";
 
 import type { PaymentMethod } from "../types";
 import { PAYMENT_METHOD_LABELS } from "@/constants/payment-method";
-import { isPaymentSubmitDisabled } from "./accounting-detail-model";
+import { hasInvalidChangeOverride, isPaymentSubmitDisabled } from "./accounting-detail-model";
 
 export interface PaymentSplitDraft {
   method: PaymentMethod;
@@ -211,10 +211,17 @@ export const PaymentCard = memo(function PaymentCard({
                               suffix="円"
                               align="right"
                               min={0}
+                              aria-invalid={hasInvalidChangeOverride([split])}
                             />
-                            <p className={`text-xs text-right ${C.text40}`}>
-                              レジ実機の実際のお釣りに合わせて手動修正中
-                            </p>
+                            {hasInvalidChangeOverride([split]) ? (
+                              <p role="alert" className={`text-xs text-right ${C.danger}`}>
+                                お釣りは0以上の金額を入力してください
+                              </p>
+                            ) : (
+                              <p className={`text-xs text-right ${C.text40}`}>
+                                レジ実機の実際のお釣りに合わせて手動修正中
+                              </p>
+                            )}
                           </>
                         ) : (
                           <div className="flex justify-end">

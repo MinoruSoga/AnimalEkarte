@@ -11,6 +11,7 @@ import { queryKeys } from "@/lib/query-keys";
 export interface ClinicSummary {
   id: string;
   name: string;
+  isActive: boolean;
 }
 
 const getClinicsListKey = (scope?: "all") => queryKeys.clinics.list(scope);
@@ -20,11 +21,15 @@ export function useGetClinicsList(scope?: "all") {
     queryKey: getClinicsListKey(scope),
     queryFn: async (): Promise<ClinicSummary[]> => {
       const params = scope ? { scope } : undefined;
-      const { data } = await axios.get<Array<{ id: number; name: string }>>(
+      const { data } = await axios.get<Array<{ id: number; name: string; is_active?: boolean }>>(
         "/v1/clinics",
         { params },
       );
-      return data.map((c) => ({ id: String(c.id), name: c.name }));
+      return data.map((c) => ({
+        id: String(c.id),
+        name: c.name,
+        isActive: c.is_active !== false,
+      }));
     },
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,

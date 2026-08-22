@@ -33,7 +33,7 @@ interface ChangePasswordDialogProps {
   onSuccess?: () => void;
 }
 
-type FormState = { error?: string; success?: boolean } | null;
+type FormState = { error?: string; success?: boolean; currentPassword?: string } | null;
 
 /**
  * パスワード入力フィールド + 表示/非表示トグル。
@@ -49,6 +49,7 @@ function PasswordField({
   show,
   onToggle,
   fieldNameForAria,
+  defaultValue,
 }: {
   id: string;
   label: string;
@@ -59,6 +60,7 @@ function PasswordField({
   show: boolean;
   onToggle: () => void;
   fieldNameForAria: string;
+  defaultValue?: string;
 }) {
   return (
     <div className="flex flex-col gap-1.5">
@@ -75,6 +77,7 @@ function PasswordField({
           required
           minLength={minLength}
           placeholder={placeholder}
+          defaultValue={defaultValue}
           className="pr-12"
         />
         <button
@@ -110,13 +113,13 @@ export const ChangePasswordDialog = memo(function ChangePasswordDialog({
       const confirmPassword = formData.get("confirm_password") as string;
 
       if (!currentPassword || !newPassword || !confirmPassword) {
-        return { error: "すべての項目を入力してください" };
+        return { error: "すべての項目を入力してください", currentPassword };
       }
       if (newPassword.length < 8) {
-        return { error: "新しいパスワードは8文字以上で入力してください" };
+        return { error: "新しいパスワードは8文字以上で入力してください", currentPassword };
       }
       if (newPassword !== confirmPassword) {
-        return { error: "新しいパスワードと確認用パスワードが一致しません" };
+        return { error: "新しいパスワードと確認用パスワードが一致しません", currentPassword };
       }
 
       try {
@@ -135,7 +138,7 @@ export const ChangePasswordDialog = memo(function ChangePasswordDialog({
               ? data.error
               : undefined;
           if (status === 401) {
-            return { error: "現在のパスワードが正しくありません" };
+            return { error: "現在のパスワードが正しくありません", currentPassword };
           }
           if (status === 400) {
             return { error: serverMessage ?? "パスワードの変更に失敗しました" };
@@ -166,6 +169,7 @@ export const ChangePasswordDialog = memo(function ChangePasswordDialog({
             show={showCurrent}
             onToggle={() => setShowCurrent((prev) => !prev)}
             fieldNameForAria="現在のパスワード"
+            defaultValue={state?.currentPassword}
           />
           <PasswordField
             id="new_password"

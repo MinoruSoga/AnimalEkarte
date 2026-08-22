@@ -58,6 +58,7 @@ type UpdateLstepSettingsInput struct {
 	LineChannelAccessToken string
 	LineChannelSecret      string
 	LiffID                 string
+	ClearLiffID            bool
 	LineAccountName        string
 	// IsSyncEnabled が nil の場合は変更なし。false→true に変わった時のみ SyncEnabledAt を現在時刻にセット。
 	IsSyncEnabled *bool

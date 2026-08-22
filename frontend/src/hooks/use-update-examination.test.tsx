@@ -71,4 +71,28 @@ describe("useUpdateExamination (FE4-6)", () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(requestBody).toEqual({ pet_id: 84 });
   });
+
+  it("担当医変更用 doctor_id を PATCH body に保持する", async () => {
+    let requestBody: unknown;
+    server.use(
+      http.patch("/api/v1/examinations/:id", async ({ request }) => {
+        requestBody = await request.json();
+        return HttpResponse.json({ id: 7 });
+      }),
+    );
+
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const { result } = renderHook(() => useUpdateExamination(), {
+      wrapper: createWrapper(queryClient),
+    });
+
+    await act(async () => {
+      result.current.mutate({ id: "7", req: { doctor_id: 3 } });
+    });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(requestBody).toEqual({ doctor_id: 3 });
+  });
 });

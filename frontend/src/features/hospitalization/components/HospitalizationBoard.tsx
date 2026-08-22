@@ -4,9 +4,18 @@ import { formatDate } from "@/lib/format/date";
 import { memo, useCallback, useMemo } from "react";
 
 // External
-import { DndContext, PointerSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
+import {
+  closestCorners,
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
 import { useDraggable, useDroppable } from "@dnd-kit/core";
 import { Plus, GripVertical } from "lucide-react";
+import { cageKeyboardCoordinateGetter } from "./cage-keyboard-coordinates";
 
 // Internal
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
@@ -156,7 +165,8 @@ const CageCard = memo(function CageCard({ cage, occupant, onNavigateToForm, canC
 
 export const HospitalizationBoard = memo(function HospitalizationBoard({ cages, hospitalizations, onNavigateToForm, onMovePet, canCreate, canEdit }: HospitalizationBoardProps) {
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: cageKeyboardCoordinateGetter }),
   );
 
   const handleDragEnd = useCallback((event: DragEndEvent) => {
@@ -190,7 +200,7 @@ export const HospitalizationBoard = memo(function HospitalizationBoard({ cages, 
   );
 
   return (
-    <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+    <DndContext sensors={sensors} collisionDetection={closestCorners} onDragEnd={handleDragEnd}>
       <div className="space-y-6 pb-4">
         {Object.entries(cagesByArea).map(([area, areaCages]) => (
           // No min-w-[800px]: reflow 1/2/3+ columns by container width (BUG-458).

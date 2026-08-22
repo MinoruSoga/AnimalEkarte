@@ -22,6 +22,12 @@ func (s *lstepSettingsService) updateIntegrationCredentials(ctx context.Context,
 		{model.IntegrationKeyLineAccountName, input.LineAccountName},
 	}
 
+	if input.ClearLiffID {
+		if err := s.repo.DeleteByClinicServiceAndKey(ctx, clinicID, model.IntegrationServiceLstep, model.IntegrationKeyLiffID); err != nil {
+			return err
+		}
+	}
+
 	for _, pair := range pairs {
 		if pair.value == "" {
 			continue

@@ -564,6 +564,7 @@ export function useExaminationForm(
               : undefined,
             result_summary: current.resultSummary,
             machine: current.machine,
+            doctor_id: current.doctorId ? Number(current.doctorId) : null,
             date: current.date
               ? current.date.includes("T")
                 ? current.date

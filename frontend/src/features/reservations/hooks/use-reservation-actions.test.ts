@@ -4,6 +4,7 @@ import type { MutableRefObject } from "react";
 
 import type { Reservation, ReservationFormData, ReservationStatus } from "../types";
 import {
+  buildReservationUpdateRequest,
   isDestructiveReservationStatus,
   useReservationActions,
   type StatusConfirmTarget,
@@ -175,5 +176,56 @@ describe("useReservationActions handleStatusChange (BUG-020)", () => {
     });
 
     expect(updateMutateMock).not.toHaveBeenCalled();
+  });
+
+  it("受付済→診療中はカルテ作成必須のため PATCH しない", () => {
+    const { result } = setup();
+    const reservation = makeReservation({ status: "checked_in" });
+
+    act(() => {
+      result.current.handleStatusChange(reservation, "in_consultation");
+    });
+
+    expect(updateMutateMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("buildReservationUpdateRequest (BUG-012)", () => {
+  const start = new Date("2026-05-29T03:30:00.000Z");
+  const end = new Date("2026-05-29T04:00:00.000Z");
+  const current: ReservationFormData = {
+    id: "r1",
+    start,
+    end,
+    visitType: "first",
+    type: "1",
+    doctor: "1",
+    isDesignated: false,
+    status: "checked_in",
+    notes: "memo",
+  };
+
+  it("メモのみ変更なら notes だけを送る", () => {
+    const payload = buildReservationUpdateRequest(
+      current,
+      { ...current, notes: "updated memo" },
+      "1",
+    );
+    expect(payload).toEqual({
+      id: "r1",
+      req: { notes: "updated memo" },
+    });
+  });
+
+  it("時刻変更があるときだけ start_time/end_time を含める", () => {
+    const nextEnd = new Date("2026-05-29T04:30:00.000Z");
+    const payload = buildReservationUpdateRequest(
+      current,
+      { ...current, end: nextEnd },
+      "1",
+    );
+    expect(payload?.req).toHaveProperty("end_time");
+    expect(payload?.req).not.toHaveProperty("doctor_id");
+    expect(payload?.req).not.toHaveProperty("start_time");
   });
 });

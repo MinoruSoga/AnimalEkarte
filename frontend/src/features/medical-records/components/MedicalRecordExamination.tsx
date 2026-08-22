@@ -96,7 +96,11 @@ export const MedicalRecordExamination = memo(function MedicalRecordExamination({
         </div>
       ) : examGroups.length === 0 ? (
         <div className={`flex flex-col items-center justify-center gap-3 h-24 text-sm ${C.text40} pl-1`}>
-          <p>検査記録がありません。下の「記録を追加」ボタンから追加してください。</p>
+          <p>
+            {isNewRecord
+              ? "検査記録はまだありません。カルテ保存後に検査を追加できます。"
+              : "検査記録がありません。下の「記録を追加」ボタンから追加してください。"}
+          </p>
           {isNewRecord ? null : (
             <button type="button" className="underline" onClick={handleImportClick}>
               記録を追加

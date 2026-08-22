@@ -89,10 +89,9 @@ func (s *service) GetOwnerGroup(
 	if len(members) == 0 {
 		return nil, nil, apperrors.WrapNotFound("owner_identity_group", fmt.Sprintf("%d", groupID))
 	}
-	group := &model.OwnerIdentityGroup{
-		ID:              groupID,
-		CreatedClinicID: members[0].GroupCreatedClinicID,
-		Version:         1,
+	group, findErr := s.repo.FindOwnerGroupByID(ctx, groupID)
+	if findErr != nil {
+		return nil, nil, findErr
 	}
 	return group, members, nil
 }
@@ -112,10 +111,9 @@ func (s *service) GetPetGroup(
 	if len(members) == 0 {
 		return nil, nil, apperrors.WrapNotFound("pet_identity_group", fmt.Sprintf("%d", groupID))
 	}
-	group := &model.PetIdentityGroup{
-		ID:              groupID,
-		CreatedClinicID: members[0].GroupCreatedClinicID,
-		Version:         1,
+	group, findErr := s.repo.FindPetGroupByID(ctx, groupID)
+	if findErr != nil {
+		return nil, nil, findErr
 	}
 	return group, members, nil
 }

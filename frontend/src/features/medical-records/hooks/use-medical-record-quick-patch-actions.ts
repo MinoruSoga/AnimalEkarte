@@ -5,7 +5,7 @@ import { handleApiError } from "@/lib/handle-api-error";
 import { queryKeys } from "@/lib/query-keys";
 import { usePermission } from "@/hooks/use-permission";
 import type { UpdateMedicalRecordRequest } from "../api/types";
-import { toVisitTypeValue } from "./use-medical-record-form-model";
+import { isSupportedVisitTypeLabel, toVisitTypeValue } from "./use-medical-record-form-model";
 
 interface UseMedicalRecordQuickPatchActionsArgs {
   recordId?: string;
@@ -76,6 +76,12 @@ export function useMedicalRecordQuickPatchActions({
   // existingRecordVersion のみ参照するため object 全体を dep に含めない (OCC versioning)
   const handleVisitTypeChange = useCallback((newVisitType: string) => {
     if (!isMutationAllowed()) return;
+    if (!isSupportedVisitTypeLabel(newVisitType)) {
+      toast.error("来院種別は初診または再診のみ保存できます");
+      return;
+    }
+    const mappedVisitType = toVisitTypeValue(newVisitType);
+    if (!mappedVisitType) return;
     const prevVisitType = visitType;
     setVisitType(newVisitType);
     if (!recordId) return; // 新規作成時はローカルstateのみ
@@ -85,7 +91,7 @@ export function useMedicalRecordQuickPatchActions({
         await updateMutation.mutateAsync({
           id: recordId,
           req: {
-            visit_type: toVisitTypeValue(newVisitType),
+            visit_type: mappedVisitType,
             version: existingRecordVersion,
           } as UpdateMedicalRecordRequest,
         });

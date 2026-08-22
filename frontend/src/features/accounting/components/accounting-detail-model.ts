@@ -54,9 +54,24 @@ export function isPaymentSubmitDisabled(
   return paymentSplits.some((s) => {
     if (!s.amount || parseInt(s.amount, 10) <= 0) return true;
     if (s.method === "cash") {
-      return parseInt(s.receivedAmount || "0", 10) < parseInt(s.amount, 10);
+      if (parseInt(s.receivedAmount || "0", 10) < parseInt(s.amount, 10)) return true;
+      if (s.changeOverride === true) {
+        const change = Number(s.changeAmount);
+        if (s.changeAmount !== undefined && s.changeAmount !== "" && (Number.isNaN(change) || change < 0)) {
+          return true;
+        }
+      }
     }
     return false;
+  });
+}
+
+export function hasInvalidChangeOverride(paymentSplits: PaymentSplitDraft[]): boolean {
+  return paymentSplits.some((s) => {
+    if (s.method !== "cash" || s.changeOverride !== true) return false;
+    if (s.changeAmount === undefined || s.changeAmount === "") return false;
+    const change = Number(s.changeAmount);
+    return Number.isNaN(change) || change < 0;
   });
 }
 

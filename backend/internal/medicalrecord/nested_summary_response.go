@@ -68,6 +68,9 @@ type PetSummaryResponse struct {
 	Status    string   `json:"status,omitempty"`
 	Breed     string   `json:"breed,omitempty"`
 
+	Gender        string                        `json:"gender,omitempty"`
+	BirthDate     *string                       `json:"birth_date,omitempty"`
+	NeuteredDate  *string                       `json:"neutered_date,omitempty"`
 	AnimalSpecies *AnimalSpeciesSummaryResponse `json:"animal_species,omitempty"`
 	Owner         *OwnerSummaryResponse         `json:"owner,omitempty"`
 }
@@ -84,7 +87,16 @@ func toPetSummary(p *model.Pet) *PetSummaryResponse {
 		Weight:    p.Weight,
 		Status:    string(p.Status),
 		Breed:     p.Breed,
+		Gender:    string(p.Gender),
 		Owner:     toOwnerSummary(p.Owner),
+	}
+	if p.BirthDate != nil {
+		d := p.BirthDate.Format("2006-01-02")
+		resp.BirthDate = &d
+	}
+	if p.NeuteredDate != nil {
+		d := p.NeuteredDate.Format("2006-01-02")
+		resp.NeuteredDate = &d
 	}
 	if p.AnimalSpecies != nil {
 		resp.AnimalSpecies = &AnimalSpeciesSummaryResponse{

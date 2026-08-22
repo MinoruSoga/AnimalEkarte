@@ -125,7 +125,8 @@ export function buildSelectedPetFromHospitalization(hospitalization: BackendHosp
     return null;
   }
 
-  // PetSummaryResponse wire has name/breed/status/species — not full Pet detail (gender etc.).
+  const gender =
+    hospitalization.pet.gender === "male" ? "雄" : hospitalization.pet.gender === "female" ? "雌" : "不明";
   return {
     id: String(hospitalization.pet_id),
     ownerId: String(hospitalization.owner_id),
@@ -134,6 +135,10 @@ export function buildSelectedPetFromHospitalization(hospitalization: BackendHosp
     species: hospitalization.pet.animal_species?.name ?? "",
     breed: hospitalization.pet.breed,
     status: hospitalization.pet.status === "deceased" ? "死亡" : "生存",
+    gender,
+    birthDate: hospitalization.pet.birth_date ?? "",
+    neuteredDate: hospitalization.pet.neutered_date ?? "",
+    weight: hospitalization.pet.weight != null ? String(hospitalization.pet.weight) : "",
   } as Pet;
 }
 

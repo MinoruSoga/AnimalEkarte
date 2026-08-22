@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { ReactNode } from "react";
 
 import type { Hospitalization, MasterItem } from "@/types";
+import { KeyboardSensor, PointerSensor, useSensor } from "@dnd-kit/core";
 import { HospitalizationBoard } from "./HospitalizationBoard";
 
 const dndHarness = vi.hoisted(() => ({
@@ -28,6 +29,8 @@ vi.mock("@dnd-kit/core", () => ({
     return children;
   },
   PointerSensor: function PointerSensor() {},
+  KeyboardSensor: function KeyboardSensor() {},
+  closestCorners: vi.fn(),
   useSensor: vi.fn(() => ({})),
   useSensors: vi.fn(() => []),
   useDraggable: dndHarness.useDraggable,
@@ -172,6 +175,11 @@ describe("HospitalizationBoard empty cage actions", () => {
     });
 
     expect(onMovePet).toHaveBeenCalledWith(occupied.id, "cage-a-2");
+    expect(useSensor).toHaveBeenCalledWith(PointerSensor, expect.anything());
+    expect(useSensor).toHaveBeenCalledWith(
+      KeyboardSensor,
+      expect.objectContaining({ coordinateGetter: expect.any(Function) }),
+    );
   });
 
   it("死亡ペットのoccupied cardは色に依存しない死亡文言を表示する", () => {

@@ -494,6 +494,11 @@ func (s *accountingService) Complete(ctx context.Context, input *CompleteAccount
 		if billingAmount < 0 {
 			return apperrors.WrapInvalidInput("請求金額が負になります（保険・割引の指定を確認してください）")
 		}
+		// BUG-006: 請求額が正なのに内訳未指定だと buildPaymentSplits が全額1行を合成し、
+		// 部分入金が 201 で黙って上書きされる。UI は remaining!==0 で到達不可だが API 契約は 400。
+		if billingAmount > 0 && len(input.PaymentSplits) == 0 {
+			return apperrors.WrapInvalidInput("支払い内訳は必須です")
+		}
 		if err := validatePaymentSplits(input.PaymentSplits, &billingAmount); err != nil {
 			return err
 		}

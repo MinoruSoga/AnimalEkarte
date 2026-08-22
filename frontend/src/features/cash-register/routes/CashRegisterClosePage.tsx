@@ -53,6 +53,11 @@ export function CashRegisterClosePage() {
   }, []);
 
   const [, formAction] = useActionState(async (_prev: null, formData: FormData) => {
+    const cash = Number(formData.get("actual_cash"));
+    if (!Number.isFinite(cash) || cash < 0) {
+      toast.error("実際のレジ現金は0以上の金額を入力してください");
+      return null;
+    }
     setPendingFormData(formData);
     setShowConfirm(true);
     return null;
@@ -95,7 +100,7 @@ export function CashRegisterClosePage() {
           onCancel={() => navigate(paths.accounting.closeHistory.getHref())}
           submitLabel="締める"
           submitFormId="cash-register-close-form"
-          submitDisabled={actualCash === ""}
+          submitDisabled={actualCash === "" || Number(actualCash) < 0}
         />
       }
     >
@@ -273,7 +278,13 @@ export function CashRegisterClosePage() {
                         className={`${STYLE.formInput} mt-1 w-full rounded-xs border px-3`}
                         placeholder="0"
                         required
+                        aria-invalid={actualCash !== "" && Number(actualCash) < 0}
                       />
+                      {actualCash !== "" && Number(actualCash) < 0 ? (
+                        <p role="alert" className={`mt-1 text-sm ${C.danger}`}>
+                          実際のレジ現金は0以上の金額を入力してください
+                        </p>
+                      ) : null}
                     </div>
                     {actualCash !== "" ? (
                       <CashReconciliationCard

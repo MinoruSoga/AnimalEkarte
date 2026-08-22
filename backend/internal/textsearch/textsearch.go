@@ -14,6 +14,13 @@ const (
 // NormalizeKana converts katakana to hiragana while preserving every other
 // rune. Search inputs use the same representation as translated database
 // columns.
+// NormalizeQuerySpaces collapses full-width / extra whitespace so owner/pet search
+// matches half-width space queries (BUG-008).
+func NormalizeQuerySpaces(value string) string {
+	value = strings.ReplaceAll(value, "\u3000", " ")
+	return strings.Join(strings.Fields(strings.TrimSpace(value)), " ")
+}
+
 func NormalizeKana(value string) string {
 	var normalized strings.Builder
 	normalized.Grow(len(value))

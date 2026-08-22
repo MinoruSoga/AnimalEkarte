@@ -12,6 +12,7 @@ import { useCreateReservation } from "../api/create-reservation";
 import { useDeleteReservation } from "../api/delete-reservation";
 import { transformToCreateRequest } from "../api/transforms";
 import { useUpdateReservation } from "../api/update-reservation";
+import type { UpdateReservationRequest } from "@/hooks/use-update-reservation";
 import type {
   NavigationState,
   NewOwnerFormData,
@@ -29,6 +30,46 @@ export const DESTRUCTIVE_RESERVATION_STATUSES: readonly ReservationStatus[] = [
 
 export function isDestructiveReservationStatus(status: ReservationStatus): boolean {
   return (DESTRUCTIVE_RESERVATION_STATUSES as readonly string[]).includes(status);
+}
+
+/** Notes-only edits must omit schedule/doctor so BE skips on-duty conflict checks (BUG-012). */
+export function buildReservationUpdateRequest(
+  current: ReservationFormData,
+  data: ReservationFormData,
+  targetDoctor: string,
+): { id: string; req: UpdateReservationRequest } | null {
+  if (!current.id) return null;
+
+  const req: UpdateReservationRequest = {};
+  if (data.start) {
+    const nextStart = jstWallDateToISOString(data.start);
+    const prevStart = current.start ? jstWallDateToISOString(current.start) : "";
+    if (nextStart !== prevStart) req.start_time = nextStart;
+  }
+  if (data.end) {
+    const nextEnd = jstWallDateToISOString(data.end);
+    const prevEnd = current.end ? jstWallDateToISOString(current.end) : "";
+    if (nextEnd !== prevEnd) req.end_time = nextEnd;
+  }
+  const nextVisit = data.visitType || "first";
+  if (nextVisit !== (current.visitType || "first")) req.visit_type = nextVisit;
+  const nextType = data.type ? Number(data.type) : undefined;
+  const prevType = current.type ? Number(current.type) : undefined;
+  if (nextType !== undefined && nextType !== prevType) req.reservation_type_id = nextType;
+  const nextDoctor = targetDoctor ? Number(targetDoctor) : undefined;
+  const prevDoctor = current.doctor ? Number(current.doctor) : undefined;
+  if (nextDoctor !== prevDoctor && nextDoctor !== undefined) req.doctor_id = nextDoctor;
+  if ((data.isDesignated ?? false) !== (current.isDesignated ?? false)) {
+    req.is_designated = data.isDesignated ?? false;
+  }
+  const nextStatus = data.status || "confirmed";
+  if (nextStatus !== (current.status || "confirmed")) req.status = nextStatus;
+  if ((data.notes ?? "") !== (current.notes ?? "")) req.notes = data.notes;
+
+  if (Object.keys(req).length === 0) {
+    req.notes = data.notes ?? "";
+  }
+  return { id: current.id, req };
 }
 
 export interface StatusConfirmTarget {
@@ -129,19 +170,8 @@ export function useReservationActions({
       }
 
       if (currentEditing?.id) {
-        const updatePayload = {
-          id: currentEditing.id,
-          req: {
-            start_time: jstWallDateToISOString(data.start),
-            end_time: jstWallDateToISOString(data.end),
-            visit_type: data.visitType || "first",
-            reservation_type_id: data.type ? Number(data.type) : undefined,
-            doctor_id: targetDoctor ? Number(targetDoctor) : undefined,
-            is_designated: data.isDesignated ?? false,
-            status: data.status || ("confirmed" as const),
-            notes: data.notes,
-          },
-        };
+        const updatePayload = buildReservationUpdateRequest(currentEditing, data, targetDoctor);
+        if (!updatePayload) return null;
         return await new Promise<string | null>((resolve) => {
           startUpdateTransition(() => {
             updateReservationFn(updatePayload, {
@@ -279,6 +309,12 @@ export function useReservationActions({
   const handleStatusChange = useCallback(
     (reservation: Reservation, status: ReservationStatus) => {
       if (status === reservation.status) return;
+      if (status === "in_consultation") {
+        toast.error("カルテ作成が必要です", {
+          description: "このステータスに変更するには、詳細画面からカルテを作成してください。",
+        });
+        return;
+      }
       if (isDestructiveReservationStatus(status)) {
         setStatusConfirmTarget({ reservation, status });
         setStatusConfirmOpen(true);

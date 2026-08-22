@@ -88,7 +88,7 @@ func (r *procedureRepositoryImpl) CountUsageByProcedureID(ctx context.Context, c
 	if err := db.
 		Model(&model.CarePlanItem{}).
 		Joins("JOIN hospitalizations ON hospitalizations.id = care_plan_items.hospitalization_id AND hospitalizations.clinic_id = ? AND hospitalizations.deleted_at IS NULL", clinicID).
-		Where("care_plan_items.procedure_id = ? AND care_plan_items.deleted_at IS NULL", procedureID).
+		Where("care_plan_items.procedure_id = ?", procedureID).
 		Count(&carePlanCount).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "care_plan_item", "")
 	}

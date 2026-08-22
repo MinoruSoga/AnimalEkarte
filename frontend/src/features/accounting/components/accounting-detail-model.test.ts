@@ -4,6 +4,8 @@ import {
   buildPaymentSplitRequests,
   createInitialPaymentSplits,
   getCorrectableCardPayments,
+  hasInvalidChangeOverride,
+  isPaymentSubmitDisabled,
   isPostCloseSubmitBlocked,
 } from "./accounting-detail-model";
 import type { PaymentSplitDraft } from "./PaymentCard";
@@ -178,5 +180,25 @@ describe("getCorrectableCardPayments (#189 確定後クレジット訂正の対�
 
   it("null: 空配列", () => {
     expect(getCorrectableCardPayments(null)).toEqual([]);
+  });
+});
+
+describe("isPaymentSubmitDisabled / hasInvalidChangeOverride (BUG-010)", () => {
+  const cash = (changeAmount: string): PaymentSplitDraft => ({
+    method: "cash",
+    amount: "1000",
+    receivedAmount: "2000",
+    changeOverride: true,
+    changeAmount,
+  });
+
+  it("お釣りが負なら保存不可", () => {
+    expect(isPaymentSubmitDisabled(1000, [cash("-1")])).toBe(true);
+    expect(hasInvalidChangeOverride([cash("-1")])).toBe(true);
+  });
+
+  it("お釣り0以上なら保存可", () => {
+    expect(isPaymentSubmitDisabled(1000, [cash("0")])).toBe(false);
+    expect(hasInvalidChangeOverride([cash("0")])).toBe(false);
   });
 });

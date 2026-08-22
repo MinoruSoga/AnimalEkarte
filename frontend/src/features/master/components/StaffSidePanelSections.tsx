@@ -103,11 +103,17 @@ interface StaffClinicsSectionProps {
 }
 
 export function StaffClinicsSection({ allClinics, clinicIdSet, isNew, onToggle }: StaffClinicsSectionProps) {
+  const clinicItems = allClinics
+    .filter((clinic) => clinic.isActive || clinicIdSet.has(clinic.id))
+    .map((clinic) => ({
+      ...clinic,
+      name: clinic.isActive ? clinic.name : `${clinic.name}（無効）`,
+    }));
   return (
     <StaffCheckboxSection
       title="所属医院"
       icon={<Building2 className={`${ICON.xs} ${C.text50}`} />}
-      items={allClinics}
+      items={clinicItems}
       checkedIdSet={clinicIdSet}
       isDisabledUntilSaved={isNew}
       disabledMessage="スタッフ登録後に所属医院を設定できます"

@@ -2,6 +2,7 @@ import { useEffect, useState, useTransition } from "react";
 import { Navigate } from "react-router";
 
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
+import { extractApiErrorMessage } from "@/lib/handle-api-error";
 import { C } from "@/lib/design-tokens";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { usePermission } from "@/hooks/use-permission";
@@ -83,7 +84,7 @@ function IdentityLinksWorkbench({ canEdit }: { canEdit: boolean }) {
         if (!cancelled) setOwnerHits(items);
       })
       .catch((e: unknown) => {
-        if (!cancelled) setError(e instanceof Error ? e.message : "飼主検索に失敗しました");
+        if (!cancelled) setError(extractApiErrorMessage(e, "飼主検索"));
       });
     return () => {
       cancelled = true;
@@ -100,7 +101,7 @@ function IdentityLinksWorkbench({ canEdit }: { canEdit: boolean }) {
         if (!cancelled) setPetHits(items);
       })
       .catch((e: unknown) => {
-        if (!cancelled) setError(e instanceof Error ? e.message : "ペット検索に失敗しました");
+        if (!cancelled) setError(extractApiErrorMessage(e, "ペット検索"));
       });
     return () => {
       cancelled = true;
@@ -137,7 +138,7 @@ function IdentityLinksWorkbench({ canEdit }: { canEdit: boolean }) {
         );
         setOwnerGroupId(group.id);
       } catch (e: unknown) {
-        setError(e instanceof Error ? e.message : "飼主リンクに失敗しました");
+        setError(extractApiErrorMessage(e, "飼主リンク"));
       }
     });
   };
@@ -155,7 +156,7 @@ function IdentityLinksWorkbench({ canEdit }: { canEdit: boolean }) {
           prev.filter((p) => !(p.clinic_id === item.clinic_id && p.owner_id === item.owner_id)),
         );
       } catch (e: unknown) {
-        setError(e instanceof Error ? e.message : "飼主unlinkに失敗しました");
+        setError(extractApiErrorMessage(e, "飼主unlink"));
       }
     });
   };
@@ -171,7 +172,7 @@ function IdentityLinksWorkbench({ canEdit }: { canEdit: boolean }) {
         );
         setPetGroupId(group.id);
       } catch (e: unknown) {
-        setError(e instanceof Error ? e.message : "ペットリンクに失敗しました");
+        setError(extractApiErrorMessage(e, "ペットリンク"));
       }
     });
   };
@@ -189,7 +190,7 @@ function IdentityLinksWorkbench({ canEdit }: { canEdit: boolean }) {
           prev.filter((p) => !(p.clinic_id === item.clinic_id && p.pet_id === item.pet_id)),
         );
       } catch (e: unknown) {
-        setError(e instanceof Error ? e.message : "ペットunlinkに失敗しました");
+        setError(extractApiErrorMessage(e, "ペットunlink"));
       }
     });
   };
@@ -208,7 +209,7 @@ function IdentityLinksWorkbench({ canEdit }: { canEdit: boolean }) {
             .join("\n") || "（履歴なし）",
         );
       } catch (e: unknown) {
-        setError(e instanceof Error ? e.message : "履歴取得に失敗しました");
+        setError(extractApiErrorMessage(e, "履歴取得"));
       }
     });
   };

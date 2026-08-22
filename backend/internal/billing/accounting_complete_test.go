@@ -445,6 +445,68 @@ func TestAccountingService_CompleteAccounting_InvalidKey(t *testing.T) {
 	assert.Nil(t, result)
 }
 
+func TestAccountingService_CompleteAccounting_PartialSplitRejected(t *testing.T) {
+	key := uuid.NewString()
+	var savedPayment *model.Payment
+	repo := &mockAccountingRepository{
+		findByCompletionRequestIDFn: func(_ context.Context, _ uint64, _ string) (*model.Billing, error) {
+			return nil, nil
+		},
+		createFn: func(_ context.Context, clinicID uint64, b *model.Billing) error {
+			b.ID = 42
+			b.ClinicID = clinicID
+			return nil
+		},
+		savePaymentFn: func(_ context.Context, p *model.Payment) error {
+			savedPayment = p
+			return nil
+		},
+	}
+	svc := newCompleteTestService(repo, &mockAuditService{}, &mockCompleteItemWriter{}, &mockCompleteTotalsWriter{
+		subtotal: 5704, taxTotal: 560, total: 6264,
+	})
+	input := validCompleteInput(key)
+	input.PaymentSplits = []PaymentSplitInput{
+		{Method: model.PaymentMethodCash, Amount: 3000, ReceivedAmount: 3000, ChangeAmount: 0},
+	}
+
+	result, err := svc.Complete(context.Background(), input)
+	require.Error(t, err)
+	assert.True(t, apperrors.IsInvalidInput(err), "got %v", err)
+	assert.Nil(t, result)
+	assert.Nil(t, savedPayment, "partial split must not persist a payment")
+}
+
+func TestAccountingService_CompleteAccounting_EmptySplitsRejectedWhenBillingPositive(t *testing.T) {
+	key := uuid.NewString()
+	var savedPayment *model.Payment
+	repo := &mockAccountingRepository{
+		findByCompletionRequestIDFn: func(_ context.Context, _ uint64, _ string) (*model.Billing, error) {
+			return nil, nil
+		},
+		createFn: func(_ context.Context, clinicID uint64, b *model.Billing) error {
+			b.ID = 42
+			b.ClinicID = clinicID
+			return nil
+		},
+		savePaymentFn: func(_ context.Context, p *model.Payment) error {
+			savedPayment = p
+			return nil
+		},
+	}
+	svc := newCompleteTestService(repo, &mockAuditService{}, &mockCompleteItemWriter{}, &mockCompleteTotalsWriter{
+		subtotal: 1000, taxTotal: 100, total: 1100,
+	})
+	input := validCompleteInput(key)
+	input.PaymentSplits = nil
+
+	result, err := svc.Complete(context.Background(), input)
+	require.Error(t, err)
+	assert.True(t, apperrors.IsInvalidInput(err), "got %v", err)
+	assert.Nil(t, result)
+	assert.Nil(t, savedPayment, "empty splits must not synthesize a full payment")
+}
+
 // TestAccountingService_CompleteAccounting_AlreadyExistsResolvesToReplay は
 // repo.Create が UNIQUE を AlreadyExists に変換した後でも completion key で replay できることを固定する（review HIGH）。
 func TestAccountingService_CompleteAccounting_AlreadyExistsResolvesToReplay(t *testing.T) {

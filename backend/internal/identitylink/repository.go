@@ -28,6 +28,8 @@ type Repository interface {
 
 	LockOwnerGroupByID(ctx context.Context, groupID uint64) (*model.OwnerIdentityGroup, error)
 	LockPetGroupByID(ctx context.Context, groupID uint64) (*model.PetIdentityGroup, error)
+	FindOwnerGroupByID(ctx context.Context, groupID uint64) (*model.OwnerIdentityGroup, error)
+	FindPetGroupByID(ctx context.Context, groupID uint64) (*model.PetIdentityGroup, error)
 
 	ListActiveOwnerMembers(ctx context.Context, groupID uint64) ([]model.OwnerIdentityGroupMember, error)
 	ListActivePetMembers(ctx context.Context, groupID uint64) ([]model.PetIdentityGroupMember, error)
@@ -84,7 +86,7 @@ func (r *repository) SearchOwners(ctx context.Context, clinicIDs []uint64, query
 	if limit <= 0 || limit > 50 {
 		limit = 20
 	}
-	q := strings.TrimSpace(query)
+	q := textsearch.NormalizeQuerySpaces(query)
 	if q == "" {
 		return []model.Owner{}, nil
 	}
@@ -119,7 +121,7 @@ func (r *repository) SearchPets(ctx context.Context, clinicIDs []uint64, query s
 	if limit <= 0 || limit > 50 {
 		limit = 20
 	}
-	q := strings.TrimSpace(query)
+	q := textsearch.NormalizeQuerySpaces(query)
 	if q == "" {
 		return []model.Pet{}, nil
 	}
@@ -245,6 +247,17 @@ func (r *repository) FindActivePetMembership(ctx context.Context, clinicID, petI
 	return &m, nil
 }
 
+func (r *repository) FindOwnerGroupByID(ctx context.Context, groupID uint64) (*model.OwnerIdentityGroup, error) {
+	var g model.OwnerIdentityGroup
+	err := r.conn(ctx).
+		Where("id = ? AND deleted_at IS NULL", groupID).
+		First(&g).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "owner_identity_group", fmt.Sprintf("%d", groupID))
+	}
+	return &g, nil
+}
+
 func (r *repository) LockOwnerGroupByID(ctx context.Context, groupID uint64) (*model.OwnerIdentityGroup, error) {
 	tx, err := r.requireAmbientTx(ctx)
 	if err != nil {
@@ -267,6 +280,17 @@ func (r *repository) LockPetGroupByID(ctx context.Context, groupID uint64) (*mod
 	}
 	var g model.PetIdentityGroup
 	err = tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+		Where("id = ? AND deleted_at IS NULL", groupID).
+		First(&g).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "pet_identity_group", fmt.Sprintf("%d", groupID))
+	}
+	return &g, nil
+}
+
+func (r *repository) FindPetGroupByID(ctx context.Context, groupID uint64) (*model.PetIdentityGroup, error) {
+	var g model.PetIdentityGroup
+	err := r.conn(ctx).
 		Where("id = ? AND deleted_at IS NULL", groupID).
 		First(&g).Error
 	if err != nil {
