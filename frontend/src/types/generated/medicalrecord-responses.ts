@@ -82,6 +82,9 @@ export interface PetSummaryResponse {
   weight?: number /* float64 */;
   status?: string;
   breed?: string;
+  gender?: string;
+  birth_date?: string;
+  neutered_date?: string;
   animal_species?: AnimalSpeciesSummaryResponse;
   owner?: OwnerSummaryResponse;
 }
