@@ -64,16 +64,15 @@ func TestRunSQLMigrationsAgainstDisposablePostgres(t *testing.T) {
 SELECT count(*)
 FROM schema_migrations
 WHERE filename IN (
-  '001_init.sql',
-  '002_ensure_pet_owners.sql'
+  '001_init.sql'
 )`).Scan(&applied); err != nil {
 		t.Fatal(err)
 	}
-	if applied != 2 {
-		t.Fatalf("applied DDL migrations = %d, want 2", applied)
+	if applied != 1 {
+		t.Fatalf("applied DDL migrations = %d, want 1", applied)
 	}
 
-	// Topology: 001 init + append-only ensure migrations.
+	// Topology: 001_init.sql only.
 	var ddlKeys []string
 	rows, err := db.Query(`
 SELECT filename
@@ -94,8 +93,8 @@ ORDER BY filename`)
 	if err := rows.Err(); err != nil {
 		t.Fatal(err)
 	}
-	if len(ddlKeys) != 2 || ddlKeys[0] != "001_init.sql" || ddlKeys[1] != "002_ensure_pet_owners.sql" {
-		t.Fatalf("DDL schema_migrations keys = %v, want [001_init.sql 002_ensure_pet_owners.sql]", ddlKeys)
+	if len(ddlKeys) != 1 || ddlKeys[0] != "001_init.sql" {
+		t.Fatalf("DDL schema_migrations keys = %v, want [001_init.sql]", ddlKeys)
 	}
 
 	// Rerun is a no-op: second apply must leave history and succeed.
@@ -109,13 +108,13 @@ FROM schema_migrations
 WHERE filename NOT LIKE 'seeds/%'`).Scan(&appliedAfterRerun); err != nil {
 		t.Fatal(err)
 	}
-	if appliedAfterRerun != 2 {
-		t.Fatalf("after rerun DDL keys = %d, want 2", appliedAfterRerun)
+	if appliedAfterRerun != 1 {
+		t.Fatalf("after rerun DDL keys = %d, want 1", appliedAfterRerun)
 	}
 }
 
 // TestTopLevelDDLMigrationInventoryIncludesInitAndEnsure asserts the post-consolidation
-// disk topology: 001_init.sql plus append-only ensure migrations under migrations/ (maxdepth 1).
+// disk topology: 001_init.sql only under migrations/ (maxdepth 1).
 func TestTopLevelDDLMigrationInventoryIncludesInitAndEnsure(t *testing.T) {
 	dir := migrationsDir
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
@@ -141,7 +140,7 @@ func TestTopLevelDDLMigrationInventoryIncludesInitAndEnsure(t *testing.T) {
 		}
 	}
 	sort.Strings(sqlFiles)
-	want := []string{"001_init.sql", "002_ensure_pet_owners.sql"}
+	want := []string{"001_init.sql"}
 	if len(sqlFiles) != len(want) {
 		t.Fatalf("top-level DDL files = %v, want %v", sqlFiles, want)
 	}

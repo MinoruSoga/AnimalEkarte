@@ -149,6 +149,7 @@ func allModels() []any {
 		&model.LabImportJob{},
 		&model.LabImportEvent{},
 		&model.LabDeviceItemMaster{},
+		&model.LabDevice{},
 		&model.LabImportJobItem{},
 		&model.LabDeviceWait{},
 		&model.LabDeviceStationSettings{},

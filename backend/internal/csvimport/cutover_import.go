@@ -213,15 +213,15 @@ const cutoverCompositeForeignKeyQuery = `SELECT EXISTS (
     AND array_length(c.conkey, 1) = cardinality($3::text[])
     AND array_length(c.confkey, 1) = cardinality($4::text[])
     AND (
-      SELECT array_agg(a.attname::text ORDER BY cols.ordinality)
+      SELECT array_agg(a.attname ORDER BY cols.ordinality)
       FROM unnest(c.conkey) WITH ORDINALITY AS cols(attnum, ordinality)
       JOIN pg_attribute a ON a.attrelid = child.oid AND a.attnum = cols.attnum
-    ) = $3::text[]
+    )::text[] = $3::text[]
     AND (
-      SELECT array_agg(a.attname::text ORDER BY cols.ordinality)
+      SELECT array_agg(a.attname ORDER BY cols.ordinality)
       FROM unnest(c.confkey) WITH ORDINALITY AS cols(attnum, ordinality)
       JOIN pg_attribute a ON a.attrelid = parent.oid AND a.attnum = cols.attnum
-    ) = $4::text[]
+    )::text[] = $4::text[]
 )`
 
 // cutoverRequiredTargetColumnsQuery lists target columns that COPY must supply:
@@ -812,20 +812,12 @@ func copyCutoverTable(ctx context.Context, tx cutoverTransaction, path string, s
 
 func cutoverCopyResultError(table string, copyErr, transformErr error) error {
 	if copyErr != nil {
-		// PostgreSQL COPY errors may echo a source value in DETAIL. Propagate
-		// only SQLSTATE + primary message (no DETAIL/HINT) for operator debug.
+		// COPY errors may echo a source value. Never interpolate driver/DETAIL/HINT
+		// text; operators get a constant plus SQLSTATE from coder.SQLState().
 		type pgCoder interface{ SQLState() string }
 		msg := "target database rejected the CSV COPY"
-		var withMessage interface{ Error() string }
-		if errors.As(copyErr, &withMessage) {
-			primary := strings.Split(withMessage.Error(), " (SQLSTATE")[0]
-			primary = strings.Split(primary, "DETAIL:")[0]
-			primary = strings.TrimSpace(primary)
-			if primary != "" && !strings.Contains(primary, "\n") && len(primary) <= 200 {
-				msg = primary
-			}
-		}
-		if coder, ok := copyErr.(pgCoder); ok {
+		var coder pgCoder
+		if errors.As(copyErr, &coder) {
 			return fmt.Errorf("table %s: %s (SQLSTATE %s)", table, msg, coder.SQLState())
 		}
 		return fmt.Errorf("table %s: %s", table, msg)
