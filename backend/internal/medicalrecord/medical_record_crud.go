@@ -303,6 +303,17 @@ func (s *medicalRecordService) Update(ctx context.Context, clinicID, id uint64, 
 func (s *medicalRecordService) Delete(ctx context.Context, clinicID, id uint64) error {
 	var existing *model.MedicalRecord
 	if err := s.withTx(ctx, func(txCtx context.Context) error {
+		// appointments を先にロックし、予約側（LockAndFindByID → COUNT）と同じ順序にする。
+		link, err := s.repo.LockLinkedAppointmentForUpdate(txCtx, clinicID, id)
+		if err != nil {
+			return apperrors.Wrap(err, "failed to lock linked appointment for deletion")
+		}
+		if link != nil && link.Appointment != nil && link.Appointment.Status == model.ReservationStatusInConsultation {
+			return wrapMedicalRecordDeleteConflict(
+				medicalRecordDeleteStateConflict,
+				"診療中の予約に紐づくカルテは削除できません",
+			)
+		}
 		locked, err := s.repo.LockByIDForUpdate(txCtx, clinicID, id)
 		if err != nil {
 			return apperrors.Wrap(err, "failed to lock medical record for deletion")

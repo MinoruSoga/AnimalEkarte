@@ -93,6 +93,11 @@ type MedicalRecordRepository interface {
 	FindOwnersByNextVisitRecommended(ctx context.Context, clinicID uint64, targetDate time.Time) ([]uint64, error)
 	// CountByOwnerID は飼い主に紐付く有効カルテ数を返す（初診判定用: FEAT-383 Phase 2）。
 	CountByOwnerID(ctx context.Context, clinicID, ownerID uint64) (int64, error)
+	// LockLinkedAppointmentForUpdate は削除経路が appointments 行ロックを medical_records
+	// より先に取るための FOR UPDATE。予約の in_consultation 遷移（LockAndFindByID → COUNT）
+	// と同じロック順序にし、AB-BA を避ける。ambient tx 必須。appointment_id が無い、または
+	// 親 appointments 行が既に無い場合は Appointment==nil の result を返す（(nil,nil) は使わない）。
+	LockLinkedAppointmentForUpdate(ctx context.Context, clinicID, medicalRecordID uint64) (*linkedAppointmentLock, error)
 	// LockByIDForUpdate は FOR UPDATE でカルテを行ロック取得する（BE-refactor.md X-11:
 	// 確定(finalize)と子エンティティ書込の競合防止）。treatment/examination/vital/prescription/
 	// checkup_field_result の各サービスが子書込トランザクションの先頭で呼び出し、返却された
@@ -122,6 +127,12 @@ type medicalRecordRepository struct {
 
 func NewMedicalRecordRepository(db *gorm.DB) MedicalRecordRepository {
 	return &medicalRecordRepository{db: db}
+}
+
+// linkedAppointmentLock is the appointments-first row lock taken on medical-record delete.
+// Appointment is nil when the record has no live parent appointment.
+type linkedAppointmentLock struct {
+	Appointment *model.Reservation
 }
 
 func (r *medicalRecordRepository) AcquireAutoCreateLock(
@@ -529,6 +540,41 @@ func (r *medicalRecordRepository) Update(ctx context.Context, clinicID, id uint6
 		return nil, apperrors.WrapConflict("medical_record is not in draft status")
 	}
 	return r.FindByID(ctx, clinicID, id)
+}
+
+// LockLinkedAppointmentForUpdate は medical_records.appointment_id を先に読み、親
+// appointments を FOR UPDATE する。カルテ行はロックしない（呼び出し元がこの後に
+// LockByIDForUpdate する）。読み取りのみで appointments へは write しない。
+func (r *medicalRecordRepository) LockLinkedAppointmentForUpdate(ctx context.Context, clinicID, medicalRecordID uint64) (*linkedAppointmentLock, error) {
+	if persistence.TxFromContext(ctx) == nil {
+		return nil, apperrors.WrapInternalServerError("appointment row lock requires an ambient transaction")
+	}
+	var row struct {
+		AppointmentID *uint64 `gorm:"column:appointment_id"`
+	}
+	if err := persistence.DBOrTx(ctx, r.db).
+		Model(&model.MedicalRecord{}).
+		Scopes(persistence.ClinicScope(clinicID)).
+		Select("appointment_id").
+		Where("id = ?", medicalRecordID).
+		Take(&row).Error; err != nil {
+		return nil, apperrors.FromGORM(err, "medical_record", fmt.Sprintf("%d", medicalRecordID))
+	}
+	if row.AppointmentID == nil {
+		return &linkedAppointmentLock{}, nil
+	}
+	var appt model.Reservation
+	err := persistence.DBOrTx(ctx, r.db).
+		Clauses(clause.Locking{Strength: "UPDATE"}).
+		Where("id = ? AND clinic_id = ?", *row.AppointmentID, clinicID).
+		First(&appt).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return &linkedAppointmentLock{}, nil
+		}
+		return nil, apperrors.FromGORM(err, "reservation", fmt.Sprintf("%d", *row.AppointmentID))
+	}
+	return &linkedAppointmentLock{Appointment: &appt}, nil
 }
 
 func (r *medicalRecordRepository) Delete(ctx context.Context, clinicID, id uint64) error {
