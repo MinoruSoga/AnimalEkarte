@@ -1,4 +1,4 @@
-import { memo, useMemo } from "react";
+import { memo, useMemo, useRef } from "react";
 import { Scissors } from "lucide-react";
 
 import { Checkbox } from "@/components/ui/checkbox";
@@ -41,6 +41,9 @@ export const TrimmingLeftColumn = memo(function TrimmingLeftColumn({
 }: TrimmingLeftColumnProps) {
   const selectedCourse = courses.find((course) => course.id === formData.courseId);
   const optionIdSet = useMemo(() => new Set(formData.optionIds), [formData.optionIds]);
+  // Radix Checkbox は useActionState 後の form reset で onCheckedChange(初期値) を呼ぶ。
+  // リセット由来の変更は無視し、ユーザー操作のみ optionIds に反映する。
+  const optionToggleFromUserRef = useRef(false);
 
   return (
     <div className={`${C.bgWhite} rounded-lg border ${C.borderMedium} p-3 space-y-4`}>
@@ -119,10 +122,16 @@ export const TrimmingLeftColumn = memo(function TrimmingLeftColumn({
                   aria-label={option.name}
                   touchTarget
                   checked={optionIdSet.has(option.id)}
+                  onClick={() => {
+                    optionToggleFromUserRef.current = true;
+                  }}
                   onCheckedChange={(checked) => {
-                    if (checked) {
+                    const fromUser = optionToggleFromUserRef.current;
+                    optionToggleFromUserRef.current = false;
+                    if (!fromUser) return;
+                    if (checked === true) {
                       onFormChange({ optionIds: [...formData.optionIds, option.id] });
-                    } else {
+                    } else if (checked === false) {
                       onFormChange({ optionIds: formData.optionIds.filter((id) => id !== option.id) });
                     }
                   }}
