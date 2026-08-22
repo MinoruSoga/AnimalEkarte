@@ -121,19 +121,18 @@ export const TreatmentRow = memo(function TreatmentRow({
   // react-review-201 HIGH-2: 警告テキストを aria-describedby で数量セルに紐付けるための安定 id。
   const doseWarningId = `dose-warning-${treatment.id}`;
 
-  // #201: 保存操作で検出した絶対上限超過を、保存値が更新されるまでインライン表示する。
-  const [attemptedDoseBlockReason, setAttemptedDoseBlockReason] = useState("");
   // TASK-377: 上限内の著しい乖離/下限割れで必須の free-text 逸脱理由（inline、modal なし）。
   const [localDeviationReason, setLocalDeviationReason] = useState("");
   const [showDeviationReason, setShowDeviationReason] = useState(false);
   // Enter + blur の二重送信を防ぐ idempotency key（quantity\0reason）。
   const lastDeviationCommitKeyRef = useRef<string | null>(null);
-  const doseBlockReason = attemptedDoseBlockReason || currentGate.blockReason;
   const pendingQty = parseFloat(localQuantity) || treatment.quantity;
   const pendingGate = useMemo(
     () => computeDoseGate(doseGateSource, pendingQty),
     [doseGateSource, pendingQty]
   );
+  // 表示中（pending）の数量がブロック対象のときだけ出す。revert 後の sticky は残さない。
+  const doseBlockReason = pendingGate.blockReason;
   // 理由 UI は「未コミットの逸脱 quantity」または空理由でゲートされた直後だけ。
   // 保存済み乖離行で常時フォームを出して blur 再送しない。
   const quantityDirty = pendingQty !== treatment.quantity;
@@ -157,7 +156,6 @@ export const TreatmentRow = memo(function TreatmentRow({
     setLocalQuantity(String(treatment.quantity));
     setLocalDiscountAmount(String(treatment.discount_amount));
     setLocalMemo(treatment.memo);
-    setAttemptedDoseBlockReason("");
     setLocalDeviationReason("");
     setShowDeviationReason(false);
     lastDeviationCommitKeyRef.current = null;
@@ -226,12 +224,10 @@ export const TreatmentRow = memo(function TreatmentRow({
     const gate = computeDoseGate(doseGateSource, val);
     if (gate.isBlocked) {
       setLocalQuantity(String(treatment.quantity));
-      setAttemptedDoseBlockReason(gate.blockReason);
       setShowDeviationReason(false);
       setEditField(null);
       return;
     }
-    setAttemptedDoseBlockReason("");
 
     if (gate.requiresDeviationReason) {
       const reason = localDeviationReason.trim();

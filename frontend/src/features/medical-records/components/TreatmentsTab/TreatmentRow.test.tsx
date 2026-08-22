@@ -201,11 +201,44 @@ describe("TreatmentRow — 絶対上限超過の物理ブロック", () => {
     const quantityInput = screen.getByRole("spinbutton", { name: "数量" });
     await user.clear(quantityInput);
     await user.type(quantityInput, "5");
-    await user.keyboard("{Enter}");
 
     expect(onUpdate).not.toHaveBeenCalled();
     expect(screen.queryByText("投与量を確認してください")).not.toBeInTheDocument();
-    expect(screen.getByRole("alert")).toHaveTextContent(/上限.*保存できません/);
+    // 無効値が入力中の間は保存不可理由を隠さない
+    expect(await screen.findByRole("alert")).toHaveTextContent(/上限.*保存できません/);
+
+    await user.keyboard("{Enter}");
+    expect(onUpdate).not.toHaveBeenCalled();
+  });
+
+  it("上限超過 → 正常値復帰でエラー消滅", async () => {
+    const onUpdate = vi.fn();
+    const user = userEvent.setup();
+    renderRow(
+      {
+        ...baseTreatment,
+        item_type: "medicine",
+        medicine_id: "5",
+        quantity: 2,
+      },
+      { onUpdate, doseContext: blockingDoseContext }
+    );
+
+    await screen.findByText(/推奨2/);
+    await user.click(screen.getByRole("button", { name: "2" }));
+    const quantityInput = screen.getByRole("spinbutton", { name: "数量" });
+    await user.clear(quantityInput);
+    await user.type(quantityInput, "5");
+    // 無効値が入力中の間は保存不可理由を隠さない
+    expect(await screen.findByRole("alert")).toHaveTextContent(/上限.*保存できません/);
+
+    await user.keyboard("{Enter}");
+
+    expect(onUpdate).not.toHaveBeenCalled();
+    // 数量は正常値に戻っている。sticky エラーを F5 なしで消す
+    expect(screen.getByRole("button", { name: "2" })).toBeInTheDocument();
+    expect(screen.queryByText(/上限.*保存できません/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 });
 
