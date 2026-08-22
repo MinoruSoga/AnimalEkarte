@@ -404,6 +404,20 @@ func reservationScheduleFieldsChanged(current *model.Reservation, input *UpdateR
 		resolvedTypeID != current.ReservationTypeID
 }
 
+// reservationStaffCapabilityRequiresRevalidation reports whether Update must
+// re-run staff capability against the resolved doctor/type. Independent of
+// BUG-006 slot-conflict skip. Payload presence is not enough: memo-only PATCH
+// resends unchanged DoctorID/ReservationTypeID.
+func reservationStaffCapabilityRequiresRevalidation(current *model.Reservation, input *UpdateReservationInput) bool {
+	if current == nil || input == nil {
+		return false
+	}
+	_, _, resolvedDoctorID := resolveUpdateParams(current, input)
+	resolvedTypeID := resolveUpdateReservationTypeID(current, input)
+	return !reservationUint64PtrEqual(resolvedDoctorID, current.DoctorID) ||
+		resolvedTypeID != current.ReservationTypeID
+}
+
 // shouldReevaluateReservationBookingConstraintsOnUpdate reports whether Update
 // should re-run slot conflict / on-duty absence checks.
 //
@@ -586,6 +600,9 @@ func (s *reservationService) updateWithConflictCheck(ctx context.Context, clinic
 				return err
 			}
 		}
+		if err := validateInConsultationHasMedicalRecord(ctx, s.repo, clinicID, id, current, input); err != nil {
+			return err
+		}
 
 		resolvedStart, resolvedEnd, resolvedDoctorID := resolveUpdateParams(current, input)
 		resolvedReservationTypeID := current.ReservationTypeID
@@ -639,9 +656,6 @@ func (s *reservationService) Update(ctx context.Context, clinicID, id uint64, in
 	if err := validateLineReservationCheckedInLink(current, input); err != nil {
 		return nil, err
 	}
-	if err := validateInConsultationHasMedicalRecord(ctx, s.repo, clinicID, id, current, input); err != nil {
-		return nil, err
-	}
 	resolvedStart, resolvedEnd, _ := resolveUpdateParams(current, input)
 	if input.StartTime != nil || input.EndTime != nil {
 		if err := validateTimeRange(resolvedStart, resolvedEnd); err != nil {
@@ -667,6 +681,8 @@ func (s *reservationService) Update(ctx context.Context, clinicID, id uint64, in
 	}
 
 	needsLinkValidation := input.OwnerID != nil || input.PetID != nil
+	needsCapabilityCheck := reservationStaffCapabilityRequiresRevalidation(current, input)
+	needsKarteCheck := isTransitioningToInConsultation(current, input)
 	isCancel := input.Status != nil && *input.Status == model.ReservationStatusCancelled
 
 	// RSV-06 / X-06: cancel = status update + soft delete as one business graph.
@@ -678,7 +694,7 @@ func (s *reservationService) Update(ctx context.Context, clinicID, id uint64, in
 		}
 		var updated *model.Reservation
 		if err := s.tx.WithTx(ctx, func(txCtx context.Context) error {
-			u, err := s.applyReservationUpdate(txCtx, clinicID, id, fields, input, needsConflictCheck, needsLinkValidation)
+			u, err := s.applyReservationUpdate(txCtx, clinicID, id, fields, input, needsConflictCheck, needsLinkValidation, needsCapabilityCheck, needsKarteCheck)
 			if err != nil {
 				return err
 			}
@@ -698,7 +714,7 @@ func (s *reservationService) Update(ctx context.Context, clinicID, id uint64, in
 		return updated, nil
 	}
 
-	updated, err := s.applyReservationUpdate(ctx, clinicID, id, fields, input, needsConflictCheck, needsLinkValidation)
+	updated, err := s.applyReservationUpdate(ctx, clinicID, id, fields, input, needsConflictCheck, needsLinkValidation, needsCapabilityCheck, needsKarteCheck)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to update reservation", "error", err)
 		return nil, apperrors.Wrap(err, "failed to update reservation")
@@ -717,14 +733,17 @@ func (s *reservationService) applyReservationUpdate(
 	clinicID, id uint64,
 	fields map[string]any,
 	input *UpdateReservationInput,
-	needsConflictCheck, needsLinkValidation bool,
+	needsConflictCheck, needsLinkValidation, needsCapabilityCheck, needsKarteCheck bool,
 ) (*model.Reservation, error) {
 	switch {
 	case needsConflictCheck:
 		// 時刻・医師変更あり: SELECT FOR UPDATE + トランザクションで競合を防止（リンク検証も tx 内）
+		// Capability already runs inside updateWithConflictCheck; do not divert this path.
 		return s.updateWithConflictCheck(ctx, clinicID, id, fields, input)
-	case needsLinkValidation:
-		// Owner/Pet 変更: 検証と書込みを同一 tx に置く（AUD-001）。
+	case needsLinkValidation || needsCapabilityCheck || needsKarteCheck:
+		// Owner/Pet・担当者/区分・in_consultation カルテ確認: 行ロック後に検証し同一 tx で書く。
+		// Capability SHARE locks must be held through commit (ReservationStaffWriteGuard).
+		// Status-only in_consultation does not take AcquireBookingLock.
 		if s.tx == nil {
 			return nil, apperrors.WrapInternalServerError("reservation transaction dependency is required")
 		}
@@ -734,15 +753,27 @@ func (s *reservationService) applyReservationUpdate(
 			if err != nil {
 				return err
 			}
-			finalOwnerID, finalPetID := resolveFinalOwnerPet(locked, input)
-			if err := ValidateReservationOwnerPetLinksWithRepo(ctx, s.repo, clinicID, finalOwnerID, finalPetID); err != nil {
-				return err
-			}
-			// #261 P0: pet 付け替え/新規紐付け時のみ死亡拒否（既存関連のままの更新は許可）。
-			if input.PetID != nil && *input.PetID != 0 {
-				if err := ValidateReservationPetNotDeceased(ctx, s.repo, clinicID, input.PetID); err != nil {
+			if needsLinkValidation {
+				finalOwnerID, finalPetID := resolveFinalOwnerPet(locked, input)
+				if err := ValidateReservationOwnerPetLinksWithRepo(ctx, s.repo, clinicID, finalOwnerID, finalPetID); err != nil {
 					return err
 				}
+				// #261 P0: pet 付け替え/新規紐付け時のみ死亡拒否（既存関連のままの更新は許可）。
+				if input.PetID != nil && *input.PetID != 0 {
+					if err := ValidateReservationPetNotDeceased(ctx, s.repo, clinicID, input.PetID); err != nil {
+						return err
+					}
+				}
+			}
+			if needsCapabilityCheck {
+				_, _, resolvedDoctorID := resolveUpdateParams(locked, input)
+				resolvedReservationTypeID := resolveUpdateReservationTypeID(locked, input)
+				if err := ValidateReservationStaffCapability(ctx, s.reservationStaffRepo, clinicID, resolvedDoctorID, resolvedReservationTypeID); err != nil {
+					return err
+				}
+			}
+			if err := validateInConsultationHasMedicalRecord(ctx, s.repo, clinicID, id, locked, input); err != nil {
+				return err
 			}
 			u, err := s.repo.update(ctx, clinicID, id, fields)
 			if err != nil {
