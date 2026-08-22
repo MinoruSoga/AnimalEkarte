@@ -25,6 +25,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
+	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/testdb"
 )
@@ -256,5 +257,85 @@ func TestBillingItemRepository_ValidateVaccinationCreateReferenceLocksVaccinatio
 	require.NoError(t, afterCommitTx.Exec(
 		"UPDATE vaccinations SET date = date WHERE id = ?",
 		vaccination.ID,
+	).Error)
+}
+
+func TestBillingItemRepository_ValidateExamCreateReference_FailClosedWithoutAmbientTx(t *testing.T) {
+	fixture := setupBillingItemReferenceFixture(t)
+	price := int64(4200)
+	_, exam := makeBillingExam(t, fixture, "no ambient exam", &price)
+	repo := NewBillingItemRepository(fixture.db)
+
+	err := repo.ValidateExamCreateReference(
+		context.Background(),
+		fixture.clinicID,
+		fixture.billing.ID,
+		exam.ID,
+	)
+	require.Error(t, err)
+	var app *apperrors.AppError
+	require.True(t, errors.As(err, &app), "want *apperrors.AppError, got %T: %v", err, err)
+	assert.Equal(t, "INTERNAL", app.Code)
+	assert.Contains(t, app.Message, "active transaction")
+}
+
+func TestBillingItemRepository_ValidateExamCreateReferenceLocksExamTypeInAmbientTransaction(t *testing.T) {
+	fixture := setupBillingItemReferenceFixture(t)
+	price := int64(4200)
+	examType, exam := makeBillingExam(t, fixture, "ambient tx lock exam", &price)
+	repo := NewBillingItemRepository(fixture.db)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	err := testNewTransactor(fixture.db).WithTx(ctx, func(txCtx context.Context) error {
+		if validateErr := repo.ValidateExamCreateReference(
+			txCtx,
+			fixture.clinicID,
+			fixture.billing.ID,
+			exam.ID,
+		); validateErr != nil {
+			return validateErr
+		}
+
+		done := make(chan error, 1)
+		go func() {
+			competingTx := fixture.db.WithContext(ctx).Begin()
+			if competingTx.Error != nil {
+				done <- competingTx.Error
+				return
+			}
+			defer competingTx.Rollback()
+			if lockErr := competingTx.Exec("SET LOCAL lock_timeout = '200ms'").Error; lockErr != nil {
+				done <- lockErr
+				return
+			}
+			done <- competingTx.Exec(
+				"UPDATE exam_types SET name = name WHERE id = ?",
+				examType.ID,
+			).Error
+		}()
+
+		select {
+		case competingErr := <-done:
+			if competingErr == nil {
+				return errors.New("concurrent exam_types mutation completed before ambient transaction commit")
+			}
+			if !strings.Contains(competingErr.Error(), "lock timeout") {
+				return competingErr
+			}
+			return nil
+		case <-ctx.Done():
+			return errors.New("timed out waiting for bounded concurrent exam_types mutation")
+		}
+	})
+	require.NoError(t, err)
+
+	afterCommitTx := fixture.db.WithContext(ctx).Begin()
+	require.NoError(t, afterCommitTx.Error)
+	defer afterCommitTx.Rollback()
+	require.NoError(t, afterCommitTx.Exec("SET LOCAL lock_timeout = '200ms'").Error)
+	require.NoError(t, afterCommitTx.Exec(
+		"UPDATE exam_types SET name = name WHERE id = ?",
+		examType.ID,
 	).Error)
 }

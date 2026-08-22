@@ -58,6 +58,44 @@ func TestLstepSettingsRepository_Upsert_RollsBackWhenAmbientTxFails(t *testing.T
 	assert.EqualValues(t, 0, count, "ambient tx 失敗時、credential Upsert はロールバックされる")
 }
 
+// TestLstepSettingsRepository_DeleteByClinicServiceAndKey_RollsBackWhenAmbientTxFails
+// proves DeleteByClinicServiceAndKey joins ambient tx via DBOrTx: a seeded
+// ClinicIntegration row deleted inside WithTx is restored when the tx fails.
+//
+// temp-revert RED: DeleteByClinicServiceAndKey DBOrTx → r.db.WithContext(ctx)
+// → delete auto-commits and the row is gone after the sentinel rollback.
+func TestLstepSettingsRepository_DeleteByClinicServiceAndKey_RollsBackWhenAmbientTxFails(t *testing.T) {
+	db := setupLstepSettingsAtomicityDB(t)
+	repo := NewLstepSettingsRepository(db)
+	ctx := context.Background()
+	tx := persistence.NewTransactor(db)
+	const clinicID = uint64(1)
+
+	require.NoError(t, repo.Upsert(ctx, &model.ClinicIntegration{
+		ClinicID: clinicID,
+		Service:  model.IntegrationServiceLstep,
+		KeyName:  model.IntegrationKeyLiffID,
+		KeyValue: "liff-should-remain",
+	}))
+
+	txErr := tx.WithTx(ctx, func(txCtx context.Context) error {
+		if err := repo.DeleteByClinicServiceAndKey(
+			txCtx, clinicID, model.IntegrationServiceLstep, model.IntegrationKeyLiffID,
+		); err != nil {
+			return err
+		}
+		return errSentinelLstepSettingsTx
+	})
+	require.Error(t, txErr)
+	require.ErrorIs(t, txErr, errSentinelLstepSettingsTx)
+
+	var count int64
+	require.NoError(t, db.Model(&model.ClinicIntegration{}).
+		Where("clinic_id = ? AND key_name = ?", clinicID, model.IntegrationKeyLiffID).
+		Count(&count).Error)
+	assert.EqualValues(t, 1, count, "ambient tx 失敗時、DeleteByClinicServiceAndKey はロールバックされる")
+}
+
 func TestLstepSyncSettingsRepository_Upsert_DoesNotRequirePostCreateFind(t *testing.T) {
 	// G2B-02: Upsert returns the input record without a separate Find that can invert success.
 	db := setupLstepSettingsAtomicityDB(t)
