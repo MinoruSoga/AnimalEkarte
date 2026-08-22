@@ -382,44 +382,11 @@ func validateBusinessRules(ctx context.Context, settings *model.LineReservationS
 		return apperrors.WrapInvalidInput(fmt.Sprintf("予約可能日は %s 以前です", maxDate.Format(time.DateOnly)))
 	}
 
-	// 2. 休業曜日
-	// A-3: JSON 破損時は fail-closed（予約拒否）。休業曜日チェックを検証できない状態で
-	// 予約を通すと、休業曜日に予約が誤って確定しうるため（break_hours と対称）。
-	if len(settings.ClosedWeekdays) > 0 {
-		var closedWeekdays []int
-		if err := json.Unmarshal(settings.ClosedWeekdays, &closedWeekdays); err != nil {
-			return apperrors.Wrap(err, "invalid closed_weekdays")
-		}
-		wd := int(dateStart.Weekday())
-		for _, cwd := range closedWeekdays {
-			if cwd == wd {
-				return apperrors.WrapInvalidInput("指定日は休業曜日のため予約できません")
-			}
-		}
+	if err := validateClosedDays(settings, date); err != nil {
+		return err
 	}
 
-	// 3. 休業日
-	// A-3: JSON 破損時は fail-closed（予約拒否）。休業日チェックを検証できない状態で
-	// 予約を通すと、休業日に予約が誤って確定しうるため（break_hours と対称）。
-	if len(settings.ClosedDates) > 0 {
-		var closedDates []string
-		if err := json.Unmarshal(settings.ClosedDates, &closedDates); err != nil {
-			return apperrors.Wrap(err, "invalid closed_dates")
-		}
-		dateStr := dateStart.Format(time.DateOnly)
-		for _, cd := range closedDates {
-			if cd == dateStr {
-				return apperrors.WrapInvalidInput("指定日は休業日のため予約できません")
-			}
-		}
-	}
-
-	// 4. 祝日
-	if settings.NationalHolidayClosed && holiday.IsHoliday(dateStart) {
-		return apperrors.WrapInvalidInput("指定日は祝日休業のため予約できません")
-	}
-
-	// 5. 営業時間
+	// 営業時間
 	// D10/F-2: break_hours の unmarshal 失敗は fail-closed（予約拒否）。休憩時間との重複を
 	// 検証できない状態で予約を通すと、休憩時間帯の予約が誤って確定しうるため。
 	bh, breaks, err := ParseBusinessHoursForDate(ctx, settings, dateStart)
@@ -463,6 +430,55 @@ func validateBusinessRules(ctx context.Context, settings *model.LineReservationS
 		}
 	}
 
+	return nil
+}
+
+// validateClosedDays は休業曜日・休業日・祝日休業だけを検証する。
+// LINE の予約窓（min/max days）や営業時間は含めない。Admin Create が
+// ShouldEnforceReservationBookingConstraints のときだけこのヘルパーを使う（BUG-008）。
+func validateClosedDays(settings *model.LineReservationSetting, date time.Time) error {
+	if settings == nil {
+		return apperrors.WrapInternalServerError("LINE reservation settings are required")
+	}
+	loc := config.JST
+	dateJST := date.In(loc)
+	dateStart := time.Date(dateJST.Year(), dateJST.Month(), dateJST.Day(), 0, 0, 0, 0, loc)
+
+	// 休業曜日
+	// A-3: JSON 破損時は fail-closed（予約拒否）。休業曜日チェックを検証できない状態で
+	// 予約を通すと、休業曜日に予約が誤って確定しうるため（break_hours と対称）。
+	if len(settings.ClosedWeekdays) > 0 {
+		var closedWeekdays []int
+		if err := json.Unmarshal(settings.ClosedWeekdays, &closedWeekdays); err != nil {
+			return apperrors.Wrap(err, "invalid closed_weekdays")
+		}
+		wd := int(dateStart.Weekday())
+		for _, cwd := range closedWeekdays {
+			if cwd == wd {
+				return apperrors.WrapInvalidInput("指定日は休業曜日のため予約できません")
+			}
+		}
+	}
+
+	// 休業日
+	// A-3: JSON 破損時は fail-closed（予約拒否）。休業日チェックを検証できない状態で
+	// 予約を通すと、休業日に予約が誤って確定しうるため（break_hours と対称）。
+	if len(settings.ClosedDates) > 0 {
+		var closedDates []string
+		if err := json.Unmarshal(settings.ClosedDates, &closedDates); err != nil {
+			return apperrors.Wrap(err, "invalid closed_dates")
+		}
+		dateStr := dateStart.Format(time.DateOnly)
+		for _, cd := range closedDates {
+			if cd == dateStr {
+				return apperrors.WrapInvalidInput("指定日は休業日のため予約できません")
+			}
+		}
+	}
+
+	if settings.NationalHolidayClosed && holiday.IsHoliday(dateStart) {
+		return apperrors.WrapInvalidInput("指定日は祝日休業のため予約できません")
+	}
 	return nil
 }
 

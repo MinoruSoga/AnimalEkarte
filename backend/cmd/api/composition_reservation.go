@@ -189,13 +189,14 @@ func newReservationService(
 	r reservationRepositories,
 	d reservationServiceDependencies,
 ) reservation.ReservationService {
-	return reservation.NewReservationServiceWithAvailabilityAndType(
+	return reservation.NewReservationServiceWithLineSettings(
 		r.Reservations,
 		r.ReservationTypes,
 		d.Transactor,
 		r.ReservationStaff,
 		r.UnavailableTimes,
 		r.AvailableSlots,
+		r.LineReservationSettings,
 	)
 }
 

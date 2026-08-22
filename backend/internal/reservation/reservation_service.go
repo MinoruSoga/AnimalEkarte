@@ -3,6 +3,7 @@ package reservation
 import (
 	"context"
 	"log/slog"
+	"strconv"
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
@@ -119,6 +120,7 @@ type reservationService struct {
 	reservationStaffRepo ReservationStaffWriteGuard
 	unavailableTimeRepo  ReservationTypeUnavailableTimeRepository
 	availableSlotRepo    ReservationTypeAvailableSlotRepository
+	settingFinder        lineReservationSettingFinder
 }
 
 func NewReservationServiceWithAvailabilityAndType(repo ReservationRepository, typeRepo reservationTypeFinder, tx Transactor, reservationStaffRepo ReservationStaffWriteGuard, unavailableTimeRepo ReservationTypeUnavailableTimeRepository, availableSlotRepo ...ReservationTypeAvailableSlotRepository) ReservationService {
@@ -126,13 +128,40 @@ func NewReservationServiceWithAvailabilityAndType(repo ReservationRepository, ty
 	if len(availableSlotRepo) > 0 {
 		slotRepo = availableSlotRepo[0]
 	}
+	return newReservationService(repo, typeRepo, tx, reservationStaffRepo, unavailableTimeRepo, slotRepo, nil)
+}
+
+// NewReservationServiceWithLineSettings is the backward-compatible constructor
+// that also injects LINE reservation settings for closed-day checks on constrained Create.
+func NewReservationServiceWithLineSettings(
+	repo ReservationRepository,
+	typeRepo reservationTypeFinder,
+	tx Transactor,
+	reservationStaffRepo ReservationStaffWriteGuard,
+	unavailableTimeRepo ReservationTypeUnavailableTimeRepository,
+	availableSlotRepo ReservationTypeAvailableSlotRepository,
+	settingFinder lineReservationSettingFinder,
+) ReservationService {
+	return newReservationService(repo, typeRepo, tx, reservationStaffRepo, unavailableTimeRepo, availableSlotRepo, settingFinder)
+}
+
+func newReservationService(
+	repo ReservationRepository,
+	typeRepo reservationTypeFinder,
+	tx Transactor,
+	reservationStaffRepo ReservationStaffWriteGuard,
+	unavailableTimeRepo ReservationTypeUnavailableTimeRepository,
+	availableSlotRepo ReservationTypeAvailableSlotRepository,
+	settingFinder lineReservationSettingFinder,
+) *reservationService {
 	return &reservationService{
 		repo:                 repo,
 		typeRepo:             typeRepo,
 		tx:                   tx,
 		reservationStaffRepo: reservationStaffRepo,
 		unavailableTimeRepo:  unavailableTimeRepo,
-		availableSlotRepo:    slotRepo,
+		availableSlotRepo:    availableSlotRepo,
+		settingFinder:        settingFinder,
 	}
 }
 
@@ -282,6 +311,9 @@ func (s *reservationService) Create(ctx context.Context, input *CreateManualRese
 			return err
 		}
 		if enforceBookingConstraints {
+			if err := s.validateCreateClosedDays(ctx, reservation.ClinicID, reservation.StartTime); err != nil {
+				return err
+			}
 			if err := s.repo.AcquireBookingLock(ctx, reservation.ClinicID); err != nil {
 				return err
 			}
@@ -303,6 +335,21 @@ func (s *reservationService) Create(ctx context.Context, input *CreateManualRese
 	return reservation, nil
 }
 
+func (s *reservationService) validateCreateClosedDays(ctx context.Context, clinicID uint64, startTime time.Time) error {
+	if s.settingFinder == nil {
+		return apperrors.WrapInternalServerError("LINE reservation settings are required")
+	}
+	settings, err := s.settingFinder.FindByClinicID(ctx, clinicID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to load LINE reservation settings for closed-day check", "error", err, "clinic_id", clinicID)
+		return apperrors.Wrap(err, "failed to load LINE reservation settings")
+	}
+	if settings == nil {
+		return apperrors.WrapInternalServerError("LINE reservation settings are required")
+	}
+	return validateClosedDays(settings, startTime)
+}
+
 func ShouldEnforceReservationBookingConstraints(status model.ReservationStatus, route *string) bool {
 	if route != nil {
 		switch *route {
@@ -310,6 +357,10 @@ func ShouldEnforceReservationBookingConstraints(status model.ReservationStatus, 
 			return false
 		}
 	}
+	return shouldEnforceReservationBookingConstraintsForStatus(status)
+}
+
+func shouldEnforceReservationBookingConstraintsForStatus(status model.ReservationStatus) bool {
 	switch status {
 	case model.ReservationStatusCheckedIn,
 		model.ReservationStatusInConsultation,
@@ -319,6 +370,56 @@ func ShouldEnforceReservationBookingConstraints(status model.ReservationStatus, 
 	default:
 		return true
 	}
+}
+
+func reservationUint64PtrEqual(a, b *uint64) bool {
+	if a == nil && b == nil {
+		return true
+	}
+	if a == nil || b == nil {
+		return false
+	}
+	return *a == *b
+}
+
+func resolveUpdateReservationTypeID(current *model.Reservation, input *UpdateReservationInput) uint64 {
+	if input != nil && input.ReservationTypeID != nil {
+		return *input.ReservationTypeID
+	}
+	if current == nil {
+		return 0
+	}
+	return current.ReservationTypeID
+}
+
+func reservationScheduleFieldsChanged(current *model.Reservation, input *UpdateReservationInput) bool {
+	if current == nil || input == nil {
+		return false
+	}
+	resolvedStart, resolvedEnd, resolvedDoctorID := resolveUpdateParams(current, input)
+	resolvedTypeID := resolveUpdateReservationTypeID(current, input)
+	return !resolvedStart.Equal(current.StartTime) ||
+		!resolvedEnd.Equal(current.EndTime) ||
+		!reservationUint64PtrEqual(resolvedDoctorID, current.DoctorID) ||
+		resolvedTypeID != current.ReservationTypeID
+}
+
+// shouldReevaluateReservationBookingConstraintsOnUpdate reports whether Update
+// should re-run slot conflict / on-duty absence checks.
+//
+// Decision (BUG-006):
+//   - Skip when start/end/doctor/type are unchanged. Frontend memo-only PATCH
+//     sends the full schedule payload; presence is not an actual change.
+//   - Skip when the current status is already checked_in or later. The visit
+//     already occupies the slot; re-checking on-duty doctors caused false 409s.
+//   - Reservation route is not a skip signal on Update. Rescheduling a still
+//     pending appointment must still conflict-check even if it was created via
+//     reception / exam_room / record_shortcut.
+func shouldReevaluateReservationBookingConstraintsOnUpdate(current *model.Reservation, input *UpdateReservationInput) bool {
+	if !reservationScheduleFieldsChanged(current, input) {
+		return false
+	}
+	return shouldEnforceReservationBookingConstraintsForStatus(current.Status)
 }
 
 // validateTimeRange は end_time > start_time を確認する共通バリデーション
@@ -423,6 +524,40 @@ func validateLineReservationCheckedInLink(current *model.Reservation, input *Upd
 	return nil
 }
 
+func isTransitioningToInConsultation(current *model.Reservation, input *UpdateReservationInput) bool {
+	if input == nil || input.Status == nil || *input.Status != model.ReservationStatusInConsultation {
+		return false
+	}
+	if current != nil && current.Status == model.ReservationStatusInConsultation {
+		return false
+	}
+	return true
+}
+
+func validateInConsultationHasMedicalRecord(
+	ctx context.Context,
+	repo ReservationRepository,
+	clinicID, id uint64,
+	current *model.Reservation,
+	input *UpdateReservationInput,
+) error {
+	if !isTransitioningToInConsultation(current, input) {
+		return nil
+	}
+	if repo == nil {
+		return apperrors.WrapInternalServerError("reservation repository is required")
+	}
+	count, err := repo.CountMedicalRecordsByReservationID(ctx, clinicID, id)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to count medical records for in_consultation transition", "error", err, "id", id, "clinic_id", clinicID)
+		return apperrors.Wrap(err, "failed to check medical records for consultation")
+	}
+	if count <= 0 {
+		return apperrors.WrapConflict("診療を開始するにはカルテが必要です")
+	}
+	return nil
+}
+
 // updateWithConflictCheck は SELECT FOR UPDATE + トランザクション内で競合チェック + 予約更新を実行する。
 // 時刻・医師変更がある場合にのみ呼び出す。
 func (s *reservationService) updateWithConflictCheck(ctx context.Context, clinicID, id uint64, fields map[string]any, input *UpdateReservationInput) (*model.Reservation, error) {
@@ -498,15 +633,24 @@ func (s *reservationService) Update(ctx context.Context, clinicID, id uint64, in
 		slog.ErrorContext(ctx, "failed to find reservation", "error", err)
 		return nil, apperrors.Wrap(err, "failed to find reservation")
 	}
+	if current == nil {
+		return nil, apperrors.WrapNotFound("reservation", strconv.FormatUint(id, 10))
+	}
 	if err := validateLineReservationCheckedInLink(current, input); err != nil {
 		return nil, err
 	}
-	if input.StartTime != nil || input.EndTime != nil || input.ReservationTypeID != nil {
-		resolvedStart, resolvedEnd, _ := resolveUpdateParams(current, input)
-		resolvedReservationTypeID := current.ReservationTypeID
-		if input.ReservationTypeID != nil {
-			resolvedReservationTypeID = *input.ReservationTypeID
+	if err := validateInConsultationHasMedicalRecord(ctx, s.repo, clinicID, id, current, input); err != nil {
+		return nil, err
+	}
+	resolvedStart, resolvedEnd, _ := resolveUpdateParams(current, input)
+	if input.StartTime != nil || input.EndTime != nil {
+		if err := validateTimeRange(resolvedStart, resolvedEnd); err != nil {
+			return nil, err
 		}
+	}
+	needsConflictCheck := shouldReevaluateReservationBookingConstraintsOnUpdate(current, input)
+	if needsConflictCheck {
+		resolvedReservationTypeID := resolveUpdateReservationTypeID(current, input)
 		if err := ValidateReservationTypeAvailableTime(ctx, s.unavailableTimeRepo, clinicID, resolvedReservationTypeID, resolvedStart, resolvedEnd); err != nil {
 			return nil, err
 		}
@@ -522,8 +666,6 @@ func (s *reservationService) Update(ctx context.Context, clinicID, id uint64, in
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
 
-	// 時刻・医師・予約区分の変更がある場合のみ競合チェックが必要
-	needsConflictCheck := input.StartTime != nil || input.EndTime != nil || input.DoctorID != nil || input.ReservationTypeID != nil
 	needsLinkValidation := input.OwnerID != nil || input.PetID != nil
 	isCancel := input.Status != nil && *input.Status == model.ReservationStatusCancelled
 

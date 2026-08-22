@@ -324,8 +324,9 @@ func TestReservationWrites_RunStaffGuardInsideWriteTransaction(t *testing.T) {
 				StartTime:         start,
 				EndTime:           end,
 				ReservationTypeID: reservationType,
-				DoctorID:          uint64PtrForReservationStaffGuard(doctorID),
-				Status:            model.ReservationStatusPending,
+				// Leave doctor unset so the Update path actually changes doctor_id
+				// and still runs the staff write guard (BUG-006 skips unchanged schedule).
+				Status: model.ReservationStatusPending,
 			}
 			repo := &mockReservationRepository{
 				findByIDFn: func(_ context.Context, _, _ uint64) (*model.Reservation, error) {
