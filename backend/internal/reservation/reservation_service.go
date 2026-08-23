@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/config"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
@@ -121,6 +122,7 @@ type reservationService struct {
 	unavailableTimeRepo  ReservationTypeUnavailableTimeRepository
 	availableSlotRepo    ReservationTypeAvailableSlotRepository
 	settingFinder        lineReservationSettingFinder
+	holidayFinder        clinicHolidayFinder
 }
 
 func NewReservationServiceWithAvailabilityAndType(repo ReservationRepository, typeRepo reservationTypeFinder, tx Transactor, reservationStaffRepo ReservationStaffWriteGuard, unavailableTimeRepo ReservationTypeUnavailableTimeRepository, availableSlotRepo ...ReservationTypeAvailableSlotRepository) ReservationService {
@@ -128,11 +130,12 @@ func NewReservationServiceWithAvailabilityAndType(repo ReservationRepository, ty
 	if len(availableSlotRepo) > 0 {
 		slotRepo = availableSlotRepo[0]
 	}
-	return newReservationService(repo, typeRepo, tx, reservationStaffRepo, unavailableTimeRepo, slotRepo, nil)
+	return newReservationService(repo, typeRepo, tx, reservationStaffRepo, unavailableTimeRepo, slotRepo, nil, nil)
 }
 
 // NewReservationServiceWithLineSettings is the backward-compatible constructor
 // that also injects LINE reservation settings for closed-day checks on constrained Create.
+// holidayFinder is omitted (nil) so existing 7-arg callers skip clinic_holidays.
 func NewReservationServiceWithLineSettings(
 	repo ReservationRepository,
 	typeRepo reservationTypeFinder,
@@ -142,7 +145,21 @@ func NewReservationServiceWithLineSettings(
 	availableSlotRepo ReservationTypeAvailableSlotRepository,
 	settingFinder lineReservationSettingFinder,
 ) ReservationService {
-	return newReservationService(repo, typeRepo, tx, reservationStaffRepo, unavailableTimeRepo, availableSlotRepo, settingFinder)
+	return newReservationService(repo, typeRepo, tx, reservationStaffRepo, unavailableTimeRepo, availableSlotRepo, settingFinder, nil)
+}
+
+// NewReservationServiceWithClinicHolidays injects LINE settings and clinic_holidays.
+func NewReservationServiceWithClinicHolidays(
+	repo ReservationRepository,
+	typeRepo reservationTypeFinder,
+	tx Transactor,
+	reservationStaffRepo ReservationStaffWriteGuard,
+	unavailableTimeRepo ReservationTypeUnavailableTimeRepository,
+	availableSlotRepo ReservationTypeAvailableSlotRepository,
+	settingFinder lineReservationSettingFinder,
+	holidayFinder clinicHolidayFinder,
+) ReservationService {
+	return newReservationService(repo, typeRepo, tx, reservationStaffRepo, unavailableTimeRepo, availableSlotRepo, settingFinder, holidayFinder)
 }
 
 func newReservationService(
@@ -153,6 +170,7 @@ func newReservationService(
 	unavailableTimeRepo ReservationTypeUnavailableTimeRepository,
 	availableSlotRepo ReservationTypeAvailableSlotRepository,
 	settingFinder lineReservationSettingFinder,
+	holidayFinder clinicHolidayFinder,
 ) *reservationService {
 	return &reservationService{
 		repo:                 repo,
@@ -162,6 +180,7 @@ func newReservationService(
 		unavailableTimeRepo:  unavailableTimeRepo,
 		availableSlotRepo:    availableSlotRepo,
 		settingFinder:        settingFinder,
+		holidayFinder:        holidayFinder,
 	}
 }
 
@@ -314,6 +333,9 @@ func (s *reservationService) Create(ctx context.Context, input *CreateManualRese
 			if err := s.validateCreateClosedDays(ctx, reservation.ClinicID, reservation.StartTime); err != nil {
 				return err
 			}
+			if err := s.validateCreateClinicHoliday(ctx, reservation.ClinicID, reservation.StartTime); err != nil {
+				return err
+			}
 			if err := s.repo.AcquireBookingLock(ctx, reservation.ClinicID); err != nil {
 				return err
 			}
@@ -348,6 +370,25 @@ func (s *reservationService) validateCreateClosedDays(ctx context.Context, clini
 		return apperrors.WrapInternalServerError("LINE reservation settings are required")
 	}
 	return validateClosedDays(settings, startTime)
+}
+
+func (s *reservationService) validateCreateClinicHoliday(ctx context.Context, clinicID uint64, startTime time.Time) error {
+	if s.holidayFinder == nil {
+		return apperrors.WrapInternalServerError("clinic holiday lookup is required")
+	}
+	dateJST := startTime.In(config.JST)
+	dateStart := time.Date(dateJST.Year(), dateJST.Month(), dateJST.Day(), 0, 0, 0, 0, config.JST)
+	holiday, err := s.holidayFinder.FindByDate(ctx, clinicID, dateStart)
+	if err != nil {
+		if apperrors.IsNotFound(err) {
+			return nil
+		}
+		return err
+	}
+	if holiday != nil {
+		return apperrors.WrapInvalidInput("指定日は休診日のため予約できません")
+	}
+	return nil
 }
 
 func ShouldEnforceReservationBookingConstraints(status model.ReservationStatus, route *string) bool {

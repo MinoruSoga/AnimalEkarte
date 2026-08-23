@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/config"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -142,6 +143,14 @@ func (s *vaccinationService) Create(ctx context.Context, clinicID uint64, input 
 	}
 	if input.VaccineID == 0 {
 		return nil, apperrors.WrapInvalidInput("vaccine_id is required")
+	}
+	now := time.Now()
+	dateJST := input.Date.In(config.JST)
+	nowJST := now.In(config.JST)
+	dateDay := time.Date(dateJST.Year(), dateJST.Month(), dateJST.Day(), 0, 0, 0, 0, config.JST)
+	today := time.Date(nowJST.Year(), nowJST.Month(), nowJST.Day(), 0, 0, 0, 0, config.JST)
+	if dateDay.After(today) {
+		return nil, apperrors.WrapInvalidInput("接種日は今日以前の日付を入力してください")
 	}
 	if s.transactor == nil {
 		return nil, apperrors.WrapInternalServerError("vaccination transaction dependency is required")

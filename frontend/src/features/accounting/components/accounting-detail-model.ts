@@ -78,6 +78,7 @@ export function hasInvalidChangeOverride(paymentSplits: PaymentSplitDraft[]): bo
 export interface AccountingFormState {
   success: boolean;
   timestamp: number;
+  focusTarget?: "postCloseReason" | "receivedAmount";
 }
 
 // #188: 保存済み split から「お釣り直接上書き」状態を復元する。

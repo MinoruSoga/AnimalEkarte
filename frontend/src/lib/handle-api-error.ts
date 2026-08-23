@@ -132,6 +132,7 @@ function isUserFacingJapanese(message: string | undefined): boolean {
 
 /**
  * Extract a user-facing Japanese message from an API/unknown error without toasting.
+ * 400/403/404 pass through Japanese `error` text only; English uses the status fallback.
  * Prefer BE Japanese `error` text for 409 business conflicts (reservation slot / no doctors).
  * Do not pass through English 409 messages; unknown-code English uses the reload fallback.
  */
@@ -142,16 +143,25 @@ export function extractApiErrorMessage(err: unknown, context = "操作"): string
     const serverMessage = data?.error;
 
     if (status === 400) {
-      return serverMessage ?? `${context}に失敗しました。入力内容を確認してください。`;
+      return (
+        (isUserFacingJapanese(serverMessage) ? serverMessage : undefined) ??
+        `${context}に失敗しました。入力内容を確認してください。`
+      );
     }
     if (status === 401) {
       return "セッションが切れました。再度ログインしてください。";
     }
     if (status === 403) {
-      return serverMessage ?? `${context}の権限がありません。`;
+      return (
+        (isUserFacingJapanese(serverMessage) ? serverMessage : undefined) ??
+        `${context}の権限がありません。`
+      );
     }
     if (status === 404) {
-      return serverMessage ?? `${context}対象が見つかりません。`;
+      return (
+        (isUserFacingJapanese(serverMessage) ? serverMessage : undefined) ??
+        `${context}対象が見つかりません。`
+      );
     }
     if (status === 409) {
       return (

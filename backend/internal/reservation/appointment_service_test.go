@@ -532,7 +532,7 @@ func TestReservationService_Create_RejectsFullReservationTypeCapacity(t *testing
 			return &model.ReservationType{ID: id, ClinicID: clinicID, MaxConcurrent: &maxConcurrent}, nil
 		},
 	}
-	svc := NewReservationServiceWithLineSettings(repo, typeRepo, &mockTransactor{}, nil, nil, nil, &mockLineReservationSettingFinder{})
+	svc := NewReservationServiceWithClinicHolidays(repo, typeRepo, &mockTransactor{}, nil, nil, nil, &mockLineReservationSettingFinder{}, &mockClinicHolidayFinder{})
 
 	result, err := svc.Create(context.Background(), &CreateManualReservationInput{
 		ClinicID:          1,
@@ -917,6 +917,217 @@ func TestReservationService_Create_FailsClosedWhenSettingsCannotBeLoaded(t *test
 	assert.Nil(t, result)
 	assert.False(t, createCalled)
 	assert.False(t, apperrors.IsInvalidInput(err), "load failure must not look like a closed-day validation error")
+}
+
+type mockClinicHolidayFinder struct {
+	findByDateFn func(ctx context.Context, clinicID uint64, date time.Time) (*model.ClinicHoliday, error)
+}
+
+func (m *mockClinicHolidayFinder) FindByDate(ctx context.Context, clinicID uint64, date time.Time) (*model.ClinicHoliday, error) {
+	if m.findByDateFn != nil {
+		return m.findByDateFn(ctx, clinicID, date)
+	}
+	return nil, apperrors.WrapNotFound("clinic_holiday", date.Format(time.DateOnly))
+}
+
+func TestReservationService_Create_RejectsClinicHolidayWhenConstraintsApply(t *testing.T) {
+	start := time.Date(2026, 6, 2, 10, 0, 0, 0, config.JST)
+	createCalled := false
+	repo := closedDayCreateRepo(t)
+	repo.createFn = func(_ context.Context, _ *model.Reservation) error {
+		createCalled = true
+		return nil
+	}
+	finder := &mockLineReservationSettingFinder{
+		findByClinicIDFn: func(_ context.Context, _ uint64) (*model.LineReservationSetting, error) {
+			return &model.LineReservationSetting{
+				ClosedWeekdays:        []byte("[]"),
+				ClosedDates:           []byte("[]"),
+				NationalHolidayClosed: false,
+			}, nil
+		},
+	}
+	holidayFinder := &mockClinicHolidayFinder{
+		findByDateFn: func(_ context.Context, clinicID uint64, date time.Time) (*model.ClinicHoliday, error) {
+			assert.Equal(t, uint64(1), clinicID)
+			assert.Equal(t, "2026-06-02", date.In(config.JST).Format(time.DateOnly))
+			return &model.ClinicHoliday{ID: 1, ClinicID: clinicID, Date: date, Reason: "臨時休診"}, nil
+		},
+	}
+	svc := NewReservationServiceWithClinicHolidays(repo, nil, &mockTransactor{}, nil, nil, nil, finder, holidayFinder)
+
+	result, err := svc.Create(context.Background(), &CreateManualReservationInput{
+		ClinicID:          1,
+		StartTime:         start,
+		EndTime:           start.Add(30 * time.Minute),
+		ReservationTypeID: 5,
+		Status:            model.ReservationStatusConfirmed,
+	})
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.True(t, apperrors.IsInvalidInput(err), "expected invalid input but got: %v", err)
+	assert.Contains(t, err.Error(), "休診日")
+	assert.False(t, createCalled)
+}
+
+func TestReservationService_Create_AllowsWhenClinicHolidayNotFound(t *testing.T) {
+	start := time.Date(2026, 6, 2, 10, 0, 0, 0, config.JST)
+	createCalled := false
+	holidayCalled := false
+	repo := closedDayCreateRepo(t)
+	repo.createFn = func(_ context.Context, appt *model.Reservation) error {
+		createCalled = true
+		appt.ID = 10
+		return nil
+	}
+	finder := &mockLineReservationSettingFinder{
+		findByClinicIDFn: func(_ context.Context, _ uint64) (*model.LineReservationSetting, error) {
+			return &model.LineReservationSetting{
+				ClosedWeekdays:        []byte("[]"),
+				ClosedDates:           []byte("[]"),
+				NationalHolidayClosed: false,
+			}, nil
+		},
+	}
+	holidayFinder := &mockClinicHolidayFinder{
+		findByDateFn: func(_ context.Context, clinicID uint64, date time.Time) (*model.ClinicHoliday, error) {
+			holidayCalled = true
+			assert.Equal(t, uint64(1), clinicID)
+			assert.Equal(t, "2026-06-02", date.In(config.JST).Format(time.DateOnly))
+			return nil, apperrors.WrapNotFound("clinic_holiday", date.Format(time.DateOnly))
+		},
+	}
+	svc := NewReservationServiceWithClinicHolidays(repo, nil, &mockTransactor{}, nil, nil, nil, finder, holidayFinder)
+
+	result, err := svc.Create(context.Background(), &CreateManualReservationInput{
+		ClinicID:          1,
+		StartTime:         start,
+		EndTime:           start.Add(30 * time.Minute),
+		ReservationTypeID: 5,
+		Status:            model.ReservationStatusPending,
+	})
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.True(t, holidayCalled)
+	assert.True(t, createCalled)
+}
+
+func TestReservationService_Create_WalkInRoutesDoNotCallClinicHolidayFinder(t *testing.T) {
+	start := time.Date(2026, 6, 1, 10, 0, 0, 0, config.JST)
+	finder := &mockLineReservationSettingFinder{
+		findByClinicIDFn: func(_ context.Context, _ uint64) (*model.LineReservationSetting, error) {
+			t.Fatal("walk-in routes must not load closed-day settings")
+			return nil, nil
+		},
+	}
+	holidayFinder := &mockClinicHolidayFinder{
+		findByDateFn: func(_ context.Context, _ uint64, _ time.Time) (*model.ClinicHoliday, error) {
+			t.Fatal("walk-in routes must not load clinic_holidays")
+			return nil, nil
+		},
+	}
+	routes := []string{"reception", "exam_room", "record_shortcut"}
+	for _, route := range routes {
+		t.Run(route, func(t *testing.T) {
+			created := false
+			repo := closedDayCreateRepo(t)
+			repo.createFn = func(_ context.Context, appt *model.Reservation) error {
+				created = true
+				appt.ID = 10
+				return nil
+			}
+			svc := NewReservationServiceWithClinicHolidays(repo, nil, &mockTransactor{}, nil, nil, nil, finder, holidayFinder)
+			routeCopy := route
+
+			result, err := svc.Create(context.Background(), &CreateManualReservationInput{
+				ClinicID:          1,
+				StartTime:         start,
+				EndTime:           start.Add(30 * time.Minute),
+				ReservationTypeID: 5,
+				Status:            model.ReservationStatusPending,
+				ReservationRoute:  &routeCopy,
+			})
+
+			assert.NoError(t, err)
+			assert.NotNil(t, result)
+			assert.True(t, created)
+		})
+	}
+}
+
+func TestReservationService_Create_FailsClosedWhenClinicHolidayFinderErrors(t *testing.T) {
+	start := time.Date(2026, 6, 2, 10, 0, 0, 0, config.JST)
+	createCalled := false
+	repo := closedDayCreateRepo(t)
+	repo.createFn = func(_ context.Context, _ *model.Reservation) error {
+		createCalled = true
+		return nil
+	}
+	finder := &mockLineReservationSettingFinder{
+		findByClinicIDFn: func(_ context.Context, _ uint64) (*model.LineReservationSetting, error) {
+			return &model.LineReservationSetting{
+				ClosedWeekdays:        []byte("[]"),
+				ClosedDates:           []byte("[]"),
+				NationalHolidayClosed: false,
+			}, nil
+		},
+	}
+	holidayFinder := &mockClinicHolidayFinder{
+		findByDateFn: func(_ context.Context, _ uint64, _ time.Time) (*model.ClinicHoliday, error) {
+			return nil, errors.New("clinic_holidays db error")
+		},
+	}
+	svc := NewReservationServiceWithClinicHolidays(repo, nil, &mockTransactor{}, nil, nil, nil, finder, holidayFinder)
+
+	result, err := svc.Create(context.Background(), &CreateManualReservationInput{
+		ClinicID:          1,
+		StartTime:         start,
+		EndTime:           start.Add(30 * time.Minute),
+		ReservationTypeID: 5,
+		Status:            model.ReservationStatusPending,
+	})
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.False(t, createCalled)
+	assert.False(t, apperrors.IsInvalidInput(err), "finder failure must not look like a closed-day validation error")
+}
+
+func TestReservationService_Create_FailsClosedWhenClinicHolidayFinderMissing(t *testing.T) {
+	start := time.Date(2026, 6, 2, 10, 0, 0, 0, config.JST)
+	createCalled := false
+	repo := closedDayCreateRepo(t)
+	repo.createFn = func(_ context.Context, _ *model.Reservation) error {
+		createCalled = true
+		return nil
+	}
+	finder := &mockLineReservationSettingFinder{
+		findByClinicIDFn: func(_ context.Context, _ uint64) (*model.LineReservationSetting, error) {
+			return &model.LineReservationSetting{
+				ClosedWeekdays:        []byte("[]"),
+				ClosedDates:           []byte("[]"),
+				NationalHolidayClosed: false,
+			}, nil
+		},
+	}
+	svc := NewReservationServiceWithLineSettings(repo, nil, &mockTransactor{}, nil, nil, nil, finder)
+
+	result, err := svc.Create(context.Background(), &CreateManualReservationInput{
+		ClinicID:          1,
+		StartTime:         start,
+		EndTime:           start.Add(30 * time.Minute),
+		ReservationTypeID: 5,
+		Status:            model.ReservationStatusPending,
+	})
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.False(t, createCalled)
+	var appErr *apperrors.AppError
+	require.ErrorAs(t, err, &appErr)
+	assert.Equal(t, "INTERNAL", appErr.Code)
 }
 
 func TestReservationService_Create_FailsClosedWhenSettingFinderMissing(t *testing.T) {

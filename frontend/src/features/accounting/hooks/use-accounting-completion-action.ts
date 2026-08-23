@@ -5,7 +5,7 @@ import type { QueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { paths } from "@/config/paths";
-import { handleApiError } from "@/lib/handle-api-error";
+import { extractApiErrorMessage, handleApiError } from "@/lib/handle-api-error";
 import { jstDateStartISOString, jstNowISOString } from "@/lib/jst-date";
 import { queryKeys } from "@/lib/query-keys";
 
@@ -19,6 +19,58 @@ import type { PaymentSplitRequest } from "../api/types";
 import type { PaymentSplitDraft } from "../components/PaymentCard";
 import type { Accounting, AccountingItem, PaymentInfo, PaymentMethod } from "../types";
 import { buildPaymentSplitRequests, type AccountingFormState } from "../components/accounting-detail-model";
+
+type AccountingCompletionFocusTarget = NonNullable<AccountingFormState["focusTarget"]>;
+
+const POST_CLOSE_REASON_MARKER = "post_close_reason";
+
+function readAxiosErrorBody(error: unknown): string {
+  if (typeof error !== "object" || error === null || !("response" in error)) {
+    return "";
+  }
+  const response = error.response;
+  if (typeof response !== "object" || response === null || !("data" in response)) {
+    return "";
+  }
+  const data = response.data;
+  if (typeof data !== "object" || data === null || !("error" in data)) {
+    return "";
+  }
+  const message = data.error;
+  return typeof message === "string" ? message : "";
+}
+
+/** 締め後理由不足の 400 は postCloseReason、それ以外の失敗は預り金欄へフォーカスする。 */
+export function resolveAccountingCompletionFocusTarget(
+  error: unknown,
+): AccountingCompletionFocusTarget {
+  const extracted = extractApiErrorMessage(error, "会計の処理");
+  const axiosMessage = readAxiosErrorBody(error);
+  if (
+    extracted.includes(POST_CLOSE_REASON_MARKER) ||
+    axiosMessage.includes(POST_CLOSE_REASON_MARKER)
+  ) {
+    return "postCloseReason";
+  }
+  return "receivedAmount";
+}
+
+export function focusAccountingCompletionError(
+  target: AccountingCompletionFocusTarget,
+): void {
+  const candidateIds: readonly string[] =
+    target === "postCloseReason"
+      ? ["postCloseReason"]
+      : ["receivedAmount", "payment-split-0-received"];
+  for (const id of candidateIds) {
+    const element = document.getElementById(id);
+    if (element instanceof HTMLElement) {
+      element.focus();
+      element.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
+  }
+}
 
 function toCompleteItems(
   items: ReadonlyArray<AccountingItem>,
@@ -246,21 +298,21 @@ export function useAccountingCompletionAction({
         return { success: true, timestamp: Date.now() };
       } catch (error) {
         handleApiError(error, "会計の処理");
-        return { success: false, timestamp: Date.now() };
+        return {
+          success: false,
+          timestamp: Date.now(),
+          focusTarget: resolveAccountingCompletionFocusTarget(error),
+        };
       }
     },
     { success: false, timestamp: 0 },
   );
 
   useEffect(() => {
-    if (formState.success === false && formState.timestamp > 0) {
-      const element = document.getElementById("receivedAmount");
-      if (element) {
-        element.focus();
-        element.scrollIntoView({ behavior: "smooth", block: "center" });
-      }
+    if (formState.success === false && formState.timestamp > 0 && formState.focusTarget) {
+      focusAccountingCompletionError(formState.focusTarget);
     }
-  }, [formState.success, formState.timestamp]);
+  }, [formState.success, formState.timestamp, formState.focusTarget]);
 
   const confirmCompletedEdit = () => {
     editConfirmedRef.current = true;

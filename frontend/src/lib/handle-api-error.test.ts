@@ -322,3 +322,69 @@ describe("handleApiError 409 localization", () => {
     ).toBe("担当可能な医師がいません");
   });
 });
+
+describe("extractApiErrorMessage 400/403/404 Japanese guard (BUG-006)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("400 English serverMessage falls back to Japanese and must not contain English", () => {
+    const english =
+      "appointment must use a general reservation type for a medical record";
+    const message = extractApiErrorMessage(
+      axiosError(400, { error: english }),
+      "カルテ作成",
+    );
+    expect(message).toBe(
+      "カルテ作成に失敗しました。入力内容を確認してください。",
+    );
+    expect(message).not.toMatch(/appointment|reservation|medical record/i);
+    expect(message).not.toContain(english);
+    handleApiError(axiosError(400, { error: english }), "カルテ作成");
+    expect(toast.error).toHaveBeenCalledWith(
+      "カルテ作成に失敗しました。入力内容を確認してください。",
+    );
+    expect(toast.error).not.toHaveBeenCalledWith(english);
+  });
+
+  it("400 Japanese serverMessage is passed through", () => {
+    const ja = "入力内容が正しくありません";
+    expect(
+      extractApiErrorMessage(axiosError(400, { error: ja }), "カルテ作成"),
+    ).toBe(ja);
+  });
+
+  it("403 English serverMessage falls back to Japanese", () => {
+    const english = "forbidden: insufficient permissions";
+    const message = extractApiErrorMessage(
+      axiosError(403, { error: english }),
+      "削除",
+    );
+    expect(message).toBe("削除の権限がありません。");
+    expect(message).not.toMatch(/forbidden|insufficient|permissions/i);
+  });
+
+  it("403 Japanese serverMessage is passed through", () => {
+    const ja = "この操作を行う権限がありません";
+    expect(
+      extractApiErrorMessage(axiosError(403, { error: ja }), "削除"),
+    ).toBe(ja);
+  });
+
+  it("404 English serverMessage falls back to Japanese", () => {
+    const english = "record not found";
+    const message = extractApiErrorMessage(
+      axiosError(404, { error: english }),
+      "取得",
+    );
+    expect(message).toBe("取得対象が見つかりません。");
+    expect(message).not.toMatch(/record not found/i);
+  });
+
+  it("404 Japanese serverMessage is passed through", () => {
+    const ja = "指定されたカルテが見つかりません";
+    expect(
+      extractApiErrorMessage(axiosError(404, { error: ja }), "取得"),
+    ).toBe(ja);
+  });
+});

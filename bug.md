@@ -33,24 +33,24 @@
 | Medium | 4 | BUG-003, BUG-004, BUG-005, BUG-010 |
 | Low | 5 | BUG-006, BUG-007, BUG-008, BUG-009, BUG-011 |
 
-## 対応状況（2026-08-23 時点）
+## 対応状況（2026-08-24 時点）
 
 | # | 重大度 | 状態 | 根拠 |
 |:--|:--|:--|:--|
 | BUG-001 | High | **不成立** | 実行アカウントは「一般」ではなく「執行」グループで、`accounting-post-close-edit:can_edit=true` を正当に保持。権限定義・ガードとも変更なし |
 | BUG-002 | High | **修正済み** | `8fbfc6661`。受付 transform が `end_time` を復元し、保存はフィールド差分送信へ |
 | NEW-1 | 要フォローアップ（最優先） | **再現し修正済み** | `8fbfc6661`。system admin は ID ロック + 残存所属医院スコープで 404 にならない |
-| BUG-003 | Medium | 未対応 | `internal/reservation` に `ClinicHoliday` 参照が 1 件も無いことを確認済み |
-| BUG-004 | Medium | 未対応 | ソースと実行時挙動の乖離の原因が未特定 |
-| BUG-005 | Medium | 未対応 | `vaccinationService.Create` に日付検証が 1 つも無いことを確認済み |
-| BUG-006 | Low | **原因特定・未修正** | 下記フォローアップ参照 |
-| BUG-007 | Low | 未対応 | |
-| BUG-008 | Low | 未対応 | |
-| BUG-009 | Low | 未対応 | |
+| BUG-003 | Medium | **修正済み** | `reservationService.Create` が `clinic_holidays.FindByDate` を `enforceBookingConstraints` 内で拒否。テスト `Create_RejectsClinicHolidayWhenConstraintsApply` |
+| BUG-004 | Medium | **不成立** | `6e9efd96a` が UAT 報告より前に入済み。現行 vitest がインラインエラー描画を保証。UAT はステールビルドを観測したと判断 |
+| BUG-005 | Medium | **修正済み** | `vaccinationService.Create` が JST 当日より後の接種日を拒否。`next_date` の未来は許容。テスト `Create_RejectsFutureVaccinationDate` |
+| BUG-006 | Low | **修正済み** | `extractApiErrorMessage` の 400/403/404 に `isUserFacingJapanese` ガード。英語は日本語定型文へフォールバック。409 は不変 |
+| BUG-007 | Low | **不成立** | ヘッダー `SubmitButton` は `form="inventory-form"` で関連付け済み（`b93bf2587`）。BUG-004 の誤診断。回帰テスト追加 |
+| BUG-008 | Low | **修正済み** | 400 分岐が `currentPassword` を保持し、英語 serverMessage は `extractApiErrorMessage` 経由で日本語化。401 は不変 |
+| BUG-009 | Low | **修正済み** | 締め後 400 は `#postCloseReason` へ focus/scroll。他失敗は預り金欄。`focusTarget` 識別子を formState に追加 |
 | BUG-010 | Medium | 未対応（環境要因・アプリのバグではない） | |
 | BUG-011 | Low | 未対応（環境要因・アプリのバグではない） | |
 
-11 件中 3 件が決着（修正 2 / 不成立 1）。残り 8 件のうち 2 件は環境要因で、アプリの実欠陥は 6 件。
+11 件中 9 件が決着（修正 6 / 不成立 3）。残り 2 件は環境要因。アプリの実欠陥は 0 件（本ラウンド対象 7 件はすべて決着）。
 
 ---
 
@@ -65,6 +65,7 @@
 ## BUG-005: 未来日の予防接種登録がバックエンドAPIレベルで拒否されない（仕様書記載の既知バグBUG-024に該当）
 - **シナリオ**: S03 / **重大度**: Medium
 - `POST /api/v1/vaccinations`に3日後の未来日を含むペイロードを送信すると、拒否されず`201 Created`で登録が成立してしまう。仕様書`S03-vaccination-next-due-autocalc.md`自身がこの挙動を既知バグ「BUG-024」として追跡しており、Round 7時点でも未解消であることをAPI直叩きで確認した。フロントエンドのDatePicker側（`disabledDays`による選択自体のブロック）は自動操作クリックがコンポーネントの相性問題により機能せず未検証。
+- **2026-08-24 フォローアップ: 修正済み。** `vaccinationService.Create` が接種日を `config.JST` の暦日で切り、当日より後なら `WrapInvalidInput("接種日は今日以前の日付を入力してください")`。当日は許容。`next_date` の未来は対象外。テスト: `TestVaccinationService_Create_RejectsFutureVaccinationDate`（tomorrow 拒否 / today 許容 / future next_date 許容）。`Update` 経路への同一ガードは未適用（残リスク）。
 
 参考所見（バグ番号なし・Low）: S03仕様書が「独立画面」（既定=1年後）と定義する到達経路が、実機では確認できたすべての経路（一覧からの新規登録、`petId`付き直接URL）で必ず「カルテタブ」（既定=4週後）に帰着し、独立画面自体に到達できなかった。次回リグレッション自体の対象ではないが、次回ラウンドで仕様書と実装の整合性の確認を推奨する。
 
@@ -94,6 +95,7 @@ S04は、シフトデータ未投入という既知の環境制約により、Ro
 ## BUG-009: 新規会計登録画面のpost_close_reason入力欄が画面外に表示され気づきにくい
 - **シナリオ**: S08 / **重大度**: Low
 - レジ締め済み日に新規会計を確定しようとすると、トーストと`400`エラーが返るが、理由入力欄（`textarea#postCloseReason`）は画面下部・現在のビューポート外に表示され、エラー発生時の自動スクロールやフォーカス移動が行われない。機能自体は存在し最終的に利用可能だが、初見のオペレーターは「編集できない」と誤認しやすい。
+- **2026-08-24 フォローアップ: 修正済み。** `use-accounting-completion-action.ts` が失敗種別を `formState.focusTarget` で識別し、BE 400 本文に `post_close_reason` を含むとき `#postCloseReason` へ `focus` + `scrollIntoView`。それ以外の API 失敗は `#receivedAmount` / `#payment-split-0-received`。確認ダイアログ等の早期 return ではフォーカスしない。テスト: `use-accounting-completion-action.test.ts`。
 
 S09の境界時刻厳密テスト（13:30:00ちょうど、日跨ぎEMG）は、DBへの直接アクセス手段（psql/docker等）がテスト環境になく、Round 6と同様に引き続きブロック。S08手順10の監査ログメタデータ（`post_close:true`）内容も、閲覧可能なAPI/UIが見つからず間接確認に留まった。
 
@@ -107,6 +109,7 @@ S09の境界時刻厳密テスト（13:30:00ちょうど、日跨ぎEMG）は、
 - **シナリオ**: S11 / **重大度**: Low
 - トリミング種別の予約を「受付済→診療中」へ進めるにはカルテ作成が前提条件となるが、トリミング予約からカルテを作成しようとすると`POST /api/v1/medical-records`が`400 {"error":"appointment must use a general reservation type for a medical record"}`で拒否される（「カルテ作成には一般予約種別が必要」という制約自体は仕様通りの可能性がある）。この際、画面上部のバナーは適切な日本語メッセージにローカライズされているが、画面左上のトースト通知は英語の生メッセージがそのまま表示される。旧BUG-002の修正（`extractApiErrorMessage`）は409コンフリクト系のフォールバックが主眼であり、この400番台バリデーションエラー・トースト表示経路まではカバーされていないことを示す。なお、単独のトリミング予約のみでは会計待ちへの正しい遷移経路を特定できず、S11の完全なE2E検証（併設の一般診察予約との合算精算を含む）は完遂できなかった。次ラウンドでの想定運用フローの確認を推奨する。
 - **2026-08-23 フォローアップ: 原因特定・未修正。** `frontend/src/lib/handle-api-error.ts` の `extractApiErrorMessage` は、**409 にだけ**日本語判定ガードを持つ（`localizeConflictMessage` → `localizeAlreadyExistsMessage` → `isUserFacingJapanese(serverMessage) ? serverMessage : undefined` → 定型文の順にフォールバックする）。一方 **400 / 403 / 404 は `return serverMessage ?? 定型文` でサーバ文言を無検査でそのまま返す**（400 は 145 行）。本件の `400 {"error":"appointment must use a general reservation type for a medical record"}` はこの経路に落ちるため、英語がそのまま toast へ出る。報告どおり「409 が主眼で 400 番台は未カバー」であることが機序として確認された。修正するなら 400 / 403 / 404 にも `isUserFacingJapanese` 相当のガードを通すか、backend 側がユーザー向け日本語を返すかの判断が要る（BUG-008 のパスワード強度 400 も同じ経路）。
+- **2026-08-24 フォローアップ: 修正済み。** 400 / 403 / 404 にも 409 と同型の `isUserFacingJapanese` ガードを追加。英語 serverMessage はステータス別の日本語定型文へフォールバックし、日本語 serverMessage は素通し。409 連鎖は未変更。テスト: `extractApiErrorMessage 400/403/404 Japanese guard (BUG-006)`。backend 英語メッセージの全面日本語化は行っていない。
 
 BUG-001（全角/半角スペース検索正規化）・BUG-002（409未マップエラーの日本語フォールバック）は、20件以上のクエリと複数の実在飼主名での検証により、いずれも**修正確認**。S13の正常系（owner紐付け→pet紐付け→履歴→解除→再紐付け）も全ステップ再確認済み。S13手順7・8（権限系負例テスト）は引き続き専用テストアカウント未提供のためブロック。S12のLIFFヘルスカードAPIは、バックエンド側にも`LIFF_MOCK=true`によるローカル開発専用の認証バイパス機構があり（release モード起動時ガードあり、本番混入なし）、実トークン検証はテスト環境制約により引き続き未実施。
 
@@ -134,14 +137,17 @@ BUG-001（全角/半角スペース検索正規化）・BUG-002（409未マッ�
 ## BUG-003: 休診日を設定しても、予約作成APIへの直接リクエストではバックエンド側の検証がなく作成できてしまう（既知バグ・未修正）
 - **シナリオ**: V02 / **重大度**: Medium
 - ソースコード調査で`backend/internal/reservation/`パッケージ全体に休診日（`clinic_holidays`）を参照する箇所が一切ないことを確認。休診日を登録した日付に対し`POST /api/v1/reservations`を直接実行すると、`201 Created`で予約が成立してしまうことをAPI実地検証で再確認した。
+- **2026-08-24 フォローアップ: 修正済み。** 真因は「検証が無い」ではなく二重管理。サーバーは `LineReservationSetting.ClosedDates` 等を見ており、UI の `clinic_holidays` と不一致だった。`Create` の `enforceBookingConstraints` ブロック内（`validateCreateClosedDays` の直後）に `clinicHolidayFinder.FindByDate` を追加。NotFound は許可、他エラーと finder 欠落は fail-closed。walk-in 3 経路と `checked_in` 以降は既存どおりスキップ。production は `NewReservationServiceWithClinicHolidays` で配線。テスト: `Create_RejectsClinicHolidayWhenConstraintsApply` / `AllowsWhenClinicHolidayNotFound` / `WalkInRoutesDoNotCallClinicHolidayFinder` / `FailsClosedWhenClinicHolidayFinderErrors` / `FailsClosedWhenClinicHolidayFinderMissing`。既存 ClosedDates チェックは削除していない（二重管理の削除は別タスク）。LIFF / admin / Update への同一ガードは未適用（残リスク）。
 
 ## BUG-004: 在庫登録フォームで必須項目未入力のまま登録を試みても、エラーメッセージ等の視覚的フィードバックが一切ない（既知バグ・未修正）
 - **シナリオ**: V02 / **重大度**: Medium
 - ソースコード上は`useActionState`ベースのバリデーション・`FormFieldError`表示ロジックが正しく実装されているように見えるが、ライブ環境で複数回・条件を変えて再現したところ、必須項目未入力のまま送信してもエラー要素（`aria-invalid`・インラインエラー・トースト）が一切表示されず、送信自体は正しくブロックされる（データ不整合は生じない）ものの、ユーザー視点では「反応しない」ボタンに見える。ソースコードと実行時挙動の乖離の原因は今回のセッション内では特定に至らなかった。
+- **2026-08-24 フォローアップ: 不成立。** 修正 commit `6e9efd96a`（2026-08-22 17:28）は UAT 報告 commit の祖先。現行 HEAD の vitest は必須未入力の `fieldErrors` インライン表示を保証する（`InventoryForm.test.tsx` / `use-inventory-form.test.ts` / `InventoryFormSections.test.tsx`）。コード変更なし。UAT はステールビルドを観測したと判断。
 
 ## BUG-007: 在庫登録フォームのヘッダー部分に、フォームに紐付いていない無反応な「登録」ボタンが重複して存在
 - **シナリオ**: V02（新規発見） / **重大度**: Low
 - 画面上部（見出し「在庫登録」の右）と、フォーム下部の2箇所に見た目がほぼ同一の「登録」ボタンが存在する。上部のボタンは`closest('form')`が`null`＝どの`<form>`にも属しておらず、クリックしてもネットワークリクエスト・エラー表示・状態変化のいずれも発生しない完全な無反応ボタンである。BUG-004の「反応しないように見える」というユーザー体感を悪化させる一因になりうる。
+- **2026-08-24 フォローアップ: 不成立（独立欠陥ではない）。** ヘッダー `SubmitButton` は `form={INVENTORY_FORM_ID}`（`inventory-form`）を持ち、HTML の `form` 属性で `<form>` と関連付く。`closest('form')` が null でも submit する。この関連付けは `b93bf2587` で入っており UAT 時点で既に存在した。ヘッダーボタンは他画面の `PageLayout headerAction` と揃えて残す。回帰テスト: `header SubmitButton is associated with inventory-form (BUG-007)`。
 
 旧BUG-007（ステータス直接遷移によるカルテ必須ルールバイパス）は、カルテ0件の予約への直接API `PATCH {status:"in_consultation"}` が明確に`409`で拒否されることを確認し**修正確認**。会計精算のお釣り手動上書き・レジ締め実際現金のマイナス値の2件は、ソースコード上は修正が維持されていることを確認したが、セッション終盤の重度の環境不安定（10近い並行エージェントタブによる負荷と推測）により、ライブUIでの最終確認は未達成（BLOCKED、次ラウンドでの確定検証を推奨）。
 
@@ -174,6 +180,7 @@ Lステップ連携設定のLIFF IDクリア、処置マスタの子処置削除
 ## BUG-008: パスワード変更ダイアログで、バックエンドのパスワード強度エラー（400）時に「現在のパスワード」欄までクリアされる
 - **シナリオ**: V05 / **重大度**: Low
 - 旧BUG-018の修正により、「現在のパスワードが不一致」（401）分岐では「現在のパスワード」欄が保持されることを再確認した。しかし、新パスワードが強度ポリシー（英数字混在必須）を満たさない場合の`400`エラー分岐では、現在のパスワード欄を含む3欄すべてが空文字にクリアされることを新たに発見した（2回再現確認）。`ChangePasswordDialog.tsx`のエラーハンドリングが401分岐のみを対象としており、他の4xxエラー全般はカバーしきれていないと見られる。
+- **2026-08-24 フォローアップ: 修正済み。** 400 分岐が `{ error: extractApiErrorMessage(error, "パスワード変更"), currentPassword }` を返す。401 は `{ error: "現在のパスワードが正しくありません", currentPassword }` のまま。英語強度メッセージは BUG-006 と同じ日本語フォールバック。テスト: 400 で current password 入力値が保持されること、401 既存テスト。
 
 ## BUG-010: ローカル環境のLIFFアカウント連携がモック実装のため、実際のトークン検証が実機検証できない（既知バグ・環境要因のため継続）
 - **シナリオ**: V05 / **重大度**: Medium
@@ -193,6 +200,7 @@ V05-6のバリデーション系（空白のみ、電話番号形式、ペット
   - **2026-08-23 フォローアップ: 再現し修正済み。** 原因は `resolveStaffWithClinic` / in-clinic lock / `hasCurrentClinic` が request clinic の assignment を要求し `isSystemAdmin` を見ていなかったこと。system admin は ID ロック + 残存所属医院スコープで GET/PATCH/PUT/DELETE が 404 にならない。non-admin は引き続き 404。職種 FK は残存所属医院で所有確認する。テスト: `staff_admin_removed_request_clinic_test.go`。残存 V03 テストスタッフ（ID 1000000003〜1000000005）は system admin から削除可能になったはずだが、本フォローアップでは DB 直接削除はしていない。
 - BUG-002（V02、受付キャンバン経由の予約編集）のライブでの409発生の直接キャプチャ。今回はソースコード解析による論理的確認に留まった。
 - BUG-004（V02在庫登録フォーム）のソースコードと実行時挙動の乖離原因の特定（開発サーバーのキャッシュ、Reactハイドレーション問題等の切り分け）。
+  - **2026-08-24 フォローアップ: 解消。** `6e9efd96a` が UAT より前に入っており、現行テストがインラインエラーを保証する。UAT はステールビルドと判断。コード変更なし。
 - V02の会計お釣り手動上書き・レジ締め実際現金マイナス値の2件のライブUIでの確定検証（今回は環境不安定によりソースコード確認のみ）。
 - S02手順8・S13手順7/8: 権限系の負例テストに必要な専用テストアカウントでの実地検証。S08は今回初めて完遂できたため、同様の手法（他エージェントと時間帯をずらす、または専用セッション確保）を他シナリオにも適用することを推奨。
 - S09境界時刻の網羅テスト: DBへの直接アクセス手段（psql/docker等）がテスト環境に必要。

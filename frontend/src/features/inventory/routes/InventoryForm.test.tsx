@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -122,5 +123,33 @@ describe("InventoryForm inline validation (BUG-009)", () => {
 
     expect(screen.getByText("現在庫数は0以上の整数で入力してください")).toBeInTheDocument();
     expect(screen.getByText("最低在庫数は0以上の整数で入力してください")).toBeInTheDocument();
+  });
+});
+
+describe("InventoryForm header submit (BUG-007)", () => {
+  beforeEach(() => {
+    permission.current = { canView: true, canCreate: true, canEdit: true, canDelete: false };
+    formReturn.current = {
+      ...formReturn.current,
+      formAction: vi.fn(),
+      formState: { success: false, timestamp: 0, fieldErrors: {} },
+    };
+  });
+
+  it("header SubmitButton is associated with inventory-form (BUG-007)", async () => {
+    const user = userEvent.setup();
+    renderForm();
+    const form = document.querySelector("form#inventory-form");
+    expect(form).toHaveAttribute("id", "inventory-form");
+    const buttons = screen.getAllByRole("button", { name: "更新" });
+    expect(buttons.length).toBeGreaterThanOrEqual(2);
+    const header = buttons.find((b) => b.getAttribute("form") === "inventory-form");
+    expect(header).toBeDefined();
+    expect(header).toHaveAttribute("type", "submit");
+    expect(header).toHaveAttribute("form", "inventory-form");
+    expect(form?.contains(header!)).toBe(false);
+
+    await user.click(header!);
+    expect(formReturn.current.formAction).toHaveBeenCalled();
   });
 });

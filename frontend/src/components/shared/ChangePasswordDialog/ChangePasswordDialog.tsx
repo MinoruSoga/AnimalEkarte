@@ -9,7 +9,7 @@ import { toast } from "sonner";
 
 // Internal
 import { axios } from "@/lib/axios";
-import { handleApiError } from "@/lib/handle-api-error";
+import { extractApiErrorMessage, handleApiError } from "@/lib/handle-api-error";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -132,16 +132,11 @@ export const ChangePasswordDialog = memo(function ChangePasswordDialog({
         // Axios.create() instance has no isAxiosError static (BUG-016).
         if (isAxiosError(error)) {
           const status = error.response?.status;
-          const data = error.response?.data;
-          const serverMessage =
-            data && typeof data === "object" && "error" in data && typeof data.error === "string"
-              ? data.error
-              : undefined;
           if (status === 401) {
             return { error: "現在のパスワードが正しくありません", currentPassword };
           }
           if (status === 400) {
-            return { error: serverMessage ?? "パスワードの変更に失敗しました" };
+            return { error: extractApiErrorMessage(error, "パスワード変更"), currentPassword };
           }
         }
         handleApiError(error, "パスワード変更");

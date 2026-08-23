@@ -68,6 +68,12 @@ type lineReservationSettingFinder interface {
 	FindByClinicID(ctx context.Context, clinicID uint64) (*model.LineReservationSetting, error)
 }
 
+// clinicHolidayFinder は clinic_holidays の日付検索に使う consumer-side 最小 view。
+// reservation は clinic package を import せず、composition が具象を注入する。
+type clinicHolidayFinder interface {
+	FindByDate(ctx context.Context, clinicID uint64, date time.Time) (*model.ClinicHoliday, error)
+}
+
 // ---- LIFF 用 consumer-side views（未移行 domain の repo・BE9-2C R⑤）----
 
 // LiffLineCustomerRepository is the reservation-owned view used by LIFF booking.

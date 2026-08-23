@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/config"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -517,6 +518,81 @@ func TestVaccinationService_Create(t *testing.T) {
 				assert.NoError(t, err)
 				assert.NotNil(t, vaccination)
 			}
+		})
+	}
+}
+
+func TestVaccinationService_Create_RejectsFutureVaccinationDate(t *testing.T) {
+	nowJST := time.Now().In(config.JST)
+	today := time.Date(nowJST.Year(), nowJST.Month(), nowJST.Day(), 10, 0, 0, 0, config.JST)
+	tomorrow := today.AddDate(0, 0, 1)
+	nextDate := today.AddDate(0, 1, 0)
+
+	tests := []struct {
+		name        string
+		date        time.Time
+		nextDate    *time.Time
+		wantErr     bool
+		wantInvalid bool
+		wantMsg     string
+		wantCreate  bool
+	}{
+		{
+			name:        "rejects tomorrow JST",
+			date:        tomorrow,
+			wantErr:     true,
+			wantInvalid: true,
+			wantMsg:     "今日以前",
+			wantCreate:  false,
+		},
+		{
+			name:       "allows today JST",
+			date:       today,
+			wantCreate: true,
+		},
+		{
+			name:       "allows future next_date when date is today",
+			date:       today,
+			nextDate:   &nextDate,
+			wantCreate: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			createCalled := false
+			repo := &mockVaccinationRepository{
+				createFn: func(_ context.Context, vaccination *model.Vaccination) error {
+					createCalled = true
+					vaccination.ID = 10
+					return nil
+				},
+				findByIDFn: func(_ context.Context, _, id uint64) (*model.Vaccination, error) {
+					return &model.Vaccination{ID: id, VaccineID: 1, Date: tt.date, NextDate: tt.nextDate}, nil
+				},
+			}
+			svc := newTestVaccinationService(repo, okVaccineRepo(), nil)
+
+			got, err := svc.Create(context.Background(), 1, &CreateVaccinationInput{
+				VaccineID: 1,
+				Date:      tt.date,
+				NextDate:  tt.nextDate,
+			})
+
+			if tt.wantErr {
+				require.Error(t, err)
+				assert.Nil(t, got)
+				if tt.wantInvalid {
+					assert.True(t, apperrors.IsInvalidInput(err), "expected invalid input but got: %v", err)
+				}
+				if tt.wantMsg != "" {
+					assert.Contains(t, err.Error(), tt.wantMsg)
+				}
+			} else {
+				assert.NoError(t, err)
+				assert.NotNil(t, got)
+			}
+			assert.Equal(t, tt.wantCreate, createCalled)
 		})
 	}
 }

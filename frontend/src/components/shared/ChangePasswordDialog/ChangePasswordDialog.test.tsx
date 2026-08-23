@@ -125,6 +125,44 @@ describe("ChangePasswordDialog — password visibility toggle", () => {
       "現在のパスワードが正しくありません",
     );
     expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("現在のパスワードを入力")).toHaveValue(
+      "wrong-pass",
+    );
+  });
+
+  it("400 でも現在のパスワードを保持し英語エラーを出さない (BUG-008)", async () => {
+    const user = userEvent.setup();
+    vi.mocked(axios.put).mockRejectedValueOnce(
+      new AxiosError("bad request", "ERR_BAD_REQUEST", undefined, undefined, {
+        status: 400,
+        statusText: "Bad Request",
+        data: { error: "password does not meet strength requirements" },
+        headers: {},
+        config: { headers: {} },
+      } as never),
+    );
+    renderDialog();
+
+    await user.type(
+      screen.getByPlaceholderText("現在のパスワードを入力"),
+      "current-pass",
+    );
+    await user.type(
+      screen.getByPlaceholderText("新しいパスワードを入力"),
+      "newpassword1",
+    );
+    await user.type(screen.getByPlaceholderText("もう一度入力"), "newpassword1");
+    await user.click(screen.getByRole("button", { name: "変更する" }));
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent(
+      "パスワード変更に失敗しました。入力内容を確認してください。",
+    );
+    expect(alert).not.toHaveTextContent("password does not meet");
+    expect(screen.getByPlaceholderText("現在のパスワードを入力")).toHaveValue(
+      "current-pass",
+    );
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
   });
 
   it("DialogDescription がダイアログに紐付いている (a11y)", () => {
