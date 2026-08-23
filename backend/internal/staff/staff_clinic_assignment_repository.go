@@ -152,6 +152,10 @@ func (r *staffClinicAssignmentRepository) RestoreOrCreate(
 		ClinicID: assignment.ClinicID,
 		IsMain:   assignment.IsMain,
 	}
+	// ON CONFLICT (staff_id, clinic_id) needs a matching unique index. 001_init.sql
+	// declares CONSTRAINT uk_staff_clinic; model.StaffClinicAssignment carries the
+	// same name as a uniqueIndex tag so AutoMigrate-built test databases get it too.
+	// Dropping either side makes this upsert fail 42P10 on a fresh database only.
 	if err := persistence.DBOrTx(ctx, r.db).
 		Clauses(clause.OnConflict{
 			Columns: []clause.Column{

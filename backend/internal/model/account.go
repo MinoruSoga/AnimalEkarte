@@ -24,9 +24,6 @@ func (Account) TableName() string { return "accounts" }
 
 type StaffClinicAssignment struct {
 	ID        uint64         `gorm:"primaryKey;autoIncrement"                       json:"id"`
-	// uk_staff_clinic mirrors 001_init.sql's UNIQUE (staff_id, clinic_id). The
-	// repository upserts with ON CONFLICT (staff_id, clinic_id); without this tag
-	// AutoMigrate-built test DBs lack the constraint and the upsert fails 42P10.
 	StaffID   uint64         `gorm:"not null;uniqueIndex:uk_staff_clinic"           json:"staff_id"`
 	ClinicID  uint64         `gorm:"not null;uniqueIndex:uk_staff_clinic"           json:"clinic_id"`
 	IsMain    bool           `gorm:"default:false"                                  json:"is_main"`
