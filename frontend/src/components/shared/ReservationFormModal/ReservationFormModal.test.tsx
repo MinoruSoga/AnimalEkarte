@@ -330,7 +330,20 @@ describe("ReservationFormModal — 新規飼主モード (Issue #51)", () => {
     console.error("[DIAG] trigger pe=", getComputedStyle(speciesTrigger).pointerEvents,
       "disabled=", (speciesTrigger as HTMLButtonElement).disabled,
       "expanded=", speciesTrigger.getAttribute("aria-expanded"));
+    // TEMP DIAG round 2 (remove after CI reads it)
+    const seen: string[] = [];
+    for (const ev of ["pointerdown", "mousedown", "focus", "pointerup", "mouseup", "click"]) {
+      speciesTrigger.addEventListener(ev, () => seen.push(ev));
+    }
     await user.click(speciesTrigger);
+    // TEMP DIAG round 2
+    console.error("[DIAG2] events=", seen.join(">"), "expanded=", speciesTrigger.getAttribute("aria-expanded"));
+    if (speciesTrigger.getAttribute("aria-expanded") !== "true") {
+      fireEvent.click(speciesTrigger);
+      await new Promise((r) => setTimeout(r, 0));
+      console.error("[DIAG2] after fireEvent expanded=", speciesTrigger.getAttribute("aria-expanded"),
+        "options=", document.querySelectorAll('[role="option"]').length);
+    }
     // TEMP DIAG (remove after CI reads it)
     console.error("[DIAG] after click expanded=", speciesTrigger.getAttribute("aria-expanded"),
       "listbox=", document.querySelectorAll('[role="listbox"]').length,

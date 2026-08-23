@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -168,7 +168,20 @@ describe("PetEditModal species status", () => {
     console.error("[DIAG] trigger pe=", getComputedStyle(speciesSelect).pointerEvents,
       "disabled=", (speciesSelect as HTMLButtonElement).disabled,
       "expanded=", speciesSelect.getAttribute("aria-expanded"));
+    // TEMP DIAG round 2 (remove after CI reads it)
+    const seen: string[] = [];
+    for (const ev of ["pointerdown", "mousedown", "focus", "pointerup", "mouseup", "click"]) {
+      speciesSelect.addEventListener(ev, () => seen.push(ev));
+    }
     await user.click(speciesSelect);
+    // TEMP DIAG round 2
+    console.error("[DIAG2] events=", seen.join(">"), "expanded=", speciesSelect.getAttribute("aria-expanded"));
+    if (speciesSelect.getAttribute("aria-expanded") !== "true") {
+      fireEvent.click(speciesSelect);
+      await new Promise((r) => setTimeout(r, 0));
+      console.error("[DIAG2] after fireEvent expanded=", speciesSelect.getAttribute("aria-expanded"),
+        "options=", document.querySelectorAll('[role="option"]').length);
+    }
     // TEMP DIAG (remove after CI reads it)
     console.error("[DIAG] after click expanded=", speciesSelect.getAttribute("aria-expanded"),
       "listbox=", document.querySelectorAll('[role="listbox"]').length,
