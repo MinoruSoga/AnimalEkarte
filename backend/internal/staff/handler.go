@@ -94,6 +94,13 @@ func extractIsSystemAdmin(c *gin.Context) (bool, bool) {
 	return httpapi.ExtractIsSystemAdmin(c)
 }
 
+// peekedSystemAdmin is fail-closed: a missing or invalid is_system_admin
+// peek is treated as non-admin and never opens a membership bypass.
+func peekedSystemAdmin(c *gin.Context) bool {
+	isAdmin, ok := httpapi.PeekIsSystemAdmin(c)
+	return ok && isAdmin
+}
+
 func optionalStaffID(c *gin.Context) *uint64 {
 	return httpapi.OptionalStaffID(c)
 }
@@ -139,6 +146,9 @@ func (h *Handler) resolveStaffWithClinic(c *gin.Context) (clinicID, staffID uint
 	staffID, ok = parseIDParam(c, "id")
 	if !ok {
 		return 0, 0, false
+	}
+	if peekedSystemAdmin(c) {
+		return clinicID, staffID, true
 	}
 	if err := h.svc.Staff.VerifyClinicMembership(c.Request.Context(), staffID, clinicID); err != nil {
 		RespondError(c, err)

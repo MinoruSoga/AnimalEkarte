@@ -234,9 +234,10 @@ func TestAuthorizeGlobalStaffUpdateRejectsInvalidAssignmentState(t *testing.T) {
 		clinicID = uint64(10)
 	)
 	tests := []struct {
-		name        string
-		assignments []model.StaffClinicAssignment
-		wantCode    string
+		name          string
+		assignments   []model.StaffClinicAssignment
+		isSystemAdmin bool
+		wantCode      string
 	}{
 		{
 			name:     "no active assignments",
@@ -270,7 +271,7 @@ func TestAuthorizeGlobalStaffUpdateRejectsInvalidAssignmentState(t *testing.T) {
 			wantCode: "INTERNAL",
 		},
 		{
-			name: "current clinic assignment is absent",
+			name: "current clinic assignment is absent for non-admin",
 			assignments: []model.StaffClinicAssignment{
 				{StaffID: staffID, ClinicID: clinicID + 1},
 			},
@@ -285,7 +286,7 @@ func TestAuthorizeGlobalStaffUpdateRejectsInvalidAssignmentState(t *testing.T) {
 				clinicID,
 				test.assignments,
 				nil,
-				true,
+				test.isSystemAdmin,
 			)
 
 			require.Error(t, err)

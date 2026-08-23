@@ -1,4 +1,4 @@
-import { formatJSTDate, formatJSTTime } from "@/lib/jst-date";
+import { formatJSTDate, formatJSTTime, toJSTWallDate } from "@/lib/jst-date";
 import type { ReservationStatus } from "@/types";
 import type {
   DangerLevel,
@@ -109,6 +109,7 @@ export function transformReservationToReceptionAppointment(
     id: String(reservation.id ?? 0),
     time,
     visitDate: formatJSTDate(reservation.start_time),
+    end: toJSTWallDate(reservation.end_time),
     ownerName,
     petType,
     petName,

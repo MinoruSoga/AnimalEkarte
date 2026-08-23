@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { toJSTWallDate } from "@/lib/jst-date";
 import {
   transformReservationToReceptionAppointment,
   transformReservationsToReceptionColumns,
@@ -55,6 +56,18 @@ describe("transformReservationToReceptionAppointment", () => {
     });
 
     expect(result.visitDate).toBe("2026-03-26");
+  });
+
+  it("end_time が start+1h でなくても実際の終了時刻を保持する", () => {
+    const result = transformReservationToReceptionAppointment({
+      ...minimal,
+      start_time: "2026-03-25T10:00:00Z",
+      end_time: "2026-03-25T10:20:00Z",
+    });
+
+    expect(result.end).toEqual(toJSTWallDate("2026-03-25T10:20:00Z"));
+    expect(result.end?.getHours()).toBe(19);
+    expect(result.end?.getMinutes()).toBe(20);
   });
 
   it("visit_type: first → '初診'", () => {

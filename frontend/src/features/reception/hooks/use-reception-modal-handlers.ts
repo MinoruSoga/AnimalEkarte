@@ -1,9 +1,11 @@
 import { useCallback, useLayoutEffect, useRef, useState } from "react";
 
-import { addHours } from "date-fns";
 import { toast } from "sonner";
 
-import { useUpdateReservation } from "@/hooks/use-update-reservation";
+import {
+  useUpdateReservation,
+  type UpdateReservationRequest,
+} from "@/hooks/use-update-reservation";
 import {
   buildJSTWallDateTime,
   formatJSTWallDate,
@@ -65,6 +67,41 @@ function toPetDangerLevel(dangerLevel: Pet["dangerLevel"]): DangerLevel | undefi
   }
 }
 
+/** Notes-only edits must omit schedule/doctor so BE skips on-duty conflict checks. */
+function buildReceptionReservationUpdateRequest(
+  current: Partial<Reservation>,
+  data: Partial<Reservation>,
+): UpdateReservationRequest {
+  const req: UpdateReservationRequest = {};
+  if (data.start) {
+    const nextStart = jstWallDateToISOString(data.start);
+    const prevStart = current.start ? jstWallDateToISOString(current.start) : "";
+    if (nextStart !== prevStart) req.start_time = nextStart;
+  }
+  if (data.end) {
+    const nextEnd = jstWallDateToISOString(data.end);
+    const prevEnd = current.end ? jstWallDateToISOString(current.end) : "";
+    if (nextEnd !== prevEnd) req.end_time = nextEnd;
+  }
+  const nextVisit = data.visitType || "first";
+  if (nextVisit !== (current.visitType || "first")) req.visit_type = nextVisit;
+  const nextType = optionalNumericID(data.type);
+  const prevType = optionalNumericID(current.type);
+  if (nextType !== undefined && nextType !== prevType) req.reservation_type_id = nextType;
+  const nextDoctor = optionalNumericID(data.doctor);
+  const prevDoctor = optionalNumericID(current.doctor);
+  if (nextDoctor !== undefined && nextDoctor !== prevDoctor) req.doctor_id = nextDoctor;
+  if ((data.isDesignated ?? false) !== (current.isDesignated ?? false)) {
+    req.is_designated = data.isDesignated ?? false;
+  }
+  if ((data.notes ?? "") !== (current.notes ?? "")) req.notes = data.notes;
+
+  if (Object.keys(req).length === 0) {
+    req.notes = data.notes ?? "";
+  }
+  return req;
+}
+
 export function useReceptionModalHandlers({
   advanceStatus,
   cancelAppointment,
@@ -86,11 +123,15 @@ export function useReceptionModalHandlers({
   const [cancelTargetId, setCancelTargetId] = useState<string | null>(null);
 
   const selectedAppointmentRef = useRef(selectedAppointment);
+  const editingAppointmentRef = useRef(editingAppointment);
   const cancelTargetRef = useRef(cancelTarget);
   const permissionsRef = useRef({ canEditReservation, canDeleteReservation });
   useLayoutEffect(() => {
     selectedAppointmentRef.current = selectedAppointment;
   }, [selectedAppointment]);
+  useLayoutEffect(() => {
+    editingAppointmentRef.current = editingAppointment;
+  }, [editingAppointment]);
   useLayoutEffect(() => {
     cancelTargetRef.current = cancelTarget;
   }, [cancelTarget]);
@@ -125,17 +166,20 @@ export function useReceptionModalHandlers({
     const reservationFormData: Partial<Reservation> = {
       id: appointment.id,
       start,
-      end: addHours(start, 1),
+      end: appointment.end,
       visitType: appointment.visitType === "初診" ? "first" : "revisit",
       type: appointment.reservationTypeId,
       doctor: appointment.doctorId || "",
       isDesignated: appointment.isDesignated || false,
       status: preserveEditableStatus(appointment),
       petId: appointment.petId,
+      ownerId: appointment.ownerId,
       ownerName: appointment.ownerName,
       petName: appointment.petName,
+      notes: appointment.notes,
     };
 
+    editingAppointmentRef.current = reservationFormData;
     setEditingAppointment(reservationFormData);
     setEditingAppointmentId(appointment.id);
     setIsEditModalOpen(true);
@@ -171,10 +215,23 @@ export function useReceptionModalHandlers({
       const shouldUpdateAppointmentLocally =
         !selectedPetSnapshot || selectedPetDangerLevel !== undefined;
 
+      const current = editingAppointmentRef.current;
+      if (!current) return;
+      const nextEnd = data.end ?? selectedAppointmentSnapshot?.end ?? current.end;
+      if (nextEnd === undefined) return;
+
+      const req = buildReceptionReservationUpdateRequest(current, data);
+      req.status = data.status || (selectedAppointmentSnapshot ? preserveEditableStatus(selectedAppointmentSnapshot) : "confirmed");
+      const nextPetId = optionalNumericID(resolvedPetId);
+      const nextOwnerId = optionalNumericID(resolvedOwnerId);
+      if (nextPetId !== undefined) req.pet_id = nextPetId;
+      if (nextOwnerId !== undefined) req.owner_id = nextOwnerId;
+
       const updatedAppointment: ReceptionAppointment = {
         id: editingAppointmentId,
         time: formatJSTWallTime(data.start),
         visitDate: formatJSTWallDate(data.start),
+        end: nextEnd,
         ownerName: selectedPetSnapshot?.ownerName || data.ownerName || "",
         petName: selectedPetSnapshot?.name || data.petName || "",
         petType: selectedPetSnapshot?.species || "犬",
@@ -198,18 +255,7 @@ export function useReceptionModalHandlers({
       updateReservationMutation.mutate(
         {
           id: editingAppointmentId,
-          req: {
-            start_time: jstWallDateToISOString(data.start),
-            end_time: jstWallDateToISOString(data.end ?? addHours(data.start, 1)),
-            pet_id: optionalNumericID(resolvedPetId),
-            owner_id: optionalNumericID(resolvedOwnerId),
-            visit_type: data.visitType || "first",
-            reservation_type_id: optionalNumericID(data.type),
-            doctor_id: optionalNumericID(data.doctor),
-            is_designated: data.isDesignated ?? false,
-            status: data.status || (selectedAppointmentSnapshot ? preserveEditableStatus(selectedAppointmentSnapshot) : "confirmed"),
-            notes: data.notes,
-          },
+          req,
         },
         {
           onSuccess: () => {
@@ -217,6 +263,7 @@ export function useReceptionModalHandlers({
               updateAppointment(updatedAppointment);
             }
             setIsEditModalOpen(false);
+            editingAppointmentRef.current = null;
             setEditingAppointment(null);
             setEditingAppointmentId(null);
           },
@@ -250,6 +297,7 @@ export function useReceptionModalHandlers({
 
   const closeEditModal = useCallback(() => {
     setIsEditModalOpen(false);
+    editingAppointmentRef.current = null;
     setEditingAppointment(null);
   }, []);
 

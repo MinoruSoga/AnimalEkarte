@@ -114,7 +114,7 @@ type StaffCoreService interface {
 	// email 重複チェック・bcrypt ハッシュ化・Account 作成・Staff 作成を一括で行う。
 	CreateWithAccount(ctx context.Context, input *CreateStaffWithAccountInput) (*model.Staff, error)
 	Update(ctx context.Context, clinicID, id uint64, input *UpdateStaffInput) (*model.Staff, error)
-	Delete(ctx context.Context, clinicID, id uint64) error
+	Delete(ctx context.Context, clinicID, id uint64, isSystemAdmin bool) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
 

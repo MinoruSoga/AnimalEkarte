@@ -142,7 +142,15 @@ func (h *Handler) GetStaff(c *gin.Context) {
 	if !ok {
 		return
 	}
-	staff, err := h.svc.Staff.GetByIDInClinic(c.Request.Context(), clinicID, id)
+	var (
+		staff *model.Staff
+		err   error
+	)
+	if peekedSystemAdmin(c) {
+		staff, err = h.svc.Staff.GetByID(c.Request.Context(), id)
+	} else {
+		staff, err = h.svc.Staff.GetByIDInClinic(c.Request.Context(), clinicID, id)
+	}
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -164,7 +172,7 @@ func (h *Handler) DeleteStaff(c *gin.Context) {
 		RespondError(c, apperrors.WrapInvalidInput("自分自身を削除することはできません"))
 		return
 	}
-	if err := h.svc.Staff.Delete(c.Request.Context(), clinicID, id); err != nil {
+	if err := h.svc.Staff.Delete(c.Request.Context(), clinicID, id, peekedSystemAdmin(c)); err != nil {
 		RespondError(c, err)
 		return
 	}

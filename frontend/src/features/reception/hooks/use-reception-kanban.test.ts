@@ -63,6 +63,7 @@ function makeAppointment(overrides: Partial<ReceptionAppointment> & { id: string
   return {
     time: "09:00",
     visitDate: "2026-06-01",
+    end: new Date(2026, 5, 1, 9, 30, 0),
     ownerName: "山田",
     petType: "犬",
     petName: "ポチ",

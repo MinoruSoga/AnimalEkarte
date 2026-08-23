@@ -204,7 +204,7 @@ func (s *staffService) Update(ctx context.Context, clinicID, id uint64, input *U
 
 	var result *model.Staff
 	if err := s.tx.WithTx(ctx, func(txCtx context.Context) error {
-		lockedStaff, err := s.repo.LockActiveByIDForUpdateInClinic(txCtx, clinicID, id)
+		lockedStaff, err := s.lockStaffForMutation(txCtx, clinicID, id, input.IsSystemAdmin)
 		if err != nil {
 			return apperrors.Wrap(err, "failed to lock staff for update")
 		}
@@ -224,14 +224,18 @@ func (s *staffService) Update(ctx context.Context, clinicID, id uint64, input *U
 		); err != nil {
 			return err
 		}
-		if err := s.lockOccupationOwnership(txCtx, clinicID, input.OccupationID); err != nil {
+		writeClinicID, err := mutationClinicID(id, clinicID, assignments, input.IsSystemAdmin)
+		if err != nil {
+			return err
+		}
+		if err := s.lockOccupationOwnership(txCtx, writeClinicID, input.OccupationID); err != nil {
 			return err
 		}
 		if hasPasswordUpdate && lockedStaff.AccountID == nil {
 			return apperrors.WrapInvalidInput("staff does not have an account")
 		}
 		if hasProfileUpdate {
-			if err := s.repo.Update(txCtx, clinicID, id, buildStaffUpdate(input)); err != nil {
+			if err := s.repo.Update(txCtx, writeClinicID, id, buildStaffUpdate(input)); err != nil {
 				return apperrors.Wrap(err, "failed to update staff")
 			}
 		}
@@ -266,7 +270,12 @@ func (s *staffService) Update(ctx context.Context, clinicID, id uint64, input *U
 				)
 			}
 		}
-		updated, err := s.repo.FindByIDInClinic(txCtx, clinicID, id)
+		var updated *model.Staff
+		if input.IsSystemAdmin {
+			updated, err = s.repo.FindByID(txCtx, id)
+		} else {
+			updated, err = s.repo.FindByIDInClinic(txCtx, writeClinicID, id)
+		}
 		if err != nil {
 			return apperrors.Wrap(err, "failed to get updated staff")
 		}
@@ -327,19 +336,21 @@ func authorizeGlobalStaffUpdate(
 		if assignment.ClinicID == currentClinicID {
 			hasCurrentClinic = true
 		}
-		if isSystemAdmin {
-			continue
-		}
-		if _, ok := authorized[assignment.ClinicID]; !ok {
+	}
+	if !hasCurrentClinic && !isSystemAdmin {
+		return apperrors.WrapNotFound("staff", fmt.Sprintf("%d", staffID))
+	}
+	if isSystemAdmin {
+		return nil
+	}
+	for clinicID := range assignedClinics {
+		if _, ok := authorized[clinicID]; !ok {
 			return apperrors.WrapForbidden(
 				"staff update requires access to every assigned clinic",
 			)
 		}
 	}
-	if !hasCurrentClinic {
-		return apperrors.WrapNotFound("staff", fmt.Sprintf("%d", staffID))
-	}
-	if !isSystemAdmin && len(assignedClinics) > 1 {
+	if len(assignedClinics) > 1 {
 		return apperrors.WrapForbidden(
 			"multi-clinic staff updates require a system administrator",
 		)
@@ -347,7 +358,7 @@ func authorizeGlobalStaffUpdate(
 	return nil
 }
 
-func (s *staffService) Delete(ctx context.Context, clinicID, id uint64) error {
+func (s *staffService) Delete(ctx context.Context, clinicID, id uint64, isSystemAdmin bool) error {
 	if clinicID == 0 {
 		return apperrors.WrapInvalidInput("clinic_id is required")
 	}
@@ -360,7 +371,7 @@ func (s *staffService) Delete(ctx context.Context, clinicID, id uint64) error {
 	}
 
 	if err := s.tx.WithTx(ctx, func(txCtx context.Context) error {
-		staff, lockStaffErr := s.repo.LockActiveByIDForUpdateInClinic(txCtx, clinicID, id)
+		staff, lockStaffErr := s.lockStaffForMutation(txCtx, clinicID, id, isSystemAdmin)
 		if lockStaffErr != nil {
 			return apperrors.Wrap(lockStaffErr, "failed to lock staff before delete")
 		}
@@ -384,39 +395,43 @@ func (s *staffService) Delete(ctx context.Context, clinicID, id uint64) error {
 				assignedToClinic = true
 			}
 		}
-		if !assignedToClinic {
+		if !assignedToClinic && !isSystemAdmin {
 			return apperrors.WrapNotFound("staff", fmt.Sprintf("%d", id))
 		}
 		if len(assignments) > 1 {
 			return apperrors.WrapConflict("複数のクリニックに所属しているスタッフは削除できません")
 		}
+		scopeClinicID, scopeErr := mutationClinicID(id, clinicID, assignments, isSystemAdmin)
+		if scopeErr != nil {
+			return scopeErr
+		}
 
-		reservationExists, reservationErr := s.reservationRepo.ExistsByStaffID(txCtx, clinicID, id)
+		reservationExists, reservationErr := s.reservationRepo.ExistsByStaffID(txCtx, scopeClinicID, id)
 		if reservationErr != nil {
-			slog.ErrorContext(txCtx, "failed to check reservation dependency", "error", reservationErr, "id", id, "clinic_id", clinicID)
+			slog.ErrorContext(txCtx, "failed to check reservation dependency", "error", reservationErr, "id", id, "clinic_id", scopeClinicID)
 			return apperrors.Wrap(reservationErr, "failed to check reservation dependency")
 		}
 		if reservationExists {
 			return apperrors.WrapConflict("このスタッフはシフト・予約データで使用中のため削除できません")
 		}
-		shiftExists, shiftErr := s.shiftEntryRepo.ExistsByStaffID(txCtx, clinicID, id)
+		shiftExists, shiftErr := s.shiftEntryRepo.ExistsByStaffID(txCtx, scopeClinicID, id)
 		if shiftErr != nil {
-			slog.ErrorContext(txCtx, "failed to check shift dependency", "error", shiftErr, "id", id, "clinic_id", clinicID)
+			slog.ErrorContext(txCtx, "failed to check shift dependency", "error", shiftErr, "id", id, "clinic_id", scopeClinicID)
 			return apperrors.Wrap(shiftErr, "failed to check shift dependency")
 		}
 		if shiftExists {
 			return apperrors.WrapConflict("このスタッフはシフト・予約データで使用中のため削除できません")
 		}
-		dependencies, dependencyErr := s.repo.CountBlockingReferencesByStaffID(txCtx, clinicID, id)
+		dependencies, dependencyErr := s.repo.CountBlockingReferencesByStaffID(txCtx, scopeClinicID, id)
 		if dependencyErr != nil {
-			slog.ErrorContext(txCtx, "failed to check staff dependencies", "error", dependencyErr, "id", id, "clinic_id", clinicID)
+			slog.ErrorContext(txCtx, "failed to check staff dependencies", "error", dependencyErr, "id", id, "clinic_id", scopeClinicID)
 			return apperrors.Wrap(dependencyErr, "failed to check staff dependencies")
 		}
 		if len(dependencies) > 0 {
 			return apperrors.WrapConflict(dependencies[0].Label + "を残しているため削除できません")
 		}
-		if deleteErr := s.repo.Delete(txCtx, clinicID, id); deleteErr != nil {
-			slog.ErrorContext(txCtx, "failed to delete staff", "error", deleteErr, "id", id, "clinic_id", clinicID)
+		if deleteErr := s.repo.Delete(txCtx, scopeClinicID, id); deleteErr != nil {
+			slog.ErrorContext(txCtx, "failed to delete staff", "error", deleteErr, "id", id, "clinic_id", scopeClinicID)
 			return apperrors.Wrap(deleteErr, "failed to delete staff")
 		}
 		return nil
@@ -425,6 +440,33 @@ func (s *staffService) Delete(ctx context.Context, clinicID, id uint64) error {
 	}
 	slog.InfoContext(ctx, "staff deleted", slog.Uint64("staff_id", id), slog.Uint64("clinic_id", clinicID))
 	return nil
+}
+
+func (s *staffService) lockStaffForMutation(
+	ctx context.Context,
+	clinicID, id uint64,
+	isSystemAdmin bool,
+) (*model.Staff, error) {
+	if isSystemAdmin {
+		return s.repo.LockActiveByIDForUpdate(ctx, id)
+	}
+	return s.repo.LockActiveByIDForUpdateInClinic(ctx, clinicID, id)
+}
+
+func mutationClinicID(
+	staffID, requestClinicID uint64,
+	assignments []model.StaffClinicAssignment,
+	isSystemAdmin bool,
+) (uint64, error) {
+	for i := range assignments {
+		if assignments[i].ClinicID == requestClinicID {
+			return requestClinicID, nil
+		}
+	}
+	if !isSystemAdmin || len(assignments) == 0 {
+		return 0, apperrors.WrapNotFound("staff", fmt.Sprintf("%d", staffID))
+	}
+	return assignments[0].ClinicID, nil
 }
 
 func (s *staffService) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {

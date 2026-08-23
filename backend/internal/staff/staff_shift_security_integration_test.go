@@ -275,7 +275,7 @@ func TestStaffDeleteAndShiftCreate_ShiftWinnerPreservesStaffAndShiftDatabase(t *
 
 	deleteDone := make(chan error, 1)
 	go func() {
-		deleteDone <- staffSvc.Delete(ctx, clinicRecord.ID, staff.ID)
+		deleteDone <- staffSvc.Delete(ctx, clinicRecord.ID, staff.ID, false)
 	}()
 	select {
 	case <-observedDeleteRepo.started:
@@ -333,7 +333,7 @@ func TestStaffDeleteAndShiftCreate_DeleteWinnerPreventsOrphanShiftDatabase(t *te
 	defer cancel()
 	deleteDone := make(chan error, 1)
 	go func() {
-		deleteDone <- staffSvc.Delete(ctx, clinicRecord.ID, staff.ID)
+		deleteDone <- staffSvc.Delete(ctx, clinicRecord.ID, staff.ID, false)
 	}()
 	select {
 	case <-blockingDeleteRepo.deleted:

@@ -460,7 +460,7 @@ func TestStaffServiceCore_Delete(t *testing.T) {
 			shiftRepo := &coreMockShiftEntryRepository{existsByStaffIDFn: tt.shiftExistsByStaffIDFn}
 			svc := newCoreStaffService(repo, &coreMockAccountRepository{}, &coreMockStaffClinicAssignmentRepository{}, reservationRepo, shiftRepo, &coreFakeTransactor{})
 
-			err := svc.Delete(context.Background(), 1, 1)
+			err := svc.Delete(context.Background(), 1, 1, false)
 			if tt.wantErr {
 				assert.Error(t, err)
 				if tt.wantConflict {
@@ -524,7 +524,7 @@ func TestStaffService_Delete_UsesCanonicalLockOrderAndTransactionContext(t *test
 		markedStaffSecurityTransactor{},
 	)
 
-	err := svc.Delete(context.Background(), 1, 7)
+	err := svc.Delete(context.Background(), 1, 7, false)
 
 	require.NoError(t, err)
 	assert.Equal(t, []string{
@@ -607,7 +607,7 @@ func TestStaffService_Delete_RejectsInvalidOrMultiClinicAssignmentStateBeforeDep
 				&coreFakeTransactor{},
 			)
 
-			err := svc.Delete(context.Background(), 1, 7)
+			err := svc.Delete(context.Background(), 1, 7, false)
 
 			require.Error(t, err)
 			if tt.wantNotFound {

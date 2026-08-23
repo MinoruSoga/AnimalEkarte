@@ -88,7 +88,7 @@ func TestStaffService_UpdateAuthorizedPassword_InvalidatesOutstandingResetToken(
 		&model.Account{},
 		&model.PasswordResetToken{},
 	))
-	require.NoError(t, db.Exec("TRUNCATE TABLE accounts CASCADE").Error)
+	require.NoError(t, db.Exec("TRUNCATE TABLE password_reset_tokens, accounts CASCADE").Error)
 
 	const (
 		staffID       = uint64(9)
@@ -123,6 +123,18 @@ func TestStaffService_UpdateAuthorizedPassword_InvalidatesOutstandingResetToken(
 				context.Context,
 				uint64,
 				uint64,
+			) (*model.Staff, error) {
+				return staff, nil
+			},
+			lockForUpdateFn: func(
+				_ context.Context,
+				_ uint64,
+			) (*model.Staff, error) {
+				return staff, nil
+			},
+			findByIDFn: func(
+				_ context.Context,
+				_ uint64,
 			) (*model.Staff, error) {
 				return staff, nil
 			},
