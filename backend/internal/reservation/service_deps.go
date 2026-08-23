@@ -27,8 +27,11 @@ type Transactor interface {
 
 // ReservationStaffDeleter is the reservation-owned business-intent port for
 // removing a staff member through the canonical staff lifecycle.
+// isSystemAdmin mirrors the staff domain's signature. This route is addressed
+// per clinic (/clinics/:clinic_id/reservation-staffs/:staffId), so it always
+// passes false: deletion here stays scoped to the clinic in the path.
 type ReservationStaffDeleter interface {
-	Delete(ctx context.Context, clinicID, staffID uint64) error
+	Delete(ctx context.Context, clinicID, staffID uint64, isSystemAdmin bool) error
 }
 
 // trimmingCourseFinder / trimmingOptionFinder は trimming マスタ（未移行 domain）の

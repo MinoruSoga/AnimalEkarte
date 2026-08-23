@@ -225,7 +225,7 @@ func (s *reservationStaffService) Delete(ctx context.Context, clinicID, id uint6
 	if s.staffDeleter == nil {
 		return apperrors.WrapInternalServerError("reservation staff deleter is not configured")
 	}
-	if err := s.staffDeleter.Delete(ctx, clinicID, id); err != nil {
+	if err := s.staffDeleter.Delete(ctx, clinicID, id, false); err != nil {
 		return apperrors.Wrap(err, "failed to delete reservation staff")
 	}
 	slog.InfoContext(ctx, "reservation staff deleted",
