@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -11,6 +11,63 @@ type AnimalSpeciesState = ReturnType<typeof useAnimalSpecies>;
 const mocks = vi.hoisted(() => ({
   useAnimalSpecies: vi.fn<() => AnimalSpeciesState>(),
 }));
+
+// SearchableSelect は Radix Popover を Radix Dialog の内側で開く。jsdom + カバレッジ計装下では
+// Dialog の FocusScope が focus を掴み直し続け、開いた Popover が focus-outside 判定で即座に
+// 閉じるため、CI でのみ aria-expanded が false のまま option が現れない。2026-08-23 に CI 上で
+// 実測して確認した（click は届いており、body/trigger の pointer-events も disabled も正常。
+// fireEvent.click でも開かない）。本テストの対象は Popover の開閉実装ではないので、開閉の
+// 意味論だけを保った素の実装へ差し替え、Dialog×Popover の相互作用を構造的に取り除く。
+vi.mock("@/components/ui/searchable-select", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/components/ui/searchable-select")>();
+  const { useState } = await import("react");
+  type Props = Parameters<typeof actual.SearchableSelect>[0];
+  function SearchableSelectStub(props: Props) {
+    const [open, setOpen] = useState(false);
+    const flat = props.groups
+      ? props.groups.flatMap((g) => g.options)
+      : (props.options ?? []);
+    const selected = flat.find((o) => o.value === props.value);
+    return (
+      <div>
+        <button
+          type="button"
+          role="combobox"
+          id={props.id}
+          aria-label={props.ariaLabel}
+          aria-expanded={open}
+          aria-invalid={props.ariaInvalid}
+          aria-describedby={props.ariaDescribedBy}
+          disabled={props.disabled}
+          data-testid={props.triggerTestId}
+          className={props.className}
+          onClick={() => setOpen((v) => !v)}
+        >
+          {selected ? selected.label : props.placeholder}
+        </button>
+        {open
+          ? flat.map((o) => (
+              <button
+                key={o.value}
+                type="button"
+                role="option"
+                aria-selected={o.value === props.value}
+                disabled={o.disabled}
+                onClick={() => {
+                  props.onValueChange(o.value);
+                  setOpen(false);
+                }}
+              >
+                {o.label}
+              </button>
+            ))
+          : null}
+      </div>
+    );
+  }
+  return { ...actual, SearchableSelect: SearchableSelectStub };
+});
 
 vi.mock("@/hooks/use-pet", () => ({
   useGetPet: () => ({ data: undefined, isLoading: false, isError: false }),
@@ -162,31 +219,7 @@ describe("PetEditModal species status", () => {
 
     const speciesSelect = screen.getByRole("combobox", { name: /動物種/ });
     expect(speciesSelect).toBeEnabled();
-    // TEMP DIAG (remove after CI reads it): why does the option query fail only under coverage?
-    console.error("[DIAG] body pe=", getComputedStyle(document.body).pointerEvents,
-      "scrollLocked=", document.body.getAttribute("data-scroll-locked"));
-    console.error("[DIAG] trigger pe=", getComputedStyle(speciesSelect).pointerEvents,
-      "disabled=", (speciesSelect as HTMLButtonElement).disabled,
-      "expanded=", speciesSelect.getAttribute("aria-expanded"));
-    // TEMP DIAG round 2 (remove after CI reads it)
-    const seen: string[] = [];
-    for (const ev of ["pointerdown", "mousedown", "focus", "pointerup", "mouseup", "click"]) {
-      speciesSelect.addEventListener(ev, () => seen.push(ev));
-    }
     await user.click(speciesSelect);
-    // TEMP DIAG round 2
-    console.error("[DIAG2] events=", seen.join(">"), "expanded=", speciesSelect.getAttribute("aria-expanded"));
-    if (speciesSelect.getAttribute("aria-expanded") !== "true") {
-      fireEvent.click(speciesSelect);
-      await new Promise((r) => setTimeout(r, 0));
-      console.error("[DIAG2] after fireEvent expanded=", speciesSelect.getAttribute("aria-expanded"),
-        "options=", document.querySelectorAll('[role="option"]').length);
-    }
-    // TEMP DIAG (remove after CI reads it)
-    console.error("[DIAG] after click expanded=", speciesSelect.getAttribute("aria-expanded"),
-      "listbox=", document.querySelectorAll('[role="listbox"]').length,
-      "options=", document.querySelectorAll('[role="option"]').length,
-      "names=", Array.from(document.querySelectorAll('[role="option"]')).map(n => n.textContent).join("|"));
     expect(await screen.findByRole("option", { name: "犬" })).toBeInTheDocument();
     await user.click(await screen.findByRole("option", { name: "猫" }));
     expect(speciesSelect).toHaveTextContent("猫");

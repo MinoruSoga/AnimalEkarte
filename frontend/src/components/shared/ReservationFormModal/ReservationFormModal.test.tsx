@@ -7,6 +7,63 @@ import { createTestWrapper } from "@/testing/utils";
 import { ReservationFormModal } from "./ReservationFormModal";
 import type { Reservation } from "@/types";
 
+// SearchableSelect は Radix Popover を Radix Dialog の内側で開く。jsdom + カバレッジ計装下では
+// Dialog の FocusScope が focus を掴み直し続け、開いた Popover が focus-outside 判定で即座に
+// 閉じるため、CI でのみ aria-expanded が false のまま option が現れない。2026-08-23 に CI 上で
+// 実測して確認した（click は届いており、body/trigger の pointer-events も disabled も正常。
+// fireEvent.click でも開かない）。本テストの対象は Popover の開閉実装ではないので、開閉の
+// 意味論だけを保った素の実装へ差し替え、Dialog×Popover の相互作用を構造的に取り除く。
+vi.mock("@/components/ui/searchable-select", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/components/ui/searchable-select")>();
+  const { useState } = await import("react");
+  type Props = Parameters<typeof actual.SearchableSelect>[0];
+  function SearchableSelectStub(props: Props) {
+    const [open, setOpen] = useState(false);
+    const flat = props.groups
+      ? props.groups.flatMap((g) => g.options)
+      : (props.options ?? []);
+    const selected = flat.find((o) => o.value === props.value);
+    return (
+      <div>
+        <button
+          type="button"
+          role="combobox"
+          id={props.id}
+          aria-label={props.ariaLabel}
+          aria-expanded={open}
+          aria-invalid={props.ariaInvalid}
+          aria-describedby={props.ariaDescribedBy}
+          disabled={props.disabled}
+          data-testid={props.triggerTestId}
+          className={props.className}
+          onClick={() => setOpen((v) => !v)}
+        >
+          {selected ? selected.label : props.placeholder}
+        </button>
+        {open
+          ? flat.map((o) => (
+              <button
+                key={o.value}
+                type="button"
+                role="option"
+                aria-selected={o.value === props.value}
+                disabled={o.disabled}
+                onClick={() => {
+                  props.onValueChange(o.value);
+                  setOpen(false);
+                }}
+              >
+                {o.label}
+              </button>
+            ))
+          : null}
+      </div>
+    );
+  }
+  return { ...actual, SearchableSelect: SearchableSelectStub };
+});
+
 function createWrapper() {
   return createTestWrapper({ router: true });
 }
@@ -324,31 +381,7 @@ describe("ReservationFormModal — 新規飼主モード (Issue #51)", () => {
       expect(speciesTrigger).toBeEnabled();
       expect(speciesTrigger).not.toHaveTextContent("読み込み中");
     });
-    // TEMP DIAG (remove after CI reads it): why does the option query fail only under coverage?
-    console.error("[DIAG] body pe=", getComputedStyle(document.body).pointerEvents,
-      "scrollLocked=", document.body.getAttribute("data-scroll-locked"));
-    console.error("[DIAG] trigger pe=", getComputedStyle(speciesTrigger).pointerEvents,
-      "disabled=", (speciesTrigger as HTMLButtonElement).disabled,
-      "expanded=", speciesTrigger.getAttribute("aria-expanded"));
-    // TEMP DIAG round 2 (remove after CI reads it)
-    const seen: string[] = [];
-    for (const ev of ["pointerdown", "mousedown", "focus", "pointerup", "mouseup", "click"]) {
-      speciesTrigger.addEventListener(ev, () => seen.push(ev));
-    }
     await user.click(speciesTrigger);
-    // TEMP DIAG round 2
-    console.error("[DIAG2] events=", seen.join(">"), "expanded=", speciesTrigger.getAttribute("aria-expanded"));
-    if (speciesTrigger.getAttribute("aria-expanded") !== "true") {
-      fireEvent.click(speciesTrigger);
-      await new Promise((r) => setTimeout(r, 0));
-      console.error("[DIAG2] after fireEvent expanded=", speciesTrigger.getAttribute("aria-expanded"),
-        "options=", document.querySelectorAll('[role="option"]').length);
-    }
-    // TEMP DIAG (remove after CI reads it)
-    console.error("[DIAG] after click expanded=", speciesTrigger.getAttribute("aria-expanded"),
-      "listbox=", document.querySelectorAll('[role="listbox"]').length,
-      "options=", document.querySelectorAll('[role="option"]').length,
-      "names=", Array.from(document.querySelectorAll('[role="option"]')).map(n => n.textContent).join("|"));
     await user.click(await screen.findByRole("option", { name: "犬" }));
     await waitFor(() => {
       expect(speciesTrigger).toHaveTextContent("犬");
