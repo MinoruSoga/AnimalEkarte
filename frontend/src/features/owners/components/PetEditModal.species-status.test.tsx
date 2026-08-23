@@ -154,7 +154,7 @@ describe("PetEditModal species status", () => {
   });
 
   it("取得成功かつ候補ありでは状態表示を消して動物種を選べる", async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     renderModal();
 
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
@@ -163,8 +163,8 @@ describe("PetEditModal species status", () => {
     const speciesSelect = screen.getByRole("combobox", { name: /動物種/ });
     expect(speciesSelect).toBeEnabled();
     await user.click(speciesSelect);
-    expect(screen.getByRole("option", { name: "犬" })).toBeInTheDocument();
-    await user.click(screen.getByRole("option", { name: "猫" }));
+    expect(await screen.findByRole("option", { name: "犬" })).toBeInTheDocument();
+    await user.click(await screen.findByRole("option", { name: "猫" }));
     expect(speciesSelect).toHaveTextContent("猫");
   });
 });

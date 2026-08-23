@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { AxiosError, AxiosHeaders, type InternalAxiosRequestConfig } from "axios";
 import { render, screen, waitFor } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter, Route, Routes } from "react-router";
 import type { Estimate } from "../types";
 import {
@@ -115,22 +116,28 @@ function makeEstimate(status: Estimate["status"]): Estimate {
 }
 
 function renderEditForm() {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
-    <MemoryRouter initialEntries={["/estimates/1/edit"]}>
-      <Routes>
-        <Route path="/estimates/:id/edit" element={<EstimateForm />} />
-      </Routes>
-    </MemoryRouter>,
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={["/estimates/1/edit"]}>
+        <Routes>
+          <Route path="/estimates/:id/edit" element={<EstimateForm />} />
+        </Routes>
+      </MemoryRouter>
+    </QueryClientProvider>,
   );
 }
 
 function renderCreateForm() {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
-    <MemoryRouter initialEntries={["/estimates/new"]}>
-      <Routes>
-        <Route path="/estimates/new" element={<EstimateForm />} />
-      </Routes>
-    </MemoryRouter>,
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={["/estimates/new"]}>
+        <Routes>
+          <Route path="/estimates/new" element={<EstimateForm />} />
+        </Routes>
+      </MemoryRouter>
+    </QueryClientProvider>,
   );
 }
 

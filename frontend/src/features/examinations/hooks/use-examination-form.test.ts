@@ -827,9 +827,7 @@ describe("useExaminationForm — formAction（useActionState コールバック�
       await result.current.formAction(new FormData());
     });
 
-    expect(toast.error).toHaveBeenCalledWith(
-      "保存中に予期しないエラーが発生しました。",
-    );
+    expect(toast.error).toHaveBeenCalledWith("API error");
     expect(result.current.formState.success).toBe(false);
   });
 

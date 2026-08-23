@@ -318,19 +318,28 @@ describe("ReservationFormModal — 新規飼主モード (Issue #51)", () => {
     fireEvent.change(screen.getByTestId("new-owner-pet-name"), { target: { value: "ポチ" } });
     fireEvent.change(screen.getByTestId("new-owner-chief-complaint"), { target: { value: "食欲不振" } });
 
-    // 動物種 SearchableSelect(cmdk Combobox): トリガーを開いて option を選択
-    await user.click(screen.getByTestId("new-owner-species"));
+    // SearchableSelect は種取得中 disabled。enabled になるまで待ってから開く（disabled click は no-op）
+    const speciesTrigger = screen.getByTestId("new-owner-species");
     await waitFor(() => {
-      expect(screen.getByRole("option", { name: "犬" })).toBeInTheDocument();
+      expect(speciesTrigger).toBeEnabled();
+      expect(speciesTrigger).not.toHaveTextContent("読み込み中");
     });
-    await user.click(screen.getByRole("option", { name: "犬" }));
+    await user.click(speciesTrigger);
+    await user.click(await screen.findByRole("option", { name: "犬" }));
+    await waitFor(() => {
+      expect(speciesTrigger).toHaveTextContent("犬");
+      expect(screen.queryByRole("option", { name: "犬" })).not.toBeInTheDocument();
+    });
 
-    // 予約区分: サブダイアログを開きカードで選択(id 5 = 一般診療)
+    // 予約区分: 種リストが閉じた後にサブダイアログを開きカードで選択(id 5 = 一般診療)
     await user.click(screen.getByTestId("res-type-trigger"));
-    fireEvent.click(await screen.findByTestId("res-type-card-5"));
+    await user.click(await screen.findByTestId("res-type-card-5"));
+    await waitFor(() => {
+      expect(screen.getByTestId("res-type-trigger")).toHaveTextContent("一般診療");
+    });
 
     // 保存を実行
-    fireEvent.click(screen.getByRole("button", { name: "予約を確定" }));
+    await user.click(screen.getByRole("button", { name: "予約を確定" }));
 
     await waitFor(() => {
       expect(onSave).toHaveBeenCalledOnce();
