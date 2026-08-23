@@ -53,6 +53,9 @@ services:
     volumes:
       - ./backend:/app
       - ./docs:/docs:ro
+      # lintscan DEMO_ACCOUNTS vs 003_demo gate reads LoginForm.tsx at /frontend
+      # (backend is mounted at /app, so moduleRoot/../frontend resolves to /frontend).
+      - ./frontend:/frontend:ro
       - go_mod_cache:/go/pkg/mod
       - go_build_cache:/root/.cache/go-build
     env_file:

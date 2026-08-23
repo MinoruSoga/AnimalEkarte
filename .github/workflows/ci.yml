@@ -53,6 +53,9 @@ jobs:
           filters: |
             backend:
               - 'backend/**'
+              # lintscan DEMO_ACCOUNTS vs 003_demo seed gate lives in backend
+              # but the compared source is this DEV login label list.
+              - 'frontend/src/features/auth/components/LoginForm.tsx'
             frontend:
               - 'frontend/**'
             codegen:
