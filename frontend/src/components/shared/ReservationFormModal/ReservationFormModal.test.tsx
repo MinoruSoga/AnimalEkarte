@@ -324,7 +324,18 @@ describe("ReservationFormModal — 新規飼主モード (Issue #51)", () => {
       expect(speciesTrigger).toBeEnabled();
       expect(speciesTrigger).not.toHaveTextContent("読み込み中");
     });
+    // TEMP DIAG (remove after CI reads it): why does the option query fail only under coverage?
+    console.error("[DIAG] body pe=", getComputedStyle(document.body).pointerEvents,
+      "scrollLocked=", document.body.getAttribute("data-scroll-locked"));
+    console.error("[DIAG] trigger pe=", getComputedStyle(speciesTrigger).pointerEvents,
+      "disabled=", (speciesTrigger as HTMLButtonElement).disabled,
+      "expanded=", speciesTrigger.getAttribute("aria-expanded"));
     await user.click(speciesTrigger);
+    // TEMP DIAG (remove after CI reads it)
+    console.error("[DIAG] after click expanded=", speciesTrigger.getAttribute("aria-expanded"),
+      "listbox=", document.querySelectorAll('[role="listbox"]').length,
+      "options=", document.querySelectorAll('[role="option"]').length,
+      "names=", Array.from(document.querySelectorAll('[role="option"]')).map(n => n.textContent).join("|"));
     await user.click(await screen.findByRole("option", { name: "犬" }));
     await waitFor(() => {
       expect(speciesTrigger).toHaveTextContent("犬");

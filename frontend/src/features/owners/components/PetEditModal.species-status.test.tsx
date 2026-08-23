@@ -162,7 +162,18 @@ describe("PetEditModal species status", () => {
 
     const speciesSelect = screen.getByRole("combobox", { name: /動物種/ });
     expect(speciesSelect).toBeEnabled();
+    // TEMP DIAG (remove after CI reads it): why does the option query fail only under coverage?
+    console.error("[DIAG] body pe=", getComputedStyle(document.body).pointerEvents,
+      "scrollLocked=", document.body.getAttribute("data-scroll-locked"));
+    console.error("[DIAG] trigger pe=", getComputedStyle(speciesSelect).pointerEvents,
+      "disabled=", (speciesSelect as HTMLButtonElement).disabled,
+      "expanded=", speciesSelect.getAttribute("aria-expanded"));
     await user.click(speciesSelect);
+    // TEMP DIAG (remove after CI reads it)
+    console.error("[DIAG] after click expanded=", speciesSelect.getAttribute("aria-expanded"),
+      "listbox=", document.querySelectorAll('[role="listbox"]').length,
+      "options=", document.querySelectorAll('[role="option"]').length,
+      "names=", Array.from(document.querySelectorAll('[role="option"]')).map(n => n.textContent).join("|"));
     expect(await screen.findByRole("option", { name: "犬" })).toBeInTheDocument();
     await user.click(await screen.findByRole("option", { name: "猫" }));
     expect(speciesSelect).toHaveTextContent("猫");
