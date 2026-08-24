@@ -43,7 +43,7 @@ func TestHandoffDeleteBlock_IsClosedUnderRestrictForeignKeys(t *testing.T) {
 	missing := findHandoffDeleteClosureGaps(edges, deleted)
 	if len(missing) > 0 {
 		t.Fatalf(
-			"%s deletes rows whose RESTRICT children are never deleted; `make reset` will abort.\n"+
+			"%s deletes rows whose blocking-FK children are never deleted; `make reset` will abort.\n"+
 				"Add these tables to the DELETE block before their parents: %s",
 			handoffDeleteScriptRelPath, strings.Join(missing, ", "),
 		)
@@ -58,7 +58,7 @@ func TestHandoffDeleteBlock_OrdersChildrenBeforeParents(t *testing.T) {
 	inversions := findHandoffDeleteOrderInversions(edges, deleted)
 	if len(inversions) > 0 {
 		t.Fatalf(
-			"%s deletes a parent before its RESTRICT child; `make reset` will abort.\n%s",
+			"%s deletes a parent before its blocking-FK child; `make reset` will abort.\n%s",
 			handoffDeleteScriptRelPath, strings.Join(inversions, "\n"),
 		)
 	}
@@ -101,6 +101,46 @@ func TestFindHandoffDeleteOrderInversions_AllowsChildBeforeParent(t *testing.T) 
 	edges := []handoffRestrictEdge{{child: "hospitalizations", parent: "pets", column: "pet_id"}}
 	if inversions := findHandoffDeleteOrderInversions(edges, []string{"hospitalizations", "pets"}); len(inversions) != 0 {
 		t.Fatalf("correct order must not be reported, got %v", inversions)
+	}
+}
+
+func TestParseHandoffRestrictEdges_CountsEveryBlockingOnDeleteAction(t *testing.T) {
+	schema := `CREATE TABLE blocking_no_clause (
+    owner_id bigint NOT NULL REFERENCES owners(id),
+    note text
+);
+
+CREATE TABLE blocking_restrict (
+    pet_id bigint NOT NULL REFERENCES pets(id) ON DELETE RESTRICT
+);
+
+CREATE TABLE blocking_no_action (
+    owner_id bigint NOT NULL REFERENCES owners(id) ON DELETE NO ACTION
+);
+
+CREATE TABLE clearing_cascade (
+    owner_id bigint NOT NULL REFERENCES owners(id) ON DELETE CASCADE
+);
+
+CREATE TABLE clearing_set_null (
+    doctor_id bigint REFERENCES staffs(id) ON DELETE SET NULL
+);
+`
+	got := make(map[string]string)
+	for _, edge := range parseHandoffRestrictEdges(schema) {
+		got[edge.child] = edge.parent
+	}
+	// An omitted ON DELETE clause defaults to NO ACTION and blocks just like
+	// RESTRICT; shared_files_owner_id_fkey is exactly that shape.
+	for _, child := range []string{"blocking_no_clause", "blocking_restrict", "blocking_no_action"} {
+		if _, ok := got[child]; !ok {
+			t.Errorf("%s blocks the parent delete but was not reported as an edge", child)
+		}
+	}
+	for _, child := range []string{"clearing_cascade", "clearing_set_null"} {
+		if parent, ok := got[child]; ok {
+			t.Errorf("%s clears its reference on delete but was reported as blocking %s", child, parent)
+		}
 	}
 }
 
@@ -179,27 +219,44 @@ var (
 	handoffCreateTableRe = regexp.MustCompile(`(?s)CREATE TABLE (\w+)\s*\((.*?)\n\);`)
 	handoffReferencesRe  = regexp.MustCompile(`REFERENCES\s+(\w+)\s*\(\s*id\s*\)`)
 	handoffDeleteFromRe  = regexp.MustCompile(`^\s*DELETE FROM\s+(\w+)\b`)
+
+	// The only ON DELETE actions that clear the reference instead of blocking the
+	// parent delete. Anything else — RESTRICT, NO ACTION, or an omitted clause —
+	// aborts the transaction.
+	handoffNonBlockingOnDeleteRe = regexp.MustCompile(`(?i)ON DELETE\s+(CASCADE|SET NULL|SET DEFAULT)`)
 )
 
-// parseHandoffRestrictEdges collects every ON DELETE RESTRICT foreign key that
-// targets a table's id column.
+// parseHandoffRestrictEdges collects every foreign key that blocks deleting the
+// referenced row.
+//
+// ON DELETE RESTRICT is the obvious case, but a foreign key with no ON DELETE
+// clause defaults to NO ACTION, which blocks the delete just the same. Postgres
+// only words the two errors differently:
+//
+//	violates RESTRICT setting of foreign key constraint "hospitalizations_pet_id_fkey"
+//	violates foreign key constraint "shared_files_owner_id_fkey"
+//
+// A RESTRICT-only rule therefore looks correct while still letting `make reset`
+// abort — it did exactly that on 2026-08-24, one reset after the RESTRICT tables
+// were fixed. Only CASCADE, SET NULL and SET DEFAULT actually clear the reference.
 func parseHandoffRestrictEdges(schema string) []handoffRestrictEdge {
 	var edges []handoffRestrictEdge
 	for _, table := range handoffCreateTableRe.FindAllStringSubmatch(schema, -1) {
 		child, body := table[1], table[2]
 		for line := range strings.SplitSeq(body, "\n") {
-			if !strings.Contains(line, "ON DELETE RESTRICT") {
+			reference := handoffReferencesRe.FindStringSubmatchIndex(line)
+			if reference == nil {
 				continue
 			}
-			reference := handoffReferencesRe.FindStringSubmatch(line)
-			if reference == nil {
+			if handoffNonBlockingOnDeleteRe.MatchString(line[reference[1]:]) {
 				continue
 			}
 			fields := strings.Fields(strings.TrimSpace(line))
 			if len(fields) == 0 {
 				continue
 			}
-			edges = append(edges, handoffRestrictEdge{child: child, parent: reference[1], column: fields[0]})
+			parent := line[reference[2]:reference[3]]
+			edges = append(edges, handoffRestrictEdge{child: child, parent: parent, column: fields[0]})
 		}
 	}
 	return edges
