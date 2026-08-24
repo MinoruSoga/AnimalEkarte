@@ -56,6 +56,13 @@ jobs:
               # lintscan DEMO_ACCOUNTS vs 003_demo seed gate lives in backend
               # but the compared source is this DEV login label list.
               - 'frontend/src/features/auth/components/LoginForm.tsx'
+              # Verify seed invariants (backend job) and Migration Verify (PR-only
+              # job) both run this script gated on the `migrations` output below;
+              # it must also gate `backend` so the job containing that step runs
+              # at all when only this script changes (2026-08-24: a fix to this
+              # exact script shipped with no changed .sql file and CI silently
+              # skipped both jobs, verifying nothing).
+              - 'scripts/verify_seed.py'
             frontend:
               - 'frontend/**'
             codegen:
@@ -65,6 +72,7 @@ jobs:
               - 'frontend/src/types/generated/**'
             migrations:
               - 'backend/migrations/*.sql'
+              - 'scripts/verify_seed.py'
             worker:
               - 'backend/worker/**'
               - 'package.json'
