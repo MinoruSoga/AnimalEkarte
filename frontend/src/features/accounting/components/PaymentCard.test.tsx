@@ -19,6 +19,40 @@ function renderCard(splits: PaymentSplitDraft[], billingAmount: number, onSplits
   return { onSplitsChange };
 }
 
+describe("PaymentCard 移行負額", () => {
+  it("確定済みの負の請求金額を符号のまま表示する", () => {
+    render(
+      <PaymentCard
+        billingAmount={-3000}
+        paymentSplits={[{ method: "cash", amount: "-3000", receivedAmount: "0" }]}
+        onSplitsChange={vi.fn()}
+        isCompleted
+        canEdit={false}
+        canCreate={false}
+        isEditMode={false}
+      />,
+    );
+    expect(screen.getByText("今回の請求金額")).toBeInTheDocument();
+    expect(screen.getAllByText("¥-3,000").length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("負の請求で split が足りないときは差額を符号のまま出す", () => {
+    render(
+      <PaymentCard
+        billingAmount={-3000}
+        paymentSplits={[{ method: "cash", amount: "0", receivedAmount: "0" }]}
+        onSplitsChange={vi.fn()}
+        isCompleted={false}
+        canEdit
+        canCreate
+        isEditMode={false}
+      />,
+    );
+    expect(screen.getByText("差額 ¥-3,000")).toBeInTheDocument();
+    expect(screen.queryByText(/超過/)).not.toBeInTheDocument();
+  });
+});
+
 describe("PaymentCard お釣り整合 (#182 ②: 現行整合厳格を維持)", () => {
   it("お釣り = お預かり金額 − 請求金額 を表示する（整合: change == received − amount）", () => {
     renderCard([{ method: "cash", amount: "1000", receivedAmount: "1500" }], 1000);

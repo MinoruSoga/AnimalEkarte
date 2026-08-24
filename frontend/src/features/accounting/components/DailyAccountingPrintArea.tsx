@@ -2,7 +2,7 @@ import { createPortal } from "react-dom";
 
 import { Z } from "@/lib/design-tokens";
 import { PAYMENT_METHOD_LABELS } from "@/constants/payment-method";
-import { formatCurrency, formatCurrencyOrDash } from "@/lib/format/number";
+import { formatCurrency, formatCurrencyIfNonzero } from "@/lib/format/number";
 import { CatCell } from "./DailyAccountingTabParts";
 import { formatReceiptNo } from "./daily-accounting-utils";
 import type { RowData, TotalsData } from "./daily-accounting-utils";
@@ -101,21 +101,21 @@ export function DailyPrintArea({ date, rows, totals }: DailyPrintAreaProps) {
           <tr className="bg-gray-50 font-semibold">
             <td colSpan={3} className="border border-gray-400 px-1 py-0.5 text-[9pt]">病院合計</td>
             <td className="border border-gray-400 px-1 py-0.5 text-right text-[9pt]">
-              {formatCurrencyOrDash(totals.medical)}
+              {formatCurrencyIfNonzero(totals.medical)}
             </td>
             <td className="border border-gray-400 px-1 py-0.5 text-right text-[9pt]">
-              {formatCurrencyOrDash(totals.surgery)}
+              {formatCurrencyIfNonzero(totals.surgery)}
             </td>
             <td className="border border-gray-400 px-1 py-0.5 text-right text-[9pt]">
-              {formatCurrencyOrDash(totals.rv)}
+              {formatCurrencyIfNonzero(totals.rv)}
             </td>
             <td className="border border-gray-400 px-1 py-0.5 text-right text-[9pt]">
-              {formatCurrencyOrDash(totals.food)}
+              {formatCurrencyIfNonzero(totals.food)}
             </td>
             <td className="border border-gray-400 px-1 py-0.5 text-center text-[9pt]">-</td>
             <td className="border border-gray-400 px-1 py-0.5 text-center text-[9pt]">-</td>
             <td className="border border-gray-400 px-1 py-0.5 text-right text-[9pt]">
-              {formatCurrencyOrDash(totals.goods)}
+              {formatCurrencyIfNonzero(totals.goods)}
             </td>
             <td className="border border-gray-400 px-1 py-0.5 text-[9pt]" />
             <td className="border border-gray-400 px-1 py-0.5 text-right text-[9pt] font-bold">
@@ -130,10 +130,10 @@ export function DailyPrintArea({ date, rows, totals }: DailyPrintAreaProps) {
             <td className="border border-gray-400 px-1 py-0.5 text-center text-[9pt]">-</td>
             <td className="border border-gray-400 px-1 py-0.5 text-center text-[9pt]">-</td>
             <td className="border border-gray-400 px-1 py-0.5 text-right text-[9pt]">
-              {formatCurrencyOrDash(totals.trimming)}
+              {formatCurrencyIfNonzero(totals.trimming)}
             </td>
             <td className="border border-gray-400 px-1 py-0.5 text-right text-[9pt]">
-              {formatCurrencyOrDash(totals.hotel)}
+              {formatCurrencyIfNonzero(totals.hotel)}
             </td>
             <td className="border border-gray-400 px-1 py-0.5 text-center text-[9pt]">-</td>
             <td className="border border-gray-400 px-1 py-0.5 text-[9pt]" />
@@ -145,25 +145,25 @@ export function DailyPrintArea({ date, rows, totals }: DailyPrintAreaProps) {
           <tr className="bg-gray-200 font-bold">
             <td colSpan={3} className="border border-gray-400 px-1 py-1 text-[9pt]">全体合計</td>
             <td className="border border-gray-400 px-1 py-1 text-right text-[9pt]">
-              {formatCurrencyOrDash(totals.medical)}
+              {formatCurrencyIfNonzero(totals.medical)}
             </td>
             <td className="border border-gray-400 px-1 py-1 text-right text-[9pt]">
-              {formatCurrencyOrDash(totals.surgery)}
+              {formatCurrencyIfNonzero(totals.surgery)}
             </td>
             <td className="border border-gray-400 px-1 py-1 text-right text-[9pt]">
-              {formatCurrencyOrDash(totals.rv)}
+              {formatCurrencyIfNonzero(totals.rv)}
             </td>
             <td className="border border-gray-400 px-1 py-1 text-right text-[9pt]">
-              {formatCurrencyOrDash(totals.food)}
+              {formatCurrencyIfNonzero(totals.food)}
             </td>
             <td className="border border-gray-400 px-1 py-1 text-right text-[9pt]">
-              {formatCurrencyOrDash(totals.trimming)}
+              {formatCurrencyIfNonzero(totals.trimming)}
             </td>
             <td className="border border-gray-400 px-1 py-1 text-right text-[9pt]">
-              {formatCurrencyOrDash(totals.hotel)}
+              {formatCurrencyIfNonzero(totals.hotel)}
             </td>
             <td className="border border-gray-400 px-1 py-1 text-right text-[9pt]">
-              {formatCurrencyOrDash(totals.goods)}
+              {formatCurrencyIfNonzero(totals.goods)}
             </td>
             <td className="border border-gray-400 px-1 py-1 text-[9pt]" />
             <td className="border border-gray-400 px-1 py-1 text-right text-[10pt] font-bold">

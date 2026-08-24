@@ -144,6 +144,63 @@ describe("DailyAccountingTab", () => {
     expect(amounts.some((t) => t?.includes("2,000"))).toBe(true);
   });
 
+  it("負の診療金額を符号のまま表示する", async () => {
+    server.use(
+      http.get("*/v1/accountings", () =>
+        HttpResponse.json({
+          data: [
+            makeAccounting({
+              subtotal: -3000,
+              tax_total: 0,
+              total_amount: -3000,
+              items: [
+                {
+                  id: 1,
+                  billing_id: 1,
+                  category: "examination",
+                  name: "赤伝",
+                  unit_price: -3000,
+                  quantity: 1,
+                  tax_rate: 0,
+                  tax_type: "excluded",
+                  tax_amount: 0,
+                  subtotal: -3000,
+                  is_insurance_applicable: false,
+                  source: "medical_record",
+                },
+              ],
+              payments: [
+                {
+                  id: 1,
+                  billing_id: 1,
+                  method: "cash",
+                  total_amount: -3000,
+                  billing_amount: -3000,
+                  received_amount: 0,
+                  change_amount: 0,
+                  insurance_amount: 0,
+                  discount_amount: 0,
+                },
+              ],
+            }),
+          ],
+          total: 1,
+          page: 1,
+          limit: 50,
+        }),
+      ),
+    );
+    renderTab();
+    await waitFor(() => {
+      expect(screen.getByTestId("daily-accounting-table")).toBeInTheDocument();
+    });
+    const table = screen.getByTestId("daily-accounting-table");
+    const row = within(table).getByText("田中太郎").closest("tr");
+    expect(row).not.toBeNull();
+    const cells = within(row as HTMLElement).getAllByRole("cell");
+    expect(cells[3]).toHaveTextContent("¥-3,000");
+  });
+
   it("支払方法が表示される", async () => {
     renderTab();
     await waitFor(() => {

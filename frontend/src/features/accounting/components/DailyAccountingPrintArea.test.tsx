@@ -88,6 +88,43 @@ describe("DailyAccountingPrintArea: 金額セルの印字が固定されてい�
     expect(within(hospitalRow).queryByText("¥0")).not.toBeInTheDocument();
   });
 
+  it("明細行の診療セルが負でも符号のまま印字する", () => {
+    const negativeRow = row({
+      accounting: accounting({ id: "3", ownerName: "赤伝", petName: "ハナ" }),
+      total: -3000,
+      breakdown: { medical: -3000, surgery: 0, rv: 0, food: 0, trimming: 0, hotel: 0, goods: 0 },
+      detailedBreakdown: {
+        ...ZERO_BREAKDOWN,
+        medical: { cash: -3000, card: 0 },
+      },
+    });
+    render(<DailyPrintArea date="2026-07-01" rows={[negativeRow]} totals={{ ...TOTALS, medical: -3000, total: -3000 }} />);
+    const area = screen.getByTestId("daily-print-area");
+    const dataRow = within(area).getByText("赤伝").closest("tr")!;
+    const cells = dataRow.querySelectorAll("td");
+    expect(cells[3]).toHaveTextContent("¥-3,000");
+  });
+
+  it("科目合計が負でも符号のまま印字する", () => {
+    const negativeTotals: TotalsData = {
+      ...TOTALS,
+      medical: -3000,
+      surgery: 0,
+      rv: 0,
+      food: 0,
+      goods: 0,
+      trimming: 0,
+      hotel: 0,
+      total: -3000,
+    };
+    render(<DailyPrintArea date="2026-07-01" rows={ROWS} totals={negativeTotals} />);
+    const area = screen.getByTestId("daily-print-area");
+    const hospitalRow = within(area).getByText("病院合計").closest("tr")!;
+    const cells = hospitalRow.querySelectorAll("td");
+    expect(cells[1]).toHaveTextContent("¥-3,000");
+    expect(within(hospitalRow).queryByText("¥0")).not.toBeInTheDocument();
+  });
+
   it("トリミング合計行は科目金額と合計を ¥ 区切りで表示する", () => {
     render(<DailyPrintArea date="2026-07-01" rows={ROWS} totals={TOTALS} />);
     const area = screen.getByTestId("daily-print-area");

@@ -18,7 +18,7 @@ import { LoadingFallback, ErrorFallback, EmptyState } from "@/components/shared/
 import { C, ICON } from "@/lib/design-tokens";
 import { PAYMENT_METHOD_LABELS } from "@/constants/payment-method";
 import { todayJSTISO } from "@/lib/jst-date";
-import { formatCurrency } from "@/lib/format/number";
+import { formatCurrency, formatCurrencyIfNonzero } from "@/lib/format/number";
 
 import { useGetAccountings } from "../api/get-accountings";
 import { useGetDailySummary } from "../api/get-daily-summary";
@@ -233,25 +233,25 @@ export function DailyAccountingTab({
                         {a.petName}
                       </TableCell>
                       <TableCell className={`text-right text-sm font-mono ${C.text60}`}>
-                        {breakdown.medical > 0 ? formatCurrency(breakdown.medical) : "-"}
+                        {formatCurrencyIfNonzero(breakdown.medical)}
                       </TableCell>
                       <TableCell className={`text-right text-sm font-mono ${C.text60}`}>
-                        {breakdown.surgery > 0 ? formatCurrency(breakdown.surgery) : "-"}
+                        {formatCurrencyIfNonzero(breakdown.surgery)}
                       </TableCell>
                       <TableCell className={`text-right text-sm font-mono ${C.text60}`}>
-                        {breakdown.rv > 0 ? formatCurrency(breakdown.rv) : "-"}
+                        {formatCurrencyIfNonzero(breakdown.rv)}
                       </TableCell>
                       <TableCell className={`text-right text-sm font-mono ${C.text60}`}>
-                        {breakdown.food > 0 ? formatCurrency(breakdown.food) : "-"}
+                        {formatCurrencyIfNonzero(breakdown.food)}
                       </TableCell>
                       <TableCell className={`text-right text-sm font-mono ${C.text60}`}>
-                        {breakdown.trimming > 0 ? formatCurrency(breakdown.trimming) : "-"}
+                        {formatCurrencyIfNonzero(breakdown.trimming)}
                       </TableCell>
                       <TableCell className={`text-right text-sm font-mono ${C.text60}`}>
-                        {breakdown.hotel > 0 ? formatCurrency(breakdown.hotel) : "-"}
+                        {formatCurrencyIfNonzero(breakdown.hotel)}
                       </TableCell>
                       <TableCell className={`text-right text-sm font-mono ${C.text60}`}>
-                        {breakdown.goods > 0 ? formatCurrency(breakdown.goods) : "-"}
+                        {formatCurrencyIfNonzero(breakdown.goods)}
                       </TableCell>
                       <TableCell className={`text-right text-sm font-mono font-semibold ${C.text}`}>
                         {formatCurrency(total)}
@@ -270,25 +270,25 @@ export function DailyAccountingTab({
                   <TableRow className={`font-bold border-t-2 ${C.borderLight}`}>
                     <TableCell colSpan={labelColSpan} className="text-sm">合計（{rows.length}件）</TableCell>
                     <TableCell className="text-right text-sm font-mono">
-                      {totals.medical > 0 ? formatCurrency(totals.medical) : "-"}
+                      {formatCurrencyIfNonzero(totals.medical)}
                     </TableCell>
                     <TableCell className="text-right text-sm font-mono">
-                      {totals.surgery > 0 ? formatCurrency(totals.surgery) : "-"}
+                      {formatCurrencyIfNonzero(totals.surgery)}
                     </TableCell>
                     <TableCell className="text-right text-sm font-mono">
-                      {totals.rv > 0 ? formatCurrency(totals.rv) : "-"}
+                      {formatCurrencyIfNonzero(totals.rv)}
                     </TableCell>
                     <TableCell className="text-right text-sm font-mono">
-                      {totals.food > 0 ? formatCurrency(totals.food) : "-"}
+                      {formatCurrencyIfNonzero(totals.food)}
                     </TableCell>
                     <TableCell className="text-right text-sm font-mono">
-                      {totals.trimming > 0 ? formatCurrency(totals.trimming) : "-"}
+                      {formatCurrencyIfNonzero(totals.trimming)}
                     </TableCell>
                     <TableCell className="text-right text-sm font-mono">
-                      {totals.hotel > 0 ? formatCurrency(totals.hotel) : "-"}
+                      {formatCurrencyIfNonzero(totals.hotel)}
                     </TableCell>
                     <TableCell className="text-right text-sm font-mono">
-                      {totals.goods > 0 ? formatCurrency(totals.goods) : "-"}
+                      {formatCurrencyIfNonzero(totals.goods)}
                     </TableCell>
                     <TableCell className="text-right text-sm font-mono">
                       <span className="font-bold">{formatCurrency(totals.total)}</span>

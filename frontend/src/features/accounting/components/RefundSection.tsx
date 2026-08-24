@@ -54,6 +54,7 @@ export const RefundSection = memo(function RefundSection({
 
   const totalRefunded = refunds.reduce((sum, r) => sum + r.amount, 0);
   const refundableAmount = totalAmount - totalRefunded;
+  const recordedNegative = totalAmount < 0;
 
   const handleSubmit = useCallback(() => {
     const amount = parseInt(refundAmount, 10);
@@ -78,8 +79,13 @@ export const RefundSection = memo(function RefundSection({
           <CardTitle className="text-sm font-medium flex items-center gap-2">
             <RotateCcw className={`${ICON.action} ${C.textDiscount}`} />
             返金管理
-            <span className={`text-xs font-normal ${C.text50}`}>
-              残額 {formatCurrency(refundableAmount)}
+            <span
+              id="refund-recorded-amount"
+              className={`text-xs font-normal ${C.text50}`}
+            >
+              {recordedNegative
+                ? `記録金額 ${formatCurrency(totalAmount)}`
+                : `残額 ${formatCurrency(refundableAmount)}`}
             </span>
             {totalRefunded > 0 ? (
               <span className={`text-xs font-normal ${C.textDiscount} ${C.bgDiscountLight} px-2 py-0.5 rounded`}>
@@ -95,7 +101,8 @@ export const RefundSection = memo(function RefundSection({
                   variant="outline"
                   size="sm"
                   className="h-8 text-xs"
-                  disabled={refundableAmount <= 0}
+                  disabled={recordedNegative || refundableAmount <= 0}
+                  aria-describedby="refund-recorded-amount"
                 >
                   <Plus className={`mr-1 ${ICON.action}`} />
                   返金を登録

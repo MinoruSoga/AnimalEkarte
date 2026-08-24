@@ -99,7 +99,7 @@ export const PaymentCard = memo(function PaymentCard({
       <CardContent className="p-6 space-y-6">
         <div className="text-center space-y-1">
           <p className={`text-sm ${C.text50}`}>今回の請求金額</p>
-          <p className={`text-heading-1 font-bold ${C.text}`}>
+          <p className={`text-heading-1 font-bold ${billingAmount < 0 ? C.textDiscount : C.text}`}>
             {formatCurrency(billingAmount)}
           </p>
         </div>
@@ -239,9 +239,11 @@ export const PaymentCard = memo(function PaymentCard({
 
             {remaining !== 0 ? (
               <p className={`text-xs text-right ${remaining < 0 ? C.danger : C.text50}`}>
-                {remaining > 0
-                  ? `残り ${formatCurrency(remaining)} 未入力`
-                  : `${formatCurrency(Math.abs(remaining))} 超過`}
+                {billingAmount < 0
+                  ? `差額 ${formatCurrency(remaining)}`
+                  : remaining > 0
+                    ? `残り ${formatCurrency(remaining)} 未入力`
+                    : `${formatCurrency(Math.abs(remaining))} 超過`}
               </p>
             ) : null}
 

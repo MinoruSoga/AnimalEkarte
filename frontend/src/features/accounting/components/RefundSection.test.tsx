@@ -27,6 +27,28 @@ const splits = [
 
 afterEach(() => server.resetHandlers());
 
+describe("RefundSection — 移行負額", () => {
+  it("請求金額が負のときは返金登録できず記録金額を表示する", async () => {
+    server.use(...handlers);
+    render(
+      <RefundSection
+        accountingId="1"
+        totalAmount={-3000}
+        paymentSplits={[{ id: 1, clinicId: "1", billingId: "1", method: "cash", amount: -3000, receivedAmount: 0, changeAmount: 0 }]}
+        isRefunding={false}
+        onRefund={vi.fn()}
+        canEdit={true}
+      />,
+      { wrapper: createWrapper() },
+    );
+
+    expect(await screen.findByText(/記録金額 ¥-3,000/)).toBeInTheDocument();
+    const register = screen.getByRole("button", { name: /返金を登録/ });
+    expect(register).toBeDisabled();
+    expect(register).toHaveAttribute("aria-describedby", "refund-recorded-amount");
+  });
+});
+
 describe("RefundSection — 支払方法別返金 (#60)", () => {
   it("支払方法未指定で返金登録すると onRefund の第3引数が undefined", async () => {
     server.use(...handlers);

@@ -61,6 +61,55 @@ function renderTable(canEdit = false) {
   return { onEdit };
 }
 
+describe("AccountingListTable recorded amounts", () => {
+  it("負の入金合計を符号のまま表示する", () => {
+    render(
+      <MemoryRouter initialEntries={["/accounting"]}>
+        <AccountingListTable
+          filteredCount={1}
+          pagination={{
+            paginatedData: [{
+              ...accounting,
+              status: "completed",
+              payment: {
+                subtotal: -3000,
+                taxTotal: 0,
+                totalAmount: -3000,
+                insuranceAmount: 0,
+                discountAmount: 0,
+                billingAmount: -3000,
+                receivedAmount: 0,
+                changeAmount: 0,
+                method: "cash",
+              },
+            }],
+            totalPages: 1,
+            totalCount: 1,
+            startIndex: 0,
+            endIndex: 1,
+            currentPage: 1,
+          }}
+          searchTerm=""
+          activeFilters={[]}
+          activeSorts={[]}
+          isFiltering={false}
+          canEdit={false}
+          directionFor={() => "none"}
+          onSearchChange={vi.fn()}
+          onFilterChange={vi.fn()}
+          onSortChange={vi.fn()}
+          onToggleSort={vi.fn()}
+          onEdit={vi.fn()}
+          onMedicalRecordOpen={vi.fn()}
+          onPageChange={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText("¥-3,000")).toBeInTheDocument();
+  });
+});
+
 describe("AccountingListTable row navigation accessibility", () => {
   it("編集権限に関係なく日付・飼主・ペット・ID付き44px native detail linkを表示する", () => {
     renderTable(false);

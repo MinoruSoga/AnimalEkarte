@@ -33,8 +33,8 @@ export function CatCell({ detail, isMixed }: CatCellProps) {
   }
   return (
     <td className="border border-gray-300 text-right px-1 py-0.5 text-[9pt] leading-tight">
-      {detail.cash > 0 ? <div>現{detail.cash.toLocaleString()}</div> : null}
-      {detail.card > 0 ? <div className="text-blue-700">カ{detail.card.toLocaleString()}</div> : null}
+      {detail.cash !== 0 ? <div>現{detail.cash.toLocaleString()}</div> : null}
+      {detail.card !== 0 ? <div className="text-blue-700">カ{detail.card.toLocaleString()}</div> : null}
     </td>
   );
 }

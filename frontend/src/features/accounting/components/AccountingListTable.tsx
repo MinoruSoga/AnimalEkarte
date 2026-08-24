@@ -235,6 +235,7 @@ function AccountingListRow({
   onMedicalRecordOpen,
 }: AccountingListRowProps) {
   const statusLabel = ACCOUNTING_STATUS_LABELS[accounting.status] ?? accounting.status;
+  const recordedTotal = calculateAccountingTotal(accounting);
 
   return (
     <DataTableRow key={accounting.id}>
@@ -254,7 +255,7 @@ function AccountingListRow({
       <TableCell className={C.text}>{accounting.ownerName}</TableCell>
       <TableCell className={C.text}>{accounting.petName}</TableCell>
       <TableCell className={`text-right font-mono font-medium ${C.text}`}>
-        {formatCurrency(calculateAccountingTotal(accounting))}
+        {formatCurrency(recordedTotal)}
       </TableCell>
       <TableCell className={`text-center ${C.text}`}>
         {accounting.payment ? PAYMENT_METHOD_LABELS[accounting.payment.method] : "-"}
