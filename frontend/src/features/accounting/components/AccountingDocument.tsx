@@ -16,7 +16,7 @@ import {
 
 // Types
 import type { Accounting, PaymentInfo } from "../types";
-import { calcTaxBreakdown } from "../tax-breakdown";
+import { calcTaxBreakdown, recordedLineNet } from "../tax-breakdown";
 
 type DocumentPaymentInfo = Pick<
   PaymentInfo,
@@ -211,7 +211,7 @@ export const AccountingDocument = memo(function AccountingDocument({ accounting,
                         <td className="py-2 text-right text-xs">{ratePercent}%{isReduced ? "※" : ""}</td>
                         <td className="py-2 text-right">{formatCurrency(item.unitPrice)}</td>
                         <td className="py-2 text-center">{item.quantity}</td>
-                        <td className="py-2 text-right">{formatCurrency(Math.max(item.unitPrice * item.quantity - item.discountAmount, 0))}</td>
+                        <td className="py-2 text-right">{formatCurrency(recordedLineNet(item))}</td>
                       </tr>
                     );
                   })}
@@ -236,7 +236,7 @@ export const AccountingDocument = memo(function AccountingDocument({ accounting,
                     <span>{taxBreakdown.standardRatePercent}%対象</span>
                     <span>{formatCurrency(taxBreakdown.standardBase)}（内 消費税 {formatCurrency(taxBreakdown.standardAmount)}）</span>
                   </div>
-                  {taxBreakdown.reducedBase > 0 ? (
+                  {taxBreakdown.reducedBase !== 0 ? (
                     <div className="flex justify-between">
                       <span>{taxBreakdown.reducedRatePercent}%対象 ※軽減税率</span>
                       <span>{formatCurrency(taxBreakdown.reducedBase)}（内 消費税 {formatCurrency(taxBreakdown.reducedAmount)}）</span>
