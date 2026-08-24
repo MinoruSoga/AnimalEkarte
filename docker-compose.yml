@@ -56,6 +56,10 @@ services:
       # lintscan DEMO_ACCOUNTS vs 003_demo gate reads LoginForm.tsx at /frontend
       # (backend is mounted at /app, so moduleRoot/../frontend resolves to /frontend).
       - ./frontend:/frontend:ro
+      # lintscan handoff-delete-closure gate reads the reset cleanup SQL at /scripts
+      # (same moduleRoot/../scripts trick). CI runs `go test` from a full checkout,
+      # where ../scripts already resolves; this mount keeps the gate runnable locally.
+      - ./scripts:/scripts:ro
       - go_mod_cache:/go/pkg/mod
       - go_build_cache:/root/.cache/go-build
     env_file:

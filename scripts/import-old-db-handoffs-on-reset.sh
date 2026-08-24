@@ -127,6 +127,7 @@ BEGIN;
 DELETE FROM payment_splits WHERE clinic_id = ${seed_clinic};
 DELETE FROM payments WHERE clinic_id = ${seed_clinic};
 DELETE FROM billing_items WHERE billing_id IN (SELECT id FROM billings WHERE clinic_id = ${seed_clinic});
+DELETE FROM billing_refunds WHERE clinic_id = ${seed_clinic};
 DELETE FROM billings WHERE clinic_id = ${seed_clinic};
 DELETE FROM estimate_items WHERE estimate_id IN (SELECT id FROM estimates WHERE clinic_id = ${seed_clinic});
 DELETE FROM estimates WHERE clinic_id = ${seed_clinic};
@@ -139,13 +140,29 @@ DELETE FROM appointments WHERE clinic_id = ${seed_clinic};
 DELETE FROM vital_records WHERE clinic_id = ${seed_clinic};
 DELETE FROM inquiries WHERE medical_record_id IN (SELECT id FROM medical_records WHERE clinic_id = ${seed_clinic});
 DELETE FROM clinical_plans WHERE medical_record_id IN (SELECT id FROM medical_records WHERE clinic_id = ${seed_clinic});
+DELETE FROM medical_record_addenda WHERE clinic_id = ${seed_clinic};
+DELETE FROM prescriptions WHERE clinic_id = ${seed_clinic};
 DELETE FROM medical_records WHERE clinic_id = ${seed_clinic};
+DELETE FROM checkups WHERE clinic_id = ${seed_clinic};
+DELETE FROM hospitalizations WHERE clinic_id = ${seed_clinic};
 DELETE FROM pets WHERE clinic_id = ${seed_clinic};
+DELETE FROM line_link_tokens WHERE clinic_id = ${seed_clinic};
+DELETE FROM lstep_tag_cache WHERE clinic_id = ${seed_clinic};
+DELETE FROM lstep_delivery_trigger_log WHERE clinic_id = ${seed_clinic};
+DELETE FROM lstep_migration_progress WHERE clinic_id = ${seed_clinic};
+DELETE FROM lstep_sync_error_counters WHERE clinic_id = ${seed_clinic};
 DELETE FROM owners WHERE clinic_id = ${seed_clinic};
 DELETE FROM procedures WHERE clinic_id = ${seed_clinic};
 DELETE FROM merchandise_items WHERE clinic_id = ${seed_clinic};
 -- Keep existing demo staffs (RESTRICT FKs from audit/shift tables). Producer
 -- staff IDs are in the clinic band and do not collide on name for jouto.
+--
+-- The delete list above must stay closed under RESTRICT foreign keys: every
+-- table that references a deleted table with ON DELETE RESTRICT has to be
+-- deleted first, or the whole transaction aborts.
+-- backend/internal/lintscan/handoff_delete_closure_lint_test.go derives that
+-- closure from backend/migrations/001_init.sql and fails when a new RESTRICT
+-- reference is added, or when a child is ordered after its parent here.
 COMMIT;
 SQL
   echo "INFO  cleared existing clinic_id=${seed_clinic} clinical/owner/catalog rows before import" >&2
