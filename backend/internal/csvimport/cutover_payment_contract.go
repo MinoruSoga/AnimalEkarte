@@ -73,9 +73,8 @@ func validateCutoverPaymentGraph(sourceDir string, manifest *CutoverManifest) er
 		if err != nil {
 			return err
 		}
-		if totalAmount < 0 {
-			return fmt.Errorf("table billings column total_amount row %d: amount must not be negative", line)
-		}
+		// AE-MIG-NEG-1: Jouto refunds/red-slips keep their sign. Zero is still
+		// invalid here because a billing row with a payment graph must carry an amount.
 		status := row[indexes["status"]]
 		completedAt := row[indexes["completed_at"]]
 		switch status {
@@ -129,7 +128,7 @@ func validateCutoverPaymentGraph(sourceDir string, manifest *CutoverManifest) er
 		if err != nil {
 			return err
 		}
-		if billingAmount <= 0 || receivedAmount < 0 || changeAmount < 0 {
+		if billingAmount == 0 {
 			return fmt.Errorf("table payments row %d: payment amounts violate the cutover contract", line)
 		}
 		var totalAmount int64
@@ -137,9 +136,6 @@ func validateCutoverPaymentGraph(sourceDir string, manifest *CutoverManifest) er
 			amount, err := parsePaymentGraphInt("payments", column, row[indexes[column]], line)
 			if err != nil {
 				return err
-			}
-			if amount < 0 {
-				return fmt.Errorf("table payments column %s row %d: amount must not be negative", column, line)
 			}
 			if column == "total_amount" {
 				totalAmount = amount
@@ -207,8 +203,8 @@ func validateCutoverPaymentGraph(sourceDir string, manifest *CutoverManifest) er
 		if err != nil {
 			return err
 		}
-		if amount <= 0 {
-			return fmt.Errorf("table payment_splits column amount row %d: amount must be positive", line)
+		if amount == 0 {
+			return fmt.Errorf("table payment_splits column amount row %d: amount must not be zero", line)
 		}
 		switch method {
 		case "cash":
@@ -265,7 +261,9 @@ func validateCutoverPaymentGraph(sourceDir string, manifest *CutoverManifest) er
 	for billingID, billing := range billings {
 		if billing.status == "completed" {
 			if _, ok := parents[billingID]; !ok {
-				return fmt.Errorf("table billings: completed billing is missing its payment graph")
+				if billing.totalAmount != 0 {
+					return fmt.Errorf("table billings: completed billing is missing its payment graph")
+				}
 			}
 		}
 	}

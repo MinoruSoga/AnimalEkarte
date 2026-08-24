@@ -88,7 +88,7 @@ split_summaries AS MATERIALIZED (
       AND split.paid_by IS NOT DISTINCT FROM split.payment_paid_by
       AND split.created_at IS NOT NULL
       AND split.created_at IS NOT DISTINCT FROM split.payment_created_at
-      AND split.amount > 0
+      AND split.amount <> 0
       AND split.received_amount IS NOT NULL
       AND split.change_amount IS NOT NULL
       AND (
@@ -122,24 +122,18 @@ payment_violations AS (
     OR payment.billing_status IS DISTINCT FROM 'completed'
     OR payment.billing_completed_at IS DISTINCT FROM payment.created_at
     OR payment.subtotal IS NULL
-    OR payment.subtotal < 0
     OR payment.tax_total IS NULL
-    OR payment.tax_total < 0
     OR payment.total_amount IS NULL
-    OR payment.total_amount < 0
     OR payment.insurance_ratio IS NULL
     OR payment.insurance_ratio < 0
     OR payment.insurance_ratio > 1
     OR payment.insurance_amount IS NULL
     OR payment.insurance_amount < 0
     OR payment.discount_amount IS NULL
-    OR payment.discount_amount < 0
     OR payment.billing_amount IS NULL
-    OR payment.billing_amount <= 0
+    OR payment.billing_amount = 0
     OR payment.received_amount IS NULL
-    OR payment.received_amount < 0
     OR payment.change_amount IS NULL
-    OR payment.change_amount < 0
     OR payment.created_at IS NULL
     OR NOT COALESCE(
       (payment.method = 'cash' AND payment.payment_method_id = $4)
@@ -175,7 +169,13 @@ completed_billing_violations AS (
       OR billing.status NOT IN ('waiting', 'completed', 'cancelled', 'pending')
       OR (
         billing.status = 'completed'
-        AND (billing.completed_at IS NULL OR payment.id IS NULL)
+        AND (
+          billing.completed_at IS NULL
+          OR (
+            payment.id IS NULL
+            AND COALESCE(billing.total_amount, 0) <> 0
+          )
+        )
       )
     )
 ),

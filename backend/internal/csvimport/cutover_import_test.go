@@ -809,8 +809,8 @@ func TestPaymentGraphVerificationQueryFailsClosedForNullsAndOutsideBandSplits(t 
 		"payment.insurance_amount IS NULL",
 		"payment.insurance_amount < 0",
 		"payment.discount_amount IS NULL",
-		"payment.discount_amount < 0",
 		"payment.billing_amount IS NULL",
+		"payment.billing_amount = 0",
 		"payment.received_amount IS NULL",
 		"payment.change_amount IS NULL",
 		"payment.created_at IS NULL",
@@ -829,7 +829,7 @@ func TestPaymentGraphVerificationQueryFailsClosedForNullsAndOutsideBandSplits(t 
 		"billing.status NOT IN ('waiting', 'completed', 'cancelled', 'pending')",
 		"payment.billing_status IS DISTINCT FROM 'completed'",
 		"payment.billing_completed_at IS DISTINCT FROM payment.created_at",
-		"billing.completed_at IS NULL OR payment.id IS NULL",
+		"COALESCE(billing.total_amount, 0) <> 0",
 	}
 	for _, fragment := range required {
 		if !strings.Contains(verifyCutoverPaymentGraphQuery, fragment) {

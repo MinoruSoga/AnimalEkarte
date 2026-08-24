@@ -36,6 +36,53 @@ func TestPreflightCutoverBundleAcceptsExactContract(t *testing.T) {
 	}
 }
 
+func TestPreflightCutoverBundleAcceptsNegativeRefundAmounts(t *testing.T) {
+	dir, manifestDigest := writeCutoverFixture(t, func(f *fixtureBundle) {
+		billingColumns := CutoverTableSpecs()[11].Columns
+		paymentColumns := CutoverTableSpecs()[13].Columns
+		splitColumns := CutoverTableSpecs()[14].Columns
+		f.rows["billings"][0][columnIndex(billingColumns, "total_amount")] = "-3000"
+		f.rows["payments"][0][columnIndex(paymentColumns, "subtotal")] = "-3000"
+		f.rows["payments"][0][columnIndex(paymentColumns, "tax_total")] = "0"
+		f.rows["payments"][0][columnIndex(paymentColumns, "total_amount")] = "-3000"
+		f.rows["payments"][0][columnIndex(paymentColumns, "billing_amount")] = "-3000"
+		f.rows["payments"][0][columnIndex(paymentColumns, "received_amount")] = "-3000"
+		f.rows["payments"][0][columnIndex(paymentColumns, "change_amount")] = "0"
+		f.rows["payment_splits"][0][columnIndex(splitColumns, "amount")] = "-3000"
+		f.rows["payment_splits"][0][columnIndex(splitColumns, "received_amount")] = "-3000"
+		f.rows["payment_splits"][0][columnIndex(splitColumns, "change_amount")] = "0"
+	})
+
+	if _, err := PreflightCutoverBundle(dir, ExpectedCutoverSource{
+		ManifestSHA256: manifestDigest,
+		ClinicCode:     "hachioji",
+		ClinicOrdinal:  1,
+		RunID:          "run-1",
+	}); err != nil {
+		t.Fatalf("PreflightCutoverBundle(negative refund) error = %v", err)
+	}
+}
+
+func TestPreflightCutoverBundleAcceptsWindowZeroCompletedBillingWithoutPayment(t *testing.T) {
+	dir, manifestDigest := writeCutoverFixture(t, func(f *fixtureBundle) {
+		billingColumns := CutoverTableSpecs()[11].Columns
+		zero := append([]string(nil), f.rows["billings"][0]...)
+		zero[columnIndex(billingColumns, "id")] = "1000002"
+		zero[columnIndex(billingColumns, "total_amount")] = "0"
+		f.rows["billings"] = append(f.rows["billings"], zero)
+		f.manifest.Tables[11].RowCount++
+	})
+
+	if _, err := PreflightCutoverBundle(dir, ExpectedCutoverSource{
+		ManifestSHA256: manifestDigest,
+		ClinicCode:     "hachioji",
+		ClinicOrdinal:  1,
+		RunID:          "run-1",
+	}); err != nil {
+		t.Fatalf("PreflightCutoverBundle(window-zero completed) error = %v", err)
+	}
+}
+
 func TestPreflightCutoverBundleAcceptsLocalRehearsalBundle(t *testing.T) {
 	dir, manifestDigest := writeCutoverFixture(t, func(f *fixtureBundle) {
 		f.manifest.Status = "REHEARSAL_ONLY"
@@ -529,25 +576,12 @@ func TestPreflightCutoverBundleRejectsPaymentContractViolations(t *testing.T) {
 			wantErr: "clinic placeholder",
 		},
 		{
-			name: "payment subtotal is negative",
+			name: "payment billing amount is zero",
 			mutate: func(f *fixtureBundle) {
-				f.rows["payments"][0][columnIndex(CutoverTableSpecs()[13].Columns, "subtotal")] = "-1"
+				f.rows["payments"][0][columnIndex(CutoverTableSpecs()[13].Columns, "billing_amount")] = "0"
+				f.rows["payment_splits"][0][columnIndex(CutoverTableSpecs()[14].Columns, "amount")] = "0"
 			},
-			wantErr: "subtotal",
-		},
-		{
-			name: "payment tax total is negative",
-			mutate: func(f *fixtureBundle) {
-				f.rows["payments"][0][columnIndex(CutoverTableSpecs()[13].Columns, "tax_total")] = "-1"
-			},
-			wantErr: "tax_total",
-		},
-		{
-			name: "payment total amount is negative",
-			mutate: func(f *fixtureBundle) {
-				f.rows["payments"][0][columnIndex(CutoverTableSpecs()[13].Columns, "total_amount")] = "-1"
-			},
-			wantErr: "total_amount",
+			wantErr: "violate the cutover contract",
 		},
 		{
 			name: "payment total amount disagrees with billing",
@@ -571,11 +605,11 @@ func TestPreflightCutoverBundleRejectsPaymentContractViolations(t *testing.T) {
 			wantErr: "insurance_amount",
 		},
 		{
-			name: "discount amount is negative",
+			name: "payment split amount is zero",
 			mutate: func(f *fixtureBundle) {
-				f.rows["payments"][0][columnIndex(CutoverTableSpecs()[13].Columns, "discount_amount")] = "-1"
+				f.rows["payment_splits"][0][columnIndex(CutoverTableSpecs()[14].Columns, "amount")] = "0"
 			},
-			wantErr: "discount_amount",
+			wantErr: "must not be zero",
 		},
 		{
 			name: "completed billing timestamp is missing",
