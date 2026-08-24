@@ -655,6 +655,7 @@ func TestCutoverRequiredForeignKeysIncludePaymentContract(t *testing.T) {
 		"payment_splits.billing_id->billings.id":               false,
 		"payment_splits.payment_method_id->payment_methods.id": false,
 		"payment_splits.paid_by->staffs.id":                    false,
+		"appointments.owner_id->owners.id":                     false,
 	}
 	for _, foreignKey := range cutoverRequiredForeignKeys() {
 		key := foreignKey.childTable + "." + foreignKey.childColumn + "->" +
