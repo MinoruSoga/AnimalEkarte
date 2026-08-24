@@ -34,6 +34,7 @@ func newHealthCardTestService(customerRepo *mockLiffCustomerRepository, vaccinat
 		&mockTrimmingOptionRepository{},
 		&mockTrimmingDetailRepository{},
 		vaccinationRepo,
+		openDayHolidayFinder(),
 	)
 	impl, ok := svc.(*liffService)
 	if !ok {

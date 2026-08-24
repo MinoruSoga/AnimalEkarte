@@ -67,6 +67,7 @@ type reservationValidators struct {
 	trimmingCourseRepo trimmingCourseFinder
 	trimmingOptionRepo trimmingOptionFinder
 	trimmingDetailRepo liffTrimmingDetailRepo
+	holidayFinder      clinicHolidayFinder
 }
 
 // NewReservationValidators はバリデーターを初期化して返す。
@@ -78,6 +79,7 @@ func NewReservationValidators(
 	trimmingCourseRepo trimmingCourseFinder,
 	trimmingOptionRepo trimmingOptionFinder,
 	trimmingDetailRepo liffTrimmingDetailRepo,
+	holidayFinder clinicHolidayFinder,
 ) ReservationValidators {
 	return &reservationValidators{
 		tx:                 tx,
@@ -87,6 +89,7 @@ func NewReservationValidators(
 		trimmingCourseRepo: trimmingCourseRepo,
 		trimmingOptionRepo: trimmingOptionRepo,
 		trimmingDetailRepo: trimmingDetailRepo,
+		holidayFinder:      holidayFinder,
 	}
 }
 
@@ -152,6 +155,9 @@ func (v *reservationValidators) ValidateAndCreate(ctx context.Context, input *Cr
 			return apperrors.WrapInvalidInput(err.Error())
 		}
 		if err := validateTimeRange(startDT, endDT); err != nil {
+			return err
+		}
+		if err := validateClinicHoliday(ctx, v.holidayFinder, input.ClinicID, startDT); err != nil {
 			return err
 		}
 

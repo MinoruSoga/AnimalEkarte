@@ -144,13 +144,8 @@ func (s *vaccinationService) Create(ctx context.Context, clinicID uint64, input 
 	if input.VaccineID == 0 {
 		return nil, apperrors.WrapInvalidInput("vaccine_id is required")
 	}
-	now := time.Now()
-	dateJST := input.Date.In(config.JST)
-	nowJST := now.In(config.JST)
-	dateDay := time.Date(dateJST.Year(), dateJST.Month(), dateJST.Day(), 0, 0, 0, 0, config.JST)
-	today := time.Date(nowJST.Year(), nowJST.Month(), nowJST.Day(), 0, 0, 0, 0, config.JST)
-	if dateDay.After(today) {
-		return nil, apperrors.WrapInvalidInput("接種日は今日以前の日付を入力してください")
+	if err := errIfVaccinationDateAfterToday(input.Date); err != nil {
+		return nil, err
 	}
 	if s.transactor == nil {
 		return nil, apperrors.WrapInternalServerError("vaccination transaction dependency is required")
@@ -207,6 +202,11 @@ func (s *vaccinationService) Update(ctx context.Context, clinicID, id uint64, in
 	fields := buildVaccinationUpdate(input)
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
+	}
+	if input.Date != nil {
+		if err := errIfVaccinationDateAfterToday(*input.Date); err != nil {
+			return nil, err
+		}
 	}
 	if s.transactor == nil {
 		return nil, apperrors.WrapInternalServerError("vaccination transaction dependency is required")
@@ -289,6 +289,18 @@ func (s *vaccinationService) resyncOwnerVaccineTags(ctx context.Context, clinicI
 	if err := s.tagSyncSvc.ResyncOwnerVaccineTags(ctx, clinicID, ownerID); err != nil {
 		slog.ErrorContext(ctx, "failed to resync owner vaccine tags", "error", err, "clinic_id", clinicID, "owner_id", ownerID, "vaccination_id", vaccination.ID)
 	}
+}
+
+func errIfVaccinationDateAfterToday(date time.Time) error {
+	now := time.Now()
+	dateJST := date.In(config.JST)
+	nowJST := now.In(config.JST)
+	dateDay := time.Date(dateJST.Year(), dateJST.Month(), dateJST.Day(), 0, 0, 0, 0, config.JST)
+	today := time.Date(nowJST.Year(), nowJST.Month(), nowJST.Day(), 0, 0, 0, 0, config.JST)
+	if dateDay.After(today) {
+		return apperrors.WrapInvalidInput("接種日は今日以前の日付を入力してください")
+	}
+	return nil
 }
 
 func effectiveVaccinationRelations(existing *model.Vaccination, input *UpdateVaccinationInput) (medicalRecordID, petID, doctorID *uint64, vaccineID uint64) {

@@ -1115,6 +1115,7 @@ func TestNewLiffService(t *testing.T) {
 		&mockTrimmingOptionRepository{},
 		&mockTrimmingDetailRepository{},
 		&mockVaccinationRepository{},
+		openDayHolidayFinder(),
 	)
 	require.NotNil(t, svc)
 
@@ -1146,6 +1147,7 @@ func TestNewLiffServiceWithType(t *testing.T) {
 		&mockTrimmingOptionRepository{},
 		&mockTrimmingDetailRepository{},
 		&mockVaccinationRepository{},
+		openDayHolidayFinder(),
 		medicalRecord,
 	)
 	require.NotNil(t, svc)

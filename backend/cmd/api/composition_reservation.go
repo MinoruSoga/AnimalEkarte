@@ -217,6 +217,7 @@ func newReservationAdminService(
 		r.UnavailableTimes,
 		r.AvailableSlots,
 		d.MedicalRecords,
+		r.ClinicHolidays,
 	)
 }
 
@@ -244,6 +245,7 @@ func newReservationLiffService(
 		d.TrimmingOptions,
 		d.TrimmingDetails,
 		d.Vaccinations,
+		r.ClinicHolidays,
 		d.MedicalRecords,
 	)
 }

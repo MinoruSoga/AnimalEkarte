@@ -1,5 +1,6 @@
 // React/Framework
 import { useActionState, useState, useCallback } from "react";
+import { Link } from "react-router";
 
 // External
 import { toast } from "sonner";
@@ -7,6 +8,7 @@ import { toast } from "sonner";
 // Shared modules
 import { handleApiError } from "@/lib/handle-api-error";
 import { C } from "@/lib/design-tokens";
+import { paths } from "@/config/paths";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,7 +25,6 @@ import { updateLineReservationSetting } from "../api/update-line-reservation-set
 import type { ReservationSetting } from "../api/types";
 import {
   BreakHoursEditor,
-  ClosedDatesEditor,
   FieldRow,
   NO_STAFF_MODE_ITEMS,
   Section,
@@ -75,9 +76,9 @@ export function LineReservationSettingsForm({ setting, clinicId }: SettingsFormP
   const [breakHours, setBreakHours] = useState<BreakHour[]>(
     () => asJsonb<BreakHour[]>(setting.break_hours, [], isBreakHourArray),
   );
-  const [closedDates, setClosedDates] = useState<string[]>(
-    () => asJsonb<string[]>(setting.closed_dates, [], isStringArray),
-  );
+  // 個別定休日の write owner は ClinicHolidayModal（clinic_holidays）。
+  // このフォームは既存 closed_dates を PUT で round-trip するだけにし、編集 UI は置かない。
+  const closedDates = asJsonb<string[]>(setting.closed_dates, [], isStringArray);
   const [enableWeekdayHours, setEnableWeekdayHours] = useState(() => {
     const parsed = asJsonb<BusinessHoursByWeekday>(
       setting.business_hours_by_weekday,
@@ -103,7 +104,7 @@ export function LineReservationSettingsForm({ setting, clinicId }: SettingsFormP
     setBusinessHours((prev) => ({ ...prev, [field]: toStorageTime(t) }));
   }, []);
 
-  const [formState, formAction] = useActionState(async (_prev: null, formData: FormData) => {
+  const [, formAction] = useActionState(async (_prev: null, formData: FormData) => {
     const payload = {
       status,
       national_holiday_closed: nationalHolidayClosed,
@@ -198,7 +199,16 @@ export function LineReservationSettingsForm({ setting, clinicId }: SettingsFormP
         </FieldRow>
 
         <FieldRow label="特定定休日">
-          <ClosedDatesEditor value={closedDates} onChange={setClosedDates} />
+          <p className={`text-sm ${C.textMuted}`}>
+            個別の定休日は
+            <Link
+              to={paths.shifts.getHref()}
+              className={`inline-flex min-h-11 items-center ${C.textBrand} underline underline-offset-2`}
+            >
+              シフト管理
+            </Link>
+            のカレンダーから設定します。
+          </p>
         </FieldRow>
 
         <FieldRow label="通常営業時間">
@@ -361,7 +371,6 @@ export function LineReservationSettingsForm({ setting, clinicId }: SettingsFormP
       <div className="pt-2">
         <SubmitButton>設定を保存</SubmitButton>
       </div>
-      {formState !== undefined ? null : null}
     </form>
   );
 }

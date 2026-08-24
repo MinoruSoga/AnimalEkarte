@@ -64,6 +64,7 @@ func NewLiffServiceWithType(
 	trimmingOptionRepo trimmingOptionFinder,
 	trimmingDetailRepo liffTrimmingDetailRepo,
 	vaccinationRepo liffVaccinationRepo,
+	holidayFinder clinicHolidayFinder,
 	medicalRecords ...medicalRecordAutoCreator,
 ) LiffService {
 	var medicalRecord medicalRecordAutoCreator
@@ -80,7 +81,7 @@ func NewLiffServiceWithType(
 		reservationRepo:     reservationRepo,
 		customerRepo:        customerRepo,
 		ownerRepo:           ownerRepo,
-		validators:          NewReservationValidators(tx, reservationRepo, typeRepo, staffRepo, trimmingCourseRepo, trimmingOptionRepo, trimmingDetailRepo),
+		validators:          NewReservationValidators(tx, reservationRepo, typeRepo, staffRepo, trimmingCourseRepo, trimmingOptionRepo, trimmingDetailRepo, holidayFinder),
 		notifier:            notifier,
 		unavailableTimeRepo: unavailableTimeRepo,
 		availableSlotRepo:   availableSlotRepo,

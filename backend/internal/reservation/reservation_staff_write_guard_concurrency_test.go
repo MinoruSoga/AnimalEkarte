@@ -181,12 +181,15 @@ func runReservationStaffWriteGuardOperation(
 			ReservationRoute:  &route,
 		})
 	case reservationStaffWriteStandardUpdate:
-		service := NewReservationServiceWithAvailabilityAndType(
+		service := NewReservationServiceWithClinicHolidays(
 			reservationRepo,
 			nil,
 			tx,
 			guard,
 			nil,
+			nil,
+			nil,
+			openDayHolidayFinder(),
 		)
 		return service.Update(
 			ctx,
@@ -199,13 +202,15 @@ func runReservationStaffWriteGuardOperation(
 			},
 		)
 	case reservationStaffWriteAdminCreate:
-		service := NewReservationAdminServiceWithAvailabilityAndType(
+		service := NewReservationAdminServiceWithClinicHolidays(
 			NewReservationAdminRepository(db),
 			reservationRepo,
 			nil,
 			tx,
 			guard,
 			nil,
+			nil,
+			openDayHolidayFinder(),
 		)
 		return service.Create(ctx, fixture.clinicID, &CreateReservationAdminInput{
 			StartTime:         fixture.targetStart,

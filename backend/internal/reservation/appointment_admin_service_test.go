@@ -234,7 +234,7 @@ func TestReservationAdminService_Create(t *testing.T) {
 			}
 			repo := &mockReservationAdminRepository{}
 			tx := &mockTransactor{withTxErr: tt.txErr}
-			svc := NewReservationAdminServiceWithAvailabilityAndType(repo, resRepo, nil, tx, nil, nil)
+			svc := NewReservationAdminServiceWithClinicHolidays(repo, resRepo, nil, tx, nil, nil, nil, openDayHolidayFinder())
 			result, err := svc.Create(context.Background(), 1, tt.input)
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -265,8 +265,8 @@ func TestReservationAdminService_Create_RejectsDeceasedPet(t *testing.T) {
 			return nil
 		},
 	}
-	svc := NewReservationAdminServiceWithAvailabilityAndType(
-		&mockReservationAdminRepository{}, resRepo, nil, &mockTransactor{}, nil, nil,
+	svc := NewReservationAdminServiceWithClinicHolidays(
+		&mockReservationAdminRepository{}, resRepo, nil, &mockTransactor{}, nil, nil, nil, openDayHolidayFinder(),
 	)
 	result, err := svc.Create(context.Background(), 1, &CreateReservationAdminInput{
 		StartTime:         start,
@@ -309,13 +309,15 @@ func TestReservationAdminService_Create_RejectsFullReservationTypeCapacity(t *te
 			return &model.ReservationType{ID: id, ClinicID: clinicID, MaxConcurrent: &maxConcurrent}, nil
 		},
 	}
-	svc := NewReservationAdminServiceWithAvailabilityAndType(
+	svc := NewReservationAdminServiceWithClinicHolidays(
 		&mockReservationAdminRepository{},
 		resRepo,
 		typeRepo,
 		&mockTransactor{},
 		nil,
 		nil,
+		nil,
+		openDayHolidayFinder(),
 	)
 
 	result, err := svc.Create(context.Background(), 1, &CreateReservationAdminInput{
@@ -352,7 +354,7 @@ func TestReservationAdminService_Create_RejectsExcludedStaff(t *testing.T) {
 			return false, nil
 		},
 	}
-	svc := NewReservationAdminServiceWithAvailabilityAndType(&mockReservationAdminRepository{}, resRepo, nil, &mockTransactor{}, staffRepo, nil)
+	svc := NewReservationAdminServiceWithClinicHolidays(&mockReservationAdminRepository{}, resRepo, nil, &mockTransactor{}, staffRepo, nil, nil, openDayHolidayFinder())
 
 	result, err := svc.Create(context.Background(), 1, &CreateReservationAdminInput{
 		StartTime:         now,
@@ -391,7 +393,7 @@ func TestReservationAdminService_Create_RejectsUnavailableTime(t *testing.T) {
 			}, nil
 		},
 	}
-	svc := NewReservationAdminServiceWithAvailabilityAndType(&mockReservationAdminRepository{}, resRepo, nil, &mockTransactor{}, nil, unavailableRepo)
+	svc := NewReservationAdminServiceWithClinicHolidays(&mockReservationAdminRepository{}, resRepo, nil, &mockTransactor{}, nil, unavailableRepo, nil, openDayHolidayFinder())
 
 	result, err := svc.Create(context.Background(), 1, &CreateReservationAdminInput{
 		StartTime:         start,
@@ -402,6 +404,50 @@ func TestReservationAdminService_Create_RejectsUnavailableTime(t *testing.T) {
 	assert.Error(t, err)
 	assert.Nil(t, result)
 	assert.True(t, apperrors.IsInvalidInput(err), "expected ErrInvalidInput but got: %v", err)
+}
+
+func TestReservationAdminService_Create_RejectsClinicHoliday(t *testing.T) {
+	start := time.Date(2026, 6, 2, 10, 0, 0, 0, config.JST)
+	createCalled := false
+	resRepo := &mockReservationRepository{
+		countOnDutyDoctorsFn: func(_ context.Context, _ uint64, _ time.Time) (int64, error) {
+			return 1, nil
+		},
+		createFn: func(_ context.Context, _ *model.Reservation) error {
+			createCalled = true
+			return nil
+		},
+	}
+	holidayFinder := &mockClinicHolidayFinder{
+		findByDateFn: func(_ context.Context, clinicID uint64, date time.Time) (*model.ClinicHoliday, error) {
+			assert.Equal(t, uint64(1), clinicID)
+			assert.Equal(t, "2026-06-02", date.In(config.JST).Format(time.DateOnly))
+			return &model.ClinicHoliday{ID: 1, ClinicID: clinicID, Date: date, Reason: "臨時休診"}, nil
+		},
+	}
+	svc := NewReservationAdminServiceWithMedicalRecord(
+		&mockReservationAdminRepository{},
+		resRepo,
+		nil,
+		&mockTransactor{},
+		nil,
+		nil,
+		nil,
+		nil,
+		holidayFinder,
+	)
+
+	result, err := svc.Create(context.Background(), 1, &CreateReservationAdminInput{
+		StartTime:         start,
+		EndTime:           start.Add(30 * time.Minute),
+		ReservationTypeID: 5,
+	})
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.True(t, apperrors.IsInvalidInput(err), "expected invalid input but got: %v", err)
+	assert.Contains(t, err.Error(), "休診日")
+	assert.False(t, createCalled, "clinic holiday must not persist an admin reservation")
 }
 
 func TestReservationAdminService_Delete(t *testing.T) {
@@ -475,7 +521,7 @@ func TestReservationAdminService_Delete_CleansUpDraftMedicalRecord(t *testing.T)
 			softDeleteFn: func(_ context.Context, _, _ uint64) error { return nil },
 		}
 		svc := NewReservationAdminServiceWithMedicalRecord(
-			repo, resRepo, nil, &mockTransactor{}, nil, nil, nil, medicalRecord,
+			repo, resRepo, nil, &mockTransactor{}, nil, nil, nil, medicalRecord, nil,
 		)
 
 		err := svc.Delete(context.Background(), clinicID, reservationID)
@@ -502,7 +548,7 @@ func TestReservationAdminService_Delete_CleansUpDraftMedicalRecord(t *testing.T)
 			},
 		}
 		svc := NewReservationAdminServiceWithMedicalRecord(
-			repo, resRepo, nil, &mockTransactor{}, nil, nil, nil, medicalRecord,
+			repo, resRepo, nil, &mockTransactor{}, nil, nil, nil, medicalRecord, nil,
 		)
 
 		err := svc.Delete(context.Background(), clinicID, reservationID)

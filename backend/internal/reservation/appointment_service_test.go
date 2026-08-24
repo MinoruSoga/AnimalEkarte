@@ -930,6 +930,10 @@ func (m *mockClinicHolidayFinder) FindByDate(ctx context.Context, clinicID uint6
 	return nil, apperrors.WrapNotFound("clinic_holiday", date.Format(time.DateOnly))
 }
 
+func openDayHolidayFinder() *mockClinicHolidayFinder {
+	return &mockClinicHolidayFinder{}
+}
+
 func TestReservationService_Create_RejectsClinicHolidayWhenConstraintsApply(t *testing.T) {
 	start := time.Date(2026, 6, 2, 10, 0, 0, 0, config.JST)
 	createCalled := false
@@ -1338,7 +1342,7 @@ func TestReservationService_Update_RejectsFullReservationTypeCapacity(t *testing
 			return &model.ReservationType{ID: id, ClinicID: clinicID, MaxConcurrent: &maxConcurrent}, nil
 		},
 	}
-	svc := NewReservationServiceWithAvailabilityAndType(repo, typeRepo, &mockTransactor{}, nil, nil)
+	svc := NewReservationServiceWithClinicHolidays(repo, typeRepo, &mockTransactor{}, nil, nil, nil, nil, openDayHolidayFinder())
 	nextEnd := nextStart.Add(30 * time.Minute)
 
 	result, err := svc.Update(context.Background(), 1, 1, &UpdateReservationInput{StartTime: &nextStart, EndTime: &nextEnd})
@@ -1410,6 +1414,107 @@ func TestReservationService_Update_SkipsConflictCheckWhenScheduleUnchanged(t *te
 	assert.True(t, updateCalled)
 }
 
+func TestReservationService_Update_RejectsClinicHolidayWhenStartMovesOntoHoliday(t *testing.T) {
+	currentStart := time.Date(2026, 6, 1, 10, 0, 0, 0, config.JST)
+	holidayStart := time.Date(2026, 6, 2, 10, 0, 0, 0, config.JST)
+	holidayEnd := holidayStart.Add(30 * time.Minute)
+	updateCalled := false
+	current := func(clinicID, id uint64) *model.Reservation {
+		return &model.Reservation{
+			ID:                id,
+			ClinicID:          clinicID,
+			ReservationTypeID: 9,
+			StartTime:         currentStart,
+			EndTime:           currentStart.Add(30 * time.Minute),
+			Status:            model.ReservationStatusPending,
+		}
+	}
+	repo := &mockReservationRepository{
+		findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Reservation, error) {
+			return current(clinicID, id), nil
+		},
+		lockAndFindByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Reservation, error) {
+			return current(clinicID, id), nil
+		},
+		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Reservation, error) {
+			updateCalled = true
+			return &model.Reservation{}, nil
+		},
+	}
+	holidayFinder := &mockClinicHolidayFinder{
+		findByDateFn: func(_ context.Context, clinicID uint64, date time.Time) (*model.ClinicHoliday, error) {
+			assert.Equal(t, uint64(1), clinicID)
+			assert.Equal(t, "2026-06-02", date.In(config.JST).Format(time.DateOnly))
+			return &model.ClinicHoliday{ID: 1, ClinicID: clinicID, Date: date, Reason: "臨時休診"}, nil
+		},
+	}
+	svc := NewReservationServiceWithClinicHolidays(repo, nil, &mockTransactor{}, nil, nil, nil, &mockLineReservationSettingFinder{}, holidayFinder)
+
+	result, err := svc.Update(context.Background(), 1, 1, &UpdateReservationInput{
+		StartTime: &holidayStart,
+		EndTime:   &holidayEnd,
+	})
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.True(t, apperrors.IsInvalidInput(err), "expected invalid input but got: %v", err)
+	assert.Contains(t, err.Error(), "休診日")
+	assert.False(t, updateCalled)
+}
+
+func TestReservationService_Update_DoesNotCallClinicHolidayFinderWhenScheduleUnchanged(t *testing.T) {
+	start := time.Date(2026, 6, 1, 10, 0, 0, 0, config.JST)
+	end := start.Add(30 * time.Minute)
+	doctorID := uint64(7)
+	typeID := uint64(9)
+	notes := "メモのみ変更"
+	current := func(clinicID, id uint64) *model.Reservation {
+		return &model.Reservation{
+			ID:                id,
+			ClinicID:          clinicID,
+			ReservationTypeID: typeID,
+			DoctorID:          &doctorID,
+			StartTime:         start,
+			EndTime:           end,
+			Status:            model.ReservationStatusPending,
+		}
+	}
+	updateCalled := false
+	repo := &mockReservationRepository{
+		findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Reservation, error) {
+			return current(clinicID, id), nil
+		},
+		lockAndFindByIDFn: func(_ context.Context, _, _ uint64) (*model.Reservation, error) {
+			t.Fatal("unchanged schedule must not lock for holiday check")
+			return nil, nil
+		},
+		updateFieldsFn: func(_ context.Context, _, _ uint64, fields map[string]any) (*model.Reservation, error) {
+			updateCalled = true
+			assert.Equal(t, notes, fields["notes"])
+			return &model.Reservation{ID: 1, ClinicID: 1, Notes: notes}, nil
+		},
+	}
+	holidayFinder := &mockClinicHolidayFinder{
+		findByDateFn: func(_ context.Context, _ uint64, _ time.Time) (*model.ClinicHoliday, error) {
+			t.Fatal("unchanged schedule must not load clinic_holidays")
+			return nil, nil
+		},
+	}
+	svc := NewReservationServiceWithClinicHolidays(repo, nil, &mockTransactor{}, nil, nil, nil, &mockLineReservationSettingFinder{}, holidayFinder)
+
+	result, err := svc.Update(context.Background(), 1, 1, &UpdateReservationInput{
+		StartTime:         &start,
+		EndTime:           &end,
+		DoctorID:          &doctorID,
+		ReservationTypeID: &typeID,
+		Notes:             &notes,
+	})
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.True(t, updateCalled)
+}
+
 func TestReservationService_Update_ConflictChecksWhenStartChanges(t *testing.T) {
 	start := time.Date(2026, 6, 1, 10, 0, 0, 0, config.JST)
 	end := start.Add(30 * time.Minute)
@@ -1446,7 +1551,7 @@ func TestReservationService_Update_ConflictChecksWhenStartChanges(t *testing.T) 
 			return &model.Reservation{ID: id, ClinicID: 1, StartTime: nextStart, EndTime: nextEnd}, nil
 		},
 	}
-	svc := NewReservationServiceWithAvailabilityAndType(repo, nil, &mockTransactor{}, nil, nil)
+	svc := NewReservationServiceWithClinicHolidays(repo, nil, &mockTransactor{}, nil, nil, nil, nil, openDayHolidayFinder())
 
 	result, err := svc.Update(context.Background(), 1, 1, &UpdateReservationInput{
 		StartTime: &nextStart,

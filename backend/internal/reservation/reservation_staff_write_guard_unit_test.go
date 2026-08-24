@@ -250,12 +250,15 @@ func TestReservationWrites_RunStaffGuardInsideWriteTransaction(t *testing.T) {
 				tx Transactor,
 				guard *recordingReservationStaffWriteGuard,
 			) error {
-				svc := NewReservationServiceWithAvailabilityAndType(
+				svc := NewReservationServiceWithClinicHolidays(
 					repo,
 					nil,
 					tx,
 					guard,
 					nil,
+					nil,
+					nil,
+					openDayHolidayFinder(),
 				)
 				_, err := svc.Update(
 					context.Background(),
@@ -286,13 +289,15 @@ func TestReservationWrites_RunStaffGuardInsideWriteTransaction(t *testing.T) {
 				tx Transactor,
 				guard *recordingReservationStaffWriteGuard,
 			) error {
-				svc := NewReservationAdminServiceWithAvailabilityAndType(
+				svc := NewReservationAdminServiceWithClinicHolidays(
 					&mockReservationAdminRepository{},
 					repo,
 					nil,
 					tx,
 					guard,
 					nil,
+					nil,
+					openDayHolidayFinder(),
 				)
 				_, err := svc.Create(context.Background(), clinicID, &CreateReservationAdminInput{
 					StartTime:         start,

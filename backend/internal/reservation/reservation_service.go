@@ -135,7 +135,9 @@ func NewReservationServiceWithAvailabilityAndType(repo ReservationRepository, ty
 
 // NewReservationServiceWithLineSettings is the backward-compatible constructor
 // that also injects LINE reservation settings for closed-day checks on constrained Create.
-// holidayFinder is omitted (nil) so existing 7-arg callers skip clinic_holidays.
+// holidayFinder is omitted (nil). Constrained Create/Update then fail closed with
+// "clinic holiday lookup is required"; they do not skip clinic_holidays.
+// Production composition must use NewReservationServiceWithClinicHolidays.
 func NewReservationServiceWithLineSettings(
 	repo ReservationRepository,
 	typeRepo reservationTypeFinder,
@@ -372,13 +374,13 @@ func (s *reservationService) validateCreateClosedDays(ctx context.Context, clini
 	return validateClosedDays(settings, startTime)
 }
 
-func (s *reservationService) validateCreateClinicHoliday(ctx context.Context, clinicID uint64, startTime time.Time) error {
-	if s.holidayFinder == nil {
+func validateClinicHoliday(ctx context.Context, finder clinicHolidayFinder, clinicID uint64, startTime time.Time) error {
+	if finder == nil {
 		return apperrors.WrapInternalServerError("clinic holiday lookup is required")
 	}
 	dateJST := startTime.In(config.JST)
 	dateStart := time.Date(dateJST.Year(), dateJST.Month(), dateJST.Day(), 0, 0, 0, 0, config.JST)
-	holiday, err := s.holidayFinder.FindByDate(ctx, clinicID, dateStart)
+	holiday, err := finder.FindByDate(ctx, clinicID, dateStart)
 	if err != nil {
 		if apperrors.IsNotFound(err) {
 			return nil
@@ -389,6 +391,10 @@ func (s *reservationService) validateCreateClinicHoliday(ctx context.Context, cl
 		return apperrors.WrapInvalidInput("指定日は休診日のため予約できません")
 	}
 	return nil
+}
+
+func (s *reservationService) validateCreateClinicHoliday(ctx context.Context, clinicID uint64, startTime time.Time) error {
+	return validateClinicHoliday(ctx, s.holidayFinder, clinicID, startTime)
 }
 
 func ShouldEnforceReservationBookingConstraints(status model.ReservationStatus, route *string) bool {
@@ -658,6 +664,14 @@ func (s *reservationService) updateWithConflictCheck(ctx context.Context, clinic
 
 		if input.StartTime != nil || input.EndTime != nil {
 			if err := validateTimeRange(resolvedStart, resolvedEnd); err != nil {
+				return err
+			}
+		}
+
+		startOrEndChanged := !resolvedStart.Equal(current.StartTime) || !resolvedEnd.Equal(current.EndTime)
+		if startOrEndChanged &&
+			ShouldEnforceReservationBookingConstraints(current.Status, current.ReservationRoute) {
+			if err := validateClinicHoliday(ctx, s.holidayFinder, clinicID, resolvedStart); err != nil {
 				return err
 			}
 		}
