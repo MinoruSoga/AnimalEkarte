@@ -35,9 +35,14 @@ COMBO_VACCINE_REMARK_RE = re.compile(r"\d+種混合|混合ワクチン")
 # exam_type_field semantic category -> substrings the owning exam_type name must
 # contain. Blood markers are matched first because "BUN（尿素窒素）" contains "尿"
 # yet is a blood biochemistry field, not a urine field.
+# "GLU" is deliberately excluded: unlike BUN, GLU is genuinely ambiguous between
+# "GLU（血糖値）" (blood glucose) and "GLU（尿糖）" (urine glucose/sugar, a standard
+# urinalysis dipstick parameter) — both exist in seed data. Blood glucose fields
+# still classify correctly via the "血糖" JP token below; urine glucose falls
+# through to the generic "尿" substring check.
 EXAM_FIELD_BLOOD_TOKENS = (
     "WBC", "RBC", "HGB", "HCT", "PLT", "MCV", "MCH",
-    "ALT", "AST", "GPT", "GOT", "ALP", "GGT", "BUN", "CRE", "GLU", "TBIL",
+    "ALT", "AST", "GPT", "GOT", "ALP", "GGT", "BUN", "CRE", "TBIL",
 )
 EXAM_FIELD_BLOOD_TOKENS_JP = (
     "白血球", "赤血球", "ヘマトクリット", "血小板", "クレアチニン", "尿素窒素", "血糖", "血球",
