@@ -41,7 +41,7 @@ docker compose exec db psql ...  # 直接 SQL 実行
 
 ## seed データは CSV が正、SQL は DDL のみ（2026-07 stub 削除 + 001 完全統合）
 
-`backend/migrations/` 直下の `.sql` は DDL 専用。2026-07-27 に当時の incremental 002–009 を原文のまま `001_init.sql` 末尾へ統合し、同日夕に追加分の incremental 002–004（`002_pets_owners_clinic_composite_unique` / `003_add_pet_owners` / `004_add_exam_result_qualitative_bounds`）も同じ方式で統合して、直下 DDL を単一ファイルへ戻した。2026-07-29 にさらに incremental 002–007（`pets.version` / exam_results index / inventory quantity CHECK / payments.clinic_id+clinic軸複合FK / payment method system_key 一致トリガー / owners phone 部分 unique）をセクション9へ同様式で統合した。2026-07-31 に append-only だった incremental 002–006（LSTEP day unique / closing EXCLUDE / identity links / LINE bot user id / medical-record image upload quota）をセクション10へ同様式で統合し、直下 DDL を再び `001_init.sql` 単一ファイルへ戻した。2026-08-19 に未適用 incremental `003_add_estimates_pet_id` / `004_lab_device_item_masters` / `005_lab_import_source_type_device` / `006_lab_device_receive` をセクション13へ統合し、`002_ensure_pet_owners.sql` だけ残した。2026-08-20 に残存 incremental `002_ensure_pet_owners.sql`（内容が 001_init と完全重複のためテキスト省略）/ `003_drop_lab_device_item_display_name.sql`（セクション13 CREATE TABLE から display_name を除去することで表現）/ `004_lab_devices.sql` / `005_fix_lab_device_station_slots.sql` / `006_billing_item_exam_provenance.sql` をセクション14へ統合し、直下 DDL を `001_init.sql` 単一ファイルへ戻した。今後スキーマ変更を追加する場合も、適用済みファイルの checksum を変える影響を先に評価する。
+`backend/migrations/` 直下の `.sql` は DDL 専用。過去の incremental DDL は複数回に分けて原文のまま `001_init.sql` 末尾の統合セクションへ統合済み（各回の内訳・元コミット・SHA-256 は `001_init.sql` の統合セクションと git 履歴が正）。今後スキーマ変更を追加する場合も、適用済みファイルの checksum を変える影響を先に評価する。
 
 直下 DDL の顔ぶれ・本数は固定ではない（増分の追加・`001_init.sql` への統合で変わる）。正の在庫は次の実測とする:
 
@@ -50,8 +50,6 @@ ls backend/migrations/*.sql
 ```
 
 seed 側の構成は `seeds/{002_master,003_demo,004_staging}/` — CSV シードバンドル（`*.csv` + `manifest.json`。SQL ファイルではない。`internal/seedbundle.BundleOrder` 固定順）。`001_init.sql` に取り込まれた旧増分の本文は、末尾の統合セクション（セクション8・9・10 等）に原文・元コミット・SHA-256 付きで残る。
-
-旧 002/003/004 の seed stub SQL、旧インデックス増分（`002_add_checkup_vaccination_indexes.sql` 等）、旧 005–012、2026-07-17 朝に一時的に存在した upgrade path incremental（`002_checkup_field_clinic_composite_fk.sql` / `003`–`011`）、2026-07-22〜27に追加された旧 incremental 002–009、2026-07-27 夕に統合した `002_pets_owners_clinic_composite_unique.sql` / `003_add_pet_owners.sql` / `004_add_exam_result_qualitative_bounds.sql`、2026-07-29に統合した `002_add_pets_version.sql`〜`007_owners_clinic_phone_unique.sql`、および2026-07-31に統合した `002_lstep_delivery_trigger_log_daily_unique.sql`〜`006_medical_record_image_upload_quota.sql`、2026-08-19に統合した `003_add_estimates_pet_id.sql`〜`006_lab_device_receive.sql`（`002_ensure_pet_owners.sql` は残留）、2026-08-20に統合した `002_ensure_pet_owners.sql`〜`006_billing_item_exam_provenance.sql` は全て独立ファイルとしては削除済み（統合当時の事実）。それら統合済み本文の所在は `001_init.sql` の統合セクション。**直下の現行増分の在庫は `ls backend/migrations/*.sql` を正とする**（本節にファイル名・本数を列挙しない）。
 
 **統合前DBのno-resetアップグレード経路は存在しない**: 旧 `001_init.sql` が `schema_migrations` に記録済みの既存 DB（ローカル/STG/PROD）は、001 統合による checksum 変更で migrate が fail する。適用経路は `DB_RESET=true` のスキーマ再構築（USER手動）のみ。ローカルは `LOCAL_DB_RESET.md`、STGは明示承認後の再構築計画に従う。現行Cloudflare workflowに自動reset経路はない。
 
