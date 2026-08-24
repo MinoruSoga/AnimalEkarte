@@ -108,7 +108,7 @@ Win7 `mdcon*.cmd` と 2026-08-18/19 の Mac 受信で confirmed。COM4 は触ら
 - 長フレーム（約 2 KB）に血球ラベルと単位（`WBC` `RBC` `HCT` `HGB` `PLT` `NEU` `LYM` `MONO` `EOS` `BASO` `RETIC`、単位 `K/uL` `g/dL` `fL` 等）
 - 同じ長フレームがストリーム開放まで繰り返す。指紋で 1 測定にする
 - 規格名はまだ付けない
-- Mac 受信専用および単独 ACK では PIMS オフラインのまま。Drワンは I→ACK+A+IM、s→ACK+A+SM。Source/Port のワイヤ値は未固定。組み立ては `lab_device_idexx_pims.go`（シリアルには繋がない）
+- Mac 受信専用および単独 ACK では PIMS オフラインのまま。Drワンは I→ACK+A+IM、s→ACK+A+SM。Source/Port 候補は城東 `mdcon4.cmd` の `2`/`2`（`CByte` → `0x02`）。組み立ては `lab_device_idexx_pims.go`（シリアルには繋がない。本番 VetLab へは送らない）
 
 ### Drワン内部との関係（読まない）
 
@@ -123,7 +123,7 @@ Win7 の `Drimke.tbl` は機器ラベル → 内部コード（`IRBC`→910、`I
 | --- | --- |
 | 別 `source_type`（`idexx_vetlab`） | 既定3スロットに IDEXX フレームを足す |
 | 短 I/s は測定にしない。長フレームは 1 指紋 | 復元途中の IM/SM を本番 VetLab へ送る |
-| I に ACK+A+IM、s に ACK+A+SM（Source/Port 固定後） | 単独 ACK だけで常時接続したことにする |
+| I に ACK+A+IM、s に ACK+A+SM（組み立ては `0x02`。シリアル未接続） | 単独 ACK だけで常時接続したことにする。復元電文を本番 VetLab へ送る |
 | ラベル＋`value_raw`＋単位 | 910 などの内部コードを persist。本体へ ASTM / `nc` |
 | 保存 raw または Drワン確立直後の再生でデコード | 患者検体を常時接続試験に使う |
 
