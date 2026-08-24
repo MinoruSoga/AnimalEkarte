@@ -32,8 +32,9 @@ func isIDEXXUnit(s string) bool {
 //   - Short frames (body ≤ idexxShortFrameBodyMaxBytes) are status pings → discard
 //   - Long frames (~2 KB) contain blood-count labels with values and units
 //   - The same long frame repeats until the port is released → deduplicate by fingerprint
-//   - Session replies (ACK/A/IM/SM) are built in lab_device_idexx_pims.go but not
-//     written to the serial port until Source/Port are confirmed
+//   - Session replies (ACK/A/IM/SM) are built in lab_device_idexx_pims.go.
+//     lab-device-agent writes them only with --pims-reply (USB loop). Do not
+//     enable on a hospital VetLab cable.
 //   - No ASTM/HL7 protocol is assumed
 func decodeIDEXXFrames(payload []byte) ([]LabDeviceFrame, error) {
 	// Reuse STX/ETX splitter from lab_device_fuji.go

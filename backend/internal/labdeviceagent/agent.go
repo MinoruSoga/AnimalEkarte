@@ -18,6 +18,10 @@ const (
 
 type GlobFunc func(pattern string) ([]string, error)
 type OpenFunc func(ctx context.Context, path string) (io.ReadCloser, error)
+// PIMSReplyFunc consumes a carry+chunk buffer and returns session replies plus
+// the number of prefix bytes that were parsed (complete frames). The tail stays
+// in the caller for the next USB read.
+type PIMSReplyFunc func(buf []byte) (replies [][]byte, consumed int)
 
 type FrameBuffer struct {
 	chunks   [][]byte
@@ -76,6 +80,7 @@ type Agent struct {
 	glob         GlobFunc
 	open         OpenFunc
 	allowedPorts map[string]struct{}
+	pimsReply    PIMSReplyFunc
 }
 
 func NewAgent(queue *Queue, status *Status, allowedPorts []string) *Agent {
@@ -91,6 +96,18 @@ func NewAgent(queue *Queue, status *Status, allowedPorts []string) *Agent {
 		open:         openSerial,
 		allowedPorts: allowed,
 	}
+}
+
+// EnablePIMSReply writes ACK+A+IM/SM on the same usbserial when the callback
+// returns session replies. Default is off. Do not enable on a hospital VetLab cable.
+func (a *Agent) EnablePIMSReply(fn PIMSReplyFunc) {
+	a.pimsReply = fn
+}
+
+// UseReadWriteSerial opens allowlisted cu.usbserial ports O_RDWR so PIMS replies
+// can be written. Call only together with EnablePIMSReply.
+func (a *Agent) UseReadWriteSerial() {
+	a.open = openSerialRDWR
 }
 
 func (a *Agent) Run(ctx context.Context) {
@@ -146,7 +163,9 @@ func (a *Agent) Run(ctx context.Context) {
 }
 
 func (a *Agent) monitorPort(ctx context.Context, path string) {
-	reader, err := a.open(ctx, path)
+	portCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	reader, err := a.open(portCtx, path)
 	if err != nil {
 		if ctx.Err() == nil {
 			a.status.AddOpenError()
@@ -168,13 +187,19 @@ func (a *Agent) monitorPort(ctx context.Context, path string) {
 	go func() {
 		defer close(closerDone)
 		select {
-		case <-ctx.Done():
+		case <-portCtx.Done():
 			closeReader()
 		case <-stopCloser:
 		}
 	}()
-	reads, readDone := pumpPortReads(ctx, reader)
-	a.collectPortFrames(ctx, reads)
+	reads, readDone := pumpPortReads(portCtx, reader)
+	var writer io.Writer
+	if a.pimsReply != nil {
+		if w, ok := reader.(io.Writer); ok {
+			writer = w
+		}
+	}
+	a.collectPortFrames(portCtx, cancel, reads, writer)
 	close(stopCloser)
 	closeReader()
 	<-closerDone
@@ -208,8 +233,9 @@ func pumpPortReads(ctx context.Context, reader io.Reader) (<-chan portReadResult
 	return reads, done
 }
 
-func (a *Agent) collectPortFrames(ctx context.Context, reads <-chan portReadResult) {
+func (a *Agent) collectPortFrames(ctx context.Context, cancel context.CancelFunc, reads <-chan portReadResult, writer io.Writer) {
 	frames := &FrameBuffer{}
+	var pimsBuf []byte
 	var idle *time.Timer
 	var idleChannel <-chan time.Time
 	stopIdle := func() {
@@ -240,6 +266,24 @@ func (a *Agent) collectPortFrames(ctx context.Context, reads <-chan portReadResu
 				if !frames.Push(result.bytes) {
 					if !wasOverflow {
 						a.status.AddInputOverflow()
+					}
+				}
+				if a.pimsReply != nil && writer != nil {
+					pimsBuf = append(pimsBuf, result.bytes...)
+					replies, consumed := a.pimsReply(pimsBuf)
+					if consumed > 0 {
+						pimsBuf = append([]byte(nil), pimsBuf[consumed:]...)
+					}
+					for _, reply := range replies {
+						if len(reply) == 0 {
+							continue
+						}
+						if _, writeErr := writer.Write(reply); writeErr != nil {
+							a.status.AddOpenError()
+							cancel()
+							enqueueBuffered()
+							return
+						}
 					}
 				}
 				stopIdle()

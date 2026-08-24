@@ -100,6 +100,52 @@ func TestFrameBufferFailsClosedAboveBackendLimit(t *testing.T) {
 	require.Equal(t, []byte{0x02, 0x03}, buffer.Take())
 }
 
+type rwPort struct {
+	*bytes.Reader
+	writes bytes.Buffer
+	closed atomic.Bool
+}
+
+func (p *rwPort) Write(b []byte) (int, error) {
+	return p.writes.Write(b)
+}
+
+func (p *rwPort) Close() error {
+	p.closed.Store(true)
+	return nil
+}
+
+func TestMonitorPortDoesNotWriteWithoutPIMSReply(t *testing.T) {
+	inquiry := []byte{0x02, 0x31, 0x30, 0x80, 0x81, 0x73, 0xf3, 0x03}
+	port := &rwPort{Reader: bytes.NewReader(inquiry)}
+	agent := &Agent{
+		queue:        NewQueue(2),
+		status:       &Status{},
+		allowedPorts: map[string]struct{}{"/dev/cu.usbserial-test": {}},
+		open:         func(context.Context, string) (io.ReadCloser, error) { return port, nil },
+	}
+	agent.monitorPort(context.Background(), "/dev/cu.usbserial-test")
+	require.Equal(t, 0, port.writes.Len())
+}
+
+func TestMonitorPortWritesPIMSRepliesWhenEnabled(t *testing.T) {
+	inquiry := []byte{0x02, 0x31, 0x30, 0x80, 0x81, 0x73, 0xf3, 0x03}
+	want := [][]byte{{0x06}, {0x41}, {0x53}}
+	port := &rwPort{Reader: bytes.NewReader(inquiry)}
+	agent := &Agent{
+		queue:        NewQueue(2),
+		status:       &Status{},
+		allowedPorts: map[string]struct{}{"/dev/cu.usbserial-test": {}},
+		open:         func(context.Context, string) (io.ReadCloser, error) { return port, nil },
+	}
+	agent.EnablePIMSReply(func(buf []byte) ([][]byte, int) {
+		require.Equal(t, inquiry, buf)
+		return want, len(buf)
+	})
+	agent.monitorPort(context.Background(), "/dev/cu.usbserial-test")
+	require.Equal(t, append(append([]byte{0x06}, 0x41), 0x53), port.writes.Bytes())
+}
+
 func TestMonitorPortQueuesRawFrameAndClosesReader(t *testing.T) {
 	queue := NewQueue(2)
 	status := &Status{}

@@ -11,3 +11,7 @@ import (
 func openSerial(context.Context, string) (io.ReadCloser, error) {
 	return nil, errors.New("lab device agent requires macOS")
 }
+
+func openSerialRDWR(context.Context, string) (io.ReadCloser, error) {
+	return nil, errors.New("lab device agent requires macOS")
+}
