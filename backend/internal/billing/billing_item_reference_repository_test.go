@@ -497,6 +497,12 @@ func TestBillingItemRepository_ValidateCreateReferences(t *testing.T) {
 
 		_, err = f.validate(t, nil, nil, &f.trimmingAppointment.ID, nil, &f.option.ID)
 		require.NoError(t, err)
+
+		_, err = f.validate(t, nil, &f.treatment.ID, &f.examAppointment.ID, nil, nil)
+		require.NoError(t, err)
+
+		_, err = f.validate(t, nil, &f.treatment.ID, nil, nil, nil)
+		require.NoError(t, err)
 	})
 
 	t.Run("S11 split appointments: treatment from exam MR with trimming appointment B remains InvalidInput", func(t *testing.T) {
@@ -507,6 +513,14 @@ func TestBillingItemRepository_ValidateCreateReferences(t *testing.T) {
 		require.Error(t, err)
 		assert.True(t, apperrors.IsInvalidInput(err), "treatment must stay bound to the exam appointment: %v", err)
 		assert.Contains(t, err.Error(), "参照先の組み合わせが正しくありません")
+
+		_, err = f.validate(t, nil, nil, &f.trimmingAppointment.ID, nil, nil)
+		require.Error(t, err)
+		assert.True(t, apperrors.IsInvalidInput(err), "appointment-only trimming id without course/option must still match medical_record appointment: %v", err)
+
+		_, err = f.validate(t, nil, &f.treatment.ID, &f.trimmingAppointment.ID, &f.course.ID, nil)
+		require.Error(t, err)
+		assert.True(t, apperrors.IsInvalidInput(err), "treatment plus trimming provenance must not skip medical_record appointment equality: %v", err)
 	})
 }
 

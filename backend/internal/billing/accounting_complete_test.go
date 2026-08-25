@@ -876,9 +876,21 @@ func TestAccountingService_CompleteAccounting_MixedMedicalRecordAndTrimming_Spli
 	require.NotNil(t, result.Accounting.MedicalRecordID)
 	assert.Equal(t, f.medicalRecord.ID, *result.Accounting.MedicalRecordID)
 
-	var itemCount int64
-	require.NoError(t, f.db.Model(&model.BillingItem{}).Where("billing_id = ?", result.Accounting.ID).Count(&itemCount).Error)
-	assert.EqualValues(t, 3, itemCount)
+	var items []model.BillingItem
+	require.NoError(t, f.db.Where("billing_id = ?", result.Accounting.ID).Order("id ASC").Find(&items).Error)
+	require.Len(t, items, 3)
+	require.NotNil(t, items[0].TreatmentID)
+	assert.Equal(t, f.treatment.ID, *items[0].TreatmentID)
+	require.NotNil(t, items[0].AppointmentID)
+	assert.Equal(t, f.examAppointment.ID, *items[0].AppointmentID)
+	require.NotNil(t, items[1].TrimmingCourseID)
+	assert.Equal(t, f.course.ID, *items[1].TrimmingCourseID)
+	require.NotNil(t, items[1].AppointmentID)
+	assert.Equal(t, f.trimmingAppointment.ID, *items[1].AppointmentID)
+	require.NotNil(t, items[2].TrimmingOptionID)
+	assert.Equal(t, f.option.ID, *items[2].TrimmingOptionID)
+	require.NotNil(t, items[2].AppointmentID)
+	assert.Equal(t, f.trimmingAppointment.ID, *items[2].AppointmentID)
 }
 
 type countingFailItemWriter struct {

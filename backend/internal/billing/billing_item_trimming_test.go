@@ -92,7 +92,7 @@ func setAppointmentTime(t *testing.T, db *gorm.DB, appt *model.Reservation, star
 	require.NoError(t, db.WithContext(context.Background()).
 		Model(&model.Reservation{}).
 		Where("id = ?", appt.ID).
-		Updates(map[string]any{"start_time": start, "end_time": end}).Error)
+		Updates(model.Reservation{StartTime: start, EndTime: end}).Error)
 	appt.StartTime = start
 	appt.EndTime = end
 }
