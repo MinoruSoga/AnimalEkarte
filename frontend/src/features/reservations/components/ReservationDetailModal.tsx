@@ -93,6 +93,10 @@ export const ReservationDetailModal = memo(function ReservationDetailModal({
   const actionConfig = getActionConfig(reservation);
   const visitAccent = getVisitTypeColor(reservation.visitType);
   const currentStatus = getReservationStatusColor(reservation.status);
+  const typeColor = getColor(reservation.type);
+  const typeLabel = typeColor.isInactive
+    ? `${getReservationTypeName(reservation.type)}（無効）`
+    : getReservationTypeName(reservation.type);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -107,7 +111,7 @@ export const ReservationDetailModal = memo(function ReservationDetailModal({
               {reservation.visitType === "first" ? "初診" : "再診"}
             </div>
             <DialogTitle className={`text-sm ${C.text}`}>
-              {getReservationTypeName(reservation.type)}
+              {typeLabel}
             </DialogTitle>
           </div>
           <DialogDescription className="sr-only">
@@ -217,9 +221,9 @@ export const ReservationDetailModal = memo(function ReservationDetailModal({
               <InfoRow label="予約区分">
                 <div className="flex items-center gap-1.5">
                   {/* BUG-323: Status Dot Icon Token 使用統一 */}
-                  <span className={`${ICON.dot} rounded-full shrink-0`} style={reservation ? getColor(reservation.type).dotStyle : undefined} />
+                  <span className={`${ICON.dot} rounded-full shrink-0`} style={typeColor.dotStyle} />
                   <Tag className={`${ICON.xs} ${C.text40}`} />
-                  {getReservationTypeName(reservation.type)}
+                  {typeLabel}
                 </div>
               </InfoRow>
             </div>

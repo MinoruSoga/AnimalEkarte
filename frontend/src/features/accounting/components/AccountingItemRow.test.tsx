@@ -96,4 +96,28 @@ describe("AccountingItemRow accessibility", () => {
     ).not.toBeInTheDocument();
     expect(screen.getByText("¥100")).toBeInTheDocument();
   });
+
+  it("項目名・区分バッジ・税額セルは折り返さず横スクロールさせる", () => {
+    renderRow(true, {
+      ...ITEM,
+      name: "R7QAコース",
+      category: "trimming",
+      source: "trimming",
+    });
+
+    const nameCell = screen.getByText("R7QAコース").closest("td");
+    expect(nameCell?.className).toContain("whitespace-nowrap");
+
+    const trimmingNodes = screen.getAllByText("トリミング");
+    expect(trimmingNodes.length).toBeGreaterThanOrEqual(2);
+
+    const badge = trimmingNodes.find((node) => node.className.includes("font-normal"));
+    expect(badge?.className).toContain("whitespace-nowrap");
+
+    const sourceTag = trimmingNodes.find((node) => node.className.includes("ml-2"));
+    expect(sourceTag?.closest("td")?.className).toContain("whitespace-nowrap");
+
+    const taxCell = screen.getByText("¥120").closest("td");
+    expect(taxCell?.className).toContain("whitespace-nowrap");
+  });
 });

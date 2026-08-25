@@ -86,6 +86,17 @@ func makeTrimmingAppointment(t *testing.T, db *gorm.DB, clinicID, petID, reserva
 	return res
 }
 
+func setAppointmentTime(t *testing.T, db *gorm.DB, appt *model.Reservation, start time.Time) {
+	t.Helper()
+	end := start.Add(60 * time.Minute)
+	require.NoError(t, db.WithContext(context.Background()).
+		Model(&model.Reservation{}).
+		Where("id = ?", appt.ID).
+		Updates(model.Reservation{StartTime: start, EndTime: end}).Error)
+	appt.StartTime = start
+	appt.EndTime = end
+}
+
 func attachTrimmingCourse(t *testing.T, db *gorm.DB, clinicID, appointmentID, courseID uint64) {
 	t.Helper()
 	d := &model.AppointmentTrimmingDetail{ClinicID: clinicID, AppointmentID: appointmentID, CourseID: &courseID}

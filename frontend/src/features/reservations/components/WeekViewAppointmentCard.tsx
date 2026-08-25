@@ -75,6 +75,11 @@ export const AppointmentCard = memo(function AppointmentCard({
   const colorStyle = getReservationTypeColor(appointment.type, dynamicColorMap);
   const isClassNameColor = typeof colorStyle === "string";
   const isFirstVisit = appointment.visitType === "first";
+  const typeName = getReservationTypeName(appointment.type);
+  const typeLabel =
+    dynamicColorMap?.get(appointment.type)?.isInactive === true
+      ? `${typeName}（無効）`
+      : typeName;
 
   const tooltipText = useMemo(
     () =>
@@ -83,11 +88,11 @@ export const AppointmentCard = memo(function AppointmentCard({
         appointment.petName,
         appointment.ownerName,
         appointment.doctor,
-        getReservationTypeName(appointment.type),
+        typeLabel,
       ]
         .filter(Boolean)
         .join(" / "),
-    [appointment],
+    [appointment, typeLabel],
   );
 
   return (
@@ -99,7 +104,7 @@ export const AppointmentCard = memo(function AppointmentCard({
         ${isDimmed ? "opacity-60" : "opacity-100"}
         ${isCancelled ? `line-through ${C.decorationDanger50}` : ""}
       `}
-      aria-label={`${format(appointment.start, DISPLAY_TIME_FORMAT)}〜${format(appointment.end, DISPLAY_TIME_FORMAT)} ${appointment.petName} ${appointment.ownerName} ${getReservationTypeName(appointment.type)}`}
+      aria-label={`${format(appointment.start, DISPLAY_TIME_FORMAT)}〜${format(appointment.end, DISPLAY_TIME_FORMAT)} ${appointment.petName} ${appointment.ownerName} ${typeLabel}`}
       title={tooltipText}
       style={{
         top: `${top}px`,

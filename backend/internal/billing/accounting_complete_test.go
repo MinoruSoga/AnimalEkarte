@@ -781,6 +781,118 @@ func TestAccountingService_CompleteAccounting_DBSuccess_ServerTotals(t *testing.
 	assert.EqualValues(t, 1, paymentCount, "replay must not duplicate payments")
 }
 
+func TestAccountingService_CompleteAccounting_MixedMedicalRecordAndTrimming_SplitAppointments(t *testing.T) {
+	f := setupSplitAppointmentReferenceFixture(t, false)
+	seedBillingClinicForFK(t, f.db, f.clinicID)
+
+	cashKey := "cash"
+	require.NoError(t, f.db.Create(&model.PaymentMethodMaster{ClinicID: f.clinicID, Name: "現金", SystemKey: &cashKey, IsActive: true}).Error)
+
+	accRepo := NewAccountingRepository(f.db)
+	itemRepo := NewBillingItemRepository(f.db)
+	tx := testNewTransactor(f.db)
+	itemSvc := NewBillingItemServiceWithCampaign(itemRepo, accRepo, nil, tx, nil, nil, nil, nil)
+	payMethodRepo := NewPaymentMethodMasterRepository(f.db)
+	resRepo := &mockReservationRepository{
+		findPetOwnerInClinicFn: func(_ context.Context, _, _ uint64) (uint64, error) {
+			return f.owner.ID, nil
+		},
+	}
+	mrRepo := &mockMedicalRecordRepository{
+		findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
+			if clinicID != f.clinicID || id != f.medicalRecord.ID {
+				return nil, apperrors.WrapNotFound("medical_record", fmt.Sprintf("%d", id))
+			}
+			return f.medicalRecord, nil
+		},
+	}
+	svc := NewAccountingService(
+		accRepo, mrRepo, nil, resRepo, nil,
+		tx, &mockAuditService{}, payMethodRepo,
+		WithCompleteItemWriter(itemSvc),
+		WithCompleteTotalsWriter(itemSvc),
+	)
+
+	ownerID, petID := f.owner.ID, f.pet.ID
+	examApptID := f.examAppointment.ID
+	trimmingApptID := f.trimmingAppointment.ID
+	treatmentID := f.treatment.ID
+	courseID := f.course.ID
+	optionID := f.option.ID
+	input := &CompleteAccountingInput{
+		ClinicID:       f.clinicID,
+		IdempotencyKey: uuid.NewString(),
+		OwnerID:        &ownerID,
+		PetID:          &petID,
+		ScheduledDate:  time.Date(2026, 6, 11, 0, 0, 0, 0, time.UTC),
+		Items: []CompleteAccountingItemInput{
+			{
+				Name:          "診察",
+				UnitPrice:     1000,
+				Quantity:      1,
+				Category:      string(model.ItemCategoryExamination),
+				Source:        string(model.ItemSourceMedicalRecord),
+				TaxType:       string(model.TaxTypeExcluded),
+				TaxRate:       0.1,
+				TreatmentID:   &treatmentID,
+				AppointmentID: &examApptID,
+			},
+			{
+				Name:             "s11 split course",
+				UnitPrice:        1000,
+				Quantity:         1,
+				Category:         string(model.ItemCategoryTrimming),
+				Source:           string(model.ItemSourceTrimming),
+				TaxType:          string(model.TaxTypeExcluded),
+				TaxRate:          0.1,
+				AppointmentID:    &trimmingApptID,
+				TrimmingCourseID: &courseID,
+			},
+			{
+				Name:             "s11 split option",
+				UnitPrice:        500,
+				Quantity:         1,
+				Category:         string(model.ItemCategoryTrimming),
+				Source:           string(model.ItemSourceTrimming),
+				TaxType:          string(model.TaxTypeExcluded),
+				TaxRate:          0.1,
+				AppointmentID:    &trimmingApptID,
+				TrimmingOptionID: &optionID,
+			},
+		},
+		PaymentSplits: []PaymentSplitInput{
+			{Method: model.PaymentMethodCash, Amount: 2750, ReceivedAmount: 3000, ChangeAmount: 250},
+		},
+	}
+
+	result, err := svc.Complete(context.Background(), input)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	assert.True(t, result.Created)
+	assert.Equal(t, model.BillingStatusCompleted, result.Accounting.Status)
+	assert.EqualValues(t, 2500, result.Accounting.Subtotal)
+	assert.EqualValues(t, 250, result.Accounting.TaxTotal)
+	assert.EqualValues(t, 2750, result.Accounting.TotalAmount)
+	require.NotNil(t, result.Accounting.MedicalRecordID)
+	assert.Equal(t, f.medicalRecord.ID, *result.Accounting.MedicalRecordID)
+
+	var items []model.BillingItem
+	require.NoError(t, f.db.Where("billing_id = ?", result.Accounting.ID).Order("id ASC").Find(&items).Error)
+	require.Len(t, items, 3)
+	require.NotNil(t, items[0].TreatmentID)
+	assert.Equal(t, f.treatment.ID, *items[0].TreatmentID)
+	require.NotNil(t, items[0].AppointmentID)
+	assert.Equal(t, f.examAppointment.ID, *items[0].AppointmentID)
+	require.NotNil(t, items[1].TrimmingCourseID)
+	assert.Equal(t, f.course.ID, *items[1].TrimmingCourseID)
+	require.NotNil(t, items[1].AppointmentID)
+	assert.Equal(t, f.trimmingAppointment.ID, *items[1].AppointmentID)
+	require.NotNil(t, items[2].TrimmingOptionID)
+	assert.Equal(t, f.option.ID, *items[2].TrimmingOptionID)
+	require.NotNil(t, items[2].AppointmentID)
+	assert.Equal(t, f.trimmingAppointment.ID, *items[2].AppointmentID)
+}
+
 type countingFailItemWriter struct {
 	inner  completeItemWriter
 	calls  int

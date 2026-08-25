@@ -36,6 +36,7 @@ export interface ReservationTypeColor {
   style: React.CSSProperties;
   dotStyle: React.CSSProperties;
   hex: string;
+  isInactive?: boolean;
 }
 
 /** 凡例エントリ (グループ名 + 色) */
@@ -182,11 +183,11 @@ export function useReservationTypeColorMap() {
   const colorMap = useMemo(() => {
     const map = new Map<string, ReservationTypeColor>();
     for (const cat of categories) {
-      if (!cat.isActive) continue;
       const groupColor = cat.groupId ? groupColorById.get(cat.groupId) : undefined;
+      const baseColor = groupColor ?? (cat.color ? hexToStyle(cat.color) : DEFAULT_COLOR);
       map.set(
         cat.name,
-        groupColor ?? (cat.color ? hexToStyle(cat.color) : DEFAULT_COLOR),
+        cat.isActive ? baseColor : { ...baseColor, isInactive: true },
       );
     }
     return map;

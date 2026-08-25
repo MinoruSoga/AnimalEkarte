@@ -136,3 +136,32 @@ describe("ShiftCalendar staffs 表示", () => {
     expect(screen.getAllByText("未設定C").length).toBeGreaterThan(0);
   });
 });
+
+describe("ShiftCalendar — BUG-022 cell overflow", () => {
+  it("日付ボディセルはoverflow-hiddenでチップテキストのはみ出しを防ぐ", () => {
+    const { container } = renderCalendar("2026-01", {
+      shifts: [
+        {
+          id: "shift-1",
+          clinic_id: "clinic-1",
+          staff_id: "s1",
+          staff_name: "スタッフA",
+          date: "2026-01-01",
+          shift_type: "morning",
+          start_time: "09:00:00",
+          end_time: "13:00:00",
+          notes: "",
+          breaks: [],
+          created_at: "",
+          updated_at: "",
+        },
+      ],
+    });
+
+    const bodyCells = container.querySelectorAll(".min-w-\\[52px\\].w-\\[52px\\].p-0\\.5");
+    expect(bodyCells.length).toBeGreaterThan(0);
+    for (const cell of bodyCells) {
+      expect(cell).toHaveClass("overflow-hidden");
+    }
+  });
+});

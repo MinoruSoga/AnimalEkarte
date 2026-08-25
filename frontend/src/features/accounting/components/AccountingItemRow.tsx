@@ -121,11 +121,11 @@ export function AccountingItemRow({
   return (
     <TableRow className="h-12">
       <TableCell>
-        <Badge variant="outline" className="font-normal text-xs">
+        <Badge variant="outline" className="font-normal text-xs whitespace-nowrap">
           {CATEGORY_LABELS[item.category as ItemCategory] ?? "その他"}
         </Badge>
       </TableCell>
-      <TableCell className="font-medium">
+      <TableCell className="font-medium whitespace-nowrap">
         {item.name}
         {item.source === "medical_record" ? (
           <span className={`ml-2 text-2xs ${C.textBrand} ${C.bgBrand5} px-1.5 py-0.5 rounded`}>
@@ -180,7 +180,7 @@ export function AccountingItemRow({
           <span className={`text-sm ${C.text50}`}>{Math.round(item.taxRate * 100)}%</span>
         )}
       </TableCell>
-      <TableCell className="text-right font-mono text-sm">
+      <TableCell className="text-right font-mono text-sm whitespace-nowrap">
         {formatCurrency(item.taxAmount)}
       </TableCell>
       <TableCell className="text-center">

@@ -273,7 +273,7 @@ export const ShiftCalendar = memo(function ShiftCalendar({
                 return (
                   <div
                     key={dateStr}
-                    className={`min-w-[52px] w-[52px] border-r ${C.borderDivider} p-0.5`}
+                    className={`min-w-[52px] w-[52px] border-r ${C.borderDivider} p-0.5 overflow-hidden`}
                   >
                     <ShiftCell
                       shift={shift}

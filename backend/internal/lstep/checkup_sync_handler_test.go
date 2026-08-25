@@ -194,10 +194,39 @@ func TestGetCheckupSyncPreview(t *testing.T) {
 			wantStatus: http.StatusUnauthorized,
 		},
 		{
-			name:       "returns 400 for invalid query parameters",
-			query:      "has_chronic_condition=maybe",
-			setupCtx:   func(c *gin.Context) { setClinicID(c); c.Set("user_id", "10") },
-			svc:        &mockCheckupSyncService{},
+			name:     "returns 400 for invalid query parameters",
+			query:    "checkup_type=annual&has_chronic_condition=maybe",
+			setupCtx: func(c *gin.Context) { setClinicID(c); c.Set("user_id", "10") },
+			svc: &mockCheckupSyncService{
+				previewCheckupSyncFn: func(_ context.Context, _ uint64, _ *PreviewCheckupSyncInput, _ *uint64) (*PreviewCheckupSyncResult, error) {
+					t.Fatal("PreviewCheckupSync must not be called for invalid query parameters")
+					return nil, nil
+				},
+			},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns 400 for empty checkup_type without invoking service",
+			query:    "",
+			setupCtx: func(c *gin.Context) { setClinicID(c); c.Set("user_id", "10") },
+			svc: &mockCheckupSyncService{
+				previewCheckupSyncFn: func(_ context.Context, _ uint64, _ *PreviewCheckupSyncInput, _ *uint64) (*PreviewCheckupSyncResult, error) {
+					t.Fatal("PreviewCheckupSync must not be called for empty checkup_type")
+					return nil, nil
+				},
+			},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns 400 when min_age_years is greater than max_age_years without invoking service",
+			query:    "checkup_type=annual&min_age_years=10&max_age_years=5",
+			setupCtx: func(c *gin.Context) { setClinicID(c); c.Set("user_id", "10") },
+			svc: &mockCheckupSyncService{
+				previewCheckupSyncFn: func(_ context.Context, _ uint64, _ *PreviewCheckupSyncInput, _ *uint64) (*PreviewCheckupSyncResult, error) {
+					t.Fatal("PreviewCheckupSync must not be called when min_age_years > max_age_years")
+					return nil, nil
+				},
+			},
 			wantStatus: http.StatusBadRequest,
 		},
 		{
@@ -241,7 +270,7 @@ func TestGetCheckupSyncPreview_UsesAuthenticatedClinicInsteadOfURLAlias(t *testi
 	h := newHandlerWithCheckupSyncSvc(svc)
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
-	c.Request = httptest.NewRequest(http.MethodGet, "/clinics/999/lstep/checkup-sync/preview", http.NoBody)
+	c.Request = httptest.NewRequest(http.MethodGet, "/clinics/999/lstep/checkup-sync/preview?checkup_type=annual", http.NoBody)
 	c.Params = gin.Params{{Key: "clinic_id", Value: "999"}}
 	setClinicID(c)
 	c.Set("user_id", "10")

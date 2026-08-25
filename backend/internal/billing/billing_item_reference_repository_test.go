@@ -192,6 +192,123 @@ func setupBillingItemReferenceFixture(t *testing.T) billingItemReferenceFixture 
 	}
 }
 
+type splitAppointmentReferenceFixture struct {
+	db                  *gorm.DB
+	repo                BillingItemRepository
+	clinicID            uint64
+	owner               *model.Owner
+	pet                 *model.Pet
+	examAppointment     *model.Reservation
+	trimmingAppointment *model.Reservation
+	medicalRecord       *model.MedicalRecord
+	treatment           *model.Treatment
+	billing             *model.Billing
+	course              *model.TrimmingCourse
+	option              *model.TrimmingOption
+}
+
+// setupSplitAppointmentReferenceFixture builds the S11 graph: exam appointment A
+// owns medical_records.appointment_id; trimming appointment B owns course/option.
+func setupSplitAppointmentReferenceFixture(t *testing.T, withBilling bool) splitAppointmentReferenceFixture {
+	t.Helper()
+
+	const clinicID = uint64(1)
+	db := setupBillingItemTrimmingTestDB(t)
+	require.NoError(t, testdb.EnsureAutoMigrated(db, &model.MerchandiseItem{}, &model.Treatment{}))
+
+	owner := testdb.MakeTestOwner(t, db, clinicID, "s11-split-owner")
+	pet := makeSpeciesAndPet(t, db, clinicID, owner.ID, "s11-split-pet")
+
+	generalType := makeReservationType(t, db, clinicID)
+	examAppointment := makeTrimmingAppointment(t, db, clinicID, pet.ID, generalType.ID, model.ReservationStatusAccounting)
+	setAppointmentTime(t, db, examAppointment, time.Date(2026, 6, 11, 4, 0, 0, 0, time.UTC))
+	require.NoError(t, db.Model(&model.Reservation{}).
+		Where("id = ?", examAppointment.ID).
+		Update("owner_id", owner.ID).Error)
+	examAppointment.OwnerID = &owner.ID
+
+	trimmingType := makeTrimmingReservationType(t, db, clinicID)
+	trimmingAppointment := makeTrimmingAppointment(t, db, clinicID, pet.ID, trimmingType.ID, model.ReservationStatusAccounting)
+	setAppointmentTime(t, db, trimmingAppointment, time.Date(2026, 6, 11, 6, 0, 0, 0, time.UTC))
+	require.NoError(t, db.Model(&model.Reservation{}).
+		Where("id = ?", trimmingAppointment.ID).
+		Update("owner_id", owner.ID).Error)
+	trimmingAppointment.OwnerID = &owner.ID
+
+	medicalRecord := &model.MedicalRecord{
+		ClinicID:      clinicID,
+		RecordNo:      "s11-split-exam-mr",
+		Date:          time.Date(2026, 6, 11, 0, 0, 0, 0, time.UTC),
+		OwnerID:       &owner.ID,
+		PetID:         &pet.ID,
+		AppointmentID: &examAppointment.ID,
+	}
+	require.NoError(t, db.Create(medicalRecord).Error)
+
+	treatment := &model.Treatment{
+		MedicalRecordID: medicalRecord.ID,
+		ItemType:        model.TreatmentItemTypeOther,
+		Content:         "s11 exam treatment",
+	}
+	require.NoError(t, db.Create(treatment).Error)
+
+	course := makeTrimmingCourse(t, db, clinicID, "s11 split course", priceOf(1000))
+	option := makeTrimmingOption(t, db, clinicID, "s11 split option", priceOf(500))
+	attachTrimmingCourse(t, db, clinicID, trimmingAppointment.ID, course.ID)
+	attachTrimmingOption(t, db, trimmingAppointment.ID, option.ID, 0)
+
+	f := splitAppointmentReferenceFixture{
+		db:                  db,
+		repo:                NewBillingItemRepository(db),
+		clinicID:            clinicID,
+		owner:               owner,
+		pet:                 pet,
+		examAppointment:     examAppointment,
+		trimmingAppointment: trimmingAppointment,
+		medicalRecord:       medicalRecord,
+		treatment:           treatment,
+		course:              course,
+		option:              option,
+	}
+	if withBilling {
+		billing := &model.Billing{
+			ClinicID:        clinicID,
+			MedicalRecordID: &medicalRecord.ID,
+			OwnerID:         &owner.ID,
+			PetID:           &pet.ID,
+			Status:          model.BillingStatusWaiting,
+			ScheduledDate:   time.Date(2026, 6, 11, 0, 0, 0, 0, time.UTC),
+		}
+		require.NoError(t, db.Create(billing).Error)
+		f.billing = billing
+	}
+	return f
+}
+
+func (f splitAppointmentReferenceFixture) validate(
+	t *testing.T,
+	merchandiseItemID, treatmentID, appointmentID, trimmingCourseID, trimmingOptionID *uint64,
+) (model.ItemCategory, error) {
+	t.Helper()
+	require.NotNil(t, f.billing)
+	var category model.ItemCategory
+	err := testNewTransactor(f.db).WithTx(context.Background(), func(txCtx context.Context) error {
+		var err error
+		category, err = f.repo.ValidateCreateReferences(
+			txCtx,
+			f.clinicID,
+			f.billing.ID,
+			merchandiseItemID,
+			treatmentID,
+			appointmentID,
+			trimmingCourseID,
+			trimmingOptionID,
+		)
+		return err
+	})
+	return category, err
+}
+
 func (f billingItemReferenceFixture) validate(
 	t *testing.T,
 	merchandiseItemID, treatmentID, appointmentID, trimmingCourseID, trimmingOptionID *uint64,
@@ -367,6 +484,43 @@ func TestBillingItemRepository_ValidateCreateReferences(t *testing.T) {
 
 		require.Error(t, err)
 		assert.True(t, apperrors.IsInvalidInput(err))
+	})
+
+	t.Run("S11 split appointments: trimming items on appointment B succeed with exam medical_record appointment A", func(t *testing.T) {
+		f := setupSplitAppointmentReferenceFixture(t, true)
+
+		_, err := f.validate(t, nil, nil, &f.trimmingAppointment.ID, &f.course.ID, &f.option.ID)
+		require.NoError(t, err)
+
+		_, err = f.validate(t, nil, nil, &f.trimmingAppointment.ID, &f.course.ID, nil)
+		require.NoError(t, err)
+
+		_, err = f.validate(t, nil, nil, &f.trimmingAppointment.ID, nil, &f.option.ID)
+		require.NoError(t, err)
+
+		_, err = f.validate(t, nil, &f.treatment.ID, &f.examAppointment.ID, nil, nil)
+		require.NoError(t, err)
+
+		_, err = f.validate(t, nil, &f.treatment.ID, nil, nil, nil)
+		require.NoError(t, err)
+	})
+
+	t.Run("S11 split appointments: treatment from exam MR with trimming appointment B remains InvalidInput", func(t *testing.T) {
+		f := setupSplitAppointmentReferenceFixture(t, true)
+
+		_, err := f.validate(t, nil, &f.treatment.ID, &f.trimmingAppointment.ID, nil, nil)
+
+		require.Error(t, err)
+		assert.True(t, apperrors.IsInvalidInput(err), "treatment must stay bound to the exam appointment: %v", err)
+		assert.Contains(t, err.Error(), "参照先の組み合わせが正しくありません")
+
+		_, err = f.validate(t, nil, nil, &f.trimmingAppointment.ID, nil, nil)
+		require.Error(t, err)
+		assert.True(t, apperrors.IsInvalidInput(err), "appointment-only trimming id without course/option must still match medical_record appointment: %v", err)
+
+		_, err = f.validate(t, nil, &f.treatment.ID, &f.trimmingAppointment.ID, &f.course.ID, nil)
+		require.Error(t, err)
+		assert.True(t, apperrors.IsInvalidInput(err), "treatment plus trimming provenance must not skip medical_record appointment equality: %v", err)
 	})
 }
 

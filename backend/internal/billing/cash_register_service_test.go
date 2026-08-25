@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -491,6 +492,9 @@ func TestCashRegisterService_Close(t *testing.T) {
 		Memo:       "通常締め",
 	}
 
+	holidayCreateCalled := &atomic.Bool{}
+	negativeCreateCalled := &atomic.Bool{}
+
 	tests := []struct {
 		name                  string
 		input                 CloseRegisterInput
@@ -499,6 +503,7 @@ func TestCashRegisterService_Close(t *testing.T) {
 		getCloseAggregateFn   func(ctx context.Context, input GetCloseAggregateInput) (*CloseAggregateResult, error)
 		findAllPayMethodFn    func(ctx context.Context, clinicID uint64) ([]model.PaymentMethodMaster, error)
 		createFn              func(ctx context.Context, c *model.CashRegisterClose) error
+		createCalled          *atomic.Bool
 		wantErr               bool
 		wantErrIs             error
 		checkResult           func(t *testing.T, got *model.CashRegisterClose)
@@ -607,6 +612,57 @@ func TestCashRegisterService_Close(t *testing.T) {
 			wantErrIs: apperrors.ErrConflict,
 		},
 		{
+			name:  "エラー: 休診日は締め処理できない → ErrInvalidInput",
+			input: validInput,
+			findByDateAndPeriodFn: func(_ context.Context, _ uint64, _ time.Time, _ string) (*model.CashRegisterClose, error) {
+				return nil, nil
+			},
+			resolveScheduleFn: func(_ context.Context, _ uint64, _ time.Time) (*sharedkernel.DaySchedule, error) {
+				s := defaultSchedule()
+				return &sharedkernel.DaySchedule{
+					AmPmBoundary: s.AmPmBoundary,
+					PmEnd:        s.PmEnd,
+					IsHoliday:    true,
+				}, nil
+			},
+			getCloseAggregateFn: func(_ context.Context, _ GetCloseAggregateInput) (*CloseAggregateResult, error) {
+				return emptyAggregateResult(), nil
+			},
+			createFn: func(_ context.Context, _ *model.CashRegisterClose) error {
+				holidayCreateCalled.Store(true)
+				return nil
+			},
+			createCalled: holidayCreateCalled,
+			wantErr:      true,
+			wantErrIs:    apperrors.ErrInvalidInput,
+		},
+		{
+			name: "エラー: ActualCash が負 → ErrInvalidInput",
+			input: CloseRegisterInput{
+				Date:       validInput.Date,
+				Period:     validInput.Period,
+				ActualCash: -1,
+				Memo:       validInput.Memo,
+				ClosedBy:   validInput.ClosedBy,
+			},
+			findByDateAndPeriodFn: func(_ context.Context, _ uint64, _ time.Time, _ string) (*model.CashRegisterClose, error) {
+				return nil, nil
+			},
+			resolveScheduleFn: func(_ context.Context, _ uint64, _ time.Time) (*sharedkernel.DaySchedule, error) {
+				return defaultSchedule(), nil
+			},
+			getCloseAggregateFn: func(_ context.Context, _ GetCloseAggregateInput) (*CloseAggregateResult, error) {
+				return emptyAggregateResult(), nil
+			},
+			createFn: func(_ context.Context, _ *model.CashRegisterClose) error {
+				negativeCreateCalled.Store(true)
+				return nil
+			},
+			createCalled: negativeCreateCalled,
+			wantErr:      true,
+			wantErrIs:    apperrors.ErrInvalidInput,
+		},
+		{
 			name:  "エラー: 二重締め確認（FindByDateAndPeriod）がリポジトリエラーを返す",
 			input: validInput,
 			findByDateAndPeriodFn: func(_ context.Context, _ uint64, _ time.Time, _ string) (*model.CashRegisterClose, error) {
@@ -699,6 +755,9 @@ func TestCashRegisterService_Close(t *testing.T) {
 					assert.True(t, errors.Is(err, tt.wantErrIs), "want errors.Is(%v), got %v", tt.wantErrIs, err)
 				}
 				assert.Nil(t, got)
+				if tt.createCalled != nil {
+					assert.False(t, tt.createCalled.Load(), "closeRepo.Create must not be called")
+				}
 				return
 			}
 			assert.NoError(t, err)

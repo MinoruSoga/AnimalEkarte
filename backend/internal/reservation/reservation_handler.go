@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -114,7 +115,16 @@ func (h *ReservationHandler) GetReservationAvailableTimes(c *gin.Context) {
 		respondError(c, apperrors.WrapNotImplemented("予約可能時間の取得は未設定です"))
 		return
 	}
-	slots, err := h.liff.GetAvailableTimes(c.Request.Context(), clinicID, filters.ReservationTypeID, filters.StaffID, filters.Date)
+	// BUG-015: staff path allows inactive types via GetStaffAvailableTimes when present.
+	// Falls back to GetAvailableTimes for mocks that only implement liffAvailability.
+	var slots []TimeSlot
+	if staffTimes, ok := h.liff.(interface {
+		GetStaffAvailableTimes(ctx context.Context, clinicID, typeID, staffID uint64, date time.Time) ([]TimeSlot, error)
+	}); ok {
+		slots, err = staffTimes.GetStaffAvailableTimes(c.Request.Context(), clinicID, filters.ReservationTypeID, filters.StaffID, filters.Date)
+	} else {
+		slots, err = h.liff.GetAvailableTimes(c.Request.Context(), clinicID, filters.ReservationTypeID, filters.StaffID, filters.Date)
+	}
 	if err != nil {
 		respondError(c, err)
 		return

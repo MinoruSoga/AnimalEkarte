@@ -81,6 +81,12 @@ func newCheckupSyncPreviewQuery(values url.Values) checkupSyncPreviewQuery {
 }
 
 func (q *checkupSyncPreviewQuery) toServiceInput() (*PreviewCheckupSyncInput, error) {
+	switch q.CheckupType {
+	case "annual", "dental", "blood", "skin", "cancer", "other":
+	default:
+		return nil, apperrors.WrapInvalidInput("checkup_type は annual/dental/blood/skin/cancer/other のいずれかを指定してください")
+	}
+
 	input := &PreviewCheckupSyncInput{
 		CheckupType: q.CheckupType,
 		Species:     q.Species,
@@ -99,6 +105,9 @@ func (q *checkupSyncPreviewQuery) toServiceInput() (*PreviewCheckupSyncInput, er
 	}
 	if input.MaxAgeYears, err = parseOptionalNonNegInt(q.MaxAgeYears, "max_age_years"); err != nil {
 		return nil, err
+	}
+	if input.MinAgeYears != nil && input.MaxAgeYears != nil && *input.MinAgeYears > *input.MaxAgeYears {
+		return nil, apperrors.WrapInvalidInput("min_age_years は max_age_years 以下で指定してください")
 	}
 	if q.HasChronicCondition != "" {
 		switch q.HasChronicCondition {

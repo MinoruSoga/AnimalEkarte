@@ -10,6 +10,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/config"
+	"github.com/animal-ekarte/backend/internal/model"
 )
 
 // buildCapacityFilterFn は course.MaxConcurrent 制約下でのキャパシティフィルタ
@@ -194,14 +195,33 @@ func isDateClosed(settings AvailableDatesSettings, dateJST time.Time) bool {
 	return false
 }
 
-// GetAvailableTimes は指定日の予約可能な時間枠一覧を返す。
+// GetAvailableTimes は指定日の予約可能な時間枠一覧を返す（LIFF: 無効区分は拒否）。
 func (s *liffService) GetAvailableTimes(ctx context.Context, clinicID, typeID, staffID uint64, date time.Time) ([]TimeSlot, error) {
+	return s.getAvailableTimes(ctx, clinicID, typeID, staffID, date, true)
+}
+
+// GetStaffAvailableTimes は院内スタッフ向け空き枠一覧を返す（無効区分でも枠計算へ進む。BUG-015）。
+func (s *liffService) GetStaffAvailableTimes(ctx context.Context, clinicID, typeID, staffID uint64, date time.Time) ([]TimeSlot, error) {
+	return s.getAvailableTimes(ctx, clinicID, typeID, staffID, date, false)
+}
+
+func (s *liffService) getAvailableTimes(
+	ctx context.Context,
+	clinicID, typeID, staffID uint64,
+	date time.Time,
+	requireActive bool,
+) ([]TimeSlot, error) {
 	setting, err := s.settingRepo.FindByClinicID(ctx, clinicID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get reservation setting", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get reservation setting")
 	}
-	course, err := s.findActiveLiffCourse(ctx, clinicID, typeID)
+	var course *model.ReservationType
+	if requireActive {
+		course, err = s.findActiveLiffCourse(ctx, clinicID, typeID)
+	} else {
+		course, err = s.findLiffCourse(ctx, clinicID, typeID)
+	}
 	if err != nil {
 		return nil, err
 	}

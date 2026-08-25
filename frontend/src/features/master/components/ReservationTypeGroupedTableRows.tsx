@@ -162,7 +162,7 @@ export function ReservationTypeRow({ category, canEdit, onEdit }: ReservationTyp
       <TableCell className={`text-sm ${C.text60} max-w-[220px] truncate`}>
         {category.description || "-"}
       </TableCell>
-      <TableCell className="text-center">
+      <TableCell className="text-center whitespace-nowrap">
         <StatusPill isActive={category.isActive} />
       </TableCell>
       <TableCell className="text-right">

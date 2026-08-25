@@ -16,6 +16,7 @@ const VISIT_TYPE_VALUES = ["first", "revisit"] as const;
 interface SelectedReservationType {
   color: string;
   name: string;
+  isActive: boolean;
 }
 
 interface ReservationTypeAndStaffFieldsProps {
@@ -77,7 +78,12 @@ export function ReservationTypeAndStaffFields({
                   className="size-3 shrink-0 rounded-full"
                   style={{ backgroundColor: selectedReservationType.color }}
                 />
-                <span className={cn("line-clamp-1", C.text)}>{selectedReservationType.name}</span>
+                <span className={cn("line-clamp-1", C.text)}>
+                  {selectedReservationType.name}
+                  {!selectedReservationType.isActive ? (
+                    <span className={cn("ml-1 shrink-0 text-2xs", C.text40)}>（無効）</span>
+                  ) : null}
+                </span>
               </span>
             ) : (
               <span className={C.text40}>選択してください</span>

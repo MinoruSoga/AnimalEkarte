@@ -47,16 +47,34 @@ func makeOccupation(t *testing.T, db *gorm.DB, clinicID uint64, name string) *mo
 }
 
 // makeStaffWithOccupation も同ファイルからの最小限の複製（同上）。
+// CountWorkingStaff は is_active / reservation_visible を条件にするため明示する。
 func makeStaffWithOccupation(t *testing.T, db *gorm.DB, clinicID, occupationID uint64, name string) *model.Staff {
+	t.Helper()
+	return makeStaffWithOccupationVisibility(t, db, clinicID, occupationID, name, true, true)
+}
+
+func makeStaffWithOccupationVisibility(t *testing.T, db *gorm.DB, clinicID, occupationID uint64, name string, isActive, reservationVisible bool) *model.Staff {
 	t.Helper()
 	oid := occupationID
 	s := &model.Staff{
-		ClinicID:     clinicID,
-		Name:         name,
-		StaffType:    model.StaffTypeDoctor,
-		OccupationID: &oid,
+		ClinicID:           clinicID,
+		Name:               name,
+		StaffType:          model.StaffTypeDoctor,
+		OccupationID:       &oid,
+		IsActive:           true,
+		ReservationVisible: true,
 	}
 	require.NoError(t, db.WithContext(context.Background()).Create(s).Error)
+	if isActive && reservationVisible {
+		return s
+	}
+	// gorm:"default:true" はゼロ値 false を DEFAULT に置き換えるため、false は UpdateColumns で書く。
+	require.NoError(t, db.WithContext(context.Background()).Model(s).UpdateColumns(map[string]interface{}{
+		"is_active":           isActive,
+		"reservation_visible": reservationVisible,
+	}).Error)
+	s.IsActive = isActive
+	s.ReservationVisible = reservationVisible
 	return s
 }
 
@@ -229,17 +247,27 @@ func TestReservationTypeOccupationRepository_CountWorkingStaffByReservationTypeI
 	makeShiftEntryWithType(t, db, clinicA, working1B.ID, dateB, model.ShiftTypeFull)
 	working2B := makeStaffWithOccupation(t, db, clinicA, occA.ID, "dateB出勤スタッフ2")
 	makeShiftEntryWithType(t, db, clinicA, working2B.ID, dateB, model.ShiftTypeMorning)
+	afternoon := makeStaffWithOccupation(t, db, clinicA, occA.ID, "dateB午後スタッフ")
+	makeShiftEntryWithType(t, db, clinicA, afternoon.ID, dateB, model.ShiftTypeAfternoon)
 
 	off := makeStaffWithOccupation(t, db, clinicA, occA.ID, "dateB休日スタッフ")
 	makeShiftEntryWithType(t, db, clinicA, off.ID, dateB, model.ShiftTypeOff)
 
+	_ = makeStaffWithOccupation(t, db, clinicB, occA.ID, "他院スタッフ")
+	_ = makeStaffWithOccupationVisibility(t, db, clinicA, occA.ID, "無効スタッフ", false, true)
+	_ = makeStaffWithOccupationVisibility(t, db, clinicA, occA.ID, "非公開スタッフ", true, false)
+
+	const eligibleClinicA = int64(5) // workingA, working1B, working2B, afternoon, off。他院・無効・非公開は除外。
+
 	t.Run("複数日分の出勤スタッフ数を1クエリでまとめて返す", func(t *testing.T) {
 		result, err := repo.CountWorkingStaffByReservationTypeIDs(ctx, clinicA, rtA.ID, []time.Time{dateA, dateB, dateNoShift})
 		require.NoError(t, err)
-		assert.Equal(t, int64(1), result[dateA.Format("2006-01-02")], "dateAは1名(off/paid_leave対象なし)")
-		assert.Equal(t, int64(2), result[dateB.Format("2006-01-02")], "dateBはoff除く2名")
-		_, hasNoShiftKey := result[dateNoShift.Format("2006-01-02")]
-		assert.False(t, hasNoShiftKey, "シフトが無い日はキーとして存在しない(0扱い)")
+		assert.Equal(t, eligibleClinicA, result[dateA.Format("2006-01-02")], "dateAはoff/paid_leaveなしなので候補全員（シフトなしも含む）")
+		assert.Equal(t, eligibleClinicA-1, result[dateB.Format("2006-01-02")], "dateBはoff 1名を除き、full/morning/afternoonとシフトなしを含む")
+		noShiftKey := dateNoShift.Format("2006-01-02")
+		assert.Equal(t, eligibleClinicA, result[noShiftKey], "シフトが無い日も出勤候補スタッフ数を返す")
+		_, hasNoShiftKey := result[noShiftKey]
+		assert.True(t, hasNoShiftKey, "候補が1人以上ならシフト無し日のキーも埋める")
 	})
 
 	t.Run("別クリニックIDでは空map（clinic_id 隔離）", func(t *testing.T) {
@@ -252,5 +280,74 @@ func TestReservationTypeOccupationRepository_CountWorkingStaffByReservationTypeI
 		result, err := repo.CountWorkingStaffByReservationTypeIDs(ctx, clinicA, rtA.ID, []time.Time{})
 		require.NoError(t, err)
 		assert.Empty(t, result)
+	})
+}
+
+// TestReservationTypeOccupationRepository_CountWorkingStaffByReservationTypeIDs_OccupationGuardNoShiftEntries
+// は BUG-002: 職種紐付けあり・該当スタッフが is_active/reservation_visible・その日の shift_entries が
+// 0件でも出勤候補として数え、applyOccupationGuard が Available を staff_off で潰さないことを固定する。
+func TestReservationTypeOccupationRepository_CountWorkingStaffByReservationTypeIDs_OccupationGuardNoShiftEntries(t *testing.T) {
+	db := setupReservationTypeOccupationTestDB(t)
+	repo := NewReservationTypeOccupationRepository(db)
+	ctx := context.Background()
+	const clinicA, clinicB = uint64(1), uint64(2)
+	date := time.Date(2026, 7, 1, 0, 0, 0, 0, config.JST)
+	dateStr := date.Format(time.DateOnly)
+
+	rtA := makeReservationTypeLinked(t, db, clinicA, "シフトなし職種ガード区分", nil, nil)
+	occA := makeOccupation(t, db, clinicA, "シフトなし職種")
+	makeReservationTypeOccupationLink(t, db, clinicA, rtA.ID, occA.ID)
+	_ = makeStaffWithOccupation(t, db, clinicA, occA.ID, "シフトなし出勤候補")
+	_ = makeStaffWithOccupation(t, db, clinicB, occA.ID, "他院シフトなし")
+	_ = makeStaffWithOccupationVisibility(t, db, clinicA, occA.ID, "無効シフトなし", false, true)
+	_ = makeStaffWithOccupationVisibility(t, db, clinicA, occA.ID, "非公開シフトなし", true, false)
+
+	t.Run("シフト0件でも候補スタッフを1以上カウントする", func(t *testing.T) {
+		result, err := repo.CountWorkingStaffByReservationTypeIDs(ctx, clinicA, rtA.ID, []time.Time{date})
+		require.NoError(t, err)
+		require.Equal(t, int64(1), result[dateStr], "他院・無効・非公開を除いた1名がシフトなしでも出勤候補")
+	})
+
+	t.Run("applyOccupationGuardはシフトなし日をAvailableのまま残す", func(t *testing.T) {
+		svc := &liffService{occupationRepo: repo}
+		results := []AvailableDateResult{{Date: dateStr, Available: true}}
+		require.NoError(t, svc.applyOccupationGuard(ctx, clinicA, rtA.ID, results))
+		assert.True(t, results[0].Available)
+		assert.Empty(t, results[0].Reason)
+	})
+}
+
+// TestReservationTypeOccupationRepository_CountWorkingStaffByReservationTypeIDs_OccupationGuardAllOff
+// は該当職種スタッフが全員 off/paid_leave の日は count=0 で applyOccupationGuard が staff_off にすることを固定する。
+func TestReservationTypeOccupationRepository_CountWorkingStaffByReservationTypeIDs_OccupationGuardAllOff(t *testing.T) {
+	db := setupReservationTypeOccupationTestDB(t)
+	repo := NewReservationTypeOccupationRepository(db)
+	ctx := context.Background()
+	const clinicA = uint64(1)
+	date := time.Date(2026, 7, 2, 0, 0, 0, 0, config.JST)
+	dateStr := date.Format(time.DateOnly)
+
+	rtA := makeReservationTypeLinked(t, db, clinicA, "全員休日職種ガード区分", nil, nil)
+	occA := makeOccupation(t, db, clinicA, "全員休日職種")
+	makeReservationTypeOccupationLink(t, db, clinicA, rtA.ID, occA.ID)
+	offStaff := makeStaffWithOccupation(t, db, clinicA, occA.ID, "休日スタッフ")
+	leaveStaff := makeStaffWithOccupation(t, db, clinicA, occA.ID, "有給スタッフ")
+	makeShiftEntryWithType(t, db, clinicA, offStaff.ID, date, model.ShiftTypeOff)
+	makeShiftEntryWithType(t, db, clinicA, leaveStaff.ID, date, model.ShiftTypePaidLeave)
+
+	t.Run("全員off/paid_leaveの日はcount=0でキーを埋める", func(t *testing.T) {
+		result, err := repo.CountWorkingStaffByReservationTypeIDs(ctx, clinicA, rtA.ID, []time.Time{date})
+		require.NoError(t, err)
+		assert.Equal(t, int64(0), result[dateStr])
+		_, ok := result[dateStr]
+		assert.True(t, ok, "候補はいるが全員休みの日もキーを0で埋める")
+	})
+
+	t.Run("applyOccupationGuardは全員休みの日をstaff_offにする", func(t *testing.T) {
+		svc := &liffService{occupationRepo: repo}
+		results := []AvailableDateResult{{Date: dateStr, Available: true}}
+		require.NoError(t, svc.applyOccupationGuard(ctx, clinicA, rtA.ID, results))
+		assert.False(t, results[0].Available)
+		assert.Equal(t, "staff_off", results[0].Reason)
 	})
 }

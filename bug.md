@@ -67,7 +67,8 @@ Round 8で「環境要因の疑い」としていたS08の確認ダイアログ�
 
 ### BUG-002（高）一般診察／一般診察(再診)／健康診断／トリミングコース（courseId 1, 2, 7, 9）が全スタッフ・全期間で予約不可
 
-Round 9では独立した2エージェント（S04-06担当・V05担当）がそれぞれAPI（`GET /api/liff/1/available-dates`）とUI（LINE予約アプリの日付選択画面）の両方で再現を確認しました。courseId 1,2,7,9の4コースのみ全スタッフ・全29日が`staff_off`判定になる一方、他の9コース（ワクチン接種・お手入れ・狂犬病等）は同一スタッフで全て予約可能という状態に変化はありません。**未修正。**
+Round 9では独立した2エージェント（S04-06担当・V05担当）がそれぞれAPI（`GET /api/liff/1/available-dates`）とUI（LINE予約アプリの日付選択画面）の両方で再現を確認しました。courseId 1,2,7,9の4コースのみ全スタッフ・全29日が`staff_off`判定になる一方、他の9コース（ワクチン接種・お手入れ・狂犬病等）は同一スタッフで全て予約可能という状態に変化はありません。
+- **修正**: `CountWorkingStaffByReservationTypeIDs` は INNER JOIN `shift_entries`（出勤行のみ）をやめ、職種紐付け＋同一 clinic の `is_active`/`reservation_visible` スタッフを候補とし、当該日の `off`/`paid_leave` のみ除外する。シフト行なしはスロット判定と同じく出勤候補。候補が1人以上なら要求日のキーを埋める。`applyOccupationGuard` は count=0 の日だけ `staff_off`。職種紐付け0件は従来どおり Count をスキップ。回帰: `TestReservationTypeOccupationRepository_CountWorkingStaffByReservationTypeIDs`（no-shift 日は count>0）、`...OccupationGuardNoShiftEntries`、`...OccupationGuardAllOff`、`TestGetAvailableDates_OccupationGuardUsesBatchedCounts`（mock count=0 は staff_off 維持）、`TestGetAvailableDates_OccupationGuardSkipsCountWhenNoOccupations`。
 
 ### BUG-003（中）`/examinations` の新規検査登録導線が実際の検査記録を作成しない — **修正済み**
 
@@ -117,6 +118,7 @@ Round 8では「休診日にバナーとフォームが同時表示される」�
 2. **現金過不足金額の負数チェック欠如**: `cash_amount:-100`を送信しても拒否されず`201`で受理され、`actual_cash`が黙って`0`にクランプされる。**この検証を本日（2026-08-25）AM期間の実データに対して実行してしまった結果、取り消し不能な締めレコード（id=9）が作成される実害が発生しました**（詳細は冒頭の「最優先で確認をお願いしたい事項」参照）。
 
 推奨対応: `cash_register_service.go`（推定）にて、締め処理受理前に(a)対象日が休診日でないことの検証、(b)`actual_cash`が0以上であることの検証、の両方を追加することを推奨します。
+- **修正**: `cashRegisterService.Close` は `fetchAggregate` 後（ResolveSchedule の二重呼び出しなし）に休診日と `actual_cash < 0` を `apperrors.ErrInvalidInput` で拒否し `closeRepo.Create` しない。Conflict は二重締めのみ。`actual_cash=0` は許可。ライブ id=8/id=9 は未変更（ユーザー判断）。回帰: `TestCashRegisterService_Close` の休診日行・負 ActualCash 行。`TestCloseCashRegisterRequest_ToServiceInput_NegativeActualCash`（文言 `actual_cash は 0 以上で指定してください`）と `ZeroActualCashAllowed` は維持。
 
 ### BUG-010（低・環境要因、継続）LIFF実トークン認証がローカル環境ではモック限定で検証不可
 
@@ -133,6 +135,7 @@ Round 9でも状況は変化なし（`VITE_LIFF_MOCK=true`によりローカル�
 - **影響**: S11シナリオの中核機能である「同日のトリミングと診察を1回の会計にまとめる」がまったく機能しない。準備用API（`unbilled-details`等）は両方のsourceを正しく返しUI上は統合可能に見えるため、ユーザーは原因不明のエラーで繰り返し失敗する可能性が高い。
 - **ワークアラウンド**: トリミングと医療を別々の会計として個別に精算すれば正常完了する（本ラウンドではこの方法で残務を精算済み）。ただし「1つの会計にまとめる」という本来の要件は満たせない。
 - **推奨対応**: バックエンドの会計確定処理における明細source検証ロジック（`参照先の組み合わせ`チェック）が、`medical_record`と`trimming`の混在を誤って拒否している可能性が高く、該当バリデーションの見直しを推奨。
+- **修正**: `ValidateCreateReferences` が `medical_records.appointment_id` と明細 `appointment_id` の一致をトリミング明細にも適用していた。S11 は診察予約 A がカルテ、トリミング予約 B がコース/オプションを持つため 400 になる。トリミング provenance のみ一致を免除し、`treatment_id` がある場合は従来どおり不一致を拒否する。回帰: `TestBillingItemRepository_ValidateCreateReferences` の S11 split-appointment ケース、`TestAccountingService_CompleteAccounting_MixedMedicalRecordAndTrimming_SplitAppointments`。残存リスク: `CompleteForAccounting` の契約は未変更（generic 化しない）。経路2はヘッダ MR の予約、経路1は同日 owner/pet/`accounting` 予約も完了し得る。S11 ブラウザ再走は本単位の必須ではない。
 
 ### BUG-009（中・新規）カルテを会計確認（医師）より先に確定すると、以後会計確認が永久にブロックされ明細が統合会計から恒久的に除外される — **修正済み**
 
@@ -155,6 +158,7 @@ Round 9でも状況は変化なし（`VITE_LIFF_MOCK=true`によりローカル�
 - **シナリオ**: V05-18
 - **概要**: `GET /api/v1/clinics/1/lstep/checkup-sync/preview`に対し、負の年齢（`min_age=-3`）・小数の年齢（`min_age=2.5`）・最小>最大（`min_age=10&max_age=5`）・負の来院回数（`min_annual_visits=-1`）・検診種別未指定のいずれを送っても`200`で受理され結果が返る。比較対象の`min_total_amount`のみ正しく`400`で拒否される。
 - **影響**: 通常のUI操作ではクライアント側バリデーションで防御されているため実害は限定的だが、API直叩きや将来のFE実装ミスにより境界値検証を完全にバイパスして顧客一覧を抽出できてしまう。データ抽出のガードレールが実質的にFE依存になっている設計リスク。
+- **修正**: `checkupSyncPreviewQuery.toServiceInput` で `checkup_type` を必須 enum（`annual|dental|blood|skin|cancer|other`）検証し、`min_age_years`/`max_age_years` が両方指定かつ min>max のとき InvalidInput。既存の非負整数パーサは維持（`2.5` 含む）。回帰: `TestCheckupSyncPreviewQuery_ToServiceInput_InvalidFields` / `...AgeBounds` / `TestGetCheckupSyncPreview`（empty checkup_type・min>max は 400 かつ Preview 非呼び出し）。
 
 ### BUG-013（低〜中・新規）`/identity-links`管理画面のunlinkボタンが常時disabledで機能しない — **修正済み**
 
@@ -177,12 +181,18 @@ Round 9でも状況は変化なし（`VITE_LIFF_MOCK=true`によりローカル�
 - **概要**: 使用中の予約区分マスタは`DELETE`が409で保護されている一方、`PATCH {"is_active":false}`による「無効化」は使用中でも実行できてしまう。無効化後、その区分を参照する既存予約（無効化前に作成された正当なデータ）を編集しようとすると、空き時間枠取得API`GET /api/v1/reservations/available-times`が`400 {"error":"reservation type is inactive"}`を返し、フロントは「データ取得に失敗しました」トーストを出したうえで**予約区分欄・時間欄を空値にリセットしてしまう**（他フィールドは保持される）。API本体（`GET /reservations/:id`）はデータを正しく保持しており、破壊されるのは編集フォームの表示のみ。
 - **影響**: マスタの無効化という一見安全な管理操作が、既存の正当な予約データの編集可否に予期せず波及する。気づかずに他フィールドだけ修正して保存しようとすると、区分未選択のバリデーションで保存自体に失敗する可能性が高い。
 - **推奨対応**: 既存予約が参照する区分が無効化済みであっても、編集画面は正常に開き既存の区分名・時間を初期値として保持したうえで、「このマスタは無効化されています」等の注記とともに区分自体の変更のみ制限する設計に見直すことを推奨。
+- **修正（Lane B unit 4）**:
+  - BE: `findLiffCourse`（lookupのみ）と `findActiveLiffCourse`（IsActive ガード）を分離。院内 `GetStaffAvailableTimes` は inactive でも枠計算へ進み、LIFF `GetAvailableTimes`/`GetAvailableDates`/`GetStaffs` の inactive→InvalidInput は維持。`GetReservationAvailableTimes` は `GetStaffAvailableTimes` を type-assert 優先（無ければ既存 `GetAvailableTimes` fallback）。
+  - FE: `useGetReservationTypesGrouped(selectedTypeId?)` で選択中の無効区分のみ表示維持。`useGetReservationAvailableTimes` に `meta.silentError`。編集フォームは区分名に「（無効）」を付与し、空枠でも `formData.start` を Select 候補に残す。他の無効区分はピッカーに出さない。
+  - テスト: `TestLiffService_GetStaffAvailableTimes_AllowsInactiveReservationType` / `TestGetReservationAvailableTimes_PrefersStaffAvailableTimes` / `useGetReservationTypesGrouped (BUG-015)` / `useGetReservationAvailableTimes (BUG-015)` / `ReservationFormModal — BUG-015 inactive reservation type edit`
+  - 残リスク: 無効区分のまま別フィールドだけ保存する業務フローは引き続き可能（区分変更を完全ロックはしていない。アクティブ区分への置換は可）。カレンダー無彩色は BUG-016。無効区分で枠が空のとき終了時刻の自動再計算は行わない。
 
 ### BUG-016（低〜中・新規）無効化されたマスタを参照する予約がカレンダー上で無彩色（グレー）表示になるが理由の説明がない
 
 - **シナリオ**: V02（BUG-015と同一検証の副次発見）
 - **概要**: 予約区分マスタを無効化すると、それを参照する予約カードがカレンダー上で元のカテゴリ色からグレー無彩色に変化する（`is_active`の値に追従することを確認済み、意図的なフォールバック実装と推測）。しかし、この無彩色化には理由を示す文言・アイコン・ツールチップが一切なく、キャンセル済み等の他の弱調表示パターンと視覚的に区別できない。予約詳細モーダルを開いても区分名はそのまま表示され「(無効)」等のサフィックスは付与されない。
 - **重大度**: 低〜中。Round 8のBUG-014（無効化された医院に「（無効）」ラベルが表示される、という正しい実装パターン）と対照的な事例であり、同種の考慮を横展開して見直す価値がある。
+- **修正**: `useReservationTypeColorMap` の `colorMap` に無効区分を元色のまま含め `isInactive: true` を付与（凡例 `activeGroupEntries` は従来どおり active のみ）。週次カードの `title`/`aria-label` と詳細モーダルの DialogTitle・予約区分行に「（無効）」を表示。キャンセルの `opacity-60`/`line-through` は変更なし。回帰: `use-reservation-type-color-map.test.ts` / `WeekViewAppointmentCard.test.tsx` / `ReservationDetailModal.test.tsx`。
 
 ---
 
@@ -197,6 +207,7 @@ Round 9でも状況は変化なし（`VITE_LIFF_MOCK=true`によりローカル�
 - **画面**: `/accounting/:id`（会計精算詳細）
 - **概要**: 明細一覧テーブルの「項目名」列の幅が極端に狭く、通常の日本語テキストが1文字ごとに改行される。例:「R7QAコース」→「R7QA」「コー」「ス」の3行に分割、区分タグ「トリミング」も「トリ」「ミン」「グ」に分割。右側の「決済情報」パネルとの横並びレイアウトのため列幅が圧迫されている可能性があり、税額列も途中で見切れる。
 - **影響**: 会計担当者が明細内容を素早く確認しづらく、誤会計につながるリスクがある。他の一覧画面（カルテ一覧・検査管理一覧）の同種の列は十分な幅があるため、この画面固有の問題。
+- **修正**: 決済パネル幅は維持し、ItemListCard の項目名ヘッダに `min-w-[180px]`、税額ヘッダと AccountingItemRow の区分バッジ／項目名／税額セルに `whitespace-nowrap` を付与。既存 `CardContent overflow-auto` で横スクロールさせる。
 
 #### BUG-018（中・新規）カルテ詳細「画像」タブのセクション見出しが「検査結果」のまま
 
@@ -219,11 +230,13 @@ Round 9でも状況は変化なし（`VITE_LIFF_MOCK=true`によりローカル�
 
 - **画面**: `/settings/reservation-type`
 - **概要**: 一覧テーブルの「有効」ステータスバッジが「有」「効」の2行に縦積みで折り返される。全25件・全グループで再現。他のマスタ画面（スタッフ・診療項目・薬剤・医院・動物種類・職種・商品マスタ）はいずれも1行表示で統一されており、この画面固有の実装差異。商品マスタは同等以上のカラム数でも崩れないため、列幅配分の問題と推測される。
+- **修正**: ステータス列ヘッダを `w-24` から他マスタ共通の `MASTER_TABLE_COL.w100`（`w-[100px]`）へ揃え、行セルに `whitespace-nowrap` を付与して StatusPill の縦折り返しを防止。
 
 #### BUG-022（中・新規）シフト管理画面でシフトチップのテキストと「+」追加ボタンが重なる
 
 - **画面**: `/shifts`
 - **概要**: シフトが登録済みのセルで、シフトチップ内の時刻表示テキスト（例:「09:00:00〜」）に、背後の「シフト追加」用「+」ボタンが重なって表示される（例:「09:00:00〜+」のように見える）。z-index/重なり順の実装不備と推測される。
+- **修正**: 同一セル内で追加ボタンとチップは排他のまま維持。API の `HH:mm:ss` を `HH:mm` に整形して表示・aria-label へ反映し、52px 幅は変えずにチップとカレンダー日付セルへ `overflow-hidden` を付与してはみ出しを防止。
 
 #### BUG-023（低・新規）締め時間設定画面内で追加ボタンのラベル表記が不統一
 
