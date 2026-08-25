@@ -526,7 +526,9 @@ func TestVaccinationService_Create_RejectsFutureVaccinationDate(t *testing.T) {
 	nowJST := time.Now().In(config.JST)
 	today := time.Date(nowJST.Year(), nowJST.Month(), nowJST.Day(), 10, 0, 0, 0, config.JST)
 	tomorrow := today.AddDate(0, 0, 1)
+	yesterday := today.AddDate(0, 0, -1)
 	nextDate := today.AddDate(0, 1, 0)
+	sameDayNext := today
 
 	tests := []struct {
 		name        string
@@ -546,7 +548,7 @@ func TestVaccinationService_Create_RejectsFutureVaccinationDate(t *testing.T) {
 			wantCreate:  false,
 		},
 		{
-			name:       "allows today JST",
+			name:       "allows today JST with nil next_date",
 			date:       today,
 			wantCreate: true,
 		},
@@ -555,6 +557,24 @@ func TestVaccinationService_Create_RejectsFutureVaccinationDate(t *testing.T) {
 			date:       today,
 			nextDate:   &nextDate,
 			wantCreate: true,
+		},
+		{
+			name:        "rejects next_date before vaccination date",
+			date:        today,
+			nextDate:    &yesterday,
+			wantErr:     true,
+			wantInvalid: true,
+			wantMsg:     "次回予定日は接種日より後",
+			wantCreate:  false,
+		},
+		{
+			name:        "rejects next_date equal to vaccination date",
+			date:        today,
+			nextDate:    &sameDayNext,
+			wantErr:     true,
+			wantInvalid: true,
+			wantMsg:     "次回予定日は接種日より後",
+			wantCreate:  false,
 		},
 	}
 
@@ -601,7 +621,10 @@ func TestVaccinationService_Update_RejectsFutureVaccinationDate(t *testing.T) {
 	nowJST := time.Now().In(config.JST)
 	today := time.Date(nowJST.Year(), nowJST.Month(), nowJST.Day(), 10, 0, 0, 0, config.JST)
 	tomorrow := today.AddDate(0, 0, 1)
+	yesterday := today.AddDate(0, 0, -1)
+	dayBeforeYesterday := today.AddDate(0, 0, -2)
 	nextDate := today.AddDate(0, 1, 0)
+	sameDayNext := today
 	supplemental := "追記"
 
 	tests := []struct {
@@ -624,7 +647,7 @@ func TestVaccinationService_Update_RejectsFutureVaccinationDate(t *testing.T) {
 			wantUpdate:  false,
 		},
 		{
-			name: "allows today JST",
+			name: "allows today JST with nil next_date",
 			input: UpdateVaccinationInput{
 				Date: &today,
 			},
@@ -639,12 +662,34 @@ func TestVaccinationService_Update_RejectsFutureVaccinationDate(t *testing.T) {
 			wantUpdate: true,
 		},
 		{
-			name: "allows future next_date when date is omitted",
+			name: "allows next_date after stored date when date is omitted",
 			input: UpdateVaccinationInput{
 				NextDate: &nextDate,
 			},
-			storedDate: tomorrow,
+			storedDate: yesterday,
 			wantUpdate: true,
+		},
+		{
+			name: "rejects next_date before stored date when date is omitted",
+			input: UpdateVaccinationInput{
+				NextDate: &dayBeforeYesterday,
+			},
+			storedDate:  yesterday,
+			wantErr:     true,
+			wantInvalid: true,
+			wantMsg:     "次回予定日は接種日より後",
+			wantUpdate:  false,
+		},
+		{
+			name: "rejects next_date equal to vaccination date",
+			input: UpdateVaccinationInput{
+				Date:     &today,
+				NextDate: &sameDayNext,
+			},
+			wantErr:     true,
+			wantInvalid: true,
+			wantMsg:     "次回予定日は接種日より後",
+			wantUpdate:  false,
 		},
 		{
 			name: "omitting date does not inspect stored date",

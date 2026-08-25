@@ -69,9 +69,11 @@ Round 8で「環境要因の疑い」としていたS08の確認ダイアログ�
 
 Round 9では独立した2エージェント（S04-06担当・V05担当）がそれぞれAPI（`GET /api/liff/1/available-dates`）とUI（LINE予約アプリの日付選択画面）の両方で再現を確認しました。courseId 1,2,7,9の4コースのみ全スタッフ・全29日が`staff_off`判定になる一方、他の9コース（ワクチン接種・お手入れ・狂犬病等）は同一スタッフで全て予約可能という状態に変化はありません。**未修正。**
 
-### BUG-003（中）`/examinations` の新規検査登録導線が実際の検査記録を作成しない
+### BUG-003（中）`/examinations` の新規検査登録導線が実際の検査記録を作成しない — **修正済み**
 
-Round 9で再現を確認。`/examinations/select-pet`でペットを選択すると、期待される検査フォームではなく汎用のカルテ新規作成フロー（`POST /reservations`→`POST /medical-records`）に遷移し、`POST /api/v1/examinations`は一度も発行されません。**未修正（変化なし）。**
+- **Round 9 Lane A 修正**: ペット選択後の create href を `/medical-records/new?petId=…&tab=検査` から `/examinations/new?petId=…` に変更。`paths.examinations.new` と `/examinations` 配下の静的 `new` ルート（`ResourceExaminations` create ガード、`:id` より前）を追加し、`ExaminationForm` を id 未設定の新規作成として mount する。`ExaminationPetSelection` の `selectPath` も同パスに揃えた。
+- **テスト**: `examinationCreateHref` が `/examinations/new?petId=` を返し `/medical-records/new` を含まないこと / `clinical-care-routes.examinations.test.tsx` で select-pet・new の create 拒否・許可、new が `:id` 扱いにならないこと、detail `:id` mount。
+- **残リスク**: カルテ内検査タブからの新規導線・E2E 未実施。`ExaminationForm` / `useExaminationForm` 本体は未変更のため、create API 失敗時の UX は既存依存。
 
 ### BUG-004（中〜高）カルテ内「定期健診」タブに動的フィールド機能が未実装
 
@@ -81,9 +83,11 @@ Round 9でソースコード比較により再現を確認（`CheckupsTab.tsx`�
 - **テスト**: `健診種別選択後に動的フィールド（所見）を表示する` / `入力した所見を create 後に field-results へ PUT する` / `所見が未入力なら field-results を PUT しない` / `create が失敗したら field-results を PUT しない` / `field-results の PUT が失敗したら成功トーストを出さない`
 - **残リスク**: 編集行・表示行には動的フィールド未接続。create 成功後 PUT 失敗時は健診記録だけ残り、再送信すると二重 create。E2E 未実施。
 
-### BUG-005（中）予防接種の「次回予定日」が接種日以前でもサーバー側で拒否されない
+### BUG-005（中）予防接種の「次回予定日」が接種日以前でもサーバー側で拒否されない — **修正済み**
 
-Round 9で再実機確認。既存レコード（id=1000000008）に`next_date`を接種日の4日前に設定するPATCHが200で受理されることを再確認し、テスト後は正しい値に復旧済み。**未修正（変化なし）。**
+- **Round 9 Lane A 修正**: Create/Update で `next_date` が接種日（JST 日境界）以前なら `InvalidInput` で fail-closed。FE と同文言「次回予定日は接種日より後の日付を入力してください」。`next_date` 未指定（nil / patch 省略）は許可。Update は `NextDate` が patch にあるときだけ検証し、接種日は入力 `Date` があればそれ、なければ snapshot の `Date`。
+- **テスト**: `TestVaccinationService_Create_RejectsFutureVaccinationDate`（`rejects_next_date_before_vaccination_date` / `rejects_next_date_equal_to_vaccination_date` / `allows_today_JST_with_nil_next_date` / `allows_future_next_date_when_date_is_today`） / `TestVaccinationService_Update_RejectsFutureVaccinationDate`（`rejects_next_date_before_stored_date_when_date_is_omitted` / `rejects_next_date_equal_to_vaccination_date` / `allows_next_date_after_stored_date_when_date_is_omitted` / `omitting_date_does_not_inspect_stored_date`）
+- **残リスク**: Date のみ変更して既存 `next_date` が接種日以前になるケースは未検証（NextDate 非 patch 時は比較しない）。handler/API 層・E2E 未実施。
 
 ### BUG-006（中）診療項目マスタの単価非負検証がサーバー側に欠落 — **影響範囲が拡大**
 
