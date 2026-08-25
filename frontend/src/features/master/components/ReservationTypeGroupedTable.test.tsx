@@ -101,4 +101,21 @@ describe("ReservationTypeGroupedTable", () => {
 
     expect(mocks.reorder).not.toHaveBeenCalled();
   });
+
+  it("ステータス列ヘッダはMASTER_TABLE_COL.w100(w-[100px])を使い、狭いw-24を使わない", () => {
+    render(
+      <ReservationTypeGroupedTable
+        groups={[]}
+        categories={[]}
+        onCategoryEdit={vi.fn()}
+        onGroupEdit={vi.fn()}
+        onCategoryAddInGroup={vi.fn()}
+        canEdit
+      />,
+    );
+
+    const statusHeader = screen.getByRole("columnheader", { name: "ステータス" });
+    expect(statusHeader.className).toContain("w-[100px]");
+    expect(statusHeader.className).not.toContain("w-24");
+  });
 });

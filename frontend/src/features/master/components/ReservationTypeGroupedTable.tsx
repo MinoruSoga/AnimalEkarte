@@ -6,6 +6,7 @@ import { C, STYLE } from "@/lib/design-tokens";
 import { useReorderReservationTypes } from "../api/reservation-types";
 import type { ReservationType } from "../api/reservation-types";
 import type { ReservationTypeGroup } from "../api/reservation-type-groups";
+import { MASTER_TABLE_COL } from "../constants/styles";
 import { ReservationTypeGroupedTableBody } from "./ReservationTypeGroupedTableBody";
 import { groupReservationTypesByGroupId } from "./reservation-type-grouped-table-model";
 
@@ -81,7 +82,7 @@ export function ReservationTypeGroupedTable({
                 <th data-c18-structural-cell className="w-11 px-0" />
                 <th className={`text-left ${STYLE.tableHeaderCell}`}>名称</th>
                 <th className={`text-left ${STYLE.tableHeaderCell} w-56`}>備考</th>
-                <th className={`text-center ${STYLE.tableHeaderCell} w-24 whitespace-nowrap`}>ステータス</th>
+                <th className={`text-center ${STYLE.tableHeaderCell} ${MASTER_TABLE_COL.w100} whitespace-nowrap`}>ステータス</th>
                 <th data-c18-structural-cell className="w-20" />
               </tr>
             </thead>
