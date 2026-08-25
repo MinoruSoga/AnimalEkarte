@@ -51,7 +51,7 @@
 - **非PHI エラー ID**: `CUTOVER_REF_BAND_OCCUPIED` / `CUTOVER_REF_CLINIC_ISOLATION` / `CUTOVER_REF_ROW_COUNT` と table・CSV 行番号のみ。セル値は出さない。
 
 `REHEARSAL_ONLY` / `PARTIAL` bundleを
-`backend/migrations/seeds/_old_db_handoff/<clinic>/<run>/` に置くことは、
+`backend/migrations/seeds/_old_db_handoff/<clinic>/` に置くことは、
 ローカル保管にすぎません。正式preflightはこれを拒否し、`cmd/migrate` / `make seed` も読みません。
 医院別の配置コマンドは `make old-db-handoff-stage`（手順:
 [OLD_DB_HANDOFF_LOCAL.md](./OLD_DB_HANDOFF_LOCAL.md)）。

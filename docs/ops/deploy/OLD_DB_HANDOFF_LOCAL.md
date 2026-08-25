@@ -8,7 +8,7 @@ worktree 内へ **医院別** に置く手順です。PHI を含み得るため 
 ## 置き場所
 
 ```text
-backend/migrations/seeds/_old_db_handoff/<clinic>/<run>/
+backend/migrations/seeds/_old_db_handoff/<clinic>/
   manifest.json
   owners.csv
   pets.csv
@@ -18,11 +18,11 @@ backend/migrations/seeds/_old_db_handoff/<clinic>/<run>/
 例（城東・診断 rehearsal）:
 
 ```text
-backend/migrations/seeds/_old_db_handoff/jouto/jouto-intake-20260819-01/
-backend/migrations/seeds/_old_db_handoff/jouto/jouto-intake-20260819-01-local/  # 推奨（電話重複を解消）
+backend/migrations/seeds/_old_db_handoff/jouto/
+backend/migrations/seeds/_old_db_handoff/jouto-local/  # 任意。電話 unique 用の sanitize 済み
 ```
 
-同一 `clinicCode` + `sourceRunId` で `<run>` と `<run>-local` が両方ある場合、
+同一 `clinicCode` + `sourceRunId` で `<clinic>` と `<clinic>-local` が両方ある場合、
 `make reset` は **`-local` を優先**して1本だけ import する。
 
 ## 重要な境界
@@ -30,7 +30,7 @@ backend/migrations/seeds/_old_db_handoff/jouto/jouto-intake-20260819-01-local/  
 | 経路 | 用途 | `make seed` / `cmd/migrate` |
 | --- | --- | --- |
 | `seeds/002_master` 等 | 通常デモ/マスタ seed | **読む** |
-| `seeds/_old_db_handoff/<clinic>/<run>/` | old_db 21表のローカル隔離 | **読まない** |
+| `seeds/_old_db_handoff/<clinic>/` | old_db 21表のローカル隔離 | **読まない** |
 | `make csv-import-*` | 正式 cutover（F6） | seed を生成しない |
 
 - `REHEARSAL_ONLY` / `PARTIAL` bundle はここに置けるが、**正式 preflight は拒否**する。
@@ -75,7 +75,7 @@ make old-db-handoff-check
 
 ### ローカル `make reset`（自動）
 
-`backend/migrations/seeds/_old_db_handoff/<clinic>/<run>/` に bundle があれば、
+`backend/migrations/seeds/_old_db_handoff/<clinic>/` に bundle があれば、
 ローカル `make reset` の postflight 後に **自動 import** します。
 
 - `REHEARSAL_ONLY` / `UNVERIFIED` もローカル限定で許可（`--allow-local-rehearsal`）
@@ -102,5 +102,6 @@ make old-db-handoff-check
 
 `jouto-intake-20260819-01` は producer 側で **`REHEARSAL_ONLY`**。
 飼主・ペットを含む 21 表は揃っているが、正式 F6 は拒否される。
-ローカルでは `_old_db_handoff/jouto/jouto-intake-20260819-01-local/`（電話 unique 用に
-sanitize 済み）を置き、`make reset` で `clinic_id=2`（城東センター病院）へ取り込む。
+ローカルでは `_old_db_handoff/jouto/` に現行 rehearsal を置き、必要なら
+`_old_db_handoff/jouto-local/`（電話 unique 用に sanitize 済み）を優先する。
+`make reset` は `clinic_id=2`（城東センター病院）へ取り込む。

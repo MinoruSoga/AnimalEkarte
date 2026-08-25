@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Stage an old_db 21-table CSV bundle into the local PHI quarantine:
-#   backend/migrations/seeds/_old_db_handoff/<clinic>/<run>/
+#   backend/migrations/seeds/_old_db_handoff/<clinic>/
 #
 # This does NOT register the bundle with cmd/migrate / make seed.
 # Formal DB import remains make csv-import-* and requires TRUSTED_CANDIDATE.
@@ -34,7 +34,7 @@ fi
 git check-ignore -q --no-index "$EXCLUDE_LINE" \
   || die "git check-ignore failed for $EXCLUDE_LINE — refuse to stage PHI"
 
-DEST="$ROOT/backend/migrations/seeds/_old_db_handoff/$CLINIC_CODE/$MIGRATION_RUN_ID"
+DEST="$ROOT/backend/migrations/seeds/_old_db_handoff/$CLINIC_CODE"
 mkdir -p -m 700 "$DEST"
 rsync -a --delete "$SOURCE_DIR/" "$DEST/"
 chmod 700 "$DEST"

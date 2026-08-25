@@ -473,7 +473,7 @@ main() {
   postflight_checks
 
   # Local-only: if hospital CSV bundles are staged under
-  # backend/migrations/seeds/_old_db_handoff/<clinic>/<run>/, import them now.
+  # backend/migrations/seeds/_old_db_handoff/<clinic>/, import them now.
   if [[ -x "$SCRIPT_DIR/import-old-db-handoffs-on-reset.sh" ]]; then
     info "importing staged old_db handoffs (local rehearsal allowed)..."
     bash "$SCRIPT_DIR/import-old-db-handoffs-on-reset.sh" \

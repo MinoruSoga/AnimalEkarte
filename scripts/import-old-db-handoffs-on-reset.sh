@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # After local `make reset` postflight, import every staged old_db handoff under
-# backend/migrations/seeds/_old_db_handoff/<clinic>/<run>/ into the local DB.
+# backend/migrations/seeds/_old_db_handoff/<clinic>/ into the local DB.
 #
 # Uses csv-import --allow-local-rehearsal (REHEARSAL_ONLY allowed). Never for
 # staging/production. Invoked only from scripts/local-db-reset-contract.sh.
@@ -196,9 +196,9 @@ SQL
   echo "INFO  imported $clinic/$run"
 }
 
-# Prefer <run>-local over <run> when both are staged for the same clinic.
-# Producer CSV may fail uk_owners_clinic_phone; local sanitized bundles are
-# named <sourceRunId>-local and keep the same manifest sourceRunId.
+# Prefer <clinic>-local over <clinic> when both are staged for the same clinic.
+# Producer CSV may fail uk_owners_clinic_phone; local sanitized bundles live in
+# _old_db_handoff/<clinic>-local/ and keep the same manifest sourceRunId.
 select_handoff_dirs() {
   python3 - "$HANDOFF_ROOT" <<'PY'
 import json, os, sys
@@ -206,15 +206,15 @@ from pathlib import Path
 
 root = Path(sys.argv[1])
 candidates = []
-for manifest in sorted(root.glob("*/*/manifest.json")):
+for manifest in sorted(root.glob("*/manifest.json")):
     try:
         m = json.loads(manifest.read_text(encoding="utf-8"))
     except Exception:
         continue
-    clinic = m.get("clinicCode") or manifest.parent.parent.name
-    run = m.get("sourceRunId") or m.get("migrationRunId") or manifest.parent.name
     dirname = manifest.parent.name
-    is_local = dirname.endswith("-local") or dirname == f"{run}-local"
+    clinic = m.get("clinicCode") or dirname.removesuffix("-local")
+    run = m.get("sourceRunId") or m.get("migrationRunId") or dirname
+    is_local = dirname.endswith("-local") or dirname == f"{clinic}-local"
     candidates.append((clinic, run, is_local, str(manifest.parent)))
 
 chosen = {}
