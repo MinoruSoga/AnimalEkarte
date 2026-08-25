@@ -3,6 +3,8 @@ package medicalrecord
 import (
 	"context"
 	"errors"
+	"net"
+	"os"
 	"testing"
 	"time"
 
@@ -13,6 +15,35 @@ import (
 	"github.com/animal-ekarte/backend/internal/config"
 	"github.com/animal-ekarte/backend/internal/model"
 )
+
+// TestMain remaps DB_HOST when bare `docker run` cannot resolve compose hostname
+// "db". docker-compose.yml publishes Postgres as host port 5434.
+func TestMain(m *testing.M) {
+	ensureMedicalrecordTestDBReachableFromIsolatedDocker()
+	os.Exit(m.Run())
+}
+
+func ensureMedicalrecordTestDBReachableFromIsolatedDocker() {
+	if os.Getenv("TEST_DATABASE_URL") != "" {
+		return
+	}
+	if host := os.Getenv("DB_HOST"); host != "" && host != "db" {
+		return
+	}
+	if _, err := net.DefaultResolver.LookupHost(context.Background(), "db"); err == nil {
+		return
+	}
+	const fallbackHost = "host.docker.internal"
+	const fallbackPort = "5434"
+	d := net.Dialer{Timeout: 500 * time.Millisecond}
+	conn, err := d.DialContext(context.Background(), "tcp", net.JoinHostPort(fallbackHost, fallbackPort))
+	if err != nil {
+		return
+	}
+	_ = conn.Close()
+	_ = os.Setenv("DB_HOST", fallbackHost)
+	_ = os.Setenv("DB_PORT", fallbackPort)
+}
 
 // mockVaccinationRepository は VaccinationRepository のテスト用モック実装
 type mockVaccinationRepository struct {

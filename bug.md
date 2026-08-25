@@ -87,6 +87,7 @@ Round 9でソースコード比較により再現を確認（`CheckupsTab.tsx`�
 
 - **Round 9 Lane A 修正**: Create/Update で `next_date` が接種日（JST 日境界）以前なら `InvalidInput` で fail-closed。FE と同文言「次回予定日は接種日より後の日付を入力してください」。`next_date` 未指定（nil / patch 省略）は許可。Update は `NextDate` が patch にあるときだけ検証し、接種日は入力 `Date` があればそれ、なければ snapshot の `Date`。
 - **テスト**: `TestVaccinationService_Create_RejectsFutureVaccinationDate`（`rejects_next_date_before_vaccination_date` / `rejects_next_date_equal_to_vaccination_date` / `allows_today_JST_with_nil_next_date` / `allows_future_next_date_when_date_is_today`） / `TestVaccinationService_Update_RejectsFutureVaccinationDate`（`rejects_next_date_before_stored_date_when_date_is_omitted` / `rejects_next_date_equal_to_vaccination_date` / `allows_next_date_after_stored_date_when_date_is_omitted` / `omitting_date_does_not_inspect_stored_date`）
+- **Verify repair**: 孤立 `docker run`（compose network なし）では `db` 解決に失敗し concurrency 系が fatal していた。`vaccination_service_test.go` の `TestMain` が `db` 未解決時のみ `host.docker.internal:5434`（compose 公開ポート）へフォールバックする。
 - **残リスク**: Date のみ変更して既存 `next_date` が接種日以前になるケースは未検証（NextDate 非 patch 時は比較しない）。handler/API 層・E2E 未実施。
 
 ### BUG-006（中）診療項目マスタの単価非負検証がサーバー側に欠落 — **影響範囲が拡大**
