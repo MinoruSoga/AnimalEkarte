@@ -117,6 +117,7 @@ Round 9でも状況は変化なし（`VITE_LIFF_MOCK=true`によりローカル�
 - **影響**: S11シナリオの中核機能である「同日のトリミングと診察を1回の会計にまとめる」がまったく機能しない。準備用API（`unbilled-details`等）は両方のsourceを正しく返しUI上は統合可能に見えるため、ユーザーは原因不明のエラーで繰り返し失敗する可能性が高い。
 - **ワークアラウンド**: トリミングと医療を別々の会計として個別に精算すれば正常完了する（本ラウンドではこの方法で残務を精算済み）。ただし「1つの会計にまとめる」という本来の要件は満たせない。
 - **推奨対応**: バックエンドの会計確定処理における明細source検証ロジック（`参照先の組み合わせ`チェック）が、`medical_record`と`trimming`の混在を誤って拒否している可能性が高く、該当バリデーションの見直しを推奨。
+- **修正**: `ValidateCreateReferences` が `medical_records.appointment_id` と明細 `appointment_id` の一致をトリミング明細にも適用していた。S11 は診察予約 A がカルテ、トリミング予約 B がコース/オプションを持つため 400 になる。トリミング provenance のみ一致を免除し、`treatment_id` がある場合は従来どおり不一致を拒否する。回帰: `TestBillingItemRepository_ValidateCreateReferences` の S11 split-appointment ケース、`TestAccountingService_CompleteAccounting_MixedMedicalRecordAndTrimming_SplitAppointments`。残存リスク: `CompleteForAccounting` はヘッダの `medical_record_id` スコープのまま。
 
 ### BUG-009（中・新規）カルテを会計確認（医師）より先に確定すると、以後会計確認が永久にブロックされ明細が統合会計から恒久的に除外される
 

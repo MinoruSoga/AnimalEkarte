@@ -228,7 +228,10 @@ func (r *billingItemRepository) ValidateCreateReferences(
 			!sameOptionalBillingReference(billingRef.PetID, appointmentRef.PetID) {
 			return "", invalidBillingItemReferenceCombination()
 		}
-		if medicalRecordRef != nil &&
+		// S11: trimming appointment may differ from billing medical_record appointment.
+		enforceMedicalAppointment := (medicalRecordRef != nil && treatmentID != nil) ||
+			(medicalRecordRef != nil && trimmingCourseID == nil && trimmingOptionID == nil)
+		if enforceMedicalAppointment &&
 			(medicalRecordRef.AppointmentID == nil || *medicalRecordRef.AppointmentID != *appointmentID) {
 			return "", invalidBillingItemReferenceCombination()
 		}
