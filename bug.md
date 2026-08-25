@@ -131,6 +131,9 @@ Round 9でも状況は変化なし（`VITE_LIFF_MOCK=true`によりローカル�
 - **概要**: 「会計確認（医師）→カルテ確定」という正しい順序をUIが強制しておらず、順序を誤って先にカルテを確定してしまうと、事後の会計確認要求が`409 確定済みカルテの会計確認は変更できません`で永久にブロックされる。この結果、当該診療明細は恒久的に「同日統合対象外」のまま残り、`GET /api/v1/billing-items/ungrouped-same-day`が`has_ungrouped:true`を返し続ける。
 - **影響**: データ自体は失われないが、統合会計の対象から外れたまま回復手段がない状態が恒久的に残る。
 - **推奨対応**: (a) カルテ確定ボタン押下時に「会計確認が未完了です」の警告を表示する、または (b) 確定済みカルテでも会計確認の変更を許可する、のいずれかの是正を推奨。
+- **Round 9 Lane A 修正**: フローティング「確定する」を会計確認 `status==='confirmed'` 完了まで物理ブロック（disabled + title「会計確認が未完了です」）。pending / returned / loading / error / props省略は fail-closed。ConfirmDialog は安全網に使わない。`handleFinalize` の payload/guards は未変更。
+- **テスト**: `会計確認が pending のときは確定するを物理ブロックする` / `会計確認が returned のときは確定するを物理ブロックする` / `会計確認の読み込み中は確定するを物理ブロックする` / `会計確認の取得エラー時は確定するを物理ブロックする` / `会計確認props省略時は確定するを物理ブロックする（fail-closed）` / `会計確認が confirmed なら確定するをクリックできる` / `会計(医師確認)タブではフローティングバーごと確定するを出さない`（既存の予防接種保存非表示・問診保存表示・isFinalized 非表示は維持）
+- **残リスク**: GET `/billing-confirmation` は GetOrCreate のため、フォーム表示で pending 行が永続化する可能性。Form.permissions / not-found は `useGetBillingConfirmation` 未モック。E2E 未実施。確定済み後の会計確認 409 は BE 未変更。
 
 ### BUG-011（低・新規）薬剤マスタの重複名エラーメッセージが他の診療項目マスタと異なり非構造・名前欠落
 
