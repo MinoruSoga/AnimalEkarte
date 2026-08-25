@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { toast } from "sonner";
 
 import { MedicalRecordVaccination } from "./MedicalRecordVaccination";
 
@@ -61,10 +62,18 @@ vi.mock("./VaccinationHistory", () => ({
   VaccinationHistory: () => <div data-testid="vaccination-history" />,
 }));
 
+vi.mock("sonner", () => ({
+  toast: {
+    success: vi.fn(),
+    error: vi.fn(),
+  },
+}));
+
 beforeEach(() => {
   mockCreateVaccination.mockReset();
   mockCreateVaccination.mockResolvedValue({});
   mockHistoryItems.current = [];
+  vi.mocked(toast.success).mockClear();
 });
 
 function openAddForm() {
@@ -161,5 +170,39 @@ describe("MedicalRecordVaccination BUG-015 required validation", () => {
       );
     });
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+});
+
+describe("MedicalRecordVaccination BUG-001 inner save toast", () => {
+  it("接種記録の追加に成功したら成功トーストを出す", async () => {
+    render(<MedicalRecordVaccination petId="1" medicalRecordId="99" />);
+    openAddForm();
+
+    fireEvent.change(screen.getByLabelText("ワクチンID"), { target: { value: "7" } });
+    fireEvent.change(screen.getByLabelText("接種日"), { target: { value: "2026-07-20" } });
+    fireEvent.click(screen.getByRole("button", { name: "保存" }));
+
+    await waitFor(() => {
+      expect(mockCreateVaccination).toHaveBeenCalled();
+    });
+    expect(toast.success).toHaveBeenCalledWith("接種記録を追加しました");
+  });
+
+  it("接種記録の追加が失敗したら成功トーストを出さずフォームを残す", async () => {
+    mockCreateVaccination.mockRejectedValue(new Error("create failed"));
+    render(<MedicalRecordVaccination petId="1" medicalRecordId="99" />);
+    openAddForm();
+
+    fireEvent.change(screen.getByLabelText("ワクチンID"), { target: { value: "7" } });
+    fireEvent.change(screen.getByLabelText("接種日"), { target: { value: "2026-07-20" } });
+    fireEvent.click(screen.getByRole("button", { name: "保存" }));
+
+    await waitFor(() => {
+      expect(mockCreateVaccination).toHaveBeenCalled();
+    });
+    expect(toast.success).not.toHaveBeenCalled();
+    expect(screen.getByTestId("vaccination-form")).toBeInTheDocument();
+    expect(screen.getByLabelText("ワクチンID")).toBeInTheDocument();
+    expect(screen.getByLabelText("接種日")).toBeInTheDocument();
   });
 });

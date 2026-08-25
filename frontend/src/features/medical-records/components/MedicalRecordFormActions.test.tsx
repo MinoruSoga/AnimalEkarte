@@ -70,6 +70,20 @@ describe("MedicalRecordFloatingActions", () => {
     await user.click(screen.getByRole("button", { name: "確定する" }));
     expect(onFinalizeClick).toHaveBeenCalledOnce();
   });
+
+  it("予防接種タブでは保存を出さず確定する・印刷は残す", () => {
+    render(<MedicalRecordFloatingActions {...baseProps} activeTab="予防接種" />);
+
+    expect(screen.queryByRole("button", { name: "保存" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "確定する" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "印刷" })).toBeInTheDocument();
+  });
+
+  it("問診タブでは保存を表示する", () => {
+    render(<MedicalRecordFloatingActions {...baseProps} activeTab="問診" />);
+
+    expect(screen.getByRole("button", { name: "保存" })).toBeInTheDocument();
+  });
 });
 
 describe("MedicalRecordFinalizeDialog", () => {

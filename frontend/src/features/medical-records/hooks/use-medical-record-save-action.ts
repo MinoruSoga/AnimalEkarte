@@ -199,6 +199,11 @@ export function useMedicalRecordSaveAction({
             queryClient.invalidateQueries({ queryKey: queryKeys.reception.all() });
             return { success: true, timestamp: Date.now() };
 
+          case "予防接種":
+            // BUG-001: 予防接種の永続化は inner VaccinationForm の createVaccination が正本。
+            // ここで汎用「保存しました」を出すと API 未送信でも成功に見える。
+            return { success: true, timestamp: Date.now() };
+
           default:
             break;
         }
