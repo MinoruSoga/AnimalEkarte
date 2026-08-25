@@ -350,13 +350,13 @@ export const ItemListCard = memo(function ItemListCard({
           <TableHeader className={`sticky top-0 ${C.bgPage} z-10 shadow-level1`}>
             <TableRow>
               <TableHead className="w-[100px]">区分</TableHead>
-              <TableHead>項目名</TableHead>
+              <TableHead className="min-w-[180px]">項目名</TableHead>
               <TableHead className="text-right w-[90px]">単価</TableHead>
               <TableHead className="text-center w-[60px]">数量</TableHead>
               <TableHead className="text-center w-[90px]">割引</TableHead>
               <TableHead className="w-[100px] text-center">課税区分</TableHead>
               <TableHead className="text-center w-[70px]">税率</TableHead>
-              <TableHead className="text-right w-[80px]">税額</TableHead>
+              <TableHead className="text-right w-[80px] whitespace-nowrap">税額</TableHead>
               <TableHead className="text-center w-[60px]">保険</TableHead>
               <TableHead className="text-right w-[100px]">金額</TableHead>
               <TableHead className="w-[50px]" />

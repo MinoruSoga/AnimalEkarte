@@ -54,6 +54,30 @@ describe("ItemListCard merchandise selection", () => {
     });
   });
 
+  it("項目名ヘッダは最小幅を持ち税額ヘッダは折り返さない", () => {
+    render(
+      <ItemListCard
+        items={[]}
+        subtotal={0}
+        taxTotal={0}
+        totalAmount={0}
+        newItemOpen={false}
+        onNewItemOpenChange={vi.fn()}
+        onAddItem={vi.fn()}
+        onDeleteItem={vi.fn()}
+        canEdit
+        canDelete={false}
+      />,
+    );
+
+    const nameHeader = screen.getByRole("columnheader", { name: "項目名" });
+    expect(nameHeader.className).toMatch(/min-w-\[/);
+    expect(nameHeader.closest(".overflow-auto")).not.toBeNull();
+
+    const taxHeader = screen.getByRole("columnheader", { name: "税額" });
+    expect(taxHeader.className).toContain("whitespace-nowrap");
+  });
+
   function renderEditableItemListCard(onAddItem = vi.fn()) {
     render(
       <ItemListCard
