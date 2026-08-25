@@ -673,3 +673,173 @@ describe("ReservationFormModal — 予約不可時間", () => {
     expect(screen.getByTestId("res-end-time-trigger")).toHaveTextContent("13:30");
   }, 15000);
 });
+
+describe("ReservationFormModal — BUG-015 inactive reservation type edit", () => {
+  const inactiveEditHandlers = [
+    http.get("/api/v1/clinic-holidays", () => HttpResponse.json([])),
+    http.get("/api/v1/pets", () => HttpResponse.json({ data: [] })),
+    http.get("/api/v1/masters/animal-species", () => HttpResponse.json([])),
+    http.get("/api/v1/masters/staffs", () => HttpResponse.json([])),
+    http.get("/api/v1/shifts/on-duty-staffs", () => HttpResponse.json([])),
+    http.get("/api/v1/clinics/1/reservation-staffs", () => HttpResponse.json([])),
+    http.get("/api/v1/masters/reservation-types/2/unavailable-times", () =>
+      HttpResponse.json({ data: [] }),
+    ),
+    http.get("/api/v1/masters/reservation-types", () =>
+      HttpResponse.json([
+        {
+          id: 1,
+          name: "一般診療",
+          color: "#111111",
+          is_active: true,
+          duration_minutes: 30,
+          sort_order: 1,
+          is_internal: false,
+          category: "general",
+          group_id: null,
+          group: null,
+        },
+        {
+          id: 2,
+          name: "旧コース",
+          color: "#222222",
+          is_active: false,
+          duration_minutes: 60,
+          sort_order: 2,
+          is_internal: false,
+          category: "general",
+          group_id: null,
+          group: null,
+        },
+        {
+          id: 3,
+          name: "別の無効コース",
+          color: "#333333",
+          is_active: false,
+          duration_minutes: 45,
+          sort_order: 3,
+          is_internal: false,
+          category: "general",
+          group_id: null,
+          group: null,
+        },
+      ]),
+    ),
+  ];
+
+  it("edit mode keeps inactive type label with （無効） and retains start time when slots are empty", async () => {
+    localStorage.setItem("auth_current_clinic:v1", "1");
+    server.use(
+      ...inactiveEditHandlers,
+      http.get("/api/v1/reservations/available-times", () => HttpResponse.json([])),
+    );
+
+    const initialData: Partial<Reservation> = {
+      id: "100",
+      start: new Date(2026, 5, 1, 14, 30, 0),
+      end: new Date(2026, 5, 1, 15, 30, 0),
+      visitType: "revisit",
+      type: "2",
+      doctor: "",
+      isDesignated: false,
+      status: "confirmed",
+    };
+
+    render(
+      <ReservationFormModal
+        isOpen={true}
+        onClose={noop}
+        onSave={noop}
+        initialData={initialData}
+        canCreate={false}
+        canEdit={true}
+      />,
+      { wrapper: createWrapper() },
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("res-type-trigger")).toHaveTextContent("旧コース");
+    });
+    expect(screen.getByTestId("res-type-trigger")).toHaveTextContent("（無効）");
+    expect(screen.getByTestId("res-start-time-trigger")).toHaveTextContent("14:30");
+  }, 15000);
+
+  it("picker does not offer other inactive types while keeping the current inactive selection visible", async () => {
+    localStorage.setItem("auth_current_clinic:v1", "1");
+    server.use(
+      ...inactiveEditHandlers,
+      http.get("/api/v1/reservations/available-times", () => HttpResponse.json([])),
+    );
+    const user = userEvent.setup({ delay: null });
+
+    const initialData: Partial<Reservation> = {
+      id: "100",
+      start: new Date(2026, 5, 1, 14, 30, 0),
+      end: new Date(2026, 5, 1, 15, 30, 0),
+      visitType: "revisit",
+      type: "2",
+      doctor: "",
+      isDesignated: false,
+      status: "confirmed",
+    };
+
+    render(
+      <ReservationFormModal
+        isOpen={true}
+        onClose={noop}
+        onSave={noop}
+        initialData={initialData}
+        canCreate={false}
+        canEdit={true}
+      />,
+      { wrapper: createWrapper() },
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("res-type-trigger")).toHaveTextContent("旧コース");
+    });
+
+    await user.click(screen.getByTestId("res-type-trigger"));
+    expect(await screen.findByTestId("res-type-card-1")).toBeInTheDocument();
+    expect(screen.queryByTestId("res-type-card-3")).not.toBeInTheDocument();
+  }, 15000);
+
+  it("available-times failure does not clear type or start time", async () => {
+    localStorage.setItem("auth_current_clinic:v1", "1");
+    server.use(
+      ...inactiveEditHandlers,
+      http.get("/api/v1/reservations/available-times", () =>
+        HttpResponse.json({ error: "reservation type is inactive" }, { status: 400 }),
+      ),
+    );
+
+    const initialData: Partial<Reservation> = {
+      id: "100",
+      start: new Date(2026, 5, 1, 14, 30, 0),
+      end: new Date(2026, 5, 1, 15, 30, 0),
+      visitType: "revisit",
+      type: "2",
+      doctor: "",
+      isDesignated: false,
+      status: "confirmed",
+    };
+
+    render(
+      <ReservationFormModal
+        isOpen={true}
+        onClose={noop}
+        onSave={noop}
+        initialData={initialData}
+        canCreate={false}
+        canEdit={true}
+      />,
+      { wrapper: createWrapper() },
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("res-type-trigger")).toHaveTextContent("旧コース");
+    });
+    expect(screen.getByTestId("res-type-trigger")).toHaveTextContent("（無効）");
+    expect(screen.getByTestId("res-start-time-trigger")).toHaveTextContent("14:30");
+  }, 15000);
+});

@@ -458,3 +458,55 @@ func TestLiffService_TypeScopedPublicReads_RejectInactiveReservationType(t *test
 		assert.Equal(t, 1, downstreamCalls, "active public type must reach time availability dependencies")
 	})
 }
+
+// BUG-015: staff available-times may proceed for inactive types; LIFF GetAvailableTimes stays reject.
+func TestLiffService_GetStaffAvailableTimes_AllowsInactiveReservationType(t *testing.T) {
+	const clinicID = uint64(3)
+	const typeID = uint64(7)
+	ctx := context.Background()
+	date := time.Date(2026, 8, 3, 0, 0, 0, 0, config.JST)
+	downstreamErr := errors.New("downstream reached")
+
+	typeRepo := &mockLiffTypeRepository{
+		findByIDFn: func(_ context.Context, gotClinicID, gotTypeID uint64) (*model.ReservationType, error) {
+			assert.Equal(t, clinicID, gotClinicID)
+			assert.Equal(t, typeID, gotTypeID)
+			return &model.ReservationType{
+				ID:                   gotTypeID,
+				ClinicID:             gotClinicID,
+				IsActive:             false,
+				ReservationVisible:   true,
+				DurationMinutes:      30,
+				ReservationDayOption: model.DayOptionAnyday,
+			}, nil
+		},
+	}
+	settingRepo := &mockLiffSettingRepository{
+		findByClinicIDFn: func(_ context.Context, _ uint64) (*model.LineReservationSetting, error) {
+			return liffDefaultSetting(), nil
+		},
+	}
+	downstreamCalls := 0
+	staffRepo := &mockLiffStaffRepository{
+		findAllFn: func(_ context.Context, _ uint64) ([]model.Staff, error) {
+			downstreamCalls++
+			return nil, downstreamErr
+		},
+	}
+	svc := &liffService{
+		settingRepo:  settingRepo,
+		typeLiffRepo: typeRepo,
+		staffRepo:    staffRepo,
+	}
+
+	_, err := svc.GetAvailableTimes(ctx, clinicID, typeID, 0, date)
+	require.Error(t, err)
+	assert.True(t, apperrors.IsInvalidInput(err), "LIFF GetAvailableTimes must keep inactive short-circuit")
+	assert.Zero(t, downstreamCalls)
+
+	_, err = svc.GetStaffAvailableTimes(ctx, clinicID, typeID, 0, date)
+	require.Error(t, err)
+	assert.False(t, apperrors.IsInvalidInput(err), "staff available-times must not reject inactive reservation type")
+	assert.ErrorIs(t, err, downstreamErr)
+	assert.Equal(t, 1, downstreamCalls, "inactive staff path must reach slot dependencies")
+}
