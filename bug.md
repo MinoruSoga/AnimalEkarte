@@ -64,7 +64,8 @@ Round 8で「環境要因の疑い」としていたS08の確認ダイアログ�
 
 ### BUG-002（高）一般診察／一般診察(再診)／健康診断／トリミングコース（courseId 1, 2, 7, 9）が全スタッフ・全期間で予約不可
 
-Round 9では独立した2エージェント（S04-06担当・V05担当）がそれぞれAPI（`GET /api/liff/1/available-dates`）とUI（LINE予約アプリの日付選択画面）の両方で再現を確認しました。courseId 1,2,7,9の4コースのみ全スタッフ・全29日が`staff_off`判定になる一方、他の9コース（ワクチン接種・お手入れ・狂犬病等）は同一スタッフで全て予約可能という状態に変化はありません。**未修正。**
+Round 9では独立した2エージェント（S04-06担当・V05担当）がそれぞれAPI（`GET /api/liff/1/available-dates`）とUI（LINE予約アプリの日付選択画面）の両方で再現を確認しました。courseId 1,2,7,9の4コースのみ全スタッフ・全29日が`staff_off`判定になる一方、他の9コース（ワクチン接種・お手入れ・狂犬病等）は同一スタッフで全て予約可能という状態に変化はありません。
+- **修正**: `CountWorkingStaffByReservationTypeIDs` は INNER JOIN `shift_entries`（出勤行のみ）をやめ、職種紐付け＋同一 clinic の `is_active`/`reservation_visible` スタッフを候補とし、当該日の `off`/`paid_leave` のみ除外する。シフト行なしはスロット判定と同じく出勤候補。候補が1人以上なら要求日のキーを埋める。`applyOccupationGuard` は count=0 の日だけ `staff_off`。職種紐付け0件は従来どおり Count をスキップ。回帰: `TestReservationTypeOccupationRepository_CountWorkingStaffByReservationTypeIDs`（no-shift 日は count>0）、`...OccupationGuardNoShiftEntries`、`...OccupationGuardAllOff`、`TestGetAvailableDates_OccupationGuardUsesBatchedCounts`（mock count=0 は staff_off 維持）、`TestGetAvailableDates_OccupationGuardSkipsCountWhenNoOccupations`。
 
 ### BUG-003（中）`/examinations` の新規検査登録導線が実際の検査記録を作成しない
 
