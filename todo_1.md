@@ -1,7 +1,26 @@
 # STG 実データ運用テスト — 城東 + 八王子
 
-更新日: 2026-08-25（ClaudeFable5 レビュー H-1/H-2/H-3/M-1/M-2/M-4/N-1/N-2 を本文へ反映。M-3 の canonical runbook 追記は未適用）  
+更新日: 2026-08-25（Lane 2 コードは `4703cf3e9` で main 入り。M-3 の canonical runbook 追記は未適用）  
 本書は STG 並行運用から本番移行日までの実行計画の正本。実行 SoT は Linear（入口 [`todo.md`](todo.md)）。old_db 側の producer 作業は sibling `old_db/todo.md`。手順の詳細（F6 変数、backup、失敗時）は末尾の runbook を参照し、ここに複製しない。
+
+---
+
+## 対応状況（2026-08-25）
+
+エージェント実装（Lane 2）は完了。残作業は USER / old_db。Lane 3 の H3 チェックは投入するまで付けない。
+
+| レーン | 状態 | メモ |
+|--------|------|------|
+| Lane 0 入力 | 進行中 | H0-1 済み。H0-3a 城東 check PASS + H0-4 城東 SHA 転記済み。未: H0-2 八王子 21 CSV、H0-3b 八王子 check、H0-4 八王子 SHA、H0-5 名簿 0600 |
+| Lane 2 コード | **完了** | `4703cf3e9`。SKELETON / IMPORT / STAFF / Make の DB_HOST・SSL・sentinel 転送 |
+| Lane 1 ローカル証明 | 未着手 | 城東を STG より先に通す。落ちた bundle は送らない |
+| Lane 3 STG 投入 | 未着手 | **USER のみ。** エージェントは pscale / `make stg-uat-*` apply を実行しない。城東先行 |
+| Lane 4 並行運用 | 未着手 | 城東投入後。STG 入力は本番に移さない |
+| 任意・後追い | 未着手 | H3-10 SHIFT、H1-3/H1-4、M-3 runbook 1 行（明示時のみ）、AE-SEED-RETIRE-DEMO |
+
+claim 枝（削除は USER。merge / abandon のあと `git branch -D`）:
+
+`claim/AE-STG-UAT-SKELETON` · `IMPORT` · `STAFF` · `OPS-SHEET` · `MAKE-REMOTE` · `H0-JOU-CHECK`
 
 ---
 
@@ -200,8 +219,9 @@ handoff の `staffs.csv` 列は `id, clinic_id, name, license_number, is_active,
 
 - [x] **H0-1** D1–D4, D6–D7 確定（2026-08-25）。D5 の権限 ID と現行スタッフ名簿は repo 外で後から渡す
 - [ ] **H0-2** 八王子の医院 identity 付き 21 表 CSV + manifest を old_db から出す（HAC-CSV-1。rehearsal 可。旧 7 CSV は使わない）。各 CSV が 512MiB 未満であることを確認する
-- [ ] **H0-3** 城東・八王子それぞれ `make old-db-handoff-stage` / `make old-db-handoff-check`
-- [ ] **H0-4** producer run report の manifest SHA-256 を作業票へ別経路で転記する
+- [x] **H0-3a** 城東: `CLINIC_CODE=jouto MIGRATION_RUN_ID=jouto-intake-20260822-01 make old-db-handoff-check` PASS（配置済み。`old-db-handoff-stage` は再実行しない）
+- [ ] **H0-3b** 八王子: 同じ check（H0-2 待ち。現行 `hachioji/` に manifest なし）
+- [x] **H0-4** 城東 manifest SHA-256（`backend/migrations/seeds/_old_db_handoff/jouto/manifest.json`）: `1a08edbb2c6aa4050399d55d29204cd15cfbaa23baa30d512221b0b3d9372591`（八王子は H0-2 後に別途転記）
 - [ ] **H0-5** ログイン名簿（repo 外・mode 0600）: 現行スタッフほぼ全員の `staffs.id`、医院、`stg-staff-{id}@example.test`、初期パスワード、`permission_group_ids`。SMTP には使わない。履歴・退職行は載せない
 
 配置先:
@@ -225,7 +245,7 @@ backend/migrations/seeds/_old_db_handoff/jouto/
 
 ### Lane 2 — AnimalEkarte 実装
 
-STG 投入当日より前に終わらせる。PHI をテストフィクスチャに入れない。ローカル go / npm は使わない。検証は Docker のスコープ限定。`make db` / STG 破壊操作は USER 手動。
+**コード完了**（main `4703cf3e9`）。残るのは名簿と USER の投入（Lane 1 → Lane 3）。PHI をテストフィクスチャに入れない。ローカル go / npm は使わない。検証は Docker のスコープ限定。`make db` / STG 破壊操作は USER 手動。
 
 #### AE-STG-UAT-SKELETON — STG 用医院骨格
 
@@ -242,7 +262,7 @@ STG / 本番 migrate が読んでよい最小データ。臨床行（owners / pe
 - 権限グループと rule（現行スタッフを載せる受け皿。21 表外）
 - `clinic_settings`（締め時刻など、運用テストで触る画面があるなら。21 表外）
 
-**実装済み（worktree）:** `backend/cmd/stg-uat-skeleton` + `make stg-uat-skeleton`。USER が commit してから使う。エージェントは実行しない。
+**実装済み（`4703cf3e9`）:** `backend/cmd/stg-uat-skeleton` + `make stg-uat-skeleton`。投入は USER。エージェントは実行しない。
 
 - 既定はローカル `DB_HOST=db` / `DB_SSL_MODE=disable`。Compose の `up` は引き続き `DB_HOST:db` 固定で、`docker compose run -e` だけが上書きする
 - Make は `-e STG_UAT_SKELETON_ALLOW_REMOTE` と `-e DB_HOST` / `DB_PORT` / `DB_SSL_MODE` を転送する。リモート STG は USER が `DB_HOST` / `DB_PORT` / `DB_SSL_MODE`（`require`|`verify-ca`|`verify-full`）と `STG_UAT_SKELETON_ALLOW_REMOTE=YES_I_UNDERSTAND` をセットしてから `make stg-uat-skeleton`。エージェントは実行しない
@@ -256,7 +276,7 @@ STG / 本番 migrate が読んでよい最小データ。臨床行（owners / pe
 
 本番 F6 の `cmd/csv-import` / `buildTargetPoolConfig` ローカルガードは緩めない。STG 経路は別エントリ。
 
-**実装済み（worktree）:** `backend/cmd/csv-import-stg-uat` + `make stg-uat-csv-import-preflight` / `make stg-uat-csv-import` / `make stg-uat-csv-import-verify`。USER が commit してから使う。エージェントは実行しない。
+**実装済み（`4703cf3e9`）:** `backend/cmd/csv-import-stg-uat` + `make stg-uat-csv-import-preflight` / `make stg-uat-csv-import` / `make stg-uat-csv-import-verify`。投入は USER。エージェントは実行しない。
 
 - 本番 F6 の TRUSTED 契約は変えない
 - Make レシピは `APP_ENV=staging` と `STG_UAT_CSV_IMPORT_ALLOW_REHEARSAL=YES_I_UNDERSTAND` を強制。report lane は `stg-uat-rehearsal`
@@ -273,7 +293,7 @@ STG / 本番 migrate が読んでよい最小データ。臨床行（owners / pe
 
 `staff-provision` は新規 staff を作るため、カルテの `doctor_id` とログイン中 ID がずれる。移行済み id には `CreateStaff` を使わない。CSV に無い現行スタッフだけ、新規発行の補助として `staff-provision` を使ってよい。
 
-**実装済み（worktree）:** `backend/cmd/stg-uat-staff-attach` + `make stg-uat-staff-attach-preflight` / `make stg-uat-staff-attach`。USER が commit してから使う。エージェントは実行しない。
+**実装済み（`4703cf3e9`）:** `backend/cmd/stg-uat-staff-attach` + `make stg-uat-staff-attach-preflight` / `make stg-uat-staff-attach`。投入は USER。エージェントは実行しない。名簿（H0-5）待ち。
 
 - 入力キーは移行済み `staffs.id`
 - 既存 staff 行を複製しない。`accounts` を作り `staffs.account_id` を張る
@@ -391,9 +411,9 @@ live Postgres は一度に 1 医院。城東 live を八王子 load で上書き
 
 ```
 D1–D7 確定（D2=B 城東先行。Q5 の「八王子 CSV 必須」は後追い HAC-CSV-1 として残す）
-Lane 2: AE-STG-UAT-SKELETON / IMPORT / STAFF
-Lane 1: ローカル証明（Lane 2 の後・STG より先）。城東 bundle で先に通す
-Lane 3: AE-STG-UAT-JOU → 第1段階開始（現場へ「城東のみ」）
+Lane 2: AE-STG-UAT-SKELETON / IMPORT / STAFF / MAKE-REMOTE  ← 完了（4703cf3e9）
+次: H0-5 名簿、Lane 1 城東ローカル証明（H0-3a/H0-4 城東は済み。H0-3b/H0-4 八王子は H0-2 待ち）
+Lane 3: AE-STG-UAT-JOU → 第1段階開始（現場へ「城東のみ」）  ← USER。未着手
 old_db: 八王子 21 CSV（HAC-CSV-1。rehearsal 可。医院 identity 必須）
 Lane 3 続き: AE-STG-UAT-HAC（H3-7 maintenance window。城東の STG 入力を止める）
 （予約も並行するなら）AE-STG-UAT-SHIFT
@@ -429,11 +449,13 @@ Lane 3 続き: AE-STG-UAT-HAC（H3-7 maintenance window。城東の STG 入力�
 
 ## 12. 次の一手
 
-1. Lane 2 コード（SKELETON / IMPORT / STAFF）は worktree 実装済み。USER が commit してから STG へ
-2. 現行スタッフほぼ全員の名簿を repo 外 0600 で渡す（id・医院・権限 ID・初期パスワード。email は `stg-staff-{id}@example.test`）
-3. Lane 1 で城東をローカル証明したあと、USER が Lane 3 で城東を先に STG へ投入し第1段階開始
-4. 並行して old_db が八王子 21 表（HAC-CSV-1）を出す。出来次第 maintenance window で投入
-5. M-3 の runbook 1 行は、明示指示があるときだけ
+1. ~~Lane 2 コードを commit~~ → 済み（`4703cf3e9`）
+2. 現行スタッフほぼ全員の名簿を repo 外 0600 で渡す（H0-5。id・医院・権限 ID・初期パスワード。email は `stg-staff-{id}@example.test`）
+3. ~~城東 handoff check + manifest SHA-256 転記（H0-3a / H0-4）~~ → 済み（`jouto-intake-20260822-01` / SHA `1a08edbb2c6aa4050399d55d29204cd15cfbaa23baa30d512221b0b3d9372591`。stage 再実行なし）。八王子は H0-2 後
+4. Lane 1 で城東をローカル証明したあと、USER が Lane 3 で城東を先に STG へ投入し第1段階開始
+5. 並行して old_db が八王子 21 表（HAC-CSV-1）を出す。出来次第 maintenance window で投入
+6. M-3 の runbook 1 行は、明示指示があるときだけ
+7. claim 枝の削除は merge / abandon のあと USER が行う
 
 ---
 
