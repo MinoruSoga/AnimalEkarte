@@ -1867,6 +1867,8 @@ CREATE TABLE staff_notes (
 -- ------------------------------------
 -- 56. billings（会計）
 -- ------------------------------------
+-- AE-MIG-NEG-1 / 旧 002_allow_negative_billing_amounts.sql:
+-- Jouto 返品・赤伝は負の請求額を記録するため chk_billings_amounts は置かない。
 CREATE TABLE billings (
     id                 BIGSERIAL      PRIMARY KEY,
     clinic_id          bigint         NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
@@ -1884,8 +1886,7 @@ CREATE TABLE billings (
     memo               text           NOT NULL DEFAULT '',
     created_at         timestamptz    NOT NULL DEFAULT now(),
     updated_at         timestamptz    NOT NULL DEFAULT now(),
-    deleted_at         timestamptz,
-    CONSTRAINT chk_billings_amounts CHECK (subtotal >= 0 AND tax_total >= 0 AND total_amount >= 0)
+    deleted_at         timestamptz
 );
 
 -- ------------------------------------
@@ -5859,3 +5860,21 @@ CREATE UNIQUE INDEX uq_billing_items_exam_lifetime
 
 COMMENT ON COLUMN billing_items.exam_id IS
     '検査イベント由来の会計明細を識別するprovenance';
+
+-- =============================================================================
+-- 15. 増分マイグレーション統合 (002 / 2026-08-25)
+-- =============================================================================
+-- 本番運用前の DB リセット前提で独立ファイルを 001 へ畳み込む。
+-- 002_allow_negative_billing_amounts.sql の DROP CONSTRAINT 効果は、
+--   レイヤー7 の billings CREATE TABLE から chk_billings_amounts を
+--   除去することで表現したため、ここでは繰り返さない。
+-- Source commit: 55f29ce5c043bf29d7207fc3faa02e27850c271b
+-- Source SHA-256:
+--   002_allow_negative_billing_amounts.sql  07cea93ff88349461577bc423c9e85c85d3fe98371c0a5e82e3cb408c8888988
+
+-- Source file: 002_allow_negative_billing_amounts.sql
+-- AE-MIG-NEG-1: Jouto KNJO refunds/red-slips are negative billings and
+-- cash/card splits. Drop the non-negative CHECK so CSV import can load them
+-- as recorded. Fresh DBs still create the CHECK in 001_init.sql then drop it
+-- here so existing environments can migrate without resetting 001.
+-- ALTER TABLE billings DROP CONSTRAINT IF EXISTS chk_billings_amounts;
