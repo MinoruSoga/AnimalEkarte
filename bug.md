@@ -170,6 +170,7 @@ Round 9でも状況は変化なし（`VITE_LIFF_MOCK=true`によりローカル�
 - **シナリオ**: V02（BUG-015と同一検証の副次発見）
 - **概要**: 予約区分マスタを無効化すると、それを参照する予約カードがカレンダー上で元のカテゴリ色からグレー無彩色に変化する（`is_active`の値に追従することを確認済み、意図的なフォールバック実装と推測）。しかし、この無彩色化には理由を示す文言・アイコン・ツールチップが一切なく、キャンセル済み等の他の弱調表示パターンと視覚的に区別できない。予約詳細モーダルを開いても区分名はそのまま表示され「(無効)」等のサフィックスは付与されない。
 - **重大度**: 低〜中。Round 8のBUG-014（無効化された医院に「（無効）」ラベルが表示される、という正しい実装パターン）と対照的な事例であり、同種の考慮を横展開して見直す価値がある。
+- **修正**: `useReservationTypeColorMap` の `colorMap` に無効区分を元色のまま含め `isInactive: true` を付与（凡例 `activeGroupEntries` は従来どおり active のみ）。週次カードの `title`/`aria-label` と詳細モーダルの DialogTitle・予約区分行に「（無効）」を表示。キャンセルの `opacity-60`/`line-through` は変更なし。回帰: `use-reservation-type-color-map.test.ts` / `WeekViewAppointmentCard.test.tsx` / `ReservationDetailModal.test.tsx`。
 
 ---
 

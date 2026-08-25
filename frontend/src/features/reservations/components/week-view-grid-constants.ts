@@ -29,6 +29,7 @@ export interface ReservationTypeColor {
   style: React.CSSProperties;
   dotStyle: React.CSSProperties;
   hex: string;
+  isInactive?: boolean;
 }
 
 export type EventLayout = Record<string, { left: string; width: string }>;
