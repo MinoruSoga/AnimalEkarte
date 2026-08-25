@@ -75,7 +75,11 @@ Round 9で再現を確認。`/examinations/select-pet`でペットを選択す�
 
 ### BUG-004（中〜高）カルテ内「定期健診」タブに動的フィールド機能が未実装
 
-Round 9でソースコード比較により再現を確認（`CheckupsTab.tsx`に`checkup_type_fields`関連のコードが依然として存在しない一方、独立フォーム`CheckupForm.tsx`には実装済み）。**未修正（変化なし）。**
+Round 9でソースコード比較により再現を確認（`CheckupsTab.tsx`に`checkup_type_fields`関連のコードが依然として存在しない一方、独立フォーム`CheckupForm.tsx`には実装済み）。
+
+- **Round 9 Lane A 修正**: カルテ CheckupsTab の追加フォームに `DynamicCheckupFields` を表示する。`useGetCheckupTypeFields` で種別フィールドを取得し、create は `mutateAsync` で id を待つ。`buildCheckupResultsPayload` が1件以上なら `replaceCheckupFieldResults(mrId, created.id, payload)` を PUT。空・未入力は PUT しない（空配列も送らない）。create 失敗は既存 mutation `onError` に任せ PUT しない。PUT 失敗は `handleApiError`、成功トーストなし、フォームは閉じない。
+- **テスト**: `健診種別選択後に動的フィールド（所見）を表示する` / `入力した所見を create 後に field-results へ PUT する` / `所見が未入力なら field-results を PUT しない` / `create が失敗したら field-results を PUT しない` / `field-results の PUT が失敗したら成功トーストを出さない`
+- **残リスク**: 編集行・表示行には動的フィールド未接続。create 成功後 PUT 失敗時は健診記録だけ残り、再送信すると二重 create。E2E 未実施。
 
 ### BUG-005（中）予防接種の「次回予定日」が接種日以前でもサーバー側で拒否されない
 

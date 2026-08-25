@@ -4,6 +4,8 @@ import { TableCell, TableHead } from "@/components/ui/table";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
 import type { StaffItem } from "@/hooks/use-staffs";
 import type { CheckupTypeItem } from "@/hooks/use-treatment-master";
+import type { CheckupTypeFieldRow } from "@/features/checkups/api/get-checkup-type-fields";
+import type { CheckupFieldValue } from "@/features/checkups/components/DynamicCheckupFields";
 import type { Checkup, UpdateCheckupInput } from "../../api/checkups";
 import type { AddCheckupFormState } from "./checkups-tab-table-model";
 import { CheckupAddRow, CheckupDisplayRow, CheckupEditRow } from "./CheckupsTabRows";
@@ -39,8 +41,11 @@ interface CheckupsTableProps {
   createPending: boolean;
   updatePending: boolean;
   deletePending: boolean;
+  checkupFields: CheckupTypeFieldRow[];
+  fieldValues: Record<number, CheckupFieldValue>;
   onStartAdd: () => void;
   onAddFormChange: (field: keyof AddCheckupFormState, value: string) => void;
+  onFieldValueChange: (fieldId: number, value: CheckupFieldValue) => void;
   onAddSubmit: () => void;
   onAddCancel: () => void;
   onStartEdit: (checkupId: string) => void;
@@ -64,8 +69,11 @@ export function CheckupsTable({
   createPending,
   updatePending,
   deletePending,
+  checkupFields,
+  fieldValues,
   onStartAdd,
   onAddFormChange,
+  onFieldValueChange,
   onAddSubmit,
   onAddCancel,
   onStartEdit,
@@ -126,7 +134,10 @@ export function CheckupsTable({
           checkupTypes={checkupTypes}
           staffs={staffs}
           isPending={createPending}
+          checkupFields={checkupFields}
+          fieldValues={fieldValues}
           onChange={onAddFormChange}
+          onFieldValueChange={onFieldValueChange}
           onSubmit={onAddSubmit}
           onCancel={onAddCancel}
         />
