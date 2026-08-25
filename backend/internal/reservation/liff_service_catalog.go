@@ -86,11 +86,19 @@ func (s *liffService) GetCourses(ctx context.Context, clinicID uint64) ([]model.
 	return result, nil
 }
 
-func (s *liffService) findActiveLiffCourse(ctx context.Context, clinicID, typeID uint64) (*model.ReservationType, error) {
+func (s *liffService) findLiffCourse(ctx context.Context, clinicID, typeID uint64) (*model.ReservationType, error) {
 	course, err := s.typeLiffRepo.FindByID(ctx, clinicID, typeID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get course", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get course")
+	}
+	return course, nil
+}
+
+func (s *liffService) findActiveLiffCourse(ctx context.Context, clinicID, typeID uint64) (*model.ReservationType, error) {
+	course, err := s.findLiffCourse(ctx, clinicID, typeID)
+	if err != nil {
+		return nil, err
 	}
 	if !course.IsActive {
 		return nil, apperrors.WrapInvalidInput("reservation type is inactive")

@@ -115,17 +115,27 @@ const fetchReservationAvailableTimes = async (
 /**
  * 予約区分一覧をグループ情報付きで取得する（共有フック）。
  * features/reservations と同一 query key を使用し React Query キャッシュを共有。
+ * selectedTypeId を渡すと、その ID の無効区分だけを表示用に残す（BUG-015）。
  */
-export function useGetReservationTypesGrouped() {
+export function useGetReservationTypesGrouped(
+  selectedTypeId?: string | number | null,
+) {
+  const selectedId =
+    selectedTypeId === null || selectedTypeId === undefined || selectedTypeId === ""
+      ? null
+      : String(selectedTypeId);
+
   return useQuery({
     queryKey: queryKeys.masters.reservationTypesGrouped(),
     queryFn: fetchReservationTypesRaw,
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,
     select: (data) => {
-      const active = data.filter((t) => t.is_active);
+      const visible = data.filter(
+        (t) => t.is_active || (selectedId !== null && String(t.id) === selectedId),
+      );
       const map = new Map<string, GroupedReservationTypes>();
-      for (const t of active) {
+      for (const t of visible) {
         const groupId = t.group_id ?? t.group?.id ?? null;
         const key = groupId != null ? String(groupId) : "__other__";
         const label = t.group?.name ?? "その他";
@@ -188,5 +198,7 @@ export function useGetReservationAvailableTimes(
     enabled: reservationTypeId !== null && date !== null,
     staleTime: QUERY_STALE_TIMES.REALTIME,
     gcTime: QUERY_GC_TIMES.SHORT,
+    // BUG-015: inactive historical edits may 400; form keeps values and skips global toast.
+    meta: { silentError: true },
   });
 }

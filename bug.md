@@ -158,6 +158,11 @@ Round 9でも状況は変化なし（`VITE_LIFF_MOCK=true`によりローカル�
 - **概要**: 使用中の予約区分マスタは`DELETE`が409で保護されている一方、`PATCH {"is_active":false}`による「無効化」は使用中でも実行できてしまう。無効化後、その区分を参照する既存予約（無効化前に作成された正当なデータ）を編集しようとすると、空き時間枠取得API`GET /api/v1/reservations/available-times`が`400 {"error":"reservation type is inactive"}`を返し、フロントは「データ取得に失敗しました」トーストを出したうえで**予約区分欄・時間欄を空値にリセットしてしまう**（他フィールドは保持される）。API本体（`GET /reservations/:id`）はデータを正しく保持しており、破壊されるのは編集フォームの表示のみ。
 - **影響**: マスタの無効化という一見安全な管理操作が、既存の正当な予約データの編集可否に予期せず波及する。気づかずに他フィールドだけ修正して保存しようとすると、区分未選択のバリデーションで保存自体に失敗する可能性が高い。
 - **推奨対応**: 既存予約が参照する区分が無効化済みであっても、編集画面は正常に開き既存の区分名・時間を初期値として保持したうえで、「このマスタは無効化されています」等の注記とともに区分自体の変更のみ制限する設計に見直すことを推奨。
+- **修正（Lane B unit 4）**:
+  - BE: `findLiffCourse`（lookupのみ）と `findActiveLiffCourse`（IsActive ガード）を分離。院内 `GetStaffAvailableTimes` は inactive でも枠計算へ進み、LIFF `GetAvailableTimes`/`GetAvailableDates`/`GetStaffs` の inactive→InvalidInput は維持。`GetReservationAvailableTimes` は `GetStaffAvailableTimes` を type-assert 優先（無ければ既存 `GetAvailableTimes` fallback）。
+  - FE: `useGetReservationTypesGrouped(selectedTypeId?)` で選択中の無効区分のみ表示維持。`useGetReservationAvailableTimes` に `meta.silentError`。編集フォームは区分名に「（無効）」を付与し、空枠でも `formData.start` を Select 候補に残す。他の無効区分はピッカーに出さない。
+  - テスト: `TestLiffService_GetStaffAvailableTimes_AllowsInactiveReservationType` / `TestGetReservationAvailableTimes_PrefersStaffAvailableTimes` / `useGetReservationTypesGrouped (BUG-015)` / `useGetReservationAvailableTimes (BUG-015)` / `ReservationFormModal — BUG-015 inactive reservation type edit`
+  - 残リスク: 無効区分のまま別フィールドだけ保存する業務フローは引き続き可能（区分変更を完全ロックはしていない。アクティブ区分への置換は可）。カレンダー無彩色は BUG-016。無効区分で枠が空のとき終了時刻の自動再計算は行わない。
 
 ### BUG-016（低〜中・新規）無効化されたマスタを参照する予約がカレンダー上で無彩色（グレー）表示になるが理由の説明がない
 

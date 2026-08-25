@@ -3,6 +3,7 @@ import { isBefore, startOfDay, format } from "date-fns";
 import { useMasterItems } from "@/hooks/use-master-items";
 import { getCurrentClinicId, useGetReservationTypesGrouped, useGetOnDutyStaffs, useGetReservationStaffs, useGetReservationAvailableTimes } from "@/hooks/use-reservation-types";
 import { useGetUnavailableTimes } from "@/hooks/use-reservation-type-unavailable-times";
+import { DISPLAY_TIME_FORMAT } from "@/lib/format/date";
 import { toJSTWallDate } from "@/lib/jst-date";
 import type { SearchableSelectOption } from "@/components/ui/searchable-select";
 import type { ReservationTypePickerGroup } from "@/components/shared/ReservationFormModal/ReservationTypePickerDialog";
@@ -37,8 +38,14 @@ export const ReservationFormFields = memo(function ReservationFormFields({
   holidayDates,
   onMonthChange,
 }: ReservationFormFieldsProps) {
-  // BUG-341: グループ情報付きで取得（useMasterItems は group 情報を捨てるため専用フック使用）
-  const { data: groupedReservationTypes = [] } = useGetReservationTypesGrouped();
+  // BUG-344: 選択日に出勤しているスタッフのみに絞り込む
+  const selectedDateStr = formData.start ? format(formData.start, "yyyy-MM-dd") : null;
+  const selectedReservationTypeId = formData.type ? String(formData.type) : null;
+
+  // BUG-341/BUG-015: グループ情報付き取得。編集中の無効区分 ID のみ表示用に残す
+  const { data: groupedReservationTypes = [] } = useGetReservationTypesGrouped(
+    selectedReservationTypeId,
+  );
 
   const handleMonthChange = useCallback((month: Date) => {
     onMonthChange?.(format(month, "yyyy-MM"));
@@ -54,9 +61,6 @@ export const ReservationFormFields = memo(function ReservationFormFields({
   // useMemo で参照を安定化（staffOptions の deps が毎レンダー新参照を受け取るのを防ぐ）
   const activeStaff = useMemo(() => staffItems.filter((s) => s.status === "active"), [staffItems]);
 
-  // BUG-344: 選択日に出勤しているスタッフのみに絞り込む
-  const selectedDateStr = formData.start ? format(formData.start, "yyyy-MM-dd") : null;
-  const selectedReservationTypeId = formData.type ? String(formData.type) : null;
   const { data: onDutyStaffs } = useGetOnDutyStaffs(selectedDateStr);
   const { data: reservationStaffs } = useGetReservationStaffs();
   const { data: availableTimeSlots } = useGetReservationAvailableTimes(
@@ -84,12 +88,22 @@ export const ReservationFormFields = memo(function ReservationFormFields({
   }, [availableTimeSlots]);
   const startTimeOptions = useMemo(
     () => {
+      let options: string[];
       if (availableTimeSlotMap !== undefined && selectedReservationTypeId !== null && selectedDateStr !== null) {
-        return [...availableTimeSlotMap.keys()];
+        options = [...availableTimeSlotMap.keys()];
+      } else {
+        options = TIME_OPTIONS.filter((time) => !isStartTimeUnavailable(time, applicableUnavailableTimes));
       }
-      return TIME_OPTIONS.filter((time) => !isStartTimeUnavailable(time, applicableUnavailableTimes));
+      // BUG-015: keep the current edit start even when the slot map is empty/missing.
+      if (formData.start) {
+        const currentStart = format(formData.start, DISPLAY_TIME_FORMAT);
+        if (!options.includes(currentStart)) {
+          options = [...options, currentStart];
+        }
+      }
+      return options;
     },
-    [availableTimeSlotMap, selectedReservationTypeId, selectedDateStr, applicableUnavailableTimes],
+    [availableTimeSlotMap, selectedReservationTypeId, selectedDateStr, applicableUnavailableTimes, formData.start],
   );
   const reservationStaffMap = useMemo(() => {
     if (reservationStaffs === undefined) return undefined;
@@ -114,13 +128,14 @@ export const ReservationFormFields = memo(function ReservationFormFields({
   const [typePickerOpen, setTypePickerOpen] = useState(false);
 
   // 予約区分ピッカー(サブダイアログ)用: 色・所要時間付きでグループ化(参照安定のため memo 化)
+  // BUG-015: 無効区分は選択中のものだけ残り、名前に（無効）を付与する
   const reservationTypePickerGroups = useMemo<ReservationTypePickerGroup[]>(
     () =>
       groupedReservationTypes.map((group) => ({
         label: group.label,
         items: group.types.map((t) => ({
           id: String(t.id),
-          name: t.name,
+          name: t.is_active ? t.name : `${t.name}（無効）`,
           color: t.color,
           durationMinutes: t.duration_minutes,
         })),
@@ -132,7 +147,13 @@ export const ReservationFormFields = memo(function ReservationFormFields({
     if (selectedReservationTypeId === null) return null;
     for (const group of groupedReservationTypes) {
       const found = group.types.find((t) => String(t.id) === selectedReservationTypeId);
-      if (found) return found;
+      if (found) {
+        return {
+          color: found.color,
+          name: found.name,
+          isActive: found.is_active,
+        };
+      }
     }
     return null;
   }, [groupedReservationTypes, selectedReservationTypeId]);
