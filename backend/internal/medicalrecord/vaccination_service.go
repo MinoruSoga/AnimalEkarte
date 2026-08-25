@@ -147,6 +147,9 @@ func (s *vaccinationService) Create(ctx context.Context, clinicID uint64, input 
 	if err := errIfVaccinationDateAfterToday(input.Date); err != nil {
 		return nil, err
 	}
+	if err := errIfNextDateNotAfterVaccinationDate(input.Date, input.NextDate); err != nil {
+		return nil, err
+	}
 	if s.transactor == nil {
 		return nil, apperrors.WrapInternalServerError("vaccination transaction dependency is required")
 	}
@@ -240,6 +243,15 @@ func (s *vaccinationService) Update(ctx context.Context, clinicID, id uint64, in
 		) {
 			return apperrors.WrapConflict("vaccination relations changed concurrently")
 		}
+		if input.NextDate != nil {
+			baseDate := snapshot.Date
+			if input.Date != nil {
+				baseDate = *input.Date
+			}
+			if err := errIfNextDateNotAfterVaccinationDate(baseDate, input.NextDate); err != nil {
+				return err
+			}
+		}
 		vaccination, err = s.repo.Update(txCtx, clinicID, id, fields)
 		if err != nil {
 			slog.ErrorContext(txCtx, "failed to update vaccination", "error", err)
@@ -299,6 +311,20 @@ func errIfVaccinationDateAfterToday(date time.Time) error {
 	today := time.Date(nowJST.Year(), nowJST.Month(), nowJST.Day(), 0, 0, 0, 0, config.JST)
 	if dateDay.After(today) {
 		return apperrors.WrapInvalidInput("接種日は今日以前の日付を入力してください")
+	}
+	return nil
+}
+
+func errIfNextDateNotAfterVaccinationDate(vaccinationDate time.Time, nextDate *time.Time) error {
+	if nextDate == nil {
+		return nil
+	}
+	dateJST := vaccinationDate.In(config.JST)
+	nextJST := nextDate.In(config.JST)
+	dateDay := time.Date(dateJST.Year(), dateJST.Month(), dateJST.Day(), 0, 0, 0, 0, config.JST)
+	nextDay := time.Date(nextJST.Year(), nextJST.Month(), nextJST.Day(), 0, 0, 0, 0, config.JST)
+	if !nextDay.After(dateDay) {
+		return apperrors.WrapInvalidInput("次回予定日は接種日より後の日付を入力してください")
 	}
 	return nil
 }

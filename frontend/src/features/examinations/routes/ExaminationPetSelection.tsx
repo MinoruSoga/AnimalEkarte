@@ -15,7 +15,7 @@ export function ExaminationPetSelection() {
   const location = useLocation();
   const { searchParams, setSearchParams, petPage, error, isLoading, handleClear, handleBack } =
     usePetSelectionPage({
-      selectPath: paths.medicalRecords.new.getHref(),
+      selectPath: paths.examinations.new.getHref(),
       backPath: paths.examinations.getHref(),
     });
 

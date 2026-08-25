@@ -6,6 +6,7 @@ import { useGetAllVaccinesMaster } from "@/hooks/use-treatment-master";
 import { useCreateVaccination } from "@/hooks/use-vaccinations";
 import { handleApiError } from "@/lib/handle-api-error";
 import { C, PALETTE } from "@/lib/design-tokens";
+import { toast } from "sonner";
 
 // Relative
 import { useGetPetVaccinations } from "../api/get-pet-vaccinations";
@@ -160,6 +161,7 @@ export const MedicalRecordVaccination = memo(function MedicalRecordVaccination({
           next_schedule_type: nextScheduleType || undefined,
           remarks: remarks || undefined,
         });
+        toast.success("接種記録を追加しました");
         // フォームをリセット
         setVaccineName("");
         setDate("");

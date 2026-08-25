@@ -241,12 +241,22 @@ func TestMedicineService_Create(t *testing.T) {
 			repoErr: errors.New("db error"),
 			wantErr: true,
 		},
+		{
+			name: "returns validation error when price is negative",
+			input: &CreateMedicineInput{
+				Name:  "Negative Price Medicine",
+				Price: func(v int64) *int64 { return &v }(-100),
+			},
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			createCalled := false
 			repo := &mockMedicineRepository{
 				createFn: func(_ context.Context, m *model.Medicine) error {
+					createCalled = true
 					if tt.repoErr == nil && m != nil && m.ID == 0 {
 						m.ID = 42
 					}
@@ -270,6 +280,10 @@ func TestMedicineService_Create(t *testing.T) {
 			if tt.wantErr {
 				assert.Error(t, err)
 				assert.Nil(t, medicine)
+				if tt.name == "returns validation error when price is negative" {
+					assert.True(t, apperrors.IsInvalidInput(err))
+					assert.False(t, createCalled)
+				}
 			} else {
 				assert.NoError(t, err)
 				assert.NotNil(t, medicine)
@@ -332,10 +346,19 @@ func TestMedicineService_Update(t *testing.T) {
 			findErr:   nil,
 			wantErr:   true,
 		},
+		{
+			name: "returns validation error when price is negative",
+			id:   1,
+			input: &UpdateMedicineInput{
+				Price: func(v int64) *int64 { return &v }(-500),
+			},
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			updateCalled := false
 			repo := &mockMedicineRepository{
 				findByIDFn: func(_ context.Context, _, _ uint64) (*model.Medicine, error) {
 					if tt.findErr != nil {
@@ -344,6 +367,7 @@ func TestMedicineService_Update(t *testing.T) {
 					return existingMedicine, nil
 				},
 				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Medicine, error) {
+					updateCalled = true
 					if tt.updateErr != nil {
 						return nil, tt.updateErr
 					}
@@ -357,6 +381,10 @@ func TestMedicineService_Update(t *testing.T) {
 			if tt.wantErr {
 				assert.Error(t, err)
 				assert.Nil(t, medicine)
+				if tt.name == "returns validation error when price is negative" {
+					assert.True(t, apperrors.IsInvalidInput(err))
+					assert.False(t, updateCalled)
+				}
 			} else {
 				assert.NoError(t, err)
 				assert.NotNil(t, medicine)

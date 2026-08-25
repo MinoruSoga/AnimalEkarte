@@ -172,6 +172,9 @@ vi.mock("../hooks/use-medical-record-post-save", () => ({
 vi.mock("../api/get-medical-record", () => ({
   useGetMedicalRecord: () => ({ data: undefined }),
 }));
+vi.mock("../api/billing-confirmation", () => ({
+  useGetBillingConfirmation: () => ({ data: { status: "confirmed" }, isLoading: false, isError: false }),
+}));
 
 vi.mock("../api/get-medical-records", () => ({
   useGetPetMedicalHistory: () => ({ historyItems: [] }),

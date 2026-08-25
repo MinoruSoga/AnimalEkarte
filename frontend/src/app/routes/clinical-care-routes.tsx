@@ -248,6 +248,17 @@ export const clinicalCareRoutes: RouteObject[] = [
             }],
           },
           {
+            path: "new",
+            element: <RequirePermission resource={ResourceExaminations} action="create"><Outlet /></RequirePermission>,
+            children: [{
+              index: true,
+              lazy: async () => {
+                const { ExaminationForm } = await import("@/features/examinations");
+                return { Component: ExaminationForm };
+              },
+            }],
+          },
+          {
             path: ":id",
             lazy: async () => {
               const { ExaminationForm } = await import("@/features/examinations");

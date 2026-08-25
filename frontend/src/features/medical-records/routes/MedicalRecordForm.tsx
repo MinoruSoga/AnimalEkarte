@@ -41,6 +41,7 @@ import { useGetPetMedicalHistory } from "../api/get-medical-records";
 import { useGetClinicalPlan } from "../api/clinical-plan";
 import { useGetTreatments } from "../api/treatments";
 import { useDeleteMedicalRecord } from "../api/delete-medical-record";
+import { useGetBillingConfirmation } from "../api/billing-confirmation";
 import { handleApiError } from "@/lib/handle-api-error";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
@@ -177,6 +178,12 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
   // 印刷用データ（React Query キャッシュ共有 — 子コンポーネントが既にフェッチ済み）
   const { data: clinicalPlan } = useGetClinicalPlan(recordId ?? "", recordClinicId);
   const { data: treatments = [] } = useGetTreatments(recordId ?? "", recordClinicId);
+  // BUG-009: 会計確認 confirmed まで確定を物理ブロック。recordId 空は hook enabled=false。
+  const {
+    data: billingConfirmation,
+    isLoading: isBillingConfirmationLoading,
+    isError: isBillingConfirmationError,
+  } = useGetBillingConfirmation(recordId ?? "");
 
   // ローカル状態: 担当者（hookに追加するまでの暫定）
   const [staffName, setStaffName] = useState(() => user?.displayName ?? "");
@@ -482,6 +489,9 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
         isCreating={isCreating}
         isSaving={isSaving}
         isFinalized={recordFinalized}
+        billingConfirmationStatus={billingConfirmation?.status}
+        isBillingConfirmationLoading={isBillingConfirmationLoading}
+        isBillingConfirmationError={isBillingConfirmationError}
         onDeleteClick={() => setIsDeleteConfirmOpen(true)}
         onVitalsClick={() => setIsVitalsOpen(true)}
         onPrintClick={handlePrintClick}

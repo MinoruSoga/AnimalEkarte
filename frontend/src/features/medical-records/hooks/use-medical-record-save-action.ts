@@ -199,6 +199,12 @@ export function useMedicalRecordSaveAction({
             queryClient.invalidateQueries({ queryKey: queryKeys.reception.all() });
             return { success: true, timestamp: Date.now() };
 
+          case "予防接種":
+            // BUG-001: 永続化は inner VaccinationForm の createVaccination が正本。
+            // success:true だと useMedicalRecordPostSave が markClean し、
+            // 未保存の問診/診察 dirty を偽クリーンする。トーストも出さない。
+            return { success: false, timestamp: Date.now() };
+
           default:
             break;
         }

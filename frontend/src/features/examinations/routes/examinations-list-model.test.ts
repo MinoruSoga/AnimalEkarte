@@ -15,9 +15,8 @@ describe("examinationListDetailHref", () => {
 });
 
 describe("examinationCreateHref", () => {
-  it("新規検査は当日カルテの検査タブへ行く", () => {
-    expect(examinationCreateHref("pet-1")).toBe(
-      "/medical-records/new?petId=pet-1&tab=%E6%A4%9C%E6%9F%BB",
-    );
+  it("新規検査は検査新規作成画面へ行く", () => {
+    expect(examinationCreateHref("pet-1")).toBe("/examinations/new?petId=pet-1");
+    expect(examinationCreateHref("pet-1")).not.toContain("/medical-records/new");
   });
 });

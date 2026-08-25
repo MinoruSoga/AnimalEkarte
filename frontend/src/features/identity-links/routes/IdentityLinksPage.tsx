@@ -1,4 +1,4 @@
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { Navigate } from "react-router";
 
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
@@ -12,6 +12,8 @@ import type { OwnerSearchItem, PetSearchItem } from "@/types/generated/identityl
 import {
   createOwnerIdentityGroup,
   createPetIdentityGroup,
+  findOwnerIdentityGroupByMember,
+  findPetIdentityGroupByMember,
   getLinkedTreatmentHistory,
   searchOwnersForLink,
   searchPetsForLink,
@@ -23,6 +25,14 @@ const SEARCH_DEBOUNCE_MS = 300;
 
 type SelectedOwner = OwnerSearchItem;
 type SelectedPet = PetSearchItem;
+
+function ownerMemberKey(clinicId: number, ownerId: number): string {
+  return `${clinicId}:${ownerId}`;
+}
+
+function petMemberKey(clinicId: number, petId: number): string {
+  return `${clinicId}:${petId}`;
+}
 
 /**
  * Phase 1 manual identity-link UI: search → select → link/unlink → minimal history.
@@ -49,9 +59,16 @@ function IdentityLinksWorkbench({ canEdit }: { canEdit: boolean }) {
   const [selectedPets, setSelectedPets] = useState<SelectedPet[]>([]);
   const [ownerGroupId, setOwnerGroupId] = useState<number | null>(null);
   const [petGroupId, setPetGroupId] = useState<number | null>(null);
+  // Per-member group ids from reverse lookup (or session create). Never share across members.
+  const [ownerMemberGroupIds, setOwnerMemberGroupIds] = useState<Record<string, number>>({});
+  const [petMemberGroupIds, setPetMemberGroupIds] = useState<Record<string, number>>({});
   const [historyText, setHistoryText] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const selectedOwnersRef = useRef(selectedOwners);
+  const selectedPetsRef = useRef(selectedPets);
+  selectedOwnersRef.current = selectedOwners;
+  selectedPetsRef.current = selectedPets;
 
   // Clear hits when the debounced query becomes empty via render-time state
   // adjustment (React-recommended pattern) so we do not call setState inside
@@ -108,24 +125,100 @@ function IdentityLinksWorkbench({ canEdit }: { canEdit: boolean }) {
     };
   }, [trimmedPetQuery]);
 
+  // Unlink enablement is per-member only. Session ownerGroupId/petGroupId stay for
+  // create / pet-link parent context and must not enable another member's unlink.
+  const resolveOwnerGroupId = (item: SelectedOwner): number | null => {
+    const key = ownerMemberKey(item.clinic_id, item.owner_id);
+    return ownerMemberGroupIds[key] ?? null;
+  };
+
+  const resolvePetGroupId = (item: SelectedPet): number | null => {
+    const key = petMemberKey(item.clinic_id, item.pet_id);
+    return petMemberGroupIds[key] ?? null;
+  };
+
+  const lookupOwnerGroupOnSelect = (item: OwnerSearchItem) => {
+    const key = ownerMemberKey(item.clinic_id, item.owner_id);
+    void findOwnerIdentityGroupByMember(item.clinic_id, item.owner_id)
+      .then((group) => {
+        const stillSelected = selectedOwnersRef.current.some(
+          (p) => p.clinic_id === item.clinic_id && p.owner_id === item.owner_id,
+        );
+        if (!stillSelected || group == null) return;
+        setOwnerMemberGroupIds((prev) => ({ ...prev, [key]: group.id }));
+        setOwnerGroupId((prev) => (prev == null ? group.id : prev));
+      })
+      .catch((e: unknown) => {
+        const stillSelected = selectedOwnersRef.current.some(
+          (p) => p.clinic_id === item.clinic_id && p.owner_id === item.owner_id,
+        );
+        if (stillSelected) {
+          setError(extractApiErrorMessage(e, "飼主グループ取得"));
+        }
+      });
+  };
+
+  const lookupPetGroupOnSelect = (item: PetSearchItem) => {
+    const key = petMemberKey(item.clinic_id, item.pet_id);
+    void findPetIdentityGroupByMember(item.clinic_id, item.pet_id)
+      .then((group) => {
+        const stillSelected = selectedPetsRef.current.some(
+          (p) => p.clinic_id === item.clinic_id && p.pet_id === item.pet_id,
+        );
+        if (!stillSelected || group == null) return;
+        setPetMemberGroupIds((prev) => ({ ...prev, [key]: group.id }));
+        setPetGroupId((prev) => (prev == null ? group.id : prev));
+        // Fill parent owner group only when session has none; never overwrite a different id.
+        setOwnerGroupId((prev) => (prev == null ? group.owner_group_id : prev));
+      })
+      .catch((e: unknown) => {
+        const stillSelected = selectedPetsRef.current.some(
+          (p) => p.clinic_id === item.clinic_id && p.pet_id === item.pet_id,
+        );
+        if (stillSelected) {
+          setError(extractApiErrorMessage(e, "ペットグループ取得"));
+        }
+      });
+  };
+
   const toggleOwner = (item: OwnerSearchItem) => {
-    setSelectedOwners((prev) => {
-      const exists = prev.some((p) => p.clinic_id === item.clinic_id && p.owner_id === item.owner_id);
-      if (exists) {
-        return prev.filter((p) => !(p.clinic_id === item.clinic_id && p.owner_id === item.owner_id));
-      }
-      return [...prev, item];
-    });
+    const exists = selectedOwners.some(
+      (p) => p.clinic_id === item.clinic_id && p.owner_id === item.owner_id,
+    );
+    if (exists) {
+      const key = ownerMemberKey(item.clinic_id, item.owner_id);
+      setSelectedOwners((prev) =>
+        prev.filter((p) => !(p.clinic_id === item.clinic_id && p.owner_id === item.owner_id)),
+      );
+      setOwnerMemberGroupIds((prev) => {
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      });
+      return;
+    }
+    setSelectedOwners((prev) => [...prev, item]);
+    lookupOwnerGroupOnSelect(item);
   };
 
   const togglePet = (item: PetSearchItem) => {
-    setSelectedPets((prev) => {
-      const exists = prev.some((p) => p.clinic_id === item.clinic_id && p.pet_id === item.pet_id);
-      if (exists) {
-        return prev.filter((p) => !(p.clinic_id === item.clinic_id && p.pet_id === item.pet_id));
-      }
-      return [...prev, item];
-    });
+    const exists = selectedPets.some(
+      (p) => p.clinic_id === item.clinic_id && p.pet_id === item.pet_id,
+    );
+    if (exists) {
+      const key = petMemberKey(item.clinic_id, item.pet_id);
+      setSelectedPets((prev) =>
+        prev.filter((p) => !(p.clinic_id === item.clinic_id && p.pet_id === item.pet_id)),
+      );
+      setPetMemberGroupIds((prev) => {
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      });
+      return;
+    }
+    setSelectedPets((prev) => [...prev, item]);
+    lookupPetGroupOnSelect(item);
   };
 
   const onLinkOwners = () => {
@@ -137,6 +230,13 @@ function IdentityLinksWorkbench({ canEdit }: { canEdit: boolean }) {
           selectedOwners.map((o) => ({ clinic_id: o.clinic_id, owner_id: o.owner_id })),
         );
         setOwnerGroupId(group.id);
+        setOwnerMemberGroupIds((prev) => {
+          const next = { ...prev };
+          for (const o of selectedOwners) {
+            next[ownerMemberKey(o.clinic_id, o.owner_id)] = group.id;
+          }
+          return next;
+        });
       } catch (e: unknown) {
         setError(extractApiErrorMessage(e, "飼主リンク"));
       }
@@ -144,17 +244,24 @@ function IdentityLinksWorkbench({ canEdit }: { canEdit: boolean }) {
   };
 
   const onUnlinkOwner = (item: SelectedOwner) => {
-    if (!canEdit || ownerGroupId == null) return;
+    const groupId = resolveOwnerGroupId(item);
+    if (!canEdit || groupId == null) return;
     setError(null);
     startTransition(async () => {
       try {
-        await unlinkOwnerIdentityMember(ownerGroupId, {
+        await unlinkOwnerIdentityMember(groupId, {
           clinic_id: item.clinic_id,
           owner_id: item.owner_id,
         });
+        const key = ownerMemberKey(item.clinic_id, item.owner_id);
         setSelectedOwners((prev) =>
           prev.filter((p) => !(p.clinic_id === item.clinic_id && p.owner_id === item.owner_id)),
         );
+        setOwnerMemberGroupIds((prev) => {
+          const next = { ...prev };
+          delete next[key];
+          return next;
+        });
       } catch (e: unknown) {
         setError(extractApiErrorMessage(e, "飼主unlink"));
       }
@@ -171,6 +278,13 @@ function IdentityLinksWorkbench({ canEdit }: { canEdit: boolean }) {
           selectedPets.map((p) => ({ clinic_id: p.clinic_id, pet_id: p.pet_id })),
         );
         setPetGroupId(group.id);
+        setPetMemberGroupIds((prev) => {
+          const next = { ...prev };
+          for (const p of selectedPets) {
+            next[petMemberKey(p.clinic_id, p.pet_id)] = group.id;
+          }
+          return next;
+        });
       } catch (e: unknown) {
         setError(extractApiErrorMessage(e, "ペットリンク"));
       }
@@ -178,17 +292,24 @@ function IdentityLinksWorkbench({ canEdit }: { canEdit: boolean }) {
   };
 
   const onUnlinkPet = (item: SelectedPet) => {
-    if (!canEdit || petGroupId == null) return;
+    const groupId = resolvePetGroupId(item);
+    if (!canEdit || groupId == null) return;
     setError(null);
     startTransition(async () => {
       try {
-        await unlinkPetIdentityMember(petGroupId, {
+        await unlinkPetIdentityMember(groupId, {
           clinic_id: item.clinic_id,
           pet_id: item.pet_id,
         });
+        const key = petMemberKey(item.clinic_id, item.pet_id);
         setSelectedPets((prev) =>
           prev.filter((p) => !(p.clinic_id === item.clinic_id && p.pet_id === item.pet_id)),
         );
+        setPetMemberGroupIds((prev) => {
+          const next = { ...prev };
+          delete next[key];
+          return next;
+        });
       } catch (e: unknown) {
         setError(extractApiErrorMessage(e, "ペットunlink"));
       }
@@ -279,7 +400,7 @@ function IdentityLinksWorkbench({ canEdit }: { canEdit: boolean }) {
                   key={`unlink-o-${o.clinic_id}-${o.owner_id}`}
                   type="button"
                   className={`px-3 py-1.5 rounded text-sm border ${C.borderLight}`}
-                  disabled={pending || ownerGroupId == null}
+                  disabled={pending || resolveOwnerGroupId(o) == null}
                   onClick={() => onUnlinkOwner(o)}
                 >
                   unlink {o.clinic_id}/{o.owner_id}
@@ -333,7 +454,7 @@ function IdentityLinksWorkbench({ canEdit }: { canEdit: boolean }) {
                   key={`unlink-p-${p.clinic_id}-${p.pet_id}`}
                   type="button"
                   className={`px-3 py-1.5 rounded text-sm border ${C.borderLight}`}
-                  disabled={pending || petGroupId == null}
+                  disabled={pending || resolvePetGroupId(p) == null}
                   onClick={() => onUnlinkPet(p)}
                 >
                   unlink {p.clinic_id}/{p.pet_id}

@@ -12,6 +12,11 @@ import { Label } from "@/components/ui/label";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
 import type { StaffItem } from "@/hooks/use-staffs";
 import type { CheckupTypeItem } from "@/hooks/use-treatment-master";
+import type { CheckupTypeFieldRow } from "@/features/checkups/api/get-checkup-type-fields";
+import {
+  DynamicCheckupFields,
+  type CheckupFieldValue,
+} from "@/features/checkups/components/DynamicCheckupFields";
 
 import type { Checkup, UpdateCheckupInput } from "../../api/checkups";
 import type { AddCheckupFormState } from "./checkups-tab-table-model";
@@ -194,7 +199,10 @@ interface CheckupAddRowProps {
   checkupTypes: CheckupTypeItem[];
   staffs: StaffItem[];
   isPending: boolean;
+  checkupFields: CheckupTypeFieldRow[];
+  fieldValues: Record<number, CheckupFieldValue>;
   onChange: (field: keyof AddCheckupFormState, value: string) => void;
+  onFieldValueChange: (fieldId: number, value: CheckupFieldValue) => void;
   onSubmit: () => void;
   onCancel: () => void;
 }
@@ -205,7 +213,10 @@ export function CheckupAddRow({
   checkupTypes,
   staffs,
   isPending,
+  checkupFields,
+  fieldValues,
   onChange,
+  onFieldValueChange,
   onSubmit,
   onCancel,
 }: CheckupAddRowProps) {
@@ -261,6 +272,16 @@ export function CheckupAddRow({
           />
         </div>
       </div>
+      {checkupFields.length > 0 ? (
+        <div className={`border-t ${C.borderLight} pt-6`}>
+          <h2 className={`mb-4 text-sm font-medium ${C.text}`}>健診項目</h2>
+          <DynamicCheckupFields
+            fields={checkupFields}
+            values={fieldValues}
+            onChange={onFieldValueChange}
+          />
+        </div>
+      ) : null}
       <div className="space-y-2">
         <Label htmlFor="checkup-tab-result">結果・所見</Label>
         <input

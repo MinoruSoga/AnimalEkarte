@@ -5,7 +5,7 @@ import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { C, ICON, Z_CLASS } from "@/lib/design-tokens";
 import { formatJSTDate } from "@/lib/jst-date";
 import { MedicalRecordPrintView } from "./MedicalRecordPrintView";
-import type { Treatment } from "../types";
+import type { BillingConfirmation, Treatment } from "../types";
 
 interface MedicalRecordFloatingActionsProps {
   activeTab: string;
@@ -20,6 +20,10 @@ interface MedicalRecordFloatingActionsProps {
   onVitalsClick: () => void;
   onPrintClick: () => void;
   onFinalizeClick: () => void;
+  /** omitted / pending / returned / loading / error は fail-closed（確定不可） */
+  billingConfirmationStatus?: BillingConfirmation["status"];
+  isBillingConfirmationLoading?: boolean;
+  isBillingConfirmationError?: boolean;
 }
 
 export function MedicalRecordFloatingActions({
@@ -35,7 +39,15 @@ export function MedicalRecordFloatingActions({
   onVitalsClick,
   onPrintClick,
   onFinalizeClick,
+  billingConfirmationStatus,
+  isBillingConfirmationLoading,
+  isBillingConfirmationError,
 }: MedicalRecordFloatingActionsProps) {
+  const canFinalize =
+    billingConfirmationStatus === "confirmed" &&
+    !isBillingConfirmationLoading &&
+    !isBillingConfirmationError;
+
   if (activeTab === "会計(医師確認)") return null;
 
   return (
@@ -82,11 +94,14 @@ export function MedicalRecordFloatingActions({
         </Button>
       ) : null}
       {/* SPEC-GAP: カルテ確定（Lock）。確定済みカルテは編集不可となり、以降の修正は追記(addendum)のみ */}
+      {/* BUG-009: 会計確認未完了の確定は 409 と統合会計除外を招く。disabled+title で物理ブロック。 */}
       {canEdit && !isNewRecord && !isFinalized ? (
         <Button
           type="button"
           variant="outline"
-          onClick={onFinalizeClick}
+          onClick={canFinalize ? onFinalizeClick : undefined}
+          disabled={!canFinalize}
+          title={canFinalize ? undefined : "会計確認が未完了です"}
           className="h-10 text-sm px-4"
         >
           <Lock className={ICON.action} />
@@ -94,7 +109,8 @@ export function MedicalRecordFloatingActions({
         </Button>
       ) : null}
       {/* BUG-035: 確定済みでは保存を出さない（disabled 表示より導線除去）。印刷・追記は残す。 */}
-      {canSubmit && !isFinalized ? (
+      {/* BUG-001: 予防接種の永続化は inner の接種記録追加。外側保存は偽陽性になるので出さない。 */}
+      {canSubmit && !isFinalized && activeTab !== "予防接種" ? (
         <SubmitButton
           className="px-4"
           disabled={isCreating || isSaving}

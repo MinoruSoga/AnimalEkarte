@@ -54,31 +54,43 @@ Round 8で「環境要因の疑い」としていたS08の確認ダイアログ�
 
 ## 継続オープン項目（Round 8から未修正・再確認）
 
-### BUG-001（重大）カルテ内「予防接種」タブの保存が偽陽性の成功トーストを出し、実際はデータが一切永続化されない
+### BUG-001（重大）カルテ内「予防接種」タブの保存が偽陽性の成功トーストを出し、実際はデータが一切永続化されない — **修正済み**
 
 **Round 9で挙動の詳細が判明しました。**
 
 - **元の手順を厳密に再現した結果**: 「記録を追加」→ワクチン選択→日付選択→**画面右下の外側「保存」ボタン**をクリック → 「保存しました」の成功トーストが表示されるが、ネットワークリクエストは0件。データは一切保存されない（サイレントデータロス、未修正）。
 - **新たに判明した点**: サブフォーム内の「◯◯記録を追加」ボタン（ワクチン名の下、フォーム最下部にある別のボタン）を経由すると、そのクリック時点で`POST /api/v1/vaccinations`が即座に201で発行され、実際に永続化されることが分かりました。つまり保存機能自体はこのボタンに実装されているものの、**画面右下の「保存」ボタン（本来の保存操作だとユーザーが直感的に認識するボタン）は予防接種タブでは常に無反応**という、ボタンの役割が入れ替わったような実装になっています。
 - **開発チームへの推奨**: 「外側『保存』ボタンが予防接種タブで無反応かつ偽陽性トーストを出す」ことを主たる不具合として修正するとともに、サブフォーム内追加ボタンで既に保存が完了する仕様であれば、その旨をユーザーに明示するUI改善も合わせて検討してください。
+- **Round 9 Lane A 修正**: 外側 `useActionState` の予防接種ケースは API を呼ばず汎用「保存しました」を出さない。`success: false` を返し `useMedicalRecordPostSave` の `markClean` を走らせない（見積書の `success: true` + estimateSave とは異なる。予防接種に post-save 永続化は無い）。フローティング「保存」は予防接種タブで非表示（確定する・印刷は残す）。inner `handleSave` 成功時のみ `toast.success("接種記録を追加しました")`。失敗は既存 `onError` → `handleApiError`、catch では reset/success toast しない。
+- **テスト**: `予防接種タブ保存では inquiry/plan/record を呼ばず汎用成功トーストを出さない`（`formState.success === false`） / `予防接種タブでは保存を出さず確定する・印刷は残す` / `問診タブでは保存を表示する` / `接種記録の追加に成功したら成功トーストを出す` / `接種記録の追加が失敗したら成功トーストを出さずフォームを残す`
+- **残リスク**: 治療/定期健診/検査/画像タブの default 汎用トーストは未変更。inner 失敗トーストは `useCreateVaccination` onError 依存。E2E 未実施。`activeTabRef` の useEffect 更新（タブ切替直後の stale tab）は本単位の範囲外。inner テストは VaccinationForm mock のボタン名「保存」を click する（本番ラベルは「接種記録を追加」）。
 
 ### BUG-002（高）一般診察／一般診察(再診)／健康診断／トリミングコース（courseId 1, 2, 7, 9）が全スタッフ・全期間で予約不可
 
 Round 9では独立した2エージェント（S04-06担当・V05担当）がそれぞれAPI（`GET /api/liff/1/available-dates`）とUI（LINE予約アプリの日付選択画面）の両方で再現を確認しました。courseId 1,2,7,9の4コースのみ全スタッフ・全29日が`staff_off`判定になる一方、他の9コース（ワクチン接種・お手入れ・狂犬病等）は同一スタッフで全て予約可能という状態に変化はありません。**未修正。**
 
-### BUG-003（中）`/examinations` の新規検査登録導線が実際の検査記録を作成しない
+### BUG-003（中）`/examinations` の新規検査登録導線が実際の検査記録を作成しない — **修正済み**
 
-Round 9で再現を確認。`/examinations/select-pet`でペットを選択すると、期待される検査フォームではなく汎用のカルテ新規作成フロー（`POST /reservations`→`POST /medical-records`）に遷移し、`POST /api/v1/examinations`は一度も発行されません。**未修正（変化なし）。**
+- **Round 9 Lane A 修正**: ペット選択後の create href を `/medical-records/new?petId=…&tab=検査` から `/examinations/new?petId=…` に変更。`paths.examinations.new` と `/examinations` 配下の静的 `new` ルート（`ResourceExaminations` create ガード、`:id` より前）を追加し、`ExaminationForm` を id 未設定の新規作成として mount する。`ExaminationPetSelection` の `selectPath` も同パスに揃えた。
+- **テスト**: `examinationCreateHref` が `/examinations/new?petId=` を返し `/medical-records/new` を含まないこと / `clinical-care-routes.examinations.test.tsx` で select-pet・new の create 拒否・許可、new が `:id` 扱いにならないこと、detail `:id` mount。
+- **残リスク**: カルテ内検査タブからの新規導線・E2E 未実施。`ExaminationForm` / `useExaminationForm` 本体は未変更のため、create API 失敗時の UX は既存依存。
 
-### BUG-004（中〜高）カルテ内「定期健診」タブに動的フィールド機能が未実装
+### BUG-004（中〜高）カルテ内「定期健診」タブに動的フィールド機能が未実装 — **修正済み**
 
-Round 9でソースコード比較により再現を確認（`CheckupsTab.tsx`に`checkup_type_fields`関連のコードが依然として存在しない一方、独立フォーム`CheckupForm.tsx`には実装済み）。**未修正（変化なし）。**
+Round 9でソースコード比較により再現を確認（`CheckupsTab.tsx`に`checkup_type_fields`関連のコードが依然として存在しない一方、独立フォーム`CheckupForm.tsx`には実装済み）。
 
-### BUG-005（中）予防接種の「次回予定日」が接種日以前でもサーバー側で拒否されない
+- **Round 9 Lane A 修正**: カルテ CheckupsTab の追加フォームに `DynamicCheckupFields` を表示する。`useGetCheckupTypeFields` で種別フィールドを取得し、create は `mutateAsync` で id を待つ。`buildCheckupResultsPayload` が1件以上なら `replaceCheckupFieldResults(mrId, created.id, payload)` を PUT。空・未入力は PUT しない（空配列も送らない）。create 失敗は既存 mutation `onError` に任せ PUT しない。PUT 失敗は `handleApiError`、成功トーストなし、フォームは閉じない。
+- **テスト**: `健診種別選択後に動的フィールド（所見）を表示する` / `入力した所見を create 後に field-results へ PUT する` / `所見が未入力なら field-results を PUT しない` / `create が失敗したら field-results を PUT しない` / `field-results の PUT が失敗したら成功トーストを出さない`
+- **残リスク**: 編集行・表示行には動的フィールド未接続。create 成功後 PUT 失敗時は健診記録だけ残り、再送信すると二重 create。E2E 未実施。
 
-Round 9で再実機確認。既存レコード（id=1000000008）に`next_date`を接種日の4日前に設定するPATCHが200で受理されることを再確認し、テスト後は正しい値に復旧済み。**未修正（変化なし）。**
+### BUG-005（中）予防接種の「次回予定日」が接種日以前でもサーバー側で拒否されない — **修正済み**
 
-### BUG-006（中）診療項目マスタの単価非負検証がサーバー側に欠落 — **影響範囲が拡大**
+- **Round 9 Lane A 修正**: Create/Update で `next_date` が接種日（JST 日境界）以前なら `InvalidInput` で fail-closed。FE と同文言「次回予定日は接種日より後の日付を入力してください」。`next_date` 未指定（nil / patch 省略）は許可。Update は `NextDate` が patch にあるときだけ検証し、接種日は入力 `Date` があればそれ、なければ snapshot の `Date`。
+- **テスト**: `TestVaccinationService_Create_RejectsFutureVaccinationDate`（`rejects_next_date_before_vaccination_date` / `rejects_next_date_equal_to_vaccination_date` / `allows_today_JST_with_nil_next_date` / `allows_future_next_date_when_date_is_today`） / `TestVaccinationService_Update_RejectsFutureVaccinationDate`（`rejects_next_date_before_stored_date_when_date_is_omitted` / `rejects_next_date_equal_to_vaccination_date` / `allows_next_date_after_stored_date_when_date_is_omitted` / `omitting_date_does_not_inspect_stored_date`）
+- **Verify repair**: 孤立 `docker run`（compose network なし）では `db` 解決に失敗し concurrency 系が fatal していた。`vaccination_service_test.go` の `TestMain` が `db` 未解決時のみ `host.docker.internal:5434`（compose 公開ポート）へフォールバックする。
+- **残リスク**: Date のみ変更して既存 `next_date` が接種日以前になるケースは未検証（NextDate 非 patch 時は比較しない）。handler/API 層・E2E 未実施。
+
+### BUG-006（中）診療項目マスタの単価非負検証がサーバー側に欠落 — **修正済み**
 
 Round 8では薬剤マスタのみの指摘でしたが、Round 9のV04担当エージェントの検証により、**診察（consultations）・検査（examination-types）・定期健診（checkup-types）の3マスタにも同じ欠陥があることが新たに判明**しました。処置（procedures）・予防接種/ワクチン（vaccines）の2マスタのみ正しく検証されています。
 
@@ -92,6 +104,10 @@ Round 8では薬剤マスタのみの指摘でしたが、Round 9のV04担当エ
 | 予防接種/ワクチン（vaccines） | ○ 正常 | — |
 
 いずれも通常のUI操作では到達困難ですが、API直叩き・外部連携・将来のFE実装漏れからは到達可能であり、バックエンド側の`validateNonNegativePrice`相当の呼び出し漏れが薬剤サービス以外にも及んでいる可能性が高い状態です。
+
+- **Round 9 Lane A 修正**: medicine / consultation / exam_type / checkup_type の Create・Update で既存 `validateNonNegativePrice` を write 前に呼ぶ（procedure/vaccine と同型。新 helper なし）。`Price` nil・0 は許可、負値は `InvalidInput` で fail-closed。
+- **テスト**: 上記4サービスの Create/Update に `returns validation error when price is negative` を追加。負価格は `apperrors.IsInvalidInput` かつ repo Create/`updateFields` 未呼び出しを断言。
+- **残リスク**: handler/API 層・E2E 未実施。FE の負値入力ブロックは未変更。
 
 ### BUG-007（中〜高・重大度を引き上げ）レジ締め処理のサーバー側ガードが全般的に弱く、休診日・不正値のいずれも実際に締め処理が完了してしまう
 
@@ -118,12 +134,15 @@ Round 9でも状況は変化なし（`VITE_LIFF_MOCK=true`によりローカル�
 - **ワークアラウンド**: トリミングと医療を別々の会計として個別に精算すれば正常完了する（本ラウンドではこの方法で残務を精算済み）。ただし「1つの会計にまとめる」という本来の要件は満たせない。
 - **推奨対応**: バックエンドの会計確定処理における明細source検証ロジック（`参照先の組み合わせ`チェック）が、`medical_record`と`trimming`の混在を誤って拒否している可能性が高く、該当バリデーションの見直しを推奨。
 
-### BUG-009（中・新規）カルテを会計確認（医師）より先に確定すると、以後会計確認が永久にブロックされ明細が統合会計から恒久的に除外される
+### BUG-009（中・新規）カルテを会計確認（医師）より先に確定すると、以後会計確認が永久にブロックされ明細が統合会計から恒久的に除外される — **修正済み**
 
 - **シナリオ**: S11
 - **概要**: 「会計確認（医師）→カルテ確定」という正しい順序をUIが強制しておらず、順序を誤って先にカルテを確定してしまうと、事後の会計確認要求が`409 確定済みカルテの会計確認は変更できません`で永久にブロックされる。この結果、当該診療明細は恒久的に「同日統合対象外」のまま残り、`GET /api/v1/billing-items/ungrouped-same-day`が`has_ungrouped:true`を返し続ける。
 - **影響**: データ自体は失われないが、統合会計の対象から外れたまま回復手段がない状態が恒久的に残る。
 - **推奨対応**: (a) カルテ確定ボタン押下時に「会計確認が未完了です」の警告を表示する、または (b) 確定済みカルテでも会計確認の変更を許可する、のいずれかの是正を推奨。
+- **Round 9 Lane A 修正**: フローティング「確定する」を会計確認 `status==='confirmed'` 完了まで物理ブロック（disabled + title「会計確認が未完了です」）。pending / returned / loading / error / props省略は fail-closed。ConfirmDialog は安全網に使わない。`handleFinalize` の payload/guards は未変更。
+- **テスト**: `会計確認が pending のときは確定するを物理ブロックする` / `会計確認が returned のときは確定するを物理ブロックする` / `会計確認の読み込み中は確定するを物理ブロックする` / `会計確認の取得エラー時は確定するを物理ブロックする` / `会計確認props省略時は確定するを物理ブロックする（fail-closed）` / `会計確認が confirmed なら確定するをクリックできる` / `会計(医師確認)タブではフローティングバーごと確定するを出さない`（既存の予防接種保存非表示・問診保存表示・isFinalized 非表示は維持）
+- **残リスク**: GET `/billing-confirmation` は GetOrCreate のため、フォーム表示で pending 行が永続化する可能性。Form.permissions / not-found は `useGetBillingConfirmation` 未モック。E2E 未実施。確定済み後の会計確認 409 は BE 未変更。
 
 ### BUG-011（低・新規）薬剤マスタの重複名エラーメッセージが他の診療項目マスタと異なり非構造・名前欠落
 
@@ -137,11 +156,14 @@ Round 9でも状況は変化なし（`VITE_LIFF_MOCK=true`によりローカル�
 - **概要**: `GET /api/v1/clinics/1/lstep/checkup-sync/preview`に対し、負の年齢（`min_age=-3`）・小数の年齢（`min_age=2.5`）・最小>最大（`min_age=10&max_age=5`）・負の来院回数（`min_annual_visits=-1`）・検診種別未指定のいずれを送っても`200`で受理され結果が返る。比較対象の`min_total_amount`のみ正しく`400`で拒否される。
 - **影響**: 通常のUI操作ではクライアント側バリデーションで防御されているため実害は限定的だが、API直叩きや将来のFE実装ミスにより境界値検証を完全にバイパスして顧客一覧を抽出できてしまう。データ抽出のガードレールが実質的にFE依存になっている設計リスク。
 
-### BUG-013（低〜中・新規）`/identity-links`管理画面のunlinkボタンが常時disabledで機能しない
+### BUG-013（低〜中・新規）`/identity-links`管理画面のunlinkボタンが常時disabledで機能しない — **修正済み**
 
 - **シナリオ**: S13
 - **概要**: 実際にリンク済みの飼主ペアを選択しても、管理画面上の「unlink」ボタンが常にdisabledのままクリックできない（複数回再現）。一方、バックエンドAPI（`DELETE /api/v1/identity-links/owner-groups/:id/members`）自体は直接叩けば正常に機能することを確認済み。フロントエンドが選択ペアの実際のグループ所属状態を正しく把握できていない可能性が高い。
 - **重大度**: 低〜中。この画面は内部ワークベンチ的な位置づけで実運用への影響は限定的だが、UIから解除操作が一切できない状態は改善が必要。
+- **Round 9 Lane A 修正**: 選択（toggle-add）時のみ `findOwnerIdentityGroupByMember` / `findPetIdentityGroupByMember`（既存 GET reverse lookup）を呼び、メンバー単位の group id を保持。unlink 有効化は **per-member map のみ**（session `ownerGroupId`/`petGroupId` へフォールバックしない）。create 成功時も選択中メンバーへ map を埋める。session id は create / 親飼主 group（ペットリンク）用に残す。404 は null（disabled・alert なし）、非404は fail-closed で setError。検索ヒットの一括 prefetch はしない。ConfirmDialog なし。
+- **テスト**: `リンク済み飼主を選択すると unlink が有効になり、クリックで group id 付き DELETE する` / `lookup が null のとき unlink は disabled のまま、alert を出さない` / `先行 lookup で session group id があっても、404 メンバーの unlink は disabled のまま` / `リンク済みペットを選択すると unlink が有効になり、pet group id で DELETE する` / API: find* 成功・404→null・非404 rethrow（既存 permission 3 件も維持）
+- **残リスク**: spec `40-identity-links` Phase 1 文言は未更新（本単位の範囲外）。複数異グループ混在時の session 表示 id は先頭採用のまま（unlink は per-member）。lookup 中の pending/a11y 説明は未追加。E2E 未実施。次単位（BUG-018）は別 prompt。
 
 ### BUG-014（低・新規、環境要因の可能性あり）検査取り込みモーダルが確定済み検査を除外せず選択候補として表示する
 

@@ -340,3 +340,32 @@ describe("useMedicalRecordSaveAction BUG-016 estimate tab", () => {
     expect(toast.success).not.toHaveBeenCalled();
   });
 });
+
+describe("useMedicalRecordSaveAction BUG-001 vaccination tab", () => {
+  it("予防接種タブ保存では inquiry/plan/record を呼ばず汎用成功トーストを出さない", async () => {
+    const updateInquiry = vi.fn().mockResolvedValue(undefined);
+    const updateTreatmentPlan = vi.fn().mockResolvedValue(undefined);
+    const updateRecord = vi.fn().mockResolvedValue(undefined);
+    const { result } = renderHook(() =>
+      useMedicalRecordSaveAction(
+        buildSaveArgs({
+          activeTab: "予防接種",
+          updateInquiryMutation: { mutateAsync: updateInquiry },
+          updateTreatmentPlanMutation: { mutateAsync: updateTreatmentPlan },
+          updateMutation: { mutateAsync: updateRecord },
+        }),
+      ),
+    );
+
+    act(() => {
+      startTransition(() => result.current.formAction(new FormData()));
+    });
+
+    await waitFor(() => expect(result.current.formState.timestamp).not.toBe(0));
+    expect(result.current.formState.success).toBe(false);
+    expect(updateInquiry).not.toHaveBeenCalled();
+    expect(updateTreatmentPlan).not.toHaveBeenCalled();
+    expect(updateRecord).not.toHaveBeenCalled();
+    expect(toast.success).not.toHaveBeenCalled();
+  });
+});

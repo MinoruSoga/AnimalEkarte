@@ -111,6 +111,9 @@ vi.mock("../api/get-medical-records", () => ({
 vi.mock("../api/get-medical-record", () => ({
   useGetMedicalRecord: () => ({ data: { clinicId: "clinic-1" } }),
 }));
+vi.mock("../api/billing-confirmation", () => ({
+  useGetBillingConfirmation: () => ({ data: { status: "confirmed" }, isLoading: false, isError: false }),
+}));
 vi.mock("../api/clinical-plan", () => ({
   useGetClinicalPlan: () => ({ data: undefined }),
 }));

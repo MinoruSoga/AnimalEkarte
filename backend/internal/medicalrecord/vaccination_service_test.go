@@ -3,6 +3,8 @@ package medicalrecord
 import (
 	"context"
 	"errors"
+	"net"
+	"os"
 	"testing"
 	"time"
 
@@ -13,6 +15,35 @@ import (
 	"github.com/animal-ekarte/backend/internal/config"
 	"github.com/animal-ekarte/backend/internal/model"
 )
+
+// TestMain remaps DB_HOST when bare `docker run` cannot resolve compose hostname
+// "db". docker-compose.yml publishes Postgres as host port 5434.
+func TestMain(m *testing.M) {
+	ensureMedicalrecordTestDBReachableFromIsolatedDocker()
+	os.Exit(m.Run())
+}
+
+func ensureMedicalrecordTestDBReachableFromIsolatedDocker() {
+	if os.Getenv("TEST_DATABASE_URL") != "" {
+		return
+	}
+	if host := os.Getenv("DB_HOST"); host != "" && host != "db" {
+		return
+	}
+	if _, err := net.DefaultResolver.LookupHost(context.Background(), "db"); err == nil {
+		return
+	}
+	const fallbackHost = "host.docker.internal"
+	const fallbackPort = "5434"
+	d := net.Dialer{Timeout: 500 * time.Millisecond}
+	conn, err := d.DialContext(context.Background(), "tcp", net.JoinHostPort(fallbackHost, fallbackPort))
+	if err != nil {
+		return
+	}
+	_ = conn.Close()
+	_ = os.Setenv("DB_HOST", fallbackHost)
+	_ = os.Setenv("DB_PORT", fallbackPort)
+}
 
 // mockVaccinationRepository は VaccinationRepository のテスト用モック実装
 type mockVaccinationRepository struct {
@@ -526,7 +557,9 @@ func TestVaccinationService_Create_RejectsFutureVaccinationDate(t *testing.T) {
 	nowJST := time.Now().In(config.JST)
 	today := time.Date(nowJST.Year(), nowJST.Month(), nowJST.Day(), 10, 0, 0, 0, config.JST)
 	tomorrow := today.AddDate(0, 0, 1)
+	yesterday := today.AddDate(0, 0, -1)
 	nextDate := today.AddDate(0, 1, 0)
+	sameDayNext := today
 
 	tests := []struct {
 		name        string
@@ -546,7 +579,7 @@ func TestVaccinationService_Create_RejectsFutureVaccinationDate(t *testing.T) {
 			wantCreate:  false,
 		},
 		{
-			name:       "allows today JST",
+			name:       "allows today JST with nil next_date",
 			date:       today,
 			wantCreate: true,
 		},
@@ -555,6 +588,24 @@ func TestVaccinationService_Create_RejectsFutureVaccinationDate(t *testing.T) {
 			date:       today,
 			nextDate:   &nextDate,
 			wantCreate: true,
+		},
+		{
+			name:        "rejects next_date before vaccination date",
+			date:        today,
+			nextDate:    &yesterday,
+			wantErr:     true,
+			wantInvalid: true,
+			wantMsg:     "次回予定日は接種日より後",
+			wantCreate:  false,
+		},
+		{
+			name:        "rejects next_date equal to vaccination date",
+			date:        today,
+			nextDate:    &sameDayNext,
+			wantErr:     true,
+			wantInvalid: true,
+			wantMsg:     "次回予定日は接種日より後",
+			wantCreate:  false,
 		},
 	}
 
@@ -601,7 +652,10 @@ func TestVaccinationService_Update_RejectsFutureVaccinationDate(t *testing.T) {
 	nowJST := time.Now().In(config.JST)
 	today := time.Date(nowJST.Year(), nowJST.Month(), nowJST.Day(), 10, 0, 0, 0, config.JST)
 	tomorrow := today.AddDate(0, 0, 1)
+	yesterday := today.AddDate(0, 0, -1)
+	dayBeforeYesterday := today.AddDate(0, 0, -2)
 	nextDate := today.AddDate(0, 1, 0)
+	sameDayNext := today
 	supplemental := "追記"
 
 	tests := []struct {
@@ -624,7 +678,7 @@ func TestVaccinationService_Update_RejectsFutureVaccinationDate(t *testing.T) {
 			wantUpdate:  false,
 		},
 		{
-			name: "allows today JST",
+			name: "allows today JST with nil next_date",
 			input: UpdateVaccinationInput{
 				Date: &today,
 			},
@@ -639,12 +693,34 @@ func TestVaccinationService_Update_RejectsFutureVaccinationDate(t *testing.T) {
 			wantUpdate: true,
 		},
 		{
-			name: "allows future next_date when date is omitted",
+			name: "allows next_date after stored date when date is omitted",
 			input: UpdateVaccinationInput{
 				NextDate: &nextDate,
 			},
-			storedDate: tomorrow,
+			storedDate: yesterday,
 			wantUpdate: true,
+		},
+		{
+			name: "rejects next_date before stored date when date is omitted",
+			input: UpdateVaccinationInput{
+				NextDate: &dayBeforeYesterday,
+			},
+			storedDate:  yesterday,
+			wantErr:     true,
+			wantInvalid: true,
+			wantMsg:     "次回予定日は接種日より後",
+			wantUpdate:  false,
+		},
+		{
+			name: "rejects next_date equal to vaccination date",
+			input: UpdateVaccinationInput{
+				Date:     &today,
+				NextDate: &sameDayNext,
+			},
+			wantErr:     true,
+			wantInvalid: true,
+			wantMsg:     "次回予定日は接種日より後",
+			wantUpdate:  false,
 		},
 		{
 			name: "omitting date does not inspect stored date",

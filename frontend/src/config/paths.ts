@@ -127,6 +127,10 @@ export const paths = {
       path: "/examinations/select-pet",
       getHref: () => "/examinations/select-pet",
     },
+    new: {
+      path: "/examinations/new",
+      getHref: () => "/examinations/new",
+    },
     detail: {
       path: "/examinations/:id",
       getHref: (id: string | number) => `/examinations/${id}`,
