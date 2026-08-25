@@ -23,17 +23,29 @@ const (
 	allowRemoteSentinel = "YES_I_UNDERSTAND"
 	commandTimeout      = 2 * time.Minute
 
-	companyID          int64 = 1
-	clinicHachiojiID   int64 = 1
-	clinicJoutoID      int64 = 2
-	clinicHachiojiName       = "八王子病院"
-	clinicJoutoName          = "城東センター病院"
-	examTypeName             = "検査"
-	trimmingTypeName         = "トリミング"
-	trimmingCategory         = "trimming"
-	hachiojiBandStart  int64 = 0
-	hachiojiBandEnd    int64 = 10_000_000
+	companyID               int64 = 1
+	clinicHachiojiID        int64 = 1
+	clinicJoutoID           int64 = 2
+	clinicHachiojiName            = "八王子病院"
+	clinicJoutoName               = "城東センター病院"
+	examTypeName                  = "検査"
+	trimmingTypeName              = "トリミング"
+	trimmingCategory              = "trimming"
+	fallbackAnimalSpeciesID int64 = 1 // 002_master 犬; not created by skeleton
+	hachiojiBandStart       int64 = 0
+	hachiojiBandEnd         int64 = 10_000_000
 )
+
+// clinicBindingIDs are the six non-PHI numeric seed IDs required by
+// cmd/csv-import-stg-uat. Names of owners/pets/staff are never logged.
+type clinicBindingIDs struct {
+	ClinicID                  int64
+	AnimalSpeciesID           int64
+	ExamTypeID                int64
+	TrimmingReservationTypeID int64
+	CashPaymentMethodID       int64
+	CreditCardPaymentMethodID int64
+}
 
 var skeletonAllowlist = []string{
 	"clinics",
@@ -171,16 +183,102 @@ func run(ctx context.Context, args []string, logger *slog.Logger, deps runDepend
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 
-	if err := applySkeleton(ctx, tx, bootstrap); err != nil {
+	// Binding ensure first. Cutover emptiness is checked after seed IDs are
+	// resolved so a dirty local demo DB still prints the six non-PHI IDs.
+	if err := applySkeletonBindings(ctx, tx, bootstrap); err != nil {
 		return err
 	}
+	bindingByClinic := make([]clinicBindingIDs, 0, len(clinicSeeds()))
+	for _, clinic := range clinicSeeds() {
+		ids, err := resolveClinicBindingIDs(ctx, tx, clinic.id)
+		if err != nil {
+			return err
+		}
+		bindingByClinic = append(bindingByClinic, ids)
+	}
+	cutoverErr := verifyCutoverTablesEmpty(ctx, tx)
 	if err := tx.Commit(ctx); err != nil {
 		return fmt.Errorf("commit: %w", err)
 	}
 	if logger != nil {
-		logger.Info("stg-uat-skeleton apply complete", "clinic_ids", []int64{clinicHachiojiID, clinicJoutoID})
+		if cutoverErr == nil {
+			logger.Info("stg-uat-skeleton apply complete", "clinic_ids", []int64{clinicHachiojiID, clinicJoutoID})
+		} else {
+			logger.Info("stg-uat-skeleton bindings committed; cutover emptiness check failed",
+				"clinic_ids", []int64{clinicHachiojiID, clinicJoutoID},
+				"cutover_error", cutoverErr.Error(),
+			)
+		}
+		for _, ids := range bindingByClinic {
+			logSkeletonSeedIDs(logger, ids)
+		}
+	}
+	if cutoverErr != nil {
+		return cutoverErr
 	}
 	return nil
+}
+
+func resolveClinicBindingIDs(ctx context.Context, e execer, clinicID int64) (clinicBindingIDs, error) {
+	ids := clinicBindingIDs{
+		ClinicID:        clinicID,
+		AnimalSpeciesID: fallbackAnimalSpeciesID,
+	}
+	var err error
+	if ids.ExamTypeID, err = lookupID(ctx, e,
+		`SELECT id FROM exam_types WHERE clinic_id = $1 AND name = $2 AND deleted_at IS NULL ORDER BY id LIMIT 1`,
+		[]any{clinicID, examTypeName},
+		fmt.Sprintf("clinic %d exam type %s", clinicID, examTypeName),
+	); err != nil {
+		return clinicBindingIDs{}, err
+	}
+	if ids.TrimmingReservationTypeID, err = lookupID(ctx, e,
+		`SELECT id FROM reservation_types WHERE clinic_id = $1 AND category = $2 AND deleted_at IS NULL ORDER BY id LIMIT 1`,
+		[]any{clinicID, trimmingCategory},
+		fmt.Sprintf("clinic %d trimming reservation type", clinicID),
+	); err != nil {
+		return clinicBindingIDs{}, err
+	}
+	if ids.CashPaymentMethodID, err = lookupID(ctx, e,
+		`SELECT id FROM payment_methods WHERE clinic_id = $1 AND system_key = $2 AND deleted_at IS NULL ORDER BY id LIMIT 1`,
+		[]any{clinicID, "cash"},
+		fmt.Sprintf("clinic %d cash payment method", clinicID),
+	); err != nil {
+		return clinicBindingIDs{}, err
+	}
+	if ids.CreditCardPaymentMethodID, err = lookupID(ctx, e,
+		`SELECT id FROM payment_methods WHERE clinic_id = $1 AND system_key = $2 AND deleted_at IS NULL ORDER BY id LIMIT 1`,
+		[]any{clinicID, "credit_card"},
+		fmt.Sprintf("clinic %d credit_card payment method", clinicID),
+	); err != nil {
+		return clinicBindingIDs{}, err
+	}
+	return ids, nil
+}
+
+func lookupID(ctx context.Context, e execer, sql string, args []any, label string) (int64, error) {
+	var id int64
+	if err := e.QueryRow(ctx, sql, args...).Scan(&id); err != nil {
+		return 0, fmt.Errorf("lookup %s: %w", label, err)
+	}
+	if id <= 0 {
+		return 0, fmt.Errorf("%s id must be positive", label)
+	}
+	return id, nil
+}
+
+func logSkeletonSeedIDs(logger *slog.Logger, ids clinicBindingIDs) {
+	if logger == nil {
+		return
+	}
+	logger.Info("stg-uat-skeleton seed ids",
+		"clinic_id", ids.ClinicID,
+		"animal_species_id", ids.AnimalSpeciesID,
+		"exam_type_id", ids.ExamTypeID,
+		"trimming_reservation_type_id", ids.TrimmingReservationTypeID,
+		"cash_payment_method_id", ids.CashPaymentMethodID,
+		"credit_card_payment_method_id", ids.CreditCardPaymentMethodID,
+	)
 }
 
 func parseOptions(args []string) (options, error) {
@@ -209,95 +307,209 @@ func bootstrapFromEnv() (bootstrapOpts, error) {
 }
 
 func applySkeleton(ctx context.Context, e execer, bootstrap bootstrapOpts) error {
+	if err := applySkeletonBindings(ctx, e, bootstrap); err != nil {
+		return err
+	}
+	return verifyCutoverTablesEmpty(ctx, e)
+}
+
+func applySkeletonBindings(ctx context.Context, e execer, bootstrap bootstrapOpts) error {
 	if err := assertAllowlistDisjointFromCutover(); err != nil {
 		return err
 	}
 	if err := requireCompany(ctx, e, companyID); err != nil {
 		return err
 	}
-	ops, err := skeletonWritePlan(bootstrap)
-	if err != nil {
+	if err := ensureClinics(ctx, e); err != nil {
 		return err
 	}
-	for _, op := range ops {
-		if err := guardedExec(ctx, e, op); err != nil {
-			return err
-		}
+	if err := ensureExamTypes(ctx, e); err != nil {
+		return err
+	}
+	if err := ensureTrimmingReservationTypes(ctx, e); err != nil {
+		return err
+	}
+	if err := ensureClinicSettings(ctx, e); err != nil {
+		return err
+	}
+	if err := ensurePermissionGroups(ctx, e); err != nil {
+		return err
+	}
+	if err := ensurePermissionGroupRules(ctx, e); err != nil {
+		return err
+	}
+	if err := ensureBootstrapAccount(ctx, e, bootstrap); err != nil {
+		return err
 	}
 	if err := ensureDefaultPaymentMethods(ctx, e); err != nil {
 		return err
 	}
-	return verifySkeleton(ctx, e)
+	return verifySkeletonBindings(ctx, e)
 }
 
-func skeletonWritePlan(bootstrap bootstrapOpts) ([]writeOp, error) {
-	if (bootstrap.email == "") != (bootstrap.passwordHash == "") {
-		return nil, fmt.Errorf("bootstrap account requires both email and password hash")
-	}
-
-	ops := make([]writeOp, 0, 64)
+func ensureClinics(ctx context.Context, e execer) error {
 	for _, clinic := range clinicSeeds() {
-		ops = append(ops, writeOp{
+		var exists bool
+		if err := e.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM clinics WHERE id = $1)`, clinic.id).Scan(&exists); err != nil {
+			return fmt.Errorf("lookup clinic %d: %w", clinic.id, err)
+		}
+		if exists {
+			continue
+		}
+		if err := guardedExec(ctx, e, writeOp{
 			table: "clinics",
 			sql:   `INSERT INTO clinics (id, company_id, name, is_active) VALUES ($1, $2, $3, true)`,
 			args:  []any{clinic.id, companyID, clinic.name},
-		})
+		}); err != nil {
+			return err
+		}
 	}
-	ops = append(ops, writeOp{
+	return guardedExec(ctx, e, writeOp{
 		table: "clinics",
 		sql:   `SELECT setval(pg_get_serial_sequence('clinics', 'id'), GREATEST((SELECT COALESCE(MAX(id), 1) FROM clinics), 1))`,
 	})
+}
 
+func ensureExamTypes(ctx context.Context, e execer) error {
 	for _, clinic := range clinicSeeds() {
-		ops = append(ops,
-			writeOp{
-				table: "exam_types",
-				sql:   `INSERT INTO exam_types (clinic_id, name, is_active) VALUES ($1, $2, true)`,
-				args:  []any{clinic.id, examTypeName},
-			},
-			writeOp{
-				table: "reservation_types",
-				sql:   `INSERT INTO reservation_types (clinic_id, name, category, is_active, duration_minutes) VALUES ($1, $2, $3, true, 15)`,
-				args:  []any{clinic.id, trimmingTypeName, trimmingCategory},
-			},
-			writeOp{
-				table: "clinic_settings",
-				sql:   `INSERT INTO clinic_settings (clinic_id) VALUES ($1)`,
-				args:  []any{clinic.id},
-			},
-		)
+		var n int64
+		if err := e.QueryRow(ctx,
+			`SELECT count(*) FROM exam_types WHERE clinic_id = $1 AND name = $2 AND deleted_at IS NULL`,
+			clinic.id, examTypeName,
+		).Scan(&n); err != nil {
+			return fmt.Errorf("count clinic %d exam type: %w", clinic.id, err)
+		}
+		if n >= 1 {
+			continue
+		}
+		if err := guardedExec(ctx, e, writeOp{
+			table: "exam_types",
+			sql:   `INSERT INTO exam_types (clinic_id, name, is_active) VALUES ($1, $2, true)`,
+			args:  []any{clinic.id, examTypeName},
+		}); err != nil {
+			return err
+		}
 	}
+	return nil
+}
 
+func ensureTrimmingReservationTypes(ctx context.Context, e execer) error {
+	for _, clinic := range clinicSeeds() {
+		var n int64
+		if err := e.QueryRow(ctx,
+			`SELECT count(*) FROM reservation_types WHERE clinic_id = $1 AND category = $2 AND deleted_at IS NULL`,
+			clinic.id, trimmingCategory,
+		).Scan(&n); err != nil {
+			return fmt.Errorf("count clinic %d trimming reservation type: %w", clinic.id, err)
+		}
+		if n >= 1 {
+			continue
+		}
+		if err := guardedExec(ctx, e, writeOp{
+			table: "reservation_types",
+			sql:   `INSERT INTO reservation_types (clinic_id, name, category, is_active, duration_minutes) VALUES ($1, $2, $3, true, 15)`,
+			args:  []any{clinic.id, trimmingTypeName, trimmingCategory},
+		}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func ensureClinicSettings(ctx context.Context, e execer) error {
+	for _, clinic := range clinicSeeds() {
+		var n int64
+		if err := e.QueryRow(ctx,
+			`SELECT count(*) FROM clinic_settings WHERE clinic_id = $1`,
+			clinic.id,
+		).Scan(&n); err != nil {
+			return fmt.Errorf("count clinic %d settings: %w", clinic.id, err)
+		}
+		if n >= 1 {
+			continue
+		}
+		if err := guardedExec(ctx, e, writeOp{
+			table: "clinic_settings",
+			sql:   `INSERT INTO clinic_settings (clinic_id) VALUES ($1)`,
+			args:  []any{clinic.id},
+		}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func ensurePermissionGroups(ctx context.Context, e execer) error {
 	for _, group := range permissionGroupSeeds() {
-		ops = append(ops, writeOp{
+		var exists bool
+		if err := e.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM permission_groups WHERE id = $1)`, group.id).Scan(&exists); err != nil {
+			return fmt.Errorf("lookup permission group %d: %w", group.id, err)
+		}
+		if exists {
+			continue
+		}
+		if err := guardedExec(ctx, e, writeOp{
 			table: "permission_groups",
 			sql:   `INSERT INTO permission_groups (id, clinic_id, name, description, is_active, sort_order) VALUES ($1, $2, $3, $4, true, $5)`,
 			args:  []any{group.id, group.clinicID, group.name, group.description, group.sortOrder},
-		})
+		}); err != nil {
+			return err
+		}
 	}
-	ops = append(ops, writeOp{
+	return guardedExec(ctx, e, writeOp{
 		table: "permission_groups",
 		sql:   `SELECT setval(pg_get_serial_sequence('permission_groups', 'id'), GREATEST((SELECT COALESCE(MAX(id), 1) FROM permission_groups), 1))`,
 	})
+}
+
+func ensurePermissionGroupRules(ctx context.Context, e execer) error {
 	for _, group := range permissionGroupSeeds() {
 		for _, resource := range model.AllResources {
+			var n int64
+			if err := e.QueryRow(ctx,
+				`SELECT count(*) FROM permission_group_rules WHERE group_id = $1 AND resource = $2`,
+				group.id, string(resource),
+			).Scan(&n); err != nil {
+				return fmt.Errorf("count permission group %d rule %s: %w", group.id, resource, err)
+			}
+			if n >= 1 {
+				continue
+			}
 			canView, canCreate, canEdit, canDelete := permissionBits(resource, group.executive)
-			ops = append(ops, writeOp{
+			if err := guardedExec(ctx, e, writeOp{
 				table: "permission_group_rules",
 				sql:   `INSERT INTO permission_group_rules (group_id, resource, can_view, can_create, can_edit, can_delete) VALUES ($1, $2, $3, $4, $5, $6)`,
 				args:  []any{group.id, string(resource), canView, canCreate, canEdit, canDelete},
-			})
+			}); err != nil {
+				return err
+			}
 		}
 	}
+	return nil
+}
 
-	if bootstrap.email != "" {
-		ops = append(ops, writeOp{
-			table: "accounts",
-			sql:   `INSERT INTO accounts (email, password_hash, is_active, is_system_admin) VALUES ($1, $2, true, false)`,
-			args:  []any{bootstrap.email, bootstrap.passwordHash},
-		})
+func ensureBootstrapAccount(ctx context.Context, e execer, bootstrap bootstrapOpts) error {
+	if (bootstrap.email == "") != (bootstrap.passwordHash == "") {
+		return fmt.Errorf("bootstrap account requires both email and password hash")
 	}
-	return ops, nil
+	if bootstrap.email == "" {
+		return nil
+	}
+	var n int64
+	if err := e.QueryRow(ctx,
+		`SELECT count(*) FROM accounts WHERE email = $1`,
+		bootstrap.email,
+	).Scan(&n); err != nil {
+		return fmt.Errorf("count bootstrap account: %w", err)
+	}
+	if n >= 1 {
+		return nil
+	}
+	return guardedExec(ctx, e, writeOp{
+		table: "accounts",
+		sql:   `INSERT INTO accounts (email, password_hash, is_active, is_system_admin) VALUES ($1, $2, true, false)`,
+		args:  []any{bootstrap.email, bootstrap.passwordHash},
+	})
 }
 
 func clinicSeeds() []clinicSeed {
@@ -425,6 +637,13 @@ func requireCompany(ctx context.Context, e execer, id int64) error {
 }
 
 func verifySkeleton(ctx context.Context, e execer) error {
+	if err := verifySkeletonBindings(ctx, e); err != nil {
+		return err
+	}
+	return verifyCutoverTablesEmpty(ctx, e)
+}
+
+func verifySkeletonBindings(ctx context.Context, e execer) error {
 	for _, clinic := range clinicSeeds() {
 		var id, gotCompanyID int64
 		var name string
@@ -492,7 +711,10 @@ func verifySkeleton(ctx context.Context, e execer) error {
 			return err
 		}
 	}
+	return nil
+}
 
+func verifyCutoverTablesEmpty(ctx context.Context, e execer) error {
 	for _, name := range cutoverTableNames() {
 		ident, err := quoteIdent(name)
 		if err != nil {

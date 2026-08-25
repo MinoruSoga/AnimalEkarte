@@ -166,6 +166,63 @@ func TestApplySkeleton(t *testing.T) {
 	})
 }
 
+func TestResolveClinicBindingIDs_ReturnsNonPHINumericIDs(t *testing.T) {
+	db := newMemDB()
+	db.seedCompany(1)
+	require.NoError(t, applySkeleton(context.Background(), db, bootstrapOpts{}))
+
+	ids, err := resolveClinicBindingIDs(context.Background(), db, clinicJoutoID)
+	require.NoError(t, err)
+	assert.Equal(t, clinicJoutoID, ids.ClinicID)
+	assert.Equal(t, fallbackAnimalSpeciesID, ids.AnimalSpeciesID)
+	assert.Positive(t, ids.ExamTypeID)
+	assert.Positive(t, ids.TrimmingReservationTypeID)
+	assert.Positive(t, ids.CashPaymentMethodID)
+	assert.Positive(t, ids.CreditCardPaymentMethodID)
+	assert.NotEqual(t, ids.CashPaymentMethodID, ids.CreditCardPaymentMethodID)
+}
+
+func TestApplySkeleton_IdempotentOnExistingClinics(t *testing.T) {
+	db := newMemDB()
+	db.seedCompany(1)
+	require.NoError(t, applySkeleton(context.Background(), db, bootstrapOpts{}))
+	firstExam := db.examTypeID(clinicJoutoID, "検査")
+	require.Positive(t, firstExam)
+	writesAfterFirst := len(db.recordedWrites())
+
+	require.NoError(t, applySkeleton(context.Background(), db, bootstrapOpts{}))
+	assert.Equal(t, firstExam, db.examTypeID(clinicJoutoID, "検査"))
+	assert.Equal(t, 2, db.count("clinics"))
+	assert.Equal(t, 2, db.countExamTypesNamed("検査"))
+	// Second pass may record existence checks but must not insert another clinic row.
+	assert.GreaterOrEqual(t, len(db.recordedWrites()), writesAfterFirst)
+}
+
+func TestLogSkeletonSeedIDs_EmitsNumericAttrsOnly(t *testing.T) {
+	var buf strings.Builder
+	logger := slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelInfo}))
+	ids := clinicBindingIDs{
+		ClinicID:                  2,
+		AnimalSpeciesID:           1,
+		ExamTypeID:                11,
+		TrimmingReservationTypeID: 22,
+		CashPaymentMethodID:       33,
+		CreditCardPaymentMethodID: 44,
+	}
+	logSkeletonSeedIDs(logger, ids)
+	out := buf.String()
+	assert.Contains(t, out, "stg-uat-skeleton seed ids")
+	assert.Contains(t, out, "clinic_id=2")
+	assert.Contains(t, out, "animal_species_id=1")
+	assert.Contains(t, out, "exam_type_id=11")
+	assert.Contains(t, out, "trimming_reservation_type_id=22")
+	assert.Contains(t, out, "cash_payment_method_id=33")
+	assert.Contains(t, out, "credit_card_payment_method_id=44")
+	for _, forbidden := range []string{"owner", "phone", "email", "スタッフ", "飼主"} {
+		assert.NotContains(t, strings.ToLower(out), strings.ToLower(forbidden))
+	}
+}
+
 func TestEnsureDefaultPaymentMethods_InsertsWhenTriggerAbsent(t *testing.T) {
 	db := newMemDB()
 	db.skipPaymentMethodTrigger = true
@@ -358,6 +415,12 @@ func (m *memDB) QueryRow(_ context.Context, sql string, args ...any) rowScanner 
 	case strings.Contains(nsql, "from companies"):
 		id := asInt64(args[0])
 		return memRow{vals: []any{m.existsLocked("companies", "id", id)}}
+	case strings.Contains(nsql, "exists (select 1 from clinics where id"):
+		id := asInt64(args[0])
+		return memRow{vals: []any{m.existsLocked("clinics", "id", id)}}
+	case strings.Contains(nsql, "exists (select 1 from permission_groups where id"):
+		id := asInt64(args[0])
+		return memRow{vals: []any{m.existsLocked("permission_groups", "id", id)}}
 	case strings.Contains(nsql, "from clinics where id"):
 		id := asInt64(args[0])
 		row := m.findLocked("clinics", "id", id)
@@ -365,6 +428,16 @@ func (m *memDB) QueryRow(_ context.Context, sql string, args ...any) rowScanner 
 			return memRow{err: fmt.Errorf("clinic %d not found", id)}
 		}
 		return memRow{vals: []any{asInt64(row["id"]), asInt64(row["company_id"]), asString(row["name"])}}
+	case strings.Contains(nsql, "select id from payment_methods"):
+		clinicID := asInt64(args[0])
+		key := asString(args[1])
+		row := m.findWhereLocked("payment_methods", func(r map[string]any) bool {
+			return asInt64(r["clinic_id"]) == clinicID && asString(r["system_key"]) == key
+		})
+		if row == nil {
+			return memRow{err: fmt.Errorf("payment method not found")}
+		}
+		return memRow{vals: []any{asInt64(row["id"])}}
 	case strings.Contains(nsql, "from payment_methods"):
 		clinicID := asInt64(args[0])
 		key := asString(args[1])
@@ -372,6 +445,16 @@ func (m *memDB) QueryRow(_ context.Context, sql string, args ...any) rowScanner 
 			return asInt64(r["clinic_id"]) == clinicID && asString(r["system_key"]) == key
 		})
 		return memRow{vals: []any{n}}
+	case strings.Contains(nsql, "select id from exam_types"):
+		clinicID := asInt64(args[0])
+		name := asString(args[1])
+		row := m.findWhereLocked("exam_types", func(r map[string]any) bool {
+			return asInt64(r["clinic_id"]) == clinicID && asString(r["name"]) == name
+		})
+		if row == nil {
+			return memRow{err: fmt.Errorf("exam type not found")}
+		}
+		return memRow{vals: []any{asInt64(row["id"])}}
 	case strings.Contains(nsql, "from exam_types"):
 		clinicID := asInt64(args[0])
 		name := asString(args[1])
@@ -379,6 +462,16 @@ func (m *memDB) QueryRow(_ context.Context, sql string, args ...any) rowScanner 
 			return asInt64(r["clinic_id"]) == clinicID && asString(r["name"]) == name
 		})
 		return memRow{vals: []any{n}}
+	case strings.Contains(nsql, "select id from reservation_types"):
+		clinicID := asInt64(args[0])
+		category := asString(args[1])
+		row := m.findWhereLocked("reservation_types", func(r map[string]any) bool {
+			return asInt64(r["clinic_id"]) == clinicID && asString(r["category"]) == category
+		})
+		if row == nil {
+			return memRow{err: fmt.Errorf("reservation type not found")}
+		}
+		return memRow{vals: []any{asInt64(row["id"])}}
 	case strings.Contains(nsql, "from reservation_types"):
 		clinicID := asInt64(args[0])
 		category := asString(args[1])
@@ -399,10 +492,23 @@ func (m *memDB) QueryRow(_ context.Context, sql string, args ...any) rowScanner 
 			return memRow{err: fmt.Errorf("permission group %d not found", id)}
 		}
 		return memRow{vals: []any{asInt64(row["clinic_id"]), asString(row["name"])}}
+	case strings.Contains(nsql, "from permission_group_rules") && strings.Contains(nsql, "resource"):
+		groupID := asInt64(args[0])
+		resource := asString(args[1])
+		n := m.countWhereLocked("permission_group_rules", func(r map[string]any) bool {
+			return asInt64(r["group_id"]) == groupID && asString(r["resource"]) == resource
+		})
+		return memRow{vals: []any{n}}
 	case strings.Contains(nsql, "from permission_group_rules"):
 		groupID := asInt64(args[0])
 		n := m.countWhereLocked("permission_group_rules", func(r map[string]any) bool {
 			return asInt64(r["group_id"]) == groupID
+		})
+		return memRow{vals: []any{n}}
+	case strings.Contains(nsql, "from accounts where email"):
+		email := asString(args[0])
+		n := m.countWhereLocked("accounts", func(r map[string]any) bool {
+			return asString(r["email"]) == email
 		})
 		return memRow{vals: []any{n}}
 	case strings.Contains(nsql, "from staffs") && strings.Contains(nsql, "id >="):
@@ -510,6 +616,26 @@ func (m *memDB) hasExamType(clinicID int64, name string) bool {
 	}) > 0
 }
 
+func (m *memDB) examTypeID(clinicID int64, name string) int64 {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	row := m.findWhereLocked("exam_types", func(r map[string]any) bool {
+		return asInt64(r["clinic_id"]) == clinicID && asString(r["name"]) == name
+	})
+	if row == nil {
+		return 0
+	}
+	return asInt64(row["id"])
+}
+
+func (m *memDB) countExamTypesNamed(name string) int {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return int(m.countWhereLocked("exam_types", func(r map[string]any) bool {
+		return asString(r["name"]) == name
+	}))
+}
+
 func (m *memDB) hasTrimmingType(clinicID int64) bool {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -576,6 +702,22 @@ func (m *memDB) findLocked(table, col string, id int64) map[string]any {
 		}
 	}
 	return nil
+}
+
+func (m *memDB) findWhereLocked(table string, match func(map[string]any) bool) map[string]any {
+	var best map[string]any
+	var bestID int64
+	for _, row := range m.tables[table] {
+		if !match(row) {
+			continue
+		}
+		id := asInt64(row["id"])
+		if best == nil || id < bestID {
+			best = row
+			bestID = id
+		}
+	}
+	return best
 }
 
 func (m *memDB) countWhereLocked(table string, match func(map[string]any) bool) int64 {

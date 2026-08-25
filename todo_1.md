@@ -237,7 +237,8 @@ backend/migrations/seeds/_old_db_handoff/jouto/
 
 現行 `make reset` はローカル rehearsal 経路で、STG リモートゲート（AE-STG-UAT-IMPORT）の証明には使えない。Lane 2 が終わってから、そのゲートをローカルまたは disposable で通す。
 
-- [ ] **H1-1** 城東: ローカル `make reset`、または正式なら `make csv-import-preflight` → apply → verify
+- [ ] **H1-1a** 城東 preflight（ローカル `db` / write-0）: `make stg-uat-csv-import-preflight`（`CLINIC_CODE=jouto` / ordinal 2 / clinic id 2 / SHA `1a08edbb2c6aa4050399d55d29204cd15cfbaa23baa30d512221b0b3d9372591` / `STG_UAT_CSV_IMPORT_ALLOW_REHEARSAL=YES_I_UNDERSTAND`）。**結果 (2026-08-25):** コマンド実行済み・fail-closed。error: `source preflight failed: table payments column total_amount row 2: payment snapshot does not match billing`（CUTOVER_* code なし。21 表 apply では直さない）。seed IDs clinic2: species=1 exam=11009 trimming=59 cash=5 credit=6
+- [ ] **H1-1b** 城東 apply → verify: H1-1a PASS 後のみ。本 unit では未着手（`make stg-uat-csv-import` / reset 禁止）
 - [ ] **H1-2** 八王子: 同じ。bundle が来てから
 - [ ] **H1-3** 画面確認が要るなら [A4_UI_REHEARSAL.md](docs/ops/deploy/A4_UI_REHEARSAL.md)。通常 `csv-import-*` は使わない
 - [ ] **H1-4** 失敗側は [F8_G4_FAILURE_REHEARSAL.md](docs/ops/deploy/F8_G4_FAILURE_REHEARSAL.md)（本番 CSV は渡さない）
@@ -412,7 +413,7 @@ live Postgres は一度に 1 医院。城東 live を八王子 load で上書き
 ```
 D1–D7 確定（D2=B 城東先行。Q5 の「八王子 CSV 必須」は後追い HAC-CSV-1 として残す）
 Lane 2: AE-STG-UAT-SKELETON / IMPORT / STAFF / MAKE-REMOTE  ← 完了（4703cf3e9）
-次: H0-5 名簿、Lane 1 城東ローカル証明（H0-3a/H0-4 城東は済み。H0-3b/H0-4 八王子は H0-2 待ち）
+次: H0-5 名簿、H1-1a 城東 preflight は fail-closed（payments snapshot mismatch）で未クリア。H1-1b/H3 は未着手。H0-3b/H0-4 八王子は H0-2 待ち
 Lane 3: AE-STG-UAT-JOU → 第1段階開始（現場へ「城東のみ」）  ← USER。未着手
 old_db: 八王子 21 CSV（HAC-CSV-1。rehearsal 可。医院 identity 必須）
 Lane 3 続き: AE-STG-UAT-HAC（H3-7 maintenance window。城東の STG 入力を止める）
