@@ -23,7 +23,7 @@ export function transformAccountingItem(item: BackendAccountingItem) {
     taxType: item.tax_type ?? "excluded",
     taxRate,
     taxAmount: item.tax_amount ?? 0,
-    subtotal: item.subtotal ?? Math.max(Math.round(unitPrice * quantity) - (item.discount_amount ?? 0), 0),
+    subtotal: item.subtotal ?? Math.round(unitPrice * quantity) - (item.discount_amount ?? 0),
     isInsuranceApplicable: item.is_insurance_applicable,
     source: item.source as "medical_record" | "manual" | "hospitalization" | "trimming",
     otherReason: item.other_reason,

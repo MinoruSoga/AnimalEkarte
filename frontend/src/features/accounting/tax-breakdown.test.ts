@@ -78,6 +78,15 @@ describe("calcTaxBreakdown (FE6-14 特性テスト)", () => {
     expect(result.standardAmount).not.toBe(Math.round(999 * STANDARD_RATE));
   });
 
+  it("負の単価はクランプせず課税ベースに符号を残す", () => {
+    const items = [
+      { unitPrice: -3000, quantity: 1, discountAmount: 0, taxRate: STANDARD_RATE },
+    ];
+    const result = calcTaxBreakdown(items, STANDARD_RATE, REDUCED_RATE);
+    expect(result.standardBase).toBe(-3000);
+    expect(result.standardAmount).toBe(Math.floor(-3000 * STANDARD_RATE));
+  });
+
   it("明細0件で全て0を返す", () => {
     // 手計算: base/amount は全て0。ただし *RatePercent は明細件数に依存せず
     // rate 引数から常に算出される（round(0.1*100)=10 / round(0.08*100)=8）。

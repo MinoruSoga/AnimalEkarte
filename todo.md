@@ -20,5 +20,7 @@
 
 旧会計に一般的におかしな値があっても、**補正せずそのまま載せる**。old_db 側は符号を落とさない。AnimalEkarte が受け取れない制約はこちらで外す。
 
-- [x] **AE-MIG-NEG-1** 2026-08-24: CSV cutover が負の請求・入金・split を受け入れる。`002_allow_negative_billing_amounts.sql` が `chk_billings_amounts` を DROP。ローカルは `make reset`（2026-08-24 17:19 JST）で適用済み。backend: `002` completed、`Migration key coverage missing=0 expected=5 recorded=5`。commit `55f29ce5c`（未 push）。claim ブランチは統合確認済みで削除済み。
+- [x] **AE-MIG-NEG-1** 2026-08-24: CSV cutover が負の請求・入金・split を受け入れる。旧 `002_allow_negative_billing_amounts.sql` は 2026-08-25 統合第9回で `001_init.sql` へ畳み込み（`chk_billings_amounts` を CREATE TABLE から除去）。ローカル再適用は USER 手動の `make reset`。
 - [x] **AE-MIG-NEG-UI-1** 2026-08-24: 移行負額は記録値のまま表示（`¥-3,000`）。`billing_refunds` へ読み替えない。日次科目は `formatCurrencyIfNonzero`。返金管理は負の請求で「記録金額」表示・登録ボタン disabled。commit `3471585bc`（未 push）。claim ブランチは統合確認済みで削除済み。
+- [x] **AE-LAB-PIMS-REPLY-1** 2026-08-24: `CollectIDEXXPIMSReplies` が I/s に ACK+A+IM/SM（Jouto host `0x02`）。agent は `--pims-reply` のときだけ同じ usbserial に書く。既定オフ。医院 VetLab では使わない。claim `claim/AE-LAB-PIMS-REPLY-1`。
+- [x] **AE-MIG-NEG-PRINT-1** 2026-08-24: 帳票明細・税内訳・入金なし一覧合計が負額を 0 にしない。`recordedLineNet`。claim `claim/AE-MIG-NEG-PRINT-1`。

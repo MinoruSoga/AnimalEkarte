@@ -30,7 +30,8 @@ Mac側では`/dev/cu.usbserial-*`を個別ポートとして列挙できる。�
 - loopback bind、Host完全一致、Frontend Origin allowlist、Private Network Access preflightを必須とする。
 - 生電文、USBシリアル、デバイスパス、患者情報をログへ出さない。
 - pendingまたはrejectキュー満杯時は既存フレームを捨てず、新規受付またはreject移動を失敗させてdegraded状態にする。
-- PU-4010は2400 8E1、IDEXXは双方向session条件が未確定のため、初期agentで推測接続しない。
+- PU-4010は2400 8E1のため初期agentで推測接続しない。
+- IDEXX PIMS 応答（ACK+A+IM/SM）は `lab-device-agent --pims-reply` の明示オプトインのみ。既定は読取専用。医院 VetLab ケーブルでは有効にしない。
 - 許可リストへ登録したUSBシリアル変換器はNX600/AU10V専用配線として扱う。同じ変換器をPU-4010、IDEXX、または未確認機器へ差し替える運用は信頼境界外とし、agent稼働中は行わない。
 - 停止手段は`launchctl bootout gui/$UID/com.animalekarte.lab-device-agent`とする。
 

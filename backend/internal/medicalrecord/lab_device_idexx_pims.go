@@ -30,6 +30,10 @@ type IDEXXPIMSHost struct {
 	Port   byte
 }
 
+// IDEXXPIMSJoutoHost is mdcon4.cmd lines 18–19 (`2`/`2` → CByte 0x02).
+// Do not send assembled replies to a live clinic VetLab.
+var IDEXXPIMSJoutoHost = IDEXXPIMSHost{Source: 2, Port: 2}
+
 // IDEXXPIMSChecksum is (sum(payload) | 0x80) & 0xFF. Matches Tugi59 and
 // field I/s captures from 城東 2026-08-19/20.
 func IDEXXPIMSChecksum(payload []byte) byte {
@@ -131,12 +135,52 @@ func ReplyIDEXXPIMSInquiry(inquiry []byte, host IDEXXPIMSHost, clock time.Time) 
 	}
 	ack := []byte{idexxPIMSACK}
 	a := BuildIDEXXPIMSAFrame(host.Source)
-	switch got.Kind {
-	case 'I':
+	switch {
+	case isIDEXXPIMSPortInquiry(got):
 		return [][]byte{ack, a, BuildIDEXXPIMSIMFrame(host.Source, host.Port, clock)}, nil
-	case 's':
+	case isIDEXXPIMSStatusInquiry(got):
 		return [][]byte{ack, a, BuildIDEXXPIMSSMFrame(host.Source, host.Port)}, nil
 	default:
-		return nil, fmt.Errorf("idexx pims: kind %q is not I or s", got.Kind)
+		return nil, fmt.Errorf("idexx pims: kind %q is not I or s inquiry", got.Kind)
 	}
+}
+
+func isIDEXXPIMSPortInquiry(got IDEXXPIMSFrame) bool {
+	// Field I is "I 1 …". Host IM is "IM …" — both have payload[0]=='I'.
+	return got.Kind == 'I' && len(got.Payload) >= 2 && got.Payload[1] == ' '
+}
+
+func isIDEXXPIMSStatusInquiry(got IDEXXPIMSFrame) bool {
+	return got.Kind == 's' && len(got.Payload) == 1
+}
+
+// CollectIDEXXPIMSReplies walks complete STX…ETX chunks and returns ACK+A+IM/SM
+// for each I/s inquiry. Incomplete tails and hematology frames produce no reply.
+// It does not open a serial port.
+func CollectIDEXXPIMSReplies(stream []byte, host IDEXXPIMSHost, clock time.Time) [][]byte {
+	replies, _ := DrainIDEXXPIMSReplies(stream, host, clock)
+	return replies
+}
+
+// DrainIDEXXPIMSReplies is Collect plus the unparsed tail (incomplete STX…).
+func DrainIDEXXPIMSReplies(stream []byte, host IDEXXPIMSHost, clock time.Time) ([][]byte, []byte) {
+	var out [][]byte
+	i := 0
+	for i < len(stream) {
+		if stream[i] != idexxPIMSSTX {
+			i++
+			continue
+		}
+		end := indexByteFrom(stream, idexxPIMSETX, i+1)
+		if end < 0 {
+			return out, append([]byte(nil), stream[i:]...)
+		}
+		replies, err := ReplyIDEXXPIMSInquiry(stream[i:end+1], host, clock)
+		i = end + 1
+		if err != nil {
+			continue
+		}
+		out = append(out, replies...)
+	}
+	return out, nil
 }

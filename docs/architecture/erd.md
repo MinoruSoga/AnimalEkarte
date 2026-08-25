@@ -7,7 +7,7 @@
 <!-- ERD:TABLE_COUNT=128 -->
 
 > **Animal Ekarte**: 高精度・高整合な動物病院データモデル
-> **バージョン**: v31.40 | **最新更新**: 2026-08-20 | **状態**: Production Ready (128 Tables Verified)
+> **バージョン**: v31.41 | **最新更新**: 2026-08-25 | **状態**: Production Ready (128 Tables Verified)
 
 ---
 
@@ -122,14 +122,14 @@ erDiagram
 - **物理隔離インデックス**: `idx_xxx_clinic_id` を全テーブルに作成し、他拠点へのアクセスを DB レベルで遮断。
 
 ### 3.3 臨床データの信頼性
-- **計量データ**: 体重 (`numeric(6,2)`) や薬剤量、金額には、丸め誤差の発生しない固定小数点方式を採用。
+- **計量データ**: 体重 (`numeric(6,2)`) や薬剤量、金額には、丸め誤差の発生しない固定小数点方式を採用。`billings.subtotal` / `tax_total` / `total_amount` は Jouto 返品・赤伝のため負値を許す（AE-MIG-NEG-1。旧 `chk_billings_amounts` は 2026-08-25 統合第9回で除去）。
 - **監査証跡**: `audit_logs` により、誰が・いつ・どの値を・どのように変更したかを全件記録。
 
 ---
 
 ## 4. スキーマ整合・不要候補判定ログ
 
-現行マイグレーション（直下 DDL 在庫は `ls backend/migrations/*.sql` を正とする。2026-08-20 統合第8回で旧 `002`–`006` を `001_init.sql` セクション14へ統合済み。物理テーブル総数は直下 `*.sql` の行頭 `CREATE TABLE` 合算 = **128**（001 単体 = 128。内訳: セクション11統合後の 123 + 2026-08-20統合の billing_items exam provenance 列追加に伴う exams UNIQUE 複合 unique index 追加なし）。`seeds/` は対象外）の定義と本 ERD の主要ドメイン別構成を静的照合し、2026-08-20 時点の現行構成を以下の通り整理しました。実 DB のデータ量・実行時 SQL・アクセスログは確認対象外です。
+現行マイグレーション（直下 DDL 在庫は `ls backend/migrations/*.sql` を正とする。2026-08-25 統合第9回で旧 `002_allow_negative_billing_amounts.sql` を `001_init.sql` セクション15へ統合済み。物理テーブル総数は直下 `*.sql` の行頭 `CREATE TABLE` 合算 = **128**（001 単体 = 128。内訳: セクション11統合後の 123 + 2026-08-20統合の billing_items exam provenance 列追加。テーブル追加なし）。`seeds/` は対象外）の定義と本 ERD の主要ドメイン別構成を静的照合し、2026-08-25 時点の現行構成を以下の通り整理しました。実 DB のデータ量・実行時 SQL・アクセスログは確認対象外です。
 
 > [!NOTE]
 > **2026-07-04 追記**: 増分マイグレーション `005`〜`012` は同日中に `001_init.sql`（DDL）/ `003_seed_demo.sql`（歯科検診暫定 seed DML）へ再統合された（当時の独立ファイル名は削除）。ファイル構成が変わっただけで物理テーブル定義そのものは変化していないため、以下の判定結果・テーブル総数は本追記時点でも有効です。
@@ -173,12 +173,14 @@ erDiagram
 > **2026-08-19**: incremental `005_fix_lab_device_station_slots.sql` は保存済み station 既定 slots の PU-4010 を 2400 / parity even へ直すデータ修正のみ（DDL なし。電文正本: 尿は 2400 8E1）。物理テーブル総数は **128** のまま。適用は USER 手動の `make migrate`。
 >
 > **2026-08-20 統合第8回**: 残存 incremental `002_ensure_pet_owners.sql`（内容が 001_init と完全重複のためテキスト省略）/ `003_drop_lab_device_item_display_name.sql`（セクション13 CREATE TABLE から display_name を除去することで表現）/ `004_lab_devices.sql` / `005_fix_lab_device_station_slots.sql` / `006_billing_item_exam_provenance.sql` をセクション14へ統合し、直下 DDL を `001_init.sql` 単一ファイルへ戻した。`006_billing_item_exam_provenance.sql` は `billing_items.exam_id`（ライフタイム一意・検査 provenance）・`fk_billing_items_exam_clinic` 複合 FK・`uq_billing_items_exam_lifetime` 部分 unique index・`chk_billing_items_provenance_clinic_pair` CHECK（vaccination_id / exam_id のいずれか 1 つのみ、clinic_id ペア保証）を追加。新規テーブルはなく総数128は不変。001 checksum が変わるため適用経路は USER 手動の `make reset`。
+>
+> **2026-08-25 統合第9回**: append-only incremental `002_allow_negative_billing_amounts.sql`（AE-MIG-NEG-1）を `001_init.sql` セクション15へ統合し、独立ファイルを削除した。効果はレイヤー7 の `billings` CREATE TABLE から `chk_billings_amounts`（`subtotal` / `tax_total` / `total_amount` の非負 CHECK）を除去することで表現する。Jouto KNJO の返品・赤伝は負の請求額を記録値のまま保持する。新規テーブルはなく総数128は不変。001 checksum が変わるため適用経路は USER 手動の `make reset`（`docs/ops/deploy/LOCAL_DB_RESET.md`）。
 
 | 項目 | 結果 | 判定 |
 |:---|:---|:---|
-| `001_init.sql` の `CREATE TABLE` 数 | 128（セクション14統合後。直下 DDL は 001 のみ） | 2026-07-04統合済みの5テーブルに加え、2026-07-27統合の旧005由来 `exam_reference_ranges` と旧003由来 `pet_owners`、2026-07-31統合の identity links 4 と upload quota 1、2026-08-04統合の close adjustments / examination revisions / checkup package receipts / lab import compensation、2026-08-20統合の billing_items exam_id provenance・`exams` UNIQUE (id, clinic_id) を含む |
+| `001_init.sql` の `CREATE TABLE` 数 | 128（セクション15統合後。直下 DDL は 001 のみ） | 2026-07-04統合済みの5テーブルに加え、2026-07-27統合の旧005由来 `exam_reference_ranges` と旧003由来 `pet_owners`、2026-07-31統合の identity links 4 と upload quota 1、2026-08-04統合の close adjustments / examination revisions / checkup package receipts / lab import compensation、2026-08-20統合の billing_items exam_id provenance・`exams` UNIQUE (id, clinic_id) を含む。2026-08-25統合は CHECK 除去のみでテーブル数不変 |
 | 旧増分マイグレーションが追加していたテーブル | 6: `lab_import_jobs` / `lab_import_events` (旧`005`)、`medicine_dose_params` (旧`009`)、`checkup_type_fields` / `checkup_field_results` (旧`010`)、`exam_reference_ranges`（2026-07-27統合の旧`005`） | 現在は全て `001_init.sql` に直接定義（旧ファイルは削除済み） |
-| 全マイグレーション（`backend/migrations/*.sql` 行頭 `CREATE TABLE` 合算）の物理テーブル総数 | 128 | 直下 DDL の在庫は `ls backend/migrations/*.sql` を正とする。`002_ensure_pet_owners.sql` は統合第8回で削除（内容が 001 と完全重複）。`lab_devices` は 001 セクション14内。物理テーブル総数 128 は不変。ERD の全体数と一致 |
+| 全マイグレーション（`backend/migrations/*.sql` 行頭 `CREATE TABLE` 合算）の物理テーブル総数 | 128 | 直下 DDL の在庫は `ls backend/migrations/*.sql` を正とする。`002_allow_negative_billing_amounts.sql` は統合第9回で削除（CHECK 除去は 001 の CREATE TABLE へ畳み込み）。`lab_devices` は 001 セクション14内。物理テーブル総数 128 は不変。ERD の全体数と一致 |
 | ERD ドメイン表の物理テーブル数 | 128 | migrations と一致 |
 | ERD へ追加した不足テーブル | 11: 従来6（`token_blacklist`, `reservation_type_available_slots`, `trimming_course_types`, `campaigns`, `campaign_target_categories`, `campaign_target_items`）+ identity 4 + `medical_record_image_upload_quota` | migration に存在し、用途コメントまたはドメイン上の継続理由があるため追加 |
 | migrations にあり ERD にないテーブル | 0 | 整合済み |
@@ -212,12 +214,12 @@ erDiagram
 >
 > **2026-07-27 追記**: 旧incremental 002〜009を`001_init.sql`末尾セクション8へ原文のまま番号順に統合し、独立ファイルを削除した。当時の直下DDLは001のみ。旧005の`exam_reference_ranges`追加により総数は109となった。
 
-現行マイグレーションは以下の構成です（`backend/migrations/`、2026-08-20 統合第8回時点。在庫の正は `ls backend/migrations/*.sql`）。
+現行マイグレーションは以下の構成です（`backend/migrations/`、2026-08-25 統合第9回時点。在庫の正は `ls backend/migrations/*.sql`）。
 
-- `001_init.sql`（fresh用統合スキーマ・**128**テーブル。§7に旧005–013相当、§8に2026-07-27統合の旧002–009原文と同日夕統合の旧002–004原文、§9に2026-07-29統合の旧002–007原文、§10に2026-07-31統合の旧002–006原文、§11に2026-08-04統合の旧002–008原文、§13に2026-08-19統合の旧003–006原文、§14に2026-08-20統合の旧002–006原文を番号順追記）
+- `001_init.sql`（fresh用統合スキーマ・**128**テーブル。§7に旧005–013相当、§8に2026-07-27統合の旧002–009原文と同日夕統合の旧002–004原文、§9に2026-07-29統合の旧002–007原文、§10に2026-07-31統合の旧002–006原文、§11に2026-08-04統合の旧002–008原文、§13に2026-08-19統合の旧003–006原文、§14に2026-08-20統合の旧002–006原文、§15に2026-08-25統合の旧002原文を番号順追記）
 - `seeds/002_master/`、`seeds/003_demo/`、`seeds/004_staging/`（各 `*.csv` + `manifest.json` のシードバンドル。SQL ファイルではない）
 
-物理テーブル総数 = **128**（ゲート 3a と `TestERDTableCount_MatchesSchema` は `001_init.sql` の distinct `CREATE TABLE` を正とする。直下 DDL 在庫は `ls backend/migrations/*.sql` で確認し、現行は 001 のみ）。
+物理テーブル総数 = **128**（ゲート 3a と `TestERDTableCount_MatchesSchema` は `001_init.sql` の distinct `CREATE TABLE` を正とする。直下 DDL 在庫は `ls backend/migrations/*.sql` で確認する）。
 
 2026-07-31統合分の論理的な記録（旧ファイル名は履歴識別子、現行所在は全て`001_init.sql`末尾セクション10）:
 
@@ -298,6 +300,13 @@ erDiagram
   - `uq_billing_items_exam_lifetime` 部分 unique index（`WHERE exam_id IS NOT NULL`）で同一検査の二重計上を物理的に排除。
   - `chk_billing_items_provenance_clinic_pair` CHECK制約：`num_nonnulls(vaccination_id, exam_id) = 1` で接種・検査のいずれか1つのみかつ clinic_id ペア保証。
   - 会計確認済みカルテのみ検査を請求行として抽出。`exam_types.price` 空値はブロッキング警告。カルテなし接種は会計表示対象外。新規接種はカルテ予防接種タブのみ受け付け。
+
+以下は 2026-08-25 の統合第9回時点で `001_init.sql` セクション15へ畳み込まれた変更の論理的な記録です（参照用、当時の独立ファイルは存在しません）。
+
+- **負の請求額を許可 (AE-MIG-NEG-1 / 旧 002_allow_negative_billing_amounts.sql → 001_init.sql セクション15 に統合)**
+  - `billings` の `chk_billings_amounts`（`subtotal >= 0 AND tax_total >= 0 AND total_amount >= 0`）を CREATE TABLE から除去。
+  - Jouto KNJO の返品・赤伝は負の請求・入金・split を記録値のまま保持する。fresh DB では非負 CHECK を最初から作らない。
+  - `payments` / `payment_splits` には同型の非負 CHECK は元から無い。`billing_refunds.amount` の `CHECK (amount > 0)` は返金専用行の正値制約として残す。
 
 ### 4.1 継続理由を明示する対象
 

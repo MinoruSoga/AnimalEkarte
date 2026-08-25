@@ -60,6 +60,39 @@ function renderDocument(clinic: ClinicInfo) {
   render(<AccountingDocument accounting={ACCOUNTING} paymentInfo={PAYMENT} clinic={clinic} />);
 }
 
+describe("AccountingDocument 移行負額", () => {
+  it("明細行の負額を符号のまま印字する", () => {
+    render(
+      <AccountingDocument
+        accounting={{
+          ...ACCOUNTING,
+          items: [{
+            ...ACCOUNTING.items[0],
+            name: "赤伝",
+            unitPrice: -3000,
+            quantity: 1,
+            discountAmount: 0,
+            taxAmount: -300,
+            subtotal: -3000,
+          }],
+        }}
+        paymentInfo={{
+          ...PAYMENT,
+          subtotal: -3000,
+          taxTotal: -300,
+          totalAmount: -3300,
+          billingAmount: -3300,
+          receivedAmount: 0,
+          changeAmount: 0,
+        }}
+        clinic={{ name: "テスト病院" }}
+      />,
+    );
+    expect(screen.getAllByText("¥-3,000").length).toBeGreaterThanOrEqual(2);
+    expect(screen.getAllByText("¥-3,300").length).toBeGreaterThanOrEqual(1);
+  });
+});
+
 describe("AccountingDocument #179 ① 帳票レイアウト設定", () => {
   it("登録番号未設定警告を病院設定で非表示にできる", () => {
     renderDocument({

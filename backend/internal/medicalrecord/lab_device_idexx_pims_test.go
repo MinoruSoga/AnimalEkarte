@@ -148,6 +148,77 @@ func TestDecodeIDEXXFrames_BadChecksumInquiryDoesNotAbortHematology(t *testing.T
 	}
 }
 
+func TestIDEXXPIMSJoutoHostIsMdcon4Two(t *testing.T) {
+	t.Parallel()
+	if IDEXXPIMSJoutoHost.Source != 2 || IDEXXPIMSJoutoHost.Port != 2 {
+		t.Fatalf("jouto host %+v", IDEXXPIMSJoutoHost)
+	}
+}
+
+func TestCollectIDEXXPIMSReplies_StatusThenPort(t *testing.T) {
+	t.Parallel()
+	clock := time.Date(2026, 8, 20, 19, 54, 0, 0, time.UTC)
+	stream := append(append([]byte{}, fieldIDEXXStatusInquiry...), fieldIDEXXPortInquiry...)
+	got := CollectIDEXXPIMSReplies(stream, IDEXXPIMSJoutoHost, clock)
+	if len(got) != 6 {
+		t.Fatalf("replies %d", len(got))
+	}
+	if !bytes.Equal(got[0], []byte{0x06}) || !bytes.Equal(got[3], []byte{0x06}) {
+		t.Fatalf("acks")
+	}
+	if g, ok := ParseIDEXXPIMSFrame(got[1]); !ok || g.Kind != 'A' {
+		t.Fatalf("s A")
+	}
+	if g, ok := ParseIDEXXPIMSFrame(got[2]); !ok || g.Kind != 'S' || g.Addr1 != 2 || g.Payload[3] != 2 {
+		t.Fatalf("SM %+v", g)
+	}
+	if g, ok := ParseIDEXXPIMSFrame(got[4]); !ok || g.Kind != 'A' {
+		t.Fatalf("I A")
+	}
+	if g, ok := ParseIDEXXPIMSFrame(got[5]); !ok || g.Kind != 'I' || g.Addr1 != 2 || g.Payload[3] != 2 {
+		t.Fatalf("IM %+v", g)
+	}
+}
+
+func TestCollectIDEXXPIMSReplies_IncompleteTailDoesNotDropPrior(t *testing.T) {
+	t.Parallel()
+	clock := time.Date(2026, 8, 20, 19, 54, 0, 0, time.UTC)
+	stream := append(append([]byte{}, fieldIDEXXStatusInquiry...), 0x02, 0x31)
+	got := CollectIDEXXPIMSReplies(stream, IDEXXPIMSJoutoHost, clock)
+	if len(got) != 3 {
+		t.Fatalf("replies %d want 3", len(got))
+	}
+}
+
+func TestReplyIDEXXPIMSInquiry_RejectsHostIMAsInquiry(t *testing.T) {
+	t.Parallel()
+	im := BuildIDEXXPIMSIMFrame(2, 2, time.Date(2026, 8, 20, 19, 54, 0, 0, time.UTC))
+	if _, err := ReplyIDEXXPIMSInquiry(im, IDEXXPIMSJoutoHost, time.Unix(0, 0).UTC()); err == nil {
+		t.Fatal("IM must not be treated as I")
+	}
+}
+
+func TestDrainIDEXXPIMSReplies_KeepsIncompleteTail(t *testing.T) {
+	t.Parallel()
+	clock := time.Date(2026, 8, 20, 19, 54, 0, 0, time.UTC)
+	stream := append(append([]byte{}, fieldIDEXXStatusInquiry...), 0x02, 0x31)
+	replies, rest := DrainIDEXXPIMSReplies(stream, IDEXXPIMSJoutoHost, clock)
+	if len(replies) != 3 {
+		t.Fatalf("replies %d", len(replies))
+	}
+	if !bytes.Equal(rest, []byte{0x02, 0x31}) {
+		t.Fatalf("rest %x", rest)
+	}
+}
+
+func TestCollectIDEXXPIMSReplies_LongHematologyHasNoSessionReply(t *testing.T) {
+	t.Parallel()
+	got := CollectIDEXXPIMSReplies(synthIDEXXLongFrame(), IDEXXPIMSJoutoHost, time.Unix(0, 0).UTC())
+	if len(got) != 0 {
+		t.Fatalf("replies %d", len(got))
+	}
+}
+
 func TestReplyIDEXXPIMSInquiry_Sequences(t *testing.T) {
 	t.Parallel()
 	clock := time.Date(2026, 8, 20, 19, 54, 0, 0, time.UTC)

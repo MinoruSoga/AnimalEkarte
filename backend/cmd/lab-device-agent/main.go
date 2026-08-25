@@ -13,11 +13,13 @@ import (
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/labdeviceagent"
+	"github.com/animal-ekarte/backend/internal/medicalrecord"
 )
 
 func main() {
 	clinicID := flag.String("clinic-id", "", "clinic ID bound to this workstation")
 	portsFile := flag.String("ports-file", "", "newline-delimited allowlist of serial ports")
+	pimsReply := flag.Bool("pims-reply", false, "write IDEXX ACK+A+IM/SM on the same usbserial port; do not use on hospital VetLab")
 	flag.Parse()
 	if *clinicID == "" || *portsFile == "" {
 		slog.Error("clinic-id and ports-file are required")
@@ -46,6 +48,14 @@ func main() {
 	queue := labdeviceagent.NewQueue(100)
 	status := &labdeviceagent.Status{}
 	agent := labdeviceagent.NewAgent(queue, status, allowedPorts)
+	if *pimsReply {
+		slog.Info("idexx pims reply enabled; do not use on hospital VetLab")
+		agent.UseReadWriteSerial()
+		agent.EnablePIMSReply(func(buf []byte) ([][]byte, int) {
+			replies, rest := medicalrecord.DrainIDEXXPIMSReplies(buf, medicalrecord.IDEXXPIMSJoutoHost, time.Now())
+			return replies, len(buf) - len(rest)
+		})
+	}
 	server := &http.Server{
 		Addr:              labdeviceagent.ListenAddress,
 		Handler:           labdeviceagent.NewHandler(queue, status, *clinicID),

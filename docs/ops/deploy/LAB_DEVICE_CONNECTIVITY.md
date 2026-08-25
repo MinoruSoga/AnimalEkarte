@@ -123,7 +123,7 @@ Win7 の `Drimke.tbl` は機器ラベル → 内部コード（`IRBC`→910、`I
 | --- | --- |
 | 別 `source_type`（`idexx_vetlab`） | 既定3スロットに IDEXX フレームを足す |
 | 短 I/s は測定にしない。長フレームは 1 指紋 | 復元途中の IM/SM を本番 VetLab へ送る |
-| I に ACK+A+IM、s に ACK+A+SM（組み立ては `0x02`。シリアル未接続） | 単独 ACK だけで常時接続したことにする。復元電文を本番 VetLab へ送る |
+| I に ACK+A+IM、s に ACK+A+SM（`CollectIDEXXPIMSReplies`、host `0x02`）。agent は `--pims-reply` のときだけ同じ usbserial に書く | 既定 agent で常時接続したことにする。`--pims-reply` を医院 VetLab ケーブルで使う |
 | ラベル＋`value_raw`＋単位 | 910 などの内部コードを persist。本体へ ASTM / `nc` |
 | 保存 raw または Drワン確立直後の再生でデコード | 患者検体を常時接続試験に使う |
 
