@@ -13,14 +13,14 @@
 |--------|------|------|
 | Lane 0 入力 | 進行中 | H0-1 済み。H0-3a 城東 check PASS + H0-4 城東 SHA 転記済み。未: H0-2 八王子 21 CSV、H0-3b 八王子 check、H0-4 八王子 SHA、H0-5 名簿 0600 |
 | Lane 2 コード | **完了** | `4703cf3e9`。SKELETON / IMPORT / STAFF / Make の DB_HOST・SSL・sentinel 転送 |
-| Lane 1 ローカル証明 | 未着手 | 城東を STG より先に通す。落ちた bundle は送らない |
+| Lane 1 ローカル証明 | 進行中 | H1-1a 城東 write-0 preflight PASS。次は H1-1b（USER/別 unit。本 unit は apply 禁止） |
 | Lane 3 STG 投入 | 未着手 | **USER のみ。** エージェントは pscale / `make stg-uat-*` apply を実行しない。城東先行 |
 | Lane 4 並行運用 | 未着手 | 城東投入後。STG 入力は本番に移さない |
 | 任意・後追い | 未着手 | H3-10 SHIFT、H1-3/H1-4、M-3 runbook 1 行（明示時のみ）、AE-SEED-RETIRE-DEMO |
 
 claim 枝（削除は USER。merge / abandon のあと `git branch -D`）:
 
-`claim/AE-STG-UAT-SKELETON` · `IMPORT` · `STAFF` · `OPS-SHEET` · `MAKE-REMOTE` · `H0-JOU-CHECK`
+`claim/AE-STG-UAT-SKELETON` · `IMPORT` · `STAFF` · `OPS-SHEET` · `MAKE-REMOTE` · `H0-JOU-CHECK` · `H1-JOU-PREFLIGHT` · `H1-LAND` · `JOU-PAY-SNAP` · `JOU-PAY-GRAPH`
 
 ---
 
@@ -221,7 +221,7 @@ handoff の `staffs.csv` 列は `id, clinic_id, name, license_number, is_active,
 - [ ] **H0-2** 八王子の医院 identity 付き 21 表 CSV + manifest を old_db から出す（HAC-CSV-1。rehearsal 可。旧 7 CSV は使わない）。各 CSV が 512MiB 未満であることを確認する
 - [x] **H0-3a** 城東: `CLINIC_CODE=jouto MIGRATION_RUN_ID=jouto-intake-20260822-01 make old-db-handoff-check` PASS（配置済み。`old-db-handoff-stage` は再実行しない）
 - [ ] **H0-3b** 八王子: 同じ check（H0-2 待ち。現行 `hachioji/` に manifest なし）
-- [x] **H0-4** 城東 manifest SHA-256（`backend/migrations/seeds/_old_db_handoff/jouto/manifest.json`）: `1a08edbb2c6aa4050399d55d29204cd15cfbaa23baa30d512221b0b3d9372591`（八王子は H0-2 後に別途転記）
+- [x] **H0-4** 城東 manifest SHA-256（`backend/migrations/seeds/_old_db_handoff/jouto/manifest.json`）: `42cb5f6755d2e4539253365d8975fc74fe633a44be6b784360cafc001bb71ef0`（八王子は H0-2 後に別途転記。2026-08-25 Class A: payments.total_amount snapshot 後、completed+nonzero 欠 payment graph を pending へ再分類し billings SHA / manifest 再計算）
 - [ ] **H0-5** ログイン名簿（repo 外・mode 0600）: 現行スタッフほぼ全員の `staffs.id`、医院、`stg-staff-{id}@example.test`、初期パスワード、`permission_group_ids`。SMTP には使わない。履歴・退職行は載せない
 
 配置先:
@@ -237,7 +237,7 @@ backend/migrations/seeds/_old_db_handoff/jouto/
 
 現行 `make reset` はローカル rehearsal 経路で、STG リモートゲート（AE-STG-UAT-IMPORT）の証明には使えない。Lane 2 が終わってから、そのゲートをローカルまたは disposable で通す。
 
-- [ ] **H1-1a** 城東 preflight（ローカル `db` / write-0）: `make stg-uat-csv-import-preflight`（`CLINIC_CODE=jouto` / ordinal 2 / clinic id 2 / SHA `1a08edbb2c6aa4050399d55d29204cd15cfbaa23baa30d512221b0b3d9372591` / `STG_UAT_CSV_IMPORT_ALLOW_REHEARSAL=YES_I_UNDERSTAND`）。**結果 (2026-08-25):** コマンド実行済み・fail-closed。error: `source preflight failed: table payments column total_amount row 2: payment snapshot does not match billing`（CUTOVER_* code なし。21 表 apply では直さない）。seed IDs clinic2: species=1 exam=11009 trimming=59 cash=5 credit=6
+- [x] **H1-1a** 城東 preflight（ローカル `db` / write-0）: `make stg-uat-csv-import-preflight`（`CLINIC_CODE=jouto` / ordinal 2 / clinic id 2 / SHA `42cb5f6755d2e4539253365d8975fc74fe633a44be6b784360cafc001bb71ef0` / `STG_UAT_CSV_IMPORT_ALLOW_REHEARSAL=YES_I_UNDERSTAND`）。**結果 (2026-08-25):** PAY-SNAP 後 fail-closed `completed billing is missing its payment graph`。診断 counts-only: `completed_nonzero_without_payment=200582` / `completed_zero_without_payment=54603` / payments rows 883361 不変。Class A で completed+nonzero 欠 graph を `pending` + `completed_at=""` へ再分類（支払行は捏造せず。zero-without は importer 許容のまま）。rewrite 後 artifact 掃除（0600 / bak 除去）のうえ preflight **PASS**（`CSV STG UAT cutover preflight PASS` / tables=21 / apply 未実行）。seed IDs clinic2: species=1 exam=11009 trimming=59 cash=5 credit=6
 - [ ] **H1-1b** 城東 apply → verify: H1-1a PASS 後のみ。本 unit では未着手（`make stg-uat-csv-import` / reset 禁止）
 - [ ] **H1-2** 八王子: 同じ。bundle が来てから
 - [ ] **H1-3** 画面確認が要るなら [A4_UI_REHEARSAL.md](docs/ops/deploy/A4_UI_REHEARSAL.md)。通常 `csv-import-*` は使わない
@@ -413,7 +413,7 @@ live Postgres は一度に 1 医院。城東 live を八王子 load で上書き
 ```
 D1–D7 確定（D2=B 城東先行。Q5 の「八王子 CSV 必須」は後追い HAC-CSV-1 として残す）
 Lane 2: AE-STG-UAT-SKELETON / IMPORT / STAFF / MAKE-REMOTE  ← 完了（4703cf3e9）
-次: H0-5 名簿、H1-1a 城東 preflight は fail-closed（payments snapshot mismatch）で未クリア。H1-1b/H3 は未着手。H0-3b/H0-4 八王子は H0-2 待ち
+次: H0-5 名簿。H1-1a 城東 preflight **PASS**（SHA `42cb5f6755d2e4539253365d8975fc74fe633a44be6b784360cafc001bb71ef0`。Class A pending 再分類。apply 未実行）。H1-1b/H3 は未着手。H0-3b/H0-4 八王子は H0-2 待ち。follow-up: old_db が completed-without-payment を出さないこと
 Lane 3: AE-STG-UAT-JOU → 第1段階開始（現場へ「城東のみ」）  ← USER。未着手
 old_db: 八王子 21 CSV（HAC-CSV-1。rehearsal 可。医院 identity 必須）
 Lane 3 続き: AE-STG-UAT-HAC（H3-7 maintenance window。城東の STG 入力を止める）
@@ -452,7 +452,7 @@ Lane 3 続き: AE-STG-UAT-HAC（H3-7 maintenance window。城東の STG 入力�
 
 1. ~~Lane 2 コードを commit~~ → 済み（`4703cf3e9`）
 2. 現行スタッフほぼ全員の名簿を repo 外 0600 で渡す（H0-5。id・医院・権限 ID・初期パスワード。email は `stg-staff-{id}@example.test`）
-3. ~~城東 handoff check + manifest SHA-256 転記（H0-3a / H0-4）~~ → 済み（`jouto-intake-20260822-01` / SHA `1a08edbb2c6aa4050399d55d29204cd15cfbaa23baa30d512221b0b3d9372591`。stage 再実行なし）。八王子は H0-2 後
+3. ~~城東 handoff check + manifest SHA-256 転記（H0-3a / H0-4）~~ → 済み（`jouto-intake-20260822-01` / SHA `42cb5f6755d2e4539253365d8975fc74fe633a44be6b784360cafc001bb71ef0`。Class A payments snapshot + payment-graph 欠落 pending 再分類後。stage 再実行なし）。八王子は H0-2 後
 4. Lane 1 で城東をローカル証明したあと、USER が Lane 3 で城東を先に STG へ投入し第1段階開始
 5. 並行して old_db が八王子 21 表（HAC-CSV-1）を出す。出来次第 maintenance window で投入
 6. M-3 の runbook 1 行は、明示指示があるときだけ
