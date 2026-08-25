@@ -54,7 +54,7 @@ Round 8で「環境要因の疑い」としていたS08の確認ダイアログ�
 
 ## 継続オープン項目（Round 8から未修正・再確認）
 
-### BUG-001（重大）カルテ内「予防接種」タブの保存が偽陽性の成功トーストを出し、実際はデータが一切永続化されない
+### BUG-001（重大）カルテ内「予防接種」タブの保存が偽陽性の成功トーストを出し、実際はデータが一切永続化されない — **修正済み**
 
 **Round 9で挙動の詳細が判明しました。**
 
@@ -75,7 +75,7 @@ Round 9では独立した2エージェント（S04-06担当・V05担当）がそ
 - **テスト**: `examinationCreateHref` が `/examinations/new?petId=` を返し `/medical-records/new` を含まないこと / `clinical-care-routes.examinations.test.tsx` で select-pet・new の create 拒否・許可、new が `:id` 扱いにならないこと、detail `:id` mount。
 - **残リスク**: カルテ内検査タブからの新規導線・E2E 未実施。`ExaminationForm` / `useExaminationForm` 本体は未変更のため、create API 失敗時の UX は既存依存。
 
-### BUG-004（中〜高）カルテ内「定期健診」タブに動的フィールド機能が未実装
+### BUG-004（中〜高）カルテ内「定期健診」タブに動的フィールド機能が未実装 — **修正済み**
 
 Round 9でソースコード比較により再現を確認（`CheckupsTab.tsx`に`checkup_type_fields`関連のコードが依然として存在しない一方、独立フォーム`CheckupForm.tsx`には実装済み）。
 
@@ -90,7 +90,7 @@ Round 9でソースコード比較により再現を確認（`CheckupsTab.tsx`�
 - **Verify repair**: 孤立 `docker run`（compose network なし）では `db` 解決に失敗し concurrency 系が fatal していた。`vaccination_service_test.go` の `TestMain` が `db` 未解決時のみ `host.docker.internal:5434`（compose 公開ポート）へフォールバックする。
 - **残リスク**: Date のみ変更して既存 `next_date` が接種日以前になるケースは未検証（NextDate 非 patch 時は比較しない）。handler/API 層・E2E 未実施。
 
-### BUG-006（中）診療項目マスタの単価非負検証がサーバー側に欠落 — **影響範囲が拡大**
+### BUG-006（中）診療項目マスタの単価非負検証がサーバー側に欠落 — **修正済み**
 
 Round 8では薬剤マスタのみの指摘でしたが、Round 9のV04担当エージェントの検証により、**診察（consultations）・検査（examination-types）・定期健診（checkup-types）の3マスタにも同じ欠陥があることが新たに判明**しました。処置（procedures）・予防接種/ワクチン（vaccines）の2マスタのみ正しく検証されています。
 
@@ -104,6 +104,10 @@ Round 8では薬剤マスタのみの指摘でしたが、Round 9のV04担当エ
 | 予防接種/ワクチン（vaccines） | ○ 正常 | — |
 
 いずれも通常のUI操作では到達困難ですが、API直叩き・外部連携・将来のFE実装漏れからは到達可能であり、バックエンド側の`validateNonNegativePrice`相当の呼び出し漏れが薬剤サービス以外にも及んでいる可能性が高い状態です。
+
+- **Round 9 Lane A 修正**: medicine / consultation / exam_type / checkup_type の Create・Update で既存 `validateNonNegativePrice` を write 前に呼ぶ（procedure/vaccine と同型。新 helper なし）。`Price` nil・0 は許可、負値は `InvalidInput` で fail-closed。
+- **テスト**: 上記4サービスの Create/Update に `returns validation error when price is negative` を追加。負価格は `apperrors.IsInvalidInput` かつ repo Create/`updateFields` 未呼び出しを断言。
+- **残リスク**: handler/API 層・E2E 未実施。FE の負値入力ブロックは未変更。
 
 ### BUG-007（中〜高・重大度を引き上げ）レジ締め処理のサーバー側ガードが全般的に弱く、休診日・不正値のいずれも実際に締め処理が完了してしまう
 
@@ -130,7 +134,7 @@ Round 9でも状況は変化なし（`VITE_LIFF_MOCK=true`によりローカル�
 - **ワークアラウンド**: トリミングと医療を別々の会計として個別に精算すれば正常完了する（本ラウンドではこの方法で残務を精算済み）。ただし「1つの会計にまとめる」という本来の要件は満たせない。
 - **推奨対応**: バックエンドの会計確定処理における明細source検証ロジック（`参照先の組み合わせ`チェック）が、`medical_record`と`trimming`の混在を誤って拒否している可能性が高く、該当バリデーションの見直しを推奨。
 
-### BUG-009（中・新規）カルテを会計確認（医師）より先に確定すると、以後会計確認が永久にブロックされ明細が統合会計から恒久的に除外される
+### BUG-009（中・新規）カルテを会計確認（医師）より先に確定すると、以後会計確認が永久にブロックされ明細が統合会計から恒久的に除外される — **修正済み**
 
 - **シナリオ**: S11
 - **概要**: 「会計確認（医師）→カルテ確定」という正しい順序をUIが強制しておらず、順序を誤って先にカルテを確定してしまうと、事後の会計確認要求が`409 確定済みカルテの会計確認は変更できません`で永久にブロックされる。この結果、当該診療明細は恒久的に「同日統合対象外」のまま残り、`GET /api/v1/billing-items/ungrouped-same-day`が`has_ungrouped:true`を返し続ける。
@@ -152,11 +156,14 @@ Round 9でも状況は変化なし（`VITE_LIFF_MOCK=true`によりローカル�
 - **概要**: `GET /api/v1/clinics/1/lstep/checkup-sync/preview`に対し、負の年齢（`min_age=-3`）・小数の年齢（`min_age=2.5`）・最小>最大（`min_age=10&max_age=5`）・負の来院回数（`min_annual_visits=-1`）・検診種別未指定のいずれを送っても`200`で受理され結果が返る。比較対象の`min_total_amount`のみ正しく`400`で拒否される。
 - **影響**: 通常のUI操作ではクライアント側バリデーションで防御されているため実害は限定的だが、API直叩きや将来のFE実装ミスにより境界値検証を完全にバイパスして顧客一覧を抽出できてしまう。データ抽出のガードレールが実質的にFE依存になっている設計リスク。
 
-### BUG-013（低〜中・新規）`/identity-links`管理画面のunlinkボタンが常時disabledで機能しない
+### BUG-013（低〜中・新規）`/identity-links`管理画面のunlinkボタンが常時disabledで機能しない — **修正済み**
 
 - **シナリオ**: S13
 - **概要**: 実際にリンク済みの飼主ペアを選択しても、管理画面上の「unlink」ボタンが常にdisabledのままクリックできない（複数回再現）。一方、バックエンドAPI（`DELETE /api/v1/identity-links/owner-groups/:id/members`）自体は直接叩けば正常に機能することを確認済み。フロントエンドが選択ペアの実際のグループ所属状態を正しく把握できていない可能性が高い。
 - **重大度**: 低〜中。この画面は内部ワークベンチ的な位置づけで実運用への影響は限定的だが、UIから解除操作が一切できない状態は改善が必要。
+- **Round 9 Lane A 修正**: 選択（toggle-add）時のみ `findOwnerIdentityGroupByMember` / `findPetIdentityGroupByMember`（既存 GET reverse lookup）を呼び、メンバー単位の group id を保持。unlink 有効化は **per-member map のみ**（session `ownerGroupId`/`petGroupId` へフォールバックしない）。create 成功時も選択中メンバーへ map を埋める。session id は create / 親飼主 group（ペットリンク）用に残す。404 は null（disabled・alert なし）、非404は fail-closed で setError。検索ヒットの一括 prefetch はしない。ConfirmDialog なし。
+- **テスト**: `リンク済み飼主を選択すると unlink が有効になり、クリックで group id 付き DELETE する` / `lookup が null のとき unlink は disabled のまま、alert を出さない` / `先行 lookup で session group id があっても、404 メンバーの unlink は disabled のまま` / `リンク済みペットを選択すると unlink が有効になり、pet group id で DELETE する` / API: find* 成功・404→null・非404 rethrow（既存 permission 3 件も維持）
+- **残リスク**: spec `40-identity-links` Phase 1 文言は未更新（本単位の範囲外）。複数異グループ混在時の session 表示 id は先頭採用のまま（unlink は per-member）。lookup 中の pending/a11y 説明は未追加。E2E 未実施。次単位（BUG-018）は別 prompt。
 
 ### BUG-014（低・新規、環境要因の可能性あり）検査取り込みモーダルが確定済み検査を除外せず選択候補として表示する
 
