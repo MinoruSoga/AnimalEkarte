@@ -18,9 +18,6 @@ export function examinationListDetailHref(input: {
 }
 
 export function examinationCreateHref(petId: string): string {
-  const params = new URLSearchParams({
-    petId,
-    tab: EXAMINATION_LIST_CHART_TAB,
-  });
-  return `${paths.medicalRecords.new.getHref()}?${params.toString()}`;
+  const params = new URLSearchParams({ petId });
+  return `${paths.examinations.new.getHref()}?${params.toString()}`;
 }
