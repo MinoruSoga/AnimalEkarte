@@ -11,7 +11,7 @@
 
 | レーン | 状態 | メモ |
 |--------|------|------|
-| Lane 0 入力 | 進行中 | H0-1 済み。H0-3a 城東 check PASS + H0-4 城東 SHA 転記済み。H0-5: roster 骨格 `sensitive-local/stg-uat-staff-roster.json`（0600・gitignored・demo email・group 4・`secret_ref` 414）あり。**2026-08-26 AE-STG-UAT-STAFF-ATTACH-LOCAL: BLOCKED** — `sensitive-local/stg-uat-staff-secrets.json` 不在（secrets_key_count=0 / coverage ≠ 414）。preflight/apply 未実行・secrets 未作成。未: H0-2 八王子 21 CSV、H0-3b 八王子 check、H0-4 八王子 SHA |
+| Lane 0 入力 | 進行中 | H0-1 済み。H0-3a/H0-4 城東済み。H0-5: ローカル attach **PASS**（staff_count=414 / digest `a6ea3cdd6d2b36bea961dfd00faadbfc88fb4e0b59b194d02baf5b6bb1ed71ff`）。secrets は gitignored。`set_active=false` のまま。STG attach 未。未: H0-2 八王子 |
 | Lane 2 コード | **完了** | `4703cf3e9`。SKELETON / IMPORT / STAFF / Make の DB_HOST・SSL・sentinel 転送 |
 | Lane 1 ローカル証明 | 城東 rehearsal 済み | H1-1a write-0 PASS。H1-1b: USER `make reset` → `csv-import` apply **PASS** + verify **PASS**（`jouto-intake-20260822-01`）。これはローカル rehearsal 経路であり STG UAT `stg-uat-csv-import` apply ではない。八王子未 |
 | Lane 3 STG 投入 | 未着手 | **USER のみ。** エージェントは pscale / `make stg-uat-*` apply を実行しない。城東先行 |
@@ -222,7 +222,7 @@ handoff の `staffs.csv` 列は `id, clinic_id, name, license_number, is_active,
 - [x] **H0-3a** 城東: `CLINIC_CODE=jouto MIGRATION_RUN_ID=jouto-intake-20260822-01 make old-db-handoff-check` PASS（配置済み。`old-db-handoff-stage` は再実行しない）
 - [ ] **H0-3b** 八王子: 同じ check（H0-2 待ち。現行 `hachioji/` に manifest なし）
 - [x] **H0-4** 城東 manifest SHA-256（`backend/migrations/seeds/_old_db_handoff/jouto/manifest.json`）: `7bbda50f06f7d0acac6711d1a73b78ca68b835ee9be5df6cd04f3e6a5094a405`（八王子は H0-2 後に別途転記。2026-08-25 Class A: payments snapshot、completed+nonzero 欠 graph を pending 再分類、同一 medical_record_id の余剰 billing 192 行のリンク解除。billings SHA `c04d05a014d7ae58cc9103e347ffe42100e7c84bede9a72c4bee0a1f3ca780be`）
-- [ ] **H0-5** ログイン名簿（repo 外・mode 0600）: roster 骨格あり `sensitive-local/stg-uat-staff-roster.json`（`stg-uat-staff-attach-v1` / clinic 2 / `permission_group_ids=[4]` / demo email `stg-staff-{id}@example.test` / `set_active=false` / `secret_ref=staff-{id}` / row+`secret_ref` count=414）。**2026-08-26 local attach BLOCKED:** `sensitive-local/stg-uat-staff-secrets.json` 不在（required JSON keys: top-level `secrets[]` with `secret_ref` + `password`; must cover all 414 roster `secret_ref`）。エージェントは secrets を作らない。preflight/apply 未実行。SMTP には使わない。履歴・退職行の prune は attach 前に USER
+- [x] **H0-5** ログイン名簿（repo 外・mode 0600）: roster `sensitive-local/stg-uat-staff-roster.json` + secrets `sensitive-local/stg-uat-staff-secrets.json`（どちらも gitignored / 0600）。**2026-08-26 ローカル attach PASS:** preflight+apply `staff_count=414` digest `a6ea3cdd6d2b36bea961dfd00faadbfc88fb4e0b59b194d02baf5b6bb1ed71ff`（`DB_HOST=db` / remote sentinel 未設定）。email は `stg-staff-{id}@example.test`。`set_active=false` のため is_active は CSV のまま（ログインは画面で有効化が必要な場合あり）。STG attach は未実行。SMTP には使わない
 
 配置先:
 
@@ -294,7 +294,7 @@ STG / 本番 migrate が読んでよい最小データ。臨床行（owners / pe
 
 `staff-provision` は新規 staff を作るため、カルテの `doctor_id` とログイン中 ID がずれる。移行済み id には `CreateStaff` を使わない。CSV に無い現行スタッフだけ、新規発行の補助として `staff-provision` を使ってよい。
 
-**実装済み（`4703cf3e9`）:** `backend/cmd/stg-uat-staff-attach` + `make stg-uat-staff-attach-preflight` / `make stg-uat-staff-attach`。投入は USER。エージェントは実行しない。H0-5 roster 骨格は `sensitive-local/stg-uat-staff-roster.json`（secrets / attach は USER）。
+**実装済み（`4703cf3e9`）:** `backend/cmd/stg-uat-staff-attach` + `make stg-uat-staff-attach-preflight` / `make stg-uat-staff-attach`。**2026-08-26 ローカル apply PASS**（414）。STG リモート attach は USER / Lane 3。
 
 - 入力キーは移行済み `staffs.id`
 - 既存 staff 行を複製しない。`accounts` を作り `staffs.account_id` を張る
@@ -413,7 +413,7 @@ live Postgres は一度に 1 医院。城東 live を八王子 load で上書き
 ```
 D1–D7 確定（D2=B 城東先行。Q5 の「八王子 CSV 必須」は後追い HAC-CSV-1 として残す）
 Lane 2: AE-STG-UAT-SKELETON / IMPORT / STAFF / MAKE-REMOTE  ← 完了（4703cf3e9）
-次: H0-5 secrets（USER）→ staff-attach。roster 骨格は `sensitive-local/stg-uat-staff-roster.json`。城東ローカル rehearsal import 済み。H3 / STG は USER。八王子は H0-2 待ち。follow-up: old_db が completed-without-payment を出さないこと、同一 medical_record に複数 billing を出さないこと
+次: 城東ローカル attach 済み。H3 / STG は USER。八王子は H0-2 待ち。follow-up: old_db が completed-without-payment を出さないこと、同一 medical_record に複数 billing を出さないこと。ログインする人は `set_active` / is_active を画面で有効化
 Lane 3: AE-STG-UAT-JOU → 第1段階開始（現場へ「城東のみ」）  ← USER。未着手
 old_db: 八王子 21 CSV（HAC-CSV-1。rehearsal 可。医院 identity 必須）
 Lane 3 続き: AE-STG-UAT-HAC（H3-7 maintenance window。城東の STG 入力を止める）
@@ -451,7 +451,7 @@ Lane 3 続き: AE-STG-UAT-HAC（H3-7 maintenance window。城東の STG 入力�
 ## 12. 次の一手
 
 1. ~~Lane 2 コードを commit~~ → 済み（`4703cf3e9`）
-2. H0-5: roster 骨格は `sensitive-local/stg-uat-staff-roster.json`（0600・414 `secret_ref`）。**2026-08-26 AE-STG-UAT-STAFF-ATTACH-LOCAL BLOCKED**（secrets 不在・attach 未実行）。**secrets.json は USER が作成**（`{"secrets":[{"secret_ref","password"}]}` で 414 件を網羅）。その後ローカル `make stg-uat-staff-attach-preflight` → `make stg-uat-staff-attach`（`DB_HOST=db` / `DB_SSL_MODE=disable`、remote sentinel 未設定）。退職・履歴 id の prune は attach 前
+2. ~~H0-5 ローカル attach~~ → 済み（414 / digest `a6ea3cdd6d2b36bea961dfd00faadbfc88fb4e0b59b194d02baf5b6bb1ed71ff`）。パスワードは `sensitive-local/stg-uat-staff-secrets.json`（gitignored）。STG attach は Lane 3。ログインする人の is_active は画面で有効化
 3. ~~城東 handoff check + manifest SHA-256 転記（H0-3a / H0-4）~~ → 済み（`jouto-intake-20260822-01` / SHA `7bbda50f06f7d0acac6711d1a73b78ca68b835ee9be5df6cd04f3e6a5094a405`。Class A: payments snapshot、pending 再分類、billing×medical_record unique 余剰 192 リンク解除。stage 再実行なし）。八王子は H0-2 後
 4. ~~Lane 1 で城東をローカル証明~~ → 済み（`make reset` / `csv-import` apply+verify PASS）。USER が Lane 3 で城東を先に STG へ投入し第1段階開始（`stg-uat-csv-import`。ローカル rehearsal とは別ゲート）
 5. 並行して old_db が八王子 21 表（HAC-CSV-1）を出す。出来次第 maintenance window で投入
