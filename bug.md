@@ -139,6 +139,7 @@ Round 9でも状況は変化なし（`VITE_LIFF_MOCK=true`によりローカル�
 - **シナリオ**: V05-18
 - **概要**: `GET /api/v1/clinics/1/lstep/checkup-sync/preview`に対し、負の年齢（`min_age=-3`）・小数の年齢（`min_age=2.5`）・最小>最大（`min_age=10&max_age=5`）・負の来院回数（`min_annual_visits=-1`）・検診種別未指定のいずれを送っても`200`で受理され結果が返る。比較対象の`min_total_amount`のみ正しく`400`で拒否される。
 - **影響**: 通常のUI操作ではクライアント側バリデーションで防御されているため実害は限定的だが、API直叩きや将来のFE実装ミスにより境界値検証を完全にバイパスして顧客一覧を抽出できてしまう。データ抽出のガードレールが実質的にFE依存になっている設計リスク。
+- **修正**: `checkupSyncPreviewQuery.toServiceInput` で `checkup_type` を必須 enum（`annual|dental|blood|skin|cancer|other`）検証し、`min_age_years`/`max_age_years` が両方指定かつ min>max のとき InvalidInput。既存の非負整数パーサは維持（`2.5` 含む）。回帰: `TestCheckupSyncPreviewQuery_ToServiceInput_InvalidFields` / `...AgeBounds` / `TestGetCheckupSyncPreview`（empty checkup_type・min>max は 400 かつ Preview 非呼び出し）。
 
 ### BUG-013（低〜中・新規）`/identity-links`管理画面のunlinkボタンが常時disabledで機能しない
 
