@@ -284,6 +284,70 @@ func TestGetAvailableDates_OccupationGuardUsesBatchedCounts(t *testing.T) {
 	}
 }
 
+func TestGetAvailableDates_OccupationGuardSkipsCountWhenNoOccupations(t *testing.T) {
+	ctx := context.Background()
+	staff := model.Staff{ID: 7, ReservationVisible: true}
+
+	settingRepo := &mockLiffSettingRepository{
+		findByClinicIDFn: func(_ context.Context, _ uint64) (*model.LineReservationSetting, error) {
+			return &model.LineReservationSetting{
+				BookingWindowMinDays:    0,
+				BookingWindowMaxDays:    1,
+				TimeSlotIntervalMinutes: 60,
+				TimeSlotMode:            "minimize_gaps",
+			}, nil
+		},
+	}
+	typeRepo := &mockLiffTypeRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.ReservationType, error) {
+			return &model.ReservationType{
+				ID:                   1,
+				IsActive:             true,
+				ReservationVisible:   true,
+				DurationMinutes:      60,
+				ReservationDayOption: model.DayOptionAnyday,
+			}, nil
+		},
+	}
+	staffRepo := &mockLiffStaffRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Staff, error) { return &staff, nil },
+	}
+
+	var occupationGuardCallCount int
+	occupationRepo := &mockReservationTypeOccupationRepository{
+		findAllFn: func(_ context.Context, _, _ uint64) ([]model.ReservationTypeOccupation, error) {
+			return []model.ReservationTypeOccupation{}, nil
+		},
+		countByStaffIDsFn: func(_ context.Context, _, _ uint64, _ []time.Time) (map[string]int64, error) {
+			occupationGuardCallCount++
+			return map[string]int64{}, nil
+		},
+	}
+
+	svc := &liffService{
+		settingRepo:    settingRepo,
+		typeLiffRepo:   typeRepo,
+		staffRepo:      staffRepo,
+		scheduleRepo:   &mockLiffScheduleRepository{},
+		adminRepo:      &mockLiffAdminRepository{},
+		occupationRepo: occupationRepo,
+	}
+
+	results, _, err := svc.GetAvailableDates(ctx, 1, 1, staff.ID)
+	require.NoError(t, err)
+	require.NotEmpty(t, results)
+	assert.Zero(t, occupationGuardCallCount, "職種紐付け0件なら Count を呼ばない")
+
+	hasAvailable := false
+	for _, r := range results {
+		if r.Available {
+			hasAvailable = true
+			break
+		}
+	}
+	assert.True(t, hasAvailable, "職種紐付けなしはガードをスキップし少なくとも1日は Available")
+}
+
 func TestLiffService_TypeScopedPublicReads_RejectInactiveReservationType(t *testing.T) {
 	const clinicID = uint64(3)
 	const typeID = uint64(7)
