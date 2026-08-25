@@ -362,6 +362,7 @@ describe("useMedicalRecordSaveAction BUG-001 vaccination tab", () => {
     });
 
     await waitFor(() => expect(result.current.formState.timestamp).not.toBe(0));
+    expect(result.current.formState.success).toBe(false);
     expect(updateInquiry).not.toHaveBeenCalled();
     expect(updateTreatmentPlan).not.toHaveBeenCalled();
     expect(updateRecord).not.toHaveBeenCalled();
