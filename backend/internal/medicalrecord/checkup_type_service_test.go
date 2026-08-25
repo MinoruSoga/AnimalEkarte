@@ -232,12 +232,22 @@ func TestCheckupTypeService_Create(t *testing.T) {
 			},
 			wantErr: true,
 		},
+		{
+			name: "returns validation error when price is negative",
+			input: &CreateCheckupTypeInput{
+				Name:  "Negative Price Checkup Type",
+				Price: func(v int64) *int64 { return &v }(-100),
+			},
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			createCalled := false
 			repo := &mockCheckupTypeRepository{
 				createFn: func(_ context.Context, _ *model.CheckupType) error {
+					createCalled = true
 					return tt.repoErr
 				},
 			}
@@ -248,6 +258,10 @@ func TestCheckupTypeService_Create(t *testing.T) {
 			if tt.wantErr {
 				assert.Error(t, err)
 				assert.Nil(t, result)
+				if tt.name == "returns validation error when price is negative" {
+					assert.True(t, apperrors.IsInvalidInput(err))
+					assert.False(t, createCalled)
+				}
 			} else {
 				assert.NoError(t, err)
 				assert.NotNil(t, result)
@@ -319,10 +333,20 @@ func TestCheckupTypeService_Update(t *testing.T) {
 			input:    &UpdateCheckupTypeInput{Name: &emptyName},
 			wantErr:  true,
 		},
+		{
+			name:     "returns validation error when price is negative",
+			clinicID: 1,
+			id:       1,
+			input: &UpdateCheckupTypeInput{
+				Price: func(v int64) *int64 { return &v }(-500),
+			},
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			updateCalled := false
 			repo := &mockCheckupTypeRepository{
 				findByIDFn: func(_ context.Context, _, _ uint64) (*model.CheckupType, error) {
 					if tt.findByIDErr != nil {
@@ -331,6 +355,7 @@ func TestCheckupTypeService_Update(t *testing.T) {
 					return &model.CheckupType{ID: tt.id}, nil
 				},
 				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.CheckupType, error) {
+					updateCalled = true
 					return tt.repoData, tt.updateErr
 				},
 			}
@@ -343,6 +368,10 @@ func TestCheckupTypeService_Update(t *testing.T) {
 				assert.Nil(t, result)
 				if tt.wantNF {
 					assert.True(t, apperrors.IsNotFound(err))
+				}
+				if tt.name == "returns validation error when price is negative" {
+					assert.True(t, apperrors.IsInvalidInput(err))
+					assert.False(t, updateCalled)
 				}
 			} else {
 				assert.NoError(t, err)

@@ -114,6 +114,9 @@ func (s *examTypeService) Create(ctx context.Context, clinicID uint64, input *Cr
 	if err := validateRequiredName(input.Name); err != nil {
 		return nil, apperrors.Wrap(err, "failed to validate required name")
 	}
+	if err := validateNonNegativePrice(input.Price); err != nil {
+		return nil, apperrors.Wrap(err, "failed to validate non negative price")
+	}
 	// MRB-08 / X-05: parent_id 検証と Create を同一 WithTx に収め、FindByID の FOR SHARE を発火させる。
 	exType := &model.ExaminationType{
 		ClinicID:       clinicID,
@@ -156,6 +159,9 @@ func (s *examTypeService) Update(ctx context.Context, clinicID, id uint64, input
 	}
 	if err := validateOptionalName(input.Name); err != nil {
 		return nil, apperrors.Wrap(err, "failed to validate optional name")
+	}
+	if err := validateNonNegativePrice(input.Price); err != nil {
+		return nil, apperrors.Wrap(err, "failed to validate non negative price")
 	}
 	fields := buildExamTypeUpdate(input)
 	if len(fields) == 0 {
