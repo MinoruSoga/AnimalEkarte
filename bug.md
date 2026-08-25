@@ -101,6 +101,7 @@ Round 8では「休診日にバナーとフォームが同時表示される」�
 2. **現金過不足金額の負数チェック欠如**: `cash_amount:-100`を送信しても拒否されず`201`で受理され、`actual_cash`が黙って`0`にクランプされる。**この検証を本日（2026-08-25）AM期間の実データに対して実行してしまった結果、取り消し不能な締めレコード（id=9）が作成される実害が発生しました**（詳細は冒頭の「最優先で確認をお願いしたい事項」参照）。
 
 推奨対応: `cash_register_service.go`（推定）にて、締め処理受理前に(a)対象日が休診日でないことの検証、(b)`actual_cash`が0以上であることの検証、の両方を追加することを推奨します。
+- **修正**: `cashRegisterService.Close` は `fetchAggregate` 後（ResolveSchedule の二重呼び出しなし）に休診日と `actual_cash < 0` を `apperrors.ErrInvalidInput` で拒否し `closeRepo.Create` しない。Conflict は二重締めのみ。`actual_cash=0` は許可。ライブ id=8/id=9 は未変更（ユーザー判断）。回帰: `TestCashRegisterService_Close` の休診日行・負 ActualCash 行。`TestCloseCashRegisterRequest_ToServiceInput_NegativeActualCash`（文言 `actual_cash は 0 以上で指定してください`）と `ZeroActualCashAllowed` は維持。
 
 ### BUG-010（低・環境要因、継続）LIFF実トークン認証がローカル環境ではモック限定で検証不可
 

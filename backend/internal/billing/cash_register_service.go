@@ -421,6 +421,13 @@ func (s *cashRegisterService) Close(ctx context.Context, clinicID uint64, input 
 		return nil, apperrors.Wrap(err, "failed to fetch aggregate cash register")
 	}
 
+	if agg.Schedule != nil && agg.Schedule.IsHoliday {
+		return nil, apperrors.WrapInvalidInput("休診日は締め処理できません")
+	}
+	if input.ActualCash < 0 {
+		return nil, apperrors.WrapInvalidInput("actual_cash は 0 以上で指定してください")
+	}
+
 	cashDifference := input.ActualCash - agg.TheoreticalCash
 
 	// category_breakdown JSONB を構築（#247 per-billing 配賦・消費税内訳・未分類件数 snapshot）
