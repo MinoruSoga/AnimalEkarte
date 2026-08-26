@@ -1,16 +1,16 @@
 # 検査機器連携 — 実装入口
 
-**この文書:** AnimalEkarte が院内検査機器の結果を受けて保持するときの正本。  
+**この文書:** AnimalEkarte が院内検査機器の結果を受けて保持するときの実装契約。操作手順ではない。  
+**操作手順の正本（手元 + 医院）:** [`../../../../old_db/docs/lab-go/hospital-field-pack/手元テスト手順.md`](../../../../old_db/docs/lab-go/hospital-field-pack/手元テスト手順.md)
+
 **Drワンは組み込まない。** `source_type=drwan` は閉じる。`mkan.mdb` を読まない。
 
 **日常経路（2026-08-19）:** ファイルアップロードしない。検査用 Mac の `/lab-device` が有線シリアルを読む。UI は1画面（待機 + 未紐付け欄）。正本は `todo.md` 城東節と Linear BRT-94〜100。城東3種（`fuji_nx600` / `fuji_au10v` / `arkray_pu4010`）は AE-LAB-0〜4 済み。
 
 シリアル枠: [`../../../../old_db/docs/lab-go/go-impl/device-serial-adapter.md`](../../../../old_db/docs/lab-go/go-impl/device-serial-adapter.md)  
 3台マスタ: [`../../../../old_db/docs/lab-go/go-impl/device-item-master.md`](../../../../old_db/docs/lab-go/go-impl/device-item-master.md)  
-現場手順: [`../../../../old_db/docs/lab-go/hospital-field-pack/00-明日の現場手順.md`](../../../../old_db/docs/lab-go/hospital-field-pack/00-明日の現場手順.md)  
 城東 Win7 Drワン解析（値なし）: [`../../../../old_db/clinics/jouto/research/out/30_drwan_win7/30_report.md`](../../../../old_db/clinics/jouto/research/out/30_drwan_win7/30_report.md)  
-IDEXX PIMS セッション: [`../../../../old_db/docs/lab-go/go-impl/idexx-pims-serial-session.md`](../../../../old_db/docs/lab-go/go-impl/idexx-pims-serial-session.md)  
-手元で機器相当: [`../../../../old_db/docs/lab-go/go-impl/lab-device-local-mock.md`](../../../../old_db/docs/lab-go/go-impl/lab-device-local-mock.md)
+IDEXX PIMS セッション: [`../../../../old_db/docs/lab-go/go-impl/idexx-pims-serial-session.md`](../../../../old_db/docs/lab-go/go-impl/idexx-pims-serial-session.md)
 
 IDEXX は **JOU-LAB-X**。3台のスロットに混ぜない。受信専用では PIMS が切れる。
 

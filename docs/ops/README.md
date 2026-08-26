@@ -12,7 +12,7 @@
 |:---|:---|:---|
 | [deploy/](deploy/README.md) | デプロイハブ（環境 URL・Cloudflare デプロイ・障害時判断） | デプロイ・リリース作業前 |
 | [deploy/runbooks/](deploy/runbooks/README.md) | 個別実行手順書（リリース前検証・scheduler運用・資格情報ローテーション・シークレット棚卸し） | 該当オペレーション実施時 |
-| [deploy/LAB_DEVICE_CONNECTIVITY.md](deploy/LAB_DEVICE_CONNECTIVITY.md) | 検査機器の有線疎通。現行カルテは Drワン、新カルテは使わない | 院内で機器を新カルテへ取り込むとき |
+| [deploy/LAB_DEVICE_CONNECTIVITY.md](deploy/LAB_DEVICE_CONNECTIVITY.md) | 検査機器の実装契約。操作手順は old_db `docs/lab-go/hospital-field-pack/手元テスト手順.md` | 院内で機器を新カルテへ取り込むとき |
 | [testing/](testing/README.md) | テストアーキテクチャ・受入 scenarios（項目単位）・E2E・環境セットアップ | テスト実施・品質検証時 |
 | [ci-policy.md](ci-policy.md) | CI ワークフローの決定事項記録（Actions バージョンピン方針等） | .github/workflows/ 変更前 |
 | [coverage-policy.md](coverage-policy.md) | テストカバレッジ ratchet 方式の運用ポリシー | カバレッジゲート調整時 |
