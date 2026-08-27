@@ -46,7 +46,7 @@ old_db 側の producer 作業は sibling `old_db/todo.md`。
 | Lane 3 STG 投入 | 未着手 | **USER のみ。** エージェントは pscale / `make stg-uat-*` apply を実行しない。城東先行。ローカル証明済みでも本レーンの H3 は付けない |
 | Lane 4 並行運用 | 未着手 | 城東投入後。STG 入力は本番に移さない |
 | old_db producer | 進行中 | PAY-SNAP・PAY-GRAPH 済み。未: MR-UNIQ、HAC-CSV-1 |
-| 任意・後追い | 未着手 | H3-10 SHIFT、H1-3/H1-4、M-3 runbook 1 行（明示時のみ）、AE-SEED-RETIRE-DEMO |
+| 任意・後追い | 一部完了 | AE-SEED-RETIRE-DEMO 済み（003/004 退役、002 に医院骨格）。H3-10 SHIFT、H1-3/H1-4、M-3 runbook 1 行（明示時のみ） |
 
 claim 枝（削除は USER。merge / abandon のあと `git branch -D`）:
 
@@ -132,8 +132,8 @@ claim 枝（削除は USER。merge / abandon のあと `git branch -D`）:
 | 同一 STG DB | 載せる。band が医院で分かれている |
 | PHI | 共有 STG に飼主・ペット・カルテを置いてよい。残置期限と破棄担当を作業票に書く |
 | STG DB | デモと混ぜない。承認済みで PlanetScale を再作成してよい |
-| `003_demo` / `004_staging` | **STG に使わない。載せない。** `APP_ENV=staging` の migrate も読まない |
-| `002_master` | 残す（種・会社・LSTEP 接頭辞）。21 表の `FALLBACK_ANIMAL_SPECIES_ID` の供給源 |
+| `003_demo` / `004_staging` | **退役。** 臨床デモは載せない |
+| `002_master` | 参照マスタ + 医院骨格（clinics 1/2、権限、検査、トリミング予約種別、支払方法）。accounts / 臨床行は入れない |
 | 業務データの正本 | old_db の医院別 21 CSV + manifest。F6 `csv-import` |
 | `_old_db_handoff/` | ローカル隔離だけ。`cmd/migrate` は読まない。STG 投入の運搬路にしない |
 | ログイン | 各医院の **現行スタッフほぼ全員** を、移行 `staffs.csv` の `id` に account 後付けする。新規 staff の複製はしない（ログイン設計）。CSV 上の履歴・退職行は対象外。email は送信しないデモアドレス（`stg-staff-{id}@example.test`） |

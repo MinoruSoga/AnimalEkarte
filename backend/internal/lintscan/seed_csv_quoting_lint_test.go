@@ -53,6 +53,9 @@ type seedCSVQuotedEmptyViolation struct {
 func TestSeedCSVQuotedEmptyLines_CurrentDemoMeetsParentFloors(t *testing.T) {
 	moduleRoot := mustFindSeedCSVModuleRoot(t)
 	bundleDir := filepath.Join(moduleRoot, "migrations", "seeds", "003_demo")
+	if _, err := os.Stat(bundleDir); os.IsNotExist(err) {
+		t.Skip("003_demo retired")
+	}
 
 	violations, err := findSeedCSVQuotedEmptyFloorViolations(bundleDir, seedCSVQuotedEmptyOccurrenceFloors)
 	if err != nil {

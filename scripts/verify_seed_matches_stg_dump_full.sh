@@ -109,7 +109,7 @@ if ! command -v jq > /dev/null 2>&1; then
 fi
 
 SEEDS_DIR="$MIGRATION_DIR/seeds"
-BUNDLE_ORDER=(002_master 003_demo 004_staging)
+BUNDLE_ORDER=(002_master)
 DDL_FILES=("$MIGRATION_DIR"/*.sql)
 
 # ---------------------------------------------------------------------------

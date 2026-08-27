@@ -1,0 +1,3 @@
+id,company_id,name,postal_code,address,phone_number,fax_number,registration_number,director_name,email,website,logo_url,is_active,standard_tax_rate,reduced_tax_rate,accounting_document_show_logo,accounting_document_show_registration_warning,accounting_document_show_item_category,accounting_document_footer_note,accounting_document_show_clinic_header,accounting_document_show_owner_pet_info,accounting_document_show_items_table,accounting_document_show_payment_summary,accounting_document_section_order,created_at,updated_at
+1,1,八王子病院,,,,,,,,,,t,0.10,0.08,f,t,t,,t,t,t,t,{},2026-07-06 14:59:40.511971+09,2026-07-06 14:59:40.511971+09
+2,1,城東センター病院,,,,,,,,,,t,0.10,0.08,f,t,t,,t,t,t,t,{},2026-07-06 14:59:40.511971+09,2026-07-06 14:59:40.511971+09

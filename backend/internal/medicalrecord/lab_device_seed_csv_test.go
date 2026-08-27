@@ -47,6 +47,9 @@ func readSeedCSV(t *testing.T, dir, csvFile string) []map[string]string {
 
 func TestLabDeviceSeedCSV_ItemMastersMappedAll(t *testing.T) {
 	dir := seedDir(t)
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		t.Skip("003_demo lab device CSV retired; catalog lives in clinic master UI")
+	}
 	rows := readSeedCSV(t, dir, "lab_device_item_masters.csv")
 
 	jouto := make([]map[string]string, 0, LabDeviceItemCatalogCount)
@@ -70,6 +73,9 @@ func TestLabDeviceSeedCSV_ItemMastersMappedAll(t *testing.T) {
 
 func TestLabDeviceSeedCSV_DevicesExamTypeMapping(t *testing.T) {
 	dir := seedDir(t)
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		t.Skip("003_demo lab device CSV retired; catalog lives in clinic master UI")
+	}
 	rows := readSeedCSV(t, dir, "lab_devices.csv")
 
 	wantExamType := map[string]string{
@@ -99,6 +105,9 @@ func TestLabDeviceSeedCSV_DevicesExamTypeMapping(t *testing.T) {
 
 func TestLabDeviceSeedCSV_ItemMastersCoverCatalog(t *testing.T) {
 	dir := seedDir(t)
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		t.Skip("003_demo lab device CSV retired; catalog lives in clinic master UI")
+	}
 	rows := readSeedCSV(t, dir, "lab_device_item_masters.csv")
 
 	// Build set of (source_type, device_item_code) from seed CSV for clinic_id=2.

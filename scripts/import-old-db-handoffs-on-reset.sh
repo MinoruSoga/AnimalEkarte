@@ -240,6 +240,24 @@ while IFS= read -r dir; do
   import_one "$dir"
 done < <(select_handoff_dirs)
 
+attach_staff_if_roster_present() {
+  local roster secrets
+  roster="${STG_UAT_STAFF_ATTACH_ROSTER:-$ROOT/sensitive-local/stg-uat-staff-roster.json}"
+  secrets="${STG_UAT_STAFF_ATTACH_SECRETS:-$ROOT/sensitive-local/stg-uat-staff-secrets.json}"
+  if [[ ! -f "$roster" || ! -f "$secrets" ]]; then
+    echo "INFO  staff-attach skipped (roster/secrets missing)"
+    return 0
+  fi
+  echo "INFO  attaching UAT accounts onto imported staffs"
+  STG_UAT_STAFF_ATTACH_ROSTER="$roster" STG_UAT_STAFF_ATTACH_SECRETS="$secrets" \
+    make -C "$ROOT" stg-uat-staff-attach-preflight
+  STG_UAT_STAFF_ATTACH_ROSTER="$roster" STG_UAT_STAFF_ATTACH_SECRETS="$secrets" \
+    make -C "$ROOT" stg-uat-staff-attach
+}
+
 if [[ "$found" -eq 0 ]]; then
   echo "INFO  no staged old_db handoff bundles; skip import"
+  exit 0
 fi
+
+attach_staff_if_roster_present

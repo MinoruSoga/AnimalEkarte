@@ -187,7 +187,7 @@ func BuildClinicUpdate(input *UpdateClinicInput) (map[string]any, error) {
 // 末尾で false を返す）、新規クリニックでは is_system_admin 以外の全スタッフが
 // 全リソースへアクセス不能になっていた（疑い=事実）。
 //
-// 出所: backend/migrations/seeds/003_demo/permission_group_rules.csv の
+// 出所: backend/migrations/seeds/002_master/permission_group_rules.csv の
 // 執行=奇数ID / 一般=偶数ID / 閲覧専用=group 9 パターン。
 // model.AllResources (36) をすべてカバーする。既存デモ seed は明示 rollout 前の
 // examination-unconfirm を含めず、同権限は新規クリニックでも default-deny とする。

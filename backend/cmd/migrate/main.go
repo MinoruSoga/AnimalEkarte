@@ -565,8 +565,8 @@ func seedBundlesForCurrentEnv() []string {
 
 // runSeedBundles はフェーズ2: CSV シードバンドルを APP_ENV ゲート付き順でロードする。
 // local development/test allowlist（development/local/dev/test）では
-// 002_master → 003_demo → 004_staging。production / staging / empty / unknown は
-// 002_master のみ（SEC-CS2-F01: staging へ privileged demo 資格情報を投入しない）。
+// 002_master のみ（医院骨格 + 参照マスタ。003_demo / 004_staging は退役。
+// SEC-CS2-F01: accounts / 臨床デモを migrate で載せない）。
 // フェーズ1が全て commit した後にのみ実行される。各バンドルは applyCSVBundle が
 // 単一トランザクションで完走した後にのみ schema_migrations へ
 // seedbundle.BundleMigrationKey で記録されるため、CSVロードが失敗した場合は何も

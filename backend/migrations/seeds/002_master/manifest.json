@@ -20,6 +20,34 @@
     {
       "table": "lstep_send_purpose_tag_prefixes",
       "csvFile": "lstep_send_purpose_tag_prefixes.csv"
+    },
+    {
+      "table": "clinics",
+      "csvFile": "clinics.csv"
+    },
+    {
+      "table": "clinic_settings",
+      "csvFile": "clinic_settings.csv"
+    },
+    {
+      "table": "exam_types",
+      "csvFile": "exam_types.csv"
+    },
+    {
+      "table": "reservation_types",
+      "csvFile": "reservation_types.csv"
+    },
+    {
+      "table": "payment_methods",
+      "csvFile": "payment_methods.csv"
+    },
+    {
+      "table": "permission_groups",
+      "csvFile": "permission_groups.csv"
+    },
+    {
+      "table": "permission_group_rules",
+      "csvFile": "permission_group_rules.csv"
     }
   ]
 }

@@ -29,21 +29,7 @@ interface DemoCredential {
 // export はテスト用（本番バンドルの tree-shake には影響しない — 参照は test 側 dynamic import のみ）。
 export const SHOW_DEMO = import.meta.env.DEV;
 
-const DEMO_ACCOUNTS: readonly DemoCredential[] = SHOW_DEMO ? [
-  // システム管理者（全医院）
-  { email: "hayashi@noah-vet.co.jp", displayName: "林 文明",     occupationLabel: "獣医師",   permissionLabel: "執行", clinicLabel: "全医院",   isSystemAdmin: true },
-  { email: "admin@noavet.jp",        displayName: "ノア",         occupationLabel: "獣医師",   permissionLabel: "執行", clinicLabel: "全医院",   isSystemAdmin: true },
-  // 八王子病院
-  { email: "admin@example.com",      displayName: "安田 希恵",   occupationLabel: "看護師",   permissionLabel: "執行", clinicLabel: "八王子病院" },
-  { email: "vet@example.com",        displayName: "倉田 春香",   occupationLabel: "看護師",   permissionLabel: "一般", clinicLabel: "八王子病院" },
-  { email: "nurse@example.com",      displayName: "梶原 梨夢",   occupationLabel: "看護師",   permissionLabel: "一般", clinicLabel: "八王子病院" },
-  { email: "reception@example.com",  displayName: "髙木 賀央里", occupationLabel: "看護師",   permissionLabel: "一般", clinicLabel: "八王子病院" },
-  { email: "trimmer@example.com",    displayName: "さくら",      occupationLabel: "トリマー", permissionLabel: "一般", clinicLabel: "八王子病院" },
-  // 城東センター病院
-  { email: "joto-vet@example.com",   displayName: "城東 獣医",   occupationLabel: "獣医師",   permissionLabel: "執行", clinicLabel: "城東センター病院" },
-  // 敷島医院
-  { email: "shiki-vet@example.com",  displayName: "敷島 獣医",   occupationLabel: "獣医師",   permissionLabel: "執行", clinicLabel: "敷島医院" },
-] : [];
+const DEMO_ACCOUNTS: readonly DemoCredential[] = [];
 
 const DemoAccount = memo(function DemoAccount({
   email,
@@ -246,8 +232,7 @@ export const LoginForm = memo(function LoginForm() {
         </div>
       </form>
 
-      {/* Demo accounts — 開発環境のみ表示 */}
-      {SHOW_DEMO ? (
+      {SHOW_DEMO && DEMO_ACCOUNTS.length > 0 ? (
         <div className="mt-8">
           <div className="flex items-center gap-2 mb-2">
             <div className={`h-px flex-1 ${C.bgLight}`} />

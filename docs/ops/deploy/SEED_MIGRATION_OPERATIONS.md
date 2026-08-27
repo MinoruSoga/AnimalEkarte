@@ -12,7 +12,7 @@
 - **cmd/migrate は二段フェーズ構成**（`backend/cmd/migrate/main.go`）:
   1. 直下の `*.sql` を昇順適用し `schema_migrations` にファイル名で記録
   2. 完了後、`internal/seedbundle.BundleOrderForEnv(APP_ENV)` の順で CSV バンドルを pgx `COPY FROM STDIN` ロードし、`internal/seedbundle.BundleMigrationKey(bundleDir)`（`"seeds/002_master"` 等）で `schema_migrations` に記録する
-  - **APP_ENV ゲート（SEC-CS-F01 / fail-closed）**: `development` / `local` / `dev` / `test` のみフル順（`002_master → 003_demo → 004_staging`）。`staging` / `production` / `prod` / 空 / 未知は **`002_master` のみ**（demo の active system admin を共有環境へ載せない）。`BundleOrder` 定数はディスク上のフル順の正本（seed-export / lint 用）として残す。
+  - **APP_ENV ゲート（SEC-CS-F01 / fail-closed）**: 全環境 **`002_master` のみ**（医院骨格 + 参照マスタ。accounts / 臨床デモは載せない）。`003_demo` / `004_staging` は退役。臨床行は `_old_db_handoff` の local reset import。
   - 正データの唯一の生成経路は **使い捨てDBへの実適用 → `COPY ... TO STDOUT` ダンプ**（`backend/cmd/seed-export`）。SQL の静的パースによる生成は禁止（ON CONFLICT の最終マージ状態や `random()` 依存データは静的パースでは再現できないため）。
   - `schema_migrations` に記録される seed バンドルの checksum（`bundleChecksum`）は `manifest.json` + 全 CSV ファイルを合成したもの — CSV のみの変更でも通常の migration ファイル編集と同じ checksum mismatch ガードが働く。
   - COPY はシーケンス（BIGSERIAL）を進めないため、`cmd/migrate` は各テーブルロード後に自動で `setval` を実行する（`advanceSerialSequence`）。

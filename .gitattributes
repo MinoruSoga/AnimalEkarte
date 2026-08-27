@@ -1,3 +1,1 @@
-# Full demo/staging seed CSVs can exceed GitHub 100MB; store via Git LFS.
-backend/migrations/seeds/003_demo/*.csv filter=lfs diff=lfs merge=lfs -text
-backend/migrations/seeds/004_staging/*.csv filter=lfs diff=lfs merge=lfs -text
+# Retired 003_demo / 004_staging LFS patterns removed with those bundles.

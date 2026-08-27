@@ -176,9 +176,7 @@ if [[ "${1:-}" == "compose" ]]; then
         echo "Migration completed file=001_init.sql"
         echo "Migration completed file=002_extra.sql"
         echo "Seed bundle loaded bundle=002_master"
-        echo "Seed bundle loaded bundle=003_demo"
-        echo "Seed bundle loaded bundle=004_staging"
-        echo "Migration key coverage missing=0 extra=0 expected=5 recorded=5"
+        echo "Migration key coverage missing=0 extra=0 expected=3 recorded=3"
       elif [[ "${postflight_mode:-}" == "missing_coverage" ]]; then
         echo "Migration key coverage missing=2 extra=0 expected=5 recorded=3"
       else

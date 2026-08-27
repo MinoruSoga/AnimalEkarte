@@ -11,7 +11,7 @@
 #   3. Stop services without deleting volumes; remove ONLY ekarte-postgres-data;
 #      keep cache volumes (frontend node_modules, go module/build cache).
 #   4. Restart long-lived services; postflight: migration key coverage missing=0,
-#      all root DDL keys, seed keys 002_master/003_demo/004_staging, schema_migrations,
+#      all root DDL keys, seed key 002_master, schema_migrations,
 #      backend healthy + /health HTTP 200.
 #   5. Snapshot failure must not proceed to volume delete.
 #   6. Never wipe all compose volumes; never prune the volume store.
@@ -37,7 +37,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 EXPECTED_PROJECT_NAME="${LOCAL_DB_RESET_EXPECTED_PROJECT:-animalekarte}"
 EXPECTED_DB_VOLUME="ekarte-postgres-data"
 EXPECTED_CACHE_VOLUMES="ekarte-frontend-node-modules ekarte-go-mod-cache ekarte-go-build-cache"
-EXPECTED_SEED_BUNDLES="002_master 003_demo 004_staging"
+EXPECTED_SEED_BUNDLES="002_master"
 # Substrings that mark a project name as non-local (refuse).
 FORBIDDEN_PROJECT_SUBSTRINGS="staging prod production stg a4 f8-g4 planetscale"
 
@@ -323,7 +323,7 @@ target_volume=${EXPECTED_DB_VOLUME}
 kept_cache_volumes=${EXPECTED_CACHE_VOLUMES}
 root_ddl_keys=${ddl_list}
 seed_bundle_keys=${seed_list}
-schema_migrations_seed_keys=seeds/002_master seeds/003_demo seeds/004_staging
+schema_migrations_seed_keys=seeds/002_master
 dump_file=pg_dumpall.sql.gz
 dump_sha256=${digest}
 volume_existed_before_reset=${vol_exists}

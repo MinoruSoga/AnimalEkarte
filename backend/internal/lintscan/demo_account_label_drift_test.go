@@ -13,7 +13,7 @@ import (
 
 const (
 	demoAccountLabelDriftBundle       = "003_demo"
-	demoAccountExpectedCount          = 9
+	demoAccountExpectedCount          = 0
 	gitLFSPointerPrefix               = "version https://git-lfs.github.com/spec/v1"
 	demoAccountSystemAdminClinicLabel = "全医院"
 	demoAccountLoginFormRelativePath  = "frontend/src/features/auth/components/LoginForm.tsx"
@@ -63,7 +63,7 @@ type demoAccountSeedCSVTable struct {
 	col     map[string]int
 }
 
-func TestDemoAccountLoginFormLabelsMatch003DemoSeed(t *testing.T) {
+func TestDemoAccountLoginFormHasNoHardcodedCredentials(t *testing.T) {
 	moduleRoot := mustFindSeedCSVModuleRoot(t)
 
 	source, err := os.ReadFile(mustFindDemoAccountLoginFormPath(t, moduleRoot))
@@ -72,13 +72,8 @@ func TestDemoAccountLoginFormLabelsMatch003DemoSeed(t *testing.T) {
 	}
 
 	uiAccounts := parseDemoAccountObjectLines(string(source))
-	tables, err := loadDemoAccountComparedSeedTables(moduleRoot)
-	if err != nil {
-		t.Fatalf("load %s compared seed CSV: %v", demoAccountLabelDriftBundle, err)
-	}
-
-	for _, violation := range demoAccountLabelDriftViolations(uiAccounts, tables) {
-		t.Errorf("%s", violation)
+	if len(uiAccounts) != 0 {
+		t.Fatalf("DEMO_ACCOUNTS must be empty after 003_demo retirement, got %d", len(uiAccounts))
 	}
 }
 
@@ -156,15 +151,17 @@ func TestParseDemoAccountObjectLines(t *testing.T) {
 func TestDemoAccountLabelDriftViolations_FailClosedOnCount(t *testing.T) {
 	tables := demoAccountJoinFixtureTables(t, 9)
 
+	empty := demoAccountLabelDriftViolations(nil, tables)
+	if len(empty) != 0 {
+		t.Fatalf("empty DEMO_ACCOUNTS violations = %v, want none", empty)
+	}
+
 	tests := []struct {
 		name string
 		ui   []demoAccountUILabels
 	}{
-		{name: "nil slice", ui: nil},
-		{name: "empty slice", ui: []demoAccountUILabels{}},
 		{name: "one account", ui: demoAccountJoinFixtureUI(t, 1, nil)},
-		{name: "eight accounts", ui: demoAccountJoinFixtureUI(t, 8, nil)},
-		{name: "ten accounts", ui: demoAccountJoinFixtureUI(t, 10, nil)},
+		{name: "nine accounts", ui: demoAccountJoinFixtureUI(t, 9, nil)},
 	}
 
 	for _, tt := range tests {
@@ -250,24 +247,11 @@ func TestDemoAccountLabelDriftViolations_ComparesLabels(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ui := demoAccountJoinFixtureUI(t, 9, tt.modify)
 			violations := demoAccountLabelDriftViolations(ui, tables)
-			if tt.wantSubstring == "" {
-				if len(violations) != 0 {
-					t.Fatalf("violations = %v, want none", violations)
-				}
-				return
+			if len(violations) != 1 {
+				t.Fatalf("violations = %v, want retired-demo count failure", violations)
 			}
-			if len(violations) == 0 {
-				t.Fatal("got no violations, want a label mismatch")
-			}
-			found := false
-			for _, violation := range violations {
-				if strings.Contains(violation, tt.wantSubstring) {
-					found = true
-					break
-				}
-			}
-			if !found {
-				t.Fatalf("violations = %v, want substring %q", violations, tt.wantSubstring)
+			if !strings.Contains(violations[0], "want 0") {
+				t.Fatalf("violation = %q, want count=0 fail-closed", violations[0])
 			}
 		})
 	}

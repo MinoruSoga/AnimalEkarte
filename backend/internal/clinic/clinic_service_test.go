@@ -546,29 +546,19 @@ func TestDefaultPermissionRuleTable_CoversAllResources(t *testing.T) {
 	}
 }
 
-// demoPermissionSeedGroupProfiles maps 003_demo permission_groups IDs to the
-// default-creation profile they must mirror after BE-ACT-PERMISSION-SEED-PARITY.
-// 1/3/5/7 = 執行, 2/4/6/8 = 一般, 9 = 閲覧専用 (view-only; create/edit/delete 常に false)。
+// demoPermissionSeedGroupProfiles maps 002_master permission_groups IDs.
+// 1/3 = 執行, 2/4 = 一般, 9 = 閲覧専用 (view-only).
 var demoPermissionSeedGroupProfiles = map[uint64]string{
 	1: "executive",
 	2: "general",
 	3: "executive",
 	4: "general",
-	5: "executive",
-	6: "general",
-	7: "executive",
-	8: "general",
 	9: "view-only",
 }
 
-// TestDemoSeedGroupRules_Parity は 003_demo の 9 グループが既存 seed 管理リソースを持ち、
-// group 9 が view-only、
-// master-animal-species が全グループ view-only、執行/一般が
-// buildDefaultPermissionGroupRules と一致することを検証する。examination-unconfirm は
-// 新規クリニックでも default-deny で、既存 demo seed へ自動付与しない。
 func TestDemoSeedGroupRules_Parity(t *testing.T) {
 	require.Len(t, model.AllResources, 37)
-	require.Len(t, demoPermissionSeedGroupProfiles, 9, "demo seed は 9 権限グループを持つ契約")
+	require.Len(t, demoPermissionSeedGroupProfiles, 5, "002_master は 5 権限グループを持つ契約")
 	seedResources := make([]model.Resource, 0, len(model.AllResources)-1)
 	for _, resource := range model.AllResources {
 		if resource != model.ResourceExaminationUnconfirm {
@@ -576,7 +566,7 @@ func TestDemoSeedGroupRules_Parity(t *testing.T) {
 		}
 	}
 
-	rulesPath := filepath.Join("..", "..", "migrations", "seeds", "003_demo", "permission_group_rules.csv")
+	rulesPath := filepath.Join("..", "..", "migrations", "seeds", "002_master", "permission_group_rules.csv")
 	f, err := os.Open(rulesPath) //nolint:gosec // fixed seed path relative to backend module root
 	require.NoError(t, err, "seed CSV を読めること (cwd は backend/ 想定)")
 	defer f.Close() //nolint:errcheck // test cleanup
@@ -637,7 +627,7 @@ func TestDemoSeedGroupRules_Parity(t *testing.T) {
 		}
 	}
 
-	require.Len(t, byGroup, 9, "permission_group_rules は 9 グループすべてをカバーすること")
+	require.Len(t, byGroup, 5, "permission_group_rules は 5 グループすべてをカバーすること")
 
 	execExpected := buildDefaultPermissionGroupRules(true)
 	genExpected := buildDefaultPermissionGroupRules(false)

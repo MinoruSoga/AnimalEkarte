@@ -77,8 +77,8 @@ docker compose up -d   # if not already running
 | `accounting-smoke.spec.ts` | owner 1 (林 文明, はやし ふみあき) with completed billing for pet 1 (`Iris(イリス)`, name_kana=`いりす`) | `003_seed_demo.sql` |
 | `accounting-flow.spec.ts` | same as `accounting-smoke.spec.ts` | `003_seed_demo.sql` |
 | `reservations-smoke.spec.ts` | admin user at clinic 1 with reservations permission | `003_seed_demo.sql` |
-| `reservation-patient-search.spec.ts` | clinic 1 の pet id=1003298 `SPANKY` が `/v1/pets?page=1&limit=20` の外に存在し、`search=SPANKY` で返る | `003_demo/pets.csv` |
-| `medical-records-patient-search.spec.ts` | 同じ pet id=1003298 `SPANKY`; 初期一覧と検索の双方が `include_deceased=true` | `003_demo/pets.csv` |
+| `reservation-patient-search.spec.ts` | ローカル handoff 実データ上の検索。003_demo 退役後は固定 pet id を前提にしない |
+| `medical-records-patient-search.spec.ts` | 同上 |
 | `master-crud.spec.ts` | treatment procedure items incl. `注射` (root with children) | `003_seed_demo.sql` |
 | `hospitalization-flow.spec.ts` | 1+ active hospitalization records at clinic 1 | `003_seed_demo.sql` |
 | `vaccinations-flow.spec.ts` | 1+ vaccination records; owner `林 文明` with pet `林 文明` | `003_seed_demo.sql` |

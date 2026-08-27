@@ -1,0 +1,3 @@
+id,clinic_id,name,is_active,description,color,sort_order,group_id,reservation_display_name,duration_minutes,short_name,show_short_name,reservation_visible,reservation_comment,reservation_image_url,parent_id,max_concurrent,reservation_day_option,is_internal,category,created_at,updated_at,deleted_at
+1,1,トリミング,t,local master trimming type,#F59E0B,9,,,15,トリミング,f,t,,,,,none,f,trimming,2026-07-06 14:59:40.511971+09,2026-07-06 14:59:40.511971+09,
+2,2,トリミング,t,local master trimming type,#F59E0B,9,,,15,トリミング,f,t,,,,,none,f,trimming,2026-07-06 14:59:40.511971+09,2026-07-06 14:59:40.511971+09,

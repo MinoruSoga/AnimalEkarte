@@ -30,7 +30,7 @@ make reset
 | 1. 環境照合 | 固定 project 名 `animalekarte` と固定 volume 名を compose 実測と照合。`APP_ENV` が production/staging 系なら拒否。 |
 | 2. 回復 snapshot | `umask 077` で追跡外 `.local-db-backups/<UTC>/` に owner-only の gzip 済み `pg_dumpall`、SHA-256、対象 volume + DDL/seed key manifest を作成。空 dump / 空 digest / 書き込み失敗なら **ここで停止**（volume は消さない）。 |
 | 3. 削除 | サービス停止（named volume は保持）。**`ekarte-postgres-data` だけ**を `docker volume rm`。cache 3 件（`ekarte-frontend-node-modules` / `ekarte-go-mod-cache` / `ekarte-go-build-cache`）は保持。 |
-| 4. 再起動 + postflight | `db backend frontend` を `--wait` で起動。migration key coverage `missing=0`、直下 DDL 全件、seed `002_master` / `003_demo` / `004_staging`、`schema_migrations` 契約、backend healthy、`/health` HTTP 200 を確認。不足があれば非 0。 |
+| 4. 再起動 + postflight | `db backend frontend` を `--wait` で起動。migration key coverage `missing=0`、直下 DDL 全件、seed `002_master`、`schema_migrations` 契約、backend healthy、`/health` HTTP 200 を確認。不足があれば非 0。 |
 
 ### 2.1 失われるもの / 保持されるもの
 
@@ -64,8 +64,7 @@ Migration completed file=<各トップレベル *.sql のファイル名>
 …（`ls backend/migrations/*.sql` の件数ぶん並ぶ）
 Migration summary applied=N skipped=0 total=N
 Seed bundle loaded bundle=002_master
-Seed bundle loaded bundle=003_demo
-Seed bundle loaded bundle=004_staging
+
 Seed bundle summary applied=3 skipped=0 total=3
 Migration key coverage missing=0 extra=X expected=E recorded=R
 ```
@@ -74,7 +73,7 @@ Migration key coverage missing=0 extra=X expected=E recorded=R
 
 **成否の一次判定は `Migration key coverage` の 1 行**とする。`missing=0` なら、ディスク上の直下 DDL と seed バンドルの期待キーがすべて `schema_migrations` に記録されている。`extra` は統合・削除でディスクから消えた履歴キーの件数であり、0 でなくても失敗ではない。固定の行数期待で照合しない。
 
-`schema_migrations` の行数も固定値ではない。**行数 = 直下 `*.sql` の本数 + seed 3**（キーは各 DDL ファイル名と `seeds/002_master` / `seeds/003_demo` / `seeds/004_staging`）。検算は上記 `ls` の件数に 3 を足したものと、DB の `SELECT COUNT(*) FROM schema_migrations` を照合する（余剰履歴がある環境では `recorded` がこの導出より大きくなり得る）。
+`schema_migrations` の行数も固定値ではない。**行数 = 直下 `*.sql` の本数 + seed 1**（キーは各 DDL ファイル名と `seeds/002_master`）。検算は上記 `ls` の件数に 1 を足したものと、DB の `SELECT COUNT(*) FROM schema_migrations` を照合する（余剰履歴がある環境では `recorded` がこの導出より大きくなり得る）。
 
 `/health` エンドポイントが HTTP 200 を返せば、臨床データの入力準備が整いました。`make reset` の postflight が同じ条件を機械判定します。
 
@@ -107,7 +106,7 @@ docker volume rm ekarte-postgres-data
 make up
 ```
 
-起動時に `backend/migrations/` 直下の `*.sql` がファイル名昇順で適用された後、`002_master` → `003_demo` → `004_staging` の CSV シードバンドルが順次ロードされます（seed 002-004 は stub SQL ではなく CSV バンドルのみ）。直下 DDL の本数は固定ではない。
+起動時に `backend/migrations/` 直下の `*.sql` がファイル名昇順で適用された後、`002_master` の CSV シードバンドルがロードされます。直下 DDL の本数は固定ではない。臨床行がある場合は postflight 後の `_old_db_handoff` import。
 
 2026-07-27 統合前の 001 が適用済みの DB は checksum mismatch になるため、この再構築が必須です。
 

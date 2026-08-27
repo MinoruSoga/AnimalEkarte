@@ -27,7 +27,7 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 SEEDS_ROOT = ROOT / "backend/migrations/seeds"
-BUNDLE_DIRS = ("002_master", "003_demo", "004_staging")
+BUNDLE_DIRS = ("002_master",)
 
 # Remarks that denote a combination vaccine ("N種混合" / "混合ワクチン").
 COMBO_VACCINE_REMARK_RE = re.compile(r"\d+種混合|混合ワクチン")
@@ -149,7 +149,7 @@ def to_bool(value: str) -> bool | None:
 def read_rows(table_index: dict[str, Path], table: str) -> list[dict[str, str]]:
     path = table_index.get(table)
     if path is None:
-        raise SystemExit(f"table {table!r} not found in any bundle manifest — was it renamed or removed?")
+        return []
     with path.open(encoding="utf-8", newline="") as f:
         return list(csv.DictReader(f))
 
@@ -167,6 +167,9 @@ class SeedState:
         self.tables: dict[str, dict[int, dict[str, object]]] = {}
 
     def load(self, table: str, int_columns: tuple[str, ...], bool_columns: tuple[str, ...] = ()) -> None:
+        if table not in self.table_index:
+            self.tables[table] = {}
+            return
         rows: dict[int, dict[str, object]] = {}
         for raw in read_rows(self.table_index, table):
             row: dict[str, object] = dict(raw)
@@ -453,7 +456,7 @@ def check_cross_tenant(state: SeedState, errors: list[str]) -> None:
     )
     for table, column in self_ref_rules:
         mismatches: list[tuple[int, object, object]] = []
-        for row_id, row in sorted(state.tables[table].items()):
+        for row_id, row in sorted(state.tables.get(table, {}).items()):
             ref_id = row.get(column)
             if ref_id is None:
                 continue
@@ -465,7 +468,7 @@ def check_cross_tenant(state: SeedState, errors: list[str]) -> None:
         add_result(errors, not mismatches, f"{table}.{column}: cross-tenant references {mismatches}")
 
     medicine_inventory_mismatches: list[tuple[int, object, object]] = []
-    for row_id, row in sorted(state.tables["medicines"].items()):
+    for row_id, row in sorted(state.tables.get("medicines", {}).items()):
         ref_id = row.get("inventory_id")
         if ref_id is None:
             continue
@@ -488,7 +491,7 @@ def check_cross_tenant(state: SeedState, errors: list[str]) -> None:
     )
     for column, ref_table in treatment_rules:
         mismatches = []
-        for row_id, row in sorted(state.tables["treatments"].items()):
+        for row_id, row in sorted(state.tables.get("treatments", {}).items()):
             ref_id = row.get(column)
             if ref_id is None:
                 continue

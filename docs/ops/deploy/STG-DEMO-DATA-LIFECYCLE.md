@@ -70,8 +70,8 @@ STG データは以下の 4 つの方法で作成されます。それぞれの�
 ### 3.1 Migration（自動）
 - **対象**: seed data のみ（環境ゲート付き）
 - **ファイル**: `backend/migrations/` の DDL SQL と `backend/migrations/seeds/` の CSV バンドル
-- **STG 計画**（`APP_ENV=staging`）: `002_master` のみ。`003_demo` / `004_staging` はロードしない（`seedbundle.BundleOrderForEnv`）
-- **ローカル計画**（`development` / `local` / `dev` / `test`）: `002_master` → `003_demo` → `004_staging`
+- **全環境**（`APP_ENV` 問わず）: `002_master` のみ（医院骨格 + 参照マスタ。accounts / 臨床デモは載せない）
+- **臨床データ**: ローカル `make reset` が `_old_db_handoff` を import。STG は F6 STG-UAT 経路
 - **削除方法**: 不可。migration は immutable。削除は新規 migration で実装
 - **例**: STG の最初期 seed は `001_init.sql` DDL + `002_master` の reference masters。特権デモアカウント CSV は STG 自動経路に乗らない
 
