@@ -203,6 +203,16 @@ import type { Owner } from "@/types/owner";
 
 ---
 
+## ローカル DEV デモアカウント
+
+ログイン画面のデモアカウント（`import.meta.env.DEV` のみ）は staff-attach 後の
+`stg-staff-{id}@example.test` を一覧する。ワンクリック入力のパスワードは
+`VITE_DEMO_LOGIN_PASSWORD`（`frontend/.env.local`、gitignored）から読む。
+
+- staff-attach 共有 secret と同一値にする（リテラル `password` は不可）
+- 値をコミットしない。同期: `python3 scripts/sync-vite-demo-login-password.py`
+- Vite は起動時に env を読むため、変更後は frontend コンテナの再起動が必要
+
 ## トラブルシューティング
 
 ### パスエイリアスエラー

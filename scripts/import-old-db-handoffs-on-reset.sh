@@ -255,9 +255,29 @@ attach_staff_if_roster_present() {
     make -C "$ROOT" stg-uat-staff-attach
 }
 
+# LoginForm DEV demo list (staff-attach emails). Roster keeps set_active=false for
+# bulk UAT; activate only this curated local-login set after attach so one-click
+# login works without reactivating all imported staffs.
+# Keep in sync with frontend/src/features/auth/components/LoginForm.tsx DEMO_ACCOUNTS.
+CURATED_DEMO_STAFF_IDS="11000021,11000003,11000007,11000008,11000025,11000031,11000034,11000005,11000006,11000009"
+
+activate_curated_demo_staff_for_local_login() {
+  local n
+  n="$(psql_scalar "WITH u AS (
+      UPDATE staffs
+         SET is_active = TRUE
+       WHERE id IN (${CURATED_DEMO_STAFF_IDS})
+         AND deleted_at IS NULL
+         AND is_active IS DISTINCT FROM TRUE
+       RETURNING id
+    ) SELECT COUNT(*)::text FROM u")"
+  echo "INFO  curated demo staff activated for local login count=${n:-0} ids=${CURATED_DEMO_STAFF_IDS}"
+}
+
 if [[ "$found" -eq 0 ]]; then
   echo "INFO  no staged old_db handoff bundles; skip import"
   exit 0
 fi
 
 attach_staff_if_roster_present
+activate_curated_demo_staff_for_local_login

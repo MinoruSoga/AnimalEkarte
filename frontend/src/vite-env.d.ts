@@ -3,6 +3,8 @@
 interface ImportMetaEnv {
   readonly VITE_API_URL: string;
   readonly VITE_SHOW_DEMO_ACCOUNTS?: string;
+  /** Local Vite DEV only: shared staff-attach password for demo one-click login. Never commit real value. */
+  readonly VITE_DEMO_LOGIN_PASSWORD?: string;
 }
 
 interface ImportMeta {

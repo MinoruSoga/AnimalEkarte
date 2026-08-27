@@ -1,11 +1,14 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, useLocation } from "react-router";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { C } from "@/lib/design-tokens";
 import { LoginForm } from "./LoginForm";
 
 const { loginMock } = vi.hoisted(() => ({ loginMock: vi.fn() }));
+
+/** Test-only fake — must never equal production staff-attach secrets. */
+const TEST_DEMO_LOGIN_PASSWORD = "test-demo-pass";
 
 vi.mock("../hooks/use-auth", () => ({
   useAuth: () => ({
@@ -22,6 +25,11 @@ function CurrentLocation() {
 describe("LoginForm touch targets", () => {
   beforeEach(() => {
     loginMock.mockReset().mockResolvedValue(undefined);
+    vi.stubEnv("VITE_DEMO_LOGIN_PASSWORD", TEST_DEMO_LOGIN_PASSWORD);
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
   });
 
   it("パスワード再設定リンクは44px以上の操作領域を持つ", () => {
@@ -79,6 +87,11 @@ describe("LoginForm touch targets", () => {
 describe("LoginForm demo accounts (staff-attach)", () => {
   beforeEach(() => {
     loginMock.mockReset().mockResolvedValue(undefined);
+    vi.stubEnv("VITE_DEMO_LOGIN_PASSWORD", TEST_DEMO_LOGIN_PASSWORD);
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
   });
 
   it("DEV ではデモアカウント欄に約10件の staff-attach アカウントを表示する", () => {
@@ -92,12 +105,16 @@ describe("LoginForm demo accounts (staff-attach)", () => {
     const demoEmails = screen.getAllByText(/stg-staff-\d+@example\.test/);
     expect(demoEmails.length).toBeGreaterThanOrEqual(9);
     expect(demoEmails.length).toBeLessThanOrEqual(12);
-    expect(screen.getByText(/パスワード:\s*password/i)).toBeInTheDocument();
+    expect(
+      screen.getByText("パスワードは自動入力されます（staff-attach と同一）"),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/パスワード:\s*password/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(TEST_DEMO_LOGIN_PASSWORD)).not.toBeInTheDocument();
     expect(screen.queryByText("hayashi@noah-vet.co.jp")).not.toBeInTheDocument();
     expect(screen.queryByText("admin@example.com")).not.toBeInTheDocument();
   });
 
-  it("デモアカウント行のクリックは email と password を両方注入する", async () => {
+  it("デモアカウント行のクリックは email と VITE_DEMO_LOGIN_PASSWORD を注入する", async () => {
     const user = userEvent.setup();
     render(
       <MemoryRouter>
@@ -113,7 +130,31 @@ describe("LoginForm demo accounts (staff-attach)", () => {
     await user.click(rowButton as HTMLButtonElement);
 
     expect(screen.getByLabelText("メールアドレス")).toHaveValue(emailText);
-    expect(screen.getByLabelText("パスワード")).toHaveValue("password");
+    expect(screen.getByLabelText("パスワード")).toHaveValue(TEST_DEMO_LOGIN_PASSWORD);
+    expect(screen.getByLabelText("パスワード")).not.toHaveValue("password");
+  });
+
+  it("VITE_DEMO_LOGIN_PASSWORD 未設定時は password を入れずヘルパーで案内する", async () => {
+    vi.stubEnv("VITE_DEMO_LOGIN_PASSWORD", "");
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter>
+        <LoginForm />
+      </MemoryRouter>,
+    );
+
+    expect(
+      screen.getByText(
+        "VITE_DEMO_LOGIN_PASSWORD 未設定 — .env.local を staff-attach secrets と揃えてください",
+      ),
+    ).toBeInTheDocument();
+
+    const firstDemoEmail = screen.getAllByText(/stg-staff-\d+@example\.test/)[0];
+    const rowButton = firstDemoEmail.closest("button");
+    expect(rowButton).not.toBeNull();
+    await user.click(rowButton as HTMLButtonElement);
+
+    expect(screen.getByLabelText("パスワード")).toHaveValue("");
   });
 
   it("デモアカウント一覧は縦スクロール可能な領域に収める", () => {

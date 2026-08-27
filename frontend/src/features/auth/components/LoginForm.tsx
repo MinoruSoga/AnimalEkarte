@@ -152,9 +152,14 @@ export const LoginForm = memo(function LoginForm() {
   }, []);
 
   const handleSelectDemo = useCallback((demoEmail: string) => {
-    // 共有デモパスワードは歴史的 UI と同じ固定文字列（ローカル DEV のみ表示）。
+    // 共有デモパスワードは VITE_DEMO_LOGIN_PASSWORD（staff-attach secrets と同一）から。
+    // リテラル "password" へフォールバックしない。未設定時は空のまま。
     setEmail(demoEmail);
-    setPassword("password");
+    const fromEnv =
+      typeof import.meta.env.VITE_DEMO_LOGIN_PASSWORD === "string"
+        ? import.meta.env.VITE_DEMO_LOGIN_PASSWORD.trim()
+        : "";
+    setPassword(fromEnv);
   }, []);
 
   // ログイン済みなら即リダイレクト（直接 /login にアクセスした場合）
@@ -257,7 +262,10 @@ export const LoginForm = memo(function LoginForm() {
             <div className={`h-px flex-1 ${C.bgLight}`} />
           </div>
           <p className={`text-sm text-center mb-2 ${C.text40}`}>
-            パスワード: password
+            {typeof import.meta.env.VITE_DEMO_LOGIN_PASSWORD === "string" &&
+            import.meta.env.VITE_DEMO_LOGIN_PASSWORD.trim() !== ""
+              ? "パスワードは自動入力されます（staff-attach と同一）"
+              : "VITE_DEMO_LOGIN_PASSWORD 未設定 — .env.local を staff-attach secrets と揃えてください"}
           </p>
           <div className="max-h-[min(40vh,320px)] overflow-y-auto space-y-px">
             {DEMO_ACCOUNTS.map((cred) => (
