@@ -1,14 +1,5 @@
 @import "tailwindcss";
-
-/* ノア動物病院ブランドテーマ */
-@theme {
-  --color-noah-teal: #008B94;
-  --color-noah-teal-dark: #007079;
-  --color-noah-teal-light: #EDF3F5;
-  --color-noah-accent: #FF8A43;
-  --color-noah-text: #212529;
-  --color-noah-text-sub: #333333;
-}
+@import "../../src/shared-liff/brand-tokens.css";
 
 * {
   box-sizing: border-box;

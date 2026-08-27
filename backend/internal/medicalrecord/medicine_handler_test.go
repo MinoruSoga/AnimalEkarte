@@ -291,6 +291,18 @@ func TestCreateMedicine(t *testing.T) {
 			},
 			wantStatus: http.StatusInternalServerError,
 		},
+		{
+			name:     "returns 409 structured name conflict with params.name (BUG-011)",
+			body:     map[string]any{"name": "V04薬剤", "is_active": true},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockMedicineService{
+				createFn: func(_ context.Context, _ uint64, _ *CreateMedicineInput) (*model.Medicine, error) {
+					return nil, apperrors.WrapNameConflict(apperrors.CodeMedicineNameConflict, "V04薬剤")
+				},
+			},
+			wantStatus: http.StatusConflict,
+			wantBody:   `"params":{"name":"V04薬剤"}`,
+		},
 	}
 
 	for _, tt := range tests {
@@ -311,6 +323,10 @@ func TestCreateMedicine(t *testing.T) {
 			assert.Equal(t, tt.wantStatus, w.Code)
 			if tt.wantBody != "" {
 				assert.Contains(t, w.Body.String(), tt.wantBody)
+			}
+			if tt.name == "returns 409 structured name conflict with params.name (BUG-011)" {
+				assert.Contains(t, w.Body.String(), `"code":"medicine_name_conflict"`)
+				assert.NotContains(t, w.Body.String(), "medicine '' already exists")
 			}
 		})
 	}
@@ -398,6 +414,19 @@ func TestUpdateMedicine(t *testing.T) {
 				},
 			},
 			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns 409 structured name conflict with params.name (BUG-011)",
+			paramID:  "1",
+			body:     map[string]any{"name": "V04薬剤"},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockMedicineService{
+				updateFn: func(_ context.Context, _, _ uint64, _ *UpdateMedicineInput) (*model.Medicine, error) {
+					return nil, apperrors.WrapNameConflict(apperrors.CodeMedicineNameConflict, "V04薬剤")
+				},
+			},
+			wantStatus: http.StatusConflict,
+			wantBody:   `"name":"V04薬剤"`,
 		},
 	}
 

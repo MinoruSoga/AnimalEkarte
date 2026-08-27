@@ -53,10 +53,6 @@ export function LstepTagManagementPage() {
     setDrawerState({ open: true, tagName, ownerCount });
   }, []);
 
-  const handleBulkRemove = useCallback((tagName: string, ownerCount: number) => {
-    setDrawerState({ open: true, tagName, ownerCount });
-  }, []);
-
   const handleDrawerOpenChange = useCallback((open: boolean) => {
     setDrawerState((prev) => ({ ...prev, open }));
   }, []);
@@ -102,8 +98,6 @@ export function LstepTagManagementPage() {
             tags={tags}
             isLoading={isLoading}
             onViewOwners={handleViewOwners}
-            onBulkRemove={handleBulkRemove}
-            canDelete={canDeleteOwnerTags}
           />
         )}
       </div>

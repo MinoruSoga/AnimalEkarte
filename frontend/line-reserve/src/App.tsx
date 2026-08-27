@@ -3,7 +3,7 @@ import type { PageType, LiffSettings, LiffProfile, CustomerInfo } from './types/
 import { liffApi } from './api/liff-api';
 import { useLiff } from '@/shared-liff/use-liff';
 import { Spinner } from '@/shared-liff/Spinner';
-import { ErrorPage, type ErrorPageTheme } from '@/shared-liff/ErrorPage';
+import { ErrorPage } from '@/shared-liff/ErrorPage';
 import { useReservationFlow } from './hooks/use-reservation-flow';
 import { getClinicId } from './lib/liff-config';
 
@@ -20,14 +20,6 @@ import { ConfirmPage } from './pages/ConfirmPage';
 import { CompletePage } from './pages/CompletePage';
 import { MyReservationsPage } from './pages/MyReservationsPage';
 import { MaintenancePage } from './pages/MaintenancePage';
-
-const ERROR_PAGE_THEME: ErrorPageTheme = {
-  bg: 'bg-noah-teal-light',
-  heading: 'text-noah-teal-dark',
-  body: 'text-noah-text-sub',
-  button: 'bg-noah-teal',
-  buttonHover: 'hover:bg-noah-teal-dark',
-};
 
 export function App() {
   const clinicId = getClinicId();
@@ -134,12 +126,15 @@ export function App() {
   }, [resetFlow, goTo]);
 
   // ページのレンダリング
+  // BUG-014/027: clinic_id 欠落は URL 設定ミス。reload しても解消しないためアクション無し。
   if (!clinicId) {
-    return <ErrorPage message='クリニックIDが見つかりません' theme={ERROR_PAGE_THEME} />;
+    return <ErrorPage message="クリニックIDが見つかりません" showAction={false} />;
   }
 
   if (initError) {
-    return <ErrorPage message='LINEアプリの初期化に失敗しました。LINEアプリから再度お試しください。' theme={ERROR_PAGE_THEME} />;
+    return (
+      <ErrorPage message="LINEアプリの初期化に失敗しました。LINEアプリから再度お試しください。" />
+    );
   }
 
   if (page === 'loading') {
@@ -154,7 +149,7 @@ export function App() {
   }
 
   if (page === 'error') {
-    return <ErrorPage message={errorMessage} theme={ERROR_PAGE_THEME} />;
+    return <ErrorPage message={errorMessage} />;
   }
 
   if (page === 'maintenance') {
@@ -162,7 +157,7 @@ export function App() {
   }
 
   if (!settings || !idToken) {
-    return <ErrorPage message="初期化に失敗しました" theme={ERROR_PAGE_THEME} />;
+    return <ErrorPage message="初期化に失敗しました" />;
   }
 
   let content: React.ReactElement;
@@ -320,7 +315,7 @@ export function App() {
       />
     );
   } else {
-    content = <ErrorPage theme={ERROR_PAGE_THEME} />;
+    content = <ErrorPage />;
   }
 
   return (

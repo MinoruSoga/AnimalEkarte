@@ -53,9 +53,12 @@ const (
 	// CodeVaccineNameConflict is returned when a clinic-scoped vaccine name
 	// collides (constraint idx_vaccines_clinic_name). BUG-017.
 	CodeVaccineNameConflict = "vaccine_name_conflict"
-	// CodeCheckupTypeNameConflict is returned when a clinic-scoped checkup type
-	// name collides (constraint idx_checkup_types_clinic_name). BUG-017.
+	// CodeCheckupTypeNameConflict is returned when a clinic-scoped checkup type name
+	// collides (constraint idx_checkup_types_clinic_name). BUG-017.
 	CodeCheckupTypeNameConflict = "checkup_type_name_conflict"
+	// CodeMedicineNameConflict is returned when a clinic-scoped medicine name
+	// collides (constraint idx_medicines_clinic_name). BUG-011.
+	CodeMedicineNameConflict = "medicine_name_conflict"
 )
 
 // Measured PostgreSQL unique constraint names used for fail-closed mapping.
@@ -85,6 +88,8 @@ const (
 	ConstraintVaccineName = "idx_vaccines_clinic_name"
 	// ConstraintCheckupTypeName is UNIQUE (clinic_id, name) WHERE deleted_at IS NULL.
 	ConstraintCheckupTypeName = "idx_checkup_types_clinic_name"
+	// ConstraintMedicineName is UNIQUE (clinic_id, name) WHERE deleted_at IS NULL.
+	ConstraintMedicineName = "idx_medicines_clinic_name"
 )
 
 // AppError はアプリケーション固有のエラー
@@ -255,7 +260,8 @@ func RespondWithConflictCode(err error) bool {
 		CodeExamTypeNameConflict,
 		CodeProcedureNameConflict,
 		CodeVaccineNameConflict,
-		CodeCheckupTypeNameConflict:
+		CodeCheckupTypeNameConflict,
+		CodeMedicineNameConflict:
 		return true
 	default:
 		return len(appErr.Params) > 0

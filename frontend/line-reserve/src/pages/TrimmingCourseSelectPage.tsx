@@ -3,6 +3,7 @@ import { liffApi } from '../api/liff-api';
 import { ProgressDots } from '../components/ProgressDots';
 import { ListItem } from '../components/ListItem';
 import { BackButton } from '../components/BackButton';
+import { AutoAdvanceHint } from '../components/AutoAdvanceHint';
 import { useFetchState } from '@/shared-liff/use-fetch-state';
 import { formatCurrency } from '@/lib/format/number';
 import { getStepProgress } from '../lib/step-progress';
@@ -33,7 +34,8 @@ export function TrimmingCourseSelectPage({ clinicId, idToken, onSelect, onBack }
 
         <div className="px-4">
           <BackButton onClick={onBack} />
-          <h2 className="text-lg font-bold text-noah-teal-dark mb-4">トリミングコースを選択</h2>
+          <h2 className="text-lg font-bold text-noah-teal-dark mb-2">トリミングコースを選択</h2>
+          <AutoAdvanceHint step="trimmingCourseSelect" />
         </div>
 
         <div className="flex-1">

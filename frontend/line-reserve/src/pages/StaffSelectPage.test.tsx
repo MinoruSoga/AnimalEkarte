@@ -6,6 +6,7 @@ import { server } from '@/testing/mocks/node';
 
 import { StaffSelectPage } from './StaffSelectPage';
 import type { Staff } from '../types/models';
+import { AUTO_ADVANCE_HELPER_TEXT } from '../lib/advance-policy';
 
 const BASE_PROPS = {
   clinicId: '1',
@@ -67,5 +68,19 @@ describe('StaffSelectPage（R-F22/R-F23: 共通フェッチ状態管理・ステ
 
     expect(await screen.findByText('山田先生')).toBeInTheDocument();
     expect(callCount).toBe(2);
+  });
+
+  it('BUG-030: auto-on-select のヘルパー文言を表示し、一覧タップで onSelect する', async () => {
+    const user = userEvent.setup();
+    const onSelect = vi.fn();
+    server.use(http.get('/api/liff/:clinicId/staffs', () => HttpResponse.json([staff])));
+
+    render(<StaffSelectPage {...BASE_PROPS} onSelect={onSelect} onBack={vi.fn()} />);
+
+    expect(await screen.findByTestId('auto-advance-hint')).toHaveTextContent(AUTO_ADVANCE_HELPER_TEXT);
+    expect(screen.queryByRole('button', { name: '次へ' })).not.toBeInTheDocument();
+
+    await user.click(await screen.findByText('山田先生'));
+    expect(onSelect).toHaveBeenCalledWith(1, '山田先生');
   });
 });

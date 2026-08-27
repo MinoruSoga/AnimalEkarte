@@ -76,7 +76,7 @@ func (h *MedicineHandler) CreateMedicine(c *gin.Context) {
 	createInput.ActorID = httpapi.OptionalStaffID(c) // #201 B-2: per_weight 有効化 audit の実施者
 	medicine, err := h.service.Create(c.Request.Context(), clinicID, createInput)
 	if err != nil {
-		httpapi.RespondError(c, err)
+		httpapi.RespondErrorPreferringConflictCode(c, err)
 		return
 	}
 	c.Header("Location", fmt.Sprintf("/v1/masters/medicines/%d", medicine.ID))
@@ -104,7 +104,7 @@ func (h *MedicineHandler) UpdateMedicine(c *gin.Context) {
 	updateInput.ActorID = httpapi.OptionalStaffID(c) // #201 B-2: per_weight 有効化 audit の実施者
 	medicine, err := h.service.Update(c.Request.Context(), clinicID, id, updateInput)
 	if err != nil {
-		httpapi.RespondError(c, err)
+		httpapi.RespondErrorPreferringConflictCode(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, toMedicineResponse(medicine))

@@ -1,0 +1,15 @@
+/* Shared customer-facing brand theme (LINE reservation + LIFF). Teal/blue-gray — not mint green. */
+@theme {
+  --color-noah-teal: #008B94;
+  --color-noah-teal-dark: #007079;
+  --color-noah-teal-light: #EDF3F5;
+  --color-noah-accent: #FF8A43;
+  --color-noah-text: #212529;
+  --color-noah-text-sub: #333333;
+
+  /* LIFF alias tokens: same palette so existing bg-liff-brand* classes match line-reserve chrome */
+  --color-liff-brand: #008B94;
+  --color-liff-brand-dark: #007079;
+  --color-liff-brand-bg: #EDF3F5;
+  --color-liff-brand-subtle: #D6EEF0;
+}

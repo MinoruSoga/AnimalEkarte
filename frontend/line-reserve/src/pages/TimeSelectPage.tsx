@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import { liffApi } from '../api/liff-api';
 import { ProgressDots } from '../components/ProgressDots';
 import { BackButton } from '../components/BackButton';
+import { AutoAdvanceHint } from '../components/AutoAdvanceHint';
 import { formatTimeHHMM } from '@/shared-liff/jst-date';
 import { useFetchState } from '@/shared-liff/use-fetch-state';
 import { getStepProgress } from '../lib/step-progress';
@@ -43,7 +44,8 @@ export function TimeSelectPage({
 
         <div className="px-4">
           <BackButton onClick={onBack} />
-          <h2 className="text-lg font-bold text-noah-teal-dark mb-4">時間を選択</h2>
+          <h2 className="text-lg font-bold text-noah-teal-dark mb-2">時間を選択</h2>
+          <AutoAdvanceHint step="timeSelect" />
         </div>
 
         <div className="flex-1">

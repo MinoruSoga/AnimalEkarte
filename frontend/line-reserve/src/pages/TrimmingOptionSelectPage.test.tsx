@@ -30,6 +30,29 @@ describe('TrimmingOptionSelectPage（R-F22/R-F23: 共通フェッチ状態管理
     expect(await screen.findByText('爪切り')).toBeInTheDocument();
   });
 
+  it('主CTAラベルは「次へ」であり「次へ進む」ではない', async () => {
+    server.use(http.get('/api/liff/:clinicId/trimming-options', () => HttpResponse.json([option])));
+
+    render(<TrimmingOptionSelectPage {...BASE_PROPS} onNext={vi.fn()} onBack={vi.fn()} />);
+
+    expect(await screen.findByRole('button', { name: '次へ' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '次へ進む' })).not.toBeInTheDocument();
+  });
+
+  it('主CTA「次へ」クリックで選択中の optionIds を onNext に渡す', async () => {
+    const user = userEvent.setup();
+    const onNext = vi.fn();
+    server.use(http.get('/api/liff/:clinicId/trimming-options', () => HttpResponse.json([option])));
+
+    render(<TrimmingOptionSelectPage {...BASE_PROPS} onNext={onNext} onBack={vi.fn()} />);
+
+    await user.click(await screen.findByText('爪切り'));
+    await user.click(screen.getByRole('button', { name: '次へ' }));
+
+    expect(onNext).toHaveBeenCalledTimes(1);
+    expect(onNext).toHaveBeenCalledWith([1]);
+  });
+
   it('API失敗(5xx)時はサーバーエラーメッセージと再試行ボタンを表示する', async () => {
     server.use(http.get('/api/liff/:clinicId/trimming-options', () => HttpResponse.json(null, { status: 500 })));
 

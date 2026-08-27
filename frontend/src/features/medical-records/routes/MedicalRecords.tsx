@@ -26,6 +26,7 @@ import { TableCell } from "@/components/ui/table";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { PropertyFilter } from "@/components/shared/PropertyFilter/PropertyFilter";
 import { DataTable } from "@/components/shared/DataTable/DataTable";
+import { LIST_TABLE_COL } from "@/components/shared/DataTable/list-table-col";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { DataTableRowLink } from "@/components/shared/DataTable/DataTableRowLink";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
@@ -335,7 +336,7 @@ export function MedicalRecords() {
                     ) : null}
                   </div>
                 </TableCell>
-                <TableCell>
+                <TableCell className={LIST_TABLE_COL.status}>
                   <StatusBadge colorClass={getMedicalRecordStatusColor(r.status)}>
                     {r.status}
                   </StatusBadge>

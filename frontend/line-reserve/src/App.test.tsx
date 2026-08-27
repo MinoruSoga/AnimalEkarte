@@ -131,9 +131,12 @@ describe('App（FE5-20: ナビゲーション特性テスト）', () => {
     vi.mocked(getClinicId).mockReturnValue('');
     mockUseLiff();
 
-    render(<App />);
+    const { container } = render(<App />);
 
     expect(await screen.findByText('クリニックIDが見つかりません')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('エラーが発生しました');
+    expect(container.firstElementChild?.className).toContain('bg-noah-teal-light');
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
   });
 
   it('App: 設定取得失敗時にエラーページを表示する', async () => {
@@ -141,9 +144,23 @@ describe('App（FE5-20: ナビゲーション特性テスト）', () => {
     vi.mocked(liffApi.getSettings).mockRejectedValue(new Error('network error'));
     mockUseLiff();
 
+    const { container } = render(<App />);
+
+    expect(await screen.findByText('設定の取得に失敗しました')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('エラーが発生しました');
+    expect(container.firstElementChild?.className).toContain('bg-noah-teal-light');
+    expect(screen.getByRole('button', { name: '再読み込み' })).toBeInTheDocument();
+  });
+
+  it('App: 無効 clinic（設定失敗）でも成功シェルへフォールバックしない（BUG-027 fail-closed）', async () => {
+    vi.mocked(getClinicId).mockReturnValue('999');
+    vi.mocked(liffApi.getSettings).mockRejectedValue(new Error('not found'));
+    mockUseLiff();
+
     render(<App />);
 
     expect(await screen.findByText('設定の取得に失敗しました')).toBeInTheDocument();
+    expect(screen.queryByText('新規予約')).not.toBeInTheDocument();
   });
 
   it('App: メンテナンスフラグが立っていればメンテナンスページを表示する', async () => {

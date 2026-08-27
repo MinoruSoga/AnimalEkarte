@@ -93,7 +93,7 @@ export const MedicalRecordImage = memo(function MedicalRecordImage({
 
       {/* Results Title */}
       <div>
-        <h2 className={`text-sm font-bold ${C.text} pl-1`}>検査結果</h2>
+        <h2 className={`text-sm font-bold ${C.text} pl-1`}>画像</h2>
       </div>
 
       {/* Image Groups */}

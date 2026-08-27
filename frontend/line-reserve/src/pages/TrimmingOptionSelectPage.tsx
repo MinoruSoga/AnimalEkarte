@@ -5,6 +5,7 @@ import { BackButton } from '../components/BackButton';
 import { useFetchState } from '@/shared-liff/use-fetch-state';
 import { formatCurrency } from '@/lib/format/number';
 import { getStepProgress } from '../lib/step-progress';
+import { EXPLICIT_PRIMARY_CTA_LABEL } from '../lib/advance-policy';
 
 interface TrimmingOptionSelectPageProps {
   clinicId: string;
@@ -120,7 +121,7 @@ export function TrimmingOptionSelectPage({
             className="w-full py-3 bg-noah-teal text-white rounded-lg font-medium text-sm active:opacity-80"
             onClick={() => onNext(Array.from(selected))}
           >
-            次へ進む
+            {EXPLICIT_PRIMARY_CTA_LABEL}
           </button>
         </div>
       </div>

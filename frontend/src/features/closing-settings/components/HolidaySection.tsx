@@ -56,7 +56,7 @@ export const HolidaySection = memo(function HolidaySection({ holidays }: Holiday
           className={`flex min-h-11 min-w-11 items-center gap-1.5 text-base ${C.textBrand} ${C.hoverBgBrand} hover:text-white rounded-xs px-3 transition-colors`}
         >
           <Plus className="size-4" />
-          追加
+          新規登録
         </button>
       </div>
 

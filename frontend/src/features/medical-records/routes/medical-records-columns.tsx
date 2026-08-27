@@ -3,6 +3,7 @@ import { type ReactNode, useCallback, useMemo } from "react";
 
 // Internal
 import { SortableHeader } from "@/components/shared/SortableHeader/SortableHeader";
+import { LIST_TABLE_COL } from "@/components/shared/DataTable/list-table-col";
 
 // Types
 import type { MedicalRecordSortKey } from "../api/get-medical-records";
@@ -52,7 +53,7 @@ export function useMedicalRecordsColumns({
     { header: "主訴", className: "hidden md:table-cell" },
     { header: "関連", className: "w-[100px] hidden lg:table-cell" },
     { header: "担当医", className: "w-[100px] hidden md:table-cell" },
-    { header: sortableHeader("status"), className: "w-[100px]" },
+    { header: sortableHeader("status"), className: LIST_TABLE_COL.status },
     ...(showClinicColumn ? [{ header: "医院", className: "w-[120px] hidden lg:table-cell" }] : []),
     { header: "操作", className: "w-[100px]", align: "right" as const },
   ], [showClinicColumn, sortableHeader]);

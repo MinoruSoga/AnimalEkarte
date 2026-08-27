@@ -5,6 +5,7 @@ import { http, HttpResponse } from 'msw';
 import { server } from '@/testing/mocks/node';
 
 import { DateSelectPage } from './DateSelectPage';
+import { EXPLICIT_PRIMARY_CTA_LABEL } from '../lib/advance-policy';
 
 const BASE_PROPS = {
   clinicId: '1',
@@ -51,5 +52,26 @@ describe('DateSelectPage（R-F22/R-F23: 共通フェッチ状態管理・ステ�
     await user.click(await screen.findByRole('button', { name: '再試行' }));
 
     expect(callCount).toBe(2);
+  });
+
+  it('BUG-030: explicit-cta のため主CTA「次へ」を表示し、auto-advance ヒントは出さない', async () => {
+    server.use(
+      http.get('/api/liff/:clinicId/available-dates', () =>
+        HttpResponse.json({ dates: [{ date: '2026-08-01', available: true }], window: null }),
+      ),
+    );
+
+    render(
+      <DateSelectPage
+        {...BASE_PROPS}
+        selectedDate="2026-08-01"
+        onSelect={vi.fn()}
+        onNext={vi.fn()}
+        onBack={vi.fn()}
+      />,
+    );
+
+    expect(await screen.findByRole('button', { name: EXPLICIT_PRIMARY_CTA_LABEL })).toBeInTheDocument();
+    expect(screen.queryByTestId('auto-advance-hint')).not.toBeInTheDocument();
   });
 });

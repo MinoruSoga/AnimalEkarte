@@ -3,6 +3,7 @@ import { liffApi } from '../api/liff-api';
 import { ProgressDots } from '../components/ProgressDots';
 import { ListItem } from '../components/ListItem';
 import { BackButton } from '../components/BackButton';
+import { AutoAdvanceHint } from '../components/AutoAdvanceHint';
 import { useFetchState } from '@/shared-liff/use-fetch-state';
 
 interface CourseSelectPageProps {
@@ -32,7 +33,8 @@ export function CourseSelectPage({ clinicId, idToken, onSelect, onBack }: Course
 
         <div className="px-4">
           <BackButton onClick={onBack} />
-          <h2 className="text-lg font-bold text-noah-teal-dark mb-4">コースを選択</h2>
+          <h2 className="text-lg font-bold text-noah-teal-dark mb-2">コースを選択</h2>
+          <AutoAdvanceHint step="courseSelect" />
         </div>
 
         <div className="flex-1">

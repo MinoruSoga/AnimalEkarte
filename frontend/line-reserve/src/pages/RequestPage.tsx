@@ -3,6 +3,7 @@ import { ProgressDots } from '../components/ProgressDots';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { BackButton } from '../components/BackButton';
 import { getStepProgress } from '../lib/step-progress';
+import { EXPLICIT_PRIMARY_CTA_LABEL } from '../lib/advance-policy';
 
 interface RequestPageProps {
   requestExample: string;
@@ -57,7 +58,7 @@ export function RequestPage({
         </div>
 
         <div className="px-4 py-6">
-          <PrimaryButton onClick={handleNext}>次へ</PrimaryButton>
+          <PrimaryButton onClick={handleNext}>{EXPLICIT_PRIMARY_CTA_LABEL}</PrimaryButton>
         </div>
       </div>
     </div>

@@ -10,6 +10,7 @@ import { PrimaryButton } from '../components/PrimaryButton';
 import { BackButton } from '../components/BackButton';
 import { formatJapaneseDate, formatTimeHHMM } from '@/shared-liff/jst-date';
 import { getStepProgress } from '../lib/step-progress';
+import { FINAL_CONFIRM_CTA_LABEL } from '../lib/advance-policy';
 
 const slotTakenResponseSchema = z.object({
   error: z.string().optional(),
@@ -212,7 +213,7 @@ export function ConfirmPage({
             <p className="text-xs text-center text-gray-500 whitespace-pre-wrap">{privacyPolicy}</p>
           ) : null}
           <PrimaryButton type="submit" disabled={isPending}>
-            {isPending ? '送信中...' : '予約を確定する'}
+            {isPending ? '送信中...' : FINAL_CONFIRM_CTA_LABEL}
           </PrimaryButton>
         </form>
       </div>

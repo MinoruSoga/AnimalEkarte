@@ -30,6 +30,13 @@ const healthCardResponseSchema = z.object({
 
 export type HealthCardResponse = z.infer<typeof healthCardResponseSchema>;
 
+/** Brand-only slice of public LIFF settings (auth not required). */
+const brandSettingsSchema = z.object({
+  header_text: z.string().optional(),
+});
+
+export type BrandSettings = z.infer<typeof brandSettingsSchema>;
+
 export async function linkLineAccount(
   clinicId: string,
   linkToken: string,
@@ -67,6 +74,29 @@ export async function fetchHealthCard(idToken: string, clinicId: string): Promis
   if (!parsed.success) {
     console.error('[fetchHealthCard] invalid response shape:', parsed.error);
     throw new Error('HealthCard response validation failed');
+  }
+
+  return parsed.data;
+}
+
+/**
+ * Public clinic brand settings for header chrome (BUG-026).
+ * Fail closed: non-OK or invalid shape throws; callers leave header text empty.
+ */
+export async function fetchBrandSettings(clinicId: string): Promise<BrandSettings> {
+  const res = await fetch(`${API_BASE_URL}/api/liff/${encodeURIComponent(clinicId)}/settings`, {
+    method: 'GET',
+  });
+
+  if (!res.ok) {
+    throw new LiffApiError(res.status, `Brand settings fetch failed: ${res.status}`);
+  }
+
+  const json: unknown = await res.json();
+  const parsed = brandSettingsSchema.safeParse(json);
+  if (!parsed.success) {
+    console.error('[fetchBrandSettings] invalid response shape:', parsed.error);
+    throw new Error('Brand settings response validation failed');
   }
 
   return parsed.data;

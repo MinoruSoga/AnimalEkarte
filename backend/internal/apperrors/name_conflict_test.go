@@ -124,6 +124,7 @@ func TestAsNameUniqueConflict_TreatmentItemNames(t *testing.T) {
 		{ConstraintProcedureName, CodeProcedureNameConflict, "procedure", "V04処置"},
 		{ConstraintVaccineName, CodeVaccineNameConflict, "vaccine", "V04予防接種"},
 		{ConstraintCheckupTypeName, CodeCheckupTypeNameConflict, "checkup_type", "V04定期健診"},
+		{ConstraintMedicineName, CodeMedicineNameConflict, "medicine", "V04薬剤"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.code, func(t *testing.T) {

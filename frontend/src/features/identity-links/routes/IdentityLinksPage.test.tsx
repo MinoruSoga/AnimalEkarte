@@ -179,13 +179,13 @@ describe("IdentityLinksPage BUG-013 unlink for existing groups", () => {
       expect(searchOwnersForLink).toHaveBeenCalledWith("佐藤");
     });
 
-    await user.click(await screen.findByRole("button", { name: /\[clinic 1\] 佐藤太郎/ }));
+    await user.click(await screen.findByRole("button", { name: /\[医院 1\] 佐藤太郎/ }));
 
     await waitFor(() => {
       expect(findOwnerIdentityGroupByMember).toHaveBeenCalledWith(1, 10);
     });
 
-    const unlinkBtn = await screen.findByRole("button", { name: "unlink 1/10" });
+    const unlinkBtn = await screen.findByRole("button", { name: "連携解除 1/10" });
     await waitFor(() => {
       expect(unlinkBtn).toBeEnabled();
     });
@@ -216,13 +216,13 @@ describe("IdentityLinksPage BUG-013 unlink for existing groups", () => {
       expect(searchOwnersForLink).toHaveBeenCalledWith("佐藤");
     });
 
-    await user.click(await screen.findByRole("button", { name: /\[clinic 1\] 佐藤太郎/ }));
+    await user.click(await screen.findByRole("button", { name: /\[医院 1\] 佐藤太郎/ }));
 
     await waitFor(() => {
       expect(findOwnerIdentityGroupByMember).toHaveBeenCalledWith(1, 10);
     });
 
-    const unlinkBtn = await screen.findByRole("button", { name: "unlink 1/10" });
+    const unlinkBtn = await screen.findByRole("button", { name: "連携解除 1/10" });
     expect(unlinkBtn).toBeDisabled();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
@@ -246,26 +246,26 @@ describe("IdentityLinksPage BUG-013 unlink for existing groups", () => {
       expect(searchOwnersForLink).toHaveBeenCalledWith("佐藤");
     });
 
-    await user.click(await screen.findByRole("button", { name: /\[clinic 1\] 佐藤太郎/ }));
+    await user.click(await screen.findByRole("button", { name: /\[医院 1\] 佐藤太郎/ }));
     await waitFor(() => {
       expect(findOwnerIdentityGroupByMember).toHaveBeenCalledWith(1, 10);
     });
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "unlink 1/10" })).toBeEnabled();
+      expect(screen.getByRole("button", { name: "連携解除 1/10" })).toBeEnabled();
     });
 
     // Deselect linked member (clears per-member id; session display id may remain).
-    await user.click(screen.getByRole("button", { name: /\[clinic 1\] 佐藤太郎/ }));
+    await user.click(screen.getByRole("button", { name: /\[医院 1\] 佐藤太郎/ }));
     await waitFor(() => {
-      expect(screen.queryByRole("button", { name: "unlink 1/10" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "連携解除 1/10" })).not.toBeInTheDocument();
     });
 
-    await user.click(await screen.findByRole("button", { name: /\[clinic 1\] 未所属花子/ }));
+    await user.click(await screen.findByRole("button", { name: /\[医院 1\] 未所属花子/ }));
     await waitFor(() => {
       expect(findOwnerIdentityGroupByMember).toHaveBeenCalledWith(1, 99);
     });
 
-    const unlinkUnlinked = await screen.findByRole("button", { name: "unlink 1/99" });
+    const unlinkUnlinked = await screen.findByRole("button", { name: "連携解除 1/99" });
     expect(unlinkUnlinked).toBeDisabled();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     expect(unlinkOwnerIdentityMember).not.toHaveBeenCalled();
@@ -287,13 +287,13 @@ describe("IdentityLinksPage BUG-013 unlink for existing groups", () => {
       expect(searchPetsForLink).toHaveBeenCalledWith("ポチ");
     });
 
-    await user.click(await screen.findByRole("button", { name: /\[clinic 1\] ポチ/ }));
+    await user.click(await screen.findByRole("button", { name: /\[医院 1\] ポチ/ }));
 
     await waitFor(() => {
       expect(findPetIdentityGroupByMember).toHaveBeenCalledWith(1, 5);
     });
 
-    const unlinkBtn = await screen.findByRole("button", { name: "unlink 1/5" });
+    const unlinkBtn = await screen.findByRole("button", { name: "連携解除 1/5" });
     await waitFor(() => {
       expect(unlinkBtn).toBeEnabled();
     });
@@ -306,5 +306,59 @@ describe("IdentityLinksPage BUG-013 unlink for existing groups", () => {
         pet_id: 5,
       });
     });
+  });
+});
+
+describe("IdentityLinksPage BUG-025 business Japanese copy", () => {
+  beforeEach(() => {
+    hasPermission.mockReset();
+    grantViewEdit();
+    searchOwnersForLink.mockReset().mockResolvedValue([]);
+    searchPetsForLink.mockReset().mockResolvedValue([]);
+    createOwnerIdentityGroup.mockReset();
+    unlinkOwnerIdentityMember.mockReset();
+    createPetIdentityGroup.mockReset();
+    unlinkPetIdentityMember.mockReset();
+    getLinkedTreatmentHistory.mockReset();
+    findOwnerIdentityGroupByMember.mockReset().mockResolvedValue(null);
+    findPetIdentityGroupByMember.mockReset().mockResolvedValue(null);
+  });
+
+  it("検索ラベルに debounce / 300ms などの実装用語を出さない", () => {
+    render(
+      <MemoryRouter>
+        <IdentityLinksPage />
+      </MemoryRouter>,
+    );
+
+    const labels = screen.getAllByText("検索");
+    expect(labels.length).toBeGreaterThanOrEqual(2);
+    expect(screen.queryByText(/debounce/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/300\s*ms/i)).not.toBeInTheDocument();
+  });
+
+  it("ペット連携の前提メッセージを業務日本語で示す", () => {
+    render(
+      <MemoryRouter>
+        <IdentityLinksPage />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText("親となる飼主の連携グループが必要です。")).toBeInTheDocument();
+    expect(screen.queryByText(/identity group/i)).not.toBeInTheDocument();
+  });
+
+  it("閲覧のみ・解除ボタンも開発者英語を出さない", () => {
+    hasPermission.mockImplementation((resource: string, action: string) => {
+      return resource === ResourceIdentityLinks && action === "view";
+    });
+    render(
+      <MemoryRouter>
+        <IdentityLinksPage />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole("status")).toHaveTextContent("閲覧のみ（連携の変更権限がありません）");
+    expect(screen.getByRole("status")).not.toHaveTextContent(/link\/unlink/i);
   });
 });

@@ -322,11 +322,32 @@ describe("LstepTagManagementPage — G: RBAC 契約", () => {
     expect(mockHasPermission).toHaveBeenCalledWith(ResourceLstepAnalytics, "view");
   });
 
-  it("手動タグの解除操作を owners:delete で判定する", async () => {
+  it("手動タグの解除操作を owners:delete で判定し、削除は編集パネルからのみ提供する", async () => {
     mockHasPermission.mockImplementation(
       (resource, action) =>
         (resource === ResourceLstepAnalytics && action === "view") ||
         (resource === ResourceOwners && action === "delete")
+    );
+    server.use(
+      http.get(`/api/v1/clinics/${CLINIC_ID}/lstep/owners`, () =>
+        HttpResponse.json({
+          owners: [
+            {
+              owner_id: "owner-1",
+              owner_name: "山田 太郎",
+              line_user_id: null,
+              last_visit_date: null,
+            },
+            {
+              owner_id: "owner-2",
+              owner_name: "佐藤 花子",
+              line_user_id: null,
+              last_visit_date: null,
+            },
+          ],
+          total: 2,
+        })
+      )
     );
     await renderAndWait({
       ...mockSummary,
@@ -335,7 +356,95 @@ describe("LstepTagManagementPage — G: RBAC 契約", () => {
 
     const row = screen.getByText("campaign_summer").closest("tr");
     expect(row).not.toBeNull();
-    expect(within(row!).getByRole("button", { name: /削除/ })).toBeInTheDocument();
+    // BUG-024: リスト行に赤「削除」は置かない（他マスタ同様、詳細/編集面からのみ）
+    expect(within(row!).queryByRole("button", { name: /削除/ })).not.toBeInTheDocument();
+    expect(within(row!).getByRole("button", { name: /対象者一覧/ })).toBeInTheDocument();
+
+    const user = userEvent.setup();
+    await user.click(within(row!).getByRole("button", { name: /対象者一覧/ }));
+
+    const drawer = await screen.findByRole("dialog");
+    expect(within(drawer).getByRole("button", { name: "一括解除" })).toBeInTheDocument();
+    expect(mockHasPermission).toHaveBeenCalledWith(ResourceOwners, "delete");
+  });
+});
+
+// ─────────────────────────────────────────────────────────────
+// H: BUG-024 削除 UI は編集パネルのみ
+// ─────────────────────────────────────────────────────────────
+
+describe("LstepTagManagementPage — H: BUG-024 削除 UI パターン", () => {
+  it("リスト行にインラインの破壊的「削除」ボタンを出さない", async () => {
+    await renderAndWait({
+      ...mockSummary,
+      tags: [
+        { tag_name: "campaign_summer", owner_count: 2, category: "manual" },
+        { tag_name: "HLTH_健診あり", owner_count: 5, category: "auto" },
+      ],
+    });
+
+    const manualRow = screen.getByText("campaign_summer").closest("tr");
+    const autoRow = screen.getByText("HLTH_健診あり").closest("tr");
+    expect(manualRow).not.toBeNull();
+    expect(autoRow).not.toBeNull();
+
+    expect(within(manualRow!).queryByRole("button", { name: /削除/ })).not.toBeInTheDocument();
+    expect(within(autoRow!).queryByRole("button", { name: /削除/ })).not.toBeInTheDocument();
+    expect(within(manualRow!).getByRole("button", { name: /対象者一覧/ })).toBeInTheDocument();
+  });
+
+  it("対象者一覧パネルから一括解除を開き、確認後に既存削除 API を呼ぶ", async () => {
+    const deleted: Array<{ ownerId: string; tagName: string }> = [];
+    const summaryData: LstepTagSummaryResponse = {
+      ...mockSummary,
+      tags: [{ tag_name: "campaign_summer", owner_count: 1, category: "manual" }],
+    };
+    server.use(
+      http.get(`/api/v1/clinics/${CLINIC_ID}/lstep/tag-summary`, () =>
+        HttpResponse.json(summaryData)
+      ),
+      http.get(`/api/v1/clinics/${CLINIC_ID}/lstep/owners`, () =>
+        HttpResponse.json({
+          owners: [
+            {
+              owner_id: "owner-1",
+              owner_name: "山田 太郎",
+              line_user_id: null,
+              last_visit_date: null,
+            },
+          ],
+          total: 1,
+        })
+      ),
+      http.delete(
+        `/api/v1/clinics/${CLINIC_ID}/owners/:ownerId/lstep/tags/:tagName`,
+        ({ params }) => {
+          deleted.push({
+            ownerId: String(params.ownerId),
+            tagName: decodeURIComponent(String(params.tagName)),
+          });
+          return new HttpResponse(null, { status: 204 });
+        }
+      )
+    );
+    render(<LstepTagManagementPage />, { wrapper: createWrapper() });
+    expect(await screen.findByText("campaign_summer")).toBeInTheDocument();
+
+    const user = userEvent.setup();
+    const row = screen.getByText("campaign_summer").closest("tr");
+    expect(row).not.toBeNull();
+    await user.click(within(row!).getByRole("button", { name: /対象者一覧/ }));
+
+    const drawer = await screen.findByRole("dialog");
+    await user.click(within(drawer).getByRole("button", { name: "一括解除" }));
+
+    const confirm = await screen.findByRole("alertdialog");
+    expect(within(confirm).getByText("タグを一括解除します")).toBeInTheDocument();
+    await user.click(within(confirm).getByRole("button", { name: "一括解除" }));
+
+    await waitFor(() => {
+      expect(deleted).toEqual([{ ownerId: "owner-1", tagName: "campaign_summer" }]);
+    });
   });
 });
 

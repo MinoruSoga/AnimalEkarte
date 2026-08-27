@@ -308,6 +308,14 @@ func (s *medicineService) Create(ctx context.Context, clinicID uint64, input *Cr
 	// BE-refactor.md R1-2 (D1): per_weight 有効化監査も同一 tx に統合する（fail-closed）。
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
 		if err := s.repo.Create(txCtx, medicine); err != nil {
+			if conflict := apperrors.AsNameUniqueConflict(
+				err,
+				input.Name,
+				apperrors.ConstraintMedicineName,
+				apperrors.CodeMedicineNameConflict,
+			); conflict != nil {
+				return conflict
+			}
 			slog.ErrorContext(txCtx, "failed to create medicine", "error", err, "clinic_id", clinicID)
 			return apperrors.Wrap(err, "failed to create medicine")
 		}
@@ -342,8 +350,9 @@ func (s *medicineService) Create(ctx context.Context, clinicID uint64, input *Cr
 		}
 		return nil
 	}); err != nil {
-		slog.ErrorContext(ctx, "failed to create medicine", "error", err)
-		return nil, apperrors.Wrap(err, "failed to create medicine")
+		// Preserve domain name-conflict (and other AppError) without double-wrap,
+		// matching exam_type / peer masters (BUG-011).
+		return nil, err
 	}
 
 	slog.InfoContext(ctx, "medicine created",
@@ -437,6 +446,18 @@ func (s *medicineService) Update(ctx context.Context, clinicID, id uint64, input
 		var txErr error
 		result, txErr = s.repo.Update(txCtx, clinicID, id, fields)
 		if txErr != nil {
+			nameForConflict := ""
+			if input.Name != nil {
+				nameForConflict = *input.Name
+			}
+			if conflict := apperrors.AsNameUniqueConflict(
+				txErr,
+				nameForConflict,
+				apperrors.ConstraintMedicineName,
+				apperrors.CodeMedicineNameConflict,
+			); conflict != nil {
+				return conflict
+			}
 			slog.ErrorContext(txCtx, "failed to update medicine", "error", txErr, "id", id, "clinic_id", clinicID)
 			return apperrors.Wrap(txErr, "failed to update medicine")
 		}
@@ -453,8 +474,8 @@ func (s *medicineService) Update(ctx context.Context, clinicID, id uint64, input
 		}
 		return nil
 	}); err != nil {
-		slog.ErrorContext(ctx, "failed to update medicine", "error", err)
-		return nil, apperrors.Wrap(err, "failed to update medicine")
+		// Preserve domain name-conflict without double-wrap (BUG-011 peer parity).
+		return nil, err
 	}
 	slog.InfoContext(ctx, "medicine updated",
 		slog.Uint64("clinic_id", clinicID),

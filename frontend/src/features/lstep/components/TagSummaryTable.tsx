@@ -1,5 +1,5 @@
 import { useState, useCallback, useDeferredValue, useMemo } from "react";
-import { Search, Users, Trash2 } from "lucide-react";
+import { Search, Users } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -29,16 +29,12 @@ interface TagSummaryTableProps {
   tags: LstepTagSummaryItem[];
   isLoading: boolean;
   onViewOwners: (tagName: string, ownerCount: number) => void;
-  onBulkRemove: (tagName: string, ownerCount: number) => void;
-  canDelete?: boolean;
 }
 
 export function TagSummaryTable({
   tags,
   isLoading,
   onViewOwners,
-  onBulkRemove,
-  canDelete = false,
 }: TagSummaryTableProps) {
   const [categoryFilter, setCategoryFilter] = useState<TagCategory>("all");
   const [searchTerm, setSearchTerm] = useState("");
@@ -159,16 +155,6 @@ export function TagSummaryTable({
                           <Users className={`mr-1.5 ${ICON.sm}`} />
                           対象者一覧
                         </Button>
-                        {!isAuto && canDelete ? (
-                          <Button
-                            variant="outline"
-                            className={`h-9 px-3 text-sm ${C.danger} border ${C.borderDanger} ${C.hoverBgDanger5}`}
-                            onClick={() => onBulkRemove(tag.tag_name, tag.owner_count)}
-                          >
-                            <Trash2 className={`mr-1.5 ${ICON.sm}`} />
-                            削除
-                          </Button>
-                        ) : null}
                       </div>
                     </TableCell>
                   </TableRow>

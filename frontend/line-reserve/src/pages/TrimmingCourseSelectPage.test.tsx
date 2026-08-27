@@ -6,6 +6,7 @@ import { server } from '@/testing/mocks/node';
 
 import { TrimmingCourseSelectPage } from './TrimmingCourseSelectPage';
 import type { TrimmingCourse } from '../types/models';
+import { AUTO_ADVANCE_HELPER_TEXT } from '../lib/advance-policy';
 
 const BASE_PROPS = {
   clinicId: '1',
@@ -64,5 +65,19 @@ describe('TrimmingCourseSelectPage（R-F22/R-F23: 共通フェッチ状態管理
 
     expect(await screen.findByText('フルコース')).toBeInTheDocument();
     expect(callCount).toBe(2);
+  });
+
+  it('BUG-030: auto-on-select のヘルパー文言を表示し、一覧タップで onSelect する', async () => {
+    const user = userEvent.setup();
+    const onSelect = vi.fn();
+    server.use(http.get('/api/liff/:clinicId/trimming-courses', () => HttpResponse.json([trimmingCourse])));
+
+    render(<TrimmingCourseSelectPage {...BASE_PROPS} onSelect={onSelect} onBack={vi.fn()} />);
+
+    expect(await screen.findByTestId('auto-advance-hint')).toHaveTextContent(AUTO_ADVANCE_HELPER_TEXT);
+    expect(screen.queryByRole('button', { name: '次へ' })).not.toBeInTheDocument();
+
+    await user.click(await screen.findByText('フルコース'));
+    expect(onSelect).toHaveBeenCalledWith(1, 'フルコース');
   });
 });

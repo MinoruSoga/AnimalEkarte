@@ -6,6 +6,7 @@ import { server } from '@/testing/mocks/node';
 
 import { TimeSelectPage } from './TimeSelectPage';
 import type { AvailableTime } from '../types/models';
+import { AUTO_ADVANCE_HELPER_TEXT } from '../lib/advance-policy';
 
 const BASE_PROPS = {
   clinicId: '1',
@@ -102,5 +103,17 @@ describe('TimeSelectPage（R-F4: 予約作成フロー・枠選択ステップ�
 
     expect(await screen.findByText(/10:00/)).toBeInTheDocument();
     expect(callCount).toBe(2);
+  });
+
+  it('BUG-030: auto-on-select のヘルパー文言を表示し、次へボタンは出さない', async () => {
+    const times: AvailableTime[] = [{ start_time: '1000', end_time: '1030' }];
+    server.use(
+      http.get('/api/liff/:clinicId/available-times', () => HttpResponse.json(times)),
+    );
+
+    render(<TimeSelectPage {...BASE_PROPS} onSelect={vi.fn()} onBack={vi.fn()} />);
+
+    expect(await screen.findByTestId('auto-advance-hint')).toHaveTextContent(AUTO_ADVANCE_HELPER_TEXT);
+    expect(screen.queryByRole('button', { name: '次へ' })).not.toBeInTheDocument();
   });
 });

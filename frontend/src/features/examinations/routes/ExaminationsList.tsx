@@ -16,6 +16,7 @@ import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
 import { PropertyFilter } from "@/components/shared/PropertyFilter/PropertyFilter";
 import { DataTable, DESIGN_TABLE_HEADER_ROW, DESIGN_TABLE_HEADER_CELL } from "@/components/shared/DataTable/DataTable";
+import { LIST_TABLE_COL } from "@/components/shared/DataTable/list-table-col";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { DataTableRowLink } from "@/components/shared/DataTable/DataTableRowLink";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
@@ -239,7 +240,7 @@ export function ExaminationsList() {
         {r.resultSummary || "-"}
       </TableCell>
       <TableCell className={`${STYLE.tableCell} hidden md:table-cell`}>{r.doctor}</TableCell>
-      <TableCell>
+      <TableCell className={LIST_TABLE_COL.status}>
         <StatusBadge colorClass={getExaminationStatusColor(r.status)}>
           {r.status}
         </StatusBadge>
@@ -313,7 +314,7 @@ export function ExaminationsList() {
           onToggle={() => toggleSort("status")}
         />
       ),
-      className: "w-[100px]",
+      className: LIST_TABLE_COL.status,
     },
     { header: "操作", className: "w-[80px]", align: "right" as const },
   ], [directionFor, toggleSort]);

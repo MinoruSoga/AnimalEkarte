@@ -1,9 +1,2 @@
 @import "tailwindcss";
-
-/* LIFF ブランドテーマ (behavior-preserving: tailwindcss v4 標準 green-* パレットと同一oklch値) */
-@theme {
-  --color-liff-brand-bg: oklch(98.2% 0.018 155.826); /* green-50 */
-  --color-liff-brand-subtle: oklch(96.2% 0.044 156.743); /* green-100 */
-  --color-liff-brand: oklch(72.3% 0.219 149.579); /* green-500 */
-  --color-liff-brand-dark: oklch(62.7% 0.194 149.214); /* green-600 */
-}
+@import "../../src/shared-liff/brand-tokens.css";

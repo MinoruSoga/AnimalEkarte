@@ -17,6 +17,7 @@ export const CONFLICT_CODE_EXAM_TYPE_NAME = "exam_type_name_conflict" as const;
 export const CONFLICT_CODE_PROCEDURE_NAME = "procedure_name_conflict" as const;
 export const CONFLICT_CODE_VACCINE_NAME = "vaccine_name_conflict" as const;
 export const CONFLICT_CODE_CHECKUP_TYPE_NAME = "checkup_type_name_conflict" as const;
+export const CONFLICT_CODE_MEDICINE_NAME = "medicine_name_conflict" as const;
 
 const KNOWN_CONFLICT_MESSAGES: Record<string, (name: string) => string> = {
   [CONFLICT_CODE_PERMISSION_GROUP_NAME]: (name) =>
@@ -41,6 +42,8 @@ const KNOWN_CONFLICT_MESSAGES: Record<string, (name: string) => string> = {
     `予防接種『${name}』は既に使用されています`,
   [CONFLICT_CODE_CHECKUP_TYPE_NAME]: (name) =>
     `定期健診『${name}』は既に使用されています`,
+  [CONFLICT_CODE_MEDICINE_NAME]: (name) =>
+    `薬剤『${name}』は既に使用されています`,
 };
 
 interface ApiErrorBody {

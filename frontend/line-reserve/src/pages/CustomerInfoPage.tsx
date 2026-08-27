@@ -3,6 +3,7 @@ import type { CustomerInfo, LiffProfile, PetSelection, OwnerPet } from '../types
 import { ProgressDots } from '../components/ProgressDots';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { BackButton } from '../components/BackButton';
+import { EXPLICIT_PRIMARY_CTA_LABEL } from '../lib/advance-policy';
 
 interface CustomerInfoPageProps {
   profile: LiffProfile | null;
@@ -324,7 +325,7 @@ export function CustomerInfoPage({
         </div>
 
         <div className="px-4 py-6">
-          <PrimaryButton onClick={handleNext}>次へ</PrimaryButton>
+          <PrimaryButton onClick={handleNext}>{EXPLICIT_PRIMARY_CTA_LABEL}</PrimaryButton>
         </div>
       </div>
     </div>

@@ -90,6 +90,28 @@ describe('CustomerInfoPage', () => {
       expect(onNext).not.toHaveBeenCalled();
     });
 
+    it('BUG-028: 空のお名前で次へするとエラー文言に加え name 入力に invalid 枠線/aria-invalid が付く', async () => {
+      const user = userEvent.setup();
+      const onNext = vi.fn();
+
+      render(
+        <CustomerInfoPage
+          profile={null}
+          initialInfo={emptyInfo}
+          onNext={onNext}
+          onBack={vi.fn()}
+        />
+      );
+
+      await user.click(screen.getByRole('button', { name: '次へ' }));
+
+      const nameInput = screen.getByLabelText(/お名前/);
+      expect(screen.getByText('お名前を入力してください')).toBeInTheDocument();
+      expect(nameInput).toHaveAttribute('aria-invalid', 'true');
+      expect(nameInput.className).toMatch(/border-red-500/);
+      expect(onNext).not.toHaveBeenCalled();
+    });
+
     it('必須項目を入力すると次へ進み、onNext に入力値が渡る', async () => {
       const user = userEvent.setup();
       const onNext = vi.fn();
@@ -132,6 +154,28 @@ describe('CustomerInfoPage', () => {
 
       await user.type(screen.getByLabelText(/お名前/), '鈴木');
       expect(screen.queryByText('お名前を入力してください')).not.toBeInTheDocument();
+    });
+
+    it('BUG-028: お名前を修正すると invalid 枠線と aria-invalid が外れる', async () => {
+      const user = userEvent.setup();
+
+      render(
+        <CustomerInfoPage
+          profile={null}
+          initialInfo={emptyInfo}
+          onNext={vi.fn()}
+          onBack={vi.fn()}
+        />
+      );
+
+      await user.click(screen.getByRole('button', { name: '次へ' }));
+      const nameInput = screen.getByLabelText(/お名前/);
+      expect(nameInput).toHaveAttribute('aria-invalid', 'true');
+      expect(nameInput.className).toMatch(/border-red-500/);
+
+      await user.type(nameInput, '鈴木');
+      expect(nameInput).not.toHaveAttribute('aria-invalid', 'true');
+      expect(nameInput.className).not.toMatch(/border-red-500/);
     });
   });
 

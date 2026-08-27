@@ -263,7 +263,7 @@ function IdentityLinksWorkbench({ canEdit }: { canEdit: boolean }) {
           return next;
         });
       } catch (e: unknown) {
-        setError(extractApiErrorMessage(e, "飼主unlink"));
+        setError(extractApiErrorMessage(e, "飼主の連携解除"));
       }
     });
   };
@@ -311,7 +311,7 @@ function IdentityLinksWorkbench({ canEdit }: { canEdit: boolean }) {
           return next;
         });
       } catch (e: unknown) {
-        setError(extractApiErrorMessage(e, "ペットunlink"));
+        setError(extractApiErrorMessage(e, "ペットの連携解除"));
       }
     });
   };
@@ -325,7 +325,7 @@ function IdentityLinksWorkbench({ canEdit }: { canEdit: boolean }) {
           hist.items
             .map(
               (h) =>
-                `[clinic ${h.clinic_id}/pet ${h.pet_id}] ${h.record_date} ${h.record_no}: ${h.content}`,
+                `[医院 ${h.clinic_id}/ペット ${h.pet_id}] ${h.record_date} ${h.record_no}: ${h.content}`,
             )
             .join("\n") || "（履歴なし）",
         );
@@ -344,7 +344,7 @@ function IdentityLinksWorkbench({ canEdit }: { canEdit: boolean }) {
       <div className="space-y-6">
         {!canEdit && (
           <p className={`text-sm ${C.textWarning}`} role="status">
-            閲覧のみ（link/unlink 権限なし）
+            閲覧のみ（連携の変更権限がありません）
           </p>
         )}
 
@@ -360,7 +360,7 @@ function IdentityLinksWorkbench({ canEdit }: { canEdit: boolean }) {
         <section className={`rounded border p-4 space-y-3 ${C.borderLight} ${C.bgWhite}`} aria-label="飼主リンク">
           <h2 className={`font-semibold ${C.textInk}`}>飼主リンク</h2>
           <label className="block text-sm">
-            <span className={C.textInkMuted}>検索（300ms debounce）</span>
+            <span className={C.textInkMuted}>検索</span>
             <input
               className={`mt-1 w-full rounded border px-3 py-2 ${C.borderLight} ${C.bgWhite} ${C.textInk}`}
               value={ownerQuery}
@@ -376,14 +376,14 @@ function IdentityLinksWorkbench({ canEdit }: { canEdit: boolean }) {
                   className={`w-full text-left px-2 py-1 rounded ${C.bgHover}`}
                   onClick={() => toggleOwner(o)}
                 >
-                  [clinic {o.clinic_id}] {o.name} ({o.phone})
+                  [医院 {o.clinic_id}] {o.name} ({o.phone})
                 </button>
               </li>
             ))}
           </ul>
           <div className={`text-sm ${C.textInkSecondary}`}>
             選択: {selectedOwners.map((o) => `${o.clinic_id}/${o.owner_id}`).join(", ") || "なし"}
-            {ownerGroupId != null && ` / group #${ownerGroupId}`}
+            {ownerGroupId != null && ` / 連携グループ #${ownerGroupId}`}
           </div>
           {canEdit ? (
             <div className="flex flex-wrap gap-2">
@@ -403,7 +403,7 @@ function IdentityLinksWorkbench({ canEdit }: { canEdit: boolean }) {
                   disabled={pending || resolveOwnerGroupId(o) == null}
                   onClick={() => onUnlinkOwner(o)}
                 >
-                  unlink {o.clinic_id}/{o.owner_id}
+                  連携解除 {o.clinic_id}/{o.owner_id}
                 </button>
               ))}
             </div>
@@ -412,9 +412,9 @@ function IdentityLinksWorkbench({ canEdit }: { canEdit: boolean }) {
 
         <section className={`rounded border p-4 space-y-3 ${C.borderLight} ${C.bgWhite}`} aria-label="ペットリンク">
           <h2 className={`font-semibold ${C.textInk}`}>ペットリンク</h2>
-          <p className={`text-xs ${C.textInkMuted}`}>親の飼主 identity group が必要です。</p>
+          <p className={`text-xs ${C.textInkMuted}`}>親となる飼主の連携グループが必要です。</p>
           <label className="block text-sm">
-            <span className={C.textInkMuted}>検索（300ms debounce）</span>
+            <span className={C.textInkMuted}>検索</span>
             <input
               className={`mt-1 w-full rounded border px-3 py-2 ${C.borderLight} ${C.bgWhite} ${C.textInk}`}
               value={petQuery}
@@ -430,14 +430,14 @@ function IdentityLinksWorkbench({ canEdit }: { canEdit: boolean }) {
                   className={`w-full text-left px-2 py-1 rounded ${C.bgHover}`}
                   onClick={() => togglePet(p)}
                 >
-                  [clinic {p.clinic_id}] {p.name}
+                  [医院 {p.clinic_id}] {p.name}
                 </button>
               </li>
             ))}
           </ul>
           <div className={`text-sm ${C.textInkSecondary}`}>
             選択: {selectedPets.map((p) => `${p.clinic_id}/${p.pet_id}`).join(", ") || "なし"}
-            {petGroupId != null && ` / group #${petGroupId}`}
+            {petGroupId != null && ` / 連携グループ #${petGroupId}`}
           </div>
           {canEdit ? (
             <div className="flex flex-wrap gap-2">
@@ -457,7 +457,7 @@ function IdentityLinksWorkbench({ canEdit }: { canEdit: boolean }) {
                   disabled={pending || resolvePetGroupId(p) == null}
                   onClick={() => onUnlinkPet(p)}
                 >
-                  unlink {p.clinic_id}/{p.pet_id}
+                  連携解除 {p.clinic_id}/{p.pet_id}
                 </button>
               ))}
             </div>

@@ -7,6 +7,7 @@ import { Calendar } from '../components/Calendar';
 import { formatJapaneseDate } from '@/shared-liff/jst-date';
 import { useFetchState } from '@/shared-liff/use-fetch-state';
 import { getStepProgress } from '../lib/step-progress';
+import { EXPLICIT_PRIMARY_CTA_LABEL } from '../lib/advance-policy';
 
 interface DateSelectPageProps {
   clinicId: string;
@@ -92,7 +93,7 @@ export function DateSelectPage({
 
         <div className="px-4 py-6">
           <PrimaryButton onClick={onNext} disabled={!selectedDate}>
-            次へ
+            {EXPLICIT_PRIMARY_CTA_LABEL}
           </PrimaryButton>
         </div>
       </div>

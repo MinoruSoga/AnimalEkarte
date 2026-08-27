@@ -130,3 +130,22 @@ describe("AccountingListTable row navigation accessibility", () => {
     expect(onEdit).not.toHaveBeenCalled();
   });
 });
+
+describe("AccountingListTable status column (BUG-020)", () => {
+  it("ステータスヘッダは min-width と whitespace-nowrap で1行表示する", () => {
+    renderTable(false);
+
+    const statusHeader = screen.getByRole("columnheader", { name: /ステータス/ });
+    expect(statusHeader.className).toContain("w-[100px]");
+    expect(statusHeader.className).toContain("min-w-[100px]");
+    expect(statusHeader.className).toContain("whitespace-nowrap");
+  });
+
+  it("ステータスセルも whitespace-nowrap を持つ", () => {
+    renderTable(false);
+
+    const waitingBadge = screen.getByText("未精算");
+    expect(waitingBadge.closest("td")?.className).toContain("whitespace-nowrap");
+    expect(waitingBadge.closest("td")?.className).toContain("min-w-[100px]");
+  });
+});

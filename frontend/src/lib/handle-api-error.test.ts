@@ -13,6 +13,7 @@ import {
   CONFLICT_CODE_PROCEDURE_NAME,
   CONFLICT_CODE_SHIFT_TEMPLATE_NAME,
   CONFLICT_CODE_VACCINE_NAME,
+  CONFLICT_CODE_MEDICINE_NAME,
   extractApiErrorMessage,
   handleApiError,
   localizeAlreadyExistsMessage,
@@ -90,6 +91,9 @@ describe("localizeConflictMessage", () => {
         name: "V04定期健診",
       }),
     ).toBe("定期健診『V04定期健診』は既に使用されています");
+    expect(
+      localizeConflictMessage(CONFLICT_CODE_MEDICINE_NAME, { name: "V04薬剤" }),
+    ).toBe("薬剤『V04薬剤』は既に使用されています");
   });
 
   it("maps lstep_auto_managed_prefix_conflict with name (BUG-026)", () => {

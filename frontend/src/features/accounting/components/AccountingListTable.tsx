@@ -2,6 +2,7 @@ import { Calendar, CircleDot, CreditCard, FileText, RotateCcw } from "lucide-rea
 import { Button } from "@/components/ui/button";
 import { TableCell } from "@/components/ui/table";
 import { DataTable, DESIGN_TABLE_HEADER_ROW, DESIGN_TABLE_HEADER_CELL } from "@/components/shared/DataTable/DataTable";
+import { LIST_TABLE_COL } from "@/components/shared/DataTable/list-table-col";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { DataTableRowLink } from "@/components/shared/DataTable/DataTableRowLink";
 import { FilteringIndicator } from "@/components/shared/FilteringIndicator/FilteringIndicator";
@@ -159,7 +160,7 @@ export function AccountingListTable({
           onToggle={() => onToggleSort("status")}
         />
       ),
-      className: "w-[100px]",
+      className: LIST_TABLE_COL.status,
     },
     { header: "カルテ", className: "w-[80px] hidden lg:table-cell", align: "center" as const },
     { header: "操作", className: "w-[100px]", align: "right" as const },
@@ -260,7 +261,7 @@ function AccountingListRow({
       <TableCell className={`text-center ${C.text}`}>
         {accounting.payment ? PAYMENT_METHOD_LABELS[accounting.payment.method] : "-"}
       </TableCell>
-      <TableCell>
+      <TableCell className={LIST_TABLE_COL.status}>
         <div className="flex flex-wrap gap-1 items-center">
           <StatusBadge colorClass={getAccountingStatusColor(statusLabel)}>
             {statusLabel}
