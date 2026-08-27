@@ -74,6 +74,8 @@ cd frontend && ./scripts/run-e2e.sh
 
 ## 5. LINE 予約（line-reserve）実機 LIFF 確認手順（手動・FE-refactor.md R-F4）
 
+> **検証経路の正本**: [liff-verification.md](liff-verification.md)（local/CI は mock only、実トークンは STG、ローカル必須ゲートにしない）。
+
 Playwright は実際の LINE アプリ内 LIFF 起動（`liff.init()` / `liff.isInClient()` / `liff.sendMessages()`
 等の実 SDK 挙動）を再現できないため、`line-reserve` の予約導線と `liff`（診察券連携・ペット健康カード）は
 **実機での手動確認**をもって E2E の代替とする。自動化（Playwright 経由の LIFF モック起動等）は

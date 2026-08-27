@@ -23,6 +23,7 @@ import (
 type mockCashRegisterService struct {
 	getPreviewFn   func(ctx context.Context, clinicID uint64, dateStr, period string) (*CashRegisterPreview, error)
 	closeFn        func(ctx context.Context, clinicID uint64, input CloseRegisterInput) (*model.CashRegisterClose, error)
+	voidReopenFn   func(ctx context.Context, clinicID uint64, input VoidReopenInput) (*VoidReopenResult, error)
 	listFn         func(ctx context.Context, clinicID uint64, startDate, endDate *time.Time, page, limit int) ([]model.CashRegisterClose, int64, error)
 	getByIDFn      func(ctx context.Context, clinicID, id uint64) (*model.CashRegisterClose, error)
 	isDateClosedFn func(ctx context.Context, clinicID uint64, date time.Time) (bool, error)
@@ -34,6 +35,13 @@ func (m *mockCashRegisterService) GetPreview(ctx context.Context, clinicID uint6
 
 func (m *mockCashRegisterService) Close(ctx context.Context, clinicID uint64, input CloseRegisterInput) (*model.CashRegisterClose, error) {
 	return m.closeFn(ctx, clinicID, input)
+}
+
+func (m *mockCashRegisterService) VoidReopen(ctx context.Context, clinicID uint64, input VoidReopenInput) (*VoidReopenResult, error) {
+	if m.voidReopenFn != nil {
+		return m.voidReopenFn(ctx, clinicID, input)
+	}
+	return nil, fmt.Errorf("voidReopenFn not set")
 }
 
 func (m *mockCashRegisterService) List(ctx context.Context, clinicID uint64, startDate, endDate *time.Time, page, limit int) ([]model.CashRegisterClose, int64, error) {
@@ -369,4 +377,116 @@ func TestGetCashRegisterClose(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestVoidCashRegisterClose(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	t.Run("authorized void succeeds with audit body", func(t *testing.T) {
+		svc := &mockCashRegisterService{
+			voidReopenFn: func(_ context.Context, clinicID uint64, input VoidReopenInput) (*VoidReopenResult, error) {
+				assert.Equal(t, uint64(1), clinicID)
+				assert.Equal(t, uint64(8), input.ID)
+				assert.Equal(t, uint64(1), input.ActorID)
+				assert.Equal(t, "誤作成のため取消", input.Reason)
+				return &VoidReopenResult{
+					OriginalCloseID: 8,
+					ClinicID:        1,
+					CloseDate:       time.Date(2026, 5, 28, 0, 0, 0, 0, time.Local),
+					Period:          "am",
+					Reason:          input.Reason,
+					VoidedBy:        input.ActorID,
+					VoidedAt:        time.Date(2026, 5, 28, 12, 0, 0, 0, time.Local),
+				}, nil
+			},
+		}
+		h := newHandlerWithCashRegisterSvc(svc)
+		body, _ := json.Marshal(map[string]any{"reason": "誤作成のため取消"})
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(body))
+		c.Request.Header.Set("Content-Type", "application/json")
+		c.Params = gin.Params{{Key: "id", Value: "8"}}
+		setClinicID(c)
+		setStaffID(c)
+		h.VoidCashRegisterClose(c)
+		assert.Equal(t, http.StatusOK, w.Code)
+		assert.Contains(t, w.Body.String(), `"original_close_id":8`)
+		assert.Contains(t, w.Body.String(), `"voided_by":1`)
+		assert.Contains(t, w.Body.String(), "誤作成のため取消")
+	})
+
+	t.Run("permission deny aborts without service call", func(t *testing.T) {
+		called := false
+		svc := &mockCashRegisterService{
+			voidReopenFn: func(_ context.Context, _ uint64, _ VoidReopenInput) (*VoidReopenResult, error) {
+				called = true
+				return nil, nil
+			},
+		}
+		h := NewCashRegisterHandler(svc, func(resource, action string) gin.HandlerFunc {
+			return func(c *gin.Context) {
+				assert.Equal(t, string(model.ResourceCashRegisterClose), resource)
+				assert.Equal(t, "edit", action)
+				c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "forbidden"})
+			}
+		})
+		body, _ := json.Marshal(map[string]any{"reason": "x"})
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(body))
+		c.Request.Header.Set("Content-Type", "application/json")
+		c.Params = gin.Params{{Key: "id", Value: "8"}}
+		setClinicID(c)
+		setStaffID(c)
+		h.VoidCashRegisterClose(c)
+		assert.Equal(t, http.StatusForbidden, w.Code)
+		assert.False(t, called)
+	})
+
+	t.Run("missing staff returns 401", func(t *testing.T) {
+		h := newHandlerWithCashRegisterSvc(&mockCashRegisterService{})
+		body, _ := json.Marshal(map[string]any{"reason": "x"})
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(body))
+		c.Request.Header.Set("Content-Type", "application/json")
+		c.Params = gin.Params{{Key: "id", Value: "8"}}
+		setClinicID(c)
+		h.VoidCashRegisterClose(c)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+
+	t.Run("missing reason returns 400", func(t *testing.T) {
+		h := newHandlerWithCashRegisterSvc(&mockCashRegisterService{})
+		body, _ := json.Marshal(map[string]any{})
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(body))
+		c.Request.Header.Set("Content-Type", "application/json")
+		c.Params = gin.Params{{Key: "id", Value: "8"}}
+		setClinicID(c)
+		setStaffID(c)
+		h.VoidCashRegisterClose(c)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("service not found maps to 404", func(t *testing.T) {
+		svc := &mockCashRegisterService{
+			voidReopenFn: func(_ context.Context, _ uint64, _ VoidReopenInput) (*VoidReopenResult, error) {
+				return nil, apperrors.WrapNotFound("cash_register_close", "99")
+			},
+		}
+		h := newHandlerWithCashRegisterSvc(svc)
+		body, _ := json.Marshal(map[string]any{"reason": "x"})
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(body))
+		c.Request.Header.Set("Content-Type", "application/json")
+		c.Params = gin.Params{{Key: "id", Value: "99"}}
+		setClinicID(c)
+		setStaffID(c)
+		h.VoidCashRegisterClose(c)
+		assert.Equal(t, http.StatusNotFound, w.Code)
+	})
 }

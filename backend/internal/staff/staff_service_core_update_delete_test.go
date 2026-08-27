@@ -620,6 +620,193 @@ func TestStaffService_Delete_RejectsInvalidOrMultiClinicAssignmentStateBeforeDep
 	}
 }
 
+func TestStaffServiceCore_Update_DeactivationGuards(t *testing.T) {
+	inactive := false
+	active := true
+
+	t.Run("rejects self is_active=false and does not persist", func(t *testing.T) {
+		updateCalled := false
+		repo := &coreMockStaffRepository{
+			findByIDFn: func(_ context.Context, id uint64) (*model.Staff, error) {
+				return &model.Staff{ID: id, ClinicID: 1, IsActive: true}, nil
+			},
+			updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+				updateCalled = true
+				return nil
+			},
+		}
+		svc := newCoreStaffService(
+			repo,
+			&coreMockAccountRepository{},
+			&coreMockStaffClinicAssignmentRepository{},
+			&coreMockReservationQueryRepository{},
+			&coreMockShiftEntryRepository{},
+			&coreFakeTransactor{},
+		)
+		input := authorizedStaffUpdate(&UpdateStaffInput{
+			IsActive:     &inactive,
+			ActorStaffID: 1,
+		}, 1)
+
+		staff, err := svc.Update(context.Background(), 1, 1, input)
+
+		require.Error(t, err)
+		assert.Nil(t, staff)
+		assert.True(t, apperrors.IsInvalidInput(err))
+		assert.Contains(t, err.Error(), "自分自身を無効化することはできません")
+		assert.False(t, updateCalled)
+	})
+
+	t.Run("rejects deactivating the sole active system administrator", func(t *testing.T) {
+		updateCalled := false
+		repo := &coreMockStaffRepository{
+			findByIDFn: func(_ context.Context, id uint64) (*model.Staff, error) {
+				return &model.Staff{ID: id, ClinicID: 1, IsActive: true}, nil
+			},
+			updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+				updateCalled = true
+				return nil
+			},
+			isActiveSystemAdminStaffFn: func(_ context.Context, staffID uint64) (bool, error) {
+				assert.Equal(t, uint64(2), staffID)
+				return true, nil
+			},
+			countActiveSystemAdminStaffFn: func(_ context.Context) (int64, error) {
+				return 1, nil
+			},
+		}
+		svc := newCoreStaffService(
+			repo,
+			&coreMockAccountRepository{},
+			&coreMockStaffClinicAssignmentRepository{},
+			&coreMockReservationQueryRepository{},
+			&coreMockShiftEntryRepository{},
+			&coreFakeTransactor{},
+		)
+		input := authorizedStaffUpdate(&UpdateStaffInput{
+			IsActive:     &inactive,
+			ActorStaffID: 99,
+		}, 1)
+
+		staff, err := svc.Update(context.Background(), 1, 2, input)
+
+		require.Error(t, err)
+		assert.Nil(t, staff)
+		assert.True(t, apperrors.IsConflict(err))
+		assert.Contains(t, err.Error(), "最後の有効なシステム管理者を無効化することはできません")
+		assert.False(t, updateCalled)
+	})
+
+	t.Run("allows deactivating another non-admin staff", func(t *testing.T) {
+		updateCalled := false
+		repo := &coreMockStaffRepository{
+			findByIDFn: func(_ context.Context, id uint64) (*model.Staff, error) {
+				return &model.Staff{ID: id, ClinicID: 1, IsActive: true}, nil
+			},
+			updateFn: func(_ context.Context, _, id uint64, fields map[string]any) error {
+				updateCalled = true
+				assert.Equal(t, uint64(2), id)
+				assert.Equal(t, false, fields[colStaffIsActive])
+				return nil
+			},
+			isActiveSystemAdminStaffFn: func(_ context.Context, _ uint64) (bool, error) {
+				return false, nil
+			},
+		}
+		svc := newCoreStaffService(
+			repo,
+			&coreMockAccountRepository{},
+			&coreMockStaffClinicAssignmentRepository{},
+			&coreMockReservationQueryRepository{},
+			&coreMockShiftEntryRepository{},
+			&coreFakeTransactor{},
+		)
+		input := authorizedStaffUpdate(&UpdateStaffInput{
+			IsActive:     &inactive,
+			ActorStaffID: 1,
+		}, 1)
+
+		staff, err := svc.Update(context.Background(), 1, 2, input)
+
+		require.NoError(t, err)
+		require.NotNil(t, staff)
+		assert.True(t, updateCalled)
+	})
+
+	t.Run("allows deactivating another system admin when multiple active admins remain", func(t *testing.T) {
+		updateCalled := false
+		repo := &coreMockStaffRepository{
+			lockForUpdateFn: func(_ context.Context, id uint64) (*model.Staff, error) {
+				return &model.Staff{ID: id, ClinicID: 1, IsActive: true}, nil
+			},
+			findByIDFn: func(_ context.Context, id uint64) (*model.Staff, error) {
+				return &model.Staff{ID: id, ClinicID: 1, IsActive: true}, nil
+			},
+			updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+				updateCalled = true
+				return nil
+			},
+			isActiveSystemAdminStaffFn: func(_ context.Context, _ uint64) (bool, error) {
+				return true, nil
+			},
+			countActiveSystemAdminStaffFn: func(_ context.Context) (int64, error) {
+				return 2, nil
+			},
+		}
+		svc := newCoreStaffService(
+			repo,
+			&coreMockAccountRepository{},
+			&coreMockStaffClinicAssignmentRepository{},
+			&coreMockReservationQueryRepository{},
+			&coreMockShiftEntryRepository{},
+			&coreFakeTransactor{},
+		)
+		input := authorizedStaffUpdate(&UpdateStaffInput{
+			IsActive:      &inactive,
+			ActorStaffID:  1,
+			IsSystemAdmin: true,
+		}, 1)
+
+		staff, err := svc.Update(context.Background(), 1, 2, input)
+
+		require.NoError(t, err)
+		require.NotNil(t, staff)
+		assert.True(t, updateCalled)
+	})
+
+	t.Run("allows setting is_active=true without deactivation guards", func(t *testing.T) {
+		updateCalled := false
+		repo := &coreMockStaffRepository{
+			findByIDFn: func(_ context.Context, id uint64) (*model.Staff, error) {
+				return &model.Staff{ID: id, ClinicID: 1, IsActive: false}, nil
+			},
+			updateFn: func(_ context.Context, _, _ uint64, fields map[string]any) error {
+				updateCalled = true
+				assert.Equal(t, true, fields[colStaffIsActive])
+				return nil
+			},
+		}
+		svc := newCoreStaffService(
+			repo,
+			&coreMockAccountRepository{},
+			&coreMockStaffClinicAssignmentRepository{},
+			&coreMockReservationQueryRepository{},
+			&coreMockShiftEntryRepository{},
+			&coreFakeTransactor{},
+		)
+		input := authorizedStaffUpdate(&UpdateStaffInput{
+			IsActive:     &active,
+			ActorStaffID: 1,
+		}, 1)
+
+		staff, err := svc.Update(context.Background(), 1, 1, input)
+
+		require.NoError(t, err)
+		require.NotNil(t, staff)
+		assert.True(t, updateCalled)
+	})
+}
+
 // ---- List / GetByID / Reorder (already high coverage elsewhere — smoke tests only) ----
 
 func TestStaffServiceCore_List(t *testing.T) {

@@ -3,6 +3,8 @@ name: E2E Tests
 # 自動 CI から外す: PR / push では走らせない。
 # ローカル正本は make e2e（frontend/scripts/run-e2e.sh）。
 # 必要時のみ GitHub 上で手動実行（workflow_dispatch）。
+# LIFF トークン観点は compose 既定の mock のみ（VITE_LIFF_MOCK / LIFF_MOCK）。
+# 実 LINE トークン検証は CI 必須にしない — docs/ops/testing/liff-verification.md。
 on:
   workflow_dispatch:
 

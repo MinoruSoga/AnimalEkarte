@@ -12,6 +12,10 @@ import { C, ICON, STYLE } from "@/lib/design-tokens";
 import { handleApiError } from "@/lib/handle-api-error";
 import { useGetExaminations } from "@/hooks/use-examinations";
 import { useUpdateExamination } from "@/hooks/use-update-examination";
+import {
+  filterImportableExaminations,
+  isExaminationImportable,
+} from "./examination-import-candidates";
 
 interface ExaminationImportDialogProps {
   open: boolean;
@@ -35,10 +39,10 @@ export const ExaminationImportDialog = memo(function ExaminationImportDialog({
     petId ? { petId } : undefined
   );
 
-  // 既に別カルテに紐付き済みの検査は除外しない（同一ペットの検査はすべて表示）
+  // BUG-014: 確定済み・リビジョン済みなど取込不可の検査は候補から除外する
   const availableExams = useMemo(
-    () => examinations.filter((e) => !e.medicalRecordId || e.medicalRecordId === medicalRecordId),
-    [examinations, medicalRecordId]
+    () => filterImportableExaminations(examinations, medicalRecordId),
+    [examinations, medicalRecordId],
   );
 
   const { mutateAsync: updateExamination } = useUpdateExamination();
@@ -57,17 +61,26 @@ export const ExaminationImportDialog = memo(function ExaminationImportDialog({
 
   const handleImport = useCallback(() => {
     if (!medicalRecordId || selectedIds.size === 0) return;
+    const importableIds = Array.from(selectedIds).filter((id) => {
+      const exam = examinations.find((e) => e.id === id);
+      return exam != null && isExaminationImportable(exam, medicalRecordId);
+    });
+    if (importableIds.length === 0) {
+      toast.error("取込可能な検査が選択されていません");
+      setSelectedIds(new Set());
+      return;
+    }
     startLinkTransition(async () => {
       try {
         await Promise.all(
-          Array.from(selectedIds).map((id) =>
+          importableIds.map((id) =>
             updateExamination({
               id,
               req: { medical_record_id: Number(medicalRecordId) },
-            })
-          )
+            }),
+          ),
         );
-        toast.success(`${selectedIds.size}件の検査記録を取り込みました`);
+        toast.success(`${importableIds.length}件の検査記録を取り込みました`);
         setSelectedIds(new Set());
         onImported?.();
         onOpenChange(false);
@@ -75,7 +88,14 @@ export const ExaminationImportDialog = memo(function ExaminationImportDialog({
         handleApiError(err, "検査取り込み");
       }
     });
-  }, [medicalRecordId, selectedIds, updateExamination, onImported, onOpenChange]);
+  }, [
+    examinations,
+    medicalRecordId,
+    selectedIds,
+    updateExamination,
+    onImported,
+    onOpenChange,
+  ]);
 
   const handleClose = useCallback(() => {
     setSelectedIds(new Set());

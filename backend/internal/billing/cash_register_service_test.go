@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -22,6 +23,7 @@ import (
 type mockCashRegisterCloseRepository struct {
 	createFn              func(ctx context.Context, c *model.CashRegisterClose) error
 	createAdjustmentFn    func(ctx context.Context, adj *model.CashRegisterCloseAdjustment) error
+	voidFn                func(ctx context.Context, clinicID, id uint64) error
 	findAllFn             func(ctx context.Context, clinicID uint64, startDate, endDate *time.Time, page, limit int) ([]model.CashRegisterClose, int64, error)
 	findByIDFn            func(ctx context.Context, clinicID, id uint64) (*model.CashRegisterClose, error)
 	findByDateAndPeriodFn func(ctx context.Context, clinicID uint64, date time.Time, period string) (*model.CashRegisterClose, error)
@@ -38,6 +40,13 @@ func (m *mockCashRegisterCloseRepository) Create(ctx context.Context, c *model.C
 func (m *mockCashRegisterCloseRepository) CreateAdjustment(ctx context.Context, adj *model.CashRegisterCloseAdjustment) error {
 	if m.createAdjustmentFn != nil {
 		return m.createAdjustmentFn(ctx, adj)
+	}
+	return nil
+}
+
+func (m *mockCashRegisterCloseRepository) Void(ctx context.Context, clinicID, id uint64) error {
+	if m.voidFn != nil {
+		return m.voidFn(ctx, clinicID, id)
 	}
 	return nil
 }
@@ -1461,4 +1470,214 @@ func TestParseHHMM(t *testing.T) {
 			assert.Equal(t, tt.wantM, m)
 		})
 	}
+}
+
+func TestCashRegisterService_VoidReopen(t *testing.T) {
+	closeDate := time.Date(2026, 4, 20, 0, 0, 0, 0, time.UTC)
+	existing := &model.CashRegisterClose{
+		ID:        8,
+		ClinicID:  1,
+		CloseDate: closeDate,
+		Period:    "am",
+	}
+
+	t.Run("authorized void returns audit fields", func(t *testing.T) {
+		voidCalled := false
+		svc := newCashRegisterService(&mockCashRegisterCloseRepository{
+			findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.CashRegisterClose, error) {
+				assert.Equal(t, uint64(1), clinicID)
+				assert.Equal(t, uint64(8), id)
+				return existing, nil
+			},
+			voidFn: func(_ context.Context, clinicID, id uint64) error {
+				voidCalled = true
+				assert.Equal(t, uint64(1), clinicID)
+				assert.Equal(t, uint64(8), id)
+				return nil
+			},
+		}, &mockAccountingRepository{}, &mockClosingSettingsService{}, &mockPaymentMethodMasterRepository{})
+
+		got, err := svc.VoidReopen(context.Background(), 1, VoidReopenInput{
+			ID: 8, Reason: "誤作成のため取消", ActorID: 42,
+		})
+		require.NoError(t, err)
+		require.NotNil(t, got)
+		assert.True(t, voidCalled)
+		assert.Equal(t, uint64(8), got.OriginalCloseID)
+		assert.Equal(t, uint64(1), got.ClinicID)
+		assert.Equal(t, "am", got.Period)
+		assert.Equal(t, "誤作成のため取消", got.Reason)
+		assert.Equal(t, uint64(42), got.VoidedBy)
+		assert.False(t, got.VoidedAt.IsZero())
+	})
+
+	t.Run("unauthorized actor is rejected without void", func(t *testing.T) {
+		voidCalled := false
+		svc := newCashRegisterService(&mockCashRegisterCloseRepository{
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.CashRegisterClose, error) {
+				t.Fatal("FindByID must not run when unauthorized")
+				return nil, nil
+			},
+			voidFn: func(_ context.Context, _, _ uint64) error {
+				voidCalled = true
+				return nil
+			},
+		}, &mockAccountingRepository{}, &mockClosingSettingsService{}, &mockPaymentMethodMasterRepository{})
+
+		got, err := svc.VoidReopen(context.Background(), 1, VoidReopenInput{
+			ID: 8, Reason: "x", ActorID: 0,
+		})
+		require.Error(t, err)
+		assert.Nil(t, got)
+		assert.True(t, errors.Is(err, apperrors.ErrUnauthorized))
+		assert.False(t, voidCalled)
+	})
+
+	t.Run("missing id fail-closed", func(t *testing.T) {
+		voidCalled := false
+		svc := newCashRegisterService(&mockCashRegisterCloseRepository{
+			voidFn: func(_ context.Context, _, _ uint64) error {
+				voidCalled = true
+				return nil
+			},
+		}, &mockAccountingRepository{}, &mockClosingSettingsService{}, &mockPaymentMethodMasterRepository{})
+
+		got, err := svc.VoidReopen(context.Background(), 1, VoidReopenInput{
+			ID: 0, Reason: "x", ActorID: 1,
+		})
+		require.Error(t, err)
+		assert.Nil(t, got)
+		assert.True(t, apperrors.IsInvalidInput(err))
+		assert.False(t, voidCalled)
+	})
+
+	t.Run("empty reason fail-closed", func(t *testing.T) {
+		voidCalled := false
+		svc := newCashRegisterService(&mockCashRegisterCloseRepository{
+			voidFn: func(_ context.Context, _, _ uint64) error {
+				voidCalled = true
+				return nil
+			},
+		}, &mockAccountingRepository{}, &mockClosingSettingsService{}, &mockPaymentMethodMasterRepository{})
+
+		got, err := svc.VoidReopen(context.Background(), 1, VoidReopenInput{
+			ID: 8, Reason: "  ", ActorID: 1,
+		})
+		require.Error(t, err)
+		assert.Nil(t, got)
+		assert.True(t, apperrors.IsInvalidInput(err))
+		assert.False(t, voidCalled)
+	})
+
+	t.Run("nonexistent id fail-closed", func(t *testing.T) {
+		voidCalled := false
+		svc := newCashRegisterService(&mockCashRegisterCloseRepository{
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.CashRegisterClose, error) {
+				return nil, apperrors.WrapNotFound("cash_register_close", "99")
+			},
+			voidFn: func(_ context.Context, _, _ uint64) error {
+				voidCalled = true
+				return nil
+			},
+		}, &mockAccountingRepository{}, &mockClosingSettingsService{}, &mockPaymentMethodMasterRepository{})
+
+		got, err := svc.VoidReopen(context.Background(), 1, VoidReopenInput{
+			ID: 99, Reason: "x", ActorID: 1,
+		})
+		require.Error(t, err)
+		assert.Nil(t, got)
+		assert.True(t, apperrors.IsNotFound(err))
+		assert.False(t, voidCalled)
+	})
+
+	t.Run("void then close same period succeeds; double-close without void still fails", func(t *testing.T) {
+		// closed map simulates persistence after void
+		closed := map[string]*model.CashRegisterClose{
+			"am": {ID: 8, ClinicID: 1, CloseDate: closeDate, Period: "am"},
+		}
+		var created *model.CashRegisterClose
+
+		closeRepo := &mockCashRegisterCloseRepository{
+			findByIDFn: func(_ context.Context, _, id uint64) (*model.CashRegisterClose, error) {
+				for _, c := range closed {
+					if c.ID == id {
+						return c, nil
+					}
+				}
+				return nil, apperrors.WrapNotFound("cash_register_close", fmt.Sprintf("%d", id))
+			},
+			findByDateAndPeriodFn: func(_ context.Context, _ uint64, _ time.Time, period string) (*model.CashRegisterClose, error) {
+				if c, ok := closed[period]; ok {
+					return c, nil
+				}
+				return nil, nil
+			},
+			voidFn: func(_ context.Context, _, id uint64) error {
+				for k, c := range closed {
+					if c.ID == id {
+						delete(closed, k)
+						return nil
+					}
+				}
+				return apperrors.WrapNotFound("cash_register_close", fmt.Sprintf("%d", id))
+			},
+			createFn: func(_ context.Context, c *model.CashRegisterClose) error {
+				created = c
+				c.ID = 100
+				closed[c.Period] = c
+				return nil
+			},
+		}
+		accountingRepo := &mockAccountingRepository{
+			getCloseAggregateFn: func(_ context.Context, _ GetCloseAggregateInput) (*CloseAggregateResult, error) {
+				return emptyAggregateResult(), nil
+			},
+			getCategoryPaymentAllocationDataFn: func(_ context.Context, _ uint64, _, _ time.Time) (*CategoryPaymentAllocationData, error) {
+				return allocationDataFromAggregate(emptyAggregateResult()), nil
+			},
+		}
+		svc := newCashRegisterService(closeRepo, accountingRepo, &mockClosingSettingsService{
+			resolveScheduleFn: func(_ context.Context, _ uint64, _ time.Time) (*sharedkernel.DaySchedule, error) {
+				return defaultSchedule(), nil
+			},
+		}, &mockPaymentMethodMasterRepository{
+			findAllFn: func(_ context.Context, _ uint64) ([]model.PaymentMethodMaster, error) {
+				return []model.PaymentMethodMaster{{ID: 1, Name: "現金", SystemKey: ptrString("cash"), IsActive: true}}, nil
+			},
+		})
+
+		// pre-void double-close still rejected
+		_, err := svc.Close(context.Background(), 1, CloseRegisterInput{
+			Date: closeDate, Period: "am", ActualCash: 1000,
+		})
+		require.Error(t, err)
+		assert.True(t, apperrors.IsConflict(err))
+
+		// void
+		voidRes, err := svc.VoidReopen(context.Background(), 1, VoidReopenInput{
+			ID: 8, Reason: "誤作成", ActorID: 7,
+		})
+		require.NoError(t, err)
+		assert.Equal(t, uint64(8), voidRes.OriginalCloseID)
+
+		// preview not closed
+		preview, err := svc.GetPreview(context.Background(), 1, "2026-04-20", "am")
+		require.NoError(t, err)
+		assert.False(t, preview.IsAlreadyClosed)
+
+		// re-close succeeds
+		rec, err := svc.Close(context.Background(), 1, CloseRegisterInput{
+			Date: closeDate, Period: "am", ActualCash: 1500,
+		})
+		require.NoError(t, err)
+		require.NotNil(t, created)
+		assert.Equal(t, int64(1500), rec.ActualCash)
+
+		// double-void of original id fails
+		_, err = svc.VoidReopen(context.Background(), 1, VoidReopenInput{
+			ID: 8, Reason: "again", ActorID: 7,
+		})
+		require.Error(t, err)
+		assert.True(t, apperrors.IsNotFound(err))
+	})
 }

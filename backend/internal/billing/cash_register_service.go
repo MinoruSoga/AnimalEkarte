@@ -3,8 +3,10 @@ package billing
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
@@ -21,6 +23,25 @@ type CloseRegisterInput struct {
 	ActualCash int64
 	Memo       string
 	ClosedBy   *uint64
+}
+
+// VoidReopenInput は誤作成したレジ締めの特権取消（void/reopen）入力。
+type VoidReopenInput struct {
+	ID     uint64
+	Reason string
+	// ActorID は取消実行スタッフ。0 は未認証として fail-closed。
+	ActorID uint64
+}
+
+// VoidReopenResult は void/reopen の監査付き結果。
+type VoidReopenResult struct {
+	OriginalCloseID uint64
+	ClinicID        uint64
+	CloseDate       time.Time
+	Period          string
+	Reason          string
+	VoidedBy        uint64
+	VoidedAt        time.Time
 }
 
 // CashRegisterPreview は締めプレビューのフロントエンド向けレスポンス
@@ -177,6 +198,8 @@ func orderPaymentMethodsForMatrix(masters []model.PaymentMethodMaster, matrix ma
 type CashRegisterService interface {
 	GetPreview(ctx context.Context, clinicID uint64, dateStr, period string) (*CashRegisterPreview, error)
 	Close(ctx context.Context, clinicID uint64, input CloseRegisterInput) (*model.CashRegisterClose, error)
+	// VoidReopen は特権オペレータによる誤作成締めの業務取消。成功後は同一 clinic/date/period を通常 Close できる。
+	VoidReopen(ctx context.Context, clinicID uint64, input VoidReopenInput) (*VoidReopenResult, error)
 	List(ctx context.Context, clinicID uint64, startDate, endDate *time.Time, page, limit int) ([]model.CashRegisterClose, int64, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.CashRegisterClose, error)
 	// #115: 指定日にレジ締めが存在するか確認する（会計の締め後編集チェック用）。
@@ -464,6 +487,57 @@ func (s *cashRegisterService) Close(ctx context.Context, clinicID uint64, input 
 		slog.Int64("actual_cash", input.ActualCash))
 
 	return record, nil
+}
+
+func (s *cashRegisterService) VoidReopen(ctx context.Context, clinicID uint64, input VoidReopenInput) (*VoidReopenResult, error) {
+	if input.ActorID == 0 {
+		return nil, apperrors.WrapUnauthorized("authenticated staff is required to void cash register close")
+	}
+	if input.ID == 0 {
+		return nil, apperrors.WrapInvalidInput("id は必須です")
+	}
+	reason := strings.TrimSpace(input.Reason)
+	if reason == "" {
+		return nil, apperrors.WrapInvalidInput("reason は必須です")
+	}
+
+	existing, err := s.closeRepo.FindByID(ctx, clinicID, input.ID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to load cash register close for void", "error", err, "id", input.ID)
+		return nil, apperrors.Wrap(err, "failed to load cash register close for void")
+	}
+	if existing == nil {
+		return nil, apperrors.WrapNotFound("cash_register_close", fmt.Sprintf("%d", input.ID))
+	}
+
+	if err := s.closeRepo.Void(ctx, clinicID, input.ID); err != nil {
+		slog.ErrorContext(ctx, "failed to void cash register close", "error", err, "id", input.ID)
+		return nil, apperrors.Wrap(err, "failed to void cash register close")
+	}
+
+	voidedAt := time.Now()
+	result := &VoidReopenResult{
+		OriginalCloseID: existing.ID,
+		ClinicID:        existing.ClinicID,
+		CloseDate:       existing.CloseDate,
+		Period:          existing.Period,
+		Reason:          reason,
+		VoidedBy:        input.ActorID,
+		VoidedAt:        voidedAt,
+	}
+
+	// 監査: who / why / original id（構造化ログ。永続調整台帳は billing 紐付け必須のためログを正とする）
+	slog.InfoContext(ctx, "cash register close voided",
+		slog.Uint64("clinic_id", clinicID),
+		slog.Uint64("original_close_id", existing.ID),
+		slog.String("close_date", existing.CloseDate.Format(time.DateOnly)),
+		slog.String("period", existing.Period),
+		slog.Uint64("voided_by", input.ActorID),
+		slog.String("reason", reason),
+		slog.Time("voided_at", voidedAt),
+	)
+
+	return result, nil
 }
 
 func (s *cashRegisterService) List(ctx context.Context, clinicID uint64, startDate, endDate *time.Time, page, limit int) ([]model.CashRegisterClose, int64, error) {

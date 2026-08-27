@@ -110,6 +110,14 @@ func (m *mockStaffRepository) CountBlockingReferencesByStaffID(ctx context.Conte
 	return m.countBlockingRefsFn(ctx, clinicID, staffID)
 }
 
+func (m *mockStaffRepository) IsActiveSystemAdminStaff(_ context.Context, _ uint64) (bool, error) {
+	return false, nil
+}
+
+func (m *mockStaffRepository) CountActiveSystemAdminStaff(_ context.Context) (int64, error) {
+	return 0, nil
+}
+
 // 予約用途 write（ADR-006 論点#1 案A）は staff service からは呼ばれない no-op スタブ。
 func (m *mockStaffRepository) CreateForReservation(_ context.Context, _ *model.Staff, _ uint64) error {
 	return nil

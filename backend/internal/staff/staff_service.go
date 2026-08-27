@@ -68,6 +68,9 @@ type UpdateStaffInput struct {
 	// every active assignment observed under the mutation transaction.
 	AuthorizedClinicIDs []uint64
 	IsSystemAdmin       bool
+	// ActorStaffID is the authenticated staff performing the update when known.
+	// Zero means the actor staff id was not available on the request context.
+	ActorStaffID uint64
 	// CredentialAudit is derived from the authenticated request context and is
 	// required only when Password requests a credential replacement.
 	CredentialAudit *CredentialMutationAudit

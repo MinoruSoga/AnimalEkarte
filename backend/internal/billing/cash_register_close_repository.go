@@ -14,11 +14,15 @@ import (
 )
 
 // CashRegisterCloseRepository はレジ締めレコードのデータアクセスインターフェース。
-// W-013 FINAL B: Create / CreateAdjustment のみ。Update・Delete・soft-delete 再開は持たない（append-only）。
+// W-013: 通常経路は Create / CreateAdjustment のみ（一般 Update は持たない）。
+// BUG-032: Void は特権の業務取消のみを許可し、同一 clinic/date/period の再 Close を可能にする。
 type CashRegisterCloseRepository interface {
 	Create(ctx context.Context, c *model.CashRegisterClose) error
 	// CreateAdjustment は締め後訂正台帳へ 1 行追記する。ambient tx があれば参加する（fail-closed）。
 	CreateAdjustment(ctx context.Context, adj *model.CashRegisterCloseAdjustment) error
+	// Void は特権取消。対象行を clinic スコープで除去し、同一 date/period の再 Close を可能にする。
+	// 一般 Update API は提供しない。存在しない id は NotFound。
+	Void(ctx context.Context, clinicID, id uint64) error
 	FindAll(ctx context.Context, clinicID uint64, startDate, endDate *time.Time, page, limit int) ([]model.CashRegisterClose, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.CashRegisterClose, error)
 	FindByDateAndPeriod(ctx context.Context, clinicID uint64, date time.Time, period string) (*model.CashRegisterClose, error)
@@ -49,6 +53,23 @@ func (r *cashRegisterCloseRepository) CreateAdjustment(ctx context.Context, adj 
 	}
 	if err := persistence.DBOrTx(ctx, r.db).Create(adj).Error; err != nil {
 		return apperrors.FromGORM(err, "cash_register_close_adjustment", "")
+	}
+	return nil
+}
+
+func (r *cashRegisterCloseRepository) Void(ctx context.Context, clinicID, id uint64) error {
+	if id == 0 {
+		return apperrors.WrapInvalidInput("cash register close id is required")
+	}
+	res := persistence.DBOrTx(ctx, r.db).
+		Scopes(persistence.ClinicScope(clinicID)).
+		Where("id = ?", id).
+		Delete(&model.CashRegisterClose{})
+	if res.Error != nil {
+		return apperrors.FromGORM(res.Error, "cash_register_close", fmt.Sprintf("%d", id))
+	}
+	if res.RowsAffected == 0 {
+		return apperrors.WrapNotFound("cash_register_close", fmt.Sprintf("%d", id))
 	}
 	return nil
 }

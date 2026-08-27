@@ -18,6 +18,7 @@
 | [scenarios/FORM-FIELD-INVENTORY.md](scenarios/FORM-FIELD-INVENTORY.md) | 全フォーム×項目の棚卸し | 項目単位カバー確認 |
 | [INTEGRATION_TEST_PLAN.md](INTEGRATION_TEST_PLAN.md) | Unit/Integration/E2E・負荷試験 | 自動テスト方針 |
 | [E2E_TESTING_GUIDE.md](E2E_TESTING_GUIDE.md) | Playwright E2E 実行・追加 | L3 回帰 |
+| [liff-verification.md](liff-verification.md) | LIFF 検証経路（local/CI mock only · STG 実トークン · ローカル実トークン非必須） | LIFF/LINE 検証の公式分割・BUG-010 |
 | [SECTION_14_MANUAL_TEST_GUIDE.md](SECTION_14_MANUAL_TEST_GUIDE.md) | ドメイン重点の手動/browser-test | L5 補完 |
 | [PERFORMANCE_PROFILING.md](PERFORMANCE_PROFILING.md) | pprof / Lighthouse | 性能調査 |
 

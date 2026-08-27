@@ -42,6 +42,28 @@ func toCashRegisterCloseResponse(r *model.CashRegisterClose) cashRegisterCloseRe
 	}
 }
 
+type cashRegisterVoidResponse struct {
+	OriginalCloseID uint64    `json:"original_close_id"`
+	ClinicID        uint64    `json:"clinic_id"`
+	CloseDate       time.Time `json:"close_date"`
+	Period          string    `json:"period"`
+	Reason          string    `json:"reason"`
+	VoidedBy        uint64    `json:"voided_by"`
+	VoidedAt        time.Time `json:"voided_at"`
+}
+
+func toCashRegisterVoidResponse(r *VoidReopenResult) cashRegisterVoidResponse {
+	return cashRegisterVoidResponse{
+		OriginalCloseID: r.OriginalCloseID,
+		ClinicID:        r.ClinicID,
+		CloseDate:       httpapi.LocalTime(r.CloseDate),
+		Period:          r.Period,
+		Reason:          r.Reason,
+		VoidedBy:        r.VoidedBy,
+		VoidedAt:        httpapi.LocalTime(r.VoidedAt),
+	}
+}
+
 type cashRegisterTaxBreakdownEntryResponse struct {
 	TaxableAmount int64 `json:"taxable_amount"`
 	TaxAmount     int64 `json:"tax_amount"`

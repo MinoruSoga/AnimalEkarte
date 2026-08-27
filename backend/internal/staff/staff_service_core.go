@@ -234,6 +234,11 @@ func (s *staffService) Update(ctx context.Context, clinicID, id uint64, input *U
 		if hasPasswordUpdate && lockedStaff.AccountID == nil {
 			return apperrors.WrapInvalidInput("staff does not have an account")
 		}
+		if input.IsActive != nil && !*input.IsActive {
+			if err := s.guardStaffDeactivation(txCtx, id, lockedStaff, input.ActorStaffID); err != nil {
+				return err
+			}
+		}
 		if hasProfileUpdate {
 			if err := s.repo.Update(txCtx, writeClinicID, id, buildStaffUpdate(input)); err != nil {
 				return apperrors.Wrap(err, "failed to update staff")
@@ -299,6 +304,42 @@ func (s *staffService) Update(ctx context.Context, clinicID, id uint64, input *U
 		slog.Uint64("staff_id", id),
 	)
 	return result, nil
+}
+
+const (
+	errMsgSelfDeactivationForbidden   = "自分自身を無効化することはできません"
+	errMsgLastSystemAdminDeactivation = "最後の有効なシステム管理者を無効化することはできません"
+)
+
+// guardStaffDeactivation enforces self-deactivation and last-active-system-admin
+// rejection before is_active=false is persisted.
+func (s *staffService) guardStaffDeactivation(
+	ctx context.Context,
+	targetID uint64,
+	lockedStaff *model.Staff,
+	actorStaffID uint64,
+) error {
+	if lockedStaff == nil || !lockedStaff.IsActive {
+		return nil
+	}
+	if actorStaffID != 0 && actorStaffID == targetID {
+		return apperrors.WrapInvalidInput(errMsgSelfDeactivationForbidden)
+	}
+	isSystemAdminStaff, err := s.repo.IsActiveSystemAdminStaff(ctx, targetID)
+	if err != nil {
+		return apperrors.Wrap(err, "failed to check system administrator status")
+	}
+	if !isSystemAdminStaff {
+		return nil
+	}
+	activeAdminCount, err := s.repo.CountActiveSystemAdminStaff(ctx)
+	if err != nil {
+		return apperrors.Wrap(err, "failed to count active system administrators")
+	}
+	if activeAdminCount <= 1 {
+		return apperrors.WrapConflict(errMsgLastSystemAdminDeactivation)
+	}
+	return nil
 }
 
 func authorizeGlobalStaffUpdate(

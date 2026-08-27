@@ -20,6 +20,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
+	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/testdb"
 )
@@ -146,8 +147,7 @@ func TestCashRegisterCloseRepository_CreateAdjustment_ReasonRequired(t *testing.
 }
 
 func TestCashRegisterCloseRepository_AppendOnlyContract_NoDeleteMethod(t *testing.T) {
-	// コンパイル時契約: CashRegisterCloseRepository に Update/Delete は無い。
-	// ランタイムでは Create 後も FindByID で取得でき、app から reopen できないことを固定する。
+	// 通常経路に一般 Update は無い。BUG-032 の Void は特権取消の明示 API のみ。
 	db := setupCashRegisterCloseTestDB(t)
 	repo := NewCashRegisterCloseRepository(db)
 	ctx := context.Background()
@@ -158,16 +158,66 @@ func TestCashRegisterCloseRepository_AppendOnlyContract_NoDeleteMethod(t *testin
 	require.NotNil(t, got)
 	assert.Equal(t, c.ID, got.ID)
 
-	// soft-delete 再開は productize しない。GORM Delete は app 経路ではなく、
-	// migration 003 適用後は immutability trigger が UPDATE/DELETE を拒否する。
-	// ここでは app API に Delete が無いことと、再 Create が拒否されることを固定する。
+	// Void なしの再 Create は拒否される。
 	err = repo.Create(ctx, &model.CashRegisterClose{
 		ClinicID:          1,
 		CloseDate:         time.Date(2026, 6, 5, 0, 0, 0, 0, time.UTC),
 		Period:            "emg",
 		CategoryBreakdown: json.RawMessage(`{}`),
 	})
-	require.Error(t, err, "同一 date/period の再 Create は不可（append-only・再オープン禁止）")
+	require.Error(t, err, "同一 date/period の再 Create は Void なしでは不可")
+}
+
+func TestCashRegisterCloseRepository_Void_ThenReCreateSamePeriod(t *testing.T) {
+	db := setupCashRegisterCloseTestDB(t)
+	repo := NewCashRegisterCloseRepository(db)
+	ctx := context.Background()
+
+	date := time.Date(2026, 6, 12, 0, 0, 0, 0, time.UTC)
+	original := makeCashRegisterClose(t, db, 1, date, "am", nil)
+
+	require.NoError(t, repo.Void(ctx, 1, original.ID))
+
+	// void 後は FindByID / FindByDateAndPeriod で見えない
+	_, err := repo.FindByID(ctx, 1, original.ID)
+	require.Error(t, err)
+	got, err := repo.FindByDateAndPeriod(ctx, 1, date, "am")
+	require.NoError(t, err)
+	assert.Nil(t, got)
+
+	// 同一 clinic/date/period の再 Create が可能
+	require.NoError(t, repo.Create(ctx, &model.CashRegisterClose{
+		ClinicID:          1,
+		CloseDate:         date,
+		Period:            "am",
+		CategoryBreakdown: json.RawMessage(`{}`),
+	}))
+}
+
+func TestCashRegisterCloseRepository_Void_MissingID(t *testing.T) {
+	db := setupCashRegisterCloseTestDB(t)
+	repo := NewCashRegisterCloseRepository(db)
+	ctx := context.Background()
+
+	err := repo.Void(ctx, 1, 999999)
+	require.Error(t, err)
+	assert.True(t, apperrors.IsNotFound(err))
+}
+
+func TestCashRegisterCloseRepository_Void_ClinicIsolation(t *testing.T) {
+	db := setupCashRegisterCloseTestDB(t)
+	repo := NewCashRegisterCloseRepository(db)
+	ctx := context.Background()
+
+	c := makeCashRegisterClose(t, db, 1, time.Date(2026, 6, 13, 0, 0, 0, 0, time.UTC), "pm", nil)
+	err := repo.Void(ctx, 2, c.ID)
+	require.Error(t, err)
+	assert.True(t, apperrors.IsNotFound(err))
+
+	// clinic1 の行は残存
+	got, err := repo.FindByID(ctx, 1, c.ID)
+	require.NoError(t, err)
+	require.NotNil(t, got)
 }
 
 func TestCashRegisterCloseRepository_FindAll(t *testing.T) {

@@ -25,6 +25,13 @@ type StaffRepository interface {
 	LockActiveByIDForUpdateInClinic(ctx context.Context, clinicID, id uint64) (*model.Staff, error)
 	LockActiveByIDForShare(ctx context.Context, id uint64) (*model.Staff, error)
 	FindByAccountID(ctx context.Context, accountID uint64) (*model.Staff, error)
+	// IsActiveSystemAdminStaff reports whether the staff can currently authenticate
+	// as a system administrator (active staff + active system-admin account).
+	IsActiveSystemAdminStaff(ctx context.Context, staffID uint64) (bool, error)
+	// CountActiveSystemAdminStaff counts staff who can currently authenticate as
+	// system administrators. Callers must hold the mutation transaction so the
+	// count is consistent with concurrent deactivation attempts.
+	CountActiveSystemAdminStaff(ctx context.Context) (int64, error)
 	// Create はスタッフを作成する。
 	Create(ctx context.Context, staff *model.Staff) error
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
@@ -210,6 +217,52 @@ func (r *staffRepository) FindByAccountID(ctx context.Context, accountID uint64)
 		return nil, apperrors.FromGORM(err, "staff", fmt.Sprintf("account_id=%d", accountID))
 	}
 	return &staff, nil
+}
+
+// activeSystemAdminStaffQuery is the shared predicate for staff who can currently
+// authenticate as system administrators.
+func (r *staffRepository) activeSystemAdminStaffQuery(ctx context.Context) *gorm.DB {
+	return persistence.DBOrTx(ctx, r.db).Model(&model.Staff{}).
+		Joins("INNER JOIN accounts ON accounts.id = staffs.account_id AND accounts.deleted_at IS NULL").
+		Where("staffs.deleted_at IS NULL").
+		Where("staffs.is_active = TRUE").
+		Where("accounts.is_active = TRUE").
+		Where("accounts.is_system_admin = TRUE")
+}
+
+// IsActiveSystemAdminStaff reports whether the staff can currently authenticate
+// as a system administrator.
+func (r *staffRepository) IsActiveSystemAdminStaff(ctx context.Context, staffID uint64) (bool, error) {
+	var count int64
+	err := r.activeSystemAdminStaffQuery(ctx).
+		Where("staffs.id = ?", staffID).
+		Count(&count).Error
+	if err != nil {
+		return false, apperrors.FromGORM(err, "staff", fmt.Sprintf("%d", staffID))
+	}
+	return count > 0, nil
+}
+
+// CountActiveSystemAdminStaff counts staff who can currently authenticate as
+// system administrators. When an ambient transaction is present, matching staff
+// rows are locked FOR UPDATE in deterministic order so concurrent deactivations
+// serialize on the last-admin check.
+func (r *staffRepository) CountActiveSystemAdminStaff(ctx context.Context) (int64, error) {
+	db := r.activeSystemAdminStaffQuery(ctx)
+	if persistence.TxFromContext(ctx) != nil {
+		var ids []uint64
+		if err := db.Clauses(clause.Locking{Strength: "UPDATE"}).
+			Order("staffs.id ASC").
+			Pluck("staffs.id", &ids).Error; err != nil {
+			return 0, apperrors.FromGORM(err, "staff", "active_system_admin_count")
+		}
+		return int64(len(ids)), nil
+	}
+	var count int64
+	if err := db.Count(&count).Error; err != nil {
+		return 0, apperrors.FromGORM(err, "staff", "active_system_admin_count")
+	}
+	return count, nil
 }
 
 func (r *staffRepository) Create(ctx context.Context, staff *model.Staff) error {

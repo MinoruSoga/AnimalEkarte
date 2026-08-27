@@ -163,3 +163,34 @@ func TestCloseCashRegisterRequest_ToServiceInput_ZeroActualCashAllowed(t *testin
 		t.Fatalf("ActualCash = %d, want 0", input.ActualCash)
 	}
 }
+
+func TestVoidCashRegisterCloseRequest_ToServiceInput(t *testing.T) {
+	req := voidCashRegisterCloseRequest{Reason: "  誤作成のため取消  "}
+	input, err := req.toServiceInput(8, 42)
+	if err != nil {
+		t.Fatalf("toServiceInput() error = %v", err)
+	}
+	if input.ID != 8 {
+		t.Fatalf("ID = %d, want 8", input.ID)
+	}
+	if input.ActorID != 42 {
+		t.Fatalf("ActorID = %d, want 42", input.ActorID)
+	}
+	if input.Reason != "誤作成のため取消" {
+		t.Fatalf("Reason = %q, want trimmed reason", input.Reason)
+	}
+}
+
+func TestVoidCashRegisterCloseRequest_ToServiceInput_RejectsEmptyReason(t *testing.T) {
+	req := voidCashRegisterCloseRequest{Reason: "   "}
+	if _, err := req.toServiceInput(8, 1); err == nil {
+		t.Fatal("expected error for empty reason")
+	}
+}
+
+func TestVoidCashRegisterCloseRequest_ToServiceInput_RejectsZeroStaff(t *testing.T) {
+	req := voidCashRegisterCloseRequest{Reason: "誤作成"}
+	if _, err := req.toServiceInput(8, 0); err == nil {
+		t.Fatal("expected error for zero staff")
+	}
+}

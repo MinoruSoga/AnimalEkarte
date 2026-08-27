@@ -118,6 +118,9 @@ func (h *Handler) UpdateStaff(c *gin.Context) {
 	input := req.toServiceInput()
 	input.AuthorizedClinicIDs = authorizedClinicIDs
 	input.IsSystemAdmin = isSystemAdmin
+	if actor := optionalStaffID(c); actor != nil {
+		input.ActorStaffID = *actor
+	}
 	if passwordReplacement {
 		input.CredentialAudit = &CredentialMutationAudit{
 			ClinicID:      clinicID,
