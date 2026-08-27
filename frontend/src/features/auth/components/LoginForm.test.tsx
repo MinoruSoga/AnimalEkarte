@@ -92,12 +92,12 @@ describe("LoginForm demo accounts (staff-attach)", () => {
     const demoEmails = screen.getAllByText(/stg-staff-\d+@example\.test/);
     expect(demoEmails.length).toBeGreaterThanOrEqual(9);
     expect(demoEmails.length).toBeLessThanOrEqual(12);
-    expect(screen.queryByText(/パスワード:\s*password/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/パスワード:\s*password/i)).toBeInTheDocument();
     expect(screen.queryByText("hayashi@noah-vet.co.jp")).not.toBeInTheDocument();
     expect(screen.queryByText("admin@example.com")).not.toBeInTheDocument();
   });
 
-  it("デモアカウント行のクリックは email のみ注入し password は空のまま", async () => {
+  it("デモアカウント行のクリックは email と password を両方注入する", async () => {
     const user = userEvent.setup();
     render(
       <MemoryRouter>
@@ -113,6 +113,20 @@ describe("LoginForm demo accounts (staff-attach)", () => {
     await user.click(rowButton as HTMLButtonElement);
 
     expect(screen.getByLabelText("メールアドレス")).toHaveValue(emailText);
-    expect(screen.getByLabelText("パスワード")).toHaveValue("");
+    expect(screen.getByLabelText("パスワード")).toHaveValue("password");
+  });
+
+  it("デモアカウント一覧は縦スクロール可能な領域に収める", () => {
+    render(
+      <MemoryRouter>
+        <LoginForm />
+      </MemoryRouter>,
+    );
+
+    const firstDemoEmail = screen.getAllByText(/stg-staff-\d+@example\.test/)[0];
+    const listRegion = firstDemoEmail.closest("div.overflow-y-auto");
+    expect(listRegion).not.toBeNull();
+    expect(listRegion).toHaveClass("overflow-y-auto");
+    expect(listRegion?.className).toMatch(/max-h-/);
   });
 });

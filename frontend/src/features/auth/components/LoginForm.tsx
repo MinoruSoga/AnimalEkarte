@@ -152,8 +152,9 @@ export const LoginForm = memo(function LoginForm() {
   }, []);
 
   const handleSelectDemo = useCallback((demoEmail: string) => {
-    // staff-attach のパスワードは UI に出さず、email のみ注入する。
+    // 共有デモパスワードは歴史的 UI と同じ固定文字列（ローカル DEV のみ表示）。
     setEmail(demoEmail);
+    setPassword("password");
   }, []);
 
   // ログイン済みなら即リダイレクト（直接 /login にアクセスした場合）
@@ -256,9 +257,9 @@ export const LoginForm = memo(function LoginForm() {
             <div className={`h-px flex-1 ${C.bgLight}`} />
           </div>
           <p className={`text-sm text-center mb-2 ${C.text40}`}>
-            メールのみ入力されます。パスワードは別途入力してください
+            パスワード: password
           </p>
-          <div className="space-y-px">
+          <div className="max-h-[min(40vh,320px)] overflow-y-auto space-y-px">
             {DEMO_ACCOUNTS.map((cred) => (
               <DemoAccount
                 key={cred.email}
