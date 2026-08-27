@@ -12,31 +12,44 @@ import (
 )
 
 const (
-	demoAccountLabelDriftBundle       = "003_demo"
-	demoAccountExpectedCount          = 0
+	demoAccountLabelDriftBundle       = "002_master"
+	demoAccountExpectedMinCount       = 9
+	demoAccountExpectedMaxCount       = 12
 	gitLFSPointerPrefix               = "version https://git-lfs.github.com/spec/v1"
 	demoAccountSystemAdminClinicLabel = "全医院"
 	demoAccountLoginFormRelativePath  = "frontend/src/features/auth/components/LoginForm.tsx"
+	demoAccountStaffAttachEmailPattern = `^stg-staff-\d+@example\.test$`
 )
 
 var demoAccountComparedSeedTables = []string{
-	"accounts",
-	"staffs",
-	"staff_permission_groups",
 	"permission_groups",
-	"occupations",
 	"clinics",
 }
 
 // demoAccountObjectLinePattern extracts one DEMO_ACCOUNTS object from a single
 // LoginForm.tsx line. Field order matches the current source (email, labels,
-// optional isSystemAdmin). Reordered lines fail closed via count != 9.
+// optional isSystemAdmin).
 var demoAccountObjectLinePattern = regexp.MustCompile(
 	`email:\s*"([^"]+)"` +
 		`.*?occupationLabel:\s*"([^"]+)"` +
 		`.*?permissionLabel:\s*"([^"]+)"` +
 		`.*?clinicLabel:\s*"([^"]+)"` +
 		`(?:.*?isSystemAdmin:\s*(true|false))?`,
+)
+
+var (
+	demoAccountStaffAttachEmailRE = regexp.MustCompile(demoAccountStaffAttachEmailPattern)
+	demoAccountRetiredDemoEmails  = []string{
+		"hayashi@noah-vet.co.jp",
+		"admin@noavet.jp",
+		"admin@example.com",
+		"vet@example.com",
+		"nurse@example.com",
+		"reception@example.com",
+		"trimmer@example.com",
+		"joto-vet@example.com",
+		"shiki-vet@example.com",
+	}
 )
 
 type demoAccountUILabels struct {
@@ -63,7 +76,7 @@ type demoAccountSeedCSVTable struct {
 	col     map[string]int
 }
 
-func TestDemoAccountLoginFormHasNoHardcodedCredentials(t *testing.T) {
+func TestDemoAccountLoginFormMatchesStaffAttachContract(t *testing.T) {
 	moduleRoot := mustFindSeedCSVModuleRoot(t)
 
 	source, err := os.ReadFile(mustFindDemoAccountLoginFormPath(t, moduleRoot))
@@ -72,8 +85,22 @@ func TestDemoAccountLoginFormHasNoHardcodedCredentials(t *testing.T) {
 	}
 
 	uiAccounts := parseDemoAccountObjectLines(string(source))
-	if len(uiAccounts) != 0 {
-		t.Fatalf("DEMO_ACCOUNTS must be empty after 003_demo retirement, got %d", len(uiAccounts))
+	if len(uiAccounts) < demoAccountExpectedMinCount || len(uiAccounts) > demoAccountExpectedMaxCount {
+		t.Fatalf(
+			"DEMO_ACCOUNTS count = %d, want %d..%d staff-attach accounts",
+			len(uiAccounts),
+			demoAccountExpectedMinCount,
+			demoAccountExpectedMaxCount,
+		)
+	}
+
+	tables, err := loadDemoAccountComparedSeedTables(moduleRoot)
+	if err != nil {
+		t.Fatalf("load %s compared seed CSV: %v", demoAccountLabelDriftBundle, err)
+	}
+
+	for _, violation := range demoAccountStaffAttachContractViolations(uiAccounts, tables) {
+		t.Errorf("%s", violation)
 	}
 }
 
@@ -149,41 +176,46 @@ func TestParseDemoAccountObjectLines(t *testing.T) {
 }
 
 func TestDemoAccountLabelDriftViolations_FailClosedOnCount(t *testing.T) {
-	tables := demoAccountJoinFixtureTables(t, 9)
-
-	empty := demoAccountLabelDriftViolations(nil, tables)
-	if len(empty) != 0 {
-		t.Fatalf("empty DEMO_ACCOUNTS violations = %v, want none", empty)
-	}
+	tables := demoAccountJoinFixtureTables(t, 10)
 
 	tests := []struct {
 		name string
 		ui   []demoAccountUILabels
 	}{
+		{name: "nil slice", ui: nil},
+		{name: "empty slice", ui: []demoAccountUILabels{}},
 		{name: "one account", ui: demoAccountJoinFixtureUI(t, 1, nil)},
-		{name: "nine accounts", ui: demoAccountJoinFixtureUI(t, 9, nil)},
+		{name: "eight accounts", ui: demoAccountJoinFixtureUI(t, 8, nil)},
+		{name: "thirteen accounts", ui: demoAccountJoinFixtureUI(t, 13, nil)},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			violations := demoAccountLabelDriftViolations(tt.ui, tables)
-			if len(violations) != 1 {
-				t.Fatalf("violations = %v, want exactly one count failure", violations)
+			violations := demoAccountStaffAttachContractViolations(tt.ui, tables)
+			if len(violations) == 0 {
+				t.Fatalf("violations = %v, want count failure", violations)
 			}
-			want := fmt.Sprintf(
-				"extracted DEMO_ACCOUNTS count = %d, want %d (fail closed)",
-				len(tt.ui),
-				demoAccountExpectedCount,
-			)
-			if violations[0] != want {
-				t.Fatalf("violation = %q, want %q", violations[0], want)
+			found := false
+			for _, violation := range violations {
+				if strings.Contains(violation, "want 9..12") {
+					found = true
+					break
+				}
+			}
+			if !found {
+				t.Fatalf("violations = %v, want count range failure", violations)
 			}
 		})
 	}
 }
 
 func TestDemoAccountLabelDriftViolations_ComparesLabels(t *testing.T) {
-	tables := demoAccountJoinFixtureTables(t, 9)
+	tables := demoAccountJoinFixtureTables(t, 10)
+
+	validUI := demoAccountJoinFixtureUI(t, 10, nil)
+	if violations := demoAccountStaffAttachContractViolations(validUI, tables); len(violations) != 0 {
+		t.Fatalf("valid fixture violations = %v, want none", violations)
+	}
 
 	tests := []struct {
 		name          string
@@ -191,27 +223,22 @@ func TestDemoAccountLabelDriftViolations_ComparesLabels(t *testing.T) {
 		wantSubstring string
 	}{
 		{
-			name: "matching labels have no violations",
-			modify: func(int, *demoAccountUILabels) {
-			},
-		},
-		{
 			name: "permissionLabel drift",
 			modify: func(i int, account *demoAccountUILabels) {
 				if i == 2 {
-					account.permissionLabel = "一般"
+					account.permissionLabel = "存在しない権限"
 				}
 			},
-			wantSubstring: `permissionLabel "一般" does not match seed CSV 003_demo/permission_groups.csv permission group "執行"`,
+			wantSubstring: `permissionLabel "存在しない権限" is not in seed CSV 002_master/permission_groups.csv`,
 		},
 		{
-			name: "occupationLabel drift",
+			name: "occupationLabel empty fails closed",
 			modify: func(i int, account *demoAccountUILabels) {
 				if i == 0 {
-					account.occupationLabel = "受付"
+					account.occupationLabel = ""
 				}
 			},
-			wantSubstring: `occupationLabel "受付" does not match seed CSV 003_demo/occupations.csv occupation "獣医師"`,
+			wantSubstring: "occupationLabel is empty (fail closed)",
 		},
 		{
 			name: "non-admin clinicLabel drift",
@@ -220,38 +247,44 @@ func TestDemoAccountLabelDriftViolations_ComparesLabels(t *testing.T) {
 					account.clinicLabel = "敷島医院"
 				}
 			},
-			wantSubstring: `clinicLabel "敷島医院" does not match seed CSV 003_demo/clinics.csv clinic "八王子病院"`,
+			wantSubstring: `clinicLabel "敷島医院" is not in seed CSV 002_master/clinics.csv`,
 		},
 		{
-			name: "isSystemAdmin drift",
-			modify: func(i int, account *demoAccountUILabels) {
-				if i == 1 {
-					account.isSystemAdmin = true
-					account.clinicLabel = demoAccountSystemAdminClinicLabel
-				}
-			},
-			wantSubstring: "isSystemAdmin = true, seed CSV 003_demo/accounts.csv is_system_admin = false",
-		},
-		{
-			name: "missing seed email fails closed",
+			name: "retired demo email fails closed",
 			modify: func(i int, account *demoAccountUILabels) {
 				if i == 0 {
-					account.email = "missing@example.com"
+					account.email = "admin@example.com"
 				}
 			},
-			wantSubstring: "accounts.csv email missing@example.com matched 0 row(s), want 1 (fail closed)",
+			wantSubstring: "retired 003_demo email admin@example.com is not allowed",
+		},
+		{
+			name: "non staff-attach email fails closed",
+			modify: func(i int, account *demoAccountUILabels) {
+				if i == 1 {
+					account.email = "someone@example.com"
+				}
+			},
+			wantSubstring: "email someone@example.com must match stg-staff-{id}@example.test",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ui := demoAccountJoinFixtureUI(t, 9, tt.modify)
-			violations := demoAccountLabelDriftViolations(ui, tables)
-			if len(violations) != 1 {
-				t.Fatalf("violations = %v, want retired-demo count failure", violations)
+			ui := demoAccountJoinFixtureUI(t, 10, tt.modify)
+			violations := demoAccountStaffAttachContractViolations(ui, tables)
+			if len(violations) == 0 {
+				t.Fatal("got no violations, want a contract mismatch")
 			}
-			if !strings.Contains(violations[0], "want 0") {
-				t.Fatalf("violation = %q, want count=0 fail-closed", violations[0])
+			found := false
+			for _, violation := range violations {
+				if strings.Contains(violation, tt.wantSubstring) {
+					found = true
+					break
+				}
+			}
+			if !found {
+				t.Fatalf("violations = %v, want substring %q", violations, tt.wantSubstring)
 			}
 		})
 	}
@@ -376,7 +409,7 @@ func TestErrIfSeedCSVLFSPointer(t *testing.T) {
 				if !strings.Contains(err.Error(), "not real data") {
 					t.Fatalf("error = %q, want substring %q", err, "not real data")
 				}
-				if !strings.Contains(err.Error(), "003_demo/accounts.csv") {
+				if !strings.Contains(err.Error(), "002_master/accounts.csv") {
 					t.Fatalf("error = %q, want seed CSV path", err)
 				}
 				return
@@ -443,75 +476,92 @@ func parseDemoAccountObjectLines(source string) []demoAccountUILabels {
 	return accounts
 }
 
-func demoAccountLabelDriftViolations(
+func demoAccountStaffAttachContractViolations(
 	uiAccounts []demoAccountUILabels,
 	tables map[string]demoAccountSeedCSVTable,
 ) []string {
-	if len(uiAccounts) != demoAccountExpectedCount {
+	if len(uiAccounts) < demoAccountExpectedMinCount || len(uiAccounts) > demoAccountExpectedMaxCount {
 		return []string{fmt.Sprintf(
-			"extracted DEMO_ACCOUNTS count = %d, want %d (fail closed)",
+			"extracted DEMO_ACCOUNTS count = %d, want %d..%d (fail closed)",
 			len(uiAccounts),
-			demoAccountExpectedCount,
+			demoAccountExpectedMinCount,
+			demoAccountExpectedMaxCount,
 		)}
 	}
 
+	permissionNames, err := demoAccountSeedNameSet(tables, "permission_groups", "name")
+	if err != nil {
+		return []string{err.Error()}
+	}
+	clinicNames, err := demoAccountSeedNameSet(tables, "clinics", "name")
+	if err != nil {
+		return []string{err.Error()}
+	}
+
 	var violations []string
+	seenEmail := make(map[string]struct{}, len(uiAccounts))
 	for _, ui := range uiAccounts {
-		seed, err := seedLabelsForDemoAccountEmail(ui.email, tables)
-		if err != nil {
-			violations = append(violations, fmt.Sprintf("DEMO_ACCOUNTS %s: %v", ui.email, err))
-			continue
-		}
-		if ui.occupationLabel != seed.occupationLabel {
+		if _, dup := seenEmail[ui.email]; dup {
 			violations = append(violations, fmt.Sprintf(
-				"DEMO_ACCOUNTS %s occupationLabel %q does not match seed CSV %s/%s occupation %q",
+				"DEMO_ACCOUNTS email %s is duplicated (fail closed)",
 				ui.email,
-				ui.occupationLabel,
-				demoAccountLabelDriftBundle,
-				tables["occupations"].csvFile,
-				seed.occupationLabel,
 			))
 		}
-		if ui.permissionLabel != seed.permissionLabel {
+		seenEmail[ui.email] = struct{}{}
+
+		for _, retired := range demoAccountRetiredDemoEmails {
+			if ui.email == retired {
+				violations = append(violations, fmt.Sprintf(
+					"DEMO_ACCOUNTS retired 003_demo email %s is not allowed",
+					ui.email,
+				))
+			}
+		}
+		if !demoAccountStaffAttachEmailRE.MatchString(ui.email) {
 			violations = append(violations, fmt.Sprintf(
-				"DEMO_ACCOUNTS %s permissionLabel %q does not match seed CSV %s/%s permission group %q",
+				"DEMO_ACCOUNTS email %s must match stg-staff-{id}@example.test",
+				ui.email,
+			))
+		}
+		if strings.TrimSpace(ui.occupationLabel) == "" {
+			violations = append(violations, fmt.Sprintf(
+				"DEMO_ACCOUNTS %s occupationLabel is empty (fail closed)",
+				ui.email,
+			))
+		}
+		if _, ok := permissionNames[ui.permissionLabel]; !ok {
+			violations = append(violations, fmt.Sprintf(
+				"DEMO_ACCOUNTS %s permissionLabel %q is not in seed CSV %s/%s",
 				ui.email,
 				ui.permissionLabel,
 				demoAccountLabelDriftBundle,
 				tables["permission_groups"].csvFile,
-				seed.permissionLabel,
 			))
 		}
-		if ui.isSystemAdmin != seed.isSystemAdmin {
+		if !demoAccountClinicLabelInMaster(ui.isSystemAdmin, ui.clinicLabel, clinicNames) {
 			violations = append(violations, fmt.Sprintf(
-				"DEMO_ACCOUNTS %s isSystemAdmin = %v, seed CSV %s/%s is_system_admin = %v",
-				ui.email,
-				ui.isSystemAdmin,
-				demoAccountLabelDriftBundle,
-				tables["accounts"].csvFile,
-				seed.isSystemAdmin,
-			))
-		}
-		if !demoAccountClinicLabelAllowed(ui.isSystemAdmin, ui.clinicLabel, seed.clinicLabel) {
-			violations = append(violations, fmt.Sprintf(
-				"DEMO_ACCOUNTS %s clinicLabel %q does not match seed CSV %s/%s clinic %q",
+				"DEMO_ACCOUNTS %s clinicLabel %q is not in seed CSV %s/%s",
 				ui.email,
 				ui.clinicLabel,
 				demoAccountLabelDriftBundle,
 				tables["clinics"].csvFile,
-				seed.clinicLabel,
 			))
 		}
 	}
 	return violations
 }
 
-// demoAccountClinicLabelAllowed documents the system-admin clinicLabel allowlist.
-// System-admin DEMO_ACCOUNTS may show clinicLabel "全医院" instead of the staff
-// row's clinic name: 003_demo still pins those accounts to a home clinic, and
-// the login UI is an explicit all-clinics label, not a clinic-name match.
-// Non-admin rows must match clinics.csv name exactly. Exact clinic match remains
-// valid for system admins; any other clinicLabel is rejected.
+// demoAccountClinicLabelInMaster allows system-admin rows to use clinicLabel "全医院"
+// or any 002_master clinic name. Non-admin rows must match a master clinic name.
+func demoAccountClinicLabelInMaster(isSystemAdmin bool, uiLabel string, clinicNames map[string]struct{}) bool {
+	if _, ok := clinicNames[uiLabel]; ok {
+		return true
+	}
+	return isSystemAdmin && uiLabel == demoAccountSystemAdminClinicLabel
+}
+
+// demoAccountClinicLabelAllowed keeps the historical unit-test helper for
+// system-admin "全医院" vs exact clinic matching.
 func demoAccountClinicLabelAllowed(isSystemAdmin bool, uiLabel, seedClinic string) bool {
 	if uiLabel == seedClinic {
 		return true
@@ -519,153 +569,43 @@ func demoAccountClinicLabelAllowed(isSystemAdmin bool, uiLabel, seedClinic strin
 	return isSystemAdmin && uiLabel == demoAccountSystemAdminClinicLabel
 }
 
-func seedLabelsForDemoAccountEmail(
-	email string,
+func demoAccountSeedNameSet(
 	tables map[string]demoAccountSeedCSVTable,
-) (demoAccountSeedLabels, error) {
-	accounts, err := demoAccountRequiredTable(tables, "accounts")
+	tableName, column string,
+) (map[string]struct{}, error) {
+	table, err := demoAccountRequiredTable(tables, tableName)
 	if err != nil {
-		return demoAccountSeedLabels{}, err
+		return nil, err
 	}
-	accountRows, err := accounts.rowsWhere("email", email)
-	if err != nil {
-		return demoAccountSeedLabels{}, err
-	}
-	if len(accountRows) != 1 {
-		return demoAccountSeedLabels{}, fmt.Errorf(
-			"accounts.csv email %s matched %d row(s), want 1 (fail closed)",
-			email,
-			len(accountRows),
+	index, ok := table.col[column]
+	if !ok {
+		return nil, fmt.Errorf(
+			"seed CSV %s/%s missing column %s (fail closed)",
+			table.bundle,
+			table.csvFile,
+			column,
 		)
 	}
-
-	accountID, err := accounts.field(accountRows[0], "id")
-	if err != nil {
-		return demoAccountSeedLabels{}, err
+	names := make(map[string]struct{}, len(table.rows))
+	for _, row := range table.rows {
+		if index >= len(row) {
+			continue
+		}
+		name := strings.TrimSpace(row[index])
+		if name == "" {
+			continue
+		}
+		names[name] = struct{}{}
 	}
-	adminRaw, err := accounts.field(accountRows[0], "is_system_admin")
-	if err != nil {
-		return demoAccountSeedLabels{}, err
-	}
-	isSystemAdmin, err := parseDemoAccountSeedBool(adminRaw)
-	if err != nil {
-		return demoAccountSeedLabels{}, fmt.Errorf("accounts.csv is_system_admin: %w", err)
-	}
-
-	staffs, err := demoAccountRequiredTable(tables, "staffs")
-	if err != nil {
-		return demoAccountSeedLabels{}, err
-	}
-	staffRows, err := staffs.rowsWhere("account_id", accountID)
-	if err != nil {
-		return demoAccountSeedLabels{}, err
-	}
-	if len(staffRows) != 1 {
-		return demoAccountSeedLabels{}, fmt.Errorf(
-			"staffs.csv account_id %s matched %d row(s), want 1 (fail closed)",
-			accountID,
-			len(staffRows),
+	if len(names) == 0 {
+		return nil, fmt.Errorf(
+			"seed CSV %s/%s has no %s values (fail closed)",
+			table.bundle,
+			table.csvFile,
+			column,
 		)
 	}
-	staffID, err := staffs.field(staffRows[0], "id")
-	if err != nil {
-		return demoAccountSeedLabels{}, err
-	}
-	occupationID, err := staffs.field(staffRows[0], "occupation_id")
-	if err != nil {
-		return demoAccountSeedLabels{}, err
-	}
-	clinicID, err := staffs.field(staffRows[0], "clinic_id")
-	if err != nil {
-		return demoAccountSeedLabels{}, err
-	}
-
-	groups, err := demoAccountRequiredTable(tables, "staff_permission_groups")
-	if err != nil {
-		return demoAccountSeedLabels{}, err
-	}
-	groupRows, err := groups.rowsWhere("staff_id", staffID)
-	if err != nil {
-		return demoAccountSeedLabels{}, err
-	}
-	if len(groupRows) != 1 {
-		return demoAccountSeedLabels{}, fmt.Errorf(
-			"staff_permission_groups.csv staff_id %s matched %d row(s), want 1 (fail closed)",
-			staffID,
-			len(groupRows),
-		)
-	}
-	groupID, err := groups.field(groupRows[0], "group_id")
-	if err != nil {
-		return demoAccountSeedLabels{}, err
-	}
-
-	permissionGroups, err := demoAccountRequiredTable(tables, "permission_groups")
-	if err != nil {
-		return demoAccountSeedLabels{}, err
-	}
-	permissionRows, err := permissionGroups.rowsWhere("id", groupID)
-	if err != nil {
-		return demoAccountSeedLabels{}, err
-	}
-	if len(permissionRows) != 1 {
-		return demoAccountSeedLabels{}, fmt.Errorf(
-			"permission_groups.csv id %s matched %d row(s), want 1 (fail closed)",
-			groupID,
-			len(permissionRows),
-		)
-	}
-	permissionLabel, err := permissionGroups.field(permissionRows[0], "name")
-	if err != nil {
-		return demoAccountSeedLabels{}, err
-	}
-
-	occupations, err := demoAccountRequiredTable(tables, "occupations")
-	if err != nil {
-		return demoAccountSeedLabels{}, err
-	}
-	occupationRows, err := occupations.rowsWhere("id", occupationID)
-	if err != nil {
-		return demoAccountSeedLabels{}, err
-	}
-	if len(occupationRows) != 1 {
-		return demoAccountSeedLabels{}, fmt.Errorf(
-			"occupations.csv id %s matched %d row(s), want 1 (fail closed)",
-			occupationID,
-			len(occupationRows),
-		)
-	}
-	occupationLabel, err := occupations.field(occupationRows[0], "name")
-	if err != nil {
-		return demoAccountSeedLabels{}, err
-	}
-
-	clinics, err := demoAccountRequiredTable(tables, "clinics")
-	if err != nil {
-		return demoAccountSeedLabels{}, err
-	}
-	clinicRows, err := clinics.rowsWhere("id", clinicID)
-	if err != nil {
-		return demoAccountSeedLabels{}, err
-	}
-	if len(clinicRows) != 1 {
-		return demoAccountSeedLabels{}, fmt.Errorf(
-			"clinics.csv id %s matched %d row(s), want 1 (fail closed)",
-			clinicID,
-			len(clinicRows),
-		)
-	}
-	clinicLabel, err := clinics.field(clinicRows[0], "name")
-	if err != nil {
-		return demoAccountSeedLabels{}, err
-	}
-
-	return demoAccountSeedLabels{
-		occupationLabel: occupationLabel,
-		permissionLabel: permissionLabel,
-		clinicLabel:     clinicLabel,
-		isSystemAdmin:   isSystemAdmin,
-	}, nil
+	return names, nil
 }
 
 func demoAccountRequiredTable(
@@ -716,7 +656,7 @@ func loadDemoAccountComparedSeedTables(moduleRoot string) (map[string]demoAccoun
 }
 
 func readComparedDemoSeedCSV(bundle, csvFile, path string) (demoAccountSeedCSVTable, error) {
-	raw, err := os.ReadFile(path) //nolint:gosec // path is a repository-owned 003_demo seed CSV.
+	raw, err := os.ReadFile(path) //nolint:gosec // path is a repository-owned seed CSV under the compared bundle.
 	if err != nil {
 		return demoAccountSeedCSVTable{}, fmt.Errorf("read seed CSV %s/%s: %w", bundle, csvFile, err)
 	}
@@ -874,10 +814,10 @@ func demoAccountJoinFixtureUI(
 	accounts := make([]demoAccountUILabels, count)
 	for index := range accounts {
 		accounts[index] = demoAccountUILabels{
-			email:           fmt.Sprintf("user%d@example.com", index+1),
+			email:           fmt.Sprintf("stg-staff-%d@example.test", 11000001+index),
 			occupationLabel: "獣医師",
-			permissionLabel: "執行",
-			clinicLabel:     "八王子病院",
+			permissionLabel: "一般",
+			clinicLabel:     "城東センター病院",
 		}
 		if modify != nil {
 			modify(index, &accounts[index])
@@ -888,47 +828,18 @@ func demoAccountJoinFixtureUI(
 
 func demoAccountJoinFixtureTables(t *testing.T, count int) map[string]demoAccountSeedCSVTable {
 	t.Helper()
-
-	accountRows := make([][]string, 0, count)
-	staffRows := make([][]string, 0, count)
-	groupRows := make([][]string, 0, count)
-	for index := 0; index < count; index++ {
-		id := fmt.Sprintf("%d", index+1)
-		accountRows = append(accountRows, []string{id, fmt.Sprintf("user%d@example.com", index+1), "f"})
-		staffRows = append(staffRows, []string{id, id, "1", "1"})
-		groupRows = append(groupRows, []string{id, "1"})
-	}
+	_ = count
 
 	return map[string]demoAccountSeedCSVTable{
-		"accounts": fixtureDemoAccountSeedCSVTable(
-			"accounts",
-			[]string{"id", "email", "is_system_admin"},
-			accountRows,
-		),
-		"staffs": fixtureDemoAccountSeedCSVTable(
-			"staffs",
-			[]string{"id", "account_id", "occupation_id", "clinic_id"},
-			staffRows,
-		),
-		"staff_permission_groups": fixtureDemoAccountSeedCSVTable(
-			"staff_permission_groups",
-			[]string{"staff_id", "group_id"},
-			groupRows,
-		),
 		"permission_groups": fixtureDemoAccountSeedCSVTable(
 			"permission_groups",
 			[]string{"id", "name"},
-			[][]string{{"1", "執行"}},
-		),
-		"occupations": fixtureDemoAccountSeedCSVTable(
-			"occupations",
-			[]string{"id", "name"},
-			[][]string{{"1", "獣医師"}},
+			[][]string{{"1", "執行"}, {"4", "一般"}},
 		),
 		"clinics": fixtureDemoAccountSeedCSVTable(
 			"clinics",
 			[]string{"id", "name"},
-			[][]string{{"1", "八王子病院"}},
+			[][]string{{"1", "八王子病院"}, {"2", "城東センター病院"}},
 		),
 	}
 }

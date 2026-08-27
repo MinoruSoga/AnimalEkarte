@@ -29,7 +29,23 @@ interface DemoCredential {
 // export はテスト用（本番バンドルの tree-shake には影響しない — 参照は test 側 dynamic import のみ）。
 export const SHOW_DEMO = import.meta.env.DEV;
 
-const DEMO_ACCOUNTS: readonly DemoCredential[] = [];
+// staff-attach 実在アカウント（email は stg-staff-{id}@example.test）。
+// SHOW_DEMO 分岐で定数畳み込みし、非 DEV バンドルから tree-shake する。
+// パスワードは UI / 配列に置かない（repo 外 secrets）。ラベルは roster+handoff 由来。
+const DEMO_ACCOUNTS: readonly DemoCredential[] = SHOW_DEMO
+  ? [
+      { email: "stg-staff-11000021@example.test", displayName: "林 文明", occupationLabel: "獣医師", permissionLabel: "一般", clinicLabel: "城東センター病院" },
+      { email: "stg-staff-11000003@example.test", displayName: "高橋 純子", occupationLabel: "獣医師", permissionLabel: "一般", clinicLabel: "城東センター病院" },
+      { email: "stg-staff-11000007@example.test", displayName: "鈴木 諒平", occupationLabel: "獣医師", permissionLabel: "一般", clinicLabel: "城東センター病院" },
+      { email: "stg-staff-11000008@example.test", displayName: "加藤 茉里", occupationLabel: "獣医師", permissionLabel: "一般", clinicLabel: "城東センター病院" },
+      { email: "stg-staff-11000025@example.test", displayName: "チャン ハン", occupationLabel: "看護師", permissionLabel: "一般", clinicLabel: "城東センター病院" },
+      { email: "stg-staff-11000031@example.test", displayName: "近喰 千瞳", occupationLabel: "動物看護師", permissionLabel: "一般", clinicLabel: "城東センター病院" },
+      { email: "stg-staff-11000034@example.test", displayName: "川野 称希", occupationLabel: "動物看護師", permissionLabel: "一般", clinicLabel: "城東センター病院" },
+      { email: "stg-staff-11000005@example.test", displayName: "冨田 美佳", occupationLabel: "VT", permissionLabel: "一般", clinicLabel: "城東センター病院" },
+      { email: "stg-staff-11000006@example.test", displayName: "井冨 和美", occupationLabel: "VT", permissionLabel: "一般", clinicLabel: "城東センター病院" },
+      { email: "stg-staff-11000009@example.test", displayName: "原 梨吏華", occupationLabel: "スタッフ", permissionLabel: "一般", clinicLabel: "城東センター病院" },
+    ]
+  : [];
 
 const DemoAccount = memo(function DemoAccount({
   email,
@@ -136,8 +152,8 @@ export const LoginForm = memo(function LoginForm() {
   }, []);
 
   const handleSelectDemo = useCallback((demoEmail: string) => {
+    // staff-attach のパスワードは UI に出さず、email のみ注入する。
     setEmail(demoEmail);
-    setPassword("password");
   }, []);
 
   // ログイン済みなら即リダイレクト（直接 /login にアクセスした場合）
@@ -239,7 +255,9 @@ export const LoginForm = memo(function LoginForm() {
             <span className={`text-sm ${C.text35}`}>デモアカウント</span>
             <div className={`h-px flex-1 ${C.bgLight}`} />
           </div>
-          <p className={`text-sm text-center mb-2 ${C.text40}`}>パスワード: password</p>
+          <p className={`text-sm text-center mb-2 ${C.text40}`}>
+            メールのみ入力されます。パスワードは別途入力してください
+          </p>
           <div className="space-y-px">
             {DEMO_ACCOUNTS.map((cred) => (
               <DemoAccount

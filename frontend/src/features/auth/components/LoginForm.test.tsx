@@ -75,3 +75,44 @@ describe("LoginForm touch targets", () => {
     );
   });
 });
+
+describe("LoginForm demo accounts (staff-attach)", () => {
+  beforeEach(() => {
+    loginMock.mockReset().mockResolvedValue(undefined);
+  });
+
+  it("DEV ではデモアカウント欄に約10件の staff-attach アカウントを表示する", () => {
+    render(
+      <MemoryRouter>
+        <LoginForm />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText("デモアカウント")).toBeInTheDocument();
+    const demoEmails = screen.getAllByText(/stg-staff-\d+@example\.test/);
+    expect(demoEmails.length).toBeGreaterThanOrEqual(9);
+    expect(demoEmails.length).toBeLessThanOrEqual(12);
+    expect(screen.queryByText(/パスワード:\s*password/i)).not.toBeInTheDocument();
+    expect(screen.queryByText("hayashi@noah-vet.co.jp")).not.toBeInTheDocument();
+    expect(screen.queryByText("admin@example.com")).not.toBeInTheDocument();
+  });
+
+  it("デモアカウント行のクリックは email のみ注入し password は空のまま", async () => {
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter>
+        <LoginForm />
+      </MemoryRouter>,
+    );
+
+    const firstDemoEmail = screen.getAllByText(/stg-staff-\d+@example\.test/)[0];
+    expect(firstDemoEmail).toBeTruthy();
+    const emailText = firstDemoEmail.textContent ?? "";
+    const rowButton = firstDemoEmail.closest("button");
+    expect(rowButton).not.toBeNull();
+    await user.click(rowButton as HTMLButtonElement);
+
+    expect(screen.getByLabelText("メールアドレス")).toHaveValue(emailText);
+    expect(screen.getByLabelText("パスワード")).toHaveValue("");
+  });
+});
