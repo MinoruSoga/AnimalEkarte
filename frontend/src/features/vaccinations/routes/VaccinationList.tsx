@@ -45,7 +45,11 @@ import type {
 } from "@/components/shared/PropertyFilter/types";
 import { CONDITIONS_WITH_EMPTY } from "@/components/shared/PropertyFilter/types";
 import { ResourceVaccinations } from "@/types/generated/models";
-import { vaccinationListDetailHref } from "./vaccinations-list-model";
+import {
+  buildVaccinationListQueryOptions,
+  orderVaccinationListRows,
+  vaccinationListDetailHref,
+} from "./vaccinations-list-model";
 
 // rendering-hoist-jsx: 静的フィルタプロパティ（担当医は動的オプションのためコンポーネント内で構築）
 const STATIC_FILTER_PROPERTIES: FilterProperty[] = [
@@ -120,16 +124,16 @@ export function VaccinationList() {
   const deferredSearchTerm = useDeferredValue(searchTerm);
   const isFiltering = searchTerm !== deferredSearchTerm;
 
-  // activeFilters から日付フィルタを抽出
+  // BUG-502: immutable list query — default end_date=today + server search so
+  // far-future 2029 seed dates do not dominate the HISTORY_FETCH_LIMIT window.
   const filters = useMemo(() => {
     const dateFilter = activeFilters.find((f) => f.key === "date")?.value as
       | { from?: string; to?: string }
       | undefined;
-    return {
-      startDate: dateFilter?.from,
-      endDate: dateFilter?.to,
-      search: deferredSearchTerm || undefined,
-    };
+    return buildVaccinationListQueryOptions({
+      dateRange: dateFilter,
+      search: deferredSearchTerm,
+    });
   }, [activeFilters, deferredSearchTerm]);
 
   const { data: filteredRecords, allVaccinations, isLoading, error } = useFilterVaccinations(deferredSearchTerm, filters, activeFilters);
@@ -148,8 +152,14 @@ export function VaccinationList() {
     ];
   }, [allVaccinations]);
 
+  // BUG-502: when user has no column sort, prefer near-term next_date over far-future peers.
+  const defaultOrderedRecords = useMemo(
+    () => orderVaccinationListRows(filteredRecords),
+    [filteredRecords],
+  );
+
   const { activeSorts, setActiveSorts, toggleSort, directionFor, sortedData } =
-    useSortableData(filteredRecords);
+    useSortableData(defaultOrderedRecords);
 
   const pagination = usePagination(sortedData, {
     resetKey: deferredSearchTerm,
