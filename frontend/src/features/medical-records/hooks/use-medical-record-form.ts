@@ -165,7 +165,11 @@ export function useMedicalRecordForm(recordId?: string) {
     ?? normalizeAppointmentId(searchParams.get("appointmentId"));
   const visitDateFromState = normalizeVisitDate(location.state?.visitDate)
     ?? normalizeVisitDate(searchParams.get("visitDate"));
-  const { data: reservationTypeGroups } = useGetReservationTypesGrouped();
+  const {
+    data: reservationTypeGroups,
+    isLoading: isReservationTypesLoading,
+    isError: isReservationTypesError,
+  } = useGetReservationTypesGrouped();
   const generalReservationType = findGeneralReservationType(reservationTypeGroups, visitType);
   const appointmentLookupDate = visitDateFromState ?? formatJSTDate(new Date());
   const { data: sameDayAppointments = [], isLoading: isSameDayAppointmentsLoading } = useGetReservations({
@@ -295,6 +299,8 @@ export function useMedicalRecordForm(recordId?: string) {
     appointmentIdFromState,
     reusableAppointment,
     isReusableAppointmentLoading: isSameDayAppointmentsLoading,
+    isReservationTypesLoading,
+    isReservationTypesError,
     visitDateFromState,
     generalReservationType,
     createReservationMutation,

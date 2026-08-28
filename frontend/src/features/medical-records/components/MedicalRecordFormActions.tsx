@@ -110,7 +110,8 @@ export function MedicalRecordFloatingActions({
       ) : null}
       {/* BUG-035: 確定済みでは保存を出さない（disabled 表示より導線除去）。印刷・追記は残す。 */}
       {/* BUG-001: 予防接種の永続化は inner の接種記録追加。外側保存は偽陽性になるので出さない。 */}
-      {canSubmit && !isFinalized && activeTab !== "予防接種" ? (
+      {/* BUG-503: 新規 /new は auto-draft 完了まで保存を出さない（未作成なのに保存可能に見せない） */}
+      {canSubmit && !isFinalized && !isNewRecord && activeTab !== "予防接種" ? (
         <SubmitButton
           className="px-4"
           disabled={isCreating || isSaving}

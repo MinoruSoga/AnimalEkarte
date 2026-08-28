@@ -462,6 +462,153 @@ describe("useMedicalRecordForm", () => {
       });
     });
 
+    // BUG-503: clinic に general 予約区分が無い（trimming のみ）とき silent no-op しない
+    it("一般予約区分が無い（trimming のみ）場合は silent no-op せず appointment failure を出し再試行できる", async () => {
+      mockSearchParams = new URLSearchParams({ petId: "5" });
+      vi.mocked(useGetPet).mockReturnValue({
+        data: mockPet,
+        isLoading: false,
+        isError: false,
+      });
+      vi.mocked(useGetReservationTypesGrouped).mockReturnValue({
+        data: [
+          {
+            label: "トリミング",
+            types: [
+              {
+                id: 9,
+                name: "トリミング",
+                color: "#000000",
+                is_active: true,
+                duration_minutes: 30,
+                sort_order: 1,
+                is_internal: false,
+                category: "trimming",
+                group_id: 2,
+                group: { id: 2, name: "トリミング", color: "#000000" },
+              },
+            ],
+          },
+        ],
+        isLoading: false,
+        isError: false,
+        isPending: false,
+        isFetched: true,
+      } as ReturnType<typeof useGetReservationTypesGrouped>);
+
+      const mockCreateRecord = vi.fn().mockResolvedValue({ id: "new-record-1" });
+      vi.mocked(useCreateMedicalRecord).mockReturnValue({
+        mutateAsync: mockCreateRecord,
+        isPending: false,
+      } as ReturnType<typeof useCreateMedicalRecord>);
+      const mockCreateReservation = vi.fn().mockResolvedValue({ id: "appointment-1" });
+      vi.mocked(useCreateReservation).mockReturnValue({
+        mutateAsync: mockCreateReservation,
+        isPending: false,
+      } as ReturnType<typeof useCreateReservation>);
+
+      const { result } = renderHook(() => useMedicalRecordForm());
+
+      await waitFor(() => {
+        expect(result.current.autoCreateFailurePhase).toBe("appointment");
+      });
+      expect(mockCreateReservation).not.toHaveBeenCalled();
+      expect(mockCreateRecord).not.toHaveBeenCalled();
+      expect(mockNavigate).not.toHaveBeenCalled();
+
+      render(createElement(MedicalRecordAutoCreateFailure, {
+        failurePhase: "appointment",
+        isRetrying: false,
+        onRetry: () => result.current.retryAutoCreate(),
+      }));
+      expect(screen.getByRole("button", { name: "カルテ作成を再試行する" })).toBeEnabled();
+      expect(screen.getByRole("alert")).toBeInTheDocument();
+
+      // 再試行時も general が無ければ再び failure（silent に戻らない）
+      act(() => {
+        result.current.retryAutoCreate();
+      });
+      await waitFor(() => {
+        expect(result.current.autoCreateFailurePhase).toBe("appointment");
+      });
+      expect(mockCreateReservation).not.toHaveBeenCalled();
+      expect(mockCreateRecord).not.toHaveBeenCalled();
+    });
+
+    // BUG-503 / S11#3: 同一 auto-draft root。appointment 再利用があれば general 無しでも promote する
+    it("trimming のみでも同日 general appointment 再利用で detail へ promote する", async () => {
+      mockSearchParams = new URLSearchParams({ petId: "5", visitDate: "2026-06-01" });
+      vi.mocked(useGetPet).mockReturnValue({
+        data: mockPet,
+        isLoading: false,
+        isError: false,
+      });
+      vi.mocked(useGetReservationTypesGrouped).mockReturnValue({
+        data: [
+          {
+            label: "トリミング",
+            types: [
+              {
+                id: 9,
+                name: "トリミング",
+                color: "#000000",
+                is_active: true,
+                duration_minutes: 30,
+                sort_order: 1,
+                is_internal: false,
+                category: "trimming",
+                group_id: 2,
+                group: { id: 2, name: "トリミング", color: "#000000" },
+              },
+            ],
+          },
+        ],
+        isLoading: false,
+        isError: false,
+        isPending: false,
+        isFetched: true,
+      } as ReturnType<typeof useGetReservationTypesGrouped>);
+      vi.mocked(useGetReservations).mockReturnValue({
+        data: [
+          {
+            id: "appointment-existing",
+            category: "general",
+            status: "checked_in",
+          },
+        ],
+        isLoading: false,
+      } as ReturnType<typeof useGetReservations>);
+
+      const mockCreateRecord = vi.fn().mockResolvedValue({ id: "new-record-1" });
+      vi.mocked(useCreateMedicalRecord).mockReturnValue({
+        mutateAsync: mockCreateRecord,
+        isPending: false,
+      } as ReturnType<typeof useCreateMedicalRecord>);
+      const mockCreateReservation = vi.fn().mockResolvedValue({ id: "appointment-1" });
+      vi.mocked(useCreateReservation).mockReturnValue({
+        mutateAsync: mockCreateReservation,
+        isPending: false,
+      } as ReturnType<typeof useCreateReservation>);
+
+      await act(async () => {
+        renderHook(() => useMedicalRecordForm());
+      });
+
+      await waitFor(() => {
+        expect(mockCreateReservation).not.toHaveBeenCalled();
+        expect(mockCreateRecord).toHaveBeenCalledWith(
+          expect.objectContaining({
+            appointment_id: "appointment-existing",
+            visit_date: "2026-06-01",
+          }),
+        );
+        expect(mockNavigate).toHaveBeenCalledWith(
+          expect.stringContaining("new-record-1"),
+          expect.objectContaining({ replace: true }),
+        );
+      });
+    });
+
     it("?tab= があるとき作成後の detail でもタブを残す", async () => {
       mockSearchParams = new URLSearchParams({ petId: "5", tab: "検査" });
       vi.mocked(useGetPet).mockReturnValue({

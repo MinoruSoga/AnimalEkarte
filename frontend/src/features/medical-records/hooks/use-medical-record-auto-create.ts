@@ -57,6 +57,10 @@ interface UseMedicalRecordAutoCreateParams {
   appointmentIdFromState: string | undefined;
   reusableAppointment: ReusableAppointmentRef | undefined;
   isReusableAppointmentLoading: boolean;
+  /** 予約区分 masters の取得中。loading 中は general 欠如を failure にしない。 */
+  isReservationTypesLoading: boolean;
+  /** 予約区分 masters の取得失敗。general 無しと同様に明示 failure。 */
+  isReservationTypesError: boolean;
   visitDateFromState: string | undefined;
   generalReservationType: MedicalRecordReservationType | undefined;
   createReservationMutation: AsyncMutation<MedicalRecordAppointmentCreateRequest, { id: string }>;
@@ -88,6 +92,8 @@ export function useMedicalRecordAutoCreate({
   appointmentIdFromState,
   reusableAppointment,
   isReusableAppointmentLoading,
+  isReservationTypesLoading,
+  isReservationTypesError,
   visitDateFromState,
   generalReservationType,
   createReservationMutation,
@@ -110,6 +116,10 @@ export function useMedicalRecordAutoCreate({
     selectedPetStatusRef.current = selectedPet?.status;
   }, [selectedPet?.status]);
 
+  const markAppointmentPrerequisiteFailure = useCallback(() => {
+    setFailure({ phase: "appointment", appointmentId: null });
+  }, []);
+
   const createAppointmentAndRecord = useCallback((retainedAppointmentId?: string) => {
     if (
       isCreateInFlightRef.current
@@ -122,8 +132,15 @@ export function useMedicalRecordAutoCreate({
     const availableAppointmentId = retainedAppointmentId
       ?? appointmentIdFromState
       ?? reusableAppointment?.id;
-    if (!availableAppointmentId && !generalReservationType) return;
-    if (!availableAppointmentId && isReusableAppointmentLoading) return;
+
+    // BUG-503: general 欠如 / masters エラーは silent return せず明示 failure（再試行可）
+    if (!availableAppointmentId) {
+      if (isReusableAppointmentLoading || isReservationTypesLoading) return;
+      if (isReservationTypesError || !generalReservationType) {
+        markAppointmentPrerequisiteFailure();
+        return;
+      }
+    }
 
     isCreateInFlightRef.current = true;
     startCreateTransition(async () => {
@@ -135,7 +152,13 @@ export function useMedicalRecordAutoCreate({
             || selectedPetStatusRef.current === "死亡"
           ) return;
 
-          const duration = generalReservationType?.duration_minutes || DEFAULT_RECEPTION_APPOINTMENT_MINUTES;
+          // create 直前にも general が消えた場合は silent にせず failure
+          if (!generalReservationType) {
+            markAppointmentPrerequisiteFailure();
+            return;
+          }
+
+          const duration = generalReservationType.duration_minutes || DEFAULT_RECEPTION_APPOINTMENT_MINUTES;
           const { startTime, endTime } = createReceptionAppointmentTimeRange(duration, visitDateFromState);
           const appointment = await createReservationMutation.mutateAsync({
             pet_id: Number(selectedPet.id),
@@ -143,7 +166,7 @@ export function useMedicalRecordAutoCreate({
             start_time: startTime,
             end_time: endTime,
             visit_type: toVisitTypeValue(visitType) ?? "revisit",
-            reservation_type_id: generalReservationType?.id ?? 0,
+            reservation_type_id: generalReservationType.id,
             status: "in_consultation",
             source: "manual",
             reservation_route: "record_shortcut",
@@ -187,6 +210,9 @@ export function useMedicalRecordAutoCreate({
     generalReservationType,
     isNewRecord,
     isReusableAppointmentLoading,
+    isReservationTypesError,
+    isReservationTypesLoading,
+    markAppointmentPrerequisiteFailure,
     navigate,
     reusableAppointment?.id,
     selectedPet,
@@ -199,8 +225,17 @@ export function useMedicalRecordAutoCreate({
   useEffect(() => {
     if (!isNewRecord || !selectedPet || hasAutoCreatedRef.current) return;
     if (selectedPet.status === "死亡" || canCreate !== true) return;
-    if (!appointmentIdFromState && !generalReservationType) return;
     if (!appointmentIdFromState && isReusableAppointmentLoading) return;
+
+    const needsNewAppointment = !appointmentIdFromState && !reusableAppointment?.id;
+    if (needsNewAppointment && isReservationTypesLoading) return;
+
+    // BUG-503: masters 解決後に general が無い / 取得失敗 → 明示 failure（URL stuck + empty hooks を防ぐ）
+    if (needsNewAppointment && (isReservationTypesError || !generalReservationType)) {
+      hasAutoCreatedRef.current = true;
+      markAppointmentPrerequisiteFailure();
+      return;
+    }
 
     hasAutoCreatedRef.current = true;
     createAppointmentAndRecord();
@@ -212,6 +247,10 @@ export function useMedicalRecordAutoCreate({
     hasAutoCreatedRef,
     isNewRecord,
     isReusableAppointmentLoading,
+    isReservationTypesError,
+    isReservationTypesLoading,
+    markAppointmentPrerequisiteFailure,
+    reusableAppointment?.id,
     selectedPet,
   ]);
 

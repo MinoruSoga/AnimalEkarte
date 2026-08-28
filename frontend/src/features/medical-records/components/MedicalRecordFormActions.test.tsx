@@ -82,6 +82,12 @@ describe("MedicalRecordFloatingActions", () => {
     expect(screen.queryByRole("button", { name: "確定する" })).not.toBeInTheDocument();
   });
 
+  // BUG-503: auto-draft 前の floating 保存は create を装わない
+  it("新規作成中（未保存）のカルテでは保存ボタンを表示しない", () => {
+    render(<MedicalRecordFloatingActions {...baseProps} isNewRecord />);
+    expect(screen.queryByRole("button", { name: "保存" })).not.toBeInTheDocument();
+  });
+
   it("編集権限がない場合は確定ボタンを表示しない", () => {
     render(<MedicalRecordFloatingActions {...baseProps} canEdit={false} />);
     expect(screen.queryByRole("button", { name: "確定する" })).not.toBeInTheDocument();
