@@ -1,8 +1,7 @@
-import { Navigate, Outlet, type RouteObject } from "react-router";
+import { Outlet, type RouteObject } from "react-router";
 
 import { RouteErrorBoundary } from "@/components/errors/RouteErrorBoundary";
 import { RequirePermission } from "@/components/shared/RequirePermission";
-import { paths } from "@/config/paths";
 import {
   ResourceCheckups,
   ResourceExaminations,
@@ -297,8 +296,17 @@ export const clinicalCareRoutes: RouteObject[] = [
             }],
           },
           {
+            // BUG-501: /vaccinations/new は常時 select-pet へ飛ばさず独立フォームを mount。
+            // petId 無し時の select-pet 誘導は VaccinationForm / useVaccinationForm 側。
             path: "new",
-            element: <Navigate to={paths.vaccinations.selectPet.getHref()} replace />,
+            element: <RequirePermission resource={ResourceVaccinations} action="create"><Outlet /></RequirePermission>,
+            children: [{
+              index: true,
+              lazy: async () => {
+                const { VaccinationForm } = await import("@/features/vaccinations");
+                return { Component: VaccinationForm };
+              },
+            }],
           },
           {
             path: ":id",

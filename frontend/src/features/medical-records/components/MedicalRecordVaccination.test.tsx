@@ -26,14 +26,18 @@ vi.mock("../api/get-pet-vaccinations", () => ({
 
 vi.mock("./VaccinationForm", () => ({
   VaccinationForm: ({
+    vaccineName,
     setVaccineName,
+    date,
     setDate,
     setSupplemental,
     setNextScheduleType,
     fieldErrors,
     onSave,
   }: {
+    vaccineName: string;
     setVaccineName: (value: string) => void;
+    date: string;
     setDate: (value: string) => void;
     setSupplemental: (value: string) => void;
     setNextScheduleType: (value: string) => void;
@@ -41,8 +45,16 @@ vi.mock("./VaccinationForm", () => ({
     onSave?: () => void;
   }) => (
     <div data-testid="vaccination-form">
-      <input aria-label="ワクチンID" onChange={(event) => setVaccineName(event.target.value)} />
-      <input aria-label="接種日" onChange={(event) => setDate(event.target.value)} />
+      <input
+        aria-label="ワクチンID"
+        value={vaccineName}
+        onChange={(event) => setVaccineName(event.target.value)}
+      />
+      <input
+        aria-label="接種日"
+        value={date}
+        onChange={(event) => setDate(event.target.value)}
+      />
       <input aria-label="補助説明" onChange={(event) => setSupplemental(event.target.value)} />
       <input aria-label="次回予定種別" onChange={(event) => setNextScheduleType(event.target.value)} />
       {fieldErrors?.vaccineId ? (
@@ -56,6 +68,10 @@ vi.mock("./VaccinationForm", () => ({
       </button>
     </div>
   ),
+}));
+
+vi.mock("@/lib/jst-date", () => ({
+  todayJSTISO: () => "2026-08-29",
 }));
 
 vi.mock("./VaccinationHistory", () => ({
@@ -126,6 +142,15 @@ describe("MedicalRecordVaccination vaccination payload", () => {
   });
 });
 
+describe("MedicalRecordVaccination BUG-501 実施日 default", () => {
+  it("記録を追加で開いたフォームの接種日は JST 当日で初期表示される", () => {
+    render(<MedicalRecordVaccination petId="1" medicalRecordId="99" />);
+    openAddForm();
+
+    expect(screen.getByLabelText("接種日")).toHaveValue("2026-08-29");
+  });
+});
+
 describe("MedicalRecordVaccination BUG-015 required validation", () => {
   it("ワクチン未選択のまま追加すると明示エラーを出し API を呼ばない", async () => {
     render(<MedicalRecordVaccination petId="1" medicalRecordId="99" />);
@@ -140,11 +165,13 @@ describe("MedicalRecordVaccination BUG-015 required validation", () => {
     expect(mockCreateVaccination).not.toHaveBeenCalled();
   });
 
-  it("接種日未入力のまま追加すると明示エラーを出し API を呼ばない", async () => {
+  it("接種日を明示クリアしたまま追加すると明示エラーを出し API を呼ばない", async () => {
     render(<MedicalRecordVaccination petId="1" medicalRecordId="99" />);
     openAddForm();
 
     fireEvent.change(screen.getByLabelText("ワクチンID"), { target: { value: "7" } });
+    // BUG-501: 実施日は当日デフォルトのため、未入力検証は明示クリアが必要
+    fireEvent.change(screen.getByLabelText("接種日"), { target: { value: "" } });
     fireEvent.click(screen.getByRole("button", { name: "保存" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("接種日を入力してください");

@@ -18,9 +18,7 @@ export function vaccinationListDetailHref(input: {
 }
 
 export function vaccinationCreateHref(petId: string): string {
-  const params = new URLSearchParams({
-    petId,
-    tab: VACCINATION_LIST_CHART_TAB,
-  });
-  return `${paths.medicalRecords.new.getHref()}?${params.toString()}`;
+  // BUG-501: 一覧→新規はカルテ未保存ゲートを避ける独立フォームへ（仕様 15 §1.1 / S03#1）
+  const params = new URLSearchParams({ petId });
+  return `${paths.vaccinations.new.getHref()}?${params.toString()}`;
 }

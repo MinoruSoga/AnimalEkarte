@@ -17,7 +17,6 @@ const EXPECTED_REDIRECT_PATHS = [
   "/settings/trimming-course",
   "/settings/trimming-option",
   "/settings/vaccine",
-  "/vaccinations/new",
 ];
 
 interface LeafRoute {
@@ -44,14 +43,14 @@ function flattenLeafRoutes(routes: RouteObject[], parentPath = ""): LeafRoute[] 
 }
 
 describe("main app route inventory", () => {
-  it("84 product pages, 13 redirects, wildcard 1を重複なく維持する", () => {
+  it("86 product pages, 12 redirects, wildcard 1を重複なく維持する", () => {
     const leaves = flattenLeafRoutes(appRoutes);
     const wildcard = leaves.filter((route) => route.path === "*");
     const redirects = leaves.filter((route) => route.isRedirect).map((route) => route.path).toSorted();
     const pages = leaves.filter((route) => route.path !== "*" && !route.isRedirect);
 
-    expect(pages).toHaveLength(84);
-    expect(new Set(pages.map((route) => route.path)).size).toBe(84);
+    expect(pages).toHaveLength(86);
+    expect(new Set(pages.map((route) => route.path)).size).toBe(86);
     expect(wildcard).toHaveLength(1);
     expect(redirects).toEqual(EXPECTED_REDIRECT_PATHS);
   });

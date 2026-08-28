@@ -4,8 +4,8 @@ import { memo, useMemo, useState, useCallback, useTransition } from "react";
 // Internal
 import { useGetAllVaccinesMaster } from "@/hooks/use-treatment-master";
 import { useCreateVaccination } from "@/hooks/use-vaccinations";
-import { handleApiError } from "@/lib/handle-api-error";
 import { C, PALETTE } from "@/lib/design-tokens";
+import { todayJSTISO } from "@/lib/jst-date";
 import { toast } from "sonner";
 
 // Relative
@@ -56,7 +56,8 @@ export const MedicalRecordVaccination = memo(function MedicalRecordVaccination({
   lstepStatus,
 }: MedicalRecordVaccinationProps) {
   const [vaccineName, setVaccineName] = useState("");
-  const [date, setDate] = useState("");
+  // BUG-501 / 仕様 15 §1.1: 実施日は JST 当日デフォルト（独立フォーム use-vaccination-form と揃える）
+  const [date, setDate] = useState(() => todayJSTISO());
   const [supplemental, setSupplemental] = useState("");
   const [lot1, setLot1] = useState("");
   const [lot2, setLot2] = useState("");
@@ -162,9 +163,9 @@ export const MedicalRecordVaccination = memo(function MedicalRecordVaccination({
           remarks: remarks || undefined,
         });
         toast.success("接種記録を追加しました");
-        // フォームをリセット
+        // フォームをリセット（実施日は次回追加でも当日デフォルト）
         setVaccineName("");
-        setDate("");
+        setDate(todayJSTISO());
         setSupplemental("");
         setLot1("");
         setLot2("");

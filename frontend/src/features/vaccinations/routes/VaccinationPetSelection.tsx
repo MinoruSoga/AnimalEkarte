@@ -14,7 +14,7 @@ export function VaccinationPetSelection() {
   const navigate = useNavigate();
   const location = useLocation();
   const { searchParams, setSearchParams, petPage, error, isLoading, handleClear, handleBack } =
-    usePetSelectionPage({ selectPath: paths.medicalRecords.new.getHref(), backPath: paths.vaccinations.getHref() });
+    usePetSelectionPage({ selectPath: paths.vaccinations.new.getHref(), backPath: paths.vaccinations.getHref() });
 
   const handleSelect = useCallback(
     (pet: Pet) => {

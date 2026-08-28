@@ -15,9 +15,7 @@ describe("vaccinationListDetailHref", () => {
 });
 
 describe("vaccinationCreateHref", () => {
-  it("新規接種は当日カルテの予防接種タブへ行く", () => {
-    expect(vaccinationCreateHref("pet-1")).toBe(
-      "/medical-records/new?petId=pet-1&tab=%E4%BA%88%E9%98%B2%E6%8E%A5%E7%A8%AE",
-    );
+  it("新規接種は独立フォーム /vaccinations/new?petId= へ行く（BUG-501）", () => {
+    expect(vaccinationCreateHref("pet-1")).toBe("/vaccinations/new?petId=pet-1");
   });
 });
