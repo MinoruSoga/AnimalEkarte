@@ -11,6 +11,8 @@ import { paths } from "@/config/paths";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
+import { ErrorFallback } from "@/components/shared/DataStates";
+import { Button } from "@/components/ui/button";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 
 // Relative
@@ -34,6 +36,9 @@ export function InventoryForm() {
   const {
     isEdit,
     isLoading,
+    isReadNotFound,
+    isReadError,
+    retryRead,
     existingItem,
     category,
     setCategory,
@@ -86,6 +91,42 @@ export function InventoryForm() {
         maxWidth="max-w-3xl"
       >
         <div className={`text-sm ${C.text60}`}>読み込み中...</div>
+      </PageLayout>
+    );
+  }
+
+  // BUG-507: missing / forbidden inventory → error surface, never empty 「在庫編集」 form
+  if (isEdit && isReadNotFound) {
+    return (
+      <PageLayout
+        title="在庫"
+        onBack={handleBack}
+        icon={<Package className={`${ICON.page} ${C.text}`} />}
+        resource={ResourceInventory}
+        maxWidth="max-w-3xl"
+      >
+        <ErrorFallback message="在庫情報が見つかりません" />
+      </PageLayout>
+    );
+  }
+
+  if (isEdit && isReadError) {
+    return (
+      <PageLayout
+        title="在庫"
+        onBack={handleBack}
+        icon={<Package className={`${ICON.page} ${C.text}`} />}
+        resource={ResourceInventory}
+        maxWidth="max-w-3xl"
+      >
+        <div className="space-y-3">
+          <ErrorFallback message="在庫情報の取得に失敗しました" />
+          {retryRead ? (
+            <Button type="button" variant="outline" size="sm" onClick={retryRead}>
+              再試行
+            </Button>
+          ) : null}
+        </div>
       </PageLayout>
     );
   }

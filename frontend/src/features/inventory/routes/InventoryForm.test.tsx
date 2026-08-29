@@ -11,6 +11,9 @@ const { permission, formReturn } = vi.hoisted(() => ({
     current: {
       isEdit: true,
       isLoading: false,
+      isReadNotFound: false,
+      isReadError: false,
+      retryRead: undefined as undefined | (() => void),
       existingItem: {
         name: "留置針",
         category: "consumable",
@@ -18,7 +21,14 @@ const { permission, formReturn } = vi.hoisted(() => ({
         unit: "本",
         minStockLevel: 50,
         location: "処置室",
-      },
+      } as {
+        name: string;
+        category: string;
+        quantity: number;
+        unit: string;
+        minStockLevel: number;
+        location: string;
+      } | undefined,
       category: "consumable",
       setCategory: vi.fn(),
       resolvedExpiry: "",
@@ -42,21 +52,106 @@ vi.mock("@/components/shared/NavigationBlocker", () => ({
   NavigationBlocker: () => null,
 }));
 
-function renderForm() {
+function renderForm(initialEntry = "/inventory/7") {
   return render(
-    <MemoryRouter initialEntries={["/inventory/7"]}>
+    <MemoryRouter initialEntries={[initialEntry]}>
       <Routes>
+        <Route path="/inventory/new" element={<InventoryForm />} />
         <Route path="/inventory/:id" element={<InventoryForm />} />
       </Routes>
     </MemoryRouter>,
   );
 }
 
+describe("InventoryForm BUG-507 not-found / network gate", () => {
+  beforeEach(() => {
+    permission.current = { canView: true, canCreate: true, canEdit: true, canDelete: false };
+    formReturn.current = {
+      ...formReturn.current,
+      isEdit: true,
+      isLoading: false,
+      isReadNotFound: false,
+      isReadError: false,
+      retryRead: undefined,
+      existingItem: {
+        name: "留置針",
+        category: "consumable",
+        quantity: 0,
+        unit: "本",
+        minStockLevel: 50,
+        location: "処置室",
+      },
+      formState: { success: false, timestamp: 0, fieldErrors: {} },
+      formAction: vi.fn(),
+    };
+  });
+
+  it("不在ID: 在庫情報が見つかりません を表示し、空の在庫編集フォームと更新ボタンを出さない", () => {
+    formReturn.current = {
+      ...formReturn.current,
+      isReadNotFound: true,
+      existingItem: undefined,
+    };
+
+    renderForm("/inventory/999999001");
+
+    expect(screen.getByText("在庫情報が見つかりません")).toBeInTheDocument();
+    expect(screen.queryByText("在庫編集")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "更新" })).not.toBeInTheDocument();
+    expect(document.querySelector("form#inventory-form")).not.toBeInTheDocument();
+  });
+
+  it("403 相当: 404 と同一の非開示メッセージ", () => {
+    formReturn.current = {
+      ...formReturn.current,
+      isReadNotFound: true,
+      existingItem: undefined,
+    };
+
+    renderForm("/inventory/42");
+
+    expect(screen.getByText("在庫情報が見つかりません")).toBeInTheDocument();
+    expect(document.querySelector("form#inventory-form")).not.toBeInTheDocument();
+  });
+
+  it("network error: 取得失敗 + 再試行、blank form ではない", () => {
+    const retry = vi.fn();
+    formReturn.current = {
+      ...formReturn.current,
+      isReadError: true,
+      retryRead: retry,
+      existingItem: undefined,
+    };
+
+    renderForm("/inventory/999999001");
+
+    expect(screen.getByText("在庫情報の取得に失敗しました")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "再試行" })).toBeInTheDocument();
+    screen.getByRole("button", { name: "再試行" }).click();
+    expect(retry).toHaveBeenCalledTimes(1);
+    expect(document.querySelector("form#inventory-form")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "更新" })).not.toBeInTheDocument();
+  });
+
+  it("既存ID: 在庫編集フォームをデータ付きで開く", () => {
+    renderForm("/inventory/7");
+
+    expect(screen.getByText("在庫編集")).toBeInTheDocument();
+    expect(document.querySelector("form#inventory-form")).toBeInTheDocument();
+    expect(screen.queryByText("在庫情報が見つかりません")).not.toBeInTheDocument();
+  });
+});
+
 describe("InventoryForm RBAC", () => {
   beforeEach(() => {
     permission.current = { canView: true, canCreate: false, canEdit: false, canDelete: false };
     formReturn.current = {
       ...formReturn.current,
+      isEdit: true,
+      isLoading: false,
+      isReadNotFound: false,
+      isReadError: false,
+      retryRead: undefined,
       formState: { success: false, timestamp: 0, fieldErrors: {} },
     };
   });

@@ -2,6 +2,11 @@ import { useState, useActionState } from "react";
 import { toast } from "sonner";
 import { handleApiError } from "@/lib/handle-api-error";
 import {
+  isNonDisclosureReadStatus,
+  resolveEntityReadResult,
+  type EntityReadResult,
+} from "@/lib/entity-read-result";
+import {
   useGetInventoryItem,
   useCreateInventoryItem,
   useUpdateInventoryItem,
@@ -26,9 +31,30 @@ function readFormString(formData: FormData, key: string): string {
 export function useInventoryForm(id?: string) {
   const isEdit = Boolean(id);
 
-  const { data: existingItem, isLoading } = useGetInventoryItem(id ?? "");
+  const {
+    data: inventoryData,
+    isLoading,
+    isError,
+    error: inventoryError,
+    refetch: refetchInventory,
+  } = useGetInventoryItem(id ?? "");
   const createMutation = useCreateInventoryItem();
   const updateMutation = useUpdateInventoryItem();
+
+  // BUG-507: classify read failures; never fold missing entity into blank editable defaults
+  const entityRead: EntityReadResult<InventoryItem> = resolveEntityReadResult({
+    id: isEdit ? id : undefined,
+    data: inventoryData,
+    isLoading,
+    isError,
+    error: inventoryError,
+    refetch: refetchInventory,
+  });
+  const existingItem = entityRead.status === "found" ? entityRead.data : undefined;
+  const isReadLoading = entityRead.status === "loading";
+  const isReadNotFound = isNonDisclosureReadStatus(entityRead.status);
+  const isReadError = entityRead.status === "error";
+  const retryRead = entityRead.status === "error" ? entityRead.retry : undefined;
 
   const [prevExistingItem, setPrevExistingItem] = useState(existingItem);
   const [category, setCategory] = useState<InventoryItem["category"]>(
@@ -56,6 +82,14 @@ export function useInventoryForm(id?: string) {
 
   const [formState, formAction, isPending] = useActionState(
     async (_prevState: FormState, formData: FormData): Promise<FormState> => {
+      // Fail closed: do not mutate while edit load is missing / errored / in-flight
+      if (
+        isEdit &&
+        (isReadNotFound || isReadError || isReadLoading || entityRead.status !== "found")
+      ) {
+        return { success: false, timestamp: Date.now() };
+      }
+
       const name = readFormString(formData, "name").trim();
       const unit = readFormString(formData, "unit").trim();
       const quantityStr = readFormString(formData, "quantity");
@@ -128,8 +162,12 @@ export function useInventoryForm(id?: string) {
 
   return {
     isEdit,
-    isLoading,
+    isLoading: isReadLoading,
     existingItem,
+    entityRead,
+    isReadNotFound,
+    isReadError,
+    retryRead,
     category,
     setCategory,
     resolvedExpiry,

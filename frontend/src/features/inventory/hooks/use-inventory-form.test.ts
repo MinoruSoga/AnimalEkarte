@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
+import { AxiosError, AxiosHeaders, type InternalAxiosRequestConfig } from "axios";
+import { useGetInventoryItem } from "../api/inventory";
 import { useInventoryForm } from "./use-inventory-form";
 
 // ──────────────────────────────────────────────────────────
@@ -7,10 +9,22 @@ import { useInventoryForm } from "./use-inventory-form";
 // vi.mock はホイストされるため、参照する変数は vi.hoisted で先に定義する
 // ──────────────────────────────────────────────────────────
 
-const { mockToast, mockCreateMutateAsync, mockUpdateMutateAsync } = vi.hoisted(() => ({
+const { mockToast, mockCreateMutateAsync, mockUpdateMutateAsync, foundItem } = vi.hoisted(() => ({
   mockToast: { error: vi.fn(), success: vi.fn() },
   mockCreateMutateAsync: vi.fn().mockResolvedValue({}),
   mockUpdateMutateAsync: vi.fn().mockResolvedValue({}),
+  foundItem: {
+    id: "42",
+    clinicId: "1",
+    name: "テスト商品",
+    category: "medicine",
+    quantity: 100,
+    unit: "個",
+    minStockLevel: 10,
+    status: "in_stock",
+    createdAt: "2026-01-01T00:00:00Z",
+    updatedAt: "2026-01-01T00:00:00Z",
+  },
 }));
 
 vi.mock("react-router", () => ({
@@ -20,7 +34,13 @@ vi.mock("react-router", () => ({
 vi.mock("sonner", () => ({ toast: mockToast }));
 
 vi.mock("../api/inventory", () => ({
-  useGetInventoryItem: vi.fn(() => ({ data: null, isLoading: false })),
+  useGetInventoryItem: vi.fn((id: string) => ({
+    data: id ? foundItem : undefined,
+    isLoading: false,
+    isError: false,
+    error: null,
+    refetch: vi.fn(),
+  })),
   useCreateInventoryItem: vi.fn(() => ({ mutateAsync: mockCreateMutateAsync })),
   useUpdateInventoryItem: vi.fn(() => ({ mutateAsync: mockUpdateMutateAsync })),
 }));
@@ -57,6 +77,13 @@ describe("useInventoryForm", () => {
     vi.clearAllMocks();
     mockCreateMutateAsync.mockResolvedValue({});
     mockUpdateMutateAsync.mockResolvedValue({});
+    vi.mocked(useGetInventoryItem).mockImplementation((id: string) => ({
+      data: id ? foundItem : undefined,
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    }) as unknown as ReturnType<typeof useGetInventoryItem>);
   });
 
   // ──────────────────────────
@@ -201,6 +228,108 @@ describe("useInventoryForm", () => {
       });
 
       expect(result.current.formState.success).toBe(false);
+    });
+  });
+
+  // ──────────────────────────
+  // BUG-507: 不在ID / 読取失敗は空フォームに折り畳まない
+  // ──────────────────────────
+  describe("読取分類 (BUG-507)", () => {
+    function axiosError(status: number | undefined) {
+      const config = { headers: new AxiosHeaders() } as InternalAxiosRequestConfig;
+      if (status === undefined) {
+        return new AxiosError("Network Error", AxiosError.ERR_NETWORK, config, undefined, undefined);
+      }
+      return new AxiosError(
+        "request failed",
+        AxiosError.ERR_BAD_RESPONSE,
+        config,
+        undefined,
+        {
+          config,
+          data: { error: "not found" },
+          headers: new AxiosHeaders(),
+          status,
+          statusText: "Error",
+        },
+      );
+    }
+
+    it("404 → isReadNotFound、formAction で update/create 0 回", async () => {
+      vi.mocked(useGetInventoryItem).mockReturnValue({
+        data: undefined,
+        isLoading: false,
+        isError: true,
+        error: axiosError(404),
+        refetch: vi.fn(),
+      } as unknown as ReturnType<typeof useGetInventoryItem>);
+
+      const { result } = renderHook(() => useInventoryForm("999999001"));
+      expect(result.current.isReadNotFound).toBe(true);
+      expect(result.current.entityRead.status).toBe("notFound");
+      expect(result.current.existingItem).toBeUndefined();
+
+      await act(async () => {
+        await result.current.formAction(makeFormData());
+      });
+      expect(mockUpdateMutateAsync).not.toHaveBeenCalled();
+      expect(mockCreateMutateAsync).not.toHaveBeenCalled();
+    });
+
+    it("403 → isReadNotFound（非開示）で mutation 0 回", async () => {
+      vi.mocked(useGetInventoryItem).mockReturnValue({
+        data: undefined,
+        isLoading: false,
+        isError: true,
+        error: axiosError(403),
+        refetch: vi.fn(),
+      } as unknown as ReturnType<typeof useGetInventoryItem>);
+
+      const { result } = renderHook(() => useInventoryForm("42"));
+      expect(result.current.isReadNotFound).toBe(true);
+      expect(result.current.entityRead.status).toBe("forbiddenOrHidden");
+
+      await act(async () => {
+        await result.current.formAction(makeFormData());
+      });
+      expect(mockUpdateMutateAsync).not.toHaveBeenCalled();
+    });
+
+    it("network error → isReadError と retry、mutation 0 回", async () => {
+      const refetch = vi.fn();
+      vi.mocked(useGetInventoryItem).mockReturnValue({
+        data: undefined,
+        isLoading: false,
+        isError: true,
+        error: axiosError(undefined),
+        refetch,
+      } as unknown as ReturnType<typeof useGetInventoryItem>);
+
+      const { result } = renderHook(() => useInventoryForm("999999001"));
+      expect(result.current.isReadError).toBe(true);
+      expect(result.current.isReadNotFound).toBe(false);
+      result.current.retryRead?.();
+      expect(refetch).toHaveBeenCalledTimes(1);
+
+      await act(async () => {
+        await result.current.formAction(makeFormData());
+      });
+      expect(mockUpdateMutateAsync).not.toHaveBeenCalled();
+    });
+
+    it("create route: idle で isReadNotFound=false", () => {
+      vi.mocked(useGetInventoryItem).mockReturnValue({
+        data: undefined,
+        isLoading: false,
+        isError: false,
+        error: null,
+        refetch: vi.fn(),
+      } as unknown as ReturnType<typeof useGetInventoryItem>);
+
+      const { result } = renderHook(() => useInventoryForm());
+      expect(result.current.entityRead.status).toBe("idle");
+      expect(result.current.isReadNotFound).toBe(false);
+      expect(result.current.isEdit).toBe(false);
     });
   });
 
