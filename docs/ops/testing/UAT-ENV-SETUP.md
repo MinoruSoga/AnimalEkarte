@@ -113,7 +113,7 @@ reports/uat-YYYY-MM-DD/
   *.png
 ```
 
-- FAIL → Linear
+- 製品 FAIL → `bug.md` 必須（env BLOCKED は書かない）。Linear Issue 化は後続
 - 環境 BLOCKED → Linear Needs Human または FINAL の BLOCKED 表
 - **scenarios/*.md に結果を書かない**
 

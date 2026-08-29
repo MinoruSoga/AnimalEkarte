@@ -12,9 +12,10 @@
 1. **正本は1つ**: 同じ検証を複数文書に重複定義しない。層ごとの正本表（§2）に従う。
 2. **受入は scenarios/**: 納品前・大きなリリース前の「業務が通る」証明は `scenarios/` が正本。
 3. **項目単位まで受入する**: フォーム受入（V シリーズ）はフォーム単位の C1〜C3 に加え、**各入力項目に F プロトコル**を適用する（[scenarios/FIELD-LEVEL-PROTOCOL.md](scenarios/FIELD-LEVEL-PROTOCOL.md)）。
-4. **結果を正本に書かない**: シナリオ md は手順の正本。実行結果は gitignore の `reports/uat-YYYY-MM-DD/`。FAIL は Linear。
-5. **自動化は回帰、受入はギャップ**: E2E は壊れやすい回帰の固定化。臨床安全・フォーム永続・LIFF 等のギャップは scenarios が担当。
-6. **最終合否は人**: 製品 FAIL の起票は Linear。破壊操作・実 LINE・staging 決裁は人間レーン（Linear Needs Human）。
+4. **結果を正本に書かない**: シナリオ md は手順の正本。実行結果は gitignore の `reports/uat-YYYY-MM-DD/`。
+5. **製品 FAIL は bug.md 必須**: 確認済みの製品欠陥はリポ直下 `bug.md` に追記する（見出し重複禁止 · env BLOCKED は書かない）。Linear Issue 化は後続レーン。`todo.md` にバグ本文を再構築しない。
+6. **自動化は回帰、受入はギャップ**: E2E は壊れやすい回帰の固定化。臨床安全・フォーム永続・LIFF 等のギャップは scenarios が担当。
+7. **最終合否は人**: 破壊操作・実 LINE・staging 決裁・Done / GH close は人間レーン（Linear Needs Human）。local PASS だけで納品 close しない。
 
 ---
 
@@ -119,10 +120,11 @@
 
 | 成果物 | 置き場 | 書くこと |
 |:--|:--|:--|
-| 実行レポート | `reports/uat-YYYY-MM-DD/FINAL.md` | シナリオ別 PASS/PARTIAL/BLOCKED/FAIL 集計 |
+| 実行レポート | `reports/uat-YYYY-MM-DD/FINAL.md` | シナリオ別 PASS/PARTIAL/BLOCKED/FAIL 集計。**全て PASS でないなら「全て実施完了」と言わない** |
 | 機械可読結果 | 同ディレクトリ `results.json` | ステップ単位 |
 | 証跡 | 同ディレクトリ `*.png` 等 | FAIL/PARTIAL の根拠 |
-| **製品欠陥** | Linear | Open Issue のみ |
+| **製品欠陥（必須）** | リポ直下 **`bug.md`** | 確認済み製品 FAIL のみ追記。見出し重複禁止。env BLOCKED / 権限不足は書かない |
+| チケット化 | Linear | bug.md から Issue 化するとき。実行 SoT は Linear |
 | 環境・仕様・決裁 | Linear Needs Human | 実 LINE・fixture・破壊 gate |
 | シナリオ md | **編集禁止（結果を書かない）** | 手順・期待の正本のみ |
 
@@ -131,9 +133,9 @@
 | 判定 | 意味 |
 |:--|:--|
 | PASS | 期待どおり |
-| PARTIAL | 中核は通るが一部未確認 |
-| BLOCKED | 環境・仕様・fixture 不足で実行不能（製品バグではない） |
-| FAIL | 製品が期待を満たさない → `todo.md` 起票 |
+| PARTIAL | 中核は通るが一部未確認（製品 FAIL と断定しない） |
+| BLOCKED | 環境・仕様・fixture 不足で実行不能（製品バグではない · bug.md に書かない） |
+| FAIL | 製品が期待を満たさない → **`bug.md` に追記必須**（その後 Linear Issue 化可） |
 
 ---
 
