@@ -14,7 +14,7 @@
 
 ## Architecture policy
 
-Go/Gin公式は特定の application architecture や folder tree を規定しない。この backend では、[ADR-006](../docs/architecture/adr/006-backend-domain-package-boundaries.md)によりdomain/capability-firstのmodular monolithをproject decisionとして採用し、packageを凝集性、利用者、依存方向、変更単位で設計する。BE9移行は2026-07-24にcode complete（release pending）となり、旧`internal/handler`は削除済み、旧`internal/service`と`internal/repository`はtest-onlyでproduction実装は0件である。旧3layerは新規production codeの追加先ではなく、境界の正本はADR-006と[boundary map](../docs/architecture/be9-2a-boundary-map.md)とする。
+Go/Gin公式は特定の application architecture や folder tree を規定しない。この backend では、[ADR-006](../docs/architecture/adr/006-backend-domain-package-boundaries.md)によりdomain/capability-firstのmodular monolithをproject decisionとして採用し、packageを凝集性、利用者、依存方向、変更単位で設計する。BE9移行は2026-07-24にcode complete（release pending）となり、旧`internal/handler`・`internal/service`・`internal/repository` directory は **完全削除済み**（test-only residual も含め残存しない · [overview](../docs/architecture/overview.md)）。旧3layerは新規production codeの追加先ではなく、境界の正本はADR-006と[boundary map](../docs/architecture/be9-2a-boundary-map.md)とする。
 
 正本:
 

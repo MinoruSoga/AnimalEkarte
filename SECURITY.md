@@ -27,36 +27,48 @@
 
 ## セキュリティ設計
 
+> **正本**: 認証・認可の詳細は [`docs/architecture/auth.md`](docs/architecture/auth.md)。  
+> データ経路・監査の path-dependent 方針は [`docs/architecture/data-flow.md`](docs/architecture/data-flow.md)。  
+> 本ファイルは入口の要約であり、断定が食い違うときは上記を優先する。
+
 ### マルチテナント隔離
 
 - すべての患者・飼い主・診療データは `clinic_id` で完全に隔離される
-- GORM の `clinicScope` を repository 層で強制適用し、クロステナントアクセスを構造的に防止
-- `clinic_id` なしの SELECT/UPDATE/DELETE は P4 規約違反として CI で検出
+- clinic scope は **domain/capability 境界**で強制する（BE9 後。旧「repository 層で一律 `clinicScope`」という固定表現は使わない）
+- 実装・境界の正本: [`docs/architecture/overview.md`](docs/architecture/overview.md) · ADR-006
+- `clinic_id` なしの危険な SELECT/UPDATE/DELETE は規約・lint で抑止する（詳細は backend 規約）
 
 ### 認証・認可
 
-- JWT (HS256) によるステートレス認証
-- Role-based access control: `system_admin` / `admin` / `staff`
-- `RequirePermission` ミドルウェアにより全エンドポイントで権限チェック
-- リフレッシュトークン 15分ローテート
+- JWT (HS256) によるステートレス認証（dual-token）
+  - **Access Token**: 約 **15 分**有効（httpOnly Cookie）
+  - **Refresh Token**: 最大 **7 日** · family ID + JTI · ローテーションと再利用検知（詳細は auth.md §4.1）
+  - 「リフレッシュが 15 分でローテートする」一括断定はしない
+- Role-based access control: `system_admin` / `admin` / `staff` + リソース単位 RBAC（`AllResources` 37 種 · auth.md）
+- スタッフ向け API は `RequirePermission` / `RequirePermissionAny` で権限チェックする
+  - **例外**: LIFF 等の **公開ルート**はスタッフ RBAC 前提ではない（全エンドポイント RequirePermission ではない）
+- リクエスト時の clinic 再解決・stale token fail-closed は auth.md §4.2
 
 ### 入力検証
 
 - バックエンド: Gin の ShouldBindJSON + apperrors による型安全バリデーション
 - フロントエンド: React 19 useActionState + TypeScript による型安全フォーム
-- SQL インジェクション対策: GORM パラメータバインディングを強制、生 SQL 禁止
+- SQL インジェクション対策: **原則** GORM のパラメータバインディングを使う
+  - 「生 SQL 全面禁止」ではない。限定された parameterized `Raw` / 運用クエリは domain 内に存在し得る（新規の文字列連結 SQL は禁止）
 
 ### シークレット管理
 
 - 実運用シークレットは GitHub Actions Secrets / 環境変数のみ
-- `.env` ファイルは `.gitignore` で除外済み
+- ローカルの `.env` / `.env.local` は Git 管理外（`.gitignore`）
+- **例外**: `frontend/.env.production` は公開可能な `VITE_*` のみを意図的に track する（秘密を置かない）
 - API キー・パスワードのハードコード禁止 (pre-commit フック + code review で検出)
 
 ### 医療情報保護
 
 - 飼い主・ペット・診療記録は clinic_id スコープで隔離
-- audit_log テーブルにより全データ変更を記録
-- 削除は論理削除 (deleted_at) または変更追跡で履歴保持
+- **監査 (audit) は path-dependent**: すべての CUD が機械的に `audit_logs` へ入るわけではない（例: LSTEP タグ同期は意図的に audit 対象外 · data-flow.md）
+- 必須監査は業務 write と同一 transaction で fail-closed（auth.md §4.3）
+- 削除は論理削除 (deleted_at) または変更追跡で履歴保持（経路による）
 
 ## 既知の制限事項
 
