@@ -163,6 +163,26 @@ describe('App（FE5-20: ナビゲーション特性テスト）', () => {
     expect(screen.queryByText('新規予約')).not.toBeInTheDocument();
   });
 
+  // BUG-505: VITE_LIFF_MOCK 相当で isReady+mock-token が即時でも、
+  // settings 失敗の ErrorPage 文言を generic 初期化失敗 / top へ上書きしない
+  it('App: mock LIFF ready でも設定取得失敗時は「設定の取得に失敗しました」を維持する（BUG-505）', async () => {
+    vi.mocked(getClinicId).mockReturnValue('2');
+    vi.mocked(liffApi.getSettings).mockRejectedValue(new Error('404'));
+    vi.mocked(liffApi.getProfile).mockResolvedValue({
+      line_user_id: 'U1',
+      display_name: 'テストユーザー',
+      additional_fields: {},
+    });
+    mockUseLiff({ idToken: 'mock-token', isReady: true });
+
+    render(<App />);
+
+    expect(await screen.findByText('設定の取得に失敗しました')).toBeInTheDocument();
+    expect(screen.queryByText('初期化に失敗しました')).not.toBeInTheDocument();
+    expect(screen.queryByText('新規予約')).not.toBeInTheDocument();
+    expect(liffApi.getProfile).not.toHaveBeenCalled();
+  });
+
   it('App: メンテナンスフラグが立っていればメンテナンスページを表示する', async () => {
     vi.mocked(getClinicId).mockReturnValue('1');
     vi.mocked(liffApi.getSettings).mockResolvedValue({ ...SETTINGS, status: 'stopped' });

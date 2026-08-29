@@ -74,20 +74,31 @@ export function App() {
   }, [clinicId]);
 
   // Step 2: LIFF 初期化完了後にプロフィール取得 → トップページへ
+  // settings 未取得・失敗時は進めない（VITE_LIFF_MOCK の即時 ready が page=error を上書きするのを防ぐ / BUG-505）
   useEffect(() => {
     if (!isReady || !idToken || !clinicId) return;
+    if (!settings || settings.status !== 'running') return;
+
+    let cancelled = false;
 
     liffApi.getProfile(clinicId, idToken)
       .then(p => {
+        if (cancelled) return;
         setProfile(p);
       })
       .catch(() => {
         // プロフィール取得失敗は無視してトップへ進む
       })
       .finally(() => {
-        setPage('top');
+        if (cancelled) return;
+        // error/maintenance 確定後の ready レースでも sticky に保つ
+        setPage((current) => (current === 'error' || current === 'maintenance' ? current : 'top'));
       });
-  }, [isReady, idToken, clinicId]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isReady, idToken, clinicId, settings]);
 
   // ナビゲーション
   const goTo = useCallback((p: PageType) => setPage(p), []);
