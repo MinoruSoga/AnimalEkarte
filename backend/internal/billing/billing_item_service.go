@@ -11,6 +11,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/persistence"
 	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
@@ -475,6 +476,23 @@ func (s *billingItemService) createItemInAmbientTx(ctx context.Context, input *C
 	}
 	if err := rejectIfBillingFinalized(billing, "登録"); err != nil {
 		return nil, err
+	}
+
+	// BUG-506: resolve missing trimming appointment_id before validate/persist so
+	// provenance (and unbilled clear) still bind course/option to the appointment.
+	// Ambient tx is required (Complete / CreateItem WithTx). Unit mocks without
+	// TxFromContext skip resolve and keep prior validate/create behavior.
+	if input.AppointmentID == nil && (input.TrimmingCourseID != nil || input.TrimmingOptionID != nil) {
+		if tx := persistence.TxFromContext(ctx); tx != nil {
+			resolved, resolveErr := resolveUniqueTrimmingAppointmentID(
+				tx.WithContext(ctx), input.ClinicID, billing.PetID, input.TrimmingCourseID, input.TrimmingOptionID,
+			)
+			if resolveErr != nil {
+				return nil, resolveErr
+			}
+			input.AppointmentID = resolved
+			item.AppointmentID = resolved
+		}
 	}
 
 	category, err := s.repo.ValidateCreateReferences(

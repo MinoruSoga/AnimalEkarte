@@ -214,15 +214,30 @@ func (r *billingItemRepository) ValidateCreateReferences(
 		}
 	}
 
-	if appointmentID != nil {
+	// BUG-506: unbilled → complete clients may omit appointment_id while still
+	// sending trimming_course_id / trimming_option_id. Resolve the unique
+	// accounting-status trimming appointment for the billing pet (fail-closed
+	// when zero or ambiguous). Keep invalid combinations rejected.
+	effectiveAppointmentID := appointmentID
+	if effectiveAppointmentID == nil && (trimmingCourseID != nil || trimmingOptionID != nil) {
+		resolved, err := resolveUniqueTrimmingAppointmentID(
+			tx, clinicID, billingRef.PetID, trimmingCourseID, trimmingOptionID,
+		)
+		if err != nil {
+			return "", err
+		}
+		effectiveAppointmentID = resolved
+	}
+
+	if effectiveAppointmentID != nil {
 		var appointmentRef billingItemAppointmentReference
 		if err := tx.
 			Table("appointments").
 			Select("owner_id", "pet_id").
-			Where("id = ? AND clinic_id = ? AND deleted_at IS NULL", *appointmentID, clinicID).
+			Where("id = ? AND clinic_id = ? AND deleted_at IS NULL", *effectiveAppointmentID, clinicID).
 			Clauses(clause.Locking{Strength: "SHARE"}).
 			Take(&appointmentRef).Error; err != nil {
-			return "", apperrors.FromGORM(err, "appointment", fmt.Sprintf("%d", *appointmentID))
+			return "", apperrors.FromGORM(err, "appointment", fmt.Sprintf("%d", *effectiveAppointmentID))
 		}
 		if !sameOptionalBillingReference(billingRef.OwnerID, appointmentRef.OwnerID) ||
 			!sameOptionalBillingReference(billingRef.PetID, appointmentRef.PetID) {
@@ -232,12 +247,12 @@ func (r *billingItemRepository) ValidateCreateReferences(
 		enforceMedicalAppointment := (medicalRecordRef != nil && treatmentID != nil) ||
 			(medicalRecordRef != nil && trimmingCourseID == nil && trimmingOptionID == nil)
 		if enforceMedicalAppointment &&
-			(medicalRecordRef.AppointmentID == nil || *medicalRecordRef.AppointmentID != *appointmentID) {
+			(medicalRecordRef.AppointmentID == nil || *medicalRecordRef.AppointmentID != *effectiveAppointmentID) {
 			return "", invalidBillingItemReferenceCombination()
 		}
 	}
 
-	if (trimmingCourseID != nil || trimmingOptionID != nil) && appointmentID == nil {
+	if (trimmingCourseID != nil || trimmingOptionID != nil) && effectiveAppointmentID == nil {
 		return "", invalidBillingItemReferenceCombination()
 	}
 	if trimmingCourseID != nil {
@@ -251,7 +266,7 @@ func (r *billingItemRepository) ValidateCreateReferences(
 			Select("trimming_courses.id").
 			Joins("JOIN appointments ON appointments.id = appointment_trimming_details.appointment_id AND appointments.clinic_id = appointment_trimming_details.clinic_id").
 			Joins("JOIN trimming_courses ON trimming_courses.id = appointment_trimming_details.course_id AND trimming_courses.clinic_id = appointment_trimming_details.clinic_id AND trimming_courses.deleted_at IS NULL").
-			Where("appointment_trimming_details.appointment_id = ? AND appointment_trimming_details.clinic_id = ? AND appointment_trimming_details.course_id = ?", *appointmentID, clinicID, *trimmingCourseID).
+			Where("appointment_trimming_details.appointment_id = ? AND appointment_trimming_details.clinic_id = ? AND appointment_trimming_details.course_id = ?", *effectiveAppointmentID, clinicID, *trimmingCourseID).
 			Clauses(clause.Locking{Strength: "SHARE"}).
 			Take(&id).Error; err != nil {
 			return "", apperrors.FromGORM(err, "trimming_course", fmt.Sprintf("%d", *trimmingCourseID))
@@ -264,7 +279,7 @@ func (r *billingItemRepository) ValidateCreateReferences(
 			Select("topt.id").
 			Joins("JOIN appointments AS a ON a.id = ato.appointment_id AND a.clinic_id = ? AND a.deleted_at IS NULL", clinicID).
 			Joins("JOIN trimming_options AS topt ON topt.id = ato.option_id AND topt.clinic_id = a.clinic_id AND topt.deleted_at IS NULL").
-			Where("ato.appointment_id = ? AND ato.option_id = ?", *appointmentID, *trimmingOptionID).
+			Where("ato.appointment_id = ? AND ato.option_id = ?", *effectiveAppointmentID, *trimmingOptionID).
 			Clauses(clause.Locking{Strength: "SHARE"}).
 			Take(&id).Error; err != nil {
 			return "", apperrors.FromGORM(err, "trimming_option", fmt.Sprintf("%d", *trimmingOptionID))
@@ -272,6 +287,54 @@ func (r *billingItemRepository) ValidateCreateReferences(
 	}
 
 	return merchandiseRef.Category, nil
+}
+
+// resolveUniqueTrimmingAppointmentID finds the single accounting-status trimming
+// appointment for pet that carries the given course and/or option. Zero or many
+// matches fail closed (InvalidInput). Requires ambient tx.
+func resolveUniqueTrimmingAppointmentID(
+	tx *gorm.DB,
+	clinicID uint64,
+	petID *uint64,
+	trimmingCourseID, trimmingOptionID *uint64,
+) (*uint64, error) {
+	if petID == nil {
+		return nil, invalidBillingItemReferenceCombination()
+	}
+	if trimmingCourseID == nil && trimmingOptionID == nil {
+		return nil, invalidBillingItemReferenceCombination()
+	}
+
+	q := tx.
+		Table("appointments AS a").
+		Select("a.id").
+		Joins("JOIN reservation_types AS rt ON rt.id = a.reservation_type_id AND rt.clinic_id = a.clinic_id AND rt.deleted_at IS NULL").
+		Where(
+			"a.clinic_id = ? AND a.pet_id = ? AND a.deleted_at IS NULL AND a.status = ? AND rt.category = ?",
+			clinicID, *petID, model.ReservationStatusAccounting, model.ReservationTypeCategoryTrimming,
+		)
+	if trimmingCourseID != nil {
+		q = q.Joins(
+			"JOIN appointment_trimming_details AS atd ON atd.appointment_id = a.id AND atd.clinic_id = a.clinic_id AND atd.course_id = ?",
+			*trimmingCourseID,
+		)
+	}
+	if trimmingOptionID != nil {
+		q = q.Joins(
+			"JOIN appointment_trimming_options AS ato ON ato.appointment_id = a.id AND ato.option_id = ?",
+			*trimmingOptionID,
+		)
+	}
+
+	var ids []uint64
+	if err := q.Limit(2).Pluck("a.id", &ids).Error; err != nil {
+		return nil, apperrors.FromGORM(err, "appointment", fmt.Sprintf("clinic=%d pet=%d trimming", clinicID, *petID))
+	}
+	if len(ids) != 1 {
+		return nil, invalidBillingItemReferenceCombination()
+	}
+	id := ids[0]
+	return &id, nil
 }
 
 func (r *billingItemRepository) ValidateVaccinationCreateReference(

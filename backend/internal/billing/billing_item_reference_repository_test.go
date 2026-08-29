@@ -477,13 +477,26 @@ func TestBillingItemRepository_ValidateCreateReferences(t *testing.T) {
 		assert.True(t, apperrors.IsNotFound(err), "option must be attached to the referenced appointment: %v", err)
 	})
 
-	t.Run("trimming master without appointment is rejected", func(t *testing.T) {
+	t.Run("trimming master without resolvable appointment is rejected", func(t *testing.T) {
 		f := setupBillingItemReferenceFixture(t)
+		// Course exists in clinic but is not attached to any accounting-status
+		// appointment for the billing pet — BUG-506 must still fail closed.
+		orphanCourse := makeTrimmingCourse(t, f.db, f.clinicID, "orphan course", priceOf(900))
 
-		_, err := f.validate(t, nil, nil, nil, &f.course.ID, nil)
+		_, err := f.validate(t, nil, nil, nil, &orphanCourse.ID, nil)
 
 		require.Error(t, err)
 		assert.True(t, apperrors.IsInvalidInput(err))
+	})
+
+	t.Run("BUG-506: attached trimming master without appointment_id resolves unique appointment", func(t *testing.T) {
+		f := setupBillingItemReferenceFixture(t)
+
+		_, err := f.validate(t, nil, nil, nil, &f.course.ID, nil)
+		require.NoError(t, err)
+
+		_, err = f.validate(t, nil, nil, nil, nil, &f.option.ID)
+		require.NoError(t, err)
 	})
 
 	t.Run("S11 split appointments: trimming items on appointment B succeed with exam medical_record appointment A", func(t *testing.T) {
@@ -521,6 +534,22 @@ func TestBillingItemRepository_ValidateCreateReferences(t *testing.T) {
 		_, err = f.validate(t, nil, &f.treatment.ID, &f.trimmingAppointment.ID, &f.course.ID, nil)
 		require.Error(t, err)
 		assert.True(t, apperrors.IsInvalidInput(err), "treatment plus trimming provenance must not skip medical_record appointment equality: %v", err)
+	})
+
+	// BUG-506 / UAT S11: complete clients may omit appointment_id while still sending
+	// trimming_course_id / trimming_option_id from unbilled candidates. Resolve the
+	// unique accounting-status appointment for the billing pet instead of 400.
+	t.Run("BUG-506: trimming course/option without appointment_id resolves unique accounting appointment", func(t *testing.T) {
+		f := setupSplitAppointmentReferenceFixture(t, true)
+
+		_, err := f.validate(t, nil, nil, nil, &f.course.ID, &f.option.ID)
+		require.NoError(t, err)
+
+		_, err = f.validate(t, nil, nil, nil, &f.course.ID, nil)
+		require.NoError(t, err)
+
+		_, err = f.validate(t, nil, nil, nil, nil, &f.option.ID)
+		require.NoError(t, err)
 	})
 }
 
