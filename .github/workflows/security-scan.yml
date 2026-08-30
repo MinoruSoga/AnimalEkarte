@@ -18,18 +18,71 @@ on:
           - critical
         required: false
         default: medium
+      force_fail_on_findings:
+        description: "Force fail-on-findings even when agent-config paths did not change."
+        type: boolean
+        required: false
+        default: false
 
 permissions:
   contents: read
 
 jobs:
+  # AgentShield scans Claude/Codex agent configs. Baseline debt (score ~40) already
+  # exists on main; push-to-main does not fail. Root cause of docs/product PRs being
+  # blocked: fail-on-findings was true for ALL main PRs regardless of changed paths.
+  # Fix: only fail when agent-config surfaces change (or manual force).
+  changes:
+    name: Detect agent-config changes
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      agent_config: ${{ steps.filter.outputs.agent_config }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+
+      - name: Paths filter
+        id: filter
+        uses: dorny/paths-filter@v4
+        with:
+          filters: |
+            agent_config:
+              - '.claude/**'
+              - '.codex/**'
+              - '.agents/**'
+              - '**/CLAUDE.md'
+              - '**/.mcp.json'
+              # Note: do NOT include security-scan.yml here — the PR that fixes
+              # the fail gate must touch this workflow; including it creates a
+              # chicken-and-egg block. Workflow edits are reviewed in the PR diff.
+
   agentshield:
     name: AgentShield
     runs-on: ubuntu-latest
+    needs: changes
 
     steps:
       - name: Checkout
         uses: actions/checkout@v7.0.1
+
+      - name: Resolve fail-on-findings
+        id: gate
+        run: |
+          set -euo pipefail
+          # Default: report-only. Fail only for main-bound PRs that touch agent configs,
+          # or when workflow_dispatch forces it.
+          FAIL=false
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ github.event.inputs.force_fail_on_findings }}" == "true" ]]; then
+            FAIL=true
+          elif [[ "${{ github.event_name }}" == "pull_request" && "${{ github.base_ref }}" == "main" && "${{ needs.changes.outputs.agent_config }}" == "true" ]]; then
+            FAIL=true
+          fi
+          echo "fail_on_findings=${FAIL}" >> "$GITHUB_OUTPUT"
+          echo "agent_config_changed=${{ needs.changes.outputs.agent_config }}" >> "$GITHUB_OUTPUT"
+          echo "Resolved fail_on_findings=${FAIL} (agent_config_changed=${{ needs.changes.outputs.agent_config }})"
 
       - name: Run AgentShield
         # Pinned to v1.3.0 (commit 0b5e1bc9 — also where the upstream `v1` tag points).
@@ -42,4 +95,4 @@ jobs:
         with:
           path: "."
           min-severity: "${{ github.event.inputs.min_severity || 'medium' }}"
-          fail-on-findings: ${{ github.event_name == 'pull_request' && github.base_ref == 'main' }}
+          fail-on-findings: ${{ steps.gate.outputs.fail_on_findings }}

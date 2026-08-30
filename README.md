@@ -41,7 +41,8 @@ cp .env.example .env.local
 
 ```bash
 # db / backend / frontend を起動し、ヘルスチェック完了まで待機
-# DB マイグレーションは backend の起動時に自動適用
+# local Compose: backend entrypoint が migrate を適用し得る（開発者の make up）
+# エージェントは migrate を自動実行しない。pull 後に要る場合は人間が `make migrate`（AGENTS.md）
 make up
 ```
 
