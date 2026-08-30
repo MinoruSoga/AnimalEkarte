@@ -11,7 +11,7 @@
 
 | 区分 | 内容 | どこで担保するか |
 |---|---|---|
-| **リモート CI 必須** | path-filtered `build` / `test` / coverage ratchet、gitleaks（secret-scan）、codegen / migration 検証、schema drift（backend job 内）、AgentShield | `.github/workflows/ci.yml` / `security-scan.yml` |
+| **リモート CI 必須** | path-filtered `build` / `test` / coverage ratchet、gitleaks（secret-scan）、codegen / migration 検証、schema drift（backend job 内）、AgentShield（**agent-config 変更時のみ fail** · 詳細 `README-security-scan.md`） | `.github/workflows/ci.yml` / `security-scan.yml` |
 | **ローカル必須 (`make ci`)** | clinic/audit inventory・preload、reset-contract、ci-step-order、docs-symbol-drift、eslint-disable rationale、shellcheck、design CTA、golangci-lint、ESLint / type-check / knip、codegen 同期、backend/frontend build+test（手元再現） | `make ci`（実体: `scripts/run-local-ci.sh`） |
 | **ローカル任意 (E2E)** | Playwright ブラウザ E2E（スタック起動が重く、PR Checks のノイズ・時間になりやすい） | `make e2e`（`frontend/scripts/run-e2e.sh`）。`.github/workflows/e2e.yml` は **workflow_dispatch のみ**（push/PR 自動実行なし） |
 | **schedule のみ** | 負荷・プロファイリング（performance） | `.github/workflows/performance-tests.yml`（push トリガなし・`workflow_dispatch` 可） |
