@@ -1,7 +1,8 @@
 # ADR-007: 城東検査機器 — 受信永続化・1画面・即 persist + Undo
 
-**Status**: Accepted（設計。実装は BRT-95〜98）
-**Date**: 2026-08-19
+**Status**: Accepted  
+**Implementation**: **code complete** for BRT-95〜98 paths on main (decoder · masters · board · commit allowlist). **Not** hospital release-ready by itself — real-device UAT, agent ops, and clinic rollout remain human gates (see BRT-94 / LAB_DEVICE_CONNECTIVITY).  
+**Date**: 2026-08-19 (status split 2026-08-30)
 **Deciders**: PO（MinoruSoga）
 **Relates to**: ADR-002（clinic_id）、ADR-006（`medicalrecord` write owner）、Linear [BRT-100](https://linear.app/baritechllc/issue/BRT-100) / [BRT-94](https://linear.app/baritechllc/issue/BRT-94)
 **接続・機器正本**: [`docs/ops/deploy/LAB_DEVICE_CONNECTIVITY.md`](../../ops/deploy/LAB_DEVICE_CONNECTIVITY.md)

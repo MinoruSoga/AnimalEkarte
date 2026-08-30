@@ -74,6 +74,7 @@ RBAC strings match `model.Resource*` / generated FE constants (kebab-case values
 | `lstep` | `lstep` | `lstep-csv-import`, `lstep-analytics` | Staff LSTEP ops |
 | `manual` | `manualarticle` | `manual-edit` | |
 | `identity-links` | `identitylink` | `identity-links` | No FE assumption of owner/pet package coupling |
+| `lab-device` | `medicalrecord` | `lab-import` | `/lab-device` board · ADR-007 · routes under medicalrecord lab-device APIs; FE `features/lab-device` |
 | `aggregation` | `lstep` / reporting reads | (feature-specific; often analytics-adjacent) | Keep reads fail-closed to clinic |
 | `owner-report` | multi clinical read | `examinations`, `vaccinations`, `checkups`, `trimming`, `reservations`, … | Composite read UI; permission per section |
 

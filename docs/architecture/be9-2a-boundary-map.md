@@ -3,7 +3,7 @@
 > 対象: 旧BE-refactor.md BE9-2A（2026-07-24退役・経緯はgit履歴）。
 > 実行日: 2026-07-19。手法: codegraph(callers/callees/explore) + grep/rg + git log を第一手段とする再実測（旧 BE8/§9 の file-prefix 分類はそのまま正本にせず、再実測との差分を§6に記録）。
 > 分類マニフェスト（全761 production Go source row、未分類0件）: [be9-2a-classification-manifest.csv](be9-2a-classification-manifest.csv)。移行後target packageの物理file数とは別指標。
-> **本docは分類とboundary inventoryの正本**。target設計の裁定は[ADR-006](adr/006-backend-domain-package-boundaries.md)。BE9移行は2026-07-24にcode complete（release pending）となり、release gateは[`todo.md` OPS-13〜17](../../todo.md#ops)を正本とする。
+> **本docは分類とboundary inventoryの正本**。target設計の裁定は[ADR-006](adr/006-backend-domain-package-boundaries.md)。BE9移行は2026-07-24にcode complete（release pending）となり、release gate の作業入口は Linear hub [BRT-4](https://linear.app/baritechllc/issue/BRT-4) と [`todo.md`](../../todo.md)（旧 OPS-13〜17 節は死リンク）。
 > **2026-07-24 final recensus**: 本文のcall-site、fan-in/out、file pathは明示がない限りBE9-2A開始時snapshotであり、現行作業listではない。13 target packageは全て移行済みで、BE9はcode complete / release pending。
 
 ## 0. 結論（Success Criteria 対応）
@@ -442,7 +442,7 @@ BE9-2Aでは、`target:lstep` 119 source rowを機能群ごとに比較して次
 
 独立`internal/line`は作らない。liffはreservationへ統合済み。
 
-**最終実装状態（2026-07-24）**: L①`6bae6095d`、L②`2ef112227`、L③a`d333d63ac`、L③b`ba5767e88`+`5fdfa11fa`、L④`62a09f62e`+`860bd5020`、L⑥`849c27524`+`962ce70e3`は完遂。L⑤は`0fd34c7b7`+`f8a4df073`+`4e8fb5b91`でcode landing完遂 / release pending、BE9-2E-0は`de15c7903`で完遂した。現行`internal/lstep`はproduction Go 131 file、manifestの`target:lstep` 119 source rowは旧path実在0件。L⑤のfresh DB migration実適用はrelease gateとして残る。Session A/Bのfrontier計画は全domain移行完了により履歴化し、詳細はgit履歴、release gateの正本は[`todo.md` OPS-13〜17](../../todo.md#ops)とする。
+**最終実装状態（2026-07-24）**: L①`6bae6095d`、L②`2ef112227`、L③a`d333d63ac`、L③b`ba5767e88`+`5fdfa11fa`、L④`62a09f62e`+`860bd5020`、L⑥`849c27524`+`962ce70e3`は完遂。L⑤は`0fd34c7b7`+`f8a4df073`+`4e8fb5b91`でcode landing完遂 / release pending、BE9-2E-0は`de15c7903`で完遂した。現行`internal/lstep`はproduction Go 131 file、manifestの`target:lstep` 119 source rowは旧path実在0件。L⑤のfresh DB migration実適用はrelease gateとして残る。Session A/Bのfrontier計画は全domain移行完了により履歴化し、詳細はgit履歴、release gate の作業入口は Linear hub [BRT-4](https://linear.app/baritechllc/issue/BRT-4) と [`todo.md`](../../todo.md)（旧 OPS-13〜17 節は死リンク）。
 
 ## 9. 実測手法の限界（正直な明記）
 

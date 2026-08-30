@@ -88,4 +88,4 @@
 
 ---
 
-**最新更新**: 2026-08-19 | **ステータス**: Static/Code Sync (127 Tables / 37 Resources; Fresh DB Apply Pending — `todo.md` OPS-13)
+**最新更新**: 2026-08-30 | **ステータス**: Static/Code Sync (128 Tables / 37 Resources; Fresh DB Apply Pending — release gate は Linear hub [BRT-4](https://linear.app/baritechllc/issue/BRT-4) · 作業入口は [`todo.md`](../../todo.md)。旧 `todo.md#ops` OPS-13 節はポインタ化済みで死リンク)

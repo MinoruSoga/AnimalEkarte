@@ -5,7 +5,7 @@
 > **タイミング**: システム概要を把握したい時。
 
 > **Animal Ekarte**: 動物病院向け統合カルテ・経営管理システム
-> **最新更新**: 2026-07-29 | **ステータス**: Code-synced（ADR-006 domain package cutover 完了。本ステータスは production 資格認定を意味しない。release gate は [todo.md#ops](../../todo.md#ops) OPS-13〜17）
+> **最新更新**: 2026-07-29 | **ステータス**: Code-synced（ADR-006 domain package cutover 完了。本ステータスは production 資格認定を意味しない。release gate の作業入口は Linear [BRT-4](https://linear.app/baritechllc/issue/BRT-4) / [todo.md](../../todo.md)。旧 OPS-13〜17 節は死リンク）
 
 ---
 
