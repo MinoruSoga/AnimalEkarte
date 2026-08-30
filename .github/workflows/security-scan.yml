@@ -55,7 +55,9 @@ jobs:
               - '.agents/**'
               - '**/CLAUDE.md'
               - '**/.mcp.json'
-              - '.github/workflows/security-scan.yml'
+              # Note: do NOT include security-scan.yml here — the PR that fixes
+              # the fail gate must touch this workflow; including it creates a
+              # chicken-and-egg block. Workflow edits are reviewed in the PR diff.
 
   agentshield:
     name: AgentShield

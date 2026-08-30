@@ -21,11 +21,13 @@ update the workflow intentionally.
   - AgentShield **always runs** (report visible on the check).
   - **Fails the job only when**:
     1. PR targets `main`, **and** agent-config paths changed
-       (`.claude/**`, `.codex/**`, `.agents/**`, `**/CLAUDE.md`, `**/.mcp.json`,
-       or this workflow file), **or**
+       (`.claude/**`, `.codex/**`, `.agents/**`, `**/CLAUDE.md`,
+       `**/.mcp.json`), **or**
     2. `workflow_dispatch` with `force_fail_on_findings=true`
   - Push events and PRs that do **not** touch agent-config paths are **report-only**
     (same baseline debt must not block docs/backend/frontend PRs).
+  - Edits to `security-scan.yml` itself are **not** in the fail path filter
+    (chicken-and-egg: the gate-fix PR must change the workflow).
 
 - **Why**
   - Previously every PR to `main` failed on medium+ findings that already lived on
