@@ -140,35 +140,55 @@ func NewHandler(queue *Queue, status *Status, expectedClinic string, configuredO
 	return &handler{queue: queue, status: status, lease: &consumerLease{expectedClinic: expectedClinic}, allowedOrigins: origins}
 }
 
-// NormalizeAllowedOrigin accepts exact HTTP(S) origins only. Paths, credentials,
-// wildcards, and query/fragment components are rejected.
+// NormalizeAllowedOrigin accepts an exact HTTP(S) origin and returns the
+// canonical browser Origin form: lowercase host, normalized IPv6, and no
+// scheme-default port. HTTP remains limited to loopback development origins.
 func NormalizeAllowedOrigin(raw string) (string, bool) {
-	parsed, err := url.Parse(strings.TrimSpace(raw))
-	if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "" || parsed.User != nil || parsed.Path != "" || parsed.RawQuery != "" || parsed.Fragment != "" || strings.Contains(parsed.Host, "*") {
+	raw = strings.TrimSpace(raw)
+	parsed, err := url.Parse(raw)
+	if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "" || parsed.User != nil || parsed.Path != "" || parsed.RawQuery != "" || parsed.Fragment != "" || parsed.ForceQuery || strings.ContainsAny(raw, "\\?#") || strings.Contains(parsed.Host, "*") || strings.HasSuffix(parsed.Host, ":") {
 		return "", false
 	}
-	hostname := parsed.Hostname()
-	if hostname == "" {
+
+	hostname := strings.ToLower(parsed.Hostname())
+	if hostname == "" || strings.IndexFunc(hostname, func(r rune) bool { return r <= ' ' || r >= 0x7f }) >= 0 {
 		return "", false
 	}
-	port := parsed.Port()
-	hasPortSeparator := strings.Contains(parsed.Host, ":") && !strings.HasSuffix(parsed.Host, "]")
-	if hasPortSeparator {
-		_, explicitPort, splitErr := net.SplitHostPort(parsed.Host)
-		if splitErr != nil || explicitPort == "" || explicitPort != port {
+	isIPv6 := strings.Contains(hostname, ":")
+	if isIPv6 {
+		ip := net.ParseIP(hostname)
+		if ip == nil {
 			return "", false
 		}
+		hostname = ip.String()
+	} else if strings.IndexFunc(hostname, func(r rune) bool { return (r < '0' || r > '9') && r != '.' }) == -1 && net.ParseIP(hostname) == nil {
+		// Browsers rewrite legacy numeric IPv4 forms such as 127.1. Reject them
+		// rather than store a value that Go and the browser serialize differently.
+		return "", false
 	}
+
+	port := parsed.Port()
 	if port != "" {
 		value, portErr := strconv.ParseUint(port, 10, 16)
 		if portErr != nil || value == 0 {
 			return "", false
 		}
 	}
+	if (parsed.Scheme == "https" && port == "443") || (parsed.Scheme == "http" && port == "80") {
+		port = ""
+	}
 	if parsed.Scheme == "http" && hostname != "localhost" && hostname != "127.0.0.1" {
 		return "", false
 	}
-	return parsed.Scheme + "://" + parsed.Host, true
+
+	canonicalHost := hostname
+	if isIPv6 {
+		canonicalHost = "[" + hostname + "]"
+	}
+	if port != "" {
+		canonicalHost = net.JoinHostPort(hostname, port)
+	}
+	return parsed.Scheme + "://" + canonicalHost, true
 }
 
 func (h *handler) ServeHTTP(response http.ResponseWriter, request *http.Request) {

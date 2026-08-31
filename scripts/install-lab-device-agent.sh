@@ -11,27 +11,7 @@ fi
 case "$clinic_id" in
   *[!0-9]*) echo "Clinic ID must contain digits only" >&2; exit 2 ;;
 esac
-if ! node - "$allowed_origin" <<'NODE'
-const raw = process.argv[2].trim();
-if (!/^https:\/\/[^/?#]+$/.test(raw)) process.exit(1);
-try {
-  const parsed = new URL(raw);
-  const authority = raw.slice("https://".length);
-  const port = parsed.port;
-  if (
-    parsed.protocol !== "https:" ||
-    parsed.username !== "" ||
-    parsed.password !== "" ||
-    parsed.hostname === "" ||
-    parsed.hostname.includes("*") ||
-    authority.endsWith(":") ||
-    (port !== "" && (Number(port) < 1 || Number(port) > 65535))
-  ) process.exit(1);
-} catch {
-  process.exit(1);
-}
-NODE
-then
+if ! allowed_origin=$(node "$repo_dir/scripts/canonicalize-lab-device-origin.mjs" "$allowed_origin"); then
   echo "Allowed origin must be an exact https origin with no credentials and a valid optional numeric port" >&2
   exit 2
 fi

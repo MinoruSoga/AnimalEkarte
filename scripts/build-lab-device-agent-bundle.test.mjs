@@ -93,6 +93,7 @@ exit 77
       "https://example.test:bad",
       "https://example.test:",
       "https://example.test:70000",
+      "https://example.test\\evil",
     ]) {
       fs.rmSync(dockerMarker, { force: true });
       const outputDir = path.join(binDir, `bundle-${Math.random().toString(16).slice(2)}`);
@@ -105,6 +106,111 @@ exit 77
       assert.equal(fs.existsSync(dockerMarker), false, `${origin} reached Docker`);
       assert.equal(fs.existsSync(outputDir), false, `${origin} created output`);
     }
+  } finally {
+    fs.rmSync(binDir, { recursive: true, force: true });
+  }
+});
+
+
+test("canonical origin helper matches browser Origin serialization", () => {
+  const helperPath = fileURLToPath(new URL("./canonicalize-lab-device-origin.mjs", import.meta.url));
+  for (const [raw, expected] of [
+    ["https://EXAMPLE.test", "https://example.test"],
+    ["https://Example.test:443", "https://example.test"],
+    ["https://Example.test:8443", "https://example.test:8443"],
+    ["https://[2001:0DB8:0:0::1]:443", "https://[2001:db8::1]"],
+    ["https://[2001:DB8::1]:8443", "https://[2001:db8::1]:8443"],
+  ]) {
+    const result = spawnSync("node", [helperPath, raw], { encoding: "utf8" });
+    assert.equal(result.status, 0, `${raw}: ${result.stderr}`);
+    assert.equal(result.stdout.trim(), expected);
+  }
+});
+
+test("both macOS entry points canonicalize before later installation work", () => {
+  const directInstallPath = fileURLToPath(new URL("./install-lab-device-agent.sh", import.meta.url));
+  const cases = [
+    ["https://EXAMPLE.test", "https://example.test"],
+    ["https://Example.test:443", "https://example.test"],
+  ];
+  for (const entry of [
+    { path: scriptPath, args: (origin, temp) => ["123", origin, path.join(temp, "bundle")] },
+    { path: directInstallPath, args: (origin) => ["123", origin] },
+  ]) {
+    for (const [raw, expected] of cases) {
+      const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "lab-origin-entry-"));
+      try {
+        const result = spawnSync("sh", ["-x", entry.path, ...entry.args(raw, tempDir)], {
+          encoding: "utf8",
+          env: { ...process.env, HOME: tempDir },
+        });
+        assert.match(result.stderr, new RegExp(`allowed_origin=${expected.replaceAll(".", "\\.")}(?:\\n|$)`), `${entry.path}: ${result.stderr}`);
+      } finally {
+        fs.rmSync(tempDir, { recursive: true, force: true });
+      }
+    }
+  }
+});
+
+
+test("direct installer rejects unsafe origins before device discovery or Docker", () => {
+  const directInstallPath = fileURLToPath(new URL("./install-lab-device-agent.sh", import.meta.url));
+  const binDir = fs.mkdtempSync(path.join(os.tmpdir(), "lab-install-bin-"));
+  const dockerMarker = path.join(binDir, "docker-called");
+  fs.writeFileSync(path.join(binDir, "docker"), `#!/bin/sh
+: > "${dockerMarker}"
+exit 77
+`, { mode: 0o700 });
+  try {
+    for (const origin of [
+      "https://user@example.test",
+      "https://example.test:bad",
+      "https://example.test:",
+      "https://example.test:70000",
+      "https://example.test\\evil",
+    ]) {
+      fs.rmSync(dockerMarker, { force: true });
+      const result = spawnSync("sh", [directInstallPath, "123", origin], {
+        encoding: "utf8",
+        env: { ...process.env, HOME: binDir, PATH: `${binDir}:${process.env.PATH}` },
+      });
+      assert.equal(result.status, 2, `${origin}: ${result.stderr}`);
+      assert.equal(fs.existsSync(dockerMarker), false, `${origin} reached Docker`);
+    }
+  } finally {
+    fs.rmSync(binDir, { recursive: true, force: true });
+  }
+});
+
+test("bundle writes only the canonical origin to its configuration", () => {
+  const binDir = fs.mkdtempSync(path.join(os.tmpdir(), "lab-bundle-canonical-"));
+  const dockerStub = path.join(binDir, "docker");
+  const lipoStub = path.join(binDir, "lipo");
+  fs.writeFileSync(dockerStub, `#!/bin/sh
+if [ "$2" = "cp" ]; then
+  for last do :; done
+  printf binary > "$last"
+fi
+`, { mode: 0o700 });
+  fs.writeFileSync(lipoStub, `#!/bin/sh
+while [ "$#" -gt 0 ]; do
+  if [ "$1" = "-output" ]; then
+    shift
+    printf binary > "$1"
+    exit 0
+  fi
+  shift
+done
+exit 1
+`, { mode: 0o700 });
+  const outputDir = path.join(binDir, "bundle");
+  try {
+    const result = spawnSync("sh", [scriptPath, "123", "https://EXAMPLE.test:443", outputDir], {
+      encoding: "utf8",
+      env: { ...process.env, PATH: `${binDir}:${process.env.PATH}` },
+    });
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(fs.readFileSync(path.join(outputDir, "lab-device-agent.conf"), "utf8"), "123\nhttps://example.test\n");
   } finally {
     fs.rmSync(binDir, { recursive: true, force: true });
   }

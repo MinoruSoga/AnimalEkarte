@@ -219,8 +219,48 @@ func TestHandlerAllowsConfiguredDeployedOriginAndPNA(t *testing.T) {
 }
 
 func TestNormalizeAllowedOriginRejectsUnsafeValues(t *testing.T) {
-	for _, raw := range []string{"*", "https://*.example.test", "https://example.test/path", "https://user@example.test", "https://example.test:bad", "https://example.test:", "https://example.test:70000", "file:///tmp/x", "http://example.test"} {
+	for _, raw := range []string{"*", "https://*.example.test", "https://example.test/path", "https://user@example.test", "https://example.test:bad", "https://example.test:", "https://example.test:70000", "file:///tmp/x", "http://example.test", `https://example.test\evil`, "https://127.1"} {
 		_, ok := NormalizeAllowedOrigin(raw)
 		require.False(t, ok, raw)
+	}
+}
+
+func TestNormalizeAllowedOriginReturnsCanonicalBrowserOrigin(t *testing.T) {
+	tests := map[string]string{
+		"https://EXAMPLE.test":           "https://example.test",
+		"https://Example.test:443":       "https://example.test",
+		"https://Example.test:8443":      "https://example.test:8443",
+		"https://[2001:0DB8:0:0::1]:443": "https://[2001:db8::1]",
+		"https://[2001:DB8::1]:8443":     "https://[2001:db8::1]:8443",
+		"http://LOCALHOST:80":            "http://localhost",
+		"http://LOCALHOST:3003":          "http://localhost:3003",
+		"http://127.0.0.1:80":            "http://127.0.0.1",
+	}
+	for raw, expected := range tests {
+		t.Run(raw, func(t *testing.T) {
+			actual, ok := NormalizeAllowedOrigin(raw)
+			require.True(t, ok)
+			require.Equal(t, expected, actual)
+		})
+	}
+}
+
+func TestHandlerAcceptsOnlyCanonicalRequestOriginForCanonicalizedConfiguration(t *testing.T) {
+	handler := NewHandler(NewQueue(1), &Status{}, "clinic-2", "https://EXAMPLE.test:443")
+
+	canonical := httptest.NewRequest(http.MethodOptions, "http://127.0.0.1:17654/frames", nil)
+	canonical.Header.Set("Origin", "https://example.test")
+	canonicalResponse := httptest.NewRecorder()
+	handler.ServeHTTP(canonicalResponse, canonical)
+	require.Equal(t, http.StatusNoContent, canonicalResponse.Code)
+	require.Equal(t, "https://example.test", canonicalResponse.Header().Get("Access-Control-Allow-Origin"))
+
+	for _, origin := range []string{"https://EXAMPLE.test", "https://example.test:443", "https://attacker.example.test"} {
+		request := httptest.NewRequest(http.MethodOptions, "http://127.0.0.1:17654/frames", nil)
+		request.Header.Set("Origin", origin)
+		response := httptest.NewRecorder()
+		handler.ServeHTTP(response, request)
+		require.Equal(t, http.StatusForbidden, response.Code, origin)
+		require.Empty(t, response.Header().Get("Access-Control-Allow-Origin"), origin)
 	}
 }
