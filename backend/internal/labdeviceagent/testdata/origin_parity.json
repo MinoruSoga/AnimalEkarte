@@ -1,0 +1,116 @@
+{
+  "cases": [
+    {
+      "raw": "https://EXAMPLE.test",
+      "canonical": "https://example.test"
+    },
+    {
+      "raw": "https://Example.test:443",
+      "canonical": "https://example.test"
+    },
+    {
+      "raw": "https://Example.test:0443",
+      "canonical": "https://example.test"
+    },
+    {
+      "raw": "https://Example.test:000443",
+      "canonical": "https://example.test"
+    },
+    {
+      "raw": "https://Example.test:8443",
+      "canonical": "https://example.test:8443"
+    },
+    {
+      "raw": "https://127.0.0.1",
+      "canonical": "https://127.0.0.1"
+    },
+    {
+      "raw": "https://service.123.example",
+      "canonical": "https://service.123.example"
+    },
+    {
+      "raw": "https://ordinary.example",
+      "canonical": "https://ordinary.example"
+    },
+    {
+      "raw": "https://[2001:0DB8:0:0::1]:443",
+      "canonical": "https://[2001:db8::1]"
+    },
+    {
+      "raw": "https://[2001:DB8::1]:8443",
+      "canonical": "https://[2001:db8::1]:8443"
+    },
+    {
+      "raw": "https://[::ffff:0:c000:280]",
+      "canonical": "https://[::ffff:0:c000:280]"
+    },
+    {
+      "raw": "https://[::ffff:0:0:c000:280]",
+      "canonical": "https://[::ffff:0:0:c000:280]"
+    },
+    {
+      "raw": "https://[::ffff:0:0:1]",
+      "canonical": "https://[::ffff:0:0:1]"
+    },
+    {
+      "raw": "https://example.test\\evil"
+    },
+    {
+      "raw": "https://0x"
+    },
+    {
+      "raw": "https://0x.1"
+    },
+    {
+      "raw": "https://1.2.3.0x"
+    },
+    {
+      "raw": "https://0x7f000001"
+    },
+    {
+      "raw": "https://0x7f.0.0.1"
+    },
+    {
+      "raw": "https://0x7f.1"
+    },
+    {
+      "raw": "https://2130706433"
+    },
+    {
+      "raw": "https://127.1"
+    },
+    {
+      "raw": "https://0177.0.0.1"
+    },
+    {
+      "raw": "https://127.0.0.1."
+    },
+    {
+      "raw": "https://1.2.3.4.5"
+    },
+    {
+      "raw": "https://0.0.0.0.0"
+    },
+    {
+      "raw": "https://1..2"
+    },
+    {
+      "raw": "https://..1"
+    },
+    {
+      "raw": "https://example.123"
+    },
+    {
+      "raw": "https://0x7g.0.0.1"
+    },
+    {
+      "raw": "https://[::ffff:192.0.2.128]"
+    },
+    {
+      "raw": "https://[::ffff:c000:280]"
+    },
+    {
+      "raw": "https://[0:0:0:0:0:ffff:c000:0280]"
+    }
+  ]
+}

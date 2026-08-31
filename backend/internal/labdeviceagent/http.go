@@ -163,9 +163,9 @@ func NormalizeAllowedOrigin(raw string) (string, bool) {
 			return "", false
 		}
 		hostname = ip.String()
-	} else if isLegacyIPv4Hostname(hostname) {
-		// Browsers rewrite legacy numeric IPv4 forms such as 127.1 and
-		// 0x7f000001. Reject them rather than store a different serialization.
+	} else if isBrowserInvalidOrRewrittenNumericHostname(hostname) {
+		// Browsers rewrite legacy numeric IPv4 forms and reject malformed
+		// numeric-terminal hosts. Reject both rather than store an unusable origin.
 		return "", false
 	}
 
@@ -194,36 +194,30 @@ func NormalizeAllowedOrigin(raw string) (string, bool) {
 	return parsed.Scheme + "://" + canonicalHost, true
 }
 
-func isLegacyIPv4Hostname(hostname string) bool {
+func isBrowserInvalidOrRewrittenNumericHostname(hostname string) bool {
 	if ip := net.ParseIP(hostname); ip != nil && ip.To4() != nil {
 		return false
 	}
 
 	candidate := strings.TrimSuffix(hostname, ".")
 	parts := strings.Split(candidate, ".")
-	if len(parts) == 0 || len(parts) > 4 {
-		return false
-	}
 	for _, part := range parts {
 		if part == "" {
-			return false
-		}
-		digits := part
-		base := byte(10)
-		if strings.HasPrefix(part, "0x") || strings.HasPrefix(part, "0X") {
-			digits = part[2:]
-			base = 16
-		}
-		if digits == "" || strings.IndexFunc(digits, func(r rune) bool {
-			if r >= '0' && r <= '9' {
-				return false
-			}
-			return base != 16 || (r < 'a' || r > 'f') && (r < 'A' || r > 'F')
-		}) >= 0 {
-			return false
+			return true
 		}
 	}
-	return true
+
+	terminal := parts[len(parts)-1]
+	if strings.IndexFunc(terminal, func(r rune) bool { return r < '0' || r > '9' }) == -1 {
+		return true
+	}
+	if strings.HasPrefix(strings.ToLower(terminal), "0x") {
+		hexDigits := terminal[2:]
+		return strings.IndexFunc(hexDigits, func(r rune) bool {
+			return (r < '0' || r > '9') && (r < 'a' || r > 'f') && (r < 'A' || r > 'F')
+		}) == -1
+	}
+	return false
 }
 
 func (h *handler) ServeHTTP(response http.ResponseWriter, request *http.Request) {

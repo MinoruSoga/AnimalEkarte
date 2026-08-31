@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -290,5 +291,54 @@ func TestHandlerAcceptsOnlyCanonicalRequestOriginForCanonicalizedConfiguration(t
 		handler.ServeHTTP(response, request)
 		require.Equal(t, http.StatusForbidden, response.Code, origin)
 		require.Empty(t, response.Header().Get("Access-Control-Allow-Origin"), origin)
+	}
+}
+
+type originParityCorpus struct {
+	Cases []struct {
+		Raw       string `json:"raw"`
+		Canonical string `json:"canonical"`
+	} `json:"cases"`
+}
+
+func loadOriginParityCorpus(t *testing.T) originParityCorpus {
+	t.Helper()
+	content, err := os.ReadFile("testdata/origin_parity.json")
+	require.NoError(t, err)
+	var corpus originParityCorpus
+	require.NoError(t, json.Unmarshal(content, &corpus))
+	require.NotEmpty(t, corpus.Cases)
+	return corpus
+}
+
+func TestNormalizeAllowedOriginMatchesSharedBrowserParityCorpus(t *testing.T) {
+	for _, test := range loadOriginParityCorpus(t).Cases {
+		t.Run(test.Raw, func(t *testing.T) {
+			actual, ok := NormalizeAllowedOrigin(test.Raw)
+			if test.Canonical == "" {
+				require.False(t, ok)
+				require.Empty(t, actual)
+				return
+			}
+			require.True(t, ok)
+			require.Equal(t, test.Canonical, actual)
+		})
+	}
+}
+
+func TestHandlerAllowsEveryAcceptedSharedOriginByExactCORSMatch(t *testing.T) {
+	for _, test := range loadOriginParityCorpus(t).Cases {
+		if test.Canonical == "" {
+			continue
+		}
+		t.Run(test.Raw, func(t *testing.T) {
+			handler := NewHandler(NewQueue(1), &Status{}, "clinic-2", test.Raw)
+			request := httptest.NewRequest(http.MethodOptions, "http://127.0.0.1:17654/frames", nil)
+			request.Header.Set("Origin", test.Canonical)
+			response := httptest.NewRecorder()
+			handler.ServeHTTP(response, request)
+			require.Equal(t, http.StatusNoContent, response.Code)
+			require.Equal(t, test.Canonical, response.Header().Get("Access-Control-Allow-Origin"))
+		})
 	}
 }

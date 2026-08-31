@@ -8,6 +8,26 @@ import test from "node:test";
 
 const scriptURL = new URL("./build-lab-device-agent-bundle.sh", import.meta.url);
 const scriptPath = fileURLToPath(scriptURL);
+const originHelperPath = fileURLToPath(new URL("./canonicalize-lab-device-origin.mjs", import.meta.url));
+const originParityCorpus = JSON.parse(fs.readFileSync(
+  fileURLToPath(new URL("../backend/internal/labdeviceagent/testdata/origin_parity.json", import.meta.url)),
+  "utf8",
+));
+
+test("canonical origin helper matches the shared Go/browser parity corpus", () => {
+  for (const { raw, canonical } of originParityCorpus.cases) {
+    const result = spawnSync("node", [originHelperPath, raw], { encoding: "utf8" });
+    if (canonical === undefined) {
+      assert.notEqual(result.status, 0, raw);
+      assert.equal(result.stdout, "", raw);
+    } else {
+      assert.equal(new URL(raw).origin, canonical, `${raw}: browser serialization`);
+      assert.equal(result.status, 0, `${raw}: ${result.stderr}`);
+      assert.equal(result.stdout.trim(), canonical, raw);
+    }
+  }
+});
+
 test("plist configurator writes the exact seven launch arguments without placeholders", () => {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "lab-plist-"));
   const plistPath = path.join(tempDir, "agent.plist");
@@ -94,6 +114,15 @@ exit 77
       "https://example.test:",
       "https://example.test:70000",
       "https://example.test\\evil",
+      "https://0x",
+      "https://0x.1",
+      "https://1.2.3.0x",
+      "https://1.2.3.4.5",
+      "https://0.0.0.0.0",
+      "https://1..2",
+      "https://..1",
+      "https://example.123",
+      "https://0x7g.0.0.1",
       "https://0x7f000001",
       "https://0x7f.0.0.1",
       "https://0x7f.1",
@@ -164,6 +193,9 @@ test("both macOS entry points canonicalize before later installation work", () =
     ["https://EXAMPLE.test", "https://example.test"],
     ["https://Example.test:443", "https://example.test"],
     ["https://Example.test:0443", "https://example.test"],
+    ["https://[::ffff:0:c000:280]", "https://[::ffff:0:c000:280]"],
+    ["https://[::ffff:0:0:c000:280]", "https://[::ffff:0:0:c000:280]"],
+    ["https://[::ffff:0:0:1]", "https://[::ffff:0:0:1]"],
   ];
   for (const entry of [
     { path: scriptPath, args: (origin, temp) => ["123", origin, path.join(temp, "bundle")] },
@@ -176,7 +208,8 @@ test("both macOS entry points canonicalize before later installation work", () =
           encoding: "utf8",
           env: { ...process.env, HOME: tempDir },
         });
-        assert.match(result.stderr, new RegExp(`allowed_origin=${expected.replaceAll(".", "\\.")}(?:\\n|$)`), `${entry.path}: ${result.stderr}`);
+        const escapedExpected = expected.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        assert.match(result.stderr, new RegExp(`allowed_origin='?(?:${escapedExpected})'?(?:\\n|$)`), `${entry.path}: ${result.stderr}`);
       } finally {
         fs.rmSync(tempDir, { recursive: true, force: true });
       }
@@ -200,6 +233,15 @@ exit 77
       "https://example.test:",
       "https://example.test:70000",
       "https://example.test\\evil",
+      "https://0x",
+      "https://0x.1",
+      "https://1.2.3.0x",
+      "https://1.2.3.4.5",
+      "https://0.0.0.0.0",
+      "https://1..2",
+      "https://..1",
+      "https://example.123",
+      "https://0x7g.0.0.1",
       "https://0x7f000001",
       "https://0x7f.0.0.1",
       "https://0x7f.1",
