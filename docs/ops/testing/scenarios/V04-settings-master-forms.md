@@ -1,18 +1,17 @@
 # V04: 設定マスタ系フォーム検証（入力・更新・DB整合）
 
-> **フォーム数**: 30（README V04 セルと一致）
+> **フォーム数**: inventory 再構築中のため算定保留。全フォーム完了はまだ主張しない。
 
-> **目的**: `/settings` 配下のマスタ・設定系フォーム（マスタ SidePanel 群・締め時間・シフトパターン・Lステップ連携・LINE 予約ページ設定）について、入力検証（必須・形式・境界）・更新の永続化・DB 整合（FK 選択肢・一意制約）が実機ブラウザ経由で正しく機能することを納品前に証明する。
+> **目的**: `/settings` 配下のマスタ・設定系フォーム（マスタ SidePanel 群・締め時間・シフトパターン・lab-device 項目マスタ）について、入力検証（必須・形式・境界）・更新の永続化・DB 整合（FK 選択肢・一意制約）が実機ブラウザ経由で正しく機能することを納品前に証明する。
 > **所要目安**: 150分 / **深度**: フォーム検証 + **項目単位 F プロトコル**
 > **項目単位**: [FIELD-LEVEL-PROTOCOL.md](FIELD-LEVEL-PROTOCOL.md) + [FORM-FIELD-INVENTORY.md](FORM-FIELD-INVENTORY.md) §V04。差分表の各行で **必須 F1 + 全表示項目 F4**（同型は型代表で F2/F3 可、F1/F4 は省略不可）。実行時に SidePanel 上の入力を全列挙し inventory に欠けがあれば追記する。
 > **仕様正本**: [screens/settings/ 配下各文書](../../../spec/screens/settings/README.md)（差分表・各セクションに個別文書を明記）・[screens/31-lstep-integration.md](../../../spec/screens/31-lstep-integration.md)
 
 ## 前提条件
 
-- 環境: ローカル（seed 003_demo）。ログイン: admin ロール（マスタ管理・会計・支払方法・Lステップ設定を含む全権限）。
-- 本シナリオで作成するデータは名前に「V04」を含め、終了時に削除（削除不可なら無効化）する。
-- スコープ外: **クロステナント隔離（BE isolation テストが正本）**。スタッフ・権限グループ・医院マスタは [V03](V03-owner-pet-staff-forms.md)、認証・LINE 連携操作系は [V05](V05-auth-line-forms.md) の対象。マスタ削除時の FK 保護（参照中削除の拒否等）は既存シナリオ・BE テスト済み前提で対象外。
-- 共通アーキテクチャ: /settings 配下マスタは MasterCRUDPage/MasterTabPage + SidePanel（新規/編集兼用）+ useMasterSave（FE 必須チェック）+ D&D 並び順 + isActive トグルの共通パターン。SidePanel 起動式で個別詳細 URL を持たないため、**C3-3（ID 直叩き）は §5 予約可能枠を除き全フォーム該当なし**。
+- ローカルの使い捨て clinic に、対象マスタ設定の必要権限を持つ attached account と `V04` 接頭辞の専用 fixture を作成する。自動 `002_master` 以外の seed role/data は仮定しない。
+- 作成データは試験後に削除または無効化する。参照中削除など不可逆/広範な変更は専用 fixture だけに限定する。
+- V04 は一般 settings/master と lab-device item master を所有する。Lステップおよび LINE 予約 settings/page editor は V05 が所有し、ここではリンクだけを置いて重複実行・重複集計しない。
 
 ## 共通チェック手順
 
@@ -31,7 +30,7 @@
 | # | 操作 | 期待結果 |
 |:--|:--|:--|
 | C2-1 | 既存レコードを編集して保存 | 詳細・一覧に変更が反映される |
-| C2-2 | ページを再読込（F5） | 変更が永続している |
+| C2-2 | ページを再読込（ブラウザ再読込。F4 の確認手順） | 変更が永続している |
 | C2-3 | 編集フォームを再オープン | 保存した値が初期表示される |
 
 **C3 DB 存在チェック**
@@ -69,10 +68,10 @@
 | トリミングコース (master-trimming-course) | /settings/trimming?tab=course | name | (clinic_id,name) | (C3-1) 「V04種別」追加→コース種別選択肢に反映。**【代表・削除済みマスタ】**下記注記参照 |
 | トリミングオプション (master-trimming-option) | /settings/trimming?tab=option | name | (clinic_id,name) | 併用可 combinable トグル（既定 ON）を OFF にして保存→再オープンで保持 |
 | トリミングコース種別 (master-trimming-course-type) | /settings/trimming-course-type | name | (clinic_id,name) | name+isActive のみの最小構成（空文字保存不可 — master-trimming-course-type.md） |
-| 割引キャンペーン (master-campaign) | /settings/campaigns | キャンペーン名 | —（name 一意なし） | (C3-1) 対象商品選択肢が物販マスタ実データ由来。終了日 < 開始日は FE で拒否され API 未到達（エラー「終了日は開始日以降にしてください」— `CampaignSidePanel.tsx`）。BE も `validateCampaignPeriod` で同趣旨（2026-07-31 実測） |
+| 割引キャンペーン (master-campaign) | /settings/campaigns | キャンペーン名 | —（name 一意なし） | (C3-1) 対象商品選択肢が物販マスタ実データ由来。終了日 < 開始日は FE で拒否され API 未到達（エラー「終了日は開始日以降にしてください」— `CampaignSidePanel.tsx`）。BE も `validateCampaignPeriod` で同趣旨 |
 | 支払方法 (master-payment-method) | /settings/payment-methods | name | (clinic_id,name) WHERE deleted_at IS NULL（`idx_payment_methods_clinic_name`） | **C3-2**: 同医院で同名のカスタム支払方法を再登録 → 拒否（名称一意）。**システム標準行ポリシー（W-014 / ADR-003）**: `system_key` 保持行（cash / credit_card / electronic_money / bank_transfer）は **名称・表示順の変更は可**。`system_key` 自体は immutable かつ編集 UI 非公開（FE に system_key 参照なし）。**無効化・削除は不可**（BE Conflict: 「システム標準の支払方法は無効化できません」「システム標準の支払方法は削除できません」）。DDL 追加一意: `(clinic_id, system_key)` WHERE system_key IS NOT NULL（UI 非到達・トリガー既定行）。カスタム行（system_key nil）は無効化・未使用時削除可。精算時の split method 重複禁止は V02 §1 |
 
-- 【代表・削除済みマスタ】: 「V04コース」にコース種別「V04種別」を設定して保存 → コース種別マスタから「V04種別」を削除 → コース編集を再オープン。**使用中種別の削除は拒否される（2026-08-01 実測）**: `POST` type+course 後 `DELETE /api/v1/masters/trimming-course-types/:id` → **409** `この種別は使用中のため削除できません`。コースは `course_type_id` 保持のまま。削除済み FK の編集 UI 到達は製品ガードにより通常不可。クリーンアップは course 削除（204）→ type 削除（204）の順。
+- 【代表・削除済みマスタ】: 「V04コース」にコース種別「V04種別」を設定して保存 → コース種別マスタから「V04種別」を削除 → コース編集を再オープン。**使用中種別の削除は拒否される**: `POST` type+course 後 `DELETE /api/v1/masters/trimming-course-types/:id` → **409** `この種別は使用中のため削除できません`。コースは `course_type_id` 保持のまま。削除済み FK の編集 UI 到達は製品ガードにより通常不可。クリーンアップは course 削除（204）→ type 削除（204）の順。
 - 割引キャンペーンの権限は ResourceAccounting（会計）、支払方法は ResourcePaymentMethod — admin 以外で実行する場合は権限に注意。
 
 ## 2. 診療項目マスタ 5 タブ (master-treatment-item)
@@ -98,7 +97,7 @@
 | 1 | (C1-1) 名称空のまま保存 | 保存されずエラー |
 | 2 | 新規「V04薬剤」: 剤形・単位・価格・製品含量・服用回数/日・既定日数を入力して保存 | 保存され、(C2) 再読込・再オープンで全フィールドが初期表示される |
 | 3 | 【代表 PATCH】価格のみ変更して保存 → 再オープン | 剤形・含量・服用回数・説明・計算方式（#201）が消えずに保持される |
-| 4 | (C1-2) 製品含量 strength に数値以外（`abc`）を入力して保存 | クリア／拒否される。入力は `type=number` のため `abc` は入力値に残らない。空のまま `calculation_type=per_weight` で保存すると POST 400 トースト「per_weight 計算には strength（製品含量）が必要です」（strength 省略）。`parseOptionalNumber` も非数を undefined 扱い（2026-07-31 実測） |
+| 4 | (C1-2) 製品含量 strength に数値以外（`abc`）を入力して保存 | クリア／拒否される。入力は `type=number` のため `abc` は入力値に残らない。空のまま `calculation_type=per_weight` で保存すると POST 400 トースト「per_weight 計算には strength（製品含量）が必要です」（strength 省略）。`parseOptionalNumber` も非数を undefined 扱い |
 | 5 | 投与量パラメータ: 上限（mg/kg・mg とも）未入力で追加 | 拒否される（過量防止のため上限いずれか必須 — validateDoseParamForm） |
 | 6 | (C1-3) 下限 > 上限で追加 / 下限 = 上限で追加 | 下限 > 上限は拒否、下限 = 上限は受理（下限≦上限検証） |
 | 7 | (C3-2) 同一薬剤×同一対象種でパラメータ 2 件目を追加 | 拒否される（uq_dose_params_med_species）。薬剤名自体の同名登録も拒否される（(clinic_id,name)） |
@@ -115,7 +114,7 @@
 | 1 | (C1-1) 名称空のまま保存 | 保存されずエラー |
 | 2 | 所要時間に数値以外を入力して保存 | 15 分にフォールバックして保存される（FE 仕様 — 拒否ではない点に注意） |
 | 3 | (C3-1) グループ選択肢を確認 | §1 で作成した「V04グループ」が選択肢に現れる |
-| 4 | (C2) 短縮名・LINE 表示・院内専用・LINE 表示名・コメントを設定して保存 | 再読込・再オープンで全フィールド保持。LINE 表示名が空のとき FE placeholder は区分名称を表示（空欄なら名称を使用 — `ReservationTypeSidePanel`）。BE LIFF 応答は ReservationDisplayName 空かつ show_short_name=false なら Name を返す（`toLiffCourseResponse`）。seed は主要区分で reservation_display_name 空・show_short_name=false（2026-07-31 実測） |
+| 4 | (C2) 短縮名・LINE 表示・院内専用・LINE 表示名・コメントを設定して保存 | 再読込・再オープンで全フィールド保持。LINE 表示名が空のとき FE placeholder は区分名称を表示（空欄なら名称を使用 — `ReservationTypeSidePanel`）。BE LIFF 応答は ReservationDisplayName 空かつ show_short_name=false なら Name を返す（`toLiffCourseResponse`）。seed は主要区分で reservation_display_name 空・show_short_name=false |
 | 5 | 職種セクション: §1 の「V04職種」を担当職種に追加 | 選択肢は職種マスタ実データ由来（C3-1）。同一職種の重複追加は拒否される（(reservation_type_id,occupation_id) 一意） |
 | 6 | (C3-2) 同名の予約区分を新規登録 | 拒否される |
 
@@ -142,13 +141,13 @@
 |:--|:--|:--|
 | 1 | 標準時刻: AM/PM 境界・平日終了・日曜終了を変更して保存 | 保存され、AM/PM/EMG の派生レンジ表示が連動更新される（EMG は翌 am_start までの越日表示 — #215）。(C2) 再読込で永続 |
 | 2 | 標準時刻: (C1-1) 時刻欄を空にして保存 | 保存されずエラー（3 欄とも必須） |
-| 3 | 標準時刻: 境界逆転（平日終了 < AM/PM 境界）で保存 | **受理される**（PATCH 200。境界 14:00 + 平日終了 12:00 を例示）。FE プレビューは平日 PM が「未設定」、EMG 開始が 12:00 になる（レンジ表示は破綻気味）。拒否はしない。実測後は元値へ復元（2026-08-01 実測） |
+| 3 | 標準時刻: 境界逆転（平日終了 < AM/PM 境界）で保存 | **受理される**（PATCH 200。境界 14:00 + 平日終了 12:00 を例示）。FE プレビューは平日 PM が「未設定」、EMG 開始が 12:00 になる（レンジ表示は破綻気味）。拒否はしない。確認後は元値へ復元 |
 | 4 | 休診日: (C1-1) 日付空のまま追加 | 追加されない（date 必須。理由は任意） |
 | 5 | 休診日: 日付+理由で追加 → (C2) 再読込 | 一覧に反映され永続する |
 | 6 | 休診日: (C3-2) 同一日付を再登録 | 拒否される（INSERT のみ・409。UPSERT しない。理由は上書きされない） |
 | 7 | 特別期間: 期間+AM/PM 境界+終了時刻で追加 → (C2) 再読込 | 一覧に反映され永続する |
-| 8 | 特別期間: (C1-3) 開始日 > 終了日 / 境界 >= 終了時刻で追加 | 拒否される。POST 400 + sonner トースト（白画面・500 なし）: 開始>終了 →「開始日は終了日以前に設定してください」; 境界>=終了 →「PM締め終了時刻(…)は境界時刻(…)より後に設定してください」（BE service 検証、2026-07-31 実測） |
-| 9 | 特別期間: 既存と重複する期間を追加 | **拒否される**。POST 409 + トースト「期間が他の特別期間と重複しています」（例: 既存 2026-08-13〜16 に 08-14〜15 を追加）。受理されないため S09 影響確認は不要（2026-08-01 実測） |
+| 8 | 特別期間: (C1-3) 開始日 > 終了日 / 境界 >= 終了時刻で追加 | 拒否される。POST 400 + sonner トースト（白画面・500 なし）: 開始>終了 →「開始日は終了日以前に設定してください」; 境界>=終了 →「PM締め終了時刻(…)は境界時刻(…)より後に設定してください」（BE service 検証） |
+| 9 | 特別期間: 既存と重複する期間を追加 | **拒否される**。POST 409 + トースト「期間が他の特別期間と重複しています」（例: 既存 2026-08-13〜16 に 08-14〜15 を追加）。受理されないため S09 影響確認は不要 |
 
 ## 7. シフトパターン (master-shift-template)
 
@@ -160,36 +159,24 @@
 | 2 | 勤務種別に「休み(off)」「有給(paid_leave)」を選択 | 時刻入力が非表示になり、時刻なしで保存できる（isShiftTemplateTimeHidden） |
 | 3 | 勤務系の種別で開始/終了時刻を空にして保存 | 拒否される（勤務系は時刻必須） |
 | 4 | 休憩 2 件（開始/終了）を追加して保存 → (C2) 再オープン | 休憩複数件が保持・初期表示される |
-| 5 | 勤務時間外の休憩（勤務 9:00–18:00 に休憩 19:00–20:00）を保存 | **受理される**（FE/BE とも勤務時間内制約なし）。POST 201・breaks に 19:00–20:00 が保存され一覧反映。検証は break_start/end 必須程度のみ（2026-07-31 実測。一時テンプレは削除済み） |
+| 5 | 勤務時間外の休憩（勤務 9:00–18:00 に休憩 19:00–20:00）を保存 | **受理される**（FE/BE とも勤務時間内制約なし）。POST 201・breaks に 19:00–20:00 が保存され一覧反映。検証は break_start/end 必須程度のみ |
 | 6 | (C3-2) 同名テンプレートを登録 | 拒否される（uk_shift_templates_clinic_name） |
 
-## 8. Lステップ連携 4 フォーム (lstep-settings / lstep-tag-config / lstep-tag-code-mappings / lstep-trigger-priority)
+## 8. Lab-device 項目マスタ (`lab-device-item-master`)
 
-- ルート: `/settings/integrations/lstep`。正本: [31-lstep-integration.md](../../../spec/screens/31-lstep-integration.md)。ローカルでは実配信・実 API 疎通は発生しない前提で、フォームの保存・永続のみ確認する。
-
-| # | 操作 | 期待結果 |
-|:--|:--|:--|
-| 1 | 連携設定: シークレット 3 種（API キー・チャネルトークン・チャネルシークレット）を空のまま他項目を変更して保存 | 保存成功し、シークレットは既存値維持（空=未変更扱いのマスク運用） |
-| 2 | 連携設定: LIFF ID を空にして保存 | クリアされる（空文字でクリアできる唯一の項目） |
-| 3 | 連携設定: 数値項目（休眠予防閾値等）に 0 / 負値を入力して保存 → 再読込 | FE `NumberInputField` は `min={1}`（ブラウザ制約で 0 は invalid になり得る）。制約をすり抜けた場合も `buildLstepSettingsRequest` の `setPositiveInteger`（parseInt>=1 のみ payload に載せる）により **送信されず既存値のまま**（黙って無視）。DB 側にも CHECK >=1。V05-12 と同契約 |
-| 4 | 連携設定: (C1-3) 数値項目に 1 を入力して保存 → 再読込 | 受理され永続する |
-| 4b | ベース URL プレースホルダーと `https://app.lstep.jp` の保存 | プレースホルダーは `https://api.lstep.jp`。`app.lstep.jp` は 400 |
-| 5 | タグ設定: 自動管理プレフィックス/条件タグ対応/送信目的プレフィックスの 3 フォームに各 1 件追加・行削除 | 追加・削除とも一覧に反映される |
-| 6 | タグ設定: (C3-2) 既存と同一キー（prefix / conditionCode / purpose）で追加 | 拒否される（各列 UNIQUE — **グローバル・clinic 無関係**のため既存行全体と衝突し得る） |
-| 7 | タグ設定: (C1-2) 条件コードに 51 文字を入力して追加 | 拒否される（VARCHAR(50)。prefix/purpose/タグ系は 100・category は 20） |
-| 8 | コードマッピング: タグ 1 件を編集モードにし entries を追加して保存 | 「{タグ名} を保存しました」トーストが表示され、(C2) 再読込で永続 |
-| 9 | コードマッピング: entries を全削除して保存 | **全削除される**。設定可能タグ（例: `HLTH_健診あり`）に entries 1 件 PUT 200 → `entries:[]` で再 PUT 200・応答 `[]`、一覧から消失（置換型 SoftDelete+Create）。非設定可能タグは 400 `tag "…" is not configurable`（2026-08-01 実測） |
-| 10 | 配信優先順位: 並び替え → 保存 → 再読込 | 順序が永続する（入力フィールドなしの順序永続化フォーム） |
-| 11 | 配信優先順位: 保存直後に続けて並び替え → 保存 | 2 回目の保存も正しく反映される（保存後 baseline 更新の回帰観点） |
-
-## 9. LINE 予約ページ設定 (line-reservation-page-editor)
-
-- ルート: `/line-reservation/page-editor`（/settings 外）。正本: [28-line-reservation.md §2](../../../spec/screens/28-line-reservation.md)（旧 master-pages.md は 2026-07-16 に統合・削除）。本棚卸しでは深掘り未実施のため、実行時に文書と突合して確認する（LINE 予約系シナリオと重複していれば重複分はスキップ可）。
+- ルート: `/settings/lab-device-item-masters`。本フォームは V04 が唯一の owner。
+- `lab-import:view` で到達し、create/edit は対応する権限で制御される。
 
 | # | 操作 | 期待結果 |
 |:--|:--|:--|
-| 1 | 28-line-reservation.md §2 と突合しながら C1（必須項目）・C2（保存 → 再読込永続）を実施 | **必須なし（C1）**: 5 テキスト空で PUT **200** 受理（2026-08-01 実測）。**C2**: marker 文字列 5 項目 PUT 200 → 再 GET で永続。上限: `header_text`/`request_example` **max=2000**（1 万字 → 400 `header_text は 2000 以下…`）、`reservation_notice`/`cancel_notice` **max=10000**（1 万字 notice → 200）、`privacy_policy` max=100000。一意制約なし。トースト「ページ内容を保存しました」。元文言へ復元済み |
-| 2 | (C3-1) 表示対象の予約区分選択肢を確認 | 予約区分マスタ実データ由来（§4 の「V04」区分が反映される） |
+| 1 | `name` を空にして保存 | 「機器名を入力してください」で保存されない |
+| 2 | `sourceType`、`name`、`examTypeId`、`isActive`、`sortOrder` を設定して保存・再読込 | 各 exact field key が永続する |
+| 3 | 各 item row の `examTypeFieldId` と `isActive` を変更して保存・再読込 | source item と検査 field の対応が永続する。検査種別変更で対応外になる行は解除通知が出る |
+| 4 | view のみ account で開く | 一覧は閲覧できるが保存操作はできない |
+
+## 9. Lステップ / LINE 予約設定（V05 所有）
+
+Lステップ設定、タグ設定、コードマッピング、配信優先順位、LINE 予約 settings/page editor は [V05](V05-auth-line-forms.md) が唯一の owner。本書では実行せず、フォーム数にも数えない。配信優先順位は drag/reorder ではなく `min=1` の数値入力であり、同値を同一優先階層として保存できる。
 
 ## 10. 法人情報（インボイス登録番号）(company-invoice-section)
 
@@ -197,7 +184,7 @@
 
 | # | 操作 | 期待結果 |
 |:--|:--|:--|
-| 1 | (C1-1/C1-2/C1-3) 現在値を控え、空欄・`T` 形式外・長い文字列をそれぞれ保存する | **形式・必須の FE/BE 検証なし**（任意テキスト）。空欄・`123…`（T なし）・`T123`・長文（T+9×100）・`T9999999999999` いずれも PATCH 200「インボイス登録番号を更新しました」。空欄でクリア可。元値へ復元して終了（2026-07-31 実測） |
+| 1 | (C1-1/C1-2/C1-3) 現在値を控え、空欄・`T` 形式外・長い文字列をそれぞれ保存する | **形式・必須の FE/BE 検証なし**（任意テキスト）。空欄・`123…`（T なし）・`T123`・長文（T+9×100）・`T9999999999999` いずれも PATCH 200「インボイス登録番号を更新しました」。空欄でクリア可。元値へ復元して終了 |
 | 2 | (C2) `T9999999999999` へ変更して保存 → F5 → 入力欄を再確認 | 「インボイス登録番号を更新しました」が表示され、C2-1〜C2-3 のとおり同じ値が永続・初期表示される |
 | 3 | 完了済み会計の明細兼領収書を開く | 登録番号欄へ手順 2 の法人インボイス登録番号が表示される |
 | 4 | 控えておいた元の値へ戻して保存 → F5 | 元の値が永続し、入力欄と会計帳票へ反映される |
@@ -209,11 +196,9 @@
 - 既存の機械テストとの分担: 共通フック単体（use-master-save / use-master-crud）、E2E settings-crud.spec.ts（動物種 CRUD+検索・薬剤新規保存・診断病名パネル表示）、master-crud.spec.ts（主訴ナビ・診療項目の親子階層と 5 タブ — arm64 では skip）、settings-smoke.spec.ts（全設定ページの表示）、component test（予約区分パネル・予約可能枠 3 本・締め 3 セクション・Lステップ 4 セクション・ケージ・薬剤 model 2 本）、BE validators_test.go（RequiredName/TaxType/NonNegativePrice/CageType/CageSize/CoverageRate）+ dose / availability / staff capability 各 validator テストが単体レベルを網羅済み。**本シナリオはブラウザ → API → DB を通した受け入れ時の実機フォーム検証**であり、特に機械テスト未カバーの「一意制約違反時のエラー表示」「更新の永続化」「FK 選択肢のマスタ由来」を対象とする。
 - 重複登録は FE 事前チェックなしで BE の UNIQUE 違反頼み — 全マスタ共通で「無音失敗・白画面にならない」ことが最重点の確認事項。
 - animal_species と Lステップタグ 3 テーブルは clinic 無関係のグローバル一意 — 変更が他クリニックにも見える点に注意（それ以外の clinic_id 隔離検証はスコープ外 — BE isolation テスト正本）。
-- NG 項目は [`todo.md` 受入バグ](../../../../todo.md) へ `### BUG-XXX` 節として起票する（ローカル連番 最大+1・[README.md](README.md) のルールに従う）。
+- NG 項目は [`bug.md` の確認済み製品不具合](../../../../bug.md) へ `### BUG-XXX` 節として起票する（ローカル連番 最大+1・[README.md](README.md) のルールに従う）。
 
 ## 実装突合
-- 突合日: 2026-08-07
-- HEAD: 844e43f69
 - 変更:
   - 保険補償率境界を 0/100/101/-1 と FE/BE 実装参照（BUG-026・`ValidateCoverageRate`）で明示
   - 支払方法: `(clinic_id,name)` 部分 UNIQUE と system_key 一意・標準行ポリシーを C3-2 手順として補強（DDL `idx_payment_methods_*`）

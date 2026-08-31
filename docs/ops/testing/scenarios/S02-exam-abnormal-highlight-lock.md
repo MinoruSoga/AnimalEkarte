@@ -6,10 +6,9 @@
 
 ## 前提条件
 
-- 環境: ローカル（seed 003_demo）。ログイン: vet ロール（examinations の create/edit 権限あり）。
-- 対象ペット: ペット検索で「ステータス=生存」の犬を 1 頭選ぶ。
-- 検査種別: 検査種別マスタのうち、基準値（Min〜Max）が定義された測定項目テンプレを持つ種別（例: 名称に「血液」を含む種別。WBC/RBC 等に基準値あり）。
-- 手順 8 は seed 003_demo の「閲覧専用」権限グループ（examinations は view のみ）を割り当てたスタッフで実施できること。
+- ローカルの使い捨て clinic に、生存ペット、`exam_type_field_id` が付いた検査項目、数値 Min/Max 基準範囲を承認済み fixture/import 手順で作成する。
+- attached account を 2 つ用意する。一方は examinations create/edit、もう一方は examinations view のみを持つ。汎用 admin や seed 由来アカウントを仮定しない。
+- 試験後に作成した検査記録、検査項目、アカウントを削除する。
 - 依存シナリオ: なし。
 
 ## 手順と期待結果
@@ -25,7 +24,7 @@
 | 6b | ステータスドロップダウンから「確定」を**選択して保存**する（独立確定ボタンは無い）。一覧へ戻り再度開く | **ドラフトで「確定」を選んだだけではロックしない**。**サーバに confirmed が保存された後**、再オープン時にステータス/項目が無効化され保存ボタンが消える（[13 §2.1](../../../spec/screens/13-examinations-form.md)） |
 | 7 | 確定済み（サーバ status=確定 / `confirmed`）の検査を開き、測定値の変更・保存を試行する | 編集がロックされ変更を保存できない。FE の persisted lock ＋ BE の confirmed 拒否の二重ガード。確定解除 UI は `examination-unconfirm:edit` があるときだけ（`ExaminationUnconfirmDialog`）。通常 edit では出ない |
 | 7b | `examination-unconfirm:edit` 付きアカウントで確定解除（理由 1〜500 字）→ 印刷 | `POST /examinations/:id/unconfirm` が成功し再編集できる。印刷は `GET /examinations/:id/print-snapshot`（confirmed は official、それ以外は draft 透かし） |
-| 8 | seed 003_demo の「閲覧専用」権限グループを割り当てたスタッフでログインし、確定操作・結果入力を試行する | examinations の view は許可されるためフォームは見えるが、fieldset 無効・保存ボタンなし。第2アカウントが無い環境は手順スキップ（期待はソース確定） |
+| 8 | examinations view のみを持つ専用 attached accountでログインし、確定操作・結果入力を試行する | examinations の view は許可されるためフォームは見えるが、fieldset 無効・保存ボタンなし。第2アカウントが無い環境は手順スキップ（期待はソース確定） |
 
 ## 確認観点
 
@@ -34,7 +33,7 @@
 - ロックは二段: `confirmed` は全ロック。`completed` かつ `current_revision_version == nil` は結果・削除シール。確定解除は `examination-unconfirm`（ハイフン）。通常 edit では不可。
 - カルテ詳細の「検査」タブと検査一覧の結果がリアルタイムに同期すること（[12 §2](../../../spec/screens/12-examinations-list.md)）。
 - 検査一覧の進捗フィルタ（依頼中/検査中/結果入力済み/完了/確定）の全 5 ステータスで、現在取得済みのページ内から対象検査が正しく抽出できること（BE enum: pending/in_progress/result_entered/completed/confirmed。フィルタはクライアント側適用 — [12 §1.1](../../../spec/screens/12-examinations-list.md)）。
-- **『未判定』の条件**: seed の依頼中検査は free-text `normal_value` のみで `exam_type_field_id` が無いため、範囲文字列が出ても `is_assessed=false`（HIGH/LOW 未発火）。手順 2〜3 は field_id 付き種別で実施する。field_id 経路の API 判定は 2026-08-07 に high/low/normal を確認済み。犬猫切替の基準値次元のブラウザ確認は別途。
+- **「未判定」の条件**: `exam_type_field_id` がない free-text 結果は基準範囲文字列があっても `is_assessed=false`。手順 2〜3 は fixture の field ID 付き項目で high/low/normal を確認する。
 
 ## 異常系
 
@@ -47,11 +46,7 @@
 
 ## 実装突合
 
-- 突合日: 2026-08-07
-- HEAD: `844e43f69`
 - 変更サマリ:
   - 異常値 UI ラベルを H/L → **HIGH/LOW**（`ExamItemsTable`）に合わせて修正
   - inclusive range・未判定バッジ・status 5 値の BE enum をソースに合わせて明記
   - 確定解除は専用権限がある旨を手順 7 に注記（本シナリオのロック確認は通常 edit）
-
-- runtime 2026-08-07: **PARTIAL** (auth unlocked) — DB `exam_reference_ranges` COUNT=20; pure unit green. Authenticated API: create exam type=血液検査（院内）+ `exam_type_field_id` on living dog pet → PUT items yields **high/low/normal** with `is_assessed=true` (300→high, 1→low, 6/10/17→normal, inclusive). Seed pending exams with free-text `normal_value` only (no field id) stay `is_assessed=false` even when range text shows. Playwright `examinations-flow` 5/5 PASS (list/select-pet/new/detail/search). Full UI HIGH/LOW badge still needs browser entry on form (not asserted in e2e). Cleanup: probe exams deleted.

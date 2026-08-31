@@ -1,16 +1,15 @@
 # フォーム×項目 棚卸し (Form Field Inventory)
 
-> **目的**: 受入 V シリーズがカバーする全永続化フォームと、**項目単位 F プロトコル**の対象一覧を定義する。  
-> **使い方**: 左の項目を 1 行ずつ [FIELD-LEVEL-PROTOCOL.md](FIELD-LEVEL-PROTOCOL.md) で実施。手順の補足は V01〜V05。  
-> **更新規則**: 画面に入力項目を追加したら、本表と該当 V を同 PR で更新する。  
-> **最新更新**: 2026-08-19  
-> **合計**: **85 フォーム**（旧 84 + inventory-form）
+> **目的**: 受入 V シリーズの永続化フォームについて、検証済み exact field key と未収録 gap を管理する。
+> **使い方**: 左の項目を 1 行ずつ [FIELD-LEVEL-PROTOCOL.md](FIELD-LEVEL-PROTOCOL.md) で実施。手順の補足は V01〜V05。
+> **更新規則**: 画面に入力項目を追加したら、本表と該当 V を同 PR で更新する。
+> **ステータス**: inventory は再構築中。下表は検証済み exact field key の部分一覧であり、一意フォーム総数や「全フォーム/全項目完了」はまだ主張しない。route inventory は 86 product pages だが page 数と form 数は別。
 
 凡例: **R**=必須 / **O**=任意 / **C**=条件付き必須 / **S**=システム（入力不可→F は N/A）
 
 ---
 
-## V01 臨床（18）
+## V01 臨床（算定保留）
 
 ### medical-record-form — `/medical-records/new|/:id` — [V01 §1](V01-clinical-forms.md)
 
@@ -28,7 +27,10 @@
 | treatment_policy | 治療方針 | O | text | | F0 F4 |
 | diagnosis1_type | 診断1区分 | O | select | | F0 F4 |
 | diagnosis1_name | 診断1名称 | O | select FK | 区分連動 | F0 F4 |
-| diagnosis2_* / diagnosis3_* | 診断2・3 | O | select | 同上セット | F0 F4 |
+| diagnosis2_type | 診断2区分 | O | select | | F0 F4 |
+| diagnosis2_name | 診断2名称 | O | select FK | 区分連動 | F0 F4 |
+| diagnosis3_type | 診断3区分 | O | select | | F0 F4 |
+| diagnosis3_name | 診断3名称 | O | select FK | 区分連動 | F0 F4 |
 
 ### medical-record-treatments-tab — 治療タブ — [V01 §2](V01-clinical-forms.md)
 
@@ -45,10 +47,11 @@
 |:--|:--|:--|:--|:--|:--|
 | recorded_at | 記録日時 | R | datetime | 未来日時は FE 拒否 | F1 F2 F4 |
 | temperature | 体温 | O | number | FE 30〜45℃（45.0 受理・45.1 拒否） | F3 F4 F5 |
-| weight_kg | 体重 | O | number | kg/g 切替 | F3 F4 |
-| heart_rate / respiratory_rate / etc. | その他バイタル | O | number | 実装にある計測値すべて | F0 F4 F5 |
-
-> 実装上の計測フィールドはモーダル表示ラベルを inventory 実行時に全列挙し、本表へ追記してから F4 する（【要実測】昇格）。
+| heart_rate | 心拍数 | O | number | | F0 F4 F5 |
+| respiration_rate | 呼吸数 | O | number | exact key（`respiratory_rate` ではない） | F0 F4 F5 |
+| weight | 体重 | O | number | exact key（`weight_kg` ではない） | F3 F4 F5 |
+| weight_unit | 体重単位 | O | enum | weight と組で保存 | F0 F4 |
+| note | 備考 | O | text | | F0 F4 F5 |
 
 ### medical-record-checkups-tab — [V01 §4](V01-clinical-forms.md)
 
@@ -56,7 +59,7 @@
 |:--|:--|:--|:--|
 | performed_on | R | date | F1 F4 |
 | checkup_type_id | R | select FK | F1 F4 C3-1 |
-| dynamic_* | C | 定義依存 | 定義ごと F0 F1 F4 |
+| （fixture field keys） | C | 定義依存 | 実行前に承認済み健診定義の exact key を run report inventory に列挙する。この source inventory が未完の間は V01 完了不可 |
 | result_note | O | text | F4 F5 |
 | next_due_on | O | date | F4 F5 |
 
@@ -66,7 +69,10 @@
 |:--|:--|:--|:--|
 | vaccine_id | R | select | F1 F4 |
 | vaccinated_on | R | date | F1 F4 |
-| lot1..lot4 | O | text | F4 F5 |
+| lot1 | O | text | F4 F5 |
+| lot2 | O | text | F4 F5 |
+| lot3 | O | text | F4 F5 |
+| lot4 | O | text | F4 F5 |
 | note | O | text | F4 F5 |
 | next_schedule_mode | O | radio | F4 |
 | next_due_on | O | date | F4（手入力永続） |
@@ -79,16 +85,17 @@
 | medical-record-addendum | content | R | text | F1 F4 |
 | medical-record-addendum | reason | R | text | F1 F3(500) F4 |
 | medical-record-examination-import | examination_ids | R | multi | F1 F4 |
-| medical-record-estimate-tab | title / lines | O | text/grid | F0 F4 |
+| medical-record-estimate-tab | title | O | text | F0 F4 |
+| medical-record-estimate-tab | lines | O | grid | F0 F4 |
 
 ### examination-form — [V01 §7](V01-clinical-forms.md)
 
 | fieldKey | R/O | 型 | F 重点 |
 |:--|:--|:--|:--|
 | exam_type_id | R | select | F1 F4 C3-1 |
-| staff_id | R | select | F1 F4 |
-| performed_on | O/R | date | 仕様に従い F1/F4 |
-| dynamic_result_* | C | number/text | 定義ごと F0 F4 |
+| doctor_id | R | select | F1 F4 |
+| date | O/R | date | F1/F4 |
+| （fixture result field keys） | C | number/text | 実行前に `exam_type_field_id` ごとの exact key を run report inventory に列挙する。この source inventory が未完の間は V01 完了不可 |
 
 ### vaccination-form（独立）— [V01 §8](V01-clinical-forms.md)
 
@@ -100,7 +107,7 @@
 |:--|:--|:--|
 | checkup_type_id | R | F1 F4 |
 | performed_on | R | F1 F4 |
-| dynamic_* | C | F0 F4 |
+| （fixture checkup field keys） | C | 実行前に exact key を run report inventory に列挙。この source inventory が未完の間は完了不可 |
 
 ### hospitalization-form — [V01 §10](V01-clinical-forms.md)
 
@@ -113,8 +120,11 @@
 | cage_id | R | select FK | BUG-037 F1 F4 C3-1 |
 | owner_request | O | text | 一覧主訴列 F4 F5 |
 | doctor_id | O | select | F4 |
-| memo / staff_notes | O | text | F4 F5 |
-| is_insurance / insurance_* | C | | ON 時会社名・番号 F4 |
+| memo | O | text | F4 F5 |
+| staff_notes | O | text | F4 F5 |
+| is_insurance | O | boolean | F4 |
+| insurance_company_name | C | text | ON 時 F1 F4 |
+| insurance_number | C | text | ON 時 F1 F4 |
 | treatment_plans | O | rows | 新規のみ。登録後は読取専用 F4 |
 
 ### hospitalization-care-plan / daily-vitals / daily-care-logs / daily-staff-notes — [V01 §11](V01-clinical-forms.md)
@@ -135,11 +145,14 @@
 | course_id | R | F1 F4 C3-1・無効マスタ #228 |
 | option_ids | O | multi F4 |
 | record_shortcut times | R | 一意な JST 現在時刻（固定 10:00 ではない） F1 F4 |
-| note / style / weight / images | O | F4 F5 |
+| note | O | F4 F5 |
+| style | O | F4 F5 |
+| weight | O | F3 F4 F5 |
+| images | O | F2 F3 F4 |
 
 ---
 
-## V02 会計・予約・在庫（12）
+## V02 会計・予約・在庫（算定保留）
 
 ### accounting-settlement-form — [V02 §1](V02-accounting-reservation-forms.md)
 
@@ -192,19 +205,27 @@
 |:--|:--|:--|
 | title | R | F1 F4 |
 | status | R | 作成時 draft/sent のみ |
-| amounts.* | O | ≥0 F3 F4 |
-| owner/pet/record links | O | F4 |
-| valid_until | O | F4 F5 |
+| ownerId | O | F4 |
+| petId | O | F4 |
+| medicalRecordId | O | F4 |
+| subtotal | O | ≥0 F3 F4 |
+| taxTotal | O | ≥0 F3 F4 |
+| totalAmount | O | ≥0 F3 F4 |
+| insuranceAmount | O | ≥0 F3 F4 |
+| discountAmount | O | ≥0 F3 F4・権限で F6 |
+| validUntil | O | F4 F5 |
 | comment | O | F4 F5 |
-| discount | O | 権限で F6 |
+| notes | O | F4 F5 |
 
 ### reservation-form-modal / reception-walkin / reception-status — [V02 §7–9](V02-accounting-reservation-forms.md)
 
 | fieldKey | R/O | F 重点 |
 |:--|:--|:--|
-| pet_id / owner | R | F1 F4 |
+| pet_id | R | F1 F4 |
+| owner_id | R | F1 F4 |
 | reservation_type_id | R | F1 F4 C3-1 |
-| start_at / end_at | R | F1 F4・枠衝突 |
+| start_at | R | F1 F4・枠衝突 |
+| end_at | R | F1 F4・枠衝突 |
 | staff_id | O | F4 |
 | memo | O | F4 F5 |
 | status（受付） | R | 遷移のみ F0 F4 |
@@ -215,14 +236,15 @@
 |:--|:--|:--|
 | staff_id | R | F1 F4 |
 | date | R | F1 F4 |
-| start/end | R | F1 F4 |
+| startTime | R | F1 F4 |
+| endTime | R | F1 F4 |
 | template_id | O | F4 C3-1 |
 
 ### clinic-holiday-modal — [V02 §11](V02-accounting-reservation-forms.md)
 
 | fieldKey | R/O | F 重点 |
 |:--|:--|:--|
-| date | R | F1 F4 |
+| date | S | F0/N/A（launch context 由来の read-only。編集/必須空 F1 は適用しない） |
 | reason | O | F4 F5 |
 
 ### inventory-form — `/inventory/new|/:id` — **[V02 §12 新設](V02-accounting-reservation-forms.md)**
@@ -241,7 +263,7 @@
 
 ---
 
-## V03 飼主・組織（7）
+## V03 飼主・組織（算定保留）
 
 ### owner-create-edit — [V03 §1](V03-owner-pet-staff-forms.md)
 
@@ -251,9 +273,12 @@
 | owner_name_kana | R(new)/O(edit) | text | F1/F4 |
 | phone | R | phone | F1 F2 F4 C3-2 |
 | email | O | email | F2 F4 F5 C3-2 |
-| postal_code / address* | O | postal/text | F2 F4 |
-| home_postal_code / home_address* | O | | F2 F4 |
-| company / company_phone | O | | F4 F5 |
+| postal_code | O | postal | F2 F4 |
+| address | O | text | F4 |
+| home_postal_code | O | postal | F2 F4 |
+| home_address | O | text | F4 |
+| company | O | text | F4 F5 |
+| company_phone | O | phone | F2 F4 F5 |
 | membership_type | R | enum4 | F0 F4 |
 | discount_rate | O | 0–100 | F3 F4 F5 |
 | is_dangerous | O | bool | F4 |
@@ -275,7 +300,8 @@
 | microchip | O | F4 F5 |
 | blood_type | O | F4 F5 |
 | neutered_on | O | F4 F5 |
-| food / environment | O | F4 F5 |
+| food | O | F4 F5 |
+| environment | O | F4 F5 |
 | insurance_id | O | F4 C3-1 |
 | danger_level | O | enum F4 |
 | danger_reason | C | high 時必須 F1 F4 |
@@ -314,43 +340,46 @@
 | fieldKey | R/O | F 重点 |
 |:--|:--|:--|
 | name | R | F1 F4 |
-| postal/address/phone/email | O | F2 F4 |
-| standard_tax_rate / reduced_tax_rate | O | 0–100% F3 F4 |
-| accounting_document_* toggles / footer / order | O | **表示されている帳票設定項目すべて** F4 |
+| postal_code | O | F2 F4 |
+| address | O | F4 |
+| phone | O | F2 F4 |
+| email | O | F2 F4 |
+| standard_tax_rate | O | 0–100% F3 F4 |
+| reduced_tax_rate | O | 0–100% F3 F4 |
+| （accounting document fields） | O | exact keys 未収録。この行は coverage に数えず、収録完了まで V03 incomplete |
 
 ---
 
-## V04 設定マスタ（30）
+## V04 設定マスタ（算定保留）
 
-標準 SidePanel 行は [V04 §1 差分表](V04-settings-master-forms.md) を正とし、各行について:
+V04 の exact field-key inventory は再構築中。共通して確認済みの keys は次だけであり、各 master 固有 key の収録が完了するまで V04 完了・総数を主張しない。
 
-| 共通 fieldKey | R/O | F 重点 |
-|:--|:--|:--|
-| name（または文書上の必須名） | R | **必ず F1 + F4** |
-| is_active | O | F4 |
-| sort_order（D&D） | O | F4 |
-| 差分表の追加カラムすべて | 各行 | 型に応じ F2 F3 F4 |
+| form family | fieldKey | R/O | F 重点 |
+|:--|:--|:--|:--|
+| standard master side panels | name | R | F1 F4 |
+| standard master side panels | is_active | O | F4 |
+| standard master side panels | sort_order | O | F4 |
 
-追加で項目単位が厚いフォーム:
+L-step/LINE settings は V05 が唯一の owner。V04 では実行・集計しない。
 
-| formId | 追加項目（すべて F0+F4、制約あるものは F1–F3） |
-|:--|:--|
-| master-medicine | 剤形・単位・価格・strength・回数/日・既定日数・calculation_type・dose params |
-| master-treatment-item | 名称・価格・説明・親・tab 種別（5 タブ） |
-| master-insurance | name・補償率 0–100 |
-| master-campaign | name・期間・対象商品 |
-| master-payment-method | name・system_key 行の F6 |
-| master-reservation-type | 区分名・グループ・職種・公開・色 等 UI 全項目 |
-| reservation-type-available-slots | 枠時刻・日付 |
-| master-shift-template | テンプレ名・時間帯 |
-| closing-settings 系 | 画面上の全入力 |
-| lstep settings（V04 重複分） | V05 と役割分担し、片方で F 完了すれば他方は参照 |
-
-実行時: SidePanel を開き **DOM/スナップショット上の入力コントロールを全列挙**し、本 inventory に欠けがあれば追記してから F を回す。
 
 ---
 
-## V05 認証・LINE（18）
+### lab-device-item-master — `/settings/lab-device-item-masters` — [V04 §8](V04-settings-master-forms.md)
+
+V04 が唯一の owner。V05 では数えない。
+
+| fieldKey | R/O | 型 | F 重点 |
+|:--|:--|:--|:--|
+| name | R | text | F0 F1 F4 |
+| sourceType | R | enum | F0 F1 F4 |
+| examTypeId | O | select FK | F0 F4 C3-1 |
+| isActive | O | boolean | F0 F4 |
+| sortOrder | O | number | F0 F3 F4 |
+| items[].examTypeFieldId | O | select FK | F0 F4 C3-1 |
+| items[].isActive | O | boolean | F0 F4 |
+
+## V05 認証・LINE（算定保留）
 
 | formId | 主要 fieldKey（すべて F 適用） | 参照 |
 |:--|:--|:--|
@@ -359,21 +388,22 @@
 | auth-forgot-password | email | V05-3 |
 | auth-reset-password | password, confirm | V05-4 |
 | liff-account-link | （自動・入力なし） | F0 分岐のみ |
-| line-reserve-create | customer_*, course, staff, date, time, request | **ステップ上の全入力** V05-6 |
+| line-reserve-create | — | exact keys 未収録。収録完了まで V05 incomplete |
 | line-reserve-cancel | cancel action | F0 F4 |
-| line-reservation-settings | 稼働・受付ルールの全入力 | V05-8 |
-| line-reservation-page-editor | テキストエリア全件 | V05-9 |
+| line-reservation-settings | — | exact keys 未収録。収録完了まで V05 incomplete |
+| line-reservation-page-editor | header_text, request_example, reservation_notice, cancel_notice, privacy_policy | V05-9（唯一の owner） |
 | line-reservation-slots | 日付・開始時刻 | V05-10 |
 | owner-line-customer-link | link/unlink 操作 | V05-11 |
-| lstep-settings | secret×3, text, numeric 閾値 | V05-12 |
-| lstep-tag-config 等 | 差分表の必須ペア | V05-13–17 |
-| lstep-checkup-sync-create | 抽出条件 + tag_name | V05-18 |
+| lstep-settings | — | exact keys 未収録。収録完了まで V05 incomplete |
+| lstep-tag-config | — | exact keys 未収録。収録完了まで V05 incomplete |
+| lstep-checkup-sync-create | tag_name | exact filter keys 未収録。収録完了まで V05 incomplete |
 
 ---
 
 ## カバレッジ更新チェックリスト（開発者）
 
-- [ ] 新規永続フォーム → 本ファイルに formId + fieldKey 追加 + 該当 V に § 追加  
-- [ ] 既存フォームに項目追加 → fieldKey 行追加  
-- [ ] 必須/境界変更 → R/O と F 重点を更新  
-- [ ] route-inventory（84 product pages）と form 数がずれる場合、本ファイルの「合計」コメントで理由を残す（page ≠ form）  
+- [ ] 新規永続フォーム → 本ファイルに formId + fieldKey 追加 + 該当 V に § 追加
+- [ ] 既存フォームに項目追加 → fieldKey 行追加
+- [ ] 必須/境界変更 → R/O と F 重点を更新
+- [ ] route inventory は 86 product pages。page 数と unique persistent form 数を混同しない
+- [ ] wildcard / UI 全項目 / 動的 placeholder が残る間は inventory incomplete とし、全フォーム完了や総数を主張しない

@@ -6,9 +6,10 @@
 
 ## 前提条件
 
-- 環境: ローカル（seed 003_demo）。**seed 003_demo の `estimates.csv` には八王子病院（clinic_id=1）の draft 見積が多数含まれる**（2026-07 以降のデモ seed）。本シナリオのロック／フィルタ検証データはタイトル「S07 検証用*」で**新規作成**し、seed 既存行と混同しないこと（城東 clinic では seed 見積が無い前提でも新規作成で実施可）。
-- ログイン: 権限グループ「執行」のスタッフ（estimates の view/create/edit/delete を保有）。
-- ステータスは「下書き」「送付済み」「承認済み」「却下」の 4 値（`EstimateStatusBadge` の `STATUS_LABELS`＝draft/sent/approved/rejected）。承認済み・却下＝確定（ロック）。
+- ローカルの使い捨て clinic に、estimates view/create/edit/delete 権限を持つ attached account、合成 owner/pet を作成する。
+- タイトル `S07 検証用A` と `S07 検証用B` の見積を本シナリオ内で新規作成する。既存見積、固定 clinic ID、seed 行は使わない。
+- 試験後に作成した見積と専用 fixture を削除する。
+- ステータスは draft/sent/approved/rejected。approved/rejected は確定ロック対象。
 
 ## 手順と期待結果
 
@@ -46,8 +47,6 @@
   - 詳細画面の「後継ドラフトを作成」（理由 1〜500 字）。201 で新 draft（新 ID・新 estimate_no・`supersedes_estimate_id`）。原行は不変。原見積の明細があればコピーする（ヘッダのみ原見積なら後継も空明細）。
 
 ## 実装突合
-- 突合日: 2026-08-07
-- HEAD: 844e43f69
 - 変更:
   - seed 003 に八王子 draft 見積が存在することを前提に追記（「見積無し」記述を撤回）
   - バッジ文言を実装どおり「送付済み」「承認済み」に修正

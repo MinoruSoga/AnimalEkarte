@@ -2,16 +2,15 @@
 
 > **目的**: 会計精算・明細追加・クレジット訂正・返金・レジ締め・見積・予約・受付・シフト・休診日・**在庫**の各入力フォームについて、入力検証（必須・形式・境界）・更新の永続化・DB 整合（FK 選択肢・一意制約）が実機ブラウザ経由で正しく機能することを納品前に証明する。
 > **所要目安**: 110分 / **深度**: フォーム検証 + **項目単位 F プロトコル**
-> **フォーム数**: 12（README V02 と一致）
+> **フォーム数**: inventory 再構築中のため算定保留。全フォーム完了はまだ主張しない。
 > **項目単位**: [FIELD-LEVEL-PROTOCOL.md](FIELD-LEVEL-PROTOCOL.md) + [FORM-FIELD-INVENTORY.md](FORM-FIELD-INVENTORY.md) §V02。C1 は入口に過ぎず、**inventory の全 fieldKey に F0–F6 を適用**して完了とする。
 > **仕様正本**: [screens/11-accounting-detail.md](../../../spec/screens/11-accounting-detail.md)・[screens/29-closing-aggregation.md](../../../spec/screens/29-closing-aggregation.md)・[screens/23-estimate-form.md](../../../spec/screens/23-estimate-form.md)・[screens/02-reservations.md](../../../spec/screens/02-reservations.md)・[screens/01-reception.md](../../../spec/screens/01-reception.md)・[screens/24-shift-calendar.md](../../../spec/screens/24-shift-calendar.md)・在庫は `frontend/src/features/inventory`
 
 ## 前提条件
 
-- 環境: ローカル（seed 003_demo）。ログイン: admin ロール（accounting / accounting-post-close-edit / estimates / reservations / shifts / **inventory** の各権限を含む）。
-- 本シナリオで作成するデータは名前・メモに「V02」を含め、終了時に削除またはキャンセルする。レジ締め（§5）のみ取り消し不可のため、締めが未実施の日・区分を対象にする。
-- スコープ外: クロステナント隔離（BE isolation テストが正本）。会計訂正・未収金の業務フローは [S08](S08-accounting-corrections.md)、締め時間帯境界（AM/PM/EMG・越日）は [S09](S09-closing-time-boundaries.md)、見積ステータス遷移の全パターンは [S07](S07-estimate-status-control.md) が正本 — 本シナリオはフォーム検証観点（C1〜C3 + 項目単位 F）に限定する。
-- `/settings` 配下のマスタフォーム（予約区分・シフトテンプレート等の設定画面）は V04 の対象。本シナリオではそれらを FK 選択肢の供給元（C3-1）としてのみ操作する。
+- ローカルの使い捨て clinic に、accounting/post-close-edit/estimates/reservations/shifts/inventory の必要権限を持つ attached account と合成 owner/pet/master を作成する。
+- 作成データは `V02` 接頭辞を使う。レジ締めは append-only のため、専用 clinic/date、hostname/environment fail-closed check、破棄手順が揃わなければ BLOCKED。共有 STG では実施しない。
+- settings マスタフォームは V04 の対象。本シナリオでは FK fixture の供給元としてのみ扱う。
 
 ## 共通チェック手順
 
@@ -30,7 +29,7 @@
 | # | 操作 | 期待結果 |
 |:--|:--|:--|
 | C2-1 | 既存レコードを編集して保存 | 詳細・一覧に変更が反映される |
-| C2-2 | ページを再読込（F5） | 変更が永続している |
+| C2-2 | ページを再読込（ブラウザ再読込。F4 の確認手順） | 変更が永続している |
 | C2-3 | 編集フォームを再オープン | 保存した値が初期表示される |
 
 **C3 DB 存在チェック**
@@ -60,7 +59,7 @@
 | 6 | (C3-2) 既に会計が存在するカルテから 2 件目の会計を作成しようとする | DB partial UNIQUE → Create は HTTP **409**。FE 主 UI は `medical_record_id` 未送信のため UNIQUE に届かない。同一 medical_record 2 件目 fixture が無い環境は API 直のみ（手順スキップ可） |
 | 7 | (C3-3) `/accounting/<存在しない ID>` を直叩き | エラー画面が表示される |
 | 8 | 締め済み期間の会計を修正理由なしで保存 → 理由入力して保存 | 理由なしは拒否（#115 post_close_reason 必須）、入力後は保存成功。精算済み (completed) の修正は ConfirmDialog を経由する |
-| 9 | 部分入金: 請求額より少ない入金での保存を試みる | **runtime PASS（partial・2026-08-01 browser）**: `/accounting/:id` で請求>0・支払未入力時に『**残り ¥… 未入力**』+ 確定 disabled を観測（現金を請求未満に入力する操作は未実施・精算未実行）。source-supported: 部分入金 UI 経路なし・BE 合計≠請求 400。会計待ちのまま部分保存する UI は存在しない（S08 同趣旨） |
+| 9 | 部分入金: 請求額より少ない入金での保存を試みる | `/accounting/:id` で請求>0・支払未入力時に『**残り ¥… 未入力**』+ 確定 disabled を観測。部分入金 UI 経路なし・BE 合計≠請求 400。会計待ちのまま部分保存する UI は存在しない（S08 同趣旨） |
 | 10 | 会計一覧の未納タブを期間未指定で開く | JST 当月で API が発火する（BUG-002）。空のまま「未納者はいません」にしない |
 | 11 | 締め済み日に新規会計を確定する | 理由欄が出る。空は物理ブロック。権限なしは確定不可。`POST /accountings/complete` は `post_close_reason` を FK より先に見る（汎用 FK エラーにしない） |
 
@@ -214,10 +213,9 @@
 - 既存の機械テストとの分担: FE component test（`PaymentCard`・`CreditCorrectionDialog`・`RefundSection`・`EstimateForm`・`ReservationFormModal`・受付 hooks/`ReceptionDialogActionButtons`・`ShiftCalendar`・inventory form hooks）と BE validator/service test（validatePaymentSplits・billing_item・refund・cash_register・estimate・appointment/checkSlotConflict・shift_entry の各 service test）が単体レベルの検証を網羅済み。**本シナリオはブラウザ → API → DB を通した受け入れ時の実機フォーム検証**である。
 - テスト空白地帯: `CashRegisterClosePage`・`ShiftFormDialog`・`ClinicHolidayModal` は component test が存在せず、E2E も全対象フォームで表示確認どまり（保存実行なし）— §5・§10・§11 は本シナリオが唯一の保存実行検証。`ItemListCard` には component test がある。在庫は unit/hook test があるが **E2E 保存通しは本 §12 + 項目単位 F が受入正本**。
 - 監査 fail-closed（クレジット訂正・返金は監査ログと同一トランザクション、監査失敗で操作ごとロールバック #211）は BE テスト正本 — 画面側では検証しない。
-- クロステナント隔離はスコープ外（BE isolation テスト正本）。NG 項目は [`todo.md` 受入バグ](../../../../todo.md) へ `### BUG-XXX` 節として起票する（ローカル連番 最大+1・[README.md](README.md) のルールに従う）。
+- クロステナント隔離はスコープ外（BE isolation テスト正本）。NG 項目は [`bug.md` の確認済み製品不具合](../../../../bug.md) へ `### BUG-XXX` 節として起票する（ローカル連番 最大+1・[README.md](README.md) のルールに従う）。
 
 ## 実装突合
-- 突合日: 2026-08-14
 - 変更:
   - §12 inventory-form を追加（旧 84 フォーム棚卸しから欠落していた永続フォーム）
   - 項目単位 F プロトコル・FORM-FIELD-INVENTORY を必須完了条件に追加

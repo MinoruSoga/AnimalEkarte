@@ -6,9 +6,9 @@
 
 ## 前提条件
 
-- 環境: ローカル（seed 003_demo）。
-- ログイン: 権限グループ「執行」のスタッフ（accounting 全操作＋ accounting-post-close-edit の edit を保有）。負例（#5）は権限グループ「一般」のスタッフ（accounting-post-close-edit の edit なし）。#10 レジ締めは執行でも cash-register-close 付与済みのため執行で可。
-- 検証用飼主: 飼主一覧から任意の飼主 1 名を選び、以降の会計をすべて同一飼主で作成する（未収金の突合のため）。
+- ローカルの使い捨て clinic に合成 owner/pet と attached account を 2 つ作成する。正例アカウントは accounting 操作、`accounting-post-close-edit:edit`、cash-register-close を持ち、負例アカウントは post-close edit を持たない。
+- 本シナリオで作成する全会計を同じ合成 owner に紐付ける。自動 seed の役割名・会計データを仮定しない。
+- append-only 会計/締め記録を含むため、専用 clinic/date と cleanup/破棄手順が確認できない環境では BLOCKED とする。
 
 ## 手順と期待結果
 
@@ -42,12 +42,8 @@
 - **締め済み期間の通常編集**: 締め済み期間の会計を通常の編集で再保存する場合も修正理由（`post_close_reason`）の入力（必須）が要求され、監査ログに記録される（仕様正本 11 §2.1・#115）。警告表示の検証は S09 #8 で行う。
 
 ## 実装突合
-- 突合日: 2026-08-07
-- HEAD: 844e43f69
 - 変更:
   - 精算経路を `POST /accountings/complete`（BUG-018 原子 complete）として明記
   - 部分入金拒否を FE `remaining !== 0` + BE `validatePaymentSplits` で再確認
   - クレジット訂正 API パス・カード系 method・未納定義（waiting）を現行実装に合わせて整理
   - 監査 fail-closed / X-Clinic-ID 拠点横断は変更なし
-
-- runtime 2026-08-07: **PARTIAL** — auth OK; Playwright accounting list/unpaid tab/reports PASS; `GET /accountings` 200 total=163. Partial-payment UI still expected disabled (`remaining !== 0`) — full correction/complete path not walked end-to-end this session. Kana search e2e for「Iris」2 cases FAIL (seed/UI locator drift, not auth).

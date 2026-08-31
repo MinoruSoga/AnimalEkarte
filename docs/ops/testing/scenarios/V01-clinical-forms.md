@@ -1,16 +1,16 @@
 # V01: 臨床系フォーム検証（入力・更新・DB整合）
 
-> **目的**: カルテ（本体・治療・バイタル・健診・予防接種・画像・追記・検査取込・見積）・検査・予防接種・定期健診・入院・トリミングの全臨床フォームについて、入力検証（必須・形式・境界）・更新の永続化・DB 整合（FK 選択肢・一意制約・不在 ID）が実機ブラウザ経由で正しく機能することを納品前に証明する。
+> **目的**: カルテ（本体・治療・バイタル・健診・予防接種・画像・追記・検査取込・見積）・検査・予防接種・定期健診・入院・トリミングのinventory に exact field key が収録された臨床フォームについて、入力検証（必須・形式・境界）・更新の永続化・DB 整合（FK 選択肢・一意制約・不在 ID）が実機ブラウザ経由で正しく機能することを納品前に証明する。
 > **所要目安**: 120分 / **深度**: 深い + **項目単位 F プロトコル**
-> **フォーム数**: 18
+> **フォーム数**: inventory 再構築中のため算定保留。全フォーム完了はまだ主張しない。
 > **項目単位**: [FIELD-LEVEL-PROTOCOL.md](FIELD-LEVEL-PROTOCOL.md) + [FORM-FIELD-INVENTORY.md](FORM-FIELD-INVENTORY.md) §V01。C1 は入口。**全 fieldKey に F0–F6 を適用**して完了とする（代表 1 項目のみでは未完了）。
 > **仕様正本**: [screens/06-medical-records-form.md](../../../spec/screens/06-medical-records-form.md)・[screens/13-examinations-form.md](../../../spec/screens/13-examinations-form.md)・[screens/15-vaccinations-form.md](../../../spec/screens/15-vaccinations-form.md)・[screens/25-checkups-list.md](../../../spec/screens/25-checkups-list.md)・[screens/08-hospitalization-detail.md](../../../spec/screens/08-hospitalization-detail.md)・[screens/09-hospitalization-form.md](../../../spec/screens/09-hospitalization-form.md)・[screens/17-trimming-form.md](../../../spec/screens/17-trimming-form.md)
 
 ## 前提条件
 
-- 環境: ローカル（seed 003_demo）。ログイン: admin ロール（カルテ/検査の create 権限・明細行の削除権限を含む全権限）。
-- 対象ペット: ペット検索で「ステータス=生存」の犬または猫を 1 頭選ぶ（体重登録済みの個体 — §2 の薬量自動計算に必要）。作成するデータ・マスタは名前に「V01」を含め、終了時に削除（削除不可なら無効化）する。C3-1 用のマスタ追加は設定画面（screens/20 系）から行う。
-- スコープ外: クロステナント隔離（BE isolation テスト正本）。finalized カルテの 409 ロック・audit_logs は [S06](S06-record-lock-audit-trail.md)、検査異常値ハイライト・確定ロックは [S02](S02-exam-abnormal-highlight-lock.md)、ワクチン次回予定の自動計算は [S03](S03-vaccination-next-due-autocalc.md)、入院サイクル・退院会計は [S05](S05-hospitalization-cycle.md) が正本。
+- ローカルの使い捨て clinic に、臨床フォームに必要な最小権限を持つ attached account、生存 pet（薬量計算用体重あり）、検査項目/基準範囲、ワクチン、健診、処置、ケージ、trimming の専用マスタを作成する。
+- 作成データは `V01` 接頭辞を使い、試験後に削除または無効化する。自動投入されるのは `002_master` だけで、臨床 fixture や汎用 admin は仮定しない。
+- finalized/audit は S06、異常値は S02、次回予定は S03、入院 cycle は S05 を正本とする。S06 用 finalized record は会計(医師確認)を confirmed にしてから作成する。
 
 ## 共通チェック手順
 
@@ -29,7 +29,7 @@
 | # | 操作 | 期待結果 |
 |:--|:--|:--|
 | C2-1 | 既存レコードを編集して保存 | 詳細・一覧に変更が反映される |
-| C2-2 | ページを再読込（F5） | 変更が永続している |
+| C2-2 | ページを再読込（ブラウザ再読込。F4 の確認手順） | 変更が永続している |
 | C2-3 | 編集フォームを再オープン | 保存した値が初期表示される |
 
 **C3 DB 存在チェック**
@@ -208,8 +208,8 @@
 
 - 既存の機械テストとの分担: FE component/hook test（use-medical-record-form・TreatmentsTab/dose gate・CheckupsTab・use-examination-form・use-vaccination-form・use-hospitalization-form・use-trimming-form-validation 等）と BE service/validator test（treatment/dose_validators・vital・checkup・vaccination・clinical_plan・hospitalization・trimming 各 service）が単体レベルの入力検証を網羅済み。**E2E は全臨床フローで表示・遷移スモークのみで、フォーム送信〜永続化を検証する E2E は存在しない — 本シナリオはブラウザ → API → DB を貫く受け入れ時の実機フォーム検証である。**
 - FE 側にしかガードが無い（または有無が未確定の）項目（バイタルの体温範囲・未来日時、健診/ワクチンの未来日、トリミング必須）はブラウザ経由確認が必須。逆に治療明細の quantity/price・追記 500 字・カルテタブのワクチン必須は BE 拒否が期待線で、FE 側のエラー提示の有無を観察する。
-- クロステナント隔離はスコープ外（BE isolation テスト正本）。finalized ロック・監査証跡は S06、異常値ハイライトは S02、次回予定自動計算は S03、入院サイクルは S05 へ委譲。NG 項目は [`todo.md` 受入バグ](../../../../todo.md) へ `### BUG-XXX` 節として起票する（ローカル連番 最大+1・[README.md](README.md) のルール）。
-- 本文中の具体的なエラー文言・プリフィル挙動のうち画面仕様書に記載のないもの（薬量プリフィル+dose gate・追記/健診/トリミングの必須文言・入院差分表の必須断定・トリミングの予約区分前提）は、FE hook / BE バリデータの実装を確認済み（2026-07-16）。文言はリファクタで変わりうるため、合格基準は「該当エラーが表示され保存されないこと」であり文言の完全一致ではない。
+- クロステナント隔離はスコープ外（BE isolation テスト正本）。finalized ロック・監査証跡は S06、異常値ハイライトは S02、次回予定自動計算は S03、入院サイクルは S05 へ委譲。NG 項目は [`bug.md` の確認済み製品不具合](../../../../bug.md) へ `### BUG-XXX` 節として起票する（ローカル連番 最大+1・[README.md](README.md) のルール）。
+- 本文中の具体的なエラー文言・プリフィル挙動のうち画面仕様書に記載のないもの（薬量プリフィル+dose gate・追記/健診/トリミングの必須文言・入院差分表の必須断定・トリミングの予約区分前提）は、FE hook / BE バリデータの実装を確認済み。文言はリファクタで変わりうるため、合格基準は「該当エラーが表示され保存されないこと」であり文言の完全一致ではない。
 
 ## 異常系（臨床安全に直結する独立確認）
 
@@ -224,8 +224,6 @@
 | 全フォーム共通 | (C3-3) 存在しない ID の URL 直叩きがエラー画面になり、空フォームとして開かないこと |
 
 ## 実装突合
-- 突合日: 2026-08-07
-- HEAD: 844e43f69
 - 変更:
   - 異常系索引の節番号を現行構成に修正（ワクチンは §8、§10 は入院登録のため誤参照だった）
   - §1 petId なし新規の select-pet リダイレクトを実装突合済みに昇格（要実測を解除）

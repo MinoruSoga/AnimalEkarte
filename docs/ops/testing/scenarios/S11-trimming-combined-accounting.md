@@ -6,10 +6,10 @@
 
 ## 前提条件
 
-- 環境: ローカル（seed 003_demo）。ログイン: `trimming` と `accounting` の view/create/edit 権限を持つロール（vet 等）。
-- 対象ペット: ペット検索で「ステータス=生存」かつ当日の未精算会計・未請求明細がないペットを 1 頭選ぶ。同じ飼主に 2 頭目の生存ペットがいること（異常系 A2 で使用）。
-- トリミングコースマスタ・オプションマスタに有効（active）で価格が 0 円でない項目が各 1 件以上あること。
-- 依存シナリオ: なし（S01 で死亡登録したペットは使用しない）。
+- ローカルの使い捨て clinic に trimming/accounting view/create/edit 権限を持つ attached account、同一 owner の生存ペット 2 頭、担当スタッフを作成する。
+- active かつ価格が 0 円でないトリミングコース/オプションを各 1 件作成する。対象ペットには当日の未精算会計・未請求明細を残さない。
+- S01 のペットは使用しない。試験後に予約、カルテ、会計、専用 fixture を削除する。
+- 依存シナリオ: なし。
 
 ## 手順と期待結果
 
@@ -29,6 +29,7 @@
 
 - 未請求明細の取得はペット単位。**現行 FE の新規会計は `GET /api/v1/billing-items/unbilled-details?pet_id=`**（legacy 生配列 `GET /billing-items/unbilled` は非移行 caller 用に残存）。飼主単位ではない（[16 §2](../../../spec/screens/16-trimming-list.md)）。施術完了を契機に会計側へ push する仕組みではなく、会計作成時に pull で取り込まれる。
 - **BUG-013 underbilling 防止**: unbilled-details の `warnings` に `blocking: true` がある場合、または details 取得失敗時は新規会計の確定が無効化される（`AccountingDetail` / `AssertNoBlockingUnbilled`）。silent partial success はしない。
+- **mixed completion 回帰**: trimming 明細に `appointment_id` がない場合、同一 pet/date の accounting-status trimming appointment が一意なら service が解決してから永続化し、会計完了と trimming 完了が同じ対象に反映される。0 件または複数なら fail closed。
 - トリミング明細が未請求候補になるのは appointment が「会計待ち（accounting）」に進んだ後、診察処置は会計確認の確定後 — 手順 4 を飛ばすと手順 5 で明細が現れないのは仕様どおり（[flow §8/§10 補足](../../../spec/reservation-to-record-flow.md)）。
 - 金額計算は臨床・会計・印刷帳票で同一ロジック `calculateBillingTotals` を共有し、レイヤー間で 1 円の誤差も生じない（[11 §3.1](../../../spec/screens/11-accounting-detail.md)）。
 - clinic_id 隔離: 明細・会計・appointment がすべて同一 clinic に属すること。会計確定が `audit_logs` に記録されること — DB 参照は USER 実施。
@@ -43,12 +44,8 @@
 | A3 | 手順 5 の統合会計（未精算）から一方の明細を削除して精算する | 明細削除は `DeleteItem`（soft-delete）。未請求クエリは `deleted_at IS NULL` のため削除行は再候補になる。精算済み会計からの削除は `rejectIfBillingFinalized` で拒否。統合 fixture が無い環境は手順スキップ |
 
 ## 実装突合
-- 突合日: 2026-08-07
-- HEAD: 844e43f69
 - 変更:
   - 新規会計 FE の未請求取得を `unbilled-details`（BUG-013 items+warnings）に更新
   - blocking unbilled で確定拒否・AssertNoBlockingUnbilled を確認観点に追加
   - 精算を `POST /accountings/complete` に合わせて記載
   - trimming UNION ALL 取得・pet_id 単位 pull は現行 main で再確認
-
-- runtime 2026-08-07: **PARTIAL** — auth OK; Playwright `trimming-flow` 3/3 PASS (list/new/form). Accounting-complete → trimming 完了 badge e2e **not executed** (needs multi-step fixture).
