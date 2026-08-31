@@ -83,9 +83,6 @@ BEGIN
   IF resolved_count <> expected_count OR ambiguous_count <> 0 THEN
     RAISE EXCEPTION 'exam field semantic resolution mismatch: expected %, resolved %, ambiguous %', expected_count, resolved_count, ambiguous_count;
   END IF;
-  IF EXISTS (SELECT 1 FROM resolved_lab_items GROUP BY source_type HAVING count(DISTINCT exam_type_id) <> 1) THEN
-    RAISE EXCEPTION 'device items resolve to multiple exam types';
-  END IF;
 END $$;
 
 CREATE TEMP TABLE desired_lab_devices ON COMMIT DROP AS

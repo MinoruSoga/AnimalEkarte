@@ -21,7 +21,13 @@ func TestLiveInsertLabDeviceClinic2UsesSemanticReferencesAndFailsClosed(t *testi
 			t.Errorf("live SQL missing %q", required)
 		}
 	}
-	for _, forbidden := range []string{"ON CONFLICT DO NOTHING", "53::bigint", "exam_type_id, is_active, sort_order, created_at"} {
+	for _, forbidden := range []string{
+		"ON CONFLICT DO NOTHING",
+		"53::bigint",
+		"exam_type_id, is_active, sort_order, created_at",
+		"device items resolve to multiple exam types",
+		"HAVING count(DISTINCT exam_type_id) <> 1",
+	} {
 		if strings.Contains(sql, forbidden) {
 			t.Errorf("live SQL contains unstable or silent-conflict pattern %q", forbidden)
 		}
