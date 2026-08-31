@@ -116,7 +116,7 @@ export function CustomerInfoPage({
     if (!phone.trim()) {
       newErrors.phone = '電話番号を入力してください';
     } else if (!BACKEND_PHONE_PATTERN.test(phone.trim())) {
-      newErrors.phone = '電話番号の形式が正しくありません（例：090-1234-5678）';
+      newErrors.phone = '電話番号の形式が正しくありません（例：090-1234-5678 または 09012345678）';
     }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
