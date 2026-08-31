@@ -123,3 +123,34 @@ func TestEnvOr(t *testing.T) {
 		}
 	})
 }
+
+func TestConnParams_PGXConfigDoesNotInterpretKeywordInjection(t *testing.T) {
+	params := ConnParams{
+		Host: "staging.example", Port: "5432", User: "operator host=evil.example",
+		Password: "secret dbname=other", SSLMode: "require",
+	}
+	cfg, err := params.PGXConfig("expected sslmode=disable")
+	if err != nil {
+		t.Fatalf("PGXConfig() error = %v", err)
+	}
+	if cfg.Host != params.Host || cfg.User != params.User || cfg.Password != params.Password || cfg.Database != "expected sslmode=disable" {
+		t.Fatalf("PGXConfig() changed structural identity: host=%q user=%q password=%q database=%q", cfg.Host, cfg.User, cfg.Password, cfg.Database)
+	}
+	if len(cfg.Fallbacks) != 0 {
+		t.Fatalf("PGXConfig() fallbacks = %v, want none", cfg.Fallbacks)
+	}
+}
+
+func TestConnParams_PGXConfigRejectsInvalidPortAndSSLMode(t *testing.T) {
+	base := ConnParams{Host: "db", Port: "5432", User: "u", Password: "p", SSLMode: "disable"}
+	badPort := base
+	badPort.Port = "5432 host=evil"
+	if _, err := badPort.PGXConfig("db"); err == nil {
+		t.Fatal("PGXConfig() accepted injected port")
+	}
+	badSSL := base
+	badSSL.SSLMode = "disable host=evil"
+	if _, err := badSSL.PGXConfig("db"); err == nil {
+		t.Fatal("PGXConfig() accepted injected sslmode")
+	}
+}

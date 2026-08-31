@@ -19,6 +19,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/stdlib"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -43,16 +45,18 @@ const (
 )
 
 type options struct {
-	command     string
-	rosterPath  string
-	secretsPath string
-	repoRoot    string
+	command               string
+	rosterPath            string
+	secretsPath           string
+	repoRoot              string
+	confirmTargetHost     string
+	confirmTargetDatabase string
 }
 
 type runDependencies struct {
 	configureTimeZone func() error
 	fromEnv           func() (dbconn.ConnParams, error)
-	openDB            func(dsn string) (*gorm.DB, error)
+	openDB            func(config *pgx.ConnConfig) (*gorm.DB, error)
 	repoRoots         func(explicit string) ([]string, error)
 	newAttacher       func(db *gorm.DB, repoRoots []string) *attacher
 }
@@ -121,10 +125,15 @@ func productionRunDependencies() runDependencies {
 	return runDependencies{
 		configureTimeZone: config.ConfigureTimeZone,
 		fromEnv:           dbconn.FromEnv,
-		openDB: func(dsn string) (*gorm.DB, error) {
-			return gorm.Open(postgres.Open(dsn), &gorm.Config{
+		openDB: func(config *pgx.ConnConfig) (*gorm.DB, error) {
+			sqlDB := stdlib.OpenDB(*config)
+			db, err := gorm.Open(postgres.New(postgres.Config{Conn: sqlDB}), &gorm.Config{
 				Logger: gormlogger.Default.LogMode(gormlogger.Silent),
 			})
+			if err != nil {
+				_ = sqlDB.Close()
+			}
+			return db, err
 		},
 		repoRoots: defaultRepoRoots,
 		newAttacher: func(db *gorm.DB, repoRoots []string) *attacher {
@@ -169,13 +178,17 @@ func run(
 	if database == "" {
 		return fmt.Errorf("DB_NAME is required")
 	}
-	if opt.command == "apply" && !dbconn.IsLocalHost(conn.Host) {
-		if os.Getenv(allowRemoteEnv) != allowRemoteSentinel {
-			return fmt.Errorf("apply refuses non-local DB_HOST without %s=%s", allowRemoteEnv, allowRemoteSentinel)
-		}
+	if err := requireStagingTarget(opt, conn.Host, database); err != nil {
+		return err
 	}
-
-	db, err := deps.openDB(conn.DSN(database))
+	if !dbconn.IsLocalHost(conn.Host) && os.Getenv(allowRemoteEnv) != allowRemoteSentinel {
+		return fmt.Errorf("%s refuses non-local DB_HOST without %s=%s", opt.command, allowRemoteEnv, allowRemoteSentinel)
+	}
+	pgxConfig, err := conn.PGXConfig(database)
+	if err != nil {
+		return err
+	}
+	db, err := deps.openDB(pgxConfig)
 	if err != nil {
 		return fmt.Errorf("open database: %w", err)
 	}
@@ -225,6 +238,8 @@ func parseOptions(args []string) (options, error) {
 	rosterPath := fs.String("roster", "", "absolute path to roster JSON (mode 0600, outside repo)")
 	secretsPath := fs.String("secrets", "", "absolute path to secrets JSON (mode 0600, outside repo)")
 	repoRoot := fs.String("repo-root", "", "optional absolute repository root to exclude as input location")
+	confirmTargetHost := fs.String("confirm-target-host", "", "must exactly equal DB_HOST")
+	confirmTargetDatabase := fs.String("confirm-target-database", "", "must exactly equal DB_NAME")
 	if err := fs.Parse(args[1:]); err != nil {
 		return options{}, fmt.Errorf("parse flags: %w", err)
 	}
@@ -232,11 +247,26 @@ func parseOptions(args []string) (options, error) {
 		return options{}, fmt.Errorf("--roster and --secrets are required")
 	}
 	return options{
-		command:     command,
-		rosterPath:  *rosterPath,
-		secretsPath: *secretsPath,
-		repoRoot:    strings.TrimSpace(*repoRoot),
+		command:               command,
+		rosterPath:            *rosterPath,
+		secretsPath:           *secretsPath,
+		repoRoot:              strings.TrimSpace(*repoRoot),
+		confirmTargetHost:     *confirmTargetHost,
+		confirmTargetDatabase: *confirmTargetDatabase,
 	}, nil
+}
+
+func requireStagingTarget(opt options, host, database string) error {
+	if strings.TrimSpace(os.Getenv("APP_ENV")) != "staging" {
+		return fmt.Errorf("stg-uat-staff-attach requires APP_ENV=staging")
+	}
+	if opt.confirmTargetHost == "" || opt.confirmTargetHost != host {
+		return fmt.Errorf("target host confirmation must exactly match DB_HOST")
+	}
+	if opt.confirmTargetDatabase == "" || opt.confirmTargetDatabase != database {
+		return fmt.Errorf("target database confirmation must exactly match DB_NAME")
+	}
+	return nil
 }
 
 func defaultRepoRoots(explicit string) ([]string, error) {

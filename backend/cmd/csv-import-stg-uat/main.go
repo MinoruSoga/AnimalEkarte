@@ -165,17 +165,6 @@ func runWithDependencies(ctx context.Context, args []string, logger *slog.Logger
 		return err
 	}
 
-	bundle, err := deps.preflightBundle(opt.sourceDir, csvimport.ExpectedCutoverSource{
-		ManifestSHA256:      opt.manifestSHA256,
-		ClinicCode:          opt.clinicCode,
-		ClinicOrdinal:       opt.clinicOrdinal,
-		RunID:               opt.runID,
-		AllowLocalRehearsal: true,
-	})
-	if err != nil {
-		return fmt.Errorf("source preflight failed: %w", err)
-	}
-
 	conn, err := deps.fromEnv()
 	if err != nil {
 		return err
@@ -187,10 +176,27 @@ func runWithDependencies(ctx context.Context, args []string, logger *slog.Logger
 	if err := requireRemoteHostAllowed(conn.Host); err != nil {
 		return err
 	}
+	if err := validateTargetConfirmations(opt, conn.Host, database); err != nil {
+		return err
+	}
 	if opt.command == "apply" {
-		if err := validateApplyConfirmations(opt, conn.Host, database); err != nil {
+		if err := validateApplyConfirmations(opt); err != nil {
 			return err
 		}
+	}
+
+	bundle, err := deps.preflightBundle(opt.sourceDir, csvimport.ExpectedCutoverSource{
+		ManifestSHA256: opt.manifestSHA256,
+		ClinicCode:     opt.clinicCode,
+		ClinicOrdinal:  opt.clinicOrdinal,
+		RunID:          opt.runID,
+		Provenance: csvimport.CutoverProvenanceContract{
+			Mode:   csvimport.CutoverProvenanceStagingRehearsal,
+			Target: csvimport.CutoverTargetBinding{Environment: "staging", Host: conn.Host, Database: database, ClinicID: opt.clinicID},
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("source preflight failed: %w", err)
 	}
 
 	poolConfig, err := buildTargetPoolConfig(conn, database)
@@ -349,8 +355,8 @@ func parseOptions(args []string) (options, error) {
 	flags.Int64Var(&opt.creditCardPaymentMethodID, "credit-card-payment-method-id", 0, "explicit active target clinic payment method ID with system_key credit_card")
 	flags.BoolVar(&opt.confirmTargetWrite, "confirm-target-write", false, "required for apply")
 	flags.BoolVar(&opt.confirmBackupReady, "confirm-backup-ready", false, "required for apply; confirms a tested pre-import backup exists")
-	flags.StringVar(&opt.confirmTargetHost, "confirm-target-host", "", "required for apply; must exactly equal DB_HOST")
-	flags.StringVar(&opt.confirmTargetDatabase, "confirm-target-database", "", "required for apply; must exactly equal DB_NAME")
+	flags.StringVar(&opt.confirmTargetHost, "confirm-target-host", "", "required before connect; must exactly equal DB_HOST")
+	flags.StringVar(&opt.confirmTargetDatabase, "confirm-target-database", "", "required before connect; must exactly equal DB_NAME")
 	flags.StringVar(&opt.reportPath, "report-path", "", "required absolute path for the owner-only aggregate apply report")
 	if err := flags.Parse(args[1:]); err != nil {
 		return options{}, err
@@ -361,18 +367,22 @@ func parseOptions(args []string) (options, error) {
 	return opt, nil
 }
 
-func validateApplyConfirmations(opt options, targetHost, targetDatabase string) error {
+func validateTargetConfirmations(opt options, targetHost, targetDatabase string) error {
+	if opt.confirmTargetHost == "" || opt.confirmTargetHost != targetHost {
+		return fmt.Errorf("target host confirmation must exactly match DB_HOST")
+	}
+	if opt.confirmTargetDatabase == "" || opt.confirmTargetDatabase != targetDatabase {
+		return fmt.Errorf("target database confirmation must exactly match DB_NAME")
+	}
+	return nil
+}
+
+func validateApplyConfirmations(opt options) error {
 	if !opt.confirmTargetWrite {
 		return fmt.Errorf("apply requires --confirm-target-write")
 	}
 	if !opt.confirmBackupReady {
 		return fmt.Errorf("apply requires --confirm-backup-ready")
-	}
-	if opt.confirmTargetHost == "" || opt.confirmTargetHost != targetHost {
-		return fmt.Errorf("apply target host confirmation must exactly match DB_HOST")
-	}
-	if opt.confirmTargetDatabase == "" || opt.confirmTargetDatabase != targetDatabase {
-		return fmt.Errorf("apply target database confirmation must exactly match DB_NAME")
 	}
 	if opt.reportPath == "" || !filepath.IsAbs(opt.reportPath) {
 		return fmt.Errorf("apply requires an absolute --report-path")

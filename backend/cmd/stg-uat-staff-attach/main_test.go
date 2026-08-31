@@ -12,6 +12,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
@@ -144,6 +145,7 @@ func TestWriteJSON_ResultHasNoNameEmailPassword(t *testing.T) {
 
 func TestRun_ApplyRefusesNonLocalWithoutOverride(t *testing.T) {
 	t.Setenv("DB_NAME", "animalekarte")
+	t.Setenv("APP_ENV", "staging")
 	t.Setenv("STG_UAT_STAFF_ATTACH_ALLOW_REMOTE", "")
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	deps := runDependencies{
@@ -153,7 +155,7 @@ func TestRun_ApplyRefusesNonLocalWithoutOverride(t *testing.T) {
 				Host: "example.invalid", Port: "5432", User: "u", Password: "p", SSLMode: "require",
 			}, nil
 		},
-		openDB: func(string) (*gorm.DB, error) {
+		openDB: func(*pgx.ConnConfig) (*gorm.DB, error) {
 			t.Fatal("openDB must not be called when remote apply is refused")
 			return nil, nil
 		},
@@ -167,6 +169,8 @@ func TestRun_ApplyRefusesNonLocalWithoutOverride(t *testing.T) {
 		"apply",
 		"--roster=/tmp/r.json",
 		"--secrets=/tmp/s.json",
+		"--confirm-target-host=example.invalid",
+		"--confirm-target-database=animalekarte",
 	}, logger, deps)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "STG_UAT_STAFF_ATTACH_ALLOW_REMOTE=YES_I_UNDERSTAND")
@@ -303,6 +307,7 @@ func TestRun_PreflightStdoutHasNoSecrets(t *testing.T) {
 	var logBuf bytes.Buffer
 	logger := slog.New(slog.NewTextHandler(&logBuf, nil))
 	t.Setenv("DB_NAME", "animalekarte_test")
+	t.Setenv("APP_ENV", "staging")
 
 	deps := runDependencies{
 		configureTimeZone: func() error { return nil },
@@ -311,7 +316,7 @@ func TestRun_PreflightStdoutHasNoSecrets(t *testing.T) {
 				Host: "localhost", Port: "5432", User: "u", Password: "p", SSLMode: "disable",
 			}, nil
 		},
-		openDB: func(string) (*gorm.DB, error) {
+		openDB: func(*pgx.ConnConfig) (*gorm.DB, error) {
 			return &gorm.DB{}, nil
 		},
 		repoRoots: func(string) ([]string, error) {
@@ -331,6 +336,8 @@ func TestRun_PreflightStdoutHasNoSecrets(t *testing.T) {
 		"--roster=" + rosterPath,
 		"--secrets=" + secretsPath,
 		"--repo-root=" + repoRoot,
+		"--confirm-target-host=localhost",
+		"--confirm-target-database=animalekarte_test",
 	}, logger, deps)
 	require.NoError(t, w.Close())
 	os.Stdout = oldStdout
@@ -549,4 +556,14 @@ func sampleSecretsJSON() map[string]any {
 			{"secret_ref": testSecretRef, "password": testPassword},
 		},
 	}
+}
+
+func TestRequireStagingTarget(t *testing.T) {
+	opt := options{confirmTargetHost: "db", confirmTargetDatabase: "ekarte"}
+	t.Setenv("APP_ENV", "development")
+	require.ErrorContains(t, requireStagingTarget(opt, "db", "ekarte"), "APP_ENV=staging")
+	t.Setenv("APP_ENV", "staging")
+	require.ErrorContains(t, requireStagingTarget(opt, "other", "ekarte"), "host confirmation")
+	require.ErrorContains(t, requireStagingTarget(opt, "db", "other"), "database confirmation")
+	require.NoError(t, requireStagingTarget(opt, "db", "ekarte"))
 }

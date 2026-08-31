@@ -73,8 +73,8 @@ type cutoverTarget interface {
 }
 
 type pgxCutoverTarget struct {
-	pool             *pgxpool.Pool
-	localRehearsal   bool
+	pool           *pgxpool.Pool
+	localRehearsal bool
 }
 
 func (t *pgxCutoverTarget) Ping(ctx context.Context) error {
@@ -133,6 +133,13 @@ func productionRunDependencies() runDependencies {
 	}
 }
 
+func cutoverProvenanceMode(local bool) csvimport.CutoverProvenanceMode {
+	if local {
+		return csvimport.CutoverProvenanceLocalRehearsal
+	}
+	return csvimport.CutoverProvenanceFormal
+}
+
 func openCutoverTarget(ctx context.Context, poolConfig *pgxpool.Config, localRehearsal bool) (cutoverTarget, error) {
 	pool, err := pgxpool.NewWithConfig(ctx, poolConfig)
 	if err != nil {
@@ -168,11 +175,11 @@ func runWithDependencies(ctx context.Context, args []string, logger *slog.Logger
 	}
 
 	bundle, err := deps.preflightBundle(opt.sourceDir, csvimport.ExpectedCutoverSource{
-		ManifestSHA256:      opt.manifestSHA256,
-		ClinicCode:          opt.clinicCode,
-		ClinicOrdinal:       opt.clinicOrdinal,
-		RunID:               opt.runID,
-		AllowLocalRehearsal: opt.allowLocalRehearsal,
+		ManifestSHA256: opt.manifestSHA256,
+		ClinicCode:     opt.clinicCode,
+		ClinicOrdinal:  opt.clinicOrdinal,
+		RunID:          opt.runID,
+		Provenance:     csvimport.CutoverProvenanceContract{Mode: cutoverProvenanceMode(opt.allowLocalRehearsal)},
 	})
 	if err != nil {
 		return fmt.Errorf("source preflight failed: %w", err)

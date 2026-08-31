@@ -10,6 +10,8 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/jackc/pgx/v5"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -302,6 +304,7 @@ func TestRun_ApplyRefusesNonLocalWithoutOverride(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Setenv("DB_NAME", "animalekarte")
+			t.Setenv("APP_ENV", "staging")
 			t.Setenv("STG_UAT_SKELETON_ALLOW_REMOTE", tt.override)
 
 			opened := false
@@ -311,14 +314,14 @@ func TestRun_ApplyRefusesNonLocalWithoutOverride(t *testing.T) {
 						Host: tt.host, Port: "5432", User: "u", Password: "p", SSLMode: "disable",
 					}, nil
 				},
-				openDB: func(context.Context, string) (dbSession, error) {
+				openDB: func(context.Context, *pgx.ConnConfig) (dbSession, error) {
 					opened = true
 					t.Fatal("openDB must not be called when remote apply is refused")
 					return nil, nil
 				},
 			}
 			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-			err := run(context.Background(), []string{"apply"}, logger, deps)
+			err := run(context.Background(), []string{"apply", "--confirm-target-host=" + tt.host, "--confirm-target-database=animalekarte"}, logger, deps)
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), tt.wantSubstring)
 			assert.False(t, opened)
@@ -798,4 +801,35 @@ func assignScan(dest, src any) error {
 		return fmt.Errorf("unsupported scan dest %T", dest)
 	}
 	return nil
+}
+
+type failingCutoverRow struct{}
+
+func (failingCutoverRow) Scan(dest ...any) error { *(dest[0].(*int64)) = 1; return nil }
+
+type rollbackTrackingTx struct{ committed, rolledBack bool }
+
+func (*rollbackTrackingTx) Exec(context.Context, string, ...any) error { return nil }
+func (*rollbackTrackingTx) QueryRow(context.Context, string, ...any) rowScanner {
+	return failingCutoverRow{}
+}
+func (t *rollbackTrackingTx) Commit(context.Context) error   { t.committed = true; return nil }
+func (t *rollbackTrackingTx) Rollback(context.Context) error { t.rolledBack = true; return nil }
+
+func TestCommitSkeletonIfPreconditionsPassRollsBackOnDirtyCutover(t *testing.T) {
+	tx := &rollbackTrackingTx{}
+	err := commitSkeletonIfPreconditionsPass(context.Background(), tx)
+	require.Error(t, err)
+	assert.True(t, tx.rolledBack)
+	assert.False(t, tx.committed)
+}
+
+func TestRequireStagingTarget(t *testing.T) {
+	opt := options{confirmTargetHost: "db", confirmTargetDatabase: "ekarte"}
+	t.Setenv("APP_ENV", "development")
+	require.ErrorContains(t, requireStagingTarget(opt, "db", "ekarte"), "APP_ENV=staging")
+	t.Setenv("APP_ENV", "staging")
+	require.ErrorContains(t, requireStagingTarget(opt, "other", "ekarte"), "host confirmation")
+	require.ErrorContains(t, requireStagingTarget(opt, "db", "other"), "database confirmation")
+	require.NoError(t, requireStagingTarget(opt, "db", "ekarte"))
 }

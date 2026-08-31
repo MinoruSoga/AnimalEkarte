@@ -135,6 +135,30 @@ func TestRunWithDependenciesEnvGateFailsClosedBeforePreflightAndOpenTarget(t *te
 	}
 }
 
+func TestRunWithDependenciesAllCommandsRequireTargetConfirmationsBeforePreflight(t *testing.T) {
+	withStagingRehearsalEnv(t)
+	t.Setenv("DB_NAME", "animalekarte")
+	for _, command := range []string{"preflight", "verify"} {
+		t.Run(command, func(t *testing.T) {
+			deps := testRunDependencies(t, testCLIBundle(), &fakeCutoverTarget{})
+			deps.preflightBundle = func(string, csvimport.ExpectedCutoverSource) (csvimport.CutoverBundle, error) {
+				t.Fatal("source preflight must not run before exact target confirmations")
+				return csvimport.CutoverBundle{}, nil
+			}
+			args := testCLIArgs(command, t.TempDir())
+			for i := 0; i < len(args); i++ {
+				if args[i] == "--confirm-target-host" {
+					args = append(args[:i], args[i+2:]...)
+					break
+				}
+			}
+			if err := runWithDependencies(context.Background(), args, slog.Default(), deps); err == nil || !strings.Contains(err.Error(), "host confirmation") {
+				t.Fatalf("error = %v, want host confirmation rejection", err)
+			}
+		})
+	}
+}
+
 func TestRunWithDependenciesApplyMissingConfirmationsDoesNotOpenTarget(t *testing.T) {
 	withStagingRehearsalEnv(t)
 	t.Setenv("DB_NAME", "animalekarte")
@@ -227,8 +251,9 @@ func TestRunWithDependenciesStagingSentinelRunsSourcePreflight(t *testing.T) {
 	if err := runWithDependencies(context.Background(), testCLIArgs("preflight", sourceDir), slog.Default(), deps); err != nil {
 		t.Fatal(err)
 	}
-	if !gotExpected.AllowLocalRehearsal {
-		t.Fatal("source preflight must set AllowLocalRehearsal true for STG UAT provenance")
+	if gotExpected.Provenance.Mode != csvimport.CutoverProvenanceStagingRehearsal ||
+		gotExpected.Provenance.Target.Environment != "staging" || gotExpected.Provenance.Target.ClinicID != 1 {
+		t.Fatalf("source preflight staging provenance = %+v", gotExpected.Provenance)
 	}
 	if gotDir != sourceDir {
 		t.Fatalf("source dir = %q, want temp dir %q", gotDir, sourceDir)
@@ -317,7 +342,13 @@ func TestRunWithDependenciesRemoteHostUsesFakeOpenTarget(t *testing.T) {
 		return target, nil
 	}
 
-	if err := runWithDependencies(context.Background(), testCLIArgs("preflight", t.TempDir()), slog.Default(), deps); err != nil {
+	args := testCLIArgs("preflight", t.TempDir())
+	for i := range args {
+		if args[i] == "db" && i > 0 && args[i-1] == "--confirm-target-host" {
+			args[i] = "example.invalid"
+		}
+	}
+	if err := runWithDependencies(context.Background(), args, slog.Default(), deps); err != nil {
 		t.Fatal(err)
 	}
 	if !opened {
@@ -409,7 +440,7 @@ func TestValidateApplyConfirmations(t *testing.T) {
 		confirmTargetDatabase: "animalekarte",
 		reportPath:            "/migration-reports/report.json",
 	}
-	if err := validateApplyConfirmations(valid, "db.internal", "animalekarte"); err != nil {
+	if err := validateApplyConfirmations(valid); err != nil {
 		t.Fatalf("valid confirmations rejected: %v", err)
 	}
 
@@ -420,8 +451,6 @@ func TestValidateApplyConfirmations(t *testing.T) {
 	}{
 		{"write acknowledgement", func(o *options) { o.confirmTargetWrite = false }, "write"},
 		{"backup acknowledgement", func(o *options) { o.confirmBackupReady = false }, "backup"},
-		{"host binding", func(o *options) { o.confirmTargetHost = "other" }, "host"},
-		{"database binding", func(o *options) { o.confirmTargetDatabase = "other" }, "database"},
 		{"audit report", func(o *options) { o.reportPath = "" }, "report"},
 		{"relative report", func(o *options) { o.reportPath = "report.json" }, "absolute"},
 	}
@@ -429,7 +458,7 @@ func TestValidateApplyConfirmations(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			candidate := valid
 			tt.mutate(&candidate)
-			err := validateApplyConfirmations(candidate, "db.internal", "animalekarte")
+			err := validateApplyConfirmations(candidate)
 			if err == nil || !strings.Contains(strings.ToLower(err.Error()), tt.want) {
 				t.Fatalf("error = %v, want %q", err, tt.want)
 			}
@@ -708,6 +737,8 @@ func testCLIArgs(command, sourceDir string) []string {
 		"--trimming-reservation-type-id", "4",
 		"--cash-payment-method-id", "5",
 		"--credit-card-payment-method-id", "6",
+		"--confirm-target-host", "db",
+		"--confirm-target-database", "animalekarte",
 	}
 }
 

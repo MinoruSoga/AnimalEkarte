@@ -40,15 +40,35 @@ var stageBuildIDPattern = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9
 // ExpectedCutoverSource binds an operator-selected manifest digest to one
 // clinic/run. The digest must come from the trusted producer run report rather
 // than from the directory being imported.
+type CutoverProvenanceMode string
+
+const (
+	CutoverProvenanceFormal           CutoverProvenanceMode = "formal"
+	CutoverProvenanceLocalRehearsal   CutoverProvenanceMode = "local-rehearsal"
+	CutoverProvenanceStagingRehearsal CutoverProvenanceMode = "staging-rehearsal"
+)
+
+type CutoverTargetBinding struct {
+	Environment string
+	Host        string
+	Database    string
+	ClinicID    int64
+}
+
+type CutoverProvenanceContract struct {
+	Mode   CutoverProvenanceMode
+	Target CutoverTargetBinding
+}
+
 type ExpectedCutoverSource struct {
 	ManifestSHA256 string
 	ClinicCode     string
 	ClinicOrdinal  int64
 	RunID          string
-	// AllowLocalRehearsal relaxes formal provenance for local disposable
-	// imports of REHEARSAL_ONLY / UNVERIFIED producer bundles (e.g. make reset).
-	// It must never be enabled for shared/staging/production cutover.
-	AllowLocalRehearsal bool
+	// Provenance selects the exact accepted producer evidence. Staging
+	// rehearsal is separate from local disposable rehearsal and must carry an
+	// explicit target binding constructed only after operator confirmations.
+	Provenance CutoverProvenanceContract
 }
 
 type CutoverIDBand struct {
@@ -359,14 +379,14 @@ func ensureJSONEOF(decoder *json.Decoder) error {
 }
 
 func validateCutoverManifest(manifest CutoverManifest, expected ExpectedCutoverSource) error {
-	if expected.AllowLocalRehearsal {
+	if acceptsRehearsalManifest(expected.Provenance.Mode) {
 		if manifest.Status != "PASS" && manifest.Status != "REHEARSAL_ONLY" {
-			return fmt.Errorf("manifest status must be PASS or REHEARSAL_ONLY for local rehearsal import")
+			return fmt.Errorf("manifest status must be PASS or REHEARSAL_ONLY for rehearsal import")
 		}
 	} else if manifest.Status != "PASS" {
 		return fmt.Errorf("manifest status must be PASS")
 	}
-	if err := validateCutoverProducerProvenance(manifest, expected.AllowLocalRehearsal); err != nil {
+	if err := validateCutoverProducerProvenance(manifest, expected.Provenance); err != nil {
 		return err
 	}
 	if manifest.SourceLayer != "animalekarte_stage" {
@@ -421,7 +441,7 @@ func validateCutoverManifest(manifest CutoverManifest, expected ExpectedCutoverS
 		if table.RowCount < 0 {
 			return fmt.Errorf("manifest row count must not be negative for table %s", spec.Name)
 		}
-		if !expected.AllowLocalRehearsal &&
+		if !acceptsRehearsalManifest(expected.Provenance.Mode) &&
 			(spec.Name == "payments" || spec.Name == "payment_splits") &&
 			table.RowCount == 0 {
 			return fmt.Errorf("manifest table %s must contain formal rows", spec.Name)
@@ -433,9 +453,24 @@ func validateCutoverManifest(manifest CutoverManifest, expected ExpectedCutoverS
 	return nil
 }
 
-func validateCutoverProducerProvenance(manifest CutoverManifest, allowLocalRehearsal bool) error {
-	if allowLocalRehearsal {
+func acceptsRehearsalManifest(mode CutoverProvenanceMode) bool {
+	return mode == CutoverProvenanceLocalRehearsal || mode == CutoverProvenanceStagingRehearsal
+}
+
+func validateCutoverProducerProvenance(manifest CutoverManifest, contract CutoverProvenanceContract) error {
+	switch contract.Mode {
+	case "", CutoverProvenanceFormal:
+		// Formal provenance validation continues below.
+	case CutoverProvenanceLocalRehearsal:
 		return validateLocalRehearsalProducerProvenance(manifest)
+	case CutoverProvenanceStagingRehearsal:
+		if contract.Target.Environment != "staging" || contract.Target.Host == "" ||
+			contract.Target.Database == "" || contract.Target.ClinicID <= 0 {
+			return fmt.Errorf("staging rehearsal provenance requires an explicit staging target binding")
+		}
+		return validateStagingRehearsalProducerProvenance(manifest)
+	default:
+		return fmt.Errorf("unknown cutover provenance mode %q", contract.Mode)
 	}
 	if manifest.ManifestSchemaVersion != cutoverManifestSchema ||
 		manifest.StageMappingSHA256 != cutoverStageMappingSHA256 ||
@@ -467,6 +502,18 @@ func validateCutoverProducerProvenance(manifest CutoverManifest, allowLocalRehea
 	}
 	if !validOrderedLayerTimestamps(manifest.SourceSummaryGeneratedAt, manifest.GeneratedAt) {
 		return fmt.Errorf("manifest summary generation timestamps are invalid or out of order")
+	}
+	return nil
+}
+
+func validateStagingRehearsalProducerProvenance(manifest CutoverManifest) error {
+	if err := validateLocalRehearsalProducerProvenance(manifest); err != nil {
+		return err
+	}
+	// Unlike a disposable local reset, shared staging must use the exact frozen
+	// producer mapping consumed by this binary.
+	if manifest.StageMappingSHA256 != cutoverStageMappingSHA256 {
+		return fmt.Errorf("staging rehearsal manifest mapping contract binding is invalid")
 	}
 	return nil
 }

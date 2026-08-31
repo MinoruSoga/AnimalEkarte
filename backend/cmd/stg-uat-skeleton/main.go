@@ -4,7 +4,9 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
 	"regexp"
@@ -63,7 +65,9 @@ var mutatingTableRe = regexp.MustCompile(`(?is)\b(?:INSERT\s+INTO|COPY|UPDATE|DE
 var identRe = regexp.MustCompile(`^[a-z_][a-z0-9_]*$`)
 
 type options struct {
-	command string
+	command               string
+	confirmTargetHost     string
+	confirmTargetDatabase string
 }
 
 type bootstrapOpts struct {
@@ -113,7 +117,7 @@ type dbTx interface {
 
 type runDependencies struct {
 	fromEnv func() (dbconn.ConnParams, error)
-	openDB  func(ctx context.Context, dsn string) (dbSession, error)
+	openDB  func(ctx context.Context, config *pgx.ConnConfig) (dbSession, error)
 }
 
 type pgxSession struct {
@@ -137,8 +141,8 @@ func main() {
 func productionRunDependencies() runDependencies {
 	return runDependencies{
 		fromEnv: dbconn.FromEnv,
-		openDB: func(ctx context.Context, dsn string) (dbSession, error) {
-			conn, err := pgx.Connect(ctx, dsn)
+		openDB: func(ctx context.Context, config *pgx.ConnConfig) (dbSession, error) {
+			conn, err := pgx.ConnectConfig(ctx, config)
 			if err != nil {
 				return nil, err
 			}
@@ -160,10 +164,11 @@ func run(ctx context.Context, args []string, logger *slog.Logger, deps runDepend
 	if database == "" {
 		return fmt.Errorf("DB_NAME is required")
 	}
-	if opt.command == "apply" && !dbconn.IsLocalHost(conn.Host) {
-		if os.Getenv(allowRemoteEnv) != allowRemoteSentinel {
-			return fmt.Errorf("stg-uat-skeleton refuses non-local DB_HOST without %s=%s", allowRemoteEnv, allowRemoteSentinel)
-		}
+	if err := requireStagingTarget(opt, conn.Host, database); err != nil {
+		return err
+	}
+	if !dbconn.IsLocalHost(conn.Host) && os.Getenv(allowRemoteEnv) != allowRemoteSentinel {
+		return fmt.Errorf("stg-uat-skeleton refuses non-local DB_HOST without %s=%s", allowRemoteEnv, allowRemoteSentinel)
 	}
 
 	bootstrap, err := bootstrapFromEnv()
@@ -171,7 +176,11 @@ func run(ctx context.Context, args []string, logger *slog.Logger, deps runDepend
 		return err
 	}
 
-	session, err := deps.openDB(ctx, conn.DSN(database))
+	pgxConfig, err := conn.PGXConfig(database)
+	if err != nil {
+		return err
+	}
+	session, err := deps.openDB(ctx, pgxConfig)
 	if err != nil {
 		return fmt.Errorf("open database: %w", err)
 	}
@@ -196,25 +205,27 @@ func run(ctx context.Context, args []string, logger *slog.Logger, deps runDepend
 		}
 		bindingByClinic = append(bindingByClinic, ids)
 	}
-	cutoverErr := verifyCutoverTablesEmpty(ctx, tx)
-	if err := tx.Commit(ctx); err != nil {
-		return fmt.Errorf("commit: %w", err)
+	if err := commitSkeletonIfPreconditionsPass(ctx, tx); err != nil {
+		return err
 	}
 	if logger != nil {
-		if cutoverErr == nil {
-			logger.Info("stg-uat-skeleton apply complete", "clinic_ids", []int64{clinicHachiojiID, clinicJoutoID})
-		} else {
-			logger.Info("stg-uat-skeleton bindings committed; cutover emptiness check failed",
-				"clinic_ids", []int64{clinicHachiojiID, clinicJoutoID},
-				"cutover_error", cutoverErr.Error(),
-			)
-		}
+		logger.Info("stg-uat-skeleton apply complete", "clinic_ids", []int64{clinicHachiojiID, clinicJoutoID})
 		for _, ids := range bindingByClinic {
 			logSkeletonSeedIDs(logger, ids)
 		}
 	}
-	if cutoverErr != nil {
-		return cutoverErr
+	return nil
+}
+
+func commitSkeletonIfPreconditionsPass(ctx context.Context, tx dbTx) error {
+	if err := verifyCutoverTablesEmpty(ctx, tx); err != nil {
+		if rollbackErr := tx.Rollback(context.WithoutCancel(ctx)); rollbackErr != nil {
+			return fmt.Errorf("%w; rollback failed: %v", err, rollbackErr)
+		}
+		return err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("commit: %w", err)
 	}
 	return nil
 }
@@ -282,16 +293,35 @@ func logSkeletonSeedIDs(logger *slog.Logger, ids clinicBindingIDs) {
 }
 
 func parseOptions(args []string) (options, error) {
-	if len(args) == 0 {
-		return options{}, fmt.Errorf("usage: stg-uat-skeleton apply")
+	if len(args) == 0 || args[0] != "apply" {
+		return options{}, fmt.Errorf("usage: stg-uat-skeleton apply --confirm-target-host=HOST --confirm-target-database=DATABASE")
 	}
-	if args[0] != "apply" {
-		return options{}, fmt.Errorf("command must be apply")
+	var opt options
+	opt.command = args[0]
+	fs := flag.NewFlagSet("stg-uat-skeleton apply", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+	fs.StringVar(&opt.confirmTargetHost, "confirm-target-host", "", "must exactly equal DB_HOST")
+	fs.StringVar(&opt.confirmTargetDatabase, "confirm-target-database", "", "must exactly equal DB_NAME")
+	if err := fs.Parse(args[1:]); err != nil {
+		return options{}, err
 	}
-	if len(args) > 1 {
+	if fs.NArg() != 0 {
 		return options{}, fmt.Errorf("unexpected arguments")
 	}
-	return options{command: "apply"}, nil
+	return opt, nil
+}
+
+func requireStagingTarget(opt options, host, database string) error {
+	if strings.TrimSpace(os.Getenv("APP_ENV")) != "staging" {
+		return fmt.Errorf("stg-uat-skeleton requires APP_ENV=staging")
+	}
+	if opt.confirmTargetHost == "" || opt.confirmTargetHost != host {
+		return fmt.Errorf("target host confirmation must exactly match DB_HOST")
+	}
+	if opt.confirmTargetDatabase == "" || opt.confirmTargetDatabase != database {
+		return fmt.Errorf("target database confirmation must exactly match DB_NAME")
+	}
+	return nil
 }
 
 func bootstrapFromEnv() (bootstrapOpts, error) {

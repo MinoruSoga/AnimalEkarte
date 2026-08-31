@@ -103,17 +103,29 @@ func TestPreflightCutoverBundleAcceptsLocalRehearsalBundle(t *testing.T) {
 	})
 
 	bundle, err := PreflightCutoverBundle(dir, ExpectedCutoverSource{
-		ManifestSHA256:      manifestDigest,
-		ClinicCode:          "hachioji",
-		ClinicOrdinal:       1,
-		RunID:               "run-1",
-		AllowLocalRehearsal: true,
+		ManifestSHA256: manifestDigest,
+		ClinicCode:     "hachioji",
+		ClinicOrdinal:  1,
+		RunID:          "run-1",
+		Provenance:     CutoverProvenanceContract{Mode: CutoverProvenanceLocalRehearsal},
 	})
 	if err != nil {
 		t.Fatalf("PreflightCutoverBundle(local rehearsal) error = %v", err)
 	}
 	if bundle.Manifest.Status != "REHEARSAL_ONLY" {
 		t.Fatalf("status = %q, want REHEARSAL_ONLY", bundle.Manifest.Status)
+	}
+}
+
+func TestStagingRehearsalProvenanceRequiresTargetBinding(t *testing.T) {
+	manifest := CutoverManifest{}
+	for _, contract := range []CutoverProvenanceContract{
+		{Mode: CutoverProvenanceStagingRehearsal},
+		{Mode: CutoverProvenanceStagingRehearsal, Target: CutoverTargetBinding{Environment: "local", Host: "db", Database: "ekarte", ClinicID: 1}},
+	} {
+		if err := validateCutoverProducerProvenance(manifest, contract); err == nil || !strings.Contains(err.Error(), "target binding") {
+			t.Fatalf("contract %+v error = %v, want target binding rejection", contract, err)
+		}
 	}
 }
 

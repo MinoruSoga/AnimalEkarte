@@ -123,16 +123,21 @@ seed:
 
 # STG UAT skeleton: clinics 1/2 and F6 bindings. Does not write the 21 cutover
 # tables (including staffs). Local DB_HOST default db / SSL disable.
-# Remote STG: USER sets DB_HOST/DB_PORT/DB_SSL_MODE and
-# STG_UAT_SKELETON_ALLOW_REMOTE=YES_I_UNDERSTAND (Make forwards both).
+# Requires TARGET_DB_NAME and STG_UAT_SKELETON_CONFIRM_HOST as exact confirmations.
+# Remote STG also requires STG_UAT_SKELETON_ALLOW_REMOTE=YES_I_UNDERSTAND.
 stg-uat-skeleton:
+	@test -n "$${TARGET_DB_NAME}" || (echo "TARGET_DB_NAME is required" >&2; exit 1)
+	@test -n "$${STG_UAT_SKELETON_CONFIRM_HOST}" || (echo "STG_UAT_SKELETON_CONFIRM_HOST is required" >&2; exit 1)
 	$(DC) run --rm \
+		-e APP_ENV=staging \
 		-e STG_UAT_SKELETON_ALLOW_REMOTE="$${STG_UAT_SKELETON_ALLOW_REMOTE}" \
 		-e DB_HOST="$${DB_HOST:-db}" \
 		-e DB_PORT="$${DB_PORT:-5432}" \
 		-e DB_SSL_MODE="$${DB_SSL_MODE:-disable}" \
 		--entrypoint go backend \
-		run ./cmd/stg-uat-skeleton apply
+		run ./cmd/stg-uat-skeleton apply \
+		--confirm-target-host "$${STG_UAT_SKELETON_CONFIRM_HOST}" \
+		--confirm-target-database "$${TARGET_DB_NAME}"
 
 # ============================================================================
 # old_db 21表 CSV の医院別ローカル隔離（_old_db_handoff）
@@ -212,7 +217,7 @@ csv-import-verify:
 # STG_UAT_CSV_IMPORT_ALLOW_REHEARSAL=YES_I_UNDERSTAND.
 # Does NOT pass --allow-local-rehearsal or CSV_IMPORT_EXTRA_ARGS.
 # Compose still hardcodes DB_HOST:db for normal up; run -e overrides below.
-# Local defaults: DB_HOST=db, DB_SSL_MODE=disable, confirm-host db.
+# DB_HOST defaults to db locally; confirmation host and TARGET_DB_NAME remain explicit.
 # Remote STG: USER sets DB_HOST/DB_PORT/DB_SSL_MODE (require|verify-ca|verify-full),
 # matching STG_UAT_CSV_IMPORT_CONFIRM_HOST, and the rehearsal sentinel.
 STG_UAT_CSV_IMPORT_ARGS = \
@@ -226,9 +231,13 @@ STG_UAT_CSV_IMPORT_ARGS = \
 	--fallback-exam-type-id "$${FALLBACK_EXAM_TYPE_ID}" \
 	--trimming-reservation-type-id "$${TRIMMING_RESERVATION_TYPE_ID}" \
 	--cash-payment-method-id "$${PAYMENT_METHOD_CASH_ID}" \
-	--credit-card-payment-method-id "$${PAYMENT_METHOD_CREDIT_CARD_ID}"
+	--credit-card-payment-method-id "$${PAYMENT_METHOD_CREDIT_CARD_ID}" \
+	--confirm-target-host "$${STG_UAT_CSV_IMPORT_CONFIRM_HOST}" \
+	--confirm-target-database "$${TARGET_DB_NAME}"
 
 stg-uat-csv-import-preflight:
+	@test -n "$${TARGET_DB_NAME}" || (echo "TARGET_DB_NAME is required" >&2; exit 1)
+	@test -n "$${STG_UAT_CSV_IMPORT_CONFIRM_HOST}" || (echo "STG_UAT_CSV_IMPORT_CONFIRM_HOST is required" >&2; exit 1)
 	@test -n "$${STG_UAT_CSV_IMPORT_ALLOW_REHEARSAL}" || (echo "STG_UAT_CSV_IMPORT_ALLOW_REHEARSAL is required" >&2; exit 1)
 	@install -d -m 700 sensitive-local/csv-import-reports
 	$(CSV_IMPORT_DC) run --rm --no-deps \
@@ -241,6 +250,8 @@ stg-uat-csv-import-preflight:
 		run ./cmd/csv-import-stg-uat preflight $(STG_UAT_CSV_IMPORT_ARGS)
 
 stg-uat-csv-import:
+	@test -n "$${TARGET_DB_NAME}" || (echo "TARGET_DB_NAME is required" >&2; exit 1)
+	@test -n "$${STG_UAT_CSV_IMPORT_CONFIRM_HOST}" || (echo "STG_UAT_CSV_IMPORT_CONFIRM_HOST is required" >&2; exit 1)
 	@test -n "$${STG_UAT_CSV_IMPORT_ALLOW_REHEARSAL}" || (echo "STG_UAT_CSV_IMPORT_ALLOW_REHEARSAL is required" >&2; exit 1)
 	@install -d -m 700 sensitive-local/csv-import-reports
 	$(CSV_IMPORT_DC) run --rm --no-deps \
@@ -252,11 +263,11 @@ stg-uat-csv-import:
 		--entrypoint go csv-import \
 		run ./cmd/csv-import-stg-uat apply $(STG_UAT_CSV_IMPORT_ARGS) \
 		--confirm-target-write --confirm-backup-ready \
-		--confirm-target-host "$${STG_UAT_CSV_IMPORT_CONFIRM_HOST:-db}" \
-		--confirm-target-database "$${TARGET_DB_NAME}" \
 		--report-path "/migration-reports/$${CLINIC_CODE}-$${MIGRATION_RUN_ID}-stg-uat-apply.json"
 
 stg-uat-csv-import-verify:
+	@test -n "$${TARGET_DB_NAME}" || (echo "TARGET_DB_NAME is required" >&2; exit 1)
+	@test -n "$${STG_UAT_CSV_IMPORT_CONFIRM_HOST}" || (echo "STG_UAT_CSV_IMPORT_CONFIRM_HOST is required" >&2; exit 1)
 	@test -n "$${STG_UAT_CSV_IMPORT_ALLOW_REHEARSAL}" || (echo "STG_UAT_CSV_IMPORT_ALLOW_REHEARSAL is required" >&2; exit 1)
 	@install -d -m 700 sensitive-local/csv-import-reports
 	$(CSV_IMPORT_DC) run --rm --no-deps \
@@ -270,13 +281,17 @@ stg-uat-csv-import-verify:
 
 # STG UAT staff attach: bind accounts onto imported staffs.id.
 # Does not create staff rows (that is cmd/staff-provision).
-# Roster+secrets live outside the repo (0600). Local DB_HOST default db / SSL disable.
+# Roster+secrets live outside the repo (0600). APP_ENV is fixed to staging.
+# TARGET_DB_NAME and STG_UAT_STAFF_ATTACH_CONFIRM_HOST are required.
 # Remote STG: USER sets DB_HOST/DB_PORT/DB_SSL_MODE and
 # STG_UAT_STAFF_ATTACH_ALLOW_REMOTE=YES_I_UNDERSTAND (Make forwards both).
 stg-uat-staff-attach-preflight:
+	@test -n "$${TARGET_DB_NAME}" || (echo "TARGET_DB_NAME is required" >&2; exit 1)
+	@test -n "$${STG_UAT_STAFF_ATTACH_CONFIRM_HOST}" || (echo "STG_UAT_STAFF_ATTACH_CONFIRM_HOST is required" >&2; exit 1)
 	@test -n "$${STG_UAT_STAFF_ATTACH_ROSTER}" || (echo "STG_UAT_STAFF_ATTACH_ROSTER is required" >&2; exit 1)
 	@test -n "$${STG_UAT_STAFF_ATTACH_SECRETS}" || (echo "STG_UAT_STAFF_ATTACH_SECRETS is required" >&2; exit 1)
 	$(DC) run --rm \
+		-e APP_ENV=staging \
 		-e STG_UAT_STAFF_ATTACH_ALLOW_REMOTE="$${STG_UAT_STAFF_ATTACH_ALLOW_REMOTE}" \
 		-e DB_HOST="$${DB_HOST:-db}" \
 		-e DB_PORT="$${DB_PORT:-5432}" \
@@ -286,12 +301,17 @@ stg-uat-staff-attach-preflight:
 		--entrypoint go backend \
 		run ./cmd/stg-uat-staff-attach preflight \
 		--roster=/secure/roster.json \
-		--secrets=/secure/secrets.json
+		--secrets=/secure/secrets.json \
+		--confirm-target-host "$${STG_UAT_STAFF_ATTACH_CONFIRM_HOST}" \
+		--confirm-target-database "$${TARGET_DB_NAME}"
 
 stg-uat-staff-attach:
+	@test -n "$${TARGET_DB_NAME}" || (echo "TARGET_DB_NAME is required" >&2; exit 1)
+	@test -n "$${STG_UAT_STAFF_ATTACH_CONFIRM_HOST}" || (echo "STG_UAT_STAFF_ATTACH_CONFIRM_HOST is required" >&2; exit 1)
 	@test -n "$${STG_UAT_STAFF_ATTACH_ROSTER}" || (echo "STG_UAT_STAFF_ATTACH_ROSTER is required" >&2; exit 1)
 	@test -n "$${STG_UAT_STAFF_ATTACH_SECRETS}" || (echo "STG_UAT_STAFF_ATTACH_SECRETS is required" >&2; exit 1)
 	$(DC) run --rm \
+		-e APP_ENV=staging \
 		-e STG_UAT_STAFF_ATTACH_ALLOW_REMOTE="$${STG_UAT_STAFF_ATTACH_ALLOW_REMOTE}" \
 		-e DB_HOST="$${DB_HOST:-db}" \
 		-e DB_PORT="$${DB_PORT:-5432}" \
@@ -301,7 +321,9 @@ stg-uat-staff-attach:
 		--entrypoint go backend \
 		run ./cmd/stg-uat-staff-attach apply \
 		--roster=/secure/roster.json \
-		--secrets=/secure/secrets.json
+		--secrets=/secure/secrets.json \
+		--confirm-target-host "$${STG_UAT_STAFF_ATTACH_CONFIRM_HOST}" \
+		--confirm-target-database "$${TARGET_DB_NAME}"
 
 # ============================================================================
 # A4 UI rehearsal: isolated, disposable, localhost-only full stack

@@ -413,7 +413,17 @@ func tryRepairKnownChecksumDrift(db *sql.DB, filename, applied, current string) 
 				return false, fmt.Errorf("checksum repair companion SQL failed for %s: %w", filename, err)
 			}
 		}
-		// Extend CHECK constraints and partial index to include 'idexx_vetlab'.
+	}
+
+	// Enum values above are committed separately for PostgreSQL versions that
+	// reject ALTER TYPE ADD VALUE in a transaction. Every remaining companion
+	// DDL statement and the checksum CAS update are one atomic unit.
+	tx, err := db.Begin()
+	if err != nil {
+		return false, fmt.Errorf("begin checksum repair transaction for %s: %w", filename, err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	if filename == "001_init.sql" {
 		for _, stmt := range []string{
 			`ALTER TABLE lab_device_item_masters DROP CONSTRAINT IF EXISTS chk_lab_device_item_masters_source_type`,
 			`ALTER TABLE lab_device_item_masters ADD CONSTRAINT chk_lab_device_item_masters_source_type CHECK (source_type IN ('fuji_nx600', 'fuji_au10v', 'arkray_pu4010', 'idexx_vetlab'))`,
@@ -422,22 +432,24 @@ func tryRepairKnownChecksumDrift(db *sql.DB, filename, applied, current string) 
 			`ALTER TABLE lab_devices DROP CONSTRAINT IF EXISTS chk_lab_devices_source_type`,
 			`ALTER TABLE lab_devices ADD CONSTRAINT chk_lab_devices_source_type CHECK (source_type IN ('fuji_nx600', 'fuji_au10v', 'arkray_pu4010', 'idexx_vetlab'))`,
 		} {
-			if _, err := db.Exec(stmt); err != nil {
+			if _, err := tx.Exec(stmt); err != nil {
 				return false, fmt.Errorf("checksum repair companion DDL failed for %s: %w", filename, err)
 			}
 		}
 	}
-
-	res, err := db.Exec(
-		`UPDATE schema_migrations SET checksum = $1 WHERE filename = $2 AND checksum = $3`,
-		current, filename, applied,
-	)
+	res, err := tx.Exec(`UPDATE schema_migrations SET checksum = $1 WHERE filename = $2 AND checksum = $3`, current, filename, applied)
 	if err != nil {
 		return false, fmt.Errorf("checksum repair update failed for %s: %w", filename, err)
 	}
-	n, _ := res.RowsAffected()
+	n, err := res.RowsAffected()
+	if err != nil {
+		return false, fmt.Errorf("checksum repair row count failed for %s: %w", filename, err)
+	}
 	if n != 1 {
 		return false, fmt.Errorf("checksum repair updated %d rows for %s (want 1)", n, filename)
+	}
+	if err := tx.Commit(); err != nil {
+		return false, fmt.Errorf("commit checksum repair transaction for %s: %w", filename, err)
 	}
 	return true, nil
 }
