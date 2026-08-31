@@ -94,6 +94,15 @@ exit 77
       "https://example.test:",
       "https://example.test:70000",
       "https://example.test\\evil",
+      "https://0x7f000001",
+      "https://0x7f.0.0.1",
+      "https://0x7f.1",
+      "https://2130706433",
+      "https://127.1",
+      "https://0177.0.0.1",
+      "https://127.0.0.1.",
+      "https://[::ffff:192.0.2.128]",
+      "https://[::ffff:c000:280]",
     ]) {
       fs.rmSync(dockerMarker, { force: true });
       const outputDir = path.join(binDir, `bundle-${Math.random().toString(16).slice(2)}`);
@@ -117,13 +126,35 @@ test("canonical origin helper matches browser Origin serialization", () => {
   for (const [raw, expected] of [
     ["https://EXAMPLE.test", "https://example.test"],
     ["https://Example.test:443", "https://example.test"],
+    ["https://Example.test:0443", "https://example.test"],
     ["https://Example.test:8443", "https://example.test:8443"],
     ["https://[2001:0DB8:0:0::1]:443", "https://[2001:db8::1]"],
     ["https://[2001:DB8::1]:8443", "https://[2001:db8::1]:8443"],
+    ["https://127.0.0.1", "https://127.0.0.1"],
+    ["https://service.123.example", "https://service.123.example"],
   ]) {
     const result = spawnSync("node", [helperPath, raw], { encoding: "utf8" });
     assert.equal(result.status, 0, `${raw}: ${result.stderr}`);
     assert.equal(result.stdout.trim(), expected);
+  }
+});
+
+test("canonical origin helper rejects rewritten numeric and mapped IP hosts", () => {
+  const helperPath = fileURLToPath(new URL("./canonicalize-lab-device-origin.mjs", import.meta.url));
+  for (const raw of [
+    "https://0x7f000001",
+    "https://0x7f.0.0.1",
+    "https://0x7f.1",
+    "https://127.1",
+    "https://2130706433",
+    "https://0177.0.0.1",
+    "https://127.0.0.1.",
+    "https://[::ffff:192.0.2.128]",
+    "https://[::ffff:c000:280]",
+  ]) {
+    const result = spawnSync("node", [helperPath, raw], { encoding: "utf8" });
+    assert.notEqual(result.status, 0, raw);
+    assert.equal(result.stdout, "", raw);
   }
 });
 
@@ -132,6 +163,7 @@ test("both macOS entry points canonicalize before later installation work", () =
   const cases = [
     ["https://EXAMPLE.test", "https://example.test"],
     ["https://Example.test:443", "https://example.test"],
+    ["https://Example.test:0443", "https://example.test"],
   ];
   for (const entry of [
     { path: scriptPath, args: (origin, temp) => ["123", origin, path.join(temp, "bundle")] },
@@ -168,6 +200,15 @@ exit 77
       "https://example.test:",
       "https://example.test:70000",
       "https://example.test\\evil",
+      "https://0x7f000001",
+      "https://0x7f.0.0.1",
+      "https://0x7f.1",
+      "https://2130706433",
+      "https://127.1",
+      "https://0177.0.0.1",
+      "https://127.0.0.1.",
+      "https://[::ffff:192.0.2.128]",
+      "https://[::ffff:c000:280]",
     ]) {
       fs.rmSync(dockerMarker, { force: true });
       const result = spawnSync("sh", [directInstallPath, "123", origin], {

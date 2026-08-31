@@ -157,13 +157,15 @@ func NormalizeAllowedOrigin(raw string) (string, bool) {
 	isIPv6 := strings.Contains(hostname, ":")
 	if isIPv6 {
 		ip := net.ParseIP(hostname)
-		if ip == nil {
+		if ip == nil || ip.To4() != nil {
+			// net.IP.String renders IPv4-mapped IPv6 as IPv4, unlike WHATWG URL.
+			// Reject it rather than risk storing a different exact CORS origin.
 			return "", false
 		}
 		hostname = ip.String()
-	} else if strings.IndexFunc(hostname, func(r rune) bool { return (r < '0' || r > '9') && r != '.' }) == -1 && net.ParseIP(hostname) == nil {
-		// Browsers rewrite legacy numeric IPv4 forms such as 127.1. Reject them
-		// rather than store a value that Go and the browser serialize differently.
+	} else if isLegacyIPv4Hostname(hostname) {
+		// Browsers rewrite legacy numeric IPv4 forms such as 127.1 and
+		// 0x7f000001. Reject them rather than store a different serialization.
 		return "", false
 	}
 
@@ -173,6 +175,7 @@ func NormalizeAllowedOrigin(raw string) (string, bool) {
 		if portErr != nil || value == 0 {
 			return "", false
 		}
+		port = strconv.FormatUint(value, 10)
 	}
 	if (parsed.Scheme == "https" && port == "443") || (parsed.Scheme == "http" && port == "80") {
 		port = ""
@@ -189,6 +192,38 @@ func NormalizeAllowedOrigin(raw string) (string, bool) {
 		canonicalHost = net.JoinHostPort(hostname, port)
 	}
 	return parsed.Scheme + "://" + canonicalHost, true
+}
+
+func isLegacyIPv4Hostname(hostname string) bool {
+	if ip := net.ParseIP(hostname); ip != nil && ip.To4() != nil {
+		return false
+	}
+
+	candidate := strings.TrimSuffix(hostname, ".")
+	parts := strings.Split(candidate, ".")
+	if len(parts) == 0 || len(parts) > 4 {
+		return false
+	}
+	for _, part := range parts {
+		if part == "" {
+			return false
+		}
+		digits := part
+		base := byte(10)
+		if strings.HasPrefix(part, "0x") || strings.HasPrefix(part, "0X") {
+			digits = part[2:]
+			base = 16
+		}
+		if digits == "" || strings.IndexFunc(digits, func(r rune) bool {
+			if r >= '0' && r <= '9' {
+				return false
+			}
+			return base != 16 || (r < 'a' || r > 'f') && (r < 'A' || r > 'F')
+		}) >= 0 {
+			return false
+		}
+	}
+	return true
 }
 
 func (h *handler) ServeHTTP(response http.ResponseWriter, request *http.Request) {
