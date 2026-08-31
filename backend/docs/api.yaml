@@ -7915,6 +7915,7 @@ components:
           format: date-time
     LabDeviceItemMaster:
       type: object
+      required: [id, source_type, device_item_code, unit, value_shape, exam_type_field_id, sort_order, is_active]
       properties:
         id:
           type: integer
@@ -7951,6 +7952,7 @@ components:
           type: boolean
     LabDeviceItemMasterEnsureResponse:
       type: object
+      required: [inserted_count, items]
       properties:
         inserted_count:
           type: integer
@@ -7961,6 +7963,7 @@ components:
             $ref: '#/components/schemas/LabDeviceItemMaster'
     LabDevice:
       type: object
+      required: [id, source_type, name, exam_type_id, is_active, sort_order]
       properties:
         id:
           type: integer
@@ -8046,6 +8049,7 @@ components:
             $ref: '#/components/schemas/LabDeviceItemMaster'
     LabDeviceJobItem:
       type: object
+      required: [device_item_code, value_raw, unit, flag, needs_review, sort_order]
       properties:
         device_item_code:
           type: string
@@ -8058,7 +8062,6 @@ components:
         exam_type_field_id:
           type: integer
           format: int64
-          nullable: true
         needs_review:
           type: boolean
         sort_order:
@@ -8104,6 +8107,7 @@ components:
           type: string
     LabDeviceWait:
       type: object
+      required: [pet_id, pet_name, staff_id, expires_at]
       properties:
         pet_id:
           type: integer
@@ -8118,6 +8122,7 @@ components:
           format: date-time
     LabDeviceStation:
       type: object
+      required: [wait_ttl_seconds, slots_json]
       properties:
         wait_ttl_seconds:
           type: integer
@@ -8181,6 +8186,7 @@ components:
           type: string
     LabDeviceFramesResponse:
       type: object
+      required: [results]
       properties:
         results:
           type: array
@@ -8188,6 +8194,7 @@ components:
             $ref: '#/components/schemas/LabDeviceFrameResult'
     LabDeviceFrameResult:
       type: object
+      required: [duplicate, job]
       properties:
         duplicate:
           type: boolean

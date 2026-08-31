@@ -42,9 +42,18 @@ func TestLabDeviceOpenAPIResponseParity(t *testing.T) {
 		name   string
 		typeOf reflect.Type
 	}{
+		{"LabDeviceItemMaster", reflect.TypeOf(labDeviceItemMasterResponse{})},
+		{"LabDeviceItemMasterEnsureResponse", reflect.TypeOf(labDeviceItemMasterEnsureResponse{})},
+		{"LabDevice", reflect.TypeOf(labDeviceResponse{})},
+		{"SaveLabDeviceConfigurationResponse", reflect.TypeOf(saveLabDeviceConfigurationResponse{})},
+		{"LabDeviceJobItem", reflect.TypeOf(labDeviceJobItemResponse{})},
 		{"LabDeviceJobCard", reflect.TypeOf(labDeviceJobCardResponse{})},
-		{"LabDeviceBoard", reflect.TypeOf(labDeviceBoardResponse{})},
+		{"LabDeviceWait", reflect.TypeOf(labDeviceWaitResponse{})},
+		{"LabDeviceStation", reflect.TypeOf(labDeviceStationResponse{})},
 		{"LabDeviceTodayVisit", reflect.TypeOf(labDeviceTodayVisitResponse{})},
+		{"LabDeviceBoard", reflect.TypeOf(labDeviceBoardResponse{})},
+		{"LabDeviceFramesResponse", reflect.TypeOf(labDeviceReceiveResponse{})},
+		{"LabDeviceFrameResult", reflect.TypeOf(labDeviceFrameResultResponse{})},
 	}
 	for _, contract := range contracts {
 		t.Run(contract.name, func(t *testing.T) {
