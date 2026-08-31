@@ -11,9 +11,10 @@ import {
 } from "./use-reservation-actions";
 
 const updateMutateMock = vi.fn();
+const createMutateAsyncMock = vi.fn();
 
 vi.mock("../api/create-reservation", () => ({
-  useCreateReservation: () => ({ mutateAsync: vi.fn() }),
+  useCreateReservation: () => ({ mutateAsync: createMutateAsyncMock }),
 }));
 
 vi.mock("../api/delete-reservation", () => ({
@@ -227,5 +228,47 @@ describe("buildReservationUpdateRequest (BUG-012)", () => {
     expect(payload?.req).toHaveProperty("end_time");
     expect(payload?.req).not.toHaveProperty("doctor_id");
     expect(payload?.req).not.toHaveProperty("start_time");
+  });
+});
+
+
+describe("useReservationActions multi-pet retry", () => {
+  beforeEach(() => {
+    createMutateAsyncMock.mockReset();
+  });
+
+  it("retries only pets that failed after a partial create", async () => {
+    createMutateAsyncMock
+      .mockResolvedValueOnce(makeReservation({ id: "created-10" }))
+      .mockRejectedValueOnce(new Error("temporary failure"))
+      .mockResolvedValueOnce(makeReservation({ id: "created-11" }));
+    const { result } = setup();
+    const data: ReservationFormData = {
+      start: new Date("2026-05-29T03:30:00.000Z"),
+      end: new Date("2026-05-29T04:00:00.000Z"),
+      visitType: "first",
+      type: "1",
+      doctor: "1",
+      status: "confirmed",
+    };
+    const pets = [
+      { id: "10", ownerId: "20", name: "ポチ" },
+      { id: "11", ownerId: "20", name: "タマ" },
+    ] as Parameters<typeof result.current.handleSave>[1];
+
+    let firstResult: string | null = null;
+    await act(async () => {
+      firstResult = await result.current.handleSave(data, pets);
+    });
+    expect(firstResult).toBeTruthy();
+    expect(createMutateAsyncMock).toHaveBeenCalledTimes(2);
+
+    await act(async () => {
+      await result.current.handleSave(data, pets);
+    });
+    expect(createMutateAsyncMock).toHaveBeenCalledTimes(3);
+    expect(createMutateAsyncMock.mock.calls[2]?.[0]).toEqual(
+      expect.objectContaining({ pet_id: 11 }),
+    );
   });
 });

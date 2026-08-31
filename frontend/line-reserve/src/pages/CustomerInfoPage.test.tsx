@@ -179,6 +179,28 @@ describe('CustomerInfoPage', () => {
     });
   });
 
+  it('backend-compatible prefilled phone is accepted and phone errors are described accessibly', async () => {
+    const user = userEvent.setup();
+    const onNext = vi.fn();
+    const profile: LiffProfile = {
+      line_user_id: 'line-user-phone',
+      display_name: 'LINE表示名',
+      additional_fields: { name: '山田花子', phone: '052-000-0000' },
+    };
+    render(<CustomerInfoPage profile={profile} initialInfo={emptyInfo} onNext={onNext} onBack={vi.fn()} />);
+
+    await user.click(screen.getByRole('button', { name: '次へ' }));
+    expect(onNext).toHaveBeenCalledWith(expect.objectContaining({ phone: '052-000-0000' }));
+
+    const phoneInput = screen.getByLabelText(/電話番号/);
+    await user.clear(phoneInput);
+    await user.type(phoneInput, 'invalid');
+    await user.click(screen.getByRole('button', { name: '次へ' }));
+    expect(phoneInput).toHaveAttribute('aria-invalid', 'true');
+    expect(phoneInput).toHaveAttribute('aria-describedby', 'customer-phone-error');
+    expect(screen.getByRole('alert')).toHaveAttribute('id', 'customer-phone-error');
+  });
+
   describe('R-F4: 新規ペット追加/削除', () => {
     it('「+ 新しいペットを追加」→ペット名入力→追加すると一覧に表示され、onNext の pets に反映される', async () => {
       const user = userEvent.setup();

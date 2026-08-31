@@ -178,12 +178,16 @@ func TestListGlobalCheckupsQuery_ToServiceInput(t *testing.T) {
 
 func TestNewListGlobalCheckupsQuery(t *testing.T) {
 	query := newListGlobalCheckupsQuery(1, url.Values{
+		"pet_id":          {"42"},
 		"start_date":      {"2026-01-01"},
 		"end_date":        {"2026-01-31"},
 		"next_start_date": {"2026-12-01"},
 		"next_end_date":   {"2026-12-31"},
 	})
 
+	if query.PetID == nil || *query.PetID != 42 {
+		t.Errorf("PetID = %v, want 42", query.PetID)
+	}
 	if query.ClinicID != 1 {
 		t.Errorf("ClinicID = %d, want 1", query.ClinicID)
 	}

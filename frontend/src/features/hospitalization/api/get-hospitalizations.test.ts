@@ -111,6 +111,14 @@ describe("getHospitalizations request params (BUG-009)", () => {
     expect(result.limit).toBe(HOSPITALIZATION_LIST_DEFAULT_LIMIT);
   });
 
+  it("forwards pet_id so history pagination is scoped before the page is selected", async () => {
+    mockPage([{ id: 1, status: "discharged" }], 1);
+    await getHospitalizations({ petId: "42", statusFilter: HOSPITALIZATION_FILTER_STATUS.ALL });
+    expect(mockedGet).toHaveBeenCalledWith("/v1/hospitalizations", {
+      params: expect.objectContaining({ pet_id: "42" }),
+    });
+  });
+
   it("forwards start_date/end_date with status", async () => {
     mockPage([{ id: 1, status: "admitted" }], 1);
     await getHospitalizations({
