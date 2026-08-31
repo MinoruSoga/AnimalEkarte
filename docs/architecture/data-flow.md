@@ -11,13 +11,13 @@
 
 ## 1. トレーサビリティとロギング
 
-本システムは、すべての処理を一意の ID で追跡し、商用グレードの運用監視を実現しています。
+登録済み RequestID middleware を通る HTTP request は、request-completion log と response header で request ID を追跡できます。これは background work や downstream log 全体の自動 correlation を保証しません。
 
 ### Request ID の伝播フロー
 1.  **生成**: リクエスト受信時、`middleware.RequestID()` が 8 文字のランダム hex 文字列（4 バイト）を生成。クライアントが英数字・ハイフン・アンダースコアのみ 64 文字以内の有効な `X-Request-ID` を送信した場合はそれを再利用。
 2.  **格納**: `gin.Context` に `request_id` として保持。
 3.  **返却**: レスポンスヘッダー `X-Request-ID` としてクライアントへ返却。
-4.  **記録**: `slog` 出力に常に含まれ、ログ基盤（CloudWatch等）での一括検索を可能にします。
+4.  **記録**: request-completion structured log に含めます。ID は `gin.Context` にだけ保持され、`c.Request.Context()` へ自動伝播しないため、downstream の全 `slog.*Context` log に常に含まれるわけではありません。出力先は現在設定された log sink / platform に従います。
 
 ---
 
@@ -31,7 +31,7 @@
     - `access_token` Cookie（または Bearer）から JWT を検証（`middleware.Auth`）。
     - トークンの `clinic_ids` はログイン時スナップショットであり **最終 authority ではない**。
     - 原則として毎リクエスト `current_access_service` で account / staff / clinic assignment を再解決し、信頼できる clinic scope を `gin.Context` に格納する。
-    - 対象 clinic は `X-Clinic-ID`（未指定時は既定 clinic）で確定し、再解決済み所属集合との一致を必須とする。DB 障害時の PO-005 例外は [auth.md §4.2](./auth.md) を参照。
+    - 対象 clinic は `X-Clinic-ID`（未指定時は既定 clinic）で確定し、再解決済み所属集合との一致を必須とする。request-time authority lookup が利用不能な場合も 503 で fail closed とし、JWT snapshot へ fallback しない。
 2.  **HTTP 境界（`internal/owner` 等）**:
     - ページング等の query を bind / 検証する。
     - ルート側の `RequirePermission` 等で RBAC を強制する。
@@ -66,7 +66,7 @@
 
 | ステータス | 分類 | レスポンス内容 |
 |:---|:---|:---|
-| **400** | 不正な入力 | フィールド名を含むバリデーションエラー |
+| **400** | 不正な入力 | safe error string。endpoint が明示的に field detail を返す contract の場合だけ field 名を含む |
 | **401/403** | 認証/認可エラー | 権限不足の明示 |
 | **404** | リソース不在 | 他テナントへのアクセスも「不在」として扱い情報を隠蔽 |
 | **409** | 整合性・衝突 | 使用中のマスタ削除、重複登録など |
@@ -76,10 +76,10 @@
 
 ## 5. マルチテナント隔離原則
 
-全エンドポイントで以下の原則を徹底しています。
+clinic-scoped endpoint は以下の原則を満たす。
 
-- **No Trust (request-time authority)**: クライアントが query/body で指定する `clinic_id` は信用しない。通常リクエストの最終 authority は JWT の `clinic_ids` スナップショットではなく、`current_access_service` による request-time 再解決結果である。対象 clinic は `X-Clinic-ID`（未指定時は既定 clinic）で選び、再解決済みの有効所属集合との一致を必須とする（system admin も active clinic のみ）。DB 障害時の PO-005 例外は [auth.md §4.2](./auth.md) を参照。
-- **Strict Isolation**: 全クエリに clinic スコープを適用し、他院のデータ混入を物理的に遮断する。
+- **No Trust (request-time authority)**: クライアントが query/body で指定する `clinic_id` は信用しない。通常リクエストの最終 authority は JWT の `clinic_ids` スナップショットではなく、`current_access_service` による request-time 再解決結果である。対象 clinic は `X-Clinic-ID`（未指定時は既定 clinic）で選び、再解決済みの有効所属集合との一致を必須とする（system admin も active clinic のみ）。lookup availability failure も 503 で fail closed とし、token snapshot を continuity authority にしない。
+- **Strict Isolation**: clinic-owned data の read/write/delete、join/preload/count/bulk/background path に clinic scope と ownership check を適用する。index だけを isolation の証明にしない。
 - **Audit Trace (path-dependent)**: セキュリティ・資格情報・clinic 切替・臨床/会計上必須と定めた変更など、経路ごとに監査対象が決まる。すべての CUD が機械的に `audit_logs` へ入るわけではなく、タグ同期のように意図的に監査しない経路もある。必須監査は業務 write と同一 transaction で fail-closed にする（詳細は各 domain / [auth.md](./auth.md)）。
 
 ---

@@ -80,7 +80,7 @@ BE9の構造移行後、production実装は`internal/<domain>`へ収束した。
 
 - error chain を保持し、処理できる境界まで返す。
 - 同じ failure を複数箇所で重複ログしない。
-- request ID/trace 等の correlation を Context と structured log で伝播する。
+- RequestID middleware は ID を `gin.Context` に保持し、request-completion structured log と response header に含める。現状は `c.Request.Context()` へ自動伝播しないため、downstream `slog.*Context` が常に request ID を持つとは扱わない。
 - unknown error は汎用 500 とし、診断情報は server-side に限定する。
 - panic recovery は process crash 回避用であり、通常の error flow の代替にしない。
 

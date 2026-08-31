@@ -3,7 +3,7 @@
 > 対象: 旧BE-refactor.md BE9-2A（2026-07-24退役・経緯はgit履歴）。
 > 実行日: 2026-07-19。手法: codegraph(callers/callees/explore) + grep/rg + git log を第一手段とする再実測（旧 BE8/§9 の file-prefix 分類はそのまま正本にせず、再実測との差分を§6に記録）。
 > 分類マニフェスト（全761 production Go source row、未分類0件）: [be9-2a-classification-manifest.csv](be9-2a-classification-manifest.csv)。移行後target packageの物理file数とは別指標。
-> **本docは分類とboundary inventoryの正本**。target設計の裁定は[ADR-006](adr/006-backend-domain-package-boundaries.md)。BE9移行は2026-07-24にcode complete（release pending）となり、release gate の作業入口は Linear hub [BRT-4](https://linear.app/baritechllc/issue/BRT-4) と [`todo.md`](../../todo.md)（旧 OPS-13〜17 節は死リンク）。
+> **本docは BE9-2A 分類と boundary inventory の historical source record**。target設計の現行裁定は[ADR-006](adr/006-backend-domain-package-boundaries.md)。BE9移行は2026-07-24にcode complete（release pending）となり、release gate の作業入口は Linear hub [BRT-4](https://linear.app/baritechllc/issue/BRT-4) と [`todo.md`](../../todo.md)（旧 OPS-13〜17 節は死リンク）。
 > **2026-07-24 final recensus**: 本文のcall-site、fan-in/out、file pathは明示がない限りBE9-2A開始時snapshotであり、現行作業listではない。13 target packageは全て移行済みで、BE9はcode complete / release pending。
 
 ## 0. 結論（Success Criteria 対応）
@@ -13,7 +13,9 @@
 - 実測で見つかった生の双方向結合（cycle）は 10 組（当初7組として起票し、round1 reviewで`LstepTagSyncService`経由の3組を追加）。BE9-2A時点ではreservation↔staffだけ設計裁定が必要だったが、2026-07-20に案A（staffをwrite owner）を採用し、reservation Phase 0で実装済み。現在は全10組の解消方式が確定している（§5、§7.1）。
 - §9（旧 BE8-2、service のみの go/ast 実測）との差分は §6 に記録。最大の乖離は medicalrecord ドメイン（旧見積 96 file → 再実測 185 file）。
 
-### 0.1 移行後live-tree recensus（2026-07-24）
+### 0.1 2026-07-24 recensus（historical snapshot）
+
+> この節の package file 数を current package-size inventory として使わない。HEAD で再計測すること。
 
 classification manifest 761 rowはBE9-2A開始時のsource-path provenanceを保持するimmutable snapshotであり、移行後fileを追記・置換する台帳ではない。現行treeとの照合結果は次の通り。
 
@@ -23,7 +25,7 @@ classification manifest 761 rowはBE9-2A開始時のsource-path provenanceを保
 - production Go import: 旧`internal/handler|service|repository`へのedge 0。
 - composition: `cmd/api` production 22 file、target domainを直接importするfile 18。
 
-| target package | 現行production Go file |
+| target package | 2026-07-24 recensus production Go files (historical snapshot) |
 |---|---:|
 | medicalrecord | 180 |
 | lstep | 131 |
@@ -314,7 +316,7 @@ fan-out: 0(依存先を持たない純粋リーフ)。route: N/A(自身はルー
 
 ### 5.0 acyclicity機械検証（round2 santa dual-reviewで要求されたコマンド+出力の明示）
 
-DESIGNされた許可依存グラフ（13 target package、下記10cycleの解消後に残るedgeのみ）に対し、使い捨てPythonスクリプト（Kahnのtopological sortアルゴリズム、scratchpadのみに配置・repo非コミット——本タスクの制約「使い捨てmeasurement scriptはscratchpadのみ・repo非コミット」に従う）でcycle detectionを実行した。**検証対象はDESIGNされた許可グラフであり、生の現行コード参照グラフではない**——後者は10組のraw cycleを含むため意図的にacyclicではない（advisorの助言通り、acyclicity証明はDESIGNされたグラフに対してのみ行う）。
+この 13 node / 45 edge は **BE9-2A 当時の historical design snapshot** である。現行 mechanical allowlist は `identitylink` を含む 14 domain / 46 edge で、§5.2 の lint source を正とする。DESIGNされた許可依存グラフ（13 target package、下記10cycleの解消後に残るedgeのみ）に対し、使い捨てPythonスクリプト（Kahnのtopological sortアルゴリズム、scratchpadのみに配置・repo非コミット——本タスクの制約「使い捨てmeasurement scriptはscratchpadのみ・repo非コミット」に従う）でcycle detectionを実行した。**検証対象はDESIGNされた許可グラフであり、生の現行コード参照グラフではない**——後者は10組のraw cycleを含むため意図的にacyclicではない（advisorの助言通り、acyclicity証明はDESIGNされたグラフに対してのみ行う）。
 
 ```
 $ python3 be92a_toposort.py
@@ -379,9 +381,9 @@ edge定義（`EDGES[X] = X が依存してよい対象のリスト`、Kahn法で
 |---|---:|---:|---|
 | LSTEP/LINE | 106 files | **119 source rows**（初回106、後続の分類訂正を反映） | 旧見積はfilename-prefixのみ。再実測後もtag-sync receiver誤分類とcheckup_sync帰属を実装時に訂正し、現行manifestでは119に確定 |
 | medical record/clinical | 96 files | **175 source rows**（初回185、後続の分類訂正を反映） | 旧見積は文字通り"medical_record"-prefixファイルのみをカウント。checkup_syncをlstepへ帰属訂正した後も最大ドメインである点は不変 |
-| reservation/appointment/trimming | 79 files(合算) | reservation 77 + trimming 23 = **100 source rows**(trimmingを独立target domainへ分離) | trimmingを独立package化する決定 + liff/reservation_line_routes 13 sourceの吸収 |
+| reservation/appointment/trimming | 79 files(合算) | reservation 78 + trimming 23 = **101 source rows**(trimmingを独立target domainへ分離) | trimmingを独立package化する決定 + liff/reservation_line_routes 13 sourceの吸収 |
 | billing/accounting | 51 files | **65 source rows** | insurance/campaign/estimate/refund等のroll-inを実測で確認(account_*の3 sourceはむしろauthへ除外、正味+14) |
-| owner/pet/staff/vital | 34 files(合算) | owner 13 + pet 18 + staff 31 = **62 source rows**(vitalはmedicalrecordへ確定、合算対象外) | 旧見積のリテラルprefixカウントに対し、RBAC resource名・route nesting構造による検証で大幅増。petのLSTEP tag-sync receiver 3 sourceは§2でlstepへ訂正済み |
+| owner/pet/staff/vital | 34 files(合算) | owner 13 + pet 18 + staff 30 = **61 source rows**(vitalはmedicalrecordへ確定、合算対象外) | 旧見積のリテラルprefixカウントに対し、RBAC resource名・route nesting構造による検証で大幅増。petのLSTEP tag-sync receiver 3 sourceは§2でlstepへ訂正済み |
 
 **根本原因**: 旧見積表(BE-refactor.md L60-67)はfilename-prefixの単純カウントで、RBAC resource定数(`model.Resource*`)やroute registration構造(`handler.go`のnested route/master_routes.goの権限グループ分け)との突合を行っていなかった。本再実測はこれらを一次証拠として使用し、加えて8並列エージェントによる独立検証(特にreceiver型によるGoパッケージ境界の確認)で機械的prefix-matchingの限界(lstep_tag_sync_care*.goのようなreceiver-vs-filename不一致)を補正した。
 

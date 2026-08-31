@@ -21,10 +21,8 @@
 
 **Checkup 系（#211 健診パッケージ）を健診機能の唯一の正系統とする。**
 
-- #160 で投入した exam 系健診 seed（exam_types 12000-12003 / exam_type_fields 45-58）は
-  `003_seed_demo.sql` から撤去（commit `406c6264`）。同時に、関連内容は旧 SQL 形式から
-  現行の `001_init.sql` と `003_demo` seed bundle の管理へ移行済み。
-- ID 12000-12003 / 45-58 は既適用環境に残存しうるため**再利用禁止**（seed 内の墓標コメントに明記）。
+- #160 で投入した exam 系健診 seed（exam_types 12000-12003 / exam_type_fields 45-58）は旧 `003_seed_demo.sql` から撤去済み（commit `406c6264`）。SQL-to-CSV 移行後に存在した `seeds/003_demo` bundle も commit `09d2c9e2b` で退役し、HEAD の active seed bundle は `seeds/002_master` だけである。
+- ID 12000-12003 / 45-58 は既適用環境に残存しうるため**再利用禁止**。現行 seed に tombstone comment はないため、この ADR を reservation record とする。新しい割当時は当該 ID 範囲を再利用しないことを review で確認する。
 - Examination 系は本来の臨床検査（血液検査等）専用に戻る。健診の記録・集計・閾値判定は
   Checkup パッケージ（`001_init.sql`）が担う。
 
@@ -39,8 +37,7 @@
 - 運用開始前の決定のため、既存患者データの移行は不要。
 
 **注意点:**
-- seed バンドル（`seeds/003_demo` を含む）を編集した場合、既適用環境では checksum mismatch が発生する前提で反映方針を整理する必要がある。Cloudflare 正系統デプロイには
-  `db_reset=true` の経路がなく、旧AWS ECS/RDSも廃止済みである。既存環境の是正はappend-only migrationまたは明示承認済みの隔離再構築として別途計画する。
+- active seed は `backend/migrations/seeds/002_master` のみ。seed / migration の変更は `backend/migrations/CLAUDE.md` と現行 migration policy に従い、適用済み環境の checksum と反映経路を変更ごとに評価する。退役した `003_demo` を編集対象として扱わない。
 - checkup パッケージ関連は `001_init.sql` に統合されており、未適用環境では新規デプロイまたは必要な再構築時に適用される。
 - 既適用環境の exam_types 12000-12003 / exam_type_fields 45-58 を除去する場合は、影響件数を確認したappend-only migrationとして扱う。暗黙のDB resetに依存しない。
 

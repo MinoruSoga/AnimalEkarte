@@ -1,7 +1,8 @@
 # ARCH-A4 trigger ledger
 
-> **Purpose**: Record when (and whether) A4 subdomain refactors may start. Pain-first; no bulk splits.
-> **Related**: `todo.md` ARCH-A4, [composition-root-conventions](composition-root-conventions.md).
+> **Purpose**: Immutable historical record of the 2026-08-07 ARCH-A4 measurement and landed slices. Pain-first; no bulk splits.
+> **Status**: Historical snapshot. `todo.md` no longer has an ARCH-A4 / #259 task pointer. Linear/BRT-4 is the execution SoT, but no active ARCH-A4 issue was verified for this refresh. Remeasure HEAD before using any candidate below.
+> **Related**: [composition-root-conventions](composition-root-conventions.md).
 
 ## 2026-08-07 measurement
 
@@ -19,7 +20,7 @@
 | **A4-billing-S2** | Extract unbilled repo queries to `billing_item_repository_unbilled.go` (769 → ~559 + 224, behavior unchanged) | `13d043315` |
 | **A4-billing-S3** | Extract estimate successor path to `estimate_service_successor.go` (598 → ~475 + 137, behavior unchanged) | `264777c88` |
 
-## Next candidates (still trigger-gated)
+## Historical next candidates (as of 2026-08-07; remeasure before use)
 
 1. **billing_item_service residual** (post-close / create helpers) — only when a feature PR already forces wide touch.  
 2. **accounting_*.go** further cohesion — only with accounting feature work.  

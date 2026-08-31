@@ -1,6 +1,7 @@
 # ADR-008: Macローカル検査機器受信agent
 
 - Status: Accepted
+- Implementation: code complete; physical-device UAT and release gates pending
 - Date: 2026-08-20
 - Supersedes: ADR-007の「メニューバー常駐／デーモンは今は作らない」判断のみ
 

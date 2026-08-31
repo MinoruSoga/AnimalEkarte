@@ -1,19 +1,19 @@
 # ADR-007: 城東検査機器 — 受信永続化・1画面・即 persist + Undo
 
-**Status**: Accepted  
+**Status**: Accepted; local receive-agent choice partially superseded by [ADR-008](008-local-lab-device-agent.md)
+
 **Implementation**: **code complete** for BRT-95〜98 paths on main (decoder · masters · board · commit allowlist). **Not** hospital release-ready by itself — real-device UAT, agent ops, and clinic rollout remain human gates (see BRT-94 / LAB_DEVICE_CONNECTIVITY).  
 **Date**: 2026-08-19 (status split 2026-08-30)
 **Deciders**: PO（MinoruSoga）
 **Relates to**: ADR-002（clinic_id）、ADR-006（`medicalrecord` write owner）、Linear [BRT-100](https://linear.app/baritechllc/issue/BRT-100) / [BRT-94](https://linear.app/baritechllc/issue/BRT-94)
 **接続・機器正本**: [`docs/ops/deploy/LAB_DEVICE_CONNECTIVITY.md`](../../ops/deploy/LAB_DEVICE_CONNECTIVITY.md)
-**電文正本**: `old_db/docs/lab-go/go-impl/device-serial-adapter.md`
-**体験正本**: `old_db/docs/lab-go/go-impl/REVIEW-FABLE-2026-08-19-AE-LAB-UX.md`
+**Historical external evidence**: `old_db/docs/lab-go/go-impl/device-serial-adapter.md` and `old_db/docs/lab-go/go-impl/REVIEW-FABLE-2026-08-19-AE-LAB-UX.md` belonged to an external archive and are not paths in this repository. Current repository-accessible connectivity authority is `LAB_DEVICE_CONNECTIVITY.md` above.
 
 ## Context
 
 現行 `lab_import_jobs` は行カウンタと状態だけを持つ。`Preview` はステートレス、`Commit` はクライアントが `LabExamPersistInput`（`exam_type_id` 等）を渡すワンショット。受信フレームをペット選択まで置くテーブルが無い。
 
-城東3台（NX600 / AU10V / PU-4010）は検査用 Mac の待機ページが有線シリアルを読む。ファイルアップロード・常駐デーモン・`drwan` は製品経路にしない。
+**Original BRT-96 scope (historical):** 城東3台（NX600 / AU10V / PU-4010）は検査用 Mac の待機ページが有線シリアルを読む案だった。ファイルアップロード・常駐デーモン・`drwan` を製品経路にしない判断のうち、常駐受信を避ける部分は ADR-008 が supersede し、現在は user LaunchAgent を採用する。
 
 Fable UX（YES-WITH-FIXES）: 日常は本日診療中カルテを1回選んで16項目手打ちを消す（ペット検索はしない。正本は LAB_DEVICE_CONNECTIVITY）。ただし前の子の待機が残ったまま次送信が届く誤紐付けを、確認ダイアログなしで塞ぐまで医院に出さない。
 
@@ -26,7 +26,7 @@ Fable UX（YES-WITH-FIXES）: 日常は本日診療中カルテを1回選んで1
 | 削除する工程 | 手打ち、ファイル作成/選択、確認ダイアログ、待機と未紐付けの往復、日常のポート選択 |
 | 残す操作 | 本日診療中カルテ選択1回。送信は機器側（従来どおり） |
 | メトリクス | 追加操作は本日診療中カルテ選択1回。Undo / 待機解除 / 後付けは各1操作 |
-| やらない | アップロード、取込値エディタ、遠隔待機起動、検体ID自動紐付け、未紐付け検索、常駐アプリ（試用で再送が週に何度も要ると観測されるまで） |
+| やらない | アップロード、取込値エディタ、遠隔待機起動、検体ID自動紐付け、未紐付け検索。常駐アプリを避ける判断は historical で、ADR-008 が user LaunchAgent 採用へ supersede |
 
 ## Decision
 
@@ -79,9 +79,9 @@ bytes + 機器ヒント（任意） → LabDeviceFrame | invalid_payload
 
 `LabDeviceFrame`: `source_type`, `source_fingerprint`, `measured_at`, `specimen_id_raw`, `device_hint`, `items[]`, `warnings[]`。
 
-Postgres enum は BRT-95 では触らない。fresh `001_init.sql` の `CREATE TYPE lab_import_source_type` に `fuji_nx600` / `fuji_au10v` / `arkray_pu4010` を含む（2026-08-19 統合。旧 F9 の ADD VALUE 分割は incremental 時代の制約）。使う側は BRT-96 以降。
+Original BRT-96 scope では3値だった。現行 `001_init.sql` の `CREATE TYPE lab_import_source_type` は `fuji_nx600` / `fuji_au10v` / `arkray_pu4010` / `idexx_vetlab` を含み、current decoder/persist path も IDEXX を実装する。
 
-テストはサニタイズ合成バイトのみ。実 `.raw` は old_db に残し、AnimalEkarte へ複製しない。
+テストはサニタイズ合成バイトのみ。実 `.raw` は上記 external archive にだけ残し、AnimalEkarte へ複製しない。
 
 ### 3. device persist は `job_id` + `pet_id`。既存 Commit は触らない
 
@@ -99,7 +99,7 @@ Postgres enum は BRT-95 では触らない。fresh `001_init.sql` の `CREATE T
 | `POST /lab-imports/:job_id/detach` | ［取り消す］。下記 §5 |
 | `GET /lab-device/unlinked` | 診察端末バナー用。件数は 0〜2 想定。page/q は作らない |
 
-`source_type` が3種以外の attach/detach は 400。
+device attach/detach は現行4種（`fuji_nx600`, `fuji_au10v`, `arkray_pu4010`, `idexx_vetlab`）だけを受け、それ以外は 400。
 
 Write owner は既存どおり `medicalrecord`。`internal/lab` は作らない。
 
@@ -182,7 +182,7 @@ device ［取り消す］は **detach**:
 
 届いていない → 機器の送信をもう一度押す。3台とも再押下可能を観測済み。指紋が二重取込を防ぐ。カードが出るか、または「再送（取込済み）」で分かる。
 
-医院セットアップ: 口→機器プロファイルを1回。以後は許可済みポートを自動再オープン。日常のポート選択はゼロ。取り違えは文字化けとして失敗し `invalid_payload`（サイレントにしない）。スリープ無効・固定タブは運用メモ。メニューバー常駐は今は作らない。
+医院セットアップ: 口→機器プロファイルを1回。以後は許可済みポートを自動再オープン。日常のポート選択はゼロ。取り違えは文字化けとして失敗し `invalid_payload`（サイレントにしない）。スリープ無効・固定タブは運用メモ。メニューバー常駐を作らないという当初判断は historical。ADR-008 が user LaunchAgent の `lab-device-agent` 採用へ部分的に supersede した。
 
 ポート許可オブジェクトはブラウザ（Web Serial `getPorts`）にしか無い。サーバが持つのは論理スロット→`source_type`。電文が機器を自己申告できる場合はデコーダ側を正とし、プロファイルはシリアル設定用。
 
@@ -210,7 +210,7 @@ device ［取り消す］は **detach**:
 
 - 既存 `Commit` の allowlist
 - 確認ダイアログ
-- アップロード / デーモン / `drwan` / IDEXX / 7000V / ACK
+- アップロード / `drwan` / 7000V。デーモンを作らない判断は ADR-008 が supersede。IDEXX decoder/PIMS reply code は実装済みだが、医院での物理接続・PIMS応答・UAT・rollout は別 gate
 - 検体ID照合
 - 未紐付けの検索・ページング
 - ADR の書き換えで方針変更（覆すなら新番号）
@@ -221,6 +221,6 @@ device ［取り消す］は **detach**:
 - `exams.job_id` を device persist でも使う
 - detach は `reverted` を増やさない
 
-## 実装順（コードを書いてよい条件）
+## Historical implementation gate（BRT-95 着手前に充足済み）
 
-BRT-95 のコードは **本 ADR を人間が BRT-100 Done にしたあと**。0 のまま 95 を始めない。
+BRT-95 着手前は BRT-100 の人間決定を gate とした。現行 header のとおり BRT-95〜98 の code path は完了しており、この節は active prohibition ではない。物理機器 UAT、agent 運用、医院 rollout は引き続き人間 gate である。

@@ -14,7 +14,8 @@
 | [004-checkup-canonical-system.md](004-checkup-canonical-system.md) | 健診機能の正系統 — Checkup パッケージ系に一本化 |
 | [005-go-gin-backend-guidelines.md](005-go-gin-backend-guidelines.md) | Go/Gin公式ベースライン採用と固定3層構成の廃止 |
 | [006-backend-domain-package-boundaries.md](006-backend-domain-package-boundaries.md) | backend domain package境界・許可依存グラフ（Status: Accepted/Implemented、2026-07-24 amended） |
-| [007-lab-device-receive-and-commit.md](007-lab-device-receive-and-commit.md) | 城東検査機器の受信永続化・1画面・即 persist + detach（BRT-100） |
+| [007-lab-device-receive-and-commit.md](007-lab-device-receive-and-commit.md) | 城東検査機器の受信永続化・1画面・即 persist + detach（ローカル受信 agent 判断は ADR-008 が部分的に supersede） |
+| [008-local-lab-device-agent.md](008-local-lab-device-agent.md) | Mac ローカル受信 agent。ADR-007 の「デーモンを作らない」判断を部分的に supersede |
 
 ## 運用ルール
 

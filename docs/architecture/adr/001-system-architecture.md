@@ -1,6 +1,7 @@
 # ADR-001: システムアーキテクチャ基本設計
 
-**Status**: Superseded by [ADR-005](005-go-gin-backend-guidelines.md)
+**Status**: Accepted; backend package-architecture portion superseded by [ADR-005](005-go-gin-backend-guidelines.md)
+
 **Date**: 2026-04-01
 **Deciders**: MinoruSoga
 
@@ -11,7 +12,7 @@
 
 ## Decision
 
-以下の技術スタックを採用する。
+以下は **2026-04-01 の採用時 snapshot**。現行 version は各 package manifest / toolchain 設定を正本とする。
 
 | レイヤ | 技術選定 | 理由 |
 |--------|---------|------|
@@ -41,6 +42,6 @@
 ## References
 
 - [docs/architecture/overview.md](../overview.md)
-- [docs/architecture/erd.md](../ERD.md)
+- [docs/architecture/erd.md](../erd.md)
 - [backend/CLAUDE.md](../../../backend/CLAUDE.md)
 - [frontend/CLAUDE.md](../../../frontend/CLAUDE.md)
