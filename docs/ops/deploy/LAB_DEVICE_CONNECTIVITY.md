@@ -1,7 +1,7 @@
 # 検査機器連携 — 実装入口
 
 **この文書:** AnimalEkarte が院内検査機器の結果を受けて保持するときの実装契約。操作手順ではない。
-**外部 sibling checkout 前提:** 操作手順と機器調査資料はこの repository には含まれない。checkout を `AnimalEkarte/` と `old_db/` が同じ親を持つ配置にした場合だけ、`../../../../old_db/docs/lab-go/hospital-field-pack/手元テスト手順.md` を参照できる。外部資料が無い場合も、本書の要約（Drワンを使わない、検査用 Mac 1台、3種の source type、raw payload を残さない）を実装契約とする。
+**外部 sibling checkout 前提:** 操作手順と機器調査資料はこの repository には含まれない。checkout を `AnimalEkarte/` と `old_db/` が同じ親を持つ配置にした場合だけ、`../../../../old_db/docs/lab-go/hospital-field-pack/手元テスト手順.md` を参照できる。外部資料が無い場合も、本書の要約（Drワンを使わない、検査用 Mac 1台、4種の `source_type`、raw payload を残さない）を実装契約とする。
 
 **Drワンは組み込まない。** `source_type=drwan` は閉じる。`mkan.mdb` を読まない。
 
@@ -12,7 +12,7 @@
 城東 Win7 Drワン解析（値なし）: `../../../../old_db/clinics/jouto/research/out/30_drwan_win7/30_report.md`
 IDEXX PIMS セッション: `../../../../old_db/docs/lab-go/go-impl/idexx-pims-serial-session.md`
 
-IDEXX は **JOU-LAB-X**。3台のスロットに混ぜない。受信専用では PIMS が切れる。
+IDEXX は **JOU-LAB-X**。`idexx_vetlab` は decoder / persist / 既定slotを実装済み。ただし医院 VetLab ケーブルでの常時運用は未承認で、受信専用では PIMS が切れる。
 
 ---
 
@@ -40,7 +40,7 @@ Win7 の COM 番号を Mac の `/dev/cu.*` だと思わない。口はつなぐ�
 - 日常経路は `/lab-device`（`LabDeviceBoard`）。権限は `lab-import`。確認ダイアログは無い。ペット検索はせず、本日診療中のカルテカードを選ぶ。受信結果は日別に一覧する。
 - 医院セットアップで口→機器プロファイルを1回許可する。以後は `/lab-device` を開いたまま自動再オープンする。［読む］は無い。TTL の数値 UI は無い。
 - 診察端末の検査画面は未紐付けバナーから1クリックで `attach` する。値は編集しない。
-- 保持確認は `/examinations`（城東3種はペット確定後の persist。fixture は commit）
+- 保持確認は `/examinations`（NX600 / AU10V / 実装済み VetLab 経路はペット確定後に persist。PU-4010 は decoder-only。fixture は commit）
 - `fixture` だけ commit 可。`drwan` は preview 200 + `blocked_reasons`、commit 400。`GetJob` は `drwan` を 400
 
 | メソッド | パス | いま |
@@ -66,7 +66,7 @@ Win7 `mdcon*.cmd` と 2026-08-18/19 の Mac 受信で confirmed。COM4 は触ら
 | COM6 | ドライケム(新) | 富士 DRI-CHEM NX600 | 9600 8N1 | `fuji_nx600`。`/lab-device` 既定スロット |
 | COM7 | ホルモン | 富士 DRI-CHEM IMMUNO AU10V | 9600 8N1 | `fuji_au10v`。既定スロット |
 | COM3 | 尿検査 | アークレイ PU-4010 | 現場 2400 8E1（`mdcon2` は 2400 7E1） | decoder-only。7E1/8E1差が未reviewのためagent既定slot・運用support対象外 |
-| COM5 | ＩＤＥＸＸ | VetLab Station の PIMS（先に ProCyte / Catalyst） | 9600 8N1 | **別 source_type。未実装。** 本体 Ethernet に生打ちしない |
+| COM5 | ＩＤＥＸＸ | VetLab Station の PIMS（先に ProCyte / Catalyst） | 9600 8N1 | `idexx_vetlab`。decoder / persist / 既定slotは実装済み。医院での常時運用は未承認。本体 Ethernet に生打ちしない |
 | COM4 | ドライケム | 富士 DRI-CHEM 7000V | 9600 8N1 | 触らない |
 
 キャプチャの置き場（生値は Git に上げない）:
@@ -78,7 +78,7 @@ Win7 `mdcon*.cmd` と 2026-08-18/19 の Mac 受信で confirmed。COM4 は触ら
 
 ## 3台アダプタ（実装済み）
 
-既定スロット JSON は `lab_device_receive.go`。ACK / ENQ はしない。`value_raw` は文字列のまま。未知コードは落とさず `needs_review`。ASTM / HL7 と決めない。同じ指紋は `duplicate`。
+既定スロット JSON は `lab_device_receive.go`。既定slotは3種（NX600 / AU10V / VetLab）で、PU-4010 は decoder-only のため含めない。通常受信では ACK / ENQ はしない。`value_raw` は文字列のまま。未知コードは落とさず `needs_review`。ASTM / HL7 と決めない。同じ指紋は `duplicate`。
 
 | `source_type` | 枠 | 項目コード例 |
 | --- | --- | --- |
@@ -123,7 +123,7 @@ Win7 の `Drimke.tbl` は機器ラベル → 内部コード（`IRBC`→910、`I
 
 | する | しない |
 | --- | --- |
-| 別 `source_type`（`idexx_vetlab`） | 既定3スロットに IDEXX フレームを足す |
+| `idexx_vetlab` の decoder / persist / 専用既定slotを保つ | IDEXX フレームを `fuji_nx600` / `fuji_au10v` / `arkray_pu4010` として扱う |
 | 短 I/s は測定にしない。長フレームは 1 指紋 | 復元途中の IM/SM を本番 VetLab へ送る |
 | I に ACK+A+IM、s に ACK+A+SM（`CollectIDEXXPIMSReplies`、host `0x02`）。agent は `--pims-reply` のときだけ同じ usbserial に書く | 既定 agent で常時接続したことにする。`--pims-reply` を医院 VetLab ケーブルで使う |
 | ラベル＋`value_raw`＋単位 | 910 などの内部コードを persist。本体へ ASTM / `nc` |
@@ -145,7 +145,7 @@ Drワン `mdconM` に総蛋白・黄疸指数・フィラリア・FIV/FeLV・PCV
 - IDEXX 検査器本体への直結
 - 生ペイロード・飼主名・接続文字列をログ / Git に出す
 - 電文が無い規格名（ASTM / HL7）をパーサ名にする
-- IDEXX を `fuji_nx600` 等の既定スロットに混ぜる
+- IDEXX フレームを `fuji_nx600` 等の別 `source_type` として扱う
 
 ---
 
@@ -157,5 +157,6 @@ Drワン `mdconM` に総蛋白・黄疸指数・フィラリア・FIV/FeLV・PCV
 | 2026-08-18 | 3台 Mac 受信。アダプタ仕様は old_db |
 | 2026-08-19 | `/lab-device` 直読。AE-LAB-0〜4 |
 | 2026-08-20 | 城東 `mdcon` 確定。IDEXX PIMS シリアルと Drワン内部コード帯を追記。MDB は入力にしない |
+| 2026-08-31 | runtime と同期。4 source type、VetLab decoder / persist / 既定slot実装済み、医院常時運用は未承認と明記 |
 
 *患者データ・認証情報・機器識別子の生値は記入しない。*

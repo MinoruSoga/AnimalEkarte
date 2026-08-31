@@ -1,6 +1,7 @@
 package medicalrecord
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"reflect"
@@ -121,6 +122,22 @@ func TestLabDeviceOpenAPIEnsureCountsMatchRuntime(t *testing.T) {
 		fmt.Sprintf("ResourceLabImport create。source_type は clinic 内で一意（対応プロトコルは%d種）。", len(sourceTypes)),
 		createOperation.Post.Description,
 	)
+}
+
+func TestLabDeviceConnectivityDocsMatchRuntime(t *testing.T) {
+	doc, err := os.ReadFile("../../../docs/ops/deploy/LAB_DEVICE_CONNECTIVITY.md")
+	require.NoError(t, err)
+
+	var slots []struct {
+		SourceType string `json:"source_type"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(labDeviceDefaultSlotsJSON), &slots))
+	text := string(doc)
+	assert.Contains(t, text, fmt.Sprintf("%d種の `source_type`", len(labDeviceDefaults())))
+	assert.Contains(t, text, fmt.Sprintf("既定slotは%d種", len(slots)))
+	assert.Contains(t, text, "`idexx_vetlab` は decoder / persist / 既定slotを実装済み")
+	assert.NotContains(t, text, "別 source_type。未実装")
+	assert.NotContains(t, text, "既定3スロットに IDEXX フレームを足す")
 }
 
 func TestLabDeviceOpenAPISourceEnumsMatchRuntime(t *testing.T) {
