@@ -263,12 +263,19 @@ jobs:
           set +e
           go test "${packages[@]}" -count=1 -race -covermode=atomic \
             -coverprofile="coverage-${{ matrix.shard }}.out" \
-            -coverpkg=./internal/... -timeout 900s -p 1 >test-full.log 2>&1
+            -coverpkg=./internal/... -timeout 900s -p 1 >"test-full-${{ matrix.shard }}.log" 2>&1
           status=$?
           set -e
-          tail -n 1000 test-full.log >test-tail.log
-          cat test-tail.log
-          rm -f test-full.log
+          grep -n -B 10 -A 30 -E -- \
+            '--- FAIL:|panic: test timed out|WARNING: DATA RACE|^FAIL[[:space:]]' \
+            "test-full-${{ matrix.shard }}.log" >"test-failure-summary-${{ matrix.shard }}.log" || true
+          if [[ "$status" -ne 0 ]]; then
+            echo "::error::Backend shard failed; failure excerpts follow."
+            tail -n 2000 "test-failure-summary-${{ matrix.shard }}.log"
+          fi
+          tail -n 1000 "test-full-${{ matrix.shard }}.log" >"test-tail-${{ matrix.shard }}.log"
+          cat "test-tail-${{ matrix.shard }}.log"
+          gzip -9 "test-full-${{ matrix.shard }}.log"
           exit "$status"
 
       - name: Upload shard coverage
@@ -278,7 +285,9 @@ jobs:
           name: backend-coverage-shard-${{ matrix.shard }}
           path: |
             backend/coverage-${{ matrix.shard }}.out
-            backend/test-tail.log
+            backend/test-failure-summary-${{ matrix.shard }}.log
+            backend/test-tail-${{ matrix.shard }}.log
+            backend/test-full-${{ matrix.shard }}.log.gz
           if-no-files-found: error
           retention-days: 7
 
