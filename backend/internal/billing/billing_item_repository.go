@@ -305,7 +305,7 @@ func resolveUniqueTrimmingAppointmentID(
 		return nil, invalidBillingItemReferenceCombination()
 	}
 
-	q := tx.
+	appointmentQuery := tx.
 		Table("appointments AS a").
 		Select("a.id").
 		Joins("JOIN reservation_types AS rt ON rt.id = a.reservation_type_id AND rt.clinic_id = a.clinic_id AND rt.deleted_at IS NULL").
@@ -314,20 +314,20 @@ func resolveUniqueTrimmingAppointmentID(
 			clinicID, *petID, model.ReservationStatusAccounting, model.ReservationTypeCategoryTrimming,
 		)
 	if trimmingCourseID != nil {
-		q = q.Joins(
+		appointmentQuery = appointmentQuery.Joins(
 			"JOIN appointment_trimming_details AS atd ON atd.appointment_id = a.id AND atd.clinic_id = a.clinic_id AND atd.course_id = ?",
 			*trimmingCourseID,
 		)
 	}
 	if trimmingOptionID != nil {
-		q = q.Joins(
+		appointmentQuery = appointmentQuery.Joins(
 			"JOIN appointment_trimming_options AS ato ON ato.appointment_id = a.id AND ato.option_id = ?",
 			*trimmingOptionID,
 		)
 	}
 
 	var ids []uint64
-	if err := q.Limit(2).Pluck("a.id", &ids).Error; err != nil {
+	if err := appointmentQuery.Limit(2).Pluck("a.id", &ids).Error; err != nil {
 		return nil, apperrors.FromGORM(err, "appointment", fmt.Sprintf("clinic=%d pet=%d trimming", clinicID, *petID))
 	}
 	if len(ids) != 1 {

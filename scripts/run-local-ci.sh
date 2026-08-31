@@ -20,7 +20,7 @@ cd "$ROOT"
 GOLANGCI_LINT_VERSION="${GOLANGCI_LINT_VERSION:-v2.11.4}"
 
 step=0
-total=18
+total=19
 
 begin_step() {
   step=$((step + 1))
@@ -40,7 +40,7 @@ require_compose_service() {
   fi
 }
 
-# ── 1–6: Docker 不要のメタゲート（最速 fail-fast）────────────────
+# ── 1–9: Docker 不要のメタゲート（最速 fail-fast）────────────────
 begin_step "Reset wait-set contract"
 bash scripts/check-reset-wait-services.sh
 bash scripts/check-reset-wait-services.test.sh
@@ -48,6 +48,9 @@ bash scripts/check-reset-wait-services.test.sh
 begin_step "CI step order guardrail"
 bash scripts/check-ci-step-order.sh
 bash scripts/check-ci-step-order.test.sh
+
+begin_step "Go coverage shard merge contract"
+python3 scripts/merge_go_coverprofiles_test.py
 
 begin_step "Docs symbol drift guardrail"
 bash scripts/check-docs-symbol-drift.sh
@@ -75,7 +78,7 @@ begin_step "Design system audit (C1/C3/C5/C6/C7/C8/C9)"
 node frontend/scripts/design-system-audit.mjs --cwd frontend
 node --test frontend/scripts/design-system-audit.test.mjs
 
-# ── 7–12: Go inventory / build / test（backend コンテナ）────────
+# ── 10–15: Go inventory / build / test（backend コンテナ）────────
 require_compose_service backend
 
 begin_step "Inventory gates (preload / master-FK / audit-tx / CASCADE / OpenAPI date / dbOrTx)"
@@ -111,7 +114,7 @@ if ! git diff --exit-code frontend/src/types/generated/; then
   exit 1
 fi
 
-# ── 13–16: Frontend 静的 + build/test ───────────────────────────
+# ── 16–19: Frontend 静的 + build/test ───────────────────────────
 require_compose_service frontend
 
 begin_step "Frontend: ESLint"
@@ -129,7 +132,7 @@ compose exec -T frontend pnpm run test:run
 
 echo ""
 echo "✓ make ci passed"
-echo "  local-only: inventory / guardrails / shellcheck / golangci / ESLint / type-check / knip / design CTA + design-audit"
+echo "  local-only: inventory / guardrails / coverage merge contract / shellcheck / golangci / ESLint / type-check / knip / design CTA + design-audit"
 echo "  also covered: backend build+test+schema, frontend build+test, codegen"
 echo "  remote CI still runs: gitleaks / path-filtered build+test+coverage / AgentShield"
 echo "  E2E is local-only: make e2e (not in automatic PR CI)"

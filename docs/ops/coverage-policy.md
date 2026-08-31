@@ -25,6 +25,9 @@
 ただし `internal/...` の一部として計測し、値を歪める特別除外は行わない。
 モデルの初期化ロジックや `Validate()` メソッドはカバレッジ対象とする。
 
+CI shardはすべて同じ`-coverpkg=./internal/...`を使う。`-coverprofile`の単純連結は禁止する。
+`scripts/merge_go_coverprofiles.py`がcoverage modeとstatement数を検証し、同一blockのcountを統合して分母の重複を防ぐ。
+
 ### Frontend（TypeScript / Vitest）
 
 計測対象: Vitest デフォルト除外 + 下記を追加除外
@@ -75,7 +78,7 @@
   tolerance を超える低下を検出すると非0 exit してステップ自体を fail させる
   （`evaluateRatchet` は baseline ≤ 0 のときのみ warn-only 相当で exit 0 を返す設計）。
 - しきい値設定: `tolerance` 既定 0.5pp。baseline は `backend/.coverage-baseline`（91.3%、2026-07-13 に main CI run 29152374862 の artifact で re-arm）。
-- ブランチ対象: backend Test job（main への push / staging・production への PR）
+- ブランチ対象: path-filterに該当するmainへのpush、およびmain・staging・productionへのPR。4つの独立DB shardが同じ`-coverpkg=./internal/...`母集団を計測し、集約jobが同一blockを1回だけ数える形でprofileを統合してからratchetを実行する。
 - **ベースライン更新手順**: 意図的にカバレッジ基準を変える場合のみ、`backend-coverage` artifact の
   `coverage-summary.txt` 末尾 `total:` 行の実測 % を `.coverage-baseline` に転記する（推測値を書かない）。
 - 実装（Frontend / FE-refactor.md R-F5）: `frontend/scripts/coverage-ratchet.mjs`（Node script・
@@ -84,7 +87,7 @@
   の `total.statements.pct` と `frontend/.coverage-baseline` を比較する。CI の「Coverage ratchet」ステップは
   backend と同じく `-warn-only` なしで実行。**baseline は 2026-07-05 に 43.78% で記録・arm 済み** —
   以降 tolerance（既定 0.5pp）を超える低下は CI を fail させる（backend が辿ったのと同じ2段階導入を完了）。
-- ブランチ対象: frontend Test job（main への push / staging・production への PR）
+- ブランチ対象: path-filterに該当するmainへのpush、およびmain・staging・productionへのPR。2つのVitest shardがblob reporterへcoverage payloadを保存し、集約jobが`vitest --mergeReports`でnative mergeしてからratchetを実行する。
 - **ベースライン記録手順（Frontend）**: `frontend-coverage` artifact 内の `coverage-summary.json` の
   `total.statements.pct` の実測値を `frontend/.coverage-baseline` に転記する（推測値を書かない）。
 

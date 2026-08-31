@@ -30,7 +30,19 @@ updates:
       - dependencies
       - frontend
     open-pull-requests-limit: 5
+    groups:
+      # Radix primitives share focus/portal internals. Update and validate them as one unit.
+      radix-ui:
+        patterns:
+          - "@radix-ui/*"
+        update-types:
+          - minor
+          - patch
     ignore:
+      # 2.3.7 causes a Dialog × Select FocusScope loop under React 19/jsdom.
+      # A later release may be proposed through the radix-ui group and must pass the smoke test.
+      - dependency-name: "@radix-ui/react-select"
+        versions: ["2.3.7"]
       # メジャーバージョンアップは手動対応
       - dependency-name: "react"
         update-types: ["version-update:semver-major"]

@@ -7,7 +7,7 @@ on:
     branches: [main]
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 env:
@@ -33,6 +33,7 @@ jobs:
   changes:
     name: Detect changes
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     permissions:
       contents: read
       pull-requests: read
@@ -42,17 +43,21 @@ jobs:
       codegen: ${{ steps.filter.outputs.codegen }}
       migrations: ${{ steps.filter.outputs.migrations }}
       worker: ${{ steps.filter.outputs.worker }}
+      skip_push_heavy: ${{ steps.release_pr.outputs.skip_heavy }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7.0.1
 
       - name: Path filter
-        uses: dorny/paths-filter@v4
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4
         id: filter
         with:
           filters: |
             backend:
               - 'backend/**'
+              - '.github/workflows/ci.yml'
+              - 'scripts/merge_go_coverprofiles.py'
+              - 'scripts/merge_go_coverprofiles_test.py'
               # lintscan DEMO_ACCOUNTS vs 003_demo seed gate lives in backend
               # but the compared source is this DEV login label list.
               - 'frontend/src/features/auth/components/LoginForm.tsx'
@@ -65,6 +70,7 @@ jobs:
               - 'scripts/verify_seed.py'
             frontend:
               - 'frontend/**'
+              - '.github/workflows/ci.yml'
             codegen:
               - '.github/workflows/ci.yml'
               - 'backend/tygo.yaml'
@@ -78,6 +84,29 @@ jobs:
               - 'package.json'
               - 'pnpm-lock.yaml'
 
+      # main→staging release PR は同じ SHA の PR workflow で累積差分を検証する。
+      # その場合だけ push 側の重い job を省き、API 障害時は fail-open で実行する。
+      - name: Detect matching release PR
+        id: release_pr
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash --noprofile --norc -euo pipefail {0}
+        run: |
+          echo "skip_heavy=false" >> "$GITHUB_OUTPUT"
+          if [[ "$GITHUB_EVENT_NAME" != "push" ]]; then
+            exit 0
+          fi
+          owner="${GITHUB_REPOSITORY%%/*}"
+          if ! pull_requests="$(gh api --method GET "repos/$GITHUB_REPOSITORY/pulls" \
+            -f state=open -f head="$owner:main" -f base=staging -f per_page=100)"; then
+            echo "::warning::Could not query the release PR; running push CI (fail-open)."
+            exit 0
+          fi
+          if jq -e --arg sha "$GITHUB_SHA" 'any(.[]; .head.sha == $sha)' <<< "$pull_requests" >/dev/null; then
+            echo "skip_heavy=true" >> "$GITHUB_OUTPUT"
+            echo "Matching main→staging PR will validate $GITHUB_SHA; skipping duplicate push jobs."
+          fi
+
   # ──────────────────────────────────────────────
   # C-1 再発防止: gitleaks によるシークレット漏洩スキャン。
   # push/PR 全イベント無条件。ローカル再現は困難でリモート必須。
@@ -86,6 +115,7 @@ jobs:
   secret-scan:
     name: Gitleaks Secret Scan
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: read
       pull-requests: read
@@ -101,50 +131,20 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   # ──────────────────────────────────────────────
-  # Backend: build + test + schema check
-  # （golangci-lint / inventory はローカル必須: make ci）
+  # Backend: build と isolated-DB test shards を並列実行し、coverage を集約する。
+  # golangci-lint / inventory はローカル必須: make ci
   # ──────────────────────────────────────────────
-  backend:
-    name: Backend
+  backend_build:
+    name: Backend Build
     needs: changes
-    if: needs.changes.outputs.backend == 'true' && (github.event_name != 'pull_request' || github.base_ref != 'main')
+    if: needs.changes.outputs.backend == 'true' && needs.changes.outputs.skip_push_heavy != 'true'
     runs-on: ubuntu-latest
-
-    services:
-      postgres:
-        image: postgres:18-alpine
-        env:
-          TZ: Asia/Tokyo
-          PGTZ: Asia/Tokyo
-          POSTGRES_USER: ekarte_user
-          POSTGRES_PASSWORD: ekarte_password
-          POSTGRES_DB: ekarte_db
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd="pg_isready -U ekarte_user -d ekarte_db"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=5
-
+    timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@v7.0.1
         with:
           lfs: true
-
-      - name: Apply migrations
-        env:
-          PGHOST: localhost
-          PGPORT: "5432"
-          PGUSER: ekarte_user
-          PGPASSWORD: ekarte_password
-          PGDATABASE: ekarte_db
-        run: |
-          for f in backend/migrations/*.sql; do
-            echo "Applying $f ..."
-            psql -v ON_ERROR_STOP=1 -1 -f "$f"
-          done
 
       - name: Verify seed invariants
         if: needs.changes.outputs.migrations == 'true'
@@ -164,7 +164,62 @@ jobs:
         working-directory: backend
         run: go build ./...
 
-      - name: Test
+  backend_test:
+    name: Backend Test (${{ matrix.shard }})
+    needs: changes
+    if: needs.changes.outputs.backend == 'true' && needs.changes.outputs.skip_push_heavy != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [medicalrecord, auth, staff-billing-reservation, remaining]
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          TZ: Asia/Tokyo
+          PGTZ: Asia/Tokyo
+          POSTGRES_USER: ekarte_user
+          POSTGRES_PASSWORD: ekarte_password
+          POSTGRES_DB: ekarte_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U ekarte_user -d ekarte_db"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+        with:
+          lfs: true
+
+      - name: Apply migrations
+        env:
+          PGHOST: localhost
+          PGPORT: "5432"
+          PGUSER: ekarte_user
+          PGPASSWORD: ekarte_password
+          PGDATABASE: ekarte_db
+        run: |
+          for f in backend/migrations/*.sql; do
+            echo "Applying $f ..."
+            psql -v ON_ERROR_STOP=1 -1 -f "$f"
+          done
+
+      - name: Setup Go
+        uses: actions/setup-go@v7
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: backend/go.sum
+
+      - name: Download modules
+        working-directory: backend
+        run: go mod download
+
+      - name: Test shard
         working-directory: backend
         env:
           DB_HOST: localhost
@@ -173,49 +228,119 @@ jobs:
           DB_PASSWORD: ekarte_password
           DB_NAME: ekarte_db
           DB_SSL_MODE: disable
-        # 非ゲートのカバレッジ可視化: -coverprofile で測定するが、しきい値で fail させない。
-        # -race は covermode=atomic を要求するため明示する。テストの合否は従来どおり。
-        # -coverpkg=./internal/... で internal/* のみを計測対象とし、cmd/,
-        # lstep-migrate/, seed-old-db/(archived), migrations/ 等のエントリポイント・
-        # インフラパッケージを除外する。除外ポリシー/ロードマップ: docs/ops/coverage-policy.md
-        # -timeout 900s: internal/repository は _test.go 急増で長時間化（PR #186 timeout調査参照）。
-        # -p 1: 共有 ekarte_db_test への package 並列アクセスを禁止（repository/CLAUDE.md）。
-        # Makefile ci と揃える。
-        run: go test ./... -count=1 -race -covermode=atomic -coverprofile=coverage.out -coverpkg=./internal/... -timeout 900s -p 1
-
-      - name: Coverage summary (non-gating, baseline visibility)
-        if: always()
-        # 可視化専用ステップ。集計失敗が CI を落とさないよう非致命にする。
-        continue-on-error: true
-        working-directory: backend
-        run: |
-          if [ -f coverage.out ]; then
-            go tool cover -func=coverage.out | tee coverage-summary.txt
-            go tool cover -html=coverage.out -o coverage.html
-            {
-              echo "### Backend coverage (non-gating, baseline visibility)"
-              echo '```'
-              tail -n 1 coverage-summary.txt
-              echo '```'
-            } >> "$GITHUB_STEP_SUMMARY"
-          else
-            echo "coverage.out not produced (tests failed before profiling completed); skipping summary."
-          fi
-
-      # BE-refactor.md R3-5 / bug.md H-7 / coverage-policy.md Phase 1: カバレッジ ratchet。
-      # baseline > 0 のため evaluateRatchet が tolerance（既定 0.5pp）を超える低下を検出すると
-      # 非0 exit する。coverage-summary.txt が無い場合（テスト自体が失敗）はスキップ。
-      - name: Coverage ratchet
-        if: always()
-        working-directory: backend
-        # CMD-03: pipefail so coverage-ratchet non-zero exit is not swallowed by tee.
         shell: bash --noprofile --norc -euo pipefail {0}
         run: |
-          if [ -f coverage-summary.txt ]; then
-            go run ./cmd/coverage-ratchet -baseline .coverage-baseline -func-file coverage-summary.txt | tee -a "$GITHUB_STEP_SUMMARY"
-          else
-            echo "coverage-summary.txt not produced; skipping ratchet."
+          mapfile -t all_packages < <(go list ./... | LC_ALL=C sort)
+          case "${{ matrix.shard }}" in
+            medicalrecord)
+              packages=(github.com/animal-ekarte/backend/internal/medicalrecord)
+              ;;
+            auth)
+              packages=(github.com/animal-ekarte/backend/internal/auth)
+              ;;
+            staff-billing-reservation)
+              packages=(
+                github.com/animal-ekarte/backend/internal/staff
+                github.com/animal-ekarte/backend/internal/billing
+                github.com/animal-ekarte/backend/internal/reservation
+              )
+              ;;
+            remaining)
+              packages=()
+              for package in "${all_packages[@]}"; do
+                case "$package" in
+                  */internal/medicalrecord|*/internal/auth|*/internal/staff|*/internal/billing|*/internal/reservation) ;;
+                  *) packages+=("$package") ;;
+                esac
+              done
+              ;;
+          esac
+          if [[ "${#packages[@]}" -eq 0 ]]; then
+            echo "::error::Backend shard has no packages."
+            exit 1
           fi
+          printf 'Testing %s\n' "${packages[@]}"
+          set +e
+          go test "${packages[@]}" -count=1 -race -covermode=atomic \
+            -coverprofile="coverage-${{ matrix.shard }}.out" \
+            -coverpkg=./internal/... -timeout 900s -p 1 >test-full.log 2>&1
+          status=$?
+          set -e
+          tail -n 1000 test-full.log >test-tail.log
+          cat test-tail.log
+          rm -f test-full.log
+          exit "$status"
+
+      - name: Upload shard coverage
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: backend-coverage-shard-${{ matrix.shard }}
+          path: |
+            backend/coverage-${{ matrix.shard }}.out
+            backend/test-tail.log
+          if-no-files-found: error
+          retention-days: 7
+
+  backend:
+    name: Backend
+    needs: [changes, backend_build, backend_test]
+    if: always() && needs.changes.outputs.backend == 'true' && needs.changes.outputs.skip_push_heavy != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Require build and every test shard
+        env:
+          BUILD_RESULT: ${{ needs.backend_build.result }}
+          TEST_RESULT: ${{ needs.backend_test.result }}
+        run: |
+          if [[ "$BUILD_RESULT" != "success" || "$TEST_RESULT" != "success" ]]; then
+            echo "::error::Backend prerequisite failed (build=$BUILD_RESULT tests=$TEST_RESULT)."
+            exit 1
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+
+      - name: Setup Go
+        uses: actions/setup-go@v7
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: backend/go.sum
+
+      - name: Download shard coverage
+        uses: actions/download-artifact@v7
+        with:
+          pattern: backend-coverage-shard-*
+          path: backend/coverage-shards
+          merge-multiple: true
+
+      - name: Merge coverage profiles
+        shell: bash --noprofile --norc -euo pipefail {0}
+        run: |
+          mapfile -t profiles < <(find backend/coverage-shards -maxdepth 1 -name 'coverage-*.out' -type f | LC_ALL=C sort)
+          if [[ "${#profiles[@]}" -ne 4 ]]; then
+            echo "::error::Expected 4 backend coverage profiles, found ${#profiles[@]}."
+            exit 1
+          fi
+          python3 scripts/merge_go_coverprofiles.py --output backend/coverage.out "${profiles[@]}"
+
+      - name: Coverage summary
+        working-directory: backend
+        run: |
+          go tool cover -func=coverage.out | tee coverage-summary.txt
+          go tool cover -html=coverage.out -o coverage.html
+          {
+            echo "### Backend coverage"
+            echo '```'
+            tail -n 1 coverage-summary.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Coverage ratchet
+        working-directory: backend
+        shell: bash --noprofile --norc -euo pipefail {0}
+        run: go run ./cmd/coverage-ratchet -baseline .coverage-baseline -func-file coverage-summary.txt | tee -a "$GITHUB_STEP_SUMMARY"
 
       - name: Upload backend coverage artifact
         if: always()
@@ -229,27 +354,16 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
 
-      - name: Schema drift check
-        working-directory: backend
-        env:
-          DB_HOST: localhost
-          DB_PORT: "5432"
-          DB_USER: ekarte_user
-          DB_PASSWORD: ekarte_password
-          DB_NAME: ekarte_db
-          DB_SSL_MODE: disable
-        run: go test ./internal/model/ -run TestSchemaDrift -v
-
   # ──────────────────────────────────────────────
-  # Frontend: build + test（STG 退行検知）
+  # Frontend: build と Vitest shards を並列実行し、blob coverage を native merge する。
   # type-check / ESLint / knip / design CTA はローカル必須: make ci
   # ──────────────────────────────────────────────
-  frontend:
-    name: Frontend
+  frontend_build:
+    name: Frontend Build
     needs: changes
-    if: needs.changes.outputs.frontend == 'true' && (github.event_name != 'pull_request' || github.base_ref != 'main')
+    if: needs.changes.outputs.frontend == 'true' && needs.changes.outputs.skip_push_heavy != 'true'
     runs-on: ubuntu-latest
-
+    timeout-minutes: 20
     steps:
       - name: Checkout
         uses: actions/checkout@v7.0.1
@@ -266,13 +380,8 @@ jobs:
 
       - name: Install dependencies
         working-directory: frontend
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
 
-      # 2026-07-15: npm がレガシー audit エンドポイント（/-/npm/v1/security/audits）を廃止し
-      # 410 Gone を返すようになった影響で、pnpm audit 自体が ERR_PNPM_AUDIT_BAD_RESPONSE で
-      # 早期 exit 1 していた。レジストリ側の一時的な非対応は依存関係の脆弱性検出とは
-      # 無関係のため、このエラーシグネチャに限り non-fatal な warning に留める。
-      # それ以外の失敗（実際の脆弱性検出含む）は従来どおり fail させる。
       - name: Audit frontend dependencies
         working-directory: frontend
         run: |
@@ -281,37 +390,135 @@ jobs:
           audit_exit=$?
           set -e
           echo "$audit_output"
-          if [ $audit_exit -ne 0 ]; then
-            if echo "$audit_output" | grep -q "ERR_PNPM_AUDIT_BAD_RESPONSE"; then
-              echo "::warning::pnpm audit unavailable — npm's legacy audit endpoint was retired (HTTP 410). Treating as non-blocking; verify dependencies manually until pnpm supports the new bulk-advisory endpoint."
+          if [[ $audit_exit -ne 0 ]]; then
+            if grep -q "ERR_PNPM_AUDIT_BAD_RESPONSE" <<< "$audit_output"; then
+              echo "::warning::pnpm audit unavailable because the registry audit endpoint rejected the request."
             else
-              exit $audit_exit
+              exit "$audit_exit"
             fi
           fi
 
-      # 静的 lint / design CTA は CI 必須ゲートから外し make ci に寄せた
-      # （STG 保護の薄いゲート = build + test + coverage ratchet）。
       - name: Build
         working-directory: frontend
         run: pnpm run build
 
-      # 非ゲートのカバレッジ可視化: vite.config.ts には coverage.thresholds 未設定のため、
-      # --coverage はレポート生成のみで低カバレッジによる fail は起きない。テストの合否は従来どおり。
-      - name: Test (with coverage)
-        working-directory: frontend
-        run: pnpm run test:coverage
+  frontend_test:
+    name: Frontend Test (${{ matrix.shard }}/2)
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true' && needs.changes.outputs.skip_push_heavy != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
 
-      # FE-refactor.md R-F5 / coverage-policy.md Phase 1: カバレッジ ratchet。
-      # Build は本ステップより前に実行済みのため、ratchet が fail しても Build 退行はマスクされない
-      # （backend job の Build→Test→ratchet と同じ順序。feedback_ci_step_order_masks_lint 対策）。
-      - name: Coverage ratchet
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: pnpm install --frozen-lockfile
+
+      - name: Test shard with coverage
+        working-directory: frontend
+        shell: bash --noprofile --norc -euo pipefail {0}
+        run: |
+          set +e
+          timeout --signal=TERM --kill-after=30s 18m \
+            pnpm exec vitest run --coverage --shard=${{ matrix.shard }}/2 \
+              --reporter=dot --reporter=blob --silent=passed-only >vitest-full.log 2>&1
+          status=$?
+          set -e
+          tail -n 5000 vitest-full.log >vitest-tail.log
+          cat vitest-tail.log
+          rm -f vitest-full.log
+          exit "$status"
+
+      - name: Upload Vitest blob
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: frontend-vitest-blob-${{ matrix.shard }}
+          path: frontend/.vitest-reports
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload bounded failure log
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: frontend-vitest-log-${{ matrix.shard }}
+          path: frontend/vitest-tail.log
+          if-no-files-found: ignore
+          retention-days: 7
+
+  frontend:
+    name: Frontend
+    needs: [changes, frontend_build, frontend_test]
+    if: always() && needs.changes.outputs.frontend == 'true' && needs.changes.outputs.skip_push_heavy != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Require build and every test shard
+        env:
+          BUILD_RESULT: ${{ needs.frontend_build.result }}
+          TEST_RESULT: ${{ needs.frontend_test.result }}
+        run: |
+          if [[ "$BUILD_RESULT" != "success" || "$TEST_RESULT" != "success" ]]; then
+            echo "::error::Frontend prerequisite failed (build=$BUILD_RESULT tests=$TEST_RESULT)."
+            exit 1
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: pnpm install --frozen-lockfile
+
+      - name: Download Vitest blobs
+        uses: actions/download-artifact@v7
+        with:
+          pattern: frontend-vitest-blob-*
+          path: frontend/.vitest-reports
+          merge-multiple: true
+
+      - name: Merge Vitest reports and coverage
         working-directory: frontend
         run: |
-          if [ -f coverage/coverage-summary.json ]; then
-            node scripts/coverage-ratchet.mjs --summary coverage/coverage-summary.json --baseline .coverage-baseline | tee -a "$GITHUB_STEP_SUMMARY"
-          else
-            echo "coverage/coverage-summary.json not produced; skipping ratchet."
+          blob_count=$(find .vitest-reports -maxdepth 1 -name 'blob-*.json' -type f | wc -l | tr -d ' ')
+          if [[ "$blob_count" -ne 2 ]]; then
+            echo "::error::Expected 2 Vitest blob reports, found $blob_count."
+            exit 1
           fi
+          pnpm exec vitest --mergeReports .vitest-reports --coverage             --reporter=default --silent=passed-only
+
+      - name: Coverage ratchet
+        working-directory: frontend
+        shell: bash --noprofile --norc -euo pipefail {0}
+        run: node scripts/coverage-ratchet.mjs --summary coverage/coverage-summary.json --baseline .coverage-baseline | tee -a "$GITHUB_STEP_SUMMARY"
 
       - name: Upload frontend coverage artifact
         if: always()
@@ -330,8 +537,9 @@ jobs:
   worker:
     name: Worker Tests
     needs: changes
-    if: needs.changes.outputs.worker == 'true'
+    if: needs.changes.outputs.worker == 'true' && needs.changes.outputs.skip_push_heavy != 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
       - name: Checkout
@@ -362,8 +570,9 @@ jobs:
   codegen-check:
     name: Codegen Sync
     needs: changes
-    if: needs.changes.outputs.codegen == 'true'
+    if: needs.changes.outputs.codegen == 'true' && needs.changes.outputs.skip_push_heavy != 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
       - name: Checkout
@@ -430,6 +639,7 @@ jobs:
     needs: changes
     if: github.event_name == 'pull_request' && github.base_ref == 'main' && needs.changes.outputs.migrations == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     services:
       postgres:

@@ -12,7 +12,7 @@
 | 区分 | 内容 | どこで担保するか |
 |---|---|---|
 | **リモート CI 必須** | path-filtered `build` / `test` / coverage ratchet、gitleaks（secret-scan）、codegen / migration 検証、schema drift（backend job 内）、AgentShield（**agent-config 変更時のみ fail** · 詳細 `README-security-scan.md`） | `.github/workflows/ci.yml` / `security-scan.yml` |
-| **ローカル必須 (`make ci`)** | clinic/audit inventory・preload、reset-contract、ci-step-order、docs-symbol-drift、eslint-disable rationale、shellcheck、design CTA、golangci-lint、ESLint / type-check / knip、codegen 同期、backend/frontend build+test（手元再現） | `make ci`（実体: `scripts/run-local-ci.sh`） |
+| **ローカル必須 (`make ci`)** | clinic/audit inventory・preload、reset-contract、ci-step-order、Go coverage merge contract、docs-symbol-drift、eslint-disable rationale、shellcheck、design CTA、golangci-lint、ESLint / type-check / knip、codegen 同期、backend/frontend build+test（手元再現） | `make ci`（実体: `scripts/run-local-ci.sh`） |
 | **ローカル任意 (E2E)** | Playwright ブラウザ E2E（スタック起動が重く、PR Checks のノイズ・時間になりやすい） | `make e2e`（`frontend/scripts/run-e2e.sh`）。`.github/workflows/e2e.yml` は **workflow_dispatch のみ**（push/PR 自動実行なし） |
 | **schedule のみ** | 負荷・プロファイリング（performance） | `.github/workflows/performance-tests.yml`（push トリガなし・`workflow_dispatch` 可） |
 
@@ -22,11 +22,23 @@
 |-----|------|
 | Detect changes | paths-filter |
 | Gitleaks Secret Scan | 秘密情報漏洩（リモート必須） |
-| Backend | build + test(-race/coverage) + ratchet + schema drift |
-| Frontend | build + test(coverage) + ratchet + pnpm audit |
+| Backend Build | backend build（DB不要、test shards と並列） |
+| Backend Test (matrix) | 独立PostgreSQLを持つ4 shard。各shard内は `-race -coverpkg=./internal/... -p 1` |
+| Backend | 4 coverage profileの重複blockを統合し、ratchetを実行する集約check |
+| Frontend Build | frozen-lock install + audit + build |
+| Frontend Test (matrix) | Vitest 2 shard。blob reporterへcoverage payloadを保存 |
+| Frontend | blobをVitestでnative mergeし、coverage ratchetを実行する集約check |
 | Worker Tests | worker unit tests（paths 該当時） |
 | Codegen Sync | Go model ↔ TS 型同期（paths 該当時） |
 | Migration Verify | PR→main かつ migration 変更時のみ |
+
+### PR / push の実行契約
+
+- `main` 向けPRを含む、`main` / `staging` / `production` 向けPRで変更層のBuild/Testを省略しない。依存更新PRも同じゲートを通す。
+- `main→staging` のopen PRがpush SHAと同じheadを既に検証する場合、push側の重いBuild/Test/Worker/Codegenだけを省く。GitHub API確認に失敗した場合はfail-openでpush CIを実行する。
+- Backendは4つの独立DB shard、Frontendは2つのVitest shardで実行する。集約jobの表示名`Backend` / `Frontend`はbranch protectionとの互換性のため維持する。
+- Frontend installは`pnpm install --frozen-lockfile`を必須とし、PRで検証したlock graphとCIの解決結果を一致させる。
+- shardの完全ログはActionsへ無制限出力しない。失敗調査用出力は末尾へ制限し、job timeoutで暴走を停止する。
 
 ### なぜ inventory / guardrail をリモートから外したか
 

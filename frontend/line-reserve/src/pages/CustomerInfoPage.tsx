@@ -161,7 +161,8 @@ export function CustomerInfoPage({
               type="text"
               value={name}
               onChange={e => { setName(e.target.value); setErrors(prev => ({ ...prev, name: '' })); }}
-              className="w-full border border-gray-300 rounded-xl px-3 py-2 text-noah-text focus:outline-none focus:ring-2 focus:ring-noah-teal focus:border-transparent"
+              aria-invalid={errors.name ? true : undefined}
+              className={`w-full border rounded-xl px-3 py-2 text-noah-text focus:outline-none focus:ring-2 focus:ring-noah-teal focus:border-transparent ${errors.name ? 'border-red-500' : 'border-gray-300'}`}
               placeholder="山田 花子"
             />
             {errors.name ? (

@@ -29,16 +29,17 @@ description: このプロジェクトの GitHub Actions CI/CD 構成の把握と
 ## ci.yml の実ジョブ構成
 
 - **トリガー**: `pull_request: branches: [main, staging, production]` + `push: branches: [main]`
-- **changes**: paths-filter で backend / frontend / migration 変更を判定し、後続ジョブを条件起動
-- **インベントリ lint 群**（go/ast ベースの再発防止テスト。それぞれ独立ジョブ）:
-  `preload-clinic-scope-lint` / `master-fk-write-inventory` / `clinical-result-audit-tx-inventory` / `migration-cascade-inventory` / `openapi-date-format-drift` / `dbortx-inventory`
-- **backend**: verify_seed.py → go build → golangci-lint（`golangci/golangci-lint-action@v9`）→ go test（-race + coverage）→ schema drift check
-- **frontend**: pnpm audit → type-check → test:coverage → lint → build（**4ゲート**）
+- **changes**: paths-filter で backend / frontend / migration 変更を判定。openな`main→staging` PRが同じhead SHAを検証する場合だけpush側の重いjobをskip（API障害時はfail-open）
+- **Backend Build**: DB不要の`go build ./...`。test shardsと並列
+- **Backend Test matrix**: 4つの独立PostgreSQLで`medicalrecord` / `auth` / `staff+billing+reservation` / remainingを並列実行。各shard内は`-race -coverpkg=./internal/... -p 1`
+- **Backend**: 4 profileをblock単位で統合し、coverage summary / ratchetを実行する集約check
+- **Frontend Build**: `pnpm install --frozen-lockfile` → audit → build
+- **Frontend Test matrix**: Vitest 2 shard。coverage payloadをblob reporterへ保存
+- **Frontend**: `vitest --mergeReports`でcoverageをnative mergeし、ratchetを実行する集約check
 - **codegen-check**: Go モデル ↔ models.ts の同期検証
-- **migration-verify**: マイグレーション検証
-- **reset-contract** / **shellcheck**: スクリプト契約テスト
+- **migration-verify**: PR→mainのマイグレーション検証
 
-使用アクションの正: `actions/checkout@v7` / `actions/setup-go@v6` / `actions/setup-node@v6` / `pnpm/action-setup@v6`。
+使用アクションの正: `actions/checkout@v7` / `actions/setup-go@v7` / `actions/setup-node@v7` / `actions/upload-artifact@v7` / `actions/download-artifact@v7` / `pnpm/action-setup@v6`。
 （`node-actions/setup-node` や `go-actions/setup-go` というアクションは存在しない — 過去にこのスキルが記載していた誤り）
 
 ## CI 失敗調査の手順（実績由来）
@@ -61,7 +62,7 @@ gh run list --branch main --json databaseId,event,conclusion,headSha --limit 10
 gh run view <run-id> --json jobs
 ```
 
-- **fail-fast マスク**: backend ジョブは Build → Lint → Test の順次 step。前段失敗で後段が未実行のまま赤になる。逆に前段を直すと**隠れていた後段の失敗が初めて露出**する（Lint 緑化で Test 失敗が露出した実例）。失敗 step だけでなく未実行 step を必ず確認
+- **aggregate マスク**: `Backend` / `Frontend` はbranch protection互換の集約check。赤い場合は集約stepだけでなく、`Backend Build`・4 test shards、`Frontend Build`・2 test shardsのどれが先に失敗したか確認する。matrixは`fail-fast: false`なので全shardの結論を列挙する
 - **paths-filter silent green**: changes ジョブで skip されたジョブは実行されていないのに全体は success に見える。skip されたジョブがあれば当該層は「未検証」として扱う
 （出典: memory feedback_ci_step_order_masks_lint / feedback_paths_filter_silent_green / ops_golangci_lint_cap_and_reconcile_20260630）
 
@@ -95,10 +96,10 @@ warm-DB（前 run のテーブル残存）でローカル PASS しても CI の 
 
 ## ワークフロー変更時の注意
 
-- **バージョン統一**: Actions のバージョンはリポジトリ全体で統一されている（setup-node v6 等）。1ファイルだけ上げない（出典: memory infra002_github_actions_unification_complete — 「value の DRY ≠ actions の DRY」）
+- **バージョン統一**: Actions のバージョンはリポジトリ全体で統一されている（現在は setup-node v7 等）。1ファイルだけ上げない（出典: memory infra002_github_actions_unification_complete — 「value の DRY ≠ actions の DRY」）
 - **drift スキャンは `with:` / `env:` / `working-directory:` も対象**（出典: memory feedback_workflow_with_param_drift）
 - **actionlint はバージョンドリフトを検出しない**。「actionlint が通った＝Actions バージョン統一が保たれている」は誤り。ドリフト検査の正本は `scripts/check-actions-version-drift.sh`（actionlint.yml に組込済）
-- **新規ワークフロー追加は既存の「統一済み」状態を静かに壊す**。新規 yml 追加時は既存と同じ action バージョン（@v6 系）か必ず突合する（backend-deploy.yml に setup-node@v4 が混入し #195 が回帰した実例）
+- **新規ワークフロー追加は既存の「統一済み」状態を静かに壊す**。新規 yml 追加時は、`scripts/check-actions-version-drift.sh`で既存workflowの現在のactionバージョンと必ず突合する（backend-deploy.yml に setup-node@v4 が混入し #195 が回帰した実例）
 
   （出典: memory closed_issue_reaudit_20260707 / commit 2d8ab41d）
 - **production 起動条件（env）変更は CI workflow にも波及**する。`.github/workflows/` の env を同時更新（出典: memory feedback_config_change_ci_propagation）

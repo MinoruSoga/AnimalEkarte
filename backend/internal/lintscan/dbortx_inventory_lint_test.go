@@ -150,6 +150,9 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"billing/billing_item_repository.go|billingItemRepository.FindByBillingID": {},
 	"billing/billing_item_repository.go|billingItemRepository.FindByID":        {},
 	"billing/billing_item_repository.go|billingItemRepository.Update":          {},
+	// BUG-506 create runs only inside AccountingService.WithTx and requires the ambient tx.
+	// Runtime: billing_item_reference_repository_test.go and accounting Complete tests.
+	"billing/billing_item_service.go|billingItemService.createItemInAmbientTx": {},
 	// UpdateBillingTotals is a thin wrapper; ambient-tx body is updateBillingTotals.
 	"billing/billing_item_repository.go|billingItemRepository.updateBillingTotals": {},
 	// Create validates every request-derived FK under shared locks in the same
@@ -278,6 +281,7 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"billing/cash_register_close_repository.go|cashRegisterCloseRepository.FindByID":            {},
 	"billing/cash_register_close_repository.go|cashRegisterCloseRepository.HasCloseOnDate":      {},
 	"billing/cash_register_close_repository.go|cashRegisterCloseRepository.FindByDateAndPeriod": {},
+	"billing/cash_register_close_repository.go|cashRegisterCloseRepository.Void":                {},
 	// examination (BE-refactor.md R1-2 tx-internal replace; Create/FindByID/Update added for X-11
 	// finalize-child-write-race — must join the LockByIDForUpdate ambient tx or the FK check on
 	// examinations.medical_record_id deadlocks against the FOR UPDATE row lock; Delete added for
@@ -595,6 +599,7 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"staff/staff_repository.go|staffRepository.Reorder":                          {},
 	"staff/staff_repository.go|staffRepository.Update":                           {},
 	"staff/staff_repository.go|staffRepository.UpdatePrimaryClinicID":            {},
+	"staff/staff_repository.go|staffRepository.activeSystemAdminStaffQuery":      {},
 	// ADR-006 論点#1 案A: reservation_staff_repository.go から移動した予約用途 write
 	"staff/staff_repository.go|staffRepository.CreateForReservation":        {},
 	"staff/staff_repository.go|staffRepository.UpdateForReservation":        {},
@@ -869,6 +874,9 @@ var ambientTxParticipationExpectations = map[string]ambientTxParticipationExpect
 		shape: ambientTxRequired,
 	},
 	"billing/billing_item_repository.go|billingItemRepository.ValidateCreateReferences": {
+		shape: ambientTxRequired,
+	},
+	"billing/billing_item_service.go|billingItemService.createItemInAmbientTx": {
 		shape: ambientTxRequired,
 	},
 	"billing/billing_item_repository.go|billingItemRepository.ValidateVaccinationCreateReference": {
