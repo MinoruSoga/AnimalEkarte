@@ -28,9 +28,11 @@ function isStrictDNSHostname(hostname) {
 const raw = (process.argv[2] ?? "").trim();
 if (raw.includes("%") || !/^https:\/\/[^/?#\\]+$/.test(raw) || !/^[\x21-\x7e]+$/.test(raw)) process.exit(1);
 
+const authority = raw.slice("https://".length);
+if (authority.includes("@")) process.exit(1);
+
 try {
   const parsed = new URL(raw);
-  const authority = raw.slice("https://".length);
   const bracketEnd = authority.indexOf("]");
   const lastColon = authority.lastIndexOf(":");
   const rawHostname = authority.startsWith("[")

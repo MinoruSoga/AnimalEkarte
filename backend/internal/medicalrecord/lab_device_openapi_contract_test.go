@@ -1,6 +1,7 @@
 package medicalrecord
 
 import (
+	"fmt"
 	"os"
 	"reflect"
 	"sort"
@@ -73,6 +74,33 @@ func TestLabDeviceOpenAPIResponseParity(t *testing.T) {
 	assert.Equal(t, "integer", visit.Properties["record_id"].Type)
 	assert.Equal(t, "int64", visit.Properties["record_id"].Format)
 	assert.Equal(t, "boolean", visit.Properties["pet_is_deceased"].Type)
+}
+
+func TestLabDeviceOpenAPIEnsureCountsMatchRuntime(t *testing.T) {
+	src, err := os.ReadFile("../../docs/api.yaml")
+	require.NoError(t, err)
+
+	var spec struct {
+		Paths map[string]struct {
+			Post struct {
+				Summary     string `yaml:"summary"`
+				Description string `yaml:"description"`
+			} `yaml:"post"`
+		} `yaml:"paths"`
+	}
+	require.NoError(t, yaml.Unmarshal(src, &spec))
+
+	operation, ok := spec.Paths["/lab-device-item-masters/ensure"]
+	require.True(t, ok, "missing ensure endpoint")
+	deviceCount := len(labDeviceDefaults())
+	assert.Equal(t,
+		fmt.Sprintf("観測カタログ%d行と既定機器%d行を医院へ冪等投入", LabDeviceItemCatalogCount, deviceCount),
+		operation.Post.Summary,
+	)
+	assert.Equal(t,
+		fmt.Sprintf("ResourceLabImport edit。既存行の exam_type_field_id は上書きしない。未知コードは追加しない。lab_devices の既定%d行も無ければ作る。", deviceCount),
+		operation.Post.Description,
+	)
 }
 
 func TestLabDeviceOpenAPISourceEnumsMatchRuntime(t *testing.T) {

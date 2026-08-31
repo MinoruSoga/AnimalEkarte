@@ -2,7 +2,7 @@ package medicalrecord
 
 import "github.com/animal-ekarte/backend/internal/model"
 
-// labDeviceItemCatalogRow is the embedded 城東観測カタログ (25 rows).
+// labDeviceItemCatalogRow is the embedded 城東観測カタログ (36 rows).
 // DisplayName is a seed hint only. It is not written to the database.
 type labDeviceItemCatalogRow struct {
 	SourceType     model.LabImportSourceType

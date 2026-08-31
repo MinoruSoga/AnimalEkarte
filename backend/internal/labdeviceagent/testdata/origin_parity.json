@@ -143,10 +143,10 @@
       "raw": "https://example.."
     },
     {
-      "raw": "https://example..."
+      "raw": "https://@example.com"
     },
     {
-      "raw": "https://1..example.."
+      "raw": "https://:@example.com"
     },
     {
       "raw": "https://.example.com"

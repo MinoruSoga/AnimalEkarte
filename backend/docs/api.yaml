@@ -23339,8 +23339,8 @@ paths:
   /lab-device-item-masters/ensure:
     post:
       operationId: ensureLabDeviceItemMasters
-      summary: 観測カタログ25行と既定機器3行を医院へ冪等投入
-      description: ResourceLabImport edit。既存行の exam_type_field_id は上書きしない。未知コードは追加しない。lab_devices の既定3行も無ければ作る。
+      summary: 観測カタログ36行と既定機器4行を医院へ冪等投入
+      description: ResourceLabImport edit。既存行の exam_type_field_id は上書きしない。未知コードは追加しない。lab_devices の既定4行も無ければ作る。
       tags: [LabImports]
       responses:
         '200':

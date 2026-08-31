@@ -16,6 +16,10 @@ const originParityCorpus = JSON.parse(fs.readFileSync(
 const acceptedOrigins = originParityCorpus.cases.filter(({ canonical }) => canonical !== undefined);
 const rejectedOrigins = originParityCorpus.cases.filter(({ canonical }) => canonical === undefined).map(({ raw }) => raw);
 
+assert.equal(originParityCorpus.cases.length, 66, "shared origin corpus size");
+assert.equal(acceptedOrigins.length, 16, "shared accepted origin count");
+assert.equal(rejectedOrigins.length, 50, "shared rejected origin count");
+
 test("canonical origin helper matches the shared Go/browser parity corpus", () => {
   for (const { raw, canonical } of originParityCorpus.cases) {
     const result = spawnSync("node", [originHelperPath, raw], { encoding: "utf8" });
