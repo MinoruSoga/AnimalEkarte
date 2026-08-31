@@ -129,6 +129,114 @@ func TestStagingRehearsalProvenanceRequiresTargetBinding(t *testing.T) {
 	}
 }
 
+func TestStagingRehearsalProvenanceAcceptsFullyVerifiedProducer(t *testing.T) {
+	dir, digest := writeCutoverFixture(t, nil)
+
+	if _, err := PreflightCutoverBundle(dir, stagingExpectedCutoverSource(digest)); err != nil {
+		t.Fatalf("PreflightCutoverBundle(staging rehearsal) error = %v", err)
+	}
+}
+
+func TestStagingRehearsalProvenanceRejectsWeakProducerEvidence(t *testing.T) {
+	tests := []struct {
+		name    string
+		mutate  func(*fixtureBundle)
+		wantErr string
+	}{
+		{
+			name: "rehearsal-only status",
+			mutate: func(f *fixtureBundle) {
+				f.manifest.Status = "REHEARSAL_ONLY"
+			},
+			wantErr: "status",
+		},
+		{
+			name: "rehearsal-only handoff",
+			mutate: func(f *fixtureBundle) {
+				f.manifest.HandoffEligibility = "REHEARSAL_ONLY"
+			},
+			wantErr: "handoff eligibility",
+		},
+		{
+			name: "partial source completeness",
+			mutate: func(f *fixtureBundle) {
+				f.manifest.SourceCompletenessStatus = "PARTIAL"
+			},
+			wantErr: "source completeness",
+		},
+		{
+			name: "unverified source completeness",
+			mutate: func(f *fixtureBundle) {
+				f.manifest.SourceCompletenessStatus = "UNVERIFIED"
+			},
+			wantErr: "source completeness",
+		},
+		{
+			name: "source incomplete",
+			mutate: func(f *fixtureBundle) {
+				f.manifest.SourceComplete = false
+			},
+			wantErr: "source completeness",
+		},
+		{
+			name: "source provenance unverified",
+			mutate: func(f *fixtureBundle) {
+				f.manifest.SourceProvenanceVerified = false
+			},
+			wantErr: "source completeness",
+		},
+		{
+			name: "producer identity unverified",
+			mutate: func(f *fixtureBundle) {
+				f.manifest.SourceIdentity.Verified = false
+			},
+			wantErr: "source identity",
+		},
+		{
+			name: "producer evidence missing",
+			mutate: func(f *fixtureBundle) {
+				f.manifest.SourceEvidenceSHA256.KNJORecovery = ""
+			},
+			wantErr: "evidence digest",
+		},
+		{
+			name: "stage mapping is not frozen",
+			mutate: func(f *fixtureBundle) {
+				f.manifest.StageMappingSHA256 = strings.Repeat("0", 64)
+			},
+			wantErr: "mapping contract",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir, digest := writeCutoverFixture(t, tt.mutate)
+			_, err := PreflightCutoverBundle(dir, stagingExpectedCutoverSource(digest))
+			if err == nil || !strings.Contains(strings.ToLower(err.Error()), strings.ToLower(tt.wantErr)) {
+				t.Fatalf("error = %v, want text %q", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func stagingExpectedCutoverSource(manifestDigest string) ExpectedCutoverSource {
+	return ExpectedCutoverSource{
+		ManifestSHA256: manifestDigest,
+		ClinicCode:     "hachioji",
+		ClinicOrdinal:  1,
+		RunID:          "run-1",
+		Provenance: CutoverProvenanceContract{
+			Mode: CutoverProvenanceStagingRehearsal,
+			Target: CutoverTargetBinding{
+				Environment: "staging",
+				Host:        "staging-db",
+				Database:    "animalekarte",
+				ClinicID:    1,
+			},
+		},
+	}
+}
+
 func TestPreflightCutoverBundleRejectsInvalidProducerProvenance(t *testing.T) {
 	tests := []struct {
 		name    string

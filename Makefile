@@ -211,7 +211,7 @@ csv-import-verify:
 	$(CSV_IMPORT_DC) run --rm --no-deps csv-import verify $(CSV_IMPORT_COMMON_ARGS)
 
 # ============================================================================
-# STG UAT CSV import: REHEARSAL_ONLY via cmd/csv-import-stg-uat
+# STG UAT CSV import: verified producer bundle via cmd/csv-import-stg-uat
 # ============================================================================
 # Requires APP_ENV=staging (forced below) and
 # STG_UAT_CSV_IMPORT_ALLOW_REHEARSAL=YES_I_UNDERSTAND.
@@ -560,7 +560,7 @@ help:
 	@echo "  csv-import-preflight      source/seed/schema/空band検査（read-only）"
 	@echo "  csv-import                21表CSVを単一transactionで投入（backup・target確認必須）"
 	@echo "  csv-import-verify         manifest件数/clinic/sequence検証（read-only）"
-	@echo "  stg-uat-csv-import-*     STG UAT REHEARSAL_ONLY import（専用cmd。--allow-local-rehearsal は使わない）"
+	@echo "  stg-uat-csv-import-*     STG UAT verified import（専用cmd。weak rehearsal provenance は拒否）"
 	@echo "  stg-uat-skeleton         clinics 1/2 + F6 bindings（21 cutover 表には書かない）"
 	@echo "  stg-uat-staff-attach-*   移行 staffs.id へ account 後付け（staff-provision ではない）"
 	@echo "  a4-rehearsal-contract-test A4隔離構成/runtime report契約テスト（Docker起動不要）"

@@ -507,13 +507,42 @@ func validateCutoverProducerProvenance(manifest CutoverManifest, contract Cutove
 }
 
 func validateStagingRehearsalProducerProvenance(manifest CutoverManifest) error {
-	if err := validateLocalRehearsalProducerProvenance(manifest); err != nil {
-		return err
+	// Shared staging is not a disposable local reset. It requires the same
+	// complete producer evidence as a formal handoff, in addition to the exact
+	// runtime target binding checked by validateCutoverProducerProvenance.
+	if manifest.Status != "PASS" {
+		return fmt.Errorf("staging rehearsal manifest status must be PASS")
 	}
-	// Unlike a disposable local reset, shared staging must use the exact frozen
-	// producer mapping consumed by this binary.
-	if manifest.StageMappingSHA256 != cutoverStageMappingSHA256 {
+	if manifest.ManifestSchemaVersion != cutoverManifestSchema ||
+		manifest.StageMappingSHA256 != cutoverStageMappingSHA256 ||
+		manifest.CSVContractSHA256 != cutoverCSVContractSHA256 {
 		return fmt.Errorf("staging rehearsal manifest mapping contract binding is invalid")
+	}
+	if manifest.HandoffEligibility != "TRUSTED_CANDIDATE" {
+		return fmt.Errorf("staging rehearsal manifest handoff eligibility must be TRUSTED_CANDIDATE")
+	}
+	if manifest.SourceCompletenessStatus != "PASS" ||
+		!manifest.SourceComplete ||
+		!manifest.SourceProvenanceVerified {
+		return fmt.Errorf("staging rehearsal manifest source completeness must be fully verified")
+	}
+	if manifest.IncompleteSourceTables == nil || len(*manifest.IncompleteSourceTables) != 0 {
+		return fmt.Errorf("staging rehearsal manifest incomplete source table list must be empty")
+	}
+	if !stageBuildIDPattern.MatchString(manifest.StageBuildID) {
+		return fmt.Errorf("staging rehearsal manifest stage build ID is invalid")
+	}
+	if !validVerifiedSourceIdentity(manifest.SourceIdentity) {
+		return fmt.Errorf("staging rehearsal manifest source identity must be complete and verified")
+	}
+	if !validLayerDigests(manifest.SourceSummarySHA256) {
+		return fmt.Errorf("staging rehearsal manifest summary digest set is invalid")
+	}
+	if !validEvidenceDigests(manifest.SourceEvidenceSHA256) {
+		return fmt.Errorf("staging rehearsal manifest evidence digest set is invalid")
+	}
+	if !validOrderedLayerTimestamps(manifest.SourceSummaryGeneratedAt, manifest.GeneratedAt) {
+		return fmt.Errorf("staging rehearsal manifest summary generation timestamps are invalid or out of order")
 	}
 	return nil
 }
