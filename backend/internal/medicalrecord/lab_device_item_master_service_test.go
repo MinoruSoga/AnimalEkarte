@@ -14,28 +14,6 @@ import (
 	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
-func TestAssertSingleExamType(t *testing.T) {
-	t.Run("empty and single exam type are allowed", func(t *testing.T) {
-		require.NoError(t, AssertSingleExamType(nil))
-		require.NoError(t, AssertSingleExamType([]LabDeviceResolvedItem{
-			{DeviceItemCode: "Na-P", ExamTypeID: 10, ExamTypeFieldID: 1},
-			{DeviceItemCode: "K-P", ExamTypeID: 10, ExamTypeFieldID: 2},
-		}))
-	})
-	t.Run("two exam types are rejected", func(t *testing.T) {
-		err := AssertSingleExamType([]LabDeviceResolvedItem{
-			{DeviceItemCode: "Na-P", ExamTypeID: 10, ExamTypeFieldID: 1},
-			{DeviceItemCode: "vf-SAA", ExamTypeID: 20, ExamTypeFieldID: 3},
-		})
-		require.Error(t, err)
-		assert.True(t, apperrors.IsInvalidInput(err))
-		assert.Contains(t, err.Error(), LabDeviceMultipleExamTypesMessage)
-		assert.Equal(t, []uint64{10, 20}, UniqueMappedExamTypeIDs([]LabDeviceResolvedItem{
-			{ExamTypeID: 10}, {ExamTypeID: 20}, {ExamTypeID: 10},
-		}))
-	})
-}
-
 func setupLabDeviceItemMasterTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := testdb.SetupTestDB(t)
@@ -164,7 +142,6 @@ func TestLabDeviceItemMasterService_UpdateAndResolve(t *testing.T) {
 	assert.Equal(t, "BUN-P", res.Mapped[0].DeviceItemCode)
 	assert.Equal(t, examA.ID, res.Mapped[0].ExamTypeID)
 	assert.Equal(t, []string{"GOT-P"}, res.UnmappedCodes)
-	require.NoError(t, AssertSingleExamType(res.Mapped))
 
 	cleared, err := svc.Update(ctx, clinicA, bun.ID, UpdateLabDeviceItemMasterInput{
 		Unit:            bun.Unit,

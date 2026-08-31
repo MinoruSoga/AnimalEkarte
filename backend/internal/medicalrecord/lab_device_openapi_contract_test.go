@@ -144,6 +144,14 @@ func TestLabDeviceConnectivityDocsMatchRuntime(t *testing.T) {
 	adrText := string(adr)
 	assert.NotContains(t, adrText, "に3種を allowlist")
 	assert.NotContains(t, adrText, "Commit は3種を受けない")
+	assert.Contains(t, adrText, "`device_hint` | `NX600` / `AU10V` / `PU-4010` / `VetLab`")
+
+	task, err := os.ReadFile("../../../.hex-skills/tasks/T001-vetlab-multi-exam-persist.md")
+	require.NoError(t, err)
+	taskText := string(task)
+	assert.Contains(t, taskText, "**status**: Completed")
+	assert.NotContains(t, taskText, "- [ ]")
+	assert.NotContains(t, taskText, "現状（ADR-007 §7 の実装）は「`exam_type_id` が2種以上なら保存拒否")
 }
 
 func TestLabDeviceOpenAPISourceEnumsMatchRuntime(t *testing.T) {

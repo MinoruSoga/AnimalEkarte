@@ -41,7 +41,7 @@ Fable UX（YES-WITH-FIXES）: 日常は本日診療中カルテを1回選んで1
 | `pet_id` | 未紐付けは NULL。clinic 内 pets への FK |
 | `measured_at` | 電文日時。検査日の正 |
 | `received_at` | デコード成功時刻。監査のみ。検査日にしない |
-| `device_hint` | `NX600` / `AU10V` / `PU-4010` |
+| `device_hint` | `NX600` / `AU10V` / `PU-4010` / `VetLab` |
 | `specimen_id_raw` | 表示専用。紐付けキーにしない。ログに出さない |
 | `unmapped_item_count` | マスタ未対応行数 |
 

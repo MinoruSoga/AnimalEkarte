@@ -8,13 +8,6 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-// LabDeviceMultipleExamTypesMessage is the persist-time rejection message (BRT-98).
-const LabDeviceMultipleExamTypesMessage = "mapped items resolve to more than one exam type"
-
-// LabDeviceMultipleExamTypesErrorCode is the error_code stored on the job when needs_review
-// is caused by items mapping to more than one exam type (ADR-007 §7 / F-1).
-const LabDeviceMultipleExamTypesErrorCode = "lab_device_multiple_exam_types"
-
 // LabDeviceResolvedItem is a catalog row that can be written to exam_results.
 type LabDeviceResolvedItem struct {
 	DeviceItemCode  string
@@ -105,14 +98,6 @@ func UniqueMappedExamTypeIDs(mapped []LabDeviceResolvedItem) []uint64 {
 		ids = append(ids, item.ExamTypeID)
 	}
 	return ids
-}
-
-// AssertSingleExamType rejects a measurement that would create two exams (BRT-98 persist).
-func AssertSingleExamType(mapped []LabDeviceResolvedItem) error {
-	if len(UniqueMappedExamTypeIDs(mapped)) > 1 {
-		return apperrors.WrapInvalidInput(LabDeviceMultipleExamTypesMessage)
-	}
-	return nil
 }
 
 func (s *labDeviceItemMasterService) List(ctx context.Context, clinicID uint64, sourceType string) ([]model.LabDeviceItemMaster, error) {
