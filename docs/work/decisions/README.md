@@ -1,7 +1,7 @@
 # decisions/ — 採択済み決裁メモ
 
 > **目的**: PO が採択した方針の短いポインタ。  
-> **正本**: Linear（入口 [`todo.md`](../../../todo.md) / [`todo-po.md`](../../../todo-po.md)）。
+> **正本**: Linear（hub [BRT-4](https://linear.app/baritechllc/issue/BRT-4)）。repo 補助入口は [`todo-po.md`](../../../todo-po.md)。[`todo.md`](../../../todo.md) は STG UAT 例外台帳を含む。競合時は Linear を正とする。
 
 | 文書 | 内容 |
 |------|------|

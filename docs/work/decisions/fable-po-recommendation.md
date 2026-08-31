@@ -2,6 +2,9 @@
 
 USER が Fable 推奨 pack を最終決定として採択した。作業結果は本ファイルに追記しない。
 
+- **最終 repo 照合日**: 2026-08-20
+- **証跡識別子**: 下記 CorpVault path（内容・現在の Linear 状態は本タスクでは外部確認していない）
+
 - **全文**: CorpVault `50_Projects/ノア動物病院電子カルテ/evidence/2026-08-20-docs-cleanup/decisions/fable-po-recommendation.md`
 - **実行 SoT**: Linear hub [BRT-4](https://linear.app/baritechllc/issue/BRT-4)
 

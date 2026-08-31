@@ -28,7 +28,7 @@
 |---|---|---|---|---|
 | 1 | STG Cloudflare 移行 Phase 7（NS 切替・並行稼働）完遂 | [現行構成](../ops/infra/architecture.md) | staging デプロイ 2 回連続 green → 画像移行 → データ投入 → NS 切替 → フルスモーク | ✅ 2026-07-17 完了 |
 | 2 | credential / provider residual（secret manager 状態・実値は repo 外） | #89 ／ #97 ／ #98 ／ #99 | 非機密 evidence で residual 解消または明示的 HOLD 解除条件が揃っていること。**実 credential 値は本書に書かない** | （確定待ち） |
-| 3 | 本番 Cloudflare 環境・配信契約・CI/backup/restore/rollback | #253 ／ [production/setup.md](../ops/infra/production/setup.md) ／ [production/runbook.md](../ops/infra/production/runbook.md) ／ [CI-CD-PIPELINE.md](../ops/deploy/CI-CD-PIPELINE.md) §0 | (a) 本番 CF 基盤構築 (b) `production` Environment + **Required reviewers** (c) production workflow 適用 (d) STG は main→staging 自動・本番は無承認開始不可 (e) **CF-only** rollback 手順 (f) backup/restore rehearsal 記録 (g) latest main CI green | （確定待ち） docs surface 整備済 / **CI green は GitHub billing BLOCKED（USER）** / 実インフラ・Environment 未 |
+| 3 | 本番 Cloudflare 環境・配信契約・CI/backup/restore/rollback | #253 ／ [production/setup.md](../ops/infra/production/setup.md) ／ [production/runbook.md](../ops/infra/production/runbook.md) ／ [CI-CD-PIPELINE.md](../ops/deploy/CI-CD-PIPELINE.md) §0 | (a) 本番 CF 基盤構築 (b) `production` Environment + **Required reviewers** (c) production workflow 適用 (d) STG は main→staging 自動・本番は無承認開始不可 (e) **CF-only** rollback 手順 (f) backup/restore rehearsal 記録 (g) latest main CI green（当日確認した GitHub run URL / ID・commit・確認時刻を記録） | （確定待ち: 実行時 receipt 未記入。過去の CI / billing 状態を流用しない） |
 | 4 | Access データの本番投入・migration verification | #250 | リハーサル移行 PASS → 本番 DB へ最終移行 → 突合検証（件数・clinic_id 別件数・金額合計）PASS | （確定待ち: 最終移行は当日タイムライン内で実施） |
 | 5 | 全業務シナリオ通し確認済み（authenticated UAT） | #254 | 全シナリオ PASS、または FAIL 項目が「納品後対応合意済みリスト」に隔離済み | （確定待ち） |
 | 6 | スタッフアカウント発行・権限設定済み | #255 | 全スタッフに個人アカウント発行・所属院スコープ・役割別権限設定済み | （確定待ち: スタッフ一覧の先方提供がブロッカー） |
@@ -49,45 +49,54 @@
 | T-1 日 夕方 | — | 前提チェックリスト §1 の最終確認・Go/No-Go 事前判定 | 開発側 + 先方管理者 | 全項目 ✅ |
 | T+0:00 | 09:00 | **旧システム（Access）の入力停止**を先方へ宣言 | 先方管理者 | 全スタッフへ周知済み |
 | T+0:15 | 09:15 | Access 最終データ抽出（#250 手順） | 開発側 | 抽出ファイル受領 |
-| T+0:30 | 09:30 | 本番 DB の事前スナップショット取得（pg_dump。切り戻し用） | 開発側 | ダンプファイル保管確認 |
+| T+0:30 | 09:30 | 本番 DB の事前バックアップ取得（§3.1 / [production/runbook.md §5.1](../ops/infra/production/runbook.md#51-restore-rehearsal-チェックリスト253-ac) の承認済み方式） | 開発側 | owner 管理の repo 外 artifact / managed-backup receipt、size・checksum、保持期限、restore rehearsal PASS を記録 |
 | T+0:45 | 09:45 | 最終データ移行の実行（#250 変換ツール） | 開発側 | ジョブログ・エラー行 0 件 |
 | T+1:15 | 10:15 | 突合検証（テーブル別件数・clinic_id 別件数・金額合計・サンプル目視） | 開発側 | 検証レポート PASS |
-| T+1:45 | 10:45 | NS/DNS 切替（§3。※STG Phase 7 で切替済みの場合は本番 DNS レコードの最終確認のみ） | 開発側 | `dig NS noah-karte.com` で Cloudflare NS を確認 |
-| T+2:00 | 11:00 | 疎通確認: `curl https://api.noah-karte.com/health` → 200 `{"status":"ok"}`、フロント `https://noah-karte.com` 表示 | 開発側 | ヘルスチェック PASS |
+| T+1:45 | 10:45 | 本番 DNS レコードの最終確認（§3。**zone-wide NS 変更禁止**） | 開発側 | 実行時の registrar / `dig NS` / 本番レコード確認結果・時刻・receipt を記録 |
+| T+2:00 | 11:00 | 疎通確認: `curl -fsS https://api.noah-karte.com/health` → 200 `{"status":"ok"}`、フロント `https://noah-karte.com` 表示 | 開発側 | ヘルスチェック PASS |
 | T+2:15 | 11:15 | スモーク: ログイン → 受付 → カルテ → 会計 → 締め（テストデータ）＋ LINE 予約疎通 | 開発側 | 全操作正常・テストデータ削除記録 |
 | T+3:00 | 12:00 | **Go/No-Go 最終判定**（§4 の基準） | 判断者（§4・冒頭記入欄） | Go 判定を記録 |
 | T+3:15 | 12:15 | 先方へ利用開始を宣言・新システムでの業務開始 | 先方管理者 | — |
 | T+日中〜終業 | 〜終業 | 集中監視（§5）。初回レジ締めの立ち会い（リモート可） | 開発側 | 締め完了確認 |
 
-> **注意（DNS 伝播）**: NS 切替はインターネット全体への伝播に最大 24〜48 時間かかることがあります。STG Phase 7 で事前に NS 切替を済ませておくことで、当日の DNS 起因リスクを排除する計画です（前提 #1）。当日に NS 切替を行う判断をした場合は、伝播待ち時間をタイムラインに追加してください。
+> **NS 安全規則**: repo 履歴は zone-wide NS 切替を 2026-07-17 完了として記録している。当日は NS を変更しない。現在の registrar / NS / DNS 応答は外部状態なので、実行時に読み取り確認し、時刻と receipt を残す。記録と実測が違う場合は HOLD とし、この runbook から NS 操作を行わない。
 
 ---
 
-## 3. NS/DNS 切替手順
+## 3. DNS 最終確認（変更禁止）
 
-ドメイン `noah-karte.com` のレジストラは **Vercel** です。ゾーンは Cloudflare に作成済み（`infra/cloudflare/zone.tf`。DNS レコードは棚卸し・移設済み）。
+本節は Go-live 当日の**読み取り確認だけ**を定める。repo 記録だけで現在の registrar、nameserver、DNS 応答を確定しない。
 
-### 3.1 切替（Vercel → Cloudflare NS）
+### 3.1 本番バックアップ gate
 
-1. Cloudflare 側の DNS レコードが現行の全レコードと一致していることを最終確認する（`infra/cloudflare/zone.tf` が正本。`terraform plan` で差分ゼロを確認）。
-2. Vercel ダッシュボード → Domains → `noah-karte.com` → Nameservers を **Custom Nameservers** に変更し、Cloudflare 指定の NS を設定する:
-   - `melissa.ns.cloudflare.com`
-   - `yadiel.ns.cloudflare.com`
-3. Cloudflare ダッシュボード（またはメール通知）でゾーンが **Active** になったことを確認する。
-4. 伝播確認: `dig NS noah-karte.com +short` が上記 2 件を返すこと。`dig api.noah-karte.com` / `dig noah-karte.com` が期待値を返すこと。
+正本は [production/runbook.md §5.1](../ops/infra/production/runbook.md#51-restore-rehearsal-チェックリスト253-ac)。Go 判定前に、次をすべて満たす。
 
-> NS 切替は **Terraform の管理対象外**（`infra/cloudflare/README.md` 安全ルール 4）。人手で実施し、実施前後の状態は本書に紐づく当日作業ログへ記録すること。凍結済み archive は更新しない。
-> NS 切替は `noah-karte.com` 配下の**全サブドメイン（STG 含む）に一括で影響**します。STG（Phase 7）で先行切替済みであれば、本番 Go-live 当日に NS 操作は発生しません。
+1. production runbook に operator 承認済みの `pg_dump` コマンド、または managed-backup の取得手順を記載する。資格情報や出力先の秘密値は本書へ書かない。
+2. 出力は owner 管理の **repo 外**保存先に限定する。artifact / receipt ID、取得時刻、size、SHA-256 checksum、保持期限を当日ログへ記録する。
+3. artifact が「存在する」だけでは成功にしない。承認済み隔離環境で restore rehearsal を完了し、復元後の件数・`clinic_id` 別件数・金額合計の検証結果と所要時間を記録する。
+4. 上記の手順、owner、retention、restore rehearsal receipt のいずれかが未記入なら HOLD とする。
 
-### 3.2 切替後の確認
+### 3.2 DNS / 疎通の読み取り確認
 
-| 確認 | コマンド / 方法 | 期待値 |
+| 確認 | コマンド / 方法 | 期待値 / 記録 |
 |---|---|---|
-| API ヘルスチェック | `curl -s https://api.noah-karte.com/health` | 200 `{"status":"ok"}` |
+| Registrar | 承認済み provider 画面または WHOIS/RDAP を読み取り確認 | provider 名、確認時刻、receipt。repo の過去記載を流用しない |
+| Nameserver | `dig NS noah-karte.com +short` | Cloudflare NS 2 件。値・確認時刻を記録し、変更しない |
+| 本番 DNS | `dig api.noah-karte.com` / `dig noah-karte.com` | 承認済み production 構成との一致。差異は HOLD |
+| API ヘルスチェック | `curl -fsS https://api.noah-karte.com/health` | HTTP success と `{"status":"ok"}`。必要なら `curl -sS -o /tmp/health.json -w '%{http_code}' ...` で status を receipt 化 |
 | フロントエンド表示 | ブラウザで `https://noah-karte.com` | ログイン画面表示・証明書有効 |
 | ログイン（Cookie） | 実ブラウザでログイン → 画面遷移 | 正常（httpOnly Cookie 発行） |
 | CSP | ブラウザ DevTools Console | CSP 違反エラーなし |
 | LINE 予約導線 | LINE から予約ページを開く | 表示・予約作成可 |
+
+### 3.3 歴史資料（実行禁止）
+
+repo 履歴では、Cloudflare zone-wide NS 切替は 2026-07-17 に完了した。検証値として記録されている nameserver は次の 2 件である。
+
+- `melissa.ns.cloudflare.com`
+- `yadiel.ns.cloudflare.com`
+
+これは過去の移行記録であり、Vercel / Cloudflare の画面で nameserver を変更する手順ではない。現在値が異なる場合も、この runbook から変更せず HOLD / escalation とする。
 
 ---
 
@@ -121,9 +130,9 @@
 
 1. 判断者が復旧対応を宣言し、先方連絡窓口が必要に応じて現場へ「旧運用（Access）へ一時退避する」ことを周知する。
 2. デプロイ直後の障害は、直前に正常稼働したコミットを特定し、DB schema との互換性を確認したうえで Cloudflare へ再デプロイする。STG の具体手順は [STG運用Runbook](../ops/infra/staging/runbook.md)、本番は [PROD運用Runbook](../ops/infra/production/runbook.md) §3（CF-only）を正本とする。
-3. provider または基盤障害で再デプロイできない場合は、当日取得した DB スナップショットと IaC から環境を再建する。production runbook にこの手順と責任者が確定するまでは Go 判定しない。
+3. provider または基盤障害で再デプロイできない場合は、§3.1 の検証済み DB バックアップと IaC から環境を再建する。production runbook にこの手順と責任者が確定するまでは Go 判定しない。
 4. Access へ退避した期間の新規入力と、新システム側で既に受け付けた操作の範囲（時刻・操作者・対象）を記録し、復旧後に差分突合する。
-5. データ破損時の DB 復元は、**T+0:30 行で取得した** pg_dump スナップショットを使い、#250 の切り戻し手順と承認境界に従う。
+5. データ破損時の DB 復元は、**T+0:30 行で取得し §3.1 の size・checksum・restore rehearsal を満たした**バックアップを使い、#250 の切り戻し手順と承認境界に従う。
 6. インシデント記録を作成し（原因・影響範囲・再発防止）、業務復帰時刻を判断者が決定する。credential / PHI は記録に含めない。
 
 ---
