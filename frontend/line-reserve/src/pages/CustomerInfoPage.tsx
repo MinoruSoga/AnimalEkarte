@@ -5,6 +5,8 @@ import { PrimaryButton } from '../components/PrimaryButton';
 import { BackButton } from '../components/BackButton';
 import { EXPLICIT_PRIMARY_CTA_LABEL } from '../lib/advance-policy';
 
+const BACKEND_PHONE_PATTERN = /^0\d{1,4}-?\d{1,4}-?\d{4}$/;
+
 interface CustomerInfoPageProps {
   profile: LiffProfile | null;
   initialInfo: CustomerInfo;
@@ -113,7 +115,7 @@ export function CustomerInfoPage({
     if (!name.trim()) newErrors.name = 'お名前を入力してください';
     if (!phone.trim()) {
       newErrors.phone = '電話番号を入力してください';
-    } else if (!/^0\d{1,4}-?\d{1,4}-?\d{4}$/.test(phone.trim())) {
+    } else if (!BACKEND_PHONE_PATTERN.test(phone.trim())) {
       newErrors.phone = '電話番号の形式が正しくありません（例：090-1234-5678）';
     }
     setErrors(newErrors);
@@ -180,11 +182,13 @@ export function CustomerInfoPage({
               type="tel"
               value={phone}
               onChange={e => { setPhone(e.target.value); setErrors(prev => ({ ...prev, phone: '' })); }}
-              className="w-full border border-gray-300 rounded-xl px-3 py-2 text-noah-text focus:outline-none focus:ring-2 focus:ring-noah-teal focus:border-transparent"
+              aria-invalid={errors.phone ? true : undefined}
+              aria-describedby={errors.phone ? "customer-phone-error" : undefined}
+              className={`w-full border rounded-xl px-3 py-2 text-noah-text focus:outline-none focus:ring-2 focus:ring-noah-teal focus:border-transparent ${errors.phone ? 'border-red-500' : 'border-gray-300'}`}
               placeholder="090-1234-5678"
             />
             {errors.phone ? (
-              <p className="mt-1 text-sm text-red-500" role="alert">{errors.phone}</p>
+              <p id="customer-phone-error" className="mt-1 text-sm text-red-500" role="alert">{errors.phone}</p>
             ) : null}
           </div>
 

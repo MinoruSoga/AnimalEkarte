@@ -154,7 +154,11 @@ func (h *CheckupHandler) ListGlobalCheckups(c *gin.Context) {
 	}
 
 	query := newListGlobalCheckupsQuery(clinicID, c.Request.URL.Query())
-	input := query.toServiceInput()
+	input, err := query.toServiceInput()
+	if err != nil {
+		httpapi.RespondError(c, err)
+		return
+	}
 	input.Page = page
 	input.Limit = limit
 

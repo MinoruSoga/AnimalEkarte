@@ -1,4 +1,4 @@
-import { useCallback, useTransition } from "react";
+import { useCallback, useRef, useTransition } from "react";
 import type { Dispatch, RefObject, SetStateAction } from "react";
 import type { NavigateFunction } from "react-router";
 import { toast } from "sonner";
@@ -137,6 +137,7 @@ export function useReservationActions({
   const { mutate: deleteReservationFn } = deleteMutation;
   const [, startUpdateTransition] = useTransition();
   const [, startDeleteTransition] = useTransition();
+  const createdPetIdsByRequestRef = useRef(new Map<string, Set<string>>());
 
   const checkOverlap = useCallback(
     (newStart: Date, newEnd: Date, doctor: string, excludeId?: string): boolean =>
@@ -218,29 +219,43 @@ export function useReservationActions({
       }
 
       try {
+        const requestKey = JSON.stringify({
+          start: data.start.toISOString(),
+          end: data.end.toISOString(),
+          visitType: data.visitType,
+          type: data.type,
+          doctor: targetDoctor,
+          isDesignated: data.isDesignated ?? false,
+          status: data.status ?? "confirmed",
+          notes: data.notes ?? "",
+        });
+        const alreadyCreated = createdPetIdsByRequestRef.current.get(requestKey) ?? new Set<string>();
+        const pendingPets = selectedPets.filter((pet) => !alreadyCreated.has(pet.id));
         const results = await Promise.allSettled(
-          selectedPets.map((pet) => {
+          pendingPets.map(async (pet) => {
             const createPayload = transformToCreateRequest(data, pet.id, pet.ownerId);
-            return createMutation.mutateAsync(createPayload);
+            await createMutation.mutateAsync(createPayload);
+            return pet.id;
           }),
         );
-        const succeeded = results.filter((r) => r.status === "fulfilled").length;
         const rejected = results.filter((r): r is PromiseRejectedResult => r.status === "rejected");
-        const failed = rejected.length;
+        results.forEach((result) => {
+          if (result.status === "fulfilled") alreadyCreated.add(result.value);
+        });
 
-        if (failed > 0) {
-          // Prefer the first BE reason (409 出勤ゼロ等). Do not bury it under a generic N-fail toast.
+        if (rejected.length > 0) {
+          createdPetIdsByRequestRef.current.set(requestKey, alreadyCreated);
           const reason = extractApiErrorMessage(rejected[0].reason, "作成");
-          // Keep modal open on any failure (partial or total).
-          if (succeeded > 0) {
-            toast.success(`${succeeded}件の予約を作成しました`, {
+          if (alreadyCreated.size > 0) {
+            toast.success(`${alreadyCreated.size}件の予約を作成しました`, {
               description: `担当医: ${targetDoctor}`,
             });
           }
           return reason;
         }
 
-        toast.success(`${succeeded}件の予約を作成しました`, {
+        createdPetIdsByRequestRef.current.delete(requestKey);
+        toast.success(`${selectedPets.length}件の予約を作成しました`, {
           description: `担当医: ${targetDoctor}`,
         });
         handleCloseForm();

@@ -15,6 +15,7 @@ export interface BackendCheckupGlobal {
 }
 
 export interface CheckupFilters {
+  petId?: string;
   startDate?: string;
   endDate?: string;
   nextStartDate?: string;

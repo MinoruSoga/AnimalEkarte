@@ -113,6 +113,7 @@ export function HospitalizationForm() {
   const totals = calculateTotals();
   const historyPetId = selectedPet?.id ?? petId ?? "";
   const { data: hospitalizationsResult, isLoading: isHistoryLoading } = useGetHospitalizations({
+    petId: historyPetId || undefined,
     page: 1,
     limit: 100,
     statusFilter: "all",
@@ -120,7 +121,6 @@ export function HospitalizationForm() {
   const historyItems = useMemo(() => {
     if (!historyPetId) return [];
     return (hospitalizationsResult?.data ?? [])
-      .filter((record) => record.petId === String(historyPetId))
       .map((record) => ({
         id: record.id,
         date: record.startDate,

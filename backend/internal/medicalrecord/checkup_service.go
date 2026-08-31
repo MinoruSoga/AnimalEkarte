@@ -38,6 +38,7 @@ type UpdateCheckupInput struct {
 // ListCheckupsByClinicInput はクリニック横断一覧取得の入力DTO
 type ListCheckupsByClinicInput struct {
 	ClinicID      uint64
+	PetID         *uint64
 	StartDate     *string
 	EndDate       *string
 	NextStartDate *string
@@ -169,6 +170,7 @@ func (s *checkupService) List(ctx context.Context, clinicID, medicalRecordID uin
 func (s *checkupService) ListByClinic(ctx context.Context, input ListCheckupsByClinicInput) ([]model.Checkup, int64, error) {
 	slog.InfoContext(ctx, "listing checkups by clinic", slog.Uint64("clinic_id", input.ClinicID))
 	result, total, err := s.repo.FindByClinicID(ctx, input.ClinicID, CheckupFilters{
+		PetID:         input.PetID,
 		StartDate:     input.StartDate,
 		EndDate:       input.EndDate,
 		NextStartDate: input.NextStartDate,

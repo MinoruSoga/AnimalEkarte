@@ -57,6 +57,7 @@ export function CheckupForm() {
   const { data: checkupTypes = [] } = useGetAllCheckupTypes();
   const { data: staffs = [] } = useGetStaffs();
   const { data: checkupsResult, isLoading: isHistoryLoading } = useGetCheckups({
+    petId: pet?.id ? String(pet.id) : undefined,
     page: 1,
     limit: 100,
   });
@@ -64,7 +65,6 @@ export function CheckupForm() {
   const historyItems = useMemo(() => {
     if (!pet?.id) return [];
     return (checkupsResult?.data ?? [])
-      .filter((record) => String(record.petId) === String(pet.id))
       .map((record) => ({
         id: String(record.id),
         date: record.date,

@@ -83,6 +83,7 @@ func (r updateCheckupRequest) toServiceInput() (*UpdateCheckupInput, error) {
 }
 
 type listGlobalCheckupsQuery struct {
+	PetID        string
 	ClinicID      uint64
 	StartDate     *string
 	EndDate       *string
@@ -92,6 +93,7 @@ type listGlobalCheckupsQuery struct {
 
 func newListGlobalCheckupsQuery(clinicID uint64, values url.Values) listGlobalCheckupsQuery {
 	return listGlobalCheckupsQuery{
+		PetID:        values.Get("pet_id"),
 		ClinicID:      clinicID,
 		StartDate:     optionalStringQueryFilter(values.Get("start_date")),
 		EndDate:       optionalStringQueryFilter(values.Get("end_date")),
@@ -100,12 +102,17 @@ func newListGlobalCheckupsQuery(clinicID uint64, values url.Values) listGlobalCh
 	}
 }
 
-func (q listGlobalCheckupsQuery) toServiceInput() ListCheckupsByClinicInput {
+func (q listGlobalCheckupsQuery) toServiceInput() (ListCheckupsByClinicInput, error) {
+	petID, err := parseOptionalUintQueryFilter(q.PetID, "pet_id")
+	if err != nil {
+		return ListCheckupsByClinicInput{}, err
+	}
 	return ListCheckupsByClinicInput{
 		ClinicID:      q.ClinicID,
+		PetID:         petID,
 		StartDate:     q.StartDate,
 		EndDate:       q.EndDate,
 		NextStartDate: q.NextStartDate,
 		NextEndDate:   q.NextEndDate,
-	}
+	}, nil
 }

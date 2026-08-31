@@ -451,11 +451,13 @@ func TestListGlobalCheckups(t *testing.T) {
 	}{
 		{
 			name:     "returns global checkups with default pagination and real total",
-			query:    "start_date=2026-01-01",
+			query:    "pet_id=42&start_date=2026-01-01",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockCheckupService{
 				listByClinicFn: func(_ context.Context, input ListCheckupsByClinicInput) ([]model.Checkup, int64, error) {
 					assert.Equal(t, uint64(1), input.ClinicID)
+					require.NotNil(t, input.PetID)
+					assert.Equal(t, uint64(42), *input.PetID)
 					assert.NotNil(t, input.StartDate)
 					assert.Equal(t, 1, input.Page, "デフォルト page=1")
 					assert.Equal(t, 20, input.Limit, "デフォルト limit=20")
@@ -478,6 +480,13 @@ func TestListGlobalCheckups(t *testing.T) {
 			},
 			wantStatus: http.StatusOK,
 			wantBody:   `"total":11,"page":2,"limit":5`,
+		},
+		{
+			name:       "returns 400 for invalid pet_id",
+			query:      "pet_id=invalid",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockCheckupService{},
+			wantStatus: http.StatusBadRequest,
 		},
 		{
 			name:       "returns 400 for invalid pagination",

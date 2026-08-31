@@ -19,6 +19,7 @@ import (
 // multi-repository package; every external caller only ever saw it via the internal/repository
 // facade (CheckupFilters alias), so no call site changes.
 type CheckupFilters struct {
+	PetID         *uint64
 	StartDate     *string
 	EndDate       *string
 	NextStartDate *string
@@ -59,6 +60,9 @@ func (r *checkupRepository) FindByClinicID(ctx context.Context, clinicID uint64,
 				persistence.ClinicScope(clinicID),
 				checkupPatientRelationsScope(clinicID),
 			)
+		if filters.PetID != nil {
+			q = q.Where("checkups.pet_id = ?", *filters.PetID)
+		}
 		if filters.StartDate != nil {
 			q = q.Where("date >= ?", *filters.StartDate)
 		}

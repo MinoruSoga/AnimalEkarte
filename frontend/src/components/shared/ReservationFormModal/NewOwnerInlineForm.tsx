@@ -57,8 +57,10 @@ export function NewOwnerInlineForm({ value, onChange, errors }: NewOwnerInlineFo
           placeholder="例: 090-1234-5678"
           className="h-9 text-sm"
           type="tel"
+          aria-invalid={errors.phone ? true : undefined}
+          aria-describedby={errors.phone ? "new-owner-phone-error" : undefined}
         />
-        <FormFieldError message={errors.phone} />
+        <FormFieldError id="new-owner-phone-error" message={errors.phone} />
       </div>
 
       <div className="flex flex-col gap-1">

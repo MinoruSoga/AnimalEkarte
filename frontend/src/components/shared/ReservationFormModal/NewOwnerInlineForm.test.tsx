@@ -165,6 +165,21 @@ describe("NewOwnerInlineForm animal species states", () => {
     expect(screen.getByRole("status")).toHaveAttribute("aria-atomic", "true");
   });
 
+  it("電話番号エラーを入力へ aria で関連付ける", () => {
+    render(
+      <NewOwnerInlineForm
+        value={EMPTY_FORM}
+        onChange={vi.fn()}
+        errors={{ phone: "電話番号の形式が正しくありません" }}
+      />,
+    );
+
+    const phone = screen.getByRole("textbox", { name: "電話番号" });
+    expect(phone).toHaveAttribute("aria-invalid", "true");
+    expect(phone).toHaveAttribute("aria-describedby", "new-owner-phone-error");
+    expect(screen.getByRole("alert")).toHaveAttribute("id", "new-owner-phone-error");
+  });
+
   it("動物種の取得失敗中も動物種以外の入力を利用できる", async () => {
     const user = userEvent.setup();
     mockAnimalSpecies({ isError: true, error: new Error("internal detail") });

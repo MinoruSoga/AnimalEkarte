@@ -131,6 +131,7 @@ func TestCheckupService_List(t *testing.T) {
 
 func TestCheckupService_ListByClinic(t *testing.T) {
 	startDate := "2026-05-01"
+	petID := uint64(42)
 	endDate := "2026-05-31"
 
 	tests := []struct {
@@ -149,6 +150,7 @@ func TestCheckupService_ListByClinic(t *testing.T) {
 			name: "returns checkups filtered by date range",
 			input: ListCheckupsByClinicInput{
 				ClinicID:  1,
+				PetID:     &petID,
 				StartDate: &startDate,
 				EndDate:   &endDate,
 				Page:      1,
@@ -162,6 +164,7 @@ func TestCheckupService_ListByClinic(t *testing.T) {
 			wantLen:   2,
 			wantTotal: 2,
 			checkedFilters: func(t *testing.T, filters CheckupFilters) {
+				assert.Equal(t, &petID, filters.PetID)
 				assert.Equal(t, &startDate, filters.StartDate)
 				assert.Equal(t, &endDate, filters.EndDate)
 			},
