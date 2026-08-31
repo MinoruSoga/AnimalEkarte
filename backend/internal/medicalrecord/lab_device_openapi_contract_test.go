@@ -152,6 +152,11 @@ func TestLabDeviceConnectivityDocsMatchRuntime(t *testing.T) {
 	assert.Contains(t, taskText, "**status**: Completed")
 	assert.NotContains(t, taskText, "- [ ]")
 	assert.NotContains(t, taskText, "現状（ADR-007 §7 の実装）は「`exam_type_id` が2種以上なら保存拒否")
+
+	persisterSource, err := os.ReadFile("lab_device_exam_persist.go")
+	require.NoError(t, err)
+	assert.Contains(t, string(persisterSource), "one exam per mapped exam type for each linked measurement")
+	assert.NotContains(t, string(persisterSource), "one exam per mapped measurement")
 }
 
 func TestLabDeviceOpenAPISourceEnumsMatchRuntime(t *testing.T) {

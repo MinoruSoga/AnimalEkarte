@@ -22,7 +22,7 @@ type labDeviceExamPersister struct {
 	now     func() time.Time
 }
 
-// NewLabDeviceExamPersister writes one exam per mapped measurement after pet link.
+// NewLabDeviceExamPersister writes one exam per mapped exam type for each linked measurement.
 func NewLabDeviceExamPersister(
 	jobs LabDeviceReceiveRepository,
 	masters LabDeviceItemMasterService,
