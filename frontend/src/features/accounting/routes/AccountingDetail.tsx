@@ -207,7 +207,7 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
               onDismiss={() => navigate(paths.accounting.getHref())}
               submitLabel={canSubmit ? (accounting.status === "completed" ? "修正を保存する" : "会計を確定する") : undefined}
               submitDisabled={
-                isPaymentSubmitDisabled(calculation.total, paymentSplits)
+                isPaymentSubmitDisabled(calculation.billingAmount, paymentSplits)
                 || isPostCloseSubmitBlocked({
                   isScheduledDateClosed,
                   canPostCloseEdit: Boolean(canPostCloseEdit),

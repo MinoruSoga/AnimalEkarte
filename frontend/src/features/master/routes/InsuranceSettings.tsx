@@ -82,7 +82,14 @@ export function InsuranceSettings() {
           </TableCell>
         </DataTableRow>
       )}
-      renderSidePanel={(props) => <InsuranceSidePanel key={props.item?.id ?? "new"} {...props} onDirtyChange={handleDirtyChange} />}
+      renderSidePanel={(props) => (
+        <InsuranceSidePanel
+          key={props.item?.id ?? "new"}
+          {...props}
+          onSave={handleSave}
+          onDirtyChange={handleDirtyChange}
+        />
+      )}
     />
   );
 }

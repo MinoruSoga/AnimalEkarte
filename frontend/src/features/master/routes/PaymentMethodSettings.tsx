@@ -112,7 +112,12 @@ export function PaymentMethodSettings() {
         </DataTableRow>
       )}
       renderSidePanel={(props) => (
-        <PaymentMethodSidePanel key={props.item?.id ?? "new"} {...props} onDirtyChange={handleDirtyChange} />
+        <PaymentMethodSidePanel
+          key={props.item?.id ?? "new"}
+          {...props}
+          onSave={handleSave}
+          onDirtyChange={handleDirtyChange}
+        />
       )}
     />
   );

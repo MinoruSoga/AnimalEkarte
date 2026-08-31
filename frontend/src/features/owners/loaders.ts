@@ -126,6 +126,7 @@ function transformPetListItemToFrontend(p: PetListApiItem): Pet {
     remarks: p.remarks,
     // petListResponse は deceased_at を含まない（status で十分 — StatusBadge は pet.status を使用）。
     deceasedAt: undefined,
+    deceasedReason: undefined,
   };
 }
 

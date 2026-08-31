@@ -7,7 +7,7 @@ import { C, ICON } from "@/lib/design-tokens";
 import { normalizeKana } from "@/lib/normalize-kana";
 import { formatCurrency } from "@/lib/format/number";
 
-interface MasterItem {
+export interface MasterSelectItem {
   id: string | number;
   name: string;
   price?: number;
@@ -17,8 +17,8 @@ interface MasterSelectModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   title: string;
-  items: MasterItem[];
-  onSelect: (item: MasterItem) => void;
+  items: MasterSelectItem[];
+  onSelect: (item: MasterSelectItem) => void;
   selectedValue?: string | number | null;
   searchPlaceholder?: string;
 
@@ -50,7 +50,7 @@ export const MasterSelectModal = memo(function MasterSelectModal({
   }, [items, deferredSearchTerm]);
 
   const handleSelect = useCallback(
-    (item: MasterItem) => {
+    (item: MasterSelectItem) => {
       onSelect(item);
       onOpenChange(false);
       setSearchTerm("");

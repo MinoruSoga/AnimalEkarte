@@ -23,7 +23,10 @@ import { useDeleteHospitalization } from "../api/delete-hospitalization";
 import { paths } from "@/config/paths";
 import { useMasterItems } from "@/hooks/use-master-items";
 import { useGetStaffs } from "@/hooks/use-staffs";
-import { MasterSelectModal } from "@/components/shared/MasterSelectModal";
+import {
+  MasterSelectModal,
+  type MasterSelectItem,
+} from "@/components/shared/MasterSelectModal";
 import { HospitalizationBasicInfo } from "../components/HospitalizationBasicInfo";
 import { HospitalizationNoteCard } from "../components/HospitalizationNoteCard";
 import { HospitalizationTreatmentTable } from "../components/HospitalizationTreatmentTable";
@@ -35,7 +38,6 @@ import { FormFieldError } from "@/components/shared/FormFieldError";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { C, STYLE, ICON, LAYOUT } from "@/lib/design-tokens";
 import { ResourceHospitalization } from "@/types/generated/models";
-import type { MasterItem } from "@/types";
 
 export function HospitalizationForm() {
   const navigate = useNavigate();
@@ -165,7 +167,7 @@ export function HospitalizationForm() {
     [staffs, formData.doctorId],
   );
   const handleOpenStaffModal = useCallback(() => setStaffModalOpen(true), []);
-  const handleSelectDoctor = useCallback((item: MasterItem) => {
+  const handleSelectDoctor = useCallback((item: MasterSelectItem) => {
     handleFormChange({ doctorId: String(item.id), doctorName: item.name });
   }, [handleFormChange]);
 

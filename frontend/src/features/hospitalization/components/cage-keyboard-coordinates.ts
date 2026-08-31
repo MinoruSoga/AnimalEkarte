@@ -1,3 +1,5 @@
+import type { KeyboardCoordinateGetter } from "@dnd-kit/core";
+
 export interface CageKeyboardRect {
   top: number;
   left: number;
@@ -51,17 +53,7 @@ export function selectNextCageRect(
   );
 }
 
-export function cageKeyboardCoordinateGetter(
-  event: KeyboardEvent,
-  args: {
-    currentCoordinates: { x: number; y: number };
-    context: {
-      collisionRect?: CageKeyboardRect | null;
-      droppableRects: { get: (id: PropertyKey) => CageKeyboardRect | undefined };
-      droppableContainers: { getEnabled: () => ReadonlyArray<{ id: PropertyKey }> };
-    };
-  },
-): { x: number; y: number } | undefined {
+export const cageKeyboardCoordinateGetter: KeyboardCoordinateGetter = (event, args) => {
   if (!["ArrowDown", "ArrowUp", "ArrowLeft", "ArrowRight"].includes(event.code)) {
     return undefined;
   }
@@ -78,9 +70,9 @@ export function cageKeyboardCoordinateGetter(
   const candidates = args.context.droppableContainers
     .getEnabled()
     .map((entry) => args.context.droppableRects.get(entry.id))
-    .filter((rect): rect is CageKeyboardRect => rect != null);
+    .filter((rect) => rect !== undefined);
 
   const next = selectNextCageRect(event.code, collision, candidates);
   if (!next) return undefined;
   return { x: next.left, y: next.top };
-}
+};

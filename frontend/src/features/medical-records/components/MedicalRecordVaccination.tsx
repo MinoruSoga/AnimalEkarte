@@ -10,12 +10,12 @@ import { toast } from "sonner";
 
 // Relative
 import { useGetPetVaccinations } from "../api/get-pet-vaccinations";
-import type { PetVaccinationHistoryItem } from "../api/get-pet-vaccinations";
 import { EmptyState } from "@/components/shared/DataStates";
 import { calculateNextDate, resolveScheduleTypeAfterManualDate } from "@/components/shared/NextScheduleField";
 import { Button } from "@/components/ui/button";
 import { VaccinationForm } from "./VaccinationForm";
 import { VaccinationHistory } from "./VaccinationHistory";
+import type { VaccinationHistoryItem } from "./VaccinationHistory";
 
 type LstepStatus = "synced" | "not-linked" | "opt-out";
 
@@ -83,7 +83,7 @@ export const MedicalRecordVaccination = memo(function MedicalRecordVaccination({
     [vaccinesMaster]
   );
 
-  const handleDuplicate = useCallback((item: PetVaccinationHistoryItem) => {
+  const handleDuplicate = useCallback((item: VaccinationHistoryItem) => {
     setIsAdding(true);
     setVaccineName(String(item.vaccineId));
     setDate(""); // 実施日は新しく入力させる

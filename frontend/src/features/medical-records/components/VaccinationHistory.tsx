@@ -15,7 +15,7 @@ const SORT_ORDER_SELECT_ITEMS = (
   </>
 );
 
-interface HistoryItem {
+export interface VaccinationHistoryItem {
   id: number;
   name: string;
   date: string;
@@ -30,9 +30,9 @@ interface HistoryItem {
 }
 
 interface VaccinationHistoryProps {
-  historyItems: HistoryItem[];
+  historyItems: VaccinationHistoryItem[];
   isLoading?: boolean;
-  onDuplicate?: (item: HistoryItem) => void;
+  onDuplicate?: (item: VaccinationHistoryItem) => void;
   canCreate?: boolean;
 }
 

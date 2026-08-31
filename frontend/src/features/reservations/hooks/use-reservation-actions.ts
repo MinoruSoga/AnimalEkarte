@@ -138,14 +138,26 @@ export function useReservationActions({
   const [, startUpdateTransition] = useTransition();
   const [, startDeleteTransition] = useTransition();
   const createdPetIdsRef = useRef(new Set<string>());
+  const createdReservationIdsRef = useRef(new Set<string>());
   const resetCreateProgress = useCallback(() => {
     createdPetIdsRef.current.clear();
+    createdReservationIdsRef.current.clear();
   }, []);
+  const handleCloseCreateForm = useCallback(() => {
+    resetCreateProgress();
+    handleCloseForm();
+  }, [handleCloseForm, resetCreateProgress]);
 
   const checkOverlap = useCallback(
-    (newStart: Date, newEnd: Date, doctor: string, excludeId?: string): boolean =>
+    (
+      newStart: Date,
+      newEnd: Date,
+      doctor: string,
+      excludeId?: string,
+      excludeIds?: ReadonlySet<string>,
+    ): boolean =>
       appointments.some((app) => {
-        if (excludeId && app.id === excludeId) return false;
+        if ((excludeId && app.id === excludeId) || excludeIds?.has(app.id)) return false;
         if (app.status === "cancelled") return false;
         if (app.doctor !== doctor) return false;
         return newStart < app.end && newEnd > app.start;
@@ -160,13 +172,19 @@ export function useReservationActions({
   }, [locationFrom, navigate]);
 
   const handleSave = useCallback(
-    async (data: ReservationFormData, selectedPets: Pet[], newOwnerData?: NewOwnerFormData): Promise<string | null> => {
+    async (data: ReservationFormData, selectedPets: Pick<Pet, "id" | "ownerId" | "name">[], newOwnerData?: NewOwnerFormData): Promise<string | null> => {
       if (!data.start || !data.end) return null;
       if (!newOwnerData && selectedPets.length === 0) return null;
 
       const currentEditing = editingAppointmentRef.current;
       const targetDoctor = data.doctor || currentEditing?.doctor || "";
-      const hasOverlap = checkOverlap(data.start, data.end, targetDoctor, currentEditing?.id);
+      const hasOverlap = checkOverlap(
+        data.start,
+        data.end,
+        targetDoctor,
+        currentEditing?.id,
+        currentEditing?.id ? undefined : createdReservationIdsRef.current,
+      );
 
       if (hasOverlap) {
         // FE precheck — keep modal open with inline message (same surface as API 409).
@@ -213,7 +231,7 @@ export function useReservationActions({
           toast.success("予約を作成しました", {
             description: `${newOwnerData.ownerName}様 / ${newOwnerData.petName} / 担当医: ${targetDoctor}`,
           });
-          handleCloseForm();
+          handleCloseCreateForm();
           navigateBackIfNeeded();
           return null;
         } catch (error) {
@@ -229,13 +247,16 @@ export function useReservationActions({
         const results = await Promise.allSettled(
           pendingPets.map(async (pet) => {
             const createPayload = transformToCreateRequest(data, pet.id, pet.ownerId);
-            await createMutation.mutateAsync(createPayload);
-            return pet.id;
+            const createdReservation = await createMutation.mutateAsync(createPayload);
+            return { petId: pet.id, reservationId: createdReservation.id };
           }),
         );
         const rejected = results.filter((r): r is PromiseRejectedResult => r.status === "rejected");
         results.forEach((result) => {
-          if (result.status === "fulfilled") alreadyCreated.add(result.value);
+          if (result.status === "fulfilled") {
+            alreadyCreated.add(result.value.petId);
+            createdReservationIdsRef.current.add(result.value.reservationId);
+          }
         });
 
         if (rejected.length > 0) {
@@ -248,11 +269,10 @@ export function useReservationActions({
           return reason;
         }
 
-        resetCreateProgress();
         toast.success(`${selectedPets.length}件の予約を作成しました`, {
           description: `担当医: ${targetDoctor}`,
         });
-        handleCloseForm();
+        handleCloseCreateForm();
         navigateBackIfNeeded();
         return null;
       } catch (error) {
@@ -264,9 +284,9 @@ export function useReservationActions({
       createMutation,
       createMutations,
       editingAppointmentRef,
+      handleCloseCreateForm,
       handleCloseForm,
       navigateBackIfNeeded,
-      resetCreateProgress,
       updateReservationFn,
     ],
   );
@@ -369,5 +389,6 @@ export function useReservationActions({
     executeStatusChange,
     executeDelete,
     resetCreateProgress,
+    handleCloseCreateForm,
   };
 }

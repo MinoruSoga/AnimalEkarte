@@ -38,5 +38,6 @@ export function toPet(pet: OwnerReportPet, ownerId: string): Pet {
     insuranceDetails: pet.insuranceDetails,
     remarks: pet.remarks,
     deceasedAt: undefined,
+    deceasedReason: undefined,
   };
 }
