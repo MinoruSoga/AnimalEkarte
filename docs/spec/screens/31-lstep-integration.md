@@ -10,8 +10,9 @@
 - **アクセス権限**（FE）:
   - 連携設定 `/settings/integrations/lstep`: `ResourceHospitalSettings`
   - タグ管理 `/settings/lstep/tags`: **`ResourceLstepAnalytics`**
-  - 健診同期 `/lstep/checkup-sync`: 親 `/lstep` の `ResourceHospitalSettings`
-  - 分析 `/lstep/analytics`: 親 `ResourceHospitalSettings` **かつ** ネスト `ResourceLstepAnalytics`
+  - 健診同期 `/lstep/checkup-sync`: `ResourceHospitalSettings`
+  - 分析 `/lstep/analytics`: `ResourceLstepAnalytics` のみ
+  - 親 `/lstep` は意図的に権限ガードを持たず、各子ルートが独立したガードを持つ。FE のルートガードとは別に、各 API は下表の BE 権限で認可する。
 
 ---
 

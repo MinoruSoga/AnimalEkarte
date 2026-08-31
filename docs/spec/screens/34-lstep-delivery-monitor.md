@@ -4,7 +4,7 @@
 - **画面の目的**: システムが自動生成した Lステップ **配信トリガー** の実行状況、除外判定、および API 通信の成否をリアルタイムに監視する。
 - **観測範囲**: `lstep_delivery_trigger_log` のみ。会計確定後の CPM 同期など **ordinary タグ同期（request-local secondary）は本画面の対象外**であり、当該経路は trigger log に書かない。
 - **URLパターン**: `/lstep/delivery-monitor`
-- **アクセス権限**: FE は親 `/lstep` の `ResourceHospitalSettings` **かつ** 子 `ResourceLstepAnalytics` の両方。BE API は `ResourceLstepAnalytics`。
+- **アクセス権限**: FE/BE とも `ResourceLstepAnalytics:view`。親 `/lstep` は権限を加算しない。
 - **Deploy gate（`LSTEP_WRITE_API_ENABLED`）**: Write 系が無効のとき HTTP を送らず **`ErrWriteDisabled` を返す（`nil` 成功にしない）**。判定・除外・ログ行の作成と監視 UI は継続する（[`LSTEP_WRITE_API_PAUSE.md`](../../ops/deploy/LSTEP_WRITE_API_PAUSE.md)。enable / stop / rollback 手順は同 runbook が正本）。
 - **Clinic gate（`is_sync_enabled` / API キー）**: 同期無効または API キー未設定の clinic はクライアント未構築による意図的スキップ（`nil, nil`）。deploy gate とは**別契約**である。
 
