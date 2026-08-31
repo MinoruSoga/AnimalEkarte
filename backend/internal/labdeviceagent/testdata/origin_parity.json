@@ -33,6 +33,14 @@
       "canonical": "https://ordinary.example"
     },
     {
+      "raw": "https://1..example",
+      "canonical": "https://1..example"
+    },
+    {
+      "raw": "https://www.example.com",
+      "canonical": "https://www.example.com"
+    },
+    {
       "raw": "https://[2001:0DB8:0:0::1]:443",
       "canonical": "https://[2001:db8::1]"
     },
@@ -54,6 +62,12 @@
     },
     {
       "raw": "https://example.test\\evil"
+    },
+    {
+      "raw": "https://%65xample.com"
+    },
+    {
+      "raw": "https://example%2ecom"
     },
     {
       "raw": "https://0x"

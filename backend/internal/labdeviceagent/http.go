@@ -201,12 +201,6 @@ func isBrowserInvalidOrRewrittenNumericHostname(hostname string) bool {
 
 	candidate := strings.TrimSuffix(hostname, ".")
 	parts := strings.Split(candidate, ".")
-	for _, part := range parts {
-		if part == "" {
-			return true
-		}
-	}
-
 	terminal := parts[len(parts)-1]
 	if strings.IndexFunc(terminal, func(r rune) bool { return r < '0' || r > '9' }) == -1 {
 		return true

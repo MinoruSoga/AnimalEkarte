@@ -18,7 +18,7 @@ function isIPv4MappedIPv6(hostname) {
 }
 
 const raw = (process.argv[2] ?? "").trim();
-if (!/^https:\/\/[^/?#\\]+$/.test(raw) || !/^[\x21-\x7e]+$/.test(raw)) process.exit(1);
+if (raw.includes("%") || !/^https:\/\/[^/?#\\]+$/.test(raw) || !/^[\x21-\x7e]+$/.test(raw)) process.exit(1);
 
 try {
   const parsed = new URL(raw);
