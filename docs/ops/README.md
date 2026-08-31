@@ -18,10 +18,10 @@
 | [coverage-policy.md](coverage-policy.md) | テストカバレッジ ratchet 方式の運用ポリシー | カバレッジゲート調整時 |
 | [backlog-spreadsheet.md](backlog-spreadsheet.md) | Q&A バックログスプレッドシートの運用ルール | クライアント Q&A シート操作前 |
 | [infra/architecture.md](infra/architecture.md) | インフラ構成図・ネットワーク・セキュリティ設計（`../architecture/overview.md` のレイヤード構造とは別物） | インフラ構成の調査・変更前 |
-| ~~infra/_archive/aws-legacy/~~（git 履歴のみ） | 2026-07-20 廃止の AWS 基盤記録。2026-08-20 削除（`git show e0260d32f^:docs/ops/infra/_archive/aws-legacy/` で復元可・**実行禁止**） | 過去の判断・実施証跡を調査する時のみ |
+| [infra/](infra/README.md) | Cloudflare 基盤の現行リポジトリ契約と、AWS 廃止履歴への正本ポインタ | インフラ変更・履歴調査前 |
 
 ## AI エージェント向け注記
 
-- タスク台帳の実行 SoT は **Linear**（hub BRT-4。2026-08-14 移行）。root [`todo.md`](../../todo.md) · [`todo-po.md`](../../todo-po.md) は入口ポインタ。運用で発見した課題は Linear に起票する。旧 `q&a.html` / `STATUS.md` / `PO-todo.md` は削除済。
-- **#261 / BRT-51 承認の所在（代行しない・`q&a.html` は捏造しない）:** 判定の書き先は GitHub [#261](https://github.com/MinoruSoga/AnimalEkarte/issues/261) 本文（A/B/C）。`q&a.html` は repo に無い。B 薬量は [BRT-39](https://linear.app/baritechllc/issue/BRT-39)。C 健診 seed は [BRT-40](https://linear.app/baritechllc/issue/BRT-40)。検査 / #249 はスコープ外。
+- タスク台帳の実行 SoT は **Linear**。hub・issue の現在状態は外部情報のため、操作前に Linear / GitHub で人手確認する。リポジトリが証明するのは次の pointer の内容のみ。root [`todo.md`](../../todo.md) · [`todo-po.md`](../../todo-po.md) は入口ポインタ。運用で発見した課題は Linear に起票する。旧 `q&a.html` / `STATUS.md` / `PO-todo.md` は削除済。
+- **外部 mapping（操作前に GitHub / Linear で検証必須。以下は履歴 pointer）:** #261 / BRT-51 の判定先として GitHub [#261](https://github.com/MinoruSoga/AnimalEkarte/issues/261) 本文（A/B/C）。`q&a.html` は repo に無い。B 薬量は [BRT-39](https://linear.app/baritechllc/issue/BRT-39)。C 健診 seed は [BRT-40](https://linear.app/baritechllc/issue/BRT-40)。検査 / #249 はスコープ外。
 - migration/seed に触れる作業は `migration-seed-safety` スキル、リリース前チェックは `stg-release-readiness` スキルを先に読むこと。
