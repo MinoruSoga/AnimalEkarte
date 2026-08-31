@@ -138,6 +138,12 @@ func TestLabDeviceConnectivityDocsMatchRuntime(t *testing.T) {
 	assert.Contains(t, text, "`idexx_vetlab` は decoder / persist / 既定slotを実装済み")
 	assert.NotContains(t, text, "別 source_type。未実装")
 	assert.NotContains(t, text, "既定3スロットに IDEXX フレームを足す")
+
+	adr, err := os.ReadFile("../../../docs/architecture/adr/007-lab-device-receive-and-commit.md")
+	require.NoError(t, err)
+	adrText := string(adr)
+	assert.NotContains(t, adrText, "に3種を allowlist")
+	assert.NotContains(t, adrText, "Commit は3種を受けない")
 }
 
 func TestLabDeviceOpenAPISourceEnumsMatchRuntime(t *testing.T) {

@@ -85,7 +85,7 @@ Original BRT-96 scope では3値だった。現行 `001_init.sql` の `CREATE TY
 
 ### 3. device persist は `job_id` + `pet_id`。既存 Commit は触らない
 
-`POST /api/v1/lab-imports`（fixture + `LabExamPersistInput`）に3種を allowlist しない。クライアントは `exam_type_id` も測定値も送らない。
+`POST /api/v1/lab-imports`（fixture + `LabExamPersistInput`）に機器 `source_type` を allowlist しない。クライアントは `exam_type_id` も測定値も送らない。
 
 新口（名前は実装時に OpenAPI へ）:
 
@@ -203,7 +203,7 @@ device ［取り消す］は **detach**:
 - BRT-95: `LabDeviceFrame` デコーダ + 合成バイト。DB なし
 - BRT-96: マスタ。DDL は `001_init.sql` セクション13（2026-08-19 統合）
 - BRT-97: 待機/board/frames/wait/UI。persist は §3 の口を呼ぶ
-- BRT-98: `job_id`+`pet_id` の exam 書き込み。fixture Commit は3種を受けない。コード済み。Done は人間ゲート
+- BRT-98: `job_id`+`pet_id` の exam 書き込み。fixture Commit は機器 `source_type` を受けない。コード済み。Done は人間ゲート
 - 医院公開は子 Issue 全部 Done のあと
 
 **しない**
