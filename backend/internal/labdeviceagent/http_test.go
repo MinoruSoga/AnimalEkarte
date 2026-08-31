@@ -326,18 +326,21 @@ func TestNormalizeAllowedOriginMatchesSharedBrowserParityCorpus(t *testing.T) {
 	}
 }
 
-func TestHandlerAllowsEveryAcceptedSharedOriginByExactCORSMatch(t *testing.T) {
+func TestHandlerExactCORSMatchesSharedOriginContract(t *testing.T) {
 	for _, test := range loadOriginParityCorpus(t).Cases {
-		if test.Canonical == "" {
-			continue
-		}
 		t.Run(test.Raw, func(t *testing.T) {
 			handler := NewHandler(NewQueue(1), &Status{}, "clinic-2", test.Raw)
 			request := httptest.NewRequest(http.MethodOptions, "http://127.0.0.1:17654/frames", nil)
-			request.Header.Set("Origin", test.Canonical)
+			requestOrigin := test.Canonical
+			expectedStatus := http.StatusNoContent
+			if requestOrigin == "" {
+				requestOrigin = test.Raw
+				expectedStatus = http.StatusForbidden
+			}
+			request.Header.Set("Origin", requestOrigin)
 			response := httptest.NewRecorder()
 			handler.ServeHTTP(response, request)
-			require.Equal(t, http.StatusNoContent, response.Code)
+			require.Equal(t, expectedStatus, response.Code)
 			require.Equal(t, test.Canonical, response.Header().Get("Access-Control-Allow-Origin"))
 		})
 	}

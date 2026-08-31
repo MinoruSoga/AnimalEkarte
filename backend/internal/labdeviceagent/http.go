@@ -140,13 +140,16 @@ func NewHandler(queue *Queue, status *Status, expectedClinic string, configuredO
 	return &handler{queue: queue, status: status, lease: &consumerLease{expectedClinic: expectedClinic}, allowedOrigins: origins}
 }
 
-// NormalizeAllowedOrigin accepts an exact HTTP(S) origin and returns the
-// canonical browser Origin form: lowercase host, normalized IPv6, and no
-// scheme-default port. HTTP remains limited to loopback development origins.
+// NormalizeAllowedOrigin accepts an exact origin with a supported host and returns
+// its canonical form. Supported hosts are canonical dotted IPv4, valid non-mapped
+// IPv6, or strict ASCII DNS. HTTP remains limited to loopback development origins.
 func NormalizeAllowedOrigin(raw string) (string, bool) {
 	raw = strings.TrimSpace(raw)
+	if !strings.HasPrefix(raw, "https://") && !strings.HasPrefix(raw, "http://") {
+		return "", false
+	}
 	parsed, err := url.Parse(raw)
-	if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "" || parsed.User != nil || parsed.Path != "" || parsed.RawQuery != "" || parsed.Fragment != "" || parsed.ForceQuery || strings.ContainsAny(raw, "\\?#") || strings.Contains(parsed.Host, "*") || strings.HasSuffix(parsed.Host, ":") {
+	if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "" || parsed.User != nil || parsed.Path != "" || parsed.RawQuery != "" || parsed.Fragment != "" || parsed.ForceQuery || strings.ContainsAny(raw, "\\?#%") || strings.Contains(parsed.Host, "*") || strings.HasSuffix(parsed.Host, ":") {
 		return "", false
 	}
 
@@ -163,9 +166,7 @@ func NormalizeAllowedOrigin(raw string) (string, bool) {
 			return "", false
 		}
 		hostname = ip.String()
-	} else if isBrowserInvalidOrRewrittenNumericHostname(hostname) {
-		// Browsers rewrite legacy numeric IPv4 forms and reject malformed
-		// numeric-terminal hosts. Reject both rather than store an unusable origin.
+	} else if !isSupportedIPv4OrDNSHostname(hostname) {
 		return "", false
 	}
 
@@ -194,24 +195,36 @@ func NormalizeAllowedOrigin(raw string) (string, bool) {
 	return parsed.Scheme + "://" + canonicalHost, true
 }
 
-func isBrowserInvalidOrRewrittenNumericHostname(hostname string) bool {
-	if ip := net.ParseIP(hostname); ip != nil && ip.To4() != nil {
+func isSupportedIPv4OrDNSHostname(hostname string) bool {
+	if len(hostname) > 253 {
 		return false
 	}
+	if ip := net.ParseIP(hostname); ip != nil && ip.To4() != nil {
+		return ip.String() == hostname
+	}
 
-	candidate := strings.TrimSuffix(hostname, ".")
-	parts := strings.Split(candidate, ".")
-	terminal := parts[len(parts)-1]
-	if strings.IndexFunc(terminal, func(r rune) bool { return r < '0' || r > '9' }) == -1 {
-		return true
+	labels := strings.Split(hostname, ".")
+	for _, label := range labels {
+		if len(label) == 0 || len(label) > 63 || label[0] == '-' || label[len(label)-1] == '-' {
+			return false
+		}
+		for _, char := range label {
+			if (char < 'a' || char > 'z') && (char < '0' || char > '9') && char != '-' {
+				return false
+			}
+		}
 	}
-	if strings.HasPrefix(strings.ToLower(terminal), "0x") {
-		hexDigits := terminal[2:]
-		return strings.IndexFunc(hexDigits, func(r rune) bool {
-			return (r < '0' || r > '9') && (r < 'a' || r > 'f') && (r < 'A' || r > 'F')
-		}) == -1
+
+	terminal := labels[len(labels)-1]
+	if strings.IndexFunc(terminal, func(char rune) bool { return char < '0' || char > '9' }) == -1 {
+		return false
 	}
-	return false
+	if strings.HasPrefix(terminal, "0x") && strings.IndexFunc(terminal[2:], func(char rune) bool {
+		return (char < '0' || char > '9') && (char < 'a' || char > 'f')
+	}) == -1 {
+		return false
+	}
+	return true
 }
 
 func (h *handler) ServeHTTP(response http.ResponseWriter, request *http.Request) {

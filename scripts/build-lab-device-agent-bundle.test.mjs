@@ -13,6 +13,8 @@ const originParityCorpus = JSON.parse(fs.readFileSync(
   fileURLToPath(new URL("../backend/internal/labdeviceagent/testdata/origin_parity.json", import.meta.url)),
   "utf8",
 ));
+const acceptedOrigins = originParityCorpus.cases.filter(({ canonical }) => canonical !== undefined);
+const rejectedOrigins = originParityCorpus.cases.filter(({ canonical }) => canonical === undefined).map(({ raw }) => raw);
 
 test("canonical origin helper matches the shared Go/browser parity corpus", () => {
   for (const { raw, canonical } of originParityCorpus.cases) {
@@ -98,7 +100,7 @@ with open(sys.argv[-1], "rb") as stream:
   }
 });
 
-test("bundle rejects credential and malformed-port origins before Docker", () => {
+test("bundle rejects every unsupported shared origin before Docker", () => {
   const binDir = fs.mkdtempSync(path.join(os.tmpdir(), "lab-bundle-bin-"));
   const dockerMarker = path.join(binDir, "docker-called");
   const dockerStub = path.join(binDir, "docker");
@@ -108,33 +110,7 @@ exit 77
 `, { mode: 0o700 });
 
   try {
-    for (const origin of [
-      "https://user@example.test",
-      "https://example.test:bad",
-      "https://example.test:",
-      "https://example.test:70000",
-      "https://example.test\\evil",
-      "https://%65xample.com",
-      "https://example%2ecom",
-      "https://0x",
-      "https://0x.1",
-      "https://1.2.3.0x",
-      "https://1.2.3.4.5",
-      "https://0.0.0.0.0",
-      "https://1..2",
-      "https://..1",
-      "https://example.123",
-      "https://0x7g.0.0.1",
-      "https://0x7f000001",
-      "https://0x7f.0.0.1",
-      "https://0x7f.1",
-      "https://2130706433",
-      "https://127.1",
-      "https://0177.0.0.1",
-      "https://127.0.0.1.",
-      "https://[::ffff:192.0.2.128]",
-      "https://[::ffff:c000:280]",
-    ]) {
+    for (const origin of rejectedOrigins) {
       fs.rmSync(dockerMarker, { force: true });
       const outputDir = path.join(binDir, `bundle-${Math.random().toString(16).slice(2)}`);
       const result = spawnSync("sh", [scriptPath, "123", origin, outputDir], {
@@ -191,16 +167,7 @@ test("canonical origin helper rejects rewritten numeric and mapped IP hosts", ()
 
 test("both macOS entry points canonicalize before later installation work", () => {
   const directInstallPath = fileURLToPath(new URL("./install-lab-device-agent.sh", import.meta.url));
-  const cases = [
-    ["https://EXAMPLE.test", "https://example.test"],
-    ["https://Example.test:443", "https://example.test"],
-    ["https://Example.test:0443", "https://example.test"],
-    ["https://1..example", "https://1..example"],
-    ["https://www.example.com", "https://www.example.com"],
-    ["https://[::ffff:0:c000:280]", "https://[::ffff:0:c000:280]"],
-    ["https://[::ffff:0:0:c000:280]", "https://[::ffff:0:0:c000:280]"],
-    ["https://[::ffff:0:0:1]", "https://[::ffff:0:0:1]"],
-  ];
+  const cases = acceptedOrigins.map(({ raw, canonical }) => [raw, canonical]);
   for (const entry of [
     { path: scriptPath, args: (origin, temp) => ["123", origin, path.join(temp, "bundle")] },
     { path: directInstallPath, args: (origin) => ["123", origin] },
@@ -222,7 +189,7 @@ test("both macOS entry points canonicalize before later installation work", () =
 });
 
 
-test("direct installer rejects unsafe origins before device discovery or Docker", () => {
+test("direct installer rejects every unsupported shared origin before device discovery or Docker", () => {
   const directInstallPath = fileURLToPath(new URL("./install-lab-device-agent.sh", import.meta.url));
   const binDir = fs.mkdtempSync(path.join(os.tmpdir(), "lab-install-bin-"));
   const dockerMarker = path.join(binDir, "docker-called");
@@ -231,33 +198,7 @@ test("direct installer rejects unsafe origins before device discovery or Docker"
 exit 77
 `, { mode: 0o700 });
   try {
-    for (const origin of [
-      "https://user@example.test",
-      "https://example.test:bad",
-      "https://example.test:",
-      "https://example.test:70000",
-      "https://example.test\\evil",
-      "https://%65xample.com",
-      "https://example%2ecom",
-      "https://0x",
-      "https://0x.1",
-      "https://1.2.3.0x",
-      "https://1.2.3.4.5",
-      "https://0.0.0.0.0",
-      "https://1..2",
-      "https://..1",
-      "https://example.123",
-      "https://0x7g.0.0.1",
-      "https://0x7f000001",
-      "https://0x7f.0.0.1",
-      "https://0x7f.1",
-      "https://2130706433",
-      "https://127.1",
-      "https://0177.0.0.1",
-      "https://127.0.0.1.",
-      "https://[::ffff:192.0.2.128]",
-      "https://[::ffff:c000:280]",
-    ]) {
+    for (const origin of rejectedOrigins) {
       fs.rmSync(dockerMarker, { force: true });
       const result = spawnSync("sh", [directInstallPath, "123", origin], {
         encoding: "utf8",

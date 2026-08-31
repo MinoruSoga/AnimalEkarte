@@ -12,7 +12,7 @@ case "$clinic_id" in
   *[!0-9]*) echo "Clinic ID must contain digits only" >&2; exit 2 ;;
 esac
 if ! allowed_origin=$(node "$repo_dir/scripts/canonicalize-lab-device-origin.mjs" "$allowed_origin"); then
-  echo "Allowed origin must be an exact https origin with no credentials and a valid optional numeric port" >&2
+  echo "Allowed origin must use lowercase https with canonical IPv4, non-mapped IPv6, or strict ASCII DNS and an optional numeric port" >&2
   exit 2
 fi
 install_dir="$HOME/Library/Application Support/AnimalEkarte"

@@ -24,7 +24,7 @@ func (f *stringListFlag) String() string {
 
 func (f *stringListFlag) Set(value string) error {
 	if _, ok := labdeviceagent.NormalizeAllowedOrigin(value); !ok {
-		return errors.New("allowed-origin must be an exact http(s) origin")
+		return errors.New("allowed-origin must use lowercase http(s) with canonical IPv4, non-mapped IPv6, or strict ASCII DNS")
 	}
 	*f = append(*f, value)
 	return nil
@@ -34,7 +34,7 @@ func main() {
 	clinicID := flag.String("clinic-id", "", "clinic ID bound to this workstation")
 	portsFile := flag.String("ports-file", "", "newline-delimited allowlist of serial ports")
 	var allowedOrigins stringListFlag
-	flag.Var(&allowedOrigins, "allowed-origin", "exact deployed frontend origin allowed to use the loopback agent (repeatable)")
+	flag.Var(&allowedOrigins, "allowed-origin", "exact supported deployed frontend origin allowed to use the loopback agent (repeatable)")
 	pimsReply := flag.Bool("pims-reply", false, "write IDEXX ACK+A+IM/SM on the same usbserial port; do not use on hospital VetLab")
 	flag.Parse()
 	if *clinicID == "" || *portsFile == "" {

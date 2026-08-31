@@ -62,4 +62,12 @@ launchctl bootout "gui/$(id -u)/com.animalekarte.lab-device-agent"
 
 ## Browser origin / PNA
 
-Bundle作成時に配布先frontendの正確な`https://` originを1つ指定する。agentはlocalhost開発originとこの完全一致originだけへCORS/PNA応答を返す。wildcard、path、query、credential付きoriginは拒否する。
+Bundle作成時に配布先frontendの正確な`https://` originを1つ指定する。schemeは小文字の`https://`だけを受け付ける。hostは次のいずれかに限定する。
+
+- IPv4-mappedではない有効なIPv6
+- canonicalな4要素のdotted-decimal IPv4
+- ASCIIのDNS hostname。各labelは1〜63文字の英数字またはhyphenで、先頭・末尾hyphenは禁止し、hostname全体は253文字以下とする。punycode labelは使用できる
+
+DNS hostnameは小文字化し、IPv6とportはcanonical化し、HTTPSのdefault portは削除する。空label（先頭・末尾・連続dot）、underscore、numeric terminal label、legacy numeric host、percent escape、WHATWG禁止文字、wildcard、path、query、fragment、credential付きorigin、IPv4-mapped IPv6は拒否する。これはbrowserが受け付ける一部の特殊なdotted hostも意図的に拒否する共有contractである。
+
+agentはlocalhost開発originと、このcontractでcanonical化した完全一致originだけへCORS/PNA応答を返す。requestの`Origin`は再canonical化せず、保存済みcanonical originと完全一致で照合する。

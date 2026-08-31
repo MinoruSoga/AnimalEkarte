@@ -33,8 +33,7 @@
       "canonical": "https://ordinary.example"
     },
     {
-      "raw": "https://1..example",
-      "canonical": "https://1..example"
+      "raw": "https://1..example"
     },
     {
       "raw": "https://www.example.com",
@@ -125,6 +124,95 @@
     },
     {
       "raw": "https://[0:0:0:0:0:ffff:c000:0280]"
+    },
+    {
+      "raw": "https://xn--bcher-kva.example",
+      "canonical": "https://xn--bcher-kva.example"
+    },
+    {
+      "raw": "https://A-B.example",
+      "canonical": "https://a-b.example"
+    },
+    {
+      "raw": "HTTPS://example.com"
+    },
+    {
+      "raw": "Https://example.com"
+    },
+    {
+      "raw": "https://example.."
+    },
+    {
+      "raw": "https://example..."
+    },
+    {
+      "raw": "https://1..example.."
+    },
+    {
+      "raw": "https://.example.com"
+    },
+    {
+      "raw": "https://example.com."
+    },
+    {
+      "raw": "https://example..com"
+    },
+    {
+      "raw": "https://bad_host.example"
+    },
+    {
+      "raw": "https://-bad.example"
+    },
+    {
+      "raw": "https://bad-.example"
+    },
+    {
+      "raw": "https://aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.example"
+    },
+    {
+      "raw": "https://aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    {
+      "raw": "https://bad<host.example"
+    },
+    {
+      "raw": "https://bad>host.example"
+    },
+    {
+      "raw": "https://bad]host.example"
+    },
+    {
+      "raw": "https://bad^host.example"
+    },
+    {
+      "raw": "https://bad|host.example"
+    },
+    {
+      "raw": "https://*.example.test"
+    },
+    {
+      "raw": "https://example.test/path"
+    },
+    {
+      "raw": "https://user@example.test"
+    },
+    {
+      "raw": "https://example.test?query=1"
+    },
+    {
+      "raw": "https://example.test#fragment"
+    },
+    {
+      "raw": "https://example.test:bad"
+    },
+    {
+      "raw": "https://example.test:"
+    },
+    {
+      "raw": "https://example.test:0"
+    },
+    {
+      "raw": "https://example.test:70000"
     }
   ]
 }

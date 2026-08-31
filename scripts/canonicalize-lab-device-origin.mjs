@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 import net from "node:net";
 
-// Canonical contract for macOS packaging inputs: an exact HTTPS origin is
-// accepted, then emitted exactly as a browser serializes URL.origin.
+// Shared host contract for macOS packaging and the Go runtime: canonical dotted
+// IPv4, non-mapped IPv6, or strict ASCII DNS. Emit the exact canonical origin.
 function isIPv4MappedIPv6(hostname) {
   if (!hostname.startsWith("[") || !hostname.endsWith("]")) return false;
   const address = hostname.slice(1, -1);
@@ -17,6 +17,14 @@ function isIPv4MappedIPv6(hostname) {
   return groups.length === 8 && groups.slice(0, 5).every((part) => part === 0) && groups[5] === 0xffff;
 }
 
+function isStrictDNSHostname(hostname) {
+  if (hostname.length > 253) return false;
+  const labels = hostname.split(".");
+  if (labels.some((label) => label.length === 0 || label.length > 63 || !/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/.test(label))) return false;
+  const terminal = labels.at(-1);
+  return !/^[0-9]+$/.test(terminal) && !/^0x[0-9a-f]*$/.test(terminal);
+}
+
 const raw = (process.argv[2] ?? "").trim();
 if (raw.includes("%") || !/^https:\/\/[^/?#\\]+$/.test(raw) || !/^[\x21-\x7e]+$/.test(raw)) process.exit(1);
 
@@ -27,24 +35,25 @@ try {
   const lastColon = authority.lastIndexOf(":");
   const rawHostname = authority.startsWith("[")
     ? authority.slice(1, bracketEnd)
-    : authority.slice(0, lastColon >= 0 ? lastColon : authority.length);
-  const numericHostname = /^[0-9.]+$/.test(rawHostname);
+    : authority.slice(0, lastColon >= 0 ? lastColon : authority.length).toLowerCase();
   const parsedIPv4 = net.isIP(parsed.hostname) === 4;
-  const mappedIPv6 = isIPv4MappedIPv6(parsed.hostname.toLowerCase());
+  const parsedIPv6 = parsed.hostname.startsWith("[") && net.isIP(parsed.hostname.slice(1, -1)) === 6;
+  const supportedHost = parsedIPv6
+    ? !isIPv4MappedIPv6(parsed.hostname.toLowerCase())
+    : parsedIPv4
+      ? rawHostname === parsed.hostname
+      : isStrictDNSHostname(parsed.hostname.toLowerCase());
   if (
     parsed.protocol !== "https:" ||
     parsed.username !== "" ||
     parsed.password !== "" ||
     parsed.hostname === "" ||
-    parsed.hostname.includes("*") ||
     parsed.pathname !== "/" ||
     parsed.search !== "" ||
     parsed.hash !== "" ||
     authority.endsWith(":") ||
     parsed.port === "0" ||
-    mappedIPv6 ||
-    (parsedIPv4 && rawHostname !== parsed.hostname) ||
-    (numericHostname && net.isIP(rawHostname) !== 4)
+    !supportedHost
   ) process.exit(1);
   process.stdout.write(`${parsed.origin}\n`);
 } catch {
