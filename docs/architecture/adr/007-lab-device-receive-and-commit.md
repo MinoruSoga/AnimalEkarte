@@ -158,7 +158,7 @@ device ［取り消す］は **detach**:
 
 確認ダイアログ禁止。
 
-### 7. マスタと 1測定=1 exam（T001 追記: 複数種別は種別数だけ exam）
+### 7. マスタと 1測定=mapped exam_type 数分の exam
 
 `lab_device_item_masters`: `(clinic_id, source_type, device_item_code)` unique。`exam_type_field_id` は空で投入可。`legacy_name_candidate` は列にしない。
 
