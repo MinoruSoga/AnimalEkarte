@@ -207,7 +207,8 @@ export function isLabDeviceAttachPersisted(card: LabDeviceJobCard): boolean {
   return card.status === "persisted" && card.petId != null;
 }
 
-// P2: カードレベルで needs_review（検査種別が2種以上のため保存拒否）かどうか判定する。
+// P2: 原因コードに依存せず、カードが汎用の needs_review 状態かどうか判定する。
+// 複数検査種別は分割保存されるため、新規ジョブの needs_review 原因にはならない。
 export function labDeviceCardNeedsReview(card: LabDeviceJobCard): boolean {
   return card.status === "needs_review";
 }

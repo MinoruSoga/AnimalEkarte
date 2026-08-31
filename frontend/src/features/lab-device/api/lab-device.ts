@@ -27,7 +27,7 @@ export interface LabDeviceJobCard {
   unmappedItemCount: number;
   clockSkew: boolean;
   items: LabDeviceJobItem[];
-  /** needs_review の原因コード（例: "lab_device_multiple_exam_types"）。F-1 で追加。 */
+  /** needs_review のサーバ原因コード。旧ジョブの廃止済みコードを返す場合もある。 */
   reviewReason?: string;
 }
 
