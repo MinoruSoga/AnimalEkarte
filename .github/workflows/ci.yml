@@ -318,7 +318,7 @@ jobs:
           cache-dependency-path: backend/go.sum
 
       - name: Download shard coverage
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           pattern: backend-coverage-shard-*
           path: backend/coverage-shards
@@ -508,7 +508,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Download Vitest blobs
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           pattern: frontend-vitest-blob-*
           path: frontend/.vitest-reports
