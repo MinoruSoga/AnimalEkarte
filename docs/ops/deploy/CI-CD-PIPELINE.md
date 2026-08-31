@@ -75,7 +75,8 @@ deploy 直後から migration 完了まで（最大 `MIGRATE_TIMEOUT=150s`）新
 ```bash
 REVIEWED_SHA='<reviewed-commit>'
 TARGET_REF='staging' # production は現在 HOLD
-test "$(git rev-parse "${TARGET_REF}^{commit}")" = "$(git rev-parse "${REVIEWED_SHA}^{commit}")" || exit 1
+REMOTE_SHA="$(gh api "repos/{owner}/{repo}/git/ref/heads/${TARGET_REF}" --jq '.object.sha')"
+test "$REMOTE_SHA" = "$(git rev-parse "${REVIEWED_SHA}^{commit}")" || exit 1
 gh workflow run backend-deploy.yml --ref "$TARGET_REF"
 ```
 

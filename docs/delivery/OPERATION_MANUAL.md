@@ -248,7 +248,7 @@ repo と既存コメントから読める事実だけを書く。署名・承認
 |---|---|---|---|
 | U13 | 操作説明会の実施日程・形式・参加者・実施 receipt | **未完**（2026-08-20 棚卸し。COMPLETED 宣言なし）。**#258 とは分離** | §10 |
 | D-254 | デモ UAT 由来 FAQ・スクショ最終突合 | #254 完了後にシステム内マニュアルへ反映 | `/manual`・§0.1 |
-| — | 本番 URL での操作確認証跡 | Production 未構築（#253 / U12） | 本書は STG/実装正本ベース |
+| — | 本番URLでの操作確認証跡 | checked-in production workflow未実装。provider/runtime状態はUNKNOWN（#253 / U12） | 本書はSTG/実装正本ベース |
 
 値・秘密・本番証跡は発明しない。管理者設定・契約・バックアップは [DELIVERY_PACKAGE.md](DELIVERY_PACKAGE.md) の **USER 入力待ち（U1–U12）** を正とする。
 

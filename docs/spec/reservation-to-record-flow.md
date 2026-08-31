@@ -117,14 +117,14 @@ clinic-owned relation は tenant boundary を明示する。主要 column は次
 
 | 画面 | 現行契約 |
 |---|---|
-| 予約フォーム | 空き枠 API slot を表示し、shift + capability で staff を絞る。backend が再検証する |
+| 予約フォーム | 空き枠API slotを表示し、frontendがshift + capabilityでstaffを絞る。internal writeはclinic/capability/conflict、LIFFは追加でactive/publicを再検証するが、明示staffの選択時刻shift再検証は未実装 |
 | 受付カンバン | 当日 `appointments` の status を表示し、category で通常/トリミング遷移を分ける |
 | 通常カルテ一覧 | appointment を解決/作成し、JST 日付と予約文脈を保持する |
 | トリミング一覧 | appointment + detail を transaction で作成/再利用し、受付 query を再取得する |
 
 ## 7. Deferred / known gaps
 
-- `available-staffs` endpoint は未導入。現行 client-side filtering + server-side final validation で契約を満たすため、必要性を測定してから検討する。
+- `available-staffs` endpointは未導入。現行client-side shift filteringとserver-side clinic/capability/conflict validationの間に、明示staffの選択時刻shift gapが残る。source修正と必要性を計測する。
 - exclusion-shaped staff compatibility field 名は残る。意味を変える source migration は別 task。
 - 本書は route / E2E の実行結果を主張しない。docs-only refresh では runtime を再実行していない。
 

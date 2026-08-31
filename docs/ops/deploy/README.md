@@ -75,7 +75,8 @@ Workers Logs はインフラ障害調査用で、診療記録の変更監査は 
 
 ```bash
 REVIEWED_SHA='<reviewed-commit>'
-test "$(git rev-parse 'staging^{commit}')" = "$(git rev-parse "${REVIEWED_SHA}^{commit}")" || exit 1
+REMOTE_SHA="$(gh api 'repos/{owner}/{repo}/git/ref/heads/staging' --jq '.object.sha')"
+test "$REMOTE_SHA" = "$(git rev-parse "${REVIEWED_SHA}^{commit}")" || exit 1
 gh workflow run backend-deploy.yml --ref staging
 ```
 

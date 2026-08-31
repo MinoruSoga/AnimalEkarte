@@ -167,7 +167,7 @@ flowchart TB
 
 ## 3. 運用手順
 
-本番固有の数値・窓口・バックアップ実測は **Production 未構築**のため未確定。STG の運用正本は [staging/runbook.md](../ops/infra/staging/runbook.md) および [deploy/README.md](../ops/deploy/README.md)。本番構築後は [production/runbook.md](../ops/infra/production/runbook.md) を整備する。
+本番固有の数値・窓口・バックアップ実測は、checked-in production workflow/setup acceptanceが未実装でprovider/runtime状態もUNKNOWNのため未確定。STG の運用正本は [staging/runbook.md](../ops/infra/staging/runbook.md) および [deploy/README.md](../ops/deploy/README.md)。本番構築後は [production/runbook.md](../ops/infra/production/runbook.md) を整備する。
 
 ### 3.1 バックアップ方針
 
@@ -241,7 +241,7 @@ flowchart TB
 
 ### 本 slice で完了した repo 由来作業
 
-- §1 構成・環境・境界を architecture / deploy SSOT に同期（Production 未構築を明示）
+- §1 構成・環境・境界を architecture / deploy SSOT に同期（production workflow未実装・provider/runtime UNKNOWNを明示）
 - §2 管理者設定 path（`/settings/clinic`・`/settings/staff`・`/settings/permission-groups`・`/settings/closing-time` 等）を実装 path と整合
 - §3 運用を STG runbook ベースで記述し、本番実測を U 行に分離
 - 本文中の各空欄に U# を併記し、秘密値・偽の本番証跡を入れない方針を維持
@@ -251,7 +251,7 @@ flowchart TB
 
 ## 4. 監視・通知（開発側運用・参考）
 
-- ヘルスチェック（repo 内最終記録: 2026-08-20、外部 receipt 未収録）: `https://api.stg.noah-karte.com/health` は HTTP 200 / 正常応答と記録。本番 URL `https://api.noah-karte.com/health` は **Production 未構築**のため未供用（**U12**）。
+- ヘルスチェック（repo 内最終記録: 2026-08-20、外部 receipt 未収録）: `https://api.stg.noah-karte.com/health` は HTTP 200 / 正常応答と記録。本番URL `https://api.noah-karte.com/health` の現在状態はUNKNOWNで、dated runtime receiptが必要（**U12**）。
 - 5xx 率の自動通知: Cloudflare 通知ポリシー（`infra/cloudflare/notifications.tf`）。送信先メールの供給・検証と apply は **USER 入力待ち（U8）**（#253）。
 - コスト監視: repo 内の 2026-08-20 時点の provider 制約記録では、アカウント全体の支出アラートを利用できないため使用量確認で代替する方針。実行時に現行 plan / provider 機能を再確認し、receipt を残す。
 - 障害監視・通知体制の完成条件は #253 の受け入れ条件（プロセス死活・5xx 急増・DB 接続断の通知）を正本とする。

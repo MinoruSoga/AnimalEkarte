@@ -69,7 +69,7 @@ PO 裁定（2026-07-15、#252 本文）: 全院を城東同値で投入。**本�
 | `closing_sunday_end` | 18:30 | 同上（資料 2 に曜日区別なし） |
 | `closed_weekdays` | 変更しない | #252 対象外 |
 
-**seed との差（発明しない）:** S09 前提の seed 城東（clinic_id=2）は `closing_am_pm_boundary=13:30` / `closing_weekday_end=19:00`。裁定値（12:00 / 18:30）と一致しない。投入は USER が承認済み env で画面 PATCH する（`audit_logs` に残る）。
+**実行境界:** #252裁定値はhistorical decision inputであり、固定clinic/seedの現在値を前提にしない。S09は承認済みdisposable clinicへ合成設定を投入して検証する。共有STG/本番へのPATCHはnamed target・USER承認・dated receiptがある場合だけ行う。
 
 投入順（USER）: 対象 env 確定 → 各院で境界・終了を裁定値へ → プレビューで AM/PM/EMG 目視 → `closing_am_start`≠09:00 のみ事前承認後 DB → 過去締め非再計算（#215）→ 非機密 receipt。結果は **未記入**。
 

@@ -33,7 +33,7 @@
 | 5 | 全業務シナリオ通し確認済み（authenticated UAT） | #254 | 全シナリオ PASS、または FAIL 項目が「納品後対応合意済みリスト」に隔離済み | （確定待ち） |
 | 6 | スタッフアカウント発行・権限設定済み | #255 | 全スタッフに個人アカウント発行・所属院スコープ・役割別権限設定済み | （確定待ち: スタッフ一覧の先方提供がブロッカー） |
 | 7 | フロントエンド CSP の最終確認 | [architecture.md](../ops/infra/architecture.md) | `frontend/index.html` の CSP `connect-src` に本番 API オリジンが含まれている | （確定待ち） |
-| 8 | 監視・通知の有効化 | #253 ／ [production/runbook.md](../ops/infra/production/runbook.md) §4 ／ `infra/cloudflare/notifications.tf` | ゾーン 5xx 通知が有効・送信先メール検証済み（PROD 専用ポリシーは二重通知のため追加しない） | （確定待ち: 通知先供給・アドレス事前検証） |
+| 8 | 監視・通知の有効化 | #253 ／ [production/runbook.md](../ops/infra/production/runbook.md) §5 ／ `infra/cloudflare/notifications.tf` | ゾーン 5xx 通知が有効・送信先メール検証済み（PROD 専用ポリシーは二重通知のため追加しない） | （確定待ち: 通知先供給・アドレス事前検証） |
 | 9 | 切り戻し体制・authority / support / rollback owner の合意 | 本書 §4・冒頭「新 window 記入欄」 ／ [production/runbook.md](../ops/infra/production/runbook.md) §3 | 判断者・判断基準・連絡経路が先方と合意済み。**ECS 切り戻しは選択肢に含めない**（#99） | （確定待ち） |
 
 ---
@@ -49,7 +49,7 @@
 | T-1 日 夕方 | — | pre-window 前提チェックリスト §1 の最終確認・Go/No-Go 事前判定 | 開発側 + 先方管理者 | pre-window 全項目 ✅ |
 | T+0:00 | 09:00 | **旧システム（Access）の入力停止**を先方へ宣言 | 先方管理者 | 全スタッフへ周知済み |
 | T+0:15 | 09:15 | Access 最終データ抽出（#250 手順） | 開発側 | 抽出ファイル受領 |
-| T+0:30 | 09:30 | 本番 DB の事前バックアップ取得（§3.1 / [production/runbook.md §5.1](../ops/infra/production/runbook.md#4-backuprestore-rehearsal) の承認済み方式） | 開発側 | owner 管理の repo 外 artifact / managed-backup receipt、size・checksum、保持期限、restore rehearsal PASS を記録 |
+| T+0:30 | 09:30 | 本番 DB の事前バックアップ取得（§3.1 / [production/runbook.md §4](../ops/infra/production/runbook.md#4-backuprestore-rehearsal) の承認済み方式） | 開発側 | owner 管理の repo 外 artifact / managed-backup receipt、size・checksum、保持期限、restore rehearsal PASS を記録 |
 | T+0:45 | 09:45 | 最終データ移行の実行（#250 変換ツール） | 開発側 | ジョブログ・エラー行 0 件 |
 | T+1:15 | 10:15 | **Day-of gate**: 突合検証（テーブル別件数・clinic_id 別件数・金額合計・サンプル目視） | 開発側 | 最終 import と検証レポートが PASS。未達なら T+3:00 は No-Go |
 | T+1:45 | 10:45 | 本番 DNS レコードの最終確認（§3。**zone-wide NS 変更禁止**） | 開発側 | 実行時の registrar / `dig NS` / 本番レコード確認結果・時刻・receipt を記録 |
@@ -69,7 +69,7 @@
 
 ### 3.1 本番バックアップ gate
 
-正本は [production/runbook.md §5.1](../ops/infra/production/runbook.md#4-backuprestore-rehearsal)。Go 判定前に、次をすべて満たす。
+正本は [production/runbook.md §4](../ops/infra/production/runbook.md#4-backuprestore-rehearsal)。Go 判定前に、次をすべて満たす。
 
 1. production runbook に operator 承認済みの `pg_dump` コマンド、または managed-backup の取得手順を記載する。資格情報や出力先の秘密値は本書へ書かない。
 2. 出力は owner 管理の **repo 外**保存先に限定する。artifact / receipt ID、取得時刻、size、SHA-256 checksum、保持期限を当日ログへ記録する。

@@ -32,9 +32,9 @@
 
 | # | 系統 | 手順（概要） | 投入先 |
 |---|------|--------------|--------|
-| 1 | PlanetScale DB | `pscale role reset-default`（またはコンソールでパスワード再発行） | target configを明示した `npx wrangler secret put DB_HOST、DB_USER、DB_PASSWORD -c <exact-config>`（`DB_PORT` / `DB_NAME` / TLS は target Wrangler の非secret vars） |
+| 1 | PlanetScale DB | `pscale role reset-default`（またはコンソールでパスワード再発行） | `DB_HOST`、`DB_USER`、`DB_PASSWORD`それぞれについて、target config明示の`npx wrangler secret put <NAME> -c <exact-config>`を1回ずつ実行（`DB_PORT` / `DB_NAME` / TLS は target Wrangler の非secret vars） |
 | 2 | Cloudflare API / Worker secrets | トークン再発行 + target config明示の `npx wrangler secret put <NAME> -c <exact-config>` | Cloudflare Secrets + GitHub `CLOUDFLARE_API_TOKEN` |
-| 3 | LINE channel secret / access token | LINE Developers Console で再発行 | アプリ UI（Lステップ設定 / LINE 予約設定）から保存（DB 暗号化）。seed には実値を戻さない |
+| 3 | LINE channel secret / access token | LINE Developers Console で再発行 | アプリUI `/settings/integrations/lstep` から保存（LINE予約設定はsecret/tokenを扱わない）（DB 暗号化）。seed には実値を戻さない |
 | 4 | JWT / INTEGRATION_ENCRYPTION_KEY 等 | 新規乱数生成 | target config明示の `npx wrangler secret put <NAME> -c <exact-config>`（target Wranglerの`secrets.required`） |
 
 検証（ローテーション後・ユーザー実施）:
