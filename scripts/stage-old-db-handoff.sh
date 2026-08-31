@@ -35,7 +35,8 @@ git check-ignore -q --no-index "$EXCLUDE_LINE" \
   || die "git check-ignore failed for $EXCLUDE_LINE — refuse to stage PHI"
 
 DEST="$ROOT/backend/migrations/seeds/_old_db_handoff/$CLINIC_CODE"
-mkdir -p -m 700 "$DEST"
+mkdir -p "$DEST"
+chmod 700 "$ROOT/backend/migrations/seeds/_old_db_handoff" "$DEST"
 rsync -a --delete "$SOURCE_DIR/" "$DEST/"
 chmod 700 "$DEST"
 find "$DEST" -type f -exec chmod 600 {} +

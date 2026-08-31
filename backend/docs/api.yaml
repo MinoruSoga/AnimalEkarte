@@ -7921,7 +7921,7 @@ components:
           format: int64
         source_type:
           type: string
-          enum: [fuji_nx600, fuji_au10v, arkray_pu4010]
+          enum: [fuji_nx600, fuji_au10v, arkray_pu4010, idexx_vetlab]
         device_item_code:
           type: string
         unit:
@@ -7967,7 +7967,7 @@ components:
           format: int64
         source_type:
           type: string
-          enum: [fuji_nx600, fuji_au10v, arkray_pu4010]
+          enum: [fuji_nx600, fuji_au10v, arkray_pu4010, idexx_vetlab]
         name:
           type: string
         exam_type_id:
@@ -7986,7 +7986,7 @@ components:
           type: string
         source_type:
           type: string
-          enum: [fuji_nx600, fuji_au10v, arkray_pu4010]
+          enum: [fuji_nx600, fuji_au10v, arkray_pu4010, idexx_vetlab]
         exam_type_id:
           type: integer
           format: int64
@@ -8065,14 +8065,14 @@ components:
           type: integer
     LabDeviceJobCard:
       type: object
-      required: [job_id, source_type, status, item_count]
+      required: [job_id, source_type, device_hint, status, specimen_id_raw, item_count, unmapped_item_count, clock_skew, items]
       properties:
         job_id:
           type: string
           format: uuid
         source_type:
           type: string
-          enum: [fuji_nx600, fuji_au10v, arkray_pu4010]
+          enum: [fuji_nx600, fuji_au10v, arkray_pu4010, idexx_vetlab]
         device_hint:
           type: string
         status:
@@ -8080,27 +8080,28 @@ components:
         pet_id:
           type: integer
           format: int64
-          nullable: true
         pet_name:
           type: string
         measured_at:
           type: string
           format: date-time
-          nullable: true
         received_at:
           type: string
           format: date-time
-          nullable: true
         specimen_id_raw:
           type: string
         item_count:
           type: integer
         unmapped_item_count:
           type: integer
+        clock_skew:
+          type: boolean
         items:
           type: array
           items:
             $ref: '#/components/schemas/LabDeviceJobItem'
+        review_reason:
+          type: string
     LabDeviceWait:
       type: object
       properties:
@@ -8122,8 +8123,31 @@ components:
           type: integer
         slots_json:
           type: string
+    LabDeviceTodayVisit:
+      type: object
+      required: [record_id, pet_id, pet_name, owner_name, species, doctor_name, visit_type]
+      properties:
+        record_id:
+          type: integer
+          format: int64
+        pet_id:
+          type: integer
+          format: int64
+        pet_name:
+          type: string
+        owner_name:
+          type: string
+        species:
+          type: string
+        doctor_name:
+          type: string
+        visit_type:
+          type: string
+        pet_is_deceased:
+          type: boolean
     LabDeviceBoard:
       type: object
+      required: [wait, unlinked, saved, received, today_visits, station]
       properties:
         wait:
           nullable: true
@@ -8137,6 +8161,14 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/LabDeviceJobCard'
+        received:
+          type: array
+          items:
+            $ref: '#/components/schemas/LabDeviceJobCard'
+        today_visits:
+          type: array
+          items:
+            $ref: '#/components/schemas/LabDeviceTodayVisit'
         station:
           $ref: '#/components/schemas/LabDeviceStation'
     LabDeviceFramesRequest:
@@ -23166,7 +23198,7 @@ paths:
     post:
       operationId: attachLabDeviceJob
       summary: 未紐付け受信をペットに付ける
-      description: ResourceLabImport edit。device source のみ。BRT-97 は pet_id を付けるだけ。exam persist は BRT-98。
+      description: ResourceLabImport edit。device source の未紐付け job を pet に紐付け、対応する draft 検査の永続化まで同一 transaction で原子的に実行する。途中で失敗した場合は write 全体を rollback する。
       tags: [LabImports]
       parameters:
         - name: job_id
@@ -23202,7 +23234,7 @@ paths:
     post:
       operationId: detachLabDeviceJob
       summary: 受信のペット紐付けを取り消す
-      description: ResourceLabImport edit。persisted は 409。reverted にはしない。
+      description: ResourceLabImport edit。persisted job は import 由来 draft 検査の guarded retraction に成功した場合のみ、同一 transaction で検査を retract して未紐付けへ戻す。検査が安全に retract できない場合は 409 かつ write ゼロ。reverted job は detach しない。
       tags: [LabImports]
       parameters:
         - name: job_id
@@ -23288,7 +23320,7 @@ paths:
           required: false
           schema:
             type: string
-            enum: [fuji_nx600, fuji_au10v, arkray_pu4010]
+            enum: [fuji_nx600, fuji_au10v, arkray_pu4010, idexx_vetlab]
       responses:
         '200':
           description: マスタ行

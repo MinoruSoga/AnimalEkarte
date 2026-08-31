@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-bundle_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+bundle_dir=$(unset CDPATH; cd -- "$(dirname -- "$0")" && pwd)
 install_dir="$HOME/Library/Application Support/AnimalEkarte"
 launch_agents_dir="$HOME/Library/LaunchAgents"
 binary_path="$install_dir/lab-device-agent"
@@ -11,6 +11,14 @@ ports_file="$install_dir/lab-device-agent-ports"
 
 cd "$bundle_dir"
 shasum -a 256 -c SHA256SUMS >/dev/null
+clinic_id=$(sed -n '1p' "$bundle_dir/lab-device-agent.conf")
+allowed_origin=$(sed -n '2p' "$bundle_dir/lab-device-agent.conf")
+config_lines=$(wc -l < "$bundle_dir/lab-device-agent.conf" | tr -d ' ')
+if [ -z "$clinic_id" ] || [ -z "$allowed_origin" ] || [ "$config_lines" -ne 2 ]; then
+  echo "Bundle configuration is invalid" >&2
+  exit 1
+fi
+
 case "$(uname -m)" in
   arm64|x86_64) lipo lab-device-agent -verify_arch "$(uname -m)" ;;
   *) echo "このMacのCPUには対応していません。" >&2; exit 1 ;;
@@ -38,11 +46,8 @@ chmod 600 "$ports_tmp"
 cp "$bundle_dir/lab-device-agent" "$binary_tmp"
 chmod 700 "$binary_tmp"
 cp "$bundle_dir/com.animalekarte.lab-device-agent.plist" "$plist_tmp"
-plutil -replace ProgramArguments.0 -string "$binary_path" "$plist_tmp"
-plutil -replace ProgramArguments.4 -string "$ports_file" "$plist_tmp"
-plutil -replace StandardOutPath -string "$install_dir/lab-device-agent.log" "$plist_tmp"
-plutil -replace StandardErrorPath -string "$install_dir/lab-device-agent.error.log" "$plist_tmp"
-plutil -lint "$plist_tmp" >/dev/null
+"$bundle_dir/configure-plist.sh" "$plist_tmp" "$binary_path" "$clinic_id" "$ports_file" "$allowed_origin" \
+  "$install_dir/lab-device-agent.log" "$install_dir/lab-device-agent.error.log"
 chmod 600 "$plist_tmp"
 
 mv "$ports_tmp" "$ports_file"

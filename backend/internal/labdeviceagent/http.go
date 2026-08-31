@@ -6,8 +6,10 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"net"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -145,7 +147,25 @@ func NormalizeAllowedOrigin(raw string) (string, bool) {
 	if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "" || parsed.User != nil || parsed.Path != "" || parsed.RawQuery != "" || parsed.Fragment != "" || strings.Contains(parsed.Host, "*") {
 		return "", false
 	}
-	if parsed.Scheme == "http" && parsed.Hostname() != "localhost" && parsed.Hostname() != "127.0.0.1" {
+	hostname := parsed.Hostname()
+	if hostname == "" {
+		return "", false
+	}
+	port := parsed.Port()
+	hasPortSeparator := strings.Contains(parsed.Host, ":") && !strings.HasSuffix(parsed.Host, "]")
+	if hasPortSeparator {
+		_, explicitPort, splitErr := net.SplitHostPort(parsed.Host)
+		if splitErr != nil || explicitPort == "" || explicitPort != port {
+			return "", false
+		}
+	}
+	if port != "" {
+		value, portErr := strconv.ParseUint(port, 10, 16)
+		if portErr != nil || value == 0 {
+			return "", false
+		}
+	}
+	if parsed.Scheme == "http" && hostname != "localhost" && hostname != "127.0.0.1" {
 		return "", false
 	}
 	return parsed.Scheme + "://" + parsed.Host, true

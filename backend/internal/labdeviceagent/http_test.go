@@ -219,7 +219,7 @@ func TestHandlerAllowsConfiguredDeployedOriginAndPNA(t *testing.T) {
 }
 
 func TestNormalizeAllowedOriginRejectsUnsafeValues(t *testing.T) {
-	for _, raw := range []string{"*", "https://*.example.test", "https://example.test/path", "https://user@example.test", "file:///tmp/x", "http://example.test"} {
+	for _, raw := range []string{"*", "https://*.example.test", "https://example.test/path", "https://user@example.test", "https://example.test:bad", "https://example.test:", "https://example.test:70000", "file:///tmp/x", "http://example.test"} {
 		_, ok := NormalizeAllowedOrigin(raw)
 		require.False(t, ok, raw)
 	}

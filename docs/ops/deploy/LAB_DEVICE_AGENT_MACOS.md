@@ -28,7 +28,7 @@ UAT bundleは信頼済みの共有経路で渡し、build時に表示されたma
 開発端末から直接導入する場合だけ、Dockerのbackendコンテナを起動した状態で次を使用できる。
 
 ```bash
-./scripts/install-lab-device-agent.sh <医院ID>
+./scripts/install-lab-device-agent.sh <医院ID> <https://配布先origin>
 ```
 
 インストール後、`http://localhost:3003/lab-device`の「ローカル受信機」が「稼働中」になり、監視ポート数が表示される。USBを選択する操作はない。

@@ -187,7 +187,8 @@ SQL
   export CSV_IMPORT_EXTRA_ARGS='--allow-local-rehearsal'
 
   # apply refuses to overwrite an existing report path.
-  mkdir -p -m 700 "$ROOT/sensitive-local/csv-import-reports"
+  mkdir -p "$ROOT/sensitive-local/csv-import-reports"
+  chmod 700 "$ROOT/sensitive-local" "$ROOT/sensitive-local/csv-import-reports"
   rm -f "$ROOT/sensitive-local/csv-import-reports/${clinic}-${run}-apply.json"
 
   make csv-import-preflight

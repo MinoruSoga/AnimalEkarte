@@ -1,15 +1,40 @@
 #!/bin/sh
 set -eu
 
-repo_dir=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+repo_dir=$(unset CDPATH; cd -- "$(dirname -- "$0")/.." && pwd)
 clinic_id=${1:-}
-if [ -z "$clinic_id" ]; then
-  echo "Usage: $0 <clinic-id>" >&2
+allowed_origin=${2:-}
+if [ -z "$clinic_id" ] || [ -z "$allowed_origin" ]; then
+  echo "Usage: $0 <clinic-id> <allowed-https-origin>" >&2
   exit 2
 fi
 case "$clinic_id" in
   *[!0-9]*) echo "Clinic ID must contain digits only" >&2; exit 2 ;;
 esac
+if ! node - "$allowed_origin" <<'NODE'
+const raw = process.argv[2].trim();
+if (!/^https:\/\/[^/?#]+$/.test(raw)) process.exit(1);
+try {
+  const parsed = new URL(raw);
+  const authority = raw.slice("https://".length);
+  const port = parsed.port;
+  if (
+    parsed.protocol !== "https:" ||
+    parsed.username !== "" ||
+    parsed.password !== "" ||
+    parsed.hostname === "" ||
+    parsed.hostname.includes("*") ||
+    authority.endsWith(":") ||
+    (port !== "" && (Number(port) < 1 || Number(port) > 65535))
+  ) process.exit(1);
+} catch {
+  process.exit(1);
+}
+NODE
+then
+  echo "Allowed origin must be an exact https origin with no credentials and a valid optional numeric port" >&2
+  exit 2
+fi
 install_dir="$HOME/Library/Application Support/AnimalEkarte"
 launch_agents_dir="$HOME/Library/LaunchAgents"
 binary_path="$install_dir/lab-device-agent"
@@ -49,12 +74,8 @@ docker compose cp "backend:$container_binary" "$binary_tmp"
 chmod 700 "$binary_tmp"
 
 cp "$repo_dir/packaging/macos/com.animalekarte.lab-device-agent.plist" "$plist_tmp"
-plutil -replace ProgramArguments.0 -string "$binary_path" "$plist_tmp"
-plutil -replace ProgramArguments.2 -string "$clinic_id" "$plist_tmp"
-plutil -replace ProgramArguments.4 -string "$ports_file" "$plist_tmp"
-plutil -replace StandardOutPath -string "$install_dir/lab-device-agent.log" "$plist_tmp"
-plutil -replace StandardErrorPath -string "$install_dir/lab-device-agent.error.log" "$plist_tmp"
-plutil -lint "$plist_tmp" >/dev/null
+"$repo_dir/packaging/macos/configure-lab-device-agent-plist.sh" "$plist_tmp" "$binary_path" "$clinic_id" "$ports_file" "$allowed_origin" \
+  "$install_dir/lab-device-agent.log" "$install_dir/lab-device-agent.error.log"
 chmod 600 "$plist_tmp"
 mv "$ports_tmp" "$ports_file"
 mv "$binary_tmp" "$binary_path"
