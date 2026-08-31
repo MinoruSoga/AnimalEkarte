@@ -1,5 +1,5 @@
 ---
-name: Deployment
+name: deployment
 description: バックエンド(Cloudflare Workers + Containers)・フロントエンド(Vercel)へのアプリケーションデプロイ。両方とも GitHub Actions 経由で自動化。
 ---
 
