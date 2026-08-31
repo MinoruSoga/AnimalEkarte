@@ -38,7 +38,7 @@
 - `main→staging` のopen PRがpush SHAと同じheadを既に検証する場合、push側の重いBuild/Test/Worker/Codegenだけを省く。GitHub API確認に失敗した場合はfail-openでpush CIを実行する。
 - Backendは4つの独立DB shard、Frontendは2つのVitest shardで実行する。集約jobの表示名`Backend` / `Frontend`はbranch protectionとの互換性のため維持する。
 - Frontend installは`pnpm install --frozen-lockfile`を必須とし、PRで検証したlock graphとCIの解決結果を一致させる。
-- shardの完全ログはActionsへ無制限出力しない。失敗調査用出力は末尾へ制限し、job timeoutで暴走を停止する。
+- shardの完全ログはActions consoleへ無制限出力しない。consoleは失敗抜粋と末尾へ制限し、完全ログはgzip artifact（7日保持）で取得する。job timeoutで暴走を停止する。
 
 ### なぜ inventory / guardrail をリモートから外したか
 
