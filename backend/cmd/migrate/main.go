@@ -357,100 +357,17 @@ func isAlreadyApplied(db *sql.DB, filename, checksum string) (bool, error) {
 		return false, fmt.Errorf("failed to query schema_migrations: %w", err)
 	}
 
-	// 適用済みだが checksum が異なる → 改変されている
+	// Applied migration drift has no automatic repair path. A checksum alone
+	// cannot prove that every schema delta was applied, so fail before any DDL
+	// or schema_migrations update. Rebuilds remain an explicit operator action.
 	if storedChecksum != checksum {
 		fmt.Fprintf(os.Stderr, "checksum_mismatch_seen file=%s applied=%s current=%s\n", filename, storedChecksum, checksum)
-		repaired, repairErr := tryRepairKnownChecksumDrift(db, filename, storedChecksum, checksum)
-		if repairErr != nil {
-			fmt.Fprintf(os.Stderr, "checksum_repair_err file=%s err=%v\n", filename, repairErr)
-			return true, repairErr
-		}
-		if repaired {
-			fmt.Fprintf(os.Stderr, "checksum_repair_ok file=%s\n", filename)
-			return true, nil
-		}
-		fmt.Fprintf(os.Stderr, "checksum_repair_not_applicable file=%s\n", filename)
 		return true, fmt.Errorf(
-			"checksum mismatch for %s: applied=%s, current=%s — migration file was modified after execution",
+			"checksum mismatch for %s: applied=%s, current=%s — automatic checksum repair is unsupported; rebuild with DB_RESET=true under an approved reset plan (local procedure: docs/ops/deploy/LOCAL_DB_RESET.md)",
 			filename, storedChecksum, checksum,
 		)
 	}
 
-	return true, nil
-}
-
-// knownChecksumRepairs maps filename → appliedChecksum → currentChecksum for
-// STG-safe drifts already reviewed (additive DDL only; never destructive).
-// Companion side-effects for a pair live in tryRepairKnownChecksumDrift.
-var knownChecksumRepairs = map[string]map[string]string{
-	// 2026-08: lab_import_job_status gained 'reverted' (CREATE TYPE + ADD VALUE IF NOT EXISTS).
-	// 2026-08: lab_import_source_type gained 'idexx_vetlab'; CHECK constraints and partial index extended (ADR-007).
-	"001_init.sql": {
-		"28e954b32fd606a122e0cb29815ea277f8a96cb0966208f39e6fe69dd8cb9c4e": "287bfce66c810503c43c8a5c1d4cf414f561af2555314eb4119be74253ce77ce",
-		"287bfce66c810503c43c8a5c1d4cf414f561af2555314eb4119be74253ce77ce": "60477e0ba76116a38ce2ac0f9563e9ba39aa88388b6dddca029f4899f6808ea4",
-		"d92b3c7af70c00ac305ba33d20e1aa3b2de9de55a97919cc98021f2e88926e1b": "60477e0ba76116a38ce2ac0f9563e9ba39aa88388b6dddca029f4899f6808ea4",
-	},
-}
-
-func tryRepairKnownChecksumDrift(db *sql.DB, filename, applied, current string) (bool, error) {
-	wantByApplied, ok := knownChecksumRepairs[filename]
-	if !ok {
-		return false, nil
-	}
-	want, ok := wantByApplied[applied]
-	if !ok || want != current {
-		return false, nil
-	}
-
-	// Ensure additive enum values exist before accepting the new checksum.
-	// ADD VALUE IF NOT EXISTS cannot always run inside an explicit transaction.
-	if filename == "001_init.sql" {
-		for _, stmt := range []string{
-			`ALTER TYPE lab_import_job_status ADD VALUE IF NOT EXISTS 'reverted'`,
-			`ALTER TYPE lab_import_source_type ADD VALUE IF NOT EXISTS 'idexx_vetlab'`,
-		} {
-			if _, err := db.Exec(stmt); err != nil {
-				return false, fmt.Errorf("checksum repair companion SQL failed for %s: %w", filename, err)
-			}
-		}
-	}
-
-	// Enum values above are committed separately for PostgreSQL versions that
-	// reject ALTER TYPE ADD VALUE in a transaction. Every remaining companion
-	// DDL statement and the checksum CAS update are one atomic unit.
-	tx, err := db.Begin()
-	if err != nil {
-		return false, fmt.Errorf("begin checksum repair transaction for %s: %w", filename, err)
-	}
-	defer func() { _ = tx.Rollback() }()
-	if filename == "001_init.sql" {
-		for _, stmt := range []string{
-			`ALTER TABLE lab_device_item_masters DROP CONSTRAINT IF EXISTS chk_lab_device_item_masters_source_type`,
-			`ALTER TABLE lab_device_item_masters ADD CONSTRAINT chk_lab_device_item_masters_source_type CHECK (source_type IN ('fuji_nx600', 'fuji_au10v', 'arkray_pu4010', 'idexx_vetlab'))`,
-			`DROP INDEX IF EXISTS idx_lab_import_jobs_clinic_unlinked`,
-			`CREATE INDEX idx_lab_import_jobs_clinic_unlinked ON lab_import_jobs (clinic_id, received_at DESC) WHERE pet_id IS NULL AND source_type IN ('fuji_nx600', 'fuji_au10v', 'arkray_pu4010', 'idexx_vetlab')`,
-			`ALTER TABLE lab_devices DROP CONSTRAINT IF EXISTS chk_lab_devices_source_type`,
-			`ALTER TABLE lab_devices ADD CONSTRAINT chk_lab_devices_source_type CHECK (source_type IN ('fuji_nx600', 'fuji_au10v', 'arkray_pu4010', 'idexx_vetlab'))`,
-		} {
-			if _, err := tx.Exec(stmt); err != nil {
-				return false, fmt.Errorf("checksum repair companion DDL failed for %s: %w", filename, err)
-			}
-		}
-	}
-	res, err := tx.Exec(`UPDATE schema_migrations SET checksum = $1 WHERE filename = $2 AND checksum = $3`, current, filename, applied)
-	if err != nil {
-		return false, fmt.Errorf("checksum repair update failed for %s: %w", filename, err)
-	}
-	n, err := res.RowsAffected()
-	if err != nil {
-		return false, fmt.Errorf("checksum repair row count failed for %s: %w", filename, err)
-	}
-	if n != 1 {
-		return false, fmt.Errorf("checksum repair updated %d rows for %s (want 1)", n, filename)
-	}
-	if err := tx.Commit(); err != nil {
-		return false, fmt.Errorf("commit checksum repair transaction for %s: %w", filename, err)
-	}
 	return true, nil
 }
 
