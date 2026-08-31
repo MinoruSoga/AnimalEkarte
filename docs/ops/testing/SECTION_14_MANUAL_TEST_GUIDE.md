@@ -1,59 +1,50 @@
-# ブラウザ操作・シナリオテスト実行ガイド (Manual Test Guide)
+# ブラウザ操作・探索テストガイド (Manual Test Guide)
 
-> **目的**: ブラウザによる手動検証シナリオを定義する。
-> **読者**: QA・Haiku Agent(browser-testスキル経由)。
-> **タイミング**: 手動ブラウザテストの実行時。
+> **目的**: L4 [scenarios](scenarios/README.md) を補う focused exploratory checks を示す。網羅的受入の正本ではない。
+> **最新更新**: 2026-09-01
 
-> **Animal Ekarte**: システム全体の整合性を確認するための手動検証手順
-> **最新更新**: 2026-07-10
+## 1. 安全境界
 
----
+- approved isolated UAT tenant または disposable local DB だけで行う。production と未承認 shared clinic は禁止。
+- create/update/delete と external send は target、許可 clinic、cleanup を事前定義する。
+- real LINE/L-step/file send は human STG lane が明示承認した場合だけ。未承認なら mock または BLOCKED。
+- 下記で canonical scenario/API が示されない期待は exploratory (`要実測`) であり、文書の記述だけで acceptance requirement に昇格させない。
 
-## 1. 概要
-本ガイドは、開発環境またはステージング環境において、実際のブラウザを使用してシステムの主要機能（ハッピーパスおよび境界値）を網羅的に検証するための手順書です。
+## 2. focused checks
 
----
+### 2.1 outpatient
 
-## 2. 重点検証ドメイン
+- `/reservations`: 15-minute drag snapping を探索確認する。
+- home/reception: 予約の表示と status transition を対象 scenario の期待に照合する。
+- medical record: `PatientInfoCard`、SOAPS、vital graph を該当 [scenario inventory](scenarios/README.md) と照合する。
+- next visit: 推奨日保存後の best-effort next-visit **tag sync evidence** を確認する。reminder delivery は別の後日 `next_visit_reminder` batch であり、保存時に外部 reminder reservation が即作成されるとは期待しない。対象日に scheduled batch trigger log を別確認する。
 
-### 2.1 外来フロー（予約 〜 受付 〜 診察）
-1.  **予約作成**: `/reservations` でスタッフ指名予約を作成し、15分単位のスナップ機能を確認。
-2.  **当日受付**: ホーム画面（カンバン）に予約が表示されていることを確認し、「受付済」へドラッグ。
-3.  **カルテ入力**: `PatientInfoCard` の属性、SOAPS タブへの入力、バイタルグラフの描画を確認。
-4.  **次回来院設定**: 推奨日を入力し、Lステップ側へリマインド予約が同期されるか（監査ログで確認）。
+### 2.2 accounting
 
-### 2.2 会計・経営管理
-1.  **会計精算**: カルテから連携された明細の税込合計、税率（10%/8%）別内訳、保険負担額の計算が `calculations.ts` の仕様と一致するか。
-2.  **レジ締め**: `/accounting/close` で金種別の現金突合を行い、過不足が正しく算出されるか。
-3.  **月次レポート**: `/accounting/reports` で指定月の売上・支払方法・日次推移が CSV と一致するか。
+- persisted billing totals を authoritative contract とし、frontend `frontend/src/lib/calculations.ts` と `frontend/src/features/accounting/tax-breakdown.ts` の表示計算を照合する。
+- `/accounting/close`: actual register cash **total** を入力し、theoretical cash との差額を確認する。denomination-by-denomination input は存在しない。
+- `/accounting/reports`: monthly sales/payment/daily trend と export を該当 API/spec に照合する。spec がない差異は `要実測` と記録する。
 
-### 2.3 CRM・Lステップ連携
-1.  **タグ管理**: `/settings/lstep/tags` で現在の CPM ステージ分布が正しく集計されているか。
-2.  **対象者抽出**: `/lstep/checkup-sync` で「生存ペットあり・LINE連携済み」等の条件でリストが正しくフィルタリングされるか。
-3.  **個別送信**: 飼主詳細画面からチャットパネルを開き、テキストやファイルの送信ができるか。
+### 2.3 L-step / CRM
 
----
+- `/settings/lstep/tags`: tag name、owner count/detail、automatic/manual classification を確認する。CPM stage distribution の画面ではない。
+- `/lstep/checkup-sync`: CPM stage と適用可能な owner/pet/LINE filters を確認する。
+- owner chat/file send: mock で UI boundary を確認する。real external send は human-approved lane のみ。
 
-## 3. 品質ガード・セキュリティ
+## 3. security/exploratory guards
 
-- **権限ガード (RBAC)**: 権限のないリソース（例：一般スタッフによる売上レポート）にアクセスした際、403 エラーまたはナビゲーション拒否が発生するか。
-- **削除保護 (FK Check)**: 使用中のマスタ（例：カルテが存在するスタッフ）を削除しようとした際、409 エラーメッセージが適切に表示されるか。
-- **離脱防止 (NavigationBlocker)**: フォーム編集中に保存せずページを移動しようとした際、警告ダイアログが表示されるか。
+- authorization: system admin と clinic staff permission group/capability の差を確認する。
+- master delete/FK response、navigation blocking、audit evidence は対応する API/screen spec が特定できる場合だけ acceptance expectation とする。未特定なら `要実測`。
+- warning dialog の存在だけを safety control とみなさない。canonical spec が lock/Undo/physical block を要求する場合はそれを確認する。
 
----
+## 4. identity provisioning
 
-## 4. 検証環境とアカウント
+Product account model は `admin/doctor/staff` role enum ではない。
 
-- 環境準備の正本: [UAT-ENV-SETUP.md](UAT-ENV-SETUP.md)。認証は **`E2E_LOGIN_EMAIL` / `E2E_LOGIN_PASSWORD`**（`.env.local`）。パスワードを本書に書かない。
-- 納品前のフル受入・フォーム項目単位は [scenarios/](scenarios/README.md) が正本（本ガイドはドメイン重点の L5 補完）。
+| identity | provisioning requirement | use |
+|:--|:--|:--|
+| system admin | explicit UAT account with `is_system_admin` | system-level administration only |
+| clinic staff | explicit account/staff attached to target clinic with approved permission group/capabilities | clinical/accounting/master operations permitted by capabilities |
+| restricted clinic staff | least-privilege permission group | negative authorization checks |
 
-| 役割 | 指定方法 | 用途 |
-|:---|:---|:---|
-| **管理者** | admin ロール（通常は `E2E_LOGIN_*`） | マスタ設定、権限、会計レポート |
-| **獣医師** | doctor / vet ロールの seed アカウント | カルテ、検査、処方 |
-| **受付/看護** | staff / reception / nurse ロール | 受付、会計、入院ケア |
-
-メールアドレスの具体値は seed 依存のため固定しない。local の既定ログインは env を正とする。
-
----
-
+`002_master` は permission groups/rules を含むが、UAT identities を作らない。[UAT setup](UAT-ENV-SETUP.md) と [staff provisioning](../deploy/STAFF_ACCOUNT_PROVISIONING.md) に従う。credential 値を文書・report・chat に書かない。
