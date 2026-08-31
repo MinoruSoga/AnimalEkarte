@@ -5,7 +5,7 @@
 > **タイミング**: CPM判定・配信トリガー仕様の確認時。
 
 > **Animal Ekarte**: カルテデータに基づいた自動マーケティングの実現
-> **最新更新**: 2026-08-31 | **ステータス**: code-complete。deployment / credential / external scenario / monitoring readiness は [release readiness runbook](../../ops/deploy/runbooks/STG_PRE_DEPLOY_READINESS_CHECK.md) 等の release evidence で別管理
+> **最新更新**: 2026-08-31 | **ステータス**: 実装済みだが既知の安全・性能gapあり。deployment / credential / external scenario / monitoring readiness は [release readiness runbook](../../ops/deploy/runbooks/STG_PRE_DEPLOY_READINESS_CHECK.md) 等のrelease evidenceで別管理
 
 ---
 

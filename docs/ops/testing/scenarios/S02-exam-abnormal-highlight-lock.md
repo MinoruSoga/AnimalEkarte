@@ -24,7 +24,7 @@
 | 6b | ステータスドロップダウンから「確定」を**選択して保存**する（独立確定ボタンは無い）。一覧へ戻り再度開く | **ドラフトで「確定」を選んだだけではロックしない**。**サーバに confirmed が保存された後**、再オープン時にステータス/項目が無効化され保存ボタンが消える（[13 §2.1](../../../spec/screens/13-examinations-form.md)） |
 | 7 | 確定済み（サーバ status=確定 / `confirmed`）の検査を開き、測定値の変更・保存を試行する | 編集がロックされ変更を保存できない。FE の persisted lock ＋ BE の confirmed 拒否の二重ガード。確定解除 UI は `examination-unconfirm:edit` があるときだけ（`ExaminationUnconfirmDialog`）。通常 edit では出ない |
 | 7b | `examination-unconfirm:edit` 付きアカウントで確定解除（理由 1〜500 字）→ 印刷 | `POST /examinations/:id/unconfirm` が成功し再編集できる。印刷は `GET /examinations/:id/print-snapshot`（confirmed は official、それ以外は draft 透かし） |
-| 8 | examinations view のみを持つ専用 attached accountでログインし、確定操作・結果入力を試行する | examinations の view は許可されるためフォームは見えるが、fieldset 無効・保存ボタンなし。第2アカウントが無い環境は手順スキップ（期待はソース確定） |
+| 8 | examinations view のみを持つ専用 attached accountでログインし、確定操作・結果入力を試行する | examinations の view は許可されるためフォームは見えるが、fieldset 無効・保存ボタンなし。第2アカウントが無い環境はBLOCKEDとして記録し、このscenarioを完了扱いにしない |
 
 ## 確認観点
 

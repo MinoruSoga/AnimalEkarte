@@ -5,7 +5,7 @@
 > **タイミング**: デプロイ運用開始時。
 
 > **Animal Ekarte**: ステージング・本番環境へのデプロイと安定稼働のためのガイド
-> **最新更新**: 2026-07-31 | **ステータス**: STG 自動デプロイ稼働中 / Production 未構築
+> **最新更新**: 2026-08-31 | **checked-in config**: STG workflow/configあり。Production workflowは未実装。**live provider状態はUNKNOWNで、実行前にdated receiptが必要**
 
 ---
 
@@ -13,8 +13,8 @@
 
 | 環境 | Frontend URL | API Base URL | インフラ管理 |
 |:---|:---|:---|:---|
-| **Staging** | [stg.noah-karte.com](https://stg.noah-karte.com) | [api.stg.noah-karte.com/api](https://api.stg.noah-karte.com/api) | Backend: Cloudflare Workers + Containers / DB: PlanetScale / Frontend: Vercel |
-| **Production** | noah-karte.com（予定） | api.noah-karte.com/api（予定） | 未構築（#253・[`../infra/production/runbook.md`](../infra/production/runbook.md)） |
+| **Staging（設定値）** | [stg.noah-karte.com](https://stg.noah-karte.com) | [api.stg.noah-karte.com/api](https://api.stg.noah-karte.com/api) | checked-in target。稼働状態は実行時確認 |
+| **Production（draft設定）** | noah-karte.com（予定） | api.noah-karte.com/api（予定） | workflow未実装。provider実体はUNKNOWN（#253・[`../infra/production/runbook.md`](../infra/production/runbook.md)） |
 
 ---
 
@@ -69,11 +69,17 @@ workers.dev の `/health` と実 URL を比較して DNS / Worker / Container �
 Cloudflare Dashboard の Workers Logs / Containers と、対象の GitHub Actions run を確認します。
 Workers Logs はインフラ障害調査用で、診療記録の変更監査は DB の `audit_logs` が正本です。
 
-### 3.3 手動デプロイの実行
+### 3.3 手動デプロイの実行（共有STG・人間承認必須）
+
+**HARD STOP:** named human owner/approval、review済みcommit、refがそのcommitへ解決すること、対象Worker/config、secret scope、共有STG利用可否を記録する。未確認なら実行しない。正本は [staging runbook](../infra/staging/runbook.md)。
+
 ```bash
-# GitHub Actions のワークフローを staging ブランチで起動
+REVIEWED_SHA='<reviewed-commit>'
+test "$(git rev-parse 'staging^{commit}')" = "$(git rev-parse "${REVIEWED_SHA}^{commit}")" || exit 1
 gh workflow run backend-deploy.yml --ref staging
 ```
+
+dispatch後は対象runの`headSha`が`REVIEWED_SHA`と一致することをnames-only metadataで確認し、不一致なら停止する。
 
 ### 3.4 自動スモークテストの実行 (手動トリガー)
 ```bash

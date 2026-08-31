@@ -5,7 +5,7 @@
 > **タイミング**: デプロイ実行前。
 
 > **Animal Ekarte**: ステージングおよび本番環境への安全な移行手順
-> **最新更新**: 2026-07-23 | **ステータス**: STG 稼働中 / Production 未構築
+> **最新更新**: 2026-08-31 | **checked-in config**: STG target/workflowあり、Production workflow未実装。live provider状態はUNKNOWNで実行時receiptが必要
 
 ---
 

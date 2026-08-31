@@ -5,7 +5,7 @@
 > **更新規則**: 画面に入力項目を追加したら、本表と該当 V を同 PR で更新する。
 > **ステータス**: inventory は再構築中。下表は検証済み exact field key の部分一覧であり、一意フォーム総数や「全フォーム/全項目完了」はまだ主張しない。route inventory は 86 product pages だが page 数と form 数は別。
 
-凡例: **R**=必須 / **O**=任意 / **C**=条件付き必須 / **S**=システム（入力不可→F は N/A）
+凡例: **R**=必須 / **O**=任意 / **C**=条件付き必須 / **S**=システム（入力不可→F は N/A）。fieldKeyは原則として永続化wire keyを使い、UI-only helper/contextは特記する。
 
 ---
 
@@ -67,15 +67,18 @@
 
 | fieldKey | R/O | 型 | F 重点 |
 |:--|:--|:--|:--|
+| pet_id | S | id | F0/N/A（親カルテcontext） |
+| medical_record_id | S | id | F0/N/A（保存済み親カルテ） |
 | vaccine_id | R | select | F1 F4 |
-| vaccinated_on | R | date | F1 F4 |
+| date | R | date | F1 F4 |
 | lot1 | O | text | F4 F5 |
 | lot2 | O | text | F4 F5 |
 | lot3 | O | text | F4 F5 |
 | lot4 | O | text | F4 F5 |
-| note | O | text | F4 F5 |
-| next_schedule_mode | O | radio | F4 |
-| next_due_on | O | date | F4（手入力永続） |
+| next_date | O | date | F4 F5（接種日以下を拒否） |
+| supplemental | O | bool | F4 |
+| next_schedule_type | O | enum/radio | F4 |
+| remarks | O | text | F4 F5 |
 
 ### medical-record-image-upload / addendum / examination-import / estimate-tab — [V01 §6](V01-clinical-forms.md)
 
@@ -99,7 +102,7 @@
 
 ### vaccination-form（独立）— [V01 §8](V01-clinical-forms.md)
 
-タブと同型 + 未来日接種拒否・次回予定境界（接種日と同日拒否）。項目は vaccination-tab に準じ **全項目 F**。
+独立フォームも `pet_id`、`medical_record_id`（該当時）、`vaccine_id`、`date`、`lot1..lot4`、`next_date`、`supplemental`、`next_schedule_type`、`remarks` を個別に記録する。未来日接種拒否・次回予定境界（接種日と同日拒否）を含め、タブ表の適用可能な全Fを実施する。
 
 ### checkup-form（独立クイック）— [V01 §9](V01-clinical-forms.md)
 
@@ -234,11 +237,16 @@
 
 | fieldKey | R/O | F 重点 |
 |:--|:--|:--|
-| staff_id | R | F1 F4 |
-| date | R | F1 F4 |
-| startTime | R | F1 F4 |
-| endTime | R | F1 F4 |
-| template_id | O | F4 C3-1 |
+| staff_id | S | F0/N/A（launch context） |
+| date | S | F0/N/A（launch context） |
+| start_time | C | F1 F4（勤務時。UI stateは`startTime`） |
+| end_time | C | F1 F4（勤務時。UI stateは`endTime`） |
+| shift_type | R | F1 F4（`off`/`paid_leave`は時刻なし） |
+| notes | O | F4 F5 |
+| breaks[].break_start | C | F1 F3 F4（休憩行） |
+| breaks[].break_end | C | F1 F3 F4（開始後） |
+
+`template_id`は入力補助であり、shift保存payloadの永続fieldではない。
 
 ### clinic-holiday-modal — [V02 §11](V02-accounting-reservation-forms.md)
 
@@ -274,16 +282,19 @@
 | phone | R | phone | F1 F2 F4 C3-2 |
 | email | O | email | F2 F4 F5 C3-2 |
 | postal_code | O | postal | F2 F4 |
-| address | O | text | F4 |
+| address1 | O | text | F4 F5 |
+| address2 | O | text | F4 F5 |
 | home_postal_code | O | postal | F2 F4 |
-| home_address | O | text | F4 |
+| home_address1 | O | text | F4 F5 |
+| home_address2 | O | text | F4 F5 |
 | company | O | text | F4 F5 |
 | company_phone | O | phone | F2 F4 F5 |
 | membership_type | R | enum4 | F0 F4 |
 | discount_rate | O | 0–100 | F3 F4 F5 |
 | is_dangerous | O | bool | F4 |
 | birth_date | O | date | F4 F5（null PATCH） |
-| note | O | text | F4 F5 |
+| remarks | O | text | F4 F5 |
+| dm_preference | O | tri-state | F0 F4 F5 |
 | clinic_id（登録先） | O | select | F4 C3-1 |
 
 ### pet-edit-modal / pet-add-pending — [V03 §2–3](V03-owner-pet-staff-forms.md)
@@ -291,6 +302,7 @@
 | fieldKey | R/O | F 重点 |
 |:--|:--|:--|
 | name | R | F1 F4 |
+| pet_name_kana | O | F4 F5 |
 | animal_species_id | R | F1 F4 C3-1 |
 | sex | R(FE) | F1 F4 |
 | breed | O | F4 F5 |
@@ -305,6 +317,8 @@
 | insurance_id | O | F4 C3-1 |
 | danger_level | O | enum F4 |
 | danger_reason | C | high 時必須 F1 F4 |
+| acquisition_type | O | F0 F4 F5 |
+| remarks | O | F4 F5 |
 
 ### pet-deceased-dialog — [V03 §4](V03-owner-pet-staff-forms.md)
 

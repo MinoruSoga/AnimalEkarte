@@ -28,8 +28,8 @@ baseline file のコメントが値、run、変更理由の正本である。Bac
 - **Phase 0 — historical/completed**: artifact 可視化のみだった導入段階。
 - **Phase 1 — implemented and armed**: backend/frontend とも baseline から tolerance（既定 0.5pp）を超える低下を CI で fail する。対象は path-filter に該当する main push と main/staging/production PR。
 - Frontend script の OK/FAIL/baseline 未記録/`--warn-only` の四ケースは一時的な履歴検証として記録されていたが、HEAD に保守される regression test/fixture はない。継続保証とは扱わない。
-- **Phase 2 — proposal, not implemented at HEAD `70dc7405`**: patch coverage warning。`octocov` / `diff-cover` は未導入。
-- **Phase 3 — proposal, not implemented at HEAD `70dc7405`**: domain/capability baseline と manifest による gate。manifest は未導入。
+- **Phase 2 — proposal, not implemented at reviewed baseline `70dc7405`; current checkout must be revalidated**: patch coverage warning。`octocov` / `diff-cover` は未導入。
+- **Phase 3 — proposal, not implemented at reviewed baseline `70dc7405`; current checkout must be revalidated**: domain/capability baseline と manifest による gate。manifest は未導入。
 
 ## Baseline 更新
 

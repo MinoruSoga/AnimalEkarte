@@ -184,15 +184,15 @@ if [ -n "${E2E_LOGIN_EMAIL:-}" ] && [ -n "${E2E_LOGIN_PASSWORD:-}" ]; then
   fi
 fi
 
-# Playwright is installed in the frontend container's named node_modules volume.
-# Check the declared @playwright/test dependency in that container, not the host.
+# Supported Playwright runs through the repository Docker runner, which installs
+# the required browser/dependencies in the official Playwright image. Frontend
+# container node_modules is not the readiness contract.
 playwright_ready=false
-if [ "$frontend_healthy" = true ] && \
-    docker compose exec -T frontend node -e "require.resolve('@playwright/test/package.json')" >/dev/null 2>&1; then
+if command -v docker >/dev/null 2>&1 && [ -x frontend/scripts/run-e2e.sh ]; then
   playwright_ready=true
-  pass "frontend container has @playwright/test"
+  pass "supported Docker Playwright runner is available"
 else
-  info "frontend container @playwright/test unavailable"
+  info "supported Docker Playwright runner unavailable"
 fi
 
 # Chrome CDP
@@ -225,5 +225,5 @@ if [ "$fail" -gt 0 ]; then
   echo "UAT env NOT ready (exit $EXIT_NOT_READY)"
   exit "$EXIT_NOT_READY"
 fi
-echo "UAT env ready"
+echo "advisory checks passed; UAT readiness not established (profile/fixture/mutation/cleanup receipt required)"
 exit 0

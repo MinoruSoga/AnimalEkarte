@@ -194,7 +194,7 @@ GitHub Actions の `backend-deploy.yml` 実行履歴を確認する。
 **異常時アクション**:
 - Team Lead に報告
 - 接続枯渇時は新規デプロイを重ねず、滞留接続のドレインと設定値を確認
-- 所有権問題は PlanetScale サポートへの REASSIGN 依頼を先に完了
+- 現在のschema ownershipとprovider-supported remediationをdated runtime/provider evidenceで確認する。UNKNOWNならALTER migrationを停止し、REASSIGNはnamed targetでproviderが現在サポートすると確認できた場合だけ使う
 
 ---
 

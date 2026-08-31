@@ -48,7 +48,6 @@
 
 ## 実装突合
 - 変更:
-  - seed 003 に八王子 draft 見積が存在することを前提に追記（「見積無し」記述を撤回）
   - バッジ文言を実装どおり「送付済み」「承認済み」に修正
   - Create/Update/Delete 監査を best-effort、successors のみ fail-closed と明記
   - 後継ドラフトは詳細 UI「後継ドラフトを作成」。独立見積はヘッダ金額のみ

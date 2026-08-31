@@ -45,7 +45,7 @@ The old generic-token API and “SHA-256 of `result.value`” recipe is removed.
 
 ## 4. Seed contract
 
-At HEAD `70dc7405`, only `backend/migrations/seeds/002_master` exists. `seedbundle.BundleOrderForEnv` returns master-only for every environment. `003_demo`, `004_staging`, “seed +3”, and environment-specific demo cleanup are historical behavior and must not be used.
+At reviewed baseline `70dc7405`, only `backend/migrations/seeds/002_master` exists. `seedbundle.BundleOrderForEnv` returns master-only for every environment. `003_demo`, `004_staging`, “seed +3”, and environment-specific demo cleanup are historical behavior and must not be used.
 
 `APP_ENV` is not passed through current Wrangler/Container source and is not a production prerequisite. The master-only behavior does not depend on it. Production UAT/synthetic users require a separate approved import, owner, expiry, and cleanup path.
 
@@ -65,7 +65,7 @@ Do not copy an embedded patch from docs. Modify and review the workflow against 
 6. workflow tests and `actionlint` pass;
 7. execution order is **deploy → migrate → `/health` → optional smoke**.
 
-At HEAD `70dc7405`, `backend-deploy.yml` lacks the production trigger/Environment gate. Therefore a production workflow invocation is **not runnable** until the implementation is merged and verified.
+At reviewed baseline `70dc7405`, `backend-deploy.yml` lacks the production trigger/Environment gate. Therefore a production workflow invocation is **not runnable** until the implementation is merged and verified.
 
 ## 7. Go-live verification
 

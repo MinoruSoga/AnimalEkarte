@@ -54,7 +54,7 @@
 ## 4. セッションとセキュリティ
 
 ### 4.1 dual-token 方式
-- **Access Token (JWT)**: 15 分有効。`httpOnly` Cookie に格納。全 API リクエストの認可に使用。
+- **Access Token (JWT)**: 15分有効。`httpOnly` Cookieに格納し、保護されたstaff向け`/api/v1` routeの認可に使用する。login/refresh/password-reset等のpublic auth routeと、LIFF専用routeは各route固有の認証・rate limitを使う。
 - **Refresh Token (JWT)**: 最大 7 日間有効。ログイン単位の family ID と一意な JTI を持ち、ローテーション後も family の初回失効時刻を延長しません。
 - **再利用検知**: ローテーション済み refresh token の再利用を検知した場合は、その token family 全体を失効させます。並行 refresh でも family の有効期間を延長しません。
 - **Cookie 境界**: 現行・旧 path の refresh cookie を明示的に扱い、重複値は集約します。不正な複数 cookie やサイズ上限超過は fail closed とし、logout は検証できた family を失効させたうえで現行・旧 cookie を消去します。

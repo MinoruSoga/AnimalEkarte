@@ -1,6 +1,6 @@
 # Go-live 手順書 — 本番切替（相対 timeline / gate-driven HOLD）
 
-> **対象 Issue**: #257 ／ **状態**: ドラフト — **実行 HOLD**（全 prerequisite green かつ USER が新 window を記入するまで fail-closed）
+> **対象 Issue**: #257 ／ **状態**: ドラフト — **実行 HOLD**（全 **pre-window prerequisite** green かつ USER が新 window を記入するまで fail-closed。day-of gate は当日タイムライン内で別判定）
 > **次回切替日（新 window）**: （確定待ち — 下記「新 window 記入欄」に USER が一箇所記入する。本 runbook は日付を発明しない）
 > **履歴（historical No-Go）**: 予定 window **2026-08-03** は期限超過・未実施。当該 window は **historical No-Go** であり、**実行可能な current window ではない**。延期履歴: 7/18 → 7/25 → 7/27 → 8/3（当初 PO 裁定 2026-07-15 は 7/18。8/3 は 2026-08-01 の USER 決定）。旧 timeline 表記 `2026-07-18` は失効済みの絶対日であり、当日手順として実行しない。
 > **経路**: Cloudflare 経路で納品（PO 決定 2026-07-15。現行構成: [architecture.md](../ops/infra/architecture.md)。移行実施記録は git 履歴）
@@ -16,11 +16,11 @@
 | Support primary（named owner） | （確定待ち: 担当者名・対応時間帯） |
 | Rollback owner（named owner） | （確定待ち: 担当者名） |
 
-**記入条件（fail-closed）**: 下記 §1 の全 prerequisite が non-secret evidence で green になり、Go/No-Go authority・support・rollback owner が named で揃った後に限る（DEC-60 / #257）。未記入のまま当日手順を実行しない。
+**記入条件（fail-closed）**: 下記 §1 の全 **pre-window prerequisite** が non-secret evidence で green になり、Go/No-Go authority・support・rollback owner が named で揃った後に限る（DEC-60 / #257）。最終 production import と突合は day-of gate のため、この時点では要求しない。未記入のまま当日手順を実行しない。
 
 ---
 
-## 1. 前提チェックリスト（切替当日までに全項目 ✅ であること）
+## 1. Pre-window 前提チェックリスト（切替日前に全項目 ✅ であること）
 
 未完了・未確定の項目が 1 つでも残る間は **Go 判定不可（HOLD）**。
 
@@ -29,7 +29,7 @@
 | 1 | STG Cloudflare 移行 Phase 7（NS 切替・並行稼働）完遂 | [現行構成](../ops/infra/architecture.md) | staging デプロイ 2 回連続 green → 画像移行 → データ投入 → NS 切替 → フルスモーク | ✅ 2026-07-17 完了 |
 | 2 | credential / provider residual（secret manager 状態・実値は repo 外） | #89 ／ #97 ／ #98 ／ #99 | 非機密 evidence で residual 解消または明示的 HOLD 解除条件が揃っていること。**実 credential 値は本書に書かない** | （確定待ち） |
 | 3 | 本番 Cloudflare 環境・配信契約・CI/backup/restore/rollback | #253 ／ [production/setup.md](../ops/infra/production/setup.md) ／ [production/runbook.md](../ops/infra/production/runbook.md) ／ [CI-CD-PIPELINE.md](../ops/deploy/CI-CD-PIPELINE.md) §0 | (a) 本番 CF 基盤構築 (b) `production` Environment + **Required reviewers** (c) production workflow 適用 (d) STG は main→staging 自動・本番は無承認開始不可 (e) **CF-only** rollback 手順 (f) backup/restore rehearsal 記録 (g) latest main CI green（当日確認した GitHub run URL / ID・commit・確認時刻を記録） | （確定待ち: 実行時 receipt 未記入。過去の CI / billing 状態を流用しない） |
-| 4 | Access データの本番投入・migration verification | #250 | リハーサル移行 PASS → 本番 DB へ最終移行 → 突合検証（件数・clinic_id 別件数・金額合計）PASS | （確定待ち: 最終移行は当日タイムライン内で実施） |
+| 4 | Access データ移行の事前準備 | #250 | リハーサル PASS、最終 import 手順・担当・入力停止・backup/rollback・突合方法が承認済み。**最終 production import と突合 PASS は day-of gate** | （確定待ち: 当日実行前の準備 evidence） |
 | 5 | 全業務シナリオ通し確認済み（authenticated UAT） | #254 | 全シナリオ PASS、または FAIL 項目が「納品後対応合意済みリスト」に隔離済み | （確定待ち） |
 | 6 | スタッフアカウント発行・権限設定済み | #255 | 全スタッフに個人アカウント発行・所属院スコープ・役割別権限設定済み | （確定待ち: スタッフ一覧の先方提供がブロッカー） |
 | 7 | フロントエンド CSP の最終確認 | [architecture.md](../ops/infra/architecture.md) | `frontend/index.html` の CSP `connect-src` に本番 API オリジンが含まれている | （確定待ち） |
@@ -46,12 +46,12 @@
 
 | 相対時刻 | 壁時計目安（確定待ち） | 作業 | 実施者 | 完了確認 |
 |---|---|---|---|---|
-| T-1 日 夕方 | — | 前提チェックリスト §1 の最終確認・Go/No-Go 事前判定 | 開発側 + 先方管理者 | 全項目 ✅ |
+| T-1 日 夕方 | — | pre-window 前提チェックリスト §1 の最終確認・Go/No-Go 事前判定 | 開発側 + 先方管理者 | pre-window 全項目 ✅ |
 | T+0:00 | 09:00 | **旧システム（Access）の入力停止**を先方へ宣言 | 先方管理者 | 全スタッフへ周知済み |
 | T+0:15 | 09:15 | Access 最終データ抽出（#250 手順） | 開発側 | 抽出ファイル受領 |
-| T+0:30 | 09:30 | 本番 DB の事前バックアップ取得（§3.1 / [production/runbook.md §5.1](../ops/infra/production/runbook.md#51-restore-rehearsal-チェックリスト253-ac) の承認済み方式） | 開発側 | owner 管理の repo 外 artifact / managed-backup receipt、size・checksum、保持期限、restore rehearsal PASS を記録 |
+| T+0:30 | 09:30 | 本番 DB の事前バックアップ取得（§3.1 / [production/runbook.md §5.1](../ops/infra/production/runbook.md#4-backuprestore-rehearsal) の承認済み方式） | 開発側 | owner 管理の repo 外 artifact / managed-backup receipt、size・checksum、保持期限、restore rehearsal PASS を記録 |
 | T+0:45 | 09:45 | 最終データ移行の実行（#250 変換ツール） | 開発側 | ジョブログ・エラー行 0 件 |
-| T+1:15 | 10:15 | 突合検証（テーブル別件数・clinic_id 別件数・金額合計・サンプル目視） | 開発側 | 検証レポート PASS |
+| T+1:15 | 10:15 | **Day-of gate**: 突合検証（テーブル別件数・clinic_id 別件数・金額合計・サンプル目視） | 開発側 | 最終 import と検証レポートが PASS。未達なら T+3:00 は No-Go |
 | T+1:45 | 10:45 | 本番 DNS レコードの最終確認（§3。**zone-wide NS 変更禁止**） | 開発側 | 実行時の registrar / `dig NS` / 本番レコード確認結果・時刻・receipt を記録 |
 | T+2:00 | 11:00 | 疎通確認: `curl -fsS https://api.noah-karte.com/health` → 200 `{"status":"ok"}`、フロント `https://noah-karte.com` 表示 | 開発側 | ヘルスチェック PASS |
 | T+2:15 | 11:15 | スモーク: ログイン → 受付 → カルテ → 会計 → 締め（テストデータ）＋ LINE 予約疎通 | 開発側 | 全操作正常・テストデータ削除記録 |
@@ -69,7 +69,7 @@
 
 ### 3.1 本番バックアップ gate
 
-正本は [production/runbook.md §5.1](../ops/infra/production/runbook.md#51-restore-rehearsal-チェックリスト253-ac)。Go 判定前に、次をすべて満たす。
+正本は [production/runbook.md §5.1](../ops/infra/production/runbook.md#4-backuprestore-rehearsal)。Go 判定前に、次をすべて満たす。
 
 1. production runbook に operator 承認済みの `pg_dump` コマンド、または managed-backup の取得手順を記載する。資格情報や出力先の秘密値は本書へ書かない。
 2. 出力は owner 管理の **repo 外**保存先に限定する。artifact / receipt ID、取得時刻、size、SHA-256 checksum、保持期限を当日ログへ記録する。

@@ -24,17 +24,17 @@
 4. **secret / credential / PHI を log・artifact・Issue に出さない**。値の生成・登録は人間のみ（#89 依存）。
 5. **CI green は GitHub Actions billing/spending 復旧が前提**。agent は支払い・上限変更を実行しない（§7）。
 
-### 0.2 現状（実装 vs 契約）
+### 0.2 Checked-in config と dated external observation（実行前に再検証）
 
 | 項目 | 現状 | 契約上の次アクション |
 |---|---|---|
 | STG backend auto-deploy | ✅ `backend-deploy.yml` が `staging` push で稼働 | 維持 |
 | STG frontend auto-deploy | ✅ `frontend-deploy.yml` が `staging` push で稼働 | 維持 |
 | Production backend workflow | ⚠ 未適用（`setup.md` §8 提案 diff）。`environment:` ジョブキー無し | USER が §7 ゲート確定後に適用。**agent は適用しない** |
-| Production Environment + Required reviewers | ⚠ 名は `Production`（大文字）が存在。`production` は無い。**reviewers 空**（2026-08-20 `gh api`） | USER が名前一致と Required reviewers を設定。agent は reviewer 追加しない |
+| Production Environment + Required reviewers | **外部観測 2026-08-20（現在値ではない）**: `Production`（大文字）、reviewers空。observer/receiptを実行時に再取得し、未確認はUNKNOWN/HOLD | USER が名前一致と Required reviewers を設定。agent は reviewer 追加しない |
 | Production frontend | ⚠ `production` push で Vercel デプロイ可能だが GitHub Environment ゲート無し（`inputs.environment` は Vercel 入力） | Environment 保護を backend と揃える |
 | ECS workflow | ✅ repository に残存なし | 再導入禁止 |
-| CI green on latest main | ❌ billing/spending limit で job が即 failure | USER billing 復旧（§7） |
+| CI green on latest main | **外部観測（期限切れ）**: 過去にbilling/spending failure。現在値はUNKNOWN | USERが実行時run URL/ID・headSha・確認時刻を記録 |
 
 本番構築の人間手順は [`../infra/production/setup.md`](../infra/production/setup.md)、稼働後の日常運用は [`../infra/production/runbook.md`](../infra/production/runbook.md) を正本とする。
 
@@ -70,14 +70,16 @@ deploy 直後から migration 完了まで（最大 `MIGRATE_TIMEOUT=150s`）新
 
 ### 2.2 手動実行と障害対応
 
-```bash
-# STG
-gh workflow run backend-deploy.yml --ref staging
+**HARD STOP:** named human approval、review済みimmutable commit/ref、target Worker/config、secret scope、共有環境の利用可否を先に記録する。PRODはworkflow実装とEnvironment protectionを外部receiptで確認できるまで実行禁止。
 
-# PROD（workflow 適用 + Environment secrets 登録後）
-# Required reviewers 承認待ちでジョブが一時停止する
-gh workflow run backend-deploy.yml --ref production
+```bash
+REVIEWED_SHA='<reviewed-commit>'
+TARGET_REF='staging' # production は現在 HOLD
+test "$(git rev-parse "${TARGET_REF}^{commit}")" = "$(git rev-parse "${REVIEWED_SHA}^{commit}")" || exit 1
+gh workflow run backend-deploy.yml --ref "$TARGET_REF"
 ```
+
+dispatch後はrun metadataの`headSha == REVIEWED_SHA`を確認し、不一致なら停止する。
 
 - 失敗した job を成功扱いにせず、deploy / migration / health / smoke のどこで失敗したかを切り分ける
 - DB reset、credential 変更、production 操作は別途明示承認を得る

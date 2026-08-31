@@ -24,5 +24,5 @@
 - migration は `002_master` だけをロードし、UAT account/clinical fixture は作らない。準備は [UAT-ENV-SETUP.md](UAT-ENV-SETUP.md) に従う。
 - E2E の GitHub workflow は manual・non-gating で、account/fixture provisioning がないため authenticated suite は現在 BLOCKED。
 - performance workflow の k6 job も fresh master-only DB に account provisioning がなく、現在 BLOCKED。
-- 85 は宣言済みフォーム群の集計であり、inventory の `dynamic_*`、`UI 全項目`、`etc.`、`要実測` が解消されるまで「全 field を網羅」とは言わない。
+- unique form総数はinventory再構築完了まで算定保留。exact key未収録や動的定義が残る間は「全fieldを網羅」と言わない。
 - カバレッジ基準は [../coverage-policy.md](../coverage-policy.md)。確認済み UAT FAIL は `bug.md` で重複確認・記録後に Linear で追跡する。その他の新規 defect は通常の Linear intake に従う。

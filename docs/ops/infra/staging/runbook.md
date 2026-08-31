@@ -4,7 +4,7 @@
 
 ## Deploy
 
-- 自動: `staging` push で `backend/**`、`infra/cloudflare/**`、workflow 自身、root `package.json` / `pnpm-lock.yaml` など workflow の path 条件に一致した場合。
+- 自動: `staging` pushで`backend/**`、`.github/workflows/backend-deploy.yml`、root `package.json`、root `pnpm-lock.yaml`のいずれかが変わった場合。`infra/cloudflare/**`単独ではtriggerされず、Terraformは別の承認済みplan/apply手順で扱う。
 - 順序: **deploy → migrate → `/health` → optional smoke**。
 - 手動 dispatch も存在する。実行は人が対象 ref、approval、secret scope を確認して行う。
 

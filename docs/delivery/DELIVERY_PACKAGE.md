@@ -35,7 +35,7 @@ flowchart TB
     Container -->|"S3 互換 API"| R2[("R2<br/>臨床画像・帳票")]
   end
 
-  Container -->|"TLS 直結<br/>(sslmode=require)"| PS[("PlanetScale<br/>PostgreSQL<br/>(東京リージョン)")]
+  Container -->|"TLS 直結<br/>(sslmode=verify-full; DB_SSL_ROOT_CERT=system)"| PS[("PlanetScale<br/>PostgreSQL<br/>(東京リージョン)")]
   Container -->|API| LINE["LINE Messaging API<br/>/ Lステップ API"]
 ```
 
@@ -45,12 +45,12 @@ flowchart TB
 |---|---|---|
 | フロントエンド | Vercel（React 19 SPA） | [architecture.md](../ops/infra/architecture.md) / [deploy/README.md](../ops/deploy/README.md) |
 | バックエンド API | Cloudflare Workers + Containers（Go/Gin）。Worker は薄いプロキシ + `/_internal/migrate` | 同上 |
-| データベース | PlanetScale PostgreSQL（東京）。Containers は Hyperdrive 不可のため **直結**（`sslmode=require`） | [architecture.md](../ops/infra/architecture.md) 既知の制約 |
+| データベース | PlanetScale PostgreSQL（東京）。Containers は Hyperdrive 不可のため **直結**（`sslmode=verify-full; DB_SSL_ROOT_CERT=system`） | [architecture.md](../ops/infra/architecture.md) 既知の制約 |
 | ファイル | Cloudflare R2（臨床画像等。参照は有効期限付き署名 URL） | 同上 |
 | 外部連携 | LINE Messaging API / Lステップ API（予約・リマインド・タグ） | [28-line-reservation.md](../spec/screens/28-line-reservation.md) 等 |
 | IaC | Terraform: [`infra/cloudflare/`](../../infra/cloudflare/README.md)／Workers: `backend/wrangler*.jsonc` | [infra/README](../ops/infra/README.md) |
 
-- **STG デプロイ**: `staging` ブランチ push → GitHub Actions `backend-deploy.yml`（deploy → migrate → post-migrate `/health` → optional smoke）。手動は `gh workflow run backend-deploy.yml --ref staging`（[staging/runbook.md](../ops/infra/staging/runbook.md)）。
+- **STG デプロイ**: `staging`ブランチpushでbackend workflowの対象pathが変わった場合 → GitHub Actions `backend-deploy.yml`（deploy → migrate → post-migrate `/health` → optional smoke）。手動は `gh workflow run backend-deploy.yml --ref staging`（[staging/runbook.md](../ops/infra/staging/runbook.md)）。
 - **Production デプロイ**: **未整備**（#253・[production/setup.md](../ops/infra/production/setup.md)）。証跡は **USER 入力待ち（U12）**。
 - **シークレット**: GitHub Encrypted Secrets および `wrangler secret` / `worker-secret-sync.yml` で管理。**本ドキュメントには秘密値を記載しない**。
 
@@ -79,9 +79,9 @@ flowchart TB
 | | STG | PROD（予定・未構築） |
 |---|---|---|
 | Worker | `animalekarte-stg-api` | `animalekarte-prod-api` |
-| DB | PlanetScale `animalekarte-stg`（repo 内最終記録: フルデモ投入、2026-08-20） | 未作成 |
+| DB | PlanetScale `animalekarte-stg`（2026-08-20の外部観測ではdemo dataあり。現在値はUNKNOWN。現行migrateは`002_master`のみ） | repo内最終記録では未作成。現在値はUNKNOWN |
 | R2 | `animalekarte-stg-images` | `animalekarte-prod-images` |
-| デプロイ | staging push → 自動 | 未整備 |
+| デプロイ | staging pushのうちbackend workflow対象pathのみ自動。`infra/cloudflare/**`は別IaC承認 | 未整備 |
 
 本番 URL の疎通証跡・構築完了記録は **USER 入力待ち（U12）**。本書に偽の本番稼働証跡を書かない。
 
@@ -214,6 +214,8 @@ flowchart TB
 
 ---
 
+<a id="user-input-waiting"></a>
+
 ## USER 入力待ち（委任外・repo では確定不能）
 
 本表は repo 由来の SSOT だけでは埋められない項目を集約する。**値・秘密・契約内容・本番証跡は発明しない。** **U1–U12** の供給後に #258 最終承認・本ドキュメント追記を行う。U13（操作説明会）は #256 / OPERATION_MANUAL の残差であり、**#258 close 条件ではない**。
@@ -222,7 +224,7 @@ flowchart TB
 
 | ID | 項目 | 供給者（想定） | 必要入力 | 反映先 | repo 確定（非機密） | 契約記入 |
 |---|---|---|---|---|---|---|
-| U1 | Cloudflare 契約名義・移管有無 | 先方 / 開発契約担当 | 契約名義、請求先、移管要否 | §1.2 | repo 内最終記録では STG は Workers Paid（2026-08-20、§1.2 / [architecture.md](../ops/infra/architecture.md)）。zone `noah-karte.com`。`api.stg.noah-karte.com` の TLS は ACM の `*.stg.noah-karte.com` 証明書でカバー | **未記入**（名義・請求先・移管要否） |
+| U1 | Cloudflare 契約名義・移管有無 | 先方 / 開発契約担当 | 契約名義、請求先、移管要否 | §1.2 | repo 内最終記録では STG は Workers Paid（2026-08-20、§1.2 / [architecture.md](../ops/infra/architecture.md)）。zone `noah-karte.com`。historical ACM validation CNAME は IaC に残るが、現在配信中の証明書 issuer / SAN / expiry / edge coverage は repo から確定不能。実行時の dated TLS receipt が必要 | **未記入**（名義・請求先・移管要否） |
 | U2 | PlanetScale 本番プラン・契約名義 | 先方 / 開発契約担当 | プラン名、バックアップ頻度・保持、契約名義 | §1.2 / §3.1 | repo 内最終記録（2026-08-20）: STG DB 名 `animalekarte-stg`、リージョン東京。STG 作成スクリプト上の org 名は `noah-animalekarte`、cluster 初期値 `PS-10`（[`pscale-create-stg.sh`](../../infra/scripts/pscale-create-stg.sh)）。STG バックアップ受容条件は **12 時間毎・PITR なし**（§3.1）。本番 DB は未作成 | **未記入**（本番プラン名・契約名義・本番バックアップ保持） |
 | U3 | Vercel プラン・契約名義 | 先方 / 開発契約担当 | プラン、ドメインレジストラ権限 | §1.2 | フロントは Vercel。STG `https://stg.noah-karte.com`。apex `noah-karte.com` は本番予定（§1.3） | **未記入**（プラン名・契約名義・レジストラ権限） |
 | U4 | GitHub リポジトリ運用体制 | 先方 / 開発 | 組織・権限・Collaborator 方針 | §1.2 | リポジトリ `MinoruSoga/AnimalEkarte`。日常は `main`、STG は `staging` への PR。`production` 直 push 禁止（[CLAUDE.md](../../.claude/CLAUDE.md) / [CI-CD-PIPELINE.md](../ops/deploy/CI-CD-PIPELINE.md)） | **未記入**（組織移管・先方 Collaborator・権限方針） |

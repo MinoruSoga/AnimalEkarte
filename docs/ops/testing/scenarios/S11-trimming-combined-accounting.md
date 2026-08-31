@@ -40,8 +40,8 @@
 | # | 操作 | 期待結果 |
 |:--|:--|:--|
 | A1 | トリミングのみ「会計待ち」（診察カルテは会計確認前）の状態で会計を作成し精算する。その後、診察側の会計確認を確定して再度会計を作成する | 1 回目はトリミング明細のみで単独精算でき、2 回目は処置明細のみが未請求として現れる — 診察だけ先・トリミングだけ後の分割会計が引き続き可能（[flow §5.2-G-6](../../../spec/reservation-to-record-flow.md): 分割会計を許可） |
-| A2 | 同じ飼主の別ペットに同日の未請求明細（処置またはトリミング）を作った上で、対象ペットの会計新規作成を開く | 別ペットの明細は混入しない。未請求 API は `pet_id` 単位（`GetUnbilledItemDetails`）。同日 multi-pet fixture が無い環境は手順スキップ（期待はソース確定） |
-| A3 | 手順 5 の統合会計（未精算）から一方の明細を削除して精算する | 明細削除は `DeleteItem`（soft-delete）。未請求クエリは `deleted_at IS NULL` のため削除行は再候補になる。精算済み会計からの削除は `rejectIfBillingFinalized` で拒否。統合 fixture が無い環境は手順スキップ |
+| A2 | 同じ飼主の別ペットに同日の未請求明細（処置またはトリミング）を作った上で、対象ペットの会計新規作成を開く | 別ペットの明細は混入しない。未請求 API は `pet_id` 単位（`GetUnbilledItemDetails`）。同日 multi-pet fixture が無い環境はBLOCKEDとして記録し、このscenarioを完了扱いにしない |
+| A3 | 手順 5 の統合会計（未精算）から一方の明細を削除して精算する | 明細削除は `DeleteItem`（soft-delete）。未請求クエリは `deleted_at IS NULL` のため削除行は再候補になる。精算済み会計からの削除は `rejectIfBillingFinalized` で拒否。統合 fixture が無い環境はBLOCKEDとして記録し完了扱いにしない |
 
 ## 実装突合
 - 変更:

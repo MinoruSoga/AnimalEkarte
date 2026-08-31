@@ -44,7 +44,7 @@ LIFF app は Messaging API channel 内ではなく **LINE Login channel** に作
 
 以下を順番に満たす。前段が未確認なら外部 write を enable しない。
 
-1. **LINE 予約設定**: `/line-reservation/settings` で受付状態、LIFF ID、Messaging API credential を登録する。
+1. **LINE 予約設定**: `/line-reservation/settings` で受付状態、LINE Channel ID、LIFF ID（非secret）を登録する。Channel Secret / Channel Access Token はこの画面では扱わず、手順2のLステップ設定で保存する。
 2. **Lステップ設定**: `/settings/integrations/lstep` で API key、base URL、Channel Access Token、Channel Secret、LIFF ID を保存する。
 3. **destination routing**: 運用担当が `line_reservation_settings.line_bot_user_id` を ops / migration 経路で一意に provision する。この field は通常 UI/API save の対象外で、空のままでは webhook `destination` から clinic を解決できない。実値や直接 DB 操作を本書へ記載しない。
 4. **webhook verification**: `POST /api/line/webhook` に対し、対象 channel の署名付き test event で destination routing と署名検証を確認してから LINE console の webhook を enable にする。

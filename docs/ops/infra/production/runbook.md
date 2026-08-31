@@ -1,6 +1,6 @@
 # PROD operations runbook — Cloudflare
 
-> Timeless post-build contract. **NOT RUNNABLE until [setup.md](setup.md) sections 1–6 are implemented and verified.** Checked-in HEAD `70dc7405` cannot deploy production through `backend-deploy.yml`. External resource, billing, Environment, backup, notification, DNS, and database state is verification-required.
+> Timeless post-build contract. **NOT RUNNABLE until [setup.md](setup.md) sections 1–6 are implemented and verified.** The current checked-in workflow cannot deploy production through `backend-deploy.yml` until setup acceptance is implemented and verified. External resource, billing, Environment, backup, notification, DNS, and database state is verification-required.
 
 Task details and live status belong in Linear. Root [`todo-po.md`](../../../../todo-po.md) is only a pointer; it has no `#253` detail section and is not a semantic SSOT.
 
@@ -43,7 +43,9 @@ Schema rollback is not automatic. If `GOOD_SHA` is incompatible with applied mig
 
 ## 4. Backup/restore rehearsal
 
-Backup existence and restore success are external facts. Record dated evidence. Restore only to a disposable isolated target. Before any destructive restore option, enforce an explicit identity assertion:
+Backup existence and restore success are external facts. Record dated evidence. **Acquisition is HOLD until a human-approved method is recorded.** The acquisition record must name the owner, method (managed backup or reviewed `pg_dump` procedure), exact target identity, protected repo-external destination, acquisition timestamp, size, SHA-256 checksum, retention/expiry, receipt ID, and restore-rehearsal link. Never invent commands, destinations, or credentials from this document. Missing any field means No-Go.
+
+Restore only to a disposable isolated target. Before any destructive restore option, enforce an explicit identity assertion:
 
 ```bash
 : "${ISOLATED_DB_HOST:?}"

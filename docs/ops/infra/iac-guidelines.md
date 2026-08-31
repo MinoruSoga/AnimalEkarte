@@ -12,7 +12,7 @@ Hyperdrive の STG/PROD files は tombstone である。Containers では利用�
 ## State と drift
 
 - tfstate を git 管理しない。secret を state に持つ resource を作らない。
-- HEAD は local backend を使用する。env-separated remote backend と locking は **required future state / not implemented at HEAD `70dc7405`**。実装前に backend/locking の設計と owner/issue を review する。
+- HEAD は local backend を使用する。env-separated remote backend と locking は **required future state / not implemented at reviewed baseline `70dc7405`**。実装前に backend/locking の設計と owner/issue を review する。
 - 定期 `terraform plan` drift detection workflow も **not implemented**。現行の自動 gate と断定しない。
 - dashboard change は原則避ける。やむを得ない場合は承認と記録を残す。provider/resource が support する場合だけ import する。support しない場合は revert、または reviewed state-migration plan で codify する。
 

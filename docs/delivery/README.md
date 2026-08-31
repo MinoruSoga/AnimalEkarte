@@ -18,7 +18,7 @@
 
 ## USER 入力待ち（U*）要約
 
-正本は [DELIVERY_PACKAGE.md の USER 入力待ち表](DELIVERY_PACKAGE.md#user-入力待ち委任外repo-では確定不能)。値・秘密・本番証跡は **発明しない**。
+正本は [DELIVERY_PACKAGE.md の USER 入力待ち表](DELIVERY_PACKAGE.md#user-input-waiting)。値・秘密・本番証跡は **発明しない**。
 
 | ID | 要約 | 主ドキュメント |
 |:---|:---|:---|
@@ -31,9 +31,8 @@
 
 ## 要追従（本 docs refresh の編集範囲外）
 
-- `docs/ops/infra/staging/runbook.md`: STG の順序表記を workflow と同じ `deploy → migrate → post-migrate /health → optional smoke` に直す。
-- `docs/ops/infra/production/runbook.md` §5.1: backup の取得方式・owner・size/checksum・retention を定義し、現行の restore rehearsal と一つの gate にする。定義完了までは GOLIVE を HOLD とする。
-- frontend 埋め込みマニュアルと不可逆カルテ操作、backend の未登録 `VoidReopen` 経路、`.claude/CLAUDE.md` 圧縮要約: [OPERATION_MANUAL.md §12](OPERATION_MANUAL.md#12-ソース文書の要追従本-docs-更新の対象外) を参照する。
+- `docs/ops/infra/production/runbook.md` §4: backup acquisition contract の必須欄を埋め、approved method と receipt を外部証跡で確定する。未確定の間は GOLIVE を HOLD とする。
+- frontend 埋め込みマニュアルと不可逆カルテ操作、backend の未登録 `VoidReopen` 経路、`.claude/CLAUDE.md` 圧縮要約: [OPERATION_MANUAL.md §12](OPERATION_MANUAL.md#source-doc-followups) を参照する。
 
 ## 運用ルール
 

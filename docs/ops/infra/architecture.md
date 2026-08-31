@@ -9,7 +9,7 @@ STG user
   -> Vercel SPA (checked-in frontend/vercel.json rewrite is STG-specific)
   -> /api rewrite -> api.stg.noah-karte.com
   -> Cloudflare Worker -> Durable Object -> Container (Go/Gin)
-  -> direct PlanetScale Postgres connection (sslmode=require)
+  -> direct PlanetScale Postgres connection (`sslmode=verify-full`, `DB_SSL_ROOT_CERT=system`)
   -> R2 for clinical images
 
 PROD

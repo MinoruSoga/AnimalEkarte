@@ -35,7 +35,6 @@
 - **不変性（W-013）**: 締めレコードに更新・削除・soft-delete 再開・巻き戻し API は存在せず append-only。不変性は `(clinic_id, close_date, period)` の **完全 UNIQUE**（二重締め防止）と DB immutability trigger で担保される（仕様正本 §5）。soft-delete して同一区分を再締めする reopen は不可。
 - **締め後訂正**: #8 で理由を入れて会計を保存した場合、監査ログに加え `cash_register_close_adjustments` へ追記される。close 自体の reverse/取消は productize されていない。
 - **#10 のフィルタ粒度**: 締め履歴の区分フィルタはクライアント側フィルタで、現在ページ内の行だけに作用する（`CashRegisterHistoryPage.tsx` コメントどおり）。ページを跨ぐ絞り込み漏れを不具合と誤認しない。
-- **城東の締め時間 seed**: `clinic_settings` clinic_id=2 は `closing_am_start=09:00` / `closing_am_pm_boundary=13:30` / `closing_weekday_end=19:00`（日曜 end は 18:00）。#1 のプレビューと一致すること。
 - **実時間での帰属確認**: 「精算した瞬間の実時刻で正しい区分に入るか」は実行時刻に依存するため本シナリオの対象外。帰属は `completed_at` と半開区間で決まる（#2〜#6 のデータ準備で証明する）。
 
 ## 異常系
@@ -51,5 +50,4 @@
 - 変更:
   - `resolvePeriodRange` 半開区間と境界ちょうど PM 帰属を明示
   - FE 締め済み警告が scheduled_date 日単位であることを再確認
-  - seed の締めレコード・城東 closing 設定値を CSV と突合
   - ルート `/accounting/close`・`/accounting/close/history`・`/settings/closing-time` は変更なし

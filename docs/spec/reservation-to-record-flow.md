@@ -37,7 +37,7 @@
 - 予約種別と日付を選ぶと `GET /v1/reservations/available-times` の返却 slot key を時刻候補に使う。
 - 15 分刻み候補は fallback / edit behavior として残るが、通常の新規入力で空き枠 API を置き換えるものではない。
 - weekly / specific-date の `reservation_type_available_slots` と unavailable time、営業時間、休診日、shift、break、既存予約を空き枠計算へ反映する。
-- staff 候補は選択日の shift と `staff_reservation_capabilities` で絞り、backend が作成・更新時に再検証する。
+- frontendはstaff候補を選択日のshiftと`staff_reservation_capabilities`で絞る。backendはclinic所属・capability・active/public状態とappointment conflictを再検証するが、**明示staffの選択時刻shift再検証は未実装**。このsource gapをfrontend絞り込みで代替しない。
 - frontend の重複表示は補助であり、最終 conflict/capacity 判定は backend transaction 内で行う。
 
 ### 2.3 当日受付
@@ -92,11 +92,11 @@ clinic-owned relation は tenant boundary を明示する。主要 column は次
 | `staffs` | `id`, `clinic_id`, `name`, `is_active`, `staff_type`, `reservation_visible` |
 | `staff_reservation_capabilities` | `clinic_id`, `staff_id`, `reservation_type_id` |
 | `shift_entries` | `id`, `clinic_id`, `staff_id`, `date`, `shift_type`, `start_time`, `end_time` |
-| `shift_entry_breaks` | `id`, `clinic_id`, `shift_entry_id`, `break_start`, `break_end` |
+| `shift_entry_breaks` | `id`, `shift_entry_id`, `break_start`, `break_end`。clinic ownershipは`shift_entry_id → shift_entries.clinic_id`で継承・検証 |
 | `reservation_type_available_slots` | `id`, `clinic_id`, `reservation_type_id`, `available_type`, `day_of_week`, `specific_date`, `start_time`, `is_active` |
 | `reservation_type_unavailable_times` | `id`, `clinic_id`, `reservation_type_id`, `unavailable_type`, `day_of_week`, `specific_date`, `start_time`, `end_time` |
 | `appointment_trimming_details` | `id`, `clinic_id`, `appointment_id`, `course_id`, `style_request`, `body_weight`, `body_temperature`, `remarks` |
-| `appointment_trimming_options` | `clinic_id`, `appointment_id`, `option_id` |
+| `appointment_trimming_options` | `id`, `appointment_id`, `option_id`, `sort_order`, `created_at`。clinic ownershipはappointment経由で継承しwrite時に検証 |
 
 `UNIQUE(clinic_id, staff_id, reservation_type_id)` などの uniqueness だけでなく、参照先 master / staff / pet / owner が appointment と同一 clinic であることを write transaction 内で検証する。
 

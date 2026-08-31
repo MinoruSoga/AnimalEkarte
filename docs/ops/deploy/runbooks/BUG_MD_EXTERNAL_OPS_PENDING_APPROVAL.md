@@ -23,6 +23,8 @@
 
 ## 1. 露出クレデンシャルのローテーション（SEC-SECRETS-5 / #89/#97）
 
+> **Target binding gate:** 実行前にenvironment、exact config path、Worker名、change IDを記録する。`backend/`から STG は `npx wrangler secret put <NAME> -c wrangler.jsonc`、PROD は `npx wrangler secret put <NAME> -c wrangler.production.jsonc` を使う。config省略は禁止。names-only確認でtarget不一致なら停止する。
+
 > 🚨 **ユーザー所有・credential-impacting**。エージェントは実行しない。
 > PUBLIC リポジトリ履歴および過去の seed/Issue 露出に対する正攻法は **ローテーション**（filter-repo 禁止）。
 
@@ -30,10 +32,10 @@
 
 | # | 系統 | 手順（概要） | 投入先 |
 |---|------|--------------|--------|
-| 1 | PlanetScale DB | `pscale role reset-default`（またはコンソールでパスワード再発行） | `wrangler secret put DB_HOST` / `DB_USER` / `DB_PASSWORD`（`DB_PORT` / `DB_NAME` / TLS は target Wrangler の非secret vars） |
-| 2 | Cloudflare API / Worker secrets | トークン再発行 + `wrangler secret put` で必須キー再投入 | Cloudflare Secrets + GitHub `CLOUDFLARE_API_TOKEN` |
+| 1 | PlanetScale DB | `pscale role reset-default`（またはコンソールでパスワード再発行） | target configを明示した `npx wrangler secret put DB_HOST、DB_USER、DB_PASSWORD -c <exact-config>`（`DB_PORT` / `DB_NAME` / TLS は target Wrangler の非secret vars） |
+| 2 | Cloudflare API / Worker secrets | トークン再発行 + target config明示の `npx wrangler secret put <NAME> -c <exact-config>` | Cloudflare Secrets + GitHub `CLOUDFLARE_API_TOKEN` |
 | 3 | LINE channel secret / access token | LINE Developers Console で再発行 | アプリ UI（Lステップ設定 / LINE 予約設定）から保存（DB 暗号化）。seed には実値を戻さない |
-| 4 | JWT / INTEGRATION_ENCRYPTION_KEY 等 | 新規乱数生成 | `wrangler secret put`（`backend/wrangler.jsonc` の `secrets.required`） |
+| 4 | JWT / INTEGRATION_ENCRYPTION_KEY 等 | 新規乱数生成 | target config明示の `npx wrangler secret put <NAME> -c <exact-config>`（target Wranglerの`secrets.required`） |
 
 検証（ローテーション後・ユーザー実施）:
 

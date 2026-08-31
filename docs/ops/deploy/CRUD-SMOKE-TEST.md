@@ -9,8 +9,11 @@
 
 ```bash
 export API_V1=https://api.stg.noah-karte.com/api/v1
+umask 077
 export COOKIE_JAR=/secure/path/stg-smoke.cookies
-chmod 600 "$COOKIE_JAR"
+RESPONSE_FILE="$(mktemp)"
+chmod 600 "$COOKIE_JAR" "$RESPONSE_FILE"
+trap 'rm -f "$RESPONSE_FILE"' EXIT
 ```
 
 - `hospital-settings:view` を持つ承認済みアカウントと、持たないアカウントを用意する。
@@ -24,7 +27,7 @@ chmod 600 "$COOKIE_JAR"
 `hospital-settings:view` を持つsessionで実行する。
 
 ```bash
-curl -sS -o /tmp/clinics-all.json -w '%{http_code}
+curl -sS -o ${RESPONSE_FILE} -w '%{http_code}
 ' \
   "${API_V1}/clinics?scope=all" -b "$COOKIE_JAR" -H 'Accept: application/json'
 ```

@@ -24,7 +24,7 @@
 
 ## 3. L4 の範囲
 
-S01–S13 と V01–V05 が宣言済み受入範囲である。フォーム inventory の集計は 85 フォーム群だが、`dynamic_*`、`UI 全項目`、`etc.`、`要実測` が残る。したがって次を区別する。
+S01–S13 と V01–V05 が宣言済み受入範囲である。unique form総数はinventory再構築完了まで算定保留である。したがって次を区別する。
 
 - **列挙済み項目**: [FIELD-LEVEL-PROTOCOL.md](scenarios/FIELD-LEVEL-PROTOCOL.md) の適用対象。
 - **wildcard/実測待ち**: source と照合して列挙されるまで coverage gap。

@@ -394,7 +394,7 @@ DESIGN.md `rounded:` フロントマターに準拠。**コンポーネント種
 
 ## 10. 技術的 SSOT
 
-デザインに関する全ての定数は、以下のファイルで一元管理されている。
+TypeScriptから参照する共有デザイントークンは`design-tokens.ts`、CSS/theme変数は`globals.css`を正本とする。component-localなraw値は追加しない。
 
 - **`frontend/src/lib/design-tokens.ts`**: `PALETTE`（raw hex）、`C`（Tailwind クラス）、`STYLE`（複合クラスプリセット）、`LAYOUT`（寸法）、`BADGE`（バッジ配色コンボ）、`ICON`（アイコンサイズ）。
 - 新しい色を追加する場合は、必ず `design-tokens.ts` に追加した上でコンポーネントから参照する。**コンポーネント内での hex 直書きは禁止。**

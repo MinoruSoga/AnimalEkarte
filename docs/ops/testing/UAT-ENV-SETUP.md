@@ -12,7 +12,7 @@
 
 選択した一組について全項目が確認できない場合は **BLOCKED**。別 browser の INFO や frontend/backend HTTP 200 だけで ready としない。
 
-> `scripts/check-uat-env.sh` は現在、profile/browser/DB/fixture sentinel を fail-closed にせず、login JSON の shell interpolation と predictable temporary path も残る。修正されるまでは **advisory output のみ**であり、実 credential を渡した正式 readiness gate として使わない。
+> `scripts/check-uat-env.sh` はJSON encoding、stdin送信、mode 0600の一時ファイル、container health、browser routeを安全に確認する。ただしprofile/fixture/mutation/cleanup receiptをfail-closedに検証しないため、出力は **advisoryのみ**であり正式readiness gateではない。
 
 ## 2. 共通 readiness checklist
 
