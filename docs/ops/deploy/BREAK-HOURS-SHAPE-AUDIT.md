@@ -43,7 +43,10 @@ WHERE break_hours IS NOT NULL
     -- (b) 配列だがエントリの形状/値が不正
     OR EXISTS (
       SELECT 1
-      FROM jsonb_array_elements(break_hours) AS e
+      FROM jsonb_array_elements(
+        CASE WHEN jsonb_typeof(break_hours) = 'array'
+             THEN break_hours ELSE '[]'::jsonb END
+      ) AS e
       WHERE jsonb_typeof(e) <> 'object'
          OR NOT (e ? 'start') OR NOT (e ? 'end')
          OR jsonb_typeof(e->'start') <> 'string'

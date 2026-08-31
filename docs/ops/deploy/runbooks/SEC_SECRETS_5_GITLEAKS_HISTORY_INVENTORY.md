@@ -1,6 +1,6 @@
 # SEC-SECRETS-5 — gitleaks 全履歴スキャン インベントリ（2026-07-15）
 
-> 値は記載しない。パスと件数のみ。ローテーション（runbook §0.5）完了まで Issue #89/#97 はクローズしない。
+> 値は記載しない。パスと件数のみ。ローテーション（[外部資格情報オペレーション](./BUG_MD_EXTERNAL_OPS_PENDING_APPROVAL.md) §1）完了まで Issue #89/#97 はクローズしない。
 > filter-repo は禁止方針。正攻法はローテーション。
 
 ## スキャン条件
@@ -28,6 +28,6 @@
 
 - [x] 作業ツリー seed / テストから LINE 実平文除去
 - [x] 本インベントリ記録
-- [ ] USER: 4 系統ローテーション（runbook §0.5）
-- [ ] USER: P5-2 GitHub Secrets 登録
+- [ ] USER: 4 系統ローテーション（[外部資格情報オペレーション](./BUG_MD_EXTERNAL_OPS_PENDING_APPROVAL.md) §1）
+- [ ] USER: current secret registration sources（[`infra/cloudflare/README.md`](../../../../infra/cloudflare/README.md) と target Wrangler file）に従って GitHub/Cloudflare secret names を登録
 - [ ] USER: #97 本文マスク（ローテーション後）

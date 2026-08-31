@@ -11,7 +11,8 @@
 
 | 経路 | トリガー | 承認 | 到達先 |
 |---|---|---|---|
-| **STG 自動** | `main` の変更が `staging` へ PR マージされた結果の `staging` push（対象 path） | 不要（自動） | STG Cloudflare Worker/Container + Vercel preview |
+| **STG backend 自動** | `staging` push で backend workflow の対象 path が変わった場合 | 不要（自動） | STG Cloudflare Worker/Container |
+| **STG frontend 自動** | `staging` push で frontend workflow の対象 path が変わった場合 | 不要（自動） | Vercel preview |
 | **Production** | `production` ブランチへの対象 path push、または `workflow_dispatch` で production を指定 | **GitHub Environment `production` の Required reviewers 必須** | 本番 Cloudflare (`api.noah-karte.com`) + Vercel production |
 | **main 単独 push** | CI（`ci.yml` 等）のみ | n/a | **本番へはデプロイしない**（acceptance 禁止） |
 

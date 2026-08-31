@@ -30,7 +30,7 @@
 
 | # | 系統 | 手順（概要） | 投入先 |
 |---|------|--------------|--------|
-| 1 | PlanetScale DB | `pscale role reset-default`（またはコンソールでパスワード再発行） | `wrangler secret put DB_PASSWORD`（および接続 URL 系） |
+| 1 | PlanetScale DB | `pscale role reset-default`（またはコンソールでパスワード再発行） | `wrangler secret put DB_HOST` / `DB_USER` / `DB_PASSWORD`（`DB_PORT` / `DB_NAME` / TLS は target Wrangler の非secret vars） |
 | 2 | Cloudflare API / Worker secrets | トークン再発行 + `wrangler secret put` で必須キー再投入 | Cloudflare Secrets + GitHub `CLOUDFLARE_API_TOKEN` |
 | 3 | LINE channel secret / access token | LINE Developers Console で再発行 | アプリ UI（Lステップ設定 / LINE 予約設定）から保存（DB 暗号化）。seed には実値を戻さない |
 | 4 | JWT / INTEGRATION_ENCRYPTION_KEY 等 | 新規乱数生成 | `wrangler secret put`（`backend/wrangler.jsonc` の `secrets.required`） |
@@ -49,7 +49,7 @@ curl -sS -o /dev/null -w '%{http_code}\n' https://api.stg.noah-karte.com/health
 
 | 系統 | 手順の所在 | 実行 | 非機密 receipt |
 |---|---|---|---|
-| 1 PlanetScale DB | 上表 + [staging/runbook.md](../../../infra/staging/runbook.md) | USER | **未記入** |
+| 1 PlanetScale DB | 上表 + [staging/runbook.md](../../infra/staging/runbook.md) | USER | **未記入** |
 | 2 Cloudflare API / Worker | 上表 + `wrangler secret put` | USER | **未記入** |
 | 3 LINE channel | 上表。値は UI から。seed に戻さない | USER | **未記入** |
 | 4 JWT / INTEGRATION_ENCRYPTION_KEY | 上表。新規乱数。値は書かない | USER | **未記入** |

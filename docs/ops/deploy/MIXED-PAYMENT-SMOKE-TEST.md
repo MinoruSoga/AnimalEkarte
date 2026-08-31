@@ -36,7 +36,7 @@
 | 保存が成功する | status: completed |
 | `payment_splits` に2行 | cash + credit_card |
 | 両方の金額合計 = billing_amount | バリデーション通過 |
-| `payments.method` (legacy) | cash (優先度: cash > credit_card) |
+| `payments.method` (legacy) | cash (優先度: cash > credit_card > bank_transfer > electronic_money) |
 | 会計詳細再表示で2行が表示される | 各 method・amount が復元 |
 | 本日会計タブの支払方法列 | 「現金 / クレジットカード」表示 |
 
@@ -44,15 +44,18 @@
 
 ## 3. 3種混在 (現金 + クレジットカード + 電子マネー)
 
-**操作:** 3行入力、合計が billing_amount と一致するよう分割して保存
+**操作:** 3行入力し、合計を`billing_amount`へ一致させて保存する。
 
 | チェック項目 | 期待値 |
-|------------|--------|
-| 保存が成功する | status: completed |
-| `payment_splits` に3行 | cash + credit_card + electronic_money |
-| 合計一致 | sum(amounts) == billing_amount |
-| 本日会計タブ | 3種全てのラベルが表示 |
-| 月次レポートの支払方法別集計 | 3手段それぞれに金額が計上される |
+|---|---|
+| 保存 | status: completed |
+| `payment_splits` | cash + credit_card + electronic_money の3行 |
+| 合計 | `sum(amounts) == billing_amount` |
+| 表示/集計 | 3手段それぞれに復元・計上 |
+
+### 3.1 bank_transferを含む代表case
+
+`bank_transfer`は対応済み。`cash + bank_transfer`または4種のcaseでsplit保存、再表示、日次集計を確認する。legacy `payments.method`の代表選択優先度は`cash > credit_card > bank_transfer > electronic_money`。
 
 ---
 
@@ -73,7 +76,7 @@
 |------|----------------|
 | 支払い合計 < billing_amount | 合計不足エラー、保存ボタン無効 |
 | 支払い合計 > billing_amount | 合計超過エラー、保存ボタン無効 |
-| 同じ支払方法を2行追加 | 重複エラー (HTTP 422) |
+| 同じ支払方法を2行追加 | 重複エラー (HTTP 400) |
 | 現金の受取金 < 現金 amount | 預り金不足エラー |
 | 現金のお釣り計算不正 | お釣り計算エラー |
 
@@ -119,15 +122,19 @@
 
 ## 9. 返金 (Refund)
 
-> **仕様制約:** 返金は会計単位で行われ、支払方法ごとの返金には対応していない。
-> 混在会計の返金は billing 全体に対して行われ、個別の payment_split へは帰属しない。
+返金APIはoptional `payment_method`を実装済み。許可値は`cash` / `credit_card` / `electronic_money` / `bank_transfer`。
 
-| チェック項目 | 期待値 |
-|------------|--------|
-| 返金操作が完了する | `billing_refunds` 1行追加 |
-| 返金後の `total_refunded_amount` が更新される | 返金額が加算 |
-| レジ締め・日次集計での返金集計 | billing_refunds を参照 (split 単位ではない) |
-| 現金理論値計算 | `(cash split amount) - (refund amount)` として扱う (**未実装。cash split 割合に応じた按分は対応外**) |
+| case | 期待 |
+|---|---|
+| splitに存在するmethodを指定し、そのmethodの残額以内 | success。保存/listの`payment_method`が指定値と一致 |
+| method省略、billing全体の残額以内 | success。保存値は省略/null |
+| splitに無いmethodを指定 | `400` |
+| 指定methodの残額を超える | `400` |
+| billing全体の残額を超える | `400` |
+
+返金後は`billing_refunds`、`total_refunded_amount`、method別残額を確認する。
+
+> **既知のreporting制約:** close-report detailはbilling-levelの`refund_amount`と`net_amount = billing_amount - refund_amount`を計算する。method未指定返金をpayment splitsへ比例配分する表示ではない。この制約は返金作成・保存が未実装という意味ではない。
 
 ---
 

@@ -14,7 +14,7 @@
 | dry-run と代表データ照合 | `make csv-import-preflight`（source+target read-only）。DB 書き込みなし | 実装済み。代表データ手動照合は USER |
 | clinic/owner/pet/staff 越境・FK・金額 | band 検査、clinic_id isolation、validated FK、payment graph | 実装+unit。実 DB 照合は rehearsal |
 | rerun が二重作成しない / 部分 commit なし | 非空 band は `CUTOVER_REF_BAND_OCCUPIED` で fail-closed。単一 transaction | 実装+unit |
-| stop/rollback・非PHI audit | report は件数+seed ID のみ。エラーは table/行番号/`CUTOVER_REF_*` のみ（氏名等なし） | 実装+unit / F8 rehearsal |
+| stop/rollback・非PHI audit | report は status/timestamp、manifest digest、clinic/run/target metadata、ID band、aggregate count、6 seed ID、failure stage のみ。エラーは table/行番号/`CUTOVER_REF_*` のみ（CSV cell/氏名等なし） | 実装+unit / F8 rehearsal |
 | production cutover | #253/#254/#255 gate 後に USER 実施 | **本 lane では実施しない** |
 
 ### 21 表 source→target mapping（formal cutover v1）
@@ -70,12 +70,12 @@
 - target seed ID は6つとも明示する。予約種別・支払方法を表示名や先頭行から暗黙解決しない。
 - apply は対象 band が21表すべて空の場合だけ実行し、既存行を削除・置換しない。
 - apply は単一 transaction、advisory lock、table lockを使う。CSV が preflight 後に変わった場合は再 SHA-256 検証で全 rollback する。
-- CSV/manifest は PHI を含み得る。行値をログ・report・Git・チャットへ出さない。report は aggregate count と再検証に必要な非PHIの6 seed IDのみを記録し、固定mount `/migration-reports` 直下へ0600/no-clobberで作成する。
+- CSV/manifest は PHI を含み得る。行値をログ・report・Git・チャットへ出さない。report は status/timestamp、manifest digest、clinic/run/target metadata、ID band、aggregate count、再検証に必要な非PHIの6 seed ID、failure stage を記録し、CSV cell値は記録せず、固定mount `/migration-reports` 直下へ0600/no-clobberで作成する。
 
 ## 事前準備
 
 1. target DB の検証済み full backup を取得し、復元手順と担当者を確定する。
-2. 旧増分002〜009を統合した現行 `001_init.sql` で target DB を再構築済みであることを確認する。統合前001が適用済みのDBはchecksum mismatchになるため `DB_RESET=true` 相当の承認済み再構築が必須で、手書きSQLによる差分適用は使わない。001内の通常の `CREATE INDEX` は対象テーブルへの書き込みを待たせ得るため、事前リハーサルで所要時間を測り、maintenance window内で適用する。
+2. 対象を、この HEAD の現行 `backend/migrations/*.sql`（現在は統合済み `001_init.sql`）で再構築済みであることを確認する。異なる内容の001が適用済みのDBはchecksum mismatchになるため `DB_RESET=true` 相当の承認済み再構築が必須で、手書きSQLによる差分適用は使わない。001内の通常の `CREATE INDEX` は対象テーブルへの書き込みを待たせ得るため、事前リハーサルで所要時間を測り、maintenance window内で適用する。
 3. target DB を既存の運用経路で起動・疎通確認する。CSV Make targets は `--no-deps` で実行し、target container/service を作成・再作成しない。
 4. 次の target seed ID を対象医院で確認する。
    - active clinic
@@ -126,7 +126,7 @@ run sheet上でbackup取得・復元手順・担当者を再確認したoperator
 - 復元確認済み backup が存在
 - target host が `DB_HOST` と完全一致
 - target database が `DB_NAME` と完全一致
-- aggregate count + 6 seed IDだけを含むreportの新規パス（既存 report を上書きしない）
+- status/timestamp、manifest digest、clinic/run/target metadata、ID band、aggregate count、6 seed ID、failure stage だけを含みCSV cell値を含まないreportの新規パス（既存 report を上書きしない）
 
 apply 後、各 table の件数・clinic isolation・会計親子/支払方法/分割金額の整合・completed timestamp・sequence floor/max ID を transaction 内で検証してから commit します。21 sequence は既存値を下げず、次回 application ID が `1,000,000,000` 以上かつ現行`max(id)`超になるよう進めます。
 

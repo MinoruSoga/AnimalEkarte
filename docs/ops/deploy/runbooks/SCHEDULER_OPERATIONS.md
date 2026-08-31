@@ -42,8 +42,8 @@ CLIはHTTPS、host完全一致、redirect禁止、接続/全体timeout、4KiB以
 変更操作の前後に必ずstatusを保存する。返却されるsecretやPIIはなく、control revision、active lease、直近run、操作履歴を確認できる。
 
 ```bash
-pnpm cf:scheduler status
-pnpm cf:scheduler status 50
+./infra/scripts/cf-scheduler-ops.sh status
+./infra/scripts/cf-scheduler-ops.sh status 50
 ```
 
 確認項目:
@@ -61,11 +61,11 @@ run ledgerは35日、operator操作履歴は400日保持する。statusは最大
 pause/resumeはproduction-impacting操作であり、対象環境、理由、実施者、復旧条件の承認を先に得る。現在の`control.revision`をstatusから取得し、compare-and-setで更新する。同じrevisionへの競合操作は`409 revision_conflict`となる。
 
 ```bash
-pnpm cf:scheduler pause <current-revision> "incident-1234 scheduler containment"
-pnpm cf:scheduler status
+./infra/scripts/cf-scheduler-ops.sh pause <current-revision> "incident-1234 scheduler containment"
+./infra/scripts/cf-scheduler-ops.sh status
 
-pnpm cf:scheduler resume <current-revision> "incident-1234 recovery approved"
-pnpm cf:scheduler status
+./infra/scripts/cf-scheduler-ops.sh resume <current-revision> "incident-1234 recovery approved"
+./infra/scripts/cf-scheduler-ops.sh status
 ```
 
 reasonは4〜200文字で制御文字を含めない。request IDを再利用する場合は、同一actor・同一payloadに限る。異なる意図で同じIDを使うと`request_id_conflict`になる。
@@ -88,8 +88,8 @@ Unix epoch millisecondsは、UTC時刻を明示して生成する。変換結果
 slot_ms="<verified-utc-slot-epoch-ms>"
 request_id="$(uuidgen | tr '[:upper:]' '[:lower:]')"
 
-pnpm cf:scheduler run no_show "${slot_ms}" "incident-1234 approved catch-up" "${request_id}"
-pnpm cf:scheduler status 50
+./infra/scripts/cf-scheduler-ops.sh run no_show "${slot_ms}" "incident-1234 approved catch-up" "${request_id}"
+./infra/scripts/cf-scheduler-ops.sh status 50
 ```
 
 01:00 UTCで`no_show`と`delivery`の両方が欠けた場合も、jobごとに別request IDで1件ずつ実行する。既にledgerがあるslotは`slot_already_recorded`、pause中は`scheduler_paused`、別run中は`scheduler_busy`で拒否される。HTTP `202`はpendingであり成功ではないため、statusでterminal resultまで確認する。

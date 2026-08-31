@@ -65,7 +65,7 @@ Migration completed file=<各トップレベル *.sql のファイル名>
 Migration summary applied=N skipped=0 total=N
 Seed bundle loaded bundle=002_master
 
-Seed bundle summary applied=3 skipped=0 total=3
+Seed bundle summary applied=1 skipped=0 total=1
 Migration key coverage missing=0 extra=X expected=E recorded=R
 ```
 
@@ -75,7 +75,7 @@ Migration key coverage missing=0 extra=X expected=E recorded=R
 
 `schema_migrations` の行数も固定値ではない。**行数 = 直下 `*.sql` の本数 + seed 1**（キーは各 DDL ファイル名と `seeds/002_master`）。検算は上記 `ls` の件数に 1 を足したものと、DB の `SELECT COUNT(*) FROM schema_migrations` を照合する（余剰履歴がある環境では `recorded` がこの導出より大きくなり得る）。
 
-`/health` エンドポイントが HTTP 200 を返せば、臨床データの入力準備が整いました。`make reset` の postflight が同じ条件を機械判定します。
+`/health` の HTTP 200 と `make reset` postflight は backend の liveness と migration postflight の成功だけを示します。臨床入力の準備完了には、スタッフアカウントの払い出し、handoff/import、ログイン、必要権限を別に確認します。
 
 ---
 

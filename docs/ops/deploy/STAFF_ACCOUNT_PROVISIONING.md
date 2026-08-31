@@ -75,15 +75,20 @@ printf '%s' '1,2,10' | shasum -a 256
 # 作業用: 入力は /secure/... など repo 外・0600
 chmod 600 /secure/staff-batch/manifest.json /secure/staff-batch/secrets.json
 
+# DB service が既に healthy であること。one-shot backend へ host directory を read-only mountする。
 # 1) preflight（write 0）
-docker compose exec backend go run ./cmd/staff-provision preflight \
-  --manifest=/secure/staff-batch/manifest.json \
-  --secrets=/secure/staff-batch/secrets.json
+docker compose run --rm --no-deps --entrypoint '' -T \
+  -v /secure/staff-batch:/secure/staff-batch:ro backend \
+  go run ./cmd/staff-provision preflight \
+    --manifest=/secure/staff-batch/manifest.json \
+    --secrets=/secure/staff-batch/secrets.json
 
-# 2) apply（USER 承認後・対象環境の DB）
-docker compose exec backend go run ./cmd/staff-provision apply \
-  --manifest=/secure/staff-batch/manifest.json \
-  --secrets=/secure/staff-batch/secrets.json
+# 2) apply（USER 承認後・ローカル対象 DB）
+docker compose run --rm --no-deps --entrypoint '' -T \
+  -v /secure/staff-batch:/secure/staff-batch:ro backend \
+  go run ./cmd/staff-provision apply \
+    --manifest=/secure/staff-batch/manifest.json \
+    --secrets=/secure/staff-batch/secrets.json
 ```
 
 オプション:
@@ -93,6 +98,8 @@ docker compose exec backend go run ./cmd/staff-provision apply \
 | `--repo-root` | 入力禁止ルートを追加（absolute） |
 | `STAFF_PROVISION_REPO_ROOT` | 同上 |
 | `STAFF_PROVISION_ALLOW_REMOTE=YES_I_UNDERSTAND` | 非 local `DB_HOST` への apply を明示許可（通常は環境内実行） |
+
+> **STG/Production blocker:** approved remote execution と read-only secret-file mount の仕組みは未定義です。`STAFF_PROVISION_ALLOW_REMOTE` だけを根拠にローカル Compose から共有環境へ apply しません。仕組み、対象、承認、rollback が定義されるまで remote apply は停止します。
 
 成功時 stdout は PII-free JSON（`status` / `batch_id` / `digest` / `staff_count` / `clinic_scope`）。
 

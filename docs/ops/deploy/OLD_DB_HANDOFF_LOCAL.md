@@ -60,9 +60,9 @@ ignore 確認に失敗したら配置自体を拒否する。
 producer 側（例: sibling `old_db`）の export 絶対パスを渡す。
 
 ```sh
-export CLINIC_CODE=jouto
-export MIGRATION_RUN_ID=jouto-intake-20260819-01
-export CSV_IMPORT_SOURCE_DIR=/absolute/path/to/animalekarte-csv-export/jouto/jouto-intake-20260819-01
+export CLINIC_CODE=<clinic-code>
+export MIGRATION_RUN_ID=<current-run-id-from-todo-handoff-table>
+export CSV_IMPORT_SOURCE_DIR=/absolute/path/to/animalekarte-csv-export/<clinic-code>/<run-id>
 
 make old-db-handoff-stage
 make old-db-handoff-check
@@ -98,10 +98,8 @@ make old-db-handoff-check
 
 画面確認用 disposable は [A4_UI_REHEARSAL.md](./A4_UI_REHEARSAL.md)。
 
-## 城東の現状（2026-08-20）
+## 現行 bundle の状態確認
 
-`jouto-intake-20260819-01` は producer 側で **`REHEARSAL_ONLY`**。
-飼主・ペットを含む 21 表は揃っているが、正式 F6 は拒否される。
-ローカルでは `_old_db_handoff/jouto/` に現行 rehearsal を置き、必要なら
-`_old_db_handoff/jouto-local/`（電話 unique 用に sanitize 済み）を優先する。
-`make reset` は `clinic_id=2`（城東センター病院）へ取り込む。
+run ID、producer status、formal eligibility は変動するため、この安定手順には固定しません。リポジトリ直下 `todo.md` の現行 handoff table を正本として確認します。
+
+`_old_db_handoff/<clinic>/` にファイルが存在するだけでは formal eligibility を示しません。`REHEARSAL_ONLY` / `UNVERIFIED` / `PARTIAL` はローカル検証に限定し、正式 F6 preflight へ渡しません。formal cutover には current manifest が `TRUSTED_CANDIDATE` / `PASS` であることを改めて確認します。

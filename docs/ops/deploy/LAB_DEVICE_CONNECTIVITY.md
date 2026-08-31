@@ -1,16 +1,16 @@
 # 検査機器連携 — 実装入口
 
-**この文書:** AnimalEkarte が院内検査機器の結果を受けて保持するときの実装契約。操作手順ではない。  
-**操作手順の正本（手元 + 医院）:** [`../../../../old_db/docs/lab-go/hospital-field-pack/手元テスト手順.md`](../../../../old_db/docs/lab-go/hospital-field-pack/手元テスト手順.md)
+**この文書:** AnimalEkarte が院内検査機器の結果を受けて保持するときの実装契約。操作手順ではない。
+**外部 sibling checkout 前提:** 操作手順と機器調査資料はこの repository には含まれない。checkout を `AnimalEkarte/` と `old_db/` が同じ親を持つ配置にした場合だけ、`../../../../old_db/docs/lab-go/hospital-field-pack/手元テスト手順.md` を参照できる。外部資料が無い場合も、本書の要約（Drワンを使わない、検査用 Mac 1台、3種の source type、raw payload を残さない）を実装契約とする。
 
 **Drワンは組み込まない。** `source_type=drwan` は閉じる。`mkan.mdb` を読まない。
 
 **日常経路（2026-08-19）:** ファイルアップロードしない。検査用 Mac の `/lab-device` が有線シリアルを読む。UI は1画面（待機 + 未紐付け欄）。正本は `todo.md` 城東節と Linear BRT-94〜100。城東3種（`fuji_nx600` / `fuji_au10v` / `arkray_pu4010`）は AE-LAB-0〜4 済み。
 
-シリアル枠: [`../../../../old_db/docs/lab-go/go-impl/device-serial-adapter.md`](../../../../old_db/docs/lab-go/go-impl/device-serial-adapter.md)  
-3台マスタ: [`../../../../old_db/docs/lab-go/go-impl/device-item-master.md`](../../../../old_db/docs/lab-go/go-impl/device-item-master.md)  
-城東 Win7 Drワン解析（値なし）: [`../../../../old_db/clinics/jouto/research/out/30_drwan_win7/30_report.md`](../../../../old_db/clinics/jouto/research/out/30_drwan_win7/30_report.md)  
-IDEXX PIMS セッション: [`../../../../old_db/docs/lab-go/go-impl/idexx-pims-serial-session.md`](../../../../old_db/docs/lab-go/go-impl/idexx-pims-serial-session.md)
+外部 sibling 資料（存在する場合のみ）— シリアル枠: `../../../../old_db/docs/lab-go/go-impl/device-serial-adapter.md`
+3台マスタ: `../../../../old_db/docs/lab-go/go-impl/device-item-master.md`
+城東 Win7 Drワン解析（値なし）: `../../../../old_db/clinics/jouto/research/out/30_drwan_win7/30_report.md`
+IDEXX PIMS セッション: `../../../../old_db/docs/lab-go/go-impl/idexx-pims-serial-session.md`
 
 IDEXX は **JOU-LAB-X**。3台のスロットに混ぜない。受信専用では PIMS が切れる。
 
@@ -29,7 +29,7 @@ IDEXX は **JOU-LAB-X**。3台のスロットに混ぜない。受信専用で�
 
 Win7 の COM 番号を Mac の `/dev/cu.*` だと思わない。口はつなぐたびに増えた行。
 
-コード入口: `backend/internal/model/lab_import.go`、`lab_import_service.go`、`lab_import_handler.go`、`lab_device_receive.go`
+コード入口: `backend/internal/model/lab_import.go`、`backend/internal/medicalrecord/lab_import_service.go`、`backend/internal/medicalrecord/lab_import_handler.go`、`backend/internal/model/lab_device_receive.go`、`backend/internal/medicalrecord/lab_device_receive.go`
 
 接続文字列と生ペイロードはログに出さない。受信ファイルをリポジトリに置かない。
 
@@ -49,6 +49,8 @@ Win7 の COM 番号を Mac の `/dev/cu.*` だと思わない。口はつなぐ�
 | `POST` | `/api/v1/lab-imports` | `fixture` のみ。他は 400 |
 | `GET` | `/api/v1/lab-imports/:job_id` | ジョブ |
 | `GET` | `/api/v1/lab-imports/:job_id/events` | 監査 |
+| `POST` | `/api/v1/lab-imports/:job_id/attach` | カルテへ紐付け（`lab-import:edit`） |
+| `POST` | `/api/v1/lab-imports/:job_id/detach` | 紐付け解除（`lab-import:edit`） |
 | `POST` | `/api/v1/lab-imports/:job_id/revert` | 打ち消し |
 
 ペット紐付けは電文から自動でやらない。
@@ -112,7 +114,7 @@ Win7 `mdcon*.cmd` と 2026-08-18/19 の Mac 受信で confirmed。COM4 は触ら
 
 ### Drワン内部との関係（読まない）
 
-Win7 の `Drimke.tbl` は機器ラベル → 内部コード（`IRBC`→910、`IBUN`→1310）。`ike` / `dkensa` の 910–1270 が血球、1310–1630 が生化学。  
+Win7 の `Drimke.tbl` は機器ラベル → 内部コード（`IRBC`→910、`IBUN`→1310）。`ike` / `dkensa` の 910–1270 が血球、1310–1630 が生化学。
 これは **Drワンが書いた番号**。AnimalEkarte は `mkan.mdb` を読まず、**シリアルに出たラベル**（`WBC` 等）をマスタキーにする。内部番号を `source_type` や `exam_code` にしない。
 
 `mkan.mdb` には患者氏名・住所がある。解析以外で開かない。Git に置かない。

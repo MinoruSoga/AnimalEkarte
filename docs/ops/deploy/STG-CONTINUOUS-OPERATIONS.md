@@ -37,10 +37,7 @@ curl -s ${API_HEALTH} | jq '.'
 
 **期待結果**:
 ```json
-{
-  "status": "ok",
-  "timestamp": "2026-05-27T02:00:00Z"
-}
+{"status":"ok"}
 ```
 
 **失敗時アクション**:
@@ -80,7 +77,7 @@ DB の `audit_logs` が正本。
 
 ### 2.4 監査書込失敗 (`audit_write_failed`) 監視（PERF-AUDIT-TX P1）
 
-> `auditService.Log`（`backend/internal/service/audit_service.go`）は `repo.Create` 失敗時に統一キー
+> `auditService.Log`（`backend/internal/audit/service.go`）は `repo.Create` 失敗時に統一キー
 > `audit_write_failed` を `slog.ErrorContext` で記録する（分散していた呼び出し側の既存 Warn ログとは別に、
 > 全 best-effort 監査書込経路を中央 1 箇所で捕捉する）。P2 outbox は見送り決定済みのため、現状はこのログ
 > 検索が監査欠落検知の唯一の手段。
@@ -106,17 +103,17 @@ Container stdout は Worker の request log と別の表示面になる場合が
 - [ ] エラーコンソールなし（ブラウザ DevTools F12 → Console）
 - [ ] ネットワークエラーなし（Network タブ）
 
-**失敗時アクション**: [VERCEL-FRONTEND-STAGING-TEST.md](./VERCEL-FRONTEND-STAGING-TEST.md) の §3 トラブルシューティングを参照
+**失敗時アクション**: [VERCEL-FRONTEND-STAGING-TEST.md](./VERCEL-FRONTEND-STAGING-TEST.md) の §5 トラブルシューティングを参照
 
 ---
 
-### 3.2 Demo アカウントログイン確認
+### 3.2 運用プロビジョニング済みアカウントのログイン確認
 
-**アカウント情報**: Stone に保存済み（[CRUD-SMOKE-TEST.md](./CRUD-SMOKE-TEST.md) §2.2 参照）
+**アカウント情報**: approved secret storeで管理し、値を文書へ記録しない。払い出しは [STAFF_ACCOUNT_PROVISIONING.md](./STAFF_ACCOUNT_PROVISIONING.md) に従う。
 
 手順:
 1. ブラウザで [https://stg.noah-karte.com](https://stg.noah-karte.com) にアクセス
-2. `system_admin` 権限を持つ demo アカウントでログイン
+2. 必要なsettings permissionsを持つ運用プロビジョニング済みアカウントでログイン
 3. ダッシュボード表示確認
 4. Settings → 医院マスタ / 権限グループ / スタッフマスタ にアクセス可能か確認
 
@@ -129,7 +126,7 @@ Container stdout は Worker の request log と別の表示面になる場合が
 - Cookie 検証（F12 → Application → Cookies）
 - Token 期限確認（`refresh_token` が残っているか）
 
-参考: [VERCEL-FRONTEND-STAGING-TEST.md §4](./VERCEL-FRONTEND-STAGING-TEST.md#4-demo-アカウントログイン検証)
+参考: [VERCEL-FRONTEND-STAGING-TEST.md](./VERCEL-FRONTEND-STAGING-TEST.md)
 
 ---
 
@@ -140,31 +137,24 @@ Container stdout は Worker の request log と別の表示面になる場合が
 **実施者**: Team Lead または指定デプロイ担当者
 
 **確認項目**:
-- [ ] 医院 (Clinics) 系統: A-1 ～ A-4
+- [ ] 医院 (Clinics) 系統: A-1 ～ A-3
 - [ ] 権限グループ (Permission Groups) 系統: B-1 ～ B-3
-- [ ] スタッフ (Staffs) 系統: C-1 ～ C-4
+- [ ] スタッフ (Staffs) 系統: C-1 ～ C-3
 
 **期待結果**: 全項目がステータスコード期待値を返す
 
-詳細は [CRUD-SMOKE-TEST.md §4](./CRUD-SMOKE-TEST.md#4-ステータスコード期待値表) を参照
+詳細は [CRUD-SMOKE-TEST.md §5](./CRUD-SMOKE-TEST.md#5-期待status) を参照
 
 ---
 
-### 3.4 テストデータ削除確認
+### 3.4 テストデータcleanup確認
 
-**対象**: CRUD スモークテストで作成した test data
+[CRUD-SMOKE-TEST.md](./CRUD-SMOKE-TEST.md) でこのrunが作成したIDだけをcleanupする。医院は既存resourceを編集・復元するため削除対象ではない。
 
-**削除手順**:
-1. API 経由での段階的削除（推奨）
-2. Cleanup コマンド実行（staff → permission-groups → clinics 順序で DELETE）
-3. GET で 404 or リストから除外されたことを確認
-
-詳細: [CRUD-SMOKE-TEST.md §6](./CRUD-SMOKE-TEST.md#6-テスト-データの削除ポリシー)
-
-**確認チェック**:
-- [ ] Test data が削除された
-- [ ] 削除確認ログが記録されている
-- [ ] audit_logs テーブルに DELETE レコード存在
+1. staff assignmentが無いsmoke-created permission groupを削除し、HTTP/resource stateを確認する。
+2. smoke-created staffを削除し、HTTP/list/detail stateを確認する。
+3. clinicの元値復元をGETで確認する。
+4. `audit_logs` は成功したpermission-group mutationだけ確認する。clinic/staffへ未実装のblanket audit contractを要求しない。
 
 ---
 
@@ -208,20 +198,13 @@ GitHub Actions の `backend-deploy.yml` 実行履歴を確認する。
 
 ---
 
-### 4.4 Demo Data 整合性チェック
+### 4.4 Master seed integrity
 
-**対象**: Seed data（migrations で作成された demo clinics / staffs / permission-groups）
+`backend/migrations/seeds/002_master/manifest.json` と同directoryのCSVを当該HEADの期待値とする。固定の「demo 3件以上」を使わない。
 
-```bash
-# 例: demo clinic の存在確認
-curl -X GET "https://api.stg.noah-karte.com/api/v1/clinics" \
-  -b "access_token=${TOKEN}" \
-  -H "Accept: application/json" | jq '.data | length'
-```
+承認済みsessionでclinic listを取得し、現在の `002_master/clinics.csv` が要求する行（現在は ID 1/2、八王子病院/城東センター病院）が存在し、各 `is_active == true` であることを確認する。response contractは `is_active` であり `is_deleted` ではない。
 
-**期待結果**:
-- Demo clinic が 3 件以上存在
-- 各 clinic が有効状態（is_deleted = false）
+Demo login accountは `002_master` には含まれない。[STAFF_ACCOUNT_PROVISIONING.md](./STAFF_ACCOUNT_PROVISIONING.md) の別の承認済み運用で払い出す。
 
 ---
 
@@ -240,7 +223,7 @@ curl -X GET "https://api.stg.noah-karte.com/api/v1/clinics" \
 - **Cloudflare 経路**: ✅ PASS（実 URL / workers.dev）
 - **Workers / Containers Logs**: ✅ 異常なし
 - **Vercel フロントエンド**: ✅ PASS
-- **Demo アカウントログイン**: ✅ PASS
+- **運用アカウントログイン**: ✅ PASS
 - **CRUD スモークテスト**: ✅ PASS（全 11 項目）
 - **テストデータ削除**: ✅ PASS（4 レコード削除確認）
 - **所見**: 異常なし
@@ -290,22 +273,14 @@ curl -X GET "https://api.stg.noah-karte.com/api/v1/clinics" \
 
 ---
 
-### Issue 3: Demo アカウントログイン失敗
+### Issue 3: 運用プロビジョニング済みアカウントのログイン失敗
 
-**症状**: 401 Unauthorized または redirect loop
+**症状**: `401 Unauthorized` またはredirect loop。
 
-**診断**:
-```bash
-# API 認証エンドポイント疎通確認
-curl -X POST "https://api.stg.noah-karte.com/api/v1/auth/login" \
-  -H "Content-Type: application/json" \
-  -d '{"email":"demo@example.com","password":"..."}'
-```
-
-**対処**:
-- Token 期限切れ: 新しい token 取得（browser DevTools → Network で確認）
-- Demo account disabled: DB で staff.is_deleted = true を確認、false に修正
-- Backend API 接続エラー: Issue 1 の Cloudflare / PlanetScale 切り分けを実施
+- login routeは `POST /api/v1/login`。承認済みcredentialを安全なchannelで使い、body/cookie値を記録しない。
+- account stateは `staff.is_active` と `deleted_at` のcontractで確認する。`is_deleted` は使わない。
+- repairは承認済みstaff/account APIまたは [STAFF_ACCOUNT_PROVISIONING.md](./STAFF_ACCOUNT_PROVISIONING.md) を使う。直接SQLでactive stateやcredentialを修復しない。
+- backend接続失敗はIssue 1のCloudflare/PlanetScale切り分けへ進む。
 
 ---
 
