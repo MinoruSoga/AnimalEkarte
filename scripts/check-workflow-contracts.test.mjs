@@ -21,7 +21,7 @@ function setupPnpmBlocks(workflow) {
     const block = [lines[index]];
     for (let next = index + 1; next < lines.length; next += 1) {
       const nextIndent = lines[next].search(/\S/);
-      if (nextIndent !== -1 && nextIndent <= indent) break;
+      if (nextIndent !== -1 && nextIndent < indent) break;
       block.push(lines[next]);
     }
     blocks.push(block.join("\n"));

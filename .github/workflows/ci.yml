@@ -27,6 +27,22 @@ env:
 # ──────────────────────────────────────────────
 
 jobs:
+  workflow-contracts:
+    name: Workflow Contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Verify workflow contracts
+        run: node --test scripts/check-workflow-contracts.test.mjs
+
   # ──────────────────────────────────────────────
   # 変更検出: どのジョブを実行すべきか判定
   # ──────────────────────────────────────────────
@@ -379,6 +395,8 @@ jobs:
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
+        with:
+          version: 10.15.0
 
       - name: Setup Node.js
         uses: actions/setup-node@v7
@@ -427,6 +445,8 @@ jobs:
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
+        with:
+          version: 10.15.0
 
       - name: Setup Node.js
         uses: actions/setup-node@v7
@@ -495,6 +515,8 @@ jobs:
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
+        with:
+          version: 10.15.0
 
       - name: Setup Node.js
         uses: actions/setup-node@v7
@@ -556,6 +578,8 @@ jobs:
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
+        with:
+          version: 10.15.0
 
       - name: Setup Node.js
         uses: actions/setup-node@v7

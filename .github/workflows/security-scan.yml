@@ -54,6 +54,7 @@ jobs:
               - '.codex/**'
               - '.agents/**'
               - '**/CLAUDE.md'
+              - '**/AGENTS.md'
               - '**/.mcp.json'
               # Note: do NOT include security-scan.yml here — the PR that fixes
               # the fail gate must touch this workflow; including it creates a

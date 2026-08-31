@@ -19,5 +19,5 @@
 
 AWS 時代の構成・判断・廃止証跡を調査する場合だけ
 git 履歴（2026-08-20 削除。`git show e0260d32f^:docs/ops/infra/_archive/aws-legacy/` 配下）と
-[`migration-cloudflare.md`](../../../../docs/ops/infra/_archive/migration-cloudflare.md) を参照する。
+`git show e0260d32f^:docs/ops/infra/_archive/migration-cloudflare.md` を参照する。
 archive 内の CLI / Terraform 手順は当時の記録であり、現在の環境へ実行してはならない。
