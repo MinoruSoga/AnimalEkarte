@@ -84,6 +84,7 @@ func setupLabDevicePersistTest(t *testing.T) (*gorm.DB, LabDeviceReceiveService,
 			jobs,
 			NewLabImportEventRepository(db),
 			revert,
+			tx,
 		),
 		nil,
 	)
@@ -167,7 +168,7 @@ func TestLabDeviceExamPersister_UnmappedDoesNotWriteExam(t *testing.T) {
 	require.NoError(t, err)
 	linked, err := svc.Attach(ctx, clinicA, got.Results[0].Job.JobID, petID)
 	require.NoError(t, err)
-	assert.Equal(t, model.LabImportJobStatusReceived, linked.Status)
+	assert.Equal(t, model.LabImportJobStatusNeedsReview, linked.Status)
 	require.NotNil(t, linked.PetID)
 
 	var count int64

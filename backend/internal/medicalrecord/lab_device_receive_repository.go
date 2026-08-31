@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -19,7 +20,9 @@ import (
 type LabDeviceReceiveRepository interface {
 	FindJobByFingerprint(ctx context.Context, clinicID uint64, sourceType, fingerprint string) (*model.LabImportJob, error)
 	FindJobByID(ctx context.Context, clinicID uint64, jobID uuid.UUID) (*model.LabImportJob, error)
+	LockJobByID(ctx context.Context, clinicID uint64, jobID uuid.UUID) (*model.LabImportJob, error)
 	CreateJobWithItems(ctx context.Context, job *model.LabImportJob, items []model.LabImportJobItem) error
+	AttachJobPetID(ctx context.Context, clinicID uint64, jobID uuid.UUID, petID uint64) (*model.LabImportJob, error)
 	UpdateJobPetID(ctx context.Context, clinicID uint64, jobID uuid.UUID, petID *uint64) (*model.LabImportJob, error)
 	SaveJobItems(ctx context.Context, items []model.LabImportJobItem) error
 	ListJobItems(ctx context.Context, clinicID uint64, jobIDs []uuid.UUID) (map[uuid.UUID][]model.LabImportJobItem, error)
@@ -86,6 +89,23 @@ func (r *labDeviceReceiveRepository) FindJobByID(
 	return &job, nil
 }
 
+func (r *labDeviceReceiveRepository) LockJobByID(
+	ctx context.Context,
+	clinicID uint64,
+	jobID uuid.UUID,
+) (*model.LabImportJob, error) {
+	var job model.LabImportJob
+	err := r.q(ctx).Clauses(clause.Locking{Strength: "UPDATE"}).
+		Scopes(persistence.ClinicScope(clinicID)).Where("id = ?", jobID).Take(&job).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, apperrors.WrapNotFound("lab_import_job", jobID.String())
+	}
+	if err != nil {
+		return nil, apperrors.Wrap(err, "lock lab device job")
+	}
+	return &job, nil
+}
+
 func (r *labDeviceReceiveRepository) CreateJobWithItems(
 	ctx context.Context,
 	job *model.LabImportJob,
@@ -110,6 +130,26 @@ func (r *labDeviceReceiveRepository) CreateJobWithItems(
 		return apperrors.Wrap(err, "create lab device job items")
 	}
 	return nil
+}
+
+func (r *labDeviceReceiveRepository) AttachJobPetID(
+	ctx context.Context,
+	clinicID uint64,
+	jobID uuid.UUID,
+	petID uint64,
+) (*model.LabImportJob, error) {
+	res := r.q(ctx).
+		Model(&model.LabImportJob{}).
+		Scopes(persistence.ClinicScope(clinicID)).
+		Where("id = ? AND (pet_id IS NULL OR pet_id = ?)", jobID, petID).
+		Update("pet_id", petID)
+	if res.Error != nil {
+		return nil, apperrors.Wrap(res.Error, "attach lab device job pet")
+	}
+	if res.RowsAffected == 0 {
+		return nil, apperrors.WrapConflict("この検査受信は別の患者に紐付いています")
+	}
+	return r.FindJobByID(ctx, clinicID, jobID)
 }
 
 func (r *labDeviceReceiveRepository) UpdateJobPetID(
@@ -319,24 +359,50 @@ func validLabDeviceSlotsJSON(raw string) error {
 	if raw == "" {
 		return apperrors.WrapInvalidInput("slots_json is required")
 	}
-	var slots []map[string]any
-	if err := json.Unmarshal([]byte(raw), &slots); err != nil {
+	type slotConfig struct {
+		Key        string `json:"key"`
+		SourceType string `json:"source_type"`
+		DeviceHint string `json:"device_hint"`
+		Baud       *int   `json:"baud"`
+		Parity     string `json:"parity"`
+	}
+	var slots []slotConfig
+	decoder := json.NewDecoder(strings.NewReader(raw))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&slots); err != nil {
 		return apperrors.WrapInvalidInput("slots_json is invalid")
 	}
 	if len(slots) == 0 || len(slots) > 8 {
 		return apperrors.WrapInvalidInput("slots_json size is invalid")
 	}
+	keys := make(map[string]struct{}, len(slots))
+	sources := make(map[string]struct{}, len(slots))
 	for _, slot := range slots {
-		source, _ := slot["source_type"].(string)
-		if !isLabDeviceSourceType(source) {
+		key := strings.TrimSpace(slot.Key)
+		if key == "" || strings.TrimSpace(slot.DeviceHint) == "" || slot.Baud == nil {
+			return apperrors.WrapInvalidInput("slots_json slot fields are required")
+		}
+		if _, exists := keys[key]; exists {
+			return apperrors.WrapInvalidInput("slots_json key is duplicated")
+		}
+		keys[key] = struct{}{}
+		if _, exists := sources[slot.SourceType]; exists {
+			return apperrors.WrapInvalidInput("slots_json source_type is duplicated")
+		}
+		sources[slot.SourceType] = struct{}{}
+		if slot.SourceType == string(model.LabImportSourceTypeArkrayPU4010) {
+			return apperrors.WrapInvalidInput("PU-4010 is decoder-only and has no supported serial profile")
+		}
+		if !isLabDeviceSourceType(slot.SourceType) {
 			return apperrors.WrapInvalidInput("slots_json source_type is invalid")
 		}
-		if parity, ok := slot["parity"].(string); ok {
-			switch parity {
-			case "", "none", "even", "odd":
-			default:
-				return apperrors.WrapInvalidInput("slots_json parity is invalid")
-			}
+		if *slot.Baud != 9600 {
+			return apperrors.WrapInvalidInput("slots_json baud is unsupported")
+		}
+		switch slot.Parity {
+		case "", "none":
+		default:
+			return apperrors.WrapInvalidInput("slots_json parity is unsupported")
 		}
 	}
 	return nil

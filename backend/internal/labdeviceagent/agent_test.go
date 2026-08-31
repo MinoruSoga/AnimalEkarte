@@ -289,3 +289,26 @@ func TestMonitorPortRecordsQueueFailureWithoutReplacingExistingRaw(t *testing.T)
 	require.Equal(t, "queue_write_failed", status.LastErrorCategory())
 	require.Equal(t, []byte{0x02, 0x41, 0x03}, queue.Snapshot()[0].Raw)
 }
+
+func TestMonitorPortBoundsIncompletePIMSBuffer(t *testing.T) {
+	port := &rwPort{Reader: bytes.NewReader(make([]byte, maxFrameBytes+1))}
+	status := &Status{}
+	agent := &Agent{
+		queue:        NewQueue(2),
+		status:       status,
+		allowedPorts: map[string]struct{}{"/dev/cu.usbserial-test": {}},
+		open: func(context.Context, string) (io.ReadCloser, error) {
+			return port, nil
+		},
+	}
+	maxSeen := 0
+	agent.EnablePIMSReply(func(buf []byte) ([][]byte, int) {
+		if len(buf) > maxSeen {
+			maxSeen = len(buf)
+		}
+		return nil, 0
+	})
+	agent.monitorPort(context.Background(), "/dev/cu.usbserial-test")
+	require.LessOrEqual(t, maxSeen, maxFrameBytes)
+	require.Greater(t, status.InputOverflow(), uint64(0))
+}

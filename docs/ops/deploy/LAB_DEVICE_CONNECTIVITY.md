@@ -65,7 +65,7 @@ Win7 `mdcon*.cmd` と 2026-08-18/19 の Mac 受信で confirmed。COM4 は触ら
 | --- | --- | --- | --- | --- |
 | COM6 | ドライケム(新) | 富士 DRI-CHEM NX600 | 9600 8N1 | `fuji_nx600`。`/lab-device` 既定スロット |
 | COM7 | ホルモン | 富士 DRI-CHEM IMMUNO AU10V | 9600 8N1 | `fuji_au10v`。既定スロット |
-| COM3 | 尿検査 | アークレイ PU-4010 | 現場 2400 8E1（`mdcon2` は 2400 7E1） | `arkray_pu4010`。既定スロット（even） |
+| COM3 | 尿検査 | アークレイ PU-4010 | 現場 2400 8E1（`mdcon2` は 2400 7E1） | decoder-only。7E1/8E1差が未reviewのためagent既定slot・運用support対象外 |
 | COM5 | ＩＤＥＸＸ | VetLab Station の PIMS（先に ProCyte / Catalyst） | 9600 8N1 | **別 source_type。未実装。** 本体 Ethernet に生打ちしない |
 | COM4 | ドライケム | 富士 DRI-CHEM 7000V | 9600 8N1 | 触らない |
 

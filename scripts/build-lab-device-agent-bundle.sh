@@ -3,14 +3,21 @@ set -eu
 
 repo_dir=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 clinic_id=${1:-}
-output_dir=${2:-}
-if [ -z "$clinic_id" ] || [ -z "$output_dir" ]; then
-  echo "Usage: $0 <clinic-id> <new-output-directory>" >&2
+allowed_origin=${2:-}
+output_dir=${3:-}
+if [ -z "$clinic_id" ] || [ -z "$allowed_origin" ] || [ -z "$output_dir" ]; then
+  echo "Usage: $0 <clinic-id> <allowed-https-origin> <new-output-directory>" >&2
   exit 2
 fi
 case "$clinic_id" in
   *[!0-9]*) echo "Clinic ID must contain digits only" >&2; exit 2 ;;
 esac
+case "$allowed_origin" in
+  https://* ) ;;
+  * ) echo "Allowed origin must be an https:// origin" >&2; exit 2 ;;
+esac
+origin_host=${allowed_origin#https://}
+case "$origin_host" in ""|*/*|*\**|*\?*|*\#*) echo "Allowed origin must be an exact origin without wildcards, path, query, or fragment" >&2; exit 2 ;; esac
 if [ -e "$output_dir" ]; then
   echo "Output path already exists: $output_dir" >&2
   exit 1
@@ -36,7 +43,8 @@ lipo -create \
 chmod 700 "$output_dir/lab-device-agent"
 
 cp "$repo_dir/packaging/macos/com.animalekarte.lab-device-agent.plist" "$output_dir/com.animalekarte.lab-device-agent.plist"
-plutil -replace ProgramArguments.2 -string "$clinic_id" "$output_dir/com.animalekarte.lab-device-agent.plist"
+plutil -replace ProgramArguments.2 -string "$clinic_id"
+plutil -replace ProgramArguments.6 -string "$allowed_origin" "$output_dir/com.animalekarte.lab-device-agent.plist"
 plutil -lint "$output_dir/com.animalekarte.lab-device-agent.plist" >/dev/null
 cp "$repo_dir/packaging/macos/install-lab-device-agent.sh" "$output_dir/install.sh"
 chmod 700 "$output_dir/install.sh"

@@ -8,6 +8,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 type labDeviceExamPersister struct {
@@ -17,6 +18,7 @@ type labDeviceExamPersister struct {
 	jobSvc  LabImportJobService
 	events  LabImportEventRepository
 	revert  LabImportRevertService
+	tx      Transactor
 	now     func() time.Time
 }
 
@@ -28,6 +30,7 @@ func NewLabDeviceExamPersister(
 	jobSvc LabImportJobService,
 	events LabImportEventRepository,
 	revert LabImportRevertService,
+	tx ...Transactor,
 ) LabDeviceExamPersister {
 	return &labDeviceExamPersister{
 		jobs:    jobs,
@@ -36,11 +39,31 @@ func NewLabDeviceExamPersister(
 		jobSvc:  jobSvc,
 		events:  events,
 		revert:  revert,
+		tx:      firstTransactor(tx),
 		now:     time.Now,
 	}
 }
 
-func (s *labDeviceExamPersister) PersistLinkedJob(
+func firstTransactor(values []Transactor) Transactor {
+	if len(values) == 0 {
+		return nil
+	}
+	return values[0]
+}
+
+func (s *labDeviceExamPersister) PersistLinkedJob(ctx context.Context, clinicID uint64, jobID uuid.UUID, petID uint64) error {
+	if persistence.TxFromContext(ctx) != nil {
+		return s.persistLinkedJob(ctx, clinicID, jobID, petID)
+	}
+	if s.tx == nil {
+		return s.persistLinkedJob(ctx, clinicID, jobID, petID)
+	}
+	return s.tx.WithTx(ctx, func(txCtx context.Context) error {
+		return s.persistLinkedJob(txCtx, clinicID, jobID, petID)
+	})
+}
+
+func (s *labDeviceExamPersister) persistLinkedJob(
 	ctx context.Context,
 	clinicID uint64,
 	jobID uuid.UUID,
@@ -107,7 +130,7 @@ func (s *labDeviceExamPersister) PersistLinkedJob(
 	// T001: 複数 exam_type が混在する場合（VetLab 送信口など）も保存拒否しない。
 	// 種別ごとに 1 exam を作る。1種別なら従来どおり 1 件。
 	if len(resolution.Mapped) == 0 {
-		return nil
+		return s.markNeedsReview(ctx, clinicID, jobID, job.Status, counts)
 	}
 
 	examTypeIDs := UniqueMappedExamTypeIDs(resolution.Mapped)

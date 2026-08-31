@@ -10,6 +10,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/persistence"
 	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
@@ -270,4 +271,29 @@ func TestLabDeviceItemMasterService_UpdateDevice_RejectsCrossClinicExamType(t *t
 	require.Len(t, devices, 1)
 	require.NotNil(t, devices[0].ExamTypeID)
 	assert.Equal(t, examA.ID, *devices[0].ExamTypeID, "exam_type_id must stay clinic-owned after foreign update")
+}
+
+func TestLabDeviceItemMasterService_SaveConfigurationRollsBackAllChanges(t *testing.T) {
+	db := setupLabDeviceItemMasterTestDB(t)
+	ctx := context.Background()
+	const clinicID = uint64(9041)
+	tx := persistence.NewTransactor(db)
+	svc := NewLabDeviceItemMasterService(NewLabDeviceItemMasterRepository(db), tx)
+	_, _, err := svc.EnsureDefaults(ctx, clinicID)
+	require.NoError(t, err)
+	devices, err := svc.ListDevices(ctx, clinicID)
+	require.NoError(t, err)
+	require.GreaterOrEqual(t, len(devices), 2)
+	original := devices[0]
+	items, err := svc.List(ctx, clinicID, devices[1].SourceType)
+	require.NoError(t, err)
+	require.NotEmpty(t, items)
+	_, err = svc.SaveConfiguration(ctx, clinicID, original.ID, SaveLabDeviceConfigurationInput{
+		Device: UpdateLabDeviceInput{Name: "changed", ExamTypeID: original.ExamTypeID, IsActive: original.IsActive, SortOrder: original.SortOrder},
+		Items: []SaveLabDeviceConfigurationItemInput{{ID: items[0].ID, UpdateLabDeviceItemMasterInput: UpdateLabDeviceItemMasterInput{Unit: items[0].Unit, ExamTypeFieldID: items[0].ExamTypeFieldID, IsActive: items[0].IsActive}}},
+	})
+	require.Error(t, err)
+	after, err := NewLabDeviceItemMasterRepository(db).FindDeviceByID(ctx, clinicID, original.ID)
+	require.NoError(t, err)
+	require.Equal(t, original.Name, after.Name)
 }

@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -121,14 +122,31 @@ type handler struct {
 	queue  *Queue
 	status *Status
 	lease  *consumerLease
+	allowedOrigins map[string]struct{}
 }
 
-func NewHandler(queue *Queue, status *Status, expectedClinic string) http.Handler {
-	return &handler{
-		queue:  queue,
-		status: status,
-		lease:  &consumerLease{expectedClinic: expectedClinic},
+func NewHandler(queue *Queue, status *Status, expectedClinic string, configuredOrigins ...string) http.Handler {
+	origins := map[string]struct{}{
+		"http://localhost:3003": {},
+		"http://127.0.0.1:3003": {},
 	}
+	for _, origin := range configuredOrigins {
+		if normalized, ok := NormalizeAllowedOrigin(origin); ok { origins[normalized] = struct{}{} }
+	}
+	return &handler{queue: queue, status: status, lease: &consumerLease{expectedClinic: expectedClinic}, allowedOrigins: origins}
+}
+
+// NormalizeAllowedOrigin accepts exact HTTP(S) origins only. Paths, credentials,
+// wildcards, and query/fragment components are rejected.
+func NormalizeAllowedOrigin(raw string) (string, bool) {
+	parsed, err := url.Parse(strings.TrimSpace(raw))
+	if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "" || parsed.User != nil || parsed.Path != "" || parsed.RawQuery != "" || parsed.Fragment != "" || strings.Contains(parsed.Host, "*") {
+		return "", false
+	}
+	if parsed.Scheme == "http" && parsed.Hostname() != "localhost" && parsed.Hostname() != "127.0.0.1" {
+		return "", false
+	}
+	return parsed.Scheme + "://" + parsed.Host, true
 }
 
 func (h *handler) ServeHTTP(response http.ResponseWriter, request *http.Request) {
@@ -136,7 +154,7 @@ func (h *handler) ServeHTTP(response http.ResponseWriter, request *http.Request)
 		http.Error(response, "forbidden", http.StatusForbidden)
 		return
 	}
-	if !allowBrowserRequest(response, request) {
+	if !h.allowBrowserRequest(response, request) {
 		http.Error(response, "forbidden", http.StatusForbidden)
 		return
 	}
@@ -164,12 +182,12 @@ func (h *handler) ServeHTTP(response http.ResponseWriter, request *http.Request)
 	}
 }
 
-func allowBrowserRequest(response http.ResponseWriter, request *http.Request) bool {
+func (h *handler) allowBrowserRequest(response http.ResponseWriter, request *http.Request) bool {
 	origin := request.Header.Get("Origin")
 	if origin == "" {
 		return true
 	}
-	if origin != "http://localhost:3003" && origin != "http://127.0.0.1:3003" {
+	if _, allowed := h.allowedOrigins[origin]; !allowed {
 		return false
 	}
 	response.Header().Set("Access-Control-Allow-Origin", origin)

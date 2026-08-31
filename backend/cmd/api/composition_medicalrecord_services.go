@@ -146,7 +146,7 @@ func newMedicalRecordLabServices(
 		r.labImportUsageReceipts,
 	)
 	audit := medicalrecord.NewLabAuditLogger(medicalRecordAuditBridge{logger: d.Audit})
-	deviceMasters := medicalrecord.NewLabDeviceItemMasterService(r.labDeviceItemMasters)
+	deviceMasters := medicalrecord.NewLabDeviceItemMasterService(r.labDeviceItemMasters, d.Transactor)
 	examSvc := medicalrecord.NewLabImportExaminationService(
 		r.examinations,
 		r.labDuplicateChecker,
@@ -180,6 +180,7 @@ func newMedicalRecordLabServices(
 				jobs,
 				r.labImportEvents,
 				revert,
+				d.Transactor,
 			),
 			medicalrecord.NewLabDeviceTodayVisitFinder(r.medicalRecords),
 		),

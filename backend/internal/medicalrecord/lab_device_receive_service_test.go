@@ -3,7 +3,6 @@ package medicalrecord
 import (
 	"context"
 	"encoding/base64"
-	"encoding/json"
 	"testing"
 	"time"
 
@@ -138,19 +137,8 @@ func TestLabDeviceReceiveService_WaitLinksThenDuplicate(t *testing.T) {
 	assert.Empty(t, board.TodayVisits)
 	assert.Equal(t, labDeviceDefaultWaitTTLSeconds, board.Station.WaitTTLSeconds)
 	assert.Contains(t, board.Station.SlotsJSON, "fuji_nx600")
-	// PU-4010 は 2400 8E1（9600 では文字にならない）— 既定スロットの回帰ガード。
-	// slots_json は jsonb 正規化で書式が変わるため構造で比較する。
-	var slots []map[string]any
-	require.NoError(t, json.Unmarshal([]byte(board.Station.SlotsJSON), &slots))
-	var pu4010 map[string]any
-	for _, slot := range slots {
-		if slot["key"] == "pu4010" {
-			pu4010 = slot
-		}
-	}
-	require.NotNil(t, pu4010)
-	assert.EqualValues(t, 2400, pu4010["baud"])
-	assert.Equal(t, "even", pu4010["parity"])
+	// PU-4010 is decoder-only until an exact reviewed serial profile is available.
+	assert.NotContains(t, board.Station.SlotsJSON, "pu4010")
 
 	var jobCount int64
 	require.NoError(t, db.Model(&model.LabImportJob{}).Where("clinic_id = ?", clinicA).Count(&jobCount).Error)
@@ -316,16 +304,23 @@ func TestLabDeviceReceiveService_BoardIncludesTodayVisits(t *testing.T) {
 }
 
 func TestValidLabDeviceSlotsJSONParity(t *testing.T) {
-	valid := `[{"key":"pu4010","source_type":"arkray_pu4010","device_hint":"PU-4010","baud":2400,"parity":"even"}]`
-	require.NoError(t, validLabDeviceSlotsJSON(valid))
+	pu4010 := `[{"key":"pu4010","source_type":"arkray_pu4010","device_hint":"PU-4010","baud":2400,"parity":"even"}]`
+	err := validLabDeviceSlotsJSON(pu4010)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "decoder-only")
 
 	noParity := `[{"key":"nx600","source_type":"fuji_nx600","device_hint":"NX600","baud":9600}]`
 	require.NoError(t, validLabDeviceSlotsJSON(noParity))
 
-	bad := `[{"key":"pu4010","source_type":"arkray_pu4010","device_hint":"PU-4010","baud":2400,"parity":"mark"}]`
-	err := validLabDeviceSlotsJSON(bad)
+	incomplete := `[{"source_type":"fuji_nx600"}]`
+	err = validLabDeviceSlotsJSON(incomplete)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "parity")
+	assert.Contains(t, err.Error(), "required")
+
+	bad := `[{"key":"pu4010","source_type":"arkray_pu4010","device_hint":"PU-4010","baud":2400,"parity":"mark"}]`
+	err = validLabDeviceSlotsJSON(bad)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "decoder-only")
 }
 
 type failLabDevicePersister struct{}

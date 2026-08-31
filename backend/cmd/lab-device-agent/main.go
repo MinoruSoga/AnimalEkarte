@@ -16,9 +16,24 @@ import (
 	"github.com/animal-ekarte/backend/internal/medicalrecord"
 )
 
+type stringListFlag []string
+func (f *stringListFlag) String() string {
+	return strings.Join(*f, ",")
+}
+
+func (f *stringListFlag) Set(value string) error {
+	if _, ok := labdeviceagent.NormalizeAllowedOrigin(value); !ok {
+		return errors.New("allowed-origin must be an exact http(s) origin")
+	}
+	*f = append(*f, value)
+	return nil
+}
+
 func main() {
 	clinicID := flag.String("clinic-id", "", "clinic ID bound to this workstation")
 	portsFile := flag.String("ports-file", "", "newline-delimited allowlist of serial ports")
+	var allowedOrigins stringListFlag
+	flag.Var(&allowedOrigins, "allowed-origin", "exact deployed frontend origin allowed to use the loopback agent (repeatable)")
 	pimsReply := flag.Bool("pims-reply", false, "write IDEXX ACK+A+IM/SM on the same usbserial port; do not use on hospital VetLab")
 	flag.Parse()
 	if *clinicID == "" || *portsFile == "" {
@@ -58,7 +73,7 @@ func main() {
 	}
 	server := &http.Server{
 		Addr:              labdeviceagent.ListenAddress,
-		Handler:           labdeviceagent.NewHandler(queue, status, *clinicID),
+		Handler:           labdeviceagent.NewHandler(queue, status, *clinicID, allowedOrigins...),
 		ReadHeaderTimeout: 5 * time.Second,
 		WriteTimeout:      10 * time.Second,
 		IdleTimeout:       30 * time.Second,

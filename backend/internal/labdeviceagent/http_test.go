@@ -205,3 +205,22 @@ func TestHandlerBindsClinicAndAllowsOnlyOneConsumer(t *testing.T) {
 	handler.ServeHTTP(unauthorizedRes, unauthorized)
 	require.Equal(t, http.StatusConflict, unauthorizedRes.Code)
 }
+
+func TestHandlerAllowsConfiguredDeployedOriginAndPNA(t *testing.T) {
+	handler := NewHandler(NewQueue(1), &Status{}, "clinic-2", "https://staging.example.test")
+	req := httptest.NewRequest(http.MethodOptions, "http://127.0.0.1:17654/frames", nil)
+	req.Header.Set("Origin", "https://staging.example.test")
+	req.Header.Set("Access-Control-Request-Private-Network", "true")
+	res := httptest.NewRecorder()
+	handler.ServeHTTP(res, req)
+	require.Equal(t, http.StatusNoContent, res.Code)
+	require.Equal(t, "https://staging.example.test", res.Header().Get("Access-Control-Allow-Origin"))
+	require.Equal(t, "true", res.Header().Get("Access-Control-Allow-Private-Network"))
+}
+
+func TestNormalizeAllowedOriginRejectsUnsafeValues(t *testing.T) {
+	for _, raw := range []string{"*", "https://*.example.test", "https://example.test/path", "https://user@example.test", "file:///tmp/x", "http://example.test"} {
+		_, ok := NormalizeAllowedOrigin(raw)
+		require.False(t, ok, raw)
+	}
+}

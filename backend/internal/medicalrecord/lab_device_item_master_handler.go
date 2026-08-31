@@ -182,6 +182,38 @@ func (h *LabImportHandler) UpdateLabDevice(c *gin.Context) {
 	c.JSON(http.StatusOK, toLabDeviceResponse(device))
 }
 
+// SaveLabDeviceConfiguration updates a device and its item mappings atomically.
+// PUT /api/v1/lab-devices/:id/configuration
+func (h *LabImportHandler) SaveLabDeviceConfiguration(c *gin.Context) {
+	clinicID, ok := httpapi.ExtractClinicID(c)
+	if !ok {
+		return
+	}
+	id, ok := httpapi.ParseIDParam(c, "id")
+	if !ok {
+		return
+	}
+	svc, ok := h.deviceMasterService()
+	if !ok {
+		httpapi.RespondError(c, apperrors.WrapInternalServerError("lab device item master service is not configured"))
+		return
+	}
+	var req saveLabDeviceConfigurationRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		httpapi.RespondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
+		return
+	}
+	result, err := svc.SaveConfiguration(c.Request.Context(), clinicID, id, req.toServiceInput())
+	if err != nil {
+		httpapi.RespondErrorPreferringConflictCode(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, saveLabDeviceConfigurationResponse{
+		Device: toLabDeviceResponse(result.Device),
+		Items:  httpapi.MapSlice(result.Items, toLabDeviceItemMasterResponse),
+	})
+}
+
 // ReceiveLabDeviceFrames godoc
 // POST /api/v1/lab-device/frames
 func (h *LabImportHandler) ReceiveLabDeviceFrames(c *gin.Context) {

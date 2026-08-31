@@ -179,6 +179,38 @@ func (r updateLabDeviceRequest) toServiceInput() UpdateLabDeviceInput {
 	}
 }
 
+type saveLabDeviceConfigurationItemRequest struct {
+	ID                  uint64  `json:"id" binding:"required"`
+	Unit                string  `json:"unit"`
+	ExamTypeFieldID     *uint64 `json:"exam_type_field_id"`
+	IsActive            *bool   `json:"is_active" binding:"required"`
+}
+
+type saveLabDeviceConfigurationRequest struct {
+	Device updateLabDeviceRequest                   `json:"device" binding:"required"`
+	Items  []saveLabDeviceConfigurationItemRequest `json:"items" binding:"required"`
+}
+
+func (r saveLabDeviceConfigurationRequest) toServiceInput() SaveLabDeviceConfigurationInput {
+	items := make([]SaveLabDeviceConfigurationItemInput, 0, len(r.Items))
+	for _, item := range r.Items {
+		items = append(items, SaveLabDeviceConfigurationItemInput{
+			ID: item.ID,
+			UpdateLabDeviceItemMasterInput: UpdateLabDeviceItemMasterInput{
+				Unit:            item.Unit,
+				ExamTypeFieldID: item.ExamTypeFieldID,
+				IsActive:        *item.IsActive,
+			},
+		})
+	}
+	return SaveLabDeviceConfigurationInput{Device: r.Device.toServiceInput(), Items: items}
+}
+
+type saveLabDeviceConfigurationResponse struct {
+	Device labDeviceResponse             `json:"device"`
+	Items  []labDeviceItemMasterResponse `json:"items"`
+}
+
 type labDeviceResponse struct {
 	ID         uint64  `json:"id"`
 	SourceType string  `json:"source_type"`

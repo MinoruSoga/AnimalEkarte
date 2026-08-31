@@ -35,6 +35,7 @@ import {
   labDeviceLatestCardForSlot,
   labDeviceListenTone,
   labDeviceLiveReceiveLabel,
+  labDeviceNeedsReviewReason,
   labDeviceReceiveFailure,
   requireLabDeviceReceiveResult,
   labDeviceReceivedCards,
@@ -98,7 +99,7 @@ function JobCardView({
       </ul>
       {labDeviceCardNeedsReview(card) ? (
         <p className={`text-sm ${C.textRed700}`}>
-          保存できませんでした（検査種別が複数）
+          {labDeviceNeedsReviewReason(card)}
         </p>
       ) : null}
       {labDeviceHasUnmapped(card) ? (
@@ -381,7 +382,7 @@ export function LabDeviceBoard() {
                   if (!isLabDeviceAttachPersisted(attached)) {
                     toast.error(
                       labDeviceCardNeedsReview(attached)
-                        ? "保存できませんでした（検査種別が複数）"
+                        ? "{labDeviceNeedsReviewReason(card)}"
                         : "保存できませんでした。未紐付けのままです",
                     );
                   }
@@ -411,7 +412,7 @@ export function LabDeviceBoard() {
                       if (!isLabDeviceAttachPersisted(attached)) {
                         toast.error(
                           labDeviceCardNeedsReview(attached)
-                            ? "保存できませんでした（検査種別が複数）"
+                            ? "{labDeviceNeedsReviewReason(card)}"
                             : "保存できませんでした。未紐付けのままです",
                         );
                       }

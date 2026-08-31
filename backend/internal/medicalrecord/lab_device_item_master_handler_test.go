@@ -3,6 +3,7 @@ package medicalrecord
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -59,6 +60,9 @@ func (m *mockLabDeviceItemMasterService) UpdateDevice(ctx context.Context, clini
 		return nil, apperrors.WrapInvalidInput("not used")
 	}
 	return m.updateDeviceFn(ctx, clinicID, id, input)
+}
+func (m *mockLabDeviceItemMasterService) SaveConfiguration(context.Context, uint64, uint64, SaveLabDeviceConfigurationInput) (*SaveLabDeviceConfigurationResult, error) {
+	return nil, errors.New("not implemented")
 }
 
 func newDeviceMasterHandler(svc LabDeviceItemMasterService) *LabImportHandler {

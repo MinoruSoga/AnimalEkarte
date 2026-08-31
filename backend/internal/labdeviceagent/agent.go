@@ -269,7 +269,12 @@ func (a *Agent) collectPortFrames(ctx context.Context, cancel context.CancelFunc
 					}
 				}
 				if a.pimsReply != nil && writer != nil {
-					pimsBuf = append(pimsBuf, result.bytes...)
+					if len(pimsBuf)+len(result.bytes) > maxFrameBytes {
+						pimsBuf = nil
+						a.status.AddInputOverflow()
+					} else {
+						pimsBuf = append(pimsBuf, result.bytes...)
+					}
 					replies, consumed := a.pimsReply(pimsBuf)
 					if consumed > 0 {
 						pimsBuf = append([]byte(nil), pimsBuf[consumed:]...)

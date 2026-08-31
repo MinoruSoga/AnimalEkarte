@@ -5,6 +5,8 @@ import { handleApiError } from "@/lib/handle-api-error";
 import { queryKeys } from "@/lib/query-keys";
 import { QUERY_GC_TIMES, QUERY_STALE_TIMES } from "@/lib/react-query";
 
+import type { UpdateLabDeviceItemMasterRequest } from "./lab-device-item-masters";
+
 export type LabDeviceResponse = {
   id: number;
   source_type: string;
@@ -27,6 +29,11 @@ export type UpdateLabDeviceRequest = {
   exam_type_id: number | null;
   is_active: boolean;
   sort_order: number;
+};
+
+export type SaveLabDeviceConfigurationRequest = {
+  device: UpdateLabDeviceRequest;
+  items: Array<UpdateLabDeviceItemMasterRequest & { id: number }>;
 };
 
 function transformLabDevice(data: LabDeviceResponse) {
@@ -62,6 +69,10 @@ const updateLabDevice = async (id: string, req: UpdateLabDeviceRequest): Promise
   return transformLabDevice(data);
 };
 
+const saveLabDeviceConfiguration = async (id: string, req: SaveLabDeviceConfigurationRequest): Promise<void> => {
+  await axios.put(`/v1/lab-devices/${id}/configuration`, req);
+};
+
 export const useGetLabDevices = () =>
   useQuery({
     queryKey,
@@ -88,6 +99,19 @@ export const useUpdateLabDevice = () => {
       updateLabDevice(id, req),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey });
+    },
+    onError: (error) => handleApiError(error, "更新"),
+  });
+};
+
+export const useSaveLabDeviceConfiguration = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, req }: { id: string; req: SaveLabDeviceConfigurationRequest }) =>
+      saveLabDeviceConfiguration(id, req),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey });
+      queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("lab-device-item-masters") });
     },
     onError: (error) => handleApiError(error, "更新"),
   });

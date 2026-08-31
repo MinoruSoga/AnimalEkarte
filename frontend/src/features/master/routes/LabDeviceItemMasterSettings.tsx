@@ -24,12 +24,11 @@ import { useGetAllExaminationTypes } from "../api/exam-types-master";
 import {
   useCreateLabDevice,
   useGetLabDevices,
-  useUpdateLabDevice,
+  useSaveLabDeviceConfiguration,
 } from "../api/lab-devices";
 import {
   useEnsureLabDeviceItemMasters,
   useGetLabDeviceItemMasters,
-  useUpdateLabDeviceItemMaster,
 } from "../api/lab-device-item-masters";
 import { LabDeviceItemMasterSidePanel } from "../components/LabDeviceItemMasterSidePanel";
 import { MASTER_TABLE_COL } from "../constants/styles";
@@ -65,8 +64,7 @@ export function LabDeviceItemMasterSettings() {
   const { data: examTypes = [] } = useGetAllExaminationTypes();
   const ensureMutation = useEnsureLabDeviceItemMasters();
   const createMutation = useCreateLabDevice();
-  const updateMutation = useUpdateLabDevice();
-  const updateItemMutation = useUpdateLabDeviceItemMaster();
+  const saveConfigurationMutation = useSaveLabDeviceConfiguration();
   const dirty = useSidePeekDirty();
   const sourceFromQuery = parseLabDeviceSourceQuery(searchParams.get("source"));
   const fromBoard = searchParams.get("from") === "board";
@@ -171,13 +169,16 @@ export function LabDeviceItemMasterSettings() {
           toast.error(itemChanges.error);
           return;
         }
-        await updateMutation.mutateAsync({
+        await saveConfigurationMutation.mutateAsync({
           id: selectedRow.id,
-          req: buildLabDeviceUpdateRequest(form),
+          req: {
+            device: buildLabDeviceUpdateRequest(form),
+            items: itemChanges.updates.map((update) => ({
+              id: Number(update.id),
+              ...update.req,
+            })),
+          },
         });
-        for (const update of itemChanges.updates) {
-          await updateItemMutation.mutateAsync(update);
-        }
         toast.success("更新しました");
       }
     } catch {
@@ -195,8 +196,7 @@ export function LabDeviceItemMasterSettings() {
     isCreating,
     selectedItems,
     selectedRow,
-    updateItemMutation,
-    updateMutation,
+    saveConfigurationMutation,
   ]);
 
   return (
@@ -289,7 +289,7 @@ export function LabDeviceItemMasterSettings() {
           examTypes={examTypes}
           unusedSourceTypes={unusedSourceTypes}
           readOnly={readOnly}
-          isPending={createMutation.isPending || updateMutation.isPending || updateItemMutation.isPending}
+          isPending={createMutation.isPending || saveConfigurationMutation.isPending}
           onClose={handleClose}
           onSave={(form, drafts) => {
             void handleSave(form, drafts);

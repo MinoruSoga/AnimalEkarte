@@ -2,7 +2,7 @@
 
 ## 対象
 
-初期版はNX600とAU10V（9600 8N1）を対象とする。PU-4010とIDEXXは対象外。
+初期版はNX600とAU10V（9600 8N1）を対象とする。PU-4010はデコーダのみを維持し、review済みシリアルprofileがないためagent運用対象外。IDEXXも通常運用対象外。
 
 ## インストール
 
@@ -15,7 +15,8 @@ UAT bundleは信頼済みの共有経路で渡し、build時に表示されたma
 開発・サポート側でbundleを作成する。
 
 ```bash
-./scripts/build-lab-device-agent-bundle.sh <医院ID> <新しい出力ディレクトリ>
+# allowed-origin は配布先frontendの正確な https origin（pathなし）
+./scripts/build-lab-device-agent-bundle.sh <医院ID> <https://配布先origin> <新しい出力ディレクトリ>
 ```
 
 クライアントはbundle内で次を実行する。
@@ -58,3 +59,7 @@ launchctl bootout "gui/$(id -u)/com.animalekarte.lab-device-agent"
 - API停止中の受信はagentのメモリキューへ残り、画面とAPIの復旧後に再送される。
 - 未配送・判定失敗の生電文はメモリ保持のため、Macまたはagentの再起動では消える。再起動をまたぐ永続化は、保持期限・暗号化・回収手順を決める別設計とする。
 - クライアント確認は[検査機器ローカル受信 クライアント実機確認票](../testing/scenarios/LAB_DEVICE_CLIENT_UAT.md)を使用する。
+
+## Browser origin / PNA
+
+Bundle作成時に配布先frontendの正確な`https://` originを1つ指定する。agentはlocalhost開発originとこの完全一致originだけへCORS/PNA応答を返す。wildcard、path、query、credential付きoriginは拒否する。

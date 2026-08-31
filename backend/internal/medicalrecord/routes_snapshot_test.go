@@ -257,6 +257,7 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		"PUT /api/v1/examinations/:id/items ReplaceExaminationItems\n" +
 		"PUT /api/v1/lab-device/station PutLabDeviceStation\n" +
 		"PUT /api/v1/lab-device/wait PutLabDeviceWait\n" +
+		"PUT /api/v1/lab-devices/:id/configuration SaveLabDeviceConfiguration\n" +
 		"PUT /api/v1/masters/examination-types/:id/fields/:fieldId/reference-ranges ReplaceExaminationTypeFieldReferenceRanges\n" +
 		"PUT /api/v1/masters/medicines/:id/dose-params/:species UpsertMedicineDoseParam\n" +
 		"PUT /api/v1/medical-records/:id/checkups/:checkupId/field-results ReplaceCheckupFieldResults\n" +

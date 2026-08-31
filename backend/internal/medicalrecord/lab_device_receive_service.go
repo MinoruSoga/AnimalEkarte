@@ -368,34 +368,35 @@ func (s *labDeviceReceiveService) Attach(
 	if err != nil {
 		return nil, err
 	}
-	var card *LabDeviceJobCard
 	err = s.withTx(ctx, func(txCtx context.Context) error {
-		job, findErr := s.requireDeviceJob(txCtx, clinicID, jobID)
-		if findErr != nil {
-			return findErr
+		job, lockErr := s.repo.LockJobByID(txCtx, clinicID, jobID)
+		if lockErr != nil {
+			return lockErr
+		}
+		if !isLabDeviceSourceType(string(job.SourceType)) {
+			return apperrors.WrapInvalidInput("job is not a lab device source")
 		}
 		if job.PetID != nil && *job.PetID != pet.ID {
 			return apperrors.WrapConflict("この検査受信は別の患者に紐付いています")
 		}
-		updated, updErr := s.repo.UpdateJobPetID(txCtx, clinicID, jobID, &pet.ID)
-		if updErr != nil {
+		if _, updErr := s.repo.AttachJobPetID(txCtx, clinicID, jobID, pet.ID); updErr != nil {
 			return updErr
 		}
-		built, cardErr := s.cardForJob(txCtx, clinicID, updated)
-		if cardErr != nil {
-			return cardErr
+		if s.persister != nil {
+			if persistErr := s.persister.PersistLinkedJob(txCtx, clinicID, jobID, pet.ID); persistErr != nil {
+				return persistErr
+			}
 		}
-		card = built
 		return nil
 	})
-	if err == nil && s.persister != nil {
-		card = s.persistLinkedOrUnlink(ctx, clinicID, jobID, pet.ID)
-		return card, nil
-	}
 	if err != nil {
 		return nil, err
 	}
-	return card, nil
+	job, err := s.repo.FindJobByID(ctx, clinicID, jobID)
+	if err != nil {
+		return nil, err
+	}
+	return s.cardForJob(ctx, clinicID, job)
 }
 
 func (s *labDeviceReceiveService) Detach(

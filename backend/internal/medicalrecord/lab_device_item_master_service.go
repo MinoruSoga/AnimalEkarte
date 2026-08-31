@@ -46,6 +46,21 @@ type CreateLabDeviceInput struct {
 	SortOrder  int
 }
 
+type SaveLabDeviceConfigurationItemInput struct {
+	ID uint64
+	UpdateLabDeviceItemMasterInput
+}
+
+type SaveLabDeviceConfigurationInput struct {
+	Device UpdateLabDeviceInput
+	Items  []SaveLabDeviceConfigurationItemInput
+}
+
+type SaveLabDeviceConfigurationResult struct {
+	Device *model.LabDevice
+	Items  []model.LabDeviceItemMaster
+}
+
 type UpdateLabDeviceInput struct {
 	Name       string
 	ExamTypeID *uint64
@@ -62,15 +77,17 @@ type LabDeviceItemMasterService interface {
 	ListDevices(ctx context.Context, clinicID uint64) ([]model.LabDevice, error)
 	CreateDevice(ctx context.Context, clinicID uint64, input CreateLabDeviceInput) (*model.LabDevice, error)
 	UpdateDevice(ctx context.Context, clinicID, id uint64, input UpdateLabDeviceInput) (*model.LabDevice, error)
+	SaveConfiguration(ctx context.Context, clinicID, id uint64, input SaveLabDeviceConfigurationInput) (*SaveLabDeviceConfigurationResult, error)
 }
 
 type labDeviceItemMasterService struct {
 	repo LabDeviceItemMasterRepository
+	tx   Transactor
 }
 
 // NewLabDeviceItemMasterService initializes a LabDeviceItemMasterService.
-func NewLabDeviceItemMasterService(repo LabDeviceItemMasterRepository) LabDeviceItemMasterService {
-	return &labDeviceItemMasterService{repo: repo}
+func NewLabDeviceItemMasterService(repo LabDeviceItemMasterRepository, tx ...Transactor) LabDeviceItemMasterService {
+	return &labDeviceItemMasterService{repo: repo, tx: firstTransactor(tx)}
 }
 
 // UniqueMappedExamTypeIDs returns distinct exam_type_id values among mapped rows.
@@ -195,6 +212,52 @@ func (s *labDeviceItemMasterService) UpdateDevice(
 		"is_active":    input.IsActive,
 		"sort_order":   input.SortOrder,
 	})
+}
+
+func (s *labDeviceItemMasterService) SaveConfiguration(
+	ctx context.Context,
+	clinicID, id uint64,
+	input SaveLabDeviceConfigurationInput,
+) (*SaveLabDeviceConfigurationResult, error) {
+	if s.tx == nil {
+		return nil, apperrors.WrapInternalServerError("lab device master transaction is not configured")
+	}
+	var result SaveLabDeviceConfigurationResult
+	err := s.tx.WithTx(ctx, func(txCtx context.Context) error {
+		device, err := s.UpdateDevice(txCtx, clinicID, id, input.Device)
+		if err != nil {
+			return err
+		}
+		items := make([]model.LabDeviceItemMaster, 0, len(input.Items))
+		seen := make(map[uint64]struct{}, len(input.Items))
+		for _, item := range input.Items {
+			if item.ID == 0 {
+				return apperrors.WrapInvalidInput("item id is required")
+			}
+			if _, exists := seen[item.ID]; exists {
+				return apperrors.WrapInvalidInput("duplicate item id")
+			}
+			seen[item.ID] = struct{}{}
+			current, findErr := s.repo.FindByID(txCtx, clinicID, item.ID)
+			if findErr != nil {
+				return findErr
+			}
+			if current.SourceType != device.SourceType {
+				return apperrors.WrapInvalidInput("item is not owned by this device")
+			}
+			updated, updateErr := s.Update(txCtx, clinicID, item.ID, item.UpdateLabDeviceItemMasterInput)
+			if updateErr != nil {
+				return updateErr
+			}
+			items = append(items, *updated)
+		}
+		result = SaveLabDeviceConfigurationResult{Device: device, Items: items}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &result, nil
 }
 
 func (s *labDeviceItemMasterService) validateExamType(ctx context.Context, clinicID uint64, examTypeID *uint64) error {
