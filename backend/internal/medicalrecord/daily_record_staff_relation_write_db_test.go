@@ -69,6 +69,23 @@ func setupDailyRecordStaffRelationDBFixture(t *testing.T) *dailyRecordStaffRelat
 		ALTER COLUMN "time" TYPE time USING "time"::time
 	`).Error)
 
+	// Other DB tests insert explicit fixture IDs. Keep serial sequences ahead of
+	// those rows before this fixture relies on auto-generated company/clinic IDs.
+	require.NoError(t, db.Exec(`
+		SELECT setval(
+			pg_get_serial_sequence('companies', 'id'),
+			COALESCE((SELECT MAX(id) + 1 FROM companies), 1),
+			false
+		)
+	`).Error)
+	require.NoError(t, db.Exec(`
+		SELECT setval(
+			pg_get_serial_sequence('clinics', 'id'),
+			COALESCE((SELECT MAX(id) + 1 FROM clinics), 1),
+			false
+		)
+	`).Error)
+
 	company := &model.Company{Name: "daily relation DB fixture"}
 	require.NoError(t, db.Create(company).Error)
 	clinicA := &model.Clinic{CompanyID: company.ID, Name: "daily relation clinic A"}
