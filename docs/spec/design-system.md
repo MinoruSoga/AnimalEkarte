@@ -62,7 +62,7 @@
 | `{colors.on-primary}` | `#FFFFFF` | primary CTA 上のテキストとアイコン。 |
 | `{colors.on-primary-active}` | `#FFFFFF` | primary-active 上の hover / 押下テキスト。`#027078` 上で WCAG AA 4.5:1 を満たす。 |
 
-> **brand と primary は同じ色**: どちらも `#038B94`、active は `#027078`。製品識別と操作階層をコード上で読み分けるためトークン名は維持する。旧 accent `#2383E2` と `C.accent` は引き続き legacy とし、audit C1 で禁止する。
+> **brand と primary は同じ色**: どちらも `#038B94`、active は `#027078`。製品識別と操作階層をコード上で読み分けるためトークン名は維持する。`PALETTE.accent` の旧値 `#2383E2` は compatibility 用に残る。一方 `C` に `accent` member は存在せず、`C.accent` の consumption は audit C1 で禁止する。
 
 > **DESIGN.md のスティッカーパレット8色（Sky `#62AEF0` / Purple `#D6B6F6` / Pink `#FF64C8` / Orange `#DD5B00` / Teal `#2A9D99` / Green `#1AAE39` 他）は本システムでは採用しない** — 理由と代替は §2.5。
 
@@ -87,7 +87,7 @@
 
 DESIGN.md の Semantic 節は「Notion の*マーケ表面*は専用 semantic ramp を持たない」という観察であり、削除の指令ではない。臨床安全（SPECIFICATION 2.1 — 全原則に優先）により、本システムは意味的カラーを **FE10 字義リブランド後も維持する**。`design-tokens.ts` で一元管理し、構造色用途（CTA・リンク・active/focus）には使わない。
 
-- **危険 / 死亡 / 異常高**: `C.danger`（`#C0392B`、WCAG AA 7.1:1 準拠）
+- **危険 / 死亡 / 異常高**: `C.danger`（`#C0392B`。white 上の contrast は約 5.44:1 で、normal text の WCAG AA を満たす。`design-tokens.ts` の 7.1:1 comment は既知の source comment drift）
 - **死亡の文脈修飾**: 一覧 surface ではグレーアウトし、単一患者画面では `C.danger` を使用する。
 - **注意 / 期限間近**: `C.textWarning` / `C.bgWarning50`
 - **正常 / 完了 / 生存**: `C.textStatusGreen` / `C.bgStatusGreen`
@@ -125,7 +125,7 @@ DESIGN.md の Semantic 節は「Notion の*マーケ表面*は専用 semantic ra
 |---|---|---|
 | **印刷帳票** | `PrintPortal` 配下（`MonthlyReportPrintArea` / `ClosePrintArea`）。raw Tailwind グレー 92 箇所 | 紙・モノクロプリンタ出力が要件。canvas-soft／hairline／ink ランプは画面の図地設計であり紙面には適用しない |
 | **マニュアル本文** | `ManualContent` の markdown レンダリング（`bg-black/5` ヘッダ等） | 文書レンダリングであり、アプリのデータテーブル規範（`ex-data-table-cell`）の対象外 |
-| **LINE ミニアプリ** | `liff/` `line-reserve/` `src/shared-liff/` | 別アプリ。FE10 でスイープ対象外を宣言済み（対象＝本体 84 ルート）。audit C12/C14 も明示 allowlist で除外 |
+| **LINE ミニアプリ** | `liff/` `line-reserve/` `src/shared-liff/` | 別アプリ。FE10 でスイープ対象外を宣言済み。本体 route 数は [ui-design-compliance.md](ui-design-compliance.md) の静的在庫を正とする。audit C12/C14 も明示 allowlist で除外 |
 
 > 対象外にする場合は**必ず本節に列挙する**。列挙のない暗黙の除外は「対象ゼロ」を「全件合格」に見せかけるため禁止。
 
@@ -147,14 +147,14 @@ DESIGN.md の Semantic 節は「Notion の*マーケ表面*は専用 semantic ra
 | CSS 変数 | brand / primary | **`#038B94` / `#038B94`** | `globals.css` `--brand` と `--primary` は意味名を維持しつつ同値。`--sidebar-primary` も同じ teal ✅ |
 
 > **legacy トークンの扱い（FE10）**:
-> - `C.accent` と旧 accent `#2383E2` は legacy・audit C1 で再導入禁止。
+> - compatibility 用の `PALETTE.accent` は旧値 `#2383E2` を保持する。`C.accent` member は存在せず、その consumption は audit C1 で禁止する。
 > - 新規の汎用操作は action-primary 系、製品識別が明示された表面だけ brand 系を使う。
 
 ---
 
 ## 3. Typography / タイポグラフィ
 
-DESIGN.md `typography:` フロントマターに準拠。実装のフォントファミリーは **`'Inter', 'Noto Sans JP'`**（フォールバック: `-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`。`frontend/src/styles/globals.css:143`）。単一スタックで display から eyebrow まで担う。
+DESIGN.md `typography:` フロントマターに準拠。実装のフォントファミリーは **`'Inter', 'Noto Sans JP'`**（フォールバック: `-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`。`frontend/src/styles/globals.css` の `body` / typography selector）。単一スタックで display から eyebrow まで担う。
 
 ### 3.1 Hierarchy
 
@@ -252,7 +252,7 @@ Tailwind の既定/任意 shadow と drop-shadow は audit C10、CSS の直接 `
 | 1 — Soft | 極薄 4 段: `rgba(0,0,0,0.01) 0 0.175px 1.041px`, `0.02 0 0.8px 2.925px`, `0.027 0 2.025px 7.847px`, `0.04 0 4px 18px` | 浮動カード・フォーカス中入力 |
 | 2 — Elevated | 5 段 deep stack（末尾 `rgba(0,0,0,0.05) 0 23px 52px`） | モーダル・ポップオーバー |
 
-shadcn `DialogContent`（`frontend/src/components/ui/dialog.tsx`）は `rounded-xl` + `p-6`（`{spacing.lg}`）+ `shadow-lg` を既定とし、`ex-modal-card`（`{rounded.xl}` / Level-2）に一致。
+shadcn `DialogContent`（`frontend/src/components/ui/dialog.tsx`）は `rounded-xl` + `p-6`（`{spacing.lg}`）+ `shadow-level2` を使い、`ex-modal-card`（`{rounded.xl}` / Level-2）に一致。Tailwind 既定 shadow を許可する例ではない。
 
 ### 5.1 実装ルール（2026-07-21 追補 — FE9）
 
@@ -398,6 +398,6 @@ DESIGN.md `rounded:` フロントマターに準拠。**コンポーネント種
 
 - **`frontend/src/lib/design-tokens.ts`**: `PALETTE`（raw hex）、`C`（Tailwind クラス）、`STYLE`（複合クラスプリセット）、`LAYOUT`（寸法）、`BADGE`（バッジ配色コンボ）、`ICON`（アイコンサイズ）。
 - 新しい色を追加する場合は、必ず `design-tokens.ts` に追加した上でコンポーネントから参照する。**コンポーネント内での hex 直書きは禁止。**
-- **規約 vs 実装**: 本書 §2.6 のとおり、brand と primary は tokens・`globals.css` で意味名を分けつつ、値は `#038B94`（active `#027078`）へ統一する。旧 accent `#2383E2` と `C.accent` は audit C1 が機械的に禁止する。
+- **規約 vs 実装**: 本書 §2.6 のとおり、brand と primary は tokens・`globals.css` で意味名を分けつつ、値は `#038B94`（active `#027078`）へ統一する。compatibility 用 `PALETTE.accent` は旧値 `#2383E2` を保持するが、存在しない `C.accent` の consumption は audit C1 が機械的に禁止する。
 
 ---

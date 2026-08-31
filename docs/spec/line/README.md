@@ -23,7 +23,7 @@
 - **[cost-analysis.md](./cost-analysis.md)**: Messaging / Lステップ課金と配信ボリューム試算（docs-only）。
 
 ### 原本
-- クライアント受領原本は CorpVault `evidence/2026-08-20-docs-cleanup/client/`。製品側の正本は [lstep-integration.md](./lstep-integration.md)。
+- クライアント受領原本の外部 restricted evidence location は CorpVault `evidence/2026-08-20-docs-cleanup/client/`（repository 外であり、この commit の検証対象・開発時の必須依存ではない）。製品側の repository SoT は [lstep-integration.md](./lstep-integration.md)。
 
 ---
 
@@ -34,7 +34,7 @@
 ### 主要な価値
 - **オペレーションの自動化**: LINE 予約がカルテ受付（カンバン）へ即座に反映され、スタッフの手入力コストを削減。
 - **臨床データに基づく CRM**: 診察結果や最終来院日に基づき、Lステップが「忘れられない病院」として自動で飼い主をフォロー。
-- **高精度な空き枠管理**: 院内シフト (`/shifts`) と完全連動し、オーバーブッキングを物理的に防止。
+- **競合を拒否する空き枠管理**: 作成 transaction 内で shift / capacity / conflict を再検証し、競合時は予約を拒否する。
 
 ---
 
