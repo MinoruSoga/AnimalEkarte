@@ -82,7 +82,7 @@
     "tailwindcss": "^4.3.1",
     "typescript": "~6.0.3",
     "typescript-eslint": "^8.67.0",
-    "vercel": "58.4.0",
+    "vercel": "59.9.1",
     "vite": "^8.0.16",
     "vitest": "^4.1.8"
   },
