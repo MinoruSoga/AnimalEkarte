@@ -513,6 +513,9 @@ func (s *estimateService) Update(ctx context.Context, clinicID, id uint64, input
 		return nil, apperrors.WrapInvalidInput("discount_amount must be 0 or greater")
 	}
 	fields := buildEstimateUpdate(input)
+	if len(fields) == 0 && input.Items == nil {
+		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
+	}
 	var preparedItems []model.EstimateItem
 	if input.Items != nil {
 		if err := validateEstimateItemInputs(*input.Items); err != nil {
@@ -523,9 +526,13 @@ func (s *estimateService) Update(ctx context.Context, clinicID, id uint64, input
 		fields["subtotal"] = subtotal
 		fields["tax_total"] = taxTotal
 		fields["total_amount"] = totalAmount
-	}
-	if len(fields) == 0 && input.Items == nil {
-		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
+	} else if len(existing.Items) > 0 {
+		// Active persisted items are the source of truth for estimate totals. Header-only
+		// PATCHes must not allow client-supplied totals to drift from those items.
+		subtotal, taxTotal, totalAmount := calculateEstimateTotals(existing.Items)
+		fields["subtotal"] = subtotal
+		fields["tax_total"] = taxTotal
+		fields["total_amount"] = totalAmount
 	}
 	isBecomingApproved := input.Status != nil && *input.Status == model.EstimateStatusApproved &&
 		existing.Status != model.EstimateStatusApproved

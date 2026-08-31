@@ -585,6 +585,54 @@ func TestEstimateService_Update(t *testing.T) {
 	}
 }
 
+func TestEstimateService_Update_TotalsOnlyPatchDerivesTotalsFromExistingItems(t *testing.T) {
+	requestedSubtotal := int64(1)
+	requestedTaxTotal := int64(2)
+	requestedTotalAmount := int64(3)
+	existing := &model.Estimate{
+		ID:              1,
+		ClinicID:        1,
+		Status:          model.EstimateStatusDraft,
+		InsuranceAmount: 700,
+		DiscountAmount:  300,
+		Items: []model.EstimateItem{
+			{
+				EstimateID:     1,
+				UnitPrice:      1000,
+				Quantity:       2,
+				TaxType:        model.TaxTypeExcluded,
+				TaxRate:        0.10,
+				DiscountAmount: 200,
+			},
+		},
+	}
+
+	var updatedFields map[string]any
+	repo := &mockEstimateRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Estimate, error) {
+			return existing, nil
+		},
+		updateIfNotLockedFn: func(_ context.Context, _, _ uint64, fields map[string]any) (*model.Estimate, error) {
+			updatedFields = fields
+			return existing, nil
+		},
+	}
+	svc := NewEstimateService(repo, nil, nil, nil, nil, noopTransactor{})
+
+	_, err := svc.Update(context.Background(), 1, 1, &UpdateEstimateInput{
+		Subtotal:    &requestedSubtotal,
+		TaxTotal:    &requestedTaxTotal,
+		TotalAmount: &requestedTotalAmount,
+	})
+
+	require.NoError(t, err)
+	assert.Equal(t, int64(1800), updatedFields["subtotal"])
+	assert.Equal(t, int64(180), updatedFields["tax_total"])
+	assert.Equal(t, int64(1980), updatedFields["total_amount"])
+	assert.NotContains(t, updatedFields, "insurance_amount")
+	assert.NotContains(t, updatedFields, "discount_amount")
+}
+
 // TestEstimateService_Update_TOCTOU_LockedAfterFind は FindByID 時点では draft でも、
 // UpdateIfNotLocked が Conflict を返した場合に編集を拒否することを検証する（TOCTOU 回帰）。
 func TestEstimateService_Update_TOCTOU_LockedAfterFind(t *testing.T) {
