@@ -671,6 +671,13 @@ func (s *reservationService) updateWithConflictCheck(ctx context.Context, clinic
 		startOrEndChanged := !resolvedStart.Equal(current.StartTime) || !resolvedEnd.Equal(current.EndTime)
 		if startOrEndChanged &&
 			ShouldEnforceReservationBookingConstraints(current.Status, current.ReservationRoute) {
+			// Legacy test/compatibility constructors may omit LINE settings; production
+			// composition injects them and update must enforce the same closed days as create.
+			if s.settingFinder != nil {
+				if err := s.validateCreateClosedDays(ctx, clinicID, resolvedStart); err != nil {
+					return err
+				}
+			}
 			if err := validateClinicHoliday(ctx, s.holidayFinder, clinicID, resolvedStart); err != nil {
 				return err
 			}

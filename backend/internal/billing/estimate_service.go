@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"math"
+	"strings"
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
@@ -109,6 +111,32 @@ func buildEstimateUpdate(input *UpdateEstimateInput) map[string]any {
 	return fields
 }
 
+func validateEstimateItemInputs(inputs []EstimateItemInput) error {
+	for i, input := range inputs {
+		if strings.TrimSpace(input.Name) == "" {
+			return apperrors.WrapInvalidInput(fmt.Sprintf("items[%d].name is required", i))
+		}
+		if input.Category != "" {
+			if err := validateItemCategory(string(input.Category)); err != nil {
+				return apperrors.Wrap(err, fmt.Sprintf("items[%d].category is invalid", i))
+			}
+		}
+		if input.UnitPrice < 0 {
+			return apperrors.WrapInvalidInput(fmt.Sprintf("items[%d].unit_price must be 0 or greater", i))
+		}
+		if input.Quantity <= 0 || math.IsNaN(input.Quantity) || math.IsInf(input.Quantity, 0) {
+			return apperrors.WrapInvalidInput(fmt.Sprintf("items[%d].quantity must be a positive finite value", i))
+		}
+		if input.DiscountRate < 0 || input.DiscountRate > 100 || math.IsNaN(input.DiscountRate) || math.IsInf(input.DiscountRate, 0) {
+			return apperrors.WrapInvalidInput(fmt.Sprintf("items[%d].discount_rate must be between 0 and 100", i))
+		}
+		if input.DiscountAmount < 0 {
+			return apperrors.WrapInvalidInput(fmt.Sprintf("items[%d].discount_amount must be 0 or greater", i))
+		}
+	}
+	return nil
+}
+
 func estimateItemsFromInput(estimateID uint64, inputs []EstimateItemInput) []model.EstimateItem {
 	items := make([]model.EstimateItem, 0, len(inputs))
 	for i, in := range inputs {
@@ -116,20 +144,16 @@ func estimateItemsFromInput(estimateID uint64, inputs []EstimateItemInput) []mod
 		if category == "" {
 			category = model.ItemCategoryOther
 		}
-		quantity := in.Quantity
-		if quantity <= 0 {
-			quantity = 1
-		}
 		sortOrder := in.SortOrder
 		if sortOrder == 0 {
 			sortOrder = i
 		}
 		items = append(items, model.EstimateItem{
 			EstimateID:            estimateID,
-			Name:                  in.Name,
+			Name:                  strings.TrimSpace(in.Name),
 			Category:              category,
 			UnitPrice:             in.UnitPrice,
-			Quantity:              quantity,
+			Quantity:              in.Quantity,
 			TaxType:               model.TaxTypeExcluded,
 			TaxRate:               0.10,
 			DiscountRate:          in.DiscountRate,
@@ -139,6 +163,23 @@ func estimateItemsFromInput(estimateID uint64, inputs []EstimateItemInput) []mod
 		})
 	}
 	return items
+}
+
+// calculateEstimateTotals mirrors CalculateBillingTotals for EstimateItem.
+// Header insurance_amount and discount_amount remain separate existing fields.
+func calculateEstimateTotals(items []model.EstimateItem) (subtotal, taxTotal, totalAmount int64) {
+	var excludedTax int64
+	for i := range items {
+		itemSubtotal := max(int64(math.Round(float64(items[i].UnitPrice)*items[i].Quantity))-items[i].DiscountAmount, 0)
+		taxAmount := items[i].CalculateTaxAmount()
+		subtotal += itemSubtotal
+		taxTotal += taxAmount
+		if items[i].TaxType == model.TaxTypeExcluded {
+			excludedTax += taxAmount
+		}
+	}
+	totalAmount = subtotal + excludedTax
+	return
 }
 
 func cloneEstimateItemsForSuccessor(estimateID uint64, items []model.EstimateItem) []model.EstimateItem {
@@ -354,6 +395,9 @@ func (s *estimateService) Create(ctx context.Context, clinicID uint64, input *Cr
 	if input.DiscountAmount < 0 {
 		return nil, apperrors.WrapInvalidInput("discount_amount must be 0 or greater")
 	}
+	if err := validateEstimateItemInputs(input.Items); err != nil {
+		return nil, err
+	}
 
 	if input.CreatedBy == nil {
 		return nil, apperrors.WrapInvalidInput("created_by is required")
@@ -374,6 +418,10 @@ func (s *estimateService) Create(ctx context.Context, clinicID uint64, input *Cr
 		Comment:         input.Comment,
 		Notes:           input.Notes,
 		CreatedBy:       input.CreatedBy,
+	}
+	preparedItems := estimateItemsFromInput(0, input.Items)
+	if len(preparedItems) > 0 {
+		estimate.Subtotal, estimate.TaxTotal, estimate.TotalAmount = calculateEstimateTotals(preparedItems)
 	}
 	if input.Status != "" {
 		estimate.Status = input.Status
@@ -411,7 +459,7 @@ func (s *estimateService) Create(ctx context.Context, clinicID uint64, input *Cr
 			slog.ErrorContext(txCtx, "failed to create estimate", "error", err)
 			return apperrors.Wrap(err, "failed to create estimate")
 		}
-		if len(input.Items) > 0 {
+		if len(preparedItems) > 0 {
 			if err := s.repo.ReplaceItems(txCtx, clinicID, estimate.ID, estimateItemsFromInput(estimate.ID, input.Items)); err != nil {
 				return apperrors.Wrap(err, "failed to save estimate items")
 			}
@@ -465,6 +513,17 @@ func (s *estimateService) Update(ctx context.Context, clinicID, id uint64, input
 		return nil, apperrors.WrapInvalidInput("discount_amount must be 0 or greater")
 	}
 	fields := buildEstimateUpdate(input)
+	var preparedItems []model.EstimateItem
+	if input.Items != nil {
+		if err := validateEstimateItemInputs(*input.Items); err != nil {
+			return nil, err
+		}
+		preparedItems = estimateItemsFromInput(id, *input.Items)
+		subtotal, taxTotal, totalAmount := calculateEstimateTotals(preparedItems)
+		fields["subtotal"] = subtotal
+		fields["tax_total"] = taxTotal
+		fields["total_amount"] = totalAmount
+	}
 	if len(fields) == 0 && input.Items == nil {
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
@@ -492,7 +551,7 @@ func (s *estimateService) Update(ctx context.Context, clinicID, id uint64, input
 			return apperrors.Wrap(err, "failed to update estimate")
 		}
 		if input.Items != nil {
-			if err := s.repo.ReplaceItems(txCtx, clinicID, id, estimateItemsFromInput(id, *input.Items)); err != nil {
+			if err := s.repo.ReplaceItems(txCtx, clinicID, id, preparedItems); err != nil {
 				return apperrors.Wrap(err, "failed to save estimate items")
 			}
 			got, err = s.repo.FindByID(txCtx, clinicID, id)

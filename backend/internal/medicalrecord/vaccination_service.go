@@ -243,14 +243,16 @@ func (s *vaccinationService) Update(ctx context.Context, clinicID, id uint64, in
 		) {
 			return apperrors.WrapConflict("vaccination relations changed concurrently")
 		}
+		effectiveDate := locked.Date
+		if input.Date != nil {
+			effectiveDate = *input.Date
+		}
+		effectiveNextDate := locked.NextDate
 		if input.NextDate != nil {
-			baseDate := snapshot.Date
-			if input.Date != nil {
-				baseDate = *input.Date
-			}
-			if err := errIfNextDateNotAfterVaccinationDate(baseDate, input.NextDate); err != nil {
-				return err
-			}
+			effectiveNextDate = input.NextDate
+		}
+		if err := errIfNextDateNotAfterVaccinationDate(effectiveDate, effectiveNextDate); err != nil {
+			return err
 		}
 		vaccination, err = s.repo.Update(txCtx, clinicID, id, fields)
 		if err != nil {

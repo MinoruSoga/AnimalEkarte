@@ -2,6 +2,7 @@ package billing
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -120,7 +121,28 @@ func (r *estimateRepository) Update(ctx context.Context, clinicID, id uint64, fi
 // UpdateIfNotLocked は persistence.DBOrTx(ctx, r.db) で ambient tx に参加する（SD-2 系ガード監査:
 // estimateService.Update が確定済みカルテガードのため LockByIDForUpdate と同一 tx に束ねる）。
 func (r *estimateRepository) UpdateIfNotLocked(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Estimate, error) {
-	result := persistence.DBOrTx(ctx, r.db).
+	db := persistence.DBOrTx(ctx, r.db)
+	if len(fields) == 0 {
+		// An items-only PATCH still needs an atomic status guard. GORM Updates with an
+		// empty map affects zero rows, so lock the eligible parent instead and hold the
+		// lock through ReplaceItems in the caller's transaction.
+		var estimate model.Estimate
+		err := db.Clauses(clause.Locking{Strength: "UPDATE"}).
+			Scopes(persistence.ClinicScope(clinicID)).
+			Where("id = ? AND status NOT IN ?", id, []model.EstimateStatus{
+				model.EstimateStatusApproved,
+				model.EstimateStatusRejected,
+			}).
+			First(&estimate).Error
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return nil, apperrors.WrapConflict("承認済みまたは却下済みの見積書は編集できません")
+			}
+			return nil, apperrors.FromGORM(err, "estimate", fmt.Sprintf("%d", id))
+		}
+		return r.FindByID(ctx, clinicID, id)
+	}
+	result := db.
 		Model(&model.Estimate{}).
 		Scopes(persistence.ClinicScope(clinicID)).
 		Where("id = ? AND status NOT IN ?", id, []model.EstimateStatus{

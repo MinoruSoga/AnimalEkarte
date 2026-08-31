@@ -309,6 +309,7 @@ func (s *staffService) Update(ctx context.Context, clinicID, id uint64, input *U
 const (
 	errMsgSelfDeactivationForbidden   = "自分自身を無効化することはできません"
 	errMsgLastSystemAdminDeactivation = "最後の有効なシステム管理者を無効化することはできません"
+	errMsgLastSystemAdminDeletion     = "最後の有効なシステム管理者を削除することはできません"
 )
 
 // guardStaffDeactivation enforces self-deactivation and last-active-system-admin
@@ -338,6 +339,24 @@ func (s *staffService) guardStaffDeactivation(
 	}
 	if activeAdminCount <= 1 {
 		return apperrors.WrapConflict(errMsgLastSystemAdminDeactivation)
+	}
+	return nil
+}
+
+func (s *staffService) guardLastSystemAdminRemoval(ctx context.Context, targetID uint64) error {
+	isSystemAdminStaff, err := s.repo.IsActiveSystemAdminStaff(ctx, targetID)
+	if err != nil {
+		return apperrors.Wrap(err, "failed to check system administrator status")
+	}
+	if !isSystemAdminStaff {
+		return nil
+	}
+	activeAdminCount, err := s.repo.CountActiveSystemAdminStaff(ctx)
+	if err != nil {
+		return apperrors.Wrap(err, "failed to count active system administrators")
+	}
+	if activeAdminCount <= 1 {
+		return apperrors.WrapConflict(errMsgLastSystemAdminDeletion)
 	}
 	return nil
 }
@@ -418,6 +437,9 @@ func (s *staffService) Delete(ctx context.Context, clinicID, id uint64, isSystem
 		}
 		if staff == nil || staff.ID != id {
 			return apperrors.WrapInternalServerError("staff lock returned an invalid record")
+		}
+		if err := s.guardLastSystemAdminRemoval(txCtx, id); err != nil {
+			return err
 		}
 
 		assignments, lockAssignmentsErr := s.assignmentRepo.LockActiveByStaff(txCtx, id)

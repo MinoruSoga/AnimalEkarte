@@ -659,13 +659,14 @@ func TestVaccinationService_Update_RejectsFutureVaccinationDate(t *testing.T) {
 	supplemental := "追記"
 
 	tests := []struct {
-		name        string
-		input       UpdateVaccinationInput
-		storedDate  time.Time
-		wantErr     bool
-		wantInvalid bool
-		wantMsg     string
-		wantUpdate  bool
+		name           string
+		input          UpdateVaccinationInput
+		storedDate     time.Time
+		storedNextDate *time.Time
+		wantErr        bool
+		wantInvalid    bool
+		wantMsg        string
+		wantUpdate     bool
 	}{
 		{
 			name: "rejects tomorrow JST",
@@ -712,6 +713,18 @@ func TestVaccinationService_Update_RejectsFutureVaccinationDate(t *testing.T) {
 			wantUpdate:  false,
 		},
 		{
+			name: "rejects date moved to or after stored next_date",
+			input: UpdateVaccinationInput{
+				Date: &today,
+			},
+			storedDate:     dayBeforeYesterday,
+			storedNextDate: &today,
+			wantErr:        true,
+			wantInvalid:    true,
+			wantMsg:        "次回予定日は接種日より後",
+			wantUpdate:     false,
+		},
+		{
 			name: "rejects next_date equal to vaccination date",
 			input: UpdateVaccinationInput{
 				Date:     &today,
@@ -746,6 +759,7 @@ func TestVaccinationService_Update_RejectsFutureVaccinationDate(t *testing.T) {
 						ClinicID:  clinicID,
 						VaccineID: 1,
 						Date:      stored,
+						NextDate:  tt.storedNextDate,
 					}, nil
 				},
 				updateFieldsFn: func(_ context.Context, _, id uint64, _ map[string]any) (*model.Vaccination, error) {

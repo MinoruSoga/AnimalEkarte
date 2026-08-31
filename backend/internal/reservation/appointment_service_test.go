@@ -1414,6 +1414,39 @@ func TestReservationService_Update_SkipsConflictCheckWhenScheduleUnchanged(t *te
 	assert.True(t, updateCalled)
 }
 
+func TestReservationService_Update_RejectsClosedWeekdayWhenStartMoves(t *testing.T) {
+	currentStart := time.Date(2026, 6, 2, 10, 0, 0, 0, config.JST)
+	closedStart := time.Date(2026, 6, 1, 10, 0, 0, 0, config.JST) // Monday
+	updateCalled := false
+	current := func(clinicID, id uint64) *model.Reservation {
+		return &model.Reservation{ID: id, ClinicID: clinicID, ReservationTypeID: 9, StartTime: currentStart, EndTime: currentStart.Add(30 * time.Minute), Status: model.ReservationStatusPending}
+	}
+	repo := &mockReservationRepository{
+		findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Reservation, error) {
+			return current(clinicID, id), nil
+		},
+		lockAndFindByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Reservation, error) {
+			return current(clinicID, id), nil
+		},
+		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Reservation, error) {
+			updateCalled = true
+			return &model.Reservation{}, nil
+		},
+	}
+	settings := &mockLineReservationSettingFinder{findByClinicIDFn: func(_ context.Context, clinicID uint64) (*model.LineReservationSetting, error) {
+		return &model.LineReservationSetting{ClinicID: clinicID, ClosedWeekdays: []byte("[1]"), ClosedDates: []byte("[]")}, nil
+	}}
+	svc := NewReservationServiceWithClinicHolidays(repo, nil, &mockTransactor{}, nil, nil, nil, settings, openDayHolidayFinder())
+
+	result, err := svc.Update(context.Background(), 1, 1, &UpdateReservationInput{StartTime: &closedStart, EndTime: ptrTime(closedStart.Add(30 * time.Minute))})
+
+	require.Error(t, err)
+	assert.Nil(t, result)
+	assert.True(t, apperrors.IsInvalidInput(err), "expected invalid input but got: %v", err)
+	assert.Contains(t, err.Error(), "休業曜日")
+	assert.False(t, updateCalled)
+}
+
 func TestReservationService_Update_RejectsClinicHolidayWhenStartMovesOntoHoliday(t *testing.T) {
 	currentStart := time.Date(2026, 6, 1, 10, 0, 0, 0, config.JST)
 	holidayStart := time.Date(2026, 6, 2, 10, 0, 0, 0, config.JST)

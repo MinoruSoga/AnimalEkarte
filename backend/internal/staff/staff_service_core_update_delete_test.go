@@ -473,6 +473,53 @@ func TestStaffServiceCore_Delete(t *testing.T) {
 	}
 }
 
+func TestStaffService_Delete_RejectsLastActiveSystemAdministrator(t *testing.T) {
+	deleteCalled := false
+	repo := &coreMockStaffRepository{
+		isActiveSystemAdminStaffFn: func(_ context.Context, staffID uint64) (bool, error) {
+			assert.Equal(t, uint64(1), staffID)
+			return true, nil
+		},
+		countActiveSystemAdminStaffFn: func(_ context.Context) (int64, error) {
+			return 1, nil
+		},
+		deleteFn: func(_ context.Context, _, _ uint64) error {
+			deleteCalled = true
+			return nil
+		},
+	}
+	svc := newCoreStaffService(
+		repo,
+		&coreMockAccountRepository{},
+		&coreMockStaffClinicAssignmentRepository{},
+		&coreMockReservationQueryRepository{},
+		&coreMockShiftEntryRepository{},
+		&coreFakeTransactor{},
+	)
+
+	err := svc.Delete(context.Background(), 1, 1, true)
+
+	require.Error(t, err)
+	assert.True(t, apperrors.IsConflict(err), "expected conflict, got %v", err)
+	assert.Contains(t, err.Error(), "最後の有効なシステム管理者")
+	assert.False(t, deleteCalled)
+}
+
+func TestStaffService_Delete_AllowsSystemAdministratorWhenAnotherRemains(t *testing.T) {
+	deleteCalled := false
+	repo := &coreMockStaffRepository{
+		isActiveSystemAdminStaffFn:    func(_ context.Context, _ uint64) (bool, error) { return true, nil },
+		countActiveSystemAdminStaffFn: func(_ context.Context) (int64, error) { return 2, nil },
+		deleteFn:                      func(_ context.Context, _, _ uint64) error { deleteCalled = true; return nil },
+	}
+	svc := newCoreStaffService(repo, &coreMockAccountRepository{}, &coreMockStaffClinicAssignmentRepository{}, &coreMockReservationQueryRepository{}, &coreMockShiftEntryRepository{}, &coreFakeTransactor{})
+
+	err := svc.Delete(context.Background(), 1, 1, true)
+
+	require.NoError(t, err)
+	assert.True(t, deleteCalled)
+}
+
 func TestStaffService_Delete_UsesCanonicalLockOrderAndTransactionContext(t *testing.T) {
 	events := make([]string, 0, 7)
 	repo := &coreMockStaffRepository{

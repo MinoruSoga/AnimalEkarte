@@ -1447,6 +1447,66 @@ func TestEstimateService_Create_PersistsItemsInSameTx(t *testing.T) {
 	require.Len(t, got.Items, 1)
 }
 
+func TestEstimateService_Create_DerivesHeaderTotalsFromItems(t *testing.T) {
+	var saved *model.Estimate
+	repo := &mockEstimateRepository{
+		createFn: func(_ context.Context, estimate *model.Estimate) error {
+			estimate.ID = 12
+			cp := *estimate
+			saved = &cp
+			return nil
+		},
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.Estimate, error) {
+			cp := *saved
+			cp.ID = id
+			return &cp, nil
+		},
+	}
+	svc := NewEstimateService(repo, nil, nil, estimateTestMembershipCounter(), nil, noopTransactor{})
+
+	_, err := svc.Create(context.Background(), 1, &CreateEstimateInput{
+		Title:       "明細合計",
+		CreatedBy:   ptrU64(estimateTestCreatedByStaffID),
+		Subtotal:    999999,
+		TaxTotal:    999999,
+		TotalAmount: 999999,
+		Items: []EstimateItemInput{{
+			Name: "処置", Category: model.ItemCategoryProcedure,
+			UnitPrice: 1000, Quantity: 2, DiscountAmount: 100,
+		}},
+	})
+
+	require.NoError(t, err)
+	require.NotNil(t, saved)
+	assert.Equal(t, int64(1900), saved.Subtotal)
+	assert.Equal(t, int64(190), saved.TaxTotal)
+	assert.Equal(t, int64(2090), saved.TotalAmount)
+}
+
+func TestEstimateService_Create_RejectsInvalidItemValues(t *testing.T) {
+	tests := []struct {
+		name string
+		item EstimateItemInput
+	}{
+		{name: "invalid category", item: EstimateItemInput{Name: "x", Category: model.ItemCategory("invalid"), Quantity: 1}},
+		{name: "zero quantity", item: EstimateItemInput{Name: "x", Category: model.ItemCategoryOther, Quantity: 0}},
+		{name: "negative discount amount", item: EstimateItemInput{Name: "x", Category: model.ItemCategoryOther, Quantity: 1, DiscountAmount: -1}},
+		{name: "discount rate above 100", item: EstimateItemInput{Name: "x", Category: model.ItemCategoryOther, Quantity: 1, DiscountRate: 101}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			createCalled := false
+			repo := &mockEstimateRepository{createFn: func(_ context.Context, _ *model.Estimate) error { createCalled = true; return nil }}
+			svc := NewEstimateService(repo, nil, nil, estimateTestMembershipCounter(), nil, noopTransactor{})
+			got, err := svc.Create(context.Background(), 1, &CreateEstimateInput{Title: "invalid", CreatedBy: ptrU64(estimateTestCreatedByStaffID), Items: []EstimateItemInput{tt.item}})
+			require.Error(t, err)
+			assert.True(t, apperrors.IsInvalidInput(err), "expected invalid input, got %v", err)
+			assert.Nil(t, got)
+			assert.False(t, createCalled)
+		})
+	}
+}
+
 func TestEstimateService_Create_FindByIDFailureAbortsCreate(t *testing.T) {
 	repo := &mockEstimateRepository{
 		createFn: func(_ context.Context, e *model.Estimate) error {
@@ -1519,6 +1579,50 @@ func TestEstimateService_CreateSuccessor_CopiesItems(t *testing.T) {
 	assert.Zero(t, copied[0].ID)
 	require.Len(t, got.Items, 1)
 	assert.Equal(t, "処置料", got.Items[0].Name)
+}
+
+func TestEstimateService_Update_RejectsInvalidItemsBeforeWrite(t *testing.T) {
+	updateCalled := false
+	repo := &mockEstimateRepository{
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.Estimate, error) {
+			return &model.Estimate{ID: id, Status: model.EstimateStatusDraft}, nil
+		},
+		updateIfNotLockedFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Estimate, error) {
+			updateCalled = true
+			return nil, nil
+		},
+	}
+	svc := NewEstimateService(repo, nil, nil, estimateTestMembershipCounter(), nil, noopTransactor{})
+	items := []EstimateItemInput{{Name: "薬", Category: model.ItemCategoryMedicine, Quantity: -1}}
+
+	got, err := svc.Update(context.Background(), 1, 3, &UpdateEstimateInput{Items: &items})
+
+	require.Error(t, err)
+	assert.True(t, apperrors.IsInvalidInput(err), "expected invalid input, got %v", err)
+	assert.Nil(t, got)
+	assert.False(t, updateCalled)
+}
+
+func TestEstimateService_Update_ItemsOnlyDerivesHeaderTotals(t *testing.T) {
+	var updatedFields map[string]any
+	repo := &mockEstimateRepository{
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.Estimate, error) {
+			return &model.Estimate{ID: id, Status: model.EstimateStatusDraft}, nil
+		},
+		updateIfNotLockedFn: func(_ context.Context, _, id uint64, fields map[string]any) (*model.Estimate, error) {
+			updatedFields = fields
+			return &model.Estimate{ID: id, Status: model.EstimateStatusDraft}, nil
+		},
+	}
+	svc := NewEstimateService(repo, nil, nil, estimateTestMembershipCounter(), nil, noopTransactor{})
+	items := []EstimateItemInput{{Name: "薬", Category: model.ItemCategoryMedicine, UnitPrice: 500, Quantity: 3, DiscountAmount: 200}}
+
+	_, err := svc.Update(context.Background(), 1, 3, &UpdateEstimateInput{Items: &items})
+
+	require.NoError(t, err)
+	assert.Equal(t, int64(1300), updatedFields["subtotal"])
+	assert.Equal(t, int64(130), updatedFields["tax_total"])
+	assert.Equal(t, int64(1430), updatedFields["total_amount"])
 }
 
 func TestEstimateService_Update_PersistsItemsInSameTx(t *testing.T) {
