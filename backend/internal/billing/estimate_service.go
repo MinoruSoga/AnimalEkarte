@@ -489,58 +489,70 @@ func (s *estimateService) Create(ctx context.Context, clinicID uint64, input *Cr
 }
 
 func (s *estimateService) Update(ctx context.Context, clinicID, id uint64, input *UpdateEstimateInput) (*model.Estimate, error) {
-	existing, err := s.repo.FindByID(ctx, clinicID, id)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to find estimate", "error", err)
-		return nil, apperrors.Wrap(err, "failed to find estimate")
-	}
-	if isEstimateLocked(existing.Status) {
-		return nil, apperrors.WrapConflict("承認済みまたは却下済みの見積書は編集できません")
-	}
-	if input.Subtotal != nil && *input.Subtotal < 0 {
-		return nil, apperrors.WrapInvalidInput("subtotal must be 0 or greater")
-	}
-	if input.TaxTotal != nil && *input.TaxTotal < 0 {
-		return nil, apperrors.WrapInvalidInput("tax_total must be 0 or greater")
-	}
-	if input.TotalAmount != nil && *input.TotalAmount < 0 {
-		return nil, apperrors.WrapInvalidInput("total_amount must be 0 or greater")
-	}
-	if input.InsuranceAmount != nil && *input.InsuranceAmount < 0 {
-		return nil, apperrors.WrapInvalidInput("insurance_amount must be 0 or greater")
-	}
-	if input.DiscountAmount != nil && *input.DiscountAmount < 0 {
-		return nil, apperrors.WrapInvalidInput("discount_amount must be 0 or greater")
-	}
-	fields := buildEstimateUpdate(input)
-	if len(fields) == 0 && input.Items == nil {
-		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
-	}
+	var fields map[string]any
 	var preparedItems []model.EstimateItem
-	if input.Items != nil {
-		if err := validateEstimateItemInputs(*input.Items); err != nil {
-			return nil, err
-		}
-		preparedItems = estimateItemsFromInput(id, *input.Items)
-		subtotal, taxTotal, totalAmount := calculateEstimateTotals(preparedItems)
-		fields["subtotal"] = subtotal
-		fields["tax_total"] = taxTotal
-		fields["total_amount"] = totalAmount
-	} else if len(existing.Items) > 0 {
-		// Active persisted items are the source of truth for estimate totals. Header-only
-		// PATCHes must not allow client-supplied totals to drift from those items.
-		subtotal, taxTotal, totalAmount := calculateEstimateTotals(existing.Items)
-		fields["subtotal"] = subtotal
-		fields["tax_total"] = taxTotal
-		fields["total_amount"] = totalAmount
-	}
-	isBecomingApproved := input.Status != nil && *input.Status == model.EstimateStatusApproved &&
-		existing.Status != model.EstimateStatusApproved
-	isBecomingRejected := input.Status != nil && *input.Status == model.EstimateStatusRejected &&
-		existing.Status != model.EstimateStatusRejected
 
-	var updated *model.Estimate
+	var existing, updated *model.Estimate
+	var isBecomingApproved, isBecomingRejected bool
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		// All update paths first lock the editable parent. FindByID then loads active
+		// items through this transaction, so header totals and item replacement share
+		// one authoritative snapshot and serialization point.
+		locked, err := s.repo.LockEditableByID(txCtx, clinicID, id)
+		if err != nil {
+			if apperrors.IsConflict(err) {
+				return err
+			}
+			slog.ErrorContext(txCtx, "failed to lock estimate for update", "error", err)
+			return apperrors.Wrap(err, "failed to find estimate")
+		}
+		existing = locked
+
+		// Keep the prior error precedence: missing or locked estimates are rejected before
+		// request validation. Validation still occurs before any write in this transaction.
+		if input.Subtotal != nil && *input.Subtotal < 0 {
+			return apperrors.WrapInvalidInput("subtotal must be 0 or greater")
+		}
+		if input.TaxTotal != nil && *input.TaxTotal < 0 {
+			return apperrors.WrapInvalidInput("tax_total must be 0 or greater")
+		}
+		if input.TotalAmount != nil && *input.TotalAmount < 0 {
+			return apperrors.WrapInvalidInput("total_amount must be 0 or greater")
+		}
+		if input.InsuranceAmount != nil && *input.InsuranceAmount < 0 {
+			return apperrors.WrapInvalidInput("insurance_amount must be 0 or greater")
+		}
+		if input.DiscountAmount != nil && *input.DiscountAmount < 0 {
+			return apperrors.WrapInvalidInput("discount_amount must be 0 or greater")
+		}
+		fields = buildEstimateUpdate(input)
+		if len(fields) == 0 && input.Items == nil {
+			return apperrors.WrapInvalidInput("at least one field must be provided")
+		}
+		if input.Items != nil {
+			if err := validateEstimateItemInputs(*input.Items); err != nil {
+				return err
+			}
+			preparedItems = estimateItemsFromInput(id, *input.Items)
+			subtotal, taxTotal, totalAmount := calculateEstimateTotals(preparedItems)
+			fields["subtotal"] = subtotal
+			fields["tax_total"] = taxTotal
+			fields["total_amount"] = totalAmount
+		}
+
+		if input.Items == nil && len(existing.Items) > 0 {
+			// Active persisted items are the source of truth for estimate totals. Header-only
+			// PATCHes must not allow client-supplied totals to drift from those items.
+			subtotal, taxTotal, totalAmount := calculateEstimateTotals(existing.Items)
+			fields["subtotal"] = subtotal
+			fields["tax_total"] = taxTotal
+			fields["total_amount"] = totalAmount
+		}
+		isBecomingApproved = input.Status != nil && *input.Status == model.EstimateStatusApproved &&
+			existing.Status != model.EstimateStatusApproved
+		isBecomingRejected = input.Status != nil && *input.Status == model.EstimateStatusRejected &&
+			existing.Status != model.EstimateStatusRejected
+
 		// SD-2 + BE-refactor.md X-11: 親カルテが確定済みの場合は見積書編集を拒否。
 		if existing.MedicalRecordID != nil {
 			if err := sharedkernel.LockDraftMedicalRecord(txCtx, s.medicalRecordRepo, clinicID, *existing.MedicalRecordID,
@@ -548,8 +560,8 @@ func (s *estimateService) Update(ctx context.Context, clinicID, id uint64, input
 				return err
 			}
 		}
-		// UpdateIfNotLocked: FindByID→isEstimateLocked と Update の間に approved/rejected へ
-		// 遷移されても、status NOT IN 述語で原子的に拒否する（0 行 → Conflict）。
+		// UpdateIfNotLocked retains the status predicate as defense in depth. The parent
+		// is already locked, so it cannot change between the authoritative read and write.
 		got, err := s.repo.UpdateIfNotLocked(txCtx, clinicID, id, fields)
 		if err != nil {
 			if !apperrors.IsConflict(err) {
@@ -570,6 +582,9 @@ func (s *estimateService) Update(ctx context.Context, clinicID, id uint64, input
 		return nil
 	}); err != nil {
 		return nil, err
+	}
+	if existing == nil || updated == nil {
+		return nil, apperrors.WrapInternalServerError("estimate update returned empty record")
 	}
 	slog.InfoContext(ctx, "estimate updated",
 		slog.Uint64("estimate_id", id),

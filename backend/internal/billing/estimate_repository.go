@@ -19,6 +19,9 @@ import (
 type EstimateRepository interface {
 	FindAll(ctx context.Context, clinicID uint64, ownerID, medicalRecordID *uint64, status *string, page, limit int) ([]model.Estimate, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Estimate, error)
+	// LockEditableByID locks an active editable estimate parent in the ambient transaction,
+	// then loads its active items from that same transaction.
+	LockEditableByID(ctx context.Context, clinicID, id uint64) (*model.Estimate, error)
 	Create(ctx context.Context, estimate *model.Estimate) error
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
 	// UpdateIfNotLocked は status NOT IN (approved, rejected) のときだけ更新する。
@@ -102,6 +105,27 @@ func (r *estimateRepository) FindByID(ctx context.Context, clinicID, id uint64) 
 		return nil, apperrors.FromGORM(err, "estimate", fmt.Sprintf("%d", id))
 	}
 	return &estimate, nil
+}
+
+// LockEditableByID serializes every estimate edit on the parent row before active items
+// are loaded. The lock remains held through the caller's ambient transaction.
+func (r *estimateRepository) LockEditableByID(ctx context.Context, clinicID, id uint64) (*model.Estimate, error) {
+	if persistence.TxFromContext(ctx) == nil {
+		return nil, apperrors.WrapInternalServerError("estimate edit lock requires an active transaction")
+	}
+	var parent model.Estimate
+	err := persistence.DBOrTx(ctx, r.db).
+		Clauses(clause.Locking{Strength: "UPDATE"}).
+		Scopes(persistence.ClinicScope(clinicID)).
+		Where("id = ?", id).
+		First(&parent).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "estimate", fmt.Sprintf("%d", id))
+	}
+	if isEstimateLocked(parent.Status) {
+		return nil, apperrors.WrapConflict("承認済みまたは却下済みの見積書は編集できません")
+	}
+	return r.FindByID(ctx, clinicID, id)
 }
 
 // Create は persistence.DBOrTx(ctx, r.db) で ambient tx に参加する（SD-2 系ガード監査: estimateService.Create が

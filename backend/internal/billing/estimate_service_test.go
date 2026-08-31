@@ -25,6 +25,7 @@ func estimateTestMembershipCounter() staffClinicMembershipCounter {
 type mockEstimateRepository struct {
 	findAllFn              func(ctx context.Context, clinicID uint64, ownerID, medicalRecordID *uint64, status *string, page, limit int) ([]model.Estimate, int64, error)
 	findByIDFn             func(ctx context.Context, clinicID, id uint64) (*model.Estimate, error)
+	lockEditableByIDFn     func(ctx context.Context, clinicID, id uint64) (*model.Estimate, error)
 	createFn               func(ctx context.Context, estimate *model.Estimate) error
 	updateFn               func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
 	updateIfNotLockedFn    func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Estimate, error)
@@ -43,6 +44,20 @@ func (m *mockEstimateRepository) FindByID(ctx context.Context, clinicID, id uint
 		return m.findByIDFn(ctx, clinicID, id)
 	}
 	return nil, nil
+}
+
+func (m *mockEstimateRepository) LockEditableByID(ctx context.Context, clinicID, id uint64) (*model.Estimate, error) {
+	if m.lockEditableByIDFn != nil {
+		return m.lockEditableByIDFn(ctx, clinicID, id)
+	}
+	estimate, err := m.FindByID(ctx, clinicID, id)
+	if err != nil {
+		return nil, err
+	}
+	if estimate != nil && isEstimateLocked(estimate.Status) {
+		return nil, apperrors.WrapConflict("承認済みまたは却下済みの見積書は編集できません")
+	}
+	return estimate, nil
 }
 
 func (m *mockEstimateRepository) Create(ctx context.Context, estimate *model.Estimate) error {
