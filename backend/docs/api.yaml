@@ -23409,7 +23409,7 @@ paths:
     post:
       operationId: createLabDevice
       summary: 検査機器を登録
-      description: ResourceLabImport create。source_type は clinic 内で一意（対応プロトコルは3種）。
+      description: ResourceLabImport create。source_type は clinic 内で一意（対応プロトコルは4種）。
       tags: [LabImports]
       requestBody:
         required: true

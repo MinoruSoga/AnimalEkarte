@@ -101,6 +101,17 @@ func TestLabDeviceOpenAPIEnsureCountsMatchRuntime(t *testing.T) {
 		fmt.Sprintf("ResourceLabImport edit。既存行の exam_type_field_id は上書きしない。未知コードは追加しない。lab_devices の既定%d行も無ければ作る。", deviceCount),
 		operation.Post.Description,
 	)
+
+	createOperation, ok := spec.Paths["/lab-devices"]
+	require.True(t, ok, "missing create lab-device endpoint")
+	sourceTypes := make(map[string]struct{}, deviceCount)
+	for _, device := range labDeviceDefaults() {
+		sourceTypes[string(device.SourceType)] = struct{}{}
+	}
+	assert.Equal(t,
+		fmt.Sprintf("ResourceLabImport create。source_type は clinic 内で一意（対応プロトコルは%d種）。", len(sourceTypes)),
+		createOperation.Post.Description,
+	)
 }
 
 func TestLabDeviceOpenAPISourceEnumsMatchRuntime(t *testing.T) {
