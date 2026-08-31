@@ -290,7 +290,7 @@ func TestLabDeviceItemMasterService_SaveConfigurationRollsBackAllChanges(t *test
 	require.NotEmpty(t, items)
 	_, err = svc.SaveConfiguration(ctx, clinicID, original.ID, SaveLabDeviceConfigurationInput{
 		Device: UpdateLabDeviceInput{Name: "changed", ExamTypeID: original.ExamTypeID, IsActive: original.IsActive, SortOrder: original.SortOrder},
-		Items: []SaveLabDeviceConfigurationItemInput{{ID: items[0].ID, UpdateLabDeviceItemMasterInput: UpdateLabDeviceItemMasterInput{Unit: items[0].Unit, ExamTypeFieldID: items[0].ExamTypeFieldID, IsActive: items[0].IsActive}}},
+		Items:  []SaveLabDeviceConfigurationItemInput{{ID: items[0].ID, UpdateLabDeviceItemMasterInput: UpdateLabDeviceItemMasterInput{Unit: items[0].Unit, ExamTypeFieldID: items[0].ExamTypeFieldID, IsActive: items[0].IsActive}}},
 	})
 	require.Error(t, err)
 	after, err := NewLabDeviceItemMasterRepository(db).FindDeviceByID(ctx, clinicID, original.ID)

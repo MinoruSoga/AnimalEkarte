@@ -18,6 +18,7 @@ const (
 
 type GlobFunc func(pattern string) ([]string, error)
 type OpenFunc func(ctx context.Context, path string) (io.ReadCloser, error)
+
 // PIMSReplyFunc consumes a carry+chunk buffer and returns session replies plus
 // the number of prefix bytes that were parsed (complete frames). The tail stays
 // in the caller for the next USB read.

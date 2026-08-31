@@ -119,9 +119,9 @@ type consumerLease struct {
 const consumerLeaseDuration = 15 * time.Second
 
 type handler struct {
-	queue  *Queue
-	status *Status
-	lease  *consumerLease
+	queue          *Queue
+	status         *Status
+	lease          *consumerLease
 	allowedOrigins map[string]struct{}
 }
 
@@ -131,7 +131,9 @@ func NewHandler(queue *Queue, status *Status, expectedClinic string, configuredO
 		"http://127.0.0.1:3003": {},
 	}
 	for _, origin := range configuredOrigins {
-		if normalized, ok := NormalizeAllowedOrigin(origin); ok { origins[normalized] = struct{}{} }
+		if normalized, ok := NormalizeAllowedOrigin(origin); ok {
+			origins[normalized] = struct{}{}
+		}
 	}
 	return &handler{queue: queue, status: status, lease: &consumerLease{expectedClinic: expectedClinic}, allowedOrigins: origins}
 }

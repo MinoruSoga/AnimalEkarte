@@ -180,14 +180,14 @@ func (r updateLabDeviceRequest) toServiceInput() UpdateLabDeviceInput {
 }
 
 type saveLabDeviceConfigurationItemRequest struct {
-	ID                  uint64  `json:"id" binding:"required"`
-	Unit                string  `json:"unit"`
-	ExamTypeFieldID     *uint64 `json:"exam_type_field_id"`
-	IsActive            *bool   `json:"is_active" binding:"required"`
+	ID              uint64  `json:"id" binding:"required"`
+	Unit            string  `json:"unit"`
+	ExamTypeFieldID *uint64 `json:"exam_type_field_id"`
+	IsActive        *bool   `json:"is_active" binding:"required"`
 }
 
 type saveLabDeviceConfigurationRequest struct {
-	Device updateLabDeviceRequest                   `json:"device" binding:"required"`
+	Device updateLabDeviceRequest                  `json:"device" binding:"required"`
 	Items  []saveLabDeviceConfigurationItemRequest `json:"items" binding:"required"`
 }
 

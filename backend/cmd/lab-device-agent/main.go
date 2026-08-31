@@ -17,6 +17,7 @@ import (
 )
 
 type stringListFlag []string
+
 func (f *stringListFlag) String() string {
 	return strings.Join(*f, ",")
 }
