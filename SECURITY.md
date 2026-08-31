@@ -27,8 +27,8 @@
 
 ## セキュリティ設計
 
-> **正本**: 認証・認可の詳細は [`docs/architecture/auth.md`](docs/architecture/auth.md)。  
-> データ経路・監査の path-dependent 方針は [`docs/architecture/data-flow.md`](docs/architecture/data-flow.md)。  
+> **正本**: 認証・認可の詳細は [`docs/architecture/auth.md`](docs/architecture/auth.md)。
+> データ経路・監査の path-dependent 方針は [`docs/architecture/data-flow.md`](docs/architecture/data-flow.md)。
 > 本ファイルは入口の要約であり、断定が食い違うときは上記を優先する。
 
 ### マルチテナント隔離

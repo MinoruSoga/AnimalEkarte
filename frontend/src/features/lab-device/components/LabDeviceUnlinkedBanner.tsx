@@ -13,7 +13,6 @@ import {
 } from "../api/lab-device";
 import {
   isLabDeviceAttachPersisted,
-  labDeviceCardNeedsReview,
   labDeviceCardTitle,
   labDeviceClockSkewLabel,
   labDeviceNeedsReviewReason,

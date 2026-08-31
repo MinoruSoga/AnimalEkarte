@@ -53,9 +53,9 @@
 
 ## Adding a new top-level `internal/` package
 
-1. Prefer an existing domain or keep-tier package.  
-2. If new top-level is required: update `acceptedTopLevelPackages` in `package_boundary_gate_test.go` **and** ADR/boundary map in the same PR.  
-3. If it is a domain: add `domainPackages` + `domainImportAllowlist` edges.  
+1. Prefer an existing domain or keep-tier package.
+2. If new top-level is required: update `acceptedTopLevelPackages` in `package_boundary_gate_test.go` **and** ADR/boundary map in the same PR.
+3. If it is a domain: add `domainPackages` + `domainImportAllowlist` edges.
 4. If it is an exception: document here why it is not a domain and what consumers are allowed.
 
 ## Machine gates
@@ -71,9 +71,9 @@
 
 ## PR checklist
 
-- [ ] No new `common`/`util` package  
-- [ ] No domain import of `csvimport`  
-- [ ] No domain import of `labdeviceagent` (cmd/lab-device-agent only)  
-- [ ] No identitylink → owner/pet import  
-- [ ] Cross-domain write catalog/ADR updated if exception claimed  
+- [ ] No new `common`/`util` package
+- [ ] No domain import of `csvimport`
+- [ ] No domain import of `labdeviceagent` (cmd/lab-device-agent only)
+- [ ] No identitylink → owner/pet import
+- [ ] Cross-domain write catalog/ADR updated if exception claimed
 - [ ] `go test ./internal/lintscan/ -run 'ExceptionPackage|PackageBoundary|DomainImport' -count=1` (Docker)

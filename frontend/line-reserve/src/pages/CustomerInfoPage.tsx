@@ -5,7 +5,11 @@ import { PrimaryButton } from '../components/PrimaryButton';
 import { BackButton } from '../components/BackButton';
 import { EXPLICIT_PRIMARY_CTA_LABEL } from '../lib/advance-policy';
 
-const BACKEND_PHONE_PATTERN = /^0\d{1,4}-?\d{1,4}-?\d{4}$/;
+const BACKEND_PHONE_CHARACTERS = /^[0-9+ ()-]+$/;
+
+function isBackendCompatiblePhone(phone: string): boolean {
+  return BACKEND_PHONE_CHARACTERS.test(phone) && phone.replace(/\D/g, '').length >= 10;
+}
 
 interface CustomerInfoPageProps {
   profile: LiffProfile | null;
@@ -115,8 +119,8 @@ export function CustomerInfoPage({
     if (!name.trim()) newErrors.name = 'お名前を入力してください';
     if (!phone.trim()) {
       newErrors.phone = '電話番号を入力してください';
-    } else if (!BACKEND_PHONE_PATTERN.test(phone.trim())) {
-      newErrors.phone = '電話番号の形式が正しくありません（例：090-1234-5678 または 09012345678）';
+    } else if (!isBackendCompatiblePhone(phone.trim())) {
+      newErrors.phone = '電話番号の形式が正しくありません（例：090-1234-5678 または +81 90 1234 5678）';
     }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;

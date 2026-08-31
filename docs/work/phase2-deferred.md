@@ -1,7 +1,7 @@
 # 今期外・見送り索引
 
-> **目的**: 今フェーズでやらない判断の短い索引。  
-> **全文（2026-08-20 時点 HTML）**: CorpVault `50_Projects/ノア動物病院電子カルテ/evidence/2026-08-20-root-docs/phase2.html`  
+> **目的**: 今フェーズでやらない判断の短い索引。
+> **全文（2026-08-20 時点 HTML）**: CorpVault `50_Projects/ノア動物病院電子カルテ/evidence/2026-08-20-root-docs/phase2.html`
 > **実行 SoT**: Linear（hub [BRT-4](https://linear.app/baritechllc/issue/BRT-4)）
 
 再開時は担当者と再開条件を持つ Linear Issue を新規作成する。本ファイルへ作業結果を書き足さない。状態が競合した場合は Linear を正とする。

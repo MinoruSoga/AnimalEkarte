@@ -185,12 +185,12 @@ describe('CustomerInfoPage', () => {
     const profile: LiffProfile = {
       line_user_id: 'line-user-phone',
       display_name: 'LINE表示名',
-      additional_fields: { name: '山田花子', phone: '052-000-0000' },
+      additional_fields: { name: '山田花子', phone: '+81 90 1234 5678' },
     };
     render(<CustomerInfoPage profile={profile} initialInfo={emptyInfo} onNext={onNext} onBack={vi.fn()} />);
 
     await user.click(screen.getByRole('button', { name: '次へ' }));
-    expect(onNext).toHaveBeenCalledWith(expect.objectContaining({ phone: '052-000-0000' }));
+    expect(onNext).toHaveBeenCalledWith(expect.objectContaining({ phone: '+81 90 1234 5678' }));
 
     const phoneInput = screen.getByLabelText(/電話番号/);
     await user.clear(phoneInput);

@@ -254,7 +254,7 @@ describe("ReservationFormModal — 新規飼主モード (Issue #51)", () => {
     expect(screen.queryByText("患者検索")).not.toBeInTheDocument();
   });
 
-  it("電話番号が 0 始まりでない場合 BE 整合フォーマットエラーが表示される", async () => {
+  it("電話番号が10桁未満の場合BE整合フォーマットエラーが表示される", async () => {
     server.use(...silentApiHandlers);
     const user = userEvent.setup({ delay: null });
 
@@ -272,14 +272,14 @@ describe("ReservationFormModal — 新規飼主モード (Issue #51)", () => {
 
     await user.click(screen.getByTestId("mode-new"));
     fireEvent.change(screen.getByTestId("new-owner-name"), { target: { value: "山田太郎" } });
-    // 0 始まりでない番号 — BE regex に通らない形式
+    // 数字が10桁未満 — Backend contractに通らない形式
     fireEvent.change(screen.getByTestId("new-owner-phone"), { target: { value: "1234-5678" } });
 
     fireEvent.click(screen.getByRole("button", { name: "予約を確定" }));
 
     await waitFor(() => {
       expect(
-        screen.getByText("電話番号の形式が正しくありません（例：090-1234-5678 または 09012345678）")
+        screen.getByText("電話番号の形式が正しくありません（例：090-1234-5678 または +81 90 1234 5678）")
       ).toBeInTheDocument();
     });
   });
@@ -307,7 +307,7 @@ describe("ReservationFormModal — 新規飼主モード (Issue #51)", () => {
     await user.click(screen.getByRole("button", { name: "予約を確定" }));
 
     const phoneError =
-      "電話番号の形式が正しくありません（例：090-1234-5678 または 09012345678）";
+      "電話番号の形式が正しくありません（例：090-1234-5678 または +81 90 1234 5678）";
     const phoneErrorElement = await screen.findByText(phoneError);
     expect(phoneErrorElement).toBeVisible();
     expect(phoneErrorElement).toHaveAttribute("role", "alert");
@@ -315,7 +315,7 @@ describe("ReservationFormModal — 新規飼主モード (Issue #51)", () => {
     expect(onSave).not.toHaveBeenCalled();
 
     fireEvent.change(screen.getByTestId("new-owner-phone"), {
-      target: { value: " 090-0000-0000 " },
+      target: { value: "090-0000" },
     });
     expect(screen.getByText(phoneError)).toBeVisible();
     expect(onSave).not.toHaveBeenCalled();
@@ -371,7 +371,7 @@ describe("ReservationFormModal — 新規飼主モード (Issue #51)", () => {
 
     // テキストフィールドを入力（fireEvent.change で1イベント完結、タイムアウト防止）
     fireEvent.change(screen.getByTestId("new-owner-name"), { target: { value: "山田太郎" } });
-    fireEvent.change(screen.getByTestId("new-owner-phone"), { target: { value: "090-1234-5678" } });
+    fireEvent.change(screen.getByTestId("new-owner-phone"), { target: { value: "+81 90 1234 5678" } });
     fireEvent.change(screen.getByTestId("new-owner-pet-name"), { target: { value: "ポチ" } });
     fireEvent.change(screen.getByTestId("new-owner-chief-complaint"), { target: { value: "食欲不振" } });
 
@@ -405,7 +405,7 @@ describe("ReservationFormModal — 新規飼主モード (Issue #51)", () => {
     const [, , newOwnerArg] = onSave.mock.calls[0];
     expect(newOwnerArg).toMatchObject({
       ownerName: "山田太郎",
-      phone: "090-1234-5678",
+      phone: "+81 90 1234 5678",
       petName: "ポチ",
       chiefComplaint: "食欲不振",
       animalSpeciesId: 1,

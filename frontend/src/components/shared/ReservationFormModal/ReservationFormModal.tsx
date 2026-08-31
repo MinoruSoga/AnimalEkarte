@@ -35,10 +35,10 @@ const EMPTY_NEW_OWNER: NewOwnerFormData = {
   animalSpeciesId: 0,
 };
 const RESERVATION_FORM_DESCRIPTION_ID = "reservation-form-description";
-const OWNER_PHONE_PATTERN = /^0\d{1,4}-?\d{1,4}-?\d{4}$/;
+const OWNER_PHONE_CHARACTERS = /^[0-9+ ()-]+$/;
 
 function isValidOwnerPhone(phone: string): boolean {
-  return OWNER_PHONE_PATTERN.test(phone);
+  return OWNER_PHONE_CHARACTERS.test(phone) && phone.replace(/\D/g, "").length >= 10;
 }
 
 interface ReservationFormModalProps {
@@ -183,7 +183,7 @@ export const ReservationFormModal = memo(function ReservationFormModal({
       if (!newOwnerData.phone.trim()) {
         noe.phone = "電話番号を入力してください";
       } else if (!isValidOwnerPhone(newOwnerData.phone)) {
-        noe.phone = "電話番号の形式が正しくありません（例：090-1234-5678 または 09012345678）";
+        noe.phone = "電話番号の形式が正しくありません（例：090-1234-5678 または +81 90 1234 5678）";
       }
       if (!newOwnerData.petName.trim()) noe.petName = "ペット名を入力してください";
       if (!newOwnerData.animalSpeciesId) noe.animalSpeciesId = "動物種を選択してください";

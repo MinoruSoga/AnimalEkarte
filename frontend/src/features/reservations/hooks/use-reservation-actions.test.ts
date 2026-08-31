@@ -264,11 +264,36 @@ describe("useReservationActions multi-pet retry", () => {
     expect(createMutateAsyncMock).toHaveBeenCalledTimes(2);
 
     await act(async () => {
-      await result.current.handleSave(data, pets);
+      await result.current.handleSave({ ...data, notes: "修正後" }, pets);
     });
     expect(createMutateAsyncMock).toHaveBeenCalledTimes(3);
     expect(createMutateAsyncMock.mock.calls[2]?.[0]).toEqual(
       expect.objectContaining({ pet_id: 11 }),
     );
+  });
+
+  it("clears partial-create progress when the create modal is closed", async () => {
+    createMutateAsyncMock
+      .mockResolvedValueOnce(makeReservation({ id: "created-10" }))
+      .mockRejectedValueOnce(new Error("temporary failure"))
+      .mockResolvedValue(makeReservation({ id: "retry" }));
+    const { result } = setup();
+    const data: ReservationFormData = {
+      start: new Date("2026-05-29T03:30:00.000Z"),
+      end: new Date("2026-05-29T04:00:00.000Z"),
+      visitType: "first",
+      type: "1",
+      doctor: "1",
+      status: "confirmed",
+    };
+    const pets = [
+      { id: "10", ownerId: "20", name: "ポチ" },
+      { id: "11", ownerId: "20", name: "タマ" },
+    ] as Parameters<typeof result.current.handleSave>[1];
+
+    await act(async () => { await result.current.handleSave(data, pets); });
+    act(() => result.current.resetCreateProgress());
+    await act(async () => { await result.current.handleSave(data, pets); });
+    expect(createMutateAsyncMock).toHaveBeenCalledTimes(4);
   });
 });

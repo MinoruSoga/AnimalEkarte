@@ -43,7 +43,7 @@ lipo -create \
 chmod 700 "$output_dir/lab-device-agent"
 
 cp "$repo_dir/packaging/macos/com.animalekarte.lab-device-agent.plist" "$output_dir/com.animalekarte.lab-device-agent.plist"
-plutil -replace ProgramArguments.2 -string "$clinic_id"
+plutil -replace ProgramArguments.2 -string "$clinic_id" "$output_dir/com.animalekarte.lab-device-agent.plist"
 plutil -replace ProgramArguments.6 -string "$allowed_origin" "$output_dir/com.animalekarte.lab-device-agent.plist"
 plutil -lint "$output_dir/com.animalekarte.lab-device-agent.plist" >/dev/null
 cp "$repo_dir/packaging/macos/install-lab-device-agent.sh" "$output_dir/install.sh"

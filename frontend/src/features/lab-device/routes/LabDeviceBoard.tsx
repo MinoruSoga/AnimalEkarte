@@ -382,7 +382,7 @@ export function LabDeviceBoard() {
                   if (!isLabDeviceAttachPersisted(attached)) {
                     toast.error(
                       labDeviceCardNeedsReview(attached)
-                        ? "{labDeviceNeedsReviewReason(card)}"
+                        ? `保存できませんでした（${labDeviceNeedsReviewReason(attached)}）`
                         : "保存できませんでした。未紐付けのままです",
                     );
                   }
@@ -412,7 +412,7 @@ export function LabDeviceBoard() {
                       if (!isLabDeviceAttachPersisted(attached)) {
                         toast.error(
                           labDeviceCardNeedsReview(attached)
-                            ? "{labDeviceNeedsReviewReason(card)}"
+                            ? `保存できませんでした（${labDeviceNeedsReviewReason(attached)}）`
                             : "保存できませんでした。未紐付けのままです",
                         );
                       }

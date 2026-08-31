@@ -137,7 +137,10 @@ export function useReservationActions({
   const { mutate: deleteReservationFn } = deleteMutation;
   const [, startUpdateTransition] = useTransition();
   const [, startDeleteTransition] = useTransition();
-  const createdPetIdsByRequestRef = useRef(new Map<string, Set<string>>());
+  const createdPetIdsRef = useRef(new Set<string>());
+  const resetCreateProgress = useCallback(() => {
+    createdPetIdsRef.current.clear();
+  }, []);
 
   const checkOverlap = useCallback(
     (newStart: Date, newEnd: Date, doctor: string, excludeId?: string): boolean =>
@@ -219,17 +222,9 @@ export function useReservationActions({
       }
 
       try {
-        const requestKey = JSON.stringify({
-          start: data.start.toISOString(),
-          end: data.end.toISOString(),
-          visitType: data.visitType,
-          type: data.type,
-          doctor: targetDoctor,
-          isDesignated: data.isDesignated ?? false,
-          status: data.status ?? "confirmed",
-          notes: data.notes ?? "",
-        });
-        const alreadyCreated = createdPetIdsByRequestRef.current.get(requestKey) ?? new Set<string>();
+        // Keep fulfilled pets for the lifetime of the open create modal. Form corrections
+        // must not make already-created pets eligible again after a partial failure.
+        const alreadyCreated = createdPetIdsRef.current;
         const pendingPets = selectedPets.filter((pet) => !alreadyCreated.has(pet.id));
         const results = await Promise.allSettled(
           pendingPets.map(async (pet) => {
@@ -244,7 +239,6 @@ export function useReservationActions({
         });
 
         if (rejected.length > 0) {
-          createdPetIdsByRequestRef.current.set(requestKey, alreadyCreated);
           const reason = extractApiErrorMessage(rejected[0].reason, "作成");
           if (alreadyCreated.size > 0) {
             toast.success(`${alreadyCreated.size}件の予約を作成しました`, {
@@ -254,7 +248,7 @@ export function useReservationActions({
           return reason;
         }
 
-        createdPetIdsByRequestRef.current.delete(requestKey);
+        resetCreateProgress();
         toast.success(`${selectedPets.length}件の予約を作成しました`, {
           description: `担当医: ${targetDoctor}`,
         });
@@ -272,6 +266,7 @@ export function useReservationActions({
       editingAppointmentRef,
       handleCloseForm,
       navigateBackIfNeeded,
+      resetCreateProgress,
       updateReservationFn,
     ],
   );
@@ -373,5 +368,6 @@ export function useReservationActions({
     handleStatusChange,
     executeStatusChange,
     executeDelete,
+    resetCreateProgress,
   };
 }

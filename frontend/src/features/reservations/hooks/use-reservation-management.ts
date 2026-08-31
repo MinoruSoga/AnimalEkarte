@@ -89,6 +89,7 @@ export function useReservationManagement({ currentDate, view, days, clinicIds, c
     handleStatusChange,
     executeStatusChange,
     executeDelete,
+    resetCreateProgress,
   } = useReservationActions({
     appointments,
     editingAppointmentRef,
@@ -105,6 +106,12 @@ export function useReservationManagement({ currentDate, view, days, clinicIds, c
     navigate,
     createMutations,
   });
+
+
+  const handleCloseFormAndReset = useCallback(() => {
+    resetCreateProgress();
+    handleCloseForm();
+  }, [handleCloseForm, resetCreateProgress]);
 
   const handleDelete = useCallback((reservation: Reservation) => {
     setDeleteTarget(reservation);
@@ -137,7 +144,7 @@ export function useReservationManagement({ currentDate, view, days, clinicIds, c
     isFormOpen,
     editingAppointment,
     handleOpenForm,
-    handleCloseForm,
+    handleCloseForm: handleCloseFormAndReset,
     handleSave,
 
     // Detail modal
