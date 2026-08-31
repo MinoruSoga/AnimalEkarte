@@ -31,6 +31,9 @@ make reset
 | 2. 回復 snapshot | `umask 077` で追跡外 `.local-db-backups/<UTC>/` に owner-only の gzip 済み `pg_dumpall`、SHA-256、対象 volume + DDL/seed key manifest を作成。空 dump / 空 digest / 書き込み失敗なら **ここで停止**（volume は消さない）。 |
 | 3. 削除 | サービス停止（named volume は保持）。**`ekarte-postgres-data` だけ**を `docker volume rm`。cache 3 件（`ekarte-frontend-node-modules` / `ekarte-go-mod-cache` / `ekarte-go-build-cache`）は保持。 |
 | 4. 再起動 + postflight | `db backend frontend` を `--wait` で起動。migration key coverage `missing=0`、直下 DDL 全件、seed `002_master`、`schema_migrations` 契約、backend healthy、`/health` HTTP 200 を確認。不足があれば非 0。 |
+| 5. staged handoff 取込（条件付き） | `backend/migrations/seeds/_old_db_handoff/` に manifest 付き bundle があれば、local に限って自動取込する。対象 clinic の clinical / owner / catalog 行を cleanup transaction で削除・commit した後、別の `csv-import` apply / verify で handoff 内容を投入する。後段が失敗すると cleanup 済みの reset DB を残して非 0 で停止する。取込を行わない場合は `make reset` の前に `_old_db_handoff/` を repo 外へ移動する（または削除する）。 |
+
+段階 5 は postflight の後に動くため、失敗しても段階 1〜4 の DB 再構築は巻き戻りません。staged bundle を残したまま `make reset` を実行することは、その clinic の local 行を handoff 内容へ置換する明示的な選択です。
 
 ### 2.1 失われるもの / 保持されるもの
 

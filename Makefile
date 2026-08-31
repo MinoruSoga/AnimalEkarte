@@ -67,7 +67,7 @@ clean:
 #   1) project/volume を固定値と compose 実測で照合（他環境は拒否）
 #   2) umask 077 で .local-db-backups/<UTC>/ に pg_dumpall + sha256 + manifest
 #   3) サービス停止後 ekarte-postgres-data のみ削除（cache 3 volume は保持）
-#   4) 再起動 + missing=0 / DDL / 002_master,003_demo,004_staging /health を fail-closed 確認
+#   4) 再起動 + missing=0 / DDL / 002_master /health を fail-closed 確認
 # snapshot 失敗時は volume 削除へ進まない。compose の全 volume 一括削除は使わない。
 # --wait の wait-set（db backend frontend, codegen 除外）は contract スクリプト側。
 reset:
