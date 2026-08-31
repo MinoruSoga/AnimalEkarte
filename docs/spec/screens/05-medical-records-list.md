@@ -1,7 +1,5 @@
 # カルテ一覧 仕様書 (Medical Records List)
 
-![カルテ一覧画面](./images/05-medical-records-list.png)
-
 ## 概要
 - **画面の目的**: 院内で行われた全診療記録（電子カルテ）の時系列検索、および診察内容の参照。
 - **URLパターン**: `/medical-records`

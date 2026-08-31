@@ -3,7 +3,7 @@
 ## 概要
 - **画面の目的**: 検査オーダーの作成、および臨床検査値（数値・判定）の精緻な記録。
 - **URLパターン**: 
-  - 検査管理からの新規: `/medical-records/new?petId=xxx&tab=検査`（当日カルテの検査タブ）
+  - 検査管理からの新規: `/examinations/new?petId=xxx`
   - 未紐付け・検歴: `/examinations/:id`
 - **アクセス権限**: `examinations` リソースの `view` 権限（ルートを `RequirePermission` でガード。新規作成ルート `/examinations/new` は `create` アクション必須）。操作ボタンの出し分けは `usePermission` で制御。
 
@@ -63,7 +63,7 @@
 - **`ExaminationForm`**: 統合フォーム。
 - **`ExaminationFormFields`**: 検査種別・担当医等の基本情報フィールド。
 - **`ExamItemsTable`**: 選択された検査種別の項目テンプレ（`exam_type_fields`、`useGetExamTypeFields` で取得）を描画する動的テーブル。確定済み検査では入力不可。
-- **`ExaminationHistoryPanel`**: 右カラムの同一ペット検査履歴（§1.3）。
+- **`ExaminationHistoryPanel`**: 右カラムの同一ペット検査履歴（§1.4）。
 - **`NavigationBlocker`** + **`useUnsavedChanges`**: 未保存データ保護（§2.3）。
 
 ### API連携

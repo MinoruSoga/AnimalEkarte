@@ -43,7 +43,7 @@
 ## 技術仕様
 
 ### 権限制御 (RBAC)
-ポータル画面自体は全ユーザーが閲覧可能ですが、個別のマスタへのアクセスおよび操作権限は、`ResourceMasterMedical`, `ResourceMasterStaff`, `ResourceMasterTrimming` 等のリソースキーに基づき、バックエンドのハンドラー層で厳格に認可チェック（`RequirePermission`）が適用されます。
+ポータルは認証 `Layout` 内で全ユーザーが閲覧可能です。カードは `usePermission` / `hasPermission` で表示を絞り、個別フロントエンドルートは `RequirePermission` でガードします。各 API は同じ resource/action をサーバー側でも認可します。
 
 ### 使用コンポーネント
 - **`MasterSettingsIndex`**: メインコンテナ。

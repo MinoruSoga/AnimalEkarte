@@ -37,13 +37,13 @@
 - **Supplement (補足)**: 注意事項等。
 
 ### 2.2 保存プロセス
-- **メイン保存**: 画面右下のフローティング「保存」ボタン（`MedicalRecordFloatingActions`）は、アクティブタブに応じて送信先を切り替える。「問診」タブは `PATCH /medical-records/:id/inquiries`（主訴・主訴区分・治療方針）、「診察/治療プラン」タブは `PATCH /medical-records/:id/clinical-plan`（治療方針・診断詳細・診断名）と `PATCH /medical-records/:id`（次回来院推奨日）を送信する。他タブではカルテ本体の送信は行われない（`PATCH /medical-records/:id` へまとめて送信する方式ではない）。
+- **メイン保存**: 画面右下のフローティング「保存」ボタン（`MedicalRecordFloatingActions`）は、アクティブタブに応じて送信先を切り替える。「問診」タブは `PATCH /medical-records/:id/inquiries`（主訴・主訴区分・治療方針）、「診察/治療プラン」タブは `PATCH /medical-records/:id/clinical-plan`（治療方針・診断詳細・診断名）と `PATCH /medical-records/:id`（次回来院推奨日）を送信する。他タブではカルテ本体の送信は行われない（`PATCH /medical-records/:id` へまとめて送信する方式ではない）。予防接種タブでは偽成功を避けるため外側の保存ボタン自体を表示せず、タブ内の接種記録追加を使う。
 - **ヘッダー即時保存**: 担当医・来院種別・診察日・次回予定はヘッダー変更と同時に `PATCH /medical-records/:id` する（保存ボタンを経由しない）。来院種別の成功後は `queryKeys.medicalRecords.detail` を invalidate し、再読込でラベルが戻らないようにする。失敗時はローカル state をロールバックする。appointment 紐付き通常カルテの `date` は予約開始の JST 日付に固定され、変更は BE Conflict（UI は未紐付け時のみ成功する。正本は [99-medical-record-flow.md](./99-medical-record-flow.md) / [reservation-to-record-flow.md](../reservation-to-record-flow.md) §5.5）。
 - **アクティブタブの追加保存**: 保存成功直後、その時点で開いているタブが「診察/治療プラン」または「見積書」の場合のみ、`useMedicalRecordPostSave` が対応する登録済みコールバックを追加実行する（他タブ在中時は発火しない。両タブを並行実行することもない）。見積タブは `items` を create/update 同一 tx で置換永続化する（独立画面 `/estimates` はヘッダ金額のみ。詳細は [23-estimate-form.md](./23-estimate-form.md)）。
 - **治療・検査等のサブリソース**: 「治療」タブの明細は行単位の追加/編集/削除操作ごとに `/medical-records/:id/treatments...` へ個別・即時送信される（メイン保存とは独立しており、「バックグラウンド並行保存」ではない）。
 
 ### 2.3 臨床安全ガード
-- **確定ロック**: `finalized`（確定済）ステータスのカルテはバックエンドが更新を拒否し（409）、訂正は追記（addendum）のみ許可することで真正性を担保。確定への遷移は `PATCH /medical-records/:id` の `status` 指定によるもの。画面右下のフローティングアクション（`MedicalRecordFloatingActions`）に「確定する」ボタンが表示され（編集権限あり・保存済み・未確定の場合のみ）、`MedicalRecordFinalizeDialog` で不可逆であることを確認した上で確定する。確定取り消し（unfinalize）API は存在しないため、確定後の修正経路は訂正追記（addendum）のみ。会計完了時の自動確定は現状存在しない。確定済みカルテはサイドヘッダーに「確定済」バッジ（`StatusBadge`）を常時表示する。
+- **確定ロック**: `finalized`（確定済）ステータスのカルテはバックエンドが更新を拒否し（409）、訂正は追記（addendum）のみ許可することで真正性を担保。確定への遷移は `PATCH /medical-records/:id` の `status` 指定によるもの。画面右下のフローティングアクション（`MedicalRecordFloatingActions`）に「確定する」ボタンが表示され（編集権限あり・保存済み・未確定の場合のみ）、会計(医師確認)が `confirmed` の場合だけ有効になる。未確認・差戻し・取得中・取得失敗・確認状態なしでは「会計確認が未完了です」として確定を物理ブロックする。有効時は `MedicalRecordFinalizeDialog` で不可逆であることを確認した上で確定する。確定取り消し（unfinalize）API は存在しないため、確定後の修正経路は訂正追記（addendum）のみ。会計完了時の自動確定は現状存在しない。確定済みカルテはサイドヘッダーに「確定済」バッジ（`StatusBadge`）を常時表示する。
 - **訂正追記モーダル**: `AddendumModal` の修正内容・修正理由は controlled input。バリデーション失敗後も入力済みの値を保持する（React 19 `useActionState` の remount で消えない）。修正理由は 500 文字以内。
 - **薬量自動計算と絶対上限ゲート（#201）**: 「治療」タブの処方明細（`TreatmentRow`）は、対象ペットの species と当日 vital 体重から数量を自動プリフィルする（`calculateDose`）。保存値がマスタ上限（体重連動上限 weight×max_mg/kg と体重非依存の絶対上限 absolute_max_dose の小さい方）を超える場合、フロントエンドは理由をインライン表示して追加・更新を送信せず、バックエンドも Create/Update の永続化前に 400 で拒否する。`ConfirmDialog` による解除経路は設けない。下限未満または推奨値からの著しい乖離は保存を許可して audit に記録する。体重未記録・species 正規化不能・投与量パラメータ未設定時は評価をスキップして従来どおり保存を継続する。パラメータ取得の非 NotFound エラーと species 不一致は既存どおり fail-closed とする。権限付き例外フロー（Design B）は実装しない。
 - **未保存警告**: 変更がある状態でページを離れようとすると `NavigationBlocker` が警告を表示。

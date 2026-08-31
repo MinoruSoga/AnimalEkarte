@@ -3,7 +3,7 @@
 ## 概要
 - **画面の目的**: ワクチン接種等の詳細記録（ロット番号）の編集、および次回予定日の管理。
 - **URLパターン**: 
-  - 新規作成: カルテ「予防接種」タブから行う（`/vaccinations/new` は `/vaccinations/select-pet` へリダイレクト）
+  - 新規作成: `/vaccinations/new?petId=xxx`（`petId` 未指定時はペット選択へ誘導）。カルテ「予防接種」タブにも別の入力実装がある
   - 編集: `/vaccinations/:id`
 - **アクセス権限**: 親 `/vaccinations` は `ResourceVaccinations` **`view`**。`:id` は親 view 継承、保存/削除は `usePermission`
 
