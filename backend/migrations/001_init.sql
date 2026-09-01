@@ -5607,7 +5607,7 @@ ALTER TABLE estimates
   ADD CONSTRAINT fk_estimates_pet_clinic
   FOREIGN KEY (clinic_id, pet_id)
   REFERENCES pets (clinic_id, id)
-  ON DELETE SET NULL;
+  ON DELETE SET NULL (pet_id);
 
 CREATE INDEX IF NOT EXISTS idx_estimates_clinic_pet
   ON estimates (clinic_id, pet_id)

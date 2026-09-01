@@ -90,7 +90,7 @@ func TestNewReservationCompositionBuildsTargetOwnedGraph(t *testing.T) {
 	router := gin.New()
 	handler.RegisterRoutes(router.Group("/api/v1"))
 	handler.RegisterLiffRoutes(router)
-	require.Len(t, router.Routes(), 63)
+	require.Len(t, router.Routes(), 64)
 }
 
 func TestNewReservationComposition_InjectsLineCredentialCipherClosures(t *testing.T) {
