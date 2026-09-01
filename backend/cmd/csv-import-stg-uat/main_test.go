@@ -194,10 +194,10 @@ func TestRunWithDependenciesImportSequencesPreflightApplyVerify(t *testing.T) {
 	}
 	reportPath := filepath.Join(root, "import.json")
 	target := &fakeCutoverTarget{applyResult: csvimport.CutoverResult{
-			CompletedAt: time.Date(2026, 9, 1, 1, 2, 3, 0, time.UTC),
-			ClinicCode:  "hachioji",
-			RunID:       "run-1",
-			Counts:      map[string]int64{"owners": 2},
+		CompletedAt: time.Date(2026, 9, 1, 1, 2, 3, 0, time.UTC),
+		ClinicCode:  "hachioji",
+		RunID:       "run-1",
+		Counts:      map[string]int64{"owners": 2},
 	}}
 	deps := testRunDependencies(t, testCLIBundle(), target)
 	deps.reportRoot = root
