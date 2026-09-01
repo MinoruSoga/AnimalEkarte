@@ -289,7 +289,7 @@ export function useReservationActions({
 
   const handleReservationUpdate = useCallback(
     (reservation: Reservation, newStart: Date, newEnd: Date) => {
-      const hasOverlap = checkOverlap(newStart, newEnd, reservation.doctor, reservation.id);
+      const hasOverlap = checkOverlap(newStart, newEnd, reservation.doctorId ?? "", reservation.id);
 
       if (hasOverlap) {
         toast.error("移動先に予約が重複しています", {

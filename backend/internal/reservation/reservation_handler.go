@@ -209,8 +209,11 @@ func (h *ReservationHandler) CreateReservationBatch(c *gin.Context) {
 		return
 	}
 	for _, reservation := range reservations {
-		if shouldAutoCreateMedicalRecordForReservation(&reservation) && h.medicalRecord != nil {
-			h.medicalRecord.AutoCreateFromReservation(c.Request.Context(), clinicID, &reservation)
+		// CreateBatch constructs rows without preloads. Reload so the shared predicate can
+		// reliably exclude trimming and other non-clinical reservation types.
+		loaded, loadErr := h.svc.GetByID(c.Request.Context(), clinicID, reservation.ID)
+		if loadErr == nil && shouldAutoCreateMedicalRecordForReservation(loaded) && h.medicalRecord != nil {
+			h.medicalRecord.AutoCreateFromReservation(c.Request.Context(), clinicID, loaded)
 		}
 	}
 	c.JSON(http.StatusCreated, httpapi.MapSlice(reservations, toReservationResponse))
