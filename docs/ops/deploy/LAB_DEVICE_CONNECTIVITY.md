@@ -5,7 +5,7 @@
 
 **Drワンは組み込まない。** `source_type=drwan` は閉じる。`mkan.mdb` を読まない。
 
-**日常経路（2026-08-19）:** ファイルアップロードしない。検査用 Mac の `/lab-device` が有線シリアルを読む。UI は1画面（待機 + 未紐付け欄）。正本は `todo.md` 城東節と Linear BRT-94〜100。城東3種（`fuji_nx600` / `fuji_au10v` / `arkray_pu4010`）は AE-LAB-0〜4 済み。
+**日常経路（2026-08-31）:** ファイルアップロードしない。検査用 Mac のユーザー LaunchAgent `lab-device-agent` が有線シリアルを所有し、`127.0.0.1:17654` の loopback HTTP でフレームを公開する。ブラウザの `/lab-device` はその agent に接続してフレームを API へ送るだけで、シリアルを直接読んだり開いたりしない。UI は1画面（待機 + 未紐付け欄）。正本は `todo.md` 城東節と Linear BRT-94〜100。城東3種（`fuji_nx600` / `fuji_au10v` / `arkray_pu4010`）は AE-LAB-0〜4 済み。
 
 外部 sibling 資料（存在する場合のみ）— シリアル枠: `../../../../old_db/docs/lab-go/go-impl/device-serial-adapter.md`
 3台マスタ: `../../../../old_db/docs/lab-go/go-impl/device-item-master.md`
@@ -24,7 +24,8 @@ IDEXX は **JOU-LAB-X**。`idexx_vetlab` は decoder / persist / 既定slotを�
 
 ```
 現行: 機器 --COM--> Windows 7 --> Drワン --> 現行カルテ
-あと: 同じ口 --USB-Serial--> 検査機器用 Mac の /lab-device --> lab-imports
+あと: 同じ口 --USB-Serial--> 検査機器用 Mac の LaunchAgent `lab-device-agent`
+                                      --loopback HTTP (127.0.0.1:17654)--> ブラウザ `/lab-device` --> lab-imports
 ```
 
 Win7 の COM 番号を Mac の `/dev/cu.*` だと思わない。口はつなぐたびに増えた行。
@@ -155,8 +156,8 @@ Drワン `mdconM` に総蛋白・黄疸指数・フィラリア・FIV/FeLV・PCV
 | --- | --- |
 | 2026-08-17 | 初版。医院疎通と実装入口 |
 | 2026-08-18 | 3台 Mac 受信。アダプタ仕様は old_db |
-| 2026-08-19 | `/lab-device` 直読。AE-LAB-0〜4 |
+| 2026-08-19 | `/lab-device` の旧 browser direct-serial 経路。AE-LAB-0〜4 |
 | 2026-08-20 | 城東 `mdcon` 確定。IDEXX PIMS シリアルと Drワン内部コード帯を追記。MDB は入力にしない |
-| 2026-08-31 | runtime と同期。4 source type、VetLab decoder / persist / 既定slot実装済み、医院常時運用は未承認と明記 |
+| 2026-08-31 | LaunchAgent がシリアルを所有し、browser は loopback HTTP 接続のみと明記。4 source type、VetLab decoder / persist / 既定slot実装済み、医院常時運用は未承認 |
 
 *患者データ・認証情報・機器識別子の生値は記入しない。*

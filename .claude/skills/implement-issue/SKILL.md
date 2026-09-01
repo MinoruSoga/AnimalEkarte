@@ -1,24 +1,21 @@
 ---
 name: implement-issue
-description: "repo 直下のローカル台帳にあるタスクID（STATUS.md の TASK-XXX / STATUS.md の BUG-XXX）を指定して、コード規約準拠の実装 → セルフレビュー → タスククローズ（台帳更新）までを自動化する。`/implement TASK-027` のように使用。旧 3-session-agent.html#ledger 台帳・BE-XXX / FE-XXX・docs/tasks 体系は廃止済み（経緯は git 履歴参照）。"
+description: "Linear Issue を指定して、コード規約準拠の実装 → セルフレビュー → Linear の証跡更新までを行う。`/implement BRT-123` のように使用。実行 SoT は Linear、今期外・見送り判断は docs/work/phase2-deferred.md。"
 ---
 
 # Implement Issue — タスク実装ワークフロー
 
-repo 直下のローカル台帳（`STATUS.md`）にある該当タスク節を読み込み、コード規約に準拠した実装 → セルフレビュー → クローズ処理までを実行する。
+Linear の該当 Issue を読み込み、コード規約に準拠した実装 → セルフレビュー → 証跡更新までを実行する。
 
-> **パス正本の注意**: 旧 `3-session-agent.html#ledger` 台帳は **2026-07-31 廃止**（同ファイルは GitHub Issue 分類ビューへ転換）。旧 `backend/issues/` / `frontend/issues/`・docs/tasks 体系も廃止済み（経緯は git 履歴参照）。
-> 現行のローカル台帳は 2 ファイル（いずれも repo 直下・git 追跡・変更はコミット対象・ローカル連番）:
-> - `TASK-XXX` → `STATUS.md`（残タスク台帳。索引/サマリー表 + `## 個別タスク詳細` の `### TASK-XXX:` 節）
-> - `BUG-XXX` → `STATUS.md`（受入テストバグ台帳。`## BUG-XXX:` 節 + `### 実装計画`）
+> **SoT の注意**: 実行タスク、仕様、受け入れ条件、状態、依存関係は Linear Issue が正本。今期外・見送りの索引は [`docs/work/phase2-deferred.md`](../../../docs/work/phase2-deferred.md) であり、実装台帳ではない。削除済み root ledger や旧 HTML を現在の依存関係・完了状態の根拠に使わない。
 >
-> タスクが GitHub Issue（`#NNN` / `ISSUE-XXX`）を参照する場合、仕様・受け入れ条件の正本は該当 Issue 本文とコメント（`gh issue view <NNN>`）。
+> GitHub Issue（`#NNN`）が Linear Issue から参照される場合は、仕様・受け入れ条件について該当 Issue 本文とコメント（`gh issue view <NNN>`）も確認する。
 
 ## 起動トリガー
 
-- `/implement <タスクID>`（例: `/implement TASK-027`）— `TASK-XXX` は `STATUS.md`、`BUG-XXX` は `STATUS.md` から grep で検索
-- 引数なしの場合: `STATUS.md` 索引表と `STATUS.md` 対応状況サマリの open タスクID一覧を表示し、ユーザーに選択させる
-- 旧 `BE-XXX` / `FE-XXX` 番号を指定された場合: git 履歴（`git log --all -- docs/archive/` / `git show <rev>:<path>`）で経緯確認のみ行い、新規実装には使わない
+- `/implement <Linear ID>`（例: `/implement BRT-123`）— Linear で Issue 本文・状態・コメントを確認する
+- 引数なしの場合: `docs/work/phase2-deferred.md` は見送り索引であることを示し、実装対象の Linear ID をユーザーに求める
+- 旧 `TASK-XXX` / `BUG-XXX` / `BE-XXX` / `FE-XXX` を指定された場合: git 履歴で経緯確認のみ行い、現在の実装対象は対応する Linear Issue を確認してから決める
 
 引数は `$ARGUMENTS` 変数で受け取る。
 
@@ -28,38 +25,29 @@ repo 直下のローカル台帳（`STATUS.md`）にある該当タスク節を�
 
 ### 1.1 引数解析
 
-- タスクID → 台帳（`TASK-XXX` = `STATUS.md`・`BUG-XXX` = `STATUS.md`）の該当節を grep で検索:
+- Linear ID → Linear で該当 Issue の本文、コメント、状態、親子関係を確認する。
+- repo 内の見送り判断だけを確認する必要がある場合:
 
 ```bash
-grep -n '<タスクID>' STATUS.md
+grep -n '<キーワード>' docs/work/phase2-deferred.md
 ```
-
-- 引数なし → 以下を実行して open タスクID一覧を表示:
-
-```bash
-# 台帳のタスクID一覧（Linear が実行 SoT。repo 内の今期外索引も確認する場合）
-sed -n '1,120p' docs/work/phase2-deferred.md
-```
-
-着手保留は [`docs/work/phase2-deferred.md`](../../../docs/work/phase2-deferred.md) が担う。
-ユーザーに番号またはタスクIDを選択させる。
 
 ### 1.1b claim 確認（着手前必須・AGENTS.md packet claim protocol）
 
 ```bash
-git branch --list 'claim/<タスクID>'
+git branch --list 'claim/<Linear ID>'
 ```
 
-非空なら**ハードストップ**: claim ブランチ名を挙げて BLOCKED を報告し、編集しない。空なら `git branch claim/<タスクID>` で取得してから着手する（取得失敗も BLOCKED）。claim ブランチの削除（解放）は main 統合後の USER 専権 — エージェントは自他を問わず削除しない。
+非空なら**ハードストップ**: claim ブランチ名を挙げて BLOCKED を報告し、編集しない。空なら `git branch claim/<Linear ID>` で取得してから着手する（取得失敗も BLOCKED）。claim ブランチの削除（解放）は main 統合後の USER 専権 — エージェントは自他を問わず削除しない。
 
 ### 1.2 タスクセクション読み込み
 
-台帳の該当節（`STATUS.md` の `### <タスクID>:` 節 / `STATUS.md` の `## <バグID>:` 節と `### 実装計画`）を Read で読み込み、以下を抽出:
+Linear Issue 本文・コメント・リンク先仕様を読み込み、以下を抽出:
 - **問題**: 何が問題か・実装内容の概要
 - **根拠**: 対象ファイル・行番号・現状コードの実測情報
 - **修正方針**: 採用案・参照実装・具体的なコード変更指示
 - **受け入れ条件**: 検証可能な完了条件
-- **状態**: 優先度・依存タスク（`TASK-XXX` 等）・前提条件
+- **状態**: 優先度・Linear の依存 Issue・前提条件
 
 ### タスクセクション記載の実測再検証（着手前必須）
 
@@ -69,17 +57,16 @@ git branch --list 'claim/<タスクID>'
 
 ### 1.3 依存関係チェック
 
-- 「状態」等に記載された前提タスクが `STATUS.md` にも `phase2.html` にも**残っていなければ完了済み**とみなす（完了記録の正本は git 履歴: `git log --all -- STATUS.md`。旧 HTML 台帳期の経緯は `git log --all -- 3-session-agent.html` で確認可）
-- 前提タスクが台帳または `phase2.html` に残存する場合:
-  - ユーザーに警告: 「<前提ID> が未完了。先に実装するか？」
+- Linear の依存関係と各前提 Issue の状態を確認する。完了状態の正本は Linear であり、ローカル検索の不一致から完了を推定しない。
+- `docs/work/phase2-deferred.md` に再開条件がある場合は、Linear Issue の owner と再開条件が満たされるまで着手しない。
+- 依存 Issue が未完了の場合、ユーザーに警告する: 「<前提ID> が未完了。先に実装するか？」
 
 ```bash
-# 依存タスクの残存確認（ヒットしなければ完了済み）
-grep -n '<前提ID>' STATUS.md phase2.html
-# 旧イシュー体系（BE-XXX / FE-XXX）の経緯は git 履歴で確認
+# 見送り判断の確認（ヒットは実装可否ではなく再開条件を意味する）
+grep -n '<前提ID>' docs/work/phase2-deferred.md
+# 旧番号体系の経緯だけを確認する場合
 git log --all --oneline -- 'docs/archive/**' | head
 ```
-
 ---
 
 ## Phase 2: コンテキスト収集
@@ -225,29 +212,24 @@ Lint エラー・型エラー・テスト失敗・規約違反があれば修正
 
 ## Phase 5: クローズ処理
 
-### 5.1 台帳の該当節を更新
+### 5.1 Linear Issue を更新
 
-- **TASK-XXX（`STATUS.md`）**: 索引/サマリー表の該当行を実測結果（**DONE** + commit hash。残余があれば residual を明記）へ更新し、`## 個別タスク詳細` の該当 `### <タスクID>:` 節を**丸ごと削除**する。STATUS.md は open のみの台帳 — 完了詳細を残さない。
-- **BUG-XXX（`STATUS.md`）**: 該当 `## <バグID>:` 節の `対応状況` 行を更新する（実装直後は `IMPLEMENTED_UNVERIFIED` + commit hash。`VERIFIED_FIXED` はブラウザ/runtime 再検証後のみ）。冒頭の件数サマリ行も整合させる。
+Linear Issue に実装コミット、変更概要、実行した検証コマンドと結果、残余リスクを記録する。状態遷移はレーンの承認手順に従い、実装者が Done を自己遷移しない。
 
-「closed への移動」という概念はもう無い — 完了記録は git 履歴が正本（コミットメッセージに実装内容を残す）。
+### 5.2 関連 Issue の確認
 
-### 5.2 関連記述の更新
-
-同じ親タスク・Wave・クラスタの関連記述に該当 ID が列挙されている場合、その記述も現状に合わせて更新する。
-
-`STATUS.md` は **git 追跡ファイル**なので、この変更は実装コミットのコミット対象に含める（`git commit -- <paths>` で path 限定）。
+同じ親 Issue・Wave・クラスタの関連 Issue がある場合、影響と残余を Linear に記録する。`docs/work/phase2-deferred.md` は見送り判断専用であり、実装結果を書き足さない。
 
 ### 5.3 claim 報告（解放は USER 専権）
 
-claim ブランチ（`claim/<タスクID>`）は**削除しない**。実装コミット完了後にブランチ名をユーザーへ報告し、main 統合後の解放（`git branch -D`）は USER が行う（AGENTS.md packet claim protocol）。
+claim ブランチ（`claim/<Linear ID>`）は**削除しない**。実装コミット完了後にブランチ名をユーザーへ報告し、main 統合後の解放（`git branch -D`）は USER が行う（AGENTS.md packet claim protocol）。
 
 ### 5.4 完了報告
 
 以下のフォーマットでユーザーに報告:
 
 ```
-## 実装完了: <タスクID>
+## 実装完了: <Linear ID>
 
 ### 変更ファイル
 - `path/to/file1.tsx` — 変更内容
@@ -259,8 +241,8 @@ claim ブランチ（`claim/<タスクID>`）は**削除しない**。実装コ�
 - 全体 lint/test: ユーザー手動実行待ち（コマンド提示済み）
 
 ### タスク
-- <タスクID> → 台帳更新済み（STATUS.md: 索引 DONE 化 + 詳細節削除 / STATUS.md: 対応状況行更新。関連記述も更新・コミット対象。完了記録は git 履歴）
-- claim/<タスクID> 保持中 — main 統合後に USER が解放
+- <Linear ID> → Linear にコミット・検証結果・残余を記録済み（Done 遷移は承認手順に従う）
+- claim/<Linear ID> 保持中 — main 統合後に USER が解放
 ```
 
 ---
@@ -269,7 +251,7 @@ claim ブランチ（`claim/<タスクID>`）は**削除しない**。実装コ�
 
 | 状況 | 対応 |
 |------|------|
-| タスクIDが `STATUS.md` に見つからない | `phase2.html` の着手保留項目と両台帳の git 履歴を確認し、どちらにも無ければユーザーにIDの確認を求める |
+| Linear Issue が見つからない | `docs/work/phase2-deferred.md` の再開条件と git 履歴を補助的に確認し、対応する Linear ID をユーザーに求める |
 | 依存イシューが未完了 | 警告表示、ユーザーに続行確認 |
 | Docker コンテナ未起動 | `make up` の実行を提案 |
 | Lint/Build 失敗 | エラー内容を表示し、Phase 3 に戻って修正 |

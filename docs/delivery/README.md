@@ -32,7 +32,7 @@
 ## 要追従（本 docs refresh の編集範囲外）
 
 - `docs/ops/infra/production/runbook.md` §4: backup acquisition contract の必須欄を埋め、approved method と receipt を外部証跡で確定する。未確定の間は GOLIVE を HOLD とする。
-- frontend 埋め込みマニュアルと不可逆カルテ操作、backend の未登録 `VoidReopen` 経路、`.claude/CLAUDE.md` 圧縮要約: [OPERATION_MANUAL.md §12](OPERATION_MANUAL.md#source-doc-followups) を参照する。
+- frontend 埋め込みマニュアルと不可逆カルテ操作、`.claude/CLAUDE.md` 圧縮要約: [OPERATION_MANUAL.md §12](OPERATION_MANUAL.md#source-doc-followups) を参照する。
 
 ## 運用ルール
 

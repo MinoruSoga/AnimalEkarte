@@ -23,7 +23,6 @@ import (
 type mockCashRegisterCloseRepository struct {
 	createFn              func(ctx context.Context, c *model.CashRegisterClose) error
 	createAdjustmentFn    func(ctx context.Context, adj *model.CashRegisterCloseAdjustment) error
-	voidFn                func(ctx context.Context, clinicID, id uint64) error
 	findAllFn             func(ctx context.Context, clinicID uint64, startDate, endDate *time.Time, page, limit int) ([]model.CashRegisterClose, int64, error)
 	findByIDFn            func(ctx context.Context, clinicID, id uint64) (*model.CashRegisterClose, error)
 	findByDateAndPeriodFn func(ctx context.Context, clinicID uint64, date time.Time, period string) (*model.CashRegisterClose, error)
@@ -40,13 +39,6 @@ func (m *mockCashRegisterCloseRepository) Create(ctx context.Context, c *model.C
 func (m *mockCashRegisterCloseRepository) CreateAdjustment(ctx context.Context, adj *model.CashRegisterCloseAdjustment) error {
 	if m.createAdjustmentFn != nil {
 		return m.createAdjustmentFn(ctx, adj)
-	}
-	return nil
-}
-
-func (m *mockCashRegisterCloseRepository) Void(ctx context.Context, clinicID, id uint64) error {
-	if m.voidFn != nil {
-		return m.voidFn(ctx, clinicID, id)
 	}
 	return nil
 }

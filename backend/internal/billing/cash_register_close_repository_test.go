@@ -146,7 +146,7 @@ func TestCashRegisterCloseRepository_CreateAdjustment_ReasonRequired(t *testing.
 }
 
 func TestCashRegisterCloseRepository_AppendOnlyContract_NoDeleteMethod(t *testing.T) {
-	// 通常経路に一般 Update は無い。BUG-032 の Void は特権取消の明示 API のみ。
+	// 通常経路に一般 Update/Delete は無い。締め記録は append-only。
 	db := setupCashRegisterCloseTestDB(t)
 	repo := NewCashRegisterCloseRepository(db)
 	ctx := context.Background()
@@ -157,14 +157,14 @@ func TestCashRegisterCloseRepository_AppendOnlyContract_NoDeleteMethod(t *testin
 	require.NotNil(t, got)
 	assert.Equal(t, c.ID, got.ID)
 
-	// Void なしの再 Create は拒否される。
+	// 同一キーの再 Create は拒否される。
 	err = repo.Create(ctx, &model.CashRegisterClose{
 		ClinicID:          1,
 		CloseDate:         time.Date(2026, 6, 5, 0, 0, 0, 0, time.UTC),
 		Period:            "emg",
 		CategoryBreakdown: json.RawMessage(`{}`),
 	})
-	require.Error(t, err, "同一 date/period の再 Create は Void なしでは不可")
+	require.Error(t, err, "同一 date/period の再 Create は不可")
 }
 
 func TestCashRegisterCloseRepository_FindAll(t *testing.T) {

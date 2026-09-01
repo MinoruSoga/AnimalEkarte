@@ -263,4 +263,3 @@ repo と既存コメントから読める事実だけを書く。署名・承認
 - `frontend/src/features/manual/content/screens/25-master-staff.md` と `workflows/09-staff-onboarding.md`: 自動生成・一時パスワード再発行の記載を、権限者が新しいパスワードを設定する契約へ直す。
 - `.claude/CLAUDE.md`: product-philosophy の圧縮要約に残る `audit_logs` / 確認ダイアログの絶対表現を、更新後の例外付き契約へ同期する。
 - `MedicalRecordFormActions.tsx`: 不可逆操作を UI の確認ダイアログだけで守らず、サーバー側の状態検証・ロックまたは補償経路を確認する。
-- backend の未登録 `VoidReopen` handler / service / repository: 公開 route がない現行 append-only 契約に合わせて dead code を削除するか、別途認可・理由必須の route と仕様を設計する。本書では利用可能な機能として扱わない。

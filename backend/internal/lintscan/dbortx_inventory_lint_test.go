@@ -282,7 +282,6 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"billing/cash_register_close_repository.go|cashRegisterCloseRepository.FindByID":            {},
 	"billing/cash_register_close_repository.go|cashRegisterCloseRepository.HasCloseOnDate":      {},
 	"billing/cash_register_close_repository.go|cashRegisterCloseRepository.FindByDateAndPeriod": {},
-	"billing/cash_register_close_repository.go|cashRegisterCloseRepository.Void":                {},
 	// examination (BE-refactor.md R1-2 tx-internal replace; Create/FindByID/Update added for X-11
 	// finalize-child-write-race — must join the LockByIDForUpdate ambient tx or the FK check on
 	// examinations.medical_record_id deadlocks against the FOR UPDATE row lock; Delete added for

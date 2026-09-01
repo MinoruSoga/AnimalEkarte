@@ -61,7 +61,7 @@
 ## 5. 技術仕様
 
 - **整合性の担保（append-only）**:
-  - 締め確定は集計スナップショットの **Create のみ**。登録済み API route は Create / List / Get / Preview のみ。到達不能な `VoidReopen` / `Void` / `VoidCashRegisterClose` 実装が残るが、DB の immutability trigger と矛盾する既知の source gap であり、公開契約ではない。
+  - 締め確定は集計スナップショットの **Create のみ**。登録済み API route は Create / List / Get / Preview のみで、取消・再開・巻き戻しの実装および公開契約はない。
   - `(clinic_id, close_date, period)` は **完全 UNIQUE**（`deleted_at` を見ない）。soft-delete で同じ区分を再締めする経路は塞がれている。
   - DB 層でも `cash_register_closes` / `cash_register_close_adjustments` の UPDATE/DELETE を immutability trigger で拒否する（`backend/migrations/001_init.sql` の append-only 統合ブロック。コメント上の旧 migration 003）。
 - **締め後訂正モデル**: 会計編集の差分は `cash_register_close_adjustments`（`close_id` 参照・NO CASCADE DELETE）へ append-only 追記。`accounting_delta` は合計変更が分かる場合の best-effort 差分、会計のみの訂正では `cash_movement_amount=0`。
