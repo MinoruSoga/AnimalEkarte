@@ -162,6 +162,7 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	// AE-LAB exam billing FK validation. TxFromContext fail-closed + exam_types SHARE lock.
 	// Runtime: TestBillingItemRepository_ValidateExamCreateReference_FailClosedWithoutAmbientTx
 	// and TestBillingItemRepository_ValidateExamCreateReferenceLocksExamTypeInAmbientTransaction.
+	"billing/billing_item_exam.go|billingItemRepository.ExamBillingValues":           {},
 	"billing/billing_item_exam.go|billingItemRepository.ValidateExamCreateReference": {},
 	// campaign
 	"billing/campaign_repository.go|campaignRepository.FindAllApplicableForItem": {}, // BE8-4 batch9: moved from campaign_repository.go
@@ -883,6 +884,10 @@ var ambientTxParticipationExpectations = map[string]ambientTxParticipationExpect
 		shape: ambientTxRequired,
 	},
 	"billing/billing_item_exam.go|billingItemRepository.ValidateExamCreateReference": {
+		shape: ambientTxRequired,
+	},
+	// Canonical exam name/price is read under the same mandatory transaction that validates the exam reference.
+	"billing/billing_item_exam.go|billingItemRepository.ExamBillingValues": {
 		shape: ambientTxRequired,
 	},
 	"pet/owner_registration.go|writer.CreateForOwnerRegistration": {
