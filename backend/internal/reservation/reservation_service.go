@@ -407,6 +407,13 @@ func ShouldEnforceReservationBookingConstraints(status model.ReservationStatus, 
 	return shouldEnforceReservationBookingConstraintsForStatus(status)
 }
 
+// shouldEnforceClosedDayConstraintOnUpdate is deliberately route-independent:
+// shortcut routes can skip create-time availability checks, but a reschedule
+// must never move a pending booking to a configured closed day or holiday.
+func shouldEnforceClosedDayConstraintOnUpdate(status model.ReservationStatus, _ *string) bool {
+	return shouldEnforceReservationBookingConstraintsForStatus(status)
+}
+
 func shouldEnforceReservationBookingConstraintsForStatus(status model.ReservationStatus) bool {
 	switch status {
 	case model.ReservationStatusCheckedIn,
@@ -670,7 +677,7 @@ func (s *reservationService) updateWithConflictCheck(ctx context.Context, clinic
 
 		startOrEndChanged := !resolvedStart.Equal(current.StartTime) || !resolvedEnd.Equal(current.EndTime)
 		if startOrEndChanged &&
-			ShouldEnforceReservationBookingConstraints(current.Status, current.ReservationRoute) {
+			shouldEnforceClosedDayConstraintOnUpdate(current.Status, current.ReservationRoute) {
 			// Legacy test/compatibility constructors may omit LINE settings; production
 			// composition injects them and update must enforce the same closed days as create.
 			if s.settingFinder != nil {

@@ -185,7 +185,11 @@ func (s *labDeviceReceiveService) receiveOne(
 		return nil, err
 	}
 	if persistPetID != nil && s.persister != nil {
-		result.Job = *s.persistLinkedOrUnlink(ctx, clinicID, persistJobID, *persistPetID)
+		card, persistErr := s.persistLinkedOrUnlink(ctx, clinicID, persistJobID, *persistPetID)
+		if persistErr != nil {
+			return nil, persistErr
+		}
+		result.Job = *card
 	}
 	return &result, nil
 }
@@ -195,22 +199,25 @@ func (s *labDeviceReceiveService) persistLinkedOrUnlink(
 	clinicID uint64,
 	jobID uuid.UUID,
 	petID uint64,
-) *LabDeviceJobCard {
+) (*LabDeviceJobCard, error) {
 	if persistErr := s.persister.PersistLinkedJob(ctx, clinicID, jobID, petID); persistErr != nil {
-		_ = s.withTx(ctx, func(txCtx context.Context) error {
+		if unlinkErr := s.withTx(ctx, func(txCtx context.Context) error {
 			_, err := s.repo.UpdateJobPetID(txCtx, clinicID, jobID, nil)
 			return err
-		})
+		}); unlinkErr != nil {
+			return nil, unlinkErr
+		}
+		return nil, persistErr
 	}
 	job, err := s.repo.FindJobByID(ctx, clinicID, jobID)
 	if err != nil {
-		return &LabDeviceJobCard{JobID: jobID}
+		return nil, err
 	}
 	card, err := s.cardForJob(ctx, clinicID, job)
 	if err != nil {
-		return &LabDeviceJobCard{JobID: jobID}
+		return nil, err
 	}
-	return card
+	return card, nil
 }
 
 func (s *labDeviceReceiveService) consumeWaitPet(ctx context.Context, clinicID uint64) (*uint64, error) {

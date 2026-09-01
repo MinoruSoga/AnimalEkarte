@@ -123,3 +123,19 @@ func TestBillingItemExamProvenance_DeleteNullsExamAndClinicID(t *testing.T) {
 	require.NotNil(t, items[0].ExamID)
 	assert.Equal(t, exam.ID, *items[0].ExamID)
 }
+
+func TestBillingItemExamProvenance_UsesCanonicalExamTypeValues(t *testing.T) {
+	f := setupBillingItemReferenceFixture(t)
+	price := int64(4200)
+	examType, exam := makeBillingExam(t, f, "血液検査", &price)
+	svc := newBillingItemReferenceService(f, f.repo)
+	input := billingItemReferenceCreateInput(f)
+	input.ExamID = &exam.ID
+	input.Name = "caller controlled name"
+	input.UnitPrice = 0
+
+	created, err := svc.CreateItem(context.Background(), input)
+	require.NoError(t, err)
+	assert.Equal(t, examType.Name, created.Name)
+	assert.Equal(t, price, created.UnitPrice)
+}

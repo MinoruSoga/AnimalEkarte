@@ -31,12 +31,35 @@ func applyExamBillingProvenance(
 	if err := repo.ValidateExamCreateReference(ctx, input.ClinicID, input.BillingID, *input.ExamID); err != nil {
 		return err
 	}
+	values, err := examBillingValuesFor(ctx, repo, input.ClinicID, *input.ExamID)
+	if err != nil {
+		return err
+	}
 	item.Category = model.ItemCategoryTest
 	item.Source = model.ItemSourceMedicalRecord
 	item.ExamID = input.ExamID
+	item.Name = values.Name
+	item.UnitPrice = values.UnitPrice
 	clinicID := input.ClinicID
 	item.ClinicID = &clinicID
 	return nil
+}
+
+type examBillingValues struct {
+	Name      string
+	UnitPrice int64
+}
+
+type examBillingValuesProvider interface {
+	ExamBillingValues(ctx context.Context, clinicID, examID uint64) (*examBillingValues, error)
+}
+
+func examBillingValuesFor(ctx context.Context, repo BillingItemRepository, clinicID, examID uint64) (*examBillingValues, error) {
+	provider, ok := repo.(examBillingValuesProvider)
+	if !ok {
+		return nil, apperrors.WrapInternalServerError("exam billing values provider is required")
+	}
+	return provider.ExamBillingValues(ctx, clinicID, examID)
 }
 
 func (r *billingItemRepository) ValidateExamCreateReference(
@@ -124,4 +147,26 @@ func (r *billingItemRepository) ValidateExamCreateReference(
 		return apperrors.WrapConflict("この検査は既に会計明細へ取り込まれています")
 	}
 	return nil
+}
+
+// ExamBillingValues reads canonical master values in the transaction that
+// validated the exam reference; request name and price are never authoritative.
+func (r *billingItemRepository) ExamBillingValues(ctx context.Context, clinicID, examID uint64) (*examBillingValues, error) {
+	tx := persistence.TxFromContext(ctx)
+	if tx == nil {
+		return nil, apperrors.WrapInternalServerError("exam billing values require an active transaction")
+	}
+	var values examBillingValues
+	if err := tx.Table("exams").
+		Select("exam_types.name", "exam_types.price AS unit_price").
+		Joins("JOIN exam_types ON exam_types.id = exams.exam_type_id AND exam_types.clinic_id = exams.clinic_id AND exam_types.deleted_at IS NULL").
+		Where("exams.id = ? AND exams.clinic_id = ? AND exams.deleted_at IS NULL", examID, clinicID).
+		Clauses(clause.Locking{Strength: "SHARE"}).
+		Take(&values).Error; err != nil {
+		return nil, apperrors.FromGORM(err, "exam", fmt.Sprintf("%d", examID))
+	}
+	if strings.TrimSpace(values.Name) == "" || values.UnitPrice < 0 {
+		return nil, apperrors.WrapInternalServerError("exam type master is not billable")
+	}
+	return &values, nil
 }
