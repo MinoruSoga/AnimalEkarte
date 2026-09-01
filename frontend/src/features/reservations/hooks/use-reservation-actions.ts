@@ -139,9 +139,11 @@ export function useReservationActions({
   const [, startDeleteTransition] = useTransition();
   const createdPetIdsRef = useRef(new Set<string>());
   const createdReservationIdsRef = useRef(new Set<string>());
+  const newOwnerProgressRef = useRef<{ key: string; ownerID?: string; petID?: string } | null>(null);
   const resetCreateProgress = useCallback(() => {
     createdPetIdsRef.current.clear();
     createdReservationIdsRef.current.clear();
+    newOwnerProgressRef.current = null;
   }, []);
   const handleCloseCreateForm = useCallback(() => {
     resetCreateProgress();
@@ -159,7 +161,7 @@ export function useReservationActions({
       appointments.some((app) => {
         if ((excludeId && app.id === excludeId) || excludeIds?.has(app.id)) return false;
         if (app.status === "cancelled") return false;
-        if (app.doctor !== doctor) return false;
+        if (app.doctorId !== doctor) return false;
         return newStart < app.end && newEnd > app.start;
       }),
     [appointments],
@@ -213,19 +215,30 @@ export function useReservationActions({
 
       if (newOwnerData) {
         try {
-          const owner = await createMutations.createOwnerFn({
-            owner_name: newOwnerData.ownerName,
-            phone: newOwnerData.phone,
-          });
-          const pet = await createMutations.createPetFn({
-            owner_id: Number(owner.id),
-            animal_species_id: newOwnerData.animalSpeciesId,
-            name: newOwnerData.petName,
-          });
+          const progressKey = JSON.stringify(newOwnerData);
+          if (newOwnerProgressRef.current?.key !== progressKey) {
+            newOwnerProgressRef.current = { key: progressKey };
+          }
+          const progress = newOwnerProgressRef.current;
+          if (!progress.ownerID) {
+            const owner = await createMutations.createOwnerFn({
+              owner_name: newOwnerData.ownerName,
+              phone: newOwnerData.phone,
+            });
+            progress.ownerID = String(owner.id);
+          }
+          if (!progress.petID) {
+            const pet = await createMutations.createPetFn({
+              owner_id: Number(progress.ownerID),
+              animal_species_id: newOwnerData.animalSpeciesId,
+              name: newOwnerData.petName,
+            });
+            progress.petID = String(pet.id);
+          }
           const createPayload = transformToCreateRequest(
             { ...data, notes: data.notes ?? newOwnerData.chiefComplaint },
-            String(pet.id),
-            String(owner.id),
+            progress.petID,
+            progress.ownerID,
           );
           await createMutation.mutateAsync(createPayload);
           toast.success("予約を作成しました", {
@@ -244,20 +257,17 @@ export function useReservationActions({
         // must not make already-created pets eligible again after a partial failure.
         const alreadyCreated = createdPetIdsRef.current;
         const pendingPets = selectedPets.filter((pet) => !alreadyCreated.has(pet.id));
-        const results = await Promise.allSettled(
-          pendingPets.map(async (pet) => {
+        const rejected: PromiseRejectedResult[] = [];
+        for (const pet of pendingPets) {
+          try {
             const createPayload = transformToCreateRequest(data, pet.id, pet.ownerId);
             const createdReservation = await createMutation.mutateAsync(createPayload);
-            return { petId: pet.id, reservationId: createdReservation.id };
-          }),
-        );
-        const rejected = results.filter((r): r is PromiseRejectedResult => r.status === "rejected");
-        results.forEach((result) => {
-          if (result.status === "fulfilled") {
-            alreadyCreated.add(result.value.petId);
-            createdReservationIdsRef.current.add(result.value.reservationId);
+            alreadyCreated.add(pet.id);
+            createdReservationIdsRef.current.add(createdReservation.id);
+          } catch (reason) {
+            rejected.push({ status: "rejected", reason });
           }
-        });
+        }
 
         if (rejected.length > 0) {
           const reason = extractApiErrorMessage(rejected[0].reason, "作成");

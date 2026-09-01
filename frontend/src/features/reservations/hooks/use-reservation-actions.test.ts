@@ -41,7 +41,7 @@ function makeReservation(overrides: Partial<Reservation> = {}): Reservation {
     type: "一般診察",
     category: "general",
     reservationTypeId: "1",
-    doctor: "1",
+    doctor: "山田獣医師",
     doctorId: "1",
     isDesignated: false,
     status: "confirmed",
@@ -289,6 +289,64 @@ describe("useReservationActions multi-pet retry", () => {
     expect(createMutateAsyncMock.mock.calls[2]?.[0]).toEqual(
       expect.objectContaining({ pet_id: 11 }),
     );
+  });
+
+  it("creates same-doctor multi-pet reservations sequentially", async () => {
+    let firstResolved = false;
+    createMutateAsyncMock
+      .mockImplementationOnce(async () => {
+        await Promise.resolve();
+        firstResolved = true;
+        return makeReservation({ id: "created-10" });
+      })
+      .mockImplementationOnce(async () => {
+        expect(firstResolved).toBe(true);
+        return makeReservation({ id: "created-11" });
+      });
+    const { result } = setup();
+    const data: ReservationFormData = {
+      start: new Date("2026-05-29T03:30:00.000Z"), end: new Date("2026-05-29T04:00:00.000Z"),
+      visitType: "first", type: "1", doctor: "1", status: "confirmed",
+    };
+
+    await act(async () => {
+      await result.current.handleSave(data, [
+        { id: "10", ownerId: "20", name: "ポチ" },
+        { id: "11", ownerId: "20", name: "タマ" },
+      ]);
+    });
+    expect(createMutateAsyncMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("retries a new-owner reservation without recreating its committed owner or pet", async () => {
+    const createOwnerFn = vi.fn().mockResolvedValue({ id: 30 });
+    const createPetFn = vi.fn().mockResolvedValue({ id: 40 });
+    createMutateAsyncMock
+      .mockRejectedValueOnce(new Error("reservation failed"))
+      .mockResolvedValueOnce(makeReservation({ id: "created-40", ownerId: "30", petId: "40" }));
+    const { result } = setup({ createOwnerFn, createPetFn });
+    const data: ReservationFormData = {
+      start: new Date("2026-05-29T03:30:00.000Z"), end: new Date("2026-05-29T04:00:00.000Z"),
+      visitType: "first", type: "1", doctor: "1", status: "confirmed",
+    };
+    const newOwner = { ownerName: "新規飼主", phone: "09012345678", petName: "新規ペット", animalSpeciesId: 1, chiefComplaint: "相談" };
+
+    await act(async () => { await result.current.handleSave(data, [], newOwner); });
+    await act(async () => { await result.current.handleSave(data, [], newOwner); });
+    expect(createOwnerFn).toHaveBeenCalledTimes(1);
+    expect(createPetFn).toHaveBeenCalledTimes(1);
+    expect(createMutateAsyncMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("checks overlap against the production doctor ID rather than display name", async () => {
+    const { result } = setup({ appointments: [makeReservation({ doctor: "山田獣医師", doctorId: "1" })] });
+    const data: ReservationFormData = {
+      start: new Date("2026-05-29T03:30:00.000Z"), end: new Date("2026-05-29T04:00:00.000Z"),
+      visitType: "first", type: "1", doctor: "1", status: "confirmed",
+    };
+    const response = await result.current.handleSave(data, [{ id: "10", ownerId: "20", name: "ポチ" }]);
+    expect(response).toBe("指定された時間帯には既に予約が入っています");
+    expect(createMutateAsyncMock).not.toHaveBeenCalled();
   });
 
   it("clears partial-create progress when the create modal is closed", async () => {

@@ -35,3 +35,11 @@ test("make old-db-handoff-check looks for clinic/manifest.json", () => {
     /_old_db_handoff\/\$\$\{CLINIC_CODE\}\/\$\$\{MIGRATION_RUN_ID\}\/manifest\.json/,
   );
 });
+
+test("stages and validates a temporary bundle before replacing the known-good destination", () => {
+  assert.match(stage, /STAGE_ROOT="\$\(mktemp -d /);
+  assert.match(stage, /STAGED_DEST="\$STAGE_ROOT\/\$CLINIC_CODE"/);
+  assert.match(stage, /rsync -a --delete "\$SOURCE_DIR\/" "\$STAGED_DEST\/"/);
+  assert.match(stage, /mv "\$STAGED_DEST" "\$DEST"/);
+  assert.ok(stage.indexOf('mv "$STAGED_DEST" "$DEST"') > stage.indexOf('[[ "$TABLE_COUNT" == "21" ]]'));
+});

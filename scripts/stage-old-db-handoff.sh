@@ -35,17 +35,24 @@ git check-ignore -q --no-index "$EXCLUDE_LINE" \
   || die "git check-ignore failed for $EXCLUDE_LINE — refuse to stage PHI"
 
 DEST="$ROOT/backend/migrations/seeds/_old_db_handoff/$CLINIC_CODE"
-mkdir -p "$DEST"
-chmod 700 "$ROOT/backend/migrations/seeds/_old_db_handoff" "$DEST"
-rsync -a --delete "$SOURCE_DIR/" "$DEST/"
-chmod 700 "$DEST"
-find "$DEST" -type f -exec chmod 600 {} +
+DEST_PARENT="$(dirname "$DEST")"
+mkdir -p "$DEST_PARENT"
+chmod 700 "$DEST_PARENT"
+STAGE_ROOT="$(mktemp -d "$DEST_PARENT/.stage-old-db-handoff.XXXXXX")"
+STAGED_DEST="$STAGE_ROOT/$CLINIC_CODE"
+BACKUP_DEST="$STAGE_ROOT/previous"
+cleanup_stage() { rm -rf "$STAGE_ROOT"; }
+trap cleanup_stage EXIT HUP INT TERM
+mkdir -p "$STAGED_DEST"
+rsync -a --delete "$SOURCE_DIR/" "$STAGED_DEST/"
+chmod 700 "$STAGED_DEST"
+find "$STAGED_DEST" -type f -exec chmod 600 {} +
 
-git check-ignore -q --no-index "$DEST/manifest.json" \
+git check-ignore -q --no-index "$STAGED_DEST/manifest.json" \
   || die "staged manifest is not ignored — abort"
 
 META_FILE="$(mktemp)"
-python3 - "$DEST/manifest.json" >"$META_FILE" <<'PY'
+python3 - "$STAGED_DEST/manifest.json" >"$META_FILE" <<'PY'
 import json, sys
 m = json.load(open(sys.argv[1], encoding="utf-8"))
 print(m.get("status") or "")
@@ -65,6 +72,10 @@ rm -f "$META_FILE"
 [[ "$MANIFEST_RUN" == "$MIGRATION_RUN_ID" ]] || die "manifest run=$MANIFEST_RUN != MIGRATION_RUN_ID=$MIGRATION_RUN_ID"
 [[ "$TABLE_COUNT" == "21" ]] || die "expected 21 tables, got $TABLE_COUNT"
 
+if [[ -e "$DEST" ]]; then
+  mv "$DEST" "$BACKUP_DEST"
+fi
+mv "$STAGED_DEST" "$DEST"
 SHA="$(shasum -a 256 "$DEST/manifest.json" | awk '{print $1}')"
 echo "stage-old-db-handoff: staged $DEST"
 echo "  manifest status=$MANIFEST_STATUS handoffEligibility=$HANDOFF"

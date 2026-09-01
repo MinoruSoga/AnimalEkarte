@@ -5722,6 +5722,10 @@ CREATE TABLE lab_device_waits (
     CONSTRAINT fk_lab_device_waits_pet_clinic
         FOREIGN KEY (clinic_id, pet_id)
         REFERENCES pets (clinic_id, id)
+        ON DELETE RESTRICT,
+    CONSTRAINT fk_lab_device_waits_staff_clinic
+        FOREIGN KEY (staff_id, clinic_id)
+        REFERENCES staffs (id, clinic_id)
         ON DELETE RESTRICT
 );
 

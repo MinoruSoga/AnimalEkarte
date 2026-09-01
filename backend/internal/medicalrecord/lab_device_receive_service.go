@@ -22,6 +22,8 @@ type labDeviceReceiveService struct {
 	now       func() time.Time
 }
 
+var errDuplicateLabDeviceFrame = errors.New("duplicate lab device frame")
+
 // NewLabDeviceReceiveService initializes a LabDeviceReceiveService.
 func NewLabDeviceReceiveService(
 	repo LabDeviceReceiveRepository,
@@ -155,18 +157,7 @@ func (s *labDeviceReceiveService) receiveOne(
 		}
 		if createErr := s.repo.CreateJobWithItems(txCtx, job, items); createErr != nil {
 			if apperrors.IsConflict(createErr) || apperrors.IsAlreadyExists(createErr) {
-				dup, dupErr := s.repo.FindJobByFingerprint(txCtx, clinicID, string(frame.SourceType), frame.SourceFingerprint)
-				if dupErr != nil && !apperrors.IsNotFound(dupErr) {
-					return dupErr
-				}
-				if dup != nil {
-					card, cardErr := s.cardForJob(txCtx, clinicID, dup)
-					if cardErr != nil {
-						return cardErr
-					}
-					result = LabDeviceFrameResult{Duplicate: true, Job: *card}
-					return nil
-				}
+				return errDuplicateLabDeviceFrame
 			}
 			return createErr
 		}
@@ -182,6 +173,17 @@ func (s *labDeviceReceiveService) receiveOne(
 		return nil
 	})
 	if err != nil {
+		if errors.Is(err, errDuplicateLabDeviceFrame) {
+			dup, dupErr := s.repo.FindJobByFingerprint(ctx, clinicID, string(frame.SourceType), frame.SourceFingerprint)
+			if dupErr != nil {
+				return nil, dupErr
+			}
+			card, cardErr := s.cardForJob(ctx, clinicID, dup)
+			if cardErr != nil {
+				return nil, cardErr
+			}
+			return &LabDeviceFrameResult{Duplicate: true, Job: *card}, nil
+		}
 		return nil, err
 	}
 	if persistPetID != nil && s.persister != nil {
@@ -375,6 +377,7 @@ func (s *labDeviceReceiveService) Attach(
 	if err != nil {
 		return nil, err
 	}
+	var card *LabDeviceJobCard
 	err = s.withTx(ctx, func(txCtx context.Context) error {
 		job, lockErr := s.repo.LockJobByID(txCtx, clinicID, jobID)
 		if lockErr != nil {
@@ -394,16 +397,21 @@ func (s *labDeviceReceiveService) Attach(
 				return persistErr
 			}
 		}
+		current, findErr := s.repo.FindJobByID(txCtx, clinicID, jobID)
+		if findErr != nil {
+			return findErr
+		}
+		built, cardErr := s.cardForJob(txCtx, clinicID, current)
+		if cardErr != nil {
+			return cardErr
+		}
+		card = built
 		return nil
 	})
 	if err != nil {
 		return nil, err
 	}
-	job, err := s.repo.FindJobByID(ctx, clinicID, jobID)
-	if err != nil {
-		return nil, err
-	}
-	return s.cardForJob(ctx, clinicID, job)
+	return card, nil
 }
 
 func (s *labDeviceReceiveService) Detach(
