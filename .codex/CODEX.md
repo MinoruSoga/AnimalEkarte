@@ -1,7 +1,7 @@
 # Codex Settings
 
 > OpenAI Codex エージェント専用の作業入口。
-> 詳細ルールの一次情報は `.claude/CLAUDE.md`、標準ワークフローは `docs/AI_DEVELOPMENT_WORKFLOW.md` を参照する。
+> 詳細ルールの一次情報は `.claude/CLAUDE.md`を参照する。
 
 ## 目的
 
@@ -132,5 +132,4 @@ docker compose exec frontend pnpm type-check            # NG: 全体type-check
 ## 参照
 
 - `.claude/CLAUDE.md`
-- `docs/AI_DEVELOPMENT_WORKFLOW.md`
 - `.codex/commands/` — 利用可能なコマンド一覧
