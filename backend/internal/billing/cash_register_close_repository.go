@@ -15,13 +15,10 @@ import (
 
 // CashRegisterCloseRepository はレジ締めレコードのデータアクセスインターフェース。
 // W-013: 通常経路は Create / CreateAdjustment のみ（一般 Update は持たない）。
-// BUG-032: immutable close rows cannot be voided or re-closed. Corrections are append-only adjustments.
 type CashRegisterCloseRepository interface {
 	Create(ctx context.Context, c *model.CashRegisterClose) error
 	// CreateAdjustment は締め後訂正台帳へ 1 行追記する。ambient tx があれば参加する（fail-closed）。
 	CreateAdjustment(ctx context.Context, adj *model.CashRegisterCloseAdjustment) error
-	// Void always rejects: the migration's immutable trigger and complete unique index are authoritative.
-	Void(ctx context.Context, clinicID, id uint64) error
 	FindAll(ctx context.Context, clinicID uint64, startDate, endDate *time.Time, page, limit int) ([]model.CashRegisterClose, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.CashRegisterClose, error)
 	FindByDateAndPeriod(ctx context.Context, clinicID uint64, date time.Time, period string) (*model.CashRegisterClose, error)
@@ -54,13 +51,6 @@ func (r *cashRegisterCloseRepository) CreateAdjustment(ctx context.Context, adj 
 		return apperrors.FromGORM(err, "cash_register_close_adjustment", "")
 	}
 	return nil
-}
-
-func (r *cashRegisterCloseRepository) Void(ctx context.Context, clinicID, id uint64) error {
-	if id == 0 {
-		return apperrors.WrapInvalidInput("cash register close id is required")
-	}
-	return apperrors.WrapConflict("cash register closes are immutable; create an adjustment instead")
 }
 
 func (r *cashRegisterCloseRepository) FindAll(ctx context.Context, clinicID uint64, startDate, endDate *time.Time, page, limit int) ([]model.CashRegisterClose, int64, error) {

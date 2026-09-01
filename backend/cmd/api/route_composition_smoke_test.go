@@ -74,8 +74,7 @@ func TestRouteCompositionSmoke_TargetGraphRegistersEverySurface(t *testing.T) {
 	//   bb32b9fd1 POST   /api/v1/lab-devices
 	//   bb32b9fd1 PATCH  /api/v1/lab-devices/:id
 	//   PR333 fix PUT    /api/v1/lab-devices/:id/configuration
-	//   PR333 fix POST   /api/v1/cash-register/closes/:id/void
-	require.Len(t, routes, 521)
+	require.Len(t, routes, 520)
 	for _, expected := range []string{
 		"GET /health",
 		"GET /uploads/*filepath",
@@ -86,7 +85,7 @@ func TestRouteCompositionSmoke_TargetGraphRegistersEverySurface(t *testing.T) {
 		"GET /api/v1/owners",
 		"GET /api/v1/pets",
 		"PUT /api/v1/lab-devices/:id/configuration",
-		"POST /api/v1/cash-register/closes/:id/void",
+
 		"GET /api/v1/masters/staffs",
 		"GET /api/v1/clinics",
 		"GET /api/v1/medical-records",

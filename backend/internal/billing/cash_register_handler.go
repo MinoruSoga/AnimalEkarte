@@ -9,7 +9,6 @@ import (
 	"github.com/animal-ekarte/backend/internal/httpapi"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
-	"github.com/animal-ekarte/backend/internal/model"
 )
 
 // CashRegisterHandler は CashRegisterService の HTTP handler。
@@ -119,47 +118,4 @@ func (h *CashRegisterHandler) GetCashRegisterClose(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, toCashRegisterCloseResponse(record))
-}
-
-// VoidCashRegisterClose godoc
-// POST /v1/cash-register/closes/:id/void
-// 特権: cash-register-close:edit（執行の view+edit と同型。fail-closed）。
-func (h *CashRegisterHandler) VoidCashRegisterClose(c *gin.Context) {
-	// ルート未配線でも handler 内で権限ゲートを fail-closed にする（BUG-032）。
-	h.requirePermission(string(model.ResourceCashRegisterClose), "edit")(c)
-	if c.IsAborted() {
-		return
-	}
-
-	clinicID, ok := httpapi.ExtractClinicID(c)
-	if !ok {
-		return
-	}
-	staffID, ok := httpapi.ExtractStaffID(c)
-	if !ok {
-		return
-	}
-	id, ok := httpapi.ParseIDParam(c, "id")
-	if !ok {
-		return
-	}
-
-	var req voidCashRegisterCloseRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		httpapi.RespondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
-		return
-	}
-
-	input, err := req.toServiceInput(id, staffID)
-	if err != nil {
-		httpapi.RespondError(c, apperrors.WrapInvalidInput(err.Error()))
-		return
-	}
-
-	result, err := h.svc.VoidReopen(c.Request.Context(), clinicID, input)
-	if err != nil {
-		httpapi.RespondError(c, err)
-		return
-	}
-	c.JSON(http.StatusOK, toCashRegisterVoidResponse(result))
 }

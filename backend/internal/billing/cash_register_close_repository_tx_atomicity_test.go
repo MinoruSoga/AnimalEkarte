@@ -147,36 +147,6 @@ func TestCashRegisterCloseRepository_CreateAdjustment_CommitsWithinAmbientTx(t *
 	assert.Equal(t, "ambient commit probe", got.Reason)
 }
 
-func TestCashRegisterCloseRepository_Void_RollsBackWithAmbientTx(t *testing.T) {
-	db := setupCashRegisterCloseTestDB(t)
-	repo := NewCashRegisterCloseRepository(db)
-	tx := testNewTransactor(db)
-	ctx := context.Background()
-	const clinicA = uint64(1)
-
-	closeRec := makeCashRegisterClose(
-		t, db, clinicA, time.Date(2026, 6, 25, 0, 0, 0, 0, time.UTC), "am", nil,
-	)
-
-	txErr := tx.WithTx(ctx, func(txCtx context.Context) error {
-		if err := repo.Void(txCtx, clinicA, closeRec.ID); err != nil {
-			return err
-		}
-		return errSentinelCashCloseTx
-	})
-	require.ErrorIs(t, txErr, errSentinelCashCloseTx)
-
-	got, err := repo.FindByID(ctx, clinicA, closeRec.ID)
-	require.NoError(t, err)
-	assert.Equal(t, closeRec.ID, got.ID, "Void must roll back with the ambient transaction")
-
-	require.NoError(t, tx.WithTx(ctx, func(txCtx context.Context) error {
-		return repo.Void(txCtx, clinicA, closeRec.ID)
-	}))
-	_, err = repo.FindByID(ctx, clinicA, closeRec.ID)
-	require.Error(t, err, "committed Void must hide the close")
-}
-
 // TestCashRegisterCloseRepository_Reads_SeeUncommittedCreateInAmbientTx proves
 // FindAll / FindByID / HasCloseOnDate / FindByDateAndPeriod observe Create in the
 // same ambient tx and miss the row outside until commit (or after rollback).

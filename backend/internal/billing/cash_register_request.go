@@ -3,7 +3,7 @@ package billing
 import (
 	"fmt"
 	"net/url"
-	"strings"
+
 	"time"
 )
 
@@ -75,28 +75,5 @@ func (r closeCashRegisterRequest) toServiceInput(staffID uint64) (CloseRegisterI
 		ActualCash: r.ActualCash,
 		Memo:       r.Memo,
 		ClosedBy:   &staffID,
-	}, nil
-}
-
-// voidCashRegisterCloseRequest はレジ締め特権取消リクエスト。
-type voidCashRegisterCloseRequest struct {
-	Reason string `json:"reason" binding:"required"`
-}
-
-func (r voidCashRegisterCloseRequest) toServiceInput(id, staffID uint64) (VoidReopenInput, error) {
-	reason := strings.TrimSpace(r.Reason)
-	if reason == "" {
-		return VoidReopenInput{}, fmt.Errorf("reason は必須です")
-	}
-	if id == 0 {
-		return VoidReopenInput{}, fmt.Errorf("id は必須です")
-	}
-	if staffID == 0 {
-		return VoidReopenInput{}, fmt.Errorf("authenticated staff is required")
-	}
-	return VoidReopenInput{
-		ID:      id,
-		Reason:  reason,
-		ActorID: staffID,
 	}, nil
 }

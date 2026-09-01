@@ -7159,36 +7159,6 @@ components:
           type: string
           format: date-time
           readOnly: true
-    VoidCashRegisterCloseRequest:
-      type: object
-      required: [reason]
-      properties:
-        reason:
-          type: string
-          minLength: 1
-    CashRegisterVoidResponse:
-      type: object
-      required: [original_close_id, clinic_id, close_date, period, reason, voided_by, voided_at]
-      properties:
-        original_close_id:
-          type: integer
-          format: int64
-        clinic_id:
-          type: integer
-          format: int64
-        close_date:
-          type: string
-          format: date-time
-        period:
-          type: string
-        reason:
-          type: string
-        voided_by:
-          type: integer
-          format: int64
-        voided_at:
-          type: string
-          format: date-time
     CashRegisterPreview:
       type: object
       description: レジ締めプレビュー（締め実行前の集計）
@@ -12930,44 +12900,7 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalError'
-  /cash-register/closes/{id}/void:
-    post:
-      operationId: voidCashRegisterClose
-      summary: レジ締めを特権取消
-      description: ResourceCashRegisterClose edit。理由とactorを監査記録へ残して締めを取消する。
-      tags: [CashRegister]
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-            format: int64
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/VoidCashRegisterCloseRequest'
-      responses:
-        '200':
-          description: 取消監査結果
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/CashRegisterVoidResponse'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
-          $ref: '#/components/responses/Conflict'
-        '500':
-          $ref: '#/components/responses/InternalError'
+
   /closing-settings:
     get:
       operationId: getClosingSettings

@@ -20,7 +20,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
-	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/testdb"
 )
@@ -166,57 +165,6 @@ func TestCashRegisterCloseRepository_AppendOnlyContract_NoDeleteMethod(t *testin
 		CategoryBreakdown: json.RawMessage(`{}`),
 	})
 	require.Error(t, err, "同一 date/period の再 Create は Void なしでは不可")
-}
-
-func TestCashRegisterCloseRepository_Void_RejectsImmutableClose(t *testing.T) {
-	db := setupCashRegisterCloseTestDB(t)
-	repo := NewCashRegisterCloseRepository(db)
-	ctx := context.Background()
-
-	date := time.Date(2026, 6, 12, 0, 0, 0, 0, time.UTC)
-	original := makeCashRegisterClose(t, db, 1, date, "am", nil)
-
-	err := repo.Void(ctx, 1, original.ID)
-	require.Error(t, err)
-	assert.True(t, apperrors.IsConflict(err))
-
-	// The close remains visible and its complete unique index continues to reject a re-close.
-	got, findErr := repo.FindByID(ctx, 1, original.ID)
-	require.NoError(t, findErr)
-	assert.Equal(t, original.ID, got.ID)
-	err = repo.Create(ctx, &model.CashRegisterClose{
-		ClinicID:          1,
-		CloseDate:         date,
-		Period:            "am",
-		CategoryBreakdown: json.RawMessage(`{}`),
-	})
-	require.Error(t, err)
-}
-
-func TestCashRegisterCloseRepository_Void_MissingID(t *testing.T) {
-	db := setupCashRegisterCloseTestDB(t)
-	repo := NewCashRegisterCloseRepository(db)
-	ctx := context.Background()
-
-	err := repo.Void(ctx, 1, 999999)
-	require.Error(t, err)
-	assert.True(t, apperrors.IsNotFound(err))
-}
-
-func TestCashRegisterCloseRepository_Void_ClinicIsolation(t *testing.T) {
-	db := setupCashRegisterCloseTestDB(t)
-	repo := NewCashRegisterCloseRepository(db)
-	ctx := context.Background()
-
-	c := makeCashRegisterClose(t, db, 1, time.Date(2026, 6, 13, 0, 0, 0, 0, time.UTC), "pm", nil)
-	err := repo.Void(ctx, 2, c.ID)
-	require.Error(t, err)
-	assert.True(t, apperrors.IsNotFound(err))
-
-	// clinic1 の行は残存
-	got, err := repo.FindByID(ctx, 1, c.ID)
-	require.NoError(t, err)
-	require.NotNil(t, got)
 }
 
 func TestCashRegisterCloseRepository_FindAll(t *testing.T) {
