@@ -5600,8 +5600,6 @@ SELECT app_private.apply_rls_policy(
 ALTER TABLE estimates
   ADD COLUMN IF NOT EXISTS pet_id bigint;
 
-ALTER TABLE pets
-    ADD CONSTRAINT uq_pets_id_clinic UNIQUE (id, clinic_id);
 
 ALTER TABLE estimates
   ADD CONSTRAINT fk_estimates_pet_clinic
