@@ -13806,6 +13806,10 @@ paths:
           in: query
           description: 飼主IDで絞り込み
           schema: {type: integer, format: int64}
+        - name: medical_record_id
+          in: query
+          description: カルテIDで絞り込み
+          schema: {type: integer, format: int64}
         - name: status
           in: query
           description: ステータスで絞り込み
