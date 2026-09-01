@@ -8,7 +8,7 @@ import { jstWallDateToISOString } from "@/lib/jst-date";
 import { getReservationStatusLabel } from "@/lib/status-helpers";
 import type { ReservationCreateMutations } from "@/types/reservation-create-mutations";
 
-import { useCreateReservation } from "../api/create-reservation";
+import { useCreateReservation, useCreateReservationBatch } from "../api/create-reservation";
 import { useDeleteReservation } from "../api/delete-reservation";
 import { transformToCreateRequest } from "../api/transforms";
 import { useUpdateReservation } from "../api/update-reservation";
@@ -131,6 +131,7 @@ export function useReservationActions({
   createMutations,
 }: UseReservationActionsArgs) {
   const createMutation = useCreateReservation();
+  const createBatchMutation = useCreateReservationBatch();
   const updateMutation = useUpdateReservation();
   const { mutate: updateReservationFn } = updateMutation;
   const deleteMutation = useDeleteReservation();
