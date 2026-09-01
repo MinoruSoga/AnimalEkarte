@@ -67,15 +67,47 @@ if launchctl print "$service_target" > "$backup_dir/launchctl.print" 2>/dev/null
 fi
 
 restore_previous_install() {
+  rollback_failed=0
+
   launchctl bootout "$service_target" 2>/dev/null || true
-  if [ "$had_binary" -eq 1 ]; then cp -p "$backup_dir/binary" "$binary_path"; else rm -f "$binary_path"; fi
-  if [ "$had_ports" -eq 1 ]; then cp -p "$backup_dir/ports" "$ports_file"; else rm -f "$ports_file"; fi
-  if [ "$had_plist" -eq 1 ]; then cp -p "$backup_dir/plist" "$plist_path"; else rm -f "$plist_path"; fi
+  if [ "$had_binary" -eq 1 ]; then
+    if ! cp -p "$backup_dir/binary" "$binary_path"; then
+      echo "Rollback failed: could not restore the previous agent binary at $binary_path" >&2
+      rollback_failed=1
+    fi
+  elif ! rm -f "$binary_path"; then
+    echo "Rollback failed: could not remove the new agent binary at $binary_path" >&2
+    rollback_failed=1
+  fi
+  if [ "$had_ports" -eq 1 ]; then
+    if ! cp -p "$backup_dir/ports" "$ports_file"; then
+      echo "Rollback failed: could not restore the previous serial-port configuration at $ports_file" >&2
+      rollback_failed=1
+    fi
+  elif ! rm -f "$ports_file"; then
+    echo "Rollback failed: could not remove the new serial-port configuration at $ports_file" >&2
+    rollback_failed=1
+  fi
+  if [ "$had_plist" -eq 1 ]; then
+    if ! cp -p "$backup_dir/plist" "$plist_path"; then
+      echo "Rollback failed: could not restore the previous LaunchAgent plist at $plist_path" >&2
+      rollback_failed=1
+    fi
+  elif ! rm -f "$plist_path"; then
+    echo "Rollback failed: could not remove the new LaunchAgent plist at $plist_path" >&2
+    rollback_failed=1
+  fi
   if [ "$service_was_loaded" -eq 1 ] && [ "$had_plist" -eq 1 ]; then
-    if launchctl bootstrap "gui/$(id -u)" "$plist_path"; then
-      [ "$service_was_running" -eq 0 ] || launchctl kickstart -k "$service_target" || true
+    if ! launchctl bootstrap "gui/$(id -u)" "$plist_path"; then
+      echo "Rollback failed: could not bootstrap the previous LaunchAgent at $plist_path" >&2
+      rollback_failed=1
+    elif [ "$service_was_running" -eq 1 ] && ! launchctl kickstart -k "$service_target"; then
+      echo "Rollback failed: could not restart the previous LaunchAgent $service_target" >&2
+      rollback_failed=1
     fi
   fi
+
+  return "$rollback_failed"
 }
 
 mv "$ports_tmp" "$ports_file"
@@ -83,11 +115,15 @@ mv "$binary_tmp" "$binary_path"
 mv "$plist_tmp" "$plist_path"
 launchctl bootout "$service_target" 2>/dev/null || true
 if ! launchctl bootstrap "gui/$(id -u)" "$plist_path"; then
-  restore_previous_install
+  if ! restore_previous_install; then
+    echo "Installation activation failed and the previous installation was not fully recovered." >&2
+  fi
   exit 1
 fi
 if ! launchctl kickstart -k "$service_target"; then
-  restore_previous_install
+  if ! restore_previous_install; then
+    echo "Installation activation failed and the previous installation was not fully recovered." >&2
+  fi
   exit 1
 fi
 rm -rf "$backup_dir"

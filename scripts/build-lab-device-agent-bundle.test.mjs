@@ -254,7 +254,7 @@ function writeExecutable(pathname, contents) {
   fs.writeFileSync(pathname, contents, { mode: 0o700 });
 }
 
-function makeInstallerRollbackFixture(t, installerKind, activationFailure) {
+function makeInstallerRollbackFixture(t, installerKind, activationFailure, recoveryFailure) {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), `lab-install-rollback-${installerKind}-`));
   const binDir = path.join(tempDir, "bin");
   const deviceDir = path.join(tempDir, "devices");
@@ -277,12 +277,19 @@ function makeInstallerRollbackFixture(t, installerKind, activationFailure) {
   writeExecutable(path.join(binDir, "uname"), "#!/bin/sh\necho arm64\n");
   writeExecutable(path.join(binDir, "lipo"), "#!/bin/sh\nexit 0\n");
   const activationMarker = path.join(tempDir, `activation-${activationFailure}-failed`);
+  const recoveryMarker = path.join(tempDir, `recovery-${recoveryFailure ?? "none"}-failed`);
   writeExecutable(path.join(binDir, "launchctl"), `#!/bin/sh
-printf '%s\\n' "$*" >> '${launchLog}'
+printf '%s\n' "$*" >> '${launchLog}'
 case "$1" in
   print) echo 'state = running'; exit 0 ;;
-  bootstrap) if [ "${activationFailure}" = bootstrap ] && [ ! -e '${activationMarker}' ]; then : > '${activationMarker}'; exit 91; fi ;;
-  kickstart) if [ "${activationFailure}" = kickstart ] && [ ! -e '${activationMarker}' ]; then : > '${activationMarker}'; exit 92; fi ;;
+  bootstrap)
+    if [ "${activationFailure}" = bootstrap ] && [ ! -e '${activationMarker}' ]; then : > '${activationMarker}'; exit 91; fi
+    if [ "${recoveryFailure ?? "none"}" = bootstrap ] && [ -e '${activationMarker}' ] && [ ! -e '${recoveryMarker}' ]; then : > '${recoveryMarker}'; exit 93; fi
+    ;;
+  kickstart)
+    if [ "${activationFailure}" = kickstart ] && [ ! -e '${activationMarker}' ]; then : > '${activationMarker}'; exit 92; fi
+    if [ "${recoveryFailure ?? "none"}" = kickstart ] && [ -e '${activationMarker}' ] && [ ! -e '${recoveryMarker}' ]; then : > '${recoveryMarker}'; exit 94; fi
+    ;;
 esac
 `);
   writeExecutable(path.join(binDir, "docker"), "#!/bin/sh\ncopy=0\nfor arg; do [ \"$arg\" = cp ] && copy=1; last=$arg; done\nif [ \"$copy\" = 1 ]; then printf 'new binary\\n' > \"$last\"; fi\nexit 0\n");
@@ -327,13 +334,29 @@ esac
   const launchCalls = fs.readFileSync(launchLog, "utf8");
   assert.match(launchCalls, /bootout gui\/\d+\/com\.animalekarte\.lab-device-agent/);
   assert.match(launchCalls, new RegExp(`bootstrap gui/\\d+ ${plistPath.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`));
-  assert.match(launchCalls, /kickstart -k gui\/\d+\/com\.animalekarte\.lab-device-agent/);
+  if (recoveryFailure === "bootstrap") {
+    assert.match(result.stderr, /Rollback failed: could not bootstrap the previous LaunchAgent/);
+    assert.equal((launchCalls.match(/kickstart -k gui\/\d+\/com\.animalekarte\.lab-device-agent/g) ?? []).length, 1);
+  } else {
+    assert.match(launchCalls, /kickstart -k gui\/\d+\/com\.animalekarte\.lab-device-agent/);
+  }
+  if (recoveryFailure === "kickstart") {
+    assert.match(result.stderr, /Rollback failed: could not restart the previous LaunchAgent/);
+  }
+  if (recoveryFailure) {
+    assert.match(result.stderr, /Installation activation failed and the previous installation was not fully recovered\./);
+  }
 }
 
 for (const installerKind of ["bundle", "direct"]) {
   for (const activationFailure of ["bootstrap", "kickstart"]) {
     test(`${installerKind} installer restores a running prior installation after ${activationFailure} fails`, (t) => {
       makeInstallerRollbackFixture(t, installerKind, activationFailure);
+    });
+  }
+  for (const recoveryFailure of ["bootstrap", "kickstart"]) {
+    test(`${installerKind} installer reports failed prior LaunchAgent ${recoveryFailure} recovery`, (t) => {
+      makeInstallerRollbackFixture(t, installerKind, "kickstart", recoveryFailure);
     });
   }
 }
