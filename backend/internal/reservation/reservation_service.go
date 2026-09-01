@@ -42,6 +42,11 @@ type CreateManualReservationInput struct {
 }
 
 // UpdateReservationInput は予約更新のサービス入力 DTO
+type ReservationBatchPet struct {
+	OwnerID uint64
+	PetID   uint64
+}
+
 type UpdateReservationInput struct {
 	StartTime         *time.Time
 	EndTime           *time.Time
@@ -109,6 +114,7 @@ type ReservationService interface {
 	// GetByIDForClinics は複数医院スコープで予約を1件取得する (#86 詳細画面拠点横断)。clinicIDs はハンドラ層で所属検証済みであること。
 	GetByIDForClinics(ctx context.Context, clinicIDs []uint64, id uint64) (*model.Reservation, error)
 	Create(ctx context.Context, input *CreateManualReservationInput) (*model.Reservation, error)
+	CreateBatch(ctx context.Context, input *CreateManualReservationInput, pets []ReservationBatchPet) ([]model.Reservation, error)
 	Update(ctx context.Context, clinicID, id uint64, input *UpdateReservationInput) (*model.Reservation, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	UpdateReservationRoute(ctx context.Context, clinicID, id uint64, input UpdateReservationRouteInput) (*model.Reservation, error)
@@ -357,6 +363,77 @@ func (s *reservationService) Create(ctx context.Context, input *CreateManualRese
 		slog.Uint64("reservation_id", reservation.ID),
 		slog.Uint64("clinic_id", reservation.ClinicID))
 	return reservation, nil
+}
+
+// CreateBatch atomically creates one intentionally shared doctor/time booking for selected pets.
+// The batch is the sole exception to the normal one-reservation-per-doctor-slot rule.
+// It acquires the same clinic advisory lock and rejects any pre-existing, unrelated overlap.
+func (s *reservationService) CreateBatch(ctx context.Context, input *CreateManualReservationInput, pets []ReservationBatchPet) ([]model.Reservation, error) {
+	if input == nil || len(pets) < 2 {
+		return nil, apperrors.WrapInvalidInput("at least two pets are required for a reservation batch")
+	}
+	if err := validateTimeRange(input.StartTime, input.EndTime); err != nil {
+		return nil, err
+	}
+	if s.tx == nil {
+		return nil, apperrors.WrapInternalServerError("reservation transaction dependency is required")
+	}
+	if s.typeRepo != nil {
+		if _, err := s.typeRepo.FindByID(ctx, input.ClinicID, input.ReservationTypeID); err != nil {
+			return nil, apperrors.Wrap(err, "failed to verify reservation type ownership")
+		}
+	}
+	if err := ValidateReservationTypeAvailableTime(ctx, s.unavailableTimeRepo, input.ClinicID, input.ReservationTypeID, input.StartTime, input.EndTime); err != nil {
+		return nil, err
+	}
+	created := make([]model.Reservation, 0, len(pets))
+	err := s.tx.WithTx(ctx, func(ctx context.Context) error {
+		if err := s.repo.AcquireBookingLock(ctx, input.ClinicID); err != nil {
+			return err
+		}
+		if err := ValidateReservationStaffCapability(ctx, s.reservationStaffRepo, input.ClinicID, input.DoctorID, input.ReservationTypeID); err != nil {
+			return err
+		}
+		if err := s.validateCreateClosedDays(ctx, input.ClinicID, input.StartTime); err != nil {
+			return err
+		}
+		if err := s.validateCreateClinicHoliday(ctx, input.ClinicID, input.StartTime); err != nil {
+			return err
+		}
+		if err := CheckSlotConflict(ctx, s.repo, input.ClinicID, input.DoctorID, input.StartTime, input.EndTime, nil); err != nil {
+			return err
+		}
+		if err := CheckReservationTypeCapacityForCount(ctx, s.repo, s.typeRepo, input.ClinicID, input.ReservationTypeID, input.StartTime, len(pets)); err != nil {
+			return err
+		}
+		seen := make(map[uint64]struct{}, len(pets))
+		for _, pet := range pets {
+			if pet.OwnerID == 0 || pet.PetID == 0 {
+				return apperrors.WrapInvalidInput("owner_id and pet_id are required for a reservation batch")
+			}
+			if _, duplicate := seen[pet.PetID]; duplicate {
+				return apperrors.WrapInvalidInput("each pet may appear only once in a reservation batch")
+			}
+			seen[pet.PetID] = struct{}{}
+			ownerID, petID := pet.OwnerID, pet.PetID
+			if err := ValidateReservationOwnerPetLinksWithRepo(ctx, s.repo, input.ClinicID, &ownerID, &petID); err != nil {
+				return err
+			}
+			if err := ValidateReservationPetNotDeceased(ctx, s.repo, input.ClinicID, &petID); err != nil {
+				return err
+			}
+			reservation := model.Reservation{ClinicID: input.ClinicID, StartTime: input.StartTime, EndTime: input.EndTime, OwnerID: &ownerID, PetID: &petID, VisitType: input.VisitType, ReservationTypeID: input.ReservationTypeID, DoctorID: input.DoctorID, IsDesignated: input.IsDesignated, Status: input.Status, Notes: input.Notes, Source: input.Source, CreatedBy: input.CreatedBy, ReservationRoute: input.ReservationRoute}
+			if err := s.repo.Create(ctx, &reservation); err != nil {
+				return err
+			}
+			created = append(created, reservation)
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to create reservation batch")
+	}
+	return created, nil
 }
 
 func (s *reservationService) validateCreateClosedDays(ctx context.Context, clinicID uint64, startTime time.Time) error {

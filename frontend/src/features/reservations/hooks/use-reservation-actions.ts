@@ -253,35 +253,14 @@ export function useReservationActions({
       }
 
       try {
-        // Keep fulfilled pets for the lifetime of the open create modal. Form corrections
-        // must not make already-created pets eligible again after a partial failure.
-        const alreadyCreated = createdPetIdsRef.current;
-        const pendingPets = selectedPets.filter((pet) => !alreadyCreated.has(pet.id));
-        const rejected: PromiseRejectedResult[] = [];
-        for (const pet of pendingPets) {
-          try {
-            const createPayload = transformToCreateRequest(data, pet.id, pet.ownerId);
-            const createdReservation = await createMutation.mutateAsync(createPayload);
-            alreadyCreated.add(pet.id);
-            createdReservationIdsRef.current.add(createdReservation.id);
-          } catch (reason) {
-            rejected.push({ status: "rejected", reason });
-          }
-        }
-
-        if (rejected.length > 0) {
-          const reason = extractApiErrorMessage(rejected[0].reason, "作成");
-          if (alreadyCreated.size > 0) {
-            toast.success(`${alreadyCreated.size}件の予約を作成しました`, {
-              description: `担当医: ${targetDoctor}`,
-            });
-          }
-          return reason;
-        }
-
-        toast.success(`${selectedPets.length}件の予約を作成しました`, {
-          description: `担当医: ${targetDoctor}`,
+        // A selected multi-pet booking is one atomic server-side operation. Do not
+        // issue individual creates: the second intentional overlap must not conflict.
+        const { pet_id: _petID, owner_id: _ownerID, ...base } = transformToCreateRequest(data, "0", "0");
+        await createBatchMutation.mutateAsync({
+          ...base,
+          pets: selectedPets.map((pet) => ({ pet_id: Number(pet.id), owner_id: Number(pet.ownerId) })),
         });
+        toast.success(`${selectedPets.length}件の予約を作成しました`, { description: `担当医: ${targetDoctor}` });
         handleCloseCreateForm();
         navigateBackIfNeeded();
         return null;
@@ -291,6 +270,7 @@ export function useReservationActions({
     },
     [
       checkOverlap,
+      createBatchMutation,
       createMutation,
       createMutations,
       editingAppointmentRef,

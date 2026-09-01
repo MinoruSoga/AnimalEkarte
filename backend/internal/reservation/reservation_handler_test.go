@@ -45,6 +45,10 @@ func (m *mockReservationService) GetByIDForClinics(ctx context.Context, clinicID
 	return nil, nil
 }
 
+func (m *mockReservationService) CreateBatch(_ context.Context, _ *CreateManualReservationInput, _ []ReservationBatchPet) ([]model.Reservation, error) {
+	return nil, nil
+}
+
 func (m *mockReservationService) Create(ctx context.Context, input *CreateManualReservationInput) (*model.Reservation, error) {
 	return m.createFn(ctx, input)
 }

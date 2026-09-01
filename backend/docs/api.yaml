@@ -11486,6 +11486,48 @@ paths:
           $ref: '#/components/responses/Conflict'
         '500':
           $ref: '#/components/responses/InternalError'
+  /reservations/batch:
+    post:
+      operationId: createReservationBatch
+      summary: 選択ペットの同一枠予約を原子的に作成
+      tags: [Reservations]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [start_time, end_time, reservation_type_id, pets]
+              properties:
+                start_time: { type: string, format: date-time }
+                end_time: { type: string, format: date-time }
+                reservation_type_id: { type: integer, format: int64 }
+                doctor_id: { type: integer, format: int64 }
+                is_designated: { type: boolean }
+                status: { type: string, enum: [confirmed, pending] }
+                notes: { type: string }
+                pets:
+                  type: array
+                  minItems: 2
+                  items:
+                    type: object
+                    required: [owner_id, pet_id]
+                    properties:
+                      owner_id: { type: integer, format: int64 }
+                      pet_id: { type: integer, format: int64 }
+      responses:
+        '201':
+          description: 全ペット分の予約を作成
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/ReservationAppointment' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '500': { $ref: '#/components/responses/InternalError' }
   /reservations/available-times:
     get:
       operationId: getReservationAvailableTimes

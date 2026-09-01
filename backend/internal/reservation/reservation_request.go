@@ -198,6 +198,34 @@ func (r *createReservationRequest) toServiceInput(clinicID, staffID uint64) (*Cr
 	return input, nil
 }
 
+type createReservationBatchPetRequest struct {
+	OwnerID uint64 `json:"owner_id" binding:"required"`
+	PetID   uint64 `json:"pet_id" binding:"required"`
+}
+
+type createReservationBatchRequest struct {
+	StartTime         time.Time                          `json:"start_time" binding:"required"`
+	EndTime           time.Time                          `json:"end_time" binding:"required"`
+	ReservationTypeID uint64                             `json:"reservation_type_id" binding:"required"`
+	DoctorID          *uint64                            `json:"doctor_id"`
+	IsDesignated      bool                               `json:"is_designated"`
+	Status            string                             `json:"status" binding:"omitempty,oneof=confirmed pending"`
+	Notes             string                             `json:"notes"`
+	Pets              []createReservationBatchPetRequest `json:"pets" binding:"required,min=2"`
+}
+
+func (r *createReservationBatchRequest) toServiceInput(clinicID, staffID uint64) (*CreateManualReservationInput, []ReservationBatchPet, error) {
+	input, err := (&createReservationRequest{StartTime: r.StartTime, EndTime: r.EndTime, ReservationTypeID: r.ReservationTypeID, DoctorID: r.DoctorID, IsDesignated: r.IsDesignated, Status: r.Status, Notes: r.Notes}).toServiceInput(clinicID, staffID)
+	if err != nil {
+		return nil, nil, err
+	}
+	pets := make([]ReservationBatchPet, len(r.Pets))
+	for i, pet := range r.Pets {
+		pets[i] = ReservationBatchPet{OwnerID: pet.OwnerID, PetID: pet.PetID}
+	}
+	return input, pets, nil
+}
+
 // patchReservationReservationRouteRequest は予約経路更新リクエスト（FEAT-381-2）。
 type patchReservationReservationRouteRequest struct {
 	Route string `json:"route" binding:"max=20"`

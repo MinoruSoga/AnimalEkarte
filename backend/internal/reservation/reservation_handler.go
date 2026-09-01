@@ -177,6 +177,40 @@ func (h *ReservationHandler) CreateReservation(c *gin.Context) {
 	c.JSON(http.StatusCreated, toReservationResponse(reservation))
 }
 
+// CreateReservationBatch creates a single atomic shared doctor/time booking for selected pets.
+func (h *ReservationHandler) CreateReservationBatch(c *gin.Context) {
+	clinicID, ok := httpapi.ExtractClinicID(c)
+	if !ok {
+		return
+	}
+	staffID, ok := httpapi.ExtractStaffID(c)
+	if !ok {
+		return
+	}
+	var req createReservationBatchRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
+		return
+	}
+	input, pets, err := req.toServiceInput(clinicID, staffID)
+	if err != nil {
+		respondError(c, apperrors.WrapInvalidInput(err.Error()))
+		return
+	}
+	if input.DoctorID != nil {
+		if err := h.checkDoctorClinicAssignment(c.Request.Context(), clinicID, *input.DoctorID); err != nil {
+			respondError(c, err)
+			return
+		}
+	}
+	reservations, err := h.svc.CreateBatch(c.Request.Context(), input, pets)
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+	c.JSON(http.StatusCreated, httpapi.MapSlice(reservations, toReservationResponse))
+}
+
 // UpdateReservation godoc
 func (h *ReservationHandler) UpdateReservation(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)

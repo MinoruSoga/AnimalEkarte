@@ -2534,3 +2534,33 @@ func TestReservationService_Update_RejectsDeceasedPetReplacement(t *testing.T) {
 	assert.Nil(t, result)
 	assert.False(t, updateCalled, "repo.update must not run when replacement pet is deceased")
 }
+
+func TestReservationService_CreateBatch_AllowsSelectedPetsButRejectsExistingOverlap(t *testing.T) {
+	start := time.Date(2027, 6, 1, 10, 0, 0, 0, time.UTC)
+	created := 0
+	conflicting := false
+	repo := &mockReservationRepository{
+		createFn: func(_ context.Context, _ *model.Reservation) error { created++; return nil },
+		hasDoctorConflictFn: func(_ context.Context, _ uint64, _ uint64, _, _ time.Time, _ *uint64) (bool, error) {
+			return false, nil
+		},
+		findPetOwnerInClinicFn: func(_ context.Context, _ uint64, _ uint64) (uint64, error) { return 1, nil },
+		countConflictsFn: func(_ context.Context, _ uint64, _, _ time.Time, _ *uint64) (int64, error) {
+			if conflicting {
+				return 1, nil
+			}
+			return 0, nil
+		},
+	}
+	svc := NewReservationServiceWithClinicHolidays(repo, nil, &mockTransactor{}, nil, nil, nil, &mockLineReservationSettingFinder{}, &mockClinicHolidayFinder{})
+	input := &CreateManualReservationInput{ClinicID: 1, StartTime: start, EndTime: start.Add(time.Hour), ReservationTypeID: 1, Status: model.ReservationStatusConfirmed, Source: model.ReservationSourceManual}
+	reservations, err := svc.CreateBatch(context.Background(), input, []ReservationBatchPet{{OwnerID: 1, PetID: 10}, {OwnerID: 1, PetID: 11}})
+	require.NoError(t, err)
+	assert.Len(t, reservations, 2)
+	assert.Equal(t, 2, created)
+
+	conflicting = true
+	_, err = svc.CreateBatch(context.Background(), input, []ReservationBatchPet{{OwnerID: 1, PetID: 12}, {OwnerID: 1, PetID: 13}})
+	require.Error(t, err)
+	assert.Equal(t, 2, created, "unrelated overlap must reject the whole batch before inserts")
+}

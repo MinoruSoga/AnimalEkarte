@@ -25,6 +25,10 @@ export interface CreateReservationRequest {
   reservation_route?: ReservationRoute;
 }
 
+export interface CreateReservationBatchRequest extends Omit<CreateReservationRequest, "pet_id" | "owner_id"> {
+  pets: { owner_id: number; pet_id: number }[];
+}
+
 const createReservation = async (
   req: CreateReservationRequest
 ): Promise<Reservation> => {
@@ -33,6 +37,11 @@ const createReservation = async (
     req
   );
   return transformReservation(data);
+};
+
+const createReservationBatch = async (req: CreateReservationBatchRequest): Promise<Reservation[]> => {
+  const { data } = await axios.post<BackendReservation[]>("/v1/reservations/batch", req);
+  return data.map(transformReservation);
 };
 
 /**
@@ -46,6 +55,18 @@ export const useCreateReservation = () => {
 
   return useMutation({
     mutationFn: createReservation,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.reservations.all() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.reception.all() });
+    },
+    onError: (error) => handleApiError(error, "予約作成"),
+  });
+};
+
+export const useCreateReservationBatch = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: createReservationBatch,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.reservations.all() });
       queryClient.invalidateQueries({ queryKey: queryKeys.reception.all() });
