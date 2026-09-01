@@ -210,8 +210,8 @@ candidates = []
 for manifest in sorted(root.glob("*/manifest.json")):
     try:
         m = json.loads(manifest.read_text(encoding="utf-8"))
-    except Exception:
-        continue
+    except Exception as exc:
+        raise SystemExit(f"FAIL  malformed handoff manifest {manifest}: {exc}")
     dirname = manifest.parent.name
     clinic = m.get("clinicCode") or dirname.removesuffix("-local")
     run = m.get("sourceRunId") or m.get("migrationRunId") or dirname
@@ -234,12 +234,13 @@ for (_clinic, _run), (_is_local, path) in sorted(chosen.items()):
 PY
 }
 
+handoff_dirs="$(select_handoff_dirs)"
 found=0
 while IFS= read -r dir; do
   [[ -n "$dir" ]] || continue
   found=1
   import_one "$dir"
-done < <(select_handoff_dirs)
+done <<<"$handoff_dirs"
 
 attach_staff_if_roster_present() {
   local roster secrets
@@ -250,9 +251,11 @@ attach_staff_if_roster_present() {
     return 0
   fi
   echo "INFO  attaching UAT accounts onto imported staffs"
-  STG_UAT_STAFF_ATTACH_ROSTER="$roster" STG_UAT_STAFF_ATTACH_SECRETS="$secrets" \
+  TARGET_DB_NAME="$DB_NAME_VAL" STG_UAT_STAFF_ATTACH_CONFIRM_HOST="${STG_UAT_STAFF_ATTACH_CONFIRM_HOST:-${DB_HOST:-db}}" \
+    STG_UAT_STAFF_ATTACH_ROSTER="$roster" STG_UAT_STAFF_ATTACH_SECRETS="$secrets" \
     make -C "$ROOT" stg-uat-staff-attach-preflight
-  STG_UAT_STAFF_ATTACH_ROSTER="$roster" STG_UAT_STAFF_ATTACH_SECRETS="$secrets" \
+  TARGET_DB_NAME="$DB_NAME_VAL" STG_UAT_STAFF_ATTACH_CONFIRM_HOST="${STG_UAT_STAFF_ATTACH_CONFIRM_HOST:-${DB_HOST:-db}}" \
+    STG_UAT_STAFF_ATTACH_ROSTER="$roster" STG_UAT_STAFF_ATTACH_SECRETS="$secrets" \
     make -C "$ROOT" stg-uat-staff-attach
 }
 
