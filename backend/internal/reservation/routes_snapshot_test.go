@@ -120,6 +120,7 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		"POST /api/v1/masters/reservation-types/:id/occupations LinkReservationTypeOccupation\n" +
 		"POST /api/v1/masters/reservation-types/:id/unavailable-times CreateUnavailableTime\n" +
 		"POST /api/v1/reservations CreateReservation\n" +
+		"POST /api/v1/reservations/batch CreateReservationBatch\n" +
 		"PUT /api/v1/clinics/:clinic_id/line-reservation-settings SaveLineReservationSetting\n" +
 		"PUT /api/v1/clinics/:clinic_id/reservation-staffs/:staffId UpdateReservationStaff\n" +
 		"PUT /api/v1/clinics/:clinic_id/reservation-staffs/:staffId/schedules/:date UpsertReservationSchedule\n" +

@@ -11497,11 +11497,12 @@ paths:
           application/json:
             schema:
               type: object
-              required: [start_time, end_time, reservation_type_id, pets]
+              required: [start_time, end_time, reservation_type_id, visit_type, pets]
               properties:
                 start_time: { type: string, format: date-time }
                 end_time: { type: string, format: date-time }
                 reservation_type_id: { type: integer, format: int64 }
+                visit_type: { type: string, enum: [first, revisit, follow_up] }
                 doctor_id: { type: integer, format: int64 }
                 is_designated: { type: boolean }
                 status: { type: string, enum: [confirmed, pending] }

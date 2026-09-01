@@ -207,6 +207,7 @@ type createReservationBatchRequest struct {
 	StartTime         time.Time                          `json:"start_time" binding:"required"`
 	EndTime           time.Time                          `json:"end_time" binding:"required"`
 	ReservationTypeID uint64                             `json:"reservation_type_id" binding:"required"`
+	VisitType         string                             `json:"visit_type" binding:"required"`
 	DoctorID          *uint64                            `json:"doctor_id"`
 	IsDesignated      bool                               `json:"is_designated"`
 	Status            string                             `json:"status" binding:"omitempty,oneof=confirmed pending"`
@@ -215,7 +216,7 @@ type createReservationBatchRequest struct {
 }
 
 func (r *createReservationBatchRequest) toServiceInput(clinicID, staffID uint64) (*CreateManualReservationInput, []ReservationBatchPet, error) {
-	input, err := (&createReservationRequest{StartTime: r.StartTime, EndTime: r.EndTime, ReservationTypeID: r.ReservationTypeID, DoctorID: r.DoctorID, IsDesignated: r.IsDesignated, Status: r.Status, Notes: r.Notes}).toServiceInput(clinicID, staffID)
+	input, err := (&createReservationRequest{StartTime: r.StartTime, EndTime: r.EndTime, ReservationTypeID: r.ReservationTypeID, VisitType: r.VisitType, DoctorID: r.DoctorID, IsDesignated: r.IsDesignated, Status: r.Status, Notes: r.Notes}).toServiceInput(clinicID, staffID)
 	if err != nil {
 		return nil, nil, err
 	}

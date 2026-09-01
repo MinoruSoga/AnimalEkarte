@@ -208,6 +208,11 @@ func (h *ReservationHandler) CreateReservationBatch(c *gin.Context) {
 		respondError(c, err)
 		return
 	}
+	for _, reservation := range reservations {
+		if shouldAutoCreateMedicalRecordForReservation(&reservation) && h.medicalRecord != nil {
+			h.medicalRecord.AutoCreateFromReservation(c.Request.Context(), clinicID, &reservation)
+		}
+	}
 	c.JSON(http.StatusCreated, httpapi.MapSlice(reservations, toReservationResponse))
 }
 

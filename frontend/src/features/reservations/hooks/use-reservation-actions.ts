@@ -254,13 +254,18 @@ export function useReservationActions({
       }
 
       try {
-        // A selected multi-pet booking is one atomic server-side operation. Do not
-        // issue individual creates: the second intentional overlap must not conflict.
-        const { pet_id: _petID, owner_id: _ownerID, ...base } = transformToCreateRequest(data, "0", "0");
-        await createBatchMutation.mutateAsync({
-          ...base,
-          pets: selectedPets.map((pet) => ({ pet_id: Number(pet.id), owner_id: Number(pet.ownerId) })),
-        });
+        if (selectedPets.length === 1) {
+          const pet = selectedPets[0];
+          await createMutation.mutateAsync(transformToCreateRequest(data, pet.id, pet.ownerId));
+        } else {
+          // A selected multi-pet booking is one atomic server-side operation. Do not
+          // issue individual creates: the second intentional overlap must not conflict.
+          const { pet_id: _petID, owner_id: _ownerID, ...base } = transformToCreateRequest(data, "0", "0");
+          await createBatchMutation.mutateAsync({
+            ...base,
+            pets: selectedPets.map((pet) => ({ pet_id: Number(pet.id), owner_id: Number(pet.ownerId) })),
+          });
+        }
         toast.success(`${selectedPets.length}件の予約を作成しました`, { description: `担当医: ${targetDoctor}` });
         handleCloseCreateForm();
         navigateBackIfNeeded();
