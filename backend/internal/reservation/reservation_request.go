@@ -210,13 +210,15 @@ type createReservationBatchRequest struct {
 	VisitType         string                             `json:"visit_type" binding:"required"`
 	DoctorID          *uint64                            `json:"doctor_id"`
 	IsDesignated      bool                               `json:"is_designated"`
-	Status            string                             `json:"status" binding:"omitempty,oneof=confirmed pending"`
+	Status            string                             `json:"status" binding:"omitempty,oneof=confirmed pending cancelled checked_in in_consultation accounting completed"`
 	Notes             string                             `json:"notes"`
+	Source            string                             `json:"source" binding:"omitempty,oneof=manual line"`
+	ReservationRoute  string                             `json:"reservation_route" binding:"omitempty,oneof=line phone reception exam_room record_shortcut"`
 	Pets              []createReservationBatchPetRequest `json:"pets" binding:"required,min=2"`
 }
 
 func (r *createReservationBatchRequest) toServiceInput(clinicID, staffID uint64) (*CreateManualReservationInput, []ReservationBatchPet, error) {
-	input, err := (&createReservationRequest{StartTime: r.StartTime, EndTime: r.EndTime, ReservationTypeID: r.ReservationTypeID, VisitType: r.VisitType, DoctorID: r.DoctorID, IsDesignated: r.IsDesignated, Status: r.Status, Notes: r.Notes}).toServiceInput(clinicID, staffID)
+	input, err := (&createReservationRequest{StartTime: r.StartTime, EndTime: r.EndTime, ReservationTypeID: r.ReservationTypeID, VisitType: r.VisitType, DoctorID: r.DoctorID, IsDesignated: r.IsDesignated, Status: r.Status, Notes: r.Notes, Source: r.Source, ReservationRoute: r.ReservationRoute}).toServiceInput(clinicID, staffID)
 	if err != nil {
 		return nil, nil, err
 	}

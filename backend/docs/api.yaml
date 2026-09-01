@@ -11505,8 +11505,10 @@ paths:
                 visit_type: { type: string, enum: [first, revisit] }
                 doctor_id: { type: integer, format: int64 }
                 is_designated: { type: boolean }
-                status: { type: string, enum: [confirmed, pending] }
+                status: { type: string, enum: [confirmed, pending, cancelled, checked_in, in_consultation, accounting, completed] }
                 notes: { type: string }
+                source: { type: string, enum: [manual, line] }
+                reservation_route: { type: string, enum: [line, phone, reception, exam_room, record_shortcut] }
                 pets:
                   type: array
                   minItems: 2
