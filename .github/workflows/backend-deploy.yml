@@ -1,5 +1,5 @@
-# Cloudflare Workers + Containers デプロイ (docs/ops/infra/_archive/migration-cloudflare.md Phase 5 / P5-1)
-# 旧 AWS ECS 版 CI は 2026-07-20 の AWS 廃止(docs/ops/infra/_archive/migration-cloudflare.md Phase 8)で削除済み
+# Cloudflare Workers + Containers デプロイ (docs/ops/infra/architecture.md)
+# 旧 AWS ECS 版 CI は 2026-07-20 に廃止済み。履歴は git で確認する。
 
 name: Backend Deploy
 
@@ -52,7 +52,7 @@ jobs:
         run: |
           set -euo pipefail
           if [ -z "${CLOUDFLARE_API_TOKEN}" ]; then
-            echo "::error::CLOUDFLARE_API_TOKEN secret is not configured (docs/ops/infra/_archive/migration-cloudflare.md P5-2)"
+            echo "::error::CLOUDFLARE_API_TOKEN secret is not configured (docs/ops/infra/architecture.md)"
             exit 1
           fi
           pnpm exec wrangler whoami
@@ -96,7 +96,7 @@ jobs:
         run: |
           set -euo pipefail
           if [ -z "${MIGRATE_RUN_SECRET}" ]; then
-            echo "::error::MIGRATE_RUN_SECRET secret is not configured (docs/ops/infra/_archive/migration-cloudflare.md P5-2)"
+            echo "::error::MIGRATE_RUN_SECRET secret is not configured (docs/ops/infra/architecture.md)"
             exit 1
           fi
           ./infra/scripts/cf-run-migrate.sh

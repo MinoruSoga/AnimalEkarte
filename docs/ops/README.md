@@ -22,6 +22,6 @@
 
 ## AI エージェント向け注記
 
-- タスク台帳の実行 SoT は **Linear**。hub・issue の現在状態は外部情報のため、操作前に Linear / GitHub で人手確認する。リポジトリが証明するのは次の pointer の内容のみ。root [`todo.md`](../../todo.md) · [`todo-po.md`](../../todo-po.md) は入口ポインタ。運用で発見した課題は Linear に起票する。旧 `q&a.html` / `STATUS.md` / `PO-todo.md` は削除済。
+- タスク台帳の実行 SoT は **Linear**。hub・issue の現在状態は外部情報のため、操作前に Linear / GitHub で人手確認する。root [`todo.md`](../../todo.md) は STG 実データ運用テストの例外台帳を含み、[`todo-po.md`](../../todo-po.md) は入口ポインタ。運用で発見した課題は Linear に起票する。旧 `q&a.html` / `STATUS.md` / `PO-todo.md` は削除済。
 - **外部 mapping（操作前に GitHub / Linear で検証必須。以下は履歴 pointer）:** #261 / BRT-51 の判定先として GitHub [#261](https://github.com/MinoruSoga/AnimalEkarte/issues/261) 本文（A/B/C）。`q&a.html` は repo に無い。B 薬量は [BRT-39](https://linear.app/baritechllc/issue/BRT-39)。C 健診 seed は [BRT-40](https://linear.app/baritechllc/issue/BRT-40)。検査 / #249 はスコープ外。
 - migration/seed に触れる作業は `migration-seed-safety` スキル、リリース前チェックは `stg-release-readiness` スキルを先に読むこと。

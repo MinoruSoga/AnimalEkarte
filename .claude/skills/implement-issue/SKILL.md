@@ -37,12 +37,11 @@ grep -n '<タスクID>' STATUS.md
 - 引数なし → 以下を実行して open タスクID一覧を表示:
 
 ```bash
-# 台帳のタスクID一覧（STATUS.md 個別タスク詳細 / STATUS.md バグ節）
-grep -oE '^### TASK-[0-9A-Za-z-]+' STATUS.md
-grep -oE '^## BUG-[0-9]+' STATUS.md
+# 台帳のタスクID一覧（Linear が実行 SoT。repo 内の今期外索引も確認する場合）
+sed -n '1,120p' docs/work/phase2-deferred.md
 ```
 
-着手保留は [`phase2.html`](../../../phase2.html) が担う（旧 pending/ の概念は廃止）。
+着手保留は [`docs/work/phase2-deferred.md`](../../../docs/work/phase2-deferred.md) が担う。
 ユーザーに番号またはタスクIDを選択させる。
 
 ### 1.1b claim 確認（着手前必須・AGENTS.md packet claim protocol）
@@ -87,7 +86,7 @@ git log --all --oneline -- 'docs/archive/**' | head
 
 ### 2.1 対象ファイルの特定
 
-タスクセクションの「根拠」「修正方針」から、変更対象ファイルパスを抽出し、全て Read で読み込む。
+- Linear Issue の「根拠」「修正方針」から、変更対象ファイルパスを抽出し、全て Read で読み込む。
 
 ### 2.2 参照実装の確認
 
