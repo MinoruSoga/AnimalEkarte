@@ -127,4 +127,3 @@ docker compose exec frontend pnpm type-check            # NG: 全体type-check
 ## 参照
 
 - `.claude/CLAUDE.md`
-- `.codex/commands/` — 利用可能なコマンド一覧
