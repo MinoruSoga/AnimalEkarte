@@ -66,6 +66,32 @@ func TestRLSMigrationCoversParentScopedChildTables(t *testing.T) {
 	}
 }
 
+func TestLabDevicesMigrationHasDirectClinicRLS(t *testing.T) {
+	t.Parallel()
+
+	sql := readMigrationFile(t, "../../migrations/001_init.sql")
+	const policy = "SELECT app_private.apply_rls_policy(\n    'lab_devices'::regclass,\n    'tenant_clinic_id_isolation',\n    'app_private.has_clinic_access(clinic_id)',\n    'app_private.has_clinic_access(clinic_id)'\n);"
+	if !strings.Contains(sql, policy) {
+		t.Fatalf("lab_devices RLS policy must directly scope USING and WITH CHECK by clinic_id:\n%s", policy)
+	}
+}
+
+func TestEstimatesMigrationBindsPetToClinic(t *testing.T) {
+	t.Parallel()
+
+	sql := readMigrationFile(t, "../../migrations/001_init.sql")
+	requiredSnippets := []string{
+		"ALTER TABLE pets\n    ADD CONSTRAINT uq_pets_id_clinic UNIQUE (id, clinic_id);",
+		"ALTER TABLE estimates\n  ADD COLUMN IF NOT EXISTS pet_id bigint;",
+		"ALTER TABLE estimates\n  ADD CONSTRAINT fk_estimates_pet_clinic\n  FOREIGN KEY (clinic_id, pet_id)\n  REFERENCES pets (clinic_id, id)\n  ON DELETE SET NULL;",
+	}
+	for _, required := range requiredSnippets {
+		if !strings.Contains(sql, required) {
+			t.Fatalf("estimates migration must bind pet_id to the estimate clinic:\n%s", required)
+		}
+	}
+}
+
 // TestExamResultsTenantBoundaryScopedViaParentExam — BE-refactor.md R3-7 (D13) exam_results 部分。
 //
 // exam_results は clinic_id カラムを持たないため、checkup_field_results 同型の

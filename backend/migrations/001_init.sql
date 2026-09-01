@@ -5598,7 +5598,16 @@ SELECT app_private.apply_rls_policy(
 -- Purpose: BUG-009 見積 pet_id。CREATE TABLE 途中へ畳み込むと seed COPY の列順が崩れる。
 -- estimates.csv は supersedes_estimate_id の後ろに pet_id がある（SELECT * 順）。
 ALTER TABLE estimates
-  ADD COLUMN IF NOT EXISTS pet_id bigint REFERENCES pets(id) ON DELETE SET NULL;
+  ADD COLUMN IF NOT EXISTS pet_id bigint;
+
+ALTER TABLE pets
+    ADD CONSTRAINT uq_pets_id_clinic UNIQUE (id, clinic_id);
+
+ALTER TABLE estimates
+  ADD CONSTRAINT fk_estimates_pet_clinic
+  FOREIGN KEY (clinic_id, pet_id)
+  REFERENCES pets (clinic_id, id)
+  ON DELETE SET NULL;
 
 CREATE INDEX IF NOT EXISTS idx_estimates_clinic_pet
   ON estimates (clinic_id, pet_id)
@@ -5806,6 +5815,13 @@ ALTER TABLE lab_devices
     FOREIGN KEY (exam_type_id, clinic_id)
     REFERENCES exam_types (id, clinic_id)
     ON DELETE RESTRICT;
+
+SELECT app_private.apply_rls_policy(
+    'lab_devices'::regclass,
+    'tenant_clinic_id_isolation',
+    'app_private.has_clinic_access(clinic_id)',
+    'app_private.has_clinic_access(clinic_id)'
+);
 
 CREATE INDEX idx_lab_devices_clinic_sort
     ON lab_devices (clinic_id, sort_order);

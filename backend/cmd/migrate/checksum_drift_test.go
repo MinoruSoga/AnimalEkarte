@@ -15,7 +15,7 @@ import (
 	"testing"
 )
 
-const checkedInInitialMigrationSHA256 = "12e21975e82181238a14478418920cbff574a7d2b6a1f3bd0f81e0475aef8b60"
+const checkedInInitialMigrationSHA256 = "ae7f9acbbbe62301dc99995c27d02b11b2d3c8b478231480a28a7c4a4533ad2a"
 
 type failClosedDriver struct{ state *failClosedDriverState }
 type failClosedDriverState struct {
