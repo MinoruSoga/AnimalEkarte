@@ -168,7 +168,7 @@ func TestCashRegisterCloseRepository_AppendOnlyContract_NoDeleteMethod(t *testin
 	require.Error(t, err, "同一 date/period の再 Create は Void なしでは不可")
 }
 
-func TestCashRegisterCloseRepository_Void_ThenReCreateSamePeriod(t *testing.T) {
+func TestCashRegisterCloseRepository_Void_RejectsImmutableClose(t *testing.T) {
 	db := setupCashRegisterCloseTestDB(t)
 	repo := NewCashRegisterCloseRepository(db)
 	ctx := context.Background()
@@ -176,22 +176,21 @@ func TestCashRegisterCloseRepository_Void_ThenReCreateSamePeriod(t *testing.T) {
 	date := time.Date(2026, 6, 12, 0, 0, 0, 0, time.UTC)
 	original := makeCashRegisterClose(t, db, 1, date, "am", nil)
 
-	require.NoError(t, repo.Void(ctx, 1, original.ID))
-
-	// void 後は FindByID / FindByDateAndPeriod で見えない
-	_, err := repo.FindByID(ctx, 1, original.ID)
+	err := repo.Void(ctx, 1, original.ID)
 	require.Error(t, err)
-	got, err := repo.FindByDateAndPeriod(ctx, 1, date, "am")
-	require.NoError(t, err)
-	assert.Nil(t, got)
+	assert.True(t, apperrors.IsConflict(err))
 
-	// 同一 clinic/date/period の再 Create が可能
-	require.NoError(t, repo.Create(ctx, &model.CashRegisterClose{
+	// The close remains visible and its complete unique index continues to reject a re-close.
+	got, findErr := repo.FindByID(ctx, 1, original.ID)
+	require.NoError(t, findErr)
+	assert.Equal(t, original.ID, got.ID)
+	err = repo.Create(ctx, &model.CashRegisterClose{
 		ClinicID:          1,
 		CloseDate:         date,
 		Period:            "am",
 		CategoryBreakdown: json.RawMessage(`{}`),
-	}))
+	})
+	require.Error(t, err)
 }
 
 func TestCashRegisterCloseRepository_Void_MissingID(t *testing.T) {
