@@ -11502,7 +11502,7 @@ paths:
                 start_time: { type: string, format: date-time }
                 end_time: { type: string, format: date-time }
                 reservation_type_id: { type: integer, format: int64 }
-                visit_type: { type: string, enum: [first, revisit, follow_up] }
+                visit_type: { type: string, enum: [first, revisit] }
                 doctor_id: { type: integer, format: int64 }
                 is_designated: { type: boolean }
                 status: { type: string, enum: [confirmed, pending] }
