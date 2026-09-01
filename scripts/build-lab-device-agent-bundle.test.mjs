@@ -249,3 +249,91 @@ exit 1
     fs.rmSync(binDir, { recursive: true, force: true });
   }
 });
+
+function writeExecutable(pathname, contents) {
+  fs.writeFileSync(pathname, contents, { mode: 0o700 });
+}
+
+function makeInstallerRollbackFixture(t, installerKind, activationFailure) {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), `lab-install-rollback-${installerKind}-`));
+  const binDir = path.join(tempDir, "bin");
+  const deviceDir = path.join(tempDir, "devices");
+  const homeDir = path.join(tempDir, "home");
+  const installDir = path.join(homeDir, "Library", "Application Support", "AnimalEkarte");
+  const launchDir = path.join(homeDir, "Library", "LaunchAgents");
+  const binaryPath = path.join(installDir, "lab-device-agent");
+  const portsPath = path.join(installDir, "lab-device-agent-ports");
+  const plistPath = path.join(launchDir, "com.animalekarte.lab-device-agent.plist");
+  const launchLog = path.join(tempDir, "launchctl.log");
+  fs.mkdirSync(binDir, { recursive: true });
+  fs.mkdirSync(deviceDir, { recursive: true });
+  fs.mkdirSync(installDir, { recursive: true });
+  fs.mkdirSync(launchDir, { recursive: true });
+  fs.writeFileSync(path.join(deviceDir, "cu.usbserial-one"), "");
+  fs.writeFileSync(path.join(deviceDir, "cu.usbserial-two"), "");
+  fs.writeFileSync(binaryPath, "old binary\n", { mode: 0o700 });
+  fs.writeFileSync(portsPath, "old ports\n", { mode: 0o600 });
+  fs.writeFileSync(plistPath, "old plist\n", { mode: 0o600 });
+  writeExecutable(path.join(binDir, "uname"), "#!/bin/sh\necho arm64\n");
+  writeExecutable(path.join(binDir, "lipo"), "#!/bin/sh\nexit 0\n");
+  const activationMarker = path.join(tempDir, `activation-${activationFailure}-failed`);
+  writeExecutable(path.join(binDir, "launchctl"), `#!/bin/sh
+printf '%s\\n' "$*" >> '${launchLog}'
+case "$1" in
+  print) echo 'state = running'; exit 0 ;;
+  bootstrap) if [ "${activationFailure}" = bootstrap ] && [ ! -e '${activationMarker}' ]; then : > '${activationMarker}'; exit 91; fi ;;
+  kickstart) if [ "${activationFailure}" = kickstart ] && [ ! -e '${activationMarker}' ]; then : > '${activationMarker}'; exit 92; fi ;;
+esac
+`);
+  writeExecutable(path.join(binDir, "docker"), "#!/bin/sh\ncopy=0\nfor arg; do [ \"$arg\" = cp ] && copy=1; last=$arg; done\nif [ \"$copy\" = 1 ]; then printf 'new binary\\n' > \"$last\"; fi\nexit 0\n");
+
+  let installerPath;
+  let args;
+  if (installerKind === "bundle") {
+    const bundleDir = path.join(tempDir, "bundle");
+    fs.mkdirSync(bundleDir);
+    installerPath = path.join(bundleDir, "install.sh");
+    fs.copyFileSync(fileURLToPath(new URL("../packaging/macos/install-lab-device-agent.sh", import.meta.url)), installerPath);
+    fs.writeFileSync(path.join(bundleDir, "lab-device-agent"), "new binary\n");
+    fs.writeFileSync(path.join(bundleDir, "lab-device-agent.conf"), "123\nhttps://clinic.example\n");
+    fs.writeFileSync(path.join(bundleDir, "com.animalekarte.lab-device-agent.plist"), "template plist\n");
+    writeExecutable(path.join(bundleDir, "configure-plist.sh"), "#!/bin/sh\nprintf 'new plist\\n' > \"$1\"\n");
+    writeExecutable(path.join(binDir, "shasum"), "#!/bin/sh\nexit 0\n");
+    args = [];
+  } else {
+    const fixtureRepo = path.join(tempDir, "repo");
+    const fixtureScripts = path.join(fixtureRepo, "scripts");
+    const fixtureMacos = path.join(fixtureRepo, "packaging", "macos");
+    fs.mkdirSync(fixtureScripts, { recursive: true });
+    fs.mkdirSync(fixtureMacos, { recursive: true });
+    fs.copyFileSync(fileURLToPath(new URL("./install-lab-device-agent.sh", import.meta.url)), path.join(fixtureScripts, "install-lab-device-agent.sh"));
+    fs.copyFileSync(originHelperPath, path.join(fixtureScripts, "canonicalize-lab-device-origin.mjs"));
+    fs.copyFileSync(fileURLToPath(new URL("../packaging/macos/com.animalekarte.lab-device-agent.plist", import.meta.url)), path.join(fixtureMacos, "com.animalekarte.lab-device-agent.plist"));
+    writeExecutable(path.join(fixtureMacos, "configure-lab-device-agent-plist.sh"), "#!/bin/sh\nprintf 'new plist\\n' > \"$1\"\n");
+    installerPath = path.join(fixtureScripts, "install-lab-device-agent.sh");
+    args = ["123", "https://clinic.example"];
+  }
+
+  t.after(() => fs.rmSync(tempDir, { recursive: true, force: true }));
+  const result = spawnSync("sh", [...(installerKind === "direct" ? ["-x"] : []), installerPath, ...args], {
+    encoding: "utf8",
+    env: { ...process.env, HOME: homeDir, PATH: `${binDir}:${process.env.PATH}`, LAB_DEVICE_AGENT_DEVICE_DIR: deviceDir },
+  });
+  assert.notEqual(result.status, 0, `${installerKind}/${activationFailure} unexpectedly succeeded`);
+  assert.equal(fs.readFileSync(binaryPath, "utf8"), "old binary\n");
+  assert.equal(fs.readFileSync(portsPath, "utf8"), "old ports\n");
+  assert.equal(fs.readFileSync(plistPath, "utf8"), "old plist\n");
+  assert.ok(fs.existsSync(launchLog), `status=${result.status}\nstdout=${result.stdout}\nstderr=${result.stderr}`);
+  const launchCalls = fs.readFileSync(launchLog, "utf8");
+  assert.match(launchCalls, /bootout gui\/\d+\/com\.animalekarte\.lab-device-agent/);
+  assert.match(launchCalls, new RegExp(`bootstrap gui/\\d+ ${plistPath.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`));
+  assert.match(launchCalls, /kickstart -k gui\/\d+\/com\.animalekarte\.lab-device-agent/);
+}
+
+for (const installerKind of ["bundle", "direct"]) {
+  for (const activationFailure of ["bootstrap", "kickstart"]) {
+    test(`${installerKind} installer restores a running prior installation after ${activationFailure} fails`, (t) => {
+      makeInstallerRollbackFixture(t, installerKind, activationFailure);
+    });
+  }
+}
