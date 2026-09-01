@@ -372,6 +372,11 @@ func (s *reservationService) CreateBatch(ctx context.Context, input *CreateManua
 	if input == nil || len(pets) < 2 {
 		return nil, apperrors.WrapInvalidInput("at least two pets are required for a reservation batch")
 	}
+	if input.ReservationRoute != nil {
+		if _, ok := AllowedReservationRoutes[*input.ReservationRoute]; !ok {
+			return nil, apperrors.WrapInvalidInput(AllowedReservationRoutesMessage)
+		}
+	}
 	if err := validateTimeRange(input.StartTime, input.EndTime); err != nil {
 		return nil, err
 	}

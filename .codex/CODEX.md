@@ -11,8 +11,7 @@
 
 1. 仕様を読む
    - `docs/` の仕様書
-   - `docs/tasks/open/**/00-OVERVIEW.md`
-   - `docs/tasks/open/**/ISSUE-*.md`
+   - `docs/work/phase2-deferred.md`（保留事項）
 2. 既存コードを読む
    - 近い feature
    - handler / service / repository
@@ -54,9 +53,7 @@
 まず以下を読んで、仕様とタスクを理解してください。
 - docs/<対象機能の仕様書>.md
 - backend/docs/api.yaml（API contract 正本）
-- docs/tasks/open/<対象タスク>/00-OVERVIEW.md
-- docs/tasks/open/<対象タスク>/BE.md
-- docs/tasks/open/<対象タスク>/ISSUE-XXX-be-*.md（担当 issue のみ）
+- 現在のタスク定義と、必要なら `docs/work/phase2-deferred.md`
 
 担当範囲は backend/ のみです。
 ...
@@ -70,9 +67,7 @@
 まず以下を読んで、仕様とタスクを理解してください。
 - docs/<対象機能の仕様書>.md
 - backend/docs/api.yaml（API contract 正本）
-- docs/tasks/open/<対象タスク>/00-OVERVIEW.md
-- docs/tasks/open/<対象タスク>/FE.md
-- docs/tasks/open/<対象タスク>/ISSUE-XXX-fe-*.md（担当 issue のみ）
+- 現在のタスク定義と、必要なら `docs/work/phase2-deferred.md`
 
 担当範囲は frontend/ のみです。
 ...

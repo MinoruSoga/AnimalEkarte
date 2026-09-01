@@ -81,9 +81,9 @@ func TestEstimatesMigrationBindsPetToClinic(t *testing.T) {
 
 	sql := readMigrationFile(t, "../../migrations/001_init.sql")
 	requiredSnippets := []string{
-		"ALTER TABLE pets\n    ADD CONSTRAINT uq_pets_id_clinic UNIQUE (id, clinic_id);",
+		"ALTER TABLE pets\n    ADD CONSTRAINT uq_pets_clinic_id_id\n    UNIQUE (clinic_id, id);",
 		"ALTER TABLE estimates\n  ADD COLUMN IF NOT EXISTS pet_id bigint;",
-		"ALTER TABLE estimates\n  ADD CONSTRAINT fk_estimates_pet_clinic\n  FOREIGN KEY (clinic_id, pet_id)\n  REFERENCES pets (clinic_id, id)\n  ON DELETE SET NULL;",
+		"ALTER TABLE estimates\n  ADD CONSTRAINT fk_estimates_pet_clinic\n  FOREIGN KEY (clinic_id, pet_id)\n  REFERENCES pets (clinic_id, id)\n  ON DELETE SET NULL (pet_id);",
 	}
 	for _, required := range requiredSnippets {
 		if !strings.Contains(sql, required) {
