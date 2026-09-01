@@ -1,4 +1,4 @@
-.PHONY: up down build logs logs-api logs-front ps db clean reset migrate seed docs-ui old-db-handoff-stage old-db-handoff-check csv-import-preflight csv-import csv-import-verify a4-csv-import-preflight a4-csv-import a4-csv-import-verify a4-rehearsal-contract-test a4-rehearsal-config-check a4-rehearsal-up a4-rehearsal-ps a4-rehearsal-runtime-report a4-rehearsal-down f8-g4-rehearsal-contract-test f8-g4-rehearsal-config-check f8-g4-rehearsal-run f8-g4-rehearsal-down restart-api restart-front build-prod lint lint-fix test test-cover lint-front test-front build-front e2e build-go mod-download mod-tidy help codegen codegen-check sync-modules schema-check setup-hooks ci check-reset-contract check-reset-contract-test shellcheck shellcheck-test codex-security-scan stg-uat-skeleton stg-uat-csv-import-preflight stg-uat-csv-import stg-uat-csv-import-verify stg-uat-staff-attach-preflight stg-uat-staff-attach
+.PHONY: up down build logs logs-api logs-front ps db clean reset migrate seed docs-ui old-db-handoff-stage old-db-handoff-check csv-import-preflight csv-import csv-import-verify a4-csv-import-preflight a4-csv-import a4-csv-import-verify a4-rehearsal-contract-test a4-rehearsal-config-check a4-rehearsal-up a4-rehearsal-ps a4-rehearsal-runtime-report a4-rehearsal-down f8-g4-rehearsal-contract-test f8-g4-rehearsal-config-check f8-g4-rehearsal-run f8-g4-rehearsal-down restart-api restart-front build-prod lint lint-fix test test-cover lint-front test-front build-front e2e build-go mod-download mod-tidy help codegen codegen-check sync-modules schema-check setup-hooks ci check-reset-contract check-reset-contract-test shellcheck shellcheck-test codex-security-scan stg-uat-skeleton stg-uat-csv-import-preflight stg-uat-csv-import stg-uat-csv-import-verify stg-uat-import stg-uat-staff-attach-preflight stg-uat-staff-attach
 
 # デフォルトターゲット
 .DEFAULT_GOAL := help
@@ -235,6 +235,21 @@ STG_UAT_CSV_IMPORT_ARGS = \
 	--confirm-target-host "$${STG_UAT_CSV_IMPORT_CONFIRM_HOST}" \
 	--confirm-target-database "$${TARGET_DB_NAME}"
 
+STG_UAT_IMPORT_ARGS = \
+	--source-dir /migration-input \
+	--expected-manifest-sha256 "$${CSV_MANIFEST_SHA256}" \
+	--clinic-code "$${CLINIC_CODE}" \
+	--clinic-ordinal "$${CLINIC_ORDINAL}" \
+	--run-id "$${MIGRATION_RUN_ID}" \
+	--clinic-id "$${TARGET_CLINIC_ID}" \
+	--fallback-animal-species-id "$${FALLBACK_ANIMAL_SPECIES_ID}" \
+	--fallback-exam-type-id "$${FALLBACK_EXAM_TYPE_ID}" \
+	--trimming-reservation-type-id "$${TRIMMING_RESERVATION_TYPE_ID}" \
+	--cash-payment-method-id "$${PAYMENT_METHOD_CASH_ID}" \
+	--credit-card-payment-method-id "$${PAYMENT_METHOD_CREDIT_CARD_ID}" \
+	--confirm-target-host "$${STG_UAT_CSV_IMPORT_CONFIRM_HOST}" \
+	--confirm-target-database "$${TARGET_DB_NAME}"
+
 stg-uat-csv-import-preflight:
 	@test -n "$${TARGET_DB_NAME}" || (echo "TARGET_DB_NAME is required" >&2; exit 1)
 	@test -n "$${STG_UAT_CSV_IMPORT_CONFIRM_HOST}" || (echo "STG_UAT_CSV_IMPORT_CONFIRM_HOST is required" >&2; exit 1)
@@ -278,6 +293,25 @@ stg-uat-csv-import-verify:
 		-e DB_SSL_MODE="$${DB_SSL_MODE:-disable}" \
 		--entrypoint go csv-import \
 		run ./cmd/csv-import-stg-uat verify $(STG_UAT_CSV_IMPORT_ARGS)
+
+# One-shot STG UAT import: target preflight → apply → verify.
+# Requires the explicit clinic-plus-five seed IDs from the approved run sheet.
+# Does not run skeleton or staff-attach. Manual fallback remains stg-uat-csv-import-*.
+stg-uat-import:
+	@test -n "$${TARGET_DB_NAME}" || (echo "TARGET_DB_NAME is required" >&2; exit 1)
+	@test -n "$${STG_UAT_CSV_IMPORT_CONFIRM_HOST}" || (echo "STG_UAT_CSV_IMPORT_CONFIRM_HOST is required" >&2; exit 1)
+	@test -n "$${STG_UAT_CSV_IMPORT_ALLOW_REHEARSAL}" || (echo "STG_UAT_CSV_IMPORT_ALLOW_REHEARSAL is required" >&2; exit 1)
+	@install -d -m 700 sensitive-local/csv-import-reports
+	$(CSV_IMPORT_DC) run --rm --no-deps \
+		-e APP_ENV=staging \
+		-e STG_UAT_CSV_IMPORT_ALLOW_REHEARSAL="$${STG_UAT_CSV_IMPORT_ALLOW_REHEARSAL}" \
+		-e DB_HOST="$${DB_HOST:-db}" \
+		-e DB_PORT="$${DB_PORT:-5432}" \
+		-e DB_SSL_MODE="$${DB_SSL_MODE:-disable}" \
+		--entrypoint go csv-import \
+		run ./cmd/csv-import-stg-uat import $(STG_UAT_IMPORT_ARGS) \
+		--confirm-target-write --confirm-backup-ready \
+		--report-path "/migration-reports/$${CLINIC_CODE}-$${MIGRATION_RUN_ID}-stg-uat-apply.json"
 
 # STG UAT staff attach: bind accounts onto imported staffs.id.
 # Does not create staff rows (that is cmd/staff-provision).
@@ -561,6 +595,7 @@ help:
 	@echo "  csv-import                21表CSVを単一transactionで投入（backup・target確認必須）"
 	@echo "  csv-import-verify         manifest件数/clinic/sequence検証（read-only）"
 	@echo "  stg-uat-csv-import-*     STG UAT verified import（専用cmd。weak rehearsal provenance は拒否）"
+	@echo "  stg-uat-import           STG UAT 1コマンド投入（preflight→apply→verify。6 seed IDを明示）"
 	@echo "  stg-uat-skeleton         clinics 1/2 + F6 bindings（21 cutover 表には書かない）"
 	@echo "  stg-uat-staff-attach-*   移行 staffs.id へ account 後付け（staff-provision ではない）"
 	@echo "  a4-rehearsal-contract-test A4隔離構成/runtime report契約テスト（Docker起動不要）"

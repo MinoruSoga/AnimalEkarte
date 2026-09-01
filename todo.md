@@ -102,7 +102,7 @@ backend/migrations/seeds/_old_db_handoff/hachioji/
 - [ ] **H3-4**: `backend-deploy.yml`を`staging`で実行し、migration成功を確認する。
 - [ ] **H3-5**: `make stg-uat-skeleton`で医院骨格を作る。21表のID bandを占有しないことを確認する。
 - [ ] **H3-6**: 各医院の10M ID bandが21表すべてで空であることを確認する。
-- [ ] **H3-7**: 医院ごとにpreflight → 承認 → apply → verifyを実行する。城東を先に行う。
+- [ ] **H3-7**: 医院ごとに `make stg-uat-import` を実行する。城東を先に行う。失敗時は手動 fallback の preflight / apply / verify を使う。
 - [ ] **H3-8**: 一方が失敗した場合は成功側を残し、失敗側だけを修正する。
 - [ ] **H3-9**: staff attachのpreflight → applyを実行する。名簿とsecretsはrepo外のmode 0600を使う。
 - [ ] **H3-11**: 対象医院へ切り替え、飼主検索が実データで表示されることを確認する。行値はログへ残さない。
@@ -113,9 +113,8 @@ backend/migrations/seeds/_old_db_handoff/hachioji/
 
 ### 実行契約
 
-- `make stg-uat-csv-import-preflight`
-- `make stg-uat-csv-import`
-- `make stg-uat-csv-import-verify`
+- `make stg-uat-import`（21表の preflight → apply → verify。run sheetで確認した6 seed IDを明示）
+- 手動 fallback: `make stg-uat-csv-import-preflight` / `make stg-uat-csv-import` / `make stg-uat-csv-import-verify`
 - `make stg-uat-staff-attach-preflight`
 - `make stg-uat-staff-attach`
 

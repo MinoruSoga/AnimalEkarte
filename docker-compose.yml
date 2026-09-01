@@ -52,6 +52,7 @@ services:
       - "8080:8080"
     volumes:
       - ./backend:/app
+      - ./Makefile:/Makefile:ro
       - ./docs:/docs:ro
       # lintscan DEMO_ACCOUNTS vs 003_demo gate reads LoginForm.tsx at /frontend
       # (backend is mounted at /app, so moduleRoot/../frontend resolves to /frontend).

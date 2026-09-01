@@ -68,6 +68,7 @@ func TestParseOptions(t *testing.T) {
 		{"invalid flag value", []string{"verify", "--clinic-ordinal", "not-an-integer"}, "invalid value"},
 		{"extra positional", []string{"preflight", "extra"}, "unexpected positional"},
 		{"local rehearsal flag is not the STG switch", []string{"preflight", "--allow-local-rehearsal"}, "flag provided but not defined"},
+		{"import rejects local rehearsal flag", []string{"import", "--allow-local-rehearsal"}, "flag provided but not defined"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			_, err := parseOptions(test.args)
@@ -135,6 +136,30 @@ func TestRunWithDependenciesEnvGateFailsClosedBeforePreflightAndOpenTarget(t *te
 	}
 }
 
+func TestParseOptionsImportCommand(t *testing.T) {
+	opt, err := parseOptions([]string{
+		"import",
+		"--source-dir", t.TempDir(),
+		"--expected-manifest-sha256", strings.Repeat("a", 64),
+		"--clinic-code", "jouto",
+		"--clinic-ordinal", "2",
+		"--run-id", "run-1",
+		"--clinic-id", "2",
+		"--confirm-target-write",
+		"--confirm-backup-ready",
+		"--confirm-target-host", "db",
+		"--confirm-target-database", "animalekarte",
+		"--report-path", "/migration-reports/import.json",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if opt.command != "import" || opt.clinicID != 2 || opt.animalSpeciesID != 0 ||
+		!opt.confirmTargetWrite || !opt.confirmBackupReady {
+		t.Fatalf("parsed import options = %#v", opt)
+	}
+}
+
 func TestRunWithDependenciesAllCommandsRequireTargetConfirmationsBeforePreflight(t *testing.T) {
 	withStagingRehearsalEnv(t)
 	t.Setenv("DB_NAME", "animalekarte")
@@ -156,6 +181,259 @@ func TestRunWithDependenciesAllCommandsRequireTargetConfirmationsBeforePreflight
 				t.Fatalf("error = %v, want host confirmation rejection", err)
 			}
 		})
+	}
+}
+
+func TestRunWithDependenciesImportSequencesPreflightApplyVerify(t *testing.T) {
+	withStagingRehearsalEnv(t)
+	t.Setenv("DB_NAME", "animalekarte")
+
+	root := filepath.Join(t.TempDir(), "reports")
+	if err := os.Mkdir(root, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	reportPath := filepath.Join(root, "import.json")
+	target := &fakeCutoverTarget{applyResult: csvimport.CutoverResult{
+			CompletedAt: time.Date(2026, 9, 1, 1, 2, 3, 0, time.UTC),
+			ClinicCode:  "hachioji",
+			RunID:       "run-1",
+			Counts:      map[string]int64{"owners": 2},
+	}}
+	deps := testRunDependencies(t, testCLIBundle(), target)
+	deps.reportRoot = root
+	args := importCLIArgs(t.TempDir(), reportPath)
+	if err := runWithDependencies(context.Background(), args, slog.Default(), deps); err != nil {
+		t.Fatal(err)
+	}
+	if target.preflightCalls != 1 || target.applyCalls != 1 || target.verifyCalls != 1 {
+		t.Fatalf("sequence preflight=%d apply=%d verify=%d", target.preflightCalls, target.applyCalls, target.verifyCalls)
+	}
+	if target.lastSeeds != (csvimport.CutoverSeedIDs{
+		ClinicID: 1, AnimalSpeciesID: 2, ExamTypeID: 3,
+		TrimmingReservationTypeID: 4, CashPaymentMethodID: 5, CreditCardPaymentMethodID: 6,
+	}) {
+		t.Fatalf("import seeds = %#v", target.lastSeeds)
+	}
+	report := readAuditReport(t, reportPath)
+	if report.Status != "PASS" || report.Lane != auditLane {
+		t.Fatalf("report = %#v", report)
+	}
+}
+
+func TestRunWithDependenciesImportStopsBeforeApplyWhenPreflightFails(t *testing.T) {
+	withStagingRehearsalEnv(t)
+	t.Setenv("DB_NAME", "animalekarte")
+
+	root := filepath.Join(t.TempDir(), "reports")
+	if err := os.Mkdir(root, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	target := &fakeCutoverTarget{preflightError: errors.New("band occupied")}
+	deps := testRunDependencies(t, testCLIBundle(), target)
+	deps.reportRoot = root
+	err := runWithDependencies(context.Background(), importCLIArgs(t.TempDir(), filepath.Join(root, "import.json")), slog.Default(), deps)
+	if err == nil || !strings.Contains(err.Error(), "preflight") {
+		t.Fatalf("error = %v, want target preflight failure", err)
+	}
+	if target.applyCalls != 0 || target.verifyCalls != 0 {
+		t.Fatalf("apply=%d verify=%d, want no writes after failed preflight", target.applyCalls, target.verifyCalls)
+	}
+}
+
+func TestRunWithDependenciesImportSkipsVerifyOnRolledBackApply(t *testing.T) {
+	withStagingRehearsalEnv(t)
+	t.Setenv("DB_NAME", "animalekarte")
+
+	root := filepath.Join(t.TempDir(), "reports")
+	if err := os.Mkdir(root, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	target := &fakeCutoverTarget{applyError: errors.New("copy failed")}
+	deps := testRunDependencies(t, testCLIBundle(), target)
+	deps.reportRoot = root
+	err := runWithDependencies(context.Background(), importCLIArgs(t.TempDir(), filepath.Join(root, "import.json")), slog.Default(), deps)
+	if err == nil || !strings.Contains(err.Error(), "rolled back") {
+		t.Fatalf("error = %v, want rolled-back apply", err)
+	}
+	if target.verifyCalls != 0 {
+		t.Fatalf("verify=%d, want skipped after rollback", target.verifyCalls)
+	}
+}
+
+func TestRunWithDependenciesImportVerifiesAfterUnknownCommit(t *testing.T) {
+	withStagingRehearsalEnv(t)
+	t.Setenv("DB_NAME", "animalekarte")
+
+	root := filepath.Join(t.TempDir(), "reports")
+	if err := os.Mkdir(root, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	target := &fakeCutoverTarget{applyError: fmt.Errorf("wrapped: %w", csvimport.ErrCutoverCommitOutcomeUnknown)}
+	deps := testRunDependencies(t, testCLIBundle(), target)
+	deps.reportRoot = root
+	err := runWithDependencies(context.Background(), importCLIArgs(t.TempDir(), filepath.Join(root, "import.json")), slog.Default(), deps)
+	if err == nil || !strings.Contains(err.Error(), "read-only verify") {
+		t.Fatalf("error = %v, want unknown-commit guidance", err)
+	}
+	if target.verifyCalls != 1 {
+		t.Fatalf("verify=%d, want 1 after unknown commit", target.verifyCalls)
+	}
+}
+
+func TestRunWithDependenciesImportUnknownCommitVerifyFailure(t *testing.T) {
+	withStagingRehearsalEnv(t)
+	t.Setenv("DB_NAME", "animalekarte")
+
+	root := filepath.Join(t.TempDir(), "reports")
+	if err := os.Mkdir(root, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	target := &fakeCutoverTarget{
+		applyError:  fmt.Errorf("wrapped: %w", csvimport.ErrCutoverCommitOutcomeUnknown),
+		verifyError: errors.New("counts mismatch"),
+	}
+	deps := testRunDependencies(t, testCLIBundle(), target)
+	deps.reportRoot = root
+	err := runWithDependencies(context.Background(), importCLIArgs(t.TempDir(), filepath.Join(root, "import.json")), slog.Default(), deps)
+	if err == nil || !strings.Contains(err.Error(), "verify also failed") {
+		t.Fatalf("error = %v, want combined unknown-commit and verify failure", err)
+	}
+	if target.verifyCalls != 1 {
+		t.Fatalf("verify=%d", target.verifyCalls)
+	}
+	if !errors.Is(err, csvimport.ErrCutoverCommitOutcomeUnknown) {
+		t.Fatalf("error = %v, want ErrCutoverCommitOutcomeUnknown in chain", err)
+	}
+}
+
+func TestRunWithDependenciesImportRejectsOmittedExplicitSeedIDsBeforeOpeningTarget(t *testing.T) {
+	withStagingRehearsalEnv(t)
+	t.Setenv("DB_NAME", "animalekarte")
+
+	target := &fakeCutoverTarget{}
+	deps := testRunDependencies(t, testCLIBundle(), target)
+	deps.openTarget = func(context.Context, *pgxpool.Config) (cutoverTarget, error) {
+		t.Fatal("openTarget must not be called when explicit seed IDs are omitted")
+		return nil, errors.New("openTarget must not be called")
+	}
+	args := stripSeedIDFlags(importCLIArgs(t.TempDir(), "/migration-reports/import.json"))
+	err := runWithDependencies(context.Background(), args, slog.Default(), deps)
+	if err == nil || !strings.Contains(err.Error(), "six explicit seed IDs") {
+		t.Fatalf("error = %v, want omitted explicit seed ID rejection", err)
+	}
+	if target.pinged || target.applyCalls != 0 {
+		t.Fatalf("target was used: pinged=%v apply=%d", target.pinged, target.applyCalls)
+	}
+}
+
+func TestRunWithDependenciesImportFailsWhenVerifyFailsAfterApply(t *testing.T) {
+	withStagingRehearsalEnv(t)
+	t.Setenv("DB_NAME", "animalekarte")
+
+	root := filepath.Join(t.TempDir(), "reports")
+	if err := os.Mkdir(root, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	target := &fakeCutoverTarget{
+		applyResult: csvimport.CutoverResult{ClinicCode: "hachioji", RunID: "run-1"},
+		verifyError: errors.New("counts mismatch"),
+	}
+	deps := testRunDependencies(t, testCLIBundle(), target)
+	deps.reportRoot = root
+	reportPath := filepath.Join(root, "import.json")
+	err := runWithDependencies(context.Background(), importCLIArgs(t.TempDir(), reportPath), slog.Default(), deps)
+	if err == nil || !strings.Contains(err.Error(), "verification failed") {
+		t.Fatalf("error = %v, want verify failure after apply", err)
+	}
+	if target.applyCalls != 1 || target.verifyCalls != 1 {
+		t.Fatalf("apply=%d verify=%d", target.applyCalls, target.verifyCalls)
+	}
+	report := readAuditReport(t, reportPath)
+	if report.Status != "FAILED_POST_COMMIT_VERIFY" || report.FailureStage != "verify" {
+		t.Fatalf("report = %#v, want post-commit verify failure", report)
+	}
+}
+
+func TestRunWithDependenciesImportRejectsClinicIdentityMismatch(t *testing.T) {
+	withStagingRehearsalEnv(t)
+	t.Setenv("DB_NAME", "animalekarte")
+
+	target := &fakeCutoverTarget{}
+	deps := testRunDependencies(t, testCLIBundle(), target)
+	deps.openTarget = func(context.Context, *pgxpool.Config) (cutoverTarget, error) {
+		t.Fatal("openTarget must not be called when clinic identity fails")
+		return nil, errors.New("openTarget must not be called")
+	}
+	args := importCLIArgs(t.TempDir(), "/migration-reports/import.json")
+	for i := 0; i < len(args)-1; i++ {
+		if args[i] == "--clinic-id" {
+			args[i+1] = "2"
+		}
+	}
+	err := runWithDependencies(context.Background(), args, slog.Default(), deps)
+	if err == nil || !strings.Contains(err.Error(), "clinic-id must match") {
+		t.Fatalf("error = %v, want clinic identity rejection", err)
+	}
+}
+
+func TestRunWithDependenciesImportRejectsMixedSeedFlags(t *testing.T) {
+	withStagingRehearsalEnv(t)
+	t.Setenv("DB_NAME", "animalekarte")
+
+	target := &fakeCutoverTarget{}
+	deps := testRunDependencies(t, testCLIBundle(), target)
+	args := testCLIArgs("import", t.TempDir())
+	args = append(args,
+		"--confirm-target-write",
+		"--confirm-backup-ready",
+		"--report-path", "/migration-reports/import.json",
+		"--fallback-animal-species-id", "2",
+	)
+	// testCLIArgs already sets all five IDs; zero three of them after the extra flag to create a mix.
+	args = zeroNamedIntFlag(args, "--fallback-exam-type-id")
+	args = zeroNamedIntFlag(args, "--trimming-reservation-type-id")
+	args = zeroNamedIntFlag(args, "--cash-payment-method-id")
+	args = zeroNamedIntFlag(args, "--credit-card-payment-method-id")
+	err := runWithDependencies(context.Background(), args, slog.Default(), deps)
+	if err == nil || !strings.Contains(strings.ToLower(err.Error()), "seed") {
+		t.Fatalf("error = %v, want mixed seed flag rejection", err)
+	}
+	if target.applyCalls != 0 {
+		t.Fatalf("apply=%d after mixed seed flags", target.applyCalls)
+	}
+}
+
+func TestValidateImportClinicIdentity(t *testing.T) {
+	valid := options{command: "import", clinicCode: "hachioji", clinicOrdinal: 1, clinicID: 1}
+	if err := validateImportClinicIdentity(valid); err != nil {
+		t.Fatalf("valid identity rejected: %v", err)
+	}
+	if err := validateImportClinicIdentity(options{command: "preflight", clinicCode: "other", clinicOrdinal: 9, clinicID: 9}); err != nil {
+		t.Fatalf("non-import command must skip identity gate: %v", err)
+	}
+	err := validateImportClinicIdentity(options{command: "import", clinicCode: "hachioji", clinicOrdinal: 1, clinicID: 2})
+	if err == nil || !strings.Contains(err.Error(), "clinic-id must match") {
+		t.Fatalf("error = %v, want clinic-id binding rejection", err)
+	}
+	err = validateImportClinicIdentity(options{command: "import", clinicCode: "jouto", clinicOrdinal: 1, clinicID: 2})
+	if err == nil || !strings.Contains(err.Error(), "clinic-code/ordinal") {
+		t.Fatalf("error = %v, want code/ordinal rejection", err)
+	}
+}
+
+func TestRunWithDependenciesImportRequiresApplyConfirmations(t *testing.T) {
+	withStagingRehearsalEnv(t)
+	t.Setenv("DB_NAME", "animalekarte")
+
+	target := &fakeCutoverTarget{}
+	deps := testRunDependencies(t, testCLIBundle(), target)
+	deps.openTarget = func(context.Context, *pgxpool.Config) (cutoverTarget, error) {
+		t.Fatal("openTarget must not be called when import confirmations fail")
+		return nil, errors.New("openTarget must not be called")
+	}
+	err := runWithDependencies(context.Background(), testCLIArgs("import", t.TempDir()), slog.Default(), deps)
+	if err == nil || !strings.Contains(err.Error(), "confirm-target-write") {
+		t.Fatalf("error = %v, want write confirmation", err)
 	}
 }
 
@@ -740,6 +1018,43 @@ func testCLIArgs(command, sourceDir string) []string {
 		"--confirm-target-host", "db",
 		"--confirm-target-database", "animalekarte",
 	}
+}
+
+func importCLIArgs(sourceDir, reportPath string) []string {
+	return append(testCLIArgs("import", sourceDir),
+		"--confirm-target-write",
+		"--confirm-backup-ready",
+		"--report-path", reportPath,
+	)
+}
+
+func stripSeedIDFlags(args []string) []string {
+	names := map[string]struct{}{
+		"--fallback-animal-species-id":    {},
+		"--fallback-exam-type-id":         {},
+		"--trimming-reservation-type-id":  {},
+		"--cash-payment-method-id":        {},
+		"--credit-card-payment-method-id": {},
+	}
+	out := make([]string, 0, len(args))
+	for i := 0; i < len(args); i++ {
+		if _, ok := names[args[i]]; ok {
+			i++
+			continue
+		}
+		out = append(out, args[i])
+	}
+	return out
+}
+
+func zeroNamedIntFlag(args []string, name string) []string {
+	out := append([]string{}, args...)
+	for i := 0; i < len(out)-1; i++ {
+		if out[i] == name {
+			out[i+1] = "0"
+		}
+	}
+	return out
 }
 
 type fakeCutoverTarget struct {

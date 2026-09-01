@@ -1,7 +1,9 @@
 // Command csv-import-stg-uat is the fail-closed STG UAT rehearsal consumer for
 // the twenty-one-table CSV hand-off. It does not relax cmd/csv-import local
 // guards. Staging APP_ENV plus STG_UAT_CSV_IMPORT_ALLOW_REHEARSAL is required
-// before source preflight or opening a target.
+// before source preflight or opening a target. The import command sequences
+// target preflight, apply, and verify in one process. Individual commands
+// remain the manual fallback.
 package main
 
 import (
@@ -179,10 +181,16 @@ func runWithDependencies(ctx context.Context, args []string, logger *slog.Logger
 	if err := validateTargetConfirmations(opt, conn.Host, database); err != nil {
 		return err
 	}
-	if opt.command == "apply" {
+	if opt.command == "apply" || opt.command == "import" {
 		if err := validateApplyConfirmations(opt); err != nil {
 			return err
 		}
+	}
+	if err := validateImportSeedIDs(opt); err != nil {
+		return err
+	}
+	if err := validateImportClinicIdentity(opt); err != nil {
+		return err
 	}
 
 	bundle, err := deps.preflightBundle(opt.sourceDir, csvimport.ExpectedCutoverSource{
@@ -211,14 +219,7 @@ func runWithDependencies(ctx context.Context, args []string, logger *slog.Logger
 	if err := target.Ping(ctx); err != nil {
 		return fmt.Errorf("ping target database: %w", err)
 	}
-	seeds := csvimport.CutoverSeedIDs{
-		ClinicID:                  opt.clinicID,
-		AnimalSpeciesID:           opt.animalSpeciesID,
-		ExamTypeID:                opt.examTypeID,
-		TrimmingReservationTypeID: opt.trimmingReservationTypeID,
-		CashPaymentMethodID:       opt.cashPaymentMethodID,
-		CreditCardPaymentMethodID: opt.creditCardPaymentMethodID,
-	}
+	seeds := flagSeedIDs(opt)
 
 	switch opt.command {
 	case "preflight":
@@ -235,6 +236,8 @@ func runWithDependencies(ctx context.Context, args []string, logger *slog.Logger
 		return nil
 	case "apply":
 		return applyWithAudit(ctx, target, bundle, seeds, opt, conn.Host, database, deps.reportRoot, logger)
+	case "import":
+		return importWithAudit(ctx, target, bundle, seeds, opt, conn.Host, database, deps.reportRoot, logger)
 	default:
 		return fmt.Errorf("unsupported command %q", opt.command)
 	}
@@ -334,11 +337,11 @@ func sslModeParseDSN(mode string) (string, error) {
 
 func parseOptions(args []string) (options, error) {
 	if len(args) == 0 {
-		return options{}, fmt.Errorf("command is required: preflight, apply, or verify")
+		return options{}, fmt.Errorf("command is required: preflight, apply, verify, or import")
 	}
 	opt := options{command: args[0]}
-	if opt.command != "preflight" && opt.command != "apply" && opt.command != "verify" {
-		return options{}, fmt.Errorf("unsupported command %q: use preflight, apply, or verify", opt.command)
+	if opt.command != "preflight" && opt.command != "apply" && opt.command != "verify" && opt.command != "import" {
+		return options{}, fmt.Errorf("unsupported command %q: use preflight, apply, verify, or import", opt.command)
 	}
 	flags := flag.NewFlagSet("csv-import-stg-uat "+opt.command, flag.ContinueOnError)
 	flags.SetOutput(os.Stderr)
@@ -390,6 +393,113 @@ func validateApplyConfirmations(opt options) error {
 	return nil
 }
 
+func flagSeedIDs(opt options) csvimport.CutoverSeedIDs {
+	return csvimport.CutoverSeedIDs{
+		ClinicID:                  opt.clinicID,
+		AnimalSpeciesID:           opt.animalSpeciesID,
+		ExamTypeID:                opt.examTypeID,
+		TrimmingReservationTypeID: opt.trimmingReservationTypeID,
+		CashPaymentMethodID:       opt.cashPaymentMethodID,
+		CreditCardPaymentMethodID: opt.creditCardPaymentMethodID,
+	}
+}
+
+func validateImportSeedIDs(opt options) error {
+	if opt.command != "import" {
+		return nil
+	}
+	for _, id := range []int64{
+		opt.clinicID,
+		opt.animalSpeciesID,
+		opt.examTypeID,
+		opt.trimmingReservationTypeID,
+		opt.cashPaymentMethodID,
+		opt.creditCardPaymentMethodID,
+	} {
+		if id <= 0 {
+			return fmt.Errorf("import requires six explicit seed IDs")
+		}
+	}
+	return nil
+}
+
+const (
+	stgUATClinicHachiojiID int64 = 1
+	stgUATClinicJoutoID    int64 = 2
+)
+
+func expectedSTGUATClinic(code string, ordinal int64) (int64, error) {
+	switch {
+	case code == "hachioji" && ordinal == 1:
+		return stgUATClinicHachiojiID, nil
+	case code == "jouto" && ordinal == 2:
+		return stgUATClinicJoutoID, nil
+	default:
+		return 0, fmt.Errorf("import clinic-code/ordinal is not a STG UAT clinic binding")
+	}
+}
+
+func validateImportClinicIdentity(opt options) error {
+	if opt.command != "import" {
+		return nil
+	}
+	expectedID, err := expectedSTGUATClinic(opt.clinicCode, opt.clinicOrdinal)
+	if err != nil {
+		return err
+	}
+	if opt.clinicID != expectedID {
+		return fmt.Errorf("import clinic-id must match clinic-code/ordinal binding")
+	}
+	return nil
+}
+
+func importWithAudit(
+	ctx context.Context,
+	target cutoverTarget,
+	bundle csvimport.CutoverBundle,
+	seeds csvimport.CutoverSeedIDs,
+	opt options,
+	targetHost string,
+	targetDatabase string,
+	reportRoot string,
+	logger *slog.Logger,
+) error {
+	if err := target.Preflight(ctx, bundle.Manifest, seeds); err != nil {
+		return fmt.Errorf("target preflight failed: %w", err)
+	}
+	err := applyWithAuditFinalizer(ctx, target, bundle, seeds, opt, targetHost, targetDatabase, reportRoot, logger,
+		func(reportFile *os.File, report *auditReport, result csvimport.CutoverResult) error {
+			report.Status = "APPLIED_PENDING_VERIFY"
+			report.CompletedAt = &result.CompletedAt
+			report.Counts = result.Counts
+			if err := replaceAuditReport(reportFile, *report); err != nil {
+				return fmt.Errorf("cutover committed but pending-verification audit report update failed; run verify immediately: %w", err)
+			}
+			if err := target.Verify(ctx, bundle.Manifest, seeds); err != nil {
+				report.Status = "FAILED_POST_COMMIT_VERIFY"
+				report.FailureStage = "verify"
+				if writeErr := replaceAuditReport(reportFile, *report); writeErr != nil {
+					return fmt.Errorf("cutover verification failed after committed apply and audit report update also failed: %w", err)
+				}
+				return fmt.Errorf("cutover verification failed after committed apply: %w", err)
+			}
+			report.Status = "PASS"
+			report.FailureStage = ""
+			if err := replaceAuditReport(reportFile, *report); err != nil {
+				return fmt.Errorf("cutover verified but final audit report update failed; inspect target before any retry: %w", err)
+			}
+			logger.Info("CSV STG UAT cutover import PASS", "clinic_code", result.ClinicCode, "run_id", result.RunID, "report_path", opt.reportPath, "lane", auditLane)
+			return nil
+		},
+	)
+	if err != nil && errors.Is(err, csvimport.ErrCutoverCommitOutcomeUnknown) {
+		if verifyErr := target.Verify(ctx, bundle.Manifest, seeds); verifyErr != nil {
+			return fmt.Errorf("%w; verify also failed: %w", err, verifyErr)
+		}
+	}
+	return err
+}
+
 func applyWithAudit(
 	ctx context.Context,
 	target cutoverTarget,
@@ -400,6 +510,34 @@ func applyWithAudit(
 	targetDatabase string,
 	reportRoot string,
 	logger *slog.Logger,
+) error {
+	return applyWithAuditFinalizer(ctx, target, bundle, seeds, opt, targetHost, targetDatabase, reportRoot, logger,
+		func(reportFile *os.File, report *auditReport, result csvimport.CutoverResult) error {
+			report.Status = "PASS"
+			report.CompletedAt = &result.CompletedAt
+			report.Counts = result.Counts
+			if err := replaceAuditReport(reportFile, *report); err != nil {
+				return fmt.Errorf("cutover committed but final audit report update failed; run verify immediately: %w", err)
+			}
+			logger.Info("CSV STG UAT cutover apply PASS", "clinic_code", result.ClinicCode, "run_id", result.RunID, "report_path", opt.reportPath, "lane", auditLane)
+			return nil
+		},
+	)
+}
+
+type auditApplyFinalizer func(*os.File, *auditReport, csvimport.CutoverResult) error
+
+func applyWithAuditFinalizer(
+	ctx context.Context,
+	target cutoverTarget,
+	bundle csvimport.CutoverBundle,
+	seeds csvimport.CutoverSeedIDs,
+	opt options,
+	targetHost string,
+	targetDatabase string,
+	reportRoot string,
+	logger *slog.Logger,
+	finalize auditApplyFinalizer,
 ) error {
 	started := time.Now().UTC()
 	report := auditReport{
@@ -436,14 +574,7 @@ func applyWithAudit(
 		}
 		return fmt.Errorf("cutover apply failed; transaction rolled back: %w", err)
 	}
-	report.Status = "PASS"
-	report.CompletedAt = &result.CompletedAt
-	report.Counts = result.Counts
-	if err := replaceAuditReport(reportFile, report); err != nil {
-		return fmt.Errorf("cutover committed but final audit report update failed; run verify immediately: %w", err)
-	}
-	logger.Info("CSV STG UAT cutover apply PASS", "clinic_code", result.ClinicCode, "run_id", result.RunID, "report_path", opt.reportPath, "lane", auditLane)
-	return nil
+	return finalize(reportFile, &report, result)
 }
 
 func cutoverApplyFailureClassification(err error) (status string, stage string) {
