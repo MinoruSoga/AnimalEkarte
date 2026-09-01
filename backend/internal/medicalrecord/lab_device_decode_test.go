@@ -240,6 +240,23 @@ func TestDecodeLabDeviceFrames_IDEXXHintRoutes(t *testing.T) {
 	}
 }
 
+func TestDecodeIDEXXLongFrameRetainsUnknownAnalyteForReview(t *testing.T) {
+	t.Parallel()
+	frame, err := decodeIDEXXLongFrame([]byte("WBC 8.0 K/uL NEWCODE 7.2 mg/dL"), []byte{0x02, 'x', 0x03})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !frame.NeedsReview {
+		t.Fatal("unknown analyte must require review")
+	}
+	for _, item := range frame.Items {
+		if item.Code == "NEWCODE" && item.ValueRaw == "7.2" {
+			return
+		}
+	}
+	t.Fatalf("unknown analyte was discarded: %#v", frame.Items)
+}
+
 func TestDecodeLabDeviceFrames_NonNormalStatus(t *testing.T) {
 	t.Parallel()
 	item := fujiEqualsSlot("Na-P", "1", "mEq/l", "")

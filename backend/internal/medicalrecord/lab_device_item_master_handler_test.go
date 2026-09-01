@@ -145,6 +145,20 @@ func TestUpdateLabDeviceItemMaster_InvalidField(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
 
+func TestUpdateLabDeviceItemMaster_RequiresIsActive(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	h := newDeviceMasterHandler(&mockLabDeviceItemMasterService{})
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodPatch, "/api/v1/lab-device-item-masters/4",
+		jsonBody(map[string]any{"unit": "mg/dl"}))
+	c.Request.Header.Set("Content-Type", "application/json")
+	c.Params = gin.Params{{Key: "id", Value: "4"}}
+	setClinicID(c)
+	h.UpdateLabDeviceItemMaster(c)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
 func TestListLabDevices_OK(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	examTypeID := uint64(10)

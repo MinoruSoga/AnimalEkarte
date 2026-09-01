@@ -266,6 +266,7 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	// UpdateIfNotLocked/normalizeDeleteIfNotLockedMiss の tx 内再取得のため併せて追加)
 	"billing/estimate_repository.go|estimateRepository.Create":                 {},
 	"billing/estimate_repository.go|estimateRepository.FindByID":               {},
+	"billing/estimate_repository.go|estimateRepository.LockEditableByID":       {},
 	"billing/estimate_repository.go|estimateRepository.UpdateIfNotLocked":      {},
 	"billing/estimate_repository.go|estimateRepository.DeleteIfNotLocked":      {},
 	"billing/estimate_repository.go|estimateRepository.CountItemsByEstimateID": {},

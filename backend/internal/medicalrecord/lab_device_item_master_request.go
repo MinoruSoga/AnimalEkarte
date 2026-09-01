@@ -13,14 +13,14 @@ import (
 type updateLabDeviceItemMasterRequest struct {
 	Unit            string  `json:"unit"`
 	ExamTypeFieldID *uint64 `json:"exam_type_field_id"`
-	IsActive        bool    `json:"is_active"`
+	IsActive        *bool   `json:"is_active" binding:"required"`
 }
 
 func (r updateLabDeviceItemMasterRequest) toServiceInput() UpdateLabDeviceItemMasterInput {
 	return UpdateLabDeviceItemMasterInput{
 		Unit:            r.Unit,
 		ExamTypeFieldID: r.ExamTypeFieldID,
-		IsActive:        r.IsActive,
+		IsActive:        *r.IsActive,
 	}
 }
 

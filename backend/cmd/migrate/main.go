@@ -201,24 +201,14 @@ func detectLegacySeedKeys(db *sql.DB, logger *slog.Logger) error {
 
 // legacyTranslationTargets returns the schema_migrations keys that
 // translateLegacySeedKeys marks applied whenever ANY legacy key is found.
-// It always returns all three bundles that have a legacy stub equivalent,
-// never only the bundles whose specific legacy filename was found in
-// schema_migrations. Bundles introduced after the stub era must remain
-// eligible for normal application. Pure, no DB access — this is what the
-// translation unit tests exercise directly.
+// It returns only bundles that still exist in the current seed layout. Pure,
+// no DB access — this is what the translation unit tests exercise directly.
 //
-// Why "all", not "only the ones found" (PR #186 security review, HIGH): the
-// pre-2026-07 binary applied every *.sql file unconditionally in one pass, so
-// a routinely-migrated DB carries all three legacy keys together. But nothing
-// guarantees that invariant for every real DB (e.g. one hand-curated to skip
-// demo/staging on purpose) — marking only the found subset would leave the
-// other seeds/<bundle> keys "unapplied", and the runSeedBundles call right
-// after this would then auto-COPY those CSV bundles onto what may be a real
-// database. guardEmptyMigrationHistoryは履歴が空の既存schemaを拒否するが、legacy keyが
-// 存在するDBはその対象ではないため、translateLegacySeedKeysがlegacy相当3件を一括して
-// 適用済み記録する保守的な姿勢を維持し、found key単位では判断しない。
+// The pre-2026-07 binary recorded legacy stub keys together. Only 002_master
+// remains a current bundle; retired 003_demo and 004_staging must not be
+// checksummed or recorded because their source directories no longer exist.
 func legacyTranslationTargets() []string {
-	legacyBundleDirs := [...]string{"002_master", "003_demo", "004_staging"}
+	legacyBundleDirs := [...]string{"002_master"}
 	keys := make([]string, 0, len(legacyBundleDirs))
 	for _, bundleDir := range legacyBundleDirs {
 		keys = append(keys, seedbundle.BundleMigrationKey(bundleDir))

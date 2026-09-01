@@ -93,13 +93,13 @@ func decodeIDEXXLongFrame(body, rawFrame []byte) (LabDeviceFrame, error) {
 	return out, nil
 }
 
-// parseIDEXXTokens scans a token slice for known IDEXX codes and extracts CODE VALUE [UNIT].
-// Unknown tokens are skipped; unknown codes in the result are flagged by markUnknownCodes.
+// parseIDEXXTokens scans a token slice for analyte-shaped IDEXX codes and extracts CODE VALUE [UNIT].
+// Unknown analytes are retained so markUnknownCodes can surface them for clinical review.
 func parseIDEXXTokens(tokens []string) []LabDeviceItem {
 	var items []LabDeviceItem
 	for i := 0; i < len(tokens); i++ {
 		code := tokens[i]
-		if _, isKnown := knownIDEXXCodes[code]; !isKnown {
+		if !isIDEXXAnalyteCode(code) {
 			continue
 		}
 		if i+1 >= len(tokens) {
@@ -120,4 +120,24 @@ func parseIDEXXTokens(tokens []string) []LabDeviceItem {
 		})
 	}
 	return items
+}
+
+func isIDEXXAnalyteCode(token string) bool {
+	if _, known := knownIDEXXCodes[token]; known {
+		return true
+	}
+	if token == "" || strings.ToUpper(token) != token {
+		return false
+	}
+	hasLetter := false
+	for _, r := range token {
+		switch {
+		case r >= 'A' && r <= 'Z':
+			hasLetter = true
+		case r >= '0' && r <= '9', r == '-', r == '_':
+		default:
+			return false
+		}
+	}
+	return hasLetter
 }
