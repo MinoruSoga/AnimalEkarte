@@ -383,28 +383,33 @@ func (s *reservationService) CreateBatch(ctx context.Context, input *CreateManua
 			return nil, apperrors.Wrap(err, "failed to verify reservation type ownership")
 		}
 	}
-	if err := ValidateReservationTypeAvailableTime(ctx, s.unavailableTimeRepo, input.ClinicID, input.ReservationTypeID, input.StartTime, input.EndTime); err != nil {
-		return nil, err
+	enforceBookingConstraints := ShouldEnforceReservationBookingConstraints(input.Status, input.ReservationRoute)
+	if enforceBookingConstraints {
+		if err := ValidateReservationTypeAvailableTime(ctx, s.unavailableTimeRepo, input.ClinicID, input.ReservationTypeID, input.StartTime, input.EndTime); err != nil {
+			return nil, err
+		}
 	}
 	created := make([]model.Reservation, 0, len(pets))
 	err := s.tx.WithTx(ctx, func(ctx context.Context) error {
-		if err := s.repo.AcquireBookingLock(ctx, input.ClinicID); err != nil {
-			return err
-		}
 		if err := ValidateReservationStaffCapability(ctx, s.reservationStaffRepo, input.ClinicID, input.DoctorID, input.ReservationTypeID); err != nil {
 			return err
 		}
-		if err := s.validateCreateClosedDays(ctx, input.ClinicID, input.StartTime); err != nil {
-			return err
-		}
-		if err := s.validateCreateClinicHoliday(ctx, input.ClinicID, input.StartTime); err != nil {
-			return err
-		}
-		if err := CheckSlotConflict(ctx, s.repo, input.ClinicID, input.DoctorID, input.StartTime, input.EndTime, nil); err != nil {
-			return err
-		}
-		if err := CheckReservationTypeCapacityForCount(ctx, s.repo, s.typeRepo, input.ClinicID, input.ReservationTypeID, input.StartTime, len(pets)); err != nil {
-			return err
+		if enforceBookingConstraints {
+			if err := s.repo.AcquireBookingLock(ctx, input.ClinicID); err != nil {
+				return err
+			}
+			if err := s.validateCreateClosedDays(ctx, input.ClinicID, input.StartTime); err != nil {
+				return err
+			}
+			if err := s.validateCreateClinicHoliday(ctx, input.ClinicID, input.StartTime); err != nil {
+				return err
+			}
+			if err := CheckSlotConflict(ctx, s.repo, input.ClinicID, input.DoctorID, input.StartTime, input.EndTime, nil); err != nil {
+				return err
+			}
+			if err := CheckReservationTypeCapacityForCount(ctx, s.repo, s.typeRepo, input.ClinicID, input.ReservationTypeID, input.StartTime, len(pets)); err != nil {
+				return err
+			}
 		}
 		seen := make(map[uint64]struct{}, len(pets))
 		for _, pet := range pets {
