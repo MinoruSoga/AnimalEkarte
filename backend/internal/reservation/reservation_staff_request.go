@@ -1,8 +1,8 @@
 package reservation
 
 type createReservationStaffRequest struct {
-	Name               string `json:"name"               binding:"required"`
-	StaffType          string `json:"staff_type" binding:"omitempty,oneof=doctor nurse groomer other"`
+	Name      string `json:"name"               binding:"required"`
+	StaffType string `json:"staff_type" binding:"omitempty,oneof=doctor nurse groomer other"`
 	// ReservationVisible is *bool so omitted stays default true; explicit false is preserved.
 	ReservationVisible *bool  `json:"reservation_visible"`
 	ReservationComment string `json:"reservation_comment"`
@@ -39,6 +39,7 @@ func (r updateReservationStaffRequest) toServiceInput() *UpdateReservationStaffI
 		SortOrder:          r.SortOrder,
 	}
 }
+
 type patchReservationStaffStatusRequest struct {
 	IsActive bool `json:"is_active"`
 }

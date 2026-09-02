@@ -35,8 +35,8 @@ type reservationAdminRepository struct{ db *gorm.DB }
 // Customer history returns the most recent rows only (full paging is a
 // follow-up outside this repository unit).
 const (
-	maxAdminMonthRows         = persistence.MaxMasterListRows
-	maxCustomerHistoryRows    = 100
+	maxAdminMonthRows      = persistence.MaxMasterListRows
+	maxCustomerHistoryRows = 100
 )
 
 func NewReservationAdminRepository(db *gorm.DB) ReservationAdminRepository {

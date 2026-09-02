@@ -62,10 +62,7 @@ type shiftBreakRequest struct {
 func toShiftBreakInputs(reqs []shiftBreakRequest) []ShiftBreakInput {
 	breaks := make([]ShiftBreakInput, 0, len(reqs))
 	for _, req := range reqs {
-		breaks = append(breaks, ShiftBreakInput{
-			BreakStart: req.BreakStart,
-			BreakEnd:   req.BreakEnd,
-		})
+		breaks = append(breaks, ShiftBreakInput(req))
 	}
 	return breaks
 }

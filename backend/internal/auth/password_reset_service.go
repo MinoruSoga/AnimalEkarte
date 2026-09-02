@@ -262,7 +262,7 @@ func (s *passwordResetService) ForgotPassword(
 	resetURL := buildPasswordResetURL(s.cfg.FrontendURL, rawToken)
 	mailSlotOwned = false
 	mailRegistrationOwned = false
-	s.dispatchPasswordResetEmail(account.ID, email, resetURL, resetToken.ID, tokenHash)
+	s.dispatchPasswordResetEmail(ctx, account.ID, email, resetURL, resetToken.ID, tokenHash)
 
 	slog.InfoContext(ctx, "password reset token issued",
 		slog.Uint64("account_id", account.ID))
@@ -298,12 +298,14 @@ func (s *passwordResetService) reservePasswordResetMail(
 }
 
 func (s *passwordResetService) dispatchPasswordResetEmail(
+	ctx context.Context,
 	accountID uint64,
 	email string,
 	resetURL string,
 	tokenID uint64,
 	tokenHash string,
 ) {
+	_ = ctx
 	sharedkernel.GoSafe("password reset email", func() { //nolint:contextcheck // request cancellation must not abort an accepted reset mail
 		defer s.mailGate.Done()
 		defer s.releaseMailWorker()

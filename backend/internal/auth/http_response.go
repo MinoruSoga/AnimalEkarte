@@ -247,12 +247,7 @@ func ToHTTPEffectivePermissions(perms AuthEffectivePermissions) EffectivePermiss
 	}
 	result := make(EffectivePermissions, len(perms))
 	for resource, permission := range perms {
-		result[resource] = ResourcePermission{
-			View:   permission.View,
-			Create: permission.Create,
-			Edit:   permission.Edit,
-			Delete: permission.Delete,
-		}
+		result[resource] = ResourcePermission(permission)
 	}
 	return result
 }

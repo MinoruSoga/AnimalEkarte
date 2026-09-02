@@ -128,7 +128,6 @@ func NewHandler(
 
 type medicalRoutePerm func(resource model.Resource, action string) gin.HandlerFunc
 
-
 // RegisterRoutes registers this package's HTTP routes on the authenticated
 // protected group. Path, method, and RBAC triples match the pre-BE9 handler
 // registration (BUG-122/BUG-125). Snapshot tests cover path/method/handler name;

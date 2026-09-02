@@ -225,8 +225,8 @@ func TestGetExaminationPrintSnapshot(t *testing.T) {
 		wantBody   string
 	}{
 		{
-			name:  "returns official print snapshot",
-			query: "",
+			name:     "returns official print snapshot",
+			query:    "",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockExaminationService{
 				getPrintSnapshotFn: func(_ context.Context, clinicID, examinationID uint64, version *uint64) (*ExaminationPrintSnapshot, error) {
@@ -254,8 +254,8 @@ func TestGetExaminationPrintSnapshot(t *testing.T) {
 			wantBody:   `"print_boundary":"official"`,
 		},
 		{
-			name:  "passes version query",
-			query: "?version=3",
+			name:     "passes version query",
+			query:    "?version=3",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockExaminationService{
 				getPrintSnapshotFn: func(_ context.Context, _, _ uint64, version *uint64) (*ExaminationPrintSnapshot, error) {
@@ -282,8 +282,8 @@ func TestGetExaminationPrintSnapshot(t *testing.T) {
 			wantStatus: http.StatusUnauthorized,
 		},
 		{
-			name:  "returns 404 when not found",
-			query: "",
+			name:     "returns 404 when not found",
+			query:    "",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockExaminationService{
 				getPrintSnapshotFn: func(_ context.Context, _, _ uint64, _ *uint64) (*ExaminationPrintSnapshot, error) {
@@ -299,7 +299,7 @@ func TestGetExaminationPrintSnapshot(t *testing.T) {
 			h := newHandlerWithExaminationSvc(tt.svc)
 			w := httptest.NewRecorder()
 			c, _ := gin.CreateTestContext(w)
-			c.Request = httptest.NewRequest(http.MethodGet, "/"+tt.query, nil)
+			c.Request = httptest.NewRequest(http.MethodGet, "/"+tt.query, http.NoBody)
 			c.Params = gin.Params{{Key: "id", Value: "10"}}
 			tt.setupCtx(c)
 

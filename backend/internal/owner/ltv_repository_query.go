@@ -164,9 +164,11 @@ func assembleLTVQueryArgs(
 	args = append(args, params.ClinicID)
 	args = append(args, amountExprArgs...)
 	args = append(args, billingCountArgs...)
-	args = append(args, params.ClinicID)
-	args = append(args, params.ClinicID, model.BillingStatusCompleted)
-	args = append(args, params.ClinicID, model.BillingStatusCompleted)
+	args = append(args,
+		params.ClinicID,
+		params.ClinicID, model.BillingStatusCompleted,
+		params.ClinicID, model.BillingStatusCompleted,
+	)
 	args = append(args, whereArgs...)
 	args = append(args, havingArgs...)
 	return args

@@ -1627,7 +1627,6 @@ func (m *mockReservationRepoForMedicalRecord) FindPetByIDInClinic(ctx context.Co
 	return &model.Pet{ID: petID, Status: model.PetStatusAlive, DeceasedAt: nil}, nil
 }
 
-
 // mockLstepDeliveryTriggerForMR は TriggerFirstVisitWelcome の呼び出し検証用モック
 type mockLstepDeliveryTriggerForMR struct {
 	triggerFirstVisitWelcomeFn    func(ctx context.Context, clinicID, ownerID uint64) error

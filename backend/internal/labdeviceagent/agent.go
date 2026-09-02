@@ -132,7 +132,7 @@ func (a *Agent) Run(ctx context.Context) {
 			if _, exists := active[path]; exists {
 				continue
 			}
-			portCtx, cancel := context.WithCancel(ctx)
+			portCtx, cancel := context.WithCancel(ctx) //nolint:gosec // G118: cancel is stored in active and invoked on teardown
 			active[path] = cancel
 			monitors.Add(1)
 			sharedkernel.GoSafe("lab-device-monitor:"+path, func() {
@@ -322,7 +322,7 @@ func (a *Agent) handleIncomingBytes(
 	enqueueBuffered func(),
 	stopIdle func(),
 	idle **time.Timer,
-	idleChannel *<-chan time.Time,
+	idleChannel *<-chan time.Time, //nolint:gocritic // ptrToRefParam: caller reassigns the idle timer channel
 ) ([]byte, bool) {
 	wasOverflow := frames.overflow
 	if !frames.Push(incoming) && !wasOverflow {

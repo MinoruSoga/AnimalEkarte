@@ -237,22 +237,22 @@ func scanCompositionConventions(baseName string, file *ast.File) []string {
 
 // Domain wiring helpers belong in composition_*.go. main.go may only bootstrap.
 var mainForbiddenCallNames = map[string]struct{}{
-	"newAuthRepositories":           {},
-	"newStaffRepositories":          {},
-	"newClinicRepositories":         {},
-	"newOwnerPetRepositories":       {},
-	"newReservationRepositories":    {},
-	"newBillingRepositories":        {},
-	"newMedicalRecordRepositories":  {},
-	"newRuntimeRepositories":        {},
-	"newRuntimeComposition":         {},
-	"newAuthComposition":            {},
-	"newStaffComposition":           {},
-	"newClinicComposition":          {},
-	"newOwnerPetComposition":        {},
-	"newReservationComposition":     {},
-	"newBillingComposition":         {},
-	"newMedicalRecordComposition":   {},
+	"newAuthRepositories":          {},
+	"newStaffRepositories":         {},
+	"newClinicRepositories":        {},
+	"newOwnerPetRepositories":      {},
+	"newReservationRepositories":   {},
+	"newBillingRepositories":       {},
+	"newMedicalRecordRepositories": {},
+	"newRuntimeRepositories":       {},
+	"newRuntimeComposition":        {},
+	"newAuthComposition":           {},
+	"newStaffComposition":          {},
+	"newClinicComposition":         {},
+	"newOwnerPetComposition":       {},
+	"newReservationComposition":    {},
+	"newBillingComposition":        {},
+	"newMedicalRecordComposition":  {},
 }
 
 func scanMainGoForDomainWiring(file *ast.File) []string {

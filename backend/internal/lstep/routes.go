@@ -47,7 +47,6 @@ type Handler struct {
 	requireAnyPermission PermissionAnyMiddleware
 }
 
-
 // requireSystemAdmin gates global LSTEP tag-config mutations (SOLO-09 / LSA-04 / DEC-30).
 // Hospital-settings RBAC must not mutate clinic-global masters that affect all clinics.
 func requireSystemAdmin() gin.HandlerFunc {

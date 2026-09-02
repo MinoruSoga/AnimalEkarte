@@ -1,8 +1,9 @@
 package medicalrecord
 
 import (
-	"github.com/animal-ekarte/backend/internal/textsearch"
 	"gorm.io/gorm"
+
+	"github.com/animal-ekarte/backend/internal/textsearch"
 )
 
 func applyMedicalRecordSearch(q *gorm.DB, search string) *gorm.DB {

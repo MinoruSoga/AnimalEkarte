@@ -300,8 +300,6 @@ func (p *StaffProvisioner) createAllStaff(
 		if hashErr != nil {
 			return 0, apperrors.Wrap(hashErr, "failed to hash password")
 		}
-		// Drop password material immediately after hashing.
-		password = ""
 
 		if entry.OccupationID != nil {
 			if err := p.repo.LockOccupationForShare(ctx, entry.MainClinicID, *entry.OccupationID); err != nil {

@@ -9,6 +9,11 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
+// newLstepAPIClient constructs the LSTEP HTTP client. Tests replace this to
+// speak to httptest.Server; production NewClient blocks loopback.
+// Parallel-unsafe: tests that swap this must not call t.Parallel().
+var newLstepAPIClient = lstepapi.NewClient
+
 // ISSUE-005: 除外理由（優先度順）。複数該当する場合は上位を採用する。
 const (
 	exclusionReasonOptOut       = "Lステップ配信停止中"
@@ -156,7 +161,7 @@ func (s *checkupSyncService) buildClient(ctx context.Context, clinicID uint64) (
 	if apiKey == "" {
 		return nil, nil
 	}
-	return lstepapi.NewClient(apiKey, baseURL), nil
+	return newLstepAPIClient(apiKey, baseURL), nil
 }
 
 // computeCPMStageFromRow は preview 行から CPM ステージを計算する（ISSUE-009）。

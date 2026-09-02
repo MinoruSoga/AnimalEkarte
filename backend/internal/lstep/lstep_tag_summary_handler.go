@@ -31,7 +31,13 @@ func (w *csvExportHeaderWriter) Write(p []byte) (int, error) {
 }
 
 func (w *csvExportHeaderWriter) WriteString(s string) (int, error) {
-	return w.Write([]byte(s))
+	if !w.started {
+		w.started = true
+		if w.onFirstWrite != nil {
+			w.onFirstWrite()
+		}
+	}
+	return w.ResponseWriter.WriteString(s) //nolint:wrapcheck // HTTP writer must preserve Write error identity
 }
 
 // GetLstepTagSummary godoc

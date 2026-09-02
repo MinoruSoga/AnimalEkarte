@@ -23,8 +23,8 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/persistence"
-	"github.com/animal-ekarte/backend/internal/testdb"
 	"github.com/animal-ekarte/backend/internal/reservation"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 // setupAccountingCompleteAppointmentsTestDB は G11-2 テスト用の DB を整備する。

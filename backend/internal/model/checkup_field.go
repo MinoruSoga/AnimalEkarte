@@ -34,23 +34,23 @@ func (t CheckupFieldType) IsValid() bool {
 // CheckupTypeField は健診パッケージ（checkup_type）の型付きフィールド定義マスタ。
 // examination の exam_type_fields に相当するが、field_type / options / 異常値基準を持つ。
 type CheckupTypeField struct {
-	ID              uint64           `gorm:"primaryKey;autoIncrement"            json:"id"`
-	ClinicID        uint64           `gorm:"not null"                            json:"clinic_id"`
-	CheckupTypeID   uint64           `gorm:"not null"                            json:"checkup_type_id"`
-	Name            string           `gorm:"not null"                            json:"name"`
-	FieldType       CheckupFieldType `gorm:"type:checkup_field_type;not null"    json:"field_type"`
-	Unit            string           `gorm:"not null;default:''"                 json:"unit"`
-	MinValue        *float64         `gorm:"type:decimal(10,4)"                  json:"min_value,omitempty"`
-	MaxValue        *float64         `gorm:"type:decimal(10,4)"                  json:"max_value,omitempty"`
-	Options         datatypes.JSON   `gorm:"type:jsonb;not null;default:'[]'"    json:"options"`
-	IsProvisional   bool             `gorm:"not null;default:false"              json:"is_provisional"`
+	ID            uint64           `gorm:"primaryKey;autoIncrement"            json:"id"`
+	ClinicID      uint64           `gorm:"not null"                            json:"clinic_id"`
+	CheckupTypeID uint64           `gorm:"not null"                            json:"checkup_type_id"`
+	Name          string           `gorm:"not null"                            json:"name"`
+	FieldType     CheckupFieldType `gorm:"type:checkup_field_type;not null"    json:"field_type"`
+	Unit          string           `gorm:"not null;default:''"                 json:"unit"`
+	MinValue      *float64         `gorm:"type:decimal(10,4)"                  json:"min_value,omitempty"`
+	MaxValue      *float64         `gorm:"type:decimal(10,4)"                  json:"max_value,omitempty"`
+	Options       datatypes.JSON   `gorm:"type:jsonb;not null;default:'[]'"    json:"options"`
+	IsProvisional bool             `gorm:"not null;default:false"              json:"is_provisional"`
 	// ImportNamespace / ImportKey are nullable stable keys for versioned package import (TASK-374).
-	ImportNamespace *string          `gorm:"column:import_namespace"             json:"import_namespace,omitempty"`
-	ImportKey       *string          `gorm:"column:import_key"                   json:"import_key,omitempty"`
-	SortOrder       int              `gorm:"type:integer;default:0"              json:"sort_order"`
-	CreatedAt       time.Time        `gorm:"autoCreateTime"                      json:"created_at"`
-	UpdatedAt       time.Time        `gorm:"autoUpdateTime"                      json:"updated_at"`
-	DeletedAt       gorm.DeletedAt   `                                           json:"-"`
+	ImportNamespace *string        `gorm:"column:import_namespace"             json:"import_namespace,omitempty"`
+	ImportKey       *string        `gorm:"column:import_key"                   json:"import_key,omitempty"`
+	SortOrder       int            `gorm:"type:integer;default:0"              json:"sort_order"`
+	CreatedAt       time.Time      `gorm:"autoCreateTime"                      json:"created_at"`
+	UpdatedAt       time.Time      `gorm:"autoUpdateTime"                      json:"updated_at"`
+	DeletedAt       gorm.DeletedAt `                                           json:"-"`
 }
 
 func (CheckupTypeField) TableName() string { return "checkup_type_fields" }

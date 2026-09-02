@@ -178,7 +178,7 @@ func applyFujiValueUnit(item *LabDeviceItem, fields []string) {
 		item.ValueRaw = strings.Join(fields[:unitAt], " ")
 		item.Unit = fields[unitAt]
 		extra := strings.TrimSpace(strings.Join(fields[unitAt+1:], " "))
-		item.Flag = strings.TrimSpace(strings.Join([]string{extra, item.Flag}, " "))
+		item.Flag = strings.TrimSpace(extra + " " + item.Flag)
 		return
 	}
 	item.ValueRaw = strings.Join(fields, " ")

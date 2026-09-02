@@ -270,7 +270,7 @@ func TestGetUnbilledItemDetails_HandlerEnvelope(t *testing.T) {
 	h := newHandlerWithBillingItemSvc(svc)
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
-	c.Request = httptest.NewRequest(http.MethodGet, "/billing-items/unbilled-details?pet_id=7", nil)
+	c.Request = httptest.NewRequest(http.MethodGet, "/billing-items/unbilled-details?pet_id=7", http.NoBody)
 	setClinicID(c)
 	h.GetUnbilledItemDetails(c)
 	require.Equal(t, http.StatusOK, w.Code)

@@ -219,9 +219,9 @@ func (m *bulkVaccinationRepo) FindByOwnerIDs(_ context.Context, _ uint64, ownerI
 }
 
 type bulkMedRecordRepo struct {
-	findVisitSummaryCalls     int64
-	findVisitSummariesCalls   int64
-	lastBulkSize              int
+	findVisitSummaryCalls   int64
+	findVisitSummariesCalls int64
+	lastBulkSize            int
 }
 
 func (m *bulkMedRecordRepo) FindOwnerVisitSummary(_ context.Context, _, _ uint64) (*medicalrecord.OwnerVisitSummary, error) {

@@ -104,7 +104,7 @@ func optionalStaffID(c *gin.Context) *uint64 {
 	return httpapi.OptionalStaffID(c)
 }
 
-func parseIDParam(c *gin.Context, key string) (uint64, bool) {
+func parseIDParam(c *gin.Context, key string) (uint64, bool) { //nolint:unparam // key is part of the httpapi helper signature; current callers all use "id"
 	return httpapi.ParseIDParam(c, key)
 }
 

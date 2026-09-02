@@ -413,7 +413,6 @@ func TestCreateHospitalization(t *testing.T) {
 			c.Request.Header.Set("Content-Type", "application/json")
 			tt.setupCtx(c)
 
-
 			h.CreateHospitalization(c)
 
 			assert.Equal(t, tt.wantStatus, w.Code)

@@ -172,4 +172,3 @@ func TestCampaignRepository_FindByID_SeesUncommittedUpdateInAmbientTx(t *testing
 		return nil
 	}))
 }
-

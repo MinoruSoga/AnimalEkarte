@@ -12,7 +12,6 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/httpapi"
-	"github.com/animal-ekarte/backend/internal/model"
 )
 
 // MedicalRecordImageHandler serves the medical-record-image (診療画像) HTTP boundary nested under a
@@ -50,13 +49,13 @@ func NewMedicalRecordImageHandler(
 // verifyOwnership は clinicID + medicalRecordID を検証しテナント分離を保証する（pre-move
 // internal/handler.Handler.verifyMedicalRecordOwnership のローカル移植）。検証済みの
 // MedicalRecord と成否を返す。
-func (h *MedicalRecordImageHandler) verifyOwnership(c *gin.Context, clinicID, medicalRecordID uint64) (*model.MedicalRecord, bool) {
-	mr, err := h.medicalRecord.GetByID(c.Request.Context(), clinicID, medicalRecordID)
+func (h *MedicalRecordImageHandler) verifyOwnership(c *gin.Context, clinicID, medicalRecordID uint64) bool {
+	_, err := h.medicalRecord.GetByID(c.Request.Context(), clinicID, medicalRecordID)
 	if err != nil {
 		httpapi.RespondError(c, err)
-		return nil, false
+		return false
 	}
-	return mr, true
+	return true
 }
 
 // ListMedicalRecordImages godoc
@@ -70,7 +69,7 @@ func (h *MedicalRecordImageHandler) ListMedicalRecordImages(c *gin.Context) {
 	if !ok {
 		return
 	}
-	if _, ok := h.verifyOwnership(c, clinicID, medicalRecordID); !ok {
+	if !h.verifyOwnership(c, clinicID, medicalRecordID) {
 		return
 	}
 
@@ -95,7 +94,7 @@ func (h *MedicalRecordImageHandler) CreateMedicalRecordImage(c *gin.Context) {
 	if !ok {
 		return
 	}
-	if _, ok := h.verifyOwnership(c, clinicID, medicalRecordID); !ok {
+	if !h.verifyOwnership(c, clinicID, medicalRecordID) {
 		return
 	}
 
@@ -130,7 +129,7 @@ func (h *MedicalRecordImageHandler) DeleteMedicalRecordImage(c *gin.Context) {
 	if !ok {
 		return
 	}
-	if _, ok := h.verifyOwnership(c, clinicID, medicalRecordID); !ok {
+	if !h.verifyOwnership(c, clinicID, medicalRecordID) {
 		return
 	}
 
@@ -162,7 +161,7 @@ func (h *MedicalRecordImageHandler) UploadMedicalRecordImage(c *gin.Context) {
 	if !ok {
 		return
 	}
-	if _, ok := h.verifyOwnership(c, clinicID, medicalRecordID); !ok {
+	if !h.verifyOwnership(c, clinicID, medicalRecordID) {
 		return
 	}
 

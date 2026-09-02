@@ -341,7 +341,7 @@ func TestHospitalizationService_Create(t *testing.T) {
 			name:     "returns error when already exists",
 			clinicID: 1,
 			input: &CreateHospitalizationInput{
-				CageID:              func() *uint64 { v := uint64(10); return &v }(),
+				CageID:    func() *uint64 { v := uint64(10); return &v }(),
 				OwnerID:   2,
 				PetID:     5,
 				StartDate: now,
@@ -354,11 +354,11 @@ func TestHospitalizationService_Create(t *testing.T) {
 			name:     "returns error on repository failure",
 			clinicID: 1,
 			input: &CreateHospitalizationInput{
-				CageID:              func() *uint64 { v := uint64(10); return &v }(),
-				OwnerID:             2,
-				PetID:               5,
-				StartDate:           now,
-				EndDate:             now.Add(24 * time.Hour),
+				CageID:    func() *uint64 { v := uint64(10); return &v }(),
+				OwnerID:   2,
+				PetID:     5,
+				StartDate: now,
+				EndDate:   now.Add(24 * time.Hour),
 			},
 			repoErr: errors.New("db error"),
 			wantErr: true,
@@ -702,7 +702,7 @@ func TestHospitalizationService_Create_InsuranceFields(t *testing.T) {
 		{
 			name: "is_insurance=true の場合は保険フィールドを保存する",
 			input: &CreateHospitalizationInput{
-				CageID:              func() *uint64 { v := uint64(10); return &v }(),
+				CageID:               func() *uint64 { v := uint64(10); return &v }(),
 				OwnerID:              2,
 				PetID:                5,
 				HospitalizationType:  model.HospitalizationTypeInpatient,
@@ -718,7 +718,7 @@ func TestHospitalizationService_Create_InsuranceFields(t *testing.T) {
 		{
 			name: "is_insurance=false の場合は保険フィールドを NULL にする",
 			input: &CreateHospitalizationInput{
-				CageID:              func() *uint64 { v := uint64(10); return &v }(),
+				CageID:               func() *uint64 { v := uint64(10); return &v }(),
 				OwnerID:              2,
 				PetID:                5,
 				HospitalizationType:  model.HospitalizationTypeInpatient,

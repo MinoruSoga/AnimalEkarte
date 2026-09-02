@@ -36,6 +36,7 @@ package apicontract
 // （両者のセグメント名は現状全て一致 — 例: :id→{id}, :clinic_id→{clinic_id}, :clinicId→{clinicId}）。
 
 import (
+	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -268,7 +269,29 @@ func (rc *routeCollector) walkFunc(fd *ast.FuncDecl, prefix string) {
 		rc.unresolved = append(rc.unresolved, "func "+fd.Name.Name+" has no *gin.RouterGroup/*gin.Engine parameter")
 		return
 	}
-	key := fd.Name.Name + "@" + prefix
+	rc.walkFuncWithRoutingEnv(fd, map[string]string{params[idx].name: prefix})
+}
+
+func (rc *routeCollector) walkFuncWithRoutingEnv(fd *ast.FuncDecl, routingEnv map[string]string) {
+	params := flattenParams(fd.Type)
+	if routingParamIndex(params) < 0 {
+		rc.unresolved = append(rc.unresolved, "func "+fd.Name.Name+" has no *gin.RouterGroup/*gin.Engine parameter")
+		return
+	}
+	env := map[string]string{}
+	key := fd.Name.Name
+	for _, p := range params {
+		if !p.isRoutingType {
+			continue
+		}
+		prefix, ok := routingEnv[p.name]
+		if !ok {
+			rc.unresolved = append(rc.unresolved, "func "+fd.Name.Name+" routing param "+p.name+" has no prefix from the caller")
+			return
+		}
+		env[p.name] = prefix
+		key += "@" + prefix
+	}
 	if rc.visiting[key] {
 		rc.unresolved = append(rc.unresolved, "recursive Register call detected at "+key)
 		return
@@ -276,7 +299,6 @@ func (rc *routeCollector) walkFunc(fd *ast.FuncDecl, prefix string) {
 	rc.visiting[key] = true
 	defer delete(rc.visiting, key)
 
-	env := map[string]string{params[idx].name: prefix}
 	rc.walkStmts(fd.Body.List, env)
 }
 
@@ -409,22 +431,32 @@ func (rc *routeCollector) handleExprStmt(s *ast.ExprStmt, env map[string]string)
 			return
 		}
 		calleeParams := flattenParams(callee.Type)
-		calleeIdx := routingParamIndex(calleeParams)
-		if calleeIdx < 0 || calleeIdx >= len(call.Args) {
+		calleeEnv := map[string]string{}
+		for i, p := range calleeParams {
+			if !p.isRoutingType {
+				continue
+			}
+			if i >= len(call.Args) {
+				rc.unresolved = append(rc.unresolved, "cannot bind routing arg for call to h."+sel.Sel.Name)
+				return
+			}
+			argName, ok := identName(call.Args[i])
+			if !ok {
+				rc.unresolved = append(rc.unresolved, "non-ident routing arg in call to h."+sel.Sel.Name)
+				return
+			}
+			argPrefix, ok := env[argName]
+			if !ok {
+				rc.unresolved = append(rc.unresolved, fmt.Sprintf("unresolved routing arg %q in call to h.%s", argName, sel.Sel.Name))
+				return
+			}
+			calleeEnv[p.name] = argPrefix
+		}
+		if len(calleeEnv) == 0 {
 			rc.unresolved = append(rc.unresolved, "cannot bind routing arg for call to h."+sel.Sel.Name)
 			return
 		}
-		argName, ok := identName(call.Args[calleeIdx])
-		if !ok {
-			rc.unresolved = append(rc.unresolved, "non-ident routing arg in call to h."+sel.Sel.Name)
-			return
-		}
-		argPrefix, ok := env[argName]
-		if !ok {
-			rc.unresolved = append(rc.unresolved, "unresolved routing arg %q in call to h."+sel.Sel.Name)
-			return
-		}
-		rc.walkFunc(callee, argPrefix)
+		rc.walkFuncWithRoutingEnv(callee, calleeEnv)
 	}
 }
 
@@ -782,11 +814,20 @@ func (h *Handler) registerOwnerRoutesWithAuth(rg *gin.RouterGroup) {
 	owners.GET("", h.ListOwners)
 	owners.GET("/:id", h.GetOwner)
 	h.RegisterChronicConditionRoutes(owners)
+	records := rg.Group("/medical-records")
+	hospitalizations := rg.Group("/hospitalizations")
+	h.registerSplitRoutes(records, hospitalizations)
 }
 
 func (h *Handler) RegisterChronicConditionRoutes(rg *gin.RouterGroup) {
 	cc := rg.Group("/:id/chronic-conditions")
 	cc.GET("", h.ListChronicConditions)
+}
+
+func (h *Handler) registerSplitRoutes(records, hospitalizations *gin.RouterGroup) {
+	records.GET("/:id/notes", h.ListNotes)
+	hospitalizations.GET("", h.ListHospitalizations)
+	hospitalizations.POST("", h.CreateHospitalization)
 }
 `
 	f, err := parser.ParseFile(fset, "fixture.go", src, 0)
@@ -813,6 +854,9 @@ func (h *Handler) RegisterChronicConditionRoutes(rg *gin.RouterGroup) {
 		"GET /api/v1/owners":                         1,
 		"GET /api/v1/owners/{id}":                    1,
 		"GET /api/v1/owners/{id}/chronic-conditions": 1,
+		"GET /api/v1/medical-records/{id}/notes":     1,
+		"GET /api/v1/hospitalizations":               1,
+		"POST /api/v1/hospitalizations":              1,
 	}
 	if len(got) != len(want) {
 		t.Fatalf("got %d routes, want %d: %v", len(got), len(want), got)

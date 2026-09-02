@@ -223,7 +223,7 @@ func (r *createReservationBatchRequest) toServiceInput(clinicID, staffID uint64)
 	}
 	pets := make([]ReservationBatchPet, len(r.Pets))
 	for i, pet := range r.Pets {
-		pets[i] = ReservationBatchPet{OwnerID: pet.OwnerID, PetID: pet.PetID}
+		pets[i] = ReservationBatchPet(pet)
 	}
 	return input, pets, nil
 }

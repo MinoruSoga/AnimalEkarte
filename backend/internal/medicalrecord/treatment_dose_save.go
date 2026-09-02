@@ -15,7 +15,9 @@ import (
 // (eval, nil)        : per_weight 対象で再検証成立（snapshot 永続化・逸脱 audit に使用）
 // (nil, nil)         : 非対象（medicine でない/per_weight でない/species 解決不能/体重未記録/param 無し）→ 後方互換の手動入力
 // (nil, err)         : species 不一致など fail-closed すべき安全違反、または読み出し失敗
-//                      （vital/medicine/medical_record/dose_param のシステム障害を含む。#201 P0: vital 障害は体重未記録と同一視しない）
+//
+//	（vital/medicine/medical_record/dose_param のシステム障害を含む。#201 P0: vital 障害は体重未記録と同一視しない）
+//
 // BE9-2D ④b: 保存 tx（Transactor.WithTx）の txCtx で呼ばれ、各 repo の dbOrTx が同一 tx で読む
 // （読み出しと UPDATE を同一 tx に束ねるスナップショット TOCTOU 防止 = security review MEDIUM-1 を維持）。
 func (s *treatmentService) evaluateDoseForSave(
@@ -180,4 +182,3 @@ func (s *treatmentService) auditDoseDeviationTx(ctx context.Context, clinicID ui
 	}
 	return nil
 }
-

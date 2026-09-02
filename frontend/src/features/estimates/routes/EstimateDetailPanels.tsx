@@ -196,13 +196,13 @@ export function EstimateSuccessorDialog({
     >
       <button
         type="button"
-        className="absolute inset-0 bg-black/40"
+        className={`absolute inset-0 ${C.bgOverlay}`}
         aria-label="閉じる"
         onClick={onClose}
         disabled={successorBusy}
       />
       <div
-        className={`relative w-full max-w-md rounded-md border ${C.borderLight} ${C.bgWhite} p-6 shadow-lg space-y-4`}
+        className={`relative w-full max-w-md rounded-md border ${C.borderLight} ${C.bgWhite} p-6 shadow-level2 space-y-4`}
       >
         <h2
           id="successor-dialog-title"

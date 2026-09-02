@@ -220,22 +220,22 @@ type examinationPrintDisplayResponse struct {
 }
 
 type examinationPrintSnapshotResponse struct {
-	ExaminationID   uint64                           `json:"examination_id"`
-	ClinicID        uint64                           `json:"clinic_id"`
-	Version         uint64                           `json:"version"`
-	Kind            string                           `json:"kind"`
-	Status          string                           `json:"status"`
-	PrintBoundary   string                           `json:"print_boundary"`
-	Watermark       string                           `json:"watermark,omitempty"`
-	Date            time.Time                        `json:"date"`
-	ResultSummary   string                           `json:"result_summary"`
-	Machine         string                           `json:"machine"`
-	ExamTypeID      uint64                           `json:"exam_type_id"`
-	MedicalRecordID *uint64                          `json:"medical_record_id,omitempty"`
-	PetID           *uint64                          `json:"pet_id,omitempty"`
-	DoctorID        *uint64                          `json:"doctor_id,omitempty"`
-	Display         examinationPrintDisplayResponse  `json:"display"`
-	Items           []examinationPrintItemResponse   `json:"items"`
+	ExaminationID   uint64                          `json:"examination_id"`
+	ClinicID        uint64                          `json:"clinic_id"`
+	Version         uint64                          `json:"version"`
+	Kind            string                          `json:"kind"`
+	Status          string                          `json:"status"`
+	PrintBoundary   string                          `json:"print_boundary"`
+	Watermark       string                          `json:"watermark,omitempty"`
+	Date            time.Time                       `json:"date"`
+	ResultSummary   string                          `json:"result_summary"`
+	Machine         string                          `json:"machine"`
+	ExamTypeID      uint64                          `json:"exam_type_id"`
+	MedicalRecordID *uint64                         `json:"medical_record_id,omitempty"`
+	PetID           *uint64                         `json:"pet_id,omitempty"`
+	DoctorID        *uint64                         `json:"doctor_id,omitempty"`
+	Display         examinationPrintDisplayResponse `json:"display"`
+	Items           []examinationPrintItemResponse  `json:"items"`
 }
 
 func toExaminationPrintSnapshotResponse(snapshot *ExaminationPrintSnapshot) examinationPrintSnapshotResponse {

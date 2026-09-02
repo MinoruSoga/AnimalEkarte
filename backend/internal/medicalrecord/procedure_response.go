@@ -1,8 +1,9 @@
 package medicalrecord
 
 import (
-	"github.com/animal-ekarte/backend/internal/httpapi"
 	"time"
+
+	"github.com/animal-ekarte/backend/internal/httpapi"
 
 	"github.com/animal-ekarte/backend/internal/model"
 )

@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"testing"
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/infra/httpx"
@@ -67,6 +68,19 @@ func NewClient(apiKey, baseURL string) Client {
 		apiKey:  apiKey,
 		baseURL: baseURL,
 		http:    sharedHTTPClient,
+	}
+}
+
+// NewInsecureTestClient talks to httptest.Server (loopback). It panics outside
+// `go test` so production binaries cannot use it to bypass hardenedDialContext.
+func NewInsecureTestClient(apiKey, baseURL string) Client {
+	if !testing.Testing() {
+		panic("lstep.NewInsecureTestClient is test-only")
+	}
+	return &httpLstepClient{
+		apiKey:  apiKey,
+		baseURL: baseURL,
+		http:    &http.Client{Timeout: defaultTimeout},
 	}
 }
 

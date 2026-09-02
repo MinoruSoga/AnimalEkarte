@@ -185,9 +185,9 @@ func parseExamTypeFieldIDs(c *gin.Context) (uint64, uint64, uint64, bool) {
 
 func examTypeFieldIDs(examTypes []model.ExaminationType) []uint64 {
 	fieldIDs := make([]uint64, 0)
-	for i := range examTypes {
-		for j := range examTypes[i].Items {
-			fieldIDs = append(fieldIDs, examTypes[i].Items[j].ID)
+	for _, examType := range examTypes {
+		for _, item := range examType.Items {
+			fieldIDs = append(fieldIDs, item.ID)
 		}
 	}
 	return fieldIDs

@@ -111,7 +111,7 @@ func parseIDEXXTokens(tokens []string) []LabDeviceItem {
 			unit = tokens[i+2]
 			i += 2
 		} else {
-			i += 1
+			i++
 		}
 		items = append(items, LabDeviceItem{
 			Code:     code,

@@ -277,10 +277,7 @@ type patchOwnerDeliveryExclusionRequest struct {
 }
 
 func (r patchOwnerDeliveryExclusionRequest) toServiceInput() UpdateDeliveryExclusionInput {
-	return UpdateDeliveryExclusionInput{
-		Excluded: r.Excluded,
-		Reason:   r.Reason,
-	}
+	return UpdateDeliveryExclusionInput(r)
 }
 
 // patchOwnerDeliveryCautionRequest は配信注意フラグ更新リクエスト（FEAT-381-2）。
@@ -290,10 +287,7 @@ type patchOwnerDeliveryCautionRequest struct {
 }
 
 func (r patchOwnerDeliveryCautionRequest) toServiceInput() UpdateDeliveryCautionInput {
-	return UpdateDeliveryCautionInput{
-		Caution: r.Caution,
-		Reason:  r.Reason,
-	}
+	return UpdateDeliveryCautionInput(r)
 }
 
 // patchOwnerTransferStatusRequest は転院フラグ更新リクエスト（FEAT-381）。
@@ -302,7 +296,5 @@ type patchOwnerTransferStatusRequest struct {
 }
 
 func (r patchOwnerTransferStatusRequest) toServiceInput() UpdateTransferStatusInput {
-	return UpdateTransferStatusInput{
-		IsTransferred: r.IsTransferred,
-	}
+	return UpdateTransferStatusInput(r)
 }

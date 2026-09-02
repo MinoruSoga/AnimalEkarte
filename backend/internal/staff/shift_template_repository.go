@@ -154,5 +154,3 @@ func (r *shiftTemplateRepository) UpdateBreaks(ctx context.Context, templateID u
 func (r *shiftTemplateRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
 	return persistence.ReorderByClinicID(ctx, r.db, &model.ShiftTemplate{}, "shift_template", clinicID, ids, "sort_order")
 }
-
-

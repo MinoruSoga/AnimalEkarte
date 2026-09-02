@@ -106,4 +106,3 @@ func TestInquiryRepository_SaveByMedicalRecordID(t *testing.T) {
 		assert.Zero(t, count, "確定済みカルテには問診データが残ってはならない")
 	})
 }
-

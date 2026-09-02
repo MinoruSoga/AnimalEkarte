@@ -208,7 +208,8 @@ func resolveCurrentAccess(
 	ctx := c.Request.Context()
 	access, resolveErr := resolver.Resolve(ctx, staffID)
 	if resolveErr != nil {
-		return nil, rejectResolveCurrentAccessError(c, ctx, notifier, staffID, resolveErr)
+		rejectResolveCurrentAccessError(c, ctx, notifier, staffID, resolveErr)
+		return nil, false
 	}
 	if access == nil || access.StaffID != staffID ||
 		access.AccountEpoch <= 0 {
@@ -230,13 +231,13 @@ func rejectResolveCurrentAccessError(
 	notifier StaffValidationFailureNotifier,
 	staffID uint64,
 	resolveErr error,
-) bool {
+) {
 	var staffLookupErr *authdomain.StaffLookupError
 	if errors.As(resolveErr, &staffLookupErr) {
 		cause := errors.Unwrap(staffLookupErr)
 		if apperrors.IsNotFound(cause) {
 			respondError(c, http.StatusForbidden, "staff account is no longer active")
-			return false
+			return
 		}
 		if isTemporaryStaffValidationError(cause) {
 			slog.WarnContext(
@@ -249,17 +250,17 @@ func rejectResolveCurrentAccessError(
 			)
 			logStaffValidationNotifyFailure(notifier, ctx, staffID, cause)
 			respondError(c, http.StatusServiceUnavailable, "access validation unavailable")
-			return false
+			return
 		}
 	}
 
 	if errors.Is(resolveErr, apperrors.ErrForbidden) {
 		respondError(c, http.StatusForbidden, "current access is no longer available")
-		return false
+		return
 	}
 	if errors.Is(resolveErr, apperrors.ErrUnauthorized) {
 		respondError(c, http.StatusUnauthorized, "invalid or expired token")
-		return false
+		return
 	}
 
 	slog.ErrorContext(
@@ -271,7 +272,6 @@ func rejectResolveCurrentAccessError(
 		resolveErr,
 	)
 	respondError(c, http.StatusServiceUnavailable, "access validation unavailable")
-	return false
 }
 
 // isTemporaryStaffValidationError recognizes only typed database availability

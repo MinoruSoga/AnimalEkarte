@@ -37,7 +37,6 @@ func (m *mockReservationRepository) FindPetByIDInClinic(_ context.Context, _, pe
 	return &model.Pet{ID: petID, Status: model.PetStatusAlive}, nil
 }
 
-
 func (m *mockReservationRepository) AssertMedicalRecordDoctorInClinic(ctx context.Context, clinicID, doctorID uint64) error {
 	if m.assertMedicalRecordDoctorInClinic != nil {
 		return m.assertMedicalRecordDoctorInClinic(ctx, clinicID, doctorID)

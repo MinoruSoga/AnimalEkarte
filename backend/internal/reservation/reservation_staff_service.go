@@ -53,6 +53,7 @@ type UpdateReservationStaffInput struct {
 	ReservationComment *string
 	SortOrder          *int
 }
+
 // ReservationStaffCoreService は予約スタッフの CRUD・ステータス・並び順操作
 type ReservationStaffCoreService interface {
 	List(ctx context.Context, clinicID uint64) ([]model.Staff, error)

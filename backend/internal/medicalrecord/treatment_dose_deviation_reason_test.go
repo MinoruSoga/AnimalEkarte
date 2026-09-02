@@ -199,9 +199,9 @@ func TestTreatmentDoseDeviationReason_UpdateSuccessWithReason(t *testing.T) {
 	reason := "低用量から漸増する計画"
 	actor := uint64(9)
 	got, err := svc.Update(context.Background(), clinicIDDoseReason, medicalRecordIDDoseReason, treatmentID, &UpdateTreatmentInput{
-		Quantity:             &qty,
-		DoseDeviationReason:  &reason,
-		ActorID:              &actor,
+		Quantity:            &qty,
+		DoseDeviationReason: &reason,
+		ActorID:             &actor,
 	})
 	require.NoError(t, err)
 	require.NotNil(t, got)

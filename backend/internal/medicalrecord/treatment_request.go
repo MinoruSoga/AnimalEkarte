@@ -101,10 +101,7 @@ type bulkUpdateTreatmentsRequest struct {
 func (r bulkUpdateTreatmentsRequest) toServiceInput() *BulkUpdateTreatmentsInput {
 	items := make([]BulkTreatmentItem, 0, len(r.Treatments))
 	for _, treatment := range r.Treatments {
-		items = append(items, BulkTreatmentItem{
-			ID:        treatment.ID,
-			SortOrder: treatment.SortOrder,
-		})
+		items = append(items, BulkTreatmentItem(treatment))
 	}
 	return &BulkUpdateTreatmentsInput{Treatments: items}
 }

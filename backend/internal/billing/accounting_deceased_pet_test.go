@@ -176,7 +176,7 @@ func TestAccountingService_Complete_AllowsLivingPet(t *testing.T) {
 				Subtotal: 1000, TaxTotal: 100, TotalAmount: 1100,
 			}, nil
 		},
-		savePaymentFn: func(_ context.Context, _ *model.Payment) error { return nil },
+		savePaymentFn:       func(_ context.Context, _ *model.Payment) error { return nil },
 		savePaymentSplitsFn: func(_ context.Context, _ []model.PaymentSplit) error { return nil },
 		findByIDFn: func(_ context.Context, _, id uint64) (*model.Billing, error) {
 			return &model.Billing{

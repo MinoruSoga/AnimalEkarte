@@ -157,7 +157,7 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"billing/billing_item_repository.go|billingItemRepository.updateBillingTotals": {},
 	// Create validates every request-derived FK under shared locks in the same
 	// transaction. Runtime: billing_item_reference_repository_test.go.
-	"billing/billing_item_repository.go|billingItemRepository.ValidateCreateReferences":           {},
+	"billing/billing_item_repository.go|billingItemRepository.ValidateCreateReferences":                       {},
 	"billing/billing_item_repository_vaccination.go|billingItemRepository.ValidateVaccinationCreateReference": {},
 	// AE-LAB exam billing FK validation. TxFromContext fail-closed + exam_types SHARE lock.
 	// Runtime: TestBillingItemRepository_ValidateExamCreateReference_FailClosedWithoutAmbientTx
@@ -276,8 +276,12 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	// + TestEstimateRepository_AllocateNextEstimateNo_AdvisoryLockBlocksConcurrentSession
 	"billing/estimate_repository.go|estimateRepository.AllocateNextEstimateNo": {},
 	// W-013 cash register close writes/reads join ambient tx (post-close correction atomicity).
+	// Create is a thin wrapper (opens a local tx when none is ambient) around createLocked.
+	// createLocked takes LockCloseBoundary then DBOrTx insert.
 	// Runtime: cash_register_close_repository_tx_atomicity_test.go
-	"billing/cash_register_close_repository.go|cashRegisterCloseRepository.Create":              {},
+	//   Create_* covers createLocked; LockCloseBoundary_* covers the advisory lock.
+	"billing/cash_register_close_repository.go|cashRegisterCloseRepository.createLocked":        {},
+	"billing/cash_register_close_repository.go|cashRegisterCloseRepository.LockCloseBoundary":   {},
 	"billing/cash_register_close_repository.go|cashRegisterCloseRepository.CreateAdjustment":    {},
 	"billing/cash_register_close_repository.go|cashRegisterCloseRepository.FindAll":             {},
 	"billing/cash_register_close_repository.go|cashRegisterCloseRepository.FindByID":            {},
@@ -390,10 +394,10 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	// F-1: delete takes appointments FOR UPDATE before medical_records. Runtime:
 	// TestMedicalRecordService_DeleteWaitsOnAppointmentRowLockBeforeInConsultationCommit
 	// TestMedicalRecordRepository_LockLinkedAppointmentForUpdate_WaitsOnAppointmentRowLock
-	"medicalrecord/medical_record_repository.go|medicalRecordRepository.LockLinkedAppointmentForUpdate": {},
-	"medicalrecord/medical_record_repository.go|medicalRecordRepository.Update":                         {},
+	"medicalrecord/medical_record_repository.go|medicalRecordRepository.LockLinkedAppointmentForUpdate":     {},
+	"medicalrecord/medical_record_repository.go|medicalRecordRepository.Update":                             {},
 	"medicalrecord/medical_record_repository.go|medicalRecordRepository.conflictAfterZeroMedicalRecordRows": {},
-	"medicalrecord/medical_record_repository.go|medicalRecordRepository.findMedicalRecordByID":          {},
+	"medicalrecord/medical_record_repository.go|medicalRecordRepository.findMedicalRecordByID":              {},
 	// vaccination (BE9-2E-0: patient/master validation, readback, and writes must share the
 	// service-owned transaction. Runtime proofs live in vaccination_transaction_concurrency_test.go;
 	// clinic-scoped read/preload coverage lives in vaccination_clinic_isolation_test.go.)
@@ -511,27 +515,27 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"billing/refund_repository.go|refundRepository.SumByBillingID":                 {}, // BE8-4 batch8: moved from refund_repository.go
 	"billing/refund_repository.go|refundRepository.SumByBillingIDAndPaymentMethod": {}, // BE8-4 batch8: moved from refund_repository.go
 	// reservation (uniform dbOrTx)
-	"reservation/reservation_repository_queries.go|reservationRepository.AssertLineCustomerInClinic":                       {}, // AUD-001
-	"reservation/reservation_repository_queries.go|reservationRepository.AssertOwnerInClinic":                              {}, // AUD-001
-	"reservation/reservation_repository_slots.go|reservationRepository.AcquireBookingLock":                               {}, // X-9 (Appendix-A phantom-booking fix)
-	"reservation/reservation_repository_queries.go|reservationRepository.FindPetOwnerInClinic":                             {}, // AUD-001
-	"reservation/reservation_repository_queries.go|reservationRepository.CountByCustomerAndDateRange":                      {},
-	"reservation/reservation_repository_queries.go|reservationRepository.CountByDateAndSource":                             {},
-	"reservation/reservation_repository_queries.go|reservationRepository.CountByTypeAndStartTime":                          {},
-	"reservation/reservation_repository_queries.go|reservationRepository.CountByTypeAndStartTimes":                         {},
-	"reservation/reservation_repository_slots.go|reservationRepository.CountConflicts":                                   {},
-	"reservation/reservation_repository_slots.go|reservationRepository.CountMedicalRecordsByReservationID":               {},
-	"reservation/reservation_repository_slots.go|reservationRepository.CountOnDutyDoctors":                               {},
+	"reservation/reservation_repository_queries.go|reservationRepository.AssertLineCustomerInClinic":               {}, // AUD-001
+	"reservation/reservation_repository_queries.go|reservationRepository.AssertOwnerInClinic":                      {}, // AUD-001
+	"reservation/reservation_repository_slots.go|reservationRepository.AcquireBookingLock":                         {}, // X-9 (Appendix-A phantom-booking fix)
+	"reservation/reservation_repository_queries.go|reservationRepository.FindPetOwnerInClinic":                     {}, // AUD-001
+	"reservation/reservation_repository_queries.go|reservationRepository.CountByCustomerAndDateRange":              {},
+	"reservation/reservation_repository_queries.go|reservationRepository.CountByDateAndSource":                     {},
+	"reservation/reservation_repository_queries.go|reservationRepository.CountByTypeAndStartTime":                  {},
+	"reservation/reservation_repository_queries.go|reservationRepository.CountByTypeAndStartTimes":                 {},
+	"reservation/reservation_repository_slots.go|reservationRepository.CountConflicts":                             {},
+	"reservation/reservation_repository_slots.go|reservationRepository.CountMedicalRecordsByReservationID":         {},
+	"reservation/reservation_repository_slots.go|reservationRepository.CountOnDutyDoctors":                         {},
 	"reservation/reservation_repository.go|reservationRepository.Create":                                           {},
 	"reservation/reservation_repository.go|reservationRepository.Delete":                                           {},
-	"reservation/reservation_repository_slots.go|reservationRepository.ExistsByReservationTypeID":                        {},
-	"reservation/reservation_repository_slots.go|reservationRepository.ExistsByStaffID":                                  {},
+	"reservation/reservation_repository_slots.go|reservationRepository.ExistsByReservationTypeID":                  {},
+	"reservation/reservation_repository_slots.go|reservationRepository.ExistsByStaffID":                            {},
 	"reservation/reservation_repository.go|reservationRepository.FindAll":                                          {},
-	"reservation/reservation_repository_queries.go|reservationRepository.FindAllByCategory":                                {},
-	"reservation/reservation_repository_slots.go|reservationRepository.FindClinicIDsByStaffID":                           {},
+	"reservation/reservation_repository_queries.go|reservationRepository.FindAllByCategory":                        {},
+	"reservation/reservation_repository_slots.go|reservationRepository.FindClinicIDsByStaffID":                     {},
 	"reservation/reservation_repository.go|reservationRepository.findReservationByID":                              {},
-	"reservation/reservation_repository_slots.go|reservationRepository.HasDoctorConflict":                                {},
-	"reservation/reservation_repository_slots.go|reservationRepository.LockAndFindByID":                                  {},
+	"reservation/reservation_repository_slots.go|reservationRepository.HasDoctorConflict":                          {},
+	"reservation/reservation_repository_slots.go|reservationRepository.LockAndFindByID":                            {},
 	"reservation/reservation_repository.go|reservationRepository.update":                                           {},
 	"reservation/reservation_intent_repository.go|reservationRepository.CompleteForAccounting":                     {}, // BE9-2E-0 write owner
 	"reservation/reservation_intent_repository.go|reservationRepository.DeleteForTrimming":                         {}, // BE9-2E-0 typed delete + ambient-tx rollback test
@@ -873,6 +877,12 @@ var ambientTxParticipationExpectations = map[string]ambientTxParticipationExpect
 		shape: ambientTxRequired,
 	},
 	"billing/billing_confirmation_repository.go|billingConfirmationRepository.LockActiveStaffAssignment": {
+		shape: ambientTxRequired,
+	},
+	// Close-boundary advisory lock is fail-closed: TxFromContext only, never DBOrTx fallback.
+	// Runtime: TestCashRegisterCloseRepository_LockCloseBoundary_RequiresAmbientTx and
+	// TestCashRegisterCloseRepository_LockCloseBoundary_AdvisoryLockBlocksConcurrentSession.
+	"billing/cash_register_close_repository.go|cashRegisterCloseRepository.LockCloseBoundary": {
 		shape: ambientTxRequired,
 	},
 	"billing/billing_item_repository.go|billingItemRepository.ValidateCreateReferences": {

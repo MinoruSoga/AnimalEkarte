@@ -3,7 +3,9 @@
 // design-system-audit.mjs の回帰テスト。Node 組み込みの test runner を使う
 // （check-eslint-disable-rationale.test.mjs と同じ no-new-dependency 方針）。
 //
-// 実行: node --test scripts/design-system-audit.test.mjs
+// 実行（cwd 非依存）:
+//   node --test scripts/design-system-audit.test.mjs
+//   node --test frontend/scripts/design-system-audit.test.mjs  （make ci / リポジトリ直下）
 
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -23,6 +25,7 @@ import {
   isTestFile,
   isLeafRouteFile,
   isDesignTokensFile,
+  isBrandTokensFile,
   isColorMapFile,
   checkC1,
   checkC3,
@@ -37,11 +40,16 @@ import {
   checkC13,
   checkC14,
   C8_ALLOWLIST,
+  C8_PAGE_ALLOWLIST,
+  C8_ROUTE_HELPER_ALLOWLIST,
   collectViolations,
 } from "./design-system-audit.mjs";
 
+/** パッケージルート。make ci はリポジトリ直下でこのファイルを実行するため cwd に依存しない。 */
+const FRONTEND_ROOT = path.join(import.meta.dirname, "..");
+
 test("production source は brand focus ring を再び半透明化しない", () => {
-  const pendingDirectories = [path.join(process.cwd(), "src")];
+  const pendingDirectories = [path.join(FRONTEND_ROOT, "src")];
 
   while (pendingDirectories.length > 0) {
     const directory = pendingDirectories.pop();
@@ -78,7 +86,10 @@ test("isLeafRouteFile: routes/ または pages/ 配下を検出する", () => {
 });
 
 test("globals.css は brand と semantic primary を同じ teal 値で保持する", () => {
-  const source = readFileSync(path.join(process.cwd(), "src", "styles", "globals.css"), "utf-8");
+  const source = readFileSync(
+    path.join(FRONTEND_ROOT, "src", "styles", "globals.css"),
+    "utf-8",
+  );
 
   assert.match(source, /--brand:\s*#038b94;/i);
   assert.match(source, /--brand-active:\s*#027078;/i);
@@ -189,6 +200,17 @@ test("checkC6: rgba/hsla が無ければ 0 件", () => {
 test("isDesignTokensFile: src/lib/design-tokens.ts のみ true", () => {
   assert.equal(isDesignTokensFile(path.join("src", "lib", "design-tokens.ts")), true);
   assert.equal(isDesignTokensFile(path.join("src", "lib", "utils.ts")), false);
+});
+
+test("isBrandTokensFile: src/shared-liff/brand-tokens.ts のみ true", () => {
+  assert.equal(
+    isBrandTokensFile(path.join("src", "shared-liff", "brand-tokens.ts")),
+    true,
+  );
+  assert.equal(
+    isBrandTokensFile(path.join("src", "features", "widget", "brand-tokens.ts")),
+    false,
+  );
 });
 
 test("isColorMapFile: src/hooks/use-reservation-type-color-map.ts のみ true", () => {
@@ -398,6 +420,29 @@ test("collectViolations: design-tokens.ts も C1 の legacy accent 禁止対象�
   }
 });
 
+test("collectViolations: shared-liff/brand-tokens.ts の hex は C3 対象外", async () => {
+  const root = mkdtempSync(path.join(tmpdir(), "design-audit-fixture-"));
+  try {
+    const brandDir = path.join(root, "src", "shared-liff");
+    mkdirSync(brandDir, { recursive: true });
+    writeFileSync(
+      path.join(brandDir, "brand-tokens.ts"),
+      "export const NOAH_BRAND_COLORS = { teal: '#008B94' };",
+    );
+    const spoofDir = path.join(root, "src", "features", "widget");
+    mkdirSync(spoofDir, { recursive: true });
+    writeFileSync(
+      path.join(spoofDir, "brand-tokens.ts"),
+      "export const FAKE = { teal: '#008B94' };",
+    );
+    const result = await collectViolations(root);
+    assert.equal(result.c3.length, 1);
+    assert.match(result.c3[0].file, /features/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("collectViolations（FE3-2）: use-reservation-type-color-map.ts は C6 の allowlist", async () => {
   const root = mkdtempSync(path.join(tmpdir(), "design-audit-fixture-"));
   try {
@@ -525,7 +570,7 @@ test("checkC13: ink 黒アルファを検出し、4段トークンは許可す�
   assert.equal(checkC13(text).length, 2);
 });
 
-test("checkC14: built-in・任意値・負値・shorthand の tracking を本体で検出し、別アプリだけを除外する", () => {
+test("checkC14: built-in・任意値・負値・shorthand の tracking を本体で検出し、別アプリと PrintArea を除外する", () => {
   const text = [
     'className="tracking-wide"',
     'className="uppercase tracking-wider"',
@@ -548,6 +593,13 @@ test("checkC14: built-in・任意値・負値・shorthand の tracking を本体
   assert.equal(
     checkC14(text, path.join("src", "features", "shared-liff-tools", "Widget.tsx")).length,
     11,
+  );
+  assert.equal(
+    checkC14(
+      text,
+      path.join("src", "features", "examinations", "components", "ExaminationPrintArea.tsx"),
+    ).length,
+    0,
   );
 });
 
@@ -1248,7 +1300,9 @@ test("checkC8: allowlist は basename ではなく feature 相対パスだけを
   const spoofedLoginPath = path.join("src", "features", "widget", "routes", "Login.tsx");
   const fooPath = path.join("src", "features", "widget", "routes", "FooPage.tsx");
 
-  assert.equal(C8_ALLOWLIST.size, 14);
+  assert.equal(C8_PAGE_ALLOWLIST.size, 9);
+  assert.equal(C8_ROUTE_HELPER_ALLOWLIST.size, 29);
+  assert.equal(C8_ALLOWLIST.size, 38);
   assert.ok([...C8_ALLOWLIST].every((relPath) => relPath.includes(path.sep)));
   assert.equal(checkC8(loginPath, "export function Login() { return null; }").length, 0);
   assert.equal(checkC8(spoofedLoginPath, "export function Login() { return null; }").length, 1);

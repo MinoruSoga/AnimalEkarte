@@ -174,8 +174,8 @@ func TestListExaminations(t *testing.T) {
 			wantStatus: http.StatusBadRequest,
 		},
 		{
-			name:  "applies medical_record_id filter",
-			query: "medical_record_id=9",
+			name:     "applies medical_record_id filter",
+			query:    "medical_record_id=9",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockExaminationService{
 				listFn: func(_ context.Context, _ uint64, _, _, medicalRecordID *uint64, _, _, _ *string, _, _ int) ([]model.Examination, int64, error) {

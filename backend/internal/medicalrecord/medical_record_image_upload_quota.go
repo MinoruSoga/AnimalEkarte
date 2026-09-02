@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"sync"
 	"time"
 
@@ -211,8 +212,11 @@ func (s *postgresMedicalRecordImageUploadQuotaStore) Acquire(
 	var leaseID int64
 	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		// Serialize quota decisions per clinic across processes/replicas.
+		if clinicID > uint64(math.MaxInt64) {
+			return fmt.Errorf("%w: clinic_id exceeds advisory lock range", errMedicalRecordImageUploadQuotaUnavailable)
+		}
 		if err := tx.Exec("SELECT pg_advisory_xact_lock(?)", int64(clinicID)).Error; err != nil {
-			return fmt.Errorf("%w: advisory lock: %v", errMedicalRecordImageUploadQuotaUnavailable, err)
+			return fmt.Errorf("%w: advisory lock: %w", errMedicalRecordImageUploadQuotaUnavailable, err)
 		}
 
 		now := time.Now()
@@ -230,7 +234,7 @@ func (s *postgresMedicalRecordImageUploadQuotaStore) Acquire(
 			  AND released_at IS NULL
 			  AND acquired_at > ?
 		`, staffID, clinicID, staleBefore).Row().Scan(&counts.staffInFlight, &counts.clinicInFlight); err != nil {
-			return fmt.Errorf("%w: count in-flight: %v", errMedicalRecordImageUploadQuotaUnavailable, err)
+			return fmt.Errorf("%w: count in-flight: %w", errMedicalRecordImageUploadQuotaUnavailable, err)
 		}
 
 		// Rate + byte budget over rolling window (includes released).
@@ -249,7 +253,7 @@ func (s *postgresMedicalRecordImageUploadQuotaStore) Acquire(
 			&counts.staffBytes,
 			&counts.clinicBytes,
 		); err != nil {
-			return fmt.Errorf("%w: count rate/bytes: %v", errMedicalRecordImageUploadQuotaUnavailable, err)
+			return fmt.Errorf("%w: count rate/bytes: %w", errMedicalRecordImageUploadQuotaUnavailable, err)
 		}
 
 		if err := evaluateMedicalRecordImageUploadQuota(counts, declaredBytes); err != nil {
@@ -263,7 +267,7 @@ func (s *postgresMedicalRecordImageUploadQuotaStore) Acquire(
 			AcquiredAt:    now,
 		}
 		if err := tx.Create(&row).Error; err != nil {
-			return fmt.Errorf("%w: insert lease: %v", errMedicalRecordImageUploadQuotaUnavailable, err)
+			return fmt.Errorf("%w: insert lease: %w", errMedicalRecordImageUploadQuotaUnavailable, err)
 		}
 		leaseID = row.ID
 		return nil
@@ -278,10 +282,10 @@ func (s *postgresMedicalRecordImageUploadQuotaStore) Acquire(
 		if errors.Is(err, errMedicalRecordImageUploadQuotaUnavailable) {
 			return nil, err
 		}
-		return nil, fmt.Errorf("%w: %v", errMedicalRecordImageUploadQuotaUnavailable, err)
+		return nil, fmt.Errorf("%w: %w", errMedicalRecordImageUploadQuotaUnavailable, err)
 	}
 
-	return func(releaseCtx context.Context) {
+	return func(releaseCtx context.Context) { //nolint:contextcheck // lease release may run after the request context is canceled
 		if releaseCtx == nil {
 			releaseCtx = context.Background()
 		}

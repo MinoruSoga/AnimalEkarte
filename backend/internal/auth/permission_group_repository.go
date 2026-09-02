@@ -247,10 +247,6 @@ func (r *permissionGroupRepository) replaceRules(
 		// "uncheck" (true→false) look like a successful no-op after reload.
 		persistedRules[i].ID = 0
 		persistedRules[i].GroupID = groupID
-		persistedRules[i].CanView = rules[i].CanView
-		persistedRules[i].CanCreate = rules[i].CanCreate
-		persistedRules[i].CanEdit = rules[i].CanEdit
-		persistedRules[i].CanDelete = rules[i].CanDelete
 	}
 	if err := db.
 		Select(

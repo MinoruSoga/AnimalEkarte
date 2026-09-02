@@ -219,7 +219,7 @@ func run(ctx context.Context, args []string, logger *slog.Logger, deps runDepend
 func commitSkeletonIfPreconditionsPass(ctx context.Context, tx dbTx) error {
 	if err := verifyCutoverTablesEmpty(ctx, tx); err != nil {
 		if rollbackErr := tx.Rollback(context.WithoutCancel(ctx)); rollbackErr != nil {
-			return fmt.Errorf("%w; rollback failed: %v", err, rollbackErr)
+			return fmt.Errorf("%w; rollback failed: %w", err, rollbackErr)
 		}
 		return err
 	}

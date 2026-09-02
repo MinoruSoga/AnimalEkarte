@@ -205,7 +205,7 @@ func isSupportedIPv4OrDNSHostname(hostname string) bool {
 
 	labels := strings.Split(hostname, ".")
 	for _, label := range labels {
-		if len(label) == 0 || len(label) > 63 || label[0] == '-' || label[len(label)-1] == '-' {
+		if label == "" || len(label) > 63 || label[0] == '-' || label[len(label)-1] == '-' {
 			return false
 		}
 		for _, char := range label {
@@ -287,7 +287,7 @@ func (h *handler) writeHealth(response http.ResponseWriter) {
 		(h.status.OpenPorts() == 0 && (h.status.DiscoveryErrors() > 0 || h.status.OpenErrors() > 0)) {
 		state = "degraded"
 	}
-	h.writeJSON(response, http.StatusOK, map[string]any{
+	h.writeJSON(response, map[string]any{
 		"status":                        state,
 		"open_ports":                    h.status.OpenPorts(),
 		"configured_ports":              h.status.ConfiguredPorts(),
@@ -320,7 +320,7 @@ func (h *handler) claim(response http.ResponseWriter, request *http.Request) {
 			return
 		}
 		h.lease.expiresAt = now.Add(consumerLeaseDuration)
-		h.writeJSON(response, http.StatusOK, map[string]any{
+		h.writeJSON(response, map[string]any{
 			"owner":         h.lease.owner,
 			"lease_seconds": int(consumerLeaseDuration.Seconds()),
 		})
@@ -333,7 +333,7 @@ func (h *handler) claim(response http.ResponseWriter, request *http.Request) {
 	}
 	h.lease.owner = base64.RawURLEncoding.EncodeToString(random)
 	h.lease.expiresAt = now.Add(consumerLeaseDuration)
-	h.writeJSON(response, http.StatusOK, map[string]any{
+	h.writeJSON(response, map[string]any{
 		"owner":         h.lease.owner,
 		"lease_seconds": int(consumerLeaseDuration.Seconds()),
 	})
@@ -367,7 +367,7 @@ func (h *handler) writeFrames(response http.ResponseWriter) {
 			ReceivedAt:    frame.ReceivedAt.Format("2006-01-02T15:04:05.999999999Z07:00"),
 		})
 	}
-	h.writeJSON(response, http.StatusOK, map[string]any{"frames": items})
+	h.writeJSON(response, map[string]any{"frames": items})
 }
 
 func (h *handler) decideFrame(response http.ResponseWriter, path string) {
@@ -397,8 +397,8 @@ func (h *handler) decideFrame(response http.ResponseWriter, path string) {
 	response.WriteHeader(http.StatusNoContent)
 }
 
-func (h *handler) writeJSON(response http.ResponseWriter, status int, value any) {
-	if err := writeJSON(response, status, value); err != nil {
+func (h *handler) writeJSON(response http.ResponseWriter, value any) {
+	if err := writeJSON(response, http.StatusOK, value); err != nil {
 		h.status.AddResponseError()
 	}
 }

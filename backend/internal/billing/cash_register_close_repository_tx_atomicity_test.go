@@ -1,10 +1,11 @@
 package billing
 
 // cash_register_close_repository_tx_atomicity_test.go — ambient-tx participation for
-// cashRegisterCloseRepository Create/CreateAdjustment/Find*/HasCloseOnDate.
+// cashRegisterCloseRepository createLocked/LockCloseBoundary/CreateAdjustment/Find*/HasCloseOnDate.
 //
 // W-013 close writes and post-close reads must join the caller's ambient transaction
-// so accounting correction + close adjustment stay atomic.
+// so accounting correction + close adjustment stay atomic. Create is a thin wrapper
+// around createLocked (lock + insert).
 //
 // temp-revert RED: DBOrTx → r.db.WithContext(ctx)
 //   - RollsBack* leaves durable rows
@@ -264,4 +265,53 @@ func TestCashRegisterCloseRepository_Reads_SeeUncommittedCreateInAmbientTx(t *te
 	has, err = repo.HasCloseOnDate(ctx, clinicA, date)
 	require.NoError(t, err)
 	assert.True(t, has, "after commit HasCloseOnDate must see the close")
+}
+
+func TestCashRegisterCloseRepository_LockCloseBoundary_SucceedsInAmbientTx(t *testing.T) {
+	db := setupCashRegisterCloseTestDB(t)
+	repo := NewCashRegisterCloseRepository(db)
+	tx := testNewTransactor(db)
+	ctx := context.Background()
+	date := time.Date(2026, 6, 25, 0, 0, 0, 0, time.UTC)
+
+	require.NoError(t, tx.WithTx(ctx, func(txCtx context.Context) error {
+		if persistence.TxFromContext(txCtx) == nil {
+			return errors.New("expected ambient tx installed")
+		}
+		return repo.LockCloseBoundary(txCtx, 1, date)
+	}))
+}
+
+// TestCashRegisterCloseRepository_LockCloseBoundary_AdvisoryLockBlocksConcurrentSession
+// holds pg_advisory_xact_lock on clinic+date so a competing session's LockCloseBoundary
+// times out (cannot interleave accounting Update/Complete with Close create).
+func TestCashRegisterCloseRepository_LockCloseBoundary_AdvisoryLockBlocksConcurrentSession(t *testing.T) {
+	db := setupCashRegisterCloseTestDB(t)
+	repo := NewCashRegisterCloseRepository(db)
+	tx := testNewTransactor(db)
+	ctx := context.Background()
+	const clinicA = uint64(1)
+	heldDate := time.Date(2026, 6, 26, 0, 0, 0, 0, time.UTC)
+	otherDate := time.Date(2026, 6, 27, 0, 0, 0, 0, time.UTC)
+
+	err := tx.WithTx(ctx, func(txCtx context.Context) error {
+		require.NoError(t, repo.LockCloseBoundary(txCtx, clinicA, heldDate))
+
+		otherTx := db.WithContext(ctx).Begin()
+		require.NoError(t, otherTx.Error)
+		defer otherTx.Rollback()
+		require.NoError(t, otherTx.Exec("SET LOCAL lock_timeout = '200ms'").Error)
+		require.NoError(t, repo.LockCloseBoundary(persistence.WithTxValue(ctx, otherTx), clinicA, otherDate),
+			"a different close date must not share the held advisory lock")
+
+		competingTx := db.WithContext(ctx).Begin()
+		require.NoError(t, competingTx.Error)
+		defer competingTx.Rollback()
+		require.NoError(t, competingTx.Exec("SET LOCAL lock_timeout = '200ms'").Error)
+		competeErr := repo.LockCloseBoundary(persistence.WithTxValue(ctx, competingTx), clinicA, heldDate)
+		require.Error(t, competeErr,
+			"concurrent LockCloseBoundary must block on pg_advisory_xact_lock held by ambient tx")
+		return nil
+	})
+	require.NoError(t, err)
 }

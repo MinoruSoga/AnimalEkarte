@@ -1,8 +1,9 @@
 package medicalrecord
 
 import (
-	"github.com/animal-ekarte/backend/internal/httpapi"
 	"net/http"
+
+	"github.com/animal-ekarte/backend/internal/httpapi"
 
 	"github.com/gin-gonic/gin"
 

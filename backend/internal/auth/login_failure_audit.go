@@ -12,6 +12,7 @@ import (
 const loginFailureAuditTimeout = 5 * time.Second
 
 func (h *HTTPHandler) enqueueLoginFailureAudit(
+	ctx context.Context,
 	accountID uint64,
 	knownAccount bool,
 	clientIP, userAgent string,
@@ -19,6 +20,7 @@ func (h *HTTPHandler) enqueueLoginFailureAudit(
 	if !knownAccount {
 		return
 	}
+	_ = ctx
 	h.loginAuditOnce.Do(func() {
 		if h.loginAuditSlots == nil {
 			h.loginAuditSlots = make(chan struct{}, loginFailureAuditWorkers)
@@ -36,7 +38,7 @@ func (h *HTTPHandler) enqueueLoginFailureAudit(
 		logLoginFailureAuditFallback(accountID, "registration_closed")
 		return
 	}
-	sharedkernel.GoSafe("login failure audit", func() {
+	sharedkernel.GoSafe("login failure audit", func() { //nolint:contextcheck // detached audit uses its own timeout
 		defer h.loginAuditGate.Done()
 		defer func() { <-h.loginAuditSlots }()
 		ctx, cancel := context.WithTimeout(

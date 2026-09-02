@@ -35,8 +35,8 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/testdb"
 	"github.com/animal-ekarte/backend/internal/reservation"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 // makeBillingForAccountingTx は payments/payment_splits 系テスト用の最小 Billing を作成する。

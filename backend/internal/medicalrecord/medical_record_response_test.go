@@ -3,9 +3,10 @@ package medicalrecord
 import (
 	"testing"
 
-	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/animal-ekarte/backend/internal/model"
 )
 
 func TestToMedicalRecordResponse_InquirySummaryIncludesNotes(t *testing.T) {

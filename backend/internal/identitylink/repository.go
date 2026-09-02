@@ -631,18 +631,7 @@ func (r *repository) ListLinkedTreatmentHistory(
 
 	out := make([]LinkedTreatmentHistoryItem, 0, len(rows))
 	for _, row := range rows {
-		out = append(out, LinkedTreatmentHistoryItem{
-			ClinicID:        row.ClinicID,
-			PetID:           row.PetID,
-			MedicalRecordID: row.MedicalRecordID,
-			RecordNo:        row.RecordNo,
-			RecordDate:      row.RecordDate,
-			TreatmentID:     row.TreatmentID,
-			ItemType:        row.ItemType,
-			Content:         row.Content,
-			UnitPrice:       row.UnitPrice,
-			Quantity:        row.Quantity,
-		})
+		out = append(out, LinkedTreatmentHistoryItem(row))
 	}
 	return out, total, nil
 }

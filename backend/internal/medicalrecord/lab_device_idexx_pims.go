@@ -41,7 +41,7 @@ func IDEXXPIMSChecksum(payload []byte) byte {
 	for _, b := range payload {
 		sum += int(b)
 	}
-	return byte(sum | 0x80)
+	return byte((sum | 0x80) & 0xFF) //nolint:gosec // G115: IDEXX checksum is defined mod 256
 }
 
 // ParseIDEXXPIMSFrame returns false when the bytes are not a checksum-valid
@@ -97,7 +97,7 @@ func encodeIDEXXPIMS(addr0, addr1 byte, payload []byte) []byte {
 		payload = payload[:0x7f]
 	}
 	out := make([]byte, 0, idexxPIMSHeaderN+len(payload)+2)
-	out = append(out, idexxPIMSSTX, addr0, addr1, idexxPIMSFlag, idexxPIMSFlag|byte(len(payload)))
+	out = append(out, idexxPIMSSTX, addr0, addr1, idexxPIMSFlag, idexxPIMSFlag|byte(len(payload)&0xFF)) //nolint:gosec // G115: payload length is capped at 0x7f above
 	out = append(out, payload...)
 	out = append(out, IDEXXPIMSChecksum(payload), idexxPIMSETX)
 	return out
@@ -115,7 +115,8 @@ func BuildIDEXXPIMSAFrame(source byte) []byte {
 // Tugi59 Format(Now,"hhmm") may be 12-hour; TX capture must confirm.
 func BuildIDEXXPIMSIMFrame(source, port byte, clock time.Time) []byte {
 	stamp := clock.Format("0201061504")
-	payload := []byte{'I', 'M', ' ', port, ' '}
+	payload := make([]byte, 0, 5+len(stamp))
+	payload = append(payload, 'I', 'M', ' ', port, ' ')
 	payload = append(payload, stamp...)
 	return encodeIDEXXPIMS('0', source, payload)
 }

@@ -282,7 +282,7 @@ type patchMedicalRecordRecommendationReasonRequest struct {
 }
 
 func (r patchMedicalRecordRecommendationReasonRequest) toServiceInput() UpdateRecommendationReasonInput {
-	return UpdateRecommendationReasonInput{Reason: r.Reason}
+	return UpdateRecommendationReasonInput(r)
 }
 
 // updateMedicalRecordRequest はカルテ更新のバインド struct

@@ -215,11 +215,11 @@ func TestCheckupSyncPreviewQuery_ToServiceInput_EmptyValues(t *testing.T) {
 
 func TestCheckupSyncPreviewQuery_ToServiceInput_AgeBounds(t *testing.T) {
 	tests := []struct {
-		name         string
-		minAgeYears  string
-		maxAgeYears  string
-		wantMin      *int
-		wantMax      *int
+		name        string
+		minAgeYears string
+		maxAgeYears string
+		wantMin     *int
+		wantMax     *int
 	}{
 		{name: "equal ages allowed", minAgeYears: "5", maxAgeYears: "5", wantMin: intPtr(5), wantMax: intPtr(5)},
 		{name: "min only allowed", minAgeYears: "3", wantMin: intPtr(3)},

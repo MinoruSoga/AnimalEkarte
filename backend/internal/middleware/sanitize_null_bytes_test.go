@@ -255,7 +255,7 @@ func TestSanitizeNullBytes_DoesNotPreReadNonBinaryBody(t *testing.T) {
 func TestSanitizeNullBytes_ControlOnlyBodyRespectsRawByteLimit(t *testing.T) {
 	// INF-02: filtered-byte-only bodies must still exhaust MaxBytesReader on raw reads.
 	gin.SetMode(gin.TestMode)
-	raw := bytes.Repeat([]byte{0x00}, int(DefaultJSONBodyMaxBytes)+1)
+	raw := make([]byte, int(DefaultJSONBodyMaxBytes)+1)
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
 	req, err := http.NewRequest(http.MethodPost, "/test", bytes.NewReader(raw))

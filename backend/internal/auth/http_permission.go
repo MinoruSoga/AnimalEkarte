@@ -249,13 +249,7 @@ func permissionGroupRuleInputs(
 	}
 	inputs := make([]SetPermissionGroupRulesInput, 0, len(rules))
 	for _, rule := range rules {
-		inputs = append(inputs, SetPermissionGroupRulesInput{
-			Resource:  rule.Resource,
-			CanView:   rule.CanView,
-			CanCreate: rule.CanCreate,
-			CanEdit:   rule.CanEdit,
-			CanDelete: rule.CanDelete,
-		})
+		inputs = append(inputs, SetPermissionGroupRulesInput(rule))
 	}
 	return inputs
 }

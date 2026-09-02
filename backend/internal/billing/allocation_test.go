@@ -132,8 +132,8 @@ func TestAllocateBillingPayments_DiscountShrinksPaymentNet(t *testing.T) {
 	assert.Equal(t, int64(2700), MatrixGrandTotal(got))
 	assert.Equal(t, int64(2700), MatrixColumnTotals(got)["cash"])
 	rows := MatrixRowTotals(got)
-	assert.Equal(t, int64(900), rows["examination"])  // 2700 * 1/3
-	assert.Equal(t, int64(1800), rows["goods"])       // 2700 * 2/3
+	assert.Equal(t, int64(900), rows["examination"]) // 2700 * 1/3
+	assert.Equal(t, int64(1800), rows["goods"])      // 2700 * 2/3
 }
 
 func TestAllocateBillingPayments_InsuranceAndTaxFoldedIntoPaymentNet(t *testing.T) {

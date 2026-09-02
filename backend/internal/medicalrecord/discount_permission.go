@@ -12,8 +12,6 @@ import (
 // discountFloatEpsilon は httpapi 側 unexported 定数と同値（test の境界値検証用に残置）。
 const discountFloatEpsilon = 0.0001
 
-func floatEquals(a, b float64) bool { return httpapi.FloatEquals(a, b) }
-
 func requireDiscountEditFloat(c *gin.Context, hasPermission PermissionChecker, newVal *float64, oldVal float64) error {
 	return httpapi.RequireDiscountEditFloat(c, httpapi.PermissionChecker(hasPermission), newVal, oldVal)
 }

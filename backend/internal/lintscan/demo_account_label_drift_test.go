@@ -12,12 +12,12 @@ import (
 )
 
 const (
-	demoAccountLabelDriftBundle       = "002_master"
-	demoAccountExpectedMinCount       = 9
-	demoAccountExpectedMaxCount       = 12
-	gitLFSPointerPrefix               = "version https://git-lfs.github.com/spec/v1"
-	demoAccountSystemAdminClinicLabel = "全医院"
-	demoAccountLoginFormRelativePath  = "frontend/src/features/auth/components/LoginForm.tsx"
+	demoAccountLabelDriftBundle        = "002_master"
+	demoAccountExpectedMinCount        = 9
+	demoAccountExpectedMaxCount        = 12
+	gitLFSPointerPrefix                = "version https://git-lfs.github.com/spec/v1"
+	demoAccountSystemAdminClinicLabel  = "全医院"
+	demoAccountLoginFormRelativePath   = "frontend/src/features/auth/components/LoginForm.tsx"
 	demoAccountStaffAttachEmailPattern = `^stg-staff-\d+@example\.test$`
 )
 

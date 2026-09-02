@@ -3,8 +3,9 @@ package medicalrecord
 
 import (
 	"fmt"
-	"github.com/animal-ekarte/backend/internal/httpapi"
 	"net/http"
+
+	"github.com/animal-ekarte/backend/internal/httpapi"
 
 	"github.com/gin-gonic/gin"
 

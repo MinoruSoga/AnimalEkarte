@@ -3,7 +3,7 @@
  *
  * 判定内容:
  *   C1 — legacy 構造色（`C.accent` / 旧 accent `#2383E2`）禁止。brand/primary teal と臨床 semantic 色を許可。
- *   C3 — hex 直書き（文字列/テンプレートリテラル内）禁止。
+ *   C3 — hex 直書き（文字列/テンプレートリテラル内）禁止。定義正本 `design-tokens.ts` / `shared-liff/brand-tokens.ts` は除外。
  *   C5 — CTA の `colorVariant` は semantic primary、brand、互換 default のみ。
  *   C6 — rgba()/rgb()/hsla()/hsl() の直値禁止（doc §1 の臨床安全 C6a とは ID 分離: 本スクリプトは C6b）。
  *   C7 — PageLayout maxWidth の生値禁止（`max-w-full` / `max-w-[Npx]`）。トークン経由のみ。
@@ -13,7 +13,7 @@
  *   C11 — font-size 任意値禁止。
  *   C12 — DESIGN.md に存在しない font-size 段禁止。
  *   C13 — DESIGN.md ink 4段を迂回する黒アルファ禁止。
- *   C14 — typography role の letter-spacing を上書きする tracking utility 禁止。
+ *   C14 — typography role の letter-spacing を上書きする tracking utility 禁止（`*PrintArea*` は印刷透かしとして除外）。
  *   C15 — 本体 routes/pages で named white/black color の直接指定禁止。
  *   C16 — DESIGN.md spacing scale に存在しない 20px utility（`*-5`）禁止。
  *   C17 — CSS の直接 `box-shadow` / `filter: drop-shadow(...)` 禁止。
@@ -40,8 +40,10 @@ const CSS_SCAN_EXTENSIONS = new Set([".css"]);
 const EXCLUDE_DIR_NAMES = new Set(["node_modules", "dist", "generated"]);
 const LEAF_DIR_NAMES = new Set(["routes", "pages"]);
 
-// design-tokens.ts は色定数の定義正本のため C3/C6 の allowlist。
+// design-tokens.ts は本体色定数の定義正本のため C3/C6 の allowlist。
 const DESIGN_TOKENS_REL_PATH = path.join("src", "lib", "design-tokens.ts");
+// LIFF / LINE 予約の共有ブランドパレット定義正本（本体 design-tokens とは別系統）。
+const BRAND_TOKENS_REL_PATH = path.join("src", "shared-liff", "brand-tokens.ts");
 // 実行時に動的生成する rgba() のみ扱う（JSDoc で根拠を記載済み）ため C6 の allowlist。
 const COLOR_MAP_REL_PATH = path.join("src", "hooks", "use-reservation-type-color-map.ts");
 
@@ -92,13 +94,37 @@ export const C8_PAGE_ALLOWLIST = new Set([
   path.join("src", "features", "master", "routes", "LineReservationSlotsSettings.tsx"),
 ]);
 
-/** C8: routes/ に置かれているが route page ではない helper（相対パス完全一致）。 */
+/** C8: routes/ に置かれているが route page ではない helper、または 150 行分割で shell を sibling へ移した薄い route（相対パス完全一致）。 */
 export const C8_ROUTE_HELPER_ALLOWLIST = new Set([
   path.join("src", "features", "trimming", "routes", "TrimmingLazyModals.tsx"),
   path.join("src", "features", "reception", "routes", "ReceptionLazyModals.tsx"),
   path.join("src", "features", "lstep", "routes", "LstepDeliveryMonitorPageParts.tsx"),
   path.join("src", "features", "lstep", "routes", "LstepDeliveryMonitorLogsTable.tsx"),
   path.join("src", "features", "medical-records", "routes", "medical-records-columns.tsx"),
+  path.join("src", "features", "accounting", "routes", "AccountingListPanels.tsx"),
+  path.join("src", "features", "accounting-reports", "routes", "AccountingReportsPagePanels.tsx"),
+  path.join("src", "features", "aggregation", "routes", "AggregationDashboardPage.tsx"),
+  path.join("src", "features", "auth", "routes", "reset-password-page-sections.tsx"),
+  path.join("src", "features", "checkups", "routes", "CheckupsListPanels.tsx"),
+  path.join("src", "features", "checkups", "routes", "checkup-form-panels.tsx"),
+  path.join("src", "features", "estimates", "routes", "EstimateDetailPanels.tsx"),
+  path.join("src", "features", "estimates", "routes", "EstimateListPanels.tsx"),
+  path.join("src", "features", "examinations", "routes", "ExaminationsListPanels.tsx"),
+  path.join("src", "features", "hospitalization", "routes", "HospitalizationForm.tsx"),
+  path.join("src", "features", "hospitalization", "routes", "HospitalizationList.tsx"),
+  path.join("src", "features", "inventory", "routes", "InventoryForm.tsx"),
+  path.join("src", "features", "inventory", "routes", "InventoryListPanels.tsx"),
+  path.join("src", "features", "lab-device", "routes", "lab-device-board-panels.tsx"),
+  path.join("src", "features", "master", "routes", "TreatmentPlanMaster.tsx"),
+  path.join("src", "features", "medical-records", "routes", "MedicalRecordForm.tsx"),
+  path.join("src", "features", "medical-records", "routes", "MedicalRecords.tsx"),
+  path.join("src", "features", "reception", "routes", "ReceptionPagePanels.tsx"),
+  path.join("src", "features", "reception", "routes", "use-reception-column-view.tsx"),
+  path.join("src", "features", "shifts", "routes", "ShiftTemplateSettings.tsx"),
+  path.join("src", "features", "trimming", "routes", "TrimmingForm.tsx"),
+  path.join("src", "features", "trimming", "routes", "TrimmingList.tsx"),
+  path.join("src", "features", "vaccinations", "routes", "VaccinationForm.tsx"),
+  path.join("src", "features", "vaccinations", "routes", "VaccinationListPanels.tsx"),
 ]);
 export const C8_ALLOWLIST = new Set([
   ...C8_PAGE_ALLOWLIST,
@@ -133,12 +159,20 @@ export const C18_RAW_CELL_ALLOWLIST = new Set([
 const C18_RAW_CELL_PRINT_BASENAME_RE = /PrintArea/;
 
 /**
+ * isPrintSurfaceFile は印刷帳票コンポーネント（basename に PrintArea）かを判定する。
+ * 画面用 typography / cell 規則（C14 / C18）の対象外。
+ */
+export function isPrintSurfaceFile(relPath) {
+  return C18_RAW_CELL_PRINT_BASENAME_RE.test(path.basename(relPath));
+}
+
+/**
  * isC18RawCellExemptFile は raw th/td 検査の対象外ファイルか判定する。
  * allowlist・print 帳票・別アプリ（liff / line-reserve / shared-liff / MedicalRecordPrintView = FE11 除外）を除外する。
  */
 export function isC18RawCellExemptFile(relPath) {
   if (C18_RAW_CELL_ALLOWLIST.has(relPath)) return true;
-  if (C18_RAW_CELL_PRINT_BASENAME_RE.test(path.basename(relPath))) return true;
+  if (isPrintSurfaceFile(relPath)) return true;
   return isFE11ExcludedPath(relPath);
 }
 
@@ -174,6 +208,13 @@ export function isLeafRouteFile(relPath) {
  */
 export function isDesignTokensFile(relPath) {
   return relPath === DESIGN_TOKENS_REL_PATH;
+}
+
+/**
+ * isBrandTokensFile は LIFF/LINE 予約ブランドパレット本体（C3 allowlist）かを判定する。
+ */
+export function isBrandTokensFile(relPath) {
+  return relPath === BRAND_TOKENS_REL_PATH;
 }
 
 /**
@@ -344,7 +385,8 @@ export function checkC13(text) {
  */
 export function checkC14(text, relPath = "") {
   // FE11 は本体84ルートが対象。別アプリは C12 と同じ明示 allowlist とする。
-  if (isFE11ExcludedPath(relPath)) return [];
+  // 印刷帳票の透かし letter-spacing は画面用 typography role の対象外（C18 と同じ *PrintArea*）。
+  if (isFE11ExcludedPath(relPath) || isPrintSurfaceFile(relPath)) return [];
   const violations = [];
   text.split("\n").forEach((line, i) => {
     if (C14_RE.test(line)) {
@@ -774,7 +816,7 @@ export async function collectViolations(cwd) {
       for (const v of checkC1(text)) {
         result.c1.push({ file: relPath, ...v });
       }
-      if (!isTest && !isDesignTokensFile(relPath)) {
+      if (!isTest && !isDesignTokensFile(relPath) && !isBrandTokensFile(relPath)) {
         for (const v of checkC3(text)) {
           result.c3.push({ file: relPath, ...v });
         }

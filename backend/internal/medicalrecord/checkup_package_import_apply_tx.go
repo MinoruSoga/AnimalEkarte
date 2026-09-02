@@ -3,6 +3,7 @@ package medicalrecord
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 
@@ -53,7 +54,7 @@ func (s *checkupPackageImportService) applyCheckupPackageInTx(
 		return nil, apperrors.WrapConflict("checkup package version content conflict")
 	}
 	if findErr != nil && !apperrors.IsNotFound(apperrors.FromGORM(findErr, "checkup_package_import_receipt", "lookup")) {
-		if findErr != gorm.ErrRecordNotFound {
+		if !errors.Is(findErr, gorm.ErrRecordNotFound) {
 			return nil, apperrors.FromGORM(findErr, "checkup_package_import_receipt", "lookup")
 		}
 	}

@@ -69,10 +69,7 @@ func ParseAndCanonicalizeCheckupPackage(raw []byte) (*CanonicalCheckupPackage, e
 	if err := validateCheckupPackageManifest(&manifest); err != nil {
 		return nil, err
 	}
-	canonical, err := canonicalizeCheckupPackage(&manifest)
-	if err != nil {
-		return nil, err
-	}
+	canonical := canonicalizeCheckupPackage(&manifest)
 	digest, err := digestCheckupPackage(canonical)
 	if err != nil {
 		return nil, err
@@ -255,7 +252,7 @@ func formatDecimal10_4(v float64) string {
 	return strconv.FormatFloat(v, 'f', 4, 64)
 }
 
-func canonicalizeCheckupPackage(m *CheckupPackageManifest) (*CheckupPackageManifest, error) {
+func canonicalizeCheckupPackage(m *CheckupPackageManifest) *CheckupPackageManifest {
 	out := *m
 	types := append([]CheckupPackageTypeDef(nil), m.Types...)
 	fields := append([]CheckupPackageFieldDef(nil), m.Fields...)
@@ -263,7 +260,7 @@ func canonicalizeCheckupPackage(m *CheckupPackageManifest) (*CheckupPackageManif
 	sort.SliceStable(fields, func(i, j int) bool { return fields[i].Key < fields[j].Key })
 	out.Types = types
 	out.Fields = fields
-	return &out, nil
+	return &out
 }
 
 func digestCheckupPackage(m *CheckupPackageManifest) (string, error) {

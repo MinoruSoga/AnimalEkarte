@@ -341,10 +341,7 @@ func FromGORM(err error, resource, id string) error {
 	}
 	// BUG-138: pgx ドライバのエンコードエラー（pgconn.PgError ではない）をキャッチ。
 	// int32 範囲超過などで "unable to encode" が発生した場合。
-	errMsg := err.Error()
-	if strings.Contains(errMsg, "unable to encode") ||
-		strings.Contains(errMsg, "greater than maximum value") ||
-		strings.Contains(errMsg, "less than minimum value") {
+	if isPgxEncodeRangeMessage(err.Error()) {
 		return WrapInvalidInput("数値が範囲外です")
 	}
 	// BUG-138: PostgreSQL エラーコードに基づくハンドリング

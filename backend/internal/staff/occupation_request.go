@@ -5,8 +5,8 @@ type createOccupationRequest struct {
 	Description string `json:"description" binding:"max=2000"`
 	// IsActive is *bool so JSON binding can distinguish omitted / false / true.
 	// Omitted (nil) resolves to true in toServiceInput.
-	IsActive    *bool  `json:"is_active"`
-	SortOrder   int    `json:"sort_order"`
+	IsActive  *bool `json:"is_active"`
+	SortOrder int   `json:"sort_order"`
 }
 
 func (r createOccupationRequest) toServiceInput() *CreateOccupationInput {

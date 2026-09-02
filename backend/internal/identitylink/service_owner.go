@@ -76,7 +76,7 @@ func (s *service) createOwnerGroupInTx(
 		}
 		existingGroupIDs[m.GroupID] = struct{}{}
 	}
-	if existingGroupIDs != nil && len(existingGroupIDs) == 1 {
+	if len(existingGroupIDs) == 1 {
 		var groupID uint64
 		for id := range existingGroupIDs {
 			groupID = id

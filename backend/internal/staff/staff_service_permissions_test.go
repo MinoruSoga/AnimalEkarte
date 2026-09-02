@@ -331,7 +331,6 @@ func TestStaffService_SetPermissionGroupIDs_AuditFailureRollsBack(t *testing.T) 
 	assert.Equal(t, []uint64{3, 9}, state.groupIDs)
 }
 
-
 func clinicAssignmentAuditContext(staffID uint64) context.Context {
 	return withPermissionAssignmentAudit(context.Background(), PermissionAssignmentAudit{
 		ClinicID:      1,

@@ -88,6 +88,7 @@ func (h *HTTPHandler) AuthenticateUser(
 		if errors.Is(err, apperrors.ErrUnauthorized) {
 			accountID, knownAccount := IsAuthenticateWrongPassword(err)
 			h.enqueueLoginFailureAudit(
+				ctx,
 				accountID,
 				knownAccount,
 				clientIP,

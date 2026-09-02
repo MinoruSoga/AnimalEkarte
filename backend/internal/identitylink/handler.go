@@ -182,10 +182,7 @@ func (h *Handler) UnlinkOwnerMember(c *gin.Context) {
 		httpapi.RespondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
 		return
 	}
-	if err := h.service.UnlinkOwnerMember(c.Request.Context(), actor, groupID, OwnerMemberRef{
-		ClinicID: req.ClinicID,
-		OwnerID:  req.OwnerID,
-	}); err != nil {
+	if err := h.service.UnlinkOwnerMember(c.Request.Context(), actor, groupID, OwnerMemberRef(req)); err != nil {
 		httpapi.RespondError(c, err)
 		return
 	}
@@ -294,10 +291,7 @@ func (h *Handler) UnlinkPetMember(c *gin.Context) {
 		httpapi.RespondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
 		return
 	}
-	if err := h.service.UnlinkPetMember(c.Request.Context(), actor, groupID, PetMemberRef{
-		ClinicID: req.ClinicID,
-		PetID:    req.PetID,
-	}); err != nil {
+	if err := h.service.UnlinkPetMember(c.Request.Context(), actor, groupID, PetMemberRef(req)); err != nil {
 		httpapi.RespondError(c, err)
 		return
 	}

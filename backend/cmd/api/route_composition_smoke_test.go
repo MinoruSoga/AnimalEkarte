@@ -103,7 +103,7 @@ func TestRouteCompositionSmoke_TargetGraphRegistersEverySurface(t *testing.T) {
 		"/api/v1/masters/permission-groups",
 		"/api/v1/owners",
 	} {
-		request := httptest.NewRequest(http.MethodGet, protectedPath, nil)
+		request := httptest.NewRequest(http.MethodGet, protectedPath, http.NoBody)
 		response := httptest.NewRecorder()
 		router.ServeHTTP(response, request)
 		assert.Equal(t, http.StatusUnauthorized, response.Code, protectedPath)

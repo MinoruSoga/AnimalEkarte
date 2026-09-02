@@ -341,6 +341,7 @@ func TestGetOwnerTags_CacheFallbackError(t *testing.T) {
 // ---- GetOwnerTags: real client via httptest server (GetUserTags is not disabled) ----
 
 func TestGetOwnerTags_ClientSuccess(t *testing.T) {
+	useHttptestLstepClient(t)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(`{"tags":["tag1","tag2"]}`))
@@ -365,6 +366,7 @@ func TestGetOwnerTags_ClientSuccess(t *testing.T) {
 }
 
 func TestGetOwnerTags_ClientUserNotFound(t *testing.T) {
+	useHttptestLstepClient(t)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 	}))
@@ -388,6 +390,7 @@ func TestGetOwnerTags_ClientUserNotFound(t *testing.T) {
 }
 
 func TestGetOwnerTags_ClientServerError(t *testing.T) {
+	useHttptestLstepClient(t)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 	}))
@@ -411,6 +414,7 @@ func TestGetOwnerTags_ClientServerError(t *testing.T) {
 }
 
 func TestGetOwnerTags_ClientTagsNil(t *testing.T) {
+	useHttptestLstepClient(t)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(`{}`))

@@ -21,6 +21,7 @@ func setupClinicHolidayTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := testdb.SetupTestDB(t)
 	require.NoError(t, testdb.EnsureAutoMigrated(db, &model.Company{}, &model.Clinic{}, &model.ClinicHoliday{}))
+	require.NoError(t, db.Exec("TRUNCATE TABLE clinic_holidays").Error)
 	// clinics/companies はテスト全体で TRUNCATE されない共有テーブル。他ファイル
 	// （staff_preload_clinic_isolation_test.go の seedClinicsForFK 等）が clinics.id を
 	// 明示指定して手動 INSERT すると、bigserial シーケンスの内部カウンタは追従せず、

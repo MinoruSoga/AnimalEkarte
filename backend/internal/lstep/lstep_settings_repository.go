@@ -26,6 +26,8 @@ type LstepSettingsRepository interface {
 	DeleteByClinicServiceAndKey(ctx context.Context, clinicID uint64, service, keyName string) error
 }
 
+type lstepSettingsRepository struct{ db *gorm.DB }
+
 func (r *lstepSettingsRepository) FindCredentialByClinicServiceKey(
 	ctx context.Context,
 	clinicID uint64,
@@ -45,8 +47,6 @@ func (r *lstepSettingsRepository) FindCredentialByClinicServiceKey(
 	}
 	return &record, nil
 }
-
-type lstepSettingsRepository struct{ db *gorm.DB }
 
 // NewLstepSettingsRepository は LstepSettingsRepository を初期化して返す。
 func NewLstepSettingsRepository(db *gorm.DB) LstepSettingsRepository {

@@ -3,9 +3,10 @@ package medicalrecord
 import (
 	"context"
 
+	"gorm.io/gorm"
+
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"gorm.io/gorm"
 )
 
 func (r *medicalRecordRepository) FindAll(ctx context.Context, clinicIDs []uint64, filters MedicalRecordListFilters, page, limit int) ([]model.MedicalRecord, int64, error) {

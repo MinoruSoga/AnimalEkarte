@@ -74,7 +74,7 @@ func OpenSecureInputFile(path string, repoRoots []string) (*os.File, string, err
 	if err != nil {
 		return nil, "", apperrors.WrapInvalidInput(fmt.Sprintf("failed to open input path: %v", err))
 	}
-	return os.NewFile(uintptr(fd), realPath), realPath, nil
+	return os.NewFile(uintptr(fd), realPath), realPath, nil //nolint:gosec // G115: fd comes from unix.Open
 }
 
 // LoadStaffProvisionInputs loads and structurally validates both operator files.

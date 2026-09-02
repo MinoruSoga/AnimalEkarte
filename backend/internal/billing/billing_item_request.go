@@ -127,32 +127,32 @@ func (r updateBillingItemRequest) toServiceInput() (*UpdateBillingItemInput, err
 }
 
 type BillingItemResponse struct {
-	ID                    uint64    `json:"id"`
-	BillingID             uint64    `json:"billing_id"`
-	Category              string    `json:"category"`
-	Name                  string    `json:"name"`
-	UnitPrice             int64     `json:"unit_price"`
-	Quantity              float64   `json:"quantity"`
-	DiscountRate          float64   `json:"discount_rate"`
-	DiscountAmount        int64     `json:"discount_amount"`
-	Subtotal              int64     `json:"subtotal"`
-	TaxType               string    `json:"tax_type"`
-	TaxRate               float64   `json:"tax_rate"`
-	TaxAmount             int64     `json:"tax_amount"`
-	IsInsuranceApplicable bool      `json:"is_insurance_applicable"`
-	Source                string    `json:"source"`
-	OtherReason           *string   `json:"other_reason,omitempty"`
-	TreatmentID           *uint64   `json:"treatment_id,omitempty"`
+	ID                    uint64  `json:"id"`
+	BillingID             uint64  `json:"billing_id"`
+	Category              string  `json:"category"`
+	Name                  string  `json:"name"`
+	UnitPrice             int64   `json:"unit_price"`
+	Quantity              float64 `json:"quantity"`
+	DiscountRate          float64 `json:"discount_rate"`
+	DiscountAmount        int64   `json:"discount_amount"`
+	Subtotal              int64   `json:"subtotal"`
+	TaxType               string  `json:"tax_type"`
+	TaxRate               float64 `json:"tax_rate"`
+	TaxAmount             int64   `json:"tax_amount"`
+	IsInsuranceApplicable bool    `json:"is_insurance_applicable"`
+	Source                string  `json:"source"`
+	OtherReason           *string `json:"other_reason,omitempty"`
+	TreatmentID           *uint64 `json:"treatment_id,omitempty"`
 	// MedicalRecordID は未請求候補など、treatment 由来の親カルテ（DB 列ではない仮想値）。
-	MedicalRecordID       *uint64   `json:"medical_record_id,omitempty"`
-	VaccinationID         *uint64   `json:"vaccination_id,omitempty"`
-	ExamID                *uint64   `json:"exam_id,omitempty"`
-	AppointmentID         *uint64   `json:"appointment_id,omitempty"`
-	TrimmingCourseID      *uint64   `json:"trimming_course_id,omitempty"`
-	TrimmingOptionID      *uint64   `json:"trimming_option_id,omitempty"`
-	MerchandiseItemID     *uint64   `json:"merchandise_item_id,omitempty"`
-	SortOrder             int       `json:"sort_order"`
-	CreatedAt             time.Time `json:"created_at"`
+	MedicalRecordID   *uint64   `json:"medical_record_id,omitempty"`
+	VaccinationID     *uint64   `json:"vaccination_id,omitempty"`
+	ExamID            *uint64   `json:"exam_id,omitempty"`
+	AppointmentID     *uint64   `json:"appointment_id,omitempty"`
+	TrimmingCourseID  *uint64   `json:"trimming_course_id,omitempty"`
+	TrimmingOptionID  *uint64   `json:"trimming_option_id,omitempty"`
+	MerchandiseItemID *uint64   `json:"merchandise_item_id,omitempty"`
+	SortOrder         int       `json:"sort_order"`
+	CreatedAt         time.Time `json:"created_at"`
 }
 
 func ToBillingItemResponse(item *model.BillingItem) BillingItemResponse {

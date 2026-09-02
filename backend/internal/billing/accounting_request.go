@@ -214,27 +214,7 @@ type completeAccountingRequest struct {
 func (r *completeAccountingRequest) toServiceInput(clinicID, staffID uint64, idempotencyKey string) *CompleteAccountingInput {
 	items := make([]CompleteAccountingItemInput, 0, len(r.Items))
 	for _, it := range r.Items {
-		items = append(items, CompleteAccountingItemInput{
-			Category:              it.Category,
-			Name:                  it.Name,
-			UnitPrice:             it.UnitPrice,
-			Quantity:              it.Quantity,
-			DiscountRate:          it.DiscountRate,
-			DiscountAmount:        it.DiscountAmount,
-			TaxType:               it.TaxType,
-			TaxRate:               it.TaxRate,
-			IsInsuranceApplicable: it.IsInsuranceApplicable,
-			Source:                it.Source,
-			OtherReason:           it.OtherReason,
-			MerchandiseItemID:     it.MerchandiseItemID,
-			TreatmentID:           it.TreatmentID,
-			VaccinationID:         it.VaccinationID,
-			ExamID:                it.ExamID,
-			AppointmentID:         it.AppointmentID,
-			TrimmingCourseID:      it.TrimmingCourseID,
-			TrimmingOptionID:      it.TrimmingOptionID,
-			SortOrder:             it.SortOrder,
-		})
+		items = append(items, CompleteAccountingItemInput(it))
 	}
 	return &CompleteAccountingInput{
 		ClinicID:          clinicID,

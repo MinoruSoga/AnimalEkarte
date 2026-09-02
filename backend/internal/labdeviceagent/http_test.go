@@ -52,7 +52,7 @@ func TestHandlerExposesFramesWithoutLeakingPortIdentity(t *testing.T) {
 	handler := NewHandler(queue, status, "clinic-2")
 	owner := claimConsumer(t, handler)
 
-	req := httptest.NewRequest(http.MethodGet, "http://127.0.0.1:17654/frames", nil)
+	req := httptest.NewRequest(http.MethodGet, "http://127.0.0.1:17654/frames", http.NoBody)
 	req.Header.Set("Origin", "http://localhost:3003")
 	authorizeRequest(req, owner)
 	res := httptest.NewRecorder()
@@ -80,13 +80,13 @@ func TestHandlerRejectsForeignOriginsAndAcknowledgesExactFrame(t *testing.T) {
 	handler := NewHandler(queue, &Status{}, "clinic-2")
 	owner := claimConsumer(t, handler)
 
-	foreign := httptest.NewRequest(http.MethodGet, "http://127.0.0.1:17654/frames", nil)
+	foreign := httptest.NewRequest(http.MethodGet, "http://127.0.0.1:17654/frames", http.NoBody)
 	foreign.Header.Set("Origin", "https://example.invalid")
 	foreignRes := httptest.NewRecorder()
 	handler.ServeHTTP(foreignRes, foreign)
 	require.Equal(t, http.StatusForbidden, foreignRes.Code)
 
-	ack := httptest.NewRequest(http.MethodPost, "http://127.0.0.1:17654/frames/"+frame.ID+"/ack", nil)
+	ack := httptest.NewRequest(http.MethodPost, "http://127.0.0.1:17654/frames/"+frame.ID+"/ack", http.NoBody)
 	ack.Header.Set("Origin", "http://127.0.0.1:3003")
 	authorizeRequest(ack, owner)
 	ackRes := httptest.NewRecorder()
@@ -97,7 +97,7 @@ func TestHandlerRejectsForeignOriginsAndAcknowledgesExactFrame(t *testing.T) {
 
 func TestHandlerRejectsUnexpectedHost(t *testing.T) {
 	handler := NewHandler(NewQueue(1), &Status{}, "clinic-2")
-	req := httptest.NewRequest(http.MethodGet, "http://127.0.0.1:17654/health", nil)
+	req := httptest.NewRequest(http.MethodGet, "http://127.0.0.1:17654/health", http.NoBody)
 	req.Host = "attacker.invalid"
 	res := httptest.NewRecorder()
 	handler.ServeHTTP(res, req)
@@ -108,14 +108,14 @@ func TestHandlerRecordsResponseWriteFailure(t *testing.T) {
 	status := &Status{}
 	handler := NewHandler(NewQueue(1), status, "clinic-2")
 	response := &failingResponseWriter{header: make(http.Header)}
-	handler.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "http://127.0.0.1:17654/health", nil))
+	handler.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "http://127.0.0.1:17654/health", http.NoBody))
 	require.Equal(t, uint64(1), status.ResponseErrors())
 	require.Equal(t, "response_write_failed", status.LastErrorCategory())
 }
 
 func TestHandlerSupportsPrivateNetworkPreflight(t *testing.T) {
 	handler := NewHandler(NewQueue(1), &Status{}, "clinic-2")
-	req := httptest.NewRequest(http.MethodOptions, "http://127.0.0.1:17654/frames", nil)
+	req := httptest.NewRequest(http.MethodOptions, "http://127.0.0.1:17654/frames", http.NoBody)
 	req.Header.Set("Origin", "http://localhost:3003")
 	req.Header.Set("Access-Control-Request-Private-Network", "true")
 	res := httptest.NewRecorder()
@@ -131,7 +131,7 @@ func TestHandlerHealthReportsPartialPortFailureWithoutSensitiveDetails(t *testin
 	status.AddOpenError()
 	handler := NewHandler(NewQueue(1), status, "clinic-2")
 	res := httptest.NewRecorder()
-	handler.ServeHTTP(res, httptest.NewRequest(http.MethodGet, "http://127.0.0.1:17654/health", nil))
+	handler.ServeHTTP(res, httptest.NewRequest(http.MethodGet, "http://127.0.0.1:17654/health", http.NoBody))
 
 	require.Equal(t, http.StatusOK, res.Code)
 	require.Contains(t, res.Body.String(), `"status":"degraded"`)
@@ -150,7 +150,7 @@ func TestHandlerHealthRejectAndUnknownRoutes(t *testing.T) {
 	owner := claimConsumer(t, handler)
 
 	health := httptest.NewRecorder()
-	handler.ServeHTTP(health, httptest.NewRequest(http.MethodGet, "http://127.0.0.1:17654/health", nil))
+	handler.ServeHTTP(health, httptest.NewRequest(http.MethodGet, "http://127.0.0.1:17654/health", http.NoBody))
 	require.Equal(t, http.StatusOK, health.Code)
 	require.Contains(t, health.Body.String(), `"pending":1`)
 	require.Contains(t, health.Body.String(), `"configured_ports":0`)
@@ -162,21 +162,19 @@ func TestHandlerHealthRejectAndUnknownRoutes(t *testing.T) {
 	require.Contains(t, health.Body.String(), `"last_error_category":"none"`)
 
 	reject := httptest.NewRecorder()
-	rejectRequest := httptest.NewRequest(
-		http.MethodPost, "http://127.0.0.1:17654/frames/"+frame.ID+"/reject", nil,
-	)
+	rejectRequest := httptest.NewRequest(http.MethodPost, "http://127.0.0.1:17654/frames/"+frame.ID+"/reject", http.NoBody)
 	authorizeRequest(rejectRequest, owner)
 	handler.ServeHTTP(reject, rejectRequest)
 	require.Equal(t, http.StatusNoContent, reject.Code)
 
 	missing := httptest.NewRecorder()
-	missingRequest := httptest.NewRequest(http.MethodPost, "http://127.0.0.1:17654/frames/missing/ack", nil)
+	missingRequest := httptest.NewRequest(http.MethodPost, "http://127.0.0.1:17654/frames/missing/ack", http.NoBody)
 	authorizeRequest(missingRequest, owner)
 	handler.ServeHTTP(missing, missingRequest)
 	require.Equal(t, http.StatusNotFound, missing.Code)
 
 	unknown := httptest.NewRecorder()
-	handler.ServeHTTP(unknown, httptest.NewRequest(http.MethodGet, "http://127.0.0.1:17654/unknown", nil))
+	handler.ServeHTTP(unknown, httptest.NewRequest(http.MethodGet, "http://127.0.0.1:17654/unknown", http.NoBody))
 	require.Equal(t, http.StatusNotFound, unknown.Code)
 }
 
@@ -201,7 +199,7 @@ func TestHandlerBindsClinicAndAllowsOnlyOneConsumer(t *testing.T) {
 	handler.ServeHTTP(wrongClinicRes, wrongClinic)
 	require.Equal(t, http.StatusForbidden, wrongClinicRes.Code)
 
-	unauthorized := httptest.NewRequest(http.MethodGet, "http://127.0.0.1:17654/frames", nil)
+	unauthorized := httptest.NewRequest(http.MethodGet, "http://127.0.0.1:17654/frames", http.NoBody)
 	unauthorizedRes := httptest.NewRecorder()
 	handler.ServeHTTP(unauthorizedRes, unauthorized)
 	require.Equal(t, http.StatusConflict, unauthorizedRes.Code)
@@ -209,7 +207,7 @@ func TestHandlerBindsClinicAndAllowsOnlyOneConsumer(t *testing.T) {
 
 func TestHandlerAllowsConfiguredDeployedOriginAndPNA(t *testing.T) {
 	handler := NewHandler(NewQueue(1), &Status{}, "clinic-2", "https://staging.example.test")
-	req := httptest.NewRequest(http.MethodOptions, "http://127.0.0.1:17654/frames", nil)
+	req := httptest.NewRequest(http.MethodOptions, "http://127.0.0.1:17654/frames", http.NoBody)
 	req.Header.Set("Origin", "https://staging.example.test")
 	req.Header.Set("Access-Control-Request-Private-Network", "true")
 	res := httptest.NewRecorder()
@@ -264,7 +262,7 @@ func TestHandlerRejectsBrowserCanonicalOriginWhenRewrittenConfigurationIsInvalid
 	for configured, browserOrigin := range tests {
 		t.Run(configured, func(t *testing.T) {
 			handler := NewHandler(NewQueue(1), &Status{}, "clinic-2", configured)
-			request := httptest.NewRequest(http.MethodOptions, "http://127.0.0.1:17654/frames", nil)
+			request := httptest.NewRequest(http.MethodOptions, "http://127.0.0.1:17654/frames", http.NoBody)
 			request.Header.Set("Origin", browserOrigin)
 			response := httptest.NewRecorder()
 			handler.ServeHTTP(response, request)
@@ -277,7 +275,7 @@ func TestHandlerRejectsBrowserCanonicalOriginWhenRewrittenConfigurationIsInvalid
 func TestHandlerAcceptsOnlyCanonicalRequestOriginForCanonicalizedConfiguration(t *testing.T) {
 	handler := NewHandler(NewQueue(1), &Status{}, "clinic-2", "https://EXAMPLE.test:0443")
 
-	canonical := httptest.NewRequest(http.MethodOptions, "http://127.0.0.1:17654/frames", nil)
+	canonical := httptest.NewRequest(http.MethodOptions, "http://127.0.0.1:17654/frames", http.NoBody)
 	canonical.Header.Set("Origin", "https://example.test")
 	canonicalResponse := httptest.NewRecorder()
 	handler.ServeHTTP(canonicalResponse, canonical)
@@ -285,7 +283,7 @@ func TestHandlerAcceptsOnlyCanonicalRequestOriginForCanonicalizedConfiguration(t
 	require.Equal(t, "https://example.test", canonicalResponse.Header().Get("Access-Control-Allow-Origin"))
 
 	for _, origin := range []string{"https://EXAMPLE.test", "https://example.test:443", "https://attacker.example.test"} {
-		request := httptest.NewRequest(http.MethodOptions, "http://127.0.0.1:17654/frames", nil)
+		request := httptest.NewRequest(http.MethodOptions, "http://127.0.0.1:17654/frames", http.NoBody)
 		request.Header.Set("Origin", origin)
 		response := httptest.NewRecorder()
 		handler.ServeHTTP(response, request)
@@ -330,7 +328,7 @@ func TestHandlerExactCORSMatchesSharedOriginContract(t *testing.T) {
 	for _, test := range loadOriginParityCorpus(t).Cases {
 		t.Run(test.Raw, func(t *testing.T) {
 			handler := NewHandler(NewQueue(1), &Status{}, "clinic-2", test.Raw)
-			request := httptest.NewRequest(http.MethodOptions, "http://127.0.0.1:17654/frames", nil)
+			request := httptest.NewRequest(http.MethodOptions, "http://127.0.0.1:17654/frames", http.NoBody)
 			requestOrigin := test.Canonical
 			expectedStatus := http.StatusNoContent
 			if requestOrigin == "" {

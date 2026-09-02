@@ -79,7 +79,7 @@ type createVaccinationRequest struct {
 }
 
 func (r *createVaccinationRequest) toServiceInput() (*CreateVaccinationInput, error) {
-		date, err := httpapi.ParseDate(r.Date)
+	date, err := httpapi.ParseDate(r.Date)
 	if err != nil {
 		return nil, err
 	}
@@ -134,7 +134,7 @@ type updateVaccinationRequest struct {
 }
 
 func (r *updateVaccinationRequest) toServiceInput() (*UpdateVaccinationInput, error) {
-		date, err := httpapi.ParseDate(r.Date)
+	date, err := httpapi.ParseDate(r.Date)
 	if err != nil {
 		return nil, err
 	}

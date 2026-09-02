@@ -176,7 +176,6 @@ func (c *stubDupChecker) IsDuplicate(_ context.Context, _ LabExamPersistInput) (
 	return c.isDup, c.checkErr
 }
 
-
 // passthroughLabImportTransactor は unit test 用の WithTx 素通し（ambient tx 不要な stub repo 経路）。
 type passthroughLabImportTransactor struct{}
 

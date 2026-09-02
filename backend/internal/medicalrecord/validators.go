@@ -11,9 +11,6 @@ import (
 // と定数 alias のみ — ロジック・文言の正本は sharedkernel（複製ドリフト排除）。呼び出し側の
 // sharedkernel 直参照への切替は各 slice の後続リファクタで行う。
 
-// masterNameMaxLength mirrors sharedkernel.MasterNameMaxLength (BUG-379).
-const masterNameMaxLength = sharedkernel.MasterNameMaxLength
-
 // Error message constants（BUG-385）— 正本は sharedkernel。
 const (
 	errMsgAtLeastOneField = sharedkernel.ErrMsgAtLeastOneField
@@ -34,6 +31,6 @@ func validateOwnedMasterFK(ctx context.Context, entity string, clinicID uint64, 
 	return sharedkernel.ValidateOwnedMasterFK(ctx, entity, clinicID, id, find)
 }
 
-func setNullableUint64Field(fields map[string]any, col string, clearAssoc bool, id *uint64) {
+func setNullableUint64Field(fields map[string]any, col string, clearAssoc bool, id *uint64) { //nolint:unparam // col is the parent FK name; callers pass distinct constants that currently share "parent_id"
 	sharedkernel.SetNullableUint64Field(fields, col, clearAssoc, id)
 }

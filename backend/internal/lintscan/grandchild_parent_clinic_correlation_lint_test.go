@@ -1048,7 +1048,7 @@ func TestGrandchildParentClinicCorrelation_RegistryCoversMinimumSecSweep02Target
 		"MedicalRecord|appointments|appointment_id":               {},
 		"VitalRecord|medical_records|medical_record_id":           {},
 		"VitalRecord|daily_records|daily_record_id":               {},
-		"ShiftEntryBreak|shift_entries|shift_entry_id":               {},
+		"ShiftEntryBreak|shift_entries|shift_entry_id":            {},
 	}
 	gotRows := map[string]struct{}{}
 	gotModels := map[string]struct{}{}

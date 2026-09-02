@@ -24,7 +24,8 @@ func NewLineCustomerHandler(svc LineCustomerService, requirePermission Permissio
 // ListLineCustomers godoc
 // Response body stays a JSON array for OpenAPI/FE compatibility.
 // G2F-05: truncation is surfaced via headers (not silent 200-cap):
-//   X-Total-Count, X-Limit, X-Truncated
+//
+//	X-Total-Count, X-Limit, X-Truncated
 func (h *LineCustomerHandler) ListLineCustomers(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
