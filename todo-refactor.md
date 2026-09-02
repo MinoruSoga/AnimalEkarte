@@ -8,7 +8,7 @@
 | **除外** | `*.test.*` · `src/types/generated/**` · `src/components/ui/**` · `frontend/e2e/**` |
 | **目的** | 挙動を変えずに `frontend/CLAUDE.md` と ESLint 機械ガードへ寄せる |
 | **ブランチ** | `main`。クレームは末尾。エージェントは削除しない |
-| **検証** | Docker scoped `npx vitest run <path>`。full `pnpm lint` / `test:run` / `type-check` / `build` はユーザー手動 |
+| **検証** | Docker scoped `npx vitest run <path>`。full はユーザー手動（`make lint-front` / `make test-front` は 2026-09-02 成功。`pnpm build` は未実行） |
 | **正本** | ①実装 → ② `frontend/CLAUDE.md` → ③ `frontend/CODING_RULES.md` |
 
 BE フェーズは `ad63bdf28` で完了。BE 全文はそのコミットの本ファイル。
@@ -22,11 +22,10 @@ BE フェーズは `ad63bdf28` で完了。BE 全文はそのコミットの本�
 台帳初版の対象外表を維持する。要点:
 
 - `design-tokens.ts` / `query-keys.ts` / `paths.ts` の表分割なし
-- `utils/` 再作成なし、generated/models 262 件の一括移行なし（TASK-444）
+- `utils/` 再作成なし、generated/models の一括移行なし（TASK-444。実測 267 件は凍結のまま）
 - 50 行までの機械分割なし、200–399 行ファイルの「薄くするためだけ」の切断なし
 - FE12 却下（manual chunk、死亡行グレーアウト、owners 行アクションをペット生死で止める）
 - トリミングフォームの権限・死亡ガード追加は **既存欠落**（今回の抽出で新たに無くしていない）。別 TASK
-- full プロジェクト lint/test/build は未実行
 
 ---
 
@@ -38,7 +37,7 @@ BE フェーズは `ad63bdf28` で完了。BE 全文はそのコミットの本�
 - **FE-ARCH-002**: `app/pages` 合成と owners `loaders.ts` 例外はそのまま
 - **FE-ARCH-003**: `CODING_RULES.md` を 28 features + `lib/` に合わせた
 - **FE-ARCH-004**: `hooks/CLAUDE.md` の queryKey 例を `queryKeys.pets.detail`
-- **FE-ARCH-005**: generated/models allowlist は増やしていない（移行は別トラック）
+- **FE-ARCH-005**: generated/models の新規ドメイン import は増やしていない。150 行分割で移った sibling へ allowlist を追従し、import が消えた親パスと削除ファイルを外した（TASK-444 境界テストと一致。件数 267）。一括移行は別トラック
 
 ### FE-QUERY
 
@@ -77,7 +76,11 @@ BE フェーズは `ad63bdf28` で完了。BE 全文はそのコミットの本�
 
 隔離 worktree 側でも各エージェントが vitest を実行済み（compose が main を mount するため worktree は `docker run -v`）。
 
-full `pnpm lint` / `test:run` / `type-check` / `build` は禁止コマンドのため未実行。
+ユーザー手動（2026-09-02）:
+
+- `make lint-front`（eslint / tsc / knip）成功
+- `make test-front` 成功
+- `pnpm build` は未実行
 
 ---
 
@@ -92,9 +95,9 @@ full `pnpm lint` / `test:run` / `type-check` / `build` は禁止コマンドの�
 - [x] 800 行超ファイルが `design-tokens.ts` 以外 0
 - [x] queryKey タプル文字列を変えていない
 - [x] 死亡 sentinel と permission ref を分割で落としていない（トリミングの元からの欠落は未改修）
-- [x] generated/models の allowlist を増やしていない
+- [x] generated/models の新規ドメイン import を増やしていない（分割追従と stale 削除のみ。TASK-444 一括移行は未実施）
 - [x] `utils/` と `__tests__/` を再作成していない
-- [x] scoped vitest のみ
+- [x] 実装中は scoped vitest。完了後に `make lint-front` / `make test-front` をユーザー実行
 
 ---
 
@@ -102,13 +105,4 @@ full `pnpm lint` / `test:run` / `type-check` / `build` は禁止コマンドの�
 
 エージェントは `git branch -D` しない。main に載ったあと、人間が削除する。
 
-現存（この作業で残っているもの）:
-
-- `claim/TODO-REFACTOR-FE`
-- `claim/FE-CONFIRM-001`
-- `claim/FE-SIZE-HELPER-EXTRACT`
-- `claim/FE-SIZE-FORM-PANELS`
-- `claim/FE-SIZE-LIST-PAGES`
-- `claim/FE-150-PAGE-EXTRACT`
-
-他セッションの claim（未操作）: `claim/CODEX-W4-CSV-FRONTEND-DEPLOY`、`claim/codex-w3-billing-audit`、`claim/csf_*`
+この作業の claim はユーザーが解放済み（`claim/TODO-REFACTOR-FE`、`claim/FE-CONFIRM-001`、`claim/FE-SIZE-HELPER-EXTRACT`、`claim/FE-SIZE-FORM-PANELS`、`claim/FE-SIZE-LIST-PAGES`、`claim/FE-150-PAGE-EXTRACT`）。2026-09-02 時点のこの tree に `claim/*` は無い。
