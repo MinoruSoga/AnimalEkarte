@@ -8,8 +8,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
-	"sort"
-	"strings"
 	"testing"
 
 	"github.com/animal-ekarte/backend/internal/dbconn"
@@ -59,20 +57,19 @@ func TestRunSQLMigrationsAgainstDisposablePostgres(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	wantDDL := listInventorySQLFiles(t)
+
 	var applied int
 	if err := db.QueryRow(`
 SELECT count(*)
 FROM schema_migrations
-WHERE filename IN (
-  '001_init.sql'
-)`).Scan(&applied); err != nil {
+WHERE filename NOT LIKE 'seeds/%'`).Scan(&applied); err != nil {
 		t.Fatal(err)
 	}
-	if applied != 1 {
-		t.Fatalf("applied DDL migrations = %d, want 1", applied)
+	if applied != len(wantDDL) {
+		t.Fatalf("applied DDL migrations = %d, want %d (%v)", applied, len(wantDDL), wantDDL)
 	}
 
-	// Topology: 001_init.sql only.
 	var ddlKeys []string
 	rows, err := db.Query(`
 SELECT filename
@@ -93,8 +90,13 @@ ORDER BY filename`)
 	if err := rows.Err(); err != nil {
 		t.Fatal(err)
 	}
-	if len(ddlKeys) != 1 || ddlKeys[0] != "001_init.sql" {
-		t.Fatalf("DDL schema_migrations keys = %v, want [001_init.sql]", ddlKeys)
+	if len(ddlKeys) != len(wantDDL) {
+		t.Fatalf("DDL schema_migrations keys = %v, want %v", ddlKeys, wantDDL)
+	}
+	for i := range wantDDL {
+		if ddlKeys[i] != wantDDL[i] {
+			t.Fatalf("DDL schema_migrations keys = %v, want %v", ddlKeys, wantDDL)
+		}
 	}
 
 	// Rerun is a no-op: second apply must leave history and succeed.
@@ -108,14 +110,15 @@ FROM schema_migrations
 WHERE filename NOT LIKE 'seeds/%'`).Scan(&appliedAfterRerun); err != nil {
 		t.Fatal(err)
 	}
-	if appliedAfterRerun != 1 {
-		t.Fatalf("after rerun DDL keys = %d, want 1", appliedAfterRerun)
+	if appliedAfterRerun != len(wantDDL) {
+		t.Fatalf("after rerun DDL keys = %d, want %d", appliedAfterRerun, len(wantDDL))
 	}
 }
 
-// TestTopLevelDDLMigrationInventoryIncludesInitAndEnsure asserts the post-consolidation
-// disk topology: 001_init.sql only under migrations/ (maxdepth 1).
-func TestTopLevelDDLMigrationInventoryIncludesInitAndEnsure(t *testing.T) {
+var topLevelDDLNamePattern = regexp.MustCompile(`^[0-9]{3}_[a-z0-9_]+\.sql$`)
+
+func inventoryMigrationsDir(t *testing.T) string {
+	t.Helper()
 	dir := migrationsDir
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		// CI / host: resolve relative to this test file (backend/cmd/migrate → backend/migrations).
@@ -125,21 +128,25 @@ func TestTopLevelDDLMigrationInventoryIncludesInitAndEnsure(t *testing.T) {
 		}
 		dir = filepath.Join(filepath.Dir(thisFile), "..", "..", "migrations")
 	}
-	entries, err := os.ReadDir(dir)
+	if filepath.Base(dir) != "migrations" {
+		t.Fatalf("migrationsDir base = %q, want migrations", filepath.Base(dir))
+	}
+	return dir
+}
+
+func listInventorySQLFiles(t *testing.T) []string {
+	t.Helper()
+	names, err := listTopLevelDDLFilenames(inventoryMigrationsDir(t))
 	if err != nil {
-		t.Fatalf("read migrations dir %s: %v", dir, err)
+		t.Fatalf("list top-level DDL: %v", err)
 	}
-	var sqlFiles []string
-	for _, e := range entries {
-		if e.IsDir() {
-			continue
-		}
-		name := e.Name()
-		if strings.HasSuffix(name, ".sql") {
-			sqlFiles = append(sqlFiles, name)
-		}
-	}
-	sort.Strings(sqlFiles)
+	return names
+}
+
+// TestTopLevelDDLMigrationInventoryIncludesInitAndEnsure asserts the post-consolidation
+// disk topology: 001_init.sql only under migrations/ (maxdepth 1).
+func TestTopLevelDDLMigrationInventoryIncludesInitAndEnsure(t *testing.T) {
+	sqlFiles := listInventorySQLFiles(t)
 	want := []string{"001_init.sql"}
 	if len(sqlFiles) != len(want) {
 		t.Fatalf("top-level DDL files = %v, want %v", sqlFiles, want)
@@ -149,8 +156,10 @@ func TestTopLevelDDLMigrationInventoryIncludesInitAndEnsure(t *testing.T) {
 			t.Fatalf("top-level DDL files = %v, want %v", sqlFiles, want)
 		}
 	}
-	if filepath.Base(dir) != "migrations" {
-		t.Fatalf("migrationsDir base = %q, want migrations", filepath.Base(dir))
+	for _, name := range sqlFiles {
+		if !topLevelDDLNamePattern.MatchString(name) {
+			t.Fatalf("top-level DDL file %q does not match %s", name, topLevelDDLNamePattern.String())
+		}
 	}
 }
 

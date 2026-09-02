@@ -289,6 +289,10 @@ var knownSchemaDriftAllowlist = map[string]string{
 	// 意図的にフィールドを持たない（cash_register_close.go コメントと一致）。DDL 側の列削除は
 	// 適用済み migration 編集禁止のため行わない。
 	"CashRegisterClose.deleted_at": "append-only: intentional unmapped legacy deleted_at (no gorm.DeletedAt)",
+
+	// treatments.clinic_id is trigger-copied from medical_records. GORM Treatment has no
+	// ClinicID by design (DB-INIT-SCHEMA-HARDENING); application writes do not set it.
+	"Treatment.clinic_id": "DB-INIT-SCHEMA-HARDENING: trigger-maintained denormalized tenant key; Treatment has no ClinicID",
 }
 
 // knownNullabilityDriftAllowlist は Go=pointer(NULL許容) だが DB=NOT NULL(デフォルト無し) の
@@ -309,6 +313,10 @@ var knownNullabilityDriftAllowlist = map[string]string{
 	// 有無に関わらず引き続き allowlist が必要）。DB レベルの拒否は
 	// TestAuditLogRealDDL_NilClinicIDFails（internal/repository/audit_real_ddl_test.go）で保証。
 	"AuditLog.clinic_id": "X-3: DB制約(NOT NULL)を最終防衛線とし、Go側は*uint64+gorm:not nullを維持（意図的）",
+
+	// billing_items.clinic_id is NOT NULL for every row after 006; trigger copies it from
+	// billings. GORM keeps *uint64 json:"-" (DB-INIT-SCHEMA-HARDENING).
+	"BillingItem.clinic_id": "DB-INIT-SCHEMA-HARDENING: trigger-copied NOT NULL clinic_id; GORM stays *uint64 json:\"-\"",
 
 	// LstepCsvImport.UploadedByUserID pin は H-5 で解消（BE-refactor.md 第4期）。
 	// 供給元（lstep_csv_import_handler.go の ImportLstepFriendAttributesCsv）を遡って確認した結果、
