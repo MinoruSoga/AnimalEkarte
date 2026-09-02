@@ -1,11 +1,12 @@
 # タスク台帳 — Linear が正本
 
-更新日: 2026-08-31
+更新日: 2026-09-02
 
 | 項目 | 値 |
 |------|-----|
 | **実行 SoT** | Linear Team **Baritech** · Project **ノア動物病院電子カルテ** · hub **[BRT-4](https://linear.app/baritechllc/issue/BRT-4)** |
-| **直下整理** | **[BRT-105](https://linear.app/baritechllc/issue/BRT-105)** |
+| **直下整理** | **[BRT-105](https://linear.app/baritechllc/issue/BRT-105)**（Done） |
+| **セキュリティ修正** | **[BRT-226](https://linear.app/baritechllc/issue/BRT-226)**（Review · `origin/main` 済み · Done は人間） |
 | **会社側ログ** | CorpVault `50_Projects/ノア動物病院電子カルテ/` |
 | **完了履歴** | Git 履歴と Linear の完了 Issue。完了項目は本ファイルへ残さない |
 
