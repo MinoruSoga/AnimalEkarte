@@ -14,8 +14,15 @@ import (
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
+	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
 )
+
+func attachAllowAllClinicPermission(c *gin.Context) {
+	httpapi.SetClinicPermissionChecker(c, func(_ *gin.Context, _ uint64, _, _ string) bool {
+		return true
+	})
+}
 
 type scopedHandlerStaffService struct {
 	StaffService
@@ -167,6 +174,7 @@ func TestHandler_GetStaffClinicAssignmentsIntersectsNonAdminAuthorizedClinics(t 
 		c.Set("clinic_id", "20")
 		c.Set("is_system_admin", false)
 		c.Set("clinic_ids", []uint64{20, 40})
+		attachAllowAllClinicPermission(c)
 		c.Next()
 	}, handler.GetStaffClinicAssignments)
 	recorder := httptest.NewRecorder()

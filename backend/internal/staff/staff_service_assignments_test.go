@@ -132,6 +132,43 @@ func TestStaffService_SetClinicAssignments_AuthorizationAndValidationBeforeWrite
 		assert.ErrorIs(t, err, apperrors.ErrForbidden)
 	})
 
+	t.Run("non-admin cannot remove a clinic outside authorized clinic ids", func(t *testing.T) {
+		assignmentRepo := &mockAssignmentForStaff{
+			lockActiveFn: func(_ context.Context, staffID uint64) ([]model.StaffClinicAssignment, error) {
+				return []model.StaffClinicAssignment{
+					{StaffID: staffID, ClinicID: 1, IsMain: true},
+					{StaffID: staffID, ClinicID: 2, IsMain: false},
+				}, nil
+			},
+			deleteByClinicIDsFn: func(_ context.Context, _ uint64, _ []uint64) error {
+				t.Fatal("assignments must remain unchanged after authorization failure")
+				return nil
+			},
+		}
+		svc := NewStaffService(
+			&mockStaffRepository{},
+			&mockAccountForStaff{},
+			assignmentRepo,
+			&mockReservationForStaff{},
+			&mockShiftEntryForStaff{},
+			&mockPermissionGroupRepository{},
+			&mockResStaffForStaff{},
+			nil,
+			existingClinicLookupForStaffAssignments(),
+			noopTransactor{},
+		)
+
+		err := svc.SetClinicAssignments(context.Background(), &SetClinicAssignmentsInput{
+			StaffID:             10,
+			ClinicIDs:           []uint64{1},
+			AuthorizedClinicIDs: []uint64{1},
+			IsSystemAdmin:       false,
+		})
+
+		require.Error(t, err)
+		assert.ErrorIs(t, err, apperrors.ErrForbidden)
+	})
+
 	t.Run("all unique clinics are validated before delete and duplicates are removed", func(t *testing.T) {
 		events := make([]string, 0, 7)
 		created := make([]model.StaffClinicAssignment, 0, 2)

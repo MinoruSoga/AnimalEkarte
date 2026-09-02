@@ -191,6 +191,7 @@ func TestHandler_SystemAdminGetAndPutClinicsSkipRequestClinicMembership(t *testi
 				if test.adminSet {
 					c.Set("is_system_admin", test.isSystemAdmin)
 				}
+				attachAllowAllClinicPermission(c)
 				c.Next()
 			}
 			router.GET("/staffs/:id", withAuth, handler.GetStaff)
@@ -639,6 +640,7 @@ func newStaffRemovedRequestClinicRouter(
 		c.Set("clinic_id", strconv.FormatUint(clinicID, 10))
 		c.Set("is_system_admin", isSystemAdmin)
 		c.Set("clinic_ids", authorized)
+		attachAllowAllClinicPermission(c)
 		c.Next()
 	}
 	router.GET("/staffs/:id", withAuth, handler.GetStaff)

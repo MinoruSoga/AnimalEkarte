@@ -193,6 +193,23 @@ func TestListPets(t *testing.T) {
 			wantStatus: http.StatusOK,
 		},
 		{
+			name:  "returns 403 when clinic_ids lacks owners:view",
+			query: "clinic_ids=2",
+			setupCtx: func(c *gin.Context) {
+				setClinicID(c)
+				c.Set("is_system_admin", false)
+				c.Set("clinic_ids", []uint64{1, 2})
+				setOwnersViewOnlyClinic(c, 1)
+			},
+			svc: &mockPetServiceHandler{
+				listFn: func(_ context.Context, _ []uint64, _ PetListFilters, _, _ int) ([]model.Pet, int64, error) {
+					t.Fatal("must not list a clinic that lacks owners:view")
+					return nil, 0, nil
+				},
+			},
+			wantStatus: http.StatusForbidden,
+		},
+		{
 			name:  "returns 403 when clinic_ids contains unassigned clinic",
 			query: "clinic_ids=1,99",
 			setupCtx: func(c *gin.Context) {

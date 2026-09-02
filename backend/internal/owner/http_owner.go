@@ -13,8 +13,12 @@ import (
 
 // ListOwners godoc
 func (h *Handler) ListOwners(c *gin.Context) {
-	// #86: 拠点横断一覧 — clinic_ids クエリ指定時は所属検証済みの複数医院、未指定は現在の医院のみ
-	clinicIDs, ok := httpapi.ResolveListClinicIDs(c)
+	// #86: 拠点横断一覧 — 所属かつ owners:view を持つ医院だけをスコープにする
+	clinicIDs, ok := httpapi.ResolveListClinicIDsForPermission(
+		c,
+		string(model.ResourceOwners),
+		"view",
+	)
 	if !ok {
 		return
 	}
@@ -36,8 +40,12 @@ func (h *Handler) ListOwners(c *gin.Context) {
 
 // GetOwner godoc
 func (h *Handler) GetOwner(c *gin.Context) {
-	// #86: 詳細画面の拠点横断閲覧 — 所属医院全体をスコープにしてレコードを取得する
-	clinicIDs, ok := httpapi.ResolveAllClinicIDs(c)
+	// #86: 詳細画面の拠点横断閲覧 — 所属かつ owners:view を持つ医院だけをスコープにする
+	clinicIDs, ok := httpapi.ResolveAllClinicIDsForPermission(
+		c,
+		string(model.ResourceOwners),
+		"view",
+	)
 	if !ok {
 		return
 	}
@@ -66,11 +74,16 @@ func (h *Handler) CreateOwner(c *gin.Context) {
 	}
 
 	// #84: 登録時の医院指定 (Q11=A 所属医院のみ / Q12=A 登録フォームのみ)。
-	// req.ClinicID はユーザー入力のためここでの所属検証が唯一の防壁。
+	// req.ClinicID はユーザー入力のため所属検証と clinic 単位の owners:create が防壁。
 	// 検証なしで service へ渡すとクロステナント書き込みになる。
 	// system_admin も middleware が確定した active clinic 集合の範囲だけを許可する。
 	if req.ClinicID != nil && *req.ClinicID != clinicID {
-		if !httpapi.AuthorizeClinicIDs(c, []uint64{*req.ClinicID}) {
+		if !httpapi.AuthorizeClinicIDsForPermission(
+			c,
+			[]uint64{*req.ClinicID},
+			string(model.ResourceOwners),
+			"create",
+		) {
 			return
 		}
 		clinicID = *req.ClinicID

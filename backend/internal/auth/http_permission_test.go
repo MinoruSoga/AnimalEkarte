@@ -9,7 +9,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
+	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -72,4 +74,57 @@ func TestHTTPHandler_HasPermission_MissingContextDoesNotWriteResponse(t *testing
 	assert.Equal(t, http.StatusForbidden, response.Code)
 	assert.Contains(t, response.Body.String(), "forbidden")
 	assert.True(t, c.IsAborted())
+}
+
+func TestHTTPHandler_HasPermissionInClinic_UsesDestinationClinic(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	var lookedUpClinic uint64
+	handler := NewHTTPHandler(HTTPDependencies{
+		EffectivePermissions: authServiceEffectivePermissionStub{
+			getFn: func(_ context.Context, staffID, clinicID uint64) ([]model.PermissionGroupRule, error) {
+				assert.Equal(t, uint64(17), staffID)
+				lookedUpClinic = clinicID
+				if clinicID != 23 {
+					return nil, nil
+				}
+				return []model.PermissionGroupRule{{
+					Resource: string(model.ResourceOwners),
+					CanView:  true,
+				}}, nil
+			},
+		},
+	}, CookieConfigForProduction(false))
+
+	c := authPermissionContext(t)
+	assert.True(t, handler.HasPermissionInClinic(c, 23, string(model.ResourceOwners), "view"))
+	assert.Equal(t, uint64(23), lookedUpClinic)
+	assert.False(t, handler.HasPermissionInClinic(c, 99, string(model.ResourceOwners), "view"))
+	assert.Equal(t, uint64(99), lookedUpClinic)
+	assert.False(t, handler.HasPermissionInClinic(c, 0, string(model.ResourceOwners), "view"))
+}
+
+func TestHTTPHandler_RequirePermission_AttachesClinicChecker(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	handler := NewHTTPHandler(HTTPDependencies{
+		EffectivePermissions: authServiceEffectivePermissionStub{
+			getFn: func(_ context.Context, _, clinicID uint64) ([]model.PermissionGroupRule, error) {
+				if clinicID != 23 {
+					return nil, nil
+				}
+				return []model.PermissionGroupRule{{
+					Resource:  string(model.ResourceOwners),
+					CanView:   true,
+					CanCreate: true,
+				}}, nil
+			},
+		},
+	}, CookieConfigForProduction(false))
+
+	c := authPermissionContext(t)
+	handler.RequirePermission(string(model.ResourceOwners), "view")(c)
+	assert.False(t, c.IsAborted())
+	check, ok := httpapi.PeekClinicPermissionChecker(c)
+	require.True(t, ok)
+	assert.True(t, check(c, 23, string(model.ResourceOwners), "view"))
+	assert.False(t, check(c, 99, string(model.ResourceOwners), "view"))
 }

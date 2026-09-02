@@ -182,6 +182,23 @@ func TestListReservations(t *testing.T) {
 			wantStatus: http.StatusBadRequest,
 		},
 		{
+			name:  "returns 403 when clinic_ids lacks reservations:view",
+			query: "page=1&limit=10&clinic_ids=2",
+			setupCtx: func(c *gin.Context) {
+				setClinicID(c)
+				c.Set("is_system_admin", false)
+				c.Set("clinic_ids", []uint64{1, 2})
+				setReservationsViewOnlyClinic(c, 1)
+			},
+			svc: &mockReservationService{
+				listFn: func(_ context.Context, _ []uint64, _, _ int, _, _, _ *time.Time, _, _ *string, _, _ *uint64) ([]model.Reservation, int64, error) {
+					t.Fatal("must not list a clinic that lacks reservations:view")
+					return nil, 0, nil
+				},
+			},
+			wantStatus: http.StatusForbidden,
+		},
+		{
 			name:       "returns 401 when clinic_id is missing",
 			query:      "page=1&limit=10",
 			setupCtx:   func(_ *gin.Context) {},

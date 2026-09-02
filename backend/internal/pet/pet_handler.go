@@ -86,10 +86,14 @@ func toOwnerReportPetResponse(p *model.Pet) ownerReportPetResponse {
 }
 
 // ListPets godoc
-// #86: 拠点横断一覧 — clinic_ids クエリ指定時は所属検証済みの複数医院、未指定は現在の医院のみ
+// #86: 拠点横断一覧 — 所属かつ owners:view を持つ医院だけをスコープにする
 // （OwnersList.tsx が useClinicScope 経由でこの一覧を消費するため owners API と同一パターンを維持する）。
 func (h *Handler) ListPets(c *gin.Context) {
-	clinicIDs, ok := httpapi.ResolveListClinicIDs(c)
+	clinicIDs, ok := httpapi.ResolveListClinicIDsForPermission(
+		c,
+		string(model.ResourceOwners),
+		"view",
+	)
 	if !ok {
 		return
 	}
@@ -115,7 +119,11 @@ func (h *Handler) ListPets(c *gin.Context) {
 
 // ListOwnerReportPets godoc
 func (h *Handler) ListOwnerReportPets(c *gin.Context) {
-	clinicIDs, ok := httpapi.ResolveAllClinicIDs(c)
+	clinicIDs, ok := httpapi.ResolveAllClinicIDsForPermission(
+		c,
+		string(model.ResourceOwners),
+		"view",
+	)
 	if !ok {
 		return
 	}
@@ -135,8 +143,12 @@ func (h *Handler) ListOwnerReportPets(c *gin.Context) {
 
 // GetPet godoc
 func (h *Handler) GetPet(c *gin.Context) {
-	// #86: 詳細画面の拠点横断閲覧 — 所属医院全体をスコープにしてレコードを取得する
-	clinicIDs, ok := httpapi.ResolveAllClinicIDs(c)
+	// #86: 詳細画面の拠点横断閲覧 — 所属かつ owners:view を持つ医院だけをスコープにする
+	clinicIDs, ok := httpapi.ResolveAllClinicIDsForPermission(
+		c,
+		string(model.ResourceOwners),
+		"view",
+	)
 	if !ok {
 		return
 	}

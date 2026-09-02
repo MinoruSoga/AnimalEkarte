@@ -258,6 +258,23 @@ func TestListMedicalRecords(t *testing.T) {
 			},
 			wantStatus: http.StatusInternalServerError,
 		},
+		{
+			name:  "returns 403 when clinic_ids lacks medical-records:view",
+			query: "page=1&limit=10&clinic_ids=2",
+			setupCtx: func(c *gin.Context) {
+				setClinicID(c)
+				c.Set("is_system_admin", false)
+				c.Set("clinic_ids", []uint64{1, 2})
+				setResourcePermissionOnlyClinic(c, 1, string(model.ResourceMedicalRecords), "view")
+			},
+			svc: &mockMedicalRecordService{
+				listFn: func(_ context.Context, _ []uint64, _ MedicalRecordListFilters, _, _ int) ([]model.MedicalRecord, int64, error) {
+					t.Fatal("must not list a clinic that lacks medical-records:view")
+					return nil, 0, nil
+				},
+			},
+			wantStatus: http.StatusForbidden,
+		},
 	}
 
 	for _, tt := range tests {
