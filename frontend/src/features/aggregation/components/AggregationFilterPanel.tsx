@@ -18,7 +18,7 @@ interface AggregationFilterPanelProps {
 }
 
 export function AggregationFilterPanel({ params, onParamsChange, activeTab }: AggregationFilterPanelProps) {
-  const inputClass = `h-11 ${C.borderMedium} ${C.text} bg-white text-base`;
+  const inputClass = `h-11 ${C.borderMedium} ${C.text} ${C.bgWhite} text-base`;
   const labelClass = `text-xs ${C.text50}`;
 
   return (
