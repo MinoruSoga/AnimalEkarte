@@ -109,7 +109,8 @@
       "minimatch@3.1.5>brace-expansion": "1.1.18",
       "minimatch@9>brace-expansion": "2.1.4",
       "vercel>smol-toml": "1.7.1",
-      "vite>postcss": "8.5.25"
+      "vite>postcss": "8.5.25",
+      "browserslist": "4.28.7"
     },
     "onlyBuiltDependencies": [
       "@swc/core",
