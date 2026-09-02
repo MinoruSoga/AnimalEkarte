@@ -1,5 +1,6 @@
 import { AlertTriangle, Pencil, Trash2, ArrowLeft, FilePlus2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { C, ICON } from "@/lib/design-tokens";
 import { formatDate } from "@/lib/format/date";
 import { EstimateStatusBadge } from "../components/EstimateStatusBadge/EstimateStatusBadge";
@@ -175,7 +176,7 @@ interface EstimateSuccessorDialogProps {
   canSubmitSuccessor: boolean;
   onReasonChange: (value: string) => void;
   onClose: () => void;
-  onSubmit: () => void;
+  formAction: (formData: FormData) => void;
 }
 
 export function EstimateSuccessorDialog({
@@ -185,7 +186,7 @@ export function EstimateSuccessorDialog({
   canSubmitSuccessor,
   onReasonChange,
   onClose,
-  onSubmit,
+  formAction,
 }: EstimateSuccessorDialogProps) {
   return (
     <div
@@ -213,43 +214,42 @@ export function EstimateSuccessorDialog({
         <p className={`text-sm ${C.text70}`}>
           確定済み見積は変更できません。訂正理由を入力して後継ドラフトを作成します。元の見積は変更されません。
         </p>
-        <div>
-          <label
-            htmlFor="successor-reason"
-            className={`block text-sm font-medium ${C.text} mb-1`}
-          >
-            理由（必須）
-          </label>
-          <textarea
-            id="successor-reason"
-            value={successorReason}
-            onChange={(e) => onReasonChange(e.target.value)}
-            rows={4}
-            className={`w-full rounded-md border ${C.borderLight} p-2 text-sm ${C.text}`}
-            placeholder="訂正理由を入力"
-            disabled={successorBusy}
-          />
-          {successorReasonError ? (
-            <p className={`mt-1 text-sm ${C.danger}`}>{successorReasonError}</p>
-          ) : null}
-        </div>
-        <div className="flex justify-end gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onClose}
-            disabled={successorBusy}
-          >
-            キャンセル
-          </Button>
-          <Button
-            size="sm"
-            onClick={onSubmit}
-            disabled={successorBusy || !canSubmitSuccessor}
-          >
-            作成
-          </Button>
-        </div>
+        <form action={formAction} noValidate>
+          <div>
+            <label
+              htmlFor="successor-reason"
+              className={`block text-sm font-medium ${C.text} mb-1`}
+            >
+              理由（必須）
+            </label>
+            <textarea
+              id="successor-reason"
+              value={successorReason}
+              onChange={(e) => onReasonChange(e.target.value)}
+              rows={4}
+              className={`w-full rounded-md border ${C.borderLight} p-2 text-sm ${C.text}`}
+              placeholder="訂正理由を入力"
+              disabled={successorBusy}
+            />
+            {successorReasonError ? (
+              <p className={`mt-1 text-sm ${C.danger}`}>{successorReasonError}</p>
+            ) : null}
+          </div>
+          <div className="flex justify-end gap-2 mt-4">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={onClose}
+              disabled={successorBusy}
+            >
+              キャンセル
+            </Button>
+            <SubmitButton size="sm" disabled={successorBusy || !canSubmitSuccessor}>
+              作成
+            </SubmitButton>
+          </div>
+        </form>
       </div>
     </div>
   );
