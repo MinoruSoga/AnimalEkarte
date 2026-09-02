@@ -392,6 +392,7 @@ func TestLiffService_TypeScopedPublicReads_RejectInactiveReservationType(t *test
 		_, err := inactiveSvc.GetStaffs(ctx, clinicID, typeID)
 		require.Error(t, err)
 		assert.True(t, apperrors.IsInvalidInput(err))
+		assert.Contains(t, err.Error(), "reservation type is not available for LINE reservation")
 		assert.Zero(t, downstreamCalls, "inactive type must short-circuit staff lookup")
 
 		activeSvc := &liffService{typeLiffRepo: typeRepo(true), staffRepo: staffRepo}
@@ -417,6 +418,7 @@ func TestLiffService_TypeScopedPublicReads_RejectInactiveReservationType(t *test
 		_, _, err := inactiveSvc.GetAvailableDates(ctx, clinicID, typeID, 0)
 		require.Error(t, err)
 		assert.True(t, apperrors.IsInvalidInput(err))
+		assert.Contains(t, err.Error(), "reservation type is not available for LINE reservation")
 		assert.Zero(t, downstreamCalls, "inactive type must short-circuit date availability dependencies")
 
 		activeSvc := &liffService{
@@ -446,6 +448,7 @@ func TestLiffService_TypeScopedPublicReads_RejectInactiveReservationType(t *test
 		_, err := inactiveSvc.GetAvailableTimes(ctx, clinicID, typeID, 0, date)
 		require.Error(t, err)
 		assert.True(t, apperrors.IsInvalidInput(err))
+		assert.Contains(t, err.Error(), "reservation type is not available for LINE reservation")
 		assert.Zero(t, downstreamCalls, "inactive type must short-circuit time availability dependencies")
 
 		activeSvc := &liffService{
@@ -502,6 +505,7 @@ func TestLiffService_GetStaffAvailableTimes_AllowsInactiveReservationType(t *tes
 	_, err := svc.GetAvailableTimes(ctx, clinicID, typeID, 0, date)
 	require.Error(t, err)
 	assert.True(t, apperrors.IsInvalidInput(err), "LIFF GetAvailableTimes must keep inactive short-circuit")
+	assert.Contains(t, err.Error(), "reservation type is not available for LINE reservation")
 	assert.Zero(t, downstreamCalls)
 
 	_, err = svc.GetStaffAvailableTimes(ctx, clinicID, typeID, 0, date)
@@ -509,4 +513,102 @@ func TestLiffService_GetStaffAvailableTimes_AllowsInactiveReservationType(t *tes
 	assert.False(t, apperrors.IsInvalidInput(err), "staff available-times must not reject inactive reservation type")
 	assert.ErrorIs(t, err, downstreamErr)
 	assert.Equal(t, 1, downstreamCalls, "inactive staff path must reach slot dependencies")
+}
+
+// Hidden LIFF types (internal / reservation-invisible) share LINE create's invalid-input
+// so existence is not confirmed by a distinct error. GetStaffs / GetAvailableDates /
+// GetAvailableTimes must short-circuit before staff/date/time work.
+func TestLiffService_TypeScopedPublicReads_RejectHiddenReservationType(t *testing.T) {
+	const clinicID = uint64(3)
+	const typeID = uint64(7)
+	ctx := context.Background()
+	date := time.Date(2026, 8, 3, 0, 0, 0, 0, config.JST)
+	const lineUnavailableMsg = "reservation type is not available for LINE reservation"
+	downstreamErr := errors.New("downstream reached")
+
+	tests := []struct {
+		name               string
+		isInternal         bool
+		reservationVisible bool
+		call               func(svc *liffService) error
+	}{
+		{
+			name:               "GetStaffs: active internal type",
+			isInternal:         true,
+			reservationVisible: true,
+			call: func(svc *liffService) error {
+				_, err := svc.GetStaffs(ctx, clinicID, typeID)
+				return err
+			},
+		},
+		{
+			name:               "GetStaffs: active reservation-invisible type",
+			isInternal:         false,
+			reservationVisible: false,
+			call: func(svc *liffService) error {
+				_, err := svc.GetStaffs(ctx, clinicID, typeID)
+				return err
+			},
+		},
+		{
+			name:               "GetAvailableDates: internal type",
+			isInternal:         true,
+			reservationVisible: true,
+			call: func(svc *liffService) error {
+				_, _, err := svc.GetAvailableDates(ctx, clinicID, typeID, 0)
+				return err
+			},
+		},
+		{
+			name:               "GetAvailableTimes: reservation-invisible active type",
+			isInternal:         false,
+			reservationVisible: false,
+			call: func(svc *liffService) error {
+				_, err := svc.GetAvailableTimes(ctx, clinicID, typeID, 0, date)
+				return err
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			downstreamCalls := 0
+			staffRepo := &mockLiffStaffRepository{
+				findAllFn: func(_ context.Context, _ uint64) ([]model.Staff, error) {
+					downstreamCalls++
+					return nil, downstreamErr
+				},
+			}
+			svc := &liffService{
+				settingRepo: &mockLiffSettingRepository{
+					findByClinicIDFn: func(_ context.Context, _ uint64) (*model.LineReservationSetting, error) {
+						return liffDefaultSetting(), nil
+					},
+				},
+				typeLiffRepo: &mockLiffTypeRepository{
+					findByIDFn: func(_ context.Context, gotClinicID, gotTypeID uint64) (*model.ReservationType, error) {
+						assert.Equal(t, clinicID, gotClinicID)
+						assert.Equal(t, typeID, gotTypeID)
+						return &model.ReservationType{
+							ID:                   gotTypeID,
+							ClinicID:             gotClinicID,
+							IsActive:             true,
+							IsInternal:           tt.isInternal,
+							ReservationVisible:   tt.reservationVisible,
+							DurationMinutes:      30,
+							ReservationDayOption: model.DayOptionAnyday,
+						}, nil
+					},
+				},
+				staffRepo: staffRepo,
+			}
+
+			err := tt.call(svc)
+			require.Error(t, err)
+			assert.True(t, apperrors.IsInvalidInput(err))
+			assert.Contains(t, err.Error(), lineUnavailableMsg)
+			assert.NotContains(t, err.Error(), "reservation type is inactive")
+			assert.Zero(t, downstreamCalls, "hidden type must not reach staff/date/time dependencies")
+		})
+	}
 }

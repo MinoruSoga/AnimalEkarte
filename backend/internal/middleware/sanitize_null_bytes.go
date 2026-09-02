@@ -14,12 +14,13 @@ import (
 )
 
 // DefaultJSONBodyMaxBytes is the global raw-body ceiling for non-binary
-// POST/PATCH/PUT traffic (INF-02 / POC-12 / X-07). Counts bytes before
-// control-character sanitization so MaxBytesReader cannot be bypassed.
+// POST/PATCH/PUT and DELETE-with-body traffic (INF-02 / POC-12 / X-07).
+// Counts bytes before control-character sanitization so MaxBytesReader
+// cannot be bypassed.
 const DefaultJSONBodyMaxBytes int64 = 1 << 20 // 1 MiB
 
-// SanitizeNullBytes は POST/PATCH/PUT リクエストのボディから NULL バイトおよび
-// 制御文字を除去するミドルウェア。
+// SanitizeNullBytes は POST/PATCH/PUT およびボディ付き DELETE のボディから
+// NULL バイトおよび制御文字を除去するミドルウェア。
 // PostgreSQL は NULL バイト（\u0000）を含む文字列を拒否するため、
 // DB エラー（500）を防ぐためにハンドラに渡す前に除去する。
 //
@@ -50,14 +51,13 @@ var binaryMediaTypes = []string{
 
 func SanitizeNullBytes() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		method := c.Request.Method
-		if method != http.MethodPost && method != http.MethodPatch && method != http.MethodPut {
+		if !shouldBoundRequestBody(c.Request) {
 			c.Next()
 			return
 		}
 
 		contentType := c.Request.Header.Get("Content-Type")
-		if isBinaryContentType(contentType) {
+		if isBinaryContentType(contentType) && c.Request.Method != http.MethodDelete {
 			c.Next()
 			return
 		}
@@ -98,7 +98,8 @@ func SanitizeNullBytes() gin.HandlerFunc {
 	}
 }
 
-// LimitRequestBody bounds raw request body size for non-binary write methods.
+// LimitRequestBody bounds raw request body size for non-binary write methods
+// (POST/PATCH/PUT and DELETE with a body).
 // Apply on authenticated API groups (POC-12) as defense-in-depth after global
 // SanitizeNullBytes; MaxBytesReader still counts raw bytes when stacked under
 // sanitizedBodyReader (see SanitizeNullBytes).
@@ -107,13 +108,12 @@ func LimitRequestBody(maxBytes int64) gin.HandlerFunc {
 		maxBytes = DefaultJSONBodyMaxBytes
 	}
 	return func(c *gin.Context) {
-		method := c.Request.Method
-		if method != http.MethodPost && method != http.MethodPatch && method != http.MethodPut {
+		if !shouldBoundRequestBody(c.Request) {
 			c.Next()
 			return
 		}
 		contentType := c.Request.Header.Get("Content-Type")
-		if isBinaryContentType(contentType) {
+		if isBinaryContentType(contentType) && c.Request.Method != http.MethodDelete {
 			c.Next()
 			return
 		}
@@ -157,6 +157,20 @@ func (r *sanitizedBodyReader) Close() error {
 		return fmt.Errorf("close sanitized request body: %w", err)
 	}
 	return nil
+}
+
+// shouldBoundRequestBody reports whether MaxBytesReader wrapping applies.
+// POST/PATCH/PUT are unchanged. DELETE is included only when a body is
+// present, including chunked Transfer-Encoding (ContentLength < 0).
+func shouldBoundRequestBody(r *http.Request) bool {
+	switch r.Method {
+	case http.MethodPost, http.MethodPatch, http.MethodPut:
+		return true
+	case http.MethodDelete:
+		return r.Body != nil && r.ContentLength != 0
+	default:
+		return false
+	}
 }
 
 func isSanitizedControlByte(b byte) bool {

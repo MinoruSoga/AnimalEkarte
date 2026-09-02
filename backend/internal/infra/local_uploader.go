@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"time"
 )
 
 // LocalUploader はローカルファイルシステムにファイルを保存する FileUploader 実装。
@@ -23,7 +24,7 @@ func NewLocalUploader(baseDir, baseURL string) *LocalUploader {
 	}
 }
 
-// Upload はファイルをローカルに保存し、相対URLを返す。
+// Upload はファイルをローカルに保存し、オブジェクト key を返す。
 func (u *LocalUploader) Upload(_ context.Context, key string, body io.Reader, _ string) (string, error) {
 	fullPath := filepath.Join(u.baseDir, key)
 	dir := filepath.Dir(fullPath)
@@ -41,8 +42,12 @@ func (u *LocalUploader) Upload(_ context.Context, key string, body io.Reader, _ 
 		return "", fmt.Errorf("failed to write file: %w", err)
 	}
 
-	url := fmt.Sprintf("%s/%s", u.baseURL, key)
-	return url, nil
+	return key, nil
+}
+
+// GetSignedURL はローカル開発用の取得 URL を返す（TTL は使用しない）。
+func (u *LocalUploader) GetSignedURL(_ context.Context, key string, _ time.Duration) (string, error) {
+	return fmt.Sprintf("%s/%s", u.baseURL, key), nil
 }
 
 // Delete はローカルのファイルを削除する。

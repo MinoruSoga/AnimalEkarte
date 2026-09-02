@@ -100,8 +100,11 @@ func (s *liffService) findActiveLiffCourse(ctx context.Context, clinicID, typeID
 	if err != nil {
 		return nil, err
 	}
-	if !course.IsActive {
-		return nil, apperrors.WrapInvalidInput("reservation type is inactive")
+	// Same LINE-create gate as reservation_validators.validateReservationMasterOwnership.
+	// Inactive, internal, and reservation-invisible types share one invalid-input so
+	// existence of hidden types is not confirmed by a distinct error.
+	if !course.IsActive || !course.ReservationVisible || course.IsInternal {
+		return nil, apperrors.WrapInvalidInput("reservation type is not available for LINE reservation")
 	}
 	return course, nil
 }

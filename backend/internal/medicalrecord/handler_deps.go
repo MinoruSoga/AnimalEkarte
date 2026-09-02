@@ -3,6 +3,7 @@ package medicalrecord
 import (
 	"context"
 	"io"
+	"time"
 
 	"github.com/animal-ekarte/backend/internal/model"
 )
@@ -27,6 +28,7 @@ type medicalRecordGetter interface {
 // it here keeps internal/medicalrecord free of an internal/infra import; the composition root
 // passes the concrete infra.FileUploader in by structural typing.
 type fileUploader interface {
-	Upload(ctx context.Context, key string, body io.Reader, contentType string) (url string, err error)
+	Upload(ctx context.Context, key string, body io.Reader, contentType string) (string, error)
 	Delete(ctx context.Context, key string) error
+	GetSignedURL(ctx context.Context, key string, ttl time.Duration) (string, error)
 }
