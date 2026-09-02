@@ -254,7 +254,10 @@ describe("useReceptionKanban", () => {
         expect(columnOf(result.current.columns, "a1")).toBe("受付予約");
       });
       expect(columnOf(result.current.columns, "b1")).toBe("受付済");
-      expect(handleApiErrorMock).toHaveBeenCalled();
+      // FE-RC-005: エラー通知は useUpdateAppointmentStatus 自身の onError に一本化した
+      // （このモックは mutateAsync のみ差し替えるため onError は経由しない）。
+      // フックはロールバックのみを担う。
+      expect(handleApiErrorMock).not.toHaveBeenCalled();
     });
 
     it("対象カードが source カラムに無ければ false を返し API を呼ばない", async () => {

@@ -2,7 +2,8 @@
 import { useState, useMemo } from "react";
 
 // External
-import { pointerWithin, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
+import { pointerWithin, KeyboardSensor, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
+import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { formatDateWithWeekday } from "@/lib/format/date";
 
 // Internal
@@ -72,8 +73,11 @@ export function Reception() {
   });
 
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  // accessibility-rules.md §4: PointerSensor だけを指定すると dnd-kit の既定センサー
+  // （KeyboardSensor 含む）が失われるため、キーボード操作用に明示的に追加する。
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
   const { handleDragEnd } = useReceptionDragHandlers(columns, moveCard);
 

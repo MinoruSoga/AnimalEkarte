@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/dialog";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { C, STYLE } from "@/lib/design-tokens";
-import { handleApiError } from "@/lib/handle-api-error";
+import { getFormString } from "@/lib/form-data";
 import { getForbiddenPrefix } from "@/constants/lstep-auto-tag-prefixes";
 import { useCreateOwnerTag } from "../api/create-owner-tag";
 
@@ -34,7 +34,7 @@ export function LstepTagAddDialog({
 
   const [state, formAction] = useActionState(
     async (_prevState: FormState, formData: FormData): Promise<FormState> => {
-      const tagName = (formData.get("tag_name") as string).trim();
+      const tagName = getFormString(formData, "tag_name").trim();
 
       if (!tagName) {
         return { error: "タグ名を入力してください", success: false };
@@ -51,8 +51,8 @@ export function LstepTagAddDialog({
       try {
         await mutateAsync({ tag_name: tagName });
         return { error: null, success: true };
-      } catch (error) {
-        handleApiError(error, "タグの追加");
+      } catch {
+        // useCreateOwnerTag の onError が handleApiError 済み。ここでは再通知しない。
         return { error: "タグの追加に失敗しました", success: false };
       }
     },

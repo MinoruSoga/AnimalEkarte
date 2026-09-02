@@ -5,6 +5,7 @@ import {
   useCallback,
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
 } from "react";
 import { useNavigate, useParams, useLoaderData } from "react-router";
@@ -172,19 +173,25 @@ export function OwnerForm({ petMutations, lineSection, accountingSection }: Owne
     queryClient,
   ]);
 
+  // fieldErrors の「キーの集合」が変わったときだけ発火させたい（値の再代入では発火不要）。
+  // オブジェクト参照そのものを deps に使うと毎レンダーで新規オブジェクトになり無限発火するため、
+  // キー集合の署名文字列を useMemo 化して deps にする（FE-RC-066）。
+  const errorFieldsSignature = useMemo(
+    () => Object.keys(fieldErrors).sort().join(","),
+    [fieldErrors],
+  );
+
   // BUG-084: バリデーションエラー後に最初のエラーフィールドへフォーカスを移動する
   // フォームのアクセシビリティ改善（WCAG 2.4.3 Focus Order / 3.3.1 Error Identification）
   useEffect(() => {
-    const errorFields = Object.keys(fieldErrors);
+    const errorFields = errorFieldsSignature ? errorFieldsSignature.split(",") : [];
     if (errorFields.length === 0) return;
     // 優先度順にフォーカスする最初のフィールドを探す
     const firstErrorField = OWNER_PRIORITY_FIELDS.find((f) => errorFields.includes(f)) ?? errorFields[0];
     const domId = OWNER_FIELD_ID_MAP[firstErrorField] ?? firstErrorField;
     const el = document.getElementById(domId) as HTMLElement | null;
     el?.focus();
-  // fieldErrors オブジェクトのキー変化で発火させるため JSON.stringify を使用
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [JSON.stringify(Object.keys(fieldErrors).sort())]);
+  }, [errorFieldsSignature]);
 
   const handleBack = () => {
     navigate(paths.owners.getHref());

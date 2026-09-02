@@ -3,7 +3,7 @@ import type { Dispatch, RefObject, SetStateAction } from "react";
 import type { NavigateFunction } from "react-router";
 import { toast } from "sonner";
 
-import { handleApiError, extractApiErrorMessage } from "@/lib/handle-api-error";
+import { extractApiErrorMessage } from "@/lib/handle-api-error";
 import { jstWallDateToISOString } from "@/lib/jst-date";
 import { getReservationStatusLabel } from "@/lib/status-helpers";
 import type { ReservationCreateMutations } from "@/types/reservation-create-mutations";
@@ -174,85 +174,88 @@ export function useReservationActions({
     }
   }, [locationFrom, navigate]);
 
-  const handleSave = useCallback(
-    async (data: ReservationFormData, selectedPets: Pick<Pet, "id" | "ownerId" | "name">[], newOwnerData?: NewOwnerFormData): Promise<string | null> => {
-      if (!data.start || !data.end) return null;
-      if (!newOwnerData && selectedPets.length === 0) return null;
-
-      const currentEditing = editingAppointmentRef.current;
-      const targetDoctor = data.doctor || currentEditing?.doctor || "";
-      const hasOverlap = checkOverlap(
-        data.start,
-        data.end,
-        targetDoctor,
-        currentEditing?.id,
-        currentEditing?.id ? undefined : createdReservationIdsRef.current,
-      );
-
-      if (hasOverlap) {
-        // FE precheck — keep modal open with inline message (same surface as API 409).
-        return "指定された時間帯には既に予約が入っています";
-      }
-
-      if (currentEditing?.id) {
-        const updatePayload = buildReservationUpdateRequest(currentEditing, data, targetDoctor);
-        if (!updatePayload) return null;
-        return await new Promise<string | null>((resolve) => {
-          startUpdateTransition(() => {
-            updateReservationFn(updatePayload, {
-              onSuccess: () => {
-                toast.success("予約を更新しました", { description: `担当医: ${targetDoctor}` });
-                handleCloseForm();
-                navigateBackIfNeeded();
-                resolve(null);
-              },
-              onError: (error: unknown) => {
-                resolve(extractApiErrorMessage(error, "更新"));
-              },
-            });
+  /** 既存予約の日時/内容変更を保存する（FE-RC-046: handleSave から分離した1経路）。 */
+  const saveUpdateReservation = useCallback(
+    (
+      currentEditing: ReservationFormData,
+      data: ReservationFormData,
+      targetDoctor: string,
+    ): Promise<string | null> => {
+      const updatePayload = buildReservationUpdateRequest(currentEditing, data, targetDoctor);
+      if (!updatePayload) return Promise.resolve(null);
+      return new Promise<string | null>((resolve) => {
+        startUpdateTransition(() => {
+          updateReservationFn(updatePayload, {
+            onSuccess: () => {
+              toast.success("予約を更新しました", { description: `担当医: ${targetDoctor}` });
+              handleCloseForm();
+              navigateBackIfNeeded();
+              resolve(null);
+            },
+            onError: (error: unknown) => {
+              resolve(extractApiErrorMessage(error, "更新"));
+            },
           });
         });
-      }
+      });
+    },
+    [handleCloseForm, navigateBackIfNeeded, updateReservationFn],
+  );
 
-      if (newOwnerData) {
-        try {
-          const progressKey = JSON.stringify(newOwnerData);
-          if (newOwnerProgressRef.current?.key !== progressKey) {
-            newOwnerProgressRef.current = { key: progressKey };
-          }
-          const progress = newOwnerProgressRef.current;
-          if (!progress.ownerID) {
-            const owner = await createMutations.createOwnerFn({
-              owner_name: newOwnerData.ownerName,
-              phone: newOwnerData.phone,
-            });
-            progress.ownerID = String(owner.id);
-          }
-          if (!progress.petID) {
-            const pet = await createMutations.createPetFn({
-              owner_id: Number(progress.ownerID),
-              animal_species_id: newOwnerData.animalSpeciesId,
-              name: newOwnerData.petName,
-            });
-            progress.petID = String(pet.id);
-          }
-          const createPayload = transformToCreateRequest(
-            { ...data, notes: data.notes ?? newOwnerData.chiefComplaint },
-            progress.petID,
-            progress.ownerID,
-          );
-          await createMutation.mutateAsync(createPayload);
-          toast.success("予約を作成しました", {
-            description: `${newOwnerData.ownerName}様 / ${newOwnerData.petName} / 担当医: ${targetDoctor}`,
-          });
-          handleCloseCreateForm();
-          navigateBackIfNeeded();
-          return null;
-        } catch (error) {
-          return extractApiErrorMessage(error, "作成");
+  /** 新規飼主/ペットを作成してから予約を作成する（FE-RC-046: handleSave から分離した1経路）。 */
+  const saveNewOwnerReservation = useCallback(
+    async (
+      data: ReservationFormData,
+      newOwnerData: NewOwnerFormData,
+      targetDoctor: string,
+    ): Promise<string | null> => {
+      try {
+        const progressKey = JSON.stringify(newOwnerData);
+        if (newOwnerProgressRef.current?.key !== progressKey) {
+          newOwnerProgressRef.current = { key: progressKey };
         }
+        const progress = newOwnerProgressRef.current;
+        if (!progress.ownerID) {
+          const owner = await createMutations.createOwnerFn({
+            owner_name: newOwnerData.ownerName,
+            phone: newOwnerData.phone,
+          });
+          progress.ownerID = String(owner.id);
+        }
+        if (!progress.petID) {
+          const pet = await createMutations.createPetFn({
+            owner_id: Number(progress.ownerID),
+            animal_species_id: newOwnerData.animalSpeciesId,
+            name: newOwnerData.petName,
+          });
+          progress.petID = String(pet.id);
+        }
+        const createPayload = transformToCreateRequest(
+          { ...data, notes: data.notes ?? newOwnerData.chiefComplaint },
+          progress.petID,
+          progress.ownerID,
+        );
+        await createMutation.mutateAsync(createPayload);
+        toast.success("予約を作成しました", {
+          description: `${newOwnerData.ownerName}様 / ${newOwnerData.petName} / 担当医: ${targetDoctor}`,
+        });
+        handleCloseCreateForm();
+        navigateBackIfNeeded();
+        return null;
+      } catch (error) {
+        return extractApiErrorMessage(error, "作成");
       }
+    },
+    [createMutation, createMutations, handleCloseCreateForm, navigateBackIfNeeded],
+  );
 
+  /** 既存の飼主/ペット（単体・複数）に予約を作成する（FE-RC-046: handleSave から分離した1経路）。 */
+  const saveExistingPetsReservation = useCallback(
+    async (
+      data: ReservationFormData,
+      selectedPets: Pick<Pet, "id" | "ownerId" | "name">[],
+      targetDoctor: string,
+    ): Promise<string | null> => {
       try {
         if (selectedPets.length === 1) {
           const pet = selectedPets[0];
@@ -274,16 +277,45 @@ export function useReservationActions({
         return extractApiErrorMessage(error, "作成");
       }
     },
+    [createBatchMutation, createMutation, handleCloseCreateForm, navigateBackIfNeeded],
+  );
+
+  const handleSave = useCallback(
+    async (data: ReservationFormData, selectedPets: Pick<Pet, "id" | "ownerId" | "name">[], newOwnerData?: NewOwnerFormData): Promise<string | null> => {
+      if (!data.start || !data.end) return null;
+      if (!newOwnerData && selectedPets.length === 0) return null;
+
+      const currentEditing = editingAppointmentRef.current;
+      const targetDoctor = data.doctor || currentEditing?.doctor || "";
+      const hasOverlap = checkOverlap(
+        data.start,
+        data.end,
+        targetDoctor,
+        currentEditing?.id,
+        currentEditing?.id ? undefined : createdReservationIdsRef.current,
+      );
+
+      if (hasOverlap) {
+        // FE precheck — keep modal open with inline message (same surface as API 409).
+        return "指定された時間帯には既に予約が入っています";
+      }
+
+      if (currentEditing?.id) {
+        return saveUpdateReservation(currentEditing, data, targetDoctor);
+      }
+
+      if (newOwnerData) {
+        return saveNewOwnerReservation(data, newOwnerData, targetDoctor);
+      }
+
+      return saveExistingPetsReservation(data, selectedPets, targetDoctor);
+    },
     [
       checkOverlap,
-      createBatchMutation,
-      createMutation,
-      createMutations,
       editingAppointmentRef,
-      handleCloseCreateForm,
-      handleCloseForm,
-      navigateBackIfNeeded,
-      updateReservationFn,
+      saveExistingPetsReservation,
+      saveNewOwnerReservation,
+      saveUpdateReservation,
     ],
   );
 
@@ -371,9 +403,7 @@ export function useReservationActions({
             description: `${deleteTarget.petName} (${deleteTarget.ownerName}様)`,
           });
         },
-        onError: (error: unknown) => {
-          handleApiError(error, "削除");
-        },
+        // useDeleteReservation の onError が handleApiError 済み。ここでは再通知しない。
       });
     });
   }, [deleteReservationFn, deleteTarget, handleCloseDetail, setDeleteConfirmOpen, setDeleteTarget]);
