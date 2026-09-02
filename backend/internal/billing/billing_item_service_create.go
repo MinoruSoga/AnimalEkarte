@@ -121,29 +121,8 @@ func (s *billingItemService) createItemInAmbientTx(ctx context.Context, input *C
 		return nil, err
 	}
 
-	item := &model.BillingItem{
-		BillingID:             input.BillingID,
-		Category:              model.ItemCategory(input.Category),
-		Name:                  input.Name,
-		UnitPrice:             input.UnitPrice,
-		Quantity:              input.Quantity,
-		DiscountRate:          input.DiscountRate,
-		DiscountAmount:        input.DiscountAmount,
-		TaxType:               taxType,
-		TaxRate:               taxRate,
-		IsInsuranceApplicable: input.IsInsuranceApplicable,
-		Source:                source,
-		MerchandiseItemID:     input.MerchandiseItemID,
-		TreatmentID:           input.TreatmentID,
-		VaccinationID:         input.VaccinationID,
-		ExamID:                input.ExamID,
-		AppointmentID:         input.AppointmentID,
-		TrimmingCourseID:      input.TrimmingCourseID,
-		TrimmingOptionID:      input.TrimmingOptionID,
-		SortOrder:             input.SortOrder,
-	}
+	item := newBillingItemFromCreateInput(input, taxType, taxRate, source)
 
-	// BUG-463: lock parent billing and reject finalized status before any mutation
 	billing, err := s.billingRepo.LockAndFindByID(ctx, input.ClinicID, input.BillingID)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to lock billing before creating item")
@@ -152,10 +131,6 @@ func (s *billingItemService) createItemInAmbientTx(ctx context.Context, input *C
 		return nil, err
 	}
 
-	// BUG-506: resolve missing trimming appointment_id before validate/persist so
-	// provenance (and unbilled clear) still bind course/option to the appointment.
-	// Ambient tx is required (Complete / CreateItem WithTx). Unit mocks without
-	// TxFromContext skip resolve and keep prior validate/create behavior.
 	needsResolve := input.AppointmentID == nil && (input.TrimmingCourseID != nil || input.TrimmingOptionID != nil)
 	if tx := persistence.TxFromContext(ctx); needsResolve && tx != nil {
 		resolved, resolveErr := resolveUniqueTrimmingAppointmentID(
@@ -191,29 +166,8 @@ func (s *billingItemService) createItemInAmbientTx(ctx context.Context, input *C
 	if err := applyExamBillingProvenance(ctx, s.repo, input, item); err != nil {
 		return nil, err
 	}
-	if input.VaccinationID != nil {
-		if input.MerchandiseItemID != nil ||
-			input.TreatmentID != nil ||
-			input.AppointmentID != nil ||
-			input.TrimmingCourseID != nil ||
-			input.TrimmingOptionID != nil ||
-			input.ExamID != nil {
-			return nil, invalidBillingItemReferenceCombination()
-		}
-		_, err := s.repo.ValidateVaccinationCreateReference(
-			ctx,
-			input.ClinicID,
-			input.BillingID,
-			*input.VaccinationID,
-		)
-		if err != nil {
-			return nil, err
-		}
-		item.Category = model.ItemCategoryVaccine
-		item.Source = model.ItemSourceMedicalRecord
-		item.VaccinationID = input.VaccinationID
-		clinicID := input.ClinicID
-		item.ClinicID = &clinicID
+	if err := s.applyVaccinationBillingItemCreate(ctx, input, item); err != nil {
+		return nil, err
 	}
 
 	if err := applyBillingItemOtherMetadata(input, item); err != nil {
@@ -225,7 +179,6 @@ func (s *billingItemService) createItemInAmbientTx(ctx context.Context, input *C
 		}
 	}
 
-	// #81 段階2b: 明示的な割引指定が無ければキャンペーン/飼主割引を自動適用(best-effort)。
 	if item.DiscountAmount == 0 && input.VaccinationID == nil && input.ExamID == nil {
 		item.DiscountAmount = s.resolveAutoDiscount(
 			ctx,
@@ -258,6 +211,68 @@ func (s *billingItemService) createItemInAmbientTx(ctx context.Context, input *C
 	}
 
 	return item, nil
+}
+
+func newBillingItemFromCreateInput(
+	input *CreateBillingItemInput,
+	taxType model.TaxType,
+	taxRate float64,
+	source model.ItemSource,
+) *model.BillingItem {
+	return &model.BillingItem{
+		BillingID:             input.BillingID,
+		Category:              model.ItemCategory(input.Category),
+		Name:                  input.Name,
+		UnitPrice:             input.UnitPrice,
+		Quantity:              input.Quantity,
+		DiscountRate:          input.DiscountRate,
+		DiscountAmount:        input.DiscountAmount,
+		TaxType:               taxType,
+		TaxRate:               taxRate,
+		IsInsuranceApplicable: input.IsInsuranceApplicable,
+		Source:                source,
+		MerchandiseItemID:     input.MerchandiseItemID,
+		TreatmentID:           input.TreatmentID,
+		VaccinationID:         input.VaccinationID,
+		ExamID:                input.ExamID,
+		AppointmentID:         input.AppointmentID,
+		TrimmingCourseID:      input.TrimmingCourseID,
+		TrimmingOptionID:      input.TrimmingOptionID,
+		SortOrder:             input.SortOrder,
+	}
+}
+
+func (s *billingItemService) applyVaccinationBillingItemCreate(
+	ctx context.Context,
+	input *CreateBillingItemInput,
+	item *model.BillingItem,
+) error {
+	if input.VaccinationID == nil {
+		return nil
+	}
+	if input.MerchandiseItemID != nil ||
+		input.TreatmentID != nil ||
+		input.AppointmentID != nil ||
+		input.TrimmingCourseID != nil ||
+		input.TrimmingOptionID != nil ||
+		input.ExamID != nil {
+		return invalidBillingItemReferenceCombination()
+	}
+	_, err := s.repo.ValidateVaccinationCreateReference(
+		ctx,
+		input.ClinicID,
+		input.BillingID,
+		*input.VaccinationID,
+	)
+	if err != nil {
+		return err
+	}
+	item.Category = model.ItemCategoryVaccine
+	item.Source = model.ItemSourceMedicalRecord
+	item.VaccinationID = input.VaccinationID
+	clinicID := input.ClinicID
+	item.ClinicID = &clinicID
+	return nil
 }
 
 // CreateItemForComplete は BUG-018 Complete 用の ambient-tx 明細作成。

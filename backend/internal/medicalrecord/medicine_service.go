@@ -33,6 +33,12 @@ const (
 
 func buildMedicineUpdate(input *UpdateMedicineInput) map[string]any {
 	fields := make(map[string]any)
+	applyMedicineCoreUpdateFields(fields, input)
+	applyMedicineDoseUpdateFields(fields, input)
+	return fields
+}
+
+func applyMedicineCoreUpdateFields(fields map[string]any, input *UpdateMedicineInput) {
 	if input.Name != nil {
 		fields[colMedicineName] = *input.Name
 	}
@@ -78,7 +84,9 @@ func buildMedicineUpdate(input *UpdateMedicineInput) map[string]any {
 	if input.IsNonInsurance != nil {
 		fields[colMedicineIsNonInsurance] = *input.IsNonInsurance
 	}
-	// #201 投与量計算（製品軸）
+}
+
+func applyMedicineDoseUpdateFields(fields map[string]any, input *UpdateMedicineInput) {
 	if input.CalculationType != nil {
 		fields[colMedicineCalculationType] = *input.CalculationType
 	}
@@ -93,7 +101,6 @@ func buildMedicineUpdate(input *UpdateMedicineInput) map[string]any {
 	if input.DefaultDurationDays != nil {
 		fields[colMedicineDefaultDurationDays] = *input.DefaultDurationDays
 	}
-	return fields
 }
 
 // --- Input DTOs ---

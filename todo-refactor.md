@@ -1,16 +1,16 @@
 # リファクタ台帳（BE コード規約準拠）
 
-更新日: 2026-09-02（150行超関数の抽出まで完了）
+更新日: 2026-09-02（140行超関数の抽出まで完了）
 
 | 項目 | 値 |
 |------|-----|
 | **範囲** | backend の **production Go**（`*_test.go` と `cmd/_archive/` は対象外） |
 | **目的** | 挙動を変えずに、プロジェクトの Go 規約へ寄せる |
-| **ブランチ** | `main`。第1弾 `739207a1f`（ファイル分割）。第2弾は続くコミット（150行超関数の抽出） |
+| **ブランチ** | `main`。第1弾 `739207a1f`（ファイル分割）。第2弾 `8fa232d09`（150行超関数）。第3弾は続くコミット（140行超関数の抽出） |
 | **検証** | 変更 package の Docker 経由 scoped `go test`。full `./...` はユーザー手動 |
 | **正本** | [go-language.md](.claude/refs/go-language.md) · [go-gin-backend-guidelines.md](.claude/rules/go-gin-backend-guidelines.md) · [error-handling.md](.claude/refs/error-handling.md) |
 
-スキャン: 関数行数は `func ` 行から次の `func ` まで。`AuditLog.TableName` は後続 const ブロックで過大カウントされる偽陽性。
+スキャン: 関数行数は `func ` 行から次の `func ` まで。`AuditLog.TableName` は後続 const ブロックで過大カウントされる偽陽性。`testdb.SetupIsolatedTestDB` はテスト基盤のため対象外。
 
 ---
 
@@ -24,6 +24,7 @@
 | GORM `Updates(map[string]any)` の struct 化 | **BE-ANY 例外**（下記） |
 | ネスト要約 DTO の package 横断統一 | JSON 契約が domain ごとに違う（reservation pet は `danger_level`、billing pet は id+name） |
 | `preflightCSVShape` の機械分割 | CSV 状態機械。分割すると挙動を壊しやすい。残る唯一の実 150 行超関数 |
+| 120–136 行の関数まで機械分割 | 規約ゲートは 150。140 まで落とした。50 行ルールは個人コーディングスタイルであり台帳ゲートではない |
 
 ---
 
@@ -62,15 +63,17 @@
 
 GORM `Updates(map[string]any)` は **ゼロ値を省略する**境界 API。同じフィールドを struct の `Updates` にすると `false` / `0` / `""` が「未指定」ではなく「明示ゼロ」になり、PATCH 契約が変わる。
 
-既存の typed ヘルパー（`sharedkernel.SetNullableUint64Field` など）は nullable 列用。`build*Update` が返す map は **persistence 境界の例外**として残す。JSON/API 契約は変えない。`BuildClinicUpdate` は map のまま、フィールド群だけ helper に分けた。
+既存の typed ヘルパー（`sharedkernel.SetNullableUint64Field` など）は nullable 列用。`build*Update` が返す map は **persistence 境界の例外**として残す。JSON/API 契約は変えない。`BuildClinicUpdate` / `buildMedicineUpdate` は map のまま、フィールド群だけ helper に分けた。
 
 `lstep` の `any(s.repo).(iface)` optional loader は constructor 注入へ上げられるが必須ではない。今回は触っていない。
 
 ### BE-SIZE
 
 - **800 行超ファイル: 0**
-- **150 行超の実関数: `preflightCSVShape` のみ**（意図的残置）。他は同一 package の helper / SQL 定数 / WithTx 本体抽出。
+- **150 行超の実関数: `preflightCSVShape` のみ**（意図的残置）
+- **140 行超の実関数: 0**（`preflightCSVShape` と AuditLog 偽陽性を除く）
 - 第2弾の抽出例: payment graph loader、LTV SQL 定数、締め集計クエリ、月次 daily map、カルテ検索 WHERE、予防接種 lock/quote、LINE 予約 create、trimming/staff Update、退院会計、lab persist/revert、健診パッケージ types/fields、ForgotPassword persist
+- 第3弾の抽出例: trimming Create / existing-detail、pet identity group create、ForgotPassword mail dispatch、billing item ambient create、examination Update、月次レポート scan、クレジット訂正、complete digest、medicine update フィールド群
 
 ---
 
@@ -87,6 +90,12 @@ GORM `Updates(map[string]any)` は **ゼロ値を省略する**境界 API。同�
 
 staff の `TestStaffCredentialMutationAuditSourceContract` は `staff_service_update.go` も読むように更新した。
 
+第3弾:
+
+- compile-only: trimming, identitylink, auth, billing, medicalrecord
+- `./internal/trimming` `./internal/identitylink` `./internal/auth` `./internal/billing`
+- `./internal/medicalrecord -skip TestLabDeviceConnectivityDocsMatchRuntime`
+
 full `go test ./...` は禁止コマンド。複数 package を同時に同じ DB へ流すと TRUNCATE deadlock が出る。package 単位で流すこと。
 
 ---
@@ -99,3 +108,4 @@ full `go test ./...` は禁止コマンド。複数 package を同時に同じ D
 - nest≥4 の新しい `if` を残さない
 - GORM map Updates を struct に置換していない
 - 150 行超は `preflightCSVShape` 以外ゼロ（実関数）
+- 140 行超の生産関数は `preflightCSVShape` 以外ゼロ

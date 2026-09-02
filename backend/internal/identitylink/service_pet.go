@@ -35,120 +35,12 @@ func (s *service) CreatePetGroup(
 	var outMembers []model.PetIdentityGroupMember
 
 	err = s.transactor.WithTx(ctx, func(txCtx context.Context) error {
-		ownerGroup, lockOGErr := s.repo.LockOwnerGroupByID(txCtx, ownerGroupID)
-		if lockOGErr != nil {
-			return lockOGErr
-		}
-		ownerMembers, listErr := s.repo.ListActiveOwnerMembers(txCtx, ownerGroupID)
-		if listErr != nil {
-			return listErr
-		}
-		if len(ownerMembers) == 0 {
-			return apperrors.WrapNotFound("owner_identity_group", fmt.Sprintf("%d", ownerGroupID))
-		}
-		// Actor must cover every parent-owner clinic (anchor + all active members)
-		// and all pet clinics (pet refs already checked via assertPetRefsInActorScope).
-		// No any-member fallback: missing one parent-owner clinic is Forbidden, zero writes.
-		if err := assertActorCoversOwnerGroupClinics(actor, ownerGroup, ownerMembers); err != nil {
+		group, members, err := s.createPetGroupInTx(txCtx, actor, ownerGroupID, refs)
+		if err != nil {
 			return err
 		}
-
-		pets, lockPetsErr := s.repo.LockPets(txCtx, refs)
-		if lockPetsErr != nil {
-			return lockPetsErr
-		}
-		if len(pets) != len(refs) {
-			return apperrors.WrapForbidden("mixed or hidden pet ids rejected")
-		}
-
-		// Each pet's owner must be an active member of the owner group.
-		for _, pet := range pets {
-			ok, ownErr := s.repo.IsOwnerActiveInGroup(txCtx, ownerGroupID, pet.ClinicID, pet.OwnerID)
-			if ownErr != nil {
-				return ownErr
-			}
-			if !ok {
-				return apperrors.WrapConflict("pet owner is not in the specified owner identity group")
-			}
-		}
-
-		// Idempotent: all already in same pet group under this owner group.
-		existingGroupIDs := map[uint64]struct{}{}
-		for _, ref := range refs {
-			m, findErr := s.repo.FindActivePetMembership(txCtx, ref.ClinicID, ref.PetID)
-			if findErr != nil {
-				return findErr
-			}
-			if m == nil {
-				existingGroupIDs = nil
-				break
-			}
-			existingGroupIDs[m.GroupID] = struct{}{}
-		}
-		if existingGroupIDs != nil && len(existingGroupIDs) == 1 {
-			var groupID uint64
-			for id := range existingGroupIDs {
-				groupID = id
-			}
-			group, lockGErr := s.repo.LockPetGroupByID(txCtx, groupID)
-			if lockGErr != nil {
-				return lockGErr
-			}
-			if group.OwnerGroupID != ownerGroupID {
-				return apperrors.WrapConflict("pets already linked under a different owner identity group")
-			}
-			active, listErr := s.repo.ListActivePetMembers(txCtx, groupID)
-			if listErr != nil {
-				return listErr
-			}
-			if samePetMemberSet(active, refs) {
-				outGroup = group
-				outMembers = filterPetMembersByClinics(active, actor.VerifiedClinics)
-				return nil
-			}
-		}
-
-		for _, ref := range refs {
-			m, findErr := s.repo.FindActivePetMembership(txCtx, ref.ClinicID, ref.PetID)
-			if findErr != nil {
-				return findErr
-			}
-			if m != nil {
-				return apperrors.WrapConflict("pet already linked in another identity group")
-			}
-		}
-
-		createdClinicID := pickCreatedClinicID(actor, refs[0].ClinicID)
-		group := &model.PetIdentityGroup{
-			CreatedClinicID:           createdClinicID,
-			OwnerGroupCreatedClinicID: ownerGroup.CreatedClinicID,
-			OwnerGroupID:              ownerGroup.ID,
-			Version:                   1,
-		}
-		if createErr := s.repo.CreatePetGroup(txCtx, group); createErr != nil {
-			return createErr
-		}
-		memberRows := make([]model.PetIdentityGroupMember, 0, len(refs))
-		for _, ref := range refs {
-			memberRows = append(memberRows, model.PetIdentityGroupMember{
-				GroupCreatedClinicID: group.CreatedClinicID,
-				GroupID:              group.ID,
-				ClinicID:             ref.ClinicID,
-				PetID:                ref.PetID,
-			})
-		}
-		if createErr := s.repo.CreatePetMembers(txCtx, memberRows); createErr != nil {
-			return createErr
-		}
-		if auditErr := s.writeAudit(txCtx, actor, model.AuditActionPetIdentityLinkCreate, group.ID, nil, map[string]any{
-			"group_id":       group.ID,
-			"owner_group_id": ownerGroupID,
-			"members":        petRefsAudit(refs),
-		}); auditErr != nil {
-			return auditErr
-		}
 		outGroup = group
-		outMembers = memberRows
+		outMembers = members
 		return nil
 	})
 	if err != nil {

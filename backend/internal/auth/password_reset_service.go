@@ -206,16 +206,9 @@ func (s *passwordResetService) ForgotPassword(
 		return apperrors.WrapInternalServerError("password reset account lookup failed")
 	}
 
-	if !s.tryAcquireMailWorker() {
-		slog.ErrorContext(
-			ctx,
-			"password reset mail queue is full",
-			slog.Uint64("account_id", account.ID),
-		)
-		return nil
-	}
-	mailSlotOwned := true
-	mailRegistrationOwned := false
+	mailReservation, mailReserved := s.reservePasswordResetMail(ctx, account.ID)
+	mailSlotOwned := mailReservation.slotOwned
+	mailRegistrationOwned := mailReservation.registrationOwned
 	defer func() {
 		if mailSlotOwned {
 			s.releaseMailWorker()
@@ -224,15 +217,9 @@ func (s *passwordResetService) ForgotPassword(
 			s.mailGate.Done()
 		}
 	}()
-	if !s.mailGate.Register() {
-		slog.ErrorContext(
-			ctx,
-			"password reset mail registration is closed",
-			slog.Uint64("account_id", account.ID),
-		)
+	if !mailReserved {
 		return nil
 	}
-	mailRegistrationOwned = true
 
 	rawToken, tokenHash, err := generateToken()
 	if err != nil {
@@ -275,6 +262,48 @@ func (s *passwordResetService) ForgotPassword(
 	resetURL := buildPasswordResetURL(s.cfg.FrontendURL, rawToken)
 	mailSlotOwned = false
 	mailRegistrationOwned = false
+	s.dispatchPasswordResetEmail(account.ID, email, resetURL, resetToken.ID, tokenHash)
+
+	slog.InfoContext(ctx, "password reset token issued",
+		slog.Uint64("account_id", account.ID))
+	return nil
+}
+
+type passwordResetMailReservation struct {
+	slotOwned         bool
+	registrationOwned bool
+}
+
+func (s *passwordResetService) reservePasswordResetMail(
+	ctx context.Context,
+	accountID uint64,
+) (passwordResetMailReservation, bool) {
+	if !s.tryAcquireMailWorker() {
+		slog.ErrorContext(
+			ctx,
+			"password reset mail queue is full",
+			slog.Uint64("account_id", accountID),
+		)
+		return passwordResetMailReservation{}, false
+	}
+	if !s.mailGate.Register() {
+		slog.ErrorContext(
+			ctx,
+			"password reset mail registration is closed",
+			slog.Uint64("account_id", accountID),
+		)
+		return passwordResetMailReservation{slotOwned: true}, false
+	}
+	return passwordResetMailReservation{slotOwned: true, registrationOwned: true}, true
+}
+
+func (s *passwordResetService) dispatchPasswordResetEmail(
+	accountID uint64,
+	email string,
+	resetURL string,
+	tokenID uint64,
+	tokenHash string,
+) {
 	sharedkernel.GoSafe("password reset email", func() { //nolint:contextcheck // request cancellation must not abort an accepted reset mail
 		defer s.mailGate.Done()
 		defer s.releaseMailWorker()
@@ -284,7 +313,7 @@ func (s *passwordResetService) ForgotPassword(
 			slog.ErrorContext(
 				backgroundContext,
 				"failed to send password reset email",
-				slog.Uint64("account_id", account.ID),
+				slog.Uint64("account_id", accountID),
 				slog.String("error_type", fmt.Sprintf("%T", sendErr)),
 			)
 			cleanupContext, cleanupCancel := context.WithTimeout(
@@ -294,23 +323,19 @@ func (s *passwordResetService) ForgotPassword(
 			defer cleanupCancel()
 			if cleanupErr := s.tokenRepo.DeleteIssued(
 				cleanupContext,
-				resetToken.ID,
+				tokenID,
 				tokenHash,
 			); cleanupErr != nil {
 				slog.ErrorContext(
 					cleanupContext,
 					"failed to remove undelivered password reset token",
-					slog.Uint64("account_id", account.ID),
-					slog.Uint64("token_id", resetToken.ID),
+					slog.Uint64("account_id", accountID),
+					slog.Uint64("token_id", tokenID),
 					slog.String("error_type", fmt.Sprintf("%T", cleanupErr)),
 				)
 			}
 		}
 	})
-
-	slog.InfoContext(ctx, "password reset token issued",
-		slog.Uint64("account_id", account.ID))
-	return nil
 }
 
 func (s *passwordResetService) currentTime() time.Time {

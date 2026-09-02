@@ -263,89 +263,14 @@ func (s *trimmingService) Create(ctx context.Context, clinicID uint64, input *Cr
 	}
 	var apptID uint64
 	var result *model.Reservation
-	// appointment → trimming_detail → options の3書き込みを単一トランザクションで実行する。
-	// 中間でエラーが発生した場合はロールバックされ、孤立レコードは残らない。
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
-		// Booking operations share one clinic-scoped advisory-lock order. Acquire it before
-		// patient/staff/master row locks so Create cannot deadlock with Update/Delete paths.
-		if enforceBookingConstraints {
-			if err := s.reservation.AcquireBookingLock(txCtx, clinicID); err != nil {
-				return apperrors.Wrap(err, "failed to acquire trimming booking lock")
-			}
-		}
-		if err := reservation.ValidateReservationOwnerPetLinksWithRepo(txCtx, s.reservation, clinicID, nil, input.PetID); err != nil {
-			return err
-		}
-		if err := reservation.ValidateReservationPetNotDeceased(txCtx, s.reservation, clinicID, input.PetID); err != nil {
-			return err
-		}
-		if err := reservation.ValidateReservationStaffCapability(txCtx, s.reservationStaff, clinicID, input.StaffID, input.ReservationTypeID); err != nil {
-			return err
-		}
-		if enforceBookingConstraints {
-			if err := reservation.CheckSlotConflict(txCtx, s.reservation, clinicID, input.StaffID, input.StartTime, input.EndTime, nil); err != nil {
-				return err
-			}
-			if err := reservation.CheckReservationTypeCapacity(txCtx, s.reservation, s.reservationType, clinicID, input.ReservationTypeID, input.StartTime, nil); err != nil {
-				return err
-			}
-		}
-		appt, err := s.reservation.CreateForTrimming(txCtx, clinicID, reservation.CreateTrimmingReservationInput{
-			ReservationTypeID: input.ReservationTypeID,
-			StartTime:         input.StartTime,
-			EndTime:           input.EndTime,
-			PetID:             input.PetID,
-			DoctorID:          input.StaffID,
-			Status:            status,
-			ReservationRoute:  input.ReservationRoute,
-		})
-		if err != nil {
-			return apperrors.Wrap(err, "failed to create trimming appointment")
-		}
-		// The course/option reads use this ambient transaction and hold SHARE locks until
-		// the detail and junction rows have been persisted.
-		if err := s.validateTrimmingCourseAndOptions(txCtx, clinicID, input.CourseID, input.OptionIDs, nil, nil); err != nil {
-			return err
-		}
-
-		detail := &model.AppointmentTrimmingDetail{
-			ClinicID:        clinicID,
-			AppointmentID:   appt.ID,
-			CourseID:        input.CourseID,
-			StyleRequest:    input.StyleRequest,
-			BodyWeight:      input.BodyWeight,
-			BWUnit:          bwUnit,
-			BodyTemperature: input.BodyTemperature,
-			UsedShampoo:     input.UsedShampoo,
-			UsedRibbon:      input.UsedRibbon,
-			Remarks:         input.Remarks,
-			StyleImage:      input.StyleImage,
-			CompletedImage:  input.CompletedImage,
-		}
-		if err := s.trimmingDetail.Create(txCtx, detail); err != nil {
-			return apperrors.Wrap(err, "failed to create trimming detail")
-		}
-		if len(input.OptionIDs) > 0 {
-			if err := s.trimmingDetail.SetOptions(txCtx, clinicID, appt.ID, input.OptionIDs); err != nil {
-				return apperrors.Wrap(err, "failed to set trimming options")
-			}
-		}
-
-		apptID = appt.ID
-		result, err = s.GetByID(txCtx, clinicID, appt.ID)
+		created, err := s.createTrimmingAppointmentInTx(txCtx, clinicID, input, bwUnit, status, enforceBookingConstraints)
 		if err != nil {
 			return err
 		}
-		return s.logTrimmingAuditTx(
-			txCtx,
-			clinicID,
-			input.ActorID,
-			model.AuditActionTrimmingCreate,
-			appt.ID,
-			trimmingAuditMutationCreateAppointment,
-			nil,
-			trimmingAuditValue(result, result.TrimmingDetail),
-		)
+		result = created
+		apptID = created.ID
+		return nil
 	}); err != nil {
 		slog.ErrorContext(ctx, "failed to create trimming appointment", "error", err)
 		return nil, apperrors.Wrap(err, "failed to create trimming appointment")
