@@ -2,6 +2,7 @@ import { useCallback, useMemo } from "react";
 import { AlertTriangle, Pencil, Trash2 } from "lucide-react";
 import type { ActiveFilter, ActiveSort, FilterProperty } from "@/components/shared/PropertyFilter/types";
 import { TableCell } from "@/components/ui/table";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { PropertyFilter } from "@/components/shared/PropertyFilter/PropertyFilter";
 import { DataTable, DESIGN_TABLE_HEADER_ROW, DESIGN_TABLE_HEADER_CELL } from "@/components/shared/DataTable/DataTable";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
@@ -260,5 +261,30 @@ export function VaccinationListContent({
         />
       ) : null}
     </div>
+  );
+}
+
+export function VaccinationListDeleteDialog({
+  open,
+  isPending,
+  onClose,
+  onConfirm,
+}: {
+  open: boolean;
+  isPending: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <ConfirmDialog
+      open={open}
+      onClose={onClose}
+      title="予防接種記録を削除しますか？"
+      description="この操作は取り消せません。"
+      confirmLabel="削除"
+      variant="destructive"
+      onConfirm={onConfirm}
+      isPending={isPending}
+    />
   );
 }

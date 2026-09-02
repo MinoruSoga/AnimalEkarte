@@ -14,7 +14,6 @@ import { toast } from "sonner";
 import { paths } from "@/config/paths";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
-import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { usePagination } from "@/hooks/use-pagination";
 import { useGetPet } from "@/hooks/use-pet";
 import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
@@ -29,7 +28,7 @@ import { usePermission } from "@/hooks/use-permission";
 import type { VaccinationRecord } from "@/types";
 import type { ActiveFilter } from "@/components/shared/PropertyFilter/types";
 import { ResourceVaccinations } from "@/types/generated/models";
-import { VaccinationListContent } from "./VaccinationListPanels";
+import { VaccinationListContent, VaccinationListDeleteDialog } from "./VaccinationListPanels";
 import {
   buildVaccinationFilterProperties,
   buildVaccinationListQueryOptions,
@@ -176,16 +175,11 @@ export function VaccinationList() {
         onPageChange={handlePageChange}
       />
     </PageLayout>
-
-    <ConfirmDialog
+    <VaccinationListDeleteDialog
       open={pendingDeleteId !== null}
-      onClose={() => setPendingDeleteId(null)}
-      title="予防接種記録を削除しますか？"
-      description="この操作は取り消せません。"
-      confirmLabel="削除"
-      variant="destructive"
-      onConfirm={handleDeleteConfirm}
       isPending={isDeletePending}
+      onClose={() => setPendingDeleteId(null)}
+      onConfirm={handleDeleteConfirm}
     />
     </>
   );

@@ -22,6 +22,7 @@ import type { Pet } from "@/types";
 import type { ExaminationRecord } from "../api/transforms";
 import type { ExamResult } from "../api/transforms";
 import type { CreateExaminationRequest, UpdateExaminationRequest } from "../api/types";
+import type { ActionState } from "@/types/form";
 import type { ExamItemRow } from "../components/ExamItemsTable";
 import { useGetExamTypeFields } from "../api/get-exam-type-fields";
 import {
@@ -525,7 +526,7 @@ export function toExaminationFormView(input: {
   setFormData: (next: Partial<ExaminationRecord>) => void;
   petSelection: ReturnType<typeof import("@/hooks/use-pet-selection").usePetSelection>;
   formAction: (payload: FormData) => void;
-  formState: import("@/types/form").ActionState;
+  formState: ActionState;
   manualFieldErrors: Record<string, string>;
   handleDelete: (onSuccess?: () => void) => void;
   isEdit: boolean;
