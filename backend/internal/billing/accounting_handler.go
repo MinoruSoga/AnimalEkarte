@@ -34,7 +34,11 @@ func NewAccountingHandler(svc AccountingService, cashRegister cashRegisterCloseC
 
 // ListAccountings godoc
 func (h *AccountingHandler) ListAccountings(c *gin.Context) {
-	clinicIDs, ok := httpapi.ResolveListClinicIDs(c)
+	clinicIDs, ok := httpapi.ResolveListClinicIDsForPermission(
+		c,
+		string(model.ResourceAccounting),
+		"view",
+	)
 	if !ok {
 		return
 	}
@@ -80,8 +84,12 @@ func (h *AccountingHandler) ListAccountings(c *gin.Context) {
 
 // GetAccounting godoc
 func (h *AccountingHandler) GetAccounting(c *gin.Context) {
-	// #86: 詳細画面の拠点横断閲覧 — 所属医院全体をスコープにしてレコードを取得する
-	clinicIDs, ok := httpapi.ResolveAllClinicIDs(c)
+	// #86: 詳細画面の拠点横断閲覧 — 所属かつ accounting:view を持つ医院だけをスコープにする
+	clinicIDs, ok := httpapi.ResolveAllClinicIDsForPermission(
+		c,
+		string(model.ResourceAccounting),
+		"view",
+	)
 	if !ok {
 		return
 	}
@@ -413,7 +421,11 @@ func (h *AccountingHandler) GetUnpaidMonthlySummary(c *gin.Context) {
 // GET /v1/accountings/daily-summary?date=YYYY-MM-DD[&clinic_ids=1,2]
 // clinic_ids が複数の場合は per_clinic 配列を追加で返す (#86 段階3 論点4=2)。
 func (h *AccountingHandler) GetDailySummary(c *gin.Context) {
-	clinicIDs, ok := httpapi.ResolveListClinicIDs(c)
+	clinicIDs, ok := httpapi.ResolveListClinicIDsForPermission(
+		c,
+		string(model.ResourceAccounting),
+		"view",
+	)
 	if !ok {
 		return
 	}

@@ -315,6 +315,23 @@ func TestListAccountings(t *testing.T) {
 			wantBody:   `"id":2`,
 		},
 		{
+			name:  "returns 403 when clinic_ids lacks accounting:view",
+			query: "clinic_ids=2",
+			setupCtx: func(c *gin.Context) {
+				setClinicID(c)
+				c.Set("is_system_admin", false)
+				c.Set("clinic_ids", []uint64{1, 2})
+				setAccountingPermissionOnlyClinic(c, 1, "view")
+			},
+			svc: &mockAccountingService{
+				listForClinicsFn: func(_ context.Context, _ []uint64, _ AccountingListFilters, _, _ int) ([]model.Billing, int64, error) {
+					t.Fatal("must not list a clinic that lacks accounting:view")
+					return nil, 0, nil
+				},
+			},
+			wantStatus: http.StatusForbidden,
+		},
+		{
 			name:       "returns 401 when clinic_id is missing",
 			setupCtx:   func(_ *gin.Context) {},
 			svc:        &mockAccountingService{},
@@ -388,6 +405,24 @@ func TestGetAccounting(t *testing.T) {
 			},
 			wantStatus: http.StatusOK,
 			wantBody:   `"id":1`,
+		},
+		{
+			name:    "hides clinic B records when accounting:view is only in clinic A",
+			idParam: "2",
+			setupCtx: func(c *gin.Context) {
+				setClinicID(c)
+				c.Set("is_system_admin", false)
+				c.Set("clinic_ids", []uint64{1, 2})
+				setAccountingPermissionOnlyClinic(c, 1, "view")
+			},
+			svc: &mockAccountingService{
+				getByIDForClinicsFn: func(_ context.Context, clinicIDs []uint64, id uint64) (*model.Billing, error) {
+					assert.Equal(t, []uint64{1}, clinicIDs)
+					assert.Equal(t, uint64(2), id)
+					return nil, apperrors.WrapNotFound("billing", "2")
+				},
+			},
+			wantStatus: http.StatusNotFound,
 		},
 		{
 			name:       "returns 401 when clinic_id is missing",
