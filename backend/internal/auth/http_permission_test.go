@@ -128,3 +128,41 @@ func TestHTTPHandler_RequirePermission_AttachesClinicChecker(t *testing.T) {
 	assert.True(t, check(c, 23, string(model.ResourceOwners), "view"))
 	assert.False(t, check(c, 99, string(model.ResourceOwners), "view"))
 }
+
+func TestHTTPHandler_RequirePermission_AllowsGETWhenAnotherAuthorizedClinicHasGrant(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	handler := NewHTTPHandler(HTTPDependencies{
+		EffectivePermissions: authServiceEffectivePermissionStub{
+			getFn: func(_ context.Context, _, clinicID uint64) ([]model.PermissionGroupRule, error) {
+				if clinicID != 99 {
+					return nil, nil
+				}
+				return []model.PermissionGroupRule{{
+					Resource:  string(model.ResourceOwners),
+					CanView:   true,
+					CanCreate: true,
+				}}, nil
+			},
+		},
+	}, CookieConfigForProduction(false))
+
+	getCtx := authPermissionContext(t)
+	getCtx.Set("clinic_ids", []uint64{23, 99})
+	handler.RequirePermission(string(model.ResourceOwners), "view")(getCtx)
+	assert.False(t, getCtx.IsAborted())
+	check, ok := httpapi.PeekClinicPermissionChecker(getCtx)
+	require.True(t, ok)
+	assert.False(t, check(getCtx, 23, string(model.ResourceOwners), "view"))
+	assert.True(t, check(getCtx, 99, string(model.ResourceOwners), "view"))
+
+	post := httptest.NewRecorder()
+	postCtx, _ := gin.CreateTestContext(post)
+	postCtx.Request = httptest.NewRequest(http.MethodPost, "/", http.NoBody)
+	postCtx.Set("is_system_admin", false)
+	postCtx.Set("user_id", "17")
+	postCtx.Set("clinic_id", "23")
+	postCtx.Set("clinic_ids", []uint64{23, 99})
+	handler.RequirePermission(string(model.ResourceOwners), "create")(postCtx)
+	assert.True(t, postCtx.IsAborted())
+	assert.Equal(t, http.StatusForbidden, post.Code)
+}

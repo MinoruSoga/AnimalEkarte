@@ -96,7 +96,19 @@ func (s *accountingService) Create(ctx context.Context, input *CreateAccountingI
 	); err != nil {
 		return nil, err
 	}
-	if err := s.repo.Create(ctx, input.ClinicID, billing); err != nil {
+	createFn := func(txCtx context.Context) error {
+		if err := s.lockCloseBoundaries(txCtx, input.ClinicID, input.ScheduledDate); err != nil {
+			return err
+		}
+		return s.repo.Create(txCtx, input.ClinicID, billing)
+	}
+	var err error
+	if s.transactor != nil {
+		err = s.transactor.WithTx(ctx, createFn)
+	} else {
+		err = createFn(ctx)
+	}
+	if err != nil {
 		slog.ErrorContext(ctx, "failed to create accounting", "error", err)
 		return nil, apperrors.Wrap(err, "failed to create accounting")
 	}

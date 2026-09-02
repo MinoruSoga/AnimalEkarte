@@ -283,6 +283,7 @@ func TestProbeDialContext_RejectsForbiddenResolvedAddresses(t *testing.T) {
 		{name: "unspecified", ip: "0.0.0.0"},
 		{name: "private", ip: "10.1.2.3"},
 		{name: "link-local", ip: "169.254.1.1"},
+		{name: "cgnat", ip: "100.64.0.1"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

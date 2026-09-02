@@ -96,6 +96,7 @@ func newBillingDocumentServices(
 			r.accounting,
 			auditTx,
 			d.Transactor,
+			billing.WithRefundCloseRepository(r.cashRegisterCloses),
 		),
 	}
 }
