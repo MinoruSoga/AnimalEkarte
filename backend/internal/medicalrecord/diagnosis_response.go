@@ -7,13 +7,8 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-// DiagnosisTypeResponse and DiagnosisNameResponse are exported (unlike this slice's other
-// response DTOs) because internal/handler/clinical_plan_response.go — ClinicalPlan is
-// boundary map §3.7 sub-batch ④, high-risk finalize-lock territory, out of this batch's
-// scope and staying in internal/handler pending BE9-2D — embeds these exact response shapes
-// in its own DiagnosisResponse/Diagnosis2Response fields. Exporting here (rather than
-// duplicating the JSON shape in internal/handler) avoids two independently-maintained copies
-// of the same API contract silently drifting apart.
+// DiagnosisTypeResponse and DiagnosisNameResponse are exported because clinical-plan
+// JSON embeds these exact shapes. Exporting here keeps one API contract.
 type DiagnosisTypeResponse struct {
 	ID          uint64    `json:"id"`
 	ClinicID    uint64    `json:"clinic_id"`

@@ -243,21 +243,8 @@ func (s *shiftTemplateService) Update(ctx context.Context, clinicID, id uint64, 
 		}
 
 		if len(fields) > 0 {
-			if _, err := s.repo.Update(txCtx, clinicID, id, fields); err != nil {
-				// BUG-026: map measured name unique_violation to stable domain code + name echo.
-				nameForConflict := ""
-				if input.Name != nil {
-					nameForConflict = *input.Name
-				}
-				if conflict := apperrors.AsNameUniqueConflict(
-					err,
-					nameForConflict,
-					apperrors.ConstraintShiftTemplateName,
-					apperrors.CodeShiftTemplateNameConflict,
-				); conflict != nil {
-					return conflict
-				}
-				return apperrors.Wrap(err, "failed to update shift template")
+			if err := s.applyShiftTemplateFieldUpdate(txCtx, clinicID, id, fields, input); err != nil {
+				return err
 			}
 		}
 		if input.Breaks != nil {
@@ -296,6 +283,30 @@ func (s *shiftTemplateService) Delete(ctx context.Context, clinicID, id uint64) 
 		return apperrors.Wrap(err, "failed to delete shift template")
 	}
 	slog.InfoContext(ctx, "shift template deleted", slog.Uint64("clinic_id", clinicID), slog.Uint64("shift_template_id", id))
+	return nil
+}
+
+func (s *shiftTemplateService) applyShiftTemplateFieldUpdate(
+	ctx context.Context,
+	clinicID, id uint64,
+	fields map[string]any,
+	input *UpdateShiftTemplateInput,
+) error {
+	if _, err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
+		nameForConflict := ""
+		if input.Name != nil {
+			nameForConflict = *input.Name
+		}
+		if conflict := apperrors.AsNameUniqueConflict(
+			err,
+			nameForConflict,
+			apperrors.ConstraintShiftTemplateName,
+			apperrors.CodeShiftTemplateNameConflict,
+		); conflict != nil {
+			return conflict
+		}
+		return apperrors.Wrap(err, "failed to update shift template")
+	}
 	return nil
 }
 

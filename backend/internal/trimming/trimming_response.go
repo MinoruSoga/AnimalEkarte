@@ -90,14 +90,10 @@ func toTrimmingResponse(appt *model.Reservation) TrimmingResponse {
 		resp.CompletedImage = d.CompletedImage
 
 		if d.Course != nil {
-			var price int64
-			if d.Course.Price != nil {
-				price = *d.Course.Price
-			}
 			resp.Course = &TrimmingCourseSummaryResponse{
 				ID:    d.Course.ID,
 				Name:  d.Course.Name,
-				Price: price,
+				Price: coursePriceOrZero(d.Course.Price),
 			}
 		}
 		for i := range d.Options {
@@ -109,4 +105,11 @@ func toTrimmingResponse(appt *model.Reservation) TrimmingResponse {
 	}
 
 	return resp
+}
+
+func coursePriceOrZero(price *int64) int64 {
+	if price == nil {
+		return 0
+	}
+	return *price
 }

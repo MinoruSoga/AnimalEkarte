@@ -3,6 +3,7 @@ package medicalrecord
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"strconv"
@@ -314,7 +315,7 @@ func (s *checkupPackageImportService) preflightCollisions(ctx context.Context, c
 		if err == nil {
 			return apperrors.WrapConflict(fmt.Sprintf("type stable key %q already imported", t.Key))
 		}
-		if err != gorm.ErrRecordNotFound {
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
 			return apperrors.FromGORM(err, "checkup_type", t.Key)
 		}
 		// Name collision (active)
@@ -326,7 +327,7 @@ func (s *checkupPackageImportService) preflightCollisions(ctx context.Context, c
 		if err == nil {
 			return apperrors.WrapConflict(fmt.Sprintf("type name %q already exists", t.Name))
 		}
-		if err != gorm.ErrRecordNotFound {
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
 			return apperrors.FromGORM(err, "checkup_type", t.Name)
 		}
 	}
@@ -339,7 +340,7 @@ func (s *checkupPackageImportService) preflightCollisions(ctx context.Context, c
 		if err == nil {
 			return apperrors.WrapConflict(fmt.Sprintf("field stable key %q already imported", f.Key))
 		}
-		if err != gorm.ErrRecordNotFound {
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
 			return apperrors.FromGORM(err, "checkup_type_field", f.Key)
 		}
 	}

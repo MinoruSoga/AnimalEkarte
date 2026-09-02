@@ -4,17 +4,16 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-// nested_summary_response.go contains reservation-local copies of the small nested-summary
-// DTOs and converters established during BE9. Shared fields stay aligned where applicable;
-// reservation-specific staff response fields are documented on the local DTO.
+// nested_summary_response.go — reservation-local nested DTOs. Pet summary includes
+// danger_level and must not be merged with medicalrecord/billing summaries.
 
-// staffSummaryResponse mirrors internal/handler.staffSummaryResponse (staff_response.go).
+// staffSummaryResponse is nested staff JSON for reservation responses.
 type staffSummaryResponse struct {
 	ID   uint64 `json:"id"`
 	Name string `json:"name"`
 }
 
-// toStaffSummary mirrors internal/handler.toStaffSummary. nil の場合は nil を返す。
+// toStaffSummary returns nil when s is nil.
 func toStaffSummary(s *model.Staff) *staffSummaryResponse {
 	if s == nil {
 		return nil
@@ -25,13 +24,13 @@ func toStaffSummary(s *model.Staff) *staffSummaryResponse {
 	}
 }
 
-// ownerSummaryResponse mirrors internal/handler.ownerSummaryResponse (owner_response.go).
+// ownerSummaryResponse is nested owner JSON for reservation responses.
 type ownerSummaryResponse struct {
 	ID        uint64 `json:"id"`
 	OwnerName string `json:"name"`
 }
 
-// toOwnerSummary mirrors internal/handler.toOwnerSummary. nil の場合は nil を返す。
+// toOwnerSummary returns nil when o is nil.
 func toOwnerSummary(o *model.Owner) *ownerSummaryResponse {
 	if o == nil {
 		return nil
@@ -42,8 +41,7 @@ func toOwnerSummary(o *model.Owner) *ownerSummaryResponse {
 	}
 }
 
-// animalSpeciesSummaryResponse mirrors internal/handler.animalSpeciesSummaryResponse
-// (pet_response.go).
+// animalSpeciesSummaryResponse is nested species JSON for reservation responses.
 type animalSpeciesSummaryResponse struct {
 	ID   uint64 `json:"id"`
 	Name string `json:"name"`

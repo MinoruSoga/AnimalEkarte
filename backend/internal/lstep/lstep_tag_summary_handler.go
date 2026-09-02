@@ -92,13 +92,7 @@ func (h *Handler) SearchLstepOwnersByTag(c *gin.Context) {
 			},
 		)
 		if exportErr != nil {
-			if c.Writer.Written() {
-				slog.ErrorContext(c.Request.Context(), "lstep tag owner csv export failed after stream start",
-					"clinic_id", clinicID, "tag", query.TagName, "error", exportErr)
-				c.Abort()
-				return
-			}
-			httpapi.RespondError(c, exportErr)
+			respondLstepCSVExportError(c, clinicID, query.TagName, exportErr)
 			return
 		}
 		return
@@ -110,4 +104,14 @@ func (h *Handler) SearchLstepOwnersByTag(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, toTagOwnerListResponse(result))
+}
+
+func respondLstepCSVExportError(c *gin.Context, clinicID uint64, tagName string, exportErr error) {
+	if !c.Writer.Written() {
+		httpapi.RespondError(c, exportErr)
+		return
+	}
+	slog.ErrorContext(c.Request.Context(), "lstep tag owner csv export failed after stream start",
+		"clinic_id", clinicID, "tag", tagName, "error", exportErr)
+	c.Abort()
 }

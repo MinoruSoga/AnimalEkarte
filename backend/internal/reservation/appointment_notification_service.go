@@ -271,15 +271,7 @@ func (s *reservationNotificationService) buildCreatedEmail(
 		fmt.Fprintf(&sb, "■ お名前: %s\n", customer.DisplayName)
 		fmt.Fprintf(&sb, "■ 本名: %s\n", customer.RealName)
 		if len(customer.AdditionalFields) > 0 {
-			var fields map[string]any
-			if err := json.Unmarshal(customer.AdditionalFields, &fields); err == nil {
-				if phone, ok := fields["phone"].(string); ok && phone != "" {
-					fmt.Fprintf(&sb, "■ 電話番号: %s\n", phone)
-				}
-				if note, ok := fields["note"].(string); ok && note != "" {
-					fmt.Fprintf(&sb, "■ 診察内容: %s\n", note)
-				}
-			}
+			appendCustomerAdditionalFields(&sb, customer.AdditionalFields)
 		}
 	}
 	if appt.Owner != nil {
@@ -380,6 +372,21 @@ func formatDateTimeJP(start, end time.Time) string {
 		start.Format("15:04"),
 		end.Format("15:04"),
 	)
+}
+
+func appendCustomerAdditionalFields(sb *strings.Builder, raw json.RawMessage) {
+	var fields map[string]any
+	if err := json.Unmarshal(raw, &fields); err != nil {
+		return
+	}
+	phone, _ := fields["phone"].(string)
+	if phone != "" {
+		fmt.Fprintf(sb, "■ 電話番号: %s\n", phone)
+	}
+	note, _ := fields["note"].(string)
+	if note != "" {
+		fmt.Fprintf(sb, "■ 診察内容: %s\n", note)
+	}
 }
 
 // extractPetNamesFromCustomerFields は customer_fields JSONB からペット名一覧を抽出する。

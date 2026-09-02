@@ -199,14 +199,7 @@ func toLiffReservationResponse(r *model.Reservation) liffReservationResponse {
 		CreatedAt: r.CreatedAt.In(time.Local),
 	}
 	if r.ReservationType != nil {
-		res.CourseName = r.ReservationType.ReservationDisplayName
-		if res.CourseName == "" {
-			if r.ReservationType.ShowShortName && r.ReservationType.ShortName != "" {
-				res.CourseName = r.ReservationType.ShortName
-			} else {
-				res.CourseName = r.ReservationType.Name
-			}
-		}
+		res.CourseName = liffCourseName(r.ReservationType)
 	}
 	res.PetName = firstCustomerFieldPetName(r.CustomerFields)
 	if r.Doctor != nil {
@@ -216,6 +209,16 @@ func toLiffReservationResponse(r *model.Reservation) liffReservationResponse {
 		}
 	}
 	return res
+}
+
+func liffCourseName(rt *model.ReservationType) string {
+	if rt.ReservationDisplayName != "" {
+		return rt.ReservationDisplayName
+	}
+	if rt.ShowShortName && rt.ShortName != "" {
+		return rt.ShortName
+	}
+	return rt.Name
 }
 
 func firstCustomerFieldPetName(raw json.RawMessage) string {

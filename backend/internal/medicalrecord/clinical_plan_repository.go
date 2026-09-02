@@ -84,6 +84,37 @@ func (r *clinicalPlanRepository) parentStillDraft(ctx context.Context, clinicID,
 	return count > 0, nil
 }
 
+func (r *clinicalPlanRepository) conflictIfVersionMissIsDraft(ctx context.Context, clinicID, id uint64) error {
+	// 再照会失敗（親が確定済み等）はエラーを出さず従来の Conflict にフォールバックする
+	// （情報を出し過ぎない。medical_record_repository.go の Update と同じ方針）。
+	stillDraft, draftErr := r.parentStillDraft(ctx, clinicID, id)
+	if draftErr == nil && stillDraft {
+		return apperrors.WrapConflict("他のユーザーがこの所見・診断を変更しました。再読み込みしてください")
+	}
+	return nil
+}
+
+func (r *clinicalPlanRepository) conflictAfterZeroClinicalPlanRows(
+	ctx context.Context,
+	clinicID, id uint64,
+	expectedVersion *int,
+) error {
+	exists, err := r.existsInClinic(ctx, clinicID, id)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return apperrors.WrapNotFound("clinical_plan", fmt.Sprintf("%d", id))
+	}
+	if expectedVersion == nil {
+		return apperrors.WrapConflict("確定済みカルテの所見・診断は編集できません")
+	}
+	if err := r.conflictIfVersionMissIsDraft(ctx, clinicID, id); err != nil {
+		return err
+	}
+	return apperrors.WrapConflict("確定済みカルテの所見・診断は編集できません")
+}
+
 // Update は親カルテが draft のときのみ更新する（BE-refactor.md X-11 の確定済みカルテ書込ガード）。
 // LockByIDForUpdate は取らない。medical_records の status='draft' 条件を WHERE に含め、
 // UPDATE 自体を原子的に拒否する。BUG-010 residual: persistence.DBOrTx で ambient tx に参加し、
@@ -108,21 +139,7 @@ func (r *clinicalPlanRepository) Update(ctx context.Context, clinicID, id uint64
 		return apperrors.FromGORM(result.Error, "clinical_plan", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
-		exists, err := r.existsInClinic(ctx, clinicID, id)
-		if err != nil {
-			return err
-		}
-		if !exists {
-			return apperrors.WrapNotFound("clinical_plan", fmt.Sprintf("%d", id))
-		}
-		if expectedVersion != nil {
-			// 再照会失敗（親が確定済み等）はエラーを出さず従来の Conflict にフォールバックする
-			// （情報を出し過ぎない。medical_record_repository.go の Update と同じ方針）。
-			if stillDraft, draftErr := r.parentStillDraft(ctx, clinicID, id); draftErr == nil && stillDraft {
-				return apperrors.WrapConflict("他のユーザーがこの所見・診断を変更しました。再読み込みしてください")
-			}
-		}
-		return apperrors.WrapConflict("確定済みカルテの所見・診断は編集できません")
+		return r.conflictAfterZeroClinicalPlanRows(ctx, clinicID, id, expectedVersion)
 	}
 	return nil
 }

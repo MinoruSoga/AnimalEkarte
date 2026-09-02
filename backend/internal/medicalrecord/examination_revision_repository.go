@@ -244,13 +244,8 @@ func (r *examinationRepository) loadOfficialRevisionSnapshot(
 		}
 		record = &locked
 		snapshot.display.MedicalRecordNo = locked.RecordNo
-		if locked.OwnerID != nil {
-			owner, err := lockRevisionOwner(ctx, tx, clinicID, *locked.OwnerID)
-			if err != nil {
-				return nil, nil, apperrors.Wrap(err, "failed to verify medical record owner")
-			}
-			snapshot.medicalRecordOwnerID = cloneOptionalUint64(locked.OwnerID)
-			snapshot.display.MedicalRecordOwnerName = owner.Name
+		if err := copyRevisionRecordOwner(ctx, tx, clinicID, &locked, snapshot); err != nil {
+			return nil, nil, err
 		}
 	}
 
@@ -315,6 +310,35 @@ func lockRevisionOwner(ctx context.Context, tx *gorm.DB, clinicID, ownerID uint6
 		return nil, apperrors.FromGORM(err, "owner", fmt.Sprintf("%d", ownerID))
 	}
 	return &owner, nil
+}
+
+func copyRevisionRecordOwner(
+	ctx context.Context,
+	tx *gorm.DB,
+	clinicID uint64,
+	locked *model.MedicalRecord,
+	snapshot *examinationRevisionSnapshot,
+) error {
+	if locked.OwnerID == nil {
+		return nil
+	}
+	owner, err := lockRevisionOwner(ctx, tx, clinicID, *locked.OwnerID)
+	if err != nil {
+		return apperrors.Wrap(err, "failed to verify medical record owner")
+	}
+	snapshot.medicalRecordOwnerID = cloneOptionalUint64(locked.OwnerID)
+	snapshot.display.MedicalRecordOwnerName = owner.Name
+	return nil
+}
+
+func assertRevisionRecordOwner(ctx context.Context, tx *gorm.DB, clinicID uint64, locked *model.MedicalRecord) error {
+	if locked.OwnerID == nil {
+		return nil
+	}
+	if _, err := lockRevisionOwner(ctx, tx, clinicID, *locked.OwnerID); err != nil {
+		return apperrors.Wrap(err, "failed to verify medical record owner")
+	}
+	return nil
 }
 
 func lockRevisionPetGraph(

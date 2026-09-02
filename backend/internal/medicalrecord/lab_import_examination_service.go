@@ -186,10 +186,8 @@ func (s *labImportExaminationService) persistExam(ctx context.Context, input Lab
 		// 検査結果が混入する。manual examination write の validateClinicalRelations と同方針で
 		// fail-closed にする（存在リークを避けるため NotFound を返す）。
 		// HC-005: lab import は MedicalRecord の status を検証しない（確定済みへの追記を許容）。
-		if input.PetID != nil {
-			if record == nil || record.PetID == nil || *record.PetID != *input.PetID {
-				return nil, apperrors.WrapNotFound("medical_record", "relation")
-			}
+		if input.PetID != nil && (record == nil || record.PetID == nil || *record.PetID != *input.PetID) {
+			return nil, apperrors.WrapNotFound("medical_record", "relation")
 		}
 	}
 

@@ -238,10 +238,12 @@ func (v *reservationValidators) ValidateAndCreate(ctx context.Context, input *Cr
 			if err := v.trimmingDetailRepo.Create(ctx, detail); err != nil {
 				return apperrors.Wrap(err, "failed to create LINE trimming detail")
 			}
-			if len(input.TrimmingOptionIDs) > 0 {
-				if err := v.trimmingDetailRepo.SetOptions(ctx, input.ClinicID, appt.ID, input.TrimmingOptionIDs); err != nil {
-					return apperrors.Wrap(err, "failed to set LINE trimming options")
-				}
+			if len(input.TrimmingOptionIDs) == 0 {
+				result = appt
+				return nil
+			}
+			if err := v.trimmingDetailRepo.SetOptions(ctx, input.ClinicID, appt.ID, input.TrimmingOptionIDs); err != nil {
+				return apperrors.Wrap(err, "failed to set LINE trimming options")
 			}
 		}
 		result = appt

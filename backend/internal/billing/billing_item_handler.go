@@ -1,6 +1,7 @@
 package billing
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -156,31 +157,7 @@ func (h *BillingItemHandler) applyPostCloseFlags(
 	// BUG-009: 確定済み会計の明細更新は post-close-edit 権限 + 修正理由必須（締め有無に依存しない）。
 	// create/delete 経路は従来どおり status guard（create）/ 締め後フラグ（delete）に委ねる。
 	if itemID > 0 && billing.Status == model.BillingStatusCompleted {
-		if h.hasPermission == nil || !h.hasPermission(c, string(model.ResourceAccountingPostCloseEdit), "edit") {
-			return apperrors.WrapForbidden("確定済み会計の明細修正には accounting-post-close-edit:edit 権限が必要です")
-		}
-		if staffID == nil || *staffID == nil {
-			id, ok := httpapi.ExtractStaffID(c)
-			if !ok {
-				return errHandlerAlreadyResponded
-			}
-			*staffID = &id
-		}
-		if requestReason == nil || strings.TrimSpace(*requestReason) == "" {
-			return apperrors.WrapInvalidInput("確定済み会計の明細修正には修正理由（post_close_reason）が必要です")
-		}
-		*postCloseReason = requestReason
-		// 締め済み日なら既存 post-close フラグも立てる（サービス側の二重防御）
-		if h.cashRegister != nil {
-			closed, err := h.cashRegister.IsDateClosed(ctx, clinicID, billing.ScheduledDate)
-			if err != nil {
-				return err
-			}
-			if closed {
-				*isPostClose = true
-			}
-		}
-		return nil
+		return h.applyCompletedItemPostCloseFlags(c, ctx, clinicID, billing, staffID, requestReason, postCloseReason, isPostClose)
 	}
 
 	closed, err := h.cashRegister.IsDateClosed(ctx, clinicID, billing.ScheduledDate)
@@ -203,6 +180,43 @@ func (h *BillingItemHandler) applyPostCloseFlags(
 		*staffID = &id
 	}
 	*isPostClose = true
+	return nil
+}
+
+func (h *BillingItemHandler) applyCompletedItemPostCloseFlags(
+	c *gin.Context,
+	ctx context.Context,
+	clinicID uint64,
+	billing *model.Billing,
+	staffID **uint64,
+	requestReason *string,
+	postCloseReason **string,
+	isPostClose *bool,
+) error {
+	if h.hasPermission == nil || !h.hasPermission(c, string(model.ResourceAccountingPostCloseEdit), "edit") {
+		return apperrors.WrapForbidden("確定済み会計の明細修正には accounting-post-close-edit:edit 権限が必要です")
+	}
+	if staffID == nil || *staffID == nil {
+		id, ok := httpapi.ExtractStaffID(c)
+		if !ok {
+			return errHandlerAlreadyResponded
+		}
+		*staffID = &id
+	}
+	if requestReason == nil || strings.TrimSpace(*requestReason) == "" {
+		return apperrors.WrapInvalidInput("確定済み会計の明細修正には修正理由（post_close_reason）が必要です")
+	}
+	*postCloseReason = requestReason
+	if h.cashRegister == nil {
+		return nil
+	}
+	closed, err := h.cashRegister.IsDateClosed(ctx, clinicID, billing.ScheduledDate)
+	if err != nil {
+		return err
+	}
+	if closed {
+		*isPostClose = true
+	}
 	return nil
 }
 

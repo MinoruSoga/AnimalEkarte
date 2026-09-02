@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"sort"
@@ -367,7 +368,7 @@ func (s *labImportRevertService) assertRevertSafe(
 			if err == nil && mr.Status == model.MedicalRecordStatusFinalized {
 				return apperrors.WrapConflict("finalized medical record blocks lab import revert")
 			}
-			if err != nil && !apperrors.IsNotFound(err) && err != gorm.ErrRecordNotFound {
+			if err != nil && !apperrors.IsNotFound(err) && !errors.Is(err, gorm.ErrRecordNotFound) {
 				return apperrors.FromGORM(err, "medical_record", fmt.Sprintf("%d", *exam.MedicalRecordID))
 			}
 		}
@@ -390,37 +391,41 @@ func (s *labImportRevertService) assertRevertSafe(
 
 func (s *labImportRevertService) assertExamRelations(ctx context.Context, clinicID uint64, exam *model.Examination) error {
 	var examType model.ExaminationType
-	if err := persistence.DBOrTx(ctx, s.db).
+	err := persistence.DBOrTx(ctx, s.db).
 		Where("clinic_id = ? AND id = ? AND deleted_at IS NULL", clinicID, exam.ExamTypeID).
-		First(&examType).Error; err != nil {
-		if err == gorm.ErrRecordNotFound || apperrors.IsNotFound(err) {
-			return apperrors.WrapConflict("exam type relation invalid or cross-clinic; revert refused")
-		}
-		return apperrors.FromGORM(err, "exam_type", fmt.Sprintf("%d", exam.ExamTypeID))
+		First(&examType).Error
+	if err != nil {
+		return mapLabImportRevertMissingRelation(err, "exam_type", fmt.Sprintf("%d", exam.ExamTypeID),
+			"exam type relation invalid or cross-clinic; revert refused")
 	}
 	if exam.PetID != nil {
 		var pet model.Pet
-		if err := persistence.DBOrTx(ctx, s.db).
+		err := persistence.DBOrTx(ctx, s.db).
 			Where("clinic_id = ? AND id = ? AND deleted_at IS NULL", clinicID, *exam.PetID).
-			First(&pet).Error; err != nil {
-			if err == gorm.ErrRecordNotFound || apperrors.IsNotFound(err) {
-				return apperrors.WrapConflict("pet relation invalid or cross-clinic; revert refused")
-			}
-			return apperrors.FromGORM(err, "pet", fmt.Sprintf("%d", *exam.PetID))
+			First(&pet).Error
+		if err != nil {
+			return mapLabImportRevertMissingRelation(err, "pet", fmt.Sprintf("%d", *exam.PetID),
+				"pet relation invalid or cross-clinic; revert refused")
 		}
 	}
 	if exam.DoctorID != nil {
 		var staff model.Staff
-		if err := persistence.DBOrTx(ctx, s.db).
+		err := persistence.DBOrTx(ctx, s.db).
 			Where("clinic_id = ? AND id = ? AND deleted_at IS NULL AND is_active = TRUE", clinicID, *exam.DoctorID).
-			First(&staff).Error; err != nil {
-			if err == gorm.ErrRecordNotFound || apperrors.IsNotFound(err) {
-				return apperrors.WrapConflict("doctor assignment invalid or inactive; revert refused")
-			}
-			return apperrors.FromGORM(err, "staff", fmt.Sprintf("%d", *exam.DoctorID))
+			First(&staff).Error
+		if err != nil {
+			return mapLabImportRevertMissingRelation(err, "staff", fmt.Sprintf("%d", *exam.DoctorID),
+				"doctor assignment invalid or inactive; revert refused")
 		}
 	}
 	return nil
+}
+
+func mapLabImportRevertMissingRelation(err error, entity, id, conflictMsg string) error {
+	if errors.Is(err, gorm.ErrRecordNotFound) || apperrors.IsNotFound(err) {
+		return apperrors.WrapConflict(conflictMsg)
+	}
+	return apperrors.FromGORM(err, entity, id)
 }
 
 func (s *labImportRevertService) retractExam(

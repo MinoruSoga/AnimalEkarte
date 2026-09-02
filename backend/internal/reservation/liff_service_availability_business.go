@@ -40,18 +40,27 @@ func ParseBusinessHoursForDate(ctx context.Context, setting *model.LineReservati
 
 	// 曜日別営業時間があれば上書き（例: 土曜だけ短縮営業）
 	if len(setting.BusinessHoursByWeekday) > 0 {
-		var byWeekday map[string]BusinessHours
-		if err := json.Unmarshal(setting.BusinessHoursByWeekday, &byWeekday); err == nil {
-			key := strconv.Itoa(int(date.In(config.JST).Weekday()))
-			if wdBH, ok := byWeekday[key]; ok {
-				bh = wdBH
-			}
-		} else {
-			// A-3: fail-closed にはしない（表示系で、デフォルト営業時間へのフォールバックが妥当）。
-			// ただし運用から不可視にならないよう Warn ログのみ追加する。
-			slog.WarnContext(ctx, "invalid business_hours_by_weekday json; falling back to default hours", "error", err, "clinic_id", setting.ClinicID)
-		}
+		bh = overlayWeekdayHours(ctx, setting, date, bh)
 	}
 
 	return bh, breaks, breaksErr
+}
+
+func overlayWeekdayHours(
+	ctx context.Context,
+	setting *model.LineReservationSetting,
+	date time.Time,
+	bh BusinessHours,
+) BusinessHours {
+	var byWeekday map[string]BusinessHours
+	if err := json.Unmarshal(setting.BusinessHoursByWeekday, &byWeekday); err != nil {
+		// A-3: fail-closed にはしない（表示系で、デフォルト営業時間へのフォールバックが妥当）。
+		slog.WarnContext(ctx, "invalid business_hours_by_weekday json; falling back to default hours", "error", err, "clinic_id", setting.ClinicID)
+		return bh
+	}
+	key := strconv.Itoa(int(date.In(config.JST).Weekday()))
+	if wdBH, ok := byWeekday[key]; ok {
+		return wdBH
+	}
+	return bh
 }

@@ -139,47 +139,9 @@ func (h *EstimateHandler) UpdateEstimate(c *gin.Context) {
 	}
 
 	// BUG-372: discount_amount を変更する場合は既存値と比較し権限チェック
-	if req.DiscountAmount != nil || req.Items != nil {
-		existing, err := h.svc.GetByID(c.Request.Context(), clinicID, id)
-		if err != nil {
-			httpapi.RespondError(c, err)
-			return
-		}
-		if req.DiscountAmount != nil {
-			if err := httpapi.RequireDiscountEditInt(c, h.hasPermission, req.DiscountAmount, existing.DiscountAmount); err != nil {
-				httpapi.RespondError(c, err)
-				return
-			}
-		}
-		if req.Items != nil {
-			existingByKey := make(map[string]model.EstimateItem, len(existing.Items))
-			for _, it := range existing.Items {
-				existingByKey[estimateItemDiscountKey(it.Name, it.SortOrder)] = it
-			}
-			for _, item := range *req.Items {
-				amt := item.DiscountAmount
-				rate := item.DiscountRate
-				if old, ok := existingByKey[estimateItemDiscountKey(item.Name, item.SortOrder)]; ok {
-					if err := httpapi.RequireDiscountEditInt(c, h.hasPermission, &amt, old.DiscountAmount); err != nil {
-						httpapi.RespondError(c, err)
-						return
-					}
-					if err := httpapi.RequireDiscountEditFloat(c, h.hasPermission, &rate, old.DiscountRate); err != nil {
-						httpapi.RespondError(c, err)
-						return
-					}
-					continue
-				}
-				if err := httpapi.RequireDiscountCreateInt(c, h.hasPermission, amt); err != nil {
-					httpapi.RespondError(c, err)
-					return
-				}
-				if err := httpapi.RequireDiscountCreateFloat(c, h.hasPermission, rate); err != nil {
-					httpapi.RespondError(c, err)
-					return
-				}
-			}
-		}
+	if err := h.assertUpdateEstimateDiscountPermissions(c, clinicID, id, &req); err != nil {
+		httpapi.RespondError(c, err)
+		return
 	}
 
 	ctx := c.Request.Context()
@@ -243,4 +205,59 @@ func (h *EstimateHandler) CreateEstimateSuccessor(c *gin.Context) {
 	}
 	c.Header("Location", fmt.Sprintf("/api/v1/estimates/%d", estimate.ID))
 	c.JSON(http.StatusCreated, toEstimateResponse(estimate))
+}
+
+func (h *EstimateHandler) assertUpdateEstimateDiscountPermissions(
+	c *gin.Context,
+	clinicID, id uint64,
+	req *updateEstimateRequest,
+) error {
+	if req.DiscountAmount == nil && req.Items == nil {
+		return nil
+	}
+	existing, err := h.svc.GetByID(c.Request.Context(), clinicID, id)
+	if err != nil {
+		return err
+	}
+	if req.DiscountAmount != nil {
+		if err := httpapi.RequireDiscountEditInt(c, h.hasPermission, req.DiscountAmount, existing.DiscountAmount); err != nil {
+			return err
+		}
+	}
+	if req.Items == nil {
+		return nil
+	}
+	return h.assertEstimateItemDiscountPermissions(c, existing.Items, *req.Items)
+}
+
+func (h *EstimateHandler) assertEstimateItemDiscountPermissions(
+	c *gin.Context,
+	existingItems []model.EstimateItem,
+	items []createEstimateItemRequest,
+) error {
+	existingByKey := make(map[string]model.EstimateItem, len(existingItems))
+	for _, it := range existingItems {
+		existingByKey[estimateItemDiscountKey(it.Name, it.SortOrder)] = it
+	}
+	for _, item := range items {
+		amt := item.DiscountAmount
+		rate := item.DiscountRate
+		old, ok := existingByKey[estimateItemDiscountKey(item.Name, item.SortOrder)]
+		if !ok {
+			if err := httpapi.RequireDiscountCreateInt(c, h.hasPermission, amt); err != nil {
+				return err
+			}
+			if err := httpapi.RequireDiscountCreateFloat(c, h.hasPermission, rate); err != nil {
+				return err
+			}
+			continue
+		}
+		if err := httpapi.RequireDiscountEditInt(c, h.hasPermission, &amt, old.DiscountAmount); err != nil {
+			return err
+		}
+		if err := httpapi.RequireDiscountEditFloat(c, h.hasPermission, &rate, old.DiscountRate); err != nil {
+			return err
+		}
+	}
+	return nil
 }

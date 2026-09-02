@@ -227,12 +227,11 @@ func (s *lineLinkService) GenerateLinkToken(ctx context.Context, clinicID, owner
 func (s *lineLinkService) resolveLinkTokenLiffID(ctx context.Context, clinicID uint64) (string, error) {
 	if s.lineSettingRepo != nil {
 		setting, err := s.lineSettingRepo.FindByClinicID(ctx, clinicID)
-		if err != nil {
-			if !apperrors.IsNotFound(err) {
-				slog.ErrorContext(ctx, "failed to find line setting for liff url", "error", err)
-				return "", apperrors.Wrap(err, "failed to find line reservation setting")
-			}
-		} else if setting != nil && setting.LiffID != "" {
+		if err != nil && !apperrors.IsNotFound(err) {
+			slog.ErrorContext(ctx, "failed to find line setting for liff url", "error", err)
+			return "", apperrors.Wrap(err, "failed to find line reservation setting")
+		}
+		if setting != nil && setting.LiffID != "" {
 			return setting.LiffID, nil
 		}
 	}
@@ -520,16 +519,9 @@ func (s *lineLinkService) cachedDecryptChannelSecret(
 	}
 	now := time.Now()
 	if credential.ID != 0 {
-		s.secretCacheMu.Lock()
-		if entry, ok := s.secretCache[credential.ID]; ok {
-			if entry.ciphertext == ciphertext && now.Before(entry.expiresAt) {
-				plaintext := entry.plaintext
-				s.secretCacheMu.Unlock()
-				return plaintext
-			}
-			delete(s.secretCache, credential.ID)
+		if plaintext, ok := s.lookupSecretCache(credential.ID, ciphertext, now); ok {
+			return plaintext
 		}
-		s.secretCacheMu.Unlock()
 	}
 
 	plaintext := lineCredentialDecrypt(ctx, s.cipher, ciphertext)
@@ -548,6 +540,20 @@ func (s *lineLinkService) cachedDecryptChannelSecret(
 	}
 	s.secretCacheMu.Unlock()
 	return plaintext
+}
+
+func (s *lineLinkService) lookupSecretCache(id uint64, ciphertext string, now time.Time) (string, bool) {
+	s.secretCacheMu.Lock()
+	defer s.secretCacheMu.Unlock()
+	entry, ok := s.secretCache[id]
+	if !ok {
+		return "", false
+	}
+	if entry.ciphertext == ciphertext && now.Before(entry.expiresAt) {
+		return entry.plaintext, true
+	}
+	delete(s.secretCache, id)
+	return "", false
 }
 
 // verifyLineSignature は LINE HMAC-SHA256 署名を検証する。

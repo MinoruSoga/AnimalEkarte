@@ -143,14 +143,7 @@ func (s *lstepDeliveryTriggerService) installDeliveryBatchCaches(
 			slog.ErrorContext(ctx, "delivery trigger: bulk owner load failed; falling back to per-owner FindByID",
 				"clinic_id", clinicID, "owner_count", len(page), "error", err)
 		} else {
-			byID := make(map[uint64]*model.Owner, len(owners))
-			for _, o := range owners {
-				if o == nil {
-					continue
-				}
-				byID[o.ID] = o
-			}
-			s.ownerRepo = &deliveryBatchOwnerCache{inner: origOwner, byID: byID}
+			s.ownerRepo = &deliveryBatchOwnerCache{inner: origOwner, byID: ownersByID(owners)}
 		}
 	}
 
@@ -160,20 +153,14 @@ func (s *lstepDeliveryTriggerService) installDeliveryBatchCaches(
 			slog.ErrorContext(ctx, "delivery trigger: bulk tag-cache load failed; falling back to per-owner FindByOwner",
 				"clinic_id", clinicID, "owner_count", len(page), "error", err)
 		} else {
-			if byOwner == nil {
-				byOwner = map[uint64][]*model.LstepTagCache{}
-			}
-			s.tagCacheRepo = &deliveryBatchTagCache{inner: origTag, byOwner: byOwner, loaded: true}
+			s.tagCacheRepo = &deliveryBatchTagCache{inner: origTag, byOwner: coalesceOwnerMap(byOwner), loaded: true}
 		}
 	}
 
 	if dayLogsLoaded && s.triggerLogRepo != nil {
-		if dayLogsByOwner == nil {
-			dayLogsByOwner = map[uint64][]model.LstepDeliveryTriggerLog{}
-		}
 		s.triggerLogRepo = &deliveryBatchTriggerLogCache{
 			inner:          origLog,
-			dayLogsByOwner: dayLogsByOwner,
+			dayLogsByOwner: coalesceOwnerMap(dayLogsByOwner),
 			loaded:         true,
 		}
 	}
@@ -437,6 +424,17 @@ func (s *lstepDeliveryTriggerService) processSingleOwner(
 		return false, err
 	}
 	return true, nil
+}
+
+func ownersByID(owners []*model.Owner) map[uint64]*model.Owner {
+	byID := make(map[uint64]*model.Owner, len(owners))
+	for _, o := range owners {
+		if o == nil {
+			continue
+		}
+		byID[o.ID] = o
+	}
+	return byID
 }
 
 // ---- public trigger methods ----

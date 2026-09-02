@@ -11,8 +11,7 @@ import (
 )
 
 // DefaultMaxPaginationLimit is the default upper bound for ParsePagination's limit query
-// parameter (moved from internal/handler's unexported defaultMaxPaginationLimit — BE9-2C,
-// query_helpers.go target:httpapi extraction; see this package's doc comment).
+// parameter (HTTP pagination upper bound).
 const DefaultMaxPaginationLimit = 100
 
 // ParsePagination parses page/limit (or the per_page alias) query parameters using

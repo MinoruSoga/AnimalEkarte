@@ -28,8 +28,7 @@ func NewReservationHandler(svc ReservationService, medicalRecord medicalRecordAu
 	return &ReservationHandler{svc: svc, medicalRecord: medicalRecord, liff: liff, staffAssignments: staffAssignments}
 }
 
-// checkDoctorClinicAssignment は医師が指定クリニックに所属しているかを確認する共通ヘルパー
-// （internal/handler/validation.go の同名メソッドの忠実な移植・appointment/liff 残留consumerは旧実装を継続使用）。
+// checkDoctorClinicAssignment は医師が指定クリニックに所属しているかを確認する。
 func (h *ReservationHandler) checkDoctorClinicAssignment(ctx context.Context, clinicID, doctorID uint64) error {
 	if doctorID == 0 {
 		return nil

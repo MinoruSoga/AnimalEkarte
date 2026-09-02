@@ -208,58 +208,7 @@ func resolveCurrentAccess(
 	ctx := c.Request.Context()
 	access, resolveErr := resolver.Resolve(ctx, staffID)
 	if resolveErr != nil {
-		var staffLookupErr *authdomain.StaffLookupError
-		if errors.As(resolveErr, &staffLookupErr) {
-			cause := errors.Unwrap(staffLookupErr)
-			if apperrors.IsNotFound(cause) {
-				respondError(c, http.StatusForbidden, "staff account is no longer active")
-				return nil, false
-			}
-			if isTemporaryStaffValidationError(cause) {
-				slog.WarnContext(
-					ctx,
-					"failed to verify staff validity; denying request (fail-closed)",
-					"staff_id",
-					staffID,
-					"error",
-					cause,
-				)
-				if notifier != nil {
-					if notifyErr := notifier(ctx, staffID, cause); notifyErr != nil {
-						slog.ErrorContext(
-							ctx,
-							"failed to notify staff validation failure (non-fatal)",
-							"staff_id",
-							staffID,
-							"error",
-							notifyErr,
-						)
-					}
-				}
-				respondError(c, http.StatusServiceUnavailable, "access validation unavailable")
-				return nil, false
-			}
-		}
-
-		if errors.Is(resolveErr, apperrors.ErrForbidden) {
-			respondError(c, http.StatusForbidden, "current access is no longer available")
-			return nil, false
-		}
-		if errors.Is(resolveErr, apperrors.ErrUnauthorized) {
-			respondError(c, http.StatusUnauthorized, "invalid or expired token")
-			return nil, false
-		}
-
-		slog.ErrorContext(
-			ctx,
-			"current access validation failed closed",
-			"staff_id",
-			staffID,
-			"error",
-			resolveErr,
-		)
-		respondError(c, http.StatusServiceUnavailable, "access validation unavailable")
-		return nil, false
+		return nil, rejectResolveCurrentAccessError(c, ctx, notifier, staffID, resolveErr)
 	}
 	if access == nil || access.StaffID != staffID ||
 		access.AccountEpoch <= 0 {
@@ -273,6 +222,56 @@ func resolveCurrentAccess(
 		return nil, false
 	}
 	return access, true
+}
+
+func rejectResolveCurrentAccessError(
+	c *gin.Context,
+	ctx context.Context,
+	notifier StaffValidationFailureNotifier,
+	staffID uint64,
+	resolveErr error,
+) bool {
+	var staffLookupErr *authdomain.StaffLookupError
+	if errors.As(resolveErr, &staffLookupErr) {
+		cause := errors.Unwrap(staffLookupErr)
+		if apperrors.IsNotFound(cause) {
+			respondError(c, http.StatusForbidden, "staff account is no longer active")
+			return false
+		}
+		if isTemporaryStaffValidationError(cause) {
+			slog.WarnContext(
+				ctx,
+				"failed to verify staff validity; denying request (fail-closed)",
+				"staff_id",
+				staffID,
+				"error",
+				cause,
+			)
+			logStaffValidationNotifyFailure(notifier, ctx, staffID, cause)
+			respondError(c, http.StatusServiceUnavailable, "access validation unavailable")
+			return false
+		}
+	}
+
+	if errors.Is(resolveErr, apperrors.ErrForbidden) {
+		respondError(c, http.StatusForbidden, "current access is no longer available")
+		return false
+	}
+	if errors.Is(resolveErr, apperrors.ErrUnauthorized) {
+		respondError(c, http.StatusUnauthorized, "invalid or expired token")
+		return false
+	}
+
+	slog.ErrorContext(
+		ctx,
+		"current access validation failed closed",
+		"staff_id",
+		staffID,
+		"error",
+		resolveErr,
+	)
+	respondError(c, http.StatusServiceUnavailable, "access validation unavailable")
+	return false
 }
 
 // isTemporaryStaffValidationError recognizes only typed database availability
@@ -353,43 +352,90 @@ func resolveClinicID(
 		auditFromClinicID = claims.ClinicID
 	}
 	currentClinicID, parseErr := strconv.ParseUint(clinicID, 10, 64)
-	if parseErr == nil {
-		if auditFromClinicID != "" && auditFromClinicID != clinicID {
-			// 差分検出 → audit log（ベストエフォート）
-			if prevID, perr := strconv.ParseUint(auditFromClinicID, 10, 64); perr == nil {
-				if auditSvc != nil {
-					var actorID *uint64
-					if uid, err := strconv.ParseUint(claims.UserID, 10, 64); err == nil {
-						actorID = &uid
-					}
-					if err := auditSvc.LogClinicSwitch(c.Request.Context(),
-						actorID, prevID, currentClinicID,
-						c.ClientIP(), c.GetHeader("User-Agent")); err != nil {
-						slog.ErrorContext(c.Request.Context(),
-							"failed to write clinic switch audit (best-effort)",
-							"error", err)
-					}
-				}
-			}
+	if parseErr != nil {
+		return clinicID, true
+	}
+	if auditFromClinicID != "" && auditFromClinicID != clinicID {
+		logClinicSwitchBestEffort(c, auditSvc, claims.UserID, auditFromClinicID, currentClinicID)
+	}
+	// cookie 更新（初回も差分も同じく書込）
+	if prevClinicCookie != clinicID {
+		sameSite := http.SameSiteLaxMode
+		secure := false
+		if isProduction {
+			sameSite = http.SameSiteNoneMode
+			secure = true
 		}
-		// cookie 更新（初回も差分も同じく書込）
-		if prevClinicCookie != clinicID {
-			sameSite := http.SameSiteLaxMode
-			secure := false
-			if isProduction {
-				sameSite = http.SameSiteNoneMode
-				secure = true
-			}
-			http.SetCookie(c.Writer, &http.Cookie{
-				Name:     "prev_clinic_id",
-				Value:    clinicID,
-				Path:     "/",
-				MaxAge:   15 * 60, // 15分（access_token と同寿命）
-				HttpOnly: true,
-				Secure:   secure,
-				SameSite: sameSite,
-			})
-		}
+		http.SetCookie(c.Writer, &http.Cookie{
+			Name:     "prev_clinic_id",
+			Value:    clinicID,
+			Path:     "/",
+			MaxAge:   15 * 60, // 15分（access_token と同寿命）
+			HttpOnly: true,
+			Secure:   secure,
+			SameSite: sameSite,
+		})
 	}
 	return clinicID, true
+}
+
+func notifyStaffValidationFailure(
+	notifier StaffValidationFailureNotifier,
+	ctx context.Context,
+	staffID uint64,
+	cause error,
+) error {
+	if notifier == nil {
+		return nil
+	}
+	return notifier(ctx, staffID, cause)
+}
+
+func logStaffValidationNotifyFailure(
+	notifier StaffValidationFailureNotifier,
+	ctx context.Context,
+	staffID uint64,
+	cause error,
+) {
+	notifyErr := notifyStaffValidationFailure(notifier, ctx, staffID, cause)
+	if notifyErr == nil {
+		return
+	}
+	slog.ErrorContext(
+		ctx,
+		"failed to notify staff validation failure (non-fatal)",
+		"staff_id",
+		staffID,
+		"error",
+		notifyErr,
+	)
+}
+
+func logClinicSwitchBestEffort(
+	c *gin.Context,
+	auditSvc audit.Service,
+	userID string,
+	fromClinicID string,
+	currentClinicID uint64,
+) {
+	if auditSvc == nil {
+		return
+	}
+	prevID, perr := strconv.ParseUint(fromClinicID, 10, 64)
+	if perr != nil {
+		return
+	}
+	var actorID *uint64
+	if uid, err := strconv.ParseUint(userID, 10, 64); err == nil {
+		actorID = &uid
+	}
+	if err := auditSvc.LogClinicSwitch(
+		c.Request.Context(),
+		actorID, prevID, currentClinicID,
+		c.ClientIP(), c.GetHeader("User-Agent"),
+	); err != nil {
+		slog.ErrorContext(c.Request.Context(),
+			"failed to write clinic switch audit (best-effort)",
+			"error", err)
+	}
 }

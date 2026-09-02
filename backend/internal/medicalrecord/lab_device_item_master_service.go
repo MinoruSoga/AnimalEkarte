@@ -285,13 +285,7 @@ func (s *labDeviceItemMasterService) Update(
 		return nil, apperrors.WrapInvalidInput("unit is too long")
 	}
 	if input.ExamTypeFieldID != nil {
-		if *input.ExamTypeFieldID == 0 {
-			return nil, apperrors.WrapInvalidInput("exam_type_field_id is invalid")
-		}
-		if _, err := s.repo.FindExamTypeField(ctx, clinicID, *input.ExamTypeFieldID); err != nil {
-			if apperrors.IsNotFound(err) {
-				return nil, apperrors.WrapInvalidInput("exam_type_field_id is not in this clinic")
-			}
+		if err := s.assertExamTypeFieldInClinic(ctx, clinicID, *input.ExamTypeFieldID); err != nil {
 			return nil, err
 		}
 	}
@@ -301,6 +295,19 @@ func (s *labDeviceItemMasterService) Update(
 		"exam_type_field_id": input.ExamTypeFieldID,
 	}
 	return s.repo.Update(ctx, clinicID, id, fields)
+}
+
+func (s *labDeviceItemMasterService) assertExamTypeFieldInClinic(ctx context.Context, clinicID, fieldID uint64) error {
+	if fieldID == 0 {
+		return apperrors.WrapInvalidInput("exam_type_field_id is invalid")
+	}
+	if _, err := s.repo.FindExamTypeField(ctx, clinicID, fieldID); err != nil {
+		if apperrors.IsNotFound(err) {
+			return apperrors.WrapInvalidInput("exam_type_field_id is not in this clinic")
+		}
+		return err
+	}
+	return nil
 }
 
 func (s *labDeviceItemMasterService) ResolveItems(

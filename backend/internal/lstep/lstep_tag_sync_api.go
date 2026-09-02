@@ -34,10 +34,10 @@ func (s *lstepTagSyncService) removeStaleTagsByPrefixes(ctx context.Context, cli
 					slog.ErrorContext(ctx, "failed to remove stale tag", "error", delErr, "tag", c.TagName)
 					s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
 					apiFailed = true
-				} else {
-					if delCacheErr := s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, c.TagName); delCacheErr != nil {
-						slog.WarnContext(ctx, "failed to delete tag from cache (best-effort)", "error", delCacheErr, "owner_id", ownerID, "tag", c.TagName)
-					}
+					break
+				}
+				if delCacheErr := s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, c.TagName); delCacheErr != nil {
+					slog.WarnContext(ctx, "failed to delete tag from cache (best-effort)", "error", delCacheErr, "owner_id", ownerID, "tag", c.TagName)
 				}
 				break
 			}

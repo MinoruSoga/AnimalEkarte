@@ -387,20 +387,14 @@ func (s *vaccinationService) validateRelations(ctx context.Context, clinicID uin
 		if err != nil {
 			return apperrors.Wrap(err, "failed to verify vaccination medical record ownership")
 		}
-		if record.OwnerID != nil {
-			if err := s.relationVerifier.AssertOwnerInClinic(ctx, clinicID, *record.OwnerID); err != nil {
-				return apperrors.Wrap(err, "failed to verify medical record owner ownership")
-			}
+		if err := s.assertVaccinationRecordOwner(ctx, clinicID, record); err != nil {
+			return err
 		}
-		if record.PetID != nil {
-			if _, err := s.relationVerifier.FindPetOwnerInClinic(ctx, clinicID, *record.PetID); err != nil {
-				return apperrors.Wrap(err, "failed to verify medical record pet ownership")
-			}
+		if err := s.assertVaccinationRecordPet(ctx, clinicID, record); err != nil {
+			return err
 		}
-		if petID != nil {
-			if record.PetID == nil || *record.PetID != *petID {
-				return apperrors.WrapNotFound("medical_record", "relation")
-			}
+		if petID != nil && (record.PetID == nil || *record.PetID != *petID) {
+			return apperrors.WrapNotFound("medical_record", "relation")
 		}
 	}
 
@@ -408,6 +402,26 @@ func (s *vaccinationService) validateRelations(ctx context.Context, clinicID uin
 		if err := s.relationVerifier.AssertMedicalRecordDoctorInClinic(ctx, clinicID, *doctorID); err != nil {
 			return apperrors.Wrap(err, "failed to verify vaccination doctor ownership")
 		}
+	}
+	return nil
+}
+
+func (s *vaccinationService) assertVaccinationRecordOwner(ctx context.Context, clinicID uint64, record *model.MedicalRecord) error {
+	if record.OwnerID == nil {
+		return nil
+	}
+	if err := s.relationVerifier.AssertOwnerInClinic(ctx, clinicID, *record.OwnerID); err != nil {
+		return apperrors.Wrap(err, "failed to verify medical record owner ownership")
+	}
+	return nil
+}
+
+func (s *vaccinationService) assertVaccinationRecordPet(ctx context.Context, clinicID uint64, record *model.MedicalRecord) error {
+	if record.PetID == nil {
+		return nil
+	}
+	if _, err := s.relationVerifier.FindPetOwnerInClinic(ctx, clinicID, *record.PetID); err != nil {
+		return apperrors.Wrap(err, "failed to verify medical record pet ownership")
 	}
 	return nil
 }

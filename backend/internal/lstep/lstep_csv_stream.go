@@ -193,14 +193,7 @@ func preflightCSVShape(input io.Reader) error {
 		case csvQuotedField:
 			if current != '"' {
 				if current == '\r' {
-					next, peekErr := reader.Peek(1)
-					if peekErr == nil && next[0] == '\n' {
-						_, _ = reader.ReadByte()
-						if err := addCellByte(); err != nil {
-							return err
-						}
-						continue
-					}
+					consumeOptionalLF(reader)
 				}
 				if err := addCellByte(); err != nil {
 					return err
@@ -264,6 +257,13 @@ func newDecodedCSVReader(file *os.File) (io.Reader, error) {
 		return file, nil
 	}
 	return transform.NewReader(file, japanese.ShiftJIS.NewDecoder()), nil
+}
+
+func consumeOptionalLF(reader *bufio.Reader) {
+	next, peekErr := reader.Peek(1)
+	if peekErr == nil && next[0] == '\n' {
+		_, _ = reader.ReadByte()
+	}
 }
 
 func validateDecodedCSVRecord(record []string) error {

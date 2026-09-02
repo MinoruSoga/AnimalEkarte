@@ -4,25 +4,17 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-// nested_summary_response.go — documented local copies (BE9-2D Batch C) of the small,
-// shared nested-summary response DTOs and their converters that live in
-// internal/handler ({staff,pet,owner}_response.go). The checkup / vaccination response
-// bodies moved into this package embed these summaries (Doctor, Pet, Owner, AnimalSpecies),
-// but internal/handler already imports internal/medicalrecord — so medicalrecord cannot
-// import internal/handler back without creating an import cycle (ADR-006 aggregator 非経由).
-// These are package-local, behavior-identical copies (exported for tygo wire codegen; TASK-444-S2) (same JSON field tags → byte-identical
-// output) following the "文書化付き local copy" precedent established by
-// sub-batch①'s validators.go. The originals stay in internal/handler (still used by ~10
-// other, not-yet-migrated handlers); a later batch that migrates those handlers can collapse
-// the duplication.
+// nested_summary_response.go — medicalrecord-local nested DTOs for checkup/vaccination
+// JSON (exported for tygo). Field sets are domain-specific and must not be merged with
+// billing/reservation summaries.
 
-// StaffSummaryResponse mirrors internal/handler.StaffSummaryResponse (staff_response.go).
+// StaffSummaryResponse is the nested staff JSON for medicalrecord responses.
 type StaffSummaryResponse struct {
 	ID   uint64 `json:"id"`
 	Name string `json:"name"`
 }
 
-// toStaffSummary mirrors internal/handler.toStaffSummary. nil の場合は nil を返す。
+// toStaffSummary returns nil when s is nil.
 func toStaffSummary(s *model.Staff) *StaffSummaryResponse {
 	if s == nil {
 		return nil
@@ -33,13 +25,13 @@ func toStaffSummary(s *model.Staff) *StaffSummaryResponse {
 	}
 }
 
-// OwnerSummaryResponse mirrors internal/handler.OwnerSummaryResponse (owner_response.go).
+// OwnerSummaryResponse is the nested owner JSON for medicalrecord responses.
 type OwnerSummaryResponse struct {
 	ID        uint64 `json:"id"`
 	OwnerName string `json:"name"`
 }
 
-// toOwnerSummary mirrors internal/handler.toOwnerSummary. nil の場合は nil を返す。
+// toOwnerSummary returns nil when o is nil.
 func toOwnerSummary(o *model.Owner) *OwnerSummaryResponse {
 	if o == nil {
 		return nil
@@ -50,16 +42,13 @@ func toOwnerSummary(o *model.Owner) *OwnerSummaryResponse {
 	}
 }
 
-// AnimalSpeciesSummaryResponse mirrors internal/handler.AnimalSpeciesSummaryResponse
-// (pet_response.go).
+// AnimalSpeciesSummaryResponse is the nested species JSON for medicalrecord responses.
 type AnimalSpeciesSummaryResponse struct {
 	ID   uint64 `json:"id"`
 	Name string `json:"name"`
 }
 
-// PetSummaryResponse mirrors internal/handler.PetSummaryResponse (pet_response.go). Only the
-// fields the vaccination list response actually serializes are populated by toPetSummary,
-// identical to the original.
+// PetSummaryResponse is the nested pet JSON for vaccination/checkup lists.
 type PetSummaryResponse struct {
 	ID        uint64   `json:"id"`
 	Name      string   `json:"name"`
@@ -75,7 +64,7 @@ type PetSummaryResponse struct {
 	Owner         *OwnerSummaryResponse         `json:"owner,omitempty"`
 }
 
-// toPetSummary mirrors internal/handler.toPetSummary. nil の場合は nil を返す。
+// toPetSummary returns nil when p is nil.
 func toPetSummary(p *model.Pet) *PetSummaryResponse {
 	if p == nil {
 		return nil

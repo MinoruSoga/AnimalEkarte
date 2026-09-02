@@ -308,16 +308,7 @@ func (s *medicineService) Create(ctx context.Context, clinicID uint64, input *Cr
 	// BE-refactor.md R1-2 (D1): per_weight 有効化監査も同一 tx に統合する（fail-closed）。
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
 		if err := s.repo.Create(txCtx, medicine); err != nil {
-			if conflict := apperrors.AsNameUniqueConflict(
-				err,
-				input.Name,
-				apperrors.ConstraintMedicineName,
-				apperrors.CodeMedicineNameConflict,
-			); conflict != nil {
-				return conflict
-			}
-			slog.ErrorContext(txCtx, "failed to create medicine", "error", err, "clinic_id", clinicID)
-			return apperrors.Wrap(err, "failed to create medicine")
+			return wrapMedicineNameConflict(txCtx, err, input.Name, clinicID, 0, "failed to create medicine")
 		}
 		// BUG-320: 薬品作成時に在庫アイテムを自動作成
 		inventoryItem := &model.InventoryItem{
@@ -445,21 +436,12 @@ func (s *medicineService) Update(ctx context.Context, clinicID, id uint64, input
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
 		var txErr error
 		result, txErr = s.repo.Update(txCtx, clinicID, id, fields)
+		nameForConflict := ""
+		if input.Name != nil {
+			nameForConflict = *input.Name
+		}
 		if txErr != nil {
-			nameForConflict := ""
-			if input.Name != nil {
-				nameForConflict = *input.Name
-			}
-			if conflict := apperrors.AsNameUniqueConflict(
-				txErr,
-				nameForConflict,
-				apperrors.ConstraintMedicineName,
-				apperrors.CodeMedicineNameConflict,
-			); conflict != nil {
-				return conflict
-			}
-			slog.ErrorContext(txCtx, "failed to update medicine", "error", txErr, "id", id, "clinic_id", clinicID)
-			return apperrors.Wrap(txErr, "failed to update medicine")
+			return wrapMedicineNameConflict(txCtx, txErr, nameForConflict, clinicID, id, "failed to update medicine")
 		}
 		if nameChanged {
 			if txErr = s.inventoryRepo.UpdateNameByMedicineCategory(txCtx, clinicID, oldName, newName); txErr != nil {
@@ -558,12 +540,11 @@ func (s *medicineService) Delete(ctx context.Context, clinicID, id uint64) error
 			return apperrors.Wrap(err, "failed to delete medicine")
 		}
 		if m.InventoryID != nil && *m.InventoryID != 0 {
-			if err := s.inventoryRepo.Delete(txCtx, clinicID, *m.InventoryID); err != nil {
-				// NotFound is acceptable for already-orphaned inventory; other errors fail closed.
-				if !apperrors.IsNotFound(err) {
-					slog.ErrorContext(txCtx, "failed to delete linked inventory for medicine", "error", err, "clinic_id", clinicID, "inventory_id", *m.InventoryID)
-					return apperrors.Wrap(err, "failed to delete linked inventory for medicine")
-				}
+			err := s.inventoryRepo.Delete(txCtx, clinicID, *m.InventoryID)
+			// NotFound is acceptable for already-orphaned inventory; other errors fail closed.
+			if err != nil && !apperrors.IsNotFound(err) {
+				slog.ErrorContext(txCtx, "failed to delete linked inventory for medicine", "error", err, "clinic_id", clinicID, "inventory_id", *m.InventoryID)
+				return apperrors.Wrap(err, "failed to delete linked inventory for medicine")
 			}
 		} else if err := s.inventoryRepo.DeleteByNameAndMedicineCategory(txCtx, clinicID, m.Name); err != nil {
 			slog.ErrorContext(txCtx, "failed to delete linked inventory for medicine by name", "error", err, "clinic_id", clinicID)
@@ -614,4 +595,21 @@ func (s *medicineService) validateInventoryOwnership(ctx context.Context, clinic
 			_, err := s.inventoryRepo.FindByID(actx, cid, mid)
 			return err
 		})
+}
+
+func wrapMedicineNameConflict(ctx context.Context, err error, name string, clinicID, id uint64, wrapMsg string) error {
+	if conflict := apperrors.AsNameUniqueConflict(
+		err,
+		name,
+		apperrors.ConstraintMedicineName,
+		apperrors.CodeMedicineNameConflict,
+	); conflict != nil {
+		return conflict
+	}
+	if id == 0 {
+		slog.ErrorContext(ctx, wrapMsg, "error", err, "clinic_id", clinicID)
+	} else {
+		slog.ErrorContext(ctx, wrapMsg, "error", err, "id", id, "clinic_id", clinicID)
+	}
+	return apperrors.Wrap(err, wrapMsg)
 }

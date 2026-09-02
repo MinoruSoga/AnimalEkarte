@@ -7,6 +7,8 @@ import (
 	"sort"
 	"sync"
 	"time"
+
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 const (
@@ -133,14 +135,14 @@ func (a *Agent) Run(ctx context.Context) {
 			portCtx, cancel := context.WithCancel(ctx)
 			active[path] = cancel
 			monitors.Add(1)
-			go func() {
+			sharedkernel.GoSafe("lab-device-monitor:"+path, func() {
 				defer monitors.Done()
 				a.monitorPort(portCtx, path)
 				select {
 				case ended <- path:
 				case <-ctx.Done():
 				}
-			}()
+			})
 		}
 	}
 	scan()
@@ -185,14 +187,7 @@ func (a *Agent) monitorPort(ctx context.Context, path string) {
 	defer a.status.AddOpenPorts(-1)
 	stopCloser := make(chan struct{})
 	closerDone := make(chan struct{})
-	go func() {
-		defer close(closerDone)
-		select {
-		case <-portCtx.Done():
-			closeReader()
-		case <-stopCloser:
-		}
-	}()
+	goSafePortCloser(portCtx, stopCloser, closerDone, closeReader)
 	reads, readDone := pumpPortReads(portCtx, reader)
 	var writer io.Writer
 	if a.pimsReply != nil {
@@ -212,10 +207,19 @@ type portReadResult struct {
 	err   error
 }
 
-func pumpPortReads(ctx context.Context, reader io.Reader) (<-chan portReadResult, <-chan struct{}) {
-	reads := make(chan portReadResult)
-	done := make(chan struct{})
-	go func() {
+func goSafePortCloser(portCtx context.Context, stopCloser, closerDone chan struct{}, closeReader func()) {
+	sharedkernel.GoSafe("lab-device-port-closer", func() {
+		defer close(closerDone)
+		select {
+		case <-portCtx.Done():
+			closeReader()
+		case <-stopCloser:
+		}
+	})
+}
+
+func goSafePortReads(ctx context.Context, reader io.Reader, reads chan<- portReadResult, done chan struct{}) {
+	sharedkernel.GoSafe("lab-device-port-reads", func() {
 		defer close(done)
 		buffer := make([]byte, 4096)
 		for {
@@ -230,7 +234,13 @@ func pumpPortReads(ctx context.Context, reader io.Reader) (<-chan portReadResult
 				return
 			}
 		}
-	}()
+	})
+}
+
+func pumpPortReads(ctx context.Context, reader io.Reader) (<-chan portReadResult, <-chan struct{}) {
+	reads := make(chan portReadResult)
+	done := make(chan struct{})
+	goSafePortReads(ctx, reader, reads, done)
 	return reads, done
 }
 
@@ -263,38 +273,11 @@ func (a *Agent) collectPortFrames(ctx context.Context, cancel context.CancelFunc
 			return
 		case result := <-reads:
 			if len(result.bytes) > 0 {
-				wasOverflow := frames.overflow
-				if !frames.Push(result.bytes) {
-					if !wasOverflow {
-						a.status.AddInputOverflow()
-					}
+				var stopped bool
+				pimsBuf, stopped = a.handleIncomingBytes(frames, writer, result.bytes, pimsBuf, cancel, enqueueBuffered, stopIdle, &idle, &idleChannel)
+				if stopped {
+					return
 				}
-				if a.pimsReply != nil && writer != nil {
-					if len(pimsBuf)+len(result.bytes) > maxFrameBytes {
-						pimsBuf = nil
-						a.status.AddInputOverflow()
-					} else {
-						pimsBuf = append(pimsBuf, result.bytes...)
-					}
-					replies, consumed := a.pimsReply(pimsBuf)
-					if consumed > 0 {
-						pimsBuf = append([]byte(nil), pimsBuf[consumed:]...)
-					}
-					for _, reply := range replies {
-						if len(reply) == 0 {
-							continue
-						}
-						if _, writeErr := writer.Write(reply); writeErr != nil {
-							a.status.AddOpenError()
-							cancel()
-							enqueueBuffered()
-							return
-						}
-					}
-				}
-				stopIdle()
-				idle = time.NewTimer(frameIdle)
-				idleChannel = idle.C
 			}
 			if result.err != nil {
 				enqueueBuffered()
@@ -305,4 +288,59 @@ func (a *Agent) collectPortFrames(ctx context.Context, cancel context.CancelFunc
 			enqueueBuffered()
 		}
 	}
+}
+
+func appendPIMSBuffer(buf, incoming []byte, status *Status) []byte {
+	if len(buf)+len(incoming) > maxFrameBytes {
+		status.AddInputOverflow()
+		return nil
+	}
+	return append(buf, incoming...)
+}
+
+func (a *Agent) writePIMSReplies(writer io.Writer, replies [][]byte, cancel context.CancelFunc, enqueueBuffered func()) bool {
+	for _, reply := range replies {
+		if len(reply) == 0 {
+			continue
+		}
+		if _, writeErr := writer.Write(reply); writeErr != nil {
+			a.status.AddOpenError()
+			cancel()
+			enqueueBuffered()
+			return false
+		}
+	}
+	return true
+}
+
+func (a *Agent) handleIncomingBytes(
+	frames *FrameBuffer,
+	writer io.Writer,
+	incoming []byte,
+	pimsBuf []byte,
+	cancel context.CancelFunc,
+	enqueueBuffered func(),
+	stopIdle func(),
+	idle **time.Timer,
+	idleChannel *<-chan time.Time,
+) ([]byte, bool) {
+	wasOverflow := frames.overflow
+	if !frames.Push(incoming) && !wasOverflow {
+		a.status.AddInputOverflow()
+	}
+	if a.pimsReply != nil && writer != nil {
+		pimsBuf = appendPIMSBuffer(pimsBuf, incoming, a.status)
+		replies, consumed := a.pimsReply(pimsBuf)
+		if consumed > 0 {
+			pimsBuf = append([]byte(nil), pimsBuf[consumed:]...)
+		}
+		if !a.writePIMSReplies(writer, replies, cancel, enqueueBuffered) {
+			return pimsBuf, true
+		}
+	}
+	stopIdle()
+	timer := time.NewTimer(frameIdle)
+	*idle = timer
+	*idleChannel = timer.C
+	return pimsBuf, false
 }

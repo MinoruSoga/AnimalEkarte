@@ -174,10 +174,7 @@ func (s *lstepTagSyncService) loadHealthPreventionPageInputs(
 				"clinic_id", clinicID, "owner_count", len(ownerIDs), "error", err)
 			errs = append(errs, apperrors.Wrap(err, "failed to bulk-load checkups"))
 		} else {
-			if byOwner == nil {
-				byOwner = map[uint64][]model.Checkup{}
-			}
-			inputs.checkupsByOwner = byOwner
+			inputs.checkupsByOwner = coalesceOwnerMap(byOwner)
 			inputs.loadedCheckups = true
 		}
 	}
@@ -189,10 +186,7 @@ func (s *lstepTagSyncService) loadHealthPreventionPageInputs(
 				"clinic_id", clinicID, "owner_count", len(ownerIDs), "error", err)
 			errs = append(errs, apperrors.Wrap(err, "failed to bulk-load vaccinations"))
 		} else {
-			if byOwner == nil {
-				byOwner = map[uint64][]model.Vaccination{}
-			}
-			inputs.vaccinationsByOwner = byOwner
+			inputs.vaccinationsByOwner = coalesceOwnerMap(byOwner)
 			inputs.loadedVaccinations = true
 		}
 	}
@@ -204,15 +198,19 @@ func (s *lstepTagSyncService) loadHealthPreventionPageInputs(
 				"clinic_id", clinicID, "owner_count", len(ownerIDs), "error", err)
 			errs = append(errs, apperrors.Wrap(err, "failed to bulk-load visit summaries"))
 		} else {
-			if byOwner == nil {
-				byOwner = map[uint64]*medicalrecord.OwnerVisitSummary{}
-			}
-			inputs.visitSummaryByOwner = byOwner
+			inputs.visitSummaryByOwner = coalesceOwnerMap(byOwner)
 			inputs.loadedVisitSummary = true
 		}
 	}
 
 	return inputs, errs
+}
+
+func coalesceOwnerMap[K comparable, V any](m map[K]V) map[K]V {
+	if m == nil {
+		return map[K]V{}
+	}
+	return m
 }
 
 func pageOwnerCheckups(inputs healthPreventionPageInputs, ownerID uint64) *[]model.Checkup {

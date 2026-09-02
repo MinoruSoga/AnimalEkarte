@@ -15,14 +15,8 @@ func (s *medicalRecordService) CreateSubRecords(ctx context.Context, clinicID, r
 	// 1. inquiry: 入力がある場合のみ upsert する。
 	// 既存 appointment の再オープン時に空入力で既存問診を上書きしない。
 	if hasInquirySubRecordInput(input) {
-		if input.ChiefComplaintTypeID != nil {
-			if _, err := s.chiefComplaintTypeRepo.FindByID(ctx, clinicID, *input.ChiefComplaintTypeID); err != nil {
-				slog.ErrorContext(ctx, "createSubRecords: failed to verify chief complaint type ownership",
-					slog.Uint64("medical_record_id", recordID),
-					slog.Uint64("chief_complaint_type_id", *input.ChiefComplaintTypeID),
-					slog.String("error", err.Error()))
-				return apperrors.Wrap(err, "failed to verify chief complaint type for medical record subrecords")
-			}
+		if err := s.assertChiefComplaintTypeForSubRecords(ctx, clinicID, recordID, input.ChiefComplaintTypeID); err != nil {
+			return err
 		}
 		inquiry := &model.Inquiry{
 			MedicalRecordID: recordID,
@@ -112,6 +106,24 @@ func (s *medicalRecordService) CreateSubRecords(ctx context.Context, clinicID, r
 				slog.String("error", err.Error()))
 			return apperrors.Wrap(err, "failed to update medical record clinical plan")
 		}
+	}
+	return nil
+}
+
+func (s *medicalRecordService) assertChiefComplaintTypeForSubRecords(
+	ctx context.Context,
+	clinicID, recordID uint64,
+	typeID *uint64,
+) error {
+	if typeID == nil {
+		return nil
+	}
+	if _, err := s.chiefComplaintTypeRepo.FindByID(ctx, clinicID, *typeID); err != nil {
+		slog.ErrorContext(ctx, "createSubRecords: failed to verify chief complaint type ownership",
+			slog.Uint64("medical_record_id", recordID),
+			slog.Uint64("chief_complaint_type_id", *typeID),
+			slog.String("error", err.Error()))
+		return apperrors.Wrap(err, "failed to verify chief complaint type for medical record subrecords")
 	}
 	return nil
 }

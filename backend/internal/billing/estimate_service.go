@@ -325,10 +325,7 @@ func (s *estimateService) validateEstimateRelatedFKs(
 
 	if ownerID != nil || petID != nil {
 		if s.reservationRepo == nil {
-			if petID != nil {
-				return apperrors.WrapNotFound("pet", fmt.Sprintf("%d", *petID))
-			}
-			return apperrors.WrapNotFound("owner", fmt.Sprintf("%d", *ownerID))
+			return notFoundOwnerOrPet(petID, ownerID)
 		}
 		if err := reservation.ValidateReservationOwnerPetLinksWithRepo(ctx, s.reservationRepo, clinicID, ownerID, petID); err != nil {
 			return err
@@ -341,6 +338,26 @@ func (s *estimateService) validateEstimateRelatedFKs(
 		}
 	}
 	return nil
+}
+
+func notFoundOwnerOrPet(petID, ownerID *uint64) error {
+	if petID != nil {
+		return apperrors.WrapNotFound("pet", fmt.Sprintf("%d", *petID))
+	}
+	return apperrors.WrapNotFound("owner", fmt.Sprintf("%d", *ownerID))
+}
+
+func lockDraftMedicalRecordIfPresent(
+	ctx context.Context,
+	repo sharedkernel.MedicalRecordLocker,
+	clinicID uint64,
+	medicalRecordID *uint64,
+	findMsg, conflictMsg string,
+) error {
+	if medicalRecordID == nil {
+		return nil
+	}
+	return sharedkernel.LockDraftMedicalRecord(ctx, repo, clinicID, *medicalRecordID, findMsg, conflictMsg)
 }
 
 func (s *estimateService) verifyCreatedByClinicMembership(ctx context.Context, clinicID, staffID uint64) error {
@@ -436,11 +453,9 @@ func (s *estimateService) Create(ctx context.Context, clinicID uint64, input *Cr
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
 		// SD-2 + BE-refactor.md X-11: 親カルテが確定済みの場合は見積書追加を拒否。見積は
 		// medical_record_id 任意（カルテに紐付かない独立見積も許容）のため、指定時のみガードする。
-		if input.MedicalRecordID != nil {
-			if err := sharedkernel.LockDraftMedicalRecord(txCtx, s.medicalRecordRepo, clinicID, *input.MedicalRecordID,
-				"failed to find medical record", "確定済みカルテに見積書を追加できません"); err != nil {
-				return err
-			}
+		if err := lockDraftMedicalRecordIfPresent(txCtx, s.medicalRecordRepo, clinicID, input.MedicalRecordID,
+			"failed to find medical record", "確定済みカルテに見積書を追加できません"); err != nil {
+			return err
 		}
 		if err := s.validateEstimateRelatedFKs(txCtx, clinicID, input.MedicalRecordID, input.OwnerID, input.PetID); err != nil {
 			return err
@@ -499,12 +514,12 @@ func (s *estimateService) Update(ctx context.Context, clinicID, id uint64, input
 		// items through this transaction, so header totals and item replacement share
 		// one authoritative snapshot and serialization point.
 		locked, err := s.repo.LockEditableByID(txCtx, clinicID, id)
-		if err != nil {
-			if apperrors.IsConflict(err) {
-				return err
-			}
+		if err != nil && !apperrors.IsConflict(err) {
 			slog.ErrorContext(txCtx, "failed to lock estimate for update", "error", err)
 			return apperrors.Wrap(err, "failed to find estimate")
+		}
+		if err != nil {
+			return err
 		}
 		existing = locked
 
@@ -554,11 +569,9 @@ func (s *estimateService) Update(ctx context.Context, clinicID, id uint64, input
 			existing.Status != model.EstimateStatusRejected
 
 		// SD-2 + BE-refactor.md X-11: 親カルテが確定済みの場合は見積書編集を拒否。
-		if existing.MedicalRecordID != nil {
-			if err := sharedkernel.LockDraftMedicalRecord(txCtx, s.medicalRecordRepo, clinicID, *existing.MedicalRecordID,
-				"failed to find medical record", "確定済みカルテの見積書は編集できません"); err != nil {
-				return err
-			}
+		if err := lockDraftMedicalRecordIfPresent(txCtx, s.medicalRecordRepo, clinicID, existing.MedicalRecordID,
+			"failed to find medical record", "確定済みカルテの見積書は編集できません"); err != nil {
+			return err
 		}
 		// UpdateIfNotLocked retains the status predicate as defense in depth. The parent
 		// is already locked, so it cannot change between the authoritative read and write.
@@ -615,11 +628,9 @@ func (s *estimateService) Delete(ctx context.Context, clinicID, id uint64, actor
 	oldValue := extractEstimateImportantFields(existing)
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
 		// SD-2 + BE-refactor.md X-11: 親カルテが確定済みの場合は見積書削除を拒否。
-		if existing.MedicalRecordID != nil {
-			if err := sharedkernel.LockDraftMedicalRecord(txCtx, s.medicalRecordRepo, clinicID, *existing.MedicalRecordID,
-				"failed to find medical record", "確定済みカルテの見積書は削除できません"); err != nil {
-				return err
-			}
+		if err := lockDraftMedicalRecordIfPresent(txCtx, s.medicalRecordRepo, clinicID, existing.MedicalRecordID,
+			"failed to find medical record", "確定済みカルテの見積書は削除できません"); err != nil {
+			return err
 		}
 		// 早期 Count は UX 用。防御の本体は DeleteIfNotLocked の原子条件（status + active items=0）。
 		count, err := s.repo.CountItemsByEstimateID(txCtx, clinicID, id)

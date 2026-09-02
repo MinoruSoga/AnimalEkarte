@@ -1,7 +1,6 @@
 package staff
 
 import (
-	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -128,14 +127,7 @@ func localTimeRFC3339(value time.Time) string {
 type reorderRequest = httpapi.ReorderRequest
 
 func parseOptionalUintQueryFilter(value, field string) (*uint64, error) {
-	if value == "" {
-		return nil, nil
-	}
-	id, err := strconv.ParseUint(value, 10, 64)
-	if err != nil {
-		return nil, apperrors.WrapInvalidInput("invalid " + field)
-	}
-	return &id, nil
+	return httpapi.ParseOptionalUint64Field(value, field)
 }
 
 func (h *Handler) resolveStaffWithClinic(c *gin.Context) (clinicID, staffID uint64, ok bool) {

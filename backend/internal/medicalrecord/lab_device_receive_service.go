@@ -174,15 +174,7 @@ func (s *labDeviceReceiveService) receiveOne(
 	})
 	if err != nil {
 		if errors.Is(err, errDuplicateLabDeviceFrame) {
-			dup, dupErr := s.repo.FindJobByFingerprint(ctx, clinicID, string(frame.SourceType), frame.SourceFingerprint)
-			if dupErr != nil {
-				return nil, dupErr
-			}
-			card, cardErr := s.cardForJob(ctx, clinicID, dup)
-			if cardErr != nil {
-				return nil, cardErr
-			}
-			return &LabDeviceFrameResult{Duplicate: true, Job: *card}, nil
+			return s.duplicateFrameResult(ctx, clinicID, frame)
 		}
 		return nil, err
 	}
@@ -194,6 +186,22 @@ func (s *labDeviceReceiveService) receiveOne(
 		result.Job = *card
 	}
 	return &result, nil
+}
+
+func (s *labDeviceReceiveService) duplicateFrameResult(
+	ctx context.Context,
+	clinicID uint64,
+	frame LabDeviceFrame,
+) (*LabDeviceFrameResult, error) {
+	dup, dupErr := s.repo.FindJobByFingerprint(ctx, clinicID, string(frame.SourceType), frame.SourceFingerprint)
+	if dupErr != nil {
+		return nil, dupErr
+	}
+	card, cardErr := s.cardForJob(ctx, clinicID, dup)
+	if cardErr != nil {
+		return nil, cardErr
+	}
+	return &LabDeviceFrameResult{Duplicate: true, Job: *card}, nil
 }
 
 func (s *labDeviceReceiveService) persistLinkedOrUnlink(

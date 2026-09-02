@@ -142,10 +142,11 @@ func (s *examinationService) replaceItemsTx(
 			validFieldIDs[examType.Items[i].ID] = struct{}{}
 		}
 		for _, in := range inputs {
-			if in.ExamTypeFieldID != nil {
-				if _, ok := validFieldIDs[*in.ExamTypeFieldID]; !ok {
-					return nil, apperrors.WrapInvalidInput("exam_type_field が当該検査種別に属していません（別クリニック/別種別の項目は紐付けできません）")
-				}
+			if in.ExamTypeFieldID == nil {
+				continue
+			}
+			if _, ok := validFieldIDs[*in.ExamTypeFieldID]; !ok {
+				return nil, apperrors.WrapInvalidInput("exam_type_field が当該検査種別に属していません（別クリニック/別種別の項目は紐付けできません）")
 			}
 		}
 	}

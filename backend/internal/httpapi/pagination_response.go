@@ -1,8 +1,6 @@
 package httpapi
 
-// PaginatedResponse is the common shape for a paginated list response (moved from
-// internal/handler's PaginatedResponse — BE9-2C, query_helpers.go target:httpapi
-// extraction; see this package's doc comment).
+// PaginatedResponse is the common shape for a paginated list response.
 type PaginatedResponse[T any] struct {
 	Data  T     `json:"data"`
 	Total int64 `json:"total"`

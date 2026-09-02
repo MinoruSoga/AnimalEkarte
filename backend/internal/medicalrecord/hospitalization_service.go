@@ -105,28 +105,30 @@ func buildHospitalizationUpdate(input *UpdateHospitalizationInput) map[string]an
 		fields["staff_notes"] = *input.StaffNotes
 	}
 	if input.IsInsurance != nil {
-		if !*input.IsInsurance {
-			// 保険なしに切り替えた場合は保険情報を NULL にする
-			fields["insurance_company_name"] = nil
-			fields["insurance_number"] = nil
-		} else {
-			if input.InsuranceCompanyName != nil {
-				fields["insurance_company_name"] = *input.InsuranceCompanyName
-			}
-			if input.InsuranceNumber != nil {
-				fields["insurance_number"] = *input.InsuranceNumber
-			}
-		}
-	} else {
-		// IsInsurance が nil でも保険フィールド単体の更新は許容する
-		if input.InsuranceCompanyName != nil {
-			fields["insurance_company_name"] = *input.InsuranceCompanyName
-		}
-		if input.InsuranceNumber != nil {
-			fields["insurance_number"] = *input.InsuranceNumber
-		}
+		applyHospitalizationInsuranceToggle(fields, input)
+		return fields
+	}
+	if input.InsuranceCompanyName != nil {
+		fields["insurance_company_name"] = *input.InsuranceCompanyName
+	}
+	if input.InsuranceNumber != nil {
+		fields["insurance_number"] = *input.InsuranceNumber
 	}
 	return fields
+}
+
+func applyHospitalizationInsuranceToggle(fields map[string]any, input *UpdateHospitalizationInput) {
+	if !*input.IsInsurance {
+		fields["insurance_company_name"] = nil
+		fields["insurance_number"] = nil
+		return
+	}
+	if input.InsuranceCompanyName != nil {
+		fields["insurance_company_name"] = *input.InsuranceCompanyName
+	}
+	if input.InsuranceNumber != nil {
+		fields["insurance_number"] = *input.InsuranceNumber
+	}
 }
 
 type HospitalizationService interface {

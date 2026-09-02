@@ -142,13 +142,7 @@ func (s *lstepLifecycleService) HandlePetDeath(ctx context.Context, clinicID, pe
 	}
 
 	if len(livingPets) == 0 {
-		// 全ペット死亡 → Lステップタグを全解除
-		owner, findErr := s.ownerRepo.FindByID(ctx, clinicID, ownerID)
-		if findErr == nil && owner != nil && owner.LineUserID != nil && *owner.LineUserID != "" {
-			if removeErr := s.removeAllTagsFromLstep(ctx, clinicID, ownerID, *owner.LineUserID); removeErr != nil {
-				slog.ErrorContext(ctx, "failed to remove lstep tags on all-pets-dead", "error", removeErr)
-			}
-		}
+		s.clearAllTagsIfLinked(ctx, clinicID, ownerID)
 		return nil
 	}
 
@@ -177,6 +171,16 @@ func (s *lstepLifecycleService) HandlePetDeath(ctx context.Context, clinicID, pe
 	}
 
 	return nil
+}
+
+func (s *lstepLifecycleService) clearAllTagsIfLinked(ctx context.Context, clinicID, ownerID uint64) {
+	owner, findErr := s.ownerRepo.FindByID(ctx, clinicID, ownerID)
+	if findErr != nil || owner == nil || owner.LineUserID == nil || *owner.LineUserID == "" {
+		return
+	}
+	if removeErr := s.removeAllTagsFromLstep(ctx, clinicID, ownerID, *owner.LineUserID); removeErr != nil {
+		slog.ErrorContext(ctx, "failed to remove lstep tags on all-pets-dead", "error", removeErr)
+	}
 }
 
 // HandlePetRevival はペット死亡取り消しを記録し CPM タグを再同期する。
@@ -370,16 +374,17 @@ func (s *lstepLifecycleService) removePetDerivedTagsFromLstep(ctx context.Contex
 	}
 	for _, t := range cached {
 		for _, prefix := range petDerivedPrefixes {
-			if strings.HasPrefix(t.TagName, prefix) {
-				if removeErr := client.RemoveTag(ctx, lineUserID, t.TagName); removeErr != nil {
-					slog.ErrorContext(ctx, "failed to remove pet-derived tag", "error", removeErr, "tag", t.TagName)
-				} else {
-					if delErr := s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, t.TagName); delErr != nil {
-						slog.ErrorContext(ctx, "failed to delete pet-derived tag cache", "error", delErr, "tag", t.TagName)
-					}
-				}
+			if !strings.HasPrefix(t.TagName, prefix) {
+				continue
+			}
+			if removeErr := client.RemoveTag(ctx, lineUserID, t.TagName); removeErr != nil {
+				slog.ErrorContext(ctx, "failed to remove pet-derived tag", "error", removeErr, "tag", t.TagName)
 				break
 			}
+			if delErr := s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, t.TagName); delErr != nil {
+				slog.ErrorContext(ctx, "failed to delete pet-derived tag cache", "error", delErr, "tag", t.TagName)
+			}
+			break
 		}
 	}
 }

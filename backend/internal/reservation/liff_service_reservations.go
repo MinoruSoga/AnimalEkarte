@@ -24,17 +24,7 @@ func (s *liffService) CreateReservation(ctx context.Context, clinicID, customerI
 	// TASK-RES-025: 指名なし委譲ロジック
 	// RSV-09 / DEC-35: keep best-effort auto-delegate, but never discard errors silently.
 	if input.StaffID == 0 {
-		date, err := ToDateTime(input.Date, input.StartTime)
-		if err != nil {
-			slog.WarnContext(ctx, "failed to parse date for staff auto-delegate (best-effort)", "error", err)
-		} else {
-			assignedID, err := s.delegateStaff(ctx, clinicID, input.ReservationTypeID, setting.NoStaffMode, date, input.StartTime, input.EndTime)
-			if err != nil {
-				slog.WarnContext(ctx, "failed to auto-delegate staff for LIFF reservation (best-effort)", "error", err)
-			} else if assignedID != 0 {
-				input.StaffID = assignedID
-			}
-		}
+		s.tryAutoDelegateStaff(ctx, clinicID, input, setting)
 	}
 
 	appt, err := s.validators.ValidateAndCreate(ctx, input)
@@ -70,6 +60,27 @@ func (s *liffService) CreateReservation(ctx context.Context, clinicID, customerI
 	}
 
 	return appt, nil
+}
+
+func (s *liffService) tryAutoDelegateStaff(
+	ctx context.Context,
+	clinicID uint64,
+	input *CreateReservationInput,
+	setting *model.LineReservationSetting,
+) {
+	date, err := ToDateTime(input.Date, input.StartTime)
+	if err != nil {
+		slog.WarnContext(ctx, "failed to parse date for staff auto-delegate (best-effort)", "error", err)
+		return
+	}
+	assignedID, err := s.delegateStaff(ctx, clinicID, input.ReservationTypeID, setting.NoStaffMode, date, input.StartTime, input.EndTime)
+	if err != nil {
+		slog.WarnContext(ctx, "failed to auto-delegate staff for LIFF reservation (best-effort)", "error", err)
+		return
+	}
+	if assignedID != 0 {
+		input.StaffID = assignedID
+	}
 }
 
 // GetMyReservations は顧客自身の予約一覧を返す。

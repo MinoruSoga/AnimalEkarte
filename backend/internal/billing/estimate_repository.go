@@ -159,10 +159,7 @@ func (r *estimateRepository) UpdateIfNotLocked(ctx context.Context, clinicID, id
 			}).
 			First(&estimate).Error
 		if err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return nil, apperrors.WrapConflict("承認済みまたは却下済みの見積書は編集できません")
-			}
-			return nil, apperrors.FromGORM(err, "estimate", fmt.Sprintf("%d", id))
+			return nil, mapEstimateLockConflict(err, id)
 		}
 		return r.FindByID(ctx, clinicID, id)
 	}
@@ -329,4 +326,11 @@ func (r *estimateRepository) AllocateNextEstimateNo(ctx context.Context, clinicI
 	}
 
 	return fmt.Sprintf("EST-%d", next), nil
+}
+
+func mapEstimateLockConflict(err error, id uint64) error {
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return apperrors.WrapConflict("承認済みまたは却下済みの見積書は編集できません")
+	}
+	return apperrors.FromGORM(err, "estimate", fmt.Sprintf("%d", id))
 }

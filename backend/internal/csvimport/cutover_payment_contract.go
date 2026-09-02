@@ -82,12 +82,11 @@ func validateCutoverPaymentGraph(sourceDir string, manifest *CutoverManifest, pr
 		default:
 			return fmt.Errorf("table billings column status row %d: billing status is invalid", line)
 		}
-		if status == "completed" {
-			if err := validatePaymentGraphTimestamp("billings", "completed_at", completedAt, line); err != nil {
-				return err
-			}
-		} else if completedAt != "" {
+		if status != "completed" && completedAt != "" {
 			return fmt.Errorf("table billings column completed_at row %d: non-completed billing must not have a completion timestamp", line)
+		}
+		if err := validateCompletedBillingTimestamp(status, completedAt, line); err != nil {
+			return err
 		}
 		billings[billingID] = cutoverBillingFact{
 			totalAmount: totalAmount,
@@ -259,13 +258,16 @@ func validateCutoverPaymentGraph(sourceDir string, manifest *CutoverManifest, pr
 		}
 	}
 	for billingID, billing := range billings {
-		if billing.status == "completed" {
-			if _, ok := parents[billingID]; !ok {
-				if billing.totalAmount != 0 {
-					return fmt.Errorf("table billings: completed billing is missing its payment graph")
-				}
-			}
+		if billing.status != "completed" {
+			continue
 		}
+		if _, ok := parents[billingID]; ok {
+			continue
+		}
+		if billing.totalAmount == 0 {
+			continue
+		}
+		return fmt.Errorf("table billings: completed billing is missing its payment graph")
 	}
 	return nil
 }
@@ -342,6 +344,13 @@ func parsePaymentGraphRatio(value string, line int64) (float64, error) {
 		return 0, fmt.Errorf("table payments column insurance_ratio row %d: value must be between 0 and 1", line)
 	}
 	return parsed, nil
+}
+
+func validateCompletedBillingTimestamp(status, completedAt string, line int64) error {
+	if status != "completed" {
+		return nil
+	}
+	return validatePaymentGraphTimestamp("billings", "completed_at", completedAt, line)
 }
 
 func validatePaymentGraphTimestamp(table, column, value string, line int64) error {

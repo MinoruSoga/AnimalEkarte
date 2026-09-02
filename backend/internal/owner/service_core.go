@@ -125,14 +125,8 @@ func (s *ownerService) Update(ctx context.Context, clinicID, id uint64, input *U
 	// Handler early check uses pre-TX GetByID; stale equality must not authorize overwrite.
 	owner, err := s.repo.UpdateAndFindApplying(ctx, clinicID, id, func(locked *model.Owner) (map[string]any, error) {
 		fields := buildOwnerUpdate(input)
-		if input.DiscountRate != nil {
-			if !httpapi.FloatEquals(*input.DiscountRate, locked.DiscountRate) {
-				if !input.DiscountEditAllowed {
-					return nil, apperrors.WrapForbidden("割引フィールドの編集権限がありません")
-				}
-			} else if !input.DiscountEditAllowed {
-				delete(fields, colDiscountRate)
-			}
+		if err := applyOwnerDiscountField(fields, locked, input); err != nil {
+			return nil, err
 		}
 		if len(fields) == 0 {
 			return nil, apperrors.WrapInvalidInput("at least one field must be provided")
@@ -148,6 +142,22 @@ func (s *ownerService) Update(ctx context.Context, clinicID, id uint64, input *U
 		slog.Uint64("clinic_id", clinicID))
 
 	return owner, nil
+}
+
+func applyOwnerDiscountField(fields map[string]any, locked *model.Owner, input *UpdateOwnerInput) error {
+	if input.DiscountRate == nil {
+		return nil
+	}
+	if httpapi.FloatEquals(*input.DiscountRate, locked.DiscountRate) {
+		if !input.DiscountEditAllowed {
+			delete(fields, colDiscountRate)
+		}
+		return nil
+	}
+	if !input.DiscountEditAllowed {
+		return apperrors.WrapForbidden("割引フィールドの編集権限がありません")
+	}
+	return nil
 }
 
 func (s *ownerService) ensureOwnerEmailUnique(ctx context.Context, clinicID, currentOwnerID uint64, email string) error {

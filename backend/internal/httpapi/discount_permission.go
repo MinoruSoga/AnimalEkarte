@@ -1,6 +1,5 @@
-// discount_permission.go — BUG-372 割引フィールド権限チェック（BE9-2C B②で昇格。
-// medicalrecord(⑥) / billing(B②) の恒久ドメイン跨ぎ。両domainは PermissionChecker を注入して呼ぶ。
-// 原本 internal/handler/discount_permission.go は accounting 等の残存ハンドラが使い続ける）。
+// discount_permission.go — 割引フィールド権限チェック。
+// medicalrecord / billing が PermissionChecker を注入して呼ぶ。
 package httpapi
 
 import (

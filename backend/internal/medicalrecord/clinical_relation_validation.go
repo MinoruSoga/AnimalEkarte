@@ -37,6 +37,26 @@ func lockClinicalMedicalRecord(
 	return record, nil
 }
 
+func lockOptionalDraftMedicalRecord(
+	ctx context.Context,
+	records medicalRecordLocker,
+	clinicID uint64,
+	medicalRecordID *uint64,
+	finalizedConflictMsg string,
+) (*model.MedicalRecord, error) {
+	if medicalRecordID == nil {
+		return nil, nil
+	}
+	record, err := lockClinicalMedicalRecord(ctx, records, clinicID, *medicalRecordID)
+	if err != nil {
+		return nil, err
+	}
+	if record.Status == model.MedicalRecordStatusFinalized {
+		return nil, apperrors.WrapConflict(finalizedConflictMsg)
+	}
+	return record, nil
+}
+
 func validateClinicalRelations(
 	ctx context.Context,
 	relations ClinicalRelationVerifier,
@@ -52,17 +72,11 @@ func validateClinicalRelations(
 	}
 
 	if record != nil {
-		if record.OwnerID != nil {
-			if err := relations.AssertOwnerInClinic(ctx, clinicID, *record.OwnerID); err != nil {
-				return apperrors.Wrap(err, "failed to verify medical record owner ownership")
-			}
+		if err := assertOptionalRecordOwner(ctx, clinicID, record, relations); err != nil {
+			return err
 		}
-		if record.PetID != nil {
-			// Clinic-scoped pet existence (and any ambient FOR SHARE) stays required.
-			// Owner equality with the request pet is unreachable after pet ID match.
-			if _, err := relations.FindPetOwnerInClinic(ctx, clinicID, *record.PetID); err != nil {
-				return apperrors.Wrap(err, "failed to verify medical record pet ownership")
-			}
+		if err := assertOptionalRecordPet(ctx, clinicID, record, relations); err != nil {
+			return err
 		}
 	}
 
@@ -82,6 +96,38 @@ func validateClinicalRelations(
 		if err := relations.AssertMedicalRecordDoctorInClinic(ctx, clinicID, *doctorID); err != nil {
 			return apperrors.Wrap(err, "failed to verify doctor ownership")
 		}
+	}
+	return nil
+}
+
+func assertOptionalRecordOwner(
+	ctx context.Context,
+	clinicID uint64,
+	record *model.MedicalRecord,
+	relations ClinicalRelationVerifier,
+) error {
+	if record.OwnerID == nil {
+		return nil
+	}
+	if err := relations.AssertOwnerInClinic(ctx, clinicID, *record.OwnerID); err != nil {
+		return apperrors.Wrap(err, "failed to verify medical record owner ownership")
+	}
+	return nil
+}
+
+func assertOptionalRecordPet(
+	ctx context.Context,
+	clinicID uint64,
+	record *model.MedicalRecord,
+	relations ClinicalRelationVerifier,
+) error {
+	if record.PetID == nil {
+		return nil
+	}
+	// Clinic-scoped pet existence (and any ambient FOR SHARE) stays required.
+	// Owner equality with the request pet is unreachable after pet ID match.
+	if _, err := relations.FindPetOwnerInClinic(ctx, clinicID, *record.PetID); err != nil {
+		return apperrors.Wrap(err, "failed to verify medical record pet ownership")
 	}
 	return nil
 }

@@ -214,14 +214,8 @@ func (s *medicalRecordService) Update(ctx context.Context, clinicID, id uint64, 
 
 	var record *model.MedicalRecord
 	if err := s.withTx(ctx, func(txCtx context.Context) error {
-		if needsLinkValidation {
-			if err := s.validateMedicalRecordOwnerPetLinks(txCtx, clinicID, finalOwnerID, finalPetID); err != nil {
-				return err
-			}
-		} else if isBecomingFinalized {
-			if err := s.validateMedicalRecordSnapshotOwnerPetClinicRelations(txCtx, clinicID, finalOwnerID, finalPetID); err != nil {
-				return err
-			}
+		if err := s.validateMedicalRecordUpdateLinks(txCtx, clinicID, finalOwnerID, finalPetID, needsLinkValidation, isBecomingFinalized); err != nil {
+			return err
 		}
 		if input.DoctorID != nil || isBecomingFinalized {
 			if err := s.validateMedicalRecordDoctor(txCtx, clinicID, finalDoctorID); err != nil {
@@ -283,14 +277,7 @@ func (s *medicalRecordService) Update(ctx context.Context, clinicID, id uint64, 
 		slog.Uint64("clinic_id", clinicID))
 
 	// 監査ログ: update（best-effort）。finalize は上の transaction 内で fail-closed に記録する。
-	if s.auditService != nil {
-		oldDiff, newDiff := diffMedicalRecordImportantFields(existing, record)
-		if oldDiff != nil {
-			if err := s.auditService.LogMedicalRecordChange(ctx, clinicID, input.ActorID, "update", id, oldDiff, newDiff); err != nil {
-				slog.ErrorContext(ctx, "audit log failed for medical record update", "error", err, "record_id", id)
-			}
-		}
-	}
+	s.logMedicalRecordChangeBestEffort(ctx, clinicID, input.ActorID, "update", id, existing, record, "audit log failed for medical record update")
 
 	if isBecomingFinalized {
 		s.syncVisitCompletionTags(ctx, clinicID, record)
@@ -407,14 +394,43 @@ func (s *medicalRecordService) UpdateRecommendationReason(
 		slog.String("reason", input.Reason))
 
 	// 監査ログ: update（best-effort）
-	if s.auditService != nil {
-		oldDiff, newDiff := diffMedicalRecordImportantFields(existing, record)
-		if oldDiff != nil {
-			if err := s.auditService.LogMedicalRecordChange(ctx, clinicID, nil, "update", id, oldDiff, newDiff); err != nil {
-				slog.ErrorContext(ctx, "audit log failed for recommendation_reason update", "error", err, "record_id", id)
-			}
-		}
-	}
+	s.logMedicalRecordChangeBestEffort(ctx, clinicID, nil, "update", id, existing, record, "audit log failed for recommendation_reason update")
 
 	return record, nil
+}
+
+func (s *medicalRecordService) validateMedicalRecordUpdateLinks(
+	ctx context.Context,
+	clinicID uint64,
+	ownerID, petID *uint64,
+	needsLinkValidation, isBecomingFinalized bool,
+) error {
+	if needsLinkValidation {
+		return s.validateMedicalRecordOwnerPetLinks(ctx, clinicID, ownerID, petID)
+	}
+	if isBecomingFinalized {
+		return s.validateMedicalRecordSnapshotOwnerPetClinicRelations(ctx, clinicID, ownerID, petID)
+	}
+	return nil
+}
+
+func (s *medicalRecordService) logMedicalRecordChangeBestEffort(
+	ctx context.Context,
+	clinicID uint64,
+	actorID *uint64,
+	action string,
+	id uint64,
+	existing, record *model.MedicalRecord,
+	failMsg string,
+) {
+	if s.auditService == nil {
+		return
+	}
+	oldDiff, newDiff := diffMedicalRecordImportantFields(existing, record)
+	if oldDiff == nil {
+		return
+	}
+	if err := s.auditService.LogMedicalRecordChange(ctx, clinicID, actorID, action, id, oldDiff, newDiff); err != nil {
+		slog.ErrorContext(ctx, failMsg, "error", err, "record_id", id)
+	}
 }

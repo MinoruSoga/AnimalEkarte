@@ -386,10 +386,8 @@ func validateRevisionRestoreRelations(
 		if locked.Status == model.MedicalRecordStatusFinalized {
 			return apperrors.WrapConflict("確定済みカルテの検査確定状態は変更できません")
 		}
-		if locked.OwnerID != nil {
-			if _, err := lockRevisionOwner(ctx, tx, clinicID, *locked.OwnerID); err != nil {
-				return apperrors.Wrap(err, "failed to verify medical record owner")
-			}
+		if err := assertRevisionRecordOwner(ctx, tx, clinicID, &locked); err != nil {
+			return err
 		}
 		record = &locked
 	}

@@ -394,31 +394,12 @@ func (s *treatmentService) Update(ctx context.Context, clinicID, medicalRecordID
 			if derr != nil {
 				return derr // species 不一致など fail-closed
 			}
-			if eval != nil && eval.ExceedsCapSaved {
-				return apperrors.WrapInvalidInput("投与量がマスタで設定された絶対上限を超えているため保存できません")
+			applied, err := s.applyLockedTreatmentDoseFields(txCtx, current, input, eval, effMedicineID, fields)
+			if err != nil {
+				return err
 			}
-			if eval != nil {
-				rawReason := ""
-				if input.DoseDeviationReason != nil {
-					rawReason = *input.DoseDeviationReason
-				}
-				if err := applyDeviationReasonToEval(eval, rawReason); err != nil {
-					return err
-				}
-				if err := s.ensureDoseDeviationAuditReady(eval, input.ActorID); err != nil {
-					return err
-				}
-				doseEval = eval
-				doseMedicineID = *effMedicineID
-				snapCols, err := doseSnapshotColumns(txCtx, eval)
-				if err != nil {
-					return err
-				}
-				maps.Copy(fields, snapCols)
-			} else if treatmentHasDoseSnapshot(current) {
-				// per_weight 対象でなくなった（薬剤/item_type 変更）→ stale スナップショットをクリア（L-3）。
-				maps.Copy(fields, clearedDoseColumns())
-			}
+			doseEval = applied.eval
+			doseMedicineID = applied.medicineID
 		}
 		if err := s.treatmentRepo.Update(txCtx, clinicID, treatmentID, fields); err != nil {
 			return err
@@ -515,4 +496,44 @@ func (s *treatmentService) BulkUpdateSortOrder(ctx context.Context, clinicID, me
 		slog.Int("count", len(updates)))
 
 	return nil
+}
+
+type lockedTreatmentDoseApply struct {
+	eval       *SavedDoseEvaluation
+	medicineID uint64
+}
+
+func (s *treatmentService) applyLockedTreatmentDoseFields(
+	ctx context.Context,
+	current *model.Treatment,
+	input *UpdateTreatmentInput,
+	eval *SavedDoseEvaluation,
+	effMedicineID *uint64,
+	fields map[string]any,
+) (lockedTreatmentDoseApply, error) {
+	if eval != nil && eval.ExceedsCapSaved {
+		return lockedTreatmentDoseApply{}, apperrors.WrapInvalidInput("投与量がマスタで設定された絶対上限を超えているため保存できません")
+	}
+	if eval == nil {
+		if treatmentHasDoseSnapshot(current) {
+			maps.Copy(fields, clearedDoseColumns())
+		}
+		return lockedTreatmentDoseApply{}, nil
+	}
+	rawReason := ""
+	if input.DoseDeviationReason != nil {
+		rawReason = *input.DoseDeviationReason
+	}
+	if err := applyDeviationReasonToEval(eval, rawReason); err != nil {
+		return lockedTreatmentDoseApply{}, err
+	}
+	if err := s.ensureDoseDeviationAuditReady(eval, input.ActorID); err != nil {
+		return lockedTreatmentDoseApply{}, err
+	}
+	snapCols, err := doseSnapshotColumns(ctx, eval)
+	if err != nil {
+		return lockedTreatmentDoseApply{}, err
+	}
+	maps.Copy(fields, snapCols)
+	return lockedTreatmentDoseApply{eval: eval, medicineID: *effMedicineID}, nil
 }

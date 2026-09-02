@@ -1,16 +1,15 @@
 package reservation
 
-// reservation_request.go — BE9-2C R③: internal/handler/appointment_request.go から
-// 予約CRUD用 query parser 2組を分離移動（appointment系=R④は残置）。
+// reservation_request.go — 予約 CRUD 用 query parser。
 
 import (
 	"fmt"
 	"net/url"
-	"slices"
 	"strconv"
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -171,7 +170,7 @@ func (r *createReservationRequest) toServiceInput(clinicID, staffID uint64) (*Cr
 		input.ReservationRoute = &r.ReservationRoute
 	}
 	if r.VisitType != "" {
-		vt, err := validateEnum(r.VisitType,
+		vt, err := httpapi.ValidateEnum(r.VisitType,
 			model.VisitTypeFirst,
 			model.VisitTypeRevisit,
 		)
@@ -181,7 +180,7 @@ func (r *createReservationRequest) toServiceInput(clinicID, staffID uint64) (*Cr
 		input.VisitType = vt
 	}
 	if r.Status != "" {
-		status, err := validateEnum(r.Status,
+		status, err := httpapi.ValidateEnum(r.Status,
 			model.ReservationStatusConfirmed,
 			model.ReservationStatusPending,
 			model.ReservationStatusCancelled,
@@ -264,7 +263,7 @@ func (r *updateReservationRequest) toServiceInput() (UpdateReservationInput, err
 		Notes:             r.Notes,
 	}
 	if r.VisitType != nil {
-		vt, err := validateEnum(*r.VisitType,
+		vt, err := httpapi.ValidateEnum(*r.VisitType,
 			model.VisitTypeFirst,
 			model.VisitTypeRevisit,
 		)
@@ -274,7 +273,7 @@ func (r *updateReservationRequest) toServiceInput() (UpdateReservationInput, err
 		input.VisitType = &vt
 	}
 	if r.Status != nil {
-		status, err := validateEnum(*r.Status,
+		status, err := httpapi.ValidateEnum(*r.Status,
 			model.ReservationStatusConfirmed,
 			model.ReservationStatusPending,
 			model.ReservationStatusCancelled,
@@ -291,17 +290,9 @@ func (r *updateReservationRequest) toServiceInput() (UpdateReservationInput, err
 	return input, nil
 }
 
-// parseRequiredUintQueryFilter / parseOptionalUintQueryValue —
-// internal/handler/list_query_request.go の同名ヘルパーの複製（liff系=R⑤残留consumerあり・R⑤で統合）。
+// parseRequiredUintQueryFilter / parseOptionalUintQueryValue parse reservation query IDs.
 func parseOptionalUintQueryFilter(value, field string) (*uint64, error) {
-	if value == "" {
-		return nil, nil
-	}
-	id, err := strconv.ParseUint(value, 10, 64)
-	if err != nil {
-		return nil, apperrors.WrapInvalidInput("invalid " + field)
-	}
-	return &id, nil
+	return httpapi.ParseOptionalUint64Field(value, field)
 }
 
 func parseRequiredUintQueryFilter(value, field string) (uint64, error) {
@@ -321,14 +312,4 @@ func parseOptionalUintQueryValue(value string) uint64 {
 		return 0
 	}
 	return id
-}
-
-// validateEnum は internal/handler/validation.go の同名 generic ヘルパーの複製
-// （残留consumer多数のため原本残置・当該domain移行時に統合）。
-func validateEnum[T ~string](v string, allowed ...T) (T, error) {
-	if slices.Contains(allowed, T(v)) {
-		return T(v), nil
-	}
-	var zero T
-	return zero, fmt.Errorf("invalid value %q", v)
 }

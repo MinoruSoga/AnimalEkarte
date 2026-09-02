@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/httpapi"
 )
 
 type ownerAggregationQuery struct {
@@ -196,10 +197,7 @@ func ownerAggregationQueryDefault(values url.Values, key, fallback string) strin
 }
 
 func optionalStringQueryFilter(value string) *string {
-	if value == "" {
-		return nil
-	}
-	return &value
+	return httpapi.OptionalString(value)
 }
 
 // parseOwnerAggregationDate accepts empty or YYYY-MM-DD (G2A-05). Invalid → 400.

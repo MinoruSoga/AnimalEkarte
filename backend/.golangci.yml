@@ -92,7 +92,7 @@ linters:
           - wrapcheck
           - errcheck
           # テストヘルパは context.Background() でフィクスチャを生成するため
-          # contextcheck は false positive（internal/handler/middleware と同じ方針）。
+          # contextcheck は false positive（*gin.Context が context.Context を内包するため）。
           - contextcheck
           # テストヘルパは可読性のため意図的に柔軟なシグネチャ（clinic/exam ID を明示
           # param で受ける・現状の呼び出しが一様・返り値を呼び出し側が破棄）を持つ。
@@ -127,11 +127,8 @@ linters:
         linters:
           - staticcheck
 
-      # Gin handler/middleware 層: *gin.Context が context.Context を内包するため
+      # Gin middleware 層: *gin.Context が context.Context を内包するため
       # contextcheck は false positive を出す（c.Request.Context() で正しく伝播済み）
-      - path: internal/handler/
-        linters:
-          - contextcheck
       - path: internal/middleware/
         linters:
           - contextcheck

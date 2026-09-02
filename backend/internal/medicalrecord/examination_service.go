@@ -247,16 +247,9 @@ func (s *examinationService) Create(ctx context.Context, clinicID uint64, input 
 	}
 
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
-		var record *model.MedicalRecord
-		if input.MedicalRecordID != nil {
-			var err error
-			record, err = lockClinicalMedicalRecord(txCtx, s.medRec, clinicID, *input.MedicalRecordID)
-			if err != nil {
-				return err
-			}
-			if record.Status == model.MedicalRecordStatusFinalized {
-				return apperrors.WrapConflict("確定済みカルテに検査を追加できません")
-			}
+		record, err := lockOptionalDraftMedicalRecord(txCtx, s.medRec, clinicID, input.MedicalRecordID, "確定済みカルテに検査を追加できません")
+		if err != nil {
+			return err
 		}
 		if err := validateClinicalRelations(txCtx, s.relations, clinicID, record, input.PetID, input.DoctorID); err != nil {
 			return err

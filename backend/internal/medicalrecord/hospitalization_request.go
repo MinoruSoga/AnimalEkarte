@@ -3,10 +3,10 @@ package medicalrecord
 import (
 	"fmt"
 	"net/url"
-	"slices"
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -108,7 +108,7 @@ type createHospitalizationRequest struct {
 }
 
 func (r *createHospitalizationRequest) toServiceInput() (*CreateHospitalizationInput, error) {
-	hospType, err := validateEnum(r.HospitalizationType,
+	hospType, err := httpapi.ValidateEnum(r.HospitalizationType,
 		model.HospitalizationTypeInpatient,
 		model.HospitalizationTypeHotel,
 	)
@@ -118,7 +118,7 @@ func (r *createHospitalizationRequest) toServiceInput() (*CreateHospitalizationI
 
 	var status model.HospitalizationStatus
 	if r.Status != "" {
-		s, err := validateEnum(r.Status,
+		s, err := httpapi.ValidateEnum(r.Status,
 			model.HospitalizationStatusAdmitted,
 			model.HospitalizationStatusDischarged,
 			model.HospitalizationStatusReserved,
@@ -200,7 +200,7 @@ func (r *updateHospitalizationRequest) toServiceInput() (UpdateHospitalizationIn
 		InsuranceNumber:      r.InsuranceNumber,
 	}
 	if r.HospitalizationType != nil {
-		hospType, err := validateEnum(*r.HospitalizationType,
+		hospType, err := httpapi.ValidateEnum(*r.HospitalizationType,
 			model.HospitalizationTypeInpatient,
 			model.HospitalizationTypeHotel,
 		)
@@ -210,7 +210,7 @@ func (r *updateHospitalizationRequest) toServiceInput() (UpdateHospitalizationIn
 		input.HospitalizationType = &hospType
 	}
 	if r.Status != nil {
-		status, err := validateEnum(*r.Status,
+		status, err := httpapi.ValidateEnum(*r.Status,
 			model.HospitalizationStatusAdmitted,
 			model.HospitalizationStatusDischarged,
 			model.HospitalizationStatusReserved,
@@ -227,14 +227,4 @@ func (r *updateHospitalizationRequest) toServiceInput() (UpdateHospitalizationIn
 		}
 	}
 	return input, nil
-}
-
-// validateEnum は internal/handler/validation.go の同名 generic の最小複製（BE9-2D ⑤:
-// 原本は旧 package の appointment/medical_record request が引き続き使うため移動不可。純関数）。
-func validateEnum[T ~string](v string, allowed ...T) (T, error) {
-	if slices.Contains(allowed, T(v)) {
-		return T(v), nil
-	}
-	var zero T
-	return zero, fmt.Errorf("invalid value %q", v)
 }

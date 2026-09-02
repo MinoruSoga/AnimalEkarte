@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/httpapi"
 )
 
 type nullableStringRequestField struct {
@@ -66,14 +67,7 @@ func parseOptionalBoolQueryFilter(value, field string, defaultVal bool) (bool, e
 }
 
 func parseOptionalUintQueryFilter(value, field string) (*uint64, error) {
-	if value == "" {
-		return nil, nil
-	}
-	id, err := strconv.ParseUint(value, 10, 64)
-	if err != nil {
-		return nil, apperrors.WrapInvalidInput("invalid " + field)
-	}
-	return &id, nil
+	return httpapi.ParseOptionalUint64Field(value, field)
 }
 
 func (q listPetQuery) toServiceFilters() (listPetFilters, error) {
