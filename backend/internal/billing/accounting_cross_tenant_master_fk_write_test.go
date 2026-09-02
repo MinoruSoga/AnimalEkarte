@@ -37,7 +37,7 @@ func TestAccountingService_Update_RejectsForeignPaymentMethodID(t *testing.T) {
 	newSvc := func(saved *bool) AccountingService {
 		repo := &mockAccountingRepository{
 			findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Billing, error) {
-				return &model.Billing{ID: id, ClinicID: clinicID}, nil
+				return &model.Billing{ID: id, ClinicID: clinicID, Status: model.BillingStatusCompleted}, nil
 			},
 			updateFieldsFn: func(_ context.Context, clinicID, id uint64, _ map[string]any) (*model.Billing, error) {
 				return &model.Billing{ID: id, ClinicID: clinicID}, nil

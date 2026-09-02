@@ -27,6 +27,7 @@ type mockCashRegisterCloseRepository struct {
 	findByIDFn            func(ctx context.Context, clinicID, id uint64) (*model.CashRegisterClose, error)
 	findByDateAndPeriodFn func(ctx context.Context, clinicID uint64, date time.Time, period string) (*model.CashRegisterClose, error)
 	hasCloseOnDateFn      func(ctx context.Context, clinicID uint64, date time.Time) (bool, error)
+	lockCloseBoundaryFn   func(ctx context.Context, clinicID uint64, date time.Time) error
 }
 
 func (m *mockCashRegisterCloseRepository) Create(ctx context.Context, c *model.CashRegisterClose) error {
@@ -69,6 +70,13 @@ func (m *mockCashRegisterCloseRepository) HasCloseOnDate(ctx context.Context, cl
 		return m.hasCloseOnDateFn(ctx, clinicID, date)
 	}
 	return false, nil
+}
+
+func (m *mockCashRegisterCloseRepository) LockCloseBoundary(ctx context.Context, clinicID uint64, date time.Time) error {
+	if m.lockCloseBoundaryFn != nil {
+		return m.lockCloseBoundaryFn(ctx, clinicID, date)
+	}
+	return nil
 }
 
 // ---- モック: closingScheduleResolver（ResolveSchedule のみ） ----

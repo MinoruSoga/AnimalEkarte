@@ -3,6 +3,7 @@ package billing
 import (
 	"context"
 	"log/slog"
+	"sort"
 	"strings"
 	"time"
 
@@ -51,6 +52,12 @@ func (s *accountingService) Create(ctx context.Context, input *CreateAccountingI
 	if input.ScheduledDate.IsZero() {
 		return nil, apperrors.WrapInvalidInput("scheduled_date is required")
 	}
+	if err := rejectLegacyCreatePrivilegedFinancialState(input); err != nil {
+		return nil, err
+	}
+	if input.Status == "" {
+		input.Status = model.BillingStatusWaiting
+	}
 	// BUG-142: 金額バリデーション
 	if input.TotalAmount < 0 {
 		return nil, apperrors.WrapInvalidInput(sharedkernel.ErrMsgPriceZeroOrMore)
@@ -80,56 +87,22 @@ func (s *accountingService) Create(ctx context.Context, input *CreateAccountingI
 		HasInsurance:      input.HasInsurance,
 		Status:            input.Status,
 		ScheduledDate:     input.ScheduledDate,
-		CompletedAt:       input.CompletedAt,
 		Memo:              input.Memo,
 	}
-	// BE-refactor.md X-12: 会計完了(completed)での Create は billing 作成と appointment 完了化を
-	// 単一 tx に統合する。従来は repo.Create のコミット後に tx 外で completeAccountingAppointments
-	// を呼んでおり、後者のみ失敗すると billing が確定済みのまま残った（部分コミット）。
-	// completed でない Create（waiting 等）は appointment 完了化を伴わないため従来どおり tx 不要。
-	// AUD-002: 関連 FK 所有確認は write 前に実施。completed は同一 WithTx 内、それ以外は create 直前。
-	createBilling := func(cctx context.Context) error {
-		if err := s.repo.Create(cctx, input.ClinicID, billing); err != nil {
-			slog.ErrorContext(cctx, "failed to create accounting", "error", err)
-			return apperrors.Wrap(err, "failed to create accounting")
-		}
-		return nil
+	// AUD-002: 関連 FK 所有確認は write 前に実施。確定状態は Complete command のみが書く。
+	if err := s.validateAccountingRelatedFKs(
+		ctx, input.ClinicID,
+		input.MedicalRecordID, input.HospitalizationID, input.OwnerID, input.PetID,
+	); err != nil {
+		return nil, err
 	}
-	validateFKs := func(cctx context.Context) error {
-		return s.validateAccountingRelatedFKs(
-			cctx, input.ClinicID,
-			input.MedicalRecordID, input.HospitalizationID, input.OwnerID, input.PetID,
-		)
-	}
-	if billing.Status == model.BillingStatusCompleted {
-		if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
-			if err := validateFKs(txCtx); err != nil {
-				return err
-			}
-			if err := createBilling(txCtx); err != nil {
-				return err
-			}
-			if err := s.completeAccountingAppointments(txCtx, input.ClinicID, billing); err != nil {
-				return apperrors.Wrap(err, "failed to complete accounting appointments during create")
-			}
-			return nil
-		}); err != nil {
-			return nil, err //nolint:wrapcheck // 閉包内で文脈付き wrap 済み（"in transaction" の同義二重ラップを廃止）
-		}
-	} else {
-		if err := validateFKs(ctx); err != nil {
-			return nil, err
-		}
-		if err := createBilling(ctx); err != nil {
-			return nil, err //nolint:wrapcheck // createBilling 内で wrap 済み
-		}
+	if err := s.repo.Create(ctx, input.ClinicID, billing); err != nil {
+		slog.ErrorContext(ctx, "failed to create accounting", "error", err)
+		return nil, apperrors.Wrap(err, "failed to create accounting")
 	}
 	slog.InfoContext(ctx, "accounting created",
 		slog.Uint64("billing_id", billing.ID),
 		slog.Uint64("clinic_id", input.ClinicID))
-	if billing.Status == model.BillingStatusCompleted {
-		s.syncCPMStageTag(ctx, input.ClinicID, billing)
-	}
 	return billing, nil
 }
 
@@ -177,6 +150,9 @@ func (s *accountingService) Update(ctx context.Context, input *UpdateAccountingI
 		slog.ErrorContext(ctx, "failed to find accounting", "error", err)
 		return nil, apperrors.Wrap(err, "failed to find accounting")
 	}
+	if err := rejectPrivilegedGenericUpdate(existing, input); err != nil {
+		return nil, err
+	}
 	// BUG-142: 金額バリデーション
 	if input.TotalAmount != nil && *input.TotalAmount < 0 {
 		return nil, apperrors.WrapInvalidInput(sharedkernel.ErrMsgPriceZeroOrMore)
@@ -201,15 +177,6 @@ func (s *accountingService) Update(ctx context.Context, input *UpdateAccountingI
 	}
 
 	// BE-refactor.md R1-2 (D1): Billing 本体更新・Payment upsert・締め後編集監査を単一 tx に統合する。
-	// 従来は fields 更新が tx 外、payment upsert が独立 tx、監査が tx 外 best-effort の三系統に分かれており、
-	// 途中失敗時に部分コミット（例: fields 更新は成功したが payment upsert のみ失敗）が起こり得た。
-	// 統合後は「本体書込（fields/payment）と締め後編集監査が原子」になる（refund/CorrectCreditPayment と同型）。
-	// BE-refactor.md X-12: fields が status=completed を含む場合（buildAccountingUpdate は
-	// input.Status != nil を必ず fields["status"] に反映するため、この分岐に入るなら fields は
-	// 必ず非空 = s.repo.Update が必ず呼ばれる）、tx 内で得られる updatedBilling を使って
-	// appointment 完了化も同一 tx に含める。従来は WithTx コミット後・tx 外の ctx で
-	// completeAccountingAppointments を呼んでおり、これのみ失敗すると billing は completed で
-	// 確定済みのまま部分コミットになった。
 	// AUD-002: 最終関連 FK の所有・相互整合検証を write 前（同一 WithTx 内）で実施する。
 	var accounting *model.Billing
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
@@ -228,28 +195,156 @@ func (s *accountingService) Update(ctx context.Context, input *UpdateAccountingI
 	slog.InfoContext(ctx, "accounting updated",
 		slog.Uint64("billing_id", accounting.ID),
 		slog.Uint64("clinic_id", input.ClinicID))
-
-	// syncCPMStageTag は外部 LSTEP 同期のため従来どおり tx 外 best-effort を維持する（X-12 対応方針）。
-	if input.Status != nil && *input.Status == model.BillingStatusCompleted {
-		s.syncCPMStageTag(ctx, input.ClinicID, accounting)
-	}
 	return accounting, nil
 }
 
 // resolvePostCloseInTx は write 時に締め状態を再評価する（handler 候補 read の TOCTOU を閉じる）。
 // closeRepo 未配線時は handler フラグのみ信頼（ユニットテスト互換）。本番 DI では closeRepo 必須経路。
 func (s *accountingService) resolvePostCloseInTx(ctx context.Context, clinicID uint64, scheduledDate time.Time, handlerFlag bool) (bool, error) {
-	if s.closeRepo == nil {
-		return handlerFlag, nil
-	}
-	closed, err := s.closeRepo.HasCloseOnDate(ctx, clinicID, scheduledDate)
+	resolved, err := s.resolvePostCloseForDatesInTx(ctx, clinicID, handlerFlag, scheduledDate)
 	if err != nil {
-		return false, apperrors.Wrap(err, "failed to re-check cash register close state")
+		return false, err
 	}
-	if closed {
-		return true, nil
+	return resolved.anyClosed, nil
+}
+
+type postCloseDateResolution struct {
+	anyClosed    bool
+	sourceClosed bool
+	destClosed   bool
+	adjDate      time.Time
+}
+
+func (s *accountingService) resolvePostCloseForDatesInTx(ctx context.Context, clinicID uint64, handlerFlag bool, dates ...time.Time) (postCloseDateResolution, error) {
+	unique := uniqueCloseBoundaryDates(dates...)
+	if len(unique) == 0 {
+		return postCloseDateResolution{anyClosed: handlerFlag}, nil
 	}
-	return handlerFlag, nil
+	res := postCloseDateResolution{adjDate: unique[len(unique)-1]}
+	if s.closeRepo == nil {
+		res.anyClosed = handlerFlag
+		return res, nil
+	}
+	if err := s.lockCloseBoundaries(ctx, clinicID, unique...); err != nil {
+		return postCloseDateResolution{}, err
+	}
+	closedByKey := make(map[string]bool, len(unique))
+	for _, date := range unique {
+		closed, err := s.closeRepo.HasCloseOnDate(ctx, clinicID, date)
+		if err != nil {
+			return postCloseDateResolution{}, apperrors.Wrap(err, "failed to re-check cash register close state")
+		}
+		closedByKey[closeBoundaryDayKey(date)] = closed
+		if closed {
+			res.anyClosed = true
+			res.adjDate = date
+		}
+	}
+	if len(dates) > 0 {
+		res.sourceClosed = closedByKey[closeBoundaryDayKey(dates[0])]
+	}
+	if len(dates) > 1 {
+		res.destClosed = closedByKey[closeBoundaryDayKey(dates[len(dates)-1])]
+		if res.destClosed {
+			res.adjDate = dates[len(dates)-1]
+		} else if res.sourceClosed {
+			res.adjDate = dates[0]
+		}
+	} else if len(dates) == 1 {
+		res.destClosed = res.sourceClosed
+	}
+	if handlerFlag {
+		res.anyClosed = true
+	}
+	return res, nil
+}
+
+func (s *accountingService) lockCloseBoundaries(ctx context.Context, clinicID uint64, dates ...time.Time) error {
+	if s.closeRepo == nil {
+		return nil
+	}
+	for _, date := range uniqueCloseBoundaryDates(dates...) {
+		if err := s.closeRepo.LockCloseBoundary(ctx, clinicID, date); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func closeBoundaryDayKey(date time.Time) string {
+	return time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, time.UTC).Format(time.DateOnly)
+}
+
+func uniqueCloseBoundaryDates(dates ...time.Time) []time.Time {
+	seen := make(map[string]time.Time, len(dates))
+	for _, date := range dates {
+		if date.IsZero() {
+			continue
+		}
+		key := closeBoundaryDayKey(date)
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, time.UTC)
+	}
+	keys := make([]string, 0, len(seen))
+	for key := range seen {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	out := make([]time.Time, 0, len(keys))
+	for _, key := range keys {
+		out = append(out, seen[key])
+	}
+	return out
+}
+
+func rejectLegacyCreatePrivilegedFinancialState(input *CreateAccountingInput) error {
+	if input.CompletedAt != nil {
+		return apperrors.WrapInvalidInput("completed_at はクライアントから指定できません。確定は POST /accountings/complete を使用してください")
+	}
+	switch input.Status {
+	case "", model.BillingStatusWaiting, model.BillingStatusPending:
+		return nil
+	case model.BillingStatusCompleted:
+		return apperrors.WrapInvalidInput("status=completed での作成はできません。確定は POST /accountings/complete を使用してください")
+	case model.BillingStatusCancelled:
+		return apperrors.WrapInvalidInput("status=cancelled での作成はできません。取消は POST /accountings/:id/cancel を使用してください")
+	default:
+		return apperrors.WrapInvalidInput("会計の作成は waiting または pending のみ許可されます")
+	}
+}
+
+func rejectPrivilegedGenericUpdate(existing *model.Billing, input *UpdateAccountingInput) error {
+	if existing == nil {
+		return apperrors.WrapNotFound("billing", "")
+	}
+	if existing.Status == model.BillingStatusCancelled {
+		return apperrors.WrapConflict("キャンセル済みの会計は更新できません")
+	}
+	if input.CompletedAt != nil {
+		return apperrors.WrapInvalidInput("completed_at はクライアントから指定できません")
+	}
+	if input.Status != nil {
+		switch *input.Status {
+		case model.BillingStatusCancelled:
+			return apperrors.WrapForbidden("status=cancelled への変更は POST /accountings/:id/cancel を使用してください")
+		case model.BillingStatusCompleted:
+			if existing.Status != model.BillingStatusCompleted {
+				return apperrors.WrapInvalidInput("status=completed への変更は POST /accountings/complete を使用してください")
+			}
+			input.Status = nil
+		default:
+			if *input.Status != existing.Status {
+				return apperrors.WrapInvalidInput("会計ステータスは汎用 PATCH では変更できません")
+			}
+			input.Status = nil
+		}
+	}
+	if hasPaymentFields(input) && existing.Status != model.BillingStatusCompleted {
+		return apperrors.WrapInvalidInput("支払いの確定は POST /accountings/complete を使用してください")
+	}
+	return nil
 }
 
 // writePostCloseAdjustment は締め後会計編集を cash_register_close_adjustments へ append-only 追記する（W-013）。

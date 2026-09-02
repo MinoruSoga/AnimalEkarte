@@ -284,7 +284,7 @@ func TestCreateAccountingRequest_ToServiceInput(t *testing.T) {
 		TaxTotal:          100,
 		TotalAmount:       1100,
 		HasInsurance:      true,
-		Status:            string(model.BillingStatusCompleted),
+		Status:            string(model.BillingStatusWaiting),
 		ScheduledDate:     scheduledDate,
 		CompletedAt:       &completedAt,
 		Memo:              "memo",
@@ -313,8 +313,8 @@ func TestCreateAccountingRequest_ToServiceInput(t *testing.T) {
 	if !input.HasInsurance {
 		t.Fatal("HasInsurance = false, want true")
 	}
-	if input.Status != model.BillingStatusCompleted {
-		t.Fatalf("Status = %q, want %q", input.Status, model.BillingStatusCompleted)
+	if input.Status != model.BillingStatusWaiting {
+		t.Fatalf("Status = %q, want %q", input.Status, model.BillingStatusWaiting)
 	}
 	if !input.ScheduledDate.Equal(scheduledDate) {
 		t.Fatalf("ScheduledDate = %v, want %v", input.ScheduledDate, scheduledDate)

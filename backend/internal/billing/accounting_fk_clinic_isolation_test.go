@@ -404,8 +404,9 @@ func TestAccountingService_Create_CompletedValidatesInsideTx(t *testing.T) {
 		Status: model.BillingStatusCompleted, ScheduledDate: scheduled,
 	})
 	assert.Error(t, err)
-	assert.True(t, apperrors.IsNotFound(err))
+	assert.True(t, apperrors.IsInvalidInput(err))
+	assert.ErrorContains(t, err, "POST /accountings/complete")
 	assert.Nil(t, out)
 	assert.False(t, created)
-	assert.True(t, txEntered, "completed Create must enter WithTx so validation runs in same tx")
+	assert.False(t, txEntered, "legacy completed create must be rejected before any write transaction")
 }

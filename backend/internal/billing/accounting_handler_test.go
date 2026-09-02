@@ -148,6 +148,44 @@ func TestUpdateAccounting_PostClose(t *testing.T) {
 	}
 }
 
+func TestUpdateAccounting_PostCloseDestinationDateRequiresPermission(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	source := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
+	dest := time.Date(2026, 6, 10, 0, 0, 0, 0, time.UTC)
+	existing := &model.Billing{ID: 1, ClinicID: 1, Status: model.BillingStatusWaiting, ScheduledDate: source}
+
+	h := NewAccountingHandler(
+		&stubAccountingPostClose{
+			getByIDFn: func(_ context.Context, _, _ uint64) (*model.Billing, error) { return existing, nil },
+			updateFn: func(_ context.Context, _ *UpdateAccountingInput) (*model.Billing, error) {
+				t.Fatal("update must not run when destination date is closed without post-close permission")
+				return nil, nil
+			},
+		},
+		&stubCashRegisterIsClosed{
+			isDateClosedFn: func(_ context.Context, _ uint64, date time.Time) (bool, error) {
+				return date.Format(time.DateOnly) == dest.Format(time.DateOnly), nil
+			},
+		},
+		permCheckerFromRules(func(_ context.Context, _, _ uint64) ([]model.PermissionGroupRule, error) {
+			return []model.PermissionGroupRule{{Resource: string(model.ResourceAccounting), CanEdit: true}}, nil
+		}),
+	)
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	setNonSystemAdmin(c)
+	c.Request = httptest.NewRequest(http.MethodPatch, "/v1/accountings/1", strings.NewReader(`{"scheduled_date":"2026-06-10T00:00:00Z","memo":"move"}`))
+	c.Request.Header.Set("Content-Type", "application/json")
+	c.Params = gin.Params{{Key: "id", Value: "1"}}
+
+	h.UpdateAccounting(c)
+
+	assert.Equal(t, http.StatusForbidden, w.Code)
+	assert.Contains(t, w.Body.String(), "accounting-post-close-edit:edit")
+}
+
 // ---- mock AccountingService (full interface, nil-safe forwarding) ----
 
 type mockAccountingService struct {
@@ -435,6 +473,18 @@ func TestCreateAccounting(t *testing.T) {
 			body:       `{"owner_id":1,"pet_id":2}`,
 			setupCtx:   func(c *gin.Context) { setClinicID(c) },
 			svc:        &mockAccountingService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "rejects status=completed at bind (complete command only)",
+			body:     `{"owner_id":1,"pet_id":2,"subtotal":1000,"tax_total":100,"total_amount":1100,"scheduled_date":"2026-06-01T00:00:00Z","status":"completed"}`,
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockAccountingService{
+				createFn: func(_ context.Context, _ *CreateAccountingInput) (*model.Billing, error) {
+					t.Fatal("legacy create must not run for status=completed")
+					return nil, nil
+				},
+			},
 			wantStatus: http.StatusBadRequest,
 		},
 		{

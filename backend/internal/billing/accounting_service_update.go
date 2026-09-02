@@ -17,17 +17,29 @@ func (s *accountingService) updateAccountingInTx(
 	payment *model.Payment,
 	splits []model.PaymentSplit,
 ) (*model.Billing, error) {
+	destDate := existing.ScheduledDate
+	if input.ScheduledDate != nil {
+		destDate = *input.ScheduledDate
+	}
+	postCloseRes, err := s.resolvePostCloseForDatesInTx(txCtx, input.ClinicID, input.IsPostClose, existing.ScheduledDate, destDate)
+	if err != nil {
+		return nil, err
+	}
+	if postCloseRes.anyClosed {
+		if input.PostCloseReason == nil || *input.PostCloseReason == "" {
+			return nil, apperrors.WrapInvalidInput("レジ締め済み期間の会計編集には post_close_reason の入力が必要です")
+		}
+		input.IsPostClose = true
+	}
+
 	if err := s.validateAccountingRelatedFKs(txCtx, input.ClinicID, finalMRID, finalHospID, finalOwnerID, finalPetID); err != nil {
 		return nil, err
 	}
-	var updatedBilling *model.Billing
 	if len(fields) > 0 {
-		b, err := s.repo.Update(txCtx, input.ClinicID, input.ID, fields)
-		if err != nil {
+		if _, err := s.repo.Update(txCtx, input.ClinicID, input.ID, fields); err != nil {
 			slog.ErrorContext(txCtx, "failed to update accounting", "error", err)
 			return nil, apperrors.Wrap(err, "failed to update accounting")
 		}
-		updatedBilling = b
 	}
 
 	if hasPaymentFields(input) {
@@ -44,26 +56,14 @@ func (s *accountingService) updateAccountingInTx(
 			slog.Uint64("billing_id", input.ID))
 	}
 
-	postClose, err := s.resolvePostCloseInTx(txCtx, input.ClinicID, existing.ScheduledDate, input.IsPostClose)
-	if err != nil {
-		return nil, err
-	}
-	if postClose {
-		if input.PostCloseReason == nil || *input.PostCloseReason == "" {
-			return nil, apperrors.WrapInvalidInput("レジ締め済み期間の会計編集には post_close_reason の入力が必要です")
-		}
-		input.IsPostClose = true
-		if err := s.writePostCloseAdjustment(txCtx, input, existing); err != nil {
+	if postCloseRes.anyClosed {
+		adjExisting := *existing
+		adjExisting.ScheduledDate = postCloseRes.adjDate
+		if err := s.writePostCloseAdjustment(txCtx, input, &adjExisting); err != nil {
 			return nil, err
 		}
 		if err := s.logPostCloseEdit(txCtx, input); err != nil {
 			return nil, err
-		}
-	}
-
-	if input.Status != nil && *input.Status == model.BillingStatusCompleted {
-		if err := s.completeAccountingAppointments(txCtx, input.ClinicID, updatedBilling); err != nil {
-			return nil, apperrors.Wrap(err, "failed to complete accounting appointments during update")
 		}
 	}
 
