@@ -16,16 +16,16 @@ import type {
   CreateInventoryItemRequest,
   UpdateInventoryItemRequest,
 } from "../api/types";
+import {
+  buildInventoryItemRequest,
+  readInventoryFormFields,
+  validateInventoryFormFields,
+} from "./use-inventory-form-model";
 
 interface FormState {
   success: boolean;
   timestamp: number;
   fieldErrors?: Record<string, string>;
-}
-
-function readFormString(formData: FormData, key: string): string {
-  const value = formData.get(key);
-  return typeof value === "string" ? value : "";
 }
 
 export function useInventoryForm(id?: string) {
@@ -41,7 +41,6 @@ export function useInventoryForm(id?: string) {
   const createMutation = useCreateInventoryItem();
   const updateMutation = useUpdateInventoryItem();
 
-  // BUG-507: classify read failures; never fold missing entity into blank editable defaults
   const entityRead: EntityReadResult<InventoryItem> = resolveEntityReadResult({
     id: isEdit ? id : undefined,
     data: inventoryData,
@@ -63,7 +62,6 @@ export function useInventoryForm(id?: string) {
   const [expiryDate, setExpiryDate] = useState("");
   const [lastRestocked, setLastRestocked] = useState("");
 
-  // previous value パターン: レンダー中に同期（useEffect を排除）
   if (prevExistingItem !== existingItem) {
     setPrevExistingItem(existingItem);
     if (existingItem?.category) {
@@ -82,7 +80,6 @@ export function useInventoryForm(id?: string) {
 
   const [formState, formAction, isPending] = useActionState(
     async (_prevState: FormState, formData: FormData): Promise<FormState> => {
-      // Fail closed: do not mutate while edit load is missing / errored / in-flight
       if (
         isEdit &&
         (isReadNotFound || isReadError || isReadLoading || entityRead.status !== "found")
@@ -90,64 +87,20 @@ export function useInventoryForm(id?: string) {
         return { success: false, timestamp: Date.now() };
       }
 
-      const name = readFormString(formData, "name").trim();
-      const unit = readFormString(formData, "unit").trim();
-      const quantityStr = readFormString(formData, "quantity");
-      const minStockLevelStr = readFormString(formData, "minStockLevel");
-      const expiryDateStr = readFormString(formData, "expiryDate");
-      const lastRestockedStr = readFormString(formData, "lastRestocked");
-      const location = readFormString(formData, "location") || undefined;
-      const supplier = readFormString(formData, "supplier") || undefined;
+      const fields = readInventoryFormFields(formData);
       const resolvedCategory = category || "medicine";
-
-      const quantity = Number(quantityStr);
-      const minStockLevel = Number(minStockLevelStr);
-      const fieldErrors = {
-        ...(name === "" ? { name: "品名を入力してください" } : {}),
-        ...(unit === "" ? { unit: "単位を入力してください" } : {}),
-        ...(quantityStr.trim() === "" || !Number.isInteger(quantity) || quantity < 0
-          ? { quantity: "現在庫数は0以上の整数で入力してください" }
-          : {}),
-        ...(minStockLevelStr.trim() === "" || !Number.isInteger(minStockLevel) || minStockLevel < 0
-          ? { minStockLevel: "最低在庫数は0以上の整数で入力してください" }
-          : {}),
-      };
-
+      const fieldErrors = validateInventoryFormFields(fields);
       if (Object.keys(fieldErrors).length > 0) {
-        return {
-          success: false,
-          timestamp: Date.now(),
-          fieldErrors,
-        };
+        return { success: false, timestamp: Date.now(), fieldErrors };
       }
 
       try {
         if (isEdit && id) {
-          const req: UpdateInventoryItemRequest = {
-            name,
-            category: resolvedCategory,
-            quantity,
-            unit,
-            min_stock_level: minStockLevel,
-            location,
-            expiry_date: expiryDateStr || undefined,
-            supplier,
-            last_restocked: lastRestockedStr || undefined,
-          };
+          const req: UpdateInventoryItemRequest = buildInventoryItemRequest(fields, resolvedCategory);
           await updateMutation.mutateAsync({ id, req });
           toast.success("在庫情報を更新しました");
         } else {
-          const req: CreateInventoryItemRequest = {
-            name,
-            category: resolvedCategory,
-            quantity,
-            unit,
-            min_stock_level: minStockLevel,
-            location,
-            expiry_date: expiryDateStr || undefined,
-            supplier,
-            last_restocked: lastRestockedStr || undefined,
-          };
+          const req: CreateInventoryItemRequest = buildInventoryItemRequest(fields, resolvedCategory);
           await createMutation.mutateAsync(req);
           toast.success("在庫情報を登録しました");
         }
