@@ -1,34 +1,25 @@
 import { useCallback, useMemo, useState } from "react";
-import { DndContext, closestCenter } from "@dnd-kit/core";
-import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
-import Calendar from "lucide-react/dist/esm/icons/calendar";
-import Plus from "lucide-react/dist/esm/icons/plus";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
 
-import { DataTable, DESIGN_TABLE_HEADER_ROW, DESIGN_TABLE_HEADER_CELL } from "@/components/shared/DataTable/DataTable";
-import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
-import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
-import { PropertyFilter } from "@/components/shared/PropertyFilter/PropertyFilter";
 import type { ActiveFilter } from "@/components/shared/PropertyFilter/types";
 import { usePermission } from "@/hooks/use-permission";
 import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
 import { useSortableList } from "@/hooks/use-sortable-list";
-import { C, ICON, LAYOUT } from "@/lib/design-tokens";
 import { paths } from "@/config/paths";
-import { ResourceShifts, ShiftTypeOff, ShiftTypePaidLeave } from "@/types/generated/models";
+import { ResourceShifts } from "@/types/generated/models";
 import { useCreateShiftTemplate } from "../api/create-shift-template";
 import { useDeleteShiftTemplate } from "../api/delete-shift-template";
 import { useGetShiftTemplates } from "../api/get-shift-templates";
 import { useReorderShiftTemplates } from "../api/reorder-shift-templates";
 import { useUpdateShiftTemplate } from "../api/update-shift-template";
-import {
-  ShiftTemplateDeleteDialog,
-  ShiftTemplateRow,
-  ShiftTemplateSidePanel,
-} from "../components/ShiftTemplateSettingsParts";
+import { ShiftTemplateSettingsWorkspace } from "../components/shift-template-settings-workspace";
 import type { TemplateFormData } from "../components/shift-template-form-model";
-import { SHIFT_STATUS_FILTER, SHIFT_TEMPLATE_COLUMNS, filterShiftTemplates } from "../components/shift-template-table-model";
+import { filterShiftTemplates } from "../components/shift-template-table-model";
+import {
+  toShiftTemplateCreateInput,
+  toShiftTemplateUpdateInput,
+} from "../components/shift-template-write-model";
 import type { ShiftTemplate } from "../types";
 
 export function ShiftTemplateSettings() {
@@ -97,23 +88,11 @@ export function ShiftTemplateSettings() {
       return;
     }
 
-    const breaks = formData.breaks.filter((b) => b.break_start && b.break_end);
-    const isTimeHidden =
-      formData.shift_type === ShiftTypeOff || formData.shift_type === ShiftTypePaidLeave;
-
     if (selectedItem !== null) {
       updateMutation.mutate(
         {
           id: selectedItem.id,
-          input: {
-            name: formData.name,
-            shift_type: formData.shift_type,
-            start_time: isTimeHidden ? null : formData.start_time || undefined,
-            end_time: isTimeHidden ? null : formData.end_time || undefined,
-            notes: formData.notes,
-            is_active: formData.is_active,
-            breaks: isTimeHidden ? [] : breaks,
-          },
+          input: toShiftTemplateUpdateInput(formData),
         },
         {
           onSuccess: () => {
@@ -125,15 +104,7 @@ export function ShiftTemplateSettings() {
       );
     } else {
       createMutation.mutate(
-        {
-          name: formData.name,
-          shift_type: formData.shift_type,
-          start_time: isTimeHidden ? undefined : formData.start_time || undefined,
-          end_time: isTimeHidden ? undefined : formData.end_time || undefined,
-          notes: formData.notes,
-          is_active: formData.is_active,
-          breaks: isTimeHidden ? [] : breaks,
-        },
+        toShiftTemplateCreateInput(formData),
         {
           onSuccess: () => {
             toast.success("テンプレートを作成しました");
@@ -159,90 +130,34 @@ export function ShiftTemplateSettings() {
     });
   }, [canDelete, pendingDelete, deleteMutation, selectedItem, handleClose, dirty]);
 
-  const isSaving = createMutation.isPending || updateMutation.isPending;
-  const isPanelReadOnly = selectedItem !== null ? !canEdit : !canCreate;
-
   return (
-    <>
-    <div className="flex h-full overflow-hidden">
-      <div className="flex-1 min-w-0 overflow-auto">
-        <PageLayout
-          title="シフトテンプレートマスタ"
-          icon={<Calendar className={`${ICON.page} ${C.text}`} />}
-          resource={ResourceShifts}
-          onBack={() => navigate(paths.settings.getHref())}
-          maxWidth={LAYOUT.pageContentMaxWidth.full}
-          headerAction={
-            canCreate ? (
-              <PrimaryButton onClick={handleCreate}>
-                <Plus className={`mr-1.5 ${ICON.action}`} />
-                新規登録
-              </PrimaryButton>
-            ) : null
-          }
-        >
-          <div className="flex flex-col gap-4">
-            <PropertyFilter
-              properties={[SHIFT_STATUS_FILTER]}
-              activeFilters={activeFilters}
-              onFilterChange={setActiveFilters}
-              searchTerm={searchTerm}
-              onSearchChange={setSearchTerm}
-              searchPlaceholder="テンプレート名で検索..."
-              count={filteredItems.length}
-            />
-            <DndContext
-              sensors={sensors}
-              collisionDetection={closestCenter}
-              onDragEnd={handleDragEnd}
-            >
-              <SortableContext
-                items={filteredItems.map((item) => item.id)}
-                strategy={verticalListSortingStrategy}
-              >
-                <DataTable
-                  headerRowClassName={DESIGN_TABLE_HEADER_ROW}
-                  headerCellClassName={DESIGN_TABLE_HEADER_CELL}
-                  columns={SHIFT_TEMPLATE_COLUMNS}
-                  data={filteredItems}
-                  emptyMessage="テンプレートがありません"
-                  renderRow={(item) => (
-                    <ShiftTemplateRow
-                      key={item.id}
-                      item={item}
-                      canEdit={canEdit}
-                      onEdit={() => handleEdit(item)}
-                    />
-                  )}
-                />
-              </SortableContext>
-            </DndContext>
-          </div>
-        </PageLayout>
-      </div>
-
-      {isEditing ? (
-        <ShiftTemplateSidePanel
-          key={selectedItem ? selectedItem.id : "new"}
-          item={selectedItem}
-          onClose={handleClose}
-          onSave={handleSave}
-          onDeleteRequest={canDelete ? () => {
-            if (selectedItem) setPendingDelete(selectedItem);
-          } : undefined}
-          isSaving={isSaving}
-          readOnly={isPanelReadOnly}
-          onDirtyChange={handleDirtyChange}
-        />
-      ) : null}
-
-      <ShiftTemplateDeleteDialog
-        pendingDelete={pendingDelete}
-        onClose={() => setPendingDelete(null)}
-        onConfirm={handleDeleteConfirm}
-      />
-    </div>
-    {dirty.discardDialog}
-    </>
+    <ShiftTemplateSettingsWorkspace
+      canCreate={canCreate}
+      canEdit={canEdit}
+      searchTerm={searchTerm}
+      onSearchChange={setSearchTerm}
+      activeFilters={activeFilters}
+      onFilterChange={setActiveFilters}
+      filteredItems={filteredItems}
+      sensors={sensors}
+      onDragEnd={handleDragEnd}
+      onCreate={handleCreate}
+      onEdit={handleEdit}
+      onBack={() => navigate(paths.settings.getHref())}
+      isEditing={isEditing}
+      selectedItem={selectedItem}
+      onClose={handleClose}
+      onSave={handleSave}
+      onDeleteRequest={canDelete ? () => {
+        if (selectedItem) setPendingDelete(selectedItem);
+      } : undefined}
+      isSaving={createMutation.isPending || updateMutation.isPending}
+      isPanelReadOnly={selectedItem !== null ? !canEdit : !canCreate}
+      onDirtyChange={handleDirtyChange}
+      pendingDelete={pendingDelete}
+      onDeleteCancel={() => setPendingDelete(null)}
+      onDeleteConfirm={handleDeleteConfirm}
+      discardDialog={dirty.discardDialog}
+    />
   );
 }

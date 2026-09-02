@@ -1,5 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { FlaskConical, Plus } from "lucide-react";
 import { toast } from "sonner";
 
@@ -15,37 +14,13 @@ import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { RowActionButton } from "@/components/shared/RowActionButton";
 import { TableCell } from "@/components/ui/table";
 import { paths } from "@/config/paths";
-import { usePermission } from "@/hooks/use-permission";
-import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
 import { C, ICON, LAYOUT } from "@/lib/design-tokens";
 import { ResourceLabImport } from "@/types/generated/models";
 
-import { useGetAllExaminationTypes } from "../api/exam-types-master";
-import {
-  useCreateLabDevice,
-  useGetLabDevices,
-  useSaveLabDeviceConfiguration,
-} from "../api/lab-devices";
-import {
-  useEnsureLabDeviceItemMasters,
-  useGetLabDeviceItemMasters,
-} from "../api/lab-device-item-masters";
 import { LabDeviceItemMasterSidePanel } from "../components/LabDeviceItemMasterSidePanel";
 import { MASTER_TABLE_COL } from "../constants/styles";
-import {
-  availableLabDeviceSourceTypes,
-  buildLabDeviceCreateRequest,
-  buildLabDeviceUpdateRequest,
-  collectDirtyLabDeviceUpdates,
-  itemsForLabDevice,
-  labDeviceSourceLabel,
-  parseLabDeviceSourceQuery,
-  toLabDeviceRows,
-  validateLabDeviceDraft,
-  type LabDeviceFormData,
-  type LabDeviceItemDraft,
-  type LabDeviceRow,
-} from "./lab-device-item-master-settings-model";
+import { labDeviceSourceLabel, type LabDeviceRow } from "./lab-device-item-master-settings-model";
+import { useLabDeviceItemMasterSettings } from "./use-lab-device-item-master-settings";
 
 const COLUMNS = [
   { header: "機器", className: "flex-1" },
@@ -57,144 +32,7 @@ const COLUMNS = [
 
 export function LabDeviceItemMasterSettings() {
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const { canCreate, canEdit } = usePermission(ResourceLabImport);
-  const { data: devices = [], isFetched: devicesFetched } = useGetLabDevices();
-  const { data: items = [] } = useGetLabDeviceItemMasters();
-  const { data: examTypes = [] } = useGetAllExaminationTypes();
-  const ensureMutation = useEnsureLabDeviceItemMasters();
-  const createMutation = useCreateLabDevice();
-  const saveConfigurationMutation = useSaveLabDeviceConfiguration();
-  const dirty = useSidePeekDirty();
-  const sourceFromQuery = parseLabDeviceSourceQuery(searchParams.get("source"));
-  const fromBoard = searchParams.get("from") === "board";
-  const [selectedId, setSelectedId] = useState<string | "new" | null>(null);
-
-  const rows = useMemo(
-    () => toLabDeviceRows(devices, items, examTypes),
-    [devices, examTypes, items],
-  );
-  const unusedSourceTypes = useMemo(
-    () => availableLabDeviceSourceTypes(devices),
-    [devices],
-  );
-  const selectedRow = selectedId === null || selectedId === "new"
-    ? null
-    : rows.find((row) => row.id === selectedId) ?? null;
-  const isCreating = selectedId === "new";
-  const selectedItems = useMemo(
-    () => (selectedRow === null ? [] : itemsForLabDevice(items, selectedRow.sourceType)),
-    [items, selectedRow],
-  );
-  const showPanel = isCreating || selectedRow !== null;
-  const readOnly = isCreating ? canCreate !== true : canEdit !== true;
-
-  useEffect(() => {
-    if (sourceFromQuery === null) {
-      return;
-    }
-    const match = rows.find((row) => row.sourceType === sourceFromQuery);
-    if (match !== undefined) {
-      setSelectedId(match.id);
-    }
-  }, [rows, sourceFromQuery]);
-
-  const clearSourceParam = useCallback(() => {
-    if (searchParams.has("source")) {
-      const next = new URLSearchParams(searchParams);
-      next.delete("source");
-      setSearchParams(next, { replace: true });
-    }
-  }, [searchParams, setSearchParams]);
-
-  const handleClose = useCallback(() => {
-    dirty.runWithDiscardCheck(() => {
-      setSelectedId(null);
-      clearSourceParam();
-      dirty.markClean();
-    });
-  }, [clearSourceParam, dirty.markClean, dirty.runWithDiscardCheck]);
-
-  const handleEdit = useCallback((row: LabDeviceRow) => {
-    dirty.runWithDiscardCheck(() => {
-      setSelectedId(row.id);
-    });
-  }, [dirty.runWithDiscardCheck]);
-
-  const handleNew = useCallback(() => {
-    dirty.runWithDiscardCheck(() => {
-      if (unusedSourceTypes.length === 0) {
-        toast.error("対応プロトコルはすべて登録済みです");
-        return;
-      }
-      setSelectedId("new");
-    });
-  }, [dirty.runWithDiscardCheck, unusedSourceTypes.length]);
-
-  const handleDirtyChange = useCallback((nextDirty: boolean) => {
-    if (nextDirty) {
-      dirty.markDirty();
-      return;
-    }
-    dirty.markClean();
-  }, [dirty]);
-
-  const handleSave = useCallback(async (form: LabDeviceFormData, drafts: LabDeviceItemDraft[]) => {
-    const error = validateLabDeviceDraft({
-      name: form.name,
-      sourceType: form.sourceType,
-      examTypeId: form.examTypeId,
-      requireSourceType: isCreating,
-    });
-    if (error !== null) {
-      toast.error(error);
-      return;
-    }
-    try {
-      if (isCreating) {
-        if (canCreate !== true) {
-          return;
-        }
-        await createMutation.mutateAsync(buildLabDeviceCreateRequest(form));
-        toast.success("登録しました");
-      } else if (selectedRow !== null) {
-        if (canEdit !== true) {
-          return;
-        }
-        const itemChanges = collectDirtyLabDeviceUpdates(selectedItems, drafts);
-        if (itemChanges.error !== null) {
-          toast.error(itemChanges.error);
-          return;
-        }
-        await saveConfigurationMutation.mutateAsync({
-          id: selectedRow.id,
-          req: {
-            device: buildLabDeviceUpdateRequest(form),
-            items: itemChanges.updates.map((update) => ({
-              id: Number(update.id),
-              ...update.req,
-            })),
-          },
-        });
-        toast.success("更新しました");
-      }
-    } catch {
-      return;
-    }
-    dirty.markClean();
-    setSelectedId(null);
-    clearSourceParam();
-  }, [
-    canCreate,
-    canEdit,
-    clearSourceParam,
-    createMutation,
-    dirty,
-    isCreating,
-    selectedItems,
-    selectedRow,
-    saveConfigurationMutation,
-  ]);
+  const s = useLabDeviceItemMasterSettings();
 
   return (
     <>
@@ -207,96 +45,145 @@ export function LabDeviceItemMasterSettings() {
           onBack={() => navigate(paths.settings.getHref())}
           maxWidth={LAYOUT.pageContentMaxWidth.full}
           headerAction={
-            <div className="flex items-center gap-2">
-              {canEdit ? (
-                <PrimaryButton
-                  onClick={() => {
-                    ensureMutation.mutate(undefined, {
-                      onSuccess: (result) => {
-                        toast.success(
-                          result.insertedCount > 0
-                            ? `既定項目を ${result.insertedCount} 件用意しました`
-                            : "既定項目は揃っています",
-                        );
-                      },
-                    });
-                  }}
-                  disabled={ensureMutation.isPending}
-                >
-                  既定項目を用意
-                </PrimaryButton>
-              ) : null}
-              {canCreate ? (
-                <PrimaryButton onClick={handleNew}>
-                  <Plus className={`mr-1.5 ${ICON.action}`} />
-                  新規登録
-                </PrimaryButton>
-              ) : null}
-            </div>
+            <LabDeviceItemMasterHeaderActions
+              canEdit={s.canEdit}
+              canCreate={s.canCreate}
+              ensurePending={s.ensureMutation.isPending}
+              onEnsure={() => {
+                s.ensureMutation.mutate(undefined, {
+                  onSuccess: (result) => {
+                    toast.success(
+                      result.insertedCount > 0
+                        ? `既定項目を ${result.insertedCount} 件用意しました`
+                        : "既定項目は揃っています",
+                    );
+                  },
+                });
+              }}
+              onNew={s.handleNew}
+            />
           }
         >
-          <div className="flex flex-col gap-4">
-            {fromBoard ? (
-              <Link to={paths.labDevice.getHref()} className={`text-sm underline ${C.text}`}>
-                検査受信へ戻る
-              </Link>
-            ) : null}
-            {sourceFromQuery !== null
-              && devicesFetched
-              && !rows.some((row) => row.sourceType === sourceFromQuery) ? (
-                <p className={`text-sm ${C.textWarning}`}>
-                  {labDeviceSourceLabel(sourceFromQuery)} はまだ登録されていません。「既定項目を用意」で投入してください
-                </p>
-              ) : null}
-            <DataTable
-              headerRowClassName={DESIGN_TABLE_HEADER_ROW}
-              headerCellClassName={DESIGN_TABLE_HEADER_CELL}
-              columns={COLUMNS}
-              data={rows}
-              emptyMessage="機器がありません。新規登録するか、既定項目を用意してください"
-              renderRow={(row) => (
-                <DataTableRow key={row.id}>
-                  <TableCell className={`font-medium ${C.text}`}>
-                    <DataTableRowButton
-                      aria-label={`詳細: 検査機器 ${row.name}`}
-                      onClick={() => handleEdit(row)}
-                    >
-                      {row.name}
-                    </DataTableRowButton>
-                  </TableCell>
-                  <TableCell className={C.text}>{row.examLabel}</TableCell>
-                  <TableCell className={`text-center ${C.text}`}>{row.itemCount}</TableCell>
-                  <TableCell className={`text-center ${C.text}`}>{row.unmappedCount}</TableCell>
-                  <TableCell className="text-right">
-                    <RowActionButton
-                      onClick={() => handleEdit(row)}
-                      aria-label={`検査機器「${row.name}」の詳細`}
-                    />
-                  </TableCell>
-                </DataTableRow>
-              )}
-            />
-          </div>
+          <LabDeviceItemMasterTable
+            fromBoard={s.fromBoard}
+            sourceFromQuery={s.sourceFromQuery}
+            devicesFetched={s.devicesFetched}
+            rows={s.rows}
+            onEdit={s.handleEdit}
+          />
         </PageLayout>
       </div>
-      {showPanel ? (
+      {s.showPanel ? (
         <LabDeviceItemMasterSidePanel
-          key={selectedId ?? "closed"}
-          device={selectedRow}
-          items={selectedItems}
-          examTypes={examTypes}
-          unusedSourceTypes={unusedSourceTypes}
-          readOnly={readOnly}
-          isPending={createMutation.isPending || saveConfigurationMutation.isPending}
-          onClose={handleClose}
+          key={s.selectedId ?? "closed"}
+          device={s.selectedRow}
+          items={s.selectedItems}
+          examTypes={s.examTypes}
+          unusedSourceTypes={s.unusedSourceTypes}
+          readOnly={s.readOnly}
+          isPending={s.createMutation.isPending || s.saveConfigurationMutation.isPending}
+          onClose={s.handleClose}
           onSave={(form, drafts) => {
-            void handleSave(form, drafts);
+            void s.handleSave(form, drafts);
           }}
-          onDirtyChange={handleDirtyChange}
+          onDirtyChange={s.handleDirtyChange}
         />
       ) : null}
     </div>
-    {dirty.discardDialog}
+    {s.dirty.discardDialog}
     </>
+  );
+}
+
+interface LabDeviceItemMasterHeaderActionsProps {
+  canEdit: boolean;
+  canCreate: boolean;
+  ensurePending: boolean;
+  onEnsure: () => void;
+  onNew: () => void;
+}
+
+export function LabDeviceItemMasterHeaderActions({
+  canEdit,
+  canCreate,
+  ensurePending,
+  onEnsure,
+  onNew,
+}: LabDeviceItemMasterHeaderActionsProps) {
+  return (
+    <div className="flex items-center gap-2">
+      {canEdit ? (
+        <PrimaryButton onClick={onEnsure} disabled={ensurePending}>
+          既定項目を用意
+        </PrimaryButton>
+      ) : null}
+      {canCreate ? (
+        <PrimaryButton onClick={onNew}>
+          <Plus className={`mr-1.5 ${ICON.action}`} />
+          新規登録
+        </PrimaryButton>
+      ) : null}
+    </div>
+  );
+}
+
+interface LabDeviceItemMasterTableProps {
+  fromBoard: boolean;
+  sourceFromQuery: string | null;
+  devicesFetched: boolean;
+  rows: LabDeviceRow[];
+  onEdit: (row: LabDeviceRow) => void;
+}
+
+export function LabDeviceItemMasterTable({
+  fromBoard,
+  sourceFromQuery,
+  devicesFetched,
+  rows,
+  onEdit,
+}: LabDeviceItemMasterTableProps) {
+  return (
+    <div className="flex flex-col gap-4">
+      {fromBoard ? (
+        <Link to={paths.labDevice.getHref()} className={`text-sm underline ${C.text}`}>
+          検査受信へ戻る
+        </Link>
+      ) : null}
+      {sourceFromQuery !== null
+        && devicesFetched
+        && !rows.some((row) => row.sourceType === sourceFromQuery) ? (
+          <p className={`text-sm ${C.textWarning}`}>
+            {labDeviceSourceLabel(sourceFromQuery)} はまだ登録されていません。「既定項目を用意」で投入してください
+          </p>
+        ) : null}
+      <DataTable
+        headerRowClassName={DESIGN_TABLE_HEADER_ROW}
+        headerCellClassName={DESIGN_TABLE_HEADER_CELL}
+        columns={COLUMNS}
+        data={rows}
+        emptyMessage="機器がありません。新規登録するか、既定項目を用意してください"
+        renderRow={(row) => (
+          <DataTableRow key={row.id}>
+            <TableCell className={`font-medium ${C.text}`}>
+              <DataTableRowButton
+                aria-label={`詳細: 検査機器 ${row.name}`}
+                onClick={() => onEdit(row)}
+              >
+                {row.name}
+              </DataTableRowButton>
+            </TableCell>
+            <TableCell className={C.text}>{row.examLabel}</TableCell>
+            <TableCell className={`text-center ${C.text}`}>{row.itemCount}</TableCell>
+            <TableCell className={`text-center ${C.text}`}>{row.unmappedCount}</TableCell>
+            <TableCell className="text-right">
+              <RowActionButton
+                onClick={() => onEdit(row)}
+                aria-label={`検査機器「${row.name}」の詳細`}
+              />
+            </TableCell>
+          </DataTableRow>
+        )}
+      />
+    </div>
   );
 }

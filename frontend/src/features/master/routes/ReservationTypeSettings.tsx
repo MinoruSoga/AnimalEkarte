@@ -1,152 +1,18 @@
-import { useState, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router";
-import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
 import { Activity, Plus } from "lucide-react";
-import { useMasterCRUD } from "../hooks/use-master-crud";
-import { useMasterSave } from "../hooks/use-master-save";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { C, ICON, LAYOUT } from "@/lib/design-tokens";
 import { paths } from "@/config/paths";
-import { usePermission } from "@/hooks/use-permission";
 import { ResourceMasterReservationType } from "@/types/generated/models";
-import {
-  useGetReservationTypes,
-  useCreateReservationType,
-  useUpdateReservationType,
-  useDeleteReservationType,
-} from "../api/reservation-types";
-import type { ReservationType } from "../api/reservation-types";
-import {
-  useGetReservationTypeGroups,
-  useCreateReservationTypeGroup,
-  useUpdateReservationTypeGroup,
-  useDeleteReservationTypeGroup,
-} from "../api/reservation-type-groups";
-import type { ReservationTypeGroup } from "../api/reservation-type-groups";
-import type { CreateReservationTypeGroupRequest, UpdateReservationTypeGroupRequest } from "../api/reservation-type-groups";
-import type { CreateReservationTypeRequest, UpdateReservationTypeRequest } from "../api/reservation-types";
-import type { GroupFormData } from "../components/ReservationTypeGroupSidePanel";
-import type { CategoryFormData } from "../components/ReservationTypeSidePanel";
 import { ReservationTypeDeleteDialogs } from "../components/ReservationTypeDeleteDialogs";
 import { ReservationTypeSettingsContent } from "../components/ReservationTypeSettingsContent";
 import { ReservationTypeSettingsSidePanels } from "../components/ReservationTypeSettingsSidePanels";
-import {
-  buildReservationTypeCreateRequest,
-  buildReservationTypeGroupCreateRequest,
-  buildReservationTypeGroupUpdateRequest,
-  buildReservationTypeUpdateRequest,
-  getActiveReservationTypeGroupOptions,
-  matchesReservationTypeSearch,
-} from "./reservation-type-settings-model";
-
-// ─────────────────────────────────────────────────────────────────
-// ReservationTypeSettings
-// ─────────────────────────────────────────────────────────────────
+import { useReservationTypeSettings } from "./use-reservation-type-settings";
 
 export function ReservationTypeSettings() {
   const navigate = useNavigate();
-  const { canCreate, canEdit, canDelete } = usePermission(ResourceMasterReservationType);
-
-  const { data: groupsRaw = [] } = useGetReservationTypeGroups();
-  const { data: categoriesRaw = [] } = useGetReservationTypes();
-
-  // グループ選択肢（有効のみ）
-  const activeGroups = useMemo(
-    () => getActiveReservationTypeGroupOptions(groupsRaw),
-    [groupsRaw],
-  );
-
-  // ミューテーション
-  const createGroupMutation = useCreateReservationTypeGroup();
-  const updateGroupMutation = useUpdateReservationTypeGroup();
-  const deleteGroupMutation = useDeleteReservationTypeGroup();
-  const createCategoryMutation = useCreateReservationType();
-  const updateCategoryMutation = useUpdateReservationType();
-  const deleteCategoryMutation = useDeleteReservationType();
-
-  // BUG-380: 未保存破棄ガード
-  const dirty = useSidePeekDirty();
-  const handleDirtyChange = useCallback((d: boolean) => { if (d) dirty.markDirty(); else dirty.markClean(); }, [dirty]);
-
-  // ── FR1: useMasterCRUD hooks (groups & categories) ────────────
-  const groupCrud = useMasterCRUD<ReservationTypeGroup>({
-    data: groupsRaw,
-    deleteMutation: deleteGroupMutation,
-    entityLabel: "予約区分グループ",
-    dirtyGuard: dirty,
-    permissions: { canDelete },
-  });
-
-  const categoryCrud = useMasterCRUD<ReservationType>({
-    data: categoriesRaw,
-    deleteMutation: deleteCategoryMutation,
-    entityLabel: "予約区分",
-    dirtyGuard: dirty,
-    permissions: { canDelete },
-    searchFilter: matchesReservationTypeSearch,
-    activeFilterApply: (item, filters) => {
-      for (const f of filters) {
-        if (f.key === "status" && typeof f.value === "string") {
-          const want = f.value === "active";
-          if (f.condition === "is" ? item.isActive !== want : item.isActive === want) return false;
-        }
-      }
-      return true;
-    },
-  });
-
-  // ── Additional state: categoryDefaultGroupId (creation context) ───
-  const [categoryDefaultGroupId, setCategoryDefaultGroupId] = useState<string | undefined>(undefined);
-
-  // ── FR2: useMasterSave hooks ───────────────────────────────────
-  const groupSave = useMasterSave<ReservationTypeGroup, GroupFormData, CreateReservationTypeGroupRequest, UpdateReservationTypeGroupRequest>({
-    crud: groupCrud,
-    createMutation: createGroupMutation,
-    updateMutation: updateGroupMutation,
-    validate: (data) => data.name.trim() ? null : "名称を入力してください",
-    toCreateRequest: buildReservationTypeGroupCreateRequest,
-    toUpdateRequest: buildReservationTypeGroupUpdateRequest,
-    permissions: { canCreate, canEdit },
-  });
-
-  const categorySave = useMasterSave<ReservationType, CategoryFormData, CreateReservationTypeRequest, UpdateReservationTypeRequest>({
-    crud: categoryCrud,
-    createMutation: createCategoryMutation,
-    updateMutation: updateCategoryMutation,
-    validate: (data) => data.name.trim() ? null : "名称を入力してください",
-    toCreateRequest: buildReservationTypeCreateRequest,
-    toUpdateRequest: buildReservationTypeUpdateRequest,
-    permissions: { canCreate, canEdit },
-  });
-
-  // ── Handler wrappers ───────────────────────────────────────────
-  const handleGroupEdit = useCallback((group: ReservationTypeGroup) => {
-    groupCrud.handleEdit(group);
-  }, [groupCrud]);
-
-  const handleGroupAdd = useCallback(() => {
-    groupCrud.handleNew();
-  }, [groupCrud]);
-
-  const handleGroupDeleteRequest = useCallback((item: ReservationTypeGroup) => {
-    groupCrud.handleDeleteRequest(item);
-  }, [groupCrud]);
-
-  const handleCategoryEdit = useCallback((cat: ReservationType) => {
-    categoryCrud.handleEdit(cat);
-    setCategoryDefaultGroupId(undefined);
-  }, [categoryCrud]);
-
-  const handleCategoryAddInGroup = useCallback((groupId: string | undefined) => {
-    categoryCrud.handleNew();
-    setCategoryDefaultGroupId(groupId);
-  }, [categoryCrud]);
-
-  const handleCategoryDeleteRequest = useCallback((item: ReservationType) => {
-    categoryCrud.handleDeleteRequest(item);
-  }, [categoryCrud]);
-
+  const s = useReservationTypeSettings();
 
   return (
     <>
@@ -159,8 +25,8 @@ export function ReservationTypeSettings() {
             onBack={() => navigate(paths.settings.getHref())}
             maxWidth={LAYOUT.pageContentMaxWidth.full}
             headerAction={
-              canCreate ? (
-                <PrimaryButton onClick={() => handleCategoryAddInGroup(undefined)}>
+              s.canCreate ? (
+                <PrimaryButton onClick={() => s.handleCategoryAddInGroup(undefined)}>
                   <Plus className={`mr-1.5 ${ICON.action}`} />
                   新規登録
                 </PrimaryButton>
@@ -168,51 +34,51 @@ export function ReservationTypeSettings() {
             }
           >
             <ReservationTypeSettingsContent
-              groups={groupsRaw}
-              categories={categoryCrud.filteredItems}
-              activeFilters={categoryCrud.activeFilters}
-              onFilterChange={categoryCrud.setActiveFilters}
-              searchTerm={categoryCrud.searchTerm}
-              onSearchChange={categoryCrud.setSearchTerm}
-              count={categoryCrud.filteredItems.length}
-              canCreate={canCreate}
-              canEdit={canEdit}
-              onCategoryEdit={handleCategoryEdit}
-              onGroupEdit={handleGroupEdit}
-              onCategoryAddInGroup={handleCategoryAddInGroup}
-              onGroupAdd={handleGroupAdd}
+              groups={s.groupsRaw}
+              categories={s.categoryCrud.filteredItems}
+              activeFilters={s.categoryCrud.activeFilters}
+              onFilterChange={s.categoryCrud.setActiveFilters}
+              searchTerm={s.categoryCrud.searchTerm}
+              onSearchChange={s.categoryCrud.setSearchTerm}
+              count={s.categoryCrud.filteredItems.length}
+              canCreate={s.canCreate}
+              canEdit={s.canEdit}
+              onCategoryEdit={s.handleCategoryEdit}
+              onGroupEdit={s.handleGroupEdit}
+              onCategoryAddInGroup={s.handleCategoryAddInGroup}
+              onGroupAdd={s.handleGroupAdd}
             />
           </PageLayout>
         </div>
 
         <ReservationTypeSettingsSidePanels
-          groupEditTarget={groupCrud.editTarget}
-          groupPanelItem={groupCrud.panelItem}
-          categoryEditTarget={categoryCrud.editTarget}
-          categoryPanelItem={categoryCrud.panelItem}
-          activeGroups={activeGroups}
-          categoryDefaultGroupId={categoryDefaultGroupId}
-          canDelete={canDelete}
-          canEdit={canEdit}
-          onGroupClose={groupCrud.handleClose}
-          onGroupSave={groupSave.handleSave}
-          onGroupDeleteRequest={handleGroupDeleteRequest}
-          onCategoryClose={categoryCrud.handleClose}
-          onCategorySave={categorySave.handleSave}
-          onCategoryDeleteRequest={handleCategoryDeleteRequest}
-          onDirtyChange={handleDirtyChange}
+          groupEditTarget={s.groupCrud.editTarget}
+          groupPanelItem={s.groupCrud.panelItem}
+          categoryEditTarget={s.categoryCrud.editTarget}
+          categoryPanelItem={s.categoryCrud.panelItem}
+          activeGroups={s.activeGroups}
+          categoryDefaultGroupId={s.categoryDefaultGroupId}
+          canDelete={s.canDelete}
+          canEdit={s.canEdit}
+          onGroupClose={s.groupCrud.handleClose}
+          onGroupSave={s.groupSave.handleSave}
+          onGroupDeleteRequest={s.handleGroupDeleteRequest}
+          onCategoryClose={s.categoryCrud.handleClose}
+          onCategorySave={s.categorySave.handleSave}
+          onCategoryDeleteRequest={s.handleCategoryDeleteRequest}
+          onDirtyChange={s.handleDirtyChange}
         />
       </div>
 
       <ReservationTypeDeleteDialogs
-        pendingGroupDelete={groupCrud.pendingDelete}
-        pendingCategoryDelete={categoryCrud.pendingDelete}
-        onGroupDeleteCancel={groupCrud.handleDeleteCancel}
-        onGroupDeleteConfirm={groupCrud.handleDeleteConfirm}
-        onCategoryDeleteCancel={categoryCrud.handleDeleteCancel}
-        onCategoryDeleteConfirm={categoryCrud.handleDeleteConfirm}
+        pendingGroupDelete={s.groupCrud.pendingDelete}
+        pendingCategoryDelete={s.categoryCrud.pendingDelete}
+        onGroupDeleteCancel={s.groupCrud.handleDeleteCancel}
+        onGroupDeleteConfirm={s.groupCrud.handleDeleteConfirm}
+        onCategoryDeleteCancel={s.categoryCrud.handleDeleteCancel}
+        onCategoryDeleteConfirm={s.categoryCrud.handleDeleteConfirm}
       />
-      {dirty.discardDialog}
+      {s.dirty.discardDialog}
     </>
   );
 }

@@ -1,3 +1,4 @@
+import type { ActiveFilter } from "@/components/shared/PropertyFilter/types";
 import type {
   CreateReservationTypeGroupRequest,
   UpdateReservationTypeGroupRequest,
@@ -20,6 +21,19 @@ export function getActiveReservationTypeGroupOptions(groups: ReservationTypeGrou
 
 export function matchesReservationTypeSearch(item: ReservationType, term: string): boolean {
   return normalizeKana(item.name).toLowerCase().includes(normalizeKana(term).toLowerCase());
+}
+
+export function matchesReservationTypeStatusFilter(
+  item: ReservationType,
+  filters: ActiveFilter[],
+): boolean {
+  for (const f of filters) {
+    if (f.key === "status" && typeof f.value === "string") {
+      const want = f.value === "active";
+      if (f.condition === "is" ? item.isActive !== want : item.isActive === want) return false;
+    }
+  }
+  return true;
 }
 
 export function buildReservationTypeGroupCreateRequest(
