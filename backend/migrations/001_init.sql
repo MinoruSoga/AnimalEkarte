@@ -1,7 +1,7 @@
 -- =============================================================================
 -- Animal Ekarte - 統合スキーマ定義 v23.0 (consolidated)
 -- PostgreSQL 18
--- テーブル数: 108 (旧 001–021 + mig-005〜mig-013 + 取扱説明書テーブル + #81キャンペーンテーブル + 新 005-007 + 増分 005-012 を統合)
+-- テーブル数: 128 (旧 001–021 + mig-005〜mig-013 + 取扱説明書テーブル + #81キャンペーンテーブル + 新 005-007 + 増分 005-012 を統合)
 -- 統合内容:
 --   002: マスタシードデータ
 --   003: デモシードデータ
@@ -4247,6 +4247,13 @@ ALTER TABLE payments
 
 CREATE INDEX idx_payments_clinic_id ON payments (clinic_id);
 
+SELECT app_private.apply_rls_policy(
+    'payments',
+    'tenant_payments_isolation',
+    'app_private.has_clinic_access(clinic_id)',
+    'app_private.has_clinic_access(clinic_id)'
+);
+
 -- =============================================================================
 -- 4. BUG-454: pets owner must belong to the same clinic
 -- =============================================================================
@@ -5718,16 +5725,19 @@ ALTER TABLE medical_record_image_upload_quota
     ON DELETE RESTRICT;
 
 ALTER TABLE appointments
+    ADD CONSTRAINT uq_appointments_id_clinic UNIQUE (id, clinic_id);
+
+ALTER TABLE appointments
     ADD CONSTRAINT fk_appointments_owner_clinic
     FOREIGN KEY (clinic_id, owner_id)
     REFERENCES owners (clinic_id, id)
-    ON DELETE RESTRICT;
+    ON DELETE SET NULL (owner_id);
 
 ALTER TABLE appointments
     ADD CONSTRAINT fk_appointments_pet_clinic
     FOREIGN KEY (clinic_id, pet_id)
     REFERENCES pets (clinic_id, id)
-    ON DELETE RESTRICT;
+    ON DELETE SET NULL (pet_id);
 
 ALTER TABLE appointments
     ADD CONSTRAINT fk_appointments_reservation_type_clinic
@@ -5739,7 +5749,7 @@ ALTER TABLE appointments
     ADD CONSTRAINT fk_appointments_doctor_clinic
     FOREIGN KEY (doctor_id, clinic_id)
     REFERENCES staffs (id, clinic_id)
-    ON DELETE RESTRICT;
+    ON DELETE SET NULL (doctor_id);
 
 ALTER TABLE appointments
     ADD CONSTRAINT fk_appointments_created_by_clinic
@@ -5751,7 +5761,13 @@ ALTER TABLE appointments
     ADD CONSTRAINT fk_appointments_line_customer_clinic
     FOREIGN KEY (line_customer_id, clinic_id)
     REFERENCES line_customers (id, clinic_id)
-    ON DELETE RESTRICT;
+    ON DELETE SET NULL (line_customer_id);
+
+ALTER TABLE appointments
+    DROP CONSTRAINT appointments_owner_id_fkey,
+    DROP CONSTRAINT appointments_pet_id_fkey,
+    DROP CONSTRAINT appointments_doctor_id_fkey,
+    DROP CONSTRAINT appointments_line_customer_id_fkey;
 
 ALTER TABLE hospitalizations
     ADD CONSTRAINT fk_hospitalizations_owner_clinic
@@ -5769,13 +5785,17 @@ ALTER TABLE hospitalizations
     ADD CONSTRAINT fk_hospitalizations_cage_clinic
     FOREIGN KEY (cage_id, clinic_id)
     REFERENCES cages (id, clinic_id)
-    ON DELETE RESTRICT;
+    ON DELETE SET NULL (cage_id);
 
 ALTER TABLE hospitalizations
     ADD CONSTRAINT fk_hospitalizations_doctor_clinic
     FOREIGN KEY (doctor_id, clinic_id)
     REFERENCES staffs (id, clinic_id)
-    ON DELETE RESTRICT;
+    ON DELETE SET NULL (doctor_id);
+
+ALTER TABLE hospitalizations
+    DROP CONSTRAINT hospitalizations_cage_id_fkey,
+    DROP CONSTRAINT hospitalizations_doctor_id_fkey;
 
 ALTER TABLE prescriptions
     ADD CONSTRAINT fk_prescriptions_owner_clinic
@@ -5794,6 +5814,86 @@ ALTER TABLE prescriptions
     FOREIGN KEY (medical_record_id, clinic_id)
     REFERENCES medical_records (id, clinic_id)
     ON DELETE RESTRICT;
+
+ALTER TABLE medical_records
+    DROP CONSTRAINT medical_records_appointment_id_fkey,
+    DROP CONSTRAINT medical_records_doctor_id_fkey,
+    DROP CONSTRAINT medical_records_entered_by_fkey,
+    ADD CONSTRAINT fk_medical_records_appointment_clinic
+        FOREIGN KEY (appointment_id, clinic_id)
+        REFERENCES appointments (id, clinic_id)
+        ON DELETE SET NULL (appointment_id),
+    ADD CONSTRAINT fk_medical_records_doctor_clinic
+        FOREIGN KEY (doctor_id, clinic_id)
+        REFERENCES staffs (id, clinic_id)
+        ON DELETE SET NULL (doctor_id),
+    ADD CONSTRAINT fk_medical_records_entered_by_clinic
+        FOREIGN KEY (entered_by, clinic_id)
+        REFERENCES staffs (id, clinic_id)
+        ON DELETE RESTRICT;
+
+ALTER TABLE appointment_trimming_details
+    ADD CONSTRAINT fk_appointment_trimming_details_appointment_clinic
+        FOREIGN KEY (appointment_id, clinic_id)
+        REFERENCES appointments (id, clinic_id)
+        ON DELETE CASCADE;
+
+-- appointment_trimming_options は CREATE TABLE 時点では clinic_id を持たない。
+-- この ADD COLUMN NOT NULL は 001 の fresh 適用でテーブルが空のときだけ成功する。
+-- トリガーは BEFORE INSERT/UPDATE のみで、既存行の backfill はしない。
+ALTER TABLE appointment_trimming_options
+    ADD COLUMN clinic_id bigint NOT NULL;
+
+ALTER TABLE appointment_trimming_options
+    ADD CONSTRAINT fk_appointment_trimming_options_clinic_id
+    FOREIGN KEY (clinic_id)
+    REFERENCES clinics (id)
+    ON DELETE RESTRICT;
+
+CREATE INDEX idx_appointment_trimming_options_clinic_id
+    ON appointment_trimming_options (clinic_id);
+
+CREATE OR REPLACE FUNCTION app_private.sync_appointment_trimming_options_clinic_id()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    parent_clinic_id bigint;
+BEGIN
+    SELECT appointment.clinic_id
+    INTO parent_clinic_id
+    FROM appointments AS appointment
+    WHERE appointment.id = NEW.appointment_id;
+
+    IF parent_clinic_id IS NULL THEN
+        RAISE EXCEPTION
+            'appointment_trimming_options.appointment_id % has no parent clinic_id',
+            NEW.appointment_id
+            USING ERRCODE = 'foreign_key_violation';
+    END IF;
+
+    NEW.clinic_id := parent_clinic_id;
+    RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER trg_appointment_trimming_options_sync_clinic_id
+    BEFORE INSERT OR UPDATE ON appointment_trimming_options
+    FOR EACH ROW
+    EXECUTE FUNCTION app_private.sync_appointment_trimming_options_clinic_id();
+
+ALTER TABLE appointment_trimming_options
+    ADD CONSTRAINT fk_appointment_trimming_options_appointment_clinic
+        FOREIGN KEY (appointment_id, clinic_id)
+        REFERENCES appointments (id, clinic_id)
+        ON DELETE CASCADE;
+
+SELECT app_private.apply_rls_policy(
+    'appointment_trimming_options',
+    'tenant_appointment_trimming_options_isolation',
+    'app_private.has_clinic_access(clinic_id)',
+    'app_private.has_clinic_access(clinic_id)'
+);
 
 -- =============================================================================
 -- 13. 増分マイグレーション統合 (003 / 004 / 005 / 006 / 2026-08-19)
@@ -6075,6 +6175,13 @@ WHERE billing.id = item.billing_id;
 
 ALTER TABLE billing_items
     ALTER COLUMN clinic_id SET NOT NULL;
+
+ALTER TABLE billing_items
+    DROP CONSTRAINT billing_items_appointment_id_fkey,
+    ADD CONSTRAINT fk_billing_items_appointment_clinic
+        FOREIGN KEY (appointment_id, clinic_id)
+        REFERENCES appointments (id, clinic_id)
+        ON DELETE SET NULL (appointment_id);
 
 ALTER TABLE billing_items
     ADD CONSTRAINT chk_billing_items_provenance_exclusive

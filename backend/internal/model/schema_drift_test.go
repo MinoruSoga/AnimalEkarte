@@ -293,6 +293,10 @@ var knownSchemaDriftAllowlist = map[string]string{
 	// treatments.clinic_id is trigger-copied from medical_records. GORM Treatment has no
 	// ClinicID by design (DB-INIT-SCHEMA-HARDENING); application writes do not set it.
 	"Treatment.clinic_id": "DB-INIT-SCHEMA-HARDENING: trigger-maintained denormalized tenant key; Treatment has no ClinicID",
+
+	// appointment_trimming_options.clinic_id is trigger-copied from appointments. GORM
+	// AppointmentTrimmingOption has no ClinicID so testdb AutoMigrate stays insertable without 001.
+	"AppointmentTrimmingOption.clinic_id": "DB-INIT-SCHEMA-HARDENING: trigger-maintained denormalized tenant key; AppointmentTrimmingOption has no ClinicID",
 }
 
 // knownNullabilityDriftAllowlist は Go=pointer(NULL許容) だが DB=NOT NULL(デフォルト無し) の

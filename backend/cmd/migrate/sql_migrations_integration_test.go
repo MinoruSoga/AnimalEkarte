@@ -113,6 +113,43 @@ WHERE filename NOT LIKE 'seeds/%'`).Scan(&appliedAfterRerun); err != nil {
 	if appliedAfterRerun != len(wantDDL) {
 		t.Fatalf("after rerun DDL keys = %d, want %d", appliedAfterRerun, len(wantDDL))
 	}
+
+	requiredConstraints := []string{
+		"uq_appointments_id_clinic",
+		"fk_medical_records_appointment_clinic",
+		"fk_appointments_owner_clinic",
+		"fk_appointment_trimming_details_appointment_clinic",
+		"fk_appointment_trimming_options_appointment_clinic",
+		"fk_billing_items_appointment_clinic",
+		"excl_appointments_doctor_timerange",
+	}
+	for _, name := range requiredConstraints {
+		var exists bool
+		if err := db.QueryRow(`
+SELECT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname = $1
+)`, name).Scan(&exists); err != nil {
+			t.Fatal(err)
+		}
+		if !exists {
+			t.Fatalf("pg_constraint %s missing after 001 apply", name)
+		}
+	}
+
+	var ownerFkeyStillExists bool
+	if err := db.QueryRow(`
+SELECT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname = 'appointments_owner_id_fkey'
+)`).Scan(&ownerFkeyStillExists); err != nil {
+		t.Fatal(err)
+	}
+	if ownerFkeyStillExists {
+		t.Fatal("appointments_owner_id_fkey must be dropped after composite SET NULL FK")
+	}
 }
 
 var topLevelDDLNamePattern = regexp.MustCompile(`^[0-9]{3}_[a-z0-9_]+\.sql$`)

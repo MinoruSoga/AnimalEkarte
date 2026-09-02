@@ -33,6 +33,10 @@ import (
 //
 // ドメインテーブルの AutoMigrate も EnsureAutoMigrated 経由でモデル型ごとに一度だけに抑える。
 // テスト間データ分離は各ヘルパーの TRUNCATE に依存する。呼び出し側パッケージに t.Parallel() は無い。
+//
+// AutoMigrate does not apply 001_init.sql. Composite FKs, EXCLUDE gist, and trigger-copied
+// clinic_id columns exist only on a migrate-built database. testdb remains a GORM double;
+// those 001 invariants are proven by snippet pins and disposable MIGRATE_SQL_INTEGRATION.
 var (
 	sharedTestDB         *gorm.DB
 	sharedTestDBOnce     sync.Once

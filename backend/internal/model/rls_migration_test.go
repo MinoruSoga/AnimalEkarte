@@ -141,6 +141,48 @@ func TestExamResultsTenantBoundaryScopedViaParentExam(t *testing.T) {
 	}
 }
 
+func TestRLSMigrationTrimmingOptionsUsesFinalDirectClinicBoundary(t *testing.T) {
+	t.Parallel()
+	sql := readMigrationFile(t, "../../migrations/001_init.sql")
+
+	columnAt := strings.LastIndex(sql, "ALTER TABLE appointment_trimming_options\n    ADD COLUMN clinic_id bigint NOT NULL")
+	if columnAt < 0 {
+		t.Fatal("appointment_trimming_options.clinic_id ADD COLUMN missing")
+	}
+	policy := extractFinalRLSPolicyApplication(t, sql, "appointment_trimming_options")
+	if strings.LastIndex(sql, "SELECT app_private.apply_rls_policy(\n    'appointment_trimming_options',") < columnAt {
+		t.Fatal("final appointment_trimming_options RLS policy must be applied after clinic_id exists")
+	}
+	const directClinicScope = "'app_private.has_clinic_access(clinic_id)'"
+	if strings.Count(policy, directClinicScope) != 2 {
+		t.Fatalf("final appointment_trimming_options RLS policy must directly scope USING and WITH CHECK by clinic_id:\n%s", policy)
+	}
+	if strings.Contains(policy, "EXISTS (") {
+		t.Fatalf("final appointment_trimming_options RLS policy must not retain the historical parent-scoped expression:\n%s", policy)
+	}
+}
+
+func TestRLSMigrationPaymentsUsesFinalDirectClinicBoundary(t *testing.T) {
+	t.Parallel()
+	sql := readMigrationFile(t, "../../migrations/001_init.sql")
+
+	columnAt := strings.LastIndex(sql, "ALTER TABLE payments\n    ALTER COLUMN clinic_id SET NOT NULL")
+	if columnAt < 0 {
+		t.Fatal("payments.clinic_id SET NOT NULL missing")
+	}
+	policy := extractFinalRLSPolicyApplication(t, sql, "payments")
+	if strings.LastIndex(sql, "SELECT app_private.apply_rls_policy(\n    'payments',") < columnAt {
+		t.Fatal("final payments RLS policy must be applied after clinic_id is NOT NULL")
+	}
+	const directClinicScope = "'app_private.has_clinic_access(clinic_id)'"
+	if strings.Count(policy, directClinicScope) != 2 {
+		t.Fatalf("final payments RLS policy must directly scope USING and WITH CHECK by clinic_id:\n%s", policy)
+	}
+	if strings.Contains(policy, "EXISTS (") {
+		t.Fatalf("final payments RLS policy must not retain the historical parent-scoped expression:\n%s", policy)
+	}
+}
+
 func TestRLSMigrationExamTypeFieldsUsesFinalDirectClinicBoundary(t *testing.T) {
 	t.Parallel()
 	sql := readMigrationFile(t, "../../migrations/001_init.sql")

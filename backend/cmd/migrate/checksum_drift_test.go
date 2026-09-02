@@ -15,7 +15,7 @@ import (
 	"testing"
 )
 
-const checkedInInitialMigrationSHA256 = "921c88ba86159a501f86abcddd8639fd65dee37f7d9d3f1c811844f7294c6cc5"
+const checkedInInitialMigrationSHA256 = "d792bca4f4d985f1b2acdc7cd9ac0c9af80fe28aa3135712ec70896086c8ba2d"
 
 type failClosedDriver struct{ state *failClosedDriverState }
 type failClosedDriverState struct {
@@ -81,6 +81,7 @@ func TestCheckedInInitialMigrationChecksum(t *testing.T) {
 
 func TestKnownOldChecksumsToCheckedInMigrationFailClosedWithoutCompanionDDLOrCAS(t *testing.T) {
 	oldChecksums := []string{
+		"921c88ba86159a501f86abcddd8639fd65dee37f7d9d3f1c811844f7294c6cc5",
 		"6b618736ca0dba65408b7bf2a6d5d8c607f12c3adf1c544321d17f3004b62fcb",
 		"aa30c742a20d4a9fa7a9d323cfa0314d4c83bec57712f7984228c4451c089691",
 		"28e954b32fd606a122e0cb29815ea277f8a96cb0966208f39e6fe69dd8cb9c4e",

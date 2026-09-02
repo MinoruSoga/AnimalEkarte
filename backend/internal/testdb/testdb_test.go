@@ -6,11 +6,28 @@ package testdb
 import (
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
+	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
+
+func TestAutoMigrateDoesNotClaimInitParity(t *testing.T) {
+	t.Parallel()
+
+	_, thisFile, _, ok := runtime.Caller(0)
+	require.True(t, ok)
+	raw, err := os.ReadFile(filepath.Join(filepath.Dir(thisFile), "testdb.go"))
+	require.NoError(t, err)
+	source := string(raw)
+	require.Contains(t, source, "AutoMigrate does not apply 001_init.sql")
+	require.NotContains(t, strings.ToLower(source), "apply 001_init.sql to testdb")
+}
 
 func TestQuotePostgresIdentifier(t *testing.T) {
 	tests := []struct {

@@ -16,6 +16,7 @@ func TestTenantGraphFKMigrationsPinRequiredSnippets(t *testing.T) {
 		"ADD CONSTRAINT uq_consultations_id_clinic UNIQUE (id, clinic_id)",
 		"ADD CONSTRAINT uq_procedures_id_clinic UNIQUE (id, clinic_id)",
 		"ADD CONSTRAINT uq_inventory_items_id_clinic UNIQUE (id, clinic_id)",
+		"ADD CONSTRAINT uq_appointments_id_clinic UNIQUE (id, clinic_id)",
 		"ADD CONSTRAINT fk_appointments_owner_clinic",
 		"ADD CONSTRAINT fk_appointments_pet_clinic",
 		"ADD CONSTRAINT fk_appointments_reservation_type_clinic",
@@ -29,14 +30,39 @@ func TestTenantGraphFKMigrationsPinRequiredSnippets(t *testing.T) {
 		"ADD CONSTRAINT fk_prescriptions_owner_clinic",
 		"ADD CONSTRAINT fk_prescriptions_pet_clinic",
 		"ADD CONSTRAINT fk_prescriptions_medical_record_clinic",
+		"ADD CONSTRAINT fk_medical_records_appointment_clinic",
+		"ADD CONSTRAINT fk_medical_records_doctor_clinic",
+		"ADD CONSTRAINT fk_medical_records_entered_by_clinic",
+		"ADD CONSTRAINT fk_appointment_trimming_details_appointment_clinic",
+		"ADD CONSTRAINT fk_appointment_trimming_options_appointment_clinic",
+		"FOREIGN KEY (appointment_id, clinic_id)\n        REFERENCES appointments (id, clinic_id)\n        ON DELETE CASCADE",
+		"ADD CONSTRAINT fk_billing_items_appointment_clinic",
 		"FOREIGN KEY (clinic_id, owner_id)\n    REFERENCES owners (clinic_id, id)\n    ON DELETE RESTRICT",
 		"FOREIGN KEY (clinic_id, pet_id)\n    REFERENCES pets (clinic_id, id)\n    ON DELETE RESTRICT",
 		"FOREIGN KEY (reservation_type_id, clinic_id)\n    REFERENCES reservation_types (id, clinic_id)\n    ON DELETE RESTRICT",
-		"FOREIGN KEY (doctor_id, clinic_id)\n    REFERENCES staffs (id, clinic_id)\n    ON DELETE RESTRICT",
 		"FOREIGN KEY (created_by, clinic_id)\n    REFERENCES staffs (id, clinic_id)\n    ON DELETE RESTRICT",
-		"FOREIGN KEY (line_customer_id, clinic_id)\n    REFERENCES line_customers (id, clinic_id)\n    ON DELETE RESTRICT",
-		"FOREIGN KEY (cage_id, clinic_id)\n    REFERENCES cages (id, clinic_id)\n    ON DELETE RESTRICT",
 		"FOREIGN KEY (medical_record_id, clinic_id)\n    REFERENCES medical_records (id, clinic_id)\n    ON DELETE RESTRICT",
+		"ON DELETE SET NULL (owner_id)",
+		"ON DELETE SET NULL (pet_id)",
+		"ON DELETE SET NULL (doctor_id)",
+		"ON DELETE SET NULL (line_customer_id)",
+		"ON DELETE SET NULL (cage_id)",
+		"ON DELETE SET NULL (appointment_id)",
+		"DROP CONSTRAINT appointments_owner_id_fkey",
+		"DROP CONSTRAINT appointments_pet_id_fkey",
+		"DROP CONSTRAINT appointments_doctor_id_fkey",
+		"DROP CONSTRAINT appointments_line_customer_id_fkey",
+		"DROP CONSTRAINT hospitalizations_cage_id_fkey",
+		"DROP CONSTRAINT hospitalizations_doctor_id_fkey",
+		"DROP CONSTRAINT medical_records_appointment_id_fkey",
+		"DROP CONSTRAINT medical_records_doctor_id_fkey",
+		"DROP CONSTRAINT medical_records_entered_by_fkey",
+		"DROP CONSTRAINT billing_items_appointment_id_fkey",
+		"ALTER TABLE appointment_trimming_options\n    ADD COLUMN clinic_id bigint NOT NULL",
+		"EXECUTE FUNCTION app_private.sync_appointment_trimming_options_clinic_id()",
+		"SELECT app_private.apply_rls_policy(\n    'appointment_trimming_options',\n    'tenant_appointment_trimming_options_isolation',\n    'app_private.has_clinic_access(clinic_id)',\n    'app_private.has_clinic_access(clinic_id)'\n)",
+		"SELECT app_private.apply_rls_policy(\n    'payments',\n    'tenant_payments_isolation',\n    'app_private.has_clinic_access(clinic_id)',\n    'app_private.has_clinic_access(clinic_id)'\n)",
+		"-- テーブル数: 128",
 		"CREATE UNIQUE INDEX uq_medical_records_clinic_appointment_active",
 		"ON medical_records (clinic_id, appointment_id)",
 		"WHERE appointment_id IS NOT NULL AND deleted_at IS NULL",
@@ -108,6 +134,15 @@ func TestTenantGraphFKMigrationsKeepExistingSingleColumnFKsAndRejectCascade(t *t
 	}
 	if strings.Contains(sql, "ADD CONSTRAINT chk_billing_items_provenance_clinic_pair") {
 		t.Fatal("001 must use chk_billing_items_provenance_exclusive, not provenance_clinic_pair")
+	}
+
+	dropOwner := strings.LastIndex(sql, "DROP CONSTRAINT appointments_owner_id_fkey")
+	addOwner := strings.LastIndex(sql, "ADD CONSTRAINT fk_appointments_owner_clinic")
+	if dropOwner < 0 || addOwner < 0 || dropOwner < addOwner {
+		t.Fatal("appointments_owner_id_fkey must be dropped after fk_appointments_owner_clinic is added")
+	}
+	if lastSET := strings.LastIndex(sql, "ON DELETE SET NULL (owner_id)"); lastSET < 0 || lastSET < addOwner {
+		t.Fatal("fk_appointments_owner_clinic must use ON DELETE SET NULL (owner_id)")
 	}
 
 	for _, line := range strings.Split(sql, "\n") {
