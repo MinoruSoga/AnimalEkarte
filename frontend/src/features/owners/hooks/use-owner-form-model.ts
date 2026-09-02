@@ -11,7 +11,7 @@ type CreateOwnerPetRequestWithDangerReason = CreateOwnerPetRequest & {
   danger_reason?: string;
 };
 
-export const MEMBERSHIP_TYPE_TO_API: Record<string, string> = {
+const MEMBERSHIP_TYPE_TO_API: Record<string, string> = {
   "非会員": "non_member",
   "会員": "member",
   "退亡者": "deceased",
@@ -105,7 +105,7 @@ export function mapOwnerPetsToFormData(owner: Owner): PetFormData[] {
   }));
 }
 
-export function mapPendingPetToCreateRequest(
+function mapPendingPetToCreateRequest(
   pet: PetFormData & { animalSpeciesId: string },
 ): CreateOwnerPetRequestWithDangerReason {
   const request = transformCreatePetRequest({
@@ -179,7 +179,7 @@ export function validateOwnerForm(ownerData: OwnerData): Record<string, string> 
   return errors;
 }
 
-export function buildOwnerRequestPayload(ownerData: OwnerData) {
+function buildOwnerRequestPayload(ownerData: OwnerData) {
   return {
     owner_name: ownerData.ownerName,
     owner_name_kana: ownerData.ownerNameKana || undefined,

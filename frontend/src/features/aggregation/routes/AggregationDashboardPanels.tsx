@@ -32,7 +32,7 @@ interface AggregationDashboardViewProps {
   onExportCsv: () => void;
 }
 
-export function AggregationDashboardHeaderAction({
+function AggregationDashboardHeaderAction({
   isLoading,
   selectedCount,
   onExportCsv,

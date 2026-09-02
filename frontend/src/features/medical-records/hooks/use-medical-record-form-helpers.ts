@@ -22,11 +22,15 @@ import {
   resolveEntityReadResult,
   type EntityReadResult,
 } from "@/lib/entity-read-result";
+import type { ActionState } from "@/types/form";
 import type { MedicalRecord } from "../api/transforms";
 import type { Pet } from "@/types";
 import type { Reservation } from "@/lib/transforms/reservation";
 import { isMedicalRecordFinalizedStatus } from "../lib/medical-record-lock";
 import type { useMedicalRecordDiagnosisState } from "./use-medical-record-diagnosis-state";
+import type { useMedicalRecordAutoCreate } from "./use-medical-record-auto-create";
+import type { useMedicalRecordOwnerChange } from "./use-medical-record-owner-change";
+import type { useMedicalRecordQuickPatchActions } from "./use-medical-record-quick-patch-actions";
 import { paths } from "@/config/paths";
 
 export function selectCohabitingPets(pets: Pet[], selectedPet: Pet): Pet[] {
@@ -37,7 +41,7 @@ export function selectCohabitingPets(pets: Pet[], selectedPet: Pet): Pet[] {
   );
 }
 
-export function selectReusableGeneralAppointment(
+function selectReusableGeneralAppointment(
   appointments: readonly Reservation[],
 ): Reservation | undefined {
   return appointments.find((appointment) =>
@@ -234,16 +238,16 @@ export function toMedicalRecordFormResult(input: {
   setCreateRecommendationReason: ReturnType<typeof useMedicalRecordDiagnosisState>["setCreateRecommendationReason"];
   handleBack: () => void;
   formAction: (payload: FormData) => void;
-  formState: unknown;
+  formState: ActionState;
   isSaving: boolean;
   isSavingTransition: boolean;
-  handleChangeDoctor: unknown;
-  handleVisitTypeChange: unknown;
-  handleNextVisitDatePatch: unknown;
-  handleChangeDate: unknown;
-  handleFinalize: unknown;
-  ownerChange: object;
-  autoCreate: { failurePhase: unknown; retry: unknown };
+  handleChangeDoctor: ReturnType<typeof useMedicalRecordQuickPatchActions>["handleChangeDoctor"];
+  handleVisitTypeChange: ReturnType<typeof useMedicalRecordQuickPatchActions>["handleVisitTypeChange"];
+  handleNextVisitDatePatch: ReturnType<typeof useMedicalRecordQuickPatchActions>["handleNextVisitDatePatch"];
+  handleChangeDate: ReturnType<typeof useMedicalRecordQuickPatchActions>["handleChangeDate"];
+  handleFinalize: ReturnType<typeof useMedicalRecordQuickPatchActions>["handleFinalize"];
+  ownerChange: ReturnType<typeof useMedicalRecordOwnerChange>;
+  autoCreate: ReturnType<typeof useMedicalRecordAutoCreate>;
 }) {
   return {
     isNewRecord: input.isNewRecord,

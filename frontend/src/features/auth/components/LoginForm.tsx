@@ -151,7 +151,7 @@ export const LoginForm = memo(function LoginForm() {
           password={password}
           showPassword={showPassword}
           isPending={isPending}
-          error={formState.error}
+          error={formState.error ?? null}
           onEmailChange={handleEmailChange}
           onPasswordChange={handlePasswordChange}
           onTogglePassword={() => setShowPassword((prev) => !prev)}

@@ -200,7 +200,7 @@ export function createEmptyTreatmentPlan(): HospitalizationTreatmentPlan {
  * UI treatment plan → POST /hospitalizations/:id/treatment-plans body.
  * Empty treatmentContent rows are not persistable (BE requires content).
  */
-export function buildCreateTreatmentPlanRequest(
+function buildCreateTreatmentPlanRequest(
   plan: HospitalizationTreatmentPlan,
   sortOrder: number,
 ): {

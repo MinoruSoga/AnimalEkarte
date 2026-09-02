@@ -35,7 +35,7 @@ const SPECIES_LABEL: Record<MedicineDoseSpecies, string> = {
   [MedicineDoseSpeciesCat]: "猫",
 };
 
-export type MedicineDoseParamDraft = {
+type MedicineDoseParamDraft = {
   species: MedicineDoseSpecies;
   input: ReturnType<typeof buildUpsertDoseParamRequest>;
 };

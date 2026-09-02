@@ -28,12 +28,12 @@ import {
   createExaminationDeleteHandler,
   createExaminationUnconfirmHandler,
   runExaminationSave,
-  toExaminationFormView,
   useExaminationFormItems,
   useExaminationFormLoad,
   useExaminationFormOverrides,
   useExaminationFormPetSync,
 } from "./use-examination-form-helpers";
+import { isNonDisclosureReadStatus } from "@/lib/entity-read-result";
 
 export function useExaminationForm(
   id?: string,
@@ -150,35 +150,50 @@ export function useExaminationForm(
 
   useExaminationFormPetSync({ isEdit, petId, mutationPet, isPetLoading, setSelectedPets });
 
-  const handleUnconfirm = useCallback(
-    createExaminationUnconfirmHandler({
+  const handleUnconfirm = useCallback((rawReason: string) => {
+    return createExaminationUnconfirmHandler({
       isEdit, id, isMutationAllowed,
       isPersistedConfirmed: () => isPersistedConfirmedRef.current,
       unconfirm: (vars) => unconfirmMutation.mutateAsync(vars),
-    }),
-    [id, isEdit, isMutationAllowed, unconfirmMutation],
-  );
-  const handleDelete = useCallback(
+    })(rawReason);
+  }, [id, isEdit, isMutationAllowed, unconfirmMutation]);
+  const handleDelete = useCallback((onSuccess?: () => void) => {
     createExaminationDeleteHandler({
       isEdit, id, isMutationAllowed, isPetExplicitlyDeceased, startDeleteTransition,
       isResultsLocked: () => isPersistedResultsLockedRef.current,
       deleteExamination: (examinationId, opts) => deleteMutation.mutate(examinationId, opts),
-    }),
-    [isEdit, id, isMutationAllowed, isPetExplicitlyDeceased, deleteMutation, startDeleteTransition],
-  );
+    })(onSuccess);
+  }, [isEdit, id, isMutationAllowed, isPetExplicitlyDeceased, deleteMutation, startDeleteTransition]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- ActionState errors → form field display
     setManualFieldErrors(formState.fieldErrors || {});
   }, [formState.fieldErrors, formState.timestamp, setManualFieldErrors]);
 
-  return toExaminationFormView({
-    formDataWithPet, setFormData, petSelection,
-    formAction, formState, manualFieldErrors,
-    handleDelete, isEdit, entityRead, isPending,
+  const lockFlags = deriveExaminationLockFlags(isEdit, existingExam);
+  return {
+    formData: formDataWithPet,
+    setFormData,
+    petSelection,
+    formAction,
+    formState,
+    fieldErrors: manualFieldErrors,
+    handleDelete,
+    isEdit,
+    entityRead,
+    isReadLoading: entityRead.status === "loading",
+    isReadNotFound: isNonDisclosureReadStatus(entityRead.status),
+    isReadError: entityRead.status === "error",
+    retryRead: entityRead.status === "error" ? entityRead.retry : undefined,
+    isSaving: isPending,
     isDeleting: deleteMutation.isPending || isDeleteTransitionPending,
-    handleUnconfirm, isUnconfirming: unconfirmMutation.isPending,
-    lockFlags: deriveExaminationLockFlags(isEdit, existingExam),
-    isPatientChangeLocked, items,
-  });
+    handleUnconfirm,
+    isUnconfirming: unconfirmMutation.isPending,
+    ...lockFlags,
+    isPatientChangeLocked,
+    formItems: items.visibleFormItems,
+    setInspectionValue: items.setInspectionValue,
+    addManualItem: items.addManualItem,
+    removeItem: items.removeItem,
+    setItemName: items.setItemName,
+  };
 }

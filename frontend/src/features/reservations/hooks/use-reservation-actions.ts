@@ -23,7 +23,7 @@ import type {
 } from "../types";
 
 /** 詳細モーダルからの破壊的 status 変更（確認ダイアログ対象）。BUG-020 */
-export const DESTRUCTIVE_RESERVATION_STATUSES: readonly ReservationStatus[] = [
+const DESTRUCTIVE_RESERVATION_STATUSES: readonly ReservationStatus[] = [
   "cancelled",
   "no_show",
 ] as const;

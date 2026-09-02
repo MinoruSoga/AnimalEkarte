@@ -5,7 +5,7 @@ import { handleApiError } from "@/lib/handle-api-error";
 import { queryKeys } from "@/lib/query-keys";
 import { QUERY_GC_TIMES, QUERY_STALE_TIMES } from "@/lib/react-query";
 
-export type LabDeviceItemMasterResponse = {
+type LabDeviceItemMasterResponse = {
   id: number;
   source_type: string;
   device_item_code: string;
@@ -16,7 +16,7 @@ export type LabDeviceItemMasterResponse = {
   is_active: boolean;
 };
 
-export type LabDeviceItemMasterEnsureApiResponse = {
+type LabDeviceItemMasterEnsureApiResponse = {
   inserted_count: number;
   items: LabDeviceItemMasterResponse[];
 };
@@ -65,17 +65,6 @@ const ensureLabDeviceItemMasters = async (): Promise<{
   };
 };
 
-const updateLabDeviceItemMaster = async (
-  id: string,
-  req: UpdateLabDeviceItemMasterRequest,
-): Promise<LabDeviceItemMaster> => {
-  const { data } = await axios.patch<LabDeviceItemMasterResponse>(
-    `/v1/lab-device-item-masters/${id}`,
-    req,
-  );
-  return transformLabDeviceItemMaster(data);
-};
-
 export const useGetLabDeviceItemMasters = () =>
   useQuery({
     queryKey,
@@ -93,17 +82,5 @@ export const useEnsureLabDeviceItemMasters = () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("lab-devices") });
     },
     onError: (error) => handleApiError(error, "既定項目の投入"),
-  });
-};
-
-export const useUpdateLabDeviceItemMaster = () => {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, req }: { id: string; req: UpdateLabDeviceItemMasterRequest }) =>
-      updateLabDeviceItemMaster(id, req),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey });
-    },
-    onError: (error) => handleApiError(error, "更新"),
   });
 };

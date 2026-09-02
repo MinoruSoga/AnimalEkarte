@@ -78,7 +78,7 @@ export function summarizeCategoryTotals(raw: unknown): CategorySubtotal[] {
  * DEC-40: snapshot から unclassified_other_count を安全に取り出す。
  * recorded=false は旧データ（フィールド欠落）→ UI は「記録なし」（0 扱いにしない）。
  */
-export function extractUnclassifiedOtherCount(raw: unknown): {
+function extractUnclassifiedOtherCount(raw: unknown): {
   recorded: boolean;
   count: number;
 } {

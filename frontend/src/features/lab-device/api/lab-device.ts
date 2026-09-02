@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { queryKeys } from "@/lib/query-keys";
 
-export interface LabDeviceJobItem {
+interface LabDeviceJobItem {
   deviceItemCode: string;
   valueRaw: string;
   unit: string;
@@ -38,7 +38,7 @@ export interface LabDeviceWait {
   expiresAt: string;
 }
 
-export interface LabDeviceStation {
+interface LabDeviceStation {
   waitTtlSeconds: number;
   slotsJson: string;
 }
@@ -54,7 +54,7 @@ export interface LabDeviceTodayVisit {
   petIsDeceased?: boolean;
 }
 
-export interface LabDeviceBoard {
+interface LabDeviceBoard {
   wait: LabDeviceWait | null;
   unlinked: LabDeviceJobCard[];
   saved: LabDeviceJobCard[];
@@ -63,7 +63,7 @@ export interface LabDeviceBoard {
   station: LabDeviceStation;
 }
 
-export type LabDeviceSlotParity = "none" | "even" | "odd";
+type LabDeviceSlotParity = "none" | "even" | "odd";
 
 export interface LabDeviceSlot {
   key: string;

@@ -25,7 +25,7 @@ export interface CreateReservationRequest {
   reservation_route?: ReservationRoute;
 }
 
-export interface CreateReservationBatchRequest extends Omit<CreateReservationRequest, "pet_id" | "owner_id"> {
+interface CreateReservationBatchRequest extends Omit<CreateReservationRequest, "pet_id" | "owner_id"> {
   pets: { owner_id: number; pet_id: number }[];
 }
 

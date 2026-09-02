@@ -65,21 +65,21 @@ export function ShiftTemplateSettings() {
       setSelectedItem(null);
       setIsEditing(true);
     });
-  }, [canCreate, dirty.runWithDiscardCheck]);
+  }, [canCreate, dirty]);
 
   const handleEdit = useCallback((item: ShiftTemplate) => {
     dirty.runWithDiscardCheck(() => {
       setSelectedItem(item);
       setIsEditing(true);
     });
-  }, [dirty.runWithDiscardCheck]);
+  }, [dirty]);
 
   const handleClose = useCallback(() => {
     dirty.runWithDiscardCheck(() => {
       setIsEditing(false);
       setSelectedItem(null);
     });
-  }, [dirty.runWithDiscardCheck]);
+  }, [dirty]);
 
   const handleSave = useCallback((formData: TemplateFormData) => {
     const canSave = selectedItem !== null ? canEdit : canCreate;

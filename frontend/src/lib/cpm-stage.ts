@@ -32,7 +32,7 @@ export const CPM_STAGE_OPTIONS: readonly CPMStageOption[] = [
 ] as const;
 
 // 短縮ラベル（一覧バッジ・人数サマリーチップ用）。
-export const CPM_STAGE_SHORT_LABELS: Record<CPMStage, string> = {
+const CPM_STAGE_SHORT_LABELS: Record<CPMStage, string> = {
   cpm_encounter: "Encounter",
   cpm_growing: "Growing",
   cpm_core: "Core",
@@ -56,6 +56,3 @@ export const AGGREGATION_CPM_STAGE_SHORT_LABELS: Record<AggregationCPMStage, str
 
 export const AGGREGATION_CPM_STAGES: readonly AggregationCPMStage[] =
   AGGREGATION_CPM_STAGE_OPTIONS.map((o) => o.value);
-
-// CPMStage 値域の配列（反復・網羅処理用）。OPTIONS から導出して定義の二重化を防ぐ。
-export const CPM_STAGES: readonly CPMStage[] = CPM_STAGE_OPTIONS.map((o) => o.value);

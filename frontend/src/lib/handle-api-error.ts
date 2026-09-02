@@ -11,7 +11,7 @@ export const CONFLICT_CODE_SHIFT_TEMPLATE_NAME =
 export const CONFLICT_CODE_LSTEP_AUTO_MANAGED_PREFIX =
   "lstep_auto_managed_prefix_conflict" as const;
 export const CONFLICT_CODE_CAGE_NAME = "cage_name_conflict" as const;
-export const CONFLICT_CODE_OCCUPATION_NAME = "occupation_name_conflict" as const;
+const CONFLICT_CODE_OCCUPATION_NAME = "occupation_name_conflict" as const;
 export const CONFLICT_CODE_CONSULTATION_NAME = "consultation_name_conflict" as const;
 export const CONFLICT_CODE_EXAM_TYPE_NAME = "exam_type_name_conflict" as const;
 export const CONFLICT_CODE_PROCEDURE_NAME = "procedure_name_conflict" as const;

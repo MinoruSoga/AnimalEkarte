@@ -5,7 +5,7 @@ import type {
 
 export const QUALITATIVE_VALUES = ["(-)", "(±)", "(+)", "(++)", "(+++)"] as const;
 
-export type ReferenceRangeMode = "numeric" | "qualitative";
+type ReferenceRangeMode = "numeric" | "qualitative";
 
 export interface ReferenceRangeDraft {
   animalSpeciesId: string;
@@ -16,7 +16,7 @@ export interface ReferenceRangeDraft {
   qualitativeMax?: string;
 }
 
-export function normalizeQualitativeValue(value: string): string {
+function normalizeQualitativeValue(value: string): string {
   return value
     .replaceAll(/\s/g, "")
     .replaceAll("（", "(")

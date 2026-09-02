@@ -146,14 +146,13 @@ export function useTrimmingForm(id?: string) {
     setSelectedPets,
   });
 
-  const handleDelete = useCallback(
+  const handleDelete = useCallback((onSuccess?: () => void) => {
     createTrimmingDeleteHandler({
       isEdit,
       id,
       deleteTrimming: (trimmingId, opts) => deleteMutation.mutate(trimmingId, opts),
-    }),
-    [isEdit, id, deleteMutation],
-  );
+    })(onSuccess);
+  }, [isEdit, id, deleteMutation]);
 
   return {
     mode: isEdit ? ("edit" as const) : ("new" as const),

@@ -3,7 +3,7 @@ import type { MedicineCalculationType, MedicineDoseSpecies, TaxType } from "@/ty
 import { MedicineCalculationTypeNone } from "@/types/generated/models";
 import type { UpsertMedicineDoseParamRequest } from "../api/medicine-dose-params";
 
-export type DoseParamDraft = {
+type DoseParamDraft = {
   species: MedicineDoseSpecies;
   input: UpsertMedicineDoseParamRequest;
 };

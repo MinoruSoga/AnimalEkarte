@@ -204,7 +204,7 @@ export function MedicalRecords() {
       columns={COLUMNS}
       records={records}
       showClinicColumn={showClinicColumn}
-      currentClinicId={currentClinicId}
+      currentClinicId={currentClinicId ?? undefined}
       clinicNameById={clinicNameById}
       canViewAccounting={canViewAccounting}
       canEdit={canEdit}

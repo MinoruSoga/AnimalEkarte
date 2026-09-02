@@ -15,7 +15,7 @@ import { useAnimalSpecies } from "@/hooks/use-animal-species";
 
 import { ALL_SPECIES_VALUE, TEXT_FIELDS, type PatientSearchParams } from "./patient-selection-table-model";
 
-export function SpeciesSelectField({
+function SpeciesSelectField({
   value,
   onChange,
 }: {

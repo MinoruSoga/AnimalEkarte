@@ -51,7 +51,7 @@ export function useMedicineSettings() {
 
   const dirtyGuard = useMemo(
     () => ({ runWithDiscardCheck: dirty.runWithDiscardCheck }),
-    [dirty.runWithDiscardCheck],
+    [dirty],
   );
 
   const medicineCrud = useMasterCRUD<Medicine>({

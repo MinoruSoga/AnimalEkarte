@@ -12,7 +12,7 @@ import { CONDITIONS_WITH_EMPTY } from "@/components/shared/PropertyFilter/types"
 import type { VaccinationFilters } from "../api/get-vaccinations";
 import type { VaccinationRecord } from "@/types";
 
-export const STATIC_FILTER_PROPERTIES: FilterProperty[] = [
+const STATIC_FILTER_PROPERTIES: FilterProperty[] = [
   {
     key: "date",
     label: "日付",
@@ -61,8 +61,8 @@ export function nextListSearchParamsWithPage(
   return next;
 }
 
-export const VACCINATION_LIST_CHART_TAB = "予防接種";
-export const VACCINATION_LIST_ID_PARAM = "vaccinationId";
+const VACCINATION_LIST_CHART_TAB = "予防接種";
+const VACCINATION_LIST_ID_PARAM = "vaccinationId";
 
 export function vaccinationListDetailHref(input: {
   id: string;

@@ -18,13 +18,6 @@ type UpdatePetRequestWithDangerReason = Omit<UpdatePetRequest, "danger_reason"> 
   danger_reason?: string | null;
 };
 
-// #266: pets 一覧のペット行粒度化 (features/owners/loaders.ts) が同じ status マッピングを
-// 必要とするため export する（挙動変更なし）。
-export const PET_STATUS_MAP: Partial<Record<string, "生存" | "死亡">> = {
-  alive: "生存",
-  deceased: "死亡",
-};
-
 export type PetStatusLabel = "生存" | "死亡" | "不明";
 
 /** API境界の未知・欠損statusを生存へ推測せず、臨床操作をfail-closedにする。 */

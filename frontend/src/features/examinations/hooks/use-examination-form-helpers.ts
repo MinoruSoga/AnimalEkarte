@@ -14,7 +14,6 @@ import { useGetExamination } from "../api/get-examination";
 import { useGetExaminationItems } from "../api/get-examination-items";
 import { useGetPet } from "@/hooks/use-pet";
 import {
-  isNonDisclosureReadStatus,
   resolveEntityReadResult,
   type EntityReadResult,
 } from "@/lib/entity-read-result";
@@ -87,7 +86,7 @@ export function useExaminationFormOverrides(id: string | undefined) {
   };
 }
 
-export function useExaminationFormItemEffects(input: {
+function useExaminationFormItemEffects(input: {
   id: string | undefined;
   isEdit: boolean;
   existingItems: ExamResult[] | undefined;
@@ -124,7 +123,6 @@ export function useExaminationFormItemEffects(input: {
     }
   }, [existingItemsQuerySucceeded, id, isEdit, itemsReadyForIDRef]);
 
-  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (!isEdit || formItemsExamIDRef.current === id) return;
     formItemsExamIDRef.current = id;
@@ -220,7 +218,6 @@ export function useExaminationFormItemEffects(input: {
     setFormItems(buildRowsFromTemplate(examTypeFields));
     newModeInitializedRef.current = true;
   }, [isEdit, currentTestTypeId, examTypeFields, id, setFormItems, setFormItemsOwnerID]);
-  /* eslint-enable react-hooks/set-state-in-effect */
 }
 
 export function useExaminationFormItems(input: {
@@ -518,57 +515,5 @@ export function useExaminationFormLoad(id: string | undefined, isEdit: boolean, 
     isPetLoading,
     existingItems,
     existingItemsQuerySucceeded,
-  };
-}
-
-export function toExaminationFormView(input: {
-  formDataWithPet: Partial<ExaminationRecord>;
-  setFormData: (next: Partial<ExaminationRecord>) => void;
-  petSelection: ReturnType<typeof import("@/hooks/use-pet-selection").usePetSelection>;
-  formAction: (payload: FormData) => void;
-  formState: ActionState;
-  manualFieldErrors: Record<string, string>;
-  handleDelete: (onSuccess?: () => void) => void;
-  isEdit: boolean;
-  entityRead: EntityReadResult<ExaminationRecord>;
-  isPending: boolean;
-  isDeleting: boolean;
-  handleUnconfirm: (rawReason: string) => Promise<boolean>;
-  isUnconfirming: boolean;
-  lockFlags: ReturnType<typeof import("./use-examination-form-model").deriveExaminationLockFlags>;
-  isPatientChangeLocked: boolean;
-  items: {
-    visibleFormItems: ExamItemRow[];
-    setInspectionValue: (key: string, value: string) => void;
-    addManualItem: () => void;
-    removeItem: (key: string) => void;
-    setItemName: (key: string, value: string) => void;
-  };
-}) {
-  return {
-    formData: input.formDataWithPet,
-    setFormData: input.setFormData,
-    petSelection: input.petSelection,
-    formAction: input.formAction,
-    formState: input.formState,
-    fieldErrors: input.manualFieldErrors,
-    handleDelete: input.handleDelete,
-    isEdit: input.isEdit,
-    entityRead: input.entityRead,
-    isReadLoading: input.entityRead.status === "loading",
-    isReadNotFound: isNonDisclosureReadStatus(input.entityRead.status),
-    isReadError: input.entityRead.status === "error",
-    retryRead: input.entityRead.status === "error" ? input.entityRead.retry : undefined,
-    isSaving: input.isPending,
-    isDeleting: input.isDeleting,
-    handleUnconfirm: input.handleUnconfirm,
-    isUnconfirming: input.isUnconfirming,
-    ...input.lockFlags,
-    isPatientChangeLocked: input.isPatientChangeLocked,
-    formItems: input.items.visibleFormItems,
-    setInspectionValue: input.items.setInspectionValue,
-    addManualItem: input.items.addManualItem,
-    removeItem: input.items.removeItem,
-    setItemName: input.items.setItemName,
   };
 }

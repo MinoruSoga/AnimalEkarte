@@ -14,7 +14,7 @@ export const LAB_DEVICE_EXAM_SELECT_UNSET = "__unset__";
 export const LAB_DEVICE_EXAM_UNSET = "未設定";
 export const LAB_DEVICE_EXAM_MIXED = "複数の検査";
 
-export const LAB_DEVICE_SOURCE_ORDER = [
+const LAB_DEVICE_SOURCE_ORDER = [
   "fuji_nx600",
   "fuji_au10v",
   "arkray_pu4010",
@@ -335,7 +335,7 @@ export function groupLabDeviceItemMasters(
   return [...known, ...extras];
 }
 
-export function examTypeName(
+function examTypeName(
   examTypeId: string | null,
   examTypes: ExaminationTypeMaster[] | undefined,
 ): string | null {
@@ -363,7 +363,7 @@ export function parseExamTypeSelectValue(value: string): string | null {
   return value === "" || value === LAB_DEVICE_EXAM_SELECT_UNSET ? null : value;
 }
 
-export function defaultLabDeviceSortOrder(sourceType: string): number {
+function defaultLabDeviceSortOrder(sourceType: string): number {
   const index = LAB_DEVICE_SOURCE_ORDER.indexOf(sourceType as (typeof LAB_DEVICE_SOURCE_ORDER)[number]);
   return index === -1 ? 100 : (index + 1) * 10;
 }
@@ -495,7 +495,7 @@ export function itemToLabDeviceDraft(item: LabDeviceItemMaster): LabDeviceItemDr
   };
 }
 
-export function isLabDeviceItemDraftDirty(item: LabDeviceItemMaster, draft: LabDeviceItemDraft): boolean {
+function isLabDeviceItemDraftDirty(item: LabDeviceItemMaster, draft: LabDeviceItemDraft): boolean {
   return item.examTypeFieldId !== draft.examTypeFieldId
     || item.isActive !== draft.isActive;
 }

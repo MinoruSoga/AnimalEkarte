@@ -28,9 +28,9 @@ export function buildMedicalRecordsFilterProperties(
 
 export const PAGE_SIZE = 20;
 
-export const SERVER_EQUALITY_ONLY: FilterCondition[] = ["is"];
+const SERVER_EQUALITY_ONLY: FilterCondition[] = ["is"];
 
-export const STATIC_FILTER_PROPERTIES: FilterProperty[] = [
+const STATIC_FILTER_PROPERTIES: FilterProperty[] = [
   {
     key: "date",
     label: "診療日",

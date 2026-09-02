@@ -82,7 +82,7 @@ export function DiagnosisSettings() {
       catSetEditTarget(null);
       nameSetEditTarget(null);
     });
-  }, [setSearchParams, catSetEditTarget, nameSetEditTarget, dirty.runWithDiscardCheck]);
+  }, [setSearchParams, catSetEditTarget, nameSetEditTarget, dirty]);
 
   const handleNew = useCallback(() => {
     if (activeTab === "diagnosis_type") catCrud.handleNew();

@@ -1,16 +1,9 @@
 import { formatJSTDate } from "@/lib/jst-date";
 
-export { formatJSTDate };
-
+export { formatJSTDate }
 export const DEFAULT_CHIEF_COMPLAINT = "# どんな症状\n\n# どこが\n\n# いつから\n\n# その他・備考\n\n# フリースペース";
 /** 問診 notes 比較用。clinical_plan.treatment_policy の初期値には使わない（BUG-010）。 */
 export const DEFAULT_TREATMENT_POLICY = "# 治療方針";
-/**
- * 歴史的テンプレート固定文字列。BUG-010 以前は plan/assessment 初期値に使われ
- * 保存時にユーザー入力を上書きした。clinical_plan 3欄の初期値には使わない。
- */
-export const DEFAULT_PLAN = "# 治療方針";
-export const DEFAULT_ASSESSMENT = "# 診断詳細";
 
 export const DEFAULT_RECEPTION_APPOINTMENT_MINUTES = 15;
 

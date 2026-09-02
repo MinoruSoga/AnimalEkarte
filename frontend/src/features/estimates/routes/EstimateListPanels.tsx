@@ -26,7 +26,7 @@ interface EstimateListRowProps {
   onDelete: (id: string) => void;
 }
 
-export function EstimateListRow({
+function EstimateListRow({
   estimate,
   canEdit,
   canDelete,

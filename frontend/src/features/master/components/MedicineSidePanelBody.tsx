@@ -64,7 +64,7 @@ export const MedicineSidePanelBody = memo(function MedicineSidePanelBody({
       return;
     }
     setNameError("");
-    let saved = false;
+    let saved: boolean;
     if (selectedMedicine) {
       const doseOk = (await doseParamsRef.current?.saveFilled()) ?? true;
       if (!doseOk) {

@@ -1,6 +1,6 @@
 import type { ExaminationPrintSnapshot } from "../api/get-examination-print-snapshot";
 
-export interface ExaminationPrintRow {
+interface ExaminationPrintRow {
   id: string;
   name: string;
   inspectionValue: string;

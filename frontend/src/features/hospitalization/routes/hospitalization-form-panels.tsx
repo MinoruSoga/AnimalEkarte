@@ -39,6 +39,7 @@ import { H_STYLES } from "../styles";
 import type { HospitalizationFormData } from "../types";
 import type { HospitalizationFormGate } from "./hospitalization-form-model";
 
+// eslint-disable-next-line react-refresh/only-export-components -- 150行分割で page chrome hook を panels と同居
 export function useHospitalizationFormChrome(input: {
   hospitalizationId: string | undefined;
   petId: string | null;
@@ -202,7 +203,7 @@ export function HospitalizationFormStatusView({
   );
 }
 
-export function HospitalizationFormHeaderExtra({
+function HospitalizationFormHeaderExtra({
   hospitalizationId,
   canShowDelete,
   onOpenDetail,
@@ -285,7 +286,7 @@ interface HospitalizationFormFieldsProps {
   onRemoveTreatmentPlan: (id: string) => void;
 }
 
-export function HospitalizationFormFields({
+function HospitalizationFormFields({
   selectedPet,
   formData,
   fieldErrors,
@@ -310,7 +311,7 @@ export function HospitalizationFormFields({
             <PatientInfoCard
               ownerName={selectedPet.ownerName}
               petName={selectedPet.name}
-              petNumber={selectedPet.petNumber || selectedPet.id}
+              petNumber={selectedPet.petNumber || selectedPet.id || ""}
               weight={selectedPet.weight || "-"}
               staffName={formData.doctorName || "未設定"}
               staffLabel="担当医"

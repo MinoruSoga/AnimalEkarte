@@ -23,13 +23,17 @@ type TrimmingHydrateSource = {
   reservationTypeId?: string;
 };
 
-export function existingTrimmingOverrides(existing: TrimmingHydrateSource): Partial<TrimmingFormData> {
+function toBwUnit(value: string | null | undefined): TrimmingFormData["bwUnit"] {
+  return value === "g" ? "g" : "Kg";
+}
+
+function existingTrimmingOverrides(existing: TrimmingHydrateSource): Partial<TrimmingFormData> {
   return {
     styleRequest: existing.styleRequest,
     courseId: existing.courseId ?? "",
     optionIds: existing.optionIds ?? [],
     bw: existing.bw ?? "",
-    bwUnit: existing.bwUnit ?? "Kg",
+    bwUnit: toBwUnit(existing.bwUnit),
     bt: existing.bt ?? "",
     usedShampoo: existing.usedShampoo ?? "",
     usedRibbon: existing.usedRibbon ?? "",
@@ -39,7 +43,7 @@ export function existingTrimmingOverrides(existing: TrimmingHydrateSource): Part
   };
 }
 
-export function appointmentTrimmingOverrides(
+function appointmentTrimmingOverrides(
   prev: Partial<TrimmingFormData>,
   existing: TrimmingHydrateSource,
 ): Partial<TrimmingFormData> {
@@ -52,7 +56,7 @@ export function appointmentTrimmingOverrides(
       ? existing.optionIds ?? []
       : (prev.optionIds ?? []),
     bw: existing.bw || prev.bw || "",
-    bwUnit: existing.bwUnit || prev.bwUnit || "Kg",
+    bwUnit: toBwUnit(existing.bwUnit || prev.bwUnit),
     bt: existing.bt || prev.bt || "",
     usedShampoo: existing.usedShampoo || prev.usedShampoo || "",
     usedRibbon: existing.usedRibbon || prev.usedRibbon || "",
@@ -86,7 +90,6 @@ export function useTrimmingFormHydration(input: {
       serverDataLoadedRef.current = true;
       setLocalOverrides(existingTrimmingOverrides(existingTrimming));
       if (existingTrimming.styleImage) {
-        // eslint-disable-next-line react-hooks/set-state-in-effect -- 上記と同じ理由（初回のみ・effect同期が必須）
         setStyleImagePreview(existingTrimming.styleImage);
       }
       if (existingTrimming.completedImage) {
@@ -101,7 +104,6 @@ export function useTrimmingFormHydration(input: {
     appointmentDataLoadedRef.current = true;
     setLocalOverrides((prev) => appointmentTrimmingOverrides(prev, existingAppointmentTrimming));
     if (existingAppointmentTrimming.styleImage) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- 上記と同じ理由（初回のみ・effect同期が必須）
       setStyleImagePreview(existingAppointmentTrimming.styleImage);
     }
     if (existingAppointmentTrimming.completedImage) {

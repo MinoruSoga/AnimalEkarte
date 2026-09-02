@@ -66,6 +66,7 @@ export function useLabDeviceItemMasterSettings() {
     }
     const match = rows.find((row) => row.sourceType === sourceFromQuery);
     if (match !== undefined) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- query source を選択行へ同期
       setSelectedId(match.id);
     }
   }, [rows, sourceFromQuery]);
@@ -84,13 +85,13 @@ export function useLabDeviceItemMasterSettings() {
       clearSourceParam();
       dirty.markClean();
     });
-  }, [clearSourceParam, dirty.markClean, dirty.runWithDiscardCheck]);
+  }, [clearSourceParam, dirty]);
 
   const handleEdit = useCallback((row: LabDeviceRow) => {
     dirty.runWithDiscardCheck(() => {
       setSelectedId(row.id);
     });
-  }, [dirty.runWithDiscardCheck]);
+  }, [dirty]);
 
   const handleNew = useCallback(() => {
     dirty.runWithDiscardCheck(() => {
@@ -100,7 +101,7 @@ export function useLabDeviceItemMasterSettings() {
       }
       setSelectedId("new");
     });
-  }, [dirty.runWithDiscardCheck, unusedSourceTypes.length]);
+  }, [dirty, unusedSourceTypes.length]);
 
   const handleDirtyChange = useCallback((nextDirty: boolean) => {
     if (nextDirty) {

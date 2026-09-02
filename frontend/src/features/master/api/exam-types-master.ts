@@ -52,7 +52,7 @@ export interface ExaminationTypeMaster {
   items: ExaminationTypeField[];
 }
 
-export interface ExamReferenceRangeResponse {
+interface ExamReferenceRangeResponse {
   id: number;
   exam_type_field_id: number;
   animal_species_id: number;
@@ -62,7 +62,7 @@ export interface ExamReferenceRangeResponse {
   qualitative_max?: string;
 }
 
-export interface ExaminationTypeFieldResponse {
+interface ExaminationTypeFieldResponse {
   id: number;
   exam_type_id: number;
   name: string;

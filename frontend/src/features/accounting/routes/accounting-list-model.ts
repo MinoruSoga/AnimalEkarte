@@ -43,7 +43,7 @@ export function nextAccountingListTabSearchParams(
   return next;
 }
 
-export function extractSelectFilter(
+function extractSelectFilter(
   filters: ActiveFilter[],
   key: string,
 ): { value?: string; op?: AccountingSelectFilterOp } {

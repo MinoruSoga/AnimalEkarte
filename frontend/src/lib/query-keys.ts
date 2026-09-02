@@ -223,6 +223,8 @@ export const queryKeys = {
     preview: {
       all: () => ["cash-register-preview"] as const,
       byDatePeriod: (date: string, period: string) => ["cash-register-preview", date, period] as const,
+      byDatePeriodRefresh: (date: string, period: string, refreshNonce: number) =>
+        ["cash-register-preview", date, period, refreshNonce] as const,
     },
     closes: {
       all: () => ["cash-register-closes"] as const,

@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { C, ICON } from "@/lib/design-tokens";
 
 /** 1ファイルあたりの上限（MB） */
-export const MAX_FILE_SIZE_MB = 10;
+const MAX_FILE_SIZE_MB = 10;
 export const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 /** SEC-CS-F08: 1回の選択で受け付ける最大ファイル数 */
 export const MAX_UPLOAD_FILES = 10;

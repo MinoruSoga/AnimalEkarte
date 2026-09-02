@@ -16,7 +16,7 @@ import {
 } from "../lib/examination-lock";
 
 /** EXAM_STATUS_EN_TO_JA（正本）の逆写像を導出する（FE5-10）。両写像は完全対称であることを確認済み。 */
-export const EXAM_STATUS_JA_TO_EN = Object.fromEntries(
+const EXAM_STATUS_JA_TO_EN = Object.fromEntries(
   Object.entries(EXAM_STATUS_EN_TO_JA).map(([en, ja]) => [ja, en]),
 ) as Record<
   string,
@@ -53,7 +53,7 @@ export function buildRowsFromTemplate(fields: ExamTypeFieldRow[]): ExamItemRow[]
 }
 
 // formItems → PUT リクエスト形式へ変換。空の項目（name 空 & 値空）は送信しない。
-export function rowsToRequest(items: ExamItemRow[]): UpsertExamItemRequest[] {
+export function rowsToRequest(items: readonly ExamItemRow[]): UpsertExamItemRequest[] {
   return items
     .filter((it) => it.name.trim() !== "")
     .map((it, idx) => ({
@@ -181,7 +181,7 @@ export function decideExaminationPatientChange(input: {
   const canApply =
     !input.isPatientChangeLocked &&
     input.changedPatient?.id === input.currentPetId &&
-    input.changedPatient.status === "生存" &&
+    input.changedPatient?.status === "生存" &&
     Number.isSafeInteger(changedPetID) &&
     changedPetID > 0;
   if (!canApply) return { kind: "blocked" };

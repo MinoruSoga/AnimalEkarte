@@ -40,13 +40,13 @@ export function TreatmentPlanMaster() {
       setEditTarget(null);
       setPendingDelete(null);
     });
-  }, [setSearchParams, dirty.runWithDiscardCheck]);
+  }, [setSearchParams, dirty]);
 
   const handleNew = useCallback(() => {
     dirty.runWithDiscardCheck(() => {
       setEditTarget("new");
     });
-  }, [dirty.runWithDiscardCheck]);
+  }, [dirty]);
 
   const resources = useTreatmentPlanMasterResources({
     canEdit,
@@ -75,13 +75,13 @@ export function TreatmentPlanMaster() {
     dirty.runWithDiscardCheck(() => {
       setEditTarget(null);
     });
-  }, [dirty.runWithDiscardCheck]);
+  }, [dirty]);
 
   const setEditTargetGuarded = useCallback((target: TreatmentItem | "new" | null) => {
     dirty.runWithDiscardCheck(() => {
       setEditTarget(target);
     });
-  }, [dirty.runWithDiscardCheck]);
+  }, [dirty]);
 
   const handleDeleteRequest = useCallback(() => {
     setPendingDelete(resources.selectedItem);

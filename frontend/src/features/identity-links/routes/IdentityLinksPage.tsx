@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, useTransition } from "react";
 import { Navigate } from "react-router";
 
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
@@ -67,8 +67,10 @@ function IdentityLinksWorkbench({ canEdit }: { canEdit: boolean }) {
   const [pending, startTransition] = useTransition();
   const selectedOwnersRef = useRef(selectedOwners);
   const selectedPetsRef = useRef(selectedPets);
-  selectedOwnersRef.current = selectedOwners;
-  selectedPetsRef.current = selectedPets;
+  useLayoutEffect(() => {
+    selectedOwnersRef.current = selectedOwners;
+    selectedPetsRef.current = selectedPets;
+  }, [selectedOwners, selectedPets]);
 
   // Clear hits when the debounced query becomes empty via render-time state
   // adjustment (React-recommended pattern) so we do not call setState inside

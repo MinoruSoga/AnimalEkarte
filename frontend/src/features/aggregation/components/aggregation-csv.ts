@@ -14,7 +14,7 @@ interface CsvColumnDef {
  * prefix so Excel/Sheets treat the value as text. Then double-quote escape.
  * Mirrors backend sanitizeCSVCell (lstep_tag_summary_service.go).
  */
-export function escapeCsvTextCell(value: string): string {
+function escapeCsvTextCell(value: string): string {
   let cell = value;
   if (cell.length > 0) {
     const first = cell[0];

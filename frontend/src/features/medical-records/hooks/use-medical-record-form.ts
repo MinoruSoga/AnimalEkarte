@@ -104,14 +104,13 @@ export function useMedicalRecordForm(recordId?: string) {
     isSelectedPetDeceased: read.selectedPet?.status === "死亡",
   });
 
-  const handleBack = useCallback(
+  const handleBack = useCallback(() => {
     createMedicalRecordBackHandler({
       from: location.state?.from,
       recordId,
       navigate,
-    }),
-    [location.state, navigate, recordId],
-  );
+    })();
+  }, [location.state, navigate, recordId]);
 
   const ownerChange = useMedicalRecordOwnerChange({
     owner: read.owner,

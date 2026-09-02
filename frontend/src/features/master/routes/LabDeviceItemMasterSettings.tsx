@@ -103,7 +103,7 @@ interface LabDeviceItemMasterHeaderActionsProps {
   onNew: () => void;
 }
 
-export function LabDeviceItemMasterHeaderActions({
+function LabDeviceItemMasterHeaderActions({
   canEdit,
   canCreate,
   ensurePending,
@@ -135,7 +135,7 @@ interface LabDeviceItemMasterTableProps {
   onEdit: (row: LabDeviceRow) => void;
 }
 
-export function LabDeviceItemMasterTable({
+function LabDeviceItemMasterTable({
   fromBoard,
   sourceFromQuery,
   devicesFetched,

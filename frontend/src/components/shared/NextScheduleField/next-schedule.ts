@@ -1,15 +1,6 @@
 import { addMonths, addWeeks, addYears, format } from "date-fns";
 
-export const NEXT_SCHEDULE_TYPES = [
-  "3weeks",
-  "4weeks",
-  "6weeks",
-  "6months",
-  "1year",
-  "other",
-] as const;
-
-export type NextScheduleType = (typeof NEXT_SCHEDULE_TYPES)[number];
+type NextScheduleType = "3weeks" | "4weeks" | "6weeks" | "6months" | "1year" | "other";
 
 export interface NextScheduleOption {
   value: NextScheduleType;
@@ -23,10 +14,6 @@ export const NEXT_SCHEDULE_OPTIONS: readonly NextScheduleOption[] = [
   { value: "1year", label: "1年後" },
   { value: "other", label: "以外（手動）" },
 ];
-
-export function isNextScheduleType(value: string): value is NextScheduleType {
-  return (NEXT_SCHEDULE_TYPES as readonly string[]).includes(value);
-}
 
 export function calculateNextDate(baseDate: string, scheduleType: string): string {
   if (!baseDate || scheduleType === "other") return "";

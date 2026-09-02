@@ -33,7 +33,7 @@ interface QuantityCommitParams {
   onUpdate: (treatmentId: string, input: UpdateTreatmentInput) => void;
 }
 
-export function commitTreatmentQuantity(params: QuantityCommitParams) {
+function commitTreatmentQuantity(params: QuantityCommitParams) {
   const val = parseFloat(params.localQuantity) || 1;
   const gate = computeDoseGate(params.doseGateSource, val);
   if (gate.isBlocked) {
@@ -70,7 +70,7 @@ export function commitTreatmentQuantity(params: QuantityCommitParams) {
   params.onUpdate(params.treatment.id, { quantity: val });
 }
 
-export function commitTreatmentDeviationReason(params: QuantityCommitParams) {
+function commitTreatmentDeviationReason(params: QuantityCommitParams) {
   const val = parseFloat(params.localQuantity) || 1;
   const gate = computeDoseGate(params.doseGateSource, val);
   if (gate.isBlocked) return;
@@ -92,7 +92,7 @@ export function commitTreatmentDeviationReason(params: QuantityCommitParams) {
   params.onUpdate(params.treatment.id, { quantity: val, dose_deviation_reason: reason });
 }
 
-export function quantityDisplayClassName(
+function quantityDisplayClassName(
   currentWarning: DoseGateResult["warning"],
   pendingWarning: DoseGateResult["warning"],
   needsDeviationReasonUI: boolean,
@@ -110,7 +110,7 @@ export function quantityDisplayClassName(
   return C.text;
 }
 
-export function useTreatmentDoseGate(
+function useTreatmentDoseGate(
   treatment: Treatment,
   doseContext: MedicineDoseContext,
   localQuantity: string,
@@ -206,7 +206,7 @@ interface TreatmentDoseMessagesProps {
   onRetryDoseParamsLookup: () => void;
 }
 
-export function TreatmentDoseMessages({
+function TreatmentDoseMessages({
   treatment,
   doseWarningId,
   doseBlockReason,
@@ -330,6 +330,7 @@ export function TreatmentQuantityCell({
   const lastDeviationCommitKeyRef = useRef<string | null>(null);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- 行データ更新を数量下書きへ同期
     setLocalQuantity(String(treatment.quantity));
     setLocalDeviationReason("");
     setShowDeviationReason(false);

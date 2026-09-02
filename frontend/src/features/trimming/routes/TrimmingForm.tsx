@@ -10,7 +10,6 @@ import {
 } from "./trimming-form-panels";
 
 export function TrimmingForm() {
-  const navigate = useNavigate();
   const location = useLocation();
   const { id } = useParams();
   const [searchParams] = useSearchParams();

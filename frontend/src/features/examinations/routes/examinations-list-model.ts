@@ -9,12 +9,12 @@ import { CONDITIONS_NO_EMPTY, CONDITIONS_WITH_EMPTY } from "@/components/shared/
 import { uniqueSortedOptions } from "@/lib/unique-sorted-options";
 import type { ExaminationRecord } from "../api/transforms";
 
-export const EXAMINATION_LIST_CHART_TAB = "検査";
-export const EXAMINATION_LIST_EXAM_ID_PARAM = "examId";
+const EXAMINATION_LIST_CHART_TAB = "検査";
+const EXAMINATION_LIST_EXAM_ID_PARAM = "examId";
 
 export const EXAMINATIONS_PAGE_SIZE = 20;
 
-export const CLIENT_ONLY_FILTER_KEYS = ["status", "testType", "doctor"];
+const CLIENT_ONLY_FILTER_KEYS = ["status", "testType", "doctor"];
 
 export const EXAMINATION_SORT_PROPERTIES: SortProperty[] = [
   { key: "date", label: "日時" },
@@ -25,7 +25,7 @@ export const EXAMINATION_SORT_PROPERTIES: SortProperty[] = [
   { key: "status", label: "ステータス" },
 ];
 
-export const STATIC_FILTER_PROPERTIES: FilterProperty[] = [
+const STATIC_FILTER_PROPERTIES: FilterProperty[] = [
   {
     key: "date",
     label: "日付",

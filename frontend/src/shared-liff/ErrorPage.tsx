@@ -2,6 +2,7 @@
  * BUG-027: LIFF 健康カードと LINE 予約で共通の顧客向けエラー chrome。
  * 背景・警告アイコン・見出し色/文言・本文階層・任意の再試行を一箇所に固定する。
  */
+/* eslint-disable react-refresh/only-export-components -- title/theme は liff と line-reserve で共有 */
 export const SHARED_ERROR_PAGE_TITLE = 'エラーが発生しました';
 
 /** line-reserve 側の teal / blue-gray 系を正とし、両アプリで同一クラスを使う */

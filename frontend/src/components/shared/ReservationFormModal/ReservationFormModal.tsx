@@ -111,14 +111,17 @@ export const ReservationFormModal = memo(function ReservationFormModal({
 
   const { data: loadedPet } = useGetPet(pendingPetId ?? "");
 
+  /* eslint-disable react-hooks/set-state-in-effect -- pending petId を選択状態へ同期 */
   useEffect(() => {
     if (loadedPet && pendingPetId) {
       setSelectedPets([loadedPet]);
       setPendingPetId(null);
     }
   }, [loadedPet, pendingPetId, setSelectedPets]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   // useLayoutEffect: ペイント前に同期実行し、クリックした日時がフォームに即反映されるようにする (Issue #52)
+  /* eslint-disable react-hooks/set-state-in-effect -- Issue #52: モーダル表示時にフォームをペイント前リセット */
   useLayoutEffect(() => {
     if (!isOpen) return;
     setValidationErrors({});
@@ -154,6 +157,7 @@ export const ReservationFormModal = memo(function ReservationFormModal({
       setPendingPetId(null);
     }
   }, [isOpen, initialData, setSelectedPets]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const isEditMode = Boolean(initialData?.id);
   const canSave = isEditMode ? canEdit : canCreate;
@@ -173,6 +177,7 @@ export const ReservationFormModal = memo(function ReservationFormModal({
   // edit mode: subscribe to single-reservation query and sync reservationRoute into formData
   const reservationQueryId = isEditMode ? String(initialData?.id) : "";
   const { data: latestReservation } = useGetReservation(reservationQueryId);
+  /* eslint-disable react-hooks/set-state-in-effect -- 編集中の予約ルートを query 結果へ同期 */
   useEffect(() => {
     if (!latestReservation) return;
     setFormData((prev) => ({
@@ -180,6 +185,7 @@ export const ReservationFormModal = memo(function ReservationFormModal({
       reservationRoute: latestReservation.reservationRoute ?? null,
     }));
   }, [latestReservation]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const saveReservation = useCallback(async (): Promise<string | null> => {
     const errors: Record<string, string> = {};

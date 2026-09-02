@@ -33,7 +33,7 @@ import {
   type LabDeviceListenState,
 } from "../lib/lab-device-board-model";
 
-export function LabDeviceJobCardView({
+function LabDeviceJobCardView({
   card,
   duplicate,
   onDetach,
@@ -106,7 +106,7 @@ export function LabDeviceJobCardView({
   );
 }
 
-export function LabDeviceTodayVisitCard({
+function LabDeviceTodayVisitCard({
   visit,
   selected,
   disabled,
@@ -154,7 +154,7 @@ function deviceStatusClass(state: LabDeviceListenState): string {
   }
 }
 
-export function LabDeviceStatusCard({
+function LabDeviceStatusCard({
   slot,
   state,
   receiveLabel,
@@ -190,7 +190,7 @@ export function LabDeviceStatusCard({
   );
 }
 
-export function notifyLabDeviceAttachResult(attached: LabDeviceJobCard): void {
+function notifyLabDeviceAttachResult(attached: LabDeviceJobCard): void {
   if (isLabDeviceAttachPersisted(attached)) return;
   toast.error(labDeviceAttachFailureToast(attached));
 }

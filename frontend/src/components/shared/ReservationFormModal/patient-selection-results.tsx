@@ -20,7 +20,7 @@ interface PatientSelectionTableBodyProps {
   onSelect: (pet: Pet) => void;
 }
 
-export function PatientSelectionTableBody({
+function PatientSelectionTableBody({
   pets,
   isBusy,
   selectedPetIds,
@@ -80,7 +80,7 @@ interface PatientSelectionRowProps {
   onSelect: (pet: Pet) => void;
 }
 
-export function PatientSelectionRow({
+function PatientSelectionRow({
   pet,
   isBusy,
   isSelected,

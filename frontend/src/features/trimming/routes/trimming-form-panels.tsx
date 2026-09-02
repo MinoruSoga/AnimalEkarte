@@ -32,8 +32,9 @@ import {
 } from "../components/trimming-form-columns";
 import type { TrimmingHistoryItem } from "../components/trimming-form-column-types";
 import { ConfirmDialog, MasterSelectModal } from "./TrimmingLazyModals";
-import { TRIMMING_FORM_ID, type TrimmingFormGate } from "./trimming-form-model";
+import { TRIMMING_FORM_ID, type TrimmingFormGate, type TrimmingSelectableItem } from "./trimming-form-model";
 
+// eslint-disable-next-line react-refresh/only-export-components -- 150行分割で page chrome hook を panels と同居
 export function useTrimmingFormChrome(input: {
   formData: TrimmingFormData;
   setFormData: (updates: Partial<TrimmingFormData>) => void;
@@ -102,7 +103,7 @@ export function useTrimmingFormChrome(input: {
   }, [input.fromPath, navigate]);
   const handleHistoryClick = useCallback((updates: Partial<TrimmingFormData>) => {
     handleFormChange(history.handleHistoryClick(updates));
-  }, [history.handleHistoryClick, handleFormChange]);
+  }, [history, handleFormChange]);
   const activeStaffItems = useMemo(
     () => staffItems.filter((staff) => staff.status === "active"),
     [staffItems],
@@ -187,8 +188,8 @@ interface TrimmingFormBodyProps {
   selectedPet: TrimmingPatient | undefined;
   formData: TrimmingFormData;
   fieldErrors: Record<string, string>;
-  courses: MasterItem[];
-  options: MasterItem[];
+  courses: TrimmingSelectableItem[];
+  options: TrimmingSelectableItem[];
   styleImagePreview: string | null;
   completedImagePreview: string | null;
   sortedHistory: TrimmingHistoryItem[];
@@ -395,8 +396,8 @@ function TrimmingFormColumns({
   selectedPet: TrimmingPatient;
   formData: TrimmingFormData;
   fieldErrors: Record<string, string>;
-  courses: MasterItem[];
-  options: MasterItem[];
+  courses: TrimmingSelectableItem[];
+  options: TrimmingSelectableItem[];
   styleImagePreview: string | null;
   completedImagePreview: string | null;
   sortedHistory: TrimmingHistoryItem[];

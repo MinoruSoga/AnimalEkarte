@@ -43,7 +43,7 @@ interface HospitalizationListContentProps {
   onPageChange: (page: number) => void;
 }
 
-export function HospitalizationListContent({
+function HospitalizationListContent({
   statusFilter,
   onStatusTabChange,
   filterProperties,

@@ -1,4 +1,4 @@
-import { useState, useCallback, useActionState, useEffect, useRef } from 'react';
+import { useState, useCallback, useActionState, useEffect, useLayoutEffect, useRef } from 'react';
 import { useNavigate } from 'react-router';
 import { toast } from "sonner";
 import { paths } from "@/config/paths";
@@ -74,13 +74,16 @@ export function useEstimateForm(args: UseEstimateFormArgs = { mode: "create" }) 
 
   const [form, setForm] = useState<EstimateFormState>(() => buildInitialState(estimate));
   const formRef = useRef(form);
-  formRef.current = form;
+  useLayoutEffect(() => {
+    formRef.current = form;
+  }, [form]);
 
   useEffect(() => {
     if (isEdit) return;
     const ownerId = args.initialOwnerId;
     const petId = args.initialPetId;
     if (!ownerId && !petId) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- 新規作成時に URL の owner/pet を初期値へ同期
     setForm((prev) => ({
       ...prev,
       ownerId: prev.ownerId || ownerId || "",

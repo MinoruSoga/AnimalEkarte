@@ -6,7 +6,7 @@ import { formatDate } from "@/lib/format/date";
 import { normalizeKana } from "@/lib/normalize-kana";
 import type { SortOrder } from "@/types";
 
-export interface PastRecordHistoryItem {
+interface PastRecordHistoryItem {
   id: string;
   date: string;
   title: string;

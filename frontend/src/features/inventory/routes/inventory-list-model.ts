@@ -7,8 +7,8 @@ import type {
 import { CONDITIONS_NO_EMPTY } from "@/components/shared/PropertyFilter/types";
 import type { InventoryItem } from "@/types";
 
-export type CategoryFilter = InventoryItem["category"] | "all";
-export type StatusFilter = InventoryItem["status"] | "all";
+type CategoryFilter = InventoryItem["category"] | "all";
+type StatusFilter = InventoryItem["status"] | "all";
 
 export const CATEGORY_LABELS: Record<InventoryItem["category"], string> = {
   medicine: "医薬品",

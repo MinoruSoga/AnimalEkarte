@@ -28,7 +28,7 @@ interface RangeBoundInputProps {
   onChange: (value: string) => void;
 }
 
-export function RangeBoundInput({ label, type, value, onChange }: RangeBoundInputProps) {
+function RangeBoundInput({ label, type, value, onChange }: RangeBoundInputProps) {
   return (
     <label className={`text-xs ${C.text65}`}>
       {label.endsWith("下限") ? "下限" : "上限"}

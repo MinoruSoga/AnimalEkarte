@@ -13,7 +13,6 @@ import { useAuth } from "@/hooks/use-auth";
 import { useGetOwnerLineTags } from "@/hooks/use-owner-line-tags";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { ResourceMedicalRecords } from "@/types/generated/models";
-import type { ActionState } from "@/types/form";
 import type { Pet } from "@/types";
 import { MedicalRecordAddenda } from "../components/MedicalRecordAddenda";
 import { MedicalRecordAutoCreateFailure } from "../components/MedicalRecordAutoCreateFailure";
@@ -35,11 +34,10 @@ import { useGetPetMedicalHistory } from "../api/get-medical-records";
 import { useGetClinicalPlan } from "../api/clinical-plan";
 import { useGetTreatments } from "../api/treatments";
 import { useGetBillingConfirmation } from "../api/billing-confirmation";
-import type { MedicalRecordAutoCreateFailurePhase } from "../hooks/use-medical-record-auto-create";
 
 type MedicalRecordFormModel = ReturnType<typeof useMedicalRecordForm>;
 
-export function useMedicalRecordFormReadyState(input: {
+function useMedicalRecordFormReadyState(input: {
   recordId: string | undefined;
   selectedPet: Pet;
   form: MedicalRecordFormModel;
@@ -59,7 +57,7 @@ export function useMedicalRecordFormReadyState(input: {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const { handleRegisterEstimateSave } = useMedicalRecordPostSave({
     activeTab: form.activeTab,
-    formState: form.formState as ActionState,
+    formState: form.formState,
     markClean,
   });
   const { user } = useAuth();
@@ -92,8 +90,8 @@ export function useMedicalRecordFormReadyState(input: {
     setTreatmentPolicy: form.setTreatmentPolicy,
   });
 
-  const handleChangeDoctor = form.handleChangeDoctor as (id: string, name: string) => void;
-  const handleFinalize = form.handleFinalize as () => void;
+  const handleChangeDoctor = form.handleChangeDoctor;
+  const handleFinalize = form.handleFinalize;
   const setActiveTab = form.setActiveTab;
 
   const handleTabChange = useCallback((tab: string) => {
@@ -172,7 +170,7 @@ export function MedicalRecordFormReadyPage({
   onDeleteConfirm,
 }: MedicalRecordFormReadyPageProps) {
   const ready = useMedicalRecordFormReadyState({ recordId, selectedPet, form });
-  const formState = form.formState as ActionState | undefined;
+  const formState = form.formState;
 
   return (
     <form action={form.formAction} className={LAYOUT.fullHeight}>
@@ -186,9 +184,9 @@ export function MedicalRecordFormReadyPage({
       <NavigationBlocker when={ready.isDirty} />
       {form.autoCreateFailurePhase !== null ? (
         <MedicalRecordAutoCreateFailure
-          failurePhase={form.autoCreateFailurePhase as MedicalRecordAutoCreateFailurePhase}
+          failurePhase={form.autoCreateFailurePhase}
           isRetrying={form.isCreating}
-          onRetry={form.retryAutoCreate as () => void}
+          onRetry={form.retryAutoCreate}
         />
       ) : null}
       <UnifiedTabsRoot

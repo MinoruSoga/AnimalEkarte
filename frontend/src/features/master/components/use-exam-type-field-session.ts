@@ -20,14 +20,14 @@ export interface FieldDraft {
   unit: string;
 }
 
-export const emptyFieldDraft = (): FieldDraft => ({
+const emptyFieldDraft = (): FieldDraft => ({
   name: "",
   inspectionValue: "",
   normalValue: "",
   unit: "",
 });
 
-export const fieldToDraft = (field: ExaminationTypeField): FieldDraft => ({
+const fieldToDraft = (field: ExaminationTypeField): FieldDraft => ({
   name: field.name,
   inspectionValue: field.inspectionValue,
   normalValue: field.normalValue,

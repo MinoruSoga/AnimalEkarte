@@ -38,7 +38,7 @@ export class OwnersPage extends BasePage {
     return this.page.getByPlaceholder('飼主名、ペット名、電話番号、飼主No、ペット番号...');
   }
 
-  /** Owner "林 文明" / "林　文明" — seed mixes ASCII and ideographic spaces. */
+  /** Owner "林 文明" (ASCII or ideographic space) — seed mixes both. */
   hayashiText(): Locator {
     return this.page.getByText(DEMO_HAYASHI_OWNER_NAME_RE).first();
   }

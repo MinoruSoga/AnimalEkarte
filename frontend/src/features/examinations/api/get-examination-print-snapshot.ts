@@ -4,7 +4,7 @@ import { queryKeys } from "@/lib/query-keys";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 
 /** Backend GET /v1/examinations/:id/print-snapshot response (OpenAPI ExaminationPrintSnapshot). */
-export interface BackendExaminationPrintItem {
+interface BackendExaminationPrintItem {
   id: number;
   exam_type_field_id?: number | null;
   name: string;
@@ -23,7 +23,7 @@ export interface BackendExaminationPrintItem {
   sort_order: number;
 }
 
-export interface BackendExaminationPrintDisplay {
+interface BackendExaminationPrintDisplay {
   medical_record_no: string;
   pet_name: string;
   medical_record_owner_name: string;
@@ -33,7 +33,7 @@ export interface BackendExaminationPrintDisplay {
   doctor_name: string;
 }
 
-export interface BackendExaminationPrintSnapshot {
+interface BackendExaminationPrintSnapshot {
   examination_id: number;
   clinic_id: number;
   version: number;
@@ -52,7 +52,7 @@ export interface BackendExaminationPrintSnapshot {
   items: BackendExaminationPrintItem[];
 }
 
-export interface ExaminationPrintItem {
+interface ExaminationPrintItem {
   id: string;
   examTypeFieldId: string | null;
   name: string;
@@ -98,7 +98,7 @@ export interface ExaminationPrintSnapshot {
   items: ExaminationPrintItem[];
 }
 
-export function transformExaminationPrintSnapshot(
+function transformExaminationPrintSnapshot(
   data: BackendExaminationPrintSnapshot,
 ): ExaminationPrintSnapshot {
   return {

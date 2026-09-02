@@ -28,7 +28,7 @@ interface VaccinationRowActionsProps {
   onDelete: (id: string) => void;
 }
 
-export function VaccinationRowActions({
+function VaccinationRowActions({
   record,
   canEdit,
   canDelete,
@@ -66,7 +66,7 @@ interface VaccinationListRowProps {
   onDelete: (id: string) => void;
 }
 
-export function VaccinationListRow({
+function VaccinationListRow({
   record,
   canEdit,
   canDelete,

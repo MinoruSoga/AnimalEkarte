@@ -80,7 +80,7 @@ export interface ClinicalHistorySources {
   trimmings: ReadonlyArray<TrimmingSource>;
 }
 
-export interface ClinicalHistoryEntry {
+interface ClinicalHistoryEntry {
   id: string;
   kind: ClinicalHistoryKind;
   dateKey: string;
@@ -91,13 +91,13 @@ export interface ClinicalHistoryEntry {
   isAlert?: boolean;
 }
 
-export interface ClinicalHistoryColumn {
+interface ClinicalHistoryColumn {
   dateKey: string;
   label: string;
   entries: ClinicalHistoryEntry[];
 }
 
-export interface ClinicalHistoryRow {
+interface ClinicalHistoryRow {
   kind: ClinicalHistoryKind;
   count: number;
 }

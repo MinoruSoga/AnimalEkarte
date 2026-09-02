@@ -63,7 +63,7 @@ export function ReservationNoticeBanner({
   );
 }
 
-export function renderAccountPages(props: ReservationPageSwitchProps) {
+function renderAccountPages(props: ReservationPageSwitchProps) {
   if (props.page === 'top') {
     return (
       <TopPage
@@ -85,7 +85,7 @@ export function renderAccountPages(props: ReservationPageSwitchProps) {
   return null;
 }
 
-export function renderEarlyReservationSteps(props: ReservationPageSwitchProps) {
+function renderEarlyReservationSteps(props: ReservationPageSwitchProps) {
   if (props.page === 'step1') {
     return (
       <CustomerInfoPage
@@ -146,7 +146,7 @@ export function renderEarlyReservationSteps(props: ReservationPageSwitchProps) {
   return null;
 }
 
-export function renderLateReservationSteps(props: ReservationPageSwitchProps) {
+function renderLateReservationSteps(props: ReservationPageSwitchProps) {
   if (props.page === 'step3') {
     return (
       <StaffSelectPage

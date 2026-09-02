@@ -26,7 +26,7 @@ interface CheckupsListRowProps {
   onEdit: (medicalRecordId: string, checkupId: string) => void;
 }
 
-export function CheckupsListRow({ record, canView, canEdit, onEdit }: CheckupsListRowProps) {
+function CheckupsListRow({ record, canView, canEdit, onEdit }: CheckupsListRowProps) {
   return (
     <DataTableRow key={record.id}>
       <TableCell className={`font-mono ${C.text}`}>

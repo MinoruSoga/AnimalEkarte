@@ -29,7 +29,7 @@ export function isCategoryMedicine(medicine: Medicine | null): boolean {
 }
 
 /** 親なし・単価0でも剤形/単位があれば薬剤。カテゴリ見出しと未分類薬剤を区別する (BUG-006)。 */
-export function isMedicineCategoryNode(medicine: {
+function isMedicineCategoryNode(medicine: {
   parentId?: string;
   price: number;
   dosageForm?: string;

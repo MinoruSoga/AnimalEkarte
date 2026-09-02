@@ -32,7 +32,7 @@ interface MedicalRecordsSpeciesStatusProps {
   hasSpecies: boolean;
 }
 
-export function MedicalRecordsSpeciesStatus({
+function MedicalRecordsSpeciesStatus({
   isSpeciesError,
   isSpeciesLoading,
   hasSpecies,
@@ -75,7 +75,7 @@ interface MedicalRecordsListRowProps {
   onDeleteRequest: (input: { id: string; label: string; petIsDeceased: boolean }) => void;
 }
 
-export function MedicalRecordsListRow({
+function MedicalRecordsListRow({
   record,
   showClinicColumn,
   currentClinicId,
@@ -219,7 +219,7 @@ interface MedicalRecordsListContentProps {
   onPageChange: (page: number) => void;
 }
 
-export function MedicalRecordsListContent({
+function MedicalRecordsListContent({
   assignedClinics,
   selectedClinicIds,
   onToggleClinic,

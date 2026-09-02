@@ -30,7 +30,7 @@ export const DENIED_MUTATION_PERMISSIONS: Readonly<VaccinationMutationPermission
 
 export const DEFAULT_NEXT_SCHEDULE_TYPE = "1year" as const;
 
-export const DEFAULT_VACCINATION_FORM: VaccinationFormState = {
+const DEFAULT_VACCINATION_FORM: VaccinationFormState = {
   vaccineId: "",
   date: "",
   supplemental: "",
@@ -48,7 +48,7 @@ export function calculateNextDate(vaccinationDate: string, scheduleType: string)
 }
 
 // BUG-401/BUG-026: vaccine interval (vaccines master 実データ) → schedule type。
-export function scheduleTypeForInterval(interval: string | undefined): string {
+function scheduleTypeForInterval(interval: string | undefined): string {
   switch (interval) {
     case "1年":
       return "1year";

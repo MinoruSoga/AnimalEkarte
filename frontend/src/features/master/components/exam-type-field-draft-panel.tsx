@@ -22,7 +22,7 @@ interface ExamTypeFieldDraftFormProps {
   onSaveField: () => void;
 }
 
-export function ExamTypeFieldDraftForm({
+function ExamTypeFieldDraftForm({
   editingId,
   fieldDraft,
   error,
@@ -89,7 +89,7 @@ interface ExamTypeFieldReferenceRangesProps {
   onSaveRanges: () => void;
 }
 
-export function ExamTypeFieldReferenceRanges({
+function ExamTypeFieldReferenceRanges({
   animalSpecies,
   isPending,
   isError,

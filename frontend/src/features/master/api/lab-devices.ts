@@ -7,7 +7,7 @@ import { QUERY_GC_TIMES, QUERY_STALE_TIMES } from "@/lib/react-query";
 
 import type { UpdateLabDeviceItemMasterRequest } from "./lab-device-item-masters";
 
-export type LabDeviceResponse = {
+type LabDeviceResponse = {
   id: number;
   source_type: string;
   name: string;
@@ -64,11 +64,6 @@ const createLabDevice = async (req: CreateLabDeviceRequest): Promise<LabDevice> 
   return transformLabDevice(data);
 };
 
-const updateLabDevice = async (id: string, req: UpdateLabDeviceRequest): Promise<LabDevice> => {
-  const { data } = await axios.patch<LabDeviceResponse>(`/v1/lab-devices/${id}`, req);
-  return transformLabDevice(data);
-};
-
 const saveLabDeviceConfiguration = async (id: string, req: SaveLabDeviceConfigurationRequest): Promise<void> => {
   await axios.put(`/v1/lab-devices/${id}/configuration`, req);
 };
@@ -89,18 +84,6 @@ export const useCreateLabDevice = () => {
       queryClient.invalidateQueries({ queryKey });
     },
     onError: (error) => handleApiError(error, "登録"),
-  });
-};
-
-export const useUpdateLabDevice = () => {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, req }: { id: string; req: UpdateLabDeviceRequest }) =>
-      updateLabDevice(id, req),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey });
-    },
-    onError: (error) => handleApiError(error, "更新"),
   });
 };
 

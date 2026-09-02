@@ -201,6 +201,7 @@ export const MedicalRecordEstimate = memo(function MedicalRecordEstimate({
     existingEstimate?.id,
     updateEstimate,
     createEstimate,
+    items,
   ]);
 
   useEffect(() => {

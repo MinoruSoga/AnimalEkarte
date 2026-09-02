@@ -1,4 +1,4 @@
-import { useActionState, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useActionState, useCallback, useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
 
@@ -42,8 +42,10 @@ export function useClinicMasterSettings() {
   // BUG-018/019: useActionState は stale な formData/selectedItem を掴む。入力に name が無く FormData も空。
   const formDataRef = useRef(formData);
   const selectedItemRef = useRef(selectedItem);
-  formDataRef.current = formData;
-  selectedItemRef.current = selectedItem;
+  useLayoutEffect(() => {
+    formDataRef.current = formData;
+    selectedItemRef.current = selectedItem;
+  }, [formData, selectedItem]);
 
   const { data: rawClinics, isPending, isError } = useGetClinics();
   const createMutation = useCreateClinic();

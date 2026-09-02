@@ -76,7 +76,7 @@ interface CashRegisterCloseTaxBreakdownProps {
   taxBreakdown: ClosePreviewResult["aggregate"]["taxBreakdown"];
 }
 
-export function CashRegisterCloseTaxBreakdown({ taxBreakdown }: CashRegisterCloseTaxBreakdownProps) {
+function CashRegisterCloseTaxBreakdown({ taxBreakdown }: CashRegisterCloseTaxBreakdownProps) {
   return (
     <section className={`${C.bgWhite} rounded-lg border ${C.borderLight} p-6`}>
       <h2 className={`text-base font-semibold ${C.text} mb-4`}>消費税内訳</h2>
@@ -132,7 +132,7 @@ interface CashRegisterCloseExecuteFormProps {
   onCancel: () => void;
 }
 
-export function CashRegisterCloseExecuteForm({
+function CashRegisterCloseExecuteForm({
   date,
   period,
   actualCash,

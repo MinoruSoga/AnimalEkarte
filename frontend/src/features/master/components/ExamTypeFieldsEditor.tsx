@@ -17,7 +17,7 @@ interface ExamTypeFieldsEditorProps {
   onDirtyChange?: (dirty: boolean) => void;
 }
 
-export function handleExamTypeFieldsNestedKeyDown(event: KeyboardEvent<HTMLElement>) {
+function handleExamTypeFieldsNestedKeyDown(event: KeyboardEvent<HTMLElement>) {
   if (event.key !== "Enter") return;
   const target = event.target;
   if (

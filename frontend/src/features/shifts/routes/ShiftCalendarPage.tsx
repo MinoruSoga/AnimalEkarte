@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState, useCallback, useEffect } from "react";
+import { lazy, Suspense, useState, useCallback, useEffect, useMemo } from "react";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { ResourceShifts } from "@/types/generated/models";
 import { useGetShifts } from "../api/get-shifts";
@@ -79,7 +79,7 @@ export function ShiftCalendarPage() {
   }, []);
 
   const shifts = shiftsQuery.data ?? [];
-  const staffs = staffsQuery.data ?? [];
+  const staffs = useMemo(() => staffsQuery.data ?? [], [staffsQuery.data]);
   const holidays = holidaysQuery.data ?? [];
 
   // 職種変更で選中スタッフが候補外になったら「全スタッフ」へ戻す
@@ -89,6 +89,7 @@ export function ShiftCalendarPage() {
       (s) => s.id === selectedStaffId,
     );
     if (!stillVisible) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- 職種変更で候補外スタッフを全スタッフへ戻す
       setSelectedStaffId("all");
     }
   }, [selectedOccupationId, selectedStaffId, staffs]);

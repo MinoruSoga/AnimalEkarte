@@ -28,7 +28,7 @@ interface ExaminationsListRowProps {
   onEdit: (record: ExaminationRecord) => void;
 }
 
-export function ExaminationsListRow({
+function ExaminationsListRow({
   record,
   canEdit,
   canViewMedicalRecords,

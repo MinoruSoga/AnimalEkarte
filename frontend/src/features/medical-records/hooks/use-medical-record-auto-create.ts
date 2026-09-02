@@ -72,7 +72,7 @@ interface UseMedicalRecordAutoCreateParams {
   tab?: string | null;
 }
 
-export function medicalRecordAfterCreateHref(recordId: string, tab?: string | null): string {
+function medicalRecordAfterCreateHref(recordId: string, tab?: string | null): string {
   const path = paths.medicalRecords.detail.getHref(recordId);
   if (!tab) return path;
   return `${path}?${new URLSearchParams({ tab }).toString()}`;
@@ -233,6 +233,7 @@ export function useMedicalRecordAutoCreate({
     // BUG-503: masters 解決後に general が無い / 取得失敗 → 明示 failure（URL stuck + empty hooks を防ぐ）
     if (needsNewAppointment && (isReservationTypesError || !generalReservationType)) {
       hasAutoCreatedRef.current = true;
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- BUG-503: general type 不在を failure として同期
       markAppointmentPrerequisiteFailure();
       return;
     }

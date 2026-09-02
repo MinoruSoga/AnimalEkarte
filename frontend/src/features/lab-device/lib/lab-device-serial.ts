@@ -7,7 +7,7 @@ import {
 
 export const LAB_DEVICE_IDLE_TICKS = 8;
 export const LAB_DEVICE_IDLE_MS = 250;
-export const LAB_DEVICE_REOPEN_MS = 2000;
+const LAB_DEVICE_REOPEN_MS = 2000;
 
 export class LabDeviceIdleFrameBuffer {
   private chunks: Uint8Array[] = [];

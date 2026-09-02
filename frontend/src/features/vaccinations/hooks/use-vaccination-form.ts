@@ -141,16 +141,15 @@ export function useVaccinationForm(
   });
 
   const { mutate: deleteVaccinationFn } = deleteMutation;
-  const handleDelete = useCallback(
+  const handleDelete = useCallback((onSuccess?: () => void) => {
     createVaccinationDeleteHandler({
       isEdit,
       id,
       isMutationAllowed,
       isEditPetDeceased: () => editPetRef.current?.status === "死亡",
       deleteVaccination: deleteVaccinationFn,
-    }),
-    [isEdit, id, isMutationAllowed, deleteVaccinationFn],
-  );
+    })(onSuccess);
+  }, [isEdit, id, isMutationAllowed, deleteVaccinationFn]);
 
   return {
     isEdit,

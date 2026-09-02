@@ -16,7 +16,7 @@ export interface LabDeviceAgentHealth {
   lastErrorCategory: "none" | "discovery_failed" | "port_open_failed" | "queue_write_failed" | "port_close_failed" | "response_write_failed";
 }
 
-export interface LabDeviceAgentFrame {
+interface LabDeviceAgentFrame {
   id: string;
   payloadBase64: string;
   receivedAt: string;

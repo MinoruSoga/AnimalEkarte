@@ -42,11 +42,6 @@ export function isWebSerialSupported(): boolean {
   return typeof navigator !== "undefined" && "serial" in navigator;
 }
 
-export function findSlotByHint(slots: LabDeviceSlot[], hint: string): LabDeviceSlot | undefined {
-  const normalized = hint.trim().toLowerCase();
-  return slots.find((slot) => slot.deviceHint.toLowerCase() === normalized || slot.key === normalized);
-}
-
 export type LabDeviceListenState = "unsupported" | "needs_permission" | "monitoring" | "listening" | "disconnected";
 
 export function labDeviceListenState(input: {
@@ -82,7 +77,7 @@ export function labDeviceSlotListenLabel(state: LabDeviceListenState): string {
   }
 }
 
-export function labDeviceCardDayKey(card: LabDeviceJobCard): string {
+function labDeviceCardDayKey(card: LabDeviceJobCard): string {
   const raw = card.measuredAt || card.receivedAt;
   return raw ? formatJSTDate(raw) : "不明";
 }
@@ -134,7 +129,7 @@ export function labDeviceSelectableTodayVisits(
   return visits.filter((visit) => visit.petId > 0 && !visit.petIsDeceased);
 }
 
-export function labDeviceSlotMatchesCard(slot: LabDeviceSlot, card: LabDeviceJobCard): boolean {
+function labDeviceSlotMatchesCard(slot: LabDeviceSlot, card: LabDeviceJobCard): boolean {
   return card.deviceHint === slot.deviceHint || card.sourceType === slot.sourceType;
 }
 

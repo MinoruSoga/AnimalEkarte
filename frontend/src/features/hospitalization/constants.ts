@@ -21,7 +21,7 @@ export type HospitalizationWireStatus = "admitted" | "reserved" | "discharged";
  * タブ filter → BE status query の型固定 mapping。
  * `all` は status param を送らない（呼び出し側で omit）。
  */
-export const HOSPITALIZATION_FILTER_TO_WIRE_STATUS = {
+const HOSPITALIZATION_FILTER_TO_WIRE_STATUS = {
   [HOSPITALIZATION_FILTER_STATUS.ACTIVE]: "admitted",
   [HOSPITALIZATION_FILTER_STATUS.RESERVED]: "reserved",
   [HOSPITALIZATION_FILTER_STATUS.DISCHARGED]: "discharged",

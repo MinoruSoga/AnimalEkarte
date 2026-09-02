@@ -5,7 +5,7 @@ import { handleApiError } from "@/lib/handle-api-error";
 import { queryKeys } from "@/lib/query-keys";
 import type { Estimate } from "@/types/generated/models";
 
-export interface SaveEstimateItemPayload {
+interface SaveEstimateItemPayload {
   name: string;
   category?: string;
   unit_price: number;

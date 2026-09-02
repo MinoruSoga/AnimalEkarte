@@ -4,9 +4,9 @@ import type { AggregationTab } from "../components/aggregation-filter-panel-mode
 
 export const DEFAULT_AGGREGATION_TAB: AggregationTab = "revenue";
 
-export const AGGREGATION_TABS: readonly AggregationTab[] = ["revenue", "visit", "last_visit"] as const;
+const AGGREGATION_TABS: readonly AggregationTab[] = ["revenue", "visit", "last_visit"] as const;
 
-export const CURRENT_YEAR = Number(todayJSTISO().slice(0, 4));
+const CURRENT_YEAR = Number(todayJSTISO().slice(0, 4));
 
 export const TAB_DEFAULT_PARAMS: Record<AggregationTab, AggregationParams> = {
   revenue: {

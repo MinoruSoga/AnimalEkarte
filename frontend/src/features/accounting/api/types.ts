@@ -41,24 +41,6 @@ export interface DeleteBillingItemRequest {
   post_close_reason?: string;
 }
 
-// API リクエスト型（models.ts から導出）
-export interface CreateAccountingRequest {
-  pet_id: number;
-  owner_id: number;
-  medical_record_id?: number | null;
-  scheduled_date: string;
-  subtotal?: number | null;
-  tax_total?: number | null;
-  total_amount?: number | null;
-  insurance_name?: string;
-  insurance_ratio?: number | null;
-  insurance_amount?: number | null;
-  discount_amount?: number | null;
-  billing_amount?: number | null;
-  payment_method?: PaymentMethod;
-  memo?: string;
-}
-
 /** BUG-018: POST /v1/accountings/complete の明細1行 */
 export interface CompleteAccountingItemRequest {
   category: string;

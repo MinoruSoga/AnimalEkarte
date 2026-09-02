@@ -5,7 +5,7 @@ import { isPersistedPetId } from "@/lib/pet-id";
 import { queryKeys } from "@/lib/query-keys";
 import { QUERY_GC_TIMES, QUERY_STALE_TIMES } from "@/lib/react-query";
 
-export interface PetSubOwnerApiResponse {
+interface PetSubOwnerApiResponse {
   owner_id: number;
   name: string;
   name_kana: string;

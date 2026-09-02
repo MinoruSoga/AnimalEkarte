@@ -51,7 +51,7 @@ export function TrimmingSettings() {
   const handleDirtyChange = useCallback((isDirty: boolean) => {
     if (isDirty) dirty.markDirty();
     else dirty.markClean();
-  }, [dirty.markDirty, dirty.markClean]);
+  }, [dirty]);
 
   const courseCrud = useMasterCRUD<TrimmingCourse>({
     data: undefined,
@@ -82,7 +82,7 @@ export function TrimmingSettings() {
       courseSetPendingDelete(null);
       optionSetPendingDelete(null);
     });
-  }, [setSearchParams, courseSetEditTarget, optionSetEditTarget, courseSetPendingDelete, optionSetPendingDelete, dirty.runWithDiscardCheck]);
+  }, [setSearchParams, courseSetEditTarget, optionSetEditTarget, courseSetPendingDelete, optionSetPendingDelete, dirty]);
 
   const handleNew = useCallback(() => {
     if (activeTab === "course") courseCrud.handleNew();
@@ -113,13 +113,13 @@ export function TrimmingSettings() {
     const ok = await courseSave.handleSave(data);
     if (ok) dirty.markClean();
     return ok;
-  }, [courseSave.handleSave, dirty.markClean]);
+  }, [courseSave, dirty]);
 
   const handleOptionSave = useCallback(async (data: OptionFormData) => {
     const ok = await optionSave.handleSave(data);
     if (ok) dirty.markClean();
     return ok;
-  }, [optionSave.handleSave, dirty.markClean]);
+  }, [optionSave, dirty]);
 
   return (
     <>

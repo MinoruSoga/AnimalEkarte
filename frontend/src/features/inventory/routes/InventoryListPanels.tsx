@@ -28,7 +28,7 @@ interface InventoryListRowProps {
   onEdit: (id: string) => void;
 }
 
-export function InventoryListRow({ item, canEdit, onEdit }: InventoryListRowProps) {
+function InventoryListRow({ item, canEdit, onEdit }: InventoryListRowProps) {
   return (
     <DataTableRow key={item.id}>
       <TableCell className={`font-medium ${C.text}`}>

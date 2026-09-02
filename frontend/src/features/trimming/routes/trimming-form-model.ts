@@ -24,12 +24,14 @@ export function resolveTrimmingFormGate(input: {
   return null;
 }
 
+export type TrimmingSelectableItem = Omit<MasterItem, "id"> & { id: string };
+
 export function decorateTrimmingCourses(
   coursesRaw: MasterItem[],
   courseTypeNameById: ReadonlyMap<string, string>,
   selectedCourseId: string,
-): MasterItem[] {
-  const named = coursesRaw.map((course) => {
+): TrimmingSelectableItem[] {
+  const named: TrimmingSelectableItem[] = coursesRaw.map((course) => {
     const typeName = course.courseTypeId ? courseTypeNameById.get(course.courseTypeId) : undefined;
     return {
       ...course,
@@ -43,7 +45,10 @@ export function decorateTrimmingCourses(
 export function decorateTrimmingOptions(
   optionsRaw: MasterItem[],
   selectedOptionIds: string[],
-): MasterItem[] {
-  const named = optionsRaw.map((option) => ({ ...option, id: String(option.id) }));
+): TrimmingSelectableItem[] {
+  const named: TrimmingSelectableItem[] = optionsRaw.map((option) => ({
+    ...option,
+    id: String(option.id),
+  }));
   return filterActiveOrSelectedMasterItems(named, selectedOptionIds);
 }

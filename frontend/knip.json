@@ -16,6 +16,7 @@
   "ignoreDependencies": [
     "tailwindcss",
     "chrome-launcher",
-    "lighthouse"
+    "lighthouse",
+    "vercel"
   ]
 }

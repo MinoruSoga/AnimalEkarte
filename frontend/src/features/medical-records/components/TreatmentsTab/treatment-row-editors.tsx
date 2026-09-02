@@ -8,6 +8,7 @@ import { formatCurrency } from "@/lib/format/number";
 
 import type { Treatment, UpdateTreatmentInput } from "../../types";
 
+// eslint-disable-next-line react-refresh/only-export-components -- キー操作を editor cells と同居
 export function handleTreatmentEditorKeyDown(
   event: KeyboardEvent,
   commit: () => void,
@@ -37,6 +38,7 @@ export function TreatmentContentCell({
   const [localContent, setLocalContent] = useState(treatment.content);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- 行データ更新をローカル下書きへ同期
     setLocalContent(treatment.content);
   }, [treatment]);
 
@@ -84,6 +86,7 @@ export function TreatmentUnitPriceCell({
   const [unitPriceError, setUnitPriceError] = useState<string>("");
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- 行データ更新をローカル下書きへ同期
     setLocalUnitPrice(String(treatment.unit_price));
   }, [treatment]);
 
@@ -148,6 +151,7 @@ export function TreatmentDiscountCell({
   const [discountAmountError, setDiscountAmountError] = useState<string>("");
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- 行データ更新をローカル下書きへ同期
     setLocalDiscountAmount(String(treatment.discount_amount));
   }, [treatment]);
 
@@ -212,6 +216,7 @@ export function TreatmentMemoCell({
   const [localMemo, setLocalMemo] = useState(treatment.memo);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- 行データ更新をローカル下書きへ同期
     setLocalMemo(treatment.memo);
   }, [treatment]);
 

@@ -18,7 +18,7 @@ import {
 
 type SortKey = "startDate" | "ownerName" | "petName" | "species" | "status";
 
-export const HOSPITALIZATION_STATIC_FILTER_PROPERTIES: FilterProperty[] = [
+const HOSPITALIZATION_STATIC_FILTER_PROPERTIES: FilterProperty[] = [
   {
     key: "startDate",
     label: "入院日",

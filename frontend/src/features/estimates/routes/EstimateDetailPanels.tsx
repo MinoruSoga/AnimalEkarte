@@ -1,4 +1,4 @@
-import { AlertTriangle, FileText, Pencil, Trash2, ArrowLeft, FilePlus2 } from "lucide-react";
+import { AlertTriangle, Pencil, Trash2, ArrowLeft, FilePlus2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { C, ICON } from "@/lib/design-tokens";
 import { formatDate } from "@/lib/format/date";

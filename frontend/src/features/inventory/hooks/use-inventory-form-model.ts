@@ -3,7 +3,7 @@ import type {
   UpdateInventoryItemRequest,
 } from "../api/types";
 
-export function readFormString(formData: FormData, key: string): string {
+function readFormString(formData: FormData, key: string): string {
   const value = formData.get(key);
   return typeof value === "string" ? value : "";
 }
