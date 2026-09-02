@@ -1,4 +1,4 @@
-.PHONY: up down build logs logs-api logs-front ps db clean reset migrate seed docs-ui old-db-handoff-stage old-db-handoff-check csv-import-preflight csv-import csv-import-verify a4-csv-import-preflight a4-csv-import a4-csv-import-verify a4-rehearsal-contract-test a4-rehearsal-config-check a4-rehearsal-up a4-rehearsal-ps a4-rehearsal-runtime-report a4-rehearsal-down f8-g4-rehearsal-contract-test f8-g4-rehearsal-config-check f8-g4-rehearsal-run f8-g4-rehearsal-down restart-api restart-front build-prod lint lint-fix test test-cover lint-front test-front build-front e2e build-go mod-download mod-tidy help codegen codegen-check sync-modules schema-check setup-hooks ci check-reset-contract check-reset-contract-test shellcheck shellcheck-test codex-security-scan stg-uat-skeleton stg-uat-csv-import-preflight stg-uat-csv-import stg-uat-csv-import-verify stg-uat-import stg-uat-staff-attach-preflight stg-uat-staff-attach
+.PHONY: up down build logs logs-api logs-front ps db clean reset migrate seed docs-ui old-db-handoff-stage old-db-handoff-check csv-import-preflight csv-import csv-import-verify a4-csv-import-preflight a4-csv-import a4-csv-import-verify a4-rehearsal-contract-test a4-rehearsal-config-check a4-rehearsal-up a4-rehearsal-ps a4-rehearsal-runtime-report a4-rehearsal-down f8-g4-rehearsal-contract-test f8-g4-rehearsal-config-check f8-g4-rehearsal-run f8-g4-rehearsal-down restart-api restart-front build-prod lint lint-fix test test-cover lint-front test-front test-worker test-worker-makefile-test build-front e2e build-go mod-download mod-tidy help codegen codegen-check sync-modules schema-check setup-hooks ci check-reset-contract check-reset-contract-test shellcheck shellcheck-test codex-security-scan stg-uat-skeleton stg-uat-csv-import-preflight stg-uat-csv-import stg-uat-csv-import-verify stg-uat-import stg-uat-staff-attach-preflight stg-uat-staff-attach
 
 # デフォルトターゲット
 .DEFAULT_GOAL := help
@@ -516,6 +516,26 @@ lint-front:
 test-front:
 	$(DC) exec frontend pnpm run test:run
 
+# Cloudflare Worker 単体テスト（root package.json / vitest-pool-workers / workerd）。
+# frontend コンテナは ./frontend しかマウントしないので使わない。ホスト pnpm 直叩きもしない。
+# 例: make test-worker
+#     make test-worker ARGS='backend/worker/migrate-exec.test.ts'
+PNPM_VERSION ?= 10.15.0
+NODE_WORKER_IMAGE ?= node:24-bookworm
+test-worker:
+	docker run --rm \
+		-v $(PWD):/app \
+		-v ekarte-root-node-modules:/app/node_modules \
+		-v ekarte-root-pnpm-store:/pnpm-store \
+		-e PNPM_STORE_DIR=/pnpm-store \
+		-w /app \
+		$(NODE_WORKER_IMAGE) \
+		bash -lc 'set -euo pipefail; corepack enable; corepack prepare pnpm@$(PNPM_VERSION) --activate; pnpm config set store-dir /pnpm-store; pnpm install --frozen-lockfile; pnpm exec vitest run --config backend/worker/vitest.config.mts $(if $(ARGS),$(ARGS),backend/worker)'
+
+# 上記 test-worker ターゲット自体の静的契約テスト（Docker 不要）
+test-worker-makefile-test:
+	@bash scripts/check-test-worker-makefile.test.sh
+
 # Playwright E2E（ローカルのみ・リモート自動 CI 対象外）
 # 前提: make up 済みで frontend が http://localhost:3003 で応答すること。
 # 実体: frontend/scripts/run-e2e.sh（公式 Playwright Docker イメージ）
@@ -621,6 +641,8 @@ help:
 	@echo "  test-cover    Goテスト実行（カバレッジ付き）"
 	@echo "  lint-front    FE静的チェック（ESLint+type-check+knip・ローカル必須）"
 	@echo "  test-front    フロントエンドテスト実行"
+	@echo "  test-worker   Worker vitest（Docker / workerd。ARGS= でファイル指定可）"
+	@echo "  test-worker-makefile-test  test-worker ターゲットの静的契約テスト"
 	@echo "  e2e           Playwright E2E（要 make up・ARGS= で spec 指定可）"
 	@echo "  build-front   フロントエンドビルド"
 	@echo "  codegen       型定義生成（Go model → TypeScript型）"
