@@ -35,6 +35,12 @@ jobs:
       deployments: write
 
     steps:
+      - name: Reject production deploy from a non-production ref
+        if: ${{ github.event.inputs.environment == 'production' && github.ref != 'refs/heads/production' }}
+        run: |
+          echo "::error::Production frontend deploy is only allowed from refs/heads/production."
+          exit 1
+
       - name: Checkout
         uses: actions/checkout@v7.0.1
 
@@ -62,8 +68,11 @@ jobs:
         run: |
           set -euo pipefail
           ENV=preview
-          if [ "${{ github.ref }}" = "refs/heads/production" ] || [ "${{ github.event.inputs.environment }}" = "production" ]; then
+          if [ "${GITHUB_REF}" = "refs/heads/production" ]; then
             ENV=production
+          elif [ "${{ github.event.inputs.environment }}" = "production" ]; then
+            echo "::error::Production frontend deploy is only allowed from refs/heads/production."
+            exit 1
           fi
 
           pnpm --dir frontend exec vercel pull --yes --environment="$ENV" --token="$VERCEL_TOKEN"

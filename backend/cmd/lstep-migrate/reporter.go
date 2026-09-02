@@ -7,6 +7,18 @@ import (
 	"log/slog"
 )
 
+// sanitizeCSVCell はセルがスプレッドシート数式と解釈されるのを防ぐ。
+// 先頭文字が = + - @ の場合、単一引用符 ' で前置する。
+func sanitizeCSVCell(cell string) string {
+	if cell != "" {
+		switch cell[0] {
+		case '=', '+', '-', '@':
+			return "'" + cell
+		}
+	}
+	return cell
+}
+
 // WriteCSVReport は進捗レコードを CSV で出力する。
 func WriteCSVReport(w io.Writer, records []ProgressRecord, logger *slog.Logger) error {
 	cw := csv.NewWriter(w)
@@ -18,11 +30,11 @@ func WriteCSVReport(w io.Writer, records []ProgressRecord, logger *slog.Logger) 
 	for _, r := range records {
 		row := []string{
 			fmt.Sprintf("%d", r.OwnerID),
-			r.OwnerName,
-			r.Status,
+			sanitizeCSVCell(r.OwnerName),
+			sanitizeCSVCell(r.Status),
 			fmt.Sprintf("%d", r.TagsAdded),
 			fmt.Sprintf("%d", r.TagsFailed),
-			r.ErrorMessage,
+			sanitizeCSVCell(r.ErrorMessage),
 		}
 		if err := cw.Write(row); err != nil {
 			return fmt.Errorf("csv row write failed (owner=%d): %w", r.OwnerID, err)
