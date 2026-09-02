@@ -58,3 +58,31 @@ export function initialMedicalRecordTab(raw: string | null | undefined): string 
     ? raw
     : "問診";
 }
+
+export type MedicalRecordFormGate =
+  | { kind: "read-loading" }
+  | { kind: "not-found" }
+  | { kind: "read-error"; retryRead?: () => void }
+  | { kind: "pet-loading" }
+  | { kind: "missing-pet" }
+  | { kind: "empty" };
+
+export function resolveMedicalRecordFormGate(input: {
+  isReadLoading: boolean;
+  notFound: boolean;
+  isReadNotFound: boolean;
+  isReadError: boolean;
+  retryRead?: () => void;
+  isPetLoading: boolean;
+  isNewRecord: boolean;
+  hasSelectedPet: boolean;
+}): MedicalRecordFormGate | null {
+  if (input.isReadLoading) return { kind: "read-loading" };
+  if (input.notFound || input.isReadNotFound) return { kind: "not-found" };
+  if (input.isReadError) return { kind: "read-error", retryRead: input.retryRead };
+  if (input.isPetLoading) return { kind: "pet-loading" };
+  if (!input.hasSelectedPet) {
+    return input.isNewRecord ? { kind: "empty" } : { kind: "missing-pet" };
+  }
+  return null;
+}

@@ -1,4 +1,4 @@
-import { memo, useCallback } from "react";
+import { memo, useCallback, type ReactNode } from "react";
 import { Link } from "react-router";
 import { ChevronDown, FileText } from "lucide-react";
 import { PatientContextHeader } from "@/components/shared/PatientContextHeader";
@@ -279,7 +279,57 @@ interface MedicalRecordTabsAreaProps {
   onRegisterEstimateSave: (fn: () => Promise<void>) => void;
 }
 
-export function MedicalRecordTabsArea({
+export function MedicalRecordTabsArea(props: MedicalRecordTabsAreaProps) {
+  const isFinalized = isMedicalRecordFinalizedStatus(props.recordStatus);
+  return (
+    <div className={`mt-4 ${LAYOUT.fullHeight}`}>
+      <MedicalRecordClinicalTabs {...props} isFinalized={isFinalized} />
+      <MedicalRecordServiceTabs {...props} isFinalized={isFinalized} />
+    </div>
+  );
+}
+
+function MedicalRecordMountedTab({
+  tab,
+  activeTab,
+  mountedTabs,
+  contentClassName,
+  children,
+}: {
+  tab: string;
+  activeTab: string;
+  mountedTabs: Set<string>;
+  contentClassName?: string;
+  children: ReactNode;
+}) {
+  if (!mountedTabs.has(tab)) return null;
+  return (
+    <UnifiedTabsContent value={tab} className={contentClassName}>
+      <div className={`${LAYOUT.fullHeight} ${activeTab === tab ? "" : "hidden"}`}>
+        {children}
+      </div>
+    </UnifiedTabsContent>
+  );
+}
+
+function MedicalRecordSaveRequired({
+  show,
+  children,
+}: {
+  show: boolean;
+  children: ReactNode;
+}) {
+  if (show) {
+    return (
+      <div className={`flex items-center justify-center h-48 text-sm ${C.text40}`}>
+        カルテを保存してから使用できます
+      </div>
+    );
+  }
+  return children;
+}
+
+function MedicalRecordClinicalTabs({
   activeTab,
   mountedTabs,
   isNewRecord,
@@ -300,10 +350,9 @@ export function MedicalRecordTabsArea({
   nextVisitDate,
   hasLineIntegration,
   recommendationReason,
-  lstepStatus,
-  recordStatus,
   diagnosis1NameIdError,
   recordClinicId,
+  isFinalized,
   onChiefComplaintChange,
   onChiefComplaintTypeIdChange,
   onTreatmentPolicyChange,
@@ -317,165 +366,138 @@ export function MedicalRecordTabsArea({
   onNextVisitDateChange,
   onNextVisitDateValidChange,
   onRecommendationReasonChange,
-  onRegisterEstimateSave,
-}: MedicalRecordTabsAreaProps) {
-  const isFinalized = isMedicalRecordFinalizedStatus(recordStatus);
+}: MedicalRecordTabsAreaProps & { isFinalized: boolean }) {
   return (
-    <div className={`mt-4 ${LAYOUT.fullHeight}`}>
-      {mountedTabs.has("問診") ? (
-        <UnifiedTabsContent value="問診" className="min-h-0 flex flex-col">
-          <div className={`${LAYOUT.fullHeight} ${activeTab === "問診" ? "" : "hidden"}`}>
-            <MedicalRecordInterview
-              chiefComplaint={chiefComplaint}
-              setChiefComplaint={onChiefComplaintChange}
-              chiefComplaintTypeId={chiefComplaintTypeId}
-              setChiefComplaintTypeId={onChiefComplaintTypeIdChange}
-              treatmentPolicy={treatmentPolicy}
-              setTreatmentPolicy={onTreatmentPolicyChange}
-              historyItems={historyItems}
-              isFinalized={isFinalized}
-            />
-          </div>
-        </UnifiedTabsContent>
-      ) : null}
-      {mountedTabs.has("診察/治療プラン") ? (
-        <UnifiedTabsContent value="診察/治療プラン">
-          <div className={`${LAYOUT.fullHeight} ${activeTab === "診察/治療プラン" ? "" : "hidden"}`}>
-            <MedicalRecordDiagnosisPlan
-              isNewRecord={isNewRecord}
-              chiefComplaint={chiefComplaint}
-              physicalExam={physicalExam}
-              setPhysicalExam={onPhysicalExamChange}
-              plan={plan}
-              setPlan={onPlanChange}
-              assessment={assessment}
-              setAssessment={onAssessmentChange}
-              diagnosis1CategoryId={diagnosis1CategoryId}
-              setDiagnosis1CategoryId={onDiagnosis1CategoryIdChange}
-              diagnosis1NameId={diagnosis1NameId}
-              setDiagnosis1NameId={onDiagnosis1NameIdChange}
-              diagnosis2CategoryId={diagnosis2CategoryId}
-              setDiagnosis2CategoryId={onDiagnosis2CategoryIdChange}
-              diagnosis2NameId={diagnosis2NameId}
-              setDiagnosis2NameId={onDiagnosis2NameIdChange}
+    <>
+      <MedicalRecordMountedTab tab="問診" activeTab={activeTab} mountedTabs={mountedTabs} contentClassName="min-h-0 flex flex-col">
+        <MedicalRecordInterview
+          chiefComplaint={chiefComplaint}
+          setChiefComplaint={onChiefComplaintChange}
+          chiefComplaintTypeId={chiefComplaintTypeId}
+          setChiefComplaintTypeId={onChiefComplaintTypeIdChange}
+          treatmentPolicy={treatmentPolicy}
+          setTreatmentPolicy={onTreatmentPolicyChange}
+          historyItems={historyItems}
+          isFinalized={isFinalized}
+        />
+      </MedicalRecordMountedTab>
+      <MedicalRecordMountedTab tab="診察/治療プラン" activeTab={activeTab} mountedTabs={mountedTabs}>
+        <MedicalRecordDiagnosisPlan
+          isNewRecord={isNewRecord}
+          chiefComplaint={chiefComplaint}
+          physicalExam={physicalExam}
+          setPhysicalExam={onPhysicalExamChange}
+          plan={plan}
+          setPlan={onPlanChange}
+          assessment={assessment}
+          setAssessment={onAssessmentChange}
+          diagnosis1CategoryId={diagnosis1CategoryId}
+          setDiagnosis1CategoryId={onDiagnosis1CategoryIdChange}
+          diagnosis1NameId={diagnosis1NameId}
+          setDiagnosis1NameId={onDiagnosis1NameIdChange}
+          diagnosis2CategoryId={diagnosis2CategoryId}
+          setDiagnosis2CategoryId={onDiagnosis2CategoryIdChange}
+          diagnosis2NameId={diagnosis2NameId}
+          setDiagnosis2NameId={onDiagnosis2NameIdChange}
+          medicalRecordId={recordId}
+          ownerDiscountRate={ownerDiscountRate}
+          diagnosis1NameIdError={diagnosis1NameIdError}
+          recordClinicId={recordClinicId}
+        />
+        <div className="px-4 pb-4 mt-4 flex flex-col gap-6">
+          <NextVisitDateField
+            value={nextVisitDate}
+            onChange={onNextVisitDateChange}
+            onValidationChange={onNextVisitDateValidChange}
+            hasLineIntegration={hasLineIntegration}
+            disabled={isNewRecord || isFinalized}
+          />
+          {recordId ? (
+            <RecommendationReasonSelect
+              mode="edit"
               medicalRecordId={recordId}
-              ownerDiscountRate={ownerDiscountRate}
-              diagnosis1NameIdError={diagnosis1NameIdError}
-              recordClinicId={recordClinicId}
+              value={recommendationReason}
+              disabled={isFinalized}
             />
-            <div className="px-4 pb-4 mt-4 flex flex-col gap-6">
-              <NextVisitDateField
-                value={nextVisitDate}
-                onChange={onNextVisitDateChange}
-                onValidationChange={onNextVisitDateValidChange}
-                hasLineIntegration={hasLineIntegration}
-                disabled={isNewRecord || isFinalized}
-              />
-              {recordId ? (
-                <RecommendationReasonSelect
-                  mode="edit"
-                  medicalRecordId={recordId}
-                  value={recommendationReason}
-                  disabled={isFinalized}
-                />
-              ) : (
-                <RecommendationReasonSelect
-                  mode="create"
-                  value={recommendationReason}
-                  onChange={onRecommendationReasonChange}
-                  disabled={isFinalized}
-                />
-              )}
-            </div>
-          </div>
-        </UnifiedTabsContent>
-      ) : null}
-      {mountedTabs.has("治療") ? (
-        <UnifiedTabsContent value="治療">
-          <div className={`${LAYOUT.fullHeight} ${activeTab === "治療" ? "" : "hidden"}`}>
-            <MedicalRecordTreatment
-              medicalRecordId={recordId ?? ""}
-              isNewRecord={isNewRecord}
-              petSpecies={selectedPet.species}
-              recordClinicId={recordClinicId}
+          ) : (
+            <RecommendationReasonSelect
+              mode="create"
+              value={recommendationReason}
+              onChange={onRecommendationReasonChange}
+              disabled={isFinalized}
             />
-          </div>
-        </UnifiedTabsContent>
-      ) : null}
-      {mountedTabs.has("予防接種") ? (
-        <UnifiedTabsContent value="予防接種">
-          <div className={`${LAYOUT.fullHeight} ${activeTab === "予防接種" ? "" : "hidden"}`}>
-            {isNewRecord || !recordId ? (
-              <div className={`flex items-center justify-center h-48 text-sm ${C.text40}`}>
-                カルテを保存してから使用できます
-              </div>
-            ) : (
-              <MedicalRecordVaccination
-                petId={selectedPet.id}
-                medicalRecordId={recordId}
-                lstepStatus={lstepStatus}
-              />
-            )}
-          </div>
-        </UnifiedTabsContent>
-      ) : null}
-      {mountedTabs.has("定期健診") ? (
-        <UnifiedTabsContent value="定期健診">
-          <div className={`${LAYOUT.fullHeight} ${activeTab === "定期健診" ? "" : "hidden"}`}>
-            {isNewRecord || !recordId ? (
-              <div className={`flex items-center justify-center h-48 text-sm ${C.text40}`}>
-                カルテを保存してから使用できます
-              </div>
-            ) : (
-              <CheckupsTab medicalRecordId={recordId} lstepStatus={lstepStatus} isFinalized={isFinalized} />
-            )}
-          </div>
-        </UnifiedTabsContent>
-      ) : null}
-      {mountedTabs.has("検査") ? (
-        <UnifiedTabsContent value="検査">
-          <div className={`${LAYOUT.fullHeight} ${activeTab === "検査" ? "" : "hidden"}`}>
-            <MedicalRecordExamination isNewRecord={isNewRecord} petId={selectedPet.id} medicalRecordId={recordId} />
-          </div>
-        </UnifiedTabsContent>
-      ) : null}
-      {mountedTabs.has("画像") ? (
-        <UnifiedTabsContent value="画像">
-          <div className={`${LAYOUT.fullHeight} ${activeTab === "画像" ? "" : "hidden"}`}>
-            <MedicalRecordImage
-              isNewRecord={isNewRecord}
-              medicalRecordId={recordId}
-              recordClinicId={recordClinicId}
-              isPetDeceased={selectedPet.status === "死亡"}
-            />
-          </div>
-        </UnifiedTabsContent>
-      ) : null}
-      {mountedTabs.has("見積書") ? (
-        <UnifiedTabsContent value="見積書">
-          <div className={`${LAYOUT.fullHeight} ${activeTab === "見積書" ? "" : "hidden"}`}>
-            <MedicalRecordEstimate
-              isNewRecord={isNewRecord}
-              ownerDiscountRate={ownerDiscountRate}
-              medicalRecordId={recordId}
-              onRegisterSave={onRegisterEstimateSave}
-            />
-          </div>
-        </UnifiedTabsContent>
-      ) : null}
-      {mountedTabs.has("会計(医師確認)") ? (
-        <UnifiedTabsContent value="会計(医師確認)">
-          <div className={`${LAYOUT.fullHeight} ${activeTab === "会計(医師確認)" ? "" : "hidden"}`}>
-            <MedicalRecordBillCheck
-              isNewRecord={isNewRecord}
-              medicalRecordId={recordId}
-              petId={selectedPet.id}
-              ownerDiscountRate={ownerDiscountRate}
-              recordClinicId={recordClinicId}
-            />
-          </div>
-        </UnifiedTabsContent>
-      ) : null}
-    </div>
+          )}
+        </div>
+      </MedicalRecordMountedTab>
+      <MedicalRecordMountedTab tab="治療" activeTab={activeTab} mountedTabs={mountedTabs}>
+        <MedicalRecordTreatment
+          medicalRecordId={recordId ?? ""}
+          isNewRecord={isNewRecord}
+          petSpecies={selectedPet.species}
+          recordClinicId={recordClinicId}
+        />
+      </MedicalRecordMountedTab>
+    </>
+  );
+}
+
+function MedicalRecordServiceTabs({
+  activeTab,
+  mountedTabs,
+  isNewRecord,
+  recordId,
+  selectedPet,
+  ownerDiscountRate,
+  lstepStatus,
+  recordClinicId,
+  isFinalized,
+  onRegisterEstimateSave,
+}: MedicalRecordTabsAreaProps & { isFinalized: boolean }) {
+  const saveRequired = isNewRecord || !recordId;
+  return (
+    <>
+      <MedicalRecordMountedTab tab="予防接種" activeTab={activeTab} mountedTabs={mountedTabs}>
+        <MedicalRecordSaveRequired show={saveRequired}>
+          <MedicalRecordVaccination
+            petId={selectedPet.id}
+            medicalRecordId={recordId ?? ""}
+            lstepStatus={lstepStatus}
+          />
+        </MedicalRecordSaveRequired>
+      </MedicalRecordMountedTab>
+      <MedicalRecordMountedTab tab="定期健診" activeTab={activeTab} mountedTabs={mountedTabs}>
+        <MedicalRecordSaveRequired show={saveRequired}>
+          <CheckupsTab medicalRecordId={recordId ?? ""} lstepStatus={lstepStatus} isFinalized={isFinalized} />
+        </MedicalRecordSaveRequired>
+      </MedicalRecordMountedTab>
+      <MedicalRecordMountedTab tab="検査" activeTab={activeTab} mountedTabs={mountedTabs}>
+        <MedicalRecordExamination isNewRecord={isNewRecord} petId={selectedPet.id} medicalRecordId={recordId} />
+      </MedicalRecordMountedTab>
+      <MedicalRecordMountedTab tab="画像" activeTab={activeTab} mountedTabs={mountedTabs}>
+        <MedicalRecordImage
+          isNewRecord={isNewRecord}
+          medicalRecordId={recordId}
+          recordClinicId={recordClinicId}
+          isPetDeceased={selectedPet.status === "死亡"}
+        />
+      </MedicalRecordMountedTab>
+      <MedicalRecordMountedTab tab="見積書" activeTab={activeTab} mountedTabs={mountedTabs}>
+        <MedicalRecordEstimate
+          isNewRecord={isNewRecord}
+          ownerDiscountRate={ownerDiscountRate}
+          medicalRecordId={recordId}
+          onRegisterSave={onRegisterEstimateSave}
+        />
+      </MedicalRecordMountedTab>
+      <MedicalRecordMountedTab tab="会計(医師確認)" activeTab={activeTab} mountedTabs={mountedTabs}>
+        <MedicalRecordBillCheck
+          isNewRecord={isNewRecord}
+          medicalRecordId={recordId}
+          petId={selectedPet.id}
+          ownerDiscountRate={ownerDiscountRate}
+          recordClinicId={recordClinicId}
+        />
+      </MedicalRecordMountedTab>
+    </>
   );
 }

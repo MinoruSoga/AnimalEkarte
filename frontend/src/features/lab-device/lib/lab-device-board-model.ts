@@ -224,3 +224,66 @@ export function labDeviceNeedsReviewReason(card: LabDeviceJobCard): string | nul
   }
   return "確認が必要です（保存できませんでした）";
 }
+
+export function isLabDeviceBoardSlotSupported(sourceType: string): boolean {
+  return sourceType === "fuji_nx600" || sourceType === "fuji_au10v";
+}
+
+export function labDeviceBoardSlotListenState(input: {
+  supported: boolean;
+  agentConnected: boolean;
+  openPorts: number;
+  configuredPorts: number;
+  hasLiveReceive: boolean;
+}): LabDeviceListenState {
+  if (!input.supported) {
+    return "unsupported";
+  }
+  if (
+    input.agentConnected
+    && input.openPorts > 0
+    && input.openPorts === input.configuredPorts
+  ) {
+    return input.hasLiveReceive ? "listening" : "monitoring";
+  }
+  return "disconnected";
+}
+
+export function labDeviceAgentConnectionLabel(input: {
+  connected: boolean;
+  configuredPorts: number;
+  openPorts: number;
+}): "切断" | "要確認" | "監視中" {
+  if (!input.connected) {
+    return "切断";
+  }
+  if (input.configuredPorts === 0 || input.openPorts < input.configuredPorts) {
+    return "要確認";
+  }
+  return "監視中";
+}
+
+export function labDeviceAttachFailureToast(attached: LabDeviceJobCard): string {
+  return labDeviceCardNeedsReview(attached)
+    ? `保存できませんでした（${labDeviceNeedsReviewReason(attached)}）`
+    : "保存できませんでした。未紐付けのままです";
+}
+
+export function labDeviceAgentDegradedErrorMessage(
+  category: "none" | "discovery_failed" | "port_open_failed" | "queue_write_failed" | "port_close_failed" | "response_write_failed",
+): string | null {
+  switch (category) {
+    case "none":
+      return null;
+    case "discovery_failed":
+      return "USB接続の確認に失敗しました。Macのローカル受信機を再起動してください。";
+    case "queue_write_failed":
+      return "受信結果を保持できません。追加送信を止めてサポート担当へ連絡してください。";
+    case "port_close_failed":
+      return "USBポートの終了に失敗しました。Macのローカル受信機を再起動してください。";
+    case "response_write_failed":
+      return "ローカル受信機との通信に失敗しました。画面を再読み込みしてください。";
+    case "port_open_failed":
+      return "USBポートを開けません。接続とアクセス権を確認してください。";
+  }
+}
