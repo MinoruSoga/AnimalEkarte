@@ -34,60 +34,11 @@ func (r *billingItemRepository) quoteLockedVaccinationBilling(
 	vaccinationRef vaccinationEventRef,
 ) (*vaccinationBillingValues, error) {
 	_ = ctx
-	var ownerID uint64
-	if err := tx.
-		Table("owners").
-		Select("id").
-		Where("id = ? AND clinic_id = ? AND deleted_at IS NULL", *billingRef.OwnerID, clinicID).
-		Clauses(clause.Locking{Strength: "SHARE"}).
-		Take(&ownerID).Error; err != nil {
-		return nil, apperrors.FromGORM(err, "owner", fmt.Sprintf("%d", *billingRef.OwnerID))
+	if err := r.lockVaccinationBillingOwnerPet(tx, clinicID, billingRef, vaccinationRef); err != nil {
+		return nil, err
 	}
-
-	var petID uint64
-	if err := tx.
-		Table("pets").
-		Select("id").
-		Where("id = ? AND clinic_id = ? AND deleted_at IS NULL", *vaccinationRef.PetID, clinicID).
-		Clauses(clause.Locking{Strength: "SHARE"}).
-		Take(&petID).Error; err != nil {
-		return nil, apperrors.FromGORM(err, "pet", fmt.Sprintf("%d", *vaccinationRef.PetID))
-	}
-
-	validateMedicalRecord := func(id uint64) error {
-		var medicalRecordRef struct {
-			PetID *uint64
-		}
-		if err := tx.
-			Table("medical_records").
-			Select("pet_id").
-			Where("id = ? AND clinic_id = ? AND deleted_at IS NULL", id, clinicID).
-			Clauses(clause.Locking{Strength: "SHARE"}).
-			Take(&medicalRecordRef).Error; err != nil {
-			return apperrors.FromGORM(err, "medical_record", fmt.Sprintf("%d", id))
-		}
-		if medicalRecordRef.PetID == nil ||
-			*medicalRecordRef.PetID != *billingRef.PetID {
-			return invalidBillingItemReferenceCombination()
-		}
-		return nil
-	}
-	medicalRecordIDs := make([]uint64, 0, 2)
-	if billingRef.MedicalRecordID != nil {
-		medicalRecordIDs = append(medicalRecordIDs, *billingRef.MedicalRecordID)
-	}
-	if vaccinationRef.MedicalRecordID != nil &&
-		(billingRef.MedicalRecordID == nil ||
-			*vaccinationRef.MedicalRecordID != *billingRef.MedicalRecordID) {
-		medicalRecordIDs = append(medicalRecordIDs, *vaccinationRef.MedicalRecordID)
-	}
-	sort.Slice(medicalRecordIDs, func(i, j int) bool {
-		return medicalRecordIDs[i] < medicalRecordIDs[j]
-	})
-	for _, medicalRecordID := range medicalRecordIDs {
-		if err := validateMedicalRecord(medicalRecordID); err != nil {
-			return nil, err
-		}
+	if err := r.lockVaccinationBillingMedicalRecords(tx, clinicID, billingRef, vaccinationRef); err != nil {
+		return nil, err
 	}
 	if vaccinationRef.MedicalRecordID == nil {
 		return nil, invalidBillingItemReferenceCombination()
@@ -155,4 +106,76 @@ func (r *billingItemRepository) quoteLockedVaccinationBilling(
 		Name:      vaccineRef.Name,
 		UnitPrice: *vaccineRef.Price,
 	}, nil
+}
+
+func (r *billingItemRepository) lockVaccinationBillingOwnerPet(
+	tx *gorm.DB,
+	clinicID uint64,
+	billingRef vaccinationBillingParentRef,
+	vaccinationRef vaccinationEventRef,
+) error {
+	var ownerID uint64
+	if err := tx.
+		Table("owners").
+		Select("id").
+		Where("id = ? AND clinic_id = ? AND deleted_at IS NULL", *billingRef.OwnerID, clinicID).
+		Clauses(clause.Locking{Strength: "SHARE"}).
+		Take(&ownerID).Error; err != nil {
+		return apperrors.FromGORM(err, "owner", fmt.Sprintf("%d", *billingRef.OwnerID))
+	}
+
+	var petID uint64
+	if err := tx.
+		Table("pets").
+		Select("id").
+		Where("id = ? AND clinic_id = ? AND deleted_at IS NULL", *vaccinationRef.PetID, clinicID).
+		Clauses(clause.Locking{Strength: "SHARE"}).
+		Take(&petID).Error; err != nil {
+		return apperrors.FromGORM(err, "pet", fmt.Sprintf("%d", *vaccinationRef.PetID))
+	}
+	return nil
+}
+
+func (r *billingItemRepository) lockVaccinationBillingMedicalRecords(
+	tx *gorm.DB,
+	clinicID uint64,
+	billingRef vaccinationBillingParentRef,
+	vaccinationRef vaccinationEventRef,
+) error {
+	validateMedicalRecord := func(id uint64) error {
+		var medicalRecordRef struct {
+			PetID *uint64
+		}
+		if err := tx.
+			Table("medical_records").
+			Select("pet_id").
+			Where("id = ? AND clinic_id = ? AND deleted_at IS NULL", id, clinicID).
+			Clauses(clause.Locking{Strength: "SHARE"}).
+			Take(&medicalRecordRef).Error; err != nil {
+			return apperrors.FromGORM(err, "medical_record", fmt.Sprintf("%d", id))
+		}
+		if medicalRecordRef.PetID == nil ||
+			*medicalRecordRef.PetID != *billingRef.PetID {
+			return invalidBillingItemReferenceCombination()
+		}
+		return nil
+	}
+	medicalRecordIDs := make([]uint64, 0, 2)
+	if billingRef.MedicalRecordID != nil {
+		medicalRecordIDs = append(medicalRecordIDs, *billingRef.MedicalRecordID)
+	}
+	if vaccinationRef.MedicalRecordID != nil &&
+		(billingRef.MedicalRecordID == nil ||
+			*vaccinationRef.MedicalRecordID != *billingRef.MedicalRecordID) {
+		medicalRecordIDs = append(medicalRecordIDs, *vaccinationRef.MedicalRecordID)
+	}
+	sort.Slice(medicalRecordIDs, func(i, j int) bool {
+		return medicalRecordIDs[i] < medicalRecordIDs[j]
+	})
+	for _, medicalRecordID := range medicalRecordIDs {
+		if err := validateMedicalRecord(medicalRecordID); err != nil {
+			return err
+		}
+	}
+	return nil
 }

@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"log/slog"
 	"os"
@@ -27,36 +26,9 @@ func main() {
 }
 
 func run() int {
-	var (
-		clinicID      = flag.Uint64("clinic-id", 0, "対象クリニックID（必須）")
-		dryRun        = flag.Bool("dry-run", false, "ドライラン（DB 書き込みなし）")
-		batchSize     = flag.Int("batch-size", 5, "並列実行数")
-		rateLimitPerS = flag.Int("rate-limit-per-sec", 10, "1秒あたりの最大同期数")
-		skipTier2     = flag.Bool("skip-tier-2", false, "Tier2 同期スキップ")
-		ownerIDsFlag  = flag.String("owner-ids", "", "対象 ownerID のカンマ区切りリスト（省略時は全員）")
-		resumeFrom    = flag.Uint64("resume-from", 0, "このID以降の飼い主のみ処理")
-		reportPath    = flag.String("report", "lstep_migration_report.csv", "CSVレポート出力先")
-	)
-	flag.Parse()
-
-	if *clinicID == 0 {
-		fmt.Fprintln(os.Stderr, "error: --clinic-id は必須です")
-		flag.Usage()
-		return 1
-	}
-	if *batchSize < 1 {
-		fmt.Fprintln(os.Stderr, "error: --batch-size は1以上を指定してください")
-		return 1
-	}
-	if *rateLimitPerS < 1 {
-		fmt.Fprintln(os.Stderr, "error: --rate-limit-per-sec は1以上を指定してください")
-		return 1
-	}
-
-	ownerIDs, err := parseOwnerIDs(*ownerIDsFlag)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: --owner-ids の解析に失敗しました: %v\n", err)
-		return 1
+	opts, code := parseMigrateCLI()
+	if code != 0 {
+		return code
 	}
 
 	logger.Init(logger.Config{Level: slog.LevelInfo, Format: "json", Output: os.Stdout})
@@ -117,13 +89,13 @@ func run() int {
 	)
 
 	migCfg := Config{
-		ClinicID:        *clinicID,
-		DryRun:          *dryRun,
-		BatchSize:       *batchSize,
-		RateLimitPerSec: *rateLimitPerS,
-		SkipTier2:       *skipTier2,
-		OwnerIDs:        ownerIDs,
-		ResumeFrom:      *resumeFrom,
+		ClinicID:        opts.clinicID,
+		DryRun:          opts.dryRun,
+		BatchSize:       opts.batchSize,
+		RateLimitPerSec: opts.rateLimitPerS,
+		SkipTier2:       opts.skipTier2,
+		OwnerIDs:        opts.ownerIDs,
+		ResumeFrom:      opts.resumeFrom,
 	}
 
 	m := NewMigrator(migCfg, db, ownerRepo, tagSyncSvc, log)
@@ -142,9 +114,9 @@ func run() int {
 		return 0
 	}
 
-	f, err := os.Create(*reportPath)
+	f, err := os.Create(opts.reportPath)
 	if err != nil {
-		log.Error("failed to create report file", slog.String("path", *reportPath), slog.String("error", err.Error()))
+		log.Error("failed to create report file", slog.String("path", opts.reportPath), slog.String("error", err.Error()))
 		return 1
 	}
 	defer func() { _ = f.Close() }()
@@ -153,7 +125,7 @@ func run() int {
 		log.Error("failed to write CSV report", slog.String("error", err.Error()))
 		return 1
 	}
-	log.Info("report written", slog.String("path", *reportPath))
+	log.Info("report written", slog.String("path", opts.reportPath))
 	return 0
 }
 

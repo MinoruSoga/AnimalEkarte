@@ -211,73 +211,15 @@ func (s *accountingService) Update(ctx context.Context, input *UpdateAccountingI
 	// completeAccountingAppointments を呼んでおり、これのみ失敗すると billing は completed で
 	// 確定済みのまま部分コミットになった。
 	// AUD-002: 最終関連 FK の所有・相互整合検証を write 前（同一 WithTx 内）で実施する。
-	var updatedBilling *model.Billing
 	var accounting *model.Billing
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
-		if err := s.validateAccountingRelatedFKs(txCtx, input.ClinicID, finalMRID, finalHospID, finalOwnerID, finalPetID); err != nil {
-			return err
-		}
-		// Billing 本体の更新
-		if len(fields) > 0 {
-			b, err := s.repo.Update(txCtx, input.ClinicID, input.ID, fields)
-			if err != nil {
-				slog.ErrorContext(txCtx, "failed to update accounting", "error", err)
-				return apperrors.Wrap(err, "failed to update accounting")
-			}
-			updatedBilling = b
-		}
-
-		// Payment upsert（支払フィールドが含まれている場合）
-		if hasPaymentFields(input) {
-			if err := s.repo.SavePayment(txCtx, payment); err != nil {
-				slog.ErrorContext(txCtx, "failed to upsert payment", "error", err)
-				return apperrors.Wrap(err, "failed to upsert payment")
-			}
-			// payment_splits の更新（混在会計・backward compat 両対応）
-			if err := s.repo.SavePaymentSplits(txCtx, splits); err != nil {
-				slog.ErrorContext(txCtx, "failed to save payment splits", "error", err)
-				return apperrors.Wrap(err, "failed to save payment splits")
-			}
-			slog.InfoContext(txCtx, "payment upserted",
-				slog.Uint64("clinic_id", input.ClinicID),
-				slog.Uint64("billing_id", input.ID))
-		}
-
-		// #115 / W-013: 締め後編集は (1) append-only adjustment 台帳追記 (2) 監査ログ を同一 tx で
-		// fail-closed に記録する。close reverse/取消は productize しない。
-		// HIGH-1: handler の IsDateClosed は候補 read に過ぎないため、write 時に同一 tx で再評価する。
-		postClose, err := s.resolvePostCloseInTx(txCtx, input.ClinicID, existing.ScheduledDate, input.IsPostClose)
+		reloaded, err := s.updateAccountingInTx(
+			txCtx, input, existing, fields, finalMRID, finalHospID, finalOwnerID, finalPetID, payment, splits,
+		)
 		if err != nil {
 			return err
 		}
-		if postClose {
-			// 再評価で締め済みと判明した場合も理由必須（handler が非締めとして通した競合を fail-closed）。
-			if input.PostCloseReason == nil || *input.PostCloseReason == "" {
-				return apperrors.WrapInvalidInput("レジ締め済み期間の会計編集には post_close_reason の入力が必要です")
-			}
-			input.IsPostClose = true
-			if err := s.writePostCloseAdjustment(txCtx, input, existing); err != nil {
-				return err
-			}
-			if err := s.logPostCloseEdit(txCtx, input); err != nil {
-				return err
-			}
-		}
-
-		// X-12: 判定は再読込後の accounting ではなく input.Status ベース（tx 内では fields 適用済みのため同値）。
-		if input.Status != nil && *input.Status == model.BillingStatusCompleted {
-			if err := s.completeAccountingAppointments(txCtx, input.ClinicID, updatedBilling); err != nil {
-				return apperrors.Wrap(err, "failed to complete accounting appointments during update")
-			}
-		}
-
-		// Build the response before commit. A reload failure must roll back billing, payment,
-		// audit, and appointment writes instead of reporting an error after they committed.
-		accounting, err = s.repo.FindByID(txCtx, input.ClinicID, input.ID)
-		if err != nil {
-			slog.ErrorContext(txCtx, "failed to reload accounting after update", "error", err)
-			return apperrors.Wrap(err, "failed to reload accounting after update")
-		}
+		accounting = reloaded
 		return nil
 	}); err != nil {
 		return nil, apperrors.Wrap(err, "failed to update accounting in transaction")

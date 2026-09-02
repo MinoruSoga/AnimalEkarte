@@ -128,25 +128,9 @@ func ValidateStaffProvisionManifestStructure(manifest *StaffProvisionManifest) e
 	if manifest.ActorAccountID == 0 {
 		return apperrors.WrapInvalidInput("actor_account_id is required")
 	}
-	if len(manifest.ClinicScope) == 0 {
-		return apperrors.WrapInvalidInput("clinic_scope must not be empty")
-	}
-	if !slices.IsSorted(manifest.ClinicScope) {
-		return apperrors.WrapInvalidInput("clinic_scope must be sorted ascending")
-	}
-	seenClinic := make(map[uint64]struct{}, len(manifest.ClinicScope))
-	for _, id := range manifest.ClinicScope {
-		if id == 0 {
-			return apperrors.WrapInvalidInput("clinic_scope must not contain zero")
-		}
-		if _, dup := seenClinic[id]; dup {
-			return apperrors.WrapInvalidInput("clinic_scope must not contain duplicates")
-		}
-		seenClinic[id] = struct{}{}
-	}
-	expectedBatchID := ClinicScopeBatchID(manifest.ClinicScope)
-	if manifest.BatchID != expectedBatchID {
-		return apperrors.WrapInvalidInput("batch_id does not match clinic_scope digest namespace")
+	seenClinic, err := validateStaffProvisionClinicScope(manifest)
+	if err != nil {
+		return err
 	}
 	if len(manifest.Staff) == 0 {
 		return apperrors.WrapInvalidInput("staff must not be empty")
@@ -158,88 +142,17 @@ func ValidateStaffProvisionManifestStructure(manifest *StaffProvisionManifest) e
 	seenSecretRef := make(map[string]struct{}, len(manifest.Staff))
 
 	for i, entry := range manifest.Staff {
-		prefix := fmt.Sprintf("staff[%d]", i)
-		externalID := strings.TrimSpace(entry.ExternalStaffID)
-		if externalID == "" {
-			return apperrors.WrapInvalidInput(prefix + ": external_staff_id is required")
+		if err := validateStaffProvisionEntry(
+			fmt.Sprintf("staff[%d]", i),
+			entry,
+			seenClinic,
+			seenExternal,
+			seenEmail,
+			seenSecretRef,
+			union,
+		); err != nil {
+			return err
 		}
-		if _, dup := seenExternal[externalID]; dup {
-			return apperrors.WrapInvalidInput("duplicate external_staff_id in batch")
-		}
-		seenExternal[externalID] = struct{}{}
-
-		name := strings.TrimSpace(entry.Name)
-		if name == "" {
-			return apperrors.WrapInvalidInput(prefix + ": name is required")
-		}
-		if utf8.RuneCountInString(name) > 100 {
-			return apperrors.WrapInvalidInput(prefix + ": name is too long")
-		}
-
-		email := strings.TrimSpace(strings.ToLower(entry.Email))
-		if email == "" || !strings.Contains(email, "@") {
-			return apperrors.WrapInvalidInput(prefix + ": email is invalid")
-		}
-		if _, dup := seenEmail[email]; dup {
-			return apperrors.WrapInvalidInput("duplicate email in batch")
-		}
-		seenEmail[email] = struct{}{}
-
-		if entry.MainClinicID == 0 {
-			return apperrors.WrapInvalidInput(prefix + ": main_clinic_id is required")
-		}
-		if len(entry.ClinicIDs) == 0 {
-			return apperrors.WrapInvalidInput(prefix + ": clinic_ids must not be empty")
-		}
-		seenAssignment := make(map[uint64]struct{}, len(entry.ClinicIDs))
-		mainFound := false
-		for _, clinicID := range entry.ClinicIDs {
-			if clinicID == 0 {
-				return apperrors.WrapInvalidInput(prefix + ": clinic_ids must not contain zero")
-			}
-			if _, dup := seenAssignment[clinicID]; dup {
-				return apperrors.WrapInvalidInput(prefix + ": clinic_ids must not contain duplicates")
-			}
-			seenAssignment[clinicID] = struct{}{}
-			if _, inScope := seenClinic[clinicID]; !inScope {
-				return apperrors.WrapInvalidInput(prefix + ": clinic_ids must be subset of clinic_scope")
-			}
-			if clinicID == entry.MainClinicID {
-				mainFound = true
-			}
-			union[clinicID] = struct{}{}
-		}
-		if !mainFound {
-			return apperrors.WrapInvalidInput(prefix + ": main_clinic_id must be included in clinic_ids")
-		}
-		if _, inScope := seenClinic[entry.MainClinicID]; !inScope {
-			return apperrors.WrapInvalidInput(prefix + ": main_clinic_id must be in clinic_scope")
-		}
-
-		seenGroup := make(map[uint64]struct{}, len(entry.PermissionGroupIDs))
-		for _, groupID := range entry.PermissionGroupIDs {
-			if groupID == 0 {
-				return apperrors.WrapInvalidInput(prefix + ": permission_group_ids must not contain zero")
-			}
-			if _, dup := seenGroup[groupID]; dup {
-				return apperrors.WrapInvalidInput(prefix + ": permission_group_ids must not contain duplicates")
-			}
-			seenGroup[groupID] = struct{}{}
-		}
-		if entry.OccupationID != nil && *entry.OccupationID == 0 {
-			return apperrors.WrapInvalidInput(prefix + ": occupation_id must not be zero when set")
-		}
-		if err := validateStaffType(entry.StaffType); err != nil {
-			return apperrors.Wrap(err, prefix)
-		}
-		secretRef := strings.TrimSpace(entry.SecretRef)
-		if secretRef == "" {
-			return apperrors.WrapInvalidInput(prefix + ": secret_ref is required")
-		}
-		if _, dup := seenSecretRef[secretRef]; dup {
-			return apperrors.WrapInvalidInput("duplicate secret_ref in batch")
-		}
-		seenSecretRef[secretRef] = struct{}{}
 	}
 
 	if len(union) != len(manifest.ClinicScope) {
@@ -250,6 +163,123 @@ func ValidateStaffProvisionManifestStructure(manifest *StaffProvisionManifest) e
 			return apperrors.WrapInvalidInput("clinic_scope must equal the union of all staff main/assignment clinics")
 		}
 	}
+	return nil
+}
+
+func validateStaffProvisionClinicScope(manifest *StaffProvisionManifest) (map[uint64]struct{}, error) {
+	if len(manifest.ClinicScope) == 0 {
+		return nil, apperrors.WrapInvalidInput("clinic_scope must not be empty")
+	}
+	if !slices.IsSorted(manifest.ClinicScope) {
+		return nil, apperrors.WrapInvalidInput("clinic_scope must be sorted ascending")
+	}
+	seenClinic := make(map[uint64]struct{}, len(manifest.ClinicScope))
+	for _, id := range manifest.ClinicScope {
+		if id == 0 {
+			return nil, apperrors.WrapInvalidInput("clinic_scope must not contain zero")
+		}
+		if _, dup := seenClinic[id]; dup {
+			return nil, apperrors.WrapInvalidInput("clinic_scope must not contain duplicates")
+		}
+		seenClinic[id] = struct{}{}
+	}
+	expectedBatchID := ClinicScopeBatchID(manifest.ClinicScope)
+	if manifest.BatchID != expectedBatchID {
+		return nil, apperrors.WrapInvalidInput("batch_id does not match clinic_scope digest namespace")
+	}
+	return seenClinic, nil
+}
+
+func validateStaffProvisionEntry(
+	prefix string,
+	entry StaffProvisionStaffEntry,
+	seenClinic map[uint64]struct{},
+	seenExternal map[string]struct{},
+	seenEmail map[string]struct{},
+	seenSecretRef map[string]struct{},
+	union map[uint64]struct{},
+) error {
+	externalID := strings.TrimSpace(entry.ExternalStaffID)
+	if externalID == "" {
+		return apperrors.WrapInvalidInput(prefix + ": external_staff_id is required")
+	}
+	if _, dup := seenExternal[externalID]; dup {
+		return apperrors.WrapInvalidInput("duplicate external_staff_id in batch")
+	}
+	seenExternal[externalID] = struct{}{}
+
+	name := strings.TrimSpace(entry.Name)
+	if name == "" {
+		return apperrors.WrapInvalidInput(prefix + ": name is required")
+	}
+	if utf8.RuneCountInString(name) > 100 {
+		return apperrors.WrapInvalidInput(prefix + ": name is too long")
+	}
+
+	email := strings.TrimSpace(strings.ToLower(entry.Email))
+	if email == "" || !strings.Contains(email, "@") {
+		return apperrors.WrapInvalidInput(prefix + ": email is invalid")
+	}
+	if _, dup := seenEmail[email]; dup {
+		return apperrors.WrapInvalidInput("duplicate email in batch")
+	}
+	seenEmail[email] = struct{}{}
+
+	if entry.MainClinicID == 0 {
+		return apperrors.WrapInvalidInput(prefix + ": main_clinic_id is required")
+	}
+	if len(entry.ClinicIDs) == 0 {
+		return apperrors.WrapInvalidInput(prefix + ": clinic_ids must not be empty")
+	}
+	seenAssignment := make(map[uint64]struct{}, len(entry.ClinicIDs))
+	mainFound := false
+	for _, clinicID := range entry.ClinicIDs {
+		if clinicID == 0 {
+			return apperrors.WrapInvalidInput(prefix + ": clinic_ids must not contain zero")
+		}
+		if _, dup := seenAssignment[clinicID]; dup {
+			return apperrors.WrapInvalidInput(prefix + ": clinic_ids must not contain duplicates")
+		}
+		seenAssignment[clinicID] = struct{}{}
+		if _, inScope := seenClinic[clinicID]; !inScope {
+			return apperrors.WrapInvalidInput(prefix + ": clinic_ids must be subset of clinic_scope")
+		}
+		if clinicID == entry.MainClinicID {
+			mainFound = true
+		}
+		union[clinicID] = struct{}{}
+	}
+	if !mainFound {
+		return apperrors.WrapInvalidInput(prefix + ": main_clinic_id must be included in clinic_ids")
+	}
+	if _, inScope := seenClinic[entry.MainClinicID]; !inScope {
+		return apperrors.WrapInvalidInput(prefix + ": main_clinic_id must be in clinic_scope")
+	}
+
+	seenGroup := make(map[uint64]struct{}, len(entry.PermissionGroupIDs))
+	for _, groupID := range entry.PermissionGroupIDs {
+		if groupID == 0 {
+			return apperrors.WrapInvalidInput(prefix + ": permission_group_ids must not contain zero")
+		}
+		if _, dup := seenGroup[groupID]; dup {
+			return apperrors.WrapInvalidInput(prefix + ": permission_group_ids must not contain duplicates")
+		}
+		seenGroup[groupID] = struct{}{}
+	}
+	if entry.OccupationID != nil && *entry.OccupationID == 0 {
+		return apperrors.WrapInvalidInput(prefix + ": occupation_id must not be zero when set")
+	}
+	if err := validateStaffType(entry.StaffType); err != nil {
+		return apperrors.Wrap(err, prefix)
+	}
+	secretRef := strings.TrimSpace(entry.SecretRef)
+	if secretRef == "" {
+		return apperrors.WrapInvalidInput(prefix + ": secret_ref is required")
+	}
+	if _, dup := seenSecretRef[secretRef]; dup {
+		return apperrors.WrapInvalidInput("duplicate secret_ref in batch")
+	}
+	seenSecretRef[secretRef] = struct{}{}
 	return nil
 }
 

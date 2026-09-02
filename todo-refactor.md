@@ -1,12 +1,12 @@
 # リファクタ台帳（BE コード規約準拠）
 
-更新日: 2026-09-02（140行超関数の抽出まで完了）
+更新日: 2026-09-02（130行超関数の抽出まで完了）
 
 | 項目 | 値 |
 |------|-----|
 | **範囲** | backend の **production Go**（`*_test.go` と `cmd/_archive/` は対象外） |
 | **目的** | 挙動を変えずに、プロジェクトの Go 規約へ寄せる |
-| **ブランチ** | `main`。第1弾 `739207a1f`（ファイル分割）。第2弾 `8fa232d09`（150行超関数）。第3弾は続くコミット（140行超関数の抽出） |
+| **ブランチ** | `main`。第1弾 `739207a1f`（ファイル分割）。第2弾 `8fa232d09`（150行超関数）。第3弾 `e4f47fbba`（140行超関数）。第4弾は続くコミット（130行超関数の抽出） |
 | **検証** | 変更 package の Docker 経由 scoped `go test`。full `./...` はユーザー手動 |
 | **正本** | [go-language.md](.claude/refs/go-language.md) · [go-gin-backend-guidelines.md](.claude/rules/go-gin-backend-guidelines.md) · [error-handling.md](.claude/refs/error-handling.md) |
 
@@ -24,7 +24,7 @@
 | GORM `Updates(map[string]any)` の struct 化 | **BE-ANY 例外**（下記） |
 | ネスト要約 DTO の package 横断統一 | JSON 契約が domain ごとに違う（reservation pet は `danger_level`、billing pet は id+name） |
 | `preflightCSVShape` の機械分割 | CSV 状態機械。分割すると挙動を壊しやすい。残る唯一の実 150 行超関数 |
-| 120–136 行の関数まで機械分割 | 規約ゲートは 150。140 まで落とした。50 行ルールは個人コーディングスタイルであり台帳ゲートではない |
+| 120–129 行の関数まで機械分割 | 規約ゲートは 150。130 まで落とした。次スライスの候補。50 行ルールは個人コーディングスタイルであり台帳ゲートではない |
 
 ---
 
@@ -72,8 +72,10 @@ GORM `Updates(map[string]any)` は **ゼロ値を省略する**境界 API。同�
 - **800 行超ファイル: 0**
 - **150 行超の実関数: `preflightCSVShape` のみ**（意図的残置）
 - **140 行超の実関数: 0**（`preflightCSVShape` と AuditLog 偽陽性を除く）
+- **130 行超の実関数: 0**（`preflightCSVShape` と AuditLog 偽陽性を除く）
 - 第2弾の抽出例: payment graph loader、LTV SQL 定数、締め集計クエリ、月次 daily map、カルテ検索 WHERE、予防接種 lock/quote、LINE 予約 create、trimming/staff Update、退院会計、lab persist/revert、健診パッケージ types/fields、ForgotPassword persist
 - 第3弾の抽出例: trimming Create / existing-detail、pet identity group create、ForgotPassword mail dispatch、billing item ambient create、examination Update、月次レポート scan、クレジット訂正、complete digest、medicine update フィールド群
+- 第4弾の抽出例: staff provision validator、lab job item resolution、LSTEP checkup preview SQL、会計 Update tx、入院 Create tx、健診パッケージ apply tx、予防接種 lock 分割、lstep-migrate CLI。dbortx inventory のファイル分割後パスも追随
 
 ---
 
@@ -96,6 +98,13 @@ staff の `TestStaffCredentialMutationAuditSourceContract` は `staff_service_up
 - `./internal/trimming` `./internal/identitylink` `./internal/auth` `./internal/billing`
 - `./internal/medicalrecord -skip TestLabDeviceConnectivityDocsMatchRuntime`
 
+第4弾:
+
+- compile-only: staff, medicalrecord, lstep, billing, lintscan, `./cmd/lstep-migrate`
+- `./internal/lintscan -skip TestMigrationCascadeInventory_NoUnreviewedCascade`（未適用 migration の CASCADE レビュー。本差分と無関係。`claim/DB-INIT-SCHEMA-HARDENING` 側）
+- `./internal/staff` `./internal/lstep` `./internal/billing`
+- `./internal/medicalrecord -skip TestLabDeviceConnectivityDocsMatchRuntime`
+
 full `go test ./...` は禁止コマンド。複数 package を同時に同じ DB へ流すと TRUNCATE deadlock が出る。package 単位で流すこと。
 
 ---
@@ -109,3 +118,4 @@ full `go test ./...` は禁止コマンド。複数 package を同時に同じ D
 - GORM map Updates を struct に置換していない
 - 150 行超は `preflightCSVShape` 以外ゼロ（実関数）
 - 140 行超の生産関数は `preflightCSVShape` 以外ゼロ
+- 130 行超の生産関数は `preflightCSVShape` 以外ゼロ

@@ -97,26 +97,7 @@ func (s *labDeviceExamPersister) persistLinkedJob(
 		return err
 	}
 
-	mappedField := make(map[string]LabDeviceResolvedItem, len(resolution.Mapped))
-	for _, mapped := range resolution.Mapped {
-		mappedField[mapped.DeviceItemCode] = mapped
-	}
-	unmapped := make(map[string]struct{}, len(resolution.UnmappedCodes))
-	for _, code := range resolution.UnmappedCodes {
-		unmapped[code] = struct{}{}
-	}
-	for i := range items {
-		if mapped, ok := mappedField[items[i].DeviceItemCode]; ok {
-			fieldID := mapped.ExamTypeFieldID
-			items[i].ExamTypeFieldID = &fieldID
-			items[i].NeedsReview = false
-			continue
-		}
-		items[i].ExamTypeFieldID = nil
-		if _, ok := unmapped[items[i].DeviceItemCode]; ok {
-			items[i].NeedsReview = true
-		}
-	}
+	mappedField := applyLabJobItemResolution(items, *resolution)
 	if err := s.jobs.SaveJobItems(ctx, items); err != nil {
 		return err
 	}
@@ -140,57 +121,14 @@ func (s *labDeviceExamPersister) persistLinkedJob(
 	}
 	date = time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, time.UTC)
 
-	// マップ済み項目を exam_type_id ごとにグループ化する。
-	itemsByExamType := make(map[uint64][]LabExamItemInput, len(examTypeIDs))
-	for i := range items {
-		mapped, ok := mappedField[items[i].DeviceItemCode]
-		if !ok {
-			continue
-		}
-		name := mapped.FieldName
-		if name == "" {
-			name = items[i].DeviceItemCode
-		}
-		unit := items[i].Unit
-		if unit == "" {
-			unit = mapped.Unit
-		}
-		fieldID := mapped.ExamTypeFieldID
-		itemsByExamType[mapped.ExamTypeID] = append(itemsByExamType[mapped.ExamTypeID], LabExamItemInput{
-			Name:            name,
-			InspectionValue: items[i].ValueRaw,
-			Unit:            unit,
-			ExamTypeFieldID: &fieldID,
-			SortOrder:       items[i].SortOrder,
-		})
-	}
 	if s.exams == nil {
 		return apperrors.WrapInternalServerError("lab device exam persister is not configured")
 	}
-	// exam_type_id ごとに 1 件 PersistExam する（挿入順を保つために UniqueMappedExamTypeIDs の順序を使う）。
-	totalPersisted := 0
-	totalDuplicate := 0
-	for _, examTypeID := range examTypeIDs {
-		result, persistErr := s.exams.PersistExam(ctx, LabExamPersistInput{
-			ClinicID:   clinicID,
-			PetID:      &petID,
-			ExamTypeID: examTypeID,
-			Date:       date,
-			Machine:    job.DeviceHint,
-			JobID:      jobID,
-			Items:      itemsByExamType[examTypeID],
-		})
-		if persistErr != nil {
-			return persistErr
-		}
-		if result != nil && result.RowError != nil {
-			return result.RowError
-		}
-		if result != nil && result.Duplicate {
-			totalDuplicate++
-		} else {
-			totalPersisted++
-		}
+	totalPersisted, totalDuplicate, persistErr := s.persistMappedLabExams(
+		ctx, clinicID, petID, jobID, date, job.DeviceHint, examTypeIDs, items, mappedField,
+	)
+	if persistErr != nil {
+		return persistErr
 	}
 	counts.PersistedCount = totalPersisted
 	counts.DuplicateCount = totalDuplicate
@@ -283,4 +221,89 @@ func (s *labDeviceExamPersister) markUsageTracking(ctx context.Context, clinicID
 		EventType: model.LabImportEventTypeUsageTrackingStarted,
 		RowCount:  persisted,
 	})
+}
+
+func applyLabJobItemResolution(
+	items []model.LabImportJobItem,
+	resolution LabDeviceMasterResolution,
+) map[string]LabDeviceResolvedItem {
+	mappedField := make(map[string]LabDeviceResolvedItem, len(resolution.Mapped))
+	for _, mapped := range resolution.Mapped {
+		mappedField[mapped.DeviceItemCode] = mapped
+	}
+	unmapped := make(map[string]struct{}, len(resolution.UnmappedCodes))
+	for _, code := range resolution.UnmappedCodes {
+		unmapped[code] = struct{}{}
+	}
+	for i := range items {
+		if mapped, ok := mappedField[items[i].DeviceItemCode]; ok {
+			fieldID := mapped.ExamTypeFieldID
+			items[i].ExamTypeFieldID = &fieldID
+			items[i].NeedsReview = false
+			continue
+		}
+		items[i].ExamTypeFieldID = nil
+		if _, ok := unmapped[items[i].DeviceItemCode]; ok {
+			items[i].NeedsReview = true
+		}
+	}
+	return mappedField
+}
+
+func (s *labDeviceExamPersister) persistMappedLabExams(
+	ctx context.Context,
+	clinicID, petID uint64,
+	jobID uuid.UUID,
+	date time.Time,
+	deviceHint string,
+	examTypeIDs []uint64,
+	items []model.LabImportJobItem,
+	mappedField map[string]LabDeviceResolvedItem,
+) (totalPersisted, totalDuplicate int, err error) {
+	itemsByExamType := make(map[uint64][]LabExamItemInput, len(examTypeIDs))
+	for i := range items {
+		mapped, ok := mappedField[items[i].DeviceItemCode]
+		if !ok {
+			continue
+		}
+		name := mapped.FieldName
+		if name == "" {
+			name = items[i].DeviceItemCode
+		}
+		unit := items[i].Unit
+		if unit == "" {
+			unit = mapped.Unit
+		}
+		fieldID := mapped.ExamTypeFieldID
+		itemsByExamType[mapped.ExamTypeID] = append(itemsByExamType[mapped.ExamTypeID], LabExamItemInput{
+			Name:            name,
+			InspectionValue: items[i].ValueRaw,
+			Unit:            unit,
+			ExamTypeFieldID: &fieldID,
+			SortOrder:       items[i].SortOrder,
+		})
+	}
+	for _, examTypeID := range examTypeIDs {
+		result, persistErr := s.exams.PersistExam(ctx, LabExamPersistInput{
+			ClinicID:   clinicID,
+			PetID:      &petID,
+			ExamTypeID: examTypeID,
+			Date:       date,
+			Machine:    deviceHint,
+			JobID:      jobID,
+			Items:      itemsByExamType[examTypeID],
+		})
+		if persistErr != nil {
+			return 0, 0, persistErr
+		}
+		if result != nil && result.RowError != nil {
+			return 0, 0, result.RowError
+		}
+		if result != nil && result.Duplicate {
+			totalDuplicate++
+		} else {
+			totalPersisted++
+		}
+	}
+	return totalPersisted, totalDuplicate, nil
 }
