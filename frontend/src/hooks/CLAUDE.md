@@ -51,10 +51,12 @@ const handleClose = () => setOpen(false);  // 毎レンダーで新しい参照
 複数 feature が同じエンティティを参照する場合、このディレクトリに shared hook を置いて query key を統一する。
 
 ```typescript
+import { queryKeys } from "@/lib/query-keys";
+
 // src/hooks/use-pet.ts — 18 feature から参照
 export function useGetPet(petId: string) {
   return useQuery({
-    queryKey: ["pet", petId],  // features/pets と同じキーでキャッシュ共有
+    queryKey: queryKeys.pets.detail(petId),  // features/pets と同じキーでキャッシュ共有
     ...
   });
 }

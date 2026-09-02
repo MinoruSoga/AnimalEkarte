@@ -69,7 +69,7 @@ export function CreditCorrectionDialog({ accounting, isPostClose = false }: Cred
       queryClient.invalidateQueries({ queryKey: queryKeys.accountings.all() });
       queryClient.invalidateQueries({ queryKey: queryKeys.accountings.detail(accounting.id) });
       // BUG-007: 訂正差額が未納者一覧・飼主未納残高に反映されるよう invalidate
-      queryClient.invalidateQueries({ queryKey: ["accounting", "unpaid"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.accounting.unpaidAll() });
       queryClient.invalidateQueries({
         queryKey: queryKeys.ownerUnpaidBalance(accounting.clinicId, accounting.ownerId),
       });

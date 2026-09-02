@@ -7,12 +7,12 @@ import { handleApiError } from "@/lib/handle-api-error";
 import { usePermission } from "@/hooks/use-permission";
 import { useGetStaffs } from "@/hooks/use-staffs";
 import { useGetAllCheckupTypes } from "@/hooks/use-treatment-master";
-import { useGetCheckupTypeFields } from "@/features/checkups/api/get-checkup-type-fields";
-import { replaceCheckupFieldResults } from "@/features/checkups/api/replace-checkup-field-results";
 import {
   buildCheckupResultsPayload,
+  replaceCheckupFieldResults,
+  useGetCheckupTypeFields,
   type CheckupFieldValue,
-} from "@/features/checkups/components/DynamicCheckupFields";
+} from "@/features/checkups";
 import {
   useCreateCheckup,
   useDeleteCheckup,

@@ -12,11 +12,11 @@ import { Label } from "@/components/ui/label";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
 import type { StaffItem } from "@/hooks/use-staffs";
 import type { CheckupTypeItem } from "@/hooks/use-treatment-master";
-import type { CheckupTypeFieldRow } from "@/features/checkups/api/get-checkup-type-fields";
 import {
   DynamicCheckupFields,
   type CheckupFieldValue,
-} from "@/features/checkups/components/DynamicCheckupFields";
+  type CheckupTypeFieldRow,
+} from "@/features/checkups";
 
 import type { Checkup, UpdateCheckupInput } from "../../api/checkups";
 import type { AddCheckupFormState } from "./checkups-tab-table-model";

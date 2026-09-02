@@ -30,23 +30,35 @@ src/
 │
 ├── assets/                                # 静的アセット
 │
-├── features/                              # 機能別モジュール（16 features）
+├── features/                              # 機能別モジュール（28 features、いずれも index.ts あり）
+│   ├── accounting/                        # 会計
+│   ├── accounting-reports/                # 月次・帳票
+│   ├── aggregation/                       # 集計
 │   ├── auth/                              # 認証（ログイン・セッション管理）
-│   ├── reception/                         # 当日の受付
+│   ├── cash-register/                     # レジ締め
+│   ├── checkups/                          # 健診
+│   ├── clinic-settings/                   # クリニック設定
+│   ├── closing-settings/                  # 締め設定
+│   ├── estimates/                         # 見積
+│   ├── examinations/                      # 診察
+│   ├── hospitalization/                   # 入院管理
+│   ├── identity-links/                    # 本人同定リンク
+│   ├── inventory/                         # 在庫管理
+│   ├── lab-device/                        # 検査機器
+│   ├── line-reservation/                  # LINE予約
+│   ├── lstep/                             # Lステップ連携
+│   ├── manual/                            # マニュアル
+│   ├── master/                            # マスタ設定（PATTERNS.md 参照）
+│   ├── medical-records/                   # 電子カルテ
+│   ├── owner-report/                      # 飼主レポート
 │   ├── owners/                            # ★ ベストプラクティス参照実装
 │   ├── pets/                              # ペット（CRUD API のみ）
+│   ├── reception/                         # 当日の受付
 │   ├── reservations/                      # 予約管理
-│   ├── medical-records/                   # 電子カルテ
-│   ├── hospitalization/                   # 入院管理
-│   ├── examinations/                      # 診察
-│   ├── accounting/                        # 会計
-│   ├── vaccinations/                      # ワクチン
-│   ├── trimming/                          # トリミング
-│   ├── inventory/                         # 在庫管理
-│   ├── estimates/                         # 見積
+│   ├── settings/                          # 設定
 │   ├── shifts/                            # シフト管理
-│   ├── master/                            # マスタ設定（PATTERNS.md 参照）
-│   └── hospital-settings/                 # 病院設定（クリニックマスタ）
+│   ├── trimming/                          # トリミング
+│   └── vaccinations/                      # ワクチン
 │
 ├── components/                            # 共有コンポーネント
 │   ├── ui/                                # shadcn/ui（Radix UI Primitives）★変更禁止
@@ -92,18 +104,26 @@ src/
 │   ├── useTableSort.ts                   # テーブルソート状態
 │   └── use-unsaved-changes.ts            # 未保存変更警告
 │
-├── lib/                                   # ライブラリ設定・ユーティリティ
+├── lib/                                   # ライブラリ設定・共有ヘルパ（utils/ は廃止済み。新設禁止）
 │   ├── axios.ts                           # Axiosインスタンス（baseURL, interceptors）
 │   ├── react-query.ts                     # QueryClient設定（staleTime階層）
+│   ├── query-keys.ts                      # React Query キーファクトリー
 │   ├── zod.ts                             # Zodスキーマヘルパー
 │   ├── utils.ts                           # cn() 等
 │   ├── design-tokens.ts                   # デザイントークン
 │   ├── handle-api-error.ts                # APIエラーハンドリング共通処理
+│   ├── jst-date.ts                        # JST 日付ヘルパ
 │   ├── type-utils.ts                      # TypeScriptユーティリティ型
+│   ├── format/                            # date.ts, number.ts（表示フォーマット）
 │   └── transforms/                        # Backend型 → Frontend型 変換ヘルパー
 │       ├── pet.ts
 │       ├── medicine.ts
 │       └── treatment.ts
+│
+├── constants/                             # 共有定数（src/constants/。lib/ や feature 内での新設禁止）
+│   ├── status-colors.ts
+│   ├── payment-method.ts
+│   └── accounting-status.ts
 │
 ├── config/                                # アプリケーション設定
 │   └── paths.ts                           # 全ルートの型安全URLマップ（getHref()付き）
@@ -122,12 +142,6 @@ src/
 │   ├── treatment.ts
 │   ├── trimming.ts
 │   └── index.ts
-│
-├── utils/                                 # 純粋ユーティリティ関数
-│   ├── format/                            # date.ts, number.ts
-│   ├── constants/                         # 定数
-│   ├── validation/                        # バリデーション
-│   └── status-helpers.ts                  # ステータス変換ヘルパー
 │
 ├── styles/                                # グローバルスタイル
 │   └── globals.css                        # Tailwind CSS v4
@@ -154,6 +168,7 @@ src/
 │  routes/   … ページコンポーネント（app/routes/は使わない）│
 │  api/      … React Query hooks                        │
 │  hooks/    … フォーム・フィルタ等のUIロジック          │
+│  （feature 専用ヘルパは feature 内に置く）              │
 │                                                        │
 │  ※ feature間の直接importは禁止                        │
 └──────────────────────────────────────────────────────┘
@@ -162,7 +177,8 @@ src/
                           │
 ┌──────────────────────────────────────────────────────┐
 │     shared (components/, hooks/, lib/, config/,       │
-│             stores/, types/, utils/)                  │
+│             stores/, types/, constants/)              │
+│     ※ 共有ヘルパは app 層の lib/。utils/ は廃止済み     │
 └──────────────────────────────────────────────────────┘
 ```
 
@@ -1194,7 +1210,7 @@ import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useDebounce } from "@/hooks/useDebounce";
-import { formatDate } from "@/utils/format/date";
+import { formatDate } from "@/lib/format/date";
 
 // 4. feature内部（相対パス、同一feature内のみ）
 import { OwnerCard } from "../components/OwnerCard";
@@ -2101,7 +2117,7 @@ import { OwnerCard } from "@/features/owners/components/OwnerCard"; // ❌
 
 // ✅ 直接ファイルを指定（tree-shaking が効く）
 import { deleteOwner } from "../api/delete-owner";
-import { formatDate } from "@/utils/format/date";
+import { formatDate } from "@/lib/format/date";
 
 // ❌ feature 内部で自 feature の index.ts を経由するのは不要な迂回
 import { deleteOwner } from "../api";  // ❌ feature 内では直接ファイル指定

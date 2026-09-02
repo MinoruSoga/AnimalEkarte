@@ -44,13 +44,14 @@ vi.mock("../../api/checkups", () => ({
   useDeleteCheckup: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
 }));
 
-vi.mock("@/features/checkups/api/get-checkup-type-fields", () => ({
-  useGetCheckupTypeFields: vi.fn(),
-}));
-
-vi.mock("@/features/checkups/api/replace-checkup-field-results", () => ({
-  replaceCheckupFieldResults: replaceCheckupFieldResultsMock,
-}));
+vi.mock("@/features/checkups", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/features/checkups")>();
+  return {
+    ...actual,
+    useGetCheckupTypeFields: vi.fn(),
+    replaceCheckupFieldResults: replaceCheckupFieldResultsMock,
+  };
+});
 
 vi.mock("@/hooks/use-treatment-master", () => ({
   useGetAllCheckupTypes: vi.fn(() => ({
@@ -71,7 +72,7 @@ import { useCreateCheckup, useUpdateCheckup, useGetCheckups } from "../../api/ch
 import {
   useGetCheckupTypeFields,
   type CheckupTypeFieldRow,
-} from "@/features/checkups/api/get-checkup-type-fields";
+} from "@/features/checkups";
 
 const SAMPLE_TEXT_FIELDS: CheckupTypeFieldRow[] = [
   {
