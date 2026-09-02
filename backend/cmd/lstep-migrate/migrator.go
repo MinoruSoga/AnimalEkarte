@@ -181,13 +181,45 @@ func (m *Migrator) processOwner(ctx context.Context, owner *model.Owner) Progres
 		}
 	}
 
-	type syncFn struct {
-		name string
-		fn   func() error
+	m.runOwnerSyncMethods(ctx, owner, &rec)
+
+	now := time.Now()
+	switch {
+	case rec.ErrorMessage == "" && rec.TagsFailed == 0:
+		rec.Status = "success"
+	case rec.TagsAdded > 0:
+		rec.Status = "partial"
+	default:
+		rec.Status = "failed"
 	}
 
+	if m.cfg.DryRun {
+		m.logger.Info("[dry-run] result",
+			slog.Uint64("owner_id", owner.ID),
+			slog.String("name", owner.Name),
+			slog.String("status", rec.Status),
+		)
+		return rec
+	}
+
+	m.writeOwnerProgress(ctx, owner, &rec, startedAt, now)
+	m.logger.Info("owner synced",
+		slog.Uint64("owner_id", owner.ID),
+		slog.String("status", rec.Status),
+		slog.Int("added", rec.TagsAdded),
+		slog.Int("failed", rec.TagsFailed),
+	)
+	return rec
+}
+
+type ownerSyncFn struct {
+	name string
+	fn   func() error
+}
+
+func (m *Migrator) ownerSyncMethods(ctx context.Context, owner *model.Owner) []ownerSyncFn {
 	// Tier 1 同期メソッド（clinicID + ownerID のみ必要）
-	tier1 := []syncFn{
+	tier1 := []ownerSyncFn{
 		{"SyncOwnerAnimalClassificationTags", func() error {
 			return m.tagSync.SyncOwnerAnimalClassificationTags(ctx, m.cfg.ClinicID, owner.ID)
 		}},
@@ -203,7 +235,7 @@ func (m *Migrator) processOwner(ctx context.Context, owner *model.Owner) Progres
 	}
 
 	// Tier 2 同期メソッド
-	tier2 := []syncFn{
+	tier2 := []ownerSyncFn{
 		{"SyncNextVisitTag", func() error {
 			return m.tagSync.SyncNextVisitTag(ctx, m.cfg.ClinicID, owner.ID)
 		}},
@@ -212,13 +244,15 @@ func (m *Migrator) processOwner(ctx context.Context, owner *model.Owner) Progres
 		}},
 	}
 
-	methods := tier1
-	if !m.cfg.SkipTier2 {
-		methods = append(methods, tier2...)
+	if m.cfg.SkipTier2 {
+		return tier1
 	}
+	return append(tier1, tier2...)
+}
 
+func (m *Migrator) runOwnerSyncMethods(ctx context.Context, owner *model.Owner, rec *ProgressRecord) {
 	var errs []string
-	for _, s := range methods {
+	for _, s := range m.ownerSyncMethods(ctx, owner) {
 		if m.cfg.DryRun {
 			m.logger.Info("[dry-run] would call", slog.Uint64("owner_id", owner.ID), slog.String("method", s.name))
 			rec.TagsAdded++
@@ -236,28 +270,17 @@ func (m *Migrator) processOwner(ctx context.Context, owner *model.Owner) Progres
 			rec.TagsAdded++
 		}
 	}
-
-	now := time.Now()
-	switch {
-	case len(errs) == 0:
-		rec.Status = "success"
-	case rec.TagsAdded > 0:
-		rec.Status = "partial"
-		rec.ErrorMessage = join(errs, "; ")
-	default:
-		rec.Status = "failed"
+	if len(errs) > 0 {
 		rec.ErrorMessage = join(errs, "; ")
 	}
+}
 
-	if m.cfg.DryRun {
-		m.logger.Info("[dry-run] result",
-			slog.Uint64("owner_id", owner.ID),
-			slog.String("name", owner.Name),
-			slog.String("status", rec.Status),
-		)
-		return rec
-	}
-
+func (m *Migrator) writeOwnerProgress(
+	ctx context.Context,
+	owner *model.Owner,
+	rec *ProgressRecord,
+	startedAt, now time.Time,
+) {
 	if err := m.updateProgress(ctx, owner.ID, rec.Status, rec.TagsAdded, rec.TagsFailed, rec.ErrorMessage, &startedAt, &now); err != nil {
 		// CMD-07: do not report success when the progress ledger diverges from the run result.
 		if rec.Status == "success" {
@@ -273,13 +296,6 @@ func (m *Migrator) processOwner(ctx context.Context, owner *model.Owner) Progres
 			slog.String("error", err.Error()),
 		)
 	}
-	m.logger.Info("owner synced",
-		slog.Uint64("owner_id", owner.ID),
-		slog.String("status", rec.Status),
-		slog.Int("added", rec.TagsAdded),
-		slog.Int("failed", rec.TagsFailed),
-	)
-	return rec
 }
 
 func (m *Migrator) initProgressRows(ctx context.Context, owners []model.Owner) error {

@@ -179,10 +179,7 @@ func (s *labImportExaminationService) persistExam(ctx context.Context, input Lab
 			slog.Uint64("exam_type_id", input.ExamTypeID),
 			slog.String("job_id", input.JobID.String()),
 		)
-		return &LabExamPersistResult{
-			Duplicate: true,
-			JobID:     input.JobID,
-		}, nil
+		return skippedDuplicateLabExam(input), nil
 	}
 
 	if s.transactor == nil {
@@ -205,21 +202,7 @@ func (s *labImportExaminationService) persistExam(ctx context.Context, input Lab
 	// exam 本体と exam_results は 1 つの検査結果 business graph なので同一 transaction で原子的に書く
 	// （BE-refactor.md MRC-05 / X-06）。Replace 失敗時は rollback により孤児 exam を残さない。
 	// 既に ambient tx がある（device receive/attach）ときは内側で新規 Transaction を開かない。
-	var duplicateOnCreate bool
-	write := func(txCtx context.Context) error {
-		dup, err := s.writeLabExamGraph(txCtx, input, exam)
-		if err != nil {
-			return err
-		}
-		duplicateOnCreate = dup
-		return nil
-	}
-	var writeErr error
-	if persistence.TxFromContext(ctx) != nil {
-		writeErr = write(ctx)
-	} else {
-		writeErr = s.transactor.WithTx(ctx, write)
-	}
+	duplicateOnCreate, writeErr := s.persistLabExamWrite(ctx, input, exam)
 	if writeErr != nil {
 		return nil, writeErr
 	}
@@ -229,10 +212,7 @@ func (s *labImportExaminationService) persistExam(ctx context.Context, input Lab
 			slog.Uint64("exam_type_id", input.ExamTypeID),
 			slog.String("job_id", input.JobID.String()),
 		)
-		return &LabExamPersistResult{
-			Duplicate: true,
-			JobID:     input.JobID,
-		}, nil
+		return skippedDuplicateLabExam(input), nil
 	}
 
 	slog.InfoContext(ctx, "lab import exam persisted",
@@ -248,6 +228,35 @@ func (s *labImportExaminationService) persistExam(ctx context.Context, input Lab
 		Duplicate: false,
 		JobID:     input.JobID,
 	}, nil
+}
+
+func skippedDuplicateLabExam(input LabExamPersistInput) *LabExamPersistResult {
+	return &LabExamPersistResult{
+		Duplicate: true,
+		JobID:     input.JobID,
+	}
+}
+
+func (s *labImportExaminationService) persistLabExamWrite(
+	ctx context.Context,
+	input LabExamPersistInput,
+	exam *model.Examination,
+) (bool, error) {
+	var duplicateOnCreate bool
+	write := func(txCtx context.Context) error {
+		dup, err := s.writeLabExamGraph(txCtx, input, exam)
+		if err != nil {
+			return err
+		}
+		duplicateOnCreate = dup
+		return nil
+	}
+	if persistence.TxFromContext(ctx) != nil {
+		err := write(ctx)
+		return duplicateOnCreate, err
+	}
+	err := s.transactor.WithTx(ctx, write)
+	return duplicateOnCreate, err
 }
 
 func (s *labImportExaminationService) PersistExam(ctx context.Context, input LabExamPersistInput) (*LabExamPersistResult, error) {

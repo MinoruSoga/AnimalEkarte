@@ -268,11 +268,29 @@ func (s *liffService) getAvailableTimes(
 		MinCourseDuration: course.DurationMinutes,
 		Staffs:            staffInputs,
 	}
+	if err := s.appendDateUnavailableBreaks(ctx, clinicID, typeID, date, input); err != nil {
+		return nil, err
+	}
+
+	result, err := GenerateTimeSlots(input)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to generate time slots", "error", err)
+		return nil, apperrors.Wrap(err, "failed to generate time slots")
+	}
+	return s.mergeAndFilterGeneratedSlots(ctx, clinicID, typeID, date, course, result)
+}
+
+func (s *liffService) appendDateUnavailableBreaks(
+	ctx context.Context,
+	clinicID, typeID uint64,
+	date time.Time,
+	input *TimeSlotsInput,
+) error {
 	// BE-117: 予約不可時間を DefaultBreaks に追加
 	unavailableTimes, err := s.unavailableTimeRepo.FindAll(ctx, clinicID, typeID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get unavailable times", "error", err)
-		return nil, apperrors.Wrap(err, "failed to get unavailable times")
+		return apperrors.Wrap(err, "failed to get unavailable times")
 	}
 	applicable := filterApplicableUnavailableTimes(unavailableTimes, date)
 	for i := range applicable {
@@ -282,12 +300,16 @@ func (s *liffService) getAvailableTimes(
 			End:   strings.ReplaceAll(applicable[i].EndTime, ":", ""),
 		})
 	}
+	return nil
+}
 
-	result, err := GenerateTimeSlots(input)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to generate time slots", "error", err)
-		return nil, apperrors.Wrap(err, "failed to generate time slots")
-	}
+func (s *liffService) mergeAndFilterGeneratedSlots(
+	ctx context.Context,
+	clinicID, typeID uint64,
+	date time.Time,
+	course *model.ReservationType,
+	result []TimeSlot,
+) ([]TimeSlot, error) {
 	if s.availableSlotRepo != nil {
 		availableSlots, err := s.availableSlotRepo.FindAll(ctx, clinicID, typeID)
 		if err != nil {
@@ -299,11 +321,12 @@ func (s *liffService) getAvailableTimes(
 		}
 	}
 	if course.MaxConcurrent != nil {
-		result, err = FilterSlotsByCapacity(ctx, result, s.reservationRepo, clinicID, typeID, date, *course.MaxConcurrent)
+		filtered, err := FilterSlotsByCapacity(ctx, result, s.reservationRepo, clinicID, typeID, date, *course.MaxConcurrent)
 		if err != nil {
 			slog.ErrorContext(ctx, "failed to filter slots by capacity", "error", err)
 			return nil, apperrors.Wrap(err, "failed to filter slots by capacity")
 		}
+		result = filtered
 	}
 	return result, nil
 }

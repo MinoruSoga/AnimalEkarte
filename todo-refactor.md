@@ -1,16 +1,16 @@
 # リファクタ台帳（BE コード規約準拠）
 
-更新日: 2026-09-02（110–119行の公開関数抽出まで完了）
+更新日: 2026-09-02（100–109行の公開関数抽出まで完了）
 
 | 項目 | 値 |
 |------|-----|
 | **範囲** | backend の **production Go**（`*_test.go` と `cmd/_archive/` は対象外） |
 | **目的** | 挙動を変えずに、プロジェクトの Go 規約へ寄せる |
-| **ブランチ** | `main`。第1弾 `739207a1f`（ファイル分割）。第2弾 `8fa232d09`（150行超関数）。第3弾 `e4f47fbba`（140行超関数）。第4弾 `b94f1dd7e`（130行超関数）。第5弾 `56df7c429`（120行超関数）。第6弾は続くコミット（110–119行の公開関数） |
+| **ブランチ** | `main`。第1弾 `739207a1f`（ファイル分割）。第2弾 `8fa232d09`（150行超関数）。第3弾 `e4f47fbba`（140行超関数）。第4弾 `b94f1dd7e`（130行超関数）。第5弾 `56df7c429`（120行超関数）。第6弾 `994055a95`（110–119行の公開関数）。第7弾は続くコミット（残110行と100–109行の公開関数） |
 | **検証** | 変更 package の Docker 経由 scoped `go test`。full `./...` はユーザー手動 |
 | **正本** | [go-language.md](.claude/refs/go-language.md) · [go-gin-backend-guidelines.md](.claude/rules/go-gin-backend-guidelines.md) · [error-handling.md](.claude/refs/error-handling.md) |
 
-スキャン: 関数行数は `func ` 行から次の `func ` まで。`AuditLog.TableName` は後続 const ブロックで過大カウントされる偽陽性。`testdb.SetupIsolatedTestDB` はテスト基盤のため対象外。
+スキャン: 関数行数は `func ` の開き `{` から対応する `}` まで（brace 対応）。`AuditLog.TableName` は後続 const ブロックで過大カウントされる偽陽性。`testdb.SetupIsolatedTestDB` はテスト基盤のため対象外。
 
 ---
 
@@ -27,8 +27,10 @@
 | `updateExaminationInTx` の再分割 | 第3弾で切り出した tx helper（122行）。これ以上割ると Update 契約が読みにくくなる |
 | 直前スライスで切り出した tx helper の再分割 | applyCheckupPackageInTx / revertLabImportInTx / createLineReservationInTx / dischargeWithBillingInTx / createTrimmingDetailForExistingInTx |
 | `ForgotPassword` の再分割 | 応答時間フロアと mail reservation の契約が残っている。persist/dispatch は第3弾で抽出済み |
-| `ToMeResponse` / `processOwner` / `ImportFriendAttributesCSV` | 110–111行の DTO 合成・CLI・CSV import。次スライスの任意候補 |
-| 100–109 行の関数まで機械分割 | 規約ゲートは 150。公開関数は 110 未満へ落とした。50 行ルールは個人コーディングスタイルであり台帳ゲートではない |
+| `consumeResetTokenInTx` / `updateTrimmingInTx` / `setClinicAssignmentsInTx` の再分割 | 直前スライスの tx helper。再分割しない |
+| `Config.Validate` / `RegisterRoutes` / LSTEP tag batch / 会計 SQL | env 列挙・route 表・バッチ同期・Raw SQL。分割しても契約が読みにくくなる |
+| `cmd/lstep-migrate` の `run` | CLI 起動手順。processOwner 抽出で十分 |
+| 95–99 行まで機械分割 | 規約ゲートは 150。50 行ルールは個人コーディングスタイルであり台帳ゲートではない |
 
 ---
 
@@ -83,6 +85,7 @@ GORM `Updates(map[string]any)` は **ゼロ値を省略する**境界 API。同�
 - 第4弾の抽出例: staff provision validator、lab job item resolution、LSTEP checkup preview SQL、会計 Update tx、入院 Create tx、健診パッケージ apply tx、予防接種 lock 分割、lstep-migrate CLI。dbortx inventory のファイル分割後パスも追随
 - 第5弾の抽出例: treatment Create/Update tx、vital Update tx、予約からの自動カルテ create tx、見積 successor tx、検査 replace helper、clinic assignment tx、synthetic failure injection、complete replay/header、健診 manifest types/fields
 - 第6弾の抽出例: カルテ Update tx、owner identity group create tx、空き日評価、検査 revision persist/project、password reset consume tx、refresh identity/clinic、credential audit clinic pick、見積 Create/Update tx、lab device receive tx
+- 第7弾の抽出例: `/me` DTO 合成、login clinic scope/audit、薬剤 Create tx、ペット一覧 query/search、LSTEP CSV spool/header/actor/tx、lstep-migrate owner sync、lab exam persist write、LIFF 空き時間 filter
 
 ---
 
@@ -124,6 +127,13 @@ staff の `TestStaffCredentialMutationAuditSourceContract` は `staff_service_up
 - `./internal/identitylink` `./internal/auth` `./internal/reservation` `./internal/billing` `./cmd/api`
 - `./internal/medicalrecord -skip TestLabDeviceConnectivityDocsMatchRuntime`
 
+第7弾:
+
+- compile-only / `go vet`: auth, medicalrecord, pet, lstep, reservation, cmd/lstep-migrate
+- `./internal/auth` `./internal/pet` `./internal/lstep` `./internal/reservation`
+- `./internal/medicalrecord -skip TestLabDeviceConnectivityDocsMatchRuntime`
+- `./cmd/lstep-migrate`（テストファイルなし）
+
 full `go test ./...` は禁止コマンド。複数 package を同時に同じ DB へ流すと TRUNCATE deadlock が出る。package 単位で流すこと。
 
 ---
@@ -139,4 +149,5 @@ full `go test ./...` は禁止コマンド。複数 package を同時に同じ D
 - 140 行超の生産関数は `preflightCSVShape` 以外ゼロ
 - 130 行超の生産関数は `preflightCSVShape` 以外ゼロ
 - 120 行超の生産関数は `preflightCSVShape` と `updateExaminationInTx` 以外ゼロ
-- 110 行超の公開関数は直前スライスの tx helper と ForgotPassword / ToMeResponse / processOwner / ImportFriendAttributesCSV を除きゼロ
+- 110 行超の公開関数は直前スライスの tx helper と ForgotPassword を除きゼロ
+- 100 行超の公開関数は直前スライスの tx helper・ForgotPassword・Config.Validate・RegisterRoutes・LSTEP tag batch・会計 SQL・lstep-migrate `run` を除きゼロ

@@ -37,88 +37,112 @@ func (h *HTTPHandler) Login(c *gin.Context) {
 		return
 	}
 
-	assignments, err := h.deps.StaffAssignments.FindAllByStaffID(ctx, staff.ID)
+	scope, err := h.resolveLoginClinicScope(ctx, account, staff)
 	if err != nil {
-		httpapi.RespondError(c, apperrors.Wrap(err, "所属クリニック情報の取得に失敗しました"))
-		return
-	}
-	staff = withClinicAssignments(staff, assignments)
-
-	mainClinicID, clinicIDs := h.authService().ResolveClinicInfo(assignments)
-	allClinics, err := h.deps.Clinics.ListClinics(ctx)
-	if err != nil {
-		if account.IsSystemAdmin {
-			httpapi.RespondError(
-				c,
-				apperrors.Wrap(err, "failed to resolve system administrator clinic"),
-			)
-			return
-		}
-		allClinics = nil
-	}
-	mainClinicID = h.authService().
-		ResolveSystemAdminMainClinicID(mainClinicID, account.IsSystemAdmin, allClinics)
-	if account.IsSystemAdmin {
-		clinicIDs = activeSystemAdminClinicIDs(allClinics)
-	}
-	if mainClinicID == "" {
-		httpapi.RespondError(c, apperrors.WrapForbidden("no clinic access is available"))
+		httpapi.RespondError(c, err)
 		return
 	}
 
 	if err := h.IssueAuthCookies(
 		c,
-		staff.ID,
-		mainClinicID,
+		scope.staff.ID,
+		scope.mainClinicID,
 		account.IsSystemAdmin,
-		clinicIDs,
+		scope.clinicIDs,
 		account.UpdatedAt.UnixNano(),
 	); err != nil {
 		httpapi.RespondError(c, err)
 		return
 	}
 
-	c.Set("clinic_id", mainClinicID)
-	c.Set("user_id", strconv.FormatUint(staff.ID, 10))
+	c.Set("clinic_id", scope.mainClinicID)
+	c.Set("user_id", strconv.FormatUint(scope.staff.ID, 10))
 	meResponse := h.BuildMeResponse(
 		c,
-		staff,
+		scope.staff,
 		account,
-		mainClinicID,
+		scope.mainClinicID,
 		account.IsSystemAdmin,
-		allClinics,
+		scope.allClinics,
 	)
-
-	if auditClinicID, parseErr := strconv.ParseUint(mainClinicID, 10, 64); parseErr == nil &&
-		auditClinicID != 0 &&
-		h.deps.Audit != nil {
-		auditCtx, cancel := context.WithTimeout(
-			context.WithoutCancel(ctx),
-			credentialAuditTimeout,
-		)
-		defer cancel()
-		if logErr := h.deps.Audit.LogAuthLogin(
-			auditCtx,
-			&auditClinicID,
-			&staff.ID,
-			model.AuditActionAuthLoginSuccess,
-			c.ClientIP(),
-			c.Request.Header.Get("User-Agent"),
-		); logErr != nil {
-			slog.ErrorContext(
-				ctx,
-				"audit log failed for login success",
-				"staff_id", staff.ID,
-				"clinic_id", auditClinicID,
-				"error_type", fmt.Sprintf("%T", logErr),
-			)
-		}
-	}
+	h.auditLoginSuccessBestEffort(c, ctx, scope.staff.ID, scope.mainClinicID)
 
 	c.JSON(http.StatusOK, LoginResponse{
 		IsSystemAdmin: account.IsSystemAdmin,
 		User:          meResponse,
 	})
+}
+
+type loginClinicScope struct {
+	staff        *model.Staff
+	mainClinicID string
+	clinicIDs    []uint64
+	allClinics   []model.Clinic
+}
+
+func (h *HTTPHandler) resolveLoginClinicScope(
+	ctx context.Context,
+	account *model.Account,
+	staff *model.Staff,
+) (loginClinicScope, error) {
+	var scope loginClinicScope
+	assignments, err := h.deps.StaffAssignments.FindAllByStaffID(ctx, staff.ID)
+	if err != nil {
+		return scope, apperrors.Wrap(err, "所属クリニック情報の取得に失敗しました")
+	}
+	scope.staff = withClinicAssignments(staff, assignments)
+
+	scope.mainClinicID, scope.clinicIDs = h.authService().ResolveClinicInfo(assignments)
+	allClinics, err := h.deps.Clinics.ListClinics(ctx)
+	if err != nil {
+		if account.IsSystemAdmin {
+			return scope, apperrors.Wrap(err, "failed to resolve system administrator clinic")
+		}
+		allClinics = nil
+	}
+	scope.allClinics = allClinics
+	scope.mainClinicID = h.authService().
+		ResolveSystemAdminMainClinicID(scope.mainClinicID, account.IsSystemAdmin, allClinics)
+	if account.IsSystemAdmin {
+		scope.clinicIDs = activeSystemAdminClinicIDs(allClinics)
+	}
+	if scope.mainClinicID == "" {
+		return scope, apperrors.WrapForbidden("no clinic access is available")
+	}
+	return scope, nil
+}
+
+func (h *HTTPHandler) auditLoginSuccessBestEffort(
+	c *gin.Context,
+	ctx context.Context,
+	staffID uint64,
+	mainClinicID string,
+) {
+	auditClinicID, parseErr := strconv.ParseUint(mainClinicID, 10, 64)
+	if parseErr != nil || auditClinicID == 0 || h.deps.Audit == nil {
+		return
+	}
+	auditCtx, cancel := context.WithTimeout(
+		context.WithoutCancel(ctx),
+		credentialAuditTimeout,
+	)
+	defer cancel()
+	if logErr := h.deps.Audit.LogAuthLogin(
+		auditCtx,
+		&auditClinicID,
+		&staffID,
+		model.AuditActionAuthLoginSuccess,
+		c.ClientIP(),
+		c.Request.Header.Get("User-Agent"),
+	); logErr != nil {
+		slog.ErrorContext(
+			ctx,
+			"audit log failed for login success",
+			"staff_id", staffID,
+			"clinic_id", auditClinicID,
+			"error_type", fmt.Sprintf("%T", logErr),
+		)
+	}
 }
 
 // BuildMeResponse assembles /me from already loaded domain models.
