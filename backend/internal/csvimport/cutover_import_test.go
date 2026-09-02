@@ -640,8 +640,9 @@ func TestPreflightRejectsMissingValidatedCompositeForeignKey(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "validated composite foreign key") {
 		t.Fatalf("PreflightCutoverTarget() error = %v, want composite foreign-key rejection", err)
 	}
-	if !strings.Contains(err.Error(), "payments(") {
-		t.Fatalf("PreflightCutoverTarget() error = %v, want payments composite naming", err)
+	if !strings.Contains(err.Error(), "medical_records(") && !strings.Contains(err.Error(), "payments(") &&
+		!strings.Contains(err.Error(), "appointments(") {
+		t.Fatalf("PreflightCutoverTarget() error = %v, want required composite naming", err)
 	}
 }
 
@@ -655,7 +656,6 @@ func TestCutoverRequiredForeignKeysIncludePaymentContract(t *testing.T) {
 		"payment_splits.billing_id->billings.id":               false,
 		"payment_splits.payment_method_id->payment_methods.id": false,
 		"payment_splits.paid_by->staffs.id":                    false,
-		"appointments.owner_id->owners.id":                     false,
 	}
 	for _, foreignKey := range cutoverRequiredForeignKeys() {
 		key := foreignKey.childTable + "." + foreignKey.childColumn + "->" +
@@ -673,6 +673,11 @@ func TestCutoverRequiredForeignKeysIncludePaymentContract(t *testing.T) {
 
 func TestCutoverRequiredCompositeForeignKeysIncludePaymentClinicAxis(t *testing.T) {
 	required := map[string]bool{
+		"medical_records(doctor_id, clinic_id)->staffs(id, clinic_id)":           false,
+		"medical_records(entered_by, clinic_id)->staffs(id, clinic_id)":          false,
+		"appointments(clinic_id, owner_id)->owners(clinic_id, id)":               false,
+		"appointments(clinic_id, pet_id)->pets(clinic_id, id)":                   false,
+		"appointments(doctor_id, clinic_id)->staffs(id, clinic_id)":              false,
 		"payments(billing_id, clinic_id)->billings(id, clinic_id)":               false,
 		"payments(payment_method_id, clinic_id)->payment_methods(id, clinic_id)": false,
 	}

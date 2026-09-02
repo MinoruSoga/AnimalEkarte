@@ -77,7 +77,10 @@ type CutoverSourceIdentity struct {
 	SourceBackupSizeBytes *int64  `json:"sourceBackupSizeBytes"`
 	BaseArchiveSHA256     *string `json:"baseArchiveSha256"`
 	KNJOArchiveSHA256     *string `json:"knjoArchiveSha256"`
-	Verified              bool    `json:"verified"`
+	// KnjoProvenanceRoute is optional producer metadata (complete_base|reacquire).
+	// Present on current old_db REHEARSAL/TRUSTED manifests; ignored by apply.
+	KnjoProvenanceRoute *string `json:"knjoProvenanceRoute,omitempty"`
+	Verified            bool    `json:"verified"`
 }
 
 type CutoverLayerDigests struct {

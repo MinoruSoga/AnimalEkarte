@@ -104,8 +104,7 @@ func cutoverRequiredForeignKeys() []cutoverForeignKeySpec {
 		{"medical_records", "clinic_id", "clinics", "id"},
 		{"medical_records", "owner_id", "owners", "id"},
 		{"medical_records", "pet_id", "pets", "id"},
-		{"medical_records", "doctor_id", "staffs", "id"},
-		{"medical_records", "entered_by", "staffs", "id"},
+		// doctor_id / entered_by are clinic-scoped composites (see cutoverRequiredCompositeForeignKeys).
 		{"inquiries", "medical_record_id", "medical_records", "id"},
 		{"inquiries", "staff_id", "staffs", "id"},
 		{"clinical_plans", "medical_record_id", "medical_records", "id"},
@@ -114,10 +113,8 @@ func cutoverRequiredForeignKeys() []cutoverForeignKeySpec {
 		{"vital_records", "pet_id", "pets", "id"},
 		{"vital_records", "staff_id", "staffs", "id"},
 		{"appointments", "clinic_id", "clinics", "id"},
-		{"appointments", "owner_id", "owners", "id"},
-		{"appointments", "pet_id", "pets", "id"},
+		// owner_id / pet_id / doctor_id are clinic-scoped composites.
 		{"appointments", "reservation_type_id", "reservation_types", "id"},
-		{"appointments", "doctor_id", "staffs", "id"},
 		{"appointment_trimming_details", "clinic_id", "clinics", "id"},
 		{"appointment_trimming_details", "appointment_id", "appointments", "id"},
 		{"billings", "clinic_id", "clinics", "id"},
@@ -163,6 +160,36 @@ func cutoverRequiredForeignKeys() []cutoverForeignKeySpec {
 // against pg_constraint.conkey/confkey ordinals.
 func cutoverRequiredCompositeForeignKeys() []cutoverCompositeForeignKeySpec {
 	return []cutoverCompositeForeignKeySpec{
+		{
+			childTable:    "medical_records",
+			childColumns:  []string{"doctor_id", "clinic_id"},
+			parentTable:   "staffs",
+			parentColumns: []string{"id", "clinic_id"},
+		},
+		{
+			childTable:    "medical_records",
+			childColumns:  []string{"entered_by", "clinic_id"},
+			parentTable:   "staffs",
+			parentColumns: []string{"id", "clinic_id"},
+		},
+		{
+			childTable:    "appointments",
+			childColumns:  []string{"clinic_id", "owner_id"},
+			parentTable:   "owners",
+			parentColumns: []string{"clinic_id", "id"},
+		},
+		{
+			childTable:    "appointments",
+			childColumns:  []string{"clinic_id", "pet_id"},
+			parentTable:   "pets",
+			parentColumns: []string{"clinic_id", "id"},
+		},
+		{
+			childTable:    "appointments",
+			childColumns:  []string{"doctor_id", "clinic_id"},
+			parentTable:   "staffs",
+			parentColumns: []string{"id", "clinic_id"},
+		},
 		{
 			childTable:    "payments",
 			childColumns:  []string{"billing_id", "clinic_id"},
