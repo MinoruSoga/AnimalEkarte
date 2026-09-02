@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/url"
 	"strings"
 
@@ -21,43 +22,46 @@ func allowedLstepAPIHosts() map[string]struct{} {
 	return hosts
 }
 
-// ValidateLstepBaseURL enforces https + host allowlist for lstep_base_url (LSA-01).
-// Empty raw returns DefaultBaseURL.
+// ValidateLstepBaseURL enforces a canonical https LSTEP origin (LSA-01).
+// Empty raw returns DefaultBaseURL. Loopback and IP literals are never accepted
+// in production; tests must inject an HTTP client, not this validator.
 func ValidateLstepBaseURL(raw string) (string, error) {
 	trimmed := strings.TrimSpace(raw)
 	if trimmed == "" {
 		return lstep.DefaultBaseURL, nil
 	}
 	u, err := url.Parse(trimmed)
-	if err != nil {
+	if err != nil || u.Opaque != "" {
 		return "", apperrors.WrapInvalidInput("lstep_base_url is not a valid URL")
+	}
+	if u.User != nil {
+		return "", apperrors.WrapInvalidInput("lstep_base_url must not include userinfo")
+	}
+	if u.Scheme != "https" {
+		return "", apperrors.WrapInvalidInput("lstep_base_url must use https")
 	}
 	host := strings.ToLower(u.Hostname())
 	if host == "" {
 		return "", apperrors.WrapInvalidInput("lstep_base_url host is required")
 	}
-	// Loopback http is allowed only for local connectivity probes (httptest); never for public hosts.
-	isLoopback := host == "127.0.0.1" || host == "localhost" || host == "::1"
-	if u.Scheme == "http" {
-		if !isLoopback {
-			return "", apperrors.WrapInvalidInput("lstep_base_url must use https")
-		}
-	} else if u.Scheme != "https" {
-		return "", apperrors.WrapInvalidInput("lstep_base_url must use https")
+	if isForbiddenLstepHostname(host) {
+		return "", apperrors.WrapInvalidInput(fmt.Sprintf("lstep_base_url host %q is not allowed", host))
 	}
-	if !isLoopback {
-		if _, ok := allowedLstepAPIHosts()[host]; !ok {
-			return "", apperrors.WrapInvalidInput(fmt.Sprintf("lstep_base_url host %q is not allowed", host))
-		}
+	if port := u.Port(); port != "" && port != "443" {
+		return "", apperrors.WrapInvalidInput("lstep_base_url must use https origin without a custom port")
 	}
-	if u.User != nil {
-		return "", apperrors.WrapInvalidInput("lstep_base_url must not include userinfo")
+	if _, ok := allowedLstepAPIHosts()[host]; !ok {
+		return "", apperrors.WrapInvalidInput(fmt.Sprintf("lstep_base_url host %q is not allowed", host))
 	}
-	out := u.Scheme + "://" + u.Host
-	if u.Path != "" && u.Path != "/" {
-		out += strings.TrimRight(u.Path, "/")
+	return "https://" + host, nil
+}
+
+func isForbiddenLstepHostname(host string) bool {
+	if host == "localhost" || strings.HasSuffix(host, ".localhost") {
+		return true
 	}
-	return out, nil
+	ip := net.ParseIP(host)
+	return ip != nil
 }
 
 // encrypt は暗号化が必要なキーのみ暗号化する。cipher が nil なら平文のまま返す（開発環境）。

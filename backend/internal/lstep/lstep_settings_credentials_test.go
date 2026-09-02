@@ -185,4 +185,20 @@ func TestLstepSettingsService_GetRawCredentials(t *testing.T) {
 		_, _, _, err := svc.GetRawCredentials(context.Background(), 1)
 		assert.Error(t, err)
 	})
+
+	t.Run("stored loopback base URL is rejected fail-closed", func(t *testing.T) {
+		repo := &mockLstepSettingsRepository{
+			findByClinicAndServiceFn: func(_ context.Context, _ uint64, _ string) ([]*model.ClinicIntegration, error) {
+				return []*model.ClinicIntegration{
+					{KeyName: model.IntegrationKeyLstepAPIKey, KeyValue: "plain-api-key"},
+					{KeyName: model.IntegrationKeyLstepBaseURL, KeyValue: "http://127.0.0.1:9"},
+				}, nil
+			},
+		}
+		svc := NewLstepSettingsService(repo, &mockLstepSyncSettingsRepository{}, nil, nil, nil)
+		apiKey, baseURL, _, err := svc.GetRawCredentials(context.Background(), 1)
+		require.Error(t, err)
+		assert.Equal(t, "", apiKey)
+		assert.Equal(t, "", baseURL)
+	})
 }
