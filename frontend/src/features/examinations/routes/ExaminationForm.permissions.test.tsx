@@ -59,7 +59,7 @@ vi.mock("@/features/master", async (importOriginal) => {
 
 // ExaminationForm は未紐付け受信バナーを描画する。バナーは useQuery を使うため
 // QueryClientProvider の無いフォーム単体テストでは null に差し替える。
-vi.mock("@/features/lab-device", () => ({
+vi.mock("@/components/shared/LabDeviceUnlinkedBanner/LabDeviceUnlinkedBanner", () => ({
   LabDeviceUnlinkedBanner: () => null,
 }));
 

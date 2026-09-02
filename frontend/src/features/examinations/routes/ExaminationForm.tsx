@@ -37,7 +37,7 @@ import { useGetExaminationPrintSnapshot } from "../api/get-examination-print-sna
 import { buildExaminationPrintModel } from "../lib/examination-print-model";
 import { useMasterItems } from "@/hooks/use-master-items";
 import { useGetStaffs } from "@/features/master";
-import { LabDeviceUnlinkedBanner } from "@/features/lab-device";
+import { LabDeviceUnlinkedBanner } from "@/components/shared/LabDeviceUnlinkedBanner/LabDeviceUnlinkedBanner";
 import { paths } from "@/config/paths";
 import { usePermission } from "@/hooks/use-permission";
 import {
@@ -362,8 +362,7 @@ function ExaminationFormContent({ id }: { id: string | undefined }) {
       maxWidth={LAYOUT.pageContentMaxWidth.formMid}
       align="left"
     >
-      {/* FE6-8: jsx-no-leaked-render は非型認識のため isDirty を boolean と静的に断定できず !! で明示する */}
-      <NavigationBlocker when={!!isDirty && !isSaving} />
+      <NavigationBlocker when={isDirty ? !isSaving : false} />
       <div className="flex flex-col gap-4">
         {/* rerender-memo: PatientInfoCard — フォームフィールド変更では再レンダーしない */}
         {selectedPet ? (

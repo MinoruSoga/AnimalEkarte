@@ -161,7 +161,7 @@ function CashRegisterCloseExecuteForm({
             className={`${STYLE.formInput} mt-1 w-full rounded-xs border px-3`}
             placeholder="0"
             required
-            aria-invalid={actualCash !== "" && Number(actualCash) < 0}
+            aria-invalid={actualCash !== "" ? Number(actualCash) < 0 : false}
           />
           {actualCash !== "" && Number(actualCash) < 0 ? (
             <p role="alert" className={`mt-1 text-sm ${C.danger}`}>

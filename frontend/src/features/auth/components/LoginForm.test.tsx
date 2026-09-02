@@ -10,7 +10,7 @@ const { loginMock } = vi.hoisted(() => ({ loginMock: vi.fn() }));
 /** Test-only fake — must never equal production staff-attach secrets. */
 const TEST_DEMO_LOGIN_PASSWORD = "test-demo-pass";
 
-vi.mock("../hooks/use-auth", () => ({
+vi.mock("@/hooks/use-auth", () => ({
   useAuth: () => ({
     login: loginMock,
     isAuthenticated: false,

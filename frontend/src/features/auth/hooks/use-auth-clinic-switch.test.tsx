@@ -73,7 +73,7 @@ vi.mock("@tanstack/react-query", async (importActual) => {
 });
 
 // ----- import after vi.mock -----
-import { AuthProvider } from "./use-auth";
+import { AuthProvider } from "../components/AuthProvider";
 import { useAuth } from "@/hooks/use-auth";
 
 // ----- helper components -----

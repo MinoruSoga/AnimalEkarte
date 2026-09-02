@@ -344,11 +344,11 @@ function IdentityLinksWorkbench({ canEdit }: { canEdit: boolean }) {
       resource={ResourceIdentityLinks}
     >
       <div className="space-y-6">
-        {!canEdit && (
+        {!canEdit ? (
           <p className={`text-sm ${C.textWarning}`} role="status">
             閲覧のみ（連携の変更権限がありません）
           </p>
-        )}
+        ) : null}
 
         {error ? (
           <div
@@ -385,7 +385,7 @@ function IdentityLinksWorkbench({ canEdit }: { canEdit: boolean }) {
           </ul>
           <div className={`text-sm ${C.textInkSecondary}`}>
             選択: {selectedOwners.map((o) => `${o.clinic_id}/${o.owner_id}`).join(", ") || "なし"}
-            {ownerGroupId != null && ` / 連携グループ #${ownerGroupId}`}
+            {ownerGroupId != null ? ` / 連携グループ #${ownerGroupId}` : null}
           </div>
           {canEdit ? (
             <div className="flex flex-wrap gap-2">
@@ -439,7 +439,7 @@ function IdentityLinksWorkbench({ canEdit }: { canEdit: boolean }) {
           </ul>
           <div className={`text-sm ${C.textInkSecondary}`}>
             選択: {selectedPets.map((p) => `${p.clinic_id}/${p.pet_id}`).join(", ") || "なし"}
-            {petGroupId != null && ` / 連携グループ #${petGroupId}`}
+            {petGroupId != null ? ` / 連携グループ #${petGroupId}` : null}
           </div>
           {canEdit ? (
             <div className="flex flex-wrap gap-2">

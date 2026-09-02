@@ -3,24 +3,28 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { usePermission } from "@/hooks/use-permission";
 import { C } from "@/lib/design-tokens";
-import { ResourceLabImport } from "@/types/generated/models";
 
 import {
   useAttachLabDeviceJob,
   useDetachLabDeviceJob,
   useGetLabDeviceUnlinked,
   type LabDeviceJobCard,
-} from "../api/lab-device";
+} from "@/features/lab-device/api/lab-device";
 import {
   isLabDeviceAttachPersisted,
   labDeviceCardTitle,
   labDeviceClockSkewLabel,
   labDeviceNeedsReviewReason,
-} from "../lib/lab-device-board-model";
+} from "@/features/lab-device/lib/lab-device-board-model";
+
+// components/shared は @/types/generated/models の import allowlist 対象外（TASK-444-S1）。
+// リテラル値は models.ts の `ResourceLabImport = "lab-import"` と同値（usePermission の
+// Resource union に構造的に一致するため型 import 無しで済む）。
+const LAB_IMPORT_RESOURCE = "lab-import";
 
 export function LabDeviceUnlinkedBanner({ petId }: { petId: string }) {
   const numericPetId = Number(petId);
-  const { canView, canEdit } = usePermission(ResourceLabImport);
+  const { canView, canEdit } = usePermission(LAB_IMPORT_RESOURCE);
   const { data: unlinked = [] } = useGetLabDeviceUnlinked(canView && Number.isFinite(numericPetId) && numericPetId > 0);
   const attach = useAttachLabDeviceJob();
   const detach = useDetachLabDeviceJob();

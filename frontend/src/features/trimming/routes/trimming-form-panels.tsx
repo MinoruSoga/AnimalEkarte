@@ -296,7 +296,7 @@ export function TrimmingFormBody({
         />
       }
     >
-      <NavigationBlocker when={!!isDirty && !isSaving} />
+      <NavigationBlocker when={isDirty ? !isSaving : false} />
       <form id={TRIMMING_FORM_ID} action={formAction}>
       <fieldset disabled={!canSubmit} className="border-0 p-0 m-0 min-w-0">
       {selectedPet ? (
@@ -313,7 +313,7 @@ export function TrimmingFormBody({
           historySearchTerm={historySearchTerm}
           historySortOrder={historySortOrder}
           historyDateRange={historyDateRange}
-          showInitialStatusSelector={mode === "new" && !hasExistingAppointment}
+          showInitialStatusSelector={mode === "new" ? !hasExistingAppointment : false}
           onFormChange={onFormChange}
           onOpenCourseModal={onOpenCourseModal}
           onOpenStaffModal={onOpenStaffModal}

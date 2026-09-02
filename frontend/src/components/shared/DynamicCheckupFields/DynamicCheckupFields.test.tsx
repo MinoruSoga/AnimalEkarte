@@ -6,7 +6,7 @@ import {
   buildCheckupResultsPayload,
   type CheckupFieldValue,
 } from "./DynamicCheckupFields";
-import type { CheckupTypeFieldRow } from "../api/get-checkup-type-fields";
+import type { CheckupTypeFieldRow } from "@/hooks/use-checkup-fields";
 
 const fields: CheckupTypeFieldRow[] = [
   { id: 1, checkupTypeId: 10, name: "歯石除去必要の有無", fieldType: "boolean", unit: "", options: [], isProvisional: true, sortOrder: 1 },

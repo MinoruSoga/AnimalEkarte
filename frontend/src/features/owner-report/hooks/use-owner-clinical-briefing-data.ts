@@ -2,8 +2,8 @@ import { HISTORY_FETCH_LIMIT } from "@/config/fetch-limits";
 import { useGetMedicalRecords } from "@/features/medical-records";
 import { useGetReservations } from "@/hooks/use-get-reservations";
 import { usePermission } from "@/hooks/use-permission";
-import { useGetPetCheckupResults } from "@/hooks/use-pet-checkup-results";
 import { useGetPetVaccinations } from "@/hooks/use-pet-vaccinations";
+import { useGetPetCheckupResults } from "./use-pet-checkup-results";
 import { formatJSTDate, todayJSTISO } from "@/lib/jst-date";
 import {
   ResourceCheckups,

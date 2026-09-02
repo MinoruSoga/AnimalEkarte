@@ -17,7 +17,7 @@ import {
 } from "./medical-record-examination-model";
 import { C } from "@/lib/design-tokens";
 import { HISTORY_FETCH_LIMIT } from "@/config/fetch-limits";
-import { LabDeviceUnlinkedBanner } from "@/features/lab-device";
+import { LabDeviceUnlinkedBanner } from "@/components/shared/LabDeviceUnlinkedBanner/LabDeviceUnlinkedBanner";
 
 interface MedicalRecordExaminationProps {
   isNewRecord?: boolean;

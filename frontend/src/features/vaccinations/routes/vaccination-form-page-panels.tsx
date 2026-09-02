@@ -197,7 +197,7 @@ export function VaccinationFormBody({
           </div>
         }
       >
-        <NavigationBlocker when={!!isDirty && !isSaving} />
+        <NavigationBlocker when={isDirty ? !isSaving : false} />
 
         <fieldset disabled={!canSubmit} className="border-0 p-0 m-0 min-w-0">
         {selectedPet ? (

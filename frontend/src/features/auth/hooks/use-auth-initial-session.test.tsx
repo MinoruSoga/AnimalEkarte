@@ -117,7 +117,7 @@ describe("AuthProvider initial session restoration", () => {
 
   it("skips password-recovery public routes and restores once on login (BUG-031)", async () => {
     setWindowLocation("/forgot-password/");
-    const { AuthProvider } = await import("./use-auth");
+    const { AuthProvider } = await import("../components/AuthProvider");
 
     await act(async () => {
       render(
@@ -152,7 +152,7 @@ describe("AuthProvider initial session restoration", () => {
   it("hydrates valid session on cold /login and exposes authenticated state (BUG-031)", async () => {
     setWindowLocation("/login");
     refreshTokenMock.mockResolvedValueOnce({ user: AUTH_USER });
-    const { AuthProvider } = await import("./use-auth");
+    const { AuthProvider } = await import("../components/AuthProvider");
 
     render(
       <MemoryRouter initialEntries={["/login"]}>
@@ -171,7 +171,7 @@ describe("AuthProvider initial session restoration", () => {
   it("takes a fresh session snapshot after login when returning from recovery to a protected route", async () => {
     setWindowLocation("/login");
     refreshTokenMock.mockResolvedValue(null);
-    const { AuthProvider } = await import("./use-auth");
+    const { AuthProvider } = await import("../components/AuthProvider");
 
     render(
       <MemoryRouter initialEntries={["/login"]}>
@@ -208,7 +208,7 @@ describe("AuthProvider initial session restoration", () => {
     refreshTokenMock
       .mockResolvedValueOnce({ user: AUTH_USER })
       .mockResolvedValueOnce(null);
-    const { AuthProvider } = await import("./use-auth");
+    const { AuthProvider } = await import("../components/AuthProvider");
 
     render(
       <MemoryRouter initialEntries={["/"]}>

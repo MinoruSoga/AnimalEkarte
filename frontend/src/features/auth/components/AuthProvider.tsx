@@ -16,9 +16,6 @@ import { logout as logoutApi } from "../api/logout";
 import { refreshToken } from "../api/refresh-token";
 import { useGetMe } from "../api/get-me";
 
-// Re-export useAuth from shared hooks for backward compatibility within this feature
-export { useAuth } from "@/hooks/use-auth";
-
 /* セッション情報は httpOnly Cookie で管理するため localStorage への保存は不要。
  * 選択中のクリニック ID のみ localStorage に残す（権限情報ではないためリスク低） */
 function saveClinicToStorage(clinicId: string): boolean {

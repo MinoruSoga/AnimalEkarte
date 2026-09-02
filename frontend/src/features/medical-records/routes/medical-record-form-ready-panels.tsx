@@ -328,7 +328,7 @@ function MedicalRecordFormReadyOverlays({
 
       <MedicalRecordFloatingActions
         activeTab={form.activeTab}
-        canDelete={!!canDelete && !ready.recordFinalized}
+        canDelete={canDelete ? !ready.recordFinalized : false}
         canEdit={canEdit}
         canSubmit={canSubmit}
         isNewRecord={form.isNewRecord}

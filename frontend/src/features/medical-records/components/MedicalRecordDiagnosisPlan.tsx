@@ -219,7 +219,7 @@ export const MedicalRecordDiagnosisPlan = memo(function MedicalRecordDiagnosisPl
                 onOpenSearch={canCreate ? () => setIsSearchOpen(true) : undefined}
                 onAddRow={canCreate ? handleAddRow : undefined}
                 showStatus={true}
-                disabled={!canEdit && !canCreate && !canDelete}
+                disabled={!canEdit && !canCreate ? !canDelete : false}
               />
             </div>
           )}

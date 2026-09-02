@@ -84,7 +84,6 @@
   "src/features/inventory/routes/InventoryList.test.tsx",
   "src/features/inventory/routes/InventoryList.tsx",
   "src/features/inventory/routes/inventory-form-panels.tsx",
-  "src/features/lab-device/components/LabDeviceUnlinkedBanner.tsx",
   "src/features/lab-device/routes/LabDeviceBoard.tsx",
   "src/features/line-reservation/api/types.ts",
   "src/features/lstep/routes/CheckupSyncPage.tsx",

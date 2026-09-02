@@ -116,7 +116,7 @@ export function InventoryFormBody({
       }
       maxWidth="max-w-3xl"
     >
-      <NavigationBlocker when={!!isDirty && !isPending} />
+      <NavigationBlocker when={isDirty ? !isPending : false} />
       {!canSubmit ? (
         <div
           role="status"

@@ -6,7 +6,7 @@ import { C } from "@/lib/design-tokens";
 import { parseInternalPath } from "@/lib/internal-navigation";
 import type { ActionState } from "@/types/form";
 import { INITIAL_ACTION_STATE } from "@/types/form";
-import { useAuth } from "../hooks/use-auth";
+import { useAuth } from "@/hooks/use-auth";
 import { LoginFormBrandHeader, LoginFormCredentialFields } from "./login-form-sections";
 
 interface DemoCredential {

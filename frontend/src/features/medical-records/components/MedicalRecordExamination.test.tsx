@@ -20,7 +20,7 @@ vi.mock("./ExaminationImportDialog", () => ({
   ExaminationImportDialog: () => null,
 }));
 
-vi.mock("@/features/lab-device", () => ({
+vi.mock("@/components/shared/LabDeviceUnlinkedBanner/LabDeviceUnlinkedBanner", () => ({
   LabDeviceUnlinkedBanner: () => null,
 }));
 

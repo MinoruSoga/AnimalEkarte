@@ -44,8 +44,8 @@ vi.mock("../../api/checkups", () => ({
   useDeleteCheckup: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
 }));
 
-vi.mock("@/features/checkups", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/features/checkups")>();
+vi.mock("@/hooks/use-checkup-fields", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/hooks/use-checkup-fields")>();
   return {
     ...actual,
     useGetCheckupTypeFields: vi.fn(),
@@ -72,7 +72,7 @@ import { useCreateCheckup, useUpdateCheckup, useGetCheckups } from "../../api/ch
 import {
   useGetCheckupTypeFields,
   type CheckupTypeFieldRow,
-} from "@/features/checkups";
+} from "@/hooks/use-checkup-fields";
 
 const SAMPLE_TEXT_FIELDS: CheckupTypeFieldRow[] = [
   {

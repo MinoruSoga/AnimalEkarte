@@ -77,7 +77,7 @@ export default tseslint.config(
       // FE6-8: {cond && <JSX>} は cond が 0 / 空文字のとき意図せず数値・文字列を
       // レンダリングしてしまう（frontend/CLAUDE.md の Conditional Render 規約）。
       // recommended セットは入れず、このルールのみ有効化する。現状違反 0 件。
-      "react/jsx-no-leaked-render": "error",
+      "react/jsx-no-leaked-render": ["error", { validStrategies: ["ternary"] }],
       "@typescript-eslint/no-unused-vars": [
         "warn",
         { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
@@ -224,10 +224,14 @@ export default tseslint.config(
     },
   },
   {
-    // AuthProvider (component) と useAuth (hook re-export) が同居するため Fast Refresh 警告を抑制
-    files: ["src/features/auth/hooks/use-auth.tsx"],
+    // FE-RC-015 Phase 0 promotion: LabDeviceUnlinkedBanner は lab-device の attach/detach
+    // mutation・banner 表示ヘルパーに依存する UI で、examinations/medical-records から共有
+    // 参照できるよう components/shared へ移設した。実装（api/lib）自体は lab-device 内部の
+    // ままのため、この 1 ファイルに限り層逆転ガードを外す（api/lib の昇格は将来 lane の対象）。
+    // 注: @/types/generated/models への依存はリテラル値の直書きで解消済み（allowlist 追記不要）。
+    files: ["src/components/shared/LabDeviceUnlinkedBanner/**"],
     rules: {
-      "react-refresh/only-export-components": "off",
+      "no-restricted-imports": "off",
     },
   },
   {
@@ -240,6 +244,9 @@ export default tseslint.config(
       "src/app/routes/app-routes.tsx",
       "src/components/shared/DataTable/DataTable.tsx",
       "src/features/auth/components/LoginForm.tsx",
+      "src/components/shared/DynamicCheckupFields/DynamicCheckupFields.tsx",
+      // FE-RC-015: checkups 側は components/shared への re-export shim（後方互換維持）。
+      // 実体と同じ組み合わせ（component + helper 関数）を re-export するため同一の抑制が必要。
       "src/features/checkups/components/DynamicCheckupFields.tsx",
       "src/features/hospitalization/components/CarePlanTab/CarePlanBadges.tsx",
       "src/features/line-reservation/components/LineReservationSettingsFormSections.tsx",

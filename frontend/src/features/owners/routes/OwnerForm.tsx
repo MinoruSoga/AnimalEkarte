@@ -309,8 +309,7 @@ export function OwnerForm({ petMutations, lineSection, accountingSection }: Owne
           ) : null
         }
       >
-        {/* FE6-8: jsx-no-leaked-render は非型認識のため isDirty を boolean と静的に断定できず !! で明示する */}
-        <NavigationBlocker when={!!isDirty && !isLoading} />
+        <NavigationBlocker when={isDirty ? !isLoading : false} />
         <fieldset disabled={!canSubmit} className="border-0 p-0 m-0 min-w-0">
           <div className={`mb-4 rounded-lg ${C.bgWhite} p-4 border ${C.borderMedium}`}>
             <h2 className={`mb-3 text-sm font-bold ${C.text} flex items-center gap-2`}>

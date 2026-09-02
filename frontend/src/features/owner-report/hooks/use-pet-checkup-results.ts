@@ -64,7 +64,7 @@ const getPetCheckupResults = async (petId: string): Promise<PetCheckupResult[]> 
 };
 
 /**
- * Shared hook for fetching a pet's checkup (package) results.
+ * owner-report 専用フック（FE-RC-018 で src/hooks から昇格 — 消費元は owner-report のみ）。
  * Uses the same query key as features/checkups to share React Query cache.
  */
 export const useGetPetCheckupResults = (petId?: string) => {
