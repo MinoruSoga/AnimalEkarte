@@ -161,7 +161,7 @@ export function ClosePrintArea({
                 <td className={`border ${C.borderGray300} px-1 py-0.5`}>理論現金</td>
                 <td className={`border ${C.borderGray300} px-1 py-0.5 text-right`}>{formatCurrency(theoreticalCash)}</td>
               </tr>
-              {actualCash !== null ? (
+              {actualCash !== null && difference !== null ? (
                 <>
                   <tr>
                     <td className={`border ${C.borderGray300} px-1 py-0.5`}>実際の現金</td>
@@ -170,7 +170,7 @@ export function ClosePrintArea({
                   <tr className="font-semibold">
                     <td className={`border ${C.borderGray300} px-1 py-0.5`}>差額</td>
                     <td className={`border ${C.borderGray300} px-1 py-0.5 text-right`}>
-                      {`${difference! >= 0 ? "+" : ""}${difference!.toLocaleString()}`}
+                      {`${difference >= 0 ? "+" : ""}${difference.toLocaleString()}`}
                     </td>
                   </tr>
                 </>
