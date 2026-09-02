@@ -5,6 +5,7 @@ import { C, STYLE } from "@/lib/design-tokens";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { TableCell, TableHead } from "@/components/ui/table";
 import { handleApiError } from "@/lib/handle-api-error";
+import { getFormString } from "@/lib/form-data";
 import type { ClinicSettings } from "@/types/generated/models";
 import { DAY_OF_WEEK_LABELS as WEEKDAY_LABELS } from "@/constants/day-of-week";
 import { updateClosingSettings } from "../api/update-closing-settings";
@@ -47,9 +48,9 @@ export const StandardClosingTimeSection = memo(function StandardClosingTimeSecti
         }
       }
       await updateClosingSettings({
-        closing_am_pm_boundary: formData.get("closing_am_pm_boundary") as string,
-        closing_weekday_end: formData.get("closing_weekday_end") as string,
-        closing_sunday_end: formData.get("closing_sunday_end") as string,
+        closing_am_pm_boundary: getFormString(formData, "closing_am_pm_boundary"),
+        closing_weekday_end: getFormString(formData, "closing_weekday_end"),
+        closing_sunday_end: getFormString(formData, "closing_sunday_end"),
         closed_weekdays: closedWeekdays,
       });
       toast.success("標準締め時間を更新しました");
@@ -65,7 +66,7 @@ export const StandardClosingTimeSection = memo(function StandardClosingTimeSecti
   const sundayRanges = computeClosingTimeRanges(amPmBoundary, sundayEnd, settings.closing_am_start);
 
   return (
-    <section className={`bg-white rounded-lg border ${C.borderLight} p-6`}>
+    <section className={`${C.bgWhite} rounded-lg border ${C.borderLight} p-6`}>
       <h2 className={`text-base font-semibold ${C.text} mb-4`}>標準締め時間</h2>
       <form action={formAction} className="space-y-4">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -167,7 +168,7 @@ export const StandardClosingTimeSection = memo(function StandardClosingTimeSecti
                 />
                 <span
                   aria-hidden="true"
-                  className={`flex size-4 shrink-0 items-center justify-center rounded-xs border ${C.borderMedium} bg-white text-white transition-colors peer-checked:border-primary peer-checked:bg-primary peer-focus-visible:ring-[3px] peer-focus-visible:ring-ring`}
+                  className={`flex size-4 shrink-0 items-center justify-center rounded-xs border ${C.borderMedium} ${C.bgWhite} ${C.textOnBrand} transition-colors peer-checked:border-primary peer-checked:bg-primary peer-focus-visible:ring-[3px] peer-focus-visible:ring-ring`}
                 >
                   <Check className="size-3.5" />
                 </span>

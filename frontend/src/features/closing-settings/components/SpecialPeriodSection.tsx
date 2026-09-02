@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { C, LAYOUT, STYLE } from "@/lib/design-tokens";
 import { EmptyState } from "@/components/shared/DataStates";
 import { MasterSidePanel, PropertyRow } from "@/components/shared/SidePeek";
-import { handleApiError } from "@/lib/handle-api-error";
+import { getFormString } from "@/lib/form-data";
 import type { ClosingSpecialPeriod } from "@/types/generated/models";
 import { useCreateSpecialPeriod, useDeleteSpecialPeriod } from "../api/special-periods";
 
@@ -23,17 +23,17 @@ export const SpecialPeriodSection = memo(function SpecialPeriodSection({
   const [, formAction] = useActionState(async (_prev: null, formData: FormData) => {
     try {
       await createMutation.mutateAsync({
-        start_date: formData.get("start_date") as string,
-        end_date: formData.get("end_date") as string,
-        am_pm_boundary: formData.get("am_pm_boundary") as string,
-        pm_end: formData.get("pm_end") as string,
-        note: (formData.get("note") as string) || undefined,
+        start_date: getFormString(formData, "start_date"),
+        end_date: getFormString(formData, "end_date"),
+        am_pm_boundary: getFormString(formData, "am_pm_boundary"),
+        pm_end: getFormString(formData, "pm_end"),
+        note: getFormString(formData, "note") || undefined,
       });
       toast.success("特別期間を追加しました");
       setShowForm(false);
       setNote("");
-    } catch (error) {
-      handleApiError(error, "特別期間の追加");
+    } catch {
+      // FE-RC-005: useCreateSpecialPeriod.onError が既に handleApiError で通知済み。
     }
     return null;
   }, null);
@@ -43,8 +43,8 @@ export const SpecialPeriodSection = memo(function SpecialPeriodSection({
       try {
         await deleteMutation.mutateAsync(id);
         toast.success("特別期間を削除しました");
-      } catch (error) {
-        handleApiError(error, "特別期間の削除");
+      } catch {
+        // FE-RC-005: useDeleteSpecialPeriod.onError が既に handleApiError で通知済み。
       }
     },
     [deleteMutation],
@@ -57,13 +57,13 @@ export const SpecialPeriodSection = memo(function SpecialPeriodSection({
   }, []);
 
   return (
-    <section className={`bg-white rounded-lg border ${C.borderLight} p-6`}>
+    <section className={`${C.bgWhite} rounded-lg border ${C.borderLight} p-6`}>
       <div className="flex items-center justify-between mb-4">
         <h2 className={`text-base font-semibold ${C.text}`}>特別期間</h2>
         <button
           type="button"
           onClick={handleShowForm}
-          className={`flex min-h-11 min-w-11 items-center gap-1.5 text-base ${C.textBrand} ${C.hoverBgBrand} hover:text-white rounded-xs px-3 transition-colors`}
+          className={`flex min-h-11 min-w-11 items-center gap-1.5 text-base ${C.textBrand} ${C.hoverBgBrand} ${C.hoverTextOnBrand} rounded-xs px-3 transition-colors`}
         >
           <Plus className="size-4" />
           新規登録
