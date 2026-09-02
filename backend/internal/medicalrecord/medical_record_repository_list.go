@@ -5,7 +5,6 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/textsearch"
 	"gorm.io/gorm"
 )
 
@@ -75,76 +74,7 @@ func (r *medicalRecordRepository) FindAll(ctx context.Context, clinicIDs []uint6
 			q = q.Where("pets.animal_species_id = ?", *filters.AnimalSpeciesID)
 		}
 		if filters.Search != "" {
-			// raw name の同一表記一致は既存の trgm index を利用できる形で残し、
-			// translate() 枝では検索語と name/name_kana をひらがなに揃えて表記差も吸収する。
-			// U+3000 は query 側 NormalizeQuerySpaces と column 側 translate(space / kana+space)
-			// で半角空白と相互に一致させる (BUG-001)。空白のみは fail-closed で 0 件。
-			qSearch := textsearch.NormalizeQuerySpaces(filters.Search)
-			if qSearch == "" {
-				q = q.Where("1 = 0")
-				return q
-			}
-			rawPattern := "%" + textsearch.EscapeLike(qSearch) + "%"
-			normalizedPattern := "%" + textsearch.EscapeLike(textsearch.NormalizeKana(qSearch)) + "%"
-			q = q.Where(
-				`(medical_records.record_no ILIKE ? ESCAPE '\'`+
-					` OR owners.name ILIKE ? ESCAPE '\'`+
-					` OR translate(owners.name, ?, ?) ILIKE ? ESCAPE '\'`+
-					` OR translate(owners.name, ?, ?) ILIKE ? ESCAPE '\'`+
-					` OR translate(owners.name_kana, ?, ?) ILIKE ? ESCAPE '\'`+
-					` OR pets.name ILIKE ? ESCAPE '\'`+
-					` OR translate(pets.name, ?, ?) ILIKE ? ESCAPE '\'`+
-					` OR translate(pets.name, ?, ?) ILIKE ? ESCAPE '\'`+
-					` OR translate(pets.name_kana, ?, ?) ILIKE ? ESCAPE '\'`+
-					` OR inquiries.chief_complaint ILIKE ? ESCAPE '\'`+
-					` OR EXISTS (`+
-					`SELECT 1 FROM treatments searched_treatment`+
-					` WHERE searched_treatment.medical_record_id = medical_records.id`+
-					` AND searched_treatment.deleted_at IS NULL`+
-					` AND (`+
-					`translate(searched_treatment.content, ?, ?) ILIKE ? ESCAPE '\'`+
-					` OR translate(searched_treatment.memo, ?, ?) ILIKE ? ESCAPE '\'`+
-					` OR EXISTS (`+
-					`SELECT 1 FROM procedures searched_procedure`+
-					` WHERE searched_procedure.id = searched_treatment.procedure_id`+
-					` AND searched_procedure.clinic_id = medical_records.clinic_id`+
-					` AND searched_procedure.deleted_at IS NULL`+
-					` AND translate(searched_procedure.name, ?, ?) ILIKE ? ESCAPE '\')`+
-					` OR EXISTS (`+
-					`SELECT 1 FROM medicines searched_medicine`+
-					` WHERE searched_medicine.id = searched_treatment.medicine_id`+
-					` AND searched_medicine.clinic_id = medical_records.clinic_id`+
-					` AND searched_medicine.deleted_at IS NULL`+
-					` AND translate(searched_medicine.name, ?, ?) ILIKE ? ESCAPE '\')`+
-					` OR EXISTS (`+
-					`SELECT 1 FROM consultations searched_consultation`+
-					` WHERE searched_consultation.id = searched_treatment.consultation_id`+
-					` AND searched_consultation.clinic_id = medical_records.clinic_id`+
-					` AND searched_consultation.deleted_at IS NULL`+
-					` AND translate(searched_consultation.name, ?, ?) ILIKE ? ESCAPE '\')`+
-					` OR EXISTS (`+
-					`SELECT 1 FROM inventory_items searched_inventory`+
-					` WHERE searched_inventory.id = searched_treatment.inventory_id`+
-					` AND searched_inventory.clinic_id = medical_records.clinic_id`+
-					` AND searched_inventory.deleted_at IS NULL`+
-					` AND translate(searched_inventory.name, ?, ?) ILIKE ? ESCAPE '\'))))`,
-				normalizedPattern,
-				rawPattern,
-				textsearch.SpaceSourceChars, textsearch.SpaceTargetChars, rawPattern,
-				textsearch.KanaAndSpaceSourceChars, textsearch.KanaAndSpaceTargetChars, normalizedPattern,
-				textsearch.KanaAndSpaceSourceChars, textsearch.KanaAndSpaceTargetChars, normalizedPattern,
-				rawPattern,
-				textsearch.SpaceSourceChars, textsearch.SpaceTargetChars, rawPattern,
-				textsearch.KanaAndSpaceSourceChars, textsearch.KanaAndSpaceTargetChars, normalizedPattern,
-				textsearch.KanaAndSpaceSourceChars, textsearch.KanaAndSpaceTargetChars, normalizedPattern,
-				normalizedPattern,
-				textsearch.KanaAndSpaceSourceChars, textsearch.KanaAndSpaceTargetChars, normalizedPattern,
-				textsearch.KanaAndSpaceSourceChars, textsearch.KanaAndSpaceTargetChars, normalizedPattern,
-				textsearch.KanaAndSpaceSourceChars, textsearch.KanaAndSpaceTargetChars, normalizedPattern,
-				textsearch.KanaAndSpaceSourceChars, textsearch.KanaAndSpaceTargetChars, normalizedPattern,
-				textsearch.KanaAndSpaceSourceChars, textsearch.KanaAndSpaceTargetChars, normalizedPattern,
-				textsearch.KanaAndSpaceSourceChars, textsearch.KanaAndSpaceTargetChars, normalizedPattern,
-			)
+			q = applyMedicalRecordSearch(q, filters.Search)
 		}
 		return q
 	}

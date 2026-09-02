@@ -2,7 +2,6 @@ package medicalrecord
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"time"
 
@@ -160,35 +159,8 @@ func (s *labImportExaminationService) persistExam(ctx context.Context, input Lab
 		return nil, apperrors.WrapInvalidInput("date is required")
 	}
 
-	// クロステナント write 防止 (P1-2, PR #186 review): 別 clinic の pet/medical_record を
-	// 紐付けると、他院の患者データが lab import 経由で漏洩・混入する。所有権を検証する。
-	if input.PetID != nil {
-		if _, err := s.petRepo.FindByID(ctx, input.ClinicID, *input.PetID); err != nil {
-			slog.ErrorContext(ctx, "failed to verify pet ownership",
-				"error", err,
-				"pet_id", *input.PetID,
-				"clinic_id", input.ClinicID,
-			)
-			return nil, apperrors.Wrap(err, "failed to verify pet ownership")
-		}
-	}
-	if input.MedicalRecordID != nil {
-		record, err := s.medicalRecordRepo.FindByID(ctx, input.ClinicID, *input.MedicalRecordID)
-		if err != nil {
-			slog.ErrorContext(ctx, "failed to verify medical record ownership",
-				"error", err,
-				"medical_record_id", *input.MedicalRecordID,
-				"clinic_id", input.ClinicID,
-			)
-			return nil, apperrors.Wrap(err, "failed to verify medical record ownership")
-		}
-		// 同一 clinic 内でも pet と medical_record の相関が崩れると、他患者のカルテへ
-		// 検査結果が混入する。manual examination write の validateClinicalRelations と同方針で
-		// fail-closed にする（存在リークを避けるため NotFound を返す）。
-		// HC-005: lab import は MedicalRecord の status を検証しない（確定済みへの追記を許容）。
-		if input.PetID != nil && (record == nil || record.PetID == nil || *record.PetID != *input.PetID) {
-			return nil, apperrors.WrapNotFound("medical_record", "relation")
-		}
+	if err := s.verifyLabExamPersistOwnership(ctx, input); err != nil {
+		return nil, err
 	}
 
 	dup, err := s.dupChecker.IsDuplicate(ctx, input)
@@ -235,48 +207,11 @@ func (s *labImportExaminationService) persistExam(ctx context.Context, input Lab
 	// 既に ambient tx がある（device receive/attach）ときは内側で新規 Transaction を開かない。
 	var duplicateOnCreate bool
 	write := func(txCtx context.Context) error {
-		// ExamTypeID / nested ExamTypeFieldID は write と同じ transaction で最終検証し、
-		// FindByID の FOR SHARE を Create / ReplaceItems の commit まで保持する（#124 / replaceItemsTx と同型）。
-		examType, err := s.examTypeRepo.FindByID(txCtx, input.ClinicID, input.ExamTypeID)
+		dup, err := s.writeLabExamGraph(txCtx, input, exam)
 		if err != nil {
-			slog.ErrorContext(txCtx, "failed to verify exam type ownership",
-				"error", err,
-				"exam_type_id", input.ExamTypeID,
-				"clinic_id", input.ClinicID,
-			)
-			return apperrors.Wrap(err, "failed to verify exam type ownership")
-		}
-		if examType == nil {
-			return apperrors.WrapNotFound("exam_type", fmt.Sprintf("%d", input.ExamTypeID))
-		}
-		if err := requireOwnedExamTypeFields(examType, input.Items); err != nil {
 			return err
 		}
-		if err := s.examRepo.Create(txCtx, exam); err != nil {
-			if apperrors.IsAlreadyExists(err) {
-				duplicateOnCreate = true
-				return nil
-			}
-			slog.ErrorContext(txCtx, "lab import exam create failed",
-				"error", err,
-				"clinic_id", input.ClinicID,
-				"job_id", input.JobID.String(),
-			)
-			return apperrors.Wrap(err, "failed to create exam from lab import")
-		}
-
-		if len(input.Items) > 0 {
-			items := buildExamResults(exam.ID, input.Items)
-			if _, _, err := s.examRepo.ReplaceItemsByExamID(txCtx, input.ClinicID, exam.ID, items); err != nil {
-				slog.ErrorContext(txCtx, "lab import exam items save failed",
-					"error", err,
-					"clinic_id", input.ClinicID,
-					"exam_id", exam.ID,
-					"job_id", input.JobID.String(),
-				)
-				return apperrors.Wrap(err, fmt.Sprintf("failed to save exam items for exam %d", exam.ID))
-			}
-		}
+		duplicateOnCreate = dup
 		return nil
 	}
 	var writeErr error

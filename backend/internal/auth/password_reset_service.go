@@ -248,38 +248,11 @@ func (s *passwordResetService) ForgotPassword(
 	}
 	issueSuppressed := false
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
-		lockedAccount, lockErr := s.accountRepo.FindByIDForUpdate(txCtx, account.ID)
-		if lockErr != nil {
-			return apperrors.Wrap(lockErr, "failed to lock password reset account")
+		suppressed, err := s.persistPasswordResetToken(txCtx, account.ID, resetToken)
+		if err != nil {
+			return err
 		}
-		if lockedAccount == nil || lockedAccount.ID != account.ID {
-			return apperrors.WrapUnauthorized("password reset account is unavailable")
-		}
-		latestToken, latestErr := s.tokenRepo.FindLatestByAccountIDForUpdate(
-			txCtx,
-			account.ID,
-		)
-		if latestErr != nil && !apperrors.IsNotFound(latestErr) {
-			return apperrors.Wrap(
-				latestErr,
-				"failed to inspect existing password reset token",
-			)
-		}
-		now := s.currentTime()
-		if latestErr == nil && activeRecentResetToken(latestToken, now) {
-			issueSuppressed = true
-			return nil
-		}
-		resetToken.CreatedAt = nextAccountSessionEpoch(
-			lockedAccount.UpdatedAt,
-			now,
-		)
-		if deleteErr := s.tokenRepo.DeleteByAccountID(txCtx, account.ID); deleteErr != nil {
-			return apperrors.Wrap(deleteErr, "failed to clean up existing tokens")
-		}
-		if createErr := s.tokenRepo.Create(txCtx, resetToken); createErr != nil {
-			return apperrors.Wrap(createErr, "failed to create reset token")
-		}
+		issueSuppressed = suppressed
 		return nil
 	}); err != nil {
 		slog.ErrorContext(

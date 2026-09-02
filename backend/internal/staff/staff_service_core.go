@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
-	"time"
 
 	"golang.org/x/crypto/bcrypt"
 
@@ -204,85 +203,9 @@ func (s *staffService) Update(ctx context.Context, clinicID, id uint64, input *U
 
 	var result *model.Staff
 	if err := s.tx.WithTx(ctx, func(txCtx context.Context) error {
-		lockedStaff, err := s.lockStaffForMutation(txCtx, clinicID, id, input.IsSystemAdmin)
-		if err != nil {
-			return apperrors.Wrap(err, "failed to lock staff for update")
-		}
-		if lockedStaff == nil || lockedStaff.ID != id {
-			return apperrors.WrapInternalServerError("staff lock returned an invalid record")
-		}
-		assignments, err := s.assignmentRepo.LockActiveByStaff(txCtx, id)
-		if err != nil {
-			return apperrors.Wrap(err, "failed to lock staff clinic assignments for update")
-		}
-		if err := authorizeGlobalStaffUpdate(
-			id,
-			clinicID,
-			assignments,
-			input.AuthorizedClinicIDs,
-			input.IsSystemAdmin,
-		); err != nil {
-			return err
-		}
-		writeClinicID, err := mutationClinicID(id, clinicID, assignments, input.IsSystemAdmin)
+		updated, err := s.applyStaffUpdateInTx(txCtx, clinicID, id, input, hasProfileUpdate, hasPasswordUpdate, passwordHash)
 		if err != nil {
 			return err
-		}
-		if err := s.lockOccupationOwnership(txCtx, writeClinicID, input.OccupationID); err != nil {
-			return err
-		}
-		if hasPasswordUpdate && lockedStaff.AccountID == nil {
-			return apperrors.WrapInvalidInput("staff does not have an account")
-		}
-		if input.IsActive != nil && !*input.IsActive {
-			if err := s.guardStaffDeactivation(txCtx, id, lockedStaff, input.ActorStaffID); err != nil {
-				return err
-			}
-		}
-		if hasProfileUpdate {
-			if err := s.repo.Update(txCtx, writeClinicID, id, buildStaffUpdate(input)); err != nil {
-				return apperrors.Wrap(err, "failed to update staff")
-			}
-		}
-		if hasPasswordUpdate {
-			if err := s.accountRepo.UpdatePasswordHash(
-				txCtx,
-				*lockedStaff.AccountID,
-				passwordHash,
-				time.Now(),
-			); err != nil {
-				return apperrors.Wrap(err, "failed to update staff account password")
-			}
-			if err := s.accountRepo.DeletePasswordResetTokens(
-				txCtx,
-				*lockedStaff.AccountID,
-			); err != nil {
-				return apperrors.Wrap(
-					err,
-					"failed to revoke staff password reset tokens",
-				)
-			}
-			if auditErr := s.credentialAudit.LogEntryTx(
-				txCtx,
-				staffCredentialAuditEntry(
-					*input.CredentialAudit,
-					*lockedStaff.AccountID,
-				),
-			); auditErr != nil {
-				return apperrors.Wrap(
-					auditErr,
-					"failed to write staff credential audit",
-				)
-			}
-		}
-		var updated *model.Staff
-		if input.IsSystemAdmin {
-			updated, err = s.repo.FindByID(txCtx, id)
-		} else {
-			updated, err = s.repo.FindByIDInClinic(txCtx, writeClinicID, id)
-		}
-		if err != nil {
-			return apperrors.Wrap(err, "failed to get updated staff")
 		}
 		result = updated
 		return nil
