@@ -16,6 +16,7 @@ import type { ActiveFilter, FilterProperty } from "@/components/shared/PropertyF
 // Internal
 import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
 import { usePagination } from "@/hooks/use-pagination";
+import { useUrlPageSync } from "@/hooks/use-url-page-sync";
 import { useStaffValidation } from "@/hooks/use-staff-validation";
 import type { TrimmingUI } from "@/types";
 import { paths } from "@/config/paths";
@@ -77,6 +78,9 @@ export function TrimmingList() {
   } = usePagination(sortedData, { pageSize: 10, resetKey: [deferredKeyword, JSON.stringify(activeFilters)].join("|") });
 
   const urlPage = Number(searchParams.get("page") ?? 1);
+
+  // FE-RC-028: totalPages を超える URL page をクランプして書き戻す（フィルタ変更等で母集団が縮んだ場合の空ページ対策）。
+  useUrlPageSync({ urlPage, totalPages, isLoading, setSearchParams });
 
   useEffect(() => {
     const clampedPage = Math.max(1, Math.min(urlPage, totalPages));

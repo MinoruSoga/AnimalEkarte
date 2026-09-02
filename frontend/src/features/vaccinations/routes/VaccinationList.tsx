@@ -15,6 +15,7 @@ import { paths } from "@/config/paths";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { usePagination } from "@/hooks/use-pagination";
+import { useUrlPageSync } from "@/hooks/use-url-page-sync";
 import { useGetPet } from "@/hooks/use-pet";
 import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
 import { handleApiError } from "@/lib/handle-api-error";
@@ -86,12 +87,16 @@ export function VaccinationList() {
 
   const urlPage = Number(searchParams.get("page") ?? 1);
   const { totalPages, currentPage, goToPage } = pagination;
+
+  // FE-RC-028: totalPages を超える URL page をクランプして書き戻す（フィルタ変更等で母集団が縮んだ場合の空ページ対策）。
+  useUrlPageSync({ urlPage, totalPages, isLoading, setSearchParams });
+
   useEffect(() => {
     const clampedPage = Math.max(1, Math.min(urlPage, totalPages));
     if (clampedPage !== currentPage) {
       goToPage(clampedPage);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- FE-144: ページ変更時にURLクエリパラメータを更新
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- FE-144: URL page から内部pagination stateへ反映（ブラウザ戻る/直接リンク対応）
   }, [urlPage, totalPages]);
 
   const handlePageChange = useCallback((page: number) => {

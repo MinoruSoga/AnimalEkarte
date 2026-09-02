@@ -1,8 +1,9 @@
-import { memo, useCallback, useEffect, useState, useTransition } from "react";
+import { memo, useActionState, useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { C } from "@/lib/design-tokens";
 import { handleApiError } from "@/lib/handle-api-error";
 import { useCreateClinicHoliday, useDeleteClinicHoliday } from "../../api/clinic-holidays";
@@ -16,6 +17,8 @@ interface ClinicHolidayModalProps {
   canEdit: boolean;
 }
 
+type ClinicHolidayFormState = { error?: string } | null;
+
 export const ClinicHolidayModal = memo(function ClinicHolidayModal({
   open,
   onClose,
@@ -24,8 +27,6 @@ export const ClinicHolidayModal = memo(function ClinicHolidayModal({
   canEdit,
 }: ClinicHolidayModalProps) {
   const [reason, setReason] = useState(() => existing?.reason ?? "");
-  const [isSaving, startSaveTransition] = useTransition();
-  const [isRemoving, startRemoveTransition] = useTransition();
 
   const setMutation = useCreateClinicHoliday();
   const deleteMutation = useDeleteClinicHoliday();
@@ -37,27 +38,30 @@ export const ClinicHolidayModal = memo(function ClinicHolidayModal({
     }
   }, [open, date, existing?.reason]);
 
-  const handleSave = useCallback(() => {
-    startSaveTransition(async () => {
+  const [state, formAction] = useActionState<ClinicHolidayFormState, FormData>(
+    async (_prev, formData) => {
+      const intent = formData.get("intent");
+      if (intent === "remove") {
+        try {
+          await deleteMutation.mutateAsync(date);
+          onClose();
+          return null;
+        } catch (err) {
+          handleApiError(err, "定休日の解除");
+          return { error: "定休日の解除に失敗しました" };
+        }
+      }
       try {
         await setMutation.mutateAsync({ date, reason });
         onClose();
+        return null;
       } catch (err) {
         handleApiError(err, "定休日の設定");
+        return { error: "定休日の設定に失敗しました" };
       }
-    });
-  }, [date, reason, setMutation, onClose]);
-
-  const handleRemove = useCallback(() => {
-    startRemoveTransition(async () => {
-      try {
-        await deleteMutation.mutateAsync(date);
-        onClose();
-      } catch (err) {
-        handleApiError(err, "定休日の解除");
-      }
-    });
-  }, [date, deleteMutation, onClose]);
+    },
+    null,
+  );
 
   const formattedDate = date
     ? new Date(`${date}T00:00:00+09:00`).toLocaleDateString("ja-JP", {
@@ -68,8 +72,6 @@ export const ClinicHolidayModal = memo(function ClinicHolidayModal({
         weekday: "short",
       })
     : "";
-
-  const isPending = isSaving || isRemoving;
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
@@ -82,49 +84,52 @@ export const ClinicHolidayModal = memo(function ClinicHolidayModal({
           <p className={`text-sm ${C.text50}`}>{formattedDate}</p>
         </DialogHeader>
 
-        <div className="space-y-4 py-2">
-          {existing ? (
-            <p className={`text-sm font-medium ${C.danger}`}>この日は定休日に設定されています</p>
-          ) : null}
+        <form action={formAction} noValidate>
+          <div className="space-y-4 py-2">
+            {existing ? (
+              <p className={`text-sm font-medium ${C.danger}`}>この日は定休日に設定されています</p>
+            ) : null}
 
-          <div className="space-y-1.5">
-            <Label htmlFor="holiday-reason">理由・メモ（任意）</Label>
-            <Input
-              id="holiday-reason"
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              placeholder="例: 院長不在、設備点検"
-              disabled={!canEdit || isPending}
-            />
+            <div className="space-y-1.5">
+              <Label htmlFor="holiday-reason">理由・メモ（任意）</Label>
+              <Input
+                id="holiday-reason"
+                name="reason"
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                placeholder="例: 院長不在、設備点検"
+                disabled={!canEdit}
+              />
+            </div>
+
+            {state?.error ? (
+              <p className={`text-sm ${C.danger}`} role="alert">
+                {state.error}
+              </p>
+            ) : null}
           </div>
-        </div>
 
-        <DialogFooter className="gap-2">
-          {existing && canEdit ? (
-            <Button
-              type="button"
-              variant="destructive"
-              size="sm"
-              onClick={handleRemove}
-              disabled={isPending}
-            >
-              {isRemoving ? "解除中..." : "定休日を解除"}
+          <DialogFooter className="gap-2">
+            {existing && canEdit ? (
+              <SubmitButton
+                name="intent"
+                value="remove"
+                colorVariant="destructive"
+                loadingText="解除中..."
+              >
+                定休日を解除
+              </SubmitButton>
+            ) : null}
+            <Button type="button" variant="outline" onClick={onClose}>
+              キャンセル
             </Button>
-          ) : null}
-          <Button type="button" variant="outline" onClick={onClose} disabled={isPending}>
-            キャンセル
-          </Button>
-          {canEdit ? (
-            <Button
-              type="button"
-              size="sm"
-              onClick={handleSave}
-              disabled={isPending}
-            >
-              {isSaving ? "設定中..." : "定休日に設定"}
-            </Button>
-          ) : null}
-        </DialogFooter>
+            {canEdit ? (
+              <SubmitButton name="intent" value="save" loadingText="設定中...">
+                定休日に設定
+              </SubmitButton>
+            ) : null}
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   );

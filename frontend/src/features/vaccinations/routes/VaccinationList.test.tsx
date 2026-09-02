@@ -1,5 +1,5 @@
 import { useLayoutEffect } from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, useLocation } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -292,5 +292,20 @@ describe("VaccinationList 次回予定の期限超過表示", () => {
     expect(cell).not.toHaveClass(C.danger);
     expect(cell).toHaveTextContent(/^\s*$/);
     expect(cell).not.toHaveTextContent("期限超過");
+  });
+});
+
+describe("VaccinationList URL page 同期（FE-RC-028: useUrlPageSync）", () => {
+  it("totalPagesを超えるURL pageは読み込み後にクランプされる", async () => {
+    render(
+      <MemoryRouter initialEntries={["/vaccinations?page=99"]}>
+        <VaccinationList />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("location")).toHaveTextContent(/^\/vaccinations$/);
+    });
   });
 });

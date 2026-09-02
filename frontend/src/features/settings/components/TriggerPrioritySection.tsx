@@ -1,14 +1,16 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useActionState } from "react";
 import { toast } from "sonner";
 import { handleApiError } from "@/lib/handle-api-error";
 import { C, STYLE } from "@/lib/design-tokens";
-import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { TriggerTypeLabels } from "@/config/lstep-trigger-types";
 import {
   useGetTriggerPriorities,
   useUpdateTriggerPriorities,
 } from "../hooks/use-trigger-priorities";
 import type { TriggerPriorityItem } from "../hooks/use-trigger-priorities";
+
+type TriggerPriorityFormState = { error?: string } | null;
 
 function sortItems(items: TriggerPriorityItem[]): TriggerPriorityItem[] {
   return [...items].sort((a, b) => {
@@ -55,23 +57,27 @@ export function TriggerPrioritySection() {
     );
   };
 
-  const handleSave = async () => {
-    if (draft.some((item) => item.priority < 1)) {
-      toast.error("優先順位は1以上を指定してください");
-      return;
-    }
-    const submitted = sortItems([...draft]);
-    try {
-      await updateMutation.mutateAsync({ items: submitted });
-      // baseline を送信値に更新してダーティ状態をリセット。
-      // data 参照が変わらない場合でも UI は正確に clean 状態になる。
-      setBaseline(submitted);
-      setDraft(submitted);
-      toast.success("配信優先順位を保存しました");
-    } catch (error) {
-      handleApiError(error, "配信優先順位の保存");
-    }
-  };
+  const [state, formAction] = useActionState<TriggerPriorityFormState, FormData>(
+    async () => {
+      if (draft.some((item) => item.priority < 1)) {
+        return { error: "優先順位は1以上を指定してください" };
+      }
+      const submitted = sortItems([...draft]);
+      try {
+        await updateMutation.mutateAsync({ items: submitted });
+        // baseline を送信値に更新してダーティ状態をリセット。
+        // data 参照が変わらない場合でも UI は正確に clean 状態になる。
+        setBaseline(submitted);
+        setDraft(submitted);
+        toast.success("配信優先順位を保存しました");
+        return null;
+      } catch (error) {
+        handleApiError(error, "配信優先順位の保存");
+        return { error: "配信優先順位の保存に失敗しました" };
+      }
+    },
+    null,
+  );
 
   if (isLoading) {
     return (
@@ -100,39 +106,42 @@ export function TriggerPrioritySection() {
         数値が小さいほど優先。同値は同一優先階層として扱われます。
       </p>
 
-      <div className={`border ${C.borderLight} rounded-xs overflow-hidden`}>
-        {draft.map((item, idx) => (
-          <div
-            key={item.trigger_type}
-            className={`flex items-center gap-4 px-4 py-2.5 ${
-              idx > 0 ? `border-t ${C.borderLight}` : ""
-            }`}
-          >
-            <span className={`flex-1 text-sm ${C.text}`}>
-              {TriggerTypeLabels[item.trigger_type] ?? item.trigger_type}
-            </span>
-            <input
-              type="number"
-              min={1}
-              value={item.priority}
-              onChange={(e) => handlePriorityChange(item.trigger_type, e.target.value)}
-              aria-label={`${TriggerTypeLabels[item.trigger_type] ?? item.trigger_type} 優先順位`}
-              className={`${STYLE.formInput} rounded-xs border px-2 w-20 text-right outline-none focus:ring-2 ${C.focusRingAccent30}`}
-            />
-          </div>
-        ))}
-      </div>
+      <form action={formAction} noValidate>
+        <div className={`border ${C.borderLight} rounded-xs overflow-hidden`}>
+          {draft.map((item, idx) => (
+            <div
+              key={item.trigger_type}
+              className={`flex items-center gap-4 px-4 py-2.5 ${
+                idx > 0 ? `border-t ${C.borderLight}` : ""
+              }`}
+            >
+              <span className={`flex-1 text-sm ${C.text}`}>
+                {TriggerTypeLabels[item.trigger_type] ?? item.trigger_type}
+              </span>
+              <input
+                type="number"
+                min={1}
+                value={item.priority}
+                onChange={(e) => handlePriorityChange(item.trigger_type, e.target.value)}
+                aria-label={`${TriggerTypeLabels[item.trigger_type] ?? item.trigger_type} 優先順位`}
+                className={`${STYLE.formInput} rounded-xs border px-2 w-20 text-right outline-none focus:ring-2 ${C.focusRingAccent30}`}
+              />
+            </div>
+          ))}
+        </div>
 
-      <div className={`flex justify-end pt-4 border-t ${C.borderLight} mt-4`}>
-        <Button
-          type="button"
-          onClick={handleSave}
-          disabled={!isDirty || updateMutation.isPending}
-          className={`${C.bgBrand} ${C.hoverBgBrand} ${C.hoverTextOnBrand} ${C.textOnBrand} rounded-full transition-colors shadow-none border-transparent h-10 text-sm px-4`}
-        >
-          {updateMutation.isPending ? "保存中..." : "保存"}
-        </Button>
-      </div>
+        {state?.error ? (
+          <p className={`text-sm ${C.danger} mt-2`} role="alert">
+            {state.error}
+          </p>
+        ) : null}
+
+        <div className={`flex justify-end pt-4 border-t ${C.borderLight} mt-4`}>
+          <SubmitButton disabled={!isDirty} loadingText="保存中..." className="h-10 text-sm px-4">
+            保存
+          </SubmitButton>
+        </div>
+      </form>
     </div>
   );
 }

@@ -87,33 +87,30 @@ export function validateVaccinationForm(
   formData: VaccinationFormState,
 ): Record<string, string> {
   const errors: Record<string, string> = {};
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  // FE-RC-003: date-only 契約は JST の文字列比較で判定する（臨床安全境界）。
+  // new Date() のローカル時刻比較は TZ != JST の実行環境で当日を未来日と誤判定する。
+  const today = todayJSTISO();
   if (!isEdit) {
     if (!formData.vaccineId || formData.vaccineId === "0") {
       errors.vaccineId = "ワクチン種別を選択してください";
     }
     if (!formData.date) {
       errors.date = "接種日を入力してください";
-    } else if (new Date(formData.date + "T00:00:00") > today) {
+    } else if (formData.date > today) {
       errors.date = "接種日は今日以前の日付を入力してください";
     }
   } else if (!formData.date) {
     errors.date = "接種日を入力してください";
-  } else if (new Date(formData.date + "T00:00:00") > today) {
+  } else if (formData.date > today) {
     errors.date = "接種日は今日以前の日付を入力してください";
   }
   if (!isEdit && formData.nextDate) {
-    if (new Date(formData.nextDate + "T00:00:00") < today) {
+    if (formData.nextDate < today) {
       errors.nextDate = "次回予定日は本日以降の日付を入力してください";
     }
   }
-  if (formData.date && formData.nextDate) {
-    const dateVal = new Date(formData.date + "T00:00:00");
-    const nextDateVal = new Date(formData.nextDate + "T00:00:00");
-    if (!isNaN(dateVal.getTime()) && !isNaN(nextDateVal.getTime()) && nextDateVal <= dateVal) {
-      errors.nextDate = "次回予定日は接種日より後の日付を入力してください";
-    }
+  if (formData.date && formData.nextDate && formData.nextDate <= formData.date) {
+    errors.nextDate = "次回予定日は接種日より後の日付を入力してください";
   }
   return errors;
 }
