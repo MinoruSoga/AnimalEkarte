@@ -1,4 +1,4 @@
-import { useActionState, useEffect, useRef, useState } from "react";
+import { useActionState, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { Dispatch, RefObject, SetStateAction } from "react";
 import type { NavigateFunction } from "react-router";
 import type { QueryClient } from "@tanstack/react-query";
@@ -143,6 +143,17 @@ interface AccountingCalculation {
   billingAmount: number;
 }
 
+/** FE-RC-001: fieldset disabled 等の render 側ガードをバイパスされても action 側で再検証するための最小権限セット。 */
+export interface AccountingCompletionMutationPermissions {
+  canCreate: boolean;
+  canEdit: boolean;
+}
+
+export const DENIED_ACCOUNTING_COMPLETION_PERMISSIONS: Readonly<AccountingCompletionMutationPermissions> = {
+  canCreate: false,
+  canEdit: false,
+};
+
 interface UseAccountingCompletionActionArgs {
   accountingId?: string;
   accounting: Accounting | null;
@@ -157,6 +168,8 @@ interface UseAccountingCompletionActionArgs {
   postCloseReason?: string; // #115: 締め後編集理由
   /** BUG-001: 新規会計でペット生死が拒否対象のとき complete を発行しない */
   blockCreateReason?: string;
+  /** FE-RC-001: action 開始時に再検証する canCreate/canEdit */
+  permissions?: Readonly<AccountingCompletionMutationPermissions>;
 }
 
 export function useAccountingCompletionAction({
@@ -172,6 +185,7 @@ export function useAccountingCompletionAction({
   setCompletedPayment,
   postCloseReason,
   blockCreateReason,
+  permissions = DENIED_ACCOUNTING_COMPLETION_PERMISSIONS,
 }: UseAccountingCompletionActionArgs) {
   const [editConfirmOpen, setEditConfirmOpen] = useState(false);
   const editConfirmedRef = useRef(false);
@@ -180,13 +194,29 @@ export function useAccountingCompletionAction({
   const completeIdempotencyKeyRef = useRef<string | null>(null);
   const completePayloadFingerprintRef = useRef<string | null>(null);
   const blockCreateReasonRef = useRef(blockCreateReason);
-  useEffect(() => {
+  // FE-RC-030: 次の paint 前に同期反映し、action 発火直前の値の取り違えを防ぐ。
+  useLayoutEffect(() => {
     blockCreateReasonRef.current = blockCreateReason;
   }, [blockCreateReason]);
+
+  const permissionsRef = useRef(permissions);
+  useLayoutEffect(() => {
+    permissionsRef.current = permissions;
+  }, [permissions]);
+  const isMutationAllowed = useCallback(
+    (action: keyof AccountingCompletionMutationPermissions) => permissionsRef.current[action] === true,
+    [],
+  );
 
   const [formState, formAction, isPending] = useActionState(
     async (_prevState: AccountingFormState, _formData: FormData): Promise<AccountingFormState> => {
       if (!accounting || !calculation) return { success: false, timestamp: Date.now() };
+
+      // FE-RC-001: fieldset disabled 等の render 側ガードをバイパスされても action 側で再検証する。
+      if (!isMutationAllowed(accountingId ? "canEdit" : "canCreate")) {
+        toast.error("この操作を行う権限がありません");
+        return { success: false, timestamp: Date.now() };
+      }
 
       // BUG-001: 死亡 / 未確認ペットの新規確定は API を叩かず fail-closed。
       if (!accountingId && blockCreateReasonRef.current) {

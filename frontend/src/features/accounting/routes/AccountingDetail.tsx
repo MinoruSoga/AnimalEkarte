@@ -1,15 +1,24 @@
 import { useState, useMemo, memo, useTransition, lazy, Suspense } from "react";
 import { useParams, useNavigate, useLocation } from "react-router";
 import { useQueryClient } from "@tanstack/react-query";
+
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
-import { useAuth } from "@/hooks/use-auth";
-import { usePermission } from "@/hooks/use-permission";
-import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
-import { useGetAccountingDetail } from "../api/get-accounting";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
+import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
+import { useAuth } from "@/hooks/use-auth";
+import { useGetCashRegisterCloses } from "@/hooks/use-cash-register-closes";
+import { usePermission } from "@/hooks/use-permission";
 import { paths } from "@/config/paths";
 import { C } from "@/lib/design-tokens";
 import { todayJSTISO } from "@/lib/jst-date";
+import {
+  ResourceAccounting,
+  ResourceAccountingCancel,
+  ResourceAccountingPostCloseEdit,
+  ResourceCashRegisterClose,
+} from "@/types/generated/models";
+
+import { useGetAccountingDetail } from "../api/get-accounting";
 import {
   AccountingDetailColumns,
   AccountingDocumentPreviewDialog,
@@ -19,19 +28,12 @@ import {
   UngroupedItemsWarningBanner,
   UnbilledBlockingWarningBanner,
 } from "../components/AccountingDetailPanels";
+import { isPaymentSubmitDisabled, isPostCloseSubmitBlocked } from "../components/accounting-detail-model";
 import { useAccountingCompletionAction } from "../hooks/use-accounting-completion-action";
 import { useAccountingDetailState } from "../hooks/use-accounting-detail-state";
 import { useAccountingItemActions } from "../hooks/use-accounting-item-actions";
 import { useAccountingSettlementActions } from "../hooks/use-accounting-settlement-actions";
 import type { AccountingItem } from "../types";
-import {
-  ResourceAccounting,
-  ResourceAccountingCancel,
-  ResourceAccountingPostCloseEdit,
-  ResourceCashRegisterClose,
-} from "@/types/generated/models";
-import { useGetCashRegisterCloses } from "@/hooks/use-cash-register-closes";
-import { isPaymentSubmitDisabled, isPostCloseSubmitBlocked } from "../components/accounting-detail-model";
 
 const CreditCorrectionDialog = lazy(() =>
   import("../components/CreditCorrectionDialog").then((m) => ({ default: m.CreditCorrectionDialog })),
@@ -95,6 +97,10 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
   const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
   const [isCancelling, startCancelTransition] = useTransition();
 
+  // clinic 情報（AccountingDocument に props 注入）
+  const { user } = useAuth();
+  const { canEdit, canCreate, canDelete } = usePermission("accounting");
+
   const {
     editConfirmOpen,
     setEditConfirmOpen,
@@ -114,11 +120,8 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
     setCompletedPayment,
     postCloseReason,
     blockCreateReason: deceasedPetBlockMessage,
+    permissions: { canCreate, canEdit },
   });
-
-  // clinic 情報（AccountingDocument に props 注入）
-  const { user } = useAuth();
-  const { canEdit, canCreate, canDelete } = usePermission("accounting");
   // #118: キャンセルボタン用の専用権限（accounting-cancel の edit = キャンセル可否）
   const { canEdit: canCancelAccounting } = usePermission(ResourceAccountingCancel);
   // #115: 締め後編集専用権限
@@ -165,6 +168,7 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
     startAddItemTransition,
     startDeleteItemTransition,
     startItemUpdateTransition,
+    permissions: { canCreate, canEdit, canDelete },
   });
 
   const { handleCancelConfirm, handlePrint, handleRefund } = useAccountingSettlementActions({
