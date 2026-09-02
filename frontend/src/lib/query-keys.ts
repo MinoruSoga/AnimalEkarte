@@ -37,6 +37,7 @@ export const queryKeys = {
   },
   /** 単数形 "accounting" を第一要素に持つ別ネームスペース（accountings とは別キー） */
   accounting: {
+    unpaidAll: () => ["accounting", "unpaid"] as const,
     unpaidBillings: <P>(groupBy: "owner" | "billing" | "monthly", params: P) =>
       ["accounting", "unpaid", groupBy, params] as const,
     ungroupedItems: (petId: string, date: string) => ["accounting-ungrouped", petId, date] as const,

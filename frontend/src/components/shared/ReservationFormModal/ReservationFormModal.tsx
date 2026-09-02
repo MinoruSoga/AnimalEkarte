@@ -1,6 +1,16 @@
 // React/Framework
-import { LAYOUT } from "@/lib/design-tokens";
-import { useState, useEffect, useLayoutEffect, useCallback, useMemo, memo } from "react";
+import { C, LAYOUT } from "@/lib/design-tokens";
+import {
+  useState,
+  useEffect,
+  useLayoutEffect,
+  useCallback,
+  useMemo,
+  memo,
+  useActionState,
+  useRef,
+  type ReactNode,
+} from "react";
 import { format as dateFnsFormat } from "date-fns";
 
 // External
@@ -67,7 +77,7 @@ export const ReservationFormModal = memo(function ReservationFormModal({
   const [mobilePanel, setMobilePanel] = useState<MobilePanel>("search");
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [saveFormKey, setSaveFormKey] = useState(0);
   const [calendarMonth, setCalendarMonth] = useState<string>(() => dateFnsFormat(new Date(), "yyyy-MM"));
   const [ownerMode, setOwnerMode] = useState<OwnerMode>("existing");
   const [newOwnerData, setNewOwnerData] = useState<NewOwnerFormData>(EMPTY_NEW_OWNER);
@@ -113,7 +123,7 @@ export const ReservationFormModal = memo(function ReservationFormModal({
     if (!isOpen) return;
     setValidationErrors({});
     setSubmitError(null);
-    setIsSubmitting(false);
+    setSaveFormKey((key) => key + 1);
     setNewOwnerErrors({});
     setOwnerMode("existing");
     setNewOwnerData(EMPTY_NEW_OWNER);
@@ -171,7 +181,7 @@ export const ReservationFormModal = memo(function ReservationFormModal({
     }));
   }, [latestReservation]);
 
-  const handleSave = useCallback(async () => {
+  const saveReservation = useCallback(async (): Promise<string | null> => {
     const errors: Record<string, string> = {};
     const noErrors: Record<string, string> = {};
     setSubmitError(null);
@@ -205,20 +215,16 @@ export const ReservationFormModal = memo(function ReservationFormModal({
       if (Object.keys(noe).length > 0 || Object.keys(errors).length > 0) {
         setNewOwnerErrors(noe);
         setValidationErrors(errors);
-        return;
+        return null;
       }
       setNewOwnerErrors(noErrors);
       setValidationErrors(noErrors);
-      setIsSubmitting(true);
-      try {
-        const result = await onSave(formData, [], newOwnerData);
-        if (typeof result === "string" && result.trim()) {
-          setSubmitError(result);
-        }
-      } finally {
-        setIsSubmitting(false);
+      const result = await onSave(formData, [], newOwnerData);
+      if (typeof result === "string" && result.trim()) {
+        setSubmitError(result);
+        return result;
       }
-      return;
+      return null;
     }
 
     // 既存飼主モードのバリデーション
@@ -248,19 +254,16 @@ export const ReservationFormModal = memo(function ReservationFormModal({
 
     if (Object.keys(errors).length > 0) {
       setValidationErrors(errors);
-      return;
+      return null;
     }
 
     setValidationErrors(noErrors);
-    setIsSubmitting(true);
-    try {
-      const result = await onSave(formData, selectedPets);
-      if (typeof result === "string" && result.trim()) {
-        setSubmitError(result);
-      }
-    } finally {
-      setIsSubmitting(false);
+    const result = await onSave(formData, selectedPets);
+    if (typeof result === "string" && result.trim()) {
+      setSubmitError(result);
+      return result;
     }
+    return null;
   }, [formData, selectedPets, onSave, isEditMode, ownerMode, newOwnerData]);
 
   return (
@@ -279,7 +282,7 @@ export const ReservationFormModal = memo(function ReservationFormModal({
         {submitError ? (
           <div
             role="alert"
-            className="mx-4 mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800"
+            className={`mx-4 mt-3 rounded-md border ${C.borderRed300} ${C.bgRed50} px-3 py-2 text-sm ${C.textRed700}`}
           >
             {submitError}
           </div>
@@ -331,16 +334,46 @@ export const ReservationFormModal = memo(function ReservationFormModal({
           />
         </div>
 
-        <ReservationModalFooter
-          ownerMode={ownerMode}
-          selectedPetsCount={selectedPets.length}
-          isEditMode={isEditMode}
-          canSave={canSave}
-          isSubmitting={isSubmitting}
-          onClose={onClose}
-          onSave={handleSave}
-        />
+        <ReservationSaveSession key={saveFormKey} save={saveReservation}>
+          {({ formAction, isPending }) => (
+            <form action={formAction} className="shrink-0">
+              <ReservationModalFooter
+                ownerMode={ownerMode}
+                selectedPetsCount={selectedPets.length}
+                isEditMode={isEditMode}
+                canSave={canSave}
+                isSubmitting={isPending}
+                onClose={onClose}
+              />
+            </form>
+          )}
+        </ReservationSaveSession>
       </DialogContent>
     </Dialog>
   );
 });
+
+function ReservationSaveSession({
+  save,
+  children,
+}: {
+  save: () => Promise<string | null>;
+  children: (args: {
+    formAction: (payload: FormData) => void;
+    isPending: boolean;
+  }) => ReactNode;
+}) {
+  const saveRef = useRef(save);
+  useLayoutEffect(() => {
+    saveRef.current = save;
+  }, [save]);
+
+  const [, formAction, isPending] = useActionState(
+    async (_prev: string | null, _formData: FormData): Promise<string | null> => {
+      return saveRef.current();
+    },
+    null,
+  );
+
+  return children({ formAction, isPending });
+}

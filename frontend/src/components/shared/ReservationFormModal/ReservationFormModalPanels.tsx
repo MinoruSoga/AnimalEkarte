@@ -346,7 +346,6 @@ interface ReservationModalFooterProps {
   canSave: boolean;
   isSubmitting?: boolean;
   onClose: () => void;
-  onSave: () => void;
 }
 
 export function ReservationModalFooter({
@@ -356,7 +355,6 @@ export function ReservationModalFooter({
   canSave,
   isSubmitting = false,
   onClose,
-  onSave,
 }: ReservationModalFooterProps) {
   return (
     <DialogFooter className="p-4 border-t bg-white shrink-0 h-14 flex items-center justify-between gap-2">
@@ -379,7 +377,7 @@ export function ReservationModalFooter({
         </Button>
         {canSave ? (
           <Button
-            onClick={onSave}
+            type="submit"
             disabled={isSubmitting}
             className={`${C.bgBrand} ${C.textOnBrand} ${C.hoverBgBrand} ${C.hoverTextOnBrand} h-10 text-sm rounded-full min-w-[100px]`}
           >

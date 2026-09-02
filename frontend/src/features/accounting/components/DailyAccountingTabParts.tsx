@@ -22,19 +22,19 @@ interface CatCellProps {
 export function CatCell({ detail, isMixed }: CatCellProps) {
   const total = detail.cash + detail.card;
   if (total === 0) {
-    return <td className="border border-gray-300 text-right px-1 py-0.5 text-[9pt]">-</td>;
+    return <td className={`border ${C.borderGray300} text-right px-1 py-0.5 text-[9pt]`}>-</td>;
   }
   if (!isMixed) {
     return (
-      <td className="border border-gray-300 text-right px-1 py-0.5 text-[9pt]">
+      <td className={`border ${C.borderGray300} text-right px-1 py-0.5 text-[9pt]`}>
         {formatCurrency(total)}
       </td>
     );
   }
   return (
-    <td className="border border-gray-300 text-right px-1 py-0.5 text-[9pt] leading-tight">
+    <td className={`border ${C.borderGray300} text-right px-1 py-0.5 text-[9pt] leading-tight`}>
       {detail.cash !== 0 ? <div>現{detail.cash.toLocaleString()}</div> : null}
-      {detail.card !== 0 ? <div className="text-blue-700">カ{detail.card.toLocaleString()}</div> : null}
+      {detail.card !== 0 ? <div className={C.textStatusBlue}>カ{detail.card.toLocaleString()}</div> : null}
     </td>
   );
 }

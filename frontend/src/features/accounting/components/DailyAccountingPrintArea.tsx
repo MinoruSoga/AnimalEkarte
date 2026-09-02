@@ -1,6 +1,6 @@
 import { createPortal } from "react-dom";
 
-import { Z } from "@/lib/design-tokens";
+import { C, Z } from "@/lib/design-tokens";
 import { PAYMENT_METHOD_LABELS } from "@/constants/payment-method";
 import { formatCurrency, formatCurrencyIfNonzero } from "@/lib/format/number";
 import { CatCell } from "./DailyAccountingTabParts";
@@ -48,19 +48,19 @@ export function DailyPrintArea({ date, rows, totals }: DailyPrintAreaProps) {
       {/* メインテーブル */}
       <table className="w-full text-[8pt] border-collapse">
         <thead>
-          <tr className="bg-gray-100">
-            <th className="border border-gray-400 px-1 py-0.5 text-left whitespace-nowrap">領収No</th>
-            <th className="border border-gray-400 px-1 py-0.5 text-left whitespace-nowrap">飼主名</th>
-            <th className="border border-gray-400 px-1 py-0.5 text-left whitespace-nowrap">ペット名</th>
-            <th className="border border-gray-400 px-1 py-0.5 text-right whitespace-nowrap">診療</th>
-            <th className="border border-gray-400 px-1 py-0.5 text-right whitespace-nowrap">外科</th>
-            <th className="border border-gray-400 px-1 py-0.5 text-right whitespace-nowrap">RV</th>
-            <th className="border border-gray-400 px-1 py-0.5 text-right whitespace-nowrap">フード</th>
-            <th className="border border-gray-400 px-1 py-0.5 text-right whitespace-nowrap">トリミング</th>
-            <th className="border border-gray-400 px-1 py-0.5 text-right whitespace-nowrap">ホテル</th>
-            <th className="border border-gray-400 px-1 py-0.5 text-right whitespace-nowrap">用品他</th>
-            <th className="border border-gray-400 px-1 py-0.5 text-center whitespace-nowrap">支払方法</th>
-            <th className="border border-gray-400 px-1 py-0.5 text-right whitespace-nowrap">合計</th>
+          <tr className={`${C.bgGray100}`}>
+            <th className={`border ${C.borderGray300} px-1 py-0.5 text-left whitespace-nowrap`}>領収No</th>
+            <th className={`border ${C.borderGray300} px-1 py-0.5 text-left whitespace-nowrap`}>飼主名</th>
+            <th className={`border ${C.borderGray300} px-1 py-0.5 text-left whitespace-nowrap`}>ペット名</th>
+            <th className={`border ${C.borderGray300} px-1 py-0.5 text-right whitespace-nowrap`}>診療</th>
+            <th className={`border ${C.borderGray300} px-1 py-0.5 text-right whitespace-nowrap`}>外科</th>
+            <th className={`border ${C.borderGray300} px-1 py-0.5 text-right whitespace-nowrap`}>RV</th>
+            <th className={`border ${C.borderGray300} px-1 py-0.5 text-right whitespace-nowrap`}>フード</th>
+            <th className={`border ${C.borderGray300} px-1 py-0.5 text-right whitespace-nowrap`}>トリミング</th>
+            <th className={`border ${C.borderGray300} px-1 py-0.5 text-right whitespace-nowrap`}>ホテル</th>
+            <th className={`border ${C.borderGray300} px-1 py-0.5 text-right whitespace-nowrap`}>用品他</th>
+            <th className={`border ${C.borderGray300} px-1 py-0.5 text-center whitespace-nowrap`}>支払方法</th>
+            <th className={`border ${C.borderGray300} px-1 py-0.5 text-right whitespace-nowrap`}>合計</th>
           </tr>
         </thead>
         <tbody>
@@ -74,11 +74,11 @@ export function DailyPrintArea({ date, rows, totals }: DailyPrintAreaProps) {
 
             return (
               <tr key={a.id}>
-                <td className="border border-gray-300 px-1 py-0.5 text-[9pt] font-mono">
+                <td className={`border ${C.borderGray300} px-1 py-0.5 text-[9pt] font-mono`}>
                   {formatReceiptNo(a.id)}
                 </td>
-                <td className="border border-gray-300 px-1 py-0.5 text-[9pt]">{a.ownerName}</td>
-                <td className="border border-gray-300 px-1 py-0.5 text-[9pt]">{a.petName}</td>
+                <td className={`border ${C.borderGray300} px-1 py-0.5 text-[9pt]`}>{a.ownerName}</td>
+                <td className={`border ${C.borderGray300} px-1 py-0.5 text-[9pt]`}>{a.petName}</td>
                 <CatCell detail={detailedBreakdown.medical} isMixed={isMixed} />
                 <CatCell detail={detailedBreakdown.surgery} isMixed={isMixed} />
                 <CatCell detail={detailedBreakdown.rv} isMixed={isMixed} />
@@ -86,10 +86,10 @@ export function DailyPrintArea({ date, rows, totals }: DailyPrintAreaProps) {
                 <CatCell detail={detailedBreakdown.trimming} isMixed={isMixed} />
                 <CatCell detail={detailedBreakdown.hotel} isMixed={isMixed} />
                 <CatCell detail={detailedBreakdown.goods} isMixed={isMixed} />
-                <td className="border border-gray-300 px-1 py-0.5 text-[9pt] text-center whitespace-nowrap">
+                <td className={`border ${C.borderGray300} px-1 py-0.5 text-[9pt] text-center whitespace-nowrap`}>
                   {paymentLabel}
                 </td>
-                <td className="border border-gray-300 px-1 py-0.5 text-right text-[9pt] font-semibold">
+                <td className={`border ${C.borderGray300} px-1 py-0.5 text-right text-[9pt] font-semibold`}>
                   {formatCurrency(total)}
                 </td>
               </tr>
@@ -98,75 +98,75 @@ export function DailyPrintArea({ date, rows, totals }: DailyPrintAreaProps) {
         </tbody>
         <tfoot>
           {/* 病院合計行 */}
-          <tr className="bg-gray-50 font-semibold">
-            <td colSpan={3} className="border border-gray-400 px-1 py-0.5 text-[9pt]">病院合計</td>
-            <td className="border border-gray-400 px-1 py-0.5 text-right text-[9pt]">
+          <tr className={`${C.bgMuted} font-semibold`}>
+            <td colSpan={3} className={`border ${C.borderGray300} px-1 py-0.5 text-[9pt]`}>病院合計</td>
+            <td className={`border ${C.borderGray300} px-1 py-0.5 text-right text-[9pt]`}>
               {formatCurrencyIfNonzero(totals.medical)}
             </td>
-            <td className="border border-gray-400 px-1 py-0.5 text-right text-[9pt]">
+            <td className={`border ${C.borderGray300} px-1 py-0.5 text-right text-[9pt]`}>
               {formatCurrencyIfNonzero(totals.surgery)}
             </td>
-            <td className="border border-gray-400 px-1 py-0.5 text-right text-[9pt]">
+            <td className={`border ${C.borderGray300} px-1 py-0.5 text-right text-[9pt]`}>
               {formatCurrencyIfNonzero(totals.rv)}
             </td>
-            <td className="border border-gray-400 px-1 py-0.5 text-right text-[9pt]">
+            <td className={`border ${C.borderGray300} px-1 py-0.5 text-right text-[9pt]`}>
               {formatCurrencyIfNonzero(totals.food)}
             </td>
-            <td className="border border-gray-400 px-1 py-0.5 text-center text-[9pt]">-</td>
-            <td className="border border-gray-400 px-1 py-0.5 text-center text-[9pt]">-</td>
-            <td className="border border-gray-400 px-1 py-0.5 text-right text-[9pt]">
+            <td className={`border ${C.borderGray300} px-1 py-0.5 text-center text-[9pt]`}>-</td>
+            <td className={`border ${C.borderGray300} px-1 py-0.5 text-center text-[9pt]`}>-</td>
+            <td className={`border ${C.borderGray300} px-1 py-0.5 text-right text-[9pt]`}>
               {formatCurrencyIfNonzero(totals.goods)}
             </td>
-            <td className="border border-gray-400 px-1 py-0.5 text-[9pt]" />
-            <td className="border border-gray-400 px-1 py-0.5 text-right text-[9pt] font-bold">
+            <td className={`border ${C.borderGray300} px-1 py-0.5 text-[9pt]`} />
+            <td className={`border ${C.borderGray300} px-1 py-0.5 text-right text-[9pt] font-bold`}>
               {formatCurrency(hospitalTotal)}
             </td>
           </tr>
           {/* トリミング合計行 */}
-          <tr className="bg-gray-50 font-semibold">
-            <td colSpan={3} className="border border-gray-400 px-1 py-0.5 text-[9pt]">トリミング合計</td>
-            <td className="border border-gray-400 px-1 py-0.5 text-center text-[9pt]">-</td>
-            <td className="border border-gray-400 px-1 py-0.5 text-center text-[9pt]">-</td>
-            <td className="border border-gray-400 px-1 py-0.5 text-center text-[9pt]">-</td>
-            <td className="border border-gray-400 px-1 py-0.5 text-center text-[9pt]">-</td>
-            <td className="border border-gray-400 px-1 py-0.5 text-right text-[9pt]">
+          <tr className={`${C.bgMuted} font-semibold`}>
+            <td colSpan={3} className={`border ${C.borderGray300} px-1 py-0.5 text-[9pt]`}>トリミング合計</td>
+            <td className={`border ${C.borderGray300} px-1 py-0.5 text-center text-[9pt]`}>-</td>
+            <td className={`border ${C.borderGray300} px-1 py-0.5 text-center text-[9pt]`}>-</td>
+            <td className={`border ${C.borderGray300} px-1 py-0.5 text-center text-[9pt]`}>-</td>
+            <td className={`border ${C.borderGray300} px-1 py-0.5 text-center text-[9pt]`}>-</td>
+            <td className={`border ${C.borderGray300} px-1 py-0.5 text-right text-[9pt]`}>
               {formatCurrencyIfNonzero(totals.trimming)}
             </td>
-            <td className="border border-gray-400 px-1 py-0.5 text-right text-[9pt]">
+            <td className={`border ${C.borderGray300} px-1 py-0.5 text-right text-[9pt]`}>
               {formatCurrencyIfNonzero(totals.hotel)}
             </td>
-            <td className="border border-gray-400 px-1 py-0.5 text-center text-[9pt]">-</td>
-            <td className="border border-gray-400 px-1 py-0.5 text-[9pt]" />
-            <td className="border border-gray-400 px-1 py-0.5 text-right text-[9pt] font-bold">
+            <td className={`border ${C.borderGray300} px-1 py-0.5 text-center text-[9pt]`}>-</td>
+            <td className={`border ${C.borderGray300} px-1 py-0.5 text-[9pt]`} />
+            <td className={`border ${C.borderGray300} px-1 py-0.5 text-right text-[9pt] font-bold`}>
               {formatCurrency(trimmingTotal)}
             </td>
           </tr>
           {/* 全体合計行 */}
-          <tr className="bg-gray-200 font-bold">
-            <td colSpan={3} className="border border-gray-400 px-1 py-1 text-[9pt]">全体合計</td>
-            <td className="border border-gray-400 px-1 py-1 text-right text-[9pt]">
+          <tr className={`${C.bgInactive} font-bold`}>
+            <td colSpan={3} className={`border ${C.borderGray300} px-1 py-1 text-[9pt]`}>全体合計</td>
+            <td className={`border ${C.borderGray300} px-1 py-1 text-right text-[9pt]`}>
               {formatCurrencyIfNonzero(totals.medical)}
             </td>
-            <td className="border border-gray-400 px-1 py-1 text-right text-[9pt]">
+            <td className={`border ${C.borderGray300} px-1 py-1 text-right text-[9pt]`}>
               {formatCurrencyIfNonzero(totals.surgery)}
             </td>
-            <td className="border border-gray-400 px-1 py-1 text-right text-[9pt]">
+            <td className={`border ${C.borderGray300} px-1 py-1 text-right text-[9pt]`}>
               {formatCurrencyIfNonzero(totals.rv)}
             </td>
-            <td className="border border-gray-400 px-1 py-1 text-right text-[9pt]">
+            <td className={`border ${C.borderGray300} px-1 py-1 text-right text-[9pt]`}>
               {formatCurrencyIfNonzero(totals.food)}
             </td>
-            <td className="border border-gray-400 px-1 py-1 text-right text-[9pt]">
+            <td className={`border ${C.borderGray300} px-1 py-1 text-right text-[9pt]`}>
               {formatCurrencyIfNonzero(totals.trimming)}
             </td>
-            <td className="border border-gray-400 px-1 py-1 text-right text-[9pt]">
+            <td className={`border ${C.borderGray300} px-1 py-1 text-right text-[9pt]`}>
               {formatCurrencyIfNonzero(totals.hotel)}
             </td>
-            <td className="border border-gray-400 px-1 py-1 text-right text-[9pt]">
+            <td className={`border ${C.borderGray300} px-1 py-1 text-right text-[9pt]`}>
               {formatCurrencyIfNonzero(totals.goods)}
             </td>
-            <td className="border border-gray-400 px-1 py-1 text-[9pt]" />
-            <td className="border border-gray-400 px-1 py-1 text-right text-[10pt] font-bold">
+            <td className={`border ${C.borderGray300} px-1 py-1 text-[9pt]`} />
+            <td className={`border ${C.borderGray300} px-1 py-1 text-right text-[10pt] font-bold`}>
               {formatCurrency(totals.total)}
             </td>
           </tr>
