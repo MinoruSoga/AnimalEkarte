@@ -34,95 +34,105 @@ func (s *service) CreateOwnerGroup(
 	var outMembers []model.OwnerIdentityGroupMember
 
 	err = s.transactor.WithTx(ctx, func(txCtx context.Context) error {
-		owners, lockErr := s.repo.LockOwners(txCtx, refs)
-		if lockErr != nil {
-			// hidden / nonexistent / cross-clinic missing → reject whole request, zero writes
-			return lockErr
-		}
-		if len(owners) != len(refs) {
-			return apperrors.WrapForbidden("mixed or hidden owner ids rejected")
-		}
-
-		// Idempotent retry: if all members already share one active group and
-		// that group has exactly those members, return it without new writes.
-		existingGroupIDs := map[uint64]struct{}{}
-		for _, ref := range refs {
-			m, findErr := s.repo.FindActiveOwnerMembership(txCtx, ref.ClinicID, ref.OwnerID)
-			if findErr != nil {
-				return findErr
-			}
-			if m == nil {
-				existingGroupIDs = nil
-				break
-			}
-			existingGroupIDs[m.GroupID] = struct{}{}
-		}
-		if existingGroupIDs != nil && len(existingGroupIDs) == 1 {
-			var groupID uint64
-			for id := range existingGroupIDs {
-				groupID = id
-			}
-			group, lockGErr := s.repo.LockOwnerGroupByID(txCtx, groupID)
-			if lockGErr != nil {
-				return lockGErr
-			}
-			active, listErr := s.repo.ListActiveOwnerMembers(txCtx, groupID)
-			if listErr != nil {
-				return listErr
-			}
-			if sameOwnerMemberSet(active, refs) {
-				outGroup = group
-				outMembers = filterOwnerMembersByClinics(active, actor.VerifiedClinics)
-				return nil
-			}
-		}
-
-		// Any member already in a different group → conflict (no partial merge in Phase 1).
-		for _, ref := range refs {
-			m, findErr := s.repo.FindActiveOwnerMembership(txCtx, ref.ClinicID, ref.OwnerID)
-			if findErr != nil {
-				return findErr
-			}
-			if m != nil {
-				return apperrors.WrapConflict("owner already linked in another identity group")
-			}
-		}
-
-		createdClinicID := pickCreatedClinicID(actor, refs[0].ClinicID)
-		group := &model.OwnerIdentityGroup{
-			CreatedClinicID: createdClinicID,
-			Version:         1,
-		}
-		if createErr := s.repo.CreateOwnerGroup(txCtx, group); createErr != nil {
-			return createErr
-		}
-		memberRows := make([]model.OwnerIdentityGroupMember, 0, len(refs))
-		for _, ref := range refs {
-			memberRows = append(memberRows, model.OwnerIdentityGroupMember{
-				GroupCreatedClinicID: group.CreatedClinicID,
-				GroupID:              group.ID,
-				ClinicID:             ref.ClinicID,
-				OwnerID:              ref.OwnerID,
-			})
-		}
-		if createErr := s.repo.CreateOwnerMembers(txCtx, memberRows); createErr != nil {
-			return createErr
-		}
-		if auditErr := s.writeAudit(txCtx, actor, model.AuditActionOwnerIdentityLinkCreate, group.ID, nil, map[string]any{
-			"group_id":          group.ID,
-			"created_clinic_id": group.CreatedClinicID,
-			"members":           ownerRefsAudit(refs),
-		}); auditErr != nil {
-			return auditErr
+		group, members, err := s.createOwnerGroupInTx(txCtx, actor, refs)
+		if err != nil {
+			return err
 		}
 		outGroup = group
-		outMembers = memberRows
+		outMembers = members
 		return nil
 	})
 	if err != nil {
 		return nil, nil, apperrors.Wrap(err, "failed to create owner identity group")
 	}
 	return outGroup, outMembers, nil
+}
+
+func (s *service) createOwnerGroupInTx(
+	txCtx context.Context,
+	actor ActorContext,
+	refs []OwnerMemberRef,
+) (*model.OwnerIdentityGroup, []model.OwnerIdentityGroupMember, error) {
+	owners, lockErr := s.repo.LockOwners(txCtx, refs)
+	if lockErr != nil {
+		// hidden / nonexistent / cross-clinic missing → reject whole request, zero writes
+		return nil, nil, lockErr
+	}
+	if len(owners) != len(refs) {
+		return nil, nil, apperrors.WrapForbidden("mixed or hidden owner ids rejected")
+	}
+
+	// Idempotent retry: if all members already share one active group and
+	// that group has exactly those members, return it without new writes.
+	existingGroupIDs := map[uint64]struct{}{}
+	for _, ref := range refs {
+		m, findErr := s.repo.FindActiveOwnerMembership(txCtx, ref.ClinicID, ref.OwnerID)
+		if findErr != nil {
+			return nil, nil, findErr
+		}
+		if m == nil {
+			existingGroupIDs = nil
+			break
+		}
+		existingGroupIDs[m.GroupID] = struct{}{}
+	}
+	if existingGroupIDs != nil && len(existingGroupIDs) == 1 {
+		var groupID uint64
+		for id := range existingGroupIDs {
+			groupID = id
+		}
+		group, lockGErr := s.repo.LockOwnerGroupByID(txCtx, groupID)
+		if lockGErr != nil {
+			return nil, nil, lockGErr
+		}
+		active, listErr := s.repo.ListActiveOwnerMembers(txCtx, groupID)
+		if listErr != nil {
+			return nil, nil, listErr
+		}
+		if sameOwnerMemberSet(active, refs) {
+			return group, filterOwnerMembersByClinics(active, actor.VerifiedClinics), nil
+		}
+	}
+
+	// Any member already in a different group → conflict (no partial merge in Phase 1).
+	for _, ref := range refs {
+		m, findErr := s.repo.FindActiveOwnerMembership(txCtx, ref.ClinicID, ref.OwnerID)
+		if findErr != nil {
+			return nil, nil, findErr
+		}
+		if m != nil {
+			return nil, nil, apperrors.WrapConflict("owner already linked in another identity group")
+		}
+	}
+
+	createdClinicID := pickCreatedClinicID(actor, refs[0].ClinicID)
+	group := &model.OwnerIdentityGroup{
+		CreatedClinicID: createdClinicID,
+		Version:         1,
+	}
+	if createErr := s.repo.CreateOwnerGroup(txCtx, group); createErr != nil {
+		return nil, nil, createErr
+	}
+	memberRows := make([]model.OwnerIdentityGroupMember, 0, len(refs))
+	for _, ref := range refs {
+		memberRows = append(memberRows, model.OwnerIdentityGroupMember{
+			GroupCreatedClinicID: group.CreatedClinicID,
+			GroupID:              group.ID,
+			ClinicID:             ref.ClinicID,
+			OwnerID:              ref.OwnerID,
+		})
+	}
+	if createErr := s.repo.CreateOwnerMembers(txCtx, memberRows); createErr != nil {
+		return nil, nil, createErr
+	}
+	if auditErr := s.writeAudit(txCtx, actor, model.AuditActionOwnerIdentityLinkCreate, group.ID, nil, map[string]any{
+		"group_id":          group.ID,
+		"created_clinic_id": group.CreatedClinicID,
+		"members":           ownerRefsAudit(refs),
+	}); auditErr != nil {
+		return nil, nil, auditErr
+	}
+	return group, memberRows, nil
 }
 
 func (s *service) AddOwnerMembers(

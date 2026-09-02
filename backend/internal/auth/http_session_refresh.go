@@ -10,6 +10,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/httpapi"
+	"github.com/animal-ekarte/backend/internal/model"
 )
 
 // RefreshToken verifies, rotates, revokes, and reissues the refresh token.
@@ -32,37 +33,9 @@ func (h *HTTPHandler) RefreshToken(c *gin.Context) {
 		httpapi.RespondError(c, apperrors.WrapUnauthorized("invalid token"))
 		return
 	}
-	staff, err := h.deps.Staff.GetByID(ctx, staffID)
+	staff, account, err := h.loadRefreshIdentity(ctx, staffID)
 	if err != nil {
-		if !apperrors.IsNotFound(err) {
-			httpapi.RespondError(c, apperrors.Wrap(err, "failed to get refresh staff"))
-			return
-		}
-		httpapi.RespondError(c, apperrors.WrapUnauthorized("user not found"))
-		return
-	}
-	if staff == nil ||
-		!staff.IsActive ||
-		staff.DeletedAt.Valid ||
-		staff.AccountID == nil {
-		httpapi.RespondError(c, apperrors.WrapUnauthorized("invalid refresh identity"))
-		return
-	}
-
-	account, err := h.deps.Accounts.GetByID(ctx, *staff.AccountID)
-	if err != nil {
-		if !apperrors.IsNotFound(err) {
-			httpapi.RespondError(c, apperrors.Wrap(err, "failed to get refresh account"))
-			return
-		}
-		httpapi.RespondError(c, apperrors.WrapUnauthorized("invalid refresh identity"))
-		return
-	}
-	if account == nil ||
-		account.ID != *staff.AccountID ||
-		!account.IsActive ||
-		account.DeletedAt.Valid {
-		httpapi.RespondError(c, apperrors.WrapUnauthorized("invalid refresh identity"))
+		httpapi.RespondError(c, err)
 		return
 	}
 	accountEpoch := account.UpdatedAt.UnixNano()
@@ -71,27 +44,9 @@ func (h *HTTPHandler) RefreshToken(c *gin.Context) {
 		return
 	}
 
-	assignments, err := h.deps.StaffAssignments.FindAllByStaffID(ctx, staff.ID)
+	mainClinicID, clinicIDs, err := h.resolveRefreshClinicScope(ctx, staff, account)
 	if err != nil {
-		httpapi.RespondError(c, apperrors.Wrap(err, "failed to get clinic assignments"))
-		return
-	}
-	mainClinicID, clinicIDs := h.authService().ResolveClinicInfo(assignments)
-	if account.IsSystemAdmin {
-		allClinics, listErr := h.deps.Clinics.ListClinics(ctx)
-		if listErr != nil {
-			httpapi.RespondError(c, apperrors.Wrap(listErr, "failed to get clinics"))
-			return
-		}
-		mainClinicID = h.authService().ResolveSystemAdminMainClinicID(
-			mainClinicID,
-			account.IsSystemAdmin,
-			allClinics,
-		)
-		clinicIDs = activeSystemAdminClinicIDs(allClinics)
-	}
-	if mainClinicID == "" {
-		httpapi.RespondError(c, apperrors.WrapForbidden("no clinic access is available"))
+		httpapi.RespondError(c, err)
 		return
 	}
 
@@ -127,6 +82,65 @@ func (h *HTTPHandler) RefreshToken(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "token refreshed"})
+}
+
+func (h *HTTPHandler) loadRefreshIdentity(ctx context.Context, staffID uint64) (*model.Staff, *model.Account, error) {
+	staff, err := h.deps.Staff.GetByID(ctx, staffID)
+	if err != nil {
+		if !apperrors.IsNotFound(err) {
+			return nil, nil, apperrors.Wrap(err, "failed to get refresh staff")
+		}
+		return nil, nil, apperrors.WrapUnauthorized("user not found")
+	}
+	if staff == nil ||
+		!staff.IsActive ||
+		staff.DeletedAt.Valid ||
+		staff.AccountID == nil {
+		return nil, nil, apperrors.WrapUnauthorized("invalid refresh identity")
+	}
+
+	account, err := h.deps.Accounts.GetByID(ctx, *staff.AccountID)
+	if err != nil {
+		if !apperrors.IsNotFound(err) {
+			return nil, nil, apperrors.Wrap(err, "failed to get refresh account")
+		}
+		return nil, nil, apperrors.WrapUnauthorized("invalid refresh identity")
+	}
+	if account == nil ||
+		account.ID != *staff.AccountID ||
+		!account.IsActive ||
+		account.DeletedAt.Valid {
+		return nil, nil, apperrors.WrapUnauthorized("invalid refresh identity")
+	}
+	return staff, account, nil
+}
+
+func (h *HTTPHandler) resolveRefreshClinicScope(
+	ctx context.Context,
+	staff *model.Staff,
+	account *model.Account,
+) (string, []uint64, error) {
+	assignments, err := h.deps.StaffAssignments.FindAllByStaffID(ctx, staff.ID)
+	if err != nil {
+		return "", nil, apperrors.Wrap(err, "failed to get clinic assignments")
+	}
+	mainClinicID, clinicIDs := h.authService().ResolveClinicInfo(assignments)
+	if account.IsSystemAdmin {
+		allClinics, listErr := h.deps.Clinics.ListClinics(ctx)
+		if listErr != nil {
+			return "", nil, apperrors.Wrap(listErr, "failed to get clinics")
+		}
+		mainClinicID = h.authService().ResolveSystemAdminMainClinicID(
+			mainClinicID,
+			account.IsSystemAdmin,
+			allClinics,
+		)
+		clinicIDs = activeSystemAdminClinicIDs(allClinics)
+	}
+	if mainClinicID == "" {
+		return "", nil, apperrors.WrapForbidden("no clinic access is available")
+	}
+	return mainClinicID, clinicIDs, nil
 }
 
 func (h *HTTPHandler) handleRefreshRevokeFailure(c *gin.Context, ctx context.Context, familyID string, err error) {

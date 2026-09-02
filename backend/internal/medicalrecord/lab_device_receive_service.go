@@ -84,92 +84,13 @@ func (s *labDeviceReceiveService) receiveOne(
 	var persistPetID *uint64
 	var persistJobID uuid.UUID
 	err := s.withTx(ctx, func(txCtx context.Context) error {
-		existing, findErr := s.repo.FindJobByFingerprint(txCtx, clinicID, string(frame.SourceType), frame.SourceFingerprint)
-		if findErr != nil && !apperrors.IsNotFound(findErr) {
-			return findErr
+		received, petID, jobID, err := s.receiveOneInTx(txCtx, clinicID, frame)
+		if err != nil {
+			return err
 		}
-		if existing != nil {
-			card, cardErr := s.cardForJob(txCtx, clinicID, existing)
-			if cardErr != nil {
-				return cardErr
-			}
-			result = LabDeviceFrameResult{Duplicate: true, Job: *card}
-			return nil
-		}
-
-		petID, waitErr := s.consumeWaitPet(txCtx, clinicID)
-		if waitErr != nil {
-			return waitErr
-		}
-
-		codes := make([]string, 0, len(frame.Items))
-		for _, item := range frame.Items {
-			codes = append(codes, item.Code)
-		}
-		resolution, resolveErr := s.masters.ResolveItems(txCtx, clinicID, string(frame.SourceType), codes)
-		if resolveErr != nil {
-			return resolveErr
-		}
-		mappedField := make(map[string]uint64, len(resolution.Mapped))
-		for _, mapped := range resolution.Mapped {
-			mappedField[mapped.DeviceItemCode] = mapped.ExamTypeFieldID
-		}
-		unmapped := make(map[string]struct{}, len(resolution.UnmappedCodes))
-		for _, code := range resolution.UnmappedCodes {
-			unmapped[code] = struct{}{}
-		}
-
-		now := s.now()
-		job := &model.LabImportJob{
-			ClinicID:          clinicID,
-			SourceType:        frame.SourceType,
-			SourceFingerprint: frame.SourceFingerprint,
-			Status:            model.LabImportJobStatusReceived,
-			RowCount:          len(frame.Items),
-			NeedsReviewCount:  len(resolution.UnmappedCodes),
-			PetID:             petID,
-			MeasuredAt:        frame.MeasuredAt,
-			ReceivedAt:        &now,
-			DeviceHint:        frame.DeviceHint,
-			SpecimenIDRaw:     frame.SpecimenIDRaw,
-			UnmappedItemCount: len(resolution.UnmappedCodes),
-		}
-		if frame.NeedsReview && job.NeedsReviewCount == 0 {
-			job.NeedsReviewCount = 1
-		}
-		items := make([]model.LabImportJobItem, 0, len(frame.Items))
-		for i, item := range frame.Items {
-			row := model.LabImportJobItem{
-				DeviceItemCode: item.Code,
-				ValueRaw:       item.ValueRaw,
-				Unit:           item.Unit,
-				Flag:           item.Flag,
-				NeedsReview:    frame.NeedsReview,
-				SortOrder:      i,
-			}
-			if fieldID, ok := mappedField[item.Code]; ok {
-				row.ExamTypeFieldID = &fieldID
-			}
-			if _, ok := unmapped[item.Code]; ok {
-				row.NeedsReview = true
-			}
-			items = append(items, row)
-		}
-		if createErr := s.repo.CreateJobWithItems(txCtx, job, items); createErr != nil {
-			if apperrors.IsConflict(createErr) || apperrors.IsAlreadyExists(createErr) {
-				return errDuplicateLabDeviceFrame
-			}
-			return createErr
-		}
-		if petID != nil {
-			persistPetID = petID
-			persistJobID = job.ID
-		}
-		card, cardErr := s.cardForJob(txCtx, clinicID, job)
-		if cardErr != nil {
-			return cardErr
-		}
-		result = LabDeviceFrameResult{Duplicate: false, Job: *card}
+		result = received
+		persistPetID = petID
+		persistJobID = jobID
 		return nil
 	})
 	if err != nil {
@@ -186,6 +107,100 @@ func (s *labDeviceReceiveService) receiveOne(
 		result.Job = *card
 	}
 	return &result, nil
+}
+
+func (s *labDeviceReceiveService) receiveOneInTx(
+	txCtx context.Context,
+	clinicID uint64,
+	frame LabDeviceFrame,
+) (LabDeviceFrameResult, *uint64, uuid.UUID, error) {
+	existing, findErr := s.repo.FindJobByFingerprint(txCtx, clinicID, string(frame.SourceType), frame.SourceFingerprint)
+	if findErr != nil && !apperrors.IsNotFound(findErr) {
+		return LabDeviceFrameResult{}, nil, uuid.Nil, findErr
+	}
+	if existing != nil {
+		card, cardErr := s.cardForJob(txCtx, clinicID, existing)
+		if cardErr != nil {
+			return LabDeviceFrameResult{}, nil, uuid.Nil, cardErr
+		}
+		return LabDeviceFrameResult{Duplicate: true, Job: *card}, nil, uuid.Nil, nil
+	}
+
+	petID, waitErr := s.consumeWaitPet(txCtx, clinicID)
+	if waitErr != nil {
+		return LabDeviceFrameResult{}, nil, uuid.Nil, waitErr
+	}
+
+	codes := make([]string, 0, len(frame.Items))
+	for _, item := range frame.Items {
+		codes = append(codes, item.Code)
+	}
+	resolution, resolveErr := s.masters.ResolveItems(txCtx, clinicID, string(frame.SourceType), codes)
+	if resolveErr != nil {
+		return LabDeviceFrameResult{}, nil, uuid.Nil, resolveErr
+	}
+	mappedField := make(map[string]uint64, len(resolution.Mapped))
+	for _, mapped := range resolution.Mapped {
+		mappedField[mapped.DeviceItemCode] = mapped.ExamTypeFieldID
+	}
+	unmapped := make(map[string]struct{}, len(resolution.UnmappedCodes))
+	for _, code := range resolution.UnmappedCodes {
+		unmapped[code] = struct{}{}
+	}
+
+	now := s.now()
+	job := &model.LabImportJob{
+		ClinicID:          clinicID,
+		SourceType:        frame.SourceType,
+		SourceFingerprint: frame.SourceFingerprint,
+		Status:            model.LabImportJobStatusReceived,
+		RowCount:          len(frame.Items),
+		NeedsReviewCount:  len(resolution.UnmappedCodes),
+		PetID:             petID,
+		MeasuredAt:        frame.MeasuredAt,
+		ReceivedAt:        &now,
+		DeviceHint:        frame.DeviceHint,
+		SpecimenIDRaw:     frame.SpecimenIDRaw,
+		UnmappedItemCount: len(resolution.UnmappedCodes),
+	}
+	if frame.NeedsReview && job.NeedsReviewCount == 0 {
+		job.NeedsReviewCount = 1
+	}
+	items := make([]model.LabImportJobItem, 0, len(frame.Items))
+	for i, item := range frame.Items {
+		row := model.LabImportJobItem{
+			DeviceItemCode: item.Code,
+			ValueRaw:       item.ValueRaw,
+			Unit:           item.Unit,
+			Flag:           item.Flag,
+			NeedsReview:    frame.NeedsReview,
+			SortOrder:      i,
+		}
+		if fieldID, ok := mappedField[item.Code]; ok {
+			row.ExamTypeFieldID = &fieldID
+		}
+		if _, ok := unmapped[item.Code]; ok {
+			row.NeedsReview = true
+		}
+		items = append(items, row)
+	}
+	if createErr := s.repo.CreateJobWithItems(txCtx, job, items); createErr != nil {
+		if apperrors.IsConflict(createErr) || apperrors.IsAlreadyExists(createErr) {
+			return LabDeviceFrameResult{}, nil, uuid.Nil, errDuplicateLabDeviceFrame
+		}
+		return LabDeviceFrameResult{}, nil, uuid.Nil, createErr
+	}
+	var persistPetID *uint64
+	var persistJobID uuid.UUID
+	if petID != nil {
+		persistPetID = petID
+		persistJobID = job.ID
+	}
+	card, cardErr := s.cardForJob(txCtx, clinicID, job)
+	if cardErr != nil {
+		return LabDeviceFrameResult{}, nil, uuid.Nil, cardErr
+	}
+	return LabDeviceFrameResult{Duplicate: false, Job: *card}, persistPetID, persistJobID, nil
 }
 
 func (s *labDeviceReceiveService) duplicateFrameResult(

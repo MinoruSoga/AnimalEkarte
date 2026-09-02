@@ -484,111 +484,124 @@ func (s *passwordResetService) consumeResetToken(
 ) (bool, error) {
 	expired := false
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
-		lockedAccount, err := s.accountRepo.FindByIDForUpdate(txCtx, accountID)
+		consumedExpired, err := s.consumeResetTokenInTx(txCtx, ctx, accountID, tokenHash, hashedPassword, audit)
 		if err != nil {
-			if apperrors.IsNotFound(err) {
-				return apperrors.WrapInvalidInput("invalid or expired token")
-			}
-			return apperrors.Wrap(err, "failed to lock password reset account")
+			return err
 		}
-		if lockedAccount == nil || lockedAccount.ID != accountID {
-			return apperrors.WrapInternalServerError(
-				"password reset account lock returned an invalid result",
-			)
-		}
-
-		resetToken, err := s.tokenRepo.FindByTokenHashForUpdate(txCtx, tokenHash)
-		if err != nil {
-			if apperrors.IsNotFound(err) {
-				return apperrors.WrapInvalidInput("invalid or expired token")
-			}
-			return apperrors.Wrap(err, "failed to lock password reset token")
-		}
-		if resetToken == nil {
-			return apperrors.WrapInvalidInput("invalid or expired token")
-		}
-		if resetToken.AccountID != accountID {
-			return apperrors.WrapInternalServerError(
-				"password reset token account changed during consumption",
-			)
-		}
-
-		if resetToken.CreatedAt.IsZero() ||
-			lockedAccount.UpdatedAt.IsZero() ||
-			!resetToken.CreatedAt.After(lockedAccount.UpdatedAt) {
-			if err := s.tokenRepo.ConsumeByID(txCtx, resetToken.ID); err != nil {
-				return apperrors.Wrap(err, "failed to consume stale reset token")
-			}
-			expired = true
-			return nil
-		}
-
-		if resetTokenExpired(resetToken.ExpiresAt, time.Now()) {
-			if err := s.tokenRepo.ConsumeByID(txCtx, resetToken.ID); err != nil {
-				return apperrors.Wrap(err, "failed to consume expired reset token")
-			}
-			expired = true
-			return nil
-		}
-
-		if len(hashedPassword) == 0 {
-			return apperrors.WrapInvalidInput("invalid or expired token")
-		}
-		updatedAt := nextAccountSessionEpoch(lockedAccount.UpdatedAt, time.Now())
-		if err := s.credentialUpdater.UpdatePasswordHash(
-			txCtx,
-			resetToken.AccountID,
-			string(hashedPassword),
-			updatedAt,
-		); err != nil {
-			slog.ErrorContext(
-				ctx,
-				"failed to update password",
-				"error_type", fmt.Sprintf("%T", err),
-				"account_id", resetToken.AccountID,
-			)
-			return apperrors.Wrap(err, "failed to update password")
-		}
-		if err := s.tokenRepo.ConsumeByID(txCtx, resetToken.ID); err != nil {
-			return apperrors.Wrap(err, "failed to consume used reset token")
-		}
-		if audit == nil {
-			return apperrors.WrapInternalServerError(
-				"password reset credential audit metadata is unavailable",
-			)
-		}
-		subject, resolveErr := s.auditSubject.ResolveCredentialAuditSubject(
-			txCtx,
-			resetToken.AccountID,
-		)
-		if resolveErr != nil {
-			return apperrors.Wrap(
-				resolveErr,
-				"failed to resolve password reset audit subject",
-			)
-		}
-		if subject.ClinicID == 0 || subject.StaffID == 0 {
-			return apperrors.WrapInternalServerError(
-				"password reset audit subject is invalid",
-			)
-		}
-		entryAudit := *audit
-		entryAudit.ClinicID = subject.ClinicID
-		entryAudit.TargetStaffID = subject.StaffID
-		if auditErr := s.audit.LogEntryTx(
-			txCtx,
-			credentialAuditEntry(entryAudit, resetToken.AccountID),
-		); auditErr != nil {
-			return apperrors.Wrap(
-				auditErr,
-				"failed to write password reset audit",
-			)
-		}
+		expired = consumedExpired
 		return nil
 	}); err != nil {
 		return false, apperrors.Wrap(err, "password reset transaction failed")
 	}
 	return expired, nil
+}
+
+func (s *passwordResetService) consumeResetTokenInTx(
+	txCtx, logCtx context.Context,
+	accountID uint64,
+	tokenHash string,
+	hashedPassword []byte,
+	audit *CredentialMutationAudit,
+) (bool, error) {
+	lockedAccount, err := s.accountRepo.FindByIDForUpdate(txCtx, accountID)
+	if err != nil {
+		if apperrors.IsNotFound(err) {
+			return false, apperrors.WrapInvalidInput("invalid or expired token")
+		}
+		return false, apperrors.Wrap(err, "failed to lock password reset account")
+	}
+	if lockedAccount == nil || lockedAccount.ID != accountID {
+		return false, apperrors.WrapInternalServerError(
+			"password reset account lock returned an invalid result",
+		)
+	}
+
+	resetToken, err := s.tokenRepo.FindByTokenHashForUpdate(txCtx, tokenHash)
+	if err != nil {
+		if apperrors.IsNotFound(err) {
+			return false, apperrors.WrapInvalidInput("invalid or expired token")
+		}
+		return false, apperrors.Wrap(err, "failed to lock password reset token")
+	}
+	if resetToken == nil {
+		return false, apperrors.WrapInvalidInput("invalid or expired token")
+	}
+	if resetToken.AccountID != accountID {
+		return false, apperrors.WrapInternalServerError(
+			"password reset token account changed during consumption",
+		)
+	}
+
+	if resetToken.CreatedAt.IsZero() ||
+		lockedAccount.UpdatedAt.IsZero() ||
+		!resetToken.CreatedAt.After(lockedAccount.UpdatedAt) {
+		if err := s.tokenRepo.ConsumeByID(txCtx, resetToken.ID); err != nil {
+			return false, apperrors.Wrap(err, "failed to consume stale reset token")
+		}
+		return true, nil
+	}
+
+	if resetTokenExpired(resetToken.ExpiresAt, time.Now()) {
+		if err := s.tokenRepo.ConsumeByID(txCtx, resetToken.ID); err != nil {
+			return false, apperrors.Wrap(err, "failed to consume expired reset token")
+		}
+		return true, nil
+	}
+
+	if len(hashedPassword) == 0 {
+		return false, apperrors.WrapInvalidInput("invalid or expired token")
+	}
+	updatedAt := nextAccountSessionEpoch(lockedAccount.UpdatedAt, time.Now())
+	if err := s.credentialUpdater.UpdatePasswordHash(
+		txCtx,
+		resetToken.AccountID,
+		string(hashedPassword),
+		updatedAt,
+	); err != nil {
+		slog.ErrorContext(
+			logCtx,
+			"failed to update password",
+			"error_type", fmt.Sprintf("%T", err),
+			"account_id", resetToken.AccountID,
+		)
+		return false, apperrors.Wrap(err, "failed to update password")
+	}
+	if err := s.tokenRepo.ConsumeByID(txCtx, resetToken.ID); err != nil {
+		return false, apperrors.Wrap(err, "failed to consume used reset token")
+	}
+	if audit == nil {
+		return false, apperrors.WrapInternalServerError(
+			"password reset credential audit metadata is unavailable",
+		)
+	}
+	subject, resolveErr := s.auditSubject.ResolveCredentialAuditSubject(
+		txCtx,
+		resetToken.AccountID,
+	)
+	if resolveErr != nil {
+		return false, apperrors.Wrap(
+			resolveErr,
+			"failed to resolve password reset audit subject",
+		)
+	}
+	if subject.ClinicID == 0 || subject.StaffID == 0 {
+		return false, apperrors.WrapInternalServerError(
+			"password reset audit subject is invalid",
+		)
+	}
+	entryAudit := *audit
+	entryAudit.ClinicID = subject.ClinicID
+	entryAudit.TargetStaffID = subject.StaffID
+	if auditErr := s.audit.LogEntryTx(
+		txCtx,
+		credentialAuditEntry(entryAudit, resetToken.AccountID),
+	); auditErr != nil {
+		return false, apperrors.Wrap(
+			auditErr,
+			"failed to write password reset audit",
+		)
+	}
+	return false, nil
 }
 
 func resetTokenExpired(expiresAt, now time.Time) bool {
