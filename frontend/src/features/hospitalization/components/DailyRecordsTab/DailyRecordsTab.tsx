@@ -1,16 +1,17 @@
 // React/Framework
-import { C, ICON } from "@/lib/design-tokens";
 import { memo, useState, useCallback, useLayoutEffect, useRef, useTransition } from "react";
 
 // External
 import { Loader2, PlusCircle } from "lucide-react";
 
 // Internal
+import { C, ICON } from "@/lib/design-tokens";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { EmptyState } from "@/components/shared/DataStates";
-import { handleApiError } from "@/lib/handle-api-error";
 import { todayJSTISO } from "@/lib/jst-date";
+import { useAuth } from "@/hooks/use-auth";
+import { usePermission } from "@/hooks/use-permission";
 
 // Relative
 import { DailyDateNav } from "../../components/DailyRecordsTab/DailyDateNav";
@@ -18,8 +19,7 @@ import { DailyVitalsSection } from "../../components/DailyRecordsTab/DailyVitals
 import { DailyCareLogsSection } from "../../components/DailyRecordsTab/DailyCareLogsSection";
 import { DailyStaffNotesSection } from "../../components/DailyRecordsTab/DailyStaffNotesSection";
 import { useGetDailyRecord, useCreateDailyRecord, useCreateDailyVital, useCreateCareLog, useCreateStaffNote } from "../../api/daily-records";
-import { useAuth } from "@/hooks/use-auth";
-import { usePermission } from "@/hooks/use-permission";
+import { HOSPITALIZATION_DECEASED_BLOCK_MESSAGE } from "../../constants";
 
 // Types
 import type { CreateVitalRecordRequest, CreateCareLogRequest, CreateStaffNoteRequest } from "../../api/daily-records-types";
@@ -76,13 +76,13 @@ export const DailyRecordsTab = memo(function DailyRecordsTab({
 
     const { data: record, isLoading, isError } = useGetDailyRecord(hospitalizationId, selectedDate);
 
-    const createDailyRecord = useCreateDailyRecord(hospitalizationId);
-    const createVital = useCreateDailyVital(hospitalizationId, selectedDate);
-    const createCareLog = useCreateCareLog(hospitalizationId, selectedDate);
-    const createStaffNote = useCreateStaffNote(hospitalizationId, selectedDate);
+    // rerender-dependencies: useMutation の戻り値オブジェクト全体でなく、安定参照の関数のみを deps に置く。
+    const { mutateAsync: createDailyRecordAsync } = useCreateDailyRecord(hospitalizationId);
+    const { mutateAsync: createVitalAsync } = useCreateDailyVital(hospitalizationId, selectedDate);
+    const { mutateAsync: createCareLogAsync } = useCreateCareLog(hospitalizationId, selectedDate);
+    const { mutateAsync: createStaffNoteAsync } = useCreateStaffNote(hospitalizationId, selectedDate);
 
     const [isCreateRecordPending, startCreateRecordTransition] = useTransition();
-    const [isVitalPending, startVitalTransition] = useTransition();
     const [isCareLogPending, startCareLogTransition] = useTransition();
     const [isStaffNotePending, startStaffNoteTransition] = useTransition();
 
@@ -90,25 +90,25 @@ export const DailyRecordsTab = memo(function DailyRecordsTab({
         if (!isMutationAllowed()) return;
         startCreateRecordTransition(async () => {
             try {
-                await createDailyRecord.mutateAsync(selectedDate);
-            } catch (error) {
-                handleApiError(error, "日次記録の作成");
+                await createDailyRecordAsync(selectedDate);
+            } catch {
+                // useCreateDailyRecord.onError → handleApiError 済み
             }
         });
-    }, [createDailyRecord, isMutationAllowed, selectedDate]);
+    }, [createDailyRecordAsync, isMutationAllowed, selectedDate]);
 
+    // FE-RC-022: DailyVitalsSection は <form action> + SubmitButton で自身の pending を管理するため、
+    // ここでは useTransition を介さず mutateAsync を直接 await する。
     const handleAddVital = useCallback(
-        (payload: CreateVitalRecordRequest) => {
+        async (payload: CreateVitalRecordRequest) => {
             if (!isMutationAllowed()) return;
-            startVitalTransition(async () => {
-                try {
-                    await createVital.mutateAsync({ ...payload, staff_id: currentUserId });
-                } catch (error) {
-                    handleApiError(error, "バイタル追加");
-                }
-            });
+            try {
+                await createVitalAsync({ ...payload, staff_id: currentUserId });
+            } catch {
+                // useCreateDailyVital.onError → handleApiError 済み
+            }
         },
-        [createVital, currentUserId, isMutationAllowed]
+        [createVitalAsync, currentUserId, isMutationAllowed]
     );
 
     const handleAddCareLog = useCallback(
@@ -116,13 +116,13 @@ export const DailyRecordsTab = memo(function DailyRecordsTab({
             if (!isMutationAllowed()) return;
             startCareLogTransition(async () => {
                 try {
-                    await createCareLog.mutateAsync({ ...payload, staff_id: currentUserId });
-                } catch (error) {
-                    handleApiError(error, "ケアログ追加");
+                    await createCareLogAsync({ ...payload, staff_id: currentUserId });
+                } catch {
+                    // useCreateCareLog.onError → handleApiError 済み
                 }
             });
         },
-        [createCareLog, currentUserId, isMutationAllowed]
+        [createCareLogAsync, currentUserId, isMutationAllowed]
     );
 
     const handleAddStaffNote = useCallback(
@@ -130,18 +130,21 @@ export const DailyRecordsTab = memo(function DailyRecordsTab({
             if (!isMutationAllowed()) return;
             startStaffNoteTransition(async () => {
                 try {
-                    await createStaffNote.mutateAsync({ ...payload, staff_id: currentUserId });
-                } catch (error) {
-                    handleApiError(error, "スタッフメモ追加");
+                    await createStaffNoteAsync({ ...payload, staff_id: currentUserId });
+                } catch {
+                    // useCreateStaffNote.onError → handleApiError 済み
                 }
             });
         },
-        [createStaffNote, currentUserId, isMutationAllowed]
+        [createStaffNoteAsync, currentUserId, isMutationAllowed]
     );
 
     const vitals = record?.vital_records ?? [];
     const careLogs = record?.care_logs ?? [];
     const staffNotes = record?.staff_notes ?? [];
+    // 臨床安全境界1: 死亡ペットは render 側でも追加操作を出さない（callback 側は isMutationAllowed で維持）。
+    const canCreateNow = canCreate && !petIsDeceased;
+    const showDeceasedBlockNotice = canCreate && petIsDeceased;
 
     return (
         <div className="flex flex-col gap-4">
@@ -159,7 +162,7 @@ export const DailyRecordsTab = memo(function DailyRecordsTab({
                 </div>
             ) : isError ? (
                 <EmptyState message="この日の記録はまだありません">
-                    {canCreate ? (
+                    {canCreateNow ? (
                         <Button
                             variant="outline"
                             size="sm"
@@ -174,15 +177,24 @@ export const DailyRecordsTab = memo(function DailyRecordsTab({
                             )}
                             この日の記録を作成
                         </Button>
+                    ) : showDeceasedBlockNotice ? (
+                        <p role="status" className={`text-xs ${C.text50}`}>
+                            {HOSPITALIZATION_DECEASED_BLOCK_MESSAGE.DAILY_RECORD}
+                        </p>
                     ) : null}
                 </EmptyState>
             ) : (
                 <div className="space-y-4">
+                    {showDeceasedBlockNotice ? (
+                        <p role="status" className={`text-xs ${C.text50}`}>
+                            {HOSPITALIZATION_DECEASED_BLOCK_MESSAGE.DAILY_RECORD}
+                        </p>
+                    ) : null}
+
                     <DailyVitalsSection
                         vitals={vitals}
                         onAddVital={handleAddVital}
-                        isPending={isVitalPending}
-                        canCreate={canCreate}
+                        canCreate={canCreateNow}
                     />
 
                     <Separator className="opacity-50" />
@@ -191,7 +203,7 @@ export const DailyRecordsTab = memo(function DailyRecordsTab({
                         careLogs={careLogs}
                         onAddCareLog={handleAddCareLog}
                         isPending={isCareLogPending}
-                        canCreate={canCreate}
+                        canCreate={canCreateNow}
                     />
 
                     <Separator className="opacity-50" />
@@ -200,7 +212,7 @@ export const DailyRecordsTab = memo(function DailyRecordsTab({
                         staffNotes={staffNotes}
                         onAddStaffNote={handleAddStaffNote}
                         isPending={isStaffNotePending}
-                        canCreate={canCreate}
+                        canCreate={canCreateNow}
                     />
                 </div>
             )}

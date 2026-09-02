@@ -10,12 +10,12 @@ import { Button } from "@/components/ui/button";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { usePermission } from "@/hooks/use-permission";
 import { HospitalizationStatusAdmitted } from "@/types/generated/models";
-
-// Relative
-import { H_STYLES } from "../styles";
 import { C } from "@/lib/design-tokens";
 import { paths } from "@/config/paths";
-import { HOSPITALIZATION_STATUS } from "../constants";
+
+// Relative
+import { H_STYLES } from "../lib/styles";
+import { HOSPITALIZATION_DECEASED_BLOCK_MESSAGE, HOSPITALIZATION_STATUS } from "../constants";
 import { useUpdateHospitalization } from "../api/update-hospitalization";
 
 // Types
@@ -39,8 +39,11 @@ export function HospitalizationDetailActions({ hospitalization, onDischargeClick
 
     const isReserved = hospitalization.status === HOSPITALIZATION_STATUS.RESERVED;
     const isAdmitted = hospitalization.status === HOSPITALIZATION_STATUS.ACTIVE;
-    const showCheckIn = canEdit && isReserved;
+    const petIsDeceased = hospitalization.petIsDeceased === true;
+    // 臨床安全境界1: 死亡ペットは render 側でも要素を出さない（callback 側の拒否は handleCheckIn 内で維持）。
+    const showCheckIn = canEdit && isReserved && !petIsDeceased;
     const showDischarge = canEdit && isAdmitted;
+    const checkInBlockedByDeath = canEdit && isReserved && petIsDeceased;
 
     const handleCheckIn = async () => {
         if (canEditRef.current !== true || petIsDeceasedRef.current === true) return;
@@ -55,7 +58,12 @@ export function HospitalizationDetailActions({ hospitalization, onDischargeClick
     };
 
     return (
-        <div className={`flex ${H_STYLES.gap.default}`}>
+        <div className={`flex items-center ${H_STYLES.gap.default}`}>
+            {checkInBlockedByDeath ? (
+                <span role="status" className={`text-sm ${C.text50}`}>
+                    {HOSPITALIZATION_DECEASED_BLOCK_MESSAGE.CHECK_IN}
+                </span>
+            ) : null}
             {showCheckIn ? (
                 <PrimaryButton
                     colorVariant="primary"

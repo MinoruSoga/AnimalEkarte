@@ -1,11 +1,11 @@
 // React/Framework
-import { C, ICON } from "@/lib/design-tokens";
 import { memo, useState, useCallback } from "react";
 
 // External
 import { UtensilsCrossed, Droplets, Pill, Stethoscope, MoreHorizontal, Plus } from "lucide-react";
 
 // Internal
+import { C, ICON } from "@/lib/design-tokens";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -198,9 +198,9 @@ export const DailyCareLogsSection = memo(function DailyCareLogsSection({
                         />
                     </div>
                     <div>
-                        <Label className="text-xs">種別</Label>
+                        <Label htmlFor="carelog-type" className="text-xs">種別</Label>
                         <Select value={form.type} onValueChange={handleTypeChange}>
-                            <SelectTrigger className="mt-1">
+                            <SelectTrigger id="carelog-type" className="mt-1">
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>

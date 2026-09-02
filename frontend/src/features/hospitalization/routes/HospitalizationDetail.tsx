@@ -1,11 +1,13 @@
-import { LAYOUT } from "@/lib/design-tokens";
 // React/Framework
 import { useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router";
 
 // Internal
+import { LAYOUT } from "@/lib/design-tokens";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
+import { paths } from "@/config/paths";
+import { ResourceHospitalization } from "@/types/generated/models";
 
 // Relative
 import { DischargeAlertDialog } from "../components/DischargeAlertDialog";
@@ -13,8 +15,6 @@ import { HospitalizationDetailActions } from "../components/HospitalizationDetai
 import { HospitalizationExpandedView } from "../components/HospitalizationExpandedView";
 import { HospitalizationTabbedView } from "../components/HospitalizationTabbedView";
 import { useHospitalizationDetail } from "../hooks/use-hospitalization-detail";
-import { paths } from "@/config/paths";
-import { ResourceHospitalization } from "@/types/generated/models";
 
 export function HospitalizationDetail() {
     const { id } = useParams();

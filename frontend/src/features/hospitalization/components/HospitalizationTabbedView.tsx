@@ -1,13 +1,13 @@
 // React/Framework
-import { C, ICON } from "@/lib/design-tokens";
-import { todayJSTISO } from "@/lib/jst-date";
 import { memo, useState } from "react";
-import { formatDate } from "@/lib/format/date";
 
 // External
 import { Calendar, FileText, Settings } from "lucide-react";
 
 // Internal
+import { C, ICON } from "@/lib/design-tokens";
+import { todayJSTISO } from "@/lib/jst-date";
+import { formatDate } from "@/lib/format/date";
 import { Separator } from "@/components/ui/separator";
 import { UnifiedTabs, UnifiedTabsContent } from "@/components/shared/UnifiedTabs";
 
@@ -15,7 +15,7 @@ import { UnifiedTabs, UnifiedTabsContent } from "@/components/shared/UnifiedTabs
 import { CarePlanTab } from "./CarePlanTab/CarePlanTab";
 import { DailyRecordsTab } from "./DailyRecordsTab/DailyRecordsTab";
 import { HospitalizationPatientHeader } from "./HospitalizationPatientHeader";
-import { H_STYLES } from "../styles";
+import { H_STYLES } from "../lib/styles";
 
 // Types
 import type { Hospitalization } from "@/types";

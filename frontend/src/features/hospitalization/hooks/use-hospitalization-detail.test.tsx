@@ -9,6 +9,11 @@ const mocks = vi.hoisted(() => ({
   petIsDeceased: false,
   updateHospitalization: vi.fn(),
   dischargeWithBilling: vi.fn(),
+  handleApiError: vi.fn(),
+}));
+
+vi.mock("@/lib/handle-api-error", () => ({
+  handleApiError: mocks.handleApiError,
 }));
 
 vi.mock("@/hooks/use-permission", () => ({
@@ -47,6 +52,7 @@ beforeEach(() => {
   mocks.updateHospitalization.mockResolvedValue(undefined);
   mocks.dischargeWithBilling.mockReset();
   mocks.dischargeWithBilling.mockResolvedValue({ accounting_id: 99 });
+  mocks.handleApiError.mockReset();
 });
 
 describe("useHospitalizationDetail — discharge permission boundary", () => {
@@ -125,5 +131,38 @@ describe("useHospitalizationDetail — discharge permission boundary", () => {
 
     expect(mocks.dischargeWithBilling).toHaveBeenCalledTimes(0);
     expect(mocks.updateHospitalization).toHaveBeenCalledTimes(0);
+  });
+
+  // FE-RC-005: useUpdateHospitalization.onError が既に handleApiError 済みのため、
+  // dischargeHospitalization 側の catch で再度呼んではならない（二重トースト回避）。
+  it("createAccounting=false でupdateHospitalizationが失敗してもhandleApiErrorを呼ばない（重複トースト防止）", async () => {
+    mocks.updateHospitalization.mockRejectedValueOnce(new Error("network error"));
+    const { result } = renderHook(() => useHospitalizationDetail("42"));
+
+    await act(async () => {
+      expect(await result.current.dischargeHospitalization(false)).toEqual({
+        success: false,
+      });
+    });
+
+    expect(mocks.updateHospitalization).toHaveBeenCalledTimes(1);
+    expect(mocks.handleApiError).not.toHaveBeenCalled();
+  });
+
+  // dischargeWithBilling は mutation ではない生の非同期呼び出しのため、
+  // ここでの handleApiError が唯一の通知経路として維持される。
+  it("createAccounting=trueでdischargeWithBillingが失敗した場合はhandleApiErrorを呼ぶ（唯一の通知経路）", async () => {
+    mocks.dischargeWithBilling.mockRejectedValueOnce(new Error("network error"));
+    const { result } = renderHook(() => useHospitalizationDetail("42"));
+
+    await act(async () => {
+      expect(await result.current.dischargeHospitalization(true)).toEqual({
+        success: false,
+      });
+    });
+
+    expect(mocks.dischargeWithBilling).toHaveBeenCalledTimes(1);
+    expect(mocks.handleApiError).toHaveBeenCalledTimes(1);
+    expect(mocks.handleApiError).toHaveBeenCalledWith(expect.any(Error), "退院処理");
   });
 });

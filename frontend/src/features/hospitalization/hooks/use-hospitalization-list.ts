@@ -9,6 +9,20 @@ import { useMasterItems } from "@/hooks/use-master-items";
 import { HospitalizationFilterStatus, HOSPITALIZATION_FILTER_STATUS, HOSPITALIZATION_STATUS } from "../constants";
 import type { Hospitalization } from "@/types";
 
+// FE-RC-037: QueryCache は unknown を返すため、要素形状を最小限検証してから絞り込む（無検証 as を避ける）。
+function isHospitalizationLike(value: unknown): value is Hospitalization {
+  return typeof value === "object" && value !== null && typeof (value as { id?: unknown }).id === "string";
+}
+
+function extractHospitalizations(data: unknown): Hospitalization[] {
+  if (data == null) return [];
+  if (Array.isArray(data)) return data.filter(isHospitalizationLike);
+  if (typeof data === "object" && Array.isArray((data as { data?: unknown }).data)) {
+    return (data as { data: unknown[] }).data.filter(isHospitalizationLike);
+  }
+  return [];
+}
+
 export const useHospitalizationList = (canEdit = false) => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -28,14 +42,7 @@ export const useHospitalizationList = (canEdit = false) => {
     // list query は HospitalizationsResult { data, total, page, limit }（BUG-009）。
     // 旧形 Hospitalization[] キャッシュが残っていても壊さないよう両対応する。
     const allEntries = queryClient.getQueriesData({ queryKey: queryKeys.hospitalizations.all() });
-    const hospitalizations = allEntries.flatMap(([, data]): Hospitalization[] => {
-      if (data == null) return [];
-      if (Array.isArray(data)) return data as Hospitalization[];
-      if (typeof data === "object" && Array.isArray((data as { data?: unknown }).data)) {
-        return (data as { data: Hospitalization[] }).data;
-      }
-      return [];
-    });
+    const hospitalizations = allEntries.flatMap(([, data]) => extractHospitalizations(data));
 
     const sourceHosp = hospitalizations.find((h) => h.id === hospitalizationId);
     if (!sourceHosp) return;

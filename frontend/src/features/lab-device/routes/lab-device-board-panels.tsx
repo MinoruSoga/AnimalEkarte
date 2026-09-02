@@ -195,6 +195,17 @@ function notifyLabDeviceAttachResult(attached: LabDeviceJobCard): void {
   toast.error(labDeviceAttachFailureToast(attached));
 }
 
+// FE-RC-085: ネスト三項を早期returnへ分解。
+function resolveLabDeviceReceiveTime(
+  liveAt: string | undefined,
+  latestCard: LabDeviceJobCard | undefined,
+): string | undefined {
+  if (liveAt) return formatJSTTime(liveAt);
+  const measuredOrReceived = latestCard?.measuredAt || latestCard?.receivedAt;
+  if (measuredOrReceived) return formatJSTTime(measuredOrReceived);
+  return undefined;
+}
+
 export function LabDeviceWaitAndSlotsPanel({
   wait,
   linkLabel,
@@ -258,11 +269,7 @@ export function LabDeviceWaitAndSlotsPanel({
                     liveLabel: live?.label,
                     latestCard,
                   })}
-                  receiveTime={live?.at
-                    ? formatJSTTime(live.at)
-                    : latestCard?.measuredAt || latestCard?.receivedAt
-                      ? formatJSTTime(latestCard.measuredAt || latestCard.receivedAt || "")
-                      : undefined}
+                  receiveTime={resolveLabDeviceReceiveTime(live?.at, latestCard)}
                   latestCard={latestCard}
                 />
               </li>
@@ -333,7 +340,9 @@ export function LabDeviceUnlinkedPanel({
           card={card}
           canEdit={canEdit}
           onAttach={wait ? () => {
-            void onAttach(card.jobId, wait.petId).then(notifyLabDeviceAttachResult);
+            // FE-RC-012: reject 時は useAttachLabDeviceJob.onError が既に通知済み。
+            // ここでは unhandled rejection 化を防ぐためだけに no-op catch を付ける。
+            void onAttach(card.jobId, wait.petId).then(notifyLabDeviceAttachResult).catch(() => {});
           } : undefined}
         />
       ))}
@@ -373,7 +382,9 @@ export function LabDeviceReceivedPanel({
               canEdit={canEdit}
               onDetach={card.petId ? () => onDetach(card.jobId) : undefined}
               onAttach={!card.petId && wait ? () => {
-                void onAttach(card.jobId, wait.petId).then(notifyLabDeviceAttachResult);
+                // FE-RC-012: reject 時は useAttachLabDeviceJob.onError が既に通知済み。
+                // ここでは unhandled rejection 化を防ぐためだけに no-op catch を付ける。
+                void onAttach(card.jobId, wait.petId).then(notifyLabDeviceAttachResult).catch(() => {});
               } : undefined}
             />
           ))}

@@ -1,7 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { axios } from "@/lib/axios";
+import { handleApiError } from "@/lib/handle-api-error";
 import { queryKeys } from "@/lib/query-keys";
+
+// FE-RC-049: マジックナンバーの named constants 化。
+const LAB_DEVICE_DEFAULT_BAUD = 9600;
+const LAB_DEVICE_BOARD_REFETCH_MS = 2000;
+const LAB_DEVICE_UNLINKED_REFETCH_MS = 5000;
 
 interface LabDeviceJobItem {
   deviceItemCode: string;
@@ -200,14 +206,22 @@ function parseLabDeviceSlotParity(value: unknown): LabDeviceSlotParity | undefin
   return value === "none" || value === "even" || value === "odd" ? value : undefined;
 }
 
+// FE-RC-037: サーバ由来の JSON 文字列を無検証キャストせず、配列であることをまず確認する。
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
 export function parseLabDeviceSlots(slotsJson: string): LabDeviceSlot[] {
   try {
-    const raw = JSON.parse(slotsJson) as Array<Record<string, unknown>>;
-    return raw.map((slot) => ({
+    const parsed: unknown = JSON.parse(slotsJson);
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+    return parsed.filter(isRecord).map((slot) => ({
       key: String(slot.key ?? ""),
       sourceType: String(slot.source_type ?? ""),
       deviceHint: String(slot.device_hint ?? ""),
-      baud: typeof slot.baud === "number" ? slot.baud : 9600,
+      baud: typeof slot.baud === "number" ? slot.baud : LAB_DEVICE_DEFAULT_BAUD,
       parity: parseLabDeviceSlotParity(slot.parity),
     }));
   } catch {
@@ -237,7 +251,7 @@ export function useGetLabDeviceBoard(enabled = true) {
     queryKey: queryKeys.labDevice.board(),
     queryFn: fetchBoard,
     enabled,
-    refetchInterval: 2000,
+    refetchInterval: LAB_DEVICE_BOARD_REFETCH_MS,
   });
 }
 
@@ -246,7 +260,7 @@ export function useGetLabDeviceUnlinked(enabled = true) {
     queryKey: queryKeys.labDevice.unlinked(),
     queryFn: fetchUnlinked,
     enabled,
-    refetchInterval: 5000,
+    refetchInterval: LAB_DEVICE_UNLINKED_REFETCH_MS,
   });
 }
 
@@ -263,6 +277,7 @@ export function usePutLabDeviceWait() {
       return toWait(data);
     },
     onSuccess: () => invalidateBoard(queryClient),
+    onError: (error) => handleApiError(error, "受診中ペットの選択"),
   });
 }
 
@@ -273,9 +288,13 @@ export function useClearLabDeviceWait() {
       await axios.delete("/v1/lab-device/wait");
     },
     onSuccess: () => invalidateBoard(queryClient),
+    onError: (error) => handleApiError(error, "待機の解除"),
   });
 }
 
+// FE-RC-012: onFrame (呼び出し元) が status 別のトースト出し分け・重複防止(toast id)・再スロー
+// まで一貫して担っているため、ここに handleApiError を追加すると FE-RC-005 で問題視される
+// トースト二重表示を再発させる。呼び出し元の catch が唯一のエラー通知経路である。
 export function useReceiveLabDeviceFrames() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -304,6 +323,7 @@ export function useAttachLabDeviceJob() {
       invalidateBoard(queryClient);
       void queryClient.invalidateQueries({ queryKey: queryKeys.examinations.all() });
     },
+    onError: (error) => handleApiError(error, "検査結果の紐付け"),
   });
 }
 
@@ -318,5 +338,6 @@ export function useDetachLabDeviceJob() {
       invalidateBoard(queryClient);
       void queryClient.invalidateQueries({ queryKey: queryKeys.examinations.all() });
     },
+    onError: (error) => handleApiError(error, "検査結果の紐付け解除"),
   });
 }

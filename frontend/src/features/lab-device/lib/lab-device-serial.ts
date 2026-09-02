@@ -80,6 +80,17 @@ function serialApi(): LabDeviceSerial | null {
   return (navigator as Navigator & { serial: LabDeviceSerial }).serial;
 }
 
+// FE-RC-037: localStorage 由来の JSON は無検証で信用しない。形が合わなければ null（≒未保存扱い）。
+function isLabDeviceSerialPortInfo(value: unknown): value is LabDeviceSerialPortInfo {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+  const candidate = value as Record<string, unknown>;
+  const vendorOk = candidate.usbVendorId === undefined || typeof candidate.usbVendorId === "number";
+  const productOk = candidate.usbProductId === undefined || typeof candidate.usbProductId === "number";
+  return vendorOk && productOk;
+}
+
 export function readStoredPortInfo(slotKey: string): LabDeviceSerialPortInfo | null {
   let raw: string | null;
   try {
@@ -91,14 +102,19 @@ export function readStoredPortInfo(slotKey: string): LabDeviceSerialPortInfo | n
     return null;
   }
   try {
-    return JSON.parse(raw) as LabDeviceSerialPortInfo;
+    const parsed: unknown = JSON.parse(raw);
+    return isLabDeviceSerialPortInfo(parsed) ? parsed : null;
   } catch {
     return null;
   }
 }
 
 export function storePortInfo(slotKey: string, info: LabDeviceSerialPortInfo): void {
-  localStorage.setItem(labDevicePortStorageKey(slotKey), JSON.stringify(info));
+  try {
+    localStorage.setItem(labDevicePortStorageKey(slotKey), JSON.stringify(info));
+  } catch {
+    // Private browsing / quota exceeded: 次回接続時に再度権限ダイアログが出るのみで致命的ではない。
+  }
 }
 
 export async function requestLabDevicePort(slotKey: string): Promise<LabDeviceSerialPortInfo | null> {
@@ -270,6 +286,8 @@ export function startLabDeviceSlotListen(input: {
   isStopped: () => boolean;
   onState: (state: LabDeviceListenState) => void;
   onFrame: (bytes: Uint8Array) => Promise<void>;
+  /** FE-RC-035: open() 失敗・読み取り中断時の原因情報を破棄せず呼び出し側へ渡す（診断用途）。 */
+  onError?: (error: unknown) => void;
 }): () => void {
   let stopped = false;
   let activeRead: AbortController | undefined;
@@ -326,8 +344,14 @@ export function startLabDeviceSlotListen(input: {
         }
         notifyState("listening");
         await readOpenLoop(matched, activeRead.signal, input.onFrame);
-      } catch {
+      } catch (error: unknown) {
+        // FE-RC-035: open() 失敗と読み取り中断を区別できるよう、原因情報を破棄せず onError へ渡す。
         notifyState("disconnected");
+        try {
+          input.onError?.(error);
+        } catch {
+          // The React consumer may already be unavailable during teardown.
+        }
       } finally {
         activeRead?.abort();
         activeRead = undefined;

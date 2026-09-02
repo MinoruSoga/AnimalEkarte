@@ -6,7 +6,7 @@ import { C, ICON } from "@/lib/design-tokens";
 import { Textarea } from "@/components/ui/textarea";
 
 // Relative
-import { H_STYLES } from "../styles";
+import { H_STYLES } from "../lib/styles";
 
 // Types
 import type { LucideIcon } from "lucide-react";

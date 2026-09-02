@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 
 // Relative
 import { C } from "@/lib/design-tokens";
-import { H_STYLES } from "../styles";
+import { H_STYLES } from "../lib/styles";
 
 interface DischargeAlertDialogProps {
     open: boolean;

@@ -128,7 +128,7 @@ export function LabDeviceBoard() {
             wait={board?.wait}
             linkLabel={linkLabel}
             canCreate={canCreate}
-            onClearWait={() => void clearWait.mutateAsync()}
+            onClearWait={() => clearWait.mutate()}
             slots={slots}
             receivedCards={receivedCards}
             lastReceives={lastReceives}
@@ -140,7 +140,7 @@ export function LabDeviceBoard() {
             todayVisits={todayVisits}
             waitPetId={board?.wait?.petId}
             canCreate={canCreate}
-            onSelectVisit={(petId) => void putWait.mutateAsync(petId)}
+            onSelectVisit={(petId) => putWait.mutate(petId)}
           />
         </section>
         <LabDeviceUnlinkedPanel
@@ -154,7 +154,7 @@ export function LabDeviceBoard() {
           today={today}
           canEdit={canEdit}
           wait={board?.wait}
-          onDetach={(jobId) => void detach.mutateAsync(jobId)}
+          onDetach={(jobId) => detach.mutate(jobId)}
           onAttach={(jobId, petId) => attach.mutateAsync({ jobId, petId })}
         />
         <LabDeviceAgentPanel agentStatus={agentStatus} />

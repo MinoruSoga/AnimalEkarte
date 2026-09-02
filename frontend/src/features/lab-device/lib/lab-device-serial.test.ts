@@ -273,4 +273,46 @@ describe("startLabDeviceSlotListen", () => {
     });
     expect(events).toEqual(["open", "cancel-start", "cancel-finish", "release", "close"]);
   });
+
+  // FE-RC-035: open() 失敗時の原因情報を catch {} で握り潰さず onError へ渡す。
+  it("open()が失敗した場合、原因情報を破棄せずonErrorへ渡す", async () => {
+    const openError = new Error("port busy");
+    const port = {
+      readable: null,
+      open: vi.fn(async () => {
+        throw openError;
+      }),
+      close: vi.fn(async () => {}),
+      getInfo: () => ({ usbVendorId: 1, usbProductId: 2 }),
+    };
+    Object.defineProperty(navigator, "serial", {
+      configurable: true,
+      value: {
+        getPorts: vi.fn(async () => [port]),
+        requestPort: vi.fn(),
+      },
+    });
+    storePortInfo("nx600", port.getInfo());
+    const states: string[] = [];
+    const errors: unknown[] = [];
+    const stop = startLabDeviceSlotListen({
+      slotKey: "nx600",
+      baudRate: 9600,
+      isStopped: () => false,
+      onState: (state) => {
+        states.push(state);
+      },
+      onFrame: async () => {},
+      onError: (error) => {
+        errors.push(error);
+      },
+    });
+
+    await vi.waitFor(() => {
+      expect(errors).toContain(openError);
+    });
+    expect(states).toContain("disconnected");
+
+    stop();
+  });
 });
