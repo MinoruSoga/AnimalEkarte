@@ -4,13 +4,13 @@ import { memo } from "react";
 // Internal
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { DatePicker } from "@/components/shared/DatePicker";
 import { FormFieldError } from "@/components/shared/FormFieldError";
 import { MasterLink } from "@/components/shared/MasterLink";
 import { NextScheduleField } from "@/components/shared/NextScheduleField";
+import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { C } from "@/lib/design-tokens";
 
 interface VaccineOption {
@@ -42,8 +42,6 @@ interface VaccinationFormProps {
   setRemarks: (v: string) => void;
   /** BUG-015: 必須未選択時のインラインエラー（独立フォームと同文言） */
   fieldErrors?: Record<string, string>;
-  onSave?: () => void;
-  isSaving?: boolean;
 }
 
 export const VaccinationForm = memo(function VaccinationForm({
@@ -69,8 +67,6 @@ export const VaccinationForm = memo(function VaccinationForm({
   remarks,
   setRemarks,
   fieldErrors = {},
-  onSave,
-  isSaving,
 }: VaccinationFormProps) {
   return (
     <div className="col-span-1 flex flex-col gap-4 lg:col-span-3">
@@ -179,20 +175,12 @@ export const VaccinationForm = memo(function VaccinationForm({
         />
       </div>
 
-      {/* Save Button */}
-      {onSave ? (
-        <div className="pt-2">
-          <Button
-            type="button"
-            onClick={onSave}
-            disabled={isSaving}
-            className={`${C.bgBrand} ${C.hoverBgBrand} ${C.hoverTextOnBrand} ${C.textOnBrand} rounded-full border-transparent transition-colors`}
-          >
-            {isSaving ? "登録中..." : "接種記録を追加"}
-          </Button>
-        </div>
-      ) : null}
-
+      {/* Save Button — React 19 useFormStatus 経由で親 <form> の pending を自動反映 */}
+      <div className="pt-2">
+        <SubmitButton colorVariant="primary" loadingText="登録中...">
+          接種記録を追加
+        </SubmitButton>
+      </div>
     </div>
   );
 });

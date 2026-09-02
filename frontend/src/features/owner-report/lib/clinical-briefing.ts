@@ -1,3 +1,5 @@
+import { formatJSTDate } from "@/lib/jst-date";
+
 export const CLINICAL_HISTORY_KINDS = [
   "診療",
   "検査",
@@ -322,8 +324,11 @@ interface AppointmentSource {
   status: string;
 }
 
+// FE-RC-027: ローカル getter (getFullYear/getMonth/getDate) はクライアント OS の
+// タイムゾーンに依存するため、JST 固定の壁時計日付を保証する共通ヘルパーに委譲する
+// （@/lib/jst-date と同じ UTC オフセット計算契約に統一）。
 function wallDateISO(date: Date): string {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+  return formatJSTDate(date);
 }
 
 const INACTIVE_FUTURE_STATUSES = new Set(["cancelled", "no_show", "completed"]);

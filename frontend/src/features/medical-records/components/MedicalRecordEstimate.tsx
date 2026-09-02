@@ -10,6 +10,7 @@ import { TreatmentDetailedSummary } from "./TreatmentDetailedSummary";
 import { useGetEstimateByRecord, useCreateEstimateRecord, useUpdateEstimateRecord } from "../api/save-estimate";
 import { C } from "@/lib/design-tokens";
 import { usePermission } from "@/hooks/use-permission";
+import { useClinicTaxRates } from "@/hooks/use-clinic-tax-rates";
 import type { Estimate, EstimateItem } from "@/types/generated/models";
 
 // EstimateItem (BE snake_case) → TreatmentItem (UI camelCase) の明示変換。
@@ -66,6 +67,8 @@ export const MedicalRecordEstimate = memo(function MedicalRecordEstimate({
   const [items, setItems] = useState<TreatmentItem[]>([]);
 
   const { canEdit } = usePermission("medical-records");
+  // FE-RC-048: 消費税率はハードコード 0.1 ではなく病院マスタ設定を正本にする。
+  const { standardTaxRate } = useClinicTaxRates();
 
   // Load existing estimate
   const { data: existingEstimate } = useGetEstimateByRecord(
@@ -131,9 +134,9 @@ export const MedicalRecordEstimate = memo(function MedicalRecordEstimate({
       const discount = Number(item.discountAmount) || 0;
       return sum + (price * qty - discount);
     }, 0);
-    const taxAmount = Math.floor(sub * 0.1);
+    const taxAmount = Math.floor(sub * standardTaxRate);
     return { subtotal: sub, tax: taxAmount, total: sub + taxAmount };
-  }, [items]);
+  }, [items, standardTaxRate]);
 
   /**
    * BUG-016: メイン保存 post-save から await される。

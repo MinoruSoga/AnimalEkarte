@@ -6,7 +6,6 @@ import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { ErrorFallback } from "@/components/shared/DataStates";
 import { usePermission } from "@/hooks/use-permission";
 import { C, ICON } from "@/lib/design-tokens";
-import { handleApiError } from "@/lib/handle-api-error";
 import { jstDateTimeLocalToISOString } from "@/lib/jst-date";
 import {
   useCreateVital,
@@ -114,7 +113,8 @@ export const VitalsTab = memo(function VitalsTab({ medicalRecordId, recordClinic
         setIsAdding(false);
         toast.success("バイタルを追加しました");
       },
-      onError: (error) => handleApiError(error, "バイタル追加"),
+      // FE-RC-005 系: useCreateVital の onError が既に handleApiError でトースト
+      // 表示済み。ここで再度呼ぶと二重トーストになるため渡さない。
     });
   }, [addForm, canCreate, createMutation]);
 
@@ -134,7 +134,7 @@ export const VitalsTab = memo(function VitalsTab({ medicalRecordId, recordClinic
             setEditingId(null);
             toast.success("バイタルを更新しました");
           },
-          onError: (error) => handleApiError(error, "バイタル更新"),
+          // FE-RC-005 系: useUpdateVital の onError が既に handleApiError 済み。
         }
       );
     },
@@ -148,7 +148,7 @@ export const VitalsTab = memo(function VitalsTab({ medicalRecordId, recordClinic
         setDeletingId(null);
         toast.success("バイタルを削除しました");
       },
-      onError: (error) => handleApiError(error, "バイタル削除"),
+      // FE-RC-005 系: useDeleteVital の onError が既に handleApiError 済み。
     });
   }, [canDelete, deletingId, deleteMutation]);
 

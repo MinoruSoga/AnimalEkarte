@@ -12,8 +12,10 @@ import { ClinicalPlanSection } from "./ClinicalPlanSection/ClinicalPlanSection";
 import { TreatmentDetailedSummary } from "./TreatmentDetailedSummary";
 import { useGetClinicalPlan } from "../api/clinical-plan";
 import { useGetTreatments, useCreateTreatment, useUpdateTreatment, useDeleteTreatment } from "../api/treatments";
-import type { TreatmentItemType, UpdateTreatmentInput } from "../types";
+import type { UpdateTreatmentInput } from "../types";
+import { resolveItemTypeFromCategory } from "./TreatmentsTab/treatments-tab-model";
 import { usePermission } from "@/hooks/use-permission";
+import { useClinicTaxRates } from "@/hooks/use-clinic-tax-rates";
 import { C, LAYOUT } from "@/lib/design-tokens";
 import { calculateBillingTotals } from "@/lib/calculations";
 
@@ -122,7 +124,7 @@ export const MedicalRecordDiagnosisPlan = memo(function MedicalRecordDiagnosisPl
   const handleAddRow = useCallback(() => {
     if (!canCreate) return;
     createTreatmentFn({
-      item_type: "other" as TreatmentItemType,
+      item_type: "other",
       content: "",
       unit_price: 0,
       quantity: 1,
@@ -136,7 +138,7 @@ export const MedicalRecordDiagnosisPlan = memo(function MedicalRecordDiagnosisPl
   const handleSelectTreatment = useCallback((item: TreatmentMasterItem) => {
     if (!canCreate) return;
     createTreatmentFn({
-      item_type: (item.category === "薬品" ? "medicine" : item.category === "処置" ? "procedure" : "other") as TreatmentItemType,
+      item_type: resolveItemTypeFromCategory(item.category),
       content: item.name,
       memo: item.category,
       unit_price: item.unitPrice,
@@ -148,15 +150,23 @@ export const MedicalRecordDiagnosisPlan = memo(function MedicalRecordDiagnosisPl
     });
   }, [canCreate, nextOrder, createTreatmentFn]);
 
+  // FE-RC-048: 消費税率はハードコード既定 (0.1) 依存ではなく病院マスタ設定を正本にする。
+  const { standardTaxRate } = useClinicTaxRates();
+
   // Calculations
   const { subtotal, tax, total } = useMemo(() => {
-    const result = calculateBillingTotals(treatmentItems, ownerDiscountRate, globalDiscountAmount);
+    const result = calculateBillingTotals(
+      treatmentItems,
+      ownerDiscountRate,
+      globalDiscountAmount,
+      standardTaxRate,
+    );
     return {
       subtotal: result.subtotal,
       tax: result.tax,
       total: result.total
     };
-  }, [treatmentItems, ownerDiscountRate, globalDiscountAmount]);
+  }, [treatmentItems, ownerDiscountRate, globalDiscountAmount, standardTaxRate]);
 
   return (
     <div className={`gap-3 ${LAYOUT.fullHeight}`}>
