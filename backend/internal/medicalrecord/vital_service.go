@@ -227,84 +227,11 @@ func (s *vitalService) Update(ctx context.Context, clinicID, medicalRecordID, vi
 
 	var result *model.VitalRecord
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
-		// BE-refactor.md X-11: LockByIDForUpdate の行ロックで finalize と直列化し、確定と同時の
-		// バイタル編集が確定済みカルテに混入する競合を防ぐ。
-		parent, err := s.lockDraftParent(
-			txCtx,
-			clinicID,
-			medicalRecordID,
-			"failed to find medical record",
-			"確定済みカルテのバイタルは編集できません",
-		)
+		updated, err := s.updateVitalInTx(txCtx, clinicID, medicalRecordID, vitalID, input, fields, existing)
 		if err != nil {
 			return err
 		}
-		if err := validateVitalMedicalRecordRelation(parent, clinicID, medicalRecordID, existing.PetID); err != nil {
-			return err
-		}
-		petID := existing.PetID
-		if err := validateClinicalRelations(
-			txCtx,
-			s.relations,
-			clinicID,
-			parent,
-			&petID,
-			nil,
-		); err != nil {
-			return err
-		}
-		if existing.ClinicID != clinicID {
-			return apperrors.WrapNotFound("vital", "not found in medical record")
-		}
-		if err := validateClinicalStaffReference(
-			txCtx,
-			clinicID,
-			input.StaffID,
-			s.staffs,
-			s.staffAssignments,
-		); err != nil {
-			return err
-		}
-		if err := s.repo.Update(txCtx, clinicID, vitalID, fields); err != nil {
-			slog.ErrorContext(txCtx, "failed to update vital record", "error", err)
-			return apperrors.Wrap(err, "failed to update vital record")
-		}
-		result, err = s.repo.FindByID(txCtx, clinicID, vitalID)
-		if err != nil {
-			slog.ErrorContext(txCtx, "failed to get vital record after update", "error", err)
-			return apperrors.Wrap(err, "failed to get vital record after update")
-		}
-		if err := validateUpdatedVitalRelation(
-			result,
-			clinicID,
-			medicalRecordID,
-			vitalID,
-			existing.PetID,
-		); err != nil {
-			return err
-		}
-		if err := validateClinicalStaffReference(
-			txCtx,
-			clinicID,
-			result.StaffID,
-			s.staffs,
-			s.staffAssignments,
-		); err != nil {
-			return err
-		}
-		if result.Staff != nil &&
-			(result.StaffID == nil ||
-				result.Staff.ID != *result.StaffID ||
-				!result.Staff.IsActive) {
-			return apperrors.WrapNotFound("staff", "nested relation")
-		}
-		// BUG-015: vital update audit は ambient tx 参加の LogEntryTx で fail-closed。
-		oldDiff, newDiff := diffVitalImportantFields(existing, result)
-		if oldDiff != nil {
-			if err := s.auditVitalTx(txCtx, clinicID, input.ActorID, "update", vitalID, medicalRecordID, oldDiff, newDiff); err != nil {
-				return err
-			}
-		}
+		result = updated
 		return nil
 	}); err != nil {
 		return nil, err

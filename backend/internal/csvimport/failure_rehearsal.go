@@ -162,52 +162,10 @@ func runSyntheticFailureRehearsal(
 	beforeSHA := sha256Bytes(beforeBytes)
 
 	startedAt := time.Now().UTC()
-	tx, err := begin(ctx)
+	failureInjectedAt, err := injectSyntheticFailureRollback(ctx, begin, input, manifest)
 	if err != nil {
-		return SyntheticFailureResult{}, fmt.Errorf("begin synthetic failure transaction")
-	}
-	rolledBack := false
-	defer func() {
-		if !rolledBack {
-			_ = rollbackFailureTransaction(ctx, tx)
-		}
-	}()
-
-	if _, err := tx.Exec(ctx, `SET LOCAL lock_timeout = '10s'`); err != nil {
-		return SyntheticFailureResult{}, fmt.Errorf("configure synthetic failure lock timeout")
-	}
-	if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock($1)`, cutoverAdvisoryLockKey); err != nil {
-		return SyntheticFailureResult{}, fmt.Errorf("acquire synthetic failure cutover lock")
-	}
-	if err := lockCutoverTables(ctx, tx); err != nil {
-		return SyntheticFailureResult{}, fmt.Errorf("lock synthetic failure cutover tables")
-	}
-	if err := validateCutoverTarget(ctx, tx, manifest, input.Seeds, true); err != nil {
-		return SyntheticFailureResult{}, fmt.Errorf("validate synthetic failure target")
-	}
-	if err := copySyntheticFailureOwner(ctx, tx, input.Seeds); err != nil {
 		return SyntheticFailureResult{}, err
 	}
-
-	_, injectionErr := tx.Exec(
-		ctx,
-		`INSERT INTO pets (id, clinic_id, owner_id, name, animal_species_id)
-VALUES ($1, $2, $3, $4, $5)`,
-		syntheticFailurePetID,
-		input.Seeds.ClinicID,
-		syntheticFailureMissingOwnerID,
-		"F8 synthetic pet",
-		input.Seeds.AnimalSpeciesID,
-	)
-	failureInjectedAt := time.Now().UTC()
-	var pgError *pgconn.PgError
-	if !errors.As(injectionErr, &pgError) || pgError.Code != syntheticFailureSQLState {
-		return SyntheticFailureResult{}, fmt.Errorf("synthetic injection did not produce the required foreign-key violation")
-	}
-	if err := rollbackFailureTransaction(ctx, tx); err != nil {
-		return SyntheticFailureResult{}, fmt.Errorf("rollback synthetic failure transaction")
-	}
-	rolledBack = true
 
 	after, err := queryBandCounts(ctx, target, manifest.IDBand)
 	if err != nil {
@@ -260,6 +218,61 @@ VALUES ($1, $2, $3, $4, $5)`,
 		BandRowCountBefore:        before.TotalRowCount,
 		BandRowCountAfter:         after.TotalRowCount,
 	}, nil
+}
+
+func injectSyntheticFailureRollback(
+	ctx context.Context,
+	begin failureRehearsalBegin,
+	input SyntheticFailureInput,
+	manifest CutoverManifest,
+) (time.Time, error) {
+	tx, err := begin(ctx)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("begin synthetic failure transaction")
+	}
+	rolledBack := false
+	defer func() {
+		if !rolledBack {
+			_ = rollbackFailureTransaction(ctx, tx)
+		}
+	}()
+
+	if _, err := tx.Exec(ctx, `SET LOCAL lock_timeout = '10s'`); err != nil {
+		return time.Time{}, fmt.Errorf("configure synthetic failure lock timeout")
+	}
+	if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock($1)`, cutoverAdvisoryLockKey); err != nil {
+		return time.Time{}, fmt.Errorf("acquire synthetic failure cutover lock")
+	}
+	if err := lockCutoverTables(ctx, tx); err != nil {
+		return time.Time{}, fmt.Errorf("lock synthetic failure cutover tables")
+	}
+	if err := validateCutoverTarget(ctx, tx, manifest, input.Seeds, true); err != nil {
+		return time.Time{}, fmt.Errorf("validate synthetic failure target")
+	}
+	if err := copySyntheticFailureOwner(ctx, tx, input.Seeds); err != nil {
+		return time.Time{}, err
+	}
+
+	_, injectionErr := tx.Exec(
+		ctx,
+		`INSERT INTO pets (id, clinic_id, owner_id, name, animal_species_id)
+VALUES ($1, $2, $3, $4, $5)`,
+		syntheticFailurePetID,
+		input.Seeds.ClinicID,
+		syntheticFailureMissingOwnerID,
+		"F8 synthetic pet",
+		input.Seeds.AnimalSpeciesID,
+	)
+	failureInjectedAt := time.Now().UTC()
+	var pgError *pgconn.PgError
+	if !errors.As(injectionErr, &pgError) || pgError.Code != syntheticFailureSQLState {
+		return time.Time{}, fmt.Errorf("synthetic injection did not produce the required foreign-key violation")
+	}
+	if err := rollbackFailureTransaction(ctx, tx); err != nil {
+		return time.Time{}, fmt.Errorf("rollback synthetic failure transaction")
+	}
+	rolledBack = true
+	return failureInjectedAt, nil
 }
 
 func rollbackFailureTransaction(ctx context.Context, tx failureRehearsalTx) error {

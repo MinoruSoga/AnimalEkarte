@@ -59,66 +59,9 @@ func (s *medicalRecordService) AutoCreateFromReservation(ctx context.Context, cl
 	dateStr := reservation.StartTime.In(config.JST).Format(time.DateOnly)
 	var createResult medicalRecordCreateTxResult
 	err := s.withTx(ctx, func(txCtx context.Context) error {
-		acquired, err := s.repo.AcquireAutoCreateLock(txCtx, clinicID, *reservation.PetID, dateStr)
+		created, err := s.autoCreateFromReservationInTx(txCtx, clinicID, reservation, dateStr)
 		if err != nil {
-			slog.WarnContext(txCtx, "autoCreateFromReservation: failed to acquire auto-create lock",
-				slog.Uint64("reservation_id", reservation.ID),
-				slog.String("error", err.Error()))
 			return err
-		}
-		if !acquired {
-			slog.InfoContext(txCtx, "autoCreateFromReservation: skipped — auto-create lock is busy",
-				slog.Uint64("reservation_id", reservation.ID),
-				slog.Uint64("pet_id", *reservation.PetID),
-				slog.String("date", dateStr))
-			return nil
-		}
-
-		// advisory lock の保持中に同日同ペットの存在確認から Create 完了までを直列化する。
-		total, err := s.repo.CountByPetAndDate(txCtx, clinicID, *reservation.PetID, dateStr)
-		if err != nil {
-			slog.WarnContext(txCtx, "autoCreateFromReservation: failed to check existing records",
-				slog.Uint64("reservation_id", reservation.ID),
-				slog.String("error", err.Error()))
-			return err
-		}
-		if total > 0 {
-			slog.InfoContext(txCtx, "autoCreateFromReservation: skipped — same-day record already exists",
-				slog.Uint64("pet_id", *reservation.PetID),
-				slog.String("date", dateStr))
-			return nil
-		}
-
-		statusDraft := model.MedicalRecordStatusDraft
-		input := CreateMedicalRecordInput{
-			Date:          reservation.StartTime,
-			OwnerID:       reservation.OwnerID,
-			PetID:         reservation.PetID,
-			AppointmentID: &reservation.ID,
-			Status:        &statusDraft,
-			VisitType:     model.VisitTypeRevisit,
-		}
-		if reservation.DoctorID != nil {
-			input.DoctorID = reservation.DoctorID
-		}
-
-		created, err := s.createMedicalRecordInTx(txCtx, clinicID, &input)
-		if err != nil {
-			slog.WarnContext(txCtx, "autoCreateFromReservation: failed to create medical record",
-				slog.Uint64("reservation_id", reservation.ID),
-				slog.String("error", err.Error()))
-			return err
-		}
-		resolvedRecord := created.record
-		if created.existingHit != nil {
-			resolvedRecord = created.existingHit
-		}
-		if resolvedRecord != nil &&
-			resolvedRecord.Date.In(config.JST).Format(time.DateOnly) != dateStr {
-			// The advisory key comes from the caller snapshot, while the create core locks and
-			// rereads the authoritative appointment. If a concurrent reschedule changes the JST
-			// day, roll this transaction back instead of inserting under a different day/key.
-			return apperrors.WrapConflict("appointment date changed during medical record auto-create")
 		}
 		createResult = created
 		return nil
@@ -149,6 +92,76 @@ func (s *medicalRecordService) AutoCreateFromReservation(ctx context.Context, cl
 	if err := s.CreateSubRecords(ctx, clinicID, createResult.record.ID, CreateSubRecordsInput{}); err != nil {
 		s.auditSubRecordsFailure(ctx, clinicID, createResult.record.ID, reservation.ID, err)
 	}
+}
+
+func (s *medicalRecordService) autoCreateFromReservationInTx(
+	txCtx context.Context,
+	clinicID uint64,
+	reservation *model.Reservation,
+	dateStr string,
+) (medicalRecordCreateTxResult, error) {
+	acquired, err := s.repo.AcquireAutoCreateLock(txCtx, clinicID, *reservation.PetID, dateStr)
+	if err != nil {
+		slog.WarnContext(txCtx, "autoCreateFromReservation: failed to acquire auto-create lock",
+			slog.Uint64("reservation_id", reservation.ID),
+			slog.String("error", err.Error()))
+		return medicalRecordCreateTxResult{}, err
+	}
+	if !acquired {
+		slog.InfoContext(txCtx, "autoCreateFromReservation: skipped — auto-create lock is busy",
+			slog.Uint64("reservation_id", reservation.ID),
+			slog.Uint64("pet_id", *reservation.PetID),
+			slog.String("date", dateStr))
+		return medicalRecordCreateTxResult{}, nil
+	}
+
+	// advisory lock の保持中に同日同ペットの存在確認から Create 完了までを直列化する。
+	total, err := s.repo.CountByPetAndDate(txCtx, clinicID, *reservation.PetID, dateStr)
+	if err != nil {
+		slog.WarnContext(txCtx, "autoCreateFromReservation: failed to check existing records",
+			slog.Uint64("reservation_id", reservation.ID),
+			slog.String("error", err.Error()))
+		return medicalRecordCreateTxResult{}, err
+	}
+	if total > 0 {
+		slog.InfoContext(txCtx, "autoCreateFromReservation: skipped — same-day record already exists",
+			slog.Uint64("pet_id", *reservation.PetID),
+			slog.String("date", dateStr))
+		return medicalRecordCreateTxResult{}, nil
+	}
+
+	statusDraft := model.MedicalRecordStatusDraft
+	input := CreateMedicalRecordInput{
+		Date:          reservation.StartTime,
+		OwnerID:       reservation.OwnerID,
+		PetID:         reservation.PetID,
+		AppointmentID: &reservation.ID,
+		Status:        &statusDraft,
+		VisitType:     model.VisitTypeRevisit,
+	}
+	if reservation.DoctorID != nil {
+		input.DoctorID = reservation.DoctorID
+	}
+
+	created, err := s.createMedicalRecordInTx(txCtx, clinicID, &input)
+	if err != nil {
+		slog.WarnContext(txCtx, "autoCreateFromReservation: failed to create medical record",
+			slog.Uint64("reservation_id", reservation.ID),
+			slog.String("error", err.Error()))
+		return medicalRecordCreateTxResult{}, err
+	}
+	resolvedRecord := created.record
+	if created.existingHit != nil {
+		resolvedRecord = created.existingHit
+	}
+	if resolvedRecord != nil &&
+		resolvedRecord.Date.In(config.JST).Format(time.DateOnly) != dateStr {
+		// The advisory key comes from the caller snapshot, while the create core locks and
+		// rereads the authoritative appointment. If a concurrent reschedule changes the JST
+		// day, roll this transaction back instead of inserting under a different day/key.
+		return medicalRecordCreateTxResult{}, apperrors.WrapConflict("appointment date changed during medical record auto-create")
+	}
+	return created, nil
 }
 
 func (s *medicalRecordService) fillOwnerPetFromLineCustomer(

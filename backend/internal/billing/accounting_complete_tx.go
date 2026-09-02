@@ -17,17 +17,12 @@ func (s *accountingService) completeInTx(
 	digest string,
 	systemKeyToID map[string]uint64,
 ) (*CompleteAccountingResult, error) {
-	var result *CompleteAccountingResult
-	// 並行初回: UNIQUE 競合を避けるため tx 内でも再 lookup。
-	if existing, err := s.repo.FindByCompletionRequestID(txCtx, input.ClinicID, input.IdempotencyKey); err != nil {
-		return nil, apperrors.Wrap(err, "failed to re-lookup completion request in tx")
-	} else if existing != nil {
-		replay, err := s.resolveIdempotentReplay(txCtx, input.ClinicID, existing, digest)
-		if err != nil {
-			return nil, err
-		}
-		result = replay
-		return result, nil
+	replay, err := s.replayCompleteIfExisting(txCtx, input.ClinicID, input.IdempotencyKey, digest)
+	if err != nil {
+		return nil, err
+	}
+	if replay != nil {
+		return replay, nil
 	}
 
 	// BUG-004: 締め後理由は FK 解決より先。締め済みなのに参照組み合わせエラーだけ出ると確定導線が消える。
@@ -68,43 +63,12 @@ func (s *accountingService) completeInTx(
 		return nil, err
 	}
 
-	reqID := input.IdempotencyKey
-	hash := digest
-	billing := &model.Billing{
-		ClinicID:              input.ClinicID,
-		MedicalRecordID:       medicalRecordID,
-		HospitalizationID:     input.HospitalizationID,
-		OwnerID:               input.OwnerID,
-		PetID:                 input.PetID,
-		Subtotal:              0,
-		TaxTotal:              0,
-		TotalAmount:           0,
-		HasInsurance:          input.HasInsurance,
-		Status:                model.BillingStatusWaiting,
-		ScheduledDate:         input.ScheduledDate,
-		Memo:                  input.Memo,
-		CompletionRequestID:   &reqID,
-		CompletionRequestHash: &hash,
+	billing, replay, err := s.createCompleteBillingHeader(txCtx, input, digest, medicalRecordID)
+	if err != nil {
+		return nil, err
 	}
-	if err := s.repo.Create(txCtx, input.ClinicID, billing); err != nil {
-		// Create は UNIQUE を AlreadyExists に変換する（pg 23505 は chain されない）。
-		// completion_request_id 衝突時のみ replay。他 UNIQUE は existing==nil のまま元エラー。
-		if !apperrors.IsAlreadyExists(err) && !persistence.IsUniqueConstraintErr(err) {
-			return nil, apperrors.Wrap(err, "failed to create accounting header for complete")
-		}
-		existing, lookupErr := s.repo.FindByCompletionRequestID(txCtx, input.ClinicID, input.IdempotencyKey)
-		if lookupErr != nil {
-			return nil, apperrors.Wrap(lookupErr, "failed to resolve completion unique conflict")
-		}
-		if existing == nil {
-			return nil, apperrors.Wrap(err, "failed to create accounting header for complete")
-		}
-		replay, replayErr := s.resolveIdempotentReplay(txCtx, input.ClinicID, existing, digest)
-		if replayErr != nil {
-			return nil, replayErr
-		}
-		result = replay
-		return result, nil
+	if replay != nil {
+		return replay, nil
 	}
 
 	// Items: ambient tx 参加。N 番目失敗で全 rollback。
@@ -130,8 +94,68 @@ func (s *accountingService) completeInTx(
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to reload accounting after complete")
 	}
-	result = &CompleteAccountingResult{Accounting: reloaded, Created: true}
-	return result, nil
+	return &CompleteAccountingResult{Accounting: reloaded, Created: true}, nil
+}
+
+func (s *accountingService) replayCompleteIfExisting(
+	txCtx context.Context,
+	clinicID uint64,
+	idempotencyKey, digest string,
+) (*CompleteAccountingResult, error) {
+	existing, err := s.repo.FindByCompletionRequestID(txCtx, clinicID, idempotencyKey)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to re-lookup completion request in tx")
+	}
+	if existing == nil {
+		return nil, nil
+	}
+	return s.resolveIdempotentReplay(txCtx, clinicID, existing, digest)
+}
+
+func (s *accountingService) createCompleteBillingHeader(
+	txCtx context.Context,
+	input *CompleteAccountingInput,
+	digest string,
+	medicalRecordID *uint64,
+) (*model.Billing, *CompleteAccountingResult, error) {
+	reqID := input.IdempotencyKey
+	hash := digest
+	billing := &model.Billing{
+		ClinicID:              input.ClinicID,
+		MedicalRecordID:       medicalRecordID,
+		HospitalizationID:     input.HospitalizationID,
+		OwnerID:               input.OwnerID,
+		PetID:                 input.PetID,
+		Subtotal:              0,
+		TaxTotal:              0,
+		TotalAmount:           0,
+		HasInsurance:          input.HasInsurance,
+		Status:                model.BillingStatusWaiting,
+		ScheduledDate:         input.ScheduledDate,
+		Memo:                  input.Memo,
+		CompletionRequestID:   &reqID,
+		CompletionRequestHash: &hash,
+	}
+	if err := s.repo.Create(txCtx, input.ClinicID, billing); err != nil {
+		// Create は UNIQUE を AlreadyExists に変換する（pg 23505 は chain されない）。
+		// completion_request_id 衝突時のみ replay。他 UNIQUE は existing==nil のまま元エラー。
+		if !apperrors.IsAlreadyExists(err) && !persistence.IsUniqueConstraintErr(err) {
+			return nil, nil, apperrors.Wrap(err, "failed to create accounting header for complete")
+		}
+		existing, lookupErr := s.repo.FindByCompletionRequestID(txCtx, input.ClinicID, input.IdempotencyKey)
+		if lookupErr != nil {
+			return nil, nil, apperrors.Wrap(lookupErr, "failed to resolve completion unique conflict")
+		}
+		if existing == nil {
+			return nil, nil, apperrors.Wrap(err, "failed to create accounting header for complete")
+		}
+		replay, replayErr := s.resolveIdempotentReplay(txCtx, input.ClinicID, existing, digest)
+		if replayErr != nil {
+			return nil, nil, replayErr
+		}
+		return nil, replay, nil
+	}
+	return billing, nil, nil
 }
 
 func (s *accountingService) createCompleteItems(txCtx context.Context, input *CompleteAccountingInput, billingID uint64) error {

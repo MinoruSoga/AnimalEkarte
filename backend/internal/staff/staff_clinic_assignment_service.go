@@ -359,107 +359,116 @@ func (s *staffService) SetClinicAssignments(ctx context.Context, input *SetClini
 	}
 
 	if err := s.tx.WithTx(ctx, func(ctx context.Context) error {
-		staff, lockStaffErr := s.repo.LockActiveByIDForUpdate(ctx, input.StaffID)
-		if lockStaffErr != nil {
-			return apperrors.Wrap(lockStaffErr, "failed to lock staff for clinic assignment replacement")
-		}
-		if staff == nil || staff.ID != input.StaffID {
-			return apperrors.WrapInternalServerError("staff lock returned an invalid record")
-		}
-
-		existingAssignments, lockAssignmentsErr := s.assignmentRepo.LockActiveByStaff(ctx, input.StaffID)
-		if lockAssignmentsErr != nil {
-			return apperrors.Wrap(lockAssignmentsErr, "failed to lock existing clinic assignments")
-		}
-		for i := range existingAssignments {
-			if existingAssignments[i].StaffID != input.StaffID || existingAssignments[i].ClinicID == 0 {
-				return apperrors.WrapInternalServerError("clinic assignment lock returned an invalid record")
-			}
-		}
-
-		if err := authorizeExistingClinicAssignments(input, existingAssignments); err != nil {
-			return err
-		}
-
-		authorized := clinicIDSet(input.AuthorizedClinicIDs)
-		existingSet := existingAssignmentClinicIDs(existingAssignments)
-		preservedIDs := preservedClinicAssignmentIDs(existingAssignments, input.IsSystemAdmin, authorized)
-		removedClinicIDs := removedMutableClinicAssignmentIDs(
-			existingAssignments,
-			clinicIDs,
-			input.IsSystemAdmin,
-			authorized,
-		)
-		finalIDs := finalClinicAssignmentIDs(preservedIDs, clinicIDs)
-		finalSet := clinicIDSet(finalIDs)
-
-		// LockActiveByID only newly added clinics. Existing rows may belong to
-		// inactive clinics (especially system-admin GET round-trips) and must
-		// not be re-validated as active.
-		for _, clinicID := range addedClinicAssignmentIDs(existingSet, clinicIDs) {
-			clinic, lockClinicErr := s.clinicRepo.LockActiveByID(ctx, clinicID)
-			if lockClinicErr != nil {
-				return apperrors.Wrap(lockClinicErr, "failed to lock clinic assignment target")
-			}
-			if clinic == nil || clinic.ID != clinicID {
-				return apperrors.WrapInternalServerError("clinic lock returned an invalid record")
-			}
-		}
-
-		if dependencyErr := s.ensureRemovedClinicAssignmentsUnused(ctx, input.StaffID, removedClinicIDs); dependencyErr != nil {
-			return dependencyErr
-		}
-
-		oldClinicIDs := make([]uint64, 0, len(existingAssignments))
-		for i := range existingAssignments {
-			oldClinicIDs = append(oldClinicIDs, existingAssignments[i].ClinicID)
-		}
-
-		if err := s.assignmentRepo.DeleteByStaffAndClinicIDs(ctx, input.StaffID, removedClinicIDs); err != nil {
-			slog.ErrorContext(ctx, "failed to delete existing clinic assignments", "error", err, "staff_id", input.StaffID)
-			return apperrors.Wrap(err, "failed to delete existing clinic assignments")
-		}
-
-		primaryClinicID := chooseStaffAssignmentPrimaryClinicID(
-			clinicIDs,
-			finalSet,
-			staff.ClinicID,
-			input.IsSystemAdmin,
-			authorized,
-			finalIDs,
-		)
-		if primaryClinicID == 0 {
-			return apperrors.WrapInternalServerError("clinic assignment primary is missing")
-		}
-
-		for _, clinicID := range clinicIDs {
-			assignment := &model.StaffClinicAssignment{
-				StaffID:  input.StaffID,
-				ClinicID: clinicID,
-				IsMain:   clinicID == primaryClinicID,
-			}
-			if err := s.assignmentRepo.RestoreOrCreate(ctx, assignment); err != nil {
-				slog.ErrorContext(ctx, "failed to restore or create clinic assignment", "error", err, "staff_id", input.StaffID, "clinic_id", clinicID)
-				return apperrors.Wrap(err, "failed to restore or create clinic assignment")
-			}
-		}
-		if err := s.repo.UpdatePrimaryClinicID(ctx, input.StaffID, primaryClinicID); err != nil {
-			slog.ErrorContext(ctx, "failed to update staff primary clinic", "error", err, "staff_id", input.StaffID, "clinic_id", primaryClinicID)
-			return apperrors.Wrap(err, "failed to update staff primary clinic")
-		}
-		if s.permissionAudit != nil && auditMeta != nil {
-			if auditWriteErr := s.permissionAudit.LogEntryTx(
-				ctx,
-				clinicAssignmentAuditEntry(*auditMeta, oldClinicIDs, finalIDs),
-			); auditWriteErr != nil {
-				return apperrors.Wrap(auditWriteErr, "failed to write staff clinic assignment audit")
-			}
-		}
-		return nil
+		return s.setClinicAssignmentsInTx(ctx, input, clinicIDs, auditMeta)
 	}); err != nil {
 		return apperrors.Wrap(err, "failed to set clinic assignments")
 	}
 	slog.InfoContext(ctx, "clinic assignments updated", slog.Uint64("staff_id", input.StaffID), slog.Int("count", len(clinicIDs)))
+	return nil
+}
+
+func (s *staffService) setClinicAssignmentsInTx(
+	ctx context.Context,
+	input *SetClinicAssignmentsInput,
+	clinicIDs []uint64,
+	auditMeta *PermissionAssignmentAudit,
+) error {
+	staff, lockStaffErr := s.repo.LockActiveByIDForUpdate(ctx, input.StaffID)
+	if lockStaffErr != nil {
+		return apperrors.Wrap(lockStaffErr, "failed to lock staff for clinic assignment replacement")
+	}
+	if staff == nil || staff.ID != input.StaffID {
+		return apperrors.WrapInternalServerError("staff lock returned an invalid record")
+	}
+
+	existingAssignments, lockAssignmentsErr := s.assignmentRepo.LockActiveByStaff(ctx, input.StaffID)
+	if lockAssignmentsErr != nil {
+		return apperrors.Wrap(lockAssignmentsErr, "failed to lock existing clinic assignments")
+	}
+	for i := range existingAssignments {
+		if existingAssignments[i].StaffID != input.StaffID || existingAssignments[i].ClinicID == 0 {
+			return apperrors.WrapInternalServerError("clinic assignment lock returned an invalid record")
+		}
+	}
+
+	if err := authorizeExistingClinicAssignments(input, existingAssignments); err != nil {
+		return err
+	}
+
+	authorized := clinicIDSet(input.AuthorizedClinicIDs)
+	existingSet := existingAssignmentClinicIDs(existingAssignments)
+	preservedIDs := preservedClinicAssignmentIDs(existingAssignments, input.IsSystemAdmin, authorized)
+	removedClinicIDs := removedMutableClinicAssignmentIDs(
+		existingAssignments,
+		clinicIDs,
+		input.IsSystemAdmin,
+		authorized,
+	)
+	finalIDs := finalClinicAssignmentIDs(preservedIDs, clinicIDs)
+	finalSet := clinicIDSet(finalIDs)
+
+	// LockActiveByID only newly added clinics. Existing rows may belong to
+	// inactive clinics (especially system-admin GET round-trips) and must
+	// not be re-validated as active.
+	for _, clinicID := range addedClinicAssignmentIDs(existingSet, clinicIDs) {
+		clinic, lockClinicErr := s.clinicRepo.LockActiveByID(ctx, clinicID)
+		if lockClinicErr != nil {
+			return apperrors.Wrap(lockClinicErr, "failed to lock clinic assignment target")
+		}
+		if clinic == nil || clinic.ID != clinicID {
+			return apperrors.WrapInternalServerError("clinic lock returned an invalid record")
+		}
+	}
+
+	if dependencyErr := s.ensureRemovedClinicAssignmentsUnused(ctx, input.StaffID, removedClinicIDs); dependencyErr != nil {
+		return dependencyErr
+	}
+
+	oldClinicIDs := make([]uint64, 0, len(existingAssignments))
+	for i := range existingAssignments {
+		oldClinicIDs = append(oldClinicIDs, existingAssignments[i].ClinicID)
+	}
+
+	if err := s.assignmentRepo.DeleteByStaffAndClinicIDs(ctx, input.StaffID, removedClinicIDs); err != nil {
+		slog.ErrorContext(ctx, "failed to delete existing clinic assignments", "error", err, "staff_id", input.StaffID)
+		return apperrors.Wrap(err, "failed to delete existing clinic assignments")
+	}
+
+	primaryClinicID := chooseStaffAssignmentPrimaryClinicID(
+		clinicIDs,
+		finalSet,
+		staff.ClinicID,
+		input.IsSystemAdmin,
+		authorized,
+		finalIDs,
+	)
+	if primaryClinicID == 0 {
+		return apperrors.WrapInternalServerError("clinic assignment primary is missing")
+	}
+
+	for _, clinicID := range clinicIDs {
+		assignment := &model.StaffClinicAssignment{
+			StaffID:  input.StaffID,
+			ClinicID: clinicID,
+			IsMain:   clinicID == primaryClinicID,
+		}
+		if err := s.assignmentRepo.RestoreOrCreate(ctx, assignment); err != nil {
+			slog.ErrorContext(ctx, "failed to restore or create clinic assignment", "error", err, "staff_id", input.StaffID, "clinic_id", clinicID)
+			return apperrors.Wrap(err, "failed to restore or create clinic assignment")
+		}
+	}
+	if err := s.repo.UpdatePrimaryClinicID(ctx, input.StaffID, primaryClinicID); err != nil {
+		slog.ErrorContext(ctx, "failed to update staff primary clinic", "error", err, "staff_id", input.StaffID, "clinic_id", primaryClinicID)
+		return apperrors.Wrap(err, "failed to update staff primary clinic")
+	}
+	if s.permissionAudit != nil && auditMeta != nil {
+		if auditWriteErr := s.permissionAudit.LogEntryTx(
+			ctx,
+			clinicAssignmentAuditEntry(*auditMeta, oldClinicIDs, finalIDs),
+		); auditWriteErr != nil {
+			return apperrors.Wrap(auditWriteErr, "failed to write staff clinic assignment audit")
+		}
+	}
 	return nil
 }
 
