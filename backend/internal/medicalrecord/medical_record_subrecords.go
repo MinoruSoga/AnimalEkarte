@@ -14,30 +14,49 @@ import (
 func (s *medicalRecordService) CreateSubRecords(ctx context.Context, clinicID, recordID uint64, input CreateSubRecordsInput) error {
 	// 1. inquiry: 入力がある場合のみ upsert する。
 	// 既存 appointment の再オープン時に空入力で既存問診を上書きしない。
-	if hasInquirySubRecordInput(input) {
-		if err := s.assertChiefComplaintTypeForSubRecords(ctx, clinicID, recordID, input.ChiefComplaintTypeID); err != nil {
-			return err
-		}
-		inquiry := &model.Inquiry{
-			MedicalRecordID: recordID,
-		}
-		if input.ChiefComplaintTypeID != nil {
-			inquiry.ChiefComplaintTypeID = input.ChiefComplaintTypeID
-		}
-		if input.ChiefComplaint != nil {
-			inquiry.ChiefComplaint = *input.ChiefComplaint
-		}
-		if input.Notes != nil {
-			inquiry.Notes = *input.Notes
-		}
-		if _, err := s.inquiryRepo.SaveByMedicalRecordID(ctx, clinicID, inquiry); err != nil {
-			slog.ErrorContext(ctx, "createSubRecords: failed to upsert inquiry",
-				slog.Uint64("medical_record_id", recordID),
-				slog.String("error", err.Error()))
-			return apperrors.Wrap(err, "failed to upsert medical record inquiry")
-		}
+	if err := s.upsertInquirySubRecord(ctx, clinicID, recordID, input); err != nil {
+		return err
 	}
+	return s.ensureClinicalPlanSubRecord(ctx, clinicID, recordID, input)
+}
 
+func (s *medicalRecordService) upsertInquirySubRecord(
+	ctx context.Context,
+	clinicID, recordID uint64,
+	input CreateSubRecordsInput,
+) error {
+	if !hasInquirySubRecordInput(input) {
+		return nil
+	}
+	if err := s.assertChiefComplaintTypeForSubRecords(ctx, clinicID, recordID, input.ChiefComplaintTypeID); err != nil {
+		return err
+	}
+	inquiry := &model.Inquiry{
+		MedicalRecordID: recordID,
+	}
+	if input.ChiefComplaintTypeID != nil {
+		inquiry.ChiefComplaintTypeID = input.ChiefComplaintTypeID
+	}
+	if input.ChiefComplaint != nil {
+		inquiry.ChiefComplaint = *input.ChiefComplaint
+	}
+	if input.Notes != nil {
+		inquiry.Notes = *input.Notes
+	}
+	if _, err := s.inquiryRepo.SaveByMedicalRecordID(ctx, clinicID, inquiry); err != nil {
+		slog.ErrorContext(ctx, "createSubRecords: failed to upsert inquiry",
+			slog.Uint64("medical_record_id", recordID),
+			slog.String("error", err.Error()))
+		return apperrors.Wrap(err, "failed to upsert medical record inquiry")
+	}
+	return nil
+}
+
+func (s *medicalRecordService) ensureClinicalPlanSubRecord(
+	ctx context.Context,
+	clinicID, recordID uint64,
+	input CreateSubRecordsInput,
+) error {
 	// 2. clinical_plan: 常に GetOrCreate で空レコードを確保し、フィールドがあれば更新
 	plan, err := s.clinicalPlanRepo.FindByMedicalRecordID(ctx, clinicID, recordID)
 	if err != nil {
@@ -55,57 +74,58 @@ func (s *medicalRecordService) CreateSubRecords(ctx context.Context, clinicID, r
 			return apperrors.Wrap(err, "failed to create medical record clinical plan")
 		}
 	}
-	if input.Plan != nil || input.Assessment != nil || input.Diagnosis1CategoryID != nil || input.Diagnosis1NameID != nil ||
-		input.Diagnosis2TypeID != nil || input.Diagnosis2NameID != nil {
-		// MRC-14: clinical plan と同じ validateDiagnosisMasterFKs / assertDiagnosisNameBelongsToType を使う。
-		if err := validateDiagnosisMasterFKs(
-			ctx,
-			clinicID,
-			[]*uint64{input.Diagnosis1CategoryID, input.Diagnosis2TypeID},
-			[]*uint64{input.Diagnosis1NameID, input.Diagnosis2NameID},
-			s.diagTypeRepo,
-			s.diagNameRepo,
-		); err != nil {
-			slog.ErrorContext(ctx, "createSubRecords: failed to verify diagnosis FK ownership",
-				slog.Uint64("medical_record_id", recordID),
-				slog.String("error", err.Error()))
-			return apperrors.Wrap(err, "failed to verify diagnosis masters for medical record subrecords")
-		}
-		// AUD-007: 第2診断 type↔name 整合（clinical plan Update と同契約）
-		if err := assertDiagnosisNameBelongsToType(
-			ctx, clinicID, input.Diagnosis2TypeID, input.Diagnosis2NameID, "diagnosis_2", s.diagNameRepo,
-		); err != nil {
-			slog.ErrorContext(ctx, "createSubRecords: diagnosis_2 type/name mismatch",
-				slog.Uint64("medical_record_id", recordID),
-				slog.String("error", err.Error()))
-			return err
-		}
+	if input.Plan == nil && input.Assessment == nil && input.Diagnosis1CategoryID == nil && input.Diagnosis1NameID == nil &&
+		input.Diagnosis2TypeID == nil && input.Diagnosis2NameID == nil {
+		return nil
+	}
+	// MRC-14: clinical plan と同じ validateDiagnosisMasterFKs / assertDiagnosisNameBelongsToType を使う。
+	if err := validateDiagnosisMasterFKs(
+		ctx,
+		clinicID,
+		[]*uint64{input.Diagnosis1CategoryID, input.Diagnosis2TypeID},
+		[]*uint64{input.Diagnosis1NameID, input.Diagnosis2NameID},
+		s.diagTypeRepo,
+		s.diagNameRepo,
+	); err != nil {
+		slog.ErrorContext(ctx, "createSubRecords: failed to verify diagnosis FK ownership",
+			slog.Uint64("medical_record_id", recordID),
+			slog.String("error", err.Error()))
+		return apperrors.Wrap(err, "failed to verify diagnosis masters for medical record subrecords")
+	}
+	// AUD-007: 第2診断 type↔name 整合（clinical plan Update と同契約）
+	if err := assertDiagnosisNameBelongsToType(
+		ctx, clinicID, input.Diagnosis2TypeID, input.Diagnosis2NameID, "diagnosis_2", s.diagNameRepo,
+	); err != nil {
+		slog.ErrorContext(ctx, "createSubRecords: diagnosis_2 type/name mismatch",
+			slog.Uint64("medical_record_id", recordID),
+			slog.String("error", err.Error()))
+		return err
+	}
 
-		fields := map[string]any{}
-		if input.Plan != nil {
-			fields["treatment_policy"] = *input.Plan
-		}
-		if input.Assessment != nil {
-			fields["diagnosis_details"] = *input.Assessment
-		}
-		if input.Diagnosis1CategoryID != nil {
-			fields["diagnosis_type_id"] = *input.Diagnosis1CategoryID
-		}
-		if input.Diagnosis1NameID != nil {
-			fields["diagnosis_name_id"] = *input.Diagnosis1NameID
-		}
-		if input.Diagnosis2TypeID != nil {
-			fields["diagnosis_2_type_id"] = *input.Diagnosis2TypeID
-		}
-		if input.Diagnosis2NameID != nil {
-			fields["diagnosis_2_name_id"] = *input.Diagnosis2NameID
-		}
-		if err := s.clinicalPlanRepo.Update(ctx, clinicID, plan.ID, fields, nil); err != nil {
-			slog.ErrorContext(ctx, "createSubRecords: failed to update clinical plan",
-				slog.Uint64("medical_record_id", recordID),
-				slog.String("error", err.Error()))
-			return apperrors.Wrap(err, "failed to update medical record clinical plan")
-		}
+	fields := map[string]any{}
+	if input.Plan != nil {
+		fields["treatment_policy"] = *input.Plan
+	}
+	if input.Assessment != nil {
+		fields["diagnosis_details"] = *input.Assessment
+	}
+	if input.Diagnosis1CategoryID != nil {
+		fields["diagnosis_type_id"] = *input.Diagnosis1CategoryID
+	}
+	if input.Diagnosis1NameID != nil {
+		fields["diagnosis_name_id"] = *input.Diagnosis1NameID
+	}
+	if input.Diagnosis2TypeID != nil {
+		fields["diagnosis_2_type_id"] = *input.Diagnosis2TypeID
+	}
+	if input.Diagnosis2NameID != nil {
+		fields["diagnosis_2_name_id"] = *input.Diagnosis2NameID
+	}
+	if err := s.clinicalPlanRepo.Update(ctx, clinicID, plan.ID, fields, nil); err != nil {
+		slog.ErrorContext(ctx, "createSubRecords: failed to update clinical plan",
+			slog.Uint64("medical_record_id", recordID),
+			slog.String("error", err.Error()))
+		return apperrors.Wrap(err, "failed to update medical record clinical plan")
 	}
 	return nil
 }

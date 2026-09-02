@@ -70,53 +70,66 @@ func (s *staffService) CreateWithAccount(ctx context.Context, input *CreateStaff
 
 	var staff *model.Staff
 	if err := s.tx.WithTx(ctx, func(ctx context.Context) error {
-		if err := s.lockOccupationOwnership(ctx, input.ClinicID, input.OccupationID); err != nil {
-			return err
-		}
-		account := &model.Account{
-			Email:        input.Email,
-			PasswordHash: string(hashed),
-			IsActive:     true,
-		}
-		if createErr := s.accountRepo.Create(ctx, account); createErr != nil {
-			slog.ErrorContext(ctx, "failed to create account", "error", createErr)
-			return apperrors.Wrap(createErr, "failed to create account")
-		}
-		staff = &model.Staff{
-			ClinicID:               input.ClinicID,
-			Name:                   name,
-			LicenseNumber:          input.LicenseNumber,
-			OccupationID:           input.OccupationID,
-			SortOrder:              input.SortOrder,
-			IsActive:               true,
-			AccountID:              &account.ID,
-			StaffType:              staffType,
-			ReservationDisplayName: input.ReservationDisplayName,
-			ReservationVisible:     reservationVisible,
-			ReservationComment:     input.ReservationComment,
-			ReservationImageURL:    input.ReservationImageURL,
-		}
-		if err := s.repo.Create(ctx, staff); err != nil {
-			slog.ErrorContext(ctx, "failed to create staff", "error", err)
-			return apperrors.Wrap(err, "failed to create staff")
-		}
-		if input.ClinicID != 0 {
-			if err := s.assignmentRepo.Create(ctx, &model.StaffClinicAssignment{
-				StaffID:  staff.ID,
-				ClinicID: input.ClinicID,
-				IsMain:   true,
-			}); err != nil {
-				slog.ErrorContext(ctx, "failed to assign staff to clinic", "error", err, "clinic_id", input.ClinicID)
-				return apperrors.Wrap(err, "failed to assign staff to clinic")
-			}
-		}
-		return nil
+		created, err := s.createStaffWithAccountInTx(ctx, input, name, staffType, reservationVisible, string(hashed))
+		staff = created
+		return err
 	}); err != nil {
 		slog.ErrorContext(ctx, "failed to create staff", "error", err)
 		return nil, apperrors.Wrap(err, "failed to create staff")
 	}
 
 	slog.InfoContext(ctx, "staff with account created", slog.Uint64("clinic_id", input.ClinicID), slog.Uint64("staff_id", staff.ID))
+	return staff, nil
+}
+
+func (s *staffService) createStaffWithAccountInTx(
+	ctx context.Context,
+	input *CreateStaffWithAccountInput,
+	name string,
+	staffType model.StaffType,
+	reservationVisible bool,
+	passwordHash string,
+) (*model.Staff, error) {
+	if err := s.lockOccupationOwnership(ctx, input.ClinicID, input.OccupationID); err != nil {
+		return nil, err
+	}
+	account := &model.Account{
+		Email:        input.Email,
+		PasswordHash: passwordHash,
+		IsActive:     true,
+	}
+	if createErr := s.accountRepo.Create(ctx, account); createErr != nil {
+		slog.ErrorContext(ctx, "failed to create account", "error", createErr)
+		return nil, apperrors.Wrap(createErr, "failed to create account")
+	}
+	staff := &model.Staff{
+		ClinicID:               input.ClinicID,
+		Name:                   name,
+		LicenseNumber:          input.LicenseNumber,
+		OccupationID:           input.OccupationID,
+		SortOrder:              input.SortOrder,
+		IsActive:               true,
+		AccountID:              &account.ID,
+		StaffType:              staffType,
+		ReservationDisplayName: input.ReservationDisplayName,
+		ReservationVisible:     reservationVisible,
+		ReservationComment:     input.ReservationComment,
+		ReservationImageURL:    input.ReservationImageURL,
+	}
+	if err := s.repo.Create(ctx, staff); err != nil {
+		slog.ErrorContext(ctx, "failed to create staff", "error", err)
+		return nil, apperrors.Wrap(err, "failed to create staff")
+	}
+	if input.ClinicID != 0 {
+		if err := s.assignmentRepo.Create(ctx, &model.StaffClinicAssignment{
+			StaffID:  staff.ID,
+			ClinicID: input.ClinicID,
+			IsMain:   true,
+		}); err != nil {
+			slog.ErrorContext(ctx, "failed to assign staff to clinic", "error", err, "clinic_id", input.ClinicID)
+			return nil, apperrors.Wrap(err, "failed to assign staff to clinic")
+		}
+	}
 	return staff, nil
 }
 

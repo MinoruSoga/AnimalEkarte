@@ -86,24 +86,9 @@ func (s *liffService) GetAvailableDates(ctx context.Context, clinicID, typeID, s
 		capacityFilter = s.buildCapacityFilterFn(ctx, clinicID, typeID, *course.MaxConcurrent)
 	}
 
-	var slotFilterFn func(date time.Time, slots []TimeSlot) []TimeSlot
-	if s.availableSlotRepo != nil {
-		availableSlots, err := s.availableSlotRepo.FindAll(ctx, clinicID, typeID)
-		if err != nil {
-			slog.ErrorContext(ctx, "failed to get available slots", "error", err)
-			return nil, BookingWindow{}, apperrors.Wrap(err, "failed to get available slots")
-		}
-		if HasActiveAvailableSlots(availableSlots) || course.MaxConcurrent != nil {
-			slotFilterFn = func(date time.Time, slots []TimeSlot) []TimeSlot {
-				merged := MergeAvailableTimeSlots(slots, availableSlots, date, course.DurationMinutes)
-				if capacityFilter == nil {
-					return merged
-				}
-				return capacityFilter(date, merged)
-			}
-		}
-	} else if capacityFilter != nil {
-		slotFilterFn = capacityFilter
+	slotFilterFn, err := s.availableDateSlotFilter(ctx, clinicID, typeID, course, capacityFilter)
+	if err != nil {
+		return nil, BookingWindow{}, err
 	}
 
 	results, window, err := CalcAvailableDates(ctx, &AvailableDatesInput{
@@ -123,6 +108,35 @@ func (s *liffService) GetAvailableDates(ctx context.Context, clinicID, typeID, s
 	}
 
 	return results, window, nil
+}
+
+func (s *liffService) availableDateSlotFilter(
+	ctx context.Context,
+	clinicID, typeID uint64,
+	course *model.ReservationType,
+	capacityFilter func(date time.Time, base []TimeSlot) []TimeSlot,
+) (func(date time.Time, slots []TimeSlot) []TimeSlot, error) {
+	if s.availableSlotRepo != nil {
+		availableSlots, err := s.availableSlotRepo.FindAll(ctx, clinicID, typeID)
+		if err != nil {
+			slog.ErrorContext(ctx, "failed to get available slots", "error", err)
+			return nil, apperrors.Wrap(err, "failed to get available slots")
+		}
+		if HasActiveAvailableSlots(availableSlots) || course.MaxConcurrent != nil {
+			return func(date time.Time, slots []TimeSlot) []TimeSlot {
+				merged := MergeAvailableTimeSlots(slots, availableSlots, date, course.DurationMinutes)
+				if capacityFilter == nil {
+					return merged
+				}
+				return capacityFilter(date, merged)
+			}, nil
+		}
+		return nil, nil
+	}
+	if capacityFilter != nil {
+		return capacityFilter, nil
+	}
+	return nil, nil
 }
 
 // applyOccupationGuard は職種紐付けが1件以上ある場合のみ、対応職種のスタッフが出勤している日かを
