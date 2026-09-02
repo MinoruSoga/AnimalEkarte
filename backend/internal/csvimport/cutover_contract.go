@@ -143,8 +143,9 @@ type CutoverTableSpec struct {
 }
 
 type CutoverBundle struct {
-	SourceDir string
-	Manifest  CutoverManifest
+	SourceDir  string
+	Manifest   CutoverManifest
+	Provenance CutoverProvenanceContract
 }
 
 // CutoverPlaceholderColumns is a copy of the exact producer-side placeholder

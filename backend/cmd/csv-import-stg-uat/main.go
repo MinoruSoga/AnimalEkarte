@@ -103,7 +103,7 @@ func (t *pgxCutoverTarget) Verify(ctx context.Context, manifest csvimport.Cutove
 		return fmt.Errorf("begin repeatable-read cutover verification: %w", err)
 	}
 	defer func() { _ = tx.Rollback(context.WithoutCancel(ctx)) }()
-	return csvimport.VerifyCutover(ctx, tx, manifest, seeds)
+	return csvimport.VerifyCutoverWithProvenance(ctx, tx, manifest, seeds, csvimport.CutoverProvenanceContract{Mode: csvimport.CutoverProvenanceFormal})
 }
 
 func (t *pgxCutoverTarget) Apply(ctx context.Context, bundle csvimport.CutoverBundle, seeds csvimport.CutoverSeedIDs) (csvimport.CutoverResult, error) {

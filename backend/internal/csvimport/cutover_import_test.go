@@ -861,6 +861,7 @@ func TestVerifyCutoverPaymentGraphPreservesQueryErrorIdentity(t *testing.T) {
 		errorTargetQuerier{err: queryErr},
 		&manifest,
 		validCutoverSeeds(),
+		CutoverProvenanceContract{Mode: CutoverProvenanceFormal},
 	)
 	if !errors.Is(err, queryErr) {
 		t.Fatalf("verifyCutoverPaymentGraph() error = %v, want wrapped query error", err)

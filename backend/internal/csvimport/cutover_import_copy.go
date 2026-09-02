@@ -259,7 +259,7 @@ func openStableOwnerOnlyFile(path string) (*os.File, error) {
 	return file, nil
 }
 
-func verifyCutoverRows(ctx context.Context, q cutoverQuerier, manifest CutoverManifest, seeds CutoverSeedIDs) error {
+func verifyCutoverRows(ctx context.Context, q cutoverQuerier, manifest CutoverManifest, seeds CutoverSeedIDs, provenance CutoverProvenanceContract) error {
 	for i, spec := range CutoverTableSpecs() {
 		floor := manifest.IDBand.NonOwnerIDOffset
 		if spec.Name == "owners" {
@@ -286,7 +286,7 @@ func verifyCutoverRows(ctx context.Context, q cutoverQuerier, manifest CutoverMa
 			}
 		}
 	}
-	return verifyCutoverPaymentGraph(ctx, q, &manifest, seeds)
+	return verifyCutoverPaymentGraph(ctx, q, &manifest, seeds, provenance)
 }
 
 func hasColumn(columns []string, target string) bool {

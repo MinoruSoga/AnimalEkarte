@@ -118,7 +118,7 @@ payment_violations AS (
     OR payment.clinic_id IS DISTINCT FROM $3
     OR payment.clinic_id IS DISTINCT FROM payment.billing_clinic_id
     OR payment.billing_clinic_id IS DISTINCT FROM $3
-    OR payment.billing_total_amount IS DISTINCT FROM payment.total_amount
+    OR ($6::boolean AND payment.billing_total_amount IS DISTINCT FROM payment.total_amount)
     OR payment.billing_status IS DISTINCT FROM 'completed'
     OR payment.billing_completed_at IS DISTINCT FROM payment.created_at
     OR payment.subtotal IS NULL
@@ -201,7 +201,9 @@ func verifyCutoverPaymentGraph(
 	q cutoverQuerier,
 	manifest *CutoverManifest,
 	seeds CutoverSeedIDs,
+	provenance CutoverProvenanceContract,
 ) error {
+	requireExactPaymentSnapshot := provenance.Mode != CutoverProvenanceLocalRehearsal
 	var violations int64
 	if err := q.QueryRow(
 		ctx,
@@ -211,6 +213,7 @@ func verifyCutoverPaymentGraph(
 		seeds.ClinicID,
 		seeds.CashPaymentMethodID,
 		seeds.CreditCardPaymentMethodID,
+		requireExactPaymentSnapshot,
 	).Scan(&violations); err != nil {
 		return fmt.Errorf("verify payment graph: %w", err)
 	}

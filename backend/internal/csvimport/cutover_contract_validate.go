@@ -48,7 +48,7 @@ func PreflightCutoverBundle(sourceDir string, expected ExpectedCutoverSource) (C
 	if err := validateCutoverFiles(cleanDir, manifest, expected.Provenance); err != nil {
 		return CutoverBundle{}, err
 	}
-	return CutoverBundle{SourceDir: cleanDir, Manifest: manifest}, nil
+	return CutoverBundle{SourceDir: cleanDir, Manifest: manifest, Provenance: expected.Provenance}, nil
 }
 
 func validateCutoverDirectory(sourceDir string) (string, error) {

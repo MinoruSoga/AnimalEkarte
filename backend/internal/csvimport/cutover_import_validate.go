@@ -84,7 +84,7 @@ func applyCutoverWithBegin(
 		}
 		counts[spec.Name] = count
 	}
-	if err := verifyCutoverRows(ctx, tx, bundle.Manifest, seeds); err != nil {
+	if err := verifyCutoverRows(ctx, tx, bundle.Manifest, seeds, bundle.Provenance); err != nil {
 		return CutoverResult{}, err
 	}
 	if err := advanceCutoverSequences(ctx, tx); err != nil {
@@ -114,10 +114,14 @@ func applyCutoverWithBegin(
 // VerifyCutover checks the committed database against the trusted manifest.
 // It is read-only and intentionally does not treat a populated band as an error.
 func VerifyCutover(ctx context.Context, target cutoverQuerier, manifest CutoverManifest, seeds CutoverSeedIDs) error {
+	return VerifyCutoverWithProvenance(ctx, target, manifest, seeds, CutoverProvenanceContract{Mode: CutoverProvenanceFormal})
+}
+
+func VerifyCutoverWithProvenance(ctx context.Context, target cutoverQuerier, manifest CutoverManifest, seeds CutoverSeedIDs, provenance CutoverProvenanceContract) error {
 	if err := validateCutoverTarget(ctx, target, manifest, seeds, false); err != nil {
 		return err
 	}
-	if err := verifyCutoverRows(ctx, target, manifest, seeds); err != nil {
+	if err := verifyCutoverRows(ctx, target, manifest, seeds, provenance); err != nil {
 		return err
 	}
 	return verifyCutoverSequences(ctx, target)
