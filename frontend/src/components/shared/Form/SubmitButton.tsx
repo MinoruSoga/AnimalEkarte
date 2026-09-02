@@ -7,11 +7,12 @@ interface SubmitButtonProps extends Omit<ButtonProps, "variant"> {
   /**
    * "primary"（既定） — 汎用の主操作（brand と同じ primary teal + pill）。
    * "brand" — 認証など製品識別面の Brand CTA（teal + pill）。
+   * "destructive" — 破壊的操作（死亡記録・削除確認など）。
    * "default" — "primary" の後方互換 alias。
    * 単一の className 文字列を選択（連結しない）ことで Tailwind の同一 specificity クラス競合を避ける。
    * shadcn Button 自身の `variant`（outline/ghost 等）と名前が衝突するため `colorVariant` という名前にしている。
    */
-  colorVariant?: "default" | "primary" | "brand";
+  colorVariant?: "default" | "primary" | "brand" | "destructive";
 }
 
 /**
@@ -31,7 +32,9 @@ export function SubmitButton({
   const baseClassName =
     colorVariant === "brand"
       ? `${C.bgBrandIdentity} ${C.textOnBrandIdentity} ${C.hoverBgBrandIdentity} ${C.hoverTextOnBrandIdentity} ${C.activeBgBrandIdentity} ${C.activeTextOnBrandIdentity} h-11 text-xl font-bold rounded-full transition-colors shadow-none border-transparent`
-      : `${C.bgActionPrimary} ${C.textOnActionPrimary} ${C.hoverBgActionPrimary} ${C.hoverTextOnActionPrimary} ${C.activeBgActionPrimary} ${C.activeTextOnActionPrimary} h-11 text-base rounded-full transition-colors shadow-none border-transparent`;
+      : colorVariant === "destructive"
+        ? `${C.bgDanger} ${C.textWhite} ${C.hoverBgDanger90} h-11 text-base rounded-full transition-colors shadow-none border-transparent`
+        : `${C.bgActionPrimary} ${C.textOnActionPrimary} ${C.hoverBgActionPrimary} ${C.hoverTextOnActionPrimary} ${C.activeBgActionPrimary} ${C.activeTextOnActionPrimary} h-11 text-base rounded-full transition-colors shadow-none border-transparent`;
 
   return (
     <Button

@@ -3,13 +3,14 @@
  * Keep hex values identical to brand-tokens.css @theme definitions.
  */
 export const NOAH_BRAND_COLORS = {
-  teal: '#008B94',
-  tealDark: '#007079',
+  /** Must match PALETTE.brand / docs/spec/design-system.md (FE-RC-014). */
+  teal: '#038B94',
+  tealDark: '#027078',
   tealLight: '#EDF3F5',
   accent: '#FF8A43',
   text: '#212529',
   textSub: '#333333',
-  /** Secondary text on teal header surfaces (readable on #008B94). */
+  /** Secondary text on teal header surfaces (readable on #038B94). */
   onTealSubtle: '#D6EEF0',
 } as const;
 

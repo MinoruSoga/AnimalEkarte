@@ -2,16 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { queryKeys } from "@/lib/query-keys";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
-
-// #211 健診パッケージのフィールド型。BE model.CheckupFieldType と一致させる。
-// （generated/models.ts は make codegen 後に追従。本 feature では自前型を真実源とする。）
-type CheckupFieldType =
-  | "number"
-  | "single_select"
-  | "multi_select"
-  | "boolean"
-  | "checklist"
-  | "text";
+import type { CheckupFieldType } from "@/types/checkup";
 
 interface CheckupFieldOption {
   value: string;

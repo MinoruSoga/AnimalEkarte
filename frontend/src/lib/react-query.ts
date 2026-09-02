@@ -33,6 +33,12 @@ export const queryClient = new QueryClient({
 
 // リソース別キャッシング戦略
 export const QUERY_STALE_TIMES = {
+  // セッション: 認証 me 等（FE-RC-082）
+  SESSION: 10 * 1000,      // 10秒
+
+  // 常に再取得: preview 系（FE-RC-082）
+  NONE: 0,
+
   // 極短期: 会計の一時集計・提案系（FE3-7 新設。値は既存直値のまま）
   SHORT: 30_000,           // 30秒
 

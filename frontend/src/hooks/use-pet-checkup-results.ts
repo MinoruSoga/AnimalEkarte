@@ -2,18 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { queryKeys } from "@/lib/query-keys";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
-
-// #211 健診パッケージのフィールド型。BE model.CheckupFieldType と一致させる。
-// features/checkups/api/get-checkup-type-fields.ts の同名 narrow union と実体は同一契約。
-// shared hook は @/features/* に依存できないためローカルに再定義する
-// （generated/models.ts の CheckupFieldType は string 型で緩いため使用しない）。
-type CheckupFieldType =
-  | "number"
-  | "single_select"
-  | "multi_select"
-  | "boolean"
-  | "checklist"
-  | "text";
+import type { CheckupFieldType } from "@/types/checkup";
 
 /** 飼い主レポート用: 親 checkup の日付・パッケージ名を付与した健診結果値。 */
 export interface PetCheckupResult {

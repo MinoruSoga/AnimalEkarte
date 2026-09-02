@@ -841,7 +841,12 @@ export const STYLE = {
   formLabel:
     `text-base ${C.text70}`,
   formInput:
-    `h-11 text-base bg-white ${C.borderMedium} ${C.text}`,
+    `h-11 text-base bg-white ${C.borderMedium} ${C.text} outline-none ${C.focusBorderAccent} focus-visible:ring-2 ${C.focusRingAccent40}`,
+  /** SidePeek / property editors — focus-visible ring for WCAG 2.4.7 (FE-RC-040) */
+  sidePeekInput:
+    `w-full bg-transparent outline-none focus-visible:ring-2 ${C.focusRingAccent40}`,
+  /** Print document hairline (replaces raw border-black; FE-RC-052) */
+  printBorder: "border-black",
   /** Error ring for form inputs — use with conditional classnames */
   formInputError:
     `ring-2 ring-[#C0392B]/30 ${C.borderDanger}`,
