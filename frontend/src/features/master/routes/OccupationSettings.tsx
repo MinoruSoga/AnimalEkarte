@@ -59,6 +59,7 @@ export function OccupationSettings() {
   });
 
   return (
+    <>
     <MasterCRUDPage
       title="職種マスタ"
       icon={<Briefcase className={`${ICON.page} ${C.text}`} />}
@@ -94,5 +95,7 @@ export function OccupationSettings() {
       )}
       renderSidePanel={(props) => <OccupationSidePanel key={props.item?.id ?? "new"} {...props} onDirtyChange={handleDirtyChange} />}
     />
+    {dirty.discardDialog}
+    </>
   );
 }

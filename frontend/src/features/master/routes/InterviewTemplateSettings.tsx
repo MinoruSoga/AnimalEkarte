@@ -69,6 +69,7 @@ export function InterviewTemplateSettings() {
   });
 
   return (
+    <>
     <MasterCRUDPage title="問診テンプレートマスタ" icon={<FileText className={`${ICON.page} ${C.text}`} />} resource={ResourceMasterMedical}
       entityLabel="問診テンプレート" searchPlaceholder="カテゴリ、タイトルで検索..." emptyMessage="問診テンプレートが登録されていません"
       crud={crud} handleSave={handleSave} columns={COLUMNS} deleteNameField="title"
@@ -97,5 +98,7 @@ export function InterviewTemplateSettings() {
       )}
       renderSidePanel={(props) => <InterviewTemplateSidePanel key={props.item?.id ?? "new"} {...props} onDirtyChange={handleDirtyChange} />}
     />
+    {dirty.discardDialog}
+    </>
   );
 }

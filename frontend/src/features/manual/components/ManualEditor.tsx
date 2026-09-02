@@ -14,6 +14,7 @@
 import { useState } from "react";
 import { Copy, Download, X, FileText, Eye, Columns2, Save, Loader2 } from "lucide-react";
 
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { C } from "@/lib/design-tokens";
 
 import { useUpsertManualArticle } from "../api/upsert-manual-article";
@@ -22,6 +23,8 @@ import { ManualContent } from "./ManualContent";
 
 /** コピー完了表示を戻すまでの待ち時間 (FE5-6) */
 const COPY_FEEDBACK_RESET_MS = 2000;
+const DISCARD_TITLE = "編集内容が保存されていません";
+const DISCARD_DESCRIPTION = "破棄して閉じますか？";
 
 type EditorMode = "edit" | "preview" | "split";
 
@@ -39,6 +42,7 @@ export function ManualEditor({ article, onClose }: ManualEditorProps) {
   const [mode, setMode] = useState<EditorMode>("split");
   const [content, setContent] = useState(article.content);
   const [copyStatus, setCopyStatus] = useState<"idle" | "copied">("idle");
+  const [discardOpen, setDiscardOpen] = useState(false);
   const upsertMutation = useUpsertManualArticle();
 
   const handleSave = () => {
@@ -95,11 +99,14 @@ export function ManualEditor({ article, onClose }: ManualEditorProps) {
   // 編集中（dirty）でエディタを閉じようとする時は離脱確認
   const handleCloseRequest = () => {
     if (isDirty) {
-      const ok = window.confirm(
-        "編集内容が保存されていません。破棄して閉じますか？",
-      );
-      if (!ok) return;
+      setDiscardOpen(true);
+      return;
     }
+    onClose();
+  };
+
+  const handleDiscardConfirm = () => {
+    setDiscardOpen(false);
     onClose();
   };
 
@@ -231,6 +238,14 @@ export function ManualEditor({ article, onClose }: ManualEditorProps) {
           </div>
         ) : null}
       </div>
+
+      <ConfirmDialog
+        open={discardOpen}
+        onClose={() => setDiscardOpen(false)}
+        onConfirm={handleDiscardConfirm}
+        title={DISCARD_TITLE}
+        description={DISCARD_DESCRIPTION}
+      />
     </div>
   );
 }

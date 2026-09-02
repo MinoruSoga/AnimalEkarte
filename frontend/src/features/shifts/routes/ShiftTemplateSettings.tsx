@@ -70,22 +70,25 @@ export function ShiftTemplateSettings() {
 
   const handleCreate = useCallback(() => {
     if (!canCreate) return;
-    if (!dirty.confirmDiscard()) return;
-    setSelectedItem(null);
-    setIsEditing(true);
-  }, [canCreate, dirty]);
+    dirty.runWithDiscardCheck(() => {
+      setSelectedItem(null);
+      setIsEditing(true);
+    });
+  }, [canCreate, dirty.runWithDiscardCheck]);
 
   const handleEdit = useCallback((item: ShiftTemplate) => {
-    if (!dirty.confirmDiscard()) return;
-    setSelectedItem(item);
-    setIsEditing(true);
-  }, [dirty]);
+    dirty.runWithDiscardCheck(() => {
+      setSelectedItem(item);
+      setIsEditing(true);
+    });
+  }, [dirty.runWithDiscardCheck]);
 
   const handleClose = useCallback(() => {
-    if (!dirty.confirmDiscard()) return;
-    setIsEditing(false);
-    setSelectedItem(null);
-  }, [dirty]);
+    dirty.runWithDiscardCheck(() => {
+      setIsEditing(false);
+      setSelectedItem(null);
+    });
+  }, [dirty.runWithDiscardCheck]);
 
   const handleSave = useCallback((formData: TemplateFormData) => {
     const canSave = selectedItem !== null ? canEdit : canCreate;
@@ -160,6 +163,7 @@ export function ShiftTemplateSettings() {
   const isPanelReadOnly = selectedItem !== null ? !canEdit : !canCreate;
 
   return (
+    <>
     <div className="flex h-full overflow-hidden">
       <div className="flex-1 min-w-0 overflow-auto">
         <PageLayout
@@ -238,5 +242,7 @@ export function ShiftTemplateSettings() {
         onConfirm={handleDeleteConfirm}
       />
     </div>
+    {dirty.discardDialog}
+    </>
   );
 }

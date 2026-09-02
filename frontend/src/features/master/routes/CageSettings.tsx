@@ -59,6 +59,7 @@ export function CageSettings() {
   });
 
   return (
+    <>
     <MasterCRUDPage title="ケージマスタ" icon={<Building2 className={`${ICON.page} ${C.text}`} />} resource={ResourceMasterHospitalization}
       entityLabel="ケージ" searchPlaceholder="ケージ名で検索..." emptyMessage="ケージが登録されていません"
       crud={crud} handleSave={handleSave}
@@ -77,5 +78,7 @@ export function CageSettings() {
         onEdit={crud.handleEdit}
       />
     </MasterCRUDPage>
+    {dirty.discardDialog}
+    </>
   );
 }

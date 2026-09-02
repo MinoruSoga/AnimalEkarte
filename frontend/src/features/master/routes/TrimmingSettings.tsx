@@ -75,13 +75,14 @@ export function TrimmingSettings() {
   const optionSetPendingDelete = optionCrud.setPendingDelete;
 
   const handleTabChange = useCallback((tab: string) => {
-    if (!dirty.confirmDiscard()) return;
-    setSearchParams({ tab });
-    courseSetEditTarget(null);
-    optionSetEditTarget(null);
-    courseSetPendingDelete(null);
-    optionSetPendingDelete(null);
-  }, [setSearchParams, courseSetEditTarget, optionSetEditTarget, courseSetPendingDelete, optionSetPendingDelete, dirty]);
+    dirty.runWithDiscardCheck(() => {
+      setSearchParams({ tab });
+      courseSetEditTarget(null);
+      optionSetEditTarget(null);
+      courseSetPendingDelete(null);
+      optionSetPendingDelete(null);
+    });
+  }, [setSearchParams, courseSetEditTarget, optionSetEditTarget, courseSetPendingDelete, optionSetPendingDelete, dirty.runWithDiscardCheck]);
 
   const handleNew = useCallback(() => {
     if (activeTab === "course") courseCrud.handleNew();
@@ -121,6 +122,7 @@ export function TrimmingSettings() {
   }, [optionSave.handleSave, dirty.markClean]);
 
   return (
+    <>
     <MasterTabPage
       title="トリミングマスタ"
       icon={<Scissors className={`${ICON.page} ${C.text}`} />}
@@ -175,5 +177,7 @@ export function TrimmingSettings() {
         </UnifiedTabsContent>
       </UnifiedTabs>
     </MasterTabPage>
+    {dirty.discardDialog}
+    </>
   );
 }

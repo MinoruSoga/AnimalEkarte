@@ -57,6 +57,7 @@ export function ChiefComplaintSettings() {
   });
 
   return (
+    <>
     <MasterCRUDPage title="主訴マスタ" icon={<MessageSquareText className={`${ICON.page} ${C.text}`} />} resource={ResourceMasterMedical}
       entityLabel="主訴マスタ" searchPlaceholder="名称で検索..." emptyMessage="主訴マスタが登録されていません"
       crud={crud} handleSave={handleSave} columns={COLUMNS}
@@ -85,5 +86,7 @@ export function ChiefComplaintSettings() {
       )}
       renderSidePanel={(props) => <ChiefComplaintSidePanel key={props.item?.id ?? "new"} {...props} onDirtyChange={handleDirtyChange} />}
     />
+    {dirty.discardDialog}
+    </>
   );
 }

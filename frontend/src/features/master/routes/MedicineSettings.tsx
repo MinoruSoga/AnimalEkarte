@@ -71,12 +71,12 @@ export function MedicineSettings() {
   const dirty = useSidePeekDirty();
   const handleDirtyChange = useCallback((d: boolean) => { if (d) dirty.markDirty(); else dirty.markClean(); }, [dirty]);
 
-  // R-F8-S3: useSidePeekDirty は毎レンダー新規オブジェクトを返す（confirmDiscard 自体は安定）。
-  // dirtyGuard を confirmDiscard だけに絞って安定化し、medicineCrud.handleEdit/handleNew の
+  // R-F8-S3: useSidePeekDirty は毎レンダー新規オブジェクトを返す（runWithDiscardCheck 自体は安定）。
+  // dirtyGuard を runWithDiscardCheck だけに絞って安定化し、medicineCrud.handleEdit/handleNew の
   // 参照安定性（→ 行コンポーネント memo() の実効性）を確保する。
   const dirtyGuard = useMemo(
-    () => ({ confirmDiscard: dirty.confirmDiscard }),
-    [dirty.confirmDiscard],
+    () => ({ runWithDiscardCheck: dirty.runWithDiscardCheck }),
+    [dirty.runWithDiscardCheck],
   );
 
   // ── FR1: useMasterCRUD (editTarget state only; deletion modal kept external) ──
@@ -244,6 +244,7 @@ export function MedicineSettings() {
         onConfirm={executeDelete}
         medicine={selectedMedicine}
       />
+      {dirty.discardDialog}
     </>
   );
 }

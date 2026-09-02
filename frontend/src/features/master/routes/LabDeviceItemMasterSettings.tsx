@@ -108,31 +108,28 @@ export function LabDeviceItemMasterSettings() {
   }, [searchParams, setSearchParams]);
 
   const handleClose = useCallback(() => {
-    if (!dirty.confirmDiscard()) {
-      return;
-    }
-    setSelectedId(null);
-    clearSourceParam();
-    dirty.markClean();
-  }, [clearSourceParam, dirty]);
+    dirty.runWithDiscardCheck(() => {
+      setSelectedId(null);
+      clearSourceParam();
+      dirty.markClean();
+    });
+  }, [clearSourceParam, dirty.markClean, dirty.runWithDiscardCheck]);
 
   const handleEdit = useCallback((row: LabDeviceRow) => {
-    if (!dirty.confirmDiscard()) {
-      return;
-    }
-    setSelectedId(row.id);
-  }, [dirty]);
+    dirty.runWithDiscardCheck(() => {
+      setSelectedId(row.id);
+    });
+  }, [dirty.runWithDiscardCheck]);
 
   const handleNew = useCallback(() => {
-    if (!dirty.confirmDiscard()) {
-      return;
-    }
-    if (unusedSourceTypes.length === 0) {
-      toast.error("対応プロトコルはすべて登録済みです");
-      return;
-    }
-    setSelectedId("new");
-  }, [dirty, unusedSourceTypes.length]);
+    dirty.runWithDiscardCheck(() => {
+      if (unusedSourceTypes.length === 0) {
+        toast.error("対応プロトコルはすべて登録済みです");
+        return;
+      }
+      setSelectedId("new");
+    });
+  }, [dirty.runWithDiscardCheck, unusedSourceTypes.length]);
 
   const handleDirtyChange = useCallback((nextDirty: boolean) => {
     if (nextDirty) {
@@ -200,6 +197,7 @@ export function LabDeviceItemMasterSettings() {
   ]);
 
   return (
+    <>
     <div className="flex h-full">
       <div className="flex-1 min-w-0">
         <PageLayout
@@ -298,5 +296,7 @@ export function LabDeviceItemMasterSettings() {
         />
       ) : null}
     </div>
+    {dirty.discardDialog}
+    </>
   );
 }

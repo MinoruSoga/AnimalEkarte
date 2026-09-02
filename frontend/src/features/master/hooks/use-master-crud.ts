@@ -50,8 +50,12 @@ interface UseMasterCRUDOptions<T extends MasterEntity> {
   /**
    * BUG-380: サイドパネル編集中の未保存変更を管理するガード。
    * 指定された場合、別行クリック・パネル閉じ・新規作成時に確認ダイアログを出す。
+   * 本番は runWithDiscardCheck（継続処理を保持）。confirmDiscard はテスト mock 互換。
    */
-  dirtyGuard?: { confirmDiscard: () => boolean };
+  dirtyGuard?: {
+    confirmDiscard?: () => boolean;
+    runWithDiscardCheck?: (fn: () => void) => void;
+  };
 
   /** Delete permission enforced at the mutation boundary. */
   permissions: MasterCRUDPermissions;
@@ -215,27 +219,28 @@ export function useMasterCRUD<T extends MasterEntity>({
 
   // ── Handlers ──
   // BUG-380: dirtyGuard 指定時は未保存変更の破棄確認を挟む。
-  const confirmDiscard = useCallback(() => {
-    if (!dirtyGuard) return true;
-    return dirtyGuard.confirmDiscard();
+  const withDirtyGuard = useCallback((fn: () => void) => {
+    if (dirtyGuard?.runWithDiscardCheck) {
+      dirtyGuard.runWithDiscardCheck(fn);
+      return;
+    }
+    if (dirtyGuard?.confirmDiscard && !dirtyGuard.confirmDiscard()) return;
+    fn();
   }, [dirtyGuard]);
 
   const handleClose = useCallback(() => {
-    if (!confirmDiscard()) return;
-    setEditTarget(null);
-  }, [confirmDiscard]);
+    withDirtyGuard(() => setEditTarget(null));
+  }, [withDirtyGuard]);
 
   const handleNew = useCallback(() => {
-    if (!confirmDiscard()) return;
-    setEditTarget("new");
-  }, [confirmDiscard]);
+    withDirtyGuard(() => setEditTarget("new"));
+  }, [withDirtyGuard]);
 
   const handleEdit = useCallback(
     (item: T) => {
-      if (!confirmDiscard()) return;
-      setEditTarget(item);
+      withDirtyGuard(() => setEditTarget(item));
     },
-    [confirmDiscard],
+    [withDirtyGuard],
   );
 
   const handleDeleteRequest = useCallback((item: T) => setPendingDelete(item), []);

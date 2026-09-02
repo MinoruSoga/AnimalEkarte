@@ -53,6 +53,7 @@ export function HospitalizationSettings() {
   });
 
   return (
+    <>
     <MasterCRUDPage title="入院マスタ" icon={<Bed className={`${ICON.page} ${C.text}`} />} resource={ResourceMasterHospitalization}
       entityLabel="入院プラン" searchPlaceholder="名称で検索..." emptyMessage="入院プランが登録されていません"
       crud={crud} handleSave={handleSave} columns={COLUMNS}
@@ -83,5 +84,7 @@ export function HospitalizationSettings() {
       )}
       renderSidePanel={(props) => <HospitalizationSidePanel key={props.item?.id ?? "new"} {...props} onDirtyChange={handleDirtyChange} />}
     />
+    {dirty.discardDialog}
+    </>
   );
 }

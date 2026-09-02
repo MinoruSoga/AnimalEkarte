@@ -78,6 +78,7 @@ export function MerchandiseItemSettings() {
   });
 
   return (
+    <>
     <MasterCRUDPage
       title="商品マスタ"
       icon={<ShoppingBag className={`${ICON.page} ${C.text}`} />}
@@ -105,5 +106,7 @@ export function MerchandiseItemSettings() {
         onEdit={crud.handleEdit}
       />
     </MasterCRUDPage>
+    {dirty.discardDialog}
+    </>
   );
 }
