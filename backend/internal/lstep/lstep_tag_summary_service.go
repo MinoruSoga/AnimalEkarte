@@ -164,8 +164,8 @@ func (s *lstepTagSummaryService) ExportOwnersByTagCSV(ctx context.Context, clini
 		cw.Write([]string{ //nolint:errcheck // csv.Writer error is captured by cw.Error() after Flush()
 			fmt.Sprintf("%d", r.OwnerID),
 			sanitizeCSVCell(r.OwnerName),
-			lvd,
-			extractCPMStage(r.Tags),
+			sanitizeCSVCell(lvd),
+			sanitizeCSVCell(extractCPMStage(r.Tags)),
 		})
 	}
 	cw.Flush()

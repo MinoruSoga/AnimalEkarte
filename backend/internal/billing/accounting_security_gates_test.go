@@ -308,3 +308,47 @@ func TestCashRegisterCloseRepository_LockCloseBoundary_RequiresAmbientTx(t *test
 	assert.Error(t, err)
 	assert.ErrorContains(t, err, "active transaction")
 }
+
+func TestAccountingService_CreateAndCancel_LockCloseBoundary(t *testing.T) {
+	scheduled := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
+	var locked []string
+	closeRepo := &mockCashRegisterCloseRepository{
+		lockCloseBoundaryFn: func(_ context.Context, _ uint64, date time.Time) error {
+			locked = append(locked, date.Format(time.DateOnly))
+			return nil
+		},
+	}
+	created := false
+	repo := &mockAccountingRepository{
+		createFn: func(_ context.Context, _ uint64, billing *model.Billing) error {
+			created = true
+			billing.ID = 9
+			return nil
+		},
+		findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Billing, error) {
+			return &model.Billing{
+				ID: id, ClinicID: clinicID, Status: model.BillingStatusWaiting, ScheduledDate: scheduled,
+			}, nil
+		},
+		updateFieldsFn: func(_ context.Context, clinicID, id uint64, _ map[string]any) (*model.Billing, error) {
+			return &model.Billing{ID: id, ClinicID: clinicID, Status: model.BillingStatusCancelled, ScheduledDate: scheduled}, nil
+		},
+	}
+	svc := NewAccountingService(
+		repo, nil, nil, nil, nil, &mockTransactor{}, &mockAuditService{}, &mockPaymentMethodMasterRepository{},
+		WithCashRegisterCloseRepository(closeRepo),
+	)
+
+	billing, err := svc.Create(context.Background(), &CreateAccountingInput{
+		ClinicID: 1, ScheduledDate: scheduled, Status: model.BillingStatusWaiting,
+	})
+	assert.NoError(t, err)
+	require.NotNil(t, billing)
+	assert.True(t, created)
+	assert.Equal(t, []string{"2026-06-01"}, locked)
+
+	locked = nil
+	actor := uint64(1)
+	assert.NoError(t, svc.Cancel(context.Background(), 1, 9, &actor))
+	assert.Equal(t, []string{"2026-06-01"}, locked)
+}

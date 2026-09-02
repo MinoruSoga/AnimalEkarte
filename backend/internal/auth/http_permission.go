@@ -81,15 +81,23 @@ func (h *HTTPHandler) attachClinicPermissionChecker(c *gin.Context) {
 }
 
 // RequirePermission rejects requests lacking one resource/action permission.
+// Writes still require the grant in the selected clinic. Safe methods (GET/HEAD)
+// may proceed when another authorized clinic holds the grant so list/detail
+// expansion can Filter/Authorize destination clinics instead of reusing the
+// selected clinic's deny.
 func (h *HTTPHandler) RequirePermission(resource, action string) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if !h.HasPermission(c, resource, action) {
-			httpapi.RespondError(c, apperrors.WrapForbidden("forbidden"))
-			c.Abort()
+		h.attachClinicPermissionChecker(c)
+		if h.HasPermission(c, resource, action) {
+			c.Next()
 			return
 		}
-		h.attachClinicPermissionChecker(c)
-		c.Next()
+		if isSafeHTTPMethod(c) && h.hasPermissionInAuthorizedClinics(c, resource, action) {
+			c.Next()
+			return
+		}
+		httpapi.RespondError(c, apperrors.WrapForbidden("forbidden"))
+		c.Abort()
 	}
 }
 
@@ -98,16 +106,53 @@ func (h *HTTPHandler) RequirePermissionAny(
 	permissions ...PermissionRequirement,
 ) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		h.attachClinicPermissionChecker(c)
 		for _, permission := range permissions {
 			if h.HasPermission(c, permission.Resource, permission.Action) {
-				h.attachClinicPermissionChecker(c)
 				c.Next()
 				return
+			}
+		}
+		if isSafeHTTPMethod(c) {
+			for _, permission := range permissions {
+				if h.hasPermissionInAuthorizedClinics(c, permission.Resource, permission.Action) {
+					c.Next()
+					return
+				}
 			}
 		}
 		httpapi.RespondError(c, apperrors.WrapForbidden("forbidden"))
 		c.Abort()
 	}
+}
+
+func isSafeHTTPMethod(c *gin.Context) bool {
+	if c == nil || c.Request == nil {
+		return false
+	}
+	switch c.Request.Method {
+	case http.MethodGet, http.MethodHead:
+		return true
+	default:
+		return false
+	}
+}
+
+func (h *HTTPHandler) hasPermissionInAuthorizedClinics(c *gin.Context, resource, action string) bool {
+	val, exists := c.Get("clinic_ids")
+	if !exists {
+		return false
+	}
+	ids, ok := val.([]uint64)
+	if !ok {
+		return false
+	}
+	for _, id := range ids {
+		if id != 0 && h.HasPermissionInClinic(c, id, resource, action) {
+			return true
+		}
+	}
+	return false
 }
 
 // RequireDiscountEditFloat enforces discount:edit for changed float values.

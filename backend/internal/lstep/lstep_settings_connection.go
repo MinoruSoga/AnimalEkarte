@@ -12,6 +12,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/infra/line"
+	infralstep "github.com/animal-ekarte/backend/internal/infra/lstep"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -37,7 +38,7 @@ func newOutboundProbeClient(timeout time.Duration) *http.Client {
 		Timeout:       timeout,
 		CheckRedirect: probeCheckRedirect,
 		Transport: &http.Transport{
-			Proxy:                 http.ProxyFromEnvironment,
+			Proxy:                 nil,
 			DialContext:           probeDialContext,
 			ForceAttemptHTTP2:     true,
 			MaxIdleConns:          4,
@@ -70,15 +71,7 @@ func probeDialContext(ctx context.Context, network, addr string) (net.Conn, erro
 }
 
 func isForbiddenProbeIP(ip net.IP) bool {
-	if ip == nil {
-		return true
-	}
-	return ip.IsUnspecified() ||
-		ip.IsLoopback() ||
-		ip.IsPrivate() ||
-		ip.IsLinkLocalUnicast() ||
-		ip.IsLinkLocalMulticast() ||
-		ip.IsMulticast()
+	return infralstep.IsForbiddenDialIP(ip)
 }
 
 func (s *lstepSettingsService) TestConnection(ctx context.Context, clinicID uint64) (*LstepConnectionTestResult, error) {

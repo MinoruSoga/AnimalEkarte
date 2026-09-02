@@ -30,6 +30,9 @@ jobs:
   deploy:
     name: Deploy to Vercel
     runs-on: ubuntu-latest
+    # Production GitHub Environment is restricted to refs/heads/production.
+    # Preview is used for staging pushes and non-production workflow_dispatch.
+    environment: ${{ (github.event.inputs.environment == 'production' || (github.event_name == 'push' && github.ref == 'refs/heads/production')) && 'Production' || 'Preview' }}
     permissions:
       contents: read
       deployments: write

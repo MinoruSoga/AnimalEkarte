@@ -27,11 +27,31 @@ type refundService struct {
 	accountRepo   accountingBillingView
 	auditTxLogger billingAuditTxLogger // fail-closed: ambient tx に参加して監査を書く（#211）
 	transactor    Transactor
+	closeRepo     CashRegisterCloseRepository
+}
+
+type refundServiceOption func(*refundService)
+
+// WithRefundCloseRepository serializes refunds with cash-register close on the billing date.
+func WithRefundCloseRepository(repo CashRegisterCloseRepository) refundServiceOption {
+	return func(s *refundService) {
+		s.closeRepo = repo
+	}
 }
 
 // NewRefundService はRefundServiceを初期化して返す
-func NewRefundService(repo RefundRepository, accountRepo accountingBillingView, auditTxLogger billingAuditTxLogger, transactor Transactor) RefundService {
-	return &refundService{repo: repo, accountRepo: accountRepo, auditTxLogger: auditTxLogger, transactor: transactor}
+func NewRefundService(
+	repo RefundRepository,
+	accountRepo accountingBillingView,
+	auditTxLogger billingAuditTxLogger,
+	transactor Transactor,
+	opts ...refundServiceOption,
+) RefundService {
+	s := &refundService{repo: repo, accountRepo: accountRepo, auditTxLogger: auditTxLogger, transactor: transactor}
+	for _, opt := range opts {
+		opt(s)
+	}
+	return s
 }
 
 func (s *refundService) Create(ctx context.Context, clinicID, billingID uint64, input CreateRefundInput) (*model.BillingRefund, error) {

@@ -159,6 +159,25 @@ func TestExportOwnersByTagCSV(t *testing.T) {
 	assert.Contains(t, buf.String(), "owner_id")
 }
 
+func TestExportOwnersByTagCSV_SanitizesFormulaCPMStage(t *testing.T) {
+	repo := &mockTagCacheSummaryRepo{
+		findOwnersByTagFn: func(_ context.Context, _ uint64, _, _ string, _, _ int) ([]TagOwnerRow, int64, error) {
+			return []TagOwnerRow{{
+				OwnerID:   1,
+				OwnerName: "田中",
+				Tags:      []string{"cpm_=CMD()"},
+			}}, 1, nil
+		},
+	}
+	svc := NewLstepTagSummaryService(repo)
+
+	var buf bytes.Buffer
+	err := svc.ExportOwnersByTagCSV(context.Background(), 1, "my_tag", "", &buf)
+	assert.NoError(t, err)
+	assert.Contains(t, buf.String(), "'=CMD()")
+	assert.NotContains(t, buf.String(), ",=CMD()")
+}
+
 // BUG-464: total above hard cap must fail closed before any CSV body is written.
 func TestExportOwnersByTagCSV_FailsClosedWhenTotalExceedsCap(t *testing.T) {
 	repo := &mockTagCacheSummaryRepo{

@@ -28,7 +28,8 @@ const (
 // sharedHTTPClient はLステップAPI呼出全体で共有するhttp.Client。
 // 操作毎にNewClientを呼ぶたびに新規Transportを生成するとTCP/TLS接続が再利用されない
 // （BE-refactor.md B-3）。資格情報はリクエストヘッダ渡しのためクリニック間で共有して問題ない。
-var sharedHTTPClient = &http.Client{Timeout: defaultTimeout}
+// Dial は loopback / RFC1918 / CGNAT を拒否し、リダイレクトは追わない。
+var sharedHTTPClient = newHardenedHTTPClient(defaultTimeout)
 
 // Client はLステップAPIクライアントのインターフェース。
 // DI可能にすることでテスト時のモック差し替えを可能にする。

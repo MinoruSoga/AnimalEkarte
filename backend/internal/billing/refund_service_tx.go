@@ -27,6 +27,12 @@ func (s *refundService) createRefundInTx(
 		return nil, apperrors.WrapInvalidInput("支払済みの請求のみ返金できます")
 	}
 
+	if s.closeRepo != nil && !billing.ScheduledDate.IsZero() {
+		if err := s.closeRepo.LockCloseBoundary(txCtx, clinicID, billing.ScheduledDate); err != nil {
+			return nil, err
+		}
+	}
+
 	// 返金可能残額チェック（トランザクション内で再計算）
 	alreadyRefunded, sumErr := s.repo.SumByBillingID(txCtx, clinicID, billingID)
 	if sumErr != nil {
