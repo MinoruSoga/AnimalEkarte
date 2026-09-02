@@ -23,6 +23,9 @@ func TestSanitizeCSVCell(t *testing.T) {
 		{name: "minus prefix", cell: "-HYPERLINK(\"http://evil\")", want: "'-HYPERLINK(\"http://evil\")"},
 		{name: "at prefix", cell: "@SUM(1+1)", want: "'@SUM(1+1)"},
 		{name: "embedded equals is not prefixed", cell: "a=b", want: "a=b"},
+		{name: "tab then equals", cell: "\t=SUM(A1)", want: "'=SUM(A1)"},
+		{name: "newline then plus", cell: "\n+HYPERLINK(\"http://evil\")", want: "'+HYPERLINK(\"http://evil\")"},
+		{name: "cr then at", cell: "\r@SUM(1)", want: "'@SUM(1)"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

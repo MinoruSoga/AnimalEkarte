@@ -483,11 +483,11 @@ func TestRefundService_Create_LocksCloseBoundary(t *testing.T) {
 			return nil
 		},
 	}
-	var locked time.Time
+	var locked []string
 	closeRepo := &mockCashRegisterCloseRepository{
 		lockCloseBoundaryFn: func(_ context.Context, clinicID uint64, date time.Time) error {
 			assert.Equal(t, uint64(1), clinicID)
-			locked = date
+			locked = append(locked, date.Format(time.DateOnly))
 			return nil
 		},
 	}
@@ -502,5 +502,6 @@ func TestRefundService_Create_LocksCloseBoundary(t *testing.T) {
 		Reason:  "返金",
 	})
 	assert.NoError(t, err)
-	assert.Equal(t, "2026-06-01", locked.Format(time.DateOnly))
+	assert.Contains(t, locked, "2026-06-01")
+	assert.Contains(t, locked, time.Now().Format(time.DateOnly))
 }

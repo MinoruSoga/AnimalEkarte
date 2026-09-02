@@ -266,6 +266,13 @@ func (s *service) UnlinkOwnerMember(
 		if target == nil {
 			return apperrors.WrapNotFound("owner_identity_group_member", fmt.Sprintf("%d/%d", member.ClinicID, member.OwnerID))
 		}
+		petGroups, petErr := s.repo.CountActivePetGroupsByOwnerGroupID(txCtx, groupID)
+		if petErr != nil {
+			return petErr
+		}
+		if petGroups > 0 {
+			return apperrors.WrapConflict("飼主の紐付けを解除する前に、ペットの紐付けを解除してください")
+		}
 		if delErr := s.repo.SoftDeleteOwnerMember(txCtx, target.ID); delErr != nil {
 			return delErr
 		}

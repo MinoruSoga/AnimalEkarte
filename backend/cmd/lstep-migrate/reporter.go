@@ -5,16 +5,19 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"strings"
 )
 
 // sanitizeCSVCell はセルがスプレッドシート数式と解釈されるのを防ぐ。
 // 先頭文字が = + - @ の場合、単一引用符 ' で前置する。
 func sanitizeCSVCell(cell string) string {
-	if cell != "" {
-		switch cell[0] {
-		case '=', '+', '-', '@':
-			return "'" + cell
-		}
+	trimmed := strings.TrimLeft(cell, " \t\r\n")
+	if trimmed == "" {
+		return cell
+	}
+	switch trimmed[0] {
+	case '=', '+', '-', '@':
+		return "'" + trimmed
 	}
 	return cell
 }

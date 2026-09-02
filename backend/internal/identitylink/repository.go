@@ -47,6 +47,7 @@ type Repository interface {
 	SoftDeletePetMember(ctx context.Context, memberID uint64) error
 	SoftDeletePetGroup(ctx context.Context, groupID uint64) error
 	CountActivePetMembers(ctx context.Context, groupID uint64) (int64, error)
+	CountActivePetGroupsByOwnerGroupID(ctx context.Context, ownerGroupID uint64) (int64, error)
 
 	// IsOwnerActiveInGroup reports whether (clinicID, ownerID) is an active member of groupID.
 	IsOwnerActiveInGroup(ctx context.Context, groupID, clinicID, ownerID uint64) (bool, error)
@@ -485,6 +486,17 @@ func (r *repository) CountActivePetMembers(ctx context.Context, groupID uint64) 
 		Count(&n).Error
 	if err != nil {
 		return 0, apperrors.FromGORM(err, "pet_identity_group_member", fmt.Sprintf("%d", groupID))
+	}
+	return n, nil
+}
+
+func (r *repository) CountActivePetGroupsByOwnerGroupID(ctx context.Context, ownerGroupID uint64) (int64, error) {
+	var n int64
+	err := r.conn(ctx).Model(&model.PetIdentityGroup{}).
+		Where("owner_group_id = ? AND deleted_at IS NULL", ownerGroupID).
+		Count(&n).Error
+	if err != nil {
+		return 0, apperrors.FromGORM(err, "pet_identity_group", fmt.Sprintf("owner_group:%d", ownerGroupID))
 	}
 	return n, nil
 }

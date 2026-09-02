@@ -32,7 +32,8 @@ type refundService struct {
 
 type refundServiceOption func(*refundService)
 
-// WithRefundCloseRepository serializes refunds with cash-register close on the billing date.
+// WithRefundCloseRepository serializes refunds with cash-register close on the
+// refund occurrence date and the original billing date.
 func WithRefundCloseRepository(repo CashRegisterCloseRepository) refundServiceOption {
 	return func(s *refundService) {
 		s.closeRepo = repo

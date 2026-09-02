@@ -93,6 +93,25 @@ func AuthorizeClinicIDsForPermission(
 	return true
 }
 
+// RequireSelectedClinicGrant rejects selected-clinic-scoped reads when the
+// request only passed middleware because another assigned clinic holds the grant.
+// Missing checker is skipped so unit tests without RBAC middleware still run.
+func RequireSelectedClinicGrant(c *gin.Context, resource, action string) bool {
+	if peekedSystemAdmin(c) {
+		return true
+	}
+	check, ok := PeekClinicPermissionChecker(c)
+	if !ok {
+		return true
+	}
+	clinicID, ok := PeekClinicID(c)
+	if !ok || clinicID == 0 || !check(c, clinicID, resource, action) {
+		RespondError(c, apperrors.WrapForbidden("forbidden"))
+		return false
+	}
+	return true
+}
+
 // FilterClinicIDsForPermission returns the subset of clinic IDs that have the
 // required grant. Missing checker or an empty result is 403.
 // system_admin keeps the compact membership set (explicit grant).

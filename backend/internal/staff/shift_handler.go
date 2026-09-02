@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -14,6 +15,9 @@ import (
 func (h *Handler) ListShiftEntries(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
+		return
+	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceShifts), "view") {
 		return
 	}
 
@@ -109,6 +113,9 @@ func (h *Handler) DeleteShiftEntry(c *gin.Context) {
 func (h *Handler) GetOnDutyStaffs(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
+		return
+	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceShifts), "view") {
 		return
 	}
 	date, err := newOnDutyStaffsQuery(c.Request.URL.Query()).toDate()

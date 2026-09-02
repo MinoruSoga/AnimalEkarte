@@ -216,6 +216,7 @@ type cashRegisterService struct {
 	closingsSvc    closingScheduleResolver
 	payMethodRepo  PaymentMethodMasterRepository
 	clinicRepo     billingClinicReader
+	transactor     Transactor
 }
 
 // NewCashRegisterService は CashRegisterService を初期化して返す
@@ -225,6 +226,7 @@ func NewCashRegisterService(
 	closingsSvc closingScheduleResolver,
 	payMethodRepo PaymentMethodMasterRepository,
 	clinicRepo billingClinicReader,
+	transactor Transactor,
 ) CashRegisterService {
 	return &cashRegisterService{
 		closeRepo:      closeRepo,
@@ -232,6 +234,7 @@ func NewCashRegisterService(
 		closingsSvc:    closingsSvc,
 		payMethodRepo:  payMethodRepo,
 		clinicRepo:     clinicRepo,
+		transactor:     transactor,
 	}
 }
 
@@ -406,8 +409,37 @@ func (s *cashRegisterService) Close(ctx context.Context, clinicID uint64, input 
 	if err := validatePeriod(input.Period); err != nil {
 		return nil, apperrors.Wrap(err, "failed to validate period")
 	}
+	if s.transactor == nil {
+		return nil, apperrors.WrapInternalServerError("cash register close transactor is required")
+	}
 
-	// 二重締めチェック
+	var record *model.CashRegisterClose
+	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		closed, err := s.closeInTx(txCtx, clinicID, input)
+		if err != nil {
+			return err
+		}
+		record = closed
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+
+	slog.InfoContext(ctx, "cash register closed",
+		slog.Uint64("clinic_id", clinicID),
+		slog.String("date", input.Date.Format(time.DateOnly)),
+		slog.String("period", input.Period),
+		slog.Int64("theoretical_cash", record.TheoreticalCash),
+		slog.Int64("actual_cash", input.ActualCash))
+
+	return record, nil
+}
+
+func (s *cashRegisterService) closeInTx(ctx context.Context, clinicID uint64, input CloseRegisterInput) (*model.CashRegisterClose, error) {
+	if err := s.closeRepo.LockCloseBoundary(ctx, clinicID, input.Date); err != nil {
+		return nil, err
+	}
+
 	existing, err := s.closeRepo.FindByDateAndPeriod(ctx, clinicID, input.Date, input.Period)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to check existing close", "error", err)
@@ -430,9 +462,6 @@ func (s *cashRegisterService) Close(ctx context.Context, clinicID uint64, input 
 		return nil, apperrors.WrapInvalidInput("actual_cash は 0 以上で指定してください")
 	}
 
-	cashDifference := input.ActualCash - agg.TheoreticalCash
-
-	// category_breakdown JSONB を構築（#247 per-billing 配賦・消費税内訳・未分類件数 snapshot）
 	breakdownSchema := buildCategoryBreakdown(agg.CategoryPaymentMatrixSystemKey, agg.TaxBreakdown, agg.TaxRates, agg.UnclassifiedOtherCount)
 	breakdownJSON, err := json.Marshal(breakdownSchema)
 	if err != nil {
@@ -446,25 +475,16 @@ func (s *cashRegisterService) Close(ctx context.Context, clinicID uint64, input 
 		Period:            input.Period,
 		TheoreticalCash:   agg.TheoreticalCash,
 		ActualCash:        input.ActualCash,
-		CashDifference:    cashDifference,
+		CashDifference:    input.ActualCash - agg.TheoreticalCash,
 		CategoryBreakdown: breakdownJSON,
 		Memo:              input.Memo,
 		ClosedBy:          input.ClosedBy,
 		ClosedAt:          time.Now(),
 	}
-
 	if err := s.closeRepo.Create(ctx, record); err != nil {
 		slog.ErrorContext(ctx, "failed to create cash register close", "error", err)
 		return nil, apperrors.Wrap(err, "failed to create cash register close")
 	}
-
-	slog.InfoContext(ctx, "cash register closed",
-		slog.Uint64("clinic_id", clinicID),
-		slog.String("date", input.Date.Format(time.DateOnly)),
-		slog.String("period", input.Period),
-		slog.Int64("theoretical_cash", agg.TheoreticalCash),
-		slog.Int64("actual_cash", input.ActualCash))
-
 	return record, nil
 }
 

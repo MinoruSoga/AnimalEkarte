@@ -36,11 +36,14 @@ func (s *reservationService) validateCreateClosedDays(ctx context.Context, clini
 	}
 	settings, err := s.settingFinder.FindByClinicID(ctx, clinicID)
 	if err != nil {
+		if apperrors.IsNotFound(err) {
+			return nil
+		}
 		slog.ErrorContext(ctx, "failed to load LINE reservation settings for closed-day check", "error", err, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to load LINE reservation settings")
 	}
 	if settings == nil {
-		return apperrors.WrapInternalServerError("LINE reservation settings are required")
+		return nil
 	}
 	return validateClosedDays(settings, startTime)
 }

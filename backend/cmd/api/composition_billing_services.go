@@ -60,6 +60,7 @@ func newBillingCoreServices(
 			d.ClosingSettings,
 			r.paymentMethods,
 			d.Clinics,
+			d.Transactor,
 		),
 	}
 }

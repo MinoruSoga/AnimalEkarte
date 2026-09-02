@@ -27,9 +27,12 @@ func (s *refundService) createRefundInTx(
 		return nil, apperrors.WrapInvalidInput("支払済みの請求のみ返金できます")
 	}
 
-	if s.closeRepo != nil && !billing.ScheduledDate.IsZero() {
-		if err := s.closeRepo.LockCloseBoundary(txCtx, clinicID, billing.ScheduledDate); err != nil {
-			return nil, err
+	refundedAt := time.Now()
+	if s.closeRepo != nil {
+		for _, date := range uniqueCloseBoundaryDates(refundedAt, billing.ScheduledDate) {
+			if err := s.closeRepo.LockCloseBoundary(txCtx, clinicID, date); err != nil {
+				return nil, err
+			}
 		}
 	}
 
@@ -58,7 +61,7 @@ func (s *refundService) createRefundInTx(
 		Reason:        input.Reason,
 		RefundedBy:    input.StaffID,
 		PaymentMethod: input.PaymentMethod,
-		RefundedAt:    time.Now(),
+		RefundedAt:    refundedAt,
 	}
 	if err := s.repo.Create(txCtx, refund); err != nil {
 		slog.ErrorContext(txCtx, "failed to create refund", "error", err)

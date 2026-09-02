@@ -193,3 +193,41 @@ func TestResolveAllClinicIDsForPermission(t *testing.T) {
 		assert.Equal(t, []uint64{1}, got)
 	})
 }
+
+func TestRequireSelectedClinicGrant(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	t.Run("allows when checker is absent", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+		c.Set("clinic_id", "23")
+
+		assert.True(t, RequireSelectedClinicGrant(c, "shifts", "view"))
+		assert.False(t, c.Writer.Written())
+	})
+
+	t.Run("rejects selected clinic without grant", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+		c.Set("is_system_admin", false)
+		c.Set("clinic_id", "23")
+		SetClinicPermissionChecker(c, clinicPermissionOnlyClinic(99, "shifts", "view"))
+
+		assert.False(t, RequireSelectedClinicGrant(c, "shifts", "view"))
+		assert.Equal(t, http.StatusForbidden, w.Code)
+	})
+
+	t.Run("allows selected clinic with grant", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+		c.Set("is_system_admin", false)
+		c.Set("clinic_id", "23")
+		SetClinicPermissionChecker(c, clinicPermissionOnlyClinic(23, "shifts", "view"))
+
+		assert.True(t, RequireSelectedClinicGrant(c, "shifts", "view"))
+		assert.False(t, c.Writer.Written())
+	})
+}

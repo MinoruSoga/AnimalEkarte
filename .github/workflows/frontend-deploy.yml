@@ -71,11 +71,14 @@ jobs:
         run: |
           set -euo pipefail
           ENV=preview
-          if [ "${GITHUB_REF}" = "refs/heads/production" ]; then
+          if [ "${GITHUB_EVENT_NAME}" = "push" ] && [ "${GITHUB_REF}" = "refs/heads/production" ]; then
             ENV=production
           elif [ "${{ github.event.inputs.environment }}" = "production" ]; then
-            echo "::error::Production frontend deploy is only allowed from refs/heads/production."
-            exit 1
+            if [ "${GITHUB_REF}" != "refs/heads/production" ]; then
+              echo "::error::Production frontend deploy is only allowed from refs/heads/production."
+              exit 1
+            fi
+            ENV=production
           fi
 
           pnpm --dir frontend exec vercel pull --yes --environment="$ENV" --token="$VERCEL_TOKEN"
