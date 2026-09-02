@@ -1,8 +1,65 @@
+import { Calendar, User } from "lucide-react";
 import { HISTORY_FETCH_LIMIT } from "@/config/fetch-limits";
 import { paths } from "@/config/paths";
 import { todayJSTISO } from "@/lib/jst-date";
+import { uniqueSortedOptions } from "@/lib/unique-sorted-options";
+import type {
+  ActiveFilter,
+  FilterProperty,
+  SortProperty,
+} from "@/components/shared/PropertyFilter/types";
+import { CONDITIONS_WITH_EMPTY } from "@/components/shared/PropertyFilter/types";
 import type { VaccinationFilters } from "../api/get-vaccinations";
 import type { VaccinationRecord } from "@/types";
+
+export const STATIC_FILTER_PROPERTIES: FilterProperty[] = [
+  {
+    key: "date",
+    label: "日付",
+    type: "date-range",
+    icon: Calendar,
+  },
+];
+
+export const VACCINATION_SORT_PROPERTIES: SortProperty[] = [
+  { key: "date", label: "実施日" },
+  { key: "ownerName", label: "飼主名" },
+  { key: "petName", label: "ペット名" },
+  { key: "vaccineName", label: "予防接種名" },
+  { key: "nextDate", label: "次回予定" },
+];
+
+export function vaccinationDateRange(activeFilters: ActiveFilter[]): {
+  from?: string;
+  to?: string;
+} | undefined {
+  return activeFilters.find((f) => f.key === "date")?.value as
+    | { from?: string; to?: string }
+    | undefined;
+}
+
+export function buildVaccinationFilterProperties(
+  allVaccinations: VaccinationRecord[],
+): FilterProperty[] {
+  const doctorOptions = uniqueSortedOptions(allVaccinations, (r) => r.doctor);
+  return [
+    ...STATIC_FILTER_PROPERTIES,
+    { key: "doctor", label: "担当医", type: "select" as const, icon: User, conditions: CONDITIONS_WITH_EMPTY, options: doctorOptions },
+  ];
+}
+
+export function nextListSearchParamsWithPage(
+  prev: URLSearchParams,
+  page: number,
+): URLSearchParams {
+  const next = new URLSearchParams(prev);
+  if (page === 1) {
+    next.delete("page");
+  } else {
+    next.set("page", String(page));
+  }
+  return next;
+}
 
 export const VACCINATION_LIST_CHART_TAB = "予防接種";
 export const VACCINATION_LIST_ID_PARAM = "vaccinationId";
