@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { toast } from "sonner";
 
@@ -24,6 +25,9 @@ vi.mock("../api/get-pet-vaccinations", () => ({
   useGetPetVaccinations: () => ({ data: mockHistoryItems.current, isLoading: false }),
 }));
 
+// FE-RC-008: useActionState + <form action> への移行に伴い、"保存" は
+// type="submit" の素の button に変更。onSave コールバックは廃止し、実フォームの
+// action (親コンポーネント側) を通す。
 vi.mock("./VaccinationForm", () => ({
   VaccinationForm: ({
     vaccineName,
@@ -33,7 +37,6 @@ vi.mock("./VaccinationForm", () => ({
     setSupplemental,
     setNextScheduleType,
     fieldErrors,
-    onSave,
   }: {
     vaccineName: string;
     setVaccineName: (value: string) => void;
@@ -42,7 +45,6 @@ vi.mock("./VaccinationForm", () => ({
     setSupplemental: (value: string) => void;
     setNextScheduleType: (value: string) => void;
     fieldErrors?: Record<string, string>;
-    onSave?: () => void;
   }) => (
     <div data-testid="vaccination-form">
       <input
@@ -63,9 +65,7 @@ vi.mock("./VaccinationForm", () => ({
       {fieldErrors?.date ? (
         <p role="alert">{fieldErrors.date}</p>
       ) : null}
-      <button type="button" onClick={onSave}>
-        保存
-      </button>
+      <button type="submit">保存</button>
     </div>
   ),
 }));
@@ -94,6 +94,11 @@ beforeEach(() => {
 
 function openAddForm() {
   fireEvent.click(screen.getByRole("button", { name: "記録を追加" }));
+}
+
+async function submitForm() {
+  const user = userEvent.setup();
+  await user.click(screen.getByRole("button", { name: "保存" }));
 }
 
 describe("MedicalRecordVaccination left list (BUG-007)", () => {
@@ -129,7 +134,7 @@ describe("MedicalRecordVaccination vaccination payload", () => {
     fireEvent.change(screen.getByLabelText("接種日"), { target: { value: "2026-07-20" } });
     fireEvent.change(screen.getByLabelText("補助説明"), { target: { value: "補助説明テキスト" } });
     fireEvent.change(screen.getByLabelText("次回予定種別"), { target: { value: "3weeks" } });
-    fireEvent.click(screen.getByRole("button", { name: "保存" }));
+    await submitForm();
 
     await waitFor(() => {
       expect(mockCreateVaccination).toHaveBeenCalledWith(
@@ -157,7 +162,7 @@ describe("MedicalRecordVaccination BUG-015 required validation", () => {
     openAddForm();
 
     fireEvent.change(screen.getByLabelText("接種日"), { target: { value: "2026-07-20" } });
-    fireEvent.click(screen.getByRole("button", { name: "保存" }));
+    await submitForm();
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "ワクチン種別を選択してください",
@@ -172,7 +177,7 @@ describe("MedicalRecordVaccination BUG-015 required validation", () => {
     fireEvent.change(screen.getByLabelText("ワクチンID"), { target: { value: "7" } });
     // BUG-501: 実施日は当日デフォルトのため、未入力検証は明示クリアが必要
     fireEvent.change(screen.getByLabelText("接種日"), { target: { value: "" } });
-    fireEvent.click(screen.getByRole("button", { name: "保存" }));
+    await submitForm();
 
     expect(await screen.findByRole("alert")).toHaveTextContent("接種日を入力してください");
     expect(mockCreateVaccination).not.toHaveBeenCalled();
@@ -184,7 +189,7 @@ describe("MedicalRecordVaccination BUG-015 required validation", () => {
 
     fireEvent.change(screen.getByLabelText("ワクチンID"), { target: { value: "7" } });
     fireEvent.change(screen.getByLabelText("接種日"), { target: { value: "2026-07-20" } });
-    fireEvent.click(screen.getByRole("button", { name: "保存" }));
+    await submitForm();
 
     await waitFor(() => {
       expect(mockCreateVaccination).toHaveBeenCalledWith(
@@ -207,7 +212,7 @@ describe("MedicalRecordVaccination BUG-001 inner save toast", () => {
 
     fireEvent.change(screen.getByLabelText("ワクチンID"), { target: { value: "7" } });
     fireEvent.change(screen.getByLabelText("接種日"), { target: { value: "2026-07-20" } });
-    fireEvent.click(screen.getByRole("button", { name: "保存" }));
+    await submitForm();
 
     await waitFor(() => {
       expect(mockCreateVaccination).toHaveBeenCalled();
@@ -222,7 +227,7 @@ describe("MedicalRecordVaccination BUG-001 inner save toast", () => {
 
     fireEvent.change(screen.getByLabelText("ワクチンID"), { target: { value: "7" } });
     fireEvent.change(screen.getByLabelText("接種日"), { target: { value: "2026-07-20" } });
-    fireEvent.click(screen.getByRole("button", { name: "保存" }));
+    await submitForm();
 
     await waitFor(() => {
       expect(mockCreateVaccination).toHaveBeenCalled();

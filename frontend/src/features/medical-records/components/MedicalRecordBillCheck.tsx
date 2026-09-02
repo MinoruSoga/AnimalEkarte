@@ -1,13 +1,14 @@
 import { lazy, memo, Suspense, useState, useMemo, useCallback, useTransition } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { handleApiError } from "@/lib/handle-api-error";
 import { TreatmentTable, TreatmentItem } from "./TreatmentTable";
 import { TreatmentDetailedSummary } from "./TreatmentDetailedSummary";
 import { useGetTreatments, useCreateTreatment, useUpdateTreatment, useDeleteTreatment } from "../api/treatments";
 import { useGetBillingConfirmation, useCreateBillingConfirmation, useCreateBillingReturn } from "../api/billing-confirmation";
-import type { CreateTreatmentInput, UpdateTreatmentInput, TreatmentItemType } from "../types";
+import type { CreateTreatmentInput, UpdateTreatmentInput } from "../types";
+import { resolveItemTypeFromCategory } from "./TreatmentsTab/treatments-tab-model";
 import { usePermission } from "@/hooks/use-permission";
+import { useClinicTaxRates } from "@/hooks/use-clinic-tax-rates";
 import { CheckCircle2, RotateCcw } from "lucide-react";
 import { C, ICON } from "@/lib/design-tokens";
 import type { TreatmentMasterItem } from "@/components/shared/TreatmentSearchDialog/TreatmentSearchDialog";
@@ -132,8 +133,9 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({
           memo: "医師確認済み",
         });
         toast.success("会計確認を完了しました");
-      } catch (error) {
-        handleApiError(error, "会計確認");
+      } catch {
+        // FE-RC-005: useCreateBillingConfirmation の onError が既に handleApiError
+        // でトースト表示済み。ここで再度呼ぶと二重トーストになるため何もしない。
       }
     });
   }, [canEdit, confirmBillingAsync, extraLines, treatments.length]);
@@ -147,7 +149,8 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({
       onSuccess: () => {
         toast.success("会計確認を差し戻しました");
       },
-      onError: (error) => handleApiError(error, "会計確認の差し戻し"),
+      // FE-RC-005: useCreateBillingReturn の onError が既に handleApiError で
+      // トースト表示済み。ここで onError を渡すと二重トーストになるため渡さない。
     });
   }, [canEdit, returnBillingFn]);
 
@@ -197,7 +200,7 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({
   const handleSelectTreatment = useCallback((item: TreatmentMasterItem) => {
     if (!canEdit) return;
     const input: CreateTreatmentInput = {
-      item_type: (item.category === "薬品" ? "medicine" : item.category === "処置" ? "procedure" : "other") as TreatmentItemType,
+      item_type: resolveItemTypeFromCategory(item.category),
       content: item.name,
       memo: item.category,
       unit_price: item.unitPrice,
@@ -211,20 +214,27 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({
     setIsSearchOpen(false);
   }, [canEdit, nextOrder, createTreatmentMutation]);
 
+  // FE-RC-048: 消費税率はハードコード 0.1 ではなく病院マスタ設定（useClinicTaxRates）を正本にする。
+  const { standardTaxRate } = useClinicTaxRates();
   const { subtotal, tax, total } = useMemo(() => {
     const extraItems = pricedExtras.map((line) => ({
       unitPrice: line.unitPrice ?? 0,
       quantity: 1,
       taxType: "excluded" as const,
-      taxRate: 0.1,
+      taxRate: standardTaxRate,
     }));
-    const result = calculateBillingTotals([...items, ...extraItems], ownerDiscountRate, globalDiscountAmount);
+    const result = calculateBillingTotals(
+      [...items, ...extraItems],
+      ownerDiscountRate,
+      globalDiscountAmount,
+      standardTaxRate,
+    );
     return {
       subtotal: result.subtotal,
       tax: result.tax,
       total: result.total
     };
-  }, [items, pricedExtras, ownerDiscountRate, globalDiscountAmount]);
+  }, [items, pricedExtras, ownerDiscountRate, globalDiscountAmount, standardTaxRate]);
 
   if (isNewRecord) {
     return (

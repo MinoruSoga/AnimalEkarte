@@ -4,6 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 
 // Internal
 import { usePermission } from "@/hooks/use-permission";
+import { useClinicTaxRates } from "@/hooks/use-clinic-tax-rates";
 import { useGetAllMedicinesMaster } from "@/hooks/use-treatment-master";
 import { C, STYLE } from "@/lib/design-tokens";
 import { QUERY_STALE_TIMES } from "@/lib/react-query";
@@ -57,6 +58,8 @@ export const TreatmentsTab = memo(function TreatmentsTab({
   const { canCreate, canEdit, canDelete } = usePermission("medical-records");
   // BUG-372: 割引権限（値引額編集制御）
   const { canEdit: canEditDiscount } = usePermission("discount");
+  // FE-RC-048: 消費税率はハードコード 0.1 ではなく病院マスタ設定を正本にする。
+  const { standardTaxRate } = useClinicTaxRates();
   const { data: treatments, isLoading } = useGetTreatments(medicalRecordId, recordClinicId);
   const createMutation = useCreateTreatment(medicalRecordId, recordClinicId);
   const { mutate: createTreatmentFn } = createMutation;
@@ -120,14 +123,14 @@ export const TreatmentsTab = memo(function TreatmentsTab({
     // 飼主割引適用
     const ownerDiscount = Math.floor(sub * (ownerDiscountRate / 100));
     const afterDiscount = sub - ownerDiscount;
-    const tax = Math.floor(afterDiscount * 0.1);
+    const tax = Math.floor(afterDiscount * standardTaxRate);
 
     return { 
       selectedSubtotal: sub, 
       selectedCount: selected.length,
       finalTotal: afterDiscount + tax
     };
-  }, [sortedTreatments, ownerDiscountRate]);
+  }, [sortedTreatments, ownerDiscountRate, standardTaxRate]);
 
   // 全明細の合計
   const totalSubtotal = useMemo(
