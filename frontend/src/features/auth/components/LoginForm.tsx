@@ -1,19 +1,13 @@
 import { useState, useCallback, memo, useActionState } from "react";
-import { Link, Navigate, useLocation, useNavigate } from "react-router";
+import { Navigate, useLocation, useNavigate } from "react-router";
 import { paths } from "@/config/paths";
-import Stethoscope from "lucide-react/dist/esm/icons/stethoscope";
-import Eye from "lucide-react/dist/esm/icons/eye";
-import EyeOff from "lucide-react/dist/esm/icons/eye-off";
 import { isAxiosError } from "axios";
-import { FormFieldError } from "@/components/shared/FormFieldError";
-import { SubmitButton } from "@/components/shared/Form/SubmitButton";
-import { C, ICON, STYLE } from "@/lib/design-tokens";
+import { C } from "@/lib/design-tokens";
 import { parseInternalPath } from "@/lib/internal-navigation";
 import type { ActionState } from "@/types/form";
 import { INITIAL_ACTION_STATE } from "@/types/form";
 import { useAuth } from "../hooks/use-auth";
-
-/* ---- Demo accounts (dev only) ---- */
+import { LoginFormBrandHeader, LoginFormCredentialFields } from "./login-form-sections";
 
 interface DemoCredential {
   email: string;
@@ -24,14 +18,8 @@ interface DemoCredential {
   isSystemAdmin?: boolean;
 }
 
-// M-10 (#91) / SEC-CS2-F01: local Vite DEV only。preview/production では非表示。
-// ロジックは computeShowDemoAccounts (show-demo-accounts.ts) と同一 — 定数畳み込み維持のためインライン化。
-// export はテスト用（本番バンドルの tree-shake には影響しない — 参照は test 側 dynamic import のみ）。
 export const SHOW_DEMO = import.meta.env.DEV;
 
-// staff-attach 実在アカウント（email は stg-staff-{id}@example.test）。
-// SHOW_DEMO 分岐で定数畳み込みし、非 DEV バンドルから tree-shake する。
-// パスワードは UI / 配列に置かない（repo 外 secrets）。ラベルは roster+handoff 由来。
 const DEMO_ACCOUNTS: readonly DemoCredential[] = SHOW_DEMO
   ? [
       { email: "stg-staff-11000021@example.test", displayName: "林 文明", occupationLabel: "獣医師", permissionLabel: "一般", clinicLabel: "城東センター病院" },
@@ -90,12 +78,6 @@ const DemoAccount = memo(function DemoAccount({
   );
 });
 
-/* ---- Shared input classes (padding-x set per field to avoid conflict) ---- */
-// Figma実測: fontSize=15px, height=~48px, bg=warm neutral 60%透過（PALETTE.hoverBgInput相当の色調）, borderRadius=3px
-const INPUT_BASE = `w-full h-[48px] text-base rounded-xxs ${C.bgInputLogin} border ${C.borderMedium} ${C.text} ${C.textPlaceholder} outline-none transition-all focus:ring-2 ${C.focusRingActionPrimary} focus:border-transparent disabled:opacity-60`;
-
-/* ---- Login Form ---- */
-
 export const LoginForm = memo(function LoginForm() {
   const { login, isAuthenticated } = useAuth();
   const navigate = useNavigate();
@@ -113,12 +95,8 @@ export const LoginForm = memo(function LoginForm() {
       if (!passwordValue) return { success: false, error: "パスワードを入力してください", timestamp: Date.now() };
 
       try {
-        // AuthContext の login() が setUser() を直接呼ぶため、
-        // navigate() でそのまま遷移できる（フルリロード不要）。
         await login(emailValue, passwordValue);
 
-        // 1. location.state から取得 (内部遷移)
-        // 2. URL クエリパラメータから取得 (Axios インターセプター等からの強制遷移)
         const stateFrom = (location.state as { from?: string })?.from;
         const queryFrom = new URLSearchParams(window.location.search).get("from");
         const from =
@@ -129,7 +107,6 @@ export const LoginForm = memo(function LoginForm() {
         navigate(from, { replace: true });
         return { success: true, error: null, timestamp: Date.now() };
       } catch (err) {
-        // BUG-047: axios エラーを日本語メッセージに変換
         let msg = "ログインに失敗しました。しばらくしてから再度お試しください";
         if (isAxiosError(err)) {
           if (!err.response) msg = "接続できません。ネットワークをご確認ください";
@@ -152,8 +129,6 @@ export const LoginForm = memo(function LoginForm() {
   }, []);
 
   const handleSelectDemo = useCallback((demoEmail: string) => {
-    // 共有デモパスワードは VITE_DEMO_LOGIN_PASSWORD（staff-attach secrets と同一）から。
-    // リテラル "password" へフォールバックしない。未設定時は空のまま。
     setEmail(demoEmail);
     const fromEnv =
       typeof import.meta.env.VITE_DEMO_LOGIN_PASSWORD === "string"
@@ -162,96 +137,25 @@ export const LoginForm = memo(function LoginForm() {
     setPassword(fromEnv);
   }, []);
 
-  // ログイン済みなら即リダイレクト（直接 /login にアクセスした場合）
   if (isAuthenticated) {
     return <Navigate to={paths.home.getHref()} replace />;
   }
 
   return (
     <div className="w-full max-w-[380px] mx-auto">
-      {/* Header */}
-      <div className="text-center mb-8">
-        <div className={`inline-flex items-center justify-center size-[48px] rounded-xl mb-4 ${C.bgBrandIdentity}`}>
-          <Stethoscope className={`size-[26px] ${C.textWhite}`} />
-        </div>
-        <h1 className={`text-heading-3 font-bold leading-tight ${C.text} mb-1`}>
-          ノア動物病院
-        </h1>
-        <p className={`text-base ${C.text50}`}>管理システムにログイン</p>
-      </div>
+      <LoginFormBrandHeader />
 
-      {/* Form */}
       <form id="login-form" action={formAction} noValidate className="space-y-4">
-        {/* Email */}
-        <div className="space-y-1.5">
-          <label htmlFor="login-email" className={`text-sm block ${C.text65}`}>
-            メールアドレス
-          </label>
-          <input
-            id="login-email"
-            name="login-email"
-            type="email"
-            autoComplete="email"
-            value={email}
-            onChange={handleEmailChange}
-            placeholder="例: admin@example.com"
-            className={`${INPUT_BASE} px-2.5`}
-            aria-invalid={formState.error !== null}
-            aria-describedby={formState.error ? "login-error" : undefined}
-            disabled={isPending}
-          />
-        </div>
-
-        {/* Password */}
-        <div className="space-y-1.5">
-          <label htmlFor="login-password" className={`text-sm block ${C.text65}`}>
-            パスワード
-          </label>
-          <div className="relative">
-            <input
-              id="login-password"
-              name="login-password"
-              type={showPassword ? "text" : "password"}
-              autoComplete="current-password"
-              value={password}
-              onChange={handlePasswordChange}
-              placeholder="パスワードを入力"
-              minLength={6}
-              className={`${INPUT_BASE} pl-2.5 pr-12`}
-              aria-invalid={formState.error !== null}
-              aria-describedby={formState.error ? "login-error" : undefined}
-              disabled={isPending}
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword((prev) => !prev)}
-              className={`absolute right-1 top-1/2 -translate-y-1/2 ${STYLE.iconBtn32} ${C.text35} ${C.hoverText}`}
-              aria-label={showPassword ? "パスワードを非表示" : "パスワードを表示"}
-            >
-              {showPassword ? <EyeOff className={ICON.action} /> : <Eye className={ICON.action} />}
-            </button>
-          </div>
-        </div>
-
-        <FormFieldError id="login-error" message={formState.error} />
-
-        {/* Submit */}
-        <SubmitButton
-          colorVariant="brand"
-          className="w-full h-[52px]"
-          loadingText="ログイン中..."
-        >
-          ログイン
-        </SubmitButton>
-
-        <div className="text-center">
-          <Link
-            to={paths.auth.forgotPassword.getHref()}
-            className={`inline-flex min-h-11 items-center justify-center text-sm ${C.textBrand} hover:underline`}
-          >
-            パスワードをお忘れですか？
-          </Link>
-        </div>
+        <LoginFormCredentialFields
+          email={email}
+          password={password}
+          showPassword={showPassword}
+          isPending={isPending}
+          error={formState.error}
+          onEmailChange={handleEmailChange}
+          onPasswordChange={handlePasswordChange}
+          onTogglePassword={() => setShowPassword((prev) => !prev)}
+        />
       </form>
 
       {SHOW_DEMO && DEMO_ACCOUNTS.length > 0 ? (
