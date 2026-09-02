@@ -4,7 +4,7 @@ import type { ActiveFilter, FilterProperty } from "@/components/shared/PropertyF
 import { DEFAULT_STANDARD_TAX_RATE, DEFAULT_REDUCED_TAX_RATE } from "@/constants/tax";
 import { normalizedIncludes } from "@/lib/normalize-kana";
 
-import type { Clinic } from "../api/clinics";
+import type { Clinic, CreateClinicRequest, UpdateClinicRequest } from "../api/clinics";
 
 export interface ClinicFormData {
   name: string;
@@ -121,4 +121,45 @@ export function filterClinics(
     }
     return true;
   });
+}
+
+export function buildUpdateClinicRequest(fd: ClinicFormData): UpdateClinicRequest {
+  return {
+    name: fd.name,
+    postal_code: fd.postal_code || undefined,
+    address: fd.address || undefined,
+    phone_number: fd.phone_number || undefined,
+    fax_number: fd.fax_number || undefined,
+    registration_number: fd.registration_number || undefined,
+    director_name: fd.director_name || undefined,
+    email: fd.email || undefined,
+    website: fd.website || undefined,
+    is_active: fd.is_active,
+    standard_tax_rate: fd.standard_tax_rate,
+    reduced_tax_rate: fd.reduced_tax_rate,
+    accounting_document_show_logo: fd.accounting_document_show_logo,
+    accounting_document_show_registration_warning: fd.accounting_document_show_registration_warning,
+    accounting_document_show_item_category: fd.accounting_document_show_item_category,
+    accounting_document_footer_note: fd.accounting_document_footer_note,
+    // #190: セクション表示/非表示トグルと表示順
+    accounting_document_show_clinic_header: fd.accounting_document_show_clinic_header,
+    accounting_document_show_owner_pet_info: fd.accounting_document_show_owner_pet_info,
+    accounting_document_show_items_table: fd.accounting_document_show_items_table,
+    accounting_document_show_payment_summary: fd.accounting_document_show_payment_summary,
+    accounting_document_section_order: fd.accounting_document_section_order,
+  };
+}
+
+export function buildCreateClinicRequest(fd: ClinicFormData): CreateClinicRequest {
+  return {
+    name: fd.name,
+    postal_code: fd.postal_code || undefined,
+    address: fd.address || undefined,
+    phone_number: fd.phone_number || undefined,
+    fax_number: fd.fax_number || undefined,
+    registration_number: fd.registration_number || undefined,
+    director_name: fd.director_name || undefined,
+    email: fd.email || undefined,
+    website: fd.website || undefined,
+  };
 }

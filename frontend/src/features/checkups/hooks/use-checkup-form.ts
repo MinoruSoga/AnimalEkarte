@@ -17,43 +17,24 @@ import {
 } from "../api/create-checkup-medical-record";
 import { useGetCheckupTypeFields } from "../api/get-checkup-type-fields";
 import { replaceCheckupFieldResults } from "../api/replace-checkup-field-results";
-import { calculateNextDate, resolveScheduleTypeAfterManualDate } from "@/components/shared/NextScheduleField";
 import { buildCheckupResultsPayload, type CheckupFieldValue } from "../components/DynamicCheckupFields";
-
-interface CheckupFormState {
-  checkupTypeId: string;
-  date: string;
-  nextScheduleType: string;
-  nextDate: string;
-  doctorId: string;
-  result: string;
-}
+import {
+  buildCheckupOnMedicalRecordRequest,
+  checkupOverridesOnDate,
+  checkupOverridesOnNextDate,
+  checkupOverridesOnScheduleType,
+  DEFAULT_CHECKUP_FORM,
+  DENIED_MUTATION_PERMISSIONS,
+  validateCheckupForm,
+  type CheckupFormState,
+  type CheckupMutationPermissions,
+} from "./use-checkup-form-model";
 
 interface ActionState {
   success: boolean;
   timestamp: number;
 }
 
-interface CheckupMutationPermissions {
-  canCreate: boolean;
-  canEdit: boolean;
-}
-
-const DENIED_MUTATION_PERMISSIONS: Readonly<CheckupMutationPermissions> = {
-  canCreate: false,
-  canEdit: false,
-};
-
-const DEFAULT_FORM: CheckupFormState = {
-  checkupTypeId: "",
-  date: "",
-  nextScheduleType: "1year",
-  nextDate: "",
-  doctorId: "",
-  result: "",
-};
-
-// useCheckupForm — checkup新規登録フォームのロジックを管理するフック
 export function useCheckupForm(
   permissions: Readonly<CheckupMutationPermissions> = DENIED_MUTATION_PERMISSIONS,
 ) {
@@ -64,10 +45,8 @@ export function useCheckupForm(
   const { data: pet, isLoading: isPetLoading } = useGetPet(petId);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [localOverrides, setLocalOverrides] = useState<Partial<CheckupFormState>>({});
+  const formData: CheckupFormState = { ...DEFAULT_CHECKUP_FORM, ...localOverrides };
 
-  const formData: CheckupFormState = { ...DEFAULT_FORM, ...localOverrides };
-
-  // #211: 選択中の健診パッケージのフィールド定義 + 入力値。
   const { data: checkupFields = [] } = useGetCheckupTypeFields(formData.checkupTypeId);
   const [fieldValues, setFieldValues] = useState<Record<number, CheckupFieldValue>>({});
   const { canCreate, canEdit } = permissions;
@@ -99,10 +78,7 @@ export function useCheckupForm(
 
   const [formState, formAction, isPending] = useActionState(
     async (_prevState: ActionState, _formData: FormData): Promise<ActionState> => {
-      const errors: Record<string, string> = {};
-      if (!formData.checkupTypeId) errors.checkupTypeId = "健診種別を選択してください";
-      if (!formData.date) errors.date = "実施日を入力してください";
-
+      const errors = validateCheckupForm(formData);
       if (Object.keys(errors).length > 0) {
         setFieldErrors(errors);
         return { success: false, timestamp: Date.now() };
@@ -122,14 +98,12 @@ export function useCheckupForm(
           return { success: false, timestamp: Date.now() };
         }
 
-        // 1. カルテを作成（checkupのサブリソース登録に medical_record_id が必須）
         const medicalRecord = await createMedicalRecordForCheckup({
           pet_id: pet.id,
           owner_id: pet.ownerId,
           visit_date: formData.date,
         });
 
-        // 2. 作成したカルテに健診記録を登録
         if (
           !isMutationAllowed("canCreate")
           || !isMutationAllowed("canEdit")
@@ -137,15 +111,11 @@ export function useCheckupForm(
         ) {
           return { success: false, timestamp: Date.now() };
         }
-        const checkup = await createCheckupOnMedicalRecord(medicalRecord.id, {
-          checkup_type_id: Number(formData.checkupTypeId),
-          date: formData.date,
-          ...(formData.nextDate ? { next_date: formData.nextDate } : {}),
-          ...(formData.doctorId ? { doctor_id: Number(formData.doctorId) } : {}),
-          ...(formData.result ? { result: formData.result } : {}),
-        });
+        const checkup = await createCheckupOnMedicalRecord(
+          medicalRecord.id,
+          buildCheckupOnMedicalRecordRequest(formData),
+        );
 
-        // 3. #211 健診パッケージの型付き結果値を保存（入力がある場合のみ）。
         const resultsPayload = buildCheckupResultsPayload(checkupFields, fieldValues);
         if (resultsPayload.length > 0) {
           if (
@@ -168,14 +138,12 @@ export function useCheckupForm(
     { success: false, timestamp: 0 }
   );
 
-  // petId未指定時はペット選択画面に戻す
   useEffect(() => {
     if (!petId && !isPetLoading) {
       navigate(paths.checkups.selectPet.getHref());
     }
   }, [petId, isPetLoading, navigate]);
 
-  // 登録成功後に一覧へ遷移
   useEffect(() => {
     if (formState.success) {
       navigate(paths.checkups.getHref());
@@ -193,7 +161,6 @@ export function useCheckupForm(
     checkupFields,
     fieldValues,
     setFieldValue,
-    // 健診種別を変えたら、旧パッケージのフィールド値は破棄する。
     setCheckupTypeId: useCallback(
       (v: string) => {
         setField("checkupTypeId", v);
@@ -202,29 +169,13 @@ export function useCheckupForm(
       [setField],
     ),
     setDate: useCallback((v: string) => {
-      setLocalOverrides((prev) => {
-        const scheduleType = prev.nextScheduleType ?? DEFAULT_FORM.nextScheduleType;
-        const calculated = calculateNextDate(v, scheduleType);
-        return { ...prev, date: v, ...(calculated ? { nextDate: calculated } : {}) };
-      });
+      setLocalOverrides((prev) => checkupOverridesOnDate(prev, v));
     }, []),
     setNextScheduleType: useCallback((v: string) => {
-      setLocalOverrides((prev) => {
-        const currentDate = prev.date ?? DEFAULT_FORM.date;
-        const calculated = calculateNextDate(currentDate, v);
-        return { ...prev, nextScheduleType: v, ...(calculated ? { nextDate: calculated } : {}) };
-      });
+      setLocalOverrides((prev) => checkupOverridesOnScheduleType(prev, v));
     }, []),
     setNextDate: useCallback((v: string) => {
-      setLocalOverrides((prev) => {
-        const currentDate = prev.date ?? DEFAULT_FORM.date;
-        const currentType = prev.nextScheduleType ?? DEFAULT_FORM.nextScheduleType;
-        return {
-          ...prev,
-          nextDate: v,
-          nextScheduleType: resolveScheduleTypeAfterManualDate(currentDate, currentType, v),
-        };
-      });
+      setLocalOverrides((prev) => checkupOverridesOnNextDate(prev, v));
     }, []),
     setDoctorId: useCallback((v: string) => setField("doctorId", v), [setField]),
     setResult: useCallback((v: string) => setField("result", v), [setField]),

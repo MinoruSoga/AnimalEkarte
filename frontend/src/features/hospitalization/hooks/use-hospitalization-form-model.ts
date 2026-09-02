@@ -1,4 +1,5 @@
 import { formatJSTWallDate, jstDateStartISOString, todayJSTISO, toJSTWallDate } from "@/lib/jst-date";
+import { calculateBillingTotals } from "@/lib/calculations";
 import type { Pet, HospitalizationTreatmentPlan } from "@/types";
 import type { TreatmentPlanResponse } from "@/types/generated/hospitalization-responses";
 
@@ -258,4 +259,42 @@ export function updateTreatmentPlanField(
     updated.subtotal = baseAmount - updated.discountAmount;
   }
   return updated;
+}
+
+export function hospitalizationSubmitFieldErrors(
+  pet: Pet | undefined,
+  isEdit: boolean,
+  cageId: string | undefined,
+): Record<string, string> | null {
+  if (!pet) {
+    return { pet: "ペットを選択してください" };
+  }
+  if (pet.status === "死亡") {
+    return {
+      pet: isEdit
+        ? "死亡したペットは入院情報を更新できません"
+        : "死亡したペットは入院登録できません",
+    };
+  }
+  if (!(cageId?.trim() ?? "")) {
+    return { cage_id: "ケージ・個室を選択してください" };
+  }
+  return null;
+}
+
+export function calculateHospitalizationBillingTotals(
+  treatmentPlans: readonly HospitalizationTreatmentPlan[],
+) {
+  const billingItems = treatmentPlans.map((plan) => ({
+    ...plan,
+    isInsuranceApplicable: plan.is_insurance,
+  }));
+  const result = calculateBillingTotals(billingItems, 0, 0);
+  return {
+    subtotalBeforeDiscount: result.subtotal,
+    discountAmount: result.globalDiscountAmount,
+    subtotalAfterDiscount: result.taxableAmount,
+    consumptionTax: result.tax,
+    total: result.total,
+  };
 }
