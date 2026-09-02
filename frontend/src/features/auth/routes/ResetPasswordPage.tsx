@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from "react-router";
 import { toast } from "sonner";
 import { C } from "@/lib/design-tokens";
 import { paths } from "@/config/paths";
+import { getFormString } from "@/lib/form-data";
 import { resetPassword } from "../api/reset-password";
 import {
   ResetPasswordBrandHeader,
@@ -49,8 +50,8 @@ export function ResetPasswordPage() {
       _prev: ResetPasswordState,
       formData: FormData,
     ): Promise<ResetPasswordState> => {
-      const password = formData.get("reset-password") as string;
-      const confirmPassword = formData.get("reset-confirm-password") as string;
+      const password = getFormString(formData, "reset-password");
+      const confirmPassword = getFormString(formData, "reset-confirm-password");
 
       if (!password) {
         return { error: "新しいパスワードを入力してください" };
