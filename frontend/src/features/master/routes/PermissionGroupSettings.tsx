@@ -118,6 +118,7 @@ export function PermissionGroupSettings() {
   });
 
   return (
+    <>
     <MasterCRUDPage
       title="権限グループマスタ"
       icon={<Lock className={`${ICON.page} ${C.text}`} />}
@@ -151,5 +152,7 @@ export function PermissionGroupSettings() {
         onEdit={crud.handleEdit}
       />
     </MasterCRUDPage>
+    {dirty.discardDialog}
+    </>
   );
 }

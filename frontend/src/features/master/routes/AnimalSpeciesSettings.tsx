@@ -83,6 +83,7 @@ export function AnimalSpeciesSettings() {
     // resource を渡すと MasterCRUDPage が legacy resource-edit で mutation UI を出してしまう。
     // 未指定時 usePermission("") は isSystemAdmin のみ true（hasPermission バイパス）になるため、
     // 新規登録/side panel の mutation affordance も system admin に限定される。
+    <>
     <MasterCRUDPage title="動物種類マスタ" icon={<PawPrint className={`${ICON.page} ${C.text}`} />}
       entityLabel="動物種類" searchPlaceholder="動物種類名で検索..." emptyMessage="動物種類が登録されていません"
       crud={crud} handleSave={handleSave} columns={ANIMAL_SPECIES_COLUMNS}
@@ -123,5 +124,7 @@ export function AnimalSpeciesSettings() {
         />
       )}
     </MasterCRUDPage>
+    {dirty.discardDialog}
+    </>
   );
 }

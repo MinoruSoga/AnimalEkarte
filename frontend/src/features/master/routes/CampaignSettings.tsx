@@ -71,6 +71,7 @@ export function CampaignSettings() {
   });
 
   return (
+    <>
     <MasterCRUDPage
       title="割引キャンペーンマスタ"
       icon={<Tag className={`${ICON.page} ${C.text}`} />}
@@ -111,5 +112,7 @@ export function CampaignSettings() {
         <CampaignSidePanel key={props.item?.id ?? "new"} {...props} onDirtyChange={handleDirtyChange} />
       )}
     />
+    {dirty.discardDialog}
+    </>
   );
 }

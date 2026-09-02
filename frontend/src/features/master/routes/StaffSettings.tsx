@@ -182,6 +182,7 @@ export function StaffSettings() {
   );
 
   return (
+    <>
     <MasterCRUDPage
       title="スタッフマスタ"
       icon={<UserRound className={`${ICON.page} ${C.text}`} />}
@@ -270,5 +271,7 @@ export function StaffSettings() {
         />
       )}
     />
+    {dirty.discardDialog}
+    </>
   );
 }

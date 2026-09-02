@@ -58,8 +58,8 @@ export function useMasterSave<T extends MasterEntity, TForm, TCreate, TUpdate>({
   // rerender-dependencies: extract primitives from crud.editTarget object
   const editTargetId = crud.editTarget !== null && crud.editTarget !== "new" ? crud.editTarget.id : null;
   // rerender-dependencies: destructure methods to avoid object reference instability
-  // NOTE: use setEditTarget(null) directly on save success to bypass confirmDiscard()
-  // crudHandleClose calls confirmDiscard() which shows window.confirm when isDirtyRef is still stale
+  // NOTE: use setEditTarget(null) directly on save success to bypass discard confirmation
+  // crudHandleClose calls withDirtyGuard which would open ConfirmDialog when isDirtyRef is still stale
   const crudSetEditTarget = crud.setEditTarget;
   const crudStartSave = crud.startSaveTransition;
   const canCreate = permissions.canCreate;

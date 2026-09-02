@@ -16,6 +16,9 @@ const mocks = vi.hoisted(() => {
       dirty.isDirty = false;
     }),
     confirmDiscard: vi.fn(() => true),
+    runWithDiscardCheck: (fn: () => void) => {
+      fn();
+    },
   };
   return {
     dirty,

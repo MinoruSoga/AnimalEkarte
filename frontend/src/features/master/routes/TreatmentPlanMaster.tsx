@@ -83,16 +83,18 @@ export function TreatmentPlanMaster() {
   const handleDirtyChange = useCallback((d: boolean) => { if (d) dirty.markDirty(); else dirty.markClean(); }, [dirty]);
 
   const handleTabChange = useCallback((tab: string) => {
-    if (!dirty.confirmDiscard()) return;
-    setSearchParams({ tab });
-    setEditTarget(null);
-    setPendingDelete(null);
-  }, [setSearchParams, dirty]);
+    dirty.runWithDiscardCheck(() => {
+      setSearchParams({ tab });
+      setEditTarget(null);
+      setPendingDelete(null);
+    });
+  }, [setSearchParams, dirty.runWithDiscardCheck]);
 
   const handleNew = useCallback(() => {
-    if (!dirty.confirmDiscard()) return;
-    setEditTarget("new");
-  }, [dirty]);
+    dirty.runWithDiscardCheck(() => {
+      setEditTarget("new");
+    });
+  }, [dirty.runWithDiscardCheck]);
 
   // ── Consultations ──────────────────────────────────
   const { data: consultationData } = useGetAllConsultations();
@@ -200,15 +202,17 @@ export function TreatmentPlanMaster() {
   }, []);
 
   const handleClose = useCallback(() => {
-    if (!dirty.confirmDiscard()) return;
-    setEditTarget(null);
-  }, [dirty]);
+    dirty.runWithDiscardCheck(() => {
+      setEditTarget(null);
+    });
+  }, [dirty.runWithDiscardCheck]);
 
   // BUG-380: 子コンポーネント (TreatmentTabContent) が行クリック時に呼ぶ setEditTarget をガード
   const setEditTargetGuarded = useCallback((target: TreatmentItem | "new" | null) => {
-    if (!dirty.confirmDiscard()) return;
-    setEditTarget(target);
-  }, [dirty]);
+    dirty.runWithDiscardCheck(() => {
+      setEditTarget(target);
+    });
+  }, [dirty.runWithDiscardCheck]);
 
   const tabItems = TREATMENT_PLAN_TABS;
 
@@ -313,6 +317,7 @@ export function TreatmentPlanMaster() {
   }, [activeTab, deleteMutationByTab, pendingDelete, tabConfigs]);
 
   return (
+    <>
     <MasterTabPage
       title="診療項目マスタ"
       icon={<Stethoscope className={`${ICON.page} ${C.text}`} />}
@@ -364,5 +369,7 @@ export function TreatmentPlanMaster() {
         })}
       </UnifiedTabs>
     </MasterTabPage>
+    {dirty.discardDialog}
+    </>
   );
 }

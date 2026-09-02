@@ -77,11 +77,12 @@ export function DiagnosisSettings() {
   const nameSetEditTarget = nameCrud.setEditTarget;
 
   const handleTabChange = useCallback((tab: string) => {
-    if (!dirty.confirmDiscard()) return;
-    setSearchParams({ tab });
-    catSetEditTarget(null);
-    nameSetEditTarget(null);
-  }, [setSearchParams, catSetEditTarget, nameSetEditTarget, dirty]);
+    dirty.runWithDiscardCheck(() => {
+      setSearchParams({ tab });
+      catSetEditTarget(null);
+      nameSetEditTarget(null);
+    });
+  }, [setSearchParams, catSetEditTarget, nameSetEditTarget, dirty.runWithDiscardCheck]);
 
   const handleNew = useCallback(() => {
     if (activeTab === "diagnosis_type") catCrud.handleNew();
@@ -113,6 +114,7 @@ export function DiagnosisSettings() {
   });
 
   return (
+    <>
     <MasterTabPage
       title="診断マスタ"
       icon={<ClipboardList className={`${ICON.page} ${C.text}`} />}
@@ -168,5 +170,7 @@ export function DiagnosisSettings() {
         </UnifiedTabsContent>
       </UnifiedTabs>
     </MasterTabPage>
+    {dirty.discardDialog}
+    </>
   );
 }

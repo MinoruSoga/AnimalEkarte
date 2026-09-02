@@ -79,6 +79,7 @@ export function PaymentMethodSettings() {
   });
 
   return (
+    <>
     <MasterCRUDPage
       title="支払方法マスタ"
       icon={<CreditCard className={`${ICON.page} ${C.text}`} />}
@@ -120,5 +121,7 @@ export function PaymentMethodSettings() {
         />
       )}
     />
+    {dirty.discardDialog}
+    </>
   );
 }

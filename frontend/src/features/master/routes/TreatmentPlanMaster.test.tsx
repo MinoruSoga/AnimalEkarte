@@ -45,6 +45,9 @@ vi.mock("@/hooks/use-side-peek-dirty", () => ({
     markDirty: vi.fn(),
     markClean: vi.fn(),
     confirmDiscard: vi.fn(() => true),
+    runWithDiscardCheck: (fn: () => void) => {
+      fn();
+    },
   }),
 }));
 

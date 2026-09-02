@@ -212,6 +212,7 @@ export function ReservationTypeSettings() {
         onCategoryDeleteCancel={categoryCrud.handleDeleteCancel}
         onCategoryDeleteConfirm={categoryCrud.handleDeleteConfirm}
       />
+      {dirty.discardDialog}
     </>
   );
 }

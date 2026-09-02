@@ -75,6 +75,7 @@ export function TrimmingCourseTypeSettings() {
   });
 
   return (
+    <>
     <MasterCRUDPage
       title="コース種別マスタ"
       icon={<Scissors className={`${ICON.page} ${C.text}`} />}
@@ -111,5 +112,7 @@ export function TrimmingCourseTypeSettings() {
         <TrimmingCourseTypeSidePanel key={props.item?.id ?? "new"} {...props} onDirtyChange={handleDirtyChange} />
       )}
     />
+    {dirty.discardDialog}
+    </>
   );
 }
