@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -129,15 +130,29 @@ func (m *mockEffectivePermissionService) GetEffectivePermissions(
 	return m.getEffectivePermissionsFn(ctx, staffID, clinicID)
 }
 
+func allowAllClinicPermission(c *gin.Context) {
+	httpapi.SetClinicPermissionChecker(c, func(_ *gin.Context, _ uint64, _, _ string) bool {
+		return true
+	})
+}
+
+func setOwnersPermissionOnlyClinic(c *gin.Context, clinicID uint64, action string) {
+	httpapi.SetClinicPermissionChecker(c, func(_ *gin.Context, id uint64, resource, act string) bool {
+		return id == clinicID && resource == string(model.ResourceOwners) && act == action
+	})
+}
+
 func setNonSystemAdmin(c *gin.Context) {
 	c.Set("is_system_admin", false)
 	c.Set("user_id", "1")
 	c.Set("clinic_id", "1")
+	allowAllClinicPermission(c)
 }
 
 // setClinicID は gin.Context に clinic_id を設定するヘルパー
 func setClinicID(c *gin.Context) {
 	c.Set("clinic_id", "1")
+	allowAllClinicPermission(c)
 }
 
 // ---- ListOwners ----
@@ -238,6 +253,40 @@ func TestListOwners(t *testing.T) {
 			svc: &mockOwnerService{
 				listFn: func(_ context.Context, clinicIDs []uint64, _, _ int, _ string) ([]model.Owner, int64, error) {
 					assert.Equal(t, []uint64{1, 2}, clinicIDs)
+					return []model.Owner{}, 0, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:  "returns 403 when clinic_ids lacks owners:view",
+			query: "page=1&limit=10&clinic_ids=2",
+			setupCtx: func(c *gin.Context) {
+				setClinicID(c)
+				c.Set("is_system_admin", false)
+				c.Set("clinic_ids", []uint64{1, 2})
+				setOwnersPermissionOnlyClinic(c, 1, "view")
+			},
+			svc: &mockOwnerService{
+				listFn: func(_ context.Context, _ []uint64, _, _ int, _ string) ([]model.Owner, int64, error) {
+					t.Fatal("must not list a clinic that lacks owners:view")
+					return nil, 0, nil
+				},
+			},
+			wantStatus: http.StatusForbidden,
+		},
+		{
+			name:  "filters mixed clinic_ids to owners:view clinics",
+			query: "page=1&limit=10&clinic_ids=1,2",
+			setupCtx: func(c *gin.Context) {
+				setClinicID(c)
+				c.Set("is_system_admin", false)
+				c.Set("clinic_ids", []uint64{1, 2})
+				setOwnersPermissionOnlyClinic(c, 1, "view")
+			},
+			svc: &mockOwnerService{
+				listFn: func(_ context.Context, clinicIDs []uint64, _, _ int, _ string) ([]model.Owner, int64, error) {
+					assert.Equal(t, []uint64{1}, clinicIDs)
 					return []model.Owner{}, 0, nil
 				},
 			},
@@ -361,6 +410,24 @@ func TestGetOwner(t *testing.T) {
 			},
 			wantStatus: http.StatusNotFound,
 		},
+		{
+			name:    "rejects owner id from clinic that lacks owners:view",
+			paramID: "42",
+			setupCtx: func(c *gin.Context) {
+				setClinicID(c)
+				c.Set("is_system_admin", false)
+				c.Set("clinic_ids", []uint64{1, 2})
+				setOwnersPermissionOnlyClinic(c, 1, "view")
+			},
+			svc: &mockOwnerService{
+				getByIDForClinicsFn: func(_ context.Context, clinicIDs []uint64, id uint64) (*model.Owner, error) {
+					assert.Equal(t, []uint64{1}, clinicIDs)
+					assert.Equal(t, uint64(42), id)
+					return nil, apperrors.WrapNotFound("owner", "42")
+				},
+			},
+			wantStatus: http.StatusNotFound,
+		},
 	}
 
 	for _, tt := range tests {
@@ -464,6 +531,27 @@ func TestCreateOwner(t *testing.T) {
 				},
 			},
 			wantStatus: http.StatusCreated,
+		},
+		{
+			name: "returns 403 when body clinic_id lacks owners:create",
+			body: func() map[string]any {
+				b := validBody()
+				b["clinic_id"] = 2
+				return b
+			}(),
+			setupCtx: func(c *gin.Context) {
+				setClinicID(c)
+				c.Set("is_system_admin", false)
+				c.Set("clinic_ids", []uint64{1, 2})
+				setOwnersPermissionOnlyClinic(c, 1, "create")
+			},
+			svc: &mockOwnerService{
+				createWithPetsFn: func(_ context.Context, _ uint64, _ *CreateOwnerInput) (*model.Owner, error) {
+					t.Fatal("must not create an owner in a clinic that lacks owners:create")
+					return nil, nil
+				},
+			},
+			wantStatus: http.StatusForbidden,
 		},
 		{
 			name: "returns 403 when specified clinic is not assigned",

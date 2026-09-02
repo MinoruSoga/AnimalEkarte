@@ -235,6 +235,15 @@ func (h *Handler) GetStaffClinicAssignments(c *gin.Context) {
 	if !ok {
 		return
 	}
+	authorizedClinicIDs, ok = httpapi.FilterClinicIDsForPermission(
+		c,
+		authorizedClinicIDs,
+		string(model.ResourceMasterStaff),
+		"view",
+	)
+	if !ok {
+		return
+	}
 	if h.svc.StaffClinicAssignment == nil {
 		RespondError(c, apperrors.WrapInternalServerError(
 			"staff clinic assignment service is not configured",
@@ -316,6 +325,23 @@ func (h *Handler) SetStaffClinicAssignments(c *gin.Context) {
 	authorizedClinicIDs, ok := httpapi.ExtractClinicIDs(c)
 	if !ok {
 		return
+	}
+	authorizedClinicIDs, ok = httpapi.FilterClinicIDsForPermission(
+		c,
+		authorizedClinicIDs,
+		string(model.ResourceMasterStaff),
+		"edit",
+	)
+	if !ok {
+		return
+	}
+	if !isSystemAdmin {
+		for _, clinicID := range normalizedClinicIDs {
+			if !slices.Contains(authorizedClinicIDs, clinicID) {
+				RespondError(c, apperrors.WrapForbidden("cannot assign staff outside authorized clinics"))
+				return
+			}
+		}
 	}
 
 	if err := h.svc.Staff.SetClinicAssignments(c.Request.Context(), &SetClinicAssignmentsInput{

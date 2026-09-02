@@ -53,8 +53,12 @@ func toReservationAvailableTimeResponse(slot *TimeSlot) liffTimeSlotResponse {
 
 // ListReservations godoc
 func (h *ReservationHandler) ListReservations(c *gin.Context) {
-	// #86: 拠点横断一覧 — clinic_ids クエリ指定時は所属検証済みの複数医院、未指定は現在の医院のみ
-	clinicIDs, ok := httpapi.ResolveListClinicIDs(c)
+	// #86: 拠点横断一覧 — 所属かつ reservations:view を持つ医院だけをスコープにする
+	clinicIDs, ok := httpapi.ResolveListClinicIDsForPermission(
+		c,
+		string(model.ResourceReservations),
+		"view",
+	)
 	if !ok {
 		return
 	}
@@ -81,8 +85,12 @@ func (h *ReservationHandler) ListReservations(c *gin.Context) {
 
 // GetReservation godoc
 func (h *ReservationHandler) GetReservation(c *gin.Context) {
-	// #86: 詳細画面の拠点横断閲覧 — 所属医院全体をスコープにしてレコードを取得する
-	clinicIDs, ok := httpapi.ResolveAllClinicIDs(c)
+	// #86: 詳細画面の拠点横断閲覧 — 所属かつ reservations:view を持つ医院だけをスコープにする
+	clinicIDs, ok := httpapi.ResolveAllClinicIDsForPermission(
+		c,
+		string(model.ResourceReservations),
+		"view",
+	)
 	if !ok {
 		return
 	}

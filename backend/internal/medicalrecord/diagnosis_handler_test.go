@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -21,6 +22,15 @@ import (
 // 由来・同一実装。medicalrecord パッケージのハンドラテスト全体で共有）。
 func setClinicID(c *gin.Context) {
 	c.Set("clinic_id", "1")
+	httpapi.SetClinicPermissionChecker(c, func(_ *gin.Context, _ uint64, _, _ string) bool {
+		return true
+	})
+}
+
+func setResourcePermissionOnlyClinic(c *gin.Context, clinicID uint64, resource, action string) {
+	httpapi.SetClinicPermissionChecker(c, func(_ *gin.Context, id uint64, res, act string) bool {
+		return id == clinicID && res == resource && act == action
+	})
 }
 
 // ---- mock DiagnosisTypeService ----

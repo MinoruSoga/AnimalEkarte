@@ -3,7 +3,6 @@ package billing
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -249,17 +248,6 @@ func buildAccountingUpdate(input *UpdateAccountingInput) map[string]any {
 	}
 	if input.HasInsurance != nil {
 		fields["has_insurance"] = *input.HasInsurance
-	}
-	if input.Status != nil {
-		fields["status"] = *input.Status
-		// P10: status = completed 時は server time で completed_at を上書き（client clock skew 防止）
-		if *input.Status == model.BillingStatusCompleted {
-			now := time.Now()
-			fields["completed_at"] = now
-		}
-	} else if input.CompletedAt != nil {
-		// status 変更なし、かつ completed_at 送信時のみ受け取る（completed 状態での再設定は許可しない）
-		fields["completed_at"] = *input.CompletedAt
 	}
 	if input.ScheduledDate != nil {
 		fields["scheduled_date"] = *input.ScheduledDate

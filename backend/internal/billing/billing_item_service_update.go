@@ -227,6 +227,9 @@ func (s *billingItemService) createClosedDayAdjustmentIfNeeded(
 	staffID *uint64,
 	reason *string,
 ) error {
+	if err := s.closeRepo.LockCloseBoundary(ctx, clinicID, billing.ScheduledDate); err != nil {
+		return err
+	}
 	closed, err := s.closeRepo.HasCloseOnDate(ctx, clinicID, billing.ScheduledDate)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to re-check cash register close state for completed item correction")
@@ -273,6 +276,9 @@ func (s *billingItemService) recordBillingItemPostClose(
 ) error {
 	postClose := handlerFlag
 	if s.closeRepo != nil && billing != nil {
+		if err := s.closeRepo.LockCloseBoundary(ctx, clinicID, billing.ScheduledDate); err != nil {
+			return err
+		}
 		closed, err := s.closeRepo.HasCloseOnDate(ctx, clinicID, billing.ScheduledDate)
 		if err != nil {
 			return apperrors.Wrap(err, "failed to re-check cash register close state for billing item")

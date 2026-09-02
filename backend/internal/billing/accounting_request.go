@@ -163,7 +163,7 @@ type createAccountingRequest struct {
 	TaxTotal          int64      `json:"tax_total"     binding:"min=0"`
 	TotalAmount       int64      `json:"total_amount"  binding:"min=0"`
 	HasInsurance      bool       `json:"has_insurance"`
-	Status            string     `json:"status"        binding:"omitempty,oneof=waiting pending completed cancelled"`
+	Status            string     `json:"status"        binding:"omitempty,oneof=waiting pending"`
 	ScheduledDate     time.Time  `json:"scheduled_date" binding:"required"`
 	CompletedAt       *time.Time `json:"completed_at"`
 	Memo              string     `json:"memo"`

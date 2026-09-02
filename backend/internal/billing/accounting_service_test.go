@@ -363,163 +363,53 @@ func TestAccountingService_Create(t *testing.T) {
 	}
 }
 
-func TestAccountingService_Create_SyncsCPMStageTagBestEffortWhenCompleted(t *testing.T) {
-	ownerID := uint64(10)
-	var syncedClinicID, syncedOwnerID uint64
-
+func TestAccountingService_Create_RejectsCompletedStatus(t *testing.T) {
 	repo := &mockAccountingRepository{
-		createFn: func(_ context.Context, _ uint64, accounting *model.Billing) error {
-			accounting.ID = 30
+		createFn: func(_ context.Context, _ uint64, _ *model.Billing) error {
+			t.Fatal("create must not run for completed status")
 			return nil
 		},
 	}
-	tagSync := &mockLstepTagSyncService{
-		syncCPMStageTagFn: func(_ context.Context, clinicID, ownerID uint64) error {
-			syncedClinicID = clinicID
-			syncedOwnerID = ownerID
-			return errors.New("sync failed")
-		},
-	}
-	svc := NewAccountingService(repo, nil, nil, &mockReservationRepository{}, tagSync, &mockTransactor{}, &mockAuditService{}, &mockPaymentMethodMasterRepository{})
+	svc := NewAccountingService(repo, nil, nil, nil, nil, &mockTransactor{}, &mockAuditService{}, &mockPaymentMethodMasterRepository{})
 
 	billing, err := svc.Create(context.Background(), &CreateAccountingInput{
 		ClinicID:      1,
-		OwnerID:       &ownerID,
 		Status:        model.BillingStatusCompleted,
 		ScheduledDate: time.Date(2026, 5, 28, 0, 0, 0, 0, time.UTC),
 	})
 
-	assert.NoError(t, err)
-	assert.NotNil(t, billing)
-	assert.Equal(t, uint64(1), syncedClinicID)
-	assert.Equal(t, ownerID, syncedOwnerID)
+	assert.Error(t, err)
+	assert.True(t, apperrors.IsInvalidInput(err))
+	assert.ErrorContains(t, err, "POST /accountings/complete")
+	assert.Nil(t, billing)
 }
 
-func TestAccountingService_Create_CompletesSameDayAccountingAppointments(t *testing.T) {
-	ownerID := uint64(10)
-	petID := uint64(20)
-	scheduledDate := time.Date(2026, 5, 28, 0, 0, 0, 0, time.UTC)
-	var completedClinicID uint64
-	var completedOwnerID uint64
-	var completedPetID uint64
-	var completedDate time.Time
-
+func TestAccountingService_Create_RejectsClientCompletedAt(t *testing.T) {
+	completedAt := time.Date(2026, 5, 28, 10, 0, 0, 0, time.UTC)
 	repo := &mockAccountingRepository{
-		createFn: func(_ context.Context, _ uint64, accounting *model.Billing) error {
-			accounting.ID = 30
+		createFn: func(_ context.Context, _ uint64, _ *model.Billing) error {
+			t.Fatal("create must not run when completed_at is client-supplied")
 			return nil
 		},
 	}
-	resRepo := &mockReservationRepository{
-		findPetOwnerInClinicFn: func(_ context.Context, _, _ uint64) (uint64, error) {
-			return ownerID, nil
-		},
-		completeForAccountingFn: func(_ context.Context, clinicID uint64, _, ownerID, petID *uint64, scheduledDate time.Time) (int64, error) {
-			completedClinicID = clinicID
-			completedOwnerID = *ownerID
-			completedPetID = *petID
-			completedDate = scheduledDate
-			return 2, nil
-		},
-	}
-	svc := NewAccountingService(repo, nil, nil, resRepo, nil, &mockTransactor{}, &mockAuditService{}, &mockPaymentMethodMasterRepository{})
+	svc := NewAccountingService(repo, nil, nil, nil, nil, &mockTransactor{}, &mockAuditService{}, &mockPaymentMethodMasterRepository{})
 
 	billing, err := svc.Create(context.Background(), &CreateAccountingInput{
 		ClinicID:      1,
-		OwnerID:       &ownerID,
-		PetID:         &petID,
-		Status:        model.BillingStatusCompleted,
-		ScheduledDate: scheduledDate,
-	})
-
-	assert.NoError(t, err)
-	assert.NotNil(t, billing)
-	assert.Equal(t, uint64(1), completedClinicID)
-	assert.Equal(t, ownerID, completedOwnerID)
-	assert.Equal(t, petID, completedPetID)
-	assert.Equal(t, scheduledDate, completedDate)
-}
-
-// #77: 会計完了時、診察カードの orphan 残留を防ぐため billing.medical_record_id が
-// CompleteForAccounting に渡ることを検証する。
-func TestAccountingService_Create_PassesMedicalRecordIDToCompleteAppointments(t *testing.T) {
-	medicalRecordID := uint64(42)
-	var gotMedicalRecordID *uint64
-	called := false
-
-	repo := &mockAccountingRepository{
-		createFn: func(_ context.Context, _ uint64, accounting *model.Billing) error {
-			accounting.ID = 30
-			return nil
-		},
-	}
-	resRepo := &mockReservationRepository{
-		completeForAccountingFn: func(_ context.Context, _ uint64, mrID, _, _ *uint64, _ time.Time) (int64, error) {
-			called = true
-			gotMedicalRecordID = mrID
-			return 1, nil
-		},
-	}
-	mrRepo := &mockMedicalRecordRepository{
-		findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
-			return &model.MedicalRecord{ID: id, ClinicID: clinicID}, nil
-		},
-	}
-	svc := NewAccountingService(repo, mrRepo, nil, resRepo, nil, &mockTransactor{}, &mockAuditService{}, &mockPaymentMethodMasterRepository{})
-
-	_, err := svc.Create(context.Background(), &CreateAccountingInput{
-		ClinicID:        1,
-		MedicalRecordID: &medicalRecordID,
-		Status:          model.BillingStatusCompleted,
-		ScheduledDate:   time.Date(2026, 5, 28, 0, 0, 0, 0, time.UTC),
-	})
-
-	assert.NoError(t, err)
-	assert.True(t, called, "CompleteForAccounting が呼ばれること")
-	if assert.NotNil(t, gotMedicalRecordID) {
-		assert.Equal(t, medicalRecordID, *gotMedicalRecordID)
-	}
-}
-
-// #77: トリミングのみ会計（medical_record_id なし）では nil が渡り、診察補完がスキップされること。
-func TestAccountingService_Create_NilMedicalRecordIDForTrimmingOnly(t *testing.T) {
-	ownerID := uint64(10)
-	petID := uint64(20)
-	gotNonNil := true
-
-	repo := &mockAccountingRepository{
-		createFn: func(_ context.Context, _ uint64, accounting *model.Billing) error {
-			accounting.ID = 30
-			return nil
-		},
-	}
-	resRepo := &mockReservationRepository{
-		assertOwnerInClinicFn: func(_ context.Context, _, _ uint64) error { return nil },
-		findPetOwnerInClinicFn: func(_ context.Context, _, _ uint64) (uint64, error) {
-			return ownerID, nil
-		},
-		completeForAccountingFn: func(_ context.Context, _ uint64, mrID, _, _ *uint64, _ time.Time) (int64, error) {
-			gotNonNil = mrID != nil
-			return 1, nil
-		},
-	}
-	svc := NewAccountingService(repo, nil, nil, resRepo, nil, &mockTransactor{}, &mockAuditService{}, &mockPaymentMethodMasterRepository{})
-
-	_, err := svc.Create(context.Background(), &CreateAccountingInput{
-		ClinicID:      1,
-		OwnerID:       &ownerID,
-		PetID:         &petID,
-		Status:        model.BillingStatusCompleted,
+		Status:        model.BillingStatusWaiting,
 		ScheduledDate: time.Date(2026, 5, 28, 0, 0, 0, 0, time.UTC),
+		CompletedAt:   &completedAt,
 	})
 
-	assert.NoError(t, err)
-	assert.False(t, gotNonNil, "medical_record_id 未設定なら nil が渡る")
+	assert.Error(t, err)
+	assert.True(t, apperrors.IsInvalidInput(err))
+	assert.ErrorContains(t, err, "completed_at")
+	assert.Nil(t, billing)
 }
 
 func TestAccountingService_Update(t *testing.T) {
 	now := time.Now()
-	status := model.BillingStatusCompleted
+	memo := "updated"
 	tests := []struct {
 		name    string
 		input   UpdateAccountingInput
@@ -534,9 +424,9 @@ func TestAccountingService_Update(t *testing.T) {
 				ID:            1,
 				ClinicID:      1,
 				ScheduledDate: &now,
-				Status:        &status,
+				Memo:          &memo,
 			},
-			repoRet: &model.Billing{ID: 1, ClinicID: 1, ScheduledDate: now, Status: status},
+			repoRet: &model.Billing{ID: 1, ClinicID: 1, ScheduledDate: now, Status: model.BillingStatusWaiting},
 			repoErr: nil,
 			wantErr: false,
 			wantNF:  false,
@@ -548,7 +438,7 @@ func TestAccountingService_Update(t *testing.T) {
 				ClinicID: 1,
 				// 全フィールドが nil
 			},
-			repoRet: nil,
+			repoRet: &model.Billing{ID: 1, ClinicID: 1, Status: model.BillingStatusWaiting},
 			repoErr: nil,
 			wantErr: true,
 			wantNF:  false,
@@ -558,7 +448,7 @@ func TestAccountingService_Update(t *testing.T) {
 			input: UpdateAccountingInput{
 				ID:       999,
 				ClinicID: 1,
-				Status:   &status,
+				Memo:     &memo,
 			},
 			repoRet: nil,
 			repoErr: apperrors.WrapNotFound("billing", "999"),
@@ -570,7 +460,7 @@ func TestAccountingService_Update(t *testing.T) {
 			input: UpdateAccountingInput{
 				ID:       1,
 				ClinicID: 1,
-				Status:   &status,
+				Memo:     &memo,
 			},
 			repoRet: nil,
 			repoErr: errors.New("db error"),
@@ -610,7 +500,7 @@ func TestAccountingService_Update(t *testing.T) {
 func TestAccountingService_Update_ReloadFailureRollsBackTransaction(t *testing.T) {
 	type txMarkerKey struct{}
 	reloadErr := errors.New("reload failed")
-	status := model.BillingStatusWaiting
+	memo := "reload"
 	findCalls := 0
 	reloadUsedTx := false
 	var callbackErr error
@@ -618,13 +508,13 @@ func TestAccountingService_Update_ReloadFailureRollsBackTransaction(t *testing.T
 		findByIDFn: func(ctx context.Context, _, _ uint64) (*model.Billing, error) {
 			findCalls++
 			if findCalls == 1 {
-				return &model.Billing{ID: 1, ClinicID: 1, Status: status}, nil
+				return &model.Billing{ID: 1, ClinicID: 1, Status: model.BillingStatusWaiting}, nil
 			}
 			reloadUsedTx = ctx.Value(txMarkerKey{}) == true
 			return nil, reloadErr
 		},
 		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Billing, error) {
-			return &model.Billing{ID: 1, ClinicID: 1, Status: status}, nil
+			return &model.Billing{ID: 1, ClinicID: 1, Status: model.BillingStatusWaiting}, nil
 		},
 	}
 	tx := &mockTransactor{
@@ -638,7 +528,7 @@ func TestAccountingService_Update_ReloadFailureRollsBackTransaction(t *testing.T
 	billing, err := svc.Update(context.Background(), &UpdateAccountingInput{
 		ID:       1,
 		ClinicID: 1,
-		Status:   &status,
+		Memo:     &memo,
 	})
 
 	assert.ErrorIs(t, err, reloadErr)
@@ -647,24 +537,22 @@ func TestAccountingService_Update_ReloadFailureRollsBackTransaction(t *testing.T
 	assert.Nil(t, billing)
 }
 
-func TestAccountingService_Update_SyncsCPMStageTagBestEffortWhenCompleted(t *testing.T) {
-	ownerID := uint64(10)
+func TestAccountingService_Update_RejectsCompletedStatusTransition(t *testing.T) {
 	status := model.BillingStatusCompleted
-	var syncedClinicID, syncedOwnerID uint64
-
+	var synced bool
 	repo := &mockAccountingRepository{
 		findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Billing, error) {
-			return &model.Billing{ID: id, ClinicID: clinicID, OwnerID: &ownerID, Status: status}, nil
+			return &model.Billing{ID: id, ClinicID: clinicID, Status: model.BillingStatusWaiting}, nil
 		},
 		updateFieldsFn: func(_ context.Context, clinicID, id uint64, _ map[string]any) (*model.Billing, error) {
-			return &model.Billing{ID: id, ClinicID: clinicID, OwnerID: &ownerID, Status: status}, nil
+			t.Fatal("update must not persist completed via generic PATCH")
+			return &model.Billing{ID: id, ClinicID: clinicID}, nil
 		},
 	}
 	tagSync := &mockLstepTagSyncService{
-		syncCPMStageTagFn: func(_ context.Context, clinicID, ownerID uint64) error {
-			syncedClinicID = clinicID
-			syncedOwnerID = ownerID
-			return errors.New("sync failed")
+		syncCPMStageTagFn: func(_ context.Context, _, _ uint64) error {
+			synced = true
+			return nil
 		},
 	}
 	svc := NewAccountingService(repo, nil, nil, &mockReservationRepository{}, tagSync, &mockTransactor{}, &mockAuditService{}, &mockPaymentMethodMasterRepository{})
@@ -675,57 +563,24 @@ func TestAccountingService_Update_SyncsCPMStageTagBestEffortWhenCompleted(t *tes
 		Status:   &status,
 	})
 
-	assert.NoError(t, err)
-	assert.NotNil(t, billing)
-	assert.Equal(t, uint64(1), syncedClinicID)
-	assert.Equal(t, ownerID, syncedOwnerID)
+	assert.Error(t, err)
+	assert.True(t, apperrors.IsInvalidInput(err))
+	assert.Nil(t, billing)
+	assert.False(t, synced)
 }
 
-func TestAccountingService_Update_CompletesSameDayAccountingAppointments(t *testing.T) {
-	ownerID := uint64(10)
-	petID := uint64(20)
-	scheduledDate := time.Date(2026, 5, 28, 0, 0, 0, 0, time.UTC)
-	status := model.BillingStatusCompleted
-	var completedClinicID uint64
-	var completedOwnerID uint64
-	var completedPetID uint64
-	var completedDate time.Time
-
+func TestAccountingService_Update_RejectsCancelledStatusTransition(t *testing.T) {
+	status := model.BillingStatusCancelled
 	repo := &mockAccountingRepository{
 		findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Billing, error) {
-			return &model.Billing{
-				ID:            id,
-				ClinicID:      clinicID,
-				OwnerID:       &ownerID,
-				PetID:         &petID,
-				ScheduledDate: scheduledDate,
-				Status:        status,
-			}, nil
+			return &model.Billing{ID: id, ClinicID: clinicID, Status: model.BillingStatusWaiting}, nil
 		},
 		updateFieldsFn: func(_ context.Context, clinicID, id uint64, _ map[string]any) (*model.Billing, error) {
-			return &model.Billing{
-				ID:            id,
-				ClinicID:      clinicID,
-				OwnerID:       &ownerID,
-				PetID:         &petID,
-				ScheduledDate: scheduledDate,
-				Status:        status,
-			}, nil
+			t.Fatal("update must not persist cancelled via generic PATCH")
+			return &model.Billing{ID: id, ClinicID: clinicID}, nil
 		},
 	}
-	resRepo := &mockReservationRepository{
-		findPetOwnerInClinicFn: func(_ context.Context, _, _ uint64) (uint64, error) {
-			return ownerID, nil
-		},
-		completeForAccountingFn: func(_ context.Context, clinicID uint64, _, ownerID, petID *uint64, scheduledDate time.Time) (int64, error) {
-			completedClinicID = clinicID
-			completedOwnerID = *ownerID
-			completedPetID = *petID
-			completedDate = scheduledDate
-			return 2, nil
-		},
-	}
-	svc := NewAccountingService(repo, nil, nil, resRepo, nil, &mockTransactor{}, &mockAuditService{}, &mockPaymentMethodMasterRepository{})
+	svc := NewAccountingService(repo, nil, nil, &mockReservationRepository{}, nil, &mockTransactor{}, &mockAuditService{}, &mockPaymentMethodMasterRepository{})
 
 	billing, err := svc.Update(context.Background(), &UpdateAccountingInput{
 		ID:       30,
@@ -733,12 +588,35 @@ func TestAccountingService_Update_CompletesSameDayAccountingAppointments(t *test
 		Status:   &status,
 	})
 
-	assert.NoError(t, err)
-	assert.NotNil(t, billing)
-	assert.Equal(t, uint64(1), completedClinicID)
-	assert.Equal(t, ownerID, completedOwnerID)
-	assert.Equal(t, petID, completedPetID)
-	assert.Equal(t, scheduledDate, completedDate)
+	assert.Error(t, err)
+	assert.ErrorIs(t, err, apperrors.ErrForbidden)
+	assert.Nil(t, billing)
+}
+
+func TestAccountingService_Update_RejectsCancelledResurrection(t *testing.T) {
+	waiting := model.BillingStatusWaiting
+	memo := "resurrect"
+	repo := &mockAccountingRepository{
+		findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Billing, error) {
+			return &model.Billing{ID: id, ClinicID: clinicID, Status: model.BillingStatusCancelled}, nil
+		},
+		updateFieldsFn: func(_ context.Context, clinicID, id uint64, _ map[string]any) (*model.Billing, error) {
+			t.Fatal("cancelled billing must not be updated")
+			return &model.Billing{ID: id, ClinicID: clinicID}, nil
+		},
+	}
+	svc := NewAccountingService(repo, nil, nil, &mockReservationRepository{}, nil, &mockTransactor{}, &mockAuditService{}, &mockPaymentMethodMasterRepository{})
+
+	billing, err := svc.Update(context.Background(), &UpdateAccountingInput{
+		ID:       30,
+		ClinicID: 1,
+		Status:   &waiting,
+		Memo:     &memo,
+	})
+
+	assert.Error(t, err)
+	assert.True(t, apperrors.IsConflict(err))
+	assert.Nil(t, billing)
 }
 
 // TestAccountingService_Cancel は BUG-371: 論理削除 (status=cancelled) + #118: audit ログ記録の挙動を検証する。
@@ -1118,7 +996,7 @@ func TestAccountingService_Update_MixedPayment(t *testing.T) {
 			if callCount == 2 {
 				return reloadedBilling, nil
 			}
-			return &model.Billing{ID: 1, ClinicID: 1}, nil
+			return &model.Billing{ID: 1, ClinicID: 1, Status: model.BillingStatusCompleted}, nil
 		},
 		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Billing, error) {
 			return &model.Billing{ID: 1, ClinicID: 1}, nil
@@ -1220,10 +1098,10 @@ func TestAccountingService_Update_ResolvesPaymentMethodID(t *testing.T) {
 	newRepo := func(captured *[]model.PaymentSplit) *mockAccountingRepository {
 		return &mockAccountingRepository{
 			findByIDFn: func(_ context.Context, _, _ uint64) (*model.Billing, error) {
-				return &model.Billing{ID: 1, ClinicID: 1}, nil
+				return &model.Billing{ID: 1, ClinicID: 1, Status: model.BillingStatusCompleted}, nil
 			},
 			updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Billing, error) {
-				return &model.Billing{ID: 1, ClinicID: 1}, nil
+				return &model.Billing{ID: 1, ClinicID: 1, Status: model.BillingStatusCompleted}, nil
 			},
 			savePaymentSplitsFn: func(_ context.Context, splits []model.PaymentSplit) error {
 				*captured = splits
@@ -1340,10 +1218,10 @@ func TestAccountingService_Update_ResolvesPaymentMethodID_RenameResilient(t *tes
 	newRepo := func(captured *[]model.PaymentSplit) *mockAccountingRepository {
 		return &mockAccountingRepository{
 			findByIDFn: func(_ context.Context, _, _ uint64) (*model.Billing, error) {
-				return &model.Billing{ID: 1, ClinicID: 1}, nil
+				return &model.Billing{ID: 1, ClinicID: 1, Status: model.BillingStatusCompleted}, nil
 			},
 			updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Billing, error) {
-				return &model.Billing{ID: 1, ClinicID: 1}, nil
+				return &model.Billing{ID: 1, ClinicID: 1, Status: model.BillingStatusCompleted}, nil
 			},
 			savePaymentSplitsFn: func(_ context.Context, splits []model.PaymentSplit) error {
 				*captured = splits

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
 	"strings"
 	"time"
@@ -14,9 +15,71 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-// connectionProbeClient is a timeout-bound client for connectivity probes (LSA-01/LSA-08).
-// Do not use http.DefaultClient (no timeout).
-var connectionProbeClient = &http.Client{Timeout: 10 * time.Second}
+const connectionProbeTimeout = 10 * time.Second
+
+var (
+	errConnectionRedirect = errors.New("redirect disallowed")
+	errBlockedDialAddress = errors.New("blocked dial address")
+	lookupProbeIPAddr     = defaultLookupProbeIPAddr
+	connectionProbeClient = newOutboundProbeClient(connectionProbeTimeout)
+)
+
+func defaultLookupProbeIPAddr(ctx context.Context, host string) ([]net.IPAddr, error) {
+	return net.DefaultResolver.LookupIPAddr(ctx, host)
+}
+
+func probeCheckRedirect(*http.Request, []*http.Request) error {
+	return errConnectionRedirect
+}
+
+func newOutboundProbeClient(timeout time.Duration) *http.Client {
+	return &http.Client{
+		Timeout:       timeout,
+		CheckRedirect: probeCheckRedirect,
+		Transport: &http.Transport{
+			Proxy:                 http.ProxyFromEnvironment,
+			DialContext:           probeDialContext,
+			ForceAttemptHTTP2:     true,
+			MaxIdleConns:          4,
+			IdleConnTimeout:       30 * time.Second,
+			TLSHandshakeTimeout:   timeout,
+			ExpectContinueTimeout: time.Second,
+		},
+	}
+}
+
+func probeDialContext(ctx context.Context, network, addr string) (net.Conn, error) {
+	host, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		return nil, err
+	}
+	ips, err := lookupProbeIPAddr(ctx, host)
+	if err != nil {
+		return nil, err
+	}
+	if len(ips) == 0 {
+		return nil, errBlockedDialAddress
+	}
+	for _, ipa := range ips {
+		if isForbiddenProbeIP(ipa.IP) {
+			return nil, errBlockedDialAddress
+		}
+	}
+	d := &net.Dialer{Timeout: connectionProbeTimeout}
+	return d.DialContext(ctx, network, net.JoinHostPort(ips[0].IP.String(), port))
+}
+
+func isForbiddenProbeIP(ip net.IP) bool {
+	if ip == nil {
+		return true
+	}
+	return ip.IsUnspecified() ||
+		ip.IsLoopback() ||
+		ip.IsPrivate() ||
+		ip.IsLinkLocalUnicast() ||
+		ip.IsLinkLocalMulticast() ||
+		ip.IsMulticast()
+}
 
 func (s *lstepSettingsService) TestConnection(ctx context.Context, clinicID uint64) (*LstepConnectionTestResult, error) {
 	records, err := s.repo.FindByClinicAndService(ctx, clinicID, model.IntegrationServiceLstep)
@@ -115,6 +178,9 @@ func classifyConnectionProbeError(err error) string {
 	}
 	if errors.Is(err, errConnectionUnauthorized) {
 		return "unauthorized"
+	}
+	if errors.Is(err, errConnectionRedirect) || errors.Is(err, errBlockedDialAddress) {
+		return "unreachable"
 	}
 	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
 		return "timeout"

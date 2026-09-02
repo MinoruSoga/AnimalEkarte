@@ -12,10 +12,22 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-// HasPermission evaluates one resource/action pair against authenticated context.
+// HasPermission evaluates one resource/action pair against the selected clinic.
 // Context peeks never write a response (AUS-09); RequirePermission owns the single write.
 func (h *HTTPHandler) HasPermission(
 	c *gin.Context,
+	resource, action string,
+) bool {
+	clinicID, _ := httpapi.PeekClinicID(c)
+	return h.HasPermissionInClinic(c, clinicID, resource, action)
+}
+
+// HasPermissionInClinic evaluates one resource/action pair for a destination clinic.
+// system_admin remains an explicit bypass. Missing identity, a zero clinic, a nil
+// EffectivePermissions dependency, or a repository error fail closed.
+func (h *HTTPHandler) HasPermissionInClinic(
+	c *gin.Context,
+	clinicID uint64,
 	resource, action string,
 ) bool {
 	isSystemAdmin, ok := httpapi.PeekIsSystemAdmin(c)
@@ -27,11 +39,7 @@ func (h *HTTPHandler) HasPermission(
 	}
 
 	staffID, ok := httpapi.PeekStaffID(c)
-	if !ok {
-		return false
-	}
-	clinicID, ok := httpapi.PeekClinicID(c)
-	if !ok || h.deps.EffectivePermissions == nil {
+	if !ok || clinicID == 0 || h.deps.EffectivePermissions == nil {
 		return false
 	}
 	rules, err := h.deps.EffectivePermissions.GetEffectivePermissions(
@@ -42,6 +50,13 @@ func (h *HTTPHandler) HasPermission(
 	if err != nil {
 		return false
 	}
+	return permissionRulesAllow(rules, resource, action)
+}
+
+func permissionRulesAllow(
+	rules []model.PermissionGroupRule,
+	resource, action string,
+) bool {
 	for i := range rules {
 		rule := &rules[i]
 		if rule.Resource != resource {
@@ -61,6 +76,10 @@ func (h *HTTPHandler) HasPermission(
 	return false
 }
 
+func (h *HTTPHandler) attachClinicPermissionChecker(c *gin.Context) {
+	httpapi.SetClinicPermissionChecker(c, h.HasPermissionInClinic)
+}
+
 // RequirePermission rejects requests lacking one resource/action permission.
 func (h *HTTPHandler) RequirePermission(resource, action string) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -69,6 +88,7 @@ func (h *HTTPHandler) RequirePermission(resource, action string) gin.HandlerFunc
 			c.Abort()
 			return
 		}
+		h.attachClinicPermissionChecker(c)
 		c.Next()
 	}
 }
@@ -80,6 +100,7 @@ func (h *HTTPHandler) RequirePermissionAny(
 	return func(c *gin.Context) {
 		for _, permission := range permissions {
 			if h.HasPermission(c, permission.Resource, permission.Action) {
+				h.attachClinicPermissionChecker(c)
 				c.Next()
 				return
 			}
