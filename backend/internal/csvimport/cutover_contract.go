@@ -14,8 +14,8 @@ const (
 	maxCutoverManifestBytes    = int64(4 << 20)
 	maxCutoverCSVBytes         = int64(512 << 20)
 	cutoverManifestSchema      = "animalekarte-cutover-v1"
-	cutoverStageMappingSHA256  = "37df24e61efad4f55b546a376a97d7d5ab9eb39ddf12e3719198bcd001e94c77"
-	cutoverCSVContractSHA256   = "4ab52e1421a6682870edf6f36504f046bd4dd3c2faf6e7a5d3634f7de0b3be0d"
+	cutoverStageMappingSHA256  = "42d6917b9dab9e979aff3b23fee6f42af2302d5b76b89c54e0265ceadaa9801d"
+	cutoverCSVContractSHA256   = "11cbd62696507efc2f7886046598b67f0f8b5762bdf158e6ef120b206f63b794"
 )
 
 var placeholderPattern = regexp.MustCompile(`\{\{[A-Z0-9_]+\}\}`)
@@ -164,6 +164,7 @@ func CutoverPlaceholderColumns() map[string]string {
 		"appointments.reservation_type_id":                        "{{TRIMMING_RESERVATION_TYPE_ID}}",
 		"appointment_trimming_details.clinic_id":                  "{{CLINIC_ID}}",
 		"billings.clinic_id":                                      "{{CLINIC_ID}}",
+		"billing_items.clinic_id":                                 "{{CLINIC_ID}}",
 		"payments.clinic_id":                                      "{{CLINIC_ID}}",
 		"payments.payment_method_id (cash)":                       "{{PAYMENT_METHOD_CASH_ID}}",
 		"payments.payment_method_id (credit_card)":                "{{PAYMENT_METHOD_CREDIT_CARD_ID}}",
@@ -193,10 +194,10 @@ func CutoverTableSpecs() []CutoverTableSpec {
 		{"appointments", []string{"id", "clinic_id", "start_time", "end_time", "owner_id", "pet_id", "visit_type", "reservation_type_id", "doctor_id", "status", "source"}, []string{"id", "owner_id", "pet_id", "doctor_id"}, nil},
 		{"appointment_trimming_details", []string{"id", "clinic_id", "appointment_id", "remarks"}, []string{"id", "appointment_id"}, []string{"remarks"}},
 		{"billings", []string{"id", "clinic_id", "medical_record_id", "owner_id", "pet_id", "total_amount", "status", "scheduled_date", "completed_at"}, []string{"id", "medical_record_id", "owner_id", "pet_id"}, nil},
-		{"billing_items", []string{"id", "billing_id", "category", "name", "unit_price", "quantity", "tax_type", "is_insurance_applicable", "sort_order"}, []string{"id", "billing_id"}, []string{"name"}},
+		{"billing_items", []string{"id", "clinic_id", "billing_id", "category", "name", "unit_price", "quantity", "tax_type", "is_insurance_applicable", "sort_order"}, []string{"id", "billing_id"}, []string{"name"}},
 		{"payments", []string{"id", "clinic_id", "billing_id", "subtotal", "tax_total", "total_amount", "insurance_name", "insurance_ratio", "insurance_amount", "discount_amount", "billing_amount", "received_amount", "change_amount", "method", "payment_method_id", "paid_by", "created_at"}, []string{"id", "billing_id", "paid_by"}, []string{"insurance_name"}},
 		{"payment_splits", []string{"id", "clinic_id", "billing_id", "method", "payment_method_id", "amount", "received_amount", "change_amount", "paid_by", "created_at"}, []string{"id", "billing_id", "paid_by"}, nil},
-		{"estimates", []string{"id", "clinic_id", "estimate_no", "medical_record_id", "title", "owner_id", "status", "subtotal", "tax_total", "total_amount", "insurance_amount", "discount_amount", "valid_until", "comment", "notes", "created_by", "created_at"}, []string{"id", "medical_record_id", "owner_id", "created_by"}, []string{"estimate_no", "title", "comment", "notes"}},
+		{"estimates", []string{"id", "clinic_id", "estimate_no", "medical_record_id", "title", "owner_id", "pet_id", "status", "subtotal", "tax_total", "total_amount", "insurance_amount", "discount_amount", "valid_until", "comment", "notes", "created_by", "created_at"}, []string{"id", "medical_record_id", "owner_id", "pet_id", "created_by"}, []string{"estimate_no", "title", "comment", "notes"}},
 		{"estimate_items", []string{"id", "estimate_id", "name", "category", "unit_price", "quantity", "tax_type", "tax_rate", "discount_rate", "discount_amount", "is_insurance_applicable", "consultation_id", "procedure_id", "medicine_id", "merchandise_item_id", "sort_order"}, []string{"id", "estimate_id", "consultation_id", "procedure_id", "medicine_id", "merchandise_item_id"}, []string{"name"}},
 		{"exams", []string{"id", "clinic_id", "medical_record_id", "pet_id", "date", "exam_type_id", "result_summary"}, []string{"id", "medical_record_id", "pet_id"}, []string{"result_summary"}},
 		{"exam_results", []string{"id", "exam_id", "name", "inspection_value", "normal_value", "sort_order"}, []string{"id", "exam_id"}, []string{"name", "inspection_value", "normal_value"}},

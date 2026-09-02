@@ -402,6 +402,16 @@ func TestCutoverTableSpecsMatchPaymentContract(t *testing.T) {
 	}) {
 		t.Fatalf("billings columns = %v", billings.Columns)
 	}
+	billingItems := specs[12]
+	if !slices.Equal(billingItems.Columns, []string{
+		"id", "clinic_id", "billing_id", "category", "name", "unit_price", "quantity",
+		"tax_type", "is_insurance_applicable", "sort_order",
+	}) {
+		t.Fatalf("billing_items columns = %v", billingItems.Columns)
+	}
+	if !slices.Equal(billingItems.BandColumns, []string{"id", "billing_id"}) {
+		t.Fatalf("billing_items band columns = %v", billingItems.BandColumns)
+	}
 	payments := specs[13]
 	if !slices.Equal(payments.Columns, []string{
 		"id", "clinic_id", "billing_id", "subtotal", "tax_total", "total_amount",
@@ -424,6 +434,17 @@ func TestCutoverTableSpecsMatchPaymentContract(t *testing.T) {
 	if !slices.Equal(paymentSplits.BandColumns, []string{"id", "billing_id", "paid_by"}) {
 		t.Fatalf("payment_splits band columns = %v", paymentSplits.BandColumns)
 	}
+	estimates := specs[15]
+	if !slices.Equal(estimates.Columns, []string{
+		"id", "clinic_id", "estimate_no", "medical_record_id", "title", "owner_id", "pet_id",
+		"status", "subtotal", "tax_total", "total_amount", "insurance_amount",
+		"discount_amount", "valid_until", "comment", "notes", "created_by", "created_at",
+	}) {
+		t.Fatalf("estimates columns = %v", estimates.Columns)
+	}
+	if !slices.Equal(estimates.BandColumns, []string{"id", "medical_record_id", "owner_id", "pet_id", "created_by"}) {
+		t.Fatalf("estimates band columns = %v", estimates.BandColumns)
+	}
 
 	wantPlaceholders := map[string]string{
 		"staffs.clinic_id":            "{{CLINIC_ID}}",
@@ -438,6 +459,7 @@ func TestCutoverTableSpecsMatchPaymentContract(t *testing.T) {
 		"appointments.reservation_type_id":                        "{{TRIMMING_RESERVATION_TYPE_ID}}",
 		"appointment_trimming_details.clinic_id":                  "{{CLINIC_ID}}",
 		"billings.clinic_id":                                      "{{CLINIC_ID}}",
+		"billing_items.clinic_id":                                 "{{CLINIC_ID}}",
 		"payments.clinic_id":                                      "{{CLINIC_ID}}",
 		"payments.payment_method_id (cash)":                       "{{PAYMENT_METHOD_CASH_ID}}",
 		"payments.payment_method_id (credit_card)":                "{{PAYMENT_METHOD_CREDIT_CARD_ID}}",
@@ -501,7 +523,7 @@ func TestCutoverMappingCoverageCoversAllFormalTables(t *testing.T) {
 
 	// Child tables without clinic_id must still declare parent-FK isolation.
 	wantParentFK := map[string]struct{}{
-		"inquiries": {}, "clinical_plans": {}, "billing_items": {},
+		"inquiries": {}, "clinical_plans": {},
 		"estimate_items": {}, "exam_results": {},
 	}
 
