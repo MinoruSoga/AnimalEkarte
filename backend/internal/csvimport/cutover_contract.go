@@ -421,7 +421,14 @@ func validateCutoverManifest(manifest CutoverManifest, expected ExpectedCutoverS
 		return fmt.Errorf("manifest clinic band is inconsistent with clinic ordinal")
 	}
 	wantOutputDir := filepath.Join("sensitive-local", "animalekarte-csv-export", expected.ClinicCode, expected.RunID)
-	if manifest.OutputDir != wantOutputDir || filepath.Clean(manifest.OutputDir) != manifest.OutputDir {
+	outputDirMatches := manifest.OutputDir == wantOutputDir
+	// Old DB local rehearsal exports append a controlled suffix (for example
+	// "-rehearsal-current") while retaining the clinic/run binding. Formal and
+	// staging imports remain exact-path only.
+	if expected.Provenance.Mode == CutoverProvenanceLocalRehearsal {
+		outputDirMatches = outputDirMatches || strings.HasPrefix(manifest.OutputDir, wantOutputDir+"-rehearsal-")
+	}
+	if !outputDirMatches || filepath.IsAbs(manifest.OutputDir) || filepath.Clean(manifest.OutputDir) != manifest.OutputDir {
 		return fmt.Errorf("manifest output directory binding is invalid")
 	}
 	if manifest.ImportablePredicate != cutoverImportablePredicate {

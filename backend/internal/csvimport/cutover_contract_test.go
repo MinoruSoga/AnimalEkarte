@@ -117,6 +117,21 @@ func TestPreflightCutoverBundleAcceptsLocalRehearsalBundle(t *testing.T) {
 	}
 }
 
+func TestPreflightCutoverBundleAcceptsLocalRehearsalOutputDirSuffix(t *testing.T) {
+	dir, manifestDigest := writeCutoverFixture(t, func(f *fixtureBundle) {
+		f.manifest.OutputDir += "-rehearsal-current"
+	})
+	if _, err := PreflightCutoverBundle(dir, ExpectedCutoverSource{
+		ManifestSHA256: manifestDigest,
+		ClinicCode:     "hachioji",
+		ClinicOrdinal:  1,
+		RunID:          "run-1",
+		Provenance:     CutoverProvenanceContract{Mode: CutoverProvenanceLocalRehearsal},
+	}); err != nil {
+		t.Fatalf("PreflightCutoverBundle(local rehearsal output suffix) error = %v", err)
+	}
+}
+
 func TestStagingRehearsalProvenanceRequiresTargetBinding(t *testing.T) {
 	manifest := CutoverManifest{}
 	for _, contract := range []CutoverProvenanceContract{
