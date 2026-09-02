@@ -1116,3 +1116,18 @@ func columnIndex(columns []string, name string) int {
 	}
 	return -1
 }
+
+func TestDecodeCutoverManifestAcceptsKnownHandoffPackageMetadata(t *testing.T) {
+	manifest, err := decodeCutoverManifest([]byte(`{
+		"packagingMode":"REHEARSAL_ONLY_COPY",
+		"sourcePackage":"sensitive-local/example",
+		"note":"local rehearsal only",
+		"sourcePackageManifestSha256":"1a08edbb2c6aa4050399d55d29204cd15cfbaa23baa30d512221b0b3d9372591"
+	}`))
+	if err != nil {
+		t.Fatalf("decodeCutoverManifest() error = %v", err)
+	}
+	if manifest.PackagingMode != "REHEARSAL_ONLY_COPY" || manifest.SourcePackage != "sensitive-local/example" {
+		t.Fatalf("handoff metadata was not preserved: %+v", manifest)
+	}
+}

@@ -141,6 +141,12 @@ type CutoverManifest struct {
 	SourceSummaryGeneratedAt  CutoverLayerTimestamps `json:"sourceSummaryGeneratedAt"`
 	SourceEvidenceSHA256      CutoverEvidenceDigests `json:"sourceEvidenceSha256"`
 	Tables                    []CutoverManifestTable `json:"tables"`
+	// Local handoff package metadata. These fields are emitted by the old_db
+	// handoff producer and remain subject to strict decoding so unknown fields fail closed.
+	PackagingMode               string `json:"packagingMode"`
+	SourcePackage               string `json:"sourcePackage"`
+	Note                        string `json:"note"`
+	SourcePackageManifestSHA256 string `json:"sourcePackageManifestSha256"`
 }
 
 type CutoverTableSpec struct {
