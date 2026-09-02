@@ -181,7 +181,8 @@ export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
   const deleteModal = useModalState<{ id: string; name: string }>();
   const [isDeleting, startDeleteTransition] = useTransition();
   const petModal = useModalState<Pet>();
-  const [_isPetSaving, startPetSaveTransition] = useTransition();
+  // PetEditModal は保存呼び出し後すぐ閉じるため pending state を UI で使わない（FE-RC-083）
+  const [, startPetSaveTransition] = useTransition();
 
   const totalPages = Math.max(1, Math.ceil(total / limit));
   const startIndex = total === 0 ? 0 : (page - 1) * limit + 1;

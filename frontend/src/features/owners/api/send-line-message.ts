@@ -7,6 +7,10 @@ import { queryKeys } from "@/lib/query-keys";
 
 export type LineSendType = "text" | "pdf_url" | "image_url";
 
+export function isLineSendType(value: string): value is LineSendType {
+  return value === "text" || value === "pdf_url" || value === "image_url";
+}
+
 export interface LineSendRequest {
   message_type: LineSendType;
   text?: string;

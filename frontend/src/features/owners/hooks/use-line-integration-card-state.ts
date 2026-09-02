@@ -1,7 +1,7 @@
 import { useActionState, useRef, useState } from "react";
 
 import { LSTEP_EXCL_DELIVERY_STOP } from "@/constants/lstep-tag-names";
-import { handleApiError } from "@/lib/handle-api-error";
+import { getFormString } from "@/lib/form-data";
 import { usePermission } from "@/hooks/use-permission";
 import type { Owner } from "@/types/owner";
 
@@ -60,15 +60,15 @@ export function useLineIntegrationCardState({
       _prevState: LineIdFormState,
       formData: FormData,
     ): Promise<LineIdFormState> => {
-      const lineUserId = (formData.get("line_user_id") as string).trim();
+      const lineUserId = getFormString(formData, "line_user_id").trim();
       if (!lineUserId) {
         return { error: "LINE User IDを入力してください", success: false };
       }
       try {
         await updateLine({ line_user_id: lineUserId });
         return { error: null, success: true };
-      } catch (error) {
-        handleApiError(error, "LINE User ID 紐付け");
+      } catch {
+        // useUpdateOwnerLine の onError が handleApiError 済み。ここでは再通知しない。
         return { error: "LINE User ID の紐付けに失敗しました", success: false };
       }
     },

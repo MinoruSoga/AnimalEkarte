@@ -1,9 +1,9 @@
-import { useCallback, useRef, useTransition } from "react";
 import { CheckCircle2, Circle } from "lucide-react";
 import { toast } from "sonner";
 
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { C, ICON, PALETTE, STYLE } from "@/lib/design-tokens";
 
 import { LstepTagAddDialog } from "./LstepTagAddDialog";
@@ -149,51 +149,32 @@ export function UnlinkedLineIdForm({
   lineIdFormAction,
   lineIdState,
 }: UnlinkedLineIdFormProps) {
-  const lineUserIdRef = useRef<HTMLInputElement>(null);
-  const [isPending, startTransition] = useTransition();
-  const handleSubmit = useCallback(() => {
-    const payload = new FormData();
-    payload.set("line_user_id", lineUserIdRef.current?.value ?? "");
-    startTransition(() => lineIdFormAction(payload));
-  }, [lineIdFormAction]);
-
   if (!canEdit) return null;
 
   return (
-    <fieldset
-      className="flex flex-col gap-2 border-0 p-0 m-0 min-w-0"
-      disabled={isPending}
-    >
+    // OwnerForm 全体がすでに <form action> なので、ここで <form> を入れ子にはできない。
+    // React 19 の formAction override（<SubmitButton formAction={...}>）で、
+    // このボタンだけ lineIdFormAction を送信先にする（親フォームの action は変えない）。
+    <div className="flex flex-col gap-2 min-w-0">
       <label htmlFor="line_user_id" className={STYLE.formLabel}>
         LINE User ID
       </label>
       <div className="flex gap-2">
         <input
           id="line_user_id"
-          ref={lineUserIdRef}
           name="line_user_id"
           type="text"
           placeholder="Uxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
           className={`${STYLE.formInput} flex-1 rounded-md px-3`}
-          onKeyDown={(event) => {
-            if (event.key === "Enter") {
-              event.preventDefault();
-              handleSubmit();
-            }
-          }}
         />
-        <Button
-          type="button"
-          className={`${C.bgBrand} ${C.hoverBgBrand} ${C.hoverTextOnBrand} ${C.textOnBrand} h-11 rounded-full px-4`}
-          onClick={handleSubmit}
-        >
-          {isPending ? "設定中..." : "設定"}
-        </Button>
+        <SubmitButton formAction={lineIdFormAction} loadingText="設定中...">
+          設定
+        </SubmitButton>
       </div>
       {lineIdState.error !== null ? (
         <p className={`text-sm ${C.danger}`}>{lineIdState.error}</p>
       ) : null}
-    </fieldset>
+    </div>
   );
 }
 

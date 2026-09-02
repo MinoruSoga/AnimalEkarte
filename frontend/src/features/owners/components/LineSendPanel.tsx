@@ -8,9 +8,10 @@ import {
 } from "@/components/ui/sheet";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { C, STYLE } from "@/lib/design-tokens";
+import { getFormEnum } from "@/lib/form-data";
 import { handleApiError } from "@/lib/handle-api-error";
 import { useGetOwnerLineTags } from "../api/get-owner-line-tags";
-import { useSendLineMessage } from "../api/send-line-message";
+import { isLineSendType, useSendLineMessage } from "../api/send-line-message";
 import type { LineSendType } from "../api/send-line-message";
 import { uploadLineFile } from "../api/upload-line-file";
 import { LineSendTypeSelector } from "./LineSendTypeSelector";
@@ -25,10 +26,9 @@ interface LineSendPanelProps {
 
 interface SendFormState {
   error: string | null;
-  success: boolean;
 }
 
-const INITIAL_STATE: SendFormState = { error: null, success: false };
+const INITIAL_STATE: SendFormState = { error: null };
 
 export function LineSendPanel({
   ownerId,
@@ -51,40 +51,40 @@ export function LineSendPanel({
       formData: FormData
     ): Promise<SendFormState> => {
       if (!isLinked) {
-        return { error: "LINE未連携のため送信できません", success: false };
+        return { error: "LINE未連携のため送信できません" };
       }
       if (isOptOut) {
-        return { error: "配信停止中のため送信できません", success: false };
+        return { error: "配信停止中のため送信できません" };
       }
 
-      const type = formData.get("send_type") as LineSendType;
+      const type = getFormEnum(formData, "send_type", isLineSendType) ?? sendType;
       const purpose = (formData.get("purpose") as string | null)?.trim() || undefined;
 
       if (type === "text") {
         const text = (formData.get("text") as string | null)?.trim();
         if (!text) {
-          return { error: "メッセージを入力してください", success: false };
+          return { error: "メッセージを入力してください" };
         }
         try {
           await sendMessage({ message_type: "text", text, purpose });
-          return { error: null, success: true };
-        } catch (err: unknown) {
-          handleApiError(err, "LINE送信");
-          return { error: "送信に失敗しました。しばらく待ってから再試行してください", success: false };
+          return { error: null };
+        } catch {
+          // useSendLineMessage の onError が handleApiError 済み。ここでは再通知しない。
+          return { error: "送信に失敗しました。しばらく待ってから再試行してください" };
         }
       }
 
       // pdf_url / image_url: upload first, then send with file_id
       const file = formData.get("file") as File | null;
       if (!file || file.size === 0) {
-        return { error: "ファイルを選択してください", success: false };
+        return { error: "ファイルを選択してください" };
       }
       let uploaded: { id: number; file_name: string; file_type: string };
       try {
         uploaded = await uploadLineFile(ownerId, file);
       } catch (err: unknown) {
         handleApiError(err, "ファイルアップロード");
-        return { error: "ファイルのアップロードに失敗しました", success: false };
+        return { error: "ファイルのアップロードに失敗しました" };
       }
       try {
         await sendMessage({
@@ -93,10 +93,10 @@ export function LineSendPanel({
           file_name: uploaded.file_name,
           purpose,
         });
-        return { error: null, success: true };
-      } catch (err: unknown) {
-        handleApiError(err, "LINE送信");
-        return { error: "送信に失敗しました。しばらく待ってから再試行してください", success: false };
+        return { error: null };
+      } catch {
+        // useSendLineMessage の onError が handleApiError 済み。ここでは再通知しない。
+        return { error: "送信に失敗しました。しばらく待ってから再試行してください" };
       }
     },
     INITIAL_STATE
@@ -156,7 +156,7 @@ export function LineSendPanel({
                     name="text"
                     rows={5}
                     placeholder="送信するメッセージを入力してください"
-                    className={`w-full rounded-xxs border ${C.borderMedium} bg-white p-3 text-sm ${C.text} ${C.textPlaceholder} outline-none ${C.focusBorderAccent} transition-colors resize-none leading-relaxed`}
+                    className={`w-full rounded-xxs border ${C.borderMedium} ${C.bgWhite} p-3 text-sm ${C.text} ${C.textPlaceholder} outline-none ${C.focusBorderAccent} transition-colors resize-none leading-relaxed`}
                   />
                 </div>
               ) : null}
@@ -216,12 +216,8 @@ export function LineSendPanel({
                 <p className={`text-sm ${C.danger}`}>{formState.error}</p>
               ) : null}
 
-              {formState.success ? (
-                <p className={`text-sm ${C.textStatusGreen}`}>
-                  送信しました
-                </p>
-              ) : null}
-
+              {/* 成功時の通知は useSendLineMessage の onSuccess（toast.success）に一本化。
+                  ここで別テキストを出すと二重通知になる（FE-RC-072） */}
               <SubmitButton loadingText="送信中..." colorVariant="primary">送信する</SubmitButton>
             </form>
           ) : null}

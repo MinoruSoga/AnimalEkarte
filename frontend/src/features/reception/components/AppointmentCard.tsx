@@ -1,11 +1,5 @@
-// React/Framework
 import { memo, useCallback } from "react";
 import { useNavigate } from "react-router";
-
-// Internal
-import { paths } from "@/config/paths";
-
-// External
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import Clock from "lucide-react/dist/esm/icons/clock";
@@ -18,10 +12,10 @@ import FileText from "lucide-react/dist/esm/icons/file-text";
 import CreditCard from "lucide-react/dist/esm/icons/credit-card";
 import BedDouble from "lucide-react/dist/esm/icons/bed-double";
 
-// Internal
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { paths } from "@/config/paths";
 import { C, ICON } from "@/lib/design-tokens";
 import { getVisitTypeColor } from "@/constants/status-colors";
 import {
@@ -29,7 +23,6 @@ import {
   PetStatusDeceased,
 } from "@/types/generated/models";
 
-// Types
 import type { ReceptionAppointment } from "../api/types";
 
 interface ServiceIconProps {
@@ -39,6 +32,14 @@ interface ServiceIconProps {
 
 function isHospitalizationService(service: string): boolean {
   return service.includes("入院") || service.includes("ホテル");
+}
+
+/** カルテ/施術作成の遷移先。トリミングか一般診療か、ペット未選択かで分岐する。 */
+function resolveRecordBasePath(isTrimming: boolean, hasPetId: boolean): string {
+  if (isTrimming) {
+    return hasPetId ? paths.trimming.new.getHref() : paths.trimming.selectPet.getHref();
+  }
+  return hasPetId ? paths.medicalRecords.new.getHref() : paths.medicalRecords.selectPet.getHref();
 }
 
 function ServiceIcon({ service, category }: ServiceIconProps) {
@@ -104,13 +105,7 @@ export const AppointmentCard = memo(function AppointmentCard({
     if (appointment.id) params.set("appointmentId", appointment.id);
     if (appointment.visitDate) params.set("visitDate", appointment.visitDate);
     const query = params.toString();
-    const basePath = isTrimming
-      ? appointment.petId
-        ? paths.trimming.new.getHref()
-        : paths.trimming.selectPet.getHref()
-      : appointment.petId
-        ? paths.medicalRecords.new.getHref()
-        : paths.medicalRecords.selectPet.getHref();
+    const basePath = resolveRecordBasePath(isTrimming, Boolean(appointment.petId));
 
     navigate(
       query ? `${basePath}?${query}` : basePath,
