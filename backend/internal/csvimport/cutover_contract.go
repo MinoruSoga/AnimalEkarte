@@ -313,7 +313,7 @@ func PreflightCutoverBundle(sourceDir string, expected ExpectedCutoverSource) (C
 	if err := validateCutoverManifest(manifest, expected); err != nil {
 		return CutoverBundle{}, err
 	}
-	if err := validateCutoverFiles(cleanDir, manifest); err != nil {
+	if err := validateCutoverFiles(cleanDir, manifest, expected.Provenance); err != nil {
 		return CutoverBundle{}, err
 	}
 	return CutoverBundle{SourceDir: cleanDir, Manifest: manifest}, nil
@@ -628,7 +628,7 @@ func validOrderedLayerTimestamps(timestamps CutoverLayerTimestamps, manifestGene
 		!stage.After(manifest)
 }
 
-func validateCutoverFiles(sourceDir string, manifest CutoverManifest) error {
+func validateCutoverFiles(sourceDir string, manifest CutoverManifest, provenance CutoverProvenanceContract) error {
 	for i, spec := range CutoverTableSpecs() {
 		path := filepath.Join(sourceDir, manifest.Tables[i].File)
 		if err := validateCutoverCSV(path, spec, manifest.Tables[i], manifest.IDBand); err != nil {
@@ -648,7 +648,7 @@ func validateCutoverFiles(sourceDir string, manifest CutoverManifest) error {
 			return fmt.Errorf("unexpected file or directory in cutover source")
 		}
 	}
-	return validateCutoverPaymentGraph(sourceDir, &manifest)
+	return validateCutoverPaymentGraph(sourceDir, &manifest, provenance)
 }
 
 func validateCutoverCSV(path string, spec CutoverTableSpec, table CutoverManifestTable, band CutoverIDBand) error {

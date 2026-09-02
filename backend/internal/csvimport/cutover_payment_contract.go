@@ -39,7 +39,7 @@ type cutoverBillingFact struct {
 	completedAt [sha256.Size]byte
 }
 
-func validateCutoverPaymentGraph(sourceDir string, manifest *CutoverManifest) error {
+func validateCutoverPaymentGraph(sourceDir string, manifest *CutoverManifest, provenance CutoverProvenanceContract) error {
 	paymentsSpec, paymentsTable, err := cutoverPaymentContractPart(manifest, "payments")
 	if err != nil {
 		return err
@@ -141,7 +141,7 @@ func validateCutoverPaymentGraph(sourceDir string, manifest *CutoverManifest) er
 				totalAmount = amount
 			}
 		}
-		if totalAmount != billing.totalAmount {
+		if totalAmount != billing.totalAmount && provenance.Mode != CutoverProvenanceLocalRehearsal {
 			return fmt.Errorf("table payments column total_amount row %d: payment snapshot does not match billing", line)
 		}
 		if _, err := parsePaymentGraphRatio(row[indexes["insurance_ratio"]], line); err != nil {

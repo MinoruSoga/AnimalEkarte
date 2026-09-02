@@ -825,12 +825,27 @@ func TestPreflightCutoverBundleRejectsPaymentContractViolations(t *testing.T) {
 	}
 }
 
+func TestPreflightCutoverBundleAllowsHistoricalPaymentSnapshotOnlyForLocalRehearsal(t *testing.T) {
+	dir, manifestDigest := writeCutoverFixture(t, func(f *fixtureBundle) {
+		billingColumns := CutoverTableSpecs()[11].Columns
+		f.rows["billings"][0][columnIndex(billingColumns, "total_amount")] = "1"
+	})
+	expected := ExpectedCutoverSource{ManifestSHA256: manifestDigest, ClinicCode: "hachioji", ClinicOrdinal: 1, RunID: "run-1"}
+	if _, err := PreflightCutoverBundle(dir, expected); err == nil || !strings.Contains(err.Error(), "payment snapshot does not match billing") {
+		t.Fatalf("formal preflight error = %v, want payment snapshot rejection", err)
+	}
+	expected.Provenance.Mode = CutoverProvenanceLocalRehearsal
+	if _, err := PreflightCutoverBundle(dir, expected); err != nil {
+		t.Fatalf("local rehearsal preflight error = %v", err)
+	}
+}
+
 func TestValidateCutoverPaymentGraphRejectsUnboundedPaymentInventory(t *testing.T) {
 	manifest := CutoverManifest{Tables: []CutoverManifestTable{
 		{Table: "payments", File: "payments.csv", RowCount: maxCutoverPaymentRows + 1},
 		{Table: "payment_splits", File: "payment_splits.csv", RowCount: 0},
 	}}
-	err := validateCutoverPaymentGraph(t.TempDir(), &manifest)
+	err := validateCutoverPaymentGraph(t.TempDir(), &manifest, CutoverProvenanceContract{})
 	if err == nil || !strings.Contains(err.Error(), "payment limit") {
 		t.Fatalf("validateCutoverPaymentGraph() error = %v, want payment limit rejection", err)
 	}
