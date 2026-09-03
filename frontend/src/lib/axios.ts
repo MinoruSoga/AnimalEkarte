@@ -84,6 +84,20 @@ type RetryableConfig = InternalAxiosRequestConfig & {
   _retry?: boolean;
 };
 
+/**
+ * FE-RC-076: 未認証セッションをログインへ退避する共通処理。
+ * 401 ハンドリング内の 2 か所（既存パスワード変更 401 とリフレッシュ失敗時）で
+ * 同一ロジックが重複していたため抽出（DRY）。`from` は内部相対パスのみを許可し
+ * （parseInternalPath）、オープンリダイレクトを防ぐ。
+ */
+function redirectToLogin(): void {
+  const safePath =
+    parseInternalPath(`${window.location.pathname}${window.location.search}`) ??
+    paths.home.getHref();
+  const from = encodeURIComponent(safePath);
+  window.location.href = `${paths.auth.login.getHref()}?from=${from}`;
+}
+
 axios.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
@@ -130,11 +144,7 @@ axios.interceptors.response.use(
         window.location.pathname !== "/login" &&
         originalRequest?.url?.includes("/users/me/password") !== true
       ) {
-        const safePath =
-          parseInternalPath(`${window.location.pathname}${window.location.search}`) ??
-          paths.home.getHref();
-        const from = encodeURIComponent(safePath);
-        window.location.href = `${paths.auth.login.getHref()}?from=${from}`;
+        redirectToLogin();
       }
       return Promise.reject(error);
     }
@@ -162,11 +172,7 @@ axios.interceptors.response.use(
         window.location.pathname !== "/login" &&
         !isPasswordRecoveryPublicPath(window.location.pathname)
       ) {
-        const safePath =
-          parseInternalPath(`${window.location.pathname}${window.location.search}`) ??
-          paths.home.getHref();
-        const from = encodeURIComponent(safePath);
-        window.location.href = `${paths.auth.login.getHref()}?from=${from}`;
+        redirectToLogin();
       }
       return Promise.reject(refreshError);
     } finally {
