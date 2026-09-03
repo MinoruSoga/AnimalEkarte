@@ -236,6 +236,14 @@ const DEMO_ACCOUNTS: readonly DemoCredential[] = SHOW_DEMO
     ]
   : [];
 
+function readDemoLoginPassword(): string {
+  if (import.meta.env.DEV) {
+    const raw = import.meta.env.VITE_DEMO_LOGIN_PASSWORD;
+    return typeof raw === "string" ? raw.trim() : "";
+  }
+  return "";
+}
+
 const DemoAccount = memo(function DemoAccount({
   email,
   displayName,
@@ -334,11 +342,7 @@ export const LoginForm = memo(function LoginForm() {
 
   const handleSelectDemo = useCallback((demoEmail: string) => {
     setEmail(demoEmail);
-    const fromEnv =
-      typeof import.meta.env.VITE_DEMO_LOGIN_PASSWORD === "string"
-        ? import.meta.env.VITE_DEMO_LOGIN_PASSWORD.trim()
-        : "";
-    setPassword(fromEnv);
+    setPassword(readDemoLoginPassword());
   }, []);
 
   if (isAuthenticated) {
@@ -370,8 +374,7 @@ export const LoginForm = memo(function LoginForm() {
             <div className={`h-px flex-1 ${C.bgLight}`} />
           </div>
           <p className={`text-sm text-center mb-2 ${C.text40}`}>
-            {typeof import.meta.env.VITE_DEMO_LOGIN_PASSWORD === "string" &&
-            import.meta.env.VITE_DEMO_LOGIN_PASSWORD.trim() !== ""
+            {readDemoLoginPassword() !== ""
               ? "パスワードは自動入力されます（staff-attach と同一）"
               : "VITE_DEMO_LOGIN_PASSWORD 未設定 — .env.local を staff-attach secrets と揃えてください"}
           </p>
