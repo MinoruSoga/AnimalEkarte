@@ -2,7 +2,6 @@ import { useState, useCallback, useActionState, useEffect, useLayoutEffect, useR
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
 import { paths } from "@/config/paths";
-import { handleApiError } from "@/lib/handle-api-error";
 import { INITIAL_ACTION_STATE, type ActionState } from "@/types/form";
 import type { Estimate, EstimateStatus } from "../types";
 import { useCreateEstimate } from "../api/create-estimate";
@@ -204,8 +203,8 @@ export function useEstimateForm(args: UseEstimateFormArgs = { mode: "create" }) 
           // Navigation is handled in the component via useEffect
         }
         return { success: true, timestamp: Date.now() };
-      } catch (error) {
-        handleApiError(error, isEdit ? "更新" : "作成");
+      } catch {
+        // FE-RC-005: useCreateEstimate/useUpdateEstimate の onError が既に handleApiError で通知済み。
         return { success: false, timestamp: Date.now() };
       }
     },
