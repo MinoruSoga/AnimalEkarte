@@ -8,6 +8,4 @@ export {
   useGetPetMedicalHistory,
   type MedicalRecordFilters,
   type MedicalRecordSortKey,
-  type MedicalRecordsResult,
-  type MedicalRecordInterviewHistoryItem,
 } from "@/hooks/use-medical-records";

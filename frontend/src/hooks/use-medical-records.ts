@@ -71,15 +71,6 @@ function transformMedicalRecordForList(record: MedicalRecordResponse) {
   };
 }
 
-export type MedicalRecordListItem = ReturnType<typeof transformMedicalRecordForList>;
-
-interface MedicalRecordsListResponse {
-  data: MedicalRecordResponse[];
-  total: number;
-  page: number;
-  limit: number;
-}
-
 export type MedicalRecordSortKey = "date" | "owner_name" | "pet_name" | "status";
 
 export interface MedicalRecordFilters {
@@ -98,8 +89,15 @@ export interface MedicalRecordFilters {
   order?: "asc" | "desc";
 }
 
-export interface MedicalRecordsResult {
-  data: MedicalRecordListItem[];
+export type MedicalRecordsResult = {
+  data: ReturnType<typeof transformMedicalRecordForList>[];
+  total: number;
+  page: number;
+  limit: number;
+};
+
+interface MedicalRecordsListResponse {
+  data: MedicalRecordResponse[];
   total: number;
   page: number;
   limit: number;

@@ -3,13 +3,17 @@ import { renderHook, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { server } from "@/testing/mocks/node";
 import { createTestWrapper } from "@/testing/TestUtils";
-import { useGetMedicalRecords } from "./get-medical-records";
-import { useGetMedicalRecords as hooksUseGetMedicalRecords } from "@/hooks/use-medical-records";
+import { useGetMedicalRecords, getMedicalRecords } from "./get-medical-records";
+import {
+  useGetMedicalRecords as hooksUseGetMedicalRecords,
+  getMedicalRecords as hooksGetMedicalRecords,
+} from "@/hooks/use-medical-records";
 import type { BackendMedicalRecord } from "./types";
 
 describe("get-medical-records re-export (FE-RC-015 followup2)", () => {
-  it("re-exports useGetMedicalRecords from @/hooks/use-medical-records (same reference)", () => {
+  it("re-exports list API from @/hooks/use-medical-records (same references)", () => {
     expect(useGetMedicalRecords).toBe(hooksUseGetMedicalRecords);
+    expect(getMedicalRecords).toBe(hooksGetMedicalRecords);
   });
 });
 
