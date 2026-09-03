@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { FormFieldError } from "@/components/shared/FormFieldError";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import type { Shift, ShiftType, ShiftBreakInput, CreateShiftInput, UpdateShiftInput } from "../../types";
-import { SHIFT_TYPE_LABELS } from "../../types";
+import { SHIFT_TYPE_LABELS, isShiftType } from "../../types";
 import { C, ICON } from "@/lib/design-tokens";
 import { createShift } from "../../api/create-shift";
 import { updateShift } from "../../api/update-shift";
@@ -19,6 +19,7 @@ import { useGetShiftTemplates } from "../../api/get-shift-templates";
 import { handleApiError } from "@/lib/handle-api-error";
 import { queryKeys } from "@/lib/query-keys";
 import { isShiftTemplateTimeHidden } from "../shift-template-form-utils";
+import { DEFAULT_BREAK_START, DEFAULT_BREAK_END } from "../shift-template-form-model";
 
 /**
  * バックエンドから "HH:MM:SS" 形式で来る時刻を "HH:mm" に正規化する。
@@ -84,18 +85,15 @@ export const ShiftFormDialog = memo(function ShiftFormDialog({
   const breaksRef = useRef(breaks);
   useEffect(() => { breaksRef.current = breaks; }, [breaks]);
 
-  useEffect(() => {
-    if (open) {
-      setShiftType(editShift?.shift_type ?? "full");
-      setStartTime(normalizeTimeToHHmm(editShift?.start_time ?? ""));
-      setEndTime(normalizeTimeToHHmm(editShift?.end_time ?? ""));
-      setBreaks((editShift?.breaks ?? []).map((b) => ({ break_start: normalizeTimeToHHmm(b.break_start), break_end: normalizeTimeToHHmm(b.break_end) })));
-    }
-  }, [open, editShift]);
+  // FE-RC-032: open 切り替え時の state リセットは useEffect ではなく、
+  // 呼び出し側（ShiftCalendar.tsx）が dialog セッションごとに異なる key を
+  // 付与することでコンポーネントを再マウントさせ、上記の useState 初期化子に
+  // 委ねる（ShiftTemplateSidePanel と同様の設計に統一）。
 
   const formAction = useCallback(
     async (_prevState: FormActionState, formData: FormData): Promise<FormActionState> => {
-      const resolvedShiftType = (formData.get("shiftType") as ShiftType) ?? shiftType;
+      const rawShiftType = formData.get("shiftType");
+      const resolvedShiftType = isShiftType(rawShiftType) ? rawShiftType : shiftType;
       const resolvedStartTime = (formData.get("startTime") as string) ?? "";
       const resolvedEndTime = (formData.get("endTime") as string) ?? "";
       // BUG-036: off/paid_leave 以外は開始・終了時刻必須（空のまま API に送らない）
@@ -300,7 +298,7 @@ export const ShiftFormDialog = memo(function ShiftFormDialog({
                   variant="ghost"
                   size="sm"
                   className="h-7 px-2 text-xs"
-                  onClick={() => setBreaks((prev) => [...prev, { break_start: "12:00", break_end: "13:00" }])}
+                  onClick={() => setBreaks((prev) => [...prev, { break_start: DEFAULT_BREAK_START, break_end: DEFAULT_BREAK_END }])}
                 >
                   <Plus className={`${ICON.xxs} mr-1`} />
                   追加
@@ -328,6 +326,7 @@ export const ShiftFormDialog = memo(function ShiftFormDialog({
                     variant="ghost"
                     size="sm"
                     className="h-8 w-8 p-0"
+                    aria-label={`休憩${i + 1}を削除`}
                     onClick={() => setBreaks((prev) => prev.filter((_, j) => j !== i))}
                   >
                     <X className={ICON.smXs} />

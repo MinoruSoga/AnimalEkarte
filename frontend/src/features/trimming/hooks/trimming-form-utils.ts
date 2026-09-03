@@ -118,17 +118,21 @@ export function buildUpdateTrimmingRequest(formData: TrimmingFormData): UpdateTr
   };
 }
 
+const JST_OFFSET_MS = 9 * 60 * 60 * 1000;
+/** トリミング施術の想定所要時間（record_shortcut の終了時刻算出に使用） */
+const DEFAULT_TRIMMING_DURATION_MS = 90 * 60 * 1000;
+
 /** record_shortcut の既定時刻。固定 10:00 だと uk_appointment_staff_time で同スタッフ同日が 409 になる (BUG-010)。 */
 export function defaultRecordShortcutTimes(
   date: string,
   now = new Date(),
 ): { start: string; end: string } {
-  const jst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+  const jst = new Date(now.getTime() + JST_OFFSET_MS);
   const pad = (value: number, width = 2) => String(value).padStart(width, "0");
   const time = `${pad(jst.getUTCHours())}:${pad(jst.getUTCMinutes())}:${pad(jst.getUTCSeconds())}.${pad(jst.getUTCMilliseconds(), 3)}`;
   const start = `${date}T${time}+09:00`;
-  const endAt = new Date(Date.parse(start) + 90 * 60 * 1000);
-  const endJst = new Date(endAt.getTime() + 9 * 60 * 60 * 1000);
+  const endAt = new Date(Date.parse(start) + DEFAULT_TRIMMING_DURATION_MS);
+  const endJst = new Date(endAt.getTime() + JST_OFFSET_MS);
   const end = `${endJst.getUTCFullYear()}-${pad(endJst.getUTCMonth() + 1)}-${pad(endJst.getUTCDate())}T${pad(endJst.getUTCHours())}:${pad(endJst.getUTCMinutes())}:${pad(endJst.getUTCSeconds())}.${pad(endJst.getUTCMilliseconds(), 3)}+09:00`;
   return { start, end };
 }

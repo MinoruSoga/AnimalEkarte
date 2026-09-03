@@ -2,17 +2,19 @@ import { memo, useCallback, useEffect, useState } from "react";
 import Calendar from "lucide-react/dist/esm/icons/calendar";
 import Trash2 from "lucide-react/dist/esm/icons/trash-2";
 import X from "lucide-react/dist/esm/icons/x";
-import { toast } from "sonner";
 
 import { TableCell } from "@/components/ui/table";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { DataTableRowButton } from "@/components/shared/DataTable/DataTableRowButton";
+import { FormFieldError } from "@/components/shared/FormFieldError/FormFieldError";
 import { RowActionButton } from "@/components/shared/RowActionButton";
 import { StatusPill } from "@/components/shared/StatusPill/StatusPill";
 import { SortableDataTableRow } from "@/components/shared/DataTable/SortableDataTableRow";
 import { C, LAYOUT, STYLE } from "@/lib/design-tokens";
 import { SHIFT_TYPE_LABELS, type ShiftTemplate } from "../types";
 import {
+  DEFAULT_BREAK_START,
+  DEFAULT_BREAK_END,
   DEFAULT_SHIFT_TEMPLATE_FORM,
   templateToFormData,
   type TemplateFormData,
@@ -94,6 +96,8 @@ export const ShiftTemplateSidePanel = memo(function ShiftTemplateSidePanel({
     item ? templateToFormData(item) : DEFAULT_SHIFT_TEMPLATE_FORM,
   );
   const [isDirty, setIsDirty] = useState(false);
+  // FE-RC-073: バリデーションエラーは toast ではなく fieldError（FormFieldError）で表示する。
+  const [timeError, setTimeError] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     onDirtyChange?.(isDirty);
@@ -127,7 +131,7 @@ export const ShiftTemplateSidePanel = memo(function ShiftTemplateSidePanel({
   const handleAddBreak = useCallback(() => {
     setFormDataDirty((prev) => ({
       ...prev,
-      breaks: [...prev.breaks, { break_start: "12:00", break_end: "13:00" }],
+      breaks: [...prev.breaks, { break_start: DEFAULT_BREAK_START, break_end: DEFAULT_BREAK_END }],
     }));
   }, [setFormDataDirty]);
 
@@ -144,9 +148,10 @@ export const ShiftTemplateSidePanel = memo(function ShiftTemplateSidePanel({
   const handleAction = useCallback(() => {
     if (readOnly) return;
     if (!isTimeHidden && (!formData.start_time || !formData.end_time)) {
-      toast.error("勤務種別では開始時刻と終了時刻を入力してください");
+      setTimeError("勤務種別では開始時刻と終了時刻を入力してください");
       return;
     }
+    setTimeError(undefined);
     onSave(formData);
     setIsDirty(false);
   }, [formData, isTimeHidden, onSave, readOnly]);
@@ -191,7 +196,7 @@ export const ShiftTemplateSidePanel = memo(function ShiftTemplateSidePanel({
             <input
               type="text"
               aria-label="テンプレート名"
-              className={`w-full bg-transparent ${C.text} ${C.textPlaceholderFaint} outline-none border-none p-0`}
+              className={`w-full bg-transparent ${C.text} ${C.textPlaceholderFaint} outline-none border-none p-0 focus-visible:ring-2 ${C.focusRingAccent40}`}
               style={{
                 fontSize: LAYOUT.pageTitle.fontSize,
                 fontWeight: LAYOUT.pageTitle.fontWeight,
@@ -217,6 +222,7 @@ export const ShiftTemplateSidePanel = memo(function ShiftTemplateSidePanel({
             onAddBreak={handleAddBreak}
             onRemoveBreak={handleRemoveBreak}
           />
+          <FormFieldError message={timeError} />
         </div>
       </div>
 

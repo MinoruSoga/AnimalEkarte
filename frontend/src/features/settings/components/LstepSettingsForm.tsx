@@ -1,6 +1,5 @@
 import { useActionState, useState, useRef } from "react";
 import { toast } from "sonner";
-import { handleApiError } from "@/lib/handle-api-error";
 import { C, STYLE } from "@/lib/design-tokens";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { INITIAL_ACTION_STATE } from "@/types/form";
@@ -54,8 +53,9 @@ export function LstepSettingsForm() {
         setSyncEnabledOverride(undefined); // 保存後はサーバー値に戻す
         toast.success("Lステップ設定を保存しました");
         return { success: true, timestamp: Date.now() };
-      } catch (error) {
-        handleApiError(error, "Lステップ設定の保存");
+      } catch {
+        // FE-RC-005: API エラーは useUpdateLstepSettings の onError
+        // （use-lstep-settings.ts）が handleApiError 済み。ここでは再通知しない。
         return { success: false, timestamp: Date.now() };
       }
     },
@@ -68,9 +68,9 @@ export function LstepSettingsForm() {
       await testMutation.mutateAsync();
       setTestResult("success");
       toast.success("Lステップ接続テスト成功");
-    } catch (error) {
+    } catch {
+      // FE-RC-005: API エラーは useTestLstepConnection の onError が handleApiError 済み。
       setTestResult("error");
-      handleApiError(error, "Lステップ接続テスト");
     }
   };
 
@@ -80,9 +80,9 @@ export function LstepSettingsForm() {
       await lineTestMutation.mutateAsync();
       setLineTestResult("success");
       toast.success("LINE Messaging API接続テスト成功");
-    } catch (error) {
+    } catch {
+      // FE-RC-005: API エラーは useTestLineMessagingConnection の onError が handleApiError 済み。
       setLineTestResult("error");
-      handleApiError(error, "LINE Messaging API接続テスト");
     }
   };
 

@@ -15,6 +15,10 @@ export interface TemplateFormData {
   breaks: BreakInput[];
 }
 
+/** FE-RC-049: 休憩追加時の初期値（昼休み想定）。ShiftFormDialog / ShiftTemplateSettingsParts で共用。 */
+export const DEFAULT_BREAK_START = "12:00";
+export const DEFAULT_BREAK_END = "13:00";
+
 export const DEFAULT_SHIFT_TEMPLATE_FORM: TemplateFormData = {
   name: "",
   shift_type: "full",
