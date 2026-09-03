@@ -1,4 +1,4 @@
-// Package handler provides HTTP handler implementations for HospitalizationPlan entity.
+// Package medicalrecord provides hospitalization plan HTTP handlers.
 package medicalrecord
 
 import (

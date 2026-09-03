@@ -1,4 +1,4 @@
-// Package handler provides HTTP handler implementations for Staff entity.
+// Package staff provides staff HTTP handlers.
 package staff
 
 import (

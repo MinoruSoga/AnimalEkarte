@@ -1,4 +1,4 @@
-// Package repository provides data access for MedicineDoseParam entity (#201).
+// Package medicalrecord provides medicine dose param persistence.
 package medicalrecord
 
 // Moved from internal/repository (BE9-2D ⑥ Batch A). 旧 package-private helper は repohelpers

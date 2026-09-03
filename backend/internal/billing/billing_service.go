@@ -1,4 +1,4 @@
-// Package service provides shared billing calculation logic.
+// Package billing provides shared billing calculation logic.
 package billing
 
 import (

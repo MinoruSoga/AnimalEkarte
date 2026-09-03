@@ -1,4 +1,4 @@
-// Package handler provides HTTP handler implementations for Insurance entity.
+// Package billing provides insurance HTTP handlers.
 package billing
 
 import (

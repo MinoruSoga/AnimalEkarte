@@ -1,4 +1,4 @@
-// Package handler provides HTTP handler implementations for Procedure entity.
+// Package medicalrecord provides procedure HTTP handlers.
 package medicalrecord
 
 import (

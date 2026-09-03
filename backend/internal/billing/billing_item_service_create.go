@@ -1,4 +1,4 @@
-// Package service provides business logic implementations for BillingItem entity.
+// Package billing provides billing item create use cases.
 package billing
 
 import (

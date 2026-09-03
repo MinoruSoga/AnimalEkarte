@@ -1,4 +1,4 @@
-// Package service provides business logic implementations for Medicine entity.
+// Package medicalrecord provides medicine use cases.
 package medicalrecord
 
 import (

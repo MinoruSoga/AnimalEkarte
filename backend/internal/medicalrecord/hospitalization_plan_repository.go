@@ -1,4 +1,4 @@
-// Package repository provides data access implementations for HospitalizationPlan entity.
+// Package medicalrecord provides hospitalization plan persistence.
 package medicalrecord
 
 // Moved from internal/repository (BE9-2D ⑤ Batch A). 旧 package-private helper は repohelpers 同等物へ

@@ -1,4 +1,4 @@
-// Package service provides business logic implementations for Occupation entity.
+// Package staff provides occupation use cases.
 package staff
 
 import (

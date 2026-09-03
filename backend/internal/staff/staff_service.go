@@ -1,4 +1,4 @@
-// Package service provides business logic implementations for Staff entity.
+// Package staff provides staff use cases.
 package staff
 
 import (

@@ -1,4 +1,4 @@
-// Package repository provides data access implementations for BillingItem entity.
+// Package billing provides billing item persistence.
 package billing
 
 import (

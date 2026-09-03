@@ -1,4 +1,4 @@
-// Package handler provides HTTP handler implementations for Medicine entity.
+// Package medicalrecord provides medicine HTTP handlers.
 package medicalrecord
 
 import (

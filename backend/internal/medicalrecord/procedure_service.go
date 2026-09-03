@@ -1,4 +1,4 @@
-// Package service provides business logic implementations for Procedure entity.
+// Package medicalrecord provides procedure use cases.
 package medicalrecord
 
 import (

@@ -1,4 +1,4 @@
-// Package handler provides HTTP handler implementations for Occupation entity.
+// Package staff provides occupation HTTP handlers.
 package staff
 
 import (
