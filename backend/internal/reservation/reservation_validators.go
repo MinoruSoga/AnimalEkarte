@@ -15,6 +15,19 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
+const errMsgInvalidDateTime = "日時の形式が正しくありません"
+
+func passthroughOrInvalidDateTime(err error) error {
+	if err == nil {
+		return nil
+	}
+	var appErr *apperrors.AppError
+	if errors.As(err, &appErr) {
+		return err
+	}
+	return apperrors.WrapInvalidInput(errMsgInvalidDateTime)
+}
+
 // ReservationLimitError は予約制限違反エラー。
 // フロントエンドが redirect_step を参照して画面遷移に使う。
 type ReservationLimitError struct {
@@ -294,11 +307,11 @@ func validateBusinessRules(ctx context.Context, settings *model.LineReservationS
 	}
 	reqStart, err := MinutesSinceMidnight(startTime)
 	if err != nil {
-		return apperrors.WrapInvalidInput(err.Error())
+		return passthroughOrInvalidDateTime(err)
 	}
 	reqEnd, err := MinutesSinceMidnight(endTime)
 	if err != nil {
-		return apperrors.WrapInvalidInput(err.Error())
+		return passthroughOrInvalidDateTime(err)
 	}
 	if reqStart < bsStart || reqEnd > bsEnd {
 		return apperrors.WrapInvalidInput(fmt.Sprintf("営業時間外の予約はできません (営業時間 %s-%s)", bh.Start, bh.End))

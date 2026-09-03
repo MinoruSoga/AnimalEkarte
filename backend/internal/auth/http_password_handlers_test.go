@@ -402,6 +402,7 @@ func TestHTTPHandler_ResetPassword(t *testing.T) {
 		body         any
 		service      passwordHandlerResetService
 		expectedCode int
+		expectedBody string
 	}{
 		{
 			name: "success",
@@ -424,6 +425,7 @@ func TestHTTPHandler_ResetPassword(t *testing.T) {
 			name:         "complexity failure",
 			body:         ResetPasswordRequest{Token: "valid-token", Password: "onlyletters"},
 			expectedCode: http.StatusBadRequest,
+			expectedBody: `"error":"パスワードは英字と数字の両方を含めてください"`,
 		},
 		{
 			name: "service failure",
@@ -463,6 +465,10 @@ func TestHTTPHandler_ResetPassword(t *testing.T) {
 				handler.ResetPassword,
 			)
 			assert.Equal(t, test.expectedCode, response.Code, response.Body.String())
+			if test.expectedBody != "" {
+				assert.Contains(t, response.Body.String(), test.expectedBody)
+				assert.NotContains(t, response.Body.String(), ": invalid input")
+			}
 		})
 	}
 }

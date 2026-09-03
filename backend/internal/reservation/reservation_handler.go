@@ -71,7 +71,7 @@ func (h *ReservationHandler) ListReservations(c *gin.Context) {
 	q := newListReservationQuery(c.Request.URL.Query())
 	filters, err := q.toServiceFilters()
 	if err != nil {
-		respondError(c, apperrors.WrapInvalidInput(err.Error()))
+		respondError(c, passthroughOrInvalidDateTime(err))
 		return
 	}
 
@@ -157,7 +157,7 @@ func (h *ReservationHandler) CreateReservation(c *gin.Context) {
 
 	svcInput, err := input.toServiceInput(clinicID, staffID)
 	if err != nil {
-		respondError(c, apperrors.WrapInvalidInput(err.Error()))
+		respondError(c, passthroughOrInvalidDateTime(err))
 		return
 	}
 
@@ -201,7 +201,7 @@ func (h *ReservationHandler) CreateReservationBatch(c *gin.Context) {
 	}
 	input, pets, err := req.toServiceInput(clinicID, staffID)
 	if err != nil {
-		respondError(c, apperrors.WrapInvalidInput(err.Error()))
+		respondError(c, passthroughOrInvalidDateTime(err))
 		return
 	}
 	if input.DoctorID != nil {
@@ -244,7 +244,7 @@ func (h *ReservationHandler) UpdateReservation(c *gin.Context) {
 
 	svcInput, err := input.toServiceInput()
 	if err != nil {
-		respondError(c, apperrors.WrapInvalidInput(err.Error()))
+		respondError(c, passthroughOrInvalidDateTime(err))
 		return
 	}
 

@@ -1,6 +1,7 @@
 package staff
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 
@@ -10,6 +11,19 @@ import (
 	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
 )
+
+const errMsgInvalidDateTime = "日時の形式が正しくありません"
+
+func passthroughOrInvalidDateTime(err error) error {
+	if err == nil {
+		return nil
+	}
+	var appErr *apperrors.AppError
+	if errors.As(err, &appErr) {
+		return err
+	}
+	return apperrors.WrapInvalidInput(errMsgInvalidDateTime)
+}
 
 // ListShiftEntries godoc
 func (h *Handler) ListShiftEntries(c *gin.Context) {
@@ -50,7 +64,7 @@ func (h *Handler) CreateShiftEntry(c *gin.Context) {
 
 	input, err := req.toServiceInput()
 	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput(err.Error()))
+		RespondError(c, passthroughOrInvalidDateTime(err))
 		return
 	}
 
@@ -120,7 +134,7 @@ func (h *Handler) GetOnDutyStaffs(c *gin.Context) {
 	}
 	date, err := newOnDutyStaffsQuery(c.Request.URL.Query()).toDate()
 	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput(err.Error()))
+		RespondError(c, passthroughOrInvalidDateTime(err))
 		return
 	}
 	staffs, err := h.svc.ShiftEntry.GetOnDutyStaffs(c.Request.Context(), clinicID, date)
