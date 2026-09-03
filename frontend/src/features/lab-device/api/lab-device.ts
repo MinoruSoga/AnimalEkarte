@@ -6,6 +6,7 @@ import { queryKeys } from "@/lib/query-keys";
 import {
   invalidateLabDeviceBoardQueries,
   toLabDeviceJobCard,
+  type LabDeviceJobCard,
 } from "@/hooks/use-lab-device-unlinked";
 
 export {
