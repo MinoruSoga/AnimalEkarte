@@ -34,6 +34,26 @@ const layerInversionRestrictedPattern = {
     "components/hooks/lib から @/features への import は禁止（層逆転）。features 側が components/hooks/lib に依存する一方向のみ許可する。",
 };
 
+// FE-RC-015/060: feature 間の直接 import（barrel 経由含む）を機械禁止する。
+// deep import（rule 1）は既に禁止済みのため、この pattern が実際に捕捉するのは
+// barrel（@/features/<name>）経由の cross-feature import。
+const crossFeatureRestrictedPattern = {
+  group: ["@/features", "@/features/**"],
+  message:
+    "feature 間の直接 import は禁止（CODING_RULES.md §1.2）。他 feature の値は components/shared・hooks・lib へ昇格するか、app/pages/ の cross-feature 合成層で props 注入すること。",
+};
+
+// FE-RC-015: owner-report の臨床ブリーフィングは medical-records の一覧 API
+// （useGetMedicalRecords）を読み取り専用で参照する唯一の cross-feature 依存。
+// transformMedicalRecord は診療録ドメインの正本ロジックで、cross-feature 消費のために
+// 複製すると DRY 違反・drift リスクが生じる一方、現時点で複製を要求する具体的な問題は
+// 出ていない（product-philosophy ①「証拠なき最適化をしない」）。2026-09-03 時点で
+// 唯一のドキュメント化された例外として残す。再開条件 = medical-records 側の型が
+// 変わる、または owner-report が独自の集計ロジックを必要とする具体的な要求が出た場合。
+const crossFeatureImportBanAllowlist = [
+  "src/features/owner-report/hooks/use-owner-clinical-briefing-data.ts",
+];
+
 const generatedModelsBoundaryMessage =
   "TASK-444-S1: @/types/generated/models は Go ドメインモデル由来で HTTP wire 応答型ではない（BUG-431/BUG-433）。新規 import 禁止。既存利用は generated-models-import-allowlist.json に凍結。応答型は domain 別 generated/*-responses または専用 DTO を使うこと（TASK-444-S2）。";
 
@@ -196,6 +216,42 @@ export default tseslint.config(
           patterns: [
             deepImportRestrictedPattern,
             generatedModelsRelativeImportPattern,
+          ],
+        },
+      ],
+    },
+  },
+  {
+    // FE-RC-015/060: feature 間 import 禁止（src/features/** 全体・generated-models
+    // allowlist 対象ファイル含む）。models freeze の対象外ファイルにも cross-feature-ban
+    // だけは適用するための broad block。次の narrower block（models freeze 対象）が
+    // 同じファイルに一致する場合はそちらが有効な設定として勝つ（flat config は
+    // no-restricted-imports を feature 単位でマージせず後勝ちで完全上書きするため）。
+    files: ["src/features/**/*.{ts,tsx}"],
+    ignores: crossFeatureImportBanAllowlist,
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [deepImportRestrictedPattern, crossFeatureRestrictedPattern],
+        },
+      ],
+    },
+  },
+  {
+    // FE-RC-015/060: 上記 cross-feature-ban を models freeze 対象ファイルにも適用する
+    // （deep-import + generated-models + cross-feature の3つを同時に再度明示）。
+    files: ["src/features/**/*.{ts,tsx}"],
+    ignores: [...generatedModelsImportAllowlist, ...crossFeatureImportBanAllowlist],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [generatedModelsPathRestriction],
+          patterns: [
+            deepImportRestrictedPattern,
+            generatedModelsRelativeImportPattern,
+            crossFeatureRestrictedPattern,
           ],
         },
       ],

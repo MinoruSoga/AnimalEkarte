@@ -3,7 +3,11 @@ import { useMemo } from "react";
 
 // Internal
 import { SearchableSelect, type SearchableSelectOption } from "@/components/ui/searchable-select";
-import { useGetAllMedicines, useGetAllProcedures, useGetAllHospitalizationPlans } from "@/features/master";
+import {
+    useGetAllMedicinesMaster,
+    useGetAllProcedures,
+    useGetAllHospitalizationPlansMaster,
+} from "@/hooks/use-treatment-master";
 
 // Types
 import type { CarePlanItemType } from "../../api/care-plan-items";
@@ -24,9 +28,9 @@ interface CarePlanRefSelectProps {
  * 新しい選択 UI は発明しない。
  */
 export function CarePlanRefSelect({ type, value, onChange }: CarePlanRefSelectProps) {
-    const { data: medicines, isLoading: isMedicinesLoading } = useGetAllMedicines();
+    const { data: medicines, isLoading: isMedicinesLoading } = useGetAllMedicinesMaster();
     const { data: procedures, isLoading: isProceduresLoading } = useGetAllProcedures();
-    const { data: plans, isLoading: isPlansLoading } = useGetAllHospitalizationPlans();
+    const { data: plans, isLoading: isPlansLoading } = useGetAllHospitalizationPlansMaster();
 
     const medicineOptions = useMemo<SearchableSelectOption[]>(
         () => (medicines ?? []).map((m) => ({ value: m.id, label: m.name })),

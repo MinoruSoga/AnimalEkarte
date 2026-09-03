@@ -4,20 +4,16 @@ import userEvent from "@testing-library/user-event";
 import { createTestWrapper } from "@/testing/utils";
 import { CarePlanRefSelect } from "./CarePlanRefSelect";
 
-vi.mock("@/features/master/api/medicines", () => ({
-    useGetAllMedicines: () => ({
+vi.mock("@/hooks/use-treatment-master", () => ({
+    useGetAllMedicinesMaster: () => ({
         data: [{ id: "1", name: "アモキシシリン" }],
         isLoading: false,
     }),
-}));
-vi.mock("@/features/master/api/procedures", () => ({
     useGetAllProcedures: () => ({
         data: [{ id: "2", name: "血液検査" }],
         isLoading: false,
     }),
-}));
-vi.mock("@/features/master/api/hospitalization-plans", () => ({
-    useGetAllHospitalizationPlans: () => ({
+    useGetAllHospitalizationPlansMaster: () => ({
         data: [{ id: "3", name: "スタンダード入院プラン" }],
         isLoading: false,
     }),

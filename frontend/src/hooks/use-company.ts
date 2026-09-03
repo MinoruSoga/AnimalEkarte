@@ -44,10 +44,6 @@ interface UpdateCompanyRequest {
 }
 
 // ─────────────────────────────────────────────────
-// Query keys
-// ─────────────────────────────────────────────────
-
-// ─────────────────────────────────────────────────
 // API functions
 // ─────────────────────────────────────────────────
 
@@ -65,6 +61,11 @@ async function updateCompany(req: UpdateCompanyRequest): Promise<Company> {
 // TanStack Query hooks
 // ─────────────────────────────────────────────────
 
+/**
+ * FE-RC-015: 法人情報（会社マスタ）は master/accounting/clinic-settings の
+ * 複数 feature から参照される。単一 feature 専有ではないため src/hooks へ配置
+ * （features/master/api/company.ts から移設・2026-09-03）。
+ */
 export function useGetCompany() {
   return useQuery({
     queryKey: queryKeys.masters.category("company"),

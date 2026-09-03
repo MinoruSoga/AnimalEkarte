@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { handleApiError } from "@/lib/handle-api-error";
 import { C, STYLE } from "@/lib/design-tokens";
-import { useGetCompany, useUpdateCompany } from "@/features/master";
+import { useGetCompany, useUpdateCompany } from "@/hooks/use-company";
 
 interface CompanyInvoiceFormProps {
   invoiceRegistrationNumber: string;

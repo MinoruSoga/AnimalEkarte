@@ -113,11 +113,12 @@ import { RECEPTION_STATUS_COLORS } from '@/constants/status-colors';
 
 ## Import 境界 Lint (ESLint no-restricted-imports) (MANDATORY)
 
-`eslint.config.js` に以下3種の境界ルールが入っている。違反は ESLint で機械検出される（過去に cross-feature import 38件が人力レビューをすり抜けていた実績を受けた機械ガード化、第2期監査。FE7-0・2026-07-18）。
+`eslint.config.js` に以下4種の境界ルールが入っている。違反は ESLint で機械検出される（過去に cross-feature import 38件が人力レビューをすり抜けていた実績を受けた機械ガード化、第2期監査。FE7-0・2026-07-18）。
 
 1. **deep import 禁止**（全域）: feature の外から `@/features/<name>/...` への直接 import を禁止。外からは `@/features/<name>`（index.ts）経由、feature 内部も相対 import を使うこと。
 2. **層逆転禁止**: `src/components/`, `src/hooks/`, `src/lib/` から `@/features` への import を禁止（features は components/hooks/lib に依存してよいが逆方向は禁止）。
 3. **アプリ境界**: `liff/src/`, `line-reserve/src/` から `@/features` への import を禁止。
+4. **feature 間 import 禁止**（`src/features/<a>/**` → `@/features/<b>`）: barrel（index.ts）経由でも feature 間の直接 import を禁止する（FE-RC-015/060・2026-09-03。CODING_RULES.md §1.2 との不整合を解消し ESLint 側も全面禁止に統一）。cross-feature の値が必要な場合は `components/shared`・`src/hooks`・`src/lib` へ昇格するか、`app/pages/` の合成層で props 注入すること。唯一の例外は `src/features/owner-report/hooks/use-owner-clinical-briefing-data.ts`（`@/features/medical-records` の `useGetMedicalRecords` を読み取り専用で参照。`transformMedicalRecord` は診療録ドメインの正本ロジックで、cross-feature 消費のための複製は DRY 違反・drift リスクの方が大きいと判断し、具体的な問題が出るまで現状維持。`eslint.config.js` の `crossFeatureImportBanAllowlist` で管理）。
 
 ## Prohibited Commands (must NOT auto-execute)
 
