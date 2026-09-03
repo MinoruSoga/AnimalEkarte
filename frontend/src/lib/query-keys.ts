@@ -138,6 +138,12 @@ export const queryKeys = {
   reservations: {
     all: () => ["reservations"] as const,
     list: <F>(filters: F) => ["reservations", filters] as const,
+    /**
+     * FE-RC-081: 単数形 "reservation" が第一要素のため all()/list() の
+     * ["reservations", ...] prefix match には含まれない。detail 更新を伴う
+     * mutation（use-update-reservation.ts 等）は all() だけでなく detail(id) も
+     * 明示的に invalidate する必要がある（既存の呼び出し側は対応済み）。
+     */
     detail: (id: string) => ["reservation", id] as const,
     availableTimes: (reservationTypeId: string, date: string, staffId?: string) =>
       ["reservations", "available-times", reservationTypeId, date, staffId ?? ""] as const,
@@ -151,6 +157,12 @@ export const queryKeys = {
   examinations: {
     all: () => ["examinations"] as const,
     list: <F>(filters: F) => ["examinations", filters] as const,
+    /**
+     * FE-RC-081: 単数形 "examination" が第一要素のため all()/list() の
+     * ["examinations", ...] prefix match には含まれない。detail 更新を伴う
+     * mutation（update-examination.ts 等）は all() だけでなく detail(id) も
+     * 明示的に invalidate する必要がある（既存の呼び出し側は対応済み）。
+     */
     detail: (id: string) => ["examination", id] as const,
     items: (id: string) => ["examination-items", id] as const,
     // Nested under examinations.all() so update/unconfirm/items invalidations refresh print.
@@ -169,6 +181,12 @@ export const queryKeys = {
   vaccinations: {
     all: () => ["vaccinations"] as const,
     list: <F>(filters: F) => ["vaccinations", filters] as const,
+    /**
+     * FE-RC-081: 単数形 "vaccination" が第一要素のため all()/list() の
+     * ["vaccinations", ...] prefix match には含まれない。detail 更新を伴う
+     * mutation（update-vaccination.ts 等）は all() だけでなく detail(id) も
+     * 明示的に invalidate する必要がある（既存の呼び出し側は対応済み）。
+     */
     detail: (id: string) => ["vaccination", id] as const,
     byPet: (petId: string) => ["vaccinations", "pet", petId] as const,
   },
@@ -177,6 +195,13 @@ export const queryKeys = {
   hospitalizations: {
     all: () => ["hospitalizations"] as const,
     list: <F>(filters: F) => ["hospitalizations", filters] as const,
+    /**
+     * FE-RC-081: 単数形 "hospitalization" が第一要素のため all()/list() の
+     * ["hospitalizations", ...] prefix match には含まれない。detail/detailRaw
+     * 更新を伴う mutation（update-hospitalization.ts）は all() だけでなく
+     * detail(id) と detailRaw(id) の両方を明示的に invalidate する必要がある
+     * （既存の呼び出し側は対応済み）。
+     */
     detail: (id: string) => ["hospitalization", id] as const,
     detailRaw: (id: string) => ["hospitalization", "raw", id] as const,
     carePlanItems: (hospitalizationId: string) =>
@@ -194,6 +219,12 @@ export const queryKeys = {
   trimmings: {
     all: () => ["trimmings"] as const,
     list: <F>(filters: F) => ["trimmings", filters] as const,
+    /**
+     * FE-RC-081: 単数形 "trimming" が第一要素のため all()/list() の
+     * ["trimmings", ...] prefix match には含まれない。detail 更新を伴う
+     * mutation（update-trimming.ts）は all() だけでなく detail(id) も
+     * 明示的に invalidate する必要がある（既存の呼び出し側は対応済み）。
+     */
     detail: (id: string) => ["trimming", id] as const,
     byPet: (petId: string) => ["trimmings", "pet", petId] as const,
   },
