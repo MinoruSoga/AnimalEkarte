@@ -9,13 +9,13 @@ import {
   useDetachLabDeviceJob,
   useGetLabDeviceUnlinked,
   type LabDeviceJobCard,
-} from "@/features/lab-device/api/lab-device";
+} from "@/hooks/use-lab-device-unlinked";
 import {
   isLabDeviceAttachPersisted,
   labDeviceCardTitle,
   labDeviceClockSkewLabel,
   labDeviceNeedsReviewReason,
-} from "@/features/lab-device/lib/lab-device-board-model";
+} from "@/lib/lab-device-card-model";
 
 // components/shared は @/types/generated/models の import allowlist 対象外（TASK-444-S1）。
 // リテラル値は models.ts の `ResourceLabImport = "lab-import"` と同値（usePermission の

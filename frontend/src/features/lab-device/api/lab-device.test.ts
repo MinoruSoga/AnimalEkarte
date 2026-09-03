@@ -10,9 +10,11 @@ import {
   useAttachLabDeviceJob,
   useClearLabDeviceWait,
   useDetachLabDeviceJob,
+  useGetLabDeviceUnlinked,
   usePutLabDeviceWait,
   useReceiveLabDeviceFrames,
 } from "./lab-device";
+import { useGetLabDeviceUnlinked as hooksUseGetLabDeviceUnlinked } from "@/hooks/use-lab-device-unlinked";
 
 vi.mock("@/lib/axios", () => ({
   axios: {
@@ -47,6 +49,10 @@ describe("lab-device API mutations (FE-RC-012)", () => {
     mockedPost.mockReset();
     mockedDelete.mockReset();
     mockedHandleApiError.mockReset();
+  });
+
+  it("re-exports useGetLabDeviceUnlinked from @/hooks (FE-RC-015 followup3)", () => {
+    expect(useGetLabDeviceUnlinked).toBe(hooksUseGetLabDeviceUnlinked);
   });
 
   it("usePutLabDeviceWait: 失敗時に onError で handleApiError を呼び、握り潰さない", async () => {

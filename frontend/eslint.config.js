@@ -286,17 +286,6 @@ export default tseslint.config(
     },
   },
   {
-    // FE-RC-015 Phase 0 promotion: LabDeviceUnlinkedBanner は lab-device の attach/detach
-    // mutation・banner 表示ヘルパーに依存する UI で、examinations/medical-records から共有
-    // 参照できるよう components/shared へ移設した。実装（api/lib）自体は lab-device 内部の
-    // ままのため、この 1 ファイルに限り層逆転ガードを外す（api/lib の昇格は将来 lane の対象）。
-    // 注: @/types/generated/models への依存はリテラル値の直書きで解消済み（allowlist 追記不要）。
-    files: ["src/components/shared/LabDeviceUnlinkedBanner/**"],
-    rules: {
-      "no-restricted-imports": "off",
-    },
-  },
-  {
     // Fast Refresh は「ファイルがコンポーネントのみ export」を要求するが、本リポジトリは
     // 画面/UI 単位で定数・ヘルパー・route config をコロケーションする方針を採る。
     // 分離すると import 拡散と再エクスポート層が増える一方、HMR の完全性は開発 UX のみ。

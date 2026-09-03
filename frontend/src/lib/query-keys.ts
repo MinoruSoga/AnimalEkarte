@@ -154,6 +154,7 @@ export const queryKeys = {
     board: () => ["lab-device", "board"] as const,
     unlinked: () => ["lab-device", "unlinked"] as const,
     station: () => ["lab-device", "station"] as const,
+    agentConsumer: () => ["lab-device", "agent-consumer"] as const,
   },
   vaccinations: {
     all: () => ["vaccinations"] as const,
