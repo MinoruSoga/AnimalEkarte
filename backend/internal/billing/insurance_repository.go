@@ -2,6 +2,7 @@ package billing
 
 import (
 	"context"
+	"fmt"
 
 	"gorm.io/gorm"
 
@@ -38,7 +39,7 @@ func (r *insuranceRepository) FindAll(ctx context.Context, clinicID uint64) ([]m
 }
 
 func (r *insuranceRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Insurance, error) {
-	return persistence.FindByIDScoped[model.Insurance](ctx, r.db, "insurance", clinicID, id)
+	return persistence.FindByIDScoped[model.Insurance](ctx, persistence.DBOrTx(ctx, r.db), "insurance", clinicID, id)
 }
 
 func (r *insuranceRepository) Create(ctx context.Context, insurance *model.Insurance) error {
@@ -65,12 +66,45 @@ func (r *insuranceRepository) Update(ctx context.Context, clinicID, id uint64, f
 }
 
 func (r *insuranceRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	return persistence.DeleteScopedByID(ctx, r.db, &model.Insurance{}, "insurance", clinicID, id)
+	// clinic_id + id + pets.insurance_id 不在を同一 DELETE で要求し、
+	// CountUsage→Delete 間の参照追加 TOCTOU を原子的に塞ぐ。
+	result := persistence.DBOrTx(ctx, r.db).
+		Scopes(persistence.ClinicScope(clinicID)).
+		Where("id = ?", id).
+		Where(`NOT EXISTS (
+			SELECT 1 FROM pets
+			WHERE pets.insurance_id = insurances.id
+			  AND pets.clinic_id = ?
+			  AND pets.deleted_at IS NULL
+		)`, clinicID).
+		Delete(&model.Insurance{})
+	if result.Error != nil {
+		return apperrors.FromGORM(result.Error, "insurance", fmt.Sprintf("%d", id))
+	}
+	if result.RowsAffected == 0 {
+		return r.normalizeDeleteIfUnusedMiss(ctx, clinicID, id)
+	}
+	return nil
+}
+
+// normalizeDeleteIfUnusedMiss は原子 DELETE が 0 行だった理由を再読取で区別する。
+func (r *insuranceRepository) normalizeDeleteIfUnusedMiss(ctx context.Context, clinicID, id uint64) error {
+	if _, err := r.FindByID(ctx, clinicID, id); err != nil {
+		return err
+	}
+	count, err := r.CountUsageByInsuranceID(ctx, clinicID, id)
+	if err != nil {
+		return err
+	}
+	if count > 0 {
+		return apperrors.WrapConflict("この保険はペット情報で使用中のため削除できません")
+	}
+	return apperrors.WrapConflict("この保険はペット情報で使用中のため削除できません")
 }
 
 func (r *insuranceRepository) CountUsageByInsuranceID(ctx context.Context, clinicID, insuranceID uint64) (int64, error) {
 	var count int64
-	if err := r.db.WithContext(ctx).
+	if err := persistence.DBOrTx(ctx, r.db).
 		Model(&model.Pet{}).
 		Scopes(persistence.ClinicScope(clinicID)).
 		Where("insurance_id = ? AND deleted_at IS NULL", insuranceID).

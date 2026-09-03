@@ -2,6 +2,7 @@ package billing
 
 import (
 	"net/url"
+	"strings"
 	"testing"
 	"time"
 
@@ -631,4 +632,165 @@ func TestPaymentMethodPointer_Binding_Oneof(t *testing.T) {
 			t.Fatal("ValidateStruct = nil, want validation error for unknown payment_method")
 		}
 	})
+}
+
+func TestAccountingRequest_FreetextMax(t *testing.T) {
+	scheduled := time.Date(2026, 5, 28, 0, 0, 0, 0, time.UTC)
+	validItem := map[string]any{"name": "診察料", "quantity": 1}
+
+	tests := []struct {
+		name    string
+		payload map[string]any
+		dest    any
+		wantErr bool
+	}{
+		{
+			name: "create memo at 1000 is accepted",
+			payload: map[string]any{
+				"scheduled_date": scheduled,
+				"memo":           strings.Repeat("a", 1000),
+			},
+			dest: &createAccountingRequest{},
+		},
+		{
+			name: "create memo over 1000 is rejected",
+			payload: map[string]any{
+				"scheduled_date": scheduled,
+				"memo":           strings.Repeat("a", 1001),
+			},
+			dest:    &createAccountingRequest{},
+			wantErr: true,
+		},
+		{
+			name: "complete memo at 1000 is accepted",
+			payload: map[string]any{
+				"scheduled_date": scheduled,
+				"memo":           strings.Repeat("a", 1000),
+				"items":          []map[string]any{validItem},
+			},
+			dest: &completeAccountingRequest{},
+		},
+		{
+			name: "complete memo over 1000 is rejected",
+			payload: map[string]any{
+				"scheduled_date": scheduled,
+				"memo":           strings.Repeat("a", 1001),
+				"items":          []map[string]any{validItem},
+			},
+			dest:    &completeAccountingRequest{},
+			wantErr: true,
+		},
+		{
+			name: "complete item name at 255 is accepted",
+			payload: map[string]any{
+				"scheduled_date": scheduled,
+				"items":          []map[string]any{{"name": strings.Repeat("a", 255), "quantity": 1}},
+			},
+			dest: &completeAccountingRequest{},
+		},
+		{
+			name: "complete item name over 255 is rejected",
+			payload: map[string]any{
+				"scheduled_date": scheduled,
+				"items":          []map[string]any{{"name": strings.Repeat("a", 256), "quantity": 1}},
+			},
+			dest:    &completeAccountingRequest{},
+			wantErr: true,
+		},
+		{
+			name: "complete post_close_reason at 500 is accepted",
+			payload: map[string]any{
+				"scheduled_date":    scheduled,
+				"items":             []map[string]any{validItem},
+				"post_close_reason": strings.Repeat("a", 500),
+			},
+			dest: &completeAccountingRequest{},
+		},
+		{
+			name: "complete post_close_reason over 500 is rejected",
+			payload: map[string]any{
+				"scheduled_date":    scheduled,
+				"items":             []map[string]any{validItem},
+				"post_close_reason": strings.Repeat("a", 501),
+			},
+			dest:    &completeAccountingRequest{},
+			wantErr: true,
+		},
+		{
+			name: "update memo at 1000 is accepted",
+			payload: map[string]any{
+				"memo": strings.Repeat("a", 1000),
+			},
+			dest: &updateAccountingRequest{},
+		},
+		{
+			name: "update memo over 1000 is rejected",
+			payload: map[string]any{
+				"memo": strings.Repeat("a", 1001),
+			},
+			dest:    &updateAccountingRequest{},
+			wantErr: true,
+		},
+		{
+			name: "update post_close_reason at 500 is accepted",
+			payload: map[string]any{
+				"post_close_reason": strings.Repeat("a", 500),
+			},
+			dest: &updateAccountingRequest{},
+		},
+		{
+			name: "update post_close_reason over 500 is rejected",
+			payload: map[string]any{
+				"post_close_reason": strings.Repeat("a", 501),
+			},
+			dest:    &updateAccountingRequest{},
+			wantErr: true,
+		},
+		{
+			name: "credit correction reason at 500 is accepted",
+			payload: map[string]any{
+				"method": "credit_card",
+				"amount": 100,
+				"reason": strings.Repeat("a", 500),
+				"memo":   strings.Repeat("a", 1000),
+			},
+			dest: &correctCreditPaymentRequest{},
+		},
+		{
+			name: "credit correction reason over 500 is rejected",
+			payload: map[string]any{
+				"method": "credit_card",
+				"amount": 100,
+				"reason": strings.Repeat("a", 501),
+			},
+			dest:    &correctCreditPaymentRequest{},
+			wantErr: true,
+		},
+		{
+			name: "credit correction memo over 1000 is rejected",
+			payload: map[string]any{
+				"method": "credit_card",
+				"amount": 100,
+				"reason": "訂正",
+				"memo":   strings.Repeat("a", 1001),
+			},
+			dest:    &correctCreditPaymentRequest{},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := bindJSONBody(t, tt.payload, tt.dest)
+			if tt.wantErr {
+				if err == nil {
+					t.Fatal("ShouldBindJSON = nil, want over-max error")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("ShouldBindJSON = %v, want nil", err)
+			}
+		})
+	}
 }

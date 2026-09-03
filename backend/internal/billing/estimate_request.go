@@ -56,8 +56,8 @@ type createEstimateRequest struct {
 	InsuranceAmount int64                       `json:"insurance_amount"`
 	DiscountAmount  int64                       `json:"discount_amount"`
 	ValidUntil      *time.Time                  `json:"valid_until"`
-	Comment         string                      `json:"comment"`
-	Notes           string                      `json:"notes"`
+	Comment         string                      `json:"comment" binding:"max=1000"`
+	Notes           string                      `json:"notes" binding:"max=1000"`
 	Items           []createEstimateItemRequest `json:"items" binding:"omitempty,dive"`
 }
 
@@ -124,8 +124,8 @@ type updateEstimateRequest struct {
 	DiscountAmount  *int64                       `json:"discount_amount"`
 	ValidUntil      *time.Time                   `json:"valid_until"`
 	ClearValidUntil bool                         `json:"clear_valid_until"`
-	Comment         *string                      `json:"comment"`
-	Notes           *string                      `json:"notes"`
+	Comment         *string                      `json:"comment" binding:"omitempty,max=1000"`
+	Notes           *string                      `json:"notes" binding:"omitempty,max=1000"`
 	Items           *[]createEstimateItemRequest `json:"items" binding:"omitempty,dive"`
 }
 
@@ -159,8 +159,8 @@ func (r *updateEstimateRequest) toServiceInput(actorID uint64) *UpdateEstimateIn
 type createEstimateSuccessorRequest struct {
 	Reason  string  `json:"reason" binding:"required,min=1,max=500"`
 	Title   *string `json:"title" binding:"omitempty,min=1,max=255"`
-	Comment *string `json:"comment"`
-	Notes   *string `json:"notes"`
+	Comment *string `json:"comment" binding:"omitempty,max=1000"`
+	Notes   *string `json:"notes" binding:"omitempty,max=1000"`
 }
 
 func (r *createEstimateSuccessorRequest) toServiceInput(actorID uint64) *CreateSuccessorInput {

@@ -1,6 +1,7 @@
 package billing
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -152,6 +153,35 @@ func TestUpdateCampaignRequest_ToServiceInput(t *testing.T) {
 		input, err := req.toServiceInput()
 
 		assert.Nil(t, input)
+		require.Error(t, err)
+	})
+}
+
+func TestCampaignRequest_NameMax(t *testing.T) {
+	validCreate := func(name string) map[string]any {
+		return map[string]any{
+			"name":           name,
+			"start_date":     "2026-07-01",
+			"end_date":       "2026-08-31",
+			"discount_type":  "rate",
+			"discount_value": 10,
+		}
+	}
+
+	t.Run("create name at 255 is accepted", func(t *testing.T) {
+		err := bindJSONBody(t, validCreate(strings.Repeat("a", 255)), &createCampaignRequest{})
+		require.NoError(t, err)
+	})
+	t.Run("create name over 255 is rejected", func(t *testing.T) {
+		err := bindJSONBody(t, validCreate(strings.Repeat("a", 256)), &createCampaignRequest{})
+		require.Error(t, err)
+	})
+	t.Run("update name at 255 is accepted", func(t *testing.T) {
+		err := bindJSONBody(t, map[string]any{"name": strings.Repeat("a", 255)}, &updateCampaignRequest{})
+		require.NoError(t, err)
+	})
+	t.Run("update name over 255 is rejected", func(t *testing.T) {
+		err := bindJSONBody(t, map[string]any{"name": strings.Repeat("a", 256)}, &updateCampaignRequest{})
 		require.Error(t, err)
 	})
 }

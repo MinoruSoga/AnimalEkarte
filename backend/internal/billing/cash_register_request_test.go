@@ -2,6 +2,7 @@ package billing
 
 import (
 	"net/url"
+	"strings"
 	"testing"
 	"time"
 
@@ -127,8 +128,15 @@ func TestCloseCashRegisterRequest_ToServiceInput(t *testing.T) {
 func TestCloseCashRegisterRequest_ToServiceInput_InvalidDate(t *testing.T) {
 	req := closeCashRegisterRequest{Date: "2026/05/28"}
 
-	if _, err := req.toServiceInput(9); err == nil {
+	_, err := req.toServiceInput(9)
+	if err == nil {
 		t.Fatal("toServiceInput() error = nil, want error")
+	}
+	if !apperrors.IsInvalidInput(err) {
+		t.Fatalf("error = %v, want invalid input", err)
+	}
+	if strings.Contains(err.Error(), "parsing time") {
+		t.Fatalf("error leaked parse internals: %v", err)
 	}
 }
 
@@ -143,7 +151,10 @@ func TestCloseCashRegisterRequest_ToServiceInput_NegativeActualCash(t *testing.T
 	if err == nil {
 		t.Fatal("toServiceInput() error = nil, want error for negative actual_cash")
 	}
-	if got := err.Error(); got != "actual_cash は 0 以上で指定してください" {
+	if !apperrors.IsInvalidInput(err) {
+		t.Fatalf("error = %v, want invalid input", err)
+	}
+	if got := err.Error(); !strings.Contains(got, "actual_cash は 0 以上で指定してください") {
 		t.Fatalf("error = %q, want actual_cash は 0 以上で指定してください", got)
 	}
 }
