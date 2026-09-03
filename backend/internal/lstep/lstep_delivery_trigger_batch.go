@@ -42,6 +42,7 @@ func (s *lstepDeliveryTriggerService) runBatch(
 		return 0, []error{apperrors.Wrap(err, "failed to build lstep client")}
 	}
 	if client == nil {
+		slog.InfoContext(ctx, "delivery trigger skipped: lstep client is not configured", "clinic_id", clinicID, "trigger", triggerType)
 		return 0, nil
 	}
 

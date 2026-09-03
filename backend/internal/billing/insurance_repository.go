@@ -59,10 +59,23 @@ func (r *insuranceRepository) Create(ctx context.Context, insurance *model.Insur
 }
 
 func (r *insuranceRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Insurance, error) {
-	if err := persistence.UpdateScopedByID(ctx, r.db, &model.Insurance{}, "insurance", clinicID, id, fields); err != nil {
+	var loaded *model.Insurance
+	err := persistence.DBOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
+		txCtx := persistence.WithTxValue(ctx, tx)
+		if err := persistence.UpdateScopedByID(txCtx, tx, &model.Insurance{}, "insurance", clinicID, id, fields); err != nil {
+			return err
+		}
+		reloaded, err := r.FindByID(txCtx, clinicID, id)
+		if err != nil {
+			return apperrors.Wrap(err, "reload insurance after update")
+		}
+		loaded = reloaded
+		return nil
+	})
+	if err != nil {
 		return nil, err
 	}
-	return r.FindByID(ctx, clinicID, id)
+	return loaded, nil
 }
 
 func (r *insuranceRepository) Delete(ctx context.Context, clinicID, id uint64) error {

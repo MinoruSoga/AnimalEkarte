@@ -86,16 +86,30 @@ func (r *diagnosisTypeRepository) Update(ctx context.Context, clinicID, id uint6
 }
 
 func (r *diagnosisTypeRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	result := r.db.WithContext(ctx).
-		Scopes(persistence.ClinicScope(clinicID)).Where("id = ?", id).
+	result := persistence.DBOrTx(ctx, r.db).
+		Scopes(persistence.ClinicScope(clinicID)).
+		Where("id = ?", id).
+		Where(`NOT EXISTS (
+			SELECT 1 FROM diagnosis_names
+			WHERE diagnosis_names.diagnosis_type_id = diagnosis_types.id
+			  AND diagnosis_names.clinic_id = ?
+			  AND diagnosis_names.deleted_at IS NULL
+		)`, clinicID).
 		Delete(&model.DiagnosisType{})
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "diagnosis_type", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("diagnosis_type", fmt.Sprintf("%d", id))
+		return r.normalizeDiagnosisTypeDeleteMiss(ctx, clinicID, id)
 	}
 	return nil
+}
+
+func (r *diagnosisTypeRepository) normalizeDiagnosisTypeDeleteMiss(ctx context.Context, clinicID, id uint64) error {
+	if _, err := r.FindByID(ctx, clinicID, id); err != nil {
+		return err
+	}
+	return apperrors.WrapConflict("この診断カテゴリには診断名が登録されているため削除できません")
 }
 
 // CountChildrenByParentID は指定カテゴリに属する diagnosis_names の件数を返す（BUG-113 補足）

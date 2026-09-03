@@ -16,7 +16,7 @@ type CreateSpecialPeriodRequest struct {
 	EndDate      string `json:"end_date"      binding:"required"` // YYYY-MM-DD
 	AmPmBoundary string `json:"am_pm_boundary" binding:"required"`
 	PmEnd        string `json:"pm_end"         binding:"required"`
-	Note         string `json:"note"`
+	Note         string `json:"note" binding:"omitempty,max=1000"`
 }
 
 func (r *CreateSpecialPeriodRequest) ToServiceInput() *CreateSpecialPeriodInput {
@@ -34,7 +34,7 @@ type UpdateSpecialPeriodRequest struct {
 	EndDate      *string `json:"end_date"`
 	AmPmBoundary *string `json:"am_pm_boundary"`
 	PmEnd        *string `json:"pm_end"`
-	Note         *string `json:"note"`
+	Note         *string `json:"note" binding:"omitempty,max=1000"`
 }
 
 func (r UpdateSpecialPeriodRequest) ToServiceInput() UpdateSpecialPeriodInput {

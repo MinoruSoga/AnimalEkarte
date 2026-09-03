@@ -45,7 +45,7 @@ type createBillingItemRequest struct {
 	TaxRate               float64 `json:"tax_rate"`
 	IsInsuranceApplicable bool    `json:"is_insurance_applicable"`
 	Source                string  `json:"source"    binding:"omitempty,oneof=medical_record manual hospitalization trimming"`
-	OtherReason           *string `json:"other_reason"`
+	OtherReason           *string `json:"other_reason" binding:"omitempty,max=500"`
 	TreatmentID           *uint64 `json:"treatment_id"`
 	VaccinationID         *uint64 `json:"vaccination_id"`
 	ExamID                *uint64 `json:"exam_id"`
@@ -141,7 +141,7 @@ type BillingItemResponse struct {
 	TaxAmount             int64   `json:"tax_amount"`
 	IsInsuranceApplicable bool    `json:"is_insurance_applicable"`
 	Source                string  `json:"source"`
-	OtherReason           *string `json:"other_reason,omitempty"`
+	OtherReason           *string `json:"other_reason,omitempty" binding:"omitempty,max=500"`
 	TreatmentID           *uint64 `json:"treatment_id,omitempty"`
 	// MedicalRecordID は未請求候補など、treatment 由来の親カルテ（DB 列ではない仮想値）。
 	MedicalRecordID   *uint64   `json:"medical_record_id,omitempty"`

@@ -3,12 +3,14 @@ package owner
 import (
 	"encoding/json"
 	"net/url"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -107,13 +109,22 @@ func TestUpdateOwnerRequest_BirthDateNullableJSON(t *testing.T) {
 func TestNewListOwnersQuery(t *testing.T) {
 	t.Run("extracts search param", func(t *testing.T) {
 		values := url.Values{"search": []string{"田中"}}
-		query := newListOwnersQuery(values)
+		query, err := newListOwnersQuery(values)
+		require.NoError(t, err)
 		assert.Equal(t, "田中", query.Search)
 	})
 
 	t.Run("returns empty search when absent", func(t *testing.T) {
-		query := newListOwnersQuery(url.Values{})
+		query, err := newListOwnersQuery(url.Values{})
+		require.NoError(t, err)
 		assert.Equal(t, "", query.Search)
+	})
+
+	t.Run("rejects search longer than 255", func(t *testing.T) {
+		values := url.Values{"search": []string{strings.Repeat("あ", 256)}}
+		_, err := newListOwnersQuery(values)
+		require.Error(t, err)
+		assert.True(t, apperrors.IsInvalidInput(err))
 	})
 }
 

@@ -69,7 +69,31 @@ func (r *hospitalizationPlanRepository) Update(ctx context.Context, clinicID, id
 }
 
 func (r *hospitalizationPlanRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	return persistence.DeleteScopedByID(ctx, r.db, &model.HospitalizationPlan{}, "hospitalization_plan", clinicID, id)
+	result := persistence.DBOrTx(ctx, r.db).
+		Scopes(persistence.ClinicScope(clinicID)).
+		Where("id = ?", id).
+		Where(`NOT EXISTS (
+			SELECT 1 FROM care_plan_items
+			JOIN hospitalization_plans hp ON hp.id = care_plan_items.hospitalization_plan_id
+			  AND hp.clinic_id = ?
+			  AND hp.deleted_at IS NULL
+			WHERE care_plan_items.hospitalization_plan_id = hospitalization_plans.id
+		)`, clinicID).
+		Delete(&model.HospitalizationPlan{})
+	if result.Error != nil {
+		return apperrors.FromGORM(result.Error, "hospitalization_plan", fmt.Sprintf("%d", id))
+	}
+	if result.RowsAffected == 0 {
+		return r.normalizeHospitalizationPlanDeleteMiss(ctx, clinicID, id)
+	}
+	return nil
+}
+
+func (r *hospitalizationPlanRepository) normalizeHospitalizationPlanDeleteMiss(ctx context.Context, clinicID, id uint64) error {
+	if _, err := r.FindByID(ctx, clinicID, id); err != nil {
+		return err
+	}
+	return apperrors.WrapConflict("この入院プランはケアプランで使用中のため削除できません")
 }
 
 // CountUsageByHospitalizationPlanID は指定入院プランを参照する care_plan_items の件数を返す（BUG-105）。

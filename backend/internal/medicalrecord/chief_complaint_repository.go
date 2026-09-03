@@ -88,5 +88,30 @@ func (r *chiefComplaintTypeRepository) CountUsageByChiefComplaintTypeID(ctx cont
 }
 
 func (r *chiefComplaintTypeRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	return persistence.DeleteScopedByID(ctx, r.db, &model.ChiefComplaintType{}, "chief_complaint_type", clinicID, id)
+	result := persistence.DBOrTx(ctx, r.db).
+		Scopes(persistence.ClinicScope(clinicID)).
+		Where("id = ?", id).
+		Where(`NOT EXISTS (
+			SELECT 1 FROM inquiries
+			JOIN medical_records ON medical_records.id = inquiries.medical_record_id
+			  AND medical_records.clinic_id = ?
+			  AND medical_records.deleted_at IS NULL
+			WHERE inquiries.chief_complaint_type_id = chief_complaint_types.id
+			  AND inquiries.deleted_at IS NULL
+		)`, clinicID).
+		Delete(&model.ChiefComplaintType{})
+	if result.Error != nil {
+		return apperrors.FromGORM(result.Error, "chief_complaint_type", fmt.Sprintf("%d", id))
+	}
+	if result.RowsAffected == 0 {
+		return r.normalizeChiefComplaintDeleteMiss(ctx, clinicID, id)
+	}
+	return nil
+}
+
+func (r *chiefComplaintTypeRepository) normalizeChiefComplaintDeleteMiss(ctx context.Context, clinicID, id uint64) error {
+	if _, err := r.FindByID(ctx, clinicID, id); err != nil {
+		return err
+	}
+	return apperrors.WrapConflict("この主訴カテゴリは問診記録で使用中のため削除できません")
 }

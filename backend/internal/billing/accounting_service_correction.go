@@ -58,17 +58,19 @@ func (s *accountingService) CorrectCreditPayment(ctx context.Context, input *Cor
 		return nil, apperrors.WrapInvalidInput("訂正金額は1円以上でなければなりません")
 	}
 
+	var updated *model.Billing
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
-		return s.correctCreditPaymentInTx(txCtx, input)
+		if err := s.correctCreditPaymentInTx(txCtx, input); err != nil {
+			return err
+		}
+		loaded, err := s.repo.FindByID(txCtx, input.ClinicID, input.BillingID)
+		if err != nil {
+			return apperrors.Wrap(err, "failed to reload accounting after credit correction")
+		}
+		updated = loaded
+		return nil
 	}); err != nil {
 		return nil, apperrors.Wrap(err, "failed to correct credit payment in transaction")
-	}
-
-	// 訂正後の最新レコードを返す
-	updated, err := s.repo.FindByID(ctx, input.ClinicID, input.BillingID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to reload accounting after credit correction", "error", err, "billing_id", input.BillingID)
-		return nil, apperrors.Wrap(err, "failed to reload accounting after credit correction")
 	}
 	return updated, nil
 }
@@ -76,7 +78,6 @@ func (s *accountingService) CorrectCreditPayment(ctx context.Context, input *Cor
 func (s *accountingService) correctCreditPaymentInTx(txCtx context.Context, input *CorrectCreditPaymentInput) error {
 	billing, err := s.repo.LockAndFindByID(txCtx, input.ClinicID, input.BillingID)
 	if err != nil {
-		slog.ErrorContext(txCtx, "failed to lock billing for credit correction", "error", err, "billing_id", input.BillingID)
 		return apperrors.Wrap(err, "failed to lock billing for credit correction")
 	}
 
@@ -120,11 +121,9 @@ func (s *accountingService) correctCreditPaymentInTx(txCtx context.Context, inpu
 	payment := billing.Payments[0]
 	payment.BillingAmount = newBillingAmount
 	if err := s.repo.SavePayment(txCtx, &payment); err != nil {
-		slog.ErrorContext(txCtx, "failed to save payment during credit correction", "error", err, "billing_id", input.BillingID)
 		return apperrors.Wrap(err, "failed to save payment during credit correction")
 	}
 	if err := s.repo.SavePaymentSplits(txCtx, corrected); err != nil {
-		slog.ErrorContext(txCtx, "failed to save payment splits during credit correction", "error", err, "billing_id", input.BillingID)
 		return apperrors.Wrap(err, "failed to save payment splits during credit correction")
 	}
 

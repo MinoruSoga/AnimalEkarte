@@ -277,7 +277,7 @@ func (s *lstepTagSyncService) buildClient(ctx context.Context, clinicID uint64) 
 
 func (s *lstepTagSyncService) shouldSkipSync(ctx context.Context, clinicID uint64) (bool, error) {
 	if s.settingsSvc == nil {
-		return true, nil
+		return false, apperrors.WrapInternalServerError("lstep settings service is required")
 	}
 	enabled, err := s.settingsSvc.IsSyncEnabled(ctx, clinicID)
 	if err != nil {

@@ -56,7 +56,7 @@ type closeCashRegisterRequest struct {
 	Date       string `json:"date"        binding:"required"` // YYYY-MM-DD
 	Period     string `json:"period"      binding:"required"` // "am", "pm", or "emg"
 	ActualCash int64  `json:"actual_cash"`
-	Memo       string `json:"memo"`
+	Memo       string `json:"memo" binding:"omitempty,max=1000"`
 }
 
 func (r closeCashRegisterRequest) toServiceInput(staffID uint64) (CloseRegisterInput, error) {

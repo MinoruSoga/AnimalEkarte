@@ -160,6 +160,21 @@ func TestTrimmingCourseTypeRepository_Delete(t *testing.T) {
 		require.NoError(t, db.WithContext(ctx).Unscoped().Where("id = ?", ct.ID).First(&raw).Error)
 		assert.True(t, raw.DeletedAt.Valid, "deleted_at が設定されているべき（物理行は残る）")
 	})
+
+	t.Run("コースが参照していれば Conflict で行は残る", func(t *testing.T) {
+		used := &model.TrimmingCourseType{ClinicID: clinicA, Name: "使用中削除対象"}
+		require.NoError(t, db.WithContext(ctx).Create(used).Error)
+		course := &model.TrimmingCourse{ClinicID: clinicA, Name: "参照コース", CourseTypeID: &used.ID}
+		require.NoError(t, db.WithContext(ctx).Create(course).Error)
+
+		err := repo.Delete(ctx, clinicA, used.ID)
+		require.Error(t, err)
+		assert.True(t, apperrors.IsConflict(err), "expected Conflict, got %v", err)
+
+		got, findErr := repo.FindByID(ctx, clinicA, used.ID)
+		require.NoError(t, findErr)
+		assert.Equal(t, used.ID, got.ID)
+	})
 }
 
 func TestTrimmingCourseTypeRepository_CountUsageByCourseTypeID(t *testing.T) {

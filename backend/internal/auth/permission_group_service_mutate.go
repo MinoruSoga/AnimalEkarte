@@ -180,7 +180,6 @@ func (s *permissionGroupService) update(
 		return nil, apperrors.WrapInvalidInput(sharedkernel.ErrMsgInputNotNil)
 	}
 	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
-		slog.ErrorContext(ctx, "failed to get permission group", "error", err, "id", id, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to get permission group")
 	}
 	if err := sharedkernel.ValidateOptionalName(input.Name); err != nil {
@@ -296,14 +295,12 @@ func (s *permissionGroupService) delete(
 	}
 	count, err := s.repo.CountUsageByGroupID(ctx, clinicID, id)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to check permission group dependencies", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to check permission group dependencies")
 	}
 	if count > 0 {
 		return apperrors.WrapConflict("この権限グループはスタッフに割り当てられているため削除できません")
 	}
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
-		slog.ErrorContext(ctx, "failed to delete permission group", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to delete permission group")
 	}
 	slog.InfoContext(ctx, "permission group deleted",
@@ -325,11 +322,6 @@ func mapPermissionGroupNameConflict(
 		apperrors.CodePermissionGroupNameConflict,
 	); conflict != nil {
 		return conflict
-	}
-	if id == 0 {
-		slog.ErrorContext(ctx, logMsg, "error", err, "clinic_id", clinicID)
-	} else {
-		slog.ErrorContext(ctx, logMsg, "error", err, "id", id, "clinic_id", clinicID)
 	}
 	return apperrors.Wrap(err, wrapMsg)
 }

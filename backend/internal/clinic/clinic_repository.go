@@ -145,14 +145,65 @@ func (r *clinicRepository) Update(ctx context.Context, id uint64, fields map[str
 // is owned by PermissionGroupRepository and must be orchestrated by the service in
 // the same Transactor.WithTx callback before this delete.
 func (r *clinicRepository) Delete(ctx context.Context, id uint64) error {
-	result := persistence.DBOrTx(ctx, r.db).Delete(&model.Clinic{}, "id = ?", id)
+	result := persistence.DBOrTx(ctx, r.db).
+		Where("id = ?", id).
+		Where(`NOT EXISTS (
+			SELECT 1 FROM owners
+			WHERE owners.clinic_id = clinics.id AND owners.deleted_at IS NULL
+		)`).
+		Where(`NOT EXISTS (
+			SELECT 1 FROM staff_clinic_assignments
+			JOIN staffs ON staffs.id = staff_clinic_assignments.staff_id AND staffs.deleted_at IS NULL
+			WHERE staff_clinic_assignments.clinic_id = clinics.id
+			  AND staff_clinic_assignments.deleted_at IS NULL
+		)`).
+		Where(`NOT EXISTS (SELECT 1 FROM appointments WHERE appointments.clinic_id = clinics.id AND appointments.deleted_at IS NULL)`).
+		Where(`NOT EXISTS (SELECT 1 FROM medical_records WHERE medical_records.clinic_id = clinics.id AND medical_records.deleted_at IS NULL)`).
+		Where(`NOT EXISTS (SELECT 1 FROM hospitalizations WHERE hospitalizations.clinic_id = clinics.id AND hospitalizations.deleted_at IS NULL)`).
+		Where(`NOT EXISTS (SELECT 1 FROM exams WHERE exams.clinic_id = clinics.id AND exams.deleted_at IS NULL)`).
+		Where(`NOT EXISTS (SELECT 1 FROM vaccinations WHERE vaccinations.clinic_id = clinics.id AND vaccinations.deleted_at IS NULL)`).
+		Where(`NOT EXISTS (SELECT 1 FROM checkups WHERE checkups.clinic_id = clinics.id AND checkups.deleted_at IS NULL)`).
+		Where(`NOT EXISTS (SELECT 1 FROM billings WHERE billings.clinic_id = clinics.id AND billings.deleted_at IS NULL)`).
+		Where(`NOT EXISTS (SELECT 1 FROM clinic_settings WHERE clinic_settings.clinic_id = clinics.id)`).
+		Where(`NOT EXISTS (SELECT 1 FROM clinic_integrations WHERE clinic_integrations.clinic_id = clinics.id)`).
+		Where(`NOT EXISTS (SELECT 1 FROM lstep_settings WHERE lstep_settings.clinic_id = clinics.id)`).
+		Where(`NOT EXISTS (SELECT 1 FROM permission_groups WHERE permission_groups.clinic_id = clinics.id AND permission_groups.deleted_at IS NULL)`).
+		Delete(&model.Clinic{})
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "clinic", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("clinic", fmt.Sprintf("%d", id))
+		return r.normalizeClinicDeleteMiss(ctx, id)
 	}
 	return nil
+}
+
+func (r *clinicRepository) normalizeClinicDeleteMiss(ctx context.Context, id uint64) error {
+	if _, err := r.FindByID(ctx, id); err != nil {
+		return err
+	}
+	ownerCount, err := r.CountOwnersByClinicID(ctx, id)
+	if err != nil {
+		return err
+	}
+	if ownerCount > 0 {
+		return apperrors.WrapConflict("飼主が紐付いているため削除できません。先に飼主を削除してください")
+	}
+	staffCount, err := r.CountStaffByClinicID(ctx, id)
+	if err != nil {
+		return err
+	}
+	if staffCount > 0 {
+		return apperrors.WrapConflict("スタッフが紐付いているため削除できません。先にスタッフを削除してください")
+	}
+	dependencies, err := r.CountBlockingReferencesByClinicID(ctx, id)
+	if err != nil {
+		return err
+	}
+	if len(dependencies) > 0 {
+		return apperrors.WrapConflict(dependencies[0].Label + "が紐付いているため削除できません。関連データを先に整理してください")
+	}
+	return apperrors.WrapConflict("関連データが紐付いているため削除できません。関連データを先に整理してください")
 }
 
 func (r *clinicRepository) CountOwnersByClinicID(ctx context.Context, clinicID uint64) (int64, error) {

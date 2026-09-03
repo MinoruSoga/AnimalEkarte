@@ -142,7 +142,54 @@ func (r *merchandiseItemRepository) CountUsageByMerchandiseItemID(ctx context.Co
 }
 
 func (r *merchandiseItemRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	// Ambient tx participation is required so soft-delete exclusive-locks serialize with
-	// campaign target FOR SHARE validation and usage re-check in the same transaction.
-	return persistence.DeleteScopedByID(ctx, persistence.DBOrTx(ctx, r.db), &model.MerchandiseItem{}, "merchandise_item", clinicID, id)
+	return persistence.DBOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
+		if err := tx.
+			Clauses(clause.Locking{Strength: "UPDATE"}).
+			Scopes(persistence.ClinicScope(clinicID)).
+			Where("id = ?", id).
+			First(&model.MerchandiseItem{}).Error; err != nil {
+			return apperrors.FromGORM(err, "merchandise_item", fmt.Sprintf("%d", id))
+		}
+		result := tx.
+			Scopes(persistence.ClinicScope(clinicID)).
+			Where("id = ?", id).
+			Where(`NOT EXISTS (
+				SELECT 1 FROM billing_items
+				JOIN billings ON billings.id = billing_items.billing_id
+				  AND billings.clinic_id = ?
+				  AND billings.deleted_at IS NULL
+				WHERE billing_items.merchandise_item_id = merchandise_items.id
+				  AND billing_items.deleted_at IS NULL
+			)`, clinicID).
+			Where(`NOT EXISTS (
+				SELECT 1 FROM estimate_items
+				JOIN estimates ON estimates.id = estimate_items.estimate_id
+				  AND estimates.clinic_id = ?
+				  AND estimates.deleted_at IS NULL
+				WHERE estimate_items.merchandise_item_id = merchandise_items.id
+				  AND estimate_items.deleted_at IS NULL
+			)`, clinicID).
+			Where(`NOT EXISTS (
+				SELECT 1 FROM campaign_target_items
+				JOIN campaigns ON campaigns.id = campaign_target_items.campaign_id
+				  AND campaigns.clinic_id = ?
+				  AND campaigns.deleted_at IS NULL
+				WHERE campaign_target_items.merchandise_item_id = merchandise_items.id
+			)`, clinicID).
+			Delete(&model.MerchandiseItem{})
+		if result.Error != nil {
+			return apperrors.FromGORM(result.Error, "merchandise_item", fmt.Sprintf("%d", id))
+		}
+		if result.RowsAffected == 0 {
+			return r.normalizeMerchandiseDeleteMiss(persistence.WithTxValue(ctx, tx), clinicID, id)
+		}
+		return nil
+	})
+}
+
+func (r *merchandiseItemRepository) normalizeMerchandiseDeleteMiss(ctx context.Context, clinicID, id uint64) error {
+	if _, err := r.FindByID(ctx, clinicID, id); err != nil {
+		return err
+	}
+	return apperrors.WrapConflict("この物販品目は請求・見積・キャンペーンで使用中のため削除できません")
 }

@@ -503,6 +503,20 @@ func TestMerchandiseItemRepository_Delete(t *testing.T) {
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
 	})
+
+	t.Run("請求で使用中なら Conflict で行は残る", func(t *testing.T) {
+		item := makeMerchItem(t, db, clinicA, "使用中削除対象品目", model.ItemCategoryGoods)
+		billing := makeMerchBilling(t, db, clinicA)
+		makeMerchBillingItem(t, db, billing.ID, item.ID)
+
+		err := repo.Delete(ctx, clinicA, item.ID)
+		require.Error(t, err)
+		assert.True(t, apperrors.IsConflict(err), "expected Conflict, got %v", err)
+
+		got, findErr := repo.FindByID(ctx, clinicA, item.ID)
+		require.NoError(t, findErr)
+		assert.Equal(t, item.ID, got.ID)
+	})
 }
 
 func TestMerchandiseItemRepository_Reorder(t *testing.T) {

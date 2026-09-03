@@ -555,6 +555,20 @@ func TestClinicRepository_Delete(t *testing.T) {
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err), "エラーは NotFound であるべき: %v", err)
 	})
+
+	t.Run("飼主が紐付いていれば Conflict で行は残る", func(t *testing.T) {
+		require.NoError(t, testdb.EnsureAutoMigrated(db, &model.Owner{}))
+		clinic := makeClinicFixture(t, db, "飼主付き削除拒否クリニック")
+		testdb.MakeTestOwner(t, db, clinic.ID, "削除阻止飼主")
+
+		err := repo.Delete(ctx, clinic.ID)
+		require.Error(t, err)
+		assert.True(t, apperrors.IsConflict(err), "expected Conflict, got %v", err)
+
+		got, findErr := repo.FindByID(ctx, clinic.ID)
+		require.NoError(t, findErr)
+		assert.Equal(t, clinic.ID, got.ID)
+	})
 }
 
 func TestClinicPermissionGroupCleanupDelete_RollsBackTogether(t *testing.T) {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"net"
 	"strings"
 	"time"
 
@@ -93,7 +94,6 @@ func (s *lineSendService) dispatchLineMessage(ctx context.Context, lineClient li
 		}
 		fileURL, fErr := s.sharedFile.GetSignedURL(ctx, clinicID, *input.FileID)
 		if fErr != nil {
-			slog.ErrorContext(ctx, "failed to get signed URL for line send", "error", fErr)
 			validationErr = apperrors.Wrap(fErr, "failed to get file URL")
 			return
 		}
@@ -139,7 +139,6 @@ func (s *lineSendService) applySendPurposeTag(ctx context.Context, clinicID, own
 func (s *lineSendService) Send(ctx context.Context, clinicID uint64, input *SendLineMessageInput) (*SendLineMessageResult, error) {
 	owner, err := s.ownerRepo.FindByID(ctx, clinicID, input.OwnerID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to find owner for line send", "error", err)
 		return nil, apperrors.Wrap(err, "failed to find owner")
 	}
 	if owner.LineUserID == nil || *owner.LineUserID == "" {
@@ -151,7 +150,6 @@ func (s *lineSendService) Send(ctx context.Context, clinicID uint64, input *Send
 
 	_, _, lineToken, err := s.lstepSettings.GetRawCredentials(ctx, clinicID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get line credentials", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get LINE credentials")
 	}
 
@@ -213,7 +211,6 @@ func (s *lineSendService) Send(ctx context.Context, clinicID uint64, input *Send
 func (s *lineSendService) GetSendLogs(ctx context.Context, clinicID, ownerID uint64) ([]*model.LineSendLog, error) {
 	logs, err := s.logRepo.FindByOwner(ctx, clinicID, ownerID, 30)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to find line send logs", "error", err)
 		return nil, apperrors.Wrap(err, "failed to find line send logs")
 	}
 	return logs, nil
@@ -236,6 +233,11 @@ func classifyLineSendError(err error) string {
 	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
 		return "timeout"
 	}
+	var netErr net.Error
+	if errors.As(err, &netErr) && netErr.Timeout() {
+		return "timeout"
+	}
+	// Fallback only: remaining Contains must not proliferate. Prefer typed errors.Is/As above.
 	msg := strings.ToLower(err.Error())
 	switch {
 	case strings.Contains(msg, "timeout") || strings.Contains(msg, "deadline"):

@@ -55,6 +55,10 @@ func (h *Handler) SearchOwners(c *gin.Context) {
 		return
 	}
 	q := c.Query("q")
+	if len(q) > 255 {
+		httpapi.RespondError(c, apperrors.WrapInvalidInput("q must be at most 255 characters"))
+		return
+	}
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
 	owners, err := h.service.SearchOwners(c.Request.Context(), actor, q, limit)
 	if err != nil {
@@ -71,6 +75,10 @@ func (h *Handler) SearchPets(c *gin.Context) {
 		return
 	}
 	q := c.Query("q")
+	if len(q) > 255 {
+		httpapi.RespondError(c, apperrors.WrapInvalidInput("q must be at most 255 characters"))
+		return
+	}
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
 	pets, err := h.service.SearchPets(c.Request.Context(), actor, q, limit)
 	if err != nil {

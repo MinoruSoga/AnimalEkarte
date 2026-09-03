@@ -82,7 +82,43 @@ func (r *vaccineRepository) Update(ctx context.Context, clinicID, id uint64, fie
 }
 
 func (r *vaccineRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	return persistence.DeleteScopedByID(ctx, r.db, &model.Vaccine{}, "vaccine", clinicID, id)
+	result := persistence.DBOrTx(ctx, r.db).
+		Scopes(persistence.ClinicScope(clinicID)).
+		Where("id = ?", id).
+		Where(`NOT EXISTS (
+			SELECT 1 FROM vaccines children
+			WHERE children.parent_id = vaccines.id
+			  AND children.clinic_id = ?
+			  AND children.deleted_at IS NULL
+		)`, clinicID).
+		Where(`NOT EXISTS (
+			SELECT 1 FROM vaccinations
+			WHERE vaccinations.vaccine_id = vaccines.id
+			  AND vaccinations.clinic_id = ?
+			  AND vaccinations.deleted_at IS NULL
+		)`, clinicID).
+		Delete(&model.Vaccine{})
+	if result.Error != nil {
+		return apperrors.FromGORM(result.Error, "vaccine", fmt.Sprintf("%d", id))
+	}
+	if result.RowsAffected == 0 {
+		return r.normalizeVaccineDeleteMiss(ctx, clinicID, id)
+	}
+	return nil
+}
+
+func (r *vaccineRepository) normalizeVaccineDeleteMiss(ctx context.Context, clinicID, id uint64) error {
+	if _, err := r.FindByID(ctx, clinicID, id); err != nil {
+		return err
+	}
+	childCount, err := r.CountChildrenByParentID(ctx, clinicID, id)
+	if err != nil {
+		return err
+	}
+	if childCount > 0 {
+		return apperrors.WrapConflict("このワクチンは子ワクチンが存在するため削除できません")
+	}
+	return apperrors.WrapConflict("このワクチンはワクチン接種記録で使用中のため削除できません")
 }
 
 func (r *vaccineRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {

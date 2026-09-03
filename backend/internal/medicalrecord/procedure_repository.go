@@ -70,7 +70,52 @@ func (r *procedureRepositoryImpl) Update(ctx context.Context, clinicID, id uint6
 }
 
 func (r *procedureRepositoryImpl) Delete(ctx context.Context, clinicID, id uint64) error {
-	return persistence.DeleteScopedByID(ctx, persistence.DBOrTx(ctx, r.db), &model.Procedure{}, "procedure", clinicID, id)
+	result := persistence.DBOrTx(ctx, r.db).
+		Scopes(persistence.ClinicScope(clinicID)).
+		Where("id = ?", id).
+		Where(`NOT EXISTS (
+			SELECT 1 FROM procedures children
+			WHERE children.parent_id = procedures.id
+			  AND children.clinic_id = ?
+			  AND children.deleted_at IS NULL
+		)`, clinicID).
+		Where(`NOT EXISTS (
+			SELECT 1 FROM treatments
+			JOIN medical_records ON medical_records.id = treatments.medical_record_id
+			  AND medical_records.clinic_id = ?
+			  AND medical_records.deleted_at IS NULL
+			WHERE treatments.procedure_id = procedures.id
+			  AND treatments.deleted_at IS NULL
+		)`, clinicID).
+		Where(`NOT EXISTS (
+			SELECT 1 FROM care_plan_items
+			JOIN hospitalizations ON hospitalizations.id = care_plan_items.hospitalization_id
+			  AND hospitalizations.clinic_id = ?
+			  AND hospitalizations.deleted_at IS NULL
+			WHERE care_plan_items.procedure_id = procedures.id
+		)`, clinicID).
+		Delete(&model.Procedure{})
+	if result.Error != nil {
+		return apperrors.FromGORM(result.Error, "procedure", fmt.Sprintf("%d", id))
+	}
+	if result.RowsAffected == 0 {
+		return r.normalizeProcedureDeleteMiss(ctx, clinicID, id)
+	}
+	return nil
+}
+
+func (r *procedureRepositoryImpl) normalizeProcedureDeleteMiss(ctx context.Context, clinicID, id uint64) error {
+	if _, err := r.FindByID(ctx, clinicID, id); err != nil {
+		return err
+	}
+	childCount, err := r.CountChildrenByParentID(ctx, clinicID, id)
+	if err != nil {
+		return err
+	}
+	if childCount > 0 {
+		return apperrors.WrapConflict("この処置は子処置が存在するため削除できません")
+	}
+	return apperrors.WrapConflict("この診療項目は診療記録で使用中のため削除できません")
 }
 
 // CountUsageByProcedureID は treatments と care_plan_items で参照されている件数の合計を返す（BUG-107）

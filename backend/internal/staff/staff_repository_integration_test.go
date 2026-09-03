@@ -30,8 +30,10 @@ func setupStaffRepositoryTestDB(t *testing.T) *gorm.DB {
 	require.NoError(t, ensureAutoMigrated(db,
 		&model.Company{}, &model.Clinic{}, &model.Account{}, &model.Occupation{},
 		&model.Staff{}, &model.StaffClinicAssignment{}, &model.ShiftEntry{},
-		// SEC-SWEEP-02-STAFF-B1: CountBlocking が vital EXISTS(daily_records) / addenda JOIN を
-		// 常に実行するため、共有 setup でも関係テーブルを AutoMigrate しておく。
+		&model.Reservation{},
+		&model.MedicalRecord{}, &model.Hospitalization{}, &model.Examination{},
+		&model.BillingRefund{}, &model.CashRegisterClose{},
+		&model.Billing{}, &model.Payment{},
 		&model.MedicalRecordAddendum{}, &model.VitalRecord{}, &model.DailyRecord{},
 	))
 	require.NoError(t, db.Exec("TRUNCATE TABLE staff_clinic_assignments, staffs, occupations, accounts, shift_entries CASCADE").Error)
@@ -376,6 +378,32 @@ func TestStaffRepository_UpdatePrimaryClinicID_NotFoundWithoutAssignment(t *test
 }
 
 // ---- Delete ----
+
+func TestStaffRepository_Delete_ConflictWhenShiftEntryExists(t *testing.T) {
+	db := setupStaffRepositoryTestDB(t)
+	repo := NewStaffRepository(db)
+	ctx := context.Background()
+	const clinicID = uint64(1)
+	seedClinicsForFK(t, db, clinicID)
+
+	staff := makeDoctor(t, db, clinicID, "シフト使用中スタッフ")
+	makeStaffClinicAssignment(t, db, staff.ID, clinicID)
+	entry := &model.ShiftEntry{
+		ClinicID:  clinicID,
+		StaffID:   staff.ID,
+		Date:      time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC),
+		ShiftType: model.ShiftTypeFull,
+	}
+	require.NoError(t, db.WithContext(ctx).Create(entry).Error)
+
+	err := repo.Delete(ctx, clinicID, staff.ID)
+	require.Error(t, err)
+	assert.True(t, apperrors.IsConflict(err), "expected Conflict, got %v", err)
+
+	got, findErr := repo.FindByID(ctx, staff.ID)
+	require.NoError(t, findErr)
+	assert.Equal(t, staff.ID, got.ID)
+}
 
 func TestStaffRepository_Delete_HappyPathSoftDeletes(t *testing.T) {
 	db := setupStaffRepositoryTestDB(t)

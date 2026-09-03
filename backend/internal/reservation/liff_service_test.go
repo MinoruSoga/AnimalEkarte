@@ -267,8 +267,8 @@ func TestLiffService_GetStaffs(t *testing.T) {
 			&mockLiffStaffRepository{
 				findAllFn: func(_ context.Context, _ uint64) ([]model.Staff, error) {
 					return []model.Staff{
-						{ID: 1, Name: "林先生", ReservationVisible: true},
-						{ID: 2, Name: "スタッフ山田", ReservationVisible: false}, // 非公開 → 除外
+						{ID: 1, Name: "林先生", IsActive: true, ReservationVisible: true},
+						{ID: 2, Name: "スタッフ山田", IsActive: true, ReservationVisible: false}, // 非公開 → 除外
 					}, nil
 				},
 				findCapabilitiesByStaffIDsFn: func(_ context.Context, clinicID uint64, staffIDs []uint64) ([]model.StaffReservationCapability, error) {
@@ -302,8 +302,8 @@ func TestLiffService_GetStaffs(t *testing.T) {
 			&mockLiffStaffRepository{
 				findAllFn: func(_ context.Context, _ uint64) ([]model.Staff, error) {
 					return []model.Staff{
-						{ID: 1, Name: "林先生", ReservationVisible: true},
-						{ID: 2, Name: "トリマー田中", ReservationVisible: true},
+						{ID: 1, Name: "林先生", IsActive: true, ReservationVisible: true},
+						{ID: 2, Name: "トリマー田中", IsActive: true, ReservationVisible: true},
 					}, nil
 				},
 				findCapabilitiesByStaffIDsFn: func(_ context.Context, clinicID uint64, staffIDs []uint64) ([]model.StaffReservationCapability, error) {
@@ -337,7 +337,7 @@ func TestLiffService_GetStaffs(t *testing.T) {
 			},
 			&mockLiffStaffRepository{
 				findAllFn: func(_ context.Context, _ uint64) ([]model.Staff, error) {
-					return []model.Staff{{ID: 1, ReservationVisible: true}}, nil
+					return []model.Staff{{ID: 1, IsActive: true, ReservationVisible: true}}, nil
 				},
 				findCapabilitiesByStaffIDsFn: func(_ context.Context, _ uint64, _ []uint64) ([]model.StaffReservationCapability, error) {
 					return nil, errors.New("db error")
@@ -352,6 +352,40 @@ func TestLiffService_GetStaffs(t *testing.T) {
 
 		_, err := svc.GetStaffs(ctx, 3, 1)
 		require.Error(t, err)
+	})
+
+	t.Run("is_active=false かつ reservation_visible=true のスタッフは除外", func(t *testing.T) {
+		svc := newLiffSvc(
+			&mockLiffSettingRepository{},
+			&mockLiffTypeRepository{
+				findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.ReservationType, error) {
+					return &model.ReservationType{ID: id, ClinicID: clinicID, IsActive: true, ReservationVisible: true}, nil
+				},
+			},
+			&mockLiffStaffRepository{
+				findAllFn: func(_ context.Context, _ uint64) ([]model.Staff, error) {
+					return []model.Staff{
+						{ID: 1, Name: "林先生", IsActive: true, ReservationVisible: true},
+						{ID: 9, Name: "退職済み公開スタッフ", IsActive: false, ReservationVisible: true},
+					}, nil
+				},
+				findCapabilitiesByStaffIDsFn: func(_ context.Context, clinicID uint64, staffIDs []uint64) ([]model.StaffReservationCapability, error) {
+					assert.Equal(t, uint64(3), clinicID)
+					assert.Equal(t, []uint64{1}, staffIDs, "inactive staff must not be queried for capabilities")
+					return []model.StaffReservationCapability{{ClinicID: 3, StaffID: 1, ReservationTypeID: 1}}, nil
+				},
+			},
+			&mockLiffScheduleRepository{},
+			&mockLiffAdminRepository{},
+			&mockLiffCustomerRepository{},
+			&mockLiffValidators{},
+			nil,
+		)
+
+		got, err := svc.GetStaffs(ctx, 3, 1)
+		require.NoError(t, err)
+		require.Len(t, got, 1)
+		assert.Equal(t, uint64(1), got[0].ID)
 	})
 }
 
@@ -418,8 +452,8 @@ func TestLiffService_CreateReservation(t *testing.T) {
 			&mockLiffStaffRepository{
 				findAllFn: func(_ context.Context, _ uint64) ([]model.Staff, error) {
 					return []model.Staff{
-						{ID: 5, Name: "林先生", ReservationVisible: true},
-						{ID: 6, Name: "三井先生", ReservationVisible: true},
+						{ID: 5, Name: "林先生", IsActive: true, ReservationVisible: true},
+						{ID: 6, Name: "三井先生", IsActive: true, ReservationVisible: true},
 					}, nil
 				},
 				findCapabilitiesByStaffIDsFn: func(_ context.Context, _ uint64, _ []uint64) ([]model.StaffReservationCapability, error) {
@@ -469,8 +503,8 @@ func TestLiffService_CreateReservation(t *testing.T) {
 			&mockLiffStaffRepository{
 				findAllFn: func(_ context.Context, _ uint64) ([]model.Staff, error) {
 					return []model.Staff{
-						{ID: 5, Name: "林先生", ReservationVisible: true},
-						{ID: 6, Name: "三井先生", ReservationVisible: true},
+						{ID: 5, Name: "林先生", IsActive: true, ReservationVisible: true},
+						{ID: 6, Name: "三井先生", IsActive: true, ReservationVisible: true},
 					}, nil
 				},
 				findCapabilitiesByStaffIDsFn: func(_ context.Context, _ uint64, _ []uint64) ([]model.StaffReservationCapability, error) {

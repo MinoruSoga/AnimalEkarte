@@ -219,7 +219,7 @@ func TestGetAvailableDates_BuildAvailableDatesStaffInputsFn(t *testing.T) {
 
 func TestGetAvailableDates_OccupationGuardUsesBatchedCounts(t *testing.T) {
 	ctx := context.Background()
-	staff := model.Staff{ID: 7, ReservationVisible: true}
+	staff := model.Staff{ID: 7, IsActive: true, ReservationVisible: true}
 
 	settingRepo := &mockLiffSettingRepository{
 		findByClinicIDFn: func(_ context.Context, _ uint64) (*model.LineReservationSetting, error) {
@@ -286,7 +286,7 @@ func TestGetAvailableDates_OccupationGuardUsesBatchedCounts(t *testing.T) {
 
 func TestGetAvailableDates_OccupationGuardSkipsCountWhenNoOccupations(t *testing.T) {
 	ctx := context.Background()
-	staff := model.Staff{ID: 7, ReservationVisible: true}
+	staff := model.Staff{ID: 7, IsActive: true, ReservationVisible: true}
 
 	settingRepo := &mockLiffSettingRepository{
 		findByClinicIDFn: func(_ context.Context, _ uint64) (*model.LineReservationSetting, error) {

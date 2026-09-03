@@ -1,7 +1,7 @@
 package billing
 
 type createPaymentMethodRequest struct {
-	Name         string `json:"name"          binding:"required"`
+	Name         string `json:"name"          binding:"required,max=255"`
 	DisplayOrder int    `json:"display_order"`
 }
 
@@ -13,7 +13,7 @@ func (r createPaymentMethodRequest) toServiceInput() *CreatePaymentMethodMasterI
 }
 
 type updatePaymentMethodRequest struct {
-	Name         *string `json:"name"`
+	Name         *string `json:"name" binding:"omitempty,max=255"`
 	DisplayOrder *int    `json:"display_order"`
 	IsActive     *bool   `json:"is_active"`
 }

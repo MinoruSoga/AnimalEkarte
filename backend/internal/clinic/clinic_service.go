@@ -204,6 +204,7 @@ func NewClinicService(repo clinicServiceRepository, permissionGroupRepo Permissi
 func (s *clinicService) ListClinics(ctx context.Context) ([]model.Clinic, error) {
 	clinics, err := s.repo.FindAll(ctx)
 	if err != nil {
+		// login の非 admin 経路は失敗を捨てて続行する。RespondError しないため診断ログを残す。
 		slog.ErrorContext(ctx, "failed to list clinics", "error", err)
 		return nil, apperrors.Wrap(err, "failed to list clinics")
 	}
@@ -213,7 +214,6 @@ func (s *clinicService) ListClinics(ctx context.Context) ([]model.Clinic, error)
 func (s *clinicService) ListClinicsByStaffID(ctx context.Context, staffID uint64) ([]model.Clinic, error) {
 	clinics, err := s.repo.FindByStaffID(ctx, staffID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list clinics by staff", "error", err)
 		return nil, apperrors.Wrap(err, "failed to list clinics by staff")
 	}
 	return clinics, nil
@@ -222,7 +222,6 @@ func (s *clinicService) ListClinicsByStaffID(ctx context.Context, staffID uint64
 func (s *clinicService) GetClinicByID(ctx context.Context, id uint64) (*model.Clinic, error) {
 	clinic, err := s.repo.FindByID(ctx, id)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get clinic", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get clinic")
 	}
 	return clinic, nil
@@ -231,7 +230,6 @@ func (s *clinicService) GetClinicByID(ctx context.Context, id uint64) (*model.Cl
 func (s *clinicService) CreateClinic(ctx context.Context, input *CreateClinicInput) (*model.Clinic, error) {
 	company, err := s.repo.FindCompany(ctx)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get company", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get company")
 	}
 	clinic := &model.Clinic{
@@ -296,7 +294,6 @@ func (s *clinicService) CreateClinic(ctx context.Context, input *CreateClinicInp
 		}
 		return nil
 	}); err != nil {
-		slog.ErrorContext(ctx, "failed to create clinic", "error", err)
 		return nil, apperrors.Wrap(err, "failed to create clinic")
 	}
 
@@ -311,18 +308,15 @@ func (s *clinicService) UpdateClinic(ctx context.Context, id uint64, input *Upda
 	}
 	// 存在確認（NotFound を早期返却）
 	if _, err := s.repo.FindByID(ctx, id); err != nil {
-		slog.ErrorContext(ctx, "failed to find clinic for update", "error", err)
 		return nil, apperrors.Wrap(err, "failed to find clinic for update")
 	}
 	fields, err := BuildClinicUpdate(input)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to update clinic clinic", "error", err)
 		return nil, apperrors.Wrap(err, "failed to update clinic clinic")
 	}
 	if len(fields) == 0 {
 		clinic, err := s.repo.FindByID(ctx, id)
 		if err != nil {
-			slog.ErrorContext(ctx, "failed to get clinic", "error", err)
 			return nil, apperrors.Wrap(err, "failed to get clinic")
 		}
 		return clinic, nil
@@ -332,12 +326,10 @@ func (s *clinicService) UpdateClinic(ctx context.Context, id uint64, input *Upda
 	var updated *model.Clinic
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
 		if err := s.repo.UpdateClinic(txCtx, id, input); err != nil {
-			slog.ErrorContext(txCtx, "failed to update clinic", "error", err)
 			return apperrors.Wrap(err, "failed to update clinic")
 		}
 		c, err := s.repo.FindByID(txCtx, id)
 		if err != nil {
-			slog.ErrorContext(txCtx, "failed to get updated clinic", "error", err)
 			return apperrors.Wrap(err, "failed to get updated clinic")
 		}
 		updated = c
@@ -360,7 +352,6 @@ func (s *clinicService) DeleteClinic(ctx context.Context, id uint64) error {
 		}
 		return s.repo.Delete(txCtx, id)
 	}); err != nil {
-		slog.ErrorContext(ctx, "failed to delete clinic", "error", err, "id", id)
 		return apperrors.Wrap(err, "failed to delete clinic")
 	}
 
@@ -376,7 +367,6 @@ func (s *clinicService) ensureClinicCanBeDeleted(ctx context.Context, id uint64)
 	// FK依存チェック: クリニックに関連するオーナーが存在する場合は削除を拒否
 	ownerCount, err := s.repo.CountOwnersByClinicID(ctx, id)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to check owner dependencies", "error", err, "id", id)
 		return apperrors.Wrap(err, "failed to check owner dependencies")
 	}
 	if ownerCount > 0 {
@@ -386,7 +376,6 @@ func (s *clinicService) ensureClinicCanBeDeleted(ctx context.Context, id uint64)
 	// FK依存チェック: クリニックに関連するスタッフが存在する場合は削除を拒否
 	staffCount, err := s.repo.CountStaffByClinicID(ctx, id)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to check staff dependencies", "error", err, "id", id)
 		return apperrors.Wrap(err, "failed to check staff dependencies")
 	}
 	if staffCount > 0 {
@@ -395,7 +384,6 @@ func (s *clinicService) ensureClinicCanBeDeleted(ctx context.Context, id uint64)
 
 	dependencies, err := s.repo.CountBlockingReferencesByClinicID(ctx, id)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to check clinic dependencies", "error", err, "id", id)
 		return apperrors.Wrap(err, "failed to check clinic dependencies")
 	}
 	if len(dependencies) > 0 {

@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/testdb"
 )
@@ -41,7 +42,7 @@ func TestReservationAdminRepository_FindByIDForNotify_ReservationTypePreloadClin
 	require.NoError(t, db.WithContext(ctx).Create(res).Error)
 
 	got, err := repo.FindByIDForNotify(ctx, clinicA, res.ID)
-	require.NoError(t, err)
-	require.NotNil(t, got)
-	assert.Nil(t, got.ReservationType, "別クリニックの診療区分マスタが Preload で混入してはならない")
+	require.Error(t, err)
+	assert.Nil(t, got)
+	assert.True(t, apperrors.IsNotFound(err), "別クリニックの診療区分を指す予約は親行ごと fail-closed: %v", err)
 }

@@ -70,7 +70,43 @@ func (r *checkupTypeRepository) Update(ctx context.Context, clinicID, id uint64,
 }
 
 func (r *checkupTypeRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	return persistence.DeleteScopedByID(ctx, r.db, &model.CheckupType{}, "checkup_type", clinicID, id)
+	result := persistence.DBOrTx(ctx, r.db).
+		Scopes(persistence.ClinicScope(clinicID)).
+		Where("id = ?", id).
+		Where(`NOT EXISTS (
+			SELECT 1 FROM checkup_types children
+			WHERE children.parent_id = checkup_types.id
+			  AND children.clinic_id = ?
+			  AND children.deleted_at IS NULL
+		)`, clinicID).
+		Where(`NOT EXISTS (
+			SELECT 1 FROM checkups
+			WHERE checkups.checkup_type_id = checkup_types.id
+			  AND checkups.clinic_id = ?
+			  AND checkups.deleted_at IS NULL
+		)`, clinicID).
+		Delete(&model.CheckupType{})
+	if result.Error != nil {
+		return apperrors.FromGORM(result.Error, "checkup_type", fmt.Sprintf("%d", id))
+	}
+	if result.RowsAffected == 0 {
+		return r.normalizeCheckupTypeDeleteMiss(ctx, clinicID, id)
+	}
+	return nil
+}
+
+func (r *checkupTypeRepository) normalizeCheckupTypeDeleteMiss(ctx context.Context, clinicID, id uint64) error {
+	if _, err := r.FindByID(ctx, clinicID, id); err != nil {
+		return err
+	}
+	childCount, err := r.CountChildrenByParentID(ctx, clinicID, id)
+	if err != nil {
+		return err
+	}
+	if childCount > 0 {
+		return apperrors.WrapConflict("この定期健診種別にはサブ種別が登録されているため削除できません")
+	}
+	return apperrors.WrapConflict("この定期健診種別は健診記録で使用中のため削除できません")
 }
 
 func (r *checkupTypeRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {

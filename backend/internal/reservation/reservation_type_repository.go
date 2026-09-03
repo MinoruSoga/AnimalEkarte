@@ -144,14 +144,50 @@ func (r *reservationTypeRepository) Update(ctx context.Context, clinicID, id uin
 }
 
 func (r *reservationTypeRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	result := r.db.WithContext(ctx).Scopes(persistence.ClinicScope(clinicID)).Where("id = ?", id).Delete(&model.ReservationType{})
+	result := persistence.DBOrTx(ctx, r.db).
+		Scopes(persistence.ClinicScope(clinicID)).
+		Where("id = ?", id).
+		Where(`NOT EXISTS (
+			SELECT 1 FROM reservation_types AS child_reservation_types
+			WHERE child_reservation_types.parent_id = reservation_types.id
+			  AND child_reservation_types.clinic_id = ?
+			  AND child_reservation_types.deleted_at IS NULL
+		)`, clinicID).
+		Where(`NOT EXISTS (
+			SELECT 1 FROM appointments
+			WHERE appointments.reservation_type_id = reservation_types.id
+			  AND appointments.clinic_id = ?
+			  AND appointments.deleted_at IS NULL
+		)`, clinicID).
+		Delete(&model.ReservationType{})
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "reservation_type", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("reservation_type", fmt.Sprintf("%d", id))
+		return r.normalizeDeleteIfUnusedMiss(ctx, clinicID, id)
 	}
 	return nil
+}
+
+func (r *reservationTypeRepository) normalizeDeleteIfUnusedMiss(ctx context.Context, clinicID, id uint64) error {
+	if _, err := r.FindByID(ctx, clinicID, id); err != nil {
+		return err
+	}
+	childCount, err := r.CountChildrenByParentID(ctx, clinicID, id)
+	if err != nil {
+		return err
+	}
+	if childCount > 0 {
+		return apperrors.WrapConflict("この予約区分には子予約区分が登録されているため削除できません")
+	}
+	count, err := r.CountUsageByReservationTypeID(ctx, clinicID, id)
+	if err != nil {
+		return err
+	}
+	if count > 0 {
+		return apperrors.WrapConflict("この項目は予約データで使用中のため削除できません")
+	}
+	return apperrors.WrapConflict("この項目は予約データで使用中のため削除できません")
 }
 
 // CountUsageByReservationTypeID returns appointment references.

@@ -232,6 +232,24 @@ func TestReservationTypeGroupRepository_Delete(t *testing.T) {
 		assert.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
 	})
+
+	t.Run("CountUsage==0 直後に予約区分が紐づいても削除は失敗する", func(t *testing.T) {
+		target := makeReservationTypeGroup(t, db, clinicA, "TOCTOUグループ")
+		count, err := repo.CountUsageByReservationTypeGroupID(ctx, clinicA, target.ID)
+		require.NoError(t, err)
+		require.Equal(t, int64(0), count)
+
+		_ = makeReservationTypeLinked(t, db, clinicA, "TOCTOU紐付け区分", &target.ID, nil)
+
+		err = repo.Delete(ctx, clinicA, target.ID)
+		require.Error(t, err)
+		assert.True(t, apperrors.IsConflict(err), "expected Conflict, got %v", err)
+		assert.Contains(t, err.Error(), "このグループには予約区分が設定されています。先に予約区分のグループを変更してください。")
+
+		got, findErr := repo.FindByID(ctx, clinicA, target.ID)
+		require.NoError(t, findErr)
+		assert.Equal(t, target.ID, got.ID)
+	})
 }
 
 func TestReservationTypeGroupRepository_Reorder(t *testing.T) {

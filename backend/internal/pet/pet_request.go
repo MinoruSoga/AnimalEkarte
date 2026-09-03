@@ -71,6 +71,9 @@ func parseOptionalUintQueryFilter(value, field string) (*uint64, error) {
 }
 
 func (q listPetQuery) toServiceFilters() (listPetFilters, error) {
+	if len(q.Search) > 255 {
+		return listPetFilters{}, apperrors.WrapInvalidInput("search must be at most 255 characters")
+	}
 	ownerID, err := parseOptionalUintQueryFilter(q.OwnerID, "owner_id")
 	if err != nil {
 		return listPetFilters{}, err
@@ -148,7 +151,7 @@ func (r *createPetRequest) toServiceInput() *CreatePetInput {
 type updatePetRequest struct {
 	OwnerID         *uint64 `json:"owner_id"`
 	AnimalSpeciesID *uint64 `json:"animal_species_id"`
-	PetNumber       *string `json:"pet_number"` // 自動採番後も手動変更可
+	PetNumber       *string `json:"pet_number" binding:"omitempty,max=50"` // 自動採番後も手動変更可
 	Name            *string `json:"name"              binding:"omitempty,max=255"`
 	NameKana        *string `json:"name_kana"        binding:"omitempty,max=100"`
 	Gender          *string `json:"gender"            binding:"omitempty,oneof=male female unknown"`

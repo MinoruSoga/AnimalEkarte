@@ -75,7 +75,45 @@ func (r *consultationRepositoryImpl) Update(ctx context.Context, clinicID, id ui
 }
 
 func (r *consultationRepositoryImpl) Delete(ctx context.Context, clinicID, id uint64) error {
-	return persistence.DeleteScopedByID(ctx, r.db, &model.Consultation{}, "consultation", clinicID, id)
+	result := persistence.DBOrTx(ctx, r.db).
+		Scopes(persistence.ClinicScope(clinicID)).
+		Where("id = ?", id).
+		Where(`NOT EXISTS (
+			SELECT 1 FROM consultations children
+			WHERE children.parent_id = consultations.id
+			  AND children.clinic_id = ?
+			  AND children.deleted_at IS NULL
+		)`, clinicID).
+		Where(`NOT EXISTS (
+			SELECT 1 FROM treatments
+			JOIN medical_records ON medical_records.id = treatments.medical_record_id
+			  AND medical_records.clinic_id = ?
+			  AND medical_records.deleted_at IS NULL
+			WHERE treatments.consultation_id = consultations.id
+			  AND treatments.deleted_at IS NULL
+		)`, clinicID).
+		Delete(&model.Consultation{})
+	if result.Error != nil {
+		return apperrors.FromGORM(result.Error, "consultation", fmt.Sprintf("%d", id))
+	}
+	if result.RowsAffected == 0 {
+		return r.normalizeConsultationDeleteMiss(ctx, clinicID, id)
+	}
+	return nil
+}
+
+func (r *consultationRepositoryImpl) normalizeConsultationDeleteMiss(ctx context.Context, clinicID, id uint64) error {
+	if _, err := r.FindByID(ctx, clinicID, id); err != nil {
+		return err
+	}
+	childCount, err := r.CountChildrenByParentID(ctx, clinicID, id)
+	if err != nil {
+		return err
+	}
+	if childCount > 0 {
+		return apperrors.WrapConflict("この診察項目にはサブ項目が登録されているため削除できません")
+	}
+	return apperrors.WrapConflict("この診察項目は診療記録で使用中のため削除できません")
 }
 
 func (r *consultationRepositoryImpl) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {

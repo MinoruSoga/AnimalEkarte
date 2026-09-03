@@ -181,7 +181,7 @@ type completeAccountingItemRequest struct {
 	TaxRate               float64 `json:"tax_rate"`
 	IsInsuranceApplicable bool    `json:"is_insurance_applicable"`
 	Source                string  `json:"source"    binding:"omitempty,oneof=medical_record manual hospitalization trimming"`
-	OtherReason           *string `json:"other_reason"`
+	OtherReason           *string `json:"other_reason" binding:"omitempty,max=500"`
 	MerchandiseItemID     *uint64 `json:"merchandise_item_id"`
 	TreatmentID           *uint64 `json:"treatment_id"`
 	VaccinationID         *uint64 `json:"vaccination_id"`
@@ -203,7 +203,7 @@ type completeAccountingRequest struct {
 	Memo              string                          `json:"memo" binding:"max=1000"`
 	HasInsurance      bool                            `json:"has_insurance"`
 	InsuranceRatio    *float64                        `json:"insurance_ratio"`
-	InsuranceName     *string                         `json:"insurance_name"`
+	InsuranceName     *string                         `json:"insurance_name" binding:"omitempty,max=255"`
 	InsuranceAmount   *int64                          `json:"insurance_amount"`
 	DiscountAmount    *int64                          `json:"discount_amount"`
 	Items             []completeAccountingItemRequest `json:"items" binding:"required,min=1,dive"`
@@ -329,7 +329,7 @@ type updateAccountingRequest struct {
 	// Payment フィールド（会計完了時に同時送信される）
 	PaymentMethod   *string  `json:"payment_method"  binding:"omitempty,oneof=cash credit_card electronic_money bank_transfer"`
 	InsuranceRatio  *float64 `json:"insurance_ratio"`
-	InsuranceName   *string  `json:"insurance_name"`
+	InsuranceName   *string  `json:"insurance_name" binding:"omitempty,max=255"`
 	InsuranceAmount *int64   `json:"insurance_amount"`
 	DiscountAmount  *int64   `json:"discount_amount"`
 	BillingAmount   *int64   `json:"billing_amount"`

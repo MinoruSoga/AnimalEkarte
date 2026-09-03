@@ -46,7 +46,7 @@ func NewLabDeviceReceiveService(
 
 func (s *labDeviceReceiveService) withTx(ctx context.Context, fn func(context.Context) error) error {
 	if s.tx == nil {
-		return fn(ctx)
+		return apperrors.WrapInternalServerError("lab device receive transaction dependency is required")
 	}
 	return s.tx.WithTx(ctx, fn)
 }

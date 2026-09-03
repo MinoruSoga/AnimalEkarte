@@ -264,14 +264,39 @@ func (r *permissionGroupRepository) replaceRules(
 }
 
 func (r *permissionGroupRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	return persistence.DeleteScopedByID(
-		ctx,
-		persistence.DBOrTx(ctx, r.db),
-		&model.PermissionGroup{},
-		"permission_group",
-		clinicID,
-		id,
-	)
+	return persistence.DBOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
+		if err := tx.
+			Clauses(clause.Locking{Strength: "UPDATE"}).
+			Scopes(persistence.ClinicScope(clinicID)).
+			Where("id = ?", id).
+			First(&model.PermissionGroup{}).Error; err != nil {
+			return apperrors.FromGORM(err, "permission_group", fmt.Sprintf("%d", id))
+		}
+		result := tx.
+			Scopes(persistence.ClinicScope(clinicID)).
+			Where("id = ?", id).
+			Where(`NOT EXISTS (
+				SELECT 1 FROM staff_permission_groups
+				JOIN staffs ON staffs.id = staff_permission_groups.staff_id
+				  AND staffs.deleted_at IS NULL
+				WHERE staff_permission_groups.group_id = permission_groups.id
+			)`).
+			Delete(&model.PermissionGroup{})
+		if result.Error != nil {
+			return apperrors.FromGORM(result.Error, "permission_group", fmt.Sprintf("%d", id))
+		}
+		if result.RowsAffected == 0 {
+			return r.normalizePermissionGroupDeleteMiss(persistence.WithTxValue(ctx, tx), clinicID, id)
+		}
+		return nil
+	})
+}
+
+func (r *permissionGroupRepository) normalizePermissionGroupDeleteMiss(ctx context.Context, clinicID, id uint64) error {
+	if _, err := r.FindByID(ctx, clinicID, id); err != nil {
+		return err
+	}
+	return apperrors.WrapConflict("この権限グループはスタッフに割り当てられているため削除できません")
 }
 
 // DeleteSoftDeletedByClinicID hard-deletes only rows already soft-deleted in the

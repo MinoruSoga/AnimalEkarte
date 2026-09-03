@@ -1054,11 +1054,14 @@ func TestLstepTagSyncService_BuildClient(t *testing.T) {
 // ---- shouldSkipSync ----
 
 func TestLstepTagSyncService_ShouldSkipSync(t *testing.T) {
-	t.Run("nil settingsSvc always skips", func(t *testing.T) {
+	t.Run("nil settingsSvc fails closed", func(t *testing.T) {
 		svc := &lstepTagSyncService{}
 		skip, err := svc.shouldSkipSync(context.Background(), 1)
-		assert.NoError(t, err)
-		assert.True(t, skip)
+		assert.Error(t, err)
+		assert.False(t, skip)
+		var appErr *apperrors.AppError
+		assert.True(t, errors.As(err, &appErr))
+		assert.Equal(t, "INTERNAL", appErr.Code)
 	})
 
 	t.Run("IsSyncEnabled error is wrapped and skip=false", func(t *testing.T) {

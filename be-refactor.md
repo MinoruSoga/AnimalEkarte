@@ -1,14 +1,16 @@
-# backend コード規約再監査（2026-09-03 full file audit）
+# backend コード規約チェック結果（2026-09-04 residual re-audit）
 
-`backend/` の production `.go` を規約正本に 1 ファイルずつ照合した。コードは修正していない。
+`backend/` の production `.go` を規約正本に照合し、改善すべき開いた所見だけを残す。コードは修正していない。
 
-- HEAD: `aeaa3b08472a6ee4d86fcda56f977caada063d7e`
-- 母集団: `git ls-files 'backend/**/*.go' | grep -v '_test.go$' | grep -v '/_archive/' | sort` → **981**（欠番 0）
+- HEAD: `321fe2b8dc30f70d687d0d8c6b53930aec6a119d`
+- 母集団: `git ls-files 'backend/**/*.go' | grep -v '_test.go$' | grep -v '/_archive/' | sort` → **981**（欠番 0）。`_test.go` と `cmd/_archive` は本番 invariant の母集団外
 - 規約正本: `backend/CLAUDE.md`、`backend/CODING_RULES.md`、`.claude/rules/go-gin-backend-guidelines.md`、`.claude/refs/go-gin-backend-review.md`、`.claude/refs/backend-application-invariants.md`、`.claude/refs/error-handling.md`、`.claude/refs/naming-conventions.md`、`.claude/refs/go-language.md`、ADR-006、`docs/architecture/be9-2a-boundary-map.md`
-- 方法: 隔離 worktree で全 production パスをレーン分割精読（auth/clinic/staff、owner/pet/identitylink、reservation/trimming、billing/inventory、medicalrecord×2、lstep、model+cmd+cross-cutting）。残差 ID は現行コードで再実測。旧 DONE は未修正として再掲しない
-- 各所見の `path` は `backend/` 起点。行番号は `aeaa3b084` 時点
+- 方法: 2026-09-03 の 981 ファイル精読台帳を正本とし、現行 HEAD で開いた所見を再実測。production `.go` は `aeaa3b084` 以降 docs のみ（差分なし）。機械検出で BindJSON / Context struct / Preload / `max` / silent `return 0, nil` / `err.Error()` Contains / 800 行超を再走査。旧 DONE は未修正として再掲しない
+- 各所見の `path` は `backend/` 起点。行番号は `321fe2b8d` 時点
 - Handler → Service → Repository / Clean Architecture は Go/Gin 公式要件ではない。再導入しない
 - カバレッジ行: OK 702 / FINDING 277 / SKIP 2
+- 開いた所見: HIGH 0 / MEDIUM 4 / LOW 5
+- 2026-09-04 apply: BE-RC-026/025/024/027/028/030/031/032/033 と BE-RC-004 の列挙マスター原子 DELETE を実装。残件は一括禁止の 005/009/014/015/017/019/021/023 と 004 の `inquiry_template`（CountUsage stub=0）
 
 ---
 
@@ -25,7 +27,7 @@
 | 旧 `internal/handler` `internal/service` `internal/repository` ディレクトリ | 不存在（`test ! -d` 3 つとも成功） |
 | domain 内 `handler/` `service/` `repository/` サブパッケージ | 0 |
 | production `package util\|common\|misc` | 0。`timeutil` / `sharedkernel` は固有名 |
-| 極端な package サイズ | `medicalrecord` 239、`lstep` 133、`model` 94、`billing` 93、`reservation` 84。800 行超 production ファイル 0（最大 672: `medicalrecord/lab_device_receive_service.go`） |
+| 極端な package サイズ | `medicalrecord` 239、`lstep` 133、`model` 94、`billing` 93、`reservation` 84。800 行超 production ファイル 0（最大 702: `pet/repository.go`。`lab_device_receive_service.go` は 672） |
 | `cmd/api` | domain を直接 import する composition root。業務ルールの複製ではない |
 
 フォルダ構成の逸脱（新設すべき util/common、layer 再分割）は提案しない。
@@ -34,30 +36,23 @@
 
 ## 2. HIGH（開いた所見のみ）
 
-#### BE-RC-026 [HIGH] admin 予約 Preload が `Doctor` / `CreatedByStaff` を clinic 所属で scope していない
-- 対象: `internal/reservation/appointment_admin_repository.go:53,74-75,120,136`
-- 現状: 本体は `Scopes(persistence.ClinicScope(clinicID))`。`ReservationType` / `Owner` / `Pet` / `LineCustomer` には `clinic_id` がある。`Preload("Doctor"|"CreatedByStaff", "deleted_at IS NULL")` だけ所属条件が無い
-- 規約: nested Preload は clinic-owned の中間 association も独立 clinic predicate。破損 FK 経由で他院 staff 行を復元し得る
-- 対比: `internal/reservation/reservation_repository.go:15-19,248-250` の `staffAssignedToClinicsCond`
-- 改善案: admin の該当 Preload に `staffAssignedToClinicsCond`（と必要なら parent clinic fail-close）を付ける。`staffs.clinic_id` 単独では多院所属を落とす。一括リネームや layer 分割はしない
+なし。BE-RC-026 は §5。
 
 ---
 
 ## 3. MEDIUM（開いた所見のみ）
 
-#### BE-RC-004 [MEDIUM][既知 residual] 他マスター Delete が条件付き原子 DELETE 未達
-- 規約: 正しさは `clinic_id + id` と usage 不在を同一 SQL に束ねた条件付き原子 DELETE。Find→Count→Delete を防御本体にしない。**一括 retrofit はしない**（CODING_RULES）。触る Delete で直す
-- inventory `DeleteIfUnused` と payment_method / insurance の原子 DELETE は完了済みのためここでは再掲しない。service 側 Count は UX のみ
-- **tx なし Count→Delete**: `medicalrecord/consultation_service.go:220-228`、`vaccine_service.go:212-220`、`checkup_type_service.go:200-208`、`diagnosis_service.go:346-358`、`chief_complaint_service.go:140-148`、`hospitalization_plan_service.go:188-196`、`inquiry_template_service.go:147-155`、`reservation/reservation_type_group_service.go:146-154`、`reservation_type_service_core.go:159-167`
-- **tx 内だが同一 SQL ではない**: `procedure_service.go:239-263`、`exam_type_service.go:207-230`、`cage_service.go:199-215`、`medicine_service.go:451-458` + `medicine_service_delete.go:17-37`、`staff/occupation_service.go:164-178`、`auth/permission_group_service_mutate.go:297-305`、`pet/animal_species_service.go:202-221`、`clinic/clinic_service.go:371-405`、`staff/staff_service_core.go:395-419`、`reservation_type_liff_repository.go:116-154`
-- **tx 内 Delete→Count（残があれば rollback）**: `inventory/merchandise_item_service.go:225-238`、`trimming/trimming_course_service.go:206-217`、`trimming_option_service.go:159-170`、`trimming_course_type_service.go:132-143`
-- 改善案: 当該 Delete を変更する PR で `DeleteIfUnused` 型へ。汎用 helper package は作らない。owner は各 master の既存 repository
+#### BE-RC-004 [MEDIUM][residual] inquiry_template Delete のみ原子 DELETE 未達
+- 規約: 正しさは `clinic_id + id` と usage 不在を同一 SQL に束ねた条件付き原子 DELETE。service Count は UX
+- 2026-09-04: consultation / vaccine / checkup_type / diagnosis_* / chief_complaint / hospitalization_plan / procedure / exam_type / cage / medicine / reservation_type* / trimming_* / merchandise / occupation / permission_group / animal_species / clinic / staff の repository Delete を原子化した。merchandise / trimming は FOR UPDATE 後に NOT EXISTS DELETE（FOR SHARE 待ち後の snapshot 再評価）
+- 残件: `medicalrecord/inquiry_template` は CountUsage stub=0 のため DeleteScopedByID のまま。一括 retrofit はしない
 
 #### BE-RC-005 [MEDIUM] service の `slog.ErrorContext` と handler `RespondError` が 5xx を二重ログする
 - 規約: 同じ error を複数層で重複ログしない。未知 pg だけ request 境界の `c.Error` 重複を例外許容
-- 現状: production 191 ファイルに `slog.ErrorContext`。`*service.go` は 88/108。5xx は `httpapi/response.go:15-19` が `c.Error` → `middleware/logging.go:51-52` が再記録
-- 代表: `billing/insurance_service.go:148-167`、`inventory/inventory_service.go:160-181`、`lstep/lstep_lifecycle_service.go`、`medicalrecord/diagnosis_service.go`、`reservation/reservation_staff_service.go`
-- 改善案: 既知 4xx は service でログしない。5xx は middleware 一本化。新規から増やさない。一括削除は別タスク
+- 現状: production 190 ファイルに `slog.ErrorContext`（1065 箇所）。`*service.go` は 88 ファイル / 620 箇所。5xx は `httpapi/response.go:15-19` が `c.Error` → `middleware/logging.go:50-57` が再記録
+- 代表: `billing/insurance_service.go:160,167` → `insurance_handler.go:122-123`、`inventory/inventory_service.go:173,181` → `inventory_handler.go:123-124`
+- 2026-09-04 follow-up: 親 apply が既に触った 11 service（clinic_service / accounting_service_correction / merchandise_item_service / trimming_course_service / trimming_course_type_service / trimming_option_service / occupation_service / animal_species_service / permission_group_service_mutate / line_send_service / lstep_lifecycle_service）から、handler が `RespondError` する return 直前の `slog.ErrorContext` を除去した。バッチ通知・監査・tag sync best-effort・void helper・LINE send 後も継続する運用ログは残す
+- 改善案: 既知 4xx は service でログしない。5xx は middleware 一本化。新規から増やさない。未触 service の一括削除は別タスク
 
 #### BE-RC-009 [MEDIUM] 実装側に定義された広い `XxxRepository` が残る
 - 規約: interface は利用側の最小メソッド。実装は concrete を返す
@@ -66,39 +61,9 @@
 - 改善案: 新規は呼び出し側で切る。既存の一括分割はしない
 
 #### BE-RC-014 [MEDIUM][residual] pgx encode 判定が `err.Error()` 文字列 Contains
-- 対象: `internal/apperrors/errors.go:344-381` — `isPgxEncodeRangeMessage(err.Error())`
+- 対象: `internal/apperrors/errors.go:344-345,371-385` — `isPgxEncodeRangeMessage(err.Error())`（DEC-34 コメント付き）
 - 規約: `errors.Is` / `As`。BUG-138 の既知例外（pgx が typed error を出さない）
-- 改善案: 新規に同パターンを増やさない。pgx が typed error を出したら `errors.As` へ
-
-#### BE-RC-024 [MEDIUM] 先行 `max` 対応の外に HTTP 境界の長さ上限欠落が残る
-- LINE 本文・返金理由・カルテ追記・飼主/ペット氏名 leftover 等は完了済み。未修正として再掲しない
-- 残件（現行 path）:
-  - `clinic/clinic_request.go:47-55,74-91` — `Name` / `Address` / `DirectorName` / `Website` / `FooterNote` に `max` なし
-  - `clinic/company_request.go:4-14`、`closing_settings_request.go` の `Note`、`clinic_holiday_handler.go` の `Reason`
-  - `billing/insurance_request.go` `Name`、`payment_method_master_request.go` `Name`、`accounting_request.go` `OtherReason` / `InsuranceName`、`billing_item_request.go` `OtherReason`、`cash_register_request.go:59` `Memo`、`estimate_request.go` PATCH `Title`
-  - `inventory/inventory_request.go` `Name`/`Unit`/`Location`、`merchandise_item_request.go` `Name`
-  - `pet/animal_species_request.go` `Name`、`chronic_condition_request.go`、`pet_request.go` list `Search` / `PetNumber`、`owner/http_request.go` list `Search` / `HomePostalCode`
-  - `identitylink/handler.go:57,73` 検索 `q`
-- 改善案: 同系統の正例（name 255、reason 500、memo 1000）。一括 sweep は別タスク。`util` 検証 package は作らない
-
-#### BE-RC-025 [MEDIUM] LIFF スタッフ一覧が `is_active` を見ない
-- 規約: LIFF で明示指定された staff は clinic 所属・対応可能種別に加え `is_active=true` かつ `reservation_visible=true`
-- 書込は充足: `reservation_staff_capability_validator.go:57`
-- 一覧/空き枠は `ReservationVisible` のみ: `liff_service_availability_staff.go:19,46-48,67`、`liff_service_catalog.go:112-122`、`liff_service_availability.go:43`
-- 改善案: filter に `IsActive` を足す。inactive を出さない。書込側の二重防御は残す
-
-#### BE-RC-028 [MEDIUM] LSTEP バッチに silent skip が残る
-- 規約: 成立条件欠落は fail-closed。intentional best-effort でも Failed 計上とログ。`return 0, nil` で成功に見せない
-- 対象:
-  - `lstep/lstep_batch_delivery.go:26-27` — `lstepDeliveryTrigger == nil` で `return 0, nil`
-  - `lstep/lstep_tag_sync_service.go:279` — `shouldSkipSync` が `settingsSvc == nil` を `(true, nil)`（dormant は同条件 fail-closed）
-  - `lstep/lstep_lifecycle_service.go:177` — `clearAllTagsIfLinked` が `FindByID` 失敗をログなし return
-- 改善案: 必須依存欠落は fail-closed か Partial/Failed 計上。副次 cleanup は少なくとも slog。汎用 batch helper package は作らない
-
-#### BE-RC-032 [MEDIUM] payment_method 以外の update 後 reload が成功を失敗へ反転し得る
-- payment_method の同一 tx reload は完了済み。未修正として再掲しない
-- 残件: `billing/insurance_repository.go:61-65` — `UpdateScopedByID` の後 `FindByID` を自前 Transaction で括らない。`billing/accounting_service_correction.go:67-72` — `WithTx` commit 後の `FindByID`
-- 改善案: 同一 tx で update+reload、または reload 失敗時は更新済みエンティティを返す。owner は billing
+- 改善案: 新規に同パターンを増やさない。pgx が typed error を出したら `errors.As` へ。LSTEP の同型は BE-RC-033（§5）
 
 ---
 
@@ -114,7 +79,7 @@
 - 改善案: 触る repository から unexported `update` にし、外には typed command だけ出す。一括 unexport はしない
 
 #### BE-RC-019 [LOW] `medicalrecord` 本番 239 file の凝集圧
-- layer サブパッケージ化は禁止方針どおり避けている。800 行超ファイルなし（最大 672）
+- layer サブパッケージ化は禁止方針どおり避けている。800 行超ファイルなし（package 内最大 672: `lab_device_receive_service.go`。backend 全体最大は `pet/repository.go` 702）
 - 改善案: 分割するなら業務能力（lab / hospitalization）単位。急がない
 
 #### BE-RC-021 [LOW] exported GoDoc 欠如は系統的
@@ -126,21 +91,6 @@
 - 対象: `internal/clinic/clinic_request.go:18-35`（`jp_email` / `jp_phone` / `jp_postal`）
 - 改善案: テスト順副作用が出たら constructor 登録へ。現状は実用上問題なし
 
-#### BE-RC-027 [LOW] `LineLinkToken.Token` が `json:"token"`
-- 対象: `internal/model/line_link_token.go:10`。永続値は digest。HTTP は別 DTO（`lstep/line_link_handler.go` の `linkTokenResponse`）で raw token を返す
-- 対比: `PasswordResetToken.TokenHash` は `json:"-"`
-- 改善案: モデル側を `json:"-"` にして誤 marshal に備える。owner は `model`（タグ）と `lstep`（発行）
-
-#### BE-RC-030 [LOW] BE9 移行コメントが削除済み `internal/service` を現行配置として残す
-- 022（`replace_audit_tail.go`）は完了。**022 回帰ではない**
-- 対象: `medicalrecord/pagination.go:6`、`service_deps.go:13-16` が `internal/service|handler|repository` を pending 配置として記述
-- 改善案: コメントを現行 domain package に直す
-
-#### BE-RC-031 [LOW] 検査機器 receive が transactor nil でも persist を続ける
-- 対象: `medicalrecord/lab_device_receive_service.go:47-51`、`lab_device_exam_persist.go:58`
-- 規約: lock / 親カルテ整合に tx が必要なら ambient 不在は fail-closed
-- 改善案: composition が必ず transactor を渡し、nil は拒否。ローカル agent 専用ならコメントで contract を固定する
-
 ---
 
 ## 5. 再検証した合格（未修正として再掲しない）
@@ -148,10 +98,20 @@
 | 項目 | 根拠 |
 |---|---|
 | BE-RC-001 typed staff update | `staff/reservation_staff_update.go`、`UpdateForReservation(..., ReservationStaffUpdate)`。回帰なし |
-| BE-RC-002 閉集合の `max` | LINE text、refund reason、addendum、OwnerName/Pet Name leftover 等は `max` 維持。残件は 024 |
+| BE-RC-002 閉集合の `max` | LINE text、refund reason、addendum、OwnerName/Pet Name leftover 等は `max` 維持。列挙残件は 024 で閉じた |
 | BE-RC-003 原子 DELETE 3 面 | inventory `DeleteIfUnused`、payment_method / insurance 原子 DELETE。service Count は UX |
+| BE-RC-004 列挙マスター | consultation/vaccine/checkup_type/diagnosis_*/chief_complaint/hospitalization_plan/procedure/exam_type/cage/medicine、reservation_type*、trimming_*、merchandise、occupation、permission_group、animal_species、clinic、staff。残件は inquiry_template |
+| BE-RC-024 HTTP `max` | clinic/billing/inventory/pet/owner/identitylink の列挙フィールド。name 255 / reason 500 / memo 1000 / search 255 |
+| BE-RC-025 LIFF `IsActive` | `liff_service_availability_staff.go` が `IsActive && ReservationVisible`。書込二重防御は残置 |
+| BE-RC-026 admin Preload | `appointment_admin_repository.go` の Doctor/CreatedByStaff が `staffAssignedToClinicsCond` + `reservationRelationsMatchParentClinic` |
+| BE-RC-027 LineLinkToken | `model/line_link_token.go` の Token は `json:"-"`。`linkTokenResponse` の raw token は維持 |
+| BE-RC-028 LSTEP fail-closed | nil trigger / nil settingsSvc は error。Find 失敗は slog。intentional skip は slog。ownerIDs 空は対象外のまま |
+| BE-RC-030 BE9 コメント | `medicalrecord/pagination.go` / `service_deps.go` を現行 domain に置換 |
+| BE-RC-031 lab nil tx | receive `withTx` と persist は transactor 必須で fail-closed |
+| BE-RC-032 same-tx reload | insurance Update と accounting CorrectCreditPayment の reload を commit 前へ |
+| BE-RC-033 LINE classify | `errors.As` + `net.Error.Timeout()` を Contains より先。Contains 増殖禁止 |
 | BE-RC-006 列挙 handler `err.Error()` | leftover 閉集合に連結なし。残件 CSV 経路は固定日本語 |
-| BE-RC-007 payment_method reload | 同一 `Transaction` で update+reload。残件は 032 |
+| BE-RC-007 payment_method reload | 同一 `Transaction` で update+reload。保険・訂正は 032 で閉じた |
 | BE-RC-008 `UpdateClinic` | consumer `ClinicRepository` から map `Update` 除去 |
 | BE-RC-010 `LstepRepository` | exported 0。`LifecycleOwnerRepository` |
 | BE-RC-012 wrapcheck `internal/*` wildcard | 廃止済み。残るのは明示 package 列挙（§6） |
@@ -167,7 +127,8 @@
 | Context struct 保持 / 生 `*gin.Context` goroutine | 未検出 |
 | CORS wildcard + credentials | なし |
 | AutoMigrate | testdb のみ |
-| 本番 800 行超 | 0 |
+| 本番 800 行超 | 0（最大 `pet/repository.go` 702） |
+| staff Preload `deleted_at` only | `lintscan/preload_clinic_scope_lint_test.go:142-159` の `staffExemptAssoc`。名前漏洩のみ・write isolation。reservation admin の 026 は閉じた |
 
 ---
 
@@ -192,6 +153,7 @@
 - stutter 一括 rename、GoDoc 一括、同一 package map Update 一括 unexport
 - `nested_summary` 3 package コピーの統合（import cycle / 意図的非統合）
 - `util` / `common` / `misc` 新設
+- hospitalization / estimate / cash_register の `Doctor`/`CreatedStaff`/`ClosedByStaff` Preload を HIGH として一括是正しない（`staffExemptAssoc`。再開条件 = write isolation を迂回する破損 FK が実害を出したとき。reservation admin の 026 は同 package に assignment 正例があるため対象外）
 
 ---
 
@@ -659,7 +621,7 @@
 | `backend/internal/lstep/line_send_log_repository.go` | OK |
 | `backend/internal/lstep/line_send_request.go` | OK |
 | `backend/internal/lstep/line_send_response.go` | OK |
-| `backend/internal/lstep/line_send_service.go` | FINDING(BE-RC-005) |
+| `backend/internal/lstep/line_send_service.go` | FINDING(BE-RC-005,BE-RC-033) |
 | `backend/internal/lstep/lstep_analytics_handler.go` | OK |
 | `backend/internal/lstep/lstep_analytics_request.go` | OK |
 | `backend/internal/lstep/lstep_analytics_response.go` | OK |
@@ -684,7 +646,7 @@
 | `backend/internal/lstep/lstep_delivery_monitor_request.go` | OK |
 | `backend/internal/lstep/lstep_delivery_monitor_response.go` | OK |
 | `backend/internal/lstep/lstep_delivery_monitor_service.go` | FINDING(BE-RC-005) |
-| `backend/internal/lstep/lstep_delivery_trigger_batch.go` | FINDING(BE-RC-005) |
+| `backend/internal/lstep/lstep_delivery_trigger_batch.go` | FINDING(BE-RC-005,BE-RC-028) |
 | `backend/internal/lstep/lstep_delivery_trigger_client.go` | FINDING(BE-RC-005) |
 | `backend/internal/lstep/lstep_delivery_trigger_log_repository.go` | OK |
 | `backend/internal/lstep/lstep_delivery_trigger_methods.go` | FINDING(BE-RC-005) |
@@ -703,7 +665,7 @@
 | `backend/internal/lstep/lstep_lifecycle_handler.go` | OK |
 | `backend/internal/lstep/lstep_lifecycle_request.go` | OK |
 | `backend/internal/lstep/lstep_lifecycle_service.go` | FINDING(BE-RC-005,BE-RC-028) |
-| `backend/internal/lstep/lstep_settings_connection.go` | FINDING(BE-RC-005) |
+| `backend/internal/lstep/lstep_settings_connection.go` | FINDING(BE-RC-005,BE-RC-033) |
 | `backend/internal/lstep/lstep_settings_credentials.go` | FINDING(BE-RC-005) |
 | `backend/internal/lstep/lstep_settings_handler.go` | FINDING(BE-RC-015) |
 | `backend/internal/lstep/lstep_settings_repository.go` | OK |
@@ -1414,8 +1376,7 @@
 
 ## 9. 監査メタ
 
-- worktree: `/Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte-be-full-audit`
-- branch: `refactor/be-rc-full-audit-2026-09`
-- claim: `claim/BE-RC-FULL-AUDIT-2026-09`（削除しない）
+- 2026-09-03 精読: worktree `/Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte-be-full-audit`、claim `claim/BE-RC-FULL-AUDIT-2026-09`（削除しない）
+- 2026-09-04 再実測: 現行 worktree `AnimalEkarte`、HEAD `321fe2b8d`。production コード差分なし
 - runtime `go test` は未実行（docs-only）
-- loop-health: 読了 981 / 母集団 981
+- loop-health: 母集団 981 / カバレッジ行 981 / 開いた所見を現行行で再実測済み

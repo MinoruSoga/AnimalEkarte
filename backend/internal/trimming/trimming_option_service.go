@@ -89,7 +89,6 @@ func NewTrimmingOptionService(repo TrimmingOptionRepository, transactor Transact
 func (s *trimmingOptionService) List(ctx context.Context, clinicID uint64) ([]model.TrimmingOption, error) {
 	result, err := s.repo.FindAll(ctx, clinicID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list trimming options", "error", err, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to list trimming options")
 	}
 	return result, nil
@@ -98,7 +97,6 @@ func (s *trimmingOptionService) List(ctx context.Context, clinicID uint64) ([]mo
 func (s *trimmingOptionService) GetByID(ctx context.Context, clinicID, id uint64) (*model.TrimmingOption, error) {
 	result, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get trimming option", "error", err, "id", id, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to get trimming option")
 	}
 	return result, nil
@@ -119,7 +117,6 @@ func (s *trimmingOptionService) Create(ctx context.Context, clinicID uint64, inp
 		SortOrder:    input.SortOrder,
 	}
 	if err := s.repo.Create(ctx, option); err != nil {
-		slog.ErrorContext(ctx, "failed to create trimming option", "error", err, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to create trimming option")
 	}
 	slog.InfoContext(ctx, "trimming option created",
@@ -133,7 +130,6 @@ func (s *trimmingOptionService) Update(ctx context.Context, clinicID, id uint64,
 		return nil, apperrors.WrapInvalidInput(ErrMsgInputNotNil)
 	}
 	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
-		slog.ErrorContext(ctx, "failed to get trimming option", "error", err, "id", id, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to get trimming option")
 	}
 	if err := validateOptionalName(input.Name); err != nil {
@@ -145,7 +141,6 @@ func (s *trimmingOptionService) Update(ctx context.Context, clinicID, id uint64,
 	}
 	option, err := s.repo.Update(ctx, clinicID, id, fields)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to update trimming option", "error", err, "id", id, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to update trimming option")
 	}
 	slog.InfoContext(ctx, "trimming option updated", slog.Uint64("clinic_id", clinicID), slog.Uint64("trimming_option_id", id))
@@ -157,9 +152,6 @@ func (s *trimmingOptionService) Delete(ctx context.Context, clinicID, id uint64)
 		return apperrors.WrapInternalServerError("trimming option transaction dependency is required")
 	}
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
-		if err := s.repo.Delete(txCtx, clinicID, id); err != nil {
-			return apperrors.Wrap(err, "failed to delete trimming option")
-		}
 		count, err := s.repo.CountUsageByTrimmingOptionID(txCtx, clinicID, id)
 		if err != nil {
 			return apperrors.Wrap(err, "failed to check trimming option dependencies")
@@ -167,9 +159,11 @@ func (s *trimmingOptionService) Delete(ctx context.Context, clinicID, id uint64)
 		if count > 0 {
 			return apperrors.WrapConflict("このトリミングオプションはトリミング記録で使用中のため削除できません")
 		}
+		if err := s.repo.Delete(txCtx, clinicID, id); err != nil {
+			return apperrors.Wrap(err, "failed to delete trimming option")
+		}
 		return nil
 	}); err != nil {
-		slog.ErrorContext(ctx, "failed to delete trimming option", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to delete trimming option")
 	}
 	slog.InfoContext(ctx, "trimming option deleted", slog.Uint64("clinic_id", clinicID), slog.Uint64("trimming_option_id", id))
@@ -181,7 +175,6 @@ func (s *trimmingOptionService) Reorder(ctx context.Context, clinicID uint64, id
 		return apperrors.WrapInvalidInput(ErrMsgIDsNotEmpty)
 	}
 	if err := s.repo.Reorder(ctx, clinicID, ids); err != nil {
-		slog.ErrorContext(ctx, "failed to reorder trimming options", "error", err, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to reorder trimming options")
 	}
 	slog.InfoContext(ctx, "trimming options reordered", slog.Uint64("clinic_id", clinicID), slog.Int("count", len(ids)))

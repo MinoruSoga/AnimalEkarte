@@ -56,7 +56,7 @@ func (s *labDeviceExamPersister) PersistLinkedJob(ctx context.Context, clinicID 
 		return s.persistLinkedJob(ctx, clinicID, jobID, petID)
 	}
 	if s.tx == nil {
-		return s.persistLinkedJob(ctx, clinicID, jobID, petID)
+		return apperrors.WrapInternalServerError("lab device persist transaction dependency is required")
 	}
 	return s.tx.WithTx(ctx, func(txCtx context.Context) error {
 		return s.persistLinkedJob(txCtx, clinicID, jobID, petID)

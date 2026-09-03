@@ -99,7 +99,22 @@ func (r *reservationTypeLiffRepository) Update(ctx context.Context, clinicID, id
 }
 
 func (r *reservationTypeLiffRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	result := persistence.DBOrTx(ctx, r.db).Scopes(persistence.ClinicScope(clinicID)).Where("id = ?", id).Delete(&model.ReservationType{})
+	result := persistence.DBOrTx(ctx, r.db).
+		Scopes(persistence.ClinicScope(clinicID)).
+		Where("id = ?", id).
+		Where(`NOT EXISTS (
+			SELECT 1 FROM reservation_types AS child_reservation_types
+			WHERE child_reservation_types.parent_id = reservation_types.id
+			  AND child_reservation_types.clinic_id = ?
+			  AND child_reservation_types.deleted_at IS NULL
+		)`, clinicID).
+		Where(`NOT EXISTS (
+			SELECT 1 FROM appointments
+			WHERE appointments.reservation_type_id = reservation_types.id
+			  AND appointments.clinic_id = ?
+			  AND appointments.deleted_at IS NULL
+		)`, clinicID).
+		Delete(&model.ReservationType{})
 	if result.Error != nil {
 		// race condition 時のフォールバックとして FK 制約エラーを Conflict に変換する。
 		if persistence.IsFKConstraintErr(result.Error) {
@@ -108,9 +123,34 @@ func (r *reservationTypeLiffRepository) Delete(ctx context.Context, clinicID, id
 		return apperrors.FromGORM(result.Error, "reservation_type_liff", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("reservation_type_liff", fmt.Sprintf("%d", id))
+		return r.normalizeDeleteIfUnusedMiss(ctx, clinicID, id)
 	}
 	return nil
+}
+
+func (r *reservationTypeLiffRepository) normalizeDeleteIfUnusedMiss(ctx context.Context, clinicID, id uint64) error {
+	if _, err := r.FindByID(ctx, clinicID, id); err != nil {
+		return err
+	}
+	childCount, err := r.CountChildrenByParentID(ctx, clinicID, id)
+	if err != nil {
+		return err
+	}
+	if childCount > 0 {
+		return apperrors.WrapConflict("この予約コースには子予約区分が登録されているため削除できません")
+	}
+	var usage int64
+	if err := r.db.WithContext(ctx).
+		Model(&model.Reservation{}).
+		Scopes(persistence.ClinicScope(clinicID)).
+		Where("reservation_type_id = ? AND deleted_at IS NULL", id).
+		Count(&usage).Error; err != nil {
+		return apperrors.FromGORM(err, "reservation", "")
+	}
+	if usage > 0 {
+		return apperrors.WrapConflict("この予約コースは予約データで使用中のため削除できません")
+	}
+	return apperrors.WrapConflict("この予約コースは予約データで使用中のため削除できません")
 }
 
 // DeleteWithDependencyChecks serializes master delete with appointment create

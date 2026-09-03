@@ -105,7 +105,6 @@ func NewAnimalSpeciesServiceWithAudit(
 func (s *animalSpeciesService) List(ctx context.Context) ([]model.AnimalSpecies, error) {
 	items, err := s.repo.FindAll(ctx)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list animal species", "error", err)
 		return nil, apperrors.Wrap(err, "failed to list animal species")
 	}
 	return items, nil
@@ -114,7 +113,6 @@ func (s *animalSpeciesService) List(ctx context.Context) ([]model.AnimalSpecies,
 func (s *animalSpeciesService) GetByID(ctx context.Context, id uint64) (*model.AnimalSpecies, error) {
 	result, err := s.repo.FindByID(ctx, id)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get animal species", "error", err, "id", id)
 		return nil, apperrors.Wrap(err, "failed to get animal species")
 	}
 	return result, nil
@@ -139,7 +137,6 @@ func (s *animalSpeciesService) Create(ctx context.Context, input *CreateAnimalSp
 			); conflict != nil {
 				return conflict
 			}
-			slog.ErrorContext(txCtx, "failed to create animal species", "error", err)
 			return apperrors.Wrap(err, "failed to create animal species")
 		}
 		return s.writeSpeciesAudit(txCtx, meta, auditActionAnimalSpeciesCreate, &species.ID, nil, species)
@@ -168,7 +165,6 @@ func (s *animalSpeciesService) Update(ctx context.Context, id uint64, input *Upd
 	err := s.withOptionalAuditTx(ctx, func(txCtx context.Context) error {
 		old, err := s.repo.FindByID(txCtx, id)
 		if err != nil {
-			slog.ErrorContext(txCtx, "failed to get animal species", "error", err)
 			return apperrors.Wrap(err, "failed to get animal species")
 		}
 		updated, err := s.repo.Update(txCtx, id, fields)
@@ -185,7 +181,6 @@ func (s *animalSpeciesService) Update(ctx context.Context, id uint64, input *Upd
 			); conflict != nil {
 				return conflict
 			}
-			slog.ErrorContext(txCtx, "failed to update animal species", "error", err, "id", id)
 			return apperrors.Wrap(err, "failed to update animal species")
 		}
 		result = updated
@@ -207,14 +202,12 @@ func (s *animalSpeciesService) Delete(ctx context.Context, id uint64, meta Anima
 		}
 		count, err := s.petRepo.CountUsageByAnimalSpeciesID(txCtx, id)
 		if err != nil {
-			slog.ErrorContext(txCtx, "failed to check animal species dependencies", "error", err, "id", id)
 			return apperrors.Wrap(err, "failed to check animal species dependencies")
 		}
 		if count > 0 {
 			return apperrors.WrapConflict("この動物種はペット情報で使用中のため削除できません")
 		}
 		if err := s.repo.Delete(txCtx, id); err != nil {
-			slog.ErrorContext(txCtx, "failed to delete animal species", "error", err, "id", id)
 			return apperrors.Wrap(err, "failed to delete animal species")
 		}
 		return s.writeSpeciesAudit(txCtx, meta, auditActionAnimalSpeciesDelete, &id, old, nil)
@@ -232,7 +225,6 @@ func (s *animalSpeciesService) Reorder(ctx context.Context, ids []uint64, meta A
 	}
 	err := s.withOptionalAuditTx(ctx, func(txCtx context.Context) error {
 		if err := s.repo.Reorder(txCtx, ids); err != nil {
-			slog.ErrorContext(txCtx, "failed to reorder animal species", "error", err)
 			return apperrors.Wrap(err, "failed to reorder animal species")
 		}
 		return s.writeSpeciesAudit(txCtx, meta, auditActionAnimalSpeciesReorder, nil, nil, map[string]any{"ids": ids})

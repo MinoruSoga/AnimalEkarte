@@ -32,7 +32,7 @@ func (h *Handler) ListClinicHolidays(c *gin.Context) {
 
 type setClinicHolidayRequest struct {
 	Date   string `json:"date" binding:"required"` // YYYY-MM-DD
-	Reason string `json:"reason"`
+	Reason string `json:"reason" binding:"omitempty,max=500"`
 }
 
 // SetClinicHoliday godoc

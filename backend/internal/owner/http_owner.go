@@ -27,7 +27,11 @@ func (h *Handler) ListOwners(c *gin.Context) {
 		httpapi.RespondError(c, err)
 		return
 	}
-	query := newListOwnersQuery(c.Request.URL.Query())
+	query, err := newListOwnersQuery(c.Request.URL.Query())
+	if err != nil {
+		httpapi.RespondError(c, err)
+		return
+	}
 
 	owners, total, err := h.service.List(c.Request.Context(), clinicIDs, page, limit, query.Search)
 	if err != nil {

@@ -115,7 +115,7 @@ func (r *createEstimateRequest) toServiceInput(staffID uint64) *CreateEstimateIn
 
 // updateEstimateRequest は見積書更新リクエスト（PATCH: nil = 未送信）
 type updateEstimateRequest struct {
-	Title           *string                      `json:"title"`
+	Title           *string                      `json:"title" binding:"omitempty,max=255"`
 	Status          *string                      `json:"status"  binding:"omitempty,oneof=draft sent approved rejected"`
 	Subtotal        *int64                       `json:"subtotal"`
 	TaxTotal        *int64                       `json:"tax_total"`

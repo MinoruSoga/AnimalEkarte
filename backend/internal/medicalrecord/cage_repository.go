@@ -100,9 +100,30 @@ func (r *cageRepositoryImpl) Update(ctx context.Context, clinicID, id uint64, fi
 }
 
 func (r *cageRepositoryImpl) Delete(ctx context.Context, clinicID, id uint64) error {
-	// Ambient tx participation is required so soft-delete exclusive-locks serialize with
-	// hospitalization FOR SHARE validation and usage re-check in the same transaction.
-	return persistence.DeleteScopedByID(ctx, persistence.DBOrTx(ctx, r.db), &model.Cage{}, "cage", clinicID, id)
+	result := persistence.DBOrTx(ctx, r.db).
+		Scopes(persistence.ClinicScope(clinicID)).
+		Where("id = ?", id).
+		Where(`NOT EXISTS (
+			SELECT 1 FROM hospitalizations
+			WHERE hospitalizations.cage_id = cages.id
+			  AND hospitalizations.clinic_id = ?
+			  AND hospitalizations.deleted_at IS NULL
+		)`, clinicID).
+		Delete(&model.Cage{})
+	if result.Error != nil {
+		return apperrors.FromGORM(result.Error, "cage", fmt.Sprintf("%d", id))
+	}
+	if result.RowsAffected == 0 {
+		return r.normalizeCageDeleteMiss(ctx, clinicID, id)
+	}
+	return nil
+}
+
+func (r *cageRepositoryImpl) normalizeCageDeleteMiss(ctx context.Context, clinicID, id uint64) error {
+	if _, err := r.FindByID(ctx, clinicID, id); err != nil {
+		return err
+	}
+	return apperrors.WrapConflict("このケージは入院データで使用中のため削除できません")
 }
 
 func (r *cageRepositoryImpl) CountUsageByCageID(ctx context.Context, clinicID, id uint64) (int64, error) {

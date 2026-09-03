@@ -106,8 +106,12 @@ func (f nullableDateRequestField) toServiceInput() **time.Time {
 	return &f.value
 }
 
-func newListOwnersQuery(values url.Values) listOwnersQuery {
-	return listOwnersQuery{Search: values.Get("search")}
+func newListOwnersQuery(values url.Values) (listOwnersQuery, error) {
+	search := values.Get("search")
+	if len(search) > 255 {
+		return listOwnersQuery{}, apperrors.WrapInvalidInput("search must be at most 255 characters")
+	}
+	return listOwnersQuery{Search: search}, nil
 }
 
 // createPetForOwnerRequest は飼主登録時のペット入力バインド struct
@@ -170,7 +174,7 @@ type createOwnerRequest struct {
 	PostalCode     string                     `json:"postal_code"`
 	Address1       string                     `json:"address1"         binding:"omitempty,max=200"`
 	Address2       string                     `json:"address2"         binding:"omitempty,max=200"`
-	HomePostalCode string                     `json:"home_postal_code"`
+	HomePostalCode string                     `json:"home_postal_code" binding:"omitempty,max=10"`
 	HomeAddress1   string                     `json:"home_address1"    binding:"omitempty,max=200"`
 	HomeAddress2   string                     `json:"home_address2"    binding:"omitempty,max=200"`
 	Phone          string                     `json:"phone"            binding:"omitempty,max=30"`
@@ -222,7 +226,7 @@ type updateOwnerRequest struct {
 	PostalCode     *string                  `json:"postal_code"`
 	Address1       *string                  `json:"address1"         binding:"omitempty,max=200"`
 	Address2       *string                  `json:"address2"         binding:"omitempty,max=200"`
-	HomePostalCode *string                  `json:"home_postal_code"`
+	HomePostalCode *string                  `json:"home_postal_code" binding:"omitempty,max=10"`
 	HomeAddress1   *string                  `json:"home_address1"    binding:"omitempty,max=200"`
 	HomeAddress2   *string                  `json:"home_address2"    binding:"omitempty,max=200"`
 	Phone          *string                  `json:"phone"            binding:"omitempty,max=30"`

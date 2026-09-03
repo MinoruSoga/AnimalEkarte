@@ -92,9 +92,9 @@ func TestLiffService_ResolveTargetStaffs_WithStaffID(t *testing.T) {
 		wantLen    int
 	}{
 		{
-			name: "returns the staff when visible and supports the reservation type",
+			name: "returns the staff when visible, active, and supports the reservation type",
 			findByIDFn: func(_ context.Context, _, id uint64) (*model.Staff, error) {
-				return &model.Staff{ID: id, ReservationVisible: true}, nil
+				return &model.Staff{ID: id, IsActive: true, ReservationVisible: true}, nil
 			},
 			supportsFn: func(_ context.Context, _, _, _ uint64) (bool, error) { return true, nil },
 			wantLen:    1,
@@ -102,14 +102,22 @@ func TestLiffService_ResolveTargetStaffs_WithStaffID(t *testing.T) {
 		{
 			name: "returns empty when staff is not reservation-visible",
 			findByIDFn: func(_ context.Context, _, id uint64) (*model.Staff, error) {
-				return &model.Staff{ID: id, ReservationVisible: false}, nil
+				return &model.Staff{ID: id, IsActive: true, ReservationVisible: false}, nil
 			},
 			wantLen: 0,
 		},
 		{
+			name: "returns empty when staff is inactive even if reservation-visible",
+			findByIDFn: func(_ context.Context, _, id uint64) (*model.Staff, error) {
+				return &model.Staff{ID: id, IsActive: false, ReservationVisible: true}, nil
+			},
+			supportsFn: func(_ context.Context, _, _, _ uint64) (bool, error) { return true, nil },
+			wantLen:    0,
+		},
+		{
 			name: "returns empty when staff does not support the reservation type",
 			findByIDFn: func(_ context.Context, _, id uint64) (*model.Staff, error) {
-				return &model.Staff{ID: id, ReservationVisible: true}, nil
+				return &model.Staff{ID: id, IsActive: true, ReservationVisible: true}, nil
 			},
 			supportsFn: func(_ context.Context, _, _, _ uint64) (bool, error) { return false, nil },
 			wantLen:    0,
@@ -124,7 +132,7 @@ func TestLiffService_ResolveTargetStaffs_WithStaffID(t *testing.T) {
 		{
 			name: "returns wrapped error when SupportsReservationType fails",
 			findByIDFn: func(_ context.Context, _, id uint64) (*model.Staff, error) {
-				return &model.Staff{ID: id, ReservationVisible: true}, nil
+				return &model.Staff{ID: id, IsActive: true, ReservationVisible: true}, nil
 			},
 			supportsFn: func(_ context.Context, _, _, _ uint64) (bool, error) { return false, errors.New("db error") },
 			wantErr:    true,
@@ -176,7 +184,7 @@ func TestLiffService_ResolveTargetStaffs_AllStaffs(t *testing.T) {
 		{
 			name: "returns error when capabilities lookup fails",
 			findAllFn: func(_ context.Context, _ uint64) ([]model.Staff, error) {
-				return []model.Staff{{ID: 1, ReservationVisible: true}}, nil
+				return []model.Staff{{ID: 1, IsActive: true, ReservationVisible: true}}, nil
 			},
 			capsFn: func(_ context.Context, _ uint64, _ []uint64) ([]model.StaffReservationCapability, error) {
 				return nil, errors.New("db error")
@@ -187,15 +195,31 @@ func TestLiffService_ResolveTargetStaffs_AllStaffs(t *testing.T) {
 			name: "filters to visible staff that support the reservation type",
 			findAllFn: func(_ context.Context, _ uint64) ([]model.Staff, error) {
 				return []model.Staff{
-					{ID: 1, ReservationVisible: true},
-					{ID: 2, ReservationVisible: true},
-					{ID: 3, ReservationVisible: false},
+					{ID: 1, IsActive: true, ReservationVisible: true},
+					{ID: 2, IsActive: true, ReservationVisible: true},
+					{ID: 3, IsActive: true, ReservationVisible: false},
 				}, nil
 			},
 			capsFn: func(_ context.Context, _ uint64, _ []uint64) ([]model.StaffReservationCapability, error) {
 				return []model.StaffReservationCapability{
 					{StaffID: 1, ReservationTypeID: 10},
 					{StaffID: 2, ReservationTypeID: 99}, // does not support typeID=10
+				}, nil
+			},
+			wantStaffIDs: []uint64{1},
+		},
+		{
+			name: "excludes inactive staff even when reservation-visible and capable",
+			findAllFn: func(_ context.Context, _ uint64) ([]model.Staff, error) {
+				return []model.Staff{
+					{ID: 1, IsActive: true, ReservationVisible: true},
+					{ID: 4, IsActive: false, ReservationVisible: true},
+				}, nil
+			},
+			capsFn: func(_ context.Context, _ uint64, _ []uint64) ([]model.StaffReservationCapability, error) {
+				return []model.StaffReservationCapability{
+					{StaffID: 1, ReservationTypeID: 10},
+					{StaffID: 4, ReservationTypeID: 10},
 				}, nil
 			},
 			wantStaffIDs: []uint64{1},

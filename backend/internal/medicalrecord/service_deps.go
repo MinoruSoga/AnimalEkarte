@@ -11,15 +11,14 @@ import (
 )
 
 // This file declares medicalrecord's consumer-side views of dependencies that live outside
-// this package (ADR-006 "aggregator 非経由"): the medical-record repository (kept in
-// internal/repository), the shared transaction boundary (repository.Transactor), the shared
-// audit kernel (internal/service.AuditService), and the LSTEP tag-sync / delivery-trigger
-// services (kept in internal/service pending a later lstep batch). Following Go's "define
+// this package (ADR-006 "aggregator 非経由"): in-package medical-record persistence,
+// the shared transaction boundary (Transactor), the shared audit kernel, and LSTEP
+// tag-sync / delivery-trigger services. Following Go's "define
 // interfaces where they are consumed" guidance and the internal/manualarticle precedent
 // (audit.go's AuditLogger), each is the minimal method set this package's services actually
 // call — never the full source interface. Concrete implementations are passed in from the
-// composition root (cmd/api/main.go, via NewServices in the BE9-2D middle state) by structural
-// typing; a nil dependency keeps the original nil-guard semantics of the moved services.
+// composition root (cmd/api/main.go) by structural typing; a nil dependency keeps the
+// original nil-guard semantics of the moved services.
 
 // medicalRecordFinder は checkupService が親カルテ存在/確定状態を読むための最小 view
 // （repository.MedicalRecordRepository.FindByID 相当）。
@@ -39,7 +38,7 @@ type Transactor interface {
 	WithTx(ctx context.Context, fn func(ctx context.Context) error) error
 }
 
-// AuditEntry は internal/service.AuditLogInput のうち checkupFieldResultService の
+// AuditEntry は共有監査入力のうち checkupFieldResultService の
 // tx 内削除監査（#211 fail-closed）が実際に設定する部分集合を写したもの。Metadata は
 // AuditLogInput.Metadata と field-for-field に一致させるため any を維持する。IPAddress/UserAgent は
 // この経路では未使用のため持たない（manualarticle.AuditEntry が Metadata を持たないのと同方針）。
@@ -55,7 +54,7 @@ type AuditEntry struct {
 	Metadata   any
 }
 
-// AuditTxLogger は共有監査カーネル（internal/service.AuditService の tx 内 LogEntryTx）の
+// AuditTxLogger は共有監査カーネル（tx 内 LogEntryTx）の
 // consumer-side view。composition root が具象 service.AuditService.LogEntryTx(ctx, *service.AuditLogInput)
 // を本シグネチャへ adapt する（manualarticle/main.go の adapter 先例）。
 type AuditTxLogger interface {
@@ -90,12 +89,10 @@ type checkupFollowUpTrigger interface {
 }
 
 // ── lab import/report saga consumer-side views (BE9-2D sub-batch③) ──
-// The lab services (labImportExaminationService / labReportQueryService / labAuditLogger) moved
-// here from internal/service as a leaf domain. Following the same "define interfaces where they
+// The lab services (labImportExaminationService / labReportQueryService / labAuditLogger)
+// live in this medicalrecord package. Following the same "define interfaces where they
 // are consumed" rule as above, each below is the minimal method set the lab services actually
-// call over repository.ExaminationRepository / repository.PetRepository / the shared audit kernel.
-// The composition root (cmd/api/main.go in the final state; NewServices in the BE9-2D Batch B
-// middle state) passes the concrete repository.* implementations in by structural typing.
+// call. The composition root (cmd/api/main.go) passes concrete implementations by structural typing.
 
 // examinationImportRepo is labImportExaminationService's write-side view of the examination
 // repository: Create + ReplaceItemsByExamID persist the exam and its results, and Delete performs
@@ -120,11 +117,10 @@ type petFinder interface {
 }
 
 // AuditLogger is the non-tx consumer-side view of the shared audit kernel
-// (internal/service.AuditService's LogEntry) that labAuditLogger.logBestEffort writes through.
+// that labAuditLogger.logBestEffort writes through.
 // Distinct from AuditTxLogger above (tx-internal LogEntryTx): lab audit is best-effort and does
 // not join the import flow's transaction. The composition root adapts the concrete
-// service.AuditService.LogEntry(ctx, *service.AuditLogInput) to this signature (see the lab audit
-// adapter in cmd/api/main.go in the final state / internal/service/lab_middle_state.go in Batch B).
+// audit LogEntry to this signature.
 type AuditLogger interface {
 	LogEntry(ctx context.Context, entry *AuditEntry) error
 }
@@ -133,11 +129,9 @@ type AuditLogger interface {
 // （ambient tx 参加・fail-closed）を使う。nil audit 依存は Create/Update/Delete 入口で拒否する。
 
 // ── treatment consumer-side views (BE9-2D sub-batch④b) ──
-// treatmentService moved here from internal/service (after the Phase-1 in-place refactor that
-// swapped its repo-swap tx machinery for Transactor.WithTx + per-repo dbOrTx participation).
-// The treatment/vital repositories are in-package concrete types now; the views below cover the
-// dependencies still living in internal/repository. Concrete repository.* implementations are
-// passed in from cmd/api/main.go by structural typing.
+// treatmentService lives in this medicalrecord package (Transactor.WithTx + per-repo DBOrTx).
+// The treatment/vital repositories are in-package concrete types; the views below cover
+// remaining cross-domain dependencies. Concrete implementations are passed in from cmd/api/main.go.
 
 // treatmentMedicalRecordRepo is treatmentService's view of the medical-record repository:
 // FindByID for the pre-tx fast-fail finalized check, LockByIDForUpdate for the X-11 row lock
@@ -177,10 +171,10 @@ type doseParamFinder interface {
 }
 
 // ── hospitalization/discharge-with-billing consumer-side views (BE9-2D ⑤) ──
-// hospitalizationService moved here from internal/service (Phase 1 で WithTx+個別注入化済み)。
+// hospitalizationService lives in this medicalrecord package (WithTx + 個別注入).
 // hospitalization/hospitalization_plan/daily_record/care_plan_item の各 repository は in-package
-// 具象になったため view 不要。以下は internal/repository に残る依存の最小 view。owner/pet link
-// 検証は sharedkernel.OwnerPetLinkVerifier（repository.ReservationRepository が structural に満たす）。
+// 具象。以下は他 domain 依存の最小 view。owner/pet link
+// 検証は sharedkernel.OwnerPetLinkVerifier。
 
 // cageFinder は入院の CageID master-FK 所有権検証 read view（X-14 同型）。
 type cageFinder interface {
