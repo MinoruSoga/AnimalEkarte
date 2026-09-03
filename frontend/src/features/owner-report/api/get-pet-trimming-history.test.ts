@@ -5,7 +5,7 @@ import { http, HttpResponse } from "msw";
 import { transformTrimming, type TrimmingUI } from "@/lib/transforms/trimming";
 import type { BackendTrimming } from "@/types/trimming";
 import { server } from "@/testing/mocks/node";
-import { createTestWrapper } from "@/testing/utils";
+import { createTestWrapper } from "@/testing/TestUtils";
 
 import {
   selectCompletedTrimmingHistory,

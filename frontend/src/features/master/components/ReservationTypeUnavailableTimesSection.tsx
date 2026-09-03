@@ -13,7 +13,7 @@ import {
   UnavailableTypeWeekly,
   UnavailableTypeSpecific,
 } from "@/types/generated/models";
-import { DAY_OF_WEEK_SELECT_ITEMS } from "./day-of-week-select-items";
+import { DAY_OF_WEEK_SELECT_ITEMS } from "./DayOfWeekSelectItems";
 import type { CreateUnavailableTimeRequest } from "../api/reservation-type-unavailable-times";
 
 // ─────────────────────────────────────────────────

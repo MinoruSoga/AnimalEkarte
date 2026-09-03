@@ -1,7 +1,7 @@
 import { renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
-import { createTestWrapper } from "@/testing/utils";
+import { createTestWrapper } from "@/testing/TestUtils";
 import type { OwnerSearchItem, PetSearchItem } from "@/types/generated/identitylink-responses";
 
 import { useOwnerSearchQuery, usePetSearchQuery } from "./use-identity-link-search";

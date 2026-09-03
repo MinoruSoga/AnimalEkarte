@@ -1661,7 +1661,7 @@ useEffect(() => {
 ### 6.2 条件付きクラス
 
 ```typescript
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/TestUtils";
 
 interface ButtonProps {
   variant?: "primary" | "secondary";
@@ -1829,7 +1829,7 @@ src/
 ```typescript
 // utils.test.ts
 import { describe, it, expect } from "vitest";
-import { formatDate, calculateAge } from "./utils";
+import { formatDate, calculateAge } from "./TestUtils";
 
 describe("formatDate", () => {
   it("should format date in Japanese format", () => {

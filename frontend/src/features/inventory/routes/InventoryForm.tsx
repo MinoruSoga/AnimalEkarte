@@ -7,7 +7,7 @@ import { useInventoryForm } from "../hooks/use-inventory-form";
 import { usePermission } from "@/hooks/use-permission";
 import type { InventoryItem } from "@/types";
 import { resolveInventoryFormGate } from "./inventory-form-model";
-import { InventoryFormBody, InventoryFormStatusView } from "./inventory-form-panels";
+import { InventoryFormBody, InventoryFormStatusView } from "./InventoryFormPanels";
 
 export function InventoryForm() {
   const navigate = useNavigate();

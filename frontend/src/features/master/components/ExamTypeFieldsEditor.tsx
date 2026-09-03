@@ -5,8 +5,8 @@ import { C, ICON, STYLE } from "@/lib/design-tokens";
 
 import { useGetAnimalSpecies } from "../api/animal-species";
 import type { ExaminationTypeField, ExaminationTypeMaster } from "../api/exam-types-master";
-import { ExamTypeFieldEditorSession } from "./exam-type-field-draft-panel";
-import { ExamTypeFieldsTable } from "./exam-type-fields-table";
+import { ExamTypeFieldEditorSession } from "./ExamTypeFieldDraftPanel";
+import { ExamTypeFieldsTable } from "./ExamTypeFieldsTable";
 import { useExamTypeFieldsList } from "../hooks/use-exam-type-fields-list";
 
 interface ExamTypeFieldsEditorProps {

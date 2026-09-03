@@ -11,7 +11,7 @@ import { C } from "@/lib/design-tokens";
 import { isPersistedPetId } from "@/lib/pet-id";
 
 import type { PetFormData } from "../types";
-import { LABEL_CLS, INPUT_CLS } from "./pet-edit-field-shared";
+import { LABEL_CLS, INPUT_CLS } from "./PetEditFieldShared";
 
 export interface InsuranceOption {
   id: string | number;

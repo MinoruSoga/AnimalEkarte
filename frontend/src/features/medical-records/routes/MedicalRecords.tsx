@@ -28,7 +28,7 @@ import { useMedicalRecordsUrlState } from "../hooks/use-medical-records-url-stat
 import { useDeleteMedicalRecord } from "../api/delete-medical-record";
 import { usePermission } from "@/hooks/use-permission";
 import { useAnimalSpecies } from "@/hooks/use-animal-species";
-import { useMedicalRecordsColumns } from "./medical-records-columns";
+import { useMedicalRecordsColumns } from "./MedicalRecordsColumns";
 import { MedicalRecordsPageView } from "./MedicalRecordsListPanels";
 
 // Types

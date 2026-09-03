@@ -1,4 +1,4 @@
-import { createTestWrapper } from "@/testing/utils";
+import { createTestWrapper } from "@/testing/TestUtils";
 import type { BackendAccounting } from "../api/types";
 
 /**

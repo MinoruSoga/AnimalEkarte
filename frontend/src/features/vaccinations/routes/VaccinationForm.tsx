@@ -12,7 +12,7 @@ import {
   filterVaccinationHistory,
   resolveVaccinationFormGate,
 } from "./vaccination-form-model";
-import { VaccinationFormBody, VaccinationFormStatusView } from "./vaccination-form-page-panels";
+import { VaccinationFormBody, VaccinationFormStatusView } from "./VaccinationFormPagePanels";
 
 export const VaccinationForm = memo(function VaccinationForm() {
   const navigate = useNavigate();

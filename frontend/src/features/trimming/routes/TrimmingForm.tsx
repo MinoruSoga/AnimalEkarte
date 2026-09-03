@@ -7,7 +7,7 @@ import {
   TrimmingFormBody,
   TrimmingFormStatusView,
   useTrimmingFormChrome,
-} from "./trimming-form-panels";
+} from "./TrimmingFormPanels";
 
 export function TrimmingForm() {
   const location = useLocation();

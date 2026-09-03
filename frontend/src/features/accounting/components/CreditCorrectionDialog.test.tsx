@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { toast } from "sonner";
 import { server } from "@/testing/mocks/node";
-import { createTestWrapper } from "@/testing/utils";
+import { createTestWrapper } from "@/testing/TestUtils";
 import { CURRENT_CLINIC_STORAGE_KEY } from "@/lib/current-clinic";
 
 import { CreditCorrectionDialog } from "./CreditCorrectionDialog";

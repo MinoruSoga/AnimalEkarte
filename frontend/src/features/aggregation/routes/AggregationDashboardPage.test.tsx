@@ -3,7 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { server } from '@/testing/mocks/node';
-import { createTestWrapper } from '@/testing/utils';
+import { createTestWrapper } from '@/testing/TestUtils';
 import { AggregationDashboardPage } from './AggregationDashboardPage';
 import type { AggregationResponse } from '../api/get-aggregations';
 

@@ -8,7 +8,7 @@ import { getFormString } from "@/lib/form-data";
 import type { ActionState } from "@/types/form";
 import { INITIAL_ACTION_STATE } from "@/types/form";
 import { useAuth } from "@/hooks/use-auth";
-import { LoginFormBrandHeader, LoginFormCredentialFields } from "./login-form-sections";
+import { LoginFormBrandHeader, LoginFormCredentialFields } from "./LoginFormSections";
 
 interface DemoCredential {
   email: string;

@@ -29,7 +29,7 @@ import "../manual-print.css";
 
 import { ManualContent } from "../components/ManualContent";
 import { ManualEditor } from "../components/ManualEditor";
-import { ManualPageChrome } from "../components/manual-page-chrome";
+import { ManualPageChrome } from "../components/ManualPageChrome";
 import { useGetManualArticleOverrides } from "../api/get-manual-articles";
 import {
   applyOverrides,

@@ -16,7 +16,7 @@ import {
   AvailableSlotTypeSpecific,
 } from "@/types/generated/models";
 import { TIME_SELECT_ITEMS } from "./AvailableSlotOptions";
-import { DAY_OF_WEEK_SELECT_ITEMS } from "./day-of-week-select-items";
+import { DAY_OF_WEEK_SELECT_ITEMS } from "./DayOfWeekSelectItems";
 import type { CreateAvailableSlotRequest } from "../api/reservation-type-available-slots";
 
 interface FormState {

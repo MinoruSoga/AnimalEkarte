@@ -8,7 +8,7 @@
  * 解決される可能性がある。そのため `vi.mock` は各分割ファイルの先頭に直接記述すること。
  */
 import { http, HttpResponse } from "msw";
-import { createTestWrapper } from "@/testing/utils";
+import { createTestWrapper } from "@/testing/TestUtils";
 
 export function createWrapper() {
   return createTestWrapper({ router: true });

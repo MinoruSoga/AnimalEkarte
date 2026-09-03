@@ -6,15 +6,15 @@ import { C } from "@/lib/design-tokens";
 
 import type { MedicineDoseContext } from "../../api/medicine-dose-lookup";
 import type { Treatment, UpdateTreatmentInput } from "../../types";
-import { handleTreatmentEditorKeyDown } from "./treatment-row-editors";
-import { TreatmentDoseMessages } from "./treatment-dose-messages";
+import { handleTreatmentEditorKeyDown } from "./TreatmentRowEditors";
+import { TreatmentDoseMessages } from "./TreatmentDoseMessages";
 import {
   commitTreatmentDeviationReason,
   commitTreatmentQuantity,
   quantityDisplayClassName,
   type QuantityCommitParams,
 } from "./treatment-quantity-commit";
-import { useTreatmentDoseGate } from "./use-treatment-dose-gate";
+import { useTreatmentDoseGate } from "../../hooks/use-treatment-dose-gate";
 
 interface TreatmentQuantityCellProps {
   treatment: Treatment;

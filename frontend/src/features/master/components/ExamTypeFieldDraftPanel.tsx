@@ -2,7 +2,7 @@ import type { AnimalSpecies } from "../api/animal-species";
 import { C } from "@/lib/design-tokens";
 
 import { QUALITATIVE_VALUES, type ReferenceRangeDraft } from "./exam-type-fields-editor-model";
-import { FieldInput, ReferenceRangeInputs } from "./exam-type-field-editors";
+import { FieldInput, ReferenceRangeInputs } from "./ExamTypeFieldEditors";
 import { useExamTypeFieldSession } from "../hooks/use-exam-type-field-session";
 import type { ExaminationTypeField } from "../api/exam-types-master";
 

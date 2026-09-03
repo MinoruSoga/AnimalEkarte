@@ -10,15 +10,15 @@ import {
   useGetUnpaidMonthly,
   type UnpaidOwner,
 } from "../api/get-unpaid-billings";
-import { UnpaidTabFilters } from "./unpaid-tab-filters";
+import { UnpaidTabFilters } from "./UnpaidTabFilters";
 import { parseUnpaidGroupBy, type UnpaidGroupBy } from "./unpaid-tab-model";
-import { UnpaidTabSummaries } from "./unpaid-tab-summaries";
+import { UnpaidTabSummaries } from "./UnpaidTabSummaries";
 import {
   UnpaidBillingTable,
   UnpaidMonthlyTable,
   UnpaidOwnerTable,
   UnpaidTabPagination,
-} from "./unpaid-tab-tables";
+} from "./UnpaidTabTables";
 
 export function UnpaidTab() {
   const [searchParams, setSearchParams] = useSearchParams();

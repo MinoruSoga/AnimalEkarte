@@ -16,8 +16,8 @@ import { useMedicalRecordForm } from "../hooks/use-medical-record-form";
 import { useGetMedicalRecord } from "../api/get-medical-record";
 import { useDeleteMedicalRecord } from "../api/delete-medical-record";
 import { resolveMedicalRecordFormGate } from "./medical-record-form-model";
-import { MedicalRecordFormStatusView } from "./medical-record-form-status-panels";
-import { MedicalRecordFormReadyPage } from "./medical-record-form-ready-panels";
+import { MedicalRecordFormStatusView } from "./MedicalRecordFormStatusPanels";
+import { MedicalRecordFormReadyPage } from "./MedicalRecordFormReadyPanels";
 
 export const MedicalRecordForm = memo(function MedicalRecordForm() {
   const { id: recordId } = useParams();

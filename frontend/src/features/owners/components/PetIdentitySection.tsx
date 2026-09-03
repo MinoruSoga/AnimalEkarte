@@ -14,7 +14,7 @@ import {
   INPUT_CLS,
   GENDER_SELECT_ITEMS,
   type PetFieldSectionProps,
-} from "./pet-edit-field-shared";
+} from "./PetEditFieldShared";
 
 export interface AnimalSpeciesOption {
   id: string | number;

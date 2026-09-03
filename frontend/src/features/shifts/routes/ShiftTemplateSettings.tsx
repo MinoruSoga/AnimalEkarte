@@ -13,7 +13,7 @@ import { useDeleteShiftTemplate } from "../api/delete-shift-template";
 import { useGetShiftTemplates } from "../api/get-shift-templates";
 import { useReorderShiftTemplates } from "../api/reorder-shift-templates";
 import { useUpdateShiftTemplate } from "../api/update-shift-template";
-import { ShiftTemplateSettingsWorkspace } from "../components/shift-template-settings-workspace";
+import { ShiftTemplateSettingsWorkspace } from "../components/ShiftTemplateSettingsWorkspace";
 import type { TemplateFormData } from "../components/shift-template-form-model";
 import { filterShiftTemplates } from "../components/shift-template-table-model";
 import {

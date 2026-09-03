@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 
 import { queryKeys } from "@/lib/query-keys";
 import { server } from "@/testing/mocks/node";
-import { createTestWrapper } from "@/testing/utils";
+import { createTestWrapper } from "@/testing/TestUtils";
 
 import { useGetPets } from "./use-pet";
 

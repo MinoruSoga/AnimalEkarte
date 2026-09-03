@@ -83,7 +83,7 @@ import { OwnerCard } from '@/features/owners/components/OwnerCard';
 import { formatCurrency } from '@/lib/format/number';
 
 // ❌ utils/ ディレクトリの新設禁止
-import { formatCurrency } from '@/utils/format';
+import { formatCurrency } from '@/TestUtils/format';
 ```
 
 共有ヘルパの置き場所は `lib/` の1箇所のみ。`utils/` ディレクトリの新規作成を禁止する（FE7-1 で `utils/` を `lib/` へ統合済み・2026-07-18）。

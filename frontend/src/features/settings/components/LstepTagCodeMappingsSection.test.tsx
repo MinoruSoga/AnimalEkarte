@@ -3,7 +3,7 @@ import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { server } from "@/testing/mocks/node";
-import { createTestWrapper } from "@/testing/utils";
+import { createTestWrapper } from "@/testing/TestUtils";
 import { LstepTagCodeMappingsSection } from "./LstepTagCodeMappingsSection";
 import type { TagCodeMappingItem } from "../hooks/use-lstep-tag-code-mappings";
 

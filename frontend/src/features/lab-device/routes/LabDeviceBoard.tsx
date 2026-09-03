@@ -33,7 +33,7 @@ import {
   LabDeviceTodayVisitsPanel,
   LabDeviceUnlinkedPanel,
   LabDeviceWaitAndSlotsPanel,
-} from "./lab-device-board-panels";
+} from "./LabDeviceBoardPanels";
 
 const LAB_DEVICE_AGENT_RECEIVE_TOAST_ID = "lab-device-agent-receive";
 

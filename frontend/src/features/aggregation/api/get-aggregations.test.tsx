@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { server } from '@/testing/mocks/node';
-import { createTestWrapper } from '@/testing/utils';
+import { createTestWrapper } from '@/testing/TestUtils';
 import { useGetOwnerAggregations, type AggregationResponse } from './get-aggregations';
 
 const createWrapper = createTestWrapper;

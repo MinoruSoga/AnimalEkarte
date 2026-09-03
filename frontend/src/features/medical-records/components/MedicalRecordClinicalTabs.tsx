@@ -3,7 +3,7 @@ import { MedicalRecordInterview } from "./MedicalRecordInterview";
 import { MedicalRecordTreatment } from "./MedicalRecordTreatment";
 import { NextVisitDateField } from "./NextVisitDateField";
 import { RecommendationReasonSelect } from "./RecommendationReasonSelect";
-import { MedicalRecordMountedTab } from "./medical-record-tabs-shared";
+import { MedicalRecordMountedTab } from "./MedicalRecordTabsShared";
 import type { MedicalRecordTabsAreaProps } from "./medical-record-tabs-types";
 
 export function MedicalRecordClinicalTabs({

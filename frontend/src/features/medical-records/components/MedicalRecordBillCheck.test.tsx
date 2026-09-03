@@ -5,7 +5,7 @@ import { http, HttpResponse } from "msw";
 import { toast } from "sonner";
 
 import { server } from "@/testing/mocks/node";
-import { createTestWrapper } from "@/testing/utils";
+import { createTestWrapper } from "@/testing/TestUtils";
 import { MedicalRecordBillCheck } from "./MedicalRecordBillCheck";
 
 vi.mock("@/hooks/use-permission", () => ({

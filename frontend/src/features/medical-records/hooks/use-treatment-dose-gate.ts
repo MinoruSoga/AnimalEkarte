@@ -6,9 +6,9 @@ import {
   toDoseParamsAuthority,
   useMedicineDoseParams,
   type MedicineDoseContext,
-} from "../../api/medicine-dose-lookup";
-import type { Treatment } from "../../types";
-import { computeDoseGate, resolveDoseGateSource } from "./treatment-row-dose-gate";
+} from "../api/medicine-dose-lookup";
+import type { Treatment } from "../types";
+import { computeDoseGate, resolveDoseGateSource } from "../components/TreatmentsTab/treatment-row-dose-gate";
 
 export function useTreatmentDoseGate(
   treatment: Treatment,

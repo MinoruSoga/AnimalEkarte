@@ -1,30 +1,8 @@
 /**
- * React Query キーファクトリー
- *
- * TanStack Query の階層一致によるキャッシュ無効化を確実にするため、
- * queryKey を一元管理する。
- *
- * 使用方法:
- *   queryKey: queryKeys.accountings.detail(id)
- *   invalidateQueries({ queryKey: queryKeys.accountings.all() })
- *
- * 命名規則:
- *   all()       → 当該エンティティの全キャッシュを無効化したい場合
- *   list(x)     → フィルタ/パラメータ付き一覧
- *   detail(id)  → 詳細キャッシュ (id 指定)
- *
- * 設計方針 (FE-refactor.md 残件1 / FE-R1):
- *   - clinicId はキーに含めない（clinic 切替は queryClient.clear() + full reload
- *     で担保されるため。SPA 切替をやる場合は別途設計する）。
- *   - このファイルは feature 層より下位（lib/）に位置するため、feature 固有の
- *     filters/params 型はここに import しない。呼び出し側の型で渡し、
- *     ジェネリクスでそのままタプルに埋め込む。
- *   - 既存の inline queryKey タプルをバイト同一で温存することを優先する。
- *     命名の不整合（例: "unbilledItems" の camelCase、"accountings" と
- *     "accounting" が別プレフィックスであること）はキャッシュキーの変更を
- *     避けるためにそのまま保持し、コメントで注記する。
+ * React Query キーファクトリー（TanStack Query 階層 invalidate 用）。
+ * all()/list()/detail(id)。clinicId はキーに含めない（切替は clear + reload）。
+ * feature 固有 filters 型は import しない。既存 inline キーはバイト同一を優先。
  */
-
 export const queryKeys = {
   // ── accounting (会計) ────────────────────────────────────────────
   accountings: {
@@ -139,7 +117,6 @@ export const queryKeys = {
     all: () => ["reservations"] as const,
     list: <F>(filters: F) => ["reservations", filters] as const,
     /**
-     * FE-RC-081: 単数形 "reservation" が第一要素のため all()/list() の
      * ["reservations", ...] prefix match には含まれない。detail 更新を伴う
      * mutation（use-update-reservation.ts 等）は all() だけでなく detail(id) も
      * 明示的に invalidate する必要がある（既存の呼び出し側は対応済み）。

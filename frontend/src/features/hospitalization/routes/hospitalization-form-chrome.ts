@@ -13,7 +13,7 @@ import {
 import type { MasterSelectItem } from "@/components/shared/MasterSelectModal";
 import type { HospitalizationTreatmentPlan } from "@/types";
 import type { HospitalizationFormData } from "../types";
-import type { HospitalizationFormFieldsProps } from "./hospitalization-form-fields";
+import type { HospitalizationFormFieldsProps } from "./HospitalizationFormFields";
 
 export function useHospitalizationFormChrome(input: {
   hospitalizationId: string | undefined;

@@ -9,7 +9,7 @@ import type { TreatmentItem } from "@/lib/transforms/treatment";
 import { ResourceCheckups, ResourceMasterMedical } from "@/types/generated/models";
 import { useTreatmentPlanMasterResources } from "../hooks/use-treatment-plan-master-resources";
 import { useTreatmentPlanMasterSaves } from "../hooks/use-treatment-plan-master-saves";
-import { TreatmentPlanMasterView } from "./treatment-plan-master-view";
+import { TreatmentPlanMasterView } from "./TreatmentPlanMasterView";
 
 export function TreatmentPlanMaster() {
   const { canCreate, canEdit, canDelete } = usePermission(ResourceMasterMedical);

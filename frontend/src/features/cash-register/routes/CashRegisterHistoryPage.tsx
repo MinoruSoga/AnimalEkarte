@@ -12,9 +12,9 @@ import { ResourceCashRegisterClose } from "@/types/generated/models";
 import {
   CashRegisterHistoryFilters,
   type HistoryPeriodFilter,
-} from "../components/cash-register-history-filters";
-import { CashRegisterHistoryTable } from "../components/cash-register-history-table";
-import { CashRegisterHistoryDetailDialog } from "../components/cash-register-history-detail-dialog";
+} from "../components/CashRegisterHistoryFilters";
+import { CashRegisterHistoryTable } from "../components/CashRegisterHistoryTable";
+import { CashRegisterHistoryDetailDialog } from "../components/CashRegisterHistoryDetailDialog";
 import { parseHighlightDate } from "../components/cash-register-history-model";
 
 const HISTORY_PAGE_SIZE = 20;

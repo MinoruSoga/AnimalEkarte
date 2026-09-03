@@ -10,7 +10,7 @@ import {
   ShiftTemplateDeleteDialog,
   ShiftTemplateSidePanel,
 } from "./ShiftTemplateSettingsParts";
-import { ShiftTemplateSettingsList } from "./shift-template-settings-list";
+import { ShiftTemplateSettingsList } from "./ShiftTemplateSettingsList";
 import type { TemplateFormData } from "./shift-template-form-model";
 import type { ShiftTemplate } from "../types";
 import { useSortableList } from "@/hooks/use-sortable-list";

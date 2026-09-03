@@ -24,7 +24,7 @@ import { PERIOD_LABELS, PERIOD_OPTIONS, type CashRegisterPeriod } from "../const
 import {
   CashRegisterClosePreview,
   CashRegisterCloseTargetSection,
-} from "../components/cash-register-close-panels";
+} from "../components/CashRegisterClosePanels";
 import { useCashRegisterCloseForm } from "../hooks/use-cash-register-close-form";
 import { ResourceCashRegisterClose } from "@/types/generated/models";
 

@@ -12,8 +12,8 @@ import { C, ICON, LAYOUT } from "@/lib/design-tokens";
 import { ResourceHospitalization } from "@/types/generated/models";
 import type { StaffItem } from "@/hooks/use-staffs";
 import type { HospitalizationFormData } from "../types";
-import { HospitalizationFormHeaderExtra } from "./hospitalization-form-header-extra";
-import { HospitalizationFormFields, type HospitalizationFormFieldsProps } from "./hospitalization-form-fields";
+import { HospitalizationFormHeaderExtra } from "./HospitalizationFormHeaderExtra";
+import { HospitalizationFormFields, type HospitalizationFormFieldsProps } from "./HospitalizationFormFields";
 
 interface HospitalizationFormBodyProps {
   hospitalizationId: string | undefined;

@@ -2,7 +2,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
-import { createTestWrapper } from "@/testing/utils";
+import { createTestWrapper } from "@/testing/TestUtils";
 import { queryKeys } from "@/lib/query-keys";
 
 import {

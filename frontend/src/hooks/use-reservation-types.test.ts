@@ -5,7 +5,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { CURRENT_CLINIC_STORAGE_KEY } from "@/lib/current-clinic";
 import { queryKeys } from "@/lib/query-keys";
 import { server } from "@/testing/mocks/node";
-import { createTestWrapper } from "@/testing/utils";
+import { createTestWrapper } from "@/testing/TestUtils";
 import {
   useGetReservationAvailableTimes,
   useGetReservationStaffs,

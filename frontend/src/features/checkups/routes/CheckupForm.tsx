@@ -19,7 +19,7 @@ import { ResourceMedicalRecords } from "@/types/generated/models";
 import { useCheckupForm } from "../hooks/use-checkup-form";
 import { useGetCheckups } from "../api/get-checkups";
 import { toCheckupHistoryItems } from "./checkup-form-model";
-import { CheckupFieldsPanel } from "./checkup-form-panels";
+import { CheckupFieldsPanel } from "./CheckupFormPanels";
 
 export function CheckupForm() {
   const navigate = useNavigate();

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { paths } from "@/config/paths";
 
-import { sidebarMenuSections } from "./sidebar-menu";
+import { sidebarMenuSections } from "./SidebarMenu";
 
 function findLstepSection() {
   const section = sidebarMenuSections.find((s) => s.title === "Lステップ連携");

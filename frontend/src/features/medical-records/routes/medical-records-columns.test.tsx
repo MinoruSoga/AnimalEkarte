@@ -3,7 +3,7 @@ import { renderHook } from "@testing-library/react";
 
 import { LIST_TABLE_COL } from "@/components/shared/DataTable/list-table-col";
 
-import { useMedicalRecordsColumns } from "./medical-records-columns";
+import { useMedicalRecordsColumns } from "./MedicalRecordsColumns";
 
 describe("useMedicalRecordsColumns status column (BUG-020)", () => {
   it("ステータス列は共有 LIST_TABLE_COL.status（min-width + nowrap）を使う", () => {

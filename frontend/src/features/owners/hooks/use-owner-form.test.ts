@@ -3,7 +3,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { transformBackendPetToFrontend } from "@/lib/transforms/pet";
-import { createTestWrapper } from "@/testing/utils";
+import { createTestWrapper } from "@/testing/TestUtils";
 import type { PetResponse } from "@/types/generated/pet-responses";
 import type { Owner } from "@/types/owner";
 import type { PetMutations } from "@/types/pet";

@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 
 import { C } from "@/lib/design-tokens";
 import { server } from "@/testing/mocks/node";
-import { createTestWrapper } from "@/testing/utils";
+import { createTestWrapper } from "@/testing/TestUtils";
 
 import type { ExaminationRecord } from "../api/transforms";
 import { ExamPivotTable } from "./ExamPivotTable";

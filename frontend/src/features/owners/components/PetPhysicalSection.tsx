@@ -16,7 +16,7 @@ import {
   ACQUISITION_SELECT_ITEMS,
   DANGER_SELECT_ITEMS,
   type PetFieldSectionProps,
-} from "./pet-edit-field-shared";
+} from "./PetEditFieldShared";
 
 export function PetPhysicalSection({
   formData,

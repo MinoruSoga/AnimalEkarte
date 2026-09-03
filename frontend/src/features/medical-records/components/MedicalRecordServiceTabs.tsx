@@ -4,7 +4,7 @@ import { MedicalRecordEstimate } from "./MedicalRecordEstimate";
 import { MedicalRecordExamination } from "./MedicalRecordExamination";
 import { MedicalRecordImage } from "./MedicalRecordImage";
 import { MedicalRecordVaccination } from "./MedicalRecordVaccination";
-import { MedicalRecordMountedTab, MedicalRecordSaveRequired } from "./medical-record-tabs-shared";
+import { MedicalRecordMountedTab, MedicalRecordSaveRequired } from "./MedicalRecordTabsShared";
 import type { MedicalRecordTabsAreaProps } from "./medical-record-tabs-types";
 
 export function MedicalRecordServiceTabs({

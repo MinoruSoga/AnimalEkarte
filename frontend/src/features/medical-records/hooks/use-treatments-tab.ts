@@ -7,12 +7,12 @@ import { useGetAllMedicinesMaster } from "@/hooks/use-treatment-master";
 import { QUERY_STALE_TIMES } from "@/lib/react-query";
 import type { TreatmentMasterItem } from "@/components/shared/TreatmentSearchDialog/TreatmentSearchDialog";
 
-import { useGetTreatments } from "../../api/treatments";
-import { useCreateTreatment } from "../../api/treatments";
-import { useUpdateTreatment } from "../../api/treatments";
-import { useDeleteTreatment } from "../../api/treatments";
-import { useReorderTreatments } from "../../api/treatments";
-import { useGetVitals } from "../../api/vitals";
+import { useGetTreatments } from "../api/treatments";
+import { useCreateTreatment } from "../api/treatments";
+import { useUpdateTreatment } from "../api/treatments";
+import { useDeleteTreatment } from "../api/treatments";
+import { useReorderTreatments } from "../api/treatments";
+import { useGetVitals } from "../api/vitals";
 import {
   buildDoseCalcInput,
   computeDosePreview,
@@ -20,10 +20,10 @@ import {
   fetchMedicineDoseParamsOnce,
   medicineDoseParamsQueryKey,
   resolveLatestVitalWeight,
-} from "../../api/medicine-dose-lookup";
-import type { TreatmentItemType, UpdateTreatmentInput } from "../../types";
-import { buildMasterSelectionPayload } from "./treatments-tab-model";
-import { computeDoseGate, type DoseGateSource } from "./treatment-row-dose-gate";
+} from "../api/medicine-dose-lookup";
+import type { TreatmentItemType, UpdateTreatmentInput } from "../types";
+import { buildMasterSelectionPayload } from "../components/TreatmentsTab/treatments-tab-model";
+import { computeDoseGate, type DoseGateSource } from "../components/TreatmentsTab/treatment-row-dose-gate";
 
 export function useTreatmentsTab({
   medicalRecordId,

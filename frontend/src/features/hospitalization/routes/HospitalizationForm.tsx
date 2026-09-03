@@ -10,7 +10,7 @@ import {
   HospitalizationFormBody,
   HospitalizationFormStatusView,
   useHospitalizationFormChrome,
-} from "./hospitalization-form-panels";
+} from "./HospitalizationFormPanels";
 
 export function HospitalizationForm() {
   const navigate = useNavigate();

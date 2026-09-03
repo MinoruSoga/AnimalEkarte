@@ -3,7 +3,7 @@ import { renderHook, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { PALETTE } from "@/lib/design-tokens";
 import { server } from "@/testing/mocks/node";
-import { createTestWrapper } from "@/testing/utils";
+import { createTestWrapper } from "@/testing/TestUtils";
 import { useReservationTypeColorMap } from "./use-reservation-type-color-map";
 
 const ACTIVE_TYPE = {

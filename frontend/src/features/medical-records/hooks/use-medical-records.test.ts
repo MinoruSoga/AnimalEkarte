@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 
 import type { ActiveFilter } from "@/components/shared/PropertyFilter/types";
 import { server } from "@/testing/mocks/node";
-import { createTestWrapper } from "@/testing/utils";
+import { createTestWrapper } from "@/testing/TestUtils";
 
 import { useMedicalRecordsList } from "./use-medical-records";
 

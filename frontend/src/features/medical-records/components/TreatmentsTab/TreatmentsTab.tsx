@@ -12,7 +12,7 @@ const TreatmentSearchDialog = lazy(() =>
 
 // Relative
 import { TreatmentAddControls, TreatmentsTable, TreatmentTotals } from "./TreatmentsTabParts";
-import { useTreatmentsTab } from "./use-treatments-tab";
+import { useTreatmentsTab } from "../../hooks/use-treatments-tab";
 
 // ── Props ─────────────────────────────────────────────────────────────
 

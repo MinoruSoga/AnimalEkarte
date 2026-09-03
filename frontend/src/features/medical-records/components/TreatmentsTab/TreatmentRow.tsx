@@ -16,8 +16,8 @@ import {
   TreatmentDiscountCell,
   TreatmentMemoCell,
   TreatmentUnitPriceCell,
-} from "./treatment-row-editors";
-import { TreatmentQuantityCell } from "./treatment-row-quantity-cell";
+} from "./TreatmentRowEditors";
+import { TreatmentQuantityCell } from "./TreatmentQuantityCell";
 
 interface TreatmentRowProps {
   treatment: Treatment;

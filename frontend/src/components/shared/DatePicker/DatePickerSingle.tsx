@@ -153,7 +153,7 @@ export function SinglePicker({
             onBlur={handleBlur}
             onKeyDown={handleInputKeyDown}
             placeholder={placeholder}
-            className={`-my-px min-h-11 flex-1 min-w-0 bg-transparent outline-none text-sm ${C.text} ${C.textPlaceholder}`}
+            className={`-my-px min-h-11 flex-1 min-w-0 bg-transparent outline-none text-sm ${C.text} ${C.textPlaceholder} focus-visible:ring-2 ${C.focusRingAccent40}`}
           />
           {value ? <ClearButton onClick={handleClear} /> : null}
         </div>

@@ -13,7 +13,7 @@ async function getMe(): Promise<AuthUser> {
 
 /**
  * /me を定期ポーリングして認証ユーザー情報を最新に保つ。
- * - staleTime: 10秒（別セッションからの権限変更を素早く反映）
+ * - staleTime は QUERY_STALE_TIMES.SESSION（別セッションからの権限変更を素早く反映）
  * - refetchInterval: 30秒（バックグラウンドでは停止）
  * - refetchOnWindowFocus: true（タブアクティブ時に即座に再取得）
  * - 401 時はポーリング停止（ログインページへの無限リダイレクト防止）

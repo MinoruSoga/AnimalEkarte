@@ -21,7 +21,7 @@ export const INITIAL_SAVE_STATE: SaveState = {
   message: "",
 };
 
-export const VERSION_CONFLICT_MESSAGE =
+const VERSION_CONFLICT_MESSAGE =
   "他の端末でペット情報が変更されました。再読み込みしてから、もう一度保存してください。";
 export const SUB_OWNER_SEARCH_DEBOUNCE_MS = 300;
 

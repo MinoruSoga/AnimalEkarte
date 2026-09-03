@@ -339,7 +339,7 @@ function XxxSidePanel({ item, onClose, onSave, onDeleteRequest }) {
           <div className="pb-1 mb-4">
             <input
               type="text"
-              className={`w-full bg-transparent ${C.text} placeholder:text-[rgba(55,53,47,0.15)] outline-none border-none p-0`}
+              className={`w-full bg-transparent ${C.text} placeholder:text-[rgba(55,53,47,0.15)] outline-none border-none p-0`} focus-visible:ring-2 ${C.focusRingAccent40}
               style={{
                 fontSize: LAYOUT.pageTitle.fontSize,    // "30px"
                 fontWeight: LAYOUT.pageTitle.fontWeight, // 700
@@ -424,7 +424,7 @@ function PropInput({ value, onChange, placeholder }: {
   return (
     <input
       type="text"
-      className={`w-full bg-transparent text-sm ${C.text} outline-none border-none px-1.5 py-0.5 rounded-[3px] ${C.hoverBgLight} ${C.focusBgLight} transition-colors ${C.textPlaceholder}`}
+      className={`w-full bg-transparent text-sm ${C.text} outline-none border-none px-1.5 py-0.5 rounded-[3px] ${C.hoverBgLight} ${C.focusBgLight} transition-colors ${C.textPlaceholder}`} focus-visible:ring-2 ${C.focusRingAccent40}
       value={value}
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder ?? "空"}
@@ -609,7 +609,7 @@ export function XxxSettings() {
             <TabsPrimitive.Trigger
               key={tab.value}
               value={tab.value}
-              className={`h-9 border-b-2 border-b-transparent px-4 text-sm ${C.text60} outline-none transition-colors cursor-pointer
+              className={`h-9 border-b-2 border-b-transparent px-4 text-sm ${C.text60} outline-none transition-colors cursor-pointer focus-visible:ring-2 ${C.focusRingAccent40}
                 ${C.dataActiveBorderB} ${C.dataActiveText} data-[state=active]:font-medium`}
             >
               {tab.label}

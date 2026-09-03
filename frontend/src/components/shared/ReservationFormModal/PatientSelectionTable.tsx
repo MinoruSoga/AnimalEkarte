@@ -4,8 +4,8 @@ import { Pagination } from "@/components/shared/Pagination";
 import { C } from "@/lib/design-tokens";
 import type { Pet } from "@/types";
 
-import { PatientSearchFilters } from "./patient-selection-filters";
-import { PatientSelectionResults } from "./patient-selection-results";
+import { PatientSearchFilters } from "./PatientSearchFilters";
+import { PatientSelectionResults } from "./PatientSelectionResults";
 import { usePatientSelectionTable } from "./use-patient-selection-table";
 
 interface PatientSelectionTableProps {

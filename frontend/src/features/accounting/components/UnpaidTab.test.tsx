@@ -12,7 +12,7 @@ vi.mock("@/hooks/use-auth", () => ({
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { server } from "@/testing/mocks/node";
-import { createTestWrapper } from "@/testing/utils";
+import { createTestWrapper } from "@/testing/TestUtils";
 
 import { UnpaidTab } from "./UnpaidTab";
 

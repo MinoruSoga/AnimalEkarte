@@ -3,8 +3,8 @@ import { useState, useEffect, memo, useCallback } from "react";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { useAuth } from "@/hooks/use-auth";
 import { SidebarItemWithPermission } from "./SidebarItems";
-import { sidebarMenuSections, type SidebarMenuSection } from "./sidebar-menu";
-import { SidebarClinicHeader, SidebarUserFooter } from "./sidebar-chrome";
+import { sidebarMenuSections, type SidebarMenuSection } from "./SidebarMenu";
+import { SidebarClinicHeader, SidebarUserFooter } from "./SidebarChrome";
 
 interface SidebarSectionProps {
   section: SidebarMenuSection;

@@ -2,7 +2,7 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { createTestWrapper } from "@/testing/utils";
+import { createTestWrapper } from "@/testing/TestUtils";
 import { useGetOwnerSharedPets } from "../api/get-owner-shared-pets";
 import type { PetFormData } from "../types";
 import { OwnerPetsSection } from "./OwnerPetsSection";

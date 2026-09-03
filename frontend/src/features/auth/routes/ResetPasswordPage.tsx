@@ -9,7 +9,7 @@ import {
   ResetPasswordBrandHeader,
   ResetPasswordFields,
   ResetPasswordInvalidLink,
-} from "./reset-password-page-sections";
+} from "./ResetPasswordPageSections";
 
 type ResetPasswordState = { error: string | null };
 

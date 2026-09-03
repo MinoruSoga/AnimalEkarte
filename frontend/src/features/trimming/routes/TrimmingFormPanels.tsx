@@ -26,7 +26,7 @@ import type { TrimmingHistoryItem } from "../components/trimming-form-column-typ
 import type { MasterSelectItem } from "@/components/shared/MasterSelectModal";
 import { ConfirmDialog, MasterSelectModal } from "./TrimmingLazyModals";
 import { TRIMMING_FORM_ID, type TrimmingFormGate, type TrimmingSelectableItem } from "./trimming-form-model";
-import { TrimmingFormColumns, type TrimmingPatient } from "./trimming-form-body-columns";
+import { TrimmingFormColumns, type TrimmingPatient } from "./TrimmingFormColumns";
 
 // eslint-disable-next-line react-refresh/only-export-components -- 150行分割で page chrome hook を panels と同居
 export function useTrimmingFormChrome(input: {

@@ -14,7 +14,7 @@ import {
   LabDeviceStatusCard,
   LabDeviceTodayVisitCard,
   resolveLabDeviceReceiveTime,
-} from "../components/lab-device-board-cards";
+} from "../components/LabDeviceBoardCards";
 import type { LabDeviceAgentListenStatus } from "../hooks/use-lab-device-agent-listen";
 import {
   isLabDeviceAttachPersisted,
