@@ -1,0 +1,52 @@
+#!/bin/sh
+# Pre-push: run scoped backend + frontend tests with SHA cache (.test-passed).
+# Skips re-running when HEAD SHA matches the last successful push-gate run.
+
+set -e
+
+ROOT=$(git rev-parse --show-toplevel)
+cd "$ROOT"
+
+CACHE_FILE="$ROOT/.test-passed"
+HEAD_SHA=$(git rev-parse HEAD)
+
+if [ -f "$CACHE_FILE" ]; then
+  CACHED_SHA=$(tr -d '[:space:]' < "$CACHE_FILE" || true)
+  if [ "$CACHED_SHA" = "$HEAD_SHA" ]; then
+    echo "Pre-push: .test-passed matches HEAD ($HEAD_SHA) — skipping tests"
+    exit 0
+  fi
+fi
+
+# Git LFS (if installed; also chained from .git/hooks wrapper)
+if command -v git-lfs >/dev/null 2>&1; then
+  git lfs pre-push "$@" || true
+fi
+
+echo "Pre-push: running scoped verification for $HEAD_SHA ..."
+
+if ! docker compose exec -T backend true 2>/dev/null; then
+  echo "ERROR: backend container is not running. Start with: make up"
+  exit 1
+fi
+
+echo "  [backend] go test ./internal/apperrors/..."
+docker compose exec -T backend go test ./internal/apperrors/...
+
+if ! docker compose exec -T frontend true 2>/dev/null; then
+  echo "ERROR: frontend container is not running. Start with: make up"
+  exit 1
+fi
+
+# Prefer a fast smoke path; full suite remains CI / make test-front.
+SMOKE="src/features/master/components/TreatmentItemSidePanel.test.tsx"
+if [ -f "$ROOT/frontend/$SMOKE" ]; then
+  echo "  [frontend] vitest run $SMOKE"
+  docker compose exec -T frontend pnpm exec vitest run "$SMOKE"
+else
+  echo "  [frontend] vitest run src/lib --passWithNoTests"
+  docker compose exec -T frontend pnpm exec vitest run src/lib --passWithNoTests
+fi
+
+printf '%s\n' "$HEAD_SHA" > "$CACHE_FILE"
+echo "Pre-push: tests passed — wrote $CACHE_FILE"

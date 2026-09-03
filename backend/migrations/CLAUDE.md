@@ -16,7 +16,7 @@
 - **CASCADE DELETE（原則禁止・例外あり）**: 下記の考え方に従うこと
 
   **禁止（絶対）**: `owners` / `pets` / `medical_records` 等の PHI・業務データが親となるCASCADEで、削除により診療履歴・会計・バイタル等が連鎖消去されうる設計は禁止。  
-  service 層で依存チェックして 409 を返す（P10 参照）を優先し、DBレベルのCASCADE に頼らない。
+  service 層で依存チェックして 409 を返すことを優先し、DBレベルのCASCADE に頼らない（backend CODING_RULES / application invariants 参照。旧 P1–P18 チェックリストは廃止済み）。
 
   **許容される例外**: "純粋な従属データ" で、親が消える時に必ず消えてよい行のみCASCADEを許容する。
   - 中間テーブル / join table（例: `permission_group_staffs`、`shift_template_reservation_types`）

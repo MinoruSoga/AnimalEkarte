@@ -139,3 +139,6 @@ improvement_ai.html
 codex-security-output/
 # Added by code-review-graph
 .code-review-graph/
+
+# Pre-push test cache (SHA of last green push-gate)
+.test-passed

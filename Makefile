@@ -581,10 +581,32 @@ ci:
 	@bash scripts/run-local-ci.sh
 
 # git hooks セットアップ（初回・新メンバーオンボーディング時に実行）
+# Source of truth: .githooks/* — wrappers installed into .git/hooks for readiness/tooling that
+# looks specifically at .git/hooks/pre-commit and .git/hooks/pre-push.
 setup-hooks:
-	git config core.hooksPath .githooks
-	chmod +x .githooks/pre-commit
-	@echo "Git hooks を .githooks に設定しました（pre-commit: lint + 型チェック）"
+	chmod +x .githooks/pre-commit .githooks/pre-push .githooks/lib/*.sh
+	@# Source of truth lives in .githooks/; install wrappers at .git/hooks and pin
+	@# local core.hooksPath to "hooks" (relative to .git/) so a global hooksPath
+	@# (e.g. ~/.codex/git-hooks) cannot bypass repo gates.
+	@printf '%s\n' '#!/bin/sh' 'set -e' 'ROOT=$$(git rev-parse --show-toplevel)' \
+		'# Optional code-review-graph (best-effort)' \
+		'if command -v code-review-graph >/dev/null 2>&1; then' \
+		'  code-review-graph update || true' \
+		'  code-review-graph detect-changes --brief || true' \
+		'fi' \
+		'exec "$$ROOT/.githooks/pre-commit"' > .git/hooks/pre-commit
+	@printf '%s\n' '#!/bin/sh' 'set -e' 'ROOT=$$(git rev-parse --show-toplevel)' \
+		'# Git LFS (if installed)' \
+		'if command -v git-lfs >/dev/null 2>&1; then' \
+		'  git lfs pre-push "$$@" || true' \
+		'fi' \
+		'exec "$$ROOT/.githooks/pre-push" "$$@"' > .git/hooks/pre-push
+	@chmod +x .git/hooks/pre-commit .git/hooks/pre-push
+	@# Absolute .githooks path overrides global hooksPath (e.g. ~/.codex/git-hooks).
+	@# Wrappers under .git/hooks remain for tooling that inspects that path.
+	@git config --local core.hooksPath "$(CURDIR)/.githooks"
+	@echo "Git hooks: core.hooksPath=$(CURDIR)/.githooks (pre-commit: secrets+size+lint; pre-push: cached tests)"
+	@echo "Discovery wrappers also at .git/hooks/pre-commit and .git/hooks/pre-push"
 
 # ヘルプ
 help:
@@ -656,6 +678,6 @@ help:
 	@echo "  mod-download  Goモジュールダウンロード"
 	@echo "  mod-tidy      Goモジュールtidy"
 	@echo "  sync-modules  node_modulesをホストにコピー（IDE補完用）"
-	@echo "  setup-hooks   git hooksをセットアップ（初回・新メンバー用）"
+	@echo "  setup-hooks   git hooksをセットアップ（pre-commit: secrets+size+lint / pre-push: cached tests）"
 	@echo ""
 	@echo "  help          このヘルプを表示"

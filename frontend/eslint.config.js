@@ -15,10 +15,7 @@ import react from "eslint-plugin-react";
 // files only (allowlisted files keep the earlier blocks unchanged).
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const generatedModelsImportAllowlist = JSON.parse(
-  readFileSync(
-    path.join(__dirname, "generated-models-import-allowlist.json"),
-    "utf8",
-  ),
+  readFileSync(path.join(__dirname, "generated-models-import-allowlist.json"), "utf8"),
 );
 
 const deepImportRestrictedPattern = {
@@ -91,10 +88,7 @@ export default tseslint.config(
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
-      "react-refresh/only-export-components": [
-        "warn",
-        { allowConstantExport: true },
-      ],
+      "react-refresh/only-export-components": ["warn", { allowConstantExport: true }],
       // FE6-8: {cond && <JSX>} は cond が 0 / 空文字のとき意図せず数値・文字列を
       // レンダリングしてしまう（frontend/CLAUDE.md の Conditional Render 規約）。
       // recommended セットは入れず、このルールのみ有効化する。現状違反 0 件。
@@ -130,6 +124,12 @@ export default tseslint.config(
             "CallExpression[callee.property.name=/^(setQueryData|getQueryData|removeQueries|resetQueries|cancelQueries|refetchQueries|invalidateQueries)$/] > ArrayExpression.arguments:first-child",
           message:
             "queryKey に配列リテラルを直書きしない。frontend/src/lib/query-keys.ts の queryKeys ファクトリー（または ME_QUERY_KEY）経由で参照すること。",
+        },
+        {
+          // CODING_RULES.md: default export 禁止（IDE 補完・命名の一貫性）
+          // eslint-plugin-import の import/no-default-export 相当。
+          selector: "ExportDefaultDeclaration",
+          message: "default export は禁止。named export を使うこと（CODING_RULES.md）。",
         },
       ],
       "no-restricted-properties": [
@@ -175,10 +175,7 @@ export default tseslint.config(
       "no-restricted-imports": [
         "error",
         {
-          patterns: [
-            layerInversionRestrictedPattern,
-            layerInversionRelativeRestrictedPattern,
-          ],
+          patterns: [layerInversionRestrictedPattern, layerInversionRelativeRestrictedPattern],
         },
       ],
     },
@@ -207,21 +204,13 @@ export default tseslint.config(
     // allowlist. Non-layer src files only — re-state deep-import so this later
     // no-restricted-imports block does not weaken FE7-0.
     files: ["src/**/*.{ts,tsx}"],
-    ignores: [
-      ...generatedModelsImportAllowlist,
-      "src/components/**",
-      "src/hooks/**",
-      "src/lib/**",
-    ],
+    ignores: [...generatedModelsImportAllowlist, "src/components/**", "src/hooks/**", "src/lib/**"],
     rules: {
       "no-restricted-imports": [
         "error",
         {
           paths: [generatedModelsPathRestriction],
-          patterns: [
-            deepImportRestrictedPattern,
-            generatedModelsRelativeImportPattern,
-          ],
+          patterns: [deepImportRestrictedPattern, generatedModelsRelativeImportPattern],
         },
       ],
     },
@@ -265,11 +254,7 @@ export default tseslint.config(
   {
     // TASK-444-S1: same models freeze for components/hooks/lib, re-stating the
     // layer-inversion boundary (flat config replaces, does not merge, rule options).
-    files: [
-      "src/components/**/*.{ts,tsx}",
-      "src/hooks/**/*.{ts,tsx}",
-      "src/lib/**/*.{ts,tsx}",
-    ],
+    files: ["src/components/**/*.{ts,tsx}", "src/hooks/**/*.{ts,tsx}", "src/lib/**/*.{ts,tsx}"],
     ignores: generatedModelsImportAllowlist,
     rules: {
       "no-restricted-imports": [
@@ -322,5 +307,12 @@ export default tseslint.config(
         },
       ],
     },
-  }
+  },
+  // Tooling entrypoints require default export (Vite/Playwright). Ambient icon modules too.
+  {
+    files: ["vite.config.ts", "playwright.config.ts", "**/*.d.ts"],
+    rules: {
+      "no-restricted-syntax": "off",
+    },
+  },
 );

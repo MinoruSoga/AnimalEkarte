@@ -16,7 +16,9 @@
     "test:e2e:ui": "playwright test --ui",
     "design-audit": "node scripts/design-system-audit.mjs",
     "check-filenames": "node scripts/check-feature-filename-convention.mjs --baseline .filename-baseline",
-    "unused": "knip --reporter compact"
+    "unused": "knip --reporter compact",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -79,6 +81,7 @@
     "knip": "^6.25.0",
     "lighthouse": "^13.4.0",
     "msw": "^2.15.0",
+    "prettier": "^3.9.6",
     "tailwindcss": "^4.3.1",
     "typescript": "~6.0.3",
     "typescript-eslint": "^8.67.0",
