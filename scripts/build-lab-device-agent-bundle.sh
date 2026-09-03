@@ -6,7 +6,7 @@ clinic_id=${1:-}
 allowed_origin=${2:-}
 output_dir=${3:-}
 if [ -z "$clinic_id" ] || [ -z "$allowed_origin" ] || [ -z "$output_dir" ]; then
-  echo "Usage: $0 <clinic-id> <allowed-https-origin> <new-output-directory>" >&2
+  echo "Usage: $0 <clinic-id> <allowed-https-origin> <new-output-directory> [consumer-token]" >&2
   exit 2
 fi
 case "$clinic_id" in
@@ -14,6 +14,15 @@ case "$clinic_id" in
 esac
 if ! allowed_origin=$(node "$repo_dir/scripts/canonicalize-lab-device-origin.mjs" "$allowed_origin"); then
   echo "Allowed origin must use lowercase https with canonical IPv4, non-mapped IPv6, or strict ASCII DNS and an optional numeric port" >&2
+  exit 2
+fi
+consumer_token=${4:-}
+if [ -z "$consumer_token" ]; then
+  consumer_token=${LAB_DEVICE_AGENT_CONSUMER_TOKEN:-}
+fi
+if [ -z "$consumer_token" ]; then
+  echo "Usage: $0 <clinic-id> <allowed-https-origin> <new-output-directory> [consumer-token]" >&2
+  echo "Provide consumer-token as the 4th argument or set LAB_DEVICE_AGENT_CONSUMER_TOKEN" >&2
   exit 2
 fi
 if [ -e "$output_dir" ]; then
@@ -41,7 +50,7 @@ lipo -create \
 chmod 700 "$output_dir/lab-device-agent"
 
 cp "$repo_dir/packaging/macos/com.animalekarte.lab-device-agent.plist" "$output_dir/com.animalekarte.lab-device-agent.plist"
-printf '%s\n%s\n' "$clinic_id" "$allowed_origin" > "$output_dir/lab-device-agent.conf"
+printf '%s\n%s\n%s\n' "$clinic_id" "$allowed_origin" "$consumer_token" > "$output_dir/lab-device-agent.conf"
 chmod 600 "$output_dir/lab-device-agent.conf"
 cp "$repo_dir/packaging/macos/configure-lab-device-agent-plist.sh" "$output_dir/configure-plist.sh"
 chmod 700 "$output_dir/configure-plist.sh"

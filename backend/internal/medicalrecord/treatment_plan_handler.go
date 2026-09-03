@@ -43,6 +43,9 @@ func (h *TreatmentPlanHandler) ListTreatmentPlansByMedicalRecord(c *gin.Context)
 	if !ok {
 		return
 	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceMedicalRecords), "view") {
+		return
+	}
 	id, ok := httpapi.ParseIDParam(c, "id")
 	if !ok {
 		return
@@ -97,6 +100,9 @@ func (h *TreatmentPlanHandler) CreateTreatmentPlanForMedicalRecord(c *gin.Contex
 func (h *TreatmentPlanHandler) ListTreatmentPlansByHospitalization(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
+		return
+	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceHospitalization), "view") {
 		return
 	}
 	id, ok := httpapi.ParseIDParam(c, "id")

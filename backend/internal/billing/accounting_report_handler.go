@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/animal-ekarte/backend/internal/httpapi"
+	"github.com/animal-ekarte/backend/internal/model"
 )
 
 // AccountingReportHandler は AccountingReportService の HTTP handler。
@@ -26,6 +27,9 @@ func NewAccountingReportHandler(svc AccountingReportService, requirePermission P
 func (h *AccountingReportHandler) GetMonthlyReport(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
+		return
+	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceAccountingReports), "view") {
 		return
 	}
 
@@ -59,6 +63,9 @@ func (h *AccountingReportHandler) GetMonthlyReport(c *gin.Context) {
 func (h *AccountingReportHandler) ExportMonthlyCSV(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
+		return
+	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceAccountingReports), "view") {
 		return
 	}
 

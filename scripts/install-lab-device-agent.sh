@@ -5,7 +5,7 @@ repo_dir=$(unset CDPATH; cd -- "$(dirname -- "$0")/.." && pwd)
 clinic_id=${1:-}
 allowed_origin=${2:-}
 if [ -z "$clinic_id" ] || [ -z "$allowed_origin" ]; then
-  echo "Usage: $0 <clinic-id> <allowed-https-origin>" >&2
+  echo "Usage: $0 <clinic-id> <allowed-https-origin> [consumer-token]" >&2
   exit 2
 fi
 case "$clinic_id" in
@@ -13,6 +13,15 @@ case "$clinic_id" in
 esac
 if ! allowed_origin=$(node "$repo_dir/scripts/canonicalize-lab-device-origin.mjs" "$allowed_origin"); then
   echo "Allowed origin must use lowercase https with canonical IPv4, non-mapped IPv6, or strict ASCII DNS and an optional numeric port" >&2
+  exit 2
+fi
+consumer_token=${3:-}
+if [ -z "$consumer_token" ]; then
+  consumer_token=${LAB_DEVICE_AGENT_CONSUMER_TOKEN:-}
+fi
+if [ -z "$consumer_token" ]; then
+  echo "Usage: $0 <clinic-id> <allowed-https-origin> [consumer-token]" >&2
+  echo "Provide consumer-token as the 3rd argument or set LAB_DEVICE_AGENT_CONSUMER_TOKEN" >&2
   exit 2
 fi
 install_dir="$HOME/Library/Application Support/AnimalEkarte"
@@ -56,7 +65,7 @@ docker compose cp "backend:$container_binary" "$binary_tmp"
 chmod 700 "$binary_tmp"
 
 cp "$repo_dir/packaging/macos/com.animalekarte.lab-device-agent.plist" "$plist_tmp"
-"$repo_dir/packaging/macos/configure-lab-device-agent-plist.sh" "$plist_tmp" "$binary_path" "$clinic_id" "$ports_file" "$allowed_origin" \
+"$repo_dir/packaging/macos/configure-lab-device-agent-plist.sh" "$plist_tmp" "$binary_path" "$clinic_id" "$ports_file" "$allowed_origin" "$consumer_token" \
   "$install_dir/lab-device-agent.log" "$install_dir/lab-device-agent.error.log"
 chmod 600 "$plist_tmp"
 

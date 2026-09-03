@@ -9,6 +9,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/httpapi"
+	"github.com/animal-ekarte/backend/internal/model"
 )
 
 // DailyRecordHandler serves the daily-record HTTP boundary. Moved from internal/handler
@@ -27,6 +28,9 @@ func NewDailyRecordHandler(service DailyRecordService) *DailyRecordHandler {
 func (h *DailyRecordHandler) ListDailyRecords(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
+		return
+	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceHospitalization), "view") {
 		return
 	}
 	hospitalizationID, ok := httpapi.ParseIDParam(c, "id")
@@ -49,6 +53,9 @@ func (h *DailyRecordHandler) ListDailyRecords(c *gin.Context) {
 func (h *DailyRecordHandler) GetDailyRecord(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
+		return
+	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceHospitalization), "view") {
 		return
 	}
 	hospitalizationID, ok := httpapi.ParseIDParam(c, "id")

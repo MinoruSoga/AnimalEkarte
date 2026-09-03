@@ -17,17 +17,21 @@ describe("lab device agent client", () => {
         ? { owner: "owner-1" }
         : { frames: [{ id: "frame-1", payload_base64: "Av8D", received_at: "2026-08-20T12:00:00Z" }] },
     ), { status: 200, headers: { "Content-Type": "application/json" } }));
-    const client = createLabDeviceAgentClient(fetcher);
+    const client = createLabDeviceAgentClient("consumer-token", fetcher);
 
     await client.claim("clinic-2");
     await expect(client.frames()).resolves.toEqual([
       { id: "frame-1", payloadBase64: "Av8D", receivedAt: "2026-08-20T12:00:00Z" },
     ]);
     expect(fetcher).toHaveBeenCalledWith(`${LAB_DEVICE_AGENT_URL}/frames`, expect.objectContaining({ method: "GET" }));
+    expect(fetcher).toHaveBeenCalledWith(
+      `${LAB_DEVICE_AGENT_URL}/frames`,
+      expect.objectContaining({ headers: expect.objectContaining({ "X-Lab-Device-Consumer-Token": "consumer-token" }) }),
+    );
   });
 
   it("rejects malformed agent responses", async () => {
-    const client = createLabDeviceAgentClient(async (input) => new Response(
+    const client = createLabDeviceAgentClient("consumer-token", async (input) => new Response(
       JSON.stringify(String(input).endsWith("/claim")
         ? { owner: "owner-1" }
         : { frames: [{ id: "frame-1", payload_base64: 123 }] }),
@@ -60,7 +64,7 @@ describe("lab device agent client", () => {
       }
       return new Response(null, { status: 204 });
     });
-    const client = createLabDeviceAgentClient(fetcher);
+    const client = createLabDeviceAgentClient("consumer-token", fetcher);
 
     await expect(client.health()).resolves.toEqual({
       status: "degraded", openPorts: 2, configuredPorts: 2, pending: 1, rejected: 2, overflow: 3, inputOverflow: 4,
@@ -68,18 +72,32 @@ describe("lab device agent client", () => {
       queueFailures: 7, portCloseFailures: 8,
       responseFailures: 9,
     });
+    expect(fetcher).toHaveBeenCalledWith(
+      `${LAB_DEVICE_AGENT_URL}/health`,
+      expect.objectContaining({ headers: undefined, method: "GET" }),
+    );
     await client.claim("clinic-2");
     await client.ack("frame / 1");
     await client.reject("frame-2");
     expect(fetcher).toHaveBeenCalledWith(
       `${LAB_DEVICE_AGENT_URL}/frames/frame%20%2F%201/ack`,
-      expect.objectContaining({ method: "POST" }),
+      expect.objectContaining({
+        method: "POST",
+        headers: expect.objectContaining({ "X-Lab-Device-Consumer-Token": "consumer-token" }),
+      }),
     );
   });
 
   it("reports non-successful health and decision responses", async () => {
-    const client = createLabDeviceAgentClient(async () => new Response(null, { status: 503 }));
+    const fetcher = vi.fn(async (input: RequestInfo | URL) => {
+      if (String(input).endsWith("/claim")) {
+        return new Response(JSON.stringify({ owner: "owner-1" }), { status: 200 });
+      }
+      return new Response(null, { status: 503 });
+    });
+    const client = createLabDeviceAgentClient("consumer-token", fetcher);
     await expect(client.health()).rejects.toThrow("503");
+    await client.claim("clinic-2");
     await expect(client.ack("frame-1")).rejects.toThrow("503");
   });
 
@@ -98,7 +116,7 @@ describe("lab device agent client", () => {
       }
       return new Response(JSON.stringify({ frames: [] }), { status: 200 });
     });
-    const client = createLabDeviceAgentClient(fetcher);
+    const client = createLabDeviceAgentClient("consumer-token", fetcher);
     await client.claim("clinic-2");
     await client.claim("clinic-2");
     expect(claimCount).toBe(2);
@@ -109,7 +127,7 @@ describe("lab device agent client", () => {
   });
 
   it("rejects an invalid claim response and use before claim", async () => {
-    const client = createLabDeviceAgentClient(async () => new Response(JSON.stringify({ owner: "" }), { status: 200 }));
+    const client = createLabDeviceAgentClient("consumer-token", async () => new Response(JSON.stringify({ owner: "" }), { status: 200 }));
     await expect(client.frames()).rejects.toThrow("not claimed");
     await expect(client.claim("clinic-2")).rejects.toThrow("invalid lab device agent response");
   });

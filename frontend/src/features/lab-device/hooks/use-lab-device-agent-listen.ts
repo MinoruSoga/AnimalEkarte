@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import {
   createLabDeviceAgentClient,
@@ -9,7 +9,6 @@ import {
 
 const POLL_INTERVAL_MS = 750;
 const MAX_RETRY_INTERVAL_MS = 30_000;
-const defaultClient = createLabDeviceAgentClient();
 
 export interface LabDeviceAgentListenStatus {
   connected: boolean;
@@ -67,6 +66,7 @@ function toStatus(health: LabDeviceAgentHealth): LabDeviceAgentListenStatus {
 export function useLabDeviceAgentListen(input: {
   enabled: boolean;
   clinicId: string | null;
+  consumerToken?: string;
   onFrame: (frame: { payloadBase64: string; deviceHint: "auto" }) => Promise<void>;
   client?: LabDeviceAgentClient;
 }): LabDeviceAgentListenStatus {
@@ -78,10 +78,13 @@ export function useLabDeviceAgentListen(input: {
   useLayoutEffect(() => {
     onFrameRef.current = input.onFrame;
   }, [input.onFrame]);
-  const client = input.client ?? defaultClient;
+  const client = useMemo(
+    () => input.client ?? (input.consumerToken ? createLabDeviceAgentClient(input.consumerToken) : undefined),
+    [input.client, input.consumerToken],
+  );
 
   useEffect(() => {
-    if (!input.enabled) {
+    if (!input.enabled || !client) {
       return;
     }
     const controller = new AbortController();

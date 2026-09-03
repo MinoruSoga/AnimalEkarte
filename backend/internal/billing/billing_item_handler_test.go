@@ -398,6 +398,22 @@ func TestGetUnbilledItems(t *testing.T) {
 			wantStatus: http.StatusBadRequest,
 		},
 		{
+			name:  "returns 403 when selected clinic lacks accounting view grant",
+			query: "pet_id=7",
+			setupCtx: func(c *gin.Context) {
+				setClinicID(c)
+				c.Set("clinic_id", "2")
+				setAccountingPermissionOnlyClinic(c, 1, "view")
+			},
+			svc: &mockBillingItemService{
+				getUnbilledItemsFn: func(_ context.Context, _, _ uint64) ([]model.BillingItem, error) {
+					t.Fatal("billing item service must not be reached")
+					return nil, nil
+				},
+			},
+			wantStatus: http.StatusForbidden,
+		},
+		{
 			name:     "returns 500 on service error",
 			query:    "pet_id=7",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
@@ -422,6 +438,47 @@ func TestGetUnbilledItems(t *testing.T) {
 			if tt.wantBody != "" {
 				assert.Contains(t, w.Body.String(), tt.wantBody)
 			}
+		})
+	}
+}
+
+func TestGetUnbilledItemDetails(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		query      string
+		setupCtx   func(c *gin.Context)
+		svc        *mockBillingItemService
+		wantStatus int
+	}{
+		{
+			name:  "returns 403 when selected clinic lacks accounting view grant",
+			query: "pet_id=7",
+			setupCtx: func(c *gin.Context) {
+				setClinicID(c)
+				c.Set("clinic_id", "2")
+				setAccountingPermissionOnlyClinic(c, 1, "view")
+			},
+			svc: &mockBillingItemService{
+				getUnbilledItemDetailsFn: func(_ context.Context, _, _ uint64) (*UnbilledDetails, error) {
+					t.Fatal("billing item service must not be reached")
+					return nil, nil
+				},
+			},
+			wantStatus: http.StatusForbidden,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithBillingItemSvc(tt.svc)
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodGet, "/?"+tt.query, http.NoBody)
+			tt.setupCtx(c)
+			h.GetUnbilledItemDetails(c)
+			assert.Equal(t, tt.wantStatus, w.Code)
 		})
 	}
 }
@@ -469,6 +526,22 @@ func TestGetUngroupedSameDay(t *testing.T) {
 			setupCtx:   func(c *gin.Context) { setClinicID(c) },
 			svc:        &mockBillingItemService{},
 			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:  "returns 403 when selected clinic lacks accounting view grant",
+			query: "pet_id=7",
+			setupCtx: func(c *gin.Context) {
+				setClinicID(c)
+				c.Set("clinic_id", "2")
+				setAccountingPermissionOnlyClinic(c, 1, "view")
+			},
+			svc: &mockBillingItemService{
+				getUngroupedSameDaySummaryFn: func(_ context.Context, _, _ uint64, _ time.Time) (UngroupedSameDaySummary, error) {
+					t.Fatal("billing item service must not be reached")
+					return UngroupedSameDaySummary{}, nil
+				},
+			},
+			wantStatus: http.StatusForbidden,
 		},
 		{
 			name:     "returns 500 on service error",
@@ -539,6 +612,22 @@ func TestGetBillingItemDiscountSuggestions(t *testing.T) {
 			setupCtx:   func(c *gin.Context) { setClinicID(c) },
 			svc:        &mockBillingItemService{},
 			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:    "returns 403 when selected clinic lacks accounting view grant",
+			paramID: "5",
+			setupCtx: func(c *gin.Context) {
+				setClinicID(c)
+				c.Set("clinic_id", "2")
+				setAccountingPermissionOnlyClinic(c, 1, "view")
+			},
+			svc: &mockBillingItemService{
+				getDiscountSuggestionsFn: func(_ context.Context, _, _ uint64) ([]DiscountSuggestion, error) {
+					t.Fatal("billing item service must not be reached")
+					return nil, nil
+				},
+			},
+			wantStatus: http.StatusForbidden,
 		},
 		{
 			name:     "returns 500 on service error",

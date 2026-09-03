@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/animal-ekarte/backend/internal/httpapi"
+	"github.com/animal-ekarte/backend/internal/model"
 
 	"github.com/gin-gonic/gin"
 
@@ -29,6 +30,9 @@ func (h *CageHandler) ListCages(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceMasterHospitalization), "view") {
+		return
+	}
 	cageType := newListCageQuery(c.Request.URL.Query()).toServiceFilter()
 	cages, err := h.service.List(c.Request.Context(), clinicID, cageType)
 	if err != nil {
@@ -42,6 +46,9 @@ func (h *CageHandler) ListCages(c *gin.Context) {
 func (h *CageHandler) GetCage(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
+		return
+	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceMasterHospitalization), "view") {
 		return
 	}
 	id, ok := httpapi.ParseIDParam(c, "id")

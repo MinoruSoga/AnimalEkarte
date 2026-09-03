@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -67,6 +68,65 @@ func (m *mockLabDeviceItemMasterService) SaveConfiguration(context.Context, uint
 
 func newDeviceMasterHandler(svc LabDeviceItemMasterService) *LabImportHandler {
 	return NewLabImportHandler(nil, nil, nil).WithDeviceMasters(svc)
+}
+
+type mockLabDeviceReceiveService struct {
+	boardFn      func(ctx context.Context, clinicID uint64) (*LabDeviceBoard, error)
+	unlinkedFn   func(ctx context.Context, clinicID uint64) ([]LabDeviceJobCard, error)
+	getStationFn func(ctx context.Context, clinicID uint64) (*LabDeviceStationView, error)
+}
+
+func (m *mockLabDeviceReceiveService) ReceiveFrames(context.Context, uint64, []byte, string) (*LabDeviceReceiveResult, error) {
+	return nil, errors.New("not used")
+}
+
+func (m *mockLabDeviceReceiveService) PutWait(context.Context, uint64, uint64, uint64) (*LabDeviceWaitView, error) {
+	return nil, errors.New("not used")
+}
+
+func (m *mockLabDeviceReceiveService) ClearWait(context.Context, uint64) error {
+	return errors.New("not used")
+}
+
+func (m *mockLabDeviceReceiveService) Board(ctx context.Context, clinicID uint64) (*LabDeviceBoard, error) {
+	if m.boardFn == nil {
+		return nil, errors.New("not used")
+	}
+	return m.boardFn(ctx, clinicID)
+}
+
+func (m *mockLabDeviceReceiveService) Unlinked(ctx context.Context, clinicID uint64) ([]LabDeviceJobCard, error) {
+	if m.unlinkedFn == nil {
+		return nil, errors.New("not used")
+	}
+	return m.unlinkedFn(ctx, clinicID)
+}
+
+func (m *mockLabDeviceReceiveService) Attach(context.Context, uint64, uuid.UUID, uint64) (*LabDeviceJobCard, error) {
+	return nil, errors.New("not used")
+}
+
+func (m *mockLabDeviceReceiveService) Detach(context.Context, uint64, uuid.UUID) (*LabDeviceJobCard, error) {
+	return nil, errors.New("not used")
+}
+
+func (m *mockLabDeviceReceiveService) GetStation(ctx context.Context, clinicID uint64) (*LabDeviceStationView, error) {
+	if m.getStationFn == nil {
+		return nil, errors.New("not used")
+	}
+	return m.getStationFn(ctx, clinicID)
+}
+
+func (m *mockLabDeviceReceiveService) PutStation(context.Context, uint64, string) (*LabDeviceStationView, error) {
+	return nil, errors.New("not used")
+}
+
+func setSelectedClinicWithoutLabImportGrant(c *gin.Context, action string) {
+	setClinicID(c)
+	c.Set("clinic_id", "2")
+	c.Set("is_system_admin", false)
+	c.Set("clinic_ids", []uint64{1, 2})
+	setResourcePermissionOnlyClinic(c, 1, string(model.ResourceLabImport), action)
 }
 
 func TestListLabDeviceItemMasters_MissingClinicID(t *testing.T) {
@@ -242,4 +302,90 @@ func TestUpdateLabDevice_OK(t *testing.T) {
 	assert.Equal(t, "院内NX", body.Name)
 	require.NotNil(t, body.ExamTypeID)
 	assert.Equal(t, examTypeID, *body.ExamTypeID)
+}
+
+func TestListLabDeviceItemMasters_SelectedClinicLacksViewGrant(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	h := newDeviceMasterHandler(&mockLabDeviceItemMasterService{
+		listFn: func(context.Context, uint64, string) ([]model.LabDeviceItemMaster, error) {
+			t.Fatal("lab device item master List must not be reached")
+			return nil, errors.New("not used")
+		},
+	})
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodGet, "/api/v1/lab-device-item-masters", http.NoBody)
+	setSelectedClinicWithoutLabImportGrant(c, "view")
+	h.ListLabDeviceItemMasters(c)
+	assert.Equal(t, http.StatusForbidden, w.Code)
+}
+
+func TestListLabDevices_SelectedClinicLacksViewGrant(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	h := newDeviceMasterHandler(&mockLabDeviceItemMasterService{
+		listDevicesFn: func(context.Context, uint64) ([]model.LabDevice, error) {
+			t.Fatal("lab device ListDevices must not be reached")
+			return nil, errors.New("not used")
+		},
+	})
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodGet, "/api/v1/lab-devices", http.NoBody)
+	setSelectedClinicWithoutLabImportGrant(c, "view")
+	h.ListLabDevices(c)
+	assert.Equal(t, http.StatusForbidden, w.Code)
+}
+
+func TestGetLabDeviceBoard_SelectedClinicLacksCreateGrant(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	h := NewLabImportHandler(nil, nil, nil).
+		WithDeviceMasters(&mockLabDeviceItemMasterService{}).
+		WithDeviceReceive(&mockLabDeviceReceiveService{
+			boardFn: func(context.Context, uint64) (*LabDeviceBoard, error) {
+				t.Fatal("lab device receive Board must not be reached")
+				return nil, errors.New("not used")
+			},
+		})
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodGet, "/api/v1/lab-device/board", http.NoBody)
+	setSelectedClinicWithoutLabImportGrant(c, "create")
+	h.GetLabDeviceBoard(c)
+	assert.Equal(t, http.StatusForbidden, w.Code)
+}
+
+func TestGetLabDeviceUnlinked_SelectedClinicLacksViewGrant(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	h := NewLabImportHandler(nil, nil, nil).
+		WithDeviceMasters(&mockLabDeviceItemMasterService{}).
+		WithDeviceReceive(&mockLabDeviceReceiveService{
+			unlinkedFn: func(context.Context, uint64) ([]LabDeviceJobCard, error) {
+				t.Fatal("lab device receive Unlinked must not be reached")
+				return nil, errors.New("not used")
+			},
+		})
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodGet, "/api/v1/lab-device/unlinked", http.NoBody)
+	setSelectedClinicWithoutLabImportGrant(c, "view")
+	h.GetLabDeviceUnlinked(c)
+	assert.Equal(t, http.StatusForbidden, w.Code)
+}
+
+func TestGetLabDeviceStation_SelectedClinicLacksViewGrant(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	h := NewLabImportHandler(nil, nil, nil).
+		WithDeviceMasters(&mockLabDeviceItemMasterService{}).
+		WithDeviceReceive(&mockLabDeviceReceiveService{
+			getStationFn: func(context.Context, uint64) (*LabDeviceStationView, error) {
+				t.Fatal("lab device receive GetStation must not be reached")
+				return nil, errors.New("not used")
+			},
+		})
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodGet, "/api/v1/lab-device/station", http.NoBody)
+	setSelectedClinicWithoutLabImportGrant(c, "view")
+	h.GetLabDeviceStation(c)
+	assert.Equal(t, http.StatusForbidden, w.Code)
 }

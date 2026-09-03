@@ -8,6 +8,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/httpapi"
+	"github.com/animal-ekarte/backend/internal/model"
 )
 
 // CheckupTypeHandler serves the CheckupType master HTTP boundary.
@@ -26,6 +27,9 @@ func (h *CheckupTypeHandler) ListCheckupTypes(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceCheckups), "view") {
+		return
+	}
 	checkupTypes, err := h.service.List(c.Request.Context(), clinicID)
 	if err != nil {
 		httpapi.RespondError(c, err)
@@ -38,6 +42,9 @@ func (h *CheckupTypeHandler) ListCheckupTypes(c *gin.Context) {
 func (h *CheckupTypeHandler) GetCheckupType(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
+		return
+	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceCheckups), "view") {
 		return
 	}
 	id, ok := httpapi.ParseIDParam(c, "id")

@@ -960,3 +960,55 @@ func newDeleteHospitalizationRouter(svc HospitalizationService) *gin.Engine {
 //    - Test DischargeWithBilling transaction (discharge + accounting creation)
 //    - Test date validation (start_date <= end_date)
 //
+
+// SEC-CODEX-UHQPM2 selected-clinic grant
+func TestHospitalizationSelectedClinicGrant(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name   string
+		invoke func(*HospitalizationHandler, *gin.Context)
+		svc    *mockHospitalizationService
+	}{
+		{
+			name: "ListHospitalizations returns 403 when selected clinic lacks hospitalization view grant",
+			invoke: func(h *HospitalizationHandler, c *gin.Context) {
+				h.ListHospitalizations(c)
+			},
+			svc: &mockHospitalizationService{
+				listFn: func(_ context.Context, _ uint64, _, _ *uint64, _, _, _ *string, _, _ int) ([]model.Hospitalization, int64, error) {
+					t.Fatal("service must not be reached")
+					return nil, 0, nil
+				},
+			},
+		},
+		{
+			name: "GetHospitalization returns 403 when selected clinic lacks hospitalization view grant",
+			invoke: func(h *HospitalizationHandler, c *gin.Context) {
+				h.GetHospitalization(c)
+			},
+			svc: &mockHospitalizationService{
+				getByIDFn: func(_ context.Context, _, _ uint64) (*model.Hospitalization, error) {
+					t.Fatal("service must not be reached")
+					return nil, nil
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithHospitalizationSvc(tt.svc)
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+			c.Params = gin.Params{{Key: "id", Value: "10"}}
+			setClinicID(c)
+			c.Set("clinic_id", "2")
+			c.Set("is_system_admin", false)
+			setResourcePermissionOnlyClinic(c, 1, string(model.ResourceHospitalization), "view")
+			tt.invoke(h, c)
+			assert.Equal(t, http.StatusForbidden, w.Code)
+		})
+	}
+}

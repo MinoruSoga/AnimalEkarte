@@ -1340,3 +1340,55 @@ func TestPostLabImportPreview_AuditNilSafe(t *testing.T) {
 	assert.NotPanics(t, func() { h.PreviewLabImport(c) })
 	assert.Equal(t, http.StatusOK, w.Code)
 }
+
+// SEC-CODEX-UHQPM2 selected-clinic grant
+func TestLabImportJobSelectedClinicGrant(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name   string
+		invoke func(*LabImportHandler, *gin.Context)
+		job    *stubLabImportJobServiceForHandler
+	}{
+		{
+			name: "GetLabImportJob returns 403 when selected clinic lacks lab-import view grant",
+			invoke: func(h *LabImportHandler, c *gin.Context) {
+				h.GetLabImportJob(c)
+			},
+			job: &stubLabImportJobServiceForHandler{
+				getJobFn: func(_ context.Context, _ uint64, _ uuid.UUID) (*model.LabImportJob, error) {
+					t.Fatal("service must not be reached")
+					return nil, nil
+				},
+			},
+		},
+		{
+			name: "ListLabImportEvents returns 403 when selected clinic lacks lab-import view grant",
+			invoke: func(h *LabImportHandler, c *gin.Context) {
+				h.ListLabImportEvents(c)
+			},
+			job: &stubLabImportJobServiceForHandler{
+				listEventsFn: func(_ context.Context, _ uint64, _ uuid.UUID) ([]*model.LabImportEvent, error) {
+					t.Fatal("service must not be reached")
+					return nil, nil
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithLabSvc(nil, tt.job)
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+			c.Params = gin.Params{{Key: "job_id", Value: uuid.New().String()}}
+			setClinicID(c)
+			c.Set("clinic_id", "2")
+			c.Set("is_system_admin", false)
+			setResourcePermissionOnlyClinic(c, 1, string(model.ResourceLabImport), "view")
+			tt.invoke(h, c)
+			assert.Equal(t, http.StatusForbidden, w.Code)
+		})
+	}
+}

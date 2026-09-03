@@ -59,27 +59,30 @@ async function decideFrame(
   fetcher: Fetcher,
   id: string,
   decision: "ack" | "reject",
-  clinicId: string,
-  owner: string,
   signal?: AbortSignal,
+  headers?: HeadersInit,
 ): Promise<void> {
   const response = await fetcher(
     `${LAB_DEVICE_AGENT_URL}/frames/${encodeURIComponent(id)}/${decision}`,
-    { method: "POST", signal, headers: { "X-Clinic-ID": clinicId, "X-Lab-Device-Owner": owner } },
+    { method: "POST", signal, headers },
   );
   if (!response.ok) {
     throw new Error(`lab device agent decision failed: ${response.status}`);
   }
 }
 
-export function createLabDeviceAgentClient(fetcher: Fetcher = fetch): LabDeviceAgentClient {
+export function createLabDeviceAgentClient(consumerToken: string, fetcher: Fetcher = fetch): LabDeviceAgentClient {
   let owner = "";
   let clinicId = "";
   const consumerHeaders = (): HeadersInit => {
     if (owner === "" || clinicId === "") {
       throw new Error("lab device agent consumer is not claimed");
     }
-    return { "X-Clinic-ID": clinicId, "X-Lab-Device-Owner": owner };
+    return {
+      "X-Clinic-ID": clinicId,
+      "X-Lab-Device-Owner": owner,
+      "X-Lab-Device-Consumer-Token": consumerToken,
+    };
   };
   return {
     claim: async (nextClinicId, signal) => {
@@ -88,6 +91,7 @@ export function createLabDeviceAgentClient(fetcher: Fetcher = fetch): LabDeviceA
         signal,
         headers: {
           "Content-Type": "application/json",
+          "X-Lab-Device-Consumer-Token": consumerToken,
           ...(owner !== "" && clinicId === nextClinicId ? { "X-Lab-Device-Owner": owner } : {}),
         },
         body: JSON.stringify({ clinic_id: nextClinicId }),
@@ -159,8 +163,8 @@ export function createLabDeviceAgentClient(fetcher: Fetcher = fetch): LabDeviceA
         };
       });
     },
-    ack: (id, signal) => decideFrame(fetcher, id, "ack", clinicId, owner, signal),
-    reject: (id, signal) => decideFrame(fetcher, id, "reject", clinicId, owner, signal),
+    ack: (id, signal) => decideFrame(fetcher, id, "ack", signal, consumerHeaders()),
+    reject: (id, signal) => decideFrame(fetcher, id, "reject", signal, consumerHeaders()),
   };
 }
 

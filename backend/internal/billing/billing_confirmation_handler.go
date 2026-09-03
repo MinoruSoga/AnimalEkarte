@@ -12,6 +12,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/httpapi"
+	"github.com/animal-ekarte/backend/internal/model"
 )
 
 // BillingConfirmationHandler は BillingConfirmationService の HTTP handler。
@@ -30,6 +31,9 @@ func NewBillingConfirmationHandler(svc BillingConfirmationService, requirePermis
 func (h *BillingConfirmationHandler) GetBillingConfirmation(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
+		return
+	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceAccounting), "view") {
 		return
 	}
 

@@ -708,3 +708,55 @@ func TestReorderHospitalizationPlans(t *testing.T) {
 //    - Test FK constraint (hospitalization_id must exist)
 //    - Verify clinic_id inheritance from parent hospitalization
 //
+
+// SEC-CODEX-UHQPM2 selected-clinic grant
+func TestHospitalizationPlanSelectedClinicGrant(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name   string
+		invoke func(*HospitalizationPlanHandler, *gin.Context)
+		svc    *mockHospitalizationPlanService
+	}{
+		{
+			name: "ListHospitalizationPlans returns 403 when selected clinic lacks master-hospitalization view grant",
+			invoke: func(h *HospitalizationPlanHandler, c *gin.Context) {
+				h.ListHospitalizationPlans(c)
+			},
+			svc: &mockHospitalizationPlanService{
+				listFn: func(_ context.Context, _ uint64) ([]model.HospitalizationPlan, error) {
+					t.Fatal("service must not be reached")
+					return nil, nil
+				},
+			},
+		},
+		{
+			name: "GetHospitalizationPlan returns 403 when selected clinic lacks master-hospitalization view grant",
+			invoke: func(h *HospitalizationPlanHandler, c *gin.Context) {
+				h.GetHospitalizationPlan(c)
+			},
+			svc: &mockHospitalizationPlanService{
+				getByIDFn: func(_ context.Context, _, _ uint64) (*model.HospitalizationPlan, error) {
+					t.Fatal("service must not be reached")
+					return nil, nil
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithHospitalizationPlanSvc(tt.svc)
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+			c.Params = gin.Params{{Key: "id", Value: "10"}}
+			setClinicID(c)
+			c.Set("clinic_id", "2")
+			c.Set("is_system_admin", false)
+			setResourcePermissionOnlyClinic(c, 1, string(model.ResourceMasterHospitalization), "view")
+			tt.invoke(h, c)
+			assert.Equal(t, http.StatusForbidden, w.Code)
+		})
+	}
+}

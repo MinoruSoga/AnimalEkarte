@@ -815,3 +815,55 @@ func TestAddStaffNote(t *testing.T) {
 //    - Test cascade behavior for child records (vitals, medications, care logs)
 //    - Verify clinic_id inheritance from parent hospitalization
 //
+
+// SEC-CODEX-UHQPM2 selected-clinic grant
+func TestDailyRecordSelectedClinicGrant(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name   string
+		invoke func(*DailyRecordHandler, *gin.Context)
+		svc    *mockDailyRecordService
+	}{
+		{
+			name: "ListDailyRecords returns 403 when selected clinic lacks hospitalization view grant",
+			invoke: func(h *DailyRecordHandler, c *gin.Context) {
+				h.ListDailyRecords(c)
+			},
+			svc: &mockDailyRecordService{
+				listFn: func(_ context.Context, _, _ uint64) ([]model.DailyRecord, error) {
+					t.Fatal("service must not be reached")
+					return nil, nil
+				},
+			},
+		},
+		{
+			name: "GetDailyRecord returns 403 when selected clinic lacks hospitalization view grant",
+			invoke: func(h *DailyRecordHandler, c *gin.Context) {
+				h.GetDailyRecord(c)
+			},
+			svc: &mockDailyRecordService{
+				getByDateFn: func(_ context.Context, _, _ uint64, _ time.Time) (*model.DailyRecord, error) {
+					t.Fatal("service must not be reached")
+					return nil, nil
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithDailyRecordSvc(tt.svc)
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+			c.Params = gin.Params{{Key: "id", Value: "10"}, {Key: "date", Value: "2026-05-01"}}
+			setClinicID(c)
+			c.Set("clinic_id", "2")
+			c.Set("is_system_admin", false)
+			setResourcePermissionOnlyClinic(c, 1, string(model.ResourceHospitalization), "view")
+			tt.invoke(h, c)
+			assert.Equal(t, http.StatusForbidden, w.Code)
+		})
+	}
+}

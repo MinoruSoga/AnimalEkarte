@@ -92,6 +92,22 @@ func TestGetCashRegisterPreview(t *testing.T) {
 			wantStatus: http.StatusUnauthorized,
 		},
 		{
+			name:  "returns 403 when selected clinic lacks cash-register-close view grant",
+			query: "date=2026-05-28&period=am",
+			setupCtx: func(c *gin.Context) {
+				setClinicID(c)
+				c.Set("clinic_id", "2")
+				setResourcePermissionOnlyClinic(c, 1, string(model.ResourceCashRegisterClose), "view")
+			},
+			svc: &mockCashRegisterService{
+				getPreviewFn: func(_ context.Context, _ uint64, _, _ string) (*CashRegisterPreview, error) {
+					t.Fatal("cash register service must not be reached")
+					return nil, nil
+				},
+			},
+			wantStatus: http.StatusForbidden,
+		},
+		{
 			name:     "returns 500 on service error",
 			query:    "date=2026-05-28&period=am",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
@@ -259,6 +275,22 @@ func TestListCashRegisterCloses(t *testing.T) {
 			wantStatus: http.StatusUnauthorized,
 		},
 		{
+			name:  "returns 403 when selected clinic lacks cash-register-close view grant",
+			query: "start_date=2026-05-01&end_date=2026-05-31&page=1&limit=10",
+			setupCtx: func(c *gin.Context) {
+				setClinicID(c)
+				c.Set("clinic_id", "2")
+				setResourcePermissionOnlyClinic(c, 1, string(model.ResourceCashRegisterClose), "view")
+			},
+			svc: &mockCashRegisterService{
+				listFn: func(_ context.Context, _ uint64, _, _ *time.Time, _, _ int) ([]model.CashRegisterClose, int64, error) {
+					t.Fatal("cash register service must not be reached")
+					return nil, 0, nil
+				},
+			},
+			wantStatus: http.StatusForbidden,
+		},
+		{
 			name:       "returns 400 on invalid start_date filter",
 			query:      "start_date=2026/05/01",
 			setupCtx:   func(c *gin.Context) { setClinicID(c) },
@@ -340,6 +372,22 @@ func TestGetCashRegisterClose(t *testing.T) {
 			setupCtx:   func(c *gin.Context) { setClinicID(c) },
 			svc:        &mockCashRegisterService{},
 			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:    "returns 403 when selected clinic lacks cash-register-close view grant",
+			paramID: "1",
+			setupCtx: func(c *gin.Context) {
+				setClinicID(c)
+				c.Set("clinic_id", "2")
+				setResourcePermissionOnlyClinic(c, 1, string(model.ResourceCashRegisterClose), "view")
+			},
+			svc: &mockCashRegisterService{
+				getByIDFn: func(_ context.Context, _, _ uint64) (*model.CashRegisterClose, error) {
+					t.Fatal("cash register service must not be reached")
+					return nil, nil
+				},
+			},
+			wantStatus: http.StatusForbidden,
 		},
 		{
 			name:     "returns 404 on service error",

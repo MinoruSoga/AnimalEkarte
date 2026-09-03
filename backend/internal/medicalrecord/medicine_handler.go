@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/animal-ekarte/backend/internal/httpapi"
+	"github.com/animal-ekarte/backend/internal/model"
 
 	"github.com/gin-gonic/gin"
 
@@ -31,6 +32,9 @@ func (h *MedicineHandler) ListMedicines(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceMasterMedical), "view") {
+		return
+	}
 
 	// マスタ系は全件返却（他マスタと統一）。service.List のページネーション引数は固定値で全件取得。
 	medicines, _, err := h.service.List(c.Request.Context(), clinicID, 1, medicineListMaxLimit)
@@ -45,6 +49,9 @@ func (h *MedicineHandler) ListMedicines(c *gin.Context) {
 func (h *MedicineHandler) GetMedicine(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
+		return
+	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceMasterMedical), "view") {
 		return
 	}
 	id, ok := httpapi.ParseIDParam(c, "id")

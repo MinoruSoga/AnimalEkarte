@@ -8,6 +8,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/httpapi"
+	"github.com/animal-ekarte/backend/internal/model"
 )
 
 // PrescriptionHandler serves the Prescription (per-medical-record 処方薬記録) HTTP boundary.
@@ -24,6 +25,9 @@ func NewPrescriptionHandler(service PrescriptionService) *PrescriptionHandler {
 func (h *PrescriptionHandler) ListPrescriptions(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
+		return
+	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceMedicalRecords), "view") {
 		return
 	}
 

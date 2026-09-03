@@ -190,3 +190,43 @@ func TestCreateMedicalRecordAddendum(t *testing.T) {
 		})
 	}
 }
+
+// SEC-CODEX-UHQPM2 selected-clinic grant
+func TestListMedicalRecordAddendaSelectedClinicGrant(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name   string
+		invoke func(*MedicalRecordAddendumHandler, *gin.Context)
+		svc    *mockMedicalRecordAddendumService
+	}{
+		{
+			name: "ListMedicalRecordAddenda returns 403 when selected clinic lacks medical record view grant",
+			invoke: func(h *MedicalRecordAddendumHandler, c *gin.Context) {
+				h.ListMedicalRecordAddenda(c)
+			},
+			svc: &mockMedicalRecordAddendumService{
+				findByMedicalRecordIDFn: func(_ context.Context, _, _ uint64) ([]*model.MedicalRecordAddendum, error) {
+					t.Fatal("service must not be reached")
+					return nil, nil
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithAddendumSvc(tt.svc)
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+			c.Params = gin.Params{{Key: "id", Value: "10"}}
+			setClinicID(c)
+			c.Set("clinic_id", "2")
+			c.Set("is_system_admin", false)
+			setResourcePermissionOnlyClinic(c, 1, string(model.ResourceMedicalRecords), "view")
+			tt.invoke(h, c)
+			assert.Equal(t, http.StatusForbidden, w.Code)
+		})
+	}
+}

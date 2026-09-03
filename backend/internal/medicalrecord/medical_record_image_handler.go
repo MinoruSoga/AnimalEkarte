@@ -66,6 +66,9 @@ func (h *MedicalRecordImageHandler) ListMedicalRecordImages(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceMedicalRecords), "view") {
+		return
+	}
 	medicalRecordID, ok := httpapi.ParseIDParam(c, "id")
 	if !ok {
 		return
