@@ -36,11 +36,11 @@ export const paths = {
     },
     detail: {
       path: "/owners/:id",
-      getHref: (id: string | number) => `/owners/${id}`,
+      getHref: (id: string | number) => `/owners/${encodeURIComponent(id)}`,
       // #158: 飼主単位カルテレポート（別ウィンドウ / Layout 外スタンドアロン）
       report: {
         path: "/owners/:id/report",
-        getHref: (id: string | number) => `/owners/${id}/report`,
+        getHref: (id: string | number) => `/owners/${encodeURIComponent(id)}/report`,
       },
     },
   },
@@ -68,7 +68,7 @@ export const paths = {
     },
     detail: {
       path: "/medical-records/:id",
-      getHref: (id: string | number) => `/medical-records/${id}`,
+      getHref: (id: string | number) => `/medical-records/${encodeURIComponent(id)}`,
     },
   },
 
@@ -85,11 +85,11 @@ export const paths = {
     },
     detail: {
       path: "/hospitalization/:id",
-      getHref: (id: string | number) => `/hospitalization/${id}`,
+      getHref: (id: string | number) => `/hospitalization/${encodeURIComponent(id)}`,
     },
     edit: {
       path: "/hospitalization/:id/edit",
-      getHref: (id: string | number) => `/hospitalization/${id}/edit`,
+      getHref: (id: string | number) => `/hospitalization/${encodeURIComponent(id)}/edit`,
     },
   },
 
@@ -106,7 +106,7 @@ export const paths = {
     },
     detail: {
       path: "/trimming/:id",
-      getHref: (id: string | number) => `/trimming/${id}`,
+      getHref: (id: string | number) => `/trimming/${encodeURIComponent(id)}`,
     },
   },
 
@@ -133,7 +133,7 @@ export const paths = {
     },
     detail: {
       path: "/examinations/:id",
-      getHref: (id: string | number) => `/examinations/${id}`,
+      getHref: (id: string | number) => `/examinations/${encodeURIComponent(id)}`,
     },
   },
 
@@ -163,7 +163,7 @@ export const paths = {
     },
     detail: {
       path: "/accounting/:id",
-      getHref: (id: string | number) => `/accounting/${id}`,
+      getHref: (id: string | number) => `/accounting/${encodeURIComponent(id)}`,
     },
     // FEAT-368: 締め・集計
     close: {
@@ -193,7 +193,7 @@ export const paths = {
     },
     detail: {
       path: "/vaccinations/:id",
-      getHref: (id: string | number) => `/vaccinations/${id}`,
+      getHref: (id: string | number) => `/vaccinations/${encodeURIComponent(id)}`,
     },
   },
 
@@ -206,7 +206,7 @@ export const paths = {
     },
     detail: {
       path: "/inventory/:id",
-      getHref: (id: string | number) => `/inventory/${id}`,
+      getHref: (id: string | number) => `/inventory/${encodeURIComponent(id)}`,
     },
   },
 
@@ -219,11 +219,11 @@ export const paths = {
     },
     detail: {
       path: "/estimates/:id",
-      getHref: (id: string | number) => `/estimates/${id}`,
+      getHref: (id: string | number) => `/estimates/${encodeURIComponent(id)}`,
     },
     edit: {
       path: "/estimates/:id/edit",
-      getHref: (id: string | number) => `/estimates/${id}/edit`,
+      getHref: (id: string | number) => `/estimates/${encodeURIComponent(id)}/edit`,
     },
   },
 
@@ -237,7 +237,8 @@ export const paths = {
     getHref: () => "/manual",
     article: {
       path: "/manual/:category/:slug",
-      getHref: (category: string, slug: string) => `/manual/${category}/${slug}`,
+      getHref: (category: string, slug: string) =>
+        `/manual/${encodeURIComponent(category)}/${encodeURIComponent(slug)}`,
     },
   },
 
