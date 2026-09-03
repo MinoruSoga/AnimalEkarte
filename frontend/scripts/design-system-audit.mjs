@@ -4,7 +4,7 @@
  * 判定内容:
  *   C1 — legacy 構造色（`C.accent` / 旧 accent `#2383E2`）禁止。brand/primary teal と臨床 semantic 色を許可。
  *   C3 — hex 直書き（文字列/テンプレートリテラル内）禁止。定義正本 `design-tokens.ts` / `shared-liff/brand-tokens.ts` は除外。
- *   C5 — CTA の `colorVariant` は semantic primary、brand、互換 default のみ。
+ *   C5 — CTA の `colorVariant` は semantic primary、brand、destructive、互換 default のみ。
  *   C6 — rgba()/rgb()/hsla()/hsl() の直値禁止（doc §1 の臨床安全 C6a とは ID 分離: 本スクリプトは C6b）。
  *   C7 — PageLayout maxWidth の生値禁止（`max-w-full` / `max-w-[Npx]`）。トークン経由のみ。
  *   C8 — `src/features/<feat>/routes/<file>.tsx` が PageLayout / Master*Page / allowlist のいずれか。
@@ -50,7 +50,7 @@ const COLOR_MAP_REL_PATH = path.join("src", "hooks", "use-reservation-type-color
 const C1_RE = /C\.accent\b|#2383E2/i;
 const C3_RE = /['"`]#[0-9A-Fa-f]{3,8}['"`]|(?:(?:[a-z-]+):)*(?:bg|text|border|ring|outline|fill|stroke|decoration)-\[#[0-9A-Fa-f]{3,8}\](?:\/[0-9]+)?/;
 const C5_RE = /colorVariant="([a-zA-Z]+)"/g;
-const C5_ALLOWED_VALUES = new Set(["default", "primary", "brand"]);
+const C5_ALLOWED_VALUES = new Set(["default", "primary", "brand", "destructive"]);
 const C6_RE = /rgba?\(|hsla?\(/;
 const C7_RE = /maxWidth=["']max-w-(full|\[[0-9]+px\])["']/;
 const C9_RE = /rounded(?:-[trbl]{1,2})?-\[[0-9]+px\]/
@@ -123,6 +123,8 @@ export const C8_ROUTE_HELPER_ALLOWLIST = new Set([
   path.join("src", "features", "shifts", "routes", "ShiftTemplateSettings.tsx"),
   path.join("src", "features", "trimming", "routes", "TrimmingForm.tsx"),
   path.join("src", "features", "trimming", "routes", "TrimmingList.tsx"),
+  path.join("src", "features", "trimming", "routes", "trimming-form-body-columns.tsx"),
+  path.join("src", "features", "trimming", "routes", "trimming-form-panels.tsx"),
   path.join("src", "features", "vaccinations", "routes", "VaccinationForm.tsx"),
   path.join("src", "features", "vaccinations", "routes", "VaccinationListPanels.tsx"),
 ]);

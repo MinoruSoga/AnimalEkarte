@@ -480,3 +480,105 @@ rg -c '\b(text|bg|border|ring)-(red|blue|green|gray|yellow|amber|orange|emerald|
 # 全体 lint（禁止コマンド — 手動で）
 docker compose exec frontend pnpm lint
 ```
+
+## 7. 実施記録
+
+キャンペーンブランチ: `refactor/fe-rc-2026-09`（base `57e8d1da1`）。Phase 0 + L1〜L8 merge + Phase 2（055 / feature-import ban / baselines）。push なし。claim: `claim/FE-RC-CAMPAIGN-2026-09`（ユーザー解放待ち）。
+
+| ID | Status | Changed files / notes | Verification |
+|----|--------|----------------------|--------------|
+| FE-RC-001 | DONE | accounting/estimates/clinic-settings permissionsRef | vitest accounting/estimates + rg isMutationAllowed |
+| FE-RC-002 | DONE | examinations/checkups/hospitalization/estimates render-side death block | vitest deceased tests |
+| FE-RC-003 | DONE | vaccination-form-model + ReservationFormModal todayJSTISO | vitest vaccination + ReservationFormModal |
+| FE-RC-004 | DONE | paired with 002 reason UI / ActionState.error | adjacent tests |
+| FE-RC-005 | DONE | callers dropped duplicate toast across lanes | representative vitest |
+| FE-RC-006 | DONE | ClinicHolidayModal useActionState | L6 commit |
+| FE-RC-007 | DONE | UnlinkedLineIdForm form action | L5 merge |
+| FE-RC-008 | DONE | MedicalRecordVaccination useActionState | vitest vaccination-form |
+| FE-RC-009 | DONE | TriggerPriority/LstepTag forms | L6 |
+| FE-RC-010 | DONE | RefundSection/EstimateDetail Action | L1 |
+| FE-RC-011 | DONE | IdentityLinks useQuery + hooks | L7 vitest hooks |
+| FE-RC-012 | DONE | lab-device onError ×5 | vitest lab-device.test |
+| FE-RC-013 | DONE | lstep/line-reservation/DatePicker tokens | design tokens + L7/L8 |
+| FE-RC-014 | DONE | shared-liff brand = PALETTE.brand | brand-tokens.test |
+| FE-RC-015 | DONE | promotions + eslint ban (owner-report allowlist exception) | eslint rule + awk residual only allowlisted |
+| FE-RC-016 | DONE | master/clinic-settings hooks moved | L7 |
+| FE-RC-017 | BLOCKED | .tsx PascalCase ratchet baseline 44（未全リネーム） | check-filenames baseline |
+| FE-RC-018 | DONE | pet-checkup-results → owner-report | Phase 0 |
+| FE-RC-019 | DONE | AuthProvider split | Phase 0 |
+| FE-RC-020 | DONE | types/checkup.ts | Phase 0 |
+| FE-RC-021 | DONE | IdentityLinks ternary + validStrategies | Phase 0 eslint |
+| FE-RC-022 | DONE | CarePlan/DailyVitals/cash-register forms | L3/L1 |
+| FE-RC-023 | DONE | SubmitButton destructive | L8 + audit C5 |
+| FE-RC-024 | DONE | line-reserve useTransition cancel | L8 |
+| FE-RC-025 | BLOCKED | memo inline handlers 一部未完 | remaining MEDIUM |
+| FE-RC-026 | DONE | mutate deps 分解（hospitalization/master） | L3/L7 |
+| FE-RC-027 | DONE | ExamStatusBadge / care-plan-item-model / phone / JST | L2/L3/L4/Phase0 |
+| FE-RC-028 | DONE | useUrlPageSync consumers | rg useUrlPageSync |
+| FE-RC-029 | DONE | use-master-side-panel-form | L7 |
+| FE-RC-030 | DONE | useLayoutEffect ref sync | L1/L7 |
+| FE-RC-031 | BLOCKED | NavigationBlocker stale cleanup 未確認 | — |
+| FE-RC-032 | DONE | partial (shifts/settings/ReservationFormModal) | L6/L8 |
+| FE-RC-033 | DONE | examination pet sync 一元化 | L2 |
+| FE-RC-034 | DONE | frontend handle-api-error DEV warn 等; BE code 拡張は out of scope | Remaining risks |
+| FE-RC-035 | DONE | lab-device-serial onError/reason | L3 |
+| FE-RC-036 | DONE | form-data helper + major callers; residual casts remain | Phase0 + lanes; residual BLOCKED subset |
+| FE-RC-037 | DONE | ShiftType guards 等 | L6 |
+| FE-RC-038 | DONE | ! 削減（cash-register/accounting/hospitalization） | L1/L3 |
+| FE-RC-039 | DONE | estimate handleChange generics | L1 |
+| FE-RC-040 | DONE | STYLE.formInput/sidePeekInput + section fixes | Phase0/L6/L8 |
+| FE-RC-041 | DONE | Refund/Payment/EditRow a11y | L1/L3 |
+| FE-RC-042 | DONE | aria-label icons | L6/L7 |
+| FE-RC-043 | DONE | Reception KeyboardSensor | L5 |
+| FE-RC-044 | DONE | Pagination/SortableHeader/Board/ExamItems | L8/L2/L3 |
+| FE-RC-045 | DONE | major splits (IdentityLinks/ExaminationForm/trimming panels) | L2/L6/L7 |
+| FE-RC-046 | DONE | saveReservation/accounting/reservation-actions splits | L1/L5/L8 |
+| FE-RC-047 | DONE | IdentityLinks split | L7 |
+| FE-RC-048 | DONE | tax rates / placeholders | L1/L4 |
+| FE-RC-049 | DONE | magic numbers constants (partial) | lanes |
+| FE-RC-050 | DONE | TagPairSection | L6 |
+| FE-RC-051 | DONE | liff/line-reserve semantic tokens | L8 |
+| FE-RC-052 | DONE | bg-white/border tokens (partial + printBorder) | L1/L8 |
+| FE-RC-053 | DONE | provider/CODING_RULES AuthProvider docs | L8 |
+| FE-RC-054 | DONE | import order manual sort (plugin deferred) | lanes |
+| FE-RC-055 | DONE | useGetMasterItems | Phase2 ceea7e2a2 |
+| FE-RC-056 | BLOCKED | use-vaccinations rename 未実施 | — |
+| FE-RC-057 | DONE | ActionState shared type | L1/L2 |
+| FE-RC-058 | DONE | estimates quotes | L1 |
+| FE-RC-059 | DONE | features/CLAUDE lib/constants 許容 + hospitalization move | L3/L8 docs |
+| FE-RC-060 | DONE | feature-import ban docs+eslint | Phase2 |
+| FE-RC-061 | DONE | CODING_RULES stale paths cleaned | L8 |
+| FE-RC-062 | DONE | manual/CLAUDE.md | L7 |
+| FE-RC-063 | DONE | provider/stale comments | L8 |
+| FE-RC-064 | BLOCKED | useCallback-in-return checkup 未確認 | — |
+| FE-RC-065 | BLOCKED | curried useCallback line-reservation 未確認 | — |
+| FE-RC-066 | DONE | OwnerForm JSON.stringify deps | L5 |
+| FE-RC-067 | DONE | PaymentCard keys | L1 |
+| FE-RC-068 | BLOCKED | ManualContent components map 未確認 | — |
+| FE-RC-069 | BLOCKED | RowActionDropdown stopPropagation 未確認 | — |
+| FE-RC-070 | N/A | 記録のみ（座標依存 onClick） | fe-refactor |
+| FE-RC-071 | BLOCKED | use-fetch-state loading 派生化 未実施 | — |
+| FE-RC-072 | DONE | LineSendPanel duplicate | L5 |
+| FE-RC-073 | DONE | validation toast→fieldErrors settings | L6 |
+| FE-RC-074 | DONE | catch comments examinations | L2 |
+| FE-RC-075 | BLOCKED | handle-api-error generic message 未確認 | — |
+| FE-RC-076 | DONE | axios redirectToLoginWithFrom | L8 |
+| FE-RC-077 | BLOCKED | shared-liff/dev-log 未実施 | — |
+| FE-RC-078 | DONE | lab-device localStorage try | L3 |
+| FE-RC-079 | DONE | clinicPath encode | L8 |
+| FE-RC-080 | DONE | paths.getHref encode | L8 |
+| FE-RC-081 | BLOCKED | query-keys detail prefix 注記 一部 | — |
+| FE-RC-082 | DONE | QUERY_STALE_TIMES.SESSION/NONE | Phase0 |
+| FE-RC-083 | DONE | dead code removals | lanes |
+| FE-RC-084 | BLOCKED | ExamPivotTable TODO STATUS.md 未移設 | — |
+| FE-RC-085 | DONE | nested ternary cleanups | lanes |
+| FE-RC-086 | DONE | LstepTag inline style | L6 |
+| FE-RC-087 | DONE | VitalsTab JST path | L4 |
+| FE-RC-088 | N/A | 違反ではない | fe-refactor |
+| FE-RC-089 | N/A | 記録のみ | fe-refactor |
+
+### 検証要約（統合後）
+- Critical vitest (HIGH surfaces): 19 files / 166 tests PASS
+- Allowlist gate vs 57e8d1da1: PASS
+- feature-import ban + FE-RC-055: commits `7a8f3e487` / `ceea7e2a2`
+- 全体ゲート (`pnpm type-check` / `lint` / `test:run` / `build`): **未実行**（AGENTS.md 禁止・ユーザー明示許可なし）→ 手動実行待ち
