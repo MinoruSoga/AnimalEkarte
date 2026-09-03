@@ -96,7 +96,7 @@ func (q listPetQuery) toServiceFilters() (listPetFilters, error) {
 type createPetRequest struct {
 	OwnerID         uint64    `json:"owner_id"          binding:"required"`
 	AnimalSpeciesID uint64    `json:"animal_species_id" binding:"required"`
-	Name            string    `json:"name"              binding:"required"`
+	Name            string    `json:"name"              binding:"required,max=255"`
 	NameKana        string    `json:"name_kana"        binding:"omitempty,max=100"`
 	Gender          string    `json:"gender"            binding:"omitempty,oneof=male female unknown"`
 	Status          string    `json:"status"            binding:"omitempty,oneof=alive deceased"`
@@ -149,7 +149,7 @@ type updatePetRequest struct {
 	OwnerID         *uint64 `json:"owner_id"`
 	AnimalSpeciesID *uint64 `json:"animal_species_id"`
 	PetNumber       *string `json:"pet_number"` // 自動採番後も手動変更可
-	Name            *string `json:"name"`
+	Name            *string `json:"name"              binding:"omitempty,max=255"`
 	NameKana        *string `json:"name_kana"        binding:"omitempty,max=100"`
 	Gender          *string `json:"gender"            binding:"omitempty,oneof=male female unknown"`
 	// Status は意図的に持たない(BUG-415)。status の書込は Create と /:id/death
