@@ -22,6 +22,8 @@ import { usePetSelection } from "@/hooks/use-pet-selection";
 import { useGetClinicHolidays } from "@/hooks/use-clinic-holidays";
 import { useGetOwnerLineTags } from "@/hooks/use-owner-line-tags";
 import { useGetReservation } from "@/hooks/use-get-reservation";
+import { isValidOwnerPhone } from "@/lib/phone";
+import { formatJSTWallDate, isPastJSTDate } from "@/lib/jst-date";
 import type { NewOwnerFormData } from "@/types/reservation-form";
 
 // Relative
@@ -45,10 +47,17 @@ const EMPTY_NEW_OWNER: NewOwnerFormData = {
   animalSpeciesId: 0,
 };
 const RESERVATION_FORM_DESCRIPTION_ID = "reservation-form-description";
-const OWNER_PHONE_CHARACTERS = /^[0-9+ ()-]+$/;
+const PAST_DATE_ERROR_MESSAGE = "本日以降の日付を選択してください";
 
-function isValidOwnerPhone(phone: string): boolean {
-  return OWNER_PHONE_CHARACTERS.test(phone) && phone.replace(/\D/g, "").length >= 10;
+/**
+ * FE-RC-003: 新規予約の日付は JST の暦日で判定する。
+ * `formData.start` は DatePicker のローカル正午 parse 契約（jst-date.ts 冒頭コメント参照）で
+ * 生成されるため、ローカル getter（`formatJSTWallDate`）でそのまま JST 暦日文字列化できる。
+ * ブラウザの実タイムゾーンに関わらず同じ判定結果になる。
+ */
+function isReservationStartPastJST(start: Date | undefined): boolean {
+  if (!start) return false;
+  return isPastJSTDate(formatJSTWallDate(start));
 }
 
 interface ReservationFormModalProps {
@@ -210,12 +219,8 @@ export const ReservationFormModal = memo(function ReservationFormModal({
       if (formData.start && formData.end && formData.end <= formData.start) {
         errors.time = "終了時刻は開始時刻より後に設定してください";
       }
-      if (!isEditMode && formData.start) {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const reservationDate = new Date(formData.start);
-        reservationDate.setHours(0, 0, 0, 0);
-        if (reservationDate < today) errors.date = "本日以降の日付を選択してください";
+      if (!isEditMode && isReservationStartPastJST(formData.start)) {
+        errors.date = PAST_DATE_ERROR_MESSAGE;
       }
 
       if (Object.keys(noe).length > 0 || Object.keys(errors).length > 0) {
@@ -247,15 +252,9 @@ export const ReservationFormModal = memo(function ReservationFormModal({
     if (formData.start && formData.end && formData.end <= formData.start) {
       errors.time = "終了時刻は開始時刻より後に設定してください";
     }
-    // BUG-098: 新規予約は過去日付不可
-    if (!isEditMode && formData.start) {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const reservationDate = new Date(formData.start);
-      reservationDate.setHours(0, 0, 0, 0);
-      if (reservationDate < today) {
-        errors.date = "本日以降の日付を選択してください";
-      }
+    // BUG-098: 新規予約は過去日付不可（JST 暦日で判定。FE-RC-003）
+    if (!isEditMode && isReservationStartPastJST(formData.start)) {
+      errors.date = PAST_DATE_ERROR_MESSAGE;
     }
 
     if (Object.keys(errors).length > 0) {

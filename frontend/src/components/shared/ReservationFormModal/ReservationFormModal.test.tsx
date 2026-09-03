@@ -413,6 +413,97 @@ describe("ReservationFormModal — 新規飼主モード (Issue #51)", () => {
   }, 15000);
 });
 
+// ─────────────────────────────────────────────────────────────
+// FE-RC-003: 過去日付判定は JST の暦日で行う（ブラウザの実タイムゾーンに依存しない）
+// ─────────────────────────────────────────────────────────────
+
+describe("ReservationFormModal — 過去日付検証 (FE-RC-003, JST基準)", () => {
+  const ORIGINAL_TZ = process.env.TZ;
+
+  afterEach(() => {
+    process.env.TZ = ORIGINAL_TZ;
+    vi.useRealTimers();
+  });
+
+  it("実TZがJSTより1日遅れていても、JST暦日で今日より前の予約は過去日付エラーになる", async () => {
+    server.use(...silentApiHandlers);
+
+    // 実UTC now: 2026-05-21T16:00:00Z → JST暦日は 2026-05-22、America/Los_Angeles(PDT)暦日は 2026-05-21
+    // Date のみ fake 化し、setTimeout/setInterval は実時間のまま（waitFor/findBy* を阻害しない）
+    process.env.TZ = "America/Los_Angeles";
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date(Date.UTC(2026, 4, 21, 16, 0, 0)));
+
+    // DatePicker のローカル正午 parse 契約に合わせ、ローカル wall-clock で "2026-05-21" を意図した Date を構築。
+    // 旧実装（ブラウザローカル日で truncate 比較）だと LA では「今日と同じ日」= 過去ではないと誤判定する。
+    const initialData: Partial<Reservation> = {
+      start: new Date(2026, 4, 21, 10, 0, 0),
+      end: new Date(2026, 4, 21, 11, 0, 0),
+      visitType: "first",
+      doctor: "",
+      isDesignated: false,
+      status: "confirmed",
+    };
+
+    render(
+      <ReservationFormModal
+        isOpen={true}
+        onClose={noop}
+        onSave={noop}
+        initialData={initialData}
+        canCreate={true}
+        canEdit={false}
+      />,
+      { wrapper: createWrapper() }
+    );
+
+    const user = userEvent.setup({ delay: null });
+    await user.click(screen.getByRole("button", { name: "予約を確定" }));
+
+    expect(await screen.findByText("本日以降の日付を選択してください")).toBeInTheDocument();
+  });
+
+  it("実TZがJSTより1日進んでいても、JST暦日で今日以降の予約は過去日付エラーにならない", async () => {
+    server.use(...silentApiHandlers);
+
+    // 実UTC now: 2026-05-20T16:00:00Z → JST暦日は 2026-05-21。
+    // Pacific/Kiritimati (UTC+14) のローカル暦日は 2026-05-21 06:00 相当で同じ 05-21 だが、
+    // 旧実装は「実行環境のローカル日」に依存するため、TZ次第で判定がぶれること自体が問題だった。
+    // JST基準に固定した新実装は、意図した JST 暦日（05-21 = 今日）に対して常に非過去と判定する。
+    process.env.TZ = "Pacific/Kiritimati";
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date(Date.UTC(2026, 4, 20, 16, 0, 0)));
+
+    const initialData: Partial<Reservation> = {
+      start: new Date(2026, 4, 21, 10, 0, 0),
+      end: new Date(2026, 4, 21, 11, 0, 0),
+      visitType: "first",
+      doctor: "",
+      isDesignated: false,
+      status: "confirmed",
+    };
+
+    render(
+      <ReservationFormModal
+        isOpen={true}
+        onClose={noop}
+        onSave={noop}
+        initialData={initialData}
+        canCreate={true}
+        canEdit={false}
+      />,
+      { wrapper: createWrapper() }
+    );
+
+    const user = userEvent.setup({ delay: null });
+    // 既存飼主モードのまま確定 → 患者未選択/区分未選択エラーは出るが、過去日付エラーは出ない
+    await user.click(screen.getByRole("button", { name: "予約を確定" }));
+
+    expect(await screen.findByText("患者を選択してください")).toBeInTheDocument();
+    expect(screen.queryByText("本日以降の日付を選択してください")).not.toBeInTheDocument();
+  });
+});
+
 describe("ReservationFormModal — 担当者候補", () => {
   it("対応可能コースを持つスタッフだけを担当者候補に残す（肯定形 capability）", async () => {
     localStorage.setItem("auth_current_clinic:v1", "1");
