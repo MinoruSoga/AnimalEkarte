@@ -1,33 +1,27 @@
-// React/Framework
 import { useState, useCallback, useDeferredValue, useEffect, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router";
-
-// Hooks
-import { useSortableData } from "@/hooks/use-sortable-data";
-import { useModalState } from "@/hooks/use-modal-state";
-import { uniqueSortedOptions } from "@/lib/unique-sorted-options";
-
-// External
 import { toast } from "sonner";
 
-// Types
-import type { ActiveFilter, FilterProperty } from "@/components/shared/PropertyFilter/types";
-
-// Internal
 import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
-import { usePagination } from "@/hooks/use-pagination";
-import { useUrlPageSync } from "@/hooks/use-url-page-sync";
-import { useStaffValidation } from "@/hooks/use-staff-validation";
-import type { TrimmingUI } from "@/types";
 import { paths } from "@/config/paths";
-
-// Relative
-import { useFilterTrimmingRecords } from "../hooks/use-trimming-records";
-import type { TrimmingFilters } from "../api/get-trimmings";
+import { useModalState } from "@/hooks/use-modal-state";
+import { usePagination } from "@/hooks/use-pagination";
 import { usePermission } from "@/hooks/use-permission";
-import { handleApiError } from "@/lib/handle-api-error";
+import { useSortableData } from "@/hooks/use-sortable-data";
+import { useStaffValidation } from "@/hooks/use-staff-validation";
+import { useUrlPageSync } from "@/hooks/use-url-page-sync";
+import { uniqueSortedOptions } from "@/lib/unique-sorted-options";
+
 import { buildTrimmingDynamicFilterProperties } from "../components/trimming-list-table-model";
+import { useFilterTrimmingRecords } from "../hooks/use-trimming-records";
 import { TrimmingListContent } from "./TrimmingListPanels";
+
+import type { ActiveFilter, FilterProperty } from "@/components/shared/PropertyFilter/types";
+import type { TrimmingUI } from "@/types";
+import type { TrimmingFilters } from "../api/get-trimmings";
+
+// FE-RC-049: 1ページあたりの表示件数（一覧共通の既定値と同じ）
+const TRIMMING_PAGE_SIZE = 10;
 
 export function TrimmingList() {
   const navigate = useNavigate();
@@ -75,7 +69,7 @@ export function TrimmingList() {
     startIndex,
     endIndex,
     goToPage,
-  } = usePagination(sortedData, { pageSize: 10, resetKey: [deferredKeyword, JSON.stringify(activeFilters)].join("|") });
+  } = usePagination(sortedData, { pageSize: TRIMMING_PAGE_SIZE, resetKey: [deferredKeyword, JSON.stringify(activeFilters)].join("|") });
 
   const urlPage = Number(searchParams.get("page") ?? 1);
 
@@ -123,13 +117,12 @@ export function TrimmingList() {
 
   const handleDeleteConfirm = useCallback(() => {
     if (deleteTargetId && deleteTargetLabel) {
+      // FE-RC-005: onError は指定しない。useDeleteTrimming の onError
+      // （api/delete-trimming.ts）が handleApiError 済みで、ここで重ねると二重 toast になる。
       deleteRecord(deleteTargetId, {
         onSuccess: () => {
           toast.success("削除しました", { description: deleteTargetLabel });
           closeDeleteModal();
-        },
-        onError: (error) => {
-          handleApiError(error, "トリミング削除");
         },
       });
     }

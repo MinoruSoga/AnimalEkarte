@@ -14,25 +14,18 @@ import {
 } from "./trimming-form-model";
 
 import { Button } from "@/components/ui/button";
-import { PatientInfoCard, formatPatientPetDetails } from "@/components/shared/PatientInfoCard";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
-import { FormFieldError } from "@/components/shared/FormFieldError/FormFieldError";
 import { FormHeaderActions } from "@/components/shared/Form/FormHeaderActions";
-import { formatDate } from "@/lib/format/date";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
 import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
 import { ICON, C, LAYOUT } from "@/lib/design-tokens";
 import { ResourceTrimming } from "@/types/generated/models";
 import type { MasterItem, SortOrder } from "@/types";
 import type { TrimmingFormData } from "@/types/trimming";
-import {
-  TrimmingLeftColumn,
-  TrimmingMiddleColumn,
-  TrimmingRightColumn,
-} from "../components/trimming-form-columns";
 import type { TrimmingHistoryItem } from "../components/trimming-form-column-types";
 import { ConfirmDialog, MasterSelectModal } from "./TrimmingLazyModals";
 import { TRIMMING_FORM_ID, type TrimmingFormGate, type TrimmingSelectableItem } from "./trimming-form-model";
+import { TrimmingFormColumns, type TrimmingPatient } from "./trimming-form-body-columns";
 
 // eslint-disable-next-line react-refresh/only-export-components -- 150行分割で page chrome hook を panels と同居
 export function useTrimmingFormChrome(input: {
@@ -161,20 +154,6 @@ export function TrimmingFormStatusView({
       <ErrorFallback message="トリミング記録が見つかりません" />
     </PageLayout>
   );
-}
-
-interface TrimmingPatient {
-  ownerName: string;
-  name: string;
-  petNumber?: string;
-  weight?: string;
-  species?: string;
-  birthDate?: string;
-  gender?: string;
-  neuteredDate?: string;
-  insuranceName?: string;
-  insuranceDetails?: string;
-  status?: string;
 }
 
 interface TrimmingFormBodyProps {
@@ -362,130 +341,5 @@ export function TrimmingFormBody({
       </Suspense>
       </form>
     </PageLayout>
-  );
-}
-
-function TrimmingFormColumns({
-  selectedPet,
-  formData,
-  fieldErrors,
-  courses,
-  options,
-  styleImagePreview,
-  completedImagePreview,
-  sortedHistory,
-  isHistoryLoading,
-  historySearchTerm,
-  historySortOrder,
-  historyDateRange,
-  showInitialStatusSelector,
-  onFormChange,
-  onOpenCourseModal,
-  onOpenStaffModal,
-  onStyleImageChange,
-  onCompletedImageChange,
-  onRemoveStyleImage,
-  onRemoveCompletedImage,
-  onHistorySearchTermChange,
-  onHistorySortOrderChange,
-  onHistoryClear,
-  onHistoryStartDateChange,
-  onHistoryEndDateChange,
-  onHistoryClick,
-}: {
-  selectedPet: TrimmingPatient;
-  formData: TrimmingFormData;
-  fieldErrors: Record<string, string>;
-  courses: TrimmingSelectableItem[];
-  options: TrimmingSelectableItem[];
-  styleImagePreview: string | null;
-  completedImagePreview: string | null;
-  sortedHistory: TrimmingHistoryItem[];
-  isHistoryLoading: boolean;
-  historySearchTerm: string;
-  historySortOrder: SortOrder;
-  historyDateRange: { from: string; to: string };
-  showInitialStatusSelector: boolean;
-  onFormChange: (updates: Partial<TrimmingFormData>) => void;
-  onOpenCourseModal: () => void;
-  onOpenStaffModal: () => void;
-  onStyleImageChange: (event: ChangeEvent<HTMLInputElement>) => void;
-  onCompletedImageChange: (event: ChangeEvent<HTMLInputElement>) => void;
-  onRemoveStyleImage: () => void;
-  onRemoveCompletedImage: () => void;
-  onHistorySearchTermChange: (value: string) => void;
-  onHistorySortOrderChange: (value: SortOrder) => void;
-  onHistoryClear: () => void;
-  onHistoryStartDateChange: (value: string) => void;
-  onHistoryEndDateChange: (value: string) => void;
-  onHistoryClick: (updates: Partial<TrimmingFormData>) => void;
-}) {
-  return (
-    <div className="space-y-6">
-      <PatientInfoCard
-        ownerName={selectedPet.ownerName}
-        petName={selectedPet.name}
-        petNumber={selectedPet.petNumber || ""}
-        weight={selectedPet.weight || ""}
-        staffName={formData.staffName}
-        staffLabel="担当医"
-        staffButtonId="staffId"
-        reservationType="トリミング"
-        petDetails={formatPatientPetDetails({
-          species: selectedPet.species,
-          birthDate: selectedPet.birthDate,
-          gender: selectedPet.gender,
-          neuteredDate: selectedPet.neuteredDate,
-        })}
-        insuranceName={selectedPet.insuranceName}
-        insuranceDetails={selectedPet.insuranceDetails}
-        status={selectedPet.status === "死亡" ? "deceased" : "alive"}
-        nextVisitDate={formData.nextDate ? formatDate(formData.nextDate) : undefined}
-        onStaffClick={onOpenStaffModal}
-      />
-      {fieldErrors.staffId ? (
-        <FormFieldError message={fieldErrors.staffId} />
-      ) : null}
-      {fieldErrors.reservationTypeId ? (
-        <FormFieldError message={fieldErrors.reservationTypeId} />
-      ) : null}
-
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
-        <div className="space-y-6 lg:col-span-3">
-        <TrimmingLeftColumn
-          formData={formData}
-          courses={courses}
-          options={options}
-          styleImagePreview={styleImagePreview}
-          onFormChange={onFormChange}
-          onCourseModalOpen={onOpenCourseModal}
-          onStyleImageChange={onStyleImageChange}
-          onRemoveStyleImage={onRemoveStyleImage}
-          courseError={fieldErrors.courseId}
-          showInitialStatusSelector={showInitialStatusSelector}
-        />
-        <TrimmingMiddleColumn
-          formData={formData}
-          completedImagePreview={completedImagePreview}
-          onFormChange={onFormChange}
-          onCompletedImageChange={onCompletedImageChange}
-          onRemoveCompletedImage={onRemoveCompletedImage}
-        />
-        </div>
-        <TrimmingRightColumn
-          sortedHistory={sortedHistory}
-          isHistoryLoading={isHistoryLoading}
-          historySearchTerm={historySearchTerm}
-          historySortOrder={historySortOrder}
-          historyDateRange={historyDateRange}
-          onSearchTermChange={onHistorySearchTermChange}
-          onSortOrderChange={onHistorySortOrderChange}
-          onClear={onHistoryClear}
-          onFilterStartDateChange={onHistoryStartDateChange}
-          onFilterEndDateChange={onHistoryEndDateChange}
-          onHistoryClick={onHistoryClick}
-        />
-      </div>
-    </div>
   );
 }
