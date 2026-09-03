@@ -98,7 +98,7 @@ function useGetMasterItemsByCategory(category: string) {
 }
 
 /** Read-only master data hook for cross-feature consumption. Returns filtered items by category. */
-export function useMasterItems(category?: string, searchTerm?: string) {
+export function useGetMasterItems(category?: string, searchTerm?: string) {
   const resolvedCategory = category && category !== "all" ? category : "";
   const { data: categoryItems = [], isLoading } = useGetMasterItemsByCategory(resolvedCategory);
 

@@ -48,7 +48,7 @@ vi.mock("@/hooks/use-permission", () => ({
 }));
 
 vi.mock("@/hooks/use-master-items", () => ({
-  useMasterItems: () => ({ data: [], isLoading: false }),
+  useGetMasterItems: () => ({ data: [], isLoading: false }),
 }));
 
 vi.mock("@/hooks/use-staffs", () => ({

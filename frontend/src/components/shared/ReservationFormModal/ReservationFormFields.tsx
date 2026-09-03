@@ -1,6 +1,6 @@
 import { memo, useMemo, useCallback, useState } from "react";
 import { isBefore, startOfDay, format } from "date-fns";
-import { useMasterItems } from "@/hooks/use-master-items";
+import { useGetMasterItems } from "@/hooks/use-master-items";
 import { getCurrentClinicId, useGetReservationTypesGrouped, useGetOnDutyStaffs, useGetReservationStaffs, useGetReservationAvailableTimes } from "@/hooks/use-reservation-types";
 import { useGetUnavailableTimes } from "@/hooks/use-reservation-type-unavailable-times";
 import { DISPLAY_TIME_FORMAT } from "@/lib/format/date";
@@ -57,7 +57,7 @@ export const ReservationFormFields = memo(function ReservationFormFields({
     return false;
   }, [holidayDates]);
 
-  const { data: staffItems } = useMasterItems("staff");
+  const { data: staffItems } = useGetMasterItems("staff");
   // useMemo で参照を安定化（staffOptions の deps が毎レンダー新参照を受け取るのを防ぐ）
   const activeStaff = useMemo(() => staffItems.filter((s) => s.status === "active"), [staffItems]);
 

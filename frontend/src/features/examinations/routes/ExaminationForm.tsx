@@ -13,7 +13,7 @@ import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
 import { Button } from "@/components/ui/button";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { C, LAYOUT } from "@/lib/design-tokens";
-import { useMasterItems } from "@/hooks/use-master-items";
+import { useGetMasterItems } from "@/hooks/use-master-items";
 import { useGetStaffs } from "@/hooks/use-staffs";
 import { paths } from "@/config/paths";
 import { usePermission } from "@/hooks/use-permission";
@@ -54,7 +54,7 @@ function ExaminationFormContent({ id }: { id: string | undefined }) {
   const { canEdit: canUnconfirm } = usePermission(ResourceExaminationUnconfirm);
 
   const { data: examTypesRaw, isLoading: examTypesLoading } =
-    useMasterItems("examination");
+    useGetMasterItems("examination");
   // BUG-005: typed staff source keeps staffType/isActive; generic master transform drops them.
   const { data: staffsRaw = [], isLoading: staffLoading } = useGetStaffs();
   const masterLoading = examTypesLoading || staffLoading;

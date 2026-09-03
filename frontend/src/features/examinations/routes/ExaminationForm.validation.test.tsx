@@ -39,7 +39,7 @@ vi.mock("@/hooks/use-permission", () => ({
 }));
 
 vi.mock("@/hooks/use-master-items", () => ({
-  useMasterItems: (category: string) => {
+  useGetMasterItems: (category: string) => {
     if (category === "examination") {
       return {
         data: [{ id: 5, name: "血液検査（院内）" }],

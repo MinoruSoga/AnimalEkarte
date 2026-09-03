@@ -2,7 +2,7 @@ import { Suspense, useCallback, useEffect, useMemo, useState, type ChangeEvent }
 import { useNavigate } from "react-router";
 import { Scissors, Trash2 } from "lucide-react";
 
-import { useMasterItems } from "@/hooks/use-master-items";
+import { useGetMasterItems } from "@/hooks/use-master-items";
 import { useGetTrimmingCourseTypes } from "@/hooks/use-trimming-course-types";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { paths } from "@/config/paths";
@@ -38,9 +38,9 @@ export function useTrimmingFormChrome(input: {
   handleDelete: (onSuccess: () => void) => void;
 }) {
   const navigate = useNavigate();
-  const { data: coursesRaw = [] } = useMasterItems("trimmingCourse");
-  const { data: optionsRaw = [] } = useMasterItems("trimmingOption");
-  const { data: staffItems = [] } = useMasterItems("staff");
+  const { data: coursesRaw = [] } = useGetMasterItems("trimmingCourse");
+  const { data: optionsRaw = [] } = useGetMasterItems("trimmingOption");
+  const { data: staffItems = [] } = useGetMasterItems("staff");
   const { data: courseTypes = [] } = useGetTrimmingCourseTypes();
   const courseTypeNameById = useMemo(
     () => new Map(courseTypes.map((type) => [type.id, type.name])),

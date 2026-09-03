@@ -28,7 +28,7 @@ vi.mock("@/hooks/use-permission", () => ({
 }));
 
 vi.mock("@/hooks/use-master-items", () => ({
-  useMasterItems: () => ({ data: [] }),
+  useGetMasterItems: () => ({ data: [] }),
 }));
 
 vi.mock("@/hooks/use-staffs", () => ({

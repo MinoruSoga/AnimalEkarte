@@ -18,7 +18,7 @@ vi.mock("@/hooks/use-permission", () => ({
 }));
 
 vi.mock("@/hooks/use-master-items", () => ({
-  useMasterItems: vi.fn(() => ({
+  useGetMasterItems: vi.fn(() => ({
     data: [{ id: "cage-1", name: "ケージ1", category: "犬舎", price: 0, status: "active" as const }],
     isLoading: false,
     error: null,

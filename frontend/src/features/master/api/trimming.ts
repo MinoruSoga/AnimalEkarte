@@ -116,7 +116,7 @@ export type TrimmingOption = ReturnType<typeof transformTrimmingOption>;
 // Query keys
 // ─────────────────────────────────────────────────
 
-// P8: useMasterItems("trimmingCourse") と queryKey を統一（キャッシュ無効化が機能するため）
+// P8: useGetMasterItems("trimmingCourse") と queryKey を統一（キャッシュ無効化が機能するため）
 // ─────────────────────────────────────────────────
 // API functions - TrimmingCourse
 // ─────────────────────────────────────────────────

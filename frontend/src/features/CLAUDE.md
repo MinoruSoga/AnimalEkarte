@@ -39,3 +39,10 @@ import { useOwners } from '@/features/owners/hooks/use-owners';
 | API 関数 | kebab-case.ts | `get-owners.ts`, `create-owner.ts` |
 | API フック | `useGet/useCreate/useUpdate/useDelete` + 名詞 | `useGetOwners`, `useCreateOwner` |
 | フォームフック | `use` + 名詞 + `Form` | `useOwnerForm` |
+
+## 命名例外 (FE-RC-055・2026-09-03)
+
+`useGet` 命名は「バックエンドを直接 fetch する query hook」に適用する。以下は対象外:
+
+- **派生値 facade**: `useAnimalSpecies`（`src/hooks/use-animal-species.ts`）・`useClinicTaxRates`（`src/hooks/use-clinic-tax-rates.ts`）・`useCurrentClinicName`（`src/hooks/use-current-clinic-name.ts`）は、内部で `useQuery`/`useAuth` を呼びラベル付与・フォールバック計算・整形などの派生値を返す facade であり、生の fetch wrapper ではない。`useGet` は「取得のみ」を意味するため、派生値を返す facade には付けない。内部の生 fetch 部分（例: `useAnimalSpecies` 内の `useGetAnimalSpecies`）には `useGet` を付けてよい。
+- **mutation 動詞**: `useCreate/useUpdate/useDelete` 以外にも業務動詞が固有な mutation hook は動詞そのものを使ってよい（例: `usePutLabDeviceWait`、`useClearLabDeviceWait`、`useReceiveLabDeviceFrames`、`useAttachLabDeviceJob`、`useDetachLabDeviceJob`、`useUnconfirmExamination`、`useReplacePetSubOwners`）。`useCreate/useUpdate/useDelete` に強引に当てはめて業務語彙を失わない。

@@ -11,7 +11,7 @@ import { updateHospitalization } from "../api/update-hospitalization";
 import { useHospitalizationList } from "./use-hospitalization-list";
 
 vi.mock("@/hooks/use-master-items", () => ({
-  useMasterItems: () => ({ data: [] }),
+  useGetMasterItems: () => ({ data: [] }),
 }));
 
 vi.mock("../api/update-hospitalization", () => ({

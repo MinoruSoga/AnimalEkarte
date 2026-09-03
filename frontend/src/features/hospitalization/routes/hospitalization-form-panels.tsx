@@ -3,7 +3,7 @@ import { useNavigate } from "react-router";
 import { FileText, Trash2, MessageSquare, AlertCircle } from "lucide-react";
 
 import { paths } from "@/config/paths";
-import { useMasterItems } from "@/hooks/use-master-items";
+import { useGetMasterItems } from "@/hooks/use-master-items";
 import { useGetStaffs } from "@/hooks/use-staffs";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { useGetHospitalizations } from "../api/get-hospitalizations";
@@ -54,7 +54,7 @@ export function useHospitalizationFormChrome(input: {
   treatmentPlans: HospitalizationTreatmentPlan[];
 }) {
   const navigate = useNavigate();
-  const { data: cageItems } = useMasterItems("cage");
+  const { data: cageItems } = useGetMasterItems("cage");
   const { data: staffs = [] } = useGetStaffs();
   const [staffModalOpen, setStaffModalOpen] = useState(false);
   const { isDirty, markDirty, markClean } = useUnsavedChanges();

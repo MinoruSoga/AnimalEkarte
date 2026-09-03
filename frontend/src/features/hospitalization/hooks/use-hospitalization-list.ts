@@ -5,7 +5,7 @@ import { updateHospitalization } from "../api/update-hospitalization";
 import { handleApiError } from "@/lib/handle-api-error";
 import { paths } from "@/config/paths";
 import { queryKeys } from "@/lib/query-keys";
-import { useMasterItems } from "@/hooks/use-master-items";
+import { useGetMasterItems } from "@/hooks/use-master-items";
 import { HospitalizationFilterStatus, HOSPITALIZATION_FILTER_STATUS, HOSPITALIZATION_STATUS } from "../constants";
 import type { Hospitalization } from "@/types";
 
@@ -34,7 +34,7 @@ export const useHospitalizationList = (canEdit = false) => {
     canEditRef.current = canEdit;
   }, [canEdit]);
 
-  const { data: cages } = useMasterItems("cage");
+  const { data: cages } = useGetMasterItems("cage");
 
   // React Query キャッシュから現在の入院データを取得してケージ移動を処理する。
   // optimistic update は行わず、updateHospitalization 後の invalidateQueries で UI を更新する。
