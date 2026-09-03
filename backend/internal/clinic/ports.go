@@ -1,3 +1,5 @@
+// Package clinic owns clinic, company, holiday, and closing-settings HTTP,
+// use-case, and persistence as one ADR-006 vertical slice.
 package clinic
 
 import (
@@ -29,11 +31,9 @@ type ClinicDependencyCount struct {
 // ClinicRepository is the compatibility provider API used by clinic and current
 // staff/auth consumers. Clinic use cases depend on the narrower clinicServiceRepository.
 //
-// BE-RC-008 freeze (Phase 0): consumer-facing ClinicRepository must not keep
-// generic Update(map[string]any). W8 replaces that method with typed
-// UpdateClinic using UpdateClinicInput (existing clinic service DTO). Map
-// conversion stays in BuildClinicUpdate. clinicServiceRepository may keep map
-// until W8 lands.
+// Consumer updates are typed UpdateClinic(*UpdateClinicInput). Map conversion
+// stays in BuildClinicUpdate; clinicRepository.Update applies that map through
+// DBOrTx and is not part of the consumer interface.
 type ClinicRepository interface {
 	FindAll(ctx context.Context) ([]model.Clinic, error)
 	FindByStaffID(ctx context.Context, staffID uint64) ([]model.Clinic, error)
@@ -42,7 +42,7 @@ type ClinicRepository interface {
 	LockByIDForUpdate(ctx context.Context, id uint64) (*model.Clinic, error)
 	FindCompany(ctx context.Context) (*model.Company, error)
 	Create(ctx context.Context, clinic *model.Clinic) error
-	Update(ctx context.Context, id uint64, fields map[string]any) error
+	UpdateClinic(ctx context.Context, id uint64, input *UpdateClinicInput) error
 	Delete(ctx context.Context, id uint64) error
 	CountOwnersByClinicID(ctx context.Context, clinicID uint64) (int64, error)
 	CountStaffByClinicID(ctx context.Context, clinicID uint64) (int64, error)
@@ -56,7 +56,7 @@ type clinicServiceRepository interface {
 	LockByIDForUpdate(ctx context.Context, id uint64) (*model.Clinic, error)
 	FindCompany(ctx context.Context) (*model.Company, error)
 	Create(ctx context.Context, clinic *model.Clinic) error
-	Update(ctx context.Context, id uint64, fields map[string]any) error
+	UpdateClinic(ctx context.Context, id uint64, input *UpdateClinicInput) error
 	Delete(ctx context.Context, id uint64) error
 	CountOwnersByClinicID(ctx context.Context, clinicID uint64) (int64, error)
 	CountStaffByClinicID(ctx context.Context, clinicID uint64) (int64, error)
