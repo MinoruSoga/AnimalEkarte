@@ -1,34 +1,22 @@
-// React/Framework
-import { C, ICON, LAYOUT } from "@/lib/design-tokens";
 import { useState, useDeferredValue, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useTransition } from "react";
 import { useNavigate, useSearchParams } from "react-router";
-
-// Hooks
-import { useSortableData } from "@/hooks/use-sortable-data";
-
-// External
 import { Plus, Syringe } from "lucide-react";
 import { toast } from "sonner";
 
-// Internal
-import { paths } from "@/config/paths";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
+import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
+import { paths } from "@/config/paths";
+import { useSortableData } from "@/hooks/use-sortable-data";
 import { usePagination } from "@/hooks/use-pagination";
+import { usePermission } from "@/hooks/use-permission";
 import { useUrlPageSync } from "@/hooks/use-url-page-sync";
 import { useGetPet } from "@/hooks/use-pet";
-import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
-import { handleApiError } from "@/lib/handle-api-error";
+import { C, ICON, LAYOUT } from "@/lib/design-tokens";
+import { ResourceVaccinations } from "@/types/generated/models";
 
-// Relative
 import { useFilterVaccinations } from "../hooks/use-vaccinations";
 import { useDeleteVaccination } from "../api/delete-vaccination";
-import { usePermission } from "@/hooks/use-permission";
-
-// Types
-import type { VaccinationRecord } from "@/types";
-import type { ActiveFilter } from "@/components/shared/PropertyFilter/types";
-import { ResourceVaccinations } from "@/types/generated/models";
 import { VaccinationListContent, VaccinationListDeleteDialog } from "./VaccinationListPanels";
 import {
   buildVaccinationFilterProperties,
@@ -38,6 +26,9 @@ import {
   vaccinationDateRange,
   vaccinationListDetailHref,
 } from "./vaccinations-list-model";
+
+import type { VaccinationRecord } from "@/types";
+import type { ActiveFilter } from "@/components/shared/PropertyFilter/types";
 
 export function VaccinationList() {
   const navigate = useNavigate();
@@ -127,13 +118,12 @@ export function VaccinationList() {
       return;
     }
     startDeleteTransition(() => {
+      // FE-RC-005: onError は指定しない。useDeleteVaccination の onError
+      // （api/delete-vaccination.ts）が handleApiError 済みで、ここで重ねると二重 toast になる。
       deleteVaccinationFn(pendingDeleteId, {
         onSuccess: () => {
           toast.success("予防接種記録を削除しました");
           setPendingDeleteId(null);
-        },
-        onError: (error) => {
-          handleApiError(error, "削除");
         },
       });
     });
