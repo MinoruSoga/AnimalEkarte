@@ -108,13 +108,31 @@ func TestStaffRepository_UpdateForReservation_ClinicIsolation(t *testing.T) {
 
 	staffB := makeAssignedDoctor(t, db, 2, "クリニックB医師", 1)
 
-	err := repo.UpdateForReservation(ctx, 1, staffB.ID, map[string]any{"name": "改ざん"})
+	err := repo.UpdateForReservation(ctx, 1, staffB.ID, ReservationStaffUpdate{Name: ptr("改ざん")})
 	require.Error(t, err)
 	assert.True(t, apperrors.IsNotFound(err))
 
 	var reloaded model.Staff
 	require.NoError(t, db.First(&reloaded, staffB.ID).Error)
 	assert.Equal(t, "クリニックB医師", reloaded.Name)
+}
+
+func TestStaffRepository_UpdateForReservation_EmptyCommandNoop(t *testing.T) {
+	db := setupStaffReservationWriteTestDB(t)
+	repo := NewStaffRepository(db)
+	ctx := context.Background()
+	staff := makeAssignedDoctor(t, db, 1, "変更前", 1)
+
+	err := repo.UpdateForReservation(ctx, 1, staff.ID, ReservationStaffUpdate{})
+	require.NoError(t, err)
+
+	var reloaded model.Staff
+	require.NoError(t, db.First(&reloaded, staff.ID).Error)
+	assert.Equal(t, "変更前", reloaded.Name)
+}
+
+func ptr[T any](v T) *T {
+	return &v
 }
 
 // TestStaffRepository_SwapSortOrderForReservation_ClinicIsolation は clinic A から

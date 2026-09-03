@@ -8,6 +8,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	staffpkg "github.com/animal-ekarte/backend/internal/staff"
 )
 
 // ================================================================
@@ -114,7 +115,7 @@ func (m *mockLiffStaffRepository) Create(_ context.Context, _ *model.Staff, _ ui
 	return nil
 }
 
-func (m *mockLiffStaffRepository) Update(_ context.Context, _, _ uint64, _ map[string]any) error {
+func (m *mockLiffStaffRepository) Update(_ context.Context, _, _ uint64, _ staffpkg.ReservationStaffUpdate) error {
 	return nil
 }
 

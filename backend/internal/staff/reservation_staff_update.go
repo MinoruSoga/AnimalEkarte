@@ -3,19 +3,19 @@ package staff
 // ReservationStaffUpdate is the staff-owned typed write command for
 // reservation-originated staffs column updates (BE-RC-001).
 //
-// Fields match the keys already mapped by reservation.buildReservationStaffUpdate
+// Field-update keys match reservation.buildReservationStaffUpdate
 // (name, staff_type, reservation_visible, reservation_comment, sort_order).
-// Arbitrary map[string]any is not part of this contract. Column map conversion
-// stays unexported in this package.
-//
-// W1 switches exported UpdateForReservation and reservation staffsWriter onto
-// this type. Phase 0 freezes the command so concurrent lanes share one shape.
+// IsActive is the PatchStatus write (staffs.is_active) that already used the
+// same clinic-scoped reservation_staff UPDATE; it is not emitted by
+// buildReservationStaffUpdate. Arbitrary map[string]any is not part of this
+// contract. Column map conversion stays unexported in this package.
 type ReservationStaffUpdate struct {
 	Name               *string
 	StaffType          *string
 	ReservationVisible *bool
 	ReservationComment *string
 	SortOrder          *int
+	IsActive           *bool
 }
 
 const (
@@ -24,6 +24,7 @@ const (
 	reservationStaffColReservationVisible = "reservation_visible"
 	reservationStaffColReservationComment = "reservation_comment"
 	reservationStaffColSortOrder          = "sort_order"
+	reservationStaffColIsActive           = "is_active"
 )
 
 func reservationStaffUpdateFields(cmd ReservationStaffUpdate) map[string]any {
@@ -42,6 +43,9 @@ func reservationStaffUpdateFields(cmd ReservationStaffUpdate) map[string]any {
 	}
 	if cmd.SortOrder != nil {
 		fields[reservationStaffColSortOrder] = *cmd.SortOrder
+	}
+	if cmd.IsActive != nil {
+		fields[reservationStaffColIsActive] = *cmd.IsActive
 	}
 	return fields
 }

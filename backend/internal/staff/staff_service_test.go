@@ -123,7 +123,7 @@ func (m *mockStaffRepository) CreateForReservation(_ context.Context, _ *model.S
 	return nil
 }
 
-func (m *mockStaffRepository) UpdateForReservation(_ context.Context, _, _ uint64, _ map[string]any) error {
+func (m *mockStaffRepository) UpdateForReservation(_ context.Context, _, _ uint64, _ ReservationStaffUpdate) error {
 	return nil
 }
 

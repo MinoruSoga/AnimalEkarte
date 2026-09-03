@@ -218,7 +218,8 @@ func TestReservationStaffRepository_UpdateThenUpdateExcludedReservationTypes_Rol
 	staff := makeDoctorAssignedToClinic(t, db, clinicA, "更新前の名前")
 
 	txErr := tx.WithTx(ctx, func(txCtx context.Context) error {
-		if err := repo.Update(txCtx, clinicA, staff.ID, map[string]any{"name": "更新後の名前"}); err != nil {
+		updatedName := "更新後の名前"
+		if err := repo.Update(txCtx, clinicA, staff.ID, staffpkg.ReservationStaffUpdate{Name: &updatedName}); err != nil {
 			return err
 		}
 		// 存在しない reservation_type_id で除外コース置換を失敗させる。
@@ -244,7 +245,8 @@ func TestReservationStaffRepository_UpdateThenUpdateExcludedReservationTypes_Com
 	typeA := makeReservationType(t, db, clinicA)
 
 	require.NoError(t, tx.WithTx(ctx, func(txCtx context.Context) error {
-		if err := repo.Update(txCtx, clinicA, staff.ID, map[string]any{"name": "更新後の名前2"}); err != nil {
+		updatedName := "更新後の名前2"
+		if err := repo.Update(txCtx, clinicA, staff.ID, staffpkg.ReservationStaffUpdate{Name: &updatedName}); err != nil {
 			return err
 		}
 		return repo.UpdateExcludedReservationTypes(txCtx, clinicA, staff.ID, []uint64{typeA.ID})

@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/animal-ekarte/backend/internal/model"
+	staffpkg "github.com/animal-ekarte/backend/internal/staff"
 )
 
 // ---- local minimal ReservationStaffRepository / ReservationAdminRepository mocks ----
@@ -35,7 +36,7 @@ func (m *delegateMockReservationStaffRepository) LockForMutation(
 func (m *delegateMockReservationStaffRepository) Create(_ context.Context, _ *model.Staff, _ uint64) error {
 	return nil
 }
-func (m *delegateMockReservationStaffRepository) Update(_ context.Context, _, _ uint64, _ map[string]any) error {
+func (m *delegateMockReservationStaffRepository) Update(_ context.Context, _, _ uint64, _ staffpkg.ReservationStaffUpdate) error {
 	return nil
 }
 func (m *delegateMockReservationStaffRepository) Delete(_ context.Context, _, _ uint64) error {

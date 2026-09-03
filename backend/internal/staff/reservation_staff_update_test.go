@@ -11,6 +11,7 @@ func TestReservationStaffUpdateFields_KnownKeysOnly(t *testing.T) {
 	visible := false
 	comment := "注記"
 	sortOrder := 3
+	isActive := false
 
 	got := reservationStaffUpdateFields(ReservationStaffUpdate{
 		Name:               &name,
@@ -18,6 +19,7 @@ func TestReservationStaffUpdateFields_KnownKeysOnly(t *testing.T) {
 		ReservationVisible: &visible,
 		ReservationComment: &comment,
 		SortOrder:          &sortOrder,
+		IsActive:           &isActive,
 	})
 
 	want := map[string]any{
@@ -26,6 +28,7 @@ func TestReservationStaffUpdateFields_KnownKeysOnly(t *testing.T) {
 		"reservation_visible": visible,
 		"reservation_comment": comment,
 		"sort_order":          sortOrder,
+		"is_active":           isActive,
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("reservationStaffUpdateFields() = %#v, want %#v", got, want)
