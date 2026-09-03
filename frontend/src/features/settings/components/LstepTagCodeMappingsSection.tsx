@@ -117,7 +117,7 @@ function EntryEditRow({
           value={entry.code_type}
           onChange={(e) => onChange({ ...entry, code_type: e.target.value })}
           placeholder="例: checkup_type"
-          className={`${STYLE.formInput} rounded-xs border px-2 py-1 text-sm outline-none`}
+          className={`${STYLE.formInput} rounded-xs border px-2 py-1 text-sm outline-none focus-visible:ring-2 ${C.focusRingAccent40}`}
         />
       </div>
       <div className="flex flex-col gap-1 flex-1">
@@ -128,7 +128,7 @@ function EntryEditRow({
           value={entry.codes_text}
           onChange={(e) => onChange({ ...entry, codes_text: e.target.value })}
           placeholder="例: CHK_A, CHK_B"
-          className={`${STYLE.formInput} rounded-xs border px-2 py-1 text-sm outline-none`}
+          className={`${STYLE.formInput} rounded-xs border px-2 py-1 text-sm outline-none focus-visible:ring-2 ${C.focusRingAccent40}`}
         />
       </div>
       <button

@@ -1,6 +1,5 @@
-import { useState, useEffect, useMemo, useActionState } from "react";
+import { useState, useMemo, useActionState } from "react";
 import { toast } from "sonner";
-import { handleApiError } from "@/lib/handle-api-error";
 import { C, STYLE } from "@/lib/design-tokens";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { TriggerTypeLabels } from "@/config/lstep-trigger-types";
@@ -31,16 +30,22 @@ export function TriggerPrioritySection() {
   const [draft, setDraft] = useState<TriggerPriorityItem[]>([]);
   const [baseline, setBaseline] = useState<TriggerPriorityItem[]>([]);
 
-  // サーバーデータと baseline/draft を同期する。useEffect 内 setState は同期目的のため許容。
-  /* eslint-disable react-hooks/set-state-in-effect */
-  useEffect(() => {
+  // FE-RC-032: useEffect 同期の代わりに render 中の prev 比較で同期する
+  // （OwnersList.tsx の searchParamsKey パターンと同型）。サーバーデータの
+  // シグネチャが変わった時だけ setState し、それ以外は no-op のまま。
+  const serverKey = useMemo(
+    () => (data ? JSON.stringify(sortItems(data.items)) : ""),
+    [data],
+  );
+  const [prevServerKey, setPrevServerKey] = useState(serverKey);
+  if (serverKey !== prevServerKey) {
+    setPrevServerKey(serverKey);
     if (data) {
       const sorted = sortItems(data.items);
       setBaseline(sorted);
       setDraft(sorted);
     }
-  }, [data]);
-  /* eslint-enable react-hooks/set-state-in-effect */
+  }
 
   const isDirty = useMemo(() => {
     const baseMap = new Map(baseline.map((i) => [i.trigger_type, i.priority]));
@@ -71,8 +76,9 @@ export function TriggerPrioritySection() {
         setDraft(submitted);
         toast.success("配信優先順位を保存しました");
         return null;
-      } catch (error) {
-        handleApiError(error, "配信優先順位の保存");
+      } catch {
+        // FE-RC-005: API エラーは useUpdateTriggerPriorities の onError
+        // （use-trigger-priorities.ts）が handleApiError 済み。ここでは再通知しない。
         return { error: "配信優先順位の保存に失敗しました" };
       }
     },

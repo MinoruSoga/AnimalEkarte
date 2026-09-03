@@ -1,8 +1,8 @@
 import { useActionState, type ReactNode } from "react";
 import { toast } from "sonner";
-import { BADGE, C, PALETTE, STYLE } from "@/lib/design-tokens";
+import { BADGE, C, STYLE } from "@/lib/design-tokens";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
-import { handleApiError } from "@/lib/handle-api-error";
+import { FormFieldError } from "@/components/shared/FormFieldError/FormFieldError";
 import {
   useGetAutoManagedPrefixes,
   useCreateAutoManagedPrefix,
@@ -82,8 +82,7 @@ function TagConfigListSection<TItem>({
       {items.map((item) => (
         <div
           key={getId(item)}
-          className="flex items-center gap-2 px-2 py-1.5 rounded border"
-          style={{ borderColor: PALETTE.borderLight }}
+          className={`flex items-center gap-2 px-2 py-1.5 rounded border ${C.borderLight}`}
         >
           {renderRow(item)}
           <DeleteButton
@@ -151,15 +150,16 @@ function TagPairSection<TItem>({
       const valueA = ((formData.get(fieldA.name) as string) ?? "").trim();
       const valueB = ((formData.get(fieldB.name) as string) ?? "").trim();
       if (!valueA || !valueB) {
-        toast.error(requiredMessage);
+        // FE-RC-073: バリデーションエラーは fieldError（下記 FormFieldError）で表示する。toast は使わない。
         return { error: requiredMessage };
       }
       try {
         await onAdd(valueA, valueB);
         toast.success("追加しました");
         return null;
-      } catch (error) {
-        handleApiError(error, title);
+      } catch {
+        // FE-RC-005: API エラーは各 mutation の onError（use-lstep-tag-config.ts）が
+        // handleApiError 済み。ここでは再通知しない。
         return { error: "追加に失敗しました" };
       }
     },
@@ -168,7 +168,7 @@ function TagPairSection<TItem>({
 
   return (
     <div>
-      <h4 className="text-sm font-medium mb-2" style={{ color: PALETTE.primary }}>
+      <h4 className={`text-sm font-medium mb-2 ${C.text}`}>
         {title}
       </h4>
       <p className={`text-xs mb-3 ${C.text50}`}>{description}</p>
@@ -193,7 +193,7 @@ function TagPairSection<TItem>({
             type="text"
             required
             placeholder={fieldA.placeholder}
-            className={`${STYLE.formInput} rounded-xs border px-2 py-1 text-sm outline-none ${fieldA.widthClassName}`}
+            className={`${STYLE.formInput} rounded-xs border px-2 py-1 text-sm outline-none focus-visible:ring-2 ${C.focusRingAccent40} ${fieldA.widthClassName}`}
           />
         </div>
         <div className="flex flex-col gap-1">
@@ -206,7 +206,7 @@ function TagPairSection<TItem>({
             type="text"
             required
             placeholder={fieldB.placeholder}
-            className={`${STYLE.formInput} rounded-xs border px-2 py-1 text-sm outline-none ${fieldB.widthClassName}`}
+            className={`${STYLE.formInput} rounded-xs border px-2 py-1 text-sm outline-none focus-visible:ring-2 ${C.focusRingAccent40} ${fieldB.widthClassName}`}
           />
         </div>
         <SubmitButton
@@ -218,11 +218,7 @@ function TagPairSection<TItem>({
         >
           追加
         </SubmitButton>
-        {state?.error ? (
-          <p className={`text-xs ${C.danger}`} role="alert">
-            {state.error}
-          </p>
-        ) : null}
+        <FormFieldError message={state?.error} />
       </form>
     </div>
   );
@@ -365,7 +361,7 @@ function SendPurposeTagPrefixesSection() {
 export function LstepTagConfigSection() {
   return (
     <div className={`${STYLE.formCard} max-w-2xl mt-6`}>
-      <h3 className="text-base font-semibold mb-4" style={{ color: PALETTE.primary }}>
+      <h3 className={`text-base font-semibold mb-4 ${C.text}`}>
         自動管理タグ設定
       </h3>
       <div className="space-y-8">
