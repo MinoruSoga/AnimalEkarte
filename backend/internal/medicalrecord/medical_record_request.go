@@ -95,7 +95,7 @@ func (q *listMedicalRecordQuery) toServiceFilters() (listMedicalRecordFilters, e
 			model.MedicalRecordStatusFinalized,
 		)
 		if err != nil {
-			return listMedicalRecordFilters{}, apperrors.WrapInvalidInput("invalid status: " + err.Error())
+			return listMedicalRecordFilters{}, apperrors.WrapInvalidInput("ステータスの値が不正です")
 		}
 		status = &parsed
 	}
@@ -194,7 +194,7 @@ func (r *createMedicalRecordRequest) toServiceInput(staffID uint64) (CreateMedic
 			model.MedicalRecordStatusFinalized,
 		)
 		if err != nil {
-			return CreateMedicalRecordInput{}, apperrors.WrapInvalidInput("invalid status: " + err.Error())
+			return CreateMedicalRecordInput{}, apperrors.WrapInvalidInput("ステータスの値が不正です")
 		}
 		status = &parsedStatus
 	}
@@ -306,7 +306,7 @@ func (r updateMedicalRecordRequest) toServiceInput(actorID uint64) (UpdateMedica
 			model.MedicalRecordStatusFinalized,
 		)
 		if err != nil {
-			return UpdateMedicalRecordInput{}, apperrors.WrapInvalidInput("invalid status: " + err.Error())
+			return UpdateMedicalRecordInput{}, apperrors.WrapInvalidInput("ステータスの値が不正です")
 		}
 		status = &s
 	}
@@ -328,7 +328,7 @@ func (r updateMedicalRecordRequest) toServiceInput(actorID uint64) (UpdateMedica
 	if r.VisitType != nil {
 		vt, err := httpapi.ValidateEnum(*r.VisitType, model.VisitTypeFirst, model.VisitTypeRevisit)
 		if err != nil {
-			return UpdateMedicalRecordInput{}, apperrors.WrapInvalidInput("invalid visit_type: " + err.Error())
+			return UpdateMedicalRecordInput{}, apperrors.WrapInvalidInput("来院区分の値が不正です")
 		}
 		visitType = &vt
 	}
