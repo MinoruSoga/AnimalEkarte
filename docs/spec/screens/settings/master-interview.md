@@ -24,7 +24,7 @@
 ## 主要な機能
 
 ### 1. 現状（本設定画面のスコープ）
-本画面は問診テンプレートのCRUD管理のみを提供する。`frontend/src/features/medical-records/` 配下のカルテ入力UIから `inquiry-templates` API・`useMasterItems("inquiryTemplate")` を呼び出す実装は現時点で存在せず、登録したテンプレートをカルテへ自動挿入する機能・臨床フェーズに応じた動的サジェスト機能は未実装（`frontend/src/hooks/use-master-items.ts` の `inquiryTemplate` キーはマップ定義のみで呼び出し元なし）。
+本画面は問診テンプレートのCRUD管理のみを提供する。`frontend/src/features/medical-records/` 配下のカルテ入力UIから `inquiry-templates` API・`useGetMasterItems("inquiryTemplate")` を呼び出す実装は現時点で存在せず、登録したテンプレートをカルテへ自動挿入する機能・臨床フェーズに応じた動的サジェスト機能は未実装（`frontend/src/hooks/use-master-items.ts` の `inquiryTemplate` キーはマップ定義のみで呼び出し元なし）。
 
 ---
 
