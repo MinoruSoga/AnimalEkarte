@@ -17,7 +17,7 @@ import { useReceptionTelemetry } from "../hooks/use-reception-telemetry";
 import { useReceptionDragHandlers } from "../hooks/use-reception-drag-handlers";
 import { useReceptionModalHandlers } from "../hooks/use-reception-modal-handlers";
 import { ReceptionPageBody } from "./ReceptionPagePanels";
-import { useReceptionColumnView } from "./use-reception-column-view";
+import { useReceptionColumnView } from "../hooks/use-reception-column-view";
 
 export function Reception() {
   const { canCreate: canCreateReservation, canEdit: canEditReservation, canDelete: canDeleteReservation } = usePermission(ResourceReservations);

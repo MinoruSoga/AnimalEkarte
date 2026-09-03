@@ -1,81 +1,24 @@
-import { useCallback, useRef, useTransition } from "react";
+import { useCallback, useTransition } from "react";
 import type { Dispatch, RefObject, SetStateAction } from "react";
 import type { NavigateFunction } from "react-router";
 import { toast } from "sonner";
 
-import { extractApiErrorMessage } from "@/lib/handle-api-error";
-import { jstWallDateToISOString } from "@/lib/jst-date";
 import { getReservationStatusLabel } from "@/lib/status-helpers";
 import type { ReservationCreateMutations } from "@/types/reservation-create-mutations";
 
-import { useCreateReservation, useCreateReservationBatch } from "../api/create-reservation";
 import { useDeleteReservation } from "../api/delete-reservation";
-import { transformToCreateRequest } from "../api/transforms";
 import { useUpdateReservation } from "../api/update-reservation";
-import type { UpdateReservationRequest } from "@/hooks/use-update-reservation";
-import type {
-  NavigationState,
-  NewOwnerFormData,
-  Pet,
-  Reservation,
-  ReservationFormData,
-  ReservationStatus,
-} from "../types";
+import {
+  buildUpdatePayload,
+  isDestructiveReservationStatus,
+  type StatusConfirmTarget,
+} from "../lib/reservation-actions-model";
+import type { NavigationState, ReservationFormData, Reservation, ReservationStatus } from "../types";
+import { useReservationSaveActions } from "./use-reservation-save-actions";
 
-/** 詳細モーダルからの破壊的 status 変更（確認ダイアログ対象）。BUG-020 */
-const DESTRUCTIVE_RESERVATION_STATUSES: readonly ReservationStatus[] = [
-  "cancelled",
-  "no_show",
-] as const;
-
-export function isDestructiveReservationStatus(status: ReservationStatus): boolean {
-  return (DESTRUCTIVE_RESERVATION_STATUSES as readonly string[]).includes(status);
-}
-
-/** Notes-only edits must omit schedule/doctor so BE skips on-duty conflict checks (BUG-012). */
-export function buildReservationUpdateRequest(
-  current: ReservationFormData,
-  data: ReservationFormData,
-  targetDoctor: string,
-): { id: string; req: UpdateReservationRequest } | null {
-  if (!current.id) return null;
-
-  const req: UpdateReservationRequest = {};
-  if (data.start) {
-    const nextStart = jstWallDateToISOString(data.start);
-    const prevStart = current.start ? jstWallDateToISOString(current.start) : "";
-    if (nextStart !== prevStart) req.start_time = nextStart;
-  }
-  if (data.end) {
-    const nextEnd = jstWallDateToISOString(data.end);
-    const prevEnd = current.end ? jstWallDateToISOString(current.end) : "";
-    if (nextEnd !== prevEnd) req.end_time = nextEnd;
-  }
-  const nextVisit = data.visitType || "first";
-  if (nextVisit !== (current.visitType || "first")) req.visit_type = nextVisit;
-  const nextType = data.type ? Number(data.type) : undefined;
-  const prevType = current.type ? Number(current.type) : undefined;
-  if (nextType !== undefined && nextType !== prevType) req.reservation_type_id = nextType;
-  const nextDoctor = targetDoctor ? Number(targetDoctor) : undefined;
-  const prevDoctor = current.doctor ? Number(current.doctor) : undefined;
-  if (nextDoctor !== prevDoctor && nextDoctor !== undefined) req.doctor_id = nextDoctor;
-  if ((data.isDesignated ?? false) !== (current.isDesignated ?? false)) {
-    req.is_designated = data.isDesignated ?? false;
-  }
-  const nextStatus = data.status || "confirmed";
-  if (nextStatus !== (current.status || "confirmed")) req.status = nextStatus;
-  if ((data.notes ?? "") !== (current.notes ?? "")) req.notes = data.notes;
-
-  if (Object.keys(req).length === 0) {
-    req.notes = data.notes ?? "";
-  }
-  return { id: current.id, req };
-}
-
-export interface StatusConfirmTarget {
-  reservation: Reservation;
-  status: ReservationStatus;
-}
+export { isDestructiveReservationStatus } from "../lib/reservation-actions-model";
+export type { StatusConfirmTarget } from "../lib/reservation-actions-model";
+export { buildReservationUpdateRequest } from "../lib/reservation-actions-model";
 
 interface UseReservationActionsArgs {
   appointments: Reservation[];
@@ -94,26 +37,6 @@ interface UseReservationActionsArgs {
   createMutations: ReservationCreateMutations;
 }
 
-function buildUpdatePayload(
-  reservation: Reservation,
-  start: Date,
-  end: Date,
-  status: ReservationStatus,
-) {
-  return {
-    id: reservation.id,
-    req: {
-      start_time: jstWallDateToISOString(start),
-      end_time: jstWallDateToISOString(end),
-      visit_type: reservation.visitType,
-      doctor_id: reservation.doctor ? Number(reservation.doctor) : undefined,
-      is_designated: reservation.isDesignated,
-      status,
-      notes: reservation.notes,
-    },
-  };
-}
-
 export function useReservationActions({
   appointments,
   editingAppointmentRef,
@@ -130,26 +53,12 @@ export function useReservationActions({
   navigate,
   createMutations,
 }: UseReservationActionsArgs) {
-  const createMutation = useCreateReservation();
-  const createBatchMutation = useCreateReservationBatch();
   const updateMutation = useUpdateReservation();
   const { mutate: updateReservationFn } = updateMutation;
   const deleteMutation = useDeleteReservation();
   const { mutate: deleteReservationFn } = deleteMutation;
   const [, startUpdateTransition] = useTransition();
   const [, startDeleteTransition] = useTransition();
-  const createdPetIdsRef = useRef(new Set<string>());
-  const createdReservationIdsRef = useRef(new Set<string>());
-  const newOwnerProgressRef = useRef<{ key: string; ownerID?: string; petID?: string } | null>(null);
-  const resetCreateProgress = useCallback(() => {
-    createdPetIdsRef.current.clear();
-    createdReservationIdsRef.current.clear();
-    newOwnerProgressRef.current = null;
-  }, []);
-  const handleCloseCreateForm = useCallback(() => {
-    resetCreateProgress();
-    handleCloseForm();
-  }, [handleCloseForm, resetCreateProgress]);
 
   const checkOverlap = useCallback(
     (
@@ -174,150 +83,13 @@ export function useReservationActions({
     }
   }, [locationFrom, navigate]);
 
-  /** 既存予約の日時/内容変更を保存する（FE-RC-046: handleSave から分離した1経路）。 */
-  const saveUpdateReservation = useCallback(
-    (
-      currentEditing: ReservationFormData,
-      data: ReservationFormData,
-      targetDoctor: string,
-    ): Promise<string | null> => {
-      const updatePayload = buildReservationUpdateRequest(currentEditing, data, targetDoctor);
-      if (!updatePayload) return Promise.resolve(null);
-      return new Promise<string | null>((resolve) => {
-        startUpdateTransition(() => {
-          updateReservationFn(updatePayload, {
-            onSuccess: () => {
-              toast.success("予約を更新しました", { description: `担当医: ${targetDoctor}` });
-              handleCloseForm();
-              navigateBackIfNeeded();
-              resolve(null);
-            },
-            onError: (error: unknown) => {
-              resolve(extractApiErrorMessage(error, "更新"));
-            },
-          });
-        });
-      });
-    },
-    [handleCloseForm, navigateBackIfNeeded, updateReservationFn],
-  );
-
-  /** 新規飼主/ペットを作成してから予約を作成する（FE-RC-046: handleSave から分離した1経路）。 */
-  const saveNewOwnerReservation = useCallback(
-    async (
-      data: ReservationFormData,
-      newOwnerData: NewOwnerFormData,
-      targetDoctor: string,
-    ): Promise<string | null> => {
-      try {
-        const progressKey = JSON.stringify(newOwnerData);
-        if (newOwnerProgressRef.current?.key !== progressKey) {
-          newOwnerProgressRef.current = { key: progressKey };
-        }
-        const progress = newOwnerProgressRef.current;
-        if (!progress.ownerID) {
-          const owner = await createMutations.createOwnerFn({
-            owner_name: newOwnerData.ownerName,
-            phone: newOwnerData.phone,
-          });
-          progress.ownerID = String(owner.id);
-        }
-        if (!progress.petID) {
-          const pet = await createMutations.createPetFn({
-            owner_id: Number(progress.ownerID),
-            animal_species_id: newOwnerData.animalSpeciesId,
-            name: newOwnerData.petName,
-          });
-          progress.petID = String(pet.id);
-        }
-        const createPayload = transformToCreateRequest(
-          { ...data, notes: data.notes ?? newOwnerData.chiefComplaint },
-          progress.petID,
-          progress.ownerID,
-        );
-        await createMutation.mutateAsync(createPayload);
-        toast.success("予約を作成しました", {
-          description: `${newOwnerData.ownerName}様 / ${newOwnerData.petName} / 担当医: ${targetDoctor}`,
-        });
-        handleCloseCreateForm();
-        navigateBackIfNeeded();
-        return null;
-      } catch (error) {
-        return extractApiErrorMessage(error, "作成");
-      }
-    },
-    [createMutation, createMutations, handleCloseCreateForm, navigateBackIfNeeded],
-  );
-
-  /** 既存の飼主/ペット（単体・複数）に予約を作成する（FE-RC-046: handleSave から分離した1経路）。 */
-  const saveExistingPetsReservation = useCallback(
-    async (
-      data: ReservationFormData,
-      selectedPets: Pick<Pet, "id" | "ownerId" | "name">[],
-      targetDoctor: string,
-    ): Promise<string | null> => {
-      try {
-        if (selectedPets.length === 1) {
-          const pet = selectedPets[0];
-          await createMutation.mutateAsync(transformToCreateRequest(data, pet.id, pet.ownerId));
-        } else {
-          // A selected multi-pet booking is one atomic server-side operation. Do not
-          // issue individual creates: the second intentional overlap must not conflict.
-          const { pet_id: _petID, owner_id: _ownerID, ...base } = transformToCreateRequest(data, "0", "0");
-          await createBatchMutation.mutateAsync({
-            ...base,
-            pets: selectedPets.map((pet) => ({ pet_id: Number(pet.id), owner_id: Number(pet.ownerId) })),
-          });
-        }
-        toast.success(`${selectedPets.length}件の予約を作成しました`, { description: `担当医: ${targetDoctor}` });
-        handleCloseCreateForm();
-        navigateBackIfNeeded();
-        return null;
-      } catch (error) {
-        return extractApiErrorMessage(error, "作成");
-      }
-    },
-    [createBatchMutation, createMutation, handleCloseCreateForm, navigateBackIfNeeded],
-  );
-
-  const handleSave = useCallback(
-    async (data: ReservationFormData, selectedPets: Pick<Pet, "id" | "ownerId" | "name">[], newOwnerData?: NewOwnerFormData): Promise<string | null> => {
-      if (!data.start || !data.end) return null;
-      if (!newOwnerData && selectedPets.length === 0) return null;
-
-      const currentEditing = editingAppointmentRef.current;
-      const targetDoctor = data.doctor || currentEditing?.doctor || "";
-      const hasOverlap = checkOverlap(
-        data.start,
-        data.end,
-        targetDoctor,
-        currentEditing?.id,
-        currentEditing?.id ? undefined : createdReservationIdsRef.current,
-      );
-
-      if (hasOverlap) {
-        // FE precheck — keep modal open with inline message (same surface as API 409).
-        return "指定された時間帯には既に予約が入っています";
-      }
-
-      if (currentEditing?.id) {
-        return saveUpdateReservation(currentEditing, data, targetDoctor);
-      }
-
-      if (newOwnerData) {
-        return saveNewOwnerReservation(data, newOwnerData, targetDoctor);
-      }
-
-      return saveExistingPetsReservation(data, selectedPets, targetDoctor);
-    },
-    [
-      checkOverlap,
-      editingAppointmentRef,
-      saveExistingPetsReservation,
-      saveNewOwnerReservation,
-      saveUpdateReservation,
-    ],
-  );
+  const { handleSave, resetCreateProgress, handleCloseCreateForm } = useReservationSaveActions({
+    editingAppointmentRef,
+    checkOverlap,
+    handleCloseForm,
+    navigateBackIfNeeded,
+    createMutations,
+  });
 
   const handleReservationUpdate = useCallback(
     (reservation: Reservation, newStart: Date, newEnd: Date) => {

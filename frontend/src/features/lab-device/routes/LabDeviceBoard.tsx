@@ -6,7 +6,6 @@ import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { useAuth } from "@/hooks/use-auth";
 import { usePermission } from "@/hooks/use-permission";
 import { C, LAYOUT } from "@/lib/design-tokens";
-import { handleApiError } from "@/lib/handle-api-error";
 import { todayJSTISO } from "@/lib/jst-date";
 import { ResourceLabImport } from "@/types/generated/models";
 
@@ -95,9 +94,11 @@ export function LabDeviceBoard() {
       const status = Axios.isAxiosError(error) ? error.response?.status : undefined;
       const failure = labDeviceReceiveFailure(status);
       if (status === 400) {
+        // 400 は mutation 側の onError（handleApiError）が通知済み。ここでは再通知しない（FE-RC-005）。
         toast.dismiss(LAB_DEVICE_AGENT_RECEIVE_TOAST_ID);
-        handleApiError(error, "検査機器電文の受信");
       } else {
+        // mutation 側 onError の汎用トーストを消し、機器の再送要否を含む具体的な案内に差し替える。
+        toast.dismiss();
         toast.error(failure.message, { id: LAB_DEVICE_AGENT_RECEIVE_TOAST_ID });
       }
       throw Object.assign(new Error("lab device receive failed", { cause: error }), { status });

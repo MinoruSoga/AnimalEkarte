@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/sheet";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { C, STYLE } from "@/lib/design-tokens";
-import { getFormEnum } from "@/lib/form-data";
+import { getFormEnum, getFormOptionalString } from "@/lib/form-data";
 import { handleApiError } from "@/lib/handle-api-error";
 import { useGetOwnerLineTags } from "../api/get-owner-line-tags";
 import { isLineSendType, useSendLineMessage } from "../api/send-line-message";
@@ -58,10 +58,10 @@ export function LineSendPanel({
       }
 
       const type = getFormEnum(formData, "send_type", isLineSendType) ?? sendType;
-      const purpose = (formData.get("purpose") as string | null)?.trim() || undefined;
+      const purpose = getFormOptionalString(formData, "purpose")?.trim() || undefined;
 
       if (type === "text") {
-        const text = (formData.get("text") as string | null)?.trim();
+        const text = getFormOptionalString(formData, "text")?.trim();
         if (!text) {
           return { error: "メッセージを入力してください" };
         }
@@ -75,7 +75,8 @@ export function LineSendPanel({
       }
 
       // pdf_url / image_url: upload first, then send with file_id
-      const file = formData.get("file") as File | null;
+      const fileEntry = formData.get("file");
+      const file = fileEntry instanceof File ? fileEntry : null;
       if (!file || file.size === 0) {
         return { error: "ファイルを選択してください" };
       }

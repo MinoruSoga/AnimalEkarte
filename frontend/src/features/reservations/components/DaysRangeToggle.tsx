@@ -29,7 +29,7 @@ export function DaysRangeToggle({ days, onChange }: DaysRangeToggleProps) {
             className={`h-11 min-w-11 px-3 rounded text-base font-medium transition-colors ${
               isActive
                 ? `${C.bgActionPrimary} ${C.textOnActionPrimary}`
-                : `${C.text60} hover:${C.text}`
+                : `${C.text60} ${C.hoverText}`
             }`}
           >
             {opt.label}

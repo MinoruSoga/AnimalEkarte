@@ -26,7 +26,7 @@ export interface AccountingItemMutationPermissions {
   canDelete: boolean;
 }
 
-export const DENIED_ACCOUNTING_ITEM_PERMISSIONS: Readonly<AccountingItemMutationPermissions> = {
+const DENIED_ACCOUNTING_ITEM_PERMISSIONS: Readonly<AccountingItemMutationPermissions> = {
   canCreate: false,
   canEdit: false,
   canDelete: false,

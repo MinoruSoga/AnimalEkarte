@@ -4,7 +4,7 @@ import { paths } from "@/config/paths";
 import { KanbanColumn } from "../components/KanbanColumn";
 import type { ReceptionAppointment } from "../api/types";
 import type { ColumnData } from "@/types";
-import { NO_ADD_BUTTON_COLUMNS } from "./reception-model";
+import { NO_ADD_BUTTON_COLUMNS } from "../routes/reception-model";
 
 interface UseReceptionColumnViewArgs {
   filteredColumns: ColumnData[];
