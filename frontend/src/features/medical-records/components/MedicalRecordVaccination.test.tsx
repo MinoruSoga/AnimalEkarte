@@ -13,7 +13,7 @@ vi.mock("@/hooks/use-treatment-master", () => ({
   useGetAllVaccinesMaster: () => ({ data: [] }),
 }));
 
-vi.mock("@/hooks/use-vaccinations", () => ({
+vi.mock("@/hooks/use-create-vaccination", () => ({
   useCreateVaccination: () => ({ mutateAsync: mockCreateVaccination }),
 }));
 
