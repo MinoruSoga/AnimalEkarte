@@ -43,16 +43,9 @@ const crossFeatureRestrictedPattern = {
     "feature 間の直接 import は禁止（CODING_RULES.md §1.2）。他 feature の値は components/shared・hooks・lib へ昇格するか、app/pages/ の cross-feature 合成層で props 注入すること。",
 };
 
-// FE-RC-015: owner-report の臨床ブリーフィングは medical-records の一覧 API
-// （useGetMedicalRecords）を読み取り専用で参照する唯一の cross-feature 依存。
-// transformMedicalRecord は診療録ドメインの正本ロジックで、cross-feature 消費のために
-// 複製すると DRY 違反・drift リスクが生じる一方、現時点で複製を要求する具体的な問題は
-// 出ていない（product-philosophy ①「証拠なき最適化をしない」）。2026-09-03 時点で
-// 唯一のドキュメント化された例外として残す。再開条件 = medical-records 側の型が
-// 変わる、または owner-report が独自の集計ロジックを必要とする具体的な要求が出た場合。
-const crossFeatureImportBanAllowlist = [
-  "src/features/owner-report/hooks/use-owner-clinical-briefing-data.ts",
-];
+// FE-RC-015 followup: owner-report は @/hooks/use-medical-records 経由に統一。
+// 例外 allowlist は空（feature→feature を機械禁止）。
+const crossFeatureImportBanAllowlist = [];
 
 const generatedModelsBoundaryMessage =
   "TASK-444-S1: @/types/generated/models は Go ドメインモデル由来で HTTP wire 応答型ではない（BUG-431/BUG-433）。新規 import 禁止。既存利用は generated-models-import-allowlist.json に凍結。応答型は domain 別 generated/*-responses または専用 DTO を使うこと（TASK-444-S2）。";

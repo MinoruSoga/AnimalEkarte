@@ -412,6 +412,13 @@ export const C = {
   hoverBgPrimaryDark: "hover:bg-[#000000]/90",
   hoverText:     "hover:text-[#000000]",
   hoverText60:   "hover:text-[#615D59]",
+  /** FE-RC-013: static hover/focus variants (no template `hover:${C.x}`) */
+  hoverText80:   "hover:text-[#31302E]",
+  hoverBgTint:   "hover:bg-[#E6E6E6]",
+  groupHoverBorderPrimary: "group-hover:border-[#000000]",
+  focusDanger:   "focus:text-[#C0392B]",
+  bgWhite60:     "bg-white/60",
+  hoverBgWhite80: "hover:bg-white/80",
   hoverBorderPrimary30: "hover:border-[#000000]/30",
   hoverBorderMedium40: "hover:border-[rgba(0,0,0,0.40)]",
   hoverBgSubtle: "hover:bg-[#F6F5F4]",

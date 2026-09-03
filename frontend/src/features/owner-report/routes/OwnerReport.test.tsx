@@ -55,7 +55,7 @@ vi.mock("../api/get-pet-first-visit", () => ({
 vi.mock("../hooks/use-pet-checkup-results", () => ({
   useGetPetCheckupResults: hooks.useGetPetCheckupResults,
 }));
-vi.mock("@/features/medical-records", () => ({
+vi.mock("@/hooks/use-medical-records", () => ({
   useGetMedicalRecords: hooks.useGetMedicalRecords,
 }));
 vi.mock("@/hooks/use-get-reservations", () => ({

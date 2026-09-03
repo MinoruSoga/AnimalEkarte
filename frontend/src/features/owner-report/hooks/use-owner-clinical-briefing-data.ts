@@ -1,5 +1,5 @@
 import { HISTORY_FETCH_LIMIT } from "@/config/fetch-limits";
-import { useGetMedicalRecords } from "@/features/medical-records";
+import { useGetMedicalRecords } from "@/hooks/use-medical-records";
 import { useGetReservations } from "@/hooks/use-get-reservations";
 import { usePermission } from "@/hooks/use-permission";
 import { useGetPetVaccinations } from "@/hooks/use-pet-vaccinations";

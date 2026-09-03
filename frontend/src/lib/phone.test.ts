@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isBackendCompatiblePhone, isValidOwnerPhone } from "./phone";
+import { isValidOwnerPhone } from "./phone";
 
 describe("isValidOwnerPhone", () => {
   it("accepts digit-rich Japanese-style numbers", () => {
@@ -13,9 +13,5 @@ describe("isValidOwnerPhone", () => {
 
   it("rejects invalid characters", () => {
     expect(isValidOwnerPhone("090-1234-5678a")).toBe(false);
-  });
-
-  it("shares implementation with isBackendCompatiblePhone", () => {
-    expect(isBackendCompatiblePhone).toBe(isValidOwnerPhone);
   });
 });
