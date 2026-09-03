@@ -60,10 +60,23 @@ func (r *paymentMethodMasterRepository) Create(ctx context.Context, m *model.Pay
 }
 
 func (r *paymentMethodMasterRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.PaymentMethodMaster, error) {
-	if err := updateScopedByID(ctx, r.db, &model.PaymentMethodMaster{}, "payment_method", clinicID, id, fields); err != nil {
+	var loaded *model.PaymentMethodMaster
+	err := persistence.DBOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
+		txCtx := persistence.WithTxValue(ctx, tx)
+		if err := updateScopedByID(txCtx, tx, &model.PaymentMethodMaster{}, "payment_method", clinicID, id, fields); err != nil {
+			return err
+		}
+		reloaded, err := r.FindByID(txCtx, clinicID, id)
+		if err != nil {
+			return apperrors.Wrap(err, "reload payment method after update")
+		}
+		loaded = reloaded
+		return nil
+	})
+	if err != nil {
 		return nil, err
 	}
-	return r.FindByID(ctx, clinicID, id)
+	return loaded, nil
 }
 
 func (r *paymentMethodMasterRepository) Delete(ctx context.Context, clinicID, id uint64) error {

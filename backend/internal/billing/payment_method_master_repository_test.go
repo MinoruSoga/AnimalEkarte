@@ -178,6 +178,48 @@ func TestPaymentMethodMasterRepository_Update(t *testing.T) {
 	})
 }
 
+func TestPaymentMethodMasterRepository_Update_ReloadFailureRollsBackUpdate(t *testing.T) {
+	db := setupPaymentMethodMasterRepoTestDB(t)
+	repo := NewPaymentMethodMasterRepository(db)
+	ctx := context.Background()
+	const clinicID = uint64(1)
+
+	record := makeCustomPaymentMethodMaster(t, db, clinicID, "更新前支払方法")
+	const callbackName = "payment_method:update_and_find_reload_failure"
+	reloadErr := errors.New("forced reload failure")
+	require.NoError(t, db.Callback().Query().Before("gorm:query").Register(callbackName, func(query *gorm.DB) {
+		if query.Statement == nil {
+			return
+		}
+		table := query.Statement.Table
+		if table == "" && query.Statement.Schema != nil {
+			table = query.Statement.Schema.Table
+		}
+		if table == "payment_methods" {
+			query.AddError(reloadErr)
+		}
+	}))
+	callbackRegistered := true
+	t.Cleanup(func() {
+		if callbackRegistered {
+			require.NoError(t, db.Callback().Query().Remove(callbackName))
+		}
+	})
+
+	got, err := repo.Update(ctx, clinicID, record.ID, map[string]any{"name": "更新後支払方法"})
+
+	assert.Nil(t, got)
+	require.Error(t, err)
+	assert.ErrorIs(t, err, reloadErr)
+
+	require.NoError(t, db.Callback().Query().Remove(callbackName))
+	callbackRegistered = false
+
+	var persisted model.PaymentMethodMaster
+	require.NoError(t, db.WithContext(ctx).First(&persisted, record.ID).Error)
+	assert.Equal(t, "更新前支払方法", persisted.Name)
+}
+
 func TestPaymentMethodMasterRepository_Delete(t *testing.T) {
 	db := setupPaymentMethodMasterRepoTestDB(t)
 	repo := NewPaymentMethodMasterRepository(db)
