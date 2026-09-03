@@ -157,6 +157,7 @@ func TestCloseCashRegister(t *testing.T) {
 		svc        *mockCashRegisterService
 		wantStatus int
 		wantHeader bool
+		wantBody   string
 	}{
 		{
 			name:     "closes cash register successfully",
@@ -201,6 +202,7 @@ func TestCloseCashRegister(t *testing.T) {
 			setupCtx:   func(c *gin.Context) { setClinicID(c); setStaffID(c) },
 			svc:        &mockCashRegisterService{},
 			wantStatus: http.StatusBadRequest,
+			wantBody:   "date は YYYY-MM-DD 形式で指定してください",
 		},
 		{
 			name:     "returns 500 on service error",
@@ -233,6 +235,10 @@ func TestCloseCashRegister(t *testing.T) {
 			assert.Equal(t, tt.wantStatus, w.Code)
 			if tt.wantHeader {
 				assert.NotEmpty(t, w.Header().Get("Location"))
+			}
+			if tt.wantBody != "" {
+				assert.Contains(t, w.Body.String(), tt.wantBody)
+				assert.NotContains(t, w.Body.String(), "parsing time")
 			}
 		})
 	}

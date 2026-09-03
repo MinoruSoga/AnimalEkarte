@@ -1,10 +1,10 @@
 package billing
 
 import (
-	"fmt"
 	"net/url"
-
 	"time"
+
+	"github.com/animal-ekarte/backend/internal/apperrors"
 )
 
 type listCashRegisterClosesQuery struct {
@@ -62,11 +62,11 @@ type closeCashRegisterRequest struct {
 func (r closeCashRegisterRequest) toServiceInput(staffID uint64) (CloseRegisterInput, error) {
 	date, err := time.ParseInLocation(time.DateOnly, r.Date, time.Local)
 	if err != nil {
-		return CloseRegisterInput{}, fmt.Errorf("date は YYYY-MM-DD 形式で指定してください")
+		return CloseRegisterInput{}, apperrors.WrapInvalidInput("date は YYYY-MM-DD 形式で指定してください")
 	}
 	// FE CashRegisterClosePage min=0 と整合。負の実査現金は無効（V02-F04）。
 	if r.ActualCash < 0 {
-		return CloseRegisterInput{}, fmt.Errorf("actual_cash は 0 以上で指定してください")
+		return CloseRegisterInput{}, apperrors.WrapInvalidInput("actual_cash は 0 以上で指定してください")
 	}
 
 	return CloseRegisterInput{

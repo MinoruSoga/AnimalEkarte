@@ -1,11 +1,32 @@
 package billing
 
 import (
+	"bytes"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
 	"github.com/gin-gonic/gin"
 
 	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
 )
+
+// bindJSONBody binds payload onto dest with gin ShouldBindJSON (owner/pet freetext pattern).
+func bindJSONBody(t *testing.T, payload any, dest any) error {
+	t.Helper()
+	gin.SetMode(gin.TestMode)
+	body, err := json.Marshal(payload)
+	if err != nil {
+		t.Fatalf("json.Marshal: %v", err)
+	}
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(body))
+	c.Request.Header.Set("Content-Type", "application/json")
+	return c.ShouldBindJSON(dest)
+}
 
 func allowAllClinicPermission(c *gin.Context) {
 	httpapi.SetClinicPermissionChecker(c, func(_ *gin.Context, _ uint64, _, _ string) bool {

@@ -2,6 +2,7 @@ package billing
 
 import (
 	"net/url"
+	"strings"
 	"testing"
 	"time"
 
@@ -187,5 +188,95 @@ func TestUpdateEstimateRequest_ToServiceInput(t *testing.T) {
 	}
 	if input.ActorID == nil || *input.ActorID != 7 {
 		t.Errorf("ActorID = %v, want 7", input.ActorID)
+	}
+}
+
+func TestEstimateRequest_CommentNotesMax(t *testing.T) {
+	tests := []struct {
+		name    string
+		payload map[string]any
+		dest    any
+		wantErr bool
+	}{
+		{
+			name: "create comment/notes at 1000 are accepted",
+			payload: map[string]any{
+				"title":   "見積",
+				"comment": strings.Repeat("a", 1000),
+				"notes":   strings.Repeat("a", 1000),
+			},
+			dest: &createEstimateRequest{},
+		},
+		{
+			name: "create comment over 1000 is rejected",
+			payload: map[string]any{
+				"title":   "見積",
+				"comment": strings.Repeat("a", 1001),
+			},
+			dest:    &createEstimateRequest{},
+			wantErr: true,
+		},
+		{
+			name: "create notes over 1000 is rejected",
+			payload: map[string]any{
+				"title": "見積",
+				"notes": strings.Repeat("a", 1001),
+			},
+			dest:    &createEstimateRequest{},
+			wantErr: true,
+		},
+		{
+			name: "update comment/notes at 1000 are accepted",
+			payload: map[string]any{
+				"comment": strings.Repeat("a", 1000),
+				"notes":   strings.Repeat("a", 1000),
+			},
+			dest: &updateEstimateRequest{},
+		},
+		{
+			name:    "update comment over 1000 is rejected",
+			payload: map[string]any{"comment": strings.Repeat("a", 1001)},
+			dest:    &updateEstimateRequest{},
+			wantErr: true,
+		},
+		{
+			name:    "update notes over 1000 is rejected",
+			payload: map[string]any{"notes": strings.Repeat("a", 1001)},
+			dest:    &updateEstimateRequest{},
+			wantErr: true,
+		},
+		{
+			name: "successor comment/notes at 1000 are accepted",
+			payload: map[string]any{
+				"reason":  "後継作成",
+				"comment": strings.Repeat("a", 1000),
+				"notes":   strings.Repeat("a", 1000),
+			},
+			dest: &createEstimateSuccessorRequest{},
+		},
+		{
+			name: "successor comment over 1000 is rejected",
+			payload: map[string]any{
+				"reason":  "後継作成",
+				"comment": strings.Repeat("a", 1001),
+			},
+			dest:    &createEstimateSuccessorRequest{},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := bindJSONBody(t, tt.payload, tt.dest)
+			if tt.wantErr {
+				if err == nil {
+					t.Fatal("ShouldBindJSON = nil, want over-max error")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("ShouldBindJSON = %v, want nil", err)
+			}
+		})
 	}
 }

@@ -55,7 +55,7 @@ type createBillingItemRequest struct {
 	MerchandiseItemID     *uint64 `json:"merchandise_item_id"`
 	SortOrder             int     `json:"sort_order"`
 	// #115 / BUG-463: 締め後編集理由（レジ締め済み期間の明細を変更する場合は必須）
-	PostCloseReason *string `json:"post_close_reason"`
+	PostCloseReason *string `json:"post_close_reason" binding:"omitempty,max=500"`
 }
 
 // updateBillingItemRequest は明細更新リクエスト（nil = 未指定）。
@@ -68,13 +68,13 @@ type updateBillingItemRequest struct {
 	TaxRate               *float64 `json:"tax_rate"`
 	IsInsuranceApplicable *bool    `json:"is_insurance_applicable"`
 	// #115 / BUG-463: 締め後編集理由（レジ締め済み期間の明細を変更する場合は必須）
-	PostCloseReason *string `json:"post_close_reason"`
+	PostCloseReason *string `json:"post_close_reason" binding:"omitempty,max=500"`
 }
 
 // deleteBillingItemRequest は明細削除の任意 body。
 // 締め後削除時のみ post_close_reason を送る（BUG-463 residual）。
 type deleteBillingItemRequest struct {
-	PostCloseReason *string `json:"post_close_reason"`
+	PostCloseReason *string `json:"post_close_reason" binding:"omitempty,max=500"`
 }
 
 func (r *createBillingItemRequest) toServiceInput(clinicID uint64) *CreateBillingItemInput {
