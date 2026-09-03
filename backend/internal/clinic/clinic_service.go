@@ -331,7 +331,7 @@ func (s *clinicService) UpdateClinic(ctx context.Context, id uint64, input *Upda
 	// reload 失敗時は tx がロールバックするため、write は永続化されない。
 	var updated *model.Clinic
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
-		if err := s.repo.Update(txCtx, id, fields); err != nil {
+		if err := s.repo.UpdateClinic(txCtx, id, input); err != nil {
 			slog.ErrorContext(txCtx, "failed to update clinic", "error", err)
 			return apperrors.Wrap(err, "failed to update clinic")
 		}

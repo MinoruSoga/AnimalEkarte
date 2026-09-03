@@ -29,7 +29,7 @@ type mockClinicRepository struct {
 	lockForUpdateFn         func(ctx context.Context, id uint64) (*model.Clinic, error)
 	getCompanyFn            func(ctx context.Context) (*model.Company, error)
 	createFn                func(ctx context.Context, clinic *model.Clinic) error
-	updateFn                func(ctx context.Context, id uint64, fields map[string]any) error
+	updateFn                func(ctx context.Context, id uint64, input *UpdateClinicInput) error
 	deleteFn                func(ctx context.Context, id uint64) error
 	countOwnersByClinicIDFn func(ctx context.Context, clinicID uint64) (int64, error)
 	countStaffByClinicIDFn  func(ctx context.Context, clinicID uint64) (int64, error)
@@ -93,8 +93,11 @@ func (m *mockClinicRepository) Create(ctx context.Context, clinic *model.Clinic)
 	return m.createFn(ctx, clinic)
 }
 
-func (m *mockClinicRepository) Update(ctx context.Context, id uint64, fields map[string]any) error {
-	return m.updateFn(ctx, id, fields)
+func (m *mockClinicRepository) UpdateClinic(ctx context.Context, id uint64, input *UpdateClinicInput) error {
+	if m.updateFn == nil {
+		return nil
+	}
+	return m.updateFn(ctx, id, input)
 }
 
 func (m *mockClinicRepository) Delete(ctx context.Context, id uint64) error {
@@ -748,7 +751,10 @@ func TestClinicService_UpdateClinic(t *testing.T) {
 				findByIDFn: func(_ context.Context, _ uint64) (*model.Clinic, error) {
 					return tt.repoClinic, tt.repoFindErr
 				},
-				updateFn: func(_ context.Context, _ uint64, _ map[string]any) error {
+				updateFn: func(_ context.Context, _ uint64, input *UpdateClinicInput) error {
+					if tt.repoUpdateErr == nil && input != nil && input.Name != nil {
+						assert.Equal(t, "更新後院", *input.Name)
+					}
 					return tt.repoUpdateErr
 				},
 			}
@@ -800,7 +806,7 @@ func TestClinicService_UpdateClinic_NoFieldsProvided(t *testing.T) {
 		findByIDFn: func(_ context.Context, _ uint64) (*model.Clinic, error) {
 			return existing, nil
 		},
-		updateFn: func(_ context.Context, _ uint64, _ map[string]any) error {
+		updateFn: func(_ context.Context, _ uint64, _ *UpdateClinicInput) error {
 			updateCalled = true
 			return nil
 		},
@@ -812,7 +818,7 @@ func TestClinicService_UpdateClinic_NoFieldsProvided(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.Equal(t, existing, result)
-	assert.False(t, updateCalled, "更新フィールドが無い場合は repo.Update を呼ばない")
+	assert.False(t, updateCalled, "更新フィールドが無い場合は repo.UpdateClinic を呼ばない")
 }
 
 func TestClinicService_UpdateClinic_InvalidTaxRate(t *testing.T) {
@@ -821,7 +827,7 @@ func TestClinicService_UpdateClinic_InvalidTaxRate(t *testing.T) {
 		findByIDFn: func(_ context.Context, _ uint64) (*model.Clinic, error) {
 			return &model.Clinic{ID: 1, CompanyID: 5}, nil
 		},
-		updateFn: func(_ context.Context, _ uint64, _ map[string]any) error {
+		updateFn: func(_ context.Context, _ uint64, _ *UpdateClinicInput) error {
 			t.Fatal("clinic must not be updated when the input fails validation")
 			return nil
 		},
@@ -851,7 +857,7 @@ func TestClinicService_UpdateClinic_RefetchErrorAfterUpdate(t *testing.T) {
 			}
 			return nil, errors.New("db error")
 		},
-		updateFn: func(_ context.Context, _ uint64, _ map[string]any) error {
+		updateFn: func(_ context.Context, _ uint64, _ *UpdateClinicInput) error {
 			updateCalls++
 			return nil
 		},

@@ -193,7 +193,7 @@ func (h *LiffHandler) CreateLiffReservation(c *gin.Context) {
 
 	input, err := req.toServiceInput()
 	if err != nil {
-		respondError(c, apperrors.WrapInvalidInput(err.Error()))
+		respondError(c, passthroughOrInvalidDateTime(err))
 		return
 	}
 

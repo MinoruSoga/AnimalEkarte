@@ -10,6 +10,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/persistence"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 type clinicRepository struct {
@@ -113,6 +114,22 @@ func (r *clinicRepository) Create(ctx context.Context, clinic *model.Clinic) err
 	return nil
 }
 
+func (r *clinicRepository) UpdateClinic(ctx context.Context, id uint64, input *UpdateClinicInput) error {
+	if input == nil {
+		return apperrors.WrapInvalidInput(sharedkernel.ErrMsgInputNotNil)
+	}
+	fields, err := BuildClinicUpdate(input)
+	if err != nil {
+		return err
+	}
+	if len(fields) == 0 {
+		return nil
+	}
+	return r.Update(ctx, id, fields)
+}
+
+// Update applies a BuildClinicUpdate map inside the caller's ambient transaction.
+// Consumers must call UpdateClinic; this method stays for the DBOrTx inventory key.
 func (r *clinicRepository) Update(ctx context.Context, id uint64, fields map[string]any) error {
 	result := persistence.DBOrTx(ctx, r.db).Model(&model.Clinic{}).Where("id = ?", id).Updates(fields)
 	if result.Error != nil {

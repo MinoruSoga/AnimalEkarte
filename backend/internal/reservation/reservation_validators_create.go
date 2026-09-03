@@ -31,11 +31,11 @@ func (v *reservationValidators) createLineReservationInTx(
 	}
 	startDT, err := ToDateTime(input.Date, input.StartTime)
 	if err != nil {
-		return nil, apperrors.WrapInvalidInput(err.Error())
+		return nil, passthroughOrInvalidDateTime(err)
 	}
 	endDT, err := ToDateTime(input.Date, input.EndTime)
 	if err != nil {
-		return nil, apperrors.WrapInvalidInput(err.Error())
+		return nil, passthroughOrInvalidDateTime(err)
 	}
 	if err := validateTimeRange(startDT, endDT); err != nil {
 		return nil, err

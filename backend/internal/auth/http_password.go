@@ -155,7 +155,7 @@ func (h *HTTPHandler) ResetPassword(c *gin.Context) {
 		return
 	}
 	if err := ValidatePassword(request.Password); err != nil {
-		httpapi.RespondError(c, apperrors.WrapInvalidInput(err.Error()))
+		httpapi.RespondError(c, err)
 		return
 	}
 	completionService, ok := h.deps.PasswordReset.(PasswordResetCompletionService)

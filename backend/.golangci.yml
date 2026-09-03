@@ -108,7 +108,33 @@ linters:
         - (net/http.ResponseWriter).Write(
         - (context.Context).Err(
       ignore-package-globs:
-        - github.com/animal-ekarte/backend/internal/*
+        # Campaign-touched packages stay on wrapcheck: staff, reservation, billing,
+        # inventory, lstep, medicalrecord, owner, pet, clinic, auth.
+        - github.com/animal-ekarte/backend/internal/apicontract
+        - github.com/animal-ekarte/backend/internal/apperrors
+        - github.com/animal-ekarte/backend/internal/audit
+        - github.com/animal-ekarte/backend/internal/authjwt
+        - github.com/animal-ekarte/backend/internal/config
+        - github.com/animal-ekarte/backend/internal/csvimport
+        - github.com/animal-ekarte/backend/internal/dbconn
+        - github.com/animal-ekarte/backend/internal/httpapi
+        - github.com/animal-ekarte/backend/internal/identitylink
+        - github.com/animal-ekarte/backend/internal/infra
+        - github.com/animal-ekarte/backend/internal/infra/*
+        - github.com/animal-ekarte/backend/internal/labdeviceagent
+        - github.com/animal-ekarte/backend/internal/lintscan
+        - github.com/animal-ekarte/backend/internal/logger
+        - github.com/animal-ekarte/backend/internal/manualarticle
+        - github.com/animal-ekarte/backend/internal/middleware
+        - github.com/animal-ekarte/backend/internal/model
+        - github.com/animal-ekarte/backend/internal/persistence
+        - github.com/animal-ekarte/backend/internal/scheduler
+        - github.com/animal-ekarte/backend/internal/seedbundle
+        - github.com/animal-ekarte/backend/internal/sharedkernel
+        - github.com/animal-ekarte/backend/internal/testdb
+        - github.com/animal-ekarte/backend/internal/textsearch
+        - github.com/animal-ekarte/backend/internal/timeutil
+        - github.com/animal-ekarte/backend/internal/trimming
 
   exclusions:
     rules:

@@ -102,14 +102,14 @@ func (r *reservationRepository) FindAllByCategory(ctx context.Context, clinicID 
 	if startDate != nil {
 		start, err := ParseJSTDate(*startDate)
 		if err != nil {
-			return nil, 0, apperrors.WrapInvalidInput(err.Error())
+			return nil, 0, passthroughOrInvalidDateTime(err)
 		}
 		q = q.Where("appointments.start_time >= ?", start)
 	}
 	if endDate != nil {
 		end, err := ParseJSTDate(*endDate)
 		if err != nil {
-			return nil, 0, apperrors.WrapInvalidInput(err.Error())
+			return nil, 0, passthroughOrInvalidDateTime(err)
 		}
 		q = q.Where("appointments.start_time < ?", end.AddDate(0, 0, 1))
 	}
