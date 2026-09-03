@@ -539,7 +539,7 @@ describe("useExaminationForm — formAction（useActionState コールバック�
     expect(result.current.formState.success).toBe(true);
   });
 
-  it("mutateAsync が失敗した場合、toast.error を呼ぶ（line 129-130）", async () => {
+  it("mutateAsync が失敗した場合、caller は再通知せず失敗を返す（FE-RC-005）", async () => {
     const { toast } = await import("sonner");
     const { useCreateExamination } = await import("../api/create-examination");
     vi.mocked(useCreateExamination).mockReturnValue({
@@ -578,7 +578,8 @@ describe("useExaminationForm — formAction（useActionState コールバック�
       await result.current.formAction(new FormData());
     });
 
-    expect(toast.error).toHaveBeenCalledWith("API error");
+    // FE-RC-005: 通知は api/create-examination onError → handleApiError。caller は二重 toast しない。
+    expect(toast.error).not.toHaveBeenCalled();
     expect(result.current.formState.success).toBe(false);
   });
 
