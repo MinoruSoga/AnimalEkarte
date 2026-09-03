@@ -73,7 +73,7 @@ export function ClinicMasterSidePanel({
               <div className="pb-1 mb-4">
                 <input
                   type="text"
-                  className={`w-full bg-transparent ${C.text} ${C.textPlaceholderFaint} outline-none border-none p-0`}
+                  className={`w-full bg-transparent ${C.text} ${C.textPlaceholderFaint} outline-none border-none p-0 focus-visible:ring-2 ${C.focusRingAccent40}`}
                   style={{
                     fontSize: LAYOUT.pageTitle.fontSize,
                     fontWeight: LAYOUT.pageTitle.fontWeight,

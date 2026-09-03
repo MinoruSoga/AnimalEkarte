@@ -2,7 +2,7 @@ import { CircleDot } from "lucide-react";
 import { C } from "@/lib/design-tokens";
 import type { FilterProperty } from "@/components/shared/PropertyFilter/types";
 
-export const MASTER_INPUT_CLASS = `w-full bg-transparent text-sm ${C.text} outline-none border-none px-1.5 py-0.5 rounded-xxs ${C.hoverBgLight} ${C.focusBgLight} transition-colors ${C.textPlaceholder}`;
+export const MASTER_INPUT_CLASS = `w-full bg-transparent text-sm ${C.text} outline-none border-none px-1.5 py-0.5 rounded-xxs ${C.hoverBgLight} ${C.focusBgLight} transition-colors ${C.textPlaceholder} focus-visible:ring-2 ${C.focusRingAccent40}`;
 
 /** 全マスタ共通: 有効/無効 ステータスフィルタプロパティ */
 export const MASTER_STATUS_FILTER: FilterProperty = {
