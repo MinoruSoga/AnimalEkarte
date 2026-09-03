@@ -70,17 +70,19 @@ export function resolveInventoryListFilters(
   activeFilters: ActiveFilter[],
 ): InventoryListFilterResolution {
   const categoryFilter = activeFilters.find((f) => f.key === "category");
-  const category: CategoryFilter = categoryFilter?.condition === "is"
-    ? (categoryFilter.value as CategoryFilter)
-    : "all";
+  const category: CategoryFilter =
+    categoryFilter?.condition === "is" ? (categoryFilter.value as CategoryFilter) : "all";
   const excludeCategory: InventoryItem["category"] | null =
-    categoryFilter?.condition === "is_not" ? (categoryFilter.value as InventoryItem["category"]) : null;
+    categoryFilter?.condition === "is_not"
+      ? (categoryFilter.value as InventoryItem["category"])
+      : null;
   const statusFilterEntry = activeFilters.find((f) => f.key === "status");
-  const statusFilter: StatusFilter = statusFilterEntry?.condition === "is"
-    ? (statusFilterEntry.value as StatusFilter)
-    : "all";
+  const statusFilter: StatusFilter =
+    statusFilterEntry?.condition === "is" ? (statusFilterEntry.value as StatusFilter) : "all";
   const excludeStatus: InventoryItem["status"] | null =
-    statusFilterEntry?.condition === "is_not" ? (statusFilterEntry.value as InventoryItem["status"]) : null;
+    statusFilterEntry?.condition === "is_not"
+      ? (statusFilterEntry.value as InventoryItem["status"])
+      : null;
   return { category, excludeCategory, statusFilter, excludeStatus };
 }
 
@@ -123,10 +125,7 @@ export function buildServerPagePagination<T>(input: {
   };
 }
 
-export function nextListSearchParamsWithPage(
-  prev: URLSearchParams,
-  page: number,
-): URLSearchParams {
+export function nextListSearchParamsWithPage(prev: URLSearchParams, page: number): URLSearchParams {
   const next = new URLSearchParams(prev);
   if (page === 1) {
     next.delete("page");

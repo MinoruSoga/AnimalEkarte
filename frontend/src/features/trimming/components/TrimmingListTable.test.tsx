@@ -42,10 +42,7 @@ const noop = () => undefined;
 function LocationProbe() {
   const { state } = useLocation();
   const from =
-    state &&
-    typeof state === "object" &&
-    "from" in state &&
-    typeof state.from === "string"
+    state && typeof state === "object" && "from" in state && typeof state.from === "string"
       ? state.from
       : "";
   return <output data-testid="location-from">{from}</output>;

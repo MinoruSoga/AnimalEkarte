@@ -42,9 +42,7 @@ function CardRow({ label, description, icon, count, onClick }: CardRowProps) {
         <div className={`text-base ${C.text45} mt-0.5 truncate`}>{description}</div>
       </div>
       {count !== undefined ? (
-        <span className={`text-base ${C.text40} tabular-nums shrink-0`}>
-          {count}件
-        </span>
+        <span className={`text-base ${C.text40} tabular-nums shrink-0`}>{count}件</span>
       ) : null}
       <ChevronRight className={`${ICON.action} ${C.text35} shrink-0`} />
     </button>
@@ -113,10 +111,10 @@ function PermissionFilteredSection({
 
   return (
     <div className="mb-6">
-      <div className={`px-1 pb-1.5 ${STYLE.sectionLabel}`}>
-        {section.title}
-      </div>
-      <div className={`${C.bgWhite} rounded-lg border ${C.borderLight} overflow-hidden divide-y ${C.divideDivider}`}>
+      <div className={`px-1 pb-1.5 ${STYLE.sectionLabel}`}>{section.title}</div>
+      <div
+        className={`${C.bgWhite} rounded-lg border ${C.borderLight} overflow-hidden divide-y ${C.divideDivider}`}
+      >
         {section.keys.map((key) => (
           <PermissionFilteredCard key={key} cardKey={key} navigate={navigate} />
         ))}
@@ -162,9 +160,7 @@ export function MasterSettingsIndex() {
             マスタ設定
           </h2>
         </div>
-        <p className={`text-base ${C.text50} mb-6`}>
-          動物病院の各種マスタデータを管理します
-        </p>
+        <p className={`text-base ${C.text50} mb-6`}>動物病院の各種マスタデータを管理します</p>
 
         {/* Thin divider */}
         <div className={`${STYLE.sectionDivider} mb-6`} />

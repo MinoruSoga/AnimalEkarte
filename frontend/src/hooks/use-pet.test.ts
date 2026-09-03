@@ -109,9 +109,7 @@ describe("useGetPets", () => {
     const { result, rerender } = renderHook(() => useGetPets(ownerId), {
       wrapper: createTestWrapper(),
     });
-    await waitFor(() =>
-      expect(result.current.data?.[0]?.ownerId).toBe("42"),
-    );
+    await waitFor(() => expect(result.current.data?.[0]?.ownerId).toBe("42"));
 
     ownerId = "99";
     rerender();
@@ -120,9 +118,7 @@ describe("useGetPets", () => {
     await act(async () => {
       releaseSecondOwner?.();
     });
-    await waitFor(() =>
-      expect(result.current.data?.[0]?.ownerId).toBe("99"),
-    );
+    await waitFor(() => expect(result.current.data?.[0]?.ownerId).toBe("99"));
   });
 
   it("死亡ペットを含める場合はAPIへinclude_deceased=trueを明示してstatusを変換する", async () => {
@@ -145,18 +141,15 @@ describe("useGetPets", () => {
       }),
     );
 
-    const { result } = renderHook(
-      () => useGetPets("42", { includeDeceased: true }),
-      { wrapper: createTestWrapper() },
-    );
+    const { result } = renderHook(() => useGetPets("42", { includeDeceased: true }), {
+      wrapper: createTestWrapper(),
+    });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
     expect(capturedUrl?.searchParams.get("owner_id")).toBe("42");
     expect(capturedUrl?.searchParams.get("include_deceased")).toBe("true");
-    expect(result.current.data?.[0]).toEqual(
-      expect.objectContaining({ id: "7", status: "死亡" }),
-    );
+    expect(result.current.data?.[0]).toEqual(expect.objectContaining({ id: "7", status: "死亡" }));
   });
 
   it("通常一覧と死亡ペットを含む一覧は異なるquery keyを使う", () => {

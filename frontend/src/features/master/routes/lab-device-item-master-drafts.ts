@@ -1,18 +1,18 @@
 /**
  * lab-device-item-master-settings-model の draft ⇄ API リクエスト変換を担当。
  */
-import type {
-  CreateLabDeviceRequest,
-  LabDevice,
-  UpdateLabDeviceRequest,
-} from "../api/lab-devices";
+import type { CreateLabDeviceRequest, LabDevice, UpdateLabDeviceRequest } from "../api/lab-devices";
 import type {
   LabDeviceItemMaster,
   UpdateLabDeviceItemMasterRequest,
 } from "../api/lab-device-item-masters";
 import { labDeviceSourceLabel, defaultLabDeviceSortOrder } from "./lab-device-item-master-labels";
 import { validateLabDeviceItemMasterDraft } from "./lab-device-item-master-validation";
-import type { LabDeviceFormData, LabDeviceItemDraft, LabDeviceRow } from "./lab-device-item-master-types";
+import type {
+  LabDeviceFormData,
+  LabDeviceItemDraft,
+  LabDeviceRow,
+} from "./lab-device-item-master-types";
 
 export function buildLabDeviceItemMasterUpdateRequest(input: {
   unit: string;
@@ -77,8 +77,7 @@ export function itemToLabDeviceDraft(item: LabDeviceItemMaster): LabDeviceItemDr
 }
 
 function isLabDeviceItemDraftDirty(item: LabDeviceItemMaster, draft: LabDeviceItemDraft): boolean {
-  return item.examTypeFieldId !== draft.examTypeFieldId
-    || item.isActive !== draft.isActive;
+  return item.examTypeFieldId !== draft.examTypeFieldId || item.isActive !== draft.isActive;
 }
 
 export function collectDirtyLabDeviceUpdates(

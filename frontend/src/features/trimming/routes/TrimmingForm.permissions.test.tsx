@@ -94,13 +94,7 @@ vi.mock("../hooks/use-trimming-form-chrome", () => ({
 }));
 
 vi.mock("@/components/shared/PageLayout/PageLayout", () => ({
-  PageLayout: ({
-    children,
-    headerAction,
-  }: {
-    children: ReactNode;
-    headerAction?: ReactNode;
-  }) => (
+  PageLayout: ({ children, headerAction }: { children: ReactNode; headerAction?: ReactNode }) => (
     <div>
       {headerAction}
       {children}

@@ -59,7 +59,7 @@ export interface UpdateCheckupInput {
 
 const getCheckups = async (medicalRecordId: string): Promise<Checkup[]> => {
   const { data } = await axios.get<Parameters<typeof transformCheckup>[0][]>(
-    `/v1/medical-records/${medicalRecordId}/checkups`
+    `/v1/medical-records/${medicalRecordId}/checkups`,
   );
   return data.map(transformCheckup);
 };
@@ -85,7 +85,9 @@ export const useCreateCheckup = (medicalRecordId: string) => {
         .post<Checkup>(`/v1/medical-records/${medicalRecordId}/checkups`, input)
         .then((r) => r.data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.medicalRecords.checkups(medicalRecordId) });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.medicalRecords.checkups(medicalRecordId),
+      });
     },
     onError: (error) => {
       handleApiError(error, "検査結果追加");
@@ -101,13 +103,12 @@ export const useUpdateCheckup = (medicalRecordId: string) => {
   return useMutation({
     mutationFn: ({ checkupId, input }: { checkupId: string; input: UpdateCheckupInput }) =>
       axios
-        .patch<Checkup>(
-          `/v1/medical-records/${medicalRecordId}/checkups/${checkupId}`,
-          input
-        )
+        .patch<Checkup>(`/v1/medical-records/${medicalRecordId}/checkups/${checkupId}`, input)
         .then((r) => r.data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.medicalRecords.checkups(medicalRecordId) });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.medicalRecords.checkups(medicalRecordId),
+      });
     },
     onError: (error) => {
       handleApiError(error, "検査結果更新");
@@ -124,7 +125,9 @@ export const useDeleteCheckup = (medicalRecordId: string) => {
     mutationFn: (checkupId: string) =>
       axios.delete(`/v1/medical-records/${medicalRecordId}/checkups/${checkupId}`),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.medicalRecords.checkups(medicalRecordId) });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.medicalRecords.checkups(medicalRecordId),
+      });
     },
     onError: (error) => {
       handleApiError(error, "検査結果削除");

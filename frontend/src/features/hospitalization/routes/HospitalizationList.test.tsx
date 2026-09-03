@@ -19,7 +19,9 @@ vi.mock("@/hooks/use-permission", () => ({
 
 vi.mock("@/hooks/use-master-items", () => ({
   useGetMasterItems: vi.fn(() => ({
-    data: [{ id: "cage-1", name: "ケージ1", category: "犬舎", price: 0, status: "active" as const }],
+    data: [
+      { id: "cage-1", name: "ケージ1", category: "犬舎", price: 0, status: "active" as const },
+    ],
     isLoading: false,
     error: null,
   })),
@@ -43,19 +45,21 @@ function makeAuthCtx() {
   };
 }
 
-function makeHosp(overrides: Partial<{
-  id: string;
-  petName: string;
-  ownerName: string;
-  hospitalizationNo: string;
-  status: string;
-  hospitalizationType: string;
-  cageId: string;
-  startDate: string;
-  endDate: string | undefined;
-  species: string;
-  petIsDeceased: boolean;
-}> = {}) {
+function makeHosp(
+  overrides: Partial<{
+    id: string;
+    petName: string;
+    ownerName: string;
+    hospitalizationNo: string;
+    status: string;
+    hospitalizationType: string;
+    cageId: string;
+    startDate: string;
+    endDate: string | undefined;
+    species: string;
+    petIsDeceased: boolean;
+  }> = {},
+) {
   return {
     id: "h-1",
     petName: "ポチ",
@@ -85,10 +89,7 @@ function createWrapper() {
   );
 }
 
-function mockHospitalizationsPage(
-  items: ReturnType<typeof makeHosp>[],
-  total = items.length,
-) {
+function mockHospitalizationsPage(items: ReturnType<typeof makeHosp>[], total = items.length) {
   vi.mocked(useGetHospitalizations).mockReturnValue({
     data: {
       data: items,
@@ -221,10 +222,7 @@ describe("HospitalizationList — BUG-009 status tab → server filter", () => {
   });
 
   it("件数表示の正本が server total である（page 内 length ではない）", async () => {
-    mockHospitalizationsPage(
-      [makeHosp({ id: "1", petName: "1件だけ返却", status: "入院中" })],
-      42,
-    );
+    mockHospitalizationsPage([makeHosp({ id: "1", petName: "1件だけ返却", status: "入院中" })], 42);
 
     render(<HospitalizationList />, { wrapper: createWrapper() });
 
@@ -232,10 +230,7 @@ describe("HospitalizationList — BUG-009 status tab → server filter", () => {
   });
 
   it("server total が limit を超えると list view に Pagination が出る（client window ではない）", async () => {
-    mockHospitalizationsPage(
-      [makeHosp({ id: "1", petName: "ページ1行", status: "入院中" })],
-      42,
-    );
+    mockHospitalizationsPage([makeHosp({ id: "1", petName: "ページ1行", status: "入院中" })], 42);
 
     const user = userEvent.setup();
     render(<HospitalizationList />, { wrapper: createWrapper() });

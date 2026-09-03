@@ -150,9 +150,7 @@ describe("ExaminationImportDialog (BUG-014)", () => {
 
     renderDialog();
 
-    expect(
-      await screen.findByText("取り込める検査記録がありません"),
-    ).toBeInTheDocument();
+    expect(await screen.findByText("取り込める検査記録がありません")).toBeInTheDocument();
     expect(screen.queryByText("確定のみ")).not.toBeInTheDocument();
   });
 });

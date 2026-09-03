@@ -24,7 +24,9 @@ describe("master-settings-index-model campaigns entry (V04-A01)", () => {
     });
     expect(getResourceForCardKey("examinationItems")).toBe("master-medical");
     const chart = MASTER_SECTIONS.find((s) => s.title === "カルテ");
-    expect(chart?.keys).toEqual(expect.arrayContaining(["examinationItems", "labDeviceItemMasters"]));
+    expect(chart?.keys).toEqual(
+      expect.arrayContaining(["examinationItems", "labDeviceItemMasters"]),
+    );
     expect(chart!.keys.indexOf("examinationItems")).toBeLessThan(
       chart!.keys.indexOf("labDeviceItemMasters"),
     );

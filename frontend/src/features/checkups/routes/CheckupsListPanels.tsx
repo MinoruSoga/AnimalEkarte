@@ -3,7 +3,11 @@ import type { ActiveFilter, ActiveSort } from "@/components/shared/PropertyFilte
 import { TableCell } from "@/components/ui/table";
 import { CheckupAlertBadge } from "@/components/shared/CheckupAlertBadge/CheckupAlertBadge";
 import { PropertyFilter } from "@/components/shared/PropertyFilter/PropertyFilter";
-import { DataTable, DESIGN_TABLE_HEADER_ROW, DESIGN_TABLE_HEADER_CELL } from "@/components/shared/DataTable/DataTable";
+import {
+  DataTable,
+  DESIGN_TABLE_HEADER_ROW,
+  DESIGN_TABLE_HEADER_CELL,
+} from "@/components/shared/DataTable/DataTable";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { DataTableRowLink } from "@/components/shared/DataTable/DataTableRowLink";
 import { SortableHeader } from "@/components/shared/SortableHeader/SortableHeader";
@@ -41,9 +45,13 @@ function CheckupsListRow({ record, canView, canEdit, onEdit }: CheckupsListRowPr
           >
             {record.petName || "-"}
           </DataTableRowLink>
-        ) : (record.petName || "-")}
+        ) : (
+          record.petName || "-"
+        )}
       </TableCell>
-      <TableCell className={`${C.text} hidden md:table-cell`}>{record.checkupTypeName || "-"}</TableCell>
+      <TableCell className={`${C.text} hidden md:table-cell`}>
+        {record.checkupTypeName || "-"}
+      </TableCell>
       <TableCell className={`font-mono ${C.text} hidden md:table-cell`}>
         <div className="flex items-center gap-1.5">
           {record.nextDate ? formatDate(record.nextDate) : "-"}
@@ -168,9 +176,12 @@ export function CheckupsListContent({
     [directionFor, toggleSort],
   );
 
-  const renderRow = useCallback((c: CheckupRecord) => (
-    <CheckupsListRow record={c} canView={canView} canEdit={canEdit} onEdit={onEdit} />
-  ), [canView, canEdit, onEdit]);
+  const renderRow = useCallback(
+    (c: CheckupRecord) => (
+      <CheckupsListRow record={c} canView={canView} canEdit={canEdit} onEdit={onEdit} />
+    ),
+    [canView, canEdit, onEdit],
+  );
 
   return (
     <div className="flex flex-col gap-4">

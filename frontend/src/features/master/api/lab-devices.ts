@@ -64,7 +64,10 @@ const createLabDevice = async (req: CreateLabDeviceRequest): Promise<LabDevice> 
   return transformLabDevice(data);
 };
 
-const saveLabDeviceConfiguration = async (id: string, req: SaveLabDeviceConfigurationRequest): Promise<void> => {
+const saveLabDeviceConfiguration = async (
+  id: string,
+  req: SaveLabDeviceConfigurationRequest,
+): Promise<void> => {
   await axios.put(`/v1/lab-devices/${id}/configuration`, req);
 };
 
@@ -94,7 +97,9 @@ export const useSaveLabDeviceConfiguration = () => {
       saveLabDeviceConfiguration(id, req),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey });
-      queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("lab-device-item-masters") });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.masters.category("lab-device-item-masters"),
+      });
     },
     onError: (error) => handleApiError(error, "更新"),
   });

@@ -176,13 +176,15 @@ export function useMedicalRecordSaveAction({
               return deniedState(PERMISSION_DENIED_MESSAGE);
             }
             await updateInquiryMutation.mutateAsync({
-              chief_complaint: snapshot.chiefComplaint !== snapshot.chiefComplaintDefault
-                ? snapshot.chiefComplaint
-                : undefined,
+              chief_complaint:
+                snapshot.chiefComplaint !== snapshot.chiefComplaintDefault
+                  ? snapshot.chiefComplaint
+                  : undefined,
               chief_complaint_type_id: snapshot.chiefComplaintTypeId,
-              notes: snapshot.treatmentPolicy !== snapshot.treatmentPolicyDefault
-                ? snapshot.treatmentPolicy
-                : undefined,
+              notes:
+                snapshot.treatmentPolicy !== snapshot.treatmentPolicyDefault
+                  ? snapshot.treatmentPolicy
+                  : undefined,
             });
             break;
 
@@ -271,7 +273,7 @@ export function useMedicalRecordSaveAction({
         return { success: false, timestamp: Date.now() };
       }
     },
-    INITIAL_ACTION_STATE
+    INITIAL_ACTION_STATE,
   );
 
   return { formState, formAction, isSaving };

@@ -1,6 +1,6 @@
 export const OUTSIDE_FIRST_PAGE_PET = {
-  id: '1003298',
-  name: 'SPANKY',
+  id: "1003298",
+  name: "SPANKY",
 } as const;
 
 export interface RuntimePetReference {
@@ -9,12 +9,12 @@ export interface RuntimePetReference {
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null;
+  return typeof value === "object" && value !== null;
 }
 
 function stringifyId(value: unknown): string | null {
-  if (typeof value === 'string') return value;
-  if (typeof value === 'number' && Number.isSafeInteger(value)) return String(value);
+  if (typeof value === "string") return value;
+  if (typeof value === "number" && Number.isSafeInteger(value)) return String(value);
   return null;
 }
 
@@ -27,7 +27,7 @@ export function readRuntimePetReferences(payload: unknown): RuntimePetReference[
   if (!isRecord(payload) || !Array.isArray(payload.data)) return [];
 
   return payload.data.flatMap((item) => {
-    if (!isRecord(item) || typeof item.name !== 'string') return [];
+    if (!isRecord(item) || typeof item.name !== "string") return [];
     const id = stringifyId(item.id);
     return id === null ? [] : [{ id, name: item.name }];
   });

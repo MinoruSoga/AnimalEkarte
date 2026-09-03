@@ -95,7 +95,9 @@ function MedicalRecordsListRow({
       <TableCell className={STYLE.tableCellMono}>{record.date}</TableCell>
       <TableCell className={STYLE.tableCell}>{record.ownerName}</TableCell>
       <TableCell className={STYLE.tableCell}>
-        {isOtherClinic ? record.petName : (
+        {isOtherClinic ? (
+          record.petName
+        ) : (
           <DataTableRowLink
             to={paths.medicalRecords.detail.getHref(record.id)}
             state={{ from: paths.medicalRecords.getHref() }}
@@ -106,12 +108,16 @@ function MedicalRecordsListRow({
         )}
       </TableCell>
       <TableCell className={`${STYLE.tableCell} hidden lg:table-cell`}>{record.species}</TableCell>
-      <TableCell className={`${STYLE.tableCell} max-w-[200px] truncate hidden md:table-cell`} title={record.chiefComplaint}>
+      <TableCell
+        className={`${STYLE.tableCell} max-w-[200px] truncate hidden md:table-cell`}
+        title={record.chiefComplaint}
+      >
         {record.chiefComplaint}
       </TableCell>
       <TableCell className="hidden lg:table-cell">
         {!isOtherClinic && canViewAccounting && accountingId ? (
-          <button type="button"
+          <button
+            type="button"
             onClick={(e) => {
               e.stopPropagation();
               onAccountingOpen(accountingId);
@@ -148,7 +154,10 @@ function MedicalRecordsListRow({
         </StatusBadge>
       </TableCell>
       {showClinicColumn ? (
-        <TableCell className={`${STYLE.tableCell} hidden lg:table-cell`} data-testid="mr-row-clinic">
+        <TableCell
+          className={`${STYLE.tableCell} hidden lg:table-cell`}
+          data-testid="mr-row-clinic"
+        >
           <span className={isOtherClinic ? `text-xs ${C.text40}` : "text-xs"}>
             {record.clinicId ? (clinicNameById.get(record.clinicId) ?? record.clinicId) : "—"}
           </span>
@@ -159,25 +168,33 @@ function MedicalRecordsListRow({
           <RowActionDropdown
             ariaLabel={`カルテ操作: ${record.petName} ${record.date} ID ${record.id}`}
             actions={[
-              ...(canEdit ? [{
-                label: "編集",
-                icon: Edit,
-                onClick: () => {
-                  if (record.petIsDeceased) return;
-                  onEdit(record.id);
-                },
-              }] : []),
-              ...(canDelete ? [{
-                label: "削除",
-                icon: Trash2,
-                onClick: () =>
-                  onDeleteRequest({
-                    id: record.id,
-                    label: `${record.recordNo} ${record.petName}`,
-                    petIsDeceased: record.petIsDeceased,
-                  }),
-                variant: "destructive" as const,
-              }] : []),
+              ...(canEdit
+                ? [
+                    {
+                      label: "編集",
+                      icon: Edit,
+                      onClick: () => {
+                        if (record.petIsDeceased) return;
+                        onEdit(record.id);
+                      },
+                    },
+                  ]
+                : []),
+              ...(canDelete
+                ? [
+                    {
+                      label: "削除",
+                      icon: Trash2,
+                      onClick: () =>
+                        onDeleteRequest({
+                          id: record.id,
+                          label: `${record.recordNo} ${record.petName}`,
+                          petIsDeceased: record.petIsDeceased,
+                        }),
+                      variant: "destructive" as const,
+                    },
+                  ]
+                : []),
             ]}
           />
         ) : null}

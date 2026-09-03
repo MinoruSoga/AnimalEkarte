@@ -210,9 +210,7 @@ describe("useHospitalizationForm", () => {
       await submitForm(result.current.formAction);
 
       expect(result.current.formState.success).toBe(false);
-      expect(result.current.formState.fieldErrors?.pet).toBe(
-        "ペットを選択してください"
-      );
+      expect(result.current.formState.fieldErrors?.pet).toBe("ペットを選択してください");
     });
 
     it("selectedPets が空 → createHospitalization は呼ばれない", async () => {
@@ -245,7 +243,9 @@ describe("useHospitalizationForm", () => {
       mockSelectedPets.length = 0;
     });
 
-    async function selectCage(result: { current: { handleFormDataChange: (u: { cageId: string }) => void } }) {
+    async function selectCage(result: {
+      current: { handleFormDataChange: (u: { cageId: string }) => void };
+    }) {
       await act(async () => {
         result.current.handleFormDataChange({ cageId: "10" });
       });
@@ -258,9 +258,7 @@ describe("useHospitalizationForm", () => {
 
       expect(mockCreateHospitalization).not.toHaveBeenCalled();
       expect(result.current.formState.success).toBe(false);
-      expect(result.current.formState.fieldErrors?.cage_id).toBe(
-        "ケージ・個室を選択してください",
-      );
+      expect(result.current.formState.fieldErrors?.cage_id).toBe("ケージ・個室を選択してください");
     });
 
     it("selectedPets がある & id なし → createHospitalization が呼ばれる", async () => {
@@ -284,7 +282,7 @@ describe("useHospitalizationForm", () => {
           pet_id: "1",
           owner_id: "2",
           cage_id: "10",
-        })
+        }),
       );
     });
 
@@ -336,9 +334,7 @@ describe("useHospitalizationForm", () => {
       await submitForm(result.current.formAction);
 
       expect(mockCreateHospitalization).not.toHaveBeenCalled();
-      expect(result.current.formState.fieldErrors?.pet).toBe(
-        "死亡したペットは入院登録できません",
-      );
+      expect(result.current.formState.fieldErrors?.pet).toBe("死亡したペットは入院登録できません");
     });
 
     it("新規作成の初期 treatmentPlans は空（偽デフォルト行を持たない）", () => {
@@ -431,9 +427,7 @@ describe("useHospitalizationForm", () => {
 
       expect(result.current.formState.timestamp).not.toBe(initialTimestamp);
       expect(mockCreateHospitalization).not.toHaveBeenCalled();
-      expect(result.current.formState.fieldErrors?.pet).toBe(
-        "死亡したペットは入院登録できません",
-      );
+      expect(result.current.formState.fieldErrors?.pet).toBe("死亡したペットは入院登録できません");
     });
   });
 
@@ -458,7 +452,9 @@ describe("useHospitalizationForm", () => {
       mockSelectedPets.length = 0;
     });
 
-    async function selectCage(result: { current: { handleFormDataChange: (u: { cageId: string }) => void } }) {
+    async function selectCage(result: {
+      current: { handleFormDataChange: (u: { cageId: string }) => void };
+    }) {
       await act(async () => {
         result.current.handleFormDataChange({ cageId: "10" });
       });
@@ -470,9 +466,7 @@ describe("useHospitalizationForm", () => {
       await submitForm(result.current.formAction);
 
       expect(mockUpdateHospitalization).not.toHaveBeenCalled();
-      expect(result.current.formState.fieldErrors?.cage_id).toBe(
-        "ケージ・個室を選択してください",
-      );
+      expect(result.current.formState.fieldErrors?.cage_id).toBe("ケージ・個室を選択してください");
     });
 
     it("selectedPets がある & id あり → updateHospitalization が呼ばれる", async () => {
@@ -491,10 +485,7 @@ describe("useHospitalizationForm", () => {
 
       await submitForm(result.current.formAction);
 
-      expect(mockUpdateHospitalization).toHaveBeenCalledWith(
-        "42",
-        expect.any(Object)
-      );
+      expect(mockUpdateHospitalization).toHaveBeenCalledWith("42", expect.any(Object));
     });
 
     it("成功時 → toast.success が呼ばれる（更新メッセージ）", async () => {
@@ -575,9 +566,7 @@ describe("useHospitalizationForm", () => {
       await submitForm(result.current.formAction);
 
       expect(mockCreateHospitalization).not.toHaveBeenCalled();
-      expect(result.current.formState.fieldErrors?.pet).toBe(
-        "死亡したペットは入院登録できません",
-      );
+      expect(result.current.formState.fieldErrors?.pet).toBe("死亡したペットは入院登録できません");
     });
   });
 
@@ -638,7 +627,7 @@ describe("useHospitalizationForm", () => {
         expect.objectContaining({
           insurance_company_name: null,
           insurance_number: null,
-        })
+        }),
       );
     });
 
@@ -661,7 +650,7 @@ describe("useHospitalizationForm", () => {
           is_insurance: true,
           insurance_company_name: "アニコム損保",
           insurance_number: "INS-001",
-        })
+        }),
       );
     });
 
@@ -683,7 +672,7 @@ describe("useHospitalizationForm", () => {
         expect.objectContaining({
           insurance_company_name: null,
           insurance_number: null,
-        })
+        }),
       );
     });
 
@@ -715,7 +704,7 @@ describe("useHospitalizationForm", () => {
           is_insurance: false,
           insurance_company_name: null,
           insurance_number: null,
-        })
+        }),
       );
     });
 
@@ -747,7 +736,7 @@ describe("useHospitalizationForm", () => {
           is_insurance: true,
           insurance_company_name: "ペット保険",
           insurance_number: "P-999",
-        })
+        }),
       );
     });
   });

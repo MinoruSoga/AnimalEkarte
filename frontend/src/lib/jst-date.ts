@@ -52,15 +52,17 @@ export function buildJSTWallDateTime(date: string, time: string): Date {
 }
 
 export function jstWallDateToISOString(date: Date): string {
-  const instant = new Date(Date.UTC(
-    date.getFullYear(),
-    date.getMonth(),
-    date.getDate(),
-    date.getHours() - 9,
-    date.getMinutes(),
-    date.getSeconds(),
-    date.getMilliseconds(),
-  ));
+  const instant = new Date(
+    Date.UTC(
+      date.getFullYear(),
+      date.getMonth(),
+      date.getDate(),
+      date.getHours() - 9,
+      date.getMinutes(),
+      date.getSeconds(),
+      date.getMilliseconds(),
+    ),
+  );
   return instant.toISOString();
 }
 

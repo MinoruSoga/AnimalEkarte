@@ -1,11 +1,4 @@
-import {
-  useState,
-  useEffect,
-  useLayoutEffect,
-  useCallback,
-  useActionState,
-  useRef,
-} from "react";
+import { useState, useEffect, useLayoutEffect, useCallback, useActionState, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { toast } from "sonner";
 import { handleApiError } from "@/lib/handle-api-error";
@@ -18,7 +11,10 @@ import {
 } from "../api/create-checkup-medical-record";
 import { useGetCheckupTypeFields } from "../api/get-checkup-type-fields";
 import { replaceCheckupFieldResults } from "../api/replace-checkup-field-results";
-import { buildCheckupResultsPayload, type CheckupFieldValue } from "../components/DynamicCheckupFields";
+import {
+  buildCheckupResultsPayload,
+  type CheckupFieldValue,
+} from "../components/DynamicCheckupFields";
 import {
   buildCheckupOnMedicalRecordRequest,
   checkupOverridesOnDate,
@@ -55,18 +51,17 @@ export function useCheckupForm(
     petStatusRef.current = pet?.status;
   }, [pet?.status]);
   const isMutationAllowed = useCallback(
-    (action: keyof CheckupMutationPermissions) =>
-      permissionsRef.current[action] === true,
+    (action: keyof CheckupMutationPermissions) => permissionsRef.current[action] === true,
     [],
   );
-  const isMutationPetDeceased = useCallback(
-    () => petStatusRef.current === "死亡",
-    [],
-  );
+  const isMutationPetDeceased = useCallback(() => petStatusRef.current === "死亡", []);
 
-  const setField = useCallback(<K extends keyof CheckupFormState>(key: K, value: CheckupFormState[K]) => {
-    setLocalOverrides((prev) => ({ ...prev, [key]: value }));
-  }, []);
+  const setField = useCallback(
+    <K extends keyof CheckupFormState>(key: K, value: CheckupFormState[K]) => {
+      setLocalOverrides((prev) => ({ ...prev, [key]: value }));
+    },
+    [],
+  );
 
   const setFieldValue = useCallback((fieldId: number, value: CheckupFieldValue) => {
     setFieldValues((prev) => ({ ...prev, [fieldId]: value }));
@@ -104,9 +99,9 @@ export function useCheckupForm(
         });
 
         if (
-          !isMutationAllowed("canCreate")
-          || !isMutationAllowed("canEdit")
-          || isMutationPetDeceased()
+          !isMutationAllowed("canCreate") ||
+          !isMutationAllowed("canEdit") ||
+          isMutationPetDeceased()
         ) {
           return { success: false, timestamp: Date.now() };
         }
@@ -118,9 +113,9 @@ export function useCheckupForm(
         const resultsPayload = buildCheckupResultsPayload(checkupFields, fieldValues);
         if (resultsPayload.length > 0) {
           if (
-            !isMutationAllowed("canCreate")
-            || !isMutationAllowed("canEdit")
-            || isMutationPetDeceased()
+            !isMutationAllowed("canCreate") ||
+            !isMutationAllowed("canEdit") ||
+            isMutationPetDeceased()
           ) {
             return { success: false, timestamp: Date.now() };
           }

@@ -27,7 +27,8 @@ export function isWebSerialSupported(): boolean {
   return typeof navigator !== "undefined" && "serial" in navigator;
 }
 
-export type LabDeviceListenState = "unsupported" | "needs_permission" | "monitoring" | "listening" | "disconnected";
+export type LabDeviceListenState =
+  "unsupported" | "needs_permission" | "monitoring" | "listening" | "disconnected";
 
 export function labDeviceListenState(input: {
   serialSupported: boolean;
@@ -43,7 +44,9 @@ export function labDeviceListenState(input: {
   return input.connected ? "listening" : "disconnected";
 }
 
-export function labDeviceBoardLinkLabel(states: readonly LabDeviceListenState[]): "受信中" | "切断" {
+export function labDeviceBoardLinkLabel(
+  states: readonly LabDeviceListenState[],
+): "受信中" | "切断" {
   return states.includes("listening") ? "受信中" : "切断";
 }
 
@@ -131,7 +134,8 @@ export function labDeviceReceiveFailure(status?: number): { label: string; messa
   if (status === 401) {
     return {
       label: "失敗（要ログイン）",
-      message: "セッションが切れています。機器では再送しないで、再ログインしてください。結果は受信機から自動再試行します",
+      message:
+        "セッションが切れています。機器では再送しないで、再ログインしてください。結果は受信機から自動再試行します",
     };
   }
   if (status === 400) {
@@ -201,11 +205,7 @@ export function labDeviceBoardSlotListenState(input: {
   if (!input.supported) {
     return "unsupported";
   }
-  if (
-    input.agentConnected
-    && input.openPorts > 0
-    && input.openPorts === input.configuredPorts
-  ) {
+  if (input.agentConnected && input.openPorts > 0 && input.openPorts === input.configuredPorts) {
     return input.hasLiveReceive ? "listening" : "monitoring";
   }
   return "disconnected";
@@ -242,7 +242,13 @@ export function resolveLabDeviceReceiveTime(
 }
 
 export function labDeviceAgentDegradedErrorMessage(
-  category: "none" | "discovery_failed" | "port_open_failed" | "queue_write_failed" | "port_close_failed" | "response_write_failed",
+  category:
+    | "none"
+    | "discovery_failed"
+    | "port_open_failed"
+    | "queue_write_failed"
+    | "port_close_failed"
+    | "response_write_failed",
 ): string | null {
   switch (category) {
     case "none":

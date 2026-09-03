@@ -46,7 +46,9 @@ export function DynamicCheckupFields({ fields, values, onChange }: DynamicChecku
           <div key={field.id} className="space-y-2">
             <Label htmlFor={labelId} id={fieldLabelId}>
               {field.name}
-              {field.unit ? <span className={`ml-1 text-xs ${C.text50}`}>（{field.unit}）</span> : null}
+              {field.unit ? (
+                <span className={`ml-1 text-xs ${C.text50}`}>（{field.unit}）</span>
+              ) : null}
             </Label>
 
             {field.fieldType === "boolean" ? (

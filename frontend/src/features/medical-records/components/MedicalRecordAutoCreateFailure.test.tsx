@@ -33,16 +33,10 @@ describe("MedicalRecordAutoCreateFailure", () => {
 
   it("appointment 作成失敗を通知し、再試行中は action を無効化する", () => {
     render(
-      <MedicalRecordAutoCreateFailure
-        failurePhase="appointment"
-        isRetrying
-        onRetry={vi.fn()}
-      />,
+      <MedicalRecordAutoCreateFailure failurePhase="appointment" isRetrying onRetry={vi.fn()} />,
     );
 
     expect(screen.getByRole("alert")).toHaveTextContent("予約の作成に失敗しました。");
-    expect(
-      screen.getByRole("button", { name: "カルテ作成を再試行する" }),
-    ).toBeDisabled();
+    expect(screen.getByRole("button", { name: "カルテ作成を再試行する" })).toBeDisabled();
   });
 });

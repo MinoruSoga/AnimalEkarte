@@ -7,9 +7,7 @@ import type { MedicalRecord } from "./transforms";
 import type { BackendMedicalRecord } from "./types";
 
 const getMedicalRecord = async (id: string): Promise<MedicalRecord> => {
-  const { data } = await axios.get<BackendMedicalRecord>(
-    `/v1/medical-records/${id}`
-  );
+  const { data } = await axios.get<BackendMedicalRecord>(`/v1/medical-records/${id}`);
   return transformMedicalRecord(data);
 };
 
@@ -22,4 +20,3 @@ export const useGetMedicalRecord = (id: string) => {
     gcTime: QUERY_GC_TIMES.STANDARD,
   });
 };
-

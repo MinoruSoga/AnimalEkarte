@@ -42,58 +42,30 @@ beforeEach(() => {
 describe("MedicalRecordAddenda", () => {
   it("作成中 状態では何も表示しない", () => {
     const { container } = render(
-      <MedicalRecordAddenda
-        medicalRecordId="1"
-        canEdit={true}
-        recordStatus="作成中"
-      />,
+      <MedicalRecordAddenda medicalRecordId="1" canEdit={true} recordStatus="作成中" />,
     );
     expect(container.firstChild).toBeNull();
   });
 
   it("確定済 状態で追記セクションを表示する", () => {
-    render(
-      <MedicalRecordAddenda
-        medicalRecordId="1"
-        canEdit={false}
-        recordStatus="確定済"
-      />,
-    );
+    render(<MedicalRecordAddenda medicalRecordId="1" canEdit={false} recordStatus="確定済" />);
     expect(screen.getByTestId("medical-record-addenda")).toBeInTheDocument();
   });
 
   it("canEdit=true で「追記する」ボタンを表示する", () => {
-    render(
-      <MedicalRecordAddenda
-        medicalRecordId="1"
-        canEdit={true}
-        recordStatus="確定済"
-      />,
-    );
+    render(<MedicalRecordAddenda medicalRecordId="1" canEdit={true} recordStatus="確定済" />);
     expect(screen.getByTestId("addendum-open-button")).toBeInTheDocument();
     expect(screen.getByText("追記する")).toBeInTheDocument();
   });
 
   it("canEdit=false で「追記する」ボタンを表示しない・リストは表示する", () => {
-    render(
-      <MedicalRecordAddenda
-        medicalRecordId="1"
-        canEdit={false}
-        recordStatus="確定済"
-      />,
-    );
+    render(<MedicalRecordAddenda medicalRecordId="1" canEdit={false} recordStatus="確定済" />);
     expect(screen.queryByTestId("addendum-open-button")).toBeNull();
     expect(screen.getByTestId("medical-record-addenda")).toBeInTheDocument();
   });
 
   it("addenda 0 件で empty state を表示する", () => {
-    render(
-      <MedicalRecordAddenda
-        medicalRecordId="1"
-        canEdit={false}
-        recordStatus="確定済"
-      />,
-    );
+    render(<MedicalRecordAddenda medicalRecordId="1" canEdit={false} recordStatus="確定済" />);
     expect(screen.getByTestId("addenda-empty")).toBeInTheDocument();
     expect(screen.getByText("追記はありません")).toBeInTheDocument();
   });
@@ -108,13 +80,7 @@ describe("MedicalRecordAddenda", () => {
       isLoading: false,
     } as ReturnType<typeof useMedicalRecordAddenda>);
 
-    render(
-      <MedicalRecordAddenda
-        medicalRecordId="1"
-        canEdit={false}
-        recordStatus="確定済"
-      />,
-    );
+    render(<MedicalRecordAddenda medicalRecordId="1" canEdit={false} recordStatus="確定済" />);
 
     const items = screen.getAllByTestId("addendum-item");
     expect(items).toHaveLength(3);
@@ -125,13 +91,7 @@ describe("MedicalRecordAddenda", () => {
 
   it("「追記する」ボタンクリックでモーダルが開く", async () => {
     const user = userEvent.setup();
-    render(
-      <MedicalRecordAddenda
-        medicalRecordId="1"
-        canEdit={true}
-        recordStatus="確定済"
-      />,
-    );
+    render(<MedicalRecordAddenda medicalRecordId="1" canEdit={true} recordStatus="確定済" />);
     await user.click(screen.getByTestId("addendum-open-button"));
     expect(screen.getByRole("dialog")).toBeInTheDocument();
   });

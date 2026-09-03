@@ -5,13 +5,9 @@ import { getStoredClinicId } from "@/lib/current-clinic";
 import { handleApiError } from "@/lib/handle-api-error";
 import { queryKeys } from "@/lib/query-keys";
 
-async function deleteOwnerTag(
-  clinicId: string,
-  ownerId: string,
-  tagName: string
-): Promise<void> {
+async function deleteOwnerTag(clinicId: string, ownerId: string, tagName: string): Promise<void> {
   await axios.delete(
-    `/v1/clinics/${clinicId}/owners/${ownerId}/lstep/tags/${encodeURIComponent(tagName)}`
+    `/v1/clinics/${clinicId}/owners/${ownerId}/lstep/tags/${encodeURIComponent(tagName)}`,
   );
 }
 

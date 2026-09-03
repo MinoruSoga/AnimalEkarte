@@ -83,26 +83,15 @@ const completedAccounting = {
 
 function setupHandlers() {
   server.use(
-    http.get(`/api/v1/accountings/${ACCOUNTING_ID}`, () =>
-      HttpResponse.json(completedAccounting)
-    ),
-    http.get(`/api/v1/accountings/${ACCOUNTING_ID}/refunds`, () =>
-      HttpResponse.json([])
-    ),
-    http.get("/api/v1/masters/merchandise-items", () =>
-      HttpResponse.json([])
-    ),
-    http.get("/api/v1/cash-register/closes", () =>
-      HttpResponse.json({ data: [], total: 0 })
-    ),
+    http.get(`/api/v1/accountings/${ACCOUNTING_ID}`, () => HttpResponse.json(completedAccounting)),
+    http.get(`/api/v1/accountings/${ACCOUNTING_ID}/refunds`, () => HttpResponse.json([])),
+    http.get("/api/v1/masters/merchandise-items", () => HttpResponse.json([])),
+    http.get("/api/v1/cash-register/closes", () => HttpResponse.json({ data: [], total: 0 })),
   );
 }
 
 // id あり: /accounting/:id ルートで描画
-async function renderWithIdAndWait(
-  canEdit = true,
-  hasPermission = makeHasPermission(canEdit),
-) {
+async function renderWithIdAndWait(canEdit = true, hasPermission = makeHasPermission(canEdit)) {
   setupHandlers();
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
@@ -114,7 +103,7 @@ async function renderWithIdAndWait(
           </Routes>
         </MemoryRouter>
       </QueryClientProvider>
-    </AuthContext.Provider>
+    </AuthContext.Provider>,
   );
   await waitFor(() => {
     expect(screen.getByRole("heading", { name: "会計精算" })).toBeInTheDocument();
@@ -125,9 +114,7 @@ async function renderWithIdAndWait(
 async function renderNewModeAndWait(canEdit = false) {
   server.use(
     http.get("/api/v1/masters/merchandise-items", () => HttpResponse.json([])),
-    http.get("/api/v1/cash-register/closes", () =>
-      HttpResponse.json({ data: [], total: 0 })
-    ),
+    http.get("/api/v1/cash-register/closes", () => HttpResponse.json({ data: [], total: 0 })),
   );
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
@@ -139,7 +126,7 @@ async function renderNewModeAndWait(canEdit = false) {
           </Routes>
         </MemoryRouter>
       </QueryClientProvider>
-    </AuthContext.Provider>
+    </AuthContext.Provider>,
   );
   await waitFor(() => {
     expect(screen.getByRole("heading", { name: "会計精算" })).toBeInTheDocument();
@@ -166,9 +153,7 @@ afterEach(() => {
 describe("AccountingDetail — A: 印刷ボタン (Print Performance)", () => {
   it("status=completed → 「明細兼領収書」ボタンが表示される", async () => {
     await renderWithIdAndWait();
-    expect(
-      screen.getByRole("button", { name: /明細兼領収書/ })
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /明細兼領収書/ })).toBeInTheDocument();
   });
 
   it("「明細兼領収書」クリック → プレビューダイアログが開く", async () => {
@@ -241,22 +226,14 @@ const waitingAccounting = {
 
 function setupWaitingHandlers() {
   server.use(
-    http.get(`/api/v1/accountings/${WAITING_ID}`, () =>
-      HttpResponse.json(waitingAccounting)
-    ),
-    http.get(`/api/v1/accountings/${WAITING_ID}/refunds`, () =>
-      HttpResponse.json([])
-    ),
-    http.get("/api/v1/masters/merchandise-items", () =>
-      HttpResponse.json([])
-    ),
-    http.get("/api/v1/cash-register/closes", () =>
-      HttpResponse.json({ data: [], total: 0 })
-    ),
+    http.get(`/api/v1/accountings/${WAITING_ID}`, () => HttpResponse.json(waitingAccounting)),
+    http.get(`/api/v1/accountings/${WAITING_ID}/refunds`, () => HttpResponse.json([])),
+    http.get("/api/v1/masters/merchandise-items", () => HttpResponse.json([])),
+    http.get("/api/v1/cash-register/closes", () => HttpResponse.json({ data: [], total: 0 })),
     // Payment API handlers for Dialog test
     http.post(`/api/v1/accountings/${WAITING_ID}/payments`, () =>
-      HttpResponse.json({ id: 999, ...waitingAccounting.payments?.[0] })
-    )
+      HttpResponse.json({ id: 999, ...waitingAccounting.payments?.[0] }),
+    ),
   );
 }
 
@@ -274,7 +251,7 @@ async function renderWaitingAndWait(useDefaultHandlers = true) {
           </Routes>
         </MemoryRouter>
       </QueryClientProvider>
-    </AuthContext.Provider>
+    </AuthContext.Provider>,
   );
   await waitFor(() => {
     expect(screen.getByRole("heading", { name: "会計精算" })).toBeInTheDocument();
@@ -294,9 +271,7 @@ describe("AccountingDetail — B: 閲覧専用バナー (ReadOnly banner)", () =
 
   it("id あり + canEdit=false → 「閲覧専用」テキストがバナーに表示される", async () => {
     await renderWithIdAndWait(false);
-    expect(
-      screen.getByText(/閲覧専用 — 編集権限がないため変更できません/)
-    ).toBeInTheDocument();
+    expect(screen.getByText(/閲覧専用 — 編集権限がないため変更できません/)).toBeInTheDocument();
   });
 
   it("新規作成モード (id なし) + canEdit=false → バナーが表示されない", async () => {
@@ -334,9 +309,7 @@ describe("AccountingDetail — B: 閲覧専用バナー (ReadOnly banner)", () =
 describe("AccountingDetail — C: 混在支払い UI / payment_splits", () => {
   it("canEdit=true + status=waiting → 「支払方法を追加」ボタンが表示される", async () => {
     await renderWaitingAndWait();
-    expect(
-      screen.getByRole("button", { name: /支払方法を追加/ })
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /支払方法を追加/ })).toBeInTheDocument();
   });
 
   it.skip("「支払方法を追加」クリック → 2スロット分の金額入力が表示される（spinbutton × 4）", async () => {
@@ -381,7 +354,7 @@ describe("AccountingDetail — C: 混在支払い UI / payment_splits", () => {
       http.patch(`/api/v1/accountings/${WAITING_ID}`, async ({ request }) => {
         capturedBody = await request.json();
         return HttpResponse.json({ ...waitingAccounting, status: "completed" });
-      })
+      }),
     );
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(
@@ -393,10 +366,10 @@ describe("AccountingDetail — C: 混在支払い UI / payment_splits", () => {
             </Routes>
           </MemoryRouter>
         </QueryClientProvider>
-      </AuthContext.Provider>
+      </AuthContext.Provider>,
     );
     await waitFor(() =>
-      expect(screen.getByRole("heading", { name: "会計精算" })).toBeInTheDocument()
+      expect(screen.getByRole("heading", { name: "会計精算" })).toBeInTheDocument(),
     );
 
     const user = userEvent.setup();
@@ -407,9 +380,7 @@ describe("AccountingDetail — C: 混在支払い UI / payment_splits", () => {
     await user.type(receivedInput, "1100");
 
     await waitFor(() => {
-      expect(
-        screen.getByRole("button", { name: /会計を確定する/ })
-      ).not.toBeDisabled();
+      expect(screen.getByRole("button", { name: /会計を確定する/ })).not.toBeDisabled();
     });
 
     await user.click(screen.getByRole("button", { name: /会計を確定する/ }));
@@ -434,22 +405,16 @@ describe("AccountingDetail — C: 混在支払い UI / payment_splits", () => {
 
     server.use(
       http.get(`/api/v1/accountings/${WAITING_ID}`, () =>
-        HttpResponse.json({ ...waitingAccounting, items: currentItems })
+        HttpResponse.json({ ...waitingAccounting, items: currentItems }),
       ),
-      http.get(`/api/v1/accountings/${WAITING_ID}/refunds`, () =>
-        HttpResponse.json([])
-      ),
-      http.get("/api/v1/masters/merchandise-items", () =>
-        HttpResponse.json([])
-      ),
-      http.get("/api/v1/cash-register/closes", () =>
-        HttpResponse.json({ data: [], total: 0 })
-      ),
+      http.get(`/api/v1/accountings/${WAITING_ID}/refunds`, () => HttpResponse.json([])),
+      http.get("/api/v1/masters/merchandise-items", () => HttpResponse.json([])),
+      http.get("/api/v1/cash-register/closes", () => HttpResponse.json({ data: [], total: 0 })),
       http.delete("/api/v1/billing-items/1", () => {
         deleteCalled = true;
         currentItems = [];
         return new HttpResponse(null, { status: 204 });
-      })
+      }),
     );
 
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -462,7 +427,7 @@ describe("AccountingDetail — C: 混在支払い UI / payment_splits", () => {
             </Routes>
           </MemoryRouter>
         </QueryClientProvider>
-      </AuthContext.Provider>
+      </AuthContext.Provider>,
     );
 
     await screen.findByText("テスト商品");
@@ -481,19 +446,22 @@ describe("AccountingDetail — C: 混在支払い UI / payment_splits", () => {
     let currentItems = waitingAccounting.items;
     server.use(
       http.get(`/api/v1/accountings/${WAITING_ID}`, () =>
-        HttpResponse.json({ ...waitingAccounting, items: currentItems })
+        HttpResponse.json({ ...waitingAccounting, items: currentItems }),
       ),
-      http.get(`/api/v1/accountings/${WAITING_ID}/refunds`, () =>
-        HttpResponse.json([])
-      ),
+      http.get(`/api/v1/accountings/${WAITING_ID}/refunds`, () => HttpResponse.json([])),
       http.get("/api/v1/masters/merchandise-items", () =>
         HttpResponse.json([
-          { id: 77, name: "療法食", category: "goods", unit_price: 1200, tax_rate: 0.1, is_active: true },
-        ])
+          {
+            id: 77,
+            name: "療法食",
+            category: "goods",
+            unit_price: 1200,
+            tax_rate: 0.1,
+            is_active: true,
+          },
+        ]),
       ),
-      http.get("/api/v1/cash-register/closes", () =>
-        HttpResponse.json({ data: [], total: 0 })
-      ),
+      http.get("/api/v1/cash-register/closes", () => HttpResponse.json({ data: [], total: 0 })),
       http.post("/api/v1/billing-items", async ({ request }) => {
         capturedBody = await request.json();
         const createdItem = {
@@ -531,24 +499,28 @@ describe("AccountingDetail — C: 混在支払い UI / payment_splits", () => {
   it("明細作成失敗時に楽観追加を戻してエラーを通知する", async () => {
     let rejectRequest: (() => void) | undefined;
     server.use(
-      http.get(`/api/v1/accountings/${WAITING_ID}`, () =>
-        HttpResponse.json(waitingAccounting)
-      ),
-      http.get(`/api/v1/accountings/${WAITING_ID}/refunds`, () =>
-        HttpResponse.json([])
-      ),
+      http.get(`/api/v1/accountings/${WAITING_ID}`, () => HttpResponse.json(waitingAccounting)),
+      http.get(`/api/v1/accountings/${WAITING_ID}/refunds`, () => HttpResponse.json([])),
       http.get("/api/v1/masters/merchandise-items", () =>
         HttpResponse.json([
-          { id: 77, name: "療法食", category: "goods", unit_price: 1200, tax_rate: 0.1, is_active: true },
-        ])
+          {
+            id: 77,
+            name: "療法食",
+            category: "goods",
+            unit_price: 1200,
+            tax_rate: 0.1,
+            is_active: true,
+          },
+        ]),
       ),
-      http.get("/api/v1/cash-register/closes", () =>
-        HttpResponse.json({ data: [], total: 0 })
-      ),
-      http.post("/api/v1/billing-items", () =>
-        new Promise((resolve) => {
-          rejectRequest = () => resolve(HttpResponse.json({ message: "inactive item" }, { status: 409 }));
-        })
+      http.get("/api/v1/cash-register/closes", () => HttpResponse.json({ data: [], total: 0 })),
+      http.post(
+        "/api/v1/billing-items",
+        () =>
+          new Promise((resolve) => {
+            rejectRequest = () =>
+              resolve(HttpResponse.json({ message: "inactive item" }, { status: 409 }));
+          }),
       ),
     );
 
@@ -576,11 +548,7 @@ describe("AccountingDetail — C: 混在支払い UI / payment_splits", () => {
 const DECEASED_PET_ID = "1000003";
 const LIVING_PET_ID = "1000019";
 
-function makePetResponse(overrides: {
-  id: number;
-  status: "alive" | "deceased";
-  name?: string;
-}) {
+function makePetResponse(overrides: { id: number; status: "alive" | "deceased"; name?: string }) {
   return {
     id: overrides.id,
     version: 1,
@@ -636,7 +604,9 @@ describe("AccountingDetail — BUG-001: 死亡ペット新規会計ガード", (
   it("deceased petId 直打ち → 拒否メッセージ + fieldset disabled + 確定ボタンなし", async () => {
     server.use(
       http.get(`/api/v1/pets/${DECEASED_PET_ID}`, () =>
-        HttpResponse.json(makePetResponse({ id: Number(DECEASED_PET_ID), status: "deceased", name: "クロ" })),
+        HttpResponse.json(
+          makePetResponse({ id: Number(DECEASED_PET_ID), status: "deceased", name: "クロ" }),
+        ),
       ),
       http.get("/api/v1/masters/merchandise-items", () => HttpResponse.json([])),
       http.get("/api/v1/cash-register/closes", () => HttpResponse.json({ data: [], total: 0 })),
@@ -661,7 +631,9 @@ describe("AccountingDetail — BUG-001: 死亡ペット新規会計ガード", (
   it("生存 petId 直打ち → 拒否メッセージなし + 確定ボタンが有効", async () => {
     server.use(
       http.get(`/api/v1/pets/${LIVING_PET_ID}`, () =>
-        HttpResponse.json(makePetResponse({ id: Number(LIVING_PET_ID), status: "alive", name: "ラッキー" })),
+        HttpResponse.json(
+          makePetResponse({ id: Number(LIVING_PET_ID), status: "alive", name: "ラッキー" }),
+        ),
       ),
       http.get("/api/v1/masters/merchandise-items", () => HttpResponse.json([])),
       http.get("/api/v1/cash-register/closes", () => HttpResponse.json({ data: [], total: 0 })),

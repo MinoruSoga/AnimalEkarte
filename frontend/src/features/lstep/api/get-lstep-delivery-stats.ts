@@ -22,7 +22,7 @@ export function useGetLstepDeliveryStats(yearMonth: string) {
     queryFn: async () => {
       const clinicId = requireStoredClinicId();
       const { data } = await axios.get<MonthlyDeliveryStatsResponse>(
-        `/v1/clinics/${clinicId}/lstep/analytics/delivery-stats?year_month=${yearMonth}`
+        `/v1/clinics/${clinicId}/lstep/analytics/delivery-stats?year_month=${yearMonth}`,
       );
       return data;
     },

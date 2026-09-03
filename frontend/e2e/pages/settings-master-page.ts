@@ -1,5 +1,5 @@
-import { type Locator } from '@playwright/test';
-import { BasePage } from './base-page';
+import { type Locator } from "@playwright/test";
+import { BasePage } from "./base-page";
 
 /**
  * Generic master-settings CRUD screen (`/settings/*`).
@@ -11,32 +11,32 @@ import { BasePage } from './base-page';
  */
 export class SettingsMasterPage extends BasePage {
   masterTitleInput(): Locator {
-    return this.page.locator('#master-title');
+    return this.page.locator("#master-title");
   }
 
   newButton(): Locator {
-    return this.page.getByRole('button', { name: '新規登録' });
+    return this.page.getByRole("button", { name: "新規登録" });
   }
 
   saveButton(): Locator {
-    return this.page.getByRole('button', { name: '保存' });
+    return this.page.getByRole("button", { name: "保存" });
   }
 
   cancelButton(): Locator {
-    return this.page.getByRole('button', { name: 'キャンセル' });
+    return this.page.getByRole("button", { name: "キャンセル" });
   }
 
   /** Row "操作" (edit) button for the row containing `text`. */
   rowActionButton(text: string): Locator {
-    return this.page.locator('tbody tr').filter({ hasText: text }).getByLabel('操作');
+    return this.page.locator("tbody tr").filter({ hasText: text }).getByLabel("操作");
   }
 
   /** Toolbar delete button (aria-label "削除"). */
   deleteButton(): Locator {
-    return this.page.getByLabel('削除');
+    return this.page.getByLabel("削除");
   }
 
   deleteDialog(): Locator {
-    return this.page.getByRole('alertdialog');
+    return this.page.getByRole("alertdialog");
   }
 }

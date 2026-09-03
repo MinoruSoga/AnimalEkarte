@@ -1,6 +1,10 @@
 import { ICON, C, LAYOUT } from "@/lib/design-tokens";
 import { Plus, Scissors } from "lucide-react";
-import type { ActiveFilter, ActiveSort, FilterProperty } from "@/components/shared/PropertyFilter/types";
+import type {
+  ActiveFilter,
+  ActiveSort,
+  FilterProperty,
+} from "@/components/shared/PropertyFilter/types";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";

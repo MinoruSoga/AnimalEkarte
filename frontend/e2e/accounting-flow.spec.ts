@@ -1,7 +1,7 @@
-import { test, expect } from '@playwright/test';
-import type { BrowserContext } from '@playwright/test';
-import { createAuthedContext } from './helpers/context';
-import { AccountingPage } from './pages/accounting-page';
+import { test, expect } from "@playwright/test";
+import type { BrowserContext } from "@playwright/test";
+import { createAuthedContext } from "./helpers/context";
+import { AccountingPage } from "./pages/accounting-page";
 
 // E2E flow tests for accounting (/accounting) navigation.
 // Smoke coverage (tab visibility, kana search) lives in accounting-smoke.spec.ts.
@@ -11,7 +11,7 @@ import { AccountingPage } from './pages/accounting-page';
 //
 // Design: fresh page per test within shared context.
 
-test.describe('会計フロー E2E', () => {
+test.describe("会計フロー E2E", () => {
   let context: BrowserContext;
 
   test.beforeAll(async ({ browser }) => {
@@ -22,7 +22,7 @@ test.describe('会計フロー E2E', () => {
     await context.close();
   });
 
-  test('/accounting — 会計一覧の詳細リンクで会計精算画面に遷移する', async () => {
+  test("/accounting — 会計一覧の詳細リンクで会計精算画面に遷移する", async () => {
     const page = await context.newPage();
     const accounting = new AccountingPage(page);
     try {
@@ -40,7 +40,7 @@ test.describe('会計フロー E2E', () => {
     }
   });
 
-  test('/accounting — かな検索したペット行の詳細リンクで会計精算画面に遷移する', async () => {
+  test("/accounting — かな検索したペット行の詳細リンクで会計精算画面に遷移する", async () => {
     const page = await context.newPage();
     const accounting = new AccountingPage(page);
     try {
@@ -53,7 +53,7 @@ test.describe('会計フロー E2E', () => {
       const searchInput = accounting.searchInput();
       await expect(searchInput).toBeVisible({ timeout: 5000 });
       // page-scoped client filter — DEMO_ACCOUNTING_KANA_PET is on page 1
-      await searchInput.fill('さき');
+      await searchInput.fill("さき");
 
       await expect(accounting.kanaPetCell()).toBeVisible({ timeout: 10000 });
       await accounting.kanaPetDetailLink().click();
@@ -65,11 +65,11 @@ test.describe('会計フロー E2E', () => {
     }
   });
 
-  test('/accounting/reports — 月次集計レポートにセレクタが表示される', async () => {
+  test("/accounting/reports — 月次集計レポートにセレクタが表示される", async () => {
     const page = await context.newPage();
     const accounting = new AccountingPage(page);
     try {
-      await accounting.gotoReports({ waitUntil: 'domcontentloaded' });
+      await accounting.gotoReports({ waitUntil: "domcontentloaded" });
       await expect(accounting.reportsHeading()).toBeVisible({
         timeout: 15000,
       });
@@ -80,7 +80,7 @@ test.describe('会計フロー E2E', () => {
     }
   });
 
-  test('/accounting/:id — 会計精算フォームの確定ボタンが表示される', async () => {
+  test("/accounting/:id — 会計精算フォームの確定ボタンが表示される", async () => {
     const page = await context.newPage();
     const accounting = new AccountingPage(page);
     try {

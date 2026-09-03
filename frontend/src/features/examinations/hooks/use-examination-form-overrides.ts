@@ -7,12 +7,9 @@ export function useExaminationFormOverrides(id: string | undefined) {
     examinationID: string | undefined;
     values: Partial<ExaminationRecord>;
   }>({ examinationID: id, values: {} });
-  const localOverrides =
-    localOverrideScope.examinationID === id ? localOverrideScope.values : {};
+  const localOverrides = localOverrideScope.examinationID === id ? localOverrideScope.values : {};
 
-  const [manualFieldErrors, setManualFieldErrors] = useState<
-    Record<string, string>
-  >({});
+  const [manualFieldErrors, setManualFieldErrors] = useState<Record<string, string>>({});
 
   // Direct hook consumers can change id without remounting. Scope overrides to
   // the active record immediately, then discard the previous record's values.
@@ -20,9 +17,7 @@ export function useExaminationFormOverrides(id: string | undefined) {
   useEffect(() => {
     if (localOverrideScope.examinationID === id) return;
     setLocalOverrideScope((previous) =>
-      previous.examinationID === id
-        ? previous
-        : { examinationID: id, values: {} },
+      previous.examinationID === id ? previous : { examinationID: id, values: {} },
     );
   }, [id, localOverrideScope.examinationID]);
   /* eslint-enable react-hooks/set-state-in-effect */
@@ -31,15 +26,10 @@ export function useExaminationFormOverrides(id: string | undefined) {
     (next: Partial<ExaminationRecord>) => {
       setLocalOverrideScope((previous) => ({
         examinationID: id,
-        values:
-          previous.examinationID === id
-            ? { ...previous.values, ...next }
-            : { ...next },
+        values: previous.examinationID === id ? { ...previous.values, ...next } : { ...next },
       }));
       // Clear only errors for fields the user just corrected.
-      setManualFieldErrors((previous) =>
-        omitCorrectedExaminationFieldErrors(previous, next),
-      );
+      setManualFieldErrors((previous) => omitCorrectedExaminationFieldErrors(previous, next));
     },
     [id],
   );

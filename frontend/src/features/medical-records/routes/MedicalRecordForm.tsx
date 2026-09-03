@@ -1,10 +1,4 @@
-import {
-  memo,
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-} from "react";
+import { memo, useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router";
 
 import { paths } from "@/config/paths";
@@ -41,11 +35,8 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
   const { mutate: deleteRecord, isPending: isDeleting } = useDeleteMedicalRecord(recordClinicId);
 
   const handleDeleteConfirm = useCallback(() => {
-    if (
-      !recordId
-      || canDeleteRef.current !== true
-      || selectedPetStatusRef.current === "死亡"
-    ) return;
+    if (!recordId || canDeleteRef.current !== true || selectedPetStatusRef.current === "死亡")
+      return;
     deleteRecord(recordId, {
       onSuccess: () => {
         toast.success("カルテを削除しました");

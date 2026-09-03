@@ -1,9 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  buildInsuranceCreateRequest,
-  validateInsuranceForm,
-} from "./insurance-settings-model";
+import { buildInsuranceCreateRequest, validateInsuranceForm } from "./insurance-settings-model";
 
 const base = {
   name: "V04保険",

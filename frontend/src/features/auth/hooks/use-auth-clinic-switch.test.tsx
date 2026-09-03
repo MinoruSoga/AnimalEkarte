@@ -78,25 +78,25 @@ import { useAuth } from "@/hooks/use-auth";
 
 // ----- helper components -----
 
-function ClinicSwitcher({
-  targetClinicId,
-  label,
-}: {
-  targetClinicId: string;
-  label: string;
-}) {
+function ClinicSwitcher({ targetClinicId, label }: { targetClinicId: string; label: string }) {
   const { switchClinic, currentClinicId } = useAuth();
   return (
     <div>
       <span data-testid="current-clinic">{currentClinicId}</span>
-      <button type="button" onClick={() => switchClinic(targetClinicId)}>{label}</button>
+      <button type="button" onClick={() => switchClinic(targetClinicId)}>
+        {label}
+      </button>
     </div>
   );
 }
 
 function LogoutTrigger() {
   const { logout } = useAuth();
-  return <button type="button" onClick={() => void logout()}>logout</button>;
+  return (
+    <button type="button" onClick={() => void logout()}>
+      logout
+    </button>
+  );
 }
 
 async function renderWithAuth(children: React.ReactNode) {
@@ -110,9 +110,7 @@ async function renderWithAuth(children: React.ReactNode) {
       </MemoryRouter>,
     );
   });
-  await waitFor(() =>
-    expect(screen.queryByTestId("loading")).not.toBeInTheDocument(),
-  );
+  await waitFor(() => expect(screen.queryByTestId("loading")).not.toBeInTheDocument());
 }
 
 // ----- tests -----
@@ -132,9 +130,7 @@ describe("FEAT-374: switchClinic", () => {
   });
 
   it("system_admin の clinics は複数クリニックを含み、いずれにも切り替え可能", async () => {
-    await renderWithAuth(
-      <ClinicSwitcher targetClinicId={CLINIC_B} label="switch-to-b" />,
-    );
+    await renderWithAuth(<ClinicSwitcher targetClinicId={CLINIC_B} label="switch-to-b" />);
 
     expect(screen.getByTestId("current-clinic").textContent).toBe(CLINIC_A);
 
@@ -147,9 +143,7 @@ describe("FEAT-374: switchClinic", () => {
   });
 
   it("有効メンバークリニックへの切り替えで localStorage を更新し reload を呼ぶ", async () => {
-    await renderWithAuth(
-      <ClinicSwitcher targetClinicId={CLINIC_B} label="switch-to-b" />,
-    );
+    await renderWithAuth(<ClinicSwitcher targetClinicId={CLINIC_B} label="switch-to-b" />);
 
     await act(async () => {
       screen.getByText("switch-to-b").click();
@@ -168,9 +162,7 @@ describe("FEAT-374: switchClinic", () => {
       callOrder.push("reload");
     });
 
-    await renderWithAuth(
-      <ClinicSwitcher targetClinicId={CLINIC_B} label="switch-to-b" />,
-    );
+    await renderWithAuth(<ClinicSwitcher targetClinicId={CLINIC_B} label="switch-to-b" />);
 
     await act(async () => {
       screen.getByText("switch-to-b").click();
@@ -182,9 +174,7 @@ describe("FEAT-374: switchClinic", () => {
   });
 
   it("現在と同じ clinicId への切り替えは no-op", async () => {
-    await renderWithAuth(
-      <ClinicSwitcher targetClinicId={CLINIC_A} label="switch-to-same" />,
-    );
+    await renderWithAuth(<ClinicSwitcher targetClinicId={CLINIC_A} label="switch-to-same" />);
 
     await act(async () => {
       screen.getByText("switch-to-same").click();
@@ -197,10 +187,7 @@ describe("FEAT-374: switchClinic", () => {
   it("メンバー外クリニックへの切り替えは no-op（通常スタッフ防護）", async () => {
     // MOCK_SYSTEM_ADMIN.clinics には CLINIC_C が存在しないため rejected
     await renderWithAuth(
-      <ClinicSwitcher
-        targetClinicId={CLINIC_C_UNKNOWN}
-        label="switch-to-unknown"
-      />,
+      <ClinicSwitcher targetClinicId={CLINIC_C_UNKNOWN} label="switch-to-unknown" />,
     );
 
     await act(async () => {
@@ -212,15 +199,11 @@ describe("FEAT-374: switchClinic", () => {
   });
 
   it("localStorage書込が失敗した場合はreloadせずエラートーストを表示する", async () => {
-    const setItemSpy = vi
-      .spyOn(Storage.prototype, "setItem")
-      .mockImplementation(() => {
-        throw new DOMException("QuotaExceededError");
-      });
+    const setItemSpy = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new DOMException("QuotaExceededError");
+    });
 
-    await renderWithAuth(
-      <ClinicSwitcher targetClinicId={CLINIC_B} label="switch-to-b" />,
-    );
+    await renderWithAuth(<ClinicSwitcher targetClinicId={CLINIC_B} label="switch-to-b" />);
 
     await act(async () => {
       screen.getByText("switch-to-b").click();
@@ -308,16 +291,12 @@ describe("FE5-2: マルチタブ storage イベント検知で reload", () => {
 
 describe("FEAT-374: 通常スタッフのクリニック切り替え制限（ユニット検証）", () => {
   it("staff ユーザーは所属外クリニック ID を clinics に持たない", () => {
-    const isMember = MOCK_STAFF.clinics.some(
-      (c) => c.clinicId === CLINIC_C_UNKNOWN,
-    );
+    const isMember = MOCK_STAFF.clinics.some((c) => c.clinicId === CLINIC_C_UNKNOWN);
     expect(isMember).toBe(false);
   });
 
   it("staff ユーザーは自クリニックを clinics に持つ", () => {
-    const isMember = MOCK_STAFF.clinics.some(
-      (c) => c.clinicId === CLINIC_A,
-    );
+    const isMember = MOCK_STAFF.clinics.some((c) => c.clinicId === CLINIC_A);
     expect(isMember).toBe(true);
   });
 });

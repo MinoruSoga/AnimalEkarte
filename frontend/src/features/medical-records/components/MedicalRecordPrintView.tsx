@@ -111,7 +111,9 @@ export const MedicalRecordPrintView = memo(function MedicalRecordPrintView({
       {/* ── 身体検査所見 ── */}
       {physicalExam ? (
         <section className="mb-5">
-          <h3 className={`text-[11pt] font-semibold border-b ${C.borderLight} pb-1 mb-2`}>身体検査所見</h3>
+          <h3 className={`text-[11pt] font-semibold border-b ${C.borderLight} pb-1 mb-2`}>
+            身体検査所見
+          </h3>
           <p className="text-[10pt] whitespace-pre-wrap">{physicalExam}</p>
         </section>
       ) : null}
@@ -127,7 +129,9 @@ export const MedicalRecordPrintView = memo(function MedicalRecordPrintView({
       {/* ── 治療方針 ── */}
       {treatmentPolicy ? (
         <section className="mb-5">
-          <h3 className={`text-[11pt] font-semibold border-b ${C.borderLight} pb-1 mb-2`}>治療方針</h3>
+          <h3 className={`text-[11pt] font-semibold border-b ${C.borderLight} pb-1 mb-2`}>
+            治療方針
+          </h3>
           <p className="text-[10pt] whitespace-pre-wrap">{treatmentPolicy}</p>
         </section>
       ) : null}
@@ -135,7 +139,9 @@ export const MedicalRecordPrintView = memo(function MedicalRecordPrintView({
       {/* ── 処方箋 ── */}
       {medicineTreatments.length > 0 ? (
         <section className="mb-5">
-          <h3 className={`text-[11pt] font-semibold border-b ${C.borderLight} pb-1 mb-2`}>処方薬</h3>
+          <h3 className={`text-[11pt] font-semibold border-b ${C.borderLight} pb-1 mb-2`}>
+            処方薬
+          </h3>
           <table className="w-full text-[10pt] border-collapse">
             <thead>
               <tr className={`border-b ${C.borderMedium}`}>
@@ -158,7 +164,9 @@ export const MedicalRecordPrintView = memo(function MedicalRecordPrintView({
       ) : null}
 
       {/* ── フッター ── */}
-      <div className={`mt-12 pt-4 border-t ${C.borderLight} text-[9pt] ${C.text50} flex justify-between`}>
+      <div
+        className={`mt-12 pt-4 border-t ${C.borderLight} text-[9pt] ${C.text50} flex justify-between`}
+      >
         <span>{clinic.name}</span>
         <span>獣医師: {doctorName ?? "—"}</span>
       </div>

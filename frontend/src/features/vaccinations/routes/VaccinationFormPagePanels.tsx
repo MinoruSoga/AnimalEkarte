@@ -11,7 +11,10 @@ import { C, STYLE, ICON, LAYOUT } from "@/lib/design-tokens";
 import { ResourceVaccinations } from "@/types/generated/models";
 import type { SortOrder } from "@/types";
 import type { VaccinationRecord } from "../api/transforms";
-import { VaccinationFieldsPanel, VaccinationHistoryPanel } from "../components/VaccinationFormPanels";
+import {
+  VaccinationFieldsPanel,
+  VaccinationHistoryPanel,
+} from "../components/VaccinationFormPanels";
 import type { VaccinationFormGate } from "./vaccination-form-model";
 
 export function VaccinationFormStatusView({
@@ -189,89 +192,82 @@ export function VaccinationFormBody({
                 {isDeleting ? "削除中..." : "削除"}
               </Button>
             ) : null}
-            {canSubmit ? (
-              <SubmitButton
-                className="px-6 h-10 text-sm"
-              >
-                保存
-              </SubmitButton>
-            ) : null}
+            {canSubmit ? <SubmitButton className="px-6 h-10 text-sm">保存</SubmitButton> : null}
           </div>
         }
       >
         <NavigationBlocker when={isDirty ? !isSaving : false} />
 
         <fieldset disabled={!canSubmit} className="border-0 p-0 m-0 min-w-0">
-        {selectedPet ? (
-          <PatientInfoCard
-            ownerName={selectedPet.ownerName}
-            petName={selectedPet.name}
-            petNumber={selectedPet.petNumber ?? ""}
-            weight={selectedPet.weight ?? ""}
-            petDetails={formatPatientPetDetails({
-              species: selectedPet.species,
-              birthDate: selectedPet.birthDate,
-              gender: selectedPet.gender,
-              neuteredDate: selectedPet.neuteredDate,
-            })}
-            status={selectedPet.status === "死亡" ? "deceased" : "alive"}
-            insuranceName={selectedPet.insuranceName}
-            insuranceDetails={selectedPet.insuranceDetails}
-          />
-        ) : null}
-        {isPetDeceased ? (
-          <div
-            role="status"
-            aria-label="死亡ペットのため保存不可"
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-md border mt-4 ${C.bgWarning50} ${C.borderWarning20} ${C.textWarning}`}
-          >
-            <span className="text-sm font-medium">
-              死亡したペットの予防接種記録は保存できません
-            </span>
+          {selectedPet ? (
+            <PatientInfoCard
+              ownerName={selectedPet.ownerName}
+              petName={selectedPet.name}
+              petNumber={selectedPet.petNumber ?? ""}
+              weight={selectedPet.weight ?? ""}
+              petDetails={formatPatientPetDetails({
+                species: selectedPet.species,
+                birthDate: selectedPet.birthDate,
+                gender: selectedPet.gender,
+                neuteredDate: selectedPet.neuteredDate,
+              })}
+              status={selectedPet.status === "死亡" ? "deceased" : "alive"}
+              insuranceName={selectedPet.insuranceName}
+              insuranceDetails={selectedPet.insuranceDetails}
+            />
+          ) : null}
+          {isPetDeceased ? (
+            <div
+              role="status"
+              aria-label="死亡ペットのため保存不可"
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-md border mt-4 ${C.bgWarning50} ${C.borderWarning20} ${C.textWarning}`}
+            >
+              <span className="text-sm font-medium">
+                死亡したペットの予防接種記録は保存できません
+              </span>
+            </div>
+          ) : null}
+
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+            <VaccinationFieldsPanel
+              doctorName={form.doctorName}
+              date={form.date}
+              vaccineId={form.vaccineId}
+              vaccineOptions={form.vaccineOptions}
+              supplemental={form.supplemental}
+              lot1={form.lot1}
+              lot2={form.lot2}
+              lot3={form.lot3}
+              lot4={form.lot4}
+              nextScheduleType={form.nextScheduleType}
+              nextDate={form.nextDate}
+              remarks={form.remarks}
+              fieldErrors={fieldErrors}
+              onDateChange={form.setDate}
+              onVaccineIdChange={form.setVaccineId}
+              onSupplementalChange={form.setSupplemental}
+              onLot1Change={form.setLot1}
+              onLot2Change={form.setLot2}
+              onLot3Change={form.setLot3}
+              onLot4Change={form.setLot4}
+              onNextScheduleTypeChange={form.setNextScheduleType}
+              onNextDateChange={form.setNextDate}
+              onRemarksChange={form.setRemarks}
+              onMarkDirty={onMarkDirty}
+            />
+            <VaccinationHistoryPanel
+              petHistory={petHistory}
+              filterStartDate={historyFilter.filterStartDate}
+              filterEndDate={historyFilter.filterEndDate}
+              historySearchTerm={historyFilter.historySearchTerm}
+              sortOrder={historyFilter.sortOrder}
+              onFilterStartDateChange={historyFilter.setFilterStartDate}
+              onFilterEndDateChange={historyFilter.setFilterEndDate}
+              onHistorySearchTermChange={historyFilter.setHistorySearchTerm}
+              onSortOrderChange={historyFilter.setSortOrder}
+              onClear={historyFilter.handleClearHistoryFilter}
+            />
           </div>
-        ) : null}
-
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-          <VaccinationFieldsPanel
-            doctorName={form.doctorName}
-            date={form.date}
-            vaccineId={form.vaccineId}
-            vaccineOptions={form.vaccineOptions}
-            supplemental={form.supplemental}
-            lot1={form.lot1}
-            lot2={form.lot2}
-            lot3={form.lot3}
-            lot4={form.lot4}
-            nextScheduleType={form.nextScheduleType}
-            nextDate={form.nextDate}
-            remarks={form.remarks}
-            fieldErrors={fieldErrors}
-            onDateChange={form.setDate}
-            onVaccineIdChange={form.setVaccineId}
-            onSupplementalChange={form.setSupplemental}
-            onLot1Change={form.setLot1}
-            onLot2Change={form.setLot2}
-            onLot3Change={form.setLot3}
-            onLot4Change={form.setLot4}
-            onNextScheduleTypeChange={form.setNextScheduleType}
-            onNextDateChange={form.setNextDate}
-            onRemarksChange={form.setRemarks}
-            onMarkDirty={onMarkDirty}
-          />
-          <VaccinationHistoryPanel
-            petHistory={petHistory}
-            filterStartDate={historyFilter.filterStartDate}
-            filterEndDate={historyFilter.filterEndDate}
-            historySearchTerm={historyFilter.historySearchTerm}
-            sortOrder={historyFilter.sortOrder}
-            onFilterStartDateChange={historyFilter.setFilterStartDate}
-            onFilterEndDateChange={historyFilter.setFilterEndDate}
-            onHistorySearchTermChange={historyFilter.setHistorySearchTerm}
-            onSortOrderChange={historyFilter.setSortOrder}
-            onClear={historyFilter.handleClearHistoryFilter}
-          />
-        </div>
-
         </fieldset>
         <ConfirmDialog
           open={deleteConfirmOpen}

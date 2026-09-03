@@ -26,7 +26,7 @@ export type FrontendMerchandiseItem = ReturnType<typeof transformMerchandiseItem
 
 export type CreateMerchandiseItemRequest = Omit<
   MerchandiseItem,
-  'id' | 'clinic_id' | 'sort_order' | 'created_at' | 'updated_at'
+  "id" | "clinic_id" | "sort_order" | "created_at" | "updated_at"
 >;
 
 export type UpdateMerchandiseItemRequest = Partial<CreateMerchandiseItemRequest>;
@@ -40,7 +40,9 @@ export type { ReorderMerchandiseItemsRequest };
 // ─── Queries ──────────────────────────────────────────────
 
 const getAllMerchandiseItems = async (): Promise<FrontendMerchandiseItem[]> => {
-  const { data } = await axios.get<MerchandiseItem[] | { data: MerchandiseItem[] }>("/v1/masters/merchandise-items");
+  const { data } = await axios.get<MerchandiseItem[] | { data: MerchandiseItem[] }>(
+    "/v1/masters/merchandise-items",
+  );
   const items = Array.isArray(data) ? data : data.data;
   return items.map(transformMerchandiseItem);
 };
@@ -74,7 +76,10 @@ export const useUpdateMerchandiseItem = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, req }: { id: string; req: UpdateMerchandiseItemRequest }) => {
-      const { data } = await axios.patch<MerchandiseItem>(`/v1/masters/merchandise-items/${id}`, req);
+      const { data } = await axios.patch<MerchandiseItem>(
+        `/v1/masters/merchandise-items/${id}`,
+        req,
+      );
       return transformMerchandiseItem(data);
     },
     onSuccess: () => {

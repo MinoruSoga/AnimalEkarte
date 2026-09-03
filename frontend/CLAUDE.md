@@ -8,7 +8,7 @@ const data: any = response.data;
 
 // ✅ unknown + 型ガード
 const parseData = (data: unknown): Owner | null => {
-  if (data && typeof data === 'object' && 'id' in data) return data as Owner;
+  if (data && typeof data === "object" && "id" in data) return data as Owner;
   return null;
 };
 ```
@@ -68,10 +68,10 @@ import { C, STYLE } from '@/lib/design-tokens';
 
 ```typescript
 // ✅ index.ts 経由
-import { OwnerCard, useOwners } from '@/features/owners';
+import { OwnerCard, useOwners } from "@/features/owners";
 
 // ❌ deep import 禁止
-import { OwnerCard } from '@/features/owners/components/OwnerCard';
+import { OwnerCard } from "@/features/owners/components/OwnerCard";
 ```
 
 詳細は `src/features/CLAUDE.md` を参照。
@@ -80,10 +80,10 @@ import { OwnerCard } from '@/features/owners/components/OwnerCard';
 
 ```typescript
 // ✅ 共有ヘルパは lib/ に一元化
-import { formatCurrency } from '@/lib/format/number';
+import { formatCurrency } from "@/lib/format/number";
 
 // ❌ utils/ ディレクトリの新設禁止
-import { formatCurrency } from '@/TestUtils/format';
+import { formatCurrency } from "@/TestUtils/format";
 ```
 
 共有ヘルパの置き場所は `lib/` の1箇所のみ。`utils/` ディレクトリの新規作成を禁止する（FE7-1 で `utils/` を `lib/` へ統合済み・2026-07-18）。
@@ -92,7 +92,7 @@ import { formatCurrency } from '@/TestUtils/format';
 
 ```typescript
 // ✅ 共有定数は src/constants/ に一元化
-import { RECEPTION_STATUS_COLORS } from '@/constants/status-colors';
+import { RECEPTION_STATUS_COLORS } from "@/constants/status-colors";
 
 // ❌ 他ディレクトリ（lib/、feature 内など）での新規共有定数ファイル作成禁止
 ```

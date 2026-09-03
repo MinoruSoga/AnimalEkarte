@@ -29,29 +29,37 @@ export const InterviewHistory = memo(function InterviewHistory({
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const toggleExpand = useCallback((id: string) => {
-    setExpandedId((prev) => prev === id ? null : id);
+    setExpandedId((prev) => (prev === id ? null : id));
   }, []);
 
   // js-cache-function-results: API 由来の filter 結果は useMemo でキャッシュ
-  const filteredItems = useMemo(() =>
-    historyItems.filter(item =>
-      normalizedIncludes(item.title, deferredSearch) ||
-      normalizedIncludes(item.content, deferredSearch) ||
-      normalizedIncludes(item.type, deferredSearch)
-    ),
-    [historyItems, deferredSearch]
+  const filteredItems = useMemo(
+    () =>
+      historyItems.filter(
+        (item) =>
+          normalizedIncludes(item.title, deferredSearch) ||
+          normalizedIncludes(item.content, deferredSearch) ||
+          normalizedIncludes(item.type, deferredSearch),
+      ),
+    [historyItems, deferredSearch],
   );
 
   return (
-    <div className={`flex flex-col border ${C.borderMedium} ${C.bgWhite} rounded-md overflow-hidden ${className ?? ""}`}>
-      <div className={`p-3 border-b ${C.borderLight} ${C.bgPage} flex items-center justify-between h-12 shrink-0`}>
+    <div
+      className={`flex flex-col border ${C.borderMedium} ${C.bgWhite} rounded-md overflow-hidden ${className ?? ""}`}
+    >
+      <div
+        className={`p-3 border-b ${C.borderLight} ${C.bgPage} flex items-center justify-between h-12 shrink-0`}
+      >
         <div className="flex items-center gap-2">
           <History className={`${ICON.action} ${C.text}`} />
           <h3 className={`text-sm font-bold ${C.text}`}>過去のカルテ</h3>
         </div>
         <div className="flex items-center gap-2">
           <div className="relative">
-            <Search className={`absolute left-2.5 top-1/2 -translate-y-1/2 ${ICON.action} ${C.text60}`} />
+            <Search
+              className={`absolute left-2.5 top-1/2 -translate-y-1/2 ${ICON.action} ${C.text60}`}
+            />
             <label htmlFor="medical-record-history-search" className="sr-only">
               過去のカルテを検索
             </label>
@@ -89,17 +97,13 @@ export const InterviewHistory = memo(function InterviewHistory({
               >
                 <div className="flex items-start justify-between mb-1">
                   <div className="flex items-center gap-2">
-                    <span className={`font-mono text-sm font-bold ${C.text}`}>
-                      {item.date}
-                    </span>
+                    <span className={`font-mono text-sm font-bold ${C.text}`}>{item.date}</span>
                     <Badge variant="secondary" className="text-sm px-2">
                       {item.type}
                     </Badge>
                   </div>
                   <div className="flex items-center gap-1">
-                    <span className={`text-sm ${C.text60}`}>
-                      {item.author}
-                    </span>
+                    <span className={`text-sm ${C.text60}`}>{item.author}</span>
                     {/* BUG-MEDI-011: 展開/折りたたみトグル */}
                     {isExpanded ? (
                       <ChevronUp className={`${ICON.action} ${C.text60}`} />
@@ -108,20 +112,24 @@ export const InterviewHistory = memo(function InterviewHistory({
                     )}
                   </div>
                 </div>
-                <h4 className={`text-sm font-bold ${C.text} mb-1`}>
-                  {item.title}
-                </h4>
+                <h4 className={`text-sm font-bold ${C.text} mb-1`}>{item.title}</h4>
                 {/* BUG-MEDI-011: 展開時は全文、折りたたみ時は2行に制限 */}
-                <p className={`text-sm ${C.text}/80 leading-snug whitespace-pre-wrap ${isExpanded ? "" : "line-clamp-2"}`}>
+                <p
+                  className={`text-sm ${C.text}/80 leading-snug whitespace-pre-wrap ${isExpanded ? "" : "line-clamp-2"}`}
+                >
                   {item.content}
                 </p>
                 {/* BUG-MEDI-011: 展開時は「折りたたむ」ボタンを表示、未展開時はホバーで「引用」ボタン */}
-                <div className={`mt-2 flex justify-end gap-1 ${isExpanded ? "" : "hidden group-hover:flex"}`}>
+                <div
+                  className={`mt-2 flex justify-end gap-1 ${isExpanded ? "" : "hidden group-hover:flex"}`}
+                >
                   <Button
                     variant="ghost"
                     size="sm"
                     className={`${LAYOUT.touch.md} text-sm gap-1 ${C.text60} ${C.hoverText} ${C.hoverBgPage}`}
-                    onClick={(e) => { e.stopPropagation(); }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                    }}
                   >
                     <Plus className={ICON.action} />
                     引用
@@ -131,7 +139,10 @@ export const InterviewHistory = memo(function InterviewHistory({
                       variant="ghost"
                       size="sm"
                       className={`${LAYOUT.touch.md} text-sm gap-1 ${C.text60} ${C.hoverText} ${C.hoverBgPage}`}
-                      onClick={(e) => { e.stopPropagation(); toggleExpand(item.id); }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleExpand(item.id);
+                      }}
                     >
                       <ChevronUp className={ICON.action} />
                       折りたたむ
@@ -141,9 +152,7 @@ export const InterviewHistory = memo(function InterviewHistory({
               </div>
             );
           })}
-          {filteredItems.length === 0 ? (
-            <EmptyState message="該当するカルテはありません" />
-          ) : null}
+          {filteredItems.length === 0 ? <EmptyState message="該当するカルテはありません" /> : null}
         </div>
       </ScrollArea>
     </div>

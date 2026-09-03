@@ -1,11 +1,8 @@
-import { test, expect } from '@playwright/test';
-import type { BrowserContext } from '@playwright/test';
-import { createAuthedContext } from './helpers/context';
-import {
-  OUTSIDE_FIRST_PAGE_PET,
-  readRuntimePetReferences,
-} from './helpers/pet-search-regression';
-import { ReservationFormPage } from './pages/reservation-form-page';
+import { test, expect } from "@playwright/test";
+import type { BrowserContext } from "@playwright/test";
+import { createAuthedContext } from "./helpers/context";
+import { OUTSIDE_FIRST_PAGE_PET, readRuntimePetReferences } from "./helpers/pet-search-regression";
+import { ReservationFormPage } from "./pages/reservation-form-page";
 
 // PatientSelectionTable delegates its unified `#search` field to GET /v1/pets.
 // Runtime pet 1003298 (SPANKY) is intentionally outside the unfiltered first
@@ -20,7 +17,7 @@ import { ReservationFormPage } from './pages/reservation-form-page';
 // All locators are scoped to the dialog to avoid calendar-DOM collision.
 // Input is debounced and searches automatically; there is no manual search button.
 
-test.describe('予約新規作成 患者選択 サーバー検索', () => {
+test.describe("予約新規作成 患者選択 サーバー検索", () => {
   let context: BrowserContext;
 
   test.beforeAll(async ({ browser }) => {
@@ -49,13 +46,13 @@ test.describe('予約新規作成 患者選択 サーバー検索', () => {
     return { page, reservation };
   }
 
-  test('先頭20件にいない患者1003298を自動検索しPatientSelectionTableで選択できる', async () => {
+  test("先頭20件にいない患者1003298を自動検索しPatientSelectionTableで選択できる", async () => {
     const { page, reservation } = await openPatientSelectionTable(context);
     try {
-      const firstPageResponse = await page.request.get('/api/v1/pets?page=1&limit=20', {
+      const firstPageResponse = await page.request.get("/api/v1/pets?page=1&limit=20", {
         headers: {
-          Accept: 'application/json',
-          'X-Requested-With': 'XMLHttpRequest',
+          Accept: "application/json",
+          "X-Requested-With": "XMLHttpRequest",
         },
       });
       expect(firstPageResponse.status()).toBe(200);
@@ -67,12 +64,12 @@ test.describe('予約新規作成 患者選択 サーバー検索', () => {
       const searchResponsePromise = page.waitForResponse((response) => {
         const url = new URL(response.url());
         return (
-          response.request().method() === 'GET' &&
-          url.pathname.endsWith('/api/v1/pets') &&
-          url.searchParams.get('page') === '1' &&
-          url.searchParams.get('limit') === '20' &&
-          url.searchParams.get('search') === OUTSIDE_FIRST_PAGE_PET.name &&
-          !url.searchParams.has('include_deceased')
+          response.request().method() === "GET" &&
+          url.pathname.endsWith("/api/v1/pets") &&
+          url.searchParams.get("page") === "1" &&
+          url.searchParams.get("limit") === "20" &&
+          url.searchParams.get("search") === OUTSIDE_FIRST_PAGE_PET.name &&
+          !url.searchParams.has("include_deceased")
         );
       });
 
@@ -81,13 +78,9 @@ test.describe('予約新規作成 患者選択 サーバー検索', () => {
       const searchResponse = await searchResponsePromise;
       expect(searchResponse.status()).toBe(200);
       const searchPayload: unknown = await searchResponse.json();
-      expect(readRuntimePetReferences(searchPayload)).toContainEqual(
-        OUTSIDE_FIRST_PAGE_PET,
-      );
+      expect(readRuntimePetReferences(searchPayload)).toContainEqual(OUTSIDE_FIRST_PAGE_PET);
 
-      await expect(
-        reservation.patientRow(OUTSIDE_FIRST_PAGE_PET.name),
-      ).toBeVisible();
+      await expect(reservation.patientRow(OUTSIDE_FIRST_PAGE_PET.name)).toBeVisible();
       const selectButton = reservation.selectPatientButton(
         OUTSIDE_FIRST_PAGE_PET.id,
         OUTSIDE_FIRST_PAGE_PET.name,
@@ -97,10 +90,7 @@ test.describe('予約新規作成 患者選択 サーバー検索', () => {
 
       await selectButton.click();
       await expect(
-        reservation.selectedPatientButton(
-          OUTSIDE_FIRST_PAGE_PET.id,
-          OUTSIDE_FIRST_PAGE_PET.name,
-        ),
+        reservation.selectedPatientButton(OUTSIDE_FIRST_PAGE_PET.id, OUTSIDE_FIRST_PAGE_PET.name),
       ).toBeVisible();
     } finally {
       await page.close();

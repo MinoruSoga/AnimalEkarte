@@ -19,8 +19,7 @@ function Calendar({
         months: "flex flex-col sm:flex-row gap-2",
         month: "flex flex-col gap-4",
         month_caption: "flex justify-center pt-1 relative items-center w-full",
-        caption_label:
-          "text-sm font-medium has-[+.rdp-dropdowns]:sr-only",
+        caption_label: "text-sm font-medium has-[+.rdp-dropdowns]:sr-only",
         nav: "flex items-center gap-1",
         dropdowns: "flex items-center gap-2",
         dropdown_root: "relative",
@@ -38,8 +37,7 @@ function Calendar({
         ),
         month_grid: "w-full border-collapse space-x-1",
         weekdays: "flex",
-        weekday:
-          "text-muted-foreground rounded-md w-10 font-normal text-sm",
+        weekday: "text-muted-foreground rounded-md w-10 font-normal text-sm",
         week: "flex w-full mt-2",
         day: cn(
           "relative p-0 text-center text-sm focus-within:relative focus-within:z-20 [&:has([aria-selected])]:bg-accent [&:has([aria-selected].day-range-end)]:rounded-r-md",
@@ -53,16 +51,13 @@ function Calendar({
         ),
         range_start:
           "day-range-start aria-selected:bg-primary aria-selected:text-primary-foreground",
-        range_end:
-          "day-range-end aria-selected:bg-primary aria-selected:text-primary-foreground",
+        range_end: "day-range-end aria-selected:bg-primary aria-selected:text-primary-foreground",
         selected:
           "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
         today: "bg-accent text-accent-foreground",
-        outside:
-          "day-outside text-muted-foreground aria-selected:text-muted-foreground",
+        outside: "day-outside text-muted-foreground aria-selected:text-muted-foreground",
         disabled: "text-muted-foreground opacity-50",
-        range_middle:
-          "aria-selected:bg-accent aria-selected:text-accent-foreground",
+        range_middle: "aria-selected:bg-accent aria-selected:text-accent-foreground",
         hidden: "invisible",
         ...classNames,
       }}

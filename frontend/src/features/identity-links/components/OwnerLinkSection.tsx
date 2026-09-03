@@ -29,7 +29,10 @@ export function OwnerLinkSection({
   resolveOwnerGroupId,
 }: OwnerLinkSectionProps) {
   return (
-    <section className={`rounded border p-4 space-y-3 ${C.borderLight} ${C.bgWhite}`} aria-label="飼主リンク">
+    <section
+      className={`rounded border p-4 space-y-3 ${C.borderLight} ${C.bgWhite}`}
+      aria-label="飼主リンク"
+    >
       <h2 className={`font-semibold ${C.textInk}`}>飼主リンク</h2>
       <label className="block text-sm">
         <span className={C.textInkMuted}>検索</span>

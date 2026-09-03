@@ -33,10 +33,7 @@ export function TriggerPrioritySection() {
   // FE-RC-032: useEffect 同期の代わりに render 中の prev 比較で同期する
   // （OwnersList.tsx の searchParamsKey パターンと同型）。サーバーデータの
   // シグネチャが変わった時だけ setState し、それ以外は no-op のまま。
-  const serverKey = useMemo(
-    () => (data ? JSON.stringify(sortItems(data.items)) : ""),
-    [data],
-  );
+  const serverKey = useMemo(() => (data ? JSON.stringify(sortItems(data.items)) : ""), [data]);
   const [prevServerKey, setPrevServerKey] = useState(serverKey);
   if (serverKey !== prevServerKey) {
     setPrevServerKey(serverKey);
@@ -56,34 +53,29 @@ export function TriggerPrioritySection() {
     const n = parseInt(value, 10);
     if (isNaN(n)) return;
     setDraft((prev) =>
-      prev.map((item) =>
-        item.trigger_type === triggerType ? { ...item, priority: n } : item,
-      ),
+      prev.map((item) => (item.trigger_type === triggerType ? { ...item, priority: n } : item)),
     );
   };
 
-  const [state, formAction] = useActionState<TriggerPriorityFormState, FormData>(
-    async () => {
-      if (draft.some((item) => item.priority < 1)) {
-        return { error: "優先順位は1以上を指定してください" };
-      }
-      const submitted = sortItems([...draft]);
-      try {
-        await updateMutation.mutateAsync({ items: submitted });
-        // baseline を送信値に更新してダーティ状態をリセット。
-        // data 参照が変わらない場合でも UI は正確に clean 状態になる。
-        setBaseline(submitted);
-        setDraft(submitted);
-        toast.success("配信優先順位を保存しました");
-        return null;
-      } catch {
-        // FE-RC-005: API エラーは useUpdateTriggerPriorities の onError
-        // （use-trigger-priorities.ts）が handleApiError 済み。ここでは再通知しない。
-        return { error: "配信優先順位の保存に失敗しました" };
-      }
-    },
-    null,
-  );
+  const [state, formAction] = useActionState<TriggerPriorityFormState, FormData>(async () => {
+    if (draft.some((item) => item.priority < 1)) {
+      return { error: "優先順位は1以上を指定してください" };
+    }
+    const submitted = sortItems([...draft]);
+    try {
+      await updateMutation.mutateAsync({ items: submitted });
+      // baseline を送信値に更新してダーティ状態をリセット。
+      // data 参照が変わらない場合でも UI は正確に clean 状態になる。
+      setBaseline(submitted);
+      setDraft(submitted);
+      toast.success("配信優先順位を保存しました");
+      return null;
+    } catch {
+      // FE-RC-005: API エラーは useUpdateTriggerPriorities の onError
+      // （use-trigger-priorities.ts）が handleApiError 済み。ここでは再通知しない。
+      return { error: "配信優先順位の保存に失敗しました" };
+    }
+  }, null);
 
   if (isLoading) {
     return (

@@ -107,22 +107,15 @@ describe("pet sub-owner queries", () => {
       wrapper,
     });
 
-    await waitFor(() =>
-      expect(candidates.result.current.fetchStatus).toBe("idle"),
-    );
+    await waitFor(() => expect(candidates.result.current.fetchStatus).toBe("idle"));
     expect(mockedGet).not.toHaveBeenCalled();
   });
 
   it("編集権限がない場合は非空検索語でも飼主候補を取得しない", async () => {
     const wrapper = createWrapper();
-    const candidates = renderHook(
-      () => useGetSubOwnerCandidates("山田", false),
-      { wrapper },
-    );
+    const candidates = renderHook(() => useGetSubOwnerCandidates("山田", false), { wrapper });
 
-    await waitFor(() =>
-      expect(candidates.result.current.fetchStatus).toBe("idle"),
-    );
+    await waitFor(() => expect(candidates.result.current.fetchStatus).toBe("idle"));
     expect(mockedGet).not.toHaveBeenCalled();
   });
 
@@ -133,13 +126,10 @@ describe("pet sub-owner queries", () => {
       },
     });
     const wrapper = createWrapper(queryClient);
-    const candidates = renderHook(
-      ({ search }) => useGetSubOwnerCandidates(search, false),
-      {
-        wrapper,
-        initialProps: { search: "山田" },
-      },
-    );
+    const candidates = renderHook(({ search }) => useGetSubOwnerCandidates(search, false), {
+      wrapper,
+      initialProps: { search: "山田" },
+    });
 
     candidates.rerender({ search: "鈴木" });
 
@@ -184,12 +174,8 @@ describe("pet sub-owner queries", () => {
         wrapper,
       });
 
-      await waitFor(() =>
-        expect(subOwners.result.current.fetchStatus).toBe("idle"),
-      );
-      await waitFor(() =>
-        expect(metadata.result.current.fetchStatus).toBe("idle"),
-      );
+      await waitFor(() => expect(subOwners.result.current.fetchStatus).toBe("idle"));
+      await waitFor(() => expect(metadata.result.current.fetchStatus).toBe("idle"));
       expect(subOwners.result.current.isFetching).toBe(false);
       expect(metadata.result.current.isFetching).toBe(false);
       expect(mockedGet).not.toHaveBeenCalled();

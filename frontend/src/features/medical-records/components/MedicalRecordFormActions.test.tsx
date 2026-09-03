@@ -24,13 +24,11 @@ const baseProps = {
   onFinalizeClick: vi.fn(),
 };
 
-async function expectFinalizePhysicallyBlocked(
-  extraProps: {
-    billingConfirmationStatus?: "pending" | "confirmed" | "returned";
-    isBillingConfirmationLoading?: boolean;
-    isBillingConfirmationError?: boolean;
-  },
-) {
+async function expectFinalizePhysicallyBlocked(extraProps: {
+  billingConfirmationStatus?: "pending" | "confirmed" | "returned";
+  isBillingConfirmationLoading?: boolean;
+  isBillingConfirmationError?: boolean;
+}) {
   const onFinalizeClick = vi.fn();
   render(
     <MedicalRecordFloatingActions
@@ -217,14 +215,7 @@ describe("MedicalRecordFinalizeDialog", () => {
   });
 
   it("isFinalizing 中はボタンラベルが変わり操作不可になる", () => {
-    render(
-      <MedicalRecordFinalizeDialog
-        open
-        isFinalizing
-        onClose={vi.fn()}
-        onConfirm={vi.fn()}
-      />,
-    );
+    render(<MedicalRecordFinalizeDialog open isFinalizing onClose={vi.fn()} onConfirm={vi.fn()} />);
     const button = screen.getByRole("button", { name: "確定中..." });
     expect(button).toBeDisabled();
   });

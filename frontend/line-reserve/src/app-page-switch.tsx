@@ -1,18 +1,24 @@
-import type { CustomerInfo, LiffProfile, LiffSettings, PageType, ReservationFlow } from './types/models';
-import { ErrorPage } from '@/shared-liff/ErrorPage';
+import type {
+  CustomerInfo,
+  LiffProfile,
+  LiffSettings,
+  PageType,
+  ReservationFlow,
+} from "./types/models";
+import { ErrorPage } from "@/shared-liff/ErrorPage";
 
-import { TopPage } from './pages/TopPage';
-import { CustomerInfoPage } from './pages/CustomerInfoPage';
-import { CourseSelectPage } from './pages/CourseSelectPage';
-import { TrimmingCourseSelectPage } from './pages/TrimmingCourseSelectPage';
-import { TrimmingOptionSelectPage } from './pages/TrimmingOptionSelectPage';
-import { StaffSelectPage } from './pages/StaffSelectPage';
-import { DateSelectPage } from './pages/DateSelectPage';
-import { TimeSelectPage } from './pages/TimeSelectPage';
-import { RequestPage } from './pages/RequestPage';
-import { ConfirmPage } from './pages/ConfirmPage';
-import { CompletePage } from './pages/CompletePage';
-import { MyReservationsPage } from './pages/MyReservationsPage';
+import { TopPage } from "./pages/TopPage";
+import { CustomerInfoPage } from "./pages/CustomerInfoPage";
+import { CourseSelectPage } from "./pages/CourseSelectPage";
+import { TrimmingCourseSelectPage } from "./pages/TrimmingCourseSelectPage";
+import { TrimmingOptionSelectPage } from "./pages/TrimmingOptionSelectPage";
+import { StaffSelectPage } from "./pages/StaffSelectPage";
+import { DateSelectPage } from "./pages/DateSelectPage";
+import { TimeSelectPage } from "./pages/TimeSelectPage";
+import { RequestPage } from "./pages/RequestPage";
+import { ConfirmPage } from "./pages/ConfirmPage";
+import { CompletePage } from "./pages/CompletePage";
+import { MyReservationsPage } from "./pages/MyReservationsPage";
 
 export interface ReservationPageSwitchProps {
   page: PageType;
@@ -26,7 +32,7 @@ export interface ReservationPageSwitchProps {
   completedNotes: string;
   goTo: (page: PageType) => void;
   setCustomerInfo: (info: CustomerInfo) => void;
-  setCourse: (id: number, name: string, category?: 'general' | 'trimming') => void;
+  setCourse: (id: number, name: string, category?: "general" | "trimming") => void;
   setStaff: (id: number, name: string) => void;
   setDate: (date: string) => void;
   setTime: (startTime: string, endTime: string) => void;
@@ -49,7 +55,10 @@ export function ReservationNoticeBanner({
 }) {
   if (notice === null) return null;
   return (
-    <div role="alert" className="mx-4 mt-4 flex items-start justify-between gap-3 rounded-lg border border-noah-danger-border bg-noah-danger-bg px-4 py-3">
+    <div
+      role="alert"
+      className="mx-4 mt-4 flex items-start justify-between gap-3 rounded-lg border border-noah-danger-border bg-noah-danger-bg px-4 py-3"
+    >
       <p className="flex-1 text-sm text-noah-danger-text">{notice}</p>
       <button
         type="button"
@@ -64,21 +73,21 @@ export function ReservationNoticeBanner({
 }
 
 function renderAccountPages(props: ReservationPageSwitchProps) {
-  if (props.page === 'top') {
+  if (props.page === "top") {
     return (
       <TopPage
         settings={props.settings}
         onNewReservation={props.handleNewReservation}
-        onMyReservations={() => props.goTo('my-reservations')}
+        onMyReservations={() => props.goTo("my-reservations")}
       />
     );
   }
-  if (props.page === 'my-reservations') {
+  if (props.page === "my-reservations") {
     return (
       <MyReservationsPage
         clinicId={props.clinicId}
         idToken={props.idToken}
-        onBack={() => props.goTo('top')}
+        onBack={() => props.goTo("top")}
       />
     );
   }
@@ -86,50 +95,50 @@ function renderAccountPages(props: ReservationPageSwitchProps) {
 }
 
 function renderEarlyReservationSteps(props: ReservationPageSwitchProps) {
-  if (props.page === 'step1') {
+  if (props.page === "step1") {
     return (
       <CustomerInfoPage
         profile={props.profile}
         initialInfo={props.flow.customerInfo}
         onNext={(info: CustomerInfo) => {
           props.setCustomerInfo(info);
-          props.goTo('step2');
+          props.goTo("step2");
         }}
-        onBack={() => props.goTo('top')}
+        onBack={() => props.goTo("top")}
       />
     );
   }
-  if (props.page === 'step2') {
+  if (props.page === "step2") {
     return (
       <CourseSelectPage
         clinicId={props.clinicId}
         idToken={props.idToken}
         onSelect={(courseId, courseName, category) => {
           props.setCourse(courseId, courseName, category);
-          if (category === 'trimming') {
-            props.goTo('step2b');
+          if (category === "trimming") {
+            props.goTo("step2b");
           } else {
-            props.goTo('step3');
+            props.goTo("step3");
           }
         }}
-        onBack={() => props.goTo('step1')}
+        onBack={() => props.goTo("step1")}
       />
     );
   }
-  if (props.page === 'step2b') {
+  if (props.page === "step2b") {
     return (
       <TrimmingCourseSelectPage
         clinicId={props.clinicId}
         idToken={props.idToken}
         onSelect={(trimmingCourseId, trimmingCourseName) => {
           props.setTrimmingCourse(trimmingCourseId, trimmingCourseName);
-          props.goTo('step2c');
+          props.goTo("step2c");
         }}
-        onBack={() => props.goTo('step2')}
+        onBack={() => props.goTo("step2")}
       />
     );
   }
-  if (props.page === 'step2c') {
+  if (props.page === "step2c") {
     return (
       <TrimmingOptionSelectPage
         clinicId={props.clinicId}
@@ -137,9 +146,9 @@ function renderEarlyReservationSteps(props: ReservationPageSwitchProps) {
         selectedOptionIds={props.flow.trimmingOptionIds}
         onNext={(optionIds) => {
           props.setTrimmingOptions(optionIds);
-          props.goTo('step3');
+          props.goTo("step3");
         }}
-        onBack={() => props.goTo('step2b')}
+        onBack={() => props.goTo("step2b")}
       />
     );
   }
@@ -147,7 +156,7 @@ function renderEarlyReservationSteps(props: ReservationPageSwitchProps) {
 }
 
 function renderLateReservationSteps(props: ReservationPageSwitchProps) {
-  if (props.page === 'step3') {
+  if (props.page === "step3") {
     return (
       <StaffSelectPage
         clinicId={props.clinicId}
@@ -157,13 +166,13 @@ function renderLateReservationSteps(props: ReservationPageSwitchProps) {
         isTrimming={props.isTrimming}
         onSelect={(staffId, staffName) => {
           props.setStaff(staffId, staffName);
-          props.goTo('step4');
+          props.goTo("step4");
         }}
-        onBack={() => props.goTo(props.isTrimming ? 'step2c' : 'step2')}
+        onBack={() => props.goTo(props.isTrimming ? "step2c" : "step2")}
       />
     );
   }
-  if (props.page === 'step4') {
+  if (props.page === "step4") {
     return (
       <DateSelectPage
         clinicId={props.clinicId}
@@ -174,12 +183,12 @@ function renderLateReservationSteps(props: ReservationPageSwitchProps) {
         bookingWindow={props.settings.booking_window}
         isTrimming={props.isTrimming}
         onSelect={props.setDate}
-        onNext={() => props.goTo('step5')}
-        onBack={() => props.goTo('step3')}
+        onNext={() => props.goTo("step5")}
+        onBack={() => props.goTo("step3")}
       />
     );
   }
-  if (props.page === 'step5') {
+  if (props.page === "step5") {
     return (
       <TimeSelectPage
         clinicId={props.clinicId}
@@ -190,13 +199,13 @@ function renderLateReservationSteps(props: ReservationPageSwitchProps) {
         isTrimming={props.isTrimming}
         onSelect={(startTime, endTime) => {
           props.setTime(startTime, endTime);
-          props.goTo('step6');
+          props.goTo("step6");
         }}
-        onBack={() => props.goTo('step4')}
+        onBack={() => props.goTo("step4")}
       />
     );
   }
-  if (props.page === 'step6') {
+  if (props.page === "step6") {
     return (
       <RequestPage
         requestExample={props.settings.request_example}
@@ -204,13 +213,13 @@ function renderLateReservationSteps(props: ReservationPageSwitchProps) {
         isTrimming={props.isTrimming}
         onNext={(text) => {
           props.setRequestText(text);
-          props.goTo('step7');
+          props.goTo("step7");
         }}
-        onBack={() => props.goTo('step5')}
+        onBack={() => props.goTo("step5")}
       />
     );
   }
-  if (props.page === 'step7') {
+  if (props.page === "step7") {
     return (
       <ConfirmPage
         clinicId={props.clinicId}
@@ -221,11 +230,11 @@ function renderLateReservationSteps(props: ReservationPageSwitchProps) {
         privacyPolicy={props.settings.privacy_policy}
         onConfirm={props.handleConfirm}
         onSlotTaken={props.handleSlotTaken}
-        onBack={() => props.goTo('step6')}
+        onBack={() => props.goTo("step6")}
       />
     );
   }
-  if (props.page === 'step8') {
+  if (props.page === "step8") {
     return (
       <CompletePage
         reservationId={props.completedReservationId}

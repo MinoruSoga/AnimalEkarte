@@ -1,25 +1,25 @@
-import { useCallback } from 'react';
-import { liffApi } from '../api/liff-api';
-import { ProgressDots } from '../components/ProgressDots';
-import { ListItem } from '../components/ListItem';
-import { BackButton } from '../components/BackButton';
-import { AutoAdvanceHint } from '../components/AutoAdvanceHint';
-import { useFetchState } from '@/shared-liff/use-fetch-state';
+import { useCallback } from "react";
+import { liffApi } from "../api/liff-api";
+import { ProgressDots } from "../components/ProgressDots";
+import { ListItem } from "../components/ListItem";
+import { BackButton } from "../components/BackButton";
+import { AutoAdvanceHint } from "../components/AutoAdvanceHint";
+import { useFetchState } from "@/shared-liff/use-fetch-state";
 
 interface CourseSelectPageProps {
   clinicId: string;
   idToken: string;
-  onSelect: (courseId: number, courseName: string, category?: 'general' | 'trimming') => void;
+  onSelect: (courseId: number, courseName: string, category?: "general" | "trimming") => void;
   onBack: () => void;
 }
 
 export function CourseSelectPage({ clinicId, idToken, onSelect, onBack }: CourseSelectPageProps) {
   const fetcher = useCallback(() => liffApi.getCourses(clinicId, idToken), [clinicId, idToken]);
   // R-F22/R-F23: ステータス別メッセージ解決と再試行導線を共通フックに統合。
-  const { data: courses, loading, error, retry } = useFetchState(fetcher, 'コースの取得');
+  const { data: courses, loading, error, retry } = useFetchState(fetcher, "コースの取得");
 
   const formatDuration = (minutes: number | undefined): string => {
-    if (!minutes) return '';
+    if (!minutes) return "";
     if (minutes < 60) return `${minutes}分`;
     const h = Math.floor(minutes / 60);
     const m = minutes % 60;
@@ -57,7 +57,7 @@ export function CourseSelectPage({ clinicId, idToken, onSelect, onBack }: Course
             </div>
           ) : (
             <div className="bg-white border-t border-noah-border">
-              {(courses ?? []).map(course => (
+              {(courses ?? []).map((course) => (
                 <ListItem
                   key={course.id}
                   onClick={() => onSelect(course.id, course.name, course.category)}

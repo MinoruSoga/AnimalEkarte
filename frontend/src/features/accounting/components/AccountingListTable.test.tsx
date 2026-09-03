@@ -68,21 +68,23 @@ describe("AccountingListTable recorded amounts", () => {
         <AccountingListTable
           filteredCount={1}
           pagination={{
-            paginatedData: [{
-              ...accounting,
-              status: "completed",
-              payment: {
-                subtotal: -3000,
-                taxTotal: 0,
-                totalAmount: -3000,
-                insuranceAmount: 0,
-                discountAmount: 0,
-                billingAmount: -3000,
-                receivedAmount: 0,
-                changeAmount: 0,
-                method: "cash",
+            paginatedData: [
+              {
+                ...accounting,
+                status: "completed",
+                payment: {
+                  subtotal: -3000,
+                  taxTotal: 0,
+                  totalAmount: -3000,
+                  insuranceAmount: 0,
+                  discountAmount: 0,
+                  billingAmount: -3000,
+                  receivedAmount: 0,
+                  changeAmount: 0,
+                  method: "cash",
+                },
               },
-            }],
+            ],
             totalPages: 1,
             totalCount: 1,
             startIndex: 0,

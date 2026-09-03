@@ -1,13 +1,7 @@
 import { Menu, Printer, Edit2 } from "lucide-react";
 
 import { C } from "@/lib/design-tokens";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 
 import { ManualSidebar } from "../components/ManualSidebar";
 import type { ManualArticle, ManualCategory } from "../lib/manual-index";

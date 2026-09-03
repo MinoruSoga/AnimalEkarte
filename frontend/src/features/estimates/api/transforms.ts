@@ -1,5 +1,5 @@
-import type { BackendEstimate, BackendEstimateItem } from './types';
-import type { EstimateStatus } from '../types';
+import type { BackendEstimate, BackendEstimateItem } from "./types";
+import type { EstimateStatus } from "../types";
 
 function transformEstimateItem(item: BackendEstimateItem) {
   return {
@@ -23,22 +23,22 @@ export function transformEstimate(data: BackendEstimate) {
   return {
     id: String(data.id ?? 0),
     clinicId: String(data.clinic_id ?? 0),
-    estimateNo: data.estimate_no ?? '',
+    estimateNo: data.estimate_no ?? "",
     medicalRecordId: data.medical_record_id != null ? String(data.medical_record_id) : null,
-    title: data.title ?? '',
+    title: data.title ?? "",
     ownerId: data.owner_id != null ? String(data.owner_id) : null,
     ownerName: data.owner?.name ?? undefined,
     petId: data.pet_id != null ? String(data.pet_id) : null,
     petName: data.pet?.name ?? undefined,
-    status: (data.status ?? 'draft') as EstimateStatus,
+    status: (data.status ?? "draft") as EstimateStatus,
     subtotal: data.subtotal ?? 0,
     taxTotal: data.tax_total ?? 0,
     totalAmount: data.total_amount ?? 0,
     insuranceAmount: data.insurance_amount ?? 0,
     discountAmount: data.discount_amount ?? 0,
     validUntil: data.valid_until ?? null,
-    comment: data.comment ?? '',
-    notes: data.notes ?? '',
+    comment: data.comment ?? "",
+    notes: data.notes ?? "",
     createdBy: data.created_by != null ? String(data.created_by) : null,
     items: (data.items ?? []).map(transformEstimateItem),
     createdAt: data.created_at,

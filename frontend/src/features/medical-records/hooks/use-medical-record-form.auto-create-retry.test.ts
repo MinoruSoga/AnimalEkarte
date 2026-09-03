@@ -52,8 +52,12 @@ vi.mock("@/hooks/use-pet", () => ({
 }));
 vi.mock("@/hooks/use-owner", () => ({ useGetOwner: vi.fn(() => noData) }));
 const mockUseGetMedicalRecord = vi.fn(() => noData);
-vi.mock("../api/get-medical-record", () => ({ useGetMedicalRecord: (...args: unknown[]) => mockUseGetMedicalRecord(...args) }));
-vi.mock("../api/create-medical-record", () => ({ useCreateMedicalRecord: vi.fn(() => noMutation) }));
+vi.mock("../api/get-medical-record", () => ({
+  useGetMedicalRecord: (...args: unknown[]) => mockUseGetMedicalRecord(...args),
+}));
+vi.mock("../api/create-medical-record", () => ({
+  useCreateMedicalRecord: vi.fn(() => noMutation),
+}));
 vi.mock("@/hooks/use-create-reservation", () => ({
   useCreateReservation: vi.fn(() => noMutation),
 }));
@@ -142,7 +146,9 @@ describe("useMedicalRecordForm — 新規作成 auto-create effect (権限剥奪
       mutateAsync: vi.fn().mockResolvedValue({ id: "appointment-1" }),
       isPending: false,
     } as ReturnType<typeof useCreateReservation>);
-    vi.mocked(useGetReservations).mockReturnValue({ data: [], isLoading: false } as ReturnType<typeof useGetReservations>);
+    vi.mocked(useGetReservations).mockReturnValue({ data: [], isLoading: false } as ReturnType<
+      typeof useGetReservations
+    >);
   });
 
   afterEach(() => {
@@ -150,320 +156,326 @@ describe("useMedicalRecordForm — 新規作成 auto-create effect (権限剥奪
     vi.useRealTimers();
   });
 
-    const mockPet = {
-      id: "5",
-      name: "ポチ",
-      ownerId: "2",
-      ownerName: "田中",
-      species: "犬",
-      breed: "",
-      birthday: "",
-      gender: "男" as const,
-      weight: null,
-      imageUrl: null,
-      status: "生存" as const,
-      microchipNumber: null,
-      insuranceNumber: null,
-      insuranceExpiry: null,
-      memo: null,
-    };
+  const mockPet = {
+    id: "5",
+    name: "ポチ",
+    ownerId: "2",
+    ownerName: "田中",
+    species: "犬",
+    breed: "",
+    birthday: "",
+    gender: "男" as const,
+    weight: null,
+    imageUrl: null,
+    status: "生存" as const,
+    microchipNumber: null,
+    insuranceNumber: null,
+    insuranceExpiry: null,
+    memo: null,
+  };
 
-    it("isNewRecord だが selectedPet なし → createMutation 呼ばれない", async () => {
-      mockSearchParams = new URLSearchParams({ petId: "5" });
-      vi.mocked(useGetPet).mockReturnValue({
-        data: undefined,
-        isLoading: true, // ローディング中 → selectedPet = undefined
-        isError: false,
-      });
-
-      const mockMutateAsync = vi.fn();
-      vi.mocked(useCreateMedicalRecord).mockReturnValue({
-        mutateAsync: mockMutateAsync,
-        isPending: false,
-      } as ReturnType<typeof useCreateMedicalRecord>);
-
-      await act(async () => {
-        renderHook(() => useMedicalRecordForm());
-        await Promise.resolve();
-      });
-
-      expect(mockMutateAsync).not.toHaveBeenCalled();
+  it("isNewRecord だが selectedPet なし → createMutation 呼ばれない", async () => {
+    mockSearchParams = new URLSearchParams({ petId: "5" });
+    vi.mocked(useGetPet).mockReturnValue({
+      data: undefined,
+      isLoading: true, // ローディング中 → selectedPet = undefined
+      isError: false,
     });
 
-    it("死亡が明示されたペットでは予約もカルテも自動作成しない", async () => {
-      mockSearchParams = new URLSearchParams({ petId: "5" });
-      vi.mocked(useGetPet).mockReturnValue({
-        data: { ...mockPet, status: "死亡" },
-        isLoading: false,
-        isError: false,
-      });
-      const mockCreateRecord = vi.fn().mockResolvedValue({ id: "new-record-1" });
-      vi.mocked(useCreateMedicalRecord).mockReturnValue({
-        mutateAsync: mockCreateRecord,
-        isPending: false,
-      } as ReturnType<typeof useCreateMedicalRecord>);
-      const mockCreateReservation = vi.fn().mockResolvedValue({ id: "appointment-1" });
-      vi.mocked(useCreateReservation).mockReturnValue({
-        mutateAsync: mockCreateReservation,
-        isPending: false,
-      } as ReturnType<typeof useCreateReservation>);
+    const mockMutateAsync = vi.fn();
+    vi.mocked(useCreateMedicalRecord).mockReturnValue({
+      mutateAsync: mockMutateAsync,
+      isPending: false,
+    } as ReturnType<typeof useCreateMedicalRecord>);
 
-      await act(async () => {
-        renderHook(() => useMedicalRecordForm());
-      });
-
-      expect(mockCreateReservation).not.toHaveBeenCalled();
-      expect(mockCreateRecord).not.toHaveBeenCalled();
+    await act(async () => {
+      renderHook(() => useMedicalRecordForm());
+      await Promise.resolve();
     });
 
-    it("appointment検索中にcreate権限を失った場合は予約もカルテも自動作成しない", async () => {
-      mockSearchParams = new URLSearchParams({ petId: "5" });
-      vi.mocked(useGetPet).mockReturnValue({
-        data: mockPet,
-        isLoading: false,
-        isError: false,
-      });
-      vi.mocked(useGetReservations).mockReturnValue({
-        data: [],
-        isLoading: true,
-      } as ReturnType<typeof useGetReservations>);
-      const mockCreateRecord = vi.fn().mockResolvedValue({ id: "new-record-1" });
-      vi.mocked(useCreateMedicalRecord).mockReturnValue({
-        mutateAsync: mockCreateRecord,
-        isPending: false,
-      } as ReturnType<typeof useCreateMedicalRecord>);
-      const mockCreateReservation = vi.fn().mockResolvedValue({ id: "appointment-1" });
-      vi.mocked(useCreateReservation).mockReturnValue({
-        mutateAsync: mockCreateReservation,
-        isPending: false,
-      } as ReturnType<typeof useCreateReservation>);
+    expect(mockMutateAsync).not.toHaveBeenCalled();
+  });
 
-      const { rerender } = renderHook(() => useMedicalRecordForm());
-      expect(mockCreateReservation).not.toHaveBeenCalled();
+  it("死亡が明示されたペットでは予約もカルテも自動作成しない", async () => {
+    mockSearchParams = new URLSearchParams({ petId: "5" });
+    vi.mocked(useGetPet).mockReturnValue({
+      data: { ...mockPet, status: "死亡" },
+      isLoading: false,
+      isError: false,
+    });
+    const mockCreateRecord = vi.fn().mockResolvedValue({ id: "new-record-1" });
+    vi.mocked(useCreateMedicalRecord).mockReturnValue({
+      mutateAsync: mockCreateRecord,
+      isPending: false,
+    } as ReturnType<typeof useCreateMedicalRecord>);
+    const mockCreateReservation = vi.fn().mockResolvedValue({ id: "appointment-1" });
+    vi.mocked(useCreateReservation).mockReturnValue({
+      mutateAsync: mockCreateReservation,
+      isPending: false,
+    } as ReturnType<typeof useCreateReservation>);
 
-      mockUsePermission.mockReturnValue({
-        canView: true,
-        canCreate: false,
-        canEdit: true,
-        canDelete: true,
-      });
-      vi.mocked(useGetReservations).mockReturnValue({
-        data: [],
-        isLoading: false,
-      } as ReturnType<typeof useGetReservations>);
-      await act(async () => {
-        rerender();
-      });
-
-      expect(mockCreateReservation).not.toHaveBeenCalled();
-      expect(mockCreateRecord).not.toHaveBeenCalled();
+    await act(async () => {
+      renderHook(() => useMedicalRecordForm());
     });
 
-    it("予約作成中にcreate権限を失った場合はカルテを自動作成しない", async () => {
-      mockSearchParams = new URLSearchParams({ petId: "5" });
-      vi.mocked(useGetPet).mockReturnValue({
-        data: mockPet,
-        isLoading: false,
-        isError: false,
-      });
-      const mockCreateRecord = vi.fn().mockResolvedValue({ id: "new-record-1" });
-      vi.mocked(useCreateMedicalRecord).mockReturnValue({
-        mutateAsync: mockCreateRecord,
-        isPending: false,
-      } as ReturnType<typeof useCreateMedicalRecord>);
-      let resolveAppointment: ((appointment: { id: string }) => void) | undefined;
-      const appointmentPromise = new Promise<{ id: string }>((resolve) => {
-        resolveAppointment = resolve;
-      });
-      const mockCreateReservation = vi.fn(() => appointmentPromise);
-      vi.mocked(useCreateReservation).mockReturnValue({
-        mutateAsync: mockCreateReservation,
-        isPending: false,
-      } as ReturnType<typeof useCreateReservation>);
+    expect(mockCreateReservation).not.toHaveBeenCalled();
+    expect(mockCreateRecord).not.toHaveBeenCalled();
+  });
 
-      const { rerender } = renderHook(() => useMedicalRecordForm());
-      await waitFor(() => {
-        expect(mockCreateReservation).toHaveBeenCalledTimes(1);
-      });
+  it("appointment検索中にcreate権限を失った場合は予約もカルテも自動作成しない", async () => {
+    mockSearchParams = new URLSearchParams({ petId: "5" });
+    vi.mocked(useGetPet).mockReturnValue({
+      data: mockPet,
+      isLoading: false,
+      isError: false,
+    });
+    vi.mocked(useGetReservations).mockReturnValue({
+      data: [],
+      isLoading: true,
+    } as ReturnType<typeof useGetReservations>);
+    const mockCreateRecord = vi.fn().mockResolvedValue({ id: "new-record-1" });
+    vi.mocked(useCreateMedicalRecord).mockReturnValue({
+      mutateAsync: mockCreateRecord,
+      isPending: false,
+    } as ReturnType<typeof useCreateMedicalRecord>);
+    const mockCreateReservation = vi.fn().mockResolvedValue({ id: "appointment-1" });
+    vi.mocked(useCreateReservation).mockReturnValue({
+      mutateAsync: mockCreateReservation,
+      isPending: false,
+    } as ReturnType<typeof useCreateReservation>);
 
-      mockUsePermission.mockReturnValue({
-        canView: true,
-        canCreate: false,
-        canEdit: true,
-        canDelete: true,
-      });
+    const { rerender } = renderHook(() => useMedicalRecordForm());
+    expect(mockCreateReservation).not.toHaveBeenCalled();
+
+    mockUsePermission.mockReturnValue({
+      canView: true,
+      canCreate: false,
+      canEdit: true,
+      canDelete: true,
+    });
+    vi.mocked(useGetReservations).mockReturnValue({
+      data: [],
+      isLoading: false,
+    } as ReturnType<typeof useGetReservations>);
+    await act(async () => {
       rerender();
-      await act(async () => {
-        resolveAppointment?.({ id: "appointment-1" });
-        await appointmentPromise;
-      });
-
-      expect(mockCreateRecord).not.toHaveBeenCalled();
     });
 
-    it("予約作成中に選択ペットが死亡へ変わった場合はカルテを自動作成しない", async () => {
-      mockSearchParams = new URLSearchParams({ petId: "5" });
-      vi.mocked(useGetPet).mockReturnValue({
-        data: mockPet,
-        isLoading: false,
-        isError: false,
-      });
-      const mockCreateRecord = vi.fn().mockResolvedValue({ id: "new-record-1" });
-      vi.mocked(useCreateMedicalRecord).mockReturnValue({
-        mutateAsync: mockCreateRecord,
-        isPending: false,
-      } as ReturnType<typeof useCreateMedicalRecord>);
-      let resolveAppointment: ((appointment: { id: string }) => void) | undefined;
-      const appointmentPromise = new Promise<{ id: string }>((resolve) => {
-        resolveAppointment = resolve;
-      });
-      const mockCreateReservation = vi.fn(() => appointmentPromise);
-      vi.mocked(useCreateReservation).mockReturnValue({
-        mutateAsync: mockCreateReservation,
-        isPending: false,
-      } as ReturnType<typeof useCreateReservation>);
+    expect(mockCreateReservation).not.toHaveBeenCalled();
+    expect(mockCreateRecord).not.toHaveBeenCalled();
+  });
 
-      const { rerender } = renderHook(() => useMedicalRecordForm());
-      await waitFor(() => {
-        expect(mockCreateReservation).toHaveBeenCalledTimes(1);
-      });
+  it("予約作成中にcreate権限を失った場合はカルテを自動作成しない", async () => {
+    mockSearchParams = new URLSearchParams({ petId: "5" });
+    vi.mocked(useGetPet).mockReturnValue({
+      data: mockPet,
+      isLoading: false,
+      isError: false,
+    });
+    const mockCreateRecord = vi.fn().mockResolvedValue({ id: "new-record-1" });
+    vi.mocked(useCreateMedicalRecord).mockReturnValue({
+      mutateAsync: mockCreateRecord,
+      isPending: false,
+    } as ReturnType<typeof useCreateMedicalRecord>);
+    let resolveAppointment: ((appointment: { id: string }) => void) | undefined;
+    const appointmentPromise = new Promise<{ id: string }>((resolve) => {
+      resolveAppointment = resolve;
+    });
+    const mockCreateReservation = vi.fn(() => appointmentPromise);
+    vi.mocked(useCreateReservation).mockReturnValue({
+      mutateAsync: mockCreateReservation,
+      isPending: false,
+    } as ReturnType<typeof useCreateReservation>);
 
-      vi.mocked(useGetPet).mockReturnValue({
-        data: { ...mockPet, status: "死亡" },
-        isLoading: false,
-        isError: false,
-      });
-      rerender();
-      await act(async () => {
-        resolveAppointment?.({ id: "appointment-1" });
-        await appointmentPromise;
-      });
-
-      expect(mockCreateRecord).not.toHaveBeenCalled();
+    const { rerender } = renderHook(() => useMedicalRecordForm());
+    await waitFor(() => {
+      expect(mockCreateReservation).toHaveBeenCalledTimes(1);
     });
 
-    it("appointment 作成失敗後は自動再試行せず、明示的な再試行で appointment phase から再開する", async () => {
-      mockSearchParams = new URLSearchParams({ petId: "5" });
-      vi.mocked(useGetPet).mockReturnValue({
-        data: mockPet,
-        isLoading: false,
-        isError: false,
-      });
+    mockUsePermission.mockReturnValue({
+      canView: true,
+      canCreate: false,
+      canEdit: true,
+      canDelete: true,
+    });
+    rerender();
+    await act(async () => {
+      resolveAppointment?.({ id: "appointment-1" });
+      await appointmentPromise;
+    });
 
-      const mockCreateAppointment = vi.fn()
-        .mockRejectedValueOnce(new Error("Appointment create failed"))
-        .mockResolvedValueOnce({ id: "appointment-2" });
-      vi.mocked(useCreateReservation).mockReturnValue({
-        mutateAsync: mockCreateAppointment,
-        isPending: false,
-      } as ReturnType<typeof useCreateReservation>);
-      const mockCreateRecord = vi.fn().mockResolvedValue({ id: "new-record-1" });
-      vi.mocked(useCreateMedicalRecord).mockReturnValue({
-        mutateAsync: mockCreateRecord,
-        isPending: false,
-      } as ReturnType<typeof useCreateMedicalRecord>);
+    expect(mockCreateRecord).not.toHaveBeenCalled();
+  });
 
-      const { result, rerender } = renderHook(() => useMedicalRecordForm());
+  it("予約作成中に選択ペットが死亡へ変わった場合はカルテを自動作成しない", async () => {
+    mockSearchParams = new URLSearchParams({ petId: "5" });
+    vi.mocked(useGetPet).mockReturnValue({
+      data: mockPet,
+      isLoading: false,
+      isError: false,
+    });
+    const mockCreateRecord = vi.fn().mockResolvedValue({ id: "new-record-1" });
+    vi.mocked(useCreateMedicalRecord).mockReturnValue({
+      mutateAsync: mockCreateRecord,
+      isPending: false,
+    } as ReturnType<typeof useCreateMedicalRecord>);
+    let resolveAppointment: ((appointment: { id: string }) => void) | undefined;
+    const appointmentPromise = new Promise<{ id: string }>((resolve) => {
+      resolveAppointment = resolve;
+    });
+    const mockCreateReservation = vi.fn(() => appointmentPromise);
+    vi.mocked(useCreateReservation).mockReturnValue({
+      mutateAsync: mockCreateReservation,
+      isPending: false,
+    } as ReturnType<typeof useCreateReservation>);
 
-      await waitFor(() => {
-        expect(result.current.autoCreateFailurePhase).toBe("appointment");
-      });
-      expect(mockCreateAppointment).toHaveBeenCalledTimes(1);
-      expect(mockCreateRecord).not.toHaveBeenCalled();
+    const { rerender } = renderHook(() => useMedicalRecordForm());
+    await waitFor(() => {
+      expect(mockCreateReservation).toHaveBeenCalledTimes(1);
+    });
 
-      mockLocationState = { visitDate: "2026-06-02" };
-      rerender();
-      await act(async () => {
-        await Promise.resolve();
-      });
-      expect(mockCreateAppointment).toHaveBeenCalledTimes(1);
-      expect(mockCreateRecord).not.toHaveBeenCalled();
+    vi.mocked(useGetPet).mockReturnValue({
+      data: { ...mockPet, status: "死亡" },
+      isLoading: false,
+      isError: false,
+    });
+    rerender();
+    await act(async () => {
+      resolveAppointment?.({ id: "appointment-1" });
+      await appointmentPromise;
+    });
 
-      render(createElement(MedicalRecordAutoCreateFailure, {
+    expect(mockCreateRecord).not.toHaveBeenCalled();
+  });
+
+  it("appointment 作成失敗後は自動再試行せず、明示的な再試行で appointment phase から再開する", async () => {
+    mockSearchParams = new URLSearchParams({ petId: "5" });
+    vi.mocked(useGetPet).mockReturnValue({
+      data: mockPet,
+      isLoading: false,
+      isError: false,
+    });
+
+    const mockCreateAppointment = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("Appointment create failed"))
+      .mockResolvedValueOnce({ id: "appointment-2" });
+    vi.mocked(useCreateReservation).mockReturnValue({
+      mutateAsync: mockCreateAppointment,
+      isPending: false,
+    } as ReturnType<typeof useCreateReservation>);
+    const mockCreateRecord = vi.fn().mockResolvedValue({ id: "new-record-1" });
+    vi.mocked(useCreateMedicalRecord).mockReturnValue({
+      mutateAsync: mockCreateRecord,
+      isPending: false,
+    } as ReturnType<typeof useCreateMedicalRecord>);
+
+    const { result, rerender } = renderHook(() => useMedicalRecordForm());
+
+    await waitFor(() => {
+      expect(result.current.autoCreateFailurePhase).toBe("appointment");
+    });
+    expect(mockCreateAppointment).toHaveBeenCalledTimes(1);
+    expect(mockCreateRecord).not.toHaveBeenCalled();
+
+    mockLocationState = { visitDate: "2026-06-02" };
+    rerender();
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(mockCreateAppointment).toHaveBeenCalledTimes(1);
+    expect(mockCreateRecord).not.toHaveBeenCalled();
+
+    render(
+      createElement(MedicalRecordAutoCreateFailure, {
         failurePhase: "appointment",
         isRetrying: false,
         onRetry: () => result.current.retryAutoCreate(),
-      }));
-      const retryButton = screen.getByRole("button", {
-        name: "カルテ作成を再試行する",
-      });
-      expect(retryButton).toBeEnabled();
-
-      act(() => {
-        retryButton.click();
-        result.current.retryAutoCreate();
-      });
-      await waitFor(() => {
-        expect(mockCreateAppointment).toHaveBeenCalledTimes(2);
-        expect(mockCreateRecord).toHaveBeenCalledTimes(1);
-        expect(mockCreateRecord).toHaveBeenLastCalledWith(
-          expect.objectContaining({ appointment_id: "appointment-2" }),
-        );
-        expect(result.current.autoCreateFailurePhase).toBeNull();
-      });
+      }),
+    );
+    const retryButton = screen.getByRole("button", {
+      name: "カルテ作成を再試行する",
     });
+    expect(retryButton).toBeEnabled();
 
-    it("カルテ作成失敗後の明示的な再試行は作成済み appointment_id を再利用する", async () => {
-      mockSearchParams = new URLSearchParams({ petId: "5" });
-      vi.mocked(useGetPet).mockReturnValue({
-        data: mockPet,
-        isLoading: false,
-        isError: false,
-      });
-
-      const mockCreateAppointment = vi.fn().mockResolvedValue({ id: "appointment-1" });
-      vi.mocked(useCreateReservation).mockReturnValue({
-        mutateAsync: mockCreateAppointment,
-        isPending: false,
-      } as ReturnType<typeof useCreateReservation>);
-      const mockCreateRecord = vi.fn()
-        .mockRejectedValueOnce(new Error("Medical record create failed"))
-        .mockResolvedValueOnce({ id: "new-record-1" });
-      vi.mocked(useCreateMedicalRecord).mockReturnValue({
-        mutateAsync: mockCreateRecord,
-        isPending: false,
-      } as ReturnType<typeof useCreateMedicalRecord>);
-
-      const { result, rerender } = renderHook(() => useMedicalRecordForm());
-
-      await waitFor(() => {
-        expect(result.current.autoCreateFailurePhase).toBe("medical-record");
-      });
-      expect(mockCreateAppointment).toHaveBeenCalledTimes(1);
+    act(() => {
+      retryButton.click();
+      result.current.retryAutoCreate();
+    });
+    await waitFor(() => {
+      expect(mockCreateAppointment).toHaveBeenCalledTimes(2);
       expect(mockCreateRecord).toHaveBeenCalledTimes(1);
       expect(mockCreateRecord).toHaveBeenLastCalledWith(
-        expect.objectContaining({ appointment_id: "appointment-1" }),
+        expect.objectContaining({ appointment_id: "appointment-2" }),
       );
+      expect(result.current.autoCreateFailurePhase).toBeNull();
+    });
+  });
 
-      mockLocationState = { visitDate: "2026-06-02" };
-      rerender();
-      await act(async () => {
-        await Promise.resolve();
-      });
-      expect(mockCreateAppointment).toHaveBeenCalledTimes(1);
-      expect(mockCreateRecord).toHaveBeenCalledTimes(1);
+  it("カルテ作成失敗後の明示的な再試行は作成済み appointment_id を再利用する", async () => {
+    mockSearchParams = new URLSearchParams({ petId: "5" });
+    vi.mocked(useGetPet).mockReturnValue({
+      data: mockPet,
+      isLoading: false,
+      isError: false,
+    });
 
-      render(createElement(MedicalRecordAutoCreateFailure, {
+    const mockCreateAppointment = vi.fn().mockResolvedValue({ id: "appointment-1" });
+    vi.mocked(useCreateReservation).mockReturnValue({
+      mutateAsync: mockCreateAppointment,
+      isPending: false,
+    } as ReturnType<typeof useCreateReservation>);
+    const mockCreateRecord = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("Medical record create failed"))
+      .mockResolvedValueOnce({ id: "new-record-1" });
+    vi.mocked(useCreateMedicalRecord).mockReturnValue({
+      mutateAsync: mockCreateRecord,
+      isPending: false,
+    } as ReturnType<typeof useCreateMedicalRecord>);
+
+    const { result, rerender } = renderHook(() => useMedicalRecordForm());
+
+    await waitFor(() => {
+      expect(result.current.autoCreateFailurePhase).toBe("medical-record");
+    });
+    expect(mockCreateAppointment).toHaveBeenCalledTimes(1);
+    expect(mockCreateRecord).toHaveBeenCalledTimes(1);
+    expect(mockCreateRecord).toHaveBeenLastCalledWith(
+      expect.objectContaining({ appointment_id: "appointment-1" }),
+    );
+
+    mockLocationState = { visitDate: "2026-06-02" };
+    rerender();
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(mockCreateAppointment).toHaveBeenCalledTimes(1);
+    expect(mockCreateRecord).toHaveBeenCalledTimes(1);
+
+    render(
+      createElement(MedicalRecordAutoCreateFailure, {
         failurePhase: "medical-record",
         isRetrying: false,
         onRetry: () => result.current.retryAutoCreate(),
-      }));
-      const retryButton = screen.getByRole("button", {
-        name: "カルテ作成を再試行する",
-      });
-      expect(retryButton).toBeEnabled();
-
-      act(() => {
-        retryButton.click();
-        result.current.retryAutoCreate();
-      });
-      await waitFor(() => {
-        expect(mockCreateAppointment).toHaveBeenCalledTimes(1);
-        expect(mockCreateRecord).toHaveBeenCalledTimes(2);
-        expect(mockCreateRecord).toHaveBeenLastCalledWith(
-          expect.objectContaining({ appointment_id: "appointment-1" }),
-        );
-        expect(result.current.autoCreateFailurePhase).toBeNull();
-      });
+      }),
+    );
+    const retryButton = screen.getByRole("button", {
+      name: "カルテ作成を再試行する",
     });
+    expect(retryButton).toBeEnabled();
+
+    act(() => {
+      retryButton.click();
+      result.current.retryAutoCreate();
+    });
+    await waitFor(() => {
+      expect(mockCreateAppointment).toHaveBeenCalledTimes(1);
+      expect(mockCreateRecord).toHaveBeenCalledTimes(2);
+      expect(mockCreateRecord).toHaveBeenLastCalledWith(
+        expect.objectContaining({ appointment_id: "appointment-1" }),
+      );
+      expect(result.current.autoCreateFailurePhase).toBeNull();
+    });
+  });
 });

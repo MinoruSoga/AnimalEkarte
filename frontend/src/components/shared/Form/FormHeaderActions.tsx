@@ -27,11 +27,7 @@ export function FormHeaderActions({
         {cancelLabel}
       </Button>
       {submitLabel ? (
-        <SubmitButton
-          form={submitFormId}
-          disabled={submitDisabled}
-          className="h-10 px-4 text-sm"
-        >
+        <SubmitButton form={submitFormId} disabled={submitDisabled} className="h-10 px-4 text-sm">
           {submitLabel}
         </SubmitButton>
       ) : null}

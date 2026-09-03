@@ -117,9 +117,7 @@ function selectedPet(status: "生存" | "死亡" | "不明") {
 }
 
 function renderExaminationForm(id?: string) {
-  return renderHook(() =>
-    useExaminationForm(id, undefined, ALLOWED_MUTATION_PERMISSIONS),
-  );
+  return renderHook(() => useExaminationForm(id, undefined, ALLOWED_MUTATION_PERMISSIONS));
 }
 
 // FE-RC-045: use-examination-form.test.ts (2662行) をトピック別に分割した1ファイル。
@@ -128,10 +126,7 @@ function renderExaminationForm(id?: string) {
 describe("useExaminationForm — mutation permission boundary (FE12-02 U8)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(useSearchParams).mockReturnValue([
-      new URLSearchParams(),
-      vi.fn(),
-    ]);
+    vi.mocked(useSearchParams).mockReturnValue([new URLSearchParams(), vi.fn()]);
     vi.mocked(useGetPet).mockReturnValue({
       data: null,
       isLoading: false,
@@ -163,8 +158,7 @@ describe("useExaminationForm — mutation permission boundary (FE12-02 U8)", () 
 
   it("作成権限なしでは parent create と items replacement を発行しない", async () => {
     const { useCreateExamination } = await import("../api/create-examination");
-    const { useUpdateExaminationItems } =
-      await import("../api/update-examination-items");
+    const { useUpdateExaminationItems } = await import("../api/update-examination-items");
     const createMutate = vi.fn().mockResolvedValue({ id: "new-99" });
     const updateItemsMutate = vi.fn().mockResolvedValue([]);
     vi.mocked(useCreateExamination).mockReturnValue({
@@ -197,8 +191,7 @@ describe("useExaminationForm — mutation permission boundary (FE12-02 U8)", () 
 
   it("作成権限があっても編集権限なしでは items を含む create を発行しない", async () => {
     const { useCreateExamination } = await import("../api/create-examination");
-    const { useUpdateExaminationItems } =
-      await import("../api/update-examination-items");
+    const { useUpdateExaminationItems } = await import("../api/update-examination-items");
     const createMutate = vi.fn().mockResolvedValue({ id: "new-99" });
     const updateItemsMutate = vi.fn().mockResolvedValue([]);
     vi.mocked(useCreateExamination).mockReturnValue({
@@ -231,8 +224,7 @@ describe("useExaminationForm — mutation permission boundary (FE12-02 U8)", () 
 
   it("編集権限なしでは parent update と items replacement を発行しない", async () => {
     const { useUpdateExamination } = await import("../api/update-examination");
-    const { useUpdateExaminationItems } =
-      await import("../api/update-examination-items");
+    const { useUpdateExaminationItems } = await import("../api/update-examination-items");
     const updateMutate = vi.fn().mockResolvedValue({});
     const updateItemsMutate = vi.fn().mockResolvedValue([]);
     vi.mocked(useUpdateExamination).mockReturnValue({
@@ -289,8 +281,7 @@ describe("useExaminationForm — mutation permission boundary (FE12-02 U8)", () 
 
   it("編集権限が剥奪された後は取得済み formAction でも parent/items mutation を発行しない", async () => {
     const { useUpdateExamination } = await import("../api/update-examination");
-    const { useUpdateExaminationItems } =
-      await import("../api/update-examination-items");
+    const { useUpdateExaminationItems } = await import("../api/update-examination-items");
     const updateMutate = vi.fn().mockResolvedValue({});
     const updateItemsMutate = vi.fn().mockResolvedValue([]);
     vi.mocked(useUpdateExamination).mockReturnValue({
@@ -326,8 +317,7 @@ describe("useExaminationForm — mutation permission boundary (FE12-02 U8)", () 
 
   it("編集権限剥奪をcommitした直後のlayout phaseで取得済みformActionが発火してもmutationを発行しない", async () => {
     const { useUpdateExamination } = await import("../api/update-examination");
-    const { useUpdateExaminationItems } =
-      await import("../api/update-examination-items");
+    const { useUpdateExaminationItems } = await import("../api/update-examination-items");
     const updateMutate = vi.fn().mockResolvedValue({});
     const updateItemsMutate = vi.fn().mockResolvedValue([]);
     vi.mocked(useUpdateExamination).mockReturnValue({
@@ -374,10 +364,7 @@ describe("useExaminationForm — mutation permission boundary (FE12-02 U8)", () 
     vi.mocked(useCreateExamination).mockReturnValue({
       mutateAsync: createMutate,
     } as ReturnType<typeof useCreateExamination>);
-    vi.mocked(useSearchParams).mockReturnValue([
-      new URLSearchParams("petId=42"),
-      vi.fn(),
-    ]);
+    vi.mocked(useSearchParams).mockReturnValue([new URLSearchParams("petId=42"), vi.fn()]);
     vi.mocked(useGetPet).mockReturnValue({
       data: {
         id: "42",
@@ -407,8 +394,7 @@ describe("useExaminationForm — mutation permission boundary (FE12-02 U8)", () 
 
   it("direct petIdのペットが死亡なら編集権限があってもparent/items mutationを発行しない", async () => {
     const { useUpdateExamination } = await import("../api/update-examination");
-    const { useUpdateExaminationItems } =
-      await import("../api/update-examination-items");
+    const { useUpdateExaminationItems } = await import("../api/update-examination-items");
     const updateMutate = vi.fn().mockResolvedValue({});
     const updateItemsMutate = vi.fn().mockResolvedValue([]);
     vi.mocked(useUpdateExamination).mockReturnValue({
@@ -418,10 +404,7 @@ describe("useExaminationForm — mutation permission boundary (FE12-02 U8)", () 
       mutateAsync: updateItemsMutate,
       isPending: false,
     } as ReturnType<typeof useUpdateExaminationItems>);
-    vi.mocked(useSearchParams).mockReturnValue([
-      new URLSearchParams("petId=42"),
-      vi.fn(),
-    ]);
+    vi.mocked(useSearchParams).mockReturnValue([new URLSearchParams("petId=42"), vi.fn()]);
     vi.mocked(useGetPet).mockReturnValue({
       data: {
         id: "42",
@@ -456,10 +439,7 @@ describe("useExaminationForm — mutation permission boundary (FE12-02 U8)", () 
       mutate: mockMutate,
       isPending: false,
     } as ReturnType<typeof useDeleteExamination>);
-    vi.mocked(useSearchParams).mockReturnValue([
-      new URLSearchParams("petId=42"),
-      vi.fn(),
-    ]);
+    vi.mocked(useSearchParams).mockReturnValue([new URLSearchParams("petId=42"), vi.fn()]);
     vi.mocked(useGetPet).mockReturnValue({
       data: {
         id: "42",
@@ -488,8 +468,7 @@ describe("useExaminationForm — mutation permission boundary (FE12-02 U8)", () 
   it("petIdなしの編集URLでもexistingExam.petIdの死亡ペットならupdate/delete/items mutationを発行しない", async () => {
     const { useGetExamination } = await import("../api/get-examination");
     const { useUpdateExamination } = await import("../api/update-examination");
-    const { useUpdateExaminationItems } =
-      await import("../api/update-examination-items");
+    const { useUpdateExaminationItems } = await import("../api/update-examination-items");
     const updateMutate = vi.fn().mockResolvedValue({});
     const updateItemsMutate = vi.fn().mockResolvedValue([]);
     const deleteMutate = vi.fn();
@@ -546,19 +525,13 @@ describe("useExaminationForm BUG-016 entity read", () => {
     if (status === undefined) {
       return new AxiosError("Network Error", AxiosError.ERR_NETWORK, config, undefined, undefined);
     }
-    return new AxiosError(
-      "request failed",
-      AxiosError.ERR_BAD_RESPONSE,
+    return new AxiosError("request failed", AxiosError.ERR_BAD_RESPONSE, config, undefined, {
       config,
-      undefined,
-      {
-        config,
-        data: { error: "not found" },
-        headers: new AxiosHeaders(),
-        status,
-        statusText: "Error",
-      },
-    );
+      data: { error: "not found" },
+      headers: new AxiosHeaders(),
+      status,
+      statusText: "Error",
+    });
   }
 
   it("404 → isReadNotFound、formAction で mutation 0 回", async () => {

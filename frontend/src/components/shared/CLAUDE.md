@@ -9,7 +9,7 @@
 
 - ❌ `body > :not([data-testid="<instance>"]) { display:none }`
   → 同一ページに 2 つ以上同居すると、各ポータルの除外ルールが相手にマッチし
-    specificity 競合で全印刷面が消え白紙化する（#187）。
+  specificity 競合で全印刷面が消え白紙化する（#187）。
 - ✅ `body > :not([data-print-portal]) { display:none }`（固定キー）
   → ポータル同士は互いを隠さない。注入ルールが同一テキストになり打ち消し合わない。
 - 同居時に印刷面を 1 件へ限定したい場合は `data-print-active` 等の**アクティブ属性でゲート**し、

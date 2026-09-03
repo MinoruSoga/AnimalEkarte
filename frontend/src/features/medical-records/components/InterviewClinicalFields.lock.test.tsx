@@ -21,11 +21,7 @@ vi.mock("react-router", () => ({
 
 function FinalizedFieldset({ children }: { children: ReactNode }) {
   return (
-    <fieldset
-      disabled
-      className="border-0 p-0 m-0 min-w-0"
-      data-testid="medical-record-edit-lock"
-    >
+    <fieldset disabled className="border-0 p-0 m-0 min-w-0" data-testid="medical-record-edit-lock">
       {children}
     </fieldset>
   );
@@ -53,11 +49,7 @@ describe("BUG-035 interview clinical fields lock residual", () => {
           onInsertTemplate={vi.fn()}
           isFinalized
         />
-        <InterviewTreatmentPolicy
-          treatmentPolicy="方針"
-          setTreatmentPolicy={vi.fn()}
-          isFinalized
-        />
+        <InterviewTreatmentPolicy treatmentPolicy="方針" setTreatmentPolicy={vi.fn()} isFinalized />
       </FinalizedFieldset>,
     );
 

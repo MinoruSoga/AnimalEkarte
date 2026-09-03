@@ -125,7 +125,9 @@ export function filterAndSortEstimates(
     items = items.filter(
       (estimate) =>
         normalizeKana(estimate.title).toLowerCase().includes(normalizedTerm) ||
-        normalizeKana(estimate.ownerName ?? "").toLowerCase().includes(normalizedTerm) ||
+        normalizeKana(estimate.ownerName ?? "")
+          .toLowerCase()
+          .includes(normalizedTerm) ||
         estimate.estimateNo.toLowerCase().includes(normalizedTerm),
     );
   }

@@ -69,7 +69,8 @@ export const Pagination = memo(function Pagination({
   return (
     <div className="flex items-center justify-between py-3 px-1">
       <div className={STYLE.paginationInfo}>
-        {totalCount.toLocaleString()}件中 {startIndex.toLocaleString()}-{endIndex.toLocaleString()}件
+        {totalCount.toLocaleString()}件中 {startIndex.toLocaleString()}-{endIndex.toLocaleString()}
+        件
       </div>
 
       <div className="flex items-center gap-1">
@@ -114,11 +115,7 @@ export const Pagination = memo(function Pagination({
               key={page}
               variant={currentPage === page ? "default" : "ghost"}
               size="icon"
-              className={
-                currentPage === page
-                  ? STYLE.paginationBtnActive
-                  : STYLE.paginationBtn
-              }
+              className={currentPage === page ? STYLE.paginationBtnActive : STYLE.paginationBtn}
               onClick={() => onPageChange(page)}
               // FE-RC-044: aria-label は付けない — 付けると accessible name が数字テキストから
               // 上書きされ、他 feature の既存テスト（getByRole("button", { name: "2" }) 等）が
@@ -128,7 +125,7 @@ export const Pagination = memo(function Pagination({
             >
               {page}
             </Button>
-          )
+          ),
         )}
 
         {/* Next */}

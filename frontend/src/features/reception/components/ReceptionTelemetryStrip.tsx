@@ -19,7 +19,9 @@ export const ReceptionTelemetryStrip = memo(function ReceptionTelemetryStrip({
   waitStats,
 }: ReceptionTelemetryStripProps) {
   return (
-    <div className={`flex items-center gap-3 px-4 py-2 text-base border-b ${C.borderLight} ${C.bgWhite}`}>
+    <div
+      className={`flex items-center gap-3 px-4 py-2 text-base border-b ${C.borderLight} ${C.bgWhite}`}
+    >
       <span>
         <span className={C.text60}>本日受付</span>{" "}
         <span className={`font-bold tabular-nums ${C.text}`}>{totalCount}</span>
@@ -28,7 +30,9 @@ export const ReceptionTelemetryStrip = memo(function ReceptionTelemetryStrip({
 
       {waitStats ? (
         <>
-          <span className={C.text30} aria-hidden="true">・</span>
+          <span className={C.text30} aria-hidden="true">
+            ・
+          </span>
           <span>
             <span className={C.text60}>平均待ち</span>{" "}
             <span className={`font-bold tabular-nums ${C.text}`}>
@@ -36,7 +40,9 @@ export const ReceptionTelemetryStrip = memo(function ReceptionTelemetryStrip({
             </span>
           </span>
 
-          <span className={C.text30} aria-hidden="true">・</span>
+          <span className={C.text30} aria-hidden="true">
+            ・
+          </span>
           <span>
             <span className={C.text60}>最長待ち</span>{" "}
             {waitStats.longest === null ? (

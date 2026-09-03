@@ -42,9 +42,7 @@ const animalSpecies = [
   },
 ] satisfies AnimalSpeciesState["activeSpecies"];
 
-function createSpeciesState(
-  overrides: Partial<AnimalSpeciesState> = {},
-): AnimalSpeciesState {
+function createSpeciesState(overrides: Partial<AnimalSpeciesState> = {}): AnimalSpeciesState {
   return {
     allSpecies: animalSpecies,
     activeSpecies: animalSpecies,
@@ -114,11 +112,13 @@ describe("OwnersList species status", () => {
 
   it("取得失敗を最優先の accessible alert で示し、stale な動物種を隠して他操作を使える", async () => {
     const rawError = "GET /v1/masters/animal-species: database timeout";
-    mocks.useAnimalSpecies.mockReturnValue(createSpeciesState({
-      isLoading: true,
-      isError: true,
-      error: new Error(rawError),
-    }));
+    mocks.useAnimalSpecies.mockReturnValue(
+      createSpeciesState({
+        isLoading: true,
+        isError: true,
+        error: new Error(rawError),
+      }),
+    );
     const user = userEvent.setup();
 
     renderOwnersList();
@@ -141,9 +141,11 @@ describe("OwnersList species status", () => {
   });
 
   it("読み込み中を成功0件より優先して示し、stale な動物種を隠して他操作を使える", async () => {
-    mocks.useAnimalSpecies.mockReturnValue(createSpeciesState({
-      isLoading: true,
-    }));
+    mocks.useAnimalSpecies.mockReturnValue(
+      createSpeciesState({
+        isLoading: true,
+      }),
+    );
     const user = userEvent.setup();
 
     renderOwnersList();
@@ -153,8 +155,7 @@ describe("OwnersList species status", () => {
     expect(status).toHaveAttribute("aria-live", "polite");
     expect(status).toHaveAttribute("aria-atomic", "true");
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
-    expect(screen.queryByText("動物種マスタが登録されていません。"))
-      .not.toBeInTheDocument();
+    expect(screen.queryByText("動物種マスタが登録されていません。")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "新規登録" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "検索" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "フィルタを追加" })).toBeEnabled();
@@ -168,10 +169,12 @@ describe("OwnersList species status", () => {
   });
 
   it("取得成功かつ0件を distinct accessible status で示し、種フィルタを理由なく消さない", async () => {
-    mocks.useAnimalSpecies.mockReturnValue(createSpeciesState({
-      allSpecies: [],
-      activeSpecies: [],
-    }));
+    mocks.useAnimalSpecies.mockReturnValue(
+      createSpeciesState({
+        allSpecies: [],
+        activeSpecies: [],
+      }),
+    );
     const user = userEvent.setup();
 
     renderOwnersList();
@@ -181,8 +184,7 @@ describe("OwnersList species status", () => {
     expect(status).toHaveAttribute("aria-live", "polite");
     expect(status).toHaveAttribute("aria-atomic", "true");
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
-    expect(screen.queryByText("動物種を読み込み中です。"))
-      .not.toBeInTheDocument();
+    expect(screen.queryByText("動物種を読み込み中です。")).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "フィルタを追加" }));
     expect(screen.getByRole("option", { name: "種" })).toBeInTheDocument();

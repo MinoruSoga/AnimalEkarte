@@ -63,9 +63,11 @@ export function SidebarClinicHeader({
                           : `${C.text65} ${C.hoverBgLight}`
                       }`}
                     >
-                      <span className={`${ICON.dotSm} rounded-full shrink-0 ${
-                        isCurrentClinic ? C.bgBrand : C.bgInactive
-                      }`} />
+                      <span
+                        className={`${ICON.dotSm} rounded-full shrink-0 ${
+                          isCurrentClinic ? C.bgBrand : C.bgInactive
+                        }`}
+                      />
                       {c.clinicName}
                     </button>
                   );
@@ -73,7 +75,9 @@ export function SidebarClinicHeader({
               </PopoverContent>
             </Popover>
           ) : (
-            <div className={`flex items-center gap-1 min-w-0 text-base font-semibold px-1.5 py-1 ${C.text}`}>
+            <div
+              className={`flex items-center gap-1 min-w-0 text-base font-semibold px-1.5 py-1 ${C.text}`}
+            >
               <span className={`${ICON.dot} rounded-full ${C.bgBrand} shrink-0`} />
               <span className="truncate">{clinicName}</span>
             </div>
@@ -120,13 +124,15 @@ export function SidebarUserFooter({
     <div className={`border-t ${C.borderDivider} px-1 py-1.5`}>
       {!collapsed ? (
         <>
-          <div className={`flex items-center gap-2 px-2 py-1 rounded-xxs ${C.hoverBgLight} transition-colors`}>
-            <div className={`${ICON.avatar} rounded-full flex items-center justify-center shrink-0 ${C.bgHoverMd}`}>
+          <div
+            className={`flex items-center gap-2 px-2 py-1 rounded-xxs ${C.hoverBgLight} transition-colors`}
+          >
+            <div
+              className={`${ICON.avatar} rounded-full flex items-center justify-center shrink-0 ${C.bgHoverMd}`}
+            >
               <User className={`${ICON.avatarGlyph} ${C.text50}`} />
             </div>
-            <p className={`flex-1 min-w-0 text-base ${C.text} truncate`}>
-              {displayName}
-            </p>
+            <p className={`flex-1 min-w-0 text-base ${C.text} truncate`}>{displayName}</p>
             <button
               type="button"
               onClick={() => onChangePasswordOpenChange(true)}

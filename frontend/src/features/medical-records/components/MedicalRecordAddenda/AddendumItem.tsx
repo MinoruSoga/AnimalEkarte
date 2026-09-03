@@ -14,10 +14,7 @@ export function AddendumItem({ addendum }: AddendumItemProps) {
   const formattedDate = formatDateTime(addendum.created_at);
 
   return (
-    <div
-      className={`border ${C.borderLight} rounded-xs p-4 space-y-3`}
-      data-testid="addendum-item"
-    >
+    <div className={`border ${C.borderLight} rounded-xs p-4 space-y-3`} data-testid="addendum-item">
       <div className={`flex items-center gap-2 text-sm ${C.text60}`}>
         <time dateTime={addendum.created_at}>{formattedDate}</time>
         <span aria-hidden="true">·</span>

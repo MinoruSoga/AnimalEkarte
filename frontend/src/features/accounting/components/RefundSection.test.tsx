@@ -21,8 +21,24 @@ const handlers = [http.get("/api/v1/accountings/:id/refunds", () => HttpResponse
 
 // 会計の支払方法内訳（混在: カード + 現金）
 const splits = [
-  { id: 1, clinicId: "1", billingId: "1", method: "credit_card" as const, amount: 3000, receivedAmount: 3000, changeAmount: 0 },
-  { id: 2, clinicId: "1", billingId: "1", method: "cash" as const, amount: 2000, receivedAmount: 2000, changeAmount: 0 },
+  {
+    id: 1,
+    clinicId: "1",
+    billingId: "1",
+    method: "credit_card" as const,
+    amount: 3000,
+    receivedAmount: 3000,
+    changeAmount: 0,
+  },
+  {
+    id: 2,
+    clinicId: "1",
+    billingId: "1",
+    method: "cash" as const,
+    amount: 2000,
+    receivedAmount: 2000,
+    changeAmount: 0,
+  },
 ];
 
 afterEach(() => server.resetHandlers());
@@ -34,7 +50,17 @@ describe("RefundSection — 移行負額", () => {
       <RefundSection
         accountingId="1"
         totalAmount={-3000}
-        paymentSplits={[{ id: 1, clinicId: "1", billingId: "1", method: "cash", amount: -3000, receivedAmount: 0, changeAmount: 0 }]}
+        paymentSplits={[
+          {
+            id: 1,
+            clinicId: "1",
+            billingId: "1",
+            method: "cash",
+            amount: -3000,
+            receivedAmount: 0,
+            changeAmount: 0,
+          },
+        ]}
         isRefunding={false}
         onRefund={vi.fn()}
         canEdit={true}

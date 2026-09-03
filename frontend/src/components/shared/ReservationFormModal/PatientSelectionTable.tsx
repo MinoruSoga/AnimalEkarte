@@ -44,21 +44,14 @@ export const PatientSelectionTable = memo(function PatientSelectionTable({
       />
 
       <div className="flex items-center justify-between gap-2 shrink-0">
-        <span
-          role="status"
-          aria-live="polite"
-          aria-atomic="true"
-          className={`text-xs ${C.text60}`}
-        >
+        <span role="status" aria-live="polite" aria-atomic="true" className={`text-xs ${C.text60}`}>
           {table.selectionText}
         </span>
         <span
           role="status"
           aria-live="polite"
           aria-atomic="true"
-          className={
-            table.isRangeShownByPagination ? "sr-only" : `text-xs ${C.text60}`
-          }
+          className={table.isRangeShownByPagination ? "sr-only" : `text-xs ${C.text60}`}
         >
           {table.statusText}
         </span>

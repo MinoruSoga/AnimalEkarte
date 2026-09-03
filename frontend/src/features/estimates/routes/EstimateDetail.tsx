@@ -33,10 +33,8 @@ export function EstimateDetail() {
 
   const { data: estimate, isLoading, isError } = useGetEstimate(id);
   const { mutate: deleteEstimate, isPending: isDeleting } = useDeleteEstimate();
-  const {
-    mutateAsync: createSuccessorAsync,
-    isPending: isCreatingSuccessor,
-  } = useCreateEstimateSuccessor();
+  const { mutateAsync: createSuccessorAsync, isPending: isCreatingSuccessor } =
+    useCreateEstimateSuccessor();
   const { canEdit, canDelete, canCreate } = usePermission("estimates");
   const [isDeletePending, startDeleteTransition] = useTransition();
 
@@ -111,7 +109,7 @@ export function EstimateDetail() {
         <EstimateDetailHeaderActions
           onBack={() => navigate(paths.estimates.getHref())}
           showEdit={showEdit}
-          onEdit={() => id ? navigate(paths.estimates.edit.getHref(id)) : undefined}
+          onEdit={() => (id ? navigate(paths.estimates.edit.getHref(id)) : undefined)}
           showDelete={showDelete}
           onDelete={() => setShowDeleteDialog(true)}
           deleteBusy={isDeleting || isDeletePending}

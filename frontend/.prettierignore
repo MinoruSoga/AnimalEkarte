@@ -4,3 +4,8 @@ node_modules
 src/types/generated
 pnpm-lock.yaml
 .pnpm-store
+# Already over the 800-line hard commit gate; splitting is a documented no
+# (design-tokens) or out of scope for format-only (design-system-audit).
+src/lib/design-tokens.ts
+scripts/design-system-audit.mjs
+scripts/design-system-audit.test.mjs

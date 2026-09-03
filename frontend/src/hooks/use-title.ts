@@ -7,7 +7,7 @@ const TITLE_SUFFIX = "Animal Ekarte";
 
 /**
  * Hook to dynamically update the browser tab title.
- * 
+ *
  * @param title - The title for the current page (e.g., "Owners")
  */
 export function useTitle(title?: string) {

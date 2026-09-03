@@ -24,9 +24,7 @@ export interface CreateBillingItemRequest {
   post_close_reason?: string;
 }
 
-export const createBillingItem = async (
-  req: CreateBillingItemRequest,
-): Promise<AccountingItem> => {
+export const createBillingItem = async (req: CreateBillingItemRequest): Promise<AccountingItem> => {
   const { data } = await axios.post<BackendAccountingItem>("/v1/billing-items", req);
   return transformAccountingItem(data);
 };

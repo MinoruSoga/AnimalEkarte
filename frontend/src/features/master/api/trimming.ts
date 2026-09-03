@@ -122,19 +122,12 @@ export type TrimmingOption = ReturnType<typeof transformTrimmingOption>;
 // ─────────────────────────────────────────────────
 
 async function listTrimmingCourses(): Promise<TrimmingCourse[]> {
-  const { data } = await axios.get<ModelTrimmingCourse[]>(
-    "/v1/masters/trimming-courses",
-  );
+  const { data } = await axios.get<ModelTrimmingCourse[]>("/v1/masters/trimming-courses");
   return data.map(transformTrimmingCourse);
 }
 
-async function createTrimmingCourse(
-  req: CreateTrimmingCourseRequest,
-): Promise<TrimmingCourse> {
-  const { data } = await axios.post<ModelTrimmingCourse>(
-    "/v1/masters/trimming-courses",
-    req,
-  );
+async function createTrimmingCourse(req: CreateTrimmingCourseRequest): Promise<TrimmingCourse> {
+  const { data } = await axios.post<ModelTrimmingCourse>("/v1/masters/trimming-courses", req);
   return transformTrimmingCourse(data);
 }
 
@@ -158,19 +151,12 @@ async function deleteTrimmingCourse(id: string): Promise<void> {
 // ─────────────────────────────────────────────────
 
 async function listTrimmingOptions(): Promise<TrimmingOption[]> {
-  const { data } = await axios.get<ModelTrimmingOption[]>(
-    "/v1/masters/trimming-options",
-  );
+  const { data } = await axios.get<ModelTrimmingOption[]>("/v1/masters/trimming-options");
   return data.map(transformTrimmingOption);
 }
 
-async function createTrimmingOption(
-  req: CreateTrimmingOptionRequest,
-): Promise<TrimmingOption> {
-  const { data } = await axios.post<ModelTrimmingOption>(
-    "/v1/masters/trimming-options",
-    req,
-  );
+async function createTrimmingOption(req: CreateTrimmingOptionRequest): Promise<TrimmingOption> {
+  const { data } = await axios.post<ModelTrimmingOption>("/v1/masters/trimming-options", req);
   return transformTrimmingOption(data);
 }
 
@@ -236,7 +222,6 @@ export function useDeleteTrimmingCourse() {
   });
 }
 
-
 // ─────────────────────────────────────────────────
 // TanStack Query hooks - TrimmingOption
 // ─────────────────────────────────────────────────
@@ -283,4 +268,3 @@ export function useDeleteTrimmingOption() {
     onError: (error) => handleApiError(error, "削除"),
   });
 }
-

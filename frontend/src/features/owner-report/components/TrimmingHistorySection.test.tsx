@@ -71,7 +71,11 @@ describe("TrimmingHistorySection", () => {
 
   it("閲覧権限が無ければセクションを縮退表示し pet_id を取得に渡さない", () => {
     hooks.usePermission.mockReturnValue({ canView: false });
-    hooks.useGetPetTrimmingHistory.mockReturnValue({ data: undefined, isLoading: false, isError: false });
+    hooks.useGetPetTrimmingHistory.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: false,
+    });
     render(<TrimmingHistorySection petId="7" />);
 
     expect(screen.getByText("閲覧権限がありません")).toBeInTheDocument();

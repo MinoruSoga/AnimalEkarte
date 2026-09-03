@@ -5,7 +5,10 @@ import type {
   FilterProperty,
   SortProperty,
 } from "@/components/shared/PropertyFilter/types";
-import { CONDITIONS_NO_EMPTY, CONDITIONS_WITH_EMPTY } from "@/components/shared/PropertyFilter/types";
+import {
+  CONDITIONS_NO_EMPTY,
+  CONDITIONS_WITH_EMPTY,
+} from "@/components/shared/PropertyFilter/types";
 import { uniqueSortedOptions } from "@/lib/unique-sorted-options";
 import type { ExaminationRecord } from "../api/transforms";
 
@@ -56,8 +59,7 @@ export function examinationDateFilters(activeFilters: ActiveFilter[]): {
   endDate?: string;
 } {
   const dateFilter = activeFilters.find((f) => f.key === "date")?.value as
-    | { from?: string; to?: string }
-    | undefined;
+    { from?: string; to?: string } | undefined;
   return {
     startDate: dateFilter?.from,
     endDate: dateFilter?.to,
@@ -71,8 +73,22 @@ export function buildExaminationFilterProperties(
   const doctorOptions = uniqueSortedOptions(allExaminations, (r) => r.doctor);
   return [
     ...STATIC_FILTER_PROPERTIES,
-    { key: "testType", label: "検査種別", type: "select" as const, icon: FlaskConical, conditions: CONDITIONS_WITH_EMPTY, options: testTypeOptions },
-    { key: "doctor", label: "担当医", type: "select" as const, icon: User, conditions: CONDITIONS_WITH_EMPTY, options: doctorOptions },
+    {
+      key: "testType",
+      label: "検査種別",
+      type: "select" as const,
+      icon: FlaskConical,
+      conditions: CONDITIONS_WITH_EMPTY,
+      options: testTypeOptions,
+    },
+    {
+      key: "doctor",
+      label: "担当医",
+      type: "select" as const,
+      icon: User,
+      conditions: CONDITIONS_WITH_EMPTY,
+      options: doctorOptions,
+    },
   ];
 }
 
@@ -80,7 +96,9 @@ export function hasExaminationPageScopedFilter(
   deferredSearch: string,
   activeFilters: ActiveFilter[],
 ): boolean {
-  return deferredSearch !== "" || activeFilters.some((f) => CLIENT_ONLY_FILTER_KEYS.includes(f.key));
+  return (
+    deferredSearch !== "" || activeFilters.some((f) => CLIENT_ONLY_FILTER_KEYS.includes(f.key))
+  );
 }
 
 export interface ServerPagePagination<T> {
@@ -109,10 +127,7 @@ export function buildServerPagePagination<T>(input: {
   };
 }
 
-export function nextListSearchParamsWithPage(
-  prev: URLSearchParams,
-  page: number,
-): URLSearchParams {
+export function nextListSearchParamsWithPage(prev: URLSearchParams, page: number): URLSearchParams {
   const next = new URLSearchParams(prev);
   if (page === 1) {
     next.delete("page");
@@ -128,10 +143,7 @@ export function nextListSearchParamsWithoutPage(prev: URLSearchParams): URLSearc
   return next;
 }
 
-export function examinationListDetailHref(input: {
-  id: string;
-  medicalRecordId?: string;
-}): string {
+export function examinationListDetailHref(input: { id: string; medicalRecordId?: string }): string {
   if (input.medicalRecordId) {
     const params = new URLSearchParams({
       tab: EXAMINATION_LIST_CHART_TAB,

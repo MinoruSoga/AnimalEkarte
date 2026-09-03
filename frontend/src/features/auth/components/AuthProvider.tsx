@@ -50,10 +50,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const sessionKey = passwordRecovery ? "password-recovery" : "session";
 
   return (
-    <AuthProviderSession
-      key={sessionKey}
-      restoreSession={restoreSession}
-    >
+    <AuthProviderSession key={sessionKey} restoreSession={restoreSession}>
       {children}
     </AuthProviderSession>
   );
@@ -82,13 +79,9 @@ function AuthProviderSession({ children, restoreSession }: AuthProviderSessionPr
 
       if (result) {
         const storedClinic = getStoredClinicId();
-        const validClinic = result.user.clinics.some(
-          (clinic) => clinic.clinicId === storedClinic,
-        );
+        const validClinic = result.user.clinics.some((clinic) => clinic.clinicId === storedClinic);
         setUser(result.user);
-        setCurrentClinicId(
-          validClinic ? storedClinic : result.user.mainClinicId,
-        );
+        setCurrentClinicId(validClinic ? storedClinic : result.user.mainClinicId);
       } else {
         setUser(null);
         setCurrentClinicId(null);
@@ -141,7 +134,9 @@ function AuthProviderSession({ children, restoreSession }: AuthProviderSessionPr
     } catch {
       // Cookie はサーバー側で未クリアの可能性があるため警告する。
       // ローカル状態は finally で必ずクリアするため UI は /login へ遷移する。
-      toast.warning("ログアウト中にサーバーエラーが発生しました。ブラウザを閉じてセッションを終了することを推奨します。");
+      toast.warning(
+        "ログアウト中にサーバーエラーが発生しました。ブラウザを閉じてセッションを終了することを推奨します。",
+      );
     } finally {
       setUser(null);
       setCurrentClinicId(null);

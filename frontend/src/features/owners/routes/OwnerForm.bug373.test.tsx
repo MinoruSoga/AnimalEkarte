@@ -36,18 +36,45 @@ vi.mock("../hooks/use-postal-code-lookup", () => ({
 vi.mock("../components/PetEditModal", () => ({
   PetEditModal: (props: {
     open: boolean;
-    onChangeOwner?: (o: { id: string; name: string; discountRate: number; membershipType: string }) => void;
+    onChangeOwner?: (o: {
+      id: string;
+      name: string;
+      discountRate: number;
+      membershipType: string;
+    }) => void;
   }) => {
     if (!props.open) return null;
-    return createElement("div", { "data-testid": "pet-edit-modal" },
+    return createElement(
+      "div",
+      { "data-testid": "pet-edit-modal" },
       // 旧 owner (discountRate=10, membershipType="会員") と同条件
-      createElement("button", {
-        onClick: () => props.onChangeOwner?.({ id: "2", name: "同条件飼主", discountRate: 10, membershipType: "会員" }),
-      }, "btn-same"),
+      createElement(
+        "button",
+        {
+          onClick: () =>
+            props.onChangeOwner?.({
+              id: "2",
+              name: "同条件飼主",
+              discountRate: 10,
+              membershipType: "会員",
+            }),
+        },
+        "btn-same",
+      ),
       // discountRate が異なる
-      createElement("button", {
-        onClick: () => props.onChangeOwner?.({ id: "3", name: "別飼主", discountRate: 20, membershipType: "会員" }),
-      }, "btn-diff-discount"),
+      createElement(
+        "button",
+        {
+          onClick: () =>
+            props.onChangeOwner?.({
+              id: "3",
+              name: "別飼主",
+              discountRate: 20,
+              membershipType: "会員",
+            }),
+        },
+        "btn-diff-discount",
+      ),
     );
   },
 }));
@@ -98,9 +125,9 @@ function makeOwnerFormReturn(overrides: Record<string, unknown> = {}) {
     setOwnerData: vi.fn(),
     pets: [],
     setPets: vi.fn(),
-    petModalOpen: true,  // モーダルは開いている状態
+    petModalOpen: true, // モーダルは開いている状態
     setPetModalOpen: vi.fn(),
-    editingPet: mockPet,  // ペットは編集中
+    editingPet: mockPet, // ペットは編集中
     handleAddPet: vi.fn(),
     handleEditPet: vi.fn(),
     handleDeletePet: vi.fn(),
@@ -115,12 +142,14 @@ function makeOwnerFormReturn(overrides: Record<string, unknown> = {}) {
 
 type PermGrant = [string, ResourceAction];
 
-function makeAuthCtx(grants: PermGrant[] = [
-  ["owners", "view"],
-  ["owners", "edit"],
-  ["owners", "create"],
-  ["discount", "edit"],
-]) {
+function makeAuthCtx(
+  grants: PermGrant[] = [
+    ["owners", "view"],
+    ["owners", "edit"],
+    ["owners", "create"],
+    ["discount", "edit"],
+  ],
+) {
   return {
     user: null,
     currentClinicId: "clinic-1",
@@ -186,9 +215,7 @@ function RevocableAuthProvider({ children }: { children: ReactNode }) {
       <button type="button" onClick={() => setCanEdit(false)}>
         編集権限を失効
       </button>
-      <AuthContext.Provider value={makeAuthCtx(grants)}>
-        {children}
-      </AuthContext.Provider>
+      <AuthContext.Provider value={makeAuthCtx(grants)}>{children}</AuthContext.Provider>
     </>
   );
 }

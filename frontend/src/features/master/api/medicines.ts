@@ -6,7 +6,11 @@ import { queryKeys } from "@/lib/query-keys";
 import { transformBackendMedicineToFrontend } from "@/lib/transforms/medicine";
 import type { Medicine } from "@/lib/transforms/medicine";
 import type { Medicine as MedicineModel } from "@/types/generated/models";
-import type { CreateMedicineRequest, UpdateMedicineRequest, ReorderMedicinesRequest } from "@/types/medicine";
+import type {
+  CreateMedicineRequest,
+  UpdateMedicineRequest,
+  ReorderMedicinesRequest,
+} from "@/types/medicine";
 
 const getAllMedicines = async (): Promise<Medicine[]> => {
   const { data } = await axios.get<MedicineModel[]>("/v1/masters/medicines");

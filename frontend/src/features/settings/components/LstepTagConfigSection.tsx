@@ -25,13 +25,7 @@ import type {
 // DeleteButton
 // ─────────────────────────────────────────────────
 
-function DeleteButton({
-  onDelete,
-  disabled,
-}: {
-  onDelete: () => void;
-  disabled?: boolean;
-}) {
+function DeleteButton({ onDelete, disabled }: { onDelete: () => void; disabled?: boolean }) {
   return (
     <button
       type="button"
@@ -86,10 +80,7 @@ function TagConfigListSection<TItem>({
           className={`flex items-center gap-2 px-2 py-1.5 rounded border ${C.borderLight}`}
         >
           {renderRow(item)}
-          <DeleteButton
-            onDelete={() => onDelete(item)}
-            disabled={deleteDisabled}
-          />
+          <DeleteButton onDelete={() => onDelete(item)} disabled={deleteDisabled} />
         </div>
       ))}
     </div>
@@ -169,9 +160,7 @@ function TagPairSection<TItem>({
 
   return (
     <div>
-      <h4 className={`text-sm font-medium mb-2 ${C.text}`}>
-        {title}
-      </h4>
+      <h4 className={`text-sm font-medium mb-2 ${C.text}`}>{title}</h4>
       <p className={`text-xs mb-3 ${C.text50}`}>{description}</p>
 
       <TagConfigListSection
@@ -260,8 +249,18 @@ function AutoManagedPrefixesSection() {
       )}
       onDelete={handleDelete}
       deleteDisabled={deleteMutation.isPending}
-      fieldA={{ name: "amp-prefix", label: "プレフィックス", placeholder: "例: vaccine_", widthClassName: "w-36" }}
-      fieldB={{ name: "amp-category", label: "カテゴリ", placeholder: "例: C2", widthClassName: "w-24" }}
+      fieldA={{
+        name: "amp-prefix",
+        label: "プレフィックス",
+        placeholder: "例: vaccine_",
+        widthClassName: "w-36",
+      }}
+      fieldB={{
+        name: "amp-category",
+        label: "カテゴリ",
+        placeholder: "例: C2",
+        widthClassName: "w-24",
+      }}
       requiredMessage="プレフィックスとカテゴリは必須です"
       addPending={createMutation.isPending}
       onAdd={async (prefix, category) => {
@@ -302,8 +301,18 @@ function ConditionTagMappingsSection() {
       )}
       onDelete={handleDelete}
       deleteDisabled={deleteMutation.isPending}
-      fieldA={{ name: "ctm-condition-code", label: "疾患コード", placeholder: "例: DM", widthClassName: "w-24" }}
-      fieldB={{ name: "ctm-tag-name", label: "タグ名", placeholder: "例: CHRON_DM", widthClassName: "w-36" }}
+      fieldA={{
+        name: "ctm-condition-code",
+        label: "疾患コード",
+        placeholder: "例: DM",
+        widthClassName: "w-24",
+      }}
+      fieldB={{
+        name: "ctm-tag-name",
+        label: "タグ名",
+        placeholder: "例: CHRON_DM",
+        widthClassName: "w-36",
+      }}
       requiredMessage="疾患コードとタグ名は必須です"
       addPending={createMutation.isPending}
       onAdd={async (conditionCode, tagName) => {
@@ -344,8 +353,18 @@ function SendPurposeTagPrefixesSection() {
       )}
       onDelete={handleDelete}
       deleteDisabled={deleteMutation.isPending}
-      fieldA={{ name: "sp-purpose", label: "送信目的", placeholder: "例: vaccine_reminder", widthClassName: "w-40" }}
-      fieldB={{ name: "sp-tag-prefix", label: "タグプレフィックス", placeholder: "例: PREV_", widthClassName: "w-28" }}
+      fieldA={{
+        name: "sp-purpose",
+        label: "送信目的",
+        placeholder: "例: vaccine_reminder",
+        widthClassName: "w-40",
+      }}
+      fieldB={{
+        name: "sp-tag-prefix",
+        label: "タグプレフィックス",
+        placeholder: "例: PREV_",
+        widthClassName: "w-28",
+      }}
       requiredMessage="送信目的とタグプレフィックスは必須です"
       addPending={createMutation.isPending}
       onAdd={async (purpose, tagPrefix) => {
@@ -362,9 +381,7 @@ function SendPurposeTagPrefixesSection() {
 export function LstepTagConfigSection() {
   return (
     <div className={`${STYLE.formCard} max-w-2xl mt-6`}>
-      <h3 className={`text-base font-semibold mb-4 ${C.text}`}>
-        自動管理タグ設定
-      </h3>
+      <h3 className={`text-base font-semibold mb-4 ${C.text}`}>自動管理タグ設定</h3>
       <div className="space-y-8">
         <AutoManagedPrefixesSection />
         <ConditionTagMappingsSection />

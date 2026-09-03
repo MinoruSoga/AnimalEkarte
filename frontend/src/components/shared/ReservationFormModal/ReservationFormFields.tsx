@@ -1,7 +1,13 @@
 import { memo, useMemo, useCallback, useState } from "react";
 import { isBefore, startOfDay, format } from "date-fns";
 import { useGetMasterItems } from "@/hooks/use-master-items";
-import { getCurrentClinicId, useGetReservationTypesGrouped, useGetOnDutyStaffs, useGetReservationStaffs, useGetReservationAvailableTimes } from "@/hooks/use-reservation-types";
+import {
+  getCurrentClinicId,
+  useGetReservationTypesGrouped,
+  useGetOnDutyStaffs,
+  useGetReservationStaffs,
+  useGetReservationAvailableTimes,
+} from "@/hooks/use-reservation-types";
 import { useGetUnavailableTimes } from "@/hooks/use-reservation-type-unavailable-times";
 import { DISPLAY_TIME_FORMAT } from "@/lib/format/date";
 import { toJSTWallDate } from "@/lib/jst-date";
@@ -43,19 +49,24 @@ export const ReservationFormFields = memo(function ReservationFormFields({
   const selectedReservationTypeId = formData.type ? String(formData.type) : null;
 
   // BUG-341/BUG-015: グループ情報付き取得。編集中の無効区分 ID のみ表示用に残す
-  const { data: groupedReservationTypes = [] } = useGetReservationTypesGrouped(
-    selectedReservationTypeId,
+  const { data: groupedReservationTypes = [] } =
+    useGetReservationTypesGrouped(selectedReservationTypeId);
+
+  const handleMonthChange = useCallback(
+    (month: Date) => {
+      onMonthChange?.(format(month, "yyyy-MM"));
+    },
+    [onMonthChange],
   );
 
-  const handleMonthChange = useCallback((month: Date) => {
-    onMonthChange?.(format(month, "yyyy-MM"));
-  }, [onMonthChange]);
-
-  const isCalendarDateDisabled = useCallback((date: Date): boolean => {
-    if (isBefore(date, startOfDay(toJSTWallDate(new Date())))) return true;
-    if (holidayDates) return holidayDates.has(format(date, "yyyy-MM-dd"));
-    return false;
-  }, [holidayDates]);
+  const isCalendarDateDisabled = useCallback(
+    (date: Date): boolean => {
+      if (isBefore(date, startOfDay(toJSTWallDate(new Date())))) return true;
+      if (holidayDates) return holidayDates.has(format(date, "yyyy-MM-dd"));
+      return false;
+    },
+    [holidayDates],
+  );
 
   const { data: staffItems } = useGetMasterItems("staff");
   // useMemo で参照を安定化（staffOptions の deps が毎レンダー新参照を受け取るのを防ぐ）
@@ -86,25 +97,34 @@ export const ReservationFormFields = memo(function ReservationFormFields({
       ]),
     );
   }, [availableTimeSlots]);
-  const startTimeOptions = useMemo(
-    () => {
-      let options: string[];
-      if (availableTimeSlotMap !== undefined && selectedReservationTypeId !== null && selectedDateStr !== null) {
-        options = [...availableTimeSlotMap.keys()];
-      } else {
-        options = TIME_OPTIONS.filter((time) => !isStartTimeUnavailable(time, applicableUnavailableTimes));
+  const startTimeOptions = useMemo(() => {
+    let options: string[];
+    if (
+      availableTimeSlotMap !== undefined &&
+      selectedReservationTypeId !== null &&
+      selectedDateStr !== null
+    ) {
+      options = [...availableTimeSlotMap.keys()];
+    } else {
+      options = TIME_OPTIONS.filter(
+        (time) => !isStartTimeUnavailable(time, applicableUnavailableTimes),
+      );
+    }
+    // BUG-015: keep the current edit start even when the slot map is empty/missing.
+    if (formData.start) {
+      const currentStart = format(formData.start, DISPLAY_TIME_FORMAT);
+      if (!options.includes(currentStart)) {
+        options = [...options, currentStart];
       }
-      // BUG-015: keep the current edit start even when the slot map is empty/missing.
-      if (formData.start) {
-        const currentStart = format(formData.start, DISPLAY_TIME_FORMAT);
-        if (!options.includes(currentStart)) {
-          options = [...options, currentStart];
-        }
-      }
-      return options;
-    },
-    [availableTimeSlotMap, selectedReservationTypeId, selectedDateStr, applicableUnavailableTimes, formData.start],
-  );
+    }
+    return options;
+  }, [
+    availableTimeSlotMap,
+    selectedReservationTypeId,
+    selectedDateStr,
+    applicableUnavailableTimes,
+    formData.start,
+  ]);
   const reservationStaffMap = useMemo(() => {
     if (reservationStaffs === undefined) return undefined;
     return new Map(reservationStaffs.map((staff) => [String(staff.id), staff]));

@@ -4,10 +4,7 @@ import { handleApiError } from "@/lib/handle-api-error";
 import { queryKeys } from "@/lib/query-keys";
 import { transformHospitalization } from "./transforms";
 import type { Hospitalization } from "./transforms";
-import type {
-  BackendHospitalization,
-  UpdateHospitalizationRequest,
-} from "./types";
+import type { BackendHospitalization, UpdateHospitalizationRequest } from "./types";
 
 // バックエンドに送る実際のペイロード型（cage_id / doctor_id は uint64 互換の number）
 type UpdateHospitalizationPayload = Omit<UpdateHospitalizationRequest, "cage_id" | "doctor_id"> & {
@@ -17,7 +14,7 @@ type UpdateHospitalizationPayload = Omit<UpdateHospitalizationRequest, "cage_id"
 
 export const updateHospitalization = async (
   id: string,
-  req: UpdateHospitalizationRequest
+  req: UpdateHospitalizationRequest,
 ): Promise<Hospitalization> => {
   // cage_id / doctor_id は string として受け取るが、バックエンドは uint64（number）を期待するため変換する。
   // 空文字列はフィールドを省略する（ケージなし更新はバックエンドが未サポートのため送信しない）。
@@ -32,10 +29,7 @@ export const updateHospitalization = async (
       payload.doctor_id = parsed;
     }
   }
-  const { data } = await axios.patch<BackendHospitalization>(
-    `/v1/hospitalizations/${id}`,
-    payload
-  );
+  const { data } = await axios.patch<BackendHospitalization>(`/v1/hospitalizations/${id}`, payload);
   return transformHospitalization(data);
 };
 
@@ -43,13 +37,8 @@ export const useUpdateHospitalization = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({
-      id,
-      req,
-    }: {
-      id: string;
-      req: UpdateHospitalizationRequest;
-    }) => updateHospitalization(id, req),
+    mutationFn: ({ id, req }: { id: string; req: UpdateHospitalizationRequest }) =>
+      updateHospitalization(id, req),
     onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.hospitalizations.all() });
       queryClient.invalidateQueries({ queryKey: queryKeys.hospitalizations.detail(id) });

@@ -57,7 +57,11 @@ describe("owner report summary", () => {
 
     expect(selectUpcomingVaccination(vaccinations, "2026-07-31")?.id).toBe(1);
     expect(selectLatestOverdueVaccination(vaccinations, "2026-07-31")).toBeUndefined();
-    expect(selectUpcomingVaccination([{ id: 2, nextDate: "2026-07-30" }], "2026-07-31")).toBeUndefined();
-    expect(selectLatestOverdueVaccination([{ id: 2, nextDate: "2026-07-30" }], "2026-07-31")?.id).toBe(2);
+    expect(
+      selectUpcomingVaccination([{ id: 2, nextDate: "2026-07-30" }], "2026-07-31"),
+    ).toBeUndefined();
+    expect(
+      selectLatestOverdueVaccination([{ id: 2, nextDate: "2026-07-30" }], "2026-07-31")?.id,
+    ).toBe(2);
   });
 });

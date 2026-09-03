@@ -1,5 +1,13 @@
 // React/Framework
-import { useState, useRef, useMemo, useCallback, useDeferredValue, useTransition, useLayoutEffect } from "react";
+import {
+  useState,
+  useRef,
+  useMemo,
+  useCallback,
+  useDeferredValue,
+  useTransition,
+  useLayoutEffect,
+} from "react";
 import { normalizeKana } from "@/lib/normalize-kana";
 
 // External
@@ -107,7 +115,10 @@ export function defaultSearchFilter<T extends MasterEntity>(item: T, term: strin
 // Default active filter application (isActive status)
 // ─────────────────────────────────────────────────
 
-export function defaultActiveFilterApply<T extends MasterEntity>(item: T, filters: ActiveFilter[]): boolean {
+export function defaultActiveFilterApply<T extends MasterEntity>(
+  item: T,
+  filters: ActiveFilter[],
+): boolean {
   const record = item as Record<string, unknown>;
   for (const filter of filters) {
     if (filter.key === "status" && typeof filter.value === "string") {
@@ -175,7 +186,9 @@ export function useMasterCRUD<T extends MasterEntity>({
   const [pendingDelete, setPendingDelete] = useState<T | null>(null);
   // rerender-dependencies: pendingDelete オブジェクトを ref 経由で参照し handleDeleteConfirm deps から除外
   const pendingDeleteRef = useRef<T | null>(null);
-  useLayoutEffect(() => { pendingDeleteRef.current = pendingDelete; }, [pendingDelete]);
+  useLayoutEffect(() => {
+    pendingDeleteRef.current = pendingDelete;
+  }, [pendingDelete]);
   const canDelete = permissions.canDelete;
   const permissionsRef = useRef<MasterCRUDPermissions>({
     canDelete: canDelete === true,
@@ -216,14 +229,17 @@ export function useMasterCRUD<T extends MasterEntity>({
 
   // ── Handlers ──
   // BUG-380: dirtyGuard 指定時は未保存変更の破棄確認を挟む。
-  const withDirtyGuard = useCallback((fn: () => void) => {
-    if (dirtyGuard?.runWithDiscardCheck) {
-      dirtyGuard.runWithDiscardCheck(fn);
-      return;
-    }
-    if (dirtyGuard?.confirmDiscard && !dirtyGuard.confirmDiscard()) return;
-    fn();
-  }, [dirtyGuard]);
+  const withDirtyGuard = useCallback(
+    (fn: () => void) => {
+      if (dirtyGuard?.runWithDiscardCheck) {
+        dirtyGuard.runWithDiscardCheck(fn);
+        return;
+      }
+      if (dirtyGuard?.confirmDiscard && !dirtyGuard.confirmDiscard()) return;
+      fn();
+    },
+    [dirtyGuard],
+  );
 
   const handleClose = useCallback(() => {
     withDirtyGuard(() => setEditTarget(null));

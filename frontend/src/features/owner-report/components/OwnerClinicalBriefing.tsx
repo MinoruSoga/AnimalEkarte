@@ -25,10 +25,7 @@ export function OwnerClinicalBriefing(props: OwnerClinicalBriefingProps) {
   const data = useOwnerClinicalBriefingData(props.pet.id);
 
   return (
-    <main
-      className="min-h-0 flex-1 overflow-hidden p-1"
-      aria-label="飼主ペット診療ブリーフィング"
-    >
+    <main className="min-h-0 flex-1 overflow-hidden p-1" aria-label="飼主ペット診療ブリーフィング">
       <div className="owner-report-dashboard">
         <PreVisitPanel data={data} pet={props.pet} />
         <TodayVisitPanel data={data} />

@@ -17,7 +17,7 @@ interface GenerateLineLinkTokenApiResponse {
 
 async function generateLineLinkToken(ownerId: string): Promise<LineLinkTokenResult> {
   const { data } = await axios.post<GenerateLineLinkTokenApiResponse>(
-    `/v1/owners/${ownerId}/line/link-token`
+    `/v1/owners/${ownerId}/line/link-token`,
   );
   return {
     token: data.token,

@@ -65,7 +65,13 @@ describe("transformReservation", () => {
 
   it("status をそのままマップする", () => {
     const statuses: Reservation["status"][] = [
-      "confirmed", "pending", "checked_in", "in_consultation", "accounting", "completed", "cancelled",
+      "confirmed",
+      "pending",
+      "checked_in",
+      "in_consultation",
+      "accounting",
+      "completed",
+      "cancelled",
     ];
     for (const status of statuses) {
       const result = transformReservation({ ...minimalBackend, status });
@@ -117,7 +123,11 @@ describe("transformReservation", () => {
       ...minimalBackend,
       owner: undefined,
       pet: undefined,
-      customer_fields: { owner_name: "テスト飼い主", phone: "090-0000-0000", pets: [{ name: "ポチ", type: "トイプードル" }] },
+      customer_fields: {
+        owner_name: "テスト飼い主",
+        phone: "090-0000-0000",
+        pets: [{ name: "ポチ", type: "トイプードル" }],
+      },
     });
     expect(result.ownerName).toBe("テスト飼い主");
   });
@@ -153,7 +163,12 @@ describe("transformReservation", () => {
   it("pet.animal_species.name が存在するとき petType にマップする", () => {
     const result = transformReservation({
       ...minimalBackend,
-      pet: { id: 1, clinic_id: 1, name: "ミケ", animal_species: { id: 2, name: "猫" } } as BackendReservation["pet"],
+      pet: {
+        id: 1,
+        clinic_id: 1,
+        name: "ミケ",
+        animal_species: { id: 2, name: "猫" },
+      } as BackendReservation["pet"],
     });
     expect(result.petType).toBe("猫");
   });
@@ -170,7 +185,11 @@ describe("transformReservation", () => {
   it("reservation_type.name を type にマップする", () => {
     const result = transformReservation({
       ...minimalBackend,
-      reservation_type: { id: 1, clinic_id: 1, name: "診療" } as BackendReservation["reservation_type"],
+      reservation_type: {
+        id: 1,
+        clinic_id: 1,
+        name: "診療",
+      } as BackendReservation["reservation_type"],
     });
     expect(result.type).toBe("診療");
   });
@@ -178,7 +197,12 @@ describe("transformReservation", () => {
   it("reservation_type.category を category にマップする", () => {
     const result = transformReservation({
       ...minimalBackend,
-      reservation_type: { id: 1, clinic_id: 1, name: "シャンプー", category: "trimming" } as BackendReservation["reservation_type"],
+      reservation_type: {
+        id: 1,
+        clinic_id: 1,
+        name: "シャンプー",
+        category: "trimming",
+      } as BackendReservation["reservation_type"],
     });
     expect(result.category).toBe("trimming");
   });
@@ -264,19 +288,25 @@ describe("transformToCreateRequest", () => {
   });
 
   it("status と reservation_route を作成 payload に含める", () => {
-    const result = transformToCreateRequest({
-      ...baseData,
-      status: "checked_in",
-      reservationRoute: "reception",
-      source: "manual",
-    }, "10", "20");
+    const result = transformToCreateRequest(
+      {
+        ...baseData,
+        status: "checked_in",
+        reservationRoute: "reception",
+        source: "manual",
+      },
+      "10",
+      "20",
+    );
 
-    expect(result).toEqual(expect.objectContaining({
-      pet_id: 10,
-      owner_id: 20,
-      status: "checked_in",
-      reservation_route: "reception",
-      source: "manual",
-    }));
+    expect(result).toEqual(
+      expect.objectContaining({
+        pet_id: 10,
+        owner_id: 20,
+        status: "checked_in",
+        reservation_route: "reception",
+        source: "manual",
+      }),
+    );
   });
 });

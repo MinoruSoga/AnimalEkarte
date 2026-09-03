@@ -3,7 +3,12 @@ import { renderHook, act, waitFor } from "@testing-library/react";
 import { toast } from "sonner";
 import type { UseMutationResult } from "@tanstack/react-query";
 import type { ActiveFilter, ActiveSort } from "@/components/shared/PropertyFilter/types";
-import { useMasterCRUD, defaultSearchFilter, defaultActiveFilterApply, applySorts } from "./use-master-crud";
+import {
+  useMasterCRUD,
+  defaultSearchFilter,
+  defaultActiveFilterApply,
+  applySorts,
+} from "./use-master-crud";
 
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock("@/lib/handle-api-error", () => ({ handleApiError: vi.fn() }));
@@ -17,7 +22,10 @@ interface TestEntity {
 }
 
 function buildMockDeleteMutation(
-  onMutate?: (id: string, opts?: { onSuccess?: () => void; onError?: (error: Error) => void }) => void,
+  onMutate?: (
+    id: string,
+    opts?: { onSuccess?: () => void; onError?: (error: Error) => void },
+  ) => void,
 ): UseMutationResult<void, Error, string> {
   return {
     mutate: vi.fn(onMutate),
@@ -329,7 +337,8 @@ describe("useMasterCRUD", () => {
 
   it("canDeleteがtrueならhandleDeleteConfirmは対象IDでmutateする", async () => {
     const mutate = vi.fn(
-      (_id: string, opts?: { onSuccess?: () => void; onError?: (error: Error) => void }) => opts?.onSuccess?.(),
+      (_id: string, opts?: { onSuccess?: () => void; onError?: (error: Error) => void }) =>
+        opts?.onSuccess?.(),
     );
     const deleteMutation = { mutate } as unknown as UseMutationResult<void, Error, string>;
     const { result } = renderHook(() =>
@@ -347,7 +356,10 @@ describe("useMasterCRUD", () => {
     // pendingDeleteRef は useEffect で同期されるため、act() のフラッシュ後を待つ
     await waitFor(() => {
       act(() => result.current.handleDeleteConfirm());
-      expect(mutate).toHaveBeenCalledWith("1", expect.objectContaining({ onSuccess: expect.any(Function) }));
+      expect(mutate).toHaveBeenCalledWith(
+        "1",
+        expect.objectContaining({ onSuccess: expect.any(Function) }),
+      );
     });
 
     expect(result.current.pendingDelete).toBeNull();
@@ -528,7 +540,9 @@ describe("useMasterCRUD", () => {
     );
 
     act(() => {
-      result.current.setActiveFilters([{ key: "status", condition: "is", value: "active", displayValue: "" }]);
+      result.current.setActiveFilters([
+        { key: "status", condition: "is", value: "active", displayValue: "" },
+      ]);
     });
     await waitFor(() => {
       expect(result.current.filteredItems.map((i) => i.id)).toEqual(["1"]);

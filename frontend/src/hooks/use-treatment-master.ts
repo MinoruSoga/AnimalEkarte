@@ -113,7 +113,9 @@ export function useGetAllHospitalizationPlansMaster() {
   return useQuery({
     queryKey: queryKeys.masters.category("hospitalization-plans"),
     queryFn: async (): Promise<HospitalizationPlanRefItem[]> => {
-      const { data } = await axios.get<HospitalizationPlanModel[]>("/v1/masters/hospitalization-plans");
+      const { data } = await axios.get<HospitalizationPlanModel[]>(
+        "/v1/masters/hospitalization-plans",
+      );
       return data.map((item) => ({ id: String(item.id), name: item.name }));
     },
     staleTime: QUERY_STALE_TIMES.STATIC,

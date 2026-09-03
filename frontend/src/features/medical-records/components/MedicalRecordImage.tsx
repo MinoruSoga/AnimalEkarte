@@ -37,7 +37,10 @@ export const MedicalRecordImage = memo(function MedicalRecordImage({
 
   const resolvedId = isNewRecord ? undefined : medicalRecordId;
 
-  const { data: apiImageGroups = [], isLoading } = useGetMedicalRecordImages(resolvedId, recordClinicId);
+  const { data: apiImageGroups = [], isLoading } = useGetMedicalRecordImages(
+    resolvedId,
+    recordClinicId,
+  );
 
   const uploadMutation = useCreateMedicalRecordImages(resolvedId ?? "", recordClinicId);
   const deleteMutation = useDeleteImage(resolvedId ?? "", recordClinicId);

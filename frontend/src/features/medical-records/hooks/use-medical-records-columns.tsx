@@ -36,25 +36,33 @@ export function useMedicalRecordsColumns({
 }: UseMedicalRecordsColumnsArgs): MedicalRecordColumn[] {
   // rendering-hoist-jsx 対象外: directionFor/onToggle が sortKey/sortOrder に依存するため
   // COLUMNS 自体を useMemo でメモ化し、ソート状態変化時のみ再生成する。
-  const sortableHeader = useCallback((key: MedicalRecordSortKey) => (
-    <SortableHeader
-      label={SORTABLE_COLUMN_LABELS[key]}
-      direction={directionForSort(key)}
-      onToggle={() => onSortToggle(key)}
-    />
-  ), [directionForSort, onSortToggle]);
+  const sortableHeader = useCallback(
+    (key: MedicalRecordSortKey) => (
+      <SortableHeader
+        label={SORTABLE_COLUMN_LABELS[key]}
+        direction={directionForSort(key)}
+        onToggle={() => onSortToggle(key)}
+      />
+    ),
+    [directionForSort, onSortToggle],
+  );
 
-  return useMemo<MedicalRecordColumn[]>(() => [
-    { header: sortableHeader("date"), className: "w-[120px]" },
-    { header: sortableHeader("owner_name") },
-    { header: sortableHeader("pet_name") },
-    { header: "種", className: "w-[80px] hidden lg:table-cell" },
-    // 主訴/担当医 are secondary at narrow widths; status + 操作 stay visible (BUG-458).
-    { header: "主訴", className: "hidden md:table-cell" },
-    { header: "関連", className: "w-[100px] hidden lg:table-cell" },
-    { header: "担当医", className: "w-[100px] hidden md:table-cell" },
-    { header: sortableHeader("status"), className: LIST_TABLE_COL.status },
-    ...(showClinicColumn ? [{ header: "医院", className: "w-[120px] hidden lg:table-cell" }] : []),
-    { header: "操作", className: "w-[100px]", align: "right" as const },
-  ], [showClinicColumn, sortableHeader]);
+  return useMemo<MedicalRecordColumn[]>(
+    () => [
+      { header: sortableHeader("date"), className: "w-[120px]" },
+      { header: sortableHeader("owner_name") },
+      { header: sortableHeader("pet_name") },
+      { header: "種", className: "w-[80px] hidden lg:table-cell" },
+      // 主訴/担当医 are secondary at narrow widths; status + 操作 stay visible (BUG-458).
+      { header: "主訴", className: "hidden md:table-cell" },
+      { header: "関連", className: "w-[100px] hidden lg:table-cell" },
+      { header: "担当医", className: "w-[100px] hidden md:table-cell" },
+      { header: sortableHeader("status"), className: LIST_TABLE_COL.status },
+      ...(showClinicColumn
+        ? [{ header: "医院", className: "w-[120px] hidden lg:table-cell" }]
+        : []),
+      { header: "操作", className: "w-[100px]", align: "right" as const },
+    ],
+    [showClinicColumn, sortableHeader],
+  );
 }

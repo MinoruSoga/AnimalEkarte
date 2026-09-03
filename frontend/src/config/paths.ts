@@ -27,9 +27,15 @@ const settingsTreatmentItemsBase: PathEntry = {
   getHref: () => "/settings/treatment-items",
 };
 
-const settingsTrimmingBase: PathEntry = { path: "/settings/trimming", getHref: () => "/settings/trimming" };
+const settingsTrimmingBase: PathEntry = {
+  path: "/settings/trimming",
+  getHref: () => "/settings/trimming",
+};
 
-const settingsDiagnosisBase: PathEntry = { path: "/settings/diagnosis", getHref: () => "/settings/diagnosis" };
+const settingsDiagnosisBase: PathEntry = {
+  path: "/settings/diagnosis",
+  getHref: () => "/settings/diagnosis",
+};
 
 export const paths = {
   home: { path: "/", getHref: () => "/" },
@@ -62,7 +68,10 @@ export const paths = {
   medicalRecords: {
     path: "/medical-records",
     getHref: () => "/medical-records",
-    selectPet: { path: "/medical-records/select-pet", getHref: () => "/medical-records/select-pet" },
+    selectPet: {
+      path: "/medical-records/select-pet",
+      getHref: () => "/medical-records/select-pet",
+    },
     new: { path: "/medical-records/new", getHref: () => "/medical-records/new" },
     detail: {
       path: "/medical-records/:id",
@@ -73,7 +82,10 @@ export const paths = {
   hospitalization: {
     path: "/hospitalization",
     getHref: () => "/hospitalization",
-    selectPet: { path: "/hospitalization/select-pet", getHref: () => "/hospitalization/select-pet" },
+    selectPet: {
+      path: "/hospitalization/select-pet",
+      getHref: () => "/hospitalization/select-pet",
+    },
     new: { path: "/hospitalization/new", getHref: () => "/hospitalization/new" },
     detail: {
       path: "/hospitalization/:id",
@@ -184,12 +196,18 @@ export const paths = {
     path: "/line-reservation",
     getHref: () => "/line-reservation",
     settings: { path: "/line-reservation/settings", getHref: () => "/line-reservation/settings" },
-    pageEditor: { path: "/line-reservation/page-editor", getHref: () => "/line-reservation/page-editor" },
+    pageEditor: {
+      path: "/line-reservation/page-editor",
+      getHref: () => "/line-reservation/page-editor",
+    },
     slots: { path: "/line-reservation/slots", getHref: () => "/line-reservation/slots" },
   },
 
   lstep: {
-    settings: { path: "/settings/integrations/lstep", getHref: () => "/settings/integrations/lstep" },
+    settings: {
+      path: "/settings/integrations/lstep",
+      getHref: () => "/settings/integrations/lstep",
+    },
     tags: { path: "/settings/lstep/tags", getHref: () => "/settings/lstep/tags" },
     checkupSync: { path: "/lstep/checkup-sync", getHref: () => "/lstep/checkup-sync" },
     analytics: { path: "/lstep/analytics", getHref: () => "/lstep/analytics" },
@@ -205,18 +223,39 @@ export const paths = {
     treatmentItems: settingsTreatmentItemsBase,
     diagnosis: settingsDiagnosisBase,
     trimming: settingsTrimmingBase,
-    trimmingCourseType: { path: "/settings/trimming-course-type", getHref: () => "/settings/trimming-course-type" },
+    trimmingCourseType: {
+      path: "/settings/trimming-course-type",
+      getHref: () => "/settings/trimming-course-type",
+    },
     medicine: { path: "/settings/medicine", getHref: () => "/settings/medicine" },
-    reservationType: { path: "/settings/reservation-type", getHref: () => "/settings/reservation-type" },
-    hospitalization: { path: "/settings/hospitalization", getHref: () => "/settings/hospitalization" },
+    reservationType: {
+      path: "/settings/reservation-type",
+      getHref: () => "/settings/reservation-type",
+    },
+    hospitalization: {
+      path: "/settings/hospitalization",
+      getHref: () => "/settings/hospitalization",
+    },
     cage: { path: "/settings/cage", getHref: () => "/settings/cage" },
     insurance: { path: "/settings/insurance", getHref: () => "/settings/insurance" },
     occupations: { path: "/settings/occupations", getHref: () => "/settings/occupations" },
-    permissionGroups: { path: "/settings/permission-groups", getHref: () => "/settings/permission-groups" },
-    inquiryTemplates: { path: "/settings/inquiry-templates", getHref: () => "/settings/inquiry-templates" },
-    merchandiseItems: { path: "/settings/merchandise-items", getHref: () => "/settings/merchandise-items" },
+    permissionGroups: {
+      path: "/settings/permission-groups",
+      getHref: () => "/settings/permission-groups",
+    },
+    inquiryTemplates: {
+      path: "/settings/inquiry-templates",
+      getHref: () => "/settings/inquiry-templates",
+    },
+    merchandiseItems: {
+      path: "/settings/merchandise-items",
+      getHref: () => "/settings/merchandise-items",
+    },
     // FE4-13: BUG-383 旧URL redirect先。settings-routes.tsx の shift-template → shift-templates
-    shiftTemplates: { path: "/settings/shift-templates", getHref: () => "/settings/shift-templates" },
+    shiftTemplates: {
+      path: "/settings/shift-templates",
+      getHref: () => "/settings/shift-templates",
+    },
     // BUG-385: /settings/vaccine|examination|consultation|procedure は dead route。
     // router.tsx の実在ルートに合わせ、/settings/treatment-items?tab=xxx へ直接リンク。
     vaccine: withTab(settingsTreatmentItemsBase, "vaccine"),
@@ -234,11 +273,17 @@ export const paths = {
         path: "/settings/interview/chief-complaint",
         getHref: () => "/settings/interview/chief-complaint",
       },
-      interviewTemplate: { path: "/settings/interview/templates", getHref: () => "/settings/interview/templates" },
+      interviewTemplate: {
+        path: "/settings/interview/templates",
+        getHref: () => "/settings/interview/templates",
+      },
     },
     // FEAT-368: 締め設定・支払方法マスタ
     closingTime: { path: "/settings/closing-time", getHref: () => "/settings/closing-time" },
-    paymentMethods: { path: "/settings/payment-methods", getHref: () => "/settings/payment-methods" },
+    paymentMethods: {
+      path: "/settings/payment-methods",
+      getHref: () => "/settings/payment-methods",
+    },
     campaigns: { path: "/settings/campaigns", getHref: () => "/settings/campaigns" },
     labDeviceItemMasters: {
       path: "/settings/lab-device-item-masters",

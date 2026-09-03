@@ -7,11 +7,7 @@ import { OwnerSearchModal } from "./OwnerSearchModal";
 
 function renderModal(overrides?: { onSelect?: (owner: unknown) => void }) {
   return render(
-    <OwnerSearchModal
-      open
-      onOpenChange={() => {}}
-      onSelect={overrides?.onSelect ?? (() => {})}
-    />,
+    <OwnerSearchModal open onOpenChange={() => {}} onSelect={overrides?.onSelect ?? (() => {})} />,
   );
 }
 

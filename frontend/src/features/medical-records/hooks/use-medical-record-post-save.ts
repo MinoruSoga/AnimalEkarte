@@ -41,10 +41,7 @@ export function useMedicalRecordPostSave({
           const save = estimateSaveRef.current;
           // BUG-016: 登録済み save が無い成功は黙って dirty クリアしない
           if (!save) {
-            handleApiError(
-              new Error("見積書の保存ハンドラが未登録です"),
-              "データの保存",
-            );
+            handleApiError(new Error("見積書の保存ハンドラが未登録です"), "データの保存");
             return;
           }
           await save();

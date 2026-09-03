@@ -142,10 +142,7 @@ describe("PetEditModalFields", () => {
   });
 });
 
-function renderPetEditModal(
-  petData: PetFormData,
-  onSave = vi.fn(),
-) {
+function renderPetEditModal(petData: PetFormData, onSave = vi.fn()) {
   render(
     <MemoryRouter>
       <PetEditModal

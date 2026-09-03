@@ -1,5 +1,12 @@
 import { memo, ReactNode } from "react";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { C, STYLE } from "@/lib/design-tokens";
 
 /**
@@ -50,8 +57,11 @@ export const DataTable = memo(function DataTable<T>({
                 <TableHead
                   key={index}
                   className={`${headerCellClassName ?? STYLE.tableHeaderCell} ${
-                    col.align === "right" ? "text-right" :
-                    col.align === "center" ? "text-center" : ""
+                    col.align === "right"
+                      ? "text-right"
+                      : col.align === "center"
+                        ? "text-center"
+                        : ""
                   } ${col.className || ""}`}
                 >
                   {col.header}
@@ -62,10 +72,7 @@ export const DataTable = memo(function DataTable<T>({
           <TableBody>
             {data.length === 0 ? (
               <TableRow>
-                <TableCell
-                  colSpan={columns.length}
-                  className={STYLE.tableEmpty}
-                >
+                <TableCell colSpan={columns.length} className={STYLE.tableEmpty}>
                   {emptyMessage}
                 </TableCell>
               </TableRow>

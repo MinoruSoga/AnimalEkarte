@@ -49,8 +49,7 @@ export function useMedicalRecordVaccinationForm(petId?: string, medicalRecordId?
   const { mutateAsync: createVaccination } = useCreateVaccination();
 
   const vaccineOptions = useMemo(
-    () =>
-      vaccinesMaster.flatMap((v) => (v.isActive ? [{ value: v.id, label: v.name }] : [])),
+    () => vaccinesMaster.flatMap((v) => (v.isActive ? [{ value: v.id, label: v.name }] : [])),
     [vaccinesMaster],
   );
 

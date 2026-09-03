@@ -7,10 +7,6 @@ export const updateBillingItem = async (
   itemId: string,
   req: UpdateBillingItemRequest,
 ): Promise<AccountingItem> => {
-  const { data } = await axios.patch<BackendAccountingItem>(
-    `/v1/billing-items/${itemId}`,
-    req,
-  );
+  const { data } = await axios.patch<BackendAccountingItem>(`/v1/billing-items/${itemId}`, req);
   return transformAccountingItem(data);
 };
-

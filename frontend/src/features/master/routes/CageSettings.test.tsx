@@ -139,9 +139,11 @@ describe("CageSettings (useMasterCRUD / useMasterSave 統合テスト)", () => {
     const user = userEvent.setup();
     renderPage();
 
-    await user.click(await screen.findByRole("button", {
-      name: "詳細: ケージ 1番ケージ (ID 1)",
-    }));
+    await user.click(
+      await screen.findByRole("button", {
+        name: "詳細: ケージ 1番ケージ (ID 1)",
+      }),
+    );
 
     const titleInput = await screen.findByDisplayValue("1番ケージ");
     await user.clear(titleInput);
@@ -169,9 +171,11 @@ describe("CageSettings (useMasterCRUD / useMasterSave 統合テスト)", () => {
     const user = userEvent.setup();
     renderPage();
 
-    await user.click(await screen.findByRole("button", {
-      name: "詳細: ケージ 1番ケージ (ID 1)",
-    }));
+    await user.click(
+      await screen.findByRole("button", {
+        name: "詳細: ケージ 1番ケージ (ID 1)",
+      }),
+    );
     await user.click(await screen.findByRole("button", { name: "削除" }));
 
     const dialog = await screen.findByRole("alertdialog");
@@ -198,9 +202,11 @@ describe("CageSettings (useMasterCRUD / useMasterSave 統合テスト)", () => {
     const user = userEvent.setup();
     const { refreshPermissions } = renderPage();
 
-    await user.click(await screen.findByRole("button", {
-      name: "詳細: ケージ 1番ケージ (ID 1)",
-    }));
+    await user.click(
+      await screen.findByRole("button", {
+        name: "詳細: ケージ 1番ケージ (ID 1)",
+      }),
+    );
     await user.click(await screen.findByRole("button", { name: "削除" }));
     expect(await screen.findByRole("alertdialog")).toBeInTheDocument();
 

@@ -42,11 +42,7 @@ export function ExamTypeFieldsTable({
   onDeleteField,
 }: ExamTypeFieldsTableProps) {
   return (
-    <DndContext
-      sensors={sensors}
-      collisionDetection={closestCenter}
-      onDragEnd={onDragEnd}
-    >
+    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
       <SortableContext
         items={orderedItems.map((field) => field.id)}
         strategy={verticalListSortingStrategy}

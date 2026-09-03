@@ -74,9 +74,7 @@ function RouteControls() {
   return (
     <div>
       <span data-testid="pathname">{location.pathname}</span>
-      <span data-testid="auth-state">
-        {auth.isAuthenticated ? auth.user?.id : "anonymous"}
-      </span>
+      <span data-testid="auth-state">{auth.isAuthenticated ? auth.user?.id : "anonymous"}</span>
       <button type="button" onClick={() => void navigate("/reset-password/?token=test-token")}>
         go-reset
       </button>
@@ -86,10 +84,7 @@ function RouteControls() {
       <button type="button" onClick={() => void navigate("/")}>
         go-protected
       </button>
-      <button
-        type="button"
-        onClick={() => void auth.login("staff@example.com", "password")}
-      >
+      <button type="button" onClick={() => void auth.login("staff@example.com", "password")}>
         authenticate
       </button>
       <button type="button" onClick={() => void auth.logout()}>
@@ -142,9 +137,7 @@ describe("AuthProvider initial session restoration", () => {
       fireEvent.click(screen.getByRole("button", { name: "go-login" }));
     });
 
-    await waitFor(() =>
-      expect(screen.getByTestId("pathname")).toHaveTextContent("/login"),
-    );
+    await waitFor(() => expect(screen.getByTestId("pathname")).toHaveTextContent("/login"));
     // BUG-031: /login hydrates session so authenticated cookie users redirect.
     await waitFor(() => expect(refreshTokenMock).toHaveBeenCalledOnce());
   });
@@ -187,9 +180,7 @@ describe("AuthProvider initial session restoration", () => {
     expect(await screen.findByTestId("auth-state")).toHaveTextContent("anonymous");
 
     fireEvent.click(screen.getByRole("button", { name: "authenticate" }));
-    await waitFor(() =>
-      expect(screen.getByTestId("auth-state")).toHaveTextContent(AUTH_USER.id),
-    );
+    await waitFor(() => expect(screen.getByTestId("auth-state")).toHaveTextContent(AUTH_USER.id));
 
     fireEvent.click(screen.getByRole("button", { name: "go-reset" }));
     expect(await screen.findByTestId("auth-state")).toHaveTextContent("anonymous");
@@ -198,16 +189,12 @@ describe("AuthProvider initial session restoration", () => {
     fireEvent.click(screen.getByRole("button", { name: "go-protected" }));
 
     await waitFor(() => expect(refreshTokenMock).toHaveBeenCalledTimes(2));
-    await waitFor(() =>
-      expect(screen.getByTestId("auth-state")).toHaveTextContent(AUTH_USER.id),
-    );
+    await waitFor(() => expect(screen.getByTestId("auth-state")).toHaveTextContent(AUTH_USER.id));
   });
 
   it("takes a fresh anonymous snapshot after logout when returning from recovery to a protected route", async () => {
     setWindowLocation("/");
-    refreshTokenMock
-      .mockResolvedValueOnce({ user: AUTH_USER })
-      .mockResolvedValueOnce(null);
+    refreshTokenMock.mockResolvedValueOnce({ user: AUTH_USER }).mockResolvedValueOnce(null);
     const { AuthProvider } = await import("../components/AuthProvider");
 
     render(
@@ -224,9 +211,7 @@ describe("AuthProvider initial session restoration", () => {
     expect(await screen.findByTestId("auth-state")).toHaveTextContent(AUTH_USER.id);
 
     fireEvent.click(screen.getByRole("button", { name: "sign-out" }));
-    await waitFor(() =>
-      expect(screen.getByTestId("auth-state")).toHaveTextContent("anonymous"),
-    );
+    await waitFor(() => expect(screen.getByTestId("auth-state")).toHaveTextContent("anonymous"));
 
     fireEvent.click(screen.getByRole("button", { name: "go-reset" }));
     expect(await screen.findByTestId("auth-state")).toHaveTextContent("anonymous");

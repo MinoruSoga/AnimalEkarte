@@ -11,20 +11,14 @@ describe("paths（FE-RC-080: getHref の動的セグメントは encode する�
 
   it("id に URL 予約文字（'/', '?', '#' 等）を含む値が渡っても、追加のパスセグメントや\nクエリを生成しない", () => {
     expect(paths.owners.detail.getHref("1/../2")).toBe("/owners/1%2F..%2F2");
-    expect(paths.owners.detail.report.getHref("1?x=1")).toBe(
-      "/owners/1%3Fx%3D1/report",
-    );
-    expect(paths.hospitalization.detail.getHref("1#frag")).toBe(
-      "/hospitalization/1%23frag",
-    );
+    expect(paths.owners.detail.report.getHref("1?x=1")).toBe("/owners/1%3Fx%3D1/report");
+    expect(paths.hospitalization.detail.getHref("1#frag")).toBe("/hospitalization/1%23frag");
   });
 
   it("manual.article.getHref は category/slug をそれぞれ独立して encode する", () => {
     expect(paths.manual.article.getHref("screens", "owner-detail")).toBe(
       "/manual/screens/owner-detail",
     );
-    expect(paths.manual.article.getHref("a/b", "c/d")).toBe(
-      "/manual/a%2Fb/c%2Fd",
-    );
+    expect(paths.manual.article.getHref("a/b", "c/d")).toBe("/manual/a%2Fb/c%2Fd");
   });
 });

@@ -19,10 +19,9 @@ describe("useDebouncedValue", () => {
   });
 
   it("値の変更直後は反映せず、遅延時間の経過後に反映する", () => {
-    const { result, rerender } = renderHook(
-      ({ value }) => useDebouncedValue(value, 300),
-      { initialProps: { value: "あ" } },
-    );
+    const { result, rerender } = renderHook(({ value }) => useDebouncedValue(value, 300), {
+      initialProps: { value: "あ" },
+    });
 
     rerender({ value: "あい" });
     expect(result.current).toBe("あ");
@@ -41,10 +40,9 @@ describe("useDebouncedValue", () => {
   // 入力中は1文字ごとにfetchが飛ばないことの担保。
   // 連続入力ではタイマーが張り直され、最後の値だけが1回反映される。
   it("連続入力では中間値を飛ばし、最後の値だけを1回反映する", () => {
-    const { result, rerender } = renderHook(
-      ({ value }) => useDebouncedValue(value, 300),
-      { initialProps: { value: "" } },
-    );
+    const { result, rerender } = renderHook(({ value }) => useDebouncedValue(value, 300), {
+      initialProps: { value: "" },
+    });
 
     rerender({ value: "も" });
     act(() => {
@@ -67,10 +65,9 @@ describe("useDebouncedValue", () => {
   it("オブジェクトなど非プリミティブでも遅延して反映する", () => {
     const first = { search: "", species: "" };
     const second = { search: "もも", species: "3" };
-    const { result, rerender } = renderHook(
-      ({ value }) => useDebouncedValue(value, 300),
-      { initialProps: { value: first } },
-    );
+    const { result, rerender } = renderHook(({ value }) => useDebouncedValue(value, 300), {
+      initialProps: { value: first },
+    });
 
     rerender({ value: second });
     expect(result.current).toBe(first);

@@ -79,9 +79,7 @@ describe("useSidePeekDirty", () => {
     const { result, unmount } = renderHook(() => useSidePeekDirty());
 
     expect(
-      addEventListenerSpy.mock.calls.filter(
-        ([eventName]) => eventName === "beforeunload",
-      ),
+      addEventListenerSpy.mock.calls.filter(([eventName]) => eventName === "beforeunload"),
     ).toHaveLength(0);
 
     act(() => {
@@ -95,10 +93,7 @@ describe("useSidePeekDirty", () => {
 
     unmount();
 
-    expect(removeEventListenerSpy).toHaveBeenCalledWith(
-      "beforeunload",
-      listener,
-    );
+    expect(removeEventListenerSpy).toHaveBeenCalledWith("beforeunload", listener);
   });
 
   it("cleanなら確認なしで破棄を許可する", () => {

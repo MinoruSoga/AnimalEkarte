@@ -1,9 +1,17 @@
 import { useCallback, useMemo } from "react";
 import { Info } from "lucide-react";
-import type { ActiveFilter, ActiveSort, FilterProperty } from "@/components/shared/PropertyFilter/types";
+import type {
+  ActiveFilter,
+  ActiveSort,
+  FilterProperty,
+} from "@/components/shared/PropertyFilter/types";
 import { TableCell } from "@/components/ui/table";
 import { PropertyFilter } from "@/components/shared/PropertyFilter/PropertyFilter";
-import { DataTable, DESIGN_TABLE_HEADER_ROW, DESIGN_TABLE_HEADER_CELL } from "@/components/shared/DataTable/DataTable";
+import {
+  DataTable,
+  DESIGN_TABLE_HEADER_ROW,
+  DESIGN_TABLE_HEADER_CELL,
+} from "@/components/shared/DataTable/DataTable";
 import { LIST_TABLE_COL } from "@/components/shared/DataTable/list-table-col";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { DataTableRowLink } from "@/components/shared/DataTable/DataTableRowLink";
@@ -53,7 +61,9 @@ function ExaminationsListRow({
           {record.petName}
         </DataTableRowLink>
       </TableCell>
-      <TableCell className={`${STYLE.tableCell} font-medium hidden sm:table-cell`}>{record.testType}</TableCell>
+      <TableCell className={`${STYLE.tableCell} font-medium hidden sm:table-cell`}>
+        {record.testType}
+      </TableCell>
       <TableCell className={`${C.text60} truncate max-w-[200px] hidden lg:table-cell`}>
         {record.resultSummary || "-"}
       </TableCell>
@@ -114,77 +124,83 @@ export function ExaminationsListContent({
   onEdit,
   onPageChange,
 }: ExaminationsListContentProps) {
-  const columns = useMemo(() => [
-    {
-      header: (
-        <SortableHeader
-          label="日時"
-          direction={directionFor("date")}
-          onToggle={() => toggleSort("date")}
-        />
-      ),
-      className: "w-[120px]",
-    },
-    {
-      header: (
-        <SortableHeader
-          label="飼主名"
-          direction={directionFor("ownerName")}
-          onToggle={() => toggleSort("ownerName")}
-        />
-      ),
-    },
-    {
-      header: (
-        <SortableHeader
-          label="ペット名"
-          direction={directionFor("petName")}
-          onToggle={() => toggleSort("petName")}
-        />
-      ),
-    },
-    {
-      header: (
-        <SortableHeader
-          label="検査種別"
-          direction={directionFor("testType")}
-          onToggle={() => toggleSort("testType")}
-        />
-      ),
-      className: "hidden sm:table-cell",
-    },
-    { header: "結果概要", className: "hidden lg:table-cell" },
-    {
-      header: (
-        <SortableHeader
-          label="担当医"
-          direction={directionFor("doctor")}
-          onToggle={() => toggleSort("doctor")}
-        />
-      ),
-      className: "w-[100px] hidden md:table-cell",
-    },
-    {
-      header: (
-        <SortableHeader
-          label="ステータス"
-          direction={directionFor("status")}
-          onToggle={() => toggleSort("status")}
-        />
-      ),
-      className: LIST_TABLE_COL.status,
-    },
-    { header: "操作", className: "w-[80px]", align: "right" as const },
-  ], [directionFor, toggleSort]);
+  const columns = useMemo(
+    () => [
+      {
+        header: (
+          <SortableHeader
+            label="日時"
+            direction={directionFor("date")}
+            onToggle={() => toggleSort("date")}
+          />
+        ),
+        className: "w-[120px]",
+      },
+      {
+        header: (
+          <SortableHeader
+            label="飼主名"
+            direction={directionFor("ownerName")}
+            onToggle={() => toggleSort("ownerName")}
+          />
+        ),
+      },
+      {
+        header: (
+          <SortableHeader
+            label="ペット名"
+            direction={directionFor("petName")}
+            onToggle={() => toggleSort("petName")}
+          />
+        ),
+      },
+      {
+        header: (
+          <SortableHeader
+            label="検査種別"
+            direction={directionFor("testType")}
+            onToggle={() => toggleSort("testType")}
+          />
+        ),
+        className: "hidden sm:table-cell",
+      },
+      { header: "結果概要", className: "hidden lg:table-cell" },
+      {
+        header: (
+          <SortableHeader
+            label="担当医"
+            direction={directionFor("doctor")}
+            onToggle={() => toggleSort("doctor")}
+          />
+        ),
+        className: "w-[100px] hidden md:table-cell",
+      },
+      {
+        header: (
+          <SortableHeader
+            label="ステータス"
+            direction={directionFor("status")}
+            onToggle={() => toggleSort("status")}
+          />
+        ),
+        className: LIST_TABLE_COL.status,
+      },
+      { header: "操作", className: "w-[80px]", align: "right" as const },
+    ],
+    [directionFor, toggleSort],
+  );
 
-  const renderRow = useCallback((r: ExaminationRecord) => (
-    <ExaminationsListRow
-      record={r}
-      canEdit={canEdit}
-      canViewMedicalRecords={canViewMedicalRecords}
-      onEdit={onEdit}
-    />
-  ), [canEdit, canViewMedicalRecords, onEdit]);
+  const renderRow = useCallback(
+    (r: ExaminationRecord) => (
+      <ExaminationsListRow
+        record={r}
+        canEdit={canEdit}
+        canViewMedicalRecords={canViewMedicalRecords}
+        onEdit={onEdit}
+      />
+    ),
+    [canEdit, canViewMedicalRecords, onEdit],
+  );
 
   return (
     <div className="flex flex-col gap-4">

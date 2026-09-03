@@ -4,10 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import type { ComponentProps, ReactNode } from "react";
 import type { VaccinationRecord } from "../api/transforms";
-import {
-  VaccinationFieldsPanel,
-  VaccinationHistoryPanel,
-} from "./VaccinationFormPanels";
+import { VaccinationFieldsPanel, VaccinationHistoryPanel } from "./VaccinationFormPanels";
 
 // BUG-401: VaccinationFieldsPanel は以前 VACCINE_TYPE_ITEMS というハードコードの2択
 // (value="1" 混合ワクチン / value="2" 狂犬病ワクチン) を描画しており、ワクチンマスタを
@@ -52,10 +49,7 @@ const BASE_PANEL_PROPS = {
 function panel(overrides: Partial<PanelProps> = {}): ReactNode {
   return (
     <MemoryRouter>
-      <VaccinationFieldsPanel
-        {...BASE_PANEL_PROPS}
-        {...overrides}
-      />
+      <VaccinationFieldsPanel {...BASE_PANEL_PROPS} {...overrides} />
     </MemoryRouter>
   );
 }
@@ -92,7 +86,9 @@ describe("VaccinationFieldsPanel — ワクチン選択 (BUG-401)", () => {
 
     await user.click(screen.getByRole("combobox", { name: /ワクチン/ }));
 
-    expect(await screen.findByRole("option", { name: "混合ワクチン5種（犬）" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("option", { name: "混合ワクチン5種（犬）" }),
+    ).toBeInTheDocument();
     expect(await screen.findByRole("option", { name: "狂犬病ワクチン" })).toBeInTheDocument();
   });
 
@@ -121,12 +117,14 @@ describe("VaccinationFieldsPanel — ワクチン選択 (BUG-401)", () => {
       onMarkDirty,
     });
 
-    result.rerender(panel({
-      vaccineId: "14",
-      vaccineOptions: [{ value: "14", label: "狂犬病ワクチン" }],
-      onVaccineIdChange,
-      onMarkDirty,
-    }));
+    result.rerender(
+      panel({
+        vaccineId: "14",
+        vaccineOptions: [{ value: "14", label: "狂犬病ワクチン" }],
+        onVaccineIdChange,
+        onMarkDirty,
+      }),
+    );
 
     expect(screen.getByRole("combobox", { name: /ワクチン/ })).toHaveTextContent("狂犬病ワクチン");
     expect(onVaccineIdChange).not.toHaveBeenCalled();

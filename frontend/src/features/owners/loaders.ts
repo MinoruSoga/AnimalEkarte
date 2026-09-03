@@ -116,13 +116,16 @@ function transformPetListItemToFrontend(p: PetListApiItem): Pet {
     weight: p.weight?.toString(),
     food: p.food,
     environment: p.environment,
-    acquisitionType: p.acquisition_type ? (ACQUISITION_TYPE_MAP[p.acquisition_type] ?? p.acquisition_type) : undefined,
+    acquisitionType: p.acquisition_type
+      ? (ACQUISITION_TYPE_MAP[p.acquisition_type] ?? p.acquisition_type)
+      : undefined,
     dangerLevel: p.danger_level ? (DANGER_LEVEL_MAP[p.danger_level] ?? p.danger_level) : undefined,
     dangerReason: p.danger_reason,
     lastVisit: p.last_visit ? p.last_visit.split("T")[0] : undefined,
     insuranceId: p.insurance_id != null ? String(p.insurance_id) : undefined,
     insuranceName: p.insurance?.name,
-    insuranceDetails: p.insurance?.coverage_rate != null ? `${p.insurance.coverage_rate}%補償` : undefined,
+    insuranceDetails:
+      p.insurance?.coverage_rate != null ? `${p.insurance.coverage_rate}%補償` : undefined,
     remarks: p.remarks,
     // petListResponse は deceased_at を含まない（status で十分 — StatusBadge は pet.status を使用）。
     deceasedAt: undefined,
@@ -138,7 +141,11 @@ function transformPetListItemToFrontend(p: PetListApiItem): Pet {
  * #86: URL の ?clinics=1,2 を API の clinic_ids に引き渡し拠点横断取得する
  * （所属検証はサーバ側 resolveListClinicIDs が行う。未指定は現在の医院のみ）。
  */
-export const ownersLoader = async ({ request }: { request: Request }): Promise<OwnersLoaderData> => {
+export const ownersLoader = async ({
+  request,
+}: {
+  request: Request;
+}): Promise<OwnersLoaderData> => {
   try {
     const searchParams = new URL(request.url).searchParams;
     const clinics = searchParams.get("clinics") ?? undefined;
@@ -177,7 +184,11 @@ export interface OwnerLoaderData {
   owner: Owner;
 }
 
-export const ownerLoader = async ({ params }: { params: Record<string, string | undefined> }): Promise<OwnerLoaderData> => {
+export const ownerLoader = async ({
+  params,
+}: {
+  params: Record<string, string | undefined>;
+}): Promise<OwnerLoaderData> => {
   const id = params.id;
   if (!id) {
     throw new Response("Owner ID is required", { status: 400 });

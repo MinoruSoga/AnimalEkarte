@@ -5,8 +5,21 @@ import { AlertTriangle, ArrowDown, ArrowUp, ChevronRight, FileText, Receipt } fr
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { paths } from "@/config/paths";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
 import { ACCOUNTING_STATUS_LABELS } from "@/constants/accounting-status";
@@ -33,9 +46,7 @@ export function AccountingHistorySummary({
       className={`flex items-center justify-between rounded-lg ${C.bgPage} px-4 py-3 border ${C.borderMedium}`}
       data-testid="accounting-history-summary"
     >
-      <span className={`text-xs ${C.text60}`}>
-        累計支払い金額（精算済 {completedCount} 件）
-      </span>
+      <span className={`text-xs ${C.text60}`}>累計支払い金額（精算済 {completedCount} 件）</span>
       <span className={`text-base font-bold ${C.text} font-mono`}>
         {formatCurrency(completedTotal)}
       </span>
@@ -110,7 +121,9 @@ export function AccountingHistorySortControls({
         size="sm"
         className="h-8 px-2"
         onClick={onToggleSortOrder}
-        aria-label={sortOrder === "asc" ? "昇順 — クリックで降順に切替" : "降順 — クリックで昇順に切替"}
+        aria-label={
+          sortOrder === "asc" ? "昇順 — クリックで降順に切替" : "降順 — クリックで昇順に切替"
+        }
         aria-pressed={sortOrder === "asc"}
       >
         {sortOrder === "asc" ? (
@@ -182,23 +195,18 @@ const AccountingHistoryRow = memo(function AccountingHistoryRow({
       data-testid={isScrollTarget ? "first-unpaid-row" : undefined}
       className={`transition-colors ${C.borderDivider} ${C.hoverBgPage} h-12`}
     >
-      <TableCell className={STYLE.tableCell}>
-        {formatDate(accounting.scheduledDate)}
-      </TableCell>
+      <TableCell className={STYLE.tableCell}>{formatDate(accounting.scheduledDate)}</TableCell>
       <TableCell className={STYLE.tableCell}>{accounting.id}</TableCell>
       <TableCell className={STYLE.tableCell}>{accounting.petName || "-"}</TableCell>
       <TableCell className={STYLE.tableCell}>
-        <Badge
-          variant={isCompleted ? "default" : "outline"}
-          className="font-normal text-xs"
-        >
+        <Badge variant={isCompleted ? "default" : "outline"} className="font-normal text-xs">
           {ACCOUNTING_STATUS_LABELS[accounting.status] ?? accounting.status}
         </Badge>
       </TableCell>
       <TableCell className={`${STYLE.tableCell} text-right font-mono`}>
         {isCompleted ? formatCurrency(totalAmount) : "-"}
       </TableCell>
-                    <TableCell>
+      <TableCell>
         <div className="flex items-center justify-end gap-3">
           {isCompleted ? (
             <Link

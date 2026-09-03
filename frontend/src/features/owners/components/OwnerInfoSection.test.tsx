@@ -70,11 +70,7 @@ describe("OwnerInfoSection", () => {
       "sm:grid-cols-2",
       "lg:grid-cols-4",
     );
-    expect(dangerousField).toHaveClass(
-      "col-span-1",
-      "sm:col-span-2",
-      "lg:col-span-1",
-    );
+    expect(dangerousField).toHaveClass("col-span-1", "sm:col-span-2", "lg:col-span-1");
     expect(dangerousField).not.toHaveClass("col-span-2");
   });
 
@@ -119,17 +115,13 @@ describe("OwnerInfoSection", () => {
 
     await user.type(birthDateInput, "1962/04/10");
     await user.keyboard("{Enter}");
-    expect(screen.getByRole("status")).toHaveTextContent(
-      "サイグラム: 8（A8）★慎重派",
-    );
+    expect(screen.getByRole("status")).toHaveTextContent("サイグラム: 8（A8）★慎重派");
 
     await user.clear(birthDateInput);
     await user.type(birthDateInput, "2002/10/04");
     await user.keyboard("{Enter}");
 
-    expect(screen.getByRole("status")).toHaveTextContent(
-      "サイグラム: 5（A5）☆楽観派",
-    );
+    expect(screen.getByRole("status")).toHaveTextContent("サイグラム: 5（A5）☆楽観派");
   });
 
   it("飼主生年月日が空、不正、またはクリア済みならサイグラムを表示しない", async () => {

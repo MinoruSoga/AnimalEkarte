@@ -7,10 +7,7 @@ import { toast } from "sonner";
 import { createBillingItem } from "../api/create-billing-item";
 import { deleteBillingItem } from "../api/delete-billing-item";
 import { updateBillingItem } from "../api/update-billing-item";
-import {
-  buildPostCloseReasonField,
-  useAccountingItemActions,
-} from "./use-accounting-item-actions";
+import { buildPostCloseReasonField, useAccountingItemActions } from "./use-accounting-item-actions";
 
 vi.mock("../api/create-billing-item", () => ({
   createBillingItem: vi.fn(),
@@ -36,10 +33,12 @@ function runNow(cb: () => void) {
   void cb();
 }
 
-function buildParams(overrides: {
-  postCloseReason?: string;
-  accountingId?: string;
-} = {}) {
+function buildParams(
+  overrides: {
+    postCloseReason?: string;
+    accountingId?: string;
+  } = {},
+) {
   const setLocalItems = vi.fn();
   const setNewItemOpen = vi.fn();
   const queryClient = {

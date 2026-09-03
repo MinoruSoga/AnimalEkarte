@@ -13,54 +13,51 @@ import {
 } from "@/types/generated/models";
 
 export const clinicalCareRoutes: RouteObject[] = [
-// ── Medical Records ──────────────────────────────────────────
+  // ── Medical Records ──────────────────────────────────────────
+  {
+    path: "/medical-records",
+    element: (
+      <RequirePermission resource={ResourceMedicalRecords}>
+        <Outlet />
+      </RequirePermission>
+    ),
+    errorElement: <RouteErrorBoundary />,
+    children: [
       {
-        path: "/medical-records",
+        index: true,
+        lazy: async () => {
+          const { MedicalRecords } = await import("@/features/medical-records");
+          return { Component: MedicalRecords };
+        },
+      },
+      {
+        path: "select-pet",
         element: (
-          <RequirePermission resource={ResourceMedicalRecords}>
+          <RequirePermission resource={ResourceMedicalRecords} action="create">
             <Outlet />
           </RequirePermission>
         ),
-        errorElement: <RouteErrorBoundary />,
         children: [
           {
             index: true,
             lazy: async () => {
-              const { MedicalRecords } = await import("@/features/medical-records");
-              return { Component: MedicalRecords };
+              const { MedicalRecordPetSelection } = await import("@/features/medical-records");
+              return { Component: MedicalRecordPetSelection };
             },
           },
+        ],
+      },
+      {
+        // BUG-020: create 権限ガード
+        path: "new",
+        element: (
+          <RequirePermission resource={ResourceMedicalRecords} action="create">
+            <Outlet />
+          </RequirePermission>
+        ),
+        children: [
           {
-            path: "select-pet",
-            element: <RequirePermission resource={ResourceMedicalRecords} action="create"><Outlet /></RequirePermission>,
-            children: [{
-              index: true,
-              lazy: async () => {
-                const { MedicalRecordPetSelection } = await import("@/features/medical-records");
-                return { Component: MedicalRecordPetSelection };
-              },
-            }],
-          },
-          {
-            // BUG-020: create 権限ガード
-            path: "new",
-            element: (
-              <RequirePermission resource={ResourceMedicalRecords} action="create">
-                <Outlet />
-              </RequirePermission>
-            ),
-            children: [
-              {
-                index: true,
-                lazy: async () => {
-                  const { MedicalRecordForm } = await import("@/features/medical-records");
-                  return { Component: MedicalRecordForm };
-                },
-              },
-            ],
-          },
-          {
-            path: ":id",
+            index: true,
             lazy: async () => {
               const { MedicalRecordForm } = await import("@/features/medical-records");
               return { Component: MedicalRecordForm };
@@ -68,129 +65,141 @@ export const clinicalCareRoutes: RouteObject[] = [
           },
         ],
       },
-
-      // ── Hospitalization ──────────────────────────────────────────
       {
-        path: "/hospitalization",
+        path: ":id",
+        lazy: async () => {
+          const { MedicalRecordForm } = await import("@/features/medical-records");
+          return { Component: MedicalRecordForm };
+        },
+      },
+    ],
+  },
+
+  // ── Hospitalization ──────────────────────────────────────────
+  {
+    path: "/hospitalization",
+    element: (
+      <RequirePermission resource={ResourceHospitalization}>
+        <Outlet />
+      </RequirePermission>
+    ),
+    errorElement: <RouteErrorBoundary />,
+    children: [
+      {
+        index: true,
+        lazy: async () => {
+          const { HospitalizationList } = await import("@/features/hospitalization");
+          return { Component: HospitalizationList };
+        },
+      },
+      {
+        path: "select-pet",
         element: (
-          <RequirePermission resource={ResourceHospitalization}>
+          <RequirePermission resource={ResourceHospitalization} action="create">
             <Outlet />
           </RequirePermission>
         ),
-        errorElement: <RouteErrorBoundary />,
         children: [
           {
             index: true,
             lazy: async () => {
-              const { HospitalizationList } = await import("@/features/hospitalization");
-              return { Component: HospitalizationList };
+              const { HospitalizationPetSelection } = await import("@/features/hospitalization");
+              return { Component: HospitalizationPetSelection };
             },
-          },
-          {
-            path: "select-pet",
-            element: <RequirePermission resource={ResourceHospitalization} action="create"><Outlet /></RequirePermission>,
-            children: [{
-              index: true,
-              lazy: async () => {
-                const { HospitalizationPetSelection } = await import("@/features/hospitalization");
-                return { Component: HospitalizationPetSelection };
-              },
-            }],
-          },
-          {
-            // BUG-020: create 権限ガード
-            path: "new",
-            element: (
-              <RequirePermission resource={ResourceHospitalization} action="create">
-                <Outlet />
-              </RequirePermission>
-            ),
-            children: [
-              {
-                index: true,
-                lazy: async () => {
-                  const { HospitalizationForm } = await import("@/features/hospitalization");
-                  return { Component: HospitalizationForm };
-                },
-              },
-            ],
-          },
-          {
-            path: ":id",
-            lazy: async () => {
-              const { HospitalizationDetail } = await import("@/features/hospitalization");
-              return { Component: HospitalizationDetail };
-            },
-          },
-          {
-            // BUG-020: edit 権限ガード
-            path: ":id/edit",
-            element: (
-              <RequirePermission resource={ResourceHospitalization} action="edit">
-                <Outlet />
-              </RequirePermission>
-            ),
-            children: [
-              {
-                index: true,
-                lazy: async () => {
-                  const { HospitalizationForm } = await import("@/features/hospitalization");
-                  return { Component: HospitalizationForm };
-                },
-              },
-            ],
           },
         ],
       },
-
-      // ── Trimming ─────────────────────────────────────────────────
       {
-        path: "/trimming",
+        // BUG-020: create 権限ガード
+        path: "new",
         element: (
-          <RequirePermission resource={ResourceTrimming}>
+          <RequirePermission resource={ResourceHospitalization} action="create">
             <Outlet />
           </RequirePermission>
         ),
-        errorElement: <RouteErrorBoundary />,
         children: [
           {
             index: true,
             lazy: async () => {
-              const { TrimmingList } = await import("@/features/trimming");
-              return { Component: TrimmingList };
+              const { HospitalizationForm } = await import("@/features/hospitalization");
+              return { Component: HospitalizationForm };
             },
           },
+        ],
+      },
+      {
+        path: ":id",
+        lazy: async () => {
+          const { HospitalizationDetail } = await import("@/features/hospitalization");
+          return { Component: HospitalizationDetail };
+        },
+      },
+      {
+        // BUG-020: edit 権限ガード
+        path: ":id/edit",
+        element: (
+          <RequirePermission resource={ResourceHospitalization} action="edit">
+            <Outlet />
+          </RequirePermission>
+        ),
+        children: [
           {
-            path: "select-pet",
-            element: <RequirePermission resource={ResourceTrimming} action="create"><Outlet /></RequirePermission>,
-            children: [{
-              index: true,
-              lazy: async () => {
-                const { TrimmingPetSelection } = await import("@/features/trimming");
-                return { Component: TrimmingPetSelection };
-              },
-            }],
+            index: true,
+            lazy: async () => {
+              const { HospitalizationForm } = await import("@/features/hospitalization");
+              return { Component: HospitalizationForm };
+            },
           },
+        ],
+      },
+    ],
+  },
+
+  // ── Trimming ─────────────────────────────────────────────────
+  {
+    path: "/trimming",
+    element: (
+      <RequirePermission resource={ResourceTrimming}>
+        <Outlet />
+      </RequirePermission>
+    ),
+    errorElement: <RouteErrorBoundary />,
+    children: [
+      {
+        index: true,
+        lazy: async () => {
+          const { TrimmingList } = await import("@/features/trimming");
+          return { Component: TrimmingList };
+        },
+      },
+      {
+        path: "select-pet",
+        element: (
+          <RequirePermission resource={ResourceTrimming} action="create">
+            <Outlet />
+          </RequirePermission>
+        ),
+        children: [
           {
-            // BUG-020: create 権限ガード
-            path: "new",
-            element: (
-              <RequirePermission resource={ResourceTrimming} action="create">
-                <Outlet />
-              </RequirePermission>
-            ),
-            children: [
-              {
-                index: true,
-                lazy: async () => {
-                  const { TrimmingForm } = await import("@/features/trimming");
-                  return { Component: TrimmingForm };
-                },
-              },
-            ],
+            index: true,
+            lazy: async () => {
+              const { TrimmingPetSelection } = await import("@/features/trimming");
+              return { Component: TrimmingPetSelection };
+            },
           },
+        ],
+      },
+      {
+        // BUG-020: create 権限ガード
+        path: "new",
+        element: (
+          <RequirePermission resource={ResourceTrimming} action="create">
+            <Outlet />
+          </RequirePermission>
+        ),
+        children: [
           {
-            path: ":id",
+            index: true,
             lazy: async () => {
               const { TrimmingForm } = await import("@/features/trimming");
               return { Component: TrimmingForm };
@@ -198,67 +207,79 @@ export const clinicalCareRoutes: RouteObject[] = [
           },
         ],
       },
-
       {
-        path: "/lab-device",
+        path: ":id",
+        lazy: async () => {
+          const { TrimmingForm } = await import("@/features/trimming");
+          return { Component: TrimmingForm };
+        },
+      },
+    ],
+  },
+
+  {
+    path: "/lab-device",
+    element: (
+      <RequirePermission resource={ResourceLabImport} action="create">
+        <Outlet />
+      </RequirePermission>
+    ),
+    errorElement: <RouteErrorBoundary />,
+    children: [
+      {
+        index: true,
+        lazy: async () => {
+          const { LabDeviceBoard } = await import("@/features/lab-device");
+          return { Component: LabDeviceBoard };
+        },
+      },
+    ],
+  },
+
+  // ── Examinations ─────────────────────────────────────────────
+  {
+    path: "/examinations",
+    element: (
+      <RequirePermission resource={ResourceExaminations}>
+        <Outlet />
+      </RequirePermission>
+    ),
+    errorElement: <RouteErrorBoundary />,
+    children: [
+      {
+        index: true,
+        lazy: async () => {
+          const { ExaminationsList } = await import("@/features/examinations");
+          return { Component: ExaminationsList };
+        },
+      },
+      {
+        path: "select-pet",
         element: (
-          <RequirePermission resource={ResourceLabImport} action="create">
+          <RequirePermission resource={ResourceExaminations} action="create">
             <Outlet />
           </RequirePermission>
         ),
-        errorElement: <RouteErrorBoundary />,
         children: [
           {
             index: true,
             lazy: async () => {
-              const { LabDeviceBoard } = await import("@/features/lab-device");
-              return { Component: LabDeviceBoard };
+              const { ExaminationPetSelection } = await import("@/features/examinations");
+              return { Component: ExaminationPetSelection };
             },
           },
         ],
       },
-
-      // ── Examinations ─────────────────────────────────────────────
       {
-        path: "/examinations",
+        path: "new",
         element: (
-          <RequirePermission resource={ResourceExaminations}>
+          <RequirePermission resource={ResourceExaminations} action="create">
             <Outlet />
           </RequirePermission>
         ),
-        errorElement: <RouteErrorBoundary />,
         children: [
           {
             index: true,
-            lazy: async () => {
-              const { ExaminationsList } = await import("@/features/examinations");
-              return { Component: ExaminationsList };
-            },
-          },
-          {
-            path: "select-pet",
-            element: <RequirePermission resource={ResourceExaminations} action="create"><Outlet /></RequirePermission>,
-            children: [{
-              index: true,
-              lazy: async () => {
-                const { ExaminationPetSelection } = await import("@/features/examinations");
-                return { Component: ExaminationPetSelection };
-              },
-            }],
-          },
-          {
-            path: "new",
-            element: <RequirePermission resource={ResourceExaminations} action="create"><Outlet /></RequirePermission>,
-            children: [{
-              index: true,
-              lazy: async () => {
-                const { ExaminationForm } = await import("@/features/examinations");
-                return { Component: ExaminationForm };
-              },
-            }],
-          },
-          {
-            path: ":id",
             lazy: async () => {
               const { ExaminationForm } = await import("@/features/examinations");
               return { Component: ExaminationForm };
@@ -266,50 +287,62 @@ export const clinicalCareRoutes: RouteObject[] = [
           },
         ],
       },
-
-      // ── Vaccinations ─────────────────────────────────────────────
       {
-        path: "/vaccinations",
+        path: ":id",
+        lazy: async () => {
+          const { ExaminationForm } = await import("@/features/examinations");
+          return { Component: ExaminationForm };
+        },
+      },
+    ],
+  },
+
+  // ── Vaccinations ─────────────────────────────────────────────
+  {
+    path: "/vaccinations",
+    element: (
+      <RequirePermission resource={ResourceVaccinations}>
+        <Outlet />
+      </RequirePermission>
+    ),
+    errorElement: <RouteErrorBoundary />,
+    children: [
+      {
+        index: true,
+        lazy: async () => {
+          const { VaccinationList } = await import("@/features/vaccinations");
+          return { Component: VaccinationList };
+        },
+      },
+      {
+        path: "select-pet",
         element: (
-          <RequirePermission resource={ResourceVaccinations}>
+          <RequirePermission resource={ResourceVaccinations} action="create">
             <Outlet />
           </RequirePermission>
         ),
-        errorElement: <RouteErrorBoundary />,
         children: [
           {
             index: true,
             lazy: async () => {
-              const { VaccinationList } = await import("@/features/vaccinations");
-              return { Component: VaccinationList };
+              const { VaccinationPetSelection } = await import("@/features/vaccinations");
+              return { Component: VaccinationPetSelection };
             },
           },
+        ],
+      },
+      {
+        // BUG-501: /vaccinations/new は常時 select-pet へ飛ばさず独立フォームを mount。
+        // petId 無し時の select-pet 誘導は VaccinationForm / useVaccinationForm 側。
+        path: "new",
+        element: (
+          <RequirePermission resource={ResourceVaccinations} action="create">
+            <Outlet />
+          </RequirePermission>
+        ),
+        children: [
           {
-            path: "select-pet",
-            element: <RequirePermission resource={ResourceVaccinations} action="create"><Outlet /></RequirePermission>,
-            children: [{
-              index: true,
-              lazy: async () => {
-                const { VaccinationPetSelection } = await import("@/features/vaccinations");
-                return { Component: VaccinationPetSelection };
-              },
-            }],
-          },
-          {
-            // BUG-501: /vaccinations/new は常時 select-pet へ飛ばさず独立フォームを mount。
-            // petId 無し時の select-pet 誘導は VaccinationForm / useVaccinationForm 側。
-            path: "new",
-            element: <RequirePermission resource={ResourceVaccinations} action="create"><Outlet /></RequirePermission>,
-            children: [{
-              index: true,
-              lazy: async () => {
-                const { VaccinationForm } = await import("@/features/vaccinations");
-                return { Component: VaccinationForm };
-              },
-            }],
-          },
-          {
-            path: ":id",
+            index: true,
             lazy: async () => {
               const { VaccinationForm } = await import("@/features/vaccinations");
               return { Component: VaccinationForm };
@@ -317,58 +350,71 @@ export const clinicalCareRoutes: RouteObject[] = [
           },
         ],
       },
-
-      // ── Checkups ─────────────────────────────────────────────────
       {
-        path: "/checkups",
+        path: ":id",
+        lazy: async () => {
+          const { VaccinationForm } = await import("@/features/vaccinations");
+          return { Component: VaccinationForm };
+        },
+      },
+    ],
+  },
+
+  // ── Checkups ─────────────────────────────────────────────────
+  {
+    path: "/checkups",
+    element: (
+      <RequirePermission resource={ResourceCheckups}>
+        <Outlet />
+      </RequirePermission>
+    ),
+    errorElement: <RouteErrorBoundary />,
+    children: [
+      {
+        index: true,
+        lazy: async () => {
+          const { CheckupsList } = await import("@/features/checkups");
+          return { Component: CheckupsList };
+        },
+      },
+      {
+        path: "select-pet",
         element: (
-          <RequirePermission resource={ResourceCheckups}>
-            <Outlet />
+          <RequirePermission resource={ResourceMedicalRecords} action="create">
+            <RequirePermission resource={ResourceMedicalRecords} action="edit">
+              <Outlet />
+            </RequirePermission>
           </RequirePermission>
         ),
-        errorElement: <RouteErrorBoundary />,
         children: [
           {
             index: true,
             lazy: async () => {
-              const { CheckupsList } = await import("@/features/checkups");
-              return { Component: CheckupsList };
+              const { CheckupPetSelection } = await import("@/features/checkups");
+              return { Component: CheckupPetSelection };
             },
-          },
-          {
-            path: "select-pet",
-            element: (
-              <RequirePermission resource={ResourceMedicalRecords} action="create">
-                <RequirePermission resource={ResourceMedicalRecords} action="edit">
-                  <Outlet />
-                </RequirePermission>
-              </RequirePermission>
-            ),
-            children: [{
-              index: true,
-              lazy: async () => {
-                const { CheckupPetSelection } = await import("@/features/checkups");
-                return { Component: CheckupPetSelection };
-              },
-            }],
-          },
-          {
-            path: "new",
-            element: (
-              <RequirePermission resource={ResourceMedicalRecords} action="create">
-                <RequirePermission resource={ResourceMedicalRecords} action="edit">
-                  <Outlet />
-                </RequirePermission>
-              </RequirePermission>
-            ),
-            children: [{
-              index: true,
-              lazy: async () => {
-                const { CheckupForm } = await import("@/features/checkups");
-                return { Component: CheckupForm };
-              },
-            }],
           },
         ],
       },
+      {
+        path: "new",
+        element: (
+          <RequirePermission resource={ResourceMedicalRecords} action="create">
+            <RequirePermission resource={ResourceMedicalRecords} action="edit">
+              <Outlet />
+            </RequirePermission>
+          </RequirePermission>
+        ),
+        children: [
+          {
+            index: true,
+            lazy: async () => {
+              const { CheckupForm } = await import("@/features/checkups");
+              return { Component: CheckupForm };
+            },
+          },
+        ],
+      },
+    ],
+  },
 ];

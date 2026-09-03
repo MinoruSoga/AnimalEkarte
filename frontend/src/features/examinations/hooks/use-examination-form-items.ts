@@ -32,11 +32,7 @@ function useExaminationFormItemEffects(input: {
   const emptyItemsAwaitingTemplateForIDRef = useRef<string | undefined>(undefined);
 
   useLayoutEffect(() => {
-    if (
-      isEdit &&
-      !existingItemsQuerySucceeded &&
-      itemsReadyForIDRef.current === id
-    ) {
+    if (isEdit && !existingItemsQuerySucceeded && itemsReadyForIDRef.current === id) {
       itemsReadyForIDRef.current = undefined;
     }
   }, [existingItemsQuerySucceeded, id, isEdit, itemsReadyForIDRef]);
@@ -68,13 +64,8 @@ function useExaminationFormItemEffects(input: {
     } else {
       // 成功した空応答は権威ある初期状態。テンプレが遅れて届いた場合だけ、
       // ユーザーが行を追加していなければ後続 effect で補完する。
-      emptyItemsAwaitingTemplateForIDRef.current =
-        examTypeFields === undefined ? id : undefined;
-      if (
-        formItemsRef.current.length === 0 &&
-        examTypeFields &&
-        examTypeFields.length > 0
-      ) {
+      emptyItemsAwaitingTemplateForIDRef.current = examTypeFields === undefined ? id : undefined;
+      if (formItemsRef.current.length === 0 && examTypeFields && examTypeFields.length > 0) {
         const rows = buildRowsFromTemplate(examTypeFields);
         formItemsRef.current = rows;
         setFormItemsOwnerID(id);
@@ -84,7 +75,17 @@ function useExaminationFormItemEffects(input: {
     formItemsExamIDRef.current = id;
     itemsInitializedForIDRef.current = id;
     itemsReadyForIDRef.current = id;
-  }, [id, isEdit, existingItems, existingItemsQuerySucceeded, examTypeFields, formItemsRef, itemsReadyForIDRef, setFormItems, setFormItemsOwnerID]);
+  }, [
+    id,
+    isEdit,
+    existingItems,
+    existingItemsQuerySucceeded,
+    examTypeFields,
+    formItemsRef,
+    itemsReadyForIDRef,
+    setFormItems,
+    setFormItemsOwnerID,
+  ]);
 
   useEffect(() => {
     if (emptyItemsAwaitingTemplateForIDRef.current !== id) return;
@@ -145,8 +146,7 @@ export function useExaminationFormItems(input: {
   existingItemsQuerySucceeded: boolean;
   currentTestTypeId: string;
 }) {
-  const { id, isEdit, existingItems, existingItemsQuerySucceeded, currentTestTypeId } =
-    input;
+  const { id, isEdit, existingItems, existingItemsQuerySucceeded, currentTestTypeId } = input;
   const [formItems, setFormItems] = useState<ExamItemRow[]>([]);
   const [formItemsOwnerID, setFormItemsOwnerID] = useState(id);
   const visibleFormItems = useMemo(
@@ -173,9 +173,7 @@ export function useExaminationFormItems(input: {
 
   const setInspectionValue = useCallback((key: string, value: string) => {
     setFormItems((prev) =>
-      prev.map((row) =>
-        row.key === key ? { ...row, inspectionValue: value } : row,
-      ),
+      prev.map((row) => (row.key === key ? { ...row, inspectionValue: value } : row)),
     );
   }, []);
 
@@ -185,10 +183,7 @@ export function useExaminationFormItems(input: {
     const key = `manual-${manualItemSequenceRef.current}`;
     setFormItems((previous) => {
       const nextSortOrder =
-        previous.reduce(
-          (maximum, row) => Math.max(maximum, row.sortOrder),
-          -1,
-        ) + 1;
+        previous.reduce((maximum, row) => Math.max(maximum, row.sortOrder), -1) + 1;
       return [
         ...previous,
         {

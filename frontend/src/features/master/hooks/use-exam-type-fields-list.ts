@@ -32,9 +32,12 @@ export function useExamTypeFieldsList(
     resetOrderRef.current = resetOrder;
   }, [resetOrder]);
 
-  const removeField = useCallback((examTypeId: string, fieldId: string) => {
-    deleteField.mutate({ examTypeId, fieldId });
-  }, [deleteField]);
+  const removeField = useCallback(
+    (examTypeId: string, fieldId: string) => {
+      deleteField.mutate({ examTypeId, fieldId });
+    },
+    [deleteField],
+  );
 
   return { orderedItems, sensors, handleDragEnd, removeField };
 }

@@ -25,12 +25,13 @@ describe("useMedicalRecordsList pet_id filter", () => {
   it("petId を MedicalRecordFilters.petId へ伝播する", async () => {
     const getUrl = captureListUrl();
     const { result } = renderHook(
-      () => useMedicalRecordsList({
-        searchTerm: "",
-        activeFilters,
-        petId: "22",
-        page: 1,
-      }),
+      () =>
+        useMedicalRecordsList({
+          searchTerm: "",
+          activeFilters,
+          petId: "22",
+          page: 1,
+        }),
       { wrapper: createTestWrapper() },
     );
 
@@ -42,11 +43,12 @@ describe("useMedicalRecordsList pet_id filter", () => {
   it("petId 未指定なら pet_id を送信しない", async () => {
     const getUrl = captureListUrl();
     const { result } = renderHook(
-      () => useMedicalRecordsList({
-        searchTerm: "",
-        activeFilters,
-        page: 1,
-      }),
+      () =>
+        useMedicalRecordsList({
+          searchTerm: "",
+          activeFilters,
+          page: 1,
+        }),
       { wrapper: createTestWrapper() },
     );
 

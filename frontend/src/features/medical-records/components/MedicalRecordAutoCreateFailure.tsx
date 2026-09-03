@@ -14,9 +14,10 @@ export function MedicalRecordAutoCreateFailure({
   isRetrying,
   onRetry,
 }: MedicalRecordAutoCreateFailureProps) {
-  const message = failurePhase === "appointment"
-    ? "予約の作成に失敗しました。"
-    : "カルテの作成に失敗しました。作成済みの予約は保持されています。";
+  const message =
+    failurePhase === "appointment"
+      ? "予約の作成に失敗しました。"
+      : "カルテの作成に失敗しました。作成済みの予約は保持されています。";
 
   return (
     <div

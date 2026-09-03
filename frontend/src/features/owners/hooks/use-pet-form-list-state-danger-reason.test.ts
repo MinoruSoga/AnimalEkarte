@@ -49,8 +49,8 @@ function makePet(overrides: Partial<PetFormData> = {}): PetFormData {
 }
 
 function makePetMutations() {
-  const updatePetMutate = vi.fn(
-    (_args: unknown, callbacks: { onSuccess: () => void }) => callbacks.onSuccess(),
+  const updatePetMutate = vi.fn((_args: unknown, callbacks: { onSuccess: () => void }) =>
+    callbacks.onSuccess(),
   );
   const mutations: PetMutations = {
     updatePetMutate,
@@ -99,24 +99,26 @@ describe("dangerReason shared transform contract", () => {
   it("pets 一覧の再読込で danger_reason を dangerReason として保持する", async () => {
     mockAxiosGet.mockResolvedValue({
       data: {
-        data: [{
-          id: 7,
-          clinic_id: 1,
-          owner_id: 42,
-          animal_species_id: 1,
-          pet_number: "42-1",
-          name: "ポチ",
-          pet_name_kana: "ぽち",
-          gender: "male",
-          status: "alive",
-          breed: "",
-          color: "",
-          danger_level: "high",
-          danger_reason: "保定時に噛む",
-          food: "",
-          environment: "",
-          remarks: "",
-        }],
+        data: [
+          {
+            id: 7,
+            clinic_id: 1,
+            owner_id: 42,
+            animal_species_id: 1,
+            pet_number: "42-1",
+            name: "ポチ",
+            pet_name_kana: "ぽち",
+            gender: "male",
+            status: "alive",
+            breed: "",
+            color: "",
+            danger_level: "high",
+            danger_reason: "保定時に噛む",
+            food: "",
+            environment: "",
+            remarks: "",
+          },
+        ],
         total: 1,
         page: 1,
         limit: 20,
@@ -173,14 +175,12 @@ describe("dangerReason shared transform contract", () => {
     {
       name: "空文字なら null でクリア",
       input: { dangerReason: "" },
-      assertion: (request: Record<string, unknown>) =>
-        expect(request.danger_reason).toBeNull(),
+      assertion: (request: Record<string, unknown>) => expect(request.danger_reason).toBeNull(),
     },
     {
       name: "空白のみなら null でクリア",
       input: { dangerReason: " \n\t " },
-      assertion: (request: Record<string, unknown>) =>
-        expect(request.danger_reason).toBeNull(),
+      assertion: (request: Record<string, unknown>) => expect(request.danger_reason).toBeNull(),
     },
   ])("更新時は danger_reason を $name", ({ input, assertion }) => {
     assertion(transformUpdatePetRequest(input) as Record<string, unknown>);

@@ -19,14 +19,9 @@ vi.mock("react-router", () => ({
   useNavigate: () => mocks.navigate,
   useLocation: () => ({ state: undefined }),
   useParams: () => ({ id: undefined }),
-  useSearchParams: () => [
-    new URLSearchParams(mocks.searchParams),
-    mocks.setSearchParams,
-  ],
+  useSearchParams: () => [new URLSearchParams(mocks.searchParams), mocks.setSearchParams],
   MemoryRouter: ({ children }: { children: ReactNode }) => children,
-  Link: ({ children, to }: { children: ReactNode; to: string }) => (
-    <a href={to}>{children}</a>
-  ),
+  Link: ({ children, to }: { children: ReactNode; to: string }) => <a href={to}>{children}</a>,
 }));
 
 vi.mock("@/hooks/use-permission", () => ({
@@ -250,9 +245,7 @@ describe("ExaminationForm — empty submit validation (BUG-017 Mode3)", () => {
     expect(document.getElementById("testTypeId-error")).toHaveTextContent(
       "検査種別を選択してください",
     );
-    expect(document.getElementById("doctorId-error")).toHaveTextContent(
-      "担当医を選択してください",
-    );
+    expect(document.getElementById("doctorId-error")).toHaveTextContent("担当医を選択してください");
 
     await waitFor(() => {
       expect(testType).toHaveFocus();

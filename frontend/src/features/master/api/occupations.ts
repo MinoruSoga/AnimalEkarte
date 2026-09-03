@@ -106,6 +106,3 @@ export const useDeleteOccupation = () => {
     onError: (error) => handleApiError(error, "削除"),
   });
 };
-
-
-

@@ -1,4 +1,7 @@
-import { calculateNextDate as calculateSharedNextDate, resolveScheduleTypeAfterManualDate } from "@/components/shared/NextScheduleField";
+import {
+  calculateNextDate as calculateSharedNextDate,
+  resolveScheduleTypeAfterManualDate,
+} from "@/components/shared/NextScheduleField";
 import { jstDateStartISOString, todayJSTISO } from "@/lib/jst-date";
 import type { CreateVaccinationRequest, UpdateVaccinationRequest } from "../api/types";
 import type { VaccinationRecord } from "@/types";
@@ -118,7 +121,7 @@ export function validateVaccinationForm(
 export function buildUpdateVaccinationRequest(
   formData: VaccinationFormState,
 ): UpdateVaccinationRequest {
-  const toRFC3339 = (d: string) => d ? jstDateStartISOString(d) : undefined;
+  const toRFC3339 = (d: string) => (d ? jstDateStartISOString(d) : undefined);
   return {
     date: toRFC3339(formData.date),
     next_date: formData.nextDate ? jstDateStartISOString(formData.nextDate) : null,
@@ -183,7 +186,11 @@ export function vaccinationOverridesOnScheduleType(
   currentDate: string,
 ): Partial<VaccinationFormState> {
   const calculated = calculateNextDate(currentDate, scheduleType);
-  return { ...prev, nextScheduleType: scheduleType, ...(calculated ? { nextDate: calculated } : {}) };
+  return {
+    ...prev,
+    nextScheduleType: scheduleType,
+    ...(calculated ? { nextDate: calculated } : {}),
+  };
 }
 
 export function vaccinationOverridesOnNextDate(

@@ -26,7 +26,9 @@ const ATTACH_FAILED_MESSAGE = "保存できませんでした。未紐付けの�
 export function LabDeviceUnlinkedBanner({ petId }: { petId: string }) {
   const numericPetId = Number(petId);
   const { canView, canEdit } = usePermission(LAB_IMPORT_RESOURCE);
-  const { data: unlinked = [] } = useGetLabDeviceUnlinked(canView && Number.isFinite(numericPetId) && numericPetId > 0);
+  const { data: unlinked = [] } = useGetLabDeviceUnlinked(
+    canView && Number.isFinite(numericPetId) && numericPetId > 0,
+  );
   const attach = useAttachLabDeviceJob();
   const detach = useDetachLabDeviceJob();
   const [justAttached, setJustAttached] = useState<LabDeviceJobCard | null>(null);
@@ -39,7 +41,10 @@ export function LabDeviceUnlinkedBanner({ petId }: { petId: string }) {
   }
 
   return (
-    <section className={`rounded-lg border ${C.borderNotice} ${C.bgWhite} p-3 space-y-2`} aria-live="polite">
+    <section
+      className={`rounded-lg border ${C.borderNotice} ${C.bgWhite} p-3 space-y-2`}
+      aria-live="polite"
+    >
       <p className="font-medium">未紐付けの受信があります</p>
       <ul className="space-y-2">
         {justAttached ? (
@@ -47,7 +52,9 @@ export function LabDeviceUnlinkedBanner({ petId }: { petId: string }) {
             <span className={C.textInkMuted}>
               {labDeviceCardTitle(justAttached)}
               {" · 付けました"}
-              {labDeviceClockSkewLabel(justAttached) ? ` · ${labDeviceClockSkewLabel(justAttached)}` : ""}
+              {labDeviceClockSkewLabel(justAttached)
+                ? ` · ${labDeviceClockSkewLabel(justAttached)}`
+                : ""}
             </span>
             {canEdit ? (
               <Button

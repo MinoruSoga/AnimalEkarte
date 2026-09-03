@@ -14,7 +14,7 @@ import type {
 // Raw type (make codegen 実行後は ModelReservationType に parent_id/children が追加されれば削除可)
 // ─────────────────────────────────────────────────
 
-interface ReservationTypeRaw extends Omit<ModelReservationType, 'parent' | 'children'> {
+interface ReservationTypeRaw extends Omit<ModelReservationType, "parent" | "children"> {
   parent_id?: number;
   parent?: { id: number; name: string };
   children?: ReservationTypeRaw[];
@@ -85,17 +85,13 @@ export async function listReservationTypes(): Promise<ReservationType[]> {
   for (const root of data) {
     result.push(transformReservationType(root, undefined));
     for (const child of root.children ?? []) {
-      result.push(
-        transformReservationType(child, { id: String(root.id), name: root.name }),
-      );
+      result.push(transformReservationType(child, { id: String(root.id), name: root.name }));
     }
   }
   return result;
 }
 
-async function createReservationType(
-  req: CreateReservationTypeRequest,
-): Promise<ReservationType> {
+async function createReservationType(req: CreateReservationTypeRequest): Promise<ReservationType> {
   const { data } = await axios.post<ModelReservationType>("/v1/masters/reservation-types", req);
   return transformReservationType(data);
 }
@@ -115,9 +111,7 @@ async function deleteReservationType(id: string): Promise<void> {
   await axios.delete(`/v1/masters/reservation-types/${id}`);
 }
 
-async function reorderReservationTypes(
-  req: ReorderReservationTypeRequest,
-): Promise<void> {
+async function reorderReservationTypes(req: ReorderReservationTypeRequest): Promise<void> {
   await axios.patch("/v1/masters/reservation-types/reorder", req);
 }
 

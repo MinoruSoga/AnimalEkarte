@@ -29,12 +29,21 @@ export type DatePickerProps = SingleDatePickerProps | RangeDatePickerProps;
 // (react-refresh/only-export-components: コンポーネントファイルからの値 export 禁止)。
 
 const MONTH_LABELS = [
-  "1月", "2月", "3月", "4月", "5月", "6月",
-  "7月", "8月", "9月", "10月", "11月", "12月",
+  "1月",
+  "2月",
+  "3月",
+  "4月",
+  "5月",
+  "6月",
+  "7月",
+  "8月",
+  "9月",
+  "10月",
+  "11月",
+  "12月",
 ];
 
-const NAV_BTN =
-  `inline-flex min-h-11 min-w-11 items-center justify-center rounded p-1 ${C.text50} ${C.hoverBgPrimary10} ${C.hoverText} transition-colors`;
+const NAV_BTN = `inline-flex min-h-11 min-w-11 items-center justify-center rounded p-1 ${C.text50} ${C.hoverBgPrimary10} ${C.hoverText} transition-colors`;
 
 export function CalendarNav({
   displayMonth,
@@ -119,7 +128,11 @@ export function MonthGrid({
   );
 }
 
-export function ClearButton({ onClick }: { onClick: (e: React.MouseEvent<HTMLButtonElement>) => void }) {
+export function ClearButton({
+  onClick,
+}: {
+  onClick: (e: React.MouseEvent<HTMLButtonElement>) => void;
+}) {
   return (
     <button
       type="button"

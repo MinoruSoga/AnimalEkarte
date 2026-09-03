@@ -9,10 +9,7 @@ import {
 import { useSearchParams } from "react-router";
 import { usePetSelection } from "@/hooks/use-pet-selection";
 import { INITIAL_ACTION_STATE } from "@/types/form";
-import {
-  isPersistedConfirmedStatus,
-  isPersistedResultsLocked,
-} from "../lib/examination-lock";
+import { isPersistedConfirmedStatus, isPersistedResultsLocked } from "../lib/examination-lock";
 import {
   createBlankExaminationForm,
   DENIED_MUTATION_PERMISSIONS,
@@ -43,8 +40,7 @@ export function useExaminationForm(
   const [searchParams] = useSearchParams();
   const petId = searchParams.get("petId");
   const doctorId = searchParams.get("doctorId");
-  const medicalRecordId =
-    medicalRecordIdParam ?? searchParams.get("medicalRecordId") ?? "";
+  const medicalRecordId = medicalRecordIdParam ?? searchParams.get("medicalRecordId") ?? "";
   const isEdit = !!id;
   const activeExaminationIDRef = useRef(id);
   useLayoutEffect(() => {
@@ -76,8 +72,7 @@ export function useExaminationForm(
     hasExplicitlyDeceasedPetRef.current = hasExplicitlyDeceasedPet;
   }, [hasExplicitlyDeceasedPet]);
   const isMutationAllowed = useCallback(
-    (action: keyof ExaminationMutationPermissions) =>
-      permissionsRef.current[action] === true,
+    (action: keyof ExaminationMutationPermissions) => permissionsRef.current[action] === true,
     [],
   );
   const isPetExplicitlyDeceased = useCallback(
@@ -88,13 +83,10 @@ export function useExaminationForm(
   const isPersistedResultsLockedRef = useRef(false);
   const isPersistedConfirmedRef = useRef(false);
   useLayoutEffect(() => {
-    isPersistedConfirmedRef.current =
-      isEdit && isPersistedConfirmedStatus(existingExam?.status);
+    isPersistedConfirmedRef.current = isEdit && isPersistedConfirmedStatus(existingExam?.status);
     isPersistedResultsLockedRef.current =
-      isEdit && isPersistedResultsLocked(
-        existingExam?.status,
-        existingExam?.currentRevisionVersion,
-      );
+      isEdit &&
+      isPersistedResultsLocked(existingExam?.status, existingExam?.currentRevisionVersion);
   }, [isEdit, existingExam?.status, existingExam?.currentRevisionVersion]);
 
   const isPatientChangeLocked = isExaminationPatientChangeLocked(isEdit, canEdit, existingExam);
@@ -106,15 +98,12 @@ export function useExaminationForm(
   }, [existingExam?.petId, isPatientChangeLocked]);
 
   const [isDeleteTransitionPending, startDeleteTransition] = useTransition();
-  const {
-    localOverrides,
-    setFormData,
-    manualFieldErrors,
-    setManualFieldErrors,
-  } = useExaminationFormOverrides(id);
-  const formData = isEdit && existingExam
-    ? { ...existingExam, ...localOverrides }
-    : createBlankExaminationForm(doctorId, localOverrides);
+  const { localOverrides, setFormData, manualFieldErrors, setManualFieldErrors } =
+    useExaminationFormOverrides(id);
+  const formData =
+    isEdit && existingExam
+      ? { ...existingExam, ...localOverrides }
+      : createBlankExaminationForm(doctorId, localOverrides);
   const activePet = selectedPets[0] ?? mutationPet;
   const formDataWithPet = activePet
     ? { ...formData, ownerName: activePet.ownerName, petName: activePet.name, petId: activePet.id }
@@ -137,35 +126,59 @@ export function useExaminationForm(
   });
 
   const [formState, formAction, isPending] = useActionState(
-    async () => runExaminationSave({
-      id, isEdit, medicalRecordId, formDataWithPetRef,
-      formItemsRef: items.formItemsRef,
-      itemsReadyForIDRef: items.itemsReadyForIDRef,
-      activeExaminationIDRef, isPersistedConfirmedRef, isPersistedResultsLockedRef,
-      isPatientChangeLockedRef, existingPetIdRef, entityReadRef, activePetRef,
-      isPetExplicitlyDeceased, isMutationAllowed, updateMutation, createMutation,
-    }),
+    async () =>
+      runExaminationSave({
+        id,
+        isEdit,
+        medicalRecordId,
+        formDataWithPetRef,
+        formItemsRef: items.formItemsRef,
+        itemsReadyForIDRef: items.itemsReadyForIDRef,
+        activeExaminationIDRef,
+        isPersistedConfirmedRef,
+        isPersistedResultsLockedRef,
+        isPatientChangeLockedRef,
+        existingPetIdRef,
+        entityReadRef,
+        activePetRef,
+        isPetExplicitlyDeceased,
+        isMutationAllowed,
+        updateMutation,
+        createMutation,
+      }),
     INITIAL_ACTION_STATE,
   );
 
   useExaminationFormPetSync({ isEdit, petId, mutationPet, isPetLoading, setSelectedPets });
 
   const { mutateAsync } = unconfirmMutation;
-  const handleUnconfirm = useCallback((rawReason: string) => {
-    return createExaminationUnconfirmHandler({
-      isEdit, id, isMutationAllowed,
-      isPersistedConfirmed: () => isPersistedConfirmedRef.current,
-      unconfirm: (vars) => mutateAsync(vars),
-    })(rawReason);
-  }, [id, isEdit, isMutationAllowed, mutateAsync]);
+  const handleUnconfirm = useCallback(
+    (rawReason: string) => {
+      return createExaminationUnconfirmHandler({
+        isEdit,
+        id,
+        isMutationAllowed,
+        isPersistedConfirmed: () => isPersistedConfirmedRef.current,
+        unconfirm: (vars) => mutateAsync(vars),
+      })(rawReason);
+    },
+    [id, isEdit, isMutationAllowed, mutateAsync],
+  );
   const { mutate } = deleteMutation;
-  const handleDelete = useCallback((onSuccess?: () => void) => {
-    createExaminationDeleteHandler({
-      isEdit, id, isMutationAllowed, isPetExplicitlyDeceased, startDeleteTransition,
-      isResultsLocked: () => isPersistedResultsLockedRef.current,
-      deleteExamination: (examinationId, opts) => mutate(examinationId, opts),
-    })(onSuccess);
-  }, [isEdit, id, isMutationAllowed, isPetExplicitlyDeceased, mutate, startDeleteTransition]);
+  const handleDelete = useCallback(
+    (onSuccess?: () => void) => {
+      createExaminationDeleteHandler({
+        isEdit,
+        id,
+        isMutationAllowed,
+        isPetExplicitlyDeceased,
+        startDeleteTransition,
+        isResultsLocked: () => isPersistedResultsLockedRef.current,
+        deleteExamination: (examinationId, opts) => mutate(examinationId, opts),
+      })(onSuccess);
+    },
+    [isEdit, id, isMutationAllowed, isPetExplicitlyDeceased, mutate, startDeleteTransition],
+  );
 
   useEffect(() => {
     setManualFieldErrors(formState.fieldErrors || {});

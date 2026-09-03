@@ -30,14 +30,26 @@ const IMAGE_GROUPS: ImageGalleryGroup[] = [
     id: 1,
     date: "2026/01/01 10:00:00",
     images: [
-      { id: 1, name: "レントゲン画像", src: "http://example.com/1.jpg", label: "レントゲン", mimeType: "image/jpeg" },
+      {
+        id: 1,
+        name: "レントゲン画像",
+        src: "http://example.com/1.jpg",
+        label: "レントゲン",
+        mimeType: "image/jpeg",
+      },
     ],
   },
   {
     id: 2,
     date: "2026/01/02 10:00:00",
     images: [
-      { id: 2, name: "エコー検査", src: "http://example.com/2.jpg", label: "エコー", mimeType: "image/jpeg" },
+      {
+        id: 2,
+        name: "エコー検査",
+        src: "http://example.com/2.jpg",
+        label: "エコー",
+        mimeType: "image/jpeg",
+      },
     ],
   },
 ];

@@ -20,23 +20,11 @@ export type AggregationSortField =
   | "annual_visit_count"
   | "visit_count";
 
-export type AmountBasis =
-  | "gross_total_amount"
-  | "paid_amount"
-  | "net_paid_amount";
+export type AmountBasis = "gross_total_amount" | "paid_amount" | "net_paid_amount";
 
-export type PeriodPreset =
-  | "last_3_months"
-  | "last_6_months"
-  | "last_12_months"
-  | "calendar_year";
+export type PeriodPreset = "last_3_months" | "last_6_months" | "last_12_months" | "calendar_year";
 
-export type LastVisitBucket =
-  | "within_3m"
-  | "over_3m"
-  | "over_6m"
-  | "over_1y"
-  | "no_visit";
+export type LastVisitBucket = "within_3m" | "over_3m" | "over_6m" | "over_1y" | "no_visit";
 
 export interface AggregationOwner {
   owner_id: string;
@@ -101,7 +89,7 @@ export function useGetOwnerAggregations(params: AggregationParams) {
       // BUG-012: client timeout so dashboard leaves infinite loading on BE hang.
       const { data } = await axios.get<AggregationResponse>(
         `/v1/clinics/${clinicId}/owners/aggregations`,
-        { params, timeout: 25_000 }
+        { params, timeout: 25_000 },
       );
       return data;
     },

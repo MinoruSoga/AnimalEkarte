@@ -86,8 +86,18 @@ describe("computeCheckedInWaitStats", () => {
     const now = new Date("2026-07-05T10:30:00Z");
     const columns = makeColumns({
       受付済: [
-        makeAppointment({ id: "1", petName: "ポチ", status: "checked_in", checkedInAt: "2026-07-05T10:20:00Z" }), // 10分待ち
-        makeAppointment({ id: "2", petName: "ミルク", status: "checked_in", checkedInAt: "2026-07-05T09:58:00Z" }), // 32分待ち
+        makeAppointment({
+          id: "1",
+          petName: "ポチ",
+          status: "checked_in",
+          checkedInAt: "2026-07-05T10:20:00Z",
+        }), // 10分待ち
+        makeAppointment({
+          id: "2",
+          petName: "ミルク",
+          status: "checked_in",
+          checkedInAt: "2026-07-05T09:58:00Z",
+        }), // 32分待ち
       ],
     });
 
@@ -101,9 +111,24 @@ describe("computeCheckedInWaitStats", () => {
     const now = new Date("2026-07-05T10:30:00Z");
     const columns = makeColumns({
       受付済: [
-        makeAppointment({ id: "1", petName: "ポチ", status: "checked_in", checkedInAt: "2026-07-05T10:25:00Z" }),
-        makeAppointment({ id: "2", petName: "ミルク", status: "checked_in", checkedInAt: "2026-07-05T09:58:00Z" }),
-        makeAppointment({ id: "3", petName: "タマ", status: "checked_in", checkedInAt: "2026-07-05T10:10:00Z" }),
+        makeAppointment({
+          id: "1",
+          petName: "ポチ",
+          status: "checked_in",
+          checkedInAt: "2026-07-05T10:25:00Z",
+        }),
+        makeAppointment({
+          id: "2",
+          petName: "ミルク",
+          status: "checked_in",
+          checkedInAt: "2026-07-05T09:58:00Z",
+        }),
+        makeAppointment({
+          id: "3",
+          petName: "タマ",
+          status: "checked_in",
+          checkedInAt: "2026-07-05T10:10:00Z",
+        }),
       ],
     });
 

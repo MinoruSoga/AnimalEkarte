@@ -7,9 +7,5 @@ import { useGetCompany } from "@/hooks/use-company";
 export function AccountingDetailPage() {
   const { data: company } = useGetCompany();
 
-  return (
-    <AccountingDetail
-      invoiceRegistrationNumber={company?.invoiceRegistrationNumber}
-    />
-  );
+  return <AccountingDetail invoiceRegistrationNumber={company?.invoiceRegistrationNumber} />;
 }

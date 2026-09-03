@@ -36,10 +36,7 @@ export const DATE_PRESETS: DatePreset[] = [
   { label: "直近30日", type: "last_n_days", n: 30 },
 ];
 
-function resolveRelativeDate(
-  point: RelativePoint,
-  unit: RelativeUnit,
-): { from: Date; to: Date } {
+function resolveRelativeDate(point: RelativePoint, unit: RelativeUnit): { from: Date; to: Date } {
   const now = toJSTWallDate(new Date());
   const today = startOfDay(now);
 

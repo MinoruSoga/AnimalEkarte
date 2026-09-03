@@ -15,28 +15,19 @@ const existing: PaymentMethod[] = [
 describe("validatePaymentMethodForm (BUG-029)", () => {
   it("名称未入力を拒否する", () => {
     expect(
-      validatePaymentMethodForm(
-        { name: "  ", isActive: true },
-        { existing, editingId: null },
-      ),
+      validatePaymentMethodForm({ name: "  ", isActive: true }, { existing, editingId: null }),
     ).toBe("名称は必須です");
   });
 
   it("新規で既存名と重複したら拒否する", () => {
     expect(
-      validatePaymentMethodForm(
-        { name: "現金", isActive: true },
-        { existing, editingId: null },
-      ),
+      validatePaymentMethodForm({ name: "現金", isActive: true }, { existing, editingId: null }),
     ).toBe("支払方法名「現金」は既に使用されています");
   });
 
   it("編集中の自身の名称は重複とみなさない", () => {
     expect(
-      validatePaymentMethodForm(
-        { name: "現金", isActive: true },
-        { existing, editingId: "1" },
-      ),
+      validatePaymentMethodForm({ name: "現金", isActive: true }, { existing, editingId: "1" }),
     ).toBeNull();
   });
 

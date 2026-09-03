@@ -24,7 +24,8 @@ export const queryKeys = {
       ["accounting", "daily-summary", date, clinicIds] as const,
   },
   accountingRefunds: (billingId: string) => ["accounting-refunds", billingId] as const,
-  billingItemDiscountSuggestions: (itemId: string) => ["billing-item-discount-suggestions", itemId] as const,
+  billingItemDiscountSuggestions: (itemId: string) =>
+    ["billing-item-discount-suggestions", itemId] as const,
   // P2-11: clinicId をキーに含める（拠点横断で開いた記録のクリニックごとに残高が異なるため、
   // ownerId のみでは他クリニックのキャッシュ値を誤って再利用してしまう）
   ownerUnpaidBalance: (clinicId: string, ownerId: string | undefined) =>
@@ -57,12 +58,14 @@ export const queryKeys = {
         ["masters", "animal-species", includeInactive ? "all" : "active"] as const,
     },
     /** features/master/api/medicine-dose-params.ts の種別（dog/cat）パラメータ CRUD 用 (#201) */
-    medicineDoseParams: (medicineId: string) => ["masters", "medicines", medicineId, "dose-params"] as const,
+    medicineDoseParams: (medicineId: string) =>
+      ["masters", "medicines", medicineId, "dose-params"] as const,
     /**
      * get-diagnosis-options.ts の診断名一覧。masters.category とは別シェイプ（第3要素あり）。
      * type_id は診断名 API 上は数値だが、呼び出し元の型 (number | string | null) をそのまま許容する。
      */
-    diagnosisNames: (typeId?: number | string | null) => ["masters", "diagnosis-names", typeId ?? null] as const,
+    diagnosisNames: (typeId?: number | string | null) =>
+      ["masters", "diagnosis-names", typeId ?? null] as const,
     /**
      * 既知の未解決バグ: reservation-types CRUD (SERVICE_TYPES_QUERY_KEY =
      * masters.category("reservation-types")) を invalidate しても、このキーは
@@ -75,7 +78,8 @@ export const queryKeys = {
       clinicId: string | null,
       reservationTypeId: string,
       resource: "available-slots" | "occupations" | "unavailable-times",
-    ) => ["masters", "clinics", clinicId, "reservation-types", reservationTypeId, resource] as const,
+    ) =>
+      ["masters", "clinics", clinicId, "reservation-types", reservationTypeId, resource] as const,
   },
 
   staffs: {
@@ -187,7 +191,8 @@ export const queryKeys = {
     treatmentPlans: (hospitalizationId: string) =>
       ["hospitalizations", hospitalizationId, "treatment-plans"] as const,
     dailyRecords: {
-      all: (hospitalizationId: string) => ["hospitalizations", hospitalizationId, "daily-records"] as const,
+      all: (hospitalizationId: string) =>
+        ["hospitalizations", hospitalizationId, "daily-records"] as const,
       byDate: (hospitalizationId: string, date: string) =>
         ["hospitalizations", hospitalizationId, "daily-records", date] as const,
     },
@@ -231,7 +236,8 @@ export const queryKeys = {
   cashRegister: {
     preview: {
       all: () => ["cash-register-preview"] as const,
-      byDatePeriod: (date: string, period: string) => ["cash-register-preview", date, period] as const,
+      byDatePeriod: (date: string, period: string) =>
+        ["cash-register-preview", date, period] as const,
       byDatePeriodRefresh: (date: string, period: string, refreshNonce: number) =>
         ["cash-register-preview", date, period, refreshNonce] as const,
     },
@@ -244,7 +250,8 @@ export const queryKeys = {
   // ── aggregation (集計) ────────────────────────────────────────────
   ownerAggregations: {
     list: <P>(params: P) => ["owner-aggregations", params] as const,
-    cpmStageCounts: <P>(stage: string, baseParams: P) => ["owner-aggregations-cpm-count", stage, baseParams] as const,
+    cpmStageCounts: <P>(stage: string, baseParams: P) =>
+      ["owner-aggregations-cpm-count", stage, baseParams] as const,
   },
 
   // ── inventory (在庫) ──────────────────────────────────────────────
@@ -289,8 +296,10 @@ export const queryKeys = {
   lstepTagOwners: {
     list: <P>(params: P) => ["lstep-tag-owners", params] as const,
   },
-  checkupSyncPreview: <P>(clinicId: string | null, params: P) => ["checkup-sync-preview", clinicId, params] as const,
-  lstepVisitConversion: (yearMonth: string, days: number) => ["lstep-visit-conversion", yearMonth, days] as const,
+  checkupSyncPreview: <P>(clinicId: string | null, params: P) =>
+    ["checkup-sync-preview", clinicId, params] as const,
+  lstepVisitConversion: (yearMonth: string, days: number) =>
+    ["lstep-visit-conversion", yearMonth, days] as const,
   lstepDeliveryStats: (yearMonth: string) => ["lstep-delivery-stats", yearMonth] as const,
 
   // ── owners ────────────────────────────────────────────────────────
@@ -323,13 +332,11 @@ export const queryKeys = {
   },
   petSubOwners: {
     detail: (petId: string) => ["pet-sub-owners", petId] as const,
-    metadata: (petId: string) =>
-      ["pet", petId, "sub-owner-metadata"] as const,
+    metadata: (petId: string) => ["pet", petId, "sub-owner-metadata"] as const,
   },
 
   // ── owner-report ──────────────────────────────────────────────────
-  ownerReportPets: (ownerId: string) =>
-    ["owner-report-pets", ownerId] as const,
+  ownerReportPets: (ownerId: string) => ["owner-report-pets", ownerId] as const,
   petTrimmingHistory: (petId: string) => ["pet-trimmings", "report", petId] as const,
   petTreatmentHistory: <F, O>(petId: string, filter: F, options: O) =>
     ["pet-treatment-history", petId, filter, options] as const,
@@ -351,15 +358,23 @@ export const queryKeys = {
      * clinicId 付きキーも包含するため mutation 側の invalidate は変更不要。
      */
     vitals: (medicalRecordId: string, clinicId?: string) =>
-      clinicId ? (["vitals", medicalRecordId, clinicId] as const) : (["vitals", medicalRecordId] as const),
+      clinicId
+        ? (["vitals", medicalRecordId, clinicId] as const)
+        : (["vitals", medicalRecordId] as const),
     treatments: (medicalRecordId: string, clinicId?: string) =>
-      clinicId ? (["treatments", medicalRecordId, clinicId] as const) : (["treatments", medicalRecordId] as const),
+      clinicId
+        ? (["treatments", medicalRecordId, clinicId] as const)
+        : (["treatments", medicalRecordId] as const),
     checkups: (medicalRecordId: string) => ["checkups", medicalRecordId] as const,
     addenda: (medicalRecordId: string) => ["record-addenda", medicalRecordId] as const,
     images: (medicalRecordId: string, clinicId?: string) =>
-      clinicId ? (["record-images", medicalRecordId, clinicId] as const) : (["record-images", medicalRecordId] as const),
+      clinicId
+        ? (["record-images", medicalRecordId, clinicId] as const)
+        : (["record-images", medicalRecordId] as const),
     clinicalPlan: (medicalRecordId: string, clinicId?: string) =>
-      clinicId ? (["clinical-plan", medicalRecordId, clinicId] as const) : (["clinical-plan", medicalRecordId] as const),
+      clinicId
+        ? (["clinical-plan", medicalRecordId, clinicId] as const)
+        : (["clinical-plan", medicalRecordId] as const),
     estimate: (medicalRecordId: string) => ["estimate", "record", medicalRecordId] as const,
     /** medicalRecords.detail(id) と "medical-record" プレフィックスを共有（意図的） */
     billingConfirmation: (medicalRecordId: string) =>

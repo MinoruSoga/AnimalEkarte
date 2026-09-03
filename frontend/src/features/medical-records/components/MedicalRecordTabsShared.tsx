@@ -18,9 +18,7 @@ export function MedicalRecordMountedTab({
   if (!mountedTabs.has(tab)) return null;
   return (
     <UnifiedTabsContent value={tab} className={contentClassName}>
-      <div className={`${LAYOUT.fullHeight} ${activeTab === tab ? "" : "hidden"}`}>
-        {children}
-      </div>
+      <div className={`${LAYOUT.fullHeight} ${activeTab === tab ? "" : "hidden"}`}>{children}</div>
     </UnifiedTabsContent>
   );
 }

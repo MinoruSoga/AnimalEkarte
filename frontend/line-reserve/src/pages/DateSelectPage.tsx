@@ -1,13 +1,13 @@
-import { useCallback } from 'react';
-import { liffApi } from '../api/liff-api';
-import { ProgressDots } from '../components/ProgressDots';
-import { PrimaryButton } from '../components/PrimaryButton';
-import { BackButton } from '../components/BackButton';
-import { Calendar } from '../components/Calendar';
-import { formatJapaneseDate } from '@/shared-liff/jst-date';
-import { useFetchState } from '@/shared-liff/use-fetch-state';
-import { getStepProgress } from '../lib/step-progress';
-import { EXPLICIT_PRIMARY_CTA_LABEL } from '../lib/advance-policy';
+import { useCallback } from "react";
+import { liffApi } from "../api/liff-api";
+import { ProgressDots } from "../components/ProgressDots";
+import { PrimaryButton } from "../components/PrimaryButton";
+import { BackButton } from "../components/BackButton";
+import { Calendar } from "../components/Calendar";
+import { formatJapaneseDate } from "@/shared-liff/jst-date";
+import { useFetchState } from "@/shared-liff/use-fetch-state";
+import { getStepProgress } from "../lib/step-progress";
+import { EXPLICIT_PRIMARY_CTA_LABEL } from "../lib/advance-policy";
 
 interface DateSelectPageProps {
   clinicId: string;
@@ -39,9 +39,9 @@ export function DateSelectPage({
     [clinicId, courseId, staffId, idToken],
   );
   // R-F22/R-F23: ステータス別メッセージ解決と再試行導線を共通フックに統合。
-  const { data: availableDates, loading, error, retry } = useFetchState(fetcher, '空き日程の取得');
+  const { data: availableDates, loading, error, retry } = useFetchState(fetcher, "空き日程の取得");
   // SD-16: トリミング分岐で挿入される2ステップ分、以降のフロー全体の total を一貫させる
-  const { current, total } = getStepProgress('dateSelect', isTrimming);
+  const { current, total } = getStepProgress("dateSelect", isTrimming);
 
   const formatSelectedDate = (date: string): string => {
     return formatJapaneseDate(date);

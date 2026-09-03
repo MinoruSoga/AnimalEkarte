@@ -15,14 +15,22 @@ describe("CategoryChipsFilter", () => {
 
   it("activeCategory が null のとき解除チップは表示されない", () => {
     render(
-      <CategoryChipsFilter categories={CATEGORIES} activeCategory={null} onSelectCategory={() => {}} />,
+      <CategoryChipsFilter
+        categories={CATEGORIES}
+        activeCategory={null}
+        onSelectCategory={() => {}}
+      />,
     );
     expect(screen.queryByRole("button", { name: /解除/ })).not.toBeInTheDocument();
   });
 
   it("全カテゴリチップが表示される", () => {
     render(
-      <CategoryChipsFilter categories={CATEGORIES} activeCategory={null} onSelectCategory={() => {}} />,
+      <CategoryChipsFilter
+        categories={CATEGORIES}
+        activeCategory={null}
+        onSelectCategory={() => {}}
+      />,
     );
     for (const category of CATEGORIES) {
       expect(screen.getByRole("button", { name: category })).toBeInTheDocument();
@@ -33,7 +41,11 @@ describe("CategoryChipsFilter", () => {
     const user = userEvent.setup();
     const onSelectCategory = vi.fn();
     render(
-      <CategoryChipsFilter categories={CATEGORIES} activeCategory={null} onSelectCategory={onSelectCategory} />,
+      <CategoryChipsFilter
+        categories={CATEGORIES}
+        activeCategory={null}
+        onSelectCategory={onSelectCategory}
+      />,
     );
 
     await user.click(screen.getByRole("button", { name: "検査" }));
@@ -45,7 +57,11 @@ describe("CategoryChipsFilter", () => {
     const user = userEvent.setup();
     const onSelectCategory = vi.fn();
     render(
-      <CategoryChipsFilter categories={CATEGORIES} activeCategory="検査" onSelectCategory={onSelectCategory} />,
+      <CategoryChipsFilter
+        categories={CATEGORIES}
+        activeCategory="検査"
+        onSelectCategory={onSelectCategory}
+      />,
     );
 
     await user.click(screen.getByRole("button", { name: "検査" }));
@@ -57,7 +73,11 @@ describe("CategoryChipsFilter", () => {
     const user = userEvent.setup();
     const onSelectCategory = vi.fn();
     render(
-      <CategoryChipsFilter categories={CATEGORIES} activeCategory="診察" onSelectCategory={onSelectCategory} />,
+      <CategoryChipsFilter
+        categories={CATEGORIES}
+        activeCategory="診察"
+        onSelectCategory={onSelectCategory}
+      />,
     );
 
     const clearButton = screen.getByRole("button", { name: /解除/ });
@@ -69,7 +89,11 @@ describe("CategoryChipsFilter", () => {
 
   it("選択中チップに aria-pressed=true が設定される", () => {
     render(
-      <CategoryChipsFilter categories={CATEGORIES} activeCategory="処置" onSelectCategory={() => {}} />,
+      <CategoryChipsFilter
+        categories={CATEGORIES}
+        activeCategory="処置"
+        onSelectCategory={() => {}}
+      />,
     );
     expect(screen.getByRole("button", { name: "処置" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByRole("button", { name: "診察" })).toHaveAttribute("aria-pressed", "false");

@@ -92,9 +92,7 @@ const ALLOWED_MUTATION_PERMISSIONS = {
 } as const;
 
 function renderExaminationForm(id?: string) {
-  return renderHook(() =>
-    useExaminationForm(id, undefined, ALLOWED_MUTATION_PERMISSIONS),
-  );
+  return renderHook(() => useExaminationForm(id, undefined, ALLOWED_MUTATION_PERMISSIONS));
 }
 
 // FE-RC-045: use-examination-form.test.ts (2662行) をトピック別に分割した1ファイル。
@@ -112,10 +110,7 @@ describe("useExaminationForm — 新規作成モード", () => {
       selectedPets: [],
       setSelectedPets: vi.fn(),
     } as ReturnType<typeof usePetSelection>);
-    vi.mocked(useSearchParams).mockReturnValue([
-      new URLSearchParams(),
-      vi.fn(),
-    ]);
+    vi.mocked(useSearchParams).mockReturnValue([new URLSearchParams(), vi.fn()]);
   });
 
   it("isEdit は false（id なし）", () => {
@@ -139,19 +134,13 @@ describe("useExaminationForm — 新規作成モード", () => {
   });
 
   it("doctorId なしの場合、formData.doctorId は undefined", () => {
-    vi.mocked(useSearchParams).mockReturnValue([
-      new URLSearchParams(""),
-      vi.fn(),
-    ]);
+    vi.mocked(useSearchParams).mockReturnValue([new URLSearchParams(""), vi.fn()]);
     const { result } = renderExaminationForm();
     expect(result.current.formData.doctorId).toBeUndefined();
   });
 
   it("doctorId あり → formData.doctorId に反映される", () => {
-    vi.mocked(useSearchParams).mockReturnValue([
-      new URLSearchParams("doctorId=789"),
-      vi.fn(),
-    ]);
+    vi.mocked(useSearchParams).mockReturnValue([new URLSearchParams("doctorId=789"), vi.fn()]);
     const { result } = renderExaminationForm();
     expect(result.current.formData.doctorId).toBe("789");
   });
@@ -166,10 +155,7 @@ describe("useExaminationForm — 新規作成モード", () => {
   });
 
   it("petId がない & ローディングでもない場合、ペット選択ページへリダイレクト", async () => {
-    vi.mocked(useSearchParams).mockReturnValue([
-      new URLSearchParams(""),
-      vi.fn(),
-    ]);
+    vi.mocked(useSearchParams).mockReturnValue([new URLSearchParams(""), vi.fn()]);
     vi.mocked(useGetPet).mockReturnValue({
       data: null,
       isLoading: false,
@@ -181,9 +167,7 @@ describe("useExaminationForm — 新規作成モード", () => {
       await Promise.resolve();
     });
 
-    expect(mockNavigate).toHaveBeenCalledWith(
-      expect.stringContaining("select-pet"),
-    );
+    expect(mockNavigate).toHaveBeenCalledWith(expect.stringContaining("select-pet"));
   });
 });
 
@@ -208,10 +192,7 @@ describe("useExaminationForm — petFromQuery あり", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(useSearchParams).mockReturnValue([
-      new URLSearchParams("petId=42"),
-      vi.fn(),
-    ]);
+    vi.mocked(useSearchParams).mockReturnValue([new URLSearchParams("petId=42"), vi.fn()]);
   });
 
   it("petFromQuery が非null のとき setSelectedPets が呼ばれる（line 140）", async () => {
@@ -257,10 +238,7 @@ describe("useExaminationForm — petFromQuery あり", () => {
 describe("useExaminationForm — 編集モード（id あり）", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(useSearchParams).mockReturnValue([
-      new URLSearchParams(),
-      vi.fn(),
-    ]);
+    vi.mocked(useSearchParams).mockReturnValue([new URLSearchParams(), vi.fn()]);
     vi.mocked(useGetPet).mockReturnValue({
       data: null,
       isLoading: false,
@@ -347,10 +325,7 @@ describe("useExaminationForm — 編集モード（id あり）", () => {
 describe("useExaminationForm — setFormData（ローカルオーバーライド）", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(useSearchParams).mockReturnValue([
-      new URLSearchParams(),
-      vi.fn(),
-    ]);
+    vi.mocked(useSearchParams).mockReturnValue([new URLSearchParams(), vi.fn()]);
     vi.mocked(useGetPet).mockReturnValue({
       data: null,
       isLoading: false,
@@ -383,10 +358,7 @@ describe("useExaminationForm — setFormData（ローカルオーバーライド
   });
 
   it("setFormData で doctorId を上書きできる", () => {
-    vi.mocked(useSearchParams).mockReturnValue([
-      new URLSearchParams("doctorId=1"),
-      vi.fn(),
-    ]);
+    vi.mocked(useSearchParams).mockReturnValue([new URLSearchParams("doctorId=1"), vi.fn()]);
     const { result } = renderExaminationForm();
     act(() => {
       result.current.setFormData({ doctorId: "99" });

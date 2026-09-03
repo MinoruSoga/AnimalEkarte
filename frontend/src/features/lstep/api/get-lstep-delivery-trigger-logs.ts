@@ -28,7 +28,7 @@ export function useGetLstepDeliveryTriggerLogs(
   to: string,
   triggerType?: string,
   status?: string,
-  page = 1
+  page = 1,
 ) {
   return useQuery({
     queryKey: queryKeys.lstepDeliveryTriggerLogs.logs(from, to, triggerType, status, page),
@@ -38,7 +38,7 @@ export function useGetLstepDeliveryTriggerLogs(
       if (triggerType) params.set("trigger_type", triggerType);
       if (status) params.set("status", status);
       const { data } = await axios.get<DeliveryTriggerLogsPageResponse>(
-        `/v1/clinics/${clinicId}/lstep/delivery-monitor/logs?${params}`
+        `/v1/clinics/${clinicId}/lstep/delivery-monitor/logs?${params}`,
       );
       return data;
     },

@@ -1,6 +1,6 @@
-import { useCallback, type Dispatch, type SetStateAction } from 'react';
+import { useCallback, type Dispatch, type SetStateAction } from "react";
 
-import type { PageType } from './types/models';
+import type { PageType } from "./types/models";
 
 export function useReservationAppHandlers(
   goTo: (page: PageType) => void,
@@ -12,33 +12,44 @@ export function useReservationAppHandlers(
   const handleNewReservation = useCallback(() => {
     setNotice(null);
     resetFlow();
-    goTo('step1');
+    goTo("step1");
   }, [resetFlow, goTo, setNotice]);
 
-  const handleConfirm = useCallback((reservationId: number, notes: string) => {
-    setNotice(null);
-    setCompletedReservationId(reservationId);
-    setCompletedNotes(notes);
-    goTo('step8');
-  }, [goTo, setNotice, setCompletedReservationId, setCompletedNotes]);
+  const handleConfirm = useCallback(
+    (reservationId: number, notes: string) => {
+      setNotice(null);
+      setCompletedReservationId(reservationId);
+      setCompletedNotes(notes);
+      goTo("step8");
+    },
+    [goTo, setNotice, setCompletedReservationId, setCompletedNotes],
+  );
 
-  const handleSlotTaken = useCallback((message: string, redirectStep: number) => {
-    setNotice(message);
-    const stepMap: Record<number, PageType> = {
-      1: 'step1', 2: 'step2', 3: 'step3', 4: 'step4',
-      5: 'step5', 6: 'step6', 7: 'step7',
-    };
-    goTo(stepMap[redirectStep] ?? 'step4');
-  }, [goTo, setNotice]);
+  const handleSlotTaken = useCallback(
+    (message: string, redirectStep: number) => {
+      setNotice(message);
+      const stepMap: Record<number, PageType> = {
+        1: "step1",
+        2: "step2",
+        3: "step3",
+        4: "step4",
+        5: "step5",
+        6: "step6",
+        7: "step7",
+      };
+      goTo(stepMap[redirectStep] ?? "step4");
+    },
+    [goTo, setNotice],
+  );
 
   const handleCompleteToMyReservations = useCallback(() => {
-    goTo('my-reservations');
+    goTo("my-reservations");
   }, [goTo]);
 
   const handleCompleteNewReservation = useCallback(() => {
     setNotice(null);
     resetFlow();
-    goTo('step1');
+    goTo("step1");
   }, [resetFlow, goTo, setNotice]);
 
   return {

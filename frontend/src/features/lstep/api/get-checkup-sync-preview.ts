@@ -5,13 +5,7 @@ import type { CPMStage } from "@/lib/cpm-stage";
 import { queryKeys } from "@/lib/query-keys";
 import { QUERY_STALE_TIMES } from "@/lib/react-query";
 
-export type CheckupType =
-  | "annual"
-  | "dental"
-  | "blood"
-  | "skin"
-  | "cancer"
-  | "other";
+export type CheckupType = "annual" | "dental" | "blood" | "skin" | "cancer" | "other";
 
 // ISSUE-009/180: CPM ステージ値域は共有定義 @/lib/cpm-stage に集約（単一真実源）。
 // ファイル内では上部 import の CPMStage を利用。外部からは @/lib/cpm-stage を直接 import すること。

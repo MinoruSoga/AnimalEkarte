@@ -14,7 +14,14 @@ import { extractApiErrorMessage, handleApiError } from "@/lib/handle-api-error";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
 
@@ -107,45 +114,42 @@ export const ChangePasswordDialog = memo(function ChangePasswordDialog({
   const [showNew, setShowNew] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
 
-  const [state, formAction] = useActionState<FormState, FormData>(
-    async (_prev, formData) => {
-      const currentPassword = getFormString(formData, "current_password");
-      const newPassword = getFormString(formData, "new_password");
-      const confirmPassword = getFormString(formData, "confirm_password");
+  const [state, formAction] = useActionState<FormState, FormData>(async (_prev, formData) => {
+    const currentPassword = getFormString(formData, "current_password");
+    const newPassword = getFormString(formData, "new_password");
+    const confirmPassword = getFormString(formData, "confirm_password");
 
-      if (!currentPassword || !newPassword || !confirmPassword) {
-        return { error: "すべての項目を入力してください", currentPassword };
-      }
-      if (newPassword.length < 8) {
-        return { error: "新しいパスワードは8文字以上で入力してください", currentPassword };
-      }
-      if (newPassword !== confirmPassword) {
-        return { error: "新しいパスワードと確認用パスワードが一致しません", currentPassword };
-      }
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      return { error: "すべての項目を入力してください", currentPassword };
+    }
+    if (newPassword.length < 8) {
+      return { error: "新しいパスワードは8文字以上で入力してください", currentPassword };
+    }
+    if (newPassword !== confirmPassword) {
+      return { error: "新しいパスワードと確認用パスワードが一致しません", currentPassword };
+    }
 
-      try {
-        await changeMyPassword({ current_password: currentPassword, new_password: newPassword });
-        toast.success("パスワードを変更しました。再度ログインしてください。");
-        onOpenChange(false);
-        onSuccess?.();
-        return { success: true };
-      } catch (error) {
-        // Axios.create() instance has no isAxiosError static (BUG-016).
-        if (isAxiosError(error)) {
-          const status = error.response?.status;
-          if (status === 401) {
-            return { error: "現在のパスワードが正しくありません", currentPassword };
-          }
-          if (status === 400) {
-            return { error: extractApiErrorMessage(error, "パスワード変更"), currentPassword };
-          }
+    try {
+      await changeMyPassword({ current_password: currentPassword, new_password: newPassword });
+      toast.success("パスワードを変更しました。再度ログインしてください。");
+      onOpenChange(false);
+      onSuccess?.();
+      return { success: true };
+    } catch (error) {
+      // Axios.create() instance has no isAxiosError static (BUG-016).
+      if (isAxiosError(error)) {
+        const status = error.response?.status;
+        if (status === 401) {
+          return { error: "現在のパスワードが正しくありません", currentPassword };
         }
-        handleApiError(error, "パスワード変更");
-        return { error: "パスワードの変更に失敗しました" };
+        if (status === 400) {
+          return { error: extractApiErrorMessage(error, "パスワード変更"), currentPassword };
+        }
       }
-    },
-    null,
-  );
+      handleApiError(error, "パスワード変更");
+      return { error: "パスワードの変更に失敗しました" };
+    }
+  }, null);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -193,11 +197,7 @@ export const ChangePasswordDialog = memo(function ChangePasswordDialog({
             </p>
           ) : null}
           <DialogFooter className="gap-2 pt-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-            >
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               キャンセル
             </Button>
             <SubmitButton>変更する</SubmitButton>

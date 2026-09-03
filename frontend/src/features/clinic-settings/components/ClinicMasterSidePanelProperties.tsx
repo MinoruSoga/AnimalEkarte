@@ -20,7 +20,9 @@ export const PropertyRow = memo(function PropertyRow({
 }) {
   return (
     <div className={STYLE.propertyRow}>
-      <div className={`${LAYOUT.propertyRow.labelW} shrink-0 text-sm ${C.text65} select-none truncate flex items-center`}>
+      <div
+        className={`${LAYOUT.propertyRow.labelW} shrink-0 text-sm ${C.text65} select-none truncate flex items-center`}
+      >
         {label}
       </div>
       <div className="flex-1 flex items-center">{children}</div>
@@ -140,10 +142,10 @@ export function SectionOrderProperty({
   // 有効なキーのみ抽出し、漏れたキーを末尾に補完（AccountingDocument と同ロジック）
   const effectiveOrder = useMemo<DocumentSectionKey[]>(() => {
     const validKeys = order.filter((k): k is DocumentSectionKey =>
-      (DOCUMENT_SECTION_KEYS as readonly string[]).includes(k)
+      (DOCUMENT_SECTION_KEYS as readonly string[]).includes(k),
     );
     if (validKeys.length === 0) return [...DOCUMENT_SECTION_KEYS];
-    const missing = DOCUMENT_SECTION_KEYS.filter(k => !validKeys.includes(k));
+    const missing = DOCUMENT_SECTION_KEYS.filter((k) => !validKeys.includes(k));
     return [...validKeys, ...missing];
   }, [order]);
 

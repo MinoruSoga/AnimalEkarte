@@ -14,7 +14,10 @@ export function VaccinationPetSelection() {
   const navigate = useNavigate();
   const location = useLocation();
   const { searchParams, setSearchParams, petPage, error, isLoading, handleClear, handleBack } =
-    usePetSelectionPage({ selectPath: paths.vaccinations.new.getHref(), backPath: paths.vaccinations.getHref() });
+    usePetSelectionPage({
+      selectPath: paths.vaccinations.new.getHref(),
+      backPath: paths.vaccinations.getHref(),
+    });
 
   const handleSelect = useCallback(
     (pet: Pet) => {
@@ -25,9 +28,23 @@ export function VaccinationPetSelection() {
   );
 
   return (
-    <PageLayout title="予防接種登録 - ペット選択" onBack={handleBack} resource={ResourceVaccinations} maxWidth={LAYOUT.pageContentMaxWidth.full}>
-      <PetSelectionSearchForm searchParams={searchParams} setSearchParams={setSearchParams} onClear={handleClear} />
-      <PetSelectionResultsTable pets={petPage} onSelect={handleSelect} isError={Boolean(error)} isLoading={isLoading} />
+    <PageLayout
+      title="予防接種登録 - ペット選択"
+      onBack={handleBack}
+      resource={ResourceVaccinations}
+      maxWidth={LAYOUT.pageContentMaxWidth.full}
+    >
+      <PetSelectionSearchForm
+        searchParams={searchParams}
+        setSearchParams={setSearchParams}
+        onClear={handleClear}
+      />
+      <PetSelectionResultsTable
+        pets={petPage}
+        onSelect={handleSelect}
+        isError={Boolean(error)}
+        isLoading={isLoading}
+      />
     </PageLayout>
   );
 }

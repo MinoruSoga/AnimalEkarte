@@ -74,7 +74,9 @@ export type BackendMeResponse = z.infer<typeof backendMeResponseSchema>;
 // 受理される」ことを型チェックで固定する — M1（BE の optional 化に FE が追随し損ねて
 // parse が throw する退行）のようなケースを検知するのが目的。
 // MeResponse が backendMeResponseSchema の入力形状と非互換なら、この行が型エラーになる。
-const _meResponseIsParsable: MeResponse extends z.input<typeof backendMeResponseSchema> ? true : never = true;
+const _meResponseIsParsable: MeResponse extends z.input<typeof backendMeResponseSchema>
+  ? true
+  : never = true;
 void _meResponseIsParsable;
 
 function mapMeClinicInfo(raw: z.infer<typeof meClinicInfoSchema>): AuthClinic {

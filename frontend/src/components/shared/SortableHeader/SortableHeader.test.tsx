@@ -12,7 +12,9 @@ describe("SortableHeader", () => {
   });
 
   it('variant="eyebrow" は DESIGN.md ex-data-table-cell の header 相当（STYLE.sectionLabel）を使う', () => {
-    render(<SortableHeader label="飼主名" direction="none" onToggle={() => {}} variant="eyebrow" />);
+    render(
+      <SortableHeader label="飼主名" direction="none" onToggle={() => {}} variant="eyebrow" />,
+    );
     const button = screen.getByRole("button", { name: "飼主名でソート" });
     for (const cls of STYLE.sectionLabel.split(" ")) {
       expect(button.className).toContain(cls);
@@ -21,7 +23,9 @@ describe("SortableHeader", () => {
 
   it("クリックで onToggle が呼ばれる（variant に関わらず挙動不変）", async () => {
     const onToggle = vi.fn();
-    render(<SortableHeader label="飼主名" direction="none" onToggle={onToggle} variant="eyebrow" />);
+    render(
+      <SortableHeader label="飼主名" direction="none" onToggle={onToggle} variant="eyebrow" />,
+    );
     screen.getByRole("button", { name: "飼主名でソート" }).click();
     expect(onToggle).toHaveBeenCalledTimes(1);
   });
@@ -54,7 +58,9 @@ describe("SortableHeader", () => {
 
     it("方向アイコンは装飾であり aria-hidden を持つ（方向は aria-label 側で伝える）", () => {
       render(<SortableHeader label="診療日" direction="ascending" onToggle={() => {}} />);
-      const icon = screen.getByRole("button", { name: "診療日でソート（昇順）" }).querySelector("svg");
+      const icon = screen
+        .getByRole("button", { name: "診療日でソート（昇順）" })
+        .querySelector("svg");
       expect(icon).toHaveAttribute("aria-hidden", "true");
     });
   });

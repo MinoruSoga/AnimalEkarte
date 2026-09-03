@@ -15,20 +15,17 @@ import { FormFieldError } from "@/components/shared/FormFieldError";
 import { NumberInput } from "@/components/shared/NumberInput/NumberInput";
 import { C } from "@/lib/design-tokens";
 
-import {
-  CREATE_STATUS_OPTIONS,
-  EDIT_STATUS_OPTIONS,
-} from "../constants/estimate-status-options";
+import { CREATE_STATUS_OPTIONS, EDIT_STATUS_OPTIONS } from "../constants/estimate-status-options";
 import type { EstimateStatus } from "../types";
 
 // rendering-hoist-jsx: SelectItem リストは静的なのでモジュール定数に巻き上げ
-const EDIT_STATUS_SELECT_ITEMS = EDIT_STATUS_OPTIONS.map(opt => (
+const EDIT_STATUS_SELECT_ITEMS = EDIT_STATUS_OPTIONS.map((opt) => (
   <SelectItem key={opt.value} value={opt.value}>
     {opt.label}
   </SelectItem>
 ));
 
-const CREATE_STATUS_SELECT_ITEMS = CREATE_STATUS_OPTIONS.map(opt => (
+const CREATE_STATUS_SELECT_ITEMS = CREATE_STATUS_OPTIONS.map((opt) => (
   <SelectItem key={opt.value} value={opt.value}>
     {opt.label}
   </SelectItem>
@@ -65,7 +62,7 @@ export const BasicInfoSection = memo(function BasicInfoSection({
         <Input
           id="title"
           value={title}
-          onChange={e => onChange("title", e.target.value)}
+          onChange={(e) => onChange("title", e.target.value)}
           placeholder="見積書タイトルを入力"
           className="h-11 text-sm"
         />
@@ -77,10 +74,7 @@ export const BasicInfoSection = memo(function BasicInfoSection({
         <Label htmlFor="status" className={`text-sm font-medium ${C.text}`}>
           ステータス
         </Label>
-        <Select
-          value={status}
-          onValueChange={v => onChange("status", v as EstimateStatus)}
-        >
+        <Select value={status} onValueChange={(v) => onChange("status", v as EstimateStatus)}>
           <SelectTrigger
             id="status"
             className="h-11 text-sm w-full sm:w-[200px]"
@@ -143,7 +137,7 @@ export const AmountSection = memo(function AmountSection({
           id="subtotal"
           min={0}
           value={subtotal}
-          onChange={v => onChange("subtotal", Number(v))}
+          onChange={(v) => onChange("subtotal", Number(v))}
           suffix="円"
           className="h-11 text-sm"
         />
@@ -156,7 +150,7 @@ export const AmountSection = memo(function AmountSection({
           id="taxTotal"
           min={0}
           value={taxTotal}
-          onChange={v => onChange("taxTotal", Number(v))}
+          onChange={(v) => onChange("taxTotal", Number(v))}
           suffix="円"
           className="h-11 text-sm"
         />
@@ -169,7 +163,7 @@ export const AmountSection = memo(function AmountSection({
           id="insuranceAmount"
           min={0}
           value={insuranceAmount}
-          onChange={v => onChange("insuranceAmount", Number(v))}
+          onChange={(v) => onChange("insuranceAmount", Number(v))}
           suffix="円"
           className="h-11 text-sm"
         />
@@ -183,7 +177,7 @@ export const AmountSection = memo(function AmountSection({
           min={0}
           value={discountAmount}
           disabled={!canEditDiscount}
-          onChange={v => onChange("discountAmount", Number(v))}
+          onChange={(v) => onChange("discountAmount", Number(v))}
           suffix="円"
           className="h-11 text-sm"
         />
@@ -199,7 +193,7 @@ export const AmountSection = memo(function AmountSection({
           id="totalAmount"
           min={0}
           value={totalAmount}
-          onChange={v => onChange("totalAmount", Number(v))}
+          onChange={(v) => onChange("totalAmount", Number(v))}
           suffix="円"
           className="h-11 text-sm"
         />
@@ -231,7 +225,7 @@ export const TextSection = memo(function TextSection({
         <Textarea
           id="comment"
           value={comment}
-          onChange={e => onChange("comment", e.target.value)}
+          onChange={(e) => onChange("comment", e.target.value)}
           placeholder="飼主向けコメントを入力"
           className="text-sm min-h-[80px] resize-none"
         />
@@ -245,7 +239,7 @@ export const TextSection = memo(function TextSection({
         <Textarea
           id="notes"
           value={notes}
-          onChange={e => onChange("notes", e.target.value)}
+          onChange={(e) => onChange("notes", e.target.value)}
           placeholder="社内メモを入力"
           className="text-sm min-h-[80px] resize-none"
         />

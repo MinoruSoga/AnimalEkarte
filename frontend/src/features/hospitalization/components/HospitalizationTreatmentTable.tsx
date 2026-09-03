@@ -19,19 +19,25 @@ interface HospitalizationTreatmentTableProps {
   treatmentPlans: HospitalizationTreatmentPlan[];
   onAdd: () => void;
   onRemove?: (id: string) => void;
-  onUpdate: (id: string, field: keyof HospitalizationTreatmentPlan, value: string | number | boolean) => void;
+  onUpdate: (
+    id: string,
+    field: keyof HospitalizationTreatmentPlan,
+    value: string | number | boolean,
+  ) => void;
   readOnly?: boolean;
 }
 
 export const HospitalizationTreatmentTable = memo(function HospitalizationTreatmentTable({
-    treatmentPlans,
-    onAdd,
-    onRemove,
-    onUpdate,
-    readOnly = false,
+  treatmentPlans,
+  onAdd,
+  onRemove,
+  onUpdate,
+  readOnly = false,
 }: HospitalizationTreatmentTableProps) {
   return (
-    <div className={`${C.bgWhite} rounded-lg border ${C.borderMedium} ${H_STYLES.padding.box} mb-3`}>
+    <div
+      className={`${C.bgWhite} rounded-lg border ${C.borderMedium} ${H_STYLES.padding.box} mb-3`}
+    >
       <div className="flex items-center justify-between mb-3">
         <h2 className={`${H_STYLES.text.base} font-bold flex items-center gap-2 ${C.text}`}>
           <FileText className={`${ICON.action} ${C.text60}`} />
@@ -78,9 +84,7 @@ export const HospitalizationTreatmentTable = memo(function HospitalizationTreatm
                     aria-label={`治療内容 ${index + 1}`}
                     value={plan.treatmentContent}
                     disabled={readOnly}
-                    onChange={(e) =>
-                      onUpdate(plan.id, "treatmentContent", e.target.value)
-                    }
+                    onChange={(e) => onUpdate(plan.id, "treatmentContent", e.target.value)}
                     className={`${H_STYLES.text.base} h-11 border-none shadow-none focus-visible:ring-1 ${C.focusVisibleRingActionPrimary} bg-transparent ${C.text}`}
                     placeholder="治療内容を入力..."
                   />
@@ -90,9 +94,7 @@ export const HospitalizationTreatmentTable = memo(function HospitalizationTreatm
                     aria-label={`治療メモ ${index + 1}`}
                     value={plan.memo}
                     disabled={readOnly}
-                    onChange={(e) =>
-                      onUpdate(plan.id, "memo", e.target.value)
-                    }
+                    onChange={(e) => onUpdate(plan.id, "memo", e.target.value)}
                     className={`${H_STYLES.text.base} h-11 border-none shadow-none focus-visible:ring-1 ${C.focusVisibleRingActionPrimary} bg-transparent ${C.text}`}
                     placeholder="メモ..."
                   />

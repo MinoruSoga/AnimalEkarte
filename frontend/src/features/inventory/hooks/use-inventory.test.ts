@@ -38,14 +38,20 @@ function mockPage(items: InventoryItem[], total?: number, page = 1, limit = 20) 
 describe("useInventoryList", () => {
   beforeEach(() => {
     mockUseGetInventoryItemsPage.mockReset();
-    mockUseGetInventoryItemsPage.mockReturnValue({ data: mockPage([]), isLoading: false, isError: false });
+    mockUseGetInventoryItemsPage.mockReturnValue({
+      data: mockPage([]),
+      isLoading: false,
+      isError: false,
+    });
   });
 
   describe("summary 集計（BUG-412: ページ非依存でなければならない）", () => {
     it("status='low'/'out_of_stock' クエリの実 total を summary として使う", () => {
       mockUseGetInventoryItemsPage.mockImplementation((params: { status?: string }) => {
-        if (params.status === "low") return { data: mockPage([], 2), isLoading: false, isError: false };
-        if (params.status === "out_of_stock") return { data: mockPage([], 1), isLoading: false, isError: false };
+        if (params.status === "low")
+          return { data: mockPage([], 2), isLoading: false, isError: false };
+        if (params.status === "out_of_stock")
+          return { data: mockPage([], 1), isLoading: false, isError: false };
         return {
           data: mockPage([makeItem({ id: "1" }), makeItem({ id: "2" }), makeItem({ id: "3" })], 3),
           isLoading: false,
@@ -55,31 +61,55 @@ describe("useInventoryList", () => {
 
       const { result } = renderHook(() => useInventoryList({ searchTerm: "", page: 1, limit: 20 }));
 
-      expect(result.current.summary).toEqual({ total: 3, lowStock: 2, outOfStock: 1, isError: false });
+      expect(result.current.summary).toEqual({
+        total: 3,
+        lowStock: 2,
+        outOfStock: 1,
+        isError: false,
+      });
     });
 
     it("回帰防止: 現在ページの items を集計しない（ページ送りで件数が変動しない）", () => {
-      mockUseGetInventoryItemsPage.mockImplementation((params: { status?: string; page?: number }) => {
-        if (params.status === "low") return { data: mockPage([], 2), isLoading: false, isError: false };
-        if (params.status === "out_of_stock") return { data: mockPage([], 1), isLoading: false, isError: false };
-        // page=2 のメインクエリは1件しか返さないが、summary はこれを流用してはならない
-        return { data: mockPage([makeItem({ id: "21" })], 3, 2, 20), isLoading: false, isError: false };
-      });
+      mockUseGetInventoryItemsPage.mockImplementation(
+        (params: { status?: string; page?: number }) => {
+          if (params.status === "low")
+            return { data: mockPage([], 2), isLoading: false, isError: false };
+          if (params.status === "out_of_stock")
+            return { data: mockPage([], 1), isLoading: false, isError: false };
+          // page=2 のメインクエリは1件しか返さないが、summary はこれを流用してはならない
+          return {
+            data: mockPage([makeItem({ id: "21" })], 3, 2, 20),
+            isLoading: false,
+            isError: false,
+          };
+        },
+      );
 
       const { result } = renderHook(() => useInventoryList({ searchTerm: "", page: 2, limit: 20 }));
 
-      expect(result.current.summary).toEqual({ total: 3, lowStock: 2, outOfStock: 1, isError: false });
+      expect(result.current.summary).toEqual({
+        total: 3,
+        lowStock: 2,
+        outOfStock: 1,
+        isError: false,
+      });
     });
 
     it("未ロード時は全て 0 を返す", () => {
       const { result } = renderHook(() => useInventoryList({ searchTerm: "", page: 1, limit: 20 }));
-      expect(result.current.summary).toEqual({ total: 0, lowStock: 0, outOfStock: 0, isError: false });
+      expect(result.current.summary).toEqual({
+        total: 0,
+        lowStock: 0,
+        outOfStock: 0,
+        isError: false,
+      });
     });
 
     it("code-reviewer指摘(HIGH)回帰防止: low/out_of_stockクエリが失敗した場合、summary.isErrorがtrueになり0件へサイレントに丸め込まない", () => {
       mockUseGetInventoryItemsPage.mockImplementation((params: { status?: string }) => {
         if (params.status === "low") return { data: undefined, isLoading: false, isError: true };
-        if (params.status === "out_of_stock") return { data: mockPage([], 0), isLoading: false, isError: false };
+        if (params.status === "out_of_stock")
+          return { data: mockPage([], 0), isLoading: false, isError: false };
         return { data: mockPage([makeItem()], 1), isLoading: false, isError: false };
       });
 
@@ -104,12 +134,17 @@ describe("useInventoryList", () => {
 
     it("name の部分一致でフィルタする", () => {
       mockUseGetInventoryItemsPage.mockReturnValue({
-        data: mockPage([makeItem({ id: "1", name: "犬用フード" }), makeItem({ id: "2", name: "猫用フード" })], 2),
+        data: mockPage(
+          [makeItem({ id: "1", name: "犬用フード" }), makeItem({ id: "2", name: "猫用フード" })],
+          2,
+        ),
         isLoading: false,
         isError: false,
       });
 
-      const { result } = renderHook(() => useInventoryList({ searchTerm: "犬", page: 1, limit: 20 }));
+      const { result } = renderHook(() =>
+        useInventoryList({ searchTerm: "犬", page: 1, limit: 20 }),
+      );
 
       expect(result.current.data).toHaveLength(1);
       expect(result.current.data[0].id).toBe("1");
@@ -122,13 +157,15 @@ describe("useInventoryList", () => {
             makeItem({ id: "1", name: "薬品A", location: "倉庫2階" }),
             makeItem({ id: "2", name: "薬品B", location: "倉庫1階" }),
           ],
-          2
+          2,
         ),
         isLoading: false,
         isError: false,
       });
 
-      const { result } = renderHook(() => useInventoryList({ searchTerm: "2階", page: 1, limit: 20 }));
+      const { result } = renderHook(() =>
+        useInventoryList({ searchTerm: "2階", page: 1, limit: 20 }),
+      );
 
       expect(result.current.data.map((i) => i.id)).toEqual(["1"]);
     });
@@ -140,20 +177,25 @@ describe("useInventoryList", () => {
             makeItem({ id: "1", name: "薬品A", supplier: "アニマル商事" }),
             makeItem({ id: "2", name: "薬品B", supplier: "ペット卸" }),
           ],
-          2
+          2,
         ),
         isLoading: false,
         isError: false,
       });
 
-      const { result } = renderHook(() => useInventoryList({ searchTerm: "アニマル", page: 1, limit: 20 }));
+      const { result } = renderHook(() =>
+        useInventoryList({ searchTerm: "アニマル", page: 1, limit: 20 }),
+      );
 
       expect(result.current.data.map((i) => i.id)).toEqual(["1"]);
     });
 
     it("location/supplier が undefined のアイテムでも例外にならず単に非マッチとして扱う", () => {
       mockUseGetInventoryItemsPage.mockReturnValue({
-        data: mockPage([makeItem({ id: "1", name: "在庫A", location: undefined, supplier: undefined })], 1),
+        data: mockPage(
+          [makeItem({ id: "1", name: "在庫A", location: undefined, supplier: undefined })],
+          1,
+        ),
         isLoading: false,
         isError: false,
       });
@@ -170,7 +212,9 @@ describe("useInventoryList", () => {
         isError: false,
       });
 
-      const { result } = renderHook(() => useInventoryList({ searchTerm: "わくちん", page: 1, limit: 20 }));
+      const { result } = renderHook(() =>
+        useInventoryList({ searchTerm: "わくちん", page: 1, limit: 20 }),
+      );
 
       expect(result.current.data.map((i) => i.id)).toEqual(["1"]);
     });
@@ -179,7 +223,13 @@ describe("useInventoryList", () => {
   describe("サーバーパラメータ（BUG-412: page/limit を必ず送る）", () => {
     it("category / statusFilter / page / limit を useGetInventoryItemsPage に渡す", () => {
       renderHook(() =>
-        useInventoryList({ searchTerm: "", category: "medicine", statusFilter: "low", page: 2, limit: 20 }),
+        useInventoryList({
+          searchTerm: "",
+          category: "medicine",
+          statusFilter: "low",
+          page: 2,
+          limit: 20,
+        }),
       );
 
       expect(mockUseGetInventoryItemsPage).toHaveBeenCalledWith({
@@ -192,7 +242,13 @@ describe("useInventoryList", () => {
 
     it("category / statusFilter が 'all' のとき undefined を渡す（サーバー側で絞り込まない）", () => {
       renderHook(() =>
-        useInventoryList({ searchTerm: "", category: "all", statusFilter: "all", page: 1, limit: 20 }),
+        useInventoryList({
+          searchTerm: "",
+          category: "all",
+          statusFilter: "all",
+          page: 1,
+          limit: 20,
+        }),
       );
 
       expect(mockUseGetInventoryItemsPage).toHaveBeenCalledWith({

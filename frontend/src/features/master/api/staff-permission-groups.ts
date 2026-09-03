@@ -66,13 +66,7 @@ export function useGetStaffPermissionGroups(staffId: string | null) {
 export function useUpdateStaffPermissionGroups() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({
-      staffId,
-      groupIds,
-    }: {
-      staffId: string;
-      groupIds: string[];
-    }) => {
+    mutationFn: async ({ staffId, groupIds }: { staffId: string; groupIds: string[] }) => {
       await axios.put(`/v1/masters/staffs/${staffId}/permission-groups`, {
         group_ids: groupIds.map((id) => parseInt(id, 10)),
       });

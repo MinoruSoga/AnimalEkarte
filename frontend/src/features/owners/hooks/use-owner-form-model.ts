@@ -12,9 +12,9 @@ type CreateOwnerPetRequestWithDangerReason = CreateOwnerPetRequest & {
 };
 
 const MEMBERSHIP_TYPE_TO_API: Record<string, string> = {
-  "非会員": "non_member",
-  "会員": "member",
-  "退亡者": "deceased",
+  非会員: "non_member",
+  会員: "member",
+  退亡者: "deceased",
   "他診/準": "transferred",
 };
 
@@ -173,7 +173,10 @@ export function validateOwnerForm(ownerData: OwnerData): Record<string, string> 
   if (ownerData.homePostalCode && !postalPattern.test(ownerData.homePostalCode.trim())) {
     errors.homePostalCode = "郵便番号の形式が正しくありません（例: 123-4567）";
   }
-  if (ownerData.discountRate != null && (ownerData.discountRate < 0 || ownerData.discountRate > 100)) {
+  if (
+    ownerData.discountRate != null &&
+    (ownerData.discountRate < 0 || ownerData.discountRate > 100)
+  ) {
     errors.discountRate = "値引率は0〜100の範囲で入力してください";
   }
   return errors;
@@ -230,8 +233,8 @@ export function resolveCreatedOwnerClinicId(
   createData: CreateOwnerRequest,
 ): string | undefined {
   return (
-    ownerData.clinicId
-    ?? newOwner.clinicId
-    ?? (createData.clinic_id != null ? String(createData.clinic_id) : undefined)
+    ownerData.clinicId ??
+    newOwner.clinicId ??
+    (createData.clinic_id != null ? String(createData.clinic_id) : undefined)
   );
 }

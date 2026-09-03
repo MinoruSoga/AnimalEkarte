@@ -3,10 +3,7 @@ import { axios } from "@/lib/axios";
 import { formatDate } from "@/lib/format/date";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import { queryKeys } from "@/lib/query-keys";
-import {
-  transformMedicalRecord,
-  type MedicalRecord,
-} from "@/lib/transforms/medical-record";
+import { transformMedicalRecord, type MedicalRecord } from "@/lib/transforms/medical-record";
 import type { MedicalRecordResponse } from "@/types/generated/medicalrecord-responses";
 
 /**
@@ -100,9 +97,7 @@ export interface MedicalRecordInterviewHistoryItem {
   content: string;
 }
 
-function transformToHistoryItem(
-  record: MedicalRecordResponse,
-): MedicalRecordInterviewHistoryItem {
+function transformToHistoryItem(record: MedicalRecordResponse): MedicalRecordInterviewHistoryItem {
   const chiefComplaint = record.inquiry?.chief_complaint ?? "";
   const content = chiefComplaint || "（記録なし）";
   return {
@@ -125,10 +120,9 @@ export function useGetPetMedicalHistory(
     queryFn: async () => {
       const params: Record<string, string> = { limit: "50", page: "1" };
       if (petId) params.pet_id = petId;
-      const { data: res } = await axios.get<MedicalRecordsListResponse>(
-        "/v1/medical-records",
-        { params },
-      );
+      const { data: res } = await axios.get<MedicalRecordsListResponse>("/v1/medical-records", {
+        params,
+      });
       return res.data;
     },
     enabled: !!petId,

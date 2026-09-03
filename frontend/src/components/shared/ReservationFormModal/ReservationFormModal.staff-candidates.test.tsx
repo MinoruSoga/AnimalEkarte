@@ -13,15 +13,12 @@ import { createWrapper, noop } from "./ReservationFormModal.test-helpers";
 // fireEvent.click でも開かない）。本テストの対象は Popover の開閉実装ではないので、開閉の
 // 意味論だけを保った素の実装へ差し替え、Dialog×Popover の相互作用を構造的に取り除く。
 vi.mock("@/components/ui/searchable-select", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("@/components/ui/searchable-select")>();
+  const actual = await importOriginal<typeof import("@/components/ui/searchable-select")>();
   const { useState } = await import("react");
   type Props = Parameters<typeof actual.SearchableSelect>[0];
   function SearchableSelectStub(props: Props) {
     const [open, setOpen] = useState(false);
-    const flat = props.groups
-      ? props.groups.flatMap((g) => g.options)
-      : (props.options ?? []);
+    const flat = props.groups ? props.groups.flatMap((g) => g.options) : (props.options ?? []);
     const selected = flat.find((o) => o.value === props.value);
     return (
       <div>
@@ -89,13 +86,13 @@ describe("ReservationFormModal — 担当者候補", () => {
             is_active: true,
             clinic_assignments: [{ clinic_id: 1, is_main: true }],
           },
-        ])
+        ]),
       ),
       http.get("/api/v1/shifts/on-duty-staffs", () =>
         HttpResponse.json([
           { id: 10, name: "非対応スタッフ" },
           { id: 11, name: "対応スタッフ" },
-        ])
+        ]),
       ),
       http.get("/api/v1/clinics/1/reservation-staffs", () =>
         HttpResponse.json([
@@ -111,16 +108,16 @@ describe("ReservationFormModal — 担当者候補", () => {
             is_active: true,
             capable_courses: [{ id: 5, name: "トリミング" }],
           },
-        ])
+        ]),
       ),
       http.get("/api/v1/masters/reservation-types/5/unavailable-times", () =>
-        HttpResponse.json({ data: [] })
+        HttpResponse.json({ data: [] }),
       ),
       http.get("/api/v1/reservations/available-times", () =>
         HttpResponse.json([
           { start_time: "0945", end_time: "1045" },
           { start_time: "1230", end_time: "1330" },
-        ])
+        ]),
       ),
       http.get("/api/v1/masters/reservation-types", () =>
         HttpResponse.json([
@@ -136,8 +133,8 @@ describe("ReservationFormModal — 担当者候補", () => {
             group_id: null,
             group: null,
           },
-        ])
-      )
+        ]),
+      ),
     );
 
     const user = userEvent.setup({ delay: null });
@@ -151,7 +148,7 @@ describe("ReservationFormModal — 担当者候補", () => {
         canCreate={true}
         canEdit={false}
       />,
-      { wrapper: createWrapper() }
+      { wrapper: createWrapper() },
     );
 
     await user.click(screen.getByTestId("res-type-trigger"));

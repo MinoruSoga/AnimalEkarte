@@ -23,13 +23,7 @@ describe("CampaignSidePanel", () => {
   // e93ac185b で responsive grid から PropertyRow 行構成へ移行済み。
   // 行入力の存在と、対象カテゴリの単一列 grid を現行仕様として固定する。
   it("PropertyRow 行構成で開始日・割引種別・対象カテゴリを描画する", () => {
-    render(
-      <CampaignSidePanel
-        item={null}
-        onClose={() => {}}
-        onSave={() => {}}
-      />,
-    );
+    render(<CampaignSidePanel item={null} onClose={() => {}} onSave={() => {}} />);
 
     expect(screen.getByLabelText("開始日")).toBeInTheDocument();
     expect(screen.getByLabelText("終了日")).toBeInTheDocument();

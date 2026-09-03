@@ -1,4 +1,4 @@
-import { http, HttpResponse } from 'msw';
+import { http, HttpResponse } from "msw";
 
 /**
  * Common API handlers for MSW
@@ -6,12 +6,12 @@ import { http, HttpResponse } from 'msw';
  */
 export const handlers = [
   // Health check or session info
-  http.get('/api/auth/me', () => {
+  http.get("/api/auth/me", () => {
     return HttpResponse.json({
-      id: '1',
-      name: 'Test User',
-      email: 'test@example.com',
-      role: 'admin',
+      id: "1",
+      name: "Test User",
+      email: "test@example.com",
+      role: "admin",
     });
   }),
 

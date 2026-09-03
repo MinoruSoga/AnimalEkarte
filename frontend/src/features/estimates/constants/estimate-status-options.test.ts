@@ -11,9 +11,7 @@ describe("estimate-status-options 契約", () => {
   });
 
   it("Create 用選択肢は CREATE_ALLOWED_STATUSES と一致（draft / sent）", () => {
-    expect(CREATE_STATUS_OPTIONS.map((o) => o.value)).toEqual([
-      ...CREATE_ALLOWED_STATUSES,
-    ]);
+    expect(CREATE_STATUS_OPTIONS.map((o) => o.value)).toEqual([...CREATE_ALLOWED_STATUSES]);
   });
 
   it("Edit 用選択肢は draft / sent / approved / rejected の 4 値", () => {

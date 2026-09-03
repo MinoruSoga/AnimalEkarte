@@ -9,12 +9,7 @@ describe("FormHeaderActions", () => {
     const user = userEvent.setup();
     const onCancel = vi.fn();
 
-    render(
-      <FormHeaderActions
-        onCancel={onCancel}
-        submitLabel="保存"
-      />,
-    );
+    render(<FormHeaderActions onCancel={onCancel} submitLabel="保存" />);
 
     expect(screen.getByRole("button", { name: "キャンセル" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "保存" })).toBeInTheDocument();

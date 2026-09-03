@@ -1,38 +1,38 @@
-import { type Locator, type Page } from '@playwright/test';
-import { BasePage } from './base-page';
+import { type Locator, type Page } from "@playwright/test";
+import { BasePage } from "./base-page";
 
 /** Inventory screens (`/inventory`). */
 export class InventoryPage extends BasePage {
-  gotoList(): ReturnType<Page['goto']> {
-    return this.open('/inventory');
+  gotoList(): ReturnType<Page["goto"]> {
+    return this.open("/inventory");
   }
 
-  gotoNew(): ReturnType<Page['goto']> {
-    return this.open('/inventory/new');
+  gotoNew(): ReturnType<Page["goto"]> {
+    return this.open("/inventory/new");
   }
 
   listHeading(): Locator {
-    return this.heading('在庫管理');
+    return this.heading("在庫管理");
   }
 
   newFormHeading(): Locator {
-    return this.heading('在庫登録');
+    return this.heading("在庫登録");
   }
 
   editHeading(): Locator {
-    return this.heading('在庫編集');
+    return this.heading("在庫編集");
   }
 
   nameInput(): Locator {
-    return this.page.locator('#name');
+    return this.page.locator("#name");
   }
 
   unitInput(): Locator {
-    return this.page.locator('#unit');
+    return this.page.locator("#unit");
   }
 
   quantityInput(): Locator {
-    return this.page.locator('#quantity');
+    return this.page.locator("#quantity");
   }
 
   /** Submit button bound to the form via `form="inventory-form"` (attribute selector avoids duplicate matches). */
@@ -41,7 +41,7 @@ export class InventoryPage extends BasePage {
   }
 
   searchInput(): Locator {
-    return this.page.getByPlaceholder('品名、保管場所、仕入先...');
+    return this.page.getByPlaceholder("品名、保管場所、仕入先...");
   }
 
   itemText(name: string): Locator {

@@ -90,9 +90,7 @@ describe("AccountingReportsPage 印刷 / PDF出力 (#184) + 操作UI除外 (#179
     for (const select of Array.from(container.querySelectorAll("select"))) {
       expect(select).toHaveClass("min-h-11");
     }
-    expect(await screen.findByRole("link", { name: /税率設定を変更/ })).toHaveClass(
-      "min-h-11",
-    );
+    expect(await screen.findByRole("link", { name: /税率設定を変更/ })).toHaveClass("min-h-11");
   });
 
   it("#184: 印刷エリアに 病院名・対象年月・日次明細 が含まれる", async () => {
@@ -114,9 +112,7 @@ describe("AccountingReportsPage 印刷 / PDF出力 (#184) + 操作UI除外 (#179
   });
 
   it("#184: データ取得失敗時は印刷ボタンが表示されない", async () => {
-    server.use(
-      http.get("*/v1/reports/monthly", () => new HttpResponse(null, { status: 500 })),
-    );
+    server.use(http.get("*/v1/reports/monthly", () => new HttpResponse(null, { status: 500 })));
     renderPage();
     await waitFor(() => {
       expect(screen.getByText("データの取得に失敗しました")).toBeInTheDocument();

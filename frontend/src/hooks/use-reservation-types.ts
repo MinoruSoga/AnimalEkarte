@@ -117,9 +117,7 @@ const fetchReservationAvailableTimes = async (
  * features/reservations と同一 query key を使用し React Query キャッシュを共有。
  * selectedTypeId を渡すと、その ID の無効区分だけを表示用に残す（BUG-015）。
  */
-export function useGetReservationTypesGrouped(
-  selectedTypeId?: string | number | null,
-) {
+export function useGetReservationTypesGrouped(selectedTypeId?: string | number | null) {
   const selectedId =
     selectedTypeId === null || selectedTypeId === undefined || selectedTypeId === ""
       ? null
@@ -193,7 +191,11 @@ export function useGetReservationAvailableTimes(
   staffId: string | null,
 ) {
   return useQuery({
-    queryKey: queryKeys.reservations.availableTimes(reservationTypeId!, date!, staffId ?? undefined),
+    queryKey: queryKeys.reservations.availableTimes(
+      reservationTypeId!,
+      date!,
+      staffId ?? undefined,
+    ),
     queryFn: () => fetchReservationAvailableTimes(reservationTypeId!, date!, staffId),
     enabled: reservationTypeId !== null && date !== null,
     staleTime: QUERY_STALE_TIMES.REALTIME,

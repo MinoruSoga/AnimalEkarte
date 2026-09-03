@@ -161,12 +161,23 @@ export const MASTER_SECTIONS: SectionDef[] = [
   { title: "基本設定", keys: ["clinic", "animal_species"] },
   {
     title: "カルテ",
-    keys: ["treatmentItems", "diagnosisGroup", "inquiry_template", "chief_complaint", "medicine", "examinationItems", "labDeviceItemMasters"],
+    keys: [
+      "treatmentItems",
+      "diagnosisGroup",
+      "inquiry_template",
+      "chief_complaint",
+      "medicine",
+      "examinationItems",
+      "labDeviceItemMasters",
+    ],
   },
   { title: "予約管理マスタ", keys: ["reservationType"] },
   { title: "入院・ケージ管理", keys: ["hospitalization", "cage"] },
   { title: "トリミング関連", keys: ["trimmingGroup", "trimmingCourseTypes"] },
-  { title: "会計・商品", keys: ["merchandise_item", "insurance", "paymentMethods", "campaigns", "closingTime"] },
+  {
+    title: "会計・商品",
+    keys: ["merchandise_item", "insurance", "paymentMethods", "campaigns", "closingTime"],
+  },
   { title: "スタッフ・権限", keys: ["staff", "occupations", "permission_group"] },
   { title: "シフト管理", keys: ["shift_template"] },
 ];

@@ -24,7 +24,10 @@ const getDiscountSuggestions = async (itemId: string): Promise<DiscountSuggestio
 };
 
 /** #81 Q-I: 明細に適用可能な割引候補を取得するフック。enabled=true になった時点で fetch する。 */
-export const useGetBillingItemDiscountSuggestions = (itemId: string | undefined, enabled: boolean) =>
+export const useGetBillingItemDiscountSuggestions = (
+  itemId: string | undefined,
+  enabled: boolean,
+) =>
   useQuery({
     queryKey: queryKeys.billingItemDiscountSuggestions(itemId!),
     queryFn: () => getDiscountSuggestions(itemId!),

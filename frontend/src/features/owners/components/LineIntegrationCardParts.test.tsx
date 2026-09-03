@@ -13,11 +13,7 @@ describe("UnlinkedLineIdForm", () => {
     try {
       const { container } = render(
         <form>
-          <UnlinkedLineIdForm
-            canEdit
-            lineIdFormAction={vi.fn()}
-            lineIdState={LINE_ID_STATE}
-          />
+          <UnlinkedLineIdForm canEdit lineIdFormAction={vi.fn()} lineIdState={LINE_ID_STATE} />
         </form>,
       );
 

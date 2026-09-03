@@ -97,9 +97,11 @@ function renderList() {
 
 async function openRowActions() {
   const user = userEvent.setup();
-  await user.click(screen.getByRole("button", {
-    name: /見積書.*EST-001.*テスト見積書.*ID: 1.*操作/,
-  }));
+  await user.click(
+    screen.getByRole("button", {
+      name: /見積書.*EST-001.*テスト見積書.*ID: 1.*操作/,
+    }),
+  );
   return user;
 }
 

@@ -27,22 +27,33 @@ export function useReceptionColumnView({
 } {
   const navigate = useNavigate();
 
-  const handleRecordOpen = useCallback((appointment: ReceptionAppointment, columnTitle: string) => {
-    if (columnTitle === "受付済" && canEditReservation === true) {
-      advanceStatus(appointment);
-    }
-  }, [advanceStatus, canEditReservation]);
+  const handleRecordOpen = useCallback(
+    (appointment: ReceptionAppointment, columnTitle: string) => {
+      if (columnTitle === "受付済" && canEditReservation === true) {
+        advanceStatus(appointment);
+      }
+    },
+    [advanceStatus, canEditReservation],
+  );
 
   // 当日受付ページから新規予約作成モーダルを自動オープンする遷移ヘルパー。
-  const goToNewReservation = useCallback((query: string) => {
-    navigate(`${paths.reservations.getHref()}?${query}`, { state: { from: paths.home.getHref() } });
-  }, [navigate]);
+  const goToNewReservation = useCallback(
+    (query: string) => {
+      navigate(`${paths.reservations.getHref()}?${query}`, {
+        state: { from: paths.home.getHref() },
+      });
+    },
+    [navigate],
+  );
 
   // 受付予約ボード → 通常の新規予約（confirmed → 受付予約カラム）。
   // 受付済ボード → 受付 walk-in（checked_in → 受付済カラム、route=reception）。
-  const handleAddClick = useCallback((columnTitle: string) => {
-    goToNewReservation(columnTitle === "受付予約" ? "newReservation=1" : "reception=1");
-  }, [goToNewReservation]);
+  const handleAddClick = useCallback(
+    (columnTitle: string) => {
+      goToNewReservation(columnTitle === "受付予約" ? "newReservation=1" : "reception=1");
+    },
+    [goToNewReservation],
+  );
 
   const addClickHandlers = useMemo(() => {
     const handlers = new Map<string, (() => void) | undefined>();
@@ -51,23 +62,24 @@ export function useReceptionColumnView({
     for (const column of filteredColumns) {
       handlers.set(
         column.title,
-        NO_ADD_BUTTON_COLUMNS.has(column.title) ? undefined : () => handleAddClick(column.title)
+        NO_ADD_BUTTON_COLUMNS.has(column.title) ? undefined : () => handleAddClick(column.title),
       );
     }
     return handlers;
   }, [filteredColumns, handleAddClick, canCreateReservation]);
 
-  const columnElements = useMemo(() =>
-    filteredColumns.map((column) => (
-      <KanbanColumn
-        key={column.title}
-        data={column}
-        onAddClick={addClickHandlers.get(column.title)}
-        onCardClick={onCardClick}
-        onRecordOpen={handleRecordOpen}
-      />
-    )),
-    [filteredColumns, addClickHandlers, onCardClick, handleRecordOpen]
+  const columnElements = useMemo(
+    () =>
+      filteredColumns.map((column) => (
+        <KanbanColumn
+          key={column.title}
+          data={column}
+          onAddClick={addClickHandlers.get(column.title)}
+          onCardClick={onCardClick}
+          onRecordOpen={handleRecordOpen}
+        />
+      )),
+    [filteredColumns, addClickHandlers, onCardClick, handleRecordOpen],
   );
 
   // js-set-map-lookups: レンダーパスの O(n²) find+some を O(1) Map ルックアップへ変換

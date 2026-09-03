@@ -136,7 +136,12 @@ export function SearchableSelect({
           className,
         )}
       >
-        <span className={cn("min-w-0 flex-1 truncate whitespace-nowrap text-left", selectedLabel ? C.text : C.text40)}>
+        <span
+          className={cn(
+            "min-w-0 flex-1 truncate whitespace-nowrap text-left",
+            selectedLabel ? C.text : C.text40,
+          )}
+        >
           {selectedLabel || placeholder}
         </span>
         <ChevronDown className={cn("size-4 shrink-0 opacity-50", C.text)} />

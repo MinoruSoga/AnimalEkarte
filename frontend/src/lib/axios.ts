@@ -1,8 +1,5 @@
 import Axios, { type InternalAxiosRequestConfig, type AxiosError } from "axios";
-import {
-  isAuthPublicPath,
-  isPasswordRecoveryPublicPath,
-} from "@/lib/auth-route-policy";
+import { isAuthPublicPath, isPasswordRecoveryPublicPath } from "@/lib/auth-route-policy";
 import { getStoredClinicId } from "@/lib/current-clinic";
 import { parseInternalPath } from "@/lib/internal-navigation";
 import { sanitizeNullBytes } from "@/lib/sanitize";
@@ -79,7 +76,7 @@ function processQueue(error: AxiosError | null): void {
   pendingRequests = [];
 }
 
-type RetryableConfig = InternalAxiosRequestConfig & { 
+type RetryableConfig = InternalAxiosRequestConfig & {
   _retryCount?: number;
   _retry?: boolean;
 };
@@ -101,13 +98,14 @@ function redirectToLogin(): void {
 axios.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
-      const config = error.config as RetryableConfig | undefined;
+    const config = error.config as RetryableConfig | undefined;
     if (!config) return Promise.reject(error);
 
     // --- 1. 自動リトライロジック (GETリクエストのみ) ---
     const isGetRequest = config.method?.toLowerCase() === "get";
     const isNetworkError = !error.response && error.code !== "ERR_CANCELED";
-    const isServerError = error.response && error.response.status >= 502 && error.response.status <= 504;
+    const isServerError =
+      error.response && error.response.status >= 502 && error.response.status <= 504;
 
     if (isGetRequest && (isNetworkError || isServerError)) {
       config._retryCount = config._retryCount ?? 0;
@@ -115,17 +113,14 @@ axios.interceptors.response.use(
       if (config._retryCount < MAX_RETRIES) {
         config._retryCount += 1;
         // 指数バックオフ的な待機
-        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS * config._retryCount!));
+        await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS * config._retryCount!));
         return axios(config);
       }
     }
 
     // Public auth pages intentionally work without a session. Expected login/recovery
     // 401s belong to the page and must not trigger a refresh request.
-    if (
-      error.response?.status === 401 &&
-      isAuthPublicPath(window.location.pathname)
-    ) {
+    if (error.response?.status === 401 && isAuthPublicPath(window.location.pathname)) {
       return Promise.reject(error);
     }
 

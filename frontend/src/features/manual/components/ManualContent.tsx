@@ -15,11 +15,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { C } from "@/lib/design-tokens";
 import { paths } from "@/config/paths";
 
-import {
-  screenArticles,
-  workflowArticles,
-  type ManualArticle,
-} from "../lib/manual-index";
+import { screenArticles, workflowArticles, type ManualArticle } from "../lib/manual-index";
 
 export function getSafeMarkdownHref(href: unknown): string | undefined {
   if (typeof href !== "string") return undefined;
@@ -62,9 +58,7 @@ function getAdjacent(article: ManualArticle): {
   next: ManualArticle | undefined;
 } {
   const list = article.category === "screens" ? screenArticles : workflowArticles;
-  const idx = list.findIndex(
-    (a) => a.category === article.category && a.slug === article.slug,
-  );
+  const idx = list.findIndex((a) => a.category === article.category && a.slug === article.slug);
   if (idx < 0) return { prev: undefined, next: undefined };
   return {
     prev: idx > 0 ? list[idx - 1] : undefined,
@@ -100,18 +94,12 @@ const MARKDOWN_COMPONENTS: Parameters<typeof ReactMarkdown>[0]["components"] = {
   h2: ({ children }) => (
     <h2 className={`text-heading-3 font-bold mt-8 mb-3 ${C.text}`}>{children}</h2>
   ),
-  h3: ({ children }) => (
-    <h3 className={`text-xl font-semibold mt-6 mb-2 ${C.text}`}>{children}</h3>
-  ),
+  h3: ({ children }) => <h3 className={`text-xl font-semibold mt-6 mb-2 ${C.text}`}>{children}</h3>,
   h4: ({ children }) => (
     <h4 className={`text-base font-semibold mt-4 mb-2 ${C.text}`}>{children}</h4>
   ),
-  p: ({ children }) => (
-    <p className={`my-3 leading-relaxed ${C.text}`}>{children}</p>
-  ),
-  ul: ({ children }) => (
-    <ul className={`list-disc pl-6 my-3 space-y-1 ${C.text}`}>{children}</ul>
-  ),
+  p: ({ children }) => <p className={`my-3 leading-relaxed ${C.text}`}>{children}</p>,
+  ul: ({ children }) => <ul className={`list-disc pl-6 my-3 space-y-1 ${C.text}`}>{children}</ul>,
   ol: ({ children }) => (
     <ol className={`list-decimal pl-6 my-3 space-y-1 ${C.text}`}>{children}</ol>
   ),
@@ -119,9 +107,7 @@ const MARKDOWN_COMPONENTS: Parameters<typeof ReactMarkdown>[0]["components"] = {
   a: ({ href, children }) => {
     const safeHref = getSafeMarkdownHref(href);
     if (!safeHref) {
-      return (
-        <span className={`underline ${C.textBrand} hover:opacity-70`}>{children}</span>
-      );
+      return <span className={`underline ${C.textBrand} hover:opacity-70`}>{children}</span>;
     }
     return (
       <a
@@ -139,9 +125,7 @@ const MARKDOWN_COMPONENTS: Parameters<typeof ReactMarkdown>[0]["components"] = {
       <table className={`w-full text-sm border ${C.borderDivider}`}>{children}</table>
     </div>
   ),
-  thead: ({ children }) => (
-    <thead className="bg-black/5">{children}</thead>
-  ),
+  thead: ({ children }) => <thead className="bg-black/5">{children}</thead>,
   th: ({ children }) => (
     <th className={`px-3 py-2 text-left font-semibold border ${C.borderDivider} ${C.text}`}>
       {children}
@@ -151,9 +135,7 @@ const MARKDOWN_COMPONENTS: Parameters<typeof ReactMarkdown>[0]["components"] = {
     <td className={`px-3 py-2 border ${C.borderDivider} ${C.text65}`}>{children}</td>
   ),
   blockquote: ({ children }) => (
-    <blockquote
-      className={`my-4 pl-4 border-l-2 italic ${C.text65} ${C.borderLBrand}`}
-    >
+    <blockquote className={`my-4 pl-4 border-l-2 italic ${C.text65} ${C.borderLBrand}`}>
       {children}
     </blockquote>
   ),
@@ -161,21 +143,15 @@ const MARKDOWN_COMPONENTS: Parameters<typeof ReactMarkdown>[0]["components"] = {
     const isInline = !className;
     if (isInline) {
       return (
-        <code
-          className={`px-1.5 py-0.5 rounded-xxs text-[0.875em] ${C.text} ${C.bgHoverMd}`}
-        >
+        <code className={`px-1.5 py-0.5 rounded-xxs text-[0.875em] ${C.text} ${C.bgHoverMd}`}>
           {children}
         </code>
       );
     }
-    return (
-      <code className={`block ${className ?? ""}`}>{children}</code>
-    );
+    return <code className={`block ${className ?? ""}`}>{children}</code>;
   },
   pre: ({ children }) => (
-    <pre
-      className={`my-4 p-4 rounded-xxs overflow-x-auto text-sm ${C.text} ${C.bgPrimary10}`}
-    >
+    <pre className={`my-4 p-4 rounded-xxs overflow-x-auto text-sm ${C.text} ${C.bgPrimary10}`}>
       {children}
     </pre>
   ),

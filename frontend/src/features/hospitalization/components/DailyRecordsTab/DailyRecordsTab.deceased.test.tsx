@@ -68,9 +68,7 @@ describe("FE-RC-002: DailyRecordsTab — 死亡ペットの render 側防壁", (
 
   it("petIsDeceased=true では追加ボタンを一切表示せず理由を表示する", () => {
     renderTab(true);
-    expect(
-      screen.queryByRole("button", { name: "追加" }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "追加" })).not.toBeInTheDocument();
     expect(
       screen.getByText("死亡したペットのため、デイリーカルテの記録・追加はできません"),
     ).toBeInTheDocument();

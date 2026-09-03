@@ -8,10 +8,7 @@ import { useGetOwner } from "@/hooks/use-owner";
 import { useTitle } from "@/hooks/use-title";
 import { C } from "@/lib/design-tokens";
 import type { Owner, Pet } from "@/types";
-import {
-  ResourceMedicalRecords,
-  ResourceOwners,
-} from "@/types/generated/models";
+import { ResourceMedicalRecords, ResourceOwners } from "@/types/generated/models";
 
 import { useGetOwnerReportPets } from "../api/get-owner-report-pets";
 import { useGetPetFirstVisit } from "../api/get-pet-first-visit";
@@ -30,8 +27,7 @@ export function OwnerReport() {
   const { isAuthenticated, isLoading } = useAuth();
 
   if (isLoading) return null;
-  if (!isAuthenticated)
-    return <Navigate to={paths.auth.login.getHref()} replace />;
+  if (!isAuthenticated) return <Navigate to={paths.auth.login.getHref()} replace />;
   return (
     <RequirePermission resource={ResourceMedicalRecords}>
       <RequirePermission resource={ResourceOwners}>
@@ -45,9 +41,7 @@ function useOwnerPetSelection(pets: ReadonlyArray<Pet>) {
   const [searchParams, setSearchParams] = useSearchParams();
   const petIdParam = searchParams.get("petId");
   const selectedPetId =
-    petIdParam && pets.some((pet) => pet.id === petIdParam)
-      ? petIdParam
-      : pets[0]?.id;
+    petIdParam && pets.some((pet) => pet.id === petIdParam) ? petIdParam : pets[0]?.id;
   const selectedPet = pets.find((pet) => pet.id === selectedPetId);
   const handleSelectPet = useCallback(
     (petId: string) => {
@@ -67,9 +61,7 @@ function useOwnerPetSelection(pets: ReadonlyArray<Pet>) {
 
 function ReportStatus({ error = false }: { error?: boolean }) {
   return (
-    <div
-      className={`flex min-h-dvh items-center justify-center ${C.bgPage} p-6`}
-    >
+    <div className={`flex min-h-dvh items-center justify-center ${C.bgPage} p-6`}>
       <p
         className={`text-sm ${error ? C.danger : C.text50}`}
         role={error ? "alert" : "status"}
@@ -89,13 +81,7 @@ interface ReportHeaderProps {
   onSelectPet: (petId: string) => void;
 }
 
-function ReportHeader({
-  owner,
-  pets,
-  selectedPet,
-  selectedPetId,
-  onSelectPet,
-}: ReportHeaderProps) {
+function ReportHeader({ owner, pets, selectedPet, selectedPetId, onSelectPet }: ReportHeaderProps) {
   return (
     <header
       className={`z-20 shrink-0 border-b px-2 py-1 shadow-level1 ${C.borderLight} ${C.bgWhite}`}
@@ -104,18 +90,12 @@ function ReportHeader({
         {owner ? (
           <OwnerReportPanel owner={owner} />
         ) : (
-          <p className={`text-sm ${C.danger}`}>
-            飼主情報を取得できませんでした
-          </p>
+          <p className={`text-sm ${C.danger}`}>飼主情報を取得できませんでした</p>
         )}
         <div className="flex min-w-0 items-center gap-3">
           {selectedPet ? <SelectedPetContext pet={selectedPet} /> : null}
           {pets.length > 0 ? (
-            <PetSwitcher
-              pets={[...pets]}
-              selectedPetId={selectedPetId}
-              onSelect={onSelectPet}
-            />
+            <PetSwitcher pets={[...pets]} selectedPetId={selectedPetId} onSelect={onSelectPet} />
           ) : null}
         </div>
       </div>
@@ -136,9 +116,7 @@ function ReportBody(props: ReportBodyProps) {
     return (
       <main className="min-h-0 flex-1 p-2">
         <div className="p-3">
-          <p className={`text-sm ${C.text50}`}>
-            この飼主に登録されたペットがありません
-          </p>
+          <p className={`text-sm ${C.text50}`}>この飼主に登録されたペットがありません</p>
         </div>
       </main>
     );
@@ -153,7 +131,6 @@ function ReportBody(props: ReportBodyProps) {
     />
   );
 }
-
 
 function OwnerReportContent() {
   const { id: ownerId = "" } = useParams();

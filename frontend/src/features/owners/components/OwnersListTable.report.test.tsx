@@ -9,7 +9,9 @@ import { OwnersListTable } from "./OwnersListTable";
 import type { Pet } from "@/types";
 
 // 行アクション(RowActionDropdown)の表示・発火に焦点を当てるため、無関係な重い子は無効化する。
-vi.mock("@/components/shared/PropertyFilter/PropertyFilter", () => ({ PropertyFilter: () => null }));
+vi.mock("@/components/shared/PropertyFilter/PropertyFilter", () => ({
+  PropertyFilter: () => null,
+}));
 vi.mock("@/components/shared/Pagination", () => ({ Pagination: () => null }));
 vi.mock("@/components/shared/FilteringIndicator/FilteringIndicator", () => ({
   FilteringIndicator: ({ children }: { children: ReactNode }) => <>{children}</>,
@@ -68,9 +70,11 @@ describe("OwnersListTable レポート行アクション (#158)", () => {
     const onReport = vi.fn();
     renderTable({ onReport });
 
-    await user.click(screen.getByRole("button", {
-      name: /飼主.*山田太郎.*ID: 42.*ペット.*ポチ.*ID: 7.*操作/,
-    }));
+    await user.click(
+      screen.getByRole("button", {
+        name: /飼主.*山田太郎.*ID: 42.*ペット.*ポチ.*ID: 7.*操作/,
+      }),
+    );
     await user.click(await screen.findByRole("menuitem", { name: /レポート/ }));
 
     expect(onReport).toHaveBeenCalledWith("42", "7");
@@ -80,9 +84,11 @@ describe("OwnersListTable レポート行アクション (#158)", () => {
     const user = userEvent.setup();
     renderTable({ canReport: false });
 
-    await user.click(screen.getByRole("button", {
-      name: /飼主.*山田太郎.*ID: 42.*ペット.*ポチ.*ID: 7.*操作/,
-    }));
+    await user.click(
+      screen.getByRole("button", {
+        name: /飼主.*山田太郎.*ID: 42.*ペット.*ポチ.*ID: 7.*操作/,
+      }),
+    );
 
     expect(await screen.findByRole("menuitem", { name: /編集/ })).toBeInTheDocument();
     expect(screen.queryByRole("menuitem", { name: /レポート/ })).not.toBeInTheDocument();
@@ -136,47 +142,39 @@ describe("OwnersListTable 危険理由 Popover (#234)", () => {
     { caseName: "undefined", dangerReason: undefined },
     { caseName: "空文字", dangerReason: "" },
     { caseName: "空白のみ", dangerReason: " \t\n " },
-  ])(
-    "dangerReason が $caseName の high 個体は理由未登録を開示する",
-    async ({ dangerReason }) => {
-      const user = userEvent.setup();
-      renderTable({
-        pets: [{ ...pet, dangerLevel: "高", dangerReason }],
-      });
+  ])("dangerReason が $caseName の high 個体は理由未登録を開示する", async ({ dangerReason }) => {
+    const user = userEvent.setup();
+    renderTable({
+      pets: [{ ...pet, dangerLevel: "高", dangerReason }],
+    });
 
-      await user.click(
-        screen.getByRole("button", { name: "ポチの危険理由を表示" }),
-      );
+    await user.click(screen.getByRole("button", { name: "ポチの危険理由を表示" }));
 
-      expect(await screen.findByText("理由未登録")).toBeInTheDocument();
-    },
-  );
+    expect(await screen.findByText("理由未登録")).toBeInTheDocument();
+  });
 
   it.each([
     { keyName: "Enter", key: "{Enter}" },
     { keyName: "Space", key: " " },
-  ])(
-    "$keyName の同一キー操作で危険理由を開閉する",
-    async ({ key }) => {
-      const user = userEvent.setup();
-      renderTable({
-        pets: [{ ...pet, dangerLevel: "高", dangerReason: "診察台で噛む" }],
-      });
-      const trigger = screen.getByRole("button", {
-        name: "ポチの危険理由を表示",
-      });
+  ])("$keyName の同一キー操作で危険理由を開閉する", async ({ key }) => {
+    const user = userEvent.setup();
+    renderTable({
+      pets: [{ ...pet, dangerLevel: "高", dangerReason: "診察台で噛む" }],
+    });
+    const trigger = screen.getByRole("button", {
+      name: "ポチの危険理由を表示",
+    });
 
-      trigger.focus();
-      await user.keyboard(key);
-      expect(await screen.findByText("診察台で噛む")).toBeInTheDocument();
+    trigger.focus();
+    await user.keyboard(key);
+    expect(await screen.findByText("診察台で噛む")).toBeInTheDocument();
 
-      trigger.focus();
-      await user.keyboard(key);
-      await waitFor(() => {
-        expect(screen.queryByText("診察台で噛む")).not.toBeInTheDocument();
-      });
-    },
-  );
+    trigger.focus();
+    await user.keyboard(key);
+    await waitFor(() => {
+      expect(screen.queryByText("診察台で噛む")).not.toBeInTheDocument();
+    });
+  });
 
   it("危険度 high だけ既存の警告文言と視覚クラスを trigger に維持する", () => {
     renderTable({
@@ -204,9 +202,7 @@ describe("OwnersListTable 危険理由 Popover (#234)", () => {
       C.borderDanger20,
     );
     expect(screen.getAllByText("⚠ 危険")).toHaveLength(1);
-    expect(
-      screen.queryByRole("button", { name: "ミケの危険理由を表示" }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "ミケの危険理由を表示" })).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "コタロウの危険理由を表示" }),
     ).not.toBeInTheDocument();

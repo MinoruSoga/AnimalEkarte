@@ -86,10 +86,7 @@ describe("AppointmentCard", () => {
       reservationType: "入院",
     });
 
-    expect(screen.getByRole("button", { name: /ポチの会計/ })).toHaveClass(
-      "min-h-11",
-      "min-w-11",
-    );
+    expect(screen.getByRole("button", { name: /ポチの会計/ })).toHaveClass("min-h-11", "min-w-11");
     expect(screen.getByRole("button", { name: /ポチの入院登録/ })).toHaveClass(
       "min-h-11",
       "min-w-11",
@@ -174,12 +171,15 @@ describe("AppointmentCard", () => {
   });
 
   it("トリミング予約の施術ボタンは受付済カラム以外では表示しない", () => {
-    renderCard({
-      ...baseAppointment,
-      id: "202",
-      reservationType: "シャンプーコース",
-      reservationCategory: "trimming",
-    }, "診療中");
+    renderCard(
+      {
+        ...baseAppointment,
+        id: "202",
+        reservationType: "シャンプーコース",
+        reservationCategory: "trimming",
+      },
+      "診療中",
+    );
 
     expect(screen.queryByRole("button", { name: /ポチのトリミング記録/ })).not.toBeInTheDocument();
   });
@@ -341,11 +341,7 @@ describe("AppointmentCard", () => {
       petDangerLevel: DangerLevelHigh,
     });
 
-    expect(screen.getByText("⚠ 危険")).toHaveClass(
-      C.bgDanger10,
-      C.danger,
-      C.borderDanger20,
-    );
+    expect(screen.getByText("⚠ 危険")).toHaveClass(C.bgDanger10, C.danger, C.borderDanger20);
     expect(screen.queryByText("【死亡】")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /ポチのカルテ/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /ポチの会計/ })).toBeInTheDocument();

@@ -50,9 +50,7 @@ function transformToHistoryItem(v: Vaccination) {
 }
 export type PetVaccinationHistoryItem = ReturnType<typeof transformToHistoryItem>;
 
-const getPetVaccinations = async (
-  petId: string,
-): Promise<PetVaccinationHistoryItem[]> => {
+const getPetVaccinations = async (petId: string): Promise<PetVaccinationHistoryItem[]> => {
   // BUG-007: always pass page/limit + pet_id. Default BE limit=20 page-window
   // hid newer rows behind future-dated seed data when clients omitted limit.
   const { data } = await axios.get<{ data: Vaccination[] }>("/v1/vaccinations", {

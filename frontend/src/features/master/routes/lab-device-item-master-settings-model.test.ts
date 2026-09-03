@@ -108,9 +108,7 @@ describe("lab-device-item-master-settings-model", () => {
         ],
       },
     ];
-    expect(buildExamFieldOptions(examTypes)).toEqual([
-      { id: "21", label: "血液化学 / Na" },
-    ]);
+    expect(buildExamFieldOptions(examTypes)).toEqual([{ id: "21", label: "血液化学 / Na" }]);
   });
 
   it("対応済み項目から検査名を出し、未設定と複数を区別する", () => {
@@ -178,9 +176,7 @@ describe("lab-device-item-master-settings-model", () => {
     expect(labDeviceExamTypeId([item()], examTypes)).toBeNull();
     expect(labDeviceFieldName("21", examTypes)).toBe("Na");
     expect(labDeviceFieldName(null, examTypes)).toBe("");
-    expect(
-      examFieldOptionsForExamType(examTypes, "10"),
-    ).toEqual([{ id: "21", label: "Na" }]);
+    expect(examFieldOptionsForExamType(examTypes, "10")).toEqual([{ id: "21", label: "Na" }]);
     expect(examFieldOptionsForExamType(examTypes, null)).toEqual([]);
     expect(
       restrictDraftsToExamType(
@@ -198,9 +194,7 @@ describe("lab-device-item-master-settings-model", () => {
   });
 
   it("欠落している検査項目を選択肢へ残す", () => {
-    expect(examFieldOptionsForItem([], "99")).toEqual([
-      { id: "99", label: "欠落フィールド (99)" },
-    ]);
+    expect(examFieldOptionsForItem([], "99")).toEqual([{ id: "99", label: "欠落フィールド (99)" }]);
   });
 
   it("未選択の検査項目は空文字と null を往復する", () => {
@@ -211,9 +205,7 @@ describe("lab-device-item-master-settings-model", () => {
   });
 
   it("不正な検査項目を拒否する", () => {
-    expect(validateLabDeviceItemMasterDraft({ examTypeFieldId: "abc" })).toBe(
-      "検査項目が不正です",
-    );
+    expect(validateLabDeviceItemMasterDraft({ examTypeFieldId: "abc" })).toBe("検査項目が不正です");
     expect(validateLabDeviceItemMasterDraft({ examTypeFieldId: null })).toBeNull();
     expect(validateLabDeviceItemMasterDraft({ examTypeFieldId: "21" })).toBeNull();
   });
@@ -309,18 +301,26 @@ describe("lab-device-item-master-settings-model", () => {
   });
 
   it("未使用プロトコルと機器フォームの保存リクエストを組み立てる", () => {
-    expect(availableLabDeviceSourceTypes([device()])).toEqual(["fuji_au10v", "arkray_pu4010", "idexx_vetlab"]);
-    expect(availableLabDeviceSourceTypes([
-      device(),
-      device({ id: "2", sourceType: "fuji_au10v" }),
-      device({ id: "3", sourceType: "arkray_pu4010" }),
-    ])).toEqual(["idexx_vetlab"]);
-    expect(availableLabDeviceSourceTypes([
-      device(),
-      device({ id: "2", sourceType: "fuji_au10v" }),
-      device({ id: "3", sourceType: "arkray_pu4010" }),
-      device({ id: "4", sourceType: "idexx_vetlab" }),
-    ])).toEqual([]);
+    expect(availableLabDeviceSourceTypes([device()])).toEqual([
+      "fuji_au10v",
+      "arkray_pu4010",
+      "idexx_vetlab",
+    ]);
+    expect(
+      availableLabDeviceSourceTypes([
+        device(),
+        device({ id: "2", sourceType: "fuji_au10v" }),
+        device({ id: "3", sourceType: "arkray_pu4010" }),
+      ]),
+    ).toEqual(["idexx_vetlab"]);
+    expect(
+      availableLabDeviceSourceTypes([
+        device(),
+        device({ id: "2", sourceType: "fuji_au10v" }),
+        device({ id: "3", sourceType: "arkray_pu4010" }),
+        device({ id: "4", sourceType: "idexx_vetlab" }),
+      ]),
+    ).toEqual([]);
     expect(labDeviceToFormData(null, ["fuji_au10v"])).toEqual({
       name: "AU10V",
       sourceType: "fuji_au10v",
@@ -330,59 +330,73 @@ describe("lab-device-item-master-settings-model", () => {
     });
     expect(examTypeSelectValue(null)).toBe(LAB_DEVICE_EXAM_SELECT_UNSET);
     expect(parseExamTypeSelectValue(LAB_DEVICE_EXAM_SELECT_UNSET)).toBeNull();
-    expect(examTypeSelectOptions([{
-      id: "10",
-      name: "血液化学",
-      price: 0,
-      isActive: true,
-      description: "",
-      sortOrder: 1,
-      isNonInsurance: false,
-      createdAt: "",
-      updatedAt: "",
-      items: [],
-    }])).toEqual([
+    expect(
+      examTypeSelectOptions([
+        {
+          id: "10",
+          name: "血液化学",
+          price: 0,
+          isActive: true,
+          description: "",
+          sortOrder: 1,
+          isNonInsurance: false,
+          createdAt: "",
+          updatedAt: "",
+          items: [],
+        },
+      ]),
+    ).toEqual([
       { value: LAB_DEVICE_EXAM_SELECT_UNSET, label: LAB_DEVICE_EXAM_UNSET },
       { value: "10", label: "血液化学" },
     ]);
-    expect(validateLabDeviceDraft({
-      name: "",
-      sourceType: "fuji_nx600",
-      examTypeId: null,
-      requireSourceType: true,
-    })).toBe("機器名は必須です");
-    expect(validateLabDeviceDraft({
-      name: "院内NX",
-      sourceType: "",
-      examTypeId: null,
-      requireSourceType: true,
-    })).toBe("プロトコルを選んでください");
-    expect(validateLabDeviceDraft({
-      name: "院内NX",
-      sourceType: "fuji_nx600",
-      examTypeId: "10",
-      requireSourceType: true,
-    })).toBeNull();
-    expect(buildLabDeviceCreateRequest({
-      name: " 院内NX ",
-      sourceType: "fuji_nx600",
-      examTypeId: "10",
-      isActive: true,
-      sortOrder: 10,
-    })).toEqual({
+    expect(
+      validateLabDeviceDraft({
+        name: "",
+        sourceType: "fuji_nx600",
+        examTypeId: null,
+        requireSourceType: true,
+      }),
+    ).toBe("機器名は必須です");
+    expect(
+      validateLabDeviceDraft({
+        name: "院内NX",
+        sourceType: "",
+        examTypeId: null,
+        requireSourceType: true,
+      }),
+    ).toBe("プロトコルを選んでください");
+    expect(
+      validateLabDeviceDraft({
+        name: "院内NX",
+        sourceType: "fuji_nx600",
+        examTypeId: "10",
+        requireSourceType: true,
+      }),
+    ).toBeNull();
+    expect(
+      buildLabDeviceCreateRequest({
+        name: " 院内NX ",
+        sourceType: "fuji_nx600",
+        examTypeId: "10",
+        isActive: true,
+        sortOrder: 10,
+      }),
+    ).toEqual({
       name: "院内NX",
       source_type: "fuji_nx600",
       exam_type_id: 10,
       is_active: true,
       sort_order: 10,
     });
-    expect(buildLabDeviceUpdateRequest({
-      name: "院内NX",
-      sourceType: "fuji_nx600",
-      examTypeId: null,
-      isActive: false,
-      sortOrder: 15,
-    })).toEqual({
+    expect(
+      buildLabDeviceUpdateRequest({
+        name: "院内NX",
+        sourceType: "fuji_nx600",
+        examTypeId: null,
+        isActive: false,
+        sortOrder: 15,
+      }),
+    ).toEqual({
       name: "院内NX",
       exam_type_id: null,
       is_active: false,
@@ -412,7 +426,9 @@ describe("lab-device-item-master-settings-model", () => {
       ],
     });
     expect(
-      collectDirtyLabDeviceUpdates(items, [{ ...itemToLabDeviceDraft(items[0]!), examTypeFieldId: "x" }]).error,
+      collectDirtyLabDeviceUpdates(items, [
+        { ...itemToLabDeviceDraft(items[0]!), examTypeFieldId: "x" },
+      ]).error,
     ).toBe("K-P: 検査項目が不正です");
   });
 
@@ -429,7 +445,18 @@ describe("lab-device-item-master-settings-model", () => {
         createdAt: "",
         updatedAt: "",
         items: [
-          { id: "21", examTypeId: "10", name: "Na", inspectionValue: "", normalValue: "", unit: "mEq/l", sortOrder: 1, createdAt: "", updatedAt: "", referenceRanges: [] },
+          {
+            id: "21",
+            examTypeId: "10",
+            name: "Na",
+            inspectionValue: "",
+            normalValue: "",
+            unit: "mEq/l",
+            sortOrder: 1,
+            createdAt: "",
+            updatedAt: "",
+            referenceRanges: [],
+          },
         ],
       },
       {
@@ -443,7 +470,18 @@ describe("lab-device-item-master-settings-model", () => {
         createdAt: "",
         updatedAt: "",
         items: [
-          { id: "31", examTypeId: "11", name: "尿糖", inspectionValue: "", normalValue: "", unit: "mg/dL", sortOrder: 1, createdAt: "", updatedAt: "", referenceRanges: [] },
+          {
+            id: "31",
+            examTypeId: "11",
+            name: "尿糖",
+            inspectionValue: "",
+            normalValue: "",
+            unit: "mg/dL",
+            sortOrder: 1,
+            createdAt: "",
+            updatedAt: "",
+            referenceRanges: [],
+          },
         ],
       },
     ];
@@ -469,8 +507,30 @@ describe("lab-device-item-master-settings-model", () => {
         createdAt: "",
         updatedAt: "",
         items: [
-          { id: "21", examTypeId: "10", name: "Na", inspectionValue: "", normalValue: "", unit: "mEq/l", sortOrder: 1, createdAt: "", updatedAt: "", referenceRanges: [] },
-          { id: "22", examTypeId: "10", name: "K", inspectionValue: "", normalValue: "", unit: "mEq/l", sortOrder: 2, createdAt: "", updatedAt: "", referenceRanges: [] },
+          {
+            id: "21",
+            examTypeId: "10",
+            name: "Na",
+            inspectionValue: "",
+            normalValue: "",
+            unit: "mEq/l",
+            sortOrder: 1,
+            createdAt: "",
+            updatedAt: "",
+            referenceRanges: [],
+          },
+          {
+            id: "22",
+            examTypeId: "10",
+            name: "K",
+            inspectionValue: "",
+            normalValue: "",
+            unit: "mEq/l",
+            sortOrder: 2,
+            createdAt: "",
+            updatedAt: "",
+            referenceRanges: [],
+          },
         ],
       },
     ];
@@ -480,12 +540,9 @@ describe("lab-device-item-master-settings-model", () => {
       { value: "22", label: "K" },
     ]);
     // 絞り込み外の現在値は欠落フィールドとして残す
-    expect(labDeviceItemSelectOptions(examTypes, "10", "99").map((option) => option.value)).toEqual([
-      LAB_DEVICE_UNMAPPED_FIELD,
-      "21",
-      "22",
-      "99",
-    ]);
+    expect(labDeviceItemSelectOptions(examTypes, "10", "99").map((option) => option.value)).toEqual(
+      [LAB_DEVICE_UNMAPPED_FIELD, "21", "22", "99"],
+    );
     // 機器の検査が未設定なら全検査の「種別 / 項目」から選べる
     expect(labDeviceItemSelectOptions(examTypes, null, null)[1]).toEqual({
       value: "21",
@@ -506,7 +563,18 @@ describe("lab-device-item-master-settings-model", () => {
         createdAt: "",
         updatedAt: "",
         items: [
-          { id: "21", examTypeId: "10", name: "Na", inspectionValue: "", normalValue: "", unit: "mEq/l", sortOrder: 1, createdAt: "", updatedAt: "", referenceRanges: [] },
+          {
+            id: "21",
+            examTypeId: "10",
+            name: "Na",
+            inspectionValue: "",
+            normalValue: "",
+            unit: "mEq/l",
+            sortOrder: 1,
+            createdAt: "",
+            updatedAt: "",
+            referenceRanges: [],
+          },
         ],
       },
       {
@@ -520,7 +588,18 @@ describe("lab-device-item-master-settings-model", () => {
         createdAt: "",
         updatedAt: "",
         items: [
-          { id: "31", examTypeId: "11", name: "尿糖", inspectionValue: "", normalValue: "", unit: "mg/dL", sortOrder: 1, createdAt: "", updatedAt: "", referenceRanges: [] },
+          {
+            id: "31",
+            examTypeId: "11",
+            name: "尿糖",
+            inspectionValue: "",
+            normalValue: "",
+            unit: "mg/dL",
+            sortOrder: 1,
+            createdAt: "",
+            updatedAt: "",
+            referenceRanges: [],
+          },
         ],
       },
     ];
@@ -550,7 +629,18 @@ describe("lab-device-item-master-settings-model", () => {
         createdAt: "",
         updatedAt: "",
         items: [
-          { id: "21", examTypeId: "10", name: "Na", inspectionValue: "", normalValue: "", unit: "mmol/L", sortOrder: 1, createdAt: "", updatedAt: "", referenceRanges: [] },
+          {
+            id: "21",
+            examTypeId: "10",
+            name: "Na",
+            inspectionValue: "",
+            normalValue: "",
+            unit: "mmol/L",
+            sortOrder: 1,
+            createdAt: "",
+            updatedAt: "",
+            referenceRanges: [],
+          },
         ],
       },
     ];

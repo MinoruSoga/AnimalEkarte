@@ -65,9 +65,7 @@ function runFormAction(action: (payload: FormData) => void) {
   });
 }
 
-function prepareValidForm(result: {
-  current: ReturnType<typeof useCheckupForm>;
-}) {
+function prepareValidForm(result: { current: ReturnType<typeof useCheckupForm> }) {
   act(() => {
     result.current.setCheckupTypeId("1");
     result.current.setDate("2026-07-22");
@@ -90,9 +88,7 @@ describe("useCheckupForm mutation boundary", () => {
   });
 
   it("全ての登録が成功したactionだけが一覧へ遷移する", async () => {
-    const { result } = renderHook(() =>
-      useCheckupForm(ALLOWED_MUTATION_PERMISSIONS),
-    );
+    const { result } = renderHook(() => useCheckupForm(ALLOWED_MUTATION_PERMISSIONS));
 
     prepareValidForm(result);
     runFormAction(result.current.formAction);
@@ -105,16 +101,12 @@ describe("useCheckupForm mutation boundary", () => {
 
   it("登録失敗時は一覧へ遷移しない", async () => {
     createMedicalRecordMock.mockRejectedValueOnce(new Error("create failed"));
-    const { result } = renderHook(() =>
-      useCheckupForm(ALLOWED_MUTATION_PERMISSIONS),
-    );
+    const { result } = renderHook(() => useCheckupForm(ALLOWED_MUTATION_PERMISSIONS));
 
     prepareValidForm(result);
     runFormAction(result.current.formAction);
 
-    await waitFor(() =>
-      expect(handleApiErrorMock).toHaveBeenCalledWith(expect.any(Error), "保存"),
-    );
+    await waitFor(() => expect(handleApiErrorMock).toHaveBeenCalledWith(expect.any(Error), "保存"));
     expect(navigateMock).not.toHaveBeenCalledWith("/checkups");
   });
 
@@ -147,9 +139,7 @@ describe("useCheckupForm mutation boundary", () => {
       },
       isLoading: false,
     } as ReturnType<typeof useGetPet>);
-    const { result } = renderHook(() =>
-      useCheckupForm(ALLOWED_MUTATION_PERMISSIONS),
-    );
+    const { result } = renderHook(() => useCheckupForm(ALLOWED_MUTATION_PERMISSIONS));
 
     prepareValidForm(result);
     runFormAction(result.current.formAction);
@@ -169,8 +159,7 @@ describe("useCheckupForm mutation boundary", () => {
       }),
     );
     const { result, rerender } = renderHook(
-      ({ canCreate }: { canCreate: boolean }) =>
-        useCheckupForm({ canCreate, canEdit: true }),
+      ({ canCreate }: { canCreate: boolean }) => useCheckupForm({ canCreate, canEdit: true }),
       { initialProps: { canCreate: true } },
     );
 
@@ -197,8 +186,7 @@ describe("useCheckupForm mutation boundary", () => {
       }),
     );
     const { result, rerender } = renderHook(
-      ({ canEdit }: { canEdit: boolean }) =>
-        useCheckupForm({ canCreate: true, canEdit }),
+      ({ canEdit }: { canEdit: boolean }) => useCheckupForm({ canCreate: true, canEdit }),
       { initialProps: { canEdit: true } },
     );
 
@@ -224,9 +212,7 @@ describe("useCheckupForm mutation boundary", () => {
         resolveMedicalRecord = resolve;
       }),
     );
-    const { result, rerender } = renderHook(() =>
-      useCheckupForm(ALLOWED_MUTATION_PERMISSIONS),
-    );
+    const { result, rerender } = renderHook(() => useCheckupForm(ALLOWED_MUTATION_PERMISSIONS));
 
     prepareValidForm(result);
     runFormAction(result.current.formAction);
@@ -269,8 +255,7 @@ describe("useCheckupForm mutation boundary", () => {
       ],
     } as ReturnType<typeof useGetCheckupTypeFields>);
     const { result, rerender } = renderHook(
-      ({ canEdit }: { canEdit: boolean }) =>
-        useCheckupForm({ canCreate: true, canEdit }),
+      ({ canEdit }: { canEdit: boolean }) => useCheckupForm({ canCreate: true, canEdit }),
       { initialProps: { canEdit: true } },
     );
 
@@ -313,8 +298,7 @@ describe("useCheckupForm mutation boundary", () => {
       ],
     } as ReturnType<typeof useGetCheckupTypeFields>);
     const { result, rerender } = renderHook(
-      ({ canCreate }: { canCreate: boolean }) =>
-        useCheckupForm({ canCreate, canEdit: true }),
+      ({ canCreate }: { canCreate: boolean }) => useCheckupForm({ canCreate, canEdit: true }),
       { initialProps: { canCreate: true } },
     );
 
@@ -356,9 +340,7 @@ describe("useCheckupForm mutation boundary", () => {
         },
       ],
     } as ReturnType<typeof useGetCheckupTypeFields>);
-    const { result, rerender } = renderHook(() =>
-      useCheckupForm(ALLOWED_MUTATION_PERMISSIONS),
-    );
+    const { result, rerender } = renderHook(() => useCheckupForm(ALLOWED_MUTATION_PERMISSIONS));
 
     prepareValidForm(result);
     act(() => {

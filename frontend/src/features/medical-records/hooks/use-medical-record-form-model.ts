@@ -1,7 +1,8 @@
 import { formatJSTDate, formatJSTTime } from "@/lib/jst-date";
 
-export { formatJSTDate }
-export const DEFAULT_CHIEF_COMPLAINT = "# どんな症状\n\n# どこが\n\n# いつから\n\n# その他・備考\n\n# フリースペース";
+export { formatJSTDate };
+export const DEFAULT_CHIEF_COMPLAINT =
+  "# どんな症状\n\n# どこが\n\n# いつから\n\n# その他・備考\n\n# フリースペース";
 /** 問診 notes 比較用。clinical_plan.treatment_policy の初期値には使わない（BUG-010）。 */
 export const DEFAULT_TREATMENT_POLICY = "# 治療方針";
 
@@ -74,16 +75,18 @@ export function normalizeVisitDate(value: unknown): string | undefined {
 
 export function findGeneralReservationType(
   groups: readonly MedicalRecordReservationTypeGroup[] | undefined,
-  visitType: string
+  visitType: string,
 ) {
   const generalTypes = groups
     ?.flatMap((group) => group.types)
     .filter((type) => type.category === "general" && !type.is_internal)
     .sort((a, b) => a.sort_order - b.sort_order);
 
-  return generalTypes?.find((type) =>
-    toVisitTypeValue(visitType) !== "first"
-      ? type.name.includes("再診")
-      : !type.name.includes("再診")
-  ) ?? generalTypes?.[0];
+  return (
+    generalTypes?.find((type) =>
+      toVisitTypeValue(visitType) !== "first"
+        ? type.name.includes("再診")
+        : !type.name.includes("再診"),
+    ) ?? generalTypes?.[0]
+  );
 }

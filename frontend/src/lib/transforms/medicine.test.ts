@@ -24,7 +24,10 @@ describe("transformBackendMedicineToFrontend", () => {
   });
 
   it("is_non_insurance=true をそのままマップする", () => {
-    const result = transformBackendMedicineToFrontend({ ...minimalMedicine, is_non_insurance: true });
+    const result = transformBackendMedicineToFrontend({
+      ...minimalMedicine,
+      is_non_insurance: true,
+    });
     expect(result.isNonInsurance).toBe(true);
   });
 
@@ -73,7 +76,10 @@ describe("transformBackendMedicineToFrontend", () => {
         updated_at: "",
       },
     ];
-    const result = transformBackendMedicineToFrontend({ ...minimalMedicine, dose_params: doseParams });
+    const result = transformBackendMedicineToFrontend({
+      ...minimalMedicine,
+      dose_params: doseParams,
+    });
     expect(result.doseParams).toEqual(doseParams);
   });
 });

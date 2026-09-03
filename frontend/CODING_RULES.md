@@ -183,6 +183,7 @@ src/
 ```
 
 **ルール:**
+
 - `shared → features → app` の単方向のみ
 - feature間の直接importは禁止（app/pages/ で合成する、または `components/shared` に移動する）
 - 循環参照は絶対禁止
@@ -190,13 +191,13 @@ src/
 
 **bulletproof-react参照実装との意図的な差分:**
 
-| bulletproof-react | このプロジェクト | 理由 |
-|------------------|----------------|------|
-| routes を `app/routes/` に配置 | routes を `features/[feature]/routes/` に配置 | feature内に完結させる方が保守性が高い |
-| `clientLoader`/`clientAction`/`convert()` パターン | inline `lazy()` + 直接 `loader` 設定 | シンプルで読みやすい |
-| AuthLoader を AppProvider 内に配置 | AuthProvider を router.tsx root route element にアプリ全体（/login 含む）配置 | /login 401 は route 分離でなく AuthProvider 内部の password-recovery 経路のみ restore skip（BUG-031）で防ぐ |
-| `config/env.ts`（Zod検証） | なし（Vite env をそのまま使用） | 現時点では不要 |
-| cross-feature合成なし（features は独立） | `app/pages/` で cross-feature 合成 | 複数 feature を使うページ専用の合成層 |
+| bulletproof-react                                  | このプロジェクト                                                              | 理由                                                                                                        |
+| -------------------------------------------------- | ----------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| routes を `app/routes/` に配置                     | routes を `features/[feature]/routes/` に配置                                 | feature内に完結させる方が保守性が高い                                                                       |
+| `clientLoader`/`clientAction`/`convert()` パターン | inline `lazy()` + 直接 `loader` 設定                                          | シンプルで読みやすい                                                                                        |
+| AuthLoader を AppProvider 内に配置                 | AuthProvider を router.tsx root route element にアプリ全体（/login 含む）配置 | /login 401 は route 分離でなく AuthProvider 内部の password-recovery 経路のみ restore skip（BUG-031）で防ぐ |
+| `config/env.ts`（Zod検証）                         | なし（Vite env をそのまま使用）                                               | 現時点では不要                                                                                              |
+| cross-feature合成なし（features は独立）           | `app/pages/` で cross-feature 合成                                            | 複数 feature を使うページ専用の合成層                                                                       |
 
 **cross-feature合成パターン（props注入による依存逆転）:**
 
@@ -245,10 +246,10 @@ export function OwnerFormPage() {
 
 **判断基準:**
 
-| ケース | 配置 |
-|--------|------|
-| 単一 feature のみ使うページ | `features/[feature]/routes/` から直接 import |
-| 複数 feature を組み合わせるページ | `app/pages/XxxPage.tsx` で合成 |
+| ケース                            | 配置                                         |
+| --------------------------------- | -------------------------------------------- |
+| 単一 feature のみ使うページ       | `features/[feature]/routes/` から直接 import |
+| 複数 feature を組み合わせるページ | `app/pages/XxxPage.tsx` で合成               |
 
 ### 1.3 Feature モジュール構成
 
@@ -465,12 +466,12 @@ export const router = createBrowserRouter([
 
 **bulletproof-react との Router差分:**
 
-| bulletproof-react | このプロジェクト |
-|---|---|
-| `convert(queryClient)` HOF でルートモジュールを変換 | `lazy: async () => { ... return { Component, loader } }` のインライン形式 |
-| `clientLoader(queryClient)` をルートファイル内に定義 | `loaders.ts` を features/ 内の別ファイルに分離 |
+| bulletproof-react                                                   | このプロジェクト                                                                  |
+| ------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| `convert(queryClient)` HOF でルートモジュールを変換                 | `lazy: async () => { ... return { Component, loader } }` のインライン形式         |
+| `clientLoader(queryClient)` をルートファイル内に定義                | `loaders.ts` を features/ 内の別ファイルに分離                                    |
 | loader が `queryClient.getQueryData ?? fetchQuery` でキャッシュ統合 | loader が直接 axios 呼び出し → `useLoaderData()` で受け取る（React Query 非経由） |
-| Default export でルートコンポーネントを export | Named export（`export function XxxList()`） |
+| Default export でルートコンポーネントを export                      | Named export（`export function XxxList()`）                                       |
 
 #### app/index.tsx
 
@@ -548,11 +549,12 @@ axios.interceptors.response.use(
       window.location.href = "/login";
     }
     return Promise.reject(error);
-  }
+  },
 );
 ```
 
 **禁止パターン:**
+
 ```typescript
 // ❌ localStorage に token を保存（XSS で盗まれる）
 const token = localStorage.getItem("token");
@@ -580,15 +582,15 @@ export const queryClient = new QueryClient({
 
 // リソース別キャッシング戦略（useQuery の staleTime/gcTime に渡す）
 export const QUERY_STALE_TIMES = {
-  STATIC: 30 * 60 * 1000,  // 30分: 飼主・ペット・マスタ等（低頻度変更）
-  MEDIUM: 5 * 60 * 1000,   // 5分: 医療記録、検査、会計等（デフォルト）
+  STATIC: 30 * 60 * 1000, // 30分: 飼主・ペット・マスタ等（低頻度変更）
+  MEDIUM: 5 * 60 * 1000, // 5分: 医療記録、検査、会計等（デフォルト）
   REALTIME: 2 * 60 * 1000, // 2分: 予約、Kanban等（高頻度）
 };
 
 export const QUERY_GC_TIMES = {
-  LONG: 30 * 60 * 1000,     // 30分: マスタデータ等
+  LONG: 30 * 60 * 1000, // 30分: マスタデータ等
   STANDARD: 15 * 60 * 1000, // 15分: ほとんどのデータ
-  SHORT: 5 * 60 * 1000,     // 5分: 一時的なUI状態
+  SHORT: 5 * 60 * 1000, // 5分: 一時的なUI状態
 };
 ```
 
@@ -603,9 +605,9 @@ export const QUERY_GC_TIMES = {
 // features/xxx/api/get-xxx.ts
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
-import type { Xxx } from "@/types/xxx";            // 共有型
+import type { Xxx } from "@/types/xxx"; // 共有型
 import type { Xxx as BackendXxx } from "@/types/generated/models"; // 自動生成型
-import { transformXxx } from "./transforms";        // Backend → Frontend 変換
+import { transformXxx } from "./transforms"; // Backend → Frontend 変換
 
 interface XxxResponse {
   data: BackendXxx;
@@ -720,12 +722,14 @@ export const ownersLoader = async (): Promise<OwnersLoaderData> => {
     const totalPages = Math.ceil(firstPage.total / PER_PAGE);
     const remainingPages = await Promise.all(
       Array.from({ length: totalPages - 1 }, (_, i) =>
-        axios.get<PetsResponse>("/v1/pets", { params: { page: i + 2, limit: PER_PAGE } })
-          .then(r => r.data)
-      )
+        axios
+          .get<PetsResponse>("/v1/pets", { params: { page: i + 2, limit: PER_PAGE } })
+          .then((r) => r.data),
+      ),
     );
-    const allPets = [firstPage, ...remainingPages]
-      .flatMap(page => page.data.map(transformBackendPetToFrontend));
+    const allPets = [firstPage, ...remainingPages].flatMap((page) =>
+      page.data.map(transformBackendPetToFrontend),
+    );
     return { pets: allPets };
   } catch {
     throw new Response("データの取得に失敗しました", { status: 500 });
@@ -735,18 +739,18 @@ export const ownersLoader = async (): Promise<OwnersLoaderData> => {
 
 **bulletproof-react との loader 差分:**
 
-| bulletproof-react | このプロジェクト |
-|---|---|
-| `queryClient.getQueryData(key) ?? queryClient.fetchQuery(queryOptions)` | `axios.get()` で直接フェッチ |
-| React Query キャッシュに載る（コンポーネントは `useQuery` で取得） | React Router の `useLoaderData()` で取得（React Query を経由しない） |
-| loader と hook が `queryOptions` factory を共有 | loader と hook は独立（二重フェッチを避けるため loader のデータは `useLoaderData`） |
+| bulletproof-react                                                       | このプロジェクト                                                                    |
+| ----------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| `queryClient.getQueryData(key) ?? queryClient.fetchQuery(queryOptions)` | `axios.get()` で直接フェッチ                                                        |
+| React Query キャッシュに載る（コンポーネントは `useQuery` で取得）      | React Router の `useLoaderData()` で取得（React Query を経由しない）                |
+| loader と hook が `queryOptions` factory を共有                         | loader と hook は独立（二重フェッチを避けるため loader のデータは `useLoaderData`） |
 
 ##### api/ vs hooks/ の区別
 
-| 配置場所 | 用途 | 例 |
-|---------|------|-----|
-| `api/get-xxx.ts` | React Query の useQuery hook + 生フェッチ関数 | `getOwners`, `useGetOwners` |
-| `api/create-xxx.ts` | 生 mutation 関数（+ 簡単な場合は useMutation hook） | `createOwner`, `useCreatePet` |
+| 配置場所                | 用途                                                | 例                                       |
+| ----------------------- | --------------------------------------------------- | ---------------------------------------- |
+| `api/get-xxx.ts`        | React Query の useQuery hook + 生フェッチ関数       | `getOwners`, `useGetOwners`              |
+| `api/create-xxx.ts`     | 生 mutation 関数（+ 簡単な場合は useMutation hook） | `createOwner`, `useCreatePet`            |
 | `hooks/use-xxx-form.ts` | フォーム状態・useActionState 送信・ビジネスロジック | `useOwnerForm`, `useHospitalizationForm` |
 
 #### Feature API実装例（features/owners/api/get-owners.ts）
@@ -880,13 +884,13 @@ export function useXxxForm(id?: string, initialData?: Xxx) {
   const queryClient = useQueryClient();
 
   // ✅ 制御フィールドは useState + lazy init（mapToFormData は初回レンダーのみ）
-  const [formData, setFormData] = useState<XxxFormData>(
-    () => initialData ? mapToFormData(initialData) : DEFAULT_DATA
+  const [formData, setFormData] = useState<XxxFormData>(() =>
+    initialData ? mapToFormData(initialData) : DEFAULT_DATA,
   );
 
   // ✅ functional setState で deps なし → useCallback が安定
   const handleInputChange = useCallback((field: string, value: string | boolean) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData((prev) => ({ ...prev, [field]: value }));
   }, []);
 
   // ✅ 送信・バリデーション・pending は useActionState に集約
@@ -911,7 +915,7 @@ export function useXxxForm(id?: string, initialData?: Xxx) {
         return { success: false, timestamp: Date.now() };
       }
     },
-    INITIAL_ACTION_STATE
+    INITIAL_ACTION_STATE,
   );
 
   return { formData, isPending, handleInputChange, formAction, formState };
@@ -936,21 +940,22 @@ export function useXxxForm(id?: string, initialData?: Xxx) {
 const [state, formAction, isPending] = useActionState<ActionState, FormData>(
   async (_, formData) => {
     const name = formData.get("name") as string;
-    if (!name) return { success: false, fieldErrors: { name: "名前は必須です" }, timestamp: Date.now() };
+    if (!name)
+      return { success: false, fieldErrors: { name: "名前は必須です" }, timestamp: Date.now() };
     await createXxx({ name });
     return { success: true, timestamp: Date.now() };
   },
-  INITIAL_ACTION_STATE
+  INITIAL_ACTION_STATE,
 );
 ```
 
 **使い分けガイド:**
 
-| ケース | 手法 |
-|---|---|
-| フォーム送信全般（多フィールド制御フォーム含む） | `useActionState`（制御フィールドは `useState` 併用） |
-| 単一フィールド・非制御の作成フォーム | `useActionState`（`FormData` 読み取り） |
-| フォーム外の非同期更新（リスト再取得・ナビゲーション・削除の pending） | `useTransition` |
+| ケース                                                                 | 手法                                                 |
+| ---------------------------------------------------------------------- | ---------------------------------------------------- |
+| フォーム送信全般（多フィールド制御フォーム含む）                       | `useActionState`（制御フィールドは `useState` 併用） |
+| 単一フィールド・非制御の作成フォーム                                   | `useActionState`（`FormData` 読み取り）              |
+| フォーム外の非同期更新（リスト再取得・ナビゲーション・削除の pending） | `useTransition`                                      |
 
 > ⚠️ `useTransition` + カスタム hook でフォーム送信を管理するのは**旧パターン**であり禁止。
 > 既存コードは全て `useActionState` へ移行済み（`use-owner-form.ts` 他 9 フォームフック）。
@@ -996,10 +1001,10 @@ interface Pet {
 }
 
 export function usePetList(initialPets: Pet[]) {
-  const [optimisticPets, addOptimisticPet] = useOptimistic(
-    initialPets,
-    (state, newPet: Pet) => [...state, newPet]
-  );
+  const [optimisticPets, addOptimisticPet] = useOptimistic(initialPets, (state, newPet: Pet) => [
+    ...state,
+    newPet,
+  ]);
 
   const addPet = async (pet: Omit<Pet, "id">) => {
     // 楽観的に即座にUIに反映
@@ -1114,12 +1119,12 @@ interface OwnerCardProps {
 }
 
 // ❌ 禁止: I prefix
-interface IOwner {}  // ❌
-interface Owner {}   // ✅
+interface IOwner {} // ❌
+interface Owner {} // ✅
 
 // ❌ 禁止: any
-const data: any = fetchData();  // ❌
-const data: unknown = fetchData();  // ✅ → 型ガードで絞り込む
+const data: any = fetchData(); // ❌
+const data: unknown = fetchData(); // ✅ → 型ガードで絞り込む
 ```
 
 ### 3.2 型ガード
@@ -1127,29 +1132,22 @@ const data: unknown = fetchData();  // ✅ → 型ガードで絞り込む
 ```typescript
 // カスタム型ガード
 function isOwner(value: unknown): value is Owner {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    "id" in value &&
-    "name" in value
-  );
+  return typeof value === "object" && value !== null && "id" in value && "name" in value;
 }
 
 // 使用例
 if (isOwner(data)) {
-  console.log(data.name);  // Owner型として扱える
+  console.log(data.name); // Owner型として扱える
 }
 
 // Discriminated Union
-type ApiResponse<T> =
-  | { status: "success"; data: T }
-  | { status: "error"; error: string };
+type ApiResponse<T> = { status: "success"; data: T } | { status: "error"; error: string };
 
 function handleResponse<T>(response: ApiResponse<T>) {
   if (response.status === "success") {
-    return response.data;  // T型
+    return response.data; // T型
   } else {
-    throw new Error(response.error);  // string
+    throw new Error(response.error); // string
   }
 }
 ```
@@ -1166,10 +1164,7 @@ interface PaginatedResponse<T> {
 }
 
 // フェッチ関数
-async function fetchPaginated<T>(
-  url: string,
-  page: number
-): Promise<PaginatedResponse<T>> {
+async function fetchPaginated<T>(url: string, page: number): Promise<PaginatedResponse<T>> {
   const response = await fetch(`${url}?page=${page}`);
   return response.json();
 }
@@ -1245,6 +1240,7 @@ features/xxx/types/index.ts     ← フォームデータ型（UI専用）
 ```
 
 **重要ルール:**
+
 - `src/types/generated/models.ts` は **直接編集禁止**。`make codegen` で再生成される
 - Goモデル変更 → `make codegen` → `models.ts` 更新 → 型エラーをフロントエンドで修正
 
@@ -1259,17 +1255,12 @@ features/xxx/types/index.ts     ← フォームデータ型（UI専用）
 // features/xxx/api/types.ts
 import type { XxxRecord as BackendXxxRecord } from "@/types/generated/models";
 
-export type BackendXxx = BackendXxxRecord;  // alias（transforms.ts で使用）
+export type BackendXxx = BackendXxxRecord; // alias（transforms.ts で使用）
 
 /**
  * サーバー側で自動生成されるフィールド（リクエストに含めない）
  */
-type ServerFields =
-  | "id"
-  | "clinic_id"
-  | "created_at"
-  | "updated_at"
-  | "some_relation";  // リレーション（外部キーで代替）
+type ServerFields = "id" | "clinic_id" | "created_at" | "updated_at" | "some_relation"; // リレーション（外部キーで代替）
 
 /**
  * リクエストで送信可能なフィールド
@@ -1280,10 +1271,11 @@ type XxxWritable = Omit<BackendXxxRecord, ServerFields>;
 /**
  * 作成リクエスト: 必須フィールドを Required で明示、残りはoptional
  */
-export type CreateXxxRequest =
-  Required<Pick<XxxWritable, "required_field_a" | "required_field_b">> &
+export type CreateXxxRequest = Required<
+  Pick<XxxWritable, "required_field_a" | "required_field_b">
+> &
   Partial<Omit<XxxWritable, "required_field_a" | "required_field_b">> & {
-    extra_ids?: number[];  // リレーションIDなどmodels.tsに存在しないフィールドは手動追加
+    extra_ids?: number[]; // リレーションIDなどmodels.tsに存在しないフィールドは手動追加
   };
 
 /**
@@ -1374,13 +1366,13 @@ export interface XxxFormData {
 
 #### 型の配置ルール まとめ
 
-| 型の種類 | 配置場所 | 例 |
-|---------|---------|-----|
-| バックエンドモデル型 | `src/types/generated/models.ts`（自動生成・編集禁止） | `TrimmingRecord`, `Pet` |
-| APIリクエスト型 | `src/types/xxx.ts` | `CreateTrimmingRequest`, `CreatePetRequest` |
-| フロントエンドドメイン型 | `src/lib/transforms/xxx.ts`（ReturnType導出） | `Pet = ReturnType<...>` |
-| フォームデータ型 | `src/types/xxx.ts` | `TrimmingFormData`, `PetFormData` |
-| DI用インターフェース型 | `src/types/xxx.ts` | `PetMutations` |
+| 型の種類                 | 配置場所                                              | 例                                          |
+| ------------------------ | ----------------------------------------------------- | ------------------------------------------- |
+| バックエンドモデル型     | `src/types/generated/models.ts`（自動生成・編集禁止） | `TrimmingRecord`, `Pet`                     |
+| APIリクエスト型          | `src/types/xxx.ts`                                    | `CreateTrimmingRequest`, `CreatePetRequest` |
+| フロントエンドドメイン型 | `src/lib/transforms/xxx.ts`（ReturnType導出）         | `Pet = ReturnType<...>`                     |
+| フォームデータ型         | `src/types/xxx.ts`                                    | `TrimmingFormData`, `PetFormData`           |
+| DI用インターフェース型   | `src/types/xxx.ts`                                    | `PetMutations`                              |
 
 > **原則**: feature をまたぐかどうかに関わらず、全ての型定義は `src/types/` に配置する。
 > `features/xxx/types/index.ts` は `src/types/xxx.ts` への re-export のみ許容（直接型定義を書かない）。
@@ -1547,13 +1539,13 @@ export function useOwnerForm(id?: string, initialOwner?: Owner) {
   const queryClient = useQueryClient();
 
   // ✅ lazy init: 高コストなマッピングは初回のみ実行
-  const [ownerData, setOwnerData] = useState<OwnerData>(
-    () => initialOwner ? mapOwnerToFormData(initialOwner) : DEFAULT_OWNER_DATA
+  const [ownerData, setOwnerData] = useState<OwnerData>(() =>
+    initialOwner ? mapOwnerToFormData(initialOwner) : DEFAULT_OWNER_DATA,
   );
 
   // ✅ functional setState → deps なし → useCallback が stable
   const handleInputChange = useCallback((field: string, value: string | boolean) => {
-    setOwnerData(prev => ({ ...prev, [field]: value }));
+    setOwnerData((prev) => ({ ...prev, [field]: value }));
   }, []);
 
   // ✅ 送信・バリデーション・pending は useActionState に集約
@@ -1573,7 +1565,7 @@ export function useOwnerForm(id?: string, initialOwner?: Owner) {
         return { success: false, timestamp: Date.now() };
       }
     },
-    INITIAL_ACTION_STATE
+    INITIAL_ACTION_STATE,
   );
 
   return { ownerData, formState, isPending, handleInputChange, formAction };
@@ -1582,9 +1574,9 @@ export function useOwnerForm(id?: string, initialOwner?: Owner) {
 
 **`useState` + `setIsPending` を使わない理由:**
 
-| 手法 | 問題点 |
-|---|---|
-| `useState(false)` + `setIsPending(true/false)` | try-finally で手動管理が必要、エラー時の reset 漏れリスク |
+| 手法                                                                    | 問題点                                                        |
+| ----------------------------------------------------------------------- | ------------------------------------------------------------- |
+| `useState(false)` + `setIsPending(true/false)`                          | try-finally で手動管理が必要、エラー時の reset 漏れリスク     |
 | `useActionState`（フォーム送信）/ `useTransition`（フォーム外の非同期） | React が pending 状態を自動管理、reset 漏れが構造的に起きない |
 
 ### 5.2 依存配列
@@ -1593,7 +1585,7 @@ export function useOwnerForm(id?: string, initialOwner?: Owner) {
 // ✅ 必要な依存のみ含める
 useEffect(() => {
   fetchData(id);
-}, [id]);  // id が変わったときのみ実行
+}, [id]); // id が変わったときのみ実行
 
 // ✅ useCallback の依存
 const handleClick = useCallback(() => {
@@ -1603,11 +1595,11 @@ const handleClick = useCallback(() => {
 // ❌ オブジェクト全体を依存に含めない
 useEffect(() => {
   console.log(user.name);
-}, [user]);  // ❌ userオブジェクトの参照が変わるたびに実行
+}, [user]); // ❌ userオブジェクトの参照が変わるたびに実行
 
 useEffect(() => {
   console.log(user.name);
-}, [user.name]);  // ✅ user.name が変わったときのみ
+}, [user.name]); // ✅ user.name が変わったときのみ
 ```
 
 ### 5.3 副作用の分離
@@ -1820,6 +1812,7 @@ src/
 ```
 
 **ルール:**
+
 - テストファイル名: `[対象ファイル名].test.ts(x)`
 - 新規テストは同階層への co-located 配置を推奨する
 - `__tests__/` は FE5-23 で全廃済み。テストは対象ファイル隣接配置とし、`__tests__/` の新設は禁止（正本: `frontend/CLAUDE.md`）
@@ -1885,34 +1878,35 @@ describe("Button", () => {
 
 ## 9. 禁止事項一覧
 
-| 禁止 | 理由 | 代替 |
-|------|------|------|
-| `any` 型 | 型安全性の破壊 | `unknown` + 型ガード |
-| `FC` / `React.FC` | React 19では不要 | 関数宣言 |
-| `forwardRef` | React 19では不要 | ref as prop |
-| feature間import | アーキテクチャ違反 | app層で合成 |
-| `export *` re-export | tree-shaking阻害 | 明示的export or 直接import |
-| `console.log` 放置 | 本番コード汚染 | 削除またはlogger使用 |
-| ハードコード値 | 保守性低下 | 定数化 |
-| default export | IDE補完が弱い | 名前付きexport |
-| インラインスタイル | 一貫性欠如 | Tailwind CSS |
-| `!important` | 詳細度問題 | クラス設計見直し |
-| feature内部から自 feature の barrel（`../api` 等）を経由 | 不要な間接参照、tree-shaking 阻害 | 直接ファイル指定（`../api/delete-owner` 等） |
-| feature外から feature 内部ファイルを deep import（`@/features/xxx/api/get-xxx` 等） | Feature Indexing 違反、内部構造への依存 | feature の `index.ts` 経由（`@/features/xxx`） |
-| コメントのみ・空の index.ts | 死ファイル、混乱の原因 | 削除する |
-| re-exportのみで自身のロジックを持たないファイル | 参照ゼロなら死ファイル | 削除する |
-| 実ファイルが存在するフォルダの `.gitkeep` | 不要 | 削除する |
-| API query hook を `useOwners` と命名（動詞省略） | 命名規則違反 | `useGetOwners`（`useGet` + エンティティ名） |
-| loader 内で `queryClient.prefetchQuery` を使う | このプロジェクトは直接 axios + `useLoaderData` パターン | `axios.get()` で直接フェッチして返す |
-| `localStorage` に token を保存 | XSS で盗まれる | httpOnly Cookie + `withCredentials: true` |
-| フォーム送信の pending を `useState(false)` + `setIsPending` で管理 | try-finally でのリセット漏れリスク | `useActionState` の `isPending` を使う（フォーム外の非同期は `useTransition`） |
-| `useTransition` + カスタム hook でフォーム送信を管理 | 旧パターン。`useActionState` に全移行済み | `useActionState`（制御フィールドは `useState` 併用・§2.2） |
+| 禁止                                                                                | 理由                                                    | 代替                                                                           |
+| ----------------------------------------------------------------------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `any` 型                                                                            | 型安全性の破壊                                          | `unknown` + 型ガード                                                           |
+| `FC` / `React.FC`                                                                   | React 19では不要                                        | 関数宣言                                                                       |
+| `forwardRef`                                                                        | React 19では不要                                        | ref as prop                                                                    |
+| feature間import                                                                     | アーキテクチャ違反                                      | app層で合成                                                                    |
+| `export *` re-export                                                                | tree-shaking阻害                                        | 明示的export or 直接import                                                     |
+| `console.log` 放置                                                                  | 本番コード汚染                                          | 削除またはlogger使用                                                           |
+| ハードコード値                                                                      | 保守性低下                                              | 定数化                                                                         |
+| default export                                                                      | IDE補完が弱い                                           | 名前付きexport                                                                 |
+| インラインスタイル                                                                  | 一貫性欠如                                              | Tailwind CSS                                                                   |
+| `!important`                                                                        | 詳細度問題                                              | クラス設計見直し                                                               |
+| feature内部から自 feature の barrel（`../api` 等）を経由                            | 不要な間接参照、tree-shaking 阻害                       | 直接ファイル指定（`../api/delete-owner` 等）                                   |
+| feature外から feature 内部ファイルを deep import（`@/features/xxx/api/get-xxx` 等） | Feature Indexing 違反、内部構造への依存                 | feature の `index.ts` 経由（`@/features/xxx`）                                 |
+| コメントのみ・空の index.ts                                                         | 死ファイル、混乱の原因                                  | 削除する                                                                       |
+| re-exportのみで自身のロジックを持たないファイル                                     | 参照ゼロなら死ファイル                                  | 削除する                                                                       |
+| 実ファイルが存在するフォルダの `.gitkeep`                                           | 不要                                                    | 削除する                                                                       |
+| API query hook を `useOwners` と命名（動詞省略）                                    | 命名規則違反                                            | `useGetOwners`（`useGet` + エンティティ名）                                    |
+| loader 内で `queryClient.prefetchQuery` を使う                                      | このプロジェクトは直接 axios + `useLoaderData` パターン | `axios.get()` で直接フェッチして返す                                           |
+| `localStorage` に token を保存                                                      | XSS で盗まれる                                          | httpOnly Cookie + `withCredentials: true`                                      |
+| フォーム送信の pending を `useState(false)` + `setIsPending` で管理                 | try-finally でのリセット漏れリスク                      | `useActionState` の `isPending` を使う（フォーム外の非同期は `useTransition`） |
+| `useTransition` + カスタム hook でフォーム送信を管理                                | 旧パターン。`useActionState` に全移行済み               | `useActionState`（制御フィールドは `useState` 併用・§2.2）                     |
 
 ---
 
 ## 10. チェックリスト
 
 ### 新規コンポーネント作成時
+
 - [ ] 関数宣言で定義（FC禁止）
 - [ ] Props型を明示的に定義
 - [ ] ref は props として受け取る
@@ -1920,6 +1914,7 @@ describe("Button", () => {
 - [ ] テストファイル作成
 
 ### PR作成時
+
 - [ ] `docker compose exec frontend pnpm lint` がパス
 - [ ] `docker compose exec frontend pnpm build` がパス
 - [ ] `docker compose exec frontend pnpm test:run` がパス
@@ -1935,34 +1930,39 @@ describe("Button", () => {
 ## 11. この構成の特徴
 
 ### React Router Data Mode
+
 - `createBrowserRouter`を使用
 - GolangバックエンドとRESTful APIで連携
 - SSR/SSGの複雑性なし
 - Lazy loadingによるコード分割
 
 ### React 19機能の活用
-| 機能 | 用途 | 備考 |
-|------|------|------|
-| `useActionState` | **全フォーム送信の標準**（複雑な制御フォーム含む） | `hooks/use-xxx-form.ts`。制御フィールドは `useState` 併用 |
-| `useTransition` | フォーム外の非同期更新の pending 管理（リスト再取得・ナビゲーション・削除） | フォーム送信には使わない |
-| `useOptimistic` | 楽観的UI更新（カンバン・タスク管理など） | |
-| `ref as prop` | コンポーネント簡素化（`forwardRef` 不要） | |
-| `useFormStatus` | サブミット状態の管理（フォームの子コンポーネント内） | |
-| `use()` | Promise/Context 直接読み取り | |
-| Document Metadata | ブラウザタブタイトル（UX向上） | |
+
+| 機能              | 用途                                                                        | 備考                                                      |
+| ----------------- | --------------------------------------------------------------------------- | --------------------------------------------------------- |
+| `useActionState`  | **全フォーム送信の標準**（複雑な制御フォーム含む）                          | `hooks/use-xxx-form.ts`。制御フィールドは `useState` 併用 |
+| `useTransition`   | フォーム外の非同期更新の pending 管理（リスト再取得・ナビゲーション・削除） | フォーム送信には使わない                                  |
+| `useOptimistic`   | 楽観的UI更新（カンバン・タスク管理など）                                    |                                                           |
+| `ref as prop`     | コンポーネント簡素化（`forwardRef` 不要）                                   |                                                           |
+| `useFormStatus`   | サブミット状態の管理（フォームの子コンポーネント内）                        |                                                           |
+| `use()`           | Promise/Context 直接読み取り                                                |                                                           |
+| Document Metadata | ブラウザタブタイトル（UX向上）                                              |                                                           |
 
 ### Feature-Based Architecture
+
 - 各機能が `api/`, `components/`, `hooks/`, `routes/`, `types/` に完結
 - `index.ts` は公開 API のカタログ（import 先には使わない — 直接ファイルを参照）
 - cross-feature 合成は `app/pages/` + props 注入（依存逆転）
 - `shared → features → app` の単方向依存（feature 間の直接 import 禁止）
 
 ### 認証システム向け最適化
+
 - SEO機能は不要
 - 認証後のみアクセス可能
 - SPA構成
 
 ### 動物病院システム特性対応
+
 - SOAPS形式カルテ対応
 - カンバンボードワークフロー
 - 入院管理（ケアプラン・デイリーログ）
@@ -2022,28 +2022,34 @@ const clearFieldError = useCallback((field: string) => {
 
 ```typescript
 // ✅ setState に関数形式を使うと deps から state を外せる → useCallback が安定
-const handleInputChange = useCallback((field: string, value: string | boolean | number) => {
-  setOwnerData(prev => ({ ...prev, [field]: value }));  // prev 参照 → 依存不要
-  markDirty();
-}, [setOwnerData, markDirty]);  // どちらも stable な setter
+const handleInputChange = useCallback(
+  (field: string, value: string | boolean | number) => {
+    setOwnerData((prev) => ({ ...prev, [field]: value })); // prev 参照 → 依存不要
+    markDirty();
+  },
+  [setOwnerData, markDirty],
+); // どちらも stable な setter
 
 // ❌ 直接 state を参照すると deps に追加が必要 → useCallback が不安定になる
-const handleInputChange = useCallback((field: string, value: string) => {
-  setOwnerData({ ...ownerData, [field]: value });  // ownerData が dep に必要
-}, [ownerData]);  // ownerData が変わるたびに新しい関数参照 → memo 無効
+const handleInputChange = useCallback(
+  (field: string, value: string) => {
+    setOwnerData({ ...ownerData, [field]: value }); // ownerData が dep に必要
+  },
+  [ownerData],
+); // ownerData が変わるたびに新しい関数参照 → memo 無効
 ```
 
 #### `rerender-lazy-state-init` — 高コストな初期化を lazy に
 
 ```typescript
 // ✅ 関数を渡すと初回レンダー時のみ実行される
-const [ownerData, setOwnerData] = useState<OwnerData>(
-  () => initialOwner ? mapOwnerToFormData(initialOwner) : DEFAULT_OWNER_DATA
+const [ownerData, setOwnerData] = useState<OwnerData>(() =>
+  initialOwner ? mapOwnerToFormData(initialOwner) : DEFAULT_OWNER_DATA,
 );
 
 // ❌ 直接値を渡すと毎レンダーで mapOwnerToFormData が実行される
 const [ownerData, setOwnerData] = useState<OwnerData>(
-  initialOwner ? mapOwnerToFormData(initialOwner) : DEFAULT_OWNER_DATA  // ❌
+  initialOwner ? mapOwnerToFormData(initialOwner) : DEFAULT_OWNER_DATA, // ❌
 );
 ```
 
@@ -2058,7 +2064,7 @@ const deferredSearchTerm = useDeferredValue(searchTerm);
 // deferredSearchTerm: ブラウザがアイドル時にフィルタリングを遅延実行
 const filteredPets = useMemo(() => {
   if (!deferredSearchTerm) return pets;
-  return pets.filter(pet => pet.ownerName.toLowerCase().includes(deferredSearchTerm));
+  return pets.filter((pet) => pet.ownerName.toLowerCase().includes(deferredSearchTerm));
 }, [pets, deferredSearchTerm]);
 
 // フィルタ遅延中の視覚フィードバック
@@ -2076,18 +2082,18 @@ startSaveTransition(async () => {
 
 ```typescript
 // ✅ オブジェクトからプリミティブを抽出して deps に使う
-const pendingDeleteOwnerId = pendingDeleteOwner?.id ?? null;  // string | null
+const pendingDeleteOwnerId = pendingDeleteOwner?.id ?? null; // string | null
 
 const handleConfirmDelete = useCallback(() => {
   if (!pendingDeleteOwnerId) return;
   deleteOwner(pendingDeleteOwnerId);
-}, [pendingDeleteOwnerId]);  // ✅ primitive
+}, [pendingDeleteOwnerId]); // ✅ primitive
 
 // ❌ オブジェクト参照を deps に入れると毎回新しい関数が生成される
 const handleConfirmDelete = useCallback(() => {
   if (!pendingDeleteOwner?.id) return;
   deleteOwner(pendingDeleteOwner.id);
-}, [pendingDeleteOwner]);  // ❌ オブジェクト参照
+}, [pendingDeleteOwner]); // ❌ オブジェクト参照
 ```
 
 ---
@@ -2119,7 +2125,7 @@ import ルールは **呼び出し元が feature の外か内か** で使い分�
 import { useGetOwners, OwnerCard } from "@/features/owners";
 
 // ❌ deep import 禁止（index.ts を迂回）
-import { useGetOwners } from "@/features/owners/api/get-owners";  // ❌
+import { useGetOwners } from "@/features/owners/api/get-owners"; // ❌
 import { OwnerCard } from "@/features/owners/components/OwnerCard"; // ❌
 
 // ── feature 内部からの import（同一 feature 内） ──
@@ -2129,10 +2135,11 @@ import { deleteOwner } from "../api/delete-owner";
 import { formatDate } from "@/lib/format/date";
 
 // ❌ feature 内部で自 feature の index.ts を経由するのは不要な迂回
-import { deleteOwner } from "../api";  // ❌ feature 内では直接ファイル指定
+import { deleteOwner } from "../api"; // ❌ feature 内では直接ファイル指定
 ```
 
 **整理**:
+
 - **feature 外 → feature**: `index.ts` 経由（Public API として公開されたものだけを使う）
 - **feature 内部**: 直接ファイル指定（不要なモジュールを bundle に含めない）
 - `features/xxx/api/index.ts` 等の barrel ファイルは **外部公開 API のカタログ** として維持し、feature 内での自己参照には使わない
@@ -2197,10 +2204,10 @@ return (
 
 **静的定数 vs useMemo の使い分け:**
 
-| データ元 | 手法 |
-|---------|------|
+| データ元                                | 手法                                     |
+| --------------------------------------- | ---------------------------------------- |
 | コンパイル時に確定する定数（enum 値等） | モジュールレベル定数 `const FOO = [...]` |
-| API / React Query から取得するリスト | `useMemo([list])` |
+| API / React Query から取得するリスト    | `useMemo([list])`                        |
 
 #### `rendering-conditional-render` — 条件付きレンダリングは必ず三項演算子
 
@@ -2233,23 +2240,24 @@ export const ownersLoader = async (): Promise<OwnersLoaderData> => {
   // 残りのページを Promise.all で並列フェッチ
   const remainingPages = await Promise.all(
     Array.from({ length: totalPages - 1 }, (_, i) =>
-      axios.get<PetsResponse>("/v1/pets", { params: { page: i + 2, limit: PER_PAGE } })
-        .then(r => r.data)
-    )
+      axios
+        .get<PetsResponse>("/v1/pets", { params: { page: i + 2, limit: PER_PAGE } })
+        .then((r) => r.data),
+    ),
   );
 
   return {
-    pets: [firstPage, ...remainingPages].flatMap(page =>
-      page.data.map(transformBackendPetToFrontend)
+    pets: [firstPage, ...remainingPages].flatMap((page) =>
+      page.data.map(transformBackendPetToFrontend),
     ),
   };
 };
 
 // ✅ 複数の独立した非同期処理も Promise.allSettled で並列実行
 const results = await Promise.allSettled(
-  pendingPets.map(pet => createPet(transformCreatePetRequest(pet)))
+  pendingPets.map((pet) => createPet(transformCreatePetRequest(pet))),
 );
-const failedCount = results.filter(r => r.status === "rejected").length;
+const failedCount = results.filter((r) => r.status === "rejected").length;
 ```
 
 ---

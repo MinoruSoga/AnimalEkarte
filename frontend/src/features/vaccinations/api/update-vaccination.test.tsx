@@ -18,9 +18,7 @@ function createWrapper(queryClient: QueryClient) {
 // list prefix）のみ invalidate しており、詳細画面が stale のまま残るバグがあった。
 describe("useUpdateVaccination (FE4-6)", () => {
   it("成功後に list prefix と detail キーの両方を invalidate する", async () => {
-    server.use(
-      http.patch("/api/v1/vaccinations/:id", () => HttpResponse.json({ id: 42 })),
-    );
+    server.use(http.patch("/api/v1/vaccinations/:id", () => HttpResponse.json({ id: 42 })));
 
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");

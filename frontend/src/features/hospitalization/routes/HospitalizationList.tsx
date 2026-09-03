@@ -35,12 +35,15 @@ export function HospitalizationList() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { canCreate, canEdit } = usePermission("hospitalization");
   const {
-    searchTerm, setSearchTerm,
-    statusFilter, setStatusFilter,
-    viewMode, setViewMode,
+    searchTerm,
+    setSearchTerm,
+    statusFilter,
+    setStatusFilter,
+    viewMode,
+    setViewMode,
     cages,
     movePet,
-    handleNavigateToForm
+    handleNavigateToForm,
   } = useHospitalizationList(canEdit);
 
   const [activeSorts, setActiveSorts] = useState<ActiveSort[]>([]);
@@ -48,7 +51,8 @@ export function HospitalizationList() {
   const deferredSearchTerm = useDeferredValue(searchTerm);
 
   const urlPage = Number(searchParams.get("page") ?? HOSPITALIZATION_LIST_DEFAULT_PAGE);
-  const serverPage = Number.isFinite(urlPage) && urlPage >= 1 ? urlPage : HOSPITALIZATION_LIST_DEFAULT_PAGE;
+  const serverPage =
+    Number.isFinite(urlPage) && urlPage >= 1 ? urlPage : HOSPITALIZATION_LIST_DEFAULT_PAGE;
 
   const listFilters = useMemo(
     () => buildHospitalizationListQueryFilters(activeFilters, statusFilter, serverPage),
@@ -100,18 +104,15 @@ export function HospitalizationList() {
   });
 
   const resetListPage = useCallback(() => {
-    setSearchParams(
-      (prev) => nextListSearchParamsWithoutPage(prev),
-      { replace: true },
-    );
+    setSearchParams((prev) => nextListSearchParamsWithoutPage(prev), { replace: true });
   }, [setSearchParams]);
 
-  const handlePageChange = useCallback((page: number) => {
-    setSearchParams(
-      (prev) => nextListSearchParamsWithPage(prev, page),
-      { replace: true },
-    );
-  }, [setSearchParams]);
+  const handlePageChange = useCallback(
+    (page: number) => {
+      setSearchParams((prev) => nextListSearchParamsWithPage(prev, page), { replace: true });
+    },
+    [setSearchParams],
+  );
 
   const handleStatusTabChange = useCallback(
     (v: string) => {

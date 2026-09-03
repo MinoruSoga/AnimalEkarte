@@ -19,9 +19,7 @@ export const EstimateForm = memo(function EstimateForm({
 }: EstimateFormProps) {
   return (
     <div className="flex flex-col gap-1.5 w-[300px]">
-      <Label className={`text-sm font-medium ${C.text60}`}>
-        見積書件名
-      </Label>
+      <Label className={`text-sm font-medium ${C.text60}`}>見積書件名</Label>
       <Input
         value={subject}
         onChange={(e) => onSubjectChange(e.target.value)}

@@ -67,10 +67,7 @@ describe("Sidebar touch targets", () => {
       "min-h-11",
       "min-w-11",
     );
-    expect(screen.getByRole("button", { name: "ログアウト" })).toHaveClass(
-      "min-h-11",
-      "min-w-11",
-    );
+    expect(screen.getByRole("button", { name: "ログアウト" })).toHaveClass("min-h-11", "min-w-11");
   });
 
   it("折りたたみ時の展開・ログアウトbuttonを44x44px以上に保つ", () => {
@@ -80,10 +77,7 @@ describe("Sidebar touch targets", () => {
       "h-11",
       "min-w-11",
     );
-    expect(screen.getByRole("button", { name: "ログアウト" })).toHaveClass(
-      "h-11",
-      "min-w-11",
-    );
+    expect(screen.getByRole("button", { name: "ログアウト" })).toHaveClass("h-11", "min-w-11");
   });
 
   it("複数医院のtriggerと候補buttonを44px以上にしfocus ringを表示する", () => {
@@ -152,8 +146,6 @@ describe("Sidebar touch targets", () => {
     ).not.toBeInTheDocument();
 
     fireEvent.click(otherClinicButton);
-    expect(
-      screen.getByRole("alertdialog", { name: "医院を切り替えますか？" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("alertdialog", { name: "医院を切り替えますか？" })).toBeInTheDocument();
   });
 });

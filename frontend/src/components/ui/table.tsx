@@ -10,44 +10,28 @@ interface TableProps extends React.HTMLAttributes<HTMLTableElement> {
 function Table({ className, ref, ...props }: TableProps) {
   return (
     <div className="relative w-full overflow-auto">
-      <table
-        ref={ref}
-        className={cn("w-full caption-bottom text-sm", className)}
-        {...props}
-      />
+      <table ref={ref} className={cn("w-full caption-bottom text-sm", className)} {...props} />
     </div>
   );
 }
 
-interface TableSectionProps
-  extends React.HTMLAttributes<HTMLTableSectionElement> {
+interface TableSectionProps extends React.HTMLAttributes<HTMLTableSectionElement> {
   ref?: React.Ref<HTMLTableSectionElement>;
 }
 
 function TableHeader({ className, ref, ...props }: TableSectionProps) {
-  return (
-    <thead ref={ref} className={cn(C.bgPage, className)} {...props} />
-  );
+  return <thead ref={ref} className={cn(C.bgPage, className)} {...props} />;
 }
 
 function TableBody({ className, ref, ...props }: TableSectionProps) {
-  return (
-    <tbody
-      ref={ref}
-      className={cn("[&_tr:last-child]:border-0", className)}
-      {...props}
-    />
-  );
+  return <tbody ref={ref} className={cn("[&_tr:last-child]:border-0", className)} {...props} />;
 }
 
 function TableFooter({ className, ref, ...props }: TableSectionProps) {
   return (
     <tfoot
       ref={ref}
-      className={cn(
-        "border-t bg-muted/50 font-medium [&>tr]:last:border-b-0",
-        className,
-      )}
+      className={cn("border-t bg-muted/50 font-medium [&>tr]:last:border-b-0", className)}
       {...props}
     />
   );
@@ -106,12 +90,4 @@ function TableCell({ className, ref, ...props }: TableCellProps) {
   );
 }
 
-export {
-  Table,
-  TableHeader,
-  TableBody,
-  TableFooter,
-  TableHead,
-  TableRow,
-  TableCell,
-};
+export { Table, TableHeader, TableBody, TableFooter, TableHead, TableRow, TableCell };

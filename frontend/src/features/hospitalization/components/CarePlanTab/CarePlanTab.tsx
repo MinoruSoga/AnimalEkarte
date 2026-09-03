@@ -9,7 +9,12 @@ import { C, ICON } from "@/lib/design-tokens";
 import { usePermission } from "@/hooks/use-permission";
 
 // Relative
-import { useGetCarePlanItems, useCreateCarePlanItem, useUpdateCarePlanItem, useDeleteCarePlanItem } from "../../api/care-plan-items";
+import {
+  useGetCarePlanItems,
+  useCreateCarePlanItem,
+  useUpdateCarePlanItem,
+  useDeleteCarePlanItem,
+} from "../../api/care-plan-items";
 import { HOSPITALIZATION_DECEASED_BLOCK_MESSAGE } from "../../constants";
 import { EditRow } from "./EditRow";
 import { ItemRow } from "./ItemRow";
@@ -31,7 +36,10 @@ const PERMISSION_BY_MUTATION = {
   delete: "canDelete",
 } as const;
 
-export const CarePlanTab = memo(function CarePlanTab({ hospitalizationId, petIsDeceased }: CarePlanTabProps) {
+export const CarePlanTab = memo(function CarePlanTab({
+  hospitalizationId,
+  petIsDeceased,
+}: CarePlanTabProps) {
   const { canCreate, canEdit, canDelete } = usePermission("hospitalization");
   const permissionsRef = useRef({ canCreate, canEdit, canDelete });
   const petIsDeceasedRef = useRef(petIsDeceased);
@@ -41,7 +49,8 @@ export const CarePlanTab = memo(function CarePlanTab({ hospitalizationId, petIsD
   }, [canCreate, canDelete, canEdit, petIsDeceased]);
   const isMutationAllowed = useCallback(
     (action: CarePlanMutation) =>
-      permissionsRef.current[PERMISSION_BY_MUTATION[action]] === true && petIsDeceasedRef.current !== true,
+      permissionsRef.current[PERMISSION_BY_MUTATION[action]] === true &&
+      petIsDeceasedRef.current !== true,
     [],
   );
   const { data: items, isLoading } = useGetCarePlanItems(hospitalizationId);
@@ -122,7 +131,17 @@ export const CarePlanTab = memo(function CarePlanTab({ hospitalizationId, petIsD
         />
       ),
     );
-  }, [items, editingId, deletingId, handleEdit, handleDelete, handleSaveEdit, handleCancelEdit, canEditNow, canDeleteNow]);
+  }, [
+    items,
+    editingId,
+    deletingId,
+    handleEdit,
+    handleDelete,
+    handleSaveEdit,
+    handleCancelEdit,
+    canEditNow,
+    canDeleteNow,
+  ]);
 
   if (isLoading) {
     return (

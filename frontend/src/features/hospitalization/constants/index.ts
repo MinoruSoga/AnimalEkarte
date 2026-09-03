@@ -12,7 +12,8 @@ export const HOSPITALIZATION_FILTER_STATUS = {
   RESERVED: "reserved",
 } as const;
 
-export type HospitalizationFilterStatus = typeof HOSPITALIZATION_FILTER_STATUS[keyof typeof HOSPITALIZATION_FILTER_STATUS];
+export type HospitalizationFilterStatus =
+  (typeof HOSPITALIZATION_FILTER_STATUS)[keyof typeof HOSPITALIZATION_FILTER_STATUS];
 
 /** BE wire status（GET /v1/hospitalizations?status=）。`active` タブだけ BE の `admitted` と綴りが異なる。 */
 export type HospitalizationWireStatus = "admitted" | "reserved" | "discharged";

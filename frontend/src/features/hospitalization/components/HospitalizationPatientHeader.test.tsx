@@ -4,9 +4,7 @@ import { describe, expect, it } from "vitest";
 import type { Hospitalization } from "../api/transforms";
 import { HospitalizationPatientHeader } from "./HospitalizationPatientHeader";
 
-function makeHospitalization(
-  petIsDeceased: boolean,
-): Hospitalization {
+function makeHospitalization(petIsDeceased: boolean): Hospitalization {
   return {
     id: "42",
     hospitalizationNo: "42",
@@ -23,21 +21,13 @@ function makeHospitalization(
 
 describe("HospitalizationPatientHeader", () => {
   it("死亡個体では既存のPatientInfoCard死亡マーカーを表示する", () => {
-    render(
-      <HospitalizationPatientHeader
-        hospitalization={makeHospitalization(true)}
-      />,
-    );
+    render(<HospitalizationPatientHeader hospitalization={makeHospitalization(true)} />);
 
     expect(screen.getByText("【死亡】")).toBeInTheDocument();
   });
 
   it("生存個体では死亡マーカーを表示しない", () => {
-    render(
-      <HospitalizationPatientHeader
-        hospitalization={makeHospitalization(false)}
-      />,
-    );
+    render(<HospitalizationPatientHeader hospitalization={makeHospitalization(false)} />);
 
     expect(screen.queryByText("【死亡】")).not.toBeInTheDocument();
   });

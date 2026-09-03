@@ -4,10 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { AuthContext } from "@/hooks/auth-context";
 import type { AuthContextValue } from "@/types/auth";
-import {
-  ResourceHospitalSettings,
-  ResourceLstepAnalytics,
-} from "@/types/generated/models";
+import { ResourceHospitalSettings, ResourceLstepAnalytics } from "@/types/generated/models";
 
 import { operationsRoutes } from "./operations-routes";
 
@@ -22,9 +19,7 @@ vi.mock("@/features/lstep", () => ({
   },
 }));
 
-function auth(
-  hasPermission: AuthContextValue["hasPermission"],
-): AuthContextValue {
+function auth(hasPermission: AuthContextValue["hasPermission"]): AuthContextValue {
   return {
     user: null,
     currentClinicId: "clinic-test-1",
@@ -41,8 +36,7 @@ function auth(
 describe("/lstep/delivery-monitor — RBAC guard", () => {
   it("hospital-settings:viewだけでは拒否し、pageをmountしない", async () => {
     const hasPermission = vi.fn<AuthContextValue["hasPermission"]>(
-      (resource, action) =>
-        resource === ResourceHospitalSettings && action === "view",
+      (resource, action) => resource === ResourceHospitalSettings && action === "view",
     );
     const router = createMemoryRouter(operationsRoutes, {
       initialEntries: ["/lstep/delivery-monitor"],
@@ -61,8 +55,7 @@ describe("/lstep/delivery-monitor — RBAC guard", () => {
 
   it("lstep-analytics:viewのみで page を mount する（親 HospitalSettings AND を課さない）", async () => {
     const hasPermission = vi.fn<AuthContextValue["hasPermission"]>(
-      (resource, action) =>
-        resource === ResourceLstepAnalytics && action === "view",
+      (resource, action) => resource === ResourceLstepAnalytics && action === "view",
     );
     const router = createMemoryRouter(operationsRoutes, {
       initialEntries: ["/lstep/delivery-monitor"],
@@ -77,9 +70,6 @@ describe("/lstep/delivery-monitor — RBAC guard", () => {
     expect(await screen.findByText("delivery monitor page")).toBeInTheDocument();
     expect(deliveryApiMock).toHaveBeenCalled();
     expect(hasPermission).toHaveBeenCalledWith(ResourceLstepAnalytics, "view");
-    expect(hasPermission).not.toHaveBeenCalledWith(
-      ResourceHospitalSettings,
-      "view",
-    );
+    expect(hasPermission).not.toHaveBeenCalledWith(ResourceHospitalSettings, "view");
   });
 });

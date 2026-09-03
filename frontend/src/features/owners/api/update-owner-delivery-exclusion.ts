@@ -15,12 +15,15 @@ interface UpdateOwnerDeliveryExclusionBody {
 async function updateOwnerDeliveryExclusion(
   clinicId: string,
   ownerId: string,
-  body: UpdateOwnerDeliveryExclusionBody
+  body: UpdateOwnerDeliveryExclusionBody,
 ): Promise<Owner> {
-  const { data } = await axios.patch<OwnerApiResponse>(`/v1/clinics/${clinicId}/owners/${ownerId}/delivery-exclusion`, {
-    excluded: body.excluded,
-    reason: body.reason,
-  });
+  const { data } = await axios.patch<OwnerApiResponse>(
+    `/v1/clinics/${clinicId}/owners/${ownerId}/delivery-exclusion`,
+    {
+      excluded: body.excluded,
+      reason: body.reason,
+    },
+  );
   return transformOwner(data);
 }
 

@@ -4,7 +4,11 @@ import { useGetPet } from "@/hooks/use-pet";
 import { resolveEntityReadResult, type EntityReadResult } from "@/lib/entity-read-result";
 import type { ExaminationRecord } from "../api/transforms";
 
-export function useExaminationFormLoad(id: string | undefined, isEdit: boolean, petId: string | null) {
+export function useExaminationFormLoad(
+  id: string | undefined,
+  isEdit: boolean,
+  petId: string | null,
+) {
   const {
     data: examinationData,
     isLoading: isExaminationLoading,
@@ -20,12 +24,12 @@ export function useExaminationFormLoad(id: string | undefined, isEdit: boolean, 
     error: examinationError,
     refetch: refetchExamination,
   });
-  const existingExam =
-    entityRead.status === "found" ? entityRead.data : undefined;
+  const existingExam = entityRead.status === "found" ? entityRead.data : undefined;
   const mutationPetId = isEdit ? (existingExam?.petId ?? "") : (petId ?? "");
   const { data: mutationPet, isLoading: isPetLoading } = useGetPet(mutationPetId);
-  const { data: existingItems, isSuccess: existingItemsQuerySucceeded } =
-    useGetExaminationItems(id ?? "");
+  const { data: existingItems, isSuccess: existingItemsQuerySucceeded } = useGetExaminationItems(
+    id ?? "",
+  );
   return {
     entityRead,
     existingExam,

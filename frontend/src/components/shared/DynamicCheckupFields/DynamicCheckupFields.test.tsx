@@ -9,15 +9,40 @@ import {
 import type { CheckupTypeFieldRow } from "@/hooks/use-checkup-fields";
 
 const fields: CheckupTypeFieldRow[] = [
-  { id: 1, checkupTypeId: 10, name: "歯石除去必要の有無", fieldType: "boolean", unit: "", options: [], isProvisional: true, sortOrder: 1 },
-  { id: 2, checkupTypeId: 10, name: "歯石付着度スコア", fieldType: "number", unit: "点", minValue: 0, maxValue: 4, options: [], isProvisional: true, sortOrder: 2 },
   {
-    id: 3, checkupTypeId: 10, name: "歯科ケアアドバイス", fieldType: "multi_select", unit: "",
+    id: 1,
+    checkupTypeId: 10,
+    name: "歯石除去必要の有無",
+    fieldType: "boolean",
+    unit: "",
+    options: [],
+    isProvisional: true,
+    sortOrder: 1,
+  },
+  {
+    id: 2,
+    checkupTypeId: 10,
+    name: "歯石付着度スコア",
+    fieldType: "number",
+    unit: "点",
+    minValue: 0,
+    maxValue: 4,
+    options: [],
+    isProvisional: true,
+    sortOrder: 2,
+  },
+  {
+    id: 3,
+    checkupTypeId: 10,
+    name: "歯科ケアアドバイス",
+    fieldType: "multi_select",
+    unit: "",
     options: [
       { value: "brush", label: "歯磨き" },
       { value: "scaling", label: "スケーリング" },
     ],
-    isProvisional: true, sortOrder: 3,
+    isProvisional: true,
+    sortOrder: 3,
   },
 ];
 
@@ -37,7 +62,9 @@ describe("DynamicCheckupFields", () => {
   });
 
   it("フィールド定義が空なら何も描画しない", () => {
-    const { container } = render(<DynamicCheckupFields fields={[]} values={{}} onChange={vi.fn()} />);
+    const { container } = render(
+      <DynamicCheckupFields fields={[]} values={{}} onChange={vi.fn()} />,
+    );
     expect(container).toBeEmptyDOMElement();
   });
 });

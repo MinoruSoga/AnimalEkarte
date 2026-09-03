@@ -1,14 +1,14 @@
-import { test, expect } from '@playwright/test';
-import type { BrowserContext } from '@playwright/test';
-import { createAuthedContext } from './helpers/context';
-import { LstepPage } from './pages/lstep-page';
+import { test, expect } from "@playwright/test";
+import type { BrowserContext } from "@playwright/test";
+import { createAuthedContext } from "./helpers/context";
+import { LstepPage } from "./pages/lstep-page";
 
 // E2E flow tests for L-step integration pages:
 // /lstep/checkup-sync, /lstep/delivery-monitor, /lstep/analytics
 // Covers: page load, basic navigation, interaction with filters/selectors.
 // Seed data: admin@noavet.jp is system_admin with full access.
 
-test.describe('Lステップ連携 フロー E2E', () => {
+test.describe("Lステップ連携 フロー E2E", () => {
   let context: BrowserContext;
 
   test.beforeAll(async ({ browser }) => {
@@ -19,7 +19,7 @@ test.describe('Lステップ連携 フロー E2E', () => {
     await context.close();
   });
 
-  test('/lstep/checkup-sync — 健診リマインダー抽出ページが表示される', async () => {
+  test("/lstep/checkup-sync — 健診リマインダー抽出ページが表示される", async () => {
     const page = await context.newPage();
     const lstep = new LstepPage(page);
     try {
@@ -33,7 +33,7 @@ test.describe('Lステップ連携 フロー E2E', () => {
     }
   });
 
-  test('/lstep/checkup-sync — ページが表示される', async () => {
+  test("/lstep/checkup-sync — ページが表示される", async () => {
     const page = await context.newPage();
     const lstep = new LstepPage(page);
     try {
@@ -46,7 +46,7 @@ test.describe('Lステップ連携 フロー E2E', () => {
     }
   });
 
-  test('/lstep/delivery-monitor — 自動配信トリガー監視ページが表示される', async () => {
+  test("/lstep/delivery-monitor — 自動配信トリガー監視ページが表示される", async () => {
     const page = await context.newPage();
     const lstep = new LstepPage(page);
     try {
@@ -61,7 +61,7 @@ test.describe('Lステップ連携 フロー E2E', () => {
     }
   });
 
-  test('/lstep/delivery-monitor — ページが表示される', async () => {
+  test("/lstep/delivery-monitor — ページが表示される", async () => {
     const page = await context.newPage();
     const lstep = new LstepPage(page);
     try {
@@ -74,7 +74,7 @@ test.describe('Lステップ連携 フロー E2E', () => {
     }
   });
 
-  test('/lstep/analytics — Lステップ分析レポートページが表示される', async () => {
+  test("/lstep/analytics — Lステップ分析レポートページが表示される", async () => {
     const page = await context.newPage();
     const lstep = new LstepPage(page);
     try {
@@ -88,7 +88,7 @@ test.describe('Lステップ連携 フロー E2E', () => {
     }
   });
 
-  test('/lstep/analytics — ページが表示される', async () => {
+  test("/lstep/analytics — ページが表示される", async () => {
     const page = await context.newPage();
     const lstep = new LstepPage(page);
     try {

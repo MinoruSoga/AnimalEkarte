@@ -1,11 +1,11 @@
-import { useLiff } from '@/shared-liff/use-liff';
-import { ErrorPage } from '@/shared-liff/ErrorPage';
-import { LIFF_ID } from './lib/liff-config';
-import { LoadingPage } from './pages/LoadingPage';
-import { PetHealthPage } from './pages/PetHealthPage';
-import { LiffLinkPage } from './pages/LiffLinkPage';
+import { useLiff } from "@/shared-liff/use-liff";
+import { ErrorPage } from "@/shared-liff/ErrorPage";
+import { LIFF_ID } from "./lib/liff-config";
+import { LoadingPage } from "./pages/LoadingPage";
+import { PetHealthPage } from "./pages/PetHealthPage";
+import { LiffLinkPage } from "./pages/LiffLinkPage";
 
-const isLinkFlow = new URLSearchParams(window.location.search).has('token');
+const isLinkFlow = new URLSearchParams(window.location.search).has("token");
 
 export function App() {
   if (isLinkFlow) {
@@ -27,13 +27,7 @@ function HealthCardApp() {
   }
 
   if (idToken) {
-    return (
-      <PetHealthPage
-        idToken={idToken}
-        displayName={displayName}
-        pictureUrl={pictureUrl}
-      />
-    );
+    return <PetHealthPage idToken={idToken} displayName={displayName} pictureUrl={pictureUrl} />;
   }
 
   return <ErrorPage message="ログイン情報が取得できませんでした" />;

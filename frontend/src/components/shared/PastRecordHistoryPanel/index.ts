@@ -1,1 +1,1 @@
-export { PastRecordHistoryPanel } from "./PastRecordHistoryPanel"
+export { PastRecordHistoryPanel } from "./PastRecordHistoryPanel";

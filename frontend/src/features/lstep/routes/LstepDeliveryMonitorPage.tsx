@@ -27,17 +27,19 @@ export function LstepDeliveryMonitorPage() {
   const [statusFilter, setStatusFilter] = useState("");
   const [page, setPage] = useState(1);
 
-  const { data: summary, isLoading: summaryLoading } =
-    useGetLstepDeliveryTriggerSummary(from, to, triggerType || undefined);
+  const { data: summary, isLoading: summaryLoading } = useGetLstepDeliveryTriggerSummary(
+    from,
+    to,
+    triggerType || undefined,
+  );
 
-  const { data: logsPage, isLoading: logsLoading } =
-    useGetLstepDeliveryTriggerLogs(
-      from,
-      to,
-      triggerType || undefined,
-      statusFilter || undefined,
-      page
-    );
+  const { data: logsPage, isLoading: logsLoading } = useGetLstepDeliveryTriggerLogs(
+    from,
+    to,
+    triggerType || undefined,
+    statusFilter || undefined,
+    page,
+  );
 
   const isLoading = summaryLoading || logsLoading;
   const totalPages = logsPage ? Math.max(1, Math.ceil(logsPage.total / logsPage.per_page)) : 1;
@@ -80,7 +82,12 @@ export function LstepDeliveryMonitorPage() {
       title="自動配信トリガー監視"
       maxWidth={LAYOUT.pageContentMaxWidth.full}
       headerAction={
-        <Button variant="outline" className={STYLE.btnOutline} onClick={handleRefresh} disabled={isLoading}>
+        <Button
+          variant="outline"
+          className={STYLE.btnOutline}
+          onClick={handleRefresh}
+          disabled={isLoading}
+        >
           <RefreshCw className={`mr-1.5 ${ICON.sm} ${isLoading ? "animate-spin" : ""}`} />
           更新
         </Button>

@@ -102,10 +102,9 @@ describe("MedicalRecordBillCheck FE-RC-027 item_type 判定", () => {
     );
 
     const user = userEvent.setup();
-    render(
-      <MedicalRecordBillCheck medicalRecordId={MEDICAL_RECORD_ID} petId="1" />,
-      { wrapper: createTestWrapper() },
-    );
+    render(<MedicalRecordBillCheck medicalRecordId={MEDICAL_RECORD_ID} petId="1" />, {
+      wrapper: createTestWrapper(),
+    });
 
     await user.click(screen.getByRole("button", { name: "行を追加（検索）" }));
     await user.click(screen.getByRole("button", { name: "薬剤Aを選択" }));
@@ -132,10 +131,9 @@ describe("MedicalRecordBillCheck FE-RC-005 billing-confirmation 二重トース�
     );
 
     const user = userEvent.setup();
-    render(
-      <MedicalRecordBillCheck medicalRecordId={MEDICAL_RECORD_ID} petId="1" />,
-      { wrapper: createTestWrapper() },
-    );
+    render(<MedicalRecordBillCheck medicalRecordId={MEDICAL_RECORD_ID} petId="1" />, {
+      wrapper: createTestWrapper(),
+    });
 
     await user.click(screen.getByRole("button", { name: /チェック完了/ }));
 
@@ -155,10 +153,9 @@ describe("MedicalRecordBillCheck FE-RC-005 billing-confirmation 二重トース�
     );
 
     const user = userEvent.setup();
-    render(
-      <MedicalRecordBillCheck medicalRecordId={MEDICAL_RECORD_ID} petId="1" />,
-      { wrapper: createTestWrapper() },
-    );
+    render(<MedicalRecordBillCheck medicalRecordId={MEDICAL_RECORD_ID} petId="1" />, {
+      wrapper: createTestWrapper(),
+    });
 
     await waitFor(() => {
       expect(screen.getByRole("button", { name: /確認を取り消す/ })).toBeInTheDocument();

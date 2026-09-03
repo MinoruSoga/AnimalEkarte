@@ -6,12 +6,8 @@ import { transformHospitalization } from "./transforms";
 import type { Hospitalization } from "./transforms";
 import type { BackendHospitalization } from "./types";
 
-const getHospitalization = async (
-  id: string
-): Promise<Hospitalization> => {
-  const { data } = await axios.get<BackendHospitalization>(
-    `/v1/hospitalizations/${id}`
-  );
+const getHospitalization = async (id: string): Promise<Hospitalization> => {
+  const { data } = await axios.get<BackendHospitalization>(`/v1/hospitalizations/${id}`);
   return transformHospitalization(data);
 };
 
@@ -25,12 +21,8 @@ export const useGetHospitalization = (id: string) => {
   });
 };
 
-const getHospitalizationRaw = async (
-  id: string
-): Promise<BackendHospitalization> => {
-  const { data } = await axios.get<BackendHospitalization>(
-    `/v1/hospitalizations/${id}`
-  );
+const getHospitalizationRaw = async (id: string): Promise<BackendHospitalization> => {
+  const { data } = await axios.get<BackendHospitalization>(`/v1/hospitalizations/${id}`);
   return data;
 };
 
@@ -43,4 +35,3 @@ export const useGetHospitalizationRaw = (id: string | undefined) => {
     gcTime: QUERY_GC_TIMES.STANDARD,
   });
 };
-

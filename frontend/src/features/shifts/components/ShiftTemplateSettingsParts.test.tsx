@@ -45,7 +45,9 @@ describe("ShiftTemplateRow", () => {
       </DndContext>,
     );
 
-    await user.click(screen.getByRole("button", { name: "詳細: シフトテンプレート 午前勤務 (ID 1)" }));
+    await user.click(
+      screen.getByRole("button", { name: "詳細: シフトテンプレート 午前勤務 (ID 1)" }),
+    );
 
     expect(onEdit).toHaveBeenCalledTimes(1);
   });

@@ -22,22 +22,16 @@ export function LstepTagList({
   const [expanded, setExpanded] = useState(false);
 
   const visibleTags =
-    expanded || tags.length <= COLLAPSE_THRESHOLD
-      ? tags
-      : tags.slice(0, COLLAPSE_THRESHOLD);
+    expanded || tags.length <= COLLAPSE_THRESHOLD ? tags : tags.slice(0, COLLAPSE_THRESHOLD);
   const hiddenCount = tags.length - COLLAPSE_THRESHOLD;
 
   if (tags.length === 0) {
-    return (
-      <p className={`text-sm ${C.text40} italic`}>タグはありません</p>
-    );
+    return <p className={`text-sm ${C.text40} italic`}>タグはありません</p>;
   }
 
   return (
     <div className="flex flex-col gap-2">
-      <div
-        className={`flex flex-wrap gap-1.5 ${disabled ? "opacity-50" : ""}`}
-      >
+      <div className={`flex flex-wrap gap-1.5 ${disabled ? "opacity-50" : ""}`}>
         {visibleTags.map((tag) => {
           const isAuto = isAutoManagedTag(tag);
           return (

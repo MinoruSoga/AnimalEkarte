@@ -7,10 +7,7 @@ import { http, HttpResponse, delay } from "msw";
 import { server } from "@/testing/mocks/node";
 import { AuthContext } from "@/hooks/auth-context";
 import type { AuthContextValue } from "@/types/auth";
-import {
-  ResourceLstepAnalytics,
-  ResourceOwners,
-} from "@/types/generated/models";
+import { ResourceLstepAnalytics, ResourceOwners } from "@/types/generated/models";
 import { LstepTagManagementPage } from "./LstepTagManagementPage";
 import type { LstepTagSummaryResponse } from "../api/get-lstep-tag-summary";
 import { fetchLstepTagOwnersCsv } from "../api/get-lstep-tag-owners";
@@ -47,17 +44,15 @@ const mockSummary: LstepTagSummaryResponse = {
 
 function setupSummaryHandler(data: LstepTagSummaryResponse) {
   server.use(
-    http.get(`/api/v1/clinics/${CLINIC_ID}/lstep/tag-summary`, () =>
-      HttpResponse.json(data)
-    )
+    http.get(`/api/v1/clinics/${CLINIC_ID}/lstep/tag-summary`, () => HttpResponse.json(data)),
   );
 }
 
 function setupOwnersHandler() {
   server.use(
     http.get(`/api/v1/clinics/${CLINIC_ID}/lstep/owners`, () =>
-      HttpResponse.json({ owners: [], total: 0 })
-    )
+      HttpResponse.json({ owners: [], total: 0 }),
+    ),
   );
 }
 
@@ -166,9 +161,7 @@ describe("LstepTagManagementPage — D: タグ別飼い主一覧ドロワー (FE
     await user.click(within(row!).getByRole("button", { name: /対象者一覧/ }));
 
     await waitFor(() => {
-      expect(
-        screen.getByText("タグ「HLTH_健診あり」の対象者一覧")
-      ).toBeInTheDocument();
+      expect(screen.getByText("タグ「HLTH_健診あり」の対象者一覧")).toBeInTheDocument();
     });
     const drawer = screen.getByRole("dialog");
     expect(drawer).toHaveAccessibleDescription("5名");
@@ -177,15 +170,13 @@ describe("LstepTagManagementPage — D: タグ別飼い主一覧ドロワー (FE
     expect(
       within(drawer)
         .getByText("タグ「HLTH_健診あり」の対象者一覧")
-        .closest('[data-slot="sheet-header"]')
+        .closest('[data-slot="sheet-header"]'),
     ).toHaveClass("pr-16");
     expect(within(drawer).getByRole("button", { name: "閉じる" })).toHaveClass(
       "min-h-11",
-      "min-w-11"
+      "min-w-11",
     );
-    expect(within(drawer).getByRole("button", { name: "CSV" })).toHaveClass(
-      "min-h-11"
-    );
+    expect(within(drawer).getByRole("button", { name: "CSV" })).toHaveClass("min-h-11");
   });
 
   it("対象者が100名を超える場合は先頭100名に打ち切り、一覧APIも上限内で呼ぶ", async () => {
@@ -291,7 +282,7 @@ describe("LstepTagManagementPage — E: ローディング・エラー状態 (FE
       http.get(`/api/v1/clinics/${CLINIC_ID}/lstep/tag-summary`, async () => {
         await delay("infinite");
         return HttpResponse.json(mockSummary);
-      })
+      }),
     );
     render(<LstepTagManagementPage />, { wrapper: createWrapper() });
     expect(screen.getByText("読み込み中...")).toBeInTheDocument();
@@ -300,8 +291,8 @@ describe("LstepTagManagementPage — E: ローディング・エラー状態 (FE
   it("403エラー時は空一覧ではなく権限不足を表示する", async () => {
     server.use(
       http.get(`/api/v1/clinics/${CLINIC_ID}/lstep/tag-summary`, () =>
-        HttpResponse.json({ error: "forbidden" }, { status: 403 })
-      )
+        HttpResponse.json({ error: "forbidden" }, { status: 403 }),
+      ),
     );
     render(<LstepTagManagementPage />, { wrapper: createWrapper() });
     await waitFor(() => {
@@ -326,7 +317,7 @@ describe("LstepTagManagementPage — G: RBAC 契約", () => {
     mockHasPermission.mockImplementation(
       (resource, action) =>
         (resource === ResourceLstepAnalytics && action === "view") ||
-        (resource === ResourceOwners && action === "delete")
+        (resource === ResourceOwners && action === "delete"),
     );
     server.use(
       http.get(`/api/v1/clinics/${CLINIC_ID}/lstep/owners`, () =>
@@ -346,8 +337,8 @@ describe("LstepTagManagementPage — G: RBAC 契約", () => {
             },
           ],
           total: 2,
-        })
-      )
+        }),
+      ),
     );
     await renderAndWait({
       ...mockSummary,
@@ -401,7 +392,7 @@ describe("LstepTagManagementPage — H: BUG-024 削除 UI パターン", () => {
     };
     server.use(
       http.get(`/api/v1/clinics/${CLINIC_ID}/lstep/tag-summary`, () =>
-        HttpResponse.json(summaryData)
+        HttpResponse.json(summaryData),
       ),
       http.get(`/api/v1/clinics/${CLINIC_ID}/lstep/owners`, () =>
         HttpResponse.json({
@@ -414,7 +405,7 @@ describe("LstepTagManagementPage — H: BUG-024 削除 UI パターン", () => {
             },
           ],
           total: 1,
-        })
+        }),
       ),
       http.delete(
         `/api/v1/clinics/${CLINIC_ID}/owners/:ownerId/lstep/tags/:tagName`,
@@ -424,8 +415,8 @@ describe("LstepTagManagementPage — H: BUG-024 削除 UI パターン", () => {
             tagName: decodeURIComponent(String(params.tagName)),
           });
           return new HttpResponse(null, { status: 204 });
-        }
-      )
+        },
+      ),
     );
     render(<LstepTagManagementPage />, { wrapper: createWrapper() });
     expect(await screen.findByText("campaign_summer")).toBeInTheDocument();
@@ -466,8 +457,8 @@ describe("LstepTagManagementPage — F: 判定理由表示 (FEAT-379-supplement)
             },
           ],
           total: 1,
-        })
-      )
+        }),
+      ),
     );
     await renderAndWait();
 
@@ -477,13 +468,9 @@ describe("LstepTagManagementPage — F: 判定理由表示 (FEAT-379-supplement)
     await user.click(within(row!).getByRole("button", { name: /対象者一覧/ }));
 
     await waitFor(() => {
-      expect(
-        screen.getByText("判定理由: 最終健診: 2025-12-01")
-      ).toBeInTheDocument();
+      expect(screen.getByText("判定理由: 最終健診: 2025-12-01")).toBeInTheDocument();
     });
-    expect(screen.getByRole("link", { name: "カルテを開く" })).toHaveClass(
-      "min-h-11"
-    );
+    expect(screen.getByRole("link", { name: "カルテを開く" })).toHaveClass("min-h-11");
   });
 
   it("reason が undefined の場合「判定理由」テキストは描画されない", async () => {
@@ -498,8 +485,8 @@ describe("LstepTagManagementPage — F: 判定理由表示 (FEAT-379-supplement)
             },
           ],
           total: 1,
-        })
-      )
+        }),
+      ),
     );
     await renderAndWait();
 

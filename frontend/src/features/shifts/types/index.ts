@@ -50,7 +50,6 @@ export function isShiftType(value: unknown): value is ShiftType {
   return typeof value === "string" && SHIFT_TYPE_VALUES.includes(value);
 }
 
-
 // シフトカレンダーで使用するスタッフの最小型（feature間importを避けるため）
 export interface ShiftStaff {
   id: string;

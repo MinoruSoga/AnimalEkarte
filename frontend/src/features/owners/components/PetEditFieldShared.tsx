@@ -14,7 +14,7 @@ export const LABEL_CLS = `text-sm ${C.text60}`;
 export const INPUT_CLS = STYLE.formInput;
 
 export const BREED_SUGGESTIONS: Record<string, string[]> = {
-  "犬": [
+  犬: [
     "柴犬",
     "トイプードル",
     "チワワ",
@@ -37,7 +37,7 @@ export const BREED_SUGGESTIONS: Record<string, string[]> = {
     "柴ミックス",
     "雑種",
   ],
-  "猫": [
+  猫: [
     "アメリカンショートヘア",
     "スコティッシュフォールド",
     "ロシアンブルー",
@@ -54,10 +54,10 @@ export const BREED_SUGGESTIONS: Record<string, string[]> = {
     "日本猫",
     "雑種",
   ],
-  "鳥": ["セキセイインコ", "オカメインコ", "コザクラインコ", "文鳥", "カナリア", "その他"],
-  "ウサギ": ["ネザーランドドワーフ", "ホーランドロップ", "ミニレッキス", "その他"],
-  "ハムスター": ["ゴールデンハムスター", "ジャンガリアン", "キャンベル", "その他"],
-  "フェレット": ["フェレット"],
+  鳥: ["セキセイインコ", "オカメインコ", "コザクラインコ", "文鳥", "カナリア", "その他"],
+  ウサギ: ["ネザーランドドワーフ", "ホーランドロップ", "ミニレッキス", "その他"],
+  ハムスター: ["ゴールデンハムスター", "ジャンガリアン", "キャンベル", "その他"],
+  フェレット: ["フェレット"],
 };
 
 export const GENDER_SELECT_ITEMS = PET_GENDER_VALUES.map((g) => (

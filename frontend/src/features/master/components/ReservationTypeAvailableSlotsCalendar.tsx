@@ -1,13 +1,6 @@
 import { useActionState, useCallback, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
-import {
-  addDays,
-  addWeeks,
-  format,
-  isSameDay,
-  startOfWeek,
-  subWeeks,
-} from "date-fns";
+import { addDays, addWeeks, format, isSameDay, startOfWeek, subWeeks } from "date-fns";
 import { ja } from "date-fns/locale";
 import { Plus, Repeat, Trash2 } from "lucide-react";
 import { Select, SelectContent, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -67,7 +60,9 @@ export function ReservationTypeAvailableSlotsCalendar({
   const deleteMutation = useDeleteAvailableSlot(clinicId, reservationTypeId);
   const { mutate } = deleteMutation;
 
-  const [currentWeek, setCurrentWeek] = useState<Date>(() => initialMonth ?? toJSTWallDate(new Date()));
+  const [currentWeek, setCurrentWeek] = useState<Date>(
+    () => initialMonth ?? toJSTWallDate(new Date()),
+  );
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [startTime, setStartTime] = useState(DEFAULT_START_TIME);
 
@@ -142,9 +137,9 @@ export function ReservationTypeAvailableSlotsCalendar({
   const today = toJSTWallDate(new Date());
 
   const selectedWeeklySlots = selectedDate
-    ? weeklyByDow.get(new Date(`${selectedDate}T00:00:00`).getDay()) ?? []
+    ? (weeklyByDow.get(new Date(`${selectedDate}T00:00:00`).getDay()) ?? [])
     : [];
-  const selectedSpecificSlots = selectedDate ? specificByDate.get(selectedDate) ?? [] : [];
+  const selectedSpecificSlots = selectedDate ? (specificByDate.get(selectedDate) ?? []) : [];
 
   const isDuplicate = useMemo(() => {
     if (!selectedDate) return false;

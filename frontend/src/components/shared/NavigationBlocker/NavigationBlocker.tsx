@@ -28,8 +28,7 @@ function NavigationBlockerDialog({
   onCleanup: () => void;
 }) {
   const blocker = useBlocker(
-    ({ currentLocation, nextLocation }) =>
-      currentLocation.pathname !== nextLocation.pathname,
+    ({ currentLocation, nextLocation }) => currentLocation.pathname !== nextLocation.pathname,
   );
 
   // FE-RC-031: cleanup は unmount 時にしか実行されないため、mount 時点の

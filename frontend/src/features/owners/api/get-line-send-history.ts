@@ -20,10 +20,10 @@ interface LineSendHistoryResponse {
 
 async function getLineSendHistory(
   clinicId: string,
-  ownerId: string
+  ownerId: string,
 ): Promise<LineSendHistoryItem[]> {
   const { data } = await axios.get<LineSendHistoryResponse>(
-    `/v1/clinics/${clinicId}/owners/${ownerId}/line/send-logs`
+    `/v1/clinics/${clinicId}/owners/${ownerId}/line/send-logs`,
   );
   return data.items;
 }

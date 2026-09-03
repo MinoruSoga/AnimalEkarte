@@ -13,10 +13,7 @@ import { useGetPet } from "@/hooks/use-pet";
 import { usePermission } from "@/hooks/use-permission";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { C, ICON } from "@/lib/design-tokens";
-import {
-  isNonDisclosureReadStatus,
-  resolveEntityReadResult,
-} from "@/lib/entity-read-result";
+import { isNonDisclosureReadStatus, resolveEntityReadResult } from "@/lib/entity-read-result";
 import { ResourceEstimates } from "@/types/generated/models";
 
 import { useGetEstimate } from "../api/get-estimate";
@@ -71,12 +68,12 @@ function EstimateFormContent({ id }: { id?: string }) {
   );
   const blocksNewEstimatePet = Boolean(
     !isEdit &&
-      hasPetIdFromQuery &&
-      (petQueryPending ||
-        petQueryError ||
-        !petQuerySuccess ||
-        !petFromQuery ||
-        petFromQuery.status !== "生存"),
+    hasPetIdFromQuery &&
+    (petQueryPending ||
+      petQueryError ||
+      !petQuerySuccess ||
+      !petFromQuery ||
+      petFromQuery.status !== "生存"),
   );
   // 表示メッセージは settle 後のみ（pending 中は fieldset disabled のみ）。
   const deceasedPetBlockMessage = (() => {
@@ -137,7 +134,7 @@ function EstimateFormContent({ id }: { id?: string }) {
       markDirty();
       (handleChange as (k: string, v: unknown) => void)(key, value);
     },
-    [markDirty, handleChange]
+    [markDirty, handleChange],
   );
 
   if (isEdit && entityRead.status === "loading") {
@@ -185,74 +182,80 @@ function EstimateFormContent({ id }: { id?: string }) {
 
   return (
     <form action={formAction}>
-    <PageLayout
-      title={isEdit ? "見積書編集" : "新規見積書作成"}
-      resource={ResourceEstimates}
-      icon={<FileText className={`${ICON.page} ${C.text}`} />}
-      headerAction={
-        <div className="flex gap-2">
-          <Button variant="outline" type="button" size="sm" onClick={handleCancel} className="h-11 text-sm">
-            キャンセル
-          </Button>
-          {canSubmit && !blocksNewEstimatePet ? (
-            <SubmitButton
+      <PageLayout
+        title={isEdit ? "見積書編集" : "新規見積書作成"}
+        resource={ResourceEstimates}
+        icon={<FileText className={`${ICON.page} ${C.text}`} />}
+        headerAction={
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              type="button"
               size="sm"
-              colorVariant="primary"
-              disabled={!form.title.trim()}
+              onClick={handleCancel}
               className="h-11 text-sm"
             >
-              {isEdit ? "更新" : "作成"}
-            </SubmitButton>
-          ) : null}
-        </div>
-      }
-      maxWidth="max-w-2xl"
-    >
-      <NavigationBlocker when={isDirty ? !isPending : false} />
-      {/* FE-RC-002/004: 死亡・生死不明ペットの新規見積書作成を render 側で拒否する（callback 側は use-estimate-form.ts）。 */}
-      {deceasedPetBlockMessage ? (
-        <div
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-md border mb-4 ${C.bgWarning50} ${C.borderWarning20} ${C.textWarning}`}
-          role="status"
-          aria-label="作成不可"
-        >
-          <EyeOff className={`shrink-0 h-4 w-4 ${C.textWarningIcon}`} aria-hidden="true" />
-          <span className="text-sm font-medium">{deceasedPetBlockMessage}</span>
-        </div>
-      ) : null}
-      <fieldset disabled={blocksNewEstimatePet} className="border-0 p-0 m-0 min-w-0">
-        <div className={`${C.bgWhite} border ${C.borderLight} rounded-md p-6 space-y-6`}>
-          {/* rerender-memo: BasicInfoSection — 金額/テキスト変更では再レンダーしない */}
-          <BasicInfoSection
-            title={form.title}
-            status={form.status}
-            validUntil={form.validUntil}
-            isEdit={isEdit}
-            onChange={handleChangeWithDirty}
-            titleError={formState.fieldErrors?.title}
-            statusError={formState.fieldErrors?.status}
-          />
+              キャンセル
+            </Button>
+            {canSubmit && !blocksNewEstimatePet ? (
+              <SubmitButton
+                size="sm"
+                colorVariant="primary"
+                disabled={!form.title.trim()}
+                className="h-11 text-sm"
+              >
+                {isEdit ? "更新" : "作成"}
+              </SubmitButton>
+            ) : null}
+          </div>
+        }
+        maxWidth="max-w-2xl"
+      >
+        <NavigationBlocker when={isDirty ? !isPending : false} />
+        {/* FE-RC-002/004: 死亡・生死不明ペットの新規見積書作成を render 側で拒否する（callback 側は use-estimate-form.ts）。 */}
+        {deceasedPetBlockMessage ? (
+          <div
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-md border mb-4 ${C.bgWarning50} ${C.borderWarning20} ${C.textWarning}`}
+            role="status"
+            aria-label="作成不可"
+          >
+            <EyeOff className={`shrink-0 h-4 w-4 ${C.textWarningIcon}`} aria-hidden="true" />
+            <span className="text-sm font-medium">{deceasedPetBlockMessage}</span>
+          </div>
+        ) : null}
+        <fieldset disabled={blocksNewEstimatePet} className="border-0 p-0 m-0 min-w-0">
+          <div className={`${C.bgWhite} border ${C.borderLight} rounded-md p-6 space-y-6`}>
+            {/* rerender-memo: BasicInfoSection — 金額/テキスト変更では再レンダーしない */}
+            <BasicInfoSection
+              title={form.title}
+              status={form.status}
+              validUntil={form.validUntil}
+              isEdit={isEdit}
+              onChange={handleChangeWithDirty}
+              titleError={formState.fieldErrors?.title}
+              statusError={formState.fieldErrors?.status}
+            />
 
-          {/* rerender-memo: AmountSection — 基本情報/テキスト変更では再レンダーしない */}
-          <AmountSection
-            subtotal={form.subtotal}
-            taxTotal={form.taxTotal}
-            insuranceAmount={form.insuranceAmount}
-            discountAmount={form.discountAmount}
-            totalAmount={form.totalAmount}
-            canEditDiscount={canEditDiscount}
-            onChange={handleChangeWithDirty}
-          />
+            {/* rerender-memo: AmountSection — 基本情報/テキスト変更では再レンダーしない */}
+            <AmountSection
+              subtotal={form.subtotal}
+              taxTotal={form.taxTotal}
+              insuranceAmount={form.insuranceAmount}
+              discountAmount={form.discountAmount}
+              totalAmount={form.totalAmount}
+              canEditDiscount={canEditDiscount}
+              onChange={handleChangeWithDirty}
+            />
 
-          {/* rerender-memo: TextSection — 基本情報/金額変更では再レンダーしない */}
-          <TextSection
-            comment={form.comment}
-            notes={form.notes}
-            onChange={handleChangeWithDirty}
-          />
-        </div>
-      </fieldset>
-    </PageLayout>
+            {/* rerender-memo: TextSection — 基本情報/金額変更では再レンダーしない */}
+            <TextSection
+              comment={form.comment}
+              notes={form.notes}
+              onChange={handleChangeWithDirty}
+            />
+          </div>
+        </fieldset>
+      </PageLayout>
     </form>
   );
 }

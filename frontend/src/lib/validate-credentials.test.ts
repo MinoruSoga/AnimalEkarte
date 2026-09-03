@@ -1,9 +1,6 @@
 import { describe, it, expect } from "vitest";
 
-import {
-  validateOptionalEmail,
-  validateOptionalPassword,
-} from "./validate-credentials";
+import { validateOptionalEmail, validateOptionalPassword } from "./validate-credentials";
 
 // R-1③ の裁定: backend は account を持たない staff を許容する（`resource` 種別は
 // 部屋・機材等の非人物リソースで原理的にログインを持ち得ない）。したがって

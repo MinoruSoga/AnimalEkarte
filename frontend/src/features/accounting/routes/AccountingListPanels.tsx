@@ -71,11 +71,7 @@ export function AccountingListContent({
           onToggle={onToggleClinic}
         />
       ) : null}
-      <UnifiedTabs
-        items={TABS}
-        value={activeTab}
-        onValueChange={onTabChange}
-      >
+      <UnifiedTabs items={TABS} value={activeTab} onValueChange={onTabChange}>
         <UnifiedTabsContent value="daily" className="mt-4">
           <DailyAccountingTab
             selectedClinicIds={isMultiClinic ? selectedClinicIds : undefined}

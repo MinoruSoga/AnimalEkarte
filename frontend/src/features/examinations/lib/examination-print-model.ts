@@ -54,17 +54,13 @@ export function buildExaminationPrintModel(
   const isDraft = snapshot.printBoundary === "draft";
   return {
     title: "検査結果",
-    watermark: isDraft
-      ? snapshot.watermark || "DRAFT / 未確定"
-      : "",
+    watermark: isDraft ? snapshot.watermark || "DRAFT / 未確定" : "",
     isDraft,
     version: snapshot.version,
     date: snapshot.date,
     examTypeName: snapshot.display.examTypeName,
     petName: snapshot.display.petName,
-    ownerName:
-      snapshot.display.petOwnerName ||
-      snapshot.display.medicalRecordOwnerName,
+    ownerName: snapshot.display.petOwnerName || snapshot.display.medicalRecordOwnerName,
     speciesName: snapshot.display.speciesName,
     doctorName: snapshot.display.doctorName,
     medicalRecordNo: snapshot.display.medicalRecordNo,

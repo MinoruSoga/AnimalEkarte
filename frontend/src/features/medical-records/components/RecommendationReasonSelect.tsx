@@ -29,7 +29,7 @@ type Props =
 
 export function RecommendationReasonSelect(props: Props) {
   const { mutate, isPending } = useUpdateRecommendationReason(
-    props.mode === "edit" ? props.medicalRecordId : ""
+    props.mode === "edit" ? props.medicalRecordId : "",
   );
 
   const handleValueChange = (selected: string) => {
@@ -67,9 +67,7 @@ export function RecommendationReasonSelect(props: Props) {
               {RECOMMENDATION_REASON_LABELS[v]}
             </SelectItem>
           ))}
-          {value !== null ? (
-            <SelectItem value="_clear">クリア</SelectItem>
-          ) : null}
+          {value !== null ? <SelectItem value="_clear">クリア</SelectItem> : null}
         </SelectContent>
       </Select>
     </div>

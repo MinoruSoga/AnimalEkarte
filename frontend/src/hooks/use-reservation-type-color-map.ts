@@ -173,10 +173,7 @@ export function useReservationTypeColorMap() {
   }, [hasGroups, groups, categories]);
 
   const groupColorById = useMemo(
-    () =>
-      new Map(
-        groups.map((g) => [g.id, g.color ? hexToStyle(g.color) : DEFAULT_COLOR]),
-      ),
+    () => new Map(groups.map((g) => [g.id, g.color ? hexToStyle(g.color) : DEFAULT_COLOR])),
     [groups],
   );
 
@@ -185,10 +182,7 @@ export function useReservationTypeColorMap() {
     for (const cat of categories) {
       const groupColor = cat.groupId ? groupColorById.get(cat.groupId) : undefined;
       const baseColor = groupColor ?? (cat.color ? hexToStyle(cat.color) : DEFAULT_COLOR);
-      map.set(
-        cat.name,
-        cat.isActive ? baseColor : { ...baseColor, isInactive: true },
-      );
+      map.set(cat.name, cat.isActive ? baseColor : { ...baseColor, isInactive: true });
     }
     return map;
   }, [categories, groupColorById]);

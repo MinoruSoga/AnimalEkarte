@@ -40,8 +40,7 @@ export function useGetClinicsList(scope?: "all") {
 // Staff Clinic Assignments API
 // ─────────────────────────────────────────────────
 
-const STAFF_CLINICS_KEY = (staffId: string) =>
-  queryKeys.staffs.subResource(staffId, "clinics");
+const STAFF_CLINICS_KEY = (staffId: string) => queryKeys.staffs.subResource(staffId, "clinics");
 
 export function useGetStaffClinics(staffId: string | null) {
   return useQuery({
@@ -61,13 +60,7 @@ export function useGetStaffClinics(staffId: string | null) {
 export function useUpdateStaffClinics() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({
-      staffId,
-      clinicIds,
-    }: {
-      staffId: string;
-      clinicIds: string[];
-    }) => {
+    mutationFn: async ({ staffId, clinicIds }: { staffId: string; clinicIds: string[] }) => {
       await axios.put(`/v1/masters/staffs/${staffId}/clinics`, {
         clinic_ids: clinicIds.map((id) => parseInt(id, 10)),
       });

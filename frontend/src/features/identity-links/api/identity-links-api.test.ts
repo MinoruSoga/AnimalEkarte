@@ -8,10 +8,7 @@ vi.mock("@/lib/axios", () => ({
 }));
 
 import { axios } from "@/lib/axios";
-import {
-  findOwnerIdentityGroupByMember,
-  findPetIdentityGroupByMember,
-} from "./identity-links-api";
+import { findOwnerIdentityGroupByMember, findPetIdentityGroupByMember } from "./identity-links-api";
 import type {
   OwnerGroupResponse,
   PetGroupResponse,
@@ -21,19 +18,13 @@ const mockedGet = vi.mocked(axios.get);
 
 function axiosError(status: number): AxiosError {
   const config = { headers: new AxiosHeaders() } as InternalAxiosRequestConfig;
-  return new AxiosError(
-    "request failed",
-    AxiosError.ERR_BAD_RESPONSE,
+  return new AxiosError("request failed", AxiosError.ERR_BAD_RESPONSE, config, undefined, {
     config,
-    undefined,
-    {
-      config,
-      data: { error: "error" },
-      headers: new AxiosHeaders(),
-      status,
-      statusText: "Error",
-    },
-  );
+    data: { error: "error" },
+    headers: new AxiosHeaders(),
+    status,
+    statusText: "Error",
+  });
 }
 
 describe("findOwnerIdentityGroupByMember", () => {

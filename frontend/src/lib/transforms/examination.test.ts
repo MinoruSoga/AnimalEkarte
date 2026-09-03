@@ -1,6 +1,9 @@
 import { describe, it, expect } from "vitest";
 import { transformExamination } from "./examination";
-import type { Examination as BackendExamination, ExamResult as BackendExamResult } from "@/types/generated/models";
+import type {
+  Examination as BackendExamination,
+  ExamResult as BackendExamResult,
+} from "@/types/generated/models";
 
 const minimal: BackendExamination = {
   id: 1,
@@ -23,11 +26,15 @@ describe("transformExamination", () => {
   });
 
   it("date をスライスして日付部分のみ返す", () => {
-    expect(transformExamination({ ...minimal, date: "2026-03-25T10:00:00Z" }).date).toBe("2026-03-25");
+    expect(transformExamination({ ...minimal, date: "2026-03-25T10:00:00Z" }).date).toBe(
+      "2026-03-25",
+    );
   });
 
   it("date が未設定のとき空文字を返す", () => {
-    expect(transformExamination({ ...minimal, date: undefined as unknown as string }).date).toBe("");
+    expect(transformExamination({ ...minimal, date: undefined as unknown as string }).date).toBe(
+      "",
+    );
   });
 
   it("status: pending → '依頼中'", () => {
@@ -43,7 +50,9 @@ describe("transformExamination", () => {
   });
 
   it("未知の status は '依頼中' にフォールバックする", () => {
-    expect(transformExamination({ ...minimal, status: "unknown" as "pending" }).status).toBe("依頼中");
+    expect(transformExamination({ ...minimal, status: "unknown" as "pending" }).status).toBe(
+      "依頼中",
+    );
   });
 
   it("exam_type.name を testType にマップする", () => {
@@ -85,7 +94,8 @@ describe("transformExamination", () => {
     const result = transformExamination({
       ...minimal,
       pet: {
-        id: 1, clinic_id: 1,
+        id: 1,
+        clinic_id: 1,
         owner: { id: 1, clinic_id: 1, name: "田中太郎" } as BackendExamination["pet"]["owner"],
       } as BackendExamination["pet"],
     });

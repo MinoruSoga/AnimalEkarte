@@ -4,20 +4,20 @@ import { useMemo } from "react";
 // Internal
 import { SearchableSelect, type SearchableSelectOption } from "@/components/ui/searchable-select";
 import {
-    useGetAllMedicinesMaster,
-    useGetAllProcedures,
-    useGetAllHospitalizationPlansMaster,
+  useGetAllMedicinesMaster,
+  useGetAllProcedures,
+  useGetAllHospitalizationPlansMaster,
 } from "@/hooks/use-treatment-master";
 
 // Types
 import type { CarePlanItemType } from "../../api/care-plan-items";
 
 interface CarePlanRefSelectProps {
-    /** ケアプラン項目の type。medicine/treatment/item 以外は何も描画しない。 */
-    type: CarePlanItemType;
-    /** 選択中の参照先マスタ ID(未選択時は null)。 */
-    value: string | null;
-    onChange: (value: string | null) => void;
+  /** ケアプラン項目の type。medicine/treatment/item 以外は何も描画しない。 */
+  type: CarePlanItemType;
+  /** 選択中の参照先マスタ ID(未選択時は null)。 */
+  value: string | null;
+  onChange: (value: string | null) => void;
 }
 
 /**
@@ -28,63 +28,63 @@ interface CarePlanRefSelectProps {
  * 新しい選択 UI は発明しない。
  */
 export function CarePlanRefSelect({ type, value, onChange }: CarePlanRefSelectProps) {
-    const { data: medicines, isLoading: isMedicinesLoading } = useGetAllMedicinesMaster();
-    const { data: procedures, isLoading: isProceduresLoading } = useGetAllProcedures();
-    const { data: plans, isLoading: isPlansLoading } = useGetAllHospitalizationPlansMaster();
+  const { data: medicines, isLoading: isMedicinesLoading } = useGetAllMedicinesMaster();
+  const { data: procedures, isLoading: isProceduresLoading } = useGetAllProcedures();
+  const { data: plans, isLoading: isPlansLoading } = useGetAllHospitalizationPlansMaster();
 
-    const medicineOptions = useMemo<SearchableSelectOption[]>(
-        () => (medicines ?? []).map((m) => ({ value: m.id, label: m.name })),
-        [medicines]
+  const medicineOptions = useMemo<SearchableSelectOption[]>(
+    () => (medicines ?? []).map((m) => ({ value: m.id, label: m.name })),
+    [medicines],
+  );
+  const procedureOptions = useMemo<SearchableSelectOption[]>(
+    () => (procedures ?? []).map((p) => ({ value: p.id, label: p.name })),
+    [procedures],
+  );
+  const planOptions = useMemo<SearchableSelectOption[]>(
+    () => (plans ?? []).map((p) => ({ value: p.id, label: p.name })),
+    [plans],
+  );
+
+  const handleChange = (next: string) => onChange(next || null);
+
+  if (type === "medicine") {
+    return (
+      <SearchableSelect
+        value={value ?? ""}
+        onValueChange={handleChange}
+        options={medicineOptions}
+        disabled={isMedicinesLoading}
+        placeholder={isMedicinesLoading ? "読み込み中..." : "薬剤を選択"}
+        searchPlaceholder="薬剤を検索..."
+      />
     );
-    const procedureOptions = useMemo<SearchableSelectOption[]>(
-        () => (procedures ?? []).map((p) => ({ value: p.id, label: p.name })),
-        [procedures]
+  }
+
+  if (type === "treatment") {
+    return (
+      <SearchableSelect
+        value={value ?? ""}
+        onValueChange={handleChange}
+        options={procedureOptions}
+        disabled={isProceduresLoading}
+        placeholder={isProceduresLoading ? "読み込み中..." : "処置・検査を選択"}
+        searchPlaceholder="処置・検査を検索..."
+      />
     );
-    const planOptions = useMemo<SearchableSelectOption[]>(
-        () => (plans ?? []).map((p) => ({ value: p.id, label: p.name })),
-        [plans]
+  }
+
+  if (type === "item") {
+    return (
+      <SearchableSelect
+        value={value ?? ""}
+        onValueChange={handleChange}
+        options={planOptions}
+        disabled={isPlansLoading}
+        placeholder={isPlansLoading ? "読み込み中..." : "入院プランを選択"}
+        searchPlaceholder="入院プランを検索..."
+      />
     );
+  }
 
-    const handleChange = (next: string) => onChange(next || null);
-
-    if (type === "medicine") {
-        return (
-            <SearchableSelect
-                value={value ?? ""}
-                onValueChange={handleChange}
-                options={medicineOptions}
-                disabled={isMedicinesLoading}
-                placeholder={isMedicinesLoading ? "読み込み中..." : "薬剤を選択"}
-                searchPlaceholder="薬剤を検索..."
-            />
-        );
-    }
-
-    if (type === "treatment") {
-        return (
-            <SearchableSelect
-                value={value ?? ""}
-                onValueChange={handleChange}
-                options={procedureOptions}
-                disabled={isProceduresLoading}
-                placeholder={isProceduresLoading ? "読み込み中..." : "処置・検査を選択"}
-                searchPlaceholder="処置・検査を検索..."
-            />
-        );
-    }
-
-    if (type === "item") {
-        return (
-            <SearchableSelect
-                value={value ?? ""}
-                onValueChange={handleChange}
-                options={planOptions}
-                disabled={isPlansLoading}
-                placeholder={isPlansLoading ? "読み込み中..." : "入院プランを選択"}
-                searchPlaceholder="入院プランを検索..."
-            />
-        );
-    }
-
-    return null;
+  return null;
 }

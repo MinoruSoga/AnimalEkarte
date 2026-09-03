@@ -135,7 +135,11 @@ export function useEstimateForm(args: UseEstimateFormArgs = { mode: "create" }) 
     async (_prevState: ActionState, _formData: FormData): Promise<ActionState> => {
       const current = formRef.current;
       if (!current.title.trim()) {
-        return { success: false, fieldErrors: { title: "タイトルを入力してください" }, timestamp: Date.now() };
+        return {
+          success: false,
+          fieldErrors: { title: "タイトルを入力してください" },
+          timestamp: Date.now(),
+        };
       }
 
       try {
@@ -211,12 +215,12 @@ export function useEstimateForm(args: UseEstimateFormArgs = { mode: "create" }) 
     INITIAL_ACTION_STATE,
   );
 
-  const handleChange = useCallback(<K extends keyof EstimateFormState>(
-    field: K,
-    value: EstimateFormState[K],
-  ) => {
-    setForm(prev => ({ ...prev, [field]: value }));
-  }, []);
+  const handleChange = useCallback(
+    <K extends keyof EstimateFormState>(field: K, value: EstimateFormState[K]) => {
+      setForm((prev) => ({ ...prev, [field]: value }));
+    },
+    [],
+  );
 
   const handleCancel = useCallback(() => {
     if (isEdit && estimate) {

@@ -1,6 +1,11 @@
-import { ReactNode } from 'react';
-import { Tabs as ShadcnTabs, TabsList as ShadcnTabsList, TabsTrigger as ShadcnTabsTrigger, TabsContent as ShadcnTabsContent } from '@/components/ui/tabs';
-import { C } from '@/lib/design-tokens';
+import { ReactNode } from "react";
+import {
+  Tabs as ShadcnTabs,
+  TabsList as ShadcnTabsList,
+  TabsTrigger as ShadcnTabsTrigger,
+  TabsContent as ShadcnTabsContent,
+} from "@/components/ui/tabs";
+import { C } from "@/lib/design-tokens";
 
 /**
  * UnifiedTabs — Notion-like bottom-line tab UI.
@@ -43,9 +48,9 @@ export function UnifiedTabs({
   value,
   onValueChange,
   children,
-  className = '',
-  listClassName = '',
-  triggerClassName = '',
+  className = "",
+  listClassName = "",
+  triggerClassName = "",
 }: UnifiedTabsProps) {
   return (
     <ShadcnTabs value={value} onValueChange={onValueChange} className={`min-w-0 ${className}`}>
@@ -123,8 +128,8 @@ export function UnifiedTabsRoot({
  */
 export function UnifiedTabsList({
   items,
-  listClassName = '',
-  triggerClassName = '',
+  listClassName = "",
+  triggerClassName = "",
 }: {
   items: readonly TabItem[];
   listClassName?: string;

@@ -48,9 +48,7 @@ export const MonthlySummaryCards = memo(function MonthlySummaryCards({
           >
             <span className={`text-base ${C.text60}`}>{card.label}</span>
             <span className={`text-xl font-semibold ${C.text}`}>{card.value}</span>
-            {card.sub !== null ? (
-              <span className={`text-sm ${C.text50}`}>{card.sub}</span>
-            ) : null}
+            {card.sub !== null ? <span className={`text-sm ${C.text50}`}>{card.sub}</span> : null}
           </div>
         ))}
       </div>
@@ -95,9 +93,7 @@ export const MonthlySummaryCards = memo(function MonthlySummaryCards({
         <div className={`${C.bgWhite} rounded-lg border ${C.borderLight} p-4`}>
           <div className="flex items-center justify-between gap-3 mb-2">
             <p className={`text-base font-medium ${C.text70}`}>消費税内訳</p>
-            {taxSettingsLink ? (
-              <div className="print:hidden">{taxSettingsLink}</div>
-            ) : null}
+            {taxSettingsLink ? <div className="print:hidden">{taxSettingsLink}</div> : null}
           </div>
           <ul className="space-y-2">
             <li>

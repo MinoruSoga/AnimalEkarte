@@ -1,18 +1,10 @@
 import { expect, test, type BrowserContext } from "@playwright/test";
 
-import {
-  SYNTHETIC_CLINICAL_SCENARIOS,
-  SYNTHETIC_PET,
-} from "./fixtures/ui-design-clinical";
+import { SYNTHETIC_CLINICAL_SCENARIOS, SYNTHETIC_PET } from "./fixtures/ui-design-clinical";
 import { createAuthedContext } from "./helpers/context";
-import {
-  installSyntheticApiInterceptor,
-  isBusinessNonGet,
-} from "./helpers/synthetic-api";
+import { installSyntheticApiInterceptor, isBusinessNonGet } from "./helpers/synthetic-api";
 
-const E2E_ORIGIN = new URL(
-  process.env.PLAYWRIGHT_TEST_BASE_URL ?? "http://localhost:3003",
-).origin;
+const E2E_ORIGIN = new URL(process.env.PLAYWRIGHT_TEST_BASE_URL ?? "http://localhost:3003").origin;
 
 test.describe("カルテ新規作成フォーム E2E", () => {
   let context: BrowserContext;
@@ -34,10 +26,10 @@ test.describe("カルテ新規作成フォーム E2E", () => {
     });
 
     try {
-      await page.addInitScript(
-        ({ key, value }) => window.localStorage.setItem(key, value),
-        { key: "auth_current_clinic:v1", value: scenario.currentClinicId },
-      );
+      await page.addInitScript(({ key, value }) => window.localStorage.setItem(key, value), {
+        key: "auth_current_clinic:v1",
+        value: scenario.currentClinicId,
+      });
       await page.clock.setFixedTime(new Date(scenario.fixedTime));
       await page.goto(scenario.entryPath, { waitUntil: "domcontentloaded" });
       await expect(page).toHaveURL(scenario.renderedPath, { timeout: 30000 });
@@ -48,8 +40,10 @@ test.describe("カルテ新規作成フォーム E2E", () => {
       await page.waitForTimeout(350);
       await page.close();
 
-      const locallyFulfilledBusinessNonGet = interceptor.ledger.locallyFulfilled.filter(isBusinessNonGet);
-      const continuedBusinessNonGet = interceptor.ledger.continuedToBackend.filter(isBusinessNonGet);
+      const locallyFulfilledBusinessNonGet =
+        interceptor.ledger.locallyFulfilled.filter(isBusinessNonGet);
+      const continuedBusinessNonGet =
+        interceptor.ledger.continuedToBackend.filter(isBusinessNonGet);
       expect(locallyFulfilledBusinessNonGet).toEqual(scenario.expectedLocalBusinessNonGet);
       expect(interceptor.ledger.blocked).toEqual([]);
       expect(interceptor.ledger.validationFailures).toEqual([]);

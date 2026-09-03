@@ -1,6 +1,12 @@
 import { useActionState, useCallback, useMemo, useState } from "react";
 import { Trash2, Plus, Clock } from "lucide-react";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { C, STYLE, ICON } from "@/lib/design-tokens";
 import { DAY_OF_WEEK_LABELS } from "@/constants/day-of-week";
@@ -9,10 +15,7 @@ import {
   useCreateUnavailableTime,
   useDeleteUnavailableTime,
 } from "../api/reservation-type-unavailable-times";
-import {
-  UnavailableTypeWeekly,
-  UnavailableTypeSpecific,
-} from "@/types/generated/models";
+import { UnavailableTypeWeekly, UnavailableTypeSpecific } from "@/types/generated/models";
 import { DAY_OF_WEEK_SELECT_ITEMS } from "./DayOfWeekSelectItems";
 import type { CreateUnavailableTimeRequest } from "../api/reservation-type-unavailable-times";
 
@@ -29,7 +32,9 @@ for (let h = 0; h < 24; h++) {
 }
 
 const TIME_SELECT_ITEMS = TIME_OPTIONS.map((t) => (
-  <SelectItem key={t} value={t}>{t}</SelectItem>
+  <SelectItem key={t} value={t}>
+    {t}
+  </SelectItem>
 ));
 
 // ─────────────────────────────────────────────────
@@ -69,9 +74,12 @@ export function ReservationTypeUnavailableTimesSection({ clinicId, reservationTy
 
   const [form, setForm] = useState<FormState>(DEFAULT_FORM);
 
-  const handleFieldChange = useCallback(<K extends keyof FormState>(key: K, value: FormState[K]) => {
-    setForm((prev) => ({ ...prev, [key]: value }));
-  }, []);
+  const handleFieldChange = useCallback(
+    <K extends keyof FormState>(key: K, value: FormState[K]) => {
+      setForm((prev) => ({ ...prev, [key]: value }));
+    },
+    [],
+  );
 
   const [, formAction] = useActionState(async () => {
     try {
@@ -90,34 +98,44 @@ export function ReservationTypeUnavailableTimesSection({ clinicId, reservationTy
     }
   }, null);
 
-  const handleDelete = useCallback((id: number) => {
-    mutate(id);
-  }, [mutate]);
+  const handleDelete = useCallback(
+    (id: number) => {
+      mutate(id);
+    },
+    [mutate],
+  );
 
-  const itemList = useMemo(() => items.map((item) => {
-    const label = item.unavailableType === UnavailableTypeWeekly
-      ? `毎週${DAY_OF_WEEK_LABELS[item.dayOfWeek ?? 0]}曜日`
-      : item.specificDate ?? "";
+  const itemList = useMemo(
+    () =>
+      items.map((item) => {
+        const label =
+          item.unavailableType === UnavailableTypeWeekly
+            ? `毎週${DAY_OF_WEEK_LABELS[item.dayOfWeek ?? 0]}曜日`
+            : (item.specificDate ?? "");
 
-    return (
-      <div
-        key={item.id}
-        className={`flex items-center justify-between gap-2 py-1.5 px-2 rounded-xxs ${C.hoverBgLight} transition-colors group`}
-      >
-        <Clock className={`${ICON.smXs} ${C.text40} shrink-0`} />
-        <span className={`flex-1 text-sm ${C.text}`}>{label}</span>
-        <span className={`text-sm ${C.text50} tabular-nums`}>{item.startTime}〜{item.endTime}</span>
-        <button
-          type="button"
-          onClick={() => handleDelete(item.id)}
-          className={`opacity-0 group-hover:opacity-100 ${ICON.smXs} ${C.text40} ${C.hoverTextDanger} transition-colors`}
-          aria-label="削除"
-        >
-          <Trash2 className={ICON.smXs} />
-        </button>
-      </div>
-    );
-  }), [items, handleDelete]);
+        return (
+          <div
+            key={item.id}
+            className={`flex items-center justify-between gap-2 py-1.5 px-2 rounded-xxs ${C.hoverBgLight} transition-colors group`}
+          >
+            <Clock className={`${ICON.smXs} ${C.text40} shrink-0`} />
+            <span className={`flex-1 text-sm ${C.text}`}>{label}</span>
+            <span className={`text-sm ${C.text50} tabular-nums`}>
+              {item.startTime}〜{item.endTime}
+            </span>
+            <button
+              type="button"
+              onClick={() => handleDelete(item.id)}
+              className={`opacity-0 group-hover:opacity-100 ${ICON.smXs} ${C.text40} ${C.hoverTextDanger} transition-colors`}
+              aria-label="削除"
+            >
+              <Trash2 className={ICON.smXs} />
+            </button>
+          </div>
+        );
+      }),
+    [items, handleDelete],
+  );
 
   return (
     <div className={`mt-4 pt-4 ${STYLE.sectionDivider}`}>
@@ -152,10 +170,7 @@ export function ReservationTypeUnavailableTimesSection({ clinicId, reservationTy
 
           {/* 曜日 or 日付 */}
           {form.unavailableType === UnavailableTypeWeekly ? (
-            <Select
-              value={form.dayOfWeek}
-              onValueChange={(v) => handleFieldChange("dayOfWeek", v)}
-            >
+            <Select value={form.dayOfWeek} onValueChange={(v) => handleFieldChange("dayOfWeek", v)}>
               <SelectTrigger className={STYLE.selectCompact}>
                 <SelectValue />
               </SelectTrigger>
@@ -174,20 +189,14 @@ export function ReservationTypeUnavailableTimesSection({ clinicId, reservationTy
 
         {/* 時間帯 */}
         <div className="flex items-center gap-2">
-          <Select
-            value={form.startTime}
-            onValueChange={(v) => handleFieldChange("startTime", v)}
-          >
+          <Select value={form.startTime} onValueChange={(v) => handleFieldChange("startTime", v)}>
             <SelectTrigger className={STYLE.selectCompact}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>{TIME_SELECT_ITEMS}</SelectContent>
           </Select>
           <span className={`text-sm ${C.text50}`}>〜</span>
-          <Select
-            value={form.endTime}
-            onValueChange={(v) => handleFieldChange("endTime", v)}
-          >
+          <Select value={form.endTime} onValueChange={(v) => handleFieldChange("endTime", v)}>
             <SelectTrigger className={STYLE.selectCompact}>
               <SelectValue />
             </SelectTrigger>

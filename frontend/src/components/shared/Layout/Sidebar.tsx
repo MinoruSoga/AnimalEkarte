@@ -15,9 +15,7 @@ function SidebarSection({ section, collapsed = false }: SidebarSectionProps) {
   return (
     <div className="space-y-px">
       {!collapsed ? (
-        <p className={`px-3 mb-1 text-2xs font-semibold ${C.text40} uppercase`}>
-          {section.title}
-        </p>
+        <p className={`px-3 mb-1 text-2xs font-semibold ${C.text40} uppercase`}>{section.title}</p>
       ) : null}
       {section.items.map((item) => (
         <SidebarItemWithPermission key={item.label} item={item} collapsed={collapsed} />
@@ -35,14 +33,15 @@ export const Sidebar = memo(function Sidebar() {
   const [clinicPopoverOpen, setClinicPopoverOpen] = useState(false);
   const [pendingSwitchClinicId, setPendingSwitchClinicId] = useState<string | null>(null);
 
-  const clinicName = user?.clinics.find((c) => c.clinicId === currentClinicId)?.clinicName
-    ?? user?.clinic?.name
-    ?? "";
+  const clinicName =
+    user?.clinics.find((c) => c.clinicId === currentClinicId)?.clinicName ??
+    user?.clinic?.name ??
+    "";
 
   const hasMultipleClinics = (user?.clinics.length ?? 0) > 1;
 
   const pendingSwitchClinicName = pendingSwitchClinicId
-    ? user?.clinics.find((c) => c.clinicId === pendingSwitchClinicId)?.clinicName ?? ""
+    ? (user?.clinics.find((c) => c.clinicId === pendingSwitchClinicId)?.clinicName ?? "")
     : "";
 
   const handleRequestSwitch = useCallback((clinicId: string) => {

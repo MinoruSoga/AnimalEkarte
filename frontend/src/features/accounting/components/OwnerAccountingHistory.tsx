@@ -156,8 +156,7 @@ export const OwnerAccountingHistory = memo(function OwnerAccountingHistory({
       setSearchParams(
         (prev) => {
           const currentPage = parsePage(prev.get("ah_page"));
-          const newPage =
-            typeof updater === "function" ? updater(currentPage) : updater;
+          const newPage = typeof updater === "function" ? updater(currentPage) : updater;
           const next = new URLSearchParams(prev);
           if (newPage === 1) {
             next.delete("ah_page");
@@ -183,9 +182,7 @@ export const OwnerAccountingHistory = memo(function OwnerAccountingHistory({
 
   const firstUnpaidIndex = useMemo(
     () =>
-      sortedAccountings.findIndex(
-        (acc) => acc.status === "waiting" || acc.status === "pending",
-      ),
+      sortedAccountings.findIndex((acc) => acc.status === "waiting" || acc.status === "pending"),
     [sortedAccountings],
   );
   const firstUnpaidId = firstUnpaidIndex >= 0 ? sortedAccountings[firstUnpaidIndex].id : null;
@@ -250,11 +247,7 @@ export const OwnerAccountingHistory = memo(function OwnerAccountingHistory({
   }
 
   if (sortedAccountings.length === 0) {
-    return (
-      <p className={`text-sm ${C.text50} px-4 py-6 text-center`}>
-        会計履歴はありません。
-      </p>
-    );
+    return <p className={`text-sm ${C.text50} px-4 py-6 text-center`}>会計履歴はありません。</p>;
   }
 
   return (

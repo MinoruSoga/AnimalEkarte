@@ -24,9 +24,7 @@ const TWO_CLINICS: ClinicMembership[] = [
   { clinicId: "2", clinicName: "分院", isMain: false },
 ];
 
-const ONE_CLINIC: ClinicMembership[] = [
-  { clinicId: "1", clinicName: "本院", isMain: true },
-];
+const ONE_CLINIC: ClinicMembership[] = [{ clinicId: "1", clinicName: "本院", isMain: true }];
 
 function makeUser(clinics: ClinicMembership[]): AuthUser {
   return {
@@ -94,16 +92,24 @@ function renderOwnerForm(options: { clinics: ClinicMembership[]; path?: string }
     [
       {
         path: "/owners/new",
-        element: <Suspense fallback={null}><OwnerForm /></Suspense>,
+        element: (
+          <Suspense fallback={null}>
+            <OwnerForm />
+          </Suspense>
+        ),
         loader: () => ({ owner: undefined }),
       },
       {
         path: "/owners/:id",
-        element: <Suspense fallback={null}><OwnerForm /></Suspense>,
+        element: (
+          <Suspense fallback={null}>
+            <OwnerForm />
+          </Suspense>
+        ),
         loader: () => ({ owner: mockOwner }),
       },
     ],
-    { initialEntries: [path] }
+    { initialEntries: [path] },
   );
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
@@ -111,7 +117,7 @@ function renderOwnerForm(options: { clinics: ClinicMembership[]; path?: string }
       <QueryClientProvider client={qc}>
         <RouterProvider router={router} />
       </QueryClientProvider>
-    </AuthContext.Provider>
+    </AuthContext.Provider>,
   );
 }
 

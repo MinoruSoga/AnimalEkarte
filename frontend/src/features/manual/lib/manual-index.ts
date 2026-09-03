@@ -34,7 +34,10 @@ export function parseFrontmatter(raw: string): { meta: RawFrontmatter; body: str
     const idx = line.indexOf(":");
     if (idx < 0) continue;
     const key = line.slice(0, idx).trim();
-    const value = line.slice(idx + 1).trim().replace(/^["']|["']$/g, "");
+    const value = line
+      .slice(idx + 1)
+      .trim()
+      .replace(/^["']|["']$/g, "");
     if (key === "title") meta.title = value;
     else if (key === "order") meta.order = Number(value);
     else if (key === "section") meta.section = value;
@@ -86,7 +89,9 @@ function build(category: ManualCategory, modules: Record<string, string>): Manua
 export const screenArticles: ManualArticle[] = build("screens", screenModules);
 export const workflowArticles: ManualArticle[] = build("workflows", workflowModules);
 
-export function groupBySection(articles: ManualArticle[]): { section: string; items: ManualArticle[] }[] {
+export function groupBySection(
+  articles: ManualArticle[],
+): { section: string; items: ManualArticle[] }[] {
   const map = new Map<string, ManualArticle[]>();
   for (const a of articles) {
     const arr = map.get(a.section) ?? [];

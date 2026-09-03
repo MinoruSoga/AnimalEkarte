@@ -8,11 +8,7 @@ import { useLoaderData, useParams } from "react-router";
 import { Send } from "lucide-react";
 
 // features（app層なので複数 feature を import 可能）
-import {
-  OwnerForm,
-  LineIntegrationCard,
-  LineSendPanel,
-} from "@/features/owners";
+import { OwnerForm, LineIntegrationCard, LineSendPanel } from "@/features/owners";
 import type { OwnerLoaderData } from "@/features/owners";
 import { createPet, useCreatePet, useUpdatePet, useDeletePet } from "@/features/pets";
 import { useRevokePetDeath } from "@/hooks/use-revoke-pet-death";
@@ -25,7 +21,7 @@ import type { PetMutations } from "@/types/pet";
 // Lazy-loaded — 編集モードでのみ必要、新規登録画面のバンドルから切り離す。
 // feature 間 import (owners → accounting) を避けるため app 層でのみ import する。
 const OwnerAccountingHistory = lazy(() =>
-  import("@/features/accounting").then(m => ({ default: m.OwnerAccountingHistory }))
+  import("@/features/accounting").then((m) => ({ default: m.OwnerAccountingHistory })),
 );
 
 export function OwnerFormPage() {
@@ -46,19 +42,15 @@ export function OwnerFormPage() {
 
   const petMutations: PetMutations = {
     createPetFn: createPet,
-    createPetMutate: (req, { onSuccess, onError }) =>
-      createPetMutate(req, { onSuccess, onError }),
+    createPetMutate: (req, { onSuccess, onError }) => createPetMutate(req, { onSuccess, onError }),
     updatePetMutate: (args, { onSuccess, onError }) =>
       updatePetMutate(args, { onSuccess, onError }),
-    deletePetMutate: (id, { onSuccess, onError }) =>
-      deletePetMutate(id, { onSuccess, onError }),
+    deletePetMutate: (id, { onSuccess, onError }) => deletePetMutate(id, { onSuccess, onError }),
     revokePetDeathMutate: (petId) => revokePetDeathMutate(petId),
   };
 
   // 会計履歴セクション（編集モード=ownerIdがある時のみ意味がある。表示可否は OwnerForm 側の権限判定に委ねる）
-  const accountingSection = ownerId ? (
-    <OwnerAccountingHistory ownerId={ownerId} />
-  ) : null;
+  const accountingSection = ownerId ? <OwnerAccountingHistory ownerId={ownerId} /> : null;
 
   // LINE連携セクション（編集モード=ownerIdがある時のみ意味がある）
   const lineSection = ownerId ? (

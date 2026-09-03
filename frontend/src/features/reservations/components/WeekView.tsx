@@ -3,10 +3,7 @@ import { format, startOfWeek } from "date-fns";
 import { ja } from "date-fns/locale";
 
 import type { Reservation } from "@/types";
-import {
-  WeekViewGrid,
-  type ReservationTypeColor,
-} from "./WeekViewParts";
+import { WeekViewGrid, type ReservationTypeColor } from "./WeekViewParts";
 
 interface WeekViewProps {
   currentDate: Date;
@@ -29,10 +26,7 @@ export const WeekView = memo(function WeekView({
 }: WeekViewProps) {
   const columnWidth = days === 7 ? `${(100 / 7).toFixed(4)}%` : "20%";
 
-  const startDate = useMemo(
-    () => startOfWeek(currentDate, { locale: ja }),
-    [currentDate],
-  );
+  const startDate = useMemo(() => startOfWeek(currentDate, { locale: ja }), [currentDate]);
 
   const appointmentsByDay = useMemo(() => {
     const map = new Map<string, Reservation[]>();

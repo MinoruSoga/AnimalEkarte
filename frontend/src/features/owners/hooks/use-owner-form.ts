@@ -1,11 +1,4 @@
-import {
-  useState,
-  useCallback,
-  useActionState,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-} from "react";
+import { useState, useCallback, useActionState, useEffect, useLayoutEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { handleApiError } from "@/lib/handle-api-error";
@@ -46,13 +39,12 @@ export function useOwnerForm(
     permissionsRef.current = { canCreate, canEdit, canDelete };
   }, [canCreate, canDelete, canEdit]);
   const isMutationAllowed = useCallback(
-    (action: keyof OwnerMutationPermissions) =>
-      permissionsRef.current[action] === true,
+    (action: keyof OwnerMutationPermissions) => permissionsRef.current[action] === true,
     [],
   );
 
-  const [ownerData, setOwnerData] = useState<OwnerData>(
-    () => initialOwner ? mapOwnerToFormData(initialOwner) : DEFAULT_OWNER_DATA
+  const [ownerData, setOwnerData] = useState<OwnerData>(() =>
+    initialOwner ? mapOwnerToFormData(initialOwner) : DEFAULT_OWNER_DATA,
   );
 
   const {
@@ -102,7 +94,10 @@ export function useOwnerForm(
         toast.success("飼主情報を登録しました");
         return {
           success: true,
-          data: { id: newOwner.id, clinicId: resolveCreatedOwnerClinicId(ownerData, newOwner, createData) },
+          data: {
+            id: newOwner.id,
+            clinicId: resolveCreatedOwnerClinicId(ownerData, newOwner, createData),
+          },
           timestamp: Date.now(),
         };
       } catch (error) {
@@ -110,7 +105,7 @@ export function useOwnerForm(
         return { ...prevState, success: false, timestamp: Date.now() };
       }
     },
-    INITIAL_ACTION_STATE
+    INITIAL_ACTION_STATE,
   );
 
   useEffect(() => {

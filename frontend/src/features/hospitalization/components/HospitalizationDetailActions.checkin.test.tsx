@@ -82,7 +82,7 @@ function renderActions(status: Hospitalization["status"]) {
           onDischargeClick={onDischargeClick}
         />
       </MemoryRouter>
-    </QueryClientProvider>
+    </QueryClientProvider>,
   );
   return { onDischargeClick };
 }
@@ -118,22 +118,15 @@ describe("HospitalizationDetailActions — チェックイン (FEAT-CHECKIN / DE
       <QueryClientProvider client={queryClient}>
         <MemoryRouter>
           <HospitalizationDetailActions
-            hospitalization={makeHospitalization(
-              HOSPITALIZATION_STATUS.RESERVED,
-              true,
-            )}
+            hospitalization={makeHospitalization(HOSPITALIZATION_STATUS.RESERVED, true)}
             onDischargeClick={vi.fn()}
           />
         </MemoryRouter>
       </QueryClientProvider>,
     );
 
-    expect(
-      screen.queryByRole("button", { name: "チェックイン" }),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.getByText("死亡したペットのため、チェックインできません"),
-    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "チェックイン" })).not.toBeInTheDocument();
+    expect(screen.getByText("死亡したペットのため、チェックインできません")).toBeInTheDocument();
     expect(mocks.mutateAsync).not.toHaveBeenCalled();
   });
 
@@ -152,7 +145,7 @@ describe("HospitalizationDetailActions — チェックイン (FEAT-CHECKIN / DE
             onDischargeClick={vi.fn()}
           />
         </MemoryRouter>
-      </QueryClientProvider>
+      </QueryClientProvider>,
     );
     expect(screen.queryByRole("button", { name: "チェックイン" })).not.toBeInTheDocument();
     unmount();
@@ -176,7 +169,7 @@ describe("HospitalizationDetailActions — チェックイン (FEAT-CHECKIN / DE
             onDischargeClick={vi.fn()}
           />
         </MemoryRouter>
-      </QueryClientProvider>
+      </QueryClientProvider>,
     );
     expect(screen.queryByRole("button", { name: "退院処理" })).not.toBeInTheDocument();
     unmount();
@@ -201,9 +194,7 @@ describe("HospitalizationDetailActions — チェックイン (FEAT-CHECKIN / DE
   it("同一commitで編集権限が失効した場合、captured check-in callbackはmutationを拒否する", async () => {
     function SameCommitRevocationHarness() {
       const [revoked, setRevoked] = useState(false);
-      const capturedCheckInRef = useRef<(() => void | Promise<void>) | undefined>(
-        undefined,
-      );
+      const capturedCheckInRef = useRef<(() => void | Promise<void>) | undefined>(undefined);
 
       useLayoutEffect(() => {
         if (revoked) {
@@ -250,9 +241,7 @@ describe("HospitalizationDetailActions — チェックイン (FEAT-CHECKIN / DE
       </QueryClientProvider>,
     );
 
-    await user.click(
-      screen.getByRole("button", { name: "編集権限を失効" }),
-    );
+    await user.click(screen.getByRole("button", { name: "編集権限を失効" }));
 
     expect(mocks.mutateAsync).not.toHaveBeenCalled();
   });

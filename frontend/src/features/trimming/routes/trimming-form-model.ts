@@ -17,7 +17,8 @@ export function resolveTrimmingFormGate(input: {
   isLoading: boolean;
   notFound: boolean;
 }): TrimmingFormGate | null {
-  if (!input.hasSelectedPet && input.mode === "new" && input.petId) return { kind: "new-pet-loading" };
+  if (!input.hasSelectedPet && input.mode === "new" && input.petId)
+    return { kind: "new-pet-loading" };
   if (!input.hasSelectedPet && input.mode === "new") return { kind: "new-no-pet" };
   if (input.isLoading) return { kind: "loading" };
   if (input.notFound) return { kind: "not-found" };

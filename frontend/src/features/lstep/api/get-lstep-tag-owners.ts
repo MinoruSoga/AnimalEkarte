@@ -31,7 +31,7 @@ export function useGetLstepTagOwners(params: LstepTagOwnersParams) {
       const clinicId = requireStoredClinicId();
       const { data } = await axios.get<LstepTagOwnersResponse>(
         `/v1/clinics/${clinicId}/lstep/owners`,
-        { params }
+        { params },
       );
       return data;
     },
@@ -42,12 +42,9 @@ export function useGetLstepTagOwners(params: LstepTagOwnersParams) {
 // GET /api/clinics/:clinic_id/lstep/owners?format=csv
 export async function fetchLstepTagOwnersCsv(tagName: string): Promise<Blob> {
   const clinicId = requireStoredClinicId();
-  const { data } = await axios.get<Blob>(
-    `/v1/clinics/${clinicId}/lstep/owners`,
-    {
-      params: { tag: tagName, format: "csv" },
-      responseType: "blob",
-    },
-  );
+  const { data } = await axios.get<Blob>(`/v1/clinics/${clinicId}/lstep/owners`, {
+    params: { tag: tagName, format: "csv" },
+    responseType: "blob",
+  });
   return data;
 }

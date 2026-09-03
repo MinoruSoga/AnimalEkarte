@@ -64,10 +64,13 @@ export function CheckupForm() {
     navigate(paths.checkups.getHref());
   }, [navigate]);
 
-  const guardedFormAction = useCallback((formData: FormData) => {
-    if (!canSubmit) return;
-    formAction(formData);
-  }, [canSubmit, formAction]);
+  const guardedFormAction = useCallback(
+    (formData: FormData) => {
+      if (!canSubmit) return;
+      formAction(formData);
+    },
+    [canSubmit, formAction],
+  );
 
   if (isPetLoading) return <LoadingFallback />;
 
@@ -82,7 +85,7 @@ export function CheckupForm() {
         headerAction={
           <FormHeaderActions
             onCancel={handleBack}
-            submitLabel={isPetDeceased ? undefined : (isPending ? "保存中..." : "保存")}
+            submitLabel={isPetDeceased ? undefined : isPending ? "保存中..." : "保存"}
             submitDisabled={isPending || !canSubmit}
           />
         }
@@ -119,28 +122,28 @@ export function CheckupForm() {
         ) : null}
 
         <div className="mt-4 grid grid-cols-1 gap-6 lg:grid-cols-5">
-        <CheckupFieldsPanel
-          canSubmit={canSubmit === true}
-          form={form}
-          fieldErrors={fieldErrors}
-          checkupTypes={checkupTypes}
-          staffs={staffs}
-          checkupFields={checkupFields}
-          fieldValues={fieldValues}
-          onDateChange={setDate}
-          onCheckupTypeIdChange={setCheckupTypeId}
-          onNextScheduleTypeChange={setNextScheduleType}
-          onNextDateChange={setNextDate}
-          onDoctorIdChange={setDoctorId}
-          onResultChange={setResult}
-          onFieldValueChange={setFieldValue}
-        />
-        <PastRecordHistoryPanel
-          title="過去の健診履歴"
-          searchPlaceholder="健診種別・所見で検索..."
-          items={historyItems}
-          isLoading={isHistoryLoading}
-        />
+          <CheckupFieldsPanel
+            canSubmit={canSubmit === true}
+            form={form}
+            fieldErrors={fieldErrors}
+            checkupTypes={checkupTypes}
+            staffs={staffs}
+            checkupFields={checkupFields}
+            fieldValues={fieldValues}
+            onDateChange={setDate}
+            onCheckupTypeIdChange={setCheckupTypeId}
+            onNextScheduleTypeChange={setNextScheduleType}
+            onNextDateChange={setNextDate}
+            onDoctorIdChange={setDoctorId}
+            onResultChange={setResult}
+            onFieldValueChange={setFieldValue}
+          />
+          <PastRecordHistoryPanel
+            title="過去の健診履歴"
+            searchPlaceholder="健診種別・所見で検索..."
+            items={historyItems}
+            isLoading={isHistoryLoading}
+          />
         </div>
       </PageLayout>
     </form>

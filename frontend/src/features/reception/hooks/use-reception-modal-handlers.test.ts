@@ -2,11 +2,7 @@ import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Pet } from "@/types";
-import {
-  DangerLevelHigh,
-  PetStatusAlive,
-  PetStatusDeceased,
-} from "@/types/generated/models";
+import { DangerLevelHigh, PetStatusAlive, PetStatusDeceased } from "@/types/generated/models";
 
 import { useReceptionModalHandlers } from "./use-reception-modal-handlers";
 import type { ReceptionAppointment } from "../api/types";
@@ -99,12 +95,13 @@ function renderHandlers(
   const advanceStatus = vi.fn();
   const cancelAppointment = vi.fn();
   const view = renderHook(
-    (permissions: HandlerProps) => useReceptionModalHandlers({
-      advanceStatus,
-      cancelAppointment,
-      updateAppointment,
-      ...permissions,
-    }),
+    (permissions: HandlerProps) =>
+      useReceptionModalHandlers({
+        advanceStatus,
+        cancelAppointment,
+        updateAppointment,
+        ...permissions,
+      }),
     { initialProps: initialPermissions },
   );
   return { ...view, advanceStatus, cancelAppointment };

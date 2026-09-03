@@ -1,4 +1,4 @@
-import { type Locator, type Page } from '@playwright/test';
+import { type Locator, type Page } from "@playwright/test";
 
 /**
  * Shared Page Object base.
@@ -12,8 +12,8 @@ export class BasePage {
   constructor(protected readonly page: Page) {}
 
   /** `page.goto(path, { waitUntil: 'domcontentloaded' })` — the suite-wide default. */
-  open(path: string): ReturnType<Page['goto']> {
-    return this.page.goto(path, { waitUntil: 'domcontentloaded' });
+  open(path: string): ReturnType<Page["goto"]> {
+    return this.page.goto(path, { waitUntil: "domcontentloaded" });
   }
 
   /** `getByRole('heading', { name?, level? })`. Both options are optional to cover every call site. */
@@ -21,21 +21,21 @@ export class BasePage {
     const options: { name?: string | RegExp; level?: number } = {};
     if (name !== undefined) options.name = name;
     if (level !== undefined) options.level = level;
-    return this.page.getByRole('heading', options);
+    return this.page.getByRole("heading", options);
   }
 
   /** `page.locator('tbody')`. */
   tableBody(): Locator {
-    return this.page.locator('tbody');
+    return this.page.locator("tbody");
   }
 
   /** `page.locator('tbody tr')`. */
   rows(): Locator {
-    return this.page.locator('tbody tr');
+    return this.page.locator("tbody tr");
   }
 
   /** `page.locator('tbody tr').first()` — the canonical "first data row". */
   firstRow(): Locator {
-    return this.page.locator('tbody tr').first();
+    return this.page.locator("tbody tr").first();
   }
 }

@@ -147,10 +147,13 @@ function mockLivingEditPet(petId = "10") {
     id: "15",
     petId,
   };
-  vi.mocked(useGetPet).mockImplementation((requestedPetId) => ({
-    data: requestedPetId === petId ? LIVING_EDIT_PET : undefined,
-    isLoading: false,
-  } as ReturnType<typeof useGetPet>));
+  vi.mocked(useGetPet).mockImplementation(
+    (requestedPetId) =>
+      ({
+        data: requestedPetId === petId ? LIVING_EDIT_PET : undefined,
+        isLoading: false,
+      }) as ReturnType<typeof useGetPet>,
+  );
 }
 
 function renderTrimmingForm(id?: string) {
@@ -166,7 +169,9 @@ describe("useTrimmingForm", () => {
     mockSelectedPets.length = 0;
     mockCreateMutateAsync.mockResolvedValue({});
     mockUpdateMutateAsync.mockResolvedValue({});
-    vi.mocked(useGetTrimmings).mockReturnValue({ data: [], isLoading: false } as ReturnType<typeof useGetTrimmings>);
+    vi.mocked(useGetTrimmings).mockReturnValue({ data: [], isLoading: false } as ReturnType<
+      typeof useGetTrimmings
+    >);
     vi.mocked(useGetReservationTypesGrouped).mockReturnValue({
       data: [
         {
@@ -464,7 +469,9 @@ describe("useTrimmingForm", () => {
     await submitFormAction(result.current.formAction);
 
     expect(mockCreateMutateAsync).not.toHaveBeenCalled();
-    expect(result.current.fieldErrors.reservationTypeId).toBe("トリミング予約区分が設定されていません");
+    expect(result.current.fieldErrors.reservationTypeId).toBe(
+      "トリミング予約区分が設定されていません",
+    );
   });
 
   it("受付から遷移した新規保存では既存 appointment_id を使い日時を上書きしない", async () => {
@@ -596,7 +603,9 @@ describe("useTrimmingForm permissions (FE-RC-101 fail-closed)", () => {
     mockSelectedPets.length = 0;
     mockCreateMutateAsync.mockResolvedValue({});
     mockUpdateMutateAsync.mockResolvedValue({});
-    vi.mocked(useGetTrimmings).mockReturnValue({ data: [], isLoading: false } as ReturnType<typeof useGetTrimmings>);
+    vi.mocked(useGetTrimmings).mockReturnValue({ data: [], isLoading: false } as ReturnType<
+      typeof useGetTrimmings
+    >);
     vi.mocked(useGetReservationTypesGrouped).mockReturnValue({
       data: [
         {
@@ -753,7 +762,9 @@ describe("useTrimmingForm permissions (FE-RC-101 fail-closed)", () => {
     });
 
     expect(mockDeleteMutate).not.toHaveBeenCalled();
-    expect(mockToast.error).toHaveBeenCalledWith("ペット情報の読み込みが完了してから削除してください");
+    expect(mockToast.error).toHaveBeenCalledWith(
+      "ペット情報の読み込みが完了してから削除してください",
+    );
   });
 });
 
@@ -766,7 +777,9 @@ describe("useTrimmingForm deceased pet (FE-RC-102 dual-gate)", () => {
     mockSelectedPets.length = 0;
     mockCreateMutateAsync.mockResolvedValue({});
     mockUpdateMutateAsync.mockResolvedValue({});
-    vi.mocked(useGetTrimmings).mockReturnValue({ data: [], isLoading: false } as ReturnType<typeof useGetTrimmings>);
+    vi.mocked(useGetTrimmings).mockReturnValue({ data: [], isLoading: false } as ReturnType<
+      typeof useGetTrimmings
+    >);
     vi.mocked(useGetReservationTypesGrouped).mockReturnValue({
       data: [
         {
@@ -851,10 +864,13 @@ describe("useTrimmingForm deceased pet (FE-RC-102 dual-gate)", () => {
 
   it("死亡ペットでは delete mutation を呼ばず toast.error する", () => {
     mockExistingTrimmingHolder.value = { id: "15", petId: "10" };
-    vi.mocked(useGetPet).mockImplementation((requestedPetId) => ({
-      data: requestedPetId === "10" ? DECEASED_EDIT_PET : undefined,
-      isLoading: false,
-    } as ReturnType<typeof useGetPet>));
+    vi.mocked(useGetPet).mockImplementation(
+      (requestedPetId) =>
+        ({
+          data: requestedPetId === "10" ? DECEASED_EDIT_PET : undefined,
+          isLoading: false,
+        }) as ReturnType<typeof useGetPet>,
+    );
     mockSelectedPets.push({ id: "10", ownerId: "20", name: "ポチ", status: "死亡" });
 
     const { result } = renderTrimmingForm("15");

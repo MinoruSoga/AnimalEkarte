@@ -15,10 +15,16 @@ interface BackendUngroupedSameDay {
   has_ungrouped: boolean;
 }
 
-const getUngroupedSameDay = async (petId: string, date: string): Promise<UngroupedSameDaySummary> => {
-  const { data } = await axios.get<BackendUngroupedSameDay>("/v1/billing-items/ungrouped-same-day", {
-    params: { pet_id: petId, date },
-  });
+const getUngroupedSameDay = async (
+  petId: string,
+  date: string,
+): Promise<UngroupedSameDaySummary> => {
+  const { data } = await axios.get<BackendUngroupedSameDay>(
+    "/v1/billing-items/ungrouped-same-day",
+    {
+      params: { pet_id: petId, date },
+    },
+  );
   return {
     medicalRecordCount: data.medical_record_count ?? 0,
     trimmingCount: data.trimming_count ?? 0,

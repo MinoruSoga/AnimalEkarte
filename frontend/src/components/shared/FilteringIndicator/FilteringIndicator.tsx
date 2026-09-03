@@ -11,11 +11,7 @@ interface FilteringIndicatorProps {
  * `useDeferredValue` による検索フィルタリング中に opacity トランジションを適用する
  * 共有ラッパーコンポーネント。各リストページのインライン実装を統一する。
  */
-export function FilteringIndicator({
-  isFiltering,
-  children,
-  className,
-}: FilteringIndicatorProps) {
+export function FilteringIndicator({ isFiltering, children, className }: FilteringIndicatorProps) {
   return (
     <div
       className={`transition-opacity duration-150 ${isFiltering ? "opacity-60" : ""} ${className ?? ""}`.trimEnd()}

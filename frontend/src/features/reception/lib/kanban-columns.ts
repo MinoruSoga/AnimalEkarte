@@ -23,7 +23,10 @@ export function removeCard(columns: ColumnData[], cardId: string): ColumnData[] 
 }
 
 /** id のカードへ updated のフィールドをマージした columns を返す */
-export function mergeCard(columns: ColumnData[], updated: ReceptionAppointment): ColumnData[] | null {
+export function mergeCard(
+  columns: ColumnData[],
+  updated: ReceptionAppointment,
+): ColumnData[] | null {
   const next = cloneColumns(columns);
   for (const col of next) {
     const index = col.appointments.findIndex((a) => a.id === updated.id);
@@ -84,9 +87,7 @@ export function captureCardSnapshot(
   appointmentId: string,
 ): CardSnapshot | null {
   for (const column of columns) {
-    const index = column.appointments.findIndex(
-      (appointment) => appointment.id === appointmentId,
-    );
+    const index = column.appointments.findIndex((appointment) => appointment.id === appointmentId);
     if (index !== -1) {
       return {
         appointment: column.appointments[index],

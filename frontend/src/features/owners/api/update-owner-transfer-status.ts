@@ -14,11 +14,14 @@ interface UpdateOwnerTransferStatusBody {
 async function updateOwnerTransferStatus(
   clinicId: string,
   ownerId: string,
-  body: UpdateOwnerTransferStatusBody
+  body: UpdateOwnerTransferStatusBody,
 ): Promise<Owner> {
-  const { data } = await axios.patch<OwnerApiResponse>(`/v1/clinics/${clinicId}/owners/${ownerId}/transfer-status`, {
-    is_transferred: body.is_transferred,
-  });
+  const { data } = await axios.patch<OwnerApiResponse>(
+    `/v1/clinics/${clinicId}/owners/${ownerId}/transfer-status`,
+    {
+      is_transferred: body.is_transferred,
+    },
+  );
   return transformOwner(data);
 }
 

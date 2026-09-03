@@ -35,9 +35,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("@/hooks/use-permission", () => ({
   usePermission: (resource: string) =>
-    resource === ResourceCheckups
-      ? mocks.checkupPermissions
-      : mocks.medicalPermissions,
+    resource === ResourceCheckups ? mocks.checkupPermissions : mocks.medicalPermissions,
 }));
 
 vi.mock("@/hooks/use-side-peek-dirty", () => ({
@@ -145,18 +143,22 @@ vi.mock("../api/consultations", () => ({
 }));
 
 vi.mock("../api/exam-types-master", () => ({
-  useGetAllExaminationTypes: () => ({ data: [{
-    id: "3",
-    name: "血液検査",
-    price: 1000,
-    isActive: true,
-    description: "",
-    sortOrder: 1,
-    isNonInsurance: false,
-    createdAt: "",
-    updatedAt: "",
-    items: [],
-  }] }),
+  useGetAllExaminationTypes: () => ({
+    data: [
+      {
+        id: "3",
+        name: "血液検査",
+        price: 1000,
+        isActive: true,
+        description: "",
+        sortOrder: 1,
+        isNonInsurance: false,
+        createdAt: "",
+        updatedAt: "",
+        items: [],
+      },
+    ],
+  }),
   useCreateExaminationType: mutationStub,
   useUpdateExaminationType: mutationStub,
   useDeleteExaminationType: mutationStub,
@@ -217,12 +219,8 @@ describe("TreatmentPlanMaster resource-specific permissions", () => {
       canCreate: mocks.checkupPermissions.canCreate,
       examinationTypeId: undefined,
     });
-    expect(latestTabContent("定期健診")?.canEdit).toBe(
-      mocks.checkupPermissions.canEdit,
-    );
-    expect(latestTabContent("診察")?.canEdit).toBe(
-      mocks.medicalPermissions.canEdit,
-    );
+    expect(latestTabContent("定期健診")?.canEdit).toBe(mocks.checkupPermissions.canEdit);
+    expect(latestTabContent("診察")?.canEdit).toBe(mocks.medicalPermissions.canEdit);
     latestTabContent("定期健診")?.onReorder([2, 1]);
     expect(mocks.checkupReorder).toHaveBeenCalledWith({ ids: [2, 1] });
   });
@@ -237,12 +235,8 @@ describe("TreatmentPlanMaster resource-specific permissions", () => {
       canCreate: mocks.medicalPermissions.canCreate,
       examinationTypeId: undefined,
     });
-    expect(latestTabContent("診察")?.canEdit).toBe(
-      mocks.medicalPermissions.canEdit,
-    );
-    expect(latestTabContent("定期健診")?.canEdit).toBe(
-      mocks.checkupPermissions.canEdit,
-    );
+    expect(latestTabContent("診察")?.canEdit).toBe(mocks.medicalPermissions.canEdit);
+    expect(latestTabContent("定期健診")?.canEdit).toBe(mocks.checkupPermissions.canEdit);
   });
 
   it("mounts the field editor data only for the active examination tab", async () => {
@@ -252,8 +246,6 @@ describe("TreatmentPlanMaster resource-specific permissions", () => {
     await user.click(screen.getByRole("button", { name: "検査を選択" }));
 
     expect(mocks.sidePanelProps.at(-1)?.examinationTypeId).toBe("3");
-    expect(mocks.sidePanelProps.at(-1)?.canCreate).toBe(
-      mocks.medicalPermissions.canCreate,
-    );
+    expect(mocks.sidePanelProps.at(-1)?.canCreate).toBe(mocks.medicalPermissions.canCreate);
   });
 });

@@ -67,8 +67,10 @@ export function InventoryList() {
     [filteredItems, excludeCategory, excludeStatus],
   );
 
-  const { activeSorts, setActiveSorts, toggleSort, directionFor, sortedData } =
-    useSortableData(excludedFilteredItems, { numericKeys: ["quantity"] });
+  const { activeSorts, setActiveSorts, toggleSort, directionFor, sortedData } = useSortableData(
+    excludedFilteredItems,
+    { numericKeys: ["quantity"] },
+  );
 
   const pagination = buildServerPagePagination({
     rows: sortedData,
@@ -84,39 +86,45 @@ export function InventoryList() {
     setSearchParams,
   });
 
-  const handlePageChange = useCallback((page: number) => {
-    setSearchParams(
-      (prev) => nextListSearchParamsWithPage(prev, page),
-      { replace: true },
-    );
-  }, [setSearchParams]);
+  const handlePageChange = useCallback(
+    (page: number) => {
+      setSearchParams((prev) => nextListSearchParamsWithPage(prev, page), { replace: true });
+    },
+    [setSearchParams],
+  );
 
-  const handleSearchChange = useCallback((value: string) => {
-    setSearchTerm(value);
-    setSearchParams(
-      (prev) => nextListSearchParamsWithoutPage(prev),
-      { replace: true },
-    );
-  }, [setSearchParams]);
+  const handleSearchChange = useCallback(
+    (value: string) => {
+      setSearchTerm(value);
+      setSearchParams((prev) => nextListSearchParamsWithoutPage(prev), { replace: true });
+    },
+    [setSearchParams],
+  );
 
-  const handleFilterChange = useCallback((next: ActiveFilter[]) => {
-    setActiveFilters(next);
-    setSearchParams(
-      (prev) => nextListSearchParamsWithoutPage(prev),
-      { replace: true },
-    );
-  }, [setSearchParams]);
+  const handleFilterChange = useCallback(
+    (next: ActiveFilter[]) => {
+      setActiveFilters(next);
+      setSearchParams((prev) => nextListSearchParamsWithoutPage(prev), { replace: true });
+    },
+    [setSearchParams],
+  );
 
   const hasPageScopedFilter =
-    deferredSearch !== "" || activeSorts.length > 0 || excludeCategory !== null || excludeStatus !== null;
+    deferredSearch !== "" ||
+    activeSorts.length > 0 ||
+    excludeCategory !== null ||
+    excludeStatus !== null;
 
   const handleCreate = useCallback(() => {
     navigate(paths.inventory.new.getHref());
   }, [navigate]);
 
-  const handleEdit = useCallback((id: string) => {
-    navigate(paths.inventory.detail.getHref(id));
-  }, [navigate]);
+  const handleEdit = useCallback(
+    (id: string) => {
+      navigate(paths.inventory.detail.getHref(id));
+    },
+    [navigate],
+  );
 
   if (isLoading) return <LoadingFallback />;
   if (isError) return <ErrorFallback />;

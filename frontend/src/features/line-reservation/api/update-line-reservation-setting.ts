@@ -3,11 +3,11 @@ import type { ReservationSetting, UpdateLineReservationSettingRequest } from "./
 
 export async function updateLineReservationSetting(
   clinicId: string,
-  payload: UpdateLineReservationSettingRequest
+  payload: UpdateLineReservationSettingRequest,
 ): Promise<ReservationSetting> {
   const { data } = await axios.put<ReservationSetting>(
     `/v1/clinics/${clinicId}/line-reservation-settings`,
-    payload
+    payload,
   );
   return data;
 }

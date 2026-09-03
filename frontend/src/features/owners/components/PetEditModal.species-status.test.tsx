@@ -19,15 +19,12 @@ const mocks = vi.hoisted(() => ({
 // fireEvent.click でも開かない）。本テストの対象は Popover の開閉実装ではないので、開閉の
 // 意味論だけを保った素の実装へ差し替え、Dialog×Popover の相互作用を構造的に取り除く。
 vi.mock("@/components/ui/searchable-select", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("@/components/ui/searchable-select")>();
+  const actual = await importOriginal<typeof import("@/components/ui/searchable-select")>();
   const { useState } = await import("react");
   type Props = Parameters<typeof actual.SearchableSelect>[0];
   function SearchableSelectStub(props: Props) {
     const [open, setOpen] = useState(false);
-    const flat = props.groups
-      ? props.groups.flatMap((g) => g.options)
-      : (props.options ?? []);
+    const flat = props.groups ? props.groups.flatMap((g) => g.options) : (props.options ?? []);
     const selected = flat.find((o) => o.value === props.value);
     return (
       <div>
@@ -108,9 +105,7 @@ const animalSpecies = [
   },
 ] satisfies AnimalSpeciesState["activeSpecies"];
 
-function createSpeciesState(
-  overrides: Partial<AnimalSpeciesState> = {},
-): AnimalSpeciesState {
+function createSpeciesState(overrides: Partial<AnimalSpeciesState> = {}): AnimalSpeciesState {
   return {
     allSpecies: animalSpecies,
     activeSpecies: animalSpecies,
@@ -124,12 +119,7 @@ function createSpeciesState(
 function renderModal() {
   render(
     <MemoryRouter>
-      <PetEditModal
-        open
-        onOpenChange={vi.fn()}
-        ownerName="山田太郎"
-        onSave={vi.fn()}
-      />
+      <PetEditModal open onOpenChange={vi.fn()} ownerName="山田太郎" onSave={vi.fn()} />
     </MemoryRouter>,
   );
 }
@@ -142,13 +132,15 @@ describe("PetEditModal species status", () => {
 
   it("取得失敗を最優先の accessible alert で示し、ペット名入力と操作を使える", async () => {
     const rawError = "GET /v1/masters/animal-species: database timeout";
-    mocks.useAnimalSpecies.mockReturnValue(createSpeciesState({
-      allSpecies: [],
-      activeSpecies: [],
-      isLoading: true,
-      isError: true,
-      error: new Error(rawError),
-    }));
+    mocks.useAnimalSpecies.mockReturnValue(
+      createSpeciesState({
+        allSpecies: [],
+        activeSpecies: [],
+        isLoading: true,
+        isError: true,
+        error: new Error(rawError),
+      }),
+    );
     const user = userEvent.setup();
 
     renderModal();
@@ -170,11 +162,13 @@ describe("PetEditModal species status", () => {
   });
 
   it("読み込み中を空状態より優先して accessible status で示す", () => {
-    mocks.useAnimalSpecies.mockReturnValue(createSpeciesState({
-      allSpecies: [],
-      activeSpecies: [],
-      isLoading: true,
-    }));
+    mocks.useAnimalSpecies.mockReturnValue(
+      createSpeciesState({
+        allSpecies: [],
+        activeSpecies: [],
+        isLoading: true,
+      }),
+    );
 
     renderModal();
 
@@ -183,18 +177,19 @@ describe("PetEditModal species status", () => {
     expect(status).toHaveAttribute("aria-live", "polite");
     expect(status).toHaveAttribute("aria-atomic", "true");
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
-    expect(screen.queryByText("動物種マスタが登録されていません。"))
-      .not.toBeInTheDocument();
+    expect(screen.queryByText("動物種マスタが登録されていません。")).not.toBeInTheDocument();
     const speciesSelect = screen.getByRole("combobox", { name: /動物種/ });
     expect(speciesSelect).toBeDisabled();
     expect(speciesSelect).toHaveTextContent(/^読み込み中\.\.\.$/);
   });
 
   it("取得成功かつ0件を distinct accessible status で示す", () => {
-    mocks.useAnimalSpecies.mockReturnValue(createSpeciesState({
-      allSpecies: [],
-      activeSpecies: [],
-    }));
+    mocks.useAnimalSpecies.mockReturnValue(
+      createSpeciesState({
+        allSpecies: [],
+        activeSpecies: [],
+      }),
+    );
 
     renderModal();
 
@@ -203,8 +198,7 @@ describe("PetEditModal species status", () => {
     expect(status).toHaveAttribute("aria-live", "polite");
     expect(status).toHaveAttribute("aria-atomic", "true");
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
-    expect(screen.queryByText("動物種を読み込み中です。"))
-      .not.toBeInTheDocument();
+    expect(screen.queryByText("動物種を読み込み中です。")).not.toBeInTheDocument();
     const speciesSelect = screen.getByRole("combobox", { name: /動物種/ });
     expect(speciesSelect).toBeDisabled();
     expect(speciesSelect).toHaveTextContent(/^登録されていません$/);

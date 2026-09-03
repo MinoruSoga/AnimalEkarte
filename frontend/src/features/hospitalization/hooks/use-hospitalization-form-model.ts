@@ -1,4 +1,9 @@
-import { formatJSTWallDate, jstDateStartISOString, todayJSTISO, toJSTWallDate } from "@/lib/jst-date";
+import {
+  formatJSTWallDate,
+  jstDateStartISOString,
+  todayJSTISO,
+  toJSTWallDate,
+} from "@/lib/jst-date";
 import { calculateBillingTotals } from "@/lib/calculations";
 import type { Pet, HospitalizationTreatmentPlan } from "@/types";
 import type { TreatmentPlanResponse } from "@/types/generated/hospitalization-responses";
@@ -49,15 +54,15 @@ function toHospitalizationType(value: string) {
 }
 
 function toInsuranceCompanyName(formData: HospitalizationFormData) {
-  return formData.isInsurance ? (formData.insuranceCompanyName || null) : null;
+  return formData.isInsurance ? formData.insuranceCompanyName || null : null;
 }
 
 function toInsuranceNumber(formData: HospitalizationFormData) {
-  return formData.isInsurance ? (formData.insuranceNumber || null) : null;
+  return formData.isInsurance ? formData.insuranceNumber || null : null;
 }
 
 export function buildUpdateHospitalizationRequest(
-  formData: HospitalizationFormData
+  formData: HospitalizationFormData,
 ): UpdateHospitalizationRequest {
   return {
     hospitalization_type: toHospitalizationType(formData.hospitalizationType),
@@ -102,14 +107,17 @@ export function buildCreateHospitalizationRequest(
 
 export function buildHospitalizationFormDataFromRecord(
   currentFormData: HospitalizationFormData,
-  hospitalization: BackendHospitalization
+  hospitalization: BackendHospitalization,
 ): HospitalizationFormData {
   return {
     ...currentFormData,
-    hospitalizationType: hospitalization.hospitalization_type === "hospitalization" ? "入院" : "ホテル",
+    hospitalizationType:
+      hospitalization.hospitalization_type === "hospitalization" ? "入院" : "ホテル",
     cageId: hospitalization.cage_id ? String(hospitalization.cage_id) : "",
     displayDate: hospitalization.start_date,
-    endDate: hospitalization.end_date ? hospitalization.end_date.split("T")[0] : getDefaultHospitalizationEndDate(),
+    endDate: hospitalization.end_date
+      ? hospitalization.end_date.split("T")[0]
+      : getDefaultHospitalizationEndDate(),
     memo: hospitalization.memo ?? "",
     ownerRequest: hospitalization.owner_request ?? "",
     staffNotes: hospitalization.staff_notes ?? "",
@@ -121,13 +129,19 @@ export function buildHospitalizationFormDataFromRecord(
   };
 }
 
-export function buildSelectedPetFromHospitalization(hospitalization: BackendHospitalization): Pet | null {
+export function buildSelectedPetFromHospitalization(
+  hospitalization: BackendHospitalization,
+): Pet | null {
   if (!hospitalization.pet || !hospitalization.owner_id) {
     return null;
   }
 
   const gender =
-    hospitalization.pet.gender === "male" ? "雄" : hospitalization.pet.gender === "female" ? "雌" : "不明";
+    hospitalization.pet.gender === "male"
+      ? "雄"
+      : hospitalization.pet.gender === "female"
+        ? "雌"
+        : "不明";
   return {
     id: String(hospitalization.pet_id),
     ownerId: String(hospitalization.owner_id),
@@ -145,7 +159,7 @@ export function buildSelectedPetFromHospitalization(hospitalization: BackendHosp
 
 export function mergePetIntoHospitalizationFormData(
   formData: HospitalizationFormData,
-  selectedPets: readonly Pet[]
+  selectedPets: readonly Pet[],
 ) {
   if (selectedPets.length === 0) {
     return formData;
@@ -247,7 +261,7 @@ export function buildPersistableTreatmentPlanRequests(
 export function updateTreatmentPlanField(
   plan: HospitalizationTreatmentPlan,
   field: keyof HospitalizationTreatmentPlan,
-  value: string | number | boolean
+  value: string | number | boolean,
 ) {
   const updated = { ...plan, [field]: value };
   if (field === "unitPrice" || field === "quantity" || field === "discount") {

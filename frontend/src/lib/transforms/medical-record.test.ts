@@ -1,9 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  toBackendMedicalRecordStatus,
-  transformMedicalRecord,
-} from "./medical-record";
+import { toBackendMedicalRecordStatus, transformMedicalRecord } from "./medical-record";
 import type { MedicalRecordResponse } from "@/types/generated/medicalrecord-responses";
 
 const minimal: MedicalRecordResponse = {

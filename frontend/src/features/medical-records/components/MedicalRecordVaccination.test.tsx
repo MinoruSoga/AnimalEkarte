@@ -52,19 +52,14 @@ vi.mock("./VaccinationForm", () => ({
         value={vaccineName}
         onChange={(event) => setVaccineName(event.target.value)}
       />
-      <input
-        aria-label="接種日"
-        value={date}
-        onChange={(event) => setDate(event.target.value)}
-      />
+      <input aria-label="接種日" value={date} onChange={(event) => setDate(event.target.value)} />
       <input aria-label="補助説明" onChange={(event) => setSupplemental(event.target.value)} />
-      <input aria-label="次回予定種別" onChange={(event) => setNextScheduleType(event.target.value)} />
-      {fieldErrors?.vaccineId ? (
-        <p role="alert">{fieldErrors.vaccineId}</p>
-      ) : null}
-      {fieldErrors?.date ? (
-        <p role="alert">{fieldErrors.date}</p>
-      ) : null}
+      <input
+        aria-label="次回予定種別"
+        onChange={(event) => setNextScheduleType(event.target.value)}
+      />
+      {fieldErrors?.vaccineId ? <p role="alert">{fieldErrors.vaccineId}</p> : null}
+      {fieldErrors?.date ? <p role="alert">{fieldErrors.date}</p> : null}
       <button type="submit">保存</button>
     </div>
   ),
@@ -103,9 +98,7 @@ async function submitForm() {
 
 describe("MedicalRecordVaccination left list (BUG-007)", () => {
   it("接種記録があるときは空状態ではなく一覧を表示する", () => {
-    mockHistoryItems.current = [
-      { id: 11, name: "混合ワクチン", date: "26/8/1" },
-    ];
+    mockHistoryItems.current = [{ id: 11, name: "混合ワクチン", date: "26/8/1" }];
     render(<MedicalRecordVaccination petId="1" medicalRecordId="99" />);
     expect(screen.getByText("混合ワクチン")).toBeInTheDocument();
     expect(screen.queryByText(/接種記録がありません/)).not.toBeInTheDocument();
@@ -164,9 +157,7 @@ describe("MedicalRecordVaccination BUG-015 required validation", () => {
     fireEvent.change(screen.getByLabelText("接種日"), { target: { value: "2026-07-20" } });
     await submitForm();
 
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "ワクチン種別を選択してください",
-    );
+    expect(await screen.findByRole("alert")).toHaveTextContent("ワクチン種別を選択してください");
     expect(mockCreateVaccination).not.toHaveBeenCalled();
   });
 

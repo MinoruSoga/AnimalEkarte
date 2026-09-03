@@ -43,13 +43,7 @@ vi.mock("../api/get-vaccinations", () => ({
 }));
 
 vi.mock("@/components/shared/PageLayout/PageLayout", () => ({
-  PageLayout: ({
-    children,
-    headerAction,
-  }: {
-    children: ReactNode;
-    headerAction?: ReactNode;
-  }) => (
+  PageLayout: ({ children, headerAction }: { children: ReactNode; headerAction?: ReactNode }) => (
     <div>
       {headerAction}
       {children}
@@ -87,12 +81,14 @@ beforeEach(() => {
     isReadLoading: false,
     isEditPetReady: true,
     petSelection: {
-      selectedPets: [{
-        id: "pet-1",
-        ownerId: "owner-1",
-        name: "ポチ",
-        status: mocks.selectedPetStatus,
-      }],
+      selectedPets: [
+        {
+          id: "pet-1",
+          ownerId: "owner-1",
+          name: "ポチ",
+          status: mocks.selectedPetStatus,
+        },
+      ],
     },
     form: {
       doctorName: "",
@@ -175,9 +171,7 @@ describe("VaccinationForm — 死亡ペット render側二重防壁 (FE-RC-103/1
 
     expect(screen.queryByRole("button", { name: "保存" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "削除" })).not.toBeInTheDocument();
-    expect(
-      screen.getByText("死亡したペットの予防接種記録は保存できません"),
-    ).toBeInTheDocument();
+    expect(screen.getByText("死亡したペットの予防接種記録は保存できません")).toBeInTheDocument();
     expect(screen.getByRole("status", { name: "死亡ペットのため保存不可" })).toBeInTheDocument();
   });
 

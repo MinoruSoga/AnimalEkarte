@@ -30,7 +30,10 @@ export function ClearableSearchInput({
 
   return (
     <div className={cn("relative", className)}>
-      <Search aria-hidden="true" className={cn("absolute left-2.5 top-1/2 -translate-y-1/2", ICON.action, C.text40)} />
+      <Search
+        aria-hidden="true"
+        className={cn("absolute left-2.5 top-1/2 -translate-y-1/2", ICON.action, C.text40)}
+      />
       <Input
         ref={inputRef}
         value={value}

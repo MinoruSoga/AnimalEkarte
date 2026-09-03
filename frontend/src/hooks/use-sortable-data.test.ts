@@ -32,22 +32,14 @@ describe("useSortableData", () => {
       const { result } = renderHook(() => useSortableData(items));
       act(() => result.current.toggleSort("name"));
       // 日本語ロケール: localeCompare("ja") による実際の順序
-      expect(result.current.sortedData.map((i) => i.name)).toEqual([
-        "佐藤",
-        "田中",
-        "鈴木",
-      ]);
+      expect(result.current.sortedData.map((i) => i.name)).toEqual(["佐藤", "田中", "鈴木"]);
     });
 
     it("2回 toggle で降順ソートになる", () => {
       const { result } = renderHook(() => useSortableData(items));
       act(() => result.current.toggleSort("name"));
       act(() => result.current.toggleSort("name"));
-      expect(result.current.sortedData.map((i) => i.name)).toEqual([
-        "鈴木",
-        "田中",
-        "佐藤",
-      ]);
+      expect(result.current.sortedData.map((i) => i.name)).toEqual(["鈴木", "田中", "佐藤"]);
     });
 
     it("3回 toggle でソート解除になる（元の順序）", () => {
@@ -62,17 +54,13 @@ describe("useSortableData", () => {
 
   describe("数値ソート（numericKeys）", () => {
     it("numericKeys 指定で数値昇順ソートが機能する", () => {
-      const { result } = renderHook(() =>
-        useSortableData(items, { numericKeys: ["age"] })
-      );
+      const { result } = renderHook(() => useSortableData(items, { numericKeys: ["age"] }));
       act(() => result.current.toggleSort("age"));
       expect(result.current.sortedData.map((i) => i.age)).toEqual([25, 30, 35]);
     });
 
     it("numericKeys 指定で数値降順ソートが機能する", () => {
-      const { result } = renderHook(() =>
-        useSortableData(items, { numericKeys: ["age"] })
-      );
+      const { result } = renderHook(() => useSortableData(items, { numericKeys: ["age"] }));
       act(() => result.current.toggleSort("age"));
       act(() => result.current.toggleSort("age"));
       expect(result.current.sortedData.map((i) => i.age)).toEqual([35, 30, 25]);
@@ -87,7 +75,7 @@ describe("useSortableData", () => {
             if (key === "name_len") return item.name.length;
             return "";
           },
-        })
+        }),
       );
       act(() => result.current.toggleSort("name_len"));
       // 佐藤(2) = 田中(2) = 鈴木(2) — 同じ長さなので順序維持
@@ -121,15 +109,10 @@ describe("useSortableData", () => {
       const { result, rerender } = renderHook(() => useSortableData(data));
       act(() => result.current.toggleSort("age"));
 
-      data = [
-        ...items,
-        { id: 4, name: "高橋", age: 20 },
-      ];
+      data = [...items, { id: 4, name: "高橋", age: 20 }];
       rerender();
       // 昇順: 20 < 25 < 30 < 35
-      expect(result.current.sortedData.map((i) => i.age)).toEqual([
-        20, 25, 30, 35,
-      ]);
+      expect(result.current.sortedData.map((i) => i.age)).toEqual([20, 25, 30, 35]);
     });
   });
 });

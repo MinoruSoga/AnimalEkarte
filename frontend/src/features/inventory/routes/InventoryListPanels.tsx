@@ -3,7 +3,11 @@ import { AlertTriangle, Info } from "lucide-react";
 import type { ActiveFilter, ActiveSort } from "@/components/shared/PropertyFilter/types";
 import { TableCell } from "@/components/ui/table";
 import { PropertyFilter } from "@/components/shared/PropertyFilter/PropertyFilter";
-import { DataTable, DESIGN_TABLE_HEADER_ROW, DESIGN_TABLE_HEADER_CELL } from "@/components/shared/DataTable/DataTable";
+import {
+  DataTable,
+  DESIGN_TABLE_HEADER_ROW,
+  DESIGN_TABLE_HEADER_CELL,
+} from "@/components/shared/DataTable/DataTable";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { DataTableRowLink } from "@/components/shared/DataTable/DataTableRowLink";
 import { RowActionButton } from "@/components/shared/RowActionButton";
@@ -39,20 +43,18 @@ function InventoryListRow({ item, canEdit, onEdit }: InventoryListRowProps) {
           >
             {item.name}
           </DataTableRowLink>
-        ) : item.name}
+        ) : (
+          item.name
+        )}
       </TableCell>
-      <TableCell className={C.text}>
-        {CATEGORY_LABELS[item.category]}
-      </TableCell>
+      <TableCell className={C.text}>{CATEGORY_LABELS[item.category]}</TableCell>
       <TableCell className={`${C.text} text-right font-mono`}>
         {item.quantity} {item.unit}
       </TableCell>
       <TableCell className={`${C.text60} text-right font-mono hidden lg:table-cell`}>
         {item.minStockLevel} {item.unit}
       </TableCell>
-      <TableCell className={C.text}>
-        {item.location ?? "-"}
-      </TableCell>
+      <TableCell className={C.text}>{item.location ?? "-"}</TableCell>
       <TableCell className={`${C.text} font-mono hidden lg:table-cell`}>
         {item.expiryDate ?? "-"}
       </TableCell>
@@ -116,57 +118,61 @@ export function InventoryListContent({
   onEdit,
   onPageChange,
 }: InventoryListContentProps) {
-  const columns = useMemo(() => [
-    {
-      header: (
-        <SortableHeader
-          label="品名"
-          direction={directionFor("name")}
-          onToggle={() => toggleSort("name")}
-        />
-      ),
-      className: "min-w-[200px]",
-    },
-    {
-      header: (
-        <SortableHeader
-          label="カテゴリ"
-          direction={directionFor("category")}
-          onToggle={() => toggleSort("category")}
-        />
-      ),
-      className: "w-[100px]",
-    },
-    {
-      header: (
-        <SortableHeader
-          label="在庫数"
-          direction={directionFor("quantity")}
-          onToggle={() => toggleSort("quantity")}
-        />
-      ),
-      className: "w-[100px]",
-      align: "right" as const,
-    },
-    { header: "最低在庫", className: "w-[100px] hidden lg:table-cell", align: "right" as const },
-    { header: "保管場所", className: "w-[120px]" },
-    { header: "有効期限", className: "w-[120px] hidden lg:table-cell" },
-    {
-      header: (
-        <SortableHeader
-          label="ステータス"
-          direction={directionFor("status")}
-          onToggle={() => toggleSort("status")}
-        />
-      ),
-      className: "w-[100px]",
-    },
-    { header: "操作", className: "w-[80px]", align: "right" as const },
-  ], [directionFor, toggleSort]);
+  const columns = useMemo(
+    () => [
+      {
+        header: (
+          <SortableHeader
+            label="品名"
+            direction={directionFor("name")}
+            onToggle={() => toggleSort("name")}
+          />
+        ),
+        className: "min-w-[200px]",
+      },
+      {
+        header: (
+          <SortableHeader
+            label="カテゴリ"
+            direction={directionFor("category")}
+            onToggle={() => toggleSort("category")}
+          />
+        ),
+        className: "w-[100px]",
+      },
+      {
+        header: (
+          <SortableHeader
+            label="在庫数"
+            direction={directionFor("quantity")}
+            onToggle={() => toggleSort("quantity")}
+          />
+        ),
+        className: "w-[100px]",
+        align: "right" as const,
+      },
+      { header: "最低在庫", className: "w-[100px] hidden lg:table-cell", align: "right" as const },
+      { header: "保管場所", className: "w-[120px]" },
+      { header: "有効期限", className: "w-[120px] hidden lg:table-cell" },
+      {
+        header: (
+          <SortableHeader
+            label="ステータス"
+            direction={directionFor("status")}
+            onToggle={() => toggleSort("status")}
+          />
+        ),
+        className: "w-[100px]",
+      },
+      { header: "操作", className: "w-[80px]", align: "right" as const },
+    ],
+    [directionFor, toggleSort],
+  );
 
-  const renderRow = useCallback((item: InventoryItem) => (
-    <InventoryListRow item={item} canEdit={canEdit} onEdit={onEdit} />
-  ), [canEdit, onEdit]);
+  const renderRow = useCallback(
+    (item: InventoryItem) => <InventoryListRow item={item} canEdit={canEdit} onEdit={onEdit} />,
+    [canEdit, onEdit],
+  );
 
   return (
     <div className="flex flex-col gap-4">
@@ -180,19 +186,17 @@ export function InventoryListContent({
             低在庫・欠品件数を取得できませんでした。時間をおいて再度お試しください。
           </span>
         </div>
-      ) : (summary.lowStock > 0 || summary.outOfStock > 0) ? (
-        <div className={`flex items-center gap-4 p-3 ${C.bgWarning50} ${C.borderWarning20} border rounded-lg`}>
+      ) : summary.lowStock > 0 || summary.outOfStock > 0 ? (
+        <div
+          className={`flex items-center gap-4 p-3 ${C.bgWarning50} ${C.borderWarning20} border rounded-lg`}
+        >
           <AlertTriangle className={`${ICON.page} ${C.textWarningIcon}`} />
           <div className="flex gap-4 text-base">
             {summary.outOfStock > 0 ? (
-              <span className={`${C.danger} font-medium`}>
-                在庫切れ: {summary.outOfStock}件
-              </span>
+              <span className={`${C.danger} font-medium`}>在庫切れ: {summary.outOfStock}件</span>
             ) : null}
             {summary.lowStock > 0 ? (
-              <span className={`${C.textWarning} font-medium`}>
-                残少: {summary.lowStock}件
-              </span>
+              <span className={`${C.textWarning} font-medium`}>残少: {summary.lowStock}件</span>
             ) : null}
           </div>
         </div>
@@ -216,7 +220,10 @@ export function InventoryListContent({
           role="status"
           className={`flex items-start gap-2 rounded-md px-3 py-2 ${C.bgWarning50} ${C.borderWarning20} border text-sm`}
         >
-          <Info aria-hidden="true" className={`${ICON.action} ${C.textWarningIcon} shrink-0 mt-0.5`} />
+          <Info
+            aria-hidden="true"
+            className={`${ICON.action} ${C.textWarningIcon} shrink-0 mt-0.5`}
+          />
           <span>
             検索・並び替えは現在表示中のページ内のみが対象です。他のページにある在庫はこの検索・並び替えでは見つかりません。
             全件を確認する場合はカテゴリ・ステータスでの絞り込みをご利用ください。

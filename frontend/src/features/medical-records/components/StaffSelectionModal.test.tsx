@@ -20,9 +20,9 @@ const HIRAGANA_STAFFS: StaffItem[] = [
 ];
 
 beforeEach(() => {
-  vi.mocked(useGetStaffs).mockReturnValue(
-    { data: KATAKANA_STAFFS } as ReturnType<typeof useGetStaffs>,
-  );
+  vi.mocked(useGetStaffs).mockReturnValue({ data: KATAKANA_STAFFS } as ReturnType<
+    typeof useGetStaffs
+  >);
 });
 
 function renderModal(props: { selectedStaffName?: string } = {}) {
@@ -57,9 +57,9 @@ describe("StaffSelectionModal — カナ混同検索", () => {
   });
 
   it("カタカナで検索するとひらがな名のスタッフにヒットする", async () => {
-    vi.mocked(useGetStaffs).mockReturnValue(
-      { data: HIRAGANA_STAFFS } as ReturnType<typeof useGetStaffs>,
-    );
+    vi.mocked(useGetStaffs).mockReturnValue({ data: HIRAGANA_STAFFS } as ReturnType<
+      typeof useGetStaffs
+    >);
 
     const user = userEvent.setup();
     renderModal();

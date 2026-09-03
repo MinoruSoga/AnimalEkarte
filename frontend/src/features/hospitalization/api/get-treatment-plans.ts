@@ -8,11 +8,9 @@ import type { TreatmentPlanResponse } from "@/types/generated/hospitalization-re
  * GET /v1/hospitalizations/:id/treatment-plans
  * Real wire for hospitalization treatment-plan rows (not embedded on detail).
  */
-const getTreatmentPlans = async (
-  hospitalizationId: string
-): Promise<TreatmentPlanResponse[]> => {
+const getTreatmentPlans = async (hospitalizationId: string): Promise<TreatmentPlanResponse[]> => {
   const { data } = await axios.get<TreatmentPlanResponse[]>(
-    `/v1/hospitalizations/${hospitalizationId}/treatment-plans`
+    `/v1/hospitalizations/${hospitalizationId}/treatment-plans`,
   );
   return data;
 };

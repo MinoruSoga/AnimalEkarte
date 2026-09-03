@@ -11,18 +11,13 @@ import { forgotPassword } from "../api/forgot-password";
 const INPUT_BASE = `w-full h-[48px] text-base rounded-xxs ${C.bgInputLogin} border ${C.borderMedium} ${C.text} ${C.textPlaceholder} outline-none transition-all focus:ring-2 ${C.focusRingActionPrimary} focus:border-transparent disabled:opacity-60`;
 
 type ForgotPasswordState =
-  | { status: "idle"; error: null }
-  | { status: "sent" }
-  | { status: "error"; error: string };
+  { status: "idle"; error: null } | { status: "sent" } | { status: "error"; error: string };
 
 const INITIAL_STATE: ForgotPasswordState = { status: "idle", error: null };
 
 export function ForgotPasswordPage() {
   const [state, formAction] = useActionState(
-    async (
-      _prev: ForgotPasswordState,
-      formData: FormData,
-    ): Promise<ForgotPasswordState> => {
+    async (_prev: ForgotPasswordState, formData: FormData): Promise<ForgotPasswordState> => {
       const email = getFormString(formData, "forgot-email").trim();
       if (!email) {
         return { status: "error", error: "メールアドレスを入力してください" };
@@ -57,9 +52,7 @@ export function ForgotPasswordPage() {
           <h1 className={`text-heading-3 font-bold leading-tight ${C.text} mb-1`}>
             パスワードのリセット
           </h1>
-          <p className={`text-base ${C.text50}`}>
-            登録済みのメールアドレスを入力してください
-          </p>
+          <p className={`text-base ${C.text50}`}>登録済みのメールアドレスを入力してください</p>
         </div>
 
         {state.status === "sent" ? (
@@ -96,11 +89,7 @@ export function ForgotPasswordPage() {
 
             <FormFieldError id="forgot-error" message={errorMessage} />
 
-            <SubmitButton
-              colorVariant="brand"
-              className="w-full h-[52px]"
-              loadingText="送信中..."
-            >
+            <SubmitButton colorVariant="brand" className="w-full h-[52px]" loadingText="送信中...">
               リセットリンクを送信
             </SubmitButton>
 

@@ -3,7 +3,11 @@ import { memo } from "react";
 
 // Internal
 import { TableCell } from "@/components/ui/table";
-import { DataTable, DESIGN_TABLE_HEADER_ROW, DESIGN_TABLE_HEADER_CELL } from "@/components/shared/DataTable/DataTable";
+import {
+  DataTable,
+  DESIGN_TABLE_HEADER_ROW,
+  DESIGN_TABLE_HEADER_CELL,
+} from "@/components/shared/DataTable/DataTable";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { DataTableRowLink } from "@/components/shared/DataTable/DataTableRowLink";
 import { StatusBadge } from "@/components/shared/StatusBadge/StatusBadge";
@@ -36,8 +40,11 @@ interface HospitalizationListViewProps {
   canEdit: boolean;
 }
 
-export const HospitalizationListView = memo(function HospitalizationListView({ hospitalizations, onNavigate, canEdit }: HospitalizationListViewProps) {
-
+export const HospitalizationListView = memo(function HospitalizationListView({
+  hospitalizations,
+  onNavigate,
+  canEdit,
+}: HospitalizationListViewProps) {
   return (
     <DataTable
       headerRowClassName={DESIGN_TABLE_HEADER_ROW}
@@ -46,12 +53,11 @@ export const HospitalizationListView = memo(function HospitalizationListView({ h
       data={hospitalizations}
       emptyMessage="入院データがありません"
       renderRow={(h) => (
-        <DataTableRow
-          key={h.id}
-          className={h.petIsDeceased ? "opacity-40 cursor-default" : ""}
-        >
+        <DataTableRow key={h.id} className={h.petIsDeceased ? "opacity-40 cursor-default" : ""}>
           <TableCell className={`${STYLE.tableCellMono}`}>
-            {h.petIsDeceased ? h.hospitalizationNo : (
+            {h.petIsDeceased ? (
+              h.hospitalizationNo
+            ) : (
               <DataTableRowLink
                 to={paths.hospitalization.detail.getHref(h.id)}
                 aria-label={`入院「${h.hospitalizationNo} ${h.petName}」(ID: ${h.id}) の詳細を開く`}
@@ -68,14 +74,19 @@ export const HospitalizationListView = memo(function HospitalizationListView({ h
               {h.hospitalizationType}
             </StatusBadge>
           </TableCell>
-          <TableCell className={`${STYLE.tableCell} hidden md:table-cell max-w-[200px] truncate`} title={h.ownerRequest}>
+          <TableCell
+            className={`${STYLE.tableCell} hidden md:table-cell max-w-[200px] truncate`}
+            title={h.ownerRequest}
+          >
             {h.ownerRequest ?? "-"}
           </TableCell>
           <TableCell className={`${STYLE.tableCell} hidden md:table-cell`}>
             {h.doctorName ?? "-"}
           </TableCell>
           <TableCell className={`${STYLE.tableCellMono}`}>{formatDate(h.startDate)}</TableCell>
-          <TableCell className={`${STYLE.tableCellMono} hidden lg:table-cell`}>{formatDate(h.endDate)}</TableCell>
+          <TableCell className={`${STYLE.tableCellMono} hidden lg:table-cell`}>
+            {formatDate(h.endDate)}
+          </TableCell>
           <TableCell>
             <StatusBadge colorClass={getHospitalizationStatusColor(h.status)}>
               {h.status}

@@ -87,7 +87,8 @@ function isLabDeviceSerialPortInfo(value: unknown): value is LabDeviceSerialPort
   }
   const candidate = value as Record<string, unknown>;
   const vendorOk = candidate.usbVendorId === undefined || typeof candidate.usbVendorId === "number";
-  const productOk = candidate.usbProductId === undefined || typeof candidate.usbProductId === "number";
+  const productOk =
+    candidate.usbProductId === undefined || typeof candidate.usbProductId === "number";
   return vendorOk && productOk;
 }
 
@@ -117,7 +118,9 @@ export function storePortInfo(slotKey: string, info: LabDeviceSerialPortInfo): v
   }
 }
 
-export async function requestLabDevicePort(slotKey: string): Promise<LabDeviceSerialPortInfo | null> {
+export async function requestLabDevicePort(
+  slotKey: string,
+): Promise<LabDeviceSerialPortInfo | null> {
   const serial = serialApi();
   if (!serial) {
     return null;
@@ -129,8 +132,10 @@ export async function requestLabDevicePort(slotKey: string): Promise<LabDeviceSe
 }
 
 function portsMatch(port: LabDeviceSerialPort, stored: LabDeviceSerialPortInfo): boolean {
-  return port.getInfo().usbVendorId === stored.usbVendorId
-    && port.getInfo().usbProductId === stored.usbProductId;
+  return (
+    port.getInfo().usbVendorId === stored.usbVendorId &&
+    port.getInfo().usbProductId === stored.usbProductId
+  );
 }
 
 async function sleep(ms: number, isStopped: () => boolean): Promise<void> {

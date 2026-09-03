@@ -25,11 +25,7 @@ interface FormState {
 
 const INITIAL_STATE: FormState = { error: null, success: false };
 
-export function LstepTagAddDialog({
-  open,
-  onOpenChange,
-  ownerId,
-}: LstepTagAddDialogProps) {
+export function LstepTagAddDialog({ open, onOpenChange, ownerId }: LstepTagAddDialogProps) {
   const { mutateAsync } = useCreateOwnerTag(ownerId);
 
   const [state, formAction] = useActionState(
@@ -56,7 +52,7 @@ export function LstepTagAddDialog({
         return { error: "タグの追加に失敗しました", success: false };
       }
     },
-    INITIAL_STATE
+    INITIAL_STATE,
   );
 
   useEffect(() => {
@@ -88,9 +84,7 @@ export function LstepTagAddDialog({
               placeholder="例: 要注意, VIP顧客"
               className={`${STYLE.formInput} w-full rounded-md px-3`}
             />
-            {state.error !== null ? (
-              <p className={`text-sm ${C.danger}`}>{state.error}</p>
-            ) : null}
+            {state.error !== null ? <p className={`text-sm ${C.danger}`}>{state.error}</p> : null}
           </div>
 
           <div className="flex justify-end gap-2">
@@ -101,7 +95,9 @@ export function LstepTagAddDialog({
             >
               キャンセル
             </button>
-            <SubmitButton loadingText="付与中..." colorVariant="primary">付与する</SubmitButton>
+            <SubmitButton loadingText="付与中..." colorVariant="primary">
+              付与する
+            </SubmitButton>
           </div>
         </form>
       </DialogContent>

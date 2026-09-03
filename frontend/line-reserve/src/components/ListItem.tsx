@@ -7,7 +7,14 @@ interface ListItemProps {
   imageFallback?: string;
 }
 
-export function ListItem({ onClick, children, subtitle, description, imageUrl, imageFallback }: ListItemProps) {
+export function ListItem({
+  onClick,
+  children,
+  subtitle,
+  description,
+  imageUrl,
+  imageFallback,
+}: ListItemProps) {
   return (
     <button
       type="button"
@@ -24,7 +31,7 @@ export function ListItem({ onClick, children, subtitle, description, imageUrl, i
               if (imageFallback) {
                 (e.currentTarget as HTMLImageElement).src = imageFallback;
               } else {
-                e.currentTarget.style.display = 'none';
+                e.currentTarget.style.display = "none";
               }
             }}
           />
@@ -32,7 +39,9 @@ export function ListItem({ onClick, children, subtitle, description, imageUrl, i
         <div className="min-w-0">
           <div className="text-noah-text-strong font-medium">{children}</div>
           {subtitle ? <div className="text-sm text-noah-text-muted mt-0.5">{subtitle}</div> : null}
-          {description ? <div className="text-xs text-noah-text-faint mt-1 line-clamp-2">{description}</div> : null}
+          {description ? (
+            <div className="text-xs text-noah-text-faint mt-1 line-clamp-2">{description}</div>
+          ) : null}
         </div>
       </div>
       <svg

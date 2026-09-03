@@ -108,9 +108,10 @@ export function transformToAccounting(data: BackendAccounting) {
     completedAt: data.completed_at ?? undefined,
     items: (data.items ?? []).map(transformAccountingItem),
     payment: buildPaymentInfo(data),
-    paymentSplits: splits && splits.length > 0
-      ? splits.map((s) => transformPaymentSplit(s as PaymentSplitWithStaff))
-      : undefined,
+    paymentSplits:
+      splits && splits.length > 0
+        ? splits.map((s) => transformPaymentSplit(s as PaymentSplitWithStaff))
+        : undefined,
     totalRefundedAmount: data.total_refunded_amount ?? 0,
     /** BUG-007: 未収残高（waiting 全額 or クレジット訂正後の patient_due−支払額） */
     outstandingAmount: data.outstanding_amount ?? 0,

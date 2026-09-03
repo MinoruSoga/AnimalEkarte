@@ -19,11 +19,7 @@ function createWrapper(queryClient: QueryClient) {
 // （先例: update-examination-items.ts は既に両方を invalidate している）。
 describe("useUpdateExamination (FE4-6)", () => {
   it("成功後に list prefix と detail キーの両方を invalidate する", async () => {
-    server.use(
-      http.patch("/api/v1/examinations/:id", () =>
-        HttpResponse.json({ id: 7 }),
-      ),
-    );
+    server.use(http.patch("/api/v1/examinations/:id", () => HttpResponse.json({ id: 7 })));
 
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false } },

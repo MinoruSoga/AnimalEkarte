@@ -1,10 +1,7 @@
 import { axios } from "@/lib/axios";
 import { transformToAccounting } from "./transforms";
 import type { Accounting } from "./transforms";
-import type {
-  BackendAccounting,
-  CompleteAccountingRequest,
-} from "./types";
+import type { BackendAccounting, CompleteAccountingRequest } from "./types";
 
 /**
  * BUG-018: 会計確定を単一 aggregate command で送信する。
@@ -14,15 +11,11 @@ export const completeAccounting = async (
   req: CompleteAccountingRequest,
   idempotencyKey: string,
 ): Promise<Accounting> => {
-  const { data } = await axios.post<BackendAccounting>(
-    "/v1/accountings/complete",
-    req,
-    {
-      headers: {
-        "Idempotency-Key": idempotencyKey,
-      },
+  const { data } = await axios.post<BackendAccounting>("/v1/accountings/complete", req, {
+    headers: {
+      "Idempotency-Key": idempotencyKey,
     },
-  );
+  });
   return transformToAccounting(data);
 };
 

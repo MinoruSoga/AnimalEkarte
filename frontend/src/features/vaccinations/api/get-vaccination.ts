@@ -20,4 +20,3 @@ export const useGetVaccination = (id: string) => {
     gcTime: QUERY_GC_TIMES.STANDARD,
   });
 };
-

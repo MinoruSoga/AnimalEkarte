@@ -34,9 +34,7 @@ function DiscountCell({ item, canEdit, accountingId, onUpdateItemDiscount }: Dis
 
   if (accountingId === undefined || onUpdateItemDiscount === undefined || !canEdit) {
     return (
-      <span className={`text-sm ${C.text50}`}>
-        {formatCurrencyOrDash(item.discountAmount)}
-      </span>
+      <span className={`text-sm ${C.text50}`}>{formatCurrencyOrDash(item.discountAmount)}</span>
     );
   }
 
@@ -48,7 +46,9 @@ function DiscountCell({ item, canEdit, accountingId, onUpdateItemDiscount }: Dis
         type="number"
         min={0}
         defaultValue={item.discountAmount}
-        onBlur={(e) => onUpdateItemDiscount(item.id, Math.max(0, parseInt(e.target.value, 10) || 0))}
+        onBlur={(e) =>
+          onUpdateItemDiscount(item.id, Math.max(0, parseInt(e.target.value, 10) || 0))
+        }
         className="w-20 min-h-11 text-right"
       />
       <Popover open={open} onOpenChange={setOpen}>
@@ -138,13 +138,9 @@ export function AccountingItemRow({
           </span>
         ) : null}
       </TableCell>
-      <TableCell className="text-right">
-        {formatCurrency(item.unitPrice)}
-      </TableCell>
+      <TableCell className="text-right">{formatCurrency(item.unitPrice)}</TableCell>
       <TableCell className="text-center">
-        <div className="flex items-center justify-center gap-2">
-          {item.quantity}
-        </div>
+        <div className="flex items-center justify-center gap-2">{item.quantity}</div>
       </TableCell>
       <TableCell className="text-center">
         <DiscountCell

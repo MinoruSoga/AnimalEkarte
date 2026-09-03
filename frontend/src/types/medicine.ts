@@ -4,12 +4,7 @@ import type { ReorderRequest } from "@/types/form";
 /**
  * サーバー側で自動生成されるフィールド（リクエストに含めない）
  */
-type ServerFields =
-  | "id"
-  | "clinic_id"
-  | "created_at"
-  | "updated_at"
-  | "inventory";
+type ServerFields = "id" | "clinic_id" | "created_at" | "updated_at" | "inventory";
 
 /**
  * リクエストで送信可能な Medicine フィールド
@@ -21,8 +16,7 @@ type MedicineWritable = Omit<BackendMedicine, ServerFields>;
  * 薬剤作成リクエスト（バックエンドAPI）
  * name のみ必須、残りはoptional
  */
-export type CreateMedicineRequest =
-  Pick<MedicineWritable, "name"> &
+export type CreateMedicineRequest = Pick<MedicineWritable, "name"> &
   Partial<Omit<MedicineWritable, "name">>;
 
 /**

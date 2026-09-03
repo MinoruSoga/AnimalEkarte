@@ -12,12 +12,12 @@ import type { BackendMedicalRecord, UpdateMedicalRecordRequest } from "./types";
 const updateMedicalRecord = async (
   id: string,
   req: UpdateMedicalRecordRequest,
-  clinicId?: string
+  clinicId?: string,
 ): Promise<MedicalRecord> => {
   const { data } = await axios.patch<BackendMedicalRecord>(
     `/v1/medical-records/${id}`,
     req,
-    clinicId ? { headers: { "X-Clinic-ID": clinicId } } : undefined
+    clinicId ? { headers: { "X-Clinic-ID": clinicId } } : undefined,
   );
   return transformMedicalRecord(data);
 };

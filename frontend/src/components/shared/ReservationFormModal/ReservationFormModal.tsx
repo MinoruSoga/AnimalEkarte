@@ -87,7 +87,9 @@ export const ReservationFormModal = memo(function ReservationFormModal({
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [saveFormKey, setSaveFormKey] = useState(0);
-  const [calendarMonth, setCalendarMonth] = useState<string>(() => dateFnsFormat(new Date(), "yyyy-MM"));
+  const [calendarMonth, setCalendarMonth] = useState<string>(() =>
+    dateFnsFormat(new Date(), "yyyy-MM"),
+  );
   const [ownerMode, setOwnerMode] = useState<OwnerMode>("existing");
   const [newOwnerData, setNewOwnerData] = useState<NewOwnerFormData>(EMPTY_NEW_OWNER);
   const [newOwnerErrors, setNewOwnerErrors] = useState<Record<string, string>>({});
@@ -95,28 +97,25 @@ export const ReservationFormModal = memo(function ReservationFormModal({
   // BUG-343: 定休日を取得して Calendar で disabled にする
   const { data: clinicHolidays = [] } = useGetClinicHolidays(calendarMonth);
 
-  const holidayDates = useMemo(
-    () => new Set(clinicHolidays.map((h) => h.date)),
-    [clinicHolidays]
-  );
+  const holidayDates = useMemo(() => new Set(clinicHolidays.map((h) => h.date)), [clinicHolidays]);
   const handleCalendarMonthChange = useCallback((yearMonth: string) => {
     setCalendarMonth(yearMonth);
   }, []);
 
-  const {
-    selectedPets,
-    setSelectedPets,
-    togglePetSelection,
-  } = usePetSelection([], "multiple-same-owner");
+  const { selectedPets, setSelectedPets, togglePetSelection } = usePetSelection(
+    [],
+    "multiple-same-owner",
+  );
 
   const { data: ownerLineData } = useGetOwnerLineTags(selectedPets[0]?.ownerId ?? "");
-  const lstepStatus = selectedPets.length === 0 || ownerLineData === undefined
-    ? undefined
-    : ownerLineData.lstep_opt_out
-      ? ("opt-out" as const)
-      : ownerLineData.is_linked
-        ? ("synced" as const)
-        : ("not-linked" as const);
+  const lstepStatus =
+    selectedPets.length === 0 || ownerLineData === undefined
+      ? undefined
+      : ownerLineData.lstep_opt_out
+        ? ("opt-out" as const)
+        : ownerLineData.is_linked
+          ? ("synced" as const)
+          : ("not-linked" as const);
 
   const { data: loadedPet } = useGetPet(pendingPetId ?? "");
 
@@ -367,10 +366,7 @@ function ReservationSaveSession({
   children,
 }: {
   save: () => Promise<string | null>;
-  children: (args: {
-    formAction: (payload: FormData) => void;
-    isPending: boolean;
-  }) => ReactNode;
+  children: (args: { formAction: (payload: FormData) => void; isPending: boolean }) => ReactNode;
 }) {
   const saveRef = useRef(save);
   useLayoutEffect(() => {

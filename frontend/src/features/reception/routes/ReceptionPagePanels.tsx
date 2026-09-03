@@ -122,10 +122,7 @@ export function ReceptionPageBody({
         }
       />
 
-      <ReceptionTelemetryStrip
-        totalCount={telemetry.totalCount}
-        waitStats={telemetry}
-      />
+      <ReceptionTelemetryStrip totalCount={telemetry.totalCount} waitStats={telemetry} />
 
       {isFilterOpen ? (
         <ReceptionFilterPanel
@@ -144,7 +141,9 @@ export function ReceptionPageBody({
             と通過時の誤ステータス API 発火を招くため撤去（commit-on-drop） */}
         <DndContext sensors={sensors} collisionDetection={collisionDetection} onDragEnd={onDragEnd}>
           {/* タブレット: 2-3列グリッド、デスクトップ: 5列flex */}
-          <div className={`grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:flex gap-4 h-full w-full overflow-y-auto lg:overflow-x-auto lg:overflow-y-hidden pb-2 bg-transparent transition-opacity${isUpdatingStatus ? " opacity-70 pointer-events-none" : ""}`}>
+          <div
+            className={`grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:flex gap-4 h-full w-full overflow-y-auto lg:overflow-x-auto lg:overflow-y-hidden pb-2 bg-transparent transition-opacity${isUpdatingStatus ? " opacity-70 pointer-events-none" : ""}`}
+          >
             {columnElements}
           </div>
         </DndContext>

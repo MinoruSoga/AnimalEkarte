@@ -32,22 +32,12 @@ export function EstimateDetailHeaderActions({
 }: EstimateDetailHeaderActionsProps) {
   return (
     <div className="flex gap-2">
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={onBack}
-        className="gap-1.5 text-sm"
-      >
+      <Button variant="outline" size="sm" onClick={onBack} className="gap-1.5 text-sm">
         <ArrowLeft className={ICON.action} />
         一覧へ
       </Button>
       {showEdit ? (
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={onEdit}
-          className="gap-1.5 text-sm"
-        >
+        <Button variant="outline" size="sm" onClick={onEdit} className="gap-1.5 text-sm">
           <Pencil className={ICON.action} />
           編集
         </Button>
@@ -205,10 +195,7 @@ export function EstimateSuccessorDialog({
       <div
         className={`relative w-full max-w-md rounded-md border ${C.borderLight} ${C.bgWhite} p-6 shadow-level2 space-y-4`}
       >
-        <h2
-          id="successor-dialog-title"
-          className={`text-base font-semibold ${C.text}`}
-        >
+        <h2 id="successor-dialog-title" className={`text-base font-semibold ${C.text}`}>
           後継ドラフトを作成
         </h2>
         <p className={`text-sm ${C.text70}`}>

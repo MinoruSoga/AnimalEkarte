@@ -36,7 +36,7 @@ import { ResourceOwners } from "@/types/generated/models";
 
 // Lazy-loaded modal — only loaded when first opened (bundle-dynamic-imports)
 const PetEditModal = lazy(() =>
-  import("../components/PetEditModal").then(m => ({ default: m.PetEditModal }))
+  import("../components/PetEditModal").then((m) => ({ default: m.PetEditModal })),
 );
 
 // rendering-hoist-jsx: アクセシビリティ用定数をモジュールレベルに巻き上げ（毎レンダー再生成を回避）
@@ -143,7 +143,9 @@ export function OwnerForm({ petMutations, lineSection, accountingSection }: Owne
         });
         if (plan.mode === "hard") {
           if (!setStoredClinicId(plan.clinicId)) {
-            toast.error("クリニックの切替に失敗しました。登録は完了しています。医院を切り替えてから詳細を開いてください。");
+            toast.error(
+              "クリニックの切替に失敗しました。登録は完了しています。医院を切り替えてから詳細を開いてください。",
+            );
             navigate(paths.owners.getHref());
             return;
           }
@@ -183,7 +185,8 @@ export function OwnerForm({ petMutations, lineSection, accountingSection }: Owne
     const errorFields = errorFieldsSignature ? errorFieldsSignature.split(",") : [];
     if (errorFields.length === 0) return;
     // 優先度順にフォーカスする最初のフィールドを探す
-    const firstErrorField = OWNER_PRIORITY_FIELDS.find((f) => errorFields.includes(f)) ?? errorFields[0];
+    const firstErrorField =
+      OWNER_PRIORITY_FIELDS.find((f) => errorFields.includes(f)) ?? errorFields[0];
     const domId = OWNER_FIELD_ID_MAP[firstErrorField] ?? firstErrorField;
     const el = document.getElementById(domId) as HTMLElement | null;
     el?.focus();
@@ -209,10 +212,13 @@ export function OwnerForm({ petMutations, lineSection, accountingSection }: Owne
 
   // rerender-functional-setstate: setOwnerData・markDirty は両方安定した参照なので
   // useCallback で handleInputChange を安定化できる → MembershipTypeButtons memo の前提条件
-  const handleInputChange = useCallback((field: string, value: string | boolean | number | null | undefined) => {
-    setOwnerData(prev => ({ ...prev, [field]: value }));
-    markDirty();
-  }, [setOwnerData, markDirty]);
+  const handleInputChange = useCallback(
+    (field: string, value: string | boolean | number | null | undefined) => {
+      setOwnerData((prev) => ({ ...prev, [field]: value }));
+      markDirty();
+    },
+    [setOwnerData, markDirty],
+  );
 
   const handleConfirmDeletePet = () => {
     if (deletePetTarget) {
@@ -227,9 +233,12 @@ export function OwnerForm({ petMutations, lineSection, accountingSection }: Owne
   }, []);
 
   // MembershipTypeButtons の onChange prop を安定化（handleInputChange が stable なので依存なし）
-  const handleMembershipChange = useCallback((type: MembershipTypeLabel) => {
-    handleInputChange("membershipType", type);
-  }, [handleInputChange]);
+  const handleMembershipChange = useCallback(
+    (type: MembershipTypeLabel) => {
+      handleInputChange("membershipType", type);
+    },
+    [handleInputChange],
+  );
 
   // 郵便番号検索
   const { lookup } = usePostalCodeLookup();
@@ -303,17 +312,13 @@ export function OwnerForm({ petMutations, lineSection, accountingSection }: Owne
                 会計履歴
               </h2>
             </div>
-            <Suspense fallback={null}>
-              {accountingSection}
-            </Suspense>
+            <Suspense fallback={null}>{accountingSection}</Suspense>
           </div>
         ) : null}
 
         {/* LINE連携セクション（編集モードのみ・app層から注入） */}
         {isEdit && lineSection ? (
-          <div className={`mt-6 p-4 rounded-lg border ${C.borderLight}`}>
-            {lineSection}
-          </div>
+          <div className={`mt-6 p-4 rounded-lg border ${C.borderLight}`}>{lineSection}</div>
         ) : null}
 
         <Suspense fallback={null}>

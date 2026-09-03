@@ -3,10 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Pet } from "@/types";
 
-import {
-  SEARCH_DEBOUNCE_MS,
-  usePetSelectionPage,
-} from "./use-pet-selection-page";
+import { SEARCH_DEBOUNCE_MS, usePetSelectionPage } from "./use-pet-selection-page";
 
 const navigate = vi.fn();
 const locationState = {
@@ -48,10 +45,7 @@ interface MockGetPetsQueryOptions {
 let receivedQueryOptions: MockGetPetsQueryOptions | undefined;
 
 const mockUseGetPets = vi.fn(
-  (
-    _ownerId?: string,
-    _options?: MockGetPetsOptions,
-  ): MockPetsQueryResult => ({
+  (_ownerId?: string, _options?: MockGetPetsOptions): MockPetsQueryResult => ({
     data: [] as Pet[],
     total: 0,
     page: 1,

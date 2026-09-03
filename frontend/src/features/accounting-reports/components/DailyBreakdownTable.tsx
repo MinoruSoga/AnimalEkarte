@@ -80,9 +80,7 @@ export const DailyBreakdownTable = memo(function DailyBreakdownTable({
                 <TableCell className={`text-right font-medium ${C.text}`}>
                   {formatCurrency(detail.dayNet)}
                 </TableCell>
-                <TableCell
-                  className={`text-right ${detail.refund > 0 ? C.danger : C.text50}`}
-                >
+                <TableCell className={`text-right ${detail.refund > 0 ? C.danger : C.text50}`}>
                   {detail.refund > 0 ? `-${formatCurrency(detail.refund)}` : "—"}
                 </TableCell>
                 <TableCell className="text-center">

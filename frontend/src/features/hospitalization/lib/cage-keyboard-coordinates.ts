@@ -59,13 +59,12 @@ export const cageKeyboardCoordinateGetter: KeyboardCoordinateGetter = (event, ar
   }
   event.preventDefault();
 
-  const collision =
-    args.context.collisionRect ?? {
-      top: args.currentCoordinates.y,
-      left: args.currentCoordinates.x,
-      bottom: args.currentCoordinates.y + 1,
-      right: args.currentCoordinates.x + 1,
-    };
+  const collision = args.context.collisionRect ?? {
+    top: args.currentCoordinates.y,
+    left: args.currentCoordinates.x,
+    bottom: args.currentCoordinates.y + 1,
+    right: args.currentCoordinates.x + 1,
+  };
 
   const candidates = args.context.droppableContainers
     .getEnabled()

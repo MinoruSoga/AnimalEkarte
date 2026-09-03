@@ -107,7 +107,11 @@ export function ManualSidebar({
     >
       {/* View Mode Toggle */}
       <div className={`p-3 border-b ${C.borderDivider} space-y-2`}>
-        <div role="tablist" aria-label="マニュアル表示モード" className="grid grid-cols-2 gap-1 p-0.5 rounded-xxs bg-black/5">
+        <div
+          role="tablist"
+          aria-label="マニュアル表示モード"
+          className="grid grid-cols-2 gap-1 p-0.5 rounded-xxs bg-black/5"
+        >
           <button
             type="button"
             role="tab"

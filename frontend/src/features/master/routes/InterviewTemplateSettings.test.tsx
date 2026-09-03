@@ -69,11 +69,7 @@ vi.mock("../hooks/use-master-crud", () => ({
 }));
 
 vi.mock("../hooks/use-master-save", () => ({
-  useMasterSave: ({
-    permissions,
-  }: {
-    permissions: { canCreate: boolean; canEdit: boolean };
-  }) => {
+  useMasterSave: ({ permissions }: { permissions: { canCreate: boolean; canEdit: boolean } }) => {
     mocks.saveCanCreate = permissions.canCreate;
     mocks.saveCanEdit = permissions.canEdit;
     return { handleSave: vi.fn() };

@@ -49,7 +49,9 @@ describe("toHospitalizationWireStatus (BUG-009 tab → wire mapping)", () => {
     expect(toHospitalizationWireStatus(HOSPITALIZATION_FILTER_STATUS.RESERVED)).toBe("reserved");
   });
   it("maps discharged → discharged", () => {
-    expect(toHospitalizationWireStatus(HOSPITALIZATION_FILTER_STATUS.DISCHARGED)).toBe("discharged");
+    expect(toHospitalizationWireStatus(HOSPITALIZATION_FILTER_STATUS.DISCHARGED)).toBe(
+      "discharged",
+    );
   });
   it("maps all → undefined (no status param)", () => {
     expect(toHospitalizationWireStatus(HOSPITALIZATION_FILTER_STATUS.ALL)).toBeUndefined();
@@ -90,7 +92,13 @@ describe("getHospitalizations request params (BUG-009)", () => {
   });
 
   it("omits status for all tab", async () => {
-    mockPage([{ id: 1, status: "admitted" }, { id: 2, status: "reserved" }], 40);
+    mockPage(
+      [
+        { id: 1, status: "admitted" },
+        { id: 2, status: "reserved" },
+      ],
+      40,
+    );
     await getHospitalizations({ statusFilter: HOSPITALIZATION_FILTER_STATUS.ALL });
     const params = mockedGet.mock.calls[0]?.[1]?.params as Record<string, unknown>;
     expect(params).toEqual({

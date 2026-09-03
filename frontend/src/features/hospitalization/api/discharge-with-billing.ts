@@ -13,11 +13,11 @@ export type DischargeWithBillingResult = {
 
 export const dischargeWithBilling = async (
   id: string,
-  req: DischargeWithBillingRequest
+  req: DischargeWithBillingRequest,
 ): Promise<DischargeWithBillingResult> => {
   const { data } = await axios.post<DischargeWithBillingResult>(
     `/v1/hospitalizations/${id}/discharge-with-billing`,
-    req
+    req,
   );
   return data;
 };

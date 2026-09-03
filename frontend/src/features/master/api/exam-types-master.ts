@@ -1,9 +1,4 @@
-import {
-  useMutation,
-  useQuery,
-  useQueryClient,
-  type QueryClient,
-} from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 
 import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
@@ -98,8 +93,7 @@ export interface CreateExaminationTypeFieldRequest {
   sort_order?: number;
 }
 
-export type UpdateExaminationTypeFieldRequest =
-  Partial<CreateExaminationTypeFieldRequest>;
+export type UpdateExaminationTypeFieldRequest = Partial<CreateExaminationTypeFieldRequest>;
 
 export interface ExamReferenceRangeInput {
   animal_species_id: number;
@@ -109,9 +103,7 @@ export interface ExamReferenceRangeInput {
   qualitative_max?: string;
 }
 
-function transformReferenceRange(
-  data: ExamReferenceRangeResponse,
-): ExamReferenceRange {
+function transformReferenceRange(data: ExamReferenceRangeResponse): ExamReferenceRange {
   return {
     id: String(data.id),
     examTypeFieldId: String(data.exam_type_field_id),
@@ -123,9 +115,7 @@ function transformReferenceRange(
   };
 }
 
-function transformExaminationTypeField(
-  data: ExaminationTypeFieldResponse,
-): ExaminationTypeField {
+function transformExaminationTypeField(data: ExaminationTypeFieldResponse): ExaminationTypeField {
   return {
     id: String(data.id),
     examTypeId: String(data.exam_type_id),
@@ -159,9 +149,7 @@ export function transformExaminationTypeResponse(
 }
 
 const getAllExaminationTypes = async (): Promise<ExaminationTypeMaster[]> => {
-  const { data } = await axios.get<ExaminationTypeResponse[]>(
-    "/v1/masters/examination-types",
-  );
+  const { data } = await axios.get<ExaminationTypeResponse[]>("/v1/masters/examination-types");
   return data.map(transformExaminationTypeResponse);
 };
 
@@ -192,19 +180,14 @@ export async function deleteExaminationTypeField(
   examTypeId: string,
   fieldId: string,
 ): Promise<void> {
-  await axios.delete(
-    `/v1/masters/examination-types/${examTypeId}/fields/${fieldId}`,
-  );
+  await axios.delete(`/v1/masters/examination-types/${examTypeId}/fields/${fieldId}`);
 }
 
 export async function reorderExaminationTypeFields(
   examTypeId: string,
   ids: number[],
 ): Promise<void> {
-  await axios.patch(
-    `/v1/masters/examination-types/${examTypeId}/fields/reorder`,
-    { ids },
-  );
+  await axios.patch(`/v1/masters/examination-types/${examTypeId}/fields/reorder`, { ids });
 }
 
 export async function replaceExamTypeFieldReferenceRanges(
@@ -243,8 +226,7 @@ export async function invalidateExaminationTypeFieldQueries(
 
 function useInvalidateExaminationTypeFields() {
   const queryClient = useQueryClient();
-  return (examTypeId: string) =>
-    invalidateExaminationTypeFieldQueries(queryClient, examTypeId);
+  return (examTypeId: string) => invalidateExaminationTypeFieldQueries(queryClient, examTypeId);
 }
 
 export const useCreateExaminationType = () => {
@@ -257,9 +239,10 @@ export const useCreateExaminationType = () => {
       );
       return transformExaminationTypeResponse(data);
     },
-    onSuccess: () => queryClient.invalidateQueries({
-      queryKey: queryKeys.masters.category("examination-types"),
-    }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.masters.category("examination-types"),
+      }),
     onError: (error) => handleApiError(error, "操作"),
   });
 };
@@ -280,9 +263,10 @@ export const useUpdateExaminationType = () => {
       );
       return transformExaminationTypeResponse(data);
     },
-    onSuccess: () => queryClient.invalidateQueries({
-      queryKey: queryKeys.masters.category("examination-types"),
-    }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.masters.category("examination-types"),
+      }),
     onError: (error) => handleApiError(error, "操作"),
   });
 };
@@ -291,9 +275,10 @@ export const useDeleteExaminationType = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => axios.delete(`/v1/masters/examination-types/${id}`),
-    onSuccess: () => queryClient.invalidateQueries({
-      queryKey: queryKeys.masters.category("examination-types"),
-    }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.masters.category("examination-types"),
+      }),
     onError: (error) => handleApiError(error, "操作"),
   });
 };
@@ -303,9 +288,10 @@ export const useReorderExaminationTypes = () => {
   return useMutation({
     mutationFn: (req: ReorderTreatmentRequest) =>
       axios.patch("/v1/masters/examination-types/reorder", req),
-    onSuccess: () => queryClient.invalidateQueries({
-      queryKey: queryKeys.masters.category("examination-types"),
-    }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.masters.category("examination-types"),
+      }),
     onError: (error) => handleApiError(error, "操作"),
   });
 };
@@ -313,7 +299,10 @@ export const useReorderExaminationTypes = () => {
 export function useCreateExaminationTypeField() {
   const invalidate = useInvalidateExaminationTypeFields();
   return useMutation({
-    mutationFn: ({ examTypeId, req }: {
+    mutationFn: ({
+      examTypeId,
+      req,
+    }: {
       examTypeId: string;
       req: CreateExaminationTypeFieldRequest;
     }) => createExaminationTypeField(examTypeId, req),
@@ -325,7 +314,11 @@ export function useCreateExaminationTypeField() {
 export function useUpdateExaminationTypeField() {
   const invalidate = useInvalidateExaminationTypeFields();
   return useMutation({
-    mutationFn: ({ examTypeId, fieldId, req }: {
+    mutationFn: ({
+      examTypeId,
+      fieldId,
+      req,
+    }: {
       examTypeId: string;
       fieldId: string;
       req: UpdateExaminationTypeFieldRequest;
@@ -358,7 +351,11 @@ export function useReorderExaminationTypeFields() {
 export function useReplaceExamTypeFieldReferenceRanges() {
   const invalidate = useInvalidateExaminationTypeFields();
   return useMutation({
-    mutationFn: ({ examTypeId, fieldId, ranges }: {
+    mutationFn: ({
+      examTypeId,
+      fieldId,
+      ranges,
+    }: {
       examTypeId: string;
       fieldId: string;
       ranges: ExamReferenceRangeInput[];

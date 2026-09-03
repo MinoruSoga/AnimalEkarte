@@ -65,11 +65,11 @@ function clinicHeaderConfig(clinicId?: string) {
 
 const getClinicalPlan = async (
   medicalRecordId: string,
-  clinicId?: string
+  clinicId?: string,
 ): Promise<ClinicalPlan> => {
   const { data } = await axios.get<Parameters<typeof transformClinicalPlan>[0]>(
     `/v1/medical-records/${medicalRecordId}/clinical-plan`,
-    clinicHeaderConfig(clinicId)
+    clinicHeaderConfig(clinicId),
   );
   return transformClinicalPlan(data);
 };
@@ -92,7 +92,7 @@ export const useUpdateClinicalPlan = (medicalRecordId: string, clinicId?: string
         .patch<Parameters<typeof transformClinicalPlan>[0]>(
           `/v1/medical-records/${medicalRecordId}/clinical-plan`,
           input,
-          clinicHeaderConfig(clinicId)
+          clinicHeaderConfig(clinicId),
         )
         .then((r) => transformClinicalPlan(r.data)),
     onSuccess: (data) => {

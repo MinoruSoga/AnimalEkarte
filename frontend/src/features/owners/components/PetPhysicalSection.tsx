@@ -29,7 +29,9 @@ export function PetPhysicalSection({
   return (
     <div className="space-y-2">
       <div className="space-y-1">
-        <Label htmlFor="breed" className={LABEL_CLS}>品種</Label>
+        <Label htmlFor="breed" className={LABEL_CLS}>
+          品種
+        </Label>
         <Input
           id="breed"
           list={breedSuggestions ? "breed-suggestions" : undefined}
@@ -48,7 +50,9 @@ export function PetPhysicalSection({
       </div>
 
       <div className="space-y-1">
-        <Label htmlFor="color" className={LABEL_CLS}>毛色</Label>
+        <Label htmlFor="color" className={LABEL_CLS}>
+          毛色
+        </Label>
         <Input
           id="color"
           value={formData.color || ""}
@@ -58,7 +62,9 @@ export function PetPhysicalSection({
       </div>
 
       <div className="space-y-1">
-        <Label htmlFor="bloodType" className={LABEL_CLS}>血液型</Label>
+        <Label htmlFor="bloodType" className={LABEL_CLS}>
+          血液型
+        </Label>
         <Input
           id="bloodType"
           value={formData.bloodType || ""}
@@ -69,7 +75,9 @@ export function PetPhysicalSection({
       </div>
 
       <div className="space-y-1">
-        <Label htmlFor="microchipNumber" className={LABEL_CLS}>マイクロチップ番号</Label>
+        <Label htmlFor="microchipNumber" className={LABEL_CLS}>
+          マイクロチップ番号
+        </Label>
         <Input
           id="microchipNumber"
           value={formData.microchipNumber || ""}
@@ -80,7 +88,9 @@ export function PetPhysicalSection({
       </div>
 
       <div className="space-y-1">
-        <Label htmlFor="weight" className={LABEL_CLS}>体重(kg)</Label>
+        <Label htmlFor="weight" className={LABEL_CLS}>
+          体重(kg)
+        </Label>
         <NumberInput
           id="weight"
           min={0}
@@ -99,7 +109,9 @@ export function PetPhysicalSection({
       </div>
 
       <div className="space-y-1">
-        <Label htmlFor="neuteredDate" className={LABEL_CLS}>去勢・避妊手術日</Label>
+        <Label htmlFor="neuteredDate" className={LABEL_CLS}>
+          去勢・避妊手術日
+        </Label>
         <DatePicker
           id="neuteredDate"
           value={formData.neuteredDate || ""}
@@ -109,7 +121,9 @@ export function PetPhysicalSection({
       </div>
 
       <div className="space-y-1">
-        <Label htmlFor="acquisitionType" className={LABEL_CLS}>入手区分</Label>
+        <Label htmlFor="acquisitionType" className={LABEL_CLS}>
+          入手区分
+        </Label>
         <Select
           value={formData.acquisitionType || ""}
           onValueChange={(value) => {
@@ -126,7 +140,9 @@ export function PetPhysicalSection({
       </div>
 
       <div className="space-y-1">
-        <Label htmlFor="dangerLevel" className={LABEL_CLS}>ペットの危険度</Label>
+        <Label htmlFor="dangerLevel" className={LABEL_CLS}>
+          ペットの危険度
+        </Label>
         <Select
           value={formData.dangerLevel || ""}
           onValueChange={(value) => {
@@ -149,7 +165,9 @@ export function PetPhysicalSection({
         <Label htmlFor="dangerReason" className={LABEL_CLS}>
           危険と判断した理由
           {formData.dangerLevel === "高" ? (
-            <span className={C.textRequired} aria-hidden="true">*</span>
+            <span className={C.textRequired} aria-hidden="true">
+              *
+            </span>
           ) : null}
         </Label>
         <Textarea

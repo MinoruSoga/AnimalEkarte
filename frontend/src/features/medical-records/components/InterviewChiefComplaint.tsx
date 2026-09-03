@@ -47,22 +47,23 @@ export const InterviewChiefComplaint = memo(function InterviewChiefComplaint({
   // SearchableSelect 用に選択肢を {value,label} 形へ変換(参照安定のため memo 化)
   const categoryOptions = useMemo<SearchableSelectOption[]>(
     () => categories.map((category) => ({ value: String(category.id), label: category.name })),
-    [categories]
+    [categories],
   );
   const templateButtons = useMemo(
-    () => templates.map((tmpl) => (
-      <Button
-        key={tmpl.label}
-        variant="outline"
-        size="sm"
-        className={`${LAYOUT.touch.md} text-sm px-3 ${C.bgWhite} ${C.hoverBgPage} ${C.text60} ${C.borderMedium}`}
-        onClick={() => onInsertTemplate(tmpl.text)}
-        disabled={fieldsDisabled}
-      >
-        {tmpl.label}
-      </Button>
-    )),
-    [templates, onInsertTemplate, fieldsDisabled]
+    () =>
+      templates.map((tmpl) => (
+        <Button
+          key={tmpl.label}
+          variant="outline"
+          size="sm"
+          className={`${LAYOUT.touch.md} text-sm px-3 ${C.bgWhite} ${C.hoverBgPage} ${C.text60} ${C.borderMedium}`}
+          onClick={() => onInsertTemplate(tmpl.text)}
+          disabled={fieldsDisabled}
+        >
+          {tmpl.label}
+        </Button>
+      )),
+    [templates, onInsertTemplate, fieldsDisabled],
   );
 
   return (
@@ -76,7 +77,9 @@ export const InterviewChiefComplaint = memo(function InterviewChiefComplaint({
       <div className="flex-1 flex flex-col gap-2 min-h-0">
         <div className="space-y-1.5">
           <div className="flex items-center justify-between">
-            <Label htmlFor="medical-record-chief-complaint-type" className={`text-sm ${C.text60}`}>主訴区分</Label>
+            <Label htmlFor="medical-record-chief-complaint-type" className={`text-sm ${C.text60}`}>
+              主訴区分
+            </Label>
             {!fieldsDisabled ? (
               <button
                 type="button"
@@ -102,7 +105,9 @@ export const InterviewChiefComplaint = memo(function InterviewChiefComplaint({
 
         <div className="space-y-1.5">
           <div className="flex items-center justify-between">
-            <span className={`mb-2 flex items-center gap-2 text-sm leading-none select-none ${C.text60}`}>
+            <span
+              className={`mb-2 flex items-center gap-2 text-sm leading-none select-none ${C.text60}`}
+            >
               定型文挿入
             </span>
             {!fieldsDisabled ? (
@@ -116,13 +121,13 @@ export const InterviewChiefComplaint = memo(function InterviewChiefComplaint({
               </button>
             ) : null}
           </div>
-          <div className="flex flex-wrap gap-2">
-            {templateButtons}
-          </div>
+          <div className="flex flex-wrap gap-2">{templateButtons}</div>
         </div>
 
         <div className="flex-1 flex flex-col gap-1.5 min-h-0">
-          <Label htmlFor="medical-record-chief-complaint" className={`text-sm ${C.text60}`}>主訴詳細</Label>
+          <Label htmlFor="medical-record-chief-complaint" className={`text-sm ${C.text60}`}>
+            主訴詳細
+          </Label>
           <CharCountTextarea
             id="medical-record-chief-complaint"
             name="chiefComplaint"

@@ -35,10 +35,9 @@ describe("useGetVaccinations (BUG-007)", () => {
       }),
     );
 
-    const { result } = renderHook(
-      () => useGetVaccinations({ petId: "1000002" }),
-      { wrapper: createTestWrapper() },
-    );
+    const { result } = renderHook(() => useGetVaccinations({ petId: "1000002" }), {
+      wrapper: createTestWrapper(),
+    });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.data).toHaveLength(1);

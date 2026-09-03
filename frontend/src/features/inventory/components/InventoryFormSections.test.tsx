@@ -3,11 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { C } from "@/lib/design-tokens";
 
-import {
-  BasicInfoSection,
-  StockInfoSection,
-  SupplierInfoSection,
-} from "./InventoryFormSections";
+import { BasicInfoSection, StockInfoSection, SupplierInfoSection } from "./InventoryFormSections";
 
 function expectResponsiveTwoColumnGrid(heading: string) {
   const grid = screen.getByRole("heading", { name: heading }).nextElementSibling;

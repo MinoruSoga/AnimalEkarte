@@ -22,9 +22,7 @@ vi.mock("@/lib/axios", () => ({
  */
 describe("ChangePasswordDialog — password visibility toggle", () => {
   function renderDialog() {
-    return render(
-      <ChangePasswordDialog open={true} onOpenChange={() => {}} />,
-    );
+    return render(<ChangePasswordDialog open={true} onOpenChange={() => {}} />);
   }
 
   function getInputs() {
@@ -92,9 +90,10 @@ describe("ChangePasswordDialog — password visibility toggle", () => {
     expect(toggle).toHaveAttribute("aria-pressed", "false");
 
     await user.click(toggle);
-    expect(
-      screen.getByRole("button", { name: "現在のパスワードを非表示" }),
-    ).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "現在のパスワードを非表示" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
   });
 
   /**
@@ -125,9 +124,7 @@ describe("ChangePasswordDialog — password visibility toggle", () => {
       "現在のパスワードが正しくありません",
     );
     expect(screen.getByRole("dialog")).toBeInTheDocument();
-    expect(screen.getByPlaceholderText("現在のパスワードを入力")).toHaveValue(
-      "wrong-pass",
-    );
+    expect(screen.getByPlaceholderText("現在のパスワードを入力")).toHaveValue("wrong-pass");
   });
 
   it("400 でも現在のパスワードを保持し英語エラーを出さない (BUG-008)", async () => {
@@ -143,34 +140,22 @@ describe("ChangePasswordDialog — password visibility toggle", () => {
     );
     renderDialog();
 
-    await user.type(
-      screen.getByPlaceholderText("現在のパスワードを入力"),
-      "current-pass",
-    );
-    await user.type(
-      screen.getByPlaceholderText("新しいパスワードを入力"),
-      "newpassword1",
-    );
+    await user.type(screen.getByPlaceholderText("現在のパスワードを入力"), "current-pass");
+    await user.type(screen.getByPlaceholderText("新しいパスワードを入力"), "newpassword1");
     await user.type(screen.getByPlaceholderText("もう一度入力"), "newpassword1");
     await user.click(screen.getByRole("button", { name: "変更する" }));
 
     const alert = await screen.findByRole("alert");
-    expect(alert).toHaveTextContent(
-      "パスワード変更に失敗しました。入力内容を確認してください。",
-    );
+    expect(alert).toHaveTextContent("パスワード変更に失敗しました。入力内容を確認してください。");
     expect(alert).not.toHaveTextContent("password does not meet");
-    expect(screen.getByPlaceholderText("現在のパスワードを入力")).toHaveValue(
-      "current-pass",
-    );
+    expect(screen.getByPlaceholderText("現在のパスワードを入力")).toHaveValue("current-pass");
     expect(screen.getByRole("dialog")).toBeInTheDocument();
   });
 
   it("DialogDescription がダイアログに紐付いている (a11y)", () => {
     renderDialog();
 
-    const description = screen.getByText(
-      "現在のパスワードと新しいパスワードを入力してください。",
-    );
+    const description = screen.getByText("現在のパスワードと新しいパスワードを入力してください。");
     expect(description).toBeInTheDocument();
 
     const dialog = screen.getByRole("dialog");

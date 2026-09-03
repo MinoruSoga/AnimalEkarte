@@ -19,7 +19,7 @@ export interface CPMStageCountsResult {
 // page/per_page/sort/order は total を変えないため落とす。
 // cpm_stage 自体は各リクエストで個別指定するため除外する。
 export function toCPMCountBaseParams(
-  params: AggregationParams
+  params: AggregationParams,
 ): Omit<AggregationParams, "page" | "per_page" | "sort" | "order" | "cpm_stage"> {
   const {
     page: _page,
@@ -38,9 +38,7 @@ export function toCPMCountBaseParams(
 // ならない。BE はフィルタ後の全件数を `total` に返すので、各セグメントに `per_page=1` を
 // 付けて `total` を人数として読む（転送は1件分のみ）。6 セグメントを並列取得する。
 // BE 変更は不要。6 リクエストを1回に束ねる専用集計エンドポイントは将来の効率化に留める。
-export function useGetCPMStageCounts(
-  params: AggregationParams
-): CPMStageCountsResult {
+export function useGetCPMStageCounts(params: AggregationParams): CPMStageCountsResult {
   const baseParams = toCPMCountBaseParams(params);
 
   const queries = useQueries({
@@ -54,7 +52,7 @@ export function useGetCPMStageCounts(
           {
             params: { ...baseParams, cpm_stage: stage, page: 1, per_page: 1 },
             timeout: 25_000,
-          }
+          },
         );
         return data.total;
       },

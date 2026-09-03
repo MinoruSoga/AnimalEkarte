@@ -15,11 +15,7 @@ vi.mock("@/hooks/use-permission", () => ({
   usePermission: vi.fn(() => ({ canCreate: true, canEdit: true, canDelete: true })),
 }));
 
-const {
-  replaceCheckupFieldResultsMock,
-  handleApiErrorMock,
-  toastSuccessMock,
-} = vi.hoisted(() => ({
+const { replaceCheckupFieldResultsMock, handleApiErrorMock, toastSuccessMock } = vi.hoisted(() => ({
   replaceCheckupFieldResultsMock: vi.fn(),
   handleApiErrorMock: vi.fn(),
   toastSuccessMock: vi.fn(),
@@ -69,10 +65,7 @@ vi.mock("@/hooks/use-staffs", () => ({
 }));
 
 import { useCreateCheckup, useUpdateCheckup, useGetCheckups } from "../../api/checkups";
-import {
-  useGetCheckupTypeFields,
-  type CheckupTypeFieldRow,
-} from "@/hooks/use-checkup-fields";
+import { useGetCheckupTypeFields, type CheckupTypeFieldRow } from "@/hooks/use-checkup-fields";
 
 const SAMPLE_TEXT_FIELDS: CheckupTypeFieldRow[] = [
   {
@@ -113,7 +106,7 @@ function openAddFormWithType() {
   // 健診種別セレクト：「選択」という option を持つ最初の combobox
   const selects = screen.getAllByRole("combobox");
   const typeSelect = selects.find(
-    (s) => (s as HTMLSelectElement).querySelector("option[value='']")?.textContent === "選択"
+    (s) => (s as HTMLSelectElement).querySelector("option[value='']")?.textContent === "選択",
   ) as HTMLSelectElement;
   fireEvent.change(typeSelect, { target: { value: "1" } });
   return selects;
@@ -186,18 +179,18 @@ describe("CheckupsTab — doctor field", () => {
     openAddFormWithType();
 
     // 担当医セレクト：「担当医」という option を持つ combobox
-    const doctorSelect = screen.getAllByRole("combobox").find(
-      (s) => (s as HTMLSelectElement).querySelector("option[value='']")?.textContent === "担当医"
-    ) as HTMLSelectElement;
+    const doctorSelect = screen
+      .getAllByRole("combobox")
+      .find(
+        (s) => (s as HTMLSelectElement).querySelector("option[value='']")?.textContent === "担当医",
+      ) as HTMLSelectElement;
     expect(doctorSelect).toBeDefined();
     fireEvent.change(doctorSelect, { target: { value: "10" } });
 
     fireEvent.click(screen.getByRole("button", { name: "追加" }));
 
     await waitFor(() => {
-      expect(mutateAsyncMock).toHaveBeenCalledWith(
-        expect.objectContaining({ doctor_id: 10 }),
-      );
+      expect(mutateAsyncMock).toHaveBeenCalledWith(expect.objectContaining({ doctor_id: 10 }));
     });
   });
 
@@ -209,9 +202,7 @@ describe("CheckupsTab — doctor field", () => {
     fireEvent.click(screen.getByRole("button", { name: "追加" }));
 
     await waitFor(() => {
-      expect(mutateAsyncMock).toHaveBeenCalledWith(
-        expect.objectContaining({ doctor_id: null }),
-      );
+      expect(mutateAsyncMock).toHaveBeenCalledWith(expect.objectContaining({ doctor_id: null }));
     });
   });
 });
@@ -242,9 +233,11 @@ describe("CheckupsTab — doctor clear (Issue #59)", () => {
     fireEvent.click(screen.getByTitle("編集"));
 
     // 担当医セレクト："-" option を持つ combobox
-    const doctorSelect = screen.getAllByRole("combobox").find(
-      (s) => (s as HTMLSelectElement).querySelector("option[value='']")?.textContent === "-"
-    ) as HTMLSelectElement;
+    const doctorSelect = screen
+      .getAllByRole("combobox")
+      .find(
+        (s) => (s as HTMLSelectElement).querySelector("option[value='']")?.textContent === "-",
+      ) as HTMLSelectElement;
     expect(doctorSelect).toBeDefined();
     fireEvent.change(doctorSelect, { target: { value: "" } });
 
@@ -257,7 +250,7 @@ describe("CheckupsTab — doctor clear (Issue #59)", () => {
           checkupId: "c1",
           input: expect.objectContaining({ doctor_id_clear: true }),
         }),
-        expect.anything()
+        expect.anything(),
       );
     });
   });
@@ -265,9 +258,12 @@ describe("CheckupsTab — doctor clear (Issue #59)", () => {
 
 describe("CheckupsTab — dynamic field results (BUG-004)", () => {
   beforeEach(() => {
-    vi.mocked(useGetCheckupTypeFields).mockImplementation((checkupTypeId) => ({
-      data: checkupTypeId === "1" ? SAMPLE_TEXT_FIELDS : [],
-    } as ReturnType<typeof useGetCheckupTypeFields>));
+    vi.mocked(useGetCheckupTypeFields).mockImplementation(
+      (checkupTypeId) =>
+        ({
+          data: checkupTypeId === "1" ? SAMPLE_TEXT_FIELDS : [],
+        }) as ReturnType<typeof useGetCheckupTypeFields>,
+    );
   });
 
   it("健診種別選択後に動的フィールド（所見）を表示する", () => {

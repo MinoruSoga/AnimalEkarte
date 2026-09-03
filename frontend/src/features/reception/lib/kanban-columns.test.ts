@@ -12,7 +12,9 @@ import {
   restoreCardSnapshot,
 } from "./kanban-columns";
 
-function makeAppointment(overrides: Partial<ReceptionAppointment> & { id: string }): ReceptionAppointment {
+function makeAppointment(
+  overrides: Partial<ReceptionAppointment> & { id: string },
+): ReceptionAppointment {
   return {
     time: "09:00",
     visitDate: "2026-06-01",
@@ -39,7 +41,10 @@ function makeAppointment(overrides: Partial<ReceptionAppointment> & { id: string
 function makeColumns(): ColumnData[] {
   return [
     { title: "受付予約", appointments: [makeAppointment({ id: "a1" })] },
-    { title: "受付済", appointments: [makeAppointment({ id: "a2" }), makeAppointment({ id: "a3" })] },
+    {
+      title: "受付済",
+      appointments: [makeAppointment({ id: "a2" }), makeAppointment({ id: "a3" })],
+    },
   ];
 }
 
@@ -59,9 +64,14 @@ describe("removeCard", () => {
     const columns = makeColumns();
     const result = removeCard(columns, "a2");
 
-    expect(result?.find((c) => c.title === "受付済")?.appointments.map((a) => a.id)).toEqual(["a3"]);
+    expect(result?.find((c) => c.title === "受付済")?.appointments.map((a) => a.id)).toEqual([
+      "a3",
+    ]);
     // 元の columns は変更しない（イミュータブル）
-    expect(columns.find((c) => c.title === "受付済")?.appointments.map((a) => a.id)).toEqual(["a2", "a3"]);
+    expect(columns.find((c) => c.title === "受付済")?.appointments.map((a) => a.id)).toEqual([
+      "a2",
+      "a3",
+    ]);
   });
 
   it("対象カードが存在しなければ null を返す", () => {
@@ -76,7 +86,9 @@ describe("mergeCard", () => {
     const updated = makeAppointment({ id: "a2", petName: "タマ" });
     const result = mergeCard(columns, updated);
 
-    const merged = result?.find((c) => c.title === "受付済")?.appointments.find((a) => a.id === "a2");
+    const merged = result
+      ?.find((c) => c.title === "受付済")
+      ?.appointments.find((a) => a.id === "a2");
     expect(merged?.petName).toBe("タマ");
   });
 
@@ -92,21 +104,32 @@ describe("relocateCard", () => {
     const result = relocateCard(columns, "a1", "受付予約", "受付済");
 
     expect(result?.find((c) => c.title === "受付予約")?.appointments).toHaveLength(0);
-    expect(result?.find((c) => c.title === "受付済")?.appointments.map((a) => a.id)).toEqual(["a2", "a3", "a1"]);
+    expect(result?.find((c) => c.title === "受付済")?.appointments.map((a) => a.id)).toEqual([
+      "a2",
+      "a3",
+      "a1",
+    ]);
   });
 
   it("resolveInsertIndex で指定した位置へ挿入する", () => {
     const columns = makeColumns();
     const result = relocateCard(columns, "a1", "受付予約", "受付済", () => 1);
 
-    expect(result?.find((c) => c.title === "受付済")?.appointments.map((a) => a.id)).toEqual(["a2", "a1", "a3"]);
+    expect(result?.find((c) => c.title === "受付済")?.appointments.map((a) => a.id)).toEqual([
+      "a2",
+      "a1",
+      "a3",
+    ]);
   });
 
   it("同一カラム内での移動も成立する", () => {
     const columns = makeColumns();
     const result = relocateCard(columns, "a3", "受付済", "受付済", () => 0);
 
-    expect(result?.find((c) => c.title === "受付済")?.appointments.map((a) => a.id)).toEqual(["a3", "a2"]);
+    expect(result?.find((c) => c.title === "受付済")?.appointments.map((a) => a.id)).toEqual([
+      "a3",
+      "a2",
+    ]);
   });
 
   it("source/target カラムが存在しなければ null を返す", () => {
@@ -136,17 +159,28 @@ describe("captureCardSnapshot / restoreCardSnapshot", () => {
   it("snapshot を取得し、他カードを動かした後でも対象カードだけを元の位置へ復元する", () => {
     const columns = makeColumns();
     const snapshot = captureCardSnapshot(columns, "a2");
-    expect(snapshot).toEqual({ appointment: makeAppointment({ id: "a2" }), columnTitle: "受付済", index: 0 });
+    expect(snapshot).toEqual({
+      appointment: makeAppointment({ id: "a2" }),
+      columnTitle: "受付済",
+      index: 0,
+    });
 
     // a2 を移動し、a1 のフィールドも変更された状態を模す
     const moved = relocateCard(columns, "a2", "受付済", "受付予約") ?? columns;
-    const withOtherChange = mergeCard(moved, makeAppointment({ id: "a1", petName: "別名" })) ?? moved;
+    const withOtherChange =
+      mergeCard(moved, makeAppointment({ id: "a1", petName: "別名" })) ?? moved;
 
     const restored = restoreCardSnapshot(withOtherChange, snapshot!);
 
-    expect(restored.find((c) => c.title === "受付済")?.appointments.map((a) => a.id)).toEqual(["a2", "a3"]);
+    expect(restored.find((c) => c.title === "受付済")?.appointments.map((a) => a.id)).toEqual([
+      "a2",
+      "a3",
+    ]);
     // 他カードの変更は保持される
-    expect(restored.find((c) => c.title === "受付予約")?.appointments.find((a) => a.id === "a1")?.petName).toBe("別名");
+    expect(
+      restored.find((c) => c.title === "受付予約")?.appointments.find((a) => a.id === "a1")
+        ?.petName,
+    ).toBe("別名");
   });
 
   it("captureCardSnapshot は対象が存在しなければ null を返す", () => {

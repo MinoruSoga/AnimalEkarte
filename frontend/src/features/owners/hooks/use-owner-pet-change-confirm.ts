@@ -62,7 +62,14 @@ export function useOwnerPetChangeConfirm({
         );
       }
     },
-    [petMutations, ownerDiscountRate, ownerMembershipType, setPetModalOpen, editingPetRef, canEditRef],
+    [
+      petMutations,
+      ownerDiscountRate,
+      ownerMembershipType,
+      setPetModalOpen,
+      editingPetRef,
+      canEditRef,
+    ],
   );
 
   const handleConfirmOwnerChange = useCallback(() => {

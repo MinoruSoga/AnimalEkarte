@@ -108,7 +108,9 @@ export function useGetMasterItems(category?: string, searchTerm?: string) {
     return categoryItems.filter(
       (i) =>
         normalizeKana(i.name).toLowerCase().includes(normalizedTerm) ||
-        (i.description ? normalizeKana(i.description).toLowerCase().includes(normalizedTerm) : false),
+        (i.description
+          ? normalizeKana(i.description).toLowerCase().includes(normalizedTerm)
+          : false),
     );
   }, [categoryItems, searchTerm]);
 

@@ -62,7 +62,9 @@ describe("transformEstimate", () => {
   });
 
   it("status をそのまま返す", () => {
-    expect(transformEstimate({ ...minimal, status: "approved" as BackendEstimate["status"] }).status).toBe("approved");
+    expect(
+      transformEstimate({ ...minimal, status: "approved" as BackendEstimate["status"] }).status,
+    ).toBe("approved");
   });
 
   it("status が未設定のとき 'draft' にフォールバックする", () => {
@@ -70,7 +72,12 @@ describe("transformEstimate", () => {
   });
 
   it("subtotal / taxTotal / totalAmount を数値のまま返す", () => {
-    const result = transformEstimate({ ...minimal, subtotal: 2000, tax_total: 200, total_amount: 2200 });
+    const result = transformEstimate({
+      ...minimal,
+      subtotal: 2000,
+      tax_total: 200,
+      total_amount: 2200,
+    });
     expect(result.subtotal).toBe(2000);
     expect(result.taxTotal).toBe(200);
     expect(result.totalAmount).toBe(2200);
@@ -97,7 +104,9 @@ describe("transformEstimate", () => {
   });
 
   it("medical_record_id が未設定のとき null を返す", () => {
-    expect(transformEstimate({ ...minimal, medical_record_id: undefined }).medicalRecordId).toBeNull();
+    expect(
+      transformEstimate({ ...minimal, medical_record_id: undefined }).medicalRecordId,
+    ).toBeNull();
   });
 
   it("items を変換して返す", () => {

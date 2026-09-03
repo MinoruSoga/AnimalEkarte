@@ -25,9 +25,7 @@ function resetTokenFromLocation(search: string, hash: string): string {
 export function ResetPasswordPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const [token] = useState(() =>
-    resetTokenFromLocation(location.search, location.hash),
-  );
+  const [token] = useState(() => resetTokenFromLocation(location.search, location.hash));
 
   useEffect(() => {
     if (!token || (location.search === "" && location.hash === "")) return;
@@ -46,10 +44,7 @@ export function ResetPasswordPage() {
   }, []);
 
   const [state, formAction] = useActionState(
-    async (
-      _prev: ResetPasswordState,
-      formData: FormData,
-    ): Promise<ResetPasswordState> => {
+    async (_prev: ResetPasswordState, formData: FormData): Promise<ResetPasswordState> => {
       const password = getFormString(formData, "reset-password");
       const confirmPassword = getFormString(formData, "reset-confirm-password");
 
@@ -69,7 +64,10 @@ export function ResetPasswordPage() {
         void navigate(paths.auth.login.getHref());
         return { error: null };
       } catch {
-        return { error: "パスワードのリセットに失敗しました。リンクの有効期限が切れている可能性があります。" };
+        return {
+          error:
+            "パスワードのリセットに失敗しました。リンクの有効期限が切れている可能性があります。",
+        };
       }
     },
     INITIAL_STATE,

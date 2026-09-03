@@ -111,9 +111,7 @@ describe("DailyAccountingTab", () => {
           limit: 50,
         }),
       ),
-      http.get("*/v1/accountings/daily-summary", () =>
-        HttpResponse.json(DAILY_SUMMARY),
-      ),
+      http.get("*/v1/accountings/daily-summary", () => HttpResponse.json(DAILY_SUMMARY)),
     );
   });
 
@@ -274,8 +272,26 @@ describe("DailyAccountingTab", () => {
           data: [
             makeAccounting({
               payment_splits: [
-                { id: 1, clinic_id: 1, billing_id: 1, method: "cash", amount: 2000, received_amount: 3000, change_amount: 1000, created_at: `${TODAY}T10:00:00Z` },
-                { id: 2, clinic_id: 1, billing_id: 1, method: "credit_card", amount: 3500, received_amount: 0, change_amount: 0, created_at: `${TODAY}T10:00:00Z` },
+                {
+                  id: 1,
+                  clinic_id: 1,
+                  billing_id: 1,
+                  method: "cash",
+                  amount: 2000,
+                  received_amount: 3000,
+                  change_amount: 1000,
+                  created_at: `${TODAY}T10:00:00Z`,
+                },
+                {
+                  id: 2,
+                  clinic_id: 1,
+                  billing_id: 1,
+                  method: "credit_card",
+                  amount: 3500,
+                  received_amount: 0,
+                  change_amount: 0,
+                  created_at: `${TODAY}T10:00:00Z`,
+                },
               ],
             }),
           ],
@@ -292,7 +308,9 @@ describe("DailyAccountingTab", () => {
     const table = screen.getByTestId("daily-accounting-table");
     // paymentSplits.length > 1 のとき method ラベルを " / " 区切りで結合して表示する
     // FE5-25: PAYMENT_METHOD_LABELS_SHORT 廃止により credit_card は "カード" → "クレジットカード" へ変更
-    expect(within(table).getByText(/現金.*クレジットカード|クレジットカード.*現金/)).toBeInTheDocument();
+    expect(
+      within(table).getByText(/現金.*クレジットカード|クレジットカード.*現金/),
+    ).toBeInTheDocument();
   });
 
   // ── #117: 新規テスト ──────────────────────────────────────────────

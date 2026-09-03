@@ -29,13 +29,14 @@ export const VACCINATION_SORT_PROPERTIES: SortProperty[] = [
   { key: "nextDate", label: "次回予定" },
 ];
 
-export function vaccinationDateRange(activeFilters: ActiveFilter[]): {
-  from?: string;
-  to?: string;
-} | undefined {
+export function vaccinationDateRange(activeFilters: ActiveFilter[]):
+  | {
+      from?: string;
+      to?: string;
+    }
+  | undefined {
   return activeFilters.find((f) => f.key === "date")?.value as
-    | { from?: string; to?: string }
-    | undefined;
+    { from?: string; to?: string } | undefined;
 }
 
 export function buildVaccinationFilterProperties(
@@ -44,14 +45,18 @@ export function buildVaccinationFilterProperties(
   const doctorOptions = uniqueSortedOptions(allVaccinations, (r) => r.doctor);
   return [
     ...STATIC_FILTER_PROPERTIES,
-    { key: "doctor", label: "担当医", type: "select" as const, icon: User, conditions: CONDITIONS_WITH_EMPTY, options: doctorOptions },
+    {
+      key: "doctor",
+      label: "担当医",
+      type: "select" as const,
+      icon: User,
+      conditions: CONDITIONS_WITH_EMPTY,
+      options: doctorOptions,
+    },
   ];
 }
 
-export function nextListSearchParamsWithPage(
-  prev: URLSearchParams,
-  page: number,
-): URLSearchParams {
+export function nextListSearchParamsWithPage(prev: URLSearchParams, page: number): URLSearchParams {
   const next = new URLSearchParams(prev);
   if (page === 1) {
     next.delete("page");
@@ -64,10 +69,7 @@ export function nextListSearchParamsWithPage(
 const VACCINATION_LIST_CHART_TAB = "予防接種";
 const VACCINATION_LIST_ID_PARAM = "vaccinationId";
 
-export function vaccinationListDetailHref(input: {
-  id: string;
-  medicalRecordId?: string;
-}): string {
+export function vaccinationListDetailHref(input: { id: string; medicalRecordId?: string }): string {
   if (input.medicalRecordId) {
     const params = new URLSearchParams({
       tab: VACCINATION_LIST_CHART_TAB,
@@ -137,9 +139,7 @@ export function buildVaccinationListQueryOptions(
  * Prefer near-term next_date (asc), then newer created/id as tie-break via original index.
  * Far-future next_date peers sink; missing next_date sorts last.
  */
-export function orderVaccinationListRows(
-  rows: readonly VaccinationRecord[],
-): VaccinationRecord[] {
+export function orderVaccinationListRows(rows: readonly VaccinationRecord[]): VaccinationRecord[] {
   return rows
     .map((row, index) => ({ row, index }))
     .sort((a, b) => {

@@ -1,2 +1,2 @@
-export { PatientInfoCard } from "./PatientInfoCard"
-export { formatPatientPetDetails } from "./format-pet-details"
+export { PatientInfoCard } from "./PatientInfoCard";
+export { formatPatientPetDetails } from "./format-pet-details";

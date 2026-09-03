@@ -1,6 +1,12 @@
 import { useState, useMemo, useCallback, useDeferredValue, memo } from "react";
 import { Check } from "lucide-react";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { EmptyState } from "@/components/shared/DataStates";
 import { ClearableSearchInput } from "@/components/shared/ClearableSearchInput";
 import { C, ICON } from "@/lib/design-tokens";
@@ -55,7 +61,7 @@ export const MasterSelectModal = memo(function MasterSelectModal({
       onOpenChange(false);
       setSearchTerm("");
     },
-    [onSelect, onOpenChange]
+    [onSelect, onOpenChange],
   );
 
   return (
@@ -82,9 +88,7 @@ export const MasterSelectModal = memo(function MasterSelectModal({
           ) : (
             filtered.map((item) => {
               const isSelected =
-                matchBy === "id"
-                  ? selectedValue === item.id
-                  : selectedValue === item.name;
+                matchBy === "id" ? selectedValue === item.id : selectedValue === item.name;
 
               return (
                 <button
@@ -110,11 +114,15 @@ export const MasterSelectModal = memo(function MasterSelectModal({
                   </div>
                   <div className="flex items-center gap-2 shrink-0 ml-3">
                     {isSelected ? (
-                      <div className={`size-5 rounded-full ${C.bgBrand} flex items-center justify-center`}>
+                      <div
+                        className={`size-5 rounded-full ${C.bgBrand} flex items-center justify-center`}
+                      >
                         <Check className={`${ICON.xs} ${C.textWhite}`} />
                       </div>
                     ) : (
-                      <div className={`size-5 rounded-full border ${C.borderLight} ${C.groupHoverBorderPrimary} transition-colors`} />
+                      <div
+                        className={`size-5 rounded-full border ${C.borderLight} ${C.groupHoverBorderPrimary} transition-colors`}
+                      />
                     )}
                   </div>
                 </button>

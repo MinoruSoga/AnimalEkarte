@@ -1,4 +1,4 @@
-import { Spinner } from '@/shared-liff/Spinner';
+import { Spinner } from "@/shared-liff/Spinner";
 
 export function LoadingPage() {
   return (

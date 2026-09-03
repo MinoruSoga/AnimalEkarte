@@ -66,15 +66,17 @@ describe("AccountingDocument 移行負額", () => {
       <AccountingDocument
         accounting={{
           ...ACCOUNTING,
-          items: [{
-            ...ACCOUNTING.items[0],
-            name: "赤伝",
-            unitPrice: -3000,
-            quantity: 1,
-            discountAmount: 0,
-            taxAmount: -300,
-            subtotal: -3000,
-          }],
+          items: [
+            {
+              ...ACCOUNTING.items[0],
+              name: "赤伝",
+              unitPrice: -3000,
+              quantity: 1,
+              discountAmount: 0,
+              taxAmount: -300,
+              subtotal: -3000,
+            },
+          ],
         }}
         paymentInfo={{
           ...PAYMENT,

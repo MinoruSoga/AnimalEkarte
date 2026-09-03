@@ -8,10 +8,7 @@ export function getFormString(formData: FormData, key: string): string {
   return typeof value === "string" ? value : "";
 }
 
-export function getFormOptionalString(
-  formData: FormData,
-  key: string,
-): string | null {
+export function getFormOptionalString(formData: FormData, key: string): string | null {
   const value = formData.get(key);
   if (value === null) return null;
   return typeof value === "string" ? value : "";

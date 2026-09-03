@@ -6,7 +6,10 @@ import { paths } from "@/config/paths";
 import type { Pet } from "@/types";
 import type { EntityReadResult } from "@/lib/entity-read-result";
 import type { CreateVaccinationRequest, UpdateVaccinationRequest } from "../api/types";
-import type { VaccinationFormState, VaccinationMutationPermissions } from "./use-vaccination-form-model";
+import type {
+  VaccinationFormState,
+  VaccinationMutationPermissions,
+} from "./use-vaccination-form-model";
 import {
   buildCreateVaccinationRequest,
   buildUpdateVaccinationRequest,
@@ -77,46 +80,61 @@ export function useVaccinationFormFields(input: {
     updater: (prev: Partial<VaccinationFormState>) => Partial<VaccinationFormState>,
   ) => void;
 }) {
-  const { formData, formDataRef, vaccinesMaster, vaccineOptions, doctorName, setLocalOverrides } = input;
-  const setField = useCallback(<K extends keyof VaccinationFormState>(
-    key: K,
-    value: VaccinationFormState[K],
-  ) => {
-    setLocalOverrides((prev) => ({ ...prev, [key]: value }));
-  }, [setLocalOverrides]);
+  const { formData, formDataRef, vaccinesMaster, vaccineOptions, doctorName, setLocalOverrides } =
+    input;
+  const setField = useCallback(
+    <K extends keyof VaccinationFormState>(key: K, value: VaccinationFormState[K]) => {
+      setLocalOverrides((prev) => ({ ...prev, [key]: value }));
+    },
+    [setLocalOverrides],
+  );
 
-  const setVaccineId = useCallback((v: string) => {
-    setLocalOverrides((prev) => {
-      const selected = vaccinesMaster.find((vac) => vac.id === v);
-      const currentDate = prev.date ?? formDataRef.current.date;
-      return vaccinationOverridesOnVaccineId(prev, v, currentDate, selected?.interval);
-    });
-  }, [vaccinesMaster, formDataRef, setLocalOverrides]);
+  const setVaccineId = useCallback(
+    (v: string) => {
+      setLocalOverrides((prev) => {
+        const selected = vaccinesMaster.find((vac) => vac.id === v);
+        const currentDate = prev.date ?? formDataRef.current.date;
+        return vaccinationOverridesOnVaccineId(prev, v, currentDate, selected?.interval);
+      });
+    },
+    [vaccinesMaster, formDataRef, setLocalOverrides],
+  );
 
-  const setDate = useCallback((v: string) => {
-    setLocalOverrides((prev) => {
-      const scheduleType =
-        prev.nextScheduleType ?? formDataRef.current.nextScheduleType ?? DEFAULT_NEXT_SCHEDULE_TYPE;
-      return vaccinationOverridesOnDate(prev, v, scheduleType);
-    });
-  }, [formDataRef, setLocalOverrides]);
+  const setDate = useCallback(
+    (v: string) => {
+      setLocalOverrides((prev) => {
+        const scheduleType =
+          prev.nextScheduleType ??
+          formDataRef.current.nextScheduleType ??
+          DEFAULT_NEXT_SCHEDULE_TYPE;
+        return vaccinationOverridesOnDate(prev, v, scheduleType);
+      });
+    },
+    [formDataRef, setLocalOverrides],
+  );
 
-  const setNextScheduleType = useCallback((v: string) => {
-    setLocalOverrides((prev) => {
-      const currentDate = prev.date ?? formDataRef.current.date;
-      return vaccinationOverridesOnScheduleType(prev, v, currentDate);
-    });
-  }, [formDataRef, setLocalOverrides]);
+  const setNextScheduleType = useCallback(
+    (v: string) => {
+      setLocalOverrides((prev) => {
+        const currentDate = prev.date ?? formDataRef.current.date;
+        return vaccinationOverridesOnScheduleType(prev, v, currentDate);
+      });
+    },
+    [formDataRef, setLocalOverrides],
+  );
 
-  const setNextDate = useCallback((v: string) => {
-    setLocalOverrides((prev) => {
-      const base = formDataRef.current;
-      const vaccinationDate = prev.date ?? base.date;
-      const currentType =
-        prev.nextScheduleType ?? base.nextScheduleType ?? DEFAULT_NEXT_SCHEDULE_TYPE;
-      return vaccinationOverridesOnNextDate(prev, v, vaccinationDate, currentType);
-    });
-  }, [formDataRef, setLocalOverrides]);
+  const setNextDate = useCallback(
+    (v: string) => {
+      setLocalOverrides((prev) => {
+        const base = formDataRef.current;
+        const vaccinationDate = prev.date ?? base.date;
+        const currentType =
+          prev.nextScheduleType ?? base.nextScheduleType ?? DEFAULT_NEXT_SCHEDULE_TYPE;
+        return vaccinationOverridesOnNextDate(prev, v, vaccinationDate, currentType);
+      });
+    },
+    [formDataRef, setLocalOverrides],
+  );
 
   const setSupplemental = useCallback((v: string) => setField("supplemental", v), [setField]);
   const setLot1 = useCallback((v: string) => setField("lot1", v), [setField]);
@@ -125,42 +143,56 @@ export function useVaccinationFormFields(input: {
   const setLot4 = useCallback((v: string) => setField("lot4", v), [setField]);
   const setRemarks = useCallback((v: string) => setField("remarks", v), [setField]);
 
-  const form = useMemo(() => ({
-    doctorName,
-    vaccineId: formData.vaccineId,
-    setVaccineId,
-    vaccineOptions,
-    date: formData.date,
-    setDate,
-    supplemental: formData.supplemental,
-    setSupplemental,
-    lot1: formData.lot1,
-    setLot1,
-    lot2: formData.lot2,
-    setLot2,
-    lot3: formData.lot3,
-    setLot3,
-    lot4: formData.lot4,
-    setLot4,
-    nextScheduleType: formData.nextScheduleType,
-    setNextScheduleType,
-    nextDate: formData.nextDate,
-    setNextDate,
-    remarks: formData.remarks,
-    setRemarks,
-  }), [
-    doctorName,
-    formData.vaccineId, setVaccineId, vaccineOptions,
-    formData.date, setDate,
-    formData.supplemental, setSupplemental,
-    formData.lot1, setLot1,
-    formData.lot2, setLot2,
-    formData.lot3, setLot3,
-    formData.lot4, setLot4,
-    formData.nextScheduleType, setNextScheduleType,
-    formData.nextDate, setNextDate,
-    formData.remarks, setRemarks,
-  ]);
+  const form = useMemo(
+    () => ({
+      doctorName,
+      vaccineId: formData.vaccineId,
+      setVaccineId,
+      vaccineOptions,
+      date: formData.date,
+      setDate,
+      supplemental: formData.supplemental,
+      setSupplemental,
+      lot1: formData.lot1,
+      setLot1,
+      lot2: formData.lot2,
+      setLot2,
+      lot3: formData.lot3,
+      setLot3,
+      lot4: formData.lot4,
+      setLot4,
+      nextScheduleType: formData.nextScheduleType,
+      setNextScheduleType,
+      nextDate: formData.nextDate,
+      setNextDate,
+      remarks: formData.remarks,
+      setRemarks,
+    }),
+    [
+      doctorName,
+      formData.vaccineId,
+      setVaccineId,
+      vaccineOptions,
+      formData.date,
+      setDate,
+      formData.supplemental,
+      setSupplemental,
+      formData.lot1,
+      setLot1,
+      formData.lot2,
+      setLot2,
+      formData.lot3,
+      setLot3,
+      formData.lot4,
+      setLot4,
+      formData.nextScheduleType,
+      setNextScheduleType,
+      formData.nextDate,
+      setNextDate,
+      formData.remarks,
+      setRemarks,
+    ],
+  );
 
   return { form };
 }

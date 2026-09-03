@@ -146,7 +146,10 @@ export const ActionButtons = memo(function ActionButtons({
         ) : null}
         {isMedical ? (
           <>
-            <Button onClick={() => onCreateMedicalRecord()} className={PRIMARY_ACTION_BUTTON_CLASSES}>
+            <Button
+              onClick={() => onCreateMedicalRecord()}
+              className={PRIMARY_ACTION_BUTTON_CLASSES}
+            >
               <FileText className={ICON.action} />
               カルテ入力
             </Button>

@@ -8,10 +8,7 @@ interface UseUrlPageSyncOptions {
   setSearchParams: SetURLSearchParams;
 }
 
-function nextListSearchParamsWithPage(
-  prev: URLSearchParams,
-  page: number,
-): URLSearchParams {
+function nextListSearchParamsWithPage(prev: URLSearchParams, page: number): URLSearchParams {
   const next = new URLSearchParams(prev);
   if (page <= 1) {
     next.delete("page");
@@ -35,10 +32,7 @@ export function useUrlPageSync({
     if (isLoading) return;
     const clampedPage = Math.max(1, Math.min(urlPage, Math.max(totalPages, 1)));
     if (clampedPage !== urlPage) {
-      setSearchParams(
-        (prev) => nextListSearchParamsWithPage(prev, clampedPage),
-        { replace: true },
-      );
+      setSearchParams((prev) => nextListSearchParamsWithPage(prev, clampedPage), { replace: true });
     }
     // setSearchParams is a stable router setter; re-run only on page/total/loading.
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional FE-144 / FE-RC-028 contract

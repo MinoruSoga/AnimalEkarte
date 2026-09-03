@@ -50,7 +50,9 @@ export const MedicineCategoryHeaderRow = memo(function MedicineCategoryHeaderRow
   onCreate,
 }: MedicineCategoryHeaderRowProps) {
   return (
-    <TableRow className={`${STYLE.tableRow} border-b ${C.borderLight} ${C.bgPage30} group/header ${C.hoverBgPage60}`}>
+    <TableRow
+      className={`${STYLE.tableRow} border-b ${C.borderLight} ${C.bgPage30} group/header ${C.hoverBgPage60}`}
+    >
       <TableCell className="w-11 px-0">
         <span
           aria-hidden="true"
@@ -75,9 +77,7 @@ export const MedicineCategoryHeaderRow = memo(function MedicineCategoryHeaderRow
                 isCollapsed ? "" : "rotate-90"
               }`}
             />
-            <span className={`text-base font-medium ${C.text65}`}>
-              {header.name}
-            </span>
+            <span className={`text-base font-medium ${C.text65}`}>{header.name}</span>
             <span className={`text-base ${C.text40} ml-0.5`}>{itemCount}</span>
           </button>
           <div className="flex-1" />
@@ -134,10 +134,14 @@ export const SortableMedicineRow = memo(function SortableMedicineRow({
           >
             {medicine.name}
           </DataTableRowButton>
-        ) : medicine.name}
+        ) : (
+          medicine.name
+        )}
       </TableCell>
       <TableCell className={`${STYLE.tableCell} w-[100px] text-center`}>
-        {medicine.dosageForm ? (DOSAGE_FORM_LABELS[medicine.dosageForm] ?? medicine.dosageForm) : "-"}
+        {medicine.dosageForm
+          ? (DOSAGE_FORM_LABELS[medicine.dosageForm] ?? medicine.dosageForm)
+          : "-"}
       </TableCell>
       <TableCell className={`${STYLE.tableCell} w-[130px] text-right pr-4 font-mono`}>
         {formatCurrencyOrDash(medicine.price)}
@@ -171,11 +175,15 @@ export function MedicineRowOverlay({ medicine, grouped }: MedicineRowOverlayProp
       <div className={`w-11 shrink-0 flex items-center justify-center ${C.text50}`}>
         <GripVertical className={ICON.action} />
       </div>
-      <div className={`flex-1 min-w-0 text-base font-medium ${C.text} ${grouped ? "pl-10" : "pl-0"}`}>
+      <div
+        className={`flex-1 min-w-0 text-base font-medium ${C.text} ${grouped ? "pl-10" : "pl-0"}`}
+      >
         {medicine.name}
       </div>
       <div className={`w-[100px] shrink-0 text-center text-base ${C.text65}`}>
-        {medicine.dosageForm ? (DOSAGE_FORM_LABELS[medicine.dosageForm] ?? medicine.dosageForm) : "-"}
+        {medicine.dosageForm
+          ? (DOSAGE_FORM_LABELS[medicine.dosageForm] ?? medicine.dosageForm)
+          : "-"}
       </div>
       <div className={`w-[130px] shrink-0 text-right pr-4 font-mono text-base ${C.text}`}>
         {formatCurrencyOrDash(medicine.price)}

@@ -21,11 +21,11 @@ export interface CheckupSyncResult {
 
 async function createCheckupSync(
   clinicId: string,
-  body: CheckupSyncRequest
+  body: CheckupSyncRequest,
 ): Promise<CheckupSyncResult> {
   const { data } = await axios.post<CheckupSyncResult>(
     `/v1/clinics/${clinicId}/lstep/checkup-sync`,
-    body
+    body,
   );
   return data;
 }

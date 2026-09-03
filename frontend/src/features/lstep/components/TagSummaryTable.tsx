@@ -17,7 +17,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { DESIGN_TABLE_HEADER_ROW, DESIGN_TABLE_HEADER_CELL } from "@/components/shared/DataTable/DataTable";
+import {
+  DESIGN_TABLE_HEADER_ROW,
+  DESIGN_TABLE_HEADER_CELL,
+} from "@/components/shared/DataTable/DataTable";
 import { C, STYLE, ICON } from "@/lib/design-tokens";
 import { normalizedIncludes } from "@/lib/normalize-kana";
 import { isAutoManagedTag } from "@/constants/lstep-auto-tag-prefixes";
@@ -31,11 +34,7 @@ interface TagSummaryTableProps {
   onViewOwners: (tagName: string, ownerCount: number) => void;
 }
 
-export function TagSummaryTable({
-  tags,
-  isLoading,
-  onViewOwners,
-}: TagSummaryTableProps) {
+export function TagSummaryTable({ tags, isLoading, onViewOwners }: TagSummaryTableProps) {
   const [categoryFilter, setCategoryFilter] = useState<TagCategory>("all");
   const [searchTerm, setSearchTerm] = useState("");
   // 入力をブロックせずにフィルタ再計算を遅延させる (他リストと同パターン)
@@ -45,12 +44,9 @@ export function TagSummaryTable({
     setCategoryFilter(value as TagCategory);
   }, []);
 
-  const handleSearchChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      setSearchTerm(e.target.value);
-    },
-    []
-  );
+  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(e.target.value);
+  }, []);
 
   const filteredTags = useMemo(() => {
     let result = tags;
@@ -71,7 +67,9 @@ export function TagSummaryTable({
   return (
     <div className="flex flex-col gap-3">
       {/* フィルタバー */}
-      <div className={`${C.bgWhite} border ${C.borderLight} rounded-xs p-3 flex flex-wrap gap-3 items-center`}>
+      <div
+        className={`${C.bgWhite} border ${C.borderLight} rounded-xs p-3 flex flex-wrap gap-3 items-center`}
+      >
         <div className="relative min-w-[200px]">
           <Search className={STYLE.searchIcon} />
           <Input
@@ -84,7 +82,10 @@ export function TagSummaryTable({
         </div>
 
         <Select value={categoryFilter} onValueChange={handleCategoryChange}>
-          <SelectTrigger aria-label="タグ種別" className={`h-11 w-[160px] ${C.borderMedium} ${C.text} ${C.bgWhite}`}>
+          <SelectTrigger
+            aria-label="タグ種別"
+            className={`h-11 w-[160px] ${C.borderMedium} ${C.text} ${C.bgWhite}`}
+          >
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -94,9 +95,7 @@ export function TagSummaryTable({
           </SelectContent>
         </Select>
 
-        <span className={`text-sm ${C.text50} ml-auto`}>
-          {filteredTags.length}件
-        </span>
+        <span className={`text-sm ${C.text50} ml-auto`}>{filteredTags.length}件</span>
       </div>
 
       {/* テーブル */}
@@ -105,9 +104,13 @@ export function TagSummaryTable({
           <TableHeader>
             <TableRow className={DESIGN_TABLE_HEADER_ROW}>
               <TableHead className={`${DESIGN_TABLE_HEADER_CELL} px-4`}>タグ名</TableHead>
-              <TableHead className={`${DESIGN_TABLE_HEADER_CELL} px-4 w-24 text-right`}>飼い主数</TableHead>
+              <TableHead className={`${DESIGN_TABLE_HEADER_CELL} px-4 w-24 text-right`}>
+                飼い主数
+              </TableHead>
               <TableHead className={`${DESIGN_TABLE_HEADER_CELL} px-4 w-28`}>種別</TableHead>
-              <TableHead className={`${DESIGN_TABLE_HEADER_CELL} px-4 w-40 text-right`}>操作</TableHead>
+              <TableHead className={`${DESIGN_TABLE_HEADER_CELL} px-4 w-40 text-right`}>
+                操作
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -136,11 +139,15 @@ export function TagSummaryTable({
                     </TableCell>
                     <TableCell className={`${STYLE.tableCell} px-4`}>
                       {isAuto ? (
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${C.bgStatusGray} ${C.textStatusGray} ${C.borderMuted}`}>
+                        <span
+                          className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${C.bgStatusGray} ${C.textStatusGray} ${C.borderMuted}`}
+                        >
                           自動
                         </span>
                       ) : (
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${C.bgBrandLight} ${C.textBrandDark} ${C.borderBrandLight}`}>
+                        <span
+                          className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${C.bgBrandLight} ${C.textBrandDark} ${C.borderBrandLight}`}
+                        >
                           手動
                         </span>
                       )}

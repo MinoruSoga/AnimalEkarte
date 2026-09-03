@@ -71,31 +71,45 @@ describe("transformReservationToReceptionAppointment", () => {
   });
 
   it("visit_type: first → '初診'", () => {
-    expect(transformReservationToReceptionAppointment({ ...minimal, visit_type: "first" }).visitType).toBe("初診");
+    expect(
+      transformReservationToReceptionAppointment({ ...minimal, visit_type: "first" }).visitType,
+    ).toBe("初診");
   });
 
   it("visit_type: revisit → '再診'", () => {
-    expect(transformReservationToReceptionAppointment({ ...minimal, visit_type: "revisit" }).visitType).toBe("再診");
+    expect(
+      transformReservationToReceptionAppointment({ ...minimal, visit_type: "revisit" }).visitType,
+    ).toBe("再診");
   });
 
   it("status: confirmed → カラム pending にマップ", () => {
-    expect(transformReservationToReceptionAppointment({ ...minimal, status: "confirmed" }).status).toBe("pending");
+    expect(
+      transformReservationToReceptionAppointment({ ...minimal, status: "confirmed" }).status,
+    ).toBe("pending");
   });
 
   it("status: checked_in → カラム checked_in にマップ", () => {
-    expect(transformReservationToReceptionAppointment({ ...minimal, status: "checked_in" }).status).toBe("checked_in");
+    expect(
+      transformReservationToReceptionAppointment({ ...minimal, status: "checked_in" }).status,
+    ).toBe("checked_in");
   });
 
   it("status: in_consultation → カラム in_consultation にマップ", () => {
-    expect(transformReservationToReceptionAppointment({ ...minimal, status: "in_consultation" }).status).toBe("in_consultation");
+    expect(
+      transformReservationToReceptionAppointment({ ...minimal, status: "in_consultation" }).status,
+    ).toBe("in_consultation");
   });
 
   it("status: accounting → カラム accounting にマップ", () => {
-    expect(transformReservationToReceptionAppointment({ ...minimal, status: "accounting" }).status).toBe("accounting");
+    expect(
+      transformReservationToReceptionAppointment({ ...minimal, status: "accounting" }).status,
+    ).toBe("accounting");
   });
 
   it("status: completed → カラム completed にマップ", () => {
-    expect(transformReservationToReceptionAppointment({ ...minimal, status: "completed" }).status).toBe("completed");
+    expect(
+      transformReservationToReceptionAppointment({ ...minimal, status: "completed" }).status,
+    ).toBe("completed");
   });
 
   it("owner.name を ownerName にマップする", () => {
@@ -240,7 +254,11 @@ describe("transformReservationToReceptionAppointment", () => {
   it("reservation_type.name を reservationType にマップする", () => {
     const result = transformReservationToReceptionAppointment({
       ...minimal,
-      reservation_type: { id: 1, clinic_id: 1, name: "診療" } as BackendReservation["reservation_type"],
+      reservation_type: {
+        id: 1,
+        clinic_id: 1,
+        name: "診療",
+      } as BackendReservation["reservation_type"],
     });
     expect(result.reservationType).toBe("診療");
   });
@@ -248,7 +266,12 @@ describe("transformReservationToReceptionAppointment", () => {
   it("reservation_type.category を reservationCategory にマップする", () => {
     const result = transformReservationToReceptionAppointment({
       ...minimal,
-      reservation_type: { id: 1, clinic_id: 1, name: "シャンプー", category: "trimming" } as BackendReservation["reservation_type"],
+      reservation_type: {
+        id: 1,
+        clinic_id: 1,
+        name: "シャンプー",
+        category: "trimming",
+      } as BackendReservation["reservation_type"],
     });
     expect(result.reservationCategory).toBe("trimming");
   });
@@ -265,13 +288,17 @@ describe("transformReservationToReceptionAppointment", () => {
   });
 
   it("is_designated をそのまま返す", () => {
-    expect(transformReservationToReceptionAppointment({ ...minimal, is_designated: true }).isDesignated).toBe(true);
+    expect(
+      transformReservationToReceptionAppointment({ ...minimal, is_designated: true }).isDesignated,
+    ).toBe(true);
   });
 
   // 受付ヘッダー テレメトリ Phase 2（change-ui.md）: checked_in_at のマッピング。
   it("checked_in_at を checkedInAt にマップする", () => {
     const withCheckedInAt = { ...minimal, checked_in_at: "2026-07-05T01:00:00Z" };
-    expect(transformReservationToReceptionAppointment(withCheckedInAt).checkedInAt).toBe("2026-07-05T01:00:00Z");
+    expect(transformReservationToReceptionAppointment(withCheckedInAt).checkedInAt).toBe(
+      "2026-07-05T01:00:00Z",
+    );
   });
 
   it("checked_in_at が未設定の場合 checkedInAt は undefined", () => {
@@ -306,18 +333,14 @@ describe("transformReservationsToReceptionColumns", () => {
   });
 
   it("confirmed の予約は pending カラムに入る", () => {
-    const reservations: BackendReservation[] = [
-      { ...minimal, id: 1, status: "confirmed" },
-    ];
+    const reservations: BackendReservation[] = [{ ...minimal, id: 1, status: "confirmed" }];
     const columns = transformReservationsToReceptionColumns(reservations);
     const pendingCol = columns.find((c) => c.id === "pending");
     expect(pendingCol?.appointments.some((a) => a.id === "1")).toBe(true);
   });
 
   it("in_consultation の予約は in_consultation カラムに入る", () => {
-    const reservations: BackendReservation[] = [
-      { ...minimal, id: 3, status: "in_consultation" },
-    ];
+    const reservations: BackendReservation[] = [{ ...minimal, id: 3, status: "in_consultation" }];
     const columns = transformReservationsToReceptionColumns(reservations);
     const col = columns.find((c) => c.id === "in_consultation");
     expect(col?.appointments.some((a) => a.id === "3")).toBe(true);

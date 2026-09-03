@@ -58,11 +58,22 @@ export function buildOwnerFilterProperties(speciesOptions: FilterOption[]): Filt
 // species/include_deceased は「次と一致」相当の完全一致にしか対応していないため、ここで
 // condition==="is" のみを転送対象とし、is_not/空/空でない が選ばれた場合は黙って別解釈で転送しない
 // （is_not の value をそのまま "is" として送ると絞り込みの意味が反転するサイレントバグになる）。
-function isSupportedFilter(filter: ActiveFilter, key: string): filter is ActiveFilter & { value: string } {
-  return filter.key === key && filter.condition === "is" && typeof filter.value === "string" && filter.value !== "";
+function isSupportedFilter(
+  filter: ActiveFilter,
+  key: string,
+): filter is ActiveFilter & { value: string } {
+  return (
+    filter.key === key &&
+    filter.condition === "is" &&
+    typeof filter.value === "string" &&
+    filter.value !== ""
+  );
 }
 
-export function activeFiltersToParams(filters: ActiveFilter[]): { species?: string; include_deceased?: string } {
+export function activeFiltersToParams(filters: ActiveFilter[]): {
+  species?: string;
+  include_deceased?: string;
+} {
   const speciesValue = filters.find((f) => isSupportedFilter(f, "species"))?.value;
   const includeDeceasedValue = filters.find((f) => isSupportedFilter(f, "include_deceased"))?.value;
   return {
@@ -72,7 +83,10 @@ export function activeFiltersToParams(filters: ActiveFilter[]): { species?: stri
   };
 }
 
-export function paramsToActiveFilters(searchParams: URLSearchParams, speciesOptions: FilterOption[]): ActiveFilter[] {
+export function paramsToActiveFilters(
+  searchParams: URLSearchParams,
+  speciesOptions: FilterOption[],
+): ActiveFilter[] {
   const filters: ActiveFilter[] = [];
   const species = searchParams.get("species");
   if (species) {
@@ -80,7 +94,12 @@ export function paramsToActiveFilters(searchParams: URLSearchParams, speciesOpti
     filters.push({ key: "species", condition: "is", value: species, displayValue: label });
   }
   if (searchParams.get("include_deceased") === "true") {
-    filters.push({ key: "include_deceased", condition: "is", value: "true", displayValue: "死亡ペットも含める" });
+    filters.push({
+      key: "include_deceased",
+      condition: "is",
+      value: "true",
+      displayValue: "死亡ペットも含める",
+    });
   }
   return filters;
 }

@@ -35,7 +35,9 @@ describe("transformVaccination", () => {
   });
 
   it("date を JST 壁日付 YYYY-MM-DD で返す", () => {
-    expect(transformVaccination({ ...minimal, date: "2026-03-25T10:00:00Z" }).date).toBe("2026-03-25");
+    expect(transformVaccination({ ...minimal, date: "2026-03-25T10:00:00Z" }).date).toBe(
+      "2026-03-25",
+    );
   });
 
   it("UTC 境界 instant の date/nextDate は JST 暦日になる", () => {
@@ -50,22 +52,29 @@ describe("transformVaccination", () => {
   });
 
   it("date が未設定のとき空文字を返す", () => {
-    expect(transformVaccination({ ...minimal, date: undefined as unknown as string }).date).toBe("");
+    expect(transformVaccination({ ...minimal, date: undefined as unknown as string }).date).toBe(
+      "",
+    );
   });
 
   it("next_date を JST 壁日付 YYYY-MM-DD で返す", () => {
-    expect(transformVaccination({ ...minimal, next_date: "2027-03-25T00:00:00Z" }).nextDate).toBe("2027-03-25");
+    expect(transformVaccination({ ...minimal, next_date: "2027-03-25T00:00:00Z" }).nextDate).toBe(
+      "2027-03-25",
+    );
   });
 
   it("next_date が未設定のとき空文字を返す", () => {
-    expect(transformVaccination({ ...minimal, next_date: undefined as unknown as string }).nextDate).toBe("");
+    expect(
+      transformVaccination({ ...minimal, next_date: undefined as unknown as string }).nextDate,
+    ).toBe("");
   });
 
   it("pet.owner.name を ownerName にマップする", () => {
     const result = transformVaccination({
       ...minimal,
       pet: {
-        id: 1, clinic_id: 1,
+        id: 1,
+        clinic_id: 1,
         owner: { id: 1, clinic_id: 1, name: "田中太郎" } as BackendVaccination["pet"]["owner"],
       } as BackendVaccination["pet"],
     });

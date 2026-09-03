@@ -37,9 +37,7 @@ function makeOwnerResponse(overrides: Partial<OwnerResponse> = {}): OwnerRespons
   };
 }
 
-function makePetInOwner(
-  overrides: Partial<PetInOwnerResponse> = {},
-): PetInOwnerResponse {
+function makePetInOwner(overrides: Partial<PetInOwnerResponse> = {}): PetInOwnerResponse {
   return {
     id: 10,
     owner_id: 1,
@@ -68,9 +66,7 @@ describe("transformOwner", () => {
   });
 
   it("id が null/undefined のとき '0' を返す", () => {
-    const result = transformOwner(
-      makeOwnerResponse({ id: undefined as unknown as number }),
-    );
+    const result = transformOwner(makeOwnerResponse({ id: undefined as unknown as number }));
     expect(result.id).toBe("0");
   });
 
@@ -87,9 +83,7 @@ describe("transformOwner", () => {
   });
 
   it("owner_name_kana を ownerNameKana にマップする", () => {
-    const result = transformOwner(
-      makeOwnerResponse({ owner_name_kana: "サトウハナコ" }),
-    );
+    const result = transformOwner(makeOwnerResponse({ owner_name_kana: "サトウハナコ" }));
     expect(result.ownerNameKana).toBe("サトウハナコ");
   });
 
@@ -119,9 +113,7 @@ describe("transformOwner", () => {
   });
 
   it("birth_date を T 以前の日付部分のみに整形する", () => {
-    const result = transformOwner(
-      makeOwnerResponse({ birth_date: "1990-04-01T00:00:00Z" }),
-    );
+    const result = transformOwner(makeOwnerResponse({ birth_date: "1990-04-01T00:00:00Z" }));
     expect(result.birthDate).toBe("1990-04-01");
   });
 
@@ -174,9 +166,7 @@ describe("transformOwner", () => {
       }),
     );
 
-    expect(result.pets?.[0]).toEqual(
-      expect.objectContaining({ status: "死亡", deceasedAt }),
-    );
+    expect(result.pets?.[0]).toEqual(expect.objectContaining({ status: "死亡", deceasedAt }));
     expect(result.pets?.[1].status).toBe("不明");
   });
 

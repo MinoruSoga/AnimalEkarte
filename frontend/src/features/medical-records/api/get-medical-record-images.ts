@@ -15,7 +15,11 @@ function transformImageGalleryItem(img: MedicalRecordImage) {
 }
 type ImageGalleryItem = ReturnType<typeof transformImageGalleryItem>;
 
-function transformImageGalleryGroup(g: { groupId: number; date: string; images: ImageGalleryItem[] }) {
+function transformImageGalleryGroup(g: {
+  groupId: number;
+  date: string;
+  images: ImageGalleryItem[];
+}) {
   return {
     id: g.groupId,
     date: g.date,

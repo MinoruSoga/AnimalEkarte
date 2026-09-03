@@ -20,15 +20,10 @@ import {
 
 const VIEWPORTS = [1440, 1200, 800, 500] as const;
 const AUDIT_HEIGHT = 900;
-const AUDIT_ORIGIN = new URL(
-  process.env.PLAYWRIGHT_TEST_BASE_URL ?? "http://localhost:3003",
-).origin;
+const AUDIT_ORIGIN = new URL(process.env.PLAYWRIGHT_TEST_BASE_URL ?? "http://localhost:3003")
+  .origin;
 
-type FixtureKey =
-  | "owner"
-  | "medicalRecord"
-  | "examination"
-  | "pet";
+type FixtureKey = "owner" | "medicalRecord" | "examination" | "pet";
 
 interface RouteTemplate {
   label: string;
@@ -174,9 +169,13 @@ function resolveRoute(template: RouteTemplate, fixtures: FixturePaths): string |
 async function firstDetailPath(page: Page, listPath: string, pattern: RegExp): Promise<string> {
   await page.goto(listPath, { waitUntil: "domcontentloaded" });
   await page.locator("h1").first().waitFor({ state: "visible", timeout: 30000 });
-  const hrefs = await page.locator("a[href]").evaluateAll((links) =>
-    links.map((link) => link.getAttribute("href")).filter((href): href is string => href !== null),
-  );
+  const hrefs = await page
+    .locator("a[href]")
+    .evaluateAll((links) =>
+      links
+        .map((link) => link.getAttribute("href"))
+        .filter((href): href is string => href !== null),
+    );
   const detailPath = hrefs.find((href) => pattern.test(href));
   if (!detailPath) throw new Error(`${listPath}: no production detail link matched ${pattern}`);
   return detailPath;
@@ -212,15 +211,13 @@ async function discoverFixtures(page: Page): Promise<FixturePaths> {
     "/medical-records",
     /^\/medical-records\/[^/]+$/,
   );
-  const examination = await firstDetailPath(
-    page,
-    "/examinations",
-    /^\/examinations\/[^/]+$/,
-  );
+  const examination = await firstDetailPath(page, "/examinations", /^\/examinations\/[^/]+$/);
 
   const response = await page.request.get(`/api/v1${medicalRecord}`);
   if (!response.ok()) {
-    throw new Error(`${medicalRecord}: fixture detail request failed with HTTP ${response.status()}`);
+    throw new Error(
+      `${medicalRecord}: fixture detail request failed with HTTP ${response.status()}`,
+    );
   }
   const pet = readPetId(await response.json());
   if (!pet) throw new Error(`${medicalRecord}: fixture response did not contain a pet id`);
@@ -263,7 +260,9 @@ function assertRequestSafety(
   expect(signals.failedResponses, `${path} ${context}: failed responses`).toEqual([]);
   expect(signals.failedRequests, `${path} ${context}: failed requests`).toEqual([]);
   expect(signals.pageErrors, `${path} ${context}: page errors`).toEqual([]);
-  expect(interceptor.ledger.validationFailures, `${path} ${context}: fixture validation`).toEqual([]);
+  expect(interceptor.ledger.validationFailures, `${path} ${context}: fixture validation`).toEqual(
+    [],
+  );
   expect(interceptor.ledger.blocked, `${path} ${context}: unexpected requests`).toEqual([]);
   expect(
     interceptor.ledger.continuedToBackend.filter(isBusinessNonGet),
@@ -351,10 +350,10 @@ async function auditRoute(
 
   try {
     if (options.currentClinicId) {
-      await page.addInitScript(
-        ({ key, value }) => window.localStorage.setItem(key, value),
-        { key: "auth_current_clinic:v1", value: options.currentClinicId },
-      );
+      await page.addInitScript(({ key, value }) => window.localStorage.setItem(key, value), {
+        key: "auth_current_clinic:v1",
+        value: options.currentClinicId,
+      });
     }
     if (options.fixedTime) await page.clock.setFixedTime(new Date(options.fixedTime));
     for (const width of VIEWPORTS) {
@@ -380,7 +379,9 @@ async function auditRoute(
           expectedRenderedPath,
         { timeout: 30000 },
       );
-      await expect(page.locator("h1").first(), `${path} @ ${width}px: h1`).toBeVisible({ timeout: 30000 });
+      await expect(page.locator("h1").first(), `${path} @ ${width}px: h1`).toBeVisible({
+        timeout: 30000,
+      });
       const currentUrl = new URL(page.url());
       expect(
         options.allowSearch ? currentUrl.pathname : `${currentUrl.pathname}${currentUrl.search}`,
@@ -415,9 +416,11 @@ async function auditRoute(
       await page.waitForLoadState("networkidle", { timeout: 15_000 });
 
       if (options.syntheticEndpoints) {
-        const toastTypes = await page.locator("[data-sonner-toast]").evaluateAll((toasts) =>
-          toasts.map((toast) => toast.getAttribute("data-type") ?? "unknown"),
-        );
+        const toastTypes = await page
+          .locator("[data-sonner-toast]")
+          .evaluateAll((toasts) =>
+            toasts.map((toast) => toast.getAttribute("data-type") ?? "unknown"),
+          );
         expect(toastTypes, `${path} @ ${width}px: unexpected toast types`).toEqual([]);
       }
 
@@ -471,7 +474,9 @@ test.describe("protected routes: read-only 4 viewport audit", () => {
       const setupPage = await setupContext.newPage();
       await loginAsDemoAdmin(setupPage);
       const estimateResponse = await setupPage.request.get("/api/v1/estimates/1");
-      expect(estimateResponse.ok(), "edit-route audit requires an existing estimate shape").toBe(true);
+      expect(estimateResponse.ok(), "edit-route audit requires an existing estimate shape").toBe(
+        true,
+      );
       editableEstimateResponse = createEditableEstimateResponse(await estimateResponse.json());
       fixtures = await discoverFixtures(setupPage);
       authenticatedStorageState = await setupContext.storageState();
@@ -489,7 +494,8 @@ test.describe("protected routes: read-only 4 viewport audit", () => {
         : undefined;
       const path = syntheticScenario?.entryPath ?? resolveRoute(route, fixtures);
       expect(path, `${route.path}: production fixture unavailable`).toBeDefined();
-      if (!authenticatedStorageState) throw new Error("protected audit auth state was not initialized");
+      if (!authenticatedStorageState)
+        throw new Error("protected audit auth state was not initialized");
       const routeContext = await browser.newContext({ storageState: authenticatedStorageState });
       const page = await routeContext.newPage();
       try {
@@ -646,7 +652,8 @@ test.describe("clinical P10: view-only /me cannot mutate clinical records", () =
   for (const readOnlyCase of cases) {
     test(readOnlyCase.label, async ({ browser }) => {
       test.setTimeout(180000);
-      if (!authenticatedStorageState) throw new Error("clinical RBAC auth state was not initialized");
+      if (!authenticatedStorageState)
+        throw new Error("clinical RBAC auth state was not initialized");
       const scenario = SYNTHETIC_CLINICAL_SCENARIOS[readOnlyCase.scenarioKey];
       const viewOnlyMe = createSyntheticMeResponse({
         [readOnlyCase.resource]: { view: true, create: false, edit: false, delete: false },
@@ -668,18 +675,16 @@ test.describe("clinical P10: view-only /me cannot mutate clinical records", () =
       const page = await routeContext.newPage();
       try {
         await auditRoute(page, scenario.entryPath, {
-          expectedRenderedPath: "accessDenied" in readOnlyCase
-            ? scenario.entryPath
-            : scenario.renderedPath,
+          expectedRenderedPath:
+            "accessDenied" in readOnlyCase ? scenario.entryPath : scenario.renderedPath,
           syntheticEndpoints: endpoints,
           expectedLocalBusinessNonGet: [],
           currentClinicId: scenario.currentClinicId,
           fixedTime: scenario.fixedTime,
           renderedAssertions,
           forbiddenButtons: readOnlyCase.forbiddenButtons,
-          disabledSelectors: "disabledSelectors" in readOnlyCase
-            ? readOnlyCase.disabledSelectors
-            : undefined,
+          disabledSelectors:
+            "disabledSelectors" in readOnlyCase ? readOnlyCase.disabledSelectors : undefined,
         });
       } finally {
         if (!page.isClosed()) await page.close();

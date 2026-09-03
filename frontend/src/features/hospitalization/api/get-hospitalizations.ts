@@ -58,10 +58,9 @@ const getHospitalizations = async (
     }
   }
 
-  const { data } = await axios.get<HospitalizationPaginatedResponse>(
-    "/v1/hospitalizations",
-    { params },
-  );
+  const { data } = await axios.get<HospitalizationPaginatedResponse>("/v1/hospitalizations", {
+    params,
+  });
   return {
     data: (data.data ?? []).map(transformHospitalization),
     total: data.total,

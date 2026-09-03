@@ -38,7 +38,7 @@ vi.mock("@/hooks/use-modal-state", async () => {
       const isPetModal = invocation++ % 2 === 1;
       const [item, setItem] = useState<T | null>(
         isPetModal && permissionMocks.petModalItem
-          ? permissionMocks.petModalItem as T
+          ? (permissionMocks.petModalItem as T)
           : initialValue,
       );
       const open = useCallback((value: T) => setItem(value), []);
@@ -67,13 +67,7 @@ vi.mock("@/hooks/use-animal-species", () => ({
 }));
 
 vi.mock("@/components/shared/ConfirmDialog/ConfirmDialog", () => ({
-  ConfirmDialog: ({
-    open,
-    onConfirm,
-  }: {
-    open: boolean;
-    onConfirm: () => void;
-  }) => {
+  ConfirmDialog: ({ open, onConfirm }: { open: boolean; onConfirm: () => void }) => {
     permissionMocks.confirmDelete = onConfirm;
     return open ? <button onClick={onConfirm}>確認削除</button> : null;
   },
@@ -209,9 +203,11 @@ describe("OwnersList mutation permission boundary", () => {
     const user = userEvent.setup();
     renderOwnersList();
 
-    await user.click(await screen.findByRole("button", {
-      name: /飼主.*山田太郎.*ペット.*ポチ.*操作/,
-    }));
+    await user.click(
+      await screen.findByRole("button", {
+        name: /飼主.*山田太郎.*ペット.*ポチ.*操作/,
+      }),
+    );
     await user.click(await screen.findByRole("menuitem", { name: "削除" }));
     expect(screen.getByRole("button", { name: "確認削除" })).toBeInTheDocument();
 
@@ -226,11 +222,13 @@ describe("OwnersList mutation permission boundary", () => {
     permissionMocks.petModalItem = makePet();
     const onUpdatePet = vi.fn().mockResolvedValue(makePet());
     const router = createMemoryRouter(
-      [{
-        path: "/owners",
-        element: <EditRevocationHarness onUpdatePet={onUpdatePet} />,
-        loader: () => ({ pets: [makePet()], page: 1, limit: 20, total: 1 }),
-      }],
+      [
+        {
+          path: "/owners",
+          element: <EditRevocationHarness onUpdatePet={onUpdatePet} />,
+          loader: () => ({ pets: [makePet()], page: 1, limit: 20, total: 1 }),
+        },
+      ],
       { initialEntries: ["/owners"] },
     );
     render(

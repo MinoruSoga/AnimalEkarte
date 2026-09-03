@@ -1,10 +1,18 @@
 import { useCallback, useMemo } from "react";
 import { AlertTriangle, Pencil, Trash2 } from "lucide-react";
-import type { ActiveFilter, ActiveSort, FilterProperty } from "@/components/shared/PropertyFilter/types";
+import type {
+  ActiveFilter,
+  ActiveSort,
+  FilterProperty,
+} from "@/components/shared/PropertyFilter/types";
 import { TableCell } from "@/components/ui/table";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { PropertyFilter } from "@/components/shared/PropertyFilter/PropertyFilter";
-import { DataTable, DESIGN_TABLE_HEADER_ROW, DESIGN_TABLE_HEADER_CELL } from "@/components/shared/DataTable/DataTable";
+import {
+  DataTable,
+  DESIGN_TABLE_HEADER_ROW,
+  DESIGN_TABLE_HEADER_CELL,
+} from "@/components/shared/DataTable/DataTable";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { DataTableRowLink } from "@/components/shared/DataTable/DataTableRowLink";
 import { RowActionDropdown } from "@/components/shared/RowActionDropdown/RowActionDropdown";
@@ -15,10 +23,7 @@ import { useGetPet } from "@/hooks/use-pet";
 import { isPastJSTDate } from "@/lib/jst-date";
 import { C, ICON } from "@/lib/design-tokens";
 import type { VaccinationRecord } from "@/types";
-import {
-  VACCINATION_SORT_PROPERTIES,
-  vaccinationListDetailHref,
-} from "./vaccinations-list-model";
+import { VACCINATION_SORT_PROPERTIES, vaccinationListDetailHref } from "./vaccinations-list-model";
 
 interface VaccinationRowActionsProps {
   record: VaccinationRecord;
@@ -37,17 +42,25 @@ function VaccinationRowActions({
 }: VaccinationRowActionsProps) {
   const { data: pet } = useGetPet(record.petId ?? "");
   const actions = [
-    ...(canEdit && pet?.status === "生存" ? [{
-      label: "編集",
-      icon: Pencil,
-      onClick: () => onEdit(record),
-    }] : []),
-    ...(canDelete ? [{
-      label: "削除",
-      icon: Trash2,
-      onClick: () => onDelete(record.id),
-      variant: "destructive" as const,
-    }] : []),
+    ...(canEdit && pet?.status === "生存"
+      ? [
+          {
+            label: "編集",
+            icon: Pencil,
+            onClick: () => onEdit(record),
+          },
+        ]
+      : []),
+    ...(canDelete
+      ? [
+          {
+            label: "削除",
+            icon: Trash2,
+            onClick: () => onDelete(record.id),
+            variant: "destructive" as const,
+          },
+        ]
+      : []),
   ];
 
   return actions.length > 0 ? (
@@ -96,7 +109,9 @@ function VaccinationListRow({
               <span className="ml-1.5 text-xs font-medium">（期限超過）</span>
             </span>
           </span>
-        ) : record.nextDate}
+        ) : (
+          record.nextDate
+        )}
       </TableCell>
       <TableCell className="text-right">
         {canEdit || canDelete ? (
@@ -161,66 +176,72 @@ export function VaccinationListContent({
   onDelete,
   onPageChange,
 }: VaccinationListContentProps) {
-  const columns = useMemo(() => [
-    {
-      header: (
-        <SortableHeader
-          label="実施日"
-          direction={directionFor("date")}
-          onToggle={() => toggleSort("date")}
-        />
-      ),
-      className: "w-[120px]",
-    },
-    {
-      header: (
-        <SortableHeader
-          label="飼主名"
-          direction={directionFor("ownerName")}
-          onToggle={() => toggleSort("ownerName")}
-        />
-      ),
-    },
-    {
-      header: (
-        <SortableHeader
-          label="ペット名"
-          direction={directionFor("petName")}
-          onToggle={() => toggleSort("petName")}
-        />
-      ),
-    },
-    {
-      header: (
-        <SortableHeader
-          label="予防接種名"
-          direction={directionFor("vaccineName")}
-          onToggle={() => toggleSort("vaccineName")}
-        />
-      ),
-    },
-    {
-      header: (
-        <SortableHeader
-          label="次回予定"
-          direction={directionFor("nextDate")}
-          onToggle={() => toggleSort("nextDate")}
-        />
-      ),
-      className: "w-[140px]",
-    },
-    { header: "操作", className: "w-[100px]", align: "right" as const },
-  ], [directionFor, toggleSort]);
+  const columns = useMemo(
+    () => [
+      {
+        header: (
+          <SortableHeader
+            label="実施日"
+            direction={directionFor("date")}
+            onToggle={() => toggleSort("date")}
+          />
+        ),
+        className: "w-[120px]",
+      },
+      {
+        header: (
+          <SortableHeader
+            label="飼主名"
+            direction={directionFor("ownerName")}
+            onToggle={() => toggleSort("ownerName")}
+          />
+        ),
+      },
+      {
+        header: (
+          <SortableHeader
+            label="ペット名"
+            direction={directionFor("petName")}
+            onToggle={() => toggleSort("petName")}
+          />
+        ),
+      },
+      {
+        header: (
+          <SortableHeader
+            label="予防接種名"
+            direction={directionFor("vaccineName")}
+            onToggle={() => toggleSort("vaccineName")}
+          />
+        ),
+      },
+      {
+        header: (
+          <SortableHeader
+            label="次回予定"
+            direction={directionFor("nextDate")}
+            onToggle={() => toggleSort("nextDate")}
+          />
+        ),
+        className: "w-[140px]",
+      },
+      { header: "操作", className: "w-[100px]", align: "right" as const },
+    ],
+    [directionFor, toggleSort],
+  );
 
-  const renderRow = useCallback((r: VaccinationRecord) => (
-    <VaccinationListRow
-      record={r}
-      canEdit={canEdit}
-      canDelete={canDelete}
-      onEdit={onEdit}
-      onDelete={onDelete}
-    />
-  ), [canEdit, canDelete, onEdit, onDelete]);
+  const renderRow = useCallback(
+    (r: VaccinationRecord) => (
+      <VaccinationListRow
+        record={r}
+        canEdit={canEdit}
+        canDelete={canDelete}
+        onEdit={onEdit}
+        onDelete={onDelete}
+      />
+    ),
+    [canEdit, canDelete, onEdit, onDelete],
+  );
 
   return (
     <div className="flex flex-col gap-4">

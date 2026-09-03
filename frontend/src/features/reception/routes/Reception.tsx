@@ -8,7 +8,12 @@ import { formatDateWithWeekday } from "@/lib/format/date";
 
 // Internal
 import { toJSTWallDate } from "@/lib/jst-date";
-import { ResourceReservations, ResourceMedicalRecords, ResourceAccounting, ResourceHospitalization } from "@/types/generated/models";
+import {
+  ResourceReservations,
+  ResourceMedicalRecords,
+  ResourceAccounting,
+  ResourceHospitalization,
+} from "@/types/generated/models";
 import { usePermission } from "@/hooks/use-permission";
 import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
 
@@ -20,7 +25,11 @@ import { ReceptionPageBody } from "./ReceptionPagePanels";
 import { useReceptionColumnView } from "../hooks/use-reception-column-view";
 
 export function Reception() {
-  const { canCreate: canCreateReservation, canEdit: canEditReservation, canDelete: canDeleteReservation } = usePermission(ResourceReservations);
+  const {
+    canCreate: canCreateReservation,
+    canEdit: canEditReservation,
+    canDelete: canDeleteReservation,
+  } = usePermission(ResourceReservations);
   const { canCreate: canCreateMedicalRecord } = usePermission(ResourceMedicalRecords);
   const { canCreate: canCreateAccounting } = usePermission(ResourceAccounting);
   const { canCreate: canCreateHospitalization } = usePermission(ResourceHospitalization);
@@ -35,18 +44,21 @@ export function Reception() {
     advanceStatus,
     cancelAppointment,
     updateAppointment,
-    filters
+    filters,
   } = useReceptionKanban({
     canEditReservation,
     canDeleteReservation,
   });
 
   // スタッフAPIから医師フィルター選択肢を動的生成
-  const doctors = useMemo(() => [
-    { id: "all", name: "全て" },
-    ...staffs.flatMap((s) => s.isActive ? [{ id: s.name, name: s.name }] : []),
-    { id: "医師指名なし", name: "医師指名なし" },
-  ], [staffs]);
+  const doctors = useMemo(
+    () => [
+      { id: "all", name: "全て" },
+      ...staffs.flatMap((s) => (s.isActive ? [{ id: s.name, name: s.name }] : [])),
+      { id: "医師指名なし", name: "医師指名なし" },
+    ],
+    [staffs],
+  );
 
   const {
     cancelConfirmOpen,
@@ -128,7 +140,9 @@ export function Reception() {
       onEdit={canEditReservation === true ? handleEditAppointment : undefined}
       onCancel={canDeleteReservation === true ? handleCancelAppointment : undefined}
       selectedAppointment={selectedAppointment}
-      currentStatus={selectedAppointment ? appointmentColumnTitleMap.get(selectedAppointment.id) : undefined}
+      currentStatus={
+        selectedAppointment ? appointmentColumnTitleMap.get(selectedAppointment.id) : undefined
+      }
       canCreateMedicalRecord={canCreateMedicalRecord}
       canCreateAccounting={canCreateAccounting}
       canCreateHospitalization={canCreateHospitalization}
@@ -140,7 +154,11 @@ export function Reception() {
       cancelConfirmOpen={cancelConfirmOpen}
       onCloseCancelConfirm={closeCancelConfirm}
       onConfirmCancel={executeCancel}
-      cancelDescription={cancelTarget ? `${cancelTarget.petName}（${cancelTarget.ownerName}）の予約を取り消します。` : ""}
+      cancelDescription={
+        cancelTarget
+          ? `${cancelTarget.petName}（${cancelTarget.ownerName}）の予約を取り消します。`
+          : ""
+      }
     />
   );
 }

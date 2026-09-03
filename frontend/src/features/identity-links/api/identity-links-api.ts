@@ -17,10 +17,9 @@ export async function searchOwnersForLink(q: string, limit = 20): Promise<OwnerS
 }
 
 export async function searchPetsForLink(q: string, limit = 20): Promise<PetSearchItem[]> {
-  const { data } = await axios.get<{ items: PetSearchItem[] }>(
-    "/v1/identity-links/pets/search",
-    { params: { q, limit } },
-  );
+  const { data } = await axios.get<{ items: PetSearchItem[] }>("/v1/identity-links/pets/search", {
+    params: { q, limit },
+  });
   return data.items ?? [];
 }
 

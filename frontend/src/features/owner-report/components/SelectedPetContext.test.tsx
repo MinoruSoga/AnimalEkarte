@@ -35,11 +35,7 @@ describe("SelectedPetContext", () => {
   });
 
   it("生存ペットでは死亡表示を出さず、未登録情報を捏造しない", () => {
-    render(
-      <SelectedPetContext
-        pet={makePet({ name: "", species: "", status: "生存" })}
-      />,
-    );
+    render(<SelectedPetContext pet={makePet({ name: "", species: "", status: "生存" })} />);
 
     expect(screen.getByRole("heading", { name: "-" })).toBeInTheDocument();
     expect(screen.queryByText("死亡")).not.toBeInTheDocument();

@@ -40,19 +40,12 @@ type ReorderAnimalSpeciesRequest = { ids: number[] };
 // ─────────────────────────────────────────────────
 
 async function listAnimalSpecies(): Promise<AnimalSpecies[]> {
-  const { data } = await axios.get<ModelAnimalSpecies[]>(
-    "/v1/masters/animal-species",
-  );
+  const { data } = await axios.get<ModelAnimalSpecies[]>("/v1/masters/animal-species");
   return data.map(transformAnimalSpecies);
 }
 
-async function createAnimalSpecies(
-  req: CreateAnimalSpeciesRequest,
-): Promise<AnimalSpecies> {
-  const { data } = await axios.post<ModelAnimalSpecies>(
-    "/v1/masters/animal-species",
-    req,
-  );
+async function createAnimalSpecies(req: CreateAnimalSpeciesRequest): Promise<AnimalSpecies> {
+  const { data } = await axios.post<ModelAnimalSpecies>("/v1/masters/animal-species", req);
   return transformAnimalSpecies(data);
 }
 
@@ -60,10 +53,7 @@ async function updateAnimalSpecies(
   id: string,
   req: UpdateAnimalSpeciesRequest,
 ): Promise<AnimalSpecies> {
-  const { data } = await axios.patch<ModelAnimalSpecies>(
-    `/v1/masters/animal-species/${id}`,
-    req,
-  );
+  const { data } = await axios.patch<ModelAnimalSpecies>(`/v1/masters/animal-species/${id}`, req);
   return transformAnimalSpecies(data);
 }
 
@@ -71,9 +61,7 @@ async function deleteAnimalSpecies(id: string): Promise<void> {
   await axios.delete(`/v1/masters/animal-species/${id}`);
 }
 
-async function reorderAnimalSpecies(
-  req: ReorderAnimalSpeciesRequest,
-): Promise<void> {
+async function reorderAnimalSpecies(req: ReorderAnimalSpeciesRequest): Promise<void> {
   await axios.patch("/v1/masters/animal-species/reorder", req);
 }
 

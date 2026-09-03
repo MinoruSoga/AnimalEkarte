@@ -15,9 +15,7 @@ describe("useMedicalRecordsColumns status column (BUG-020)", () => {
       }),
     );
 
-    const statusColumn = result.current.find(
-      (col) => col.className === LIST_TABLE_COL.status,
-    );
+    const statusColumn = result.current.find((col) => col.className === LIST_TABLE_COL.status);
 
     expect(statusColumn).toBeDefined();
     expect(statusColumn?.className).toBe(LIST_TABLE_COL.status);

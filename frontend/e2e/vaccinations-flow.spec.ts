@@ -1,7 +1,7 @@
-import { test, expect } from '@playwright/test';
-import type { BrowserContext } from '@playwright/test';
-import { createAuthedContext } from './helpers/context';
-import { VaccinationsPage } from './pages/vaccinations-page';
+import { test, expect } from "@playwright/test";
+import type { BrowserContext } from "@playwright/test";
+import { createAuthedContext } from "./helpers/context";
+import { VaccinationsPage } from "./pages/vaccinations-page";
 
 // E2E flow tests for vaccinations (/vaccinations) pages.
 // Seed data: 12+ vaccination records at clinic_id=1 (vaccinations).
@@ -9,7 +9,7 @@ import { VaccinationsPage } from './pages/vaccinations-page';
 //
 // Design: fresh page per test within shared context.
 
-test.describe('予防接種管理 フロー E2E', () => {
+test.describe("予防接種管理 フロー E2E", () => {
   let context: BrowserContext;
 
   test.beforeAll(async ({ browser }) => {
@@ -20,7 +20,7 @@ test.describe('予防接種管理 フロー E2E', () => {
     await context.close();
   });
 
-  test('/vaccinations — 予防接種管理一覧が表示される', async () => {
+  test("/vaccinations — 予防接種管理一覧が表示される", async () => {
     const page = await context.newPage();
     const vaccinations = new VaccinationsPage(page);
     try {
@@ -34,7 +34,7 @@ test.describe('予防接種管理 フロー E2E', () => {
     }
   });
 
-  test('/vaccinations — 検索フィルタが機能する', async () => {
+  test("/vaccinations — 検索フィルタが機能する", async () => {
     const page = await context.newPage();
     const vaccinations = new VaccinationsPage(page);
     try {
@@ -42,12 +42,12 @@ test.describe('予防接種管理 フロー E2E', () => {
       await expect(vaccinations.listHeading()).toBeVisible();
 
       // PropertyFilter: 検索トグルボタンをクリックして入力欄を表示
-      await page.getByLabel('検索').click();
+      await page.getByLabel("検索").click();
       const searchInput = vaccinations.searchInput();
       await expect(searchInput).toBeVisible();
-      await searchInput.fill('林');
+      await searchInput.fill("林");
       // Debounced URL search must stick (empty active seed is common after soft-deletes).
-      await expect(searchInput).toHaveValue('林', { timeout: 10000 });
+      await expect(searchInput).toHaveValue("林", { timeout: 10000 });
       // When live rows exist, seed owner text should appear; otherwise empty-state row is OK.
       if ((await vaccinations.firstDetailLink().count()) > 0) {
         await expect(vaccinations.hayashiText()).toBeVisible({ timeout: 10000 });
@@ -59,7 +59,7 @@ test.describe('予防接種管理 フロー E2E', () => {
     }
   });
 
-  test('/vaccinations — 新規登録ボタンでペット選択画面に遷移する', async () => {
+  test("/vaccinations — 新規登録ボタンでペット選択画面に遷移する", async () => {
     const page = await context.newPage();
     const vaccinations = new VaccinationsPage(page);
     try {
@@ -76,7 +76,7 @@ test.describe('予防接種管理 フロー E2E', () => {
     }
   });
 
-  test('/vaccinations — 行がある場合は詳細リンクで詳細画面に遷移する', async () => {
+  test("/vaccinations — 行がある場合は詳細リンクで詳細画面に遷移する", async () => {
     const page = await context.newPage();
     const vaccinations = new VaccinationsPage(page);
     try {
@@ -87,8 +87,8 @@ test.describe('予防接種管理 フロー E2E', () => {
       if ((await detailLink.count()) === 0) {
         // No active vaccination rows in this runtime DB — detail path is N/A.
         test.info().annotations.push({
-          type: 'note',
-          description: 'skipped detail navigation: zero active vaccination rows',
+          type: "note",
+          description: "skipped detail navigation: zero active vaccination rows",
         });
         return;
       }

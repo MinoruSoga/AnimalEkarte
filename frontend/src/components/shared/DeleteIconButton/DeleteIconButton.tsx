@@ -30,7 +30,7 @@ export const DeleteIconButton = memo(function DeleteIconButton({
       title={title}
       className={cn(
         `size-11 min-h-11 min-w-11 ${C.text40} ${C.hoverTextDanger} ${C.hoverBgDanger5}`,
-        className
+        className,
       )}
     >
       <Trash2 className={ICON.action} />

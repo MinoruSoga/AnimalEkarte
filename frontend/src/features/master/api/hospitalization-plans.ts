@@ -3,7 +3,12 @@ import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import { queryKeys } from "@/lib/query-keys";
-import type { BodySize, BillingUnit, HospitalizationPlan as ModelHospitalizationPlan, TaxType } from "@/types/generated/models";
+import type {
+  BodySize,
+  BillingUnit,
+  HospitalizationPlan as ModelHospitalizationPlan,
+  TaxType,
+} from "@/types/generated/models";
 import {
   BodySizeSmall,
   BodySizeMedium,
@@ -57,9 +62,7 @@ export const BILLING_UNIT_LABELS: Record<string, string> = {
 // Transform
 // ─────────────────────────────────────────────────
 
-function transformHospitalizationPlan(
-  data: ModelHospitalizationPlan,
-) {
+function transformHospitalizationPlan(data: ModelHospitalizationPlan) {
   return {
     id: String(data.id ?? 0),
     name: data.name,
@@ -82,9 +85,7 @@ export type HospitalizationPlan = ReturnType<typeof transformHospitalizationPlan
 
 const ENDPOINT = "/v1/masters/hospitalization-plans";
 
-const getAllHospitalizationPlans = async (): Promise<
-  HospitalizationPlan[]
-> => {
+const getAllHospitalizationPlans = async (): Promise<HospitalizationPlan[]> => {
   const { data } = await axios.get<ModelHospitalizationPlan[]>(ENDPOINT);
   return data.map(transformHospitalizationPlan);
 };
@@ -100,10 +101,7 @@ const updateHospitalizationPlan = async (
   id: string,
   req: UpdateHospitalizationPlanRequest,
 ): Promise<HospitalizationPlan> => {
-  const { data } = await axios.patch<ModelHospitalizationPlan>(
-    `${ENDPOINT}/${id}`,
-    req,
-  );
+  const { data } = await axios.patch<ModelHospitalizationPlan>(`${ENDPOINT}/${id}`, req);
   return transformHospitalizationPlan(data);
 };
 
@@ -129,7 +127,9 @@ export const useCreateHospitalizationPlan = () => {
   return useMutation({
     mutationFn: createHospitalizationPlan,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("hospitalization-plans") });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.masters.category("hospitalization-plans"),
+      });
     },
     onError: (error) => handleApiError(error, "作成"),
   });
@@ -138,15 +138,12 @@ export const useCreateHospitalizationPlan = () => {
 export const useUpdateHospitalizationPlan = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({
-      id,
-      req,
-    }: {
-      id: string;
-      req: UpdateHospitalizationPlanRequest;
-    }) => updateHospitalizationPlan(id, req),
+    mutationFn: ({ id, req }: { id: string; req: UpdateHospitalizationPlanRequest }) =>
+      updateHospitalizationPlan(id, req),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("hospitalization-plans") });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.masters.category("hospitalization-plans"),
+      });
     },
     onError: (error) => handleApiError(error, "更新"),
   });
@@ -157,9 +154,10 @@ export const useDeleteHospitalizationPlan = () => {
   return useMutation({
     mutationFn: deleteHospitalizationPlan,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("hospitalization-plans") });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.masters.category("hospitalization-plans"),
+      });
     },
     onError: (error) => handleApiError(error, "削除"),
   });
 };
-

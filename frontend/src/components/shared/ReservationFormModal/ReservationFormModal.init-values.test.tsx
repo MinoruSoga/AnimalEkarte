@@ -12,15 +12,12 @@ import { createWrapper, silentApiHandlers, noop } from "./ReservationFormModal.t
 // fireEvent.click でも開かない）。本テストの対象は Popover の開閉実装ではないので、開閉の
 // 意味論だけを保った素の実装へ差し替え、Dialog×Popover の相互作用を構造的に取り除く。
 vi.mock("@/components/ui/searchable-select", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("@/components/ui/searchable-select")>();
+  const actual = await importOriginal<typeof import("@/components/ui/searchable-select")>();
   const { useState } = await import("react");
   type Props = Parameters<typeof actual.SearchableSelect>[0];
   function SearchableSelectStub(props: Props) {
     const [open, setOpen] = useState(false);
-    const flat = props.groups
-      ? props.groups.flatMap((g) => g.options)
-      : (props.options ?? []);
+    const flat = props.groups ? props.groups.flatMap((g) => g.options) : (props.options ?? []);
     const selected = flat.find((o) => o.value === props.value);
     return (
       <div>
@@ -96,7 +93,7 @@ describe("ReservationFormModal — 初期値セット (Issue #52)", () => {
         canCreate={true}
         canEdit={false}
       />,
-      { wrapper: createWrapper() }
+      { wrapper: createWrapper() },
     );
 
     // initialData.start が formData に反映されていれば「日付を選択」は表示されない
@@ -125,7 +122,7 @@ describe("ReservationFormModal — 初期値セット (Issue #52)", () => {
         canCreate={true}
         canEdit={false}
       />,
-      { wrapper: createWrapper() }
+      { wrapper: createWrapper() },
     );
 
     // 開始時刻セレクトのトリガーに "14:30" が描画されているはず
@@ -147,7 +144,7 @@ describe("ReservationFormModal — 初期値セット (Issue #52)", () => {
         canCreate={true}
         canEdit={false}
       />,
-      { wrapper: createWrapper() }
+      { wrapper: createWrapper() },
     );
 
     // 新規作成時は今日 10:00 がデフォルト → 「日付を選択」は出ない

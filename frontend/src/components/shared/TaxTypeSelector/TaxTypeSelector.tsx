@@ -1,5 +1,11 @@
 import { memo } from "react";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import type { TaxType } from "@/types/generated/models";
 import { STYLE } from "@/lib/design-tokens";
 
@@ -28,11 +34,7 @@ export const TaxTypeSelector = memo(function TaxTypeSelector({
   className,
 }: TaxTypeSelectorProps) {
   return (
-    <Select
-      value={value}
-      onValueChange={(v) => onChange(v as TaxType)}
-      disabled={disabled}
-    >
+    <Select value={value} onValueChange={(v) => onChange(v as TaxType)} disabled={disabled}>
       <SelectTrigger
         aria-label={ariaLabel}
         className={`${STYLE.selectCompact} ${className ?? ""}`.trimEnd()}

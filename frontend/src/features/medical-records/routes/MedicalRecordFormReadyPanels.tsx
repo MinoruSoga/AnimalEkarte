@@ -1,9 +1,4 @@
-import {
-  useCallback,
-  useRef,
-  useState,
-  useTransition,
-} from "react";
+import { useCallback, useRef, useState, useTransition } from "react";
 
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { C, LAYOUT } from "@/lib/design-tokens";
@@ -16,7 +11,10 @@ import { ResourceMedicalRecords } from "@/types/generated/models";
 import type { Pet } from "@/types";
 import { MedicalRecordAddenda } from "../components/MedicalRecordAddenda";
 import { MedicalRecordAutoCreateFailure } from "../components/MedicalRecordAutoCreateFailure";
-import { MedicalRecordStickyHeader, MedicalRecordTabsArea } from "../components/MedicalRecordFormPanels";
+import {
+  MedicalRecordStickyHeader,
+  MedicalRecordTabsArea,
+} from "../components/MedicalRecordFormPanels";
 import {
   MedicalRecordFinalizeDialog,
   MedicalRecordFloatingActions,
@@ -47,13 +45,14 @@ function useMedicalRecordFormReadyState(input: {
   const { isDirty, markDirty, markClean } = useUnsavedChanges();
   const { data: ownerLineData } = useGetOwnerLineTags(selectedPet.ownerId ?? "");
   const hasLineIntegration = (ownerLineData?.is_linked && !ownerLineData?.lstep_opt_out) ?? false;
-  const lstepStatus = ownerLineData === undefined
-    ? undefined
-    : ownerLineData.lstep_opt_out
-      ? ("opt-out" as const)
-      : ownerLineData.is_linked
-        ? ("synced" as const)
-        : ("not-linked" as const);
+  const lstepStatus =
+    ownerLineData === undefined
+      ? undefined
+      : ownerLineData.lstep_opt_out
+        ? ("opt-out" as const)
+        : ownerLineData.is_linked
+          ? ("synced" as const)
+          : ("not-linked" as const);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const { handleRegisterEstimateSave } = useMedicalRecordPostSave({
     activeTab: form.activeTab,
@@ -62,8 +61,7 @@ function useMedicalRecordFormReadyState(input: {
   });
   const { user } = useAuth();
   const { data: currentRecord } = useGetMedicalRecord(recordId ?? "");
-  const recordFinalized =
-    form.isFinalized || isMedicalRecordFinalizedStatus(currentRecord?.status);
+  const recordFinalized = form.isFinalized || isMedicalRecordFinalizedStatus(currentRecord?.status);
   const recordClinicId = currentRecord?.clinicId;
   const { data: clinicalPlan } = useGetClinicalPlan(recordId ?? "", recordClinicId);
   const { data: treatments = [] } = useGetTreatments(recordId ?? "", recordClinicId);
@@ -74,7 +72,9 @@ function useMedicalRecordFormReadyState(input: {
   } = useGetBillingConfirmation(recordId ?? "");
   const [staffName, setStaffName] = useState(() => user?.displayName ?? "");
   const modals = useMedicalRecordFormModals();
-  const [mountedTabs, setMountedTabs] = useState<Set<string>>(() => new Set(["問診", form.activeTab]));
+  const [mountedTabs, setMountedTabs] = useState<Set<string>>(
+    () => new Set(["問診", form.activeTab]),
+  );
   const [isTabPending, startTabTransition] = useTransition();
   const dirtyFields = useMedicalRecordDirtyFields({
     markDirty,
@@ -94,27 +94,33 @@ function useMedicalRecordFormReadyState(input: {
   const handleFinalize = form.handleFinalize;
   const setActiveTab = form.setActiveTab;
 
-  const handleTabChange = useCallback((tab: string) => {
-    startTabTransition(() => {
-      setActiveTab(tab);
-      setMountedTabs((prev) => {
-        if (prev.has(tab)) return prev;
-        const next = new Set(prev);
-        next.add(tab);
-        return next;
+  const handleTabChange = useCallback(
+    (tab: string) => {
+      startTabTransition(() => {
+        setActiveTab(tab);
+        setMountedTabs((prev) => {
+          if (prev.has(tab)) return prev;
+          const next = new Set(prev);
+          next.add(tab);
+          return next;
+        });
       });
-    });
-    if (scrollContainerRef.current) {
-      scrollContainerRef.current.scrollTop = 0;
-    }
-  }, [setActiveTab]);
+      if (scrollContainerRef.current) {
+        scrollContainerRef.current.scrollTop = 0;
+      }
+    },
+    [setActiveTab],
+  );
 
-  const handleSelectStaff = useCallback((newStaffId: string, newStaffName: string) => {
-    setStaffName(newStaffName);
-    if (recordId) {
-      handleChangeDoctor(newStaffId, newStaffName);
-    }
-  }, [recordId, handleChangeDoctor]);
+  const handleSelectStaff = useCallback(
+    (newStaffId: string, newStaffName: string) => {
+      setStaffName(newStaffName);
+      if (recordId) {
+        handleChangeDoctor(newStaffId, newStaffName);
+      }
+    },
+    [recordId, handleChangeDoctor],
+  );
 
   const handleFinalizeConfirm = useCallback(() => {
     handleFinalize();
@@ -174,136 +180,141 @@ export function MedicalRecordFormReadyPanels({
 
   return (
     <form action={form.formAction} className={LAYOUT.fullHeight}>
-    <PageLayout
-      title={recordId ? "カルテ編集" : "カルテ入力"}
-      onBack={form.handleBack}
-      resource={ResourceMedicalRecords}
-      maxWidth={LAYOUT.pageContentMaxWidth.full}
-      scrollContainerRef={ready.scrollContainerRef}
-    >
-      <NavigationBlocker when={ready.isDirty} />
-      {form.autoCreateFailurePhase !== null ? (
-        <MedicalRecordAutoCreateFailure
-          failurePhase={form.autoCreateFailurePhase}
-          isRetrying={form.isCreating}
-          onRetry={form.retryAutoCreate}
-        />
-      ) : null}
-      <UnifiedTabsRoot
-        value={form.activeTab}
-        onValueChange={ready.handleTabChange}
-        className={form.activeTab === "問診" ? "flex-1 min-h-0" : undefined}
-        ariaBusy={ready.isTabPending}
+      <PageLayout
+        title={recordId ? "カルテ編集" : "カルテ入力"}
+        onBack={form.handleBack}
+        resource={ResourceMedicalRecords}
+        maxWidth={LAYOUT.pageContentMaxWidth.full}
+        scrollContainerRef={ready.scrollContainerRef}
       >
-      <MedicalRecordStickyHeader
-        selectedPet={selectedPet}
-        cohabitingPets={form.cohabitingPets}
-        staffName={ready.staffName}
-        visitType={form.visitType}
-        visitCount={form.visitCount ?? 0}
-        canEdit={canEdit}
-        isNewRecord={form.isNewRecord}
-        tabs={MEDICAL_RECORD_TAB_ITEMS}
-        recordDate={form.recordDate}
-        recordStatus={ready.currentRecord?.status}
-        nextVisitDate={form.nextVisitDate}
-        onVisitTypeChange={form.handleVisitTypeChange}
-        onStaffClick={ready.modals.handleOpenStaffModal}
-        onOwnerClick={ready.modals.handleOpenOwnerSearch}
-        onDateChange={form.handleChangeDate}
-        onNextVisitDatePatch={form.handleNextVisitDatePatch}
-        onNextVisitDateValidChange={form.handleNextVisitDateValidChange}
-        hasLineIntegration={ready.hasLineIntegration}
-      />
-      <fieldset
-        disabled={ready.recordFinalized || !canSubmit}
-        className="border-0 p-0 m-0 min-w-0"
-        data-testid="medical-record-edit-lock"
-      >
-        {ready.recordFinalized ? (
-          <div className={`mx-4 mt-3 rounded border ${C.borderMedium} ${C.bgPage} px-3 py-2 text-sm ${C.text60}`}>
-            このカルテは確定済みのため編集できません。修正が必要な場合は下部の訂正追記（addendum）をご利用ください。
-          </div>
+        <NavigationBlocker when={ready.isDirty} />
+        {form.autoCreateFailurePhase !== null ? (
+          <MedicalRecordAutoCreateFailure
+            failurePhase={form.autoCreateFailurePhase}
+            isRetrying={form.isCreating}
+            onRetry={form.retryAutoCreate}
+          />
         ) : null}
-        {formState?.error ? (
-          <div role="alert" className={`mx-4 mt-3 rounded border ${C.borderDanger} ${C.bgDanger10} px-3 py-2 text-sm ${C.danger}`}>
-            {formState.error}
-          </div>
-        ) : null}
-        <MedicalRecordTabsArea
-          activeTab={form.activeTab}
-          mountedTabs={ready.mountedTabs}
-          isNewRecord={form.isNewRecord}
+        <UnifiedTabsRoot
+          value={form.activeTab}
+          onValueChange={ready.handleTabChange}
+          className={form.activeTab === "問診" ? "flex-1 min-h-0" : undefined}
+          ariaBusy={ready.isTabPending}
+        >
+          <MedicalRecordStickyHeader
+            selectedPet={selectedPet}
+            cohabitingPets={form.cohabitingPets}
+            staffName={ready.staffName}
+            visitType={form.visitType}
+            visitCount={form.visitCount ?? 0}
+            canEdit={canEdit}
+            isNewRecord={form.isNewRecord}
+            tabs={MEDICAL_RECORD_TAB_ITEMS}
+            recordDate={form.recordDate}
+            recordStatus={ready.currentRecord?.status}
+            nextVisitDate={form.nextVisitDate}
+            onVisitTypeChange={form.handleVisitTypeChange}
+            onStaffClick={ready.modals.handleOpenStaffModal}
+            onOwnerClick={ready.modals.handleOpenOwnerSearch}
+            onDateChange={form.handleChangeDate}
+            onNextVisitDatePatch={form.handleNextVisitDatePatch}
+            onNextVisitDateValidChange={form.handleNextVisitDateValidChange}
+            hasLineIntegration={ready.hasLineIntegration}
+          />
+          <fieldset
+            disabled={ready.recordFinalized || !canSubmit}
+            className="border-0 p-0 m-0 min-w-0"
+            data-testid="medical-record-edit-lock"
+          >
+            {ready.recordFinalized ? (
+              <div
+                className={`mx-4 mt-3 rounded border ${C.borderMedium} ${C.bgPage} px-3 py-2 text-sm ${C.text60}`}
+              >
+                このカルテは確定済みのため編集できません。修正が必要な場合は下部の訂正追記（addendum）をご利用ください。
+              </div>
+            ) : null}
+            {formState?.error ? (
+              <div
+                role="alert"
+                className={`mx-4 mt-3 rounded border ${C.borderDanger} ${C.bgDanger10} px-3 py-2 text-sm ${C.danger}`}
+              >
+                {formState.error}
+              </div>
+            ) : null}
+            <MedicalRecordTabsArea
+              activeTab={form.activeTab}
+              mountedTabs={ready.mountedTabs}
+              isNewRecord={form.isNewRecord}
+              recordId={recordId}
+              selectedPet={selectedPet}
+              chiefComplaint={form.chiefComplaint}
+              chiefComplaintTypeId={form.chiefComplaintTypeId}
+              treatmentPolicy={form.treatmentPolicy}
+              historyItems={ready.historyItems}
+              physicalExam={form.physicalExam}
+              plan={form.plan}
+              assessment={form.assessment}
+              diagnosis1CategoryId={form.diagnosis1CategoryId}
+              diagnosis1NameId={form.diagnosis1NameId}
+              diagnosis2CategoryId={form.diagnosis2CategoryId}
+              diagnosis2NameId={form.diagnosis2NameId}
+              ownerDiscountRate={form.ownerDiscountRate ?? 0}
+              nextVisitDate={form.nextVisitDate}
+              hasLineIntegration={ready.hasLineIntegration}
+              recommendationReason={form.recommendationReason}
+              lstepStatus={ready.lstepStatus}
+              recordStatus={ready.currentRecord?.status ?? ""}
+              diagnosis1NameIdError={formState?.fieldErrors?.diagnosis1_name_id}
+              onChiefComplaintChange={ready.dirtyFields.handleSetChiefComplaint}
+              onChiefComplaintTypeIdChange={ready.dirtyFields.handleSetChiefComplaintTypeId}
+              onTreatmentPolicyChange={ready.dirtyFields.handleSetTreatmentPolicy}
+              onPhysicalExamChange={ready.dirtyFields.handleSetPhysicalExam}
+              onPlanChange={ready.dirtyFields.handleSetPlan}
+              onAssessmentChange={ready.dirtyFields.handleSetAssessment}
+              onDiagnosis1CategoryIdChange={ready.dirtyFields.handleSetDiagnosis1CategoryId}
+              onDiagnosis1NameIdChange={ready.dirtyFields.handleSetDiagnosis1NameId}
+              onDiagnosis2CategoryIdChange={ready.dirtyFields.handleSetDiagnosis2CategoryId}
+              onDiagnosis2NameIdChange={ready.dirtyFields.handleSetDiagnosis2NameId}
+              onNextVisitDateChange={form.handleNextVisitDateChange}
+              onNextVisitDateValidChange={form.handleNextVisitDateValidChange}
+              onRecommendationReasonChange={form.setRecommendationReason}
+              onRegisterEstimateSave={ready.handleRegisterEstimateSave}
+              recordClinicId={ready.recordClinicId}
+            />
+          </fieldset>
+        </UnifiedTabsRoot>
+
+        <MedicalRecordFormReadyOverlays
           recordId={recordId}
           selectedPet={selectedPet}
-          chiefComplaint={form.chiefComplaint}
-          chiefComplaintTypeId={form.chiefComplaintTypeId}
-          treatmentPolicy={form.treatmentPolicy}
-          historyItems={ready.historyItems}
-          physicalExam={form.physicalExam}
-          plan={form.plan}
-          assessment={form.assessment}
-          diagnosis1CategoryId={form.diagnosis1CategoryId}
-          diagnosis1NameId={form.diagnosis1NameId}
-          diagnosis2CategoryId={form.diagnosis2CategoryId}
-          diagnosis2NameId={form.diagnosis2NameId}
-          ownerDiscountRate={form.ownerDiscountRate ?? 0}
-          nextVisitDate={form.nextVisitDate}
-          hasLineIntegration={ready.hasLineIntegration}
-          recommendationReason={form.recommendationReason}
-          lstepStatus={ready.lstepStatus}
-          recordStatus={ready.currentRecord?.status ?? ""}
-          diagnosis1NameIdError={formState?.fieldErrors?.diagnosis1_name_id}
-          onChiefComplaintChange={ready.dirtyFields.handleSetChiefComplaint}
-          onChiefComplaintTypeIdChange={ready.dirtyFields.handleSetChiefComplaintTypeId}
-          onTreatmentPolicyChange={ready.dirtyFields.handleSetTreatmentPolicy}
-          onPhysicalExamChange={ready.dirtyFields.handleSetPhysicalExam}
-          onPlanChange={ready.dirtyFields.handleSetPlan}
-          onAssessmentChange={ready.dirtyFields.handleSetAssessment}
-          onDiagnosis1CategoryIdChange={ready.dirtyFields.handleSetDiagnosis1CategoryId}
-          onDiagnosis1NameIdChange={ready.dirtyFields.handleSetDiagnosis1NameId}
-          onDiagnosis2CategoryIdChange={ready.dirtyFields.handleSetDiagnosis2CategoryId}
-          onDiagnosis2NameIdChange={ready.dirtyFields.handleSetDiagnosis2NameId}
-          onNextVisitDateChange={form.handleNextVisitDateChange}
-          onNextVisitDateValidChange={form.handleNextVisitDateValidChange}
-          onRecommendationReasonChange={form.setRecommendationReason}
-          onRegisterEstimateSave={ready.handleRegisterEstimateSave}
-          recordClinicId={ready.recordClinicId}
+          form={form}
+          canEdit={canEdit}
+          canSubmit={canSubmit}
+          canDelete={canDelete}
+          isDeleting={isDeleting}
+          onDeleteConfirm={onDeleteConfirm}
+          ready={ready}
         />
-      </fieldset>
-      </UnifiedTabsRoot>
+      </PageLayout>
 
-      <MedicalRecordFormReadyOverlays
+      <MedicalRecordPrintArea
+        isPrinting={ready.modals.isPrinting}
+        isNewRecord={form.isNewRecord}
         recordId={recordId}
-        selectedPet={selectedPet}
-        form={form}
-        canEdit={canEdit}
-        canSubmit={canSubmit}
-        canDelete={canDelete}
-        isDeleting={isDeleting}
-        onDeleteConfirm={onDeleteConfirm}
-        ready={ready}
+        doctorName={ready.staffName}
+        recordDate={form.recordDate}
+        pet={{
+          name: selectedPet.name,
+          species: selectedPet.species,
+          ownerName: selectedPet.ownerName,
+        }}
+        clinic={ready.user?.clinic ?? undefined}
+        chiefComplaint={form.chiefComplaint}
+        treatmentPolicy={form.treatmentPolicy}
+        physicalExam={ready.clinicalPlan?.physical_exam}
+        diagnosisDetails={ready.clinicalPlan?.diagnosis_details}
+        treatments={ready.treatments}
       />
-    </PageLayout>
-
-    <MedicalRecordPrintArea
-      isPrinting={ready.modals.isPrinting}
-      isNewRecord={form.isNewRecord}
-      recordId={recordId}
-      doctorName={ready.staffName}
-      recordDate={form.recordDate}
-      pet={{
-        name: selectedPet.name,
-        species: selectedPet.species,
-        ownerName: selectedPet.ownerName,
-      }}
-      clinic={ready.user?.clinic ?? undefined}
-      chiefComplaint={form.chiefComplaint}
-      treatmentPolicy={form.treatmentPolicy}
-      physicalExam={ready.clinicalPlan?.physical_exam}
-      diagnosisDetails={ready.clinicalPlan?.diagnosis_details}
-      treatments={ready.treatments}
-    />
     </form>
   );
 }

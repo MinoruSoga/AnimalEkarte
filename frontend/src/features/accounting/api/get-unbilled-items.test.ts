@@ -43,11 +43,7 @@ describe("getUnbilledItems", () => {
 
     const result = await getUnbilledItems("7");
 
-    expect(result.map((item) => item.id)).toEqual([
-      "treatment_41",
-      "vaccination_41",
-      "exam_41",
-    ]);
+    expect(result.map((item) => item.id)).toEqual(["treatment_41", "vaccination_41", "exam_41"]);
     expect(mockedGet).toHaveBeenCalledWith("/v1/billing-items/unbilled", {
       params: { pet_id: "7" },
     });

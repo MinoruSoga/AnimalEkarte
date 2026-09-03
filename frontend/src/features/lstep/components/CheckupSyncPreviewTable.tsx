@@ -32,9 +32,7 @@ const CheckupSyncPreviewRow = memo(function CheckupSyncPreviewRow({
         />
       </td>
       <td className={`${STYLE.tableCell} px-4`}>{owner.owner_name}</td>
-      <td className={`${STYLE.tableCell} px-4 ${C.text70}`}>
-        {owner.pet_names.join(", ") || "—"}
-      </td>
+      <td className={`${STYLE.tableCell} px-4 ${C.text70}`}>{owner.pet_names.join(", ") || "—"}</td>
       <td className={`${STYLE.tableCell} px-4 ${C.text70}`}>
         {owner.last_visit_date ? owner.last_visit_date : "—"}
       </td>
@@ -53,9 +51,7 @@ const CheckupSyncPreviewRow = memo(function CheckupSyncPreviewRow({
           <span className={`text-sm ${C.textStatusGray}`}>未連携</span>
         )}
       </td>
-      <td className={`${STYLE.tableCell} ${C.danger}`}>
-        {owner.exclusion_reason ?? null}
-      </td>
+      <td className={`${STYLE.tableCell} ${C.danger}`}>{owner.exclusion_reason ?? null}</td>
     </tr>
   );
 });
@@ -88,8 +84,7 @@ export function CheckupSyncPreviewTable({
   const eligibleOwners = owners.filter(isEligible);
   const selectableOwners = eligibleOwners.slice(0, CHECKUP_SYNC_OWNER_LIMIT);
   const allEligibleSelected =
-    selectableOwners.length > 0 &&
-    selectableOwners.every((o) => selectedIds.has(o.owner_id));
+    selectableOwners.length > 0 && selectableOwners.every((o) => selectedIds.has(o.owner_id));
   const selectionLimitReached = selectedIds.size >= CHECKUP_SYNC_OWNER_LIMIT;
 
   const handleSelectAll = useCallback(
@@ -129,29 +124,21 @@ export function CheckupSyncPreviewTable({
   return (
     <div className="space-y-3">
       {/* サマリー行 */}
-      <div className={`rounded-md border ${C.borderLight} px-4 py-2.5 flex flex-wrap gap-x-4 gap-y-1 text-sm`}>
+      <div
+        className={`rounded-md border ${C.borderLight} px-4 py-2.5 flex flex-wrap gap-x-4 gap-y-1 text-sm`}
+      >
         <span>
-          合計{" "}
-          <span className={`font-semibold ${C.text}`}>{totalCount}件</span>
+          合計 <span className={`font-semibold ${C.text}`}>{totalCount}件</span>
         </span>
         <span>
-          送信可能{" "}
-          <span className={`font-semibold ${C.textStatusGreen}`}>{eligibleCount}件</span>
+          送信可能 <span className={`font-semibold ${C.textStatusGreen}`}>{eligibleCount}件</span>
         </span>
         {lineUnlinkedCount > 0 ? (
-          <span className={C.text50}>
-            LINE未連携 {lineUnlinkedCount}件
-          </span>
+          <span className={C.text50}>LINE未連携 {lineUnlinkedCount}件</span>
         ) : null}
-        {optOutCount > 0 ? (
-          <span className={C.text50}>
-            配信停止中 {optOutCount}件
-          </span>
-        ) : null}
+        {optOutCount > 0 ? <span className={C.text50}>配信停止中 {optOutCount}件</span> : null}
         {noLivingPetCount > 0 ? (
-          <span className={C.text50}>
-            生存ペットなし {noLivingPetCount}件
-          </span>
+          <span className={C.text50}>生存ペットなし {noLivingPetCount}件</span>
         ) : null}
       </div>
 

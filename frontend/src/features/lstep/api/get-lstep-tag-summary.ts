@@ -23,7 +23,7 @@ export function useGetLstepTagSummary() {
     queryFn: async () => {
       const clinicId = requireStoredClinicId();
       const { data } = await axios.get<LstepTagSummaryResponse>(
-        `/v1/clinics/${clinicId}/lstep/tag-summary`
+        `/v1/clinics/${clinicId}/lstep/tag-summary`,
       );
       return data;
     },

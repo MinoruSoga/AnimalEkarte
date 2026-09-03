@@ -13,15 +13,12 @@ import { createWrapper, silentApiHandlers, noop } from "./ReservationFormModal.t
 // fireEvent.click でも開かない）。本テストの対象は Popover の開閉実装ではないので、開閉の
 // 意味論だけを保った素の実装へ差し替え、Dialog×Popover の相互作用を構造的に取り除く。
 vi.mock("@/components/ui/searchable-select", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("@/components/ui/searchable-select")>();
+  const actual = await importOriginal<typeof import("@/components/ui/searchable-select")>();
   const { useState } = await import("react");
   type Props = Parameters<typeof actual.SearchableSelect>[0];
   function SearchableSelectStub(props: Props) {
     const [open, setOpen] = useState(false);
-    const flat = props.groups
-      ? props.groups.flatMap((g) => g.options)
-      : (props.options ?? []);
+    const flat = props.groups ? props.groups.flatMap((g) => g.options) : (props.options ?? []);
     const selected = flat.find((o) => o.value === props.value);
     return (
       <div>
@@ -85,7 +82,7 @@ describe("ReservationFormModal — 新規飼主モード (Issue #51)", () => {
         canCreate={true}
         canEdit={false}
       />,
-      { wrapper: createWrapper() }
+      { wrapper: createWrapper() },
     );
 
     // 既存飼主モードでは患者検索ラベルが表示される
@@ -108,7 +105,7 @@ describe("ReservationFormModal — 新規飼主モード (Issue #51)", () => {
         canCreate={true}
         canEdit={false}
       />,
-      { wrapper: createWrapper() }
+      { wrapper: createWrapper() },
     );
 
     await user.click(screen.getByRole("button", { name: "予約を確定" }));
@@ -130,7 +127,7 @@ describe("ReservationFormModal — 新規飼主モード (Issue #51)", () => {
         canCreate={true}
         canEdit={false}
       />,
-      { wrapper: createWrapper() }
+      { wrapper: createWrapper() },
     );
 
     const newOwnerBtn = screen.getByTestId("mode-new");
@@ -158,7 +155,7 @@ describe("ReservationFormModal — 新規飼主モード (Issue #51)", () => {
         canCreate={true}
         canEdit={false}
       />,
-      { wrapper: createWrapper() }
+      { wrapper: createWrapper() },
     );
 
     await user.click(screen.getByTestId("mode-new"));
@@ -170,7 +167,9 @@ describe("ReservationFormModal — 新規飼主モード (Issue #51)", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText("電話番号の形式が正しくありません（例：090-1234-5678 または +81 90 1234 5678）")
+        screen.getByText(
+          "電話番号の形式が正しくありません（例：090-1234-5678 または +81 90 1234 5678）",
+        ),
       ).toBeInTheDocument();
     });
   });
@@ -189,7 +188,7 @@ describe("ReservationFormModal — 新規飼主モード (Issue #51)", () => {
         canCreate={true}
         canEdit={false}
       />,
-      { wrapper: createWrapper() }
+      { wrapper: createWrapper() },
     );
 
     await user.click(screen.getByTestId("mode-new"));
@@ -232,14 +231,21 @@ describe("ReservationFormModal — 新規飼主モード (Issue #51)", () => {
       http.get("/api/v1/reservations/available-times", () => HttpResponse.json([])),
       // 動物種: 犬 1件
       http.get("/api/v1/masters/animal-species", () =>
-        HttpResponse.json([{ id: 1, name: "犬", is_active: true }])
+        HttpResponse.json([{ id: 1, name: "犬", is_active: true }]),
       ),
       // 予約区分: 一般診療 1件（group なし → "その他" グループ）
       http.get("/api/v1/masters/reservation-types", () =>
         HttpResponse.json([
-          { id: 5, name: "一般診療", color: "#000000", is_active: true, group_id: null, group: null },
-        ])
-      )
+          {
+            id: 5,
+            name: "一般診療",
+            color: "#000000",
+            is_active: true,
+            group_id: null,
+            group: null,
+          },
+        ]),
+      ),
     );
 
     const onSave = vi.fn();
@@ -254,7 +260,7 @@ describe("ReservationFormModal — 新規飼主モード (Issue #51)", () => {
         canCreate={true}
         canEdit={false}
       />,
-      { wrapper: createWrapper() }
+      { wrapper: createWrapper() },
     );
 
     // 新規飼主モードに切り替え（act() ラップ必要なため user.click を維持）
@@ -262,9 +268,13 @@ describe("ReservationFormModal — 新規飼主モード (Issue #51)", () => {
 
     // テキストフィールドを入力（fireEvent.change で1イベント完結、タイムアウト防止）
     fireEvent.change(screen.getByTestId("new-owner-name"), { target: { value: "山田太郎" } });
-    fireEvent.change(screen.getByTestId("new-owner-phone"), { target: { value: "+81 90 1234 5678" } });
+    fireEvent.change(screen.getByTestId("new-owner-phone"), {
+      target: { value: "+81 90 1234 5678" },
+    });
     fireEvent.change(screen.getByTestId("new-owner-pet-name"), { target: { value: "ポチ" } });
-    fireEvent.change(screen.getByTestId("new-owner-chief-complaint"), { target: { value: "食欲不振" } });
+    fireEvent.change(screen.getByTestId("new-owner-chief-complaint"), {
+      target: { value: "食欲不振" },
+    });
 
     // SearchableSelect は種取得中 disabled。enabled になるまで待ってから開く（disabled click は no-op）
     const speciesTrigger = screen.getByTestId("new-owner-species");

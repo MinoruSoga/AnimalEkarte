@@ -128,7 +128,10 @@ describe("HospitalizationBoard empty cage actions", () => {
       "data-drag-attributes",
     );
     expect(
-      screen.getByText("犬 ポチ").closest("[data-slot='card']")?.querySelector(".lucide-grip-vertical"),
+      screen
+        .getByText("犬 ポチ")
+        .closest("[data-slot='card']")
+        ?.querySelector(".lucide-grip-vertical"),
     ).not.toBeInTheDocument();
 
     act(() => {
@@ -241,7 +244,9 @@ describe("HospitalizationBoard empty cage actions", () => {
     await user.click(screen.getByText("空き").closest("[data-slot='card']") as HTMLElement);
 
     expect(onNavigateToForm).not.toHaveBeenCalled();
-    expect(screen.queryByRole("button", { name: /空き枠に入院・ホテルを登録/ })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /空き枠に入院・ホテルを登録/ }),
+    ).not.toBeInTheDocument();
   });
 
   it("canCreate=trueなら空カード自体は非interactiveのまま、追加buttonをkeyboard操作できる", async () => {

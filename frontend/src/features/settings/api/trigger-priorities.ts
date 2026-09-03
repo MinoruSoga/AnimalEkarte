@@ -22,7 +22,9 @@ export interface UpdateTriggerPrioritiesRequest {
 // API functions
 // ─────────────────────────────────────────────────
 
-export async function fetchTriggerPriorities(clinicId: string): Promise<TriggerPriorityListResponse> {
+export async function fetchTriggerPriorities(
+  clinicId: string,
+): Promise<TriggerPriorityListResponse> {
   const { data } = await axios.get<TriggerPriorityListResponse>(
     `/v1/clinics/${clinicId}/lstep/trigger-priorities`,
   );

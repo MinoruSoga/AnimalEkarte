@@ -15,12 +15,15 @@ interface UpdateOwnerDeliveryCautionBody {
 async function updateOwnerDeliveryCaution(
   clinicId: string,
   ownerId: string,
-  body: UpdateOwnerDeliveryCautionBody
+  body: UpdateOwnerDeliveryCautionBody,
 ): Promise<Owner> {
-  const { data } = await axios.patch<OwnerApiResponse>(`/v1/clinics/${clinicId}/owners/${ownerId}/delivery-caution`, {
-    caution: body.caution,
-    reason: body.reason,
-  });
+  const { data } = await axios.patch<OwnerApiResponse>(
+    `/v1/clinics/${clinicId}/owners/${ownerId}/delivery-caution`,
+    {
+      caution: body.caution,
+      reason: body.reason,
+    },
+  );
   return transformOwner(data);
 }
 

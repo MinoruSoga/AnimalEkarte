@@ -22,12 +22,9 @@ export interface LineSendRequest {
 async function sendLineMessage(
   clinicId: string,
   ownerId: string,
-  body: LineSendRequest
+  body: LineSendRequest,
 ): Promise<void> {
-  await axios.post(
-    `/v1/clinics/${clinicId}/owners/${ownerId}/line/send`,
-    body
-  );
+  await axios.post(`/v1/clinics/${clinicId}/owners/${ownerId}/line/send`, body);
 }
 
 export function useSendLineMessage(ownerId: string) {

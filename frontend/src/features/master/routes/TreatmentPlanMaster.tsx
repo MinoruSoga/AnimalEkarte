@@ -32,15 +32,24 @@ export function TreatmentPlanMaster() {
   const [pendingDelete, setPendingDelete] = useState<TreatmentItem | null>(null);
 
   const dirty = useSidePeekDirty();
-  const handleDirtyChange = useCallback((d: boolean) => { if (d) dirty.markDirty(); else dirty.markClean(); }, [dirty]);
+  const handleDirtyChange = useCallback(
+    (d: boolean) => {
+      if (d) dirty.markDirty();
+      else dirty.markClean();
+    },
+    [dirty],
+  );
 
-  const handleTabChange = useCallback((tab: string) => {
-    dirty.runWithDiscardCheck(() => {
-      setSearchParams({ tab });
-      setEditTarget(null);
-      setPendingDelete(null);
-    });
-  }, [setSearchParams, dirty]);
+  const handleTabChange = useCallback(
+    (tab: string) => {
+      dirty.runWithDiscardCheck(() => {
+        setSearchParams({ tab });
+        setEditTarget(null);
+        setPendingDelete(null);
+      });
+    },
+    [setSearchParams, dirty],
+  );
 
   const handleNew = useCallback(() => {
     dirty.runWithDiscardCheck(() => {
@@ -77,11 +86,14 @@ export function TreatmentPlanMaster() {
     });
   }, [dirty]);
 
-  const setEditTargetGuarded = useCallback((target: TreatmentItem | "new" | null) => {
-    dirty.runWithDiscardCheck(() => {
-      setEditTarget(target);
-    });
-  }, [dirty]);
+  const setEditTargetGuarded = useCallback(
+    (target: TreatmentItem | "new" | null) => {
+      dirty.runWithDiscardCheck(() => {
+        setEditTarget(target);
+      });
+    },
+    [dirty],
+  );
 
   const handleDeleteRequest = useCallback(() => {
     setPendingDelete(resources.selectedItem);

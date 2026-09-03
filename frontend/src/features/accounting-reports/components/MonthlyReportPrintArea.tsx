@@ -2,10 +2,7 @@ import { PrintPortal } from "@/components/shared/PrintPortal";
 import { formatTaxRatePercent } from "@/hooks/use-clinic-tax-rates";
 import { C } from "@/lib/design-tokens";
 import { formatCurrency } from "@/lib/format/number";
-import type {
-  CategoryPaymentMatrix,
-  MonthlyReportResponse,
-} from "../api/get-monthly-report";
+import type { CategoryPaymentMatrix, MonthlyReportResponse } from "../api/get-monthly-report";
 import { CategoryPaymentMatrixTable } from "./CategoryPaymentMatrixTable";
 
 interface MonthlyReportPrintAreaProps {
@@ -53,16 +50,34 @@ export function MonthlyReportPrintArea({
       <table className="w-full text-[9pt] border-collapse mb-3">
         <tbody>
           <tr>
-            <th className={`border ${C.borderGray300} ${C.bgGray100} px-2 py-1 text-left`}>診療日数</th>
-            <td className={`border ${C.borderGray300} px-2 py-1 text-right`}>{summary.workingDays}日</td>
-            <th className={`border ${C.borderGray300} ${C.bgGray100} px-2 py-1 text-left`}>会計件数</th>
-            <td className={`border ${C.borderGray300} px-2 py-1 text-right`}>{summary.totalBillings}件</td>
-            <th className={`border ${C.borderGray300} ${C.bgGray100} px-2 py-1 text-left`}>売上合計</th>
-            <td className={`border ${C.borderGray300} px-2 py-1 text-right`}>{formatCurrency(summary.totalAmount)}</td>
+            <th className={`border ${C.borderGray300} ${C.bgGray100} px-2 py-1 text-left`}>
+              診療日数
+            </th>
+            <td className={`border ${C.borderGray300} px-2 py-1 text-right`}>
+              {summary.workingDays}日
+            </td>
+            <th className={`border ${C.borderGray300} ${C.bgGray100} px-2 py-1 text-left`}>
+              会計件数
+            </th>
+            <td className={`border ${C.borderGray300} px-2 py-1 text-right`}>
+              {summary.totalBillings}件
+            </td>
+            <th className={`border ${C.borderGray300} ${C.bgGray100} px-2 py-1 text-left`}>
+              売上合計
+            </th>
+            <td className={`border ${C.borderGray300} px-2 py-1 text-right`}>
+              {formatCurrency(summary.totalAmount)}
+            </td>
             <th className={`border ${C.borderGray300} ${C.bgGray100} px-2 py-1 text-left`}>返金</th>
-            <td className={`border ${C.borderGray300} px-2 py-1 text-right`}>-{formatCurrency(summary.totalRefund)}</td>
-            <th className={`border ${C.borderGray300} ${C.bgGray100} px-2 py-1 text-left`}>純売上</th>
-            <td className={`border ${C.borderGray300} px-2 py-1 text-right font-bold`}>{formatCurrency(summary.netAmount)}</td>
+            <td className={`border ${C.borderGray300} px-2 py-1 text-right`}>
+              -{formatCurrency(summary.totalRefund)}
+            </td>
+            <th className={`border ${C.borderGray300} ${C.bgGray100} px-2 py-1 text-left`}>
+              純売上
+            </th>
+            <td className={`border ${C.borderGray300} px-2 py-1 text-right font-bold`}>
+              {formatCurrency(summary.netAmount)}
+            </td>
           </tr>
         </tbody>
       </table>
@@ -75,13 +90,17 @@ export function MonthlyReportPrintArea({
             <tbody>
               {paymentEntries.length === 0 ? (
                 <tr>
-                  <td className={`border ${C.borderGray300} px-2 py-1 ${C.textMuted}`}>データなし</td>
+                  <td className={`border ${C.borderGray300} px-2 py-1 ${C.textMuted}`}>
+                    データなし
+                  </td>
                 </tr>
               ) : (
                 paymentEntries.map(([method, amount]) => (
                   <tr key={method}>
                     <td className={`border ${C.borderGray300} px-2 py-1`}>{method}</td>
-                    <td className={`border ${C.borderGray300} px-2 py-1 text-right`}>{formatCurrency(amount)}</td>
+                    <td className={`border ${C.borderGray300} px-2 py-1 text-right`}>
+                      {formatCurrency(amount)}
+                    </td>
                   </tr>
                 ))
               )}
@@ -103,15 +122,23 @@ export function MonthlyReportPrintArea({
                 <td className={`border ${C.borderGray300} px-2 py-1`}>
                   標準税率（{formatTaxRatePercent(standardTaxRate)}）
                 </td>
-                <td className={`border ${C.borderGray300} px-2 py-1 text-right`}>{formatCurrency(standard.taxableAmount)}</td>
-                <td className={`border ${C.borderGray300} px-2 py-1 text-right`}>{formatCurrency(standard.taxAmount)}</td>
+                <td className={`border ${C.borderGray300} px-2 py-1 text-right`}>
+                  {formatCurrency(standard.taxableAmount)}
+                </td>
+                <td className={`border ${C.borderGray300} px-2 py-1 text-right`}>
+                  {formatCurrency(standard.taxAmount)}
+                </td>
               </tr>
               <tr>
                 <td className={`border ${C.borderGray300} px-2 py-1`}>
                   軽減税率（{formatTaxRatePercent(reducedTaxRate)}）
                 </td>
-                <td className={`border ${C.borderGray300} px-2 py-1 text-right`}>{formatCurrency(reduced.taxableAmount)}</td>
-                <td className={`border ${C.borderGray300} px-2 py-1 text-right`}>{formatCurrency(reduced.taxAmount)}</td>
+                <td className={`border ${C.borderGray300} px-2 py-1 text-right`}>
+                  {formatCurrency(reduced.taxableAmount)}
+                </td>
+                <td className={`border ${C.borderGray300} px-2 py-1 text-right`}>
+                  {formatCurrency(reduced.taxAmount)}
+                </td>
               </tr>
             </tbody>
           </table>
@@ -147,10 +174,16 @@ export function MonthlyReportPrintArea({
               <td className={`border ${C.borderGray300} px-1 py-0.5`}>{d.date}</td>
               <td className={`border ${C.borderGray300} px-1 py-0.5`}>{d.weekday}</td>
               <td className={`border ${C.borderGray300} px-1 py-0.5 text-right`}>{d.amCount}</td>
-              <td className={`border ${C.borderGray300} px-1 py-0.5 text-right`}>{formatCurrency(d.amNet)}</td>
+              <td className={`border ${C.borderGray300} px-1 py-0.5 text-right`}>
+                {formatCurrency(d.amNet)}
+              </td>
               <td className={`border ${C.borderGray300} px-1 py-0.5 text-right`}>{d.pmCount}</td>
-              <td className={`border ${C.borderGray300} px-1 py-0.5 text-right`}>{formatCurrency(d.pmNet)}</td>
-              <td className={`border ${C.borderGray300} px-1 py-0.5 text-right font-medium`}>{formatCurrency(d.dayNet)}</td>
+              <td className={`border ${C.borderGray300} px-1 py-0.5 text-right`}>
+                {formatCurrency(d.pmNet)}
+              </td>
+              <td className={`border ${C.borderGray300} px-1 py-0.5 text-right font-medium`}>
+                {formatCurrency(d.dayNet)}
+              </td>
               <td className={`border ${C.borderGray300} px-1 py-0.5 text-right`}>
                 {d.refund > 0 ? `-${formatCurrency(d.refund)}` : "—"}
               </td>

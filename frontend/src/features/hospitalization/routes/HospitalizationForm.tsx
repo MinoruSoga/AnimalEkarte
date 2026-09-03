@@ -36,11 +36,8 @@ export function HospitalizationForm() {
   }, [canDelete, petIsDeceased]);
 
   const handleDelete = useCallback(() => {
-    if (
-      !hospitalizationId ||
-      canDeleteRef.current !== true ||
-      petIsDeceasedRef.current === true
-    ) return;
+    if (!hospitalizationId || canDeleteRef.current !== true || petIsDeceasedRef.current === true)
+      return;
     startDeleteTransition(() => {
       // FE-RC-005: useDeleteHospitalization.onError が既に handleApiError でトースト表示済みのため、
       // ここでは再通知しない。
@@ -79,7 +76,9 @@ export function HospitalizationForm() {
     return <HospitalizationFormStatusView gate={gate} onBack={chrome.handleBack} />;
   }
   if (!form.isEdit && petIsDeceased) {
-    return <HospitalizationFormStatusView gate={{ kind: "new-deceased" }} onBack={chrome.handleBack} />;
+    return (
+      <HospitalizationFormStatusView gate={{ kind: "new-deceased" }} onBack={chrome.handleBack} />
+    );
   }
 
   return (

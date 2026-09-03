@@ -55,20 +55,18 @@ async function listInquiryTemplates(): Promise<InquiryTemplate[]> {
   return data.map(transformInquiryTemplate);
 }
 
-async function createInquiryTemplate(
-  req: CreateInquiryTemplateRequest
-): Promise<InquiryTemplate> {
+async function createInquiryTemplate(req: CreateInquiryTemplateRequest): Promise<InquiryTemplate> {
   const { data } = await axios.post<ModelInquiryTemplate>("/v1/masters/inquiry-templates", req);
   return transformInquiryTemplate(data);
 }
 
 async function updateInquiryTemplate(
   id: string,
-  req: UpdateInquiryTemplateRequest
+  req: UpdateInquiryTemplateRequest,
 ): Promise<InquiryTemplate> {
   const { data } = await axios.patch<ModelInquiryTemplate>(
     `/v1/masters/inquiry-templates/${id}`,
-    req
+    req,
   );
   return transformInquiryTemplate(data);
 }
@@ -123,4 +121,3 @@ export function useDeleteInquiryTemplate() {
     onError: (error) => handleApiError(error, "削除"),
   });
 }
-

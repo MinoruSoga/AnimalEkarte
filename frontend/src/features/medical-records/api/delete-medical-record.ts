@@ -9,7 +9,7 @@ import { queryKeys } from "@/lib/query-keys";
 const deleteMedicalRecord = async (id: string, clinicId?: string): Promise<void> => {
   await axios.delete(
     `/v1/medical-records/${id}`,
-    clinicId ? { headers: { "X-Clinic-ID": clinicId } } : undefined
+    clinicId ? { headers: { "X-Clinic-ID": clinicId } } : undefined,
   );
 };
 

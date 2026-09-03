@@ -26,11 +26,7 @@ interface LineIntegrationCardProps {
   owner?: Owner;
 }
 
-export function LineIntegrationCard({
-  ownerId,
-  ownerName,
-  owner,
-}: LineIntegrationCardProps) {
+export function LineIntegrationCard({ ownerId, ownerName, owner }: LineIntegrationCardProps) {
   const state = useLineIntegrationCardState({ ownerId, owner });
 
   if (state.isLoading) {

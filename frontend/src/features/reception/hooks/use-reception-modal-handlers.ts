@@ -195,8 +195,10 @@ export function useReceptionModalHandlers({
       if (!editingAppointmentId || !data.start) return;
       if (selectedAppointmentSnapshot?.petStatus === PetStatusDeceased) return;
       if (selectedPetSnapshot?.status === "死亡") return;
-      const resolvedPetId = selectedPetSnapshot?.id || data.petId || selectedAppointmentSnapshot?.petId;
-      const resolvedOwnerId = selectedPetSnapshot?.ownerId || data.ownerId || selectedAppointmentSnapshot?.ownerId;
+      const resolvedPetId =
+        selectedPetSnapshot?.id || data.petId || selectedAppointmentSnapshot?.petId;
+      const resolvedOwnerId =
+        selectedPetSnapshot?.ownerId || data.ownerId || selectedAppointmentSnapshot?.ownerId;
       const selectedPetDangerLevel = toPetDangerLevel(selectedPetSnapshot?.dangerLevel);
       const petSentinelFields: {
         petStatus?: PetStatus;
@@ -222,7 +224,11 @@ export function useReceptionModalHandlers({
       if (nextEnd === undefined) return;
 
       const req = buildReceptionReservationUpdateRequest(current, data);
-      req.status = data.status || (selectedAppointmentSnapshot ? preserveEditableStatus(selectedAppointmentSnapshot) : "confirmed");
+      req.status =
+        data.status ||
+        (selectedAppointmentSnapshot
+          ? preserveEditableStatus(selectedAppointmentSnapshot)
+          : "confirmed");
       const nextPetId = optionalNumericID(resolvedPetId);
       const nextOwnerId = optionalNumericID(resolvedOwnerId);
       if (nextPetId !== undefined) req.pet_id = nextPetId;
@@ -246,7 +252,11 @@ export function useReceptionModalHandlers({
         isDesignated: data.isDesignated ?? false,
         petId: selectedPetSnapshot?.id || data.petId || "",
         ownerId: selectedPetSnapshot?.ownerId || selectedAppointmentSnapshot?.ownerId || "",
-        status: data.status || (selectedAppointmentSnapshot ? preserveEditableStatus(selectedAppointmentSnapshot) : "confirmed"),
+        status:
+          data.status ||
+          (selectedAppointmentSnapshot
+            ? preserveEditableStatus(selectedAppointmentSnapshot)
+            : "confirmed"),
         notes: data.notes,
         source: selectedAppointmentSnapshot?.source || "manual",
         // 予約内容の編集(時間/医師変更等)では checked_in_at は不変。ローカルの楽観更新でも既存値を保持する。

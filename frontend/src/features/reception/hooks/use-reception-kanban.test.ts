@@ -59,7 +59,9 @@ vi.mock("../api/update-appointment-status", () => ({
   useUpdateAppointmentStatus: () => ({ mutateAsync: mutateAsyncMock }),
 }));
 
-function makeAppointment(overrides: Partial<ReceptionAppointment> & { id: string }): ReceptionAppointment {
+function makeAppointment(
+  overrides: Partial<ReceptionAppointment> & { id: string },
+): ReceptionAppointment {
   return {
     time: "09:00",
     visitDate: "2026-06-01",
@@ -84,7 +86,10 @@ function makeAppointment(overrides: Partial<ReceptionAppointment> & { id: string
 }
 
 /** id → 所属カラム title を引く (テスト assertion 用) */
-function columnOf(columns: { title: string; appointments: ReceptionAppointment[] }[], id: string): string | undefined {
+function columnOf(
+  columns: { title: string; appointments: ReceptionAppointment[] }[],
+  id: string,
+): string | undefined {
   return columns.find((c) => c.appointments.some((a) => a.id === id))?.title;
 }
 
@@ -125,14 +130,15 @@ interface PermissionProps {
   canDeleteReservation?: boolean;
 }
 
-async function renderKanban(initialPermissions: PermissionProps = {
-  canEditReservation: true,
-  canDeleteReservation: true,
-}) {
-  const view = renderHook(
-    (permissions: PermissionProps) => useReceptionKanban(permissions),
-    { initialProps: initialPermissions },
-  );
+async function renderKanban(
+  initialPermissions: PermissionProps = {
+    canEditReservation: true,
+    canDeleteReservation: true,
+  },
+) {
+  const view = renderHook((permissions: PermissionProps) => useReceptionKanban(permissions), {
+    initialProps: initialPermissions,
+  });
   // 派生 state の inline 同期 + ref 更新 effect が落ち着くまで待つ
   await waitFor(() => expect(view.result.current.columns.length).toBe(5));
   return view;
@@ -157,7 +163,11 @@ describe("useReceptionKanban", () => {
     const { result } = await renderKanban();
 
     expect(result.current.columns.map((c) => c.title)).toEqual([
-      "受付予約", "受付済", "診療中", "会計待ち", "会計済",
+      "受付予約",
+      "受付済",
+      "診療中",
+      "会計待ち",
+      "会計済",
     ]);
     expect(columnOf(result.current.columns, "a1")).toBe("受付予約");
     expect(columnOf(result.current.columns, "a2")).toBe("受付済");
@@ -542,12 +552,12 @@ describe("useReceptionKanban", () => {
       const { result } = await renderKanban();
 
       await act(async () => {
-        result.current.updateAppointment(makeAppointment({ id: "a2", status: "checked_in", petName: "タマ" }));
+        result.current.updateAppointment(
+          makeAppointment({ id: "a2", status: "checked_in", petName: "タマ" }),
+        );
       });
 
-      const card = result.current.columns
-        .flatMap((c) => c.appointments)
-        .find((a) => a.id === "a2");
+      const card = result.current.columns.flatMap((c) => c.appointments).find((a) => a.id === "a2");
       expect(card?.petName).toBe("タマ");
       expect(mutateAsyncMock).not.toHaveBeenCalled();
     });

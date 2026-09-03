@@ -26,10 +26,7 @@ interface TreatmentSelectionCellProps {
   onChange: (checked: boolean | "indeterminate") => void;
 }
 
-export function TreatmentSelectionCell({
-  checked,
-  onChange,
-}: TreatmentSelectionCellProps) {
+export function TreatmentSelectionCell({ checked, onChange }: TreatmentSelectionCellProps) {
   return (
     <TableCell className="w-10 text-center">
       <Checkbox
@@ -51,7 +48,9 @@ export function TreatmentTypeCell({ itemType }: TreatmentTypeCellProps) {
 
   return (
     <TableCell className="w-24">
-      <span className={`inline-flex items-center h-[22px] px-2 text-xs font-medium rounded border ${badgeClass}`}>
+      <span
+        className={`inline-flex items-center h-[22px] px-2 text-xs font-medium rounded border ${badgeClass}`}
+      >
         {typeLabel}
       </span>
     </TableCell>
@@ -63,10 +62,7 @@ interface TreatmentInsuranceCellProps {
   onChange: (checked: boolean | "indeterminate") => void;
 }
 
-export function TreatmentInsuranceCell({
-  checked,
-  onChange,
-}: TreatmentInsuranceCellProps) {
+export function TreatmentInsuranceCell({ checked, onChange }: TreatmentInsuranceCellProps) {
   return (
     <TableCell className="w-16 text-center">
       <Checkbox
@@ -74,9 +70,7 @@ export function TreatmentInsuranceCell({
         onCheckedChange={onChange}
         className={`${C.dataCheckedBgBrand} ${C.dataCheckedBorderBrand}`}
       />
-      {checked ? (
-        <Shield className={`${ICON.xs} mt-0.5 mx-auto ${C.textStatusGreen}`} />
-      ) : null}
+      {checked ? <Shield className={`${ICON.xs} mt-0.5 mx-auto ${C.textStatusGreen}`} /> : null}
     </TableCell>
   );
 }
@@ -88,9 +82,7 @@ interface TreatmentSubtotalCellProps {
 export function TreatmentSubtotalCell({ subtotal }: TreatmentSubtotalCellProps) {
   return (
     <TableCell className="w-28 text-right">
-      <span className={`text-sm font-medium ${C.text} font-mono`}>
-        {formatCurrency(subtotal)}
-      </span>
+      <span className={`text-sm font-medium ${C.text} font-mono`}>{formatCurrency(subtotal)}</span>
     </TableCell>
   );
 }
@@ -135,9 +127,7 @@ export function TreatmentRowActions({
         >
           <ChevronDown className={ICON.xs} />
         </Button>
-        {canDelete ? (
-          <DeleteIconButton onClick={onDelete} className={STYLE.iconBtn28} />
-        ) : null}
+        {canDelete ? <DeleteIconButton onClick={onDelete} className={STYLE.iconBtn28} /> : null}
       </div>
     </TableCell>
   );

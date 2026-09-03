@@ -5,7 +5,11 @@ import { useReducedMotion } from "./use-reduced-motion";
 
 function ReducedMotionValue({ label }: { label: string }) {
   const reduced = useReducedMotion();
-  return <span>{label}:{reduced ? "reduce" : "normal"}</span>;
+  return (
+    <span>
+      {label}:{reduced ? "reduce" : "normal"}
+    </span>
+  );
 }
 
 afterEach(() => {
@@ -15,9 +19,11 @@ afterEach(() => {
 describe("useReducedMotion", () => {
   it("複数consumerでMediaQuery listenerを1本だけ共有し最後にcleanupする", () => {
     let listener: ((event: MediaQueryListEvent) => void) | undefined;
-    const addEventListener = vi.fn((_type: string, callback: (event: MediaQueryListEvent) => void) => {
-      listener = callback;
-    });
+    const addEventListener = vi.fn(
+      (_type: string, callback: (event: MediaQueryListEvent) => void) => {
+        listener = callback;
+      },
+    );
     const removeEventListener = vi.fn();
     const matchMedia = vi.fn(() => ({
       matches: false,
@@ -42,10 +48,12 @@ describe("useReducedMotion", () => {
     expect(addEventListener).toHaveBeenCalledTimes(1);
 
     act(() => {
-      listener?.(Object.assign(new Event("change"), {
-        matches: true,
-        media: "(prefers-reduced-motion: reduce)",
-      }));
+      listener?.(
+        Object.assign(new Event("change"), {
+          matches: true,
+          media: "(prefers-reduced-motion: reduce)",
+        }),
+      );
     });
     expect(screen.getByText("first:reduce")).toBeInTheDocument();
     expect(screen.getByText("second:reduce")).toBeInTheDocument();

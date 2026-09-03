@@ -9,9 +9,7 @@ interface UseMedicalRecordManualErrorsArgs {
   setActiveTab: (tab: string) => void;
 }
 
-export function useMedicalRecordManualErrors({
-  setActiveTab,
-}: UseMedicalRecordManualErrorsArgs) {
+export function useMedicalRecordManualErrors({ setActiveTab }: UseMedicalRecordManualErrorsArgs) {
   const [manualErrors, setManualErrors] = useState<Record<string, string>>({});
   const [prevManualErrors, setPrevManualErrors] = useState(manualErrors);
 
@@ -20,7 +18,8 @@ export function useMedicalRecordManualErrors({
     const errorFields = Object.keys(manualErrors);
     if (errorFields.length > 0) {
       const firstError =
-        MEDICAL_RECORD_PRIORITY_FIELDS.find((field) => errorFields.includes(field)) ?? errorFields[0];
+        MEDICAL_RECORD_PRIORITY_FIELDS.find((field) => errorFields.includes(field)) ??
+        errorFields[0];
       if (firstError === "treatment_policy") {
         setActiveTab("問診");
       } else if (firstError === "diagnosis1_category_id" || firstError === "diagnosis1_name_id") {

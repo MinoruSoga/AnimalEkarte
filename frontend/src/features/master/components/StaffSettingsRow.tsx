@@ -14,12 +14,7 @@ interface StaffSettingsRowProps {
   canEdit: boolean;
 }
 
-export function StaffSettingsRow({
-  item,
-  groups,
-  onEdit,
-  canEdit,
-}: StaffSettingsRowProps) {
+export function StaffSettingsRow({ item, groups, onEdit, canEdit }: StaffSettingsRowProps) {
   const visibleGroups = groups.slice(0, 2);
   const extraCount = groups.length - visibleGroups.length;
   return (
@@ -55,9 +50,7 @@ export function StaffSettingsRow({
                   {g.name}
                 </span>
               ))}
-              {extraCount > 0 ? (
-                <span className={`text-xs ${C.text40}`}>+{extraCount}</span>
-              ) : null}
+              {extraCount > 0 ? <span className={`text-xs ${C.text40}`}>+{extraCount}</span> : null}
             </>
           )}
         </div>

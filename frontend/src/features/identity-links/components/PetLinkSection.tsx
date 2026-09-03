@@ -35,7 +35,10 @@ export function PetLinkSection({
   resolvePetGroupId,
 }: PetLinkSectionProps) {
   return (
-    <section className={`rounded border p-4 space-y-3 ${C.borderLight} ${C.bgWhite}`} aria-label="ペットリンク">
+    <section
+      className={`rounded border p-4 space-y-3 ${C.borderLight} ${C.bgWhite}`}
+      aria-label="ペットリンク"
+    >
       <h2 className={`font-semibold ${C.textInk}`}>ペットリンク</h2>
       <p className={`text-xs ${C.textInkMuted}`}>親となる飼主の連携グループが必要です。</p>
       <label className="block text-sm">
@@ -101,7 +104,9 @@ export function PetLinkSection({
         ))}
       </div>
       {historyText ? (
-        <pre className={`text-xs whitespace-pre-wrap rounded p-2 ${C.bgMuted} ${C.textInk}`}>{historyText}</pre>
+        <pre className={`text-xs whitespace-pre-wrap rounded p-2 ${C.bgMuted} ${C.textInk}`}>
+          {historyText}
+        </pre>
       ) : null}
     </section>
   );

@@ -1,10 +1,5 @@
 import { useCallback, useEffect, useMemo } from "react";
-import {
-  useNavigate,
-  useParams,
-  useLocation,
-  useSearchParams,
-} from "react-router";
+import { useNavigate, useParams, useLocation, useSearchParams } from "react-router";
 
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
@@ -17,10 +12,7 @@ import { useGetMasterItems } from "@/hooks/use-master-items";
 import { useGetStaffs } from "@/hooks/use-staffs";
 import { paths } from "@/config/paths";
 import { usePermission } from "@/hooks/use-permission";
-import {
-  ResourceExaminations,
-  ResourceExaminationUnconfirm,
-} from "@/types/generated/models";
+import { ResourceExaminations, ResourceExaminationUnconfirm } from "@/types/generated/models";
 
 import { useExaminationForm } from "../hooks/use-examination-form";
 import { useExaminationHistoryFilters } from "../hooks/use-examination-history-filters";
@@ -47,13 +39,11 @@ function ExaminationFormContent({ id }: { id: string | undefined }) {
   const [searchParams, setSearchParams] = useSearchParams();
   const petId = searchParams.get("petId");
   const medicalRecordId = searchParams.get("medicalRecordId");
-  const historyView =
-    searchParams.get("historyView") === "pivot" ? "pivot" : "cards";
+  const historyView = searchParams.get("historyView") === "pivot" ? "pivot" : "cards";
   const { canEdit, canCreate, canDelete } = usePermission(ResourceExaminations);
   const { canEdit: canUnconfirm } = usePermission(ResourceExaminationUnconfirm);
 
-  const { data: examTypesRaw, isLoading: examTypesLoading } =
-    useGetMasterItems("examination");
+  const { data: examTypesRaw, isLoading: examTypesLoading } = useGetMasterItems("examination");
   // BUG-005: typed staff source keeps staffType/isActive; generic master transform drops them.
   const { data: staffsRaw = [], isLoading: staffLoading } = useGetStaffs();
   const masterLoading = examTypesLoading || staffLoading;
@@ -112,9 +102,7 @@ function ExaminationFormContent({ id }: { id: string | undefined }) {
   );
 
   // Print uses saved revision snapshot only — never formItems / unsaved edits.
-  const { data: printSnapshot } = useGetExaminationPrintSnapshot(
-    isEdit ? id : undefined,
-  );
+  const { data: printSnapshot } = useGetExaminationPrintSnapshot(isEdit ? id : undefined);
   const printModel = useMemo(
     () => (printSnapshot ? buildExaminationPrintModel(printSnapshot) : null),
     [printSnapshot],
@@ -141,8 +129,7 @@ function ExaminationFormContent({ id }: { id: string | undefined }) {
     if (errorFields.length === 0) return;
 
     const firstError =
-      EXAMINATION_PRIORITY_FIELDS.find((f) => errorFields.includes(f)) ||
-      errorFields[0];
+      EXAMINATION_PRIORITY_FIELDS.find((f) => errorFields.includes(f)) || errorFields[0];
 
     const element = document.getElementById(firstError);
     if (element) {
@@ -275,10 +262,7 @@ function ExaminationFormContent({ id }: { id: string | undefined }) {
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 items-start">
           {/* 左カラム: フォームフィールド + 検査項目テーブル */}
           <form action={formAction} className="min-w-0 lg:col-span-3">
-            <fieldset
-              disabled={!canSubmit}
-              className="border-0 p-0 m-0 min-w-0"
-            >
+            <fieldset disabled={!canSubmit} className="border-0 p-0 m-0 min-w-0">
               <div className="space-y-4">
                 <ExaminationFormFields
                   formData={formData}
@@ -300,9 +284,7 @@ function ExaminationFormContent({ id }: { id: string | undefined }) {
                 />
 
                 <div className="space-y-2">
-                  <h3 className={`text-sm font-medium ${C.text60} px-1`}>
-                    検査項目
-                  </h3>
+                  <h3 className={`text-sm font-medium ${C.text60} px-1`}>検査項目</h3>
                   {formState.fieldErrors?.examItems ? (
                     <p
                       id="examItems"

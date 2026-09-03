@@ -242,11 +242,11 @@ export function TreatmentTotals({
         </div>
         <div className={`flex items-center justify-between text-sm font-medium ${C.text}`}>
           <span>選択済み合計 ({selectedCount}件)</span>
-          <span className="font-mono text-base">
-            {formatCurrency(selectedSubtotal)}
-          </span>
+          <span className="font-mono text-base">{formatCurrency(selectedSubtotal)}</span>
         </div>
-        <div className={`flex items-center justify-between text-sm pt-1.5 border-t ${C.borderLight}`}>
+        <div
+          className={`flex items-center justify-between text-sm pt-1.5 border-t ${C.borderLight}`}
+        >
           <span className={C.text60}>
             税込合計 (10% {ownerDiscountRate > 0 ? `飼主割引${ownerDiscountRate}%適用後` : ""})
           </span>

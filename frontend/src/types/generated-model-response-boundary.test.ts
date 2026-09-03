@@ -14,18 +14,11 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { loadESLint } from "eslint";
 
-const FRONTEND_ROOT = path.resolve(
-  path.dirname(fileURLToPath(import.meta.url)),
-  "../..",
-);
-const ALLOWLIST_PATH = path.join(
-  FRONTEND_ROOT,
-  "generated-models-import-allowlist.json",
-);
+const FRONTEND_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+const ALLOWLIST_PATH = path.join(FRONTEND_ROOT, "generated-models-import-allowlist.json");
 const SRC_ROOT = path.join(FRONTEND_ROOT, "src");
 // Alias (`@/types/generated/models`) and relative (`./generated/models`, etc.).
-const MODELS_IMPORT_RE =
-  /from\s+["'][^"']*generated\/models(?:\.ts)?["']/;
+const MODELS_IMPORT_RE = /from\s+["'][^"']*generated\/models(?:\.ts)?["']/;
 const BOUNDARY_MESSAGE_RE = /TASK-444-S1|generated\/models/;
 
 function collectModelImportSites(dir: string): string[] {
@@ -34,11 +27,7 @@ function collectModelImportSites(dir: string): string[] {
   for (const entry of entries) {
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) {
-      if (
-        entry.name === "node_modules" ||
-        entry.name === "dist" ||
-        entry.name === "generated"
-      ) {
+      if (entry.name === "node_modules" || entry.name === "dist" || entry.name === "generated") {
         continue;
       }
       results.push(...collectModelImportSites(full));
@@ -50,9 +39,7 @@ function collectModelImportSites(dir: string): string[] {
     if (full.endsWith("generated-model-response-boundary.test.ts")) continue;
     const text = readFileSync(full, "utf8");
     if (MODELS_IMPORT_RE.test(text)) {
-      results.push(
-        path.relative(FRONTEND_ROOT, full).split(path.sep).join("/"),
-      );
+      results.push(path.relative(FRONTEND_ROOT, full).split(path.sep).join("/"));
     }
   }
   return results.sort();
@@ -61,9 +48,7 @@ function collectModelImportSites(dir: string): string[] {
 function loadAllowlist(): string[] {
   const raw = JSON.parse(readFileSync(ALLOWLIST_PATH, "utf8")) as unknown;
   if (!Array.isArray(raw) || raw.some((p) => typeof p !== "string")) {
-    throw new Error(
-      "generated-models-import-allowlist.json must be a JSON string array",
-    );
+    throw new Error("generated-models-import-allowlist.json must be a JSON string array");
   }
   return [...raw].sort();
 }
@@ -110,10 +95,7 @@ describe("TASK-444-S1 generated-model response boundary", () => {
           "export type Task444S1UnlistedAlias = Pet;",
           "",
         ].join("\n"),
-        filePath: path.join(
-          FRONTEND_ROOT,
-          "src/types/__task444_s1_unlisted_alias_fixture__.ts",
-        ),
+        filePath: path.join(FRONTEND_ROOT, "src/types/__task444_s1_unlisted_alias_fixture__.ts"),
       },
       {
         label: "relative",
@@ -122,19 +104,14 @@ describe("TASK-444-S1 generated-model response boundary", () => {
           "export type Task444S1UnlistedRelative = Pet;",
           "",
         ].join("\n"),
-        filePath: path.join(
-          FRONTEND_ROOT,
-          "src/types/__task444_s1_unlisted_relative_fixture__.ts",
-        ),
+        filePath: path.join(FRONTEND_ROOT, "src/types/__task444_s1_unlisted_relative_fixture__.ts"),
       },
     ] as const;
 
     for (const c of cases) {
       const [result] = await eslint.lintText(c.source, { filePath: c.filePath });
       const boundaryHits = result.messages.filter(
-        (m) =>
-          m.ruleId === "no-restricted-imports" &&
-          BOUNDARY_MESSAGE_RE.test(m.message),
+        (m) => m.ruleId === "no-restricted-imports" && BOUNDARY_MESSAGE_RE.test(m.message),
       );
       expect(
         boundaryHits.length,
@@ -149,9 +126,7 @@ describe("TASK-444-S1 generated-model response boundary", () => {
     const results = await eslint.lintFiles(["src/types/pet.ts"]);
     expect(results.length).toBe(1);
     const boundaryHits = results[0].messages.filter(
-      (m) =>
-        m.ruleId === "no-restricted-imports" &&
-        BOUNDARY_MESSAGE_RE.test(m.message),
+      (m) => m.ruleId === "no-restricted-imports" && BOUNDARY_MESSAGE_RE.test(m.message),
     );
     expect(boundaryHits).toEqual([]);
   });

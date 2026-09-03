@@ -75,37 +75,47 @@ export const LabDeviceItemMasterSidePanel = memo(function LabDeviceItemMasterSid
     setIsDirty(true);
   }, []);
 
-  const handleTitleChange = useCallback((value: string) => {
-    setFormDataDirty((prev) => ({ ...prev, name: value }));
-    if (value.trim()) setNameError("");
-  }, [setFormDataDirty]);
+  const handleTitleChange = useCallback(
+    (value: string) => {
+      setFormDataDirty((prev) => ({ ...prev, name: value }));
+      if (value.trim()) setNameError("");
+    },
+    [setFormDataDirty],
+  );
 
-  const handleSourceTypeChange = useCallback((value: string) => {
-    setFormDataDirty((prev) => {
-      const previousDefault = prev.sourceType === "" ? "" : labDeviceSourceLabel(prev.sourceType);
-      const nextDefault = labDeviceSourceLabel(value);
-      const name = prev.name.trim() === "" || prev.name === previousDefault ? nextDefault : prev.name;
-      return { ...prev, sourceType: value, name };
-    });
-  }, [setFormDataDirty]);
+  const handleSourceTypeChange = useCallback(
+    (value: string) => {
+      setFormDataDirty((prev) => {
+        const previousDefault = prev.sourceType === "" ? "" : labDeviceSourceLabel(prev.sourceType);
+        const nextDefault = labDeviceSourceLabel(value);
+        const name =
+          prev.name.trim() === "" || prev.name === previousDefault ? nextDefault : prev.name;
+        return { ...prev, sourceType: value, name };
+      });
+    },
+    [setFormDataDirty],
+  );
 
-  const handleExamTypeChange = useCallback((value: string) => {
-    const nextExamTypeId = parseExamTypeSelectValue(value);
-    const unmapped = countDraftsUnmappedByExamChange(drafts, nextExamTypeId, examTypes);
-    setUnmapNotice(
-      unmapped > 0 ? `検査の変更で ${unmapped} 件の項目対応が外れます。保存で確定します` : "",
-    );
-    if (nextExamTypeId !== null) {
-      setDrafts((prev) => restrictDraftsToExamType(prev, nextExamTypeId, examTypes));
-    }
-    setFormDataDirty((prev) => ({ ...prev, examTypeId: nextExamTypeId }));
-  }, [drafts, examTypes, setFormDataDirty]);
+  const handleExamTypeChange = useCallback(
+    (value: string) => {
+      const nextExamTypeId = parseExamTypeSelectValue(value);
+      const unmapped = countDraftsUnmappedByExamChange(drafts, nextExamTypeId, examTypes);
+      setUnmapNotice(
+        unmapped > 0 ? `検査の変更で ${unmapped} 件の項目対応が外れます。保存で確定します` : "",
+      );
+      if (nextExamTypeId !== null) {
+        setDrafts((prev) => restrictDraftsToExamType(prev, nextExamTypeId, examTypes));
+      }
+      setFormDataDirty((prev) => ({ ...prev, examTypeId: nextExamTypeId }));
+    },
+    [drafts, examTypes, setFormDataDirty],
+  );
 
   const handleItemFieldChange = useCallback((draftId: string, value: string) => {
     const fieldId = parseExamFieldSelectValue(value);
-    setDrafts((prev) => prev.map((draft) => (
-      draft.id === draftId ? { ...draft, examTypeFieldId: fieldId } : draft
-    )));
+    setDrafts((prev) =>
+      prev.map((draft) => (draft.id === draftId ? { ...draft, examTypeFieldId: fieldId } : draft)),
+    );
     setUnmapNotice("");
     setIsDirty(true);
   }, []);
@@ -184,9 +194,7 @@ export const LabDeviceItemMasterSidePanel = memo(function LabDeviceItemMasterSid
           contentClassName={EXAM_SELECT_CONTENT}
         />
       </PropertyRow>
-      {unmapNotice === "" ? null : (
-        <p className={`text-sm ${C.textWarning}`}>{unmapNotice}</p>
-      )}
+      {unmapNotice === "" ? null : <p className={`text-sm ${C.textWarning}`}>{unmapNotice}</p>}
       <div className="py-1">
         {items.length === 0 ? (
           <p className={`text-sm ${C.text40}`}>
@@ -199,10 +207,7 @@ export const LabDeviceItemMasterSidePanel = memo(function LabDeviceItemMasterSid
             const fieldUnit = labDeviceFieldUnit(fieldId, examTypes);
             const unitMismatch = labDeviceUnitMismatch(item.unit, fieldUnit);
             return (
-              <section
-                key={item.id}
-                className={`py-3 border-b ${C.borderLight} last:border-b-0`}
-              >
+              <section key={item.id} className={`py-3 border-b ${C.borderLight} last:border-b-0`}>
                 <div className="flex items-center justify-between gap-3 px-2">
                   <span className={`text-sm font-medium whitespace-nowrap ${C.text}`}>
                     {item.deviceItemCode}

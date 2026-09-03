@@ -54,7 +54,9 @@ interface UseAccountingItemActionsParams {
 }
 
 /** 空文字は送らない。trim 後の理由のみ API に載せる（BUG-021 add/delete）。 */
-export function buildPostCloseReasonField(postCloseReason?: string): { post_close_reason?: string } {
+export function buildPostCloseReasonField(postCloseReason?: string): {
+  post_close_reason?: string;
+} {
   const trimmed = postCloseReason?.trim();
   return trimmed ? { post_close_reason: trimmed } : {};
 }
@@ -117,7 +119,14 @@ export function useAccountingItemActions({
   );
 
   const handleAddItem = useCallback(
-    ({ name, price, category, otherReason, taxRate, merchandiseItemId }: AddAccountingItemInput) => {
+    ({
+      name,
+      price,
+      category,
+      otherReason,
+      taxRate,
+      merchandiseItemId,
+    }: AddAccountingItemInput) => {
       if (!isMutationAllowed(accountingId ? "canEdit" : "canCreate")) {
         toast.error("この操作を行う権限がありません");
         return;
@@ -166,7 +175,9 @@ export function useAccountingItemActions({
               ...buildPostCloseReasonField(postCloseReason),
             };
             await createBillingItem(request);
-            await queryClient.refetchQueries({ queryKey: queryKeys.accountings.detail(accountingId) });
+            await queryClient.refetchQueries({
+              queryKey: queryKeys.accountings.detail(accountingId),
+            });
             setLocalItems(null);
             toast.success("明細を追加しました");
           } catch (error) {
@@ -210,7 +221,9 @@ export function useAccountingItemActions({
             itemId,
             Object.keys(reasonField).length > 0 ? reasonField : undefined,
           );
-          await queryClient.refetchQueries({ queryKey: queryKeys.accountings.detail(accountingId) });
+          await queryClient.refetchQueries({
+            queryKey: queryKeys.accountings.detail(accountingId),
+          });
           setLocalItems(null);
           toast.success("明細を削除しました");
         } catch (error) {
@@ -219,7 +232,15 @@ export function useAccountingItemActions({
         }
       });
     },
-    [accountingId, baseItems, isMutationAllowed, postCloseReason, queryClient, setLocalItems, startDeleteItemTransition],
+    [
+      accountingId,
+      baseItems,
+      isMutationAllowed,
+      postCloseReason,
+      queryClient,
+      setLocalItems,
+      startDeleteItemTransition,
+    ],
   );
 
   const handleUpdateItemTax = useCallback(

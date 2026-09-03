@@ -4,14 +4,30 @@ import { describe, expect, it, vi } from "vitest";
 import { useFilterExaminationRecords } from "./use-examination-records";
 
 vi.mock("@/hooks/use-examinations", () => ({
-  useGetExaminationsPage: vi.fn(() => ({ data: { data: [], total: 0, page: 1, limit: 20 }, isLoading: false, error: null })),
+  useGetExaminationsPage: vi.fn(() => ({
+    data: { data: [], total: 0, page: 1, limit: 20 },
+    isLoading: false,
+    error: null,
+  })),
 }));
 
 import { useGetExaminationsPage } from "@/hooks/use-examinations";
 
 const mockRecords = [
-  { ownerName: "ヤマダタロウ", petName: "ポチ", testType: "血液検査", status: "done", doctor: "田中" },
-  { ownerName: "さとうけんじ", petName: "たまごろう", testType: "尿検査", status: "done", doctor: "佐藤" },
+  {
+    ownerName: "ヤマダタロウ",
+    petName: "ポチ",
+    testType: "血液検査",
+    status: "done",
+    doctor: "田中",
+  },
+  {
+    ownerName: "さとうけんじ",
+    petName: "たまごろう",
+    testType: "尿検査",
+    status: "done",
+    doctor: "佐藤",
+  },
 ];
 
 function setup(searchTerm: string, page = 1, limit = 20) {

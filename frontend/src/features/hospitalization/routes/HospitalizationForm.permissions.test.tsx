@@ -75,19 +75,31 @@ vi.mock("@/components/ui/button", () => ({
 }));
 
 vi.mock("@/components/shared/Form/SubmitButton", () => ({
-  SubmitButton: ({ children }: { children: ReactNode }) => <button type="submit">{children}</button>,
+  SubmitButton: ({ children }: { children: ReactNode }) => (
+    <button type="submit">{children}</button>
+  ),
 }));
 
 vi.mock("@/components/shared/ConfirmDialog/ConfirmDialog", () => ({
   ConfirmDialog: ({ open, onConfirm }: { open: boolean; onConfirm: () => void }) =>
-    open ? <button aria-label="confirm-delete" onClick={onConfirm}>確認削除</button> : null,
+    open ? (
+      <button aria-label="confirm-delete" onClick={onConfirm}>
+        確認削除
+      </button>
+    ) : null,
 }));
 
-vi.mock("@/components/shared/PatientInfoCard/PatientInfoCard", () => ({ PatientInfoCard: () => null }));
+vi.mock("@/components/shared/PatientInfoCard/PatientInfoCard", () => ({
+  PatientInfoCard: () => null,
+}));
 vi.mock("../components/HospitalizationBasicInfo", () => ({ HospitalizationBasicInfo: () => null }));
 vi.mock("../components/HospitalizationNoteCard", () => ({ HospitalizationNoteCard: () => null }));
-vi.mock("../components/HospitalizationTreatmentTable", () => ({ HospitalizationTreatmentTable: () => null }));
-vi.mock("../components/HospitalizationCostSummary", () => ({ HospitalizationCostSummary: () => null }));
+vi.mock("../components/HospitalizationTreatmentTable", () => ({
+  HospitalizationTreatmentTable: () => null,
+}));
+vi.mock("../components/HospitalizationCostSummary", () => ({
+  HospitalizationCostSummary: () => null,
+}));
 vi.mock("@/components/shared/NavigationBlocker", () => ({ NavigationBlocker: () => null }));
 vi.mock("@/components/shared/DataStates", () => ({
   LoadingFallback: () => <div>loading</div>,
@@ -128,13 +140,15 @@ beforeEach(() => {
       total: 0,
     }),
     petSelection: {
-      selectedPets: [{
-        id: "pet-1",
-        name: "ポチ",
-        ownerName: "飼主",
-        species: "犬",
-        status: mocks.petIsDeceased ? "死亡" : "生存",
-      }],
+      selectedPets: [
+        {
+          id: "pet-1",
+          name: "ポチ",
+          ownerName: "飼主",
+          species: "犬",
+          status: mocks.petIsDeceased ? "死亡" : "生存",
+        },
+      ],
     },
     formAction: vi.fn(),
     formState: { success: false },
@@ -175,7 +189,10 @@ describe("HospitalizationForm — mutation permission boundary", () => {
     fireEvent.click(screen.getByRole("button", { name: "削除" }));
     fireEvent.click(screen.getByRole("button", { name: "confirm-delete" }));
 
-    expect(mocks.deleteHospitalization).toHaveBeenCalledWith("hospitalization-1", expect.any(Object));
+    expect(mocks.deleteHospitalization).toHaveBeenCalledWith(
+      "hospitalization-1",
+      expect.any(Object),
+    );
   });
 
   it("hides delete button and shows honesty when child treatment plans exist", () => {
@@ -199,13 +216,15 @@ describe("HospitalizationForm — mutation permission boundary", () => {
         total: 0,
       }),
       petSelection: {
-        selectedPets: [{
-          id: "pet-1",
-          name: "ポチ",
-          ownerName: "飼主",
-          species: "犬",
-          status: "生存",
-        }],
+        selectedPets: [
+          {
+            id: "pet-1",
+            name: "ポチ",
+            ownerName: "飼主",
+            species: "犬",
+            status: "生存",
+          },
+        ],
       },
       formAction: vi.fn(),
       formState: { success: false },
@@ -214,10 +233,11 @@ describe("HospitalizationForm — mutation permission boundary", () => {
     renderForm();
 
     expect(screen.queryByRole("button", { name: "削除" })).not.toBeInTheDocument();
-    expect(screen.getByRole("status")).toHaveTextContent("治療プランが紐付いているため、この入院は削除できません。");
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "治療プランが紐付いているため、この入院は削除できません。",
+    );
   });
 });
-
 
 describe("HospitalizationForm BUG-016 not-found gate", () => {
   it("isReadNotFound 時は ErrorFallback を出し保存ボタンを出さない", () => {

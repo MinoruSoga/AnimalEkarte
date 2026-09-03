@@ -87,7 +87,8 @@ describe("lab device port setup", () => {
 describe("readLabDeviceFrames", () => {
   it("delivers buffered bytes when the serial stream ends before the idle timer", async () => {
     const reader: LabDeviceSerialReader = {
-      read: vi.fn()
+      read: vi
+        .fn()
         .mockResolvedValueOnce({ done: false, value: new Uint8Array([0x02, 0x41, 0x03]) })
         .mockResolvedValueOnce({ done: true, value: undefined }),
       cancel: vi.fn(async () => {}),
@@ -125,7 +126,7 @@ describe("readLabDeviceFrames", () => {
     const raw = new Uint8Array([0x02, 0x41, 0x03]);
     resolveFirst({ done: false, value: raw });
     await vi.advanceTimersByTimeAsync(0);
-    await vi.advanceTimersByTimeAsync((LAB_DEVICE_IDLE_MS * LAB_DEVICE_IDLE_TICKS) - 1);
+    await vi.advanceTimersByTimeAsync(LAB_DEVICE_IDLE_MS * LAB_DEVICE_IDLE_TICKS - 1);
 
     expect(onFrame).not.toHaveBeenCalled();
 
@@ -147,7 +148,8 @@ describe("readLabDeviceFrames", () => {
       resolvePending = resolve;
     });
     const reader: LabDeviceSerialReader = {
-      read: vi.fn()
+      read: vi
+        .fn()
         .mockResolvedValueOnce({ done: false, value: new Uint8Array([0x02, 0x03]) })
         .mockReturnValueOnce(pendingRead),
       cancel: vi.fn(async () => {
@@ -190,12 +192,18 @@ describe("readLabDeviceFrames", () => {
     let resolveRead!: (result: ReadableStreamReadResult<Uint8Array>) => void;
     let resolveCancel!: () => void;
     const reader: LabDeviceSerialReader = {
-      read: vi.fn(() => new Promise<ReadableStreamReadResult<Uint8Array>>((resolve) => {
-        resolveRead = resolve;
-      })),
-      cancel: vi.fn(() => new Promise<void>((resolve) => {
-        resolveCancel = resolve;
-      })),
+      read: vi.fn(
+        () =>
+          new Promise<ReadableStreamReadResult<Uint8Array>>((resolve) => {
+            resolveRead = resolve;
+          }),
+      ),
+      cancel: vi.fn(
+        () =>
+          new Promise<void>((resolve) => {
+            resolveCancel = resolve;
+          }),
+      ),
     };
     let completed = false;
     const running = readLabDeviceFrames(reader, controller.signal, async () => {});
@@ -221,9 +229,12 @@ describe("startLabDeviceSlotListen", () => {
     const events: string[] = [];
     let resolveRead!: (result: ReadableStreamReadResult<Uint8Array>) => void;
     const reader = {
-      read: vi.fn(() => new Promise<ReadableStreamReadResult<Uint8Array>>((resolve) => {
-        resolveRead = resolve;
-      })),
+      read: vi.fn(
+        () =>
+          new Promise<ReadableStreamReadResult<Uint8Array>>((resolve) => {
+            resolveRead = resolve;
+          }),
+      ),
       cancel: vi.fn(async () => {
         events.push("cancel-start");
         resolveRead({ done: true, value: undefined });

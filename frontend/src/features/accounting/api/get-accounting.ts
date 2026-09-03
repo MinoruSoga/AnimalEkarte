@@ -21,4 +21,3 @@ export const useGetAccountingDetail = (id: string | undefined) => {
     gcTime: QUERY_GC_TIMES.STANDARD,
   });
 };
-

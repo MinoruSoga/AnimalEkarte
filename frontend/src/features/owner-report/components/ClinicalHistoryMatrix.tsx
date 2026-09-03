@@ -18,10 +18,7 @@ interface ClinicalHistoryMatrixProps {
 type HistoryColumn = ClinicalHistoryMatrixModel["columns"][number];
 type HistoryEntry = HistoryColumn["entries"][number];
 
-const rowToneClasses: Record<
-  ClinicalHistoryKind,
-  { dot: string; heading: string }
-> = {
+const rowToneClasses: Record<ClinicalHistoryKind, { dot: string; heading: string }> = {
   診療: { dot: C.bgBrandDot, heading: C.bgBrandLight50 },
   検査: { dot: C.bgStatusPurpleDot, heading: C.bgStatusPurple },
   "薬・処方": { dot: C.bgStatusAmberDot, heading: C.bgStatusAmber },
@@ -43,9 +40,7 @@ function historyStateLabel(state: HistoryRowState): string {
 
 function EntryCard({ entry }: { entry: HistoryEntry }) {
   return (
-    <article
-      className={`border-l-2 pl-1.5 ${entry.isAlert ? C.borderDanger : C.borderBrand}`}
-    >
+    <article className={`border-l-2 pl-1.5 ${entry.isAlert ? C.borderDanger : C.borderBrand}`}>
       <div className="flex min-w-0 items-center justify-between gap-1">
         <span
           className={`truncate text-2xs font-semibold ${entry.isAlert ? C.danger : C.textBrand}`}
@@ -60,15 +55,11 @@ function EntryCard({ entry }: { entry: HistoryEntry }) {
           </span>
         ) : null}
       </div>
-      <strong
-        className={`mt-0.5 block text-sm leading-snug font-medium ${C.text}`}
-      >
+      <strong className={`mt-0.5 block text-sm leading-snug font-medium ${C.text}`}>
         {entry.title}
       </strong>
       {entry.detail ? (
-        <p className={`mt-0.5 text-xs leading-snug ${C.text50}`}>
-          {entry.detail}
-        </p>
+        <p className={`mt-0.5 text-xs leading-snug ${C.text50}`}>{entry.detail}</p>
       ) : null}
     </article>
   );
@@ -91,13 +82,7 @@ function HistoryCellContent({
     return index === 0 ? (
       <p
         className={`text-xs ${state === "error" ? C.danger : C.text50}`}
-        role={
-          state === "error"
-            ? "alert"
-            : state === "loading"
-              ? "status"
-              : undefined
-        }
+        role={state === "error" ? "alert" : state === "loading" ? "status" : undefined}
       >
         {historyStateLabel(state)}
       </p>
@@ -158,15 +143,10 @@ function HistoryRow({ columns, kind, count, state }: HistoryRowProps) {
         className={`sticky left-0 z-10 border-r border-b px-2 py-1 align-middle ${C.borderLight} ${tone.heading}`}
       >
         <span className="flex items-center gap-1">
-          <span
-            aria-hidden="true"
-            className={`size-1.5 shrink-0 rounded-full ${tone.dot}`}
-          />
+          <span aria-hidden="true" className={`size-1.5 shrink-0 rounded-full ${tone.dot}`} />
           <strong className={`text-2xs font-semibold ${C.text}`}>{kind}</strong>
         </span>
-        <small
-          className={`ml-2.5 block text-2xs font-semibold tabular-nums ${C.text60}`}
-        >
+        <small className={`ml-2.5 block text-2xs font-semibold tabular-nums ${C.text60}`}>
           {canShowEntries ? `${count}件` : "—"}
         </small>
       </th>
@@ -183,11 +163,7 @@ function HistoryRow({ columns, kind, count, state }: HistoryRowProps) {
   );
 }
 
-function HistoryTableHeader({
-  columns,
-}: {
-  columns: ReadonlyArray<HistoryColumn>;
-}) {
+function HistoryTableHeader({ columns }: { columns: ReadonlyArray<HistoryColumn> }) {
   return (
     <thead className="sticky top-0 z-20">
       <tr>
@@ -212,10 +188,7 @@ function HistoryTableHeader({
 }
 
 /** 縦=情報種類、横=日付。薬・予防接種・処置を混同しない履歴マトリクス。 */
-export function ClinicalHistoryMatrix({
-  matrix,
-  rowStates,
-}: ClinicalHistoryMatrixProps) {
+export function ClinicalHistoryMatrix({ matrix, rowStates }: ClinicalHistoryMatrixProps) {
   const columns: ReadonlyArray<HistoryColumn> =
     matrix.columns.length > 0
       ? matrix.columns
@@ -229,10 +202,7 @@ export function ClinicalHistoryMatrix({
       <colgroup>
         <col className="owner-report-history-kind-column" />
         {columns.map((column) => (
-          <col
-            key={column.dateKey}
-            className="owner-report-history-record-column"
-          />
+          <col key={column.dateKey} className="owner-report-history-record-column" />
         ))}
       </colgroup>
       <HistoryTableHeader columns={columns} />

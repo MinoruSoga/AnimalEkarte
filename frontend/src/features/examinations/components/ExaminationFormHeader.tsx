@@ -60,18 +60,13 @@ export function ExaminationFormHeader({
           aria-label="死亡ペットのため保存不可"
           className={`flex items-center gap-2 px-4 py-2.5 rounded-md border ${C.bgWarning50} ${C.borderWarning20} ${C.textWarning}`}
         >
-          <span className="text-sm font-medium">
-            死亡したペットの検査記録は保存できません
-          </span>
+          <span className="text-sm font-medium">死亡したペットの検査記録は保存できません</span>
         </div>
       ) : null}
 
       {isEdit && !isPatientChangeLocked ? (
         <div className="flex justify-end">
-          <ExaminationPatientChangeDialog
-            selectedPet={selectedPet}
-            onSelect={onPatientSelect}
-          />
+          <ExaminationPatientChangeDialog selectedPet={selectedPet} onSelect={onPatientSelect} />
         </div>
       ) : null}
 

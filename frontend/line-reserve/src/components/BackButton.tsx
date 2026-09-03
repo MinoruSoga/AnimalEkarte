@@ -3,7 +3,7 @@ interface BackButtonProps {
   label?: string;
 }
 
-export function BackButton({ onClick, label = '戻る' }: BackButtonProps) {
+export function BackButton({ onClick, label = "戻る" }: BackButtonProps) {
   return (
     <button
       type="button"

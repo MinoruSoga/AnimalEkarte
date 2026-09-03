@@ -32,13 +32,17 @@ function LstepStatusBadge({ status }: { status: LstepStatus }) {
   }
   if (status === "not-linked") {
     return (
-      <span className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-full border ${C.textNotice} ${C.borderNotice} ${C.bgNotice40}`}>
+      <span
+        className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-full border ${C.textNotice} ${C.borderNotice} ${C.bgNotice40}`}
+      >
         LINE未連携
       </span>
     );
   }
   return (
-    <span className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-full border ${C.text40} ${C.borderMediumLight} ${C.bgPage30}`}>
+    <span
+      className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-full border ${C.text40} ${C.borderMediumLight} ${C.bgPage30}`}
+    >
       LINE受信拒否
     </span>
   );
@@ -120,7 +124,9 @@ export const MedicalRecordVaccination = memo(function MedicalRecordVaccination({
           />
         ) : historyItems.length > 0 ? (
           <div className="lg:col-span-3 flex flex-col gap-3">
-            <ul className={`divide-y ${C.borderLight} ${C.bgWhite} rounded-lg border ${C.borderMedium}`}>
+            <ul
+              className={`divide-y ${C.borderLight} ${C.bgWhite} rounded-lg border ${C.borderMedium}`}
+            >
               {historyItems.map((item) => (
                 <li key={item.id} className="px-3 py-2 text-sm">
                   <div className={`font-medium ${C.text}`}>{item.name}</div>

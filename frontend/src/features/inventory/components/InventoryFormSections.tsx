@@ -4,7 +4,13 @@ import { FormFieldError } from "@/components/shared/FormFieldError/FormFieldErro
 import { DatePicker } from "@/components/shared/DatePicker/DatePicker";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { C } from "@/lib/design-tokens";
 import type { InventoryItem } from "@/types";
 
@@ -137,11 +143,12 @@ export const StockInfoSection = memo(function StockInfoSection({
   const [minStockLevel, setMinStockLevel] = useState(String(defaultMinStockLevel ?? 0));
   const parsedQuantity = Number(quantity);
   const parsedMinStockLevel = Number(minStockLevel);
-  const stockStatus = parsedQuantity <= 0
-    ? `在庫切れ — 現在庫数 ${parsedQuantity || 0}、最低在庫数 ${parsedMinStockLevel || 0}`
-    : parsedMinStockLevel > 0 && parsedQuantity <= parsedMinStockLevel
-      ? `在庫不足（残少）— 現在庫数 ${parsedQuantity}、最低在庫数 ${parsedMinStockLevel}`
-      : null;
+  const stockStatus =
+    parsedQuantity <= 0
+      ? `在庫切れ — 現在庫数 ${parsedQuantity || 0}、最低在庫数 ${parsedMinStockLevel || 0}`
+      : parsedMinStockLevel > 0 && parsedQuantity <= parsedMinStockLevel
+        ? `在庫不足（残少）— 現在庫数 ${parsedQuantity}、最低在庫数 ${parsedMinStockLevel}`
+        : null;
 
   return (
     <div className={`${C.bgWhite} rounded-lg border ${C.borderLight} p-6`}>

@@ -6,12 +6,7 @@
 // ※ feature をまたぐ共有のため lib に置く。feature 内へ deep import しないこと。
 
 export type CPMStage =
-  | "cpm_encounter"
-  | "cpm_growing"
-  | "cpm_core"
-  | "cpm_spot"
-  | "cpm_noah"
-  | "cpm_dormant";
+  "cpm_encounter" | "cpm_growing" | "cpm_core" | "cpm_spot" | "cpm_noah" | "cpm_dormant";
 
 /** 集計ダッシュボード用。6区分に入らない飼主をチップで辿れるようにする (BUG-003)。 */
 export type AggregationCPMStage = CPMStage | "cpm_unclassified";

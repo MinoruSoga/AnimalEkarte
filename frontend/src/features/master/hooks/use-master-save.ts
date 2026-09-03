@@ -1,4 +1,10 @@
-import { useCallback, useLayoutEffect, useRef, useState, type TransitionStartFunction } from "react";
+import {
+  useCallback,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type TransitionStartFunction,
+} from "react";
 import { toast } from "sonner";
 import { handleApiError } from "@/lib/handle-api-error";
 import type { UseMutationResult } from "@tanstack/react-query";
@@ -56,7 +62,8 @@ export function useMasterSave<T extends MasterEntity, TForm, TCreate, TUpdate>({
   permissions,
 }: UseMasterSaveOptions<T, TForm, TCreate, TUpdate>) {
   // rerender-dependencies: extract primitives from crud.editTarget object
-  const editTargetId = crud.editTarget !== null && crud.editTarget !== "new" ? crud.editTarget.id : null;
+  const editTargetId =
+    crud.editTarget !== null && crud.editTarget !== "new" ? crud.editTarget.id : null;
   // rerender-dependencies: destructure methods to avoid object reference instability
   // NOTE: use setEditTarget(null) directly on save success to bypass discard confirmation
   // crudHandleClose calls withDirtyGuard which would open ConfirmDialog when isDirtyRef is still stale
@@ -90,9 +97,10 @@ export function useMasterSave<T extends MasterEntity, TForm, TCreate, TUpdate>({
       setValidationError(null);
 
       const currentPermissions = permissionsRef.current;
-      const isAllowed = editTargetId !== null
-        ? currentPermissions.canEdit === true
-        : currentPermissions.canCreate === true;
+      const isAllowed =
+        editTargetId !== null
+          ? currentPermissions.canEdit === true
+          : currentPermissions.canCreate === true;
       if (!isAllowed) return false;
 
       return new Promise<boolean>((resolve) => {
@@ -140,7 +148,18 @@ export function useMasterSave<T extends MasterEntity, TForm, TCreate, TUpdate>({
         }
       });
     },
-    [editTargetId, crudSetEditTarget, crudStartSave, createAsync, updateAsync, validate, toCreateRequest, toUpdateRequest, onSuccess, closeOnSuccess],
+    [
+      editTargetId,
+      crudSetEditTarget,
+      crudStartSave,
+      createAsync,
+      updateAsync,
+      validate,
+      toCreateRequest,
+      toUpdateRequest,
+      onSuccess,
+      closeOnSuccess,
+    ],
   );
 
   return { handleSave, validationError };

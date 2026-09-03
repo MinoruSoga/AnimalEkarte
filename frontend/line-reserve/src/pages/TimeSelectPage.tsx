@@ -1,11 +1,11 @@
-import { useCallback } from 'react';
-import { liffApi } from '../api/liff-api';
-import { ProgressDots } from '../components/ProgressDots';
-import { BackButton } from '../components/BackButton';
-import { AutoAdvanceHint } from '../components/AutoAdvanceHint';
-import { formatTimeHHMM } from '@/shared-liff/jst-date';
-import { useFetchState } from '@/shared-liff/use-fetch-state';
-import { getStepProgress } from '../lib/step-progress';
+import { useCallback } from "react";
+import { liffApi } from "../api/liff-api";
+import { ProgressDots } from "../components/ProgressDots";
+import { BackButton } from "../components/BackButton";
+import { AutoAdvanceHint } from "../components/AutoAdvanceHint";
+import { formatTimeHHMM } from "@/shared-liff/jst-date";
+import { useFetchState } from "@/shared-liff/use-fetch-state";
+import { getStepProgress } from "../lib/step-progress";
 
 interface TimeSelectPageProps {
   clinicId: string;
@@ -33,9 +33,9 @@ export function TimeSelectPage({
     [clinicId, courseId, staffId, date, idToken],
   );
   // R-F22/R-F23: ステータス別メッセージ解決と再試行導線を共通フックに統合。
-  const { data: times, loading, error, retry } = useFetchState(fetcher, '空き時間の取得');
+  const { data: times, loading, error, retry } = useFetchState(fetcher, "空き時間の取得");
   // SD-16: トリミング分岐で挿入される2ステップ分、以降のフロー全体の total を一貫させる
-  const { current, total } = getStepProgress('timeSelect', isTrimming);
+  const { current, total } = getStepProgress("timeSelect", isTrimming);
 
   return (
     <div className="min-h-screen bg-noah-teal-light flex flex-col">
@@ -72,7 +72,7 @@ export function TimeSelectPage({
             </div>
           ) : (
             <div className="bg-white border-t border-noah-border">
-              {times.map(time => (
+              {times.map((time) => (
                 <button
                   key={time.start_time}
                   type="button"
@@ -81,7 +81,7 @@ export function TimeSelectPage({
                 >
                   <span className="text-noah-text font-medium">
                     {time.display_time || formatTimeHHMM(time.start_time)}
-                    {' 〜 '}
+                    {" 〜 "}
                     {formatTimeHHMM(time.end_time)}
                   </span>
                   <svg

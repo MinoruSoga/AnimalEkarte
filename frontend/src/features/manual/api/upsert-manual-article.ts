@@ -25,7 +25,9 @@ interface UpsertManualArticleParams {
   body_markdown: string;
 }
 
-async function upsertManualArticle(params: UpsertManualArticleParams): Promise<ManualArticleOverride> {
+async function upsertManualArticle(
+  params: UpsertManualArticleParams,
+): Promise<ManualArticleOverride> {
   const { category, slug, ...body } = params;
   const { data } = await axios.put<ManualArticleOverride>(
     `/v1/manual/articles/${category}/${slug}`,

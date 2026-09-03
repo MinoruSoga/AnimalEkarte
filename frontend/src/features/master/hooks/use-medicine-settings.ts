@@ -1,11 +1,4 @@
-import {
-  useState,
-  useMemo,
-  useCallback,
-  useLayoutEffect,
-  useRef,
-  useTransition,
-} from "react";
+import { useState, useMemo, useCallback, useLayoutEffect, useRef, useTransition } from "react";
 import { toast } from "sonner";
 import { handleApiError } from "@/lib/handle-api-error";
 import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
@@ -21,7 +14,13 @@ import {
   isCategoryMedicine,
   validateMedicineForm,
 } from "./medicine-settings-model";
-import { useGetAllMedicines, useCreateMedicine, useUpdateMedicine, useDeleteMedicine, useReorderMedicines } from "../api/medicines";
+import {
+  useGetAllMedicines,
+  useCreateMedicine,
+  useUpdateMedicine,
+  useDeleteMedicine,
+  useReorderMedicines,
+} from "../api/medicines";
 import { upsertMedicineDoseParam } from "../api/medicine-dose-params";
 import type { CreateMedicineRequest, UpdateMedicineRequest } from "@/types/medicine";
 import { ResourceMasterMedical } from "@/types/generated/models";
@@ -47,12 +46,15 @@ export function useMedicineSettings() {
   const reorderMutation = useReorderMedicines();
 
   const dirty = useSidePeekDirty();
-  const handleDirtyChange = useCallback((d: boolean) => { if (d) dirty.markDirty(); else dirty.markClean(); }, [dirty]);
-
-  const dirtyGuard = useMemo(
-    () => ({ runWithDiscardCheck: dirty.runWithDiscardCheck }),
+  const handleDirtyChange = useCallback(
+    (d: boolean) => {
+      if (d) dirty.markDirty();
+      else dirty.markClean();
+    },
     [dirty],
   );
+
+  const dirtyGuard = useMemo(() => ({ runWithDiscardCheck: dirty.runWithDiscardCheck }), [dirty]);
 
   const medicineCrud = useMasterCRUD<Medicine>({
     data: medicines,
@@ -74,37 +76,48 @@ export function useMedicineSettings() {
     canEdit,
   });
 
-  const categoryMedicines = useMemo(
-    () => getCategoryMedicines(medicines),
-    [medicines],
-  );
+  const categoryMedicines = useMemo(() => getCategoryMedicines(medicines), [medicines]);
 
   const handleCloseEdit = useCallback(() => {
     medicineCrud.handleClose();
     setDefaultParentId(undefined);
   }, [medicineCrud]);
 
-  const handleEdit = useCallback((medicine: Medicine) => {
-    setDefaultParentId(undefined);
-    medicineCrud.handleEdit(medicine);
-  }, [medicineCrud]);
+  const handleEdit = useCallback(
+    (medicine: Medicine) => {
+      setDefaultParentId(undefined);
+      medicineCrud.handleEdit(medicine);
+    },
+    [medicineCrud],
+  );
 
-  const handleCreate = useCallback((parentId?: string) => {
-    setDefaultParentId(parentId);
-    medicineCrud.handleNew();
-  }, [medicineCrud]);
+  const handleCreate = useCallback(
+    (parentId?: string) => {
+      setDefaultParentId(parentId);
+      medicineCrud.handleNew();
+    },
+    [medicineCrud],
+  );
 
   const [, startSaveTransition] = useTransition();
   const startSaveTransitionWrapper = useCallback((cb: () => void) => {
     startSaveTransition(cb);
   }, []);
 
-  const setEditTargetAfterSave = useCallback((target: Medicine | "new" | null) => {
-    medicineCrud.setEditTarget(target);
-    if (target === null) setDefaultParentId(undefined);
-  }, [medicineCrud]);
+  const setEditTargetAfterSave = useCallback(
+    (target: Medicine | "new" | null) => {
+      medicineCrud.setEditTarget(target);
+      if (target === null) setDefaultParentId(undefined);
+    },
+    [medicineCrud],
+  );
 
-  const medicineSave = useMasterSave<Medicine, MedicineFormData, CreateMedicineRequest, UpdateMedicineRequest>({
+  const medicineSave = useMasterSave<
+    Medicine,
+    MedicineFormData,
+    CreateMedicineRequest,
+    UpdateMedicineRequest
+  >({
     crud: {
       editTarget,
       setEditTarget: setEditTargetAfterSave,
@@ -124,9 +137,12 @@ export function useMedicineSettings() {
     },
   });
 
-  const handleSave = useCallback((formData: MedicineFormData) => {
-    return medicineSave.handleSave(formData);
-  }, [medicineSave]);
+  const handleSave = useCallback(
+    (formData: MedicineFormData) => {
+      return medicineSave.handleSave(formData);
+    },
+    [medicineSave],
+  );
 
   const handleDeleteRequest = useCallback(() => {
     if (!selectedMedicine) return;

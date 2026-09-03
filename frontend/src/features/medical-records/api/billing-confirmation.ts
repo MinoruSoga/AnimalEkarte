@@ -13,7 +13,7 @@ import type { BillingConfirmation, ReturnBillingConfirmationInput } from "../typ
 // GET /v1/medical-records/:id/billing-confirmation
 const getBillingConfirmation = async (medicalRecordId: string): Promise<BillingConfirmation> => {
   const { data } = await axios.get<BillingConfirmation>(
-    `/v1/medical-records/${medicalRecordId}/billing-confirmation`
+    `/v1/medical-records/${medicalRecordId}/billing-confirmation`,
   );
   return data;
 };

@@ -49,10 +49,7 @@ const ALL_SPECIES_VALUE = "__all__";
 function SpeciesSelectField({
   searchParams,
   setSearchParams,
-}: Pick<
-  PetSelectionSearchFormProps,
-  "searchParams" | "setSearchParams"
->) {
+}: Pick<PetSelectionSearchFormProps, "searchParams" | "setSearchParams">) {
   const { activeSpecies, isLoading, isError } = useAnimalSpecies();
   const statusMessage = isError
     ? "種別を取得できません"
@@ -104,7 +101,11 @@ function SpeciesSelectField({
   );
 }
 
-export const PetSelectionSearchForm = memo(function PetSelectionSearchForm({ searchParams, setSearchParams, onClear }: PetSelectionSearchFormProps) {
+export const PetSelectionSearchForm = memo(function PetSelectionSearchForm({
+  searchParams,
+  setSearchParams,
+  onClear,
+}: PetSelectionSearchFormProps) {
   return (
     <div className={cn("mb-4 rounded-lg bg-white p-4 border", C.borderMedium)}>
       <h2 className={cn("mb-2 text-sm font-medium", C.text)}>検索条件</h2>
@@ -120,17 +121,12 @@ export const PetSelectionSearchForm = memo(function PetSelectionSearchForm({ sea
               id={id}
               placeholder={placeholder}
               value={searchParams[id]}
-              onChange={(e) =>
-                setSearchParams({ ...searchParams, [id]: e.target.value })
-              }
+              onChange={(e) => setSearchParams({ ...searchParams, [id]: e.target.value })}
               className={cn("text-sm h-11 bg-white focus-visible:ring-1", C.text, C.borderMedium)}
             />
           </div>
         ))}
-        <SpeciesSelectField
-          searchParams={searchParams}
-          setSearchParams={setSearchParams}
-        />
+        <SpeciesSelectField searchParams={searchParams} setSearchParams={setSearchParams} />
       </div>
       <div className="flex justify-end gap-2">
         <Button

@@ -17,7 +17,10 @@ function calcAge(birthDateStr: string): string {
   return `${months}ヶ月`;
 }
 
-function formatNeuteredStatus(gender: string | undefined, neuteredDate: string | undefined): string {
+function formatNeuteredStatus(
+  gender: string | undefined,
+  neuteredDate: string | undefined,
+): string {
   if (!neuteredDate) return "—";
   if (gender === "雄") return "去勢済";
   if (gender === "雌") return "避妊済";
@@ -127,7 +130,9 @@ export function PatientContextHeader({
             </Tooltip>
           )}
           <Tooltip content={petName} className="min-w-0 max-w-[160px]">
-            <span className={`text-base font-medium ${isDeceased ? C.text60 : C.text} truncate w-full`}>
+            <span
+              className={`text-base font-medium ${isDeceased ? C.text60 : C.text} truncate w-full`}
+            >
               {petName}
             </span>
           </Tooltip>
@@ -183,9 +188,7 @@ export function PatientContextHeader({
           ) : null}
           {typeof visitCount === "number" && visitCount > 0 ? (
             <Tooltip content="このペットの通算来院回数です">
-              <span className="flex items-center gap-1 cursor-default">
-                来院 {visitCount} 回
-              </span>
+              <span className="flex items-center gap-1 cursor-default">来院 {visitCount} 回</span>
             </Tooltip>
           ) : null}
           {/* Insurance */}

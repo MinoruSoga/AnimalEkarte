@@ -28,13 +28,14 @@ interface SortableHeaderProps {
   variant?: "default" | "eyebrow";
 }
 
-export const SortableHeader = memo(function SortableHeader({ label, direction, onToggle, variant = "default" }: SortableHeaderProps) {
+export const SortableHeader = memo(function SortableHeader({
+  label,
+  direction,
+  onToggle,
+  variant = "default",
+}: SortableHeaderProps) {
   const Icon =
-    direction === "ascending"
-      ? ArrowUp
-      : direction === "descending"
-        ? ArrowDown
-        : ArrowUpDown;
+    direction === "ascending" ? ArrowUp : direction === "descending" ? ArrowDown : ArrowUpDown;
 
   const textClassName = variant === "eyebrow" ? STYLE.sectionLabel : C.text;
 
@@ -46,7 +47,10 @@ export const SortableHeader = memo(function SortableHeader({ label, direction, o
       aria-label={`${label}でソート${DIRECTION_ANNOUNCEMENT[direction]}`}
     >
       {label}
-      <Icon aria-hidden="true" className={`${ICON.xs} ${direction === "none" ? C.text30 : C.text}`} />
+      <Icon
+        aria-hidden="true"
+        className={`${ICON.xs} ${direction === "none" ? C.text30 : C.text}`}
+      />
     </button>
   );
 });

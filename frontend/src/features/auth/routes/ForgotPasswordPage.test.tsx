@@ -39,7 +39,9 @@ describe("FE6-6: ForgotPasswordPage anti-enumeration", () => {
     });
 
     expect(
-      await screen.findByText("パスワードリセットのリンクをメールに送信しました。メールをご確認ください。"),
+      await screen.findByText(
+        "パスワードリセットのリンクをメールに送信しました。メールをご確認ください。",
+      ),
     ).toBeInTheDocument();
     expect(toast.error).not.toHaveBeenCalled();
   });
@@ -60,7 +62,9 @@ describe("FE6-6: ForgotPasswordPage anti-enumeration", () => {
     });
 
     expect(
-      await screen.findByText("パスワードリセットのリンクをメールに送信しました。メールをご確認ください。"),
+      await screen.findByText(
+        "パスワードリセットのリンクをメールに送信しました。メールをご確認ください。",
+      ),
     ).toBeInTheDocument();
     expect(toast.error).not.toHaveBeenCalled();
   });

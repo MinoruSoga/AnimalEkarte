@@ -48,7 +48,13 @@ describe("useMedicalRecordPostSave BUG-010", () => {
     const estimateSave = vi.fn().mockResolvedValue(undefined);
 
     const { result, rerender } = renderHook(
-      ({ activeTab, formState }: { activeTab: string; formState: { success: boolean; timestamp: number } }) => {
+      ({
+        activeTab,
+        formState,
+      }: {
+        activeTab: string;
+        formState: { success: boolean; timestamp: number };
+      }) => {
         const postSave = useMedicalRecordPostSave({
           activeTab,
           formState,

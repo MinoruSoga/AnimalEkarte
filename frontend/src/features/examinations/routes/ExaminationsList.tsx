@@ -51,8 +51,20 @@ export function ExaminationsList() {
 
   const filters = useMemo(() => examinationDateFilters(activeFilters), [activeFilters]);
 
-  const { data: filteredRecords, allExaminations, isLoading, error, total, page: serverPage, limit: serverLimit } =
-    useFilterExaminationRecords(deferredSearch, { page: urlPage, limit: EXAMINATIONS_PAGE_SIZE }, filters, activeFilters);
+  const {
+    data: filteredRecords,
+    allExaminations,
+    isLoading,
+    error,
+    total,
+    page: serverPage,
+    limit: serverLimit,
+  } = useFilterExaminationRecords(
+    deferredSearch,
+    { page: urlPage, limit: EXAMINATIONS_PAGE_SIZE },
+    filters,
+    activeFilters,
+  );
 
   const filterProperties = useMemo(
     () => buildExaminationFilterProperties(allExaminations),
@@ -80,41 +92,44 @@ export function ExaminationsList() {
     setSearchParams,
   });
 
-  const handlePageChange = useCallback((page: number) => {
-    setSearchParams(
-      (prev) => nextListSearchParamsWithPage(prev, page),
-      { replace: true },
-    );
-  }, [setSearchParams]);
+  const handlePageChange = useCallback(
+    (page: number) => {
+      setSearchParams((prev) => nextListSearchParamsWithPage(prev, page), { replace: true });
+    },
+    [setSearchParams],
+  );
 
-  const handleSearchChange = useCallback((value: string) => {
-    setSearchTerm(value);
-    setSearchParams(
-      (prev) => nextListSearchParamsWithoutPage(prev),
-      { replace: true },
-    );
-  }, [setSearchParams]);
+  const handleSearchChange = useCallback(
+    (value: string) => {
+      setSearchTerm(value);
+      setSearchParams((prev) => nextListSearchParamsWithoutPage(prev), { replace: true });
+    },
+    [setSearchParams],
+  );
 
-  const handleFilterChange = useCallback((next: ActiveFilter[]) => {
-    setActiveFilters(next);
-    setSearchParams(
-      (prev) => nextListSearchParamsWithoutPage(prev),
-      { replace: true },
-    );
-  }, [setSearchParams]);
+  const handleFilterChange = useCallback(
+    (next: ActiveFilter[]) => {
+      setActiveFilters(next);
+      setSearchParams((prev) => nextListSearchParamsWithoutPage(prev), { replace: true });
+    },
+    [setSearchParams],
+  );
 
   const handleCreate = useCallback(() => {
     navigate(paths.examinations.selectPet.getHref());
   }, [navigate]);
 
-  const handleEdit = useCallback((record: ExaminationRecord) => {
-    navigate(
-      examinationListDetailHref({
-        id: record.id,
-        medicalRecordId: canViewMedicalRecords ? record.medicalRecordId : undefined,
-      }),
-    );
-  }, [canViewMedicalRecords, navigate]);
+  const handleEdit = useCallback(
+    (record: ExaminationRecord) => {
+      navigate(
+        examinationListDetailHref({
+          id: record.id,
+          medicalRecordId: canViewMedicalRecords ? record.medicalRecordId : undefined,
+        }),
+      );
+    },
+    [canViewMedicalRecords, navigate],
+  );
 
   if (isLoading) return <LoadingFallback />;
   if (error) return <ErrorFallback />;

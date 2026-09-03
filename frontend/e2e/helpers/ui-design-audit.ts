@@ -104,7 +104,9 @@ export async function inspectPage(page: Page): Promise<AuditResult> {
         );
       }
       if (targetRect.width < 44 || targetRect.height < 44) {
-        undersized.push(`${descriptor}:${Math.round(targetRect.width)}x${Math.round(targetRect.height)}`);
+        undersized.push(
+          `${descriptor}:${Math.round(targetRect.width)}x${Math.round(targetRect.height)}`,
+        );
       }
     }
 

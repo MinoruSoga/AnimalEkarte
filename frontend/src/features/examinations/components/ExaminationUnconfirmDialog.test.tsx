@@ -11,15 +11,10 @@ describe("ExaminationUnconfirmDialog", () => {
     render(<ExaminationUnconfirmDialog onUnconfirm={onUnconfirm} />);
 
     await user.click(screen.getByRole("button", { name: "確定解除" }));
-    await user.type(
-      screen.getByRole("textbox", { name: "確定解除理由" }),
-      "   ",
-    );
+    await user.type(screen.getByRole("textbox", { name: "確定解除理由" }), "   ");
     await user.click(screen.getByRole("button", { name: "確定を解除する" }));
 
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "確定解除理由は必須です",
-    );
+    expect(await screen.findByRole("alert")).toHaveTextContent("確定解除理由は必須です");
     expect(onUnconfirm).not.toHaveBeenCalled();
   });
 
@@ -51,9 +46,7 @@ describe("ExaminationUnconfirmDialog", () => {
 
     expect(onUnconfirm).toHaveBeenCalledOnce();
     expect(onUnconfirm).toHaveBeenCalledWith("再確認のため");
-    expect(
-      screen.queryByRole("textbox", { name: "確定解除理由" }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("textbox", { name: "確定解除理由" })).not.toBeInTheDocument();
   });
 
   it("mutation失敗時はdialogを開いたままerrorを表示する", async () => {
@@ -62,17 +55,10 @@ describe("ExaminationUnconfirmDialog", () => {
     render(<ExaminationUnconfirmDialog onUnconfirm={onUnconfirm} />);
 
     await user.click(screen.getByRole("button", { name: "確定解除" }));
-    await user.type(
-      screen.getByRole("textbox", { name: "確定解除理由" }),
-      "再確認のため",
-    );
+    await user.type(screen.getByRole("textbox", { name: "確定解除理由" }), "再確認のため");
     await user.click(screen.getByRole("button", { name: "確定を解除する" }));
 
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "確定解除に失敗しました",
-    );
-    expect(
-      screen.getByRole("textbox", { name: "確定解除理由" }),
-    ).toBeInTheDocument();
+    expect(await screen.findByRole("alert")).toHaveTextContent("確定解除に失敗しました");
+    expect(screen.getByRole("textbox", { name: "確定解除理由" })).toBeInTheDocument();
   });
 });

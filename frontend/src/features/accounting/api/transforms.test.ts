@@ -64,7 +64,9 @@ describe("transformToAccounting", () => {
   });
 
   it("scheduled_date を先頭 10 文字に整形する", () => {
-    expect(transformToAccounting({ ...minimal, scheduled_date: "2026-03-25T10:00:00Z" }).scheduledDate).toBe("2026-03-25");
+    expect(
+      transformToAccounting({ ...minimal, scheduled_date: "2026-03-25T10:00:00Z" }).scheduledDate,
+    ).toBe("2026-03-25");
   });
 
   it("items を変換して返す", () => {
@@ -79,16 +81,18 @@ describe("transformToAccounting", () => {
   it("明細の発生元 ID を string に変換する", () => {
     const result = transformToAccounting({
       ...minimal,
-      items: [{
-        ...item,
-        vaccination_id: 5,
-        exam_id: 8,
-        treatment_id: 10,
-        medical_record_id: 77,
-        appointment_id: 20,
-        trimming_course_id: 30,
-        trimming_option_id: 40,
-      }],
+      items: [
+        {
+          ...item,
+          vaccination_id: 5,
+          exam_id: 8,
+          treatment_id: 10,
+          medical_record_id: 77,
+          appointment_id: 20,
+          trimming_course_id: 30,
+          trimming_option_id: 40,
+        },
+      ],
     });
     expect(result.items[0].vaccinationId).toBe("5");
     expect(result.items[0].examId).toBe("8");
@@ -123,7 +127,10 @@ describe("transformToAccounting", () => {
   });
 
   it("status が waiting の場合 payment は undefined", () => {
-    expect(transformToAccounting({ ...minimal, status: "waiting" as BackendAccounting["status"] }).payment).toBeUndefined();
+    expect(
+      transformToAccounting({ ...minimal, status: "waiting" as BackendAccounting["status"] })
+        .payment,
+    ).toBeUndefined();
   });
 
   it("status が completed かつ payment が存在する場合 payment を返す", () => {
@@ -134,19 +141,21 @@ describe("transformToAccounting", () => {
       tax_total: 100,
       total_amount: 1100,
       outstanding_amount: 0,
-      payments: [{
-        id: 1,
-        billing_id: 1,
-        method: "cash" as BackendAccounting["payments"][0]["method"],
-        billing_amount: 1100,
-        received_amount: 2000,
-        change_amount: 900,
-        insurance_amount: 0,
-        discount_amount: 0,
-        total_amount: 1100,
-        created_at: "2026-03-25T00:00:00Z",
-        updated_at: "2026-03-25T00:00:00Z",
-      }],
+      payments: [
+        {
+          id: 1,
+          billing_id: 1,
+          method: "cash" as BackendAccounting["payments"][0]["method"],
+          billing_amount: 1100,
+          received_amount: 2000,
+          change_amount: 900,
+          insurance_amount: 0,
+          discount_amount: 0,
+          total_amount: 1100,
+          created_at: "2026-03-25T00:00:00Z",
+          updated_at: "2026-03-25T00:00:00Z",
+        },
+      ],
     });
     expect(result.payment).toBeDefined();
     expect(result.payment!.totalAmount).toBe(1100);
@@ -159,17 +168,19 @@ describe("transformToAccounting", () => {
       ...minimal,
       status: "completed" as BackendAccounting["status"],
       outstanding_amount: 200,
-      payments: [{
-        id: 1,
-        billing_id: 1,
-        method: "credit_card" as BackendAccounting["payments"][0]["method"],
-        billing_amount: 900,
-        total_amount: 1100,
-        insurance_amount: 0,
-        discount_amount: 0,
-        created_at: "2026-03-25T00:00:00Z",
-        updated_at: "2026-03-25T00:00:00Z",
-      }],
+      payments: [
+        {
+          id: 1,
+          billing_id: 1,
+          method: "credit_card" as BackendAccounting["payments"][0]["method"],
+          billing_amount: 900,
+          total_amount: 1100,
+          insurance_amount: 0,
+          discount_amount: 0,
+          created_at: "2026-03-25T00:00:00Z",
+          updated_at: "2026-03-25T00:00:00Z",
+        },
+      ],
     });
     expect(result.outstandingAmount).toBe(200);
   });
@@ -179,7 +190,9 @@ describe("transformToAccounting", () => {
   });
 
   it("medical_record_id が未設定のとき medicalRecordId は undefined", () => {
-    expect(transformToAccounting({ ...minimal, medical_record_id: undefined }).medicalRecordId).toBeUndefined();
+    expect(
+      transformToAccounting({ ...minimal, medical_record_id: undefined }).medicalRecordId,
+    ).toBeUndefined();
   });
 
   it("memo が空のとき memo は undefined", () => {
@@ -191,20 +204,52 @@ describe("transformToAccounting", () => {
   });
 
   it("total_refunded_amount を totalRefundedAmount にマップする", () => {
-    expect(transformToAccounting({ ...minimal, total_refunded_amount: 3000 }).totalRefundedAmount).toBe(3000);
+    expect(
+      transformToAccounting({ ...minimal, total_refunded_amount: 3000 }).totalRefundedAmount,
+    ).toBe(3000);
   });
 
   it("total_refunded_amount が未設定のとき 0 を返す", () => {
-    expect(transformToAccounting({ ...minimal, total_refunded_amount: undefined as unknown as number }).totalRefundedAmount).toBe(0);
+    expect(
+      transformToAccounting({ ...minimal, total_refunded_amount: undefined as unknown as number })
+        .totalRefundedAmount,
+    ).toBe(0);
   });
 
   it("payment_splits が複数ある場合 paymentSplits にマップされる", () => {
     const result = transformToAccounting({
       ...minimal,
       payment_splits: [
-        { id: 1, clinic_id: 1, billing_id: 1, method: "cash" as const, amount: 2000, received_amount: 3000, change_amount: 1000, created_at: "2026-03-25T00:00:00Z" },
-        { id: 2, clinic_id: 1, billing_id: 1, method: "credit_card" as const, amount: 1500, received_amount: 0, change_amount: 0, created_at: "2026-03-25T00:00:00Z" },
-        { id: 3, clinic_id: 1, billing_id: 1, method: "electronic_money" as const, amount: 1500, received_amount: 0, change_amount: 0, created_at: "2026-03-25T00:00:00Z" },
+        {
+          id: 1,
+          clinic_id: 1,
+          billing_id: 1,
+          method: "cash" as const,
+          amount: 2000,
+          received_amount: 3000,
+          change_amount: 1000,
+          created_at: "2026-03-25T00:00:00Z",
+        },
+        {
+          id: 2,
+          clinic_id: 1,
+          billing_id: 1,
+          method: "credit_card" as const,
+          amount: 1500,
+          received_amount: 0,
+          change_amount: 0,
+          created_at: "2026-03-25T00:00:00Z",
+        },
+        {
+          id: 3,
+          clinic_id: 1,
+          billing_id: 1,
+          method: "electronic_money" as const,
+          amount: 1500,
+          received_amount: 0,
+          change_amount: 0,
+          created_at: "2026-03-25T00:00:00Z",
+        },
       ],
     });
     expect(result.paymentSplits).toHaveLength(3);
@@ -227,7 +272,16 @@ describe("transformToAccounting", () => {
     const result = transformToAccounting({
       ...minimal,
       payment_splits: [
-        { id: 7, clinic_id: 1, billing_id: 1, method: "bank_transfer" as const, amount: 5000, received_amount: 0, change_amount: 0, created_at: "2026-03-25T00:00:00Z" },
+        {
+          id: 7,
+          clinic_id: 1,
+          billing_id: 1,
+          method: "bank_transfer" as const,
+          amount: 5000,
+          received_amount: 0,
+          change_amount: 0,
+          created_at: "2026-03-25T00:00:00Z",
+        },
       ],
     });
     expect(result.paymentSplits).toHaveLength(1);
@@ -244,7 +298,17 @@ describe("transformToAccounting", () => {
     const result = transformToAccounting({
       ...minimal,
       payment_splits: [
-        { id: 5, clinic_id: 1, billing_id: 1, method: "credit_card" as const, payment_method_id: 42, amount: 5000, received_amount: 0, change_amount: 0, created_at: "2026-03-25T00:00:00Z" },
+        {
+          id: 5,
+          clinic_id: 1,
+          billing_id: 1,
+          method: "credit_card" as const,
+          payment_method_id: 42,
+          amount: 5000,
+          received_amount: 0,
+          change_amount: 0,
+          created_at: "2026-03-25T00:00:00Z",
+        },
       ],
     });
     expect(result.paymentSplits![0].paymentMethodId).toBe("42");

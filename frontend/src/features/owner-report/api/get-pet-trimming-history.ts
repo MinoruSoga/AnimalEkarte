@@ -13,9 +13,7 @@ import type { TrimmingListResponse } from "@/types/trimming";
  * date は "YYYY-MM-DD"（未設定は ""）。辞書順 = 時系列順なので降順ソートで新しい順。
  */
 export function selectCompletedTrimmingHistory(items: TrimmingUI[]): TrimmingUI[] {
-  return items
-    .filter((t) => t.status === "完了")
-    .sort((a, b) => b.date.localeCompare(a.date));
+  return items.filter((t) => t.status === "完了").sort((a, b) => b.date.localeCompare(a.date));
 }
 
 export interface PetTrimmingHistoryResult {

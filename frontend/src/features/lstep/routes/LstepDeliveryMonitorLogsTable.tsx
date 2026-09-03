@@ -87,11 +87,17 @@ function DeliveryLogsTableBody({
     const badgeColor = TriggerStatusBadge[item.status] ?? "gray";
     return (
       <tr key={item.id} className={STYLE.tableRow} data-testid="log-row">
-        <td className={STYLE.tableCell}>{TriggerTypeLabels[item.trigger_type] ?? item.trigger_type}</td>
-        <td className={STYLE.tableCell}>{item.owner_name}</td>
-        <td className={`${STYLE.tableCell} font-mono`}>{formatDeliveryMonitorDatetime(item.scheduled_at)}</td>
         <td className={STYLE.tableCell}>
-          <span className={`inline-flex items-center px-2 py-0.5 rounded border text-xs ${BADGE[badgeColor]}`}>
+          {TriggerTypeLabels[item.trigger_type] ?? item.trigger_type}
+        </td>
+        <td className={STYLE.tableCell}>{item.owner_name}</td>
+        <td className={`${STYLE.tableCell} font-mono`}>
+          {formatDeliveryMonitorDatetime(item.scheduled_at)}
+        </td>
+        <td className={STYLE.tableCell}>
+          <span
+            className={`inline-flex items-center px-2 py-0.5 rounded border text-xs ${BADGE[badgeColor]}`}
+          >
             {TriggerStatusLabels[item.status] ?? item.status}
           </span>
         </td>

@@ -79,7 +79,7 @@ function renderRoute(path: string, grants: PermGrant[]) {
           <RouterProvider router={router} />
         </Suspense>
       </QueryClientProvider>
-    </AuthContext.Provider>
+    </AuthContext.Provider>,
   );
 }
 
@@ -92,12 +92,12 @@ const FIND_TIMEOUT = { timeout: 3000 };
 describe("/settings — 権限ガード振る舞いテスト (STG-BLOCKER-002)", () => {
   const deniedCases: [string, PermGrant[]][] = [
     // 権限なし → AccessDenied （URL 直叩き想定）
-    ["/settings/closing-time",    []],
+    ["/settings/closing-time", []],
     ["/settings/payment-methods", []],
     ["/settings/lab-device-item-masters", []],
     // 別 resource の view のみ → 該当 resource の view なしで AccessDenied
-    ["/settings/closing-time",    [["master-payment-method", "view"]]],
-    ["/settings/payment-methods", [["closing-settings",      "view"]]],
+    ["/settings/closing-time", [["master-payment-method", "view"]]],
+    ["/settings/payment-methods", [["closing-settings", "view"]]],
     ["/settings/lab-device-item-masters", [["closing-settings", "view"]]],
   ];
 
@@ -107,7 +107,7 @@ describe("/settings — 権限ガード振る舞いテスト (STG-BLOCKER-002)",
   });
 
   const allowedCases: [string, PermGrant[]][] = [
-    ["/settings/closing-time",    [["closing-settings",      "view"]]],
+    ["/settings/closing-time", [["closing-settings", "view"]]],
     ["/settings/payment-methods", [["master-payment-method", "view"]]],
     ["/settings/lab-device-item-masters", [["lab-import", "view"]]],
   ];

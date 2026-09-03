@@ -60,9 +60,7 @@ function createWrapper(client: QueryClient) {
 
 describe("use-staffs selector transform (fail-closed staff_type)", () => {
   it("does not fail-open missing, null, resource, or unknown staff_type to doctor", () => {
-    const items = rawStaffs.map((row) =>
-      transformStaffSelectorItem(row as never),
-    );
+    const items = rawStaffs.map((row) => transformStaffSelectorItem(row as never));
     expect(items.map((s) => s.staffType)).toEqual([
       "doctor",
       "resource",
@@ -71,12 +69,8 @@ describe("use-staffs selector transform (fail-closed staff_type)", () => {
       "unknown-role",
       "doctor",
     ]);
-    const doctorCandidates = items.filter(
-      (s) => s.staffType === "doctor" && s.isActive,
-    );
-    expect(doctorCandidates).toEqual([
-      expect.objectContaining({ id: "1", name: "Active Doctor" }),
-    ]);
+    const doctorCandidates = items.filter((s) => s.staffType === "doctor" && s.isActive);
+    expect(doctorCandidates).toEqual([expect.objectContaining({ id: "1", name: "Active Doctor" })]);
   });
 });
 
@@ -87,15 +81,9 @@ describe("staff selector query cache (BUG-005 Mode3)", () => {
   });
 
   it("uses a distinct key from masters.category(staffs)", () => {
-    expect(queryKeys.masters.staffSelectorList()).toEqual([
-      "masters",
-      "staffs",
-      "selector-list",
-    ]);
+    expect(queryKeys.masters.staffSelectorList()).toEqual(["masters", "staffs", "selector-list"]);
     expect(queryKeys.masters.category("staffs")).toEqual(["masters", "staffs"]);
-    expect(queryKeys.masters.staffSelectorList()).not.toEqual(
-      queryKeys.masters.category("staffs"),
-    );
+    expect(queryKeys.masters.staffSelectorList()).not.toEqual(queryKeys.masters.category("staffs"));
   });
 
   it("stores thin selector shape under selector-list and ignores master key contents", async () => {
@@ -120,29 +108,16 @@ describe("staff selector query cache (BUG-005 Mode3)", () => {
     });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
-    expect(result.current.data?.map((s) => s.id)).toEqual([
-      "1",
-      "2",
-      "3",
-      "4",
-      "5",
-      "6",
-    ]);
+    expect(result.current.data?.map((s) => s.id)).toEqual(["1", "2", "3", "4", "5", "6"]);
     expect(result.current.data?.[0]).toMatchObject({
       id: "1",
       staffType: "doctor",
       isActive: true,
     });
-    expect(
-      Object.prototype.hasOwnProperty.call(result.current.data?.[0], "email"),
-    ).toBe(false);
+    expect(Object.prototype.hasOwnProperty.call(result.current.data?.[0], "email")).toBe(false);
 
-    const selectorCached = client.getQueryData(
-      queryKeys.masters.staffSelectorList(),
-    );
-    const masterCached = client.getQueryData(
-      queryKeys.masters.category("staffs"),
-    );
+    const selectorCached = client.getQueryData(queryKeys.masters.staffSelectorList());
+    const masterCached = client.getQueryData(queryKeys.masters.category("staffs"));
     expect(selectorCached).not.toBe(masterCached);
     expect((masterCached as { id: string }[])[0].id).toBe("poison");
   });
@@ -168,9 +143,10 @@ describe("staff selector query cache (BUG-005 Mode3)", () => {
       },
     ]);
 
-    const selectorCached = client.getQueryData(
-      queryKeys.masters.staffSelectorList(),
-    ) as { id: string; email?: string }[];
+    const selectorCached = client.getQueryData(queryKeys.masters.staffSelectorList()) as {
+      id: string;
+      email?: string;
+    }[];
     expect(selectorCached[0].id).toBe("1");
     expect(selectorCached[0].email).toBeUndefined();
   });

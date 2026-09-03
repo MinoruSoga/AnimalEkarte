@@ -31,22 +31,25 @@ interface HospitalizationBasicInfoProps {
   cageIdError?: string;
 }
 
-export const HospitalizationBasicInfo = memo(function HospitalizationBasicInfo({ formData, onChange, cageItems, cageIdError }: HospitalizationBasicInfoProps) {
+export const HospitalizationBasicInfo = memo(function HospitalizationBasicInfo({
+  formData,
+  onChange,
+  cageItems,
+  cageIdError,
+}: HospitalizationBasicInfoProps) {
   return (
     <div className={`${C.bgWhite} rounded-lg border ${C.borderMedium} ${H_STYLES.padding.box}`}>
       <h2 className={`${H_STYLES.text.base} font-bold mb-3 flex items-center gap-2 ${C.text}`}>
         <Building2 className={`${ICON.action} ${C.text60}`} />
         基本情報
       </h2>
-      
+
       {/* 入院タイプ */}
       <div className="mb-3">
         <Label className={`${H_STYLES.text.sm} ${C.text60} mb-1.5 block`}>入院タイプ</Label>
         <RadioGroup
           value={formData.hospitalizationType}
-          onValueChange={(val) =>
-            onChange({ hospitalizationType: val })
-          }
+          onValueChange={(val) => onChange({ hospitalizationType: val })}
           className="flex gap-4"
           id="hospitalization_type"
         >
@@ -57,7 +60,12 @@ export const HospitalizationBasicInfo = memo(function HospitalizationBasicInfo({
               aria-label="入院タイプ: 入院"
               className={`${C.text}`}
             />
-            <Label htmlFor="type-hospitalization" className={`inline-flex min-h-11 min-w-11 items-center ${H_STYLES.text.base} ${C.text} cursor-pointer`}>入院</Label>
+            <Label
+              htmlFor="type-hospitalization"
+              className={`inline-flex min-h-11 min-w-11 items-center ${H_STYLES.text.base} ${C.text} cursor-pointer`}
+            >
+              入院
+            </Label>
           </div>
           <div className="flex items-center gap-2 cursor-pointer">
             <RadioGroupItem
@@ -66,7 +74,12 @@ export const HospitalizationBasicInfo = memo(function HospitalizationBasicInfo({
               aria-label="入院タイプ: ホテル"
               className={`${C.text}`}
             />
-            <Label htmlFor="type-hotel" className={`inline-flex min-h-11 min-w-11 items-center ${H_STYLES.text.base} ${C.text} cursor-pointer`}>ホテル</Label>
+            <Label
+              htmlFor="type-hotel"
+              className={`inline-flex min-h-11 min-w-11 items-center ${H_STYLES.text.base} ${C.text} cursor-pointer`}
+            >
+              ホテル
+            </Label>
           </div>
         </RadioGroup>
       </div>
@@ -78,7 +91,9 @@ export const HospitalizationBasicInfo = memo(function HospitalizationBasicInfo({
           期間
         </Label>
         <div className={`flex flex-col items-stretch ${H_STYLES.gap.default}`}>
-          <Label htmlFor="start_date" className="sr-only">開始日</Label>
+          <Label htmlFor="start_date" className="sr-only">
+            開始日
+          </Label>
           <DatePicker
             id="start_date"
             value={formData.displayDate}
@@ -86,8 +101,12 @@ export const HospitalizationBasicInfo = memo(function HospitalizationBasicInfo({
             placeholder="開始日"
             className="flex-1"
           />
-          <span className={`text-center text-sm ${C.text40}`} aria-hidden="true">〜</span>
-          <Label htmlFor="end_date" className="sr-only">終了日</Label>
+          <span className={`text-center text-sm ${C.text40}`} aria-hidden="true">
+            〜
+          </span>
+          <Label htmlFor="end_date" className="sr-only">
+            終了日
+          </Label>
           <DatePicker
             id="end_date"
             value={formData.endDate ?? ""}
@@ -100,25 +119,28 @@ export const HospitalizationBasicInfo = memo(function HospitalizationBasicInfo({
 
       {/* ケージ/個室（BUG-037: 必須） */}
       <div className="mb-3">
-          <div className="flex items-center justify-between mb-1.5">
-            <Label htmlFor="cage_id" className={`${H_STYLES.text.sm} ${C.text60}`}>
-              ケージ・個室<span className="text-destructive ml-0.5" aria-hidden="true">*</span>
-            </Label>
-            <MasterLink category="cage" label="編集" className="text-2xs" />
-          </div>
-          <SearchableSelect
-              id="cage_id"
-              value={formData.cageId}
-              onValueChange={(val) => onChange({ cageId: val })}
-              options={cageItems.map((cage) => ({
-                value: String(cage.id),
-                label: cage.description ? `${cage.name}（${cage.description}）` : cage.name,
-              }))}
-              placeholder="選択してください"
-              searchPlaceholder="ケージを検索..."
-              ariaInvalid={Boolean(cageIdError)}
-          />
-          <FormFieldError message={cageIdError} />
+        <div className="flex items-center justify-between mb-1.5">
+          <Label htmlFor="cage_id" className={`${H_STYLES.text.sm} ${C.text60}`}>
+            ケージ・個室
+            <span className="text-destructive ml-0.5" aria-hidden="true">
+              *
+            </span>
+          </Label>
+          <MasterLink category="cage" label="編集" className="text-2xs" />
+        </div>
+        <SearchableSelect
+          id="cage_id"
+          value={formData.cageId}
+          onValueChange={(val) => onChange({ cageId: val })}
+          options={cageItems.map((cage) => ({
+            value: String(cage.id),
+            label: cage.description ? `${cage.name}（${cage.description}）` : cage.name,
+          }))}
+          placeholder="選択してください"
+          searchPlaceholder="ケージを検索..."
+          ariaInvalid={Boolean(cageIdError)}
+        />
+        <FormFieldError message={cageIdError} />
       </div>
 
       {/* 保険 */}
@@ -148,7 +170,10 @@ export const HospitalizationBasicInfo = memo(function HospitalizationBasicInfo({
         {formData.isInsurance ? (
           <div className={`flex flex-col ${H_STYLES.gap.default} pl-6`}>
             <div>
-              <Label htmlFor="insurance_company_name" className={`${H_STYLES.text.xs} ${C.text60} mb-1 block`}>
+              <Label
+                htmlFor="insurance_company_name"
+                className={`${H_STYLES.text.xs} ${C.text60} mb-1 block`}
+              >
                 保険会社名
               </Label>
               <Input
@@ -161,7 +186,10 @@ export const HospitalizationBasicInfo = memo(function HospitalizationBasicInfo({
               />
             </div>
             <div>
-              <Label htmlFor="insurance_number" className={`${H_STYLES.text.xs} ${C.text60} mb-1 block`}>
+              <Label
+                htmlFor="insurance_number"
+                className={`${H_STYLES.text.xs} ${C.text60} mb-1 block`}
+              >
                 保険番号
               </Label>
               <Input
@@ -191,7 +219,9 @@ export const HospitalizationBasicInfo = memo(function HospitalizationBasicInfo({
 
       {/* メモ */}
       <div>
-        <Label htmlFor="memo" className={`${H_STYLES.text.sm} ${C.text60} mb-1.5 block`}>メモ</Label>
+        <Label htmlFor="memo" className={`${H_STYLES.text.sm} ${C.text60} mb-1.5 block`}>
+          メモ
+        </Label>
         <Textarea
           id="memo"
           value={formData.memo}

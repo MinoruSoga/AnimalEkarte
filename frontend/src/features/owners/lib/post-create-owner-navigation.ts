@@ -1,8 +1,7 @@
 import { paths } from "@/config/paths";
 
 export type PostCreateOwnerNavigation =
-  | { mode: "spa"; href: string }
-  | { mode: "hard"; href: string; clinicId: string };
+  { mode: "spa"; href: string } | { mode: "hard"; href: string; clinicId: string };
 
 /**
  * BUG-010: 登録先医院がグローバル選択と異なる場合、詳細 GET は作成先 clinic の

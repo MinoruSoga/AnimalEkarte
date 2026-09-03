@@ -43,11 +43,7 @@ export function ExaminationHistoryPanel({
     <div className="lg:col-span-2 space-y-3">
       <div className="flex items-center justify-between gap-2 px-1">
         <h3 className={`text-sm font-medium ${C.text60}`}>過去の検査履歴</h3>
-        <div
-          className="flex items-center gap-1"
-          role="group"
-          aria-label="履歴表示形式"
-        >
+        <div className="flex items-center gap-1" role="group" aria-label="履歴表示形式">
           <Button
             type="button"
             variant={historyView === "cards" ? "secondary" : "ghost"}
@@ -83,14 +79,9 @@ export function ExaminationHistoryPanel({
       />
       {historyView === "pivot" ? (
         currentPetId ? (
-          <ExamPivotTable
-            examinations={pivotHistory}
-            sortOrder={historySortOrder}
-          />
+          <ExamPivotTable examinations={pivotHistory} sortOrder={historySortOrder} />
         ) : (
-          <p className={`py-6 text-center text-sm ${C.text45}`}>
-            ペットを選択してください
-          </p>
+          <p className={`py-6 text-center text-sm ${C.text45}`}>ペットを選択してください</p>
         )
       ) : (
         <div className="space-y-2 max-h-[600px] overflow-y-auto">

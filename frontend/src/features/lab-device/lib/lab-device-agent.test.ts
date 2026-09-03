@@ -12,31 +12,52 @@ afterEach(() => {
 
 describe("lab device agent client", () => {
   it("reads raw base64 from the loopback-only agent", async () => {
-    const fetcher = vi.fn(async (input: RequestInfo | URL) => new Response(JSON.stringify(
-      String(input).endsWith("/claim")
-        ? { owner: "owner-1" }
-        : { frames: [{ id: "frame-1", payload_base64: "Av8D", received_at: "2026-08-20T12:00:00Z" }] },
-    ), { status: 200, headers: { "Content-Type": "application/json" } }));
+    const fetcher = vi.fn(
+      async (input: RequestInfo | URL) =>
+        new Response(
+          JSON.stringify(
+            String(input).endsWith("/claim")
+              ? { owner: "owner-1" }
+              : {
+                  frames: [
+                    { id: "frame-1", payload_base64: "Av8D", received_at: "2026-08-20T12:00:00Z" },
+                  ],
+                },
+          ),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        ),
+    );
     const client = createLabDeviceAgentClient("consumer-token", fetcher);
 
     await client.claim("clinic-2");
     await expect(client.frames()).resolves.toEqual([
       { id: "frame-1", payloadBase64: "Av8D", receivedAt: "2026-08-20T12:00:00Z" },
     ]);
-    expect(fetcher).toHaveBeenCalledWith(`${LAB_DEVICE_AGENT_URL}/frames`, expect.objectContaining({ method: "GET" }));
     expect(fetcher).toHaveBeenCalledWith(
       `${LAB_DEVICE_AGENT_URL}/frames`,
-      expect.objectContaining({ headers: expect.objectContaining({ "X-Lab-Device-Consumer-Token": "consumer-token" }) }),
+      expect.objectContaining({ method: "GET" }),
+    );
+    expect(fetcher).toHaveBeenCalledWith(
+      `${LAB_DEVICE_AGENT_URL}/frames`,
+      expect.objectContaining({
+        headers: expect.objectContaining({ "X-Lab-Device-Consumer-Token": "consumer-token" }),
+      }),
     );
   });
 
   it("rejects malformed agent responses", async () => {
-    const client = createLabDeviceAgentClient("consumer-token", async (input) => new Response(
-      JSON.stringify(String(input).endsWith("/claim")
-        ? { owner: "owner-1" }
-        : { frames: [{ id: "frame-1", payload_base64: 123 }] }),
-      { status: 200, headers: { "Content-Type": "application/json" } },
-    ));
+    const client = createLabDeviceAgentClient(
+      "consumer-token",
+      async (input) =>
+        new Response(
+          JSON.stringify(
+            String(input).endsWith("/claim")
+              ? { owner: "owner-1" }
+              : { frames: [{ id: "frame-1", payload_base64: 123 }] },
+          ),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        ),
+    );
     await client.claim("clinic-2");
     await expect(client.frames()).rejects.toThrow("invalid lab device agent response");
   });
@@ -45,19 +66,22 @@ describe("lab device agent client", () => {
     const fetcher = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
       if (url.endsWith("/health")) {
-        return new Response(JSON.stringify({
-          status: "degraded",
-          open_ports: 2,
-          configured_ports: 2,
-          queue: { pending: 1, rejected: 2, overflow: 3 },
-          input_overflow: 4,
-          port_discovery_failures_total: 5,
-          port_open_failures_total: 6,
-          queue_failures_total: 7,
-          port_close_failures_total: 8,
-          response_failures_total: 9,
-          last_error_category: "port_open_failed",
-        }), { status: 200, headers: { "Content-Type": "application/json" } });
+        return new Response(
+          JSON.stringify({
+            status: "degraded",
+            open_ports: 2,
+            configured_ports: 2,
+            queue: { pending: 1, rejected: 2, overflow: 3 },
+            input_overflow: 4,
+            port_discovery_failures_total: 5,
+            port_open_failures_total: 6,
+            queue_failures_total: 7,
+            port_close_failures_total: 8,
+            response_failures_total: 9,
+            last_error_category: "port_open_failed",
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
       }
       if (url.endsWith("/claim")) {
         return new Response(JSON.stringify({ owner: "owner-1" }), { status: 200 });
@@ -67,9 +91,18 @@ describe("lab device agent client", () => {
     const client = createLabDeviceAgentClient("consumer-token", fetcher);
 
     await expect(client.health()).resolves.toEqual({
-      status: "degraded", openPorts: 2, configuredPorts: 2, pending: 1, rejected: 2, overflow: 3, inputOverflow: 4,
-      portDiscoveryFailures: 5, portOpenFailures: 6, lastErrorCategory: "port_open_failed",
-      queueFailures: 7, portCloseFailures: 8,
+      status: "degraded",
+      openPorts: 2,
+      configuredPorts: 2,
+      pending: 1,
+      rejected: 2,
+      overflow: 3,
+      inputOverflow: 4,
+      portDiscoveryFailures: 5,
+      portOpenFailures: 6,
+      lastErrorCategory: "port_open_failed",
+      queueFailures: 7,
+      portCloseFailures: 8,
       responseFailures: 9,
     });
     expect(fetcher).toHaveBeenCalledWith(
@@ -127,7 +160,10 @@ describe("lab device agent client", () => {
   });
 
   it("rejects an invalid claim response and use before claim", async () => {
-    const client = createLabDeviceAgentClient("consumer-token", async () => new Response(JSON.stringify({ owner: "" }), { status: 200 }));
+    const client = createLabDeviceAgentClient(
+      "consumer-token",
+      async () => new Response(JSON.stringify({ owner: "" }), { status: 200 }),
+    );
     await expect(client.frames()).rejects.toThrow("not claimed");
     await expect(client.claim("clinic-2")).rejects.toThrow("invalid lab device agent response");
   });
@@ -140,7 +176,9 @@ describe("drainLabDeviceAgentFrames", () => {
     const client = {
       claim: vi.fn(),
       health: vi.fn(),
-      frames: vi.fn(async () => [{ id: "frame-1", payloadBase64: "Av8D", receivedAt: "2026-08-20T12:00:00Z" }]),
+      frames: vi.fn(async () => [
+        { id: "frame-1", payloadBase64: "Av8D", receivedAt: "2026-08-20T12:00:00Z" },
+      ]),
       ack,
       reject: vi.fn(),
     };
@@ -158,9 +196,17 @@ describe("drainLabDeviceAgentFrames", () => {
       { id: "later", payloadBase64: "Ag==", receivedAt: "2026-08-20T12:00:02Z" },
     ];
     const reject = vi.fn(async () => {});
-    const client = { claim: vi.fn(), health: vi.fn(), frames: vi.fn(async () => frames), ack: vi.fn(), reject };
+    const client = {
+      claim: vi.fn(),
+      health: vi.fn(),
+      frames: vi.fn(async () => frames),
+      ack: vi.fn(),
+      reject,
+    };
     const receive = vi.fn(async (input: { payloadBase64: string }) => {
-      throw Object.assign(new Error("receive failed"), { status: input.payloadBase64 === "AA==" ? 400 : 500 });
+      throw Object.assign(new Error("receive failed"), {
+        status: input.payloadBase64 === "AA==" ? 400 : 500,
+      });
     });
 
     const result = await drainLabDeviceAgentFrames({ client, receive });

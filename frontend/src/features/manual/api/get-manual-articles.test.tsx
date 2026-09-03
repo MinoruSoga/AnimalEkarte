@@ -21,11 +21,7 @@ function createWrapper() {
   });
 
   return function Wrapper({ children }: { children: ReactNode }) {
-    return (
-      <QueryClientProvider client={queryClient}>
-        {children}
-      </QueryClientProvider>
-    );
+    return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
   };
 }
 
@@ -36,20 +32,16 @@ beforeEach(() => {
 
 describe("useGetManualArticleOverrides", () => {
   it("enabled=falseならoverride APIを呼ばない", () => {
-    const { result } = renderHook(
-      () => useGetManualArticleOverrides(false),
-      { wrapper: createWrapper() },
-    );
+    const { result } = renderHook(() => useGetManualArticleOverrides(false), {
+      wrapper: createWrapper(),
+    });
 
     expect(result.current.fetchStatus).toBe("idle");
     expect(axiosGetMock).not.toHaveBeenCalled();
   });
 
   it("enabled=trueならoverride APIを呼ぶ", async () => {
-    renderHook(
-      () => useGetManualArticleOverrides(true),
-      { wrapper: createWrapper() },
-    );
+    renderHook(() => useGetManualArticleOverrides(true), { wrapper: createWrapper() });
 
     await waitFor(() => expect(axiosGetMock).toHaveBeenCalledWith("/v1/manual/articles"));
   });

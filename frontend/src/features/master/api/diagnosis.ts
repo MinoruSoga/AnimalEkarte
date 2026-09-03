@@ -55,10 +55,7 @@ export type DiagnosisName = ReturnType<typeof transformDiagnosisName>;
 // Request types re-export (@/types/diagnosis から導出済み)
 // ─────────────────────────────────────────────────
 
-export type {
-  UpdateDiagnosisTypeRequest,
-  UpdateDiagnosisNameRequest,
-} from "@/types/diagnosis";
+export type { UpdateDiagnosisTypeRequest, UpdateDiagnosisNameRequest } from "@/types/diagnosis";
 
 // ─────────────────────────────────────────────────
 // Query keys
@@ -69,19 +66,12 @@ export type {
 // ─────────────────────────────────────────────────
 
 async function listDiagnosisTypes(): Promise<DiagnosisType[]> {
-  const { data } = await axios.get<{ data: ModelDiagnosisType[] }>(
-    "/v1/masters/diagnosis-types",
-  );
+  const { data } = await axios.get<{ data: ModelDiagnosisType[] }>("/v1/masters/diagnosis-types");
   return data.data.map(transformDiagnosisType);
 }
 
-async function createDiagnosisType(
-  req: CreateDiagnosisTypeRequest,
-): Promise<DiagnosisType> {
-  const { data } = await axios.post<ModelDiagnosisType>(
-    "/v1/masters/diagnosis-types",
-    req,
-  );
+async function createDiagnosisType(req: CreateDiagnosisTypeRequest): Promise<DiagnosisType> {
+  const { data } = await axios.post<ModelDiagnosisType>("/v1/masters/diagnosis-types", req);
   return transformDiagnosisType(data);
 }
 
@@ -89,10 +79,7 @@ async function updateDiagnosisType(
   id: string,
   req: UpdateDiagnosisTypeRequest,
 ): Promise<DiagnosisType> {
-  const { data } = await axios.patch<ModelDiagnosisType>(
-    `/v1/masters/diagnosis-types/${id}`,
-    req,
-  );
+  const { data } = await axios.patch<ModelDiagnosisType>(`/v1/masters/diagnosis-types/${id}`, req);
   return transformDiagnosisType(data);
 }
 
@@ -100,9 +87,7 @@ async function deleteDiagnosisType(id: string): Promise<void> {
   await axios.delete(`/v1/masters/diagnosis-types/${id}`);
 }
 
-async function reorderDiagnosisTypes(
-  req: ReorderDiagnosisTypeRequest,
-): Promise<void> {
+async function reorderDiagnosisTypes(req: ReorderDiagnosisTypeRequest): Promise<void> {
   await axios.patch("/v1/masters/diagnosis-types/reorder", req);
 }
 
@@ -111,19 +96,12 @@ async function reorderDiagnosisTypes(
 // ─────────────────────────────────────────────────
 
 async function listDiagnosisNames(): Promise<DiagnosisName[]> {
-  const { data } = await axios.get<{ data: ModelDiagnosisName[] }>(
-    "/v1/masters/diagnosis-names",
-  );
+  const { data } = await axios.get<{ data: ModelDiagnosisName[] }>("/v1/masters/diagnosis-names");
   return data.data.map(transformDiagnosisName);
 }
 
-async function createDiagnosisName(
-  req: CreateDiagnosisNameRequest,
-): Promise<DiagnosisName> {
-  const { data } = await axios.post<ModelDiagnosisName>(
-    "/v1/masters/diagnosis-names",
-    req,
-  );
+async function createDiagnosisName(req: CreateDiagnosisNameRequest): Promise<DiagnosisName> {
+  const { data } = await axios.post<ModelDiagnosisName>("/v1/masters/diagnosis-names", req);
   return transformDiagnosisName(data);
 }
 
@@ -131,10 +109,7 @@ async function updateDiagnosisName(
   id: string,
   req: UpdateDiagnosisNameRequest,
 ): Promise<DiagnosisName> {
-  const { data } = await axios.patch<ModelDiagnosisName>(
-    `/v1/masters/diagnosis-names/${id}`,
-    req,
-  );
+  const { data } = await axios.patch<ModelDiagnosisName>(`/v1/masters/diagnosis-names/${id}`, req);
   return transformDiagnosisName(data);
 }
 
@@ -142,9 +117,7 @@ async function deleteDiagnosisName(id: string): Promise<void> {
   await axios.delete(`/v1/masters/diagnosis-names/${id}`);
 }
 
-async function reorderDiagnosisNames(
-  req: ReorderDiagnosisNameRequest,
-): Promise<void> {
+async function reorderDiagnosisNames(req: ReorderDiagnosisNameRequest): Promise<void> {
   await axios.patch("/v1/masters/diagnosis-names/reorder", req);
 }
 

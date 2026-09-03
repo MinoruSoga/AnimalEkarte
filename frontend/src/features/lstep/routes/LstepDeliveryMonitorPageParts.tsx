@@ -12,10 +12,7 @@ import { DateRangeInputs } from "@/components/shared/DateRangeInputs";
 import { BADGE, C, ICON } from "@/lib/design-tokens";
 
 import type { DeliveryTriggerSummaryResponse } from "../api/get-lstep-delivery-trigger-summary";
-import {
-  TriggerStatusLabels,
-  TriggerTypeLabels,
-} from "../constants/trigger-types";
+import { TriggerStatusLabels, TriggerTypeLabels } from "../constants/trigger-types";
 import { DELIVERY_STATUS_CARDS } from "./lstep-delivery-monitor-page-model";
 
 interface DeliveryMonitorFiltersProps {
@@ -40,8 +37,12 @@ export function DeliveryMonitorFilters({
   onStatusChange,
 }: DeliveryMonitorFiltersProps) {
   return (
-    <div className={`${C.bgWhite} border ${C.borderLight} rounded-xs px-4 py-3 flex flex-wrap items-stretch sm:items-center gap-3`}>
-      <label className={`text-sm ${C.text70} flex w-full flex-col items-stretch gap-2 sm:w-auto sm:flex-row sm:items-center`}>
+    <div
+      className={`${C.bgWhite} border ${C.borderLight} rounded-xs px-4 py-3 flex flex-wrap items-stretch sm:items-center gap-3`}
+    >
+      <label
+        className={`text-sm ${C.text70} flex w-full flex-col items-stretch gap-2 sm:w-auto sm:flex-row sm:items-center`}
+      >
         期間
         <DateRangeInputs
           fromValue={from}
@@ -112,7 +113,9 @@ export function DeliverySummaryCards({ summary }: DeliverySummaryCardsProps) {
           data-testid={`summary-card-${key}`}
         >
           <p className={`text-xs ${C.text50} mb-1`}>{label}</p>
-          <p className={`text-heading-2 font-bold ${C.text}`}>{summary[key].toLocaleString("ja-JP")}</p>
+          <p className={`text-heading-2 font-bold ${C.text}`}>
+            {summary[key].toLocaleString("ja-JP")}
+          </p>
         </div>
       ))}
     </div>
@@ -149,11 +152,17 @@ export function DeliveryExcludedReasonBreakdown({ summary }: DeliverySummaryCard
   }
 
   return (
-    <div className={`${C.bgWhite} border ${C.borderLight} rounded-xs px-4 py-3`} data-testid="excluded-reason-breakdown">
+    <div
+      className={`${C.bgWhite} border ${C.borderLight} rounded-xs px-4 py-3`}
+      data-testid="excluded-reason-breakdown"
+    >
       <p className={`text-sm font-medium ${C.text70} mb-2`}>除外理由</p>
       <div className="flex flex-wrap gap-2">
         {Object.entries(summary.excluded_reason_breakdown).map(([reason, count]) => (
-          <span key={reason} className={`inline-flex items-center gap-1 px-2 py-0.5 rounded border text-xs ${BADGE.gray}`}>
+          <span
+            key={reason}
+            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded border text-xs ${BADGE.gray}`}
+          >
             {reason || "理由なし"}
             <span className="font-medium">{count.toLocaleString("ja-JP")}件</span>
           </span>

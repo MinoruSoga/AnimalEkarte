@@ -2,12 +2,9 @@ import axios from "axios";
 import { toast } from "sonner";
 
 /** Stable BE domain conflict codes (BUG-023 / BUG-027 / BUG-026). */
-export const CONFLICT_CODE_PERMISSION_GROUP_NAME =
-  "permission_group_name_conflict" as const;
-export const CONFLICT_CODE_ANIMAL_SPECIES_NAME =
-  "animal_species_name_conflict" as const;
-export const CONFLICT_CODE_SHIFT_TEMPLATE_NAME =
-  "shift_template_name_conflict" as const;
+export const CONFLICT_CODE_PERMISSION_GROUP_NAME = "permission_group_name_conflict" as const;
+export const CONFLICT_CODE_ANIMAL_SPECIES_NAME = "animal_species_name_conflict" as const;
+export const CONFLICT_CODE_SHIFT_TEMPLATE_NAME = "shift_template_name_conflict" as const;
 export const CONFLICT_CODE_LSTEP_AUTO_MANAGED_PREFIX =
   "lstep_auto_managed_prefix_conflict" as const;
 export const CONFLICT_CODE_CAGE_NAME = "cage_name_conflict" as const;
@@ -22,28 +19,19 @@ export const CONFLICT_CODE_MEDICINE_NAME = "medicine_name_conflict" as const;
 const KNOWN_CONFLICT_MESSAGES: Record<string, (name: string) => string> = {
   [CONFLICT_CODE_PERMISSION_GROUP_NAME]: (name) =>
     `権限グループ名『${name}』は既に使用されています`,
-  [CONFLICT_CODE_ANIMAL_SPECIES_NAME]: (name) =>
-    `動物種類『${name}』は既に使用されています`,
+  [CONFLICT_CODE_ANIMAL_SPECIES_NAME]: (name) => `動物種類『${name}』は既に使用されています`,
   [CONFLICT_CODE_SHIFT_TEMPLATE_NAME]: (name) =>
     `シフトテンプレート名『${name}』は既に使用されています`,
   [CONFLICT_CODE_LSTEP_AUTO_MANAGED_PREFIX]: (name) =>
     `自動管理プレフィックス『${name}』は既に使用されています`,
-  [CONFLICT_CODE_CAGE_NAME]: (name) =>
-    `ケージ『${name}』は既に使用されています`,
-  [CONFLICT_CODE_OCCUPATION_NAME]: (name) =>
-    `職種『${name}』は既に使用されています`,
-  [CONFLICT_CODE_CONSULTATION_NAME]: (name) =>
-    `診察『${name}』は既に使用されています`,
-  [CONFLICT_CODE_EXAM_TYPE_NAME]: (name) =>
-    `検査『${name}』は既に使用されています`,
-  [CONFLICT_CODE_PROCEDURE_NAME]: (name) =>
-    `処置『${name}』は既に使用されています`,
-  [CONFLICT_CODE_VACCINE_NAME]: (name) =>
-    `予防接種『${name}』は既に使用されています`,
-  [CONFLICT_CODE_CHECKUP_TYPE_NAME]: (name) =>
-    `定期健診『${name}』は既に使用されています`,
-  [CONFLICT_CODE_MEDICINE_NAME]: (name) =>
-    `薬剤『${name}』は既に使用されています`,
+  [CONFLICT_CODE_CAGE_NAME]: (name) => `ケージ『${name}』は既に使用されています`,
+  [CONFLICT_CODE_OCCUPATION_NAME]: (name) => `職種『${name}』は既に使用されています`,
+  [CONFLICT_CODE_CONSULTATION_NAME]: (name) => `診察『${name}』は既に使用されています`,
+  [CONFLICT_CODE_EXAM_TYPE_NAME]: (name) => `検査『${name}』は既に使用されています`,
+  [CONFLICT_CODE_PROCEDURE_NAME]: (name) => `処置『${name}』は既に使用されています`,
+  [CONFLICT_CODE_VACCINE_NAME]: (name) => `予防接種『${name}』は既に使用されています`,
+  [CONFLICT_CODE_CHECKUP_TYPE_NAME]: (name) => `定期健診『${name}』は既に使用されています`,
+  [CONFLICT_CODE_MEDICINE_NAME]: (name) => `薬剤『${name}』は既に使用されています`,
 };
 
 interface ApiErrorBody {

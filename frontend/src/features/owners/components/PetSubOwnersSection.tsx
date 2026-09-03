@@ -14,10 +14,7 @@ interface PetSubOwnersSectionProps {
   canEdit: boolean;
 }
 
-export function PetSubOwnersSection({
-  petId,
-  canEdit,
-}: PetSubOwnersSectionProps) {
+export function PetSubOwnersSection({ petId, canEdit }: PetSubOwnersSectionProps) {
   const {
     subOwnersQuery,
     metadataQuery,
@@ -108,17 +105,15 @@ export function PetSubOwnersSection({
               normalizedCandidateSearch === ""
                 ? "検索語を入力してください"
                 : isCandidateSearchPending || candidatesQuery.isLoading
-                ? "飼主を読み込み中..."
-                : "飼主を選択してください"
+                  ? "飼主を読み込み中..."
+                  : "飼主を選択してください"
             }
             searchPlaceholder="飼主名・よみで検索..."
             emptyMessage="追加できる飼主が見つかりません。"
           />
         </div>
 
-        <div
-          className={`overflow-hidden rounded-lg border ${C.borderMedium} ${C.bgWhite}`}
-        >
+        <div className={`overflow-hidden rounded-lg border ${C.borderMedium} ${C.bgWhite}`}>
           {rows.length === 0 ? (
             <p className={`px-4 py-6 text-center text-sm ${C.text60}`}>
               副飼主は登録されていません。
@@ -133,18 +128,11 @@ export function PetSubOwnersSection({
                     className={`grid grid-cols-1 gap-3 p-3 md:grid-cols-[minmax(0,1fr)_minmax(12rem,1fr)_auto] md:items-end ${C.borderDivider}`}
                   >
                     <div className="min-w-0">
-                      <p className={`truncate text-sm font-medium ${C.text}`}>
-                        {row.name}
-                      </p>
-                      <p className={`truncate text-xs ${C.text60}`}>
-                        {row.nameKana}
-                      </p>
+                      <p className={`truncate text-sm font-medium ${C.text}`}>{row.name}</p>
+                      <p className={`truncate text-xs ${C.text60}`}>{row.nameKana}</p>
                     </div>
                     <div className="space-y-1">
-                      <Label
-                        htmlFor={relationshipId}
-                        className={STYLE.sectionLabel}
-                      >
+                      <Label htmlFor={relationshipId} className={STYLE.sectionLabel}>
                         {`続柄（${row.name}）`}
                       </Label>
                       <Input
@@ -156,19 +144,14 @@ export function PetSubOwnersSection({
                           subOwnersQuery.data === undefined ||
                           subOwnersQuery.error !== null
                         }
-                        aria-invalid={
-                          invalidRelationshipOwnerId === row.ownerId
-                        }
+                        aria-invalid={invalidRelationshipOwnerId === row.ownerId}
                         aria-describedby={
                           invalidRelationshipOwnerId === row.ownerId
                             ? "pet-sub-owners-save-error"
                             : undefined
                         }
                         onChange={(event) =>
-                          handleRelationshipChange(
-                            row.ownerId,
-                            event.target.value,
-                          )
+                          handleRelationshipChange(row.ownerId, event.target.value)
                         }
                       />
                     </div>
@@ -207,11 +190,7 @@ export function PetSubOwnersSection({
           </p>
         ) : null}
         {saveState.kind === "success" && !isDirty ? (
-          <p
-            className={`text-sm ${C.textSuccess}`}
-            role="status"
-            aria-live="polite"
-          >
+          <p className={`text-sm ${C.textSuccess}`} role="status" aria-live="polite">
             {saveState.message}
           </p>
         ) : null}

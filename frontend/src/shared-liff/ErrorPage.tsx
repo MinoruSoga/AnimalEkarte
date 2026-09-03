@@ -3,15 +3,15 @@
  * 背景・警告アイコン・見出し色/文言・本文階層・任意の再試行を一箇所に固定する。
  */
 /* eslint-disable react-refresh/only-export-components -- title/theme は liff と line-reserve で共有 */
-export const SHARED_ERROR_PAGE_TITLE = 'エラーが発生しました';
+export const SHARED_ERROR_PAGE_TITLE = "エラーが発生しました";
 
 /** line-reserve 側の teal / blue-gray 系を正とし、両アプリで同一クラスを使う */
 export const DEFAULT_ERROR_PAGE_THEME: ErrorPageTheme = {
-  bg: 'bg-noah-teal-light',
-  heading: 'text-noah-teal-dark',
-  body: 'text-noah-text-sub text-sm',
-  button: 'bg-noah-teal',
-  buttonHover: 'hover:bg-noah-teal-dark',
+  bg: "bg-noah-teal-light",
+  heading: "text-noah-teal-dark",
+  body: "text-noah-text-sub text-sm",
+  button: "bg-noah-teal",
+  buttonHover: "hover:bg-noah-teal-dark",
 };
 
 export interface ErrorPageTheme {
@@ -40,11 +40,11 @@ interface ErrorPageProps {
 }
 
 export function ErrorPage({
-  message = '予期しないエラーが発生しました。',
+  message = "予期しないエラーが発生しました。",
   title = SHARED_ERROR_PAGE_TITLE,
   theme = DEFAULT_ERROR_PAGE_THEME,
   onAction,
-  actionLabel = '再読み込み',
+  actionLabel = "再読み込み",
   showAction = true,
 }: ErrorPageProps) {
   const handleAction = onAction ?? (() => window.location.reload());

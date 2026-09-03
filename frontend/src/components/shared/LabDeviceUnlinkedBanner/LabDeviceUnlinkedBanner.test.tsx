@@ -65,10 +65,7 @@ describe("LabDeviceUnlinkedBanner (FE-RC-107)", () => {
 
   it("付け失敗時は attachError を出し justAttached を残さない", () => {
     attachMutate.mockImplementation(
-      (
-        _vars: { jobId: string; petId: number },
-        options?: { onError?: (error: Error) => void },
-      ) => {
+      (_vars: { jobId: string; petId: number }, options?: { onError?: (error: Error) => void }) => {
         options?.onError?.(new Error("attach failed"));
       },
     );

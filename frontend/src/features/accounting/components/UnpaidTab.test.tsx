@@ -56,9 +56,7 @@ const MONTHLY_RESPONSE = {
 describe("UnpaidTab — 月次繰越モード", () => {
   beforeEach(() => {
     server.use(
-      http.get("/api/v1/accountings/unpaid-monthly", () =>
-        HttpResponse.json(MONTHLY_RESPONSE),
-      ),
+      http.get("/api/v1/accountings/unpaid-monthly", () => HttpResponse.json(MONTHLY_RESPONSE)),
     );
   });
 
@@ -133,7 +131,13 @@ describe("UnpaidTab — 月次繰越モード", () => {
   it("データなしのとき空メッセージを表示する", async () => {
     server.use(
       http.get("/api/v1/accountings/unpaid-monthly", () =>
-        HttpResponse.json({ data: [], total: 0, page: 1, limit: 20, summary: { prev_month_carryover: 0, current_month_unpaid: 0, next_month_carryover: 0 } }),
+        HttpResponse.json({
+          data: [],
+          total: 0,
+          page: 1,
+          limit: 20,
+          summary: { prev_month_carryover: 0, current_month_unpaid: 0, next_month_carryover: 0 },
+        }),
       ),
     );
 
@@ -149,7 +153,13 @@ describe("UnpaidTab — 月次繰越モード", () => {
     server.use(
       http.get("/api/v1/accountings/unpaid", () => {
         ownerHit = true;
-        return HttpResponse.json({ data: [], total: 0, page: 1, limit: 20, summary: { total_amount: 0, billing_count: 0, owner_count: 0 } });
+        return HttpResponse.json({
+          data: [],
+          total: 0,
+          page: 1,
+          limit: 20,
+          summary: { total_amount: 0, billing_count: 0, owner_count: 0 },
+        });
       }),
     );
 

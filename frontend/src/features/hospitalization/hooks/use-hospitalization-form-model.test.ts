@@ -172,11 +172,13 @@ describe("hospitalization form model", () => {
   });
 
   it("既存recordの doctor nest を担当医表示へ復元する", () => {
-    expect(buildHospitalizationFormDataFromRecord(formData, {
-      ...hospitalization,
-      doctor_id: 12,
-      doctor: { id: 12, name: "山田医師" },
-    })).toMatchObject({
+    expect(
+      buildHospitalizationFormDataFromRecord(formData, {
+        ...hospitalization,
+        doctor_id: 12,
+        doctor: { id: 12, name: "山田医師" },
+      }),
+    ).toMatchObject({
       doctorId: "12",
       doctorName: "山田医師",
     });
@@ -271,12 +273,14 @@ describe("hospitalization form model", () => {
   });
 
   it("backend recordから編集formの臨床状態を復元する", () => {
-    expect(buildHospitalizationFormDataFromRecord(formData, {
-      ...hospitalization,
-      cage_id: 990019,
-      insurance_company_name: "合成監査保険",
-      insurance_number: "SYN-INS-1",
-    })).toMatchObject({
+    expect(
+      buildHospitalizationFormDataFromRecord(formData, {
+        ...hospitalization,
+        cage_id: 990019,
+        insurance_company_name: "合成監査保険",
+        insurance_number: "SYN-INS-1",
+      }),
+    ).toMatchObject({
       hospitalizationType: "入院",
       cageId: "990019",
       displayDate: hospitalization.start_date,

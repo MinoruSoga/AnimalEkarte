@@ -20,10 +20,7 @@ interface ExamTypeFieldsEditorProps {
 function handleExamTypeFieldsNestedKeyDown(event: KeyboardEvent<HTMLElement>) {
   if (event.key !== "Enter") return;
   const target = event.target;
-  if (
-    target instanceof HTMLInputElement &&
-    (target.type === "text" || target.type === "number")
-  ) {
+  if (target instanceof HTMLInputElement && (target.type === "text" || target.type === "number")) {
     event.preventDefault();
     event.stopPropagation();
   }
@@ -46,11 +43,7 @@ function ExamTypeFieldsEditorState({
   canDelete,
   onDirtyChange,
 }: ExamTypeFieldsEditorProps) {
-  const {
-    data: animalSpecies = [],
-    isPending,
-    isError,
-  } = useGetAnimalSpecies();
+  const { data: animalSpecies = [], isPending, isError } = useGetAnimalSpecies();
   const [editingId, setEditingId] = useState<string | "new" | null>(null);
   const [hasDirtyDraft, setHasDirtyDraft] = useState(false);
   const { orderedItems, sensors, handleDragEnd, removeField } = useExamTypeFieldsList(
@@ -59,10 +52,13 @@ function ExamTypeFieldsEditorState({
     hasDirtyDraft,
   );
 
-  const handleDirtyChange = useCallback((dirty: boolean) => {
-    setHasDirtyDraft(dirty);
-    onDirtyChange?.(dirty);
-  }, [onDirtyChange]);
+  const handleDirtyChange = useCallback(
+    (dirty: boolean) => {
+      setHasDirtyDraft(dirty);
+      onDirtyChange?.(dirty);
+    },
+    [onDirtyChange],
+  );
 
   useEffect(() => {
     return () => onDirtyChange?.(false);
@@ -73,15 +69,18 @@ function ExamTypeFieldsEditorState({
     setEditingId("new");
   }, [canCreate, hasDirtyDraft]);
 
-  const startEdit = useCallback((field: ExaminationTypeField) => {
-    if (!canEdit || hasDirtyDraft) return;
-    setEditingId(field.id);
-  }, [canEdit, hasDirtyDraft]);
+  const startEdit = useCallback(
+    (field: ExaminationTypeField) => {
+      if (!canEdit || hasDirtyDraft) return;
+      setEditingId(field.id);
+    },
+    [canEdit, hasDirtyDraft],
+  );
 
   const editingField =
     editingId === null || editingId === "new"
       ? null
-      : examType.items.find((item) => item.id === editingId) ?? null;
+      : (examType.items.find((item) => item.id === editingId) ?? null);
 
   return (
     <section

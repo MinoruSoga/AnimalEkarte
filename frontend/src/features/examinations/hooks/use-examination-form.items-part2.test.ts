@@ -113,9 +113,7 @@ function selectedPet(status: "生存" | "死亡" | "不明") {
 }
 
 function renderExaminationForm(id?: string) {
-  return renderHook(() =>
-    useExaminationForm(id, undefined, ALLOWED_MUTATION_PERMISSIONS),
-  );
+  return renderHook(() => useExaminationForm(id, undefined, ALLOWED_MUTATION_PERMISSIONS));
 }
 
 // FE-RC-045: use-examination-form.test.ts (2662行) をトピック別に分割した1ファイル。
@@ -124,10 +122,7 @@ function renderExaminationForm(id?: string) {
 describe("useExaminationForm — 検査項目テーブル（FE-EXAM-001）", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(useSearchParams).mockReturnValue([
-      new URLSearchParams(),
-      vi.fn(),
-    ]);
+    vi.mocked(useSearchParams).mockReturnValue([new URLSearchParams(), vi.fn()]);
     vi.mocked(useGetPet).mockReturnValue({
       data: null,
       isLoading: false,
@@ -141,8 +136,7 @@ describe("useExaminationForm — 検査項目テーブル（FE-EXAM-001）", () 
 
   it("A取得済み→B取得中→A再表示でもA itemsを復元してAだけをPATCHする", async () => {
     const { useGetExamination } = await import("../api/get-examination");
-    const { useGetExaminationItems } =
-      await import("../api/get-examination-items");
+    const { useGetExaminationItems } = await import("../api/get-examination-items");
     const { useUpdateExamination } = await import("../api/update-examination");
 
     const itemA = {
@@ -197,11 +191,7 @@ describe("useExaminationForm — 検査項目テーブル（FE-EXAM-001）", () 
 
     const { result, rerender } = renderHook(
       ({ examID }: { examID: string }) =>
-        useExaminationForm(
-          examID,
-          undefined,
-          ALLOWED_MUTATION_PERMISSIONS,
-        ),
+        useExaminationForm(examID, undefined, ALLOWED_MUTATION_PERMISSIONS),
       { initialProps: { examID: "exam-a" } },
     );
     await waitFor(() => expect(result.current.formItems[0]?.name).toBe("A-WBC"));
@@ -228,10 +218,8 @@ describe("useExaminationForm — 検査項目テーブル（FE-EXAM-001）", () 
 
   it("同じ検査種別のA→B遷移後もBの種別変更で新テンプレへ再構築する", async () => {
     const { useGetExamination } = await import("../api/get-examination");
-    const { useGetExaminationItems } =
-      await import("../api/get-examination-items");
-    const { useGetExamTypeFields } =
-      await import("../api/get-exam-type-fields");
+    const { useGetExaminationItems } = await import("../api/get-examination-items");
+    const { useGetExamTypeFields } = await import("../api/get-exam-type-fields");
 
     const templates = {
       "5": [
@@ -301,32 +289,21 @@ describe("useExaminationForm — 検査項目テーブル（FE-EXAM-001）", () 
 
     const { result, rerender } = renderHook(
       ({ examID }: { examID: string }) =>
-        useExaminationForm(
-          examID,
-          undefined,
-          ALLOWED_MUTATION_PERMISSIONS,
-        ),
+        useExaminationForm(examID, undefined, ALLOWED_MUTATION_PERMISSIONS),
       { initialProps: { examID: "exam-a" } },
     );
-    await waitFor(() =>
-      expect(result.current.formItems[0]?.name).toBe("exam-a-WBC"),
-    );
+    await waitFor(() => expect(result.current.formItems[0]?.name).toBe("exam-a-WBC"));
 
     rerender({ examID: "exam-b" });
-    await waitFor(() =>
-      expect(result.current.formItems[0]?.name).toBe("exam-b-WBC"),
-    );
+    await waitFor(() => expect(result.current.formItems[0]?.name).toBe("exam-b-WBC"));
 
     act(() => result.current.setFormData({ testTypeId: "6" }));
-    await waitFor(() =>
-      expect(result.current.formItems[0]?.name).toBe("TEMPLATE-6"),
-    );
+    await waitFor(() => expect(result.current.formItems[0]?.name).toBe("TEMPLATE-6"));
   });
 
   it("確定済み (status=確定) では PATCH を発行しない", async () => {
     const { useGetExamination } = await import("../api/get-examination");
-    const { useGetExaminationItems } =
-      await import("../api/get-examination-items");
+    const { useGetExaminationItems } = await import("../api/get-examination-items");
     const { useUpdateExamination } = await import("../api/update-examination");
 
     vi.mocked(useGetExamination).mockReturnValue({
@@ -373,17 +350,14 @@ describe("useExaminationForm — 検査項目テーブル（FE-EXAM-001）", () 
       startTransition(() => result.current.formAction(new FormData()));
     });
 
-    await waitFor(() =>
-      expect(result.current.isPersistedConfirmed).toBe(true),
-    );
+    await waitFor(() => expect(result.current.isPersistedConfirmed).toBe(true));
     expect(result.current.isPersistedResultsLocked).toBe(true);
     expect(updateMutate).not.toHaveBeenCalled();
   });
 
   it("BUG-033: 完了シールでは PATCH から items を省略し status 遷移を送る", async () => {
     const { useGetExamination } = await import("../api/get-examination");
-    const { useGetExaminationItems } =
-      await import("../api/get-examination-items");
+    const { useGetExaminationItems } = await import("../api/get-examination-items");
     const { useUpdateExamination } = await import("../api/update-examination");
 
     vi.mocked(useGetExamination).mockReturnValue({
@@ -426,9 +400,7 @@ describe("useExaminationForm — 検査項目テーブル（FE-EXAM-001）", () 
 
     const { result } = renderExaminationForm("exam-001");
 
-    await waitFor(() =>
-      expect(result.current.isPersistedCompletedLocked).toBe(true),
-    );
+    await waitFor(() => expect(result.current.isPersistedCompletedLocked).toBe(true));
     expect(result.current.isPersistedResultsLocked).toBe(true);
 
     await act(async () => {
@@ -457,8 +429,7 @@ describe("useExaminationForm — 検査項目テーブル（FE-EXAM-001）", () 
 
   it("未確定検査でステータスを確定に変えても items を PATCH に含め保存できる（A-S02-01）", async () => {
     const { useGetExamination } = await import("../api/get-examination");
-    const { useGetExaminationItems } =
-      await import("../api/get-examination-items");
+    const { useGetExaminationItems } = await import("../api/get-examination-items");
     const { useUpdateExamination } = await import("../api/update-examination");
 
     vi.mocked(useGetExamination).mockReturnValue({
@@ -501,9 +472,7 @@ describe("useExaminationForm — 検査項目テーブル（FE-EXAM-001）", () 
 
     const { result } = renderExaminationForm("exam-001");
 
-    await waitFor(() =>
-      expect(result.current.isPersistedConfirmed).toBe(false),
-    );
+    await waitFor(() => expect(result.current.isPersistedConfirmed).toBe(false));
 
     await act(async () => {
       result.current.setFormData({ status: "確定" });
@@ -531,10 +500,8 @@ describe("useExaminationForm — 検査項目テーブル（FE-EXAM-001）", () 
 
   it("新規保存時に表示値を保持し判定境界を含まない items を POST する", async () => {
     const { useCreateExamination } = await import("../api/create-examination");
-    const { useUpdateExaminationItems } =
-      await import("../api/update-examination-items");
-    const { useGetExamTypeFields } =
-      await import("../api/get-exam-type-fields");
+    const { useUpdateExaminationItems } = await import("../api/update-examination-items");
+    const { useGetExamTypeFields } = await import("../api/get-exam-type-fields");
 
     // テンプレ展開で formItems が初期化される
     vi.mocked(useGetExamTypeFields).mockReturnValue({
@@ -596,10 +563,7 @@ describe("useExaminationForm — 検査項目テーブル（FE-EXAM-001）", () 
     // 値を入力
     if (result.current.formItems.length > 0) {
       act(() => {
-        result.current.setInspectionValue(
-          result.current.formItems[0].key,
-          "7.5",
-        );
+        result.current.setInspectionValue(result.current.formItems[0].key, "7.5");
       });
     }
 
@@ -633,8 +597,7 @@ describe("useExaminationForm — 検査項目テーブル（FE-EXAM-001）", () 
 
   it("新規保存時に items が空でも空配列を POST に含める", async () => {
     const { useCreateExamination } = await import("../api/create-examination");
-    const { useGetExamTypeFields } =
-      await import("../api/get-exam-type-fields");
+    const { useGetExamTypeFields } = await import("../api/get-exam-type-fields");
 
     const createMutate = vi.fn().mockResolvedValue({ id: "new-99" });
     vi.mocked(useCreateExamination).mockReturnValue({
@@ -658,8 +621,6 @@ describe("useExaminationForm — 検査項目テーブル（FE-EXAM-001）", () 
     });
 
     await waitFor(() => expect(createMutate).toHaveBeenCalledOnce());
-    expect(createMutate).toHaveBeenCalledWith(
-      expect.objectContaining({ items: [] }),
-    );
+    expect(createMutate).toHaveBeenCalledWith(expect.objectContaining({ items: [] }));
   });
 });

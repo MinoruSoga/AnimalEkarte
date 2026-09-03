@@ -36,61 +36,61 @@ export function LabDeviceItemMasterSettings() {
 
   return (
     <>
-    <div className="flex h-full">
-      <div className="flex-1 min-w-0">
-        <PageLayout
-          title="検査機器マスタ"
-          icon={<FlaskConical className={`${ICON.page} ${C.text}`} />}
-          resource={ResourceLabImport}
-          onBack={() => navigate(paths.settings.getHref())}
-          maxWidth={LAYOUT.pageContentMaxWidth.full}
-          headerAction={
-            <LabDeviceItemMasterHeaderActions
-              canEdit={s.canEdit}
-              canCreate={s.canCreate}
-              ensurePending={s.ensureMutation.isPending}
-              onEnsure={() => {
-                s.ensureMutation.mutate(undefined, {
-                  onSuccess: (result) => {
-                    toast.success(
-                      result.insertedCount > 0
-                        ? `既定項目を ${result.insertedCount} 件用意しました`
-                        : "既定項目は揃っています",
-                    );
-                  },
-                });
-              }}
-              onNew={s.handleNew}
+      <div className="flex h-full">
+        <div className="flex-1 min-w-0">
+          <PageLayout
+            title="検査機器マスタ"
+            icon={<FlaskConical className={`${ICON.page} ${C.text}`} />}
+            resource={ResourceLabImport}
+            onBack={() => navigate(paths.settings.getHref())}
+            maxWidth={LAYOUT.pageContentMaxWidth.full}
+            headerAction={
+              <LabDeviceItemMasterHeaderActions
+                canEdit={s.canEdit}
+                canCreate={s.canCreate}
+                ensurePending={s.ensureMutation.isPending}
+                onEnsure={() => {
+                  s.ensureMutation.mutate(undefined, {
+                    onSuccess: (result) => {
+                      toast.success(
+                        result.insertedCount > 0
+                          ? `既定項目を ${result.insertedCount} 件用意しました`
+                          : "既定項目は揃っています",
+                      );
+                    },
+                  });
+                }}
+                onNew={s.handleNew}
+              />
+            }
+          >
+            <LabDeviceItemMasterTable
+              fromBoard={s.fromBoard}
+              sourceFromQuery={s.sourceFromQuery}
+              devicesFetched={s.devicesFetched}
+              rows={s.rows}
+              onEdit={s.handleEdit}
             />
-          }
-        >
-          <LabDeviceItemMasterTable
-            fromBoard={s.fromBoard}
-            sourceFromQuery={s.sourceFromQuery}
-            devicesFetched={s.devicesFetched}
-            rows={s.rows}
-            onEdit={s.handleEdit}
+          </PageLayout>
+        </div>
+        {s.showPanel ? (
+          <LabDeviceItemMasterSidePanel
+            key={s.selectedId ?? "closed"}
+            device={s.selectedRow}
+            items={s.selectedItems}
+            examTypes={s.examTypes}
+            unusedSourceTypes={s.unusedSourceTypes}
+            readOnly={s.readOnly}
+            isPending={s.createMutation.isPending || s.saveConfigurationMutation.isPending}
+            onClose={s.handleClose}
+            onSave={(form, drafts) => {
+              void s.handleSave(form, drafts);
+            }}
+            onDirtyChange={s.handleDirtyChange}
           />
-        </PageLayout>
+        ) : null}
       </div>
-      {s.showPanel ? (
-        <LabDeviceItemMasterSidePanel
-          key={s.selectedId ?? "closed"}
-          device={s.selectedRow}
-          items={s.selectedItems}
-          examTypes={s.examTypes}
-          unusedSourceTypes={s.unusedSourceTypes}
-          readOnly={s.readOnly}
-          isPending={s.createMutation.isPending || s.saveConfigurationMutation.isPending}
-          onClose={s.handleClose}
-          onSave={(form, drafts) => {
-            void s.handleSave(form, drafts);
-          }}
-          onDirtyChange={s.handleDirtyChange}
-        />
-      ) : null}
-    </div>
-    {s.dirty.discardDialog}
+      {s.dirty.discardDialog}
     </>
   );
 }
@@ -149,13 +149,14 @@ function LabDeviceItemMasterTable({
           検査受信へ戻る
         </Link>
       ) : null}
-      {sourceFromQuery !== null
-        && devicesFetched
-        && !rows.some((row) => row.sourceType === sourceFromQuery) ? (
-          <p className={`text-sm ${C.textWarning}`}>
-            {labDeviceSourceLabel(sourceFromQuery)} はまだ登録されていません。「既定項目を用意」で投入してください
-          </p>
-        ) : null}
+      {sourceFromQuery !== null &&
+      devicesFetched &&
+      !rows.some((row) => row.sourceType === sourceFromQuery) ? (
+        <p className={`text-sm ${C.textWarning}`}>
+          {labDeviceSourceLabel(sourceFromQuery)}{" "}
+          はまだ登録されていません。「既定項目を用意」で投入してください
+        </p>
+      ) : null}
       <DataTable
         headerRowClassName={DESIGN_TABLE_HEADER_ROW}
         headerCellClassName={DESIGN_TABLE_HEADER_CELL}

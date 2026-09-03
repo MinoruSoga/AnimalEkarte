@@ -1,5 +1,5 @@
-import type { LiffSettings } from '../types/models';
-import { PrimaryButton } from '../components/PrimaryButton';
+import type { LiffSettings } from "../types/models";
+import { PrimaryButton } from "../components/PrimaryButton";
 
 interface TopPageProps {
   settings: LiffSettings;
@@ -13,7 +13,7 @@ export function TopPage({ settings, onNewReservation, onMyReservations }: TopPag
       {/* ヘッダー */}
       <header className="bg-noah-teal text-white py-5 px-4 text-center">
         <h1 className="text-lg font-bold tracking-tight">
-          {settings.header_text || 'ノア動物病院'}
+          {settings.header_text || "ノア動物病院"}
         </h1>
         <p className="text-sm text-white/80 mt-1">オンライン予約</p>
       </header>
@@ -21,12 +21,8 @@ export function TopPage({ settings, onNewReservation, onMyReservations }: TopPag
       {/* メインコンテンツ */}
       <main className="flex-1 max-w-md mx-auto w-full px-4 py-8 flex flex-col gap-4">
         <div className="bg-white rounded-xl border border-noah-border-light p-6 text-center">
-          <p className="text-noah-text-sub mb-6 text-sm">
-            ご予約はこちらから手続きください
-          </p>
-          <PrimaryButton onClick={onNewReservation}>
-            新規予約
-          </PrimaryButton>
+          <p className="text-noah-text-sub mb-6 text-sm">ご予約はこちらから手続きください</p>
+          <PrimaryButton onClick={onNewReservation}>新規予約</PrimaryButton>
         </div>
 
         <button

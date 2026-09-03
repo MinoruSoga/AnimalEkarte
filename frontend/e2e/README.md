@@ -6,36 +6,36 @@ End-to-end tests for Animal Ekarte using Playwright.
 
 ### Test Coverage
 
-| File | Tests |
-|------|-------|
-| `owners-search.spec.ts` | /owners kana search — unauthenticated redirect + ぴ/ピ→ピーター (かな非区別) |
-| `owners-flow.spec.ts` | /owners list/create/search/detail/edit 主要操作フロー |
-| `accounting-smoke.spec.ts` | /accounting タブ smoke + いりす/イリス→Iris かな非区別検索 + /accounting?tab=unpaid + /accounting/reports |
-| `accounting-flow.spec.ts` | /accounting 行クリック→詳細遷移・Iris 検索→詳細・/accounting/reports セレクタ・会計精算フォーム確定ボタン表示 |
-| `reservations-smoke.spec.ts` | /reservations auth guard + カレンダーナビ smoke |
-| `reservation-patient-search.spec.ts` | 新規予約作成モーダル PatientSelectionTable: 先頭20件外の患者1003298（SPANKY）を `#search` の自動デバウンスでpet-name検索し選択 |
-| `medical-records-patient-search.spec.ts` | usePetSelectionPage代表面: `include_deceased=true` の先頭20件外から患者1003298（SPANKY）をpet-name検索し、accessible name付き選択ボタンを確認 |
-| `clinical-smoke.spec.ts` | 受付/顧客集計/カルテ管理/入院管理/トリミング/検査/予防接種/定期健診 各ページ smoke |
-| `clinical-flows.spec.ts` | カルテ管理 一覧/検索/行クリック詳細・ペット選択画面 |
-| `medical-records-create.spec.ts` | /medical-records/new?petId=1 直接 URL アクセスで新規カルテ入力フォーム表示確認 |
+| File                                      | Tests                                                                                                                                                         |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `owners-search.spec.ts`                   | /owners kana search — unauthenticated redirect + ぴ/ピ→ピーター (かな非区別)                                                                                  |
+| `owners-flow.spec.ts`                     | /owners list/create/search/detail/edit 主要操作フロー                                                                                                         |
+| `accounting-smoke.spec.ts`                | /accounting タブ smoke + いりす/イリス→Iris かな非区別検索 + /accounting?tab=unpaid + /accounting/reports                                                     |
+| `accounting-flow.spec.ts`                 | /accounting 行クリック→詳細遷移・Iris 検索→詳細・/accounting/reports セレクタ・会計精算フォーム確定ボタン表示                                                 |
+| `reservations-smoke.spec.ts`              | /reservations auth guard + カレンダーナビ smoke                                                                                                               |
+| `reservation-patient-search.spec.ts`      | 新規予約作成モーダル PatientSelectionTable: 先頭20件外の患者1003298（SPANKY）を `#search` の自動デバウンスでpet-name検索し選択                                |
+| `medical-records-patient-search.spec.ts`  | usePetSelectionPage代表面: `include_deceased=true` の先頭20件外から患者1003298（SPANKY）をpet-name検索し、accessible name付き選択ボタンを確認                 |
+| `clinical-smoke.spec.ts`                  | 受付/顧客集計/カルテ管理/入院管理/トリミング/検査/予防接種/定期健診 各ページ smoke                                                                            |
+| `clinical-flows.spec.ts`                  | カルテ管理 一覧/検索/行クリック詳細・ペット選択画面                                                                                                           |
+| `medical-records-create.spec.ts`          | /medical-records/new?petId=1 直接 URL アクセスで新規カルテ入力フォーム表示確認                                                                                |
 | `medical-records-pagination-sort.spec.ts` | /medical-records ページネーション(page=2 遷移)・列ソート(飼主名 desc→asc, URL 状態)・ステータスフィルタ(確定済, PropertyFilter) — `c80d9dc1` follow-up (AC-3) |
-| `trimming-flow.spec.ts` | /trimming 一覧表示・新規登録ペット選択・/trimming/new?petId=1 フォーム表示 |
-| `hospitalization-flow.spec.ts` | /hospitalization 一覧リストビュー・新規登録遷移・ステータスタブ切り替え |
-| `vaccinations-flow.spec.ts` | /vaccinations 一覧表示・検索フィルタ・新規登録遷移・行クリック詳細遷移 |
-| `business-smoke.spec.ts` | 業務系ページ（ダッシュボード/CPM/在庫/日次集計等）smoke |
-| `operations-smoke.spec.ts` | 受付/トリミング/会計 等 主要ページ一覧/操作 smoke |
-| `inventory-crud.spec.ts` | /inventory 在庫 CRUD フロー |
-| `settings-smoke.spec.ts` | /settings/* 全設定ページ smoke (21 ページ) |
-| `settings-crud.spec.ts` | /settings/* 設定マスタ CRUD フロー |
-| `master-crud.spec.ts` | 処置マスタ CRUD (A-D) 4 ケース |
-| `auth-flows.spec.ts` | /login 表示・入力・ログイン成功/失敗・パスワード表示切替 + /forgot-password・/reset-password アクセス/リダイレクト確認 |
-| `examinations-flow.spec.ts` | /examinations 一覧・/examinations/select-pet ペット選択・/examinations/new フォーム・/:id 詳細・検索機能 |
-| `checkups-flow.spec.ts` | /checkups 一覧・/checkups/select-pet ペット選択・/checkups/new フォーム・新規ボタン遷移・検索機能 |
-| `estimates-flow.spec.ts` | /estimates 一覧・/estimates/new 新規フォーム・/:id 詳細・/:id/edit 編集フォーム・新規ボタン・検索 |
-| `shifts-flow.spec.ts` | /shifts カレンダー表示・ナビゲーション矢印・スタッフセレクタ・カレンダー移動・フィルタ機能 |
-| `lstep-flow.spec.ts` | /lstep/checkup-sync 抽出ページ + /lstep/delivery-monitor 監視ページ・フィルタ + /lstep/analytics 分析ページ・セレクタ |
-| `line-reservation-flow.spec.ts` | /line-reservation 基本設定フォーム + /line-reservation/page-editor 編集フォーム + /line-reservation/slots 枠設定ページ/説明表示 |
-| `manual-flow.spec.ts` | /manual リダイレクト・サイドバー・カテゴリ切替・検索 + /manual/:category/:slug 記事ページ・リンク遷移 |
+| `trimming-flow.spec.ts`                   | /trimming 一覧表示・新規登録ペット選択・/trimming/new?petId=1 フォーム表示                                                                                    |
+| `hospitalization-flow.spec.ts`            | /hospitalization 一覧リストビュー・新規登録遷移・ステータスタブ切り替え                                                                                       |
+| `vaccinations-flow.spec.ts`               | /vaccinations 一覧表示・検索フィルタ・新規登録遷移・行クリック詳細遷移                                                                                        |
+| `business-smoke.spec.ts`                  | 業務系ページ（ダッシュボード/CPM/在庫/日次集計等）smoke                                                                                                       |
+| `operations-smoke.spec.ts`                | 受付/トリミング/会計 等 主要ページ一覧/操作 smoke                                                                                                             |
+| `inventory-crud.spec.ts`                  | /inventory 在庫 CRUD フロー                                                                                                                                   |
+| `settings-smoke.spec.ts`                  | /settings/* 全設定ページ smoke (21 ページ)                                                                                                                    |
+| `settings-crud.spec.ts`                   | /settings/* 設定マスタ CRUD フロー                                                                                                                            |
+| `master-crud.spec.ts`                     | 処置マスタ CRUD (A-D) 4 ケース                                                                                                                                |
+| `auth-flows.spec.ts`                      | /login 表示・入力・ログイン成功/失敗・パスワード表示切替 + /forgot-password・/reset-password アクセス/リダイレクト確認                                        |
+| `examinations-flow.spec.ts`               | /examinations 一覧・/examinations/select-pet ペット選択・/examinations/new フォーム・/:id 詳細・検索機能                                                      |
+| `checkups-flow.spec.ts`                   | /checkups 一覧・/checkups/select-pet ペット選択・/checkups/new フォーム・新規ボタン遷移・検索機能                                                             |
+| `estimates-flow.spec.ts`                  | /estimates 一覧・/estimates/new 新規フォーム・/:id 詳細・/:id/edit 編集フォーム・新規ボタン・検索                                                             |
+| `shifts-flow.spec.ts`                     | /shifts カレンダー表示・ナビゲーション矢印・スタッフセレクタ・カレンダー移動・フィルタ機能                                                                    |
+| `lstep-flow.spec.ts`                      | /lstep/checkup-sync 抽出ページ + /lstep/delivery-monitor 監視ページ・フィルタ + /lstep/analytics 分析ページ・セレクタ                                         |
+| `line-reservation-flow.spec.ts`           | /line-reservation 基本設定フォーム + /line-reservation/page-editor 編集フォーム + /line-reservation/slots 枠設定ページ/説明表示                               |
+| `manual-flow.spec.ts`                     | /manual リダイレクト・サイドバー・カテゴリ切替・検索 + /manual/:category/:slug 記事ページ・リンク遷移                                                         |
 
 ## Execution Model
 
@@ -71,17 +71,17 @@ docker compose up -d   # if not already running
 
 ### Seed data assumed by E2E tests
 
-| Spec | Required data | Source |
-|------|--------------|--------|
-| `owners-search.spec.ts` | pet name `ピーター` (name_kana=`ぴーたー`), owner 5 (佐藤 花子), clinic 1 | `003_seed_demo.sql` |
-| `accounting-smoke.spec.ts` | owner 1 (林 文明, はやし ふみあき) with completed billing for pet 1 (`Iris(イリス)`, name_kana=`いりす`) | `003_seed_demo.sql` |
-| `accounting-flow.spec.ts` | same as `accounting-smoke.spec.ts` | `003_seed_demo.sql` |
-| `reservations-smoke.spec.ts` | admin user at clinic 1 with reservations permission | `003_seed_demo.sql` |
-| `reservation-patient-search.spec.ts` | ローカル handoff 実データ上の検索。003_demo 退役後は固定 pet id を前提にしない |
-| `medical-records-patient-search.spec.ts` | 同上 |
-| `master-crud.spec.ts` | treatment procedure items incl. `注射` (root with children) | `003_seed_demo.sql` |
-| `hospitalization-flow.spec.ts` | 1+ active hospitalization records at clinic 1 | `003_seed_demo.sql` |
-| `vaccinations-flow.spec.ts` | 1+ vaccination records; owner `林 文明` with pet `林 文明` | `003_seed_demo.sql` |
+| Spec                                      | Required data                                                                                                                                             | Source                                                  |
+| ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
+| `owners-search.spec.ts`                   | pet name `ピーター` (name_kana=`ぴーたー`), owner 5 (佐藤 花子), clinic 1                                                                                 | `003_seed_demo.sql`                                     |
+| `accounting-smoke.spec.ts`                | owner 1 (林 文明, はやし ふみあき) with completed billing for pet 1 (`Iris(イリス)`, name_kana=`いりす`)                                                  | `003_seed_demo.sql`                                     |
+| `accounting-flow.spec.ts`                 | same as `accounting-smoke.spec.ts`                                                                                                                        | `003_seed_demo.sql`                                     |
+| `reservations-smoke.spec.ts`              | admin user at clinic 1 with reservations permission                                                                                                       | `003_seed_demo.sql`                                     |
+| `reservation-patient-search.spec.ts`      | ローカル handoff 実データ上の検索。003_demo 退役後は固定 pet id を前提にしない                                                                            |
+| `medical-records-patient-search.spec.ts`  | 同上                                                                                                                                                      |
+| `master-crud.spec.ts`                     | treatment procedure items incl. `注射` (root with children)                                                                                               | `003_seed_demo.sql`                                     |
+| `hospitalization-flow.spec.ts`            | 1+ active hospitalization records at clinic 1                                                                                                             | `003_seed_demo.sql`                                     |
+| `vaccinations-flow.spec.ts`               | 1+ vaccination records; owner `林 文明` with pet `林 文明`                                                                                                | `003_seed_demo.sql`                                     |
 | `medical-records-pagination-sort.spec.ts` | clinic 1 に PAGE_SIZE(20) 超（開発環境では20,000件超）の medical_records が必要（page=2 到達用）。件数が少ない環境ではページ2ボタンが表示されず fail する | 開発DBの既存データ量に依存（seed 追加不要な環境が大半） |
 
 If seed data is missing, run:
@@ -94,11 +94,11 @@ make reset   # resets and re-applies all migrations + seeds
 
 Credentials are **env-injected only** (SEC-CS2-F01). There is no in-repository password fallback.
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `E2E_LOGIN_EMAIL` | yes (for authenticated specs) | Admin account email present in the target DB (local demo seed) |
-| `E2E_LOGIN_PASSWORD` | yes (for authenticated specs) | Matching password (never commit; inject via shell/CI secrets) |
-| `E2E_AUTH_STATE_PATH` | no | Cached storage-state path (default `/tmp/animal-ekarte-demo-admin-storage-state.json`) |
+| Variable              | Required                      | Description                                                                            |
+| --------------------- | ----------------------------- | -------------------------------------------------------------------------------------- |
+| `E2E_LOGIN_EMAIL`     | yes (for authenticated specs) | Admin account email present in the target DB (local demo seed)                         |
+| `E2E_LOGIN_PASSWORD`  | yes (for authenticated specs) | Matching password (never commit; inject via shell/CI secrets)                          |
+| `E2E_AUTH_STATE_PATH` | no                            | Cached storage-state path (default `/tmp/animal-ekarte-demo-admin-storage-state.json`) |
 
 Login is handled automatically via `helpers/auth.ts`; no manual pre-auth step is needed once the env vars are set.
 
@@ -182,11 +182,11 @@ for other list surfaces remains covered by their dedicated specs and the
 
 ## Architecture Support
 
-| Environment | Support |
-|-------------|---------|
-| Linux x86_64 (Docker script) | ✅ Fully supported |
+| Environment                                | Support                                        |
+| ------------------------------------------ | ---------------------------------------------- |
+| Linux x86_64 (Docker script)               | ✅ Fully supported                             |
 | Linux arm64/aarch64 (Apple Silicon Docker) | ✅ Supported via the official Playwright image |
-| macOS arm64 (native pnpm) | ✅ Works if playwright browsers installed |
+| macOS arm64 (native pnpm)                  | ✅ Works if playwright browsers installed      |
 
 ## Troubleshooting
 

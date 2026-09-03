@@ -117,7 +117,8 @@ export function readBaseline(fileText, index = 0) {
   return readBaselines(fileText)[index] ?? 0;
 }
 
-const DEFAULT_RATCHET_HINT = "New non-component .ts files under src/features must use kebab-case filenames.";
+const DEFAULT_RATCHET_HINT =
+  "New non-component .ts files under src/features must use kebab-case filenames.";
 
 /**
  * evaluateRatchet は現在件数とベースラインを比較する純粋関数。
@@ -141,7 +142,11 @@ async function main() {
   const args = parseArgs(process.argv.slice(2));
 
   const root = path.join(args.cwd, SCAN_ROOT);
-  const allFiles = await walk(root, EXCLUDE_DIR_NAMES, new Set([SCAN_EXTENSION, TSX_SCAN_EXTENSION]));
+  const allFiles = await walk(
+    root,
+    EXCLUDE_DIR_NAMES,
+    new Set([SCAN_EXTENSION, TSX_SCAN_EXTENSION]),
+  );
 
   const violations = [];
   const tsxViolations = [];

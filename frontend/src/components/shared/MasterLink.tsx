@@ -50,7 +50,11 @@ interface MasterLinkProps {
   className?: string;
 }
 
-export const MasterLink = memo(function MasterLink({ category, label = "マスタ管理", className }: MasterLinkProps) {
+export const MasterLink = memo(function MasterLink({
+  category,
+  label = "マスタ管理",
+  className,
+}: MasterLinkProps) {
   const path = CATEGORY_PATH_MAP[category] || "/settings";
 
   return (

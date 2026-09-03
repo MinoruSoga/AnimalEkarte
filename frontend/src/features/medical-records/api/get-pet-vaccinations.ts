@@ -1,1 +1,1 @@
-export { useGetPetVaccinations } from "@/hooks/use-pet-vaccinations"
+export { useGetPetVaccinations } from "@/hooks/use-pet-vaccinations";

@@ -11,14 +11,54 @@ import type { ReservationStatus } from "@/types";
 // ──────────────────────────────────────────────
 
 export const RESERVATION_STATUS_COLORS = {
-  confirmed:       { label: RESERVATION_STATUS_LABELS.confirmed,       dot: C.bgStatusEmeraldDot, bg: C.bgStatusEmerald,  text: C.textStatusEmerald },
-  pending:         { label: RESERVATION_STATUS_LABELS.pending,         dot: C.bgStatusSkyDot,     bg: C.bgStatusSky,      text: C.textStatusSky },
-  checked_in:      { label: RESERVATION_STATUS_LABELS.checked_in,      dot: C.bgStatusBlueDot,    bg: C.bgStatusBlueLight, text: C.textStatusBlue },
-  in_consultation: { label: RESERVATION_STATUS_LABELS.in_consultation, dot: C.bgStatusPurpleDot, bg: C.bgStatusPurple, text: C.textStatusPurple },
-  accounting:      { label: RESERVATION_STATUS_LABELS.accounting,      dot: C.bgStatusAmberDot,   bg: C.bgStatusAmber,    text: C.textStatusAmber },
-  completed:       { label: RESERVATION_STATUS_LABELS.completed,       dot: C.bgStatusGrayMedium, bg: C.bgStatusGray, text: C.textStatusGray },
-  cancelled:       { label: RESERVATION_STATUS_LABELS.cancelled,       dot: C.bgStatusRedDot,     bg: C.bgRedLight,     text: C.textNotionRed },
-  no_show:         { label: RESERVATION_STATUS_LABELS.no_show,         dot: C.bgStatusRedDot,     bg: C.bgRedLight,     text: C.textNotionRed },
+  confirmed: {
+    label: RESERVATION_STATUS_LABELS.confirmed,
+    dot: C.bgStatusEmeraldDot,
+    bg: C.bgStatusEmerald,
+    text: C.textStatusEmerald,
+  },
+  pending: {
+    label: RESERVATION_STATUS_LABELS.pending,
+    dot: C.bgStatusSkyDot,
+    bg: C.bgStatusSky,
+    text: C.textStatusSky,
+  },
+  checked_in: {
+    label: RESERVATION_STATUS_LABELS.checked_in,
+    dot: C.bgStatusBlueDot,
+    bg: C.bgStatusBlueLight,
+    text: C.textStatusBlue,
+  },
+  in_consultation: {
+    label: RESERVATION_STATUS_LABELS.in_consultation,
+    dot: C.bgStatusPurpleDot,
+    bg: C.bgStatusPurple,
+    text: C.textStatusPurple,
+  },
+  accounting: {
+    label: RESERVATION_STATUS_LABELS.accounting,
+    dot: C.bgStatusAmberDot,
+    bg: C.bgStatusAmber,
+    text: C.textStatusAmber,
+  },
+  completed: {
+    label: RESERVATION_STATUS_LABELS.completed,
+    dot: C.bgStatusGrayMedium,
+    bg: C.bgStatusGray,
+    text: C.textStatusGray,
+  },
+  cancelled: {
+    label: RESERVATION_STATUS_LABELS.cancelled,
+    dot: C.bgStatusRedDot,
+    bg: C.bgRedLight,
+    text: C.textNotionRed,
+  },
+  no_show: {
+    label: RESERVATION_STATUS_LABELS.no_show,
+    dot: C.bgStatusRedDot,
+    bg: C.bgRedLight,
+    text: C.textNotionRed,
+  },
 } as const;
 
 /**
@@ -27,8 +67,7 @@ export const RESERVATION_STATUS_COLORS = {
  */
 export function getReservationStatusColor(status: string) {
   return (
-    RESERVATION_STATUS_COLORS[status as ReservationStatus] ??
-    RESERVATION_STATUS_COLORS.pending
+    RESERVATION_STATUS_COLORS[status as ReservationStatus] ?? RESERVATION_STATUS_COLORS.pending
   );
 }
 
@@ -77,11 +116,11 @@ export function getVisitTypeColor(visitType: string) {
 
 /** ReceptionDetailModal のステータスバッジカラー（日本語キー） */
 export const RECEPTION_STATUS_COLORS: Record<string, string> = {
-  "受付予約": `${C.bgAccentLight} ${C.textAccentDark} ${C.borderAccentLight}`,
-  "受付済":   `${C.bgStatusGreen} ${C.textStatusGreen} ${C.borderStatusGreen}`,
-  "診療中":   `${C.bgStatusPurple} ${C.textStatusPurple} ${C.borderStatusPurple}`,
-  "会計待ち": `${C.bgWarning50} ${C.textWarningIcon} ${C.borderWarning20}`,
-  "会計済":   `${C.bgActive} ${C.text} ${C.borderLight}`,
+  受付予約: `${C.bgAccentLight} ${C.textAccentDark} ${C.borderAccentLight}`,
+  受付済: `${C.bgStatusGreen} ${C.textStatusGreen} ${C.borderStatusGreen}`,
+  診療中: `${C.bgStatusPurple} ${C.textStatusPurple} ${C.borderStatusPurple}`,
+  会計待ち: `${C.bgWarning50} ${C.textWarningIcon} ${C.borderWarning20}`,
+  会計済: `${C.bgActive} ${C.text} ${C.borderLight}`,
 };
 
 /** RECEPTION_STATUS_COLORS 未定義ステータスのフォールバッククラス */

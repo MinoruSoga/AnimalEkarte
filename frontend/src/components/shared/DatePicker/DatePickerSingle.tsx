@@ -189,10 +189,7 @@ export function SinglePicker({
             classNames={SINGLE_CALENDAR_CLASSES}
           />
         ) : (
-          <MonthGrid
-            currentMonth={displayMonth.getMonth()}
-            onSelect={handleMonthSelect}
-          />
+          <MonthGrid currentMonth={displayMonth.getMonth()} onSelect={handleMonthSelect} />
         )}
 
         <div className={`border-t ${C.borderLight} px-3 py-1.5`}>

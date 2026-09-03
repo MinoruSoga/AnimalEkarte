@@ -77,9 +77,7 @@ describe("useHospitalizationDetail — discharge permission boundary", () => {
     const { result } = renderHook(() => {
       const [revoked, setRevoked] = useState(false);
       const detail = useHospitalizationDetail("42");
-      const [capturedDischarge] = useState(
-        () => detail.dischargeHospitalization,
-      );
+      const [capturedDischarge] = useState(() => detail.dischargeHospitalization);
 
       useLayoutEffect(() => {
         if (revoked) {

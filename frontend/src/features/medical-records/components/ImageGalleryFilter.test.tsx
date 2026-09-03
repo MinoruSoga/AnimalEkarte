@@ -98,16 +98,11 @@ describe("ImageGalleryFilter — SEC-CS-F08 multi-file caps", () => {
     const input = document.querySelector('input[type="file"]') as HTMLInputElement;
 
     // one valid + one over per-file 10MiB → no partial upload
-    const files = [
-      makeFile("ok.jpg", 1024),
-      makeFile("huge.jpg", MAX_FILE_SIZE_BYTES + 1),
-    ];
+    const files = [makeFile("ok.jpg", 1024), makeFile("huge.jpg", MAX_FILE_SIZE_BYTES + 1)];
     await user.upload(input, files);
 
     expect(onFilesSelected).not.toHaveBeenCalled();
-    expect(toast.error).toHaveBeenCalledWith(
-      expect.stringContaining("huge.jpg"),
-    );
+    expect(toast.error).toHaveBeenCalledWith(expect.stringContaining("huge.jpg"));
   });
 
   it("アップロード不可時はボタンを出さない", () => {

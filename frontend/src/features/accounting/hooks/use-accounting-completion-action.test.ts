@@ -38,27 +38,20 @@ const completeAccountingMock = vi.mocked(completeAccounting);
 const updateAccountingMock = vi.mocked(updateAccounting);
 const handleApiErrorMock = vi.mocked(handleApiError);
 
-const POST_CLOSE_REASON_400 =
-  "レジ締め済み期間の会計編集には post_close_reason の入力が必要です";
+const POST_CLOSE_REASON_400 = "レジ締め済み期間の会計編集には post_close_reason の入力が必要です";
 const GENERIC_400 = "支払金額の合計が請求額と一致しません";
 
 function axiosError(status: number, data: Record<string, unknown>): AxiosError {
   const config = {
     headers: new AxiosHeaders(),
   } as InternalAxiosRequestConfig;
-  return new AxiosError(
-    "request failed",
-    AxiosError.ERR_BAD_REQUEST,
+  return new AxiosError("request failed", AxiosError.ERR_BAD_REQUEST, config, undefined, {
     config,
-    undefined,
-    {
-      config,
-      data,
-      headers: new AxiosHeaders(),
-      status,
-      statusText: "Bad Request",
-    },
-  );
+    data,
+    headers: new AxiosHeaders(),
+    status,
+    statusText: "Bad Request",
+  });
 }
 
 function waitingAccounting(): Accounting {
@@ -76,10 +69,7 @@ function waitingAccounting(): Accounting {
   };
 }
 
-function mountFocusFields(options?: {
-  receivedAmount?: boolean;
-  paymentSplit?: boolean;
-}) {
+function mountFocusFields(options?: { receivedAmount?: boolean; paymentSplit?: boolean }) {
   const root = document.createElement("div");
   const textarea = document.createElement("textarea");
   textarea.id = "postCloseReason";
@@ -102,9 +92,11 @@ afterEach(() => {
   document.getElementById("postCloseReason")?.parentElement?.remove();
 });
 
-function buildHookArgs(overrides: {
-  accountingId?: string;
-} = {}) {
+function buildHookArgs(
+  overrides: {
+    accountingId?: string;
+  } = {},
+) {
   const queryClient = {
     invalidateQueries: vi.fn(),
   } as unknown as QueryClient;
@@ -159,16 +151,14 @@ describe("resolveAccountingCompletionFocusTarget", () => {
 
   it("日本語 400 に post_close_reason が含まれると postCloseReason を返す", () => {
     expect(
-      resolveAccountingCompletionFocusTarget(
-        axiosError(400, { error: POST_CLOSE_REASON_400 }),
-      ),
+      resolveAccountingCompletionFocusTarget(axiosError(400, { error: POST_CLOSE_REASON_400 })),
     ).toBe("postCloseReason");
   });
 
   it("post_close_reason を含まない 400 は receivedAmount を返す", () => {
-    expect(
-      resolveAccountingCompletionFocusTarget(axiosError(400, { error: GENERIC_400 })),
-    ).toBe("receivedAmount");
+    expect(resolveAccountingCompletionFocusTarget(axiosError(400, { error: GENERIC_400 }))).toBe(
+      "receivedAmount",
+    );
   });
 
   it("Axios でないが body.error に post_close_reason がある場合も postCloseReason を返す", () => {
@@ -210,9 +200,7 @@ describe("focusAccountingCompletionError", () => {
 
     focusAccountingCompletionError("receivedAmount");
 
-    expect(document.activeElement).toBe(
-      document.getElementById("payment-split-0-received"),
-    );
+    expect(document.activeElement).toBe(document.getElementById("payment-split-0-received"));
     expect(document.activeElement).not.toBe(document.getElementById("postCloseReason"));
   });
 
@@ -232,9 +220,7 @@ describe("useAccountingCompletionAction post-close 400 focus (BUG-009)", () => {
   });
 
   it("post_close_reason の 400 では textarea#postCloseReason にフォーカスし toast は handleApiError のみ", async () => {
-    updateAccountingMock.mockRejectedValue(
-      axiosError(400, { error: POST_CLOSE_REASON_400 }),
-    );
+    updateAccountingMock.mockRejectedValue(axiosError(400, { error: POST_CLOSE_REASON_400 }));
     mountFocusFields({ receivedAmount: true, paymentSplit: true });
     const { result } = renderHook(() => useAccountingCompletionAction(buildHookArgs()));
 
@@ -266,9 +252,7 @@ describe("useAccountingCompletionAction post-close 400 focus (BUG-009)", () => {
   });
 
   it("新規 complete の post_close_reason 400 でも postCloseReason にフォーカスする", async () => {
-    completeAccountingMock.mockRejectedValue(
-      axiosError(400, { error: POST_CLOSE_REASON_400 }),
-    );
+    completeAccountingMock.mockRejectedValue(axiosError(400, { error: POST_CLOSE_REASON_400 }));
     mountFocusFields({ receivedAmount: true });
     const { result } = renderHook(() =>
       useAccountingCompletionAction(buildHookArgs({ accountingId: undefined })),
@@ -330,9 +314,7 @@ describe("useAccountingCompletionAction permissions (FE-RC-001 fail-closed)", ()
   it("permissions 未指定（既定 deny）では API を呼ばない", async () => {
     const { permissions, ...argsWithoutPermissions } = buildHookArgs();
     void permissions;
-    const { result } = renderHook(() =>
-      useAccountingCompletionAction(argsWithoutPermissions),
-    );
+    const { result } = renderHook(() => useAccountingCompletionAction(argsWithoutPermissions));
 
     await submitCompletionAction(result.current.formAction);
 

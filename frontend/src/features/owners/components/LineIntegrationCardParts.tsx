@@ -14,9 +14,7 @@ import type { LineIdFormState } from "../hooks/use-line-integration-card-state";
 export function LineIntegrationCardFrame({ children }: { children: React.ReactNode }) {
   return (
     <div className={`rounded-lg border ${C.borderLight} p-4 flex flex-col gap-4`}>
-      <h3 className={`text-sm font-medium ${C.text70} uppercase`}>
-        LINE / Lステップ連携
-      </h3>
+      <h3 className={`text-sm font-medium ${C.text70} uppercase`}>LINE / Lステップ連携</h3>
       {children}
     </div>
   );
@@ -33,9 +31,7 @@ export function LineIntegrationLoading() {
 export function LineIntegrationError() {
   return (
     <div className={`rounded-lg border ${C.borderLight} p-4`}>
-      <p className={`text-sm ${C.danger}`}>
-        LINE連携情報の取得に失敗しました
-      </p>
+      <p className={`text-sm ${C.danger}`}>LINE連携情報の取得に失敗しました</p>
     </div>
   );
 }
@@ -46,21 +42,12 @@ interface LinkedStatusRowProps {
   onUnlinkClick: () => void;
 }
 
-export function LinkedStatusRow({
-  lineUserId,
-  canEdit,
-  onUnlinkClick,
-}: LinkedStatusRowProps) {
+export function LinkedStatusRow({ lineUserId, canEdit, onUnlinkClick }: LinkedStatusRowProps) {
   return (
     <div className="flex items-center justify-between gap-3">
       <div className="flex items-center gap-2">
-        <CheckCircle2
-          className={`${ICON.smXs} shrink-0`}
-          style={{ color: PALETTE.lineGreen }}
-        />
-        <span className={`text-sm font-medium ${C.textStatusGreen}`}>
-          連携済み
-        </span>
+        <CheckCircle2 className={`${ICON.smXs} shrink-0`} style={{ color: PALETTE.lineGreen }} />
+        <span className={`text-sm font-medium ${C.textStatusGreen}`}>連携済み</span>
         {lineUserId ? (
           <span className={`text-xs ${C.text50} font-mono`}>
             ({lineUserId.slice(0, 8)}...{lineUserId.slice(-4)})
@@ -104,9 +91,7 @@ export function LstepTagsSection({
 }: LstepTagsSectionProps) {
   return (
     <div className="flex flex-col gap-2">
-      <span className={`text-xs ${C.text55} uppercase`}>
-        Lステップタグ
-      </span>
+      <span className={`text-xs ${C.text55} uppercase`}>Lステップタグ</span>
 
       {removeTagName !== null ? (
         <LstepTagRemoveInline

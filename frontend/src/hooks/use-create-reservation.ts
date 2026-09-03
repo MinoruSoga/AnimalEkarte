@@ -25,21 +25,21 @@ export interface CreateReservationRequest {
   reservation_route?: ReservationRoute;
 }
 
-interface CreateReservationBatchRequest extends Omit<CreateReservationRequest, "pet_id" | "owner_id"> {
+interface CreateReservationBatchRequest extends Omit<
+  CreateReservationRequest,
+  "pet_id" | "owner_id"
+> {
   pets: { owner_id: number; pet_id: number }[];
 }
 
-const createReservation = async (
-  req: CreateReservationRequest
-): Promise<Reservation> => {
-  const { data } = await axios.post<BackendReservation>(
-    "/v1/reservations",
-    req
-  );
+const createReservation = async (req: CreateReservationRequest): Promise<Reservation> => {
+  const { data } = await axios.post<BackendReservation>("/v1/reservations", req);
   return transformReservation(data);
 };
 
-const createReservationBatch = async (req: CreateReservationBatchRequest): Promise<Reservation[]> => {
+const createReservationBatch = async (
+  req: CreateReservationBatchRequest,
+): Promise<Reservation[]> => {
   const { data } = await axios.post<BackendReservation[]>("/v1/reservations/batch", req);
   return data.map(transformReservation);
 };

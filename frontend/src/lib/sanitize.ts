@@ -21,7 +21,10 @@ export function sanitizeNullBytes(value: unknown): unknown {
   if (typeof FormData !== "undefined" && value instanceof FormData) {
     const sanitized = new FormData();
     for (const [key, entryValue] of value.entries()) {
-      sanitized.append(key, typeof entryValue === "string" ? sanitizeNullBytes(entryValue) as string : entryValue);
+      sanitized.append(
+        key,
+        typeof entryValue === "string" ? (sanitizeNullBytes(entryValue) as string) : entryValue,
+      );
     }
     return sanitized;
   }
@@ -34,7 +37,7 @@ export function sanitizeNullBytes(value: unknown): unknown {
   }
   if (value !== null && typeof value === "object") {
     return Object.fromEntries(
-      Object.entries(value as Record<string, unknown>).map(([k, v]) => [k, sanitizeNullBytes(v)])
+      Object.entries(value as Record<string, unknown>).map(([k, v]) => [k, sanitizeNullBytes(v)]),
     );
   }
   return value;

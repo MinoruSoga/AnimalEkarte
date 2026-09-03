@@ -1,26 +1,26 @@
-import { useState, useEffect, useCallback } from 'react';
-import type { PageType, LiffSettings, LiffProfile } from './types/models';
-import { liffApi } from './api/liff-api';
-import { useLiff } from '@/shared-liff/use-liff';
-import { Spinner } from '@/shared-liff/Spinner';
-import { ErrorPage } from '@/shared-liff/ErrorPage';
-import { useReservationFlow } from './hooks/use-reservation-flow';
-import { getClinicId } from './lib/liff-config';
-import { MaintenancePage } from './pages/MaintenancePage';
-import { useReservationAppHandlers } from './app-flow-handlers';
-import { ReservationNoticeBanner, ReservationPageSwitch } from './app-page-switch';
+import { useState, useEffect, useCallback } from "react";
+import type { PageType, LiffSettings, LiffProfile } from "./types/models";
+import { liffApi } from "./api/liff-api";
+import { useLiff } from "@/shared-liff/use-liff";
+import { Spinner } from "@/shared-liff/Spinner";
+import { ErrorPage } from "@/shared-liff/ErrorPage";
+import { useReservationFlow } from "./hooks/use-reservation-flow";
+import { getClinicId } from "./lib/liff-config";
+import { MaintenancePage } from "./pages/MaintenancePage";
+import { useReservationAppHandlers } from "./app-flow-handlers";
+import { ReservationNoticeBanner, ReservationPageSwitch } from "./app-page-switch";
 
 export function App() {
   const clinicId = getClinicId();
 
-  const [page, setPage] = useState<PageType>('loading');
+  const [page, setPage] = useState<PageType>("loading");
   const [settings, setSettings] = useState<LiffSettings | null>(null);
   const [profile, setProfile] = useState<LiffProfile | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | undefined>(undefined);
   const [notice, setNotice] = useState<string | null>(null);
   const [completedReservationId, setCompletedReservationId] = useState<number>(0);
-  const [completedNotes, setCompletedNotes] = useState<string>('');
-  const [liffId, setLiffId] = useState<string>('');
+  const [completedNotes, setCompletedNotes] = useState<string>("");
+  const [liffId, setLiffId] = useState<string>("");
 
   const {
     flow,
@@ -35,7 +35,7 @@ export function App() {
     resetFlow,
   } = useReservationFlow();
 
-  const isTrimming = flow.courseCategory === 'trimming';
+  const isTrimming = flow.courseCategory === "trimming";
   const { idToken, isReady, initError } = useLiff(liffId);
   const goTo = useCallback((nextPage: PageType) => setPage(nextPage), []);
   const handlers = useReservationAppHandlers(
@@ -49,29 +49,31 @@ export function App() {
   useEffect(() => {
     if (!clinicId) return;
 
-    liffApi.getSettings(clinicId)
-      .then(s => {
+    liffApi
+      .getSettings(clinicId)
+      .then((s) => {
         setSettings(s);
-        if (s.status !== 'running') {
-          setPage('maintenance');
+        if (s.status !== "running") {
+          setPage("maintenance");
           return;
         }
         setLiffId(s.liff_id);
       })
       .catch(() => {
-        setErrorMessage('設定の取得に失敗しました');
-        setPage('error');
+        setErrorMessage("設定の取得に失敗しました");
+        setPage("error");
       });
   }, [clinicId]);
 
   useEffect(() => {
     if (!isReady || !idToken || !clinicId) return;
-    if (!settings || settings.status !== 'running') return;
+    if (!settings || settings.status !== "running") return;
 
     let cancelled = false;
 
-    liffApi.getProfile(clinicId, idToken)
-      .then(p => {
+    liffApi
+      .getProfile(clinicId, idToken)
+      .then((p) => {
         if (cancelled) return;
         setProfile(p);
       })
@@ -80,7 +82,7 @@ export function App() {
       })
       .finally(() => {
         if (cancelled) return;
-        setPage((current) => (current === 'error' || current === 'maintenance' ? current : 'top'));
+        setPage((current) => (current === "error" || current === "maintenance" ? current : "top"));
       });
 
     return () => {
@@ -98,7 +100,7 @@ export function App() {
     );
   }
 
-  if (page === 'loading') {
+  if (page === "loading") {
     return (
       <div className="min-h-screen flex items-center justify-center bg-noah-teal-light">
         <div className="text-center">
@@ -109,11 +111,11 @@ export function App() {
     );
   }
 
-  if (page === 'error') {
+  if (page === "error") {
     return <ErrorPage message={errorMessage} />;
   }
 
-  if (page === 'maintenance') {
+  if (page === "maintenance") {
     return <MaintenancePage />;
   }
 

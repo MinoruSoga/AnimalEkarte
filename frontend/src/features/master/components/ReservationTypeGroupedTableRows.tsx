@@ -43,7 +43,10 @@ export function ReservationTypeGroupHeader({
               style={{ transform: isCollapsed ? "rotate(-90deg)" : "rotate(0deg)" }}
             />
           </button>
-          <span className={`${ICON.dotMd} rounded-full shrink-0`} style={{ backgroundColor: group.color }} />
+          <span
+            className={`${ICON.dotMd} rounded-full shrink-0`}
+            style={{ backgroundColor: group.color }}
+          />
           <button
             type="button"
             onClick={onGroupEdit}
@@ -60,7 +63,8 @@ export function ReservationTypeGroupHeader({
                 className={`flex min-h-11 min-w-11 items-center gap-1 text-xs ${C.text45}
                   ${LAYOUT.inputCompact} ${C.hoverBgMedium} transition-colors`}
               >
-                <Pencil className={ICON.action} />編集
+                <Pencil className={ICON.action} />
+                編集
               </button>
               <button
                 type="button"
@@ -68,7 +72,8 @@ export function ReservationTypeGroupHeader({
                 className={`flex min-h-11 min-w-11 items-center gap-1 text-xs ${C.text45}
                   ${LAYOUT.inputCompact} ${C.hoverBgMedium} transition-colors`}
               >
-                <Plus className={ICON.action} />追加
+                <Plus className={ICON.action} />
+                追加
               </button>
             </div>
           ) : null}
@@ -109,7 +114,10 @@ export function ReservationTypeUncategorizedHeader({
               style={{ transform: isCollapsed ? "rotate(-90deg)" : "rotate(0deg)" }}
             />
           </button>
-          <span className={`${ICON.dotMd} rounded-full shrink-0`} style={{ backgroundColor: PALETTE.grayMedium }} />
+          <span
+            className={`${ICON.dotMd} rounded-full shrink-0`}
+            style={{ backgroundColor: PALETTE.grayMedium }}
+          />
           <span className={`text-sm font-medium ${C.text55}`}>未分類</span>
           <span className={`text-xs ${C.text35} tabular-nums`}>{count}</span>
           {canEdit ? (
@@ -119,7 +127,8 @@ export function ReservationTypeUncategorizedHeader({
               className={`ml-auto flex min-h-11 min-w-11 items-center gap-1 text-xs ${C.text45}
                 ${LAYOUT.inputCompact} ${C.hoverBgMedium} transition-colors`}
             >
-              <Plus className={ICON.action} />追加
+              <Plus className={ICON.action} />
+              追加
             </button>
           ) : null}
         </div>

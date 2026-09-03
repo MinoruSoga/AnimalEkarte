@@ -29,7 +29,8 @@ export function PetSwitcher({ pets, selectedPetId, onSelect }: PetSwitcherProps)
       >
         {pets.map((pet) => (
           <option key={pet.id} value={pet.id}>
-            {pet.name || "-"}{pet.species ? `（${pet.species}）` : ""}
+            {pet.name || "-"}
+            {pet.species ? `（${pet.species}）` : ""}
           </option>
         ))}
       </select>

@@ -117,27 +117,21 @@ describe("EstimateDetail locked status actions", () => {
     mockEstimate.current = makeEstimate("approved");
     renderDetail();
 
-    expect(
-      screen.getByRole("button", { name: "後継ドラフトを作成" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "後継ドラフトを作成" })).toBeInTheDocument();
   });
 
   it("rejected + create権限あり → 後継ドラフト導線を表示する", () => {
     mockEstimate.current = makeEstimate("rejected");
     renderDetail();
 
-    expect(
-      screen.getByRole("button", { name: "後継ドラフトを作成" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "後継ドラフトを作成" })).toBeInTheDocument();
   });
 
   it("draft → 後継ドラフト導線を表示しない", () => {
     mockEstimate.current = makeEstimate("draft");
     renderDetail();
 
-    expect(
-      screen.queryByRole("button", { name: "後継ドラフトを作成" }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "後継ドラフトを作成" })).not.toBeInTheDocument();
   });
 
   it("approved + create権限なし → 後継ドラフト導線を表示しない", () => {
@@ -147,9 +141,7 @@ describe("EstimateDetail locked status actions", () => {
     mockEstimate.current = makeEstimate("approved");
     renderDetail();
 
-    expect(
-      screen.queryByRole("button", { name: "後継ドラフトを作成" }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "後継ドラフトを作成" })).not.toBeInTheDocument();
   });
 });
 

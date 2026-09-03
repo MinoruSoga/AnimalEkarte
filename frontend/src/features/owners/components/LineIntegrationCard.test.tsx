@@ -89,14 +89,11 @@ const linkedLineTags = {
   fetched_at: "2026-05-01T00:00:00Z",
 };
 
-function setupLineTagsHandler(
-  data: typeof linkedLineTags = linkedLineTags
-) {
+function setupLineTagsHandler(data: typeof linkedLineTags = linkedLineTags) {
   server.use(
-    http.get(
-      `/api/v1/clinics/${CLINIC_ID}/owners/${OWNER_ID}/lstep/tags`,
-      () => HttpResponse.json(data)
-    )
+    http.get(`/api/v1/clinics/${CLINIC_ID}/owners/${OWNER_ID}/lstep/tags`, () =>
+      HttpResponse.json(data),
+    ),
   );
 }
 
@@ -115,17 +112,12 @@ function createWrapper() {
 
 async function renderAndWait(
   owner: Owner = baseOwner,
-  lineTags: typeof linkedLineTags = linkedLineTags
+  lineTags: typeof linkedLineTags = linkedLineTags,
 ) {
   setupLineTagsHandler(lineTags);
-  render(
-    <LineIntegrationCard
-      ownerId={OWNER_ID}
-      ownerName="テスト飼い主"
-      owner={owner}
-    />,
-    { wrapper: createWrapper() }
-  );
+  render(<LineIntegrationCard ownerId={OWNER_ID} ownerName="テスト飼い主" owner={owner} />, {
+    wrapper: createWrapper(),
+  });
   await waitFor(() => {
     expect(screen.getByText("LINE / Lステップ連携")).toBeInTheDocument();
   });
@@ -177,8 +169,8 @@ describe("LineIntegrationCard — B: LINE ID confirm エンドポイント呼び
           const bodyText = await request.text();
           expect(bodyText).toBe("");
           return HttpResponse.json(minimalOwnerApiResponse);
-        }
-      )
+        },
+      ),
     );
     await renderAndWait({ ...baseOwner, lineUserId: LINE_USER_ID });
     const user = userEvent.setup();
@@ -238,8 +230,8 @@ describe("LineIntegrationCard — D: 配信除外スイッチ", () => {
         async ({ request }) => {
           capturedBody = await request.json();
           return HttpResponse.json(minimalOwnerApiResponse);
-        }
-      )
+        },
+      ),
     );
     // deliveryExcluded=true でスイッチが checked 状態
     await renderAndWait({ ...baseOwner, deliveryExcluded: true });
@@ -249,9 +241,7 @@ describe("LineIntegrationCard — D: 配信除外スイッチ", () => {
     const switchEl = within(row!).getByRole("switch");
     await user.click(switchEl);
     await waitFor(() => {
-      expect(capturedBody).toEqual(
-        expect.objectContaining({ excluded: false, reason: null })
-      );
+      expect(capturedBody).toEqual(expect.objectContaining({ excluded: false, reason: null }));
     });
   });
 });
@@ -271,8 +261,8 @@ describe("LineIntegrationCard — E: 転院確認ダイアログ", () => {
     await waitFor(() => {
       expect(
         screen.getByText(
-          "転院フラグを設定すると Lステップへの配信が停止されます。よろしいですか？"
-        )
+          "転院フラグを設定すると Lステップへの配信が停止されます。よろしいですか？",
+        ),
       ).toBeInTheDocument();
     });
   });
@@ -285,8 +275,8 @@ describe("LineIntegrationCard — E: 転院確認ダイアログ", () => {
         async ({ request }) => {
           capturedBody = await request.json();
           return HttpResponse.json(minimalOwnerApiResponse);
-        }
-      )
+        },
+      ),
     );
     await renderAndWait();
     const user = userEvent.setup();
@@ -295,15 +285,11 @@ describe("LineIntegrationCard — E: 転院確認ダイアログ", () => {
     const switchEl = within(row!).getByRole("switch");
     await user.click(switchEl);
     await waitFor(() =>
-      screen.getByText(
-        "転院フラグを設定すると Lステップへの配信が停止されます。よろしいですか？"
-      )
+      screen.getByText("転院フラグを設定すると Lステップへの配信が停止されます。よろしいですか？"),
     );
     await user.click(screen.getByRole("button", { name: "転院済みに設定" }));
     await waitFor(() => {
-      expect(capturedBody).toEqual(
-        expect.objectContaining({ is_transferred: true })
-      );
+      expect(capturedBody).toEqual(expect.objectContaining({ is_transferred: true }));
     });
   });
 });
@@ -343,8 +329,8 @@ describe("LineIntegrationCard — F: 配信注意バナー + スイッチ", () =
         async ({ request }) => {
           capturedBody = await request.json();
           return HttpResponse.json({ ...minimalOwnerApiResponse, delivery_caution: true });
-        }
-      )
+        },
+      ),
     );
     await renderAndWait({ ...baseOwner, deliveryCaution: false });
     const user = userEvent.setup();
@@ -353,9 +339,7 @@ describe("LineIntegrationCard — F: 配信注意バナー + スイッチ", () =
     const switchEl = within(row!).getByRole("switch");
     await user.click(switchEl);
     await waitFor(() => {
-      expect(capturedBody).toEqual(
-        expect.objectContaining({ caution: true })
-      );
+      expect(capturedBody).toEqual(expect.objectContaining({ caution: true }));
     });
   });
 
@@ -371,8 +355,8 @@ describe("LineIntegrationCard — F: 配信注意バナー + スイッチ", () =
             delivery_caution: true,
             delivery_caution_reason: "アレルギー注意",
           });
-        }
-      )
+        },
+      ),
     );
     await renderAndWait({ ...baseOwner, deliveryCaution: true });
     const user = userEvent.setup();
@@ -382,7 +366,7 @@ describe("LineIntegrationCard — F: 配信注意バナー + スイッチ", () =
     await user.click(screen.getByTestId("delivery-caution-save-btn"));
     await waitFor(() => {
       expect(capturedBody).toEqual(
-        expect.objectContaining({ caution: true, reason: "アレルギー注意" })
+        expect.objectContaining({ caution: true, reason: "アレルギー注意" }),
       );
     });
   });

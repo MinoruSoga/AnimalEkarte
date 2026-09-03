@@ -8,11 +8,7 @@ type CheckboxProps = React.ComponentProps<typeof CheckboxPrimitive.Root> & {
   touchTarget?: boolean;
 };
 
-function Checkbox({
-  className,
-  touchTarget = false,
-  ...props
-}: CheckboxProps) {
+function Checkbox({ className, touchTarget = false, ...props }: CheckboxProps) {
   return (
     <CheckboxPrimitive.Root
       data-slot="checkbox"

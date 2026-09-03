@@ -4,9 +4,9 @@ import { examinationCreateHref, examinationListDetailHref } from "./examinations
 
 describe("examinationListDetailHref", () => {
   it("カルテに紐づく検査は検査タブ付きカルテへ行く", () => {
-    expect(
-      examinationListDetailHref({ id: "exam-1", medicalRecordId: "mr-1" }),
-    ).toBe("/medical-records/mr-1?tab=%E6%A4%9C%E6%9F%BB&examId=exam-1");
+    expect(examinationListDetailHref({ id: "exam-1", medicalRecordId: "mr-1" })).toBe(
+      "/medical-records/mr-1?tab=%E6%A4%9C%E6%9F%BB&examId=exam-1",
+    );
   });
 
   it("未紐付けの検査は検査詳細画面へ行く", () => {

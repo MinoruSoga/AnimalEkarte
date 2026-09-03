@@ -34,7 +34,8 @@ export const useCreateCheckupType = () => {
       const { data } = await axios.post<CheckupType>("/v1/masters/checkup-types", req);
       return transformCheckupType(data);
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.masters.category("checkup-types") }),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: queryKeys.masters.category("checkup-types") }),
     onError: (error) => handleApiError(error, "操作"),
   });
 };
@@ -49,13 +50,11 @@ export const useUpdateCheckupType = () => {
       id: string;
       req: UpdateCheckupTypeRequest;
     }): Promise<CheckupTypeItem> => {
-      const { data } = await axios.patch<CheckupType>(
-        `/v1/masters/checkup-types/${id}`,
-        req,
-      );
+      const { data } = await axios.patch<CheckupType>(`/v1/masters/checkup-types/${id}`, req);
       return transformCheckupType(data);
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.masters.category("checkup-types") }),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: queryKeys.masters.category("checkup-types") }),
     onError: (error) => handleApiError(error, "操作"),
   });
 };
@@ -64,7 +63,8 @@ export const useDeleteCheckupType = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => axios.delete(`/v1/masters/checkup-types/${id}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.masters.category("checkup-types") }),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: queryKeys.masters.category("checkup-types") }),
     onError: (error) => handleApiError(error, "操作"),
   });
 };
@@ -74,7 +74,8 @@ export const useReorderCheckupTypes = () => {
   return useMutation({
     mutationFn: (req: ReorderTreatmentRequest) =>
       axios.patch("/v1/masters/checkup-types/reorder", req),
-    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.masters.category("checkup-types") }),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: queryKeys.masters.category("checkup-types") }),
     onError: (error) => handleApiError(error, "操作"),
   });
 };

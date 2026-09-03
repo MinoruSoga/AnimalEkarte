@@ -69,8 +69,7 @@ export function buildHospitalizationListQueryFilters(
   serverPage: number,
 ): HospitalizationFilters {
   const dateFilter = activeFilters.find((f) => f.key === "startDate")?.value as
-    | { from?: string; to?: string }
-    | undefined;
+    { from?: string; to?: string } | undefined;
   return {
     startDate: dateFilter?.from,
     endDate: dateFilter?.to,
@@ -86,7 +85,14 @@ export function buildHospitalizationFilterProperties(
   const speciesOptions = uniqueSortedOptions(hospitalizations, (h) => h.species);
   return [
     ...HOSPITALIZATION_STATIC_FILTER_PROPERTIES,
-    { key: "species", label: "種", type: "select" as const, icon: PawPrint, conditions: CONDITIONS_NO_EMPTY, options: speciesOptions },
+    {
+      key: "species",
+      label: "種",
+      type: "select" as const,
+      icon: PawPrint,
+      conditions: CONDITIONS_NO_EMPTY,
+      options: speciesOptions,
+    },
   ];
 }
 
@@ -111,9 +117,12 @@ export function applyHospitalizationClientFilters(
   if (typeFilter && typeof typeFilter.value === "string") {
     result = result.filter((h) => {
       switch (typeFilter.condition) {
-        case "is":           return h.hospitalizationType === typeFilter.value;
-        case "is_not":       return h.hospitalizationType !== typeFilter.value;
-        default:             return h.hospitalizationType === typeFilter.value;
+        case "is":
+          return h.hospitalizationType === typeFilter.value;
+        case "is_not":
+          return h.hospitalizationType !== typeFilter.value;
+        default:
+          return h.hospitalizationType === typeFilter.value;
       }
     });
   }
@@ -122,11 +131,16 @@ export function applyHospitalizationClientFilters(
   if (speciesFilter && typeof speciesFilter.value === "string") {
     result = result.filter((h) => {
       switch (speciesFilter.condition) {
-        case "is":           return h.species === speciesFilter.value;
-        case "is_not":       return h.species !== speciesFilter.value;
-        case "is_empty":     return !h.species;
-        case "is_not_empty": return !!h.species;
-        default:             return h.species === speciesFilter.value;
+        case "is":
+          return h.species === speciesFilter.value;
+        case "is_not":
+          return h.species !== speciesFilter.value;
+        case "is_empty":
+          return !h.species;
+        case "is_not_empty":
+          return !!h.species;
+        default:
+          return h.species === speciesFilter.value;
       }
     });
   }
@@ -179,10 +193,7 @@ export function buildServerPagePagination<T>(input: {
   };
 }
 
-export function nextListSearchParamsWithPage(
-  prev: URLSearchParams,
-  page: number,
-): URLSearchParams {
+export function nextListSearchParamsWithPage(prev: URLSearchParams, page: number): URLSearchParams {
   const next = new URLSearchParams(prev);
   if (page === 1) {
     next.delete("page");

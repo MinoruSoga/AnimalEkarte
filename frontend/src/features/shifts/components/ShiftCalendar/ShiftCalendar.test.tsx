@@ -9,7 +9,10 @@ const STAFFS: ShiftStaff[] = [
   { id: "s1", name: "スタッフA", occupationId: "1", occupationName: "医師" },
 ];
 
-function renderCalendar(yearMonth: string, overrides: Partial<React.ComponentProps<typeof ShiftCalendar>> = {}) {
+function renderCalendar(
+  yearMonth: string,
+  overrides: Partial<React.ComponentProps<typeof ShiftCalendar>> = {},
+) {
   return render(
     <ShiftCalendar
       yearMonth={yearMonth}

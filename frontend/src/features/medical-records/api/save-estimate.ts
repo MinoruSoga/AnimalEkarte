@@ -34,9 +34,7 @@ export interface UpdateEstimateRecordVariables {
   payload: Partial<SaveEstimatePayload>;
 }
 
-const getEstimatesByRecord = async (
-  medicalRecordId: string,
-): Promise<Estimate | null> => {
+const getEstimatesByRecord = async (medicalRecordId: string): Promise<Estimate | null> => {
   const { data } = await axios.get<{ data: Estimate[] }>("/v1/estimates", {
     params: { medical_record_id: Number(medicalRecordId), limit: 1 },
   });
@@ -74,10 +72,7 @@ export const useCreateEstimateRecord = (medicalRecordId: string) => {
 export const useUpdateEstimateRecord = (medicalRecordId: string) => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({
-      id,
-      payload,
-    }: UpdateEstimateRecordVariables): Promise<Estimate> => {
+    mutationFn: async ({ id, payload }: UpdateEstimateRecordVariables): Promise<Estimate> => {
       const { data } = await axios.patch<Estimate>(`/v1/estimates/${id}`, payload);
       return data;
     },

@@ -112,9 +112,7 @@ function selectedPet(status: "生存" | "死亡" | "不明") {
 }
 
 function renderExaminationForm(id?: string) {
-  return renderHook(() =>
-    useExaminationForm(id, undefined, ALLOWED_MUTATION_PERMISSIONS),
-  );
+  return renderHook(() => useExaminationForm(id, undefined, ALLOWED_MUTATION_PERMISSIONS));
 }
 
 // FE-RC-045: use-examination-form.test.ts (2662行) をトピック別に分割した1ファイル。
@@ -123,10 +121,7 @@ function renderExaminationForm(id?: string) {
 describe("useExaminationForm — 患者変更と確定解除", () => {
   beforeEach(async () => {
     vi.clearAllMocks();
-    vi.mocked(useSearchParams).mockReturnValue([
-      new URLSearchParams(),
-      vi.fn(),
-    ]);
+    vi.mocked(useSearchParams).mockReturnValue([new URLSearchParams(), vi.fn()]);
     vi.mocked(useGetPet).mockReturnValue({
       data: selectedPet("生存"),
       isLoading: false,
@@ -137,8 +132,7 @@ describe("useExaminationForm — 患者変更と確定解除", () => {
       setSelectedPets: vi.fn(),
     } as ReturnType<typeof usePetSelection>);
     const { useGetExamination } = await import("../api/get-examination");
-    const { useGetExaminationItems } =
-      await import("../api/get-examination-items");
+    const { useGetExaminationItems } = await import("../api/get-examination-items");
     vi.mocked(useGetExamination).mockReturnValue({
       data: {
         id: "exam-001",
@@ -161,11 +155,9 @@ describe("useExaminationForm — 患者変更と確定解除", () => {
 
   afterEach(async () => {
     const { useGetExamination } = await import("../api/get-examination");
-    const { useGetExaminationItems } =
-      await import("../api/get-examination-items");
+    const { useGetExaminationItems } = await import("../api/get-examination-items");
     const { useUpdateExamination } = await import("../api/update-examination");
-    const { useUnconfirmExamination } =
-      await import("../api/unconfirm-examination");
+    const { useUnconfirmExamination } = await import("../api/unconfirm-examination");
     vi.mocked(useGetExamination).mockReturnValue({ data: null } as ReturnType<
       typeof useGetExamination
     >);
@@ -210,8 +202,7 @@ describe("useExaminationForm — 患者変更と確定解除", () => {
     "履歴がある状態では患者変更をPATCHしない: $status/$currentRevisionVersion",
     async ({ status, currentRevisionVersion }) => {
       const { useGetExamination } = await import("../api/get-examination");
-      const { useUpdateExamination } =
-        await import("../api/update-examination");
+      const { useUpdateExamination } = await import("../api/update-examination");
       vi.mocked(usePetSelection).mockReturnValue({
         selectedPets: [selectedPet("生存")],
         setSelectedPets: vi.fn(),
@@ -282,9 +273,7 @@ describe("useExaminationForm — 患者変更と確定解除", () => {
       startTransition(() => result.current.formAction(new FormData()));
     });
 
-    await waitFor(() =>
-      expect(result.current.formState.success).toBe(false),
-    );
+    await waitFor(() => expect(result.current.formState.success).toBe(false));
     expect(updateMutate).not.toHaveBeenCalled();
   });
 
@@ -342,8 +331,7 @@ describe("useExaminationForm — 患者変更と確定解除", () => {
 
   it("確定解除はtrim済み理由と最新の専用権限でだけ実行する", async () => {
     const { useGetExamination } = await import("../api/get-examination");
-    const { useUnconfirmExamination } =
-      await import("../api/unconfirm-examination");
+    const { useUnconfirmExamination } = await import("../api/unconfirm-examination");
     vi.mocked(useGetExamination).mockReturnValue({
       data: {
         id: "exam-001",
@@ -374,23 +362,17 @@ describe("useExaminationForm — 患者変更と確定解除", () => {
     );
 
     await expect(result.current.handleUnconfirm("   ")).resolves.toBe(false);
-    await expect(
-      result.current.handleUnconfirm("あ".repeat(501)),
-    ).resolves.toBe(false);
+    await expect(result.current.handleUnconfirm("あ".repeat(501))).resolves.toBe(false);
     expect(unconfirmMutate).not.toHaveBeenCalled();
 
-    await expect(
-      result.current.handleUnconfirm("  再確認のため  "),
-    ).resolves.toBe(true);
+    await expect(result.current.handleUnconfirm("  再確認のため  ")).resolves.toBe(true);
     expect(unconfirmMutate).toHaveBeenCalledWith({
       id: "exam-001",
       reason: "再確認のため",
     });
 
     rerender({ canUnconfirm: false });
-    await expect(result.current.handleUnconfirm("再確認のため")).resolves.toBe(
-      false,
-    );
+    await expect(result.current.handleUnconfirm("再確認のため")).resolves.toBe(false);
     expect(unconfirmMutate).toHaveBeenCalledOnce();
   });
 });
@@ -398,10 +380,7 @@ describe("useExaminationForm — 患者変更と確定解除", () => {
 describe("useExaminationForm — formAction（useActionState コールバック）", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(useSearchParams).mockReturnValue([
-      new URLSearchParams(),
-      vi.fn(),
-    ]);
+    vi.mocked(useSearchParams).mockReturnValue([new URLSearchParams(), vi.fn()]);
     vi.mocked(useGetPet).mockReturnValue({
       data: null,
       isLoading: false,
@@ -463,9 +442,7 @@ describe("useExaminationForm — formAction（useActionState コールバック�
     });
 
     expect(result.current.fieldErrors?.testTypeId).toBeUndefined();
-    expect(result.current.fieldErrors?.doctorId).toBe(
-      "担当医を選択してください",
-    );
+    expect(result.current.fieldErrors?.doctorId).toBe("担当医を選択してください");
   });
 
   it("バリデーション通過 & 新規 & selectedPets なし → success: false（line 115）", async () => {
@@ -579,8 +556,7 @@ describe("useExaminationForm — formAction（useActionState コールバック�
 
   it("編集モード & バリデーション通過 → updateMutation.mutateAsync 呼ぶ（line 112）", async () => {
     const { useGetExamination } = await import("../api/get-examination");
-    const { useGetExaminationItems } =
-      await import("../api/get-examination-items");
+    const { useGetExaminationItems } = await import("../api/get-examination-items");
     const { useUpdateExamination } = await import("../api/update-examination");
     const mockMutateAsync = vi.fn().mockResolvedValue({});
     vi.mocked(useUpdateExamination).mockReturnValue({

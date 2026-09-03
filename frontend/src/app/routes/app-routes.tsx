@@ -11,9 +11,7 @@ import { operationsRoutes } from "./operations-routes";
 import { settingsRoute } from "./settings-routes";
 
 /* bundle-dynamic-imports: ログインページは未認証ユーザー専用。認証済みユーザーのバンドルに含めない */
-const Login = lazy(() =>
-  import("@/features/auth").then((m) => ({ default: m.Login })),
-);
+const Login = lazy(() => import("@/features/auth").then((m) => ({ default: m.Login })));
 
 const authRoutes: RouteObject[] = [
   {

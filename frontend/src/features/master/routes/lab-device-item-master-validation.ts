@@ -27,7 +27,10 @@ export function validateLabDeviceDraft(input: {
   if (input.name.trim().length > 100) {
     return "機器名が長すぎます";
   }
-  if (input.requireSourceType && !LAB_DEVICE_SOURCE_ORDER.includes(input.sourceType as (typeof LAB_DEVICE_SOURCE_ORDER)[number])) {
+  if (
+    input.requireSourceType &&
+    !LAB_DEVICE_SOURCE_ORDER.includes(input.sourceType as (typeof LAB_DEVICE_SOURCE_ORDER)[number])
+  ) {
     return "プロトコルを選んでください";
   }
   if (input.examTypeId !== null) {

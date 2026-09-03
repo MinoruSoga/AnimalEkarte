@@ -227,7 +227,9 @@ export function usePutLabDeviceWait() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (petId: number) => {
-      const { data } = await axios.put<LabDeviceWaitResponse>("/v1/lab-device/wait", { pet_id: petId });
+      const { data } = await axios.put<LabDeviceWaitResponse>("/v1/lab-device/wait", {
+        pet_id: petId,
+      });
       return toWait(data);
     },
     onSuccess: () => invalidateLabDeviceBoardQueries(queryClient),
@@ -259,7 +261,10 @@ export function useReceiveLabDeviceFrames() {
         payload_base64: input.payloadBase64,
         device_hint: input.deviceHint,
       });
-      return data.results.map((row) => ({ duplicate: row.duplicate, job: toLabDeviceJobCard(row.job) }));
+      return data.results.map((row) => ({
+        duplicate: row.duplicate,
+        job: toLabDeviceJobCard(row.job),
+      }));
     },
     onSuccess: () => invalidateLabDeviceBoardQueries(queryClient),
     onError: (error) => handleApiError(error, "検査機器電文の受信"),

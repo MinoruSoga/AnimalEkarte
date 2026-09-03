@@ -14,11 +14,7 @@ export interface DeliveryTriggerSummaryResponse {
 }
 
 // GET /api/clinics/:clinic_id/lstep/delivery-monitor/summary
-export function useGetLstepDeliveryTriggerSummary(
-  from: string,
-  to: string,
-  triggerType?: string
-) {
+export function useGetLstepDeliveryTriggerSummary(from: string, to: string, triggerType?: string) {
   return useQuery({
     queryKey: queryKeys.lstepDeliveryTriggerSummary.summary(from, to, triggerType),
     queryFn: async () => {
@@ -26,7 +22,7 @@ export function useGetLstepDeliveryTriggerSummary(
       const params = new URLSearchParams({ from, to });
       if (triggerType) params.set("trigger_type", triggerType);
       const { data } = await axios.get<DeliveryTriggerSummaryResponse>(
-        `/v1/clinics/${clinicId}/lstep/delivery-monitor/summary?${params}`
+        `/v1/clinics/${clinicId}/lstep/delivery-monitor/summary?${params}`,
       );
       return data;
     },

@@ -18,9 +18,7 @@ function renderModal(
   vi.mocked(useCreateMedicalRecordAddendum).mockReturnValue({
     mutateAsync,
   } as unknown as ReturnType<typeof useCreateMedicalRecordAddendum>);
-  return render(
-    <AddendumModal open={true} onOpenChange={onOpenChange} medicalRecordId="1" />,
-  );
+  return render(<AddendumModal open={true} onOpenChange={onOpenChange} medicalRecordId="1" />);
 }
 
 beforeEach(() => {

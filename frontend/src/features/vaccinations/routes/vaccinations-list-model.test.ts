@@ -11,9 +11,9 @@ import {
 
 describe("vaccinationListDetailHref", () => {
   it("カルテに紐づく接種は予防接種タブ付きカルテへ行く", () => {
-    expect(
-      vaccinationListDetailHref({ id: "vac-1", medicalRecordId: "mr-1" }),
-    ).toBe("/medical-records/mr-1?tab=%E4%BA%88%E9%98%B2%E6%8E%A5%E7%A8%AE&vaccinationId=vac-1");
+    expect(vaccinationListDetailHref({ id: "vac-1", medicalRecordId: "mr-1" })).toBe(
+      "/medical-records/mr-1?tab=%E4%BA%88%E9%98%B2%E6%8E%A5%E7%A8%AE&vaccinationId=vac-1",
+    );
   });
 
   it("未紐付けの接種は接種詳細画面へ行く", () => {
@@ -70,7 +70,9 @@ describe("buildVaccinationListQueryOptions (BUG-502)", () => {
 });
 
 describe("orderVaccinationListRows (BUG-502)", () => {
-  function row(partial: Partial<VaccinationRecord> & Pick<VaccinationRecord, "id">): VaccinationRecord {
+  function row(
+    partial: Partial<VaccinationRecord> & Pick<VaccinationRecord, "id">,
+  ): VaccinationRecord {
     return {
       petId: "p1",
       ownerName: "owner",
@@ -86,7 +88,12 @@ describe("orderVaccinationListRows (BUG-502)", () => {
 
   it("keeps near-term next_date ahead of far-future 2029 seed peers", () => {
     const nearTerm = row({ id: "1000000000", nextDate: "2026-09-10", date: "2026-08-29" });
-    const seedFuture = row({ id: "seed-2029", nextDate: "2029-12-01", date: "2029-12-01", petName: "PACO" });
+    const seedFuture = row({
+      id: "seed-2029",
+      nextDate: "2029-12-01",
+      date: "2029-12-01",
+      petName: "PACO",
+    });
     const mid = row({ id: "1000000001", nextDate: "2027-08-28", date: "2026-08-28" });
 
     const ordered = orderVaccinationListRows([seedFuture, mid, nearTerm]);

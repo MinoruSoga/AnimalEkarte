@@ -198,14 +198,8 @@ describe("ExaminationGroup", () => {
         items: [makeItem({ status: "normal", isAssessed: false })],
       }),
     );
-    expect(screen.getByText("未判定")).toHaveClass(
-      C.textWarning,
-      C.borderWarning20,
-      C.bgWarning50,
-    );
-    expect(
-      screen.getByText("（基準値未設定のため判定していない）"),
-    ).toHaveClass("sr-only");
+    expect(screen.getByText("未判定")).toHaveClass(C.textWarning, C.borderWarning20, C.bgWarning50);
+    expect(screen.getByText("（基準値未設定のため判定していない）")).toHaveClass("sr-only");
     expect(screen.queryByLabelText("基準値内")).not.toBeInTheDocument();
   });
 

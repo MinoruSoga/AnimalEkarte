@@ -103,9 +103,7 @@ async function fetchLabDeviceUnlinked(): Promise<LabDeviceJobCard[]> {
   return (data ?? []).map(toLabDeviceJobCard);
 }
 
-export function invalidateLabDeviceBoardQueries(
-  queryClient: ReturnType<typeof useQueryClient>,
-) {
+export function invalidateLabDeviceBoardQueries(queryClient: ReturnType<typeof useQueryClient>) {
   void queryClient.invalidateQueries({ queryKey: queryKeys.labDevice.board() });
   void queryClient.invalidateQueries({ queryKey: queryKeys.labDevice.unlinked() });
 }

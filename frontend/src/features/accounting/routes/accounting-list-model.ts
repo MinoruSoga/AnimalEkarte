@@ -67,8 +67,7 @@ export function buildAccountingListPageFilters(input: {
   urlPage: number;
 }): AccountingPageFilters {
   const dateFilter = input.activeFilters.find((f) => f.key === "date")?.value as
-    | { from?: string; to?: string }
-    | undefined;
+    { from?: string; to?: string } | undefined;
   const status = extractSelectFilter(input.activeFilters, "status");
   const paymentMethod = extractSelectFilter(input.activeFilters, "paymentMethod");
   return {
@@ -111,10 +110,7 @@ export function buildServerPagePagination<T>(input: {
   };
 }
 
-export function nextListSearchParamsWithPage(
-  prev: URLSearchParams,
-  page: number,
-): URLSearchParams {
+export function nextListSearchParamsWithPage(prev: URLSearchParams, page: number): URLSearchParams {
   const next = new URLSearchParams(prev);
   if (page === 1) {
     next.delete("page");

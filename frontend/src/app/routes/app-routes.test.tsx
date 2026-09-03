@@ -29,11 +29,10 @@ describe("appRoutes 404 fallback", () => {
 });
 
 describe("appRoutes password recovery routes", () => {
-  it.each([
-    paths.auth.login.path,
-    paths.auth.forgotPassword.path,
-    paths.auth.resetPassword.path,
-  ])("registers the centralized public route %s", (path) => {
-    expect(appRoutes.some((route) => route.path === path)).toBe(true);
-  });
+  it.each([paths.auth.login.path, paths.auth.forgotPassword.path, paths.auth.resetPassword.path])(
+    "registers the centralized public route %s",
+    (path) => {
+      expect(appRoutes.some((route) => route.path === path)).toBe(true);
+    },
+  );
 });

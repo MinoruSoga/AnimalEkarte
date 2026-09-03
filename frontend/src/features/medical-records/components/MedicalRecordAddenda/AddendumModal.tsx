@@ -1,5 +1,11 @@
 import { useActionState, useState } from "react";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { C } from "@/lib/design-tokens";
@@ -42,7 +48,7 @@ export function AddendumModal({ open, onOpenChange, medicalRecordId }: AddendumM
         return { error: null };
       } catch (err) {
         const isAxiosError = (e: unknown): e is { response?: { status: number } } =>
-          e !== null && typeof e === 'object' && 'response' in e;
+          e !== null && typeof e === "object" && "response" in e;
         if (isAxiosError(err) && err.response?.status === 409) {
           return { error: "確定済みカルテでないため追記できません" };
         }
@@ -58,9 +64,7 @@ export function AddendumModal({ open, onOpenChange, medicalRecordId }: AddendumM
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>追記</DialogTitle>
-          <DialogDescription>
-            確定済みカルテに修正内容と理由を追記します。
-          </DialogDescription>
+          <DialogDescription>確定済みカルテに修正内容と理由を追記します。</DialogDescription>
         </DialogHeader>
         <form action={formAction} className="space-y-4">
           {state.error ? (
@@ -78,7 +82,9 @@ export function AddendumModal({ open, onOpenChange, medicalRecordId }: AddendumM
               className={`block text-sm font-medium ${C.text} mb-1`}
             >
               修正内容
-              <span className={`ml-1 text-sm ${C.textNotionRed}`} aria-hidden="true">*</span>
+              <span className={`ml-1 text-sm ${C.textNotionRed}`} aria-hidden="true">
+                *
+              </span>
             </label>
             <textarea
               id="addendum-after-text"
@@ -92,12 +98,11 @@ export function AddendumModal({ open, onOpenChange, medicalRecordId }: AddendumM
           </div>
 
           <div>
-            <label
-              htmlFor="addendum-reason"
-              className={`block text-sm font-medium ${C.text} mb-1`}
-            >
+            <label htmlFor="addendum-reason" className={`block text-sm font-medium ${C.text} mb-1`}>
               修正理由
-              <span className={`ml-1 text-sm ${C.textNotionRed}`} aria-hidden="true">*</span>
+              <span className={`ml-1 text-sm ${C.textNotionRed}`} aria-hidden="true">
+                *
+              </span>
             </label>
             <textarea
               id="addendum-reason"
@@ -120,7 +125,9 @@ export function AddendumModal({ open, onOpenChange, medicalRecordId }: AddendumM
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               キャンセル
             </Button>
-            <SubmitButton colorVariant="primary" loadingText="保存中...">追記を保存</SubmitButton>
+            <SubmitButton colorVariant="primary" loadingText="保存中...">
+              追記を保存
+            </SubmitButton>
           </div>
         </form>
       </DialogContent>

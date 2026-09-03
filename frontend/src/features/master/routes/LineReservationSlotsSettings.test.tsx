@@ -57,9 +57,7 @@ afterEach(() => {
 
 describe("LineReservationSlotsSettings", () => {
   it("tree/calendar は mobile で縦積み・全幅、md 以上で横並びにする", () => {
-    server.use(
-      http.get("/api/v1/masters/reservation-types", () => HttpResponse.json([])),
-    );
+    server.use(http.get("/api/v1/masters/reservation-types", () => HttpResponse.json([])));
     const { container } = renderPage("/line-reservation/slots");
 
     const pageShell = container.firstElementChild;
@@ -79,13 +77,10 @@ describe("LineReservationSlotsSettings", () => {
           reservationType(6, "一般診療", true),
         ]),
       ),
-      http.get(
-        "/api/v1/masters/reservation-types/:id/available-slots",
-        ({ params }) => {
-          requestedTypeId = String(params.id);
-          return HttpResponse.json([]);
-        },
-      ),
+      http.get("/api/v1/masters/reservation-types/:id/available-slots", ({ params }) => {
+        requestedTypeId = String(params.id);
+        return HttpResponse.json([]);
+      }),
     );
 
     renderPage("/line-reservation/slots");
@@ -108,13 +103,10 @@ describe("LineReservationSlotsSettings", () => {
           reservationType(7, "トリミング", true),
         ]),
       ),
-      http.get(
-        "/api/v1/masters/reservation-types/:id/available-slots",
-        ({ params }) => {
-          requestedTypeId = String(params.id);
-          return HttpResponse.json([]);
-        },
-      ),
+      http.get("/api/v1/masters/reservation-types/:id/available-slots", ({ params }) => {
+        requestedTypeId = String(params.id);
+        return HttpResponse.json([]);
+      }),
     );
 
     renderPage("/line-reservation/slots?typeId=7");
@@ -133,13 +125,10 @@ describe("LineReservationSlotsSettings", () => {
           reservationType(6, "一般診療", true),
         ]),
       ),
-      http.get(
-        "/api/v1/masters/reservation-types/:id/available-slots",
-        ({ params }) => {
-          requestedTypeId = String(params.id);
-          return HttpResponse.json([]);
-        },
-      ),
+      http.get("/api/v1/masters/reservation-types/:id/available-slots", ({ params }) => {
+        requestedTypeId = String(params.id);
+        return HttpResponse.json([]);
+      }),
     );
 
     renderPage("/line-reservation/slots?typeId=5");
@@ -160,13 +149,10 @@ describe("LineReservationSlotsSettings", () => {
           ]),
         ]),
       ),
-      http.get(
-        "/api/v1/masters/reservation-types/:id/available-slots",
-        ({ params }) => {
-          requestedTypeId = String(params.id);
-          return HttpResponse.json([]);
-        },
-      ),
+      http.get("/api/v1/masters/reservation-types/:id/available-slots", ({ params }) => {
+        requestedTypeId = String(params.id);
+        return HttpResponse.json([]);
+      }),
     );
 
     // 親ノード ID=1 を指定
@@ -182,9 +168,7 @@ describe("LineReservationSlotsSettings", () => {
     server.use(
       http.get("/api/v1/masters/reservation-types", () =>
         HttpResponse.json([
-          reservationType(1, "LINEコース", true, [
-            reservationType(2, "初診コース", true),
-          ]),
+          reservationType(1, "LINEコース", true, [reservationType(2, "初診コース", true)]),
         ]),
       ),
       http.get("/api/v1/masters/reservation-types/:id/available-slots", () =>
@@ -225,13 +209,10 @@ describe("LineReservationSlotsSettings", () => {
           reservationType(6, "停止中B", false),
         ]),
       ),
-      http.get(
-        "/api/v1/masters/reservation-types/:id/available-slots",
-        ({ params }) => {
-          requestedTypeId = String(params.id);
-          return HttpResponse.json([]);
-        },
-      ),
+      http.get("/api/v1/masters/reservation-types/:id/available-slots", ({ params }) => {
+        requestedTypeId = String(params.id);
+        return HttpResponse.json([]);
+      }),
     );
 
     renderPage("/line-reservation/slots");

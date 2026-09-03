@@ -65,32 +65,37 @@ export const DiagnosisHeaderDiagnosis = memo(function DiagnosisHeaderDiagnosis({
   selectedDiagnosis2Name,
 }: DiagnosisHeaderDiagnosisProps) {
   const { data: categories = [], isLoading: isTypesLoading } = useGetDiagnosisTypes();
-  const { data: names1 = [], isLoading: isNames1Loading } = useGetDiagnosisNames(diagnosis1CategoryId);
-  const { data: names2 = [], isLoading: isNames2Loading } = useGetDiagnosisNames(diagnosis2CategoryId);
+  const { data: names1 = [], isLoading: isNames1Loading } =
+    useGetDiagnosisNames(diagnosis1CategoryId);
+  const { data: names2 = [], isLoading: isNames2Loading } =
+    useGetDiagnosisNames(diagnosis2CategoryId);
 
   // SearchableSelect 用に選択肢を {value,label} 形へ変換(参照安定のため memo 化)
   const categoryOptions = useMemo<SearchableSelectOption[]>(
-    () => mergeSelectedOption(
+    () =>
       mergeSelectedOption(
-        categories.map((cat) => ({ value: String(cat.id), label: cat.name })),
-        selectedDiagnosisType,
+        mergeSelectedOption(
+          categories.map((cat) => ({ value: String(cat.id), label: cat.name })),
+          selectedDiagnosisType,
+        ),
+        selectedDiagnosis2Type,
       ),
-      selectedDiagnosis2Type,
-    ),
     [categories, selectedDiagnosisType, selectedDiagnosis2Type],
   );
   const names1Options = useMemo<SearchableSelectOption[]>(
-    () => mergeSelectedOption(
-      names1.map((name) => ({ value: String(name.id), label: name.name })),
-      selectedDiagnosisName,
-    ),
+    () =>
+      mergeSelectedOption(
+        names1.map((name) => ({ value: String(name.id), label: name.name })),
+        selectedDiagnosisName,
+      ),
     [names1, selectedDiagnosisName],
   );
   const names2Options = useMemo<SearchableSelectOption[]>(
-    () => mergeSelectedOption(
-      names2.map((name) => ({ value: String(name.id), label: name.name })),
-      selectedDiagnosis2Name,
-    ),
+    () =>
+      mergeSelectedOption(
+        names2.map((name) => ({ value: String(name.id), label: name.name })),
+        selectedDiagnosis2Name,
+      ),
     [names2, selectedDiagnosis2Name],
   );
 
@@ -98,9 +103,7 @@ export const DiagnosisHeaderDiagnosis = memo(function DiagnosisHeaderDiagnosis({
     <div className="flex flex-col gap-2">
       <div className="flex flex-col">
         <div className="flex items-center gap-2">
-          <Label className={`w-10 shrink-0 text-sm font-medium ${C.text60} mb-0`}>
-            診断1
-          </Label>
+          <Label className={`w-10 shrink-0 text-sm font-medium ${C.text60} mb-0`}>診断1</Label>
           <SearchableSelect
             value={diagnosis1CategoryId ? String(diagnosis1CategoryId) : ""}
             onValueChange={(value) => {
@@ -130,9 +133,7 @@ export const DiagnosisHeaderDiagnosis = memo(function DiagnosisHeaderDiagnosis({
       </div>
 
       <div className="flex items-center gap-2">
-        <Label className={`w-10 shrink-0 text-sm font-medium ${C.text60} mb-0`}>
-          診断2
-        </Label>
+        <Label className={`w-10 shrink-0 text-sm font-medium ${C.text60} mb-0`}>診断2</Label>
         <SearchableSelect
           value={diagnosis2CategoryId ? String(diagnosis2CategoryId) : ""}
           onValueChange={(value) => {

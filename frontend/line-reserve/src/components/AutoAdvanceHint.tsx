@@ -1,4 +1,4 @@
-import { getAutoAdvanceHelperText, type FlowAdvanceStep } from '../lib/advance-policy';
+import { getAutoAdvanceHelperText, type FlowAdvanceStep } from "../lib/advance-policy";
 
 interface AutoAdvanceHintProps {
   step: FlowAdvanceStep;

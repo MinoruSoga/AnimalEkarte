@@ -50,7 +50,12 @@ interface ConditionOption {
  * フィールド定義の conditions フィールドで参照する。
  */
 export const CONDITIONS_NO_EMPTY: FilterCondition[] = ["is", "is_not"];
-export const CONDITIONS_WITH_EMPTY: FilterCondition[] = ["is", "is_not", "is_empty", "is_not_empty"];
+export const CONDITIONS_WITH_EMPTY: FilterCondition[] = [
+  "is",
+  "is_not",
+  "is_empty",
+  "is_not_empty",
+];
 
 /** プロパティ型ごとに使える条件を定義 */
 export const FILTER_CONDITIONS: Record<FilterType, ConditionOption[]> = {
@@ -83,7 +88,6 @@ export type RelativePoint = "this" | "last" | "next";
 
 /** 相対日付の単位 */
 export type RelativeUnit = "day" | "week" | "month" | "year";
-
 
 // ─── Filter Logic ───────────────────────────────────────────
 

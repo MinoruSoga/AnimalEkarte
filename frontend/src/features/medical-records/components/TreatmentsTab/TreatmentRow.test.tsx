@@ -5,10 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
 
 import { server } from "@/testing/mocks/node";
-import {
-  MedicineCalculationTypePerWeight,
-  MedicineUnitPerTablet,
-} from "@/types/generated/models";
+import { MedicineCalculationTypePerWeight, MedicineUnitPerTablet } from "@/types/generated/models";
 import { TreatmentRow } from "./TreatmentRow";
 import type { Treatment, UpdateTreatmentInput } from "../../types";
 import type { MedicineDoseContext } from "../../api/medicine-dose-lookup";
@@ -59,7 +56,7 @@ function renderRow(
   }: {
     onUpdate?: (treatmentId: string, input: UpdateTreatmentInput) => void;
     doseContext?: MedicineDoseContext;
-  } = {}
+  } = {},
 ) {
   render(
     <table>
@@ -77,7 +74,7 @@ function renderRow(
         />
       </tbody>
     </table>,
-    { wrapper: createWrapper() }
+    { wrapper: createWrapper() },
   );
 }
 
@@ -116,9 +113,7 @@ describe("TreatmentRow — 保存済み投与量スナップショット read-on
     // 保存済みスナップショット表示は dose-params API と独立（BE 保存時点で確定済みの値を
     // そのまま出すだけ）。medicine 行では useMedicineDoseParams がマウント時に発火するため、
     // 未処理リクエスト警告を避けるためだけの空応答スタブ。
-    server.use(
-      http.get("*/v1/masters/medicines/:id/dose-params", () => HttpResponse.json([]))
-    );
+    server.use(http.get("*/v1/masters/medicines/:id/dose-params", () => HttpResponse.json([])));
   });
 
   it("dose_amount_mg が保存済みの行では保存時 mg・体重を表示する", () => {
@@ -178,8 +173,8 @@ describe("TreatmentRow — 絶対上限超過の物理ブロック", () => {
             created_at: "2026-07-15T00:00:00Z",
             updated_at: "2026-07-15T00:00:00Z",
           },
-        ])
-      )
+        ]),
+      ),
     );
   });
 
@@ -193,7 +188,7 @@ describe("TreatmentRow — 絶対上限超過の物理ブロック", () => {
         medicine_id: "5",
         quantity: 2,
       },
-      { onUpdate, doseContext: blockingDoseContext }
+      { onUpdate, doseContext: blockingDoseContext },
     );
 
     await screen.findByText(/推奨2/);
@@ -221,7 +216,7 @@ describe("TreatmentRow — 絶対上限超過の物理ブロック", () => {
         medicine_id: "5",
         quantity: 2,
       },
-      { onUpdate, doseContext: blockingDoseContext }
+      { onUpdate, doseContext: blockingDoseContext },
     );
 
     await screen.findByText(/推奨2/);
@@ -293,8 +288,8 @@ describe("TreatmentRow — dose-params technical failure (TASK-025)", () => {
   it("dose-params 取得失敗時に visible error を role=alert で表示し onUpdate を呼ばない", async () => {
     server.use(
       http.get("*/v1/masters/medicines/5/dose-params", () =>
-        HttpResponse.json({ message: UPSTREAM_LEAK }, { status: 500 })
-      )
+        HttpResponse.json({ message: UPSTREAM_LEAK }, { status: 500 }),
+      ),
     );
     const onUpdate = vi.fn();
     const user = userEvent.setup();
@@ -305,7 +300,7 @@ describe("TreatmentRow — dose-params technical failure (TASK-025)", () => {
         medicine_id: "5",
         quantity: 1,
       },
-      { onUpdate, doseContext: safeDoseContext }
+      { onUpdate, doseContext: safeDoseContext },
     );
 
     const alert = await screen.findByRole("alert");
@@ -331,7 +326,7 @@ describe("TreatmentRow — dose-params technical failure (TASK-025)", () => {
           return HttpResponse.json({ message: UPSTREAM_LEAK }, { status: 500 });
         }
         return HttpResponse.json([safeDoseParam]);
-      })
+      }),
     );
 
     const onUpdate = vi.fn();
@@ -343,16 +338,14 @@ describe("TreatmentRow — dose-params technical failure (TASK-025)", () => {
         medicine_id: "5",
         quantity: 1,
       },
-      { onUpdate, doseContext: safeDoseContext }
+      { onUpdate, doseContext: safeDoseContext },
     );
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
-      /投与量パラメータを取得できなかった/
+      /投与量パラメータを取得できなかった/,
     );
 
-    await user.click(
-      screen.getByRole("button", { name: /投与量パラメータの取得を再試行/ })
-    );
+    await user.click(screen.getByRole("button", { name: /投与量パラメータの取得を再試行/ }));
 
     // dose_per_kg=5 × 4kg / strength10 = 推奨2。プレビュー文言で ready を待つ。
     await screen.findByText(/推奨2/);
@@ -368,9 +361,7 @@ describe("TreatmentRow — dose-params technical failure (TASK-025)", () => {
 
   it("体重欠落では technical failure にせず従来どおり onUpdate 可能（missing data）", async () => {
     server.use(
-      http.get("*/v1/masters/medicines/5/dose-params", () =>
-        HttpResponse.json([safeDoseParam])
-      )
+      http.get("*/v1/masters/medicines/5/dose-params", () => HttpResponse.json([safeDoseParam])),
     );
     const onUpdate = vi.fn();
     const user = userEvent.setup();
@@ -384,7 +375,7 @@ describe("TreatmentRow — dose-params technical failure (TASK-025)", () => {
       {
         onUpdate,
         doseContext: { ...safeDoseContext, weightKg: null },
-      }
+      },
     );
 
     // 失敗 alert が無いことを少し待つ（query 成功で empty gate）
@@ -402,9 +393,7 @@ describe("TreatmentRow — dose-params technical failure (TASK-025)", () => {
 
   it("species 欠落では technical failure にせず従来どおり onUpdate 可能（missing data）", async () => {
     server.use(
-      http.get("*/v1/masters/medicines/5/dose-params", () =>
-        HttpResponse.json([safeDoseParam])
-      )
+      http.get("*/v1/masters/medicines/5/dose-params", () => HttpResponse.json([safeDoseParam])),
     );
     const onUpdate = vi.fn();
     const user = userEvent.setup();
@@ -418,7 +407,7 @@ describe("TreatmentRow — dose-params technical failure (TASK-025)", () => {
       {
         onUpdate,
         doseContext: { ...safeDoseContext, petSpecies: null },
-      }
+      },
     );
 
     await new Promise((r) => setTimeout(r, 50));
@@ -434,9 +423,7 @@ describe("TreatmentRow — dose-params technical failure (TASK-025)", () => {
   });
 
   it("dose-params 空配列では technical failure にせず従来どおり onUpdate 可能（missing data）", async () => {
-    server.use(
-      http.get("*/v1/masters/medicines/5/dose-params", () => HttpResponse.json([]))
-    );
+    server.use(http.get("*/v1/masters/medicines/5/dose-params", () => HttpResponse.json([])));
     const onUpdate = vi.fn();
     const user = userEvent.setup();
     renderRow(
@@ -446,7 +433,7 @@ describe("TreatmentRow — dose-params technical failure (TASK-025)", () => {
         medicine_id: "5",
         quantity: 1,
       },
-      { onUpdate, doseContext: safeDoseContext }
+      { onUpdate, doseContext: safeDoseContext },
     );
 
     await new Promise((r) => setTimeout(r, 50));
@@ -486,9 +473,7 @@ describe("TreatmentRow — dose deviation reason (TASK-377)", () => {
 
   beforeEach(() => {
     server.use(
-      http.get("*/v1/masters/medicines/5/dose-params", () =>
-        HttpResponse.json([deviationParam])
-      )
+      http.get("*/v1/masters/medicines/5/dose-params", () => HttpResponse.json([deviationParam])),
     );
   });
 
@@ -502,7 +487,7 @@ describe("TreatmentRow — dose deviation reason (TASK-377)", () => {
         medicine_id: "5",
         quantity: 2,
       },
-      { onUpdate, doseContext: blockingDoseContext }
+      { onUpdate, doseContext: blockingDoseContext },
     );
 
     await screen.findByText(/推奨2/);
@@ -530,7 +515,7 @@ describe("TreatmentRow — dose deviation reason (TASK-377)", () => {
         medicine_id: "5",
         quantity: 2,
       },
-      { onUpdate, doseContext: blockingDoseContext }
+      { onUpdate, doseContext: blockingDoseContext },
     );
 
     await screen.findByText(/推奨2/);
@@ -556,9 +541,7 @@ describe("TreatmentRow — dose deviation reason (TASK-377)", () => {
 
   it("下限割れでも inline 理由を要求し空理由では送らない", async () => {
     server.use(
-      http.get("*/v1/masters/medicines/5/dose-params", () =>
-        HttpResponse.json([belowMinParam])
-      )
+      http.get("*/v1/masters/medicines/5/dose-params", () => HttpResponse.json([belowMinParam])),
     );
     const onUpdate = vi.fn();
     const user = userEvent.setup();
@@ -574,7 +557,7 @@ describe("TreatmentRow — dose deviation reason (TASK-377)", () => {
         medicine_id: "5",
         quantity: 1,
       },
-      { onUpdate, doseContext: belowContext }
+      { onUpdate, doseContext: belowContext },
     );
 
     await screen.findByText(/推奨0\.75/);
@@ -599,7 +582,7 @@ describe("TreatmentRow — dose deviation reason (TASK-377)", () => {
         medicine_id: "5",
         quantity: 5,
       },
-      { onUpdate, doseContext: blockingDoseContext }
+      { onUpdate, doseContext: blockingDoseContext },
     );
 
     await screen.findByText(/推奨2/);

@@ -61,7 +61,8 @@ export function PetEditModalFields({
     () =>
       insuranceList.map((ins) => (
         <SelectItem key={ins.id} value={String(ins.id)}>
-          {ins.name}{ins.coverage_rate != null ? ` (${ins.coverage_rate}%補償)` : ""}
+          {ins.name}
+          {ins.coverage_rate != null ? ` (${ins.coverage_rate}%補償)` : ""}
         </SelectItem>
       )),
     [insuranceList],

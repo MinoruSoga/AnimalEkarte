@@ -16,7 +16,7 @@ describe("Pagination", () => {
         onPageChange={noop}
         onPrev={noop}
         onNext={noop}
-      />
+      />,
     );
     expect(screen.queryByRole("navigation")).not.toBeInTheDocument();
   });
@@ -32,7 +32,7 @@ describe("Pagination", () => {
         onPageChange={noop}
         onPrev={noop}
         onNext={noop}
-      />
+      />,
     );
     expect(screen.getByText("25件中 11-20件")).toBeInTheDocument();
   });
@@ -54,7 +54,7 @@ describe("Pagination", () => {
           onPageChange={noop}
           onPrev={noop}
           onNext={noop}
-        />
+        />,
       );
       // aria-label は付けない: 他 feature の既存テストが getByRole("button", { name: "2" })
       // で数字そのものを accessible name として参照しているため、上書きしてはならない。
@@ -76,7 +76,7 @@ describe("Pagination", () => {
           onPageChange={noop}
           onPrev={noop}
           onNext={noop}
-        />
+        />,
       );
       const ellipses = screen.getAllByText("...");
       for (const el of ellipses) {
@@ -95,7 +95,7 @@ describe("Pagination", () => {
           onPageChange={noop}
           onPrev={noop}
           onNext={noop}
-        />
+        />,
       );
       for (const name of ["最初のページ", "前のページ", "次のページ", "最後のページ"]) {
         const button = screen.getByRole("button", { name });
@@ -118,7 +118,7 @@ describe("Pagination", () => {
           onPageChange={onPageChange}
           onPrev={noop}
           onNext={noop}
-        />
+        />,
       );
       screen.getByRole("button", { name: "2" }).click();
       expect(onPageChange).toHaveBeenCalledWith(2);
@@ -135,7 +135,7 @@ describe("Pagination", () => {
           onPageChange={noop}
           onPrev={noop}
           onNext={noop}
-        />
+        />,
       );
       expect(screen.getByRole("button", { name: "最初のページ" })).toBeDisabled();
       expect(screen.getByRole("button", { name: "前のページ" })).toBeDisabled();
@@ -154,7 +154,7 @@ describe("Pagination", () => {
           onPageChange={noop}
           onPrev={noop}
           onNext={noop}
-        />
+        />,
       );
       expect(screen.getByRole("button", { name: "次のページ" })).toBeDisabled();
       expect(screen.getByRole("button", { name: "最後のページ" })).toBeDisabled();

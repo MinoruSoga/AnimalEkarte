@@ -6,7 +6,7 @@ import type { ReservationSetting } from "./types";
 
 async function getLineReservationSetting(clinicId: string): Promise<ReservationSetting> {
   const { data } = await axios.get<ReservationSetting>(
-    `/v1/clinics/${clinicId}/line-reservation-settings`
+    `/v1/clinics/${clinicId}/line-reservation-settings`,
   );
   return data;
 }

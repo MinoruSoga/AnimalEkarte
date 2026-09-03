@@ -49,10 +49,7 @@ const EXAM_GROUPS: ExamGroup[] = [
     name: "血液検査",
     price: 4200,
     medicalRecordId: "9",
-    items: [
-      makeItem({ id: "1", name: "グルコース" }),
-      makeItem({ id: "2", name: "クレアチニン" }),
-    ],
+    items: [makeItem({ id: "1", name: "グルコース" }), makeItem({ id: "2", name: "クレアチニン" })],
   },
   {
     id: 2,
@@ -160,13 +157,7 @@ describe("MedicalRecordExamination — カナ混同検索", () => {
     const secondDetailLink = screen.getByRole("link", {
       name: "2026-01-02 10:00の検歴を表示",
     });
-    expect(firstDetailLink).toHaveAttribute(
-      "href",
-      "/examinations/1?petId=1&historyView=pivot",
-    );
-    expect(secondDetailLink).toHaveAttribute(
-      "href",
-      "/examinations/2?petId=1&historyView=pivot",
-    );
+    expect(firstDetailLink).toHaveAttribute("href", "/examinations/1?petId=1&historyView=pivot");
+    expect(secondDetailLink).toHaveAttribute("href", "/examinations/2?petId=1&historyView=pivot");
   });
 });

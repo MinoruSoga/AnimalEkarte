@@ -1,15 +1,15 @@
-import { test, expect } from '@playwright/test';
-import type { BrowserContext } from '@playwright/test';
-import { createAuthedContext } from './helpers/context';
-import { DEMO_IRIS_PET } from './helpers/demo-seed';
-import { CheckupsPage } from './pages/checkups-page';
+import { test, expect } from "@playwright/test";
+import type { BrowserContext } from "@playwright/test";
+import { createAuthedContext } from "./helpers/context";
+import { DEMO_IRIS_PET } from "./helpers/demo-seed";
+import { CheckupsPage } from "./pages/checkups-page";
 
 // E2E flow tests for checkups (/checkups) pages.
 // Covers: list page, pet selection, new form.
 // Note: /checkups/:id detail route does not exist in router.
 // Demo seed: Iris pet id=1000099 (not petId=1).
 
-test.describe('定期健診 フロー E2E', () => {
+test.describe("定期健診 フロー E2E", () => {
   let context: BrowserContext;
 
   test.beforeAll(async ({ browser }) => {
@@ -20,7 +20,7 @@ test.describe('定期健診 フロー E2E', () => {
     await context.close();
   });
 
-  test('/checkups — 定期健診一覧が表示される', async () => {
+  test("/checkups — 定期健診一覧が表示される", async () => {
     const page = await context.newPage();
     const checkups = new CheckupsPage(page);
     try {
@@ -35,7 +35,7 @@ test.describe('定期健診 フロー E2E', () => {
     }
   });
 
-  test('/checkups/select-pet — ペット選択画面が表示される', async () => {
+  test("/checkups/select-pet — ペット選択画面が表示される", async () => {
     const page = await context.newPage();
     const checkups = new CheckupsPage(page);
     try {
@@ -64,7 +64,7 @@ test.describe('定期健診 フロー E2E', () => {
     }
   });
 
-  test('/checkups — 新規登録ボタンでペット選択画面に遷移する', async () => {
+  test("/checkups — 新規登録ボタンでペット選択画面に遷移する", async () => {
     const page = await context.newPage();
     const checkups = new CheckupsPage(page);
     try {
@@ -83,7 +83,7 @@ test.describe('定期健診 フロー E2E', () => {
     }
   });
 
-  test('/checkups — 一覧で検索が機能する', async () => {
+  test("/checkups — 一覧で検索が機能する", async () => {
     const page = await context.newPage();
     const checkups = new CheckupsPage(page);
     try {
@@ -95,18 +95,18 @@ test.describe('定期健診 フロー E2E', () => {
       const rows = checkups.rows();
       const initialRowCount = await rows.count();
 
-      await page.getByLabel('検索').click();
+      await page.getByLabel("検索").click();
       const searchInput = checkups.searchInput();
       await expect(searchInput).toBeVisible();
-      await searchInput.fill('Iris');
+      await searchInput.fill("Iris");
 
       // Wait for search to apply
-      await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => null);
+      await page.waitForLoadState("networkidle", { timeout: 10000 }).catch(() => null);
 
       // Verify filtered results or search input retained
       const filteredRows = await checkups.rows().count();
       expect(filteredRows).toBeLessThanOrEqual(initialRowCount);
-      await expect(searchInput).toHaveValue('Iris');
+      await expect(searchInput).toHaveValue("Iris");
     } finally {
       await page.close();
     }

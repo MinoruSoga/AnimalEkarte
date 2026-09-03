@@ -57,9 +57,7 @@ describe("filterActiveOrSelectedMasterItems", () => {
   });
 
   it("選択済みでも active なアイテムには（無効）を付与しない（重複しない）", () => {
-    const items = [
-      { id: "1", name: "スタンダードコース", status: "active" },
-    ];
+    const items = [{ id: "1", name: "スタンダードコース", status: "active" }];
 
     const result = filterActiveOrSelectedMasterItems(items, ["1"]);
 

@@ -80,7 +80,10 @@ export interface CreateTrimmingRequest {
  * 手書き二重定義を廃し派生型化。値・フィールド集合は変更していない。
  * internal/trimming/trimming_request.go の updateTrimmingRequest に対応
  */
-export type UpdateTrimmingRequest = Omit<CreateTrimmingRequest, "appointment_id" | "reservation_type_id" | "reservation_route">;
+export type UpdateTrimmingRequest = Omit<
+  CreateTrimmingRequest,
+  "appointment_id" | "reservation_type_id" | "reservation_route"
+>;
 
 // -------------------------------------------------------
 // List Response

@@ -22,9 +22,7 @@ import {
 
 type ExamTypeByFieldId = Map<string, { id: string; name: string }>;
 
-function examTypeByFieldId(
-  examTypes: ExaminationTypeMaster[] | undefined,
-): ExamTypeByFieldId {
+function examTypeByFieldId(examTypes: ExaminationTypeMaster[] | undefined): ExamTypeByFieldId {
   const byField = new Map<string, { id: string; name: string }>();
   for (const examType of examTypes ?? []) {
     for (const field of examType.items ?? []) {
@@ -118,7 +116,9 @@ export function restrictDraftsToExamType(
   examTypeId: string | null,
   examTypes: ExaminationTypeMaster[] | undefined,
 ): LabDeviceItemDraft[] {
-  const allowed = new Set(examFieldOptionsForExamType(examTypes, examTypeId).map((option) => option.id));
+  const allowed = new Set(
+    examFieldOptionsForExamType(examTypes, examTypeId).map((option) => option.id),
+  );
   return drafts.map((draft) => ({
     ...draft,
     examTypeFieldId:
@@ -172,9 +172,10 @@ export function labDeviceItemSelectOptions(
   examTypeId: string | null,
   currentFieldId: string | null,
 ): Array<{ value: string; label: string }> {
-  const base = examTypeId === null
-    ? buildExamFieldOptions(examTypes)
-    : examFieldOptionsForExamType(examTypes, examTypeId);
+  const base =
+    examTypeId === null
+      ? buildExamFieldOptions(examTypes)
+      : examFieldOptionsForExamType(examTypes, examTypeId);
   const withCurrent = examFieldOptionsForItem(base, currentFieldId);
   return [
     { value: LAB_DEVICE_UNMAPPED_FIELD, label: LAB_DEVICE_EXAM_UNSET },
@@ -248,7 +249,10 @@ export function groupLabDeviceItemMasters(
     }),
   );
   const extras = [...groups.keys()]
-    .filter((sourceType) => !LAB_DEVICE_SOURCE_ORDER.includes(sourceType as (typeof LAB_DEVICE_SOURCE_ORDER)[number]))
+    .filter(
+      (sourceType) =>
+        !LAB_DEVICE_SOURCE_ORDER.includes(sourceType as (typeof LAB_DEVICE_SOURCE_ORDER)[number]),
+    )
     .sort()
     .map((sourceType) => ({
       sourceType,
@@ -287,7 +291,9 @@ export function parseExamTypeSelectValue(value: string): string | null {
 }
 
 export function defaultLabDeviceSortOrder(sourceType: string): number {
-  const index = LAB_DEVICE_SOURCE_ORDER.indexOf(sourceType as (typeof LAB_DEVICE_SOURCE_ORDER)[number]);
+  const index = LAB_DEVICE_SOURCE_ORDER.indexOf(
+    sourceType as (typeof LAB_DEVICE_SOURCE_ORDER)[number],
+  );
   return index === -1 ? 100 : (index + 1) * 10;
 }
 
@@ -303,7 +309,10 @@ export function itemsForLabDevice(
   return (items ?? [])
     .filter((item) => item.sourceType === sourceType)
     .slice()
-    .sort((left, right) => left.sortOrder - right.sortOrder || left.deviceItemCode.localeCompare(right.deviceItemCode));
+    .sort(
+      (left, right) =>
+        left.sortOrder - right.sortOrder || left.deviceItemCode.localeCompare(right.deviceItemCode),
+    );
 }
 
 // 一覧の「検査」列は persist の実挙動（項目対応から導出）を正とする。

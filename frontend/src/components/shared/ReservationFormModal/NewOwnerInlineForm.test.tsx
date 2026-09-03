@@ -34,9 +34,7 @@ const EMPTY_FORM: NewOwnerFormData = {
 const mockedUseAnimalSpecies = vi.mocked(useAnimalSpecies);
 type AnimalSpeciesState = ReturnType<typeof useAnimalSpecies>;
 
-function mockAnimalSpecies(
-  overrides: Partial<AnimalSpeciesState> = {},
-) {
+function mockAnimalSpecies(overrides: Partial<AnimalSpeciesState> = {}) {
   mockedUseAnimalSpecies.mockReturnValue({
     allSpecies: [],
     activeSpecies: [],
@@ -48,13 +46,7 @@ function mockAnimalSpecies(
 }
 
 function renderForm(onChange = vi.fn()) {
-  render(
-    <NewOwnerInlineForm
-      value={EMPTY_FORM}
-      onChange={onChange}
-      errors={{}}
-    />,
-  );
+  render(<NewOwnerInlineForm value={EMPTY_FORM} onChange={onChange} errors={{}} />);
   return onChange;
 }
 
@@ -131,35 +123,19 @@ describe("NewOwnerInlineForm animal species states", () => {
   it("失敗はalert、読み込み中と空状態はpoliteなstatusとして通知する", () => {
     mockAnimalSpecies({ isError: true, error: new Error("internal detail") });
     const { rerender } = render(
-      <NewOwnerInlineForm
-        value={EMPTY_FORM}
-        onChange={vi.fn()}
-        errors={{}}
-      />,
+      <NewOwnerInlineForm value={EMPTY_FORM} onChange={vi.fn()} errors={{}} />,
     );
 
     expect(screen.getByRole("alert")).toHaveAttribute("aria-atomic", "true");
 
     mockAnimalSpecies({ isLoading: true });
-    rerender(
-      <NewOwnerInlineForm
-        value={EMPTY_FORM}
-        onChange={vi.fn()}
-        errors={{}}
-      />,
-    );
+    rerender(<NewOwnerInlineForm value={EMPTY_FORM} onChange={vi.fn()} errors={{}} />);
 
     expect(screen.getByRole("status")).toHaveAttribute("aria-live", "polite");
     expect(screen.getByRole("status")).toHaveAttribute("aria-atomic", "true");
 
     mockAnimalSpecies();
-    rerender(
-      <NewOwnerInlineForm
-        value={EMPTY_FORM}
-        onChange={vi.fn()}
-        errors={{}}
-      />,
-    );
+    rerender(<NewOwnerInlineForm value={EMPTY_FORM} onChange={vi.fn()} errors={{}} />);
 
     expect(screen.getByRole("status")).toHaveAttribute("aria-live", "polite");
     expect(screen.getByRole("status")).toHaveAttribute("aria-atomic", "true");
@@ -186,13 +162,7 @@ describe("NewOwnerInlineForm animal species states", () => {
 
     function FormHarness() {
       const [value, setValue] = useState(EMPTY_FORM);
-      return (
-        <NewOwnerInlineForm
-          value={value}
-          onChange={setValue}
-          errors={{}}
-        />
-      );
+      return <NewOwnerInlineForm value={value} onChange={setValue} errors={{}} />;
     }
 
     render(<FormHarness />);

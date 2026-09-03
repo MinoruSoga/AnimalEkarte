@@ -30,10 +30,7 @@ export const DateValueEditor = memo(function DateValueEditor({
   const handlePresetClick = useCallback(
     (from: Date, to: Date, label: string) => {
       setDateRange({ from, to });
-      onApply(
-        { from: format(from, "yyyy-MM-dd"), to: format(to, "yyyy-MM-dd") },
-        label,
-      );
+      onApply({ from: format(from, "yyyy-MM-dd"), to: format(to, "yyyy-MM-dd") }, label);
     },
     [onApply],
   );
@@ -86,11 +83,15 @@ export const DateValueEditor = memo(function DateValueEditor({
         <div
           className={`flex items-center justify-center gap-3 mb-3 px-3 py-2 ${C.bgPage} rounded-xs`}
         >
-          <span className={`text-sm font-mono tabular-nums ${hasFrom ? `${C.text} font-medium` : C.text30}`}>
+          <span
+            className={`text-sm font-mono tabular-nums ${hasFrom ? `${C.text} font-medium` : C.text30}`}
+          >
             {fromDisplay}
           </span>
           <span className={`${C.text30} text-xs`}>→</span>
-          <span className={`text-sm font-mono tabular-nums ${hasTo ? `${C.text} font-medium` : C.text30}`}>
+          <span
+            className={`text-sm font-mono tabular-nums ${hasTo ? `${C.text} font-medium` : C.text30}`}
+          >
             {toDisplay}
           </span>
         </div>

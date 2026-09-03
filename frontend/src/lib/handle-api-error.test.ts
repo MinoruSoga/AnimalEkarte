@@ -24,26 +24,17 @@ vi.mock("sonner", () => ({
   toast: { error: vi.fn(), success: vi.fn() },
 }));
 
-function axiosError(
-  status: number,
-  data: Record<string, unknown>,
-): AxiosError {
+function axiosError(status: number, data: Record<string, unknown>): AxiosError {
   const config = {
     headers: new AxiosHeaders(),
   } as InternalAxiosRequestConfig;
-  return new AxiosError(
-    "request failed",
-    AxiosError.ERR_BAD_RESPONSE,
+  return new AxiosError("request failed", AxiosError.ERR_BAD_RESPONSE, config, undefined, {
     config,
-    undefined,
-    {
-      config,
-      data,
-      headers: new AxiosHeaders(),
-      status,
-      statusText: "Conflict",
-    },
-  );
+    data,
+    headers: new AxiosHeaders(),
+    status,
+    statusText: "Conflict",
+  });
 }
 
 describe("localizeConflictMessage", () => {
@@ -77,23 +68,23 @@ describe("localizeConflictMessage", () => {
         name: "V04診察",
       }),
     ).toBe("診察『V04診察』は既に使用されています");
-    expect(
-      localizeConflictMessage(CONFLICT_CODE_EXAM_TYPE_NAME, { name: "V04検査" }),
-    ).toBe("検査『V04検査』は既に使用されています");
-    expect(
-      localizeConflictMessage(CONFLICT_CODE_PROCEDURE_NAME, { name: "V04処置" }),
-    ).toBe("処置『V04処置』は既に使用されています");
-    expect(
-      localizeConflictMessage(CONFLICT_CODE_VACCINE_NAME, { name: "V04予防接種" }),
-    ).toBe("予防接種『V04予防接種』は既に使用されています");
+    expect(localizeConflictMessage(CONFLICT_CODE_EXAM_TYPE_NAME, { name: "V04検査" })).toBe(
+      "検査『V04検査』は既に使用されています",
+    );
+    expect(localizeConflictMessage(CONFLICT_CODE_PROCEDURE_NAME, { name: "V04処置" })).toBe(
+      "処置『V04処置』は既に使用されています",
+    );
+    expect(localizeConflictMessage(CONFLICT_CODE_VACCINE_NAME, { name: "V04予防接種" })).toBe(
+      "予防接種『V04予防接種』は既に使用されています",
+    );
     expect(
       localizeConflictMessage(CONFLICT_CODE_CHECKUP_TYPE_NAME, {
         name: "V04定期健診",
       }),
     ).toBe("定期健診『V04定期健診』は既に使用されています");
-    expect(
-      localizeConflictMessage(CONFLICT_CODE_MEDICINE_NAME, { name: "V04薬剤" }),
-    ).toBe("薬剤『V04薬剤』は既に使用されています");
+    expect(localizeConflictMessage(CONFLICT_CODE_MEDICINE_NAME, { name: "V04薬剤" })).toBe(
+      "薬剤『V04薬剤』は既に使用されています",
+    );
   });
 
   it("maps lstep_auto_managed_prefix_conflict with name (BUG-026)", () => {
@@ -105,9 +96,7 @@ describe("localizeConflictMessage", () => {
   });
 
   it("returns null for unknown code (keep fallback)", () => {
-    expect(
-      localizeConflictMessage("some_other_conflict", { name: "X" }),
-    ).toBeNull();
+    expect(localizeConflictMessage("some_other_conflict", { name: "X" })).toBeNull();
   });
 
   it("returns null when code is missing", () => {
@@ -120,9 +109,7 @@ describe("localizeConflictMessage", () => {
         name: "   ",
       }),
     ).toBeNull();
-    expect(
-      localizeConflictMessage(CONFLICT_CODE_ANIMAL_SPECIES_NAME, {}),
-    ).toBeNull();
+    expect(localizeConflictMessage(CONFLICT_CODE_ANIMAL_SPECIES_NAME, {})).toBeNull();
   });
 });
 
@@ -140,12 +127,8 @@ describe("handleApiError 409 localization", () => {
       }),
       "保存",
     );
-    expect(toast.error).toHaveBeenCalledWith(
-      "権限グループ名『執行』は既に使用されています",
-    );
-    expect(toast.error).not.toHaveBeenCalledWith(
-      expect.stringContaining("already exists"),
-    );
+    expect(toast.error).toHaveBeenCalledWith("権限グループ名『執行』は既に使用されています");
+    expect(toast.error).not.toHaveBeenCalledWith(expect.stringContaining("already exists"));
   });
 
   it("shows Japanese message for animal species name conflict", () => {
@@ -157,9 +140,7 @@ describe("handleApiError 409 localization", () => {
       }),
       "保存",
     );
-    expect(toast.error).toHaveBeenCalledWith(
-      "動物種類『V04動物種類』は既に使用されています",
-    );
+    expect(toast.error).toHaveBeenCalledWith("動物種類『V04動物種類』は既に使用されています");
   });
 
   it("shows Japanese message for shift template name conflict (BUG-026)", () => {
@@ -171,12 +152,8 @@ describe("handleApiError 409 localization", () => {
       }),
       "シフトテンプレートの作成",
     );
-    expect(toast.error).toHaveBeenCalledWith(
-      "シフトテンプレート名『早番』は既に使用されています",
-    );
-    expect(toast.error).not.toHaveBeenCalledWith(
-      expect.stringContaining("already exists"),
-    );
+    expect(toast.error).toHaveBeenCalledWith("シフトテンプレート名『早番』は既に使用されています");
+    expect(toast.error).not.toHaveBeenCalledWith(expect.stringContaining("already exists"));
   });
 
   it("shows Japanese message for lstep auto managed prefix conflict (BUG-026)", () => {
@@ -252,9 +229,7 @@ describe("handleApiError 409 localization", () => {
       }),
       "保存",
     );
-    expect(toast.error).toHaveBeenCalledWith(
-      "診察『V04診察』は既に使用されています",
-    );
+    expect(toast.error).toHaveBeenCalledWith("診察『V04診察』は既に使用されています");
     expect(toast.error).not.toHaveBeenCalledWith("診察は既に使用されています");
   });
 
@@ -285,9 +260,7 @@ describe("handleApiError 409 localization", () => {
       }),
       "リンク",
     );
-    expect(message).toBe(
-      "他のユーザーによって更新されています。一度リロードしてください。",
-    );
+    expect(message).toBe("他のユーザーによって更新されています。一度リロードしてください。");
     expect(message).not.toMatch(/pet owner/i);
     handleApiError(
       axiosError(409, {
@@ -299,14 +272,11 @@ describe("handleApiError 409 localization", () => {
     expect(toast.error).toHaveBeenCalledWith(
       "他のユーザーによって更新されています。一度リロードしてください。",
     );
-    expect(toast.error).not.toHaveBeenCalledWith(
-      expect.stringContaining("pet owner"),
-    );
+    expect(toast.error).not.toHaveBeenCalledWith(expect.stringContaining("pet owner"));
   });
 
   it("passes through Japanese reservation-style 409 server messages", () => {
-    const reservationMessage =
-      "この時間帯はすでに予約が入っています";
+    const reservationMessage = "この時間帯はすでに予約が入っています";
     expect(
       extractApiErrorMessage(
         axiosError(409, {
@@ -333,15 +303,9 @@ describe("extractApiErrorMessage 400/403/404 Japanese guard (BUG-006)", () => {
   });
 
   it("400 English serverMessage falls back to Japanese and must not contain English", () => {
-    const english =
-      "appointment must use a general reservation type for a medical record";
-    const message = extractApiErrorMessage(
-      axiosError(400, { error: english }),
-      "カルテ作成",
-    );
-    expect(message).toBe(
-      "カルテ作成に失敗しました。入力内容を確認してください。",
-    );
+    const english = "appointment must use a general reservation type for a medical record";
+    const message = extractApiErrorMessage(axiosError(400, { error: english }), "カルテ作成");
+    expect(message).toBe("カルテ作成に失敗しました。入力内容を確認してください。");
     expect(message).not.toMatch(/appointment|reservation|medical record/i);
     expect(message).not.toContain(english);
     handleApiError(axiosError(400, { error: english }), "カルテ作成");
@@ -353,43 +317,31 @@ describe("extractApiErrorMessage 400/403/404 Japanese guard (BUG-006)", () => {
 
   it("400 Japanese serverMessage is passed through", () => {
     const ja = "入力内容が正しくありません";
-    expect(
-      extractApiErrorMessage(axiosError(400, { error: ja }), "カルテ作成"),
-    ).toBe(ja);
+    expect(extractApiErrorMessage(axiosError(400, { error: ja }), "カルテ作成")).toBe(ja);
   });
 
   it("403 English serverMessage falls back to Japanese", () => {
     const english = "forbidden: insufficient permissions";
-    const message = extractApiErrorMessage(
-      axiosError(403, { error: english }),
-      "削除",
-    );
+    const message = extractApiErrorMessage(axiosError(403, { error: english }), "削除");
     expect(message).toBe("削除の権限がありません。");
     expect(message).not.toMatch(/forbidden|insufficient|permissions/i);
   });
 
   it("403 Japanese serverMessage is passed through", () => {
     const ja = "この操作を行う権限がありません";
-    expect(
-      extractApiErrorMessage(axiosError(403, { error: ja }), "削除"),
-    ).toBe(ja);
+    expect(extractApiErrorMessage(axiosError(403, { error: ja }), "削除")).toBe(ja);
   });
 
   it("404 English serverMessage falls back to Japanese", () => {
     const english = "record not found";
-    const message = extractApiErrorMessage(
-      axiosError(404, { error: english }),
-      "取得",
-    );
+    const message = extractApiErrorMessage(axiosError(404, { error: english }), "取得");
     expect(message).toBe("取得対象が見つかりません。");
     expect(message).not.toMatch(/record not found/i);
   });
 
   it("404 Japanese serverMessage is passed through", () => {
     const ja = "指定されたカルテが見つかりません";
-    expect(
-      extractApiErrorMessage(axiosError(404, { error: ja }), "取得"),
-    ).toBe(ja);
+    expect(extractApiErrorMessage(axiosError(404, { error: ja }), "取得")).toBe(ja);
   });
 });
 
@@ -409,12 +361,8 @@ describe("extractApiErrorMessage 非Axios エラー (FE-RC-075)", () => {
 
   it("非Axios エラーでも toast には汎用文言のみが渡る", () => {
     handleApiError(new Error("zod: invalid_type at path.to.field"), "保存");
-    expect(toast.error).toHaveBeenCalledWith(
-      "保存中に予期しないエラーが発生しました。",
-    );
-    expect(toast.error).not.toHaveBeenCalledWith(
-      expect.stringContaining("zod"),
-    );
+    expect(toast.error).toHaveBeenCalledWith("保存中に予期しないエラーが発生しました。");
+    expect(toast.error).not.toHaveBeenCalledWith(expect.stringContaining("zod"));
   });
 
   it("Error でも message が空文字なら汎用文言にする", () => {

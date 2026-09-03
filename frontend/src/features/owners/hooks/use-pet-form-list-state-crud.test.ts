@@ -34,8 +34,8 @@ function makePet(overrides: Partial<PetFormData> = {}): PetFormData {
 }
 
 function makePetMutations() {
-  const updatePetMutate = vi.fn(
-    (_args: unknown, callbacks: { onSuccess: () => void }) => callbacks.onSuccess(),
+  const updatePetMutate = vi.fn((_args: unknown, callbacks: { onSuccess: () => void }) =>
+    callbacks.onSuccess(),
   );
   const mutations: PetMutations = {
     updatePetMutate,
@@ -185,8 +185,8 @@ describe("usePetFormListState focused coverage (BUG-002)", () => {
 
   it("BUG-002 既存ペット削除成功で一覧から除去する", () => {
     const pet = makePet({ id: "pet-synth-1", petName: "合成ペット甲" });
-    const deletePetMutate = vi.fn(
-      (_id: string, callbacks: { onSuccess: () => void }) => callbacks.onSuccess(),
+    const deletePetMutate = vi.fn((_id: string, callbacks: { onSuccess: () => void }) =>
+      callbacks.onSuccess(),
     );
     const mutations: PetMutations = {
       ...makePetMutations().mutations,
@@ -255,28 +255,23 @@ describe("usePetFormListState focused coverage (BUG-002)", () => {
   });
 
   it("BUG-002 既存飼主への作成 onSuccess で一覧へ追加する", () => {
-    const createPetMutate = vi.fn(
-      (
-        _req: unknown,
-        callbacks: { onSuccess: (pet: Pet) => void },
-      ) => {
-        callbacks.onSuccess({
-          id: "pet-created-1",
-          petNumber: "P-NEW",
-          name: "合成ペット丙",
-          petNameKana: "",
-          status: "生存",
-          species: "犬",
-          animalSpeciesId: "10",
-          gender: "オス",
-          birthDate: "",
-          color: "",
-          weight: "",
-          environment: "",
-          remarks: "",
-        } as Pet);
-      },
-    );
+    const createPetMutate = vi.fn((_req: unknown, callbacks: { onSuccess: (pet: Pet) => void }) => {
+      callbacks.onSuccess({
+        id: "pet-created-1",
+        petNumber: "P-NEW",
+        name: "合成ペット丙",
+        petNameKana: "",
+        status: "生存",
+        species: "犬",
+        animalSpeciesId: "10",
+        gender: "オス",
+        birthDate: "",
+        color: "",
+        weight: "",
+        environment: "",
+        remarks: "",
+      } as Pet);
+    });
     const mutations: PetMutations = {
       ...makePetMutations().mutations,
       createPetMutate,
@@ -304,16 +299,12 @@ describe("usePetFormListState focused coverage (BUG-002)", () => {
 
   it("BUG-002 更新 onError / 削除 onError / 作成 onError でも一覧 status を変えない", () => {
     const updatePetMutate = vi.fn(
-      (
-        _args: unknown,
-        callbacks: { onSuccess: () => void; onError: (e: unknown) => void },
-      ) => callbacks.onError(new Error("update failed")),
+      (_args: unknown, callbacks: { onSuccess: () => void; onError: (e: unknown) => void }) =>
+        callbacks.onError(new Error("update failed")),
     );
     const deletePetMutate = vi.fn(
-      (
-        _id: string,
-        callbacks: { onSuccess: () => void; onError: (e: unknown) => void },
-      ) => callbacks.onError(new Error("delete failed")),
+      (_id: string, callbacks: { onSuccess: () => void; onError: (e: unknown) => void }) =>
+        callbacks.onError(new Error("delete failed")),
     );
     const createPetMutate = vi.fn(
       (

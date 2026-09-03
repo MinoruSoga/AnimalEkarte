@@ -8,13 +8,7 @@ const { capturedConfirm } = vi.hoisted(() => ({
 }));
 
 vi.mock("@/components/shared/ConfirmDialog", () => ({
-  ConfirmDialog: ({
-    open,
-    onConfirm,
-  }: {
-    open: boolean;
-    onConfirm: () => void;
-  }) => {
+  ConfirmDialog: ({ open, onConfirm }: { open: boolean; onConfirm: () => void }) => {
     capturedConfirm.current = onConfirm;
     return open ? <button onClick={onConfirm}>解除する</button> : null;
   },
@@ -31,16 +25,12 @@ vi.mock("@/hooks/use-revoke-pet-death", () => ({
 // （FE-refactor.md FE4-9 参照）— toJSTWallDate 自体の TZ 非依存動作は jst-date.test.ts が担保する。
 describe("PetDeceasedBanner (FE4-9)", () => {
   it("JST 深夜 instant の deceasedAt を正しい日付（曜日表示なし）で表示する", () => {
-    render(
-      <PetDeceasedBanner deceasedAt="2026-07-11T00:00:00+09:00" petId="1" canEdit={false} />,
-    );
+    render(<PetDeceasedBanner deceasedAt="2026-07-11T00:00:00+09:00" petId="1" canEdit={false} />);
     expect(screen.getByText("2026年7月11日 永眠")).toBeInTheDocument();
   });
 
   it("時刻付きの deceasedAt でも JST の日付で表示する", () => {
-    render(
-      <PetDeceasedBanner deceasedAt="2026-07-11T23:30:00+09:00" petId="1" canEdit={false} />,
-    );
+    render(<PetDeceasedBanner deceasedAt="2026-07-11T23:30:00+09:00" petId="1" canEdit={false} />);
     expect(screen.getByText("2026年7月11日 永眠")).toBeInTheDocument();
   });
 
@@ -59,9 +49,7 @@ describe("PetDeceasedBanner (FE4-9)", () => {
   });
 
   it("deceasedReason が無い場合は死亡理由行を出さない", () => {
-    render(
-      <PetDeceasedBanner deceasedAt="2026-07-11T00:00:00+09:00" petId="1" canEdit={false} />,
-    );
+    render(<PetDeceasedBanner deceasedAt="2026-07-11T00:00:00+09:00" petId="1" canEdit={false} />);
     expect(screen.queryByText(/死亡理由/)).not.toBeInTheDocument();
   });
 });

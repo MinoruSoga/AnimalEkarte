@@ -13,12 +13,9 @@ interface CreateOwnerTagBody {
 async function createOwnerTag(
   clinicId: string,
   ownerId: string,
-  body: CreateOwnerTagBody
+  body: CreateOwnerTagBody,
 ): Promise<void> {
-  await axios.post(
-    `/v1/clinics/${clinicId}/owners/${ownerId}/lstep/tags`,
-    body
-  );
+  await axios.post(`/v1/clinics/${clinicId}/owners/${ownerId}/lstep/tags`, body);
 }
 
 export function useCreateOwnerTag(ownerId: string) {

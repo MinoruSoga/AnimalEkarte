@@ -47,7 +47,11 @@ describe("useGenerateLineLinkToken (SD-14)", () => {
       http.post("*/v1/owners/:id/line/link-token", ({ request }) => {
         receivedClinicHeader = request.headers.get("X-Clinic-ID");
         return HttpResponse.json(
-          { token: "abc123", expires_at: "2026-07-17T00:00:00+09:00", liff_url: "https://liff.line.me/x?token=abc123&clinic_id=1" },
+          {
+            token: "abc123",
+            expires_at: "2026-07-17T00:00:00+09:00",
+            liff_url: "https://liff.line.me/x?token=abc123&clinic_id=1",
+          },
           { status: 201 },
         );
       }),

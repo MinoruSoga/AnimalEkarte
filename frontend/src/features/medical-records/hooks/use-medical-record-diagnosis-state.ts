@@ -1,9 +1,6 @@
 import { useState } from "react";
 import type { RecommendationReason } from "../constants/recommendation-reason";
-import {
-  DEFAULT_CHIEF_COMPLAINT,
-  DEFAULT_TREATMENT_POLICY,
-} from "./use-medical-record-form-model";
+import { DEFAULT_CHIEF_COMPLAINT, DEFAULT_TREATMENT_POLICY } from "./use-medical-record-form-model";
 
 export function useMedicalRecordDiagnosisState() {
   // 問診タブの状態

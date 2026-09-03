@@ -21,64 +21,87 @@ import { H_STYLES } from "../lib/styles";
 import type { Hospitalization } from "@/types";
 
 interface HospitalizationTabbedViewProps {
-    hospitalization: Hospitalization;
+  hospitalization: Hospitalization;
 }
 
 export const HospitalizationTabbedView = memo(function HospitalizationTabbedView({
-    hospitalization,
+  hospitalization,
 }: HospitalizationTabbedViewProps) {
-    const [activeTab, setActiveTab] = useState<"daily" | "plan">("daily");
+  const [activeTab, setActiveTab] = useState<"daily" | "plan">("daily");
 
-    // Determine the effective discharge date
-    const dischargeDate = hospitalization.endDate || todayJSTISO();
+  // Determine the effective discharge date
+  const dischargeDate = hospitalization.endDate || todayJSTISO();
 
-    const tabItems = [
-      { value: "daily", label: <span className="flex items-center"><FileText className={`${ICON.action} mr-2`} />デイリーカルテ</span> },
-      { value: "plan", label: <span className="flex items-center"><Settings className={`${ICON.action} mr-2`} />プラン管理・詳細</span> },
-    ] as const;
+  const tabItems = [
+    {
+      value: "daily",
+      label: (
+        <span className="flex items-center">
+          <FileText className={`${ICON.action} mr-2`} />
+          デイリーカルテ
+        </span>
+      ),
+    },
+    {
+      value: "plan",
+      label: (
+        <span className="flex items-center">
+          <Settings className={`${ICON.action} mr-2`} />
+          プラン管理・詳細
+        </span>
+      ),
+    },
+  ] as const;
 
-    const handleTabChange = (tab: string) => {
-      if (tab === "daily" || tab === "plan") {
-        setActiveTab(tab);
-      }
-    };
+  const handleTabChange = (tab: string) => {
+    if (tab === "daily" || tab === "plan") {
+      setActiveTab(tab);
+    }
+  };
 
-    return (
-        <div className={`lg:hidden flex flex-col ${H_STYLES.gap.default}`}>
-            <div className="shrink-0">
-                <HospitalizationPatientHeader
-                    hospitalization={hospitalization}
-                />
+  return (
+    <div className={`lg:hidden flex flex-col ${H_STYLES.gap.default}`}>
+      <div className="shrink-0">
+        <HospitalizationPatientHeader hospitalization={hospitalization} />
+      </div>
+
+      <UnifiedTabs
+        items={tabItems}
+        value={activeTab}
+        onValueChange={handleTabChange}
+        className="flex flex-col"
+      >
+        <UnifiedTabsContent value="daily" className="mt-2">
+          <div className={`${C.bgWhite} rounded-lg border ${C.borderMedium} flex flex-col`}>
+            <div className={H_STYLES.padding.box}>
+              <DailyRecordsTab
+                hospitalizationId={String(hospitalization.id)}
+                admissionDate={hospitalization.startDate}
+                dischargeDate={dischargeDate}
+                petIsDeceased={hospitalization.petIsDeceased}
+              />
             </div>
+          </div>
+        </UnifiedTabsContent>
 
-            <UnifiedTabs items={tabItems} value={activeTab} onValueChange={handleTabChange} className="flex flex-col">
-                <UnifiedTabsContent value="daily" className="mt-2">
-                    <div className={`${C.bgWhite} rounded-lg border ${C.borderMedium} flex flex-col`}>
-                        <div className={H_STYLES.padding.box}>
-                            <DailyRecordsTab
-                                hospitalizationId={String(hospitalization.id)}
-                                admissionDate={hospitalization.startDate}
-                                dischargeDate={dischargeDate}
-                                petIsDeceased={hospitalization.petIsDeceased}
-                            />
-                        </div>
-                    </div>
-                </UnifiedTabsContent>
-
-                <UnifiedTabsContent value="plan" className="mt-2">
-                    <div className={`${C.bgWhite} rounded-lg border ${C.borderMedium} ${H_STYLES.padding.box} mb-20`}>
-                        <div className={`flex items-center gap-2 mb-4 ${C.text60} text-sm`}>
-                            <Calendar className={ICON.action} />
-                            <span>入院期間: {formatDate(hospitalization.startDate)} 〜 {formatDate(dischargeDate)}</span>
-                        </div>
-                        <Separator className="mb-4" />
-                        <CarePlanTab
-                            hospitalizationId={String(hospitalization.id)}
-                            petIsDeceased={hospitalization.petIsDeceased}
-                        />
-                    </div>
-                </UnifiedTabsContent>
-            </UnifiedTabs>
-        </div>
-    );
+        <UnifiedTabsContent value="plan" className="mt-2">
+          <div
+            className={`${C.bgWhite} rounded-lg border ${C.borderMedium} ${H_STYLES.padding.box} mb-20`}
+          >
+            <div className={`flex items-center gap-2 mb-4 ${C.text60} text-sm`}>
+              <Calendar className={ICON.action} />
+              <span>
+                入院期間: {formatDate(hospitalization.startDate)} 〜 {formatDate(dischargeDate)}
+              </span>
+            </div>
+            <Separator className="mb-4" />
+            <CarePlanTab
+              hospitalizationId={String(hospitalization.id)}
+              petIsDeceased={hospitalization.petIsDeceased}
+            />
+          </div>
+        </UnifiedTabsContent>
+      </UnifiedTabs>
+    </div>
+  );
 });

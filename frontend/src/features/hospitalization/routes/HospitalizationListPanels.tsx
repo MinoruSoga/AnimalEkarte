@@ -1,5 +1,9 @@
 import { LayoutGrid, List } from "lucide-react";
-import type { ActiveFilter, ActiveSort, FilterProperty } from "@/components/shared/PropertyFilter/types";
+import type {
+  ActiveFilter,
+  ActiveSort,
+  FilterProperty,
+} from "@/components/shared/PropertyFilter/types";
 import { UnifiedTabs } from "@/components/shared/UnifiedTabs";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { PropertyFilter } from "@/components/shared/PropertyFilter/PropertyFilter";
@@ -89,12 +93,28 @@ function HospitalizationListContent({
             onSortChange={onSortChange}
           />
         </div>
-        <div className={`${C.bgWhite} rounded-sm border ${C.borderMedium} p-1 h-11 flex items-center`}>
-          <ToggleGroup type="single" value={viewMode} onValueChange={(v) => v && isValidViewMode(v) && onViewModeChange(v)}>
-            <ToggleGroupItem value="board" size="sm" aria-label="Board View" className="-my-1 h-11 min-w-11">
+        <div
+          className={`${C.bgWhite} rounded-sm border ${C.borderMedium} p-1 h-11 flex items-center`}
+        >
+          <ToggleGroup
+            type="single"
+            value={viewMode}
+            onValueChange={(v) => v && isValidViewMode(v) && onViewModeChange(v)}
+          >
+            <ToggleGroupItem
+              value="board"
+              size="sm"
+              aria-label="Board View"
+              className="-my-1 h-11 min-w-11"
+            >
               <LayoutGrid className={ICON.action} />
             </ToggleGroupItem>
-            <ToggleGroupItem value="list" size="sm" aria-label="List View" className="-my-1 h-11 min-w-11">
+            <ToggleGroupItem
+              value="list"
+              size="sm"
+              aria-label="List View"
+              className="-my-1 h-11 min-w-11"
+            >
               <List className={ICON.action} />
             </ToggleGroupItem>
           </ToggleGroup>

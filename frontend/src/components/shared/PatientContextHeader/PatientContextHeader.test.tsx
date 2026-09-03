@@ -4,16 +4,19 @@ import userEvent from "@testing-library/user-event";
 import { PatientContextHeader } from "./PatientContextHeader";
 
 // PNG asset import を空文字列にスタブ
-vi.mock(
-  "@/assets/231a870df600a37e011a0e1140e7608b1f4c3340.png",
-  () => ({ default: "" }),
-);
+vi.mock("@/assets/231a870df600a37e011a0e1140e7608b1f4c3340.png", () => ({ default: "" }));
 
 // ImageWithFallback はシンプルな img でよい
 vi.mock("@/components/shared/Feedback", () => ({
-  ImageWithFallback: ({ src, alt, className }: { src: string; alt: string; className?: string }) => (
-    <img src={src} alt={alt} className={className} />
-  ),
+  ImageWithFallback: ({
+    src,
+    alt,
+    className,
+  }: {
+    src: string;
+    alt: string;
+    className?: string;
+  }) => <img src={src} alt={alt} className={className} />,
 }));
 
 const baseProps = {
@@ -32,13 +35,7 @@ describe("PatientContextHeader", () => {
   });
 
   it("birthDate があれば「生（年齢）」形式で表示される", () => {
-    render(
-      <PatientContextHeader
-        {...baseProps}
-        birthDate="2020-01-01"
-        species="犬"
-      />,
-    );
+    render(<PatientContextHeader {...baseProps} birthDate="2020-01-01" species="犬" />);
     // "2020-01-01生（N歳Mヶ月） / 犬" 形式のテキストが存在する
     // <span class="truncate"> と <div role="tooltip"> の両方に同テキストが出るため getAllByText で確認
     const elements = screen.getAllByText(/2020-01-01生/);
@@ -96,14 +93,7 @@ describe("PatientContextHeader", () => {
     });
 
     it("不明な性別はそのまま表示し、避妊去勢日と品種の未設定値を推測しない", () => {
-      render(
-        <PatientContextHeader
-          {...baseProps}
-          species="猫"
-          gender="不明"
-          breed=""
-        />,
-      );
+      render(<PatientContextHeader {...baseProps} species="猫" gender="不明" breed="" />);
 
       expect(screen.getByText("不明")).toBeInTheDocument();
       expect(screen.getAllByText("—")).toHaveLength(2);
@@ -202,13 +192,7 @@ describe("PatientContextHeader", () => {
   it("長い飼主名・ペット名でも Tooltip の content として完全な名前が保持される", () => {
     const longOwner = "超長飼主名前テスト一二三四五六七八九十";
     const longPet = "超長ペット名テスト一二三四五六七八九十";
-    render(
-      <PatientContextHeader
-        {...baseProps}
-        ownerName={longOwner}
-        petName={longPet}
-      />,
-    );
+    render(<PatientContextHeader {...baseProps} ownerName={longOwner} petName={longPet} />);
     // Tooltip の role="tooltip" 要素に完全な名前が含まれる（portal で常時 DOM に存在、非表示時は aria-hidden=true）
     const tooltips = screen.getAllByRole("tooltip", { hidden: true });
     const ownerTooltip = tooltips.find((el) => el.textContent === longOwner);

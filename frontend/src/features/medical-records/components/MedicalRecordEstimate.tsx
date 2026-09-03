@@ -7,7 +7,11 @@ import { FormFieldError } from "@/components/shared/FormFieldError/FormFieldErro
 import { EstimateForm } from "./EstimateForm";
 import { TreatmentTable, TreatmentItem } from "./TreatmentTable";
 import { TreatmentDetailedSummary } from "./TreatmentDetailedSummary";
-import { useGetEstimateByRecord, useCreateEstimateRecord, useUpdateEstimateRecord } from "../api/save-estimate";
+import {
+  useGetEstimateByRecord,
+  useCreateEstimateRecord,
+  useUpdateEstimateRecord,
+} from "../api/save-estimate";
 import { C } from "@/lib/design-tokens";
 import { usePermission } from "@/hooks/use-permission";
 import { useClinicTaxRates } from "@/hooks/use-clinic-tax-rates";
@@ -119,9 +123,7 @@ export const MedicalRecordEstimate = memo(function MedicalRecordEstimate({
 
   const handleUpdateItem = useCallback(
     (id: number, field: keyof TreatmentItem, value: string | number | boolean) => {
-      setItems((prev) =>
-        prev.map((item) => (item.id === id ? { ...item, [field]: value } : item)),
-      );
+      setItems((prev) => prev.map((item) => (item.id === id ? { ...item, [field]: value } : item)));
     },
     [],
   );
@@ -247,9 +249,7 @@ export const MedicalRecordEstimate = memo(function MedicalRecordEstimate({
       {/* Comments & Remarks */}
       <div className="grid grid-cols-2 gap-3">
         <div className="flex flex-col gap-1">
-          <Label className={`text-sm font-medium ${C.text60}`}>
-            コメント
-          </Label>
+          <Label className={`text-sm font-medium ${C.text60}`}>コメント</Label>
           <Textarea
             value={comment}
             onChange={(e) => setComment(e.target.value)}
@@ -258,9 +258,7 @@ export const MedicalRecordEstimate = memo(function MedicalRecordEstimate({
           />
         </div>
         <div className="flex flex-col gap-1">
-          <Label className={`text-sm font-medium ${C.text60}`}>
-            備考
-          </Label>
+          <Label className={`text-sm font-medium ${C.text60}`}>備考</Label>
           <Textarea
             value={remarks}
             onChange={(e) => setRemarks(e.target.value)}

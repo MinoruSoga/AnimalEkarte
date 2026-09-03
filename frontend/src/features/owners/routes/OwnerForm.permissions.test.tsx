@@ -72,10 +72,7 @@ const ownerBaseGrants: PermGrant[] = [
   ["discount", "edit"],
 ];
 
-function renderOwnerForm(options: {
-  canViewAccounting: boolean;
-  path?: string;
-}) {
+function renderOwnerForm(options: { canViewAccounting: boolean; path?: string }) {
   const { canViewAccounting, path = `/owners/${OWNER_ID}` } = options;
   const grants: PermGrant[] = [
     ...ownerBaseGrants,
@@ -89,16 +86,24 @@ function renderOwnerForm(options: {
     [
       {
         path: "/owners/new",
-        element: <Suspense fallback={null}><OwnerForm accountingSection={accountingSection} /></Suspense>,
+        element: (
+          <Suspense fallback={null}>
+            <OwnerForm accountingSection={accountingSection} />
+          </Suspense>
+        ),
         loader: () => ({ owner: undefined }),
       },
       {
         path: "/owners/:id",
-        element: <Suspense fallback={null}><OwnerForm accountingSection={accountingSection} /></Suspense>,
+        element: (
+          <Suspense fallback={null}>
+            <OwnerForm accountingSection={accountingSection} />
+          </Suspense>
+        ),
         loader: () => ({ owner: mockOwner }),
       },
     ],
-    { initialEntries: [path] }
+    { initialEntries: [path] },
   );
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
@@ -106,7 +111,7 @@ function renderOwnerForm(options: {
       <QueryClientProvider client={qc}>
         <RouterProvider router={router} />
       </QueryClientProvider>
-    </AuthContext.Provider>
+    </AuthContext.Provider>,
   );
 }
 

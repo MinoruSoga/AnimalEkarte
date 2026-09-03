@@ -21,7 +21,10 @@ interface PersistLabDeviceItemMasterOptions {
   selectedRow: LabDeviceRow | null;
   selectedItems: LabDeviceItemMaster[];
   createDevice: (req: CreateLabDeviceRequest) => Promise<unknown>;
-  saveConfiguration: (args: { id: string; req: SaveLabDeviceConfigurationRequest }) => Promise<unknown>;
+  saveConfiguration: (args: {
+    id: string;
+    req: SaveLabDeviceConfigurationRequest;
+  }) => Promise<unknown>;
 }
 
 export async function persistLabDeviceItemMaster({

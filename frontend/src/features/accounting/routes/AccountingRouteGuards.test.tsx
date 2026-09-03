@@ -75,7 +75,7 @@ function renderRoute(path: string, grants: PermGrant[]) {
           <RouterProvider router={router} />
         </Suspense>
       </QueryClientProvider>
-    </AuthContext.Provider>
+    </AuthContext.Provider>,
   );
 }
 
@@ -93,14 +93,14 @@ const FIND_TIMEOUT = { timeout: 3000 };
 describe("/accounting — 権限ガード振る舞いテスト", () => {
   const deniedCases: [string, PermGrant[]][] = [
     // 親ガード: accounting:view なし → AccessDenied
-    ["/accounting",               []                         ],
+    ["/accounting", []],
     // 子ガード: accounting:view あり・accounting:create なし → child AccessDenied
-    ["/accounting/select-pet",    [["accounting", "view"]]   ],
-    ["/accounting/new",           [["accounting", "view"]]   ],
+    ["/accounting/select-pet", [["accounting", "view"]]],
+    ["/accounting/new", [["accounting", "view"]]],
     // 独立 route: 必要権限なし → AccessDenied
-    ["/accounting/close",         []                         ],
-    ["/accounting/close/history", []                         ],
-    ["/accounting/reports",       []                         ],
+    ["/accounting/close", []],
+    ["/accounting/close/history", []],
+    ["/accounting/reports", []],
   ];
 
   it.each(deniedCases)("権限不足: %s → AccessDenied", async (path, grants) => {
@@ -109,9 +109,9 @@ describe("/accounting — 権限ガード振る舞いテスト", () => {
   });
 
   const allowedCases: [string, PermGrant[]][] = [
-    ["/accounting",         [["accounting",           "view"]]],
-    ["/accounting/close",   [["cash-register-close",  "view"]]],
-    ["/accounting/reports", [["accounting-reports",   "view"]]],
+    ["/accounting", [["accounting", "view"]]],
+    ["/accounting/close", [["cash-register-close", "view"]]],
+    ["/accounting/reports", [["accounting-reports", "view"]]],
   ];
 
   it.each(allowedCases)("権限あり: %s → Layout 描画・アクセス拒否なし", async (path, grants) => {

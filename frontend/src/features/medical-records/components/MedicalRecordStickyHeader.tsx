@@ -39,11 +39,7 @@ interface MedicalRecordStickyHeaderProps {
   hasLineIntegration?: boolean;
 }
 
-const CohabitingPetChips = memo(function CohabitingPetChips({
-  pets,
-}: {
-  pets: Pet[];
-}) {
+const CohabitingPetChips = memo(function CohabitingPetChips({ pets }: { pets: Pet[] }) {
   return (
     <section
       aria-label="同居ペット"
@@ -113,9 +109,7 @@ export function MedicalRecordStickyHeader({
     <>
       {/* SPEC-GAP: 確定済みバッジ。臨床記録の真正性担保のため、確定状態を常時明示する */}
       {!isNewRecord && isFinalized ? (
-        <StatusBadge colorClass={getMedicalRecordStatusColor("確定済")}>
-          確定済
-        </StatusBadge>
+        <StatusBadge colorClass={getMedicalRecordStatusColor("確定済")}>確定済</StatusBadge>
       ) : null}
 
       {/* 来院種別 */}

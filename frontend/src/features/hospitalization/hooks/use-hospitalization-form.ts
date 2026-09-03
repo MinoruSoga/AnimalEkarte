@@ -46,7 +46,9 @@ export function useHospitalizationForm(id?: string, canSubmit = false) {
   const petSelection = usePetSelection();
   const { selectedPets, setSelectedPets } = petSelection;
   const { data: petFromQuery, isLoading: isPetLoading } = useGetPet(petId ?? "");
-  const [formData, setFormData] = useState<HospitalizationFormData>(createInitialHospitalizationFormData);
+  const [formData, setFormData] = useState<HospitalizationFormData>(
+    createInitialHospitalizationFormData,
+  );
   // rerender-memo: functional setState で deps 空にし、呼び出し側 memo コンポーネントへ
   // 安定参照として渡せるようにする。
   const handleFormDataChange = useCallback((updates: Partial<HospitalizationFormData>) => {
@@ -125,13 +127,12 @@ export function useHospitalizationForm(id?: string, canSubmit = false) {
         return { success: false, timestamp: Date.now() };
       }
     },
-    INITIAL_ACTION_STATE
+    INITIAL_ACTION_STATE,
   );
 
-  const {
-    data: treatmentPlanWire,
-    isSuccess: isTreatmentPlansSuccess,
-  } = useGetTreatmentPlans(isEdit ? id : undefined);
+  const { data: treatmentPlanWire, isSuccess: isTreatmentPlansSuccess } = useGetTreatmentPlans(
+    isEdit ? id : undefined,
+  );
 
   useHospitalizationFormHydration({
     isEdit,
@@ -154,15 +155,20 @@ export function useHospitalizationForm(id?: string, canSubmit = false) {
   const removeTreatmentPlan = useCallback((planId: string) => {
     setTreatmentPlans((prev) => prev.filter((plan) => plan.id !== planId));
   }, []);
-  const updateTreatmentPlan = useCallback((
-    planId: string,
-    field: keyof HospitalizationTreatmentPlan,
-    value: string | number | boolean
-  ) => {
-    setTreatmentPlans((prev) =>
-      prev.map((plan) => plan.id === planId ? updateTreatmentPlanField(plan, field, value) : plan)
-    );
-  }, []);
+  const updateTreatmentPlan = useCallback(
+    (
+      planId: string,
+      field: keyof HospitalizationTreatmentPlan,
+      value: string | number | boolean,
+    ) => {
+      setTreatmentPlans((prev) =>
+        prev.map((plan) =>
+          plan.id === planId ? updateTreatmentPlanField(plan, field, value) : plan,
+        ),
+      );
+    },
+    [],
+  );
 
   return {
     isEdit,

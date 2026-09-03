@@ -22,8 +22,12 @@ export function Layout() {
     <div className={`flex h-full ${C.bgSubtle} overflow-hidden relative`}>
       {/* Global Navigation Progress Bar */}
       {isNavigating ? (
-        <div className={`fixed top-0 left-0 right-0 ${Z_CLASS.overlay} h-[2px] bg-transparent overflow-hidden`}>
-          <div className={`h-full ${C.bgActionPrimary} animate-progress-indeterminate origin-left ${STYLE.primaryGlow}`} />
+        <div
+          className={`fixed top-0 left-0 right-0 ${Z_CLASS.overlay} h-[2px] bg-transparent overflow-hidden`}
+        >
+          <div
+            className={`h-full ${C.bgActionPrimary} animate-progress-indeterminate origin-left ${STYLE.primaryGlow}`}
+          />
         </div>
       ) : null}
 

@@ -34,26 +34,24 @@ import type { useMedicalRecordQuickPatchActions } from "./use-medical-record-qui
 import { paths } from "@/config/paths";
 
 export function selectCohabitingPets(pets: Pet[], selectedPet: Pet): Pet[] {
-  return pets.filter((pet) =>
-    pet.ownerId === selectedPet.ownerId
-    && pet.id !== selectedPet.id
-    && pet.status !== "死亡"
+  return pets.filter(
+    (pet) =>
+      pet.ownerId === selectedPet.ownerId && pet.id !== selectedPet.id && pet.status !== "死亡",
   );
 }
 
 function selectReusableGeneralAppointment(
   appointments: readonly Reservation[],
 ): Reservation | undefined {
-  return appointments.find((appointment) =>
-    appointment.category === "general" &&
-    !["completed", "cancelled", "no_show"].includes(String(appointment.status))
+  return appointments.find(
+    (appointment) =>
+      appointment.category === "general" &&
+      !["completed", "cancelled", "no_show"].includes(String(appointment.status)),
   );
 }
 
 export function useMedicalRecordFormUiState(tabParam: string | null) {
-  const [activeTab, setActiveTab] = useState(() =>
-    initialMedicalRecordTab(tabParam),
-  );
+  const [activeTab, setActiveTab] = useState(() => initialMedicalRecordTab(tabParam));
   const [visitType, setVisitType] = useState("再診");
   const [isCreating, startCreateTransition] = useTransition();
   const { manualErrors, setManualErrors } = useMedicalRecordManualErrors({ setActiveTab });
@@ -124,14 +122,11 @@ export function useMedicalRecordFormRead(input: {
     error: recordError,
     refetch: refetchRecord,
   });
-  const existingRecord =
-    entityRead.status === "found" ? entityRead.data : undefined;
+  const existingRecord = entityRead.status === "found" ? entityRead.data : undefined;
   const isReadLoading = !isNewRecord && entityRead.status === "loading";
-  const isReadNotFound =
-    !isNewRecord && isNonDisclosureReadStatus(entityRead.status);
+  const isReadNotFound = !isNewRecord && isNonDisclosureReadStatus(entityRead.status);
   const isReadError = !isNewRecord && entityRead.status === "error";
-  const retryRead =
-    entityRead.status === "error" ? entityRead.retry : undefined;
+  const retryRead = entityRead.status === "error" ? entityRead.retry : undefined;
   const isFinalized = isMedicalRecordFinalizedStatus(existingRecord?.status);
 
   useApplyMedicalRecord({
@@ -158,19 +153,19 @@ export function useMedicalRecordFormRead(input: {
     { enabled: Boolean(cohabitingOwnerId) },
   );
   const cohabitingPets = useMemo(
-    () => !isNewRecord && selectedPet
-      ? selectCohabitingPets(ownerPets, selectedPet)
-      : [],
+    () => (!isNewRecord && selectedPet ? selectCohabitingPets(ownerPets, selectedPet) : []),
     [isNewRecord, ownerPets, selectedPet],
   );
 
   const resolvedOwnerId = selectedPet?.ownerId ?? "";
   const { data: owner } = useGetOwner(resolvedOwnerId);
   const ownerDiscountRate = owner?.discountRate ?? 0;
-  const appointmentIdFromState = normalizeAppointmentId(location.state?.appointmentId)
-    ?? normalizeAppointmentId(searchParams.get("appointmentId"));
-  const visitDateFromState = normalizeVisitDate(location.state?.visitDate)
-    ?? normalizeVisitDate(searchParams.get("visitDate"));
+  const appointmentIdFromState =
+    normalizeAppointmentId(location.state?.appointmentId) ??
+    normalizeAppointmentId(searchParams.get("appointmentId"));
+  const visitDateFromState =
+    normalizeVisitDate(location.state?.visitDate) ??
+    normalizeVisitDate(searchParams.get("visitDate"));
   const {
     data: reservationTypeGroups,
     isLoading: isReservationTypesLoading,
@@ -178,11 +173,12 @@ export function useMedicalRecordFormRead(input: {
   } = useGetReservationTypesGrouped();
   const generalReservationType = findGeneralReservationType(reservationTypeGroups, visitType);
   const appointmentLookupDate = visitDateFromState ?? formatJSTDate(new Date());
-  const { data: sameDayAppointments = [], isLoading: isSameDayAppointmentsLoading } = useGetReservations({
-    date: appointmentLookupDate,
-    petId: resolvedPetId,
-    enabled: isNewRecord && !appointmentIdFromState && resolvedPetId !== "",
-  });
+  const { data: sameDayAppointments = [], isLoading: isSameDayAppointmentsLoading } =
+    useGetReservations({
+      date: appointmentLookupDate,
+      petId: resolvedPetId,
+      enabled: isNewRecord && !appointmentIdFromState && resolvedPetId !== "",
+    });
   const reusableAppointment = selectReusableGeneralAppointment(sameDayAppointments);
   const recordClinicId = existingRecord?.clinicId;
   const { data: clinicalPlan } = useGetClinicalPlan(recordId ?? "", recordClinicId);
@@ -234,16 +230,24 @@ export function toMedicalRecordFormResult(input: {
     ReturnType<typeof useMedicalRecordDiagnosisState>,
     "createRecommendationReason" | "setCreateRecommendationReason"
   >;
-  createRecommendationReason: ReturnType<typeof useMedicalRecordDiagnosisState>["createRecommendationReason"];
-  setCreateRecommendationReason: ReturnType<typeof useMedicalRecordDiagnosisState>["setCreateRecommendationReason"];
+  createRecommendationReason: ReturnType<
+    typeof useMedicalRecordDiagnosisState
+  >["createRecommendationReason"];
+  setCreateRecommendationReason: ReturnType<
+    typeof useMedicalRecordDiagnosisState
+  >["setCreateRecommendationReason"];
   handleBack: () => void;
   formAction: (payload: FormData) => void;
   formState: ActionState;
   isSaving: boolean;
   isSavingTransition: boolean;
   handleChangeDoctor: ReturnType<typeof useMedicalRecordQuickPatchActions>["handleChangeDoctor"];
-  handleVisitTypeChange: ReturnType<typeof useMedicalRecordQuickPatchActions>["handleVisitTypeChange"];
-  handleNextVisitDatePatch: ReturnType<typeof useMedicalRecordQuickPatchActions>["handleNextVisitDatePatch"];
+  handleVisitTypeChange: ReturnType<
+    typeof useMedicalRecordQuickPatchActions
+  >["handleVisitTypeChange"];
+  handleNextVisitDatePatch: ReturnType<
+    typeof useMedicalRecordQuickPatchActions
+  >["handleNextVisitDatePatch"];
   handleChangeDate: ReturnType<typeof useMedicalRecordQuickPatchActions>["handleChangeDate"];
   handleFinalize: ReturnType<typeof useMedicalRecordQuickPatchActions>["handleFinalize"];
   ownerChange: ReturnType<typeof useMedicalRecordOwnerChange>;

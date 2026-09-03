@@ -19,7 +19,11 @@ vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock("@/lib/handle-api-error", () => ({ handleApiError: vi.fn() }));
 
 vi.mock("../api/clinics", () => ({
-  useGetClinics: () => ({ data: [{ id: 1, name: "既存病院", phoneNumber: "", email: "", isActive: true }], isPending: false, isError: false }),
+  useGetClinics: () => ({
+    data: [{ id: 1, name: "既存病院", phoneNumber: "", email: "", isActive: true }],
+    isPending: false,
+    isError: false,
+  }),
   useCreateClinic: () => ({ mutateAsync: mocks.createMutateAsync, isPending: false }),
   useUpdateClinic: () => ({ mutateAsync: mocks.updateMutateAsync, isPending: false }),
   useDeleteClinic: () => ({ mutate: mocks.deleteMutate, isPending: false }),

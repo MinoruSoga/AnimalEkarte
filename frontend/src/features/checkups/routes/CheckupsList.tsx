@@ -50,10 +50,7 @@ export function CheckupsList() {
   );
 
   const { data: checkupsResult, isLoading, error } = useGetCheckups(requestFilters);
-  const checkups = useMemo(
-    () => checkupsResult?.data ?? [],
-    [checkupsResult?.data],
-  );
+  const checkups = useMemo(() => checkupsResult?.data ?? [], [checkupsResult?.data]);
   const total = checkupsResult?.total ?? 0;
   const limit = checkupsResult?.limit ?? PAGE_SIZE;
   const totalPages = Math.max(1, Math.ceil(total / limit));
@@ -79,29 +76,32 @@ export function CheckupsList() {
     setSearchParams,
   });
 
-  const handlePageChange = useCallback((page: number) => {
-    setSearchParams(
-      (prev) => nextListSearchParamsWithPage(prev, page),
-      { replace: true },
-    );
-  }, [setSearchParams]);
+  const handlePageChange = useCallback(
+    (page: number) => {
+      setSearchParams((prev) => nextListSearchParamsWithPage(prev, page), { replace: true });
+    },
+    [setSearchParams],
+  );
 
-  const handleFilterChange = useCallback((next: ActiveFilter[]) => {
-    setActiveFilters(next);
-    // フィルタ変更時はページを1へ戻す（母集団が変わるため）
-    setSearchParams(
-      (prev) => nextListSearchParamsWithoutPage(prev),
-      { replace: true },
-    );
-  }, [setSearchParams]);
+  const handleFilterChange = useCallback(
+    (next: ActiveFilter[]) => {
+      setActiveFilters(next);
+      // フィルタ変更時はページを1へ戻す（母集団が変わるため）
+      setSearchParams((prev) => nextListSearchParamsWithoutPage(prev), { replace: true });
+    },
+    [setSearchParams],
+  );
 
   const handleCreate = useCallback(() => {
     navigate(paths.checkups.selectPet.getHref());
   }, [navigate]);
 
-  const handleEdit = useCallback((medicalRecordId: string, checkupId: string) => {
-    navigate(checkupChartHref(medicalRecordId, checkupId));
-  }, [navigate]);
+  const handleEdit = useCallback(
+    (medicalRecordId: string, checkupId: string) => {
+      navigate(checkupChartHref(medicalRecordId, checkupId));
+    },
+    [navigate],
+  );
 
   if (isLoading) return <LoadingFallback />;
   if (error) return <ErrorFallback />;

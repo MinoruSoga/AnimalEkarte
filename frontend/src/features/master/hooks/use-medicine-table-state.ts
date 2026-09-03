@@ -45,10 +45,7 @@ export function useMedicineTableState({
     items: medicines,
     onReorder: (newIds) => {
       if (!canEdit) return;
-      reorderMutation.mutate(
-        { ids: newIds.map(Number) },
-        { onSuccess: resetOrder },
-      );
+      reorderMutation.mutate({ ids: newIds.map(Number) }, { onSuccess: resetOrder });
     },
   });
 

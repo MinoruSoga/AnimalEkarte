@@ -1,15 +1,15 @@
-import { test, expect } from '@playwright/test';
-import type { BrowserContext } from '@playwright/test';
-import { createAuthedContext } from './helpers/context';
-import { DEMO_IRIS_PET } from './helpers/demo-seed';
-import { TrimmingPage } from './pages/trimming-page';
+import { test, expect } from "@playwright/test";
+import type { BrowserContext } from "@playwright/test";
+import { createAuthedContext } from "./helpers/context";
+import { DEMO_IRIS_PET } from "./helpers/demo-seed";
+import { TrimmingPage } from "./pages/trimming-page";
 
 // E2E flow tests for trimming (/trimming) pages.
 // Demo seed: Iris pet id=1000099 (not petId=1).
 //
 // Design: fresh page per test within shared context.
 
-test.describe('トリミング管理 フロー E2E', () => {
+test.describe("トリミング管理 フロー E2E", () => {
   let context: BrowserContext;
 
   test.beforeAll(async ({ browser }) => {
@@ -20,7 +20,7 @@ test.describe('トリミング管理 フロー E2E', () => {
     await context.close();
   });
 
-  test('/trimming — トリミング管理一覧が表示される', async () => {
+  test("/trimming — トリミング管理一覧が表示される", async () => {
     const page = await context.newPage();
     const trimming = new TrimmingPage(page);
     try {
@@ -32,7 +32,7 @@ test.describe('トリミング管理 フロー E2E', () => {
     }
   });
 
-  test('/trimming — 新規登録ボタンでペット選択画面に遷移する', async () => {
+  test("/trimming — 新規登録ボタンでペット選択画面に遷移する", async () => {
     const page = await context.newPage();
     const trimming = new TrimmingPage(page);
     try {

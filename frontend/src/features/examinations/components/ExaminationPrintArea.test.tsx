@@ -4,9 +4,7 @@ import { ExaminationPrintArea } from "./ExaminationPrintArea";
 import { buildExaminationPrintModel } from "../lib/examination-print-model";
 import type { ExaminationPrintSnapshot } from "../api/get-examination-print-snapshot";
 
-function snapshot(
-  overrides: Partial<ExaminationPrintSnapshot> = {},
-): ExaminationPrintSnapshot {
+function snapshot(overrides: Partial<ExaminationPrintSnapshot> = {}): ExaminationPrintSnapshot {
   return {
     examinationId: "10",
     clinicId: "1",
@@ -80,9 +78,7 @@ describe("ExaminationPrintArea (TASK-031)", () => {
       }),
     );
     render(<ExaminationPrintArea model={model} />);
-    expect(screen.getByTestId("examination-print-watermark")).toHaveTextContent(
-      "DRAFT / 未確定",
-    );
+    expect(screen.getByTestId("examination-print-watermark")).toHaveTextContent("DRAFT / 未確定");
   });
 
   it("uses stored is_assessed status labels without FE recalculation", () => {

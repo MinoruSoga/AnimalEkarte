@@ -15,10 +15,10 @@ import { C, STYLE, LAYOUT } from "@/lib/design-tokens";
 
 export function PropertyRow({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <label
-      className={STYLE.propertyRow}
-    >
-      <span className={`${LAYOUT.propertyRow.labelW} shrink-0 text-sm ${C.text65} select-none truncate flex items-center`}>
+    <label className={STYLE.propertyRow}>
+      <span
+        className={`${LAYOUT.propertyRow.labelW} shrink-0 text-sm ${C.text65} select-none truncate flex items-center`}
+      >
         {label}
       </span>
       <span className="flex-1 flex items-center">{children}</span>

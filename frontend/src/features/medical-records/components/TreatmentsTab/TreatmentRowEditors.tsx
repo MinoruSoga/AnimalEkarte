@@ -145,9 +145,7 @@ export function TreatmentDiscountCell({
   onUpdate,
   canEditDiscount,
 }: TreatmentDiscountCellProps) {
-  const [localDiscountAmount, setLocalDiscountAmount] = useState(
-    String(treatment.discount_amount),
-  );
+  const [localDiscountAmount, setLocalDiscountAmount] = useState(String(treatment.discount_amount));
   const [discountAmountError, setDiscountAmountError] = useState<string>("");
 
   useEffect(() => {
@@ -196,9 +194,7 @@ export function TreatmentDiscountCell({
           disabled={!canEditDiscount}
           title={!canEditDiscount ? "値引の変更には権限が必要です" : undefined}
         >
-          {treatment.discount_amount > 0
-            ? `-${formatCurrency(treatment.discount_amount)}`
-            : "—"}
+          {treatment.discount_amount > 0 ? `-${formatCurrency(treatment.discount_amount)}` : "—"}
         </button>
       )}
     </TableCell>

@@ -52,7 +52,9 @@ describe("resolveLatestVitalWeight", () => {
   });
 
   it("g 単位は kg へ正規化する", () => {
-    const vitals = [makeVital({ id: "30", weight: 850, weight_unit: "g", recorded_at: "2026-07-12T09:00:00Z" })];
+    const vitals = [
+      makeVital({ id: "30", weight: 850, weight_unit: "g", recorded_at: "2026-07-12T09:00:00Z" }),
+    ];
     const got = resolveLatestVitalWeight(vitals);
     expect(got?.weightKg).toBeCloseTo(0.85, 6);
   });

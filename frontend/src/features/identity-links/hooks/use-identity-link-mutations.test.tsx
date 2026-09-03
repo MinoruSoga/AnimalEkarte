@@ -103,9 +103,9 @@ describe("useCreatePetLink", () => {
     });
 
     expect(createPetIdentityGroup).toHaveBeenCalledWith(42, [{ clinic_id: 1, pet_id: 5 }]);
-    expect(
-      result.current.queryClient.getQueryData(queryKeys.identityLinks.petGroup(1, 5)),
-    ).toEqual(group);
+    expect(result.current.queryClient.getQueryData(queryKeys.identityLinks.petGroup(1, 5))).toEqual(
+      group,
+    );
   });
 });
 

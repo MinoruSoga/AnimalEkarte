@@ -83,9 +83,7 @@ export interface LstepSettingsRequest {
 // ─────────────────────────────────────────────────
 
 export async function fetchLstepSettings(clinicId: string): Promise<LstepSettingsResponse> {
-  const { data } = await axios.get<LstepSettingsResponse>(
-    `/v1/clinics/${clinicId}/lstep-settings`,
-  );
+  const { data } = await axios.get<LstepSettingsResponse>(`/v1/clinics/${clinicId}/lstep-settings`);
   return data;
 }
 
@@ -101,13 +99,9 @@ export async function patchLstepSettings(
 }
 
 export async function postLstepTest(clinicId: string): Promise<void> {
-  await axios.post(
-    `/v1/clinics/${clinicId}/lstep-settings/test-connection`,
-  );
+  await axios.post(`/v1/clinics/${clinicId}/lstep-settings/test-connection`);
 }
 
 export async function deleteLstepSettings(clinicId: string): Promise<void> {
-  await axios.delete(
-    `/v1/clinics/${clinicId}/lstep-settings`,
-  );
+  await axios.delete(`/v1/clinics/${clinicId}/lstep-settings`);
 }

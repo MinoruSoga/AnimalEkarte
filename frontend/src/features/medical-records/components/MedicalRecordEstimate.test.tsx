@@ -9,7 +9,14 @@ import { MedicalRecordEstimate } from "./MedicalRecordEstimate";
 
 const mockCreateMutateAsync = vi.fn();
 const mockUpdateMutateAsync = vi.fn();
-let mockExisting: { id: number; title: string; comment?: string; notes?: string; discount_amount?: number; items?: unknown[] } | null = null;
+let mockExisting: {
+  id: number;
+  title: string;
+  comment?: string;
+  notes?: string;
+  discount_amount?: number;
+  items?: unknown[];
+} | null = null;
 
 vi.mock("sonner", () => ({
   toast: {
@@ -194,10 +201,7 @@ describe("MedicalRecordEstimate BUG-016 resave", () => {
       ],
     };
 
-    render(
-      createElement(MedicalRecordEstimate, { medicalRecordId: "8" }),
-      { wrapper },
-    );
+    render(createElement(MedicalRecordEstimate, { medicalRecordId: "8" }), { wrapper });
 
     // 1000円 * 8% = 80円（ハードコード 10% なら 100円になるはず）
     expect(screen.getByText("￥80")).toBeInTheDocument();

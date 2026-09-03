@@ -38,9 +38,7 @@ describe("PetDeceasedRecordButton (FE12-02 U3)", () => {
   it("生存ペットでも canEdit=false なら死亡登録buttonとdialogを表示しない", () => {
     renderButton({ petStatus: "生存", canEdit: false });
 
-    expect(
-      screen.queryByRole("button", { name: "死亡を記録" }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "死亡を記録" })).not.toBeInTheDocument();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
@@ -56,9 +54,7 @@ describe("PetDeceasedRecordButton (FE12-02 U3)", () => {
 
     await user.click(button);
 
-    expect(
-      screen.getByRole("dialog", { name: "死亡を記録する" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "死亡を記録する" })).toBeInTheDocument();
   });
 
   it("死亡statusなのに死亡日時がない場合は不整合を表示して再登録導線を閉じる", () => {
@@ -69,9 +65,7 @@ describe("PetDeceasedRecordButton (FE12-02 U3)", () => {
         "生死データに不整合があります（死亡ステータス・死亡日時未登録）。修復は管理者に依頼してください",
       ),
     ).toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: "死亡を記録" }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "死亡を記録" })).not.toBeInTheDocument();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
@@ -79,14 +73,10 @@ describe("PetDeceasedRecordButton (FE12-02 U3)", () => {
     renderButton({ petStatus: "不明", deceasedAt: null, canEdit: true });
 
     expect(
-      screen.getByText(
-        "生死ステータスが不明です。死亡記録は管理者による確認後に行ってください",
-      ),
+      screen.getByText("生死ステータスが不明です。死亡記録は管理者による確認後に行ってください"),
     ).toBeInTheDocument();
     expect(screen.getByRole("alert")).toHaveAttribute("aria-atomic", "true");
-    expect(
-      screen.queryByRole("button", { name: "死亡を記録" }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "死亡を記録" })).not.toBeInTheDocument();
   });
 
   it("死亡日時がある場合はpetStatusより優先して従来のBannerを表示する", () => {
@@ -97,12 +87,8 @@ describe("PetDeceasedRecordButton (FE12-02 U3)", () => {
     });
 
     expect(screen.getByText(/2026年7月10日 永眠/)).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "死亡記録を解除" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: "死亡を記録" }),
-    ).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "死亡記録を解除" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "死亡を記録" })).not.toBeInTheDocument();
   });
 
   it.each([
@@ -112,12 +98,8 @@ describe("PetDeceasedRecordButton (FE12-02 U3)", () => {
     renderButton({ petStatus, canEdit: true });
 
     expect(
-      screen.getByText(
-        "生死ステータスが不明です。死亡記録は管理者による確認後に行ってください",
-      ),
+      screen.getByText("生死ステータスが不明です。死亡記録は管理者による確認後に行ってください"),
     ).toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: "死亡を記録" }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "死亡を記録" })).not.toBeInTheDocument();
   });
 });

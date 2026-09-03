@@ -41,13 +41,7 @@ vi.mock("@/hooks/use-pet", () => ({
 }));
 
 vi.mock("@/components/shared/ConfirmDialog/ConfirmDialog", () => ({
-  ConfirmDialog: ({
-    open,
-    onConfirm,
-  }: {
-    open: boolean;
-    onConfirm: () => void;
-  }) => {
+  ConfirmDialog: ({ open, onConfirm }: { open: boolean; onConfirm: () => void }) => {
     listMocks.confirmDelete = onConfirm;
     return open ? <button onClick={onConfirm}>確認削除</button> : null;
   },
@@ -116,9 +110,7 @@ beforeEach(() => {
 describe("VaccinationList mutation permission boundary", () => {
   it("削除権限剥奪をcommitした直後のlayout phaseで確認してもdelete mutationを発行しない", async () => {
     const user = userEvent.setup();
-    const view = renderPage(
-      <DeleteRevocationHarness confirmAfterRender={false} />,
-    );
+    const view = renderPage(<DeleteRevocationHarness confirmAfterRender={false} />);
 
     await user.click(screen.getByRole("button", { name: /vac-1/ }));
     await user.click(screen.getByRole("menuitem", { name: "削除" }));
@@ -191,9 +183,7 @@ describe("VaccinationList mutation permission boundary", () => {
     await user.click(screen.getByRole("button", { name: /vac-1/ }));
     await user.click(screen.getByRole("menuitem", { name: "編集" }));
 
-    expect(screen.getByTestId("location")).toHaveTextContent(
-      /^\/vaccinations\/vac-1$/,
-    );
+    expect(screen.getByTestId("location")).toHaveTextContent(/^\/vaccinations\/vac-1$/);
   });
 
   it("削除対象petのlookup失敗時はdelete mutationを発行しない", async () => {

@@ -90,13 +90,27 @@ describe("PaymentCard お釣り直接上書き (#188)", () => {
     await user.click(screen.getByRole("button", { name: "手動修正" }));
     // 上書き ON 時は現在の派生値 max(0, 6000-5000)=1000 を初期値に置く
     expect(onSplitsChange).toHaveBeenCalledWith([
-      { method: "cash", amount: "5000", receivedAmount: "6000", changeOverride: true, changeAmount: "1000" },
+      {
+        method: "cash",
+        amount: "5000",
+        receivedAmount: "6000",
+        changeOverride: true,
+        changeAmount: "1000",
+      },
     ]);
   });
 
   it("上書きモードでは派生お釣り表示の代わりに編集可能な入力欄を表示する", () => {
     renderCard(
-      [{ method: "cash", amount: "5000", receivedAmount: "6000", changeOverride: true, changeAmount: "500" }],
+      [
+        {
+          method: "cash",
+          amount: "5000",
+          receivedAmount: "6000",
+          changeOverride: true,
+          changeAmount: "500",
+        },
+      ],
       5000,
     );
     expect(screen.getByRole("button", { name: "自動計算に戻す" })).toBeInTheDocument();
@@ -106,7 +120,15 @@ describe("PaymentCard お釣り直接上書き (#188)", () => {
   it("「自動計算に戻す」で上書きフィールドが除去され、基本ドラフト3項目に戻る", async () => {
     const user = userEvent.setup();
     const { onSplitsChange } = renderCard(
-      [{ method: "cash", amount: "5000", receivedAmount: "6000", changeOverride: true, changeAmount: "500" }],
+      [
+        {
+          method: "cash",
+          amount: "5000",
+          receivedAmount: "6000",
+          changeOverride: true,
+          changeAmount: "500",
+        },
+      ],
       5000,
     );
     await user.click(screen.getByRole("button", { name: "自動計算に戻す" }));
@@ -117,7 +139,15 @@ describe("PaymentCard お釣り直接上書き (#188)", () => {
 
   it("上書き中でも預り金 < 請求 なら確定不可（下限ガード received >= amount を維持）", () => {
     renderCard(
-      [{ method: "cash", amount: "5000", receivedAmount: "4000", changeOverride: true, changeAmount: "0" }],
+      [
+        {
+          method: "cash",
+          amount: "5000",
+          receivedAmount: "4000",
+          changeOverride: true,
+          changeAmount: "0",
+        },
+      ],
       5000,
     );
     expect(screen.getByRole("button", { name: /会計を確定する/ })).toBeDisabled();
@@ -181,9 +211,6 @@ describe("PaymentCard permission and labels", () => {
 
   it("手動修正buttonは44px以上の操作領域を持つ", () => {
     renderCard([{ method: "cash", amount: "1000", receivedAmount: "1000" }], 1000);
-    expect(screen.getByRole("button", { name: "手動修正" })).toHaveClass(
-      "min-h-11",
-      "min-w-11",
-    );
+    expect(screen.getByRole("button", { name: "手動修正" })).toHaveClass("min-h-11", "min-w-11");
   });
 });

@@ -40,14 +40,13 @@ describe("ReservationTypeAvailableSlotsSection", () => {
             created_at: "2026-05-29T00:00:00Z",
             updated_at: "2026-05-29T00:00:00Z",
           },
-        ])
+        ]),
       ),
     );
 
-    render(
-      <ReservationTypeAvailableSlotsSection clinicId="1" reservationTypeId="5" />,
-      { wrapper: createWrapper() },
-    );
+    render(<ReservationTypeAvailableSlotsSection clinicId="1" reservationTypeId="5" />, {
+      wrapper: createWrapper(),
+    });
 
     expect(await screen.findByText("予約可能枠")).toBeInTheDocument();
     expect(await screen.findByText("毎週月曜日")).toBeInTheDocument();

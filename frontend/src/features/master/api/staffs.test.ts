@@ -70,11 +70,7 @@ describe("master staff transform (fail-closed staff_type)", () => {
 
   it("uses category(staffs) key distinct from selector-list", () => {
     expect(queryKeys.masters.category("staffs")).toEqual(["masters", "staffs"]);
-    expect(queryKeys.masters.staffSelectorList()).toEqual([
-      "masters",
-      "staffs",
-      "selector-list",
-    ]);
+    expect(queryKeys.masters.staffSelectorList()).toEqual(["masters", "staffs", "selector-list"]);
   });
 
   it("master full shape cache is independent of selector-list key", () => {
@@ -93,12 +89,12 @@ describe("master staff transform (fail-closed staff_type)", () => {
       { id: "1", name: "Doc", isActive: true, staffType: "doctor", occupationName: null },
     ]);
 
-    const master = client.getQueryData(
-      queryKeys.masters.category("staffs"),
-    ) as { email?: string }[];
-    const selector = client.getQueryData(
-      queryKeys.masters.staffSelectorList(),
-    ) as { email?: string }[];
+    const master = client.getQueryData(queryKeys.masters.category("staffs")) as {
+      email?: string;
+    }[];
+    const selector = client.getQueryData(queryKeys.masters.staffSelectorList()) as {
+      email?: string;
+    }[];
     expect(master[0].email).toBe("a@example.invalid");
     expect(selector[0].email).toBeUndefined();
   });
@@ -135,12 +131,9 @@ describe("master staff transform (fail-closed staff_type)", () => {
       staffType: "doctor",
       email: "doc@example.invalid",
     });
-    expect(client.getQueryData(queryKeys.masters.category("staffs"))).toEqual(
-      result.current.data,
-    );
+    expect(client.getQueryData(queryKeys.masters.category("staffs"))).toEqual(result.current.data);
     expect(
-      (client.getQueryData(queryKeys.masters.staffSelectorList()) as { id: string }[])[0]
-        .id,
+      (client.getQueryData(queryKeys.masters.staffSelectorList()) as { id: string }[])[0].id,
     ).toBe("poison");
   });
 });

@@ -11,7 +11,7 @@ export type { Reservation };
 export const transformToCreateRequest = (
   data: Partial<Reservation>,
   petId: string,
-  ownerId: string
+  ownerId: string,
 ): CreateReservationRequest => {
   return {
     pet_id: Number(petId),

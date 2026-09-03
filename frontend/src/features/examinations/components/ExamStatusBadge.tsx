@@ -15,11 +15,7 @@ interface ExamStatusBadgeProps {
   compact?: boolean;
 }
 
-export function ExamStatusBadge({
-  status,
-  isAssessed,
-  compact = false,
-}: ExamStatusBadgeProps) {
+export function ExamStatusBadge({ status, isAssessed, compact = false }: ExamStatusBadgeProps) {
   const horizontalPadding = compact ? "px-2" : "px-3";
 
   if (status === "high") {

@@ -62,8 +62,7 @@ export function useVaccinationForm(
     error: vaccinationError,
     refetch: refetchVaccination,
   });
-  const existingVaccination =
-    entityRead.status === "found" ? entityRead.data : undefined;
+  const existingVaccination = entityRead.status === "found" ? entityRead.data : undefined;
   const entityReadRef = useRef(entityRead);
   useLayoutEffect(() => {
     entityReadRef.current = entityRead;
@@ -141,21 +140,25 @@ export function useVaccinationForm(
   });
 
   const { mutate: deleteVaccinationFn } = deleteMutation;
-  const handleDelete = useCallback((onSuccess?: () => void) => {
-    createVaccinationDeleteHandler({
-      isEdit,
-      id,
-      isMutationAllowed,
-      isEditPetReady: () => Boolean(editPetRef.current),
-      isEditPetDeceased: () => editPetRef.current?.status === "死亡",
-      deleteVaccination: deleteVaccinationFn,
-    })(onSuccess);
-  }, [isEdit, id, isMutationAllowed, deleteVaccinationFn]);
+  const handleDelete = useCallback(
+    (onSuccess?: () => void) => {
+      createVaccinationDeleteHandler({
+        isEdit,
+        id,
+        isMutationAllowed,
+        isEditPetReady: () => Boolean(editPetRef.current),
+        isEditPetDeceased: () => editPetRef.current?.status === "死亡",
+        deleteVaccination: deleteVaccinationFn,
+      })(onSuccess);
+    },
+    [isEdit, id, isMutationAllowed, deleteVaccinationFn],
+  );
 
   return {
     isEdit,
     entityRead,
-    isReadLoading: entityRead.status === "loading" || (isEdit && editPetId !== "" && isEditPetLoading),
+    isReadLoading:
+      entityRead.status === "loading" || (isEdit && editPetId !== "" && isEditPetLoading),
     isEditPetReady: !isEdit || Boolean(petFromEdit),
     isReadNotFound: isNonDisclosureReadStatus(entityRead.status),
     isReadError: entityRead.status === "error",

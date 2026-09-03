@@ -81,7 +81,12 @@ export const MasterSidePanel = memo(function MasterSidePanel({
 
   const content = (
     <>
-      <SidePeekToolbar isNew={isNew} onClose={onClose} onDelete={readOnly ? undefined : onDelete} readOnly={readOnly} />
+      <SidePeekToolbar
+        isNew={isNew}
+        onClose={onClose}
+        onDelete={readOnly ? undefined : onDelete}
+        readOnly={readOnly}
+      />
       <SidePeekBody>
         <div className="pt-4 pb-2">
           <div className={STYLE.pageIcon}>{icon}</div>
@@ -98,7 +103,12 @@ export const MasterSidePanel = memo(function MasterSidePanel({
         <div className={`${STYLE.sectionDivider} mb-1`} />
         <div className="py-1">{children}</div>
       </SidePeekBody>
-      <SidePeekFooter onCancel={onClose} onSave={readOnly ? undefined : onSave} isPending={isPending} readOnly={readOnly} />
+      <SidePeekFooter
+        onCancel={onClose}
+        onSave={readOnly ? undefined : onSave}
+        isPending={isPending}
+        readOnly={readOnly}
+      />
     </>
   );
 

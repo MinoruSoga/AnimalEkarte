@@ -52,7 +52,7 @@ function renderTab() {
         dischargeDate="2026-07-14"
         petIsDeceased={false}
       />
-    </QueryClientProvider>
+    </QueryClientProvider>,
   );
 }
 

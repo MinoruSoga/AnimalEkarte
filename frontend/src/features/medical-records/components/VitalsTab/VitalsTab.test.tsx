@@ -93,9 +93,7 @@ describe("VitalsTab FE-RC-005 系 二重トースト回帰", () => {
 
 describe("VitalsTab FE-RC-114 add form action", () => {
   it("追加 UI は form action で送信し、バリデーション失敗は fieldErrors を出す", async () => {
-    server.use(
-      http.get("*/v1/medical-records/:id/vitals", () => HttpResponse.json([])),
-    );
+    server.use(http.get("*/v1/medical-records/:id/vitals", () => HttpResponse.json([])));
 
     render(<VitalsTab medicalRecordId={MEDICAL_RECORD_ID} />, {
       wrapper: createTestWrapper(),
@@ -124,9 +122,7 @@ describe("VitalsTab FE-RC-114 add form action", () => {
   });
 
   it("追加権限を失ったあとでも送信すると ActionState.error を表示する", async () => {
-    server.use(
-      http.get("*/v1/medical-records/:id/vitals", () => HttpResponse.json([])),
-    );
+    server.use(http.get("*/v1/medical-records/:id/vitals", () => HttpResponse.json([])));
 
     render(<VitalsTab medicalRecordId={MEDICAL_RECORD_ID} />, {
       wrapper: createTestWrapper(),
@@ -158,9 +154,7 @@ describe("VitalsTab FE-RC-114 add form action", () => {
 
 describe("VitalsTab deceased pet dual-gate", () => {
   it("死亡ペットでは記録追加ボタンを出さない", async () => {
-    server.use(
-      http.get("*/v1/medical-records/:id/vitals", () => HttpResponse.json([])),
-    );
+    server.use(http.get("*/v1/medical-records/:id/vitals", () => HttpResponse.json([])));
 
     render(<VitalsTab medicalRecordId={MEDICAL_RECORD_ID} isPetDeceased />, {
       wrapper: createTestWrapper(),
@@ -203,7 +197,9 @@ describe("VitalsTab deceased pet dual-gate", () => {
     await user.click(screen.getByRole("button", { name: "追加" }));
 
     await waitFor(() => {
-      expect(screen.getByRole("alert")).toHaveTextContent("死亡したペットのバイタルは保存できません");
+      expect(screen.getByRole("alert")).toHaveTextContent(
+        "死亡したペットのバイタルは保存できません",
+      );
     });
     expect(toast.success).not.toHaveBeenCalled();
   });

@@ -44,13 +44,14 @@ export function useTrimmingFormChrome(input: {
   useEffect(() => {
     const errorFields = Object.keys(input.formState.fieldErrors || {});
     if (errorFields.length === 0) return;
-    const firstError = TRIMMING_PRIORITY_FIELDS.find((field) => errorFields.includes(field)) || errorFields[0];
+    const firstError =
+      TRIMMING_PRIORITY_FIELDS.find((field) => errorFields.includes(field)) || errorFields[0];
     const element = document.getElementById(firstError);
     if (element) {
       element.focus();
       element.scrollIntoView({ behavior: "smooth", block: "center" });
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- fieldErrors は timestamp と同期。timestamp のみで十分
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fieldErrors は timestamp と同期。timestamp のみで十分
   }, [input.formState.timestamp]);
 
   useEffect(() => {
@@ -65,10 +66,13 @@ export function useTrimmingFormChrome(input: {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const history = useTrimmingHistory(input.selectedPetId ?? "");
   const setFormData = input.setFormData;
-  const handleFormChange = useCallback((updates: Partial<TrimmingFormData>) => {
-    markDirty();
-    setFormData(updates);
-  }, [markDirty, setFormData]);
+  const handleFormChange = useCallback(
+    (updates: Partial<TrimmingFormData>) => {
+      markDirty();
+      setFormData(updates);
+    },
+    [markDirty, setFormData],
+  );
   const handleDelete = input.handleDelete;
   const handleDeleteClick = useCallback(() => {
     handleDelete(() => {
@@ -79,9 +83,12 @@ export function useTrimmingFormChrome(input: {
   const handleBack = useCallback(() => {
     navigate(input.fromPath ?? paths.trimming.getHref());
   }, [input.fromPath, navigate]);
-  const handleHistoryClick = useCallback((updates: Partial<TrimmingFormData>) => {
-    handleFormChange(history.handleHistoryClick(updates));
-  }, [history, handleFormChange]);
+  const handleHistoryClick = useCallback(
+    (updates: Partial<TrimmingFormData>) => {
+      handleFormChange(history.handleHistoryClick(updates));
+    },
+    [history, handleFormChange],
+  );
   const activeStaffItems = useMemo(
     () => staffItems.filter((staff) => staff.status === "active"),
     [staffItems],

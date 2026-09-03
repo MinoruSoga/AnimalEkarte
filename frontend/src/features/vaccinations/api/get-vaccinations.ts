@@ -17,9 +17,7 @@ export interface VaccinationFilters {
   search?: string;
 }
 
-const getVaccinations = async (
-  filters?: VaccinationFilters,
-): Promise<VaccinationRecord[]> => {
+const getVaccinations = async (filters?: VaccinationFilters): Promise<VaccinationRecord[]> => {
   const params: Record<string, string | number> = {
     page: filters?.page ?? 1,
     // Default limit was BE 20, which hid 2026 rows behind 2029 seed page-window (BUG-007).
@@ -30,10 +28,7 @@ const getVaccinations = async (
   if (filters?.petId) params.pet_id = filters.petId;
   if (filters?.search) params.search = filters.search;
 
-  const { data } = await axios.get<{ data: BackendVaccination[] }>(
-    "/v1/vaccinations",
-    { params },
-  );
+  const { data } = await axios.get<{ data: BackendVaccination[] }>("/v1/vaccinations", { params });
   return (data.data ?? []).map(transformVaccination);
 };
 

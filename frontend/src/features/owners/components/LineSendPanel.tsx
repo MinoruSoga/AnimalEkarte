@@ -30,12 +30,7 @@ interface SendFormState {
 
 const INITIAL_STATE: SendFormState = { error: null };
 
-export function LineSendPanel({
-  ownerId,
-  ownerName,
-  open,
-  onOpenChange,
-}: LineSendPanelProps) {
+export function LineSendPanel({ ownerId, ownerName, open, onOpenChange }: LineSendPanelProps) {
   const { data: lineData } = useGetOwnerLineTags(ownerId);
   const { mutateAsync: sendMessage } = useSendLineMessage(ownerId);
 
@@ -46,10 +41,7 @@ export function LineSendPanel({
   const canSend = isLinked && !isOptOut;
 
   const [formState, formAction] = useActionState(
-    async (
-      _prev: SendFormState,
-      formData: FormData
-    ): Promise<SendFormState> => {
+    async (_prev: SendFormState, formData: FormData): Promise<SendFormState> => {
       if (!isLinked) {
         return { error: "LINE未連携のため送信できません" };
       }
@@ -100,12 +92,15 @@ export function LineSendPanel({
         return { error: "送信に失敗しました。しばらく待ってから再試行してください" };
       }
     },
-    INITIAL_STATE
+    INITIAL_STATE,
   );
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className={`${C.bgPage} w-full max-w-full sm:max-w-[480px] flex flex-col`}>
+      <SheetContent
+        side="right"
+        className={`${C.bgPage} w-full max-w-full sm:max-w-[480px] flex flex-col`}
+      >
         <SheetHeader className={`border-b pr-16 ${C.borderLight}`}>
           <SheetTitle className={`text-base font-semibold ${C.text}`}>
             LINE送信 — {ownerName}
@@ -194,7 +189,9 @@ export function LineSendPanel({
               ) : null}
 
               {/* FE-003: 月間配信数消費の注意 */}
-              <div className={`rounded-md border ${C.borderNotice} ${C.bgNotice} px-3 py-2 text-xs ${C.textNotice}`}>
+              <div
+                className={`rounded-md border ${C.borderNotice} ${C.bgNotice} px-3 py-2 text-xs ${C.textNotice}`}
+              >
                 この送信はLINE Messaging APIを使用します。月間配信数を1件消費します。
               </div>
 
@@ -219,15 +216,15 @@ export function LineSendPanel({
 
               {/* 成功時の通知は useSendLineMessage の onSuccess（toast.success）に一本化。
                   ここで別テキストを出すと二重通知になる（FE-RC-072） */}
-              <SubmitButton loadingText="送信中..." colorVariant="primary">送信する</SubmitButton>
+              <SubmitButton loadingText="送信中..." colorVariant="primary">
+                送信する
+              </SubmitButton>
             </form>
           ) : null}
 
           {/* 送信履歴 */}
           <div className={`border-t ${C.borderLight} pt-4 flex flex-col gap-2`}>
-            <span className={`text-xs ${C.text55} uppercase`}>
-              送信履歴（最新5件）
-            </span>
+            <span className={`text-xs ${C.text55} uppercase`}>送信履歴（最新5件）</span>
             <LineSendHistory ownerId={ownerId} />
           </div>
         </div>

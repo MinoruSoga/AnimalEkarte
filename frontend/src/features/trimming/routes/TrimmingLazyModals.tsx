@@ -5,5 +5,7 @@ export const MasterSelectModal = lazy(() =>
 );
 
 export const ConfirmDialog = lazy(() =>
-  import("@/components/shared/ConfirmDialog/ConfirmDialog").then((m) => ({ default: m.ConfirmDialog })),
+  import("@/components/shared/ConfirmDialog/ConfirmDialog").then((m) => ({
+    default: m.ConfirmDialog,
+  })),
 );

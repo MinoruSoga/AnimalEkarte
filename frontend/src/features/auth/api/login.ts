@@ -12,16 +12,10 @@ interface BackendLoginResponse {
   user: BackendMeResponse;
 }
 
-export async function login(
-  email: string,
-  password: string,
-): Promise<LoginResponse> {
+export async function login(email: string, password: string): Promise<LoginResponse> {
   // async-parallel 適用済み: バックエンドがログインレスポンスにユーザー情報を含むため
   // /me への2番目のリクエストは不要（ウォーターフォール解消）
-  const { data } = await axios.post<BackendLoginResponse>(
-    "/v1/login",
-    { email, password },
-  );
+  const { data } = await axios.post<BackendLoginResponse>("/v1/login", { email, password });
 
   // JWT トークンはバックエンドが httpOnly Cookie で設定するため
   // フロントエンド側での sessionStorage 保存は不要

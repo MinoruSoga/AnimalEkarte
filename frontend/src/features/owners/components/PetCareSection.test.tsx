@@ -106,9 +106,7 @@ describe("PetCareSection (PR#186 P2-2 Bug#1)", () => {
         "生死データに不整合があります（死亡ステータス・死亡日時未登録）。修復は管理者に依頼してください",
       ),
     ).toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: "死亡を記録" }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "死亡を記録" })).not.toBeInTheDocument();
   });
 });
 
@@ -279,9 +277,10 @@ describe("PetCareSection (BUG-002 outer-list lifecycle notify)", () => {
   it("BUG-002 cross-pet: 死亡記録の完了前に別ペットへ切り替えても表示中フォームを上書きしない", async () => {
     let resolveRecord: (() => void) | undefined;
     mockMutateAsync.mockImplementationOnce(
-      () => new Promise<void>((resolve) => {
-        resolveRecord = resolve;
-      }),
+      () =>
+        new Promise<void>((resolve) => {
+          resolveRecord = resolve;
+        }),
     );
     let latestFormData: PetFormData = {
       ...basePet,
@@ -294,11 +293,7 @@ describe("PetCareSection (BUG-002 outer-list lifecycle notify)", () => {
       latestFormData = updater(latestFormData);
     });
     const onPetLifecycleChange = vi.fn();
-    const view = renderPetCareSection(
-      latestFormData,
-      setFormData,
-      onPetLifecycleChange,
-    );
+    const view = renderPetCareSection(latestFormData, setFormData, onPetLifecycleChange);
 
     fireEvent.click(screen.getByRole("button", { name: "死亡を記録" }));
     fireEvent.click(screen.getByRole("button", { name: "死亡を記録する" }));
@@ -414,11 +409,7 @@ describe("PetCareSection (BUG-002 outer-list lifecycle notify)", () => {
       latestFormData = updater(latestFormData);
     });
     const onPetLifecycleChange = vi.fn();
-    const view = renderPetCareSection(
-      latestFormData,
-      setFormData,
-      onPetLifecycleChange,
-    );
+    const view = renderPetCareSection(latestFormData, setFormData, onPetLifecycleChange);
 
     fireEvent.click(screen.getByRole("button", { name: "死亡記録を解除" }));
     fireEvent.click(screen.getByRole("button", { name: "解除する" }));

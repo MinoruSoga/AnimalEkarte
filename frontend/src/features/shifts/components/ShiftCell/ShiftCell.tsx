@@ -5,10 +5,10 @@ import { SHIFT_TYPE_LABELS } from "../../types";
 
 // rendering-hoist-jsx: 静的カラーマップはモジュール定数に巻き上げ（ShiftCell 専用）
 const SHIFT_TYPE_COLORS: Record<ShiftType, string> = {
-  full:       `${C.bgBrandLight} ${C.textBrandDark} ${C.borderBrandLight}`,
-  morning:    `${C.bgStatusGreen} ${C.textStatusGreen} ${C.borderStatusGreenAlt}`,
-  afternoon:  `${C.bgStatusGreen} ${C.textStatusGreen} ${C.borderStatusGreenAlt}`,
-  off:        `${C.bgStatusGray} ${C.textStatusGray} ${C.borderMuted}`,
+  full: `${C.bgBrandLight} ${C.textBrandDark} ${C.borderBrandLight}`,
+  morning: `${C.bgStatusGreen} ${C.textStatusGreen} ${C.borderStatusGreenAlt}`,
+  afternoon: `${C.bgStatusGreen} ${C.textStatusGreen} ${C.borderStatusGreenAlt}`,
+  off: `${C.bgStatusGray} ${C.textStatusGray} ${C.borderMuted}`,
   paid_leave: `${C.bgStatusPurple} ${C.textStatusPurple} ${C.borderPurpleLight}`,
 };
 
@@ -95,7 +95,9 @@ export const ShiftCell = memo(function ShiftCell({
       ) : null}
     </button>
   ) : (
-    <div className={`w-full min-h-[36px] px-1 py-1 rounded border text-xs font-medium overflow-hidden ${colorClass}`}>
+    <div
+      className={`w-full min-h-[36px] px-1 py-1 rounded border text-xs font-medium overflow-hidden ${colorClass}`}
+    >
       <span className="block leading-tight">{label}</span>
       {startDisplay ? (
         <span className="block leading-tight text-2xs opacity-70">

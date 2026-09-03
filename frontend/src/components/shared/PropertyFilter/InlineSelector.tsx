@@ -31,10 +31,7 @@ export const InlineSelector = memo(function InlineSelector({
           <ChevronDown className={`${ICON.page} shrink-0 opacity-50`} />
         </button>
       </PopoverTrigger>
-      <PopoverContent
-        className={`${popoverWidth} ${noPadding ? "p-0" : "p-1"}`}
-        align="start"
-      >
+      <PopoverContent className={`${popoverWidth} ${noPadding ? "p-0" : "p-1"}`} align="start">
         {children}
       </PopoverContent>
     </Popover>

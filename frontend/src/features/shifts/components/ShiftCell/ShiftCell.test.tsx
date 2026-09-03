@@ -43,14 +43,7 @@ const defaultProps = {
 
 describe("ShiftCell — P9 hit target / accessible name", () => {
   it("空セルの追加ボタンは44px以上でスタッフと日付を名前に含める", () => {
-    render(
-      <ShiftCell
-        {...defaultProps}
-        shift={undefined}
-        canCreate
-        canEdit
-      />,
-    );
+    render(<ShiftCell {...defaultProps} shift={undefined} canCreate canEdit />);
 
     const addButton = screen.getByRole("button", {
       name: "スタッフA 2026-07-01 シフトを追加",
@@ -60,14 +53,7 @@ describe("ShiftCell — P9 hit target / accessible name", () => {
   });
 
   it("編集可能な休日ボタンは44px以上でスタッフと日付を名前に含める", () => {
-    render(
-      <ShiftCell
-        {...defaultProps}
-        shift={OFF_SHIFT}
-        canCreate
-        canEdit
-      />,
-    );
+    render(<ShiftCell {...defaultProps} shift={OFF_SHIFT} canCreate canEdit />);
 
     expect(
       screen.getByRole("button", {
@@ -77,14 +63,7 @@ describe("ShiftCell — P9 hit target / accessible name", () => {
   });
 
   it("時間付きシフトの編集ボタンは勤務時刻範囲をaccessible nameに含める", () => {
-    render(
-      <ShiftCell
-        {...defaultProps}
-        shift={TIMED_SHIFT}
-        canCreate
-        canEdit
-      />,
-    );
+    render(<ShiftCell {...defaultProps} shift={TIMED_SHIFT} canCreate canEdit />);
 
     expect(
       screen.getByRole("button", {
@@ -96,18 +75,9 @@ describe("ShiftCell — P9 hit target / accessible name", () => {
 
 describe("ShiftCell — BUG-022 filled cell exclusivity / HH:mm / overflow", () => {
   it("時間付きシフトでは追加ボタンを出さず編集ボタンのみ表示する", () => {
-    render(
-      <ShiftCell
-        {...defaultProps}
-        shift={TIMED_SHIFT}
-        canCreate
-        canEdit
-      />,
-    );
+    render(<ShiftCell {...defaultProps} shift={TIMED_SHIFT} canCreate canEdit />);
 
-    expect(
-      screen.queryByRole("button", { name: /シフトを追加/ }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /シフトを追加/ })).not.toBeInTheDocument();
     expect(
       screen.getByRole("button", {
         name: "スタッフA 2026-07-01 午前シフト（09:00〜13:00）を編集",
@@ -116,14 +86,7 @@ describe("ShiftCell — BUG-022 filled cell exclusivity / HH:mm / overflow", () 
   });
 
   it("APIの秒付き時刻をHH:mmで表示しaccessible nameもHH:mmにする", () => {
-    render(
-      <ShiftCell
-        {...defaultProps}
-        shift={TIMED_SHIFT_WITH_SECONDS}
-        canCreate
-        canEdit
-      />,
-    );
+    render(<ShiftCell {...defaultProps} shift={TIMED_SHIFT_WITH_SECONDS} canCreate canEdit />);
 
     const editButton = screen.getByRole("button", {
       name: "スタッフA 2026-07-01 午前シフト（09:00〜13:00）を編集",
@@ -135,14 +98,7 @@ describe("ShiftCell — BUG-022 filled cell exclusivity / HH:mm / overflow", () 
   });
 
   it("編集チップはoverflow-hiddenで隣接セルへのはみ出しを防ぐ", () => {
-    render(
-      <ShiftCell
-        {...defaultProps}
-        shift={TIMED_SHIFT_WITH_SECONDS}
-        canCreate
-        canEdit
-      />,
-    );
+    render(<ShiftCell {...defaultProps} shift={TIMED_SHIFT_WITH_SECONDS} canCreate canEdit />);
 
     expect(
       screen.getByRole("button", {

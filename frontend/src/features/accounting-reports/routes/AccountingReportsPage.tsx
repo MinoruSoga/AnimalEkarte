@@ -47,7 +47,9 @@ export function AccountingReportsPage() {
   const { standardTaxRate, reducedTaxRate } = useClinicTaxRates();
 
   const reportParams: MonthlyReportParams =
-    reportMode === "month" ? { mode: "month", year, month } : { mode: "period", startDate, endDate };
+    reportMode === "month"
+      ? { mode: "month", year, month }
+      : { mode: "period", startDate, endDate };
   const { data, isLoading, isError } = useGetMonthlyReport(reportParams);
 
   const periodLabel = data

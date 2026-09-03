@@ -56,15 +56,25 @@ interface LstepNoticeSectionProps {
 export function LstepNoticeSection({ hasLineAccessToken }: LstepNoticeSectionProps) {
   return (
     <>
-      <div className={`flex items-start gap-2 p-3 rounded-xs ${C.bgWarning50} border ${C.borderWarning20} text-sm ${C.textWarning}`}>
+      <div
+        className={`flex items-start gap-2 p-3 rounded-xs ${C.bgWarning50} border ${C.borderWarning20} text-sm ${C.textWarning}`}
+      >
         <AlertTriangle className="shrink-0 mt-0.5 w-4 h-4" />
-        <span>LINE Messaging API送信は LINE 公式アカウントの月間配信数にカウントされます。プランの上限に注意してください。</span>
+        <span>
+          LINE Messaging API送信は LINE
+          公式アカウントの月間配信数にカウントされます。プランの上限に注意してください。
+        </span>
       </div>
 
       {!hasLineAccessToken ? (
-        <div className={`flex items-start gap-2 p-3 rounded-xs ${C.bgPage} border ${C.borderLight} text-sm ${C.text60}`}>
+        <div
+          className={`flex items-start gap-2 p-3 rounded-xs ${C.bgPage} border ${C.borderLight} text-sm ${C.text60}`}
+        >
           <Info className="shrink-0 mt-0.5 w-4 h-4" />
-          <span>LINE Messaging API トークンが未設定です。LINE公式アカウントのMessaging APIオプションを契約し、チャネルアクセストークンを入力してください。未設定の場合、LINE連携機能は動作しません。</span>
+          <span>
+            LINE Messaging API トークンが未設定です。LINE公式アカウントのMessaging
+            APIオプションを契約し、チャネルアクセストークンを入力してください。未設定の場合、LINE連携機能は動作しません。
+          </span>
         </div>
       ) : null}
     </>
@@ -125,7 +135,11 @@ export function LstepActionFooter({
             {isLineTesting ? "テスト中..." : "LINE接続テスト"}
           </Button>
         ) : null}
-        <TestResultLabel result={lineTestResult} successLabel="LINE接続成功" errorLabel="LINE接続失敗" />
+        <TestResultLabel
+          result={lineTestResult}
+          successLabel="LINE接続成功"
+          errorLabel="LINE接続失敗"
+        />
       </div>
 
       <div className="flex items-center gap-2">
@@ -141,9 +155,7 @@ export function LstepActionFooter({
             設定削除
           </Button>
         ) : null}
-        <SubmitButton className="h-10 text-sm px-4">
-          保存
-        </SubmitButton>
+        <SubmitButton className="h-10 text-sm px-4">保存</SubmitButton>
       </div>
     </div>
   );
@@ -155,11 +167,7 @@ interface TestResultLabelProps {
   errorLabel: string;
 }
 
-function TestResultLabel({
-  result,
-  successLabel,
-  errorLabel,
-}: TestResultLabelProps) {
+function TestResultLabel({ result, successLabel, errorLabel }: TestResultLabelProps) {
   if (result === "success") {
     return <span className={`text-sm ${C.textStatusGreen}`}>{successLabel}</span>;
   }

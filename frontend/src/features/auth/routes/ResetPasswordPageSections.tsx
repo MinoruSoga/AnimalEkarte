@@ -115,18 +115,18 @@ export function ResetPasswordFields({
             className={`absolute right-1 top-1/2 -translate-y-1/2 ${STYLE.iconBtn32} ${C.text35} ${C.hoverText}`}
             aria-label={showConfirmPassword ? "確認パスワードを非表示" : "確認パスワードを表示"}
           >
-            {showConfirmPassword ? <EyeOff className={ICON.action} /> : <Eye className={ICON.action} />}
+            {showConfirmPassword ? (
+              <EyeOff className={ICON.action} />
+            ) : (
+              <Eye className={ICON.action} />
+            )}
           </button>
         </div>
       </div>
 
       <FormFieldError id="reset-error" message={error} />
 
-      <SubmitButton
-        colorVariant="brand"
-        className="w-full h-[52px]"
-        loadingText="設定中..."
-      >
+      <SubmitButton colorVariant="brand" className="w-full h-[52px]" loadingText="設定中...">
         パスワードを設定する
       </SubmitButton>
 

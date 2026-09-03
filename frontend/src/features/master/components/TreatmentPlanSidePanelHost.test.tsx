@@ -14,22 +14,26 @@ vi.mock("./TreatmentItemSidePanel", () => ({
     details: React.ReactNode;
   }) => (
     <>
-      <button type="button" onClick={() => onDirtyChange(true)}>親変更</button>
-      <button type="button" onClick={() => onDirtyChange(false)}>親保存</button>
+      <button type="button" onClick={() => onDirtyChange(true)}>
+        親変更
+      </button>
+      <button type="button" onClick={() => onDirtyChange(false)}>
+        親保存
+      </button>
       {details}
     </>
   ),
 }));
 
 vi.mock("./ExamTypeFieldsEditor", () => ({
-  ExamTypeFieldsEditor: ({
-    onDirtyChange,
-  }: {
-    onDirtyChange: (dirty: boolean) => void;
-  }) => (
+  ExamTypeFieldsEditor: ({ onDirtyChange }: { onDirtyChange: (dirty: boolean) => void }) => (
     <>
-      <button type="button" onClick={() => onDirtyChange(true)}>項目変更</button>
-      <button type="button" onClick={() => onDirtyChange(false)}>項目保存</button>
+      <button type="button" onClick={() => onDirtyChange(true)}>
+        項目変更
+      </button>
+      <button type="button" onClick={() => onDirtyChange(false)}>
+        項目保存
+      </button>
     </>
   ),
 }));

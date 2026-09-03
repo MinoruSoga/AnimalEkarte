@@ -52,9 +52,8 @@ function appointmentTrimmingOverrides(
     reservationTypeId: existing.reservationTypeId || prev.reservationTypeId || "",
     styleRequest: existing.styleRequest || prev.styleRequest || "",
     courseId: existing.courseId || prev.courseId || "",
-    optionIds: (existing.optionIds?.length ?? 0) > 0
-      ? existing.optionIds ?? []
-      : (prev.optionIds ?? []),
+    optionIds:
+      (existing.optionIds?.length ?? 0) > 0 ? (existing.optionIds ?? []) : (prev.optionIds ?? []),
     bw: existing.bw || prev.bw || "",
     bwUnit: toBwUnit(existing.bwUnit || prev.bwUnit),
     bt: existing.bt || prev.bt || "",
@@ -71,7 +70,8 @@ export function useTrimmingFormHydration(input: {
   existingTrimming: TrimmingHydrateSource | undefined;
   existingAppointmentTrimming: TrimmingHydrateSource | undefined;
   setLocalOverrides: (
-    next: Partial<TrimmingFormData> | ((prev: Partial<TrimmingFormData>) => Partial<TrimmingFormData>),
+    next:
+      Partial<TrimmingFormData> | ((prev: Partial<TrimmingFormData>) => Partial<TrimmingFormData>),
   ) => void;
   setStyleImagePreview: (value: string | null) => void;
   setCompletedImagePreview: (value: string | null) => void;
@@ -109,34 +109,48 @@ export function useTrimmingFormHydration(input: {
     if (existingAppointmentTrimming.completedImage) {
       setCompletedImagePreview(existingAppointmentTrimming.completedImage);
     }
-  }, [isEdit, existingAppointmentTrimming, setLocalOverrides, setStyleImagePreview, setCompletedImagePreview]);
+  }, [
+    isEdit,
+    existingAppointmentTrimming,
+    setLocalOverrides,
+    setStyleImagePreview,
+    setCompletedImagePreview,
+  ]);
 }
 
-export function useTrimmingFormImages(setLocalOverrides: (
-  updater: (prev: Partial<TrimmingFormData>) => Partial<TrimmingFormData>,
-) => void) {
+export function useTrimmingFormImages(
+  setLocalOverrides: (
+    updater: (prev: Partial<TrimmingFormData>) => Partial<TrimmingFormData>,
+  ) => void,
+) {
   const [styleImagePreview, setStyleImagePreview] = useState<string | null>(null);
   const [completedImagePreview, setCompletedImagePreview] = useState<string | null>(null);
 
-  const handleStyleImageChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setLocalOverrides((prev) => ({ ...prev, styleImage: file }));
-      const reader = new FileReader();
-      reader.onloadend = () => setStyleImagePreview(reader.result as string);
-      reader.readAsDataURL(file);
-    }
-  }, [setLocalOverrides]);
+  const handleStyleImageChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (file) {
+        setLocalOverrides((prev) => ({ ...prev, styleImage: file }));
+        const reader = new FileReader();
+        reader.onloadend = () => setStyleImagePreview(reader.result as string);
+        reader.readAsDataURL(file);
+      }
+    },
+    [setLocalOverrides],
+  );
 
-  const handleCompletedImageChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setLocalOverrides((prev) => ({ ...prev, completedImage: file }));
-      const reader = new FileReader();
-      reader.onloadend = () => setCompletedImagePreview(reader.result as string);
-      reader.readAsDataURL(file);
-    }
-  }, [setLocalOverrides]);
+  const handleCompletedImageChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (file) {
+        setLocalOverrides((prev) => ({ ...prev, completedImage: file }));
+        const reader = new FileReader();
+        reader.onloadend = () => setCompletedImagePreview(reader.result as string);
+        reader.readAsDataURL(file);
+      }
+    },
+    [setLocalOverrides],
+  );
 
   const removeStyleImage = useCallback(() => {
     setLocalOverrides((prev) => ({ ...prev, styleImage: null }));
@@ -168,14 +182,7 @@ export function useTrimmingFormPetSync(input: {
   isPetLoading: boolean;
   setSelectedPets: (pets: Pet[]) => void;
 }) {
-  const {
-    isEdit,
-    petId,
-    petFromQuery,
-    petFromEdit,
-    isPetLoading,
-    setSelectedPets,
-  } = input;
+  const { isEdit, petId, petFromQuery, petFromEdit, isPetLoading, setSelectedPets } = input;
   const navigate = useNavigate();
 
   useEffect(() => {

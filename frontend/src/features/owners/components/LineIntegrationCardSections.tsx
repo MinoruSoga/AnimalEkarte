@@ -21,13 +21,13 @@ export function DeliveryStatusBanner({
 }: DeliveryStatusBannerProps) {
   if (isStopped) {
     return (
-      <div className={`flex items-center gap-2 rounded-md border ${C.borderRedBadge} ${C.bgRedLight} px-4 py-3`}>
+      <div
+        className={`flex items-center gap-2 rounded-md border ${C.borderRedBadge} ${C.bgRedLight} px-4 py-3`}
+      >
         <Ban className={`${ICON.smXs} ${C.textNotionRed} shrink-0`} />
         <span className={`text-sm font-medium ${C.textNotionRed}`}>配信停止中</span>
         <span className={`text-xs ${C.text50}`}>この飼い主はLステップ配信対象外です</span>
-        {stopReason ? (
-          <span className={`text-xs ${C.text50}`}>— {stopReason}</span>
-        ) : null}
+        {stopReason ? <span className={`text-xs ${C.text50}`}>— {stopReason}</span> : null}
       </div>
     );
   }
@@ -42,9 +42,7 @@ export function DeliveryStatusBanner({
       <AlertTriangle className={`${ICON.smXs} ${C.textNotice} shrink-0`} />
       <span className={`text-sm font-medium ${C.textNotice}`}>配信注意</span>
       <span className={`text-xs ${C.text50}`}>この飼い主は配信注意対象です</span>
-      {cautionReason ? (
-        <span className={`text-xs ${C.text50}`}>— {cautionReason}</span>
-      ) : null}
+      {cautionReason ? <span className={`text-xs ${C.text50}`}>— {cautionReason}</span> : null}
     </div>
   );
 }
@@ -75,13 +73,13 @@ export function LineIdConfirmSection({
       }`}
     >
       <div className="flex items-center gap-2">
-        <span className={`text-sm font-medium ${lineIdConfirmedAt ? C.textStatusGreen : C.textNotice}`}>
+        <span
+          className={`text-sm font-medium ${lineIdConfirmedAt ? C.textStatusGreen : C.textNotice}`}
+        >
           {lineIdConfirmedAt ? "LINE ID 確認済み" : "LINE ID 未確認"}
         </span>
         {lineIdConfirmedAt ? (
-          <span className={`text-xs ${C.text50}`}>
-            {lineIdConfirmedAt.split("T")[0]}
-          </span>
+          <span className={`text-xs ${C.text50}`}>{lineIdConfirmedAt.split("T")[0]}</span>
         ) : null}
       </div>
       {canEdit && !lineIdConfirmedAt ? (
@@ -129,8 +127,7 @@ export function LineDeliveryControls({
 }: LineDeliveryControlsProps) {
   if (!canEdit) return null;
 
-  const getDeliveryReasonInput = () =>
-    deliveryReasonInputRef.current?.value.trim() || undefined;
+  const getDeliveryReasonInput = () => deliveryReasonInputRef.current?.value.trim() || undefined;
   const getDeliveryCautionReasonInput = () =>
     deliveryCautionReasonInputRef.current?.value.trim() || undefined;
 
@@ -260,9 +257,7 @@ export function LineDeliveryControls({
           />
         </div>
         {owner?.transferAt ? (
-          <p className={`text-xs mt-1 ${C.text50}`}>
-            転院日: {owner.transferAt.split("T")[0]}
-          </p>
+          <p className={`text-xs mt-1 ${C.text50}`}>転院日: {owner.transferAt.split("T")[0]}</p>
         ) : null}
       </div>
     </>

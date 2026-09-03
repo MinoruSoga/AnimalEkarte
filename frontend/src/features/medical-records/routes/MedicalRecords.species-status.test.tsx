@@ -71,9 +71,7 @@ const animalSpecies = [
   },
 ] satisfies AnimalSpeciesState["activeSpecies"];
 
-function createSpeciesState(
-  overrides: Partial<AnimalSpeciesState> = {},
-): AnimalSpeciesState {
+function createSpeciesState(overrides: Partial<AnimalSpeciesState> = {}): AnimalSpeciesState {
   return {
     allSpecies: animalSpecies,
     activeSpecies: animalSpecies,
@@ -106,11 +104,13 @@ describe("MedicalRecords animal species status", () => {
 
   it("取得失敗を最優先のalertで示し、生エラーを隠して新規登録と種フィルタを維持する", async () => {
     const rawError = "GET /v1/masters/animal-species: database timeout";
-    mocks.useAnimalSpecies.mockReturnValue(createSpeciesState({
-      isLoading: true,
-      isError: true,
-      error: new Error(rawError),
-    }));
+    mocks.useAnimalSpecies.mockReturnValue(
+      createSpeciesState({
+        isLoading: true,
+        isError: true,
+        error: new Error(rawError),
+      }),
+    );
     const user = userEvent.setup();
 
     renderPage();
@@ -120,9 +120,7 @@ describe("MedicalRecords animal species status", () => {
     expect(alert).toHaveAttribute("aria-atomic", "true");
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
     expect(screen.queryByText(rawError)).not.toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "新規カルテ登録" }),
-    ).toBeEnabled();
+    expect(screen.getByRole("button", { name: "新規カルテ登録" })).toBeEnabled();
 
     await openSpeciesFilter(user);
 
@@ -131,9 +129,11 @@ describe("MedicalRecords animal species status", () => {
   });
 
   it("読み込み中を候補より優先してpoliteなstatusで示す", async () => {
-    mocks.useAnimalSpecies.mockReturnValue(createSpeciesState({
-      isLoading: true,
-    }));
+    mocks.useAnimalSpecies.mockReturnValue(
+      createSpeciesState({
+        isLoading: true,
+      }),
+    );
     const user = userEvent.setup();
 
     renderPage();
@@ -143,9 +143,7 @@ describe("MedicalRecords animal species status", () => {
     expect(status).toHaveAttribute("aria-live", "polite");
     expect(status).toHaveAttribute("aria-atomic", "true");
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
-    expect(
-      screen.queryByText("動物種マスタが登録されていません。"),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText("動物種マスタが登録されていません。")).not.toBeInTheDocument();
 
     await openSpeciesFilter(user);
 
@@ -154,10 +152,12 @@ describe("MedicalRecords animal species status", () => {
   });
 
   it("取得成功かつ0件をdistinctなpolite statusで示す", () => {
-    mocks.useAnimalSpecies.mockReturnValue(createSpeciesState({
-      allSpecies: [],
-      activeSpecies: [],
-    }));
+    mocks.useAnimalSpecies.mockReturnValue(
+      createSpeciesState({
+        allSpecies: [],
+        activeSpecies: [],
+      }),
+    );
 
     renderPage();
 
@@ -166,9 +166,7 @@ describe("MedicalRecords animal species status", () => {
     expect(status).toHaveAttribute("aria-live", "polite");
     expect(status).toHaveAttribute("aria-atomic", "true");
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
-    expect(
-      screen.queryByText("動物種を読み込み中です。"),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText("動物種を読み込み中です。")).not.toBeInTheDocument();
   });
 
   it("取得成功かつ候補ありでは状態表示を消して種を選択肢にする", async () => {

@@ -36,9 +36,7 @@ describe("FE5-1: mapMeToAuthUser — clinics omitempty 耐性", () => {
 
     const user = mapMeToAuthUser(raw);
 
-    expect(user.clinics).toEqual([
-      { clinicId: "clinic-a", clinicName: "八王子院", isMain: true },
-    ]);
+    expect(user.clinics).toEqual([{ clinicId: "clinic-a", clinicName: "八王子院", isMain: true }]);
   });
 });
 

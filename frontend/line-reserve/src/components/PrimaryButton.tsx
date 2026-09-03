@@ -1,7 +1,7 @@
 interface PrimaryButtonProps {
   onClick?: () => void;
   disabled?: boolean;
-  type?: 'button' | 'submit';
+  type?: "button" | "submit";
   children: React.ReactNode;
   className?: string;
 }
@@ -9,9 +9,9 @@ interface PrimaryButtonProps {
 export function PrimaryButton({
   onClick,
   disabled = false,
-  type = 'button',
+  type = "button",
   children,
-  className = '',
+  className = "",
 }: PrimaryButtonProps) {
   return (
     <button
@@ -20,8 +20,8 @@ export function PrimaryButton({
       disabled={disabled}
       className={`w-full py-3 px-4 rounded-lg font-semibold text-white transition-colors ${
         disabled
-          ? 'bg-noah-disabled cursor-not-allowed'
-          : 'bg-noah-teal hover:bg-noah-teal-dark active:bg-noah-teal-dark'
+          ? "bg-noah-disabled cursor-not-allowed"
+          : "bg-noah-teal hover:bg-noah-teal-dark active:bg-noah-teal-dark"
       } ${className}`}
     >
       {children}

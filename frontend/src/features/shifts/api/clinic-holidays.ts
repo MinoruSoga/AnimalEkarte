@@ -7,7 +7,7 @@ import type { ClinicHoliday } from "@/types/generated/models";
 export type { ClinicHoliday };
 
 export interface SetClinicHolidayInput {
-  date: string;   // YYYY-MM-DD
+  date: string; // YYYY-MM-DD
   reason?: string;
 }
 
@@ -18,7 +18,12 @@ export function useCreateClinicHoliday() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (input: SetClinicHolidayInput) =>
-      axios.post<ClinicHoliday>("/v1/clinic-holidays", { date: input.date, reason: input.reason ?? "" }).then((r) => r.data),
+      axios
+        .post<ClinicHoliday>("/v1/clinic-holidays", {
+          date: input.date,
+          reason: input.reason ?? "",
+        })
+        .then((r) => r.data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.clinicHolidays.all() });
     },
@@ -30,8 +35,7 @@ export function useCreateClinicHoliday() {
 export function useDeleteClinicHoliday() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (date: string) =>
-      axios.delete(`/v1/clinic-holidays/${date}`),
+    mutationFn: (date: string) => axios.delete(`/v1/clinic-holidays/${date}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.clinicHolidays.all() });
     },

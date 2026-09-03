@@ -54,16 +54,16 @@ export const DOSE_DEVIATION_REL_THRESHOLD = 0.2;
 // 安全のため exact-match（trim + 小文字化後）のみ。未知語は fail-closed（null）で manual に落とす。
 // 犬・猫を取り違えるエイリアスは絶対に追加しないこと（猫への犬用量は致死的になり得る）。
 const DOSE_SPECIES_ALIASES: Record<string, MedicineDoseSpecies> = {
-  "犬": MedicineDoseSpeciesDog,
-  "いぬ": MedicineDoseSpeciesDog,
-  "イヌ": MedicineDoseSpeciesDog,
-  "ドッグ": MedicineDoseSpeciesDog,
+  犬: MedicineDoseSpeciesDog,
+  いぬ: MedicineDoseSpeciesDog,
+  イヌ: MedicineDoseSpeciesDog,
+  ドッグ: MedicineDoseSpeciesDog,
   dog: MedicineDoseSpeciesDog,
   canine: MedicineDoseSpeciesDog,
-  "猫": MedicineDoseSpeciesCat,
-  "ねこ": MedicineDoseSpeciesCat,
-  "ネコ": MedicineDoseSpeciesCat,
-  "キャット": MedicineDoseSpeciesCat,
+  猫: MedicineDoseSpeciesCat,
+  ねこ: MedicineDoseSpeciesCat,
+  ネコ: MedicineDoseSpeciesCat,
+  キャット: MedicineDoseSpeciesCat,
   cat: MedicineDoseSpeciesCat,
   feline: MedicineDoseSpeciesCat,
 };
@@ -72,7 +72,9 @@ const DOSE_SPECIES_ALIASES: Record<string, MedicineDoseSpecies> = {
  * free-text の種名を計算用の正規化種へ写像する。マップ不能な場合は null（fail-closed）。
  * 犬↔猫の取り違え・silent フォールバックは行わない。
  */
-export function normalizeDoseSpecies(freeText: string | null | undefined): MedicineDoseSpecies | null {
+export function normalizeDoseSpecies(
+  freeText: string | null | undefined,
+): MedicineDoseSpecies | null {
   const key = (freeText ?? "").trim().toLowerCase();
   if (!key) return null;
   return DOSE_SPECIES_ALIASES[key] ?? null;
@@ -172,14 +174,21 @@ function doseEligibility(input: DoseCalcInput): string | null {
   if (input.weightKg <= 0) {
     return "weight is not recorded";
   }
-  if (input.doseBasis === MedicineDoseBasisPerDay && (!input.frequencyPerDay || input.frequencyPerDay <= 0)) {
+  if (
+    input.doseBasis === MedicineDoseBasisPerDay &&
+    (!input.frequencyPerDay || input.frequencyPerDay <= 0)
+  ) {
     return "frequency_per_day is required for per_day basis";
   }
   return null;
 }
 
 function doseBasisFactor(input: DoseCalcInput): number {
-  if (input.doseBasis === MedicineDoseBasisPerDay && input.frequencyPerDay && input.frequencyPerDay > 0) {
+  if (
+    input.doseBasis === MedicineDoseBasisPerDay &&
+    input.frequencyPerDay &&
+    input.frequencyPerDay > 0
+  ) {
     return 1 / input.frequencyPerDay;
   }
   return 1;
@@ -322,7 +331,10 @@ export interface SubmittedDoseEvaluation {
  * submittedQty（画面上の現在値）を評価すること — calculateDose の結果だけを見ると
  * 手動上書き後の危険な値を見逃す。
  */
-export function evaluateSubmittedDose(input: DoseCalcInput, submittedQty: number): SubmittedDoseEvaluation {
+export function evaluateSubmittedDose(
+  input: DoseCalcInput,
+  submittedQty: number,
+): SubmittedDoseEvaluation {
   const strength = input.strength ?? 0;
   const basisFactor = doseBasisFactor(input);
   const effectiveDoseMg = submittedQty * strength;

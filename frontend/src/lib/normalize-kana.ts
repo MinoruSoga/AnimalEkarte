@@ -4,9 +4,7 @@
  * Go 側の NormalizeKana (repository/kana_normalize.go) と同等の変換。
  */
 export function normalizeKana(s: string): string {
-  return s.replace(/[ァ-ヶ]/g, (ch) =>
-    String.fromCharCode(ch.charCodeAt(0) - 0x60)
-  );
+  return s.replace(/[ァ-ヶ]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) - 0x60));
 }
 
 /**

@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState, type Dispatch, type SetStateAction } from 'react';
-import { resolveFetchError, type FetchErrorInfo } from './handle-fetch-error';
+import { useCallback, useEffect, useState, type Dispatch, type SetStateAction } from "react";
+import { resolveFetchError, type FetchErrorInfo } from "./handle-fetch-error";
 
 export interface UseFetchStateResult<T> {
   data: T | null;
@@ -18,7 +18,10 @@ export interface UseFetchStateResult<T> {
  * このフック自身は [fetcher, context] のみを見る固定長の依存配列を持つ。
  * setData は取得後のローカルな楽観的更新（例: 一覧の一部を書き換える）向けに公開する。
  */
-export function useFetchState<T>(fetcher: () => Promise<T>, context: string): UseFetchStateResult<T> {
+export function useFetchState<T>(
+  fetcher: () => Promise<T>,
+  context: string,
+): UseFetchStateResult<T> {
   const [data, setData] = useState<T | null>(null);
   const [error, setError] = useState<FetchErrorInfo | null>(null);
   const [retryToken, setRetryToken] = useState(0);

@@ -92,9 +92,7 @@ const ALLOWED_MUTATION_PERMISSIONS = {
 } as const;
 
 function renderExaminationForm(id?: string) {
-  return renderHook(() =>
-    useExaminationForm(id, undefined, ALLOWED_MUTATION_PERMISSIONS),
-  );
+  return renderHook(() => useExaminationForm(id, undefined, ALLOWED_MUTATION_PERMISSIONS));
 }
 
 // FE-RC-045: use-examination-form.test.ts (2662行) をトピック別に分割した1ファイル。
@@ -103,10 +101,7 @@ function renderExaminationForm(id?: string) {
 describe("useExaminationForm — 検査項目テーブル（FE-EXAM-001）", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(useSearchParams).mockReturnValue([
-      new URLSearchParams(),
-      vi.fn(),
-    ]);
+    vi.mocked(useSearchParams).mockReturnValue([new URLSearchParams(), vi.fn()]);
     vi.mocked(useGetPet).mockReturnValue({
       data: null,
       isLoading: false,
@@ -125,8 +120,7 @@ describe("useExaminationForm — 検査項目テーブル（FE-EXAM-001）", () 
 
   it("編集モードで既存 items を formItems に反映する", async () => {
     const { useGetExamination } = await import("../api/get-examination");
-    const { useGetExaminationItems } =
-      await import("../api/get-examination-items");
+    const { useGetExaminationItems } = await import("../api/get-examination-items");
     vi.mocked(useGetExamination).mockReturnValue({
       data: {
         id: "exam-001",
@@ -171,8 +165,7 @@ describe("useExaminationForm — 検査項目テーブル（FE-EXAM-001）", () 
 
   it("setInspectionValue で指定 row の inspectionValue を更新できる", async () => {
     const { useGetExamination } = await import("../api/get-examination");
-    const { useGetExaminationItems } =
-      await import("../api/get-examination-items");
+    const { useGetExaminationItems } = await import("../api/get-examination-items");
     vi.mocked(useGetExamination).mockReturnValue({
       data: {
         id: "exam-001",
@@ -248,8 +241,7 @@ describe("useExaminationForm — 検査項目テーブル（FE-EXAM-001）", () 
 
   it("追加した手動行の名前と結果値をPATCH itemsへ送る", async () => {
     const { useGetExamination } = await import("../api/get-examination");
-    const { useGetExaminationItems } =
-      await import("../api/get-examination-items");
+    const { useGetExaminationItems } = await import("../api/get-examination-items");
     const { useUpdateExamination } = await import("../api/update-examination");
 
     vi.mocked(useGetExamination).mockReturnValue({
@@ -308,8 +300,7 @@ describe("useExaminationForm — 検査項目テーブル（FE-EXAM-001）", () 
 
   it("結果値がある手動行の空名を拒否し、silent drop しない", async () => {
     const { useGetExamination } = await import("../api/get-examination");
-    const { useGetExaminationItems } =
-      await import("../api/get-examination-items");
+    const { useGetExaminationItems } = await import("../api/get-examination-items");
     const { useUpdateExamination } = await import("../api/update-examination");
 
     vi.mocked(useGetExamination).mockReturnValue({
@@ -351,11 +342,9 @@ describe("useExaminationForm — 検査項目テーブル（FE-EXAM-001）", () 
 
   it("編集モード保存時に表示値を保持し判定境界を含まない items を PATCH する", async () => {
     const { useGetExamination } = await import("../api/get-examination");
-    const { useGetExaminationItems } =
-      await import("../api/get-examination-items");
+    const { useGetExaminationItems } = await import("../api/get-examination-items");
     const { useUpdateExamination } = await import("../api/update-examination");
-    const { useUpdateExaminationItems } =
-      await import("../api/update-examination-items");
+    const { useUpdateExaminationItems } = await import("../api/update-examination-items");
 
     vi.mocked(useGetExamination).mockReturnValue({
       data: {
@@ -453,8 +442,7 @@ describe("useExaminationForm — 検査項目テーブル（FE-EXAM-001）", () 
 
   it("編集モードで items が空でも空配列を PATCH に含める", async () => {
     const { useGetExamination } = await import("../api/get-examination");
-    const { useGetExaminationItems } =
-      await import("../api/get-examination-items");
+    const { useGetExaminationItems } = await import("../api/get-examination-items");
     const { useUpdateExamination } = await import("../api/update-examination");
 
     vi.mocked(useGetExamination).mockReturnValue({
@@ -515,58 +503,49 @@ describe("useExaminationForm — 検査項目テーブル（FE-EXAM-001）", () 
         error: new Error("items unavailable"),
       },
     ],
-  ])(
-    "編集モードで検査項目が%sなら保存 mutation を発行しない",
-    async (_label, itemQueryResult) => {
-      const { useGetExamination } = await import("../api/get-examination");
-      const { useGetExaminationItems } =
-        await import("../api/get-examination-items");
-      const { useUpdateExamination } =
-        await import("../api/update-examination");
+  ])("編集モードで検査項目が%sなら保存 mutation を発行しない", async (_label, itemQueryResult) => {
+    const { useGetExamination } = await import("../api/get-examination");
+    const { useGetExaminationItems } = await import("../api/get-examination-items");
+    const { useUpdateExamination } = await import("../api/update-examination");
 
-      vi.mocked(useGetExamination).mockReturnValue({
-        data: {
-          id: "exam-001",
-          testTypeId: "5",
-          doctorId: "3",
-          status: "検査中" as const,
-          ownerName: "",
-          petName: "",
-          date: "",
-        },
-      } as ReturnType<typeof useGetExamination>);
-      vi.mocked(useGetExaminationItems).mockReturnValue(
-        itemQueryResult as ReturnType<typeof useGetExaminationItems>,
-      );
-      const updateMutate = vi.fn().mockResolvedValue({});
-      vi.mocked(useUpdateExamination).mockReturnValue({
-        mutateAsync: updateMutate,
-      } as ReturnType<typeof useUpdateExamination>);
+    vi.mocked(useGetExamination).mockReturnValue({
+      data: {
+        id: "exam-001",
+        testTypeId: "5",
+        doctorId: "3",
+        status: "検査中" as const,
+        ownerName: "",
+        petName: "",
+        date: "",
+      },
+    } as ReturnType<typeof useGetExamination>);
+    vi.mocked(useGetExaminationItems).mockReturnValue(
+      itemQueryResult as ReturnType<typeof useGetExaminationItems>,
+    );
+    const updateMutate = vi.fn().mockResolvedValue({});
+    vi.mocked(useUpdateExamination).mockReturnValue({
+      mutateAsync: updateMutate,
+    } as ReturnType<typeof useUpdateExamination>);
 
-      const { result } = renderExaminationForm("exam-001");
-      await waitFor(() =>
-        expect(result.current.formData.testTypeId).toBe("5"),
-      );
+    const { result } = renderExaminationForm("exam-001");
+    await waitFor(() => expect(result.current.formData.testTypeId).toBe("5"));
 
-      await act(async () => {
-        startTransition(() => result.current.formAction(new FormData()));
-      });
+    await act(async () => {
+      startTransition(() => result.current.formAction(new FormData()));
+    });
 
-      await waitFor(() =>
-        expect(result.current.formState.fieldErrors).toEqual({
-          examItems: "検査項目の読み込み完了後に保存してください",
-        }),
-      );
-      expect(updateMutate).not.toHaveBeenCalled();
-    },
-  );
+    await waitFor(() =>
+      expect(result.current.formState.fieldErrors).toEqual({
+        examItems: "検査項目の読み込み完了後に保存してください",
+      }),
+    );
+    expect(updateMutate).not.toHaveBeenCalled();
+  });
 
   it("検査ID変更時は旧itemsを破棄し、新IDの取得完了後だけ新itemsをPATCHする", async () => {
     const { useGetExamination } = await import("../api/get-examination");
-    const { useGetExaminationItems } =
-      await import("../api/get-examination-items");
-    const { useGetExamTypeFields } =
-      await import("../api/get-exam-type-fields");
+    const { useGetExaminationItems } = await import("../api/get-examination-items");
+    const { useGetExamTypeFields } = await import("../api/get-exam-type-fields");
     const { useUpdateExamination } = await import("../api/update-examination");
 
     const examinationFor = (examID: string) => ({
@@ -577,8 +556,7 @@ describe("useExaminationForm — 検査項目テーブル（FE-EXAM-001）", () 
       ownerName: "",
       petName: "",
       date: examID === "exam-a" ? "2026-08-01" : "2026-08-02",
-      resultSummary:
-        examID === "exam-a" ? "server summary A" : "server summary B",
+      resultSummary: examID === "exam-a" ? "server summary A" : "server summary B",
       machine: examID === "exam-a" ? "server machine A" : "server machine B",
     });
     const itemFor = (id: string, name: string, inspectionValue: string) => ({
@@ -598,10 +576,7 @@ describe("useExaminationForm — 検査項目テーブル（FE-EXAM-001）", () 
     });
     let examinationBItemsReady = false;
     vi.mocked(useGetExamination).mockImplementation(
-      (examID) =>
-        ({ data: examinationFor(examID) }) as ReturnType<
-          typeof useGetExamination
-        >,
+      (examID) => ({ data: examinationFor(examID) }) as ReturnType<typeof useGetExamination>,
     );
     vi.mocked(useGetExaminationItems).mockImplementation((examID) => {
       if (examID === "exam-a") {
@@ -648,11 +623,7 @@ describe("useExaminationForm — 検査項目テーブル（FE-EXAM-001）", () 
 
     const { result, rerender } = renderHook(
       ({ examID }: { examID: string }) =>
-        useExaminationForm(
-          examID,
-          undefined,
-          ALLOWED_MUTATION_PERMISSIONS,
-        ),
+        useExaminationForm(examID, undefined, ALLOWED_MUTATION_PERMISSIONS),
       { initialProps: { examID: "exam-a" } },
     );
     await waitFor(() => expect(result.current.formItems[0]?.name).toBe("A-WBC"));
@@ -708,5 +679,4 @@ describe("useExaminationForm — 検査項目テーブル（FE-EXAM-001）", () 
       }),
     );
   });
-
 });

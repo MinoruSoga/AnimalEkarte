@@ -28,7 +28,9 @@ export const useGetAllMerchandiseItems = () => {
   return useQuery({
     queryKey: queryKeys.accounting.merchandiseItems(),
     queryFn: async (): Promise<FrontendMerchandiseItem[]> => {
-      const { data } = await axios.get<MerchandiseItem[] | { data: MerchandiseItem[] }>("/v1/masters/merchandise-items");
+      const { data } = await axios.get<MerchandiseItem[] | { data: MerchandiseItem[] }>(
+        "/v1/masters/merchandise-items",
+      );
       const items = Array.isArray(data) ? data : data.data;
       return items.map(transformMerchandiseItem);
     },

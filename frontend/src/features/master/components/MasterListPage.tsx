@@ -93,7 +93,13 @@ export const MasterListPage = memo(function MasterListPage({
 }: MasterListPageProps) {
   return (
     <>
-      <MasterPageShell title={title} icon={icon} resource={resource} onNew={onNew} sidePanel={sidePanel}>
+      <MasterPageShell
+        title={title}
+        icon={icon}
+        resource={resource}
+        onNew={onNew}
+        sidePanel={sidePanel}
+      >
         <div className="flex flex-col gap-4">
           <PropertyFilter
             properties={filterProperties ?? []}

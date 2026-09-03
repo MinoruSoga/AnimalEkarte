@@ -60,58 +60,58 @@ export function TreatmentPlanMasterView({
 }: TreatmentPlanMasterViewProps) {
   return (
     <>
-    <MasterTabPage
-      title="診療項目マスタ"
-      icon={<Stethoscope className={`${ICON.page} ${C.text}`} />}
-      resource={activeResource}
-      onNew={onNew}
-      sidePanel={
-        <TreatmentPlanSidePanelHost
-          editTarget={editTarget}
-          selectedItem={resources.selectedItem}
-          parentCandidates={resources.parentCandidates}
-          hasChildren={resources.hasChildren}
-          canDelete={activeCanDelete}
-          canCreate={activeCanCreate}
-          canEdit={activeCanEdit}
-          examinationType={resources.selectedExamination}
-          showAnesthesia={activeTab === "procedure"}
-          onClose={onClose}
-          onSave={onSave}
-          onDeleteRequest={onDeleteRequest}
-          onDirtyChange={onDirtyChange}
-        />
-      }
-      deleteDialogs={
-        <TreatmentPlanDeleteDialog
-          entityLabel={resources.tabConfigs[activeTab].entityLabel}
-          pendingDelete={pendingDelete}
-          onClose={onDeleteCancel}
-          onConfirm={onDeleteConfirm}
-        />
-      }
-    >
-      <UnifiedTabs
-        items={TREATMENT_PLAN_TABS}
-        value={activeTab}
-        onValueChange={onTabChange}
-        className="flex flex-col gap-4"
+      <MasterTabPage
+        title="診療項目マスタ"
+        icon={<Stethoscope className={`${ICON.page} ${C.text}`} />}
+        resource={activeResource}
+        onNew={onNew}
+        sidePanel={
+          <TreatmentPlanSidePanelHost
+            editTarget={editTarget}
+            selectedItem={resources.selectedItem}
+            parentCandidates={resources.parentCandidates}
+            hasChildren={resources.hasChildren}
+            canDelete={activeCanDelete}
+            canCreate={activeCanCreate}
+            canEdit={activeCanEdit}
+            examinationType={resources.selectedExamination}
+            showAnesthesia={activeTab === "procedure"}
+            onClose={onClose}
+            onSave={onSave}
+            onDeleteRequest={onDeleteRequest}
+            onDirtyChange={onDirtyChange}
+          />
+        }
+        deleteDialogs={
+          <TreatmentPlanDeleteDialog
+            entityLabel={resources.tabConfigs[activeTab].entityLabel}
+            pendingDelete={pendingDelete}
+            onClose={onDeleteCancel}
+            onConfirm={onDeleteConfirm}
+          />
+        }
       >
-        {TREATMENT_PLAN_TABS.map((tab) => {
-          const config = resources.tabConfigs[tab.value];
-          return (
-            <UnifiedTabsContent key={tab.value} value={tab.value} className="mt-4">
-              <TreatmentPlanTabContent
-                {...config}
-                onEditTargetChange={onEditTargetChange}
-                canEdit={tab.value === "checkup" ? canEditCheckup : canEdit}
-              />
-            </UnifiedTabsContent>
-          );
-        })}
-      </UnifiedTabs>
-    </MasterTabPage>
-    {discardDialog}
+        <UnifiedTabs
+          items={TREATMENT_PLAN_TABS}
+          value={activeTab}
+          onValueChange={onTabChange}
+          className="flex flex-col gap-4"
+        >
+          {TREATMENT_PLAN_TABS.map((tab) => {
+            const config = resources.tabConfigs[tab.value];
+            return (
+              <UnifiedTabsContent key={tab.value} value={tab.value} className="mt-4">
+                <TreatmentPlanTabContent
+                  {...config}
+                  onEditTargetChange={onEditTargetChange}
+                  canEdit={tab.value === "checkup" ? canEditCheckup : canEdit}
+                />
+              </UnifiedTabsContent>
+            );
+          })}
+        </UnifiedTabs>
+      </MasterTabPage>
+      {discardDialog}
     </>
   );
 }

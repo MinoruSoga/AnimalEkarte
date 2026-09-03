@@ -39,164 +39,194 @@ interface HospitalizationBoardProps {
 }
 
 interface CageCardProps {
-    cage: MasterItem;
-    occupant?: Hospitalization;
-    onNavigateToForm: (id?: string) => void;
-    canCreate: boolean;
-    canEdit: boolean;
+  cage: MasterItem;
+  occupant?: Hospitalization;
+  onNavigateToForm: (id?: string) => void;
+  canCreate: boolean;
+  canEdit: boolean;
 }
 
-const CageCard = memo(function CageCard({ cage, occupant, onNavigateToForm, canCreate, canEdit }: CageCardProps) {
-    const isDeceased = occupant?.petIsDeceased ?? false;
-    const cageContext = cage.category ? `${cage.category} ${cage.name}` : cage.name;
-    const emptyCageActionLabel = `${cageContext}（ケージID: ${cage.id}）の空き枠に入院・ホテルを登録`;
-    const canDrag = Boolean(occupant) && !isDeceased && canEdit;
-    // FE-RC-044: 詳細への遷移は :127-138 の `詳細` button（aria-label 付き）に一本化する。
-    // Card 自体は非フォーカス可能・キーボード操作不可のため、同じ操作を onClick で重複させない。
-    const canShowDetailButton = Boolean(occupant) && !isDeceased && canEdit;
+const CageCard = memo(function CageCard({
+  cage,
+  occupant,
+  onNavigateToForm,
+  canCreate,
+  canEdit,
+}: CageCardProps) {
+  const isDeceased = occupant?.petIsDeceased ?? false;
+  const cageContext = cage.category ? `${cage.category} ${cage.name}` : cage.name;
+  const emptyCageActionLabel = `${cageContext}（ケージID: ${cage.id}）の空き枠に入院・ホテルを登録`;
+  const canDrag = Boolean(occupant) && !isDeceased && canEdit;
+  // FE-RC-044: 詳細への遷移は :127-138 の `詳細` button（aria-label 付き）に一本化する。
+  // Card 自体は非フォーカス可能・キーボード操作不可のため、同じ操作を onClick で重複させない。
+  const canShowDetailButton = Boolean(occupant) && !isDeceased && canEdit;
 
-    const {
-        attributes,
-        listeners,
-        setNodeRef: setDragRef,
-        isDragging,
-    } = useDraggable({
-        id: occupant?.id ?? `empty-${cage.id}`,
-        data: { hospitalizationId: occupant?.id },
-        disabled: !canDrag,
-    });
+  const {
+    attributes,
+    listeners,
+    setNodeRef: setDragRef,
+    isDragging,
+  } = useDraggable({
+    id: occupant?.id ?? `empty-${cage.id}`,
+    data: { hospitalizationId: occupant?.id },
+    disabled: !canDrag,
+  });
 
-    const { setNodeRef: setDropRef, isOver } = useDroppable({
-        id: `cage-${cage.id}`,
-        data: { cageId: cage.id },
-        disabled: !canEdit,
-    });
+  const { setNodeRef: setDropRef, isOver } = useDroppable({
+    id: `cage-${cage.id}`,
+    data: { cageId: cage.id },
+    disabled: !canEdit,
+  });
 
-    return (
-        <div ref={setDropRef} className="h-full">
-            <Card
-                ref={setDragRef}
-                {...(canDrag ? attributes : {})}
-                {...(canDrag ? listeners : {})}
-                className={`relative flex flex-col h-40 transition-all border touch-none
-                  ${occupant
+  return (
+    <div ref={setDropRef} className="h-full">
+      <Card
+        ref={setDragRef}
+        {...(canDrag ? attributes : {})}
+        {...(canDrag ? listeners : {})}
+        className={`relative flex flex-col h-40 transition-all border touch-none
+                  ${
+                    occupant
                       ? isDeceased
                         ? `${C.bgPage} border-l-4 ${C.borderPrimary20} opacity-40`
                         : `${C.bgWhite} border-l-4 ${C.borderLMedicalBlue}`
                       : `${C.bgPage} border-dashed ${C.borderPrimary20}`
                   }
-                  ${isDragging ? 'opacity-50 scale-95' : 'hover:shadow-level1'}
-                  ${isOver ? `ring-2 ${C.ringMedicalBlue} ring-offset-2 ${C.bgMedicalBlue5}` : ''}
-                  ${canDrag ? 'cursor-grab active:cursor-grabbing' : 'cursor-default'}
+                  ${isDragging ? "opacity-50 scale-95" : "hover:shadow-level1"}
+                  ${isOver ? `ring-2 ${C.ringMedicalBlue} ring-offset-2 ${C.bgMedicalBlue5}` : ""}
+                  ${canDrag ? "cursor-grab active:cursor-grabbing" : "cursor-default"}
                 `}
+      >
+        <CardHeader
+          className={`${H_STYLES.padding.card} pb-0 flex flex-row items-center justify-between space-y-0`}
+        >
+          <div className="flex items-center gap-1">
+            {canDrag ? (
+              <div className={`cursor-grab active:cursor-grabbing ${C.text20} ${C.hoverText60}`}>
+                <GripVertical className={ICON.action} />
+              </div>
+            ) : null}
+            <span className={`${H_STYLES.text.sm} font-mono ${C.text60} font-bold`}>
+              {cage.name}
+            </span>
+          </div>
+          {occupant ? (
+            <Badge
+              variant="outline"
+              className={`${getHospitalizationTypeColor(occupant.hospitalizationType)} ${H_STYLES.text.xs} px-1.5 py-0 h-5 border-none`}
             >
-                <CardHeader className={`${H_STYLES.padding.card} pb-0 flex flex-row items-center justify-between space-y-0`}>
-                  <div className="flex items-center gap-1">
-                      {canDrag ? (
-                          <div className={`cursor-grab active:cursor-grabbing ${C.text20} ${C.hoverText60}`}>
-                              <GripVertical className={ICON.action} />
-                          </div>
-                      ) : null}
-                      <span className={`${H_STYLES.text.sm} font-mono ${C.text60} font-bold`}>{cage.name}</span>
-                  </div>
-                  {occupant ? (
-                      <Badge variant="outline" className={`${getHospitalizationTypeColor(occupant.hospitalizationType)} ${H_STYLES.text.xs} px-1.5 py-0 h-5 border-none`}>
-                          {occupant.hospitalizationType}
-                      </Badge>
-                  ) : null}
-                </CardHeader>
-                <CardContent className={`${H_STYLES.padding.card} flex-1 flex flex-col justify-center items-start text-left`}>
-                  {occupant ? (
-                    <>
-                      {occupant.startDate ? (
-                        <div className={`text-xs font-mono ${C.text60} w-full`}>
-                          {formatDate(occupant.startDate)}
-                        </div>
-                      ) : null}
-                      <div className={`font-bold ${C.text} ${H_STYLES.text.sm} truncate w-full`} title={occupant.ownerName}>
-                          {occupant.ownerName}
-                      </div>
-                      <div className={`${H_STYLES.text.sm} ${C.text} truncate w-full`}>
-                          {[occupant.species, occupant.petName].filter(Boolean).join(" ")}
-                      </div>
-                      {isDeceased ? (
-                        <span className={`text-xs ${C.text40} font-medium`}>死亡</span>
-                      ) : null}
-                      {canShowDetailButton ? (
-                        <button
-                          type="button"
-                          aria-label={`${occupant.petName}の詳細`}
-                          className={`mt-2 flex min-h-11 items-center justify-center gap-1 text-2xs ${C.textBrand} ${C.bgBrandLight30} border ${C.borderBrandLight} rounded px-1.5 ${C.hoverBgBrandLight60} transition-colors`}
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            onNavigateToForm(occupant.id);
-                          }}
-                        >
-                          詳細
-                        </button>
-                      ) : null}
-                    </>
-                  ) : (
-                    <div className={`flex flex-col items-center justify-center h-full ${C.text20}`}>
-                       <span className={H_STYLES.text.sm}>空き</span>
-                       {canCreate ? (
-                         <Button
-                            variant="ghost"
-                            size="icon"
-                            aria-label={emptyCageActionLabel}
-                            title={emptyCageActionLabel}
-                            className={`h-10 w-10 mt-1 rounded-full ${C.hoverBgPrimary10} ${C.hoverText60}`}
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                onNavigateToForm();
-                            }}
-                         >
-                           <Plus className={H_STYLES.button.icon} />
-                         </Button>
-                       ) : null}
-                    </div>
-                  )}
-                </CardContent>
-            </Card>
-        </div>
-    );
+              {occupant.hospitalizationType}
+            </Badge>
+          ) : null}
+        </CardHeader>
+        <CardContent
+          className={`${H_STYLES.padding.card} flex-1 flex flex-col justify-center items-start text-left`}
+        >
+          {occupant ? (
+            <>
+              {occupant.startDate ? (
+                <div className={`text-xs font-mono ${C.text60} w-full`}>
+                  {formatDate(occupant.startDate)}
+                </div>
+              ) : null}
+              <div
+                className={`font-bold ${C.text} ${H_STYLES.text.sm} truncate w-full`}
+                title={occupant.ownerName}
+              >
+                {occupant.ownerName}
+              </div>
+              <div className={`${H_STYLES.text.sm} ${C.text} truncate w-full`}>
+                {[occupant.species, occupant.petName].filter(Boolean).join(" ")}
+              </div>
+              {isDeceased ? <span className={`text-xs ${C.text40} font-medium`}>死亡</span> : null}
+              {canShowDetailButton ? (
+                <button
+                  type="button"
+                  aria-label={`${occupant.petName}の詳細`}
+                  className={`mt-2 flex min-h-11 items-center justify-center gap-1 text-2xs ${C.textBrand} ${C.bgBrandLight30} border ${C.borderBrandLight} rounded px-1.5 ${C.hoverBgBrandLight60} transition-colors`}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onNavigateToForm(occupant.id);
+                  }}
+                >
+                  詳細
+                </button>
+              ) : null}
+            </>
+          ) : (
+            <div className={`flex flex-col items-center justify-center h-full ${C.text20}`}>
+              <span className={H_STYLES.text.sm}>空き</span>
+              {canCreate ? (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label={emptyCageActionLabel}
+                  title={emptyCageActionLabel}
+                  className={`h-10 w-10 mt-1 rounded-full ${C.hoverBgPrimary10} ${C.hoverText60}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onNavigateToForm();
+                  }}
+                >
+                  <Plus className={H_STYLES.button.icon} />
+                </Button>
+              ) : null}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
 });
 
-export const HospitalizationBoard = memo(function HospitalizationBoard({ cages, hospitalizations, onNavigateToForm, onMovePet, canCreate, canEdit }: HospitalizationBoardProps) {
+export const HospitalizationBoard = memo(function HospitalizationBoard({
+  cages,
+  hospitalizations,
+  onNavigateToForm,
+  onMovePet,
+  canCreate,
+  canEdit,
+}: HospitalizationBoardProps) {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(KeyboardSensor, { coordinateGetter: cageKeyboardCoordinateGetter }),
   );
 
-  const handleDragEnd = useCallback((event: DragEndEvent) => {
-    if (!canEdit) return;
-    const { active, over } = event;
-    if (!over) return;
+  const handleDragEnd = useCallback(
+    (event: DragEndEvent) => {
+      if (!canEdit) return;
+      const { active, over } = event;
+      if (!over) return;
 
-    // FE-RC-037: dnd-kit の data/id は unknown 相当のため、無検証キャストせず typeof で確認する。
-    const hospitalizationId = active.data.current?.hospitalizationId;
-    if (typeof hospitalizationId !== "string" || !hospitalizationId) return;
+      // FE-RC-037: dnd-kit の data/id は unknown 相当のため、無検証キャストせず typeof で確認する。
+      const hospitalizationId = active.data.current?.hospitalizationId;
+      if (typeof hospitalizationId !== "string" || !hospitalizationId) return;
 
-    const overId = over.id;
-    if (typeof overId !== "string" || !overId.startsWith("cage-")) return;
+      const overId = over.id;
+      if (typeof overId !== "string" || !overId.startsWith("cage-")) return;
 
-    const targetCageId = overId.replace("cage-", "");
-    onMovePet(hospitalizationId, targetCageId);
-  }, [canEdit, onMovePet]);
+      const targetCageId = overId.replace("cage-", "");
+      onMovePet(hospitalizationId, targetCageId);
+    },
+    [canEdit, onMovePet],
+  );
 
   // Group cages by category (Area)
-  const cagesByArea = cages.reduce((acc, cage) => {
-    const area = cage.category || "その他";
-    if (!acc[area]) acc[area] = [];
-    acc[area].push(cage);
-    return acc;
-  }, {} as Record<string, MasterItem[]>);
+  const cagesByArea = cages.reduce(
+    (acc, cage) => {
+      const area = cage.category || "その他";
+      if (!acc[area]) acc[area] = [];
+      acc[area].push(cage);
+      return acc;
+    },
+    {} as Record<string, MasterItem[]>,
+  );
 
   // js-index-maps: cageId → Hospitalization の Map を事前構築（O(n)）しレンダーループ内で O(1) 検索
   // 親コンポーネントがタブに応じて既にフィルタリング済みのデータを渡すため、ここでは再フィルタしない
   const occupantByCageId = useMemo(
-    () => new Map(hospitalizations.map(h => [h.cageId, h])),
-    [hospitalizations]
+    () => new Map(hospitalizations.map((h) => [h.cageId, h])),
+    [hospitalizations],
   );
 
   return (
@@ -205,20 +235,22 @@ export const HospitalizationBoard = memo(function HospitalizationBoard({ cages, 
         {Object.entries(cagesByArea).map(([area, areaCages]) => (
           // No min-w-[800px]: reflow 1/2/3+ columns by container width (BUG-458).
           <div key={area} className="min-w-0">
-            <h3 className={`${H_STYLES.text.lg} font-bold ${C.text} mb-3 border-b pb-1 ${C.borderPrimary10}`}>
+            <h3
+              className={`${H_STYLES.text.lg} font-bold ${C.text} mb-3 border-b pb-1 ${C.borderPrimary10}`}
+            >
               {area}
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-              {areaCages.map(cage => {
+              {areaCages.map((cage) => {
                 const occupant = occupantByCageId.get(String(cage.id));
                 return (
                   <CageCard
-                      key={cage.id}
-                      cage={cage}
-                      occupant={occupant}
-                      onNavigateToForm={onNavigateToForm}
-                      canCreate={canCreate}
-                      canEdit={canEdit}
+                    key={cage.id}
+                    cage={cage}
+                    occupant={occupant}
+                    onNavigateToForm={onNavigateToForm}
+                    canCreate={canCreate}
+                    canEdit={canEdit}
                   />
                 );
               })}

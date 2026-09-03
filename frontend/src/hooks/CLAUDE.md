@@ -24,7 +24,7 @@ use-kebab-case.ts   例: use-modal-state.ts, use-pagination.ts
 ```typescript
 // ✅ トップレベルでのみ呼び出す
 function useMyHook() {
-  const [state, setState] = useState(false);  // 常にトップレベル
+  const [state, setState] = useState(false); // 常にトップレベル
 }
 
 // ❌ 条件分岐・ループ内での呼び出し禁止
@@ -43,7 +43,7 @@ if (condition) {
 const handleClose = useCallback(() => setOpen(false), []);
 
 // ❌
-const handleClose = () => setOpen(false);  // 毎レンダーで新しい参照
+const handleClose = () => setOpen(false); // 毎レンダーで新しい参照
 ```
 
 ## Query Cache 共有パターン

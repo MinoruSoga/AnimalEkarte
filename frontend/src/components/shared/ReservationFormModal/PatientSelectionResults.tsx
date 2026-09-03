@@ -29,33 +29,15 @@ function PatientSelectionTableBody({
   return (
     <Table>
       <TableHeader className={`${C.bgPage} sticky top-0 z-10`}>
-        <TableRow
-          className={`border-b ${C.borderMedium} h-9 ${C.hoverBgPage}`}
-        >
-          <TableHead className={`min-w-[80px] ${C.text40} h-9`}>
-            飼主No
-          </TableHead>
-          <TableHead className={`min-w-[120px] ${C.text40} h-9`}>
-            飼主名
-          </TableHead>
-          <TableHead className={`min-w-[100px] ${C.text40} h-9`}>
-            ペット名
-          </TableHead>
-          <TableHead className={`min-w-[60px] ${C.text40} h-9`}>
-            種別
-          </TableHead>
-          <TableHead className={`min-w-[60px] ${C.text40} h-9`}>
-            性別
-          </TableHead>
-          <TableHead className={`min-w-[80px] ${C.text40} h-9`}>
-            生年月日
-          </TableHead>
-          <TableHead className={`min-w-[60px] ${C.text40} h-9`}>
-            体重
-          </TableHead>
-          <TableHead className={`min-w-[60px] ${C.text40} h-9`}>
-            操作
-          </TableHead>
+        <TableRow className={`border-b ${C.borderMedium} h-9 ${C.hoverBgPage}`}>
+          <TableHead className={`min-w-[80px] ${C.text40} h-9`}>飼主No</TableHead>
+          <TableHead className={`min-w-[120px] ${C.text40} h-9`}>飼主名</TableHead>
+          <TableHead className={`min-w-[100px] ${C.text40} h-9`}>ペット名</TableHead>
+          <TableHead className={`min-w-[60px] ${C.text40} h-9`}>種別</TableHead>
+          <TableHead className={`min-w-[60px] ${C.text40} h-9`}>性別</TableHead>
+          <TableHead className={`min-w-[80px] ${C.text40} h-9`}>生年月日</TableHead>
+          <TableHead className={`min-w-[60px] ${C.text40} h-9`}>体重</TableHead>
+          <TableHead className={`min-w-[60px] ${C.text40} h-9`}>操作</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -80,12 +62,7 @@ interface PatientSelectionRowProps {
   onSelect: (pet: Pet) => void;
 }
 
-function PatientSelectionRow({
-  pet,
-  isBusy,
-  isSelected,
-  onSelect,
-}: PatientSelectionRowProps) {
+function PatientSelectionRow({ pet, isBusy, isSelected, onSelect }: PatientSelectionRowProps) {
   const isDeceased = pet.status === "死亡";
   const isAlive = pet.status === "生存";
   const isSelectable = isAlive && !isBusy;
@@ -96,27 +73,15 @@ function PatientSelectionRow({
         isSelected ? C.bgPage : ""
       } ${!isAlive ? "opacity-50 grayscale-[0.5]" : ""}`}
     >
-      <TableCell className={`text-sm font-mono ${C.text}`}>
-        {pet.ownerId}
-      </TableCell>
-      <TableCell className={`text-sm font-medium ${C.text}`}>
-        {pet.ownerName}
-      </TableCell>
+      <TableCell className={`text-sm font-mono ${C.text}`}>{pet.ownerId}</TableCell>
+      <TableCell className={`text-sm font-medium ${C.text}`}>{pet.ownerName}</TableCell>
       <TableCell className={`text-sm ${C.text}`}>
         <span className="font-bold">{pet.name}</span>
       </TableCell>
-      <TableCell className={`text-sm ${C.text}`}>
-        {pet.species}
-      </TableCell>
-      <TableCell className={`text-sm ${C.text}`}>
-        {pet.gender || "-"}
-      </TableCell>
-      <TableCell className={`text-sm font-mono ${C.text}`}>
-        {pet.birthDate || "-"}
-      </TableCell>
-      <TableCell className={`text-sm font-mono ${C.text}`}>
-        {pet.weight || "-"}
-      </TableCell>
+      <TableCell className={`text-sm ${C.text}`}>{pet.species}</TableCell>
+      <TableCell className={`text-sm ${C.text}`}>{pet.gender || "-"}</TableCell>
+      <TableCell className={`text-sm font-mono ${C.text}`}>{pet.birthDate || "-"}</TableCell>
+      <TableCell className={`text-sm font-mono ${C.text}`}>{pet.weight || "-"}</TableCell>
       <TableCell>
         <Button
           size="sm"
@@ -143,16 +108,8 @@ function PatientSelectionRow({
             if (isSelectable) onSelect(pet);
           }}
         >
-          <Check
-            className={`${ICON.xs} ${isSelected ? "" : "opacity-0"}`}
-          />
-          {isDeceased
-            ? "死亡"
-            : !isAlive
-              ? "不明"
-              : isSelected
-                ? "選択中"
-                : "選択"}
+          <Check className={`${ICON.xs} ${isSelected ? "" : "opacity-0"}`} />
+          {isDeceased ? "死亡" : !isAlive ? "不明" : isSelected ? "選択中" : "選択"}
         </Button>
       </TableCell>
     </TableRow>
@@ -179,16 +136,12 @@ export function PatientSelectionResults({
   onSelect,
 }: PatientSelectionResultsProps) {
   return (
-    <div
-      className={`flex-1 rounded-lg bg-white overflow-hidden border ${C.borderMedium} min-h-0`}
-    >
+    <div className={`flex-1 rounded-lg bg-white overflow-hidden border ${C.borderMedium} min-h-0`}>
       <div className="overflow-auto h-full flex flex-col">
         {!hasSearchConditions && !isSearchPending ? (
           <div className="flex flex-col items-center justify-center flex-1 text-center gap-3">
             <Search className={`${ICON.xl} ${C.text20}`} />
-            <div className={`text-sm ${C.text40}`}>
-              検索条件を入力してください
-            </div>
+            <div className={`text-sm ${C.text40}`}>検索条件を入力してください</div>
           </div>
         ) : error ? (
           <div className="flex-1 flex items-center justify-center">

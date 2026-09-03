@@ -130,11 +130,7 @@ describe("ownersLoader — #266 pets API (ペット行粒度)", () => {
     });
     mockedGet.mockResolvedValue({
       data: {
-        data: [
-          makeRow(1, "deceased"),
-          makeRow(2, "unexpected"),
-          makeRow(3, null),
-        ],
+        data: [makeRow(1, "deceased"), makeRow(2, "unexpected"), makeRow(3, null)],
         total: 3,
         page: 1,
         limit: 20,
@@ -173,7 +169,7 @@ describe("ownersLoader — #266 サーバサイドページネーション", () 
 
     await ownersLoader({
       request: new Request(
-        "http://localhost/owners?page=3&search=%E7%94%B0%E4%B8%AD&species=2&include_deceased=true&clinics=1,2"
+        "http://localhost/owners?page=3&search=%E7%94%B0%E4%B8%AD&species=2&include_deceased=true&clinics=1,2",
       ),
     });
 
@@ -244,9 +240,7 @@ describe("ownersLoader — 上流ステータスの保全", () => {
     expect(thrown).toBeInstanceOf(Response);
     expect((thrown as Response).status).toBe(status);
     expect((thrown as Response).status).not.toBe(500);
-    await expect((thrown as Response).text()).resolves.toBe(
-      "飼主一覧の取得に失敗しました",
-    );
+    await expect((thrown as Response).text()).resolves.toBe("飼主一覧の取得に失敗しました");
   });
 
   it("response を持たない通信エラー（ネットワーク断）は500になる", async () => {

@@ -64,7 +64,14 @@ export function useHospitalizationFormHydration(input: {
     if (hydratedTreatmentPlansForId.current === id) return;
     hydratedTreatmentPlansForId.current = id;
     setTreatmentPlans(buildTreatmentPlansFromRecord(treatmentPlanWire));
-  }, [isEdit, id, isTreatmentPlansSuccess, treatmentPlanWire, entityRead.status, setTreatmentPlans]);
+  }, [
+    isEdit,
+    id,
+    isTreatmentPlansSuccess,
+    treatmentPlanWire,
+    entityRead.status,
+    setTreatmentPlans,
+  ]);
 
   useEffect(() => {
     if (!petId || id) return;

@@ -1,4 +1,7 @@
-import { calculateNextDate, resolveScheduleTypeAfterManualDate } from "@/components/shared/NextScheduleField";
+import {
+  calculateNextDate,
+  resolveScheduleTypeAfterManualDate,
+} from "@/components/shared/NextScheduleField";
 
 export interface CheckupFormState {
   checkupTypeId: string;
@@ -60,7 +63,11 @@ export function checkupOverridesOnScheduleType(
 ): Partial<CheckupFormState> {
   const currentDate = prev.date ?? DEFAULT_CHECKUP_FORM.date;
   const calculated = calculateNextDate(currentDate, scheduleType);
-  return { ...prev, nextScheduleType: scheduleType, ...(calculated ? { nextDate: calculated } : {}) };
+  return {
+    ...prev,
+    nextScheduleType: scheduleType,
+    ...(calculated ? { nextDate: calculated } : {}),
+  };
 }
 
 export function checkupOverridesOnNextDate(

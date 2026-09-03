@@ -3,7 +3,16 @@ import { memo, useMemo } from "react";
 import type React from "react";
 
 // External
-import { startOfMonth, endOfMonth, startOfWeek, endOfWeek, format, isSameMonth, isSameDay, addDays } from "date-fns";
+import {
+  startOfMonth,
+  endOfMonth,
+  startOfWeek,
+  endOfWeek,
+  format,
+  isSameMonth,
+  isSameDay,
+  addDays,
+} from "date-fns";
 import { ja } from "date-fns/locale";
 
 // Internal
@@ -47,8 +56,14 @@ const HEADER_ROW = (
   </div>
 );
 
-export const MonthView = memo(function MonthView({ currentDate, appointments, onAppointmentClick, onDateClick, dynamicColorMap, holidayDates }: MonthViewProps) {
-
+export const MonthView = memo(function MonthView({
+  currentDate,
+  appointments,
+  onAppointmentClick,
+  onDateClick,
+  dynamicColorMap,
+  holidayDates,
+}: MonthViewProps) {
   const rows = useMemo(() => {
     const today = toJSTWallDate(new Date());
     const monthStart = startOfMonth(currentDate);
@@ -66,7 +81,7 @@ export const MonthView = memo(function MonthView({ currentDate, appointments, on
         const formattedDate = format(day, dateFormat);
         const cloneDay = day;
 
-        const dayAppointments = appointments.filter(app => isSameDay(app.start, cloneDay));
+        const dayAppointments = appointments.filter((app) => isSameDay(app.start, cloneDay));
         const dateKey = format(cloneDay, "yyyy-MM-dd");
         const isHoliday = holidayDates?.has(dateKey) ?? false;
 
@@ -81,63 +96,69 @@ export const MonthView = memo(function MonthView({ currentDate, appointments, on
             title={isHoliday ? "休診日" : undefined}
           >
             <div className="flex justify-between items-start mb-2">
-                <button
-                  type="button"
-                  className={`text-base font-bold size-7 flex items-center justify-center rounded-full transition-colors ${isSameDay(day, today) ? `${C.bgBrand} ${C.textOnBrand}` : `${C.hoverBgBrandLight} ${C.hoverTextBrand}`}`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onDateClick?.(cloneDay);
-                  }}
-                  aria-label={`${format(cloneDay, "M月d日")}の週表示へ${isHoliday ? "（休診日）" : ""}`}
-                >
-                  {formattedDate}
-                </button>
-                {isHoliday ? (
-                  <span className={`text-2xs font-medium ${C.danger}`}>休診</span>
-                ) : null}
+              <button
+                type="button"
+                className={`text-base font-bold size-7 flex items-center justify-center rounded-full transition-colors ${isSameDay(day, today) ? `${C.bgBrand} ${C.textOnBrand}` : `${C.hoverBgBrandLight} ${C.hoverTextBrand}`}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDateClick?.(cloneDay);
+                }}
+                aria-label={`${format(cloneDay, "M月d日")}の週表示へ${isHoliday ? "（休診日）" : ""}`}
+              >
+                {formattedDate}
+              </button>
+              {isHoliday ? <span className={`text-2xs font-medium ${C.danger}`}>休診</span> : null}
             </div>
             <div className="space-y-1.5 flex-1 overflow-hidden">
-                {dayAppointments.slice(0, 4).map(app => {
-                    const colorStyle = getReservationTypeColor(app.type, dynamicColorMap);
-                    const isClassNameColor = typeof colorStyle === "string";
-                    return (
-                    <button
-                        key={app.id}
-                        type="button"
-                        className={`block w-full text-left text-sm px-2 py-1.5 rounded border cursor-pointer hover:opacity-80 leading-tight ${isClassNameColor ? colorStyle : ""}`}
-                        style={isClassNameColor ? undefined : (colorStyle as React.CSSProperties)}
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            onAppointmentClick(app);
-                        }}
-                    >
-                        <div className="flex items-center gap-1 min-w-0">
-                            {app.visitType === "first"
-                                ? <span className={`${C.bgRedLight} ${C.danger} text-2xs px-1 rounded flex-shrink-0`}>初</span>
-                                : <span className={`${C.bgBrandLight} ${C.textBrandDark} text-2xs px-1 rounded flex-shrink-0`}>再</span>
-                            }
-                            <span className="truncate text-xs font-medium">{app.petName}</span>
-                        </div>
-                        <div className="text-2xs opacity-70 truncate mt-0.5">
-                            {app.ownerName}{app.doctor ? ` / ${app.doctor}` : ""}
-                        </div>
-                    </button>
-                    );
-                })}
-                {dayAppointments.length > 4 ? (
-                    <div className={`text-sm ${C.text60} pl-1`}>
-                        他 {dayAppointments.length - 4} 件
+              {dayAppointments.slice(0, 4).map((app) => {
+                const colorStyle = getReservationTypeColor(app.type, dynamicColorMap);
+                const isClassNameColor = typeof colorStyle === "string";
+                return (
+                  <button
+                    key={app.id}
+                    type="button"
+                    className={`block w-full text-left text-sm px-2 py-1.5 rounded border cursor-pointer hover:opacity-80 leading-tight ${isClassNameColor ? colorStyle : ""}`}
+                    style={isClassNameColor ? undefined : (colorStyle as React.CSSProperties)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onAppointmentClick(app);
+                    }}
+                  >
+                    <div className="flex items-center gap-1 min-w-0">
+                      {app.visitType === "first" ? (
+                        <span
+                          className={`${C.bgRedLight} ${C.danger} text-2xs px-1 rounded flex-shrink-0`}
+                        >
+                          初
+                        </span>
+                      ) : (
+                        <span
+                          className={`${C.bgBrandLight} ${C.textBrandDark} text-2xs px-1 rounded flex-shrink-0`}
+                        >
+                          再
+                        </span>
+                      )}
+                      <span className="truncate text-xs font-medium">{app.petName}</span>
                     </div>
-                ) : null}
+                    <div className="text-2xs opacity-70 truncate mt-0.5">
+                      {app.ownerName}
+                      {app.doctor ? ` / ${app.doctor}` : ""}
+                    </div>
+                  </button>
+                );
+              })}
+              {dayAppointments.length > 4 ? (
+                <div className={`text-sm ${C.text60} pl-1`}>他 {dayAppointments.length - 4} 件</div>
+              ) : null}
             </div>
-          </div>
+          </div>,
         );
         day = addDays(day, 1);
       }
       result.push(
         <div className="grid grid-cols-7 flex-1" key={day.toString()}>
           {days}
-        </div>
+        </div>,
       );
       days = [];
     }
@@ -146,11 +167,11 @@ export const MonthView = memo(function MonthView({ currentDate, appointments, on
   }, [currentDate, appointments, dynamicColorMap, onAppointmentClick, onDateClick, holidayDates]);
 
   return (
-    <div className={`flex flex-col h-full border-l border-t ${C.borderMedium} rounded-lg overflow-hidden ${C.bgWhite}`}>
+    <div
+      className={`flex flex-col h-full border-l border-t ${C.borderMedium} rounded-lg overflow-hidden ${C.bgWhite}`}
+    >
       {HEADER_ROW}
-      <div className="flex-1 flex flex-col">
-        {rows}
-      </div>
+      <div className="flex-1 flex flex-col">{rows}</div>
     </div>
   );
 });

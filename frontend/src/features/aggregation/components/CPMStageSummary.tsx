@@ -56,9 +56,7 @@ export function CPMStageSummary({
         className={chipClass(!selected)}
       >
         すべて
-        <span className="font-mono">
-          {countLabel(total, isLoading, isError)}
-        </span>
+        <span className="font-mono">{countLabel(total, isLoading, isError)}</span>
       </button>
 
       {AGGREGATION_CPM_STAGE_OPTIONS.map((opt) => {
@@ -73,9 +71,7 @@ export function CPMStageSummary({
             title={opt.label}
           >
             {AGGREGATION_CPM_STAGE_SHORT_LABELS[opt.value]}
-            <span className="font-mono">
-              {countLabel(counts[opt.value], isLoading, isError)}
-            </span>
+            <span className="font-mono">{countLabel(counts[opt.value], isLoading, isError)}</span>
           </button>
         );
       })}

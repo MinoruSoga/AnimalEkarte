@@ -11,7 +11,12 @@ interface SidePeekToolbarProps {
   readOnly?: boolean;
 }
 
-export const SidePeekToolbar = memo(function SidePeekToolbar({ isNew, onClose, onDelete, readOnly }: SidePeekToolbarProps) {
+export const SidePeekToolbar = memo(function SidePeekToolbar({
+  isNew,
+  onClose,
+  onDelete,
+  readOnly,
+}: SidePeekToolbarProps) {
   return (
     <div className={STYLE.sidePeekToolbar}>
       <span className={`text-xs ${C.text35} pl-1 select-none`}>

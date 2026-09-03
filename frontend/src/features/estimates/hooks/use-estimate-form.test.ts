@@ -15,17 +15,14 @@ const ALLOW_ALL_PERMISSIONS: Readonly<EstimateMutationPermissions> = {
 // vi.mock はホイストされるため、参照する変数は vi.hoisted で先に定義する
 // ──────────────────────────────────────────────────────────
 
-const {
-  mockNavigate,
-  mockToast,
-  mockCreateMutateAsync,
-  mockUpdateMutateAsync,
-} = vi.hoisted(() => ({
-  mockNavigate: vi.fn(),
-  mockToast: { error: vi.fn(), success: vi.fn(), info: vi.fn() },
-  mockCreateMutateAsync: vi.fn().mockResolvedValue({}),
-  mockUpdateMutateAsync: vi.fn().mockResolvedValue({}),
-}));
+const { mockNavigate, mockToast, mockCreateMutateAsync, mockUpdateMutateAsync } = vi.hoisted(
+  () => ({
+    mockNavigate: vi.fn(),
+    mockToast: { error: vi.fn(), success: vi.fn(), info: vi.fn() },
+    mockCreateMutateAsync: vi.fn().mockResolvedValue({}),
+    mockUpdateMutateAsync: vi.fn().mockResolvedValue({}),
+  }),
+);
 
 vi.mock("react-router", () => ({
   useNavigate: () => mockNavigate,
@@ -89,29 +86,41 @@ describe("useEstimateForm", () => {
   // ──────────────────────────
   describe("初期状態", () => {
     it("estimate 未指定時 → form.title は空文字", () => {
-      const { result } = renderHook(() => useEstimateForm({ mode: "create", permissions: ALLOW_ALL_PERMISSIONS }));
+      const { result } = renderHook(() =>
+        useEstimateForm({ mode: "create", permissions: ALLOW_ALL_PERMISSIONS }),
+      );
       expect(result.current.form.title).toBe("");
     });
 
     it("estimate 指定時 → form.title は estimate.title の値", () => {
       const { result } = renderHook(() =>
-        useEstimateForm({ mode: "edit", estimate: mockEstimate, permissions: ALLOW_ALL_PERMISSIONS })
+        useEstimateForm({
+          mode: "edit",
+          estimate: mockEstimate,
+          permissions: ALLOW_ALL_PERMISSIONS,
+        }),
       );
       expect(result.current.form.title).toBe("テスト見積書");
     });
 
     it("estimate 未指定時 → form.status は 'draft'", () => {
-      const { result } = renderHook(() => useEstimateForm({ mode: "create", permissions: ALLOW_ALL_PERMISSIONS }));
+      const { result } = renderHook(() =>
+        useEstimateForm({ mode: "create", permissions: ALLOW_ALL_PERMISSIONS }),
+      );
       expect(result.current.form.status).toBe("draft");
     });
 
     it("formState の初期値は success: false", () => {
-      const { result } = renderHook(() => useEstimateForm({ mode: "create", permissions: ALLOW_ALL_PERMISSIONS }));
+      const { result } = renderHook(() =>
+        useEstimateForm({ mode: "create", permissions: ALLOW_ALL_PERMISSIONS }),
+      );
       expect(result.current.formState.success).toBe(false);
     });
 
     it("isPending の初期値は false", () => {
-      const { result } = renderHook(() => useEstimateForm({ mode: "create", permissions: ALLOW_ALL_PERMISSIONS }));
+      const { result } = renderHook(() =>
+        useEstimateForm({ mode: "create", permissions: ALLOW_ALL_PERMISSIONS }),
+      );
       expect(result.current.isPending).toBe(false);
     });
   });
@@ -121,7 +130,9 @@ describe("useEstimateForm", () => {
   // ──────────────────────────
   describe("バリデーション: title が空の場合", () => {
     it("title が空文字 → success: false かつ fieldErrors.title が定義される", async () => {
-      const { result } = renderHook(() => useEstimateForm({ mode: "create", permissions: ALLOW_ALL_PERMISSIONS }));
+      const { result } = renderHook(() =>
+        useEstimateForm({ mode: "create", permissions: ALLOW_ALL_PERMISSIONS }),
+      );
       // form.title は初期値空文字
 
       await act(async () => {
@@ -129,13 +140,13 @@ describe("useEstimateForm", () => {
       });
 
       expect(result.current.formState.success).toBe(false);
-      expect(result.current.formState.fieldErrors?.title).toBe(
-        "タイトルを入力してください"
-      );
+      expect(result.current.formState.fieldErrors?.title).toBe("タイトルを入力してください");
     });
 
     it("title が空文字 → createEstimate.mutateAsync は呼ばれない", async () => {
-      const { result } = renderHook(() => useEstimateForm({ mode: "create", permissions: ALLOW_ALL_PERMISSIONS }));
+      const { result } = renderHook(() =>
+        useEstimateForm({ mode: "create", permissions: ALLOW_ALL_PERMISSIONS }),
+      );
 
       await act(async () => {
         await result.current.formAction(new FormData());
@@ -145,7 +156,9 @@ describe("useEstimateForm", () => {
     });
 
     it("title がスペースのみ → success: false かつ fieldErrors.title が定義される（trim チェック）", async () => {
-      const { result } = renderHook(() => useEstimateForm({ mode: "create", permissions: ALLOW_ALL_PERMISSIONS }));
+      const { result } = renderHook(() =>
+        useEstimateForm({ mode: "create", permissions: ALLOW_ALL_PERMISSIONS }),
+      );
 
       // title をスペースのみに変更
       act(() => {
@@ -157,13 +170,13 @@ describe("useEstimateForm", () => {
       });
 
       expect(result.current.formState.success).toBe(false);
-      expect(result.current.formState.fieldErrors?.title).toBe(
-        "タイトルを入力してください"
-      );
+      expect(result.current.formState.fieldErrors?.title).toBe("タイトルを入力してください");
     });
 
     it("title がスペースのみ → createEstimate.mutateAsync は呼ばれない", async () => {
-      const { result } = renderHook(() => useEstimateForm({ mode: "create", permissions: ALLOW_ALL_PERMISSIONS }));
+      const { result } = renderHook(() =>
+        useEstimateForm({ mode: "create", permissions: ALLOW_ALL_PERMISSIONS }),
+      );
 
       act(() => {
         result.current.handleChange("title", "   ");
@@ -182,7 +195,9 @@ describe("useEstimateForm", () => {
   // ──────────────────────────
   describe("新規作成モード（estimate なし）", () => {
     it("title あり → createEstimate.mutateAsync が呼ばれる", async () => {
-      const { result } = renderHook(() => useEstimateForm({ mode: "create", permissions: ALLOW_ALL_PERMISSIONS }));
+      const { result } = renderHook(() =>
+        useEstimateForm({ mode: "create", permissions: ALLOW_ALL_PERMISSIONS }),
+      );
 
       act(() => {
         result.current.handleChange("title", "新規見積書");
@@ -197,7 +212,9 @@ describe("useEstimateForm", () => {
     });
 
     it("title あり → createEstimate.mutateAsync に title が渡される", async () => {
-      const { result } = renderHook(() => useEstimateForm({ mode: "create", permissions: ALLOW_ALL_PERMISSIONS }));
+      const { result } = renderHook(() =>
+        useEstimateForm({ mode: "create", permissions: ALLOW_ALL_PERMISSIONS }),
+      );
 
       act(() => {
         result.current.handleChange("title", "新規見積書");
@@ -208,7 +225,7 @@ describe("useEstimateForm", () => {
       });
 
       expect(mockCreateMutateAsync).toHaveBeenCalledWith(
-        expect.objectContaining({ title: "新規見積書" })
+        expect.objectContaining({ title: "新規見積書" }),
       );
     });
 
@@ -219,7 +236,7 @@ describe("useEstimateForm", () => {
           initialPetId: "8",
           initialOwnerId: "5",
           permissions: ALLOW_ALL_PERMISSIONS,
-        })
+        }),
       );
 
       act(() => {
@@ -231,12 +248,14 @@ describe("useEstimateForm", () => {
       });
 
       expect(mockCreateMutateAsync).toHaveBeenCalledWith(
-        expect.objectContaining({ pet_id: 8, owner_id: 5 })
+        expect.objectContaining({ pet_id: 8, owner_id: 5 }),
       );
     });
 
     it("成功時 → toast.success はhook側から呼ばれない（FE-RC-005: useCreateEstimateのonSuccessに一元化済み）", async () => {
-      const { result } = renderHook(() => useEstimateForm({ mode: "create", permissions: ALLOW_ALL_PERMISSIONS }));
+      const { result } = renderHook(() =>
+        useEstimateForm({ mode: "create", permissions: ALLOW_ALL_PERMISSIONS }),
+      );
 
       act(() => {
         result.current.handleChange("title", "新規見積書");
@@ -250,7 +269,9 @@ describe("useEstimateForm", () => {
     });
 
     it("成功時 → formState.success = true", async () => {
-      const { result } = renderHook(() => useEstimateForm({ mode: "create", permissions: ALLOW_ALL_PERMISSIONS }));
+      const { result } = renderHook(() =>
+        useEstimateForm({ mode: "create", permissions: ALLOW_ALL_PERMISSIONS }),
+      );
 
       act(() => {
         result.current.handleChange("title", "新規見積書");
@@ -266,7 +287,9 @@ describe("useEstimateForm", () => {
     it("createEstimate.mutateAsync が失敗した場合 → formState.success = false", async () => {
       mockCreateMutateAsync.mockRejectedValueOnce(new Error("API Error"));
 
-      const { result } = renderHook(() => useEstimateForm({ mode: "create", permissions: ALLOW_ALL_PERMISSIONS }));
+      const { result } = renderHook(() =>
+        useEstimateForm({ mode: "create", permissions: ALLOW_ALL_PERMISSIONS }),
+      );
 
       act(() => {
         result.current.handleChange("title", "新規見積書");
@@ -282,7 +305,9 @@ describe("useEstimateForm", () => {
     it("createEstimate.mutateAsync が失敗した場合 → toast.error はhook側から呼ばれない（FE-RC-005: onErrorに一元化済み）", async () => {
       mockCreateMutateAsync.mockRejectedValueOnce(new Error("API Error"));
 
-      const { result } = renderHook(() => useEstimateForm({ mode: "create", permissions: ALLOW_ALL_PERMISSIONS }));
+      const { result } = renderHook(() =>
+        useEstimateForm({ mode: "create", permissions: ALLOW_ALL_PERMISSIONS }),
+      );
 
       act(() => {
         result.current.handleChange("title", "新規見積書");
@@ -296,7 +321,9 @@ describe("useEstimateForm", () => {
     });
 
     it("status が approved → create は呼ばれず fieldErrors.status が返る", async () => {
-      const { result } = renderHook(() => useEstimateForm({ mode: "create", permissions: ALLOW_ALL_PERMISSIONS }));
+      const { result } = renderHook(() =>
+        useEstimateForm({ mode: "create", permissions: ALLOW_ALL_PERMISSIONS }),
+      );
 
       act(() => {
         result.current.handleChange("title", "新規見積書");
@@ -309,13 +336,15 @@ describe("useEstimateForm", () => {
 
       expect(result.current.formState.success).toBe(false);
       expect(result.current.formState.fieldErrors?.status).toBe(
-        "作成時は下書きまたは送付済みのみ選択できます"
+        "作成時は下書きまたは送付済みのみ選択できます",
       );
       expect(mockCreateMutateAsync).not.toHaveBeenCalled();
     });
 
     it("status が rejected → create は呼ばれず fieldErrors.status が返る", async () => {
-      const { result } = renderHook(() => useEstimateForm({ mode: "create", permissions: ALLOW_ALL_PERMISSIONS }));
+      const { result } = renderHook(() =>
+        useEstimateForm({ mode: "create", permissions: ALLOW_ALL_PERMISSIONS }),
+      );
 
       act(() => {
         result.current.handleChange("title", "新規見積書");
@@ -328,13 +357,15 @@ describe("useEstimateForm", () => {
 
       expect(result.current.formState.success).toBe(false);
       expect(result.current.formState.fieldErrors?.status).toBe(
-        "作成時は下書きまたは送付済みのみ選択できます"
+        "作成時は下書きまたは送付済みのみ選択できます",
       );
       expect(mockCreateMutateAsync).not.toHaveBeenCalled();
     });
 
     it("status が sent → create に status: 'sent' が渡る", async () => {
-      const { result } = renderHook(() => useEstimateForm({ mode: "create", permissions: ALLOW_ALL_PERMISSIONS }));
+      const { result } = renderHook(() =>
+        useEstimateForm({ mode: "create", permissions: ALLOW_ALL_PERMISSIONS }),
+      );
 
       act(() => {
         result.current.handleChange("title", "新規見積書");
@@ -346,7 +377,7 @@ describe("useEstimateForm", () => {
       });
 
       expect(mockCreateMutateAsync).toHaveBeenCalledWith(
-        expect.objectContaining({ title: "新規見積書", status: "sent" })
+        expect.objectContaining({ title: "新規見積書", status: "sent" }),
       );
     });
   });
@@ -356,7 +387,13 @@ describe("useEstimateForm", () => {
   // ──────────────────────────
   describe("編集モード（estimate あり）", () => {
     it("title あり & estimate あり → updateEstimate.mutateAsync が呼ばれる", async () => {
-      const { result } = renderHook(() => useEstimateForm({ mode: "edit", estimate: mockEstimate, permissions: ALLOW_ALL_PERMISSIONS }));
+      const { result } = renderHook(() =>
+        useEstimateForm({
+          mode: "edit",
+          estimate: mockEstimate,
+          permissions: ALLOW_ALL_PERMISSIONS,
+        }),
+      );
 
       await act(async () => {
         await result.current.formAction(new FormData());
@@ -367,7 +404,13 @@ describe("useEstimateForm", () => {
     });
 
     it("updateEstimate.mutateAsync に id と title が渡される", async () => {
-      const { result } = renderHook(() => useEstimateForm({ mode: "edit", estimate: mockEstimate, permissions: ALLOW_ALL_PERMISSIONS }));
+      const { result } = renderHook(() =>
+        useEstimateForm({
+          mode: "edit",
+          estimate: mockEstimate,
+          permissions: ALLOW_ALL_PERMISSIONS,
+        }),
+      );
 
       await act(async () => {
         await result.current.formAction(new FormData());
@@ -377,12 +420,18 @@ describe("useEstimateForm", () => {
         expect.objectContaining({
           id: "1",
           data: expect.objectContaining({ title: "テスト見積書" }),
-        })
+        }),
       );
     });
 
     it("成功時 → toast.success はhook側から呼ばれない（FE-RC-005: useUpdateEstimateのonSuccessに一元化済み）", async () => {
-      const { result } = renderHook(() => useEstimateForm({ mode: "edit", estimate: mockEstimate, permissions: ALLOW_ALL_PERMISSIONS }));
+      const { result } = renderHook(() =>
+        useEstimateForm({
+          mode: "edit",
+          estimate: mockEstimate,
+          permissions: ALLOW_ALL_PERMISSIONS,
+        }),
+      );
 
       await act(async () => {
         await result.current.formAction(new FormData());
@@ -392,7 +441,13 @@ describe("useEstimateForm", () => {
     });
 
     it("成功時 → formState.success = true", async () => {
-      const { result } = renderHook(() => useEstimateForm({ mode: "edit", estimate: mockEstimate, permissions: ALLOW_ALL_PERMISSIONS }));
+      const { result } = renderHook(() =>
+        useEstimateForm({
+          mode: "edit",
+          estimate: mockEstimate,
+          permissions: ALLOW_ALL_PERMISSIONS,
+        }),
+      );
 
       await act(async () => {
         await result.current.formAction(new FormData());
@@ -404,7 +459,13 @@ describe("useEstimateForm", () => {
     it("updateEstimate.mutateAsync が失敗した場合 → formState.success = false", async () => {
       mockUpdateMutateAsync.mockRejectedValueOnce(new Error("API Error"));
 
-      const { result } = renderHook(() => useEstimateForm({ mode: "edit", estimate: mockEstimate, permissions: ALLOW_ALL_PERMISSIONS }));
+      const { result } = renderHook(() =>
+        useEstimateForm({
+          mode: "edit",
+          estimate: mockEstimate,
+          permissions: ALLOW_ALL_PERMISSIONS,
+        }),
+      );
 
       await act(async () => {
         await result.current.formAction(new FormData());
@@ -416,7 +477,13 @@ describe("useEstimateForm", () => {
     it("updateEstimate.mutateAsync が失敗した場合 → toast.error はhook側から呼ばれない（FE-RC-005: onErrorに一元化済み）", async () => {
       mockUpdateMutateAsync.mockRejectedValueOnce(new Error("API Error"));
 
-      const { result } = renderHook(() => useEstimateForm({ mode: "edit", estimate: mockEstimate, permissions: ALLOW_ALL_PERMISSIONS }));
+      const { result } = renderHook(() =>
+        useEstimateForm({
+          mode: "edit",
+          estimate: mockEstimate,
+          permissions: ALLOW_ALL_PERMISSIONS,
+        }),
+      );
 
       await act(async () => {
         await result.current.formAction(new FormData());
@@ -426,7 +493,13 @@ describe("useEstimateForm", () => {
     });
 
     it("status が approved → update に status: 'approved' が渡る", async () => {
-      const { result } = renderHook(() => useEstimateForm({ mode: "edit", estimate: mockEstimate, permissions: ALLOW_ALL_PERMISSIONS }));
+      const { result } = renderHook(() =>
+        useEstimateForm({
+          mode: "edit",
+          estimate: mockEstimate,
+          permissions: ALLOW_ALL_PERMISSIONS,
+        }),
+      );
 
       act(() => {
         result.current.handleChange("status", "approved");
@@ -440,38 +513,38 @@ describe("useEstimateForm", () => {
         expect.objectContaining({
           id: "1",
           data: expect.objectContaining({ status: "approved" }),
-        })
+        }),
       );
       expect(mockCreateMutateAsync).not.toHaveBeenCalled();
     });
 
     it("既存 status が approved → update は呼ばれず toast.info を出す", async () => {
       const locked: Estimate = { ...mockEstimate, status: "approved" };
-      const { result } = renderHook(() => useEstimateForm({ mode: "edit", estimate: locked, permissions: ALLOW_ALL_PERMISSIONS }));
+      const { result } = renderHook(() =>
+        useEstimateForm({ mode: "edit", estimate: locked, permissions: ALLOW_ALL_PERMISSIONS }),
+      );
 
       await act(async () => {
         await result.current.formAction(new FormData());
       });
 
       expect(mockUpdateMutateAsync).not.toHaveBeenCalled();
-      expect(mockToast.info).toHaveBeenCalledWith(
-        "承認済みまたは却下済みの見積書は編集できません",
-      );
+      expect(mockToast.info).toHaveBeenCalledWith("承認済みまたは却下済みの見積書は編集できません");
       expect(result.current.formState.success).toBe(false);
     });
 
     it("既存 status が rejected → update は呼ばれず toast.info を出す", async () => {
       const locked: Estimate = { ...mockEstimate, status: "rejected" };
-      const { result } = renderHook(() => useEstimateForm({ mode: "edit", estimate: locked, permissions: ALLOW_ALL_PERMISSIONS }));
+      const { result } = renderHook(() =>
+        useEstimateForm({ mode: "edit", estimate: locked, permissions: ALLOW_ALL_PERMISSIONS }),
+      );
 
       await act(async () => {
         await result.current.formAction(new FormData());
       });
 
       expect(mockUpdateMutateAsync).not.toHaveBeenCalled();
-      expect(mockToast.info).toHaveBeenCalledWith(
-        "承認済みまたは却下済みの見積書は編集できません",
-      );
+      expect(mockToast.info).toHaveBeenCalledWith("承認済みまたは却下済みの見積書は編集できません");
       expect(result.current.formState.success).toBe(false);
     });
   });
@@ -481,7 +554,9 @@ describe("useEstimateForm", () => {
   // ──────────────────────────
   describe("handleChange", () => {
     it("handleChange('title', ...) でタイトルを更新できる", () => {
-      const { result } = renderHook(() => useEstimateForm({ mode: "create", permissions: ALLOW_ALL_PERMISSIONS }));
+      const { result } = renderHook(() =>
+        useEstimateForm({ mode: "create", permissions: ALLOW_ALL_PERMISSIONS }),
+      );
 
       act(() => {
         result.current.handleChange("title", "更新タイトル");
@@ -491,7 +566,9 @@ describe("useEstimateForm", () => {
     });
 
     it("handleChange('status', ...) でステータスを更新できる", () => {
-      const { result } = renderHook(() => useEstimateForm({ mode: "create", permissions: ALLOW_ALL_PERMISSIONS }));
+      const { result } = renderHook(() =>
+        useEstimateForm({ mode: "create", permissions: ALLOW_ALL_PERMISSIONS }),
+      );
 
       act(() => {
         result.current.handleChange("status", "sent");
@@ -501,7 +578,9 @@ describe("useEstimateForm", () => {
     });
 
     it("handleChange('subtotal', ...) で小計を更新できる", () => {
-      const { result } = renderHook(() => useEstimateForm({ mode: "create", permissions: ALLOW_ALL_PERMISSIONS }));
+      const { result } = renderHook(() =>
+        useEstimateForm({ mode: "create", permissions: ALLOW_ALL_PERMISSIONS }),
+      );
 
       act(() => {
         result.current.handleChange("subtotal", 5000);
@@ -516,7 +595,9 @@ describe("useEstimateForm", () => {
   // ──────────────────────────
   describe("handleCancel", () => {
     it("estimate なし → 見積一覧ページへナビゲートする", () => {
-      const { result } = renderHook(() => useEstimateForm({ mode: "create", permissions: ALLOW_ALL_PERMISSIONS }));
+      const { result } = renderHook(() =>
+        useEstimateForm({ mode: "create", permissions: ALLOW_ALL_PERMISSIONS }),
+      );
 
       act(() => {
         result.current.handleCancel();
@@ -526,7 +607,13 @@ describe("useEstimateForm", () => {
     });
 
     it("estimate あり → 見積詳細ページへナビゲートする", () => {
-      const { result } = renderHook(() => useEstimateForm({ mode: "edit", estimate: mockEstimate, permissions: ALLOW_ALL_PERMISSIONS }));
+      const { result } = renderHook(() =>
+        useEstimateForm({
+          mode: "edit",
+          estimate: mockEstimate,
+          permissions: ALLOW_ALL_PERMISSIONS,
+        }),
+      );
 
       act(() => {
         result.current.handleCancel();
@@ -705,7 +792,9 @@ describe("useEstimateForm BUG-019 mode vs found", () => {
   });
 
   it("mode=create は estimate なしでも create を呼ぶ", async () => {
-    const { result } = renderHook(() => useEstimateForm({ mode: "create", permissions: ALLOW_ALL_PERMISSIONS }));
+    const { result } = renderHook(() =>
+      useEstimateForm({ mode: "create", permissions: ALLOW_ALL_PERMISSIONS }),
+    );
     act(() => {
       result.current.handleChange("title", "新規見積");
     });

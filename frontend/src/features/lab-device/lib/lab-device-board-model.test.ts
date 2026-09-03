@@ -66,32 +66,53 @@ describe("lab-device-board-model", () => {
   it("flags unmapped or needs-review cards", () => {
     expect(labDeviceHasUnmapped(card())).toBe(false);
     expect(labDeviceHasUnmapped(card({ unmappedItemCount: 1 }))).toBe(true);
-    expect(labDeviceHasUnmapped(card({
-      items: [{ deviceItemCode: "ZZZ", valueRaw: "1", unit: "", flag: "", needsReview: true, sortOrder: 0 }],
-    }))).toBe(true);
+    expect(
+      labDeviceHasUnmapped(
+        card({
+          items: [
+            {
+              deviceItemCode: "ZZZ",
+              valueRaw: "1",
+              unit: "",
+              flag: "",
+              needsReview: true,
+              sortOrder: 0,
+            },
+          ],
+        }),
+      ),
+    ).toBe(true);
   });
 
   it("treats authorized open ports as listening and the rest as disconnected", () => {
-    expect(labDeviceListenState({
-      serialSupported: false,
-      hasStoredPort: false,
-      connected: false,
-    })).toBe("unsupported");
-    expect(labDeviceListenState({
-      serialSupported: true,
-      hasStoredPort: false,
-      connected: false,
-    })).toBe("needs_permission");
-    expect(labDeviceListenState({
-      serialSupported: true,
-      hasStoredPort: true,
-      connected: false,
-    })).toBe("disconnected");
-    expect(labDeviceListenState({
-      serialSupported: true,
-      hasStoredPort: true,
-      connected: true,
-    })).toBe("listening");
+    expect(
+      labDeviceListenState({
+        serialSupported: false,
+        hasStoredPort: false,
+        connected: false,
+      }),
+    ).toBe("unsupported");
+    expect(
+      labDeviceListenState({
+        serialSupported: true,
+        hasStoredPort: false,
+        connected: false,
+      }),
+    ).toBe("needs_permission");
+    expect(
+      labDeviceListenState({
+        serialSupported: true,
+        hasStoredPort: true,
+        connected: false,
+      }),
+    ).toBe("disconnected");
+    expect(
+      labDeviceListenState({
+        serialSupported: true,
+        hasStoredPort: true,
+        connected: true,
+      }),
+    ).toBe("listening");
     expect(labDeviceBoardLinkLabel(["needs_permission", "disconnected"])).toBe("切断");
     expect(labDeviceBoardLinkLabel(["needs_permission", "listening"])).toBe("受信中");
     expect(labDeviceSlotListenLabel("needs_permission")).toBe("未許可");
@@ -113,27 +134,61 @@ describe("lab-device-board-model", () => {
 
   it("prefers the board received list and drops deceased or pet-less visits", () => {
     const received = [card({ jobId: "r1" })];
-    expect(labDeviceReceivedCards({
-      received,
-      unlinked: [card({ jobId: "u1" })],
-      saved: [card({ jobId: "s1" })],
-    })).toEqual(received);
-    expect(labDeviceReceivedCards({
-      received: [],
-      unlinked: [card({ jobId: "u1" })],
-      saved: [card({ jobId: "s1" }), card({ jobId: "u1" })],
-    }).map((item) => item.jobId)).toEqual(["u1", "s1"]);
+    expect(
+      labDeviceReceivedCards({
+        received,
+        unlinked: [card({ jobId: "u1" })],
+        saved: [card({ jobId: "s1" })],
+      }),
+    ).toEqual(received);
+    expect(
+      labDeviceReceivedCards({
+        received: [],
+        unlinked: [card({ jobId: "u1" })],
+        saved: [card({ jobId: "s1" }), card({ jobId: "u1" })],
+      }).map((item) => item.jobId),
+    ).toEqual(["u1", "s1"]);
 
     const visits: LabDeviceTodayVisit[] = [
-      { recordId: 1, petId: 11, petName: "タロウ", ownerName: "山田", species: "犬", doctorName: "佐藤", visitType: "再診" },
-      { recordId: 2, petId: 12, petName: "亡", ownerName: "鈴木", species: "猫", doctorName: "佐藤", visitType: "初診", petIsDeceased: true },
-      { recordId: 3, petId: 0, petName: "", ownerName: "田中", species: "", doctorName: "", visitType: "" },
+      {
+        recordId: 1,
+        petId: 11,
+        petName: "タロウ",
+        ownerName: "山田",
+        species: "犬",
+        doctorName: "佐藤",
+        visitType: "再診",
+      },
+      {
+        recordId: 2,
+        petId: 12,
+        petName: "亡",
+        ownerName: "鈴木",
+        species: "猫",
+        doctorName: "佐藤",
+        visitType: "初診",
+        petIsDeceased: true,
+      },
+      {
+        recordId: 3,
+        petId: 0,
+        petName: "",
+        ownerName: "田中",
+        species: "",
+        doctorName: "",
+        visitType: "",
+      },
     ];
     expect(labDeviceSelectableTodayVisits(visits).map((visit) => visit.petId)).toEqual([11]);
   });
 
   it("picks the newest received card and live label for each device slot", () => {
-    const slot: LabDeviceSlot = { key: "au10v", sourceType: "fuji_au10v", deviceHint: "AU10V", baud: 9600 };
+    const slot: LabDeviceSlot = {
+      key: "au10v",
+      sourceType: "fuji_au10v",
+      deviceHint: "AU10V",
+      baud: 9600,
+    };
     const latest = labDeviceLatestCardForSlot(slot, [
       card({ jobId: "nx", sourceType: "fuji_nx600", deviceHint: "NX600" }),
       card({ jobId: "au", sourceType: "fuji_au10v", deviceHint: "AU10V", petName: "タロウ" }),
@@ -150,9 +205,9 @@ describe("lab-device-board-model", () => {
 
   it("スロット JSON の baud と parity を読み、不正な parity は落とす", () => {
     const slots = parseLabDeviceSlots(
-      '[{"key":"pu4010","source_type":"arkray_pu4010","device_hint":"PU-4010","baud":2400,"parity":"even"},'
-      + '{"key":"nx600","source_type":"fuji_nx600","device_hint":"NX600","baud":9600},'
-      + '{"key":"x","source_type":"fuji_au10v","device_hint":"AU10V","baud":9600,"parity":"bogus"}]',
+      '[{"key":"pu4010","source_type":"arkray_pu4010","device_hint":"PU-4010","baud":2400,"parity":"even"},' +
+        '{"key":"nx600","source_type":"fuji_nx600","device_hint":"NX600","baud":9600},' +
+        '{"key":"x","source_type":"fuji_au10v","device_hint":"AU10V","baud":9600,"parity":"bogus"}]',
     );
     expect(slots[0]).toMatchObject({ key: "pu4010", baud: 2400, parity: "even" });
     expect(slots[1]!.parity).toBeUndefined();
@@ -164,7 +219,10 @@ describe("lab-device-board-model", () => {
     ["オブジェクト", '{"key":"nx600"}'],
     ["数値", "42"],
     ["非JSON文字列", "not json"],
-    ["配列内の非オブジェクト要素は無視する", '[1, "x", {"key":"nx600","source_type":"fuji_nx600","device_hint":"NX600"}]'],
+    [
+      "配列内の非オブジェクト要素は無視する",
+      '[1, "x", {"key":"nx600","source_type":"fuji_nx600","device_hint":"NX600"}]',
+    ],
   ])("不正な形状(%s)は空配列または有効要素のみへ落とす", (_name, json) => {
     expect(() => parseLabDeviceSlots(json)).not.toThrow();
   });
@@ -220,12 +278,14 @@ describe("lab-device-board-model", () => {
     expect(labDeviceNeedsReviewReason(card({ status: "needs_review" }))).toBe(
       "確認が必要です（保存できませんでした）",
     );
-    expect(labDeviceNeedsReviewReason(card({ status: "needs_review", reviewReason: "lab_device_multiple_exam_types" }))).toBe(
-      "確認が必要です（保存できませんでした）",
-    );
-    expect(labDeviceNeedsReviewReason(card({ status: "needs_review", reviewReason: "other_code" }))).toBe(
-      "確認が必要です（保存できませんでした）",
-    );
+    expect(
+      labDeviceNeedsReviewReason(
+        card({ status: "needs_review", reviewReason: "lab_device_multiple_exam_types" }),
+      ),
+    ).toBe("確認が必要です（保存できませんでした）");
+    expect(
+      labDeviceNeedsReviewReason(card({ status: "needs_review", reviewReason: "other_code" })),
+    ).toBe("確認が必要です（保存できませんでした）");
     expect(labDeviceNeedsReviewReason(card({ status: "persisted" }))).toBeNull();
     expect(labDeviceNeedsReviewReason(card({ status: "received" }))).toBeNull();
   });

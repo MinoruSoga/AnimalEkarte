@@ -56,12 +56,18 @@ export function EstimateList() {
   }, []);
 
   const openDeleteModal = deleteModal.open;
-  const handleOpenDetail = useCallback((id: string) => {
-    navigate(paths.estimates.detail.getHref(id));
-  }, [navigate]);
-  const handleOpenEdit = useCallback((id: string) => {
-    navigate(paths.estimates.edit.getHref(id));
-  }, [navigate]);
+  const handleOpenDetail = useCallback(
+    (id: string) => {
+      navigate(paths.estimates.detail.getHref(id));
+    },
+    [navigate],
+  );
+  const handleOpenEdit = useCallback(
+    (id: string) => {
+      navigate(paths.estimates.edit.getHref(id));
+    },
+    [navigate],
+  );
 
   if (isLoading) {
     return <LoadingFallback />;
@@ -77,7 +83,10 @@ export function EstimateList() {
       icon={<FileText className={`${ICON.page} ${C.text}`} />}
       headerAction={
         canCreate ? (
-          <PrimaryButton colorVariant="primary" onClick={() => navigate(paths.estimates.new.getHref())}>
+          <PrimaryButton
+            colorVariant="primary"
+            onClick={() => navigate(paths.estimates.new.getHref())}
+          >
             <Plus className={`mr-1.5 ${ICON.action}`} />
             新規見積書登録
           </PrimaryButton>

@@ -50,29 +50,27 @@ export type ChiefComplaintType = ReturnType<typeof transformChiefComplaintType>;
 // ─────────────────────────────────────────────────
 
 async function listChiefComplaintTypes(): Promise<ChiefComplaintType[]> {
-  const { data } = await axios.get<ModelChiefComplaintType[]>(
-    "/v1/masters/chief-complaint-types"
-  );
+  const { data } = await axios.get<ModelChiefComplaintType[]>("/v1/masters/chief-complaint-types");
   return data.map(transformChiefComplaintType);
 }
 
 async function createChiefComplaintType(
-  req: CreateChiefComplaintTypeRequest
+  req: CreateChiefComplaintTypeRequest,
 ): Promise<ChiefComplaintType> {
   const { data } = await axios.post<ModelChiefComplaintType>(
     "/v1/masters/chief-complaint-types",
-    req
+    req,
   );
   return transformChiefComplaintType(data);
 }
 
 async function updateChiefComplaintType(
   id: string,
-  req: UpdateChiefComplaintTypeRequest
+  req: UpdateChiefComplaintTypeRequest,
 ): Promise<ChiefComplaintType> {
   const { data } = await axios.patch<ModelChiefComplaintType>(
     `/v1/masters/chief-complaint-types/${id}`,
-    req
+    req,
   );
   return transformChiefComplaintType(data);
 }
@@ -99,7 +97,9 @@ export function useCreateChiefComplaintType() {
   return useMutation({
     mutationFn: createChiefComplaintType,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("chief-complaint-types") });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.masters.category("chief-complaint-types"),
+      });
     },
     onError: (error) => handleApiError(error, "作成"),
   });
@@ -111,7 +111,9 @@ export function useUpdateChiefComplaintType() {
     mutationFn: ({ id, req }: { id: string; req: UpdateChiefComplaintTypeRequest }) =>
       updateChiefComplaintType(id, req),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("chief-complaint-types") });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.masters.category("chief-complaint-types"),
+      });
     },
     onError: (error) => handleApiError(error, "更新"),
   });
@@ -122,9 +124,10 @@ export function useDeleteChiefComplaintType() {
   return useMutation({
     mutationFn: deleteChiefComplaintType,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("chief-complaint-types") });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.masters.category("chief-complaint-types"),
+      });
     },
     onError: (error) => handleApiError(error, "削除"),
   });
 }
-

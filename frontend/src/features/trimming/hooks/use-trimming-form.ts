@@ -63,8 +63,9 @@ export function useTrimmingForm(
     location.state?.appointmentId,
     searchParams.get("appointmentId"),
   );
-  const visitDateFromState = normalizeVisitDate(location.state?.visitDate)
-    ?? normalizeVisitDate(searchParams.get("visitDate"));
+  const visitDateFromState =
+    normalizeVisitDate(location.state?.visitDate) ??
+    normalizeVisitDate(searchParams.get("visitDate"));
 
   const petSelection = usePetSelection();
   const { setSelectedPets, selectedPets } = petSelection;
@@ -88,12 +89,14 @@ export function useTrimmingForm(
   const updateMutation = useUpdateTrimming();
   const deleteMutation = useDeleteTrimming();
   const existingAppointmentHasDetail = existingAppointmentTrimming?.hasDetail ?? false;
-  const defaultTrimmingReservationTypeId = findDefaultTrimmingReservationTypeId(reservationTypeGroups);
-  const reusableTrimming = sameDayTrimmings.find((trimming) =>
-    trimming.status !== "完了" && trimming.status !== "キャンセル"
+  const defaultTrimmingReservationTypeId =
+    findDefaultTrimmingReservationTypeId(reservationTypeGroups);
+  const reusableTrimming = sameDayTrimmings.find(
+    (trimming) => trimming.status !== "完了" && trimming.status !== "キャンセル",
   );
   const reusableAppointmentId = reusableTrimming?.id ? Number(reusableTrimming.id) : undefined;
-  const hasExistingAppointment = Number.isFinite(appointmentIdFromState) || Number.isFinite(reusableAppointmentId);
+  const hasExistingAppointment =
+    Number.isFinite(appointmentIdFromState) || Number.isFinite(reusableAppointmentId);
   const { fieldErrors, validate } = useTrimmingFormValidation();
   const [localOverrides, setLocalOverrides] = useState<Partial<TrimmingFormData>>({});
   const images = useTrimmingFormImages(setLocalOverrides);
@@ -109,7 +112,7 @@ export function useTrimmingForm(
 
   const formData = useMemo<TrimmingFormData>(
     () => ({ ...DEFAULT_TRIMMING_FORM_DATA, ...localOverrides }),
-    [localOverrides]
+    [localOverrides],
   );
   const setFormData = useCallback((next: Partial<TrimmingFormData>) => {
     setLocalOverrides((prev) => ({ ...prev, ...next }));
@@ -125,17 +128,14 @@ export function useTrimmingForm(
     [],
   );
   const hasExplicitlyDeceasedPet =
-    selectedPets[0]?.status === "死亡"
-    || petFromQuery?.status === "死亡"
-    || petFromEdit?.status === "死亡";
+    selectedPets[0]?.status === "死亡" ||
+    petFromQuery?.status === "死亡" ||
+    petFromEdit?.status === "死亡";
   const hasExplicitlyDeceasedPetRef = useRef(hasExplicitlyDeceasedPet);
   useLayoutEffect(() => {
     hasExplicitlyDeceasedPetRef.current = hasExplicitlyDeceasedPet;
   }, [hasExplicitlyDeceasedPet]);
-  const isPetDeceased = useCallback(
-    () => hasExplicitlyDeceasedPetRef.current === true,
-    [],
-  );
+  const isPetDeceased = useCallback(() => hasExplicitlyDeceasedPetRef.current === true, []);
   const formDataRef = useRef(formData);
   useLayoutEffect(() => {
     formDataRef.current = formData;
@@ -163,9 +163,15 @@ export function useTrimmingForm(
           if (!petFromEditRef.current) {
             return refuseTrimmingMutation("ペット情報の読み込みが完了してから保存してください");
           }
-          await updateMutation.mutateAsync({ id, req: buildUpdateTrimmingRequest(currentFormData) });
+          await updateMutation.mutateAsync({
+            id,
+            req: buildUpdateTrimmingRequest(currentFormData),
+          });
           toast.success("トリミング情報を更新しました");
-        } else if ((existingAppointmentHasDetail && existingAppointmentId) || reusableTrimming?.hasDetail) {
+        } else if (
+          (existingAppointmentHasDetail && existingAppointmentId) ||
+          reusableTrimming?.hasDetail
+        ) {
           if (!isMutationAllowed("canCreate")) {
             return refuseTrimmingMutation(TRIMMING_PERMISSION_DENIED_MESSAGE);
           }
@@ -191,15 +197,19 @@ export function useTrimmingForm(
           }
           const fallbackDate = visitDateFromState ?? formatJSTDate(new Date());
           const fallbackTimes = defaultRecordShortcutTimes(fallbackDate);
-          const startDate = currentFormData.startTime || (hasExistingAppointment ? undefined : fallbackTimes.start);
-          const endDate = currentFormData.endTime || (hasExistingAppointment ? undefined : fallbackTimes.end);
+          const startDate =
+            currentFormData.startTime || (hasExistingAppointment ? undefined : fallbackTimes.start);
+          const endDate =
+            currentFormData.endTime || (hasExistingAppointment ? undefined : fallbackTimes.end);
           const req = buildCreateTrimmingRequest(
             currentFormData,
             Number(pet.id),
             validation.reservationTypeId,
             startDate,
             endDate,
-            Number.isFinite(appointmentIdFromState) ? appointmentIdFromState : reusableAppointmentId,
+            Number.isFinite(appointmentIdFromState)
+              ? appointmentIdFromState
+              : reusableAppointmentId,
           );
           if (!hasExistingAppointment) {
             req.status = currentFormData.initialStatus;
@@ -214,7 +224,7 @@ export function useTrimmingForm(
         return { success: false, timestamp: Date.now() };
       }
     },
-    INITIAL_ACTION_STATE
+    INITIAL_ACTION_STATE,
   );
 
   useTrimmingFormPetSync({
@@ -227,16 +237,19 @@ export function useTrimmingForm(
   });
 
   const { mutate } = deleteMutation;
-  const handleDelete = useCallback((onSuccess?: () => void) => {
-    createTrimmingDeleteHandler({
-      isEdit,
-      id,
-      isMutationAllowed,
-      isEditPetReady: () => Boolean(petFromEditRef.current),
-      isPetDeceased,
-      deleteTrimming: (trimmingId, opts) => mutate(trimmingId, opts),
-    })(onSuccess);
-  }, [isEdit, id, isMutationAllowed, isPetDeceased, mutate]);
+  const handleDelete = useCallback(
+    (onSuccess?: () => void) => {
+      createTrimmingDeleteHandler({
+        isEdit,
+        id,
+        isMutationAllowed,
+        isEditPetReady: () => Boolean(petFromEditRef.current),
+        isPetDeceased,
+        deleteTrimming: (trimmingId, opts) => mutate(trimmingId, opts),
+      })(onSuccess);
+    },
+    [isEdit, id, isMutationAllowed, isPetDeceased, mutate],
+  );
 
   return {
     mode: isEdit ? ("edit" as const) : ("new" as const),

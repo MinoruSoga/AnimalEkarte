@@ -24,10 +24,18 @@ function toOptionalNumber(value: unknown): number | null {
 
 function readDiagnosisIds(clinicalPlan: ClinicalPlan) {
   return {
-    type1: toOptionalNumber(clinicalPlan.diagnosis_type_id) ?? toOptionalNumber(clinicalPlan.diagnosis_type),
-    name1: toOptionalNumber(clinicalPlan.diagnosis_name_id) ?? toOptionalNumber(clinicalPlan.diagnosis_name),
-    type2: toOptionalNumber(clinicalPlan.diagnosis_2_type_id) ?? toOptionalNumber(clinicalPlan.diagnosis_2_type),
-    name2: toOptionalNumber(clinicalPlan.diagnosis_2_name_id) ?? toOptionalNumber(clinicalPlan.diagnosis_2_name),
+    type1:
+      toOptionalNumber(clinicalPlan.diagnosis_type_id) ??
+      toOptionalNumber(clinicalPlan.diagnosis_type),
+    name1:
+      toOptionalNumber(clinicalPlan.diagnosis_name_id) ??
+      toOptionalNumber(clinicalPlan.diagnosis_name),
+    type2:
+      toOptionalNumber(clinicalPlan.diagnosis_2_type_id) ??
+      toOptionalNumber(clinicalPlan.diagnosis_2_type),
+    name2:
+      toOptionalNumber(clinicalPlan.diagnosis_2_name_id) ??
+      toOptionalNumber(clinicalPlan.diagnosis_2_name),
   };
 }
 
@@ -54,7 +62,8 @@ export function useApplyClinicalPlan({
     if (!recordKey) return;
 
     const ids = readDiagnosisIds(clinicalPlan);
-    const hasDiagnosis = ids.type1 != null || ids.name1 != null || ids.type2 != null || ids.name2 != null;
+    const hasDiagnosis =
+      ids.type1 != null || ids.name1 != null || ids.type2 != null || ids.name2 != null;
     const isFirst = hydratedRecordIdRef.current !== recordKey;
 
     if (isFirst) {

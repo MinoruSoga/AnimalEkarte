@@ -1,10 +1,6 @@
 import { useMemo } from "react";
 
-import {
-  useGetStaffs,
-  useGetClinicsList,
-  useGetAllStaffPermissionGroupMap,
-} from "../api/staffs";
+import { useGetStaffs, useGetClinicsList, useGetAllStaffPermissionGroupMap } from "../api/staffs";
 import { useGetPermissionGroups } from "../api/permission-groups";
 import { useGetAllOccupations } from "../api/occupations";
 import { useGetReservationTypes } from "../api/reservation-types";
@@ -21,7 +17,10 @@ export function useStaffSettingsLookups() {
   const { data: allGroupsData } = useGetPermissionGroups();
   const allGroups = useMemo(() => allGroupsData ?? [], [allGroupsData]);
   const { data: allReservationTypesData } = useGetReservationTypes();
-  const allReservationTypes = useMemo(() => allReservationTypesData ?? [], [allReservationTypesData]);
+  const allReservationTypes = useMemo(
+    () => allReservationTypesData ?? [],
+    [allReservationTypesData],
+  );
   const { data: allClinicsData } = useGetClinicsList("all");
   const allClinics = useMemo(() => allClinicsData ?? [], [allClinicsData]);
   const staffIds = useMemo(() => buildStaffIds(data), [data]);

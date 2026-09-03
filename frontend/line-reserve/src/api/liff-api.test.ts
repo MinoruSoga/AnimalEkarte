@@ -65,9 +65,7 @@ describe("liffApi（R-F20: NULL バイトサニタイズ）", () => {
       show_no_staff_option: false,
       booking_window: 30,
     };
-    server.use(
-      http.get("/api/liff/:clinicId/settings", () => HttpResponse.json(settingsFixture)),
-    );
+    server.use(http.get("/api/liff/:clinicId/settings", () => HttpResponse.json(settingsFixture)));
 
     const settings = await liffApi.getSettings("1");
 

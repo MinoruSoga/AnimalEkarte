@@ -9,11 +9,7 @@ import type { MedicalRecordResponse } from "@/types/generated/medicalrecord-resp
 
 type MedicalRecordStatus = "作成中" | "確定済";
 
-type MedicalRecordRecommendationReason =
-  | "revisit"
-  | "checkup"
-  | "prevention"
-  | "exam";
+type MedicalRecordRecommendationReason = "revisit" | "checkup" | "prevention" | "exam";
 
 const STATUS_MAP: Record<string, MedicalRecordStatus> = {
   draft: "作成中",
@@ -74,9 +70,8 @@ export const transformMedicalRecord = (record: MedicalRecordResponse) => {
     accountingId: record.accounting_id ? String(record.accounting_id) : undefined,
     visitCount: record.visit_count,
     version: record.version,
-    recommendationReason: (record.recommendation_reason ?? null) as
-      | MedicalRecordRecommendationReason
-      | null,
+    recommendationReason: (record.recommendation_reason ??
+      null) as MedicalRecordRecommendationReason | null,
     clinicId: record.clinic_id ? String(record.clinic_id) : undefined,
     status: (STATUS_MAP[record.status] ?? "作成中") as MedicalRecordStatus,
   };

@@ -35,8 +35,6 @@ describe("PropertyFilter accessibility", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "検索" }));
 
-    expect(screen.getByRole("textbox", { name: "検索..." })).toHaveClass(
-      "pr-11",
-    );
+    expect(screen.getByRole("textbox", { name: "検索..." })).toHaveClass("pr-11");
   });
 });

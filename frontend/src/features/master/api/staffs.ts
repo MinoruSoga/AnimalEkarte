@@ -92,18 +92,12 @@ async function createStaff(req: CreateStaffRequest): Promise<Staff> {
   return transformStaff(data);
 }
 
-async function updateStaff(
-  id: string,
-  req: UpdateStaffRequest,
-): Promise<Staff> {
+async function updateStaff(id: string, req: UpdateStaffRequest): Promise<Staff> {
   const payload = {
     ...req,
     occupation_id: req.occupation_id ? Number(req.occupation_id) : undefined,
   };
-  const { data } = await axios.patch<ModelStaff>(
-    `/v1/masters/staffs/${id}`,
-    payload,
-  );
+  const { data } = await axios.patch<ModelStaff>(`/v1/masters/staffs/${id}`, payload);
   return transformStaff(data);
 }
 
@@ -138,8 +132,7 @@ export function useCreateStaff() {
 export function useUpdateStaff() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, req }: { id: string; req: UpdateStaffRequest }) =>
-      updateStaff(id, req),
+    mutationFn: ({ id, req }: { id: string; req: UpdateStaffRequest }) => updateStaff(id, req),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("staffs") });
     },
@@ -158,7 +151,6 @@ export function useDeleteStaff() {
   });
 }
 
-
 // ─────────────────────────────────────────────────
 // Re-exports: 呼び出し元の "../api/staffs" 単一 import 経路を維持するため、
 // 分割後の権限グループ / 所属医院 / 予約タイプ制限 API をここから再公開する。
@@ -170,11 +162,7 @@ export {
   useUpdateStaffPermissionGroups,
 } from "./staff-permission-groups";
 
-export {
-  useGetClinicsList,
-  useGetStaffClinics,
-  useUpdateStaffClinics,
-} from "./staff-clinics";
+export { useGetClinicsList, useGetStaffClinics, useUpdateStaffClinics } from "./staff-clinics";
 export type { ClinicSummary } from "./staff-clinics";
 
 export {

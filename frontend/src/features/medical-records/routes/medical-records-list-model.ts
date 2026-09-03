@@ -21,8 +21,22 @@ export function buildMedicalRecordsFilterProperties(
       : input.activeSpecies.map((s) => ({ value: String(s.id), label: s.name }));
   return [
     ...STATIC_FILTER_PROPERTIES,
-    { key: "doctor", label: "担当医", type: "select" as const, icon: User, conditions: SERVER_EQUALITY_ONLY, options: doctorOptions },
-    { key: "species", label: "種", type: "select" as const, icon: PawPrint, conditions: SERVER_EQUALITY_ONLY, options: speciesOptions },
+    {
+      key: "doctor",
+      label: "担当医",
+      type: "select" as const,
+      icon: User,
+      conditions: SERVER_EQUALITY_ONLY,
+      options: doctorOptions,
+    },
+    {
+      key: "species",
+      label: "種",
+      type: "select" as const,
+      icon: PawPrint,
+      conditions: SERVER_EQUALITY_ONLY,
+      options: speciesOptions,
+    },
   ];
 }
 

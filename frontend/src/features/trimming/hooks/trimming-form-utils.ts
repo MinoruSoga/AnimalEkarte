@@ -1,4 +1,8 @@
-import type { CreateTrimmingRequest, UpdateTrimmingRequest, TrimmingFormData } from "@/types/trimming";
+import type {
+  CreateTrimmingRequest,
+  UpdateTrimmingRequest,
+  TrimmingFormData,
+} from "@/types/trimming";
 import { formatJSTDate } from "@/lib/jst-date";
 
 export { formatJSTDate };
@@ -25,15 +29,19 @@ export const DEFAULT_TRIMMING_FORM_DATA: TrimmingFormData = {
   nextDate: "",
 };
 
-export function parseTrimmingAppointmentId(appointmentId: unknown, searchValue: string | null): {
+export function parseTrimmingAppointmentId(
+  appointmentId: unknown,
+  searchValue: string | null,
+): {
   appointmentIdFromState: number;
   existingAppointmentId: string;
 } {
-  const appointmentIdFromState = typeof appointmentId === "string"
-    ? Number(appointmentId)
-    : typeof appointmentId === "number"
-      ? appointmentId
-      : Number(searchValue ?? NaN);
+  const appointmentIdFromState =
+    typeof appointmentId === "string"
+      ? Number(appointmentId)
+      : typeof appointmentId === "number"
+        ? appointmentId
+        : Number(searchValue ?? NaN);
   const existingAppointmentId = Number.isFinite(appointmentIdFromState)
     ? String(appointmentIdFromState)
     : "";

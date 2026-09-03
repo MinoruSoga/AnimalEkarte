@@ -1,8 +1,8 @@
-import { test, expect } from '@playwright/test';
-import type { BrowserContext } from '@playwright/test';
-import { createAuthedContext } from './helpers/context';
-import { DEMO_ACCOUNTING_KANA_PET, DEMO_ACCOUNTING_OFFPAGE_PET } from './helpers/demo-seed';
-import { AccountingPage } from './pages/accounting-page';
+import { test, expect } from "@playwright/test";
+import type { BrowserContext } from "@playwright/test";
+import { createAuthedContext } from "./helpers/context";
+import { DEMO_ACCOUNTING_KANA_PET, DEMO_ACCOUNTING_OFFPAGE_PET } from "./helpers/demo-seed";
+import { AccountingPage } from "./pages/accounting-page";
 
 // Seed prerequisites:
 //   - E2E_LOGIN_* account has accounting view permission
@@ -13,7 +13,7 @@ import { AccountingPage } from './pages/accounting-page';
 // Design: fresh page per test within shared context to avoid Chromium
 // state accumulation across many navigations.
 
-test.describe('会計 smoke E2E', () => {
+test.describe("会計 smoke E2E", () => {
   let context: BrowserContext;
 
   test.beforeAll(async ({ browser }) => {
@@ -24,7 +24,7 @@ test.describe('会計 smoke E2E', () => {
     await context.close();
   });
 
-  test('会計一覧 (/accounting) が表示される', async () => {
+  test("会計一覧 (/accounting) が表示される", async () => {
     const page = await context.newPage();
     const accounting = new AccountingPage(page);
     try {
@@ -39,7 +39,7 @@ test.describe('会計 smoke E2E', () => {
     }
   });
 
-  test('会計一覧: ひらがな検索でページ外のカタカナペット名がヒットする (サーバサイド・かな非区別)', async () => {
+  test("会計一覧: ひらがな検索でページ外のカタカナペット名がヒットする (サーバサイド・かな非区別)", async () => {
     const page = await context.newPage();
     const accounting = new AccountingPage(page);
     try {
@@ -48,7 +48,7 @@ test.describe('会計 smoke E2E', () => {
 
       // Off-page pet must not be visible before search (proves not client-only page filter)
       await expect(
-        page.locator('tbody').getByText(DEMO_ACCOUNTING_OFFPAGE_PET.displayName, { exact: true }),
+        page.locator("tbody").getByText(DEMO_ACCOUNTING_OFFPAGE_PET.displayName, { exact: true }),
       ).toHaveCount(0);
 
       const searchToggle = accounting.searchToggle();
@@ -61,14 +61,17 @@ test.describe('会計 smoke E2E', () => {
       // べるす → ベルス (server NormalizeKana + translate)
       await searchInput.fill(DEMO_ACCOUNTING_OFFPAGE_PET.hiraganaSearch);
       await expect(
-        page.locator('tbody').getByText(DEMO_ACCOUNTING_OFFPAGE_PET.displayName, { exact: true }).first(),
+        page
+          .locator("tbody")
+          .getByText(DEMO_ACCOUNTING_OFFPAGE_PET.displayName, { exact: true })
+          .first(),
       ).toBeVisible({ timeout: 15000 });
     } finally {
       await page.close();
     }
   });
 
-  test('会計一覧: カタカナ検索でも同一ペット名が表示される (ひらがな・カタカナ統一検索)', async () => {
+  test("会計一覧: カタカナ検索でも同一ペット名が表示される (ひらがな・カタカナ統一検索)", async () => {
     const page = await context.newPage();
     const accounting = new AccountingPage(page);
     try {
@@ -84,14 +87,17 @@ test.describe('会計 smoke E2E', () => {
 
       await searchInput.fill(DEMO_ACCOUNTING_OFFPAGE_PET.katakanaSearch);
       await expect(
-        page.locator('tbody').getByText(DEMO_ACCOUNTING_OFFPAGE_PET.displayName, { exact: true }).first(),
+        page
+          .locator("tbody")
+          .getByText(DEMO_ACCOUNTING_OFFPAGE_PET.displayName, { exact: true })
+          .first(),
       ).toBeVisible({ timeout: 15000 });
     } finally {
       await page.close();
     }
   });
 
-  test('会計一覧: ページ1のペットもサーバ検索でヒットする', async () => {
+  test("会計一覧: ページ1のペットもサーバ検索でヒットする", async () => {
     const page = await context.newPage();
     const accounting = new AccountingPage(page);
     try {
@@ -105,20 +111,20 @@ test.describe('会計 smoke E2E', () => {
     }
   });
 
-  test('未納者一覧タブ (/accounting?tab=unpaid) がアクティブになる', async () => {
+  test("未納者一覧タブ (/accounting?tab=unpaid) がアクティブになる", async () => {
     const page = await context.newPage();
     const accounting = new AccountingPage(page);
     try {
       await accounting.gotoUnpaid();
       const unpaidTab = accounting.unpaidTab();
       await expect(unpaidTab).toBeVisible({ timeout: 30000 });
-      await expect(unpaidTab).toHaveAttribute('data-state', 'active');
+      await expect(unpaidTab).toHaveAttribute("data-state", "active");
     } finally {
       await page.close();
     }
   });
 
-  test('月次集計レポート (/accounting/reports) が表示される', async () => {
+  test("月次集計レポート (/accounting/reports) が表示される", async () => {
     const page = await context.newPage();
     const accounting = new AccountingPage(page);
     try {

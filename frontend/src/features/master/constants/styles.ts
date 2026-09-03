@@ -23,7 +23,7 @@ export const MASTER_STATUS_FILTER: FilterProperty = {
  * DESIGN.mdのspacingスケールは32pxまでのため、列幅(コンテンツ駆動の100-200px域)はスケール対象外の構造値として扱う。
  */
 export const MASTER_TABLE_COL = {
-  w80:  "w-[80px]",
+  w80: "w-[80px]",
   w100: "w-[100px]",
   w120: "w-[120px]",
   w130: "w-[130px]",

@@ -70,18 +70,24 @@ export function useHospitalizationFormChrome(input: {
   }, [input.locationFrom, navigate]);
 
   const handleFormDataChangeRaw = input.handleFormDataChangeRaw;
-  const handleFormChange = useCallback((updates: Partial<HospitalizationFormData>) => {
-    markDirty();
-    handleFormDataChangeRaw(updates);
-  }, [markDirty, handleFormDataChangeRaw]);
+  const handleFormChange = useCallback(
+    (updates: Partial<HospitalizationFormData>) => {
+      markDirty();
+      handleFormDataChangeRaw(updates);
+    },
+    [markDirty, handleFormDataChangeRaw],
+  );
 
   const doctorStaffItems = useMemo(
     () => selectHospitalizationDoctorStaffs(staffs, input.formData.doctorId),
     [staffs, input.formData.doctorId],
   );
-  const handleSelectDoctor = useCallback((item: MasterSelectItem) => {
-    handleFormChange({ doctorId: String(item.id), doctorName: item.name });
-  }, [handleFormChange]);
+  const handleSelectDoctor = useCallback(
+    (item: MasterSelectItem) => {
+      handleFormChange({ doctorId: String(item.id), doctorName: item.name });
+    },
+    [handleFormChange],
+  );
 
   const hasChildTreatmentPlans = input.isEdit && input.treatmentPlans.length > 0;
   const canShowDelete = input.canDelete === true && !hasChildTreatmentPlans;

@@ -1,5 +1,11 @@
 // Internal
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 // Relative
 import { VitalsTab } from "./VitalsTab/VitalsTab";
@@ -25,9 +31,7 @@ export function VitalsModal({
       <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>バイタル記録</DialogTitle>
-          <DialogDescription>
-            この診療記録に紐づくバイタルを確認・編集します。
-          </DialogDescription>
+          <DialogDescription>この診療記録に紐づくバイタルを確認・編集します。</DialogDescription>
         </DialogHeader>
         <VitalsTab
           medicalRecordId={medicalRecordId}

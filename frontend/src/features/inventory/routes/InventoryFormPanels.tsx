@@ -8,7 +8,11 @@ import { Button } from "@/components/ui/button";
 import { C, ICON } from "@/lib/design-tokens";
 import { ResourceInventory } from "@/types/generated/models";
 import type { InventoryItem } from "@/types";
-import { BasicInfoSection, StockInfoSection, SupplierInfoSection } from "../components/InventoryFormSections";
+import {
+  BasicInfoSection,
+  StockInfoSection,
+  SupplierInfoSection,
+} from "../components/InventoryFormSections";
 import { INVENTORY_FORM_ID, type InventoryFormGate } from "./inventory-form-model";
 
 export function InventoryFormStatusView({
@@ -126,37 +130,42 @@ export function InventoryFormBody({
           閲覧専用 — 編集権限がないため変更できません
         </div>
       ) : null}
-      <form id={INVENTORY_FORM_ID} action={formAction} noValidate onChange={onMarkDirty} className="space-y-6">
+      <form
+        id={INVENTORY_FORM_ID}
+        action={formAction}
+        noValidate
+        onChange={onMarkDirty}
+        className="space-y-6"
+      >
         <fieldset disabled={!canSubmit} className="border-0 p-0 m-0 min-w-0">
-        <BasicInfoSection
-          defaultName={existingItem?.name}
-          defaultUnit={existingItem?.unit}
-          category={category}
-          existingCategory={existingItem?.category as InventoryItem["category"]}
-          onCategoryChange={onCategoryChange}
-          onMarkDirty={onMarkDirty}
-          nameError={fieldErrors?.name}
-          unitError={fieldErrors?.unit}
-        />
+          <BasicInfoSection
+            defaultName={existingItem?.name}
+            defaultUnit={existingItem?.unit}
+            category={category}
+            existingCategory={existingItem?.category as InventoryItem["category"]}
+            onCategoryChange={onCategoryChange}
+            onMarkDirty={onMarkDirty}
+            nameError={fieldErrors?.name}
+            unitError={fieldErrors?.unit}
+          />
 
-        <StockInfoSection
-          defaultQuantity={existingItem?.quantity}
-          defaultMinStockLevel={existingItem?.minStockLevel}
-          defaultLocation={existingItem?.location}
-          resolvedExpiry={resolvedExpiry}
-          onExpiryChange={onExpiryChange}
-          onMarkDirty={onMarkDirty}
-          quantityError={fieldErrors?.quantity}
-          minStockLevelError={fieldErrors?.minStockLevel}
-        />
+          <StockInfoSection
+            defaultQuantity={existingItem?.quantity}
+            defaultMinStockLevel={existingItem?.minStockLevel}
+            defaultLocation={existingItem?.location}
+            resolvedExpiry={resolvedExpiry}
+            onExpiryChange={onExpiryChange}
+            onMarkDirty={onMarkDirty}
+            quantityError={fieldErrors?.quantity}
+            minStockLevelError={fieldErrors?.minStockLevel}
+          />
 
-        <SupplierInfoSection
-          defaultSupplier={existingItem?.supplier}
-          resolvedLastRestocked={resolvedLastRestocked}
-          onLastRestockedChange={onLastRestockedChange}
-          onMarkDirty={onMarkDirty}
-        />
-
+          <SupplierInfoSection
+            defaultSupplier={existingItem?.supplier}
+            resolvedLastRestocked={resolvedLastRestocked}
+            onLastRestockedChange={onLastRestockedChange}
+            onMarkDirty={onMarkDirty}
+          />
         </fieldset>
         <div className="flex justify-end gap-3">
           {canSubmit ? (
@@ -170,4 +179,3 @@ export function InventoryFormBody({
     </PageLayout>
   );
 }
-

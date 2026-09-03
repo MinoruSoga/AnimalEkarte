@@ -39,13 +39,9 @@ export function StaffCheckboxSection<T extends StaffCheckboxItem>({
       </div>
 
       {isDisabledUntilSaved ? (
-        <p className={`text-xs ${C.text50} pl-0.5`}>
-          {disabledMessage}
-        </p>
+        <p className={`text-xs ${C.text50} pl-0.5`}>{disabledMessage}</p>
       ) : items.length === 0 ? (
-        <p className={`text-xs ${C.text50} pl-0.5`}>
-          {emptyMessage}
-        </p>
+        <p className={`text-xs ${C.text50} pl-0.5`}>{emptyMessage}</p>
       ) : (
         <div className="space-y-0.5">
           {items.map((item) => (
@@ -55,9 +51,7 @@ export function StaffCheckboxSection<T extends StaffCheckboxItem>({
             >
               <Checkbox
                 checked={checkedIdSet.has(item.id)}
-                onCheckedChange={(checked) =>
-                  onToggle(item.id, checked === true)
-                }
+                onCheckedChange={(checked) => onToggle(item.id, checked === true)}
               />
               {renderLeading?.(item)}
               <span className="text-sm">{item.name}</span>

@@ -5,8 +5,22 @@ import { InterviewHistory } from "./InterviewHistory";
 import type { InterviewHistoryItem } from "../types";
 
 const ITEMS: InterviewHistoryItem[] = [
-  { id: "1", date: "2026-01-01", type: "診察", title: "タイトルカタカナ", content: "本文内容", author: "田中" },
-  { id: "2", date: "2026-01-02", type: "検査", title: "別のタイトル", content: "別の本文", author: "佐藤" },
+  {
+    id: "1",
+    date: "2026-01-01",
+    type: "診察",
+    title: "タイトルカタカナ",
+    content: "本文内容",
+    author: "田中",
+  },
+  {
+    id: "2",
+    date: "2026-01-02",
+    type: "検査",
+    title: "別のタイトル",
+    content: "別の本文",
+    author: "佐藤",
+  },
 ];
 
 describe("InterviewHistory — カナ混同検索", () => {
@@ -43,8 +57,22 @@ describe("InterviewHistory — カナ混同検索", () => {
 
   it("カタカナで検索するとひらがなのタイトルにヒットする", async () => {
     const hiraganaItems: InterviewHistoryItem[] = [
-      { id: "1", date: "2026-01-01", type: "診察", title: "たいとるひらがな", content: "本文内容", author: "田中" },
-      { id: "2", date: "2026-01-02", type: "検査", title: "別のタイトル", content: "別の本文", author: "佐藤" },
+      {
+        id: "1",
+        date: "2026-01-01",
+        type: "診察",
+        title: "たいとるひらがな",
+        content: "本文内容",
+        author: "田中",
+      },
+      {
+        id: "2",
+        date: "2026-01-02",
+        type: "検査",
+        title: "別のタイトル",
+        content: "別の本文",
+        author: "佐藤",
+      },
     ];
     const user = userEvent.setup();
     render(<InterviewHistory historyItems={hiraganaItems} />);
@@ -59,8 +87,22 @@ describe("InterviewHistory — カナ混同検索", () => {
 
   it("本文 (content) のカナ混同検索も効く", async () => {
     const katakanaContentItems: InterviewHistoryItem[] = [
-      { id: "1", date: "2026-01-01", type: "診察", title: "タイトル1", content: "ホンブンカタカナ", author: "田中" },
-      { id: "2", date: "2026-01-02", type: "検査", title: "タイトル2", content: "ベツノホンブン", author: "佐藤" },
+      {
+        id: "1",
+        date: "2026-01-01",
+        type: "診察",
+        title: "タイトル1",
+        content: "ホンブンカタカナ",
+        author: "田中",
+      },
+      {
+        id: "2",
+        date: "2026-01-02",
+        type: "検査",
+        title: "タイトル2",
+        content: "ベツノホンブン",
+        author: "佐藤",
+      },
     ];
     const user = userEvent.setup();
     render(<InterviewHistory historyItems={katakanaContentItems} />);

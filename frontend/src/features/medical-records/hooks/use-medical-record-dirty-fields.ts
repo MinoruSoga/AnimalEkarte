@@ -27,55 +27,85 @@ export function useMedicalRecordDirtyFields({
   setDiagnosis2CategoryId,
   setDiagnosis2NameId,
 }: UseMedicalRecordDirtyFieldsParams) {
-  const handleSetChiefComplaint = useCallback((value: string) => {
-    markDirty();
-    setChiefComplaint(value);
-  }, [markDirty, setChiefComplaint]);
+  const handleSetChiefComplaint = useCallback(
+    (value: string) => {
+      markDirty();
+      setChiefComplaint(value);
+    },
+    [markDirty, setChiefComplaint],
+  );
 
-  const handleSetChiefComplaintTypeId = useCallback((id: number | null) => {
-    markDirty();
-    setChiefComplaintTypeId(id);
-  }, [markDirty, setChiefComplaintTypeId]);
+  const handleSetChiefComplaintTypeId = useCallback(
+    (id: number | null) => {
+      markDirty();
+      setChiefComplaintTypeId(id);
+    },
+    [markDirty, setChiefComplaintTypeId],
+  );
 
-  const handleSetTreatmentPolicy = useCallback((value: string) => {
-    markDirty();
-    setTreatmentPolicy(value);
-  }, [markDirty, setTreatmentPolicy]);
+  const handleSetTreatmentPolicy = useCallback(
+    (value: string) => {
+      markDirty();
+      setTreatmentPolicy(value);
+    },
+    [markDirty, setTreatmentPolicy],
+  );
 
-  const handleSetPhysicalExam = useCallback((value: string) => {
-    markDirty();
-    setPhysicalExam(value);
-  }, [markDirty, setPhysicalExam]);
+  const handleSetPhysicalExam = useCallback(
+    (value: string) => {
+      markDirty();
+      setPhysicalExam(value);
+    },
+    [markDirty, setPhysicalExam],
+  );
 
-  const handleSetPlan = useCallback((value: string) => {
-    markDirty();
-    setPlan(value);
-  }, [markDirty, setPlan]);
+  const handleSetPlan = useCallback(
+    (value: string) => {
+      markDirty();
+      setPlan(value);
+    },
+    [markDirty, setPlan],
+  );
 
-  const handleSetAssessment = useCallback((value: string) => {
-    markDirty();
-    setAssessment(value);
-  }, [markDirty, setAssessment]);
+  const handleSetAssessment = useCallback(
+    (value: string) => {
+      markDirty();
+      setAssessment(value);
+    },
+    [markDirty, setAssessment],
+  );
 
-  const handleSetDiagnosis1CategoryId = useCallback((id: number | null) => {
-    markDirty();
-    setDiagnosis1CategoryId(id);
-  }, [markDirty, setDiagnosis1CategoryId]);
+  const handleSetDiagnosis1CategoryId = useCallback(
+    (id: number | null) => {
+      markDirty();
+      setDiagnosis1CategoryId(id);
+    },
+    [markDirty, setDiagnosis1CategoryId],
+  );
 
-  const handleSetDiagnosis1NameId = useCallback((id: number | null) => {
-    markDirty();
-    setDiagnosis1NameId(id);
-  }, [markDirty, setDiagnosis1NameId]);
+  const handleSetDiagnosis1NameId = useCallback(
+    (id: number | null) => {
+      markDirty();
+      setDiagnosis1NameId(id);
+    },
+    [markDirty, setDiagnosis1NameId],
+  );
 
-  const handleSetDiagnosis2CategoryId = useCallback((id: number | null) => {
-    markDirty();
-    setDiagnosis2CategoryId(id);
-  }, [markDirty, setDiagnosis2CategoryId]);
+  const handleSetDiagnosis2CategoryId = useCallback(
+    (id: number | null) => {
+      markDirty();
+      setDiagnosis2CategoryId(id);
+    },
+    [markDirty, setDiagnosis2CategoryId],
+  );
 
-  const handleSetDiagnosis2NameId = useCallback((id: number | null) => {
-    markDirty();
-    setDiagnosis2NameId(id);
-  }, [markDirty, setDiagnosis2NameId]);
+  const handleSetDiagnosis2NameId = useCallback(
+    (id: number | null) => {
+      markDirty();
+      setDiagnosis2NameId(id);
+    },
+    [markDirty, setDiagnosis2NameId],
+  );
 
   return {
     handleSetAssessment,

@@ -1,8 +1,8 @@
-import { useCallback, useState, useTransition } from 'react';
-import { liffApi } from '../api/liff-api';
-import { BackButton } from '../components/BackButton';
-import { formatJSTApplicationDate } from '@/shared-liff/jst-date';
-import { useFetchState } from '@/shared-liff/use-fetch-state';
+import { useCallback, useState, useTransition } from "react";
+import { liffApi } from "../api/liff-api";
+import { BackButton } from "../components/BackButton";
+import { formatJSTApplicationDate } from "@/shared-liff/jst-date";
+import { useFetchState } from "@/shared-liff/use-fetch-state";
 
 interface MyReservationsPageProps {
   clinicId: string;
@@ -11,8 +11,8 @@ interface MyReservationsPageProps {
 }
 
 function formatDate(dateStr: string): string {
-  if (!dateStr) return '';
-  const [year, month, day] = dateStr.split('-');
+  if (!dateStr) return "";
+  const [year, month, day] = dateStr.split("-");
   return `${year}年${Number(month)}月${Number(day)}日`;
 }
 
@@ -21,46 +21,48 @@ function formatCreatedAt(isoStr: string): string {
 }
 
 const STATUS_LABELS: Record<string, string> = {
-  confirmed: '確定',
-  pending: '確認中',
-  cancelled: 'キャンセル済',
-  checked_in: '受付済',
-  in_consultation: '診察中',
-  accounting: '会計中',
-  completed: '完了',
-  no_show: '未来院',
+  confirmed: "確定",
+  pending: "確認中",
+  cancelled: "キャンセル済",
+  checked_in: "受付済",
+  in_consultation: "診察中",
+  accounting: "会計中",
+  completed: "完了",
+  no_show: "未来院",
 };
 
 // FE-RC-051: 状態バッジは brand-tokens.css の semantic token（noah-success/warning/info/danger/neutral）を使う。
 const STATUS_COLORS: Record<string, string> = {
-  confirmed: 'bg-noah-success-bg text-noah-success-text',
-  pending: 'bg-noah-warning-bg text-noah-warning-text',
-  cancelled: 'bg-noah-neutral-bg text-noah-neutral-text',
-  checked_in: 'bg-noah-info-bg text-noah-info-text',
-  in_consultation: 'bg-noah-info-bg text-noah-info-text',
-  accounting: 'bg-noah-info-bg text-noah-info-text',
-  completed: 'bg-noah-info-bg text-noah-info-text',
-  no_show: 'bg-noah-danger-bg-strong text-noah-danger-text',
+  confirmed: "bg-noah-success-bg text-noah-success-text",
+  pending: "bg-noah-warning-bg text-noah-warning-text",
+  cancelled: "bg-noah-neutral-bg text-noah-neutral-text",
+  checked_in: "bg-noah-info-bg text-noah-info-text",
+  in_consultation: "bg-noah-info-bg text-noah-info-text",
+  accounting: "bg-noah-info-bg text-noah-info-text",
+  completed: "bg-noah-info-bg text-noah-info-text",
+  no_show: "bg-noah-danger-bg-strong text-noah-danger-text",
 };
 
-export function MyReservationsPage({
-  clinicId,
-  idToken,
-  onBack,
-}: MyReservationsPageProps) {
+export function MyReservationsPage({ clinicId, idToken, onBack }: MyReservationsPageProps) {
   const [cancellingId, setCancellingId] = useState<number | null>(null);
   const [confirmingId, setConfirmingId] = useState<number | null>(null);
   const [cancelError, setCancelError] = useState<{ id: number; message: string } | null>(null);
   // FE-RC-024: 手動 pending state ではなく React 19 useTransition で保留状態を管理する。
   const [isCancelling, startCancelTransition] = useTransition();
 
-  const fetcher = useCallback(() => liffApi.getMyReservations(clinicId, idToken), [clinicId, idToken]);
+  const fetcher = useCallback(
+    () => liffApi.getMyReservations(clinicId, idToken),
+    [clinicId, idToken],
+  );
   // R-F22/R-F23: ステータス別メッセージ解決と再試行導線を共通フックに統合。
   // setReservations は cancel 成功時のローカルな楽観的更新にも使う。
-  const { data: reservations, loading, error, retry, setData: setReservations } = useFetchState(
-    fetcher,
-    '予約一覧の取得',
-  );
+  const {
+    data: reservations,
+    loading,
+    error,
+    retry,
+    setData: setReservations,
+  } = useFetchState(fetcher, "予約一覧の取得");
 
   const handleCancelRequest = (id: number) => {
     setCancelError(null);
@@ -78,11 +80,11 @@ export function MyReservationsPage({
     startCancelTransition(async () => {
       try {
         await liffApi.cancelReservation(clinicId, id, idToken);
-        setReservations(prev =>
-          (prev ?? []).map(r => r.id === id ? { ...r, status: 'cancelled' as const } : r)
+        setReservations((prev) =>
+          (prev ?? []).map((r) => (r.id === id ? { ...r, status: "cancelled" as const } : r)),
         );
       } catch {
-        setCancelError({ id, message: 'キャンセルに失敗しました。もう一度お試しください。' });
+        setCancelError({ id, message: "キャンセルに失敗しました。もう一度お試しください。" });
       } finally {
         setCancellingId(null);
       }
@@ -117,12 +119,14 @@ export function MyReservationsPage({
             </div>
           ) : !reservations || reservations.length === 0 ? (
             <div className="py-12 text-center text-noah-text-sub">
-              <p className="text-4xl mb-3" aria-hidden="true">📅</p>
+              <p className="text-4xl mb-3" aria-hidden="true">
+                📅
+              </p>
               <p>予約はありません</p>
             </div>
           ) : (
             <div className="space-y-3">
-              {reservations.map(reservation => (
+              {reservations.map((reservation) => (
                 <div
                   key={reservation.id}
                   className="bg-white rounded-xl border border-noah-border p-4"
@@ -133,12 +137,15 @@ export function MyReservationsPage({
                         {reservation.pet_name || reservation.course_name}
                       </p>
                       <p className="text-sm text-noah-text-sub">
-                        {[reservation.course_name, reservation.staff_name].filter(Boolean).join(' / ')}
+                        {[reservation.course_name, reservation.staff_name]
+                          .filter(Boolean)
+                          .join(" / ")}
                       </p>
                     </div>
                     <span
                       className={`text-xs px-2 py-1 rounded-full font-medium ${
-                        STATUS_COLORS[reservation.status] ?? 'bg-noah-neutral-bg text-noah-neutral-text'
+                        STATUS_COLORS[reservation.status] ??
+                        "bg-noah-neutral-bg text-noah-neutral-text"
                       }`}
                     >
                       {STATUS_LABELS[reservation.status] ?? reservation.status}
@@ -153,10 +160,12 @@ export function MyReservationsPage({
                   </div>
 
                   {reservation.created_at ? (
-                    <p className="text-xs text-noah-text-faint mt-2">{formatCreatedAt(reservation.created_at)}</p>
+                    <p className="text-xs text-noah-text-faint mt-2">
+                      {formatCreatedAt(reservation.created_at)}
+                    </p>
                   ) : null}
 
-                  {reservation.status === 'confirmed' ? (
+                  {reservation.status === "confirmed" ? (
                     <div className="mt-3 pt-3 border-t border-noah-border-light">
                       {confirmingId === reservation.id ? (
                         <div className="space-y-2">
@@ -168,7 +177,9 @@ export function MyReservationsPage({
                               disabled={Boolean(isCancelling && cancellingId === reservation.id)}
                               className="text-sm text-white bg-noah-danger hover:bg-noah-danger-hover disabled:opacity-50 px-3 py-1.5 rounded-lg"
                             >
-                              {isCancelling && cancellingId === reservation.id ? 'キャンセル中...' : 'はい、キャンセルする'}
+                              {isCancelling && cancellingId === reservation.id
+                                ? "キャンセル中..."
+                                : "はい、キャンセルする"}
                             </button>
                             <button
                               type="button"
@@ -193,7 +204,9 @@ export function MyReservationsPage({
 
                       {cancelError?.id === reservation.id ? (
                         <div className="mt-2 bg-noah-danger-bg border border-noah-danger-border rounded-lg px-4 py-3">
-                          <p className="text-sm text-noah-danger-text" role="alert">{cancelError.message}</p>
+                          <p className="text-sm text-noah-danger-text" role="alert">
+                            {cancelError.message}
+                          </p>
                         </div>
                       ) : null}
                     </div>

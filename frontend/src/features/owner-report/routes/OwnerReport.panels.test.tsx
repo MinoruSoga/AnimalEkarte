@@ -8,10 +8,7 @@ import { AuthContext } from "@/hooks/auth-context";
 import type { AuthContextValue } from "@/types/auth";
 import type { Resource, ResourceAction } from "@/types/generated/models";
 import { buildJSTWallDateTime, todayJSTISO } from "@/lib/jst-date";
-import {
-  ResourceExaminations,
-  ResourceVaccinations,
-} from "@/types/generated/models";
+import { ResourceExaminations, ResourceVaccinations } from "@/types/generated/models";
 
 import type { OwnerReportPet } from "../api/get-owner-report-pets";
 import { toPet } from "../lib/owner-report-pet";
@@ -110,9 +107,7 @@ function SearchParamProbe() {
   return <span data-testid="petid-probe">{params.get("petId") ?? ""}</span>;
 }
 
-function makeAuth(
-  hasPermission: (r: Resource, a: ResourceAction) => boolean,
-): AuthContextValue {
+function makeAuth(hasPermission: (r: Resource, a: ResourceAction) => boolean): AuthContextValue {
   return {
     user: null,
     currentClinicId: "1",
@@ -126,10 +121,7 @@ function makeAuth(
   };
 }
 
-function renderReport(
-  auth: AuthContextValue,
-  initialPath = "/owners/42/report?petId=7",
-) {
+function renderReport(auth: AuthContextValue, initialPath = "/owners/42/report?petId=7") {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
@@ -318,9 +310,7 @@ beforeEach(() => {
 
 const allowAll = () => true;
 
-function baseReportPet(
-  overrides: Partial<OwnerReportPet> = {},
-): OwnerReportPet {
+function baseReportPet(overrides: Partial<OwnerReportPet> = {}): OwnerReportPet {
   return {
     id: "7",
     name: "ポチ",
@@ -346,16 +336,11 @@ describe("toPet status mapping (fail-closed)", () => {
   });
 
   it("未知・欠損 status は「不明」へ fail-closed 写像する", () => {
-    expect(toPet(baseReportPet({ status: "pending" }), "42").status).toBe(
+    expect(toPet(baseReportPet({ status: "pending" }), "42").status).toBe("不明");
+    expect(toPet(baseReportPet({ status: "" }), "42").status).toBe("不明");
+    expect(toPet(baseReportPet({ status: undefined as unknown as string }), "42").status).toBe(
       "不明",
     );
-    expect(toPet(baseReportPet({ status: "" }), "42").status).toBe("不明");
-    expect(
-      toPet(
-        baseReportPet({ status: undefined as unknown as string }),
-        "42",
-      ).status,
-    ).toBe("不明");
   });
 });
 
@@ -375,36 +360,23 @@ describe("OwnerReport", () => {
       "種類別履歴",
     ];
     for (const panelName of panelNames) {
-      expect(
-        within(main).getByRole("region", { name: panelName }),
-      ).toBeInTheDocument();
-      expect(
-        within(main).getByRole("heading", { name: panelName }),
-      ).toBeInTheDocument();
+      expect(within(main).getByRole("region", { name: panelName })).toBeInTheDocument();
+      expect(within(main).getByRole("heading", { name: panelName })).toBeInTheDocument();
     }
     expect(within(main).getAllByRole("region")).toHaveLength(6);
-    expect(screen.getByTestId("owner-report-viewport")).toHaveClass(
-      "fixed",
-      "overflow-hidden",
-    );
-    expect(
-      document.querySelectorAll("[data-owner-report-scroll]"),
-    ).toHaveLength(6);
+    expect(screen.getByTestId("owner-report-viewport")).toHaveClass("fixed", "overflow-hidden");
+    expect(document.querySelectorAll("[data-owner-report-scroll]")).toHaveLength(6);
     expect(screen.queryByRole("tablist")).not.toBeInTheDocument();
     expect(screen.queryByRole("tab")).not.toBeInTheDocument();
     expect(screen.queryByRole("tabpanel")).not.toBeInTheDocument();
-    expect(screen.getByRole("combobox", { name: "ペット切替" })).toHaveValue(
-      "7",
-    );
+    expect(screen.getByRole("combobox", { name: "ペット切替" })).toHaveValue("7");
   });
 
   it("診療前確認・今日の来院・次の行動・前回診療を優先表示する", () => {
     renderReport(makeAuth(allowAll));
 
     expect(screen.getByText("飼主ペットレポート")).toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", { name: "ポチ", level: 2 }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "ポチ", level: 2 })).toBeInTheDocument();
     expect(screen.getAllByText(/犬・柴犬/)).not.toHaveLength(0);
 
     const attention = screen.getByRole("region", { name: "診療前の確認" });
@@ -513,27 +485,13 @@ describe("OwnerReport", () => {
     const table = screen.getByRole("table", {
       name: "診療履歴を種類別に分け、日付の新しい順に左から表示",
     });
-    expect(
-      within(table).getByRole("rowheader", { name: /診療/ }),
-    ).toBeInTheDocument();
-    expect(
-      within(table).getByRole("rowheader", { name: /検査/ }),
-    ).toBeInTheDocument();
-    expect(
-      within(table).getByRole("rowheader", { name: /薬・処方/ }),
-    ).toBeInTheDocument();
-    expect(
-      within(table).getByRole("rowheader", { name: /予防接種/ }),
-    ).toBeInTheDocument();
-    expect(
-      within(table).getByRole("rowheader", { name: /処置/ }),
-    ).toBeInTheDocument();
-    expect(
-      within(table).getByRole("rowheader", { name: /ケア/ }),
-    ).toBeInTheDocument();
-    expect(within(table).getAllByRole("columnheader")[0]).toHaveTextContent(
-      "種類",
-    );
+    expect(within(table).getByRole("rowheader", { name: /診療/ })).toBeInTheDocument();
+    expect(within(table).getByRole("rowheader", { name: /検査/ })).toBeInTheDocument();
+    expect(within(table).getByRole("rowheader", { name: /薬・処方/ })).toBeInTheDocument();
+    expect(within(table).getByRole("rowheader", { name: /予防接種/ })).toBeInTheDocument();
+    expect(within(table).getByRole("rowheader", { name: /処置/ })).toBeInTheDocument();
+    expect(within(table).getByRole("rowheader", { name: /ケア/ })).toBeInTheDocument();
+    expect(within(table).getAllByRole("columnheader")[0]).toHaveTextContent("種類");
   });
 
   it("ペット切替でページ遷移せず ?petId= が同期し、飼主パネルは消えない", async () => {
@@ -542,16 +500,11 @@ describe("OwnerReport", () => {
 
     expect(screen.getByTestId("petid-probe")).toHaveTextContent("7");
 
-    await user.selectOptions(
-      screen.getByRole("combobox", { name: "ペット切替" }),
-      "8",
-    );
+    await user.selectOptions(screen.getByRole("combobox", { name: "ペット切替" }), "8");
 
     // URL ?petId= が 8 に同期
     expect(screen.getByTestId("petid-probe")).toHaveTextContent("8");
-    expect(screen.getByRole("combobox", { name: "ペット切替" })).toHaveValue(
-      "8",
-    );
+    expect(screen.getByRole("combobox", { name: "ペット切替" })).toHaveValue("8");
     // 飼主パネルは残る
     expect(screen.getByText("山田太郎")).toBeInTheDocument();
     expect(hooks.useGetMedicalRecords).toHaveBeenLastCalledWith(
@@ -571,17 +524,11 @@ describe("OwnerReport", () => {
 
     expect(screen.getByText("死亡")).toBeInTheDocument();
 
-    await user.selectOptions(
-      screen.getByRole("combobox", { name: "ペット切替" }),
-      "8",
-    );
+    await user.selectOptions(screen.getByRole("combobox", { name: "ペット切替" }), "8");
 
     expect(screen.queryByText("死亡")).not.toBeInTheDocument();
 
-    await user.selectOptions(
-      screen.getByRole("combobox", { name: "ペット切替" }),
-      "7",
-    );
+    await user.selectOptions(screen.getByRole("combobox", { name: "ペット切替" }), "7");
 
     expect(screen.getByText("死亡")).toBeInTheDocument();
   });
@@ -589,9 +536,7 @@ describe("OwnerReport", () => {
   it("別飼主を含む不正なpetIdは先頭ペットへフォールバックし、問い合わせへ渡さない", () => {
     renderReport(makeAuth(allowAll), "/owners/42/report?petId=999999");
 
-    expect(screen.getByRole("combobox", { name: "ペット切替" })).toHaveValue(
-      "7",
-    );
+    expect(screen.getByRole("combobox", { name: "ペット切替" })).toHaveValue("7");
     expect(hooks.useGetMedicalRecords).toHaveBeenLastCalledWith(
       expect.objectContaining({ petId: "7", status: "finalized" }),
     );
@@ -663,9 +608,7 @@ describe("OwnerReport", () => {
     expect(within(attention).getAllByText("取得失敗")).toHaveLength(3);
     expect(within(attention).queryByText("予定なし")).not.toBeInTheDocument();
     expect(
-      within(screen.getByRole("region", { name: "前回診療" })).getByText(
-        "取得失敗",
-      ),
+      within(screen.getByRole("region", { name: "前回診療" })).getByText("取得失敗"),
     ).toBeInTheDocument();
     const nextAction = screen.getByRole("region", { name: "次の行動" });
     expect(within(nextAction).getAllByText("取得失敗")).toHaveLength(3);

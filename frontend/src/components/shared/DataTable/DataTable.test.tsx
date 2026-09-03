@@ -22,7 +22,7 @@ describe("DataTable", () => {
             <td>{row.name}</td>
           </tr>
         )}
-      />
+      />,
     );
 
     const headerCell = screen.getByRole("columnheader", { name: "名前" });
@@ -43,7 +43,7 @@ describe("DataTable", () => {
         )}
         headerRowClassName="custom-row-class"
         headerCellClassName="custom-cell-class"
-      />
+      />,
     );
 
     const headerCell = screen.getByRole("columnheader", { name: "名前" });

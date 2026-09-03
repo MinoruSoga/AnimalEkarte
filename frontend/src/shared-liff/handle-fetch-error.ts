@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios from "axios";
 
 export interface FetchErrorInfo {
   status: number | undefined;
@@ -12,10 +12,10 @@ interface StatusCarryingError {
 
 function hasStatus(err: unknown): err is StatusCarryingError {
   return (
-    typeof err === 'object' &&
+    typeof err === "object" &&
     err !== null &&
-    'status' in err &&
-    typeof (err as { status: unknown }).status === 'number'
+    "status" in err &&
+    typeof (err as { status: unknown }).status === "number"
   );
 }
 
@@ -44,7 +44,7 @@ export function resolveFetchError(err: unknown, context: string): FetchErrorInfo
   if (status === 401) {
     return {
       status,
-      message: 'ログイン情報の有効期限が切れました。LINEアプリを再起動して開き直してください。',
+      message: "ログイン情報の有効期限が切れました。LINEアプリを再起動して開き直してください。",
       canRetry: false,
     };
   }
@@ -52,7 +52,7 @@ export function resolveFetchError(err: unknown, context: string): FetchErrorInfo
   if (status !== undefined && status >= 500) {
     return {
       status,
-      message: 'サーバーエラーが発生しました。しばらく経ってから再度お試しください。',
+      message: "サーバーエラーが発生しました。しばらく経ってから再度お試しください。",
       canRetry: true,
     };
   }

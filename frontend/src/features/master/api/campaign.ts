@@ -99,7 +99,8 @@ export const useCreateCampaign = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: createCampaign,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("campaigns") }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("campaigns") }),
     onError: (error) => handleApiError(error, "作成"),
   });
 };
@@ -107,8 +108,10 @@ export const useCreateCampaign = () => {
 export const useUpdateCampaign = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, req }: { id: string; req: UpdateCampaignRequest }) => updateCampaign(id, req),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("campaigns") }),
+    mutationFn: ({ id, req }: { id: string; req: UpdateCampaignRequest }) =>
+      updateCampaign(id, req),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("campaigns") }),
     onError: (error) => handleApiError(error, "更新"),
   });
 };
@@ -117,8 +120,8 @@ export const useDeleteCampaign = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: deleteCampaign,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("campaigns") }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("campaigns") }),
     onError: (error) => handleApiError(error, "削除"),
   });
 };
-

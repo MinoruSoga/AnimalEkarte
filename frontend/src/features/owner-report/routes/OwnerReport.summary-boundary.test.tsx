@@ -105,9 +105,7 @@ function SearchParamProbe() {
   return <span data-testid="petid-probe">{params.get("petId") ?? ""}</span>;
 }
 
-function makeAuth(
-  hasPermission: (r: Resource, a: ResourceAction) => boolean,
-): AuthContextValue {
+function makeAuth(hasPermission: (r: Resource, a: ResourceAction) => boolean): AuthContextValue {
   return {
     user: null,
     currentClinicId: "1",
@@ -121,10 +119,7 @@ function makeAuth(
   };
 }
 
-function renderReport(
-  auth: AuthContextValue,
-  initialPath = "/owners/42/report?petId=7",
-) {
+function renderReport(auth: AuthContextValue, initialPath = "/owners/42/report?petId=7") {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
@@ -327,24 +322,16 @@ describe("OwnerReport — サマリー/権限/認証境界", () => {
     renderReport(makeAuth(allowAll));
 
     expect(
-      within(screen.getByRole("region", { name: "診療前の確認" })).getAllByText(
-        "読み込み中...",
-      ),
+      within(screen.getByRole("region", { name: "診療前の確認" })).getAllByText("読み込み中..."),
     ).toHaveLength(3);
     expect(
-      within(screen.getByRole("region", { name: "今日の来院" })).getByText(
-        "読み込み中...",
-      ),
+      within(screen.getByRole("region", { name: "今日の来院" })).getByText("読み込み中..."),
     ).toBeInTheDocument();
     expect(
-      within(screen.getByRole("region", { name: "次の行動" })).getAllByText(
-        "読み込み中...",
-      ),
+      within(screen.getByRole("region", { name: "次の行動" })).getAllByText("読み込み中..."),
     ).toHaveLength(3);
     expect(
-      within(screen.getByRole("region", { name: "前回診療" })).getByText(
-        "読み込み中...",
-      ),
+      within(screen.getByRole("region", { name: "前回診療" })).getByText("読み込み中..."),
     ).toBeInTheDocument();
   });
 
@@ -397,9 +384,7 @@ describe("OwnerReport — サマリー/権限/認証境界", () => {
     renderReport(makeAuth(allowAll));
 
     expect(
-      within(screen.getByRole("region", { name: "種類別履歴" })).getByText(
-        /\d+件\+/,
-      ),
+      within(screen.getByRole("region", { name: "種類別履歴" })).getByText(/\d+件\+/),
     ).toBeInTheDocument();
   });
 
@@ -411,27 +396,17 @@ describe("OwnerReport — サマリー/権限/認証境界", () => {
     });
     renderReport(makeAuth(allowAll));
 
-    expect(screen.getByRole("alert")).toHaveTextContent(
-      "飼主・ペット情報の取得に失敗しました",
-    );
-    expect(
-      screen.queryByText("この飼主に登録されたペットがありません"),
-    ).not.toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent("飼主・ペット情報の取得に失敗しました");
+    expect(screen.queryByText("この飼主に登録されたペットがありません")).not.toBeInTheDocument();
   });
 
   it("履歴ゼロのセクションは空状態を表示する", () => {
-    hooks.useGetPetTreatmentHistory.mockReturnValue(
-      ok({ items: [], isTruncated: false }),
-    );
+    hooks.useGetPetTreatmentHistory.mockReturnValue(ok({ items: [], isTruncated: false }));
     renderReport(makeAuth(allowAll));
 
     const table = screen.getByRole("table");
-    expect(
-      within(table).getByRole("rowheader", { name: /薬・処方0件/ }),
-    ).toBeInTheDocument();
-    expect(
-      within(table).getByRole("rowheader", { name: /処置0件/ }),
-    ).toBeInTheDocument();
+    expect(within(table).getByRole("rowheader", { name: /薬・処方0件/ })).toBeInTheDocument();
+    expect(within(table).getByRole("rowheader", { name: /処置0件/ })).toBeInTheDocument();
   });
 
   it("medical-records:view が無ければアクセス拒否を表示する", () => {

@@ -12,12 +12,12 @@ const LOGIN_INPUT_BASE = `w-full h-[48px] text-base rounded-xxs ${C.bgInputLogin
 export function LoginFormBrandHeader() {
   return (
     <div className="text-center mb-8">
-      <div className={`inline-flex items-center justify-center size-[48px] rounded-xl mb-4 ${C.bgBrandIdentity}`}>
+      <div
+        className={`inline-flex items-center justify-center size-[48px] rounded-xl mb-4 ${C.bgBrandIdentity}`}
+      >
         <Stethoscope className={`size-[26px] ${C.textWhite}`} />
       </div>
-      <h1 className={`text-heading-3 font-bold leading-tight ${C.text} mb-1`}>
-        ノア動物病院
-      </h1>
+      <h1 className={`text-heading-3 font-bold leading-tight ${C.text} mb-1`}>ノア動物病院</h1>
       <p className={`text-base ${C.text50}`}>管理システムにログイン</p>
     </div>
   );
@@ -97,11 +97,7 @@ export function LoginFormCredentialFields({
 
       <FormFieldError id="login-error" message={error} />
 
-      <SubmitButton
-        colorVariant="brand"
-        className="w-full h-[52px]"
-        loadingText="ログイン中..."
-      >
+      <SubmitButton colorVariant="brand" className="w-full h-[52px]" loadingText="ログイン中...">
         ログイン
       </SubmitButton>
 

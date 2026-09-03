@@ -7,7 +7,7 @@ import { C, STYLE } from "@/lib/design-tokens";
 const TreatmentSearchDialog = lazy(() =>
   import("@/components/shared/TreatmentSearchDialog/TreatmentSearchDialog").then((m) => ({
     default: m.TreatmentSearchDialog,
-  }))
+  })),
 );
 
 // Relative

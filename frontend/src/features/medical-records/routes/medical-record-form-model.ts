@@ -21,7 +21,7 @@ export const MEDICAL_RECORD_TAB_ITEMS = MEDICAL_RECORD_TABS.map((tab) => ({
 const MEDICAL_RECORD_TAB_ALIASES: Record<string, (typeof MEDICAL_RECORD_TABS)[number]> = {
   checkup: "定期健診",
   checkups: "定期健診",
-  "定期健診": "定期健診",
+  定期健診: "定期健診",
   examinations: "検査",
   exam: "検査",
   検査: "検査",
@@ -48,9 +48,7 @@ export function initialMedicalRecordTab(raw: string | null | undefined): string 
   if (!raw) return "問診";
   const aliased = MEDICAL_RECORD_TAB_ALIASES[raw];
   if (aliased) return aliased;
-  return MEDICAL_RECORD_TABS.includes(raw as (typeof MEDICAL_RECORD_TABS)[number])
-    ? raw
-    : "問診";
+  return MEDICAL_RECORD_TABS.includes(raw as (typeof MEDICAL_RECORD_TABS)[number]) ? raw : "問診";
 }
 
 export type MedicalRecordFormGate =

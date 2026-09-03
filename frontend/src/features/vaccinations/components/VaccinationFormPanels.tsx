@@ -5,7 +5,13 @@ import { DatePicker } from "@/components/shared/DatePicker/DatePicker";
 import { NextScheduleField } from "@/components/shared/NextScheduleField";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { C } from "@/lib/design-tokens";
 import { toJSTWallDate } from "@/lib/jst-date";
@@ -123,7 +129,9 @@ export function VaccinationFieldsPanel({
         {doctorName ? (
           <div className="space-y-2">
             <span className={`block text-sm ${C.text60}`}>担当医</span>
-            <p className={`min-h-11 flex items-center rounded-md border ${C.borderLight} ${C.bgPage} px-3 text-sm ${C.text}`}>
+            <p
+              className={`min-h-11 flex items-center rounded-md border ${C.borderLight} ${C.bgPage} px-3 text-sm ${C.text}`}
+            >
               {doctorName}
             </p>
           </div>
@@ -145,10 +153,34 @@ export function VaccinationFieldsPanel({
         <div className="space-y-2">
           <Label>LOT番号</Label>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <LotInput id="vaccination-lot-1" label="LOT 1" value={lot1} onChange={onLot1Change} onMarkDirty={onMarkDirty} />
-            <LotInput id="vaccination-lot-2" label="LOT 2" value={lot2} onChange={onLot2Change} onMarkDirty={onMarkDirty} />
-            <LotInput id="vaccination-lot-3" label="LOT 3" value={lot3} onChange={onLot3Change} onMarkDirty={onMarkDirty} />
-            <LotInput id="vaccination-lot-4" label="LOT 4" value={lot4} onChange={onLot4Change} onMarkDirty={onMarkDirty} />
+            <LotInput
+              id="vaccination-lot-1"
+              label="LOT 1"
+              value={lot1}
+              onChange={onLot1Change}
+              onMarkDirty={onMarkDirty}
+            />
+            <LotInput
+              id="vaccination-lot-2"
+              label="LOT 2"
+              value={lot2}
+              onChange={onLot2Change}
+              onMarkDirty={onMarkDirty}
+            />
+            <LotInput
+              id="vaccination-lot-3"
+              label="LOT 3"
+              value={lot3}
+              onChange={onLot3Change}
+              onMarkDirty={onMarkDirty}
+            />
+            <LotInput
+              id="vaccination-lot-4"
+              label="LOT 4"
+              value={lot4}
+              onChange={onLot4Change}
+              onMarkDirty={onMarkDirty}
+            />
           </div>
         </div>
 
@@ -198,7 +230,9 @@ interface LotInputProps {
 function LotInput({ id, label, value, onChange, onMarkDirty }: LotInputProps) {
   return (
     <div className="space-y-1">
-      <Label htmlFor={id} className={`text-xs ${C.text60}`}>{label}</Label>
+      <Label htmlFor={id} className={`text-xs ${C.text60}`}>
+        {label}
+      </Label>
       <Input
         id={id}
         value={value}

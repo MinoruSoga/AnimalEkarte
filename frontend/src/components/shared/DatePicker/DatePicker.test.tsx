@@ -77,10 +77,7 @@ describe("DatePicker — 44px touch targets", () => {
 
     await user.click(screen.getByRole("button", { name: "カレンダーを開く" }));
 
-    expect(screen.getByRole("button", { name: "Today" })).toHaveClass(
-      "min-h-11",
-      "min-w-11",
-    );
+    expect(screen.getByRole("button", { name: "Today" })).toHaveClass("min-h-11", "min-w-11");
   });
 
   it("flex内で複数配置しても親幅を押し広げない", () => {

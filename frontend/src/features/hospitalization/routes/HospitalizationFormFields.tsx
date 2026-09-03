@@ -104,34 +104,34 @@ export function HospitalizationFormFields({
 
   return (
     <>
-        {selectedPet ? (
-            <PatientInfoCard
-              ownerName={selectedPet.ownerName}
-              petName={selectedPet.name}
-              petNumber={selectedPet.petNumber || selectedPet.id || ""}
-              weight={selectedPet.weight || "-"}
-              staffName={formData.doctorName || "未設定"}
-              staffLabel="担当医"
-              staffButtonId="doctor_id"
-              reservationType={formData.hospitalizationType}
-              petDetails={formatPatientPetDetails({
-                species: selectedPet.species,
-                birthDate: selectedPet.birthDate,
-                gender: selectedPet.gender,
-                neuteredDate: selectedPet.neuteredDate,
-              })}
-              insuranceName={selectedPet.insuranceName}
-              insuranceDetails={selectedPet.insuranceDetails}
-              status={selectedPet.status === "死亡" ? "deceased" : "alive"}
-              nextVisitDate={resolveNextVisitDate(formData)}
-              nextVisitContent={resolveNextVisitContent(formData)}
-              onStaffClick={canSubmit ? onOpenStaffModal : undefined}
-            />
-        ) : null}
-        <FormFieldError message={fieldErrors?.pet} />
+      {selectedPet ? (
+        <PatientInfoCard
+          ownerName={selectedPet.ownerName}
+          petName={selectedPet.name}
+          petNumber={selectedPet.petNumber || selectedPet.id || ""}
+          weight={selectedPet.weight || "-"}
+          staffName={formData.doctorName || "未設定"}
+          staffLabel="担当医"
+          staffButtonId="doctor_id"
+          reservationType={formData.hospitalizationType}
+          petDetails={formatPatientPetDetails({
+            species: selectedPet.species,
+            birthDate: selectedPet.birthDate,
+            gender: selectedPet.gender,
+            neuteredDate: selectedPet.neuteredDate,
+          })}
+          insuranceName={selectedPet.insuranceName}
+          insuranceDetails={selectedPet.insuranceDetails}
+          status={selectedPet.status === "死亡" ? "deceased" : "alive"}
+          nextVisitDate={resolveNextVisitDate(formData)}
+          nextVisitContent={resolveNextVisitContent(formData)}
+          onStaffClick={canSubmit ? onOpenStaffModal : undefined}
+        />
+      ) : null}
+      <FormFieldError message={fieldErrors?.pet} />
 
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-5 mb-3">
-          <div className="space-y-3 lg:col-span-3">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-5 mb-3">
+        <div className="space-y-3 lg:col-span-3">
           <HospitalizationBasicInfo
             formData={formData}
             onChange={onFormChange}
@@ -157,40 +157,40 @@ export function HospitalizationFormFields({
             placeholder="連絡事項を入力..."
           />
 
-        {isEdit ? (
-          <p className={`mb-2 ${H_STYLES.text.sm} ${C.text60}`}>
-            登録時の治療プランはスナップショットとして参照のみです。この画面では変更・削除できません。入院中の投薬・給餌などは入院詳細のケアプランで管理します。
-          </p>
-        ) : (
-          <p className={`mb-2 ${H_STYLES.text.sm} ${C.text60}`}>
-            治療内容・メモが入力された行のみ、入院登録時に治療プラン（登録時スナップショット）として保存されます。空行は保存されません。
-          </p>
-        )}
-        {hasChildTreatmentPlans ? (
-          <p className={`mb-2 ${H_STYLES.text.sm} ${C.text60}`} role="status">
-            治療プランが紐付いているため、この入院は削除できません。
-          </p>
-        ) : null}
-        <HospitalizationTreatmentTable
+          {isEdit ? (
+            <p className={`mb-2 ${H_STYLES.text.sm} ${C.text60}`}>
+              登録時の治療プランはスナップショットとして参照のみです。この画面では変更・削除できません。入院中の投薬・給餌などは入院詳細のケアプランで管理します。
+            </p>
+          ) : (
+            <p className={`mb-2 ${H_STYLES.text.sm} ${C.text60}`}>
+              治療内容・メモが入力された行のみ、入院登録時に治療プラン（登録時スナップショット）として保存されます。空行は保存されません。
+            </p>
+          )}
+          {hasChildTreatmentPlans ? (
+            <p className={`mb-2 ${H_STYLES.text.sm} ${C.text60}`} role="status">
+              治療プランが紐付いているため、この入院は削除できません。
+            </p>
+          ) : null}
+          <HospitalizationTreatmentTable
             treatmentPlans={treatmentPlans}
             onAdd={onAddTreatmentPlan}
             onUpdate={onUpdateTreatmentPlan}
             onRemove={canDelete ? onRemoveTreatmentPlan : undefined}
             readOnly={isEdit}
-        />
-
-        <p className={`mb-2 ${H_STYLES.text.sm} ${C.text60}`}>
-          一括割引（%／円）はこの画面では利用できません。表示金額は治療プラン明細に基づく概算です。
-        </p>
-        <HospitalizationCostSummary totals={totals} />
-          </div>
-          <PastRecordHistoryPanel
-            title="過去の入院履歴"
-            searchPlaceholder="種別・ステータスで検索..."
-            items={historyItems}
-            isLoading={isHistoryLoading}
           />
+
+          <p className={`mb-2 ${H_STYLES.text.sm} ${C.text60}`}>
+            一括割引（%／円）はこの画面では利用できません。表示金額は治療プラン明細に基づく概算です。
+          </p>
+          <HospitalizationCostSummary totals={totals} />
         </div>
+        <PastRecordHistoryPanel
+          title="過去の入院履歴"
+          searchPlaceholder="種別・ステータスで検索..."
+          items={historyItems}
+          isLoading={isHistoryLoading}
+        />
+      </div>
     </>
   );
 }

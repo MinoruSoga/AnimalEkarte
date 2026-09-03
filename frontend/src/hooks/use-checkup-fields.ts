@@ -52,9 +52,7 @@ function transform(f: CheckupTypeFieldApi): CheckupTypeFieldRow {
 }
 
 // GET /v1/masters/checkup-types/:id/fields
-const getCheckupTypeFields = async (
-  checkupTypeId: string,
-): Promise<CheckupTypeFieldRow[]> => {
+const getCheckupTypeFields = async (checkupTypeId: string): Promise<CheckupTypeFieldRow[]> => {
   const { data } = await axios.get<CheckupTypeFieldApi[]>(
     `/v1/masters/checkup-types/${checkupTypeId}/fields`,
   );
@@ -87,8 +85,7 @@ export const replaceCheckupFieldResults = async (
   checkupId: string | number,
   results: CheckupFieldResultInput[],
 ): Promise<void> => {
-  await axios.put(
-    `/v1/medical-records/${medicalRecordId}/checkups/${checkupId}/field-results`,
-    { results },
-  );
+  await axios.put(`/v1/medical-records/${medicalRecordId}/checkups/${checkupId}/field-results`, {
+    results,
+  });
 };

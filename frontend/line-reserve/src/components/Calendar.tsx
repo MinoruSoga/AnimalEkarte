@@ -1,6 +1,6 @@
-import { useState, useCallback, useMemo } from 'react';
-import type { AvailableDate } from '../types/models';
-import { addDaysISO, getJSTToday, parseISODate } from '@/shared-liff/jst-date';
+import { useState, useCallback, useMemo } from "react";
+import type { AvailableDate } from "../types/models";
+import { addDaysISO, getJSTToday, parseISODate } from "@/shared-liff/jst-date";
 
 interface CalendarProps {
   availableDates: AvailableDate[];
@@ -9,11 +9,11 @@ interface CalendarProps {
   bookingWindow: number; // 今日から何日後まで予約可能
 }
 
-const WEEK_DAYS = ['日', '月', '火', '水', '木', '金', '土'] as const;
+const WEEK_DAYS = ["日", "月", "火", "水", "木", "金", "土"] as const;
 
 function formatDate(year: number, month: number, day: number): string {
-  const m = String(month + 1).padStart(2, '0');
-  const d = String(day).padStart(2, '0');
+  const m = String(month + 1).padStart(2, "0");
+  const d = String(day).padStart(2, "0");
   return `${year}-${m}-${d}`;
 }
 
@@ -23,30 +23,33 @@ export function Calendar({ availableDates, selectedDate, onSelect, bookingWindow
   }, []);
 
   const maxDate = useMemo(() => {
-    return parseISODate(addDaysISO(formatDate(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()), bookingWindow));
+    return parseISODate(
+      addDaysISO(
+        formatDate(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()),
+        bookingWindow,
+      ),
+    );
   }, [today, bookingWindow]);
 
   const [viewYear, setViewYear] = useState<number>(today.getUTCFullYear());
   const [viewMonth, setViewMonth] = useState<number>(today.getUTCMonth()); // 0-based
 
   const availableSet = useMemo(() => {
-    return new Set(
-      availableDates.filter(d => d.available).map(d => d.date)
-    );
+    return new Set(availableDates.filter((d) => d.available).map((d) => d.date));
   }, [availableDates]);
 
   const reasonMap = useMemo(() => {
     const map = new Map<string, string>();
     const REASON_LABELS: Record<string, string> = {
-      closed:   '休診日',
-      holiday:  '祝日休診',
-      staff_off: 'スタッフ不在',
-      no_slots:  '満席',
+      closed: "休診日",
+      holiday: "祝日休診",
+      staff_off: "スタッフ不在",
+      no_slots: "満席",
     };
     for (const d of availableDates) {
       // 同一日に available:true と staff_off が混在しても、選択可能な日には理由を載せない
       if (!d.available && d.reason && !availableSet.has(d.date)) {
-        map.set(d.date, REASON_LABELS[d.reason] ?? '予約不可');
+        map.set(d.date, REASON_LABELS[d.reason] ?? "予約不可");
       }
     }
     return map;
@@ -74,20 +77,20 @@ export function Calendar({ availableDates, selectedDate, onSelect, bookingWindow
   const handlePrev = useCallback(() => {
     if (!canGoPrev) return;
     if (viewMonth === 0) {
-      setViewYear(y => y - 1);
+      setViewYear((y) => y - 1);
       setViewMonth(11);
     } else {
-      setViewMonth(m => m - 1);
+      setViewMonth((m) => m - 1);
     }
   }, [canGoPrev, viewMonth]);
 
   const handleNext = useCallback(() => {
     if (!canGoNext) return;
     if (viewMonth === 11) {
-      setViewYear(y => y + 1);
+      setViewYear((y) => y + 1);
       setViewMonth(0);
     } else {
-      setViewMonth(m => m + 1);
+      setViewMonth((m) => m + 1);
     }
   }, [canGoNext, viewMonth]);
 
@@ -113,8 +116,18 @@ export function Calendar({ availableDates, selectedDate, onSelect, bookingWindow
           className="p-1 rounded disabled:opacity-30 hover:bg-noah-teal-light"
           aria-label="前月"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-            <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="h-5 w-5"
+            viewBox="0 0 20 20"
+            fill="currentColor"
+            aria-hidden="true"
+          >
+            <path
+              fillRule="evenodd"
+              d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z"
+              clipRule="evenodd"
+            />
           </svg>
         </button>
         <span className="font-semibold text-noah-teal-dark">
@@ -127,8 +140,18 @@ export function Calendar({ availableDates, selectedDate, onSelect, bookingWindow
           className="p-1 rounded disabled:opacity-30 hover:bg-noah-teal-light"
           aria-label="翌月"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-            <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="h-5 w-5"
+            viewBox="0 0 20 20"
+            fill="currentColor"
+            aria-hidden="true"
+          >
+            <path
+              fillRule="evenodd"
+              d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
+              clipRule="evenodd"
+            />
           </svg>
         </button>
       </div>
@@ -139,7 +162,7 @@ export function Calendar({ availableDates, selectedDate, onSelect, bookingWindow
           <div
             key={day}
             className={`text-center text-xs py-2 font-medium ${
-              idx === 0 ? 'text-noah-danger' : idx === 6 ? 'text-noah-teal' : 'text-noah-text-sub'
+              idx === 0 ? "text-noah-danger" : idx === 6 ? "text-noah-teal" : "text-noah-text-sub"
             }`}
           >
             {day}
@@ -164,7 +187,7 @@ export function Calendar({ availableDates, selectedDate, onSelect, bookingWindow
           const isDisabled = !isAvailable || isPast || isBeyondWindow;
 
           const reasonLabel = isDisabled ? reasonMap.get(dateStr) : undefined;
-          const ariaLabel = `${viewYear}年${viewMonth + 1}月${cell.day}日${reasonLabel ? `（${reasonLabel}）` : isDisabled ? '（予約不可）' : ''}`;
+          const ariaLabel = `${viewYear}年${viewMonth + 1}月${cell.day}日${reasonLabel ? `（${reasonLabel}）` : isDisabled ? "（予約不可）" : ""}`;
 
           return (
             <div key={dateStr} className="relative group">
@@ -175,14 +198,14 @@ export function Calendar({ availableDates, selectedDate, onSelect, bookingWindow
                 title={reasonLabel}
                 className={`w-full aspect-square flex items-center justify-center text-sm transition-colors ${
                   isSelected
-                    ? 'bg-noah-teal text-white rounded-full mx-1 my-1'
+                    ? "bg-noah-teal text-white rounded-full mx-1 my-1"
                     : isDisabled
-                      ? 'text-noah-disabled cursor-not-allowed'
+                      ? "text-noah-disabled cursor-not-allowed"
                       : dayOfWeek === 0
-                        ? 'text-noah-danger hover:bg-noah-danger-bg'
+                        ? "text-noah-danger hover:bg-noah-danger-bg"
                         : dayOfWeek === 6
-                          ? 'text-noah-teal hover:bg-noah-teal-light'
-                          : 'text-noah-text hover:bg-noah-teal-light'
+                          ? "text-noah-teal hover:bg-noah-teal-light"
+                          : "text-noah-text hover:bg-noah-teal-light"
                 }`}
                 aria-label={ariaLabel}
               >

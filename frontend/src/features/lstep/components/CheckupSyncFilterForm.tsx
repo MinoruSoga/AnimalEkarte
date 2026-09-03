@@ -2,10 +2,7 @@ import { useActionState } from "react";
 import { C, STYLE } from "@/lib/design-tokens";
 import { getFormString } from "@/lib/form-data";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
-import type {
-  CheckupSyncParams,
-  CheckupType,
-} from "../api/get-checkup-sync-preview";
+import type { CheckupSyncParams, CheckupType } from "../api/get-checkup-sync-preview";
 import { CPM_STAGE_OPTIONS, type CPMStage } from "@/lib/cpm-stage";
 
 const CHECKUP_TYPE_OPTIONS: { value: CheckupType; label: string }[] = [
@@ -34,7 +31,7 @@ type FilterFormState = { error: string | null };
 
 // ISSUE-009: クエリ整数変換ヘルパー — 空文字は undefined、不正値はバリデーションエラーで握る。
 function parseOptionalInt(
-  raw: FormDataEntryValue | null
+  raw: FormDataEntryValue | null,
 ): { ok: true; value: number | undefined } | { ok: false; error: string } {
   if (typeof raw !== "string" || raw.trim() === "") {
     return { ok: true, value: undefined };
@@ -46,15 +43,9 @@ function parseOptionalInt(
   return { ok: true, value: v };
 }
 
-export function CheckupSyncFilterForm({
-  onSearch,
-  isLoading,
-}: CheckupSyncFilterFormProps) {
+export function CheckupSyncFilterForm({ onSearch, isLoading }: CheckupSyncFilterFormProps) {
   const [state, formAction] = useActionState(
-    async (
-      _prev: FilterFormState,
-      formData: FormData
-    ): Promise<FilterFormState> => {
+    async (_prev: FilterFormState, formData: FormData): Promise<FilterFormState> => {
       const checkupType = getFormString(formData, "checkup_type");
       if (!checkupType) {
         return { error: "検診種別を選択してください" };
@@ -82,11 +73,7 @@ export function CheckupSyncFilterForm({
       if (!maxAge.ok) return { error: `最大年齢は${maxAge.error}` };
       if (maxAge.value !== undefined) params.max_age_years = maxAge.value;
 
-      if (
-        minAge.value !== undefined &&
-        maxAge.value !== undefined &&
-        minAge.value > maxAge.value
-      ) {
+      if (minAge.value !== undefined && maxAge.value !== undefined && minAge.value > maxAge.value) {
         return { error: "最小年齢は最大年齢以下で指定してください" };
       }
 
@@ -105,9 +92,7 @@ export function CheckupSyncFilterForm({
         params.min_total_amount = minTotalAmount.value;
       }
 
-      const minAnnualVisitCount = parseOptionalInt(
-        formData.get("min_annual_visit_count")
-      );
+      const minAnnualVisitCount = parseOptionalInt(formData.get("min_annual_visit_count"));
       if (!minAnnualVisitCount.ok) {
         return { error: `年間来院回数（最小）は${minAnnualVisitCount.error}` };
       }
@@ -124,11 +109,14 @@ export function CheckupSyncFilterForm({
       onSearch(params);
       return { error: null };
     },
-    { error: null }
+    { error: null },
   );
 
   return (
-    <form action={formAction} className={`${C.bgWhite} rounded-xs border ${C.borderLight} p-6 space-y-4`}>
+    <form
+      action={formAction}
+      className={`${C.bgWhite} rounded-xs border ${C.borderLight} p-6 space-y-4`}
+    >
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* 検診種別 */}
         <div className="space-y-1.5">
@@ -152,7 +140,9 @@ export function CheckupSyncFilterForm({
 
         {/* 動物種 */}
         <div className="space-y-1.5">
-          <label htmlFor="species" className={STYLE.formLabel}>動物種（任意）</label>
+          <label htmlFor="species" className={STYLE.formLabel}>
+            動物種（任意）
+          </label>
           <input
             id="species"
             type="text"
@@ -164,7 +154,9 @@ export function CheckupSyncFilterForm({
 
         {/* 最終来院日 from */}
         <div className="space-y-1.5">
-          <label htmlFor="last_visit_after" className={STYLE.formLabel}>最終来院日（以降・任意）</label>
+          <label htmlFor="last_visit_after" className={STYLE.formLabel}>
+            最終来院日（以降・任意）
+          </label>
           <input
             id="last_visit_after"
             type="date"
@@ -175,7 +167,9 @@ export function CheckupSyncFilterForm({
 
         {/* 最終来院日 to */}
         <div className="space-y-1.5">
-          <label htmlFor="last_visit_before" className={STYLE.formLabel}>最終来院日（以前・任意）</label>
+          <label htmlFor="last_visit_before" className={STYLE.formLabel}>
+            最終来院日（以前・任意）
+          </label>
           <input
             id="last_visit_before"
             type="date"
@@ -186,7 +180,9 @@ export function CheckupSyncFilterForm({
 
         {/* ISSUE-009: 年齢（最小） */}
         <div className="space-y-1.5">
-          <label htmlFor="min_age_years" className={STYLE.formLabel}>年齢 最小（任意・歳）</label>
+          <label htmlFor="min_age_years" className={STYLE.formLabel}>
+            年齢 最小（任意・歳）
+          </label>
           <input
             id="min_age_years"
             type="number"
@@ -200,7 +196,9 @@ export function CheckupSyncFilterForm({
 
         {/* ISSUE-009: 年齢（最大） */}
         <div className="space-y-1.5">
-          <label htmlFor="max_age_years" className={STYLE.formLabel}>年齢 最大（任意・歳）</label>
+          <label htmlFor="max_age_years" className={STYLE.formLabel}>
+            年齢 最大（任意・歳）
+          </label>
           <input
             id="max_age_years"
             type="number"
@@ -214,7 +212,9 @@ export function CheckupSyncFilterForm({
 
         {/* ISSUE-009: 慢性疾患 */}
         <div className="space-y-1.5">
-          <label htmlFor="has_chronic_condition" className={STYLE.formLabel}>慢性疾患（任意）</label>
+          <label htmlFor="has_chronic_condition" className={STYLE.formLabel}>
+            慢性疾患（任意）
+          </label>
           <select
             id="has_chronic_condition"
             name="has_chronic_condition"
@@ -231,7 +231,9 @@ export function CheckupSyncFilterForm({
 
         {/* ISSUE-009: CPM ステージ */}
         <div className="space-y-1.5">
-          <label htmlFor="cpm_stage" className={STYLE.formLabel}>CPMステージ（任意）</label>
+          <label htmlFor="cpm_stage" className={STYLE.formLabel}>
+            CPMステージ（任意）
+          </label>
           <select
             id="cpm_stage"
             name="cpm_stage"
@@ -249,7 +251,9 @@ export function CheckupSyncFilterForm({
 
         {/* ISSUE-009: 累計診療費（最小） */}
         <div className="space-y-1.5">
-          <label htmlFor="min_total_amount" className={STYLE.formLabel}>累計診療費（最小・円）</label>
+          <label htmlFor="min_total_amount" className={STYLE.formLabel}>
+            累計診療費（最小・円）
+          </label>
           <input
             id="min_total_amount"
             type="number"
@@ -263,7 +267,9 @@ export function CheckupSyncFilterForm({
 
         {/* ISSUE-009: 年間来院回数（最小） */}
         <div className="space-y-1.5">
-          <label htmlFor="min_annual_visit_count" className={STYLE.formLabel}>年間来院回数（最小・回）</label>
+          <label htmlFor="min_annual_visit_count" className={STYLE.formLabel}>
+            年間来院回数（最小・回）
+          </label>
           <input
             id="min_annual_visit_count"
             type="number"
@@ -277,7 +283,9 @@ export function CheckupSyncFilterForm({
 
         {/* ISSUE-009: 最終健診実施日 from */}
         <div className="space-y-1.5">
-          <label htmlFor="last_checkup_after" className={STYLE.formLabel}>最終健診実施日（以降・任意）</label>
+          <label htmlFor="last_checkup_after" className={STYLE.formLabel}>
+            最終健診実施日（以降・任意）
+          </label>
           <input
             id="last_checkup_after"
             type="date"
@@ -288,7 +296,9 @@ export function CheckupSyncFilterForm({
 
         {/* ISSUE-009: 最終健診実施日 to */}
         <div className="space-y-1.5">
-          <label htmlFor="last_checkup_before" className={STYLE.formLabel}>最終健診実施日（以前・任意）</label>
+          <label htmlFor="last_checkup_before" className={STYLE.formLabel}>
+            最終健診実施日（以前・任意）
+          </label>
           <input
             id="last_checkup_before"
             type="date"
@@ -298,16 +308,10 @@ export function CheckupSyncFilterForm({
         </div>
       </div>
 
-      {state.error ? (
-        <p className={`text-sm ${C.danger}`}>{state.error}</p>
-      ) : null}
+      {state.error ? <p className={`text-sm ${C.danger}`}>{state.error}</p> : null}
 
       <div className="flex justify-end">
-        <SubmitButton
-          loadingText="検索中..."
-          disabled={isLoading}
-          className="min-w-[120px]"
-        >
+        <SubmitButton loadingText="検索中..." disabled={isLoading} className="min-w-[120px]">
           対象者を検索
         </SubmitButton>
       </div>

@@ -46,8 +46,8 @@ function makePet(overrides: Partial<PetFormData> = {}): PetFormData {
 
 function makePetMutations() {
   // 更新成功をシミュレートするため updatePetMutate は onSuccess を即時呼ぶ。
-  const updatePetMutate = vi.fn(
-    (_args: unknown, callbacks: { onSuccess: () => void }) => callbacks.onSuccess(),
+  const updatePetMutate = vi.fn((_args: unknown, callbacks: { onSuccess: () => void }) =>
+    callbacks.onSuccess(),
   );
   const revokePetDeathMutate = vi.fn();
   const mutations: PetMutations = {
@@ -198,49 +198,52 @@ describe("usePetFormListState.handlePetLifecycleChange (BUG-002 outer list sync)
       expectSiblingUnchanged: true,
       expectNoChange: true,
     },
-  ])("BUG-002 $name", ({ change, expectTarget, expectSiblingUnchanged, initialTarget, expectNoChange }) => {
-    const petA = makePet({
-      id: "pet-synth-1",
-      petName: "合成ペット甲",
-      status: initialTarget?.status ?? "生存",
-      deceasedAt: initialTarget?.deceasedAt,
-    });
-    const petB = makePet({
-      id: "pet-synth-2",
-      petName: "合成ペット乙",
-      status: "生存",
-    });
-    const { mutations } = makePetMutations();
-    const { result } = renderHook(() =>
-      usePetFormListState({
-        id: "owner-1",
-        initialPets: [petA, petB],
-        petMutations: mutations,
-        permissions: ALL_PERMISSIONS,
-      }),
-    );
-    const siblingBefore = result.current.pets[1];
+  ])(
+    "BUG-002 $name",
+    ({ change, expectTarget, expectSiblingUnchanged, initialTarget, expectNoChange }) => {
+      const petA = makePet({
+        id: "pet-synth-1",
+        petName: "合成ペット甲",
+        status: initialTarget?.status ?? "生存",
+        deceasedAt: initialTarget?.deceasedAt,
+      });
+      const petB = makePet({
+        id: "pet-synth-2",
+        petName: "合成ペット乙",
+        status: "生存",
+      });
+      const { mutations } = makePetMutations();
+      const { result } = renderHook(() =>
+        usePetFormListState({
+          id: "owner-1",
+          initialPets: [petA, petB],
+          petMutations: mutations,
+          permissions: ALL_PERMISSIONS,
+        }),
+      );
+      const siblingBefore = result.current.pets[1];
 
-    act(() => {
-      result.current.handlePetLifecycleChange(change);
-    });
+      act(() => {
+        result.current.handlePetLifecycleChange(change);
+      });
 
-    const [afterA, afterB] = result.current.pets;
-    expect(afterA.id).toBe("pet-synth-1");
-    expect(afterA.status).toBe(expectTarget.status);
-    expect(afterA.deceasedAt).toBe(expectTarget.deceasedAt);
-    if (expectSiblingUnchanged) {
-      expect(afterB).toBe(siblingBefore);
-      expect(afterB.status).toBe("生存");
-    }
-    if (expectNoChange) {
-      expect(afterA.status).toBe("生存");
-      expect(result.current.pets).toHaveLength(2);
-    }
-    // 汎用 Save 経路を経由しない（lifecycle は専用 mutation の結果同期のみ）
-    expect(mutations.updatePetMutate).not.toHaveBeenCalled();
-    expect(mutations.revokePetDeathMutate).not.toHaveBeenCalled();
-  });
+      const [afterA, afterB] = result.current.pets;
+      expect(afterA.id).toBe("pet-synth-1");
+      expect(afterA.status).toBe(expectTarget.status);
+      expect(afterA.deceasedAt).toBe(expectTarget.deceasedAt);
+      if (expectSiblingUnchanged) {
+        expect(afterB).toBe(siblingBefore);
+        expect(afterB.status).toBe("生存");
+      }
+      if (expectNoChange) {
+        expect(afterA.status).toBe("生存");
+        expect(result.current.pets).toHaveLength(2);
+      }
+      // 汎用 Save 経路を経由しない（lifecycle は専用 mutation の結果同期のみ）
+      expect(mutations.updatePetMutate).not.toHaveBeenCalled();
+      expect(mutations.revokePetDeathMutate).not.toHaveBeenCalled();
+    },
+  );
 });
 
 // BUG-002 follow-up: outer pets 同期後も editingPet が古いと OwnerForm の

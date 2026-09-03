@@ -7,7 +7,7 @@ import type { Shift } from "./transforms";
 import type { BackendShift } from "./types";
 
 export interface GetShiftsParams {
-  date?: string;      // YYYY-MM
+  date?: string; // YYYY-MM
   staff_id?: string;
 }
 

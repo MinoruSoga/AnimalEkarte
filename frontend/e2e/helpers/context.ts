@@ -1,5 +1,5 @@
-import { type Browser, type BrowserContext } from '@playwright/test';
-import { loginAsDemoAdmin } from './auth';
+import { type Browser, type BrowserContext } from "@playwright/test";
+import { loginAsDemoAdmin } from "./auth";
 
 /**
  * Create a fresh browser context that is already authenticated as the demo admin.

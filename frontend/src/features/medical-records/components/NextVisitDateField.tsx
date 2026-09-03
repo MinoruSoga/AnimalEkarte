@@ -56,7 +56,7 @@ const QUICK_OPTIONS: QuickOption[] = [
   { label: "1ヶ月後", getValue: () => addMonths(toJSTWallDate(new Date()), 1) },
   { label: "3ヶ月後", getValue: () => addMonths(toJSTWallDate(new Date()), 3) },
   { label: "6ヶ月後", getValue: () => addMonths(toJSTWallDate(new Date()), 6) },
-  { label: "1年後",   getValue: () => addYears(toJSTWallDate(new Date()), 1) },
+  { label: "1年後", getValue: () => addYears(toJSTWallDate(new Date()), 1) },
 ];
 
 // ─────────────────────────────────────────────────

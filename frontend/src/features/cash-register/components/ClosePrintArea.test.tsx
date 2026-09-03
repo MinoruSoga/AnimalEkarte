@@ -5,7 +5,15 @@ import type { PaymentMethodMaster } from "@/types/generated/models";
 import type { CloseBillingDetail } from "../api/get-cash-register-preview";
 
 function pm(id: number, name: string, order: number): PaymentMethodMaster {
-  return { id, clinic_id: 1, name, display_order: order, is_active: true, created_at: "", updated_at: "" };
+  return {
+    id,
+    clinic_id: 1,
+    name,
+    display_order: order,
+    is_active: true,
+    created_at: "",
+    updated_at: "",
+  };
 }
 
 function detail(overrides: Partial<CloseBillingDetail>): CloseBillingDetail {
@@ -92,7 +100,15 @@ describe("ClosePrintArea (#153 印刷 / PDF出力)", () => {
   it("統合テーブルの部門合計・支払方法別金額は ¥ 区切りで出力する", () => {
     renderPrint({
       categories: { examination: { 現金: 12345, クレジットカード: 6789 } },
-      billingDetails: [detail({ billingId: 1, category: "examination", billingAmount: 19134, refundAmount: 0, netAmount: 19134 })],
+      billingDetails: [
+        detail({
+          billingId: 1,
+          category: "examination",
+          billingAmount: 19134,
+          refundAmount: 0,
+          netAmount: 19134,
+        }),
+      ],
       theoreticalCash: 19134,
       actualCash: null,
     });
@@ -116,10 +132,25 @@ describe("ClosePrintArea (#153 印刷 / PDF出力)", () => {
     renderPrint({
       categories: { examination: { 現金: 8500 } },
       billingDetails: [
-        detail({ billingId: 1, category: "examination", billingAmount: 0, refundAmount: 0, netAmount: 0 }),
-        detail({ billingId: 2, category: "examination", billingAmount: 8000, refundAmount: 1234, netAmount: 6766 }),
+        detail({
+          billingId: 1,
+          category: "examination",
+          billingAmount: 0,
+          refundAmount: 0,
+          netAmount: 0,
+        }),
+        detail({
+          billingId: 2,
+          category: "examination",
+          billingAmount: 8000,
+          refundAmount: 1234,
+          netAmount: 6766,
+        }),
       ],
-      taxBreakdown: { standard: { taxableAmount: 54321, taxAmount: 5432 }, reduced: { taxableAmount: 1000, taxAmount: 80 } },
+      taxBreakdown: {
+        standard: { taxableAmount: 54321, taxAmount: 5432 },
+        reduced: { taxableAmount: 1000, taxAmount: 80 },
+      },
       theoreticalCash: 77777,
       actualCash: null,
     });

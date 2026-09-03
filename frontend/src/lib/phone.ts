@@ -6,7 +6,5 @@ const OWNER_PHONE_CHARACTERS = /^[0-9+ ()-]+$/;
  * Shared by ReservationFormModal (line-reserve keeps a local copy for app boundary).
  */
 export function isValidOwnerPhone(phone: string): boolean {
-  return (
-    OWNER_PHONE_CHARACTERS.test(phone) && phone.replace(/\D/g, "").length >= 10
-  );
+  return OWNER_PHONE_CHARACTERS.test(phone) && phone.replace(/\D/g, "").length >= 10;
 }

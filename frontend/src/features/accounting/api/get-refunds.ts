@@ -7,9 +7,7 @@ import { transformToRefund } from "./transforms";
 import type { Refund } from "./transforms";
 
 const getRefunds = async (billingId: string): Promise<Refund[]> => {
-  const { data } = await axios.get<BillingRefund[]>(
-    `/v1/accountings/${billingId}/refunds`,
-  );
+  const { data } = await axios.get<BillingRefund[]>(`/v1/accountings/${billingId}/refunds`);
   return data.map(transformToRefund);
 };
 

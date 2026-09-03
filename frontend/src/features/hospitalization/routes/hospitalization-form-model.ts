@@ -38,7 +38,7 @@ export function selectHospitalizationDoctorStaffs(
   staffs: readonly StaffItem[],
   doctorId: string,
 ): StaffItem[] {
-  return staffs.filter((staff) =>
-    (staff.isActive && staff.staffType === "doctor") || staff.id === doctorId,
+  return staffs.filter(
+    (staff) => (staff.isActive && staff.staffType === "doctor") || staff.id === doctorId,
   );
 }

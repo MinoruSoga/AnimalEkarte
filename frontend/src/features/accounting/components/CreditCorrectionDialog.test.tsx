@@ -20,7 +20,9 @@ function makeAccounting(overrides: Partial<Accounting>): Accounting {
     id: "10",
     clinicId: "1",
     status: "completed",
-    paymentSplits: [{ id: "1", method: "credit_card", amount: 10000, receivedAmount: 0, changeAmount: 0 }],
+    paymentSplits: [
+      { id: "1", method: "credit_card", amount: 10000, receivedAmount: 0, changeAmount: 0 },
+    ],
     ...overrides,
   } as unknown as Accounting;
 }
@@ -58,7 +60,9 @@ describe("CreditCorrectionDialog 表示ゲート (#189)", () => {
   it("確定済みだが現金のみ: 導線を出さない", () => {
     renderDialog(
       makeAccounting({
-        paymentSplits: [{ id: "1", method: "cash", amount: 10000, receivedAmount: 10000, changeAmount: 0 }] as Accounting["paymentSplits"],
+        paymentSplits: [
+          { id: "1", method: "cash", amount: 10000, receivedAmount: 10000, changeAmount: 0 },
+        ] as Accounting["paymentSplits"],
       }),
     );
     expect(screen.queryByRole("button", { name: "クレジット訂正" })).not.toBeInTheDocument();
@@ -124,7 +128,13 @@ describe("CreditCorrectionDialog 送信 (#189)", () => {
     server.use(
       http.post("*/v1/accountings/10/credit-correction", () => {
         posted = true;
-        return HttpResponse.json({ id: 10, clinic_id: 1, status: "completed", payment_splits: [], payments: [] });
+        return HttpResponse.json({
+          id: 10,
+          clinic_id: 1,
+          status: "completed",
+          payment_splits: [],
+          payments: [],
+        });
       }),
     );
 
@@ -147,7 +157,13 @@ describe("CreditCorrectionDialog 送信 (#189)", () => {
     server.use(
       http.post("*/v1/accountings/10/credit-correction", () => {
         posted = true;
-        return HttpResponse.json({ id: 10, clinic_id: 1, status: "completed", payment_splits: [], payments: [] });
+        return HttpResponse.json({
+          id: 10,
+          clinic_id: 1,
+          status: "completed",
+          payment_splits: [],
+          payments: [],
+        });
       }),
     );
 
@@ -173,14 +189,23 @@ describe("CreditCorrectionDialog 権限再チェック (FE-RC-110)", () => {
     server.use(
       http.post("*/v1/accountings/10/credit-correction", () => {
         posted = true;
-        return HttpResponse.json({ id: 10, clinic_id: 1, status: "completed", payment_splits: [], payments: [] });
+        return HttpResponse.json({
+          id: 10,
+          clinic_id: 1,
+          status: "completed",
+          payment_splits: [],
+          payments: [],
+        });
       }),
     );
 
     const user = userEvent.setup();
     renderDialog(makeAccounting({}), false, false);
     await user.click(screen.getByRole("button", { name: "クレジット訂正" }));
-    await user.type(await screen.findByLabelText("訂正理由（必須）"), "端末への入力金額を打ち間違えたため");
+    await user.type(
+      await screen.findByLabelText("訂正理由（必須）"),
+      "端末への入力金額を打ち間違えたため",
+    );
     await user.click(screen.getByRole("button", { name: "訂正を保存" }));
 
     await waitFor(() => {
@@ -194,7 +219,13 @@ describe("CreditCorrectionDialog 権限再チェック (FE-RC-110)", () => {
     server.use(
       http.post("*/v1/accountings/10/credit-correction", () => {
         posted = true;
-        return HttpResponse.json({ id: 10, clinic_id: 1, status: "completed", payment_splits: [], payments: [] });
+        return HttpResponse.json({
+          id: 10,
+          clinic_id: 1,
+          status: "completed",
+          payment_splits: [],
+          payments: [],
+        });
       }),
     );
 
@@ -202,10 +233,17 @@ describe("CreditCorrectionDialog 権限再チェック (FE-RC-110)", () => {
     const user = userEvent.setup();
     const { rerender } = renderDialog(accounting);
     await user.click(screen.getByRole("button", { name: "クレジット訂正" }));
-    await user.type(await screen.findByLabelText("訂正理由（必須）"), "端末への入力金額を打ち間違えたため");
+    await user.type(
+      await screen.findByLabelText("訂正理由（必須）"),
+      "端末への入力金額を打ち間違えたため",
+    );
 
     rerender(
-      <CreditCorrectionDialog accounting={accounting} isPostClose={false} canPostCloseEdit={false} />,
+      <CreditCorrectionDialog
+        accounting={accounting}
+        isPostClose={false}
+        canPostCloseEdit={false}
+      />,
     );
 
     await user.click(screen.getByRole("button", { name: "訂正を保存" }));

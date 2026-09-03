@@ -13,7 +13,11 @@ import {
 import { C, ICON } from "@/lib/design-tokens";
 import { useAnimalSpecies } from "@/hooks/use-animal-species";
 
-import { ALL_SPECIES_VALUE, TEXT_FIELDS, type PatientSearchParams } from "./patient-selection-table-model";
+import {
+  ALL_SPECIES_VALUE,
+  TEXT_FIELDS,
+  type PatientSearchParams,
+} from "./patient-selection-table-model";
 
 function SpeciesSelectField({
   value,
@@ -33,9 +37,7 @@ function SpeciesSelectField({
       </Label>
       <Select
         value={value || ALL_SPECIES_VALUE}
-        onValueChange={(next) =>
-          onChange(next === ALL_SPECIES_VALUE ? "" : next)
-        }
+        onValueChange={(next) => onChange(next === ALL_SPECIES_VALUE ? "" : next)}
         disabled={isUnavailable}
       >
         <SelectTrigger
@@ -55,12 +57,7 @@ function SpeciesSelectField({
         </SelectContent>
       </Select>
       {isError ? (
-        <p
-          id="species-status"
-          role="alert"
-          aria-atomic="true"
-          className={`text-xs ${C.danger}`}
-        >
+        <p id="species-status" role="alert" aria-atomic="true" className={`text-xs ${C.danger}`}>
           動物種の取得に失敗しました。
         </p>
       ) : isLoading ? (
@@ -102,9 +99,7 @@ export function PatientSearchFilters({
   onClear,
 }: PatientSearchFiltersProps) {
   return (
-    <div
-      className={`rounded-lg bg-white p-3 border ${C.borderMedium} shrink-0`}
-    >
+    <div className={`rounded-lg bg-white p-3 border ${C.borderMedium} shrink-0`}>
       <p className={`mb-2 text-xs ${C.text60}`}>入力すると自動で検索します</p>
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 mb-3">
         {TEXT_FIELDS.map((field) => (
@@ -121,10 +116,7 @@ export function PatientSearchFilters({
             />
           </div>
         ))}
-        <SpeciesSelectField
-          value={searchParams.species}
-          onChange={onSpeciesChange}
-        />
+        <SpeciesSelectField value={searchParams.species} onChange={onSpeciesChange} />
       </div>
       <Button
         size="sm"

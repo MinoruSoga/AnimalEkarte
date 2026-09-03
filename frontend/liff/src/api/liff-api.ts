@@ -1,11 +1,14 @@
-import { z } from 'zod';
-import { API_BASE_URL } from '../lib/liff-config';
-import { devError } from '@/shared-liff/dev-log';
+import { z } from "zod";
+import { API_BASE_URL } from "../lib/liff-config";
+import { devError } from "@/shared-liff/dev-log";
 
 export class LiffApiError extends Error {
-  constructor(public readonly status: number, message: string) {
+  constructor(
+    public readonly status: number,
+    message: string,
+  ) {
     super(message);
-    this.name = 'LiffApiError';
+    this.name = "LiffApiError";
   }
 }
 
@@ -44,8 +47,8 @@ export async function linkLineAccount(
   lineIdToken: string,
 ): Promise<void> {
   const res = await fetch(`${API_BASE_URL}/api/liff/${encodeURIComponent(clinicId)}/link`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ link_token: linkToken, line_id_token: lineIdToken }),
   });
 
@@ -54,17 +57,20 @@ export async function linkLineAccount(
   }
 }
 
-export async function fetchHealthCard(idToken: string, clinicId: string): Promise<HealthCardResponse> {
+export async function fetchHealthCard(
+  idToken: string,
+  clinicId: string,
+): Promise<HealthCardResponse> {
   const res = await fetch(`${API_BASE_URL}/api/liff/${encodeURIComponent(clinicId)}/health-card`, {
-    method: 'GET',
+    method: "GET",
     headers: {
-      'Authorization': `Bearer ${idToken}`,
+      Authorization: `Bearer ${idToken}`,
     },
   });
 
   if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    devError('[fetchHealthCard] error:', res.status, text);
+    const text = await res.text().catch(() => "");
+    devError("[fetchHealthCard] error:", res.status, text);
     // R-F22: status を保持した LiffApiError に統一し、呼び出し側でステータスコード別の
     // エラーメッセージ・再試行可否を判定できるようにする（linkLineAccount と同じ規約）。
     throw new LiffApiError(res.status, `HealthCard fetch failed: ${res.status}`);
@@ -73,8 +79,8 @@ export async function fetchHealthCard(idToken: string, clinicId: string): Promis
   const json: unknown = await res.json();
   const parsed = healthCardResponseSchema.safeParse(json);
   if (!parsed.success) {
-    devError('[fetchHealthCard] invalid response shape:', parsed.error);
-    throw new Error('HealthCard response validation failed');
+    devError("[fetchHealthCard] invalid response shape:", parsed.error);
+    throw new Error("HealthCard response validation failed");
   }
 
   return parsed.data;
@@ -86,7 +92,7 @@ export async function fetchHealthCard(idToken: string, clinicId: string): Promis
  */
 export async function fetchBrandSettings(clinicId: string): Promise<BrandSettings> {
   const res = await fetch(`${API_BASE_URL}/api/liff/${encodeURIComponent(clinicId)}/settings`, {
-    method: 'GET',
+    method: "GET",
   });
 
   if (!res.ok) {
@@ -96,8 +102,8 @@ export async function fetchBrandSettings(clinicId: string): Promise<BrandSetting
   const json: unknown = await res.json();
   const parsed = brandSettingsSchema.safeParse(json);
   if (!parsed.success) {
-    devError('[fetchBrandSettings] invalid response shape:', parsed.error);
-    throw new Error('Brand settings response validation failed');
+    devError("[fetchBrandSettings] invalid response shape:", parsed.error);
+    throw new Error("Brand settings response validation failed");
   }
 
   return parsed.data;

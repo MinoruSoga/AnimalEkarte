@@ -45,13 +45,11 @@ export function useLabDeviceItemMasterSettings() {
     () => toLabDeviceRows(devices, items, examTypes),
     [devices, examTypes, items],
   );
-  const unusedSourceTypes = useMemo(
-    () => availableLabDeviceSourceTypes(devices),
-    [devices],
-  );
-  const selectedRow = selectedId === null || selectedId === "new"
-    ? null
-    : rows.find((row) => row.id === selectedId) ?? null;
+  const unusedSourceTypes = useMemo(() => availableLabDeviceSourceTypes(devices), [devices]);
+  const selectedRow =
+    selectedId === null || selectedId === "new"
+      ? null
+      : (rows.find((row) => row.id === selectedId) ?? null);
   const isCreating = selectedId === "new";
   const selectedItems = useMemo(
     () => (selectedRow === null ? [] : itemsForLabDevice(items, selectedRow.sourceType)),
@@ -87,11 +85,14 @@ export function useLabDeviceItemMasterSettings() {
     });
   }, [clearSourceParam, dirty]);
 
-  const handleEdit = useCallback((row: LabDeviceRow) => {
-    dirty.runWithDiscardCheck(() => {
-      setSelectedId(row.id);
-    });
-  }, [dirty]);
+  const handleEdit = useCallback(
+    (row: LabDeviceRow) => {
+      dirty.runWithDiscardCheck(() => {
+        setSelectedId(row.id);
+      });
+    },
+    [dirty],
+  );
 
   const handleNew = useCallback(() => {
     dirty.runWithDiscardCheck(() => {
@@ -103,43 +104,49 @@ export function useLabDeviceItemMasterSettings() {
     });
   }, [dirty, unusedSourceTypes.length]);
 
-  const handleDirtyChange = useCallback((nextDirty: boolean) => {
-    if (nextDirty) {
-      dirty.markDirty();
-      return;
-    }
-    dirty.markClean();
-  }, [dirty]);
+  const handleDirtyChange = useCallback(
+    (nextDirty: boolean) => {
+      if (nextDirty) {
+        dirty.markDirty();
+        return;
+      }
+      dirty.markClean();
+    },
+    [dirty],
+  );
 
-  const handleSave = useCallback(async (form: LabDeviceFormData, drafts: LabDeviceItemDraft[]) => {
-    const result = await persistLabDeviceItemMaster({
-      form,
-      drafts,
-      isCreating,
+  const handleSave = useCallback(
+    async (form: LabDeviceFormData, drafts: LabDeviceItemDraft[]) => {
+      const result = await persistLabDeviceItemMaster({
+        form,
+        drafts,
+        isCreating,
+        canCreate,
+        canEdit,
+        selectedRow,
+        selectedItems,
+        createDevice: (req) => createMutation.mutateAsync(req),
+        saveConfiguration: (args) => saveConfigurationMutation.mutateAsync(args),
+      });
+      if (result !== "saved") {
+        return;
+      }
+      dirty.markClean();
+      setSelectedId(null);
+      clearSourceParam();
+    },
+    [
       canCreate,
       canEdit,
-      selectedRow,
+      clearSourceParam,
+      createMutation,
+      dirty,
+      isCreating,
       selectedItems,
-      createDevice: (req) => createMutation.mutateAsync(req),
-      saveConfiguration: (args) => saveConfigurationMutation.mutateAsync(args),
-    });
-    if (result !== "saved") {
-      return;
-    }
-    dirty.markClean();
-    setSelectedId(null);
-    clearSourceParam();
-  }, [
-    canCreate,
-    canEdit,
-    clearSourceParam,
-    createMutation,
-    dirty,
-    isCreating,
-    selectedItems,
-    selectedRow,
-    saveConfigurationMutation,
-  ]);
+      selectedRow,
+      saveConfigurationMutation,
+    ],
+  );
 
   return {
     canCreate,

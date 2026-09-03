@@ -29,5 +29,5 @@ export const H_STYLES = {
   layout: {
     section_mb: "mb-2",
     card_mb: "mb-1",
-  }
+  },
 } as const;

@@ -12,10 +12,7 @@ import { useMedicalRecordAutoCreate } from "./use-medical-record-auto-create";
 import { useMedicalRecordDiagnosisState } from "./use-medical-record-diagnosis-state";
 import { useMedicalRecordSaveAction } from "./use-medical-record-save-action";
 import { useMedicalRecordQuickPatchActions } from "./use-medical-record-quick-patch-actions";
-import {
-  DEFAULT_CHIEF_COMPLAINT,
-  DEFAULT_TREATMENT_POLICY,
-} from "./use-medical-record-form-model";
+import { DEFAULT_CHIEF_COMPLAINT, DEFAULT_TREATMENT_POLICY } from "./use-medical-record-form-model";
 import {
   createMedicalRecordBackHandler,
   selectCohabitingPets,
@@ -142,11 +139,8 @@ export function useMedicalRecordForm(recordId?: string) {
     tab: searchParams.get("tab"),
   });
 
-  const {
-    createRecommendationReason,
-    setCreateRecommendationReason,
-    ...diagnosisFields
-  } = diagnosis;
+  const { createRecommendationReason, setCreateRecommendationReason, ...diagnosisFields } =
+    diagnosis;
 
   return toMedicalRecordFormResult({
     isNewRecord,

@@ -4,9 +4,4 @@
  * Hand-written (TASK-444-S1 freezes new generated-models imports).
  */
 export type CheckupFieldType =
-  | "number"
-  | "single_select"
-  | "multi_select"
-  | "boolean"
-  | "checklist"
-  | "text";
+  "number" | "single_select" | "multi_select" | "boolean" | "checklist" | "text";

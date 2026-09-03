@@ -20,9 +20,7 @@ function roundUpToNextQuarterHour(date: Date): Date {
   return rounded;
 }
 
-export function useReservationModalState({
-  locationSearch,
-}: UseReservationModalStateArgs) {
+export function useReservationModalState({ locationSearch }: UseReservationModalStateArgs) {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingAppointment, setEditingAppointment] = useState<ReservationFormData | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);

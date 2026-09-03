@@ -154,127 +154,125 @@ describe("useHospitalizationForm — treatmentPlans", () => {
     } as ReturnType<typeof useGetTreatmentPlans>);
   });
 
-    it("保険対象flagをbilling計算契約へ明示的に変換する", () => {
-      const { result } = renderHospitalizationForm();
+  it("保険対象flagをbilling計算契約へ明示的に変換する", () => {
+    const { result } = renderHospitalizationForm();
 
-      act(() => {
-        result.current.addTreatmentPlan();
-      });
-      const planId = result.current.treatmentPlans[0]!.id;
-      act(() => {
-        result.current.updateTreatmentPlan(planId, "is_insurance", true);
-        result.current.updateTreatmentPlan(planId, "treatmentContent", "plan");
-      });
-
-      result.current.calculateTotals();
-
-      expect(vi.mocked(calculateBillingTotals)).toHaveBeenCalledWith(
-        expect.arrayContaining([
-          expect.objectContaining({ is_insurance: true, isInsuranceApplicable: true }),
-        ]),
-        0,
-        0,
-      );
+    act(() => {
+      result.current.addTreatmentPlan();
+    });
+    const planId = result.current.treatmentPlans[0]!.id;
+    act(() => {
+      result.current.updateTreatmentPlan(planId, "is_insurance", true);
+      result.current.updateTreatmentPlan(planId, "treatmentContent", "plan");
     });
 
-    it("addTreatmentPlan で計画を追加できる", () => {
-      const { result } = renderHospitalizationForm();
-      const initialCount = result.current.treatmentPlans.length;
+    result.current.calculateTotals();
 
-      act(() => {
-        result.current.addTreatmentPlan();
-      });
+    expect(vi.mocked(calculateBillingTotals)).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        expect.objectContaining({ is_insurance: true, isInsuranceApplicable: true }),
+      ]),
+      0,
+      0,
+    );
+  });
 
-      expect(result.current.treatmentPlans.length).toBe(initialCount + 1);
+  it("addTreatmentPlan で計画を追加できる", () => {
+    const { result } = renderHospitalizationForm();
+    const initialCount = result.current.treatmentPlans.length;
+
+    act(() => {
+      result.current.addTreatmentPlan();
     });
 
-    it("removeTreatmentPlan で計画を削除できる", () => {
-      const { result } = renderHospitalizationForm();
-      act(() => {
-        result.current.addTreatmentPlan();
-      });
-      const firstPlanId = result.current.treatmentPlans[0]?.id;
+    expect(result.current.treatmentPlans.length).toBe(initialCount + 1);
+  });
 
-      if (firstPlanId) {
-        act(() => {
-          result.current.removeTreatmentPlan(firstPlanId);
-        });
-
-        expect(
-          result.current.treatmentPlans.find((p) => p.id === firstPlanId)
-        ).toBeUndefined();
-      }
+  it("removeTreatmentPlan で計画を削除できる", () => {
+    const { result } = renderHospitalizationForm();
+    act(() => {
+      result.current.addTreatmentPlan();
     });
+    const firstPlanId = result.current.treatmentPlans[0]?.id;
 
-    it("編集時は GET treatment-plans wire から hydrate し detail の treatment_plans を見ない", async () => {
-      vi.mocked(useGetHospitalizationRaw).mockReturnValue({
-        data: {
-          id: 7,
-          clinic_id: 1,
-          owner_id: 2,
-          pet_id: 3,
-          hospitalization_type: "hospitalization",
-          start_date: "2026-07-23T00:00:00+09:00",
-          end_date: "2026-07-30T00:00:00+09:00",
-          status: "admitted",
-          memo: "m",
-          owner_request: "o",
-          staff_notes: "s",
+    if (firstPlanId) {
+      act(() => {
+        result.current.removeTreatmentPlan(firstPlanId);
+      });
+
+      expect(result.current.treatmentPlans.find((p) => p.id === firstPlanId)).toBeUndefined();
+    }
+  });
+
+  it("編集時は GET treatment-plans wire から hydrate し detail の treatment_plans を見ない", async () => {
+    vi.mocked(useGetHospitalizationRaw).mockReturnValue({
+      data: {
+        id: 7,
+        clinic_id: 1,
+        owner_id: 2,
+        pet_id: 3,
+        hospitalization_type: "hospitalization",
+        start_date: "2026-07-23T00:00:00+09:00",
+        end_date: "2026-07-30T00:00:00+09:00",
+        status: "admitted",
+        memo: "m",
+        owner_request: "o",
+        staff_notes: "s",
+        created_at: "2026-07-23T00:00:00+09:00",
+        updated_at: "2026-07-23T00:00:00+09:00",
+        // intentionally no treatment_plans — absent on HospitalizationResponse wire
+      },
+      isLoading: false,
+      isError: false,
+      error: null,
+    } as ReturnType<typeof useGetHospitalizationRaw>);
+
+    vi.mocked(useGetTreatmentPlans).mockReturnValue({
+      data: [
+        {
+          id: "990018",
+          hospitalization_id: "7",
+          treatment_content: "合成監査輸液",
+          memo: "wire由来",
+          is_insurance: true,
+          unit_price: 3_210,
+          quantity: 2,
+          discount_rate: 10,
+          discount_amount: 642,
+          subtotal: 5_778,
+          sort_order: 1,
           created_at: "2026-07-23T00:00:00+09:00",
           updated_at: "2026-07-23T00:00:00+09:00",
-          // intentionally no treatment_plans — absent on HospitalizationResponse wire
         },
-        isLoading: false,
-        isError: false,
-        error: null,
-      } as ReturnType<typeof useGetHospitalizationRaw>);
+      ],
+      isSuccess: true,
+      isLoading: false,
+      isError: false,
+      error: null,
+    } as ReturnType<typeof useGetTreatmentPlans>);
 
-      vi.mocked(useGetTreatmentPlans).mockReturnValue({
-        data: [
-          {
-            id: "990018",
-            hospitalization_id: "7",
-            treatment_content: "合成監査輸液",
-            memo: "wire由来",
-            is_insurance: true,
-            unit_price: 3_210,
-            quantity: 2,
-            discount_rate: 10,
-            discount_amount: 642,
-            subtotal: 5_778,
-            sort_order: 1,
-            created_at: "2026-07-23T00:00:00+09:00",
-            updated_at: "2026-07-23T00:00:00+09:00",
-          },
-        ],
-        isSuccess: true,
-        isLoading: false,
-        isError: false,
-        error: null,
-      } as ReturnType<typeof useGetTreatmentPlans>);
+    const { result } = renderHospitalizationForm("7");
 
-      const { result } = renderHospitalizationForm("7");
-
-      await waitFor(() => {
-        expect(result.current.treatmentPlans).toEqual([
-          {
-            id: "990018",
-            treatmentContent: "合成監査輸液",
-            memo: "wire由来",
-            is_insurance: true,
-            unitPrice: 3_210,
-            quantity: 2,
-            discount: 10,
-            discountAmount: 642,
-            subtotal: 5_778,
-          },
-        ]);
-      });
-
-      expect(result.current.formData.memo).toBe("m");
-      expect(result.current.formData.ownerRequest).toBe("o");
-      expect(useGetTreatmentPlans).toHaveBeenCalledWith("7");
+    await waitFor(() => {
+      expect(result.current.treatmentPlans).toEqual([
+        {
+          id: "990018",
+          treatmentContent: "合成監査輸液",
+          memo: "wire由来",
+          is_insurance: true,
+          unitPrice: 3_210,
+          quantity: 2,
+          discount: 10,
+          discountAmount: 642,
+          subtotal: 5_778,
+        },
+      ]);
     });
+
+    expect(result.current.formData.memo).toBe("m");
+    expect(result.current.formData.ownerRequest).toBe("o");
+    expect(useGetTreatmentPlans).toHaveBeenCalledWith("7");
+  });
 });
 
 describe("useHospitalizationForm BUG-016 entity read", () => {
@@ -283,19 +281,13 @@ describe("useHospitalizationForm BUG-016 entity read", () => {
     if (status === undefined) {
       return new AxiosError("Network Error", AxiosError.ERR_NETWORK, config, undefined, undefined);
     }
-    return new AxiosError(
-      "request failed",
-      AxiosError.ERR_BAD_RESPONSE,
+    return new AxiosError("request failed", AxiosError.ERR_BAD_RESPONSE, config, undefined, {
       config,
-      undefined,
-      {
-        config,
-        data: { error: "not found" },
-        headers: new AxiosHeaders(),
-        status,
-        statusText: "Error",
-      },
-    );
+      data: { error: "not found" },
+      headers: new AxiosHeaders(),
+      status,
+      statusText: "Error",
+    });
   }
 
   beforeEach(() => {

@@ -24,13 +24,10 @@ function clinicHeaderConfig(clinicId?: string) {
 
 // ── Fetch ─────────────────────────────────────────────────────────────
 
-const getTreatments = async (
-  medicalRecordId: string,
-  clinicId?: string
-): Promise<Treatment[]> => {
+const getTreatments = async (medicalRecordId: string, clinicId?: string): Promise<Treatment[]> => {
   const { data } = await axios.get<Treatment[]>(
     `/v1/medical-records/${medicalRecordId}/treatments`,
-    clinicHeaderConfig(clinicId)
+    clinicHeaderConfig(clinicId),
   );
   return data;
 };
@@ -56,11 +53,13 @@ export const useCreateTreatment = (medicalRecordId: string, clinicId?: string) =
         .post<Treatment>(
           `/v1/medical-records/${medicalRecordId}/treatments`,
           input,
-          clinicHeaderConfig(clinicId)
+          clinicHeaderConfig(clinicId),
         )
         .then((r) => r.data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.medicalRecords.treatments(medicalRecordId) });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.medicalRecords.treatments(medicalRecordId),
+      });
     },
     onError: (error) => {
       handleApiError(error, "治療追加");
@@ -79,11 +78,13 @@ export const useUpdateTreatment = (medicalRecordId: string, clinicId?: string) =
         .patch<Treatment>(
           `/v1/medical-records/${medicalRecordId}/treatments/${treatmentId}`,
           input,
-          clinicHeaderConfig(clinicId)
+          clinicHeaderConfig(clinicId),
         )
         .then((r) => r.data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.medicalRecords.treatments(medicalRecordId) });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.medicalRecords.treatments(medicalRecordId),
+      });
     },
     onError: (error) => {
       handleApiError(error, "治療更新");
@@ -100,10 +101,12 @@ export const useDeleteTreatment = (medicalRecordId: string, clinicId?: string) =
     mutationFn: (treatmentId: string) =>
       axios.delete(
         `/v1/medical-records/${medicalRecordId}/treatments/${treatmentId}`,
-        clinicHeaderConfig(clinicId)
+        clinicHeaderConfig(clinicId),
       ),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.medicalRecords.treatments(medicalRecordId) });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.medicalRecords.treatments(medicalRecordId),
+      });
     },
     onError: (error) => {
       handleApiError(error, "治療削除");
@@ -128,11 +131,13 @@ export const useReorderTreatments = (medicalRecordId: string, clinicId?: string)
       return axios.put(
         `/v1/medical-records/${medicalRecordId}/treatments`,
         payload,
-        clinicHeaderConfig(clinicId)
+        clinicHeaderConfig(clinicId),
       );
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.medicalRecords.treatments(medicalRecordId) });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.medicalRecords.treatments(medicalRecordId),
+      });
     },
     onError: (error) => {
       handleApiError(error, "治療並び替え");

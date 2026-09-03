@@ -50,7 +50,7 @@ describe("transformBackendPetToFrontend", () => {
     expect(pet.lastVisit).toBe("2024-08-25");
   });
 
-  it("日付フィールドが未設定なら undefined のまま（"-" 化やゼロ値で潰さない）", () => {
+  it("日付フィールドが未設定なら undefined のまま（" - " 化やゼロ値で潰さない）", () => {
     const pet = transformBackendPetToFrontend(
       makeBackendPet({ birth_date: undefined, neutered_date: undefined, last_visit: undefined }),
     );
@@ -156,9 +156,7 @@ describe("transformBackendPetToFrontend", () => {
   });
 
   it("pet_name_kana を petNameKana へマッピングする（models.Pet の name_kana ではない）", () => {
-    const pet = transformBackendPetToFrontend(
-      makeBackendPet({ pet_name_kana: "ぽちたろう" }),
-    );
+    const pet = transformBackendPetToFrontend(makeBackendPet({ pet_name_kana: "ぽちたろう" }));
     expect(pet.petNameKana).toBe("ぽちたろう");
   });
 });
@@ -170,9 +168,7 @@ describe("transformUpdatePetRequest", () => {
       originalDangerReason: "咬傷歴あり",
     });
 
-    expect(
-      Object.prototype.hasOwnProperty.call(request, "danger_reason"),
-    ).toBe(true);
+    expect(Object.prototype.hasOwnProperty.call(request, "danger_reason")).toBe(true);
     expect(request.danger_reason).toBeNull();
   });
 
@@ -182,8 +178,6 @@ describe("transformUpdatePetRequest", () => {
       originalDangerReason: "咬傷歴あり",
     });
 
-    expect(
-      Object.prototype.hasOwnProperty.call(request, "danger_reason"),
-    ).toBe(false);
+    expect(Object.prototype.hasOwnProperty.call(request, "danger_reason")).toBe(false);
   });
 });

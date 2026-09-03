@@ -1,13 +1,13 @@
 // FE5-18: line-reserve API 層の実行時検証（Zod）。
 // フィールドの optional/nullable は ../types/models.ts の手書き型に厳密整合させる。
 // 未知フィールド追加で壊れないよう .passthrough() は付けず Zod デフォルト（strip）とする。
-import { z } from 'zod';
+import { z } from "zod";
 
 export const liffSettingsSchema = z.object({
   liff_id: z.string(),
   header_text: z.string(),
   phone_number: z.string(),
-  status: z.enum(['running', 'stopped']),
+  status: z.enum(["running", "stopped"]),
   request_example: z.string(),
   reservation_notice: z.string(),
   cancel_notice: z.string(),
@@ -51,7 +51,7 @@ export const courseSchema = z.object({
   reservation_comment: z.string(),
   reservation_image_url: z.string(),
   sort_order: z.number(),
-  category: z.enum(['general', 'trimming']).optional(),
+  category: z.enum(["general", "trimming"]).optional(),
 });
 
 export const trimmingCourseSchema = z.object({
@@ -81,7 +81,7 @@ export const staffSchema = z.object({
 export const availableDateSchema = z.object({
   date: z.string(),
   available: z.boolean(),
-  reason: z.enum(['closed', 'holiday', 'staff_off', 'no_slots']).optional(),
+  reason: z.enum(["closed", "holiday", "staff_off", "no_slots"]).optional(),
 });
 
 // GET /available-dates は { dates, window } のラッパー形状で返る（window は未使用のため unknown）
@@ -103,22 +103,22 @@ export const availableTimeSchema = z.object({
 export const reservationSchema = z.object({
   id: z.number(),
   course_name: z.string(),
-  pet_name: z.string().optional().default(''),
-  staff_name: z.string().optional().default(''),
+  pet_name: z.string().optional().default(""),
+  staff_name: z.string().optional().default(""),
   date: z.string(),
   start_time: z.string(),
   end_time: z.string(),
   status: z.enum([
-    'confirmed',
-    'pending',
-    'cancelled',
-    'checked_in',
-    'in_consultation',
-    'accounting',
-    'completed',
-    'no_show',
+    "confirmed",
+    "pending",
+    "cancelled",
+    "checked_in",
+    "in_consultation",
+    "accounting",
+    "completed",
+    "no_show",
   ]),
-  notes: z.string().optional().default(''),
+  notes: z.string().optional().default(""),
   created_at: z.string(),
 });
 

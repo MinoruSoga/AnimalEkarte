@@ -2,10 +2,7 @@ import { useEffect, useState } from "react";
 import type { TreatmentItem } from "@/lib/transforms/treatment";
 import type { ExaminationTypeMaster } from "../api/exam-types-master";
 import { ExamTypeFieldsEditor } from "./ExamTypeFieldsEditor";
-import {
-  TreatmentItemSidePanel,
-  type TreatmentFormData,
-} from "./TreatmentItemSidePanel";
+import { TreatmentItemSidePanel, type TreatmentFormData } from "./TreatmentItemSidePanel";
 
 interface TreatmentPlanSidePanelHostProps {
   editTarget: TreatmentItem | "new" | null;
@@ -24,9 +21,7 @@ interface TreatmentPlanSidePanelHostProps {
   onDirtyChange: (dirty: boolean) => void;
 }
 
-export function TreatmentPlanSidePanelHost(
-  props: TreatmentPlanSidePanelHostProps,
-) {
+export function TreatmentPlanSidePanelHost(props: TreatmentPlanSidePanelHostProps) {
   const { editTarget, examinationType } = props;
   if (editTarget === null) return null;
   const editTargetKey = editTarget === "new" ? "new" : editTarget.id;
@@ -78,15 +73,17 @@ function TreatmentPlanSidePanelHostContent({
       readOnly={!canEdit}
       onDirtyChange={setParentDirty}
       showAnesthesia={showAnesthesia}
-      details={examinationType ? (
-        <ExamTypeFieldsEditor
-          examType={examinationType}
-          canCreate={canCreate}
-          canEdit={canEdit}
-          canDelete={canDelete}
-          onDirtyChange={setFieldDirty}
-        />
-      ) : null}
+      details={
+        examinationType ? (
+          <ExamTypeFieldsEditor
+            examType={examinationType}
+            canCreate={canCreate}
+            canEdit={canEdit}
+            canDelete={canDelete}
+            onDirtyChange={setFieldDirty}
+          />
+        ) : null
+      }
     />
   );
 }

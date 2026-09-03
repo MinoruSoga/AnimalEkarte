@@ -70,10 +70,13 @@ describe("createTrimmingDeleteHandler (FE-RC-101/102)", () => {
       deleteTrimming,
     })();
 
-    expect(deleteTrimming).toHaveBeenCalledWith("15", expect.objectContaining({
-      onSuccess: expect.any(Function),
-      onError: expect.any(Function),
-    }));
+    expect(deleteTrimming).toHaveBeenCalledWith(
+      "15",
+      expect.objectContaining({
+        onSuccess: expect.any(Function),
+        onError: expect.any(Function),
+      }),
+    );
     expect(toast.error).not.toHaveBeenCalled();
   });
 });

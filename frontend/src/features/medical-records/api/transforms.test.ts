@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { transformMedicalRecord, transformToHistoryItem, toBackendMedicalRecordStatus } from "./transforms";
+import {
+  transformMedicalRecord,
+  transformToHistoryItem,
+  toBackendMedicalRecordStatus,
+} from "./transforms";
 import type { BackendMedicalRecord } from "./types";
 
 const minimal: BackendMedicalRecord = {
@@ -81,7 +85,7 @@ describe("transformMedicalRecord", () => {
           pet_number: "P-1",
           status: "alive",
         },
-      }).petIsDeceased
+      }).petIsDeceased,
     ).toBe(false);
     expect(transformMedicalRecord({ ...minimal, pet: undefined }).petIsDeceased).toBe(false);
   });
@@ -95,7 +99,9 @@ describe("transformMedicalRecord", () => {
   });
 
   it("doctor が未設定のとき doctor_id の文字列を使う", () => {
-    expect(transformMedicalRecord({ ...minimal, doctor: undefined, doctor_id: 7 }).doctor).toBe("7");
+    expect(transformMedicalRecord({ ...minimal, doctor: undefined, doctor_id: 7 }).doctor).toBe(
+      "7",
+    );
   });
 
   it("pet_id を string に変換して petId にマップする", () => {
@@ -115,7 +121,9 @@ describe("transformMedicalRecord", () => {
   });
 
   it("accounting_id が未設定のとき accountingId は undefined", () => {
-    expect(transformMedicalRecord({ ...minimal, accounting_id: undefined }).accountingId).toBeUndefined();
+    expect(
+      transformMedicalRecord({ ...minimal, accounting_id: undefined }).accountingId,
+    ).toBeUndefined();
   });
 
   it("wire に clinical_plan が無いため objective/assessment/plan は undefined（clinical-plan API が正本）", () => {
@@ -268,7 +276,7 @@ describe("transformToHistoryItem", () => {
 
   it("inquiry が未設定のとき content は '（記録なし）'", () => {
     expect(transformToHistoryItem({ ...minimalHistory, inquiry: undefined }).content).toBe(
-      "（記録なし）"
+      "（記録なし）",
     );
   });
 
@@ -277,20 +285,20 @@ describe("transformToHistoryItem", () => {
       transformToHistoryItem({
         ...minimalHistory,
         inquiry: { id: 1, chief_complaint: "発熱" },
-      }).title
+      }).title,
     ).toBe("発熱");
 
     expect(
       transformToHistoryItem({
         ...minimalHistory,
         inquiry: { id: 1, chief_complaint: "" },
-      }).title
+      }).title,
     ).toBe("MR-001");
   });
 
   it("date を YYYY/MM/DD 形式にフォーマットする", () => {
     expect(transformToHistoryItem({ ...minimalHistory, date: "2026-03-25T00:00:00Z" }).date).toBe(
-      "2026/03/25"
+      "2026/03/25",
     );
   });
 });

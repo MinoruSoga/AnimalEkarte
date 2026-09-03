@@ -28,7 +28,7 @@ export interface UpsertMedicineDoseParamRequest {
 
 const getMedicineDoseParams = async (medicineId: string): Promise<MedicineDoseParam[]> => {
   const { data } = await axios.get<MedicineDoseParam[]>(
-    `/v1/masters/medicines/${medicineId}/dose-params`
+    `/v1/masters/medicines/${medicineId}/dose-params`,
   );
   return data ?? [];
 };
@@ -46,11 +46,11 @@ export const useGetMedicineDoseParams = (medicineId: string) => {
 export const upsertMedicineDoseParam = async (
   medicineId: string,
   species: MedicineDoseSpecies,
-  input: UpsertMedicineDoseParamRequest
+  input: UpsertMedicineDoseParamRequest,
 ): Promise<MedicineDoseParam> => {
   const { data } = await axios.put<MedicineDoseParam>(
     `/v1/masters/medicines/${medicineId}/dose-params/${species}`,
-    input
+    input,
   );
   return data;
 };
@@ -75,7 +75,7 @@ export const useUpsertMedicineDoseParam = (medicineId: string) => {
 
 const deleteMedicineDoseParam = async (
   medicineId: string,
-  species: MedicineDoseSpecies
+  species: MedicineDoseSpecies,
 ): Promise<void> => {
   await axios.delete(`/v1/masters/medicines/${medicineId}/dose-params/${species}`);
 };

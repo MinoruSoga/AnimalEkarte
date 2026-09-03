@@ -5,18 +5,14 @@ import { VisitTypeSelect } from "./VisitTypeSelect";
 
 describe("VisitTypeSelect", () => {
   it("SelectTrigger に現在の value が表示される", () => {
-    render(
-      <VisitTypeSelect value="初診" onChange={vi.fn()} />,
-    );
+    render(<VisitTypeSelect value="初診" onChange={vi.fn()} />);
     expect(screen.getByRole("combobox")).toBeInTheDocument();
     expect(screen.getByText("初診")).toBeInTheDocument();
   });
 
   it("初診/再診の選択肢のみ含まれる（緊急/往診は BE 非対応のため出さない）", async () => {
     const user = userEvent.setup();
-    render(
-      <VisitTypeSelect value="再診" onChange={vi.fn()} />,
-    );
+    render(<VisitTypeSelect value="再診" onChange={vi.fn()} />);
     await user.click(screen.getByRole("combobox"));
     expect(screen.getByText("初診")).toBeInTheDocument();
     expect(screen.getAllByText("再診").length).toBeGreaterThan(0);
@@ -34,9 +30,7 @@ describe("VisitTypeSelect", () => {
   });
 
   it("disabled 時に SelectTrigger が disabled になる", () => {
-    render(
-      <VisitTypeSelect value="再診" onChange={vi.fn()} disabled />,
-    );
+    render(<VisitTypeSelect value="再診" onChange={vi.fn()} disabled />);
     expect(screen.getByRole("combobox")).toBeDisabled();
   });
 });

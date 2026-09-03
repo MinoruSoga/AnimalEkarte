@@ -97,9 +97,7 @@ describe("lab-device API mutations (FE-RC-012)", () => {
     });
 
     await act(async () => {
-      await expect(
-        result.current.mutateAsync({ jobId: "job-1", petId: 1 }),
-      ).rejects.toThrow();
+      await expect(result.current.mutateAsync({ jobId: "job-1", petId: 1 })).rejects.toThrow();
     });
 
     expect(mockedHandleApiError).toHaveBeenCalledWith(apiError, "検査結果の紐付け");

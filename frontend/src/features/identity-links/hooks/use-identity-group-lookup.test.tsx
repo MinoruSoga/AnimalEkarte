@@ -60,12 +60,19 @@ describe("useOwnerGroupLookup", () => {
   });
 
   it("既存グループに所属するメンバーだけを解決する（未所属は含めない）", async () => {
-    findOwnerIdentityGroupByMember.mockImplementation(async (_clinicId: number, ownerId: number) => {
-      if (ownerId === 10) {
-        return { id: 42, created_clinic_id: 1, version: 1, members: [{ clinic_id: 1, owner_id: 10 }] };
-      }
-      return null;
-    });
+    findOwnerIdentityGroupByMember.mockImplementation(
+      async (_clinicId: number, ownerId: number) => {
+        if (ownerId === 10) {
+          return {
+            id: 42,
+            created_clinic_id: 1,
+            version: 1,
+            members: [{ clinic_id: 1, owner_id: 10 }],
+          };
+        }
+        return null;
+      },
+    );
 
     const { result } = renderHook(() => useOwnerGroupLookup([ownerA, ownerB]), {
       wrapper: createTestWrapper(),

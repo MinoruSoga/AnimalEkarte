@@ -7,9 +7,7 @@ import { DataTableRowButton } from "./DataTableRowButton";
 describe("DataTableRowButton", () => {
   it("固有accessible nameを持つ44px以上のnative buttonを描画する", () => {
     render(
-      <DataTableRowButton aria-label="ケージ操作: 1番ケージ ID 1">
-        1番ケージ
-      </DataTableRowButton>,
+      <DataTableRowButton aria-label="ケージ操作: 1番ケージ ID 1">1番ケージ</DataTableRowButton>,
     );
 
     const button = screen.getByRole("button", { name: "ケージ操作: 1番ケージ ID 1" });

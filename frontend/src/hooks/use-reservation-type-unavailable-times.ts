@@ -8,9 +8,7 @@ import type { ReservationTypeUnavailableTime as ReservationTypeUnavailableTimeRa
 // Transform function
 // ─────────────────────────────────────────────────
 
-function transformUnavailableTime(
-  raw: ReservationTypeUnavailableTimeRaw,
-) {
+function transformUnavailableTime(raw: ReservationTypeUnavailableTimeRaw) {
   return {
     id: raw.id,
     clinicId: raw.clinic_id,
@@ -37,10 +35,8 @@ export type ReservationTypeUnavailableTime = ReturnType<typeof transformUnavaila
 
 // master/api/reservation-type-unavailable-times.ts の作成・削除 mutation も同じキーで
 // invalidate する必要があるため export する（FE6-16: cross-feature 化に伴う移設）。
-export const unavailableTimesKey = (
-  clinicId: string | null,
-  reservationTypeId: string,
-) => queryKeys.masters.reservationTypeSubResource(clinicId, reservationTypeId, "unavailable-times");
+export const unavailableTimesKey = (clinicId: string | null, reservationTypeId: string) =>
+  queryKeys.masters.reservationTypeSubResource(clinicId, reservationTypeId, "unavailable-times");
 
 // ─────────────────────────────────────────────────
 // API functions
@@ -49,9 +45,9 @@ export const unavailableTimesKey = (
 async function getUnavailableTimes(
   reservationTypeId: string,
 ): Promise<ReservationTypeUnavailableTime[]> {
-  const { data } = await axios.get<ReservationTypeUnavailableTimeRaw[] | { data: ReservationTypeUnavailableTimeRaw[] }>(
-    `/v1/masters/reservation-types/${reservationTypeId}/unavailable-times`,
-  );
+  const { data } = await axios.get<
+    ReservationTypeUnavailableTimeRaw[] | { data: ReservationTypeUnavailableTimeRaw[] }
+  >(`/v1/masters/reservation-types/${reservationTypeId}/unavailable-times`);
   const items = Array.isArray(data) ? data : data.data;
   return items.map(transformUnavailableTime);
 }

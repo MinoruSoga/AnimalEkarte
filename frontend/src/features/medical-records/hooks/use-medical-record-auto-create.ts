@@ -120,107 +120,108 @@ export function useMedicalRecordAutoCreate({
     setFailure({ phase: "appointment", appointmentId: null });
   }, []);
 
-  const createAppointmentAndRecord = useCallback((retainedAppointmentId?: string) => {
-    if (
-      isCreateInFlightRef.current
-      || !isNewRecord
-      || !selectedPet
-      || canCreateRef.current !== true
-      || selectedPetStatusRef.current === "死亡"
-    ) return;
-
-    const availableAppointmentId = retainedAppointmentId
-      ?? appointmentIdFromState
-      ?? reusableAppointment?.id;
-
-    // BUG-503: general 欠如 / masters エラーは silent return せず明示 failure（再試行可）
-    if (!availableAppointmentId) {
-      if (isReusableAppointmentLoading || isReservationTypesLoading) return;
-      if (isReservationTypesError || !generalReservationType) {
-        markAppointmentPrerequisiteFailure();
+  const createAppointmentAndRecord = useCallback(
+    (retainedAppointmentId?: string) => {
+      if (
+        isCreateInFlightRef.current ||
+        !isNewRecord ||
+        !selectedPet ||
+        canCreateRef.current !== true ||
+        selectedPetStatusRef.current === "死亡"
+      )
         return;
+
+      const availableAppointmentId =
+        retainedAppointmentId ?? appointmentIdFromState ?? reusableAppointment?.id;
+
+      // BUG-503: general 欠如 / masters エラーは silent return せず明示 failure（再試行可）
+      if (!availableAppointmentId) {
+        if (isReusableAppointmentLoading || isReservationTypesLoading) return;
+        if (isReservationTypesError || !generalReservationType) {
+          markAppointmentPrerequisiteFailure();
+          return;
+        }
       }
-    }
 
-    isCreateInFlightRef.current = true;
-    startCreateTransition(async () => {
-      let appointmentId = availableAppointmentId;
-      try {
-        if (!appointmentId) {
-          if (
-            canCreateRef.current !== true
-            || selectedPetStatusRef.current === "死亡"
-          ) return;
+      isCreateInFlightRef.current = true;
+      startCreateTransition(async () => {
+        let appointmentId = availableAppointmentId;
+        try {
+          if (!appointmentId) {
+            if (canCreateRef.current !== true || selectedPetStatusRef.current === "死亡") return;
 
-          // create 直前にも general が消えた場合は silent にせず failure
-          if (!generalReservationType) {
-            markAppointmentPrerequisiteFailure();
-            return;
+            // create 直前にも general が消えた場合は silent にせず failure
+            if (!generalReservationType) {
+              markAppointmentPrerequisiteFailure();
+              return;
+            }
+
+            const duration =
+              generalReservationType.duration_minutes || DEFAULT_RECEPTION_APPOINTMENT_MINUTES;
+            const { startTime, endTime } = createReceptionAppointmentTimeRange(
+              duration,
+              visitDateFromState,
+            );
+            const appointment = await createReservationMutation.mutateAsync({
+              pet_id: Number(selectedPet.id),
+              owner_id: Number(selectedPet.ownerId),
+              start_time: startTime,
+              end_time: endTime,
+              visit_type: toVisitTypeValue(visitType) ?? "revisit",
+              reservation_type_id: generalReservationType.id,
+              status: "in_consultation",
+              source: "manual",
+              reservation_route: "record_shortcut",
+            });
+            appointmentId = appointment.id;
           }
 
-          const duration = generalReservationType.duration_minutes || DEFAULT_RECEPTION_APPOINTMENT_MINUTES;
-          const { startTime, endTime } = createReceptionAppointmentTimeRange(duration, visitDateFromState);
-          const appointment = await createReservationMutation.mutateAsync({
-            pet_id: Number(selectedPet.id),
-            owner_id: Number(selectedPet.ownerId),
-            start_time: startTime,
-            end_time: endTime,
+          if (canCreateRef.current !== true || selectedPetStatusRef.current === "死亡") return;
+
+          const today = visitDateFromState ?? formatJSTDate(new Date());
+          const record = await createMutation.mutateAsync({
+            pet_id: selectedPet.id,
+            owner_id: selectedPet.ownerId,
+            visit_date: today,
             visit_type: toVisitTypeValue(visitType) ?? "revisit",
-            reservation_type_id: generalReservationType.id,
-            status: "in_consultation",
-            source: "manual",
-            reservation_route: "record_shortcut",
+            appointment_id: appointmentId,
+            status: "draft",
+            recommendation_reason: createRecommendationReason ?? "",
           });
-          appointmentId = appointment.id;
+          setFailure(null);
+          navigate(medicalRecordAfterCreateHref(record.id, tab), { replace: true });
+        } catch (error) {
+          setFailure(
+            appointmentId
+              ? { phase: "medical-record", appointmentId }
+              : { phase: "appointment", appointmentId: null },
+          );
+          handleApiError(error, "カルテ作成");
+        } finally {
+          isCreateInFlightRef.current = false;
         }
-
-        if (
-          canCreateRef.current !== true
-          || selectedPetStatusRef.current === "死亡"
-        ) return;
-
-        const today = visitDateFromState ?? formatJSTDate(new Date());
-        const record = await createMutation.mutateAsync({
-          pet_id: selectedPet.id,
-          owner_id: selectedPet.ownerId,
-          visit_date: today,
-          visit_type: toVisitTypeValue(visitType) ?? "revisit",
-          appointment_id: appointmentId,
-          status: "draft",
-          recommendation_reason: createRecommendationReason ?? "",
-        });
-        setFailure(null);
-        navigate(medicalRecordAfterCreateHref(record.id, tab), { replace: true });
-      } catch (error) {
-        setFailure(
-          appointmentId
-            ? { phase: "medical-record", appointmentId }
-            : { phase: "appointment", appointmentId: null },
-        );
-        handleApiError(error, "カルテ作成");
-      } finally {
-        isCreateInFlightRef.current = false;
-      }
-    });
-  }, [
-    appointmentIdFromState,
-    createMutation,
-    createRecommendationReason,
-    createReservationMutation,
-    generalReservationType,
-    isNewRecord,
-    isReusableAppointmentLoading,
-    isReservationTypesError,
-    isReservationTypesLoading,
-    markAppointmentPrerequisiteFailure,
-    navigate,
-    reusableAppointment?.id,
-    selectedPet,
-    startCreateTransition,
-    visitDateFromState,
-    visitType,
-    tab,
-  ]);
+      });
+    },
+    [
+      appointmentIdFromState,
+      createMutation,
+      createRecommendationReason,
+      createReservationMutation,
+      generalReservationType,
+      isNewRecord,
+      isReusableAppointmentLoading,
+      isReservationTypesError,
+      isReservationTypesLoading,
+      markAppointmentPrerequisiteFailure,
+      navigate,
+      reusableAppointment?.id,
+      selectedPet,
+      startCreateTransition,
+      visitDateFromState,
+      visitType,
+      tab,
+    ],
+  );
 
   useEffect(() => {
     if (!isNewRecord || !selectedPet || hasAutoCreatedRef.current) return;

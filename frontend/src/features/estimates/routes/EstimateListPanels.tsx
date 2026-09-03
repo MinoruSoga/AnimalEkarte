@@ -3,7 +3,11 @@ import { FileText, Trash2, ExternalLink } from "lucide-react";
 import type { ActiveFilter, ActiveSort } from "@/components/shared/PropertyFilter/types";
 import { TableCell } from "@/components/ui/table";
 import { PropertyFilter } from "@/components/shared/PropertyFilter/PropertyFilter";
-import { DataTable, DESIGN_TABLE_HEADER_ROW, DESIGN_TABLE_HEADER_CELL } from "@/components/shared/DataTable/DataTable";
+import {
+  DataTable,
+  DESIGN_TABLE_HEADER_ROW,
+  DESIGN_TABLE_HEADER_CELL,
+} from "@/components/shared/DataTable/DataTable";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { DataTableRowLink } from "@/components/shared/DataTable/DataTableRowLink";
 import { Pagination } from "@/components/shared/Pagination/Pagination";
@@ -55,9 +59,7 @@ function EstimateListRow({
           <span className={`block text-xs ${C.text50}`}>{estimate.petName}</span>
         ) : null}
       </TableCell>
-      <TableCell className={C.text60}>
-        {formatDate(estimate.validUntil)}
-      </TableCell>
+      <TableCell className={C.text60}>{formatDate(estimate.validUntil)}</TableCell>
       <TableCell className={`text-right font-mono font-medium ${C.text}`}>
         {formatCurrency(estimate.totalAmount)}
       </TableCell>
@@ -65,7 +67,7 @@ function EstimateListRow({
         <EstimateStatusBadge status={estimate.status} />
       </TableCell>
       <TableCell className="text-right">
-        {(canEdit || canDelete) ? (
+        {canEdit || canDelete ? (
           <RowActionDropdown
             ariaLabel={`見積書「${estimate.estimateNo} / ${estimate.title}」(ID: ${estimate.id}) の操作`}
             actions={[
@@ -74,17 +76,25 @@ function EstimateListRow({
                 icon: ExternalLink,
                 onClick: () => onOpenDetail(estimate.id),
               },
-              ...(showEdit ? [{
-                label: "編集",
-                icon: FileText,
-                onClick: () => onOpenEdit(estimate.id),
-              }] : []),
-              ...(showDelete ? [{
-                label: "削除",
-                icon: Trash2,
-                variant: "destructive" as const,
-                onClick: () => onDelete(estimate.id),
-              }] : []),
+              ...(showEdit
+                ? [
+                    {
+                      label: "編集",
+                      icon: FileText,
+                      onClick: () => onOpenEdit(estimate.id),
+                    },
+                  ]
+                : []),
+              ...(showDelete
+                ? [
+                    {
+                      label: "削除",
+                      icon: Trash2,
+                      variant: "destructive" as const,
+                      onClick: () => onDelete(estimate.id),
+                    },
+                  ]
+                : []),
             ]}
           />
         ) : null}
@@ -136,16 +146,19 @@ export function EstimateListContent({
   onOpenEdit,
   onDelete,
 }: EstimateListContentProps) {
-  const renderRow = useCallback((estimate: Estimate) => (
-    <EstimateListRow
-      estimate={estimate}
-      canEdit={canEdit}
-      canDelete={canDelete}
-      onOpenDetail={onOpenDetail}
-      onOpenEdit={onOpenEdit}
-      onDelete={onDelete}
-    />
-  ), [canEdit, canDelete, onOpenDetail, onOpenEdit, onDelete]);
+  const renderRow = useCallback(
+    (estimate: Estimate) => (
+      <EstimateListRow
+        estimate={estimate}
+        canEdit={canEdit}
+        canDelete={canDelete}
+        onOpenDetail={onOpenDetail}
+        onOpenEdit={onOpenEdit}
+        onDelete={onDelete}
+      />
+    ),
+    [canEdit, canDelete, onOpenDetail, onOpenEdit, onDelete],
+  );
 
   return (
     <div className="flex flex-col gap-4">

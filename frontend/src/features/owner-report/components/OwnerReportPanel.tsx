@@ -25,7 +25,9 @@ export function OwnerReportPanel({ owner }: OwnerReportPanelProps) {
       {owner.ownerNameKana ? (
         <span className={`truncate text-xs ${C.text50}`}>{owner.ownerNameKana}</span>
       ) : null}
-      <span aria-hidden className={C.text25}>|</span>
+      <span aria-hidden className={C.text25}>
+        |
+      </span>
       <span className={`text-sm tabular-nums ${C.text}`}>{owner.phone || "-"}</span>
     </div>
   );

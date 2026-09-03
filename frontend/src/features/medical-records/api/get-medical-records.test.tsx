@@ -43,7 +43,12 @@ describe("useGetMedicalRecords", () => {
     server.use(
       http.get("/api/v1/medical-records", ({ request }) => {
         capturedUrl = new URL(request.url);
-        return HttpResponse.json({ data: [makeBackendRecord(1)], total: 425524, page: 1, limit: 20 });
+        return HttpResponse.json({
+          data: [makeBackendRecord(1)],
+          total: 425524,
+          page: 1,
+          limit: 20,
+        });
       }),
     );
 
@@ -63,7 +68,12 @@ describe("useGetMedicalRecords", () => {
     server.use(
       http.get("/api/v1/medical-records", ({ request }) => {
         capturedUrl = new URL(request.url);
-        return HttpResponse.json({ data: [makeBackendRecord(21)], total: 425524, page: 2, limit: 20 });
+        return HttpResponse.json({
+          data: [makeBackendRecord(21)],
+          total: 425524,
+          page: 2,
+          limit: 20,
+        });
       }),
     );
 

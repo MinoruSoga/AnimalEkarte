@@ -11,7 +11,13 @@ interface FormHeaderProps {
   action?: React.ReactNode;
 }
 
-export const FormHeader = memo(function FormHeader({ title, description, icon, onBack, action }: FormHeaderProps) {
+export const FormHeader = memo(function FormHeader({
+  title,
+  description,
+  icon,
+  onBack,
+  action,
+}: FormHeaderProps) {
   return (
     // flex-wrap + min-w-0: narrow viewports stack title/action instead of clipping (BUG-458).
     <div className={`${STYLE.formHeader} flex-wrap min-w-0`}>
@@ -31,11 +37,15 @@ export const FormHeader = memo(function FormHeader({ title, description, icon, o
           {icon ? <div className="shrink-0">{icon}</div> : null}
           <div className="flex min-w-0 flex-col">
             <h1 className={`text-xl font-semibold ${C.text} break-words`}>{title}</h1>
-            {description ? <p className={`text-sm ${C.text50} mt-0.5 break-words`}>{description}</p> : null}
+            {description ? (
+              <p className={`text-sm ${C.text50} mt-0.5 break-words`}>{description}</p>
+            ) : null}
           </div>
         </div>
       </div>
-      {action ? <div className="flex min-w-0 flex-wrap items-center gap-2 shrink-0">{action}</div> : null}
+      {action ? (
+        <div className="flex min-w-0 flex-wrap items-center gap-2 shrink-0">{action}</div>
+      ) : null}
     </div>
   );
 });

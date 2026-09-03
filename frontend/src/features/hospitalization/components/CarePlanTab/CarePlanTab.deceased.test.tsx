@@ -38,9 +38,7 @@ vi.mock("../../api/care-plan-items", () => ({
 }));
 
 function renderTab(petIsDeceased: boolean) {
-  return render(
-    <CarePlanTab hospitalizationId="hosp-1" petIsDeceased={petIsDeceased} />,
-  );
+  return render(<CarePlanTab hospitalizationId="hosp-1" petIsDeceased={petIsDeceased} />);
 }
 
 describe("FE-RC-002: CarePlanTab — 死亡ペットの render 側防壁", () => {

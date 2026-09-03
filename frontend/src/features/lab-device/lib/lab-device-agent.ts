@@ -13,7 +13,13 @@ export interface LabDeviceAgentHealth {
   queueFailures: number;
   portCloseFailures: number;
   responseFailures: number;
-  lastErrorCategory: "none" | "discovery_failed" | "port_open_failed" | "queue_write_failed" | "port_close_failed" | "response_write_failed";
+  lastErrorCategory:
+    | "none"
+    | "discovery_failed"
+    | "port_open_failed"
+    | "queue_write_failed"
+    | "port_close_failed"
+    | "response_write_failed";
 }
 
 interface LabDeviceAgentFrame {
@@ -46,7 +52,11 @@ async function requestJSON(
   signal?: AbortSignal,
   headers?: HeadersInit,
 ): Promise<unknown> {
-  const response = await fetcher(`${LAB_DEVICE_AGENT_URL}${path}`, { method: "GET", signal, headers });
+  const response = await fetcher(`${LAB_DEVICE_AGENT_URL}${path}`, {
+    method: "GET",
+    signal,
+    headers,
+  });
   if (!response.ok) {
     throw Object.assign(new Error(`lab device agent request failed: ${response.status}`), {
       status: response.status,
@@ -71,7 +81,10 @@ async function decideFrame(
   }
 }
 
-export function createLabDeviceAgentClient(consumerToken: string, fetcher: Fetcher = fetch): LabDeviceAgentClient {
+export function createLabDeviceAgentClient(
+  consumerToken: string,
+  fetcher: Fetcher = fetch,
+): LabDeviceAgentClient {
   let owner = "";
   let clinicId = "";
   const consumerHeaders = (): HeadersInit => {
@@ -108,18 +121,28 @@ export function createLabDeviceAgentClient(consumerToken: string, fetcher: Fetch
     },
     health: async (signal) => {
       const value = await requestJSON(fetcher, "/health", signal);
-      if (!isRecord(value) || (value.status !== "running" && value.status !== "degraded")
-        || !isNonNegativeInteger(value.open_ports) || !isNonNegativeInteger(value.configured_ports) || !isRecord(value.queue)
-        || !isNonNegativeInteger(value.queue.pending) || !isNonNegativeInteger(value.queue.rejected)
-        || !isNonNegativeInteger(value.queue.overflow) || !isNonNegativeInteger(value.input_overflow)
-        || !isNonNegativeInteger(value.port_discovery_failures_total)
-        || !isNonNegativeInteger(value.port_open_failures_total)
-        || !isNonNegativeInteger(value.queue_failures_total)
-        || !isNonNegativeInteger(value.port_close_failures_total)
-        || !isNonNegativeInteger(value.response_failures_total)
-        || (value.last_error_category !== "none" && value.last_error_category !== "discovery_failed"
-          && value.last_error_category !== "port_open_failed" && value.last_error_category !== "queue_write_failed"
-          && value.last_error_category !== "port_close_failed" && value.last_error_category !== "response_write_failed")) {
+      if (
+        !isRecord(value) ||
+        (value.status !== "running" && value.status !== "degraded") ||
+        !isNonNegativeInteger(value.open_ports) ||
+        !isNonNegativeInteger(value.configured_ports) ||
+        !isRecord(value.queue) ||
+        !isNonNegativeInteger(value.queue.pending) ||
+        !isNonNegativeInteger(value.queue.rejected) ||
+        !isNonNegativeInteger(value.queue.overflow) ||
+        !isNonNegativeInteger(value.input_overflow) ||
+        !isNonNegativeInteger(value.port_discovery_failures_total) ||
+        !isNonNegativeInteger(value.port_open_failures_total) ||
+        !isNonNegativeInteger(value.queue_failures_total) ||
+        !isNonNegativeInteger(value.port_close_failures_total) ||
+        !isNonNegativeInteger(value.response_failures_total) ||
+        (value.last_error_category !== "none" &&
+          value.last_error_category !== "discovery_failed" &&
+          value.last_error_category !== "port_open_failed" &&
+          value.last_error_category !== "queue_write_failed" &&
+          value.last_error_category !== "port_close_failed" &&
+          value.last_error_category !== "response_write_failed")
+      ) {
         throw new Error("invalid lab device agent response");
       }
       return {
@@ -152,8 +175,12 @@ export function createLabDeviceAgentClient(consumerToken: string, fetcher: Fetch
         throw new Error("invalid lab device agent response");
       }
       return value.frames.map((frame: unknown) => {
-        if (!isRecord(frame) || typeof frame.id !== "string"
-          || typeof frame.payload_base64 !== "string" || typeof frame.received_at !== "string") {
+        if (
+          !isRecord(frame) ||
+          typeof frame.id !== "string" ||
+          typeof frame.payload_base64 !== "string" ||
+          typeof frame.received_at !== "string"
+        ) {
           throw new Error("invalid lab device agent response");
         }
         return {

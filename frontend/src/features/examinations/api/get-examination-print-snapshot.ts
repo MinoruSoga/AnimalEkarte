@@ -113,8 +113,7 @@ function transformExaminationPrintSnapshot(
     resultSummary: data.result_summary ?? "",
     machine: data.machine ?? "",
     examTypeId: String(data.exam_type_id),
-    medicalRecordId:
-      data.medical_record_id != null ? String(data.medical_record_id) : null,
+    medicalRecordId: data.medical_record_id != null ? String(data.medical_record_id) : null,
     petId: data.pet_id != null ? String(data.pet_id) : null,
     doctorId: data.doctor_id != null ? String(data.doctor_id) : null,
     display: {
@@ -128,8 +127,7 @@ function transformExaminationPrintSnapshot(
     },
     items: (data.items ?? []).map((item) => ({
       id: String(item.id),
-      examTypeFieldId:
-        item.exam_type_field_id != null ? String(item.exam_type_field_id) : null,
+      examTypeFieldId: item.exam_type_field_id != null ? String(item.exam_type_field_id) : null,
       name: item.name,
       inspectionValue: item.inspection_value ?? "",
       normalValue: item.normal_value ?? "",
@@ -160,10 +158,7 @@ const getExaminationPrintSnapshot = async (
   return transformExaminationPrintSnapshot(data);
 };
 
-export const useGetExaminationPrintSnapshot = (
-  id: string | undefined,
-  version?: number,
-) => {
+export const useGetExaminationPrintSnapshot = (id: string | undefined, version?: number) => {
   const examinationId = id ?? "";
   return useQuery({
     queryKey: queryKeys.examinations.printSnapshot(examinationId, version),

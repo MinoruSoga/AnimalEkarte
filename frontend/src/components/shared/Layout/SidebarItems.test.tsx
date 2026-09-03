@@ -50,13 +50,14 @@ describe("SidebarItemWithPermission", () => {
     const { container } = renderSidebarItem({
       label: "LINE予約管理",
       path: "/line-reservation",
-      subItems: [
-        { label: "基本設定", path: "/line-reservation/settings" },
-      ],
+      subItems: [{ label: "基本設定", path: "/line-reservation/settings" }],
     });
 
     expect(container.querySelector("button button")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "LINE予約管理" })).toHaveAttribute("aria-expanded", "false");
+    expect(screen.getByRole("button", { name: "LINE予約管理" })).toHaveAttribute(
+      "aria-expanded",
+      "false",
+    );
     expect(screen.getByRole("button", { name: "LINE予約管理を展開" })).toHaveClass(
       "min-h-11",
       "min-w-11",
@@ -64,17 +65,18 @@ describe("SidebarItemWithPermission", () => {
   });
 
   it("折りたたみ時も親メニューbuttonにaccessible nameと44px以上の操作領域を保つ", () => {
-    renderSidebarItem({
-      label: "マスタ設定",
-      path: "/settings/master",
-      subItems: [{ label: "スタッフ", path: "/settings/master/staffs" }],
-    }, true, "/settings/master/staffs");
+    renderSidebarItem(
+      {
+        label: "マスタ設定",
+        path: "/settings/master",
+        subItems: [{ label: "スタッフ", path: "/settings/master/staffs" }],
+      },
+      true,
+      "/settings/master/staffs",
+    );
 
     const parentButton = screen.getByRole("button", { name: "マスタ設定" });
-    expect(parentButton).toHaveClass(
-      "min-h-11",
-      "min-w-11",
-    );
+    expect(parentButton).toHaveClass("min-h-11", "min-w-11");
     expect(parentButton).not.toHaveAttribute("aria-expanded");
   });
 
@@ -82,14 +84,15 @@ describe("SidebarItemWithPermission", () => {
     renderSidebarItem({
       label: "LINE予約管理",
       path: "/line-reservation",
-      subItems: [
-        { label: "基本設定", path: "/line-reservation/settings" },
-      ],
+      subItems: [{ label: "基本設定", path: "/line-reservation/settings" }],
     });
 
     fireEvent.click(screen.getByRole("button", { name: "LINE予約管理を展開" }));
 
-    expect(screen.getByRole("button", { name: "LINE予約管理" })).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("button", { name: "LINE予約管理" })).toHaveAttribute(
+      "aria-expanded",
+      "true",
+    );
     expect(screen.getByRole("button", { name: "LINE予約管理を折りたたむ" })).toHaveClass(
       "min-h-11",
       "min-w-11",
@@ -99,8 +102,7 @@ describe("SidebarItemWithPermission", () => {
 
   it("親が HospitalSettings でも Analytics 子が view 可ならグループを表示する (R-06/R-07)", () => {
     const hasPermission = vi.fn<AuthContextValue["hasPermission"]>(
-      (resource, action) =>
-        resource === ResourceLstepAnalytics && action === "view",
+      (resource, action) => resource === ResourceLstepAnalytics && action === "view",
     );
     renderSidebarItem(
       {
@@ -132,8 +134,7 @@ describe("SidebarItemWithPermission", () => {
 
   it("Analytics-only では親 path へ navigate しない (expand-only shell)", () => {
     const hasPermission = vi.fn<AuthContextValue["hasPermission"]>(
-      (resource, action) =>
-        resource === ResourceLstepAnalytics && action === "view",
+      (resource, action) => resource === ResourceLstepAnalytics && action === "view",
     );
     renderSidebarItem(
       {

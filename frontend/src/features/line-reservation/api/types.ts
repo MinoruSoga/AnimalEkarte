@@ -1,4 +1,7 @@
-import type { LineReservationSetting, LineCustomer as LineCustomerModel } from "@/types/generated/models";
+import type {
+  LineReservationSetting,
+  LineCustomer as LineCustomerModel,
+} from "@/types/generated/models";
 import type {
   BusinessHours,
   BreakHour,

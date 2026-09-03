@@ -35,21 +35,15 @@ export function LineSendHistory({ ownerId }: LineSendHistoryProps) {
   const recent = (data ?? []).slice(0, 5);
 
   if (isLoading) {
-    return (
-      <div className={`h-4 w-40 rounded ${C.bgSkeleton} animate-pulse`} />
-    );
+    return <div className={`h-4 w-40 rounded ${C.bgSkeleton} animate-pulse`} />;
   }
 
   if (isError) {
-    return (
-      <p className={`text-xs ${C.danger}`}>送信履歴の取得に失敗しました</p>
-    );
+    return <p className={`text-xs ${C.danger}`}>送信履歴の取得に失敗しました</p>;
   }
 
   if (recent.length === 0) {
-    return (
-      <p className={`text-xs ${C.text40}`}>送信履歴はありません</p>
-    );
+    return <p className={`text-xs ${C.text40}`}>送信履歴はありません</p>;
   }
 
   return (
@@ -62,9 +56,7 @@ export function LineSendHistory({ ownerId }: LineSendHistoryProps) {
           <span className={`text-xs ${C.text50} font-mono shrink-0`}>
             {formatSentAt(item.sent_at)}
           </span>
-          <span className={`shrink-0 ${C.text70}`}>
-            {TYPE_LABEL[item.message_type]}
-          </span>
+          <span className={`shrink-0 ${C.text70}`}>{TYPE_LABEL[item.message_type]}</span>
           {item.content_summary !== null ? (
             <span className={`flex-1 truncate ${C.text60}`}>{item.content_summary}</span>
           ) : null}

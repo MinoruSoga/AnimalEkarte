@@ -26,8 +26,7 @@ type PetWritable = Omit<BackendPet, ServerFields>;
  * ペット作成リクエスト（バックエンドAPI）
  * owner_id / animal_species_id / name のみ必須、残りはoptional
  */
-export type CreatePetRequest =
-  Pick<PetWritable, "owner_id" | "animal_species_id" | "name"> &
+export type CreatePetRequest = Pick<PetWritable, "owner_id" | "animal_species_id" | "name"> &
   Partial<Omit<PetWritable, "owner_id" | "animal_species_id" | "name">>;
 
 /**
@@ -70,7 +69,7 @@ export interface PetMutations {
   /** ペット更新用（React Query mutation） */
   updatePetMutate: (
     args: { id: string; req: UpdatePetRequest },
-    callbacks: PetMutationCallbacks
+    callbacks: PetMutationCallbacks,
   ) => void;
   /** ペット削除用（React Query mutation） */
   deletePetMutate: (id: string, callbacks: PetMutationCallbacks) => void;

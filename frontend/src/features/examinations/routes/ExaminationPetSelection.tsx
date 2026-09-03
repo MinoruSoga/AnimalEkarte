@@ -28,9 +28,23 @@ export function ExaminationPetSelection() {
   );
 
   return (
-    <PageLayout title="検査登録 - ペット選択" onBack={handleBack} resource={ResourceExaminations} maxWidth={LAYOUT.pageContentMaxWidth.full}>
-      <PetSelectionSearchForm searchParams={searchParams} setSearchParams={setSearchParams} onClear={handleClear} />
-      <PetSelectionResultsTable pets={petPage} onSelect={handleSelect} isError={Boolean(error)} isLoading={isLoading} />
+    <PageLayout
+      title="検査登録 - ペット選択"
+      onBack={handleBack}
+      resource={ResourceExaminations}
+      maxWidth={LAYOUT.pageContentMaxWidth.full}
+    >
+      <PetSelectionSearchForm
+        searchParams={searchParams}
+        setSearchParams={setSearchParams}
+        onClear={handleClear}
+      />
+      <PetSelectionResultsTable
+        pets={petPage}
+        onSelect={handleSelect}
+        isError={Boolean(error)}
+        isLoading={isLoading}
+      />
     </PageLayout>
   );
 }

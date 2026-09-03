@@ -22,7 +22,9 @@ export const useHospitalizationDetail = (hospitalizationId?: string) => {
     petIsDeceasedRef.current = hospitalization?.petIsDeceased;
   }, [canEdit, hospitalization?.petIsDeceased]);
 
-  const dischargeHospitalization = async (createAccounting = false): Promise<{ success: boolean; accountingId?: number }> => {
+  const dischargeHospitalization = async (
+    createAccounting = false,
+  ): Promise<{ success: boolean; accountingId?: number }> => {
     if (!hospitalizationId || !hospitalization) {
       return { success: false };
     }

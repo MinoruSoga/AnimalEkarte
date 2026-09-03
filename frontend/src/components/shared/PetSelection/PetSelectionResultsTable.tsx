@@ -5,7 +5,14 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Pagination } from "@/components/shared/Pagination";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { formatDate } from "@/lib/format/date";
 import type { PetSelectionResultPage } from "@/hooks/use-pet-selection-page";
 import type { Pet } from "@/types";
@@ -22,21 +29,17 @@ interface PetSelectionResultsTableProps {
   isLoading?: boolean;
 }
 
-export const PetSelectionResultsTable = memo(function PetSelectionResultsTable({ pets, onSelect, isError = false, isLoading = false }: PetSelectionResultsTableProps) {
-  const {
-    items,
-    totalCount,
-    currentPage,
-    totalPages,
-    startIndex,
-    endIndex,
-    onPageChange,
-  } = pets;
+export const PetSelectionResultsTable = memo(function PetSelectionResultsTable({
+  pets,
+  onSelect,
+  isError = false,
+  isLoading = false,
+}: PetSelectionResultsTableProps) {
+  const { items, totalCount, currentPage, totalPages, startIndex, endIndex, onPageChange } = pets;
   const rangeText = `${totalCount.toLocaleString()}件中 ${startIndex.toLocaleString()}-${endIndex.toLocaleString()}件`;
   // total と描画行が食い違う状態（応答に total が含まれない、範囲が総数を超える等）では
   // 件数を主張しない。「0件」と言いながら行を出すのは BUG-451 と同じ「嘘の件数」である。
-  const isCountTrustworthy =
-    totalCount > 0 ? startIndex <= totalCount : items.length === 0;
+  const isCountTrustworthy = totalCount > 0 ? startIndex <= totalCount : items.length === 0;
   // 取得失敗・取得中に現在行数を全体件数として提示しない。
   // キャッシュ行が残る場合は、backend 由来の前回総数・範囲だと明示する。
   const showCachedRange = items.length > 0 && (isError || isLoading);
@@ -59,11 +62,7 @@ export const PetSelectionResultsTable = memo(function PetSelectionResultsTable({
           role="status"
           aria-live="polite"
           aria-atomic="true"
-          className={
-            isRangeShownByPagination
-              ? "sr-only"
-              : `text-sm ${C.text60}`
-          }
+          className={isRangeShownByPagination ? "sr-only" : `text-sm ${C.text60}`}
         >
           {statusText}
         </span>
@@ -81,24 +80,45 @@ export const PetSelectionResultsTable = memo(function PetSelectionResultsTable({
             <TableRow
               className={`hover:bg-transparent ${C.bgPage} border-b ${C.borderMedium} h-12`}
             >
-              <TableHead className={`min-w-[80px] ${STYLE.sectionLabel} whitespace-nowrap h-12`}>飼主No</TableHead>
-              <TableHead className={`min-w-[140px] ${STYLE.sectionLabel} whitespace-nowrap h-12`}>飼主名</TableHead>
-              <TableHead className={`min-w-[80px] ${STYLE.sectionLabel} whitespace-nowrap h-12`}>ペット番号</TableHead>
-              <TableHead className={`min-w-[100px] ${STYLE.sectionLabel} whitespace-nowrap h-12`}>ペット名</TableHead>
-              <TableHead className={`min-w-[50px] ${STYLE.sectionLabel} whitespace-nowrap h-12`}>生死</TableHead>
-              <TableHead className={`min-w-[50px] ${STYLE.sectionLabel} whitespace-nowrap h-12`}>種</TableHead>
-              <TableHead className={`min-w-[90px] ${STYLE.sectionLabel} whitespace-nowrap h-12`}>生年月日</TableHead>
-              <TableHead className={`min-w-[60px] ${STYLE.sectionLabel} whitespace-nowrap h-12`}>体重</TableHead>
-              <TableHead className={`min-w-[100px] ${STYLE.sectionLabel} whitespace-nowrap h-12`}>環境</TableHead>
-              <TableHead className={`min-w-[90px] ${STYLE.sectionLabel} whitespace-nowrap h-12`}>前回来院</TableHead>
-              <TableHead className={`min-w-[80px] ${STYLE.sectionLabel} whitespace-nowrap h-12`}>操作</TableHead>
+              <TableHead className={`min-w-[80px] ${STYLE.sectionLabel} whitespace-nowrap h-12`}>
+                飼主No
+              </TableHead>
+              <TableHead className={`min-w-[140px] ${STYLE.sectionLabel} whitespace-nowrap h-12`}>
+                飼主名
+              </TableHead>
+              <TableHead className={`min-w-[80px] ${STYLE.sectionLabel} whitespace-nowrap h-12`}>
+                ペット番号
+              </TableHead>
+              <TableHead className={`min-w-[100px] ${STYLE.sectionLabel} whitespace-nowrap h-12`}>
+                ペット名
+              </TableHead>
+              <TableHead className={`min-w-[50px] ${STYLE.sectionLabel} whitespace-nowrap h-12`}>
+                生死
+              </TableHead>
+              <TableHead className={`min-w-[50px] ${STYLE.sectionLabel} whitespace-nowrap h-12`}>
+                種
+              </TableHead>
+              <TableHead className={`min-w-[90px] ${STYLE.sectionLabel} whitespace-nowrap h-12`}>
+                生年月日
+              </TableHead>
+              <TableHead className={`min-w-[60px] ${STYLE.sectionLabel} whitespace-nowrap h-12`}>
+                体重
+              </TableHead>
+              <TableHead className={`min-w-[100px] ${STYLE.sectionLabel} whitespace-nowrap h-12`}>
+                環境
+              </TableHead>
+              <TableHead className={`min-w-[90px] ${STYLE.sectionLabel} whitespace-nowrap h-12`}>
+                前回来院
+              </TableHead>
+              <TableHead className={`min-w-[80px] ${STYLE.sectionLabel} whitespace-nowrap h-12`}>
+                操作
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {items.map((pet, index) => {
               const isDeceased = pet.status === "死亡";
-              const isSelectable =
-                pet.status === "生存" && !isError && !isLoading;
+              const isSelectable = pet.status === "生存" && !isError && !isLoading;
               return (
                 <TableRow
                   key={pet.id}
@@ -106,9 +126,15 @@ export const PetSelectionResultsTable = memo(function PetSelectionResultsTable({
                     index < items.length - 1 ? `border-b ${C.borderLight}` : "border-none"
                   } ${isDeceased ? "opacity-60 grayscale-[0.5]" : ""}`}
                 >
-                  <TableCell className={`text-sm ${C.text} whitespace-nowrap`}>{pet.ownerId}</TableCell>
-                  <TableCell className={`text-sm ${C.text} whitespace-nowrap`}>{pet.ownerName}</TableCell>
-                  <TableCell className={`font-mono text-sm ${C.text} whitespace-nowrap`}>{pet.petNumber || "-"}</TableCell>
+                  <TableCell className={`text-sm ${C.text} whitespace-nowrap`}>
+                    {pet.ownerId}
+                  </TableCell>
+                  <TableCell className={`text-sm ${C.text} whitespace-nowrap`}>
+                    {pet.ownerName}
+                  </TableCell>
+                  <TableCell className={`font-mono text-sm ${C.text} whitespace-nowrap`}>
+                    {pet.petNumber || "-"}
+                  </TableCell>
                   <TableCell className={`text-sm ${C.text} whitespace-nowrap`}>
                     <span className="flex items-center gap-1.5">
                       <span>{pet.name}</span>
@@ -130,7 +156,9 @@ export const PetSelectionResultsTable = memo(function PetSelectionResultsTable({
                             className="w-64"
                           >
                             <p className={`text-sm font-semibold ${C.danger}`}>危険理由</p>
-                            <p className={`mt-1 whitespace-pre-wrap break-words text-sm ${C.textInkSecondary}`}>
+                            <p
+                              className={`mt-1 whitespace-pre-wrap break-words text-sm ${C.textInkSecondary}`}
+                            >
                               {pet.dangerReason?.trim() || "理由未登録"}
                             </p>
                           </PopoverContent>
@@ -152,11 +180,21 @@ export const PetSelectionResultsTable = memo(function PetSelectionResultsTable({
                       </Badge>
                     ) : null}
                   </TableCell>
-                  <TableCell className={`text-sm ${C.text} whitespace-nowrap`}>{pet.species}</TableCell>
-                  <TableCell className={`font-mono text-sm ${C.text} whitespace-nowrap`}>{formatDate(pet.birthDate)}</TableCell>
-                  <TableCell className={`font-mono text-sm ${C.text} whitespace-nowrap`}>{pet.weight || "-"}</TableCell>
-                  <TableCell className={`text-sm ${C.text} whitespace-nowrap`}>{pet.environment || "-"}</TableCell>
-                  <TableCell className={`font-mono text-sm ${C.text} whitespace-nowrap`}>{formatDate(pet.lastVisit)}</TableCell>
+                  <TableCell className={`text-sm ${C.text} whitespace-nowrap`}>
+                    {pet.species}
+                  </TableCell>
+                  <TableCell className={`font-mono text-sm ${C.text} whitespace-nowrap`}>
+                    {formatDate(pet.birthDate)}
+                  </TableCell>
+                  <TableCell className={`font-mono text-sm ${C.text} whitespace-nowrap`}>
+                    {pet.weight || "-"}
+                  </TableCell>
+                  <TableCell className={`text-sm ${C.text} whitespace-nowrap`}>
+                    {pet.environment || "-"}
+                  </TableCell>
+                  <TableCell className={`font-mono text-sm ${C.text} whitespace-nowrap`}>
+                    {formatDate(pet.lastVisit)}
+                  </TableCell>
                   <TableCell className="whitespace-nowrap">
                     <Button
                       size="sm"
@@ -167,11 +205,11 @@ export const PetSelectionResultsTable = memo(function PetSelectionResultsTable({
                           ? `取得失敗・選択不可: ${pet.name} (ID ${pet.id})`
                           : isLoading
                             ? `読み込み中・選択不可: ${pet.name} (ID ${pet.id})`
-                          : isDeceased
-                          ? `死亡・選択不可: ${pet.name} (ID ${pet.id})`
-                          : pet.status === "生存"
-                            ? `選択: ${pet.name} (ID ${pet.id})`
-                            : `状態不明・選択不可: ${pet.name} (ID ${pet.id})`
+                            : isDeceased
+                              ? `死亡・選択不可: ${pet.name} (ID ${pet.id})`
+                              : pet.status === "生存"
+                                ? `選択: ${pet.name} (ID ${pet.id})`
+                                : `状態不明・選択不可: ${pet.name} (ID ${pet.id})`
                       }
                       // docs/spec/design-system.md button-primary: brand と同じ primary teal + pill
                       className={`h-11 min-w-11 gap-1 ${isSelectable ? `${C.bgActionPrimary} ${C.textOnActionPrimary} ${C.hoverBgActionPrimary} ${C.hoverTextOnActionPrimary} rounded-full` : C.textStatusGray} text-sm px-4`}
