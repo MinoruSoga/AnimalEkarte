@@ -197,18 +197,18 @@ CSV_IMPORT_COMMON_ARGS = \
 
 csv-import-preflight:
 	@install -d -m 700 sensitive-local/csv-import-reports
-	$(CSV_IMPORT_DC) run --rm --no-deps csv-import preflight $(CSV_IMPORT_COMMON_ARGS)
+	$(CSV_IMPORT_DC) run --rm -T --no-deps csv-import preflight $(CSV_IMPORT_COMMON_ARGS)
 
 csv-import:
 	@install -d -m 700 sensitive-local/csv-import-reports
-	$(CSV_IMPORT_DC) run --rm --no-deps csv-import apply $(CSV_IMPORT_COMMON_ARGS) \
+	$(CSV_IMPORT_DC) run --rm -T --no-deps csv-import apply $(CSV_IMPORT_COMMON_ARGS) \
 		--confirm-target-write --confirm-backup-ready \
 		--confirm-target-host db --confirm-target-database "$${TARGET_DB_NAME}" \
 		--report-path "/migration-reports/$${CLINIC_CODE}-$${MIGRATION_RUN_ID}-apply.json"
 
 csv-import-verify:
 	@install -d -m 700 sensitive-local/csv-import-reports
-	$(CSV_IMPORT_DC) run --rm --no-deps csv-import verify $(CSV_IMPORT_COMMON_ARGS)
+	$(CSV_IMPORT_DC) run --rm -T --no-deps csv-import verify $(CSV_IMPORT_COMMON_ARGS)
 
 # ============================================================================
 # STG UAT CSV import: verified producer bundle via cmd/csv-import-stg-uat

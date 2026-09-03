@@ -25,6 +25,14 @@ test("reset import finds clinic/manifest.json rather than clinic/run/manifest.js
   assert.doesNotMatch(importer, /root\.glob\("\*\/\*\/manifest\.json"\)/);
 });
 
+test("reset import does not let docker compose steal remaining handoff paths from stdin", () => {
+  assert.match(
+    importer,
+    /import_one\s+"\$dir"\s+<\/dev\/null/,
+    "each clinic import must close stdin so compose run cannot consume later paths",
+  );
+});
+
 test("make old-db-handoff-check looks for clinic/manifest.json", () => {
   assert.match(
     makefile,

@@ -239,7 +239,9 @@ found=0
 while IFS= read -r dir; do
   [[ -n "$dir" ]] || continue
   found=1
-  import_one "$dir"
+  # Close stdin: `docker compose run` otherwise consumes remaining handoff
+  # paths from this loop (only the first clinic would import).
+  import_one "$dir" </dev/null
 done <<<"$handoff_dirs"
 
 attach_staff_if_roster_present() {
