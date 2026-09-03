@@ -23,6 +23,8 @@ type Repository interface {
 	Create(ctx context.Context, clinicID uint64, item *model.InventoryItem) error
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.InventoryItem, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
+	// DeleteIfUnused は clinic_id + id と treatments/vaccines/medicines 参照なしを同一 DELETE で要求する。
+	DeleteIfUnused(ctx context.Context, clinicID, id uint64) error
 	DecreaseStock(ctx context.Context, clinicID, id uint64, quantity float64) error
 	CountUsageByInventoryID(ctx context.Context, clinicID, inventoryID uint64) (int64, error)
 	// BUG-381: 薬剤マスタ削除時に BUG-320 で自動作成された連携在庫をカスケード削除するため、
@@ -36,6 +38,8 @@ type Repository interface {
 type repository struct {
 	db *gorm.DB
 }
+
+const inventoryInUseConflictMessage = "この項目は使用中のため削除できません"
 
 // New constructs a Repository.
 func New(db *gorm.DB) Repository {
@@ -138,6 +142,52 @@ func (r *repository) Update(ctx context.Context, clinicID, id uint64, fields map
 
 func (r *repository) Delete(ctx context.Context, clinicID, id uint64) error {
 	return persistence.DeleteScopedByID(ctx, persistence.DBOrTx(ctx, r.db), &model.InventoryItem{}, "inventory_item", clinicID, id)
+}
+
+// DeleteIfUnused は clinic_id + id と treatments/vaccines/medicines の active 参照なしを
+// 同一 DELETE で要求する。FindByID → CountUsageByInventoryID → Delete の TOCTOU を防ぐ。
+// 参照判定は CountUsageByInventoryID と同じ（treatments は medical_records JOIN、
+// vaccines/medicines は clinic_id、いずれも deleted_at IS NULL のみ）。
+// RowsAffected==0 は再読取で NotFound と Conflict を区別する。
+func (r *repository) DeleteIfUnused(ctx context.Context, clinicID, id uint64) error {
+	result := persistence.DBOrTx(ctx, r.db).
+		Scopes(persistence.ClinicScope(clinicID)).
+		Where("id = ?", id).
+		Where(`NOT EXISTS (
+			SELECT 1 FROM treatments
+			JOIN medical_records ON medical_records.id = treatments.medical_record_id
+			  AND medical_records.clinic_id = ?
+			  AND medical_records.deleted_at IS NULL
+			WHERE treatments.inventory_id = inventory_items.id
+			  AND treatments.deleted_at IS NULL
+		)`, clinicID).
+		Where(`NOT EXISTS (
+			SELECT 1 FROM vaccines
+			WHERE vaccines.inventory_id = inventory_items.id
+			  AND vaccines.clinic_id = ?
+			  AND vaccines.deleted_at IS NULL
+		)`, clinicID).
+		Where(`NOT EXISTS (
+			SELECT 1 FROM medicines
+			WHERE medicines.inventory_id = inventory_items.id
+			  AND medicines.clinic_id = ?
+			  AND medicines.deleted_at IS NULL
+		)`, clinicID).
+		Delete(&model.InventoryItem{})
+	if result.Error != nil {
+		return apperrors.FromGORM(result.Error, "inventory_item", fmt.Sprintf("%d", id))
+	}
+	if result.RowsAffected == 0 {
+		return r.normalizeDeleteIfUnusedMiss(ctx, clinicID, id)
+	}
+	return nil
+}
+
+func (r *repository) normalizeDeleteIfUnusedMiss(ctx context.Context, clinicID, id uint64) error {
+	if _, err := r.FindByID(ctx, clinicID, id); err != nil {
+		return err
+	}
+	return apperrors.WrapConflict(inventoryInUseConflictMessage)
 }
 
 // DecreaseStock は clinic_id + id + active row を同じ UPDATE 述語で検証して quantity のみを減算する。

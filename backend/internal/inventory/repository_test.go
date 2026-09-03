@@ -2,7 +2,7 @@ package inventory
 
 // repository_test.go — inventory Repository の統合テスト（内部カバレッジ向上）。
 //
-// 対象: FindAll / FindByID / Create / Update / Delete / DecreaseStock /
+// 対象: FindAll / FindByID / Create / Update / Delete / DeleteIfUnused / DecreaseStock /
 //       CountUsageByInventoryID / DeleteByNameAndMedicineCategory / UpdateNameByMedicineCategory
 // 検証観点: 正常系、clinic_id 隔離、ソフトデリート除外、NotFound ラップ、使用数カウントの参照種別別合算。
 //
@@ -34,7 +34,7 @@ func setupInventoryTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := testdb.SetupTestDB(t)
 	require.NoError(t, testdb.EnsureAutoMigrated(db,
-		&model.Owner{}, &model.AnimalSpecies{}, &model.Pet{},
+		&model.Owner{}, &model.AnimalSpecies{}, &model.Pet{}, &model.MedicalRecord{},
 		&model.InventoryItem{}, &model.Treatment{}, &model.Vaccine{}, &model.Medicine{},
 	))
 	db.Exec("TRUNCATE TABLE treatments CASCADE")
@@ -528,6 +528,193 @@ func TestInventoryRepository_CountUsageByInventoryID(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, int64(0), count)
 	})
+}
+
+func TestInventoryRepository_DeleteIfUnused(t *testing.T) {
+	db := setupInventoryTestDB(t)
+	repo := New(db)
+	ctx := context.Background()
+	const clinicA, clinicB = uint64(1), uint64(2)
+
+	species := &model.AnimalSpecies{Name: "犬"}
+	require.NoError(t, db.WithContext(ctx).Create(species).Error)
+	makePet := func(t *testing.T, clinicID, ownerID uint64, petName string) *model.Pet {
+		t.Helper()
+		pet := &model.Pet{
+			ClinicID: clinicID, OwnerID: ownerID, AnimalSpeciesID: species.ID, Name: petName,
+		}
+		require.NoError(t, db.WithContext(ctx).Create(pet).Error)
+		return pet
+	}
+
+	assertStillExists := func(t *testing.T, clinicID, id uint64) {
+		t.Helper()
+		got, err := repo.FindByID(ctx, clinicID, id)
+		require.NoError(t, err)
+		assert.Equal(t, id, got.ID)
+	}
+
+	t.Run("参照が無ければ削除できる", func(t *testing.T) {
+		item := makeInventoryItem(t, db, clinicA, "未使用在庫", model.InventoryCategoryMedicine, model.InventoryStatusSufficient, 10)
+
+		require.NoError(t, repo.DeleteIfUnused(ctx, clinicA, item.ID))
+
+		_, err := repo.FindByID(ctx, clinicA, item.ID)
+		assert.True(t, apperrors.IsNotFound(err))
+	})
+
+	t.Run("同一クリニックの treatment 参照は Conflict で行は残る", func(t *testing.T) {
+		item := makeInventoryItem(t, db, clinicA, "治療参照在庫", model.InventoryCategoryMedicine, model.InventoryStatusSufficient, 10)
+		owner := testdb.MakeTestOwner(t, db, clinicA, "治療参照飼主")
+		pet := makePet(t, clinicA, owner.ID, "治療参照犬")
+		mr := makeHistoryMedicalRecord(t, db, clinicA, pet.ID, "MR-DEL-T", time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC))
+		inventoryID := item.ID
+		require.NoError(t, db.WithContext(ctx).Create(&model.Treatment{
+			MedicalRecordID: mr.ID, ItemType: model.TreatmentItemTypeMedicine, InventoryID: &inventoryID, Content: "薬剤投与",
+		}).Error)
+
+		err := repo.DeleteIfUnused(ctx, clinicA, item.ID)
+		require.Error(t, err)
+		assert.True(t, apperrors.IsConflict(err))
+		assert.Contains(t, err.Error(), "この項目は使用中のため削除できません")
+		assertStillExists(t, clinicA, item.ID)
+	})
+
+	t.Run("同一クリニックの vaccine 参照は Conflict で行は残る", func(t *testing.T) {
+		item := makeInventoryItem(t, db, clinicA, "ワクチン参照在庫", model.InventoryCategoryMedicine, model.InventoryStatusSufficient, 10)
+		inventoryID := item.ID
+		require.NoError(t, db.WithContext(ctx).Create(&model.Vaccine{
+			ClinicID: clinicA, Name: "混合ワクチン", InventoryID: &inventoryID,
+		}).Error)
+
+		err := repo.DeleteIfUnused(ctx, clinicA, item.ID)
+		require.Error(t, err)
+		assert.True(t, apperrors.IsConflict(err))
+		assert.Contains(t, err.Error(), "この項目は使用中のため削除できません")
+		assertStillExists(t, clinicA, item.ID)
+	})
+
+	t.Run("同一クリニックの medicine 参照は Conflict で行は残る", func(t *testing.T) {
+		item := makeInventoryItem(t, db, clinicA, "薬剤参照在庫", model.InventoryCategoryMedicine, model.InventoryStatusSufficient, 10)
+		inventoryID := item.ID
+		require.NoError(t, db.WithContext(ctx).Create(&model.Medicine{
+			ClinicID: clinicA, Name: "抗生物質", InventoryID: &inventoryID,
+		}).Error)
+
+		err := repo.DeleteIfUnused(ctx, clinicA, item.ID)
+		require.Error(t, err)
+		assert.True(t, apperrors.IsConflict(err))
+		assert.Contains(t, err.Error(), "この項目は使用中のため削除できません")
+		assertStillExists(t, clinicA, item.ID)
+	})
+
+	t.Run("他院の vaccine 参照は自院削除を妨げない", func(t *testing.T) {
+		item := makeInventoryItem(t, db, clinicA, "他院ワクチン参照", model.InventoryCategoryMedicine, model.InventoryStatusSufficient, 10)
+		inventoryID := item.ID
+		require.NoError(t, db.WithContext(ctx).Create(&model.Vaccine{
+			ClinicID: clinicB, Name: "他院ワクチン", InventoryID: &inventoryID,
+		}).Error)
+
+		require.NoError(t, repo.DeleteIfUnused(ctx, clinicA, item.ID))
+		_, err := repo.FindByID(ctx, clinicA, item.ID)
+		assert.True(t, apperrors.IsNotFound(err))
+	})
+
+	t.Run("他院の medicine 参照は自院削除を妨げない", func(t *testing.T) {
+		item := makeInventoryItem(t, db, clinicA, "他院薬剤参照", model.InventoryCategoryMedicine, model.InventoryStatusSufficient, 10)
+		inventoryID := item.ID
+		require.NoError(t, db.WithContext(ctx).Create(&model.Medicine{
+			ClinicID: clinicB, Name: "他院薬剤", InventoryID: &inventoryID,
+		}).Error)
+
+		require.NoError(t, repo.DeleteIfUnused(ctx, clinicA, item.ID))
+		_, err := repo.FindByID(ctx, clinicA, item.ID)
+		assert.True(t, apperrors.IsNotFound(err))
+	})
+
+	t.Run("他院カルテの treatment 参照は自院削除を妨げない", func(t *testing.T) {
+		item := makeInventoryItem(t, db, clinicA, "他院治療参照", model.InventoryCategoryMedicine, model.InventoryStatusSufficient, 10)
+		ownerB := testdb.MakeTestOwner(t, db, clinicB, "他院治療飼主")
+		petB := makePet(t, clinicB, ownerB.ID, "他院治療犬")
+		mrB := makeHistoryMedicalRecord(t, db, clinicB, petB.ID, "MR-DEL-B", time.Date(2026, 6, 2, 0, 0, 0, 0, time.UTC))
+		inventoryID := item.ID
+		require.NoError(t, db.WithContext(ctx).Create(&model.Treatment{
+			MedicalRecordID: mrB.ID, ItemType: model.TreatmentItemTypeMedicine, InventoryID: &inventoryID, Content: "他院投与",
+		}).Error)
+
+		require.NoError(t, repo.DeleteIfUnused(ctx, clinicA, item.ID))
+		_, err := repo.FindByID(ctx, clinicA, item.ID)
+		assert.True(t, apperrors.IsNotFound(err))
+	})
+
+	t.Run("ソフトデリートされた参照は削除を妨げない", func(t *testing.T) {
+		item := makeInventoryItem(t, db, clinicA, "削除済み参照在庫", model.InventoryCategoryMedicine, model.InventoryStatusSufficient, 10)
+		inventoryID := item.ID
+		vaccine := &model.Vaccine{ClinicID: clinicA, Name: "削除済みワクチン", InventoryID: &inventoryID}
+		require.NoError(t, db.WithContext(ctx).Create(vaccine).Error)
+		require.NoError(t, db.WithContext(ctx).Delete(vaccine).Error)
+
+		require.NoError(t, repo.DeleteIfUnused(ctx, clinicA, item.ID))
+		_, err := repo.FindByID(ctx, clinicA, item.ID)
+		assert.True(t, apperrors.IsNotFound(err))
+	})
+
+	t.Run("他院からの削除は NotFound（対象は削除されない）", func(t *testing.T) {
+		item := makeInventoryItem(t, db, clinicA, "越境削除対象", model.InventoryCategoryMedicine, model.InventoryStatusSufficient, 10)
+
+		err := repo.DeleteIfUnused(ctx, clinicB, item.ID)
+		require.Error(t, err)
+		assert.True(t, apperrors.IsNotFound(err))
+		assertStillExists(t, clinicA, item.ID)
+	})
+
+	t.Run("存在しない ID は NotFound", func(t *testing.T) {
+		err := repo.DeleteIfUnused(ctx, clinicA, 999999)
+		require.Error(t, err)
+		assert.True(t, apperrors.IsNotFound(err))
+	})
+
+	t.Run("CountUsage==0 直後の参照挿入は Conflict（TOCTOU）", func(t *testing.T) {
+		item := makeInventoryItem(t, db, clinicA, "TOCTOU在庫", model.InventoryCategoryMedicine, model.InventoryStatusSufficient, 10)
+
+		count, err := repo.CountUsageByInventoryID(ctx, clinicA, item.ID)
+		require.NoError(t, err)
+		require.Equal(t, int64(0), count)
+
+		inventoryID := item.ID
+		require.NoError(t, db.WithContext(ctx).Create(&model.Vaccine{
+			ClinicID: clinicA, Name: "レース挿入ワクチン", InventoryID: &inventoryID,
+		}).Error)
+
+		err = repo.DeleteIfUnused(ctx, clinicA, item.ID)
+		require.Error(t, err)
+		assert.True(t, apperrors.IsConflict(err), "expected Conflict, got %v", err)
+		assert.Contains(t, err.Error(), "この項目は使用中のため削除できません")
+		assertStillExists(t, clinicA, item.ID)
+	})
+}
+
+func TestInventoryRepository_DeleteIfUnused_AmbientTxRollback(t *testing.T) {
+	db := setupInventoryTestDB(t)
+	repo := New(db)
+	ctx := context.Background()
+	const clinicA = uint64(1)
+
+	item := makeInventoryItem(t, db, clinicA, "ロールバック削除在庫", model.InventoryCategoryMedicine, model.InventoryStatusSufficient, 10)
+	forcedErr := errors.New("force rollback after unused delete")
+
+	err := db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		txCtx := persistence.WithTxValue(ctx, tx)
+		if err := repo.DeleteIfUnused(txCtx, clinicA, item.ID); err != nil {
+			return err
+		}
+		return forcedErr
+	})
+	require.ErrorIs(t, err, forcedErr)
+
+	got, err := repo.FindByID(ctx, clinicA, item.ID)
+	require.NoError(t, err)
+	assert.Equal(t, item.ID, got.ID, "ambient transaction rollback must restore the inventory row")
 }
 
 func TestInventoryRepository_DeleteByNameAndMedicineCategory(t *testing.T) {

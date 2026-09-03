@@ -85,7 +85,7 @@ type inventoryStore interface {
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.InventoryItem, error)
 	Create(ctx context.Context, clinicID uint64, item *model.InventoryItem) error
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.InventoryItem, error)
-	Delete(ctx context.Context, clinicID, id uint64) error
+	DeleteIfUnused(ctx context.Context, clinicID, id uint64) error
 	CountUsageByInventoryID(ctx context.Context, clinicID, inventoryID uint64) (int64, error)
 }
 
@@ -167,16 +167,19 @@ func (s *inventoryService) Delete(ctx context.Context, clinicID, id uint64) erro
 	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
 		return apperrors.Wrap(err, "failed to find inventory item")
 	}
+	// 早期 Count は UX 用。防御の本体は DeleteIfUnused の原子条件。
 	count, err := s.repo.CountUsageByInventoryID(ctx, clinicID, id)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to check inventory item dependencies", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to check inventory item dependencies")
 	}
 	if count > 0 {
-		return apperrors.WrapConflict("この項目は使用中のため削除できません")
+		return apperrors.WrapConflict(inventoryInUseConflictMessage)
 	}
-	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
-		slog.ErrorContext(ctx, "failed to delete inventory item", "error", err, "id", id, "clinic_id", clinicID)
+	if err := s.repo.DeleteIfUnused(ctx, clinicID, id); err != nil {
+		if !apperrors.IsConflict(err) && !apperrors.IsNotFound(err) {
+			slog.ErrorContext(ctx, "failed to delete inventory item", "error", err, "id", id, "clinic_id", clinicID)
+		}
 		return apperrors.Wrap(err, "failed to delete inventory item")
 	}
 	slog.InfoContext(ctx, "inventory item deleted", slog.Uint64("inventory_id", id), slog.Uint64("clinic_id", clinicID))
