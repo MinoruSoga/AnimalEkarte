@@ -550,18 +550,22 @@ func TestDefaultPermissionRuleTable_CoversAllResources(t *testing.T) {
 }
 
 // demoPermissionSeedGroupProfiles maps 002_master permission_groups IDs.
-// 1/3 = 執行, 2/4 = 一般, 9 = 閲覧専用 (view-only).
+// 1/3/5/7 = 執行, 2/4/6/8 = 一般, 9 = 閲覧専用 (view-only).
 var demoPermissionSeedGroupProfiles = map[uint64]string{
 	1: "executive",
 	2: "general",
 	3: "executive",
 	4: "general",
+	5: "executive",
+	6: "general",
+	7: "executive",
+	8: "general",
 	9: "view-only",
 }
 
 func TestDemoSeedGroupRules_Parity(t *testing.T) {
 	require.Len(t, model.AllResources, 37)
-	require.Len(t, demoPermissionSeedGroupProfiles, 5, "002_master は 5 権限グループを持つ契約")
+	require.Len(t, demoPermissionSeedGroupProfiles, 9, "002_master は 9 権限グループを持つ契約")
 	seedResources := make([]model.Resource, 0, len(model.AllResources)-1)
 	for _, resource := range model.AllResources {
 		if resource != model.ResourceExaminationUnconfirm {
@@ -630,7 +634,7 @@ func TestDemoSeedGroupRules_Parity(t *testing.T) {
 		}
 	}
 
-	require.Len(t, byGroup, 5, "permission_group_rules は 5 グループすべてをカバーすること")
+	require.Len(t, byGroup, 9, "permission_group_rules は 9 グループすべてをカバーすること")
 
 	execExpected := buildDefaultPermissionGroupRules(true)
 	genExpected := buildDefaultPermissionGroupRules(false)
