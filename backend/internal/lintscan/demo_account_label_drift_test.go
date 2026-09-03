@@ -13,8 +13,8 @@ import (
 
 const (
 	demoAccountLabelDriftBundle        = "002_master"
-	demoAccountExpectedMinCount        = 9
-	demoAccountExpectedMaxCount        = 12
+	demoAccountExpectedMinCount        = 29
+	demoAccountExpectedMaxCount        = 32
 	gitLFSPointerPrefix                = "version https://git-lfs.github.com/spec/v1"
 	demoAccountSystemAdminClinicLabel  = "全医院"
 	demoAccountLoginFormRelativePath   = "frontend/src/features/auth/components/LoginForm.tsx"
@@ -26,11 +26,11 @@ var demoAccountComparedSeedTables = []string{
 	"clinics",
 }
 
-// demoAccountObjectLinePattern extracts one DEMO_ACCOUNTS object from a single
-// LoginForm.tsx line. Field order matches the current source (email, labels,
-// optional isSystemAdmin).
+// demoAccountObjectLinePattern extracts one DEMO_ACCOUNTS object. Prettier may
+// wrap fields across lines; field order matches the current source (email,
+// labels, optional isSystemAdmin).
 var demoAccountObjectLinePattern = regexp.MustCompile(
-	`email:\s*"([^"]+)"` +
+	`(?s)email:\s*"([^"]+)"` +
 		`.*?occupationLabel:\s*"([^"]+)"` +
 		`.*?permissionLabel:\s*"([^"]+)"` +
 		`.*?clinicLabel:\s*"([^"]+)"` +
@@ -158,6 +158,39 @@ func TestParseDemoAccountObjectLines(t *testing.T) {
 			src:  "// 八王子病院\nconst x = 1;\n",
 			want: nil,
 		},
+		{
+			name: "prettier multiline objects are parsed",
+			src: `{
+        email: "stg-staff-11000021@example.test",
+        displayName: "林 文明",
+        occupationLabel: "獣医師",
+        permissionLabel: "一般",
+        clinicLabel: "城東センター病院",
+      },
+      {
+        email: "stg-staff-21000021@example.test",
+        displayName: "林 文明",
+        occupationLabel: "獣医師",
+        permissionLabel: "一般",
+        clinicLabel: "ノア動物病院　敷島病院",
+      },`,
+			want: []demoAccountUILabels{
+				{
+					email:           "stg-staff-11000021@example.test",
+					occupationLabel: "獣医師",
+					permissionLabel: "一般",
+					clinicLabel:     "城東センター病院",
+					isSystemAdmin:   false,
+				},
+				{
+					email:           "stg-staff-21000021@example.test",
+					occupationLabel: "獣医師",
+					permissionLabel: "一般",
+					clinicLabel:     "ノア動物病院　敷島病院",
+					isSystemAdmin:   false,
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -195,9 +228,10 @@ func TestDemoAccountLabelDriftViolations_FailClosedOnCount(t *testing.T) {
 			if len(violations) == 0 {
 				t.Fatalf("violations = %v, want count failure", violations)
 			}
+			wantRange := fmt.Sprintf("want %d..%d", demoAccountExpectedMinCount, demoAccountExpectedMaxCount)
 			found := false
 			for _, violation := range violations {
-				if strings.Contains(violation, "want 9..12") {
+				if strings.Contains(violation, wantRange) {
 					found = true
 					break
 				}
@@ -210,9 +244,9 @@ func TestDemoAccountLabelDriftViolations_FailClosedOnCount(t *testing.T) {
 }
 
 func TestDemoAccountLabelDriftViolations_ComparesLabels(t *testing.T) {
-	tables := demoAccountJoinFixtureTables(t, 10)
+	tables := demoAccountJoinFixtureTables(t, demoAccountExpectedMinCount)
 
-	validUI := demoAccountJoinFixtureUI(t, 10, nil)
+	validUI := demoAccountJoinFixtureUI(t, demoAccountExpectedMinCount, nil)
 	if violations := demoAccountStaffAttachContractViolations(validUI, tables); len(violations) != 0 {
 		t.Fatalf("valid fixture violations = %v, want none", violations)
 	}
@@ -271,7 +305,7 @@ func TestDemoAccountLabelDriftViolations_ComparesLabels(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ui := demoAccountJoinFixtureUI(t, 10, tt.modify)
+			ui := demoAccountJoinFixtureUI(t, demoAccountExpectedMinCount, tt.modify)
 			violations := demoAccountStaffAttachContractViolations(ui, tables)
 			if len(violations) == 0 {
 				t.Fatal("got no violations, want a contract mismatch")
@@ -459,12 +493,12 @@ func TestReadComparedDemoSeedCSV_RealHeaderIsAccepted(t *testing.T) {
 }
 
 func parseDemoAccountObjectLines(source string) []demoAccountUILabels {
-	var accounts []demoAccountUILabels
-	for _, line := range strings.Split(source, "\n") {
-		match := demoAccountObjectLinePattern.FindStringSubmatch(line)
-		if match == nil {
-			continue
-		}
+	matches := demoAccountObjectLinePattern.FindAllStringSubmatch(source, -1)
+	if len(matches) == 0 {
+		return nil
+	}
+	accounts := make([]demoAccountUILabels, 0, len(matches))
+	for _, match := range matches {
 		accounts = append(accounts, demoAccountUILabels{
 			email:           match[1],
 			occupationLabel: match[2],

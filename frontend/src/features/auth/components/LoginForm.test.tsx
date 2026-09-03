@@ -43,7 +43,9 @@ describe("LoginForm touch targets", () => {
       "href",
       "/forgot-password",
     );
-    expect(screen.getByRole("link", { name: "パスワードをお忘れですか？" })).toHaveClass("min-h-11");
+    expect(screen.getByRole("link", { name: "パスワードをお忘れですか？" })).toHaveClass(
+      "min-h-11",
+    );
     expect(screen.getByPlaceholderText("パスワードを入力")).toHaveClass("pr-12");
   });
 
@@ -64,11 +66,7 @@ describe("LoginForm touch targets", () => {
   it("backslashを使うcross-origin fromをhomeへ縮退する", async () => {
     const user = userEvent.setup();
     render(
-      <MemoryRouter
-        initialEntries={[
-          { pathname: "/login", state: { from: "/\\evil.example" } },
-        ]}
-      >
+      <MemoryRouter initialEntries={[{ pathname: "/login", state: { from: "/\\evil.example" } }]}>
         <LoginForm />
         <CurrentLocation />
       </MemoryRouter>,
@@ -78,9 +76,7 @@ describe("LoginForm touch targets", () => {
     await user.type(screen.getByLabelText("パスワード"), "password123");
     await user.click(screen.getByRole("button", { name: "ログイン" }));
 
-    await waitFor(() =>
-      expect(screen.getByTestId("current-location")).toHaveTextContent(/^\/$/),
-    );
+    await waitFor(() => expect(screen.getByTestId("current-location")).toHaveTextContent(/^\/$/));
   });
 });
 
@@ -94,7 +90,7 @@ describe("LoginForm demo accounts (staff-attach)", () => {
     vi.unstubAllEnvs();
   });
 
-  it("DEV ではデモアカウント欄に約10件の staff-attach アカウントを表示する", () => {
+  it("DEV ではデモアカウント欄に城東・敷島・猫の staff-attach アカウントを表示する", () => {
     render(
       <MemoryRouter>
         <LoginForm />
@@ -103,8 +99,12 @@ describe("LoginForm demo accounts (staff-attach)", () => {
 
     expect(screen.getByText("デモアカウント")).toBeInTheDocument();
     const demoEmails = screen.getAllByText(/stg-staff-\d+@example\.test/);
-    expect(demoEmails.length).toBeGreaterThanOrEqual(9);
-    expect(demoEmails.length).toBeLessThanOrEqual(12);
+    expect(demoEmails.length).toBeGreaterThanOrEqual(29);
+    expect(demoEmails.length).toBeLessThanOrEqual(32);
+    // Clinic seed names use U+3000; Testing Library string matchers collapse it.
+    expect(screen.getAllByText(/城東センター病院/).length).toBeGreaterThanOrEqual(9);
+    expect(screen.getAllByText(/敷島病院/).length).toBeGreaterThanOrEqual(9);
+    expect(screen.getAllByText(/Hako bu neco/).length).toBeGreaterThanOrEqual(9);
     expect(
       screen.getByText("パスワードは自動入力されます（staff-attach と同一）"),
     ).toBeInTheDocument();

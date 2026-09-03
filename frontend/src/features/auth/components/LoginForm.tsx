@@ -23,16 +23,216 @@ export const SHOW_DEMO = import.meta.env.DEV;
 
 const DEMO_ACCOUNTS: readonly DemoCredential[] = SHOW_DEMO
   ? [
-      { email: "stg-staff-11000021@example.test", displayName: "林 文明", occupationLabel: "獣医師", permissionLabel: "一般", clinicLabel: "城東センター病院" },
-      { email: "stg-staff-11000003@example.test", displayName: "高橋 純子", occupationLabel: "獣医師", permissionLabel: "一般", clinicLabel: "城東センター病院" },
-      { email: "stg-staff-11000007@example.test", displayName: "鈴木 諒平", occupationLabel: "獣医師", permissionLabel: "一般", clinicLabel: "城東センター病院" },
-      { email: "stg-staff-11000008@example.test", displayName: "加藤 茉里", occupationLabel: "獣医師", permissionLabel: "一般", clinicLabel: "城東センター病院" },
-      { email: "stg-staff-11000025@example.test", displayName: "チャン ハン", occupationLabel: "看護師", permissionLabel: "一般", clinicLabel: "城東センター病院" },
-      { email: "stg-staff-11000031@example.test", displayName: "近喰 千瞳", occupationLabel: "動物看護師", permissionLabel: "一般", clinicLabel: "城東センター病院" },
-      { email: "stg-staff-11000034@example.test", displayName: "川野 称希", occupationLabel: "動物看護師", permissionLabel: "一般", clinicLabel: "城東センター病院" },
-      { email: "stg-staff-11000005@example.test", displayName: "冨田 美佳", occupationLabel: "VT", permissionLabel: "一般", clinicLabel: "城東センター病院" },
-      { email: "stg-staff-11000006@example.test", displayName: "井冨 和美", occupationLabel: "VT", permissionLabel: "一般", clinicLabel: "城東センター病院" },
-      { email: "stg-staff-11000009@example.test", displayName: "原 梨吏華", occupationLabel: "スタッフ", permissionLabel: "一般", clinicLabel: "城東センター病院" },
+      {
+        email: "stg-staff-11000021@example.test",
+        displayName: "林 文明",
+        occupationLabel: "獣医師",
+        permissionLabel: "一般",
+        clinicLabel: "城東センター病院",
+      },
+      {
+        email: "stg-staff-11000003@example.test",
+        displayName: "高橋 純子",
+        occupationLabel: "獣医師",
+        permissionLabel: "一般",
+        clinicLabel: "城東センター病院",
+      },
+      {
+        email: "stg-staff-11000007@example.test",
+        displayName: "鈴木 諒平",
+        occupationLabel: "獣医師",
+        permissionLabel: "一般",
+        clinicLabel: "城東センター病院",
+      },
+      {
+        email: "stg-staff-11000008@example.test",
+        displayName: "加藤 茉里",
+        occupationLabel: "獣医師",
+        permissionLabel: "一般",
+        clinicLabel: "城東センター病院",
+      },
+      {
+        email: "stg-staff-11000025@example.test",
+        displayName: "チャン ハン",
+        occupationLabel: "看護師",
+        permissionLabel: "一般",
+        clinicLabel: "城東センター病院",
+      },
+      {
+        email: "stg-staff-11000031@example.test",
+        displayName: "近喰 千瞳",
+        occupationLabel: "動物看護師",
+        permissionLabel: "一般",
+        clinicLabel: "城東センター病院",
+      },
+      {
+        email: "stg-staff-11000034@example.test",
+        displayName: "川野 称希",
+        occupationLabel: "動物看護師",
+        permissionLabel: "一般",
+        clinicLabel: "城東センター病院",
+      },
+      {
+        email: "stg-staff-11000005@example.test",
+        displayName: "冨田 美佳",
+        occupationLabel: "VT",
+        permissionLabel: "一般",
+        clinicLabel: "城東センター病院",
+      },
+      {
+        email: "stg-staff-11000006@example.test",
+        displayName: "井冨 和美",
+        occupationLabel: "VT",
+        permissionLabel: "一般",
+        clinicLabel: "城東センター病院",
+      },
+      {
+        email: "stg-staff-11000009@example.test",
+        displayName: "原 梨吏華",
+        occupationLabel: "スタッフ",
+        permissionLabel: "一般",
+        clinicLabel: "城東センター病院",
+      },
+      {
+        email: "stg-staff-21000021@example.test",
+        displayName: "林 文明",
+        occupationLabel: "獣医師",
+        permissionLabel: "一般",
+        clinicLabel: "ノア動物病院　敷島病院",
+      },
+      {
+        email: "stg-staff-21000003@example.test",
+        displayName: "高橋 純子",
+        occupationLabel: "獣医師",
+        permissionLabel: "一般",
+        clinicLabel: "ノア動物病院　敷島病院",
+      },
+      {
+        email: "stg-staff-21000007@example.test",
+        displayName: "鈴木 諒平",
+        occupationLabel: "獣医師",
+        permissionLabel: "一般",
+        clinicLabel: "ノア動物病院　敷島病院",
+      },
+      {
+        email: "stg-staff-21000008@example.test",
+        displayName: "加藤 茉里",
+        occupationLabel: "獣医師",
+        permissionLabel: "一般",
+        clinicLabel: "ノア動物病院　敷島病院",
+      },
+      {
+        email: "stg-staff-21000025@example.test",
+        displayName: "チャン ハン",
+        occupationLabel: "看護師",
+        permissionLabel: "一般",
+        clinicLabel: "ノア動物病院　敷島病院",
+      },
+      {
+        email: "stg-staff-21000031@example.test",
+        displayName: "近喰 千瞳",
+        occupationLabel: "動物看護師",
+        permissionLabel: "一般",
+        clinicLabel: "ノア動物病院　敷島病院",
+      },
+      {
+        email: "stg-staff-21000034@example.test",
+        displayName: "川野 称希",
+        occupationLabel: "動物看護師",
+        permissionLabel: "一般",
+        clinicLabel: "ノア動物病院　敷島病院",
+      },
+      {
+        email: "stg-staff-21000005@example.test",
+        displayName: "冨田 美佳",
+        occupationLabel: "VT",
+        permissionLabel: "一般",
+        clinicLabel: "ノア動物病院　敷島病院",
+      },
+      {
+        email: "stg-staff-21000006@example.test",
+        displayName: "井冨 和美",
+        occupationLabel: "VT",
+        permissionLabel: "一般",
+        clinicLabel: "ノア動物病院　敷島病院",
+      },
+      {
+        email: "stg-staff-21000009@example.test",
+        displayName: "原 梨吏華",
+        occupationLabel: "スタッフ",
+        permissionLabel: "一般",
+        clinicLabel: "ノア動物病院　敷島病院",
+      },
+      {
+        email: "stg-staff-31000021@example.test",
+        displayName: "林 文明",
+        occupationLabel: "獣医師",
+        permissionLabel: "一般",
+        clinicLabel: "ノア動物病院　Hako bu neco",
+      },
+      {
+        email: "stg-staff-31000003@example.test",
+        displayName: "高橋 純子",
+        occupationLabel: "獣医師",
+        permissionLabel: "一般",
+        clinicLabel: "ノア動物病院　Hako bu neco",
+      },
+      {
+        email: "stg-staff-31000007@example.test",
+        displayName: "鈴木 諒平",
+        occupationLabel: "獣医師",
+        permissionLabel: "一般",
+        clinicLabel: "ノア動物病院　Hako bu neco",
+      },
+      {
+        email: "stg-staff-31000008@example.test",
+        displayName: "加藤 茉里",
+        occupationLabel: "獣医師",
+        permissionLabel: "一般",
+        clinicLabel: "ノア動物病院　Hako bu neco",
+      },
+      {
+        email: "stg-staff-31000025@example.test",
+        displayName: "チャン ハン",
+        occupationLabel: "看護師",
+        permissionLabel: "一般",
+        clinicLabel: "ノア動物病院　Hako bu neco",
+      },
+      {
+        email: "stg-staff-31000031@example.test",
+        displayName: "近喰 千瞳",
+        occupationLabel: "動物看護師",
+        permissionLabel: "一般",
+        clinicLabel: "ノア動物病院　Hako bu neco",
+      },
+      {
+        email: "stg-staff-31000034@example.test",
+        displayName: "川野 称希",
+        occupationLabel: "動物看護師",
+        permissionLabel: "一般",
+        clinicLabel: "ノア動物病院　Hako bu neco",
+      },
+      {
+        email: "stg-staff-31000005@example.test",
+        displayName: "冨田 美佳",
+        occupationLabel: "VT",
+        permissionLabel: "一般",
+        clinicLabel: "ノア動物病院　Hako bu neco",
+      },
+      {
+        email: "stg-staff-31000006@example.test",
+        displayName: "井冨 和美",
+        occupationLabel: "VT",
+        permissionLabel: "一般",
+        clinicLabel: "ノア動物病院　Hako bu neco",
+      },
+      {
+        email: "stg-staff-31000009@example.test",
+        displayName: "原 梨吏華",
+        occupationLabel: "スタッフ",
+        permissionLabel: "一般",
+        clinicLabel: "ノア動物病院　Hako bu neco",
+      },
     ]
   : [];
 
@@ -51,7 +251,9 @@ const DemoAccount = memo(function DemoAccount({
       onClick={() => onSelect(email)}
       className={`w-full text-left px-2.5 py-2 rounded-xxs ${C.hoverBgLight} transition-colors flex items-center gap-3`}
     >
-      <div className={`size-[36px] rounded-full flex items-center justify-center shrink-0 ${C.bgInactive}`}>
+      <div
+        className={`size-[36px] rounded-full flex items-center justify-center shrink-0 ${C.bgInactive}`}
+      >
         <span className={`text-sm font-medium ${C.text65}`}>{displayName.charAt(0)}</span>
       </div>
       <div className="flex-1 min-w-0">
@@ -92,8 +294,10 @@ export const LoginForm = memo(function LoginForm() {
       const emailValue = getFormString(formData, "login-email").trim();
       const passwordValue = getFormString(formData, "login-password");
 
-      if (!emailValue) return { success: false, error: "メールアドレスを入力してください", timestamp: Date.now() };
-      if (!passwordValue) return { success: false, error: "パスワードを入力してください", timestamp: Date.now() };
+      if (!emailValue)
+        return { success: false, error: "メールアドレスを入力してください", timestamp: Date.now() };
+      if (!passwordValue)
+        return { success: false, error: "パスワードを入力してください", timestamp: Date.now() };
 
       try {
         await login(emailValue, passwordValue);
@@ -101,9 +305,7 @@ export const LoginForm = memo(function LoginForm() {
         const stateFrom = (location.state as { from?: string })?.from;
         const queryFrom = new URLSearchParams(window.location.search).get("from");
         const from =
-          parseInternalPath(stateFrom) ??
-          parseInternalPath(queryFrom) ??
-          paths.home.getHref();
+          parseInternalPath(stateFrom) ?? parseInternalPath(queryFrom) ?? paths.home.getHref();
 
         navigate(from, { replace: true });
         return { success: true, error: null, timestamp: Date.now() };
@@ -113,12 +315,13 @@ export const LoginForm = memo(function LoginForm() {
           if (!err.response) msg = "接続できません。ネットワークをご確認ください";
           else if (err.response.status === 401) msg = "メールアドレスまたはパスワードが違います";
           else if (err.response.status === 403) msg = "このアカウントはアクセスが制限されています";
-          else if (err.response.status >= 500) msg = "サーバーエラーが発生しました。しばらくしてからお試しください";
+          else if (err.response.status >= 500)
+            msg = "サーバーエラーが発生しました。しばらくしてからお試しください";
         }
         return { success: false, error: msg, timestamp: Date.now() };
       }
     },
-    INITIAL_ACTION_STATE
+    INITIAL_ACTION_STATE,
   );
 
   const handleEmailChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -174,11 +377,7 @@ export const LoginForm = memo(function LoginForm() {
           </p>
           <div className="max-h-[min(40vh,320px)] overflow-y-auto space-y-px">
             {DEMO_ACCOUNTS.map((cred) => (
-              <DemoAccount
-                key={cred.email}
-                {...cred}
-                onSelect={handleSelectDemo}
-              />
+              <DemoAccount key={cred.email} {...cred} onSelect={handleSelectDemo} />
             ))}
           </div>
         </div>
