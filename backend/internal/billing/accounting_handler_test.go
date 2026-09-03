@@ -866,6 +866,26 @@ func TestListUnpaidBillings(t *testing.T) {
 			wantStatus: http.StatusUnauthorized,
 		},
 		{
+			name:  "returns 403 when selected clinic lacks accounting view grant",
+			query: "start_date=2026-01-01&end_date=2026-01-31&group_by=billing",
+			setupCtx: func(c *gin.Context) {
+				setClinicID(c)
+				c.Set("clinic_id", "2")
+				setAccountingPermissionOnlyClinic(c, 1, "view")
+			},
+			svc: &mockAccountingService{
+				listUnpaidByBillingFn: func(_ context.Context, _ uint64, _, _ string, _, _ int) ([]model.Billing, int64, error) {
+					t.Fatal("accounting service must not be reached")
+					return nil, 0, nil
+				},
+				listUnpaidByOwnerFn: func(_ context.Context, _ uint64, _, _ string, _, _ int) ([]UnpaidOwnerAggregate, int64, UnpaidSummary, error) {
+					t.Fatal("accounting service must not be reached")
+					return nil, 0, UnpaidSummary{}, nil
+				},
+			},
+			wantStatus: http.StatusForbidden,
+		},
+		{
 			name:       "returns 400 on invalid pagination",
 			query:      "start_date=2026-01-01&end_date=2026-01-31&page=abc",
 			setupCtx:   func(c *gin.Context) { setClinicID(c) },
@@ -961,6 +981,22 @@ func TestGetOwnerUnpaidBalanceHandler(t *testing.T) {
 			wantStatus: http.StatusUnauthorized,
 		},
 		{
+			name:  "returns 403 when selected clinic lacks accounting view grant",
+			query: "owner_id=5",
+			setupCtx: func(c *gin.Context) {
+				setClinicID(c)
+				c.Set("clinic_id", "2")
+				setAccountingPermissionOnlyClinic(c, 1, "view")
+			},
+			svc: &mockAccountingService{
+				getOwnerUnpaidBalanceFn: func(_ context.Context, _, _ uint64) (OwnerUnpaidBalance, error) {
+					t.Fatal("accounting service must not be reached")
+					return OwnerUnpaidBalance{}, nil
+				},
+			},
+			wantStatus: http.StatusForbidden,
+		},
+		{
 			name:       "returns 400 when owner_id is missing",
 			query:      "",
 			setupCtx:   func(c *gin.Context) { setClinicID(c) },
@@ -1044,6 +1080,22 @@ func TestGetUnpaidMonthlySummary(t *testing.T) {
 			setupCtx:   func(_ *gin.Context) {},
 			svc:        &mockAccountingService{},
 			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:  "returns 403 when selected clinic lacks accounting view grant",
+			query: "year=2026&month=6",
+			setupCtx: func(c *gin.Context) {
+				setClinicID(c)
+				c.Set("clinic_id", "2")
+				setAccountingPermissionOnlyClinic(c, 1, "view")
+			},
+			svc: &mockAccountingService{
+				getMonthlyUnpaidCarryoverFn: func(_ context.Context, _ uint64, _, _, _, _ int) ([]MonthlyUnpaidOwnerPet, int64, MonthlyUnpaidSummary, error) {
+					t.Fatal("accounting service must not be reached")
+					return nil, 0, MonthlyUnpaidSummary{}, nil
+				},
+			},
+			wantStatus: http.StatusForbidden,
 		},
 		{
 			name:       "returns 400 on invalid pagination",

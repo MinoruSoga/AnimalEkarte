@@ -264,6 +264,9 @@ func (h *BillingItemHandler) GetUnbilledItems(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceAccounting), "view") {
+		return
+	}
 
 	petID, err := newUnbilledItemsQuery(c.Request.URL.Query()).toPetID()
 	if err != nil {
@@ -291,6 +294,9 @@ type unbilledDetailsResponse struct {
 func (h *BillingItemHandler) GetUnbilledItemDetails(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
+		return
+	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceAccounting), "view") {
 		return
 	}
 
@@ -359,6 +365,9 @@ func (h *BillingItemHandler) GetUngroupedSameDay(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceAccounting), "view") {
+		return
+	}
 	petID, err := newUnbilledItemsQuery(c.Request.URL.Query()).toPetID()
 	if err != nil {
 		httpapi.RespondError(c, err)
@@ -377,6 +386,9 @@ func (h *BillingItemHandler) GetUngroupedSameDay(c *gin.Context) {
 func (h *BillingItemHandler) GetBillingItemDiscountSuggestions(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
+		return
+	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceAccounting), "view") {
 		return
 	}
 	itemID, ok := httpapi.ParseIDParam(c, "id")

@@ -335,6 +335,9 @@ func (h *AccountingHandler) ListUnpaidBillings(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceAccounting), "view") {
+		return
+	}
 	page, limit, err := httpapi.ParsePagination(c)
 	if err != nil {
 		httpapi.RespondError(c, err)
@@ -376,6 +379,9 @@ func (h *AccountingHandler) GetOwnerUnpaidBalance(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceAccounting), "view") {
+		return
+	}
 	ownerID, err := strconv.ParseUint(c.Query("owner_id"), 10, 64)
 	if err != nil || ownerID == 0 {
 		httpapi.RespondError(c, apperrors.WrapInvalidInput("owner_id is required"))
@@ -394,6 +400,9 @@ func (h *AccountingHandler) GetOwnerUnpaidBalance(c *gin.Context) {
 func (h *AccountingHandler) GetUnpaidMonthlySummary(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
+		return
+	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceAccounting), "view") {
 		return
 	}
 	page, limit, err := httpapi.ParsePagination(c)

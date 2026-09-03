@@ -114,6 +114,21 @@ func TestListCampaigns(t *testing.T) {
 			wantStatus: http.StatusUnauthorized,
 		},
 		{
+			name: "returns 403 when selected clinic lacks accounting view grant",
+			setupCtx: func(c *gin.Context) {
+				setClinicID(c)
+				c.Set("clinic_id", "2")
+				setAccountingPermissionOnlyClinic(c, 1, "view")
+			},
+			svc: &mockCampaignService{
+				listFn: func(_ context.Context, _ uint64) ([]model.Campaign, error) {
+					t.Fatal("campaign service must not be reached")
+					return nil, nil
+				},
+			},
+			wantStatus: http.StatusForbidden,
+		},
+		{
 			name:     "returns 500 on service error",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockCampaignService{
@@ -184,6 +199,22 @@ func TestGetCampaign(t *testing.T) {
 			setupCtx:   func(c *gin.Context) { setClinicID(c) },
 			svc:        &mockCampaignService{},
 			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:    "returns 403 when selected clinic lacks accounting view grant",
+			paramID: "4",
+			setupCtx: func(c *gin.Context) {
+				setClinicID(c)
+				c.Set("clinic_id", "2")
+				setAccountingPermissionOnlyClinic(c, 1, "view")
+			},
+			svc: &mockCampaignService{
+				getByIDFn: func(_ context.Context, _, _ uint64) (*model.Campaign, error) {
+					t.Fatal("campaign service must not be reached")
+					return nil, nil
+				},
+			},
+			wantStatus: http.StatusForbidden,
 		},
 		{
 			name:     "returns 404 when campaign not found",

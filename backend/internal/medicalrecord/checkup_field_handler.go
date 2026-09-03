@@ -7,6 +7,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/httpapi"
+	"github.com/animal-ekarte/backend/internal/model"
 )
 
 // ListCheckupTypeFields は GET /v1/masters/checkup-types/:id/fields —
@@ -14,6 +15,9 @@ import (
 func (h *CheckupHandler) ListCheckupTypeFields(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
+		return
+	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceCheckups), "view") {
 		return
 	}
 	checkupTypeID, ok := httpapi.ParseIDParam(c, "id")
@@ -32,6 +36,9 @@ func (h *CheckupHandler) ListCheckupTypeFields(c *gin.Context) {
 func (h *CheckupHandler) ListCheckupFieldResults(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
+		return
+	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceMedicalRecords), "view") {
 		return
 	}
 	medicalRecordID, ok := httpapi.ParseIDParam(c, "id")
@@ -83,6 +90,9 @@ func (h *CheckupHandler) ReplaceCheckupFieldResults(c *gin.Context) {
 func (h *CheckupHandler) ListPetCheckupResults(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
+		return
+	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceCheckups), "view") {
 		return
 	}
 	petID, ok := httpapi.ParseOptionalUint64Query(c, "pet_id")

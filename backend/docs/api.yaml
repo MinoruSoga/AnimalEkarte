@@ -7969,6 +7969,13 @@ components:
           type: boolean
         sort_order:
           type: integer
+    LabDeviceAgentConsumer:
+      type: object
+      required: [agent_consumer_token]
+      properties:
+        agent_consumer_token:
+          type: string
+          example: test-consumer-token
     CreateLabDeviceRequest:
       type: object
       required: [name, source_type]
@@ -23575,6 +23582,27 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/InternalError'
+  /lab-device/agent-consumer:
+    get:
+      operationId: getLabDeviceAgentConsumer
+      summary: 検査機器エージェントの consumer token
+      description: ResourceLabImport create. Returns the operator-supplied installation consumer token from LAB_DEVICE_AGENT_CONSUMER_TOKEN. Empty config is 503.
+      tags: [LabImports]
+      responses:
+        '200':
+          description: 設定済み consumer token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LabDeviceAgentConsumer'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          description: LAB_DEVICE_AGENT_CONSUMER_TOKEN is unset
   /lab-device/board:
     get:
       operationId: getLabDeviceBoard

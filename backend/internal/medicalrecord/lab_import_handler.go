@@ -153,6 +153,9 @@ func (h *LabImportHandler) GetLabImportJob(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceLabImport), "view") {
+		return
+	}
 	jobID, ok := httpapi.ParseUUIDParam(c, "job_id")
 	if !ok {
 		return
@@ -171,6 +174,9 @@ func (h *LabImportHandler) GetLabImportJob(c *gin.Context) {
 func (h *LabImportHandler) ListLabImportEvents(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
+		return
+	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceLabImport), "view") {
 		return
 	}
 	jobID, ok := httpapi.ParseUUIDParam(c, "job_id")

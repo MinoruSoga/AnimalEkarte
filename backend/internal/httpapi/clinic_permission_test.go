@@ -197,14 +197,14 @@ func TestResolveAllClinicIDsForPermission(t *testing.T) {
 func TestRequireSelectedClinicGrant(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	t.Run("allows when checker is absent", func(t *testing.T) {
+	t.Run("fails closed when checker is absent", func(t *testing.T) {
 		w := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(w)
 		c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
 		c.Set("clinic_id", "23")
 
-		assert.True(t, RequireSelectedClinicGrant(c, "shifts", "view"))
-		assert.False(t, c.Writer.Written())
+		assert.False(t, RequireSelectedClinicGrant(c, "shifts", "view"))
+		assert.Equal(t, http.StatusForbidden, w.Code)
 	})
 
 	t.Run("rejects selected clinic without grant", func(t *testing.T) {

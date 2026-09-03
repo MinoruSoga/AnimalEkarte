@@ -8,6 +8,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/httpapi"
+	"github.com/animal-ekarte/backend/internal/model"
 )
 
 // DiagnosisHandler serves the DiagnosisType/DiagnosisName HTTP boundary. The two entities
@@ -32,6 +33,9 @@ func (h *DiagnosisHandler) ListDiagnosisTypes(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceMasterMedical), "view") {
+		return
+	}
 
 	page, limit, err := httpapi.ParsePagination(c)
 	if err != nil {
@@ -51,6 +55,9 @@ func (h *DiagnosisHandler) ListDiagnosisTypes(c *gin.Context) {
 func (h *DiagnosisHandler) GetDiagnosisType(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
+		return
+	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceMasterMedical), "view") {
 		return
 	}
 	id, ok := httpapi.ParseIDParam(c, "id")
@@ -155,6 +162,9 @@ func (h *DiagnosisHandler) GetDiagnosisName(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceMasterMedical), "view") {
+		return
+	}
 	id, ok := httpapi.ParseIDParam(c, "id")
 	if !ok {
 		return
@@ -171,6 +181,9 @@ func (h *DiagnosisHandler) GetDiagnosisName(c *gin.Context) {
 func (h *DiagnosisHandler) ListDiagnosisNames(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
+		return
+	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceMasterMedical), "view") {
 		return
 	}
 
@@ -199,6 +212,9 @@ func (h *DiagnosisHandler) ListDiagnosisNames(c *gin.Context) {
 func (h *DiagnosisHandler) ListDiagnosisNamesAll(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
+		return
+	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceMasterMedical), "view") {
 		return
 	}
 

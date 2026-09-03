@@ -115,6 +115,22 @@ func TestGetMonthlyReport(t *testing.T) {
 			wantStatus: http.StatusUnauthorized,
 		},
 		{
+			name:  "returns 403 when selected clinic lacks accounting-reports view grant",
+			query: "year=2026&month=4",
+			setupCtx: func(c *gin.Context) {
+				setClinicID(c)
+				c.Set("clinic_id", "2")
+				setResourcePermissionOnlyClinic(c, 1, string(model.ResourceAccountingReports), "view")
+			},
+			svc: &mockAccountingReportService{
+				getMonthlyFn: func(_ context.Context, _ uint64, _, _ int) (*MonthlyReportResponse, error) {
+					t.Fatal("accounting report service must not be reached")
+					return nil, nil
+				},
+			},
+			wantStatus: http.StatusForbidden,
+		},
+		{
 			name:       "returns 400 when month is invalid",
 			query:      "year=2026&month=13",
 			setupCtx:   func(c *gin.Context) { setClinicID(c) },
@@ -215,6 +231,22 @@ func TestExportMonthlyCSV(t *testing.T) {
 			setupCtx:   func(_ *gin.Context) {},
 			svc:        &mockAccountingReportService{},
 			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:  "returns 403 when selected clinic lacks accounting-reports view grant",
+			query: "year=2026&month=4",
+			setupCtx: func(c *gin.Context) {
+				setClinicID(c)
+				c.Set("clinic_id", "2")
+				setResourcePermissionOnlyClinic(c, 1, string(model.ResourceAccountingReports), "view")
+			},
+			svc: &mockAccountingReportService{
+				exportMonthlyCSVFn: func(_ context.Context, _ uint64, _, _ int) (*MonthlyCSVResult, error) {
+					t.Fatal("accounting report service must not be reached")
+					return nil, nil
+				},
+			},
+			wantStatus: http.StatusForbidden,
 		},
 		{
 			name:       "returns 400 when month is invalid",

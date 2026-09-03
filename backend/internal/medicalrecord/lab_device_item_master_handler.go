@@ -7,6 +7,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/httpapi"
+	"github.com/animal-ekarte/backend/internal/model"
 )
 
 // WithDeviceMasters attaches the BRT-96 master service. Optional in legacy lab-import tests.
@@ -40,6 +41,9 @@ func (h *LabImportHandler) deviceMasterService() (LabDeviceItemMasterService, bo
 func (h *LabImportHandler) ListLabDeviceItemMasters(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
+		return
+	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceLabImport), "view") {
 		return
 	}
 	svc, ok := h.deviceMasterService()
@@ -113,6 +117,9 @@ func (h *LabImportHandler) UpdateLabDeviceItemMaster(c *gin.Context) {
 func (h *LabImportHandler) ListLabDevices(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
+		return
+	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceLabImport), "view") {
 		return
 	}
 	svc, ok := h.deviceMasterService()
@@ -299,6 +306,9 @@ func (h *LabImportHandler) GetLabDeviceBoard(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceLabImport), "create") {
+		return
+	}
 	svc, ok := h.deviceReceiveService()
 	if !ok {
 		httpapi.RespondError(c, apperrors.WrapInternalServerError("lab device receive service is not configured"))
@@ -319,6 +329,9 @@ func (h *LabImportHandler) GetLabDeviceUnlinked(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceLabImport), "view") {
+		return
+	}
 	svc, ok := h.deviceReceiveService()
 	if !ok {
 		httpapi.RespondError(c, apperrors.WrapInternalServerError("lab device receive service is not configured"))
@@ -337,6 +350,9 @@ func (h *LabImportHandler) GetLabDeviceUnlinked(c *gin.Context) {
 func (h *LabImportHandler) GetLabDeviceStation(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
+		return
+	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceLabImport), "view") {
 		return
 	}
 	svc, ok := h.deviceReceiveService()

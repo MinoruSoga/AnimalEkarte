@@ -33,12 +33,13 @@ func (f *stringListFlag) Set(value string) error {
 func main() {
 	clinicID := flag.String("clinic-id", "", "clinic ID bound to this workstation")
 	portsFile := flag.String("ports-file", "", "newline-delimited allowlist of serial ports")
+	consumerToken := flag.String("consumer-token", "", "consumer token required for protected loopback operations")
 	var allowedOrigins stringListFlag
 	flag.Var(&allowedOrigins, "allowed-origin", "exact supported deployed frontend origin allowed to use the loopback agent (repeatable)")
 	pimsReply := flag.Bool("pims-reply", false, "write IDEXX ACK+A+IM/SM on the same usbserial port; do not use on hospital VetLab")
 	flag.Parse()
-	if *clinicID == "" || *portsFile == "" {
-		slog.Error("clinic-id and ports-file are required")
+	if *clinicID == "" || *portsFile == "" || *consumerToken == "" {
+		slog.Error("clinic-id, ports-file, and consumer-token are required")
 		os.Exit(2)
 	}
 	portsRaw, err := os.ReadFile(*portsFile)
@@ -74,7 +75,7 @@ func main() {
 	}
 	server := &http.Server{
 		Addr:              labdeviceagent.ListenAddress,
-		Handler:           labdeviceagent.NewHandler(queue, status, *clinicID, allowedOrigins...),
+		Handler:           labdeviceagent.NewHandler(queue, status, *clinicID, *consumerToken, allowedOrigins...),
 		ReadHeaderTimeout: 5 * time.Second,
 		WriteTimeout:      10 * time.Second,
 		IdleTimeout:       30 * time.Second,

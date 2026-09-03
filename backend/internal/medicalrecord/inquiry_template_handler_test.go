@@ -522,3 +522,55 @@ func TestInquiryTemplateHandler_Reorder(t *testing.T) {
 		assert.Equal(t, http.StatusUnauthorized, w.Code)
 	})
 }
+
+// SEC-CODEX-UHQPM2 selected-clinic grant
+func TestInquiryTemplateSelectedClinicGrant(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name   string
+		invoke func(*InquiryTemplateHandler, *gin.Context)
+		svc    *mockInquiryTemplateService
+	}{
+		{
+			name: "ListInquiryTemplates returns 403 when selected clinic lacks master-medical view grant",
+			invoke: func(h *InquiryTemplateHandler, c *gin.Context) {
+				h.ListInquiryTemplates(c)
+			},
+			svc: &mockInquiryTemplateService{
+				listFn: func(_ context.Context, _ uint64) ([]model.InquiryTemplate, error) {
+					t.Fatal("service must not be reached")
+					return nil, nil
+				},
+			},
+		},
+		{
+			name: "GetInquiryTemplate returns 403 when selected clinic lacks master-medical view grant",
+			invoke: func(h *InquiryTemplateHandler, c *gin.Context) {
+				h.GetInquiryTemplate(c)
+			},
+			svc: &mockInquiryTemplateService{
+				getByIDFn: func(_ context.Context, _, _ uint64) (*model.InquiryTemplate, error) {
+					t.Fatal("service must not be reached")
+					return nil, nil
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithInquiryTemplateSvc(tt.svc)
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+			c.Params = gin.Params{{Key: "id", Value: "10"}}
+			setClinicID(c)
+			c.Set("clinic_id", "2")
+			c.Set("is_system_admin", false)
+			setResourcePermissionOnlyClinic(c, 1, string(model.ResourceMasterMedical), "view")
+			tt.invoke(h, c)
+			assert.Equal(t, http.StatusForbidden, w.Code)
+		})
+	}
+}

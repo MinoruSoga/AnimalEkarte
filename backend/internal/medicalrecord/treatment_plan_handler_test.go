@@ -1529,3 +1529,74 @@ func TestToTreatmentPlanResponse(t *testing.T) {
 //    - Test FK constraint (medical_record_id must exist)
 //    - Verify clinic_id inheritance from parent medical_record
 //
+
+// SEC-CODEX-UHQPM2 selected-clinic grant
+func TestTreatmentPlanSelectedClinicGrant(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name     string
+		resource model.Resource
+		invoke   func(*TreatmentPlanHandler, *gin.Context)
+		mrSvc    *mockMedicalRecordService
+		hospSvc  *mockHospitalizationService
+		tpSvc    *mockTreatmentPlanService
+	}{
+		{
+			name:     "ListTreatmentPlansByMedicalRecord returns 403 when selected clinic lacks medical record view grant",
+			resource: model.ResourceMedicalRecords,
+			invoke: func(h *TreatmentPlanHandler, c *gin.Context) {
+				h.ListTreatmentPlansByMedicalRecord(c)
+			},
+			mrSvc: &mockMedicalRecordService{
+				getByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+					t.Fatal("service must not be reached")
+					return nil, nil
+				},
+			},
+			hospSvc: &mockHospitalizationService{},
+			tpSvc: &mockTreatmentPlanService{
+				listByMedicalRecordFn: func(_ context.Context, _, _ uint64) ([]model.TreatmentPlan, error) {
+					t.Fatal("service must not be reached")
+					return nil, nil
+				},
+			},
+		},
+		{
+			name:     "ListTreatmentPlansByHospitalization returns 403 when selected clinic lacks hospitalization view grant",
+			resource: model.ResourceHospitalization,
+			invoke: func(h *TreatmentPlanHandler, c *gin.Context) {
+				h.ListTreatmentPlansByHospitalization(c)
+			},
+			mrSvc: &mockMedicalRecordService{},
+			hospSvc: &mockHospitalizationService{
+				getByIDFn: func(_ context.Context, _, _ uint64) (*model.Hospitalization, error) {
+					t.Fatal("service must not be reached")
+					return nil, nil
+				},
+			},
+			tpSvc: &mockTreatmentPlanService{
+				listByHospitalizationFn: func(_ context.Context, _, _ uint64) ([]model.TreatmentPlan, error) {
+					t.Fatal("service must not be reached")
+					return nil, nil
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithTreatmentPlanSvc(tt.tpSvc, tt.hospSvc, tt.mrSvc, denyAllPermission)
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+			c.Params = gin.Params{{Key: "id", Value: "10"}}
+			setClinicID(c)
+			c.Set("clinic_id", "2")
+			c.Set("is_system_admin", false)
+			setResourcePermissionOnlyClinic(c, 1, string(tt.resource), "view")
+			tt.invoke(h, c)
+			assert.Equal(t, http.StatusForbidden, w.Code)
+		})
+	}
+}

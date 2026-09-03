@@ -433,3 +433,43 @@ func TestUpdateClinicalPlan_NullClearsDiagnosis2(t *testing.T) {
 	h.UpdateClinicalPlan(c)
 	assert.Equal(t, http.StatusOK, w.Code)
 }
+
+// SEC-CODEX-UHQPM2 selected-clinic grant
+func TestGetClinicalPlanSelectedClinicGrant(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name   string
+		invoke func(*ClinicalPlanHandler, *gin.Context)
+		svc    *mockClinicalPlanService
+	}{
+		{
+			name: "GetClinicalPlan returns 403 when selected clinic lacks medical record view grant",
+			invoke: func(h *ClinicalPlanHandler, c *gin.Context) {
+				h.GetClinicalPlan(c)
+			},
+			svc: &mockClinicalPlanService{
+				getOrCreateFn: func(_ context.Context, _, _ uint64) (*model.ClinicalPlan, error) {
+					t.Fatal("service must not be reached")
+					return nil, nil
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithClinicalPlanSvc(tt.svc)
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+			c.Params = gin.Params{{Key: "id", Value: "10"}}
+			setClinicID(c)
+			c.Set("clinic_id", "2")
+			c.Set("is_system_admin", false)
+			setResourcePermissionOnlyClinic(c, 1, string(model.ResourceMedicalRecords), "view")
+			tt.invoke(h, c)
+			assert.Equal(t, http.StatusForbidden, w.Code)
+		})
+	}
+}

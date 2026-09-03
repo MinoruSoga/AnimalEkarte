@@ -33,6 +33,9 @@ func (h *EstimateHandler) ListEstimates(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceEstimates), "view") {
+		return
+	}
 
 	page, limit, err := httpapi.ParsePagination(c)
 	if err != nil {
@@ -58,6 +61,9 @@ func (h *EstimateHandler) ListEstimates(c *gin.Context) {
 func (h *EstimateHandler) GetEstimate(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
+		return
+	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceEstimates), "view") {
 		return
 	}
 

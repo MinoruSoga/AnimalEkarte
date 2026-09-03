@@ -3,6 +3,8 @@ package labdeviceagent
 import (
 	"bytes"
 	"crypto/rand"
+	"crypto/sha256"
+	"crypto/subtle"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -17,6 +19,8 @@ import (
 )
 
 const ListenAddress = "127.0.0.1:17654"
+
+const consumerTokenHeader = "X-Lab-Device-Consumer-Token" //nolint:gosec // G101: HTTP header name, not a credential
 
 type Status struct {
 	openPorts       atomic.Int64
@@ -121,13 +125,15 @@ type consumerLease struct {
 const consumerLeaseDuration = 15 * time.Second
 
 type handler struct {
-	queue          *Queue
-	status         *Status
-	lease          *consumerLease
-	allowedOrigins map[string]struct{}
+	queue                   *Queue
+	status                  *Status
+	lease                   *consumerLease
+	consumerTokenHash       [sha256.Size]byte
+	consumerTokenConfigured bool
+	allowedOrigins          map[string]struct{}
 }
 
-func NewHandler(queue *Queue, status *Status, expectedClinic string, configuredOrigins ...string) http.Handler {
+func NewHandler(queue *Queue, status *Status, expectedClinic, consumerToken string, configuredOrigins ...string) http.Handler {
 	origins := map[string]struct{}{
 		"http://localhost:3003": {},
 		"http://127.0.0.1:3003": {},
@@ -137,7 +143,14 @@ func NewHandler(queue *Queue, status *Status, expectedClinic string, configuredO
 			origins[normalized] = struct{}{}
 		}
 	}
-	return &handler{queue: queue, status: status, lease: &consumerLease{expectedClinic: expectedClinic}, allowedOrigins: origins}
+	return &handler{
+		queue:                   queue,
+		status:                  status,
+		lease:                   &consumerLease{expectedClinic: expectedClinic},
+		consumerTokenHash:       sha256.Sum256([]byte(consumerToken)),
+		consumerTokenConfigured: consumerToken != "",
+		allowedOrigins:          origins,
+	}
 }
 
 // NormalizeAllowedOrigin accepts an exact origin with a supported host and returns
@@ -271,7 +284,7 @@ func (h *handler) allowBrowserRequest(response http.ResponseWriter, request *htt
 	response.Header().Set("Access-Control-Allow-Origin", origin)
 	response.Header().Set("Vary", "Origin")
 	response.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-	response.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-Clinic-ID, X-Lab-Device-Owner")
+	response.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-Clinic-ID, X-Lab-Device-Owner, X-Lab-Device-Consumer-Token")
 	if request.Header.Get("Access-Control-Request-Private-Network") == "true" {
 		response.Header().Set("Access-Control-Allow-Private-Network", "true")
 	}
@@ -303,6 +316,9 @@ func (h *handler) writeHealth(response http.ResponseWriter) {
 }
 
 func (h *handler) claim(response http.ResponseWriter, request *http.Request) {
+	if !h.authorizeConsumerToken(response, request) {
+		return
+	}
 	var input struct {
 		ClinicID string `json:"clinic_id"`
 	}
@@ -340,6 +356,9 @@ func (h *handler) claim(response http.ResponseWriter, request *http.Request) {
 }
 
 func (h *handler) authorizeConsumer(response http.ResponseWriter, request *http.Request) bool {
+	if !h.authorizeConsumerToken(response, request) {
+		return false
+	}
 	clinicID := request.Header.Get("X-Clinic-ID")
 	owner := request.Header.Get("X-Lab-Device-Owner")
 	h.lease.mu.Lock()
@@ -349,6 +368,19 @@ func (h *handler) authorizeConsumer(response http.ResponseWriter, request *http.
 		return false
 	}
 	h.lease.expiresAt = time.Now().Add(consumerLeaseDuration)
+	return true
+}
+
+func (h *handler) authorizeConsumerToken(response http.ResponseWriter, request *http.Request) bool {
+	if !h.consumerTokenConfigured {
+		http.Error(response, "consumer token required", http.StatusUnauthorized)
+		return false
+	}
+	providedHash := sha256.Sum256([]byte(request.Header.Get(consumerTokenHeader)))
+	if subtle.ConstantTimeCompare(h.consumerTokenHash[:], providedHash[:]) != 1 {
+		http.Error(response, "consumer token required", http.StatusUnauthorized)
+		return false
+	}
 	return true
 }
 

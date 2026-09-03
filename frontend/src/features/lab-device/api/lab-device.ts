@@ -142,6 +142,10 @@ interface LabDeviceFramesResponse {
   results: Array<{ duplicate: boolean; job: LabDeviceJobCardResponse }>;
 }
 
+interface LabDeviceAgentConsumerResponse {
+  agent_consumer_token: string;
+}
+
 function toItem(item: LabDeviceJobItemResponse): LabDeviceJobItem {
   return {
     deviceItemCode: item.device_item_code,
@@ -246,6 +250,14 @@ async function fetchUnlinked(): Promise<LabDeviceJobCard[]> {
   return (data ?? []).map(toCard);
 }
 
+async function fetchLabDeviceAgentConsumerToken(): Promise<string> {
+  const { data } = await axios.get<LabDeviceAgentConsumerResponse>("/v1/lab-device/agent-consumer");
+  if (typeof data.agent_consumer_token !== "string" || data.agent_consumer_token === "") {
+    throw new Error("invalid lab device agent consumer response");
+  }
+  return data.agent_consumer_token;
+}
+
 export function useGetLabDeviceBoard(enabled = true) {
   return useQuery({
     queryKey: queryKeys.labDevice.board(),
@@ -261,6 +273,15 @@ export function useGetLabDeviceUnlinked(enabled = true) {
     queryFn: fetchUnlinked,
     enabled,
     refetchInterval: LAB_DEVICE_UNLINKED_REFETCH_MS,
+  });
+}
+
+export function useGetLabDeviceAgentConsumer(enabled = true) {
+  return useQuery({
+    queryKey: ["lab-device", "agent-consumer"],
+    queryFn: fetchLabDeviceAgentConsumerToken,
+    enabled,
+    staleTime: Infinity,
   });
 }
 

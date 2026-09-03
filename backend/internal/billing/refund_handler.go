@@ -31,6 +31,9 @@ func (h *RefundHandler) ListRefunds(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceAccounting), "view") {
+		return
+	}
 
 	billingID, ok := httpapi.ParseIDParam(c, "id")
 	if !ok {

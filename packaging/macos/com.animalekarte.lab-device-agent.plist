@@ -13,6 +13,8 @@
     <string>__PORTS_FILE__</string>
     <string>--allowed-origin</string>
     <string>__ALLOWED_ORIGIN__</string>
+    <string>--consumer-token</string>
+    <string>__CONSUMER_TOKEN__</string>
   </array>
   <key>RunAtLoad</key>
   <true/>

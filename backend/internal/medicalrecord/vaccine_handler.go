@@ -8,6 +8,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/httpapi"
+	"github.com/animal-ekarte/backend/internal/model"
 )
 
 // VaccineHandler serves the Vaccine master HTTP boundary.
@@ -26,6 +27,9 @@ func (h *VaccineHandler) ListVaccines(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceMasterMedical), "view") {
+		return
+	}
 	species := newListVaccinesQuery(c.Request.URL.Query()).toServiceFilter()
 	vaccines, err := h.service.List(c.Request.Context(), clinicID, species)
 	if err != nil {
@@ -39,6 +43,9 @@ func (h *VaccineHandler) ListVaccines(c *gin.Context) {
 func (h *VaccineHandler) GetVaccine(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
+		return
+	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceMasterMedical), "view") {
 		return
 	}
 	id, ok := httpapi.ParseIDParam(c, "id")
