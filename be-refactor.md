@@ -9,8 +9,8 @@
 - 各所見の `path` は `backend/` 起点。行番号は `321fe2b8d` 時点
 - Handler → Service → Repository / Clean Architecture は Go/Gin 公式要件ではない。再導入しない
 - カバレッジ行: OK 702 / FINDING 277 / SKIP 2
-- 開いた所見: HIGH 0 / MEDIUM 4 / LOW 5
-- 2026-09-04 apply: BE-RC-026/025/024/027/028/030/031/032/033 と BE-RC-004 の列挙マスター原子 DELETE を実装。残件は一括禁止の 005/009/014/015/017/019/021/023 と 004 の `inquiry_template`（CountUsage stub=0）
+- 開いた所見: HIGH 0 / MEDIUM 3 / LOW 5
+- 2026-09-04 apply: BE-RC-026/025/024/027/028/030/031/032/033 と BE-RC-004 の列挙マスター原子 DELETE を実装。残件は一括禁止の 005/009/014/015/017/019/021/023。BE-RC-004 `inquiry_template` は §5
 
 ---
 
@@ -41,11 +41,6 @@
 ---
 
 ## 3. MEDIUM（開いた所見のみ）
-
-#### BE-RC-004 [MEDIUM][residual] inquiry_template Delete のみ原子 DELETE 未達
-- 規約: 正しさは `clinic_id + id` と usage 不在を同一 SQL に束ねた条件付き原子 DELETE。service Count は UX
-- 2026-09-04: consultation / vaccine / checkup_type / diagnosis_* / chief_complaint / hospitalization_plan / procedure / exam_type / cage / medicine / reservation_type* / trimming_* / merchandise / occupation / permission_group / animal_species / clinic / staff の repository Delete を原子化した。merchandise / trimming は FOR UPDATE 後に NOT EXISTS DELETE（FOR SHARE 待ち後の snapshot 再評価）
-- 残件: `medicalrecord/inquiry_template` は CountUsage stub=0 のため DeleteScopedByID のまま。一括 retrofit はしない
 
 #### BE-RC-005 [MEDIUM] service の `slog.ErrorContext` と handler `RespondError` が 5xx を二重ログする
 - 規約: 同じ error を複数層で重複ログしない。未知 pg だけ request 境界の `c.Error` 重複を例外許容
@@ -100,7 +95,7 @@
 | BE-RC-001 typed staff update | `staff/reservation_staff_update.go`、`UpdateForReservation(..., ReservationStaffUpdate)`。回帰なし |
 | BE-RC-002 閉集合の `max` | LINE text、refund reason、addendum、OwnerName/Pet Name leftover 等は `max` 維持。列挙残件は 024 で閉じた |
 | BE-RC-003 原子 DELETE 3 面 | inventory `DeleteIfUnused`、payment_method / insurance 原子 DELETE。service Count は UX |
-| BE-RC-004 列挙マスター | consultation/vaccine/checkup_type/diagnosis_*/chief_complaint/hospitalization_plan/procedure/exam_type/cage/medicine、reservation_type*、trimming_*、merchandise、occupation、permission_group、animal_species、clinic、staff。残件は inquiry_template |
+| BE-RC-004 列挙マスター | consultation/vaccine/checkup_type/diagnosis_*/chief_complaint/hospitalization_plan/procedure/exam_type/cage/medicine、reservation_type*、trimming_*、merchandise、occupation、permission_group、animal_species、clinic、staff、inquiry_template。CountUsage stub は UX。Delete は DBOrTx + clinic_id + id |
 | BE-RC-024 HTTP `max` | clinic/billing/inventory/pet/owner/identitylink の列挙フィールド。name 255 / reason 500 / memo 1000 / search 255 |
 | BE-RC-025 LIFF `IsActive` | `liff_service_availability_staff.go` が `IsActive && ReservationVisible`。書込二重防御は残置 |
 | BE-RC-026 admin Preload | `appointment_admin_repository.go` の Doctor/CreatedByStaff が `staffAssignedToClinicsCond` + `reservationRelationsMatchParentClinic` |
