@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { C } from "@/lib/design-tokens";
 import { handleApiError } from "@/lib/handle-api-error";
+import { getFormString } from "@/lib/form-data";
 import { useCreateMedicalRecordAddendum } from "../../hooks/use-medical-record-addenda";
 
 const MAX_REASON_LENGTH = 500;
@@ -26,8 +27,8 @@ export function AddendumModal({ open, onOpenChange, medicalRecordId }: AddendumM
 
   const [state, formAction] = useActionState(
     async (_prev: FormState, formData: FormData): Promise<FormState> => {
-      const afterText = (formData.get("after_text") as string | null)?.trim() ?? "";
-      const reason = (formData.get("reason") as string | null)?.trim() ?? "";
+      const afterText = getFormString(formData, "after_text").trim();
+      const reason = getFormString(formData, "reason").trim();
 
       if (!afterText) return { error: "修正内容は必須です" };
       if (!reason) return { error: "修正理由は必須です" };

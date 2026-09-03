@@ -7,6 +7,7 @@ import { toast } from "sonner";
 
 // Shared modules
 import { handleApiError } from "@/lib/handle-api-error";
+import { getFormString } from "@/lib/form-data";
 import { C } from "@/lib/design-tokens";
 import { paths } from "@/config/paths";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
@@ -126,14 +127,14 @@ export function LineReservationSettingsForm({ setting, clinicId }: SettingsFormP
       booking_window_max_days: Number(formData.get("booking_window_max_days")),
       booking_window_min_days: bookingWindowMinDays,
       calendar_months: Number(formData.get("calendar_months")),
-      phone_number: formData.get("phone_number") as string,
-      notification_email: formData.get("notification_email") as string,
+      phone_number: getFormString(formData, "phone_number"),
+      notification_email: getFormString(formData, "notification_email"),
       request_example: setting.request_example,
       time_slot_interval_minutes: Number(formData.get("time_slot_interval_minutes")),
       show_no_staff_option: setting.show_no_staff_option,
       additional_fields: setting.additional_fields,
-      line_channel_id: formData.get("line_channel_id") as string,
-      liff_id: formData.get("liff_id") as string,
+      line_channel_id: getFormString(formData, "line_channel_id"),
+      liff_id: getFormString(formData, "liff_id"),
     };
     try {
       const updated = await updateLineReservationSetting(clinicId, payload);
