@@ -7,6 +7,7 @@ import { DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/co
 import { Label } from "@/components/ui/label";
 import { FormFieldError } from "@/components/shared/FormFieldError";
 import { ReservationRouteSelect } from "@/components/shared/ReservationRouteSelect";
+import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import type { NewOwnerFormData } from "@/types/reservation-form";
 import type { ReservationRoute } from "@/types/reservation-route";
 import { C, ICON, PALETTE } from "@/lib/design-tokens";
@@ -376,13 +377,10 @@ export function ReservationModalFooter({
           キャンセル
         </Button>
         {canSave ? (
-          <Button
-            type="submit"
-            disabled={isSubmitting}
-            className={`${C.bgBrand} ${C.textOnBrand} ${C.hoverBgBrand} ${C.hoverTextOnBrand} h-10 text-sm rounded-full min-w-[100px]`}
-          >
-            {isSubmitting ? "送信中..." : isEditMode ? "更新する" : "予約を確定"}
-          </Button>
+          // FE-RC-023: 手組みの pending/disabled ロジックを共有 SubmitButton（useFormStatus 連動）へ統一
+          <SubmitButton loadingText="送信中...">
+            {isEditMode ? "更新する" : "予約を確定"}
+          </SubmitButton>
         ) : null}
       </div>
     </DialogFooter>

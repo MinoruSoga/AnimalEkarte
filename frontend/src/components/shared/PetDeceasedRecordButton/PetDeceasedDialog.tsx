@@ -8,6 +8,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { C, STYLE } from "@/lib/design-tokens";
 import { handleApiError } from "@/lib/handle-api-error";
 import { todayJSTISO } from "@/lib/jst-date";
@@ -198,26 +199,24 @@ export function PetDeceasedDialog({
               {state.error}
             </p>
           ) : null}
-        </form>
 
-        <DialogFooter className="gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            disabled={isPending}
-          >
-            キャンセル
-          </Button>
-          <Button
-            type="submit"
-            form="pet-deceased-form"
-            variant="destructive"
-            disabled={isPending}
-          >
-            {isPending ? "記録中..." : "死亡を記録する"}
-          </Button>
-        </DialogFooter>
+          {/* FE-RC-023: 破壊的操作の共通 SubmitButton（colorVariant="destructive"）を使うため
+              form 内へ移動（useFormStatus は最寄りの祖先 form を見るため、form 属性での外部
+              関連付けだけでは pending を検知できない） */}
+          <DialogFooter className="gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              disabled={isPending}
+            >
+              キャンセル
+            </Button>
+            <SubmitButton colorVariant="destructive" loadingText="記録中...">
+              死亡を記録する
+            </SubmitButton>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   );
