@@ -163,7 +163,7 @@ type createOwnerRequest struct {
 	// 未指定時は JWT/X-Clinic-ID 由来の clinic_id を使用する。
 	// 指定時はハンドラで所属医院 (clinic_ids) との一致を必ず検証すること。
 	ClinicID       *uint64                    `json:"clinic_id"`
-	OwnerName      string                     `json:"owner_name"       binding:"required"`
+	OwnerName      string                     `json:"owner_name"       binding:"required,max=255"`
 	OwnerNameKana  string                     `json:"owner_name_kana"  binding:"omitempty,max=100"`
 	BirthDate      *jsonDate                  `json:"birth_date"`
 	Company        string                     `json:"company"          binding:"omitempty,max=200"`
@@ -215,7 +215,7 @@ func (r *createOwnerRequest) toServiceInput() CreateOwnerInput {
 
 // updateOwnerRequest は飼主更新のバインド struct（全フィールドポインタ型）
 type updateOwnerRequest struct {
-	OwnerName      *string                  `json:"owner_name"`
+	OwnerName      *string                  `json:"owner_name"       binding:"omitempty,max=255"`
 	OwnerNameKana  *string                  `json:"owner_name_kana"  binding:"omitempty,max=100"`
 	BirthDate      nullableDateRequestField `json:"birth_date"`
 	Company        *string                  `json:"company"          binding:"omitempty,max=200"`
