@@ -9,7 +9,7 @@ import {
 } from "../constants/trigger-types";
 import { formatDeliveryMonitorDatetime } from "./lstep-delivery-monitor-page-model";
 
-interface DeliveryLogsTableProps {
+interface LstepDeliveryMonitorLogsTableProps {
   logsPage: DeliveryTriggerLogsPageResponse | undefined;
   logsLoading: boolean;
   page: number;
@@ -18,14 +18,14 @@ interface DeliveryLogsTableProps {
   onNextPage: () => void;
 }
 
-export function DeliveryLogsTable({
+export function LstepDeliveryMonitorLogsTable({
   logsPage,
   logsLoading,
   page,
   totalPages,
   onPreviousPage,
   onNextPage,
-}: DeliveryLogsTableProps) {
+}: LstepDeliveryMonitorLogsTableProps) {
   return (
     <div className={`${C.bgWhite} border ${C.borderLight} rounded-xs flex flex-col flex-1 min-h-0`}>
       <div className={`${STYLE.tableContainer} flex-1 overflow-auto`}>
@@ -62,7 +62,7 @@ export function DeliveryLogsTable({
 function DeliveryLogsTableBody({
   logsPage,
   logsLoading,
-}: Pick<DeliveryLogsTableProps, "logsPage" | "logsLoading">) {
+}: Pick<LstepDeliveryMonitorLogsTableProps, "logsPage" | "logsLoading">) {
   if (logsLoading) {
     return (
       <tr>

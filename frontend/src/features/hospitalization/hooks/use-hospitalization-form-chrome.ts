@@ -9,11 +9,11 @@ import { useGetHospitalizations } from "../api/get-hospitalizations";
 import {
   selectHospitalizationDoctorStaffs,
   toHospitalizationHistoryItems,
-} from "./hospitalization-form-model";
+} from "../routes/hospitalization-form-model";
 import type { MasterSelectItem } from "@/components/shared/MasterSelectModal";
 import type { HospitalizationTreatmentPlan } from "@/types";
 import type { HospitalizationFormData } from "../types";
-import type { HospitalizationFormFieldsProps } from "./HospitalizationFormFields";
+import type { HospitalizationFormFieldsProps } from "../routes/HospitalizationFormFields";
 
 export function useHospitalizationFormChrome(input: {
   hospitalizationId: string | undefined;

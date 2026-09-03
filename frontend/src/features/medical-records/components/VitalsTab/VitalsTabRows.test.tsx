@@ -102,7 +102,7 @@ describe("VitalsAddRow weight unit toggle (BUG-015)", () => {
         errors={{}}
         isPending={false}
         onChange={onChange}
-        onSubmit={() => undefined}
+        formAction={() => undefined}
         onCancel={() => undefined}
       />
     );
@@ -135,7 +135,7 @@ describe("VitalsAddRow weight unit toggle (BUG-015)", () => {
         errors={{}}
         isPending={false}
         onChange={onChange}
-        onSubmit={() => undefined}
+        formAction={() => undefined}
         onCancel={() => undefined}
       />
     );

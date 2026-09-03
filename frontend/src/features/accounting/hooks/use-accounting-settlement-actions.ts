@@ -1,4 +1,4 @@
-import { useCallback, type Dispatch, type SetStateAction } from "react";
+import { useCallback, useLayoutEffect, useRef, type Dispatch, type SetStateAction } from "react";
 import type { NavigateFunction } from "react-router";
 
 import type { QueryClient } from "@tanstack/react-query";
@@ -21,6 +21,8 @@ interface UseAccountingSettlementActionsParams {
   setPreviewOpen: Dispatch<SetStateAction<boolean>>;
   startCancelTransition: (callback: () => void) => void;
   startRefundTransition: (callback: () => void) => void;
+  canCancel: boolean;
+  canEdit: boolean;
 }
 
 export function useAccountingSettlementActions({
@@ -31,9 +33,24 @@ export function useAccountingSettlementActions({
   setPreviewOpen,
   startCancelTransition,
   startRefundTransition,
+  canCancel,
+  canEdit,
 }: UseAccountingSettlementActionsParams) {
+  const canCancelRef = useRef(canCancel);
+  const canEditRef = useRef(canEdit);
+  useLayoutEffect(() => {
+    canCancelRef.current = canCancel;
+  }, [canCancel]);
+  useLayoutEffect(() => {
+    canEditRef.current = canEdit;
+  }, [canEdit]);
+
   const handleRefund = useCallback(
     (amount: number, reason: string, paymentMethod?: PaymentMethod) => {
+      if (canEditRef.current !== true) {
+        toast.error("この操作を行う権限がありません");
+        return;
+      }
       if (!accountingId) return;
       startRefundTransition(async () => {
         try {
@@ -54,6 +71,10 @@ export function useAccountingSettlementActions({
   }, [setPreviewOpen]);
 
   const handleCancelConfirm = useCallback(() => {
+    if (canCancelRef.current !== true) {
+      toast.error("この操作を行う権限がありません");
+      return;
+    }
     if (!accountingId) return;
     startCancelTransition(async () => {
       try {

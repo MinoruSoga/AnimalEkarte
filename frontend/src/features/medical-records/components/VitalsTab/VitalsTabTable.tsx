@@ -31,12 +31,13 @@ interface VitalsTableProps {
   isAdding: boolean;
   addForm: VitalsAddFormState;
   addFormErrors: Record<string, string>;
+  addFormError?: string | null;
   createPending: boolean;
   updatePending: boolean;
   deletePending: boolean;
   onStartAdd: () => void;
   onAddFormChange: (patch: Partial<VitalsAddFormState>) => void;
-  onAddSubmit: () => void;
+  addFormAction: (payload: FormData) => void;
   onAddCancel: () => void;
   onStartEdit: (vitalId: string) => void;
   onEditSave: (vitalId: string, input: UpdateVitalInput) => void;
@@ -53,12 +54,13 @@ export function VitalsTable({
   isAdding,
   addForm,
   addFormErrors,
+  addFormError,
   createPending,
   updatePending,
   deletePending,
   onStartAdd,
   onAddFormChange,
-  onAddSubmit,
+  addFormAction,
   onAddCancel,
   onStartEdit,
   onEditSave,
@@ -106,9 +108,10 @@ export function VitalsTable({
         <VitalsAddRow
           addForm={addForm}
           errors={addFormErrors}
+          actionError={addFormError}
           isPending={createPending}
           onChange={onAddFormChange}
-          onSubmit={onAddSubmit}
+          formAction={addFormAction}
           onCancel={onAddCancel}
         />
       ) : canCreate ? (

@@ -15,7 +15,7 @@ import {
   DeliveryMonitorFilters,
   DeliverySummaryCards,
 } from "./LstepDeliveryMonitorPageParts";
-import { DeliveryLogsTable } from "./LstepDeliveryMonitorLogsTable";
+import { LstepDeliveryMonitorLogsTable } from "./LstepDeliveryMonitorLogsTable";
 import { getTodayDateString } from "./lstep-delivery-monitor-page-model";
 
 export function LstepDeliveryMonitorPage() {
@@ -101,7 +101,7 @@ export function LstepDeliveryMonitorPage() {
         <DeliverySummaryCards summary={summary} />
         <DeliveryFailedWarning summary={summary} />
         <DeliveryExcludedReasonBreakdown summary={summary} />
-        <DeliveryLogsTable
+        <LstepDeliveryMonitorLogsTable
           logsPage={logsPage}
           logsLoading={logsLoading}
           page={page}

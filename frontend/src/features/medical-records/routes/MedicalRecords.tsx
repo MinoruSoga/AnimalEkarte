@@ -28,8 +28,8 @@ import { useMedicalRecordsUrlState } from "../hooks/use-medical-records-url-stat
 import { useDeleteMedicalRecord } from "../api/delete-medical-record";
 import { usePermission } from "@/hooks/use-permission";
 import { useAnimalSpecies } from "@/hooks/use-animal-species";
-import { useMedicalRecordsColumns } from "./MedicalRecordsColumns";
-import { MedicalRecordsPageView } from "./MedicalRecordsListPanels";
+import { useMedicalRecordsColumns } from "../hooks/use-medical-records-columns";
+import { MedicalRecordsListPanels } from "./MedicalRecordsListPanels";
 
 // Types
 import type { ActiveFilter } from "@/components/shared/PropertyFilter/types";
@@ -185,7 +185,7 @@ export function MedicalRecords() {
   if (isError) return <ErrorFallback />;
 
   return (
-    <MedicalRecordsPageView
+    <MedicalRecordsListPanels
       canCreate={canCreate}
       onCreate={() => handleNavigateToForm()}
       assignedClinics={assignedClinics}

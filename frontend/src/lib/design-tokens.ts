@@ -187,6 +187,7 @@ export const C = {
   bgBrand5:      "bg-[#038B94]/5",
   bgBrandDot:    "bg-[#038B94]",
   hoverBgBrand:  "hover:bg-[#027078]",
+  focusBgBrand:  "focus:bg-[#027078]",
   hoverBgBrand5: "hover:bg-[#038B94]/5",
   hoverTextBrand: "hover:text-[#025F66] dark:hover:text-[#079BA5]",
   textOnBrand: "text-white",

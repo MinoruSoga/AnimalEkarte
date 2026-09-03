@@ -183,6 +183,26 @@ export const ReservationFormModal = memo(function ReservationFormModal({
     });
   }, []);
 
+  const handleFormChange = useCallback((data: Partial<Reservation>) => {
+    setFormData(data);
+    setSubmitError(null);
+    setValidationErrors((prev) => {
+      const next = { ...prev };
+      if (data.start) delete next.date;
+      if (data.type) delete next.type;
+      if (data.start && data.end && data.end > data.start) delete next.time;
+      return next;
+    });
+  }, []);
+
+  const handleClearError = useCallback((field: string) => {
+    setValidationErrors((prev) => {
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+  }, []);
+
   // edit mode: subscribe to single-reservation query and sync reservationRoute into formData
   const reservationQueryId = isEditMode ? String(initialData?.id) : "";
   const { data: latestReservation } = useGetReservation(reservationQueryId);
@@ -317,24 +337,8 @@ export const ReservationFormModal = memo(function ReservationFormModal({
             reservationId={reservationQueryId || undefined}
             canEdit={canEdit}
             onSelectedPetsChange={setSelectedPets}
-            onFormChange={(data) => {
-              setFormData(data);
-              setSubmitError(null);
-              setValidationErrors((prev) => {
-                const next = { ...prev };
-                if (data.start) delete next.date;
-                if (data.type) delete next.type;
-                if (data.start && data.end && data.end > data.start) delete next.time;
-                return next;
-              });
-            }}
-            onClearError={(field) =>
-              setValidationErrors((prev) => {
-                const next = { ...prev };
-                delete next[field];
-                return next;
-              })
-            }
+            onFormChange={handleFormChange}
+            onClearError={handleClearError}
             onMonthChange={handleCalendarMonthChange}
           />
         </div>

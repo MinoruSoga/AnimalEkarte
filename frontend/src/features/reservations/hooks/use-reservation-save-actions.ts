@@ -36,6 +36,8 @@ export function useReservationSaveActions({
   const createMutation = useCreateReservation();
   const createBatchMutation = useCreateReservationBatch();
   const updateMutation = useUpdateReservation();
+  const { mutateAsync: createReservationAsync } = createMutation;
+  const { mutateAsync: createBatchReservationAsync } = createBatchMutation;
   const { mutate: updateReservationFn } = updateMutation;
   const [, startUpdateTransition] = useTransition();
   const createdPetIdsRef = useRef(new Set<string>());
@@ -112,7 +114,7 @@ export function useReservationSaveActions({
           progress.petID,
           progress.ownerID,
         );
-        await createMutation.mutateAsync(createPayload);
+        await createReservationAsync(createPayload);
         toast.success("予約を作成しました", {
           description: `${newOwnerData.ownerName}様 / ${newOwnerData.petName} / 担当医: ${targetDoctor}`,
         });
@@ -123,7 +125,7 @@ export function useReservationSaveActions({
         return extractApiErrorMessage(error, "作成");
       }
     },
-    [createMutation, createMutations, handleCloseCreateForm, navigateBackIfNeeded],
+    [createReservationAsync, createMutations, handleCloseCreateForm, navigateBackIfNeeded],
   );
 
   /** 既存の飼主/ペット（単体・複数）に予約を作成する（FE-RC-046: handleSave から分離した1経路）。 */
@@ -136,12 +138,12 @@ export function useReservationSaveActions({
       try {
         if (selectedPets.length === 1) {
           const pet = selectedPets[0];
-          await createMutation.mutateAsync(transformToCreateRequest(data, pet.id, pet.ownerId));
+          await createReservationAsync(transformToCreateRequest(data, pet.id, pet.ownerId));
         } else {
           // A selected multi-pet booking is one atomic server-side operation. Do not
           // issue individual creates: the second intentional overlap must not conflict.
           const { pet_id: _petID, owner_id: _ownerID, ...base } = transformToCreateRequest(data, "0", "0");
-          await createBatchMutation.mutateAsync({
+          await createBatchReservationAsync({
             ...base,
             pets: selectedPets.map((pet) => ({ pet_id: Number(pet.id), owner_id: Number(pet.ownerId) })),
           });
@@ -154,7 +156,7 @@ export function useReservationSaveActions({
         return extractApiErrorMessage(error, "作成");
       }
     },
-    [createBatchMutation, createMutation, handleCloseCreateForm, navigateBackIfNeeded],
+    [createBatchReservationAsync, createReservationAsync, handleCloseCreateForm, navigateBackIfNeeded],
   );
 
   const handleSave = useCallback(

@@ -316,7 +316,7 @@ function MedicalRecordsListContent({
   );
 }
 
-interface MedicalRecordsPageViewProps extends MedicalRecordsListContentProps {
+interface MedicalRecordsListPanelsProps extends MedicalRecordsListContentProps {
   canCreate: boolean;
   onCreate: () => void;
   deleteOpen: boolean;
@@ -325,7 +325,7 @@ interface MedicalRecordsPageViewProps extends MedicalRecordsListContentProps {
   onDeleteConfirm: () => void;
 }
 
-export function MedicalRecordsPageView({
+export function MedicalRecordsListPanels({
   canCreate,
   onCreate,
   deleteOpen,
@@ -333,7 +333,7 @@ export function MedicalRecordsPageView({
   onDeleteClose,
   onDeleteConfirm,
   ...contentProps
-}: MedicalRecordsPageViewProps) {
+}: MedicalRecordsListPanelsProps) {
   return (
     <PageLayout
       title="カルテ管理"

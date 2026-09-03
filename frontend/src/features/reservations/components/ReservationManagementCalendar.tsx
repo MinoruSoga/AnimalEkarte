@@ -5,7 +5,7 @@ import { ja } from "date-fns/locale";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SearchableSelect, type SearchableSelectOption } from "@/components/ui/searchable-select";
 import { CalendarNavToolbar } from "@/components/shared/CalendarNavToolbar";
-import type { LegendEntry, ReservationTypeColor } from "@/hooks/use-reservation-type-color-map";
+import type { LegendEntry, ReservationTypeColor } from "../hooks/use-reservation-type-color-map";
 import { C, ICON } from "@/lib/design-tokens";
 import { typedSetter } from "@/lib/type-utils";
 import { getCalendarViewLabel } from "@/lib/status-helpers";

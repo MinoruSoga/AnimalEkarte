@@ -1,7 +1,7 @@
 import type { Owner, Pet } from "@/types";
 
 import { useOwnerClinicalBriefingData } from "../hooks/use-owner-clinical-briefing-data";
-import { BasicInformationPanel } from "./OwnerClinicalBasicPanel";
+import { OwnerClinicalBasicPanel } from "./OwnerClinicalBasicPanel";
 import { ClinicalHistoryPanel } from "./OwnerClinicalHistoryPanel";
 import {
   NextActionPanel,
@@ -34,7 +34,7 @@ export function OwnerClinicalBriefing(props: OwnerClinicalBriefingProps) {
         <TodayVisitPanel data={data} />
         <NextActionPanel data={data} />
         <PreviousVisitPanel data={data} />
-        <BasicInformationPanel
+        <OwnerClinicalBasicPanel
           owner={props.owner}
           pet={props.pet}
           firstVisitDate={props.firstVisitDate}

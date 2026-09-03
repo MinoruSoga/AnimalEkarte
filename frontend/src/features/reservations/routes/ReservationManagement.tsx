@@ -27,7 +27,7 @@ const ReservationFormModal = lazy(() =>
 );
 import { useGetClinicHolidays } from "@/hooks/use-clinic-holidays";
 import { useReservationManagement } from "../hooks/use-reservation-management";
-import { useReservationTypeColorMap } from "@/hooks/use-reservation-type-color-map";
+import { useReservationTypeColorMap } from "../hooks/use-reservation-type-color-map";
 import { usePermission } from "@/hooks/use-permission";
 import { ReservationManagementCalendar } from "../components/ReservationManagementCalendar";
 const ReservationDetailModal = lazy(() =>

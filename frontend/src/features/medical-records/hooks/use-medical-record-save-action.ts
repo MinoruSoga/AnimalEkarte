@@ -1,4 +1,4 @@
-import { useActionState, useEffect, useLayoutEffect, useRef } from "react";
+import { useActionState, useLayoutEffect, useRef } from "react";
 import type { QueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { handleApiError } from "@/lib/handle-api-error";
@@ -6,6 +6,13 @@ import { queryKeys } from "@/lib/query-keys";
 import type { UpdateMedicalRecordRequest } from "../api/types";
 import type { ActionState } from "@/types/form";
 import { INITIAL_ACTION_STATE } from "@/types/form";
+
+const PERMISSION_DENIED_MESSAGE = "この操作を行う権限がありません";
+const DECEASED_SAVE_MESSAGE = "死亡したペットのカルテは保存できません";
+
+function deniedState(error: string): ActionState {
+  return { success: false, error, timestamp: Date.now() };
+}
 
 interface UseMedicalRecordSaveActionArgs {
   recordId?: string;
@@ -95,23 +102,65 @@ export function useMedicalRecordSaveAction({
     isSelectedPetDeceasedRef.current = isSelectedPetDeceased;
   }, [isSelectedPetDeceased]);
 
-  // activeTab を保存時に正確に参照するための ref
+  // activeTab を保存時に正確に参照するための ref（commit 直後 callback 用）
   const activeTabRef = useRef(activeTab);
-  useEffect(() => {
+  useLayoutEffect(() => {
     activeTabRef.current = activeTab;
   }, [activeTab]);
 
+  const saveSnapshotRef = useRef({
+    recordId,
+    isFinalized,
+    isNextVisitDateValid,
+    diagnosis1CategoryId,
+    diagnosis1NameId,
+    diagnosis2CategoryId,
+    diagnosis2NameId,
+    physicalExam,
+    plan,
+    assessment,
+    chiefComplaint,
+    chiefComplaintDefault,
+    chiefComplaintTypeId,
+    treatmentPolicy,
+    treatmentPolicyDefault,
+    nextVisitDate,
+    existingRecordVersion,
+    existingClinicalPlanVersion,
+  });
+  useLayoutEffect(() => {
+    saveSnapshotRef.current = {
+      recordId,
+      isFinalized,
+      isNextVisitDateValid,
+      diagnosis1CategoryId,
+      diagnosis1NameId,
+      diagnosis2CategoryId,
+      diagnosis2NameId,
+      physicalExam,
+      plan,
+      assessment,
+      chiefComplaint,
+      chiefComplaintDefault,
+      chiefComplaintTypeId,
+      treatmentPolicy,
+      treatmentPolicyDefault,
+      nextVisitDate,
+      existingRecordVersion,
+      existingClinicalPlanVersion,
+    };
+  });
+
   const [formState, formAction, isSaving] = useActionState(
     async (_prevState: ActionState, _formData: FormData): Promise<ActionState> => {
+      const snapshot = saveSnapshotRef.current;
       // UI の disabled は操作補助にすぎない。programmatic submit や race でも
       // 確定済み・権限なしカルテを更新しないよう action 境界で拒否する。
-      if (
-        !recordId
-        || canEditRef.current !== true
-        || isSelectedPetDeceasedRef.current
-        || isFinalized
-      ) {
-        return { success: false, timestamp: Date.now() };
+      if (isSelectedPetDeceasedRef.current) {
+        return deniedState(DECEASED_SAVE_MESSAGE);
+      }
+      if (!snapshot.recordId || canEditRef.current !== true || snapshot.isFinalized) {
+        return deniedState(PERMISSION_DENIED_MESSAGE);
       }
 
       try {
@@ -120,36 +169,40 @@ export function useMedicalRecordSaveAction({
 
         switch (currentTab) {
           case "問診":
-            if (
-              canEditRef.current !== true
-              || isSelectedPetDeceasedRef.current
-            ) {
-              return { success: false, timestamp: Date.now() };
+            if (isSelectedPetDeceasedRef.current) {
+              return deniedState(DECEASED_SAVE_MESSAGE);
+            }
+            if (canEditRef.current !== true) {
+              return deniedState(PERMISSION_DENIED_MESSAGE);
             }
             await updateInquiryMutation.mutateAsync({
-              chief_complaint: chiefComplaint !== chiefComplaintDefault ? chiefComplaint : undefined,
-              chief_complaint_type_id: chiefComplaintTypeId,
-              notes: treatmentPolicy !== treatmentPolicyDefault ? treatmentPolicy : undefined,
+              chief_complaint: snapshot.chiefComplaint !== snapshot.chiefComplaintDefault
+                ? snapshot.chiefComplaint
+                : undefined,
+              chief_complaint_type_id: snapshot.chiefComplaintTypeId,
+              notes: snapshot.treatmentPolicy !== snapshot.treatmentPolicyDefault
+                ? snapshot.treatmentPolicy
+                : undefined,
             });
             break;
 
           case "診察/治療プラン": {
-            if (!isNextVisitDateValid) {
+            if (!snapshot.isNextVisitDateValid) {
               return { success: false, timestamp: Date.now() };
             }
             // BUG-010: clinical-plan GET/hydrate 前の空文字 PATCH は既存所見を無音で消す。
             // version 未確定（undefined）は BE が楽観ロックをスキップするため fail-closed で拒否する。
-            if (typeof existingClinicalPlanVersion !== "number") {
+            if (typeof snapshot.existingClinicalPlanVersion !== "number") {
               toast.error("診察プランの読み込みが完了してから保存してください");
               return { success: false, timestamp: Date.now() };
             }
-            if (diagnosis1CategoryId && !diagnosis1NameId) {
+            if (snapshot.diagnosis1CategoryId && !snapshot.diagnosis1NameId) {
               const diagError = { diagnosis1_name_id: "診断名を選択してください" };
               setManualErrors(diagError);
               return { success: false, fieldErrors: diagError, timestamp: Date.now() };
             }
             // BUG-416 ②: diagnosis1 と同じバリデーションを diagnosis2 にも適用する（FE validation parity）
-            if (diagnosis2CategoryId && !diagnosis2NameId) {
+            if (snapshot.diagnosis2CategoryId && !snapshot.diagnosis2NameId) {
               const diagError = { diagnosis2_name_id: "診断名を選択してください" };
               setManualErrors(diagError);
               return { success: false, fieldErrors: diagError, timestamp: Date.now() };
@@ -157,36 +210,36 @@ export function useMedicalRecordSaveAction({
             // BUG-010 / BUG-102: 3欄は常に送信する（undefined 欠落は「未更新」になり、
             // テンプレ既定や別 writer の last-write-wins で入力が消える）。空文字は明示クリア。
             const treatmentPlanPayload = {
-              physical_exam: physicalExam,
-              treatment_policy: plan,
-              diagnosis_details: assessment,
-              diagnosis_type_id: diagnosis1CategoryId ?? undefined,
-              diagnosis_name_id: diagnosis1NameId ?? undefined,
-              diagnosis_2_type_id: diagnosis2CategoryId,
-              diagnosis_2_name_id: diagnosis2NameId,
+              physical_exam: snapshot.physicalExam,
+              treatment_policy: snapshot.plan,
+              diagnosis_details: snapshot.assessment,
+              diagnosis_type_id: snapshot.diagnosis1CategoryId ?? undefined,
+              diagnosis_name_id: snapshot.diagnosis1NameId ?? undefined,
+              diagnosis_2_type_id: snapshot.diagnosis2CategoryId,
+              diagnosis_2_name_id: snapshot.diagnosis2NameId,
               // BUG-416③: clinical_plan 楽観ロック。undefined を送ると BE は
               // バージョンチェックをスキップする（後方互換）ため常に送信する。
-              version: existingClinicalPlanVersion,
+              version: snapshot.existingClinicalPlanVersion,
             };
-            if (
-              canEditRef.current !== true
-              || isSelectedPetDeceasedRef.current
-            ) {
-              return { success: false, timestamp: Date.now() };
+            if (isSelectedPetDeceasedRef.current) {
+              return deniedState(DECEASED_SAVE_MESSAGE);
+            }
+            if (canEditRef.current !== true) {
+              return deniedState(PERMISSION_DENIED_MESSAGE);
             }
             await updateTreatmentPlanMutation.mutateAsync(treatmentPlanPayload);
             // 次回来院推奨日を更新（空欄 = クリア、値あり = 設定）
-            if (
-              canEditRef.current !== true
-              || isSelectedPetDeceasedRef.current
-            ) {
-              return { success: false, timestamp: Date.now() };
+            if (isSelectedPetDeceasedRef.current) {
+              return deniedState(DECEASED_SAVE_MESSAGE);
+            }
+            if (canEditRef.current !== true) {
+              return deniedState(PERMISSION_DENIED_MESSAGE);
             }
             await updateMutation.mutateAsync({
-              id: recordId as string,
+              id: snapshot.recordId as string,
               req: {
-                next_visit_recommended_date: nextVisitDate, // "" はBEでNULLクリア
-                version: existingRecordVersion,
+                next_visit_recommended_date: snapshot.nextVisitDate, // "" はBEでNULLクリア
+                version: snapshot.existingRecordVersion,
               } as UpdateMedicalRecordRequest,
             });
             break;
@@ -206,7 +259,8 @@ export function useMedicalRecordSaveAction({
             return { success: false, timestamp: Date.now() };
 
           default:
-            break;
+            // 治療 / 定期健診 / 検査 / 画像は子フォームが正本。未送信を成功にしない。
+            return { success: false, timestamp: Date.now() };
         }
 
         toast.success("保存しました");

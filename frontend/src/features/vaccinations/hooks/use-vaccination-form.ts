@@ -70,7 +70,7 @@ export function useVaccinationForm(
   }, [entityRead]);
   const editPetId = isEdit ? (existingVaccination?.petId ?? "") : "";
   const { data: petFromQuery, isLoading: isPetLoading } = useGetPet(petId ?? "");
-  const { data: petFromEdit } = useGetPet(editPetId);
+  const { data: petFromEdit, isLoading: isEditPetLoading } = useGetPet(editPetId);
   const selectedPetRef = useRef(selectedPets[0]);
   const queryPetRef = useRef(petFromQuery);
   const editPetRef = useRef(petFromEdit);
@@ -108,7 +108,7 @@ export function useVaccinationForm(
         isEdit,
         id,
         petId,
-        formData,
+        formDataRef,
         entityReadRef,
         selectedPetRef,
         queryPetRef,
@@ -146,6 +146,7 @@ export function useVaccinationForm(
       isEdit,
       id,
       isMutationAllowed,
+      isEditPetReady: () => Boolean(editPetRef.current),
       isEditPetDeceased: () => editPetRef.current?.status === "死亡",
       deleteVaccination: deleteVaccinationFn,
     })(onSuccess);
@@ -154,7 +155,8 @@ export function useVaccinationForm(
   return {
     isEdit,
     entityRead,
-    isReadLoading: entityRead.status === "loading",
+    isReadLoading: entityRead.status === "loading" || (isEdit && editPetId !== "" && isEditPetLoading),
+    isEditPetReady: !isEdit || Boolean(petFromEdit),
     isReadNotFound: isNonDisclosureReadStatus(entityRead.status),
     isReadError: entityRead.status === "error",
     retryRead: entityRead.status === "error" ? entityRead.retry : undefined,

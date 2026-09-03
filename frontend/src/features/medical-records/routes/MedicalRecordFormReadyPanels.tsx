@@ -148,7 +148,7 @@ function useMedicalRecordFormReadyState(input: {
   };
 }
 
-interface MedicalRecordFormReadyPageProps {
+interface MedicalRecordFormReadyPanelsProps {
   recordId: string | undefined;
   selectedPet: Pet;
   form: MedicalRecordFormModel;
@@ -159,7 +159,7 @@ interface MedicalRecordFormReadyPageProps {
   onDeleteConfirm: () => void;
 }
 
-export function MedicalRecordFormReadyPage({
+export function MedicalRecordFormReadyPanels({
   recordId,
   selectedPet,
   form,
@@ -168,7 +168,7 @@ export function MedicalRecordFormReadyPage({
   canDelete,
   isDeleting,
   onDeleteConfirm,
-}: MedicalRecordFormReadyPageProps) {
+}: MedicalRecordFormReadyPanelsProps) {
   const ready = useMedicalRecordFormReadyState({ recordId, selectedPet, form });
   const formState = form.formState;
 
@@ -223,6 +223,11 @@ export function MedicalRecordFormReadyPage({
         {ready.recordFinalized ? (
           <div className={`mx-4 mt-3 rounded border ${C.borderMedium} ${C.bgPage} px-3 py-2 text-sm ${C.text60}`}>
             このカルテは確定済みのため編集できません。修正が必要な場合は下部の訂正追記（addendum）をご利用ください。
+          </div>
+        ) : null}
+        {formState?.error ? (
+          <div role="alert" className={`mx-4 mt-3 rounded border ${C.borderDanger} ${C.bgDanger10} px-3 py-2 text-sm ${C.danger}`}>
+            {formState.error}
           </div>
         ) : null}
         <MedicalRecordTabsArea
@@ -313,7 +318,7 @@ function MedicalRecordFormReadyOverlays({
   isDeleting,
   onDeleteConfirm,
   ready,
-}: MedicalRecordFormReadyPageProps & {
+}: MedicalRecordFormReadyPanelsProps & {
   ready: ReturnType<typeof useMedicalRecordFormReadyState>;
 }) {
   return (
@@ -362,6 +367,7 @@ function MedicalRecordFormReadyOverlays({
         isVitalsOpen={ready.modals.isVitalsOpen}
         onVitalsOpenChange={ready.modals.setIsVitalsOpen}
         recordClinicId={ready.recordClinicId}
+        isPetDeceased={selectedPet.status === "死亡"}
         isStaffModalOpen={ready.modals.isStaffModalOpen}
         staffName={ready.staffName}
         onSelectStaff={ready.handleSelectStaff}

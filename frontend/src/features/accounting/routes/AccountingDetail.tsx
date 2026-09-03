@@ -179,6 +179,8 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
     setPreviewOpen,
     startCancelTransition,
     startRefundTransition,
+    canCancel: Boolean(canCancelAccounting),
+    canEdit: Boolean(canEdit),
   });
 
   if (id && isLoading) return <LoadingFallback />;
@@ -270,7 +272,11 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
           {id && canPostCloseEdit && canSubmit ? (
             <div className="px-4 pb-4">
               <Suspense fallback={null}>
-                <CreditCorrectionDialog accounting={accounting} isPostClose={isScheduledDateClosed} />
+                <CreditCorrectionDialog
+                  accounting={accounting}
+                  isPostClose={isScheduledDateClosed}
+                  canPostCloseEdit={Boolean(canPostCloseEdit)}
+                />
               </Suspense>
             </div>
           ) : null}

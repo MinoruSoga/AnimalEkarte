@@ -1,4 +1,4 @@
-import { useState, useActionState } from "react";
+import { useState, useActionState, useLayoutEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
@@ -32,14 +32,19 @@ interface CreditCorrectionDialogProps {
   accounting: Accounting;
   // #189/M-2: 対象会計の予定日がレジ締め確定済み期間か（親の判定を受け取り警告を表示する）
   isPostClose?: boolean;
+  canPostCloseEdit: boolean;
 }
 
 // #189: 確定済み会計のクレジット（カード）金額を確定後に訂正する専用導線。
 // 確定済み（completed）かつカード系支払いが存在する場合のみ表示する（getCorrectableCardPayments で判定）。
 // 通常の updateAccounting (PATCH) ではなく専用 correctCreditPayment エンドポイントを呼ぶ。
-export function CreditCorrectionDialog({ accounting, isPostClose = false }: CreditCorrectionDialogProps) {
+export function CreditCorrectionDialog({ accounting, isPostClose = false, canPostCloseEdit }: CreditCorrectionDialogProps) {
   const correctable = getCorrectableCardPayments(accounting);
   const [open, setOpen] = useState(false);
+  const canPostCloseEditRef = useRef(canPostCloseEdit);
+  useLayoutEffect(() => {
+    canPostCloseEditRef.current = canPostCloseEdit;
+  }, [canPostCloseEdit]);
   const [method, setMethod] = useState<CorrectableCardMethod>(
     correctable[0]?.method ?? "credit_card",
   );
@@ -49,6 +54,10 @@ export function CreditCorrectionDialog({ accounting, isPostClose = false }: Cred
   const queryClient = useQueryClient();
 
   const [, formAction] = useActionState<null, FormData>(async (_prev: null, _formData: FormData) => {
+    if (canPostCloseEditRef.current !== true) {
+      toast.error("この操作を行う権限がありません");
+      return null;
+    }
     const amountNum = parseInt(amount, 10);
     if (!reason.trim()) {
       toast.error("訂正理由を入力してください");

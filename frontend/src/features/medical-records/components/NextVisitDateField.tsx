@@ -1,6 +1,6 @@
 import { useId } from "react";
 import { C, STYLE, PALETTE } from "@/lib/design-tokens";
-import { formatJSTWallDate, todayJSTISO, toJSTWallDate } from "@/lib/jst-date";
+import { formatJSTWallDate, isPastJSTDate, todayJSTISO, toJSTWallDate } from "@/lib/jst-date";
 
 // ─────────────────────────────────────────────────
 // Date helpers (no date-fns dependency)
@@ -26,26 +26,20 @@ function today(): string {
 // Validation
 // ─────────────────────────────────────────────────
 
+function addYearsIso(iso: string, years: number): string {
+  const [yearPart, monthPart, dayPart] = iso.split("-");
+  const year = Number(yearPart) + years;
+  const month = Number(monthPart);
+  const day = Number(dayPart);
+  const isLeap = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+  const clampedDay = month === 2 && day === 29 && !isLeap ? 28 : day;
+  return `${String(year).padStart(4, "0")}-${monthPart}-${String(clampedDay).padStart(2, "0")}`;
+}
+
 function validate(value: string): string | null {
-  if (value === "") return null; // 空欄はOK
-
-  const now = toJSTWallDate(new Date());
-  now.setHours(0, 0, 0, 0);
-
-  const selected = new Date(value);
-  selected.setHours(0, 0, 0, 0);
-
-  if (selected < now) {
-    return "今日より前の日付は設定できません";
-  }
-
-  const twoYearsLater = new Date(now);
-  twoYearsLater.setFullYear(twoYearsLater.getFullYear() + 2);
-
-  if (selected > twoYearsLater) {
-    return "今日から2年以内の日付を設定してください";
-  }
-
+  if (value === "") return null;
+  if (isPastJSTDate(value)) return "今日より前の日付は設定できません";
+  if (value > addYearsIso(todayJSTISO(), 2)) return "今日から2年以内の日付を設定してください";
   return null;
 }
 

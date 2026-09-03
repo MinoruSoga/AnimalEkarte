@@ -1,8 +1,9 @@
-import { describe, it, expect, afterEach } from "vitest";
-import { render, screen, waitFor, cleanup } from "@testing-library/react";
+import { describe, it, expect, afterEach, vi } from "vitest";
+import { act, render, screen, waitFor, cleanup } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
+import { toast } from "sonner";
 import { server } from "@/testing/mocks/node";
 import { CompanyInvoiceSection } from "./CompanyInvoiceSection";
 
@@ -82,5 +83,46 @@ describe("CompanyInvoiceSection", () => {
     const input = await screen.findByLabelText("インボイス登録番号");
     expect(input).toBeDisabled();
     expect(screen.queryByRole("button", { name: "保存" })).not.toBeInTheDocument();
+  });
+
+  it("canEdit が false に変わった後は formAction が PATCH しない", async () => {
+    server.use(http.get("/api/v1/company", () => HttpResponse.json(mockCompany)));
+
+    let patchCount = 0;
+    server.use(
+      http.patch("/api/v1/company", () => {
+        patchCount += 1;
+        return HttpResponse.json(mockCompany);
+      }),
+    );
+
+    const toastError = vi.spyOn(toast, "error").mockImplementation(() => "toast");
+
+    try {
+      const { rerender } = render(<CompanyInvoiceSection canEdit={true} />, {
+        wrapper: createWrapper(),
+      });
+
+      const input = await screen.findByLabelText("インボイス登録番号");
+      const form = input.closest("form");
+      expect(form).not.toBeNull();
+
+      rerender(<CompanyInvoiceSection canEdit={false} />);
+
+      await waitFor(() => {
+        expect(screen.queryByRole("button", { name: "保存" })).not.toBeInTheDocument();
+      });
+
+      await act(async () => {
+        form?.requestSubmit();
+      });
+
+      await waitFor(() => {
+        expect(toastError).toHaveBeenCalledWith("この操作を行う権限がありません");
+      });
+      expect(patchCount).toBe(0);
+    } finally {
+      toastError.mockRestore();
+    }
   });
 });

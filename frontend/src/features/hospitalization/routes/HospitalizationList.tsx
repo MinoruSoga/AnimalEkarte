@@ -1,6 +1,9 @@
 // React/Framework
-import { useState, useCallback, useMemo, useDeferredValue, useEffect } from "react";
+import { useState, useCallback, useMemo, useDeferredValue } from "react";
 import { useSearchParams } from "react-router";
+
+// Hooks
+import { useUrlPageSync } from "@/hooks/use-url-page-sync";
 
 // Internal
 import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
@@ -89,17 +92,12 @@ export function HospitalizationList() {
     limit: HOSPITALIZATION_LIST_DEFAULT_LIMIT,
   });
 
-  useEffect(() => {
-    if (hospitalizationsLoading) return;
-    const clampedPage = Math.max(1, Math.min(urlPage, pagination.totalPages));
-    if (clampedPage !== urlPage) {
-      setSearchParams(
-        (prev) => nextListSearchParamsWithPage(prev, clampedPage),
-        { replace: true },
-      );
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- setSearchParams は安定。urlPage/totalPages/loading 変化時のみ
-  }, [urlPage, pagination.totalPages, hospitalizationsLoading]);
+  useUrlPageSync({
+    urlPage,
+    totalPages: pagination.totalPages,
+    isLoading: hospitalizationsLoading,
+    setSearchParams,
+  });
 
   const resetListPage = useCallback(() => {
     setSearchParams(

@@ -9,6 +9,8 @@ import { useGetVaccination } from "../api/get-vaccination";
 import { useCreateVaccination } from "../api/create-vaccination";
 import { useUpdateVaccination } from "../api/update-vaccination";
 import { useDeleteVaccination } from "../api/delete-vaccination";
+import { toast } from "sonner";
+import { jstDateStartISOString } from "@/lib/jst-date";
 
 // ──────────────────────────────────────────────────────────
 // モック定義
@@ -79,6 +81,13 @@ const DECEASED_PET = {
   status: "死亡",
 } as NonNullable<ReturnType<typeof useGetPet>["data"]>;
 
+const LIVING_PET = {
+  id: "5",
+  ownerId: "1",
+  name: "ポチ",
+  status: "生存",
+} as NonNullable<ReturnType<typeof useGetPet>["data"]>;
+
 function renderVaccinationForm(id?: string) {
   return renderHook(() => useVaccinationForm(id, ALLOWED_MUTATION_PERMISSIONS));
 }
@@ -147,6 +156,7 @@ describe("useVaccinationForm — mutation permission boundary (FE12-02 U8)", () 
         expect(result.current.formState.success).toBe(false);
       });
       expect(mockMutateAsync).not.toHaveBeenCalled();
+      expect(toast.error).toHaveBeenCalledWith("この操作を行う権限がありません");
     });
 
     it("編集権限なしでは有効な編集入力でも update mutation を発行しない", async () => {
@@ -180,6 +190,7 @@ describe("useVaccinationForm — mutation permission boundary (FE12-02 U8)", () 
         expect(result.current.formState.success).toBe(false);
       });
       expect(mockMutateAsync).not.toHaveBeenCalled();
+      expect(toast.error).toHaveBeenCalledWith("この操作を行う権限がありません");
     });
 
     it("削除権限なしでは編集IDがあっても delete mutation を発行しない", () => {
@@ -202,6 +213,7 @@ describe("useVaccinationForm — mutation permission boundary (FE12-02 U8)", () 
       });
 
       expect(mockMutate).not.toHaveBeenCalled();
+      expect(toast.error).toHaveBeenCalledWith("この操作を行う権限がありません");
     });
 
     it("作成権限が剥奪された後は取得済み formAction でも create mutation を発行しない", async () => {
@@ -237,6 +249,98 @@ describe("useVaccinationForm — mutation permission boundary (FE12-02 U8)", () 
         expect(result.current.formState.success).toBe(false);
       });
       expect(mockMutateAsync).not.toHaveBeenCalled();
+      expect(toast.error).toHaveBeenCalledWith("この操作を行う権限がありません");
+    });
+
+    it("編集で petFromEdit 未着なら delete mutation を発行しない", () => {
+      vi.mocked(useGetVaccination).mockReturnValue({
+        data: {
+          id: "10",
+          petId: "5",
+          vaccineId: "1",
+          date: "2026-07-01",
+          nextDate: "",
+          nextScheduleType: "1year",
+        },
+      } as ReturnType<typeof useGetVaccination>);
+      vi.mocked(useGetPet).mockReturnValue({
+        data: undefined,
+        isLoading: false,
+      } as ReturnType<typeof useGetPet>);
+      const mockMutate = vi.fn();
+      vi.mocked(useDeleteVaccination).mockReturnValue({
+        mutate: mockMutate,
+        isPending: false,
+      } as ReturnType<typeof useDeleteVaccination>);
+
+      const { result } = renderVaccinationForm("10");
+      act(() => {
+        result.current.handleDelete();
+      });
+
+      expect(mockMutate).not.toHaveBeenCalled();
+      expect(toast.error).toHaveBeenCalledWith("ペット情報の読み込みが完了してから削除してください");
+    });
+
+    it("取得済み formAction は後続 commit の formDataRef を送る", async () => {
+      const mockMutateAsync = vi.fn().mockResolvedValue({});
+      vi.mocked(useCreateVaccination).mockReturnValue({
+        mutateAsync: mockMutateAsync,
+        isPending: false,
+      } as ReturnType<typeof useCreateVaccination>);
+      const { result } = renderVaccinationForm();
+      act(() => {
+        result.current.petSelection.setSelectedPets([LIVING_PET]);
+        result.current.form.setVaccineId("1");
+        result.current.form.setDate("2026-07-01");
+      });
+      const capturedAction = result.current.formAction;
+
+      act(() => {
+        result.current.form.setDate("2026-07-05");
+      });
+      runFormAction(capturedAction);
+
+      await waitFor(() => {
+        expect(result.current.formState.success).toBe(true);
+      });
+      expect(mockMutateAsync).toHaveBeenCalledWith(
+        expect.objectContaining({
+          date: jstDateStartISOString("2026-07-05"),
+        }),
+      );
+    });
+
+    it("編集で petFromEdit 未着なら update mutation を発行しない", async () => {
+      vi.mocked(useGetVaccination).mockReturnValue({
+        data: {
+          id: "10",
+          petId: "5",
+          vaccineId: "1",
+          date: "2026-07-01",
+          nextDate: "",
+          nextScheduleType: "1year",
+        },
+      } as ReturnType<typeof useGetVaccination>);
+      vi.mocked(useGetPet).mockReturnValue({
+        data: undefined,
+        isLoading: false,
+      } as ReturnType<typeof useGetPet>);
+      const mockMutateAsync = vi.fn().mockResolvedValue({});
+      vi.mocked(useUpdateVaccination).mockReturnValue({
+        mutateAsync: mockMutateAsync,
+        isPending: false,
+      } as ReturnType<typeof useUpdateVaccination>);
+
+      const { result } = renderVaccinationForm("10");
+      const initialTimestamp = result.current.formState.timestamp;
+      runFormAction(result.current.formAction);
+
+      await waitFor(() => {
+        expect(result.current.formState.timestamp).not.toBe(initialTimestamp);
+      });
+      expect(mockMutateAsync).not.toHaveBeenCalled();
+      expect(toast.error).toHaveBeenCalledWith("ペット情報の読み込みが完了してから保存してください");
     });
 
     it("作成権限剥奪をcommitした直後のlayout phaseで取得済みformActionが発火してもmutationを発行しない", async () => {
@@ -281,6 +385,7 @@ describe("useVaccinationForm — mutation permission boundary (FE12-02 U8)", () 
         expect(result.current.formState.timestamp).not.toBe(initialTimestamp);
       });
       expect(mockMutateAsync).not.toHaveBeenCalled();
+      expect(toast.error).toHaveBeenCalledWith("この操作を行う権限がありません");
     });
 });
 
@@ -356,6 +461,7 @@ describe("useVaccinationForm — deceased pet mutation boundary (FE12-02 C6a)", 
         expect(result.current.formState.timestamp).not.toBe(initialTimestamp);
       });
       expect(mockMutateAsync).not.toHaveBeenCalled();
+      expect(toast.error).toHaveBeenCalledWith("死亡したペットの予防接種記録は保存できません");
     });
 
     it("編集petが死亡へ変わったcommit直後のlayout phaseでも取得済みformActionはupdate mutationを発行しない", async () => {
@@ -404,6 +510,7 @@ describe("useVaccinationForm — deceased pet mutation boundary (FE12-02 C6a)", 
         expect(result.current.formState.timestamp).not.toBe(initialTimestamp);
       });
       expect(mockMutateAsync).not.toHaveBeenCalled();
+      expect(toast.error).toHaveBeenCalledWith("死亡したペットの予防接種記録は保存できません");
     });
 
     it("編集対象が明示的な死亡ペットならdelete mutationを発行しない", () => {
@@ -434,6 +541,7 @@ describe("useVaccinationForm — deceased pet mutation boundary (FE12-02 C6a)", 
       });
 
       expect(mockMutate).not.toHaveBeenCalled();
+      expect(toast.error).toHaveBeenCalledWith("死亡したペットの予防接種記録は削除できません");
     });
 
     it("direct petIdから明示的な死亡ペットをhydrateしてもcreate mutationを発行しない", async () => {
@@ -465,6 +573,7 @@ describe("useVaccinationForm — deceased pet mutation boundary (FE12-02 C6a)", 
       });
       expect(result.current.formState.success).toBe(false);
       expect(mockMutateAsync).not.toHaveBeenCalled();
+      expect(toast.error).toHaveBeenCalledWith("死亡したペットの予防接種記録は保存できません");
     });
 
     it("編集対象から明示的な死亡ペットをhydrateしてもupdate mutationを発行しない", async () => {
@@ -501,6 +610,7 @@ describe("useVaccinationForm — deceased pet mutation boundary (FE12-02 C6a)", 
       });
       expect(result.current.formState.success).toBe(false);
       expect(mockMutateAsync).not.toHaveBeenCalled();
+      expect(toast.error).toHaveBeenCalledWith("死亡したペットの予防接種記録は保存できません");
     });
 });
 

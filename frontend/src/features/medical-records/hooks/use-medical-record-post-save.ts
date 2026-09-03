@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
 
 import { handleApiError } from "@/lib/handle-api-error";
 import type { ActionState } from "@/types/form";
@@ -22,7 +22,7 @@ export function useMedicalRecordPostSave({
   const activeTabRef = useRef(activeTab);
   const estimateSaveRef = useRef<(() => Promise<void>) | null>(null);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     activeTabRef.current = activeTab;
   }, [activeTab]);
 

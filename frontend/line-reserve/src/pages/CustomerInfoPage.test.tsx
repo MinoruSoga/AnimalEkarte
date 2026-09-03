@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -85,7 +85,7 @@ describe('CustomerInfoPage', () => {
 
       await user.click(screen.getByRole('button', { name: '次へ' }));
 
-      expect(screen.getByText('お名前を入力してください')).toBeInTheDocument();
+      expect(await screen.findByText('お名前を入力してください')).toBeInTheDocument();
       expect(screen.getByText('電話番号を入力してください')).toBeInTheDocument();
       expect(onNext).not.toHaveBeenCalled();
     });
@@ -106,7 +106,7 @@ describe('CustomerInfoPage', () => {
       await user.click(screen.getByRole('button', { name: '次へ' }));
 
       const nameInput = screen.getByLabelText(/お名前/);
-      expect(screen.getByText('お名前を入力してください')).toBeInTheDocument();
+      expect(await screen.findByText('お名前を入力してください')).toBeInTheDocument();
       expect(nameInput).toHaveAttribute('aria-invalid', 'true');
       expect(nameInput.className).toMatch(/border-noah-danger/);
       expect(onNext).not.toHaveBeenCalled();
@@ -129,11 +129,13 @@ describe('CustomerInfoPage', () => {
       await user.type(screen.getByLabelText(/電話番号/), '070-9999-8888');
       await user.click(screen.getByRole('button', { name: '次へ' }));
 
-      expect(onNext).toHaveBeenCalledWith({
-        name: '鈴木一郎',
-        phone: '070-9999-8888',
-        ownerName: '',
-        pets: [],
+      await waitFor(() => {
+        expect(onNext).toHaveBeenCalledWith({
+          name: '鈴木一郎',
+          phone: '070-9999-8888',
+          ownerName: '',
+          pets: [],
+        });
       });
     });
 
@@ -150,7 +152,7 @@ describe('CustomerInfoPage', () => {
       );
 
       await user.click(screen.getByRole('button', { name: '次へ' }));
-      expect(screen.getByText('お名前を入力してください')).toBeInTheDocument();
+      expect(await screen.findByText('お名前を入力してください')).toBeInTheDocument();
 
       await user.type(screen.getByLabelText(/お名前/), '鈴木');
       expect(screen.queryByText('お名前を入力してください')).not.toBeInTheDocument();
@@ -170,6 +172,7 @@ describe('CustomerInfoPage', () => {
 
       await user.click(screen.getByRole('button', { name: '次へ' }));
       const nameInput = screen.getByLabelText(/お名前/);
+      expect(await screen.findByText('お名前を入力してください')).toBeInTheDocument();
       expect(nameInput).toHaveAttribute('aria-invalid', 'true');
       expect(nameInput.className).toMatch(/border-noah-danger/);
 
@@ -190,12 +193,15 @@ describe('CustomerInfoPage', () => {
     render(<CustomerInfoPage profile={profile} initialInfo={emptyInfo} onNext={onNext} onBack={vi.fn()} />);
 
     await user.click(screen.getByRole('button', { name: '次へ' }));
-    expect(onNext).toHaveBeenCalledWith(expect.objectContaining({ phone: '+81 90 1234 5678' }));
+    await waitFor(() => {
+      expect(onNext).toHaveBeenCalledWith(expect.objectContaining({ phone: '+81 90 1234 5678' }));
+    });
 
     const phoneInput = screen.getByLabelText(/電話番号/);
     await user.clear(phoneInput);
     await user.type(phoneInput, 'invalid');
     await user.click(screen.getByRole('button', { name: '次へ' }));
+    expect(await screen.findByRole('alert')).toHaveAttribute('id', 'customer-phone-error');
     expect(phoneInput).toHaveAttribute('aria-invalid', 'true');
     expect(phoneInput).toHaveAttribute('aria-describedby', 'customer-phone-error');
     expect(screen.getByRole('alert')).toHaveAttribute('id', 'customer-phone-error');
@@ -227,11 +233,13 @@ describe('CustomerInfoPage', () => {
       await user.type(screen.getByLabelText(/電話番号/), '0312345678');
       await user.click(screen.getByRole('button', { name: '次へ' }));
 
-      expect(onNext).toHaveBeenCalledWith(
-        expect.objectContaining({
-          pets: [{ name: 'ポチ', type: '柴犬', isNew: true }],
-        }),
-      );
+      await waitFor(() => {
+        expect(onNext).toHaveBeenCalledWith(
+          expect.objectContaining({
+            pets: [{ name: 'ポチ', type: '柴犬', isNew: true }],
+          }),
+        );
+      });
     });
 
     it('追加済みの新規ペットを削除できる', async () => {

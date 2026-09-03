@@ -6,7 +6,7 @@ import type { Pet } from "@/types";
 
 import { PatientSearchFilters } from "./PatientSearchFilters";
 import { PatientSelectionResults } from "./PatientSelectionResults";
-import { usePatientSelectionTable } from "./use-patient-selection-table";
+import { usePatientSelectionTable } from "./hooks/use-patient-selection-table";
 
 interface PatientSelectionTableProps {
   onSelect: (pet: Pet) => void;

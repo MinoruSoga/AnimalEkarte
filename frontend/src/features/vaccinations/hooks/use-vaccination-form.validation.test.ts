@@ -71,6 +71,13 @@ const ALLOWED_MUTATION_PERMISSIONS = {
   canDelete: true,
 } as const;
 
+const LIVING_PET = {
+  id: "5",
+  ownerId: "1",
+  name: "ポチ",
+  status: "生存",
+} as NonNullable<ReturnType<typeof useGetPet>["data"]>;
+
 function renderVaccinationForm(id?: string) {
   return renderHook(() => useVaccinationForm(id, ALLOWED_MUTATION_PERMISSIONS));
 }
@@ -302,7 +309,10 @@ describe("useVaccinationForm — 編集時のバリデーション", () => {
     // waitFor の内部ポーリングが進まず全 async テストが 5000ms でタイムアウトする。
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(new Date("2026-07-10T01:00:00.000Z")); // JST 2026-07-10 10:00
-    vi.mocked(useGetPet).mockReturnValue({ data: undefined, isLoading: false } as ReturnType<typeof useGetPet>);
+    vi.mocked(useGetPet).mockImplementation((requestedPetId) => ({
+      data: requestedPetId === "5" ? LIVING_PET : undefined,
+      isLoading: false,
+    } as ReturnType<typeof useGetPet>));
     vi.mocked(useGetVaccination).mockReturnValue({
       data: undefined,
       isLoading: false,

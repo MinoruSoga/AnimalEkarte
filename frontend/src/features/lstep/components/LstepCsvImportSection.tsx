@@ -14,7 +14,7 @@ import { useGetLstepCsvImports } from "../api/get-lstep-csv-imports";
 import { uploadFriendAttributesCsv } from "../api/upload-friend-attributes-csv";
 import { CSV_STATUS_LABELS } from "./lstep-analytics-model";
 
-export function CsvImportSection() {
+export function LstepCsvImportSection() {
   return (
     <section aria-labelledby="csv-import-heading" className="space-y-4 mt-8">
       <h2 id="csv-import-heading" className={`text-base font-semibold ${C.text80}`}>

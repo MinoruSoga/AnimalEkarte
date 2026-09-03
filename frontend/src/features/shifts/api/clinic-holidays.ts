@@ -1,7 +1,6 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
-import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import { queryKeys } from "@/lib/query-keys";
 import type { ClinicHoliday } from "@/types/generated/models";
 
@@ -12,23 +11,7 @@ export interface SetClinicHolidayInput {
   reason?: string;
 }
 
-// GET /v1/clinic-holidays?year_month=YYYY-MM
-const getClinicHolidays = async (yearMonth?: string): Promise<ClinicHoliday[]> => {
-  const params: Record<string, string> = {};
-  if (yearMonth) params.year_month = yearMonth;
-  const { data } = await axios.get<ClinicHoliday[]>("/v1/clinic-holidays", { params });
-  return data;
-};
-
-export function useGetClinicHolidays(yearMonth: string) {
-  return useQuery({
-    queryKey: queryKeys.clinicHolidays.byMonth(yearMonth),
-    queryFn: () => getClinicHolidays(yearMonth),
-    enabled: !!yearMonth,
-    staleTime: QUERY_STALE_TIMES.MEDIUM,
-    gcTime: QUERY_GC_TIMES.STANDARD,
-  });
-}
+export { useGetClinicHolidays } from "@/hooks/use-clinic-holidays";
 
 // POST /v1/clinic-holidays
 export function useCreateClinicHoliday() {

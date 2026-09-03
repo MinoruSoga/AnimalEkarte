@@ -1,11 +1,12 @@
 // React/Framework
 import { ICON, C, LAYOUT } from "@/lib/design-tokens";
-import { useCallback, useDeferredValue, useEffect, useMemo, useState } from "react";
+import { useCallback, useDeferredValue, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 
 // Hooks
 import { useSortableData } from "@/hooks/use-sortable-data";
 import { useClinicScope } from "@/hooks/use-clinic-scope";
+import { useUrlPageSync } from "@/hooks/use-url-page-sync";
 
 // External
 import { Plus, CreditCard } from "lucide-react";
@@ -96,17 +97,7 @@ export function AccountingList() {
     limit: pageResult?.limit ?? ACCOUNTING_PAGE_SIZE,
   });
 
-  useEffect(() => {
-    if (isLoading) return;
-    const clampedPage = Math.max(1, Math.min(urlPage, pagination.totalPages));
-    if (clampedPage !== urlPage) {
-      setSearchParams(
-        (prev) => nextListSearchParamsWithPage(prev, clampedPage),
-        { replace: true },
-      );
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- setSearchParams は安定参照。urlPage/totalPages/isLoading の変化時のみ再評価する設計（FE-144踏襲）。
-  }, [urlPage, pagination.totalPages, isLoading]);
+  useUrlPageSync({ urlPage, totalPages: pagination.totalPages, isLoading, setSearchParams });
 
   const handlePageChange = useCallback((page: number) => {
     setSearchParams(

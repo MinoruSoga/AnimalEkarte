@@ -3,13 +3,13 @@ import { useNavigate, useParams, useLocation, useSearchParams } from "react-rout
 
 import { usePermission } from "@/hooks/use-permission";
 import { useHospitalizationForm } from "../hooks/use-hospitalization-form";
+import { useHospitalizationFormChrome } from "../hooks/use-hospitalization-form-chrome";
 import { useDeleteHospitalization } from "../api/delete-hospitalization";
 import { paths } from "@/config/paths";
 import { resolveHospitalizationFormGate } from "./hospitalization-form-model";
 import {
   HospitalizationFormBody,
   HospitalizationFormStatusView,
-  useHospitalizationFormChrome,
 } from "./hospitalization-form-panels";
 
 export function HospitalizationForm() {
@@ -21,7 +21,7 @@ export function HospitalizationForm() {
   const { canEdit, canCreate, canDelete } = usePermission("hospitalization");
   const canSubmit = hospitalizationId ? canEdit : canCreate;
   const canDeleteRef = useRef(canDelete);
-  const deleteMutation = useDeleteHospitalization();
+  const { mutate: deleteHospitalization } = useDeleteHospitalization();
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [isDeletePending, startDeleteTransition] = useTransition();
   const locationFrom = location.state?.from as string | undefined;
@@ -44,13 +44,13 @@ export function HospitalizationForm() {
     startDeleteTransition(() => {
       // FE-RC-005: useDeleteHospitalization.onError が既に handleApiError でトースト表示済みのため、
       // ここでは再通知しない。
-      deleteMutation.mutate(hospitalizationId, {
+      deleteHospitalization(hospitalizationId, {
         onSuccess: () => {
           navigate(paths.hospitalization.getHref());
         },
       });
     });
-  }, [hospitalizationId, deleteMutation, navigate]);
+  }, [hospitalizationId, deleteHospitalization, navigate]);
 
   const chrome = useHospitalizationFormChrome({
     hospitalizationId,

@@ -1,3 +1,4 @@
+import { StrictMode } from 'react';
 import { renderHook, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 
@@ -68,6 +69,20 @@ describe('useLiffLink（R-F4 smoke: LINEアカウント連携導線）', () => {
       expect(result.current.status).toBe('success');
     });
     expect(linkLineAccount).toHaveBeenCalledWith('1', 'link-token-abc', 'real-id-token');
+  });
+
+  it('StrictMode でも linkLineAccount は1回だけ呼ばれる', async () => {
+    setLocationSearch('?token=link-token-abc&clinic_id=1');
+    linkLineAccount.mockResolvedValue(undefined);
+    useLiffMock.mockReturnValue({ idToken: 'real-id-token', isReady: true, initError: false });
+
+    const { useLiffLink } = await import('./use-liff-link');
+    const { result } = renderHook(() => useLiffLink(), { wrapper: StrictMode });
+
+    await waitFor(() => {
+      expect(result.current.status).toBe('success');
+    });
+    expect(linkLineAccount).toHaveBeenCalledTimes(1);
   });
 });
 

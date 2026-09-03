@@ -19,6 +19,7 @@
  *   C17 — CSS の直接 `box-shadow` / `filter: drop-shadow(...)` 禁止。
  *   C18 — Table primitive / raw th・td 呼び出し側で typography / padding / 背景を非仕様値へ上書きすることを禁止。
  *   C19 — table row（DataTableRow / SortableDataTableRow / TableRow / tr）の行全体クリックを禁止。
+ *   C20 — Tailwind 実行時合成（`hover:${` / `focus:${` / `text-[${`）禁止。完成形静的トークンのみ（FE-RC-013 / FE-RC-106）。
  *
  * C2/C4（PageLayout 使用）は C8 で routes 配下を機械化。新規リーフを allowlist に載せる場合は
  * C8_ALLOWLIST と docs/spec/ui-design-compliance.md §2 を同一コミットで更新する。
@@ -80,6 +81,8 @@ const C18_TABLE_HORIZONTAL_PADDING_RE = /\b(?:px|pl|pr|ps|pe)-(?:px|[0-9]+(?:\.5
 /** C18(raw): 背景は行側（STYLE.tableHeaderRow の bgPage 帯）が正本。セル単位の bg 再指定を禁止。 */
 const C18_TABLE_RAW_CELL_BG_RE = /(?:^|[^-\w])bg-|(?:^|[^\w$])C\.bg[A-Z]/;
 const C19_TABLE_ROW_OPENING_TAG_START_RE = /<(?:DataTableRow|SortableDataTableRow|TableRow|tr)\b/g;
+/** C20: Tailwind v4 は静的走査のみ。`hover:${C.x}` 等の実行時合成は CSS に出ない（FE-RC-013 / FE-RC-106）。 */
+const C20_RUNTIME_SYNTHESIS_RE = /hover:\$\{|focus:\$\{|text-\[\$\{/;
 
 /** C8: 独自 shell を持つ正当な route page（相対パス完全一致）。 */
 export const C8_PAGE_ALLOWLIST = new Set([
@@ -100,7 +103,6 @@ export const C8_ROUTE_HELPER_ALLOWLIST = new Set([
   path.join("src", "features", "reception", "routes", "ReceptionLazyModals.tsx"),
   path.join("src", "features", "lstep", "routes", "LstepDeliveryMonitorPageParts.tsx"),
   path.join("src", "features", "lstep", "routes", "LstepDeliveryMonitorLogsTable.tsx"),
-  path.join("src", "features", "medical-records", "routes", "MedicalRecordsColumns.tsx"),
   path.join("src", "features", "accounting", "routes", "AccountingListPanels.tsx"),
   path.join("src", "features", "accounting-reports", "routes", "AccountingReportsPagePanels.tsx"),
   path.join("src", "features", "aggregation", "routes", "AggregationDashboardPage.tsx"),
@@ -771,6 +773,90 @@ export function checkC19(text, relPath = "") {
   return violations;
 }
 
+/**
+ * stripTsCommentsPreservingLines は行コメントとブロックコメントを空白化し、行番号を保つ。
+ * 文字列・テンプレートリテラル内はそのまま残す（C20 の検出対象は template 内の合成）。
+ */
+export function stripTsCommentsPreservingLines(text) {
+  let result = "";
+  let mode = "code";
+  let escaped = false;
+  for (let i = 0; i < text.length; i += 1) {
+    const char = text[i];
+    const next = text[i + 1];
+
+    if (mode === "line-comment") {
+      if (char === "\n") {
+        mode = "code";
+        result += "\n";
+      } else {
+        result += " ";
+      }
+      continue;
+    }
+    if (mode === "block-comment") {
+      if (char === "*" && next === "/") {
+        mode = "code";
+        result += "  ";
+        i += 1;
+      } else {
+        result += char === "\n" ? "\n" : " ";
+      }
+      continue;
+    }
+    if (mode === "single" || mode === "double" || mode === "template") {
+      result += char;
+      if (escaped) escaped = false;
+      else if (char === "\\") escaped = true;
+      else if (
+        (mode === "single" && char === "'")
+        || (mode === "double" && char === '"')
+        || (mode === "template" && char === "`")
+      ) {
+        mode = "code";
+      }
+      continue;
+    }
+
+    if (char === "/" && next === "/") {
+      mode = "line-comment";
+      result += "  ";
+      i += 1;
+    } else if (char === "/" && next === "*") {
+      mode = "block-comment";
+      result += "  ";
+      i += 1;
+    } else if (char === "'") {
+      mode = "single";
+      result += char;
+    } else if (char === '"') {
+      mode = "double";
+      result += char;
+    } else if (char === "`") {
+      mode = "template";
+      result += char;
+    } else {
+      result += char;
+    }
+  }
+  return result;
+}
+
+/**
+ * checkC20 は Tailwind v4 が拾えない実行時クラス合成を検出する（FE-RC-013 / FE-RC-106）。
+ * コメントは除外する（design-tokens の FE-RC-013 説明は違反にしない）。
+ */
+export function checkC20(text) {
+  const violations = [];
+  const code = stripTsCommentsPreservingLines(text);
+  code.split("\n").forEach((line, i) => {
+    if (C20_RUNTIME_SYNTHESIS_RE.test(line)) {
+      violations.push({ lineNumber: i + 1, text: line.trim() });
+    }
+  });
+  return violations;
+}
+
 function isFE11ExcludedPath(relPath) {
   const segments = relPath.split(/[\\/]/);
   const normalizedPath = segments.join("/");
@@ -804,11 +890,11 @@ async function walk(dir, exts, excludeNames) {
 
 /**
  * collectViolations は cwd 配下の SCAN_ROOTS（src・liff/src・line-reserve/src）を走査し、
- * C1〜C19 違反を集計する純粋寄りの関数。
- * ファイル I/O のみ副作用を持ち、判定ロジック自体は checkC1〜checkC19 に委譲する。
+ * C1〜C20 違反を集計する純粋寄りの関数。
+ * ファイル I/O のみ副作用を持ち、判定ロジック自体は checkC1〜checkC20 に委譲する。
  */
 export async function collectViolations(cwd) {
-  const result = { c1: [], c3: [], c5: [], c6: [], c7: [], c8: [], c9: [], c10: [], c11: [], c12: [], c13: [], c14: [], c15: [], c16: [], c17: [], c18: [], c19: [] };
+  const result = { c1: [], c3: [], c5: [], c6: [], c7: [], c8: [], c9: [], c10: [], c11: [], c12: [], c13: [], c14: [], c15: [], c16: [], c17: [], c18: [], c19: [], c20: [] };
 
   for (const scanRoot of SCAN_ROOTS) {
     const root = path.join(cwd, scanRoot);
@@ -870,6 +956,9 @@ export async function collectViolations(cwd) {
         }
         for (const v of checkC19(text, relPath)) {
           result.c19.push({ file: relPath, ...v });
+        }
+        for (const v of checkC20(text)) {
+          result.c20.push({ file: relPath, ...v });
         }
       }
 
@@ -940,11 +1029,12 @@ async function main() {
   printGroup("C17 CSS shadow 直書き", result.c17);
   printGroup("C18 table cell override", result.c18);
   printGroup("C19 table row onClick", result.c19);
+  printGroup("C20 runtime Tailwind synthesis", result.c20);
 
   const total = result.c1.length + result.c3.length + result.c5.length + result.c6.length
     + result.c7.length + result.c8.length + result.c9.length + result.c10.length + result.c11.length
     + result.c12.length + result.c13.length + result.c14.length + result.c15.length + result.c16.length
-    + result.c17.length + result.c18.length + result.c19.length;
+    + result.c17.length + result.c18.length + result.c19.length + result.c20.length;
   if (total > 0) {
     console.log(`design-system-audit: FAIL — ${total} 件の違反`);
     process.exit(1);

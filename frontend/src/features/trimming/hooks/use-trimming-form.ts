@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useActionState } from "react";
+import { useState, useCallback, useMemo, useActionState, useLayoutEffect, useRef } from "react";
 import { useLocation, useSearchParams } from "react-router";
 import { toast } from "sonner";
 import { handleApiError } from "@/lib/handle-api-error";
@@ -31,7 +31,30 @@ import {
   useTrimmingFormPetSync,
 } from "./use-trimming-form-helpers";
 
-export function useTrimmingForm(id?: string) {
+export type TrimmingMutationPermissions = {
+  canCreate: boolean;
+  canEdit: boolean;
+  canDelete: boolean;
+};
+
+const DENIED_MUTATION_PERMISSIONS: Readonly<TrimmingMutationPermissions> = {
+  canCreate: false,
+  canEdit: false,
+  canDelete: false,
+};
+
+const DECEASED_TRIMMING_SAVE_MESSAGE = "死亡したペットのトリミング記録は保存できません";
+const TRIMMING_PERMISSION_DENIED_MESSAGE = "この操作を行う権限がありません";
+
+function refuseTrimmingMutation(error: string): ActionState {
+  toast.error(error);
+  return { success: false, error, timestamp: Date.now() };
+}
+
+export function useTrimmingForm(
+  id?: string,
+  permissions: Readonly<TrimmingMutationPermissions> = DENIED_MUTATION_PERMISSIONS,
+) {
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const petId = searchParams.get("petId");
@@ -51,6 +74,8 @@ export function useTrimmingForm(id?: string) {
   );
   const { data: reservationTypeGroups } = useGetReservationTypesGrouped();
   const { data: petFromQuery, isLoading: isPetLoading } = useGetPet(petId ?? "");
+  const editPetId = isEdit ? (existingTrimming?.petId ?? "") : "";
+  const { data: petFromEdit, isLoading: isEditPetLoading } = useGetPet(editPetId);
   const existingLookupDate = visitDateFromState ?? formatJSTDate(new Date());
   const lookupPetId = petId ?? selectedPets[0]?.id ?? "";
   const { data: sameDayTrimmings = [], isLoading: isSameDayTrimmingsLoading } = useGetTrimmings({
@@ -90,31 +115,86 @@ export function useTrimmingForm(id?: string) {
     setLocalOverrides((prev) => ({ ...prev, ...next }));
   }, []);
 
+  const { canCreate, canEdit, canDelete } = permissions;
+  const permissionsRef = useRef(permissions);
+  useLayoutEffect(() => {
+    permissionsRef.current = { canCreate, canEdit, canDelete };
+  }, [canCreate, canDelete, canEdit]);
+  const isMutationAllowed = useCallback(
+    (action: keyof TrimmingMutationPermissions) => permissionsRef.current[action] === true,
+    [],
+  );
+  const hasExplicitlyDeceasedPet =
+    selectedPets[0]?.status === "死亡"
+    || petFromQuery?.status === "死亡"
+    || petFromEdit?.status === "死亡";
+  const hasExplicitlyDeceasedPetRef = useRef(hasExplicitlyDeceasedPet);
+  useLayoutEffect(() => {
+    hasExplicitlyDeceasedPetRef.current = hasExplicitlyDeceasedPet;
+  }, [hasExplicitlyDeceasedPet]);
+  const isPetDeceased = useCallback(
+    () => hasExplicitlyDeceasedPetRef.current === true,
+    [],
+  );
+  const formDataRef = useRef(formData);
+  useLayoutEffect(() => {
+    formDataRef.current = formData;
+  }, [formData]);
+  const selectedPetsRef = useRef(selectedPets);
+  useLayoutEffect(() => {
+    selectedPetsRef.current = selectedPets;
+  }, [selectedPets]);
+  const petFromEditRef = useRef(petFromEdit);
+  useLayoutEffect(() => {
+    petFromEditRef.current = petFromEdit;
+  }, [petFromEdit]);
+
   const [formState, formAction, isPending] = useActionState(
     async (_prevState: ActionState, _formData: FormData): Promise<ActionState> => {
       try {
+        const currentFormData = formDataRef.current;
+        if (hasExplicitlyDeceasedPetRef.current === true) {
+          return refuseTrimmingMutation(DECEASED_TRIMMING_SAVE_MESSAGE);
+        }
         if (isEdit && id) {
-          await updateMutation.mutateAsync({ id, req: buildUpdateTrimmingRequest(formData) });
+          if (!isMutationAllowed("canEdit")) {
+            return refuseTrimmingMutation(TRIMMING_PERMISSION_DENIED_MESSAGE);
+          }
+          if (!petFromEditRef.current) {
+            return refuseTrimmingMutation("ペット情報の読み込みが完了してから保存してください");
+          }
+          await updateMutation.mutateAsync({ id, req: buildUpdateTrimmingRequest(currentFormData) });
           toast.success("トリミング情報を更新しました");
         } else if ((existingAppointmentHasDetail && existingAppointmentId) || reusableTrimming?.hasDetail) {
+          if (!isMutationAllowed("canCreate")) {
+            return refuseTrimmingMutation(TRIMMING_PERMISSION_DENIED_MESSAGE);
+          }
           await updateMutation.mutateAsync({
             id: existingAppointmentId || reusableTrimming?.id || "",
-            req: buildUpdateTrimmingRequest(formData),
+            req: buildUpdateTrimmingRequest(currentFormData),
           });
           toast.success("トリミング情報を更新しました");
         } else {
-          const pet = selectedPets[0];
-          if (!pet) return { success: false, timestamp: Date.now() };
-          const validation = validate(formData, defaultTrimmingReservationTypeId);
+          if (!isMutationAllowed("canCreate")) {
+            return refuseTrimmingMutation(TRIMMING_PERMISSION_DENIED_MESSAGE);
+          }
+          const pet = selectedPetsRef.current[0];
+          if (!pet) {
+            return refuseTrimmingMutation("ペットを選択してください");
+          }
+          if (pet.status === "死亡") {
+            return refuseTrimmingMutation(DECEASED_TRIMMING_SAVE_MESSAGE);
+          }
+          const validation = validate(currentFormData, defaultTrimmingReservationTypeId);
           if (!validation.valid) {
             return { success: false, fieldErrors: validation.errors, timestamp: Date.now() };
           }
           const fallbackDate = visitDateFromState ?? formatJSTDate(new Date());
           const fallbackTimes = defaultRecordShortcutTimes(fallbackDate);
-          const startDate = formData.startTime || (hasExistingAppointment ? undefined : fallbackTimes.start);
-          const endDate = formData.endTime || (hasExistingAppointment ? undefined : fallbackTimes.end);
+          const startDate = currentFormData.startTime || (hasExistingAppointment ? undefined : fallbackTimes.start);
+          const endDate = currentFormData.endTime || (hasExistingAppointment ? undefined : fallbackTimes.end);
           const req = buildCreateTrimmingRequest(
-            formData,
+            currentFormData,
             Number(pet.id),
             validation.reservationTypeId,
             startDate,
@@ -122,7 +202,7 @@ export function useTrimmingForm(id?: string) {
             Number.isFinite(appointmentIdFromState) ? appointmentIdFromState : reusableAppointmentId,
           );
           if (!hasExistingAppointment) {
-            req.status = formData.initialStatus;
+            req.status = currentFormData.initialStatus;
             req.reservation_route = "record_shortcut";
           }
           await createMutation.mutateAsync(req);
@@ -141,8 +221,8 @@ export function useTrimmingForm(id?: string) {
     isEdit,
     petId,
     petFromQuery,
+    petFromEdit,
     isPetLoading,
-    existingTrimming,
     setSelectedPets,
   });
 
@@ -150,9 +230,12 @@ export function useTrimmingForm(id?: string) {
     createTrimmingDeleteHandler({
       isEdit,
       id,
+      isMutationAllowed,
+      isEditPetReady: () => Boolean(petFromEditRef.current),
+      isPetDeceased,
       deleteTrimming: (trimmingId, opts) => deleteMutation.mutate(trimmingId, opts),
     })(onSuccess);
-  }, [isEdit, id, deleteMutation]);
+  }, [isEdit, id, isMutationAllowed, isPetDeceased, deleteMutation]);
 
   return {
     mode: isEdit ? ("edit" as const) : ("new" as const),
@@ -171,7 +254,10 @@ export function useTrimmingForm(id?: string) {
     isSaving: isPending,
     isDeleting: deleteMutation.isPending,
     fieldErrors,
-    isLoading: isEdit ? isTrimmingLoading : isPetLoading || isAppointmentLoading || isSameDayTrimmingsLoading,
+    isLoading: isEdit
+      ? isTrimmingLoading || (editPetId !== "" && isEditPetLoading)
+      : isPetLoading || isAppointmentLoading || isSameDayTrimmingsLoading,
+    isEditPetReady: !isEdit || Boolean(petFromEdit),
     notFound: isEdit && !isTrimmingLoading && !existingTrimming && !!id,
     hasExistingAppointment,
   };

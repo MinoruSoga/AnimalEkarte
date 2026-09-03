@@ -1,5 +1,5 @@
 // React/Framework
-import { useState, useDeferredValue, useCallback, useEffect, useMemo } from "react";
+import { useState, useDeferredValue, useCallback, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 
 // External
@@ -8,6 +8,7 @@ import { Plus, Package } from "lucide-react";
 // Internal
 import { C, ICON, LAYOUT } from "@/lib/design-tokens";
 import { useSortableData } from "@/hooks/use-sortable-data";
+import { useUrlPageSync } from "@/hooks/use-url-page-sync";
 import { usePermission } from "@/hooks/use-permission";
 import { paths } from "@/config/paths";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
@@ -76,19 +77,12 @@ export function InventoryList() {
     limit: serverLimit,
   });
 
-  // BUG-412: URLの page がサーバ total から導いた totalPages を超えている場合はクランプする
-  // （フィルタ変更等で母集団が縮んだ場合に空ページへ迷い込むのを防ぐ。BUG-411踏襲）。
-  useEffect(() => {
-    if (isLoading) return;
-    const clampedPage = Math.max(1, Math.min(urlPage, pagination.totalPages));
-    if (clampedPage !== urlPage) {
-      setSearchParams(
-        (prev) => nextListSearchParamsWithPage(prev, clampedPage),
-        { replace: true },
-      );
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- setSearchParams は安定参照。urlPage/totalPages/isLoading の変化時のみ再評価する設計（FE-144/BUG-411踏襲）。
-  }, [urlPage, pagination.totalPages, isLoading]);
+  useUrlPageSync({
+    urlPage,
+    totalPages: pagination.totalPages,
+    isLoading,
+    setSearchParams,
+  });
 
   const handlePageChange = useCallback((page: number) => {
     setSearchParams(

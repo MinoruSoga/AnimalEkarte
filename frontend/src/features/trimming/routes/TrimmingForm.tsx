@@ -2,11 +2,11 @@ import { useParams, useLocation, useSearchParams } from "react-router";
 
 import { usePermission } from "@/hooks/use-permission";
 import { useTrimmingForm } from "../hooks/use-trimming-form";
+import { useTrimmingFormChrome } from "../hooks/use-trimming-form-chrome";
 import { resolveTrimmingFormGate } from "./trimming-form-model";
 import {
   TrimmingFormBody,
   TrimmingFormStatusView,
-  useTrimmingFormChrome,
 } from "./TrimmingFormPanels";
 
 export function TrimmingForm() {
@@ -15,6 +15,7 @@ export function TrimmingForm() {
   const [searchParams] = useSearchParams();
   const petId = searchParams.get("petId");
 
+  const { canEdit, canCreate, canDelete } = usePermission("trimming");
   const {
     mode,
     formData,
@@ -33,15 +34,16 @@ export function TrimmingForm() {
     isDeleting,
     fieldErrors,
     isLoading,
+    isEditPetReady,
     notFound,
     hasExistingAppointment,
-  } = useTrimmingForm(id);
+  } = useTrimmingForm(id, { canCreate, canEdit, canDelete });
 
-  const { canEdit, canCreate, canDelete } = usePermission("trimming");
-  const canSubmit = mode === "edit" ? canEdit : canCreate;
+  const selectedPet = petSelection.selectedPets[0];
+  const isPetDeceased = selectedPet?.status === "死亡";
+  const canSubmit = (mode === "edit" ? canEdit && isEditPetReady : canCreate) && !isPetDeceased;
   const redirectPath = typeof location.state?.from === "string" ? location.state.from : "/trimming";
   const fromPath = location.state?.from as string | undefined;
-  const selectedPet = petSelection.selectedPets[0];
   const chrome = useTrimmingFormChrome({
     formData,
     setFormData,
@@ -67,7 +69,7 @@ export function TrimmingForm() {
     <TrimmingFormBody
       mode={mode}
       canSubmit={canSubmit === true}
-      canDelete={canDelete}
+      canDelete={canDelete === true && isEditPetReady && !isPetDeceased}
       isSaving={isSaving}
       isDeleting={isDeleting}
       isDirty={chrome.isDirty}

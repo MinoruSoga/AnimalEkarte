@@ -2,4 +2,4 @@
 // (react-refresh/only-export-components: コンポーネントファイルからの値 re-export 禁止)。
 export { DeliveryStatsSection } from "./LstepDeliveryStatsSection";
 export { VisitConversionSection } from "./LstepVisitConversionSection";
-export { CsvImportSection } from "./LstepCsvImportSection";
+export { LstepCsvImportSection } from "./LstepCsvImportSection";

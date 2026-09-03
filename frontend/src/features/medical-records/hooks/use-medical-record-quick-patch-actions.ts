@@ -34,6 +34,7 @@ export function useMedicalRecordQuickPatchActions({
   canEdit: canEditOverride,
   isSelectedPetDeceased,
 }: UseMedicalRecordQuickPatchActionsArgs) {
+  const { mutateAsync } = updateMutation;
   const { canEdit: permissionCanEdit } = usePermission("medical-records");
   const canEdit = canEditOverride ?? permissionCanEdit;
   const canEditRef = useRef(canEdit);
@@ -58,7 +59,7 @@ export function useMedicalRecordQuickPatchActions({
     startSaveTransition(async () => {
       if (!isMutationAllowed()) return;
       try {
-        await updateMutation.mutateAsync({
+        await mutateAsync({
           id: recordId,
           req: {
             doctor_id: Number(newDoctorId),
@@ -88,7 +89,7 @@ export function useMedicalRecordQuickPatchActions({
     startSaveTransition(async () => {
       if (!isMutationAllowed()) return;
       try {
-        await updateMutation.mutateAsync({
+        await mutateAsync({
           id: recordId,
           req: {
             visit_type: mappedVisitType,
@@ -102,7 +103,7 @@ export function useMedicalRecordQuickPatchActions({
         handleApiError(error, "来院種別変更");
       }
     });
-  }, [visitType, setVisitType, recordId, existingRecordVersion, updateMutation, queryClient, startSaveTransition, isMutationAllowed]);
+  }, [visitType, setVisitType, recordId, existingRecordVersion, mutateAsync, queryClient, startSaveTransition, isMutationAllowed]);
 
   // 次回予定変更ハンドラ（ヘッダー NextVisitButton 用・即時PATCH）
   // existingRecordVersion のみ参照するため object 全体を dep に含めない (OCC versioning)
@@ -114,7 +115,7 @@ export function useMedicalRecordQuickPatchActions({
     startSaveTransition(async () => {
       if (!isMutationAllowed()) return;
       try {
-        await updateMutation.mutateAsync({
+        await mutateAsync({
           id: recordId,
           req: {
             next_visit_recommended_date: newDate, // "" = クリア
@@ -128,7 +129,7 @@ export function useMedicalRecordQuickPatchActions({
         handleApiError(error, "次回予定変更");
       }
     });
-  }, [nextVisitDate, setNextVisitDate, recordId, existingRecordVersion, updateMutation, queryClient, startSaveTransition, isMutationAllowed]);
+  }, [nextVisitDate, setNextVisitDate, recordId, existingRecordVersion, mutateAsync, queryClient, startSaveTransition, isMutationAllowed]);
 
   // 診察日変更ハンドラ
   // existingRecordVersion のみ参照するため object 全体を dep に含めない (OCC versioning)
@@ -137,7 +138,7 @@ export function useMedicalRecordQuickPatchActions({
     startSaveTransition(async () => {
       if (!isMutationAllowed()) return;
       try {
-        await updateMutation.mutateAsync({
+        await mutateAsync({
           id: recordId,
           req: {
             date: `${newDate}T00:00:00+09:00`,
@@ -150,7 +151,7 @@ export function useMedicalRecordQuickPatchActions({
         handleApiError(error, "診察日変更");
       }
     });
-  }, [recordId, existingRecordVersion, updateMutation, queryClient, startSaveTransition, isMutationAllowed]);
+  }, [recordId, existingRecordVersion, mutateAsync, queryClient, startSaveTransition, isMutationAllowed]);
 
   // カルテ確定（SPEC-GAP）: draft→finalized の一方向遷移。BE は確定済みカルテへの
   // 更新を 409 で拒否し（medical_record_crud.go）、確定の取り消し API は存在しない
@@ -161,7 +162,7 @@ export function useMedicalRecordQuickPatchActions({
     startSaveTransition(async () => {
       if (!isMutationAllowed()) return;
       try {
-        await updateMutation.mutateAsync({
+        await mutateAsync({
           id: recordId,
           req: {
             status: "finalized",
@@ -174,7 +175,7 @@ export function useMedicalRecordQuickPatchActions({
         handleApiError(error, "カルテ確定");
       }
     });
-  }, [recordId, existingRecordVersion, updateMutation, queryClient, startSaveTransition, isMutationAllowed]);
+  }, [recordId, existingRecordVersion, mutateAsync, queryClient, startSaveTransition, isMutationAllowed]);
 
   return {
     isSavingTransition,

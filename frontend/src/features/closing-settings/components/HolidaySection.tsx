@@ -15,7 +15,7 @@ interface HolidaySectionProps {
 export const HolidaySection = memo(function HolidaySection({ holidays }: HolidaySectionProps) {
   const [showForm, setShowForm] = useState(false);
   const createMutation = useCreateHoliday();
-  const deleteMutation = useDeleteHoliday();
+  const { mutateAsync: deleteHoliday } = useDeleteHoliday();
 
   const [, formAction] = useActionState(async (_prev: null, formData: FormData) => {
     try {
@@ -34,13 +34,13 @@ export const HolidaySection = memo(function HolidaySection({ holidays }: Holiday
   const handleDelete = useCallback(
     async (date: string) => {
       try {
-        await deleteMutation.mutateAsync(date);
+        await deleteHoliday(date);
         toast.success("休診日を削除しました");
       } catch {
         // FE-RC-005: useDeleteHoliday.onError が既に handleApiError で通知済み。
       }
     },
-    [deleteMutation],
+    [deleteHoliday],
   );
 
   const handleShowForm = useCallback(() => setShowForm(true), []);

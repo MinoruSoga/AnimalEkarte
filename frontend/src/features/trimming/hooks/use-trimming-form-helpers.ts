@@ -164,43 +164,25 @@ export function useTrimmingFormPetSync(input: {
   isEdit: boolean;
   petId: string | null;
   petFromQuery: Pet | undefined;
+  petFromEdit?: Pet;
   isPetLoading: boolean;
-  existingTrimming: {
-    petId?: string;
-    ownerId?: string;
-    petName?: string;
-    petNumber?: string;
-    ownerName?: string;
-    species?: string;
-    weight?: string;
-  } | undefined;
   setSelectedPets: (pets: Pet[]) => void;
 }) {
   const {
     isEdit,
     petId,
     petFromQuery,
+    petFromEdit,
     isPetLoading,
-    existingTrimming,
     setSelectedPets,
   } = input;
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (isEdit && existingTrimming?.petId) {
-      setSelectedPets([
-        {
-          id: existingTrimming.petId,
-          ownerId: existingTrimming.ownerId ?? "",
-          name: existingTrimming.petName,
-          petNumber: existingTrimming.petNumber,
-          ownerName: existingTrimming.ownerName,
-          species: existingTrimming.species,
-          weight: existingTrimming.weight,
-        } as Pet,
-      ]);
+    if (isEdit && petFromEdit) {
+      setSelectedPets([petFromEdit]);
     }
-  }, [isEdit, existingTrimming, setSelectedPets]);
+  }, [isEdit, petFromEdit, setSelectedPets]);
 
   useEffect(() => {
     if (!isEdit) {
@@ -216,6 +198,9 @@ export function useTrimmingFormPetSync(input: {
 export function createTrimmingDeleteHandler(input: {
   isEdit: boolean;
   id: string | undefined;
+  isMutationAllowed: (action: "canCreate" | "canEdit" | "canDelete") => boolean;
+  isEditPetReady: () => boolean;
+  isPetDeceased: () => boolean;
   deleteTrimming: (
     id: string,
     opts: { onSuccess: () => void; onError: (error: unknown) => void },
@@ -223,6 +208,18 @@ export function createTrimmingDeleteHandler(input: {
 }): (onSuccess?: () => void) => void {
   return (onSuccess?: () => void) => {
     if (!input.isEdit || !input.id) return;
+    if (!input.isMutationAllowed("canDelete")) {
+      toast.error("この操作を行う権限がありません");
+      return;
+    }
+    if (!input.isEditPetReady()) {
+      toast.error("ペット情報の読み込みが完了してから削除してください");
+      return;
+    }
+    if (input.isPetDeceased()) {
+      toast.error("死亡したペットのトリミング記録は削除できません");
+      return;
+    }
     input.deleteTrimming(input.id, {
       onSuccess: () => {
         toast.success("トリミング情報を削除しました");

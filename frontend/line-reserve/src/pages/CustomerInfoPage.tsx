@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useActionState, useRef } from 'react';
 import type { CustomerInfo, LiffProfile, PetSelection, OwnerPet } from '../types/models';
 import { ProgressDots } from '../components/ProgressDots';
 import { PrimaryButton } from '../components/PrimaryButton';
@@ -143,6 +143,14 @@ export function CustomerInfoPage({
       pets: allPets,
     });
   }, [validate, ownerPets, selectedPetIds, newPets, name, phone, ownerName, onNext]);
+
+  const handleNextRef = useRef(handleNext);
+  handleNextRef.current = handleNext;
+
+  const [, formAction, isPending] = useActionState(async () => {
+    handleNextRef.current();
+    return null;
+  }, null);
 
   const hasOwnerPets = ownerPets.length > 0;
 
@@ -333,9 +341,9 @@ export function CustomerInfoPage({
           </div>
         </div>
 
-        <div className="px-4 py-6">
-          <PrimaryButton onClick={handleNext}>{EXPLICIT_PRIMARY_CTA_LABEL}</PrimaryButton>
-        </div>
+        <form action={formAction} className="px-4 py-6">
+          <PrimaryButton type="submit" disabled={isPending}>{EXPLICIT_PRIMARY_CTA_LABEL}</PrimaryButton>
+        </form>
       </div>
     </div>
   );

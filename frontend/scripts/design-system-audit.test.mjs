@@ -1301,8 +1301,8 @@ test("checkC8: allowlist は basename ではなく feature 相対パスだけを
   const fooPath = path.join("src", "features", "widget", "routes", "FooPage.tsx");
 
   assert.equal(C8_PAGE_ALLOWLIST.size, 9);
-  assert.equal(C8_ROUTE_HELPER_ALLOWLIST.size, 35);
-  assert.equal(C8_ALLOWLIST.size, 44);
+  assert.equal(C8_ROUTE_HELPER_ALLOWLIST.size, 34);
+  assert.equal(C8_ALLOWLIST.size, 43);
   assert.ok([...C8_ALLOWLIST].every((relPath) => relPath.includes(path.sep)));
   assert.equal(checkC8(loginPath, "export function Login() { return null; }").length, 0);
   assert.equal(checkC8(spoofedLoginPath, "export function Login() { return null; }").length, 1);

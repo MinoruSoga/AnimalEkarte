@@ -80,7 +80,7 @@ export function parseDateInput(input: string): Date | null {
 
 export const SINGLE_CALENDAR_CLASSES = {
   selected:
-    `${C.bgBrand} ${C.textOnBrand} hover:${C.bgBrand} focus:${C.bgBrand} focus:text-white`,
+    `${C.bgBrand} ${C.textOnBrand} ${C.hoverBgBrand} ${C.focusBgBrand} ${C.textOnBrand}`,
   today: `${C.bgPage} ${C.text}`,
   nav: "hidden",
   month_caption: "hidden",
@@ -88,7 +88,7 @@ export const SINGLE_CALENDAR_CLASSES = {
 
 export const RANGE_CALENDAR_CLASSES = {
   selected:
-    `${C.bgBrand} ${C.textOnBrand} hover:${C.bgBrand} focus:${C.bgBrand} focus:text-white`,
+    `${C.bgBrand} ${C.textOnBrand} ${C.hoverBgBrand} ${C.focusBgBrand} ${C.textOnBrand}`,
   today: `${C.bgPage} ${C.text}`,
   nav: "hidden",
 };

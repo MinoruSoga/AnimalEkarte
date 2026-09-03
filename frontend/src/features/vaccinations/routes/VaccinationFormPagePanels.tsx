@@ -129,6 +129,7 @@ interface VaccinationFormBodyProps {
   isEdit: boolean;
   canSubmit: boolean;
   canDelete: boolean | undefined;
+  isPetDeceased: boolean;
   isDeleting: boolean;
   isDirty: boolean;
   isSaving: boolean;
@@ -150,6 +151,7 @@ export function VaccinationFormBody({
   isEdit,
   canSubmit,
   canDelete,
+  isPetDeceased,
   isDeleting,
   isDirty,
   isSaving,
@@ -175,7 +177,7 @@ export function VaccinationFormBody({
         maxWidth={LAYOUT.pageContentMaxWidth.formMid}
         headerAction={
           <div className="flex gap-2">
-            {canDelete && isEdit ? (
+            {canDelete && isEdit && !isPetDeceased ? (
               <Button
                 variant="ghost"
                 type="button"
@@ -216,6 +218,17 @@ export function VaccinationFormBody({
             insuranceName={selectedPet.insuranceName}
             insuranceDetails={selectedPet.insuranceDetails}
           />
+        ) : null}
+        {isPetDeceased ? (
+          <div
+            role="status"
+            aria-label="死亡ペットのため保存不可"
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-md border mt-4 ${C.bgWarning50} ${C.borderWarning20} ${C.textWarning}`}
+          >
+            <span className="text-sm font-medium">
+              死亡したペットの予防接種記録は保存できません
+            </span>
+          </div>
         ) : null}
 
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">

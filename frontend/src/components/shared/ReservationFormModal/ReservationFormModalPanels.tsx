@@ -1,4 +1,4 @@
-import { memo } from "react";
+import { memo, useCallback } from "react";
 import { Calendar, CalendarCheck, PawPrint, Search, UserPlus, Users, X } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -254,6 +254,13 @@ function SelectedPatientSummary({
   validationError?: string;
   onSelectedPetsChange: (updater: (prev: Pet[]) => Pet[]) => void;
 }) {
+  const handleRemovePet = useCallback(
+    (petId: string) => {
+      onSelectedPetsChange((prev) => prev.filter((item) => item.id !== petId));
+    },
+    [onSelectedPetsChange],
+  );
+
   return (
     <div className={`rounded-lg border p-3 transition-colors ${selectedPets.length > 0 ? `${C.bgBrandLight50} ${C.borderBrandLight}` : `${C.bgPage} ${C.borderMediumLight}`}`}>
       <Label className={`text-2xs ${C.text40} font-semibold uppercase block mb-3`}>
@@ -267,9 +274,7 @@ function SelectedPatientSummary({
             <SelectedPetChip
               key={pet.id}
               pet={pet}
-              onRemove={() => {
-                onSelectedPetsChange((prev) => prev.filter((item) => item.id !== pet.id));
-              }}
+              onRemove={handleRemovePet}
             />
           ))}
         </div>
@@ -289,7 +294,7 @@ const SelectedPetChip = memo(function SelectedPetChip({
   onRemove,
 }: {
   pet: Pet;
-  onRemove: () => void;
+  onRemove: (petId: string) => void;
 }) {
   return (
     <div className={`flex items-center gap-2 bg-white p-2 rounded-lg border ${C.borderMediumLight}`}>
@@ -303,7 +308,7 @@ const SelectedPetChip = memo(function SelectedPetChip({
       </span>
       <button
         type="button"
-        onClick={onRemove}
+        onClick={() => onRemove(pet.id)}
         className={`ml-1 p-1 ${C.hoverBgDanger5} rounded transition-colors`}
       >
         <X className={`${ICON.action} ${C.danger} ${C.hoverTextDanger}`} />

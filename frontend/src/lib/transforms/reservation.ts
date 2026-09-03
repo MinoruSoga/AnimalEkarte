@@ -21,7 +21,7 @@ interface CustomerFieldsJSON {
 
 /**
  * customer_fields は json.RawMessage（Go）なので JSON オブジェクトとしてそのまま届く。
- * 型は any だが、JSONB 由来のオブジェクトとして扱う。
+ * 入力は unknown。オブジェクトであることを確認してから CustomerFieldsJSON として扱う。
  */
 function extractCustomerFields(raw: unknown): CustomerFieldsJSON {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};

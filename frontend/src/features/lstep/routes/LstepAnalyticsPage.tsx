@@ -2,7 +2,7 @@ import { useState } from "react";
 
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import {
-  CsvImportSection,
+  LstepCsvImportSection,
   DeliveryStatsSection,
   VisitConversionSection,
 } from "../components/LstepAnalyticsSections";
@@ -48,7 +48,7 @@ export function LstepAnalyticsPage() {
         isError={isErrorVisitConversion}
       />
 
-      <CsvImportSection />
+      <LstepCsvImportSection />
     </PageLayout>
   );
 }

@@ -1,3 +1,4 @@
+import { useLayoutEffect } from "react";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
@@ -39,6 +40,47 @@ describe("useMedicalRecordPostSave BUG-010", () => {
     });
 
     expect(clinicalPlanSave).not.toHaveBeenCalled();
+    expect(markClean).toHaveBeenCalled();
+  });
+
+  it("タブ切替をcommitした直後のlayout phaseのsuccessでは新しいタブのpost-saveを使う", async () => {
+    const markClean = vi.fn();
+    const estimateSave = vi.fn().mockResolvedValue(undefined);
+
+    const { result, rerender } = renderHook(
+      ({ activeTab, formState }: { activeTab: string; formState: { success: boolean; timestamp: number } }) => {
+        const postSave = useMedicalRecordPostSave({
+          activeTab,
+          formState,
+          markClean,
+        });
+        useLayoutEffect(() => {
+          if (activeTab === "見積書" && formState.success) {
+            // ref 同期が layout なら、この phase 後の effect が見積 save を呼ぶ
+          }
+        }, [activeTab, formState.success]);
+        return postSave;
+      },
+      {
+        initialProps: {
+          activeTab: "問診",
+          formState: { success: false, timestamp: 0 },
+        },
+      },
+    );
+
+    act(() => {
+      result.current.handleRegisterEstimateSave(estimateSave);
+    });
+
+    await act(async () => {
+      rerender({
+        activeTab: "見積書",
+        formState: { success: true, timestamp: 1 },
+      });
+    });
+
+    await waitFor(() => expect(estimateSave).toHaveBeenCalledOnce());
     expect(markClean).toHaveBeenCalled();
   });
 

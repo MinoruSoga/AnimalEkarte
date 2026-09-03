@@ -26,9 +26,9 @@ export function ShiftTemplateSettings() {
   const navigate = useNavigate();
   const { canCreate, canEdit, canDelete } = usePermission(ResourceShifts);
   const { data: templates = [] } = useGetShiftTemplates();
-  const createMutation = useCreateShiftTemplate();
-  const updateMutation = useUpdateShiftTemplate();
-  const deleteMutation = useDeleteShiftTemplate();
+  const { mutate: createTemplate, isPending: isCreatePending } = useCreateShiftTemplate();
+  const { mutate: updateTemplate, isPending: isUpdatePending } = useUpdateShiftTemplate();
+  const { mutate: deleteTemplate } = useDeleteShiftTemplate();
   const reorderMutation = useReorderShiftTemplates();
 
   const [selectedItem, setSelectedItem] = useState<ShiftTemplate | null>(null);
@@ -89,7 +89,7 @@ export function ShiftTemplateSettings() {
     }
 
     if (selectedItem !== null) {
-      updateMutation.mutate(
+      updateTemplate(
         {
           id: selectedItem.id,
           input: toShiftTemplateUpdateInput(formData),
@@ -103,7 +103,7 @@ export function ShiftTemplateSettings() {
         },
       );
     } else {
-      createMutation.mutate(
+      createTemplate(
         toShiftTemplateCreateInput(formData),
         {
           onSuccess: () => {
@@ -114,11 +114,11 @@ export function ShiftTemplateSettings() {
         },
       );
     }
-  }, [selectedItem, canEdit, canCreate, createMutation, updateMutation, handleClose, dirty]);
+  }, [selectedItem, canEdit, canCreate, createTemplate, updateTemplate, handleClose, dirty]);
 
   const handleDeleteConfirm = useCallback(() => {
     if (!canDelete || !pendingDelete) return;
-    deleteMutation.mutate(pendingDelete.id, {
+    deleteTemplate(pendingDelete.id, {
       onSuccess: () => {
         toast.success("テンプレートを削除しました");
         setPendingDelete(null);
@@ -128,7 +128,7 @@ export function ShiftTemplateSettings() {
         }
       },
     });
-  }, [canDelete, pendingDelete, deleteMutation, selectedItem, handleClose, dirty]);
+  }, [canDelete, pendingDelete, deleteTemplate, selectedItem, handleClose, dirty]);
 
   return (
     <ShiftTemplateSettingsWorkspace
@@ -151,7 +151,7 @@ export function ShiftTemplateSettings() {
       onDeleteRequest={canDelete ? () => {
         if (selectedItem) setPendingDelete(selectedItem);
       } : undefined}
-      isSaving={createMutation.isPending || updateMutation.isPending}
+      isSaving={isCreatePending || isUpdatePending}
       isPanelReadOnly={selectedItem !== null ? !canEdit : !canCreate}
       onDirtyChange={handleDirtyChange}
       pendingDelete={pendingDelete}

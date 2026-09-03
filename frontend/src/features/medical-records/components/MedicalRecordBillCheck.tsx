@@ -77,7 +77,7 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({
     isNewRecord ? undefined : medicalRecordId,
   );
   const { data: vaccinations = [] } = useGetPetVaccinations(isNewRecord ? undefined : petId);
-  const createTreatmentMutation = useCreateTreatment(medicalRecordId, recordClinicId);
+  const { mutate: createTreatment } = useCreateTreatment(medicalRecordId, recordClinicId);
   const { mutate: updateTreatment } = useUpdateTreatment(medicalRecordId, recordClinicId);
   const confirmMutation = useCreateBillingConfirmation(medicalRecordId);
   const returnMutation = useCreateBillingReturn(medicalRecordId);
@@ -216,9 +216,9 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({
       discount_amount: 0,
       sort_order: nextOrder,
     };
-    createTreatmentMutation.mutate(input);
+    createTreatment(input);
     setIsSearchOpen(false);
-  }, [canEdit, nextOrder, createTreatmentMutation]);
+  }, [canEdit, nextOrder, createTreatment]);
 
   // FE-RC-048: 消費税率はハードコード 0.1 ではなく病院マスタ設定（useClinicTaxRates）を正本にする。
   const { standardTaxRate } = useClinicTaxRates();

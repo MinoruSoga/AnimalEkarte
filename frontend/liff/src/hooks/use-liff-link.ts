@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useLiff } from '@/shared-liff/use-liff';
 import { LIFF_ID, LIFF_MOCK } from '../lib/liff-config';
 import { linkLineAccount, LiffApiError } from '../api/liff-api';
@@ -17,6 +17,7 @@ export function useLiffLink(): UseLiffLinkResult {
   const { idToken, isReady, initError } = useLiff(LIFF_ID);
   const [status, setStatus] = useState<LinkStatus>('loading');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const linkPromiseRef = useRef<Promise<void> | null>(null);
 
   // 認証完了 → API 連携 → ステータス更新。useEffect 内 setState は同期目的のため許容。
   /* eslint-disable react-hooks/set-state-in-effect */
@@ -58,7 +59,7 @@ export function useLiffLink(): UseLiffLinkResult {
       return () => clearTimeout(timer);
     }
 
-    linkLineAccount(clinicId, linkToken, idToken)
+    linkPromiseRef.current ??= linkLineAccount(clinicId, linkToken, idToken)
       .then(() => setStatus('success'))
       .catch((err: unknown) => {
         if (err instanceof LiffApiError) {

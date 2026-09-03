@@ -72,6 +72,13 @@ const ALLOWED_MUTATION_PERMISSIONS = {
   canDelete: true,
 } as const;
 
+const LIVING_PET = {
+  id: "5",
+  ownerId: "1",
+  name: "ポチ",
+  status: "生存",
+} as NonNullable<ReturnType<typeof useGetPet>["data"]>;
+
 function renderVaccinationForm(id?: string) {
   return renderHook(() => useVaccinationForm(id, ALLOWED_MUTATION_PERMISSIONS));
 }
@@ -221,6 +228,10 @@ describe("useVaccinationForm — 次回予定 type/日付の整合（BUG-005）"
         mutateAsync: mockMutateAsync,
         isPending: false,
       } as ReturnType<typeof useUpdateVaccination>);
+      vi.mocked(useGetPet).mockImplementation((requestedPetId) => ({
+        data: requestedPetId === "5" ? LIVING_PET : undefined,
+        isLoading: false,
+      } as ReturnType<typeof useGetPet>));
 
       const { result } = renderVaccinationForm("10");
       await waitFor(() => expect(result.current.form.nextScheduleType).toBe("1year"));
@@ -365,6 +376,10 @@ describe("useVaccinationForm — handleDelete (BUG-025)", () => {
         mutate: mockMutate,
         isPending: false,
       } as ReturnType<typeof useDeleteVaccination>);
+      vi.mocked(useGetPet).mockImplementation((requestedPetId) => ({
+        data: requestedPetId === "5" ? LIVING_PET : undefined,
+        isLoading: false,
+      } as ReturnType<typeof useGetPet>));
 
       const { result } = renderVaccinationForm("10");
       const onSuccess = vi.fn();

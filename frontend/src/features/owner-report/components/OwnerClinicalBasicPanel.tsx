@@ -91,7 +91,7 @@ function OwnerBasicDetails({ owner }: Pick<BasicDetailsProps, "owner">) {
   );
 }
 
-export function BasicInformationPanel(props: BasicDetailsProps) {
+export function OwnerClinicalBasicPanel(props: BasicDetailsProps) {
   return (
     <ClinicalBriefingPanel
       title="基本情報"

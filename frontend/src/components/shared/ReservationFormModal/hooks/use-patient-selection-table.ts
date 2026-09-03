@@ -11,7 +11,7 @@ import {
   resolvePatientSelectionText,
   resolvePatientStatusText,
   type PatientSearchParams,
-} from "./patient-selection-table-model";
+} from "../patient-selection-table-model";
 
 interface UsePatientSelectionTableArgs {
   selectedPets: Pet[];

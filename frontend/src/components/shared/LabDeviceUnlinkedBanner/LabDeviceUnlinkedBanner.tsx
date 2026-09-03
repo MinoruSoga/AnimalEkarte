@@ -21,6 +21,7 @@ import {
 // リテラル値は models.ts の `ResourceLabImport = "lab-import"` と同値（usePermission の
 // Resource union に構造的に一致するため型 import 無しで済む）。
 const LAB_IMPORT_RESOURCE = "lab-import";
+const ATTACH_FAILED_MESSAGE = "保存できませんでした。未紐付けのままです";
 
 export function LabDeviceUnlinkedBanner({ petId }: { petId: string }) {
   const numericPetId = Number(petId);
@@ -54,7 +55,11 @@ export function LabDeviceUnlinkedBanner({ petId }: { petId: string }) {
                 size="sm"
                 variant="outline"
                 onClick={() => {
-                  void detach.mutateAsync(justAttached.jobId).then(() => setJustAttached(null));
+                  detach.mutate(justAttached.jobId, {
+                    onSuccess: () => setJustAttached(null),
+                    // FE-RC-107: 失敗時は justAttached を残す。hook onError が toast 済み（FE-RC-005）。
+                    onError: () => undefined,
+                  });
                 }}
               >
                 取り消す
@@ -82,18 +87,29 @@ export function LabDeviceUnlinkedBanner({ petId }: { petId: string }) {
                 variant="outline"
                 onClick={() => {
                   setAttachError(null);
-                  void attach.mutateAsync({ jobId: card.jobId, petId: numericPetId }).then((attached) => {
-                    if (isLabDeviceAttachPersisted(attached)) {
-                      setJustAttached(attached);
-                    } else {
-                      const reviewMsg = labDeviceNeedsReviewReason(attached);
-                      setAttachError(
-                        reviewMsg
-                          ? `保存できませんでした（${reviewMsg}）`
-                          : "保存できませんでした。未紐付けのままです",
-                      );
-                    }
-                  });
+                  attach.mutate(
+                    { jobId: card.jobId, petId: numericPetId },
+                    {
+                      onSuccess: (attached) => {
+                        if (isLabDeviceAttachPersisted(attached)) {
+                          setJustAttached(attached);
+                          return;
+                        }
+                        setJustAttached(null);
+                        const reviewMsg = labDeviceNeedsReviewReason(attached);
+                        setAttachError(
+                          reviewMsg
+                            ? `保存できませんでした（${reviewMsg}）`
+                            : ATTACH_FAILED_MESSAGE,
+                        );
+                      },
+                      // hook onError が toast 済み（FE-RC-005）。ここでは UI だけ戻す。
+                      onError: () => {
+                        setJustAttached(null);
+                        setAttachError(ATTACH_FAILED_MESSAGE);
+                      },
+                    },
+                  );
                 }}
               >
                 付ける

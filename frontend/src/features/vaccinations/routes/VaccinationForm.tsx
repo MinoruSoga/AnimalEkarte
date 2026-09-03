@@ -18,11 +18,11 @@ export const VaccinationForm = memo(function VaccinationForm() {
   const navigate = useNavigate();
   const { id } = useParams();
   const { canEdit, canCreate, canDelete } = usePermission("vaccinations");
-  const canSubmit = id ? canEdit : canCreate;
 
   const {
     isEdit,
     isReadLoading,
+    isEditPetReady,
     isReadNotFound,
     isReadError,
     retryRead,
@@ -62,6 +62,8 @@ export const VaccinationForm = memo(function VaccinationForm() {
 
   const { selectedPets } = petSelection;
   const selectedPet = selectedPets[0];
+  const isPetDeceased = selectedPet?.status === "死亡";
+  const canSubmit = (id ? canEdit && isEditPetReady : canCreate) && !isPetDeceased;
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
   const handleBack = useCallback(() => {
@@ -102,7 +104,8 @@ export const VaccinationForm = memo(function VaccinationForm() {
     <VaccinationFormBody
       isEdit={isEdit}
       canSubmit={canSubmit === true}
-      canDelete={canDelete}
+      canDelete={canDelete === true && isEditPetReady}
+      isPetDeceased={isPetDeceased}
       isDeleting={isDeleting}
       isDirty={isDirty}
       isSaving={isSaving}

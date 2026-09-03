@@ -62,7 +62,7 @@ import { C, STYLE } from '@/lib/design-tokens';
 <div style={{ color: '#37352F' }}>
 ```
 
-`lib/design-tokens.ts`（805行）は 800行ファイルサイズ規約の documented exception。トークンテーブルの分割は可読性を下げるだけで得られる便益がないため、分割しない（FE7-4 判断・2026-07-18）。
+`lib/design-tokens.ts`（897行）は 800行ファイルサイズ規約の documented exception。トークンテーブルの分割は可読性を下げるだけで得られる便益がないため、分割しない（FE7-4 判断・2026-07-18。FE-RC-121 で実測に同期）。
 
 ## Feature Indexing (MANDATORY)
 

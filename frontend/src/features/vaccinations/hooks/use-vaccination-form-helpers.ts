@@ -169,6 +169,7 @@ export function createVaccinationDeleteHandler(input: {
   isEdit: boolean;
   id: string | undefined;
   isMutationAllowed: (action: keyof VaccinationMutationPermissions) => boolean;
+  isEditPetReady: () => boolean;
   isEditPetDeceased: () => boolean;
   deleteVaccination: (
     id: string,
@@ -177,7 +178,16 @@ export function createVaccinationDeleteHandler(input: {
 }): (onSuccess?: () => void) => void {
   return (onSuccess?: () => void) => {
     if (!input.isEdit || !input.id) return;
-    if (!input.isMutationAllowed("canDelete") || input.isEditPetDeceased()) {
+    if (!input.isMutationAllowed("canDelete")) {
+      toast.error("この操作を行う権限がありません");
+      return;
+    }
+    if (!input.isEditPetReady()) {
+      toast.error("ペット情報の読み込みが完了してから削除してください");
+      return;
+    }
+    if (input.isEditPetDeceased()) {
+      toast.error("死亡したペットの予防接種記録は削除できません");
       return;
     }
     input.deleteVaccination(input.id, {
@@ -201,7 +211,7 @@ interface VaccinationSaveDeps {
   isEdit: boolean;
   id: string | undefined;
   petId: string | null;
-  formData: VaccinationFormState;
+  formDataRef: { current: VaccinationFormState };
   entityReadRef: { current: EntityReadResult<import("@/types").VaccinationRecord> };
   selectedPetRef: { current: Pet | undefined };
   queryPetRef: { current: Pet | undefined };
@@ -221,7 +231,8 @@ export async function runVaccinationSave(deps: VaccinationSaveDeps): Promise<{
   timestamp: number;
   fieldErrors?: Record<string, string>;
 }> {
-  const errors = validateVaccinationForm(deps.isEdit, deps.formData);
+  const formData = deps.formDataRef.current;
+  const errors = validateVaccinationForm(deps.isEdit, formData);
   if (Object.keys(errors).length > 0) {
     deps.setFieldErrors(errors);
     return { success: false, timestamp: Date.now() };
@@ -233,11 +244,17 @@ export async function runVaccinationSave(deps: VaccinationSaveDeps): Promise<{
       if (deps.entityReadRef.current.status !== "found") {
         return { success: false, timestamp: Date.now() };
       }
-      const req = buildUpdateVaccinationRequest(deps.formData);
-      if (
-        !deps.isMutationAllowed("canEdit") ||
-        deps.editPetRef.current?.status === "死亡"
-      ) {
+      const req = buildUpdateVaccinationRequest(formData);
+      if (!deps.isMutationAllowed("canEdit")) {
+        toast.error("この操作を行う権限がありません");
+        return { success: false, timestamp: Date.now() };
+      }
+      if (!deps.editPetRef.current) {
+        toast.error("ペット情報の読み込みが完了してから保存してください");
+        return { success: false, timestamp: Date.now() };
+      }
+      if (deps.editPetRef.current.status === "死亡") {
+        toast.error("死亡したペットの予防接種記録は保存できません");
         return { success: false, timestamp: Date.now() };
       }
       await deps.updateMutation.mutateAsync({ id: deps.id, req });
@@ -245,11 +262,13 @@ export async function runVaccinationSave(deps: VaccinationSaveDeps): Promise<{
     } else {
       const pet = deps.petId ? deps.queryPetRef.current : deps.selectedPetRef.current;
       if (!pet) return { success: false, timestamp: Date.now() };
-      const req = buildCreateVaccinationRequest(deps.formData, pet.id);
-      if (
-        !deps.isMutationAllowed("canCreate") ||
-        pet.status === "死亡"
-      ) {
+      const req = buildCreateVaccinationRequest(formData, pet.id);
+      if (!deps.isMutationAllowed("canCreate")) {
+        toast.error("この操作を行う権限がありません");
+        return { success: false, timestamp: Date.now() };
+      }
+      if (pet.status === "死亡") {
+        toast.error("死亡したペットの予防接種記録は保存できません");
         return { success: false, timestamp: Date.now() };
       }
       await deps.createMutation.mutateAsync(req);

@@ -1,4 +1,4 @@
-import { memo, useActionState } from "react";
+import { memo, useActionState, useLayoutEffect, useRef } from "react";
 import { FileText } from "lucide-react";
 import { toast } from "sonner";
 
@@ -19,8 +19,16 @@ const CompanyInvoiceForm = memo(function CompanyInvoiceForm({
   canEdit,
 }: CompanyInvoiceFormProps) {
   const updateMutation = useUpdateCompany();
+  const canEditRef = useRef(canEdit);
+  useLayoutEffect(() => {
+    canEditRef.current = canEdit;
+  }, [canEdit]);
 
   const [, formAction] = useActionState(async (_prev: null, formData: FormData) => {
+    if (canEditRef.current !== true) {
+      toast.error("この操作を行う権限がありません");
+      return null;
+    }
     try {
       await updateMutation.mutateAsync({
         invoice_registration_number: String(formData.get("invoice_registration_number") ?? ""),

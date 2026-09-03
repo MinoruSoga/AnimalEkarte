@@ -21,6 +21,7 @@ vi.mock("@/lib/handle-api-error", () => ({
 
 beforeEach(() => {
   vi.mocked(toast.success).mockClear();
+  vi.mocked(toast.error).mockClear();
   vi.mocked(handleApiError).mockClear();
 });
 
@@ -224,6 +225,69 @@ describe("useMedicalRecordSaveAction permission boundary", () => {
     expect(updateTreatmentPlan).not.toHaveBeenCalled();
     expect(updateRecord).not.toHaveBeenCalled();
     expect(result.current.formState.success).toBe(false);
+    expect(result.current.formState.error).toBe("この操作を行う権限がありません");
+  });
+
+  it("確定済みカルテの保存は権限エラーを返す", async () => {
+    const updateInquiry = vi.fn().mockResolvedValue(undefined);
+    const { result } = renderHook(() =>
+      useMedicalRecordSaveAction(
+        buildSaveArgs({
+          activeTab: "問診",
+          isFinalized: true,
+          updateInquiryMutation: { mutateAsync: updateInquiry },
+        }),
+      ),
+    );
+
+    act(() => {
+      startTransition(() => result.current.formAction(new FormData()));
+    });
+
+    await waitFor(() => expect(result.current.formState.timestamp).not.toBe(0));
+    expect(updateInquiry).not.toHaveBeenCalled();
+    expect(result.current.formState.success).toBe(false);
+    expect(result.current.formState.error).toBe("この操作を行う権限がありません");
+  });
+
+  it("タブ切替をcommitした直後のlayout phaseで取得済みformActionは新しいタブを参照する", async () => {
+    const updateInquiry = vi.fn().mockResolvedValue(undefined);
+    const updateTreatmentPlan = vi.fn().mockResolvedValue(undefined);
+    const updateRecord = vi.fn().mockResolvedValue(undefined);
+
+    const { result, rerender } = renderHook(
+      ({ activeTab }: { activeTab: string }) => {
+        const saveAction = useMedicalRecordSaveAction(
+          buildSaveArgs({
+            activeTab,
+            physicalExam: "所見",
+            plan: "方針",
+            assessment: "診断",
+            updateInquiryMutation: { mutateAsync: updateInquiry },
+            updateTreatmentPlanMutation: { mutateAsync: updateTreatmentPlan },
+            updateMutation: { mutateAsync: updateRecord },
+          }),
+        );
+        const capturedActionRef = useRef(saveAction.formAction);
+
+        useLayoutEffect(() => {
+          if (activeTab === "診察/治療プラン") {
+            startTransition(() => capturedActionRef.current(new FormData()));
+          }
+        }, [activeTab]);
+
+        return saveAction;
+      },
+      { initialProps: { activeTab: "問診" } },
+    );
+
+    await act(async () => {
+      rerender({ activeTab: "診察/治療プラン" });
+    });
+
+    await waitFor(() => expect(result.current.formState.success).toBe(true));
+    expect(updateTreatmentPlan).toHaveBeenCalledOnce();
+    expect(updateInquiry).not.toHaveBeenCalled();
   });
 
   it("選択ペットの死亡をcommitした直後のlayout phaseで取得済みformActionが発火してもmutationを発行しない", async () => {
@@ -275,6 +339,7 @@ describe("useMedicalRecordSaveAction permission boundary", () => {
     expect(updateTreatmentPlan).not.toHaveBeenCalled();
     expect(updateRecord).not.toHaveBeenCalled();
     expect(result.current.formState.success).toBe(false);
+    expect(result.current.formState.error).toBe("死亡したペットのカルテは保存できません");
   });
 
   it("治療プラン更新待機中に選択ペットが死亡へ変わると後続のカルテ更新を発行しない", async () => {
@@ -319,6 +384,7 @@ describe("useMedicalRecordSaveAction permission boundary", () => {
     await waitFor(() => expect(result.current.formState.timestamp).not.toBe(0));
     expect(updateRecord).not.toHaveBeenCalled();
     expect(result.current.formState.success).toBe(false);
+    expect(result.current.formState.error).toBe("死亡したペットのカルテは保存できません");
   });
 });
 
@@ -350,6 +416,109 @@ describe("useMedicalRecordSaveAction BUG-001 vaccination tab", () => {
       useMedicalRecordSaveAction(
         buildSaveArgs({
           activeTab: "予防接種",
+          updateInquiryMutation: { mutateAsync: updateInquiry },
+          updateTreatmentPlanMutation: { mutateAsync: updateTreatmentPlan },
+          updateMutation: { mutateAsync: updateRecord },
+        }),
+      ),
+    );
+
+    act(() => {
+      startTransition(() => result.current.formAction(new FormData()));
+    });
+
+    await waitFor(() => expect(result.current.formState.timestamp).not.toBe(0));
+    expect(result.current.formState.success).toBe(false);
+    expect(updateInquiry).not.toHaveBeenCalled();
+    expect(updateTreatmentPlan).not.toHaveBeenCalled();
+    expect(updateRecord).not.toHaveBeenCalled();
+    expect(toast.success).not.toHaveBeenCalled();
+  });
+});
+
+describe("useMedicalRecordSaveAction captured formAction snapshot", () => {
+  it("取得済み formAction は後続 commit の physicalExam を送る", async () => {
+    const updateTreatmentPlan = vi.fn().mockResolvedValue(undefined);
+    const updateRecord = vi.fn().mockResolvedValue(undefined);
+
+    const { result, rerender } = renderHook(
+      ({ physicalExam }: { physicalExam: string }) => {
+        const saveAction = useMedicalRecordSaveAction(
+          buildSaveArgs({
+            physicalExam,
+            plan: "方針",
+            assessment: "診断",
+            updateTreatmentPlanMutation: { mutateAsync: updateTreatmentPlan },
+            updateMutation: { mutateAsync: updateRecord },
+          }),
+        );
+        const capturedActionRef = useRef(saveAction.formAction);
+
+        useLayoutEffect(() => {
+          if (physicalExam === "NEW-EXAM") {
+            startTransition(() => capturedActionRef.current(new FormData()));
+          }
+        }, [physicalExam]);
+
+        return saveAction;
+      },
+      { initialProps: { physicalExam: "OLD-EXAM" } },
+    );
+
+    await act(async () => {
+      rerender({ physicalExam: "NEW-EXAM" });
+    });
+
+    await waitFor(() => expect(result.current.formState.success).toBe(true));
+    expect(updateTreatmentPlan).toHaveBeenCalledWith(
+      expect.objectContaining({ physical_exam: "NEW-EXAM" }),
+    );
+  });
+
+  it("確定直後の取得済み formAction は isFinalized を見て mutation しない", async () => {
+    const updateInquiry = vi.fn().mockResolvedValue(undefined);
+
+    const { result, rerender } = renderHook(
+      ({ isFinalized }: { isFinalized: boolean }) => {
+        const saveAction = useMedicalRecordSaveAction(
+          buildSaveArgs({
+            activeTab: "問診",
+            isFinalized,
+            chiefComplaint: "食欲低下",
+            updateInquiryMutation: { mutateAsync: updateInquiry },
+          }),
+        );
+        const capturedActionRef = useRef(saveAction.formAction);
+
+        useLayoutEffect(() => {
+          if (isFinalized) {
+            startTransition(() => capturedActionRef.current(new FormData()));
+          }
+        }, [isFinalized]);
+
+        return saveAction;
+      },
+      { initialProps: { isFinalized: false } },
+    );
+
+    await act(async () => {
+      rerender({ isFinalized: true });
+    });
+
+    await waitFor(() => expect(result.current.formState.timestamp).not.toBe(0));
+    expect(updateInquiry).not.toHaveBeenCalled();
+    expect(result.current.formState.success).toBe(false);
+    expect(result.current.formState.error).toBe("この操作を行う権限がありません");
+  });
+
+  it("治療タブの親保存は未送信を成功にせず汎用トーストも出さない", async () => {
+    const updateInquiry = vi.fn().mockResolvedValue(undefined);
+    const updateTreatmentPlan = vi.fn().mockResolvedValue(undefined);
+    const updateRecord = vi.fn().mockResolvedValue(undefined);
+    const { result } = renderHook(() =>
+      useMedicalRecordSaveAction(
+        buildSaveArgs({
+          activeTab: "治療",
           updateInquiryMutation: { mutateAsync: updateInquiry },
           updateTreatmentPlanMutation: { mutateAsync: updateTreatmentPlan },
           updateMutation: { mutateAsync: updateRecord },

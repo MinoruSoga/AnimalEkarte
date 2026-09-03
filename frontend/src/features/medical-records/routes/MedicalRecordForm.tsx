@@ -17,7 +17,7 @@ import { useGetMedicalRecord } from "../api/get-medical-record";
 import { useDeleteMedicalRecord } from "../api/delete-medical-record";
 import { resolveMedicalRecordFormGate } from "./medical-record-form-model";
 import { MedicalRecordFormStatusView } from "./MedicalRecordFormStatusPanels";
-import { MedicalRecordFormReadyPage } from "./MedicalRecordFormReadyPanels";
+import { MedicalRecordFormReadyPanels } from "./MedicalRecordFormReadyPanels";
 
 export const MedicalRecordForm = memo(function MedicalRecordForm() {
   const { id: recordId } = useParams();
@@ -86,7 +86,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
   }
 
   return (
-    <MedicalRecordFormReadyPage
+    <MedicalRecordFormReadyPanels
       recordId={recordId}
       selectedPet={selectedPet}
       form={form}

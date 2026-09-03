@@ -14,7 +14,7 @@ const getColorMock = vi.fn(() => ({
   hex: "#000000",
 }));
 
-vi.mock("@/hooks/use-reservation-type-color-map", () => ({
+vi.mock("../hooks/use-reservation-type-color-map", () => ({
   useReservationTypeColorMap: () => ({
     getColor: getColorMock,
   }),
