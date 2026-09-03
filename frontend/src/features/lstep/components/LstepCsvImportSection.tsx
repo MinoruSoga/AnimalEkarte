@@ -104,10 +104,10 @@ function CsvUploadSection() {
         </div>
       </div>
       {state && "error" in state ? (
-        <p className={`text-sm text-[${PALETTE.danger}]`}>{state.error}</p>
+        <p className={`text-sm ${C.danger}`}>{state.error}</p>
       ) : null}
       {state && "success" in state ? (
-        <p className={`text-sm text-[${PALETTE.successGreen}]`}>
+        <p className={`text-sm ${C.textSuccess}`}>
           アップロードが完了しました
         </p>
       ) : null}
@@ -169,9 +169,9 @@ function CsvImportHistoryTable() {
                 <span
                   className={`text-xs px-2 py-0.5 rounded-full ${
                     item.status === "completed"
-                      ? `bg-[${PALETTE.successGreen}]/10 text-[${PALETTE.successGreen}]`
+                      ? `${C.bgSuccess10} ${C.textSuccess}`
                       : item.status === "failed"
-                        ? `bg-[${PALETTE.danger}]/10 text-[${PALETTE.danger}]`
+                        ? `${C.bgDanger10} ${C.danger}`
                         : `${C.bgLight} ${C.text60}`
                   }`}
                 >

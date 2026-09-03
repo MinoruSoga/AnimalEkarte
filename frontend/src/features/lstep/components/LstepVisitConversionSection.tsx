@@ -1,4 +1,4 @@
-import { C, PALETTE } from "@/lib/design-tokens";
+import { C } from "@/lib/design-tokens";
 import { TableCell, TableHead } from "@/components/ui/table";
 
 import type { VisitConversionSummaryResponse } from "../api/get-lstep-visit-conversion";
@@ -29,7 +29,7 @@ export function VisitConversionSection({
         {isLoading ? (
           <p className={`text-sm ${C.text40} py-8 text-center`}>読み込み中...</p>
         ) : isError ? (
-          <p className={`text-sm text-[${PALETTE.danger}] py-8 text-center`}>
+          <p className={`text-sm ${C.danger} py-8 text-center`}>
             来院率データの取得に失敗しました
           </p>
         ) : (

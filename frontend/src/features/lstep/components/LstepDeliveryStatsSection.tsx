@@ -61,7 +61,7 @@ export function DeliveryStatsSection({
         {isLoading ? (
           <p className={`text-sm ${C.text40} py-8 text-center`}>読み込み中...</p>
         ) : isError ? (
-          <p className={`text-sm text-[${PALETTE.danger}] py-8 text-center`}>
+          <p className={`text-sm ${C.danger} py-8 text-center`}>
             データの取得に失敗しました
           </p>
         ) : (
