@@ -22,10 +22,12 @@
 # 即 FAIL する（ratchet 締め後）。追加の要否自体を再検討すること。
 #
 # 2026-09-03 (FE-RC Phase 0): commit 7bbbffce7（800行超テスト分割、本セッション対象外）で
-# `src/features/accounting/components/OwnerAccountingHistory.test-fixtures.ts` が混入し
+# `src/features/accounting/components/owner-accounting-history.test-fixtures.ts` の旧 PascalCase 名が混入し
 # ratchet が再び 0 のまま FAIL する状態になっていたのを検出。本 Phase 0 の変更対象外
 # （accounting feature 内部の別作業）のため未修正のまま baseline を 1 に引き上げて記録する。
-1
+# 2026-09-03 (FE-RC-125): 当該ファイルを owner-accounting-history.test-fixtures.ts へ
+# kebab-case リネームし、.ts kebab ratchet を 1→0 に戻す。
+0
 #
 # --- FE-RC-017: .tsx PascalCase ratchet (2行目) -------------------------------------------
 # `src/features/**` 配下で JSX を export しているのに basename が小文字始まりのファイル数。

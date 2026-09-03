@@ -24,7 +24,9 @@ export function ReservationTypeOccupationsSection({ clinicId, reservationTypeId 
   const { data: linked = [] } = useGetReservationTypeOccupations(clinicId, reservationTypeId);
   const { data: allOccupations = [] } = useGetAllOccupations();
   const linkMutation = useLinkOccupation(clinicId, reservationTypeId);
+  const { mutate } = linkMutation;
   const unlinkMutation = useUnlinkOccupation(clinicId, reservationTypeId);
+  const { mutate: unlinkMutate } = unlinkMutation;
 
   const linkedOccupationIds = useMemo(
     () => new Set(linked.map((l) => l.occupationId)),
@@ -40,12 +42,12 @@ export function ReservationTypeOccupationsSection({ clinicId, reservationTypeId 
   // エラー通知は use-reservation-type-occupations 側の onError に一本化（二重トースト防止）
   const handleLink = useCallback((value: string) => {
     if (value === PLACEHOLDER) return;
-    linkMutation.mutate(Number(value));
-  }, [linkMutation]);
+    mutate(Number(value));
+  }, [mutate]);
 
   const handleUnlink = useCallback((id: number) => {
-    unlinkMutation.mutate(id);
-  }, [unlinkMutation]);
+    unlinkMutate(id);
+  }, [unlinkMutate]);
 
   const linkedBadges = useMemo(() => linked.map((item) => (
     <div

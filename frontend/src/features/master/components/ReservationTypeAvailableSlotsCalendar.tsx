@@ -65,6 +65,7 @@ export function ReservationTypeAvailableSlotsCalendar({
   const { data: items = [] } = useGetAvailableSlots(clinicId, reservationTypeId);
   const createMutation = useCreateAvailableSlot(clinicId, reservationTypeId);
   const deleteMutation = useDeleteAvailableSlot(clinicId, reservationTypeId);
+  const { mutate } = deleteMutation;
 
   const [currentWeek, setCurrentWeek] = useState<Date>(() => initialMonth ?? toJSTWallDate(new Date()));
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -121,9 +122,9 @@ export function ReservationTypeAvailableSlotsCalendar({
 
   const handleDelete = useCallback(
     (id: number) => {
-      deleteMutation.mutate(id);
+      mutate(id);
     },
-    [deleteMutation],
+    [mutate],
   );
 
   const weekDays = useMemo(() => {

@@ -65,6 +65,7 @@ export function ReservationTypeUnavailableTimesSection({ clinicId, reservationTy
   const { data: items = [], isLoading } = useGetUnavailableTimes(clinicId, reservationTypeId);
   const createMutation = useCreateUnavailableTime(clinicId, reservationTypeId);
   const deleteMutation = useDeleteUnavailableTime(clinicId, reservationTypeId);
+  const { mutate } = deleteMutation;
 
   const [form, setForm] = useState<FormState>(DEFAULT_FORM);
 
@@ -90,8 +91,8 @@ export function ReservationTypeUnavailableTimesSection({ clinicId, reservationTy
   }, null);
 
   const handleDelete = useCallback((id: number) => {
-    deleteMutation.mutate(id);
-  }, [deleteMutation]);
+    mutate(id);
+  }, [mutate]);
 
   const itemList = useMemo(() => items.map((item) => {
     const label = item.unavailableType === UnavailableTypeWeekly

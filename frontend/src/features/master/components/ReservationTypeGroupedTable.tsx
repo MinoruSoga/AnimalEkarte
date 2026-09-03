@@ -29,17 +29,18 @@ export function ReservationTypeGroupedTable({
 }: ReservationTypeGroupedTableProps) {
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const reorderMutation = useReorderReservationTypes();
+  const { mutate } = reorderMutation;
   const resetOrderRef = useRef<() => void>(() => {});
 
   const handleReorder = useCallback(
     (newIds: string[]) => {
       if (!canEdit) return;
-      reorderMutation.mutate(
+      mutate(
         { ids: newIds.map(Number) },
         { onError: () => resetOrderRef.current() },
       );
     },
-    [canEdit, reorderMutation],
+    [canEdit, mutate],
   );
 
   const toggleCollapse = useCallback((id: string) => {

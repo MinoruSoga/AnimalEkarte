@@ -67,6 +67,7 @@ export function useReceptionKanban({
   const { data: apiColumns, isLoading, isError } = useGetReception(today);
   const { data: staffs } = useGetStaffs();
   const updateStatusMutation = useUpdateAppointmentStatus();
+  const { mutateAsync } = updateStatusMutation;
   // rerender-transitions: API mutation の pending 管理に useTransition を使用
   // （useState(false) + setIsPending パターンは try-finally でリセット漏れが起きるため禁止）
   const [isUpdatingStatus, startUpdateStatusTransition] = useTransition();
@@ -179,7 +180,7 @@ export function useReceptionKanban({
       return new Promise<boolean>((resolve) => {
         startUpdateStatusTransition(async () => {
           try {
-            await updateStatusMutation.mutateAsync({ id, status });
+            await mutateAsync({ id, status });
             opts.onSuccess?.();
             resolve(true);
           } catch {
@@ -195,7 +196,7 @@ export function useReceptionKanban({
         });
       });
     },
-    [hasMutationPermission, updateStatusMutation, startUpdateStatusTransition],
+    [hasMutationPermission, mutateAsync, startUpdateStatusTransition],
   );
 
   /** カードをドラッグで sourceColumn → targetColumn へ移動する。受付済→診療中 直行は禁止。 */

@@ -226,6 +226,7 @@ export function useTrimmingForm(
     setSelectedPets,
   });
 
+  const { mutate } = deleteMutation;
   const handleDelete = useCallback((onSuccess?: () => void) => {
     createTrimmingDeleteHandler({
       isEdit,
@@ -233,9 +234,9 @@ export function useTrimmingForm(
       isMutationAllowed,
       isEditPetReady: () => Boolean(petFromEditRef.current),
       isPetDeceased,
-      deleteTrimming: (trimmingId, opts) => deleteMutation.mutate(trimmingId, opts),
+      deleteTrimming: (trimmingId, opts) => mutate(trimmingId, opts),
     })(onSuccess);
-  }, [isEdit, id, isMutationAllowed, isPetDeceased, deleteMutation]);
+  }, [isEdit, id, isMutationAllowed, isPetDeceased, mutate]);
 
   return {
     mode: isEdit ? ("edit" as const) : ("new" as const),

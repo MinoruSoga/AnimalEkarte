@@ -1,10 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useLiff } from '@/shared-liff/use-liff';
-import { LIFF_ID, LIFF_MOCK } from '../lib/liff-config';
+import { LIFF_ID, LIFF_MOCK, LINK_SUCCESS_DISPLAY_MS } from '../lib/liff-config';
 import { linkLineAccount, LiffApiError } from '../api/liff-api';
-
-/** モック連携成功を表示するまでの待ち時間 (FE5-6) */
-const LINK_SUCCESS_DISPLAY_MS = 800;
 
 type LinkStatus = 'loading' | 'linking' | 'success' | 'conflict' | 'expired' | 'error';
 

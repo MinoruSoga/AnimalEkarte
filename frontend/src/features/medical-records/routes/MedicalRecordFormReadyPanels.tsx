@@ -347,6 +347,7 @@ function MedicalRecordFormReadyOverlays({
         onVitalsClick={() => ready.modals.setIsVitalsOpen(true)}
         onPrintClick={ready.modals.handlePrintClick}
         onFinalizeClick={() => ready.modals.setIsFinalizeConfirmOpen(true)}
+        isPetDeceased={selectedPet.status === "死亡"}
       />
 
       <MedicalRecordFinalizeDialog

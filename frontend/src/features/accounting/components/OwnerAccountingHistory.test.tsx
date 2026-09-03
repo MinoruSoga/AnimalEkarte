@@ -13,7 +13,7 @@ import {
   pendingFixture,
   cancelledFixture,
   createWrapper,
-} from "./OwnerAccountingHistory.test-fixtures";
+} from "./owner-accounting-history.test-fixtures";
 
 /**
  * 飼主詳細から会計履歴を表示し、完了済の会計には「明細兼領収書」リンクが
@@ -25,7 +25,7 @@ import {
  *
  * FE4-18: 867 行(分割前)だったため describe 境界で分割。ページネーション/URL
  * クエリ同期/未払い警告バナーの回帰は OwnerAccountingHistory.pagination.test.tsx
- * を参照。fixture/render ヘルパーは OwnerAccountingHistory.test-fixtures.ts に
+ * を参照。fixture/render ヘルパーは owner-accounting-history.test-fixtures.ts に
  * 共有化した（値は逐語移動・1 文字も変えていない）。
  */
 

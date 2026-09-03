@@ -24,6 +24,7 @@ interface MedicalRecordFloatingActionsProps {
   billingConfirmationStatus?: BillingConfirmation["status"];
   isBillingConfirmationLoading?: boolean;
   isBillingConfirmationError?: boolean;
+  isPetDeceased?: boolean;
 }
 
 export function MedicalRecordFloatingActions({
@@ -42,6 +43,7 @@ export function MedicalRecordFloatingActions({
   billingConfirmationStatus,
   isBillingConfirmationLoading,
   isBillingConfirmationError,
+  isPetDeceased = false,
 }: MedicalRecordFloatingActionsProps) {
   const canFinalize =
     billingConfirmationStatus === "confirmed" &&
@@ -63,7 +65,7 @@ export function MedicalRecordFloatingActions({
           削除
         </Button>
       ) : null}
-      {activeTab !== "見積書" && canEdit ? (
+      {activeTab !== "見積書" && canEdit && !isPetDeceased ? (
         <Button
           type="button"
           variant="outline"

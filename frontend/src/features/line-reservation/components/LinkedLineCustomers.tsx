@@ -33,6 +33,7 @@ interface LinkedLineCustomersProps {
 export const LinkedLineCustomers = memo(function LinkedLineCustomers({ clinicId, ownerId }: LinkedLineCustomersProps) {
   const { data: allCustomers = [] } = useGetLineCustomers(clinicId);
   const linkMutation = useUpdateOwnerLink(clinicId);
+  const { mutate } = linkMutation;
   const [showLinkDialog, setShowLinkDialog] = useState(false);
 
   // この飼主に紐付いたLINE顧客
@@ -49,19 +50,19 @@ export const LinkedLineCustomers = memo(function LinkedLineCustomers({ clinicId,
 
   const handleUnlink = useCallback(
     (customerId: number) => {
-      linkMutation.mutate({ customerId, ownerID: null });
+      mutate({ customerId, ownerID: null });
     },
-    [linkMutation],
+    [mutate],
   );
 
   const handleLink = useCallback(
     (customerId: number) => {
-      linkMutation.mutate(
+      mutate(
         { customerId, ownerID: ownerId },
         { onSuccess: () => setShowLinkDialog(false) },
       );
     },
-    [linkMutation, ownerId],
+    [mutate, ownerId],
   );
 
   return (

@@ -110,6 +110,7 @@ export function useReceptionModalHandlers({
   canDeleteReservation,
 }: UseReceptionModalHandlersParams) {
   const updateReservationMutation = useUpdateReservation();
+  const { mutate } = updateReservationMutation;
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState<ReceptionAppointment | null>(null);
   const [selectedAppointmentId, setSelectedAppointmentId] = useState<string | null>(null);
@@ -252,7 +253,7 @@ export function useReceptionModalHandlers({
         checkedInAt: selectedAppointmentSnapshot?.checkedInAt,
       };
 
-      updateReservationMutation.mutate(
+      mutate(
         {
           id: editingAppointmentId,
           req,
@@ -270,7 +271,7 @@ export function useReceptionModalHandlers({
         },
       );
     },
-    [editingAppointmentId, updateAppointment, updateReservationMutation],
+    [editingAppointmentId, updateAppointment, mutate],
   );
 
   const handleCancelAppointment = useCallback((appointment: ReceptionAppointment) => {

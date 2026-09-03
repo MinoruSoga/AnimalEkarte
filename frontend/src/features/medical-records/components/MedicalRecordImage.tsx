@@ -54,12 +54,13 @@ export const MedicalRecordImage = memo(function MedicalRecordImage({
 
   const canUpload = canCreate && !isPetDeceased;
 
+  const { mutate: uploadImagesFn } = uploadMutation;
   const handleFilesSelected = useCallback(
     (files: File[]) => {
       if (!canUpload || !resolvedId) return;
-      uploadMutation.mutate(files);
+      uploadImagesFn(files);
     },
-    [canUpload, resolvedId, uploadMutation],
+    [canUpload, resolvedId, uploadImagesFn],
   );
 
   const { mutate: deleteImageFn } = deleteMutation;

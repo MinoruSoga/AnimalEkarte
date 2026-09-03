@@ -168,6 +168,23 @@ describe("MedicalRecordFloatingActions", () => {
 
     expect(screen.getByRole("button", { name: "保存" })).toBeInTheDocument();
   });
+
+  it("FE-RC-128: 死亡ペットではバイタル記録ボタンを表示しない", () => {
+    render(<MedicalRecordFloatingActions {...baseProps} isPetDeceased />);
+    expect(screen.queryByRole("button", { name: "バイタル記録" })).not.toBeInTheDocument();
+  });
+
+  it("FE-RC-128: 生存ペットで編集権限ありならバイタル記録ボタンを表示する", () => {
+    render(<MedicalRecordFloatingActions {...baseProps} />);
+    expect(screen.getByRole("button", { name: "バイタル記録" })).toBeInTheDocument();
+  });
+
+  it("確定済みカルテではバイタル記録ボタンを disabled のまま表示する", () => {
+    render(<MedicalRecordFloatingActions {...baseProps} isFinalized />);
+    const button = screen.getByRole("button", { name: "バイタル記録" });
+    expect(button).toBeDisabled();
+    expect(button).toHaveAttribute("title", "確定済みカルテのためバイタルを追加できません");
+  });
 });
 
 describe("MedicalRecordFinalizeDialog", () => {

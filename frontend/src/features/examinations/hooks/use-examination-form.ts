@@ -150,20 +150,22 @@ export function useExaminationForm(
 
   useExaminationFormPetSync({ isEdit, petId, mutationPet, isPetLoading, setSelectedPets });
 
+  const { mutateAsync } = unconfirmMutation;
   const handleUnconfirm = useCallback((rawReason: string) => {
     return createExaminationUnconfirmHandler({
       isEdit, id, isMutationAllowed,
       isPersistedConfirmed: () => isPersistedConfirmedRef.current,
-      unconfirm: (vars) => unconfirmMutation.mutateAsync(vars),
+      unconfirm: (vars) => mutateAsync(vars),
     })(rawReason);
-  }, [id, isEdit, isMutationAllowed, unconfirmMutation]);
+  }, [id, isEdit, isMutationAllowed, mutateAsync]);
+  const { mutate } = deleteMutation;
   const handleDelete = useCallback((onSuccess?: () => void) => {
     createExaminationDeleteHandler({
       isEdit, id, isMutationAllowed, isPetExplicitlyDeceased, startDeleteTransition,
       isResultsLocked: () => isPersistedResultsLockedRef.current,
-      deleteExamination: (examinationId, opts) => deleteMutation.mutate(examinationId, opts),
+      deleteExamination: (examinationId, opts) => mutate(examinationId, opts),
     })(onSuccess);
-  }, [isEdit, id, isMutationAllowed, isPetExplicitlyDeceased, deleteMutation, startDeleteTransition]);
+  }, [isEdit, id, isMutationAllowed, isPetExplicitlyDeceased, mutate, startDeleteTransition]);
 
   useEffect(() => {
     setManualFieldErrors(formState.fieldErrors || {});

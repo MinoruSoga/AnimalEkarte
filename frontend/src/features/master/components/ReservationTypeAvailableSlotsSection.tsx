@@ -42,6 +42,7 @@ export function ReservationTypeAvailableSlotsSection({ clinicId, reservationType
   const { data: items = [], isLoading } = useGetAvailableSlots(clinicId, reservationTypeId);
   const createMutation = useCreateAvailableSlot(clinicId, reservationTypeId);
   const deleteMutation = useDeleteAvailableSlot(clinicId, reservationTypeId);
+  const { mutate } = deleteMutation;
 
   const [form, setForm] = useState<FormState>(DEFAULT_FORM);
   const navigate = useNavigate();
@@ -68,8 +69,8 @@ export function ReservationTypeAvailableSlotsSection({ clinicId, reservationType
   }, null);
 
   const handleDelete = useCallback((id: number) => {
-    deleteMutation.mutate(id);
-  }, [deleteMutation]);
+    mutate(id);
+  }, [mutate]);
 
   const itemList = useMemo(() => items.map((item) => {
     const label = item.availableType === AvailableSlotTypeWeekly

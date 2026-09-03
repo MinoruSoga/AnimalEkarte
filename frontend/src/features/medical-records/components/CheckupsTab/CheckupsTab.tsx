@@ -49,6 +49,9 @@ export const CheckupsTab = memo(function CheckupsTab({
   const createMutation = useCreateCheckup(medicalRecordId);
   const updateMutation = useUpdateCheckup(medicalRecordId);
   const deleteMutation = useDeleteCheckup(medicalRecordId);
+  const { mutateAsync: createCheckupAsync } = createMutation;
+  const { mutate: updateCheckup } = updateMutation;
+  const { mutate: deleteCheckup } = deleteMutation;
 
   const [searchParams] = useSearchParams();
   const [editingId, setEditingId] = useState<string | null>(
@@ -95,7 +98,7 @@ export const CheckupsTab = memo(function CheckupsTab({
 
     let created: Checkup;
     try {
-      created = await createMutation.mutateAsync(input);
+      created = await createCheckupAsync(input);
     } catch {
       return;
     }
@@ -114,7 +117,7 @@ export const CheckupsTab = memo(function CheckupsTab({
     setFieldValues({});
     setIsAdding(false);
     toast.success("健診記録を追加しました");
-  }, [addForm, canCreate, checkupFields, createMutation, fieldValues, medicalRecordId]);
+  }, [addForm, canCreate, checkupFields, createCheckupAsync, fieldValues, medicalRecordId]);
 
   const handleAddCancel = useCallback(() => {
     setAddForm(makeDefaultCheckupAddForm());
@@ -125,7 +128,7 @@ export const CheckupsTab = memo(function CheckupsTab({
   const handleEditSave = useCallback(
     (checkupId: string, input: UpdateCheckupInput) => {
       if (!canEdit) return;
-      updateMutation.mutate(
+      updateCheckup(
         { checkupId, input },
         {
           onSuccess: () => {
@@ -135,19 +138,19 @@ export const CheckupsTab = memo(function CheckupsTab({
         },
       );
     },
-    [canEdit, updateMutation],
+    [canEdit, updateCheckup],
   );
 
   const handleDelete = useCallback(
     (checkupId: string) => {
       if (!canDelete) return;
-      deleteMutation.mutate(checkupId, {
+      deleteCheckup(checkupId, {
         onSuccess: () => {
           toast.success("健診記録を削除しました");
         },
       });
     },
-    [canDelete, deleteMutation],
+    [canDelete, deleteCheckup],
   );
 
   if (isLoading) {

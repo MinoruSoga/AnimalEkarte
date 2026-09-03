@@ -49,6 +49,7 @@ export function CashRegisterClosePage() {
     previewNonce,
   );
   const createMutation = useCreateCashRegisterClose();
+  const { mutateAsync, isPending } = createMutation;
 
   const handleActualCashChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setActualCash(e.target.value);
@@ -75,7 +76,7 @@ export function CashRegisterClosePage() {
       return;
     }
     try {
-      await createMutation.mutateAsync({
+      await mutateAsync({
         date: closeDate,
         period: closePeriod,
         actual_cash: Number(getFormString(pendingFormData, "actual_cash")),
@@ -89,7 +90,7 @@ export function CashRegisterClosePage() {
       // FE-RC-005: useCreateCashRegisterClose.onError が既に handleApiError で通知済み。
       setShowConfirm(false);
     }
-  }, [pendingFormData, createMutation]);
+  }, [pendingFormData, mutateAsync]);
 
   const handleCancelConfirm = useCallback(() => {
     setShowConfirm(false);
@@ -153,15 +154,15 @@ export function CashRegisterClosePage() {
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel onClick={handleCancelConfirm} disabled={createMutation.isPending}>
+              <AlertDialogCancel onClick={handleCancelConfirm} disabled={isPending}>
                 キャンセル
               </AlertDialogCancel>
               <AlertDialogAction
                 onClick={handleConfirmClose}
-                disabled={createMutation.isPending}
+                disabled={isPending}
                 className={`${C.bgBrand} ${C.textOnBrand} ${C.hoverBgBrand} ${C.hoverTextOnBrand} rounded-full`}
               >
-                {createMutation.isPending ? "処理中..." : "締める"}
+                {isPending ? "処理中..." : "締める"}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

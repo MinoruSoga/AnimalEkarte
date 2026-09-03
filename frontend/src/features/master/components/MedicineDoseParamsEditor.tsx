@@ -130,6 +130,7 @@ function SpeciesDoseParamPanel({ medicineId, species, existingParam, ref }: Spec
   const [formData, setFormData] = useState<DoseParamFormData>(() => doseParamToFormData(existingParam));
   const [clientErrors, setClientErrors] = useState<string[]>([]);
   const upsertMutation = useUpsertMedicineDoseParam(medicineId);
+  const { mutateAsync, isPending } = upsertMutation;
   const deleteMutation = useDeleteMedicineDoseParam(medicineId);
 
   const collectFilled = useCallback(async (): Promise<MedicineDoseParamDraft | null | false> => {
@@ -148,12 +149,12 @@ function SpeciesDoseParamPanel({ medicineId, species, existingParam, ref }: Spec
     if (draft == null) return true;
     if (!medicineId) return true;
     try {
-      await upsertMutation.mutateAsync({ species: draft.species, input: draft.input });
+      await mutateAsync({ species: draft.species, input: draft.input });
       return true;
     } catch {
       return false;
     }
-  }, [collectFilled, medicineId, upsertMutation]);
+  }, [collectFilled, medicineId, mutateAsync]);
 
   useImperativeHandle(ref, () => ({ saveFilled, collectFilled }), [saveFilled, collectFilled]);
 
@@ -309,7 +310,7 @@ function SpeciesDoseParamPanel({ medicineId, species, existingParam, ref }: Spec
 
       {medicineId ? (
         <div className="flex justify-end px-1 pt-2">
-          <Button size="sm" variant="outline" onClick={handleSave} disabled={upsertMutation.isPending}>
+          <Button size="sm" variant="outline" onClick={handleSave} disabled={isPending}>
             {existingParam ? "更新" : "保存"}
           </Button>
         </div>

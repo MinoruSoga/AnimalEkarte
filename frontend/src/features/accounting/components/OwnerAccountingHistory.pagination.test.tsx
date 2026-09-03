@@ -14,12 +14,12 @@ import {
   makeBackendAccounting,
   makePaginationFixtures,
   createWrapper,
-} from "./OwnerAccountingHistory.test-fixtures";
+} from "./owner-accounting-history.test-fixtures";
 
 /**
  * FE4-18: OwnerAccountingHistory.test.tsx（867 行）から describe 境界で分割。
  * ページネーション / URL クエリ同期 / 未払い警告バナー（スクロール・フォーカス）の
- * 回帰をカバーする。fixture/render ヘルパーは OwnerAccountingHistory.test-fixtures.ts
+ * 回帰をカバーする。fixture/render ヘルパーは owner-accounting-history.test-fixtures.ts
  * を共有（値は逐語移動・1 文字も変えていない）。基本表示・ソート等の回帰は
  * OwnerAccountingHistory.test.tsx を参照。
  */

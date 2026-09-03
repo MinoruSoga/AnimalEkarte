@@ -19,6 +19,7 @@ export const SpecialPeriodSection = memo(function SpecialPeriodSection({
   const [note, setNote] = useState("");
   const createMutation = useCreateSpecialPeriod();
   const deleteMutation = useDeleteSpecialPeriod();
+  const { mutateAsync } = deleteMutation;
 
   const [, formAction] = useActionState(async (_prev: null, formData: FormData) => {
     try {
@@ -41,13 +42,13 @@ export const SpecialPeriodSection = memo(function SpecialPeriodSection({
   const handleDelete = useCallback(
     async (id: number) => {
       try {
-        await deleteMutation.mutateAsync(id);
+        await mutateAsync(id);
         toast.success("特別期間を削除しました");
       } catch {
         // FE-RC-005: useDeleteSpecialPeriod.onError が既に handleApiError で通知済み。
       }
     },
-    [deleteMutation],
+    [mutateAsync],
   );
 
   const handleShowForm = useCallback(() => setShowForm(true), []);
