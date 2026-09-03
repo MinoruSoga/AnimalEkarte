@@ -7,8 +7,8 @@ import { usePermission } from "@/hooks/use-permission";
 import { toTreatmentPlanTabValue } from "./treatment-plan-master-model";
 import type { TreatmentItem } from "@/lib/transforms/treatment";
 import { ResourceCheckups, ResourceMasterMedical } from "@/types/generated/models";
-import { useTreatmentPlanMasterResources } from "./use-treatment-plan-master-resources";
-import { useTreatmentPlanMasterSaves } from "./use-treatment-plan-master-saves";
+import { useTreatmentPlanMasterResources } from "../hooks/use-treatment-plan-master-resources";
+import { useTreatmentPlanMasterSaves } from "../hooks/use-treatment-plan-master-saves";
 import { TreatmentPlanMasterView } from "./treatment-plan-master-view";
 
 export function TreatmentPlanMaster() {

@@ -1,8 +1,9 @@
-import { memo, useState, useCallback, useEffect } from "react";
+import { memo, useState, useCallback } from "react";
 import { Layers } from "lucide-react";
 import { PropertyRow, StatusToggleButton, PropertyInput, MasterSidePanel } from "@/components/shared/SidePeek";
 import { C, LAYOUT, PALETTE } from "@/lib/design-tokens";
 import type { ReservationTypeGroup } from "../api/reservation-type-groups";
+import { useMasterSidePanelForm } from "../hooks/use-master-side-panel-form";
 
 export interface GroupFormData {
   name: string;
@@ -15,25 +16,31 @@ export const GroupSidePanel = memo(function GroupSidePanel({
 }: {
   item: ReservationTypeGroup | null;
   onClose: () => void;
-  onSave: (d: GroupFormData) => void;
+  onSave: (d: GroupFormData) => Promise<boolean> | boolean;
   onDeleteRequest?: (i: ReservationTypeGroup) => void;
   readOnly?: boolean;
   onDirtyChange?: (dirty: boolean) => void;
 }) {
-  const [formData, setFormData] = useState<GroupFormData>(() => ({
-    name: item?.name ?? "",
-    color: item?.color ?? PALETTE.pickerDefaultBlue,
-    isActive: item?.isActive ?? true,
-  }));
-  const [isDirty, setIsDirty] = useState(false);
   const [nameError, setNameError] = useState("");
 
-  // BUG-380
-  useEffect(() => { onDirtyChange?.(isDirty); }, [isDirty, onDirtyChange]);
-  const setFormDataDirty = useCallback<typeof setFormData>((updater) => {
-    setFormData(updater);
-    setIsDirty(true);
-  }, []);
+  const { formData, setFormData: setFormDataDirty, isDirty, setIsDirty, handleAction } =
+    useMasterSidePanelForm<GroupFormData>({
+      initialFormData: {
+        name: item?.name ?? "",
+        color: item?.color ?? PALETTE.pickerDefaultBlue,
+        isActive: item?.isActive ?? true,
+      },
+      onSave,
+      onDirtyChange,
+      validate: (data) => {
+        if (!data.name.trim()) {
+          setNameError("名称を入力してください");
+          return false;
+        }
+        setNameError("");
+        return true;
+      },
+    });
 
   const handleTitleChange = useCallback((v: string) => {
     setFormDataDirty((prev) => ({ ...prev, name: v }));
@@ -52,14 +59,7 @@ export const GroupSidePanel = memo(function GroupSidePanel({
     setFormDataDirty((prev) => ({ ...prev, isActive: !prev.isActive }));
   }, [setFormDataDirty]);
 
-  const handleAction = useCallback(() => {
-    if (!formData.name.trim()) { setNameError("名称を入力してください"); return; }
-    setNameError("");
-    onSave(formData);
-    setIsDirty(false);
-  }, [formData, onSave]);
-
-  const handleClose = useCallback(() => { setIsDirty(false); onClose(); }, [onClose]);
+  const handleClose = useCallback(() => { setIsDirty(false); onClose(); }, [onClose, setIsDirty]);
 
   return (
     <MasterSidePanel isNew={item === null} title={formData.name}

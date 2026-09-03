@@ -391,9 +391,14 @@ describe("useMasterCRUD", () => {
     await waitFor(() => expect(result.current.pendingDelete).toEqual(data[0]));
     act(() => result.current.handleDeleteConfirm());
 
+    // onError は渡さない: deleteMutation フック自身の onError (handleApiError) と二重通知になるため
     expect(mutate).toHaveBeenCalledWith(
       "1",
-      expect.objectContaining({ onSuccess: expect.any(Function), onError: expect.any(Function) }),
+      expect.not.objectContaining({ onError: expect.anything() }),
+    );
+    expect(mutate).toHaveBeenCalledWith(
+      "1",
+      expect.objectContaining({ onSuccess: expect.any(Function) }),
     );
   });
 
@@ -482,12 +487,12 @@ describe("useMasterCRUD", () => {
     expect(mutate).not.toHaveBeenCalled();
   });
 
-  it("削除失敗時はhandleApiErrorが呼ばれpendingDeleteは維持される(呼び出し元がonErrorで処理)", async () => {
-    const { handleApiError } = await import("@/lib/handle-api-error");
-    const mutate = vi.fn(
-      (_id: string, opts?: { onSuccess?: () => void; onError?: (error: Error) => void }) =>
-        opts?.onError?.(new Error("boom")),
-    );
+  it("削除失敗時はonSuccessが呼ばれずpendingDeleteは維持される(onErrorはdeleteMutation側のhandleApiErrorに委譲)", async () => {
+    // このフックは onError を渡さない。失敗時の通知は各 master/api/*.ts の
+    // useDeleteXxx フック自身の onError (handleApiError) が担う（二重 toast 防止）。
+    const mutate = vi.fn((_id: string, _opts?: { onSuccess?: () => void }) => {
+      // 失敗時: onSuccess は呼ばれない
+    });
     const deleteMutation = { mutate } as unknown as UseMutationResult<void, Error, string>;
     const { result } = renderHook(() =>
       useMasterCRUD<TestEntity>({
@@ -504,8 +509,11 @@ describe("useMasterCRUD", () => {
       expect(mutate).toHaveBeenCalled();
     });
 
-    expect(handleApiError).toHaveBeenCalledWith(expect.any(Error), "テストの削除");
-    // onError では pendingDelete をクリアしないため、確認ダイアログは開いたままになる
+    expect(mutate).toHaveBeenCalledWith(
+      "1",
+      expect.not.objectContaining({ onError: expect.anything() }),
+    );
+    // onSuccess が発火しない限り pendingDelete をクリアしないため、確認ダイアログは開いたままになる
     expect(result.current.pendingDelete).toEqual(data[0]);
   });
 

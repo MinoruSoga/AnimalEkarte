@@ -11,7 +11,7 @@ import {
   toReferenceRangeDraft,
   validateReferenceRangeDrafts,
   type ReferenceRangeDraft,
-} from "./exam-type-fields-editor-model";
+} from "../components/exam-type-fields-editor-model";
 
 export interface FieldDraft {
   name: string;

@@ -24,8 +24,8 @@ import {
   type LabDeviceFormData,
   type LabDeviceItemDraft,
   type LabDeviceRow,
-} from "./lab-device-item-master-settings-model";
-import { persistLabDeviceItemMaster } from "./lab-device-item-master-persist";
+} from "../routes/lab-device-item-master-settings-model";
+import { persistLabDeviceItemMaster } from "../routes/lab-device-item-master-persist";
 
 export function useLabDeviceItemMasterSettings() {
   const [searchParams, setSearchParams] = useSearchParams();

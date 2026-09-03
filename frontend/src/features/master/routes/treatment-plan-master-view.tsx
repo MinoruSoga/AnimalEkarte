@@ -8,7 +8,7 @@ import { TreatmentPlanTabContent } from "../components/TreatmentPlanTabContent";
 import { TREATMENT_PLAN_TABS, type TreatmentPlanTabValue } from "./treatment-plan-master-model";
 import type { TreatmentItem } from "@/lib/transforms/treatment";
 import type { Resource } from "@/types/generated/models";
-import type { useTreatmentPlanMasterResources } from "./use-treatment-plan-master-resources";
+import type { useTreatmentPlanMasterResources } from "../hooks/use-treatment-plan-master-resources";
 import type { TreatmentFormData } from "../components/TreatmentItemSidePanel";
 
 type TreatmentPlanResources = ReturnType<typeof useTreatmentPlanMasterResources>;
@@ -27,7 +27,7 @@ interface TreatmentPlanMasterViewProps {
   discardDialog: React.ReactNode;
   onNew: () => void;
   onClose: () => void;
-  onSave: (data: TreatmentFormData) => void;
+  onSave: (data: TreatmentFormData) => Promise<boolean> | boolean;
   onDeleteRequest: () => void;
   onDirtyChange: (dirty: boolean) => void;
   onTabChange: (tab: string) => void;

@@ -9,7 +9,7 @@ import { MedicineDeleteDialog } from "../components/MedicineDeleteDialog";
 import { MedicineSidePanel } from "../components/MedicineSidePanel";
 import { MedicineTableSection } from "../components/MedicineTableSection";
 import { ResourceMasterMedical } from "@/types/generated/models";
-import { useMedicineSettings } from "./use-medicine-settings";
+import { useMedicineSettings } from "../hooks/use-medicine-settings";
 
 export function MedicineSettings() {
   const navigate = useNavigate();

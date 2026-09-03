@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useState } from "react";
+import { memo, useCallback, useState } from "react";
 import { Bed } from "lucide-react";
 
 import { MoneyInput, MasterSidePanel, PropertyInput, PropertyRow, StatusToggleButton } from "@/components/shared/SidePeek";
@@ -13,6 +13,7 @@ import {
   BODY_SIZE_OPTIONS,
   type HospitalizationPlan,
 } from "../api/hospitalization-plans";
+import { useMasterSidePanelForm } from "../hooks/use-master-side-panel-form";
 import {
   hospitalizationToFormData,
   type HospitalizationFormData,
@@ -21,7 +22,7 @@ import {
 interface HospitalizationSidePanelProps {
   item: HospitalizationPlan | null;
   onClose: () => void;
-  onSave: (data: HospitalizationFormData) => void;
+  onSave: (data: HospitalizationFormData) => Promise<boolean> | boolean;
   onDeleteRequest?: (item: HospitalizationPlan) => void;
   readOnly?: boolean;
   onDirtyChange?: (dirty: boolean) => void;
@@ -35,18 +36,22 @@ export const HospitalizationSidePanel = memo(function HospitalizationSidePanel({
   readOnly,
   onDirtyChange,
 }: HospitalizationSidePanelProps) {
-  const [formData, setFormData] = useState<HospitalizationFormData>(() => hospitalizationToFormData(item));
-  const [isDirty, setIsDirty] = useState(false);
   const [nameError, setNameError] = useState("");
 
-  useEffect(() => {
-    onDirtyChange?.(isDirty);
-  }, [isDirty, onDirtyChange]);
-
-  const setFormDataDirty = useCallback<typeof setFormData>((updater) => {
-    setFormData(updater);
-    setIsDirty(true);
-  }, []);
+  const { formData, setFormData: setFormDataDirty, isDirty, setIsDirty, handleAction } =
+    useMasterSidePanelForm<HospitalizationFormData>({
+      initialFormData: hospitalizationToFormData(item),
+      onSave,
+      onDirtyChange,
+      validate: (data) => {
+        if (!data.name.trim()) {
+          setNameError("名称を入力してください");
+          return false;
+        }
+        setNameError("");
+        return true;
+      },
+    });
 
   const handleTitleChange = useCallback((value: string) => {
     setFormDataDirty((prev) => ({ ...prev, name: value }));
@@ -80,16 +85,6 @@ export const HospitalizationSidePanel = memo(function HospitalizationSidePanel({
   const handleToggleActive = useCallback(() => {
     setFormDataDirty((prev) => ({ ...prev, isActive: !prev.isActive }));
   }, [setFormDataDirty]);
-
-  const handleAction = useCallback(() => {
-    if (!formData.name.trim()) {
-      setNameError("名称を入力してください");
-      return;
-    }
-    setNameError("");
-    onSave(formData);
-    setIsDirty(false);
-  }, [formData, onSave]);
 
   const handleClose = useCallback(() => {
     setIsDirty(false);

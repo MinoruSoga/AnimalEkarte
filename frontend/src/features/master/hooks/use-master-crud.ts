@@ -1,12 +1,9 @@
 // React/Framework
-import { useState, useRef, useMemo, useCallback, useDeferredValue, useTransition, useEffect, useLayoutEffect } from "react";
+import { useState, useRef, useMemo, useCallback, useDeferredValue, useTransition, useLayoutEffect } from "react";
 import { normalizeKana } from "@/lib/normalize-kana";
 
 // External
 import { toast } from "sonner";
-
-// Shared
-import { handleApiError } from "@/lib/handle-api-error";
 
 // Types
 import type { UseMutationResult } from "@tanstack/react-query";
@@ -178,7 +175,7 @@ export function useMasterCRUD<T extends MasterEntity>({
   const [pendingDelete, setPendingDelete] = useState<T | null>(null);
   // rerender-dependencies: pendingDelete オブジェクトを ref 経由で参照し handleDeleteConfirm deps から除外
   const pendingDeleteRef = useRef<T | null>(null);
-  useEffect(() => { pendingDeleteRef.current = pendingDelete; }, [pendingDelete]);
+  useLayoutEffect(() => { pendingDeleteRef.current = pendingDelete; }, [pendingDelete]);
   const canDelete = permissions.canDelete;
   const permissionsRef = useRef<MasterCRUDPermissions>({
     canDelete: canDelete === true,
@@ -247,20 +244,21 @@ export function useMasterCRUD<T extends MasterEntity>({
 
   const handleDeleteCancel = useCallback(() => setPendingDelete(null), []);
 
+  const { mutate: deleteMasterFn } = deleteMutation;
   const handleDeleteConfirm = useCallback(() => {
     const target = pendingDeleteRef.current;
     if (!target) return;
     const currentPermissions = permissionsRef.current;
     if (currentPermissions.canDelete !== true) return;
-    deleteMutation.mutate(target.id, {
+    // onError は deleteMutation 側（各 master/api/*.ts の useDeleteXxx）で handleApiError 済み。
+    deleteMasterFn(target.id, {
       onSuccess: () => {
         setPendingDelete(null);
         setEditTarget(null);
         toast.success(`${entityLabel}を削除しました`);
       },
-      onError: (error) => handleApiError(error, `${entityLabel}の削除`),
     });
-  }, [deleteMutation, entityLabel]);
+  }, [deleteMasterFn, entityLabel]);
 
   const handleSortChange = useCallback((sorts: ActiveSort[]) => {
     setActiveSorts(sorts);

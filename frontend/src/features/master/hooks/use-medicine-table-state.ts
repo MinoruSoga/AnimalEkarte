@@ -11,7 +11,7 @@ import {
   applyMedicineCategoryOverrides,
   groupFilteredMedicines,
   resolveMedicineDrag,
-} from "../routes/medicine-settings-model";
+} from "./medicine-settings-model";
 
 interface UseMedicineTableStateOptions {
   medicines: Medicine[];

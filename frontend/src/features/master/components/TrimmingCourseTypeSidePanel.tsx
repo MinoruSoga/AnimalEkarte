@@ -1,10 +1,11 @@
-import { memo, useCallback, useEffect, useState } from "react";
+import { memo, useCallback, useState } from "react";
 import { Scissors } from "lucide-react";
 
 import { MasterSidePanel, StatusToggleButton } from "@/components/shared/SidePeek";
 import { LAYOUT } from "@/lib/design-tokens";
 
 import type { TrimmingCourseType } from "../api/trimming-course-type";
+import { useMasterSidePanelForm } from "../hooks/use-master-side-panel-form";
 import {
   trimmingCourseTypeToFormData,
   type TrimmingCourseTypeFormData,
@@ -13,7 +14,7 @@ import {
 interface TrimmingCourseTypeSidePanelProps {
   item: TrimmingCourseType | null;
   onClose: () => void;
-  onSave: (data: TrimmingCourseTypeFormData) => void;
+  onSave: (data: TrimmingCourseTypeFormData) => Promise<boolean> | boolean;
   onDeleteRequest?: (item: TrimmingCourseType) => void;
   readOnly?: boolean;
   onDirtyChange?: (dirty: boolean) => void;
@@ -27,20 +28,22 @@ export const TrimmingCourseTypeSidePanel = memo(function TrimmingCourseTypeSideP
   readOnly,
   onDirtyChange,
 }: TrimmingCourseTypeSidePanelProps) {
-  const [formData, setFormData] = useState<TrimmingCourseTypeFormData>(() =>
-    trimmingCourseTypeToFormData(item),
-  );
-  const [isDirty, setIsDirty] = useState(false);
   const [nameError, setNameError] = useState("");
 
-  useEffect(() => {
-    onDirtyChange?.(isDirty);
-  }, [isDirty, onDirtyChange]);
-
-  const setFormDataDirty = useCallback<typeof setFormData>((updater) => {
-    setFormData(updater);
-    setIsDirty(true);
-  }, []);
+  const { formData, setFormData: setFormDataDirty, isDirty, setIsDirty, handleAction } =
+    useMasterSidePanelForm<TrimmingCourseTypeFormData>({
+      initialFormData: trimmingCourseTypeToFormData(item),
+      onSave,
+      onDirtyChange,
+      validate: (data) => {
+        if (!data.name.trim()) {
+          setNameError("名称を入力してください");
+          return false;
+        }
+        setNameError("");
+        return true;
+      },
+    });
 
   const handleTitleChange = useCallback((value: string) => {
     setFormDataDirty((prev) => ({ ...prev, name: value }));
@@ -51,20 +54,10 @@ export const TrimmingCourseTypeSidePanel = memo(function TrimmingCourseTypeSideP
     setFormDataDirty((prev) => ({ ...prev, isActive: !prev.isActive }));
   }, [setFormDataDirty]);
 
-  const handleAction = useCallback(() => {
-    if (!formData.name.trim()) {
-      setNameError("名称を入力してください");
-      return;
-    }
-    setNameError("");
-    onSave(formData);
-    setIsDirty(false);
-  }, [formData, onSave]);
-
   const handleClose = useCallback(() => {
     setIsDirty(false);
     onClose();
-  }, [onClose]);
+  }, [onClose, setIsDirty]);
 
   return (
     <MasterSidePanel

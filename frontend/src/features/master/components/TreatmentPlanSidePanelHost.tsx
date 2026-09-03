@@ -19,7 +19,7 @@ interface TreatmentPlanSidePanelHostProps {
   /** true when active tab is procedure — show anesthesia control (BUG-028) */
   showAnesthesia?: boolean;
   onClose: () => void;
-  onSave: (data: TreatmentFormData) => void;
+  onSave: (data: TreatmentFormData) => Promise<boolean> | boolean;
   onDeleteRequest: () => void;
   onDirtyChange: (dirty: boolean) => void;
 }

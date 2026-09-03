@@ -20,7 +20,7 @@ import { ResourceLabImport } from "@/types/generated/models";
 import { LabDeviceItemMasterSidePanel } from "../components/LabDeviceItemMasterSidePanel";
 import { MASTER_TABLE_COL } from "../constants/styles";
 import { labDeviceSourceLabel, type LabDeviceRow } from "./lab-device-item-master-settings-model";
-import { useLabDeviceItemMasterSettings } from "./use-lab-device-item-master-settings";
+import { useLabDeviceItemMasterSettings } from "../hooks/use-lab-device-item-master-settings";
 
 const COLUMNS = [
   { header: "機器", className: "flex-1" },

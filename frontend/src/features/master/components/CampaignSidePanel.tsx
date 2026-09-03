@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useMemo, useState } from "react";
 import { Tag } from "lucide-react";
 import { toast } from "sonner";
 
@@ -11,6 +11,7 @@ import { normalizeKana } from "@/lib/normalize-kana";
 
 import type { Campaign, CampaignDiscountType } from "../api/campaign";
 import { useGetAllMerchandiseItems } from "../api/merchandise-items";
+import { useMasterSidePanelForm } from "../hooks/use-master-side-panel-form";
 import { campaignToFormData, type CampaignFormData } from "./campaign-side-panel-model";
 
 // item_category に対応する対象カテゴリの選択肢
@@ -38,7 +39,7 @@ function toggleSelection(values: string[], value: string): string[] {
 interface CampaignSidePanelProps {
   item: Campaign | null;
   onClose: () => void;
-  onSave: (data: CampaignFormData) => void;
+  onSave: (data: CampaignFormData) => Promise<boolean> | boolean;
   onDeleteRequest?: (item: Campaign) => void;
   readOnly?: boolean;
   onDirtyChange?: (dirty: boolean) => void;
@@ -52,19 +53,35 @@ export const CampaignSidePanel = memo(function CampaignSidePanel({
   readOnly,
   onDirtyChange,
 }: CampaignSidePanelProps) {
-  const [formData, setFormData] = useState<CampaignFormData>(() => campaignToFormData(item));
-  const [isDirty, setIsDirty] = useState(false);
   const [nameError, setNameError] = useState("");
   const [periodError, setPeriodError] = useState("");
 
-  useEffect(() => {
-    onDirtyChange?.(isDirty);
-  }, [isDirty, onDirtyChange]);
-
-  const setFormDataDirty = useCallback<typeof setFormData>((updater) => {
-    setFormData(updater);
-    setIsDirty(true);
-  }, []);
+  const { formData, setFormData: setFormDataDirty, isDirty, setIsDirty, handleAction } =
+    useMasterSidePanelForm<CampaignFormData>({
+      initialFormData: campaignToFormData(item),
+      onSave,
+      onDirtyChange,
+      validate: (data) => {
+        if (!data.name.trim()) {
+          setNameError("名称を入力してください");
+          toast.error("名称を入力してください");
+          return false;
+        }
+        if (!data.startDate || !data.endDate) {
+          setPeriodError("開始日・終了日を入力してください");
+          toast.error("開始日・終了日を入力してください");
+          return false;
+        }
+        if (data.endDate < data.startDate) {
+          setPeriodError("終了日は開始日以降にしてください");
+          toast.error("終了日は開始日以降にしてください");
+          return false;
+        }
+        setNameError("");
+        setPeriodError("");
+        return true;
+      },
+    });
 
   const handleTitleChange = useCallback((value: string) => {
     setFormDataDirty((prev) => ({ ...prev, name: value }));
@@ -99,28 +116,6 @@ export const CampaignSidePanel = memo(function CampaignSidePanel({
     }
     return result;
   }, [merchandiseItems, merchandiseSearch]);
-
-  const handleAction = useCallback(() => {
-    if (!formData.name.trim()) {
-      setNameError("名称を入力してください");
-      toast.error("名称を入力してください");
-      return;
-    }
-    if (!formData.startDate || !formData.endDate) {
-      setPeriodError("開始日・終了日を入力してください");
-      toast.error("開始日・終了日を入力してください");
-      return;
-    }
-    if (formData.endDate < formData.startDate) {
-      setPeriodError("終了日は開始日以降にしてください");
-      toast.error("終了日は開始日以降にしてください");
-      return;
-    }
-    setNameError("");
-    setPeriodError("");
-    onSave(formData);
-    setIsDirty(false);
-  }, [formData, onSave]);
 
   const handleClose = useCallback(() => {
     setIsDirty(false);

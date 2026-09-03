@@ -3,7 +3,7 @@ import { C } from "@/lib/design-tokens";
 
 import { QUALITATIVE_VALUES, type ReferenceRangeDraft } from "./exam-type-fields-editor-model";
 import { FieldInput, ReferenceRangeInputs } from "./exam-type-field-editors";
-import { useExamTypeFieldSession } from "./use-exam-type-field-session";
+import { useExamTypeFieldSession } from "../hooks/use-exam-type-field-session";
 import type { ExaminationTypeField } from "../api/exam-types-master";
 
 interface ExamTypeFieldDraft {

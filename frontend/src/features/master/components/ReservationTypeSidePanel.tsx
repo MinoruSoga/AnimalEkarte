@@ -1,4 +1,4 @@
-import { memo, useState, useCallback, useEffect } from "react";
+import { memo, useState, useCallback } from "react";
 import { Activity, MessageCircle } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -8,6 +8,7 @@ import { ReservationTypeAvailableSlotsSection } from "./ReservationTypeAvailable
 import { ReservationTypeUnavailableTimesSection } from "./ReservationTypeUnavailableTimesSection";
 import { ReservationTypeOccupationsSection } from "./ReservationTypeOccupationsSection";
 import type { ReservationType } from "../api/reservation-types";
+import { useMasterSidePanelForm } from "../hooks/use-master-side-panel-form";
 
 // ── 静的 SelectItem JSX (rendering-hoist-jsx) ──────────────────
 const RESERVATION_DAY_OPTION_ITEMS = (
@@ -42,37 +43,43 @@ export const CategorySidePanel = memo(function CategorySidePanel({
 }: {
   item: ReservationType | null;
   onClose: () => void;
-  onSave: (d: CategoryFormData) => void;
+  onSave: (d: CategoryFormData) => Promise<boolean> | boolean;
   onDeleteRequest?: (i: ReservationType) => void;
   readOnly?: boolean;
   groups: GroupOption[];
   defaultGroupId?: string;
   onDirtyChange?: (dirty: boolean) => void;
 }) {
-  const [formData, setFormData] = useState<CategoryFormData>(() => ({
-    name: item?.name ?? "",
-    description: item?.description ?? "",
-    isActive: item?.isActive ?? true,
-    groupId: item?.groupId ?? defaultGroupId,
-    reservationDisplayName: item?.reservationDisplayName ?? "",
-    durationMinutes: item?.durationMinutes ?? 15,
-    shortName: item?.shortName ?? "",
-    reservationVisible: item?.reservationVisible ?? true,
-    reservationComment: item?.reservationComment ?? "",
-    reservationImageUrl: item?.reservationImageUrl ?? "",
-    showShortName: item?.showShortName ?? false,
-    reservationDayOption: item?.reservationDayOption ?? "none",
-    isInternal: item?.isInternal ?? false,
-  }));
-  const [isDirty, setIsDirty] = useState(false);
   const [nameError, setNameError] = useState("");
 
-  // BUG-380
-  useEffect(() => { onDirtyChange?.(isDirty); }, [isDirty, onDirtyChange]);
-  const setFormDataDirty = useCallback<typeof setFormData>((updater) => {
-    setFormData(updater);
-    setIsDirty(true);
-  }, []);
+  const { formData, setFormData: setFormDataDirty, isDirty, setIsDirty, handleAction } =
+    useMasterSidePanelForm<CategoryFormData>({
+      initialFormData: {
+        name: item?.name ?? "",
+        description: item?.description ?? "",
+        isActive: item?.isActive ?? true,
+        groupId: item?.groupId ?? defaultGroupId,
+        reservationDisplayName: item?.reservationDisplayName ?? "",
+        durationMinutes: item?.durationMinutes ?? 15,
+        shortName: item?.shortName ?? "",
+        reservationVisible: item?.reservationVisible ?? true,
+        reservationComment: item?.reservationComment ?? "",
+        reservationImageUrl: item?.reservationImageUrl ?? "",
+        showShortName: item?.showShortName ?? false,
+        reservationDayOption: item?.reservationDayOption ?? "none",
+        isInternal: item?.isInternal ?? false,
+      },
+      onSave,
+      onDirtyChange,
+      validate: (data) => {
+        if (!data.name.trim()) {
+          setNameError("名称を入力してください");
+          return false;
+        }
+        setNameError("");
+        return true;
+      },
+    });
 
   const handleTitleChange = useCallback((v: string) => {
     setFormDataDirty((prev) => ({ ...prev, name: v }));
@@ -87,14 +94,7 @@ export const CategorySidePanel = memo(function CategorySidePanel({
     setFormDataDirty((prev) => ({ ...prev, isActive: !prev.isActive }));
   }, [setFormDataDirty]);
 
-  const handleAction = useCallback(() => {
-    if (!formData.name.trim()) { setNameError("名称を入力してください"); return; }
-    setNameError("");
-    onSave(formData);
-    setIsDirty(false);
-  }, [formData, onSave]);
-
-  const handleClose = useCallback(() => { setIsDirty(false); onClose(); }, [onClose]);
+  const handleClose = useCallback(() => { setIsDirty(false); onClose(); }, [onClose, setIsDirty]);
 
   return (
     <MasterSidePanel isNew={item === null} title={formData.name}

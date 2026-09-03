@@ -24,7 +24,7 @@ import { useEditableIdSelection } from "../hooks/use-editable-id-selection";
 interface StaffSidePanelProps {
   item: Staff | null;
   onClose: () => void;
-  onSave: (data: StaffFormData) => void;
+  onSave: (data: StaffFormData) => Promise<boolean> | boolean;
   onDeleteRequest?: (item: Staff) => void;
   readOnly?: boolean;
   onDirtyChange?: (dirty: boolean) => void;
@@ -95,13 +95,14 @@ export const StaffSidePanel = memo(function StaffSidePanel({
     handleToggle: handleCapabilityToggle,
   } = useEditableIdSelection({ serverIds: serverCapableIds, markDirty });
 
-  const handleSave = useCallback(() => {
+  const handleSave = useCallback(async () => {
     if (!formData.name.trim()) {
       setNameError("氏名を入力してください");
       return;
     }
     setNameError("");
-    onSave(formData);
+    const saved = await onSave(formData);
+    if (!saved) return;
     if (!isNew && staffId) {
       onSaveGroups(staffId, groupIds);
       onSaveClinics(staffId, clinicIds);

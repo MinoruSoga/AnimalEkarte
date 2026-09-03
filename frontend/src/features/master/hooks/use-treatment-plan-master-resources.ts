@@ -9,7 +9,7 @@ import { useGetAllCheckupTypes, useCreateCheckupType, useUpdateCheckupType, useD
 import {
   buildTreatmentTabConfigs,
   type TreatmentPlanTabValue,
-} from "./treatment-plan-master-model";
+} from "../routes/treatment-plan-master-model";
 
 interface UseTreatmentPlanMasterResourcesOptions {
   canEdit: boolean;

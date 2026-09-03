@@ -17,10 +17,10 @@ interface DiagnosisSettingsSidePanelsProps {
   canDelete: boolean;
   canEdit: boolean;
   onTypeClose: () => void;
-  onTypeSave: (data: DiagnosisTypeFormData) => void;
+  onTypeSave: (data: DiagnosisTypeFormData) => Promise<boolean> | boolean;
   onTypeDeleteRequest: (item: DiagnosisType) => void;
   onNameClose: () => void;
-  onNameSave: (data: DiagnosisNameFormData) => void;
+  onNameSave: (data: DiagnosisNameFormData) => Promise<boolean> | boolean;
   onNameDeleteRequest: (item: DiagnosisName) => void;
   onDirtyChange: (dirty: boolean) => void;
 }
