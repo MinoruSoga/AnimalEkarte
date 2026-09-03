@@ -24,7 +24,6 @@ import { CheckupFieldsPanel } from "./checkup-form-panels";
 export function CheckupForm() {
   const navigate = useNavigate();
   const { canCreate, canEdit } = usePermission(ResourceMedicalRecords);
-  const canSubmit = canCreate && canEdit;
 
   const {
     pet,
@@ -43,6 +42,10 @@ export function CheckupForm() {
     setDoctorId,
     setResult,
   } = useCheckupForm({ canCreate, canEdit });
+
+  // FE-RC-004: 死亡ペットは render 側でも SubmitButton を非表示にする（callback 側の拒否と二重防壁）。
+  const isPetDeceased = pet?.status === "死亡";
+  const canSubmit = canCreate && canEdit && !isPetDeceased;
 
   const { data: checkupTypes = [] } = useGetAllCheckupTypes();
   const { data: staffs = [] } = useGetStaffs();
@@ -79,7 +82,7 @@ export function CheckupForm() {
         headerAction={
           <FormHeaderActions
             onCancel={handleBack}
-            submitLabel={isPending ? "保存中..." : "保存"}
+            submitLabel={isPetDeceased ? undefined : (isPending ? "保存中..." : "保存")}
             submitDisabled={isPending || !canSubmit}
           />
         }
@@ -100,8 +103,19 @@ export function CheckupForm() {
             insuranceDetails={pet.insuranceDetails}
             staffName={doctorName}
             nextVisitDate={form.nextDate ? formatDate(form.nextDate) : undefined}
-            status={pet.status === "死亡" ? "deceased" : "alive"}
+            status={isPetDeceased ? "deceased" : "alive"}
           />
+        ) : null}
+        {isPetDeceased ? (
+          <div
+            role="status"
+            aria-label="死亡ペットのため保存不可"
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-md border mt-4 ${C.bgWarning50} ${C.borderWarning20} ${C.textWarning}`}
+          >
+            <span className="text-sm font-medium">
+              死亡したペットの定期健診記録は保存できません
+            </span>
+          </div>
         ) : null}
 
         <div className="mt-4 grid grid-cols-1 gap-6 lg:grid-cols-5">

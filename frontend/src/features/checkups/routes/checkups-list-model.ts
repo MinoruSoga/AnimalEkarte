@@ -93,6 +93,12 @@ export function nextListSearchParamsWithPage(
   return next;
 }
 
+export function nextListSearchParamsWithoutPage(prev: URLSearchParams): URLSearchParams {
+  const next = new URLSearchParams(prev);
+  next.delete("page");
+  return next;
+}
+
 export function checkupChartHref(medicalRecordId: string, checkupId: string): string {
   const params = new URLSearchParams({ tab: "定期健診", checkupId });
   return `${paths.medicalRecords.detail.getHref(medicalRecordId)}?${params.toString()}`;
