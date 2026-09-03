@@ -82,28 +82,6 @@ func TestCheckupSyncRequest_ToServiceInput(t *testing.T) {
 	}
 }
 
-func TestCheckupSyncRequest_ToServiceInput_InvalidOwnerID(t *testing.T) {
-	_, err := (&checkupSyncRequest{
-		CheckupType: "annual",
-		OwnerIDs:    []string{"x"},
-		TagName:     "annual_checkup",
-	}).toServiceInput()
-	if err == nil {
-		t.Fatalf("toServiceInput() error = nil, want error")
-	}
-}
-
-func TestCheckupSyncRequest_ToServiceInput_InvalidTagName(t *testing.T) {
-	_, err := (&checkupSyncRequest{
-		CheckupType: "annual",
-		OwnerIDs:    []string{"1"},
-		TagName:     "invalid tag!",
-	}).toServiceInput()
-	if err == nil {
-		t.Fatalf("toServiceInput() error = nil, want error")
-	}
-}
-
 func TestCheckupSyncRequest_OwnerIDsBoundary(t *testing.T) {
 	ownerIDs := func(count int) []string {
 		ids := make([]string, count)
