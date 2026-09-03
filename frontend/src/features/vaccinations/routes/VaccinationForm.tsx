@@ -43,7 +43,8 @@ export const VaccinationForm = memo(function VaccinationForm() {
     const errorFields = Object.keys(formState.fieldErrors || {});
     if (errorFields.length === 0) return;
 
-    const firstError = VACCINATION_PRIORITY_FIELDS.find((field) => errorFields.includes(field)) || errorFields[0];
+    const firstError =
+      VACCINATION_PRIORITY_FIELDS.find((field) => errorFields.includes(field)) || errorFields[0];
     const targetId = VACCINATION_FIELD_ID_MAP[firstError] || firstError;
 
     const element = document.getElementById(targetId);
@@ -64,6 +65,7 @@ export const VaccinationForm = memo(function VaccinationForm() {
   const selectedPet = selectedPets[0];
   const isPetDeceased = selectedPet?.status === "死亡";
   const canSubmit = (id ? canEdit && isEditPetReady : canCreate) && !isPetDeceased;
+  const allowDelete = canDelete === true && isEditPetReady;
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
   const handleBack = useCallback(() => {
@@ -76,16 +78,25 @@ export const VaccinationForm = memo(function VaccinationForm() {
   });
   const { historySearchTerm, filterStartDate, filterEndDate, sortOrder } = historyFilter;
   const petHistory = useMemo(
-    () => filterVaccinationHistory({
-      records: petVaccinations,
+    () =>
+      filterVaccinationHistory({
+        records: petVaccinations,
+        historyPetId,
+        excludeId: id,
+        historySearchTerm,
+        filterStartDate,
+        filterEndDate,
+        sortOrder,
+      }),
+    [
+      petVaccinations,
       historyPetId,
-      excludeId: id,
+      id,
       historySearchTerm,
       filterStartDate,
       filterEndDate,
       sortOrder,
-    }),
-    [petVaccinations, historyPetId, id, historySearchTerm, filterStartDate, filterEndDate, sortOrder],
+    ],
   );
 
   const gate = resolveVaccinationFormGate({
@@ -104,7 +115,7 @@ export const VaccinationForm = memo(function VaccinationForm() {
     <VaccinationFormBody
       isEdit={isEdit}
       canSubmit={canSubmit === true}
-      canDelete={canDelete === true && isEditPetReady}
+      canDelete={allowDelete}
       isPetDeceased={isPetDeceased}
       isDeleting={isDeleting}
       isDirty={isDirty}

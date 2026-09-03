@@ -1,5 +1,1 @@
-export type {
-  BackendInventoryItem,
-  CreateInventoryItemRequest,
-  UpdateInventoryItemRequest,
-} from "../types";
+export type { CreateInventoryItemRequest, UpdateInventoryItemRequest } from "../types";

@@ -4,10 +4,7 @@ import { usePermission } from "@/hooks/use-permission";
 import { useTrimmingForm } from "../hooks/use-trimming-form";
 import { useTrimmingFormChrome } from "../hooks/use-trimming-form-chrome";
 import { resolveTrimmingFormGate } from "./trimming-form-model";
-import {
-  TrimmingFormBody,
-  TrimmingFormStatusView,
-} from "./TrimmingFormPanels";
+import { TrimmingFormBody, TrimmingFormStatusView } from "./TrimmingFormPanels";
 
 export function TrimmingForm() {
   const location = useLocation();
@@ -42,6 +39,7 @@ export function TrimmingForm() {
   const selectedPet = petSelection.selectedPets[0];
   const isPetDeceased = selectedPet?.status === "死亡";
   const canSubmit = (mode === "edit" ? canEdit && isEditPetReady : canCreate) && !isPetDeceased;
+  const allowDelete = canDelete === true && isEditPetReady && !isPetDeceased;
   const redirectPath = typeof location.state?.from === "string" ? location.state.from : "/trimming";
   const fromPath = location.state?.from as string | undefined;
   const chrome = useTrimmingFormChrome({
@@ -69,7 +67,7 @@ export function TrimmingForm() {
     <TrimmingFormBody
       mode={mode}
       canSubmit={canSubmit === true}
-      canDelete={canDelete === true && isEditPetReady && !isPetDeceased}
+      canDelete={allowDelete}
       isSaving={isSaving}
       isDeleting={isDeleting}
       isDirty={chrome.isDirty}
