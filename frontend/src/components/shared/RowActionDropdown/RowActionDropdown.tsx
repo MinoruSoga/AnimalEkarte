@@ -21,10 +21,7 @@ export const RowActionDropdown = memo(function RowActionDropdown({
   ariaLabel,
 }: RowActionDropdownProps) {
   return (
-    <div
-      className="flex items-center justify-end gap-1"
-      onClick={(e) => e.stopPropagation()}
-    >
+    <div className="flex items-center justify-end gap-1">
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button
