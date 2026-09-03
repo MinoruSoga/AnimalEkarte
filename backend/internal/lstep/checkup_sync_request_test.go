@@ -3,9 +3,12 @@ package lstep
 import (
 	"net/url"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/gin-gonic/gin/binding"
+
+	"github.com/animal-ekarte/backend/internal/apperrors"
 )
 
 func TestCheckupSyncPreviewQuery_ToServiceInput(t *testing.T) {
@@ -286,5 +289,36 @@ func TestNewCheckupSyncPreviewQuery_Empty(t *testing.T) {
 	q := newCheckupSyncPreviewQuery(url.Values{})
 	if q != (checkupSyncPreviewQuery{}) {
 		t.Fatalf("newCheckupSyncPreviewQuery() = %+v, want zero value", q)
+	}
+}
+
+func TestCheckupSyncRequest_ToServiceInput_InvalidTagName(t *testing.T) {
+	_, err := (checkupSyncRequest{
+		CheckupType: "annual",
+		OwnerIDs:    []string{"1"},
+		TagName:     "invalid tag!",
+	}).toServiceInput()
+	if err == nil {
+		t.Fatal("toServiceInput() error = nil, want InvalidInput")
+	}
+	if !apperrors.IsInvalidInput(err) {
+		t.Fatalf("toServiceInput() error = %v, want InvalidInput", err)
+	}
+}
+
+func TestCheckupSyncRequest_ToServiceInput_InvalidOwnerID(t *testing.T) {
+	_, err := (checkupSyncRequest{
+		CheckupType: "annual",
+		OwnerIDs:    []string{"x"},
+		TagName:     "annual_checkup",
+	}).toServiceInput()
+	if err == nil {
+		t.Fatal("toServiceInput() error = nil, want InvalidInput")
+	}
+	if !apperrors.IsInvalidInput(err) {
+		t.Fatalf("toServiceInput() error = %v, want InvalidInput", err)
+	}
+	if !strings.Contains(err.Error(), "owner_ids の値が不正です") {
+		t.Fatalf("error = %q, want owner_ids message", err.Error())
 	}
 }

@@ -1,7 +1,6 @@
 package lstep
 
 import (
-	"fmt"
 	"net/url"
 	"strconv"
 	"time"
@@ -158,14 +157,14 @@ type checkupSyncRequest struct {
 
 func (r checkupSyncRequest) toServiceInput() (CreateCheckupSyncInput, error) {
 	if !IsValidManualTagName(r.TagName) {
-		return CreateCheckupSyncInput{}, fmt.Errorf("tag_name は英数字・アンダースコア・ハイフンのみ使用可能です（1〜100文字）")
+		return CreateCheckupSyncInput{}, apperrors.WrapInvalidInput("tag_name は英数字・アンダースコア・ハイフンのみ使用可能です（1〜100文字）")
 	}
 
 	ownerIDs := make([]uint64, 0, len(r.OwnerIDs))
 	for _, s := range r.OwnerIDs {
 		id, err := strconv.ParseUint(s, 10, 64)
 		if err != nil {
-			return CreateCheckupSyncInput{}, fmt.Errorf("owner_ids の値が不正です: %s", s)
+			return CreateCheckupSyncInput{}, apperrors.WrapInvalidInput("owner_ids の値が不正です")
 		}
 		ownerIDs = append(ownerIDs, id)
 	}
