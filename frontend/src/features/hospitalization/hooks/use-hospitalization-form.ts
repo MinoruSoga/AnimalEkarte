@@ -47,9 +47,11 @@ export function useHospitalizationForm(id?: string, canSubmit = false) {
   const { selectedPets, setSelectedPets } = petSelection;
   const { data: petFromQuery, isLoading: isPetLoading } = useGetPet(petId ?? "");
   const [formData, setFormData] = useState<HospitalizationFormData>(createInitialHospitalizationFormData);
-  const handleFormDataChange = (updates: Partial<HospitalizationFormData>) => {
+  // rerender-memo: functional setState で deps 空にし、呼び出し側 memo コンポーネントへ
+  // 安定参照として渡せるようにする。
+  const handleFormDataChange = useCallback((updates: Partial<HospitalizationFormData>) => {
     setFormData((prev) => ({ ...prev, ...updates }));
-  };
+  }, []);
   const [treatmentPlans, setTreatmentPlans] = useState<HospitalizationTreatmentPlan[]>([]);
 
   const selectedPetRef = useRef(selectedPets[0]);

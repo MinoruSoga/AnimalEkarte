@@ -26,10 +26,12 @@ interface HospitalizationBasicInfoProps {
   formData: HospitalizationFormData;
   onChange: (updates: Partial<HospitalizationFormData>) => void;
   cageItems: MasterItem[];
-  fieldErrors?: Partial<Record<"cage_id", string>>;
+  // rerender-memo: 呼び出し側で毎レンダー新規オブジェクトを作らないよう
+  // プリミティブ値で受け取る（`fieldErrors={{ cage_id: ... }}` を廃止）。
+  cageIdError?: string;
 }
 
-export const HospitalizationBasicInfo = memo(function HospitalizationBasicInfo({ formData, onChange, cageItems, fieldErrors }: HospitalizationBasicInfoProps) {
+export const HospitalizationBasicInfo = memo(function HospitalizationBasicInfo({ formData, onChange, cageItems, cageIdError }: HospitalizationBasicInfoProps) {
   return (
     <div className={`${C.bgWhite} rounded-lg border ${C.borderMedium} ${H_STYLES.padding.box}`}>
       <h2 className={`${H_STYLES.text.base} font-bold mb-3 flex items-center gap-2 ${C.text}`}>
@@ -114,9 +116,9 @@ export const HospitalizationBasicInfo = memo(function HospitalizationBasicInfo({
               }))}
               placeholder="選択してください"
               searchPlaceholder="ケージを検索..."
-              ariaInvalid={Boolean(fieldErrors?.cage_id)}
+              ariaInvalid={Boolean(cageIdError)}
           />
-          <FormFieldError message={fieldErrors?.cage_id} />
+          <FormFieldError message={cageIdError} />
       </div>
 
       {/* 保険 */}

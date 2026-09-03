@@ -1,6 +1,7 @@
 import { useActionState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { BADGE, C, STYLE } from "@/lib/design-tokens";
+import { getFormString } from "@/lib/form-data";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { FormFieldError } from "@/components/shared/FormFieldError/FormFieldError";
 import {
@@ -147,8 +148,8 @@ function TagPairSection<TItem>({
 }: TagPairSectionProps<TItem>) {
   const [state, formAction] = useActionState<TagPairFormState, FormData>(
     async (_prev, formData) => {
-      const valueA = ((formData.get(fieldA.name) as string) ?? "").trim();
-      const valueB = ((formData.get(fieldB.name) as string) ?? "").trim();
+      const valueA = getFormString(formData, fieldA.name).trim();
+      const valueB = getFormString(formData, fieldB.name).trim();
       if (!valueA || !valueB) {
         // FE-RC-073: バリデーションエラーは fieldError（下記 FormFieldError）で表示する。toast は使わない。
         return { error: requiredMessage };

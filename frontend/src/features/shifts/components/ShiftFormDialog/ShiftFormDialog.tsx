@@ -17,6 +17,7 @@ import { updateShift } from "../../api/update-shift";
 import { useDeleteShift } from "../../api/delete-shift";
 import { useGetShiftTemplates } from "../../api/get-shift-templates";
 import { handleApiError } from "@/lib/handle-api-error";
+import { getFormString } from "@/lib/form-data";
 import { queryKeys } from "@/lib/query-keys";
 import { isShiftTemplateTimeHidden } from "../shift-template-form-utils";
 import { DEFAULT_BREAK_START, DEFAULT_BREAK_END } from "../shift-template-form-model";
@@ -94,8 +95,8 @@ export const ShiftFormDialog = memo(function ShiftFormDialog({
     async (_prevState: FormActionState, formData: FormData): Promise<FormActionState> => {
       const rawShiftType = formData.get("shiftType");
       const resolvedShiftType = isShiftType(rawShiftType) ? rawShiftType : shiftType;
-      const resolvedStartTime = (formData.get("startTime") as string) ?? "";
-      const resolvedEndTime = (formData.get("endTime") as string) ?? "";
+      const resolvedStartTime = getFormString(formData, "startTime");
+      const resolvedEndTime = getFormString(formData, "endTime");
       // BUG-036: off/paid_leave 以外は開始・終了時刻必須（空のまま API に送らない）
       const timesRequired = !isShiftTemplateTimeHidden(resolvedShiftType);
 
@@ -114,7 +115,7 @@ export const ShiftFormDialog = memo(function ShiftFormDialog({
             shift_type: resolvedShiftType,
             start_time: timesRequired ? resolvedStartTime : undefined,
             end_time: timesRequired ? resolvedEndTime : undefined,
-            notes: (formData.get("notes") as string) || undefined,
+            notes: getFormString(formData, "notes") || undefined,
             breaks: validBreaks,
           };
           await updateShift(editShiftId, input);
@@ -126,7 +127,7 @@ export const ShiftFormDialog = memo(function ShiftFormDialog({
             shift_type: resolvedShiftType,
             start_time: timesRequired ? resolvedStartTime : undefined,
             end_time: timesRequired ? resolvedEndTime : undefined,
-            notes: (formData.get("notes") as string) || undefined,
+            notes: getFormString(formData, "notes") || undefined,
             breaks: validBreaks.length > 0 ? validBreaks : undefined,
           };
           await createShift(input);

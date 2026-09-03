@@ -17,8 +17,9 @@ import { createTestWrapper } from "@/testing/utils";
 //
 // FE4-18: 821 行(分割前)だったため describe 境界で分割。新規作成 auto-create
 // effect / formAction（useActionState）の回帰は
-// use-medical-record-form.auto-create.test.ts を参照。vi.mock はファイル
-// スコープで hoist されるため、この定義ブロックは両ファイルへ逐語複製している
+// use-medical-record-form.auto-create-new.test.ts / auto-create-retry.test.ts /
+// action.test.ts を参照（FE-RC-045 でさらに describe 単位に分割済み）。vi.mock は
+// ファイルスコープで hoist されるため、この定義ブロックは各ファイルへ逐語複製している
 // （値・ロジックは 1 文字も変えていない）。
 
 const mockNavigate = vi.fn();

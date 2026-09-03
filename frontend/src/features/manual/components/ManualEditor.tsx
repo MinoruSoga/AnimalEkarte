@@ -11,7 +11,7 @@
  * 詳細は業務フロー「マニュアルの編集依頼方法」(workflows/27-manual-edit-request.md) を参照。
  */
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Copy, Download, X, FileText, Eye, Columns2, Save, Loader2 } from "lucide-react";
 
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
@@ -87,12 +87,13 @@ export function ManualEditor({ article, onClose }: ManualEditorProps) {
     URL.revokeObjectURL(url);
   };
 
-  // プレビュー用に編集中 content を反映した一時 article を組み立てる
-  const previewArticle: ManualArticle = {
-    ...article,
-    content,
-    searchText: content,
-  };
+  // プレビュー用に編集中 content を反映した一時 article を組み立てる。
+  // rerender-memo: ManualContent は memo。毎レンダー新規オブジェクトを渡すと
+  // 無効化されるため content/article が変化した時のみ再生成する。
+  const previewArticle: ManualArticle = useMemo(
+    () => ({ ...article, content, searchText: content }),
+    [article, content],
+  );
 
   const isDirty = content !== article.content;
 
@@ -227,7 +228,7 @@ export function ManualEditor({ article, onClose }: ManualEditorProps) {
           <textarea
             value={content}
             onChange={(e) => setContent(e.target.value)}
-            className={`flex-1 p-4 font-mono text-sm resize-none outline-none ${C.bgSubtle} ${mode === "split" ? `border-r ${C.borderDivider}` : ""}`}
+            className={`flex-1 p-4 font-mono text-sm resize-none outline-none focus-visible:ring-2 focus-visible:ring-inset ${C.focusRingAccent40} ${C.bgSubtle} ${mode === "split" ? `border-r ${C.borderDivider}` : ""}`}
             spellCheck={false}
             aria-label="マニュアル本文編集"
           />

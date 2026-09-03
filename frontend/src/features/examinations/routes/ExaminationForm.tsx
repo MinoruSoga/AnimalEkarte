@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import {
   useNavigate,
   useParams,
@@ -24,6 +24,7 @@ import {
 
 import { useExaminationForm } from "../hooks/use-examination-form";
 import { useExaminationHistoryFilters } from "../hooks/use-examination-history-filters";
+import { useExaminationFormPageActions } from "../hooks/use-examination-form-page-actions";
 import { ExamItemsTable } from "../components/ExamItemsTable";
 import { ExaminationFormFields } from "../components/ExaminationFormFields";
 import { ExaminationFormHeader } from "../components/ExaminationFormHeader";
@@ -31,8 +32,6 @@ import { ExaminationFormStatusPage } from "../components/ExaminationFormStatusPa
 import { ExaminationHistoryPanel } from "../components/ExaminationHistoryPanel";
 import { useGetExaminationPrintSnapshot } from "../api/get-examination-print-snapshot";
 import { buildExaminationPrintModel } from "../lib/examination-print-model";
-
-import type { Pet } from "@/types";
 
 // rendering-hoist-jsx: アクセシビリティ用定数をモジュールレベルに巻き上げ（毎レンダー再生成を回避）
 const EXAMINATION_PRIORITY_FIELDS = ["testTypeId", "doctorId"] as const;
@@ -160,8 +159,6 @@ function ExaminationFormContent({ id }: { id: string | undefined }) {
     }
   }, [formState.success, formState.timestamp, navigate, markClean]);
 
-  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
-
   const { selectedPets, setSelectedPets } = petSelection;
   const selectedPet = selectedPets[0];
   const isConfirmed = isPersistedConfirmed;
@@ -190,73 +187,31 @@ function ExaminationFormContent({ id }: { id: string | undefined }) {
     excludeId: id,
   });
 
-  const handleBack = useCallback(() => {
-    if (location.state?.from) {
-      navigate(location.state.from);
-    } else {
-      navigate(paths.examinations.getHref());
-    }
-  }, [location.state, navigate]);
-
-  // rerender-memo: memo'd セクションに渡すハンドラを useCallback で安定化
-  const handleSetFormData = useCallback(
-    (next: Parameters<typeof setFormData>[0]) => {
-      markDirty();
-      setFormData(next);
-    },
-    [markDirty, setFormData],
-  );
-
-  const handleInspectionValueChange = useCallback(
-    (key: string, value: string) => {
-      markDirty();
-      setInspectionValue(key, value);
-    },
-    [markDirty, setInspectionValue],
-  );
-
-  const handleItemNameChange = useCallback(
-    (key: string, value: string) => {
-      markDirty();
-      setItemName(key, value);
-    },
-    [markDirty, setItemName],
-  );
-
-  const handleAddItem = useCallback(() => {
-    markDirty();
-    addManualItem();
-  }, [addManualItem, markDirty]);
-
-  const handleRemoveItem = useCallback(
-    (key: string) => {
-      markDirty();
-      removeItem(key);
-    },
-    [markDirty, removeItem],
-  );
-
-  const handlePatientSelect = useCallback(
-    (pet: Pet) => {
-      markDirty();
-      setSelectedPets([pet]);
-    },
-    [markDirty, setSelectedPets],
-  );
-
-  const handleDeleteClick = useCallback(() => {
-    setIsDeleteConfirmOpen(true);
-  }, []);
-
-  const handleDeleteCancel = useCallback(() => {
-    setIsDeleteConfirmOpen(false);
-  }, []);
-
-  const handleDeleteConfirm = useCallback(() => {
-    markClean();
-    handleDelete(() => navigate(paths.examinations.getHref()));
-    setIsDeleteConfirmOpen(false);
-  }, [markClean, handleDelete, navigate]);
+  const {
+    handleBack,
+    handleSetFormData,
+    handleInspectionValueChange,
+    handleItemNameChange,
+    handleAddItem,
+    handleRemoveItem,
+    handlePatientSelect,
+    isDeleteConfirmOpen,
+    handleDeleteClick,
+    handleDeleteCancel,
+    handleDeleteConfirm,
+  } = useExaminationFormPageActions({
+    navigate,
+    fromPath: location.state?.from,
+    markDirty,
+    markClean,
+    setFormData,
+    setInspectionValue,
+    setItemName,
+    addManualItem,
+    removeItem,
+    setSelectedPets,
+    handleDelete,
+  });
 
   // FE-RC-033: ペット未選択時のリダイレクトは useExaminationFormPetSync（use-examination-form-helpers.ts）に一元化済み。
   // ここでは redirect 完了までの間、フォームを描画しないための render guard のみを持つ。
