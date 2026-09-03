@@ -13,8 +13,8 @@ import (
 
 const (
 	demoAccountLabelDriftBundle        = "002_master"
-	demoAccountExpectedMinCount        = 29
-	demoAccountExpectedMaxCount        = 32
+	demoAccountExpectedMinCount        = 39
+	demoAccountExpectedMaxCount        = 42
 	gitLFSPointerPrefix                = "version https://git-lfs.github.com/spec/v1"
 	demoAccountSystemAdminClinicLabel  = "全医院"
 	demoAccountLoginFormRelativePath   = "frontend/src/features/auth/components/LoginForm.tsx"

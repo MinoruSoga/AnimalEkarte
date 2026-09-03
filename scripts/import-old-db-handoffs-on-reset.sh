@@ -265,7 +265,36 @@ attach_staff_if_roster_present() {
 # bulk UAT; activate only this curated local-login set after attach so one-click
 # login works without reactivating all imported staffs.
 # Keep in sync with frontend/src/features/auth/components/LoginForm.tsx DEMO_ACCOUNTS.
-CURATED_DEMO_STAFF_IDS="11000021,11000003,11000007,11000008,11000025,11000031,11000034,11000005,11000006,11000009,21000021,21000003,21000007,21000008,21000025,21000031,21000034,21000005,21000006,21000009,31000021,31000003,31000007,31000008,31000025,31000031,31000034,31000005,31000006,31000009"
+# Band: clinic1=1xxxxxx, clinic2=11xxxxxx, clinic3=21xxxxxx, clinic4=31xxxxxx.
+CURATED_DEMO_STAFF_IDS="10000021,10000003,10000007,10000008,10000025,10000031,10000034,10000005,10000006,10000009,11000021,11000003,11000007,11000008,11000025,11000031,11000034,11000005,11000006,11000009,21000021,21000003,21000007,21000008,21000025,21000031,21000034,21000005,21000006,21000009,31000021,31000003,31000007,31000008,31000025,31000031,31000034,31000005,31000006,31000009"
+
+# Clinic 1 (八王子) has no old_db handoff CSV in local AE yet. Upsert the curated
+# login staffs so staff-attach + one-click demo accounts work after reset.
+ensure_hachioji_curated_demo_staffs() {
+  local n
+  n="$(psql_scalar "
+    WITH upserted AS (
+      INSERT INTO staffs (
+        id, clinic_id, name, is_active, license_number, staff_type,
+        reservation_display_name, reservation_visible, reservation_comment, reservation_image_url
+      ) VALUES
+        (10000021, 1, '林　文明', false, '', 'doctor', '', true, '', ''),
+        (10000003, 1, '高橋　純子', false, '', 'doctor', '', true, '', ''),
+        (10000007, 1, '鈴木　諒平', false, '', 'doctor', '', true, '', ''),
+        (10000008, 1, '加藤　茉里', false, '', 'doctor', '', true, '', ''),
+        (10000025, 1, 'チャン　ハン', false, '', 'doctor', '', true, '', ''),
+        (10000031, 1, '近喰　千瞳', false, '', 'doctor', '', true, '', ''),
+        (10000034, 1, '川野　称希', false, '', 'doctor', '', true, '', ''),
+        (10000005, 1, '冨田　美佳', false, '', 'doctor', '', true, '', ''),
+        (10000006, 1, '井冨　和美', false, '', 'doctor', '', true, '', ''),
+        (10000009, 1, '原　梨吏華', false, '', 'doctor', '', true, '', '')
+      ON CONFLICT (id) DO NOTHING
+      RETURNING id
+    )
+    SELECT COUNT(*)::text FROM upserted
+  ")"
+  echo "INFO  ensured Hachioji curated demo staffs inserted=${n:-0}"
+}
 
 activate_curated_demo_staff_for_local_login() {
   local n
@@ -285,5 +314,6 @@ if [[ "$found" -eq 0 ]]; then
   exit 0
 fi
 
+ensure_hachioji_curated_demo_staffs
 attach_staff_if_roster_present
 activate_curated_demo_staff_for_local_login

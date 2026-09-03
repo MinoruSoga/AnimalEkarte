@@ -24,6 +24,76 @@ export const SHOW_DEMO = import.meta.env.DEV;
 const DEMO_ACCOUNTS: readonly DemoCredential[] = SHOW_DEMO
   ? [
       {
+        email: "stg-staff-10000021@example.test",
+        displayName: "林 文明",
+        occupationLabel: "獣医師",
+        permissionLabel: "一般",
+        clinicLabel: "八王子病院",
+      },
+      {
+        email: "stg-staff-10000003@example.test",
+        displayName: "高橋 純子",
+        occupationLabel: "獣医師",
+        permissionLabel: "一般",
+        clinicLabel: "八王子病院",
+      },
+      {
+        email: "stg-staff-10000007@example.test",
+        displayName: "鈴木 諒平",
+        occupationLabel: "獣医師",
+        permissionLabel: "一般",
+        clinicLabel: "八王子病院",
+      },
+      {
+        email: "stg-staff-10000008@example.test",
+        displayName: "加藤 茉里",
+        occupationLabel: "獣医師",
+        permissionLabel: "一般",
+        clinicLabel: "八王子病院",
+      },
+      {
+        email: "stg-staff-10000025@example.test",
+        displayName: "チャン ハン",
+        occupationLabel: "看護師",
+        permissionLabel: "一般",
+        clinicLabel: "八王子病院",
+      },
+      {
+        email: "stg-staff-10000031@example.test",
+        displayName: "近喰 千瞳",
+        occupationLabel: "動物看護師",
+        permissionLabel: "一般",
+        clinicLabel: "八王子病院",
+      },
+      {
+        email: "stg-staff-10000034@example.test",
+        displayName: "川野 称希",
+        occupationLabel: "動物看護師",
+        permissionLabel: "一般",
+        clinicLabel: "八王子病院",
+      },
+      {
+        email: "stg-staff-10000005@example.test",
+        displayName: "冨田 美佳",
+        occupationLabel: "VT",
+        permissionLabel: "一般",
+        clinicLabel: "八王子病院",
+      },
+      {
+        email: "stg-staff-10000006@example.test",
+        displayName: "井冨 和美",
+        occupationLabel: "VT",
+        permissionLabel: "一般",
+        clinicLabel: "八王子病院",
+      },
+      {
+        email: "stg-staff-10000009@example.test",
+        displayName: "原 梨吏華",
+        occupationLabel: "スタッフ",
+        permissionLabel: "一般",
+        clinicLabel: "八王子病院",
+      },
+      {
         email: "stg-staff-11000021@example.test",
         displayName: "林 文明",
         occupationLabel: "獣医師",
@@ -350,24 +420,26 @@ export const LoginForm = memo(function LoginForm() {
   }
 
   return (
-    <div className="w-full max-w-[380px] mx-auto">
-      <LoginFormBrandHeader />
+    <div className="w-full mx-auto flex flex-col items-center">
+      <div className="w-full max-w-[380px]">
+        <LoginFormBrandHeader />
 
-      <form id="login-form" action={formAction} noValidate className="space-y-4">
-        <LoginFormCredentialFields
-          email={email}
-          password={password}
-          showPassword={showPassword}
-          isPending={isPending}
-          error={formState.error ?? null}
-          onEmailChange={handleEmailChange}
-          onPasswordChange={handlePasswordChange}
-          onTogglePassword={() => setShowPassword((prev) => !prev)}
-        />
-      </form>
+        <form id="login-form" action={formAction} noValidate className="space-y-4">
+          <LoginFormCredentialFields
+            email={email}
+            password={password}
+            showPassword={showPassword}
+            isPending={isPending}
+            error={formState.error ?? null}
+            onEmailChange={handleEmailChange}
+            onPasswordChange={handlePasswordChange}
+            onTogglePassword={() => setShowPassword((prev) => !prev)}
+          />
+        </form>
+      </div>
 
       {SHOW_DEMO && DEMO_ACCOUNTS.length > 0 ? (
-        <div className="mt-8">
+        <div data-testid="demo-accounts" className="w-full max-w-[760px] mt-8">
           <div className="flex items-center gap-2 mb-2">
             <div className={`h-px flex-1 ${C.bgLight}`} />
             <span className={`text-sm ${C.text35}`}>デモアカウント</span>

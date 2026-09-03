@@ -90,7 +90,7 @@ describe("LoginForm demo accounts (staff-attach)", () => {
     vi.unstubAllEnvs();
   });
 
-  it("DEV ではデモアカウント欄に城東・敷島・猫の staff-attach アカウントを表示する", () => {
+  it("DEV ではデモアカウント欄に八王子・城東・敷島・猫の staff-attach アカウントを表示する", () => {
     render(
       <MemoryRouter>
         <LoginForm />
@@ -99,12 +99,14 @@ describe("LoginForm demo accounts (staff-attach)", () => {
 
     expect(screen.getByText("デモアカウント")).toBeInTheDocument();
     const demoEmails = screen.getAllByText(/stg-staff-\d+@example\.test/);
-    expect(demoEmails.length).toBeGreaterThanOrEqual(29);
-    expect(demoEmails.length).toBeLessThanOrEqual(32);
+    expect(demoEmails.length).toBeGreaterThanOrEqual(39);
+    expect(demoEmails.length).toBeLessThanOrEqual(42);
     // Clinic seed names use U+3000; Testing Library string matchers collapse it.
+    expect(screen.getAllByText("八王子病院").length).toBeGreaterThanOrEqual(9);
     expect(screen.getAllByText(/城東センター病院/).length).toBeGreaterThanOrEqual(9);
     expect(screen.getAllByText(/敷島病院/).length).toBeGreaterThanOrEqual(9);
     expect(screen.getAllByText(/Hako bu neco/).length).toBeGreaterThanOrEqual(9);
+    expect(screen.getByTestId("demo-accounts")).toHaveClass("max-w-[760px]");
     expect(
       screen.getByText("パスワードは自動入力されます（staff-attach と同一）"),
     ).toBeInTheDocument();
