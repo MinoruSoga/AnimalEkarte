@@ -23,6 +23,7 @@ import { ResourceTrimming } from "@/types/generated/models";
 import type { MasterItem, SortOrder } from "@/types";
 import type { TrimmingFormData } from "@/types/trimming";
 import type { TrimmingHistoryItem } from "../components/trimming-form-column-types";
+import type { MasterSelectItem } from "@/components/shared/MasterSelectModal";
 import { ConfirmDialog, MasterSelectModal } from "./TrimmingLazyModals";
 import { TRIMMING_FORM_ID, type TrimmingFormGate, type TrimmingSelectableItem } from "./trimming-form-model";
 import { TrimmingFormColumns, type TrimmingPatient } from "./trimming-form-body-columns";
@@ -247,6 +248,17 @@ export function TrimmingFormBody({
   onHistoryEndDateChange,
   onHistoryClick,
 }: TrimmingFormBodyProps) {
+  // rerender-memo: MasterSelectModal は memo。onSelect を inline arrow で渡すと
+  // 毎レンダー新規参照になり memo が無効化されるため useCallback で安定化する。
+  const handleSelectCourse = useCallback(
+    (item: MasterSelectItem) => onFormChange({ courseId: String(item.id) }),
+    [onFormChange],
+  );
+  const handleSelectStaff = useCallback(
+    (item: MasterSelectItem) => onFormChange({ staffName: item.name, staffId: String(item.id) }),
+    [onFormChange],
+  );
+
   return (
     <PageLayout
       title={mode === "new" ? "トリミング登録" : "トリミング編集"}
@@ -318,7 +330,7 @@ export function TrimmingFormBody({
           items={courses}
           selectedValue={formData.courseId}
           matchBy="id"
-          onSelect={(item) => onFormChange({ courseId: String(item.id) })}
+          onSelect={handleSelectCourse}
         />
         <MasterSelectModal
           open={staffModalOpen}
@@ -327,7 +339,7 @@ export function TrimmingFormBody({
           items={activeStaffItems}
           selectedValue={formData.staffName}
           matchBy="name"
-          onSelect={(item) => onFormChange({ staffName: item.name, staffId: String(item.id) })}
+          onSelect={handleSelectStaff}
         />
         <ConfirmDialog
           open={deleteConfirmOpen}

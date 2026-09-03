@@ -192,6 +192,12 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({
     deleteTreatmentFn(String(id));
   }, [canDelete, deleteTreatmentFn]);
 
+  // rerender-memo: TreatmentTable は memo。onOpenSearch を inline arrow で
+  // 渡すと毎レンダー新規参照になり memo が無効化されるため useCallback で安定化する。
+  const handleOpenSearch = useCallback(() => {
+    setIsSearchOpen(true);
+  }, []);
+
   const nextOrder = useMemo(
     () => treatments.reduce((maxOrder, treatment) => Math.max(maxOrder, treatment.sort_order), -1) + 1,
     [treatments],
@@ -269,7 +275,7 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({
               items={items}
               onUpdate={handleUpdateItem}
               onRemove={handleRemoveItem}
-              onOpenSearch={canEdit && !isConfirmed ? () => setIsSearchOpen(true) : undefined}
+              onOpenSearch={canEdit && !isConfirmed ? handleOpenSearch : undefined}
               disabled={isConfirmed || (!canEdit && !canDelete)}
             />
           </div>
