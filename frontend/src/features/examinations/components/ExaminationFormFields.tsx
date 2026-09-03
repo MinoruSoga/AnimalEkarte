@@ -34,6 +34,8 @@ interface ExaminationFormFieldsProps {
   isConfirmed: boolean;
   /** BUG-033: first-pass completed seal — results/delete lock; status transition save allowed. */
   isCompletedLocked?: boolean;
+  /** FE-RC-002: 死亡ペットは render 側でも SubmitButton を非表示にする（callback 側の拒否と二重防壁）。 */
+  isPetDeceased?: boolean;
   canEdit: boolean;
   canCreate: boolean;
   canDelete: boolean;
@@ -52,6 +54,7 @@ function ExaminationFormFieldsBase({
   isDeleting,
   isConfirmed,
   isCompletedLocked = false,
+  isPetDeceased = false,
   canEdit,
   canCreate,
   canDelete,
@@ -60,7 +63,7 @@ function ExaminationFormFieldsBase({
   onBack,
   onDeleteClick,
 }: ExaminationFormFieldsProps) {
-  const canSubmit = isEdit ? canEdit : canCreate && canEdit;
+  const canSubmit = !isPetDeceased && (isEdit ? canEdit : canCreate && canEdit);
   const fieldsLocked = isConfirmed || isCompletedLocked;
   // completed seal: hide save/delete while status remains 完了; allow save after status change (confirm/unlock).
   const showActions =

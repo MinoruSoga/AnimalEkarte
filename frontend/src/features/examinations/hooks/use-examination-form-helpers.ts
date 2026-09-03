@@ -8,7 +8,6 @@ import {
 } from "react";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
-import { handleApiError } from "@/lib/handle-api-error";
 import { paths } from "@/config/paths";
 import { useGetExamination } from "../api/get-examination";
 import { useGetExaminationItems } from "../api/get-examination-items";
@@ -35,6 +34,7 @@ import {
   validateExaminationSave,
   type ExaminationMutationPermissions,
 } from "./use-examination-form-model";
+import { UNCONFIRM_REASON_MAX_LENGTH } from "../constants";
 
 export function useExaminationFormOverrides(id: string | undefined) {
   const [localOverrideScope, setLocalOverrideScope] = useState<{
@@ -430,8 +430,10 @@ export async function runExaminationSave(
       await deps.createMutation.mutateAsync(req);
     }
     return { success: true, timestamp: Date.now() };
-  } catch (error) {
-    handleApiError(error, "保存");
+  } catch {
+    // FE-RC-005: useCreateExamination/useUpdateExamination の onError が
+    // handleApiError 済み（api/create-examination.ts, api/update-examination.ts）。
+    // ここでは二重 toast を避け、失敗を呼び出し元へ伝えるだけにする。
     return { success: false, timestamp: Date.now() };
   }
 }
@@ -448,13 +450,14 @@ export function createExaminationUnconfirmHandler(input: {
     if (!input.isEdit || !input.id) return false;
     if (!input.isPersistedConfirmed()) return false;
     if (!input.isMutationAllowed("canUnconfirm")) return false;
-    if (!reason || reason.length > 500) return false;
+    if (!reason || reason.length > UNCONFIRM_REASON_MAX_LENGTH) return false;
 
     try {
       await input.unconfirm({ id: input.id, reason });
       toast.success("検査記録の確定を解除しました");
       return true;
     } catch {
+      // onError は useUnconfirmExamination 側で handleApiError 済み。ここでは失敗を呼び出し元へ伝えるだけ。
       return false;
     }
   };

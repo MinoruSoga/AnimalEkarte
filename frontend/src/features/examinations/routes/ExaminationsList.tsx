@@ -1,10 +1,11 @@
 // React/Framework
 import { C, ICON, LAYOUT } from "@/lib/design-tokens";
-import { useState, useDeferredValue, useCallback, useEffect, useMemo } from "react";
+import { useState, useDeferredValue, useCallback, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 
 // Hooks
 import { useSortableData } from "@/hooks/use-sortable-data";
+import { useUrlPageSync } from "@/hooks/use-url-page-sync";
 
 // External
 import { Plus, TestTube } from "lucide-react";
@@ -70,19 +71,14 @@ export function ExaminationsList() {
     limit: serverLimit,
   });
 
-  // FE-144 / BUG-411: URLの page がサーバ total から導いた totalPages を超えている場合はクランプする
-  // （日付フィルタ変更等で母集団が縮んだ場合に空ページへ迷い込むのを防ぐ。既存クランプ effect を踏襲）。
-  useEffect(() => {
-    if (isLoading) return;
-    const clampedPage = Math.max(1, Math.min(urlPage, pagination.totalPages));
-    if (clampedPage !== urlPage) {
-      setSearchParams(
-        (prev) => nextListSearchParamsWithPage(prev, clampedPage),
-        { replace: true },
-      );
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- setSearchParams は安定参照。urlPage/totalPages/isLoading の変化時のみ再評価する設計（FE-144踏襲）。
-  }, [urlPage, pagination.totalPages, isLoading]);
+  // FE-144 / BUG-411 / FE-RC-028: URLの page がサーバ total から導いた totalPages を超えている場合はクランプする
+  // （日付フィルタ変更等で母集団が縮んだ場合に空ページへ迷い込むのを防ぐ）。共通 hook に委譲。
+  useUrlPageSync({
+    urlPage,
+    totalPages: pagination.totalPages,
+    isLoading,
+    setSearchParams,
+  });
 
   const handlePageChange = useCallback((page: number) => {
     setSearchParams(

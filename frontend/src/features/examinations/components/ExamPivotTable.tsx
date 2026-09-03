@@ -11,6 +11,7 @@ import type { SortOrder } from "@/types";
 import { examinationItemsQueryOptions } from "../api/get-examination-items";
 import type { ExaminationRecord, ExamResult } from "../api/transforms";
 import { EXAM_PIVOT_RECENT_LIMIT } from "../constants";
+import { ExamStatusBadge } from "./ExamStatusBadge";
 
 interface ExamPivotTableProps {
   examinations: ExaminationRecord[];
@@ -51,7 +52,7 @@ function formatStoredReference(item: ExamResult): string {
     return item.referenceValue;
   }
 
-  // TODO(Phase 2): 保存済み refMin/refMax 表示をマスタ解決済み基準値へ置換する。
+  // 既知の制約: 保存済み refMin/refMax はマスタ解決済み基準値ではなく保存時点の値をそのまま表示する。
   if (item.refMin !== undefined || item.refMax !== undefined) {
     return `${item.refMin ?? ""}-${item.refMax ?? ""}`;
   }
@@ -127,54 +128,6 @@ function buildPivotRows(
   );
 }
 
-function StatusBadge({
-  status,
-  isAssessed,
-}: {
-  status: ExamResult["status"];
-  isAssessed: ExamResult["isAssessed"];
-}) {
-  if (status === "high") {
-    return (
-      <Badge
-        variant="destructive"
-        className={`h-8 px-2 text-xs ${C.bgDanger} ${C.hoverBgDanger90}`}
-      >
-        HIGH
-      </Badge>
-    );
-  }
-
-  if (status === "low") {
-    return (
-      <Badge
-        variant="outline"
-        className={`h-8 px-2 text-xs ${C.textStatusBlue} ${C.borderBlue400} ${C.bgStatusBlueLight}`}
-      >
-        LOW
-      </Badge>
-    );
-  }
-
-  if (isAssessed === false) {
-    return (
-      <Badge
-        variant="outline"
-        className={`h-8 px-2 text-xs ${C.textWarning} ${C.borderWarning20} ${C.bgWarning50}`}
-      >
-        未判定
-        <span className="sr-only">（基準値未設定のため判定していない）</span>
-      </Badge>
-    );
-  }
-
-  if (status === "normal") {
-    return null;
-  }
-
-  return null;
-}
-
 function PivotValueCell({ item }: { item: ExamResult | undefined }) {
   if (!item) {
     return (
@@ -198,7 +151,7 @@ function PivotValueCell({ item }: { item: ExamResult | undefined }) {
     >
       <div className="flex min-h-8 items-center justify-center gap-2">
         <span className="font-mono">{item.inspectionValue}</span>
-        <StatusBadge status={item.status} isAssessed={item.isAssessed} />
+        <ExamStatusBadge status={item.status} isAssessed={item.isAssessed} compact />
       </div>
     </TableCell>
   );
@@ -242,8 +195,8 @@ export function ExamPivotTable({
     [recentExaminations, sortOrder],
   );
 
-  // Phase 1 intentionally bounds this N+1 fan-out to the latest 10 exams.
-  // TODO(Phase 2): replace with a single bulk examination-items endpoint.
+  // 既知の制約: この N+1 fan-out は直近 EXAM_PIVOT_RECENT_LIMIT 件に意図的に絞っている。
+  // 件数が増える場合は一括取得エンドポイントへの置換を検討する。
   const itemQueries = useQueries({
     queries: recentExaminations.map((examination) =>
       examinationItemsQueryOptions(examination.id),

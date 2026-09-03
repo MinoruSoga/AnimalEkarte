@@ -21,6 +21,8 @@ const mocks = vi.hoisted(() => ({
   formFieldsMounted: vi.fn(),
   formFieldsUnmounted: vi.fn(),
   formFieldsProps: vi.fn(),
+  patientInfoCard: vi.fn(),
+  isPetDeceased: false,
   searchParams: "",
   setSearchParams: vi.fn(),
 }));
@@ -49,13 +51,9 @@ vi.mock("@/hooks/use-master-items", () => ({
   useMasterItems: () => ({ data: [], isLoading: false }),
 }));
 
-vi.mock("@/features/master", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/features/master")>();
-  return {
-    ...actual,
-    useGetStaffs: mocks.useGetStaffs,
-  };
-});
+vi.mock("@/hooks/use-staffs", () => ({
+  useGetStaffs: mocks.useGetStaffs,
+}));
 
 // ExaminationForm は未紐付け受信バナーを描画する。バナーは useQuery を使うため
 // QueryClientProvider の無いフォーム単体テストでは null に差し替える。
@@ -100,7 +98,10 @@ vi.mock("@/components/shared/ConfirmDialog", () => ({
 }));
 
 vi.mock("@/components/shared/PatientInfoCard", () => ({
-  PatientInfoCard: () => null,
+  PatientInfoCard: (props: unknown) => {
+    mocks.patientInfoCard(props);
+    return null;
+  },
 }));
 
 vi.mock("../components/ExamItemsTable", () => ({
@@ -149,6 +150,7 @@ beforeEach(() => {
   mocks.canUnconfirm = false;
   mocks.isPersistedConfirmed = false;
   mocks.isPatientChangeLocked = true;
+  mocks.isPetDeceased = false;
   mocks.searchParams = "";
   mocks.setSearchParams.mockReset();
   mocks.historyPanel.mockReset();
@@ -157,6 +159,7 @@ beforeEach(() => {
   mocks.formFieldsMounted.mockReset();
   mocks.formFieldsUnmounted.mockReset();
   mocks.formFieldsProps.mockReset();
+  mocks.patientInfoCard.mockReset();
   mocks.useGetExaminations.mockReset();
   mocks.useGetExaminations.mockReturnValue({ data: [] });
   mocks.useGetStaffs.mockReset();
@@ -165,6 +168,7 @@ beforeEach(() => {
   mocks.useExaminationForm.mockImplementation(() => ({
     formData: { status: "依頼中", petId: "pet-1" },
     setFormData: vi.fn(),
+    isPetDeceased: mocks.isPetDeceased,
     petSelection: {
       selectedPets: [
         {
@@ -371,6 +375,40 @@ describe("ExaminationForm — mutation permission wiring", () => {
     expect(
       screen.queryByRole("button", { name: "患者を変更" }),
     ).not.toBeInTheDocument();
+  });
+});
+
+describe("ExaminationForm — 死亡ペット render側二重防壁 (FE-RC-002)", () => {
+  it("死亡ペットでは権限があってもfieldsetをdisabledにし、理由バナーとPatientInfoCardのdeceased statusを出す", () => {
+    mocks.canCreate = true;
+    mocks.canEdit = true;
+    mocks.isPetDeceased = true;
+
+    render(<ExaminationForm />);
+
+    expect(screen.getByRole("button", { name: "保存" }).closest("fieldset")).toBeDisabled();
+    expect(
+      screen.getByText("死亡したペットの検査記録は保存できません"),
+    ).toBeInTheDocument();
+    expect(mocks.patientInfoCard).toHaveBeenLastCalledWith(
+      expect.objectContaining({ status: "deceased" }),
+    );
+  });
+
+  it("生存ペットではfieldsetを有効にし、理由バナーを出さない", () => {
+    mocks.canCreate = true;
+    mocks.canEdit = true;
+    mocks.isPetDeceased = false;
+
+    render(<ExaminationForm />);
+
+    expect(screen.getByRole("button", { name: "保存" }).closest("fieldset")).not.toBeDisabled();
+    expect(
+      screen.queryByText("死亡したペットの検査記録は保存できません"),
+    ).not.toBeInTheDocument();
+    expect(mocks.patientInfoCard).toHaveBeenLastCalledWith(
+      expect.objectContaining({ status: "alive" }),
+    );
   });
 });
 
