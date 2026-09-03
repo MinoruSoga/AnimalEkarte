@@ -6,7 +6,7 @@ import {
   ClinicMasterSidePanel,
 } from "../components/ClinicMasterSettingsPanels";
 import { CompanyInvoiceSection } from "../components/CompanyInvoiceSection";
-import { useClinicMasterSettings } from "./use-clinic-master-settings";
+import { useClinicMasterSettings } from "../hooks/use-clinic-master-settings";
 
 export function ClinicMasterSettings() {
   const s = useClinicMasterSettings();
@@ -38,7 +38,7 @@ export function ClinicMasterSettings() {
             formData={s.formData}
             setFormData={s.setFormData}
             formAction={s.formAction}
-            nameError={s.formState.nameError}
+            nameError={s.formState.fieldErrors?.name}
             canEdit={s.canEdit}
             canDelete={s.canDelete}
             onClose={s.handleCloseEdit}
