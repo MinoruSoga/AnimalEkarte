@@ -611,3 +611,14 @@ docker compose exec frontend pnpm lint
 - examinations 単体: RED 1 failed → GREEN（コンテナ稼働時）`Test Files 22 passed` / `Tests 193 passed`。
 - ディレクトリ単位 vitest: 並列実行で frontend コンテナ OOM (exit 137) → 停止。`docker compose up` はエージェント禁止のため **BLOCKED（要ユーザー `docker compose up -d frontend`）**。再開後に 36 単位を同時 1 本で再実行予定。
 - 全体ゲート 4 本: BLOCKED（policy）。push / claim 解放なし。
+
+### 検証要約（統合後・followup5/6 2026-09-03）
+
+- followup5: frontend `Exited (1)` のため container not running で **BLOCKED**（vitest/lint/guards 未着手）。同一 Signature が followup6 初回・再試行でも再発し、ユーザーが `docker compose up -d frontend` 後に本実行で再開。
+- 単位一覧補正: 独立再検証で **33→37**（追加: `src/app` `src/config` `src/testing` `src/types`）。`src/features/CLAUDE.md` は単位外。
+- OOM 経緯: followup4 並列 vitest で `mem_limit: 2g` 超過 → exit 137 → コンテナ停止。本実行は直列 1 本 + `NODE_OPTIONS=--max-old-space-size=1536`。Vitest 4 は `--poolOptions.forks.singleFork` 非対応のため `--no-file-parallelism --maxWorkers=1` に代替（Assumption どおり）。
+- 37 単位 vitest（初回）: 35 PASS / 2 FAIL（`hospitalization` 1, `types` 1）。切り分け後 GREEN 再実行:
+  - FE-RC-002 stale: `HospitalizationDetailActions.checkin.test.tsx` — 死亡時はボタン非表示（click 前提の重複ケース削除、`mutateAsync` 未呼び出しを FE-RC-002 ケースへ統合）。再実行 `Test Files 29 passed` / `Tests 187 passed`。
+  - FE-RC-045 stale allowlist: `generated-models-import-allowlist.json` を実測 267 に同期（stale 4 削除 + unlisted 5 追加）。`src/types` 再実行 `Test Files 1 passed` / `Tests 3 passed`。
+- eslint（変更 .ts/.tsx）: unused import 掃除後 `--max-warnings 0` exit 0。design-audit / check-filenames / eslint-disable-rationale / unused すべて exit 0。コンテナ最後まで `frontend running`。
+- 全体ゲート 4 本: BLOCKED（policy）。push / claim 解放なし。

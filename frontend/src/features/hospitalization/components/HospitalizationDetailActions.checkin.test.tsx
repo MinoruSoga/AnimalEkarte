@@ -134,29 +134,6 @@ describe("HospitalizationDetailActions — チェックイン (FEAT-CHECKIN / DE
     expect(
       screen.getByText("死亡したペットのため、チェックインできません"),
     ).toBeInTheDocument();
-  });
-
-  it("status=予約でもpetが死亡している場合はチェックインmutationを拒否する", async () => {
-    const user = userEvent.setup();
-    const queryClient = new QueryClient({
-      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
-    });
-    render(
-      <QueryClientProvider client={queryClient}>
-        <MemoryRouter>
-          <HospitalizationDetailActions
-            hospitalization={makeHospitalization(
-              HOSPITALIZATION_STATUS.RESERVED,
-              true,
-            )}
-            onDischargeClick={vi.fn()}
-          />
-        </MemoryRouter>
-      </QueryClientProvider>,
-    );
-
-    await user.click(screen.getByRole("button", { name: "チェックイン" }));
-
     expect(mocks.mutateAsync).not.toHaveBeenCalled();
   });
 
