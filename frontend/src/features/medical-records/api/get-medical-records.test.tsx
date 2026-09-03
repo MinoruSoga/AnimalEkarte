@@ -4,7 +4,14 @@ import { http, HttpResponse } from "msw";
 import { server } from "@/testing/mocks/node";
 import { createTestWrapper } from "@/testing/TestUtils";
 import { useGetMedicalRecords } from "./get-medical-records";
+import { useGetMedicalRecords as hooksUseGetMedicalRecords } from "@/hooks/use-medical-records";
 import type { BackendMedicalRecord } from "./types";
+
+describe("get-medical-records re-export (FE-RC-015 followup2)", () => {
+  it("re-exports useGetMedicalRecords from @/hooks/use-medical-records (same reference)", () => {
+    expect(useGetMedicalRecords).toBe(hooksUseGetMedicalRecords);
+  });
+});
 
 function makeBackendRecord(id: number): BackendMedicalRecord {
   return {

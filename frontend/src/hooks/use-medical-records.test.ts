@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { useGetMedicalRecords } from "./use-medical-records";
-import { useGetMedicalRecords as featureHook } from "../features/medical-records/api/get-medical-records";
+import { useGetMedicalRecords, getMedicalRecords } from "./use-medical-records";
 
 describe("use-medical-records (FE-RC-015 elevation)", () => {
-  it("re-exports the feature list hook (same reference)", () => {
-    expect(useGetMedicalRecords).toBe(featureHook);
+  it("exports the list hook and query function from hooks (no features import)", () => {
+    expect(typeof useGetMedicalRecords).toBe("function");
+    expect(typeof getMedicalRecords).toBe("function");
   });
 });
