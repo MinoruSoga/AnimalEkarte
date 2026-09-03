@@ -49,13 +49,13 @@ export function ReservationNoticeBanner({
 }) {
   if (notice === null) return null;
   return (
-    <div role="alert" className="mx-4 mt-4 flex items-start justify-between gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3">
-      <p className="flex-1 text-sm text-red-700">{notice}</p>
+    <div role="alert" className="mx-4 mt-4 flex items-start justify-between gap-3 rounded-lg border border-noah-danger-border bg-noah-danger-bg px-4 py-3">
+      <p className="flex-1 text-sm text-noah-danger-text">{notice}</p>
       <button
         type="button"
         onClick={onDismiss}
         aria-label="閉じる"
-        className="font-bold leading-none text-red-700"
+        className="font-bold leading-none text-noah-danger-text"
       >
         ×
       </button>

@@ -161,11 +161,11 @@ export function ConfirmPage({
 
         <div className="flex-1 px-4 space-y-4">
           {/* 警告メッセージ */}
-          <div className="bg-yellow-50 border border-yellow-200 rounded-xl px-4 py-3">
-            <p className="text-sm text-yellow-800 font-medium">
+          <div className="bg-noah-warning-box-bg border border-noah-warning-border rounded-xl px-4 py-3">
+            <p className="text-sm text-noah-warning-text font-medium">
               まだ予約は完了していません
             </p>
-            <p className="text-xs text-yellow-700 mt-1">
+            <p className="text-xs text-noah-warning-text-sub mt-1">
               「予約を確定する」ボタンを押してください
             </p>
           </div>
@@ -188,9 +188,9 @@ export function ConfirmPage({
           </div>
 
           {reservationNotice ? (
-            <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3">
-              <p className="text-xs font-medium text-blue-700 mb-1">ご予約にあたって</p>
-              <p className="text-sm text-blue-800 whitespace-pre-wrap">{reservationNotice}</p>
+            <div className="bg-noah-info-box-bg border border-noah-info-border rounded-xl px-4 py-3">
+              <p className="text-xs font-medium text-noah-info-text-sub mb-1">ご予約にあたって</p>
+              <p className="text-sm text-noah-info-text whitespace-pre-wrap">{reservationNotice}</p>
             </div>
           ) : null}
 
@@ -202,8 +202,8 @@ export function ConfirmPage({
           ) : null}
 
           {formState.error ? (
-            <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3">
-              <p className="text-sm text-red-700" role="alert">{formState.error}</p>
+            <div className="bg-noah-danger-bg border border-noah-danger-border rounded-lg px-4 py-3">
+              <p className="text-sm text-noah-danger-text" role="alert">{formState.error}</p>
             </div>
           ) : null}
         </div>

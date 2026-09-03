@@ -160,7 +160,7 @@ export function CustomerInfoPage({
           {/* お名前 */}
           <div>
             <label htmlFor="customer-name" className="block text-sm font-medium text-noah-text-sub mb-1">
-              お名前 <span className="text-red-500">*</span>
+              お名前 <span className="text-noah-danger">*</span>
             </label>
             <input
               id="customer-name"
@@ -168,18 +168,18 @@ export function CustomerInfoPage({
               value={name}
               onChange={e => { setName(e.target.value); setErrors(prev => ({ ...prev, name: '' })); }}
               aria-invalid={errors.name ? true : undefined}
-              className={`w-full border rounded-xl px-3 py-2 text-noah-text focus:outline-none focus:ring-2 focus:ring-noah-teal focus:border-transparent ${errors.name ? 'border-red-500' : 'border-gray-300'}`}
+              className={`w-full border rounded-xl px-3 py-2 text-noah-text focus:outline-none focus:ring-2 focus:ring-noah-teal focus:border-transparent ${errors.name ? 'border-noah-danger' : 'border-gray-300'}`}
               placeholder="山田 花子"
             />
             {errors.name ? (
-              <p className="mt-1 text-sm text-red-500" role="alert">{errors.name}</p>
+              <p className="mt-1 text-sm text-noah-danger" role="alert">{errors.name}</p>
             ) : null}
           </div>
 
           {/* 電話番号 */}
           <div>
             <label htmlFor="customer-phone" className="block text-sm font-medium text-noah-text-sub mb-1">
-              電話番号 <span className="text-red-500">*</span>
+              電話番号 <span className="text-noah-danger">*</span>
             </label>
             <input
               id="customer-phone"
@@ -188,11 +188,11 @@ export function CustomerInfoPage({
               onChange={e => { setPhone(e.target.value); setErrors(prev => ({ ...prev, phone: '' })); }}
               aria-invalid={errors.phone ? true : undefined}
               aria-describedby={errors.phone ? "customer-phone-error" : undefined}
-              className={`w-full border rounded-xl px-3 py-2 text-noah-text focus:outline-none focus:ring-2 focus:ring-noah-teal focus:border-transparent ${errors.phone ? 'border-red-500' : 'border-gray-300'}`}
+              className={`w-full border rounded-xl px-3 py-2 text-noah-text focus:outline-none focus:ring-2 focus:ring-noah-teal focus:border-transparent ${errors.phone ? 'border-noah-danger' : 'border-gray-300'}`}
               placeholder="090-1234-5678"
             />
             {errors.phone ? (
-              <p id="customer-phone-error" className="mt-1 text-sm text-red-500" role="alert">{errors.phone}</p>
+              <p id="customer-phone-error" className="mt-1 text-sm text-noah-danger" role="alert">{errors.phone}</p>
             ) : null}
           </div>
 
@@ -263,7 +263,7 @@ export function CustomerInfoPage({
                     <button
                       type="button"
                       onClick={() => handleRemoveNewPet(index)}
-                      className="text-red-400 hover:text-red-600 text-sm px-2"
+                      className="text-noah-danger-subtle hover:text-noah-danger-hover text-sm px-2"
                       aria-label={`${pet.name}を削除`}
                     >
                       削除
