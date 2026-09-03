@@ -501,7 +501,7 @@ docker compose exec frontend pnpm lint
 | FE-RC-012 | DONE（初回 DONE 表記は誤り、追い込みで onError 5→6） | lab-device.ts useReceiveLabDeviceFrames onError | rg -c onError=6; vitest lab-device |
 | FE-RC-013 | DONE（初回残 12 箇所を追い込みで解消） | design-tokens hover/focus 静的トークン + 12 call sites | rg 動的クラス=0 |
 | FE-RC-014 | DONE | shared-liff brand = PALETTE.brand | brand-tokens.test |
-| FE-RC-015 | DONE（追い込みで相対 re-export 層逆転 → 第2追い込みで実体移動・順方向 re-export） | hooks に list/history 実体; feature api は `@/hooks` re-export のみ; ESLint 相対 `../features/` 禁止 | relative features from hooks/lib/components=0; vitest medical-records+owner-report 518; knip PASS |
+| FE-RC-015 | DONE（追い込みで相対 re-export 層逆転 → 第2追い込みで実体移動・順方向 re-export → 第3追い込みで LabDeviceUnlinkedBanner 依存を hooks/lib 昇格・ESLint off 例外削除・medical-record 変換を lib 単一化） | hooks に list/history 実体; feature api は `@/hooks` re-export のみ; ESLint 相対 `../features/` 禁止; LabDeviceUnlinkedBanner → `@/hooks/use-lab-device-unlinked` / `@/lib/lab-device-card-model`; `transformMedicalRecord`/`toVisitTypeLabel` を `src/lib/transforms/medical-record.ts` に集約 | features import=0; vitest baseline 921→926 PASS; knip PASS |
 | FE-RC-016 | DONE（reception + treatments hooks 移動） | use-reception-column-view; use-treatments-tab | hooks_out=0 |
 | FE-RC-017 | DONE（PascalCase リネーム; followup2 で *.test/use-* 除外し tsx baseline 14→0） | 42 git mv; isTsxViolation 除外 | kebab コンポ=0; check-filenames OK; baseline 2行目=0 |
 | FE-RC-018 | DONE | pet-checkup-results → owner-report | Phase 0 |
@@ -595,3 +595,12 @@ docker compose exec frontend pnpm lint
 - transform 重複（hooks list vs feature `transforms.ts`）: drift リスクとして記録。一本化は後続。
 - 全体ゲート 4 本: BLOCKED（policy・ユーザー明示許可なし）。push / claim 解放なし。
 
+
+### 検証要約（統合後・followup3 2026-09-03）
+
+- LabDeviceUnlinkedBanner: api/lib を `@/hooks/use-lab-device-unlinked` / `@/lib/lab-device-card-model` へ実体移動。feature は順方向 re-export。ESLint `no-restricted-imports: off` 例外ブロック削除。
+- medical-record: `transformMedicalRecord` / `toVisitTypeLabel` 正本を `src/lib/transforms/medical-record.ts` に集約。hooks・feature transforms は import/re-export。
+- rg: hooks/lib/components → features = 0。`"no-restricted-imports": "off"` = 0。
+- vitest 対象スイート: baseline 921 PASS → 926 PASS（examinations 既存 FAIL 1 件は不変）。design-audit / check-filenames / eslint-disable / knip PASS。
+- 全体ゲート 4 本: BLOCKED（policy）。push / claim 解放なし。
+- deviation: 問診履歴 `transformToHistoryItem` は feature UI 型のため hooks/feature に残置（list/detail 写像とは別）。
