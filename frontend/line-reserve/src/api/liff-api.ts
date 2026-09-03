@@ -15,6 +15,7 @@ import type {
 } from '../types/models';
 import { API_BASE_URL } from '../lib/liff-config';
 import { sanitizeNullBytes } from '@/lib/sanitize';
+import { devError } from '@/shared-liff/dev-log';
 import {
   liffSettingsSchema,
   liffProfileSchema,
@@ -62,7 +63,7 @@ function clinicPath(clinicId: string): string {
 function parseOrThrow<T>(schema: z.ZodType<T>, data: unknown, fnName: string): T {
   const parsed = schema.safeParse(data);
   if (!parsed.success) {
-    console.error(`[liffApi.${fnName}] invalid response shape:`, parsed.error);
+    devError(`[liffApi.${fnName}] invalid response shape:`, parsed.error);
     throw new Error(`${fnName} response validation failed`);
   }
   return parsed.data;
