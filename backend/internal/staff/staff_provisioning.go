@@ -5,7 +5,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"io"
 	"slices"
 	"strconv"
@@ -142,7 +141,7 @@ func DecodeStaffProvisionManifest(r io.Reader) (*StaffProvisionManifest, error) 
 	decoder.DisallowUnknownFields()
 	var manifest StaffProvisionManifest
 	if err := decoder.Decode(&manifest); err != nil {
-		return nil, apperrors.WrapInvalidInput(fmt.Sprintf("manifest decode failed: %v", err))
+		return nil, apperrors.WrapInvalidInput("マニフェストの形式が正しくありません")
 	}
 	// Reject trailing content after the root object.
 	if err := decoder.Decode(&struct{}{}); err != io.EOF {
@@ -157,7 +156,7 @@ func DecodeStaffProvisionSecrets(r io.Reader) (*StaffProvisionSecretsFile, error
 	decoder.DisallowUnknownFields()
 	var secrets StaffProvisionSecretsFile
 	if err := decoder.Decode(&secrets); err != nil {
-		return nil, apperrors.WrapInvalidInput(fmt.Sprintf("secrets decode failed: %v", err))
+		return nil, apperrors.WrapInvalidInput("シークレットの形式が正しくありません")
 	}
 	if err := decoder.Decode(&struct{}{}); err != io.EOF {
 		return nil, apperrors.WrapInvalidInput("secrets must contain exactly one JSON value")

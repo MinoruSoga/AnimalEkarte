@@ -25,7 +25,7 @@ func ValidateSecureInputPath(path string, repoRoots []string) (string, error) {
 	clean := filepath.Clean(path)
 	info, err := os.Lstat(clean)
 	if err != nil {
-		return "", apperrors.WrapInvalidInput(fmt.Sprintf("input path is not accessible: %v", err))
+		return "", apperrors.WrapInvalidInput("入力パスにアクセスできません")
 	}
 	if info.Mode()&os.ModeSymlink != 0 {
 		return "", apperrors.WrapInvalidInput("input path must not be a symlink")
@@ -38,7 +38,7 @@ func ValidateSecureInputPath(path string, repoRoots []string) (string, error) {
 	}
 	realPath, err := filepath.EvalSymlinks(clean)
 	if err != nil {
-		return "", apperrors.WrapInvalidInput(fmt.Sprintf("input path realpath resolution failed: %v", err))
+		return "", apperrors.WrapInvalidInput("入力パスの実体解決に失敗しました")
 	}
 	realPath = filepath.Clean(realPath)
 	for _, root := range repoRoots {
@@ -72,7 +72,7 @@ func OpenSecureInputFile(path string, repoRoots []string) (*os.File, string, err
 	}
 	fd, err := unix.Open(realPath, unix.O_RDONLY|unix.O_CLOEXEC|unix.O_NOFOLLOW, 0)
 	if err != nil {
-		return nil, "", apperrors.WrapInvalidInput(fmt.Sprintf("failed to open input path: %v", err))
+		return nil, "", apperrors.WrapInvalidInput("入力パスを開けません")
 	}
 	return os.NewFile(uintptr(fd), realPath), realPath, nil //nolint:gosec // G115: fd comes from unix.Open
 }
