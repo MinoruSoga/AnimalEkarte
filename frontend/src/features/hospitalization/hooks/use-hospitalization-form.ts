@@ -1,22 +1,25 @@
+// React/Framework
 import { useState, useActionState, useCallback, useLayoutEffect, useRef } from "react";
 import { useSearchParams } from "react-router";
+
+// External
 import { toast } from "sonner";
+
+// Internal
 import { handleApiError } from "@/lib/handle-api-error";
 import {
   isNonDisclosureReadStatus,
   resolveEntityReadResult,
   type EntityReadResult,
 } from "@/lib/entity-read-result";
-import type { ActionState } from "@/types/form";
-import { INITIAL_ACTION_STATE } from "@/types/form";
-import type { HospitalizationTreatmentPlan } from "@/types";
-import type { HospitalizationFormData } from "../types";
+import { INITIAL_ACTION_STATE, type ActionState } from "@/types/form";
 import { usePetSelection } from "@/hooks/use-pet-selection";
 import { useGetPet } from "@/hooks/use-pet";
+
+// Relative
 import { createHospitalization } from "../api/create-hospitalization";
 import { updateHospitalization } from "../api/update-hospitalization";
 import { useGetHospitalizationRaw } from "../api/get-hospitalization";
-import type { BackendHospitalization } from "../api/types";
 import { useGetTreatmentPlans } from "../api/get-treatment-plans";
 import {
   buildCreateHospitalizationRequest,
@@ -29,6 +32,11 @@ import {
   updateTreatmentPlanField,
 } from "./use-hospitalization-form-model";
 import { useHospitalizationFormHydration } from "./use-hospitalization-form-helpers";
+
+// Types
+import type { HospitalizationTreatmentPlan } from "@/types";
+import type { HospitalizationFormData } from "../types";
+import type { BackendHospitalization } from "../api/types";
 
 export function useHospitalizationForm(id?: string, canSubmit = false) {
   const [searchParams] = useSearchParams();

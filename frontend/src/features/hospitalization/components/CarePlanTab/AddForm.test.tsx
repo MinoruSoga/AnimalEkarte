@@ -40,7 +40,7 @@ describe("AddForm — type連動マスタ参照(BUG-403)", () => {
     it("type=投薬 選択時、薬剤未選択のままでは追加ボタンが無効", async () => {
         const user = userEvent.setup();
         const onSubmit = vi.fn();
-        render(<AddForm onSubmit={onSubmit} isSubmitting={false} />);
+        render(<AddForm onSubmit={onSubmit} />);
 
         await selectType(user, "投薬");
         await user.type(screen.getByPlaceholderText("名称を入力"), "抗生剤");
@@ -51,7 +51,7 @@ describe("AddForm — type連動マスタ参照(BUG-403)", () => {
     it("type=投薬 選択時、薬剤選択後に追加すると medicine_id が payload に含まれる", async () => {
         const user = userEvent.setup();
         const onSubmit = vi.fn();
-        render(<AddForm onSubmit={onSubmit} isSubmitting={false} />);
+        render(<AddForm onSubmit={onSubmit} />);
 
         await selectType(user, "投薬");
         await user.type(screen.getByPlaceholderText("名称を入力"), "抗生剤");
@@ -73,7 +73,7 @@ describe("AddForm — type連動マスタ参照(BUG-403)", () => {
     it("type=食事 では参照選択欄を表示せず、FK は全て null で送信される", async () => {
         const user = userEvent.setup();
         const onSubmit = vi.fn();
-        render(<AddForm onSubmit={onSubmit} isSubmitting={false} />);
+        render(<AddForm onSubmit={onSubmit} />);
 
         await selectType(user, "食事");
         expect(screen.queryByLabelText("ref-select-stub")).not.toBeInTheDocument();

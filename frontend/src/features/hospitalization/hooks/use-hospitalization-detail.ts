@@ -29,15 +29,24 @@ export const useHospitalizationDetail = (hospitalizationId?: string) => {
     if (canEditRef.current !== true || petIsDeceasedRef.current === true) {
       return { success: false };
     }
-    try {
-      if (createAccounting) {
+    if (createAccounting) {
+      // dischargeWithBilling は mutation ではない生の非同期呼び出しのため、
+      // ここでの handleApiError が唯一の通知経路になる。
+      try {
         const result = await dischargeWithBilling(hospitalizationId, {
           discharge_date: jstNowISOString(),
           create_accounting: true,
         });
         toast.success("退院処理が完了しました");
         return { success: true, accountingId: result.accounting_id };
+      } catch (error) {
+        handleApiError(error, "退院処理");
+        return { success: false };
       }
+    }
+    try {
+      // FE-RC-005: useUpdateHospitalization.onError が既に handleApiError でトースト表示済みのため、
+      // ここでは再通知しない。
       await updateHosp({
         id: hospitalizationId,
         req: {
@@ -47,8 +56,7 @@ export const useHospitalizationDetail = (hospitalizationId?: string) => {
       });
       toast.success("退院処理が完了しました");
       return { success: true };
-    } catch (error) {
-      handleApiError(error, "退院処理");
+    } catch {
       return { success: false };
     }
   };

@@ -182,6 +182,32 @@ describe("HospitalizationBoard empty cage actions", () => {
     );
   });
 
+  // FE-RC-044: Card 自体の onClick は非フォーカス可能・キーボード操作不可のため削除し、
+  // 詳細への遷移は aria-label 付き button に一本化する（冗長な操作導線の排除）。
+  it("occupied cardの本体クリックでは遷移せず、詳細buttonのクリックでのみ遷移する", async () => {
+    const user = userEvent.setup();
+    const onNavigateToForm = vi.fn();
+
+    render(
+      <HospitalizationBoard
+        cages={cages}
+        hospitalizations={[occupied]}
+        onNavigateToForm={onNavigateToForm}
+        onMovePet={vi.fn()}
+        canCreate
+        canEdit
+      />,
+    );
+
+    const card = screen.getByText("犬 ポチ").closest("[data-slot='card']") as HTMLElement;
+    await user.click(card);
+    expect(onNavigateToForm).not.toHaveBeenCalled();
+
+    const detailButton = screen.getByRole("button", { name: "ポチの詳細" });
+    await user.click(detailButton);
+    expect(onNavigateToForm).toHaveBeenCalledWith(occupied.id);
+  });
+
   it("死亡ペットのoccupied cardは色に依存しない死亡文言を表示する", () => {
     render(
       <HospitalizationBoard

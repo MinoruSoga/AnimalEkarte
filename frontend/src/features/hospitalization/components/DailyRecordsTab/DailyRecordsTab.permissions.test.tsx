@@ -36,7 +36,7 @@ const mocks = vi.hoisted(() => ({
   carePlanUpdateCallback: undefined as ((input: UpdateCarePlanItemInput) => void) | undefined,
   carePlanDeleteCallback: undefined as ((itemId: string) => void) | undefined,
   carePlanEditCallback: undefined as ((itemId: string) => void) | undefined,
-  vitalCallback: undefined as ((payload: CreateVitalRecordRequest) => void) | undefined,
+  vitalCallback: undefined as ((payload: CreateVitalRecordRequest) => Promise<void>) | undefined,
   careLogCallback: undefined as ((payload: CreateCareLogRequest) => void) | undefined,
   staffNoteCallback: undefined as ((payload: CreateStaffNoteRequest) => void) | undefined,
   dailyRecordCallback: undefined as (() => void) | undefined,
@@ -74,8 +74,8 @@ vi.mock("../../api/care-plan-items", () => ({
     } satisfies CarePlanItem],
     isLoading: false,
   }),
-  useCreateCarePlanItem: () => ({ mutate: mocks.createCarePlanItem, isPending: false }),
-  useUpdateCarePlanItem: () => ({ mutate: mocks.updateCarePlanItem, isPending: false }),
+  useCreateCarePlanItem: () => ({ mutateAsync: mocks.createCarePlanItem, isPending: false }),
+  useUpdateCarePlanItem: () => ({ mutateAsync: mocks.updateCarePlanItem, isPending: false }),
   useDeleteCarePlanItem: () => ({ mutate: mocks.deleteCarePlanItem, isPending: false }),
 }));
 
@@ -140,7 +140,7 @@ vi.mock("@/components/ui/button", () => ({
   },
 }));
 vi.mock("./DailyVitalsSection", () => ({
-  DailyVitalsSection: ({ onAddVital }: { onAddVital: (payload: CreateVitalRecordRequest) => void }) => {
+  DailyVitalsSection: ({ onAddVital }: { onAddVital: (payload: CreateVitalRecordRequest) => Promise<void> }) => {
     mocks.vitalCallback = onAddVital;
     return null;
   },
@@ -364,7 +364,7 @@ describe("hospitalization child mutation permission boundaries", () => {
     expect(mocks.updateCarePlanItem).toHaveBeenCalledWith({
       itemId: "item-1",
       input: { type: "instruction", name: "更新", timing: ["morning"] },
-    }, expect.any(Object));
+    });
     expect(mocks.deleteCarePlanItem).toHaveBeenCalledWith("item-1", expect.any(Object));
   });
 

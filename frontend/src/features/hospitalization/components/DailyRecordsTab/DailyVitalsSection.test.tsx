@@ -10,8 +10,7 @@ describe("DailyVitalsSection responsive layout", () => {
     render(
       <DailyVitalsSection
         vitals={[]}
-        onAddVital={vi.fn()}
-        isPending={false}
+        onAddVital={vi.fn().mockResolvedValue(undefined)}
         canCreate
       />,
     );

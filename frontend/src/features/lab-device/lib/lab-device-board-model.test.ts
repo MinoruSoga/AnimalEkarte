@@ -159,6 +159,24 @@ describe("lab-device-board-model", () => {
     expect(slots[2]!.parity).toBeUndefined();
   });
 
+  // FE-RC-037: サーバ由来 JSON が配列でない場合、無検証キャストせず空配列にフォールバックする。
+  it.each([
+    ["オブジェクト", '{"key":"nx600"}'],
+    ["数値", "42"],
+    ["非JSON文字列", "not json"],
+    ["配列内の非オブジェクト要素は無視する", '[1, "x", {"key":"nx600","source_type":"fuji_nx600","device_hint":"NX600"}]'],
+  ])("不正な形状(%s)は空配列または有効要素のみへ落とす", (_name, json) => {
+    expect(() => parseLabDeviceSlots(json)).not.toThrow();
+  });
+
+  it("配列内の非オブジェクト要素を無視しつつ有効な要素は変換する", () => {
+    const slots = parseLabDeviceSlots(
+      '[1, "x", {"key":"nx600","source_type":"fuji_nx600","device_hint":"NX600"}]',
+    );
+    expect(slots).toHaveLength(1);
+    expect(slots[0]).toMatchObject({ key: "nx600", baud: 9600 });
+  });
+
   it("受信失敗を要因別のラベルと案内に分ける", () => {
     expect(labDeviceReceiveFailure(401).label).toBe("失敗（要ログイン）");
     expect(labDeviceReceiveFailure(401).message).toContain("再ログイン");

@@ -1,24 +1,24 @@
 // React/Framework
-import { C, ICON } from "@/lib/design-tokens";
-import { memo, useState, useCallback } from "react";
+import { memo, useActionState, useState, useCallback } from "react";
 
 // External
 import { Activity, Plus, Thermometer, Heart, Wind, Weight } from "lucide-react";
 
 // Internal
-import { Button } from "@/components/ui/button";
+import { C, ICON } from "@/lib/design-tokens";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NumberInput } from "@/components/shared/NumberInput/NumberInput";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 
 // Types
 import type { ApiVitalRecord, CreateVitalRecordRequest } from "../../api/daily-records-types";
 
 interface DailyVitalsSectionProps {
     vitals: ApiVitalRecord[];
-    onAddVital: (payload: CreateVitalRecordRequest) => void;
-    isPending: boolean;
+    onAddVital: (payload: CreateVitalRecordRequest) => Promise<void>;
     canCreate?: boolean;
 }
 
@@ -40,12 +40,18 @@ const INITIAL_FORM: VitalFormState = {
     notes: "",
 };
 
+interface VitalActionState {
+    error: string | null;
+}
+
+const INITIAL_ACTION_STATE: VitalActionState = { error: null };
+
 function getCurrentTime(): string {
     const now = new Date();
     return `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
 }
 
-export const DailyVitalsSection = memo(function DailyVitalsSection({ vitals, onAddVital, isPending, canCreate = false }: DailyVitalsSectionProps) {
+export const DailyVitalsSection = memo(function DailyVitalsSection({ vitals, onAddVital, canCreate = false }: DailyVitalsSectionProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [form, setForm] = useState<VitalFormState>(INITIAL_FORM);
 
@@ -63,21 +69,25 @@ export const DailyVitalsSection = memo(function DailyVitalsSection({ vitals, onA
         setForm((prev) => ({ ...prev, [name]: value }));
     }, []);
 
-    const handleSubmit = useCallback(() => {
-        if (!form.time) return;
+    const [state, formAction] = useActionState(
+        async (_prevState: VitalActionState, _formData: FormData): Promise<VitalActionState> => {
+            if (!form.time) return { error: "時刻は必須です" };
 
-        const payload: CreateVitalRecordRequest = {
-            time: form.time.length === 5 ? `${form.time}:00` : form.time,
-        };
-        if (form.temperature) payload.temperature = parseFloat(form.temperature);
-        if (form.heart_rate) payload.heart_rate = parseInt(form.heart_rate, 10);
-        if (form.respiration_rate) payload.respiration_rate = parseInt(form.respiration_rate, 10);
-        if (form.weight) payload.weight = parseFloat(form.weight);
-        if (form.notes) payload.notes = form.notes;
+            const payload: CreateVitalRecordRequest = {
+                time: form.time.length === 5 ? `${form.time}:00` : form.time,
+            };
+            if (form.temperature) payload.temperature = parseFloat(form.temperature);
+            if (form.heart_rate) payload.heart_rate = parseInt(form.heart_rate, 10);
+            if (form.respiration_rate) payload.respiration_rate = parseInt(form.respiration_rate, 10);
+            if (form.weight) payload.weight = parseFloat(form.weight);
+            if (form.notes) payload.notes = form.notes;
 
-        onAddVital(payload);
-        setIsOpen(false);
-    }, [form, onAddVital]);
+            await onAddVital(payload);
+            setIsOpen(false);
+            return { error: null };
+        },
+        INITIAL_ACTION_STATE,
+    );
 
     const sorted = [...vitals].sort((a, b) => a.time.localeCompare(b.time));
 
@@ -157,102 +167,105 @@ export const DailyVitalsSection = memo(function DailyVitalsSection({ vitals, onA
                             時刻、体温、心拍数、呼吸数、体重などのバイタルを記録します。
                         </DialogDescription>
                     </DialogHeader>
-                    <div className="space-y-3 py-2">
-                        <div>
-                            <Label htmlFor="vital-time" className="text-xs">
-                                時刻 <span className={C.textRequired}>*</span>
-                            </Label>
-                            <Input
-                                id="vital-time"
-                                name="time"
-                                type="time"
-                                value={form.time}
-                                onChange={handleChange}
-                                className="mt-1"
-                            />
+                    <form action={formAction} className="contents">
+                        {state.error ? (
+                            <p role="alert" className={`text-xs ${C.textNotionRed}`}>
+                                {state.error}
+                            </p>
+                        ) : null}
+                        <div className="space-y-3 py-2">
+                            <div>
+                                <Label htmlFor="vital-time" className="text-xs">
+                                    時刻 <span className={C.textRequired}>*</span>
+                                </Label>
+                                <Input
+                                    id="vital-time"
+                                    name="time"
+                                    type="time"
+                                    value={form.time}
+                                    onChange={handleChange}
+                                    className="mt-1"
+                                />
+                            </div>
+                            <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2">
+                                <div>
+                                    <Label htmlFor="vital-temp" className="text-xs">
+                                        体温 (℃)
+                                    </Label>
+                                    <NumberInput
+                                        id="vital-temp"
+                                        step={0.1}
+                                        value={form.temperature}
+                                        onChange={(v) => setForm((prev) => ({ ...prev, temperature: v }))}
+                                        placeholder="38.5"
+                                        suffix="℃"
+                                        className="mt-1"
+                                    />
+                                </div>
+                                <div>
+                                    <Label htmlFor="vital-hr" className="text-xs">
+                                        心拍数 (bpm)
+                                    </Label>
+                                    <NumberInput
+                                        id="vital-hr"
+                                        value={form.heart_rate}
+                                        onChange={(v) => setForm((prev) => ({ ...prev, heart_rate: v }))}
+                                        placeholder="80"
+                                        suffix="/min"
+                                        className="mt-1"
+                                    />
+                                </div>
+                                <div>
+                                    <Label htmlFor="vital-rr" className="text-xs">
+                                        呼吸数 (回/分)
+                                    </Label>
+                                    <NumberInput
+                                        id="vital-rr"
+                                        value={form.respiration_rate}
+                                        onChange={(v) => setForm((prev) => ({ ...prev, respiration_rate: v }))}
+                                        placeholder="20"
+                                        suffix="/min"
+                                        className="mt-1"
+                                    />
+                                </div>
+                                <div>
+                                    <Label htmlFor="vital-weight" className="text-xs">
+                                        体重 (kg)
+                                    </Label>
+                                    <NumberInput
+                                        id="vital-weight"
+                                        step={0.01}
+                                        value={form.weight}
+                                        onChange={(v) => setForm((prev) => ({ ...prev, weight: v }))}
+                                        placeholder="5.2"
+                                        suffix="kg"
+                                        className="mt-1"
+                                    />
+                                </div>
+                            </div>
+                            <div>
+                                <Label htmlFor="vital-notes" className="text-xs">
+                                    メモ
+                                </Label>
+                                <Input
+                                    id="vital-notes"
+                                    name="notes"
+                                    value={form.notes}
+                                    onChange={handleChange}
+                                    placeholder="特記事項"
+                                    className="mt-1"
+                                />
+                            </div>
                         </div>
-                        <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2">
-                            <div>
-                                <Label htmlFor="vital-temp" className="text-xs">
-                                    体温 (℃)
-                                </Label>
-                                <NumberInput
-                                    id="vital-temp"
-                                    step={0.1}
-                                    value={form.temperature}
-                                    onChange={(v) => setForm((prev) => ({ ...prev, temperature: v }))}
-                                    placeholder="38.5"
-                                    suffix="℃"
-                                    className="mt-1"
-                                />
-                            </div>
-                            <div>
-                                <Label htmlFor="vital-hr" className="text-xs">
-                                    心拍数 (bpm)
-                                </Label>
-                                <NumberInput
-                                    id="vital-hr"
-                                    value={form.heart_rate}
-                                    onChange={(v) => setForm((prev) => ({ ...prev, heart_rate: v }))}
-                                    placeholder="80"
-                                    suffix="/min"
-                                    className="mt-1"
-                                />
-                            </div>
-                            <div>
-                                <Label htmlFor="vital-rr" className="text-xs">
-                                    呼吸数 (回/分)
-                                </Label>
-                                <NumberInput
-                                    id="vital-rr"
-                                    value={form.respiration_rate}
-                                    onChange={(v) => setForm((prev) => ({ ...prev, respiration_rate: v }))}
-                                    placeholder="20"
-                                    suffix="/min"
-                                    className="mt-1"
-                                />
-                            </div>
-                            <div>
-                                <Label htmlFor="vital-weight" className="text-xs">
-                                    体重 (kg)
-                                </Label>
-                                <NumberInput
-                                    id="vital-weight"
-                                    step={0.01}
-                                    value={form.weight}
-                                    onChange={(v) => setForm((prev) => ({ ...prev, weight: v }))}
-                                    placeholder="5.2"
-                                    suffix="kg"
-                                    className="mt-1"
-                                />
-                            </div>
-                        </div>
-                        <div>
-                            <Label htmlFor="vital-notes" className="text-xs">
-                                メモ
-                            </Label>
-                            <Input
-                                id="vital-notes"
-                                name="notes"
-                                value={form.notes}
-                                onChange={handleChange}
-                                placeholder="特記事項"
-                                className="mt-1"
-                            />
-                        </div>
-                    </div>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={handleClose} size="sm">
-                            キャンセル
-                        </Button>
-                        <Button
-                            onClick={handleSubmit}
-                            disabled={!form.time || isPending}
-                            size="sm"
-                        >
-                            保存
-                        </Button>
-                    </DialogFooter>
+                        <DialogFooter>
+                            <Button type="button" variant="outline" onClick={handleClose} size="sm">
+                                キャンセル
+                            </Button>
+                            <SubmitButton size="sm" disabled={!form.time}>
+                                保存
+                            </SubmitButton>
+                        </DialogFooter>
+                    </form>
                 </DialogContent>
             </Dialog>
         </div>

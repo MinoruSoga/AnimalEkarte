@@ -1,12 +1,19 @@
-import { C, ICON } from "@/lib/design-tokens";
+// React/Framework
 import { memo } from "react";
+
+// External
 import { Plus, FileText } from "lucide-react";
+
+// Internal
+import { C, ICON } from "@/lib/design-tokens";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { TableCell, TableHead } from "@/components/ui/table";
 import { DeleteIconButton } from "@/components/shared/DeleteIconButton/DeleteIconButton";
 import { HospitalizationTreatmentPlan } from "@/types";
-import { H_STYLES } from "../styles";
+
+// Relative
+import { H_STYLES } from "../lib/styles";
 
 interface HospitalizationTreatmentTableProps {
   treatmentPlans: HospitalizationTreatmentPlan[];

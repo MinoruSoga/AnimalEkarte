@@ -35,7 +35,7 @@ import { HospitalizationBasicInfo } from "../components/HospitalizationBasicInfo
 import { HospitalizationNoteCard } from "../components/HospitalizationNoteCard";
 import { HospitalizationTreatmentTable } from "../components/HospitalizationTreatmentTable";
 import { HospitalizationCostSummary } from "../components/HospitalizationCostSummary";
-import { H_STYLES } from "../styles";
+import { H_STYLES } from "../lib/styles";
 import type { HospitalizationFormData } from "../types";
 import type { HospitalizationFormGate } from "./hospitalization-form-model";
 
@@ -286,6 +286,19 @@ interface HospitalizationFormFieldsProps {
   onRemoveTreatmentPlan: (id: string) => void;
 }
 
+// FE-RC-085: ネスト三項を早期return関数へ分解。
+function resolveNextVisitDate(formData: HospitalizationFormData): string | undefined {
+  if (formData.nextVisit) return formatDate(formData.nextVisit);
+  if (formData.endDate) return formatDate(formData.endDate);
+  return undefined;
+}
+
+function resolveNextVisitContent(formData: HospitalizationFormData): string | undefined {
+  if (formData.nextVisit) return "次回来院";
+  if (formData.endDate) return "退院予定";
+  return undefined;
+}
+
 function HospitalizationFormFields({
   selectedPet,
   formData,
@@ -326,8 +339,8 @@ function HospitalizationFormFields({
               insuranceName={selectedPet.insuranceName}
               insuranceDetails={selectedPet.insuranceDetails}
               status={selectedPet.status === "死亡" ? "deceased" : "alive"}
-              nextVisitDate={formData.nextVisit ? formatDate(formData.nextVisit) : formData.endDate ? formatDate(formData.endDate) : undefined}
-              nextVisitContent={formData.nextVisit ? "次回来院" : formData.endDate ? "退院予定" : undefined}
+              nextVisitDate={resolveNextVisitDate(formData)}
+              nextVisitContent={resolveNextVisitContent(formData)}
               onStaffClick={canSubmit ? onOpenStaffModal : undefined}
             />
         ) : null}

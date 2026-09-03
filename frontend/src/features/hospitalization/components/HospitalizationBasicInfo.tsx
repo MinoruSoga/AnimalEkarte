@@ -16,7 +16,7 @@ import { FormFieldError } from "@/components/shared/FormFieldError";
 import { NextScheduleField, calculateNextDate } from "@/components/shared/NextScheduleField";
 
 // Relative
-import { H_STYLES } from "../styles";
+import { H_STYLES } from "../lib/styles";
 
 // Types
 import type { MasterItem } from "@/types";

@@ -1,27 +1,22 @@
 // React/Framework
-import { C, ICON, LAYOUT } from "@/lib/design-tokens";
 import { useState, useDeferredValue, useCallback, useEffect, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router";
-
-// Hooks
-import { useSortableData } from "@/hooks/use-sortable-data";
 
 // External
 import { Plus, Package } from "lucide-react";
 
-// Types
-import type { ActiveFilter } from "@/components/shared/PropertyFilter/types";
-
 // Internal
+import { C, ICON, LAYOUT } from "@/lib/design-tokens";
+import { useSortableData } from "@/hooks/use-sortable-data";
+import { usePermission } from "@/hooks/use-permission";
 import { paths } from "@/config/paths";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
+import { ResourceInventory } from "@/types/generated/models";
 
 // Relative
 import { useInventoryList } from "../hooks/use-inventory";
-import { usePermission } from "@/hooks/use-permission";
-import { ResourceInventory } from "@/types/generated/models";
 import { InventoryListContent } from "./InventoryListPanels";
 import {
   INVENTORY_PAGE_SIZE,
@@ -31,6 +26,9 @@ import {
   nextListSearchParamsWithoutPage,
   resolveInventoryListFilters,
 } from "./inventory-list-model";
+
+// Types
+import type { ActiveFilter } from "@/components/shared/PropertyFilter/types";
 
 export function InventoryList() {
   const navigate = useNavigate();

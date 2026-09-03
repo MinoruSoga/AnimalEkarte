@@ -41,3 +41,13 @@ export function toHospitalizationWireStatus(
 /** httpapi.ParsePagination の既定値（page 未指定→1、limit/per_page 未指定→20）。 */
 export const HOSPITALIZATION_LIST_DEFAULT_PAGE = 1;
 export const HOSPITALIZATION_LIST_DEFAULT_LIMIT = 20;
+
+/**
+ * 臨床安全境界1（frontend/CLAUDE.md）: 死亡ペットは render 側でも操作要素自体を出さない。
+ * callback 側の拒否（二重防壁）と併せて使用し、非表示にした理由をユーザーに提示する。
+ */
+export const HOSPITALIZATION_DECEASED_BLOCK_MESSAGE = {
+  CARE_PLAN: "死亡したペットのため、ケアプランの追加・編集・削除はできません",
+  DAILY_RECORD: "死亡したペットのため、デイリーカルテの記録・追加はできません",
+  CHECK_IN: "死亡したペットのため、チェックインできません",
+} as const;

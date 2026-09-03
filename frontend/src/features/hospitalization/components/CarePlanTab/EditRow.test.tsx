@@ -58,7 +58,7 @@ describe("EditRow — type連動マスタ参照(BUG-403)", () => {
         const user = userEvent.setup();
         const onSave = vi.fn();
         const item: CarePlanItem = { ...baseItem, type: "medicine", medicine_id: "med-9", name: "既存投薬" };
-        render(<EditRow item={item} onSave={onSave} onCancel={vi.fn()} isSaving={false} />);
+        render(<EditRow item={item} onSave={onSave} onCancel={vi.fn()} />);
 
         await selectType(user, "処置・検査");
 
@@ -68,7 +68,7 @@ describe("EditRow — type連動マスタ参照(BUG-403)", () => {
     it("type=持ち物 で入院プランを選択して保存すると hospitalization_plan_id が payload に含まれる", async () => {
         const user = userEvent.setup();
         const onSave = vi.fn();
-        render(<EditRow item={baseItem} onSave={onSave} onCancel={vi.fn()} isSaving={false} />);
+        render(<EditRow item={baseItem} onSave={onSave} onCancel={vi.fn()} />);
 
         await selectType(user, "持ち物");
         await user.type(screen.getByLabelText("ref-select-stub"), "plan-1");
@@ -85,7 +85,7 @@ describe("EditRow — type連動マスタ参照(BUG-403)", () => {
     });
 
     it("type=指示・その他(参照不要)のままなら参照選択欄は表示されない", () => {
-        render(<EditRow item={baseItem} onSave={vi.fn()} onCancel={vi.fn()} isSaving={false} />);
+        render(<EditRow item={baseItem} onSave={vi.fn()} onCancel={vi.fn()} />);
         expect(screen.queryByLabelText("ref-select-stub")).not.toBeInTheDocument();
     });
 });

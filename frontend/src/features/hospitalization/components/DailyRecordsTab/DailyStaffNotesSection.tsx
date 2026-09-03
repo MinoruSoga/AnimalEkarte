@@ -1,11 +1,11 @@
 // React/Framework
-import { C, ICON } from "@/lib/design-tokens";
 import { memo, useState, useCallback } from "react";
 
 // External
 import { MessageSquare, Plus } from "lucide-react";
 
 // Internal
+import { C, ICON } from "@/lib/design-tokens";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";

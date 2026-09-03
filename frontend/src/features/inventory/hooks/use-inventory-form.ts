@@ -1,6 +1,5 @@
 import { useState, useActionState } from "react";
 import { toast } from "sonner";
-import { handleApiError } from "@/lib/handle-api-error";
 import {
   isNonDisclosureReadStatus,
   resolveEntityReadResult,
@@ -57,7 +56,7 @@ export function useInventoryForm(id?: string) {
 
   const [prevExistingItem, setPrevExistingItem] = useState(existingItem);
   const [category, setCategory] = useState<InventoryItem["category"]>(
-    (existingItem?.category as InventoryItem["category"]) ?? "medicine"
+    existingItem?.category ?? "medicine"
   );
   const [expiryDate, setExpiryDate] = useState("");
   const [lastRestocked, setLastRestocked] = useState("");
@@ -65,7 +64,7 @@ export function useInventoryForm(id?: string) {
   if (prevExistingItem !== existingItem) {
     setPrevExistingItem(existingItem);
     if (existingItem?.category) {
-      setCategory(existingItem.category as InventoryItem["category"]);
+      setCategory(existingItem.category);
     }
   }
 
@@ -105,8 +104,9 @@ export function useInventoryForm(id?: string) {
           toast.success("在庫情報を登録しました");
         }
         return { success: true, timestamp: Date.now() };
-      } catch (error) {
-        handleApiError(error, "保存");
+      } catch {
+        // FE-RC-005: useCreateInventoryItem / useUpdateInventoryItem の onError が
+        // 既に handleApiError でトースト表示済みのため、ここでは重複させない。
         return { success: false, timestamp: Date.now() };
       }
     },

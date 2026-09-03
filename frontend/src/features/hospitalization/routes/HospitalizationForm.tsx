@@ -1,7 +1,6 @@
 import { useCallback, useLayoutEffect, useRef, useTransition, useState } from "react";
 import { useNavigate, useParams, useLocation, useSearchParams } from "react-router";
 
-import { handleApiError } from "@/lib/handle-api-error";
 import { usePermission } from "@/hooks/use-permission";
 import { useHospitalizationForm } from "../hooks/use-hospitalization-form";
 import { useDeleteHospitalization } from "../api/delete-hospitalization";
@@ -43,11 +42,12 @@ export function HospitalizationForm() {
       petIsDeceasedRef.current === true
     ) return;
     startDeleteTransition(() => {
+      // FE-RC-005: useDeleteHospitalization.onError が既に handleApiError でトースト表示済みのため、
+      // ここでは再通知しない。
       deleteMutation.mutate(hospitalizationId, {
         onSuccess: () => {
           navigate(paths.hospitalization.getHref());
         },
-        onError: (error) => handleApiError(error, "削除"),
       });
     });
   }, [hospitalizationId, deleteMutation, navigate]);

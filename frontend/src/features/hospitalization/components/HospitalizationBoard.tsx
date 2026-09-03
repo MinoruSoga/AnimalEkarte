@@ -1,6 +1,4 @@
 // React/Framework
-import { C, ICON } from "@/lib/design-tokens";
-import { formatDate } from "@/lib/format/date";
 import { memo, useCallback, useMemo } from "react";
 
 // External
@@ -15,16 +13,18 @@ import {
 } from "@dnd-kit/core";
 import { useDraggable, useDroppable } from "@dnd-kit/core";
 import { Plus, GripVertical } from "lucide-react";
-import { cageKeyboardCoordinateGetter } from "./cage-keyboard-coordinates";
 
 // Internal
+import { C, ICON } from "@/lib/design-tokens";
+import { formatDate } from "@/lib/format/date";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { getHospitalizationTypeColor } from "@/lib/status-helpers";
 
 // Relative
-import { H_STYLES } from "../styles";
+import { cageKeyboardCoordinateGetter } from "../lib/cage-keyboard-coordinates";
+import { H_STYLES } from "../lib/styles";
 
 // Types
 import type { MasterItem, Hospitalization } from "@/types";
@@ -51,7 +51,9 @@ const CageCard = memo(function CageCard({ cage, occupant, onNavigateToForm, canC
     const cageContext = cage.category ? `${cage.category} ${cage.name}` : cage.name;
     const emptyCageActionLabel = `${cageContext}（ケージID: ${cage.id}）の空き枠に入院・ホテルを登録`;
     const canDrag = Boolean(occupant) && !isDeceased && canEdit;
-    const canOpenCard = Boolean(occupant) && !isDeceased && canEdit;
+    // FE-RC-044: 詳細への遷移は :127-138 の `詳細` button（aria-label 付き）に一本化する。
+    // Card 自体は非フォーカス可能・キーボード操作不可のため、同じ操作を onClick で重複させない。
+    const canShowDetailButton = Boolean(occupant) && !isDeceased && canEdit;
 
     const {
         attributes,
@@ -85,11 +87,8 @@ const CageCard = memo(function CageCard({ cage, occupant, onNavigateToForm, canC
                   }
                   ${isDragging ? 'opacity-50 scale-95' : 'hover:shadow-level1'}
                   ${isOver ? `ring-2 ${C.ringMedicalBlue} ring-offset-2 ${C.bgMedicalBlue5}` : ''}
-                  ${canOpenCard ? 'cursor-pointer' : 'cursor-default'}
+                  ${canDrag ? 'cursor-grab active:cursor-grabbing' : 'cursor-default'}
                 `}
-                onClick={
-                  canOpenCard && occupant ? () => onNavigateToForm(occupant.id) : undefined
-                }
             >
                 <CardHeader className={`${H_STYLES.padding.card} pb-0 flex flex-row items-center justify-between space-y-0`}>
                   <div className="flex items-center gap-1">
@@ -123,7 +122,7 @@ const CageCard = memo(function CageCard({ cage, occupant, onNavigateToForm, canC
                       {isDeceased ? (
                         <span className={`text-xs ${C.text40} font-medium`}>死亡</span>
                       ) : null}
-                      {canOpenCard ? (
+                      {canShowDetailButton ? (
                         <button
                           type="button"
                           aria-label={`${occupant.petName}の詳細`}
@@ -174,11 +173,12 @@ export const HospitalizationBoard = memo(function HospitalizationBoard({ cages, 
     const { active, over } = event;
     if (!over) return;
 
-    const hospitalizationId = active.data.current?.hospitalizationId as string | undefined;
-    if (!hospitalizationId) return;
+    // FE-RC-037: dnd-kit の data/id は unknown 相当のため、無検証キャストせず typeof で確認する。
+    const hospitalizationId = active.data.current?.hospitalizationId;
+    if (typeof hospitalizationId !== "string" || !hospitalizationId) return;
 
-    const overId = over.id as string;
-    if (!overId.startsWith("cage-")) return;
+    const overId = over.id;
+    if (typeof overId !== "string" || !overId.startsWith("cage-")) return;
 
     const targetCageId = overId.replace("cage-", "");
     onMovePet(hospitalizationId, targetCageId);

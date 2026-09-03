@@ -1,5 +1,5 @@
 import { memo } from "react";
-import { H_STYLES } from "../styles";
+import { H_STYLES } from "../lib/styles";
 import { C } from "@/lib/design-tokens";
 
 interface HospitalizationCostSummaryProps {
