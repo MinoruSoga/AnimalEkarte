@@ -366,6 +366,15 @@ func TestCreateCheckupSync(t *testing.T) {
 			body:       map[string]any{"checkup_type": "annual", "owner_ids": []string{"1"}, "tag_name": "invalid tag!"},
 			svc:        &mockCheckupSyncService{},
 			wantStatus: http.StatusBadRequest,
+			wantBody:   "tag_name は英数字・アンダースコア・ハイフンのみ使用可能です（1〜100文字）",
+		},
+		{
+			name:       "returns 400 when owner_ids are not numeric",
+			setupCtx:   func(c *gin.Context) { setClinicID(c); c.Set("user_id", "10") },
+			body:       map[string]any{"checkup_type": "annual", "owner_ids": []string{"x"}, "tag_name": "annual_checkup"},
+			svc:        &mockCheckupSyncService{},
+			wantStatus: http.StatusBadRequest,
+			wantBody:   "owner_ids の値が不正です",
 		},
 		{
 			name:     "returns 500 on service error",

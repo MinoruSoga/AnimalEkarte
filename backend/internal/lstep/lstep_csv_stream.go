@@ -17,7 +17,20 @@ import (
 
 const (
 	csvPreflightBufferBytes = 4 * 1024
+	csvFormatInvalidMsg     = "CSVの形式が正しくありません"
 )
+
+// csvClientError maps CSV parse failures to a fixed client message.
+// Already-classified invalid-input errors (shape limits, empty file) pass through.
+func csvClientError(err error) error {
+	if err == nil {
+		return nil
+	}
+	if apperrors.IsInvalidInput(err) {
+		return err
+	}
+	return apperrors.WrapInvalidInput(csvFormatInvalidMsg)
+}
 
 type csvLexicalState uint8
 
@@ -78,14 +91,14 @@ func preflightCSVShape(input io.Reader) error {
 	addCellByte := func() error {
 		cellBytes++
 		if cellBytes > maxCSVCellBytes {
-			return fmt.Errorf("CSV cell exceeds %d byte limit", maxCSVCellBytes)
+			return apperrors.WrapInvalidInput(fmt.Sprintf("CSV cell exceeds %d byte limit", maxCSVCellBytes))
 		}
 		return nil
 	}
 	finishField := func() error {
 		columns++
 		if columns > maxCSVColumns {
-			return fmt.Errorf("CSV column count exceeds %d column limit", maxCSVColumns)
+			return apperrors.WrapInvalidInput(fmt.Sprintf("CSV column count exceeds %d column limit", maxCSVColumns))
 		}
 		cellBytes = 0
 		state = csvFieldStart
@@ -105,7 +118,7 @@ func preflightCSVShape(input io.Reader) error {
 		}
 		records++
 		if records > maxCSVDataRows+1 {
-			return fmt.Errorf("CSV row count exceeds %d row limit", maxCSVDataRows)
+			return apperrors.WrapInvalidInput(fmt.Sprintf("CSV row count exceeds %d row limit", maxCSVDataRows))
 		}
 		columns = 1
 		cellBytes = 0
@@ -132,7 +145,7 @@ func preflightCSVShape(input io.Reader) error {
 		current, err := reader.ReadByte()
 		if errors.Is(err, io.EOF) {
 			if !recordStarted && records == 0 {
-				return fmt.Errorf("CSV file is empty")
+				return apperrors.WrapInvalidInput("CSV file is empty")
 			}
 			if state == csvQuotedField {
 				return fmt.Errorf("failed to parse CSV: unclosed quoted field")
@@ -268,11 +281,11 @@ func consumeOptionalLF(reader *bufio.Reader) {
 
 func validateDecodedCSVRecord(record []string) error {
 	if len(record) > maxCSVColumns {
-		return fmt.Errorf("CSV column count exceeds %d column limit", maxCSVColumns)
+		return apperrors.WrapInvalidInput(fmt.Sprintf("CSV column count exceeds %d column limit", maxCSVColumns))
 	}
 	for _, cell := range record {
 		if len(cell) > maxCSVCellBytes {
-			return fmt.Errorf("CSV cell exceeds %d byte limit", maxCSVCellBytes)
+			return apperrors.WrapInvalidInput(fmt.Sprintf("CSV cell exceeds %d byte limit", maxCSVCellBytes))
 		}
 	}
 	return nil

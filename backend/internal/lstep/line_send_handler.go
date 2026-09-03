@@ -42,8 +42,8 @@ func (h *LineSendHandler) SendLineMessage(c *gin.Context) {
 		return
 	}
 
-	if req.MessageType == "text" && len([]rune(req.Text)) > 500 {
-		httpapi.RespondError(c, apperrors.WrapInvalidInput("テキストは500文字以内で入力してください"))
+	if req.MessageType == "text" && len([]rune(req.Text)) > 5000 {
+		httpapi.RespondError(c, apperrors.WrapInvalidInput("テキストは5000文字以内で入力してください"))
 		return
 	}
 

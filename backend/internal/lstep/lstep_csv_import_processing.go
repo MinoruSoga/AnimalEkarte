@@ -94,13 +94,13 @@ func (s *lstepCsvImportService) processFriendAttributeRows(
 			break
 		}
 		if err != nil {
-			return nil, apperrors.WrapInvalidInput("failed to parse CSV: " + err.Error())
+			return nil, csvClientError(err)
 		}
 		if result.rowCount >= maxCSVDataRows {
 			return nil, apperrors.WrapInvalidInput("CSV row count exceeds limit")
 		}
 		if err := validateDecodedCSVRecord(row); err != nil {
-			return nil, apperrors.WrapInvalidInput(err.Error())
+			return nil, csvClientError(err)
 		}
 
 		result.rowCount++

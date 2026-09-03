@@ -60,7 +60,7 @@ func (h *Handler) CreateCheckupSync(c *gin.Context) {
 
 	input, err := req.toServiceInput()
 	if err != nil {
-		httpapi.RespondError(c, apperrors.WrapInvalidInput(err.Error()))
+		httpapi.RespondError(c, err)
 		return
 	}
 

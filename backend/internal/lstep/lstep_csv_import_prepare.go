@@ -26,7 +26,7 @@ func decodePreflightAndReadCSVHeader(tempCSV *os.File) (*csv.Reader, []string, e
 		return nil, nil, err
 	}
 	if err := preflightCSVShape(preflightReader); err != nil {
-		return nil, nil, apperrors.WrapInvalidInput(err.Error())
+		return nil, nil, csvClientError(err)
 	}
 	decoded, err := newDecodedCSVReader(tempCSV)
 	if err != nil {
@@ -41,10 +41,10 @@ func decodePreflightAndReadCSVHeader(tempCSV *os.File) (*csv.Reader, []string, e
 		return nil, nil, apperrors.WrapInvalidInput("CSV file is empty")
 	}
 	if err != nil {
-		return nil, nil, apperrors.WrapInvalidInput("failed to parse CSV: " + err.Error())
+		return nil, nil, csvClientError(err)
 	}
 	if err := validateDecodedCSVRecord(header); err != nil {
-		return nil, nil, apperrors.WrapInvalidInput(err.Error())
+		return nil, nil, csvClientError(err)
 	}
 	return reader, header, nil
 }

@@ -96,7 +96,7 @@ func (s *lstepCsvImportService) ImportFriendAttributesCSV(ctx context.Context, c
 	colIdx, err := resolveCsvHeaders(header)
 	if err != nil {
 		s.createFriendAttributeImport(ctx, clinicID, fileName, uploadedByAccountID, csvImportStatusFailed) //nolint:errcheck // failed-import row is best-effort; header error is returned below
-		return nil, apperrors.WrapInvalidInput(err.Error())
+		return nil, csvClientError(err)
 	}
 
 	// 5. processing レコード作成（メイン TX 外 — TX 失敗時も残る）
